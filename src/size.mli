@@ -8,8 +8,5 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
-open Mtl
-
-val hp: formula -> int
-val hf: formula -> int
-val height: formula -> int
+val size: expl -> int
+val size_le: expl -> expl -> bool
