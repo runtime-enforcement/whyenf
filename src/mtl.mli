@@ -9,6 +9,7 @@
 (*******************************************************************)
 
 open Util
+open Interval
 open Hashcons
 
 type formula_ =
@@ -53,6 +54,8 @@ val weak_until: interval -> formula -> formula -> formula
 val trigger: interval -> formula -> formula -> formula
 
 val atoms: formula -> string list
+
+val mem_word: string list list -> int -> string -> bool
 
 (* val optimal_proof: lasso -> (expl -> expl -> bool) -> formula -> expl
  * val check_proof: lasso -> formula -> expl -> bool

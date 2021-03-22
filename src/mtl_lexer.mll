@@ -8,7 +8,7 @@
 (*  Dmitriy Traytel (ETH Zürich)                                   *)
 (*******************************************************************)
 
-open Util
+open Interval
 open Mtl_parser
 open Mtl
 

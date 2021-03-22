@@ -9,12 +9,12 @@
  *******************************************************************/
 
 %{
-open Util
+open Interval        
 open Mtl
 %}
 
 %token <string> ATOM
-%token <Util.interval> INTERVAL
+%token <Interval.interval> INTERVAL
 %token LOPEN ROPEN
 %token FALSE TRUE NEG CONJ DISJ IMPL IFF EOF
 %token SINCE UNTIL WUNTIL RELEASE TRIGGER
