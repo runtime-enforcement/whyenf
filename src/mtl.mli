@@ -31,6 +31,9 @@ type formula_ =
   | Until of interval * formula * formula
 and formula = formula_ hash_consed
 
+val hash: formula -> int
+val value: formula -> formula_
+
 val tt: formula
 val ff: formula
 val p: string -> formula
@@ -55,7 +58,7 @@ val trigger: interval -> formula -> formula -> formula
 
 val atoms: formula -> string list
 
-val mem_word: string list list -> int -> string -> bool
+(* val mem_word: string list list -> int -> string -> bool *)
 
 (* val optimal_proof: lasso -> (expl -> expl -> bool) -> formula -> expl
  * val check_proof: lasso -> formula -> expl -> bool
