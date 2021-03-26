@@ -13,10 +13,6 @@ open Expl
 open Interval
 open Hashcons
 
-(* Hash-consing related *)
-let hash x = x.hkey
-let head x = x.node
-
 (* MTL formulas *)
 type formula_ =
   | TT
@@ -36,6 +32,10 @@ type formula_ =
   | Since of interval * formula * formula
   | Until of interval * formula * formula
 and formula = formula_ hash_consed
+
+(* Hash-consing related *)
+let hash x = x.hkey
+let value x = x.node
 
 (* Word: finite string of letters *)
 (* Check what would be better (string list or string) *)
@@ -113,28 +113,116 @@ let rec atoms x = match x.node with
   | Until (i, f1, f2) | Since (i, f1, f2) ->
      List.sort_uniq String.compare (List.append (atoms f1) (atoms f2))
 
-let mem_word w i c =
-  if i < List.length w
-  then List.mem c (List.nth w i)
-  else invalid_arg "List.mem"
+(* let mem_word w i c =
+ *   if i < List.length w
+ *   then List.mem c (List.nth w i)
+ *   else invalid_arg "List.mem" *)
 
-(* Monitoring algorithm *)
-(* TODO: It might be better to create a separate file, think *)
-type mbuf2 = expl list * expl list
-type msaux = (timestamp * expl) list
-type muaux = (timestamp * expl * expl) list
+(***********************************
+ *                                 *
+ * wqo: Height                     *
+ *                                 *
+ ***********************************)
 
-type mformula =
-  | MAnd of mformula * bool * mformula * mbuf2
-  | MOr of mformula * mformula * mbuf2
-  | MPrev of interval * mformula * bool * expl list * ts_desc_list
-  | MNext of interval * mformula * bool * ts_asc_list
-  | MSince of bool * mformula * interval * mformula * mbuf2 * ts_desc_list * msaux
-  | MUntil of bool * mformula * interval * mformula * mbuf2 * ts_asc_list * muaux
+(* Past height *)
+let rec hp x = match x.node with
+  | TT | FF | P _ -> 0
+  | Neg f -> hp f
+  | Conj (f1, f2) | Disj (f1, f2)
+  | Impl (f1, f2) | Iff (f1, f2) -> max (hp f1) (hp f2)
+  | Until (i, f1, f2) -> max (hp f1) (hp f2)
+  | Next (i, f) | Always (i, f) | Eventually (i, f) -> hp f
+  | Prev (i, f) | Once (i, f) | Historically (i, f) -> hp f + 1
+  | Since (i, f1, f2) -> max (hp f1) (hp f2) + 1
 
-type mstate = timepoint * mformula
+(* Future height *)
+let rec hf x = match x.node with
+  | TT | FF | P _ -> 0
+  | Neg f -> hf f
+  | Conj (f1, f2) | Disj (f1, f2)
+  | Impl (f1, f2) | Iff (f1, f2) -> max (hf f1) (hf f2)
+  | Since (i, f1, f2) -> max (hf f1) (hf f2)
+  | Prev (i, f) | Once (i, f) | Historically (i, f) -> hf f
+  | Next (i, f) | Always (i, f) | Eventually (i, f) -> hf f + 1
+  | Until (i, f1, f2) -> max (hf f1) (hf f2) + 1
 
-(* let minit0 i f = *)
-  
+let height f = hp f + hf f
 
+(***********************************
+ *                                 *
+ * wqo: Size                       *
+ *                                 *
+ ***********************************)
 
+let rec s_size = function
+  | STT i -> 1
+  | SAtom (i, _) -> 1
+  | SNeg expl -> 1 + v_size expl
+  | SPrev expl -> 1 + s_size expl
+  | SOnce (i, expl) -> 1 + s_size expl
+  | SHistorically expls -> 1 + sum s_size expls
+  | SNext expl -> 1 + s_size expl
+  | SEventually (i, expl) -> 1 + s_size expl
+  | SAlways expls -> 1 + sum s_size expls
+  | SConj (sphi, spsi) -> 1 + s_size sphi + s_size spsi
+  | SDisjL sphi -> 1 + s_size sphi
+  | SDisjR spsi -> 1 + s_size spsi
+  | SImplL vphi -> 1 + v_size vphi
+  | SImplR spsi -> 1 + s_size spsi
+  | SIffS (sphi, spsi) -> 1 + s_size sphi + s_size spsi
+  | SIffV (vphi, vpsi) -> 1 + v_size vphi + v_size vpsi
+  | SSince (spsi, sphis) -> 1 + s_size spsi + sum s_size sphis
+  | SUntil (spsi, sphis) -> 1 + s_size spsi + sum s_size sphis
+and v_size = function
+  | VFF i -> 1
+  | VAtom (i, _) -> 1
+  | VNeg sphi -> 1 + s_size sphi
+  | VDisj (vphi, vpsi) -> 1 + v_size vphi + v_size vpsi
+  | VConjL vphi -> 1 + v_size vphi
+  | VConjR vpsi -> 1 + v_size vpsi
+  | VImpl (sphi, vpsi) -> 1 + s_size sphi + v_size vpsi
+  | VIffL (sphi, vpsi) -> 1 + s_size sphi + v_size vpsi
+  | VIffR (vphi, spsi) -> 1 + v_size vphi + s_size spsi
+  | VPrev vphi -> 1 + v_size vphi
+  | VPrev0 -> 1
+  | VOnce expls -> 1 + sum v_size expls
+  | VHistorically (i, expl) -> 1 + v_size expl
+  | VNext vphi -> 1 + v_size vphi
+  | VEventually expls -> 1 + sum v_size expls
+  | VAlways (i, expl) -> 1 + v_size expl
+  | VSince (vphi, vpsis) -> 1 + v_size vphi + sum v_size vpsis
+  | VSincew vpsis-> 1 + sum v_size vpsis
+  | VUntilw vpsis -> 1 + sum v_size vpsis
+  | VUntil (vphi, vpsis) -> 1 + v_size vphi + sum v_size vpsis
+
+let size = function
+  | S s_p -> s_size s_p
+  | V v_p -> v_size v_p
+
+let size_le = mk_le size
+
+let minsize a b = if size a <= size b then a else b
+let minsize_list = function
+  | [] -> failwith "empty list for minsize_list"
+  | x::xs -> List.fold_left minsize x xs
+
+(***********************************
+ *                                 *
+ * Algorithm: Computing optimal    *
+ *            proofs               *
+ *                                 *
+ ***********************************)
+
+let doDisj minimum expl_f1 expl_f2 =
+  match expl_f1, expl_f2 with
+  | S f1, S f2 -> minimum (SDisjL (f1)) (SDisjR(f2))
+  | S f1, V _ -> SDisjL (f1)
+  | V _, S f2 -> SDisjR (f2)
+  | V f1, V f2 -> VDisj (f1, f2)
+
+let doConj minimum expl_f1 expl_f2 =
+  match expl_f1, expl_f2 with
+  | S f1, S f2 -> SConj (f1, f2)
+  | S _, V f2 -> VConjR (f2)
+  | V f1, S _ -> VConjL (f1)
+  | V f1, V f2 -> minimum (VConjL (f1)) (VConjR (f2))

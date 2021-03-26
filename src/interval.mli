@@ -29,5 +29,5 @@ val multiply_I: int -> interval -> interval
 val case_I: (binterval -> 'a) -> (uinterval -> 'a) -> interval -> 'a
 val interval_to_string: interval -> string
 val lex_interval: (unit -> interval) -> char -> string -> string -> char -> interval
-val etp: timestamp -> ts_asc_list -> timestamp
-val ltp: timestamp -> ts_desc_list -> timestamp
+val etp: ts -> ts_asc_list -> ts
+val ltp: ts -> ts_desc_list -> ts

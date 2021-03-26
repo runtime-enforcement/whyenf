@@ -50,3 +50,8 @@ and vexpl =
   | VUntilw of vexpl list
 
 type expl = S of sexpl | V of vexpl
+
+val sappend: sexpl -> sexpl -> sexpl
+val vappend: vexpl -> vexpl -> vexpl
+val slift: sexpl -> sexpl
+val vlift: vexpl -> vexpl
