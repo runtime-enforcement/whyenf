@@ -17,6 +17,11 @@ type uinterval = UI of int
 type binterval = BI of int * int 
 type interval = B of binterval | U of uinterval
 
+(* Given a ts and an interval, check if 
+   ts < i OR ts \in i OR ts > i 
+ *)
+type rel = Below | Inside | Above
+
 let case_I f1 f2 = function
   | B i -> f1 i
   | U i -> f2 i
@@ -46,9 +51,39 @@ let multiply_UI n (UI i) = UI (i*n)
 let multiply_BI n (BI (i, j)) = BI(i*n,j*n)
 let multiply_I n = map_I (multiply_BI n) (multiply_UI n)
 
+(* Check if t \in interval *)
 let mem_UI t (UI l) = l <= t
 let mem_BI t (BI (l, r)) = l <= t && t <= r
 let mem_I t = case_I (mem_BI t) (mem_UI t)
+
+(* Check if t < interval *)
+let below_UI t (UI l) = t < l
+let below_BI t (BI (l, r)) = t < l
+let below_I t = case_I (below_BI t) (below_UI t)
+
+(* Check if t > interval *)
+let above_UI t (UI l) = false
+let above_BI t (BI (l, r)) = t > r
+let above_I t = case_I (above_BI t) (above_UI t)
+
+let where_UI t (UI l) =
+  let b = below_UI t (UI l) in
+  let a = above_UI t (UI l) in
+  match b, a with
+  | true, false -> Below 
+  | false, false -> Inside
+  | _ , _ -> failwith "There is a problem with intervals"
+
+let where_BI t (BI (l, r)) =
+  let b = below_BI t (BI (l, r)) in
+  let a = above_BI t (BI (l, r)) in
+  match b, a with
+  | true, false -> Below
+  | false, true -> Above
+  | false, false -> Inside
+  | _ , _ -> failwith "There is a problem with intervals"
+
+let where_I t = case_I (where_BI t) (where_UI t)
 
 (* TODO: This might not be the best 
    place for these functions 
