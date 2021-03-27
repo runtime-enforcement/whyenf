@@ -183,10 +183,14 @@ and v_size = function
   | VImpl (sphi, vpsi) -> 1 + s_size sphi + v_size vpsi
   | VIffL (sphi, vpsi) -> 1 + s_size sphi + v_size vpsi
   | VIffR (vphi, spsi) -> 1 + v_size vphi + s_size spsi
-  | VPrev vphi -> 1 + v_size vphi
   | VPrev0 -> 1
+  | VPrevB i -> 1
+  | VPrevA i -> 1
+  | VPrev vphi -> 1 + v_size vphi
   | VOnce expls -> 1 + sum v_size expls
   | VHistorically (i, expl) -> 1 + v_size expl
+  | VNextB i -> 1
+  | VNextA i -> 1
   | VNext vphi -> 1 + v_size vphi
   | VEventually expls -> 1 + sum v_size expls
   | VAlways (i, expl) -> 1 + v_size expl
@@ -215,14 +219,32 @@ let minsize_list = function
 
 let doDisj minimum expl_f1 expl_f2 =
   match expl_f1, expl_f2 with
-  | S f1, S f2 -> minimum (SDisjL (f1)) (SDisjR(f2))
-  | S f1, V _ -> SDisjL (f1)
-  | V _, S f2 -> SDisjR (f2)
-  | V f1, V f2 -> VDisj (f1, f2)
+  | S f1, S f2 -> minimum (S (SDisjL (f1))) (S (SDisjR(f2)))
+  | S f1, V _ -> S (SDisjL (f1))
+  | V _, S f2 -> S (SDisjR (f2))
+  | V f1, V f2 -> V (VDisj (f1, f2))
 
 let doConj minimum expl_f1 expl_f2 =
   match expl_f1, expl_f2 with
-  | S f1, S f2 -> SConj (f1, f2)
-  | S _, V f2 -> VConjR (f2)
-  | V f1, S _ -> VConjL (f1)
-  | V f1, V f2 -> minimum (VConjL (f1)) (VConjR (f2))
+  | S f1, S f2 -> S (SConj (f1, f2))
+  | S _, V f2 -> V (VConjR (f2))
+  | V f1, S _ -> V (VConjL (f1))
+  | V f1, V f2 -> minimum (V (VConjL (f1))) (V (VConjR (f2)))
+
+let doPrev minimum i interval ts expl =
+  match expl, where_I ts interval with
+  | S _ , Below -> V (VPrevB (i))
+  | S f , Inside -> S (SPrev (f))
+  | S _ , Above -> V (VPrevA (i))
+  | V f , Below -> minimum (V (VPrev (f))) (V (VPrevB (i)))
+  | V f , Inside -> V (VPrev (f))
+  | V f , Above -> minimum (V (VPrev (f))) (V (VPrevA (i)))
+
+let doNext minimum i interval ts expl =
+  match expl, where_I ts interval with
+  | S _ , Below -> V (VNextB (i))
+  | S f , Inside -> S (SNext (f))
+  | S _ , Above -> V (VNextA (i))
+  | V f , Below -> minimum (V (VNext (f))) (V (VNextB (i)))
+  | V f , Inside -> V (VNext (f))
+  | V f , Above -> minimum (V (VNext (f))) (V (VNextA (i)))
