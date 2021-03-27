@@ -38,9 +38,13 @@ and vexpl =
   | VIffL of sexpl * vexpl
   | VIffR of vexpl * sexpl
   | VPrev0
+  | VPrevB of int
+  | VPrevA of int
   | VPrev of vexpl
   | VOnce of vexpl list
   | VHistorically of int * vexpl
+  | VNextB of int
+  | VNextA of int
   | VNext of vexpl
   | VEventually of vexpl list
   | VAlways of int * vexpl
