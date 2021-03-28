@@ -48,10 +48,10 @@ and vexpl =
   | VNext of vexpl
   | VEventually of vexpl list
   | VAlways of int * vexpl
-  | VSince of vexpl * vexpl list
-  | VSincew of vexpl list
-  | VUntil of vexpl * vexpl list
-  | VUntilw of vexpl list
+  | VSince of int * vexpl * vexpl list
+  | VSinceInf of int * vexpl list
+  | VUntil of int * vexpl * vexpl list
+  | VUntilInf of int * vexpl list
 
 type expl = S of sexpl | V of vexpl
 
@@ -67,26 +67,26 @@ let expl_to_bool = function
 
 let sappend sp' sp_f1 = match sp' with
   | SSince (sp_f2, sp_f1s) -> SSince (sp_f2, List.append sp_f1s [sp_f1])
-  | SHistorically sp_f1s -> SHistorically (List.append sp_f1s [sp_f1])
   | SUntil (sp_f2, sp_f1s) -> SUntil (sp_f2, sp_f1 :: sp_f1s)
-  | SAlways sp_f1s -> SAlways (sp_f1 :: sp_f1s)
-  | _ -> failwith "bad arguments for sappend"
+  (* | SHistorically sp_f1s -> SHistorically (List.append sp_f1s [sp_f1])
+   * | SAlways sp_f1s -> SAlways (sp_f1 :: sp_f1s) *)
+  | _ -> failwith "Bad arguments for sappend"
 
 let vappend vp' vp_f2 = match vp' with
-  | VSince (vp_f1, vp_f2s) -> VSince (vp_f1, List.append vp_f2s [vp_f2])
-  | VSincew vp_f2s -> VSincew (List.append vp_f2s [vp_f2])
-  | VOnce vp_f2s -> VOnce (List.append vp_f2s [vp_f2])
-  | VUntil (vp_f1, vp_f2s) -> VUntil (vp_f1, vp_f2 :: vp_f2s)
-  | VUntilw vp_f2s -> VUntilw (vp_f2 :: vp_f2s)
-  | VEventually vp_f2s -> VEventually (vp_f2 :: vp_f2s)
-  | _ -> failwith "bad arguments for vappend"
+  | VSince (i, vp_f1, vp_f2s) -> VSince (i, vp_f1, List.append vp_f2s [vp_f2])
+  | VSinceInf (i, vp_f2s) -> VSinceInf (i, List.append vp_f2s [vp_f2])
+  | VUntil (i, vp_f1, vp_f2s) -> VUntil (i, vp_f1, vp_f2 :: vp_f2s)
+  | VUntilInf (i, vp_f2s) -> VUntilInf (i, vp_f2 :: vp_f2s)
+  (* | VOnce vp_f2s -> VOnce (List.append vp_f2s [vp_f2])
+   * | VEventually vp_f2s -> VEventually (vp_f2 :: vp_f2s) *)
+  | _ -> failwith "Bad arguments for vappend"
 
 let slift = function
   | SOnce (i, sp) -> SOnce (i + 1, sp)
   | SEventually (i, sp) -> SEventually (i - 1, sp)
-  | _ -> failwith "bad arguments for slift"
+  | _ -> failwith "Bad arguments for slift"
 
 let vlift = function
   | VHistorically (i, vp) -> VHistorically (i + 1, vp)
   | VAlways (i, vp) -> VAlways (i - 1, vp)
-  | _ -> failwith "bad arguments for vlift"
+  | _ -> failwith "Bad arguments for vlift"
