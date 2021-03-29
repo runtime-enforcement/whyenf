@@ -14,7 +14,7 @@ Explanator2 depends on a recent (>= 4.04.0) version of the OCaml compiler.
 
 We recommend that you install the OCaml compiler and necessary libraries with [OPAM](https://opam.ocaml.org/doc/Install.html), the OCaml package manager.
 
-In particular, if you are a Ubuntu/Debian user
+In particular, if you are a Debian/Ubuntu user
 
 ```
 # apt-get install opam
