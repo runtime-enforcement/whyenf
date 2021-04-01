@@ -1,5 +1,5 @@
 (*******************************************************************)
-(*     This is part of Aerial, it is distributed under the         *)
+(*     This is part of Explanator2, it is distributed under the    *)
 (*  terms of the GNU Lesser General Public License version 3       *)
 (*           (see file LICENSE for more details)                   *)
 (*                                                                 *)
@@ -9,6 +9,7 @@
 (*******************************************************************)
 
 open Util
+open Expl
 open Interval
 open Hashcons
 
@@ -57,6 +58,9 @@ val weak_until: interval -> formula -> formula -> formula
 val trigger: interval -> formula -> formula -> formula
 
 val atoms: formula -> string list
+
+val doConj: (expl -> expl -> expl) -> expl -> expl -> expl
+val doDisj: (expl -> expl -> expl) -> expl -> expl -> expl
 
 (* val mem_word: string list list -> int -> string -> bool *)
 
