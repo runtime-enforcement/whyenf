@@ -46,18 +46,38 @@ let rec minit f =
   | Until (i, f, g) -> MUntil (i, minit f, minit g, ([], []), [], [])
   | _ -> failwith "This formula cannot be monitored"
 
-let mbuf2_add expl_lst1 expl_lst2 (b1, b2) =
-  (expl_lst1 @ b1, expl_lst2 @ b2)
+let mbuf2_add e1 e2 buf =
+  (e1 @ fst(buf), e2 @ snd(buf))
 
-(* let mbuf2_take f (b1, b2) =
- *   
- * 
- * let rec meval ts trace mform =
- *   match mform with
- *   | MNeg (mf) -> 
- *   | MAnd (mf, mg, buf) -> 
- *   | MOr (mf, mg, buf) ->
- *   | MPrev (i, mf, b, expl_lst, ts_d_lst) ->
- *   | MNext (i, mf, b, ts_a_lst) ->
- *   | MSince (i, mf, mg, buf, ts_d_lst, msaux) ->
- *   | MUntil (i, mf, mg, buf, ts_a_lst, muaux) -> *)
+let rec mbuf2_take f buf =
+  let (e_l1, e_l2) = buf in
+  match e_l1, e_l2 with
+  | [], _ -> ([], buf)
+  | _, [] -> ([], buf)
+  | e1 :: e_l1', e2 :: e_l2' ->
+     let (e_l3, buf') = mbuf2_take f (e_l1', e_l2') in
+     ((f e1 e2) :: e_l3, buf') 
+
+let rec meval minimum ts trace mform =
+  match mform with
+  (* | MTT ->
+   * | MFF -> 
+   * | MP (x) ->
+   * | MNeg (mf) -> *)
+  | MConj (mf, mg, buf) ->
+     let f e1 e2 = doConj minimum e1 e2 in
+     let (expl_f, mf') = meval minimum ts trace mf in
+     let (expl_g, mg') = meval minimum ts trace mg in
+     let (expl_z, buf') = mbuf2_take f (mbuf2_add expl_f expl_g buf) in
+     (expl_z, MConj (mf', mg', buf'))
+  | MDisj (mf, mg, buf) ->
+     let f e1 e2 = doDisj minimum e1 e2 in
+     let (expl_f, mf') = meval minimum ts trace mf in
+     let (expl_g, mg') = meval minimum ts trace mg in
+     let (expl_z, buf') = mbuf2_take f (mbuf2_add expl_f expl_g buf) in
+     (expl_z, MDisj (mf', mg', buf'))
+  (* | MPrev (i, mf, b, expl_lst, ts_d_lst) ->
+   * | MNext (i, mf, b, ts_a_lst) ->
+   * | MSince (i, mf, mg, buf, ts_d_lst, msaux) ->
+   * | MUntil (i, mf, mg, buf, ts_a_lst, muaux) -> *)
+  | _ -> failwith "This formula cannot be monitored"
