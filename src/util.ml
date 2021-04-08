@@ -16,6 +16,7 @@ type ts = int
 type tp = int
 type ts_asc_list = ts list
 type ts_desc_list = ts list
+(* (atomic propositions satisfied at that event * timestamp) *)
 type trace = (SS.t * ts) list
 
 (* Make the list [i, i+1, i+2, ..., j] *)

@@ -113,11 +113,6 @@ let rec atoms x = match x.node with
   | Until (i, f1, f2) | Since (i, f1, f2) ->
      List.sort_uniq String.compare (List.append (atoms f1) (atoms f2))
 
-(* let mem_word w i c =
- *   if i < List.length w
- *   then List.mem c (List.nth w i)
- *   else invalid_arg "List.mem" *)
-
 (***********************************
  *                                 *
  * wqo: Height                     *
@@ -313,4 +308,4 @@ let doUntil minimum i a expl_f1 expl_f2 expl_f =
   | _ , S f2, true, V (VUntil (i, vp_f1, vp_f2s)) -> S (SUntil (f2, []))
   | S _ , V f2, true, V (VUntil (i, vp_f1, vp_f2s)) -> V (vappend (VUntil (i, vp_f1, vp_f2s)) f2)
   | S f1, _ , false, V (VUntil (i, vp_f1, vp_f2s)) -> V (VUntil (i, vp_f1, vp_f2s))
-  | _ -> failwith "Bad arguments for doUntil"
+  | _ -> failwith "Bad arguments for doUntil"  
