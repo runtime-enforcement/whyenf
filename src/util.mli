@@ -20,3 +20,4 @@ val ( -- ): int -> int -> int list
 val paren: int -> int -> ('b, 'c, 'd, 'e, 'f, 'g) format6 -> ('b, 'c, 'd, 'e, 'f, 'g) format6
 val sum: ('a -> int) -> 'a list -> int
 val mk_le: ('a -> int) -> 'a -> 'a -> bool
+val prod_le: ('a -> 'a -> bool) -> ('a -> 'a -> bool) -> 'a -> 'a -> bool

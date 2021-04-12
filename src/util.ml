@@ -29,6 +29,8 @@ let sum mes = List.fold_left (fun a b -> a + mes b) 0
 
 let mk_le f r s = f r <= f s
 
+let prod_le p q r s = p r s && q r s
+
 (* let minsize a b = if size a <= size b then a else b
  * let minsize_list = function
  *   | [] -> failwith "empty list for minsize_list"
