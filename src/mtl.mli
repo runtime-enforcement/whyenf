@@ -62,6 +62,8 @@ val atoms: formula -> string list
 val doConj: (expl -> expl -> expl) -> expl -> expl -> expl
 val doDisj: (expl -> expl -> expl) -> expl -> expl -> expl
 
+val size_le: expl -> expl -> bool
+
 (* val mem_word: string list list -> int -> string -> bool *)
 
 (* val optimal_proof: lasso -> (expl -> expl -> bool) -> formula -> expl

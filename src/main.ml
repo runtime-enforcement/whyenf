@@ -10,14 +10,14 @@
 
 open Util
 open Monitor
+open Mtl
 open Mtl_parser
 open Mtl_lexer
 
 exception EXIT
 
-(* let measure_ref = ref None *)
-(* let fmla_ref = ref (disj (always (eventually (p "p"))) (eventually (conj (p "p") (next (p "q"))))) *)
-(* let fmla_ref = ref None *)
+let measure_ref = ref None
+let fmla_ref = ref (neg (p "p"))
 let log_ref = ref stdin
 let out_ref = ref stdout
 let full_ref = ref true
@@ -48,18 +48,18 @@ let process_args =
     | ("-ap" :: args) ->
         full_ref := false;
         go args
-    (* | ("-O" :: mode :: args) ->
-     *     let mode =
-     *       match mode with
-     *       | "size" | "SIZE" | "Size" -> size_le
-     *       | "high" | "HIGH" | "High" -> high_le
-     *       | "pred" | "PRED" | "Pred" -> predicates_le
-     *       | "none" | "NONE" | "None" -> (fun _ _ -> true)
-     *       | _ -> measure_error () in
-     *     measure_ref := (match !measure_ref with
-     *       | None -> Some mode
-     *       | Some mode' -> Some (prod_le mode mode'));
-     *     go args *)
+    | ("-O" :: mode :: args) ->
+        let mode =
+          match mode with
+          | "size" | "SIZE" | "Size" -> size_le
+          (* | "high" | "HIGH" | "High" -> high_le
+           * | "pred" | "PRED" | "Pred" -> predicates_le *)
+          | "none" | "NONE" | "None" -> (fun _ _ -> true)
+          | _ -> measure_error () in
+        measure_ref := (match !measure_ref with
+          | None -> Some mode
+          | Some mode' -> Some (prod_le mode mode'));
+        go args
     (* | ("-Olex" :: mode :: args) ->
      *     let mode =
      *       match mode with
@@ -75,14 +75,14 @@ let process_args =
     | ("-log" :: logfile :: args) ->
         log_ref := open_in logfile;
         go args
-    (* | ("-fmla" :: fmlafile :: args) ->
-     *     (try
-     *       let in_ch = open_in fmlafile in
-     *       fmla_ref := Mtl_parser.formula Mtl_lexer.token (Lexing.from_channel in_ch);
-     *       close_in in_ch
-     *     with
-     *       _ -> fmla_ref := Mtl_parser.formula Mtl_lexer.token (Lexing.from_string fmlafile));
-     *     go args *)
+    | ("-fmla" :: fmlafile :: args) ->
+        (try
+          let in_ch = open_in fmlafile in
+          fmla_ref := Mtl_parser.formula Mtl_lexer.token (Lexing.from_channel in_ch);
+          close_in in_ch
+        with
+          _ -> fmla_ref := Mtl_parser.formula Mtl_lexer.token (Lexing.from_string fmlafile));
+        go args
     | ("-out" :: outfile :: args) ->
         out_ref := open_out outfile;
         go args
@@ -93,7 +93,7 @@ let process_args =
 (* let _ =
  *   try
  *     process_args (List.tl (Array.to_list Sys.argv));
- *     let f, l = if !nusmv then parse_nusmv_output !log_ref else !fmla_ref, parse_lasso !log_ref in
+ *     let f, l = !fmla_ref, parse_lasso !log_ref in
  *     let p = optimal_proof l (match !measure_ref with None -> size_le | Some mode -> mode) f in
  *     let (ulen, vlen) = length_pair_lasso l in
  *     if !full_ref then
