@@ -29,6 +29,7 @@ val subtract_I: int -> interval -> interval
 val multiply_I: int -> interval -> interval
 val mem_I: int -> interval -> bool
 val where_I: int -> interval -> rel
+val get_b_I: int -> interval -> int option
 val interval_to_string: interval -> string
 val lex_interval: (unit -> interval) -> char -> string -> string -> char -> interval
 val etp: ts -> ts_asc_list -> ts

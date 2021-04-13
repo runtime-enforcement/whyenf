@@ -22,12 +22,13 @@ type expl_list = SEList of sexpl list | VEList of vexpl list
  *)
 type msaux =
   {
-    alphas: expl_list option;
-    betas: vexpl list option;
-    beta_alphas: (sexpl * sexpl list) list option;
-    alpha_betas: (vexpl * vexpl list) list option;
-    all_alphas: expl_list option;
-    all_betas: expl_list option;
+    ts_in: ts list;
+    ts_out: ts list;
+    betas_suffix_in: (ts * vexpl) list; (* list of beta violation proofs *)
+    betas_out: (ts * vexpl) list option; (* list of beta violation proofs *)
+    alpha_betas: (ts * vexpl) list; (* sorted list of S^- alpha [betas] *)
+    beta_alphas_in: (ts * sexpl) list; (* sorted list of S^+ beta [alphas] *)
+    beta_alphas_out: (ts * sexpl) list option; (* list of S^+ beta [alphas] *)
   }
 
 type muaux = (ts * expl * expl) list
@@ -42,7 +43,7 @@ type mformula =
   | MDisj of mformula * mformula * mbuf2
   | MPrev of interval * mformula * bool * expl list * ts_desc_list
   | MNext of interval * mformula * bool * ts_asc_list
-  | MSince of interval * mformula * mformula * mbuf2 * ts_desc_list * msaux
+  | MSince of interval * mformula * mformula * msaux
   | MUntil of interval * mformula * mformula * mbuf2 * ts_asc_list * muaux
 
 type mstate = tp * mformula
@@ -59,13 +60,14 @@ let rec minit f =
   | Prev (i, f) -> MPrev (i, minit f, true, [], [])
   | Next (i, f) -> MNext (i, minit f, true, [])
   | Since (i, f, g) ->
-     let msaux = { alphas = None;
-                   betas = None;
-                   beta_alphas = None;
-                   alpha_betas = None;
-                   all_alphas = None;
-                   all_betas = None;
-                 } in MSince (i, minit f, minit g, ([], []), [], msaux)
+     let msaux = { ts_in = [];
+                   ts_out = [];
+                   betas_suffix_in = [];
+                   betas_out = None;
+                   alpha_betas = [];
+                   beta_alphas_in = [];
+                   beta_alphas_out = None;
+                 } in MSince (i, minit f, minit g, msaux)
   | Until (i, f, g) -> MUntil (i, minit f, minit g, ([], []), [], [])
   | _ -> failwith "This formula cannot be monitored"
 
@@ -81,14 +83,14 @@ let rec mbuf2_take f buf =
      let (e_l3, buf') = mbuf2_take f (e_l1', e_l2') in
      ((f e1 e2) :: e_l3, buf')
 
-(* let update_since interval expl_f expl_g ts msaux =
- *   match expl_f, expl_g with
- *   | V pa, V pb ->
- *      let betas = msaux.betas @ [V pb] in
- *      let msaux' = { msaux with betas = betas } in     
- *   | V pa, S pb ->
- *   | S pa, V pb ->
- *   | S pa, S pb -> *)
+(* let update_since interval expl_f expl_g i ts msaux =
+ *   let last_ts =
+ *     match msaux.ts_in, msaux.ts_out with
+ *     | [], [] -> None
+ *     | [], h::t -> Some (fst(h))
+ *     | h::t, [] -> Some (fst(h)) in
+ *   (\* Case 1: \tau_{i-1} does not exist OR \Delta > b *\)
+ *   if last_ts = None then *)
 
 let rec meval minimum i ts event mform =
   match mform with
@@ -117,13 +119,13 @@ let rec meval minimum i ts event mform =
      let (expl_g, mg') = meval minimum i ts event mg in
      let (expl_z, buf') = mbuf2_take f (mbuf2_add expl_f expl_g buf) in
      (expl_z, MDisj (mf', mg', buf'))
-  (* | MPrev (i, mf, b, expl_lst, ts_d_lst) ->
-   * | MNext (i, mf, b, ts_a_lst) -> *)
-  (* | MSince (i, mf, mg, buf, ts_d_lst, msaux) ->
+  (* | MPrev (interval, mf, b, expl_lst, ts_d_lst) ->
+   * | MNext (interval, mf, b, ts_a_lst) -> *)
+  (* | MSince (interval, mf, mg, msaux) ->
    *    let (expl_f, mf') = meval minimum i ts event mf in
-   *    let (expl_g, mg') = meval minimum i ts event mg in *)
+   *    let (expl_g, mg') = meval minimum i ts event mg in *)     
      
-  (* | MUntil (i, mf, mg, buf, ts_a_lst, muaux) -> *)
+  (* | MUntil (interval, mf, mg, buf, ts_a_lst, muaux) -> *)
   | _ -> failwith "This formula cannot be monitored"
 
 (* let optimal_proof w le =
