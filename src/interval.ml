@@ -85,6 +85,10 @@ let where_BI t (BI (l, r)) =
 
 let where_I t = case_I (where_BI t) (where_UI t)
 
+let get_b_UI t (UI l) = None
+let get_b_BI t (BI (l, r)) = Some(r)
+let get_b_I t = case_I (get_b_BI t) (get_b_UI t)
+
 (* TODO: This might not be the best 
    place for these functions 
  *)

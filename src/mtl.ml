@@ -244,7 +244,7 @@ let doNext minimum i interval ts expl =
   | V f , Inside -> V (VNext (f))
   | V f , Above -> minimum (V (VNext (f))) (V (VNextA (i)))
 
-let doSinceBase minimum i a expl_f1 expl_f2 expl_f =
+let doSinceBase minimum i a expl_f1 expl_f2 =
   match expl_f1, expl_f2, a = 0 with
   | _ , S f2, true -> S (SSince (f2, []))
   | S f1, _ , false -> V (VSinceInf (i, []))
