@@ -24,11 +24,16 @@ type msaux =
   {
     ts_in: ts list;
     ts_out: ts list;
-    betas_suffix_in: (ts * vexpl) list; (* list of beta violation proofs *)
-    betas_out: (ts * vexpl) list option; (* list of beta violation proofs *)
-    alpha_betas: (ts * vexpl) list; (* sorted list of S^- alpha [betas] *)
-    beta_alphas_in: (ts * sexpl) list; (* sorted list of S^+ beta [alphas] *)
-    beta_alphas_out: (ts * sexpl) list option; (* list of S^+ beta [alphas] *)
+    (* list of beta violation proofs *)
+    betas_suffix_in: (ts * vexpl) list; 
+    (* list of beta violation proofs *)
+    betas_out: (ts * vexpl option) list;
+    (* sorted list of S^- alpha [betas] *)
+    alpha_betas: (ts * vexpl) list;
+    (* sorted list of S^+ beta [alphas] *)
+    beta_alphas_in: (ts * sexpl) list;
+    (* list of S^+ beta [alphas] *)
+    beta_alphas_out: (ts * sexpl option) list;
   }
 
 type muaux = (ts * expl * expl) list
@@ -63,10 +68,10 @@ let rec minit f =
      let msaux = { ts_in = [];
                    ts_out = [];
                    betas_suffix_in = [];
-                   betas_out = None;
+                   betas_out = [];
                    alpha_betas = [];
                    beta_alphas_in = [];
-                   beta_alphas_out = None;
+                   beta_alphas_out = [];
                  } in MSince (i, minit f, minit g, msaux)
   | Until (i, f, g) -> MUntil (i, minit f, minit g, ([], []), [], [])
   | _ -> failwith "This formula cannot be monitored"
@@ -83,14 +88,44 @@ let rec mbuf2_take f buf =
      let (e_l3, buf') = mbuf2_take f (e_l1', e_l2') in
      ((f e1 e2) :: e_l3, buf')
 
-(* let update_since interval expl_f expl_g i ts msaux =
+(* let update_since minimum interval expl_f1 expl_f2 i ts msaux =
  *   let last_ts =
  *     match msaux.ts_in, msaux.ts_out with
  *     | [], [] -> None
- *     | [], h::t -> Some (fst(h))
- *     | h::t, [] -> Some (fst(h)) in
- *   (\* Case 1: \tau_{i-1} does not exist OR \Delta > b *\)
- *   if last_ts = None then *)
+ *     | _ , h::t -> Some (h)
+ *     | h::t, [] -> Some (h) in
+ *   let a = get_a_I interval in
+ *   (\* Case 1: \tau_{i-1} does not exist *\)
+ *   if last_ts = None then
+ *     let p = doSinceBase minimum i a expl_f1 expl_f2 in
+ *     (match expl_f1, expl_f2 with
+ *      | V _ , V f2 ->
+ *         (\* alpha_betas = [(ts, ~α, [~β])] *\)
+ *         if where_I ts interval = Inside then
+ *           (p, { msaux with alpha_betas = [(ts, p)] })
+ *         (\* betas_out = [(ts, Some(~β)] *\)
+ *         else (p, { msaux with betas_out = [(ts, Some (f2))] })
+ *      | S _ , V _ ->
+ *         (\* betas_suffix_in = [(ts, ~β)] *\)
+ *         if where_I ts interval = Inside then
+ *           (p, { msaux with betas_suffix_in = [(ts, f2)] })
+ *         (\* betas_out = [(ts, Some(~β))] *\)
+ *         else (p, { msaux with betas_out = [(ts, Some (f2))] }) 
+ *      | V f1 , S f2 ->
+ *         (\* betas_alphas_in = [(ts, β)] *\)
+ *         if where_I ts interval = Inside then
+ *           (p, { msaux with betas_alphas_in = [(ts, f2)] })
+ *         else (p, msaux)
+ *      | S f1 , S f2 -> (p, msaux))
+ *   (\* Case 2: \tau_{i-1} does exist *\)
+ *   else
+ *     let delta = ts - last_ts in
+ *     (\* Case 2.1: \Delta > b, i.e., last_ts is outside interval *\)
+ *     if delta > get_b_I interval then
+ *       let p = doSinceBase minimum i a expl_f1 expl_f2 in
+ *       (p, msaux)
+ *     (\* Case 2.2: \Delta <= b *\)
+ *     else *)      
 
 let rec meval minimum i ts event mform =
   match mform with
@@ -107,23 +142,24 @@ let rec meval minimum i ts event mform =
                     | S e' -> V (VNeg e')
                     | V e' -> S (SNeg e')
                   ) expl_f in (expl_z, mf')
-  | MConj (mf, mg, buf) ->
-     let f e1 e2 = doConj minimum e1 e2 in
-     let (expl_f, mf') = meval minimum i ts event mf in
-     let (expl_g, mg') = meval minimum i ts event mg in
-     let (expl_z, buf') = mbuf2_take f (mbuf2_add expl_f expl_g buf) in
-     (expl_z, MConj (mf', mg', buf'))
-  | MDisj (mf, mg, buf) ->
-     let f e1 e2 = doDisj minimum e1 e2 in
-     let (expl_f, mf') = meval minimum i ts event mf in
-     let (expl_g, mg') = meval minimum i ts event mg in
-     let (expl_z, buf') = mbuf2_take f (mbuf2_add expl_f expl_g buf) in
-     (expl_z, MDisj (mf', mg', buf'))
+  | MConj (mf1, mf2, buf) ->
+     let op e1 e2 = doConj minimum e1 e2 in
+     let (expl_f1, mf1') = meval minimum i ts event mf1 in
+     let (expl_f2, mf2') = meval minimum i ts event mf2 in
+     let (expl_f, buf') = mbuf2_take op (mbuf2_add expl_f1 expl_f2 buf) in
+     (expl_f, MConj (mf1', mf2', buf'))
+  | MDisj (mf1, mf2, buf) ->
+     let op e1 e2 = doDisj minimum e1 e2 in
+     let (expl_f1, mf1') = meval minimum i ts event mf1 in
+     let (expl_f2, mf2') = meval minimum i ts event mf2 in
+     let (expl_f, buf') = mbuf2_take op (mbuf2_add expl_f1 expl_f2 buf) in
+     (expl_f, MDisj (mf1', mf2', buf'))
   (* | MPrev (interval, mf, b, expl_lst, ts_d_lst) ->
    * | MNext (interval, mf, b, ts_a_lst) -> *)
-  (* | MSince (interval, mf, mg, msaux) ->
-   *    let (expl_f, mf') = meval minimum i ts event mf in
-   *    let (expl_g, mg') = meval minimum i ts event mg in *)     
+  (* | MSince (interval, mf1, mf2, msaux) ->
+   *    let (expl_f1, mf1') = meval minimum i ts event mf1 in
+   *    let (expl_f2, mf2') = meval minimum i ts event mf2 in *)
+     
      
   (* | MUntil (interval, mf, mg, buf, ts_a_lst, muaux) -> *)
   | _ -> failwith "This formula cannot be monitored"
