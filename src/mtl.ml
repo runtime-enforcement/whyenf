@@ -191,6 +191,7 @@ and v_size = function
   | VAlways (i, expl) -> 1 + v_size expl
   | VSince (i, vphi, vpsis) -> 1 + v_size vphi + sum v_size vpsis
   | VSinceInf (i, vpsis) -> 1 + sum v_size vpsis
+  | VSinceOut i -> 1
   | VUntilInf (i, vpsis) -> 1 + sum v_size vpsis
   | VUntil (i, vphi, vpsis) -> 1 + v_size vphi + sum v_size vpsis
 

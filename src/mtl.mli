@@ -61,6 +61,7 @@ val atoms: formula -> string list
 
 val doConj: (expl -> expl -> expl) -> expl -> expl -> expl
 val doDisj: (expl -> expl -> expl) -> expl -> expl -> expl
+val doSinceBase: (expl -> expl -> expl) -> int -> int -> expl -> expl -> expl
 
 val size_le: expl -> expl -> bool
 

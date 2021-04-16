@@ -50,6 +50,7 @@ and vexpl =
   | VAlways of int * vexpl
   | VSince of int * vexpl * vexpl list
   | VSinceInf of int * vexpl list
+  | VSinceOut of int
   | VUntil of int * vexpl * vexpl list
   | VUntilInf of int * vexpl list
 
@@ -73,8 +74,8 @@ let sappend sp' sp_f1 = match sp' with
   | _ -> failwith "Bad arguments for sappend"
 
 let vappend vp' vp_f2 = match vp' with
-  | VSince (i, vp_f1, vp_f2s) -> VSince (i, vp_f1, List.append vp_f2s [vp_f2])
-  | VSinceInf (i, vp_f2s) -> VSinceInf (i, List.append vp_f2s [vp_f2])
+  | VSince (i, vp_f1, vp_f2s) -> VSince (i+1, vp_f1, List.append vp_f2s [vp_f2])
+  | VSinceInf (i, vp_f2s) -> VSinceInf (i+1, List.append vp_f2s [vp_f2])
   | VUntil (i, vp_f1, vp_f2s) -> VUntil (i, vp_f1, vp_f2 :: vp_f2s)
   | VUntilInf (i, vp_f2s) -> VUntilInf (i, vp_f2 :: vp_f2s)
   (* | VOnce vp_f2s -> VOnce (List.append vp_f2s [vp_f2])

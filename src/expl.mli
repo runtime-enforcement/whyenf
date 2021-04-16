@@ -50,10 +50,14 @@ and vexpl =
   | VAlways of int * vexpl
   | VSince of int * vexpl * vexpl list
   | VSinceInf of int * vexpl list
+  | VSinceOut of int
   | VUntil of int * vexpl * vexpl list
   | VUntilInf of int * vexpl list
 
 type expl = S of sexpl | V of vexpl
+
+val unS: expl -> sexpl
+val unV: expl -> vexpl
 
 val sappend: sexpl -> sexpl -> sexpl
 val vappend: vexpl -> vexpl -> vexpl
