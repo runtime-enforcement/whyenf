@@ -22,6 +22,7 @@ type expl_list = SEList of sexpl list | VEList of vexpl list
  *)
 type msaux =
   {
+    ts_zero: ts option;
     ts_in: ts list;
     ts_out: ts list;
     (* list of beta violation proofs *)
@@ -53,6 +54,16 @@ type mformula =
 
 type mstate = tp * mformula
 
+let cleared_msaux = { ts_zero = None;
+                      ts_in = [];
+                      ts_out = [];
+                      betas_suffix_in = [];
+                      betas_out = [];
+                      alpha_betas = [];
+                      beta_alphas_in = [];
+                      beta_alphas_out = [];
+                    } 
+
 (* Convert a formula into a formula state *)
 let rec minit f =
   match (value f) with
@@ -64,15 +75,8 @@ let rec minit f =
   | Disj (f, g) -> MDisj (minit f, minit g, ([], []))
   | Prev (i, f) -> MPrev (i, minit f, true, [], [])
   | Next (i, f) -> MNext (i, minit f, true, [])
-  | Since (i, f, g) ->
-     let msaux = { ts_in = [];
-                   ts_out = [];
-                   betas_suffix_in = [];
-                   betas_out = [];
-                   alpha_betas = [];
-                   beta_alphas_in = [];
-                   beta_alphas_out = [];
-                 } in MSince (i, minit f, minit g, msaux)
+  | Since (i, f, g) -> let msaux = cleared_msaux in
+                       MSince (i, minit f, minit g, msaux)
   | Until (i, f, g) -> MUntil (i, minit f, minit g, ([], []), [], [])
   | _ -> failwith "This formula cannot be monitored"
 
@@ -89,43 +93,53 @@ let rec mbuf2_take f buf =
      ((f e1 e2) :: e_l3, buf')
 
 (* let update_since minimum interval expl_f1 expl_f2 i ts msaux =
+ *   let a = get_a_I interval in
  *   let last_ts =
  *     match msaux.ts_in, msaux.ts_out with
  *     | [], [] -> None
  *     | _ , h::t -> Some (h)
  *     | h::t, [] -> Some (h) in
- *   let a = get_a_I interval in
  *   (\* Case 1: \tau_{i-1} does not exist *\)
  *   if last_ts = None then
+ *     (\* Update timestamps *\)
+ *     let msaux' = { msaux with ts_zero = Some(ts); ts_in = [ts] } in
  *     let p = doSinceBase minimum i a expl_f1 expl_f2 in
  *     (match expl_f1, expl_f2 with
  *      | V _ , V f2 ->
- *         (\* alpha_betas = [(ts, ~α, [~β])] *\)
- *         if where_I ts interval = Inside then
- *           (p, { msaux with alpha_betas = [(ts, p)] })
- *         (\* betas_out = [(ts, Some(~β)] *\)
- *         else (p, { msaux with betas_out = [(ts, Some (f2))] })
- *      | S _ , V _ ->
+ *         (\* alpha_betas = [(ts, ~α, [~β])] and betas_suffix_in = [(ts, ~β)] *\)
+ *         (p, { msaux' with alpha_betas = [(ts, unV p)]; betas_suffix_in = [(ts, f2)] })
+ *      | S _ , V f2 ->
  *         (\* betas_suffix_in = [(ts, ~β)] *\)
- *         if where_I ts interval = Inside then
- *           (p, { msaux with betas_suffix_in = [(ts, f2)] })
- *         (\* betas_out = [(ts, Some(~β))] *\)
- *         else (p, { msaux with betas_out = [(ts, Some (f2))] }) 
- *      | V f1 , S f2 ->
+ *         (p, { msaux' with betas_suffix_in = [(ts, f2)] })
+ *      | _ , S f2 ->
  *         (\* betas_alphas_in = [(ts, β)] *\)
- *         if where_I ts interval = Inside then
- *           (p, { msaux with betas_alphas_in = [(ts, f2)] })
- *         else (p, msaux)
- *      | S f1 , S f2 -> (p, msaux))
- *   (\* Case 2: \tau_{i-1} does exist *\)
+ *         (p, { msaux' with beta_alphas_in = [(ts, f2)] }))
+ *   (\* Case 2: \tau_{i-1} exists *\)
  *   else
- *     let delta = ts - last_ts in
- *     (\* Case 2.1: \Delta > b, i.e., last_ts is outside interval *\)
- *     if delta > get_b_I interval then
- *       let p = doSinceBase minimum i a expl_f1 expl_f2 in
- *       (p, msaux)
- *     (\* Case 2.2: \Delta <= b *\)
- *     else *)      
+ *     (\* Case 2.1: \tau_{i} < \tau_{0} + a *\)
+ *     if ts < (Option.get msaux.ts_zero) + (get_a_I interval) then
+ *       (V (VSinceOut i), { msaux with ts_out = [ts] })
+ *     else
+ *       let delta = ts - (Option.get last_ts) in
+ *       let b = match get_b_I interval with
+ *         | None -> 0
+ *         | Some(x) -> x in
+ *       (\* Case 2.2: \Delta > b, i.e., last_ts lies outside interval *\)
+ *       if delta > b then
+ *         let p = doSinceBase minimum i a expl_f1 expl_f2 in
+ *         (p, cleared_msaux)
+ *       (\* Case 2.3: \Delta <= b *\)
+ *       else
+ *         (match expl_f1, expl_f2 with
+ *          | V _ , V f2 ->
+ *             (\* alpha_betas = [(ts, ~α, [~β])] and betas_suffix_in = [(ts, ~β)] *\)
+ *             (p, { msaux' with alpha_betas = [(ts, unV p)]; betas_suffix_in = [(ts, f2)] })
+ *          | S _ , V f2 ->
+ *             (\* betas_suffix_in = [(ts, ~β)] *\)
+ *             (p, { msaux' with betas_suffix_in = [(ts, f2)] })
+ *          | _ , S f2 ->
+ *             (\* betas_alphas_in = [(ts, β)] *\)
+ *             (p, { msaux' with beta_alphas_in = [(ts, f2)] })) *)
 
 let rec meval minimum i ts event mform =
   match mform with
