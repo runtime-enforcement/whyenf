@@ -9,6 +9,7 @@
 (*******************************************************************)
 
 open Util
+open Expl
 
 type uinterval = UI of int
 type binterval = BI of int * int 
@@ -33,5 +34,8 @@ val get_a_I: interval -> int
 val get_b_I: interval -> int option
 val interval_to_string: interval -> string
 val lex_interval: (unit -> interval) -> char -> string -> string -> char -> interval
-val etp: ts -> ts_asc_list -> ts
-val ltp: ts -> ts_desc_list -> ts
+val get_etp: ts -> ts list -> tp option
+val get_ltp: ts -> ts list -> tp option
+val remove_out: tp -> expl list -> expl list
+val split_in_out: tp -> expl list -> expl list -> expl list * expl list
+val remove_worse: (expl -> expl -> expl) -> expl list -> expl -> expl list
