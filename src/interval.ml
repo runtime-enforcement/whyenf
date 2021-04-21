@@ -9,6 +9,7 @@
 (*******************************************************************)
 
 open Util
+open Expl
 
 (* Intervals bounded by +∞, i.e., [i,+∞) *)
 type uinterval = UI of int
@@ -94,28 +95,49 @@ let get_b_BI (BI (l, r)) = Some(r)
 let get_b_I = case_I get_b_BI get_b_UI
 
 (* TODO: This might not be the best 
-   place for these functions 
+   place for these functions and both
+   ETP and LTP can be optimized
  *)
 
-(* ETP: earliest \tau_i s.t. \tau_i >= \tau 
-   We assume ts_asc_list is in ascending order
- *)
-let rec etp tau ts_asc_list =
-  match ts_asc_list with
-  | [] -> failwith "Empty time-stamp list"
-  | h::[] -> h
-  | h::t when h >= tau -> h
-  | h::t -> etp tau t
+(* ETP: earliest i s.t. \tau_i >= \tau *)
+let get_etp tau ts_list =
+  let rec aux l tp =
+    match l with
+    | [] -> None
+    | x::xs when x >= tau -> Some(tp)
+    | x::xs -> aux xs (tp+1)
+  in aux ts_list 0
 
-(* LTP: latest \tau_i s.t. \tau_i <= \tau 
-   We assume ts_desc_list is in descending order
- *)
-let rec ltp tau ts_desc_list =
-  match ts_desc_list with
-  | [] -> failwith "Empty time-stamp list"
-  | h::[] -> h
-  | h::t when h <= tau -> h
-  | h::t -> ltp tau t
+(* LTP: latest i s.t. \tau_i <= \tau *)
+let get_ltp tau ts_list =
+  let rec aux l tp =
+    match l with
+    | [] -> None
+    | x::xs when x > tau -> Some(tp-1)
+    | x::xs -> aux xs (tp+1)
+  in aux ts_list 0
+
+(* Remove explanations older than ETP *)
+let rec remove_out etp l =
+  match l with
+  | [] -> []
+  | x::xs when get_etp(fst(x)) < etp -> remove_out etp xs
+  | xs -> xs
+
+(* Split list between explanations older/newer than LTP *)
+let rec split_in_out ltp o l =
+  match l with
+  | [] -> ([], [])
+  | x::xs when get_etp(fst(x)) <= ltp -> split_in_out ltp (x::o) xs
+  | xs -> (o, xs)
+
+(* Remove explanations in l worse than expl *)
+let rec remove_worse minimum l expl =
+  match l with
+  | [] -> []
+  | x::xs -> if (minimum x expl) = expl then
+               remove_worse minimum xs expl
+             else x::xs
 
 let binterval_to_string = function
   | BI (i, j) -> Printf.sprintf "[%d,%d]" i j
