@@ -17,24 +17,24 @@ type mbuf2 = expl list * expl list
 
 type expl_list = SEList of sexpl list | VEList of vexpl list
 
-(* betas, alpha_betas and alphas are relevant for violations
- * alphas and beta_alphas are relevant for satisfactions     
- *)
 type msaux =
   {
     ts_zero: ts option;
     ts_in: ts list;
     ts_out: ts list;
-    (* list of beta violation proofs *)
-    betas_suffix_in: (ts * vexpl) list; 
-    (* list of beta violation proofs *)
-    betas_out: (ts * vexpl option) list;
+    
+    (* sorted list of S^+ beta [alphas] inside of the interval *)
+    beta_alphas_in: (ts * sexpl) list;
+    (* list of S^+ beta [alphas] outside of the interval *)
+    (* TODO: it might be necessary to store beta/alphas raw *)
+    beta_alphas_out: (ts * sexpl) list;
+
     (* sorted list of S^- alpha [betas] *)
     alpha_betas: (ts * vexpl) list;
-    (* sorted list of S^+ beta [alphas] *)
-    beta_alphas_in: (ts * sexpl) list;
-    (* list of S^+ beta [alphas] *)
-    beta_alphas_out: (ts * sexpl option) list;
+    (* list of beta violation proofs *)
+    betas_suffix_in: (ts * vexpl) list;
+    (* list of beta/alpha violations *)
+    betas_alphas_out: (ts * vexpl option) list;
   }
 
 type muaux = (ts * expl * expl) list
@@ -57,11 +57,11 @@ type mstate = tp * mformula
 let cleared_msaux = { ts_zero = None;
                       ts_in = [];
                       ts_out = [];
-                      betas_suffix_in = [];
-                      betas_out = [];
-                      alpha_betas = [];
                       beta_alphas_in = [];
                       beta_alphas_out = [];
+                      alpha_betas = [];
+                      betas_suffix_in = [];
+                      betas_alphas_out = [];
                     } 
 
 (* Convert a formula into a formula state *)
@@ -102,7 +102,8 @@ let rec mbuf2_take f buf =
  *   (\* Case 1: \tau_{i-1} does not exist *\)
  *   if last_ts = None then
  *     (\* Update timestamps *\)
- *     let msaux' = { msaux with ts_zero = Some(ts); ts_in = [ts] } in
+ *     let msaux' = if a = 0 then { msaux with ts_zero = Some(ts); ts_in = [ts] }
+ *                  else { msaux with ts_zero = Some(ts); ts_out = [ts] } in
  *     let p = doSinceBase minimum i a expl_f1 expl_f2 in
  *     (match expl_f1, expl_f2 with
  *      | V _ , V f2 ->
@@ -120,26 +121,35 @@ let rec mbuf2_take f buf =
  *     if ts < (Option.get msaux.ts_zero) + (get_a_I interval) then
  *       (V (VSinceOut i), { msaux with ts_out = [ts] })
  *     else
- *       let delta = ts - (Option.get last_ts) in
  *       let b = match get_b_I interval with
- *         | None -> 0
+ *         | None -> (Option.get msaux.ts_zero)
  *         | Some(x) -> x in
- *       (\* Case 2.2: \Delta > b, i.e., last_ts lies outside interval *\)
- *       if delta > b then
+ *       let delta = ts - (Option.get last_ts) in
+ *       (\* Case 2.2: b < \Delta, i.e., last_ts lies between the
+ *        * interval and the current timestamp 
+ *        *\)
+ *       if b < delta then
  *         let p = doSinceBase minimum i a expl_f1 expl_f2 in
+ *         (\* TODO: Check if returning cleared_msaux here is correct *\)
  *         (p, cleared_msaux)
- *       (\* Case 2.3: \Delta <= b *\)
+ *       (\* Case 2.3: b >= \Delta *\)
  *       else
+ *         let etp = if (ts - b) < 0 then 0
+ *                   else get_etp (ts - b) (msaux.ts_in @ msaux.ts_out) in
+ *         (\* TODO: Complexity of @ operator is O(n) so this approach might need to be optimized *\)
+ *         let ltp = min i (get_ltp (ts - a) (msaux.ts_in @ msaux.ts_out)) in
  *         (match expl_f1, expl_f2 with
- *          | V _ , V f2 ->
- *             (\* alpha_betas = [(ts, ~α, [~β])] and betas_suffix_in = [(ts, ~β)] *\)
+ *          | S f1, S f2 ->
+ *             let new_in, beta_alphas_out' = split_in_out ltp [] msaux.beta_alphas_out in
+ *             let beta_alphas_in' = remove_worse minimum (remove_out etp msaux.beta_alphas_in in
+ *             let msaux' = { msaux with beta_alphas_in = beta_alphas_in' @ new_in;
+ *                                       beta_alphas_out = beta_alphas_out' } in
+ *             let p = sappend (SSince (f2, [])) f1 in
  *             (p, { msaux' with alpha_betas = [(ts, unV p)]; betas_suffix_in = [(ts, f2)] })
- *          | S _ , V f2 ->
- *             (\* betas_suffix_in = [(ts, ~β)] *\)
- *             (p, { msaux' with betas_suffix_in = [(ts, f2)] })
- *          | _ , S f2 ->
- *             (\* betas_alphas_in = [(ts, β)] *\)
- *             (p, { msaux' with beta_alphas_in = [(ts, f2)] })) *)
+ *          (\* | S f1, V _ ->
+ *           * | V _ , S f2 ->
+ *           * | V f1, V f2 -> *\)
+ *          | _ -> let p = doSinceBase minimum i a expl_f1 expl_f2 in (p, cleared_msaux) *)
 
 let rec meval minimum i ts event mform =
   match mform with
