@@ -14,8 +14,6 @@ type mode = NAIVE | COMPRESS_LOCAL | COMPRESS_GLOBAL
 module SS = Set.Make(String)
 type ts = int
 type tp = int
-type ts_asc_list = ts list
-type ts_desc_list = ts list
 (* (atomic propositions satisfied at that event * timestamp) *)
 type trace = (SS.t * ts) list
 
@@ -30,6 +28,8 @@ let sum mes = List.fold_left (fun a b -> a + mes b) 0
 let mk_le f r s = f r <= f s
 
 let prod_le p q r s = p r s && q r s
+
+let min x y = if x < y then x else y
 
 (* let minsize a b = if size a <= size b then a else b
  * let minsize_list = function
