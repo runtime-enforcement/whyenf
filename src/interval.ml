@@ -95,49 +95,61 @@ let get_b_BI (BI (l, r)) = Some(r)
 let get_b_I = case_I get_b_BI get_b_UI
 
 (* TODO: This might not be the best 
-   place for these functions and both
-   ETP and LTP can be optimized
- *)
+ * place for these functions and both
+ * ETP and LTP can be optimized *)
 
 (* ETP: earliest i s.t. \tau_i >= \tau *)
-let get_etp tau ts_list =
-  let rec aux l tp =
-    match l with
-    | [] -> None
-    | x::xs when x >= tau -> Some(tp)
-    | x::xs -> aux xs (tp+1)
-  in aux ts_list 0
+let get_etp ltp tau ts_lst =
+  if tau < 0 && ltp != None then Some(0)
+  else
+    let rec aux ts_lst' tp =
+      match ts_lst' with
+      | [] -> None
+      | x::xs when x >= tau -> Some(tp)
+      | x::xs -> aux xs (tp+1)
+    in aux ts_lst 0
 
 (* LTP: latest i s.t. \tau_i <= \tau *)
-let get_ltp tau ts_list =
-  let rec aux l tp =
-    match l with
-    | [] -> None
-    | x::xs when x > tau -> Some(tp-1)
-    | x::xs -> aux xs (tp+1)
-  in aux ts_list 0
+let get_ltp tau ts_lst =
+  if tau < List.hd ts_lst || ts_lst = [] then None
+  else
+    let rec aux ts_lst' tp =
+      match ts_lst' with
+      | [] -> Some(tp)
+      | x::xs when x > tau -> Some(tp-1)
+      | x::xs -> aux xs (tp+1)
+    in aux ts_lst 0
 
-(* Remove explanations older than ETP *)
-let rec remove_out etp l =
-  match l with
+let convert_ts_to_tp ts ts_lst =
+  Option.get (get_ltp ts ts_lst)
+
+(* Remove explanations older than E = ETP(\tau - b) *)
+let rec remove_out e expl_lst =
+  match expl_lst with
   | [] -> []
-  | x::xs when get_etp(fst(x)) < etp -> remove_out etp xs
+  | x::xs when get_etp(fst(x)) < e -> remove_out e xs
   | xs -> xs
 
-(* Split list between explanations older/newer than LTP *)
-let rec split_in_out ltp o l =
-  match l with
+(* Split list between explanations older/newer than 
+ * L = min(i, LTP(\tau - a)), i.e., the ones that are
+ * inside and outside the interval, respectively *)
+let rec split_in_out l ts_lst in_el out_el =
+  match out_el with
   | [] -> ([], [])
-  | x::xs when get_etp(fst(x)) <= ltp -> split_in_out ltp (x::o) xs
-  | xs -> (o, xs)
+  | x::xs when (convert_ts_to_tp (fst(x)) ts_lst) <= l ->
+     split_in_out l ts_lst (x::in_el) xs
+  | xs -> (in_el, out_el)
 
-(* Remove explanations in l worse than expl *)
-let rec remove_worse minimum l expl =
-  match l with
-  | [] -> []
-  | x::xs -> if (minimum x expl) = expl then
-               remove_worse minimum xs expl
-             else x::xs
+(* let remove_out_and_worse minimum e in_el new_in_el =
+ *   let rec aux el1 el2 = 
+ *     match el1, el2 with
+ *     | [] , _ -> []
+ *     | _ , [] -> List.rev old_expl, []
+ *     | q::qs, p::ps -> if (minimum q p) = p then
+ *                         remove_worse minimum qs p::ps
+ *                       else (List.rev q::qs, [])
+ * 
+ *   in aux (List.rev (remove_out e in_el)) new_in_el *)
 
 let binterval_to_string = function
   | BI (i, j) -> Printf.sprintf "[%d,%d]" i j

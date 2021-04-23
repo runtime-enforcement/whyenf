@@ -1,5 +1,5 @@
 (*******************************************************************)
-(*     This is part of Aerial, it is distributed under the         *)
+(*     This is part of Explanator2, it is distributed under the    *)
 (*  terms of the GNU Lesser General Public License version 3       *)
 (*           (see file LICENSE for more details)                   *)
 (*                                                                 *)
@@ -17,6 +17,8 @@ type tp = int
 (* (atomic propositions satisfied at that event * timestamp) *)
 type trace = (SS.t * ts) list
 
+let min x y = if x < y then x else y
+
 (* Make the list [i, i+1, i+2, ..., j] *)
 let rec ( -- ) i j =
   if i > j then [] else i :: (i + 1 -- j)
@@ -25,13 +27,26 @@ let paren h k x = if h>k then "("^^x^^")" else x
 
 let sum mes = List.fold_left (fun a b -> a + mes b) 0
 
-let mk_le f r s = f r <= f s
-
 let prod_le p q r s = p r s && q r s
 
-let min x y = if x < y then x else y
+let lex_le p q r s = p r s || (not (p s r) && q r s)
 
-(* let minsize a b = if size a <= size b then a else b
- * let minsize_list = function
- *   | [] -> failwith "empty list for minsize_list"
- *   | x::xs -> List.fold_left minsize x xs *)
+let mk_le f r s = f r <= f s
+
+(* let rec sort_expl_lst minimum expl_lst = function
+ *   | [] -> []
+ *   | x::xs -> insert x (sort_expl_lst xs)
+ * and insert expl = function
+ *   | [] -> [expl]
+ *   | x::xs -> if minimum x expl = expl then expl::x::xs
+ *              else x::(insert expl xs) *)
+
+(*stolen from https://github.com/Octachron/ocaml/blob/posets_for_parmatch/typing/parmatch.ml#L1501*)
+let get_mins le ps =
+  let rec select_rec r = function
+    | [] -> r
+    | p::ps ->
+      if List.exists (fun x -> le x p) r
+      then select_rec r ps
+      else select_rec (p :: List.filter (fun x -> not (le p x)) r) ps in
+  List.rev (select_rec [] ps)
