@@ -7,6 +7,7 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
+open Core_kernel
 open Mtl
 open Expl
 open Util
@@ -24,9 +25,8 @@ type msaux =
     ts_out: ts list;
     
     (* sorted list of S^+ beta [alphas] inside of the interval *)
-    beta_alphas_in: (ts * sexpl) list;
+    beta_alphas_in: (ts * sexpl) Deque.t;
     (* list of S^+ beta [alphas] outside of the interval *)
-    (* TODO: it might be necessary to store beta/alphas raw *)
     beta_alphas_out: (ts * sexpl) list;
 
     (* sorted list of S^- alpha [betas] *)
@@ -57,7 +57,7 @@ type mstate = tp * mformula
 let cleared_msaux = { ts_zero = None;
                       ts_in = [];
                       ts_out = [];
-                      beta_alphas_in = [];
+                      beta_alphas_in = Deque.create ();
                       beta_alphas_out = [];
                       alpha_betas = [];
                       betas_suffix_in = [];
