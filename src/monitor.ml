@@ -47,10 +47,10 @@ type mformula =
   | MNeg of mformula
   | MConj of mformula * mformula * mbuf2
   | MDisj of mformula * mformula * mbuf2
-  | MPrev of interval * mformula * bool * expl list * ts_desc_list
-  | MNext of interval * mformula * bool * ts_asc_list
+  | MPrev of interval * mformula * bool * expl list * ts list
+  | MNext of interval * mformula * bool * ts list
   | MSince of interval * mformula * mformula * msaux
-  | MUntil of interval * mformula * mformula * mbuf2 * ts_asc_list * muaux
+  | MUntil of interval * mformula * mformula * mbuf2 * ts list * muaux
 
 type mstate = tp * mformula
 
@@ -125,25 +125,28 @@ let rec mbuf2_take f buf =
  *         | None -> (Option.get msaux.ts_zero)
  *         | Some(x) -> x in
  *       let delta = ts - (Option.get last_ts) in
- *       (\* Case 2.2: b < \Delta, i.e., last_ts lies between the
- *        * interval and the current timestamp 
- *        *\)
+ *       (\* Case 2.2: b < \Delta, i.e., last_ts lies outside of the interval *\)
  *       if b < delta then
  *         let p = doSinceBase minimum i a expl_f1 expl_f2 in
  *         (\* TODO: Check if returning cleared_msaux here is correct *\)
  *         (p, cleared_msaux)
  *       (\* Case 2.3: b >= \Delta *\)
  *       else
- *         let etp = if (ts - b) < 0 then 0
- *                   else get_etp (ts - b) (msaux.ts_in @ msaux.ts_out) in
- *         (\* TODO: Complexity of @ operator is O(n) so this approach might need to be optimized *\)
- *         let ltp = min i (get_ltp (ts - a) (msaux.ts_in @ msaux.ts_out)) in
+ *         (\* TODO: Complexity of @ operator is O(n) so this approach 
+ *          * might need to be optimized *\)
+ *         let ts_all = msaux.ts_in @ msaux.ts_out @ [ts] in
+ *         let ltp = get_ltp (ts - a) ts_all in
+ *         let etp = get_etp ltp (ts - b) ts_all in
+ *         (\* TODO: Check if ltp and etp are None *\)
+ *         let l = min i (Option.get ltp) in
+ *         let e = Option.get etp in
  *         (match expl_f1, expl_f2 with
  *          | S f1, S f2 ->
- *             let new_in, beta_alphas_out' = split_in_out ltp [] msaux.beta_alphas_out in
- *             let beta_alphas_in' = remove_worse minimum (remove_out etp msaux.beta_alphas_in in
- *             let msaux' = { msaux with beta_alphas_in = beta_alphas_in' @ new_in;
- *                                       beta_alphas_out = beta_alphas_out' } in
+ *             let sp = (ts, SSince (f2, [f1])) in
+ *             let new_in, b_a_out = split_in_out l ts_all [] (sp::msaux.beta_alphas_out) in
+ *             let b_a_in = remove_out_and_worse minimum e msaux.beta_alphas_in new_in in
+ *             let msaux' = { msaux with beta_alphas_in = b_a_in;
+ *                                       beta_alphas_out = b_a_out } in
  *             let p = sappend (SSince (f2, [])) f1 in
  *             (p, { msaux' with alpha_betas = [(ts, unV p)]; betas_suffix_in = [(ts, f2)] })
  *          (\* | S f1, V _ ->
@@ -188,6 +191,11 @@ let rec meval minimum i ts event mform =
   (* | MUntil (interval, mf, mg, buf, ts_a_lst, muaux) -> *)
   | _ -> failwith "This formula cannot be monitored"
 
-(* let optimal_proof w le =
+(* let minsize a b = if size a <= size b then a else b
+ * let minsize_list = function
+ *   | [] -> failwith "empty list for minsize_list"
+ *   | x::xs -> List.fold_left minsize x xs
+ * 
+ * let optimal_proof w le =
  *   let minimum_list ps = minsize_list (get_mins le ps) in
  *   let minimum a b = minimum_list [a; b] in *)
