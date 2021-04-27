@@ -31,11 +31,11 @@ val multiply_I: int -> interval -> interval
 val mem_I: int -> interval -> bool
 val where_I: int -> interval -> rel
 val get_a_I: interval -> int 
-val get_b_I: interval -> int option
+val get_b_I: ts -> interval -> int
 val interval_to_string: interval -> string
 val lex_interval: (unit -> interval) -> char -> string -> string -> char -> interval
 val get_etp: int option -> ts -> ts list -> tp option
 val get_ltp: ts -> ts list -> tp option
-val split_in_out: tp -> (ts * sexpl) list -> (ts * sexpl) list -> (ts * sexpl) list * (ts * sexpl) list
+(* val split_in_out: tp -> (ts * sexpl) list -> (ts * sexpl) list -> (ts * sexpl) list * (ts * sexpl) list *)
 (* val remove_out: tp -> expl list -> expl list *)
 (* val remove_worse: (expl -> expl -> expl) -> expl list -> expl -> expl list *)

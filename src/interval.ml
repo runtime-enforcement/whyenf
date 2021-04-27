@@ -90,13 +90,9 @@ let get_a_UI (UI l) = l
 let get_a_BI (BI (l, r)) = l
 let get_a_I = case_I get_a_BI get_a_UI
 
-let get_b_UI (UI l) = None
-let get_b_BI (BI (l, r)) = Some(r)
-let get_b_I = case_I get_b_BI get_b_UI
-
-(* TODO: This might not be the best 
- * place for these functions and both
- * ETP and LTP can be optimized *)
+let get_b_UI ts_zero (UI l) = ts_zero
+let get_b_BI (BI (l, r)) = r
+let get_b_I ts_zero = case_I get_b_BI (get_b_UI ts_zero)
 
 (* ETP: earliest i s.t. \tau_i >= \tau *)
 let get_etp ltp tau ts_lst =
@@ -120,25 +116,22 @@ let get_ltp tau ts_lst =
       | x::xs -> aux xs (tp+1)
     in aux ts_lst 0
 
-let convert_ts_to_tp ts ts_lst =
-  Option.get (get_ltp ts ts_lst)
-
-(* Remove explanations older than E = ETP(\tau - b) *)
-let rec remove_out e expl_lst =
+(* Remove explanations older than l = \tau - b *)
+let rec remove_old l expl_lst =
   match expl_lst with
   | [] -> []
-  | x::xs when get_etp(fst(x)) < e -> remove_out e xs
+  | x::xs when fst(x) < l -> remove_old l xs
   | xs -> xs
 
 (* Split list between explanations older/newer than 
  * L = min(i, LTP(\tau - a)), i.e., the ones that are
  * inside and outside the interval, respectively *)
-let rec split_in_out l ts_lst in_el out_el =
-  match out_el with
-  | [] -> ([], [])
-  | x::xs when (convert_ts_to_tp (fst(x)) ts_lst) <= l ->
-     split_in_out l ts_lst (x::in_el) xs
-  | xs -> (in_el, out_el)
+(* let rec split_in_out l ts_lst in_el out_el =
+ *   match out_el with
+ *   | [] -> ([], [])
+ *   | x::xs when (convert_ts_to_tp (fst(x)) ts_lst) <= l ->
+ *      split_in_out l ts_lst (x::in_el) xs
+ *   | xs -> (in_el, out_el) *)
 
 (* let remove_out_and_worse minimum e in_el new_in_el =
  *   let rec aux el1 el2 = 
