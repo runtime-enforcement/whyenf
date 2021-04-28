@@ -13,29 +13,25 @@ open Util
 open Interval
 open Core_kernel
 
-(* Auxiliary data structures *)
 type mbuf2 = expl list * expl list
 
-type expl_list = SEList of sexpl list | VEList of vexpl list
-
-type msaux =
-  {
-    ts_zero: ts option;
-    ts_in: ts list;
-    ts_out: ts list;
+type msaux = {
+    ts_zero: ts option
+  ; ts_in: ts list
+  ; ts_out: ts list
     
-    (* sorted list of S^+ beta [alphas] from etp to current tp *)
-    beta_alphas: (ts * sexpl) Deque.t;
-    (* list of S^+ beta [alphas] outside of the interval *)
-    beta_alphas_out: (ts * sexpl) list;
+    (* sorted deque of S^+ beta [alphas] *)
+  ; beta_alphas: (ts * sexpl) Deque.t
+    (* deque of S^+ beta [alphas] outside of the interval *)
+  ; beta_alphas_out: (ts * sexpl) Deque.t
 
     (* sorted list of S^- alpha [betas] *)
-    alpha_betas: (ts * vexpl) Deque.t;
+  ; alpha_betas: (ts * vexpl) Deque.t
     (* list of beta violation proofs *)
-    betas_suffix_in: (ts * vexpl) list;
+  ; betas_suffix_in: (ts * vexpl) list
     (* list of beta/alpha violations *)
-    betas_alphas_out: (ts * vexpl option * vexpl option) list;
-  }
+  ; betas_alphas_out: (ts * vexpl option * vexpl option) list
+  ; }
 
 type muaux = (ts * expl * expl) list
 
@@ -58,7 +54,7 @@ let cleared_msaux = { ts_zero = None
                     ; ts_in = []
                     ; ts_out = []
                     ; beta_alphas = Deque.create ()
-                    ; beta_alphas_out = []
+                    ; beta_alphas_out = Deque.create ()
                     ; alpha_betas = Deque.create ()
                     ; betas_suffix_in = []
                     ; betas_alphas_out = []
@@ -82,12 +78,6 @@ let rec minit f =
      MUntil (i, minit f, minit g, ([], []), [], [])
   | _ -> failwith "This formula cannot be monitored"
 
-(***********************************
- *                                 *
- * Algorithm: Auxiliary functions  *
- *                                 *
- ***********************************)
-
 let mbuf2_add e1 e2 buf =
   (e1 @ fst(buf), e2 @ snd(buf))
 
@@ -100,39 +90,46 @@ let rec mbuf2_take f buf =
      let (e_l3, buf') = mbuf2_take f (e_l1', e_l2') in
      ((f e1 e2) :: e_l3, buf')
 
-(* Perform sp++sp_f1 for every expl in a list *)
-let add_to_all_p_in_list beta_alphas_out sp_f1 =
-  List.fold_right beta_alphas_out ~f:(fun (ts, p) acc ->
-      match p with
-      | S sp -> (ts, (S (sappend sp sp_f1)))::acc
-      | _ -> failwith "List beta_alphas_out has violation proofs")
-    ~init:[]
-
-(* Perform sp++sp_f1 for every expl in a deque *)
-let add_to_all_p_in_deque beta_alphas sp_f1 =
-  Deque.fold beta_alphas ~f:(fun acc (ts, p) ->
-      match p with
-      | S sp -> (ts, S (sappend sp sp_f1))::acc
-      | _ -> failwith "Deque beta_alphas has violation proofs")
-
 let get_last_ts msaux =
   match msaux.ts_in, msaux.ts_out with
   | [], [] -> None
   | _ , h::t -> Some (h)
   | h::t, [] -> Some (h)
 
+(* Here we assume that storing timestamps in ascending order would 
+   not be inconvenient *)
 let update_ts a ts msaux =
-  if a = 0 then { msaux with ts_in = [ts] }
-  else { msaux with ts_out = [ts] }
+  if a = 0 then
+    { msaux with ts_in = ts::msaux.ts_in }
+  else
+    { msaux with ts_out = ts::msaux.ts_out }
 
-(* let update_beta_alphas_out msaux =
- *   
+(* This approach should be faster than other possible solutions *)
+let add_to_sps_in_deque sps sp_f1 =
+  Deque.iteri sps ~f:(fun i (ts, sp) ->
+      Deque.set_exn sps i (ts, sappend sp sp_f1))
+
+let split_in_out r ps_out =
+  let new_in = 
+    Deque.fold ps_out ~init:[]
+    ~f:(fun acc (ts, sp) ->
+      if ts <= r then (
+        Deque.drop_front ps_out;
+        (ts, sp)::acc)
+      else acc) in
+  List.rev new_in
+
+(* let remove_worse minimum ps_in new_in =
+ *   List.iter (fun (ts, sp) ->
+ *       if (minimum q p) = p then
+ *         remove_worse minimum qs p::ps
+ *     ) new_in
  * 
- * let update_beta_alphas msaux =
- *   let new_in, b_a_out = split_in_out l ts_all [] (sp::msaux.beta_alphas_out) in
- *   let b_a_in = remove_out_and_worse minimum e msaux.beta_alphas_in new_in in
- *   let msaux' = { msaux with beta_alphas_in = b_a_in;
- *                             beta_alphas_out = b_a_out } in *)
+ * let update_ssince ts msaux sp_f1 sp_f =
+ *   add_to_sps_in_deque msaux.beta_alphas sp_f1;
+ *   add_to_sps_in_deque msaux.beta_alphas_out sp_f1;
+ *   Deque.enqueue_back msaux.beta_alphas_out (ts, sp_f);
+ *   let new_in = split_in_out r msaux.beta_alphas_out in *)
 
 let update_since minimum interval expl_f1 expl_f2 i ts msaux =
   let a = get_a_I interval in
@@ -148,10 +145,8 @@ let update_since minimum interval expl_f1 expl_f2 i ts msaux =
           (Deque.enqueue_back new_msaux.beta_alphas (ts, sp); (S sp, new_msaux))
         else
           (Deque.enqueue_back new_msaux.beta_alphas (ts, sp);
-           (S sp,
-            { new_msaux with
-              beta_alphas_out = [(ts, sp)]
-            }))
+           Deque.enqueue_back new_msaux.beta_alphas_out (ts, sp);
+           (S sp, new_msaux))
      | _ -> failwith "soon")
   (* Case 2: \tau_{i-1} exists *)
   else
@@ -175,10 +170,9 @@ let update_since minimum interval expl_f1 expl_f2 i ts msaux =
         (match expl_f1, expl_f2 with
          | S f1, S f2 ->
             let sp = sappend (SSince (f2, [])) f1 in
-            (S sp, new_msaux)
             (* let beta_alphas = update_beta_alphas in
-             * let beta_alphas_out = update_beta_alphas_out in 
-             * (S sp, { msaux' with alpha_betas = [(ts, unV p)]; betas_suffix_in = [(ts, f2)] }) *)
+             * let beta_alphas_out = update_beta_alphas_out in  *)
+            (S sp, msaux)
          (* | S f1, V f2 ->
           * | V f1 , S f2 ->
           * | V f1, V f2 -> *)
