@@ -90,6 +90,20 @@ let rec mbuf2_take f buf =
      let (e_l3, buf') = mbuf2_take f (e_l1', e_l2') in
      ((f e1 e2) :: e_l3, buf')
 
+(* Sort proofs wrt a particular measure, i.e., 
+   if p1 < p2 in [p1, p2, p3, ..., pn] then p2
+   must be removed (and so on) *)
+let update_new_in le new_in =
+  let rec aux ps acc =
+    match ps with
+    | [] -> acc
+    | x::x'::xs ->
+       if le (snd(x)) (snd(x')) then
+         aux xs (x::acc)
+       else aux xs (x'::acc)
+    | x::xs -> x::acc
+  in aux new_in []
+
 let get_last_ts msaux =
   match msaux.ts_in, msaux.ts_out with
   | [], [] -> None
@@ -110,35 +124,44 @@ let add_to_sps_in_deque sps sp_f1 =
       Deque.set_exn sps i (ts, sappend sp sp_f1))
 
 let split_in_out r ps_out =
-  let new_in = 
-    Deque.fold ps_out ~init:[]
+  Deque.fold ps_out ~init:[]
     ~f:(fun acc (ts, sp) ->
       if ts <= r then (
         Deque.drop_front ps_out;
         (ts, sp)::acc)
-      else acc) in
-  List.rev new_in
+      else acc)
 
-(* let remove_worse minimum ps_in new_in =
- *   List.iter (fun (ts, sp) ->
- *       if (minimum q p) = p then
- *         remove_worse minimum qs p::ps
- *     ) new_in
- * 
- * let update_ssince ts msaux sp_f1 sp_f =
- *   add_to_sps_in_deque msaux.beta_alphas sp_f1;
- *   add_to_sps_in_deque msaux.beta_alphas_out sp_f1;
- *   Deque.enqueue_back msaux.beta_alphas_out (ts, sp_f);
- *   let new_in = split_in_out r msaux.beta_alphas_out in *)
+let remove_worse le ps_in new_in =
+  let new_in' = update_new_in le new_in in
+  let hd_p = List.hd_exn new_in' in
+  Deque.iter ps_in ~f:(fun (ts, sp) ->
+      if le (snd(hd_p)) sp then
+        Deque.drop_back ps_in
+      else ());
+  List.iter new_in' ~f:(fun (ts, sp) ->
+      Deque.enqueue_back ps_in (ts, sp))
 
-let update_since minimum interval expl_f1 expl_f2 i ts msaux =
+let remove_old l ps_in =
+  Deque.iter ps_in ~f:(fun (ts, sp) ->
+      if ts <= l then
+        Deque.drop_front ps_in)  
+
+let update_ssince ts msaux l r le sp_f1 sp_f =
+  add_to_sps_in_deque msaux.beta_alphas sp_f1;
+  add_to_sps_in_deque msaux.beta_alphas_out sp_f1;
+  Deque.enqueue_back msaux.beta_alphas_out (ts, sp_f);
+  let new_in = split_in_out r msaux.beta_alphas_out in
+  remove_worse le msaux.beta_alphas new_in;
+  remove_old l msaux.beta_alphas
+
+let update_since i ts msaux le minimum interval p1 p2 =
   let a = get_a_I interval in
   let last_ts_option = get_last_ts msaux in
   (* Case 1: \tau_{i-1} does not exist *)
   if Option.is_none last_ts_option then ( 
     (* Update list of timestamps *)
     let new_msaux = { (update_ts a ts msaux) with ts_zero = Some(ts) } in
-     match expl_f1, expl_f2 with
+     match p1, p2 with
      | S f1, S f2 ->
         let sp = SSince (f2, [f1]) in
         if a = 0 then 
@@ -151,8 +174,8 @@ let update_since minimum interval expl_f1 expl_f2 i ts msaux =
   (* Case 2: \tau_{i-1} exists *)
   else
     let new_msaux = update_ts a ts msaux in
-    let ts_zero = Option.value msaux.ts_zero ~default:0 in
-    let last_ts = Option.value last_ts_option ~default:0 in
+    let ts_zero = Option.value_exn msaux.ts_zero in
+    let last_ts = Option.value_exn last_ts_option in
     (* Case 2.1: \tau_{i} < \tau_{0} + a *)
     if ts < ts_zero + (get_a_I interval) then
       (V (VSinceOut i), { msaux with ts_out = [ts] })
@@ -161,65 +184,60 @@ let update_since minimum interval expl_f1 expl_f2 i ts msaux =
       let delta = ts - last_ts in
       (* Case 2.2: b < \Delta, i.e., last_ts lies outside of the interval *)
       if b < delta then
-        let p = doSinceBase minimum i a expl_f1 expl_f2 in
+        let p = doSinceBase minimum i a p1 p2 in
         (p, cleared_msaux)
       (* Case 2.3: b >= \Delta *)
       else
         let l = ts - a in
         let r = ts - b in
-        (match expl_f1, expl_f2 with
+        (match p1, p2 with
          | S f1, S f2 ->
-            let sp = sappend (SSince (f2, [])) f1 in
-            (* let beta_alphas = update_beta_alphas in
-             * let beta_alphas_out = update_beta_alphas_out in  *)
-            (S sp, msaux)
+            let sp_f = sappend (SSince (f2, [])) f1 in
+            update_ssince ts new_msaux l r le f1 sp_f;
+            (S sp_f, msaux)
          (* | S f1, V f2 ->
           * | V f1 , S f2 ->
           * | V f1, V f2 -> *)
          | _ -> failwith "soon")
 
-let rec meval minimum i ts event mform =
-  match mform with
-  | MTT -> ([S (STT i)], MTT)
-  | MFF -> ([V (VFF i)], MFF)
-  | MP a ->
-     let s = fst(event) in
-     if SS.mem a s then ([S (SAtom (i, a))], MP a)
-     else ([V (VAtom (i, a))], MP a)
-  | MNeg (mf) ->
-     let (expl_f, mf') = meval minimum i ts event mf in
-     let expl_z = List.map expl_f (fun e ->
-                    match e with
-                    | S e' -> V (VNeg e')
-                    | V e' -> S (SNeg e')
-                  ) in (expl_z, mf')
-  | MConj (mf1, mf2, buf) ->
-     let op e1 e2 = doConj minimum e1 e2 in
-     let (expl_f1, mf1') = meval minimum i ts event mf1 in
-     let (expl_f2, mf2') = meval minimum i ts event mf2 in
-     let (expl_f, buf') = mbuf2_take op (mbuf2_add expl_f1 expl_f2 buf) in
-     (expl_f, MConj (mf1', mf2', buf'))
-  | MDisj (mf1, mf2, buf) ->
-     let op e1 e2 = doDisj minimum e1 e2 in
-     let (expl_f1, mf1') = meval minimum i ts event mf1 in
-     let (expl_f2, mf2') = meval minimum i ts event mf2 in
-     let (expl_f, buf') = mbuf2_take op (mbuf2_add expl_f1 expl_f2 buf) in
-     (expl_f, MDisj (mf1', mf2', buf'))
-  (* | MPrev (interval, mf, b, expl_lst, ts_d_lst) ->
-   * | MNext (interval, mf, b, ts_a_lst) -> *)
-  (* | MSince (interval, mf1, mf2, msaux) ->
-   *    let (expl_f1, mf1') = meval minimum i ts event mf1 in
-   *    let (expl_f2, mf2') = meval minimum i ts event mf2 in *)
-     
-     
-  (* | MUntil (interval, mf, mg, buf, ts_a_lst, muaux) -> *)
-  | _ -> failwith "This formula cannot be monitored"
-
-(* let minsize a b = if size a <= size b then a else b
- * let minsize_list = function
- *   | [] -> failwith "empty list for minsize_list"
- *   | x::xs -> List.fold_left minsize x xs
- * 
- * let optimal_proof w le =
+(* let start_monitoring w le =
  *   let minimum_list ps = minsize_list (get_mins le ps) in
- *   let minimum a b = minimum_list [a; b] in *)
+ *   let minimum a b = List.hd_exn (minimum_list [a; b]) in
+ *   
+ *   let rec meval i ts event mform =
+ *     match mform with
+ *     | MTT -> ([S (STT i)], MTT)
+ *     | MFF -> ([V (VFF i)], MFF)
+ *     | MP a ->
+ *        let s = fst(event) in
+ *        if SS.mem a s then ([S (SAtom (i, a))], MP a)
+ *        else ([V (VAtom (i, a))], MP a)
+ *     | MNeg (mf) ->
+ *        let (expl_f, mf') = meval i ts event mf in
+ *        let expl_z = List.map expl_f (fun e ->
+ *                         match e with
+ *                         | S e' -> V (VNeg e')
+ *                         | V e' -> S (SNeg e')
+ *                       ) in (expl_z, mf')
+ *     | MConj (mf1, mf2, buf) ->
+ *        let op e1 e2 = doConj minimum e1 e2 in
+ *        let (expl_f1, mf1') = meval i ts event mf1 in
+ *        let (expl_f2, mf2') = meval i ts event mf2 in
+ *        let (expl_f, buf') = mbuf2_take op (mbuf2_add expl_f1 expl_f2 buf) in
+ *        (expl_f, MConj (mf1', mf2', buf'))
+ *     | MDisj (mf1, mf2, buf) ->
+ *        let op e1 e2 = doDisj minimum e1 e2 in
+ *        let (expl_f1, mf1') = meval i ts event mf1 in
+ *        let (expl_f2, mf2') = meval i ts event mf2 in
+ *        let (expl_f, buf') = mbuf2_take op (mbuf2_add expl_f1 expl_f2 buf) in
+ *        (expl_f, MDisj (mf1', mf2', buf'))
+ *     (\* | MPrev (interval, mf, b, expl_lst, ts_d_lst) ->
+ *      * | MNext (interval, mf, b, ts_a_lst) -> *\)
+ *     | MSince (interval, mf1, mf2, msaux) ->
+ *        let (expl_f1, mf1') = meval i ts event mf1 in
+ *        let (expl_f2, mf2') = meval i ts event mf2 in
+ *        update_since i ts msaux le minimum interval p1 p2;
+ * 
+ * 
+ *     (\* | MUntil (interval, mf, mg, buf, ts_a_lst, muaux) -> *\)
+ *     | _ -> failwith "This formula cannot be monitored" *)
