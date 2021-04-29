@@ -116,34 +116,6 @@ let get_ltp tau ts_lst =
       | x::xs -> aux xs (tp+1)
     in aux ts_lst 0
 
-(* Remove explanations older than l = \tau - b *)
-let rec remove_old l expl_lst =
-  match expl_lst with
-  | [] -> []
-  | x::xs when fst(x) < l -> remove_old l xs
-  | xs -> xs
-
-(* Split list between explanations older/newer than 
- * L = min(i, LTP(\tau - a)), i.e., the ones that are
- * inside and outside the interval, respectively *)
-(* let rec split_in_out l ts_lst in_el out_el =
- *   match out_el with
- *   | [] -> ([], [])
- *   | x::xs when (convert_ts_to_tp (fst(x)) ts_lst) <= l ->
- *      split_in_out l ts_lst (x::in_el) xs
- *   | xs -> (in_el, out_el) *)
-
-(* let remove_out_and_worse minimum e in_el new_in_el =
- *   let rec aux el1 el2 = 
- *     match el1, el2 with
- *     | [] , _ -> []
- *     | _ , [] -> List.rev old_expl, []
- *     | q::qs, p::ps -> if (minimum q p) = p then
- *                         remove_worse minimum qs p::ps
- *                       else (List.rev q::qs, [])
- * 
- *   in aux (List.rev (remove_out e in_el)) new_in_el *)
-
 let binterval_to_string = function
   | BI (i, j) -> Printf.sprintf "[%d,%d]" i j
 
