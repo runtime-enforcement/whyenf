@@ -36,6 +36,3 @@ val interval_to_string: interval -> string
 val lex_interval: (unit -> interval) -> char -> string -> string -> char -> interval
 val get_etp: int option -> ts -> ts list -> tp option
 val get_ltp: ts -> ts list -> tp option
-(* val split_in_out: tp -> (ts * sexpl) list -> (ts * sexpl) list -> (ts * sexpl) list * (ts * sexpl) list *)
-(* val remove_out: tp -> expl list -> expl list *)
-(* val remove_worse: (expl -> expl -> expl) -> expl list -> expl -> expl list *)
