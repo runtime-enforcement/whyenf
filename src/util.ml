@@ -33,14 +33,6 @@ let lex_le p q r s = p r s || (not (p s r) && q r s)
 
 let mk_le f r s = f r <= f s
 
-(* let rec sort_expl_lst minimum expl_lst = function
- *   | [] -> []
- *   | x::xs -> insert x (sort_expl_lst xs)
- * and insert expl = function
- *   | [] -> [expl]
- *   | x::xs -> if minimum x expl = expl then expl::x::xs
- *              else x::(insert expl xs) *)
-
 (*stolen from https://github.com/Octachron/ocaml/blob/posets_for_parmatch/typing/parmatch.ml#L1501*)
 let get_mins le ps =
   let rec select_rec r = function
