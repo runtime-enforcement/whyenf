@@ -12,7 +12,8 @@ type mode = NAIVE | COMPRESS_LOCAL | COMPRESS_GLOBAL
 module SS: Set.S with type elt = string
 type ts = int
 type tp = int
-type trace = (SS.t * ts) list
+type event = SS.t * ts
+type trace = event list
 
 val min: int -> int -> int
 val ( -- ): int -> int -> int list

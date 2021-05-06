@@ -15,7 +15,8 @@ module SS = Set.Make(String)
 type ts = int
 type tp = int
 (* (atomic propositions satisfied at that event * timestamp) *)
-type trace = (SS.t * ts) list
+type event = SS.t * ts
+type trace = event list
 
 let min x y = if x < y then x else y
 
