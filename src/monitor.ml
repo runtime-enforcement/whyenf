@@ -25,14 +25,14 @@ type msaux = {
   (* deque of S^+ beta [alphas] outside of the interval *)
   ; beta_alphas_out: (ts * expl) Deque.t
 
-  (* sorted list of S^- alpha [betas] *)
+  (* sorted deque of S^- alpha [betas] *)
   ; alpha_betas: (ts * expl) Deque.t
+  (* deque of S^- alpha [betas] outside of the interval *)
+  ; alpha_betas_out: (ts * expl) Deque.t
   (* list of beta violation proofs *)
   ; betas_suffix_in: (ts * vexpl) list
   (* list of alpha/beta violations *)
   ; alphas_betas_out: (ts * vexpl option * vexpl option) list
-  (* sorted list of alpha violations *)
-  ; alphas_out: (ts * expl) Deque.t
   ; }
 
 type muaux = (ts * expl * expl) list
@@ -59,9 +59,9 @@ let cleared_msaux = { ts_zero = None
                     ; beta_alphas = Deque.create ()
                     ; beta_alphas_out = Deque.create ()
                     ; alpha_betas = Deque.create ()
+                    ; alpha_betas_out = Deque.create ()
                     ; betas_suffix_in = []
                     ; alphas_betas_out = []
-                    ; alphas_out = Deque.create ()
                     ; } 
 
 (* Convert a formula into a formula state *)
@@ -116,6 +116,7 @@ let get_last_ts msaux =
 
 (* Here we assume that storing timestamps in ascending order would 
    not be inconvenient *)
+(* TODO: Fix this *)
 let update_ts a ts msaux =
   if a = 0 then
     { msaux with ts_in = ts::msaux.ts_in }
@@ -129,7 +130,13 @@ let add_to_sps_in_deque sps sp_f1 =
       | S pf -> Deque.set_exn sps i (ts, S (sappend pf sp_f1))
       | V _ -> raise SEXPL)
 
-let split_in_out r ps_out =
+let add_to_vps_in_deque vps vp_f2 =
+  Deque.iteri vps ~f:(fun i (ts, vp) ->
+      match vp with
+      | V pf -> Deque.set_exn vps i (ts, V (vappend pf vp_f2))
+      | S _ -> raise VEXPL)
+
+let split_in_out_deque r ps_out =
   Deque.fold ps_out ~init:[]
     ~f:(fun acc (ts, sp) ->
       if ts <= r then (
@@ -137,13 +144,23 @@ let split_in_out r ps_out =
         (ts, sp)::acc)
       else acc)
 
+(* TODO: Check order *)
+let split_in_out_list r vps_out =
+  let betas_in =
+    List.fold vps_out ~init:[]
+      ~f:(fun acc (ts, a_opt, b_opt) ->
+        (ts, b_opt)::acc) in
+  let alphas_betas_out =
+    List.drop_while vps_out
+      ~f:(fun (ts, _, _) -> ts <= r) in
+  (betas_in, alphas_betas_out)
+
 let remove_worse le ps_in new_in =
   let new_in' = update_new_in le new_in in
   let hd_p = List.hd_exn new_in' in
   Deque.iter ps_in ~f:(fun (ts, sp) ->
       if le (snd(hd_p)) sp then
-        Deque.drop_back ps_in
-      else ());
+        Deque.drop_back ps_in);
   List.iter new_in' ~f:(fun (ts, sp) ->
       Deque.enqueue_back ps_in (ts, sp))
 
@@ -152,26 +169,31 @@ let remove_old l ps_in =
       if ts <= l then
         Deque.drop_front ps_in)
 
+let filter_betas vps_in =
+  List.fold vps_in ~init:[]
+    ~f:(fun acc (ts, a_opt, b_opt) ->
+      (ts, b_opt)::acc)
+
+(* TODO: Shouldn't we consider holes when appending proofs? *)
 let update_ssince (l, r) sp_f1 sp_f ts msaux le =
   add_to_sps_in_deque msaux.beta_alphas sp_f1;
   add_to_sps_in_deque msaux.beta_alphas_out sp_f1;
   Deque.enqueue_back msaux.beta_alphas_out (ts, sp_f);
-  let new_in = split_in_out r msaux.beta_alphas_out in
+  let new_in = split_in_out_deque r msaux.beta_alphas_out in
   remove_worse le msaux.beta_alphas new_in;
   remove_old l msaux.beta_alphas
 
-let remove_worse_alphas le ts alphas_out vp_f1 =
-  Deque.iter alphas_out ~f:(fun (ts, vp) ->
-      if le vp_f1 vp then
-        Deque.drop_back alphas_out);
-  Deque.enqueue_back alphas_out (ts, vp_f1)
-
-(* let update_vsince (l, r) vp_f1 vp_f2 ts msaux le =
- *   let new_msaux = { msaux with
- *                     alphas_betas_out =
- *                       (ts, Some(vp_f1), Some(vp_f2)) :: alphas_betas_out
- *                   } in *)
-
+(* let update_vsince (l, r) vp_f1 vp_f2 vp_f ts msaux le =
+ *   add_to_vps_in_deque msaux.alpha_betas vp_f2;
+ *   add_to_vps_in_deque msaux.alpha_betas_out vp_f2;
+ *   Deque.enqueue_back msaux.alpha_betas_out vp_f;
+ *   let new_msaux = {
+ *       msaux with
+ *       alphas_betas_out = (ts, Some(vp_f1), Some(vp_f2))::msaux.alphas_betas_out
+ *     } in
+ *   let betas_in, alphas_betas_out = split_in_out_list r msaux.alphas_betas_out in
+ *   let new_in = split_in_out_deque r msaux.alpha_betas_out in *)
+  
 (* let output_since msaux =
  *   let sp_in_opt = Deque.peek_front msaux.beta_alphas in
  *   if Option.is_some sp_in_opt then
@@ -238,22 +260,24 @@ let update_since interval i ts p1 p2 msaux le minimum =
       else
         let l = ts - a in
         let r = ts - b in
-        (* match p1, p2 with
-         *  | S f1, S f2 ->
-         *     let sp_f = S (SSince (f2, [f1])) in
-         *     update_ssince (l, r) f1 (sp_f) ts new_msaux le;
-         *     (\* TODO: Change output *\)
-         *     (sp_f, new_msaux)
-         *  | V f1 , S f2 ->
-         *     let sp = S (SSince (f2, [])) in
-         *     Deque.enqueue_back new_msaux.beta_alphas (ts, sp);
-         *     if a = 0 then
-         *       (sp, new_msaux)
-         *     else
-         *       (Deque.enqueue_back new_msaux.beta_alphas_out (ts, sp);
-         *        (sp, new_msaux))
-         *  | S f1, V f2 ->
-         *  | V f1, V f2 ->  *)
+        match p1, p2 with
+         | S f1, S f2 ->
+            let sp_f = S (SSince (f2, [f1])) in
+            update_ssince (l, r) f1 (sp_f) ts new_msaux le;
+            (* TODO: Change output *)
+            (sp_f, new_msaux)
+         (* | V f1 , S f2 ->
+          *    (\* let sp = S (SSince (f2, [])) in
+          *     * Deque.enqueue_back new_msaux.beta_alphas (ts, sp);
+          *     * if a = 0 then
+          *     *   (sp, new_msaux)
+          *     * else
+          *     *   (Deque.enqueue_back new_msaux.beta_alphas_out (ts, sp);
+          *     *    (sp, new_msaux)) *\)
+          * | S f1, V f2 ->
+          * | V f1, V f2 ->
+          *    let vp_f = V (VSince (i, f1, [f2])) in *)
+         | _ -> failwith "soon"
 
 let start_monitoring le =
   let minimum_list ps = minsize_list (get_mins le ps) in
@@ -297,6 +321,6 @@ let start_monitoring le =
        let (expl_f, new_msaux) = update_since interval i ts p1 p2 msaux le minimum in
        (expl_f, MSince (interval, mf1, mf2, msaux))
     (* | MUntil (interval, mf, mg, buf, ts_a_lst, muaux) -> *)
-    | _ -> failwith "This formula cannot be monitored" in
-  let mstep event mform =
+    | _ -> failwith "This formula cannot be monitored" (* in
+   * let mstep event mform = *)
     
