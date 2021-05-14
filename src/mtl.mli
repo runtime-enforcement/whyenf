@@ -1,6 +1,6 @@
 (*******************************************************************)
 (*     This is part of Explanator2, it is distributed under the    *)
-(*  terms of the GNU Lesser General Public License version 3       *)
+(*     terms of the GNU Lesser General Public License version 3    *)
 (*           (see file LICENSE for more details)                   *)
 (*                                                                 *)
 (*  Copyright 2021:                                                *)
@@ -59,13 +59,15 @@ val trigger: interval -> formula -> formula -> formula
 
 val atoms: formula -> string list
 
+val hp: formula -> int
+val hf: formula -> int
+val height: formula -> int
+
 val doConj: (expl -> expl -> expl) -> expl -> expl -> expl
 val doDisj: (expl -> expl -> expl) -> expl -> expl -> expl
-val doSinceBase: (expl -> expl -> expl) -> int -> int -> expl -> expl -> expl
+(* val doSinceBase: (expl -> expl -> expl) -> int -> int -> expl -> expl -> expl *)
 
-val minsize: expl -> expl -> expl
-val minsize_list: expl list -> expl
-val size_le: expl -> expl -> bool
+val formula_to_string: formula -> string
 
 (* val mem_word: string list list -> int -> string -> bool *)
 
