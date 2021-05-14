@@ -1,6 +1,6 @@
 (*******************************************************************)
-(*    This is part of Explanator2, it is distributed under the     *)
-(*  terms of the GNU Lesser General Public License version 3       *)
+(*     This is part of Explanator2, it is distributed under the    *)
+(*     terms of the GNU Lesser General Public License version 3    *)
 (*           (see file LICENSE for more details)                   *)
 (*                                                                 *)
 (*  Copyright 2021:                                                *)
@@ -13,7 +13,6 @@ open Expl
 open Interval
 open Hashcons
 
-(* MTL formulas *)
 type formula_ =
   | TT
   | FF
@@ -36,10 +35,6 @@ and formula = formula_ hash_consed
 (* Hash-consing related *)
 let hash x = x.hkey
 let value x = x.node
-
-(* Word: finite string of letters *)
-(* Check what would be better (string list or string) *)
-type word = string list
 
 let m = Hashcons.create 271
 
@@ -113,12 +108,6 @@ let rec atoms x = match x.node with
   | Until (i, f1, f2) | Since (i, f1, f2) ->
      List.sort_uniq String.compare (List.append (atoms f1) (atoms f2))
 
-(***********************************
- *                                 *
- * wqo: Height                     *
- *                                 *
- ***********************************)
-
 (* Past height *)
 let rec hp x = match x.node with
   | TT | FF | P _ -> 0
@@ -145,69 +134,6 @@ let height f = hp f + hf f
 
 (***********************************
  *                                 *
- * wqo: Size                       *
- *                                 *
- ***********************************)
-
-let rec s_size = function
-  | STT i -> 1
-  | SAtom (i, _) -> 1
-  | SNeg expl -> 1 + v_size expl
-  | SPrev expl -> 1 + s_size expl
-  | SOnce (i, expl) -> 1 + s_size expl
-  | SHistorically expls -> 1 + sum s_size expls
-  | SNext expl -> 1 + s_size expl
-  | SEventually (i, expl) -> 1 + s_size expl
-  | SAlways expls -> 1 + sum s_size expls
-  | SConj (sphi, spsi) -> 1 + s_size sphi + s_size spsi
-  | SDisjL sphi -> 1 + s_size sphi
-  | SDisjR spsi -> 1 + s_size spsi
-  | SImplL vphi -> 1 + v_size vphi
-  | SImplR spsi -> 1 + s_size spsi
-  | SIffS (sphi, spsi) -> 1 + s_size sphi + s_size spsi
-  | SIffV (vphi, vpsi) -> 1 + v_size vphi + v_size vpsi
-  | SSince (spsi, sphis) -> 1 + s_size spsi + sum s_size sphis
-  | SUntil (spsi, sphis) -> 1 + s_size spsi + sum s_size sphis
-and v_size = function
-  | VFF i -> 1
-  | VAtom (i, _) -> 1
-  | VNeg sphi -> 1 + s_size sphi
-  | VDisj (vphi, vpsi) -> 1 + v_size vphi + v_size vpsi
-  | VConjL vphi -> 1 + v_size vphi
-  | VConjR vpsi -> 1 + v_size vpsi
-  | VImpl (sphi, vpsi) -> 1 + s_size sphi + v_size vpsi
-  | VIffL (sphi, vpsi) -> 1 + s_size sphi + v_size vpsi
-  | VIffR (vphi, spsi) -> 1 + v_size vphi + s_size spsi
-  | VPrev0 -> 1
-  | VPrevB i -> 1
-  | VPrevA i -> 1
-  | VPrev vphi -> 1 + v_size vphi
-  | VOnce expls -> 1 + sum v_size expls
-  | VHistorically (i, expl) -> 1 + v_size expl
-  | VNextB i -> 1
-  | VNextA i -> 1
-  | VNext vphi -> 1 + v_size vphi
-  | VEventually expls -> 1 + sum v_size expls
-  | VAlways (i, expl) -> 1 + v_size expl
-  | VSince (i, vphi, vpsis) -> 1 + v_size vphi + sum v_size vpsis
-  | VSinceInf (i, vpsis) -> 1 + sum v_size vpsis
-  | VSinceOut i -> 1
-  | VUntilInf (i, vpsis) -> 1 + sum v_size vpsis
-  | VUntil (i, vphi, vpsis) -> 1 + v_size vphi + sum v_size vpsis
-
-let size = function
-  | S s_p -> s_size s_p
-  | V v_p -> v_size v_p
-
-let size_le = mk_le size
-
-let minsize a b = if size a <= size b then a else b
-let minsize_list = function
-  | [] -> failwith "empty list for minsize_list"
-  | x::xs -> List.fold_left minsize x xs
-
-(***********************************
- *                                 *
  * Algorithm: Computing optimal    *
  *            proofs               *
  *                                 *
@@ -227,23 +153,23 @@ let doConj minimum expl_f1 expl_f2 =
   | V f1, S _ -> V (VConjL (f1))
   | V f1, V f2 -> minimum (V (VConjL (f1))) (V (VConjR (f2)))
 
-let doPrev minimum i interval ts expl =
-  match expl, where_I ts interval with
-  | S _ , Below -> V (VPrevB (i))
-  | S f , Inside -> S (SPrev (f))
-  | S _ , Above -> V (VPrevA (i))
-  | V f , Below -> minimum (V (VPrev (f))) (V (VPrevB (i)))
-  | V f , Inside -> V (VPrev (f))
-  | V f , Above -> minimum (V (VPrev (f))) (V (VPrevA (i)))
-
-let doNext minimum i interval ts expl =
-  match expl, where_I ts interval with
-  | S _ , Below -> V (VNextB (i))
-  | S f , Inside -> S (SNext (f))
-  | S _ , Above -> V (VNextA (i))
-  | V f , Below -> minimum (V (VNext (f))) (V (VNextB (i)))
-  | V f , Inside -> V (VNext (f))
-  | V f , Above -> minimum (V (VNext (f))) (V (VNextA (i)))
+(* let doPrev minimum i interval ts expl =
+ *   match expl, where_I ts interval with
+ *   | S _ , Below -> V (VPrevB (i))
+ *   | S f , Inside -> S (SPrev (f))
+ *   | S _ , Above -> V (VPrevA (i))
+ *   | V f , Below -> minimum (V (VPrev (f))) (V (VPrevB (i)))
+ *   | V f , Inside -> V (VPrev (f))
+ *   | V f , Above -> minimum (V (VPrev (f))) (V (VPrevA (i)))
+ * 
+ * let doNext minimum i interval ts expl =
+ *   match expl, where_I ts interval with
+ *   | S _ , Below -> V (VNextB (i))
+ *   | S f , Inside -> S (SNext (f))
+ *   | S _ , Above -> V (VNextA (i))
+ *   | V f , Below -> minimum (V (VNext (f))) (V (VNextB (i)))
+ *   | V f , Inside -> V (VNext (f))
+ *   | V f , Above -> minimum (V (VNext (f))) (V (VNextA (i))) *)
 
 let doSinceBase minimum i a expl_f1 expl_f2 =
   match expl_f1, expl_f2, a = 0 with
@@ -309,4 +235,23 @@ let doUntil minimum i a expl_f1 expl_f2 expl_f =
   | _ , S f2, true, V (VUntil (i, vp_f1, vp_f2s)) -> S (SUntil (f2, []))
   | S _ , V f2, true, V (VUntil (i, vp_f1, vp_f2s)) -> V (vappend (VUntil (i, vp_f1, vp_f2s)) f2)
   | S f1, _ , false, V (VUntil (i, vp_f1, vp_f2s)) -> V (VUntil (i, vp_f1, vp_f2s))
-  | _ -> failwith "Bad arguments for doUntil"  
+  | _ -> failwith "Bad arguments for doUntil"
+
+let rec formula_to_string l f = match f.node with
+  | P x -> Printf.sprintf "%s" x
+  | TT -> Printf.sprintf "⊤"
+  | FF -> Printf.sprintf "⊥"
+  | Conj (f, g) -> Printf.sprintf (paren l 4 "%a ∧ %a") (fun x -> formula_to_string 4) f (fun x -> formula_to_string 4) g
+  | Disj (f, g) -> Printf.sprintf (paren l 3 "%a ∨ %a") (fun x -> formula_to_string 3) f (fun x -> formula_to_string 4) g
+  | Impl (f, g) -> Printf.sprintf (paren l 2 "%a → %a") (fun x -> formula_to_string 2) f (fun x -> formula_to_string 4) g
+  | Iff (f, g) -> Printf.sprintf (paren l 1 "%a ↔ %a") (fun x -> formula_to_string 1) f (fun x -> formula_to_string 4) g
+  | Neg f -> Printf.sprintf "¬%a" (fun x -> formula_to_string 5) f
+  | Prev (i, f) -> Printf.sprintf (paren l 5 "●%a %a") (fun x -> interval_to_string) i (fun x -> formula_to_string 5) f
+  | Once (i, f) -> Printf.sprintf (paren l 5 "⧫%a %a") (fun x -> interval_to_string) i (fun x -> formula_to_string 5) f
+  | Historically (i, f) -> Printf.sprintf (paren l 5 "■%a %a") (fun x -> interval_to_string) i (fun x -> formula_to_string 5) f
+  | Next (i, f) -> Printf.sprintf (paren l 5 "○%a %a") (fun x -> interval_to_string) i (fun x -> formula_to_string 5) f
+  | Eventually (i, f) -> Printf.sprintf (paren l 5 "◊%a %a") (fun x -> interval_to_string) i (fun x -> formula_to_string 5) f
+  | Always (i, f) -> Printf.sprintf (paren l 5 "□%a %a") (fun x -> interval_to_string) i (fun x -> formula_to_string 5) f
+  | Since (i, f, g) -> Printf.sprintf (paren l 0 "%a S%a %a") (fun x -> formula_to_string 5) f (fun x -> interval_to_string) i (fun x -> formula_to_string 5) g
+  | Until (i, f, g) -> Printf.sprintf (paren l 0 "%a U%a %a") (fun x -> formula_to_string 5) f (fun x -> interval_to_string) i (fun x -> formula_to_string 5) g
+let formula_to_string = formula_to_string 0
