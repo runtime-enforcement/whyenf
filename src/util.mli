@@ -7,8 +7,6 @@
 (*  Dmitriy Traytel (ETH Zürich)                                   *)
 (*******************************************************************)
 
-type mode = NAIVE | COMPRESS_LOCAL | COMPRESS_GLOBAL
-
 module SS: Set.S with type elt = string
 type ts = int
 type tp = int

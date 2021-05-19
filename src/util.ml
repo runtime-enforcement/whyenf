@@ -8,8 +8,6 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
-type mode = NAIVE | COMPRESS_LOCAL | COMPRESS_GLOBAL
-
 (* Sets are defined using a functional interface given a type *)
 module SS = Set.Make(String)
 type ts = int
