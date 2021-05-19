@@ -11,7 +11,9 @@ open Mtl
 open Expl
 open Util
 open Interval
-open Core_kernel
+
+module Deque = Core_kernel.Deque
+module List = Core_kernel.List
 
 type mbuf2 = expl list * expl list
 
@@ -24,8 +26,6 @@ type msaux = {
   ; beta_alphas: (ts * expl) Deque.t
   (* deque of S^+ beta [alphas] outside of the interval *)
   ; beta_alphas_out: (ts * expl) Deque.t
-  (* list of alpha/beta satisfactions *)
-  ; s_alphas_out: (ts * vexpl option) list
     
   (* sorted deque of S^- alpha [betas] *)
   ; alpha_betas: (ts * expl) Deque.t
@@ -34,7 +34,7 @@ type msaux = {
   (* list of beta violations inside the interval*)
   ; betas_suffix_in: (ts * vexpl) list
   (* list of alpha/beta violations *)
-  ; v_alphas_betas_out: (ts * vexpl option * vexpl option) list
+  ; alphas_betas_out: (ts * vexpl option * vexpl option) list
   ; }
 
 type muaux = (ts * expl * expl) list
@@ -60,11 +60,10 @@ let cleared_msaux = { ts_zero = None
                     ; ts_out = []
                     ; beta_alphas = Deque.create ()
                     ; beta_alphas_out = Deque.create ()
-                    ; s_alphas_out = []
                     ; alpha_betas = Deque.create ()
                     ; alpha_betas_out = Deque.create ()
                     ; betas_suffix_in = []
-                    ; v_alphas_betas_out = []
+                    ; alphas_betas_out = []
                     ; } 
 
 (* Convert formula into a formula state *)
@@ -85,6 +84,7 @@ let rec minit f =
      MUntil (i, minit f, minit g, ([], []), [], [])
   | _ -> failwith "This formula cannot be monitored"
 
+(* mbuf2: auxiliary data structure for the conj/disj operators *)
 let mbuf2_add e1 e2 buf =
   (e1 @ fst(buf), e2 @ snd(buf))
 
@@ -97,74 +97,103 @@ let rec mbuf2_take f buf =
      let (e_l3, buf') = mbuf2_take f (e_l1', e_l2') in
      ((f e1 e2) :: e_l3, buf')
 
-(* let get_last_ts msaux =
- *   match msaux.ts_in, msaux.ts_out with
- *   | [], [] -> None
- *   | _ , h::t -> Some (h)
- *   | h::t, [] -> Some (h)
- * 
- * let init_ts a ts msaux =
- *   if a = 0 then { msaux with
- *                   ts_zero = Some(ts)
- *                 ; ts_in = [ts] }
- *   else { msaux with
- *          ts_zero = Some(ts)
- *        ; ts_out = [ts] }
- * 
- * let update_ts a r ts msaux =
- *   if a = 0 then
- *     { msaux with ts_in = ts::msaux.ts_in }
- *   else
- *     let new_ts_in =
- *       List.take_while msaux.ts_out
- *         ~f:(fun ts' -> ts' <= r) in
- *     let new_ts_out =
- *       List.drop_while msaux.ts_out
- *         ~f:(fun ts' -> ts' <= r) in
- *     { msaux with
- *       ts_in = new_ts_in
- *     ; ts_out = ts::new_ts_out }
- * 
- * (\* Sort proofs wrt a particular measure, i.e., 
- *    if p1 < p2 in [p1, p2, p3, ..., pn] then p2
- *    must be removed (and so on) *\)
- * let update_new_in le new_in =
- *   let rec aux ps acc =
- *     match ps with
- *     | [] -> acc
- *     | x::x'::xs ->
- *        if le (snd(x)) (snd(x')) then
- *          aux xs (x::acc)
- *        else aux xs (x'::acc)
- *     | x::xs -> x::acc
- *   in aux new_in []
- * 
- * exception VEXPL
- * exception SEXPL
- * 
- * (\* This approach should be faster than other possible solutions *\)
- * let add_to_sps_in_deque sps sp_f1 =
- *   Deque.iteri sps ~f:(fun i (ts, sp) ->
- *       match sp with
- *       | S pf -> Deque.set_exn sps i (ts, S (sappend pf sp_f1))
- *       | V _ -> raise SEXPL)
- * 
- * let add_to_vps_in_deque vps vp_f2 =
+(* ts update functions *)
+let get_last_ts msaux =
+  match msaux.ts_in, msaux.ts_out with
+  | [], [] -> None
+  | _ , h::t -> Some (h)
+  | h::t, [] -> Some (h)
+
+let add_first_ts a ts msaux =
+  if a = 0 then
+    { msaux with
+      ts_zero = Some(ts)
+    ; ts_in = [ts] }
+  else
+    { msaux with
+      ts_zero = Some(ts)
+    ; ts_out = [ts] }
+
+let update_ts (l, r) a ts msaux =
+  if a = 0 then
+    let new_ts_in =
+      List.drop_while msaux.ts_in
+        ~f:(fun ts' -> ts' < l) in
+    { msaux with ts_in = ts::new_ts_in }
+  else
+    let new_in =
+      List.take_while msaux.ts_out
+        ~f:(fun ts' -> ts' <= r) in
+    let new_ts_out =
+      List.drop_while msaux.ts_out
+        ~f:(fun ts' -> ts' <= r) in
+    let new_ts_in =
+      List.drop_while msaux.ts_in
+        ~f:(fun ts' -> ts' < l) in
+    { msaux with
+      ts_in = new_in @ new_ts_in
+    ; ts_out = ts::new_ts_out }
+
+exception VEXPL
+exception SEXPL
+
+(* This approach should be faster than other possible solutions *)
+let add_to_sps_in_deque msaux sp_f1 =
+  Deque.iteri msaux.beta_alphas ~f:(fun i (ts, sp) ->
+      match sp with
+      | S pf -> Deque.set_exn msaux.beta_alphas i (ts, S (sappend pf sp_f1))
+      | V _ -> raise SEXPL)
+
+(* Resulting list is in ascending order, e.g.,
+   d = [(1, p_1), (2, p_2), ..., (n, p_n)]
+   l = [(n, p_n), ...]  *)
+let split_in_out_deque msaux r =
+  Deque.fold msaux.beta_alphas_out ~init:[]
+    ~f:(fun acc (ts, sp) ->
+      if ts <= r then (
+        Deque.drop_front msaux.beta_alphas_out;
+        (ts, sp)::acc)
+      else acc)
+
+(* Sort proofs wrt a particular measure, i.e., 
+   if |p_1| < |p_2| in [p_1, p_2, p_3, ..., p_n] 
+   then p_2 must be removed (and so on).
+   The order of resulting list is reversed, which
+   means that the smallest element is also the head. *)
+let update_new_in le new_in =
+  let rec aux ps acc =
+    match ps with
+    | [] -> acc
+    | x::x'::xs ->
+       if le (snd(x)) (snd(x')) then
+         aux xs (x::acc)
+       else aux xs (x'::acc)
+    | x::xs -> x::acc
+  in aux new_in []
+
+let remove_worse msaux le new_in =
+  let new_in' = update_new_in le new_in in
+  let hd_p = List.hd_exn new_in' in
+  Deque.iter msaux.alpha_betas ~f:(fun (ts, sp) ->
+      if le (snd(hd_p)) sp then
+        Deque.drop_back msaux.alpha_betas);
+  List.iter new_in' ~f:(fun (ts, sp) ->
+      Deque.enqueue_back msaux.alpha_betas (ts, sp))
+
+let remove_old msaux l =
+  Deque.iter msaux.alpha_betas
+    ~f:(fun (ts, sp) ->
+      if ts <= l then
+        Deque.drop_front msaux.alpha_betas)
+
+(* let add_to_vps_in_deque vps vp_f2 =
  *   Deque.iteri vps ~f:(fun i (ts, vp) ->
  *       match vp with
  *       | V pf -> Deque.set_exn vps i (ts, V (vappend pf vp_f2))
- *       | S _ -> raise VEXPL)
- * 
- * let split_in_out_deque r ps_out =
- *   Deque.fold ps_out ~init:[]
- *     ~f:(fun acc (ts, sp) ->
- *       if ts <= r then (
- *         Deque.drop_front ps_out;
- *         (ts, sp)::acc)
- *       else acc)
- * 
- * (\* TODO: Check order *\)
- * let split_in_out_list r vps_out =
+ *       | S _ -> raise VEXPL) *)
+
+(* TODO: Check order *)
+(* let split_in_out_list r vps_out =
  *   let betas_in =
  *     List.fold vps_out ~init:[]
  *       ~f:(fun acc (ts, a_opt, b_opt) ->
@@ -172,34 +201,20 @@ let rec mbuf2_take f buf =
  *   let alphas_betas_out =
  *     List.drop_while vps_out
  *       ~f:(fun (ts, _, _) -> ts <= r) in
- *   (betas_in, alphas_betas_out)
- * 
- * let remove_worse le ps_in new_in =
- *   let new_in' = update_new_in le new_in in
- *   let hd_p = List.hd_exn new_in' in
- *   Deque.iter ps_in ~f:(fun (ts, sp) ->
- *       if le (snd(hd_p)) sp then
- *         Deque.drop_back ps_in);
- *   List.iter new_in' ~f:(fun (ts, sp) ->
- *       Deque.enqueue_back ps_in (ts, sp))
- * 
- * let remove_old l ps_in =
- *   Deque.iter ps_in ~f:(fun (ts, sp) ->
- *       if ts <= l then
- *         Deque.drop_front ps_in)
- * 
- * let filter_betas vps_in =
+ *   (betas_in, alphas_betas_out) *)
+
+(* let filter_betas vps_in =
  *   List.fold vps_in ~init:[]
  *     ~f:(fun acc (ts, a_opt, b_opt) ->
  *       (ts, b_opt)::acc) *)
 
-(* let update_ssince (l, r) sp_f1 sp_f ts msaux le =
- *   add_to_sps_in_deque msaux.beta_alphas sp_f1;
- *   add_to_sps_in_deque msaux.beta_alphas_out sp_f1;
- *   Deque.enqueue_back msaux.beta_alphas_out (ts, sp_f);
- *   let new_in = split_in_out_deque r msaux.beta_alphas_out in
- *   remove_worse le msaux.beta_alphas new_in;
- *   remove_old l msaux.beta_alphas *)
+let update_ssince (l, r) sp_f1 sp_f ts msaux le =
+  let _ = add_to_sps_in_deque msaux sp_f1 in
+  let _ = add_to_sps_in_deque msaux sp_f1 in
+  let _ = Deque.enqueue_back msaux.beta_alphas_out (ts, sp_f) in
+  let new_in = split_in_out_deque msaux r in
+  let _ = remove_worse msaux le new_in in
+  remove_old msaux l
 
 (* let update_vsince (l, r) vp_f1 vp_f2 vp_f ts msaux le =
  *   add_to_vps_in_deque msaux.alpha_betas vp_f2;
@@ -218,7 +233,7 @@ let rec mbuf2_take f buf =
  *   (\* Case 1: \tau_{i-1} does not exist *\)
  *   if Option.is_none last_ts_opt then
  *     (\* Update list of timestamps *\)
- *     let new_msaux = init_ts a ts msaux in
+ *     let new_msaux = add_first_ts a ts msaux in
  *     let p = doSinceBase minimum i a p1 p2 in
  *     (\* Update msaux *\)
  *     (match p1, p2 with
@@ -235,26 +250,25 @@ let rec mbuf2_take f buf =
  *     | S f1, V f2 ->
  *         Deque.enqueue_back new_msaux.alpha_betas (ts, p);
  *         (p, { new_msaux with betas_suffix_in = [(ts, f2)];
- *                              v_alphas_betas_out = [(ts, None, Some(f2))]})
+ *                              alphas_betas_out = [(ts, None, Some(f2))]})
  *     
  *      | V f1, V f2 ->
  *         Deque.enqueue_back new_msaux.alpha_betas (ts, p);
  *         (p, { new_msaux with betas_suffix_in = [(ts, f2)];
- *                              v_alphas_betas_out = [(ts, Some(f1), Some(f2))] }))
+ *                              alphas_betas_out = [(ts, Some(f1), Some(f2))] }))
  * 
  *   (\* Case 2: \tau_{i-1} exists *\)
  *   else
- *     let ts_zero = Option.value_exn msaux.ts_zero in
- *     let last_ts = Option.value_exn last_ts_opt in
+ *     let ts_zero = Option.get msaux.ts_zero in
+ *     let last_ts = Option.get last_ts_opt in
  *     let b = get_b_I ts_zero interval in
  *     (\* TODO: Fix l and r, we should consider the type of the interval *\)
  *     let l = ts - a in
  *     let r = ts - b in
- *     let new_msaux = update_ts a r ts msaux in
- *     
+ *     let new_msaux = update_ts (l, r) a ts msaux in
  *     (\* Case 2.1: \tau_{i} < \tau_{0} + a *\)
  *     if ts < ts_zero + a then
- *       (V (VSinceOut i), { msaux with ts_out = [ts] })
+ *       (V (VSinceOutL i), { new_msaux with ts_out = [ts] })
  *     else
  *       let delta = ts - last_ts in
  *       (\* Case 2.2: b < \Delta, i.e., last_ts lies outside of the interval *\)
@@ -267,12 +281,15 @@ let rec mbuf2_take f buf =
  *          | S f1, S f2 ->
  *             let sp_f = S (SSince (f2, [f1])) in
  *             update_ssince (l, r) f1 (sp_f) ts new_msaux le;
- *             (\* TODO: Change output *\)
+ *             (\* TODO: missing output *\)
  *             (sp_f, new_msaux)
- *          (\* | V f1 , S f2 ->
- *           * | S f1, V f2 ->
- *           * | V f1, V f2 ->
- *           *    let vp_f = V (VSince (i, f1, [f2])) in *\)
+ *          | V f1 , S f2 ->
+ *             TODO: missing output
+ *             (, { new_msaux with alpha_betas = Deque.create ();
+ *                                 alpha_betas_out = Deque.create () })
+ *          | S f1, V f2 ->
+ *          | V f1, V f2 ->
+ *             let vp_f = V (VSince (i, f1, [f2])) in
  *          | _ -> failwith "soon" *)
   
 let rec meval i ts event mform minimum =
@@ -314,7 +331,8 @@ let rec meval i ts event mform minimum =
     (* | MUntil (interval, mf, mg, buf, ts_a_lst, muaux) -> *)
     | _ -> failwith "This formula cannot be monitored"
 
-let monitor le f =
-  let minimum_list ps = minsize_list (get_mins le ps) in
-  let minimum a b = minimum_list [a; b] in
-  ()
+(* let monitor le f =
+ *   let minimum_list ps = minsize_list (get_mins le ps) in
+ *   let minimum a b = minimum_list [a; b] in *)
+  (* timepoint variable i must be updated at each meval call *)
+  
