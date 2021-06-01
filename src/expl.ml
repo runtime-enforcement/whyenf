@@ -436,6 +436,6 @@ and v_to_string indent p =
   | VUntilInf (_, vpsis) ->
      Printf.sprintf "%sVUntilInf{%d}\n%s" indent (v_at p) (list_to_string indent' v_to_string vpsis)
 
-let to_string = function
+let expl_to_string = function
   | S p -> s_to_string "" p
   | V p -> v_to_string "" p
