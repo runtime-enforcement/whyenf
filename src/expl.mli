@@ -78,4 +78,4 @@ val low_le: expl -> expl -> bool
 val predicates: expl -> int
 val predicates_le: expl -> expl -> bool
 
-val to_string: expl -> string
+val expl_to_string: expl -> string
