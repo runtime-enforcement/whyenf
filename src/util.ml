@@ -10,11 +10,13 @@
 
 (* Sets are defined using a functional interface given a type *)
 module SS = Set.Make(String)
-type ts = int
-type tp = int
+type timestamp = int
+type timepoint = int
 (* (atomic propositions satisfied at that event * timestamp) *)
-type event = SS.t * ts
+type event = SS.t * timestamp
 type trace = event list
+
+type mode = SAT | VIO | ALL
 
 let rec max_list = List.fold_left max 0
 let rec min_list = List.fold_left min 0

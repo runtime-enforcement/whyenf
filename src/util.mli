@@ -8,10 +8,11 @@
 (*******************************************************************)
 
 module SS: Set.S with type elt = string
-type ts = int
-type tp = int
-type event = SS.t * ts
+type timestamp = int
+type timepoint = int
+type event = SS.t * timestamp
 type trace = event list
+type mode = SAT | VIO | ALL
 
 val max_list: int list -> int
 val min_list: int list -> int

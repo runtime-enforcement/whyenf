@@ -31,8 +31,8 @@ val multiply_I: int -> interval -> interval
 val mem_I: int -> interval -> bool
 val where_I: int -> interval -> rel
 val get_a_I: interval -> int 
-val get_b_I: ts -> interval -> int
+val get_b_I: timestamp -> interval -> int
 val interval_to_string: interval -> string
 val lex_interval: (unit -> interval) -> char -> string -> string -> char -> interval
-val get_etp: int option -> ts -> ts list -> tp option
-val get_ltp: ts -> ts list -> tp option
+val get_etp: int option -> timestamp -> timestamp list -> timepoint option
+val get_ltp: timestamp -> timestamp list -> timepoint option
