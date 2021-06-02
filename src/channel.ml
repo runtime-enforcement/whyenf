@@ -1,3 +1,12 @@
+(*******************************************************************)
+(*     This is part of Explanator2, it is distributed under the    *)
+(*     terms of the GNU Lesser General Public License version 3    *)
+(*           (see file LICENSE for more details)                   *)
+(*                                                                 *)
+(*  Copyright 2021:                                                *)
+(*  Leonardo Lima (UCPH)                                           *)
+(*******************************************************************)
+
 open Util
 open Expl
 open Interval
@@ -11,12 +20,12 @@ type input_channel =
   | InputMock of input_type list
 
 type output_type =
-  | Explanation of (ts * tp) * expl
+  | Explanation of (timestamp * timepoint) * expl
   | Info of string
 
 type output_channel =
   | Output of out_channel
-  | OutputDebug of tp * out_channel
+  | OutputDebug of timepoint * out_channel
   | OutputMock of output_type list
 
 type channel =
@@ -114,8 +123,8 @@ let sort ch = match ch with
 
 let output_explanation ch ((t, i), p) =
   match ch with
-  | Output x -> Printf.fprintf x "%d:%d\nProof: \n%s\n" t i (expl_to_string p); ch
-  | OutputDebug (_, x) -> Printf.fprintf x "%d:%d\nProof: \n%s\n" t i (expl_to_string p); ch
+  | Output x -> Printf.fprintf x "%d:%d\nProof: \n%s\n" t i (Expl.expl_to_string p); ch
+  | OutputDebug (_, x) -> Printf.fprintf x "%d:%d\nProof: \n%s\n" t i (Expl.expl_to_string p); ch
   | OutputMock x -> OutputMock(x @ [Explanation ((t, i), p)])
 
 let output_interval out i = output_event out (interval_to_string i)
