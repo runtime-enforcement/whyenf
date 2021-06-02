@@ -10,6 +10,7 @@
 open Mtl
 open Expl
 open Util
+open Channel
 open Interval
 
 module Deque = Core_kernel.Deque
@@ -18,23 +19,23 @@ module List = Core_kernel.List
 type mbuf2 = expl list * expl list
 
 type msaux = {
-    ts_zero: ts option
-  ; ts_in: ts list
-  ; ts_out: ts list
+    ts_zero: timestamp option
+  ; ts_in: timestamp list
+  ; ts_out: timestamp list
     
   (* sorted deque of S^+ beta [alphas] *)
-  ; beta_alphas: (ts * expl) Deque.t
+  ; beta_alphas: (timestamp * expl) Deque.t
   (* deque of S^+ beta [alphas] outside of the interval *)
-  ; beta_alphas_out: (ts * expl) Deque.t
+  ; beta_alphas_out: (timestamp * expl) Deque.t
     
   (* sorted deque of S^- alpha [betas] *)
-  ; alpha_betas: (ts * expl) Deque.t
+  ; alpha_betas: (timestamp * expl) Deque.t
   (* sorted deque of alpha proofs *)
-  ; alphas_out: (ts * vexpl) Deque.t
+  ; alphas_out: (timestamp * vexpl) Deque.t
   (* list of beta violations inside the interval*)
-  ; betas_suffix_in: (ts * vexpl) Deque.t
+  ; betas_suffix_in: (timestamp * vexpl) Deque.t
   (* list of alpha/beta violations *)
-  ; alphas_betas_out: (ts * vexpl option * vexpl option) Deque.t
+  ; alphas_betas_out: (timestamp * vexpl option * vexpl option) Deque.t
   ; }
 
 (* type muaux = {
@@ -49,14 +50,20 @@ type mformula =
   | MNeg of mformula
   | MConj of mformula * mformula * mbuf2
   | MDisj of mformula * mformula * mbuf2
-  | MPrev of interval * mformula * bool * expl list * ts list
-  | MNext of interval * mformula * bool * ts list
+  | MPrev of interval * mformula * bool * expl list * timestamp list
+  | MNext of interval * mformula * bool * timestamp list
   | MSince of interval * mformula * mformula * msaux
   (* | MUntil of interval * mformula * mformula * mbuf2 * ts list * muaux *)
 
 type progress = int
 
 type mstate = progress * mformula
+
+type context =
+  { ts: timestamp
+  ; tp: timepoint
+  ; out: output_channel
+  }
 
 let cleared_msaux = { ts_zero = None
                     ; ts_in = []
@@ -369,8 +376,25 @@ let rec meval i ts event mform minimum =
     (* | MUntil (interval, mf, mg, buf, ts_a_lst, muaux) -> *)
     | _ -> failwith "This formula cannot be monitored"
 
-(* let monitor le f =
+let start out_ch mode f =
+  let out_ch = output_event out_ch "Monitoring " in
+  let out_ch = output_event out_ch (formula_to_string f) in
+  let out_ch = output_event out_ch (" in mode \"" ^
+                                    (match mode with
+                                     | SAT -> "SAT"
+                                     | VIO -> "VIO"
+                                     | ALL -> "ALL")
+                                    ^ "\"") in
+  let out_ch = output_event out_ch "\n" in out_ch
+
+(* let monitor in_ch out_ch mode le f =
  *   let minimum_list ps = minsize_list (get_mins le ps) in
- *   let minimum a b = minimum_list [a; b] in *)
-  (* timepoint variable i must be updated at each meval call *)
-  
+ *   let minimum a b = minimum_list [a; b] in
+ *   let mf = minit f in
+ *   let rec loop f x = loop f (f x) in
+ *   let s (ctx, ch) =
+ *     let (event, ch) = input_event ch ctx.out in
+ *     meval ctx.tp ctx.ts event mf minimum in
+ *   let out_ch = start out_ch mode f in
+ *   let ctx = { ts = -1; tp = 0; out = out_ch } in
+ *   loop s (ctx, in_ch) *)
