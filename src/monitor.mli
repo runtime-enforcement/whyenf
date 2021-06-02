@@ -10,4 +10,4 @@
 open Mtl
 open Expl
 
-val monitor: (expl -> expl -> bool) -> formula -> unit
+(* val monitor: (expl -> expl -> bool) -> formula -> unit *)
