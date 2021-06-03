@@ -148,7 +148,7 @@ exception VEXPL
 exception SEXPL
 
 (* This approach should be faster than other possible solutions *)
-let add_to_beta_alphas msaux sp_f1 =
+let append_to_beta_alphas msaux sp_f1 =
   Deque.iteri msaux.beta_alphas ~f:(fun i (ts, sp) ->
       match sp with
       | S pf -> Deque.set_exn msaux.beta_alphas i (ts, S (sappend pf sp_f1))
@@ -197,17 +197,11 @@ let remove_old_beta_alphas msaux l =
         Deque.drop_front msaux.alpha_betas)
 
 let update_ssince (l, r) sp_f1 sp_f ts msaux le =
-  let _ = add_to_beta_alphas msaux sp_f1 in
+  let _ = append_to_beta_alphas msaux sp_f1 in
   let _ = Deque.enqueue_back msaux.beta_alphas_out (ts, sp_f) in
   let new_in = split_in_out_beta_alphas_out msaux r in
   let _ = update_beta_alphas msaux le new_in in
   remove_old_beta_alphas msaux l
-
-(* let add_to_vps_in_deque vps vp_f2 =
- *   Deque.iteri vps ~f:(fun i (ts, vp) ->
- *       match vp with
- *       | V pf -> Deque.set_exn vps i (ts, V (vappend pf vp_f2))
- *       | S _ -> raise VEXPL) *)
 
 let add_alpha_v msaux le ts vp_f1 =
   Deque.iter msaux.alphas_out ~f:(fun (ts, vp) ->
@@ -216,13 +210,13 @@ let add_alpha_v msaux le ts vp_f1 =
   Deque.enqueue_back msaux.alphas_out (ts, vp_f1)
 
 let split_in_out_alphas_betas_out msaux r =
-  Deque.fold msaux.alphas_betas_out ~init:[]
-    ~f:(fun acc (ts, vp_f1, vp_f2) ->
-      if ts <= r then (
-        Deque.drop_front msaux.beta_alphas_out;
-        (ts, vp_f1, vp_f2)::acc)
-      else acc)
-
+  List.rev (Deque.fold msaux.alphas_betas_out ~init:[]
+              ~f:(fun acc (ts, vp_f1, vp_f2) ->
+                if ts <= r then (
+                  Deque.drop_front msaux.beta_alphas_out;
+                  (ts, vp_f1, vp_f2)::acc)
+                else acc))
+      
 let remove_old_alpha_betas msaux l =
   Deque.iter msaux.alpha_betas
     ~f:(fun (ts, _) ->
@@ -235,25 +229,94 @@ let remove_old_betas_suffix_in msaux l =
       if ts <= l then
         Deque.drop_front msaux.betas_suffix_in)
 
+let update_betas_suffix_in msaux new_in =
+  let beta_none =
+    List.exists new_in (fun (ts, opt_vp_f1, opt_vp_f2) ->
+        opt_vp_f2 = None) in
+  if beta_none then
+    let betas_after_none =
+      List.fold_right new_in ~init:[]
+        ~f:(fun (ts, opt_vp_f1, opt_vp_f2) acc ->
+          if acc = [] then
+            (if opt_vp_f2 = None then (ts, None)::acc else acc)
+          else
+            (ts, opt_vp_f2)::acc) in
+      List.iter (List.rev betas_after_none)
+        ~f:(fun (ts, opt_vp_f2) ->
+          match opt_vp_f2 with
+          | None -> ()
+          | Some (vp_f2) ->
+             Deque.enqueue_front msaux.betas_suffix_in (ts, vp_f2))
+  else
+    List.iter new_in
+      ~f:(fun (ts, opt_vp_f1, opt_vp_f2) ->
+        match opt_vp_f2 with
+        | None -> ()
+        | Some(vp_f2) ->
+           Deque.enqueue_front msaux.betas_suffix_in (ts, vp_f2))
+
+let append_to_alpha_betas msaux vp_f2 =
+  Deque.iteri msaux.alpha_betas ~f:(fun i (ts, vp) ->
+      match vp with
+      | V pf -> Deque.set_exn msaux.alpha_betas i (ts, V (vappend pf vp_f2))
+      | S _ -> raise VEXPL)
+
+let update_alpha_betas msaux new_in =
+  let beta_none =
+    List.exists new_in (fun (ts, opt_vp_f1, opt_vp_f2) ->
+        opt_vp_f2 = None) in
+  if beta_none then
+    Deque.clear msaux.alpha_betas
+  else
+    List.iter new_in
+      ~f:(fun (ts, opt_vp_f1, opt_vp_f2) ->
+        match opt_vp_f2 with
+        | None -> ()
+        | Some(vp_f2) ->
+           append_to_alpha_betas msaux vp_f2)
+
+let construct_vsinceps new_in tp =
+  let opt_idx_none =
+    List.findi new_in (fun i (ts, opt_vp_f1, opt_vp_f2) ->
+        opt_vp_f2 = None) in
+  let idx_none =
+    match opt_idx_none with
+    | None -> 0
+    | Some(i, (_, _,_)) -> i in
+  let new_in' =
+    List.foldi new_in ~init:[]
+      ~f:(fun i acc (ts, opt_vp_f1, opt_vp_f2) ->
+        if i > idx_none then acc @ [(ts, opt_vp_f1, opt_vp_f2)]
+        else acc) in
+  List.foldi new_in' ~init:[]
+    ~f:(fun i acc (ts, opt_vp_f1, opt_vp_f2) ->
+      match opt_vp_f1 with
+      | None -> acc
+      | Some(vp_f1) ->
+         let vbetas = 
+           List.foldi new_in' ~init:[]
+             ~f:(fun j acc2 (ts, o1, o2) ->
+               match o2 with
+               | None -> acc2
+               | Some(beta) ->
+                  if j >= i then acc2 @ [beta] else acc2) in
+         let vp = V (VSince (tp, vp_f1, vbetas)) in
+         acc @ [(ts, vp)])
+
+let add_new_vsinceps msaux new_in tp =
+  let new_vps_in = construct_vsinceps new_in tp in
+  List.iter new_vps_in (fun (ts, vp) ->
+      Deque.enqueue_back msaux.alpha_betas (ts, vp))
+
 (* let update_vsince (l, r) vp_f1 vp_f2 vp_f ts msaux le =
  *   let _ = add_alpha_v msaux le ts vp_f1 in
  *   let _ = Deque.enqueue_back msaux.alphas_betas_out (ts, Some(vp_f1), Some(vp_f2)) in
  *   let new_in = split_in_out_alphas_betas_out msaux r in
  *   let _ = remove_old_alpha_betas msaux l in
  *   let _ = remove_old_betas_suffix_in msaux l in
- *   
- * 
- *   
- *   let _ = Deque.enqueue_back msaux.betas_suffix_in msaux vp_f2 in
- *   add_to_vps_in_deque msaux.alpha_betas vp_f2;
- *   add_to_vps_in_deque msaux.alpha_betas_out vp_f2;
- *   Deque.enqueue_back msaux.alpha_betas_out vp_f;
- *   let new_msaux = {
- *       msaux with
- *       alphas_betas_out = (ts, Some(vp_f1), Some(vp_f2))::msaux.alphas_betas_out
- *     } in
- *   let betas_in, alphas_betas_out = split_in_out_list r msaux.alphas_betas_out in
- *   let new_in = split_in_out_deque r msaux.alpha_betas_out in *)
+ *   let _ = update_betas_suffix_in msaux new_in in
+ *   let _ = update_alpha_betas msaux new_in in
+ *   add_new_vsinceps msaux new_in i *)
 
 let betas_suffix_in_to_list betas_suffix_in =
   Deque.fold' betas_suffix_in ~init:[]
@@ -395,6 +458,8 @@ let start out_ch mode f =
  *   let s (ctx, ch) =
  *     let (event, ch) = input_event ch ctx.out in
  *     meval ctx.tp ctx.ts event mf minimum in
+ *     (* Output proofs according to mode *)
+ *     (* Update context *)
  *   let out_ch = start out_ch mode f in
  *   let ctx = { ts = -1; tp = 0; out = out_ch } in
  *   loop s (ctx, in_ch) *)
