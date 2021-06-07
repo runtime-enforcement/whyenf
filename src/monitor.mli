@@ -9,5 +9,7 @@
 
 open Mtl
 open Expl
+open Util
+open Channel
 
-(* val monitor: (expl -> expl -> bool) -> formula -> unit *)
+val monitor: input_channel -> output_channel -> mode -> (expl -> expl -> bool) -> formula -> output_channel
