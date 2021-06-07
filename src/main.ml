@@ -11,24 +11,29 @@
 open Util
 open Expl
 open Mtl
+open Channel
 open Mtl_parser
 open Mtl_lexer
 open Monitor
 
 exception EXIT
 
-let measure_ref = ref None
-let fmla_ref = ref (neg (p "p"))
-let log_ref = ref stdin
-let out_ref = ref stdout
 let full_ref = ref true
-let filter_atoms = ref false
+let mode_ref = ref ALL
+let measure_ref = ref None
+let fmla_ref = ref None
+let log_ref = ref (Input stdin)
+let out_ref = ref (Output stdout)
 
 let usage () =
   Format.eprintf
-    "Example usage: explanator2 -measure size -fmla test.fmla -log test.log -out test.out
+    "Example usage: explanator2 -O size -mode sat -fmla test.fmla -log test.log -out test.out
      Arguments:
      \t -ap      - output only the \"responsible atomic proposition\" view
+     \t -mode
+     \t\t all    - output all satisfaction and violation proofs (default)
+     \t\t sat    - output only satisfaction proofs 
+     \t\t viol   - output only violation proofs
      \t -O
      \t\t size   - optimize proof size (default)
      \t\t high   - optimize highest time-point occuring in a proof (lower is better)
@@ -42,8 +47,12 @@ let usage () =
      \t\t <file> - output file where the explanation is printed to (default: stdout)\n%!";
   raise EXIT
 
+let mode_error () =
+  Format.eprintf "mode should be either \"sat\", \"viol\" or \"all\" (without quotes)\n%!";
+  raise EXIT
+
 let measure_error () =
-  Format.eprintf "mode should be either of \"size\", \"high\", \"pred\", or \"none\" (without quotes)\n%!";
+  Format.eprintf "measure should be either \"size\", \"high\", \"pred\", or \"none\" (without quotes)\n%!";
   raise EXIT
 
 let process_args =
@@ -51,22 +60,17 @@ let process_args =
     | ("-ap" :: args) ->
        full_ref := false;
        go args
-    | ("-O" :: mode :: args) ->
-       let mode =
-         match mode with
-         | "size" | "SIZE" | "Size" -> size_le
-         | "high" | "HIGH" | "High" -> high_le
-         | "pred" | "PRED" | "Pred" -> predicates_le
-         | "none" | "NONE" | "None" -> (fun _ _ -> true)
-         | _ -> measure_error () in
-       measure_ref :=
-         (match !measure_ref with
-          | None -> Some mode
-          | Some mode' -> Some (prod_le mode mode'));
+    | ("-mode" :: mode :: args) ->
+       mode_ref :=
+         (match mode with
+          | "all" | "ALL" | "All" -> ALL
+          | "sat" | "SAT" | "Sat" -> SAT
+          | "viol" | "VIOL" | "Viol" -> VIOL
+          | _ -> mode_error ());
        go args
-    | ("-Olex" :: mode :: args) ->
-       let mode =
-         match mode with
+    | ("-O" :: measure :: args) ->
+       let measure =
+         match measure with
          | "size" | "SIZE" | "Size" -> size_le
          | "high" | "HIGH" | "High" -> high_le
          | "pred" | "PRED" | "Pred" -> predicates_le
@@ -74,38 +78,54 @@ let process_args =
          | _ -> measure_error () in
        measure_ref :=
          (match !measure_ref with
-          | None -> Some mode
-          | Some mode' -> Some (lex_le mode mode'));
+          | None -> Some measure
+          | Some measure' -> Some(prod_le measure measure'));
+       go args
+    | ("-Olex" :: measure :: args) ->
+       let measure =
+         match measure with
+         | "size" | "SIZE" | "Size" -> size_le
+         | "high" | "HIGH" | "High" -> high_le
+         | "pred" | "PRED" | "Pred" -> predicates_le
+         | "none" | "NONE" | "None" -> (fun _ _ -> true)
+         | _ -> measure_error () in
+       measure_ref :=
+         (match !measure_ref with
+          | None -> Some measure
+          | Some measure' -> Some(lex_le measure measure'));
        go args
     | ("-log" :: logfile :: args) ->
-       log_ref := open_in logfile;
+       log_ref := Input (open_in logfile);
        go args
     | ("-fmla" :: fmlafile :: args) ->
        (try
           let in_ch = open_in fmlafile in
-          fmla_ref := Mtl_parser.formula Mtl_lexer.token (Lexing.from_channel in_ch);
+          fmla_ref := Some(Mtl_parser.formula Mtl_lexer.token (Lexing.from_channel in_ch));
           close_in in_ch
         with
-          _ -> fmla_ref := Mtl_parser.formula Mtl_lexer.token (Lexing.from_string fmlafile));
+          _ -> fmla_ref := Some(Mtl_parser.formula Mtl_lexer.token (Lexing.from_string fmlafile)));
        go args
     | ("-out" :: outfile :: args) ->
-       out_ref := open_out outfile;
+       out_ref := Output (open_out outfile);
        go args
     | [] -> ()
     | _ -> usage () in
   go
 
+let close out = match out with Output x | OutputDebug (_, x) -> close_out x | OutputMock x -> ()
+
 let _ =
   try
     process_args (List.tl (Array.to_list Sys.argv));
-    let f = !fmla_ref in
-    if !full_ref then
-      let _ = Printf.fprintf !out_ref "Formula: %s\n" (formula_to_string f) in
-      let _ = Printf.fprintf !out_ref "Past height: %d , Future height: %d \n" (hp f) (hf f) in
-      monitor (match !measure_ref with None -> size_le | Some mode -> mode) f
-    else
-      let _ = Printf.fprintf !out_ref "Formula: %s\n" (formula_to_string f) in
-      monitor (match !measure_ref with None -> size_le | Some mode -> mode) f
+    match !fmla_ref with
+    | None -> ()
+    | Some(f) -> let measure = match !measure_ref with
+                   | None -> size_le
+                   | Some measure' -> measure' in
+                 let in_ch, out_ch, mode = !log_ref, !out_ref, !mode_ref in
+                 if !full_ref then
+                   let _ = monitor in_ch out_ch mode measure f in ()
+                 else ()
   with
-  | End_of_file -> let _ = Printf.fprintf !out_ref "Bye.\n" in close_out !out_ref; exit 0
-  | EXIT -> close_out !out_ref; exit 1
+  | End_of_file -> let _ = Printf.fprintf stdout "Bye.\n" in close !out_ref; exit 0
+  | EXIT -> close !out_ref; exit 1

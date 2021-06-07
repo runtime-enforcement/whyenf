@@ -16,7 +16,7 @@ type timepoint = int
 type event = SS.t * timestamp
 type trace = event list
 
-type mode = SAT | VIO | ALL
+type mode = SAT | VIOL | ALL
 
 let rec max_list = List.fold_left max 0
 let rec min_list = List.fold_left min 0
@@ -36,6 +36,8 @@ let prod_le p q r s = p r s && q r s
 let lex_le p q r s = p r s || (not (p s r) && q r s)
 
 let mk_le f r s = f r <= f s
+
+let mk_sl f r s = f r < f s
 
 let eat s t = s ^ String.trim t
 

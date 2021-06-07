@@ -39,9 +39,11 @@ type msaux = {
   ; }
 
 (* type muaux = {
- *     alphas_beta: ((ts * expl) list) Deque.t
- *   ; 
- *   } *)
+ *     (\* deque of lists of U^+ beta [alphas] proofs *\)
+ *     alphas_beta: ((timestamp * expl) list) Deque.t
+ *   (\* most recent sequence of alpha satisfactions w/o holes *\)
+ *   ; alphas_suffix: (timestamp * expl) Deque.t
+ *   ; } *)
 
 type mformula =
   | MTT
@@ -60,8 +62,7 @@ type progress = int
 type mstate = progress * mformula
 
 type context =
-  { ts: timestamp
-  ; tp: timepoint
+  { tp: timepoint
   ; out: output_channel
   }
 
@@ -400,16 +401,15 @@ let update_since interval i ts p1 p2 msaux le minimum =
           *    let vp_f = V (VSince (i, f1, [f2])) in *)
          | _ -> failwith "soon"
   
-let rec meval i ts event mform minimum =
+let rec meval tp ts sap mform minimum =
     match mform with
-    | MTT -> ([S (STT i)], MTT)
-    | MFF -> ([V (VFF i)], MFF)
+    | MTT -> ([S (STT tp)], MTT)
+    | MFF -> ([V (VFF tp)], MFF)
     | MP a ->
-       let s = fst(event) in
-       if SS.mem a s then ([S (SAtom (i, a))], MP a)
-       else ([V (VAtom (i, a))], MP a)
+       if SS.mem a sap then ([S (SAtom (tp, a))], MP a)
+       else ([V (VAtom (tp, a))], MP a)
     | MNeg (mf) ->
-       let (expl_f, mf') = meval i ts event mf minimum in
+       let (expl_f, mf') = meval tp ts sap mf minimum in
        let expl_z = List.map expl_f (fun e ->
                         match e with
                         | S e' -> V (VNeg e')
@@ -417,14 +417,14 @@ let rec meval i ts event mform minimum =
                       ) in (expl_z, mf')
     | MConj (mf1, mf2, buf) ->
        let op e1 e2 = doConj minimum e1 e2 in
-       let (expl_f1, mf1') = meval i ts event mf1 minimum in
-       let (expl_f2, mf2') = meval i ts event mf2 minimum in
+       let (expl_f1, mf1') = meval tp ts sap mf1 minimum in
+       let (expl_f2, mf2') = meval tp ts sap mf2 minimum in
        let (expl_f, buf') = mbuf2_take op (mbuf2_add expl_f1 expl_f2 buf) in
        (expl_f, MConj (mf1', mf2', buf'))
     | MDisj (mf1, mf2, buf) ->
        let op e1 e2 = doDisj minimum e1 e2 in
-       let (expl_f1, mf1') = meval i ts event mf1 minimum in
-       let (expl_f2, mf2') = meval i ts event mf2 minimum in
+       let (expl_f1, mf1') = meval tp ts sap mf1 minimum in
+       let (expl_f2, mf2') = meval tp ts sap mf2 minimum in
        let (expl_f, buf') = mbuf2_take op (mbuf2_add expl_f1 expl_f2 buf) in
        (expl_f, MDisj (mf1', mf2', buf'))
     (* | MPrev (interval, mf, b, expl_lst, ts_d_lst) ->
@@ -439,27 +439,41 @@ let rec meval i ts event mform minimum =
     (* | MUntil (interval, mf, mg, buf, ts_a_lst, muaux) -> *)
     | _ -> failwith "This formula cannot be monitored"
 
-let start out_ch mode f =
+let preamble out_ch mode f =
   let out_ch = output_event out_ch "Monitoring " in
   let out_ch = output_event out_ch (formula_to_string f) in
-  let out_ch = output_event out_ch (" in mode \"" ^
+  let out_ch = output_event out_ch (" in mode " ^
                                     (match mode with
                                      | SAT -> "SAT"
-                                     | VIO -> "VIO"
+                                     | VIOL -> "VIOL"
                                      | ALL -> "ALL")
-                                    ^ "\"") in
-  let out_ch = output_event out_ch "\n" in out_ch
+                                    ^ "\n") in out_ch
 
-(* let monitor in_ch out_ch mode le f =
- *   let minimum_list ps = minsize_list (get_mins le ps) in
- *   let minimum a b = minimum_list [a; b] in
- *   let mf = minit f in
- *   let rec loop f x = loop f (f x) in
- *   let s (ctx, ch) =
- *     let (event, ch) = input_event ch ctx.out in
- *     meval ctx.tp ctx.ts event mf minimum in
- *     (* Output proofs according to mode *)
- *     (* Update context *)
- *   let out_ch = start out_ch mode f in
- *   let ctx = { ts = -1; tp = 0; out = out_ch } in
- *   loop s (ctx, in_ch) *)
+(* let print_proofs out_ch mode ts tp ps =
+ *   match mode with
+ *   | SAT -> List.fold ps (fun acc p ->
+ *                match p with
+ *                | S _ -> let ch = output_explanation out_ch ((ts, tp) p in ch)
+ *                | V _ -> acc)
+ *   | VIOL -> List.iter ps (fun p ->
+ *                 match p with
+ *                 | S _ -> ()
+ *                 | V _ -> Printf.fprintf ch "%s\n\n" (expl_to_string p)); out_ch
+ *   | ALL -> List.iter ps (fun p ->
+ *                Printf.fprintf ch "%s\n\n" (expl_to_string p)); out_ch *)
+
+let monitor in_ch out_ch mode le f =
+  let minimum_list ps = minsize_list (get_mins le ps) in
+  let minimum a b = minimum_list [a; b] in
+  let mf = minit f in
+  let rec loop f x = loop f (f x) in
+  let s (ctx, ch) =
+    let ((sap, ts), ch) = input_event ch ctx.out in
+    let (ps, _) = meval ctx.tp ts sap mf minimum in
+    let out' = print_proofs ctx.out mode ts ctx.tp ps in
+    let new_ctx = { tp = ctx.tp+1
+                  ; out = out' } in
+    (new_ctx, ch) in
+  let out_ch = preamble out_ch mode f in
+  let ctx = { tp = 0; out = out_ch } in
+  loop s (ctx, in_ch)

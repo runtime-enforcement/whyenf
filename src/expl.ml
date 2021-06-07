@@ -204,6 +204,7 @@ let size = function
   | V v_p -> v_size v_p
 
 let size_le = mk_le size
+let size_sl = mk_sl size
 
 let minsize a b = if size a <= size b then a else b
 let minsize_list = function
@@ -322,6 +323,9 @@ let low p = match p with
 let high_le = mk_le high
 let low_le = mk_le (fun p -> - low p)
 
+let high_sl = mk_sl high
+let low_sl = mk_sl (fun p -> - low p)
+
 (***********************************
  *                                 *
  * Measure: pred                   *
@@ -378,6 +382,7 @@ let predicates = function
   | V v_p -> v_pred v_p
 
 let predicates_le = mk_le predicates
+let predicates_sl = mk_sl predicates
 
 (* Printing functions*)
 let rec s_to_string indent p =

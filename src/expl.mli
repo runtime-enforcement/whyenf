@@ -66,16 +66,20 @@ val vlift: vexpl -> vexpl
 
 val size: expl -> int
 val size_le: expl -> expl -> bool
+val size_sl: expl -> expl -> bool
 val minsize: expl -> expl -> expl
 val minsize_list: expl list -> expl
 
 val high: expl -> int
 val high_le: expl -> expl -> bool
+val high_sl: expl -> expl -> bool
 
 val low: expl -> int
 val low_le: expl -> expl -> bool
+val low_sl: expl -> expl -> bool
 
 val predicates: expl -> int
 val predicates_le: expl -> expl -> bool
+val predicates_sl: expl -> expl -> bool
 
 val expl_to_string: expl -> string
