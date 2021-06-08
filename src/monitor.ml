@@ -449,18 +449,20 @@ let preamble out_ch mode f =
                                      | ALL -> "ALL")
                                     ^ "\n") in out_ch
 
-(* let print_proofs out_ch mode ts tp ps =
- *   match mode with
- *   | SAT -> List.fold ps (fun acc p ->
- *                match p with
- *                | S _ -> let ch = output_explanation out_ch ((ts, tp) p in ch)
- *                | V _ -> acc)
- *   | VIOL -> List.iter ps (fun p ->
- *                 match p with
- *                 | S _ -> ()
- *                 | V _ -> Printf.fprintf ch "%s\n\n" (expl_to_string p)); out_ch
- *   | ALL -> List.iter ps (fun p ->
- *                Printf.fprintf ch "%s\n\n" (expl_to_string p)); out_ch *)
+let print_proofs out_ch mode ts tp ps =
+  match mode with
+  | SAT -> List.fold ps ~init:out_ch
+             ~f:(fun acc p ->
+               match p with
+               | S _ -> output_explanation out_ch ((ts, tp), p)
+               | V _ -> acc)
+  | VIOL -> List.fold ps ~init:out_ch
+             ~f:(fun acc p ->
+               match p with
+               | S _ -> acc
+               | V _ -> output_explanation out_ch ((ts, tp), p))
+  | ALL -> List.fold ps ~init:out_ch
+             ~f:(fun acc p -> output_explanation out_ch ((ts, tp), p))
 
 let monitor in_ch out_ch mode le f =
   let minimum_list ps = minsize_list (get_mins le ps) in
