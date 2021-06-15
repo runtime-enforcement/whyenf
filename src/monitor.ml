@@ -345,24 +345,24 @@ let construct_vsinceps new_in tp =
     | None -> 0
     | Some(i, (_, _,_)) -> i in
   let new_in' =
-    List.foldi new_in ~init:[]
-      ~f:(fun i acc (ts, opt_vp_f1, opt_vp_f2) ->
-        if i > idx_none then acc @ [(ts, opt_vp_f1, opt_vp_f2)]
-        else acc) in
-  List.foldi new_in' ~init:[]
-    ~f:(fun i acc (ts, opt_vp_f1, opt_vp_f2) ->
-      match opt_vp_f1 with
-      | None -> acc
-      | Some(vp_f1) ->
-         let vbetas = 
-           List.foldi new_in' ~init:[]
-             ~f:(fun j acc2 (ts, o1, o2) ->
-               match o2 with
-               | None -> acc2
-               | Some(beta) ->
-                  if j >= i then acc2 @ [beta] else acc2) in
-         let vp = V (VSince (tp, vp_f1, vbetas)) in
-         acc @ [(ts, vp)])
+    List.rev(List.foldi new_in ~init:[]
+               ~f:(fun i acc (ts, opt_vp_f1, opt_vp_f2) ->
+                 if i > idx_none then (ts, opt_vp_f1, opt_vp_f2)::acc
+                 else acc)) in
+  List.rev(List.foldi new_in' ~init:[]
+             ~f:(fun i acc (ts, opt_vp_f1, opt_vp_f2) ->
+               match opt_vp_f1 with
+               | None -> acc
+               | Some(vp_f1) ->
+                  let vbetas =
+                    List.rev(List.foldi new_in' ~init:[]
+                               ~f:(fun j acc2 (ts, o1, o2) ->
+                                 match o2 with
+                                 | None -> acc2
+                                 | Some(beta) ->
+                                    if j >= i then beta::acc2 else acc2)) in
+                  let vp = V (VSince (tp, vp_f1, vbetas)) in
+                  (ts, vp)::acc))
 
 let add_new_ps_alpha_betas msaux new_in tp =
   let new_vps_in = construct_vsinceps new_in tp in
