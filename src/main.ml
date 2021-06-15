@@ -127,5 +127,5 @@ let _ =
                    let _ = monitor in_ch out_ch mode measure f in ()
                  else ()
   with
-  | End_of_file -> let _ = Printf.fprintf stdout "Bye.\n" in close !out_ref; exit 0
+  | End_of_file -> let _ = Printf.fprintf stdout "Done! Bye.\n" in close !out_ref; exit 0
   | EXIT -> close !out_ref; exit 1
