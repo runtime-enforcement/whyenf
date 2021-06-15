@@ -56,7 +56,7 @@ let rec parse_lines line ch out =
                 | Some s -> (s, ch)
                 | None -> parse_lines (input_line x) ch out)
   | InputMock x -> (match parse_line line with
-                    | Some x -> (x, ch)
+                    | Some s -> (s, ch)
                     | None -> match x with
                               | [] -> raise (End_of_mock out)
                               | a::ax -> match a with
