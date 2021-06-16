@@ -34,6 +34,7 @@ let usage () =
      \t\t all    - output all satisfaction and violation proofs (default)
      \t\t sat    - output only satisfaction proofs 
      \t\t viol   - output only violation proofs
+     \t\t bool   - output boolean values (for testing)
      \t -O
      \t\t size   - optimize proof size (default)
      \t\t high   - optimize highest time-point occuring in a proof (lower is better)
@@ -66,6 +67,7 @@ let process_args =
           | "all" | "ALL" | "All" -> ALL
           | "sat" | "SAT" | "Sat" -> SAT
           | "viol" | "VIOL" | "Viol" -> VIOL
+          | "bool" | "BOOL" | "Bool" -> BOOL
           | _ -> mode_error ());
        go args
     | ("-O" :: measure :: args) ->
