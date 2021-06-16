@@ -124,10 +124,10 @@ let _ =
     | Some(f) -> let measure = match !measure_ref with
                    | None -> size_le
                    | Some measure' -> measure' in
-                 let in_ch, out_ch, mode = !log_ref, !out_ref, !mode_ref in
+                 let in_ch, mode = !log_ref, !mode_ref in
                  if !full_ref then
-                   let _ = monitor in_ch out_ch mode measure f in ()
+                   let _ = monitor in_ch !out_ref mode measure f in ()
                  else ()
   with
-  | End_of_file -> let _ = Printf.fprintf stdout "Done! Bye.\n" in close !out_ref; exit 0
+  | End_of_file -> let _ = output_event !out_ref "Bye.\n" in close !out_ref; exit 0
   | EXIT -> close !out_ref; exit 1
