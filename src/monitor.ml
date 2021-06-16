@@ -284,6 +284,12 @@ let remove_old_betas_suffix_in msaux l =
       if ts <= l then
         Deque.drop_front msaux.betas_suffix_in)
 
+let remove_old_alphas_betas_out msaux r =
+  Deque.iter msaux.alphas_betas_out
+    ~f:(fun (ts, _, _) ->
+      if ts <= r then
+        Deque.drop_front msaux.alphas_betas_out)
+
 let update_betas_suffix_in msaux new_in =
   let beta_none =
     List.exists new_in
@@ -419,7 +425,8 @@ let update_since_aux (l, r) p_f1 p_f2 ts tp msaux le =
      let _ = update_alpha_betas msaux new_in_v in
      add_new_ps_alpha_betas msaux new_in_v tp);
   let _ = remove_old_alpha_betas msaux l in
-  remove_old_betas_suffix_in msaux l
+  let _ = remove_old_betas_suffix_in msaux l in
+  remove_old_alphas_betas_out msaux r
   
 let update_since interval i ts p1 p2 msaux le minimum =
   let a = get_a_I interval in
@@ -511,7 +518,8 @@ let preamble out_ch mode f =
                                     (match mode with
                                      | SAT -> "SAT"
                                      | VIOL -> "VIOL"
-                                     | ALL -> "ALL")
+                                     | ALL -> "ALL"
+                                     | BOOL -> "BOOL")
                                     ^ "\n") in out_ch
 
 let print_proofs out_ch mode ts tp ps =
@@ -528,6 +536,11 @@ let print_proofs out_ch mode ts tp ps =
                | V _ -> output_explanation out_ch ((ts, tp), p))
   | ALL -> List.fold ps ~init:out_ch
              ~f:(fun acc p -> output_explanation out_ch ((ts, tp), p))
+  | BOOL -> List.fold ps ~init:out_ch
+              ~f:(fun acc p ->
+                match p with
+                | S _ -> output_boolean out_ch ((ts, tp), true)
+                | V _ -> output_boolean out_ch ((ts, tp), false))
 
 let monitor in_ch out_ch mode le f =
   let minimum_list ps = minsize_list (get_mins le ps) in
@@ -537,7 +550,6 @@ let monitor in_ch out_ch mode le f =
   let s (ctx, ch) =
     let ((sap, ts), ch) = input_event ch ctx.out in
     let (ps, mf') = meval' ctx.tp ts sap ctx.mf minimum minimum_list le in
-    (* let out' = print_msaux ctx.out mf' in *)
     let out' = print_proofs ctx.out mode ts ctx.tp ps in
     let new_ctx = { tp = ctx.tp+1
                   ; out = out'

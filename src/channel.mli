@@ -21,6 +21,7 @@ type input_channel =
 
 type output_type =
   | Explanation of (timestamp * timepoint) * expl
+  | Boolean of (timestamp * timepoint) * bool
   | Info of string
 
 type output_channel =
@@ -40,4 +41,5 @@ val output_debug: int -> output_channel -> (unit -> string) -> output_channel
 
 val channel_to_string: channel -> string
 val output_explanation: output_channel -> (timestamp * timepoint) * expl -> output_channel
+val output_boolean: output_channel -> (timestamp * timepoint) * bool -> output_channel
 val output_interval: output_channel -> interval -> output_channel

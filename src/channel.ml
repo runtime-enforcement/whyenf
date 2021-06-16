@@ -21,6 +21,7 @@ type input_channel =
 
 type output_type =
   | Explanation of (timestamp * timepoint) * expl
+  | Boolean of (timestamp * timepoint) * bool
   | Info of string
 
 type output_channel =
@@ -102,6 +103,8 @@ let channel_to_string log = match log with
          List.fold_left (fun a x -> a ^ (match x with
                                          | Explanation ((t, i), p) ->
                                             Printf.sprintf "%d:%d\nProof: \n%s\n" t i (expl_to_string p)
+                                         | Boolean ((t, i), b) ->
+                                            Printf.sprintf "%d:%d %B\n" t i b
                                          | Info s -> s)
                            ) "" ls)
   | IC c -> (match c with
@@ -126,5 +129,11 @@ let output_explanation ch ((t, i), p) =
   | Output x -> Printf.fprintf x "%d:%d\nProof: \n%s\n" t i (Expl.expl_to_string p); ch
   | OutputDebug (_, x) -> Printf.fprintf x "%d:%d\nProof: \n%s\n" t i (Expl.expl_to_string p); ch
   | OutputMock x -> OutputMock(x @ [Explanation ((t, i), p)])
+
+let output_boolean ch ((t, i), b) =
+  match ch with
+  | Output x -> Printf.fprintf x "%d:%d %B\n" t i b; ch
+  | OutputDebug (_, x) -> Printf.fprintf x "%d:%d %B\n" t i b; ch
+  | OutputMock x -> OutputMock(x @ [Boolean ((t, i), b)])
 
 let output_interval out i = output_event out (interval_to_string i)
