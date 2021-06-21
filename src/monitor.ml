@@ -59,9 +59,10 @@ type mformula =
 
 type context =
   { tp: timepoint
+  (* timepoint wrt current timestamp *)
   ; tp_ts: timepoint
   ; last_ts: timestamp
-  ; out: output_channel
+  ; out_ch: output_channel
   ; mf: mformula
   }
 
@@ -187,8 +188,9 @@ let update_ts_zero a ts msaux =
 let update_ts (l, r) a ts msaux =
   if a = 0 then
     let _ = Deque.enqueue_back msaux.ts_in ts in
-    Deque.iteri msaux.ts_in
-      ~f:(fun i ts' -> if ts' < l then Deque.drop_front msaux.ts_in)
+    let _ = Deque.iteri msaux.ts_in
+              ~f:(fun i ts' -> if ts' < l then Deque.drop_front msaux.ts_in) in
+    msaux
   else
     let _ = Deque.enqueue_back msaux.ts_out ts in
     let _ = Deque.iter msaux.ts_out
@@ -196,8 +198,26 @@ let update_ts (l, r) a ts msaux =
                 if ts' <= r then
                   let _ = Deque.enqueue_back msaux.ts_in ts' in
                   Deque.drop_front msaux.ts_out) in
+    
+    Printf.fprintf stdout "ts_out = [";
+    Deque.iter msaux.ts_out
+      ~f:(fun ts' -> Printf.fprintf stdout "%d " ts');
+    Printf.fprintf stdout "]\n";
+    Printf.fprintf stdout "ts_in = [";
     Deque.iter msaux.ts_in
-      ~f:(fun ts' -> if ts' < l then Deque.drop_front msaux.ts_in)
+      ~f:(fun ts' -> Printf.fprintf stdout "%d " ts');
+    Printf.fprintf stdout "]\nl = %d\n" l;
+    
+    let _ = Deque.iter msaux.ts_in
+              ~f:(fun ts' -> if ts' < l then
+                               (Printf.fprintf stdout "ts_in = [";
+                                Deque.iter msaux.ts_in
+                                  ~f:(fun ts' -> Printf.fprintf stdout "%d " ts');
+                                Printf.fprintf stdout "]\nl = %d\n" l;
+                                Printf.fprintf stdout "ts' = %d\n" ts';
+                                Deque.drop_front msaux.ts_in)) in
+    Printf.fprintf stdout "oi\n";
+    msaux
 
 exception VEXPL
 exception SEXPL
@@ -259,7 +279,7 @@ let remove_old_beta_alphas msaux l =
 let add_alpha_v msaux le ts vp_f1 =
   Deque.iter msaux.alphas_out ~f:(fun (ts, vp) ->
       if le vp_f1 vp then
-        Deque.drop_back msaux.alpha_betas);
+        Deque.drop_back msaux.alphas_out);
   Deque.enqueue_back msaux.alphas_out (ts, vp_f1)
 
 let split_in_out_alphas_betas_out msaux r =
@@ -288,6 +308,12 @@ let remove_old_alphas_betas_out msaux r =
     ~f:(fun (ts, _, _) ->
       if ts <= r then
         Deque.drop_front msaux.alphas_betas_out)
+
+let remove_old_alphas_out msaux r =
+  Deque.iter msaux.alphas_out
+    ~f:(fun (ts, _) ->
+      if ts <= r then
+        Deque.drop_front msaux.alphas_out)
 
 let update_betas_suffix_in msaux new_in =
   let beta_none =
@@ -323,11 +349,6 @@ let append_to_alpha_betas msaux vp_f2 =
       | S _ -> raise VEXPL)
 
 let update_alpha_betas msaux new_in =
-  (* List.iter new_in
-   *   ~f:(fun (ts, opt_vp_f1, opt_vp_f2) ->
-   *     match opt_vp_f2 with
-   *     | None -> ()
-   *     | Some(vp_f2) -> Printf.fprintf stdout "%s\n" (Expl.v_to_string "" vp_f2)); *)
   let beta_none =
     List.exists new_in (fun (ts, opt_vp_f1, opt_vp_f2) -> opt_vp_f2 = None) in
   if beta_none then
@@ -369,7 +390,10 @@ let construct_vsinceps new_in tp =
                   (ts, vp)::acc))
 
 let add_new_ps_alpha_betas msaux new_in tp =
+  Printf.fprintf stdout "new_vps_in = \n";
   let new_vps_in = construct_vsinceps new_in tp in
+  List.iter new_vps_in
+    ~f:(fun (ts, vp) -> Printf.fprintf stdout "%s\n" (Expl.expl_to_string vp));
   List.iter new_vps_in (fun (ts, vp) ->
       Deque.enqueue_back msaux.alpha_betas (ts, vp))
 
@@ -377,22 +401,24 @@ let betas_suffix_in_to_list betas_suffix_in =
   Deque.fold' betas_suffix_in ~init:[]
     ~f:(fun acc (ts, vp) -> vp::acc) `back_to_front
 
-let output minimum msaux tp =
+let optimal_proof minimum_list msaux tp =
   if not (Deque.is_empty msaux.beta_alphas) then
     snd(Deque.peek_front_exn msaux.beta_alphas)
-  else 
-    if (Deque.length msaux.betas_suffix_in) = (Deque.length msaux.ts_in) then
-      (let beta_suffix = betas_suffix_in_to_list msaux.betas_suffix_in in
-       let p1 = V (VSinceInf (tp, beta_suffix)) in
-       let p2 = if not (Deque.is_empty msaux.alpha_betas) then
-                  snd(Deque.peek_front_exn msaux.alpha_betas)
-                else
-                  let vp_f2 = snd(Deque.peek_front_exn msaux.alphas_out) in
-                  match vp_f2 with
-                  | V f2 -> V (VSince (tp, f2, []))
-                  | S _ -> raise VEXPL
-       in minimum p1 p2)
-    else failwith "Cannot output satisfaction/violation proof"
+  else
+    let p1_l = if not (Deque.is_empty msaux.alpha_betas) then
+                 [snd(Deque.peek_front_exn msaux.alpha_betas)]
+               else [] in
+    let p2_l = if not (Deque.is_empty msaux.alphas_out) then
+                 let vp_f2 = snd(Deque.peek_front_exn msaux.alphas_out) in
+                 match vp_f2 with
+                 | V f2 -> [V (VSince (tp, f2, []))]
+                 | S _ -> raise VEXPL
+               else [] in
+    let p3_l = if (Deque.length msaux.betas_suffix_in) = (Deque.length msaux.ts_in) then
+                 let beta_suffix = betas_suffix_in_to_list msaux.betas_suffix_in in
+                 [V (VSinceInf (tp, beta_suffix))]
+               else [] in
+    minimum_list (p1_l @ p2_l @ p3_l)
 
 let update_since_aux (l, r) p_f1 p_f2 ts tp msaux le =
   (match p_f1, p_f2 with
@@ -418,10 +444,10 @@ let update_since_aux (l, r) p_f1 p_f2 ts tp msaux le =
       let _ = Deque.clear msaux.beta_alphas in
       Deque.clear msaux.beta_alphas_out);
   (* sat *)
-  Printf.fprintf stdout "#msaux.beta_alphas_out = %d\n" (Deque.length msaux.beta_alphas_out);
+  (* Printf.fprintf stdout "#msaux.beta_alphas_out = %d\n" (Deque.length msaux.beta_alphas_out); *)
   let new_in_s = split_in_out_beta_alphas_out msaux r in
-  Printf.fprintf stdout "#new_in_s = %d\n" (List.length new_in_s);
-  print_ps_list new_in_s;
+  (* Printf.fprintf stdout "#new_in_s = %d\n" (List.length new_in_s); *)
+  (* print_ps_list new_in_s; *)
   (if not (List.is_empty new_in_s) then update_beta_alphas msaux le new_in_s);
   let _ = remove_old_beta_alphas msaux l in
   (* viol *)
@@ -432,47 +458,35 @@ let update_since_aux (l, r) p_f1 p_f2 ts tp msaux le =
      add_new_ps_alpha_betas msaux new_in_v tp);
   let _ = remove_old_alpha_betas msaux l in
   let _ = remove_old_betas_suffix_in msaux l in
-  remove_old_alphas_betas_out msaux r;
+  let _ = remove_old_alphas_betas_out msaux r in
+  remove_old_alphas_out msaux r;
   let _ = Printf.fprintf stdout "l=%d; r=%d\n" l r in
   let _ = Printf.fprintf stdout "tp=%d\n" tp in
   let _ = Printf.fprintf stdout "NEW_MSAUX: %s\n" (msaux_to_string msaux) in
   Printf.fprintf stdout "---------------------------\n"
   
-let update_since interval tp ts p1 p2 msaux le minimum =
+let update_since interval tp ts p1 p2 msaux le minimum minimum_list =
   let a = get_a_I interval in
-  let last_ts_opt = get_last_ts msaux in
-  (* let _ = print_ts_lists msaux in *)
-  (* Case 1: \tau_{tp-1} does not exist *)
-  if Option.is_none last_ts_opt then
-    (* Update list of timestamps *)
-    let l = 0 in
-    let r = max 0 (ts - a) in
-    let new_msaux = update_ts_zero a ts msaux in
-    let p = doSinceBase minimum tp a p1 p2 in
-    let _ = update_since_aux (l, r) p1 p2 ts tp new_msaux le in
-    (p, new_msaux)
-  (* Case 2: \tau_{i-1} exists *)
+  (* Case 1: interval has not yet started, i.e., 
+     \tau_{tp} < \tau_{0} + a  OR \tau_{tp} - a < 0 *)
+  if ((Option.is_some msaux.ts_zero) && ts < (Option.get msaux.ts_zero) + a)
+     || ((Option.is_none msaux.ts_zero) && (ts - a) < 0) then
+    let l = (-1) in
+    let r = (-1) in
+    let msaux = if Option.is_none msaux.ts_zero then update_ts_zero a ts msaux
+                else update_ts (l, r) a ts msaux in
+    let _ = update_since_aux (l, r) p1 p2 ts tp msaux le in
+    let p = V (VSinceOutL tp) in
+    (p, msaux)
+  (* Case 2: \tau_{tp-1} exists *)
   else
-    let ts_zero = Option.get msaux.ts_zero in
-    let last_ts = Option.get last_ts_opt in
-    let b = get_b_I ts_zero interval in
+    let b = get_b_I (Option.get msaux.ts_zero) interval in
     (* TODO: Fix l and r, we should consider the type of the interval *)
     let l = max 0 (ts - b) in
-    let r = max 0 (ts - a) in
+    let r = ts - a in
     let _ = update_ts (l, r) a ts msaux in
     let _ = update_since_aux (l, r) p1 p2 ts tp msaux le in
-    (* Case 2.1: \tau_{tp} < \tau_{0} + a *)
-    if ts < ts_zero + a then
-      let p = V (VSinceOutL tp) in
-      (p, msaux)
-    else
-      let delta = ts - last_ts in
-      (* Case 2.2: b < \Delta, i.e., last_ts lies outside of the interval *)
-      if b < delta then
-        let p = doSinceBase minimum tp a p1 p2 in
-        (p, cleared_msaux)
-      (* Case 2.3: b >= \Delta *)
-      else (output minimum msaux tp, msaux)
+    (optimal_proof minimum_list msaux tp, msaux)
 
 let meval' tp ts sap mform minimum minimum_list le = 
   let rec meval tp ts sap mform =
@@ -508,7 +522,7 @@ let meval' tp ts sap mform minimum minimum_list le =
        let (ps_f2, mf2') = meval tp ts sap mf2 in
        let p1 = minimum_list ps_f1 in
        let p2 = minimum_list ps_f2 in
-       let (p_f, new_msaux) = update_since interval tp ts p1 p2 msaux le minimum in
+       let (p_f, new_msaux) = update_since interval tp ts p1 p2 msaux le minimum minimum_list in
        (* let _ = Printf.fprintf stdout "tp=%d\n" tp in *)
        (* let _ = Printf.fprintf stdout "NEW_MSAUX: %s\n" (msaux_to_string msaux) in
         * let _ = Printf.fprintf stdout "---------------------------\n" in *)
@@ -551,19 +565,23 @@ let print_proofs out_ch mode ts tp ps =
 let monitor in_ch out_ch mode le f =
   let minimum_list ps = minsize_list (get_mins le ps) in
   let minimum a b = minimum_list [a; b] in
-  let mf = minit f in
   let rec loop f x = loop f (f x) in
-  let s (ctx, ch) =
-    let ((sap, ts), ch) = input_event ch ctx.out in
-    let (ps, mf') = meval' ctx.tp ts sap ctx.mf minimum minimum_list le in
-    let tp_ts' = if ts = ctx.last_ts then ctx.tp_ts+1 else 0 in
-    let out' = print_proofs ctx.out mode ts tp_ts' ps in
+  let s (ctx, in_ch) =
+    let ((sap, ts), in_ch) = input_event in_ch ctx.out_ch in
+    let (ps, mf) = meval' ctx.tp ts sap ctx.mf minimum minimum_list le in
+    let tp_ts = if ts = ctx.last_ts then ctx.tp_ts+1 else 0 in
+    let out_ch = print_proofs ctx.out_ch mode ts tp_ts ps in
     let new_ctx = { tp = ctx.tp+1
-                  ; tp_ts = tp_ts'
+                  ; tp_ts = tp_ts
                   ; last_ts = ts
-                  ; out = out'
-                  ; mf = mf'} in
-    (new_ctx, ch) in
+                  ; out_ch = out_ch
+                  ; mf = mf} in
+    (new_ctx, in_ch) in
+  let mf = minit f in
   let out_ch = preamble out_ch mode f in
-  let ctx = { tp = 0; tp_ts = 0; last_ts = -1; out = out_ch; mf = mf } in
+  let ctx = { tp = 0
+            ; tp_ts = 0
+            ; last_ts = -1
+            ; out_ch = out_ch
+            ; mf = mf } in
   loop s (ctx, in_ch)
