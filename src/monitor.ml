@@ -188,35 +188,20 @@ let update_ts_zero a ts msaux =
 let update_ts (l, r) a ts msaux =
   if a = 0 then
     let _ = Deque.enqueue_back msaux.ts_in ts in
-    let _ = Deque.iteri msaux.ts_in
-              ~f:(fun i ts' -> if ts' < l then Deque.drop_front msaux.ts_in) in
+    let ts_in_lst = Deque.to_list msaux.ts_in in
+    let _ = List.iter ts_in_lst
+              ~f:(fun ts' -> if ts' < l then Deque.drop_front msaux.ts_in) in
     msaux
   else
     let _ = Deque.enqueue_back msaux.ts_out ts in
-    let _ = Deque.iter msaux.ts_out
-              ~f:(fun ts' ->
-                if ts' <= r then
-                  let _ = Deque.enqueue_back msaux.ts_in ts' in
-                  Deque.drop_front msaux.ts_out) in
-    
-    Printf.fprintf stdout "ts_out = [";
-    Deque.iter msaux.ts_out
-      ~f:(fun ts' -> Printf.fprintf stdout "%d " ts');
-    Printf.fprintf stdout "]\n";
-    Printf.fprintf stdout "ts_in = [";
-    Deque.iter msaux.ts_in
-      ~f:(fun ts' -> Printf.fprintf stdout "%d " ts');
-    Printf.fprintf stdout "]\nl = %d\n" l;
-    
-    let _ = Deque.iter msaux.ts_in
-              ~f:(fun ts' -> if ts' < l then
-                               (Printf.fprintf stdout "ts_in = [";
-                                Deque.iter msaux.ts_in
-                                  ~f:(fun ts' -> Printf.fprintf stdout "%d " ts');
-                                Printf.fprintf stdout "]\nl = %d\n" l;
-                                Printf.fprintf stdout "ts' = %d\n" ts';
-                                Deque.drop_front msaux.ts_in)) in
-    Printf.fprintf stdout "oi\n";
+    let out_lst = Deque.to_list msaux.ts_out in
+    let _ = List.iter out_lst
+              ~f:(fun ts' -> if ts' <= r then
+                               let _ = Deque.enqueue_back msaux.ts_in ts' in
+                               Deque.drop_front msaux.ts_out) in
+    let in_lst = Deque.to_list msaux.ts_in in
+    let _ = List.iter in_lst
+              ~f:(fun ts' -> if ts' < l then Deque.drop_front msaux.ts_in) in
     msaux
 
 exception VEXPL
@@ -239,7 +224,8 @@ let append_to_beta_alphas_out msaux sp_f1 =
    d = [(1, p_1), (2, p_2), ..., (n, p_n)]
    l = [(n, p_n), ...]  *)
 let split_in_out_beta_alphas_out msaux r =
-  Deque.fold msaux.beta_alphas_out ~init:[]
+  let lst = Deque.to_list msaux.beta_alphas_out in
+  List.fold lst ~init:[]
     ~f:(fun acc (ts, sp) ->
       if ts <= r then (
         Deque.drop_front msaux.beta_alphas_out;
@@ -264,7 +250,6 @@ let update_new_in le new_in =
 
 let update_beta_alphas msaux le new_in =
   let new_in' = update_new_in le new_in in
-  Printf.fprintf stdout "#new_in'=%d\n" (List.length new_in');
   let hd_p = List.hd_exn new_in' in
   Deque.iter msaux.beta_alphas ~f:(fun (ts, sp) ->
       if le (snd(hd_p)) sp then
@@ -273,8 +258,9 @@ let update_beta_alphas msaux le new_in =
       Deque.enqueue_back msaux.beta_alphas (ts, sp))
 
 let remove_old_beta_alphas msaux l =
-  Deque.iter msaux.beta_alphas
-    ~f:(fun (ts, sp) -> if ts < l then Deque.drop_front msaux.beta_alphas)
+  let lst = Deque.to_list msaux.beta_alphas in
+  List.iter lst ~f:(fun (ts, sp) ->
+      if ts < l then Deque.drop_front msaux.beta_alphas)
 
 let add_alpha_v msaux le ts vp_f1 =
   Deque.iter msaux.alphas_out ~f:(fun (ts, vp) ->
@@ -283,8 +269,9 @@ let add_alpha_v msaux le ts vp_f1 =
   Deque.enqueue_back msaux.alphas_out (ts, vp_f1)
 
 let split_in_out_alphas_betas_out msaux r =
+  let lst = Deque.to_list msaux.alphas_betas_out in
   List.rev (
-      Deque.fold msaux.alphas_betas_out ~init:[]
+      List.fold lst ~init:[]
         ~f:(fun acc (ts, vp_f1_opt, vp_f2_opt) ->
           if ts <= r then (
             Deque.drop_front msaux.alphas_betas_out;
@@ -292,28 +279,29 @@ let split_in_out_alphas_betas_out msaux r =
           else acc))
       
 let remove_old_alpha_betas msaux l =
-  Deque.iter msaux.alpha_betas
+  let lst = Deque.to_list msaux.alpha_betas in
+  List.iter lst
     ~f:(fun (ts, _) ->
-      if ts <= l then
+      if ts < l then
         Deque.drop_front msaux.alpha_betas)
 
 let remove_old_betas_suffix_in msaux l =
-  Deque.iter msaux.betas_suffix_in
+  let lst = Deque.to_list msaux.betas_suffix_in in
+  List.iter lst
     ~f:(fun (ts, _) ->
-      if ts <= l then
-        Deque.drop_front msaux.betas_suffix_in)
+      if ts < l then Deque.drop_front msaux.betas_suffix_in)
 
 let remove_old_alphas_betas_out msaux r =
-  Deque.iter msaux.alphas_betas_out
+  let lst = Deque.to_list msaux.alphas_betas_out in
+  List.iter lst
     ~f:(fun (ts, _, _) ->
-      if ts <= r then
-        Deque.drop_front msaux.alphas_betas_out)
+      if ts <= r then Deque.drop_front msaux.alphas_betas_out)
 
 let remove_old_alphas_out msaux r =
-  Deque.iter msaux.alphas_out
+  let lst = Deque.to_list msaux.alphas_out in
+  List.iter lst
     ~f:(fun (ts, _) ->
-      if ts <= r then
-        Deque.drop_front msaux.alphas_out)
+      if ts <= r then Deque.drop_front msaux.alphas_out)
 
 let update_betas_suffix_in msaux new_in =
   let beta_none =
@@ -390,10 +378,7 @@ let construct_vsinceps new_in tp =
                   (ts, vp)::acc))
 
 let add_new_ps_alpha_betas msaux new_in tp =
-  Printf.fprintf stdout "new_vps_in = \n";
   let new_vps_in = construct_vsinceps new_in tp in
-  List.iter new_vps_in
-    ~f:(fun (ts, vp) -> Printf.fprintf stdout "%s\n" (Expl.expl_to_string vp));
   List.iter new_vps_in (fun (ts, vp) ->
       Deque.enqueue_back msaux.alpha_betas (ts, vp))
 
@@ -444,10 +429,7 @@ let update_since_aux (l, r) p_f1 p_f2 ts tp msaux le =
       let _ = Deque.clear msaux.beta_alphas in
       Deque.clear msaux.beta_alphas_out);
   (* sat *)
-  (* Printf.fprintf stdout "#msaux.beta_alphas_out = %d\n" (Deque.length msaux.beta_alphas_out); *)
   let new_in_s = split_in_out_beta_alphas_out msaux r in
-  (* Printf.fprintf stdout "#new_in_s = %d\n" (List.length new_in_s); *)
-  (* print_ps_list new_in_s; *)
   (if not (List.is_empty new_in_s) then update_beta_alphas msaux le new_in_s);
   let _ = remove_old_beta_alphas msaux l in
   (* viol *)
@@ -459,11 +441,7 @@ let update_since_aux (l, r) p_f1 p_f2 ts tp msaux le =
   let _ = remove_old_alpha_betas msaux l in
   let _ = remove_old_betas_suffix_in msaux l in
   let _ = remove_old_alphas_betas_out msaux r in
-  remove_old_alphas_out msaux r;
-  let _ = Printf.fprintf stdout "l=%d; r=%d\n" l r in
-  let _ = Printf.fprintf stdout "tp=%d\n" tp in
-  let _ = Printf.fprintf stdout "NEW_MSAUX: %s\n" (msaux_to_string msaux) in
-  Printf.fprintf stdout "---------------------------\n"
+  remove_old_alphas_out msaux r
   
 let update_since interval tp ts p1 p2 msaux le minimum minimum_list =
   let a = get_a_I interval in
