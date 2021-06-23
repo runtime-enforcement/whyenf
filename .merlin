@@ -1,4 +1,5 @@
 S src
 B _build/*
 PKG safa
+PKG zarith
 PKG core_kernel
