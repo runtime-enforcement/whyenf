@@ -1,7 +1,7 @@
 EXENAME=explanator2
 MODULENAME=main
 NAME=src/$(MODULENAME)
-OCAMLBUILD=ocamlbuild -use-ocamlfind -use-menhir -no-plugin -package safa -package str -package core_kernel -yaccflags --explain
+OCAMLBUILD=ocamlbuild -use-ocamlfind -use-menhir -no-plugin -package safa -package str -package core_kernel -package zarith -yaccflags --explain
 OCAMLFIND=ocamlfind
 OBJS=$(wildcard _build/*.cm* _build/*.a _build/*.o)
 # OBJS=$(wildcard _build/*.{cmi,cmo,cma,cmx,cmxa,a,o})
