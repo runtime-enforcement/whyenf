@@ -1,0 +1,104 @@
+\documentclass[12pt]{article}
+
+\usepackage[a4paper]{geometry}
+\usepackage{fancyvrb}
+\usepackage{bera}
+
+\begin{document}
+
+\thispagestyle{empty}
+
+\begin{Verbatim}[fontfamily=helvetica,fontsize=\small,commandchars=\\\{\},codes={\catcode`$=3\catcode`_=8}]
+\textbf{type} msaux = \{
+    ts\_zero: timestamp option
+    ts\_in: timestamp deque
+    ts\_out: timestamp deque
+    beta\_alphas: (timestamp * expl) deque
+    beta\_alphas\_out: (timestamp * expl) deque
+    alpha\_betas: (timestamp * expl) deque
+    alphas\_out: (timestamp * vexpl) deque
+    betas\_suffix\_in: (timestamp * vexpl) deque
+    alphas\_betas\_out: (timestamp * vexpl option * vexpl option) deque
+\}
+\end{Verbatim}
+
+\begin{Verbatim}[fontfamily=helvetica,fontsize=\small,commandchars=\\\{\},codes={\catcode`$=3\catcode`_=8}]
+\textbf{update\_since} (a, b) tp ts p1 p2 msaux =
+    \textbf{if} (is\_none(msaux.ts\_zero) \textbf{and} ts $-$ a $<$ 0) \textbf{or}
+         (is\_some(msaux.ts\_zero) \textbf{and} ts $<$ ts\_zero + a) \textbf{then}
+        l, r = $-1$
+        \textbf{if} is\_none(msaux.ts\_zero) \textbf{then} update\_ts\_zero a ts msaux
+        \textbf{else} update\_ts (l, r) a ts msaux
+        update\_since\_aux (l, r) p1 p2 ts tp msaux
+        (V (VSinceOutL tp), msaux)
+    \textbf{else}
+        l = max \{0, (ts $-$ b)\}
+        r = ts $-$ a
+        update\_ts (l, r) a ts msaux
+        (optimal\_proof tp msaux, msaux)
+\end{Verbatim}
+
+\begin{Verbatim}[fontfamily=helvetica,fontsize=\small,commandchars=\\\{\},codes={\catcode`$=3\catcode`_=8}]
+\textbf{optimal\_proof} tp msaux =
+    \textbf{if} (is\_not\_empty(msaux.beta\_alphas) \textbf{then}
+        peek\_front msaux.beta\_alphas
+    \textbf{else}
+        p1 = \textbf{if} (is\_not\_empty(msaux.alpha\_betas) \textbf{then}
+                     peek\_front msaux.alpha\_betas
+        p2 = \textbf{if} (is\_not\_empty(msaux.alphas\_out) \textbf{then}
+                     vp2 = peek\_front msaux.alphas\_out
+                     V (Vsince (tp, vp2, []))
+        p3 = \textbf{if} len(msaux.betas\_suffix\_in) = len(msaux.ts\_in) \textbf{then}
+                     V (VSinceInf (tp, betas\_suffix\_in))
+        min [p1; p2; p3]
+\end{Verbatim}
+
+\clearpage
+
+\begin{Verbatim}[fontfamily=helvetica,fontsize=\small,commandchars=\\\{\},codes={\catcode`$=3\catcode`_=8}]
+\textbf{update\_since\_aux} (l, r) tp ts p1 p2 msaux =
+    \textbf{match} p1, p2 \textbf{with}
+    | S sp1, S sp2 ->
+        sp = S (SSince (sp2, []))
+        append\_to\_beta\_alphas msaux sp1
+        append\_to\_beta\_alphas\_out msaux sp1
+        enqueue\_back msaux.beta\_alphas\_out (ts, sp)
+                                        
+    | S sp1, V vp2 ->
+        append\_to\_beta\_alphas msaux sp1
+        append\_to\_beta\_alphas\_out msaux sp1
+        enqueue\_back msaux.alphas\_betas\_out (ts, None, Some(vp2))
+                                        
+    | V vp1, S sp2 ->
+        sp = S (SSince (sp2, []))
+        clear msaux.beta\_alphas
+        clear msaux.beta\_alphas\_out
+        enqueue\_back msaux.beta\_alphas\_out (ts, sp)
+        add\_alpha\_v msaux (ts, V vp1)
+        enqueue\_back msaux.alphas\_betas\_out (ts, Some(vp1), None)
+
+    | V vp1, V vp2 ->
+        clear msaux.beta\_alphas 
+        clear msaux.beta\_alphas\_out
+        add\_alpha\_v msaux (ts, V vp1)
+        enqueue\_back msaux.alphas\_betas\_out (ts, Some(vp1), Some(vp2)) \textbf{in}
+
+    new\_in\_sat = split\_in\_out\_beta\_alphas\_out r msaux
+    \textbf{if} is\_not\_empty(new\_in\_sat) \textbf{then} update\_beta\_alphas new\_in\_sat msaux
+    remove\_old\_beta\_alphas l msaux
+    new\_in\_viol = split\_in\_out\_alphas\_betas\_out r msaux
+    \textbf{if} is\_not\_empty(new\_in\_viol) \textbf{then}
+        update\_betas\_suffix\_in new\_in\_viol msaux
+        update\_alpha\_betas new\_in\_viol msaux
+        add\_new\_ps\_alpha\_betas tp new\_in\_viol msaux
+    remove\_old\_alpha\_betas l msaux
+    remove\_old\_betas\_suffix\_in l msaux
+    remove\_old\_alphas\_out r msaux
+    remove\_old\_alphas\_betas\_out r msaux
+\end{Verbatim}
+
+\thispagestyle{empty}
+
+
+
+\end{document}
