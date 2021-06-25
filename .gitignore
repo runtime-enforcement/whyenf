@@ -1,2 +1,4 @@
 _build/
 explanator2.native
+*.aux
+*.log
