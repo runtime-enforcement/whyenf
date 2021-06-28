@@ -63,10 +63,6 @@ val hp: formula -> int
 val hf: formula -> int
 val height: formula -> int
 
-val doConj: (expl -> expl -> expl) -> expl -> expl -> expl
-val doDisj: (expl -> expl -> expl) -> expl -> expl -> expl
-val doSinceBase: (expl -> expl -> expl) -> int -> int -> expl -> expl -> expl
-
 val formula_to_string: formula -> string
 
 (* val mem_word: string list list -> int -> string -> bool *)
