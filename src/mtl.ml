@@ -139,20 +139,6 @@ let height f = hp f + hf f
  *                                 *
  ***********************************)
 
-let doDisj minimum expl_f1 expl_f2 =
-  match expl_f1, expl_f2 with
-  | S f1, S f2 -> minimum (S (SDisjL (f1))) (S (SDisjR(f2)))
-  | S f1, V _ -> S (SDisjL (f1))
-  | V _ , S f2 -> S (SDisjR (f2))
-  | V f1, V f2 -> V (VDisj (f1, f2))
-
-let doConj minimum expl_f1 expl_f2 =
-  match expl_f1, expl_f2 with
-  | S f1, S f2 -> S (SConj (f1, f2))
-  | S _ , V f2 -> V (VConjR (f2))
-  | V f1, S _ -> V (VConjL (f1))
-  | V f1, V f2 -> minimum (V (VConjL (f1))) (V (VConjR (f2)))
-
 (* let doPrev minimum i interval ts expl =
  *   match expl, where_I ts interval with
  *   | S _ , Below -> V (VPrevB (i))
@@ -169,73 +155,73 @@ let doConj minimum expl_f1 expl_f2 =
  *   | S _ , Above -> V (VNextA (i))
  *   | V f , Below -> minimum (V (VNext (f))) (V (VNextB (i)))
  *   | V f , Inside -> V (VNext (f))
- *   | V f , Above -> minimum (V (VNext (f))) (V (VNextA (i))) *)
-
-let doSinceBase minimum i a expl_f1 expl_f2 =
-  match expl_f1, expl_f2, a = 0 with
-  | _ , S f2, true -> S (SSince (f2, []))
-  | S f1, _ , false -> V (VSinceInf (i, []))
-  | S _ , V f2, true -> V (VSinceInf (i, [f2]))
-  | V f1 , _ , false -> minimum (V (VSince (i, f1, []))) (V (VSinceInf (i, [])))
-  | V f1, V f2, true -> minimum (V (VSince (i, f1, [f2]))) (V (VSinceInf (i, [f2])))
-
-let doSince minimum i a expl_f1 expl_f2 expl_f =
-  match expl_f1, expl_f2, a = 0, expl_f with
-  | V f1, V f2, true, S (SSince (sp_f2, sp_f1s)) -> V (VSince (i, f1, [f2]))
-  | V f1, _ , false, S (SSince (sp_f2, sp_f1s)) -> V (VSince (i, f1, []))
-  | V _ , S f2, true, S (SSince (sp_f2, sp_f1s)) -> S (SSince (f2, []))
-  | S f1, V _ , true, S (SSince (sp_f2, sp_f1s)) -> S (sappend (SSince (sp_f2, sp_f1s)) f1)
-  | S f1, _ , false, S (SSince (sp_f2, sp_f1s)) -> S (sappend (SSince (sp_f2, sp_f1s)) f1)
-  | S f1, S f2, true, S (SSince (sp_f2, sp_f1s)) -> minimum (S (sappend (SSince (sp_f2, sp_f1s)) f1))
-                                                            (S (SSince (f2, [])))
-  | V f1, V f2, true, V (VSinceInf (i, vp_f2s)) -> minimum (V (VSince (i, f1, [f2])))
-                                                           (V (vappend (VSinceInf (i, vp_f2s)) f2))
-  | V f1, _ , false, V (VSinceInf (i, vp_f2s)) -> minimum (V (VSince (i, f1, [])))
-                                                          (V (VSinceInf (i, vp_f2s)))
-  | _ , S f2, true, V (VSinceInf (i, vp_f2s)) -> S (SSince (f2, []))
-  | S _, V f2, true, V (VSinceInf (i, vp_f2s)) -> V (vappend (VSinceInf (i, vp_f2s)) f2)
-  | S _, _ , false, V (VSinceInf (i, vp_f2s)) -> V (VSinceInf (i, vp_f2s))
-  | V f1, V f2, true, V (VSince (i, vp_f1, vp_f2s)) -> minimum (V (VSince (i, f1, [f2])))
-                                                               (V (vappend (VSince (i, vp_f1, vp_f2s)) f2))
-  | V f1, _ , false, V (VSince (i, vp_f1, vp_f2s)) -> minimum (V (VSince (i, f1, [])))
-                                                              (V (VSince (i, vp_f1, vp_f2s)))
-  | _ , S f2, true, V (VSince (i, vp_f1, vp_f2s)) -> S (SSince (f2, []))
-  | S _, V f2, true, V (VSince (i, vp_f1, vp_f2s)) -> V (vappend (VSince (i, vp_f1, vp_f2s)) f2)
-  | S _, _ , false, V (VSince (i, vp_f1, vp_f2s)) -> V (VSince (i, vp_f1, vp_f2s))
-  | _ -> failwith "Bad arguments for doSince"
-
-let doUntilBase minimum i a expl_f1 expl_f2 =
-  match expl_f1, expl_f2, a = 0 with
-  | _ , S f2, true -> S (SUntil (f2, []))
-  | S _, _ , false -> V (VUntilInf (i, []))
-  | S _, V f2, true -> V (VUntilInf (i, [f2]))
-  | V f1, _ , false -> minimum (V (VUntil (i, f1, []))) (V (VUntilInf (i, [])))
-  | V f1, V f2, true -> minimum (V (VUntil (i, f1, [f2]))) (V (VUntilInf (i, [f2])))
-
-let doUntil minimum i a expl_f1 expl_f2 expl_f =
-  match expl_f1, expl_f2, a = 0, expl_f with
-  | V f1, V f2, true, S (SUntil (sp_f2, sp_f1s)) -> V (VUntil (i, f1, [f2]))
-  | V f1, _ , false, S (SUntil (sp_f2, sp_f1s)) -> V (VUntil (i, f1, []))
-  | V f1, S f2, true, S (SUntil (sp_f2, sp_f1s)) -> S (SUntil (f2, []))
-  | S f1, V f2, true, S (SUntil (sp_f2, sp_f1s)) -> S (sappend (SUntil (sp_f2, sp_f1s)) f1)
-  | S f1, _ , false, S (SUntil (sp_f2, sp_f1s)) -> S (sappend (SUntil (sp_f2, sp_f1s)) f1)
-  | S f1, S f2, true, S (SUntil (sp_f2, sp_f1s)) -> minimum (S (sappend (SUntil (sp_f2, sp_f1s)) f1))
-                                                            (S (SUntil (f2, [])))
-  | V f1, V f2, true, V (VUntilInf (i, vp_f2s)) -> minimum (V (VUntil (i, f1, [f2])))
-                                                           (V (vappend (VUntilInf (i, vp_f2s)) f2))
-  | V f1, _ , false, V (VUntilInf (i, vp_f2s)) -> minimum (V (VUntil (i, f1, [])))
-                                                          (V (VUntilInf (i, vp_f2s)))
-  | _ , S f2, true, V (VUntilInf (i, vp_f2s)) -> S (SUntil (f2, []))
-  | S _ , V f2, true, V (VUntilInf (i, vp_f2s)) -> V (vappend (VUntilInf (i, vp_f2s)) f2)
-  | S _ , _ , false, V (VUntilInf (i, vp_f2s)) -> V (VUntilInf (i, vp_f2s))
-  | V f1, V f2, true, V (VUntil (i, vp_f1, vp_f2s)) -> minimum (V (VUntil (i, f1, [f2])))
-                                                               (V (vappend (VUntil (i, vp_f1, vp_f2s)) f2))
-  | V f1, _ , false, V (VUntil (i, vp_f1, vp_f2s)) -> minimum (V (VUntil (i, f1, [])))
-                                                              (V (VUntil (i, vp_f1, vp_f2s)))
-  | _ , S f2, true, V (VUntil (i, vp_f1, vp_f2s)) -> S (SUntil (f2, []))
-  | S _ , V f2, true, V (VUntil (i, vp_f1, vp_f2s)) -> V (vappend (VUntil (i, vp_f1, vp_f2s)) f2)
-  | S f1, _ , false, V (VUntil (i, vp_f1, vp_f2s)) -> V (VUntil (i, vp_f1, vp_f2s))
-  | _ -> failwith "Bad arguments for doUntil"
+ *   | V f , Above -> minimum (V (VNext (f))) (V (VNextA (i)))
+ * 
+ * let doSinceBase minimum i a expl_f1 expl_f2 =
+ *   match expl_f1, expl_f2, a = 0 with
+ *   | _ , S f2, true -> S (SSince (f2, []))
+ *   | S f1, _ , false -> V (VSinceInf (i, []))
+ *   | S _ , V f2, true -> V (VSinceInf (i, [f2]))
+ *   | V f1 , _ , false -> minimum (V (VSince (i, f1, []))) (V (VSinceInf (i, [])))
+ *   | V f1, V f2, true -> minimum (V (VSince (i, f1, [f2]))) (V (VSinceInf (i, [f2])))
+ * 
+ * let doSince minimum i a expl_f1 expl_f2 expl_f =
+ *   match expl_f1, expl_f2, a = 0, expl_f with
+ *   | V f1, V f2, true, S (SSince (sp_f2, sp_f1s)) -> V (VSince (i, f1, [f2]))
+ *   | V f1, _ , false, S (SSince (sp_f2, sp_f1s)) -> V (VSince (i, f1, []))
+ *   | V _ , S f2, true, S (SSince (sp_f2, sp_f1s)) -> S (SSince (f2, []))
+ *   | S f1, V _ , true, S (SSince (sp_f2, sp_f1s)) -> S (sappend (SSince (sp_f2, sp_f1s)) f1)
+ *   | S f1, _ , false, S (SSince (sp_f2, sp_f1s)) -> S (sappend (SSince (sp_f2, sp_f1s)) f1)
+ *   | S f1, S f2, true, S (SSince (sp_f2, sp_f1s)) -> minimum (S (sappend (SSince (sp_f2, sp_f1s)) f1))
+ *                                                             (S (SSince (f2, [])))
+ *   | V f1, V f2, true, V (VSinceInf (i, vp_f2s)) -> minimum (V (VSince (i, f1, [f2])))
+ *                                                            (V (vappend (VSinceInf (i, vp_f2s)) f2))
+ *   | V f1, _ , false, V (VSinceInf (i, vp_f2s)) -> minimum (V (VSince (i, f1, [])))
+ *                                                           (V (VSinceInf (i, vp_f2s)))
+ *   | _ , S f2, true, V (VSinceInf (i, vp_f2s)) -> S (SSince (f2, []))
+ *   | S _, V f2, true, V (VSinceInf (i, vp_f2s)) -> V (vappend (VSinceInf (i, vp_f2s)) f2)
+ *   | S _, _ , false, V (VSinceInf (i, vp_f2s)) -> V (VSinceInf (i, vp_f2s))
+ *   | V f1, V f2, true, V (VSince (i, vp_f1, vp_f2s)) -> minimum (V (VSince (i, f1, [f2])))
+ *                                                                (V (vappend (VSince (i, vp_f1, vp_f2s)) f2))
+ *   | V f1, _ , false, V (VSince (i, vp_f1, vp_f2s)) -> minimum (V (VSince (i, f1, [])))
+ *                                                               (V (VSince (i, vp_f1, vp_f2s)))
+ *   | _ , S f2, true, V (VSince (i, vp_f1, vp_f2s)) -> S (SSince (f2, []))
+ *   | S _, V f2, true, V (VSince (i, vp_f1, vp_f2s)) -> V (vappend (VSince (i, vp_f1, vp_f2s)) f2)
+ *   | S _, _ , false, V (VSince (i, vp_f1, vp_f2s)) -> V (VSince (i, vp_f1, vp_f2s))
+ *   | _ -> failwith "Bad arguments for doSince"
+ * 
+ * let doUntilBase minimum i a expl_f1 expl_f2 =
+ *   match expl_f1, expl_f2, a = 0 with
+ *   | _ , S f2, true -> S (SUntil (f2, []))
+ *   | S _, _ , false -> V (VUntilInf (i, []))
+ *   | S _, V f2, true -> V (VUntilInf (i, [f2]))
+ *   | V f1, _ , false -> minimum (V (VUntil (i, f1, []))) (V (VUntilInf (i, [])))
+ *   | V f1, V f2, true -> minimum (V (VUntil (i, f1, [f2]))) (V (VUntilInf (i, [f2])))
+ * 
+ * let doUntil minimum i a expl_f1 expl_f2 expl_f =
+ *   match expl_f1, expl_f2, a = 0, expl_f with
+ *   | V f1, V f2, true, S (SUntil (sp_f2, sp_f1s)) -> V (VUntil (i, f1, [f2]))
+ *   | V f1, _ , false, S (SUntil (sp_f2, sp_f1s)) -> V (VUntil (i, f1, []))
+ *   | V f1, S f2, true, S (SUntil (sp_f2, sp_f1s)) -> S (SUntil (f2, []))
+ *   | S f1, V f2, true, S (SUntil (sp_f2, sp_f1s)) -> S (sappend (SUntil (sp_f2, sp_f1s)) f1)
+ *   | S f1, _ , false, S (SUntil (sp_f2, sp_f1s)) -> S (sappend (SUntil (sp_f2, sp_f1s)) f1)
+ *   | S f1, S f2, true, S (SUntil (sp_f2, sp_f1s)) -> minimum (S (sappend (SUntil (sp_f2, sp_f1s)) f1))
+ *                                                             (S (SUntil (f2, [])))
+ *   | V f1, V f2, true, V (VUntilInf (i, vp_f2s)) -> minimum (V (VUntil (i, f1, [f2])))
+ *                                                            (V (vappend (VUntilInf (i, vp_f2s)) f2))
+ *   | V f1, _ , false, V (VUntilInf (i, vp_f2s)) -> minimum (V (VUntil (i, f1, [])))
+ *                                                           (V (VUntilInf (i, vp_f2s)))
+ *   | _ , S f2, true, V (VUntilInf (i, vp_f2s)) -> S (SUntil (f2, []))
+ *   | S _ , V f2, true, V (VUntilInf (i, vp_f2s)) -> V (vappend (VUntilInf (i, vp_f2s)) f2)
+ *   | S _ , _ , false, V (VUntilInf (i, vp_f2s)) -> V (VUntilInf (i, vp_f2s))
+ *   | V f1, V f2, true, V (VUntil (i, vp_f1, vp_f2s)) -> minimum (V (VUntil (i, f1, [f2])))
+ *                                                                (V (vappend (VUntil (i, vp_f1, vp_f2s)) f2))
+ *   | V f1, _ , false, V (VUntil (i, vp_f1, vp_f2s)) -> minimum (V (VUntil (i, f1, [])))
+ *                                                               (V (VUntil (i, vp_f1, vp_f2s)))
+ *   | _ , S f2, true, V (VUntil (i, vp_f1, vp_f2s)) -> S (SUntil (f2, []))
+ *   | S _ , V f2, true, V (VUntil (i, vp_f1, vp_f2s)) -> V (vappend (VUntil (i, vp_f1, vp_f2s)) f2)
+ *   | S f1, _ , false, V (VUntil (i, vp_f1, vp_f2s)) -> V (VUntil (i, vp_f1, vp_f2s))
+ *   | _ -> failwith "Bad arguments for doUntil" *)
 
 let rec formula_to_string l f = match f.node with
   | P x -> Printf.sprintf "%s" x
