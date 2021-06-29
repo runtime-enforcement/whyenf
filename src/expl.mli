@@ -56,6 +56,9 @@ and vexpl =
 
 type expl = S of sexpl | V of vexpl
 
+exception VEXPL
+exception SEXPL
+
 val unS: expl -> sexpl
 val unV: expl -> vexpl
 
