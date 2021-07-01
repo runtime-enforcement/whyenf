@@ -31,9 +31,9 @@ let paren h k x = if h>k then "("^^x^^")" else x
 
 let sum mes = List.fold_left (fun a b -> a + mes b) 0
 
-let prod_le p q r s = p r s && q r s
+let prod p q r s = p r s && q r s
 
-let lex_le p q r s = p r s || (not (p s r) && q r s)
+let lex p q r s = p r s || (not (p s r) && q r s)
 
 let mk_le f r s = f r <= f s
 
@@ -57,3 +57,8 @@ let get_mins le ps =
       then select_rec r ps
       else select_rec (p :: List.filter (fun x -> not (le p x)) r) ps in
   List.rev (select_rec [] ps)
+
+let drop_front l =
+  match l with
+  | [] -> []
+  | x :: xs -> xs

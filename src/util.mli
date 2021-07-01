@@ -20,9 +20,10 @@ val ( -- ): int -> int -> int list
 val last: 'a list -> 'a
 val paren: int -> int -> ('b, 'c, 'd, 'e, 'f, 'g) format6 -> ('b, 'c, 'd, 'e, 'f, 'g) format6
 val sum: ('a -> int) -> 'a list -> int
-val prod_le: ('a -> 'a -> bool) -> ('a -> 'a -> bool) -> 'a -> 'a -> bool
-val lex_le: ('a -> 'a -> bool) -> ('a -> 'a -> bool) -> 'a -> 'a -> bool
+val prod: ('a -> 'a -> bool) -> ('a -> 'a -> bool) -> 'a -> 'a -> bool
+val lex: ('a -> 'a -> bool) -> ('a -> 'a -> bool) -> 'a -> 'a -> bool
 val mk_le: ('a -> int) -> 'a -> 'a -> bool
 val mk_sl: ('a -> int) -> 'a -> 'a -> bool
 val list_to_string: string -> (string -> 'a -> string) -> 'a list -> string
 val get_mins: ('a -> 'a -> bool) -> 'a list -> 'a list
+val drop_front: 'a list -> 'a list
