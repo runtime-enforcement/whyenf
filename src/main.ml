@@ -20,7 +20,8 @@ exception EXIT
 
 let full_ref = ref true
 let mode_ref = ref ALL
-let measure_ref = ref None
+let measure_le_ref = ref None
+let measure_sl_ref = ref None
 let fmla_ref = ref None
 let log_ref = ref (Input stdin)
 let out_ref = ref (Output stdout)
@@ -32,7 +33,7 @@ let usage () =
      \t -ap      - output only the \"responsible atomic proposition\" view
      \t -mode
      \t\t all    - output all satisfaction and violation proofs (default)
-     \t\t sat    - output only satisfaction proofs 
+     \t\t sat    - output only satisfaction proofs
      \t\t viol   - output only violation proofs
      \t\t bool   - output boolean values (for testing)
      \t -O
@@ -71,30 +72,38 @@ let process_args =
           | _ -> mode_error ());
        go args
     | ("-O" :: measure :: args) ->
-       let measure =
+       let measure_le, measure_sl =
          match measure with
-         | "size" | "SIZE" | "Size" -> size_le
-         | "high" | "HIGH" | "High" -> high_le
-         | "pred" | "PRED" | "Pred" -> predicates_le
-         | "none" | "NONE" | "None" -> (fun _ _ -> true)
+         | "size" | "SIZE" | "Size" -> size_le, size_sl
+         | "high" | "HIGH" | "High" -> high_le, high_sl
+         | "pred" | "PRED" | "Pred" -> predicates_le, predicates_sl
+         | "none" | "NONE" | "None" -> (fun _ _ -> true), (fun _ _ -> true)
          | _ -> measure_error () in
-       measure_ref :=
-         (match !measure_ref with
-          | None -> Some measure
-          | Some measure' -> Some(prod_le measure measure'));
+       measure_le_ref :=
+         (match !measure_le_ref with
+          | None -> Some measure_le
+          | Some measure_le' -> Some(prod measure_le measure_le'));
+       measure_sl_ref :=
+         (match !measure_sl_ref with
+          | None -> Some measure_sl
+          | Some measure_sl' -> Some(prod measure_sl measure_sl'));
        go args
     | ("-Olex" :: measure :: args) ->
-       let measure =
+       let measure_le, measure_sl =
          match measure with
-         | "size" | "SIZE" | "Size" -> size_le
-         | "high" | "HIGH" | "High" -> high_le
-         | "pred" | "PRED" | "Pred" -> predicates_le
-         | "none" | "NONE" | "None" -> (fun _ _ -> true)
+         | "size" | "SIZE" | "Size" -> size_le, size_sl
+         | "high" | "HIGH" | "High" -> high_le, high_sl
+         | "pred" | "PRED" | "Pred" -> predicates_le, predicates_sl
+         | "none" | "NONE" | "None" -> (fun _ _ -> true), (fun _ _ -> true)
          | _ -> measure_error () in
-       measure_ref :=
-         (match !measure_ref with
-          | None -> Some measure
-          | Some measure' -> Some(lex_le measure measure'));
+       measure_le_ref :=
+         (match !measure_le_ref with
+          | None -> Some measure_le
+          | Some measure_le' -> Some(lex measure_le measure_le'));
+       measure_sl_ref :=
+         (match !measure_sl_ref with
+          | None -> Some measure_sl
+          | Some measure_sl' -> Some(lex measure_sl measure_sl'));
        go args
     | ("-log" :: logfile :: args) ->
        log_ref := Input (open_in logfile);
@@ -121,12 +130,14 @@ let _ =
     process_args (List.tl (Array.to_list Sys.argv));
     match !fmla_ref with
     | None -> ()
-    | Some(f) -> let measure = match !measure_ref with
-                   | None -> size_le
-                   | Some measure' -> measure' in
+    | Some(f) -> let measure_le, measure_sl =
+                   match !measure_le_ref, !measure_sl_ref with
+                   | None, None -> size_le, size_sl
+                   | Some measure_le', Some measure_sl' -> measure_le', measure_sl'
+                   | _ -> failwith "Invalid measure" in
                  let in_ch, mode = !log_ref, !mode_ref in
                  if !full_ref then
-                   let _ = monitor in_ch !out_ref mode measure f in ()
+                   let _ = monitor in_ch !out_ref mode measure_le measure_sl f in ()
                  else ()
   with
   | End_of_file -> let _ = output_event !out_ref "Bye.\n" in close !out_ref; exit 0
