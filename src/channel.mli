@@ -42,4 +42,5 @@ val output_debug: int -> output_channel -> (unit -> string) -> output_channel
 val channel_to_string: channel -> string
 val output_explanation: output_channel -> (timestamp * timepoint) * expl -> output_channel
 val output_boolean: output_channel -> (timestamp * timepoint) * bool -> output_channel
+val output_check: output_channel -> (timestamp * timepoint) * bool -> output_channel
 val output_interval: output_channel -> interval -> output_channel

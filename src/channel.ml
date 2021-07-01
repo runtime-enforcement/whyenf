@@ -36,7 +36,7 @@ type channel =
 exception End_of_mock of output_channel
 
 let parse_line s =
-  let s = String.trim s in 
+  let s = String.trim s in
   if String.length s > 1 && (String.get s 0) = '@' then
     match String.split_on_char ' ' (String.sub s 1 (String.length s - 1)) with
     | [] -> None
@@ -134,6 +134,12 @@ let output_boolean ch ((t, i), b) =
   match ch with
   | Output x -> Printf.fprintf x "%d:%d %B\n" t i b; ch
   | OutputDebug (_, x) -> Printf.fprintf x "%d:%d %B\n" t i b; ch
+  | OutputMock x -> OutputMock(x @ [Boolean ((t, i), b)])
+
+let output_check ch ((t, i), b) =
+  match ch with
+  | Output x -> Printf.fprintf x "Check: %B\n\n" b; ch
+  | OutputDebug (_, x) -> Printf.fprintf x "Check: %B\n\n" b; ch
   | OutputMock x -> OutputMock(x @ [Boolean ((t, i), b)])
 
 let output_interval out i = output_event out (interval_to_string i)
