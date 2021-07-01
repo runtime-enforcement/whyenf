@@ -68,21 +68,26 @@ let expl_to_bool = function
   | S _ -> true
   | V _ -> false
 
-let sappend sp' sp_f1 = match sp' with
-  | SSince (sp_f2, sp_f1s) -> SSince (sp_f2, List.append sp_f1s [sp_f1])
-  | SUntil (sp_f2, sp_f1s) -> SUntil (sp_f2, sp_f1 :: sp_f1s)
-  (* | SHistorically sp_f1s -> SHistorically (List.append sp_f1s [sp_f1])
-   * | SAlways sp_f1s -> SAlways (sp_f1 :: sp_f1s) *)
+let sappend sp sp1 = match sp with
+  | SSince (sp2, sp1s) -> SSince (sp2, List.append sp1s [sp1])
+  | SUntil (sp2, sp1s) -> SUntil (sp2, sp1 :: sp1s)
   | _ -> failwith "Bad arguments for sappend"
 
-let vappend vp' vp_f2 = match vp' with
-  | VSince (i, vp_f1, vp_f2s) -> VSince (i+1, vp_f1, List.append vp_f2s [vp_f2])
-  | VSinceInf (i, vp_f2s) -> VSinceInf (i+1, List.append vp_f2s [vp_f2])
-  | VUntil (i, vp_f1, vp_f2s) -> VUntil (i, vp_f1, vp_f2 :: vp_f2s)
-  | VUntilInf (i, vp_f2s) -> VUntilInf (i, vp_f2 :: vp_f2s)
-  (* | VOnce vp_f2s -> VOnce (List.append vp_f2s [vp_f2])
-   * | VEventually vp_f2s -> VEventually (vp_f2 :: vp_f2s) *)
+let vappend vp vp2 = match vp with
+  | VSince (i, vp1, vp2s) -> VSince (i+1, vp1, List.append vp2s [vp2])
+  | VSinceInf (i, vp2s) -> VSinceInf (i+1, List.append vp2s [vp2])
+  | VUntil (i, vp1, vp2s) -> VUntil (i+1, vp1, vp2 :: vp2s)
+  | VUntilInf (i, vp2s) -> VUntilInf (i+1, vp2 :: vp2s)
   | _ -> failwith "Bad arguments for vappend"
+
+let sdrop sp = match sp with
+  | SUntil (sp2, sp1s) -> SUntil (sp2, drop_front sp1s)
+  | _ -> failwith "Bad arguments for sdrop"
+
+let vdrop vp = match vp with
+  | VUntil (i, sp1, sp2s) -> VUntil (i+1, sp1, drop_front sp2s)
+  | VUntilInf (i, sp2s) -> VUntilInf (i+1, drop_front sp2s)
+  | _ -> failwith "Bad arguments for vdrop"
 
 let slift = function
   | SOnce (i, sp) -> SOnce (i + 1, sp)
