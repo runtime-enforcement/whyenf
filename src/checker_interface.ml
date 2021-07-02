@@ -10,9 +10,9 @@
 open Z
 open Mtl
 open Expl
-open Check
 open Interval
 open Util
+open Checker.Verified_checker
 
 let rec convert_sp sp =
   match sp with
@@ -74,11 +74,11 @@ let convert_interval i =
       | BI (l, r) -> let l_nat = nat_of_integer (of_int l) in
                      let r_nat = nat_of_integer (of_int r) in
                      let e_nat = Enat r_nat in
-                     Check.interval l_nat e_nat)
+                     interval l_nat e_nat)
   | U ui ->
      (match ui with
       | UI l -> let l_nat = nat_of_integer (of_int l) in
-                Check.interval l_nat Infinity_enat)
+                interval l_nat Infinity_enat)
 
 let rec convert_f f =
   match (value f) with
@@ -104,9 +104,9 @@ let convert_events events =
 
 let check_proof events f p =
   let f_check = convert_f f in
-  let events_check = convert_events events in
+  let events_check = to_trace (convert_events events) in
   match p with
   | S sp -> let sp_check = convert_sp sp in
-            s_check_prefix events_check f_check sp_check
+            strs_check events_check f_check sp_check
   | V vp -> let vp_check = convert_vp vp in
-            v_check_prefix events_check f_check vp_check
+            strv_check events_check f_check vp_check
