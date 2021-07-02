@@ -12,7 +12,7 @@ open Expl
 open Util
 open Channel
 open Interval
-open Check_interface
+open Checker_interface
 
 module Deque = Core_kernel.Deque
 module List = Core_kernel.List
@@ -429,7 +429,6 @@ module Future = struct
    *   match p1, p2 with
    *   | S sp1, S sp2 ->
    *      let cur_block = Deque.peek_front_exn muaux.alphas_beta in
-   *      let alphas_beta = sdrop_to_deque sp1 cur_block in
    *      let sp = S (SUntil (sp2, alphas_suffix_to_list  muaux.alphas_suffix)) in
    *      let _ = Deque.enqueue_back alphas_beta (ts, sp) in
    *      let _ = Deque.enqueue_back muaux.alphas_suffix (ts, sp1) in
