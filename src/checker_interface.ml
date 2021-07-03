@@ -21,6 +21,7 @@ let rec convert_sp sp =
   | SNeg p1 -> SNeg (convert_vp p1)
   | SDisjL p1 -> SDisjL (convert_sp p1)
   | SDisjR p2 -> SDisjR (convert_sp p2)
+  | SConj (p1, p2) -> SConj (convert_sp p1, convert_sp p2)
   | SSince (p2, p1s) -> let p1s' = List.rev(List.fold_left (fun acc p1 ->
                                                 (convert_sp p1)::acc) [] p1s) in
                         SSince (convert_sp p2, p1s')
@@ -36,6 +37,8 @@ and convert_vp vp =
                     VAtm (s, i_nat)
   | VNeg p1 -> VNeg (convert_sp p1)
   | VDisj (p1, p2) -> VDisj (convert_vp p1, convert_vp p2)
+  | VConjL p1 -> VConjL (convert_vp p1)
+  | VConjR p2 -> VConjR (convert_vp p2)
   | VSince (i, p1, p2s) -> let i_nat = nat_of_integer (of_int i) in
                            let p2s' = List.rev(List.fold_left (fun acc p2 ->
                                                 (convert_vp p2)::acc) [] p2s) in
