@@ -620,7 +620,7 @@ let print_check out_ch mode ts tp ps events f =
                 | V _ -> let check = check_proof events f p in
                          output_check out_ch ((ts, tp), check))
 
-let monitor in_ch out_ch mode le sl f =
+let monitor in_ch out_ch mode check le sl f =
   let minimuml ps = minsize_list (get_mins le ps) in
   let rec loop f x = loop f (f x) in
   let s (ctx, in_ch) =
@@ -628,7 +628,8 @@ let monitor in_ch out_ch mode le sl f =
     let (ps, mf) = meval' ctx.tp ts sap ctx.mf le sl minimuml in
     let tp_ts = if ts = ctx.last_ts then ctx.tp_ts+1 else 0 in
     let out_ch = print_proofs ctx.out_ch mode ts tp_ts ps in
-    let out_ch = print_check out_ch mode ts tp_ts ps ctx.events f in
+    let out_ch = if check then print_check out_ch mode ts tp_ts ps ctx.events f
+                 else out_ch in
     let new_ctx = { tp = ctx.tp+1
                   ; tp_ts = tp_ts
                   ; last_ts = ts

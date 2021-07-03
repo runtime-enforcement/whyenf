@@ -12,4 +12,4 @@ open Expl
 open Util
 open Channel
 
-val monitor: input_channel -> output_channel -> mode -> (expl -> expl -> bool) -> (expl -> expl -> bool) -> formula -> output_channel
+val monitor: input_channel -> output_channel -> mode -> bool -> (expl -> expl -> bool) -> (expl -> expl -> bool) -> formula -> output_channel
