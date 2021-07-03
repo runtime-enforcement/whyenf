@@ -20,6 +20,7 @@ exception EXIT
 
 let full_ref = ref true
 let mode_ref = ref ALL
+let check_ref = ref false
 let measure_le_ref = ref None
 let measure_sl_ref = ref None
 let fmla_ref = ref None
@@ -70,6 +71,9 @@ let process_args =
           | "viol" | "VIOL" | "Viol" -> VIOL
           | "bool" | "BOOL" | "Bool" -> BOOL
           | _ -> mode_error ());
+       go args
+    | ("-check" :: args) ->
+       check_ref := true;
        go args
     | ("-O" :: measure :: args) ->
        let measure_le, measure_sl =
@@ -135,9 +139,9 @@ let _ =
                    | None, None -> size_le, size_sl
                    | Some measure_le', Some measure_sl' -> measure_le', measure_sl'
                    | _ -> failwith "Invalid measure" in
-                 let in_ch, mode = !log_ref, !mode_ref in
+                 let in_ch, mode, check = !log_ref, !mode_ref, !check_ref in
                  if !full_ref then
-                   let _ = monitor in_ch !out_ref mode measure_le measure_sl f in ()
+                   let _ = monitor in_ch !out_ref mode check measure_le measure_sl f in ()
                  else ()
   with
   | End_of_file -> let _ = output_event !out_ref "Bye.\n" in close !out_ref; exit 0
