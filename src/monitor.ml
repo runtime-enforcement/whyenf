@@ -569,7 +569,7 @@ let monitor in_ch out_ch mode debug check le sl f =
   let s (ctx, in_ch) =
     let ((sap, ts), in_ch) = input_event in_ch out_ch in
     let (ps, mf) = meval' ctx.tp ts sap ctx.mf le sl minimuml in
-    let checker_ps = if check then Some (check_ps ctx.events f ps) else None in
+    let checker_ps = if check || debug then Some (check_ps ctx.events f ps) else None in
     let tp_ts = if ts = ctx.last_ts then ctx.tp_ts+1 else 0 in
     let _ = print_ps out_ch mode ts tp_ts ps checker_ps debug in
     let new_ctx = { tp = ctx.tp+1
