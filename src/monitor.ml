@@ -7,10 +7,10 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
+open Io
 open Mtl
 open Expl
 open Util
-open Channel
 open Interval
 open Checker_interface
 
@@ -469,7 +469,6 @@ type context =
   (* timepoint w.r.t. current timestamp *)
   ; tp_ts: timepoint
   ; last_ts: timestamp
-  ; out_ch: output_channel
   ; mf: mformula
   ; events: (Util.SS.t * timestamp) list
   }
@@ -564,85 +563,26 @@ let meval' tp ts sap mform le sl minimuml =
     | _ -> failwith "This formula cannot be monitored" in
   meval tp ts sap mform
 
-let preamble out_ch mode f =
-  let out_ch = output_event out_ch "Monitoring " in
-  let out_ch = output_event out_ch (formula_to_string f) in
-  let out_ch = output_event out_ch (" in mode " ^
-                                    (match mode with
-                                     | SAT -> "SAT"
-                                     | VIOL -> "VIOL"
-                                     | ALL -> "ALL"
-                                     | BOOL -> "BOOL")
-                                    ^ "\n") in out_ch
-
-let print_proofs out_ch mode ts tp ps =
-  match mode with
-  | SAT -> List.fold ps ~init:out_ch
-             ~f:(fun acc p ->
-               match p with
-               | S _ -> output_explanation out_ch ((ts, tp), p)
-               | V _ -> acc)
-  | VIOL -> List.fold ps ~init:out_ch
-              ~f:(fun acc p ->
-                match p with
-                | S _ -> acc
-                | V _ -> output_explanation out_ch ((ts, tp), p))
-  | ALL -> List.fold ps ~init:out_ch
-             ~f:(fun acc p -> output_explanation out_ch ((ts, tp), p))
-  | BOOL -> List.fold ps ~init:out_ch
-              ~f:(fun acc p ->
-                match p with
-                | S _ -> output_boolean out_ch ((ts, tp), true)
-                | V _ -> output_boolean out_ch ((ts, tp), false))
-
-let print_check out_ch mode ts tp ps events f =
-    match mode with
-  | SAT -> List.fold ps ~init:out_ch
-             ~f:(fun acc p ->
-               match p with
-               | S _ -> let check = check_proof events f p in
-                        output_check out_ch ((ts, tp), check)
-               | V _ -> acc)
-  | VIOL -> List.fold ps ~init:out_ch
-              ~f:(fun acc p ->
-                match p with
-                | S _ -> acc
-                | V _ -> let check = check_proof events f p in
-                         output_check out_ch ((ts, tp), check))
-  | ALL -> List.fold ps ~init:out_ch
-             ~f:(fun acc p -> let check = check_proof events f p in
-                              output_check out_ch ((ts, tp), check))
-  | BOOL -> List.fold ps ~init:out_ch
-              ~f:(fun acc p ->
-                match p with
-                | S _ -> let check = check_proof events f p in
-                         output_check out_ch ((ts, tp), check)
-                | V _ -> let check = check_proof events f p in
-                         output_check out_ch ((ts, tp), check))
-
-let monitor in_ch out_ch mode check le sl f =
+let monitor in_ch out_ch mode debug check le sl f =
   let minimuml ps = minsize_list (get_mins le ps) in
   let rec loop f x = loop f (f x) in
   let s (ctx, in_ch) =
-    let ((sap, ts), in_ch) = input_event in_ch ctx.out_ch in
+    let ((sap, ts), in_ch) = input_event in_ch out_ch in
     let (ps, mf) = meval' ctx.tp ts sap ctx.mf le sl minimuml in
+    let checker_ps = if check then Some (check_ps ctx.events f ps) else None in
     let tp_ts = if ts = ctx.last_ts then ctx.tp_ts+1 else 0 in
-    let out_ch = print_proofs ctx.out_ch mode ts tp_ts ps in
-    let out_ch = if check then print_check out_ch mode ts tp_ts ps ctx.events f
-                 else out_ch in
+    let _ = print_ps out_ch mode ts tp_ts ps checker_ps debug in
     let new_ctx = { tp = ctx.tp+1
                   ; tp_ts = tp_ts
                   ; last_ts = ts
-                  ; out_ch = out_ch
                   ; mf = mf
                   ; events = (sap, ts)::ctx.events } in
     (new_ctx, in_ch) in
   let mf = minit f in
-  let out_ch = preamble out_ch mode f in
+  let _ = preamble out_ch mode f in
   let ctx = { tp = 0
             ; tp_ts = 0
             ; last_ts = -1
-            ; out_ch = out_ch
             ; mf = mf
             ; events = [] } in
   loop s (ctx, in_ch)

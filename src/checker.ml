@@ -1,4 +1,4 @@
-module Verified_checker : sig
+module Explanator2 : sig
   type nat
   val integer_of_nat : nat -> Z.t
   type enat = Enat of nat | Infinity_enat

@@ -11,7 +11,7 @@
 open Util
 open Expl
 open Mtl
-open Channel
+open Io
 open Mtl_parser
 open Mtl_lexer
 open Monitor
@@ -19,19 +19,21 @@ open Monitor
 exception EXIT
 
 let full_ref = ref true
-let mode_ref = ref ALL
 let check_ref = ref false
+let debug_ref = ref false
+let mode_ref = ref ALL
 let measure_le_ref = ref None
 let measure_sl_ref = ref None
 let fmla_ref = ref None
-let log_ref = ref (Input stdin)
-let out_ref = ref (Output stdout)
+let log_ref = ref stdin
+let out_ref = ref stdout
 
 let usage () =
   Format.eprintf
     "Example usage: explanator2 -O size -mode sat -fmla test.fmla -log test.log -out test.out
      Arguments:
      \t -ap      - output only the \"responsible atomic proposition\" view
+     \t -check   - include output of verified checker
      \t -mode
      \t\t all    - output all satisfaction and violation proofs (default)
      \t\t sat    - output only satisfaction proofs
@@ -47,7 +49,8 @@ let usage () =
      \t -log
      \t\t <file> - log file (default: stdin)
      \t -out
-     \t\t <file> - output file where the explanation is printed to (default: stdout)\n%!";
+     \t\t <file> - output file where the explanation is printed to (default: stdout)
+     \t -debug   - verbose output (useful for debugging)\n%!";
   raise EXIT
 
 let mode_error () =
@@ -63,6 +66,12 @@ let process_args =
     | ("-ap" :: args) ->
        full_ref := false;
        go args
+    | ("-check" :: args) ->
+       check_ref := true;
+       go args
+    | ("-debug" :: args) ->
+       debug_ref := true;
+       go args
     | ("-mode" :: mode :: args) ->
        mode_ref :=
          (match mode with
@@ -71,9 +80,6 @@ let process_args =
           | "viol" | "VIOL" | "Viol" -> VIOL
           | "bool" | "BOOL" | "Bool" -> BOOL
           | _ -> mode_error ());
-       go args
-    | ("-check" :: args) ->
-       check_ref := true;
        go args
     | ("-O" :: measure :: args) ->
        let measure_le, measure_sl =
@@ -110,7 +116,7 @@ let process_args =
           | Some measure_sl' -> Some(lex measure_sl measure_sl'));
        go args
     | ("-log" :: logfile :: args) ->
-       log_ref := Input (open_in logfile);
+       log_ref := open_in logfile;
        go args
     | ("-fmla" :: fmlafile :: args) ->
        (try
@@ -121,13 +127,11 @@ let process_args =
           _ -> fmla_ref := Some(Mtl_parser.formula Mtl_lexer.token (Lexing.from_string fmlafile)));
        go args
     | ("-out" :: outfile :: args) ->
-       out_ref := Output (open_out outfile);
+       out_ref := open_out outfile;
        go args
     | [] -> ()
     | _ -> usage () in
   go
-
-let close out = match out with Output x | OutputDebug (_, x) -> close_out x | OutputMock x -> ()
 
 let _ =
   try
@@ -139,10 +143,9 @@ let _ =
                    | None, None -> size_le, size_sl
                    | Some measure_le', Some measure_sl' -> measure_le', measure_sl'
                    | _ -> failwith "Invalid measure" in
-                 let in_ch, mode, check = !log_ref, !mode_ref, !check_ref in
                  if !full_ref then
-                   let _ = monitor in_ch !out_ref mode check measure_le measure_sl f in ()
+                   let _ = monitor !log_ref !out_ref !mode_ref !debug_ref !check_ref measure_le measure_sl f in ()
                  else ()
   with
-  | End_of_file -> let _ = output_event !out_ref "Bye.\n" in close !out_ref; exit 0
-  | EXIT -> close !out_ref; exit 1
+  | End_of_file -> let _ = output_event !out_ref "Bye.\n" in close_out !out_ref; exit 0
+  | EXIT -> close_out !out_ref; exit 1

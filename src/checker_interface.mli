@@ -10,5 +10,9 @@
 open Mtl
 open Expl
 open Util
+open Checker.Explanator2
 
-val check_proof: (Util.SS.t * int) list -> formula -> expl -> bool
+type checker_proof = CS of string sproof | CV of string vproof
+
+val s_of_proof: checker_proof -> string
+val check_ps: (Util.SS.t * int) list -> formula -> expl list -> (bool * checker_proof) list
