@@ -10,6 +10,5 @@
 open Mtl
 open Expl
 open Util
-open Channel
 
-val monitor: input_channel -> output_channel -> mode -> bool -> (expl -> expl -> bool) -> (expl -> expl -> bool) -> formula -> output_channel
+val monitor: in_channel -> out_channel -> mode -> bool -> bool -> (expl -> expl -> bool) -> (expl -> expl -> bool) -> formula -> out_channel

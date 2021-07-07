@@ -12,7 +12,9 @@ open Mtl
 open Expl
 open Interval
 open Util
-open Checker.Verified_checker
+open Checker.Explanator2
+
+type checker_proof = CS of string sproof | CV of string vproof
 
 let rec convert_sp sp =
   match sp with
@@ -70,6 +72,10 @@ and convert_vp vp =
   | VPrev0 -> VPrev_zero
   | _ -> failwith "This proof cannot be checked"
 
+let convert_p = function
+  | S sp -> CS (convert_sp sp)
+  | V vp -> CV (convert_vp vp)
+
 let convert_interval i =
   match i with
   | B bi ->
@@ -105,11 +111,58 @@ let convert_events events =
               (fun acc (sap, ts) ->
                 (convert_event sap ts)::acc) [] events)
 
-let check_proof events f p =
+let check_ps events f ps =
   let f_check = convert_f f in
   let events_check = to_trace (convert_events events) in
-  match p with
-  | S sp -> let sp_check = convert_sp sp in
-            strs_check events_check f_check sp_check
-  | V vp -> let vp_check = convert_vp vp in
-            strv_check events_check f_check vp_check
+  List.rev(List.fold_left (fun acc p ->
+               let checker_p = convert_p p in
+               match checker_p with
+               | CS checker_sp -> let b = strs_check events_check f_check checker_sp in
+                                  (b, checker_p)::acc
+               | CV checker_vp -> let b = strv_check events_check f_check checker_vp in
+                                  (b, checker_p)::acc) [] ps)
+
+let s_of_sum s_of_left s_of_right = function
+  | Inl x -> "Inl (" ^ s_of_left x ^ ")"
+  | Inr y -> "Inr (" ^ s_of_right y ^ ")"
+
+let s_of_nat n = Z.to_string (integer_of_nat n)
+
+let s_of_list s_of xs = "[" ^ String.concat ", " (List.map s_of xs) ^ "]"
+
+let rec s_of_sproof = function
+  | STT n -> "STT " ^ s_of_nat n
+  | SAtm (s, n) -> "SAtm (" ^ s ^ ", " ^ s_of_nat n ^ ")"
+  | SNeg p -> "SNeg (" ^ s_of_vproof p ^ ")"
+  | SDisjL p -> "SDisjL (" ^ s_of_sproof p ^ ")"
+  | SDisjR p -> "SDisjR (" ^ s_of_sproof p ^ ")"
+  | SConj (p, q) -> "SConj (" ^ s_of_sproof p ^ ", " ^ s_of_sproof q ^ ")"
+  | SSince (p, qs) -> "SSince (" ^ s_of_sproof p ^ ", " ^ s_of_list s_of_sproof qs ^ ")"
+  | SUntil (qs, p) -> "SUntil (" ^ s_of_list s_of_sproof qs ^ ", " ^ s_of_sproof p ^ ")"
+  | SNext p -> "SNext (" ^ s_of_sproof p ^ ")"
+  | SPrev p -> "SPrev (" ^ s_of_sproof p ^ ")"
+and s_of_vproof = function
+  | VFF n -> "VFF " ^ s_of_nat n
+  | VAtm (s, n) -> "VAtm (" ^ s ^ ", " ^ s_of_nat n ^ ")"
+  | VNeg p -> "VNeg (" ^ s_of_sproof p ^ ")"
+  | VDisj (p, q) -> "VDisj (" ^ s_of_vproof p ^ ", " ^ s_of_vproof q ^ ")"
+  | VConjL p -> "VConjL (" ^ s_of_vproof p ^ ")"
+  | VConjR p -> "VConjR (" ^ s_of_vproof p ^ ")"
+  | VSince (n, p, qs) -> "VSince (" ^ s_of_nat n ^ ", " ^ s_of_vproof p ^ ", " ^ s_of_list s_of_vproof qs ^ ")"
+  | VUntil (n, qs, p) -> "VUntil (" ^ s_of_nat n ^ ", " ^ s_of_list s_of_vproof qs ^ ", " ^ s_of_vproof p ^ ")"
+  | VSince_never (n, qs) -> "VSince_never (" ^ s_of_nat n ^ ", " ^ s_of_list s_of_vproof qs ^ ")"
+  | VUntil_never (n, qs) -> "VUntil_never (" ^ s_of_nat n ^ ", " ^ s_of_list s_of_vproof qs ^ ")"
+  | VSince_le n -> "VSince_le " ^ s_of_nat n
+  | VNext p -> "VNext (" ^ s_of_vproof p ^ ")"
+  | VNext_ge n -> "VNext_ge " ^ s_of_nat n
+  | VNext_le n -> "VNext_le " ^ s_of_nat n
+  | VPrev p -> "VPrev (" ^ s_of_vproof p ^ ")"
+  | VPrev_ge n -> "VPrev_ge " ^ s_of_nat n
+  | VPrev_le n -> "VPrev_le " ^ s_of_nat n
+  | VPrev_zero -> "VPrev_zero"
+
+let s_of_proof = function
+  | CS sp -> s_of_sproof sp
+  | CV vp -> s_of_vproof vp
+
+let of_int n = nat_of_integer (Z.of_int n)
