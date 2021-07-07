@@ -13,6 +13,7 @@ open Expl
 open Interval
 open Checker.Explanator2
 open Checker_interface
+open Ocolor_format
 
 type output =
   | Boolean of (timestamp * timepoint) * bool
@@ -59,11 +60,11 @@ let output_result out_ch res =
      Printf.fprintf out_ch "%d:%d\nProof: \n%s\n" ts tp (expl_to_string p)
   | ExplanationCheck ((ts, tp), p, b) ->
      Printf.fprintf out_ch "%d:%d\nProof: \n%s\n" ts tp (expl_to_string p);
-     Printf.fprintf out_ch "\nChecker output: \n%B\n" b
+     Printf.fprintf out_ch "\nChecker output: %B\n\n" b
   | ExplanationDebug ((ts, tp), p, b, cp) ->
-     Printf.fprintf out_ch "%d:%d\nProof: \n%s\n" ts tp (expl_to_string p);
-     Printf.fprintf out_ch "\nChecker output: \n%B\n" b;
-     Printf.fprintf out_ch "\nChecker proof: \n%s\n" (s_of_proof cp)
+     Ocolor_format.printf "@{<red>%d:%d@}\nProof: \n%s\n" ts tp (expl_to_string p);
+     Ocolor_format.printf "\nChecker output: %B\n" b;
+     Ocolor_format.printf "\nChecker proof: \n%s\n\n" (s_of_proof cp)
   | Info s ->
      Printf.fprintf out_ch "\nInfo: %s\n" s
 
@@ -78,7 +79,7 @@ let preamble out_ch mode f =
                           | VIOL -> "VIOL"
                           | ALL -> "ALL"
                           | BOOL -> "BOOL")
-                         ^ "\n")
+                         ^ "\n\n")
 
 let print_ps out_ch mode ts tp ps checker_ps_opt debug =
   let checker_ps =
