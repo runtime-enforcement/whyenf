@@ -20,7 +20,7 @@ type output =
   | BooleanCheck of (timestamp * timepoint) * bool * bool
   | Explanation of (timestamp * timepoint) * expl
   | ExplanationCheck of (timestamp * timepoint)  * expl * bool
-  | ExplanationDebug of (timestamp * timepoint)  * expl * bool * checker_proof
+  | ExplanationDebug of (timestamp * timepoint)  * expl * bool * checker_proof * checker_trace
   | Info of string
 
 let parse_line s =
@@ -61,9 +61,11 @@ let output_result out_ch res =
   | ExplanationCheck ((ts, tp), p, b) ->
      Printf.fprintf out_ch "%d:%d\nProof: \n%s\n" ts tp (expl_to_string p);
      Printf.fprintf out_ch "\nChecker output: %B\n\n" b
-  | ExplanationDebug ((ts, tp), p, b, cp) ->
-     Ocolor_format.printf "@{<red>%d:%d@}\nProof: \n%s\n" ts tp (expl_to_string p);
-     Ocolor_format.printf "\nChecker output: %B\n" b;
+  | ExplanationDebug ((ts, tp), p, b, cp, ctrace) ->
+     Ocolor_format.printf "@{<yellow;bold>%d:%d@}\nProof: \n%s\n" ts tp (expl_to_string p);
+     (if b then Ocolor_format.printf "\nChecker output: %B\n" b
+      else Ocolor_format.printf "\nChecker output: @{<red;bold>%B@}\n" b);
+     Ocolor_format.printf "\nTrace: \n%s\n\n" (s_of_trace ctrace);
      Ocolor_format.printf "\nChecker proof: \n%s\n\n" (s_of_proof cp)
   | Info s ->
      Printf.fprintf out_ch "\nInfo: %s\n" s
@@ -88,10 +90,10 @@ let print_ps out_ch mode ts tp ps checker_ps_opt debug =
     | Some checker_ps -> checker_ps in
   match mode with
   | SAT -> if (List.length checker_ps) > 0 then
-             List.iter2 (fun p (b, checker_p) ->
+             List.iter2 (fun p (b, checker_p, trace) ->
                  match p with
                  | S _ -> if debug then
-                            let out = ExplanationDebug ((ts, tp), p, b, checker_p) in
+                            let out = ExplanationDebug ((ts, tp), p, b, checker_p, trace) in
                             output_result out_ch out
                           else
                             let out = ExplanationCheck ((ts, tp), p, b) in
@@ -104,11 +106,11 @@ let print_ps out_ch mode ts tp ps checker_ps_opt debug =
                           output_result out_ch out
                  | V _ -> ()) ps
   | VIOL -> if (List.length checker_ps) > 0 then
-              List.iter2 (fun p (b, checker_p) ->
+              List.iter2 (fun p (b, checker_p, trace) ->
                   match p with
                   | S _ -> ()
                   | V _ -> if debug then
-                             let out = ExplanationDebug ((ts, tp), p, b, checker_p) in
+                             let out = ExplanationDebug ((ts, tp), p, b, checker_p, trace) in
                              output_result out_ch out
                            else
                              let out = ExplanationCheck ((ts, tp), p, b) in
@@ -120,9 +122,9 @@ let print_ps out_ch mode ts tp ps checker_ps_opt debug =
                   | V _ -> let out = Explanation ((ts, tp), p) in
                            output_result out_ch out) ps
   | ALL -> if (List.length checker_ps) > 0 then
-             List.iter2 (fun p (b, checker_p) ->
+             List.iter2 (fun p (b, checker_p, trace) ->
                  if debug then
-                   let out = ExplanationDebug ((ts, tp), p, b, checker_p) in
+                   let out = ExplanationDebug ((ts, tp), p, b, checker_p, trace) in
                    output_result out_ch out
                  else
                    let out = ExplanationCheck ((ts, tp), p, b) in
@@ -132,7 +134,7 @@ let print_ps out_ch mode ts tp ps checker_ps_opt debug =
                   let out = Explanation ((ts, tp), p) in
                   output_result out_ch out) ps
   | BOOL -> if (List.length checker_ps) > 0 then
-              List.iter2 (fun p (b, checker_p) ->
+              List.iter2 (fun p (b, _, _) ->
                   match p with
                   | S _ -> let out = BooleanCheck ((ts, tp), true, b) in
                            output_result out_ch out

@@ -15,6 +15,7 @@ open Util
 open Checker.Explanator2
 
 type checker_proof = CS of string sproof | CV of string vproof
+type checker_trace = (string set * nat) list
 
 let rec convert_sp sp =
   match sp with
@@ -106,21 +107,22 @@ let convert_event sap ts =
   let set_check = Set sap_lst in
   (set_check, ts_nat)
 
-let convert_events events =
+let convert_trace trace =
   List.rev (List.fold_left
               (fun acc (sap, ts) ->
-                (convert_event sap ts)::acc) [] events)
+                (convert_event sap ts)::acc) [] trace)
 
-let check_ps events f ps =
-  let f_check = convert_f f in
-  let events_check = to_trace (convert_events events) in
+let check_ps trace f ps =
+  let checker_f = convert_f f in
+  let trace_converted = convert_trace trace in
+  let checker_trace = to_trace trace_converted in
   List.rev(List.fold_left (fun acc p ->
                let checker_p = convert_p p in
                match checker_p with
-               | CS checker_sp -> let b = strs_check events_check f_check checker_sp in
-                                  (b, checker_p)::acc
-               | CV checker_vp -> let b = strv_check events_check f_check checker_vp in
-                                  (b, checker_p)::acc) [] ps)
+               | CS checker_sp -> let b = strs_check checker_trace checker_f checker_sp in
+                                  (b, checker_p, trace_converted)::acc
+               | CV checker_vp -> let b = strv_check checker_trace checker_f checker_vp in
+                                  (b, checker_p, trace_converted)::acc) [] ps)
 
 let s_of_sum s_of_left s_of_right = function
   | Inl x -> "Inl (" ^ s_of_left x ^ ")"
@@ -129,6 +131,14 @@ let s_of_sum s_of_left s_of_right = function
 let s_of_nat n = Z.to_string (integer_of_nat n)
 
 let s_of_list s_of xs = "[" ^ String.concat ", " (List.map s_of xs) ^ "]"
+
+let s_of_trace trace =
+  List.fold_right (fun (checker_sap, checker_nat) acc ->
+      let s_of_checker_sap =
+        match checker_sap with
+        | Set lst -> s_of_list (fun s -> s) lst
+        | Coset lst -> s_of_list (fun s -> s) lst in
+      ("(" ^ s_of_nat checker_nat ^ ", " ^ s_of_checker_sap ^ ") " ^ acc)) (List.rev trace) ""
 
 let rec s_of_sproof = function
   | STT n -> "STT " ^ s_of_nat n
