@@ -88,6 +88,15 @@ let print_ps out_ch mode ts tp ps checker_ps_opt debug =
     match checker_ps_opt with
     | None -> []
     | Some checker_ps -> checker_ps in
+  let ps = if debug then
+             List.rev(List.fold_left2
+                        (fun acc p (b, checker_p, trace) ->
+                          if b then acc
+                          else p::acc) [] ps checker_ps)
+               else ps in
+  let checker_ps = if debug then
+                     List.filter (fun (b, checker_p, trace) -> not b) checker_ps
+                   else checker_ps in
   match mode with
   | SAT -> if (List.length checker_ps) > 0 then
              List.iter2 (fun p (b, checker_p, trace) ->
