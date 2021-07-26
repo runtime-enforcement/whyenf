@@ -66,6 +66,8 @@ val sappend: sexpl -> sexpl -> sexpl
 val vappend: vexpl -> vexpl -> vexpl
 val slift: sexpl -> sexpl
 val vlift: vexpl -> vexpl
+val sdrop: sexpl -> sexpl
+val vdrop: vexpl -> vexpl
 
 val size: expl -> int
 val size_le: expl -> expl -> bool
