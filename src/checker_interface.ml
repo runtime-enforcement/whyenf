@@ -108,9 +108,9 @@ let convert_event sap ts =
   (set_check, ts_nat)
 
 let convert_trace trace =
-  List.rev (List.fold_left
-              (fun acc (sap, ts) ->
-                (convert_event sap ts)::acc) [] trace)
+  List.fold_left
+    (fun acc (sap, ts) ->
+      (convert_event sap ts)::acc) [] trace
 
 let check_ps trace f ps =
   let checker_f = convert_f f in
@@ -133,12 +133,13 @@ let s_of_nat n = Z.to_string (integer_of_nat n)
 let s_of_list s_of xs = "[" ^ String.concat ", " (List.map s_of xs) ^ "]"
 
 let s_of_trace trace =
-  List.fold_right (fun (checker_sap, checker_nat) acc ->
-      let s_of_checker_sap =
-        match checker_sap with
-        | Set lst -> s_of_list (fun s -> s) lst
-        | Coset lst -> s_of_list (fun s -> s) lst in
-      ("(" ^ s_of_nat checker_nat ^ ", " ^ s_of_checker_sap ^ ") " ^ acc)) (List.rev trace) ""
+  String.concat ", "
+    (List.map (fun (checker_sap, checker_nat) ->
+         let s_of_checker_sap =
+           match checker_sap with
+           | Set lst -> s_of_list (fun s -> s) lst
+           | Coset lst -> s_of_list (fun s -> s) lst in
+         ("(" ^ s_of_nat checker_nat ^ ", " ^ s_of_checker_sap ^ ") ")) trace)
 
 let rec s_of_sproof = function
   | STT n -> "STT " ^ s_of_nat n
