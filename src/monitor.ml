@@ -132,25 +132,13 @@ module Past = struct
                                   (Printf.sprintf "\n\t\t(%d)\n\t\tbeta = " ts) ^
                                   Expl.v_to_string "" p2)
 
-  let empty_msaux =
-    { ts_zero = None
-    ; ts_in = Deque.create ()
-    ; ts_out = Deque.create ()
-    ; beta_alphas = Deque.create ()
-    ; beta_alphas_out = Deque.create ()
-    ; alpha_betas = Deque.create ()
-    ; alphas_out = Deque.create ()
-    ; betas_suffix_in = Deque.create ()
-    ; alphas_betas_out = Deque.create ()
-    ; }
-
-  let update_ts_zero a ts msaux  =
-    if a = 0 then
-      let _ = Deque.enqueue_back msaux.ts_in ts in
-      { msaux with ts_zero = Some(ts) }
-    else
-      let _ = Deque.enqueue_back msaux.ts_out ts in
-      { msaux with ts_zero = Some(ts) }
+  (* let update_ts_zero a ts msaux  =
+   *   if a = 0 then
+   *     let _ = Deque.enqueue_back msaux.ts_in ts in
+   *     { msaux with ts_zero = Some(ts) }
+   *   else
+   *     let _ = Deque.enqueue_back msaux.ts_out ts in
+   *     { msaux with ts_zero = Some(ts) } *)
 
   let update_ts (l, r) a ts msaux =
     if a = 0 then
@@ -388,17 +376,24 @@ module Past = struct
 
   let update_since interval tp ts p1 p2 msaux le =
     let a = get_a_I interval in
+    let _ = Printf.printf "is_none ts_zero = %B\n" (Option.is_none msaux.ts_zero) in
     (* Case 1: interval has not yet started, i.e.,
-     \tau_{tp} < \tau_{0} + a  OR \tau_{tp} - a < 0 *)
-    if ((Option.is_some msaux.ts_zero) && ts < (Option.get msaux.ts_zero) + a)
-       || ((Option.is_none msaux.ts_zero) && (ts - a) < 0) then
+     \tau_{tp} < \tau_{0} + a OR \tau_{tp} - a < 0 *)
+    let cond1 = ((Option.is_none msaux.ts_zero) && (ts - a) < 0) in
+    let cond2 = (Option.is_some msaux.ts_zero) && ts < (Option.get msaux.ts_zero) + a in
+    if cond1 || cond2 then
       let l = (-1) in
       let r = (-1) in
-      let msaux_ts_updated = if Option.is_none msaux.ts_zero then
-                               update_ts_zero a ts msaux
-                             else update_ts (l, r) a ts msaux in
+      let msaux_ts_zero_updated = if Option.is_none msaux.ts_zero then
+                                    { msaux with ts_zero = Some(ts) }
+                                  else msaux in
+      let msaux_ts_updated = update_ts (l, r) a ts msaux_ts_zero_updated in
       let msaux_updated = advance_msaux (l, r) ts tp p1 p2 msaux_ts_updated le in
       let p = V (VSinceOutL tp) in
+      let _ = Printf.printf "ts_zero = %d\n" (Option.get msaux_updated.ts_zero) in
+      (* (match msaux.ts_zero with
+       *  | None -> Printf.fprintf stdout "KEK\n";
+       *  | Some(ts) -> Printf.fprintf stdout "ts_zero = %d\n" ts); *)
       ([p], msaux_updated)
         (* Case 2: \tau_{tp-1} exists *)
     else
@@ -415,14 +410,12 @@ module Future = struct
   type muaux = {
       ts_in: timestamp Deque.t
     ; ts_out: timestamp Deque.t
-
     (* deque of sorted deques of U^+ beta [alphas] proofs where (lts, hts, expl):
      * lts corresponds to the timestamp of the first alpha proof
      * hts corresponds to the timestamp of the beta proof *)
     ; alphas_beta: ((timestamp * timestamp * expl) Deque.t) Deque.t
     (* most recent sequence of alpha satisfactions w/o holes *)
     ; alphas_suffix: (timestamp * sexpl) Deque.t
-
     (* deque of sorted deques of U^- ~alpha [~betas] proofs where (lts, hts, expl):
      * lts corresponds to the timestamp of the first ~beta proof
      * hts corresponds to the timestamp of the ~alpha proof *)
@@ -433,17 +426,6 @@ module Future = struct
     ; alphas_in: (timestamp * timepoint * vexpl option) Deque.t
     (* deque of beta violations inside the interval *)
     ; betas_suffix_in: (timestamp * vexpl) Deque.t
-    ; }
-
-  let empty_muaux = {
-      ts_in = Deque.create ()
-    ; ts_out = Deque.create ()
-    ; alphas_beta = Deque.create ()
-    ; alphas_suffix = Deque.create ()
-    ; betas_alpha = Deque.create ()
-    ; alphas_out = Deque.create ()
-    ; alphas_in = Deque.create ()
-    ; betas_suffix_in = Deque.create ()
     ; }
 
   let sdrop_from_deque z d =
@@ -714,10 +696,27 @@ let rec minit f =
   | Prev (i, f) -> MPrev (i, minit f, true, [], [])
   | Next (i, f) -> MNext (i, minit f, true, [])
   | Since (i, f, g) ->
-     let msaux = Past.empty_msaux in
+     let msaux = { Past.ts_zero = None
+                 ; ts_in = Deque.create ()
+                 ; ts_out = Deque.create ()
+                 ; beta_alphas = Deque.create ()
+                 ; beta_alphas_out = Deque.create ()
+                 ; alpha_betas = Deque.create ()
+                 ; alphas_out = Deque.create ()
+                 ; betas_suffix_in = Deque.create ()
+                 ; alphas_betas_out = Deque.create ()
+                 ; } in
      MSince (i, minit f, minit g, msaux)
   | Until (i, f, g) ->
-     let muaux = Future.empty_muaux in
+     let muaux = { Future.ts_in = Deque.create ()
+                 ; ts_out = Deque.create ()
+                 ; alphas_beta = Deque.create ()
+                 ; alphas_suffix = Deque.create ()
+                 ; betas_alpha = Deque.create ()
+                 ; alphas_out = Deque.create ()
+                 ; alphas_in = Deque.create ()
+                 ; betas_suffix_in = Deque.create ()
+                 ; } in
      MUntil (i, minit f, minit g, muaux)
   | _ -> failwith "This formula cannot be monitored"
 
@@ -730,9 +729,9 @@ let rec mbuf2_take f buf =
   match e_l1, e_l2 with
   | [], _ -> ([], buf)
   | _, [] -> ([], buf)
-  | e1 :: e_l1', e2 :: e_l2' ->
+  | e1::e_l1', e2::e_l2' ->
      let (e_l3, buf') = mbuf2_take f (e_l1', e_l2') in
-     ((f e1 e2) :: e_l3, buf')
+     ((f e1 e2)::e_l3, buf')
 
 let do_disj minimum2 expl_f1 expl_f2 =
   match expl_f1, expl_f2 with
@@ -784,7 +783,7 @@ let meval' tp ts sap mform le sl minimuml =
        let p1 = minimuml ps_f1 in
        let p2 = minimuml ps_f2 in
        let (ps, new_msaux) = Past.update_since interval tp ts p1 p2 msaux le in
-       (* let _ = Printf.fprintf stdout "---------------\n%s\n\n" (Past.msaux_to_string msaux) in *)
+       let _ = Printf.fprintf stdout "---------------\n%s\n\n" (Past.msaux_to_string new_msaux) in
        ([minimuml ps], MSince (interval, mf1, mf2, new_msaux))
     (* | MUntil (interval, mf1, mf2, muaux) -> *)
     | _ -> failwith "This formula cannot be monitored" in
