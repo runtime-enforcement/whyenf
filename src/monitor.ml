@@ -16,7 +16,6 @@ open Checker_interface
 
 module Deque = Core_kernel.Deque
 module List = Core_kernel.List
-module SS = Set.Make(String)
 
 type mbuf2 = expl list * expl list
 
@@ -131,14 +130,6 @@ module Past = struct
                                   Expl.v_to_string "" p1 ^
                                   (Printf.sprintf "\n\t\t(%d)\n\t\tbeta = " ts) ^
                                   Expl.v_to_string "" p2)
-
-  (* let update_ts_zero a ts msaux  =
-   *   if a = 0 then
-   *     let _ = Deque.enqueue_back msaux.ts_in ts in
-   *     { msaux with ts_zero = Some(ts) }
-   *   else
-   *     let _ = Deque.enqueue_back msaux.ts_out ts in
-   *     { msaux with ts_zero = Some(ts) } *)
 
   let update_ts (l, r) a ts msaux =
     if a = 0 then
@@ -376,12 +367,10 @@ module Past = struct
 
   let update_since interval tp ts p1 p2 msaux le =
     let a = get_a_I interval in
-    let _ = Printf.printf "is_none ts_zero = %B\n" (Option.is_none msaux.ts_zero) in
     (* Case 1: interval has not yet started, i.e.,
      \tau_{tp} < \tau_{0} + a OR \tau_{tp} - a < 0 *)
-    let cond1 = ((Option.is_none msaux.ts_zero) && (ts - a) < 0) in
-    let cond2 = (Option.is_some msaux.ts_zero) && ts < (Option.get msaux.ts_zero) + a in
-    if cond1 || cond2 then
+    if ((Option.is_none msaux.ts_zero) && (ts - a) < 0) ||
+         (Option.is_some msaux.ts_zero) && ts < (Option.get msaux.ts_zero) + a then
       let l = (-1) in
       let r = (-1) in
       let msaux_ts_zero_updated = if Option.is_none msaux.ts_zero then
@@ -390,12 +379,8 @@ module Past = struct
       let msaux_ts_updated = update_ts (l, r) a ts msaux_ts_zero_updated in
       let msaux_updated = advance_msaux (l, r) ts tp p1 p2 msaux_ts_updated le in
       let p = V (VSinceOutL tp) in
-      let _ = Printf.printf "ts_zero = %d\n" (Option.get msaux_updated.ts_zero) in
-      (* (match msaux.ts_zero with
-       *  | None -> Printf.fprintf stdout "KEK\n";
-       *  | Some(ts) -> Printf.fprintf stdout "ts_zero = %d\n" ts); *)
       ([p], msaux_updated)
-        (* Case 2: \tau_{tp-1} exists *)
+    (* Case 2: \tau_{tp-1} exists *)
     else
       let b = get_b_since_I (Option.get msaux.ts_zero) interval in
       (* TODO: Fix l and r, we should consider the type of the interval *)
@@ -675,6 +660,41 @@ type mformula =
   | MSince of interval * mformula * mformula * Past.msaux
   | MUntil of interval * mformula * mformula * Future.muaux
 
+let rec mformula_to_string l f =
+  match f with
+  | MP x -> Printf.sprintf "%s" x
+  | MTT -> Printf.sprintf "⊤"
+  | MFF -> Printf.sprintf "⊥"
+  | MConj (f, g, _) -> Printf.sprintf (paren l 4 "%a ∧ %a") (fun x -> mformula_to_string 4) f (fun x -> mformula_to_string 4) g
+  | MDisj (f, g, _) -> Printf.sprintf (paren l 3 "%a ∨ %a") (fun x -> mformula_to_string 3) f (fun x -> mformula_to_string 4) g
+  | MNeg f -> Printf.sprintf "¬%a" (fun x -> mformula_to_string 5) f
+  | MPrev (i, f, _, _, _) -> Printf.sprintf (paren l 5 "●%a %a") (fun x -> interval_to_string) i (fun x -> mformula_to_string 5) f
+  | MNext (i, f, _, _) -> Printf.sprintf (paren l 5 "○%a %a") (fun x -> interval_to_string) i (fun x -> mformula_to_string 5) f
+  | MSince (i, f, g, _) -> Printf.sprintf (paren l 0 "%a S%a %a") (fun x -> mformula_to_string 5) f (fun x -> interval_to_string) i (fun x -> mformula_to_string 5) g
+  | MUntil (i, f, g, _) -> Printf.sprintf (paren l 0 "%a U%a %a") (fun x -> mformula_to_string 5) f (fun x -> interval_to_string) i (fun x -> mformula_to_string 5) g
+let mformula_to_string = mformula_to_string 0
+
+let relevant_ap mf =
+  let rec aux mf =
+    match mf with
+    | MP x -> [x]
+    | MTT -> []
+    | MFF -> []
+    | MConj (f, g, _) -> aux f @ aux g
+    | MDisj (f, g, _) -> aux f @ aux g
+    | MNeg f -> aux f
+    | MPrev (i, f, _, _, _) -> aux f
+    | MNext (i, f, _, _) -> aux f
+    | MSince (i, f, g, _) -> aux f @ aux g
+    | MUntil (i, f, g, _) -> aux f @ aux g in
+  let lst_with_dup = aux mf in
+  List.fold_left lst_with_dup ~init:[] ~f:(fun acc s ->
+      if (List.mem acc s ~equal:(fun x y -> x = y)) then acc
+      else s::acc)
+
+let filter_ap sap mf_ap =
+  Util.SS.filter (fun s -> List.mem mf_ap s ~equal:(fun x y -> x = y)) sap
+
 type context =
   { tp: timepoint
   ; mf: mformula
@@ -758,19 +778,19 @@ let meval' tp ts sap mform le sl minimuml =
        else ([V (VAtom (tp, a))], MP a)
     | MNeg (mf) ->
        let (ps_f, mf') = meval tp ts sap mf in
-       let ps_z = List.map ps_f (fun e ->
-                        match e with
-                        | S e' -> V (VNeg e')
-                        | V e' -> S (SNeg e')
-                      ) in (ps_z, mf')
+       let ps_z = List.map ps_f ~f:(fun p ->
+                      match p with
+                      | S p' -> V (VNeg p')
+                      | V p' -> S (SNeg p')) in
+       (ps_z, MNeg(mf'))
     | MConj (mf1, mf2, buf) ->
-       let op e1 e2 = do_conj minimum2 e1 e2 in
+       let op p1 p2 = do_conj minimum2 p1 p2 in
        let (ps_f1, mf1') = meval tp ts sap mf1 in
        let (ps_f2, mf2') = meval tp ts sap mf2 in
        let (ps_f, buf') = mbuf2_take op (mbuf2_add ps_f1 ps_f2 buf) in
        (ps_f, MConj (mf1', mf2', buf'))
     | MDisj (mf1, mf2, buf) ->
-       let op e1 e2 = do_disj minimum2 e1 e2 in
+       let op p1 p2 = do_disj minimum2 p1 p2 in
        let (ps_f1, mf1') = meval tp ts sap mf1 in
        let (ps_f2, mf2') = meval tp ts sap mf2 in
        let (ps_f, buf') = mbuf2_take op (mbuf2_add ps_f1 ps_f2 buf) in
@@ -784,7 +804,7 @@ let meval' tp ts sap mform le sl minimuml =
        let p2 = minimuml ps_f2 in
        let (ps, new_msaux) = Past.update_since interval tp ts p1 p2 msaux le in
        let _ = Printf.fprintf stdout "---------------\n%s\n\n" (Past.msaux_to_string new_msaux) in
-       ([minimuml ps], MSince (interval, mf1, mf2, new_msaux))
+       ([minimuml ps], MSince (interval, mf1', mf2', new_msaux))
     (* | MUntil (interval, mf1, mf2, muaux) -> *)
     | _ -> failwith "This formula cannot be monitored" in
   meval tp ts sap mform
@@ -792,19 +812,22 @@ let meval' tp ts sap mform le sl minimuml =
 let monitor in_ch out_ch mode debug check le sl f =
   let minimuml ps = minsize_list (get_mins le ps) in
   let rec loop f x = loop f (f x) in
-  let s (ctx, in_ch) =
-    let ((sap, ts), in_ch) = input_event in_ch out_ch in
-    let (ps, mf) = meval' ctx.tp ts sap ctx.mf le sl minimuml in
-    let events' = (sap, ts)::ctx.events in
-    let checker_ps = if check || debug then Some (check_ps events' f ps) else None in
-    let _ = print_ps out_ch mode ts ctx.tp ps checker_ps debug in
-    let ctx' = { tp = ctx.tp+1
-               ; mf = mf
-               ; events = events' } in
-    (ctx', in_ch) in
   let mf = minit f in
+  let mf_ap = relevant_ap mf in
   let _ = preamble out_ch mode f in
   let ctx = { tp = 0
             ; mf = mf
             ; events = [] } in
+  let s (ctx, in_ch) =
+    let ((sap, ts), in_ch) = input_event in_ch out_ch in
+    let sap' = filter_ap sap mf_ap in
+    let (ps, mf') = meval' ctx.tp ts sap' ctx.mf le sl minimuml in
+    let events' = (sap', ts)::ctx.events in
+    let checker_ps = if check || debug then Some (check_ps events' f ps) else None in
+    let _ = print_ps out_ch mode ts ctx.tp ps checker_ps debug in
+    (* let _ = Printf.fprintf stdout "\nmf = %s\n"  (mformula_to_string mf) in *)
+    let ctx' = { tp = ctx.tp+1
+               ; mf = mf'
+               ; events = events' } in
+    (ctx', in_ch) in
   loop s (ctx, in_ch)
