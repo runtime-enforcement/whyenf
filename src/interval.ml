@@ -15,11 +15,11 @@ open Expl
 type uinterval = UI of int
 
 (* Intervals of the form [i,j] *)
-type binterval = BI of int * int 
+type binterval = BI of int * int
 type interval = B of binterval | U of uinterval
 
-(* Given a ts and an interval, check if 
-   ts < i OR ts \in i OR ts > i 
+(* Given a ts and an interval, check if
+   ts < i OR ts \in i OR ts > i
  *)
 type rel = Below | Inside | Above
 
@@ -71,7 +71,7 @@ let where_UI t (UI l) =
   let b = below_UI t (UI l) in
   let a = above_UI t (UI l) in
   match b, a with
-  | true, false -> Below 
+  | true, false -> Below
   | false, false -> Inside
   | _ , _ -> failwith "There is a problem with intervals"
 
@@ -90,9 +90,13 @@ let get_a_UI (UI l) = l
 let get_a_BI (BI (l, r)) = l
 let get_a_I = case_I get_a_BI get_a_UI
 
-let get_b_UI ts_zero (UI l) = ts_zero
-let get_b_BI (BI (l, r)) = r
-let get_b_I ts_zero = case_I get_b_BI (get_b_UI ts_zero)
+let get_b_since_UI ts_zero (UI l) = ts_zero
+let get_b_since_BI (BI (l, r)) = r
+let get_b_since_I ts_zero = case_I get_b_since_BI (get_b_since_UI ts_zero)
+
+let get_b_until_UI (UI l) = failwith "Unbounded future"
+let get_b_until_BI (BI (l, r)) = r
+let get_b_until_I = case_I get_b_until_BI get_b_until_UI
 
 (* ETP: earliest i s.t. \tau_i >= \tau *)
 let get_etp ltp tau ts_lst =
