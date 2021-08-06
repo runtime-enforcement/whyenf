@@ -133,13 +133,13 @@ let s_of_nat n = Z.to_string (integer_of_nat n)
 let s_of_list s_of xs = "[" ^ String.concat ", " (List.map s_of xs) ^ "]"
 
 let s_of_trace trace =
-  String.concat ", "
+  String.concat "\n"
     (List.map (fun (checker_sap, checker_nat) ->
          let s_of_checker_sap =
            match checker_sap with
            | Set lst -> s_of_list (fun s -> s) lst
            | Coset lst -> s_of_list (fun s -> s) lst in
-         ("(" ^ s_of_nat checker_nat ^ ", " ^ s_of_checker_sap ^ ") ")) trace)
+         ("(" ^ s_of_nat checker_nat ^ ", " ^ s_of_checker_sap ^ ")")) trace)
 
 let rec s_of_sproof = function
   | STT n -> "STT " ^ s_of_nat n
