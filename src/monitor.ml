@@ -17,6 +17,8 @@ open Checker_interface
 module Deque = Core_kernel.Deque
 module List = Core_kernel.List
 
+exception INVALID_FORM
+
 type mbuf2 = expl list * expl list
 
 let sappend_to_deque sp1 d =
@@ -96,39 +98,39 @@ module Past = struct
     "\n\nmsaux: " ^
       (match ts_zero with
        | None -> ""
-       | Some(ts) -> Printf.sprintf "\n\tts_zero = (%d)\n" ts) ^
-      Deque.fold ts_in ~init:"\n\tts_in = ["
+       | Some(ts) -> Printf.sprintf "\nts_zero = (%d)\n" ts) ^
+      Deque.fold ts_in ~init:"\nts_in = ["
         ~f:(fun acc ts -> acc ^ (Printf.sprintf "%d;" ts)) ^
       (Printf.sprintf "]\n") ^
-      Deque.fold ts_out ~init:"\n\tts_out = ["
+      Deque.fold ts_out ~init:"\nts_out = ["
         ~f:(fun acc ts -> acc ^ (Printf.sprintf "%d;" ts)) ^
       (Printf.sprintf "]\n") ^
-      Deque.fold beta_alphas ~init:"\n\tbeta_alphas = "
+      Deque.fold beta_alphas ~init:"\nbeta_alphas = "
         ~f:(fun acc (ts, ps) ->
-          acc ^ (Printf.sprintf "\n\t\t(%d)\n\t\t" ts) ^ Expl.expl_to_string ps) ^
-      Deque.fold beta_alphas_out ~init:"\n\tbeta_alphas_out = "
+          acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Expl.expl_to_string ps) ^
+      Deque.fold beta_alphas_out ~init:"\nbeta_alphas_out = "
         ~f:(fun acc (ts, ps) ->
-          acc ^ (Printf.sprintf "\n\t\t(%d)\n\t\t" ts) ^ Expl.expl_to_string ps) ^
-      Deque.fold alpha_betas ~init:"\n\talpha_betas = "
+          acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Expl.expl_to_string ps) ^
+      Deque.fold alpha_betas ~init:"\nalpha_betas = "
         ~f:(fun acc (ts, ps) ->
-          acc ^ (Printf.sprintf "\n\t\t(%d)\n\t\t" ts) ^ Expl.expl_to_string ps) ^
-      Deque.fold alphas_out ~init:"\n\talphas_out = "
+          acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Expl.expl_to_string ps) ^
+      Deque.fold alphas_out ~init:"\nalphas_out = "
         ~f:(fun acc (ts, ps) ->
-          acc ^ (Printf.sprintf "\n\t\t(%d)\n\t\t" ts) ^ Expl.expl_to_string ps) ^
-      Deque.fold betas_suffix_in ~init:"\n\tbetas_suffix_in = "
+          acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Expl.expl_to_string ps) ^
+      Deque.fold betas_suffix_in ~init:"\nbetas_suffix_in = "
         ~f:(fun acc (ts, ps) ->
-          acc ^ (Printf.sprintf "\n\t\t(%d)\n\t\t" ts) ^ Expl.v_to_string "" ps) ^
-      Deque.fold alphas_betas_out ~init:"\n\talphas_betas_out = "
+          acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Expl.v_to_string "" ps) ^
+      Deque.fold alphas_betas_out ~init:"\nalphas_betas_out = "
         ~f:(fun acc (ts, p1_opt, p2_opt) ->
           match p1_opt, p2_opt with
           | None, None -> acc
-          | Some(p1), None -> acc ^ (Printf.sprintf "\n\t\t(%d)\n\t\talpha = " ts) ^
+          | Some(p1), None -> acc ^ (Printf.sprintf "\n(%d)\nalpha = " ts) ^
                               Expl.v_to_string "" p1
-          | None, Some(p2) -> acc ^ (Printf.sprintf "\n\t\t(%d)\n\t\tbeta = " ts) ^
+          | None, Some(p2) -> acc ^ (Printf.sprintf "\n(%d)\nbeta = " ts) ^
                               Expl.v_to_string "" p2
-          | Some(p1), Some(p2) -> acc ^ (Printf.sprintf "\n\t\t(%d)\n\t\talpha = " ts) ^
+          | Some(p1), Some(p2) -> acc ^ (Printf.sprintf "\n(%d)\nalpha = " ts) ^
                                   Expl.v_to_string "" p1 ^
-                                  (Printf.sprintf "\n\t\t(%d)\n\t\tbeta = " ts) ^
+                                  (Printf.sprintf "\n(%d)\nbeta = " ts) ^
                                   Expl.v_to_string "" p2)
 
   let update_ts (l, r) a ts msaux =
@@ -261,9 +263,21 @@ module Past = struct
                 Deque.enqueue_back alpha_betas (ts, vp))
     in alpha_betas
 
+  let update_alpha_betas_tps tp alpha_betas =
+    let alpha_betas_updated = Deque.create () in
+    let _ = Deque.iter alpha_betas
+              ~f:(fun (ts, vvp) ->
+                match vvp with
+                | V vp -> (match vp with
+                           | VSince (tp', vp1, vp2s) ->
+                              Deque.enqueue_back alpha_betas_updated (ts, V (VSince (tp, vp1, vp2s)))
+                           | _ -> raise INVALID_FORM)
+                | S _ -> raise VEXPL)
+    in alpha_betas_updated
+
   let update_alpha_betas tp new_in alpha_betas =
     if (List.is_empty new_in) then
-      alpha_betas
+      (update_alpha_betas_tps tp alpha_betas)
     else (
       if List.exists new_in
            ~f:(fun (_, _, vp2_opt) ->
@@ -273,16 +287,16 @@ module Past = struct
         let new_in' = List.rev (List.take_while (List.rev new_in)
                                   ~f:(fun (_, _, vp2_opt) ->
                                     Option.is_some vp2_opt)) in
-        let alpha_betas' = add_new_ps_alpha_betas tp new_in' alpha_betas
-        in alpha_betas'
+        let alpha_betas' = add_new_ps_alpha_betas tp new_in' alpha_betas in
+        (update_alpha_betas_tps tp alpha_betas')
       else (
         let alpha_betas_vapp = List.fold new_in ~init:alpha_betas
                                  ~f:(fun d (_, _, vp2_opt) ->
                                    match vp2_opt with
                                    | None -> d
                                    | Some(vp2) -> vappend_to_deque vp2 d) in
-        let alpha_betas' = add_new_ps_alpha_betas tp new_in alpha_betas_vapp
-        in alpha_betas'))
+        let alpha_betas' = add_new_ps_alpha_betas tp new_in alpha_betas_vapp in
+        (update_alpha_betas_tps tp alpha_betas')))
 
   let optimal_proof tp msaux =
     if not (Deque.is_empty msaux.beta_alphas) then
@@ -351,15 +365,15 @@ module Past = struct
     ; betas_suffix_in = betas_suffix_in
     ; alphas_betas_out = alphas_betas_out }
 
-  let advance_msaux (l, r) ts tp p1 p2 msaux le =
-    let msaux_minus_old = remove_from_msaux (l, r) msaux in
-    let msaux_plus_new = add_to_msaux ts p1 p2 msaux_minus_old le in
-    let beta_alphas_out, new_in_sat = split_in_out (l, r) msaux_plus_new.beta_alphas_out in
-    let beta_alphas = update_beta_alphas new_in_sat msaux_plus_new.beta_alphas le in
-    let alphas_betas_out, new_in_viol = split_in_out2 (l, r) msaux_plus_new.alphas_betas_out in
-    let betas_suffix_in = update_betas_suffix_in new_in_viol msaux_plus_new.betas_suffix_in in
-    let alpha_betas = update_alpha_betas tp new_in_viol msaux_plus_new.alpha_betas in
-    { msaux_plus_new with
+  let advance_msaux (l, r) tp ts p1 p2 msaux le =
+    let msaux_plus_new = add_to_msaux ts p1 p2 msaux le in
+    let msaux_minus_old = remove_from_msaux (l, r) msaux_plus_new in
+    let beta_alphas_out, new_in_sat = split_in_out (l, r) msaux_minus_old.beta_alphas_out in
+    let beta_alphas = update_beta_alphas new_in_sat msaux_minus_old.beta_alphas le in
+    let alphas_betas_out, new_in_viol = split_in_out2 (l, r) msaux_minus_old.alphas_betas_out in
+    let betas_suffix_in = update_betas_suffix_in new_in_viol msaux_minus_old.betas_suffix_in in
+    let alpha_betas = update_alpha_betas tp new_in_viol msaux_minus_old.alpha_betas in
+    { msaux_minus_old with
       beta_alphas = beta_alphas
     ; beta_alphas_out = beta_alphas_out
     ; alpha_betas = alpha_betas
@@ -377,17 +391,17 @@ module Past = struct
                                     { msaux with ts_zero = Some(ts) }
                                   else msaux in
       let msaux_ts_updated = update_ts (l, r) a ts msaux_ts_zero_updated in
-      let msaux_updated = advance_msaux (l, r) ts tp p1 p2 msaux_ts_updated le in
+      let msaux_updated = advance_msaux (l, r) tp ts p1 p2 msaux_ts_updated le in
       let p = V (VSinceOutL tp) in
       ([p], msaux_updated)
     (* Case 2: \tau_{tp-1} exists *)
     else
-      let b = get_b_since_I (Option.get msaux.ts_zero) interval in
-      (* TODO: Fix l and r, we should consider the type of the interval *)
-      let l = max 0 (ts - b) in
+      let b = get_b_I interval in
+      let l = if (Option.is_some b) then max 0 (ts - (Option.get b))
+              else (Option.get msaux.ts_zero) in
       let r = ts - a in
       let msaux_ts_updated = update_ts (l, r) a ts msaux in
-      let msaux_updated = advance_msaux (l, r) ts tp p1 p2 msaux_ts_updated le in
+      let msaux_updated = advance_msaux (l, r) tp ts p1 p2 msaux_ts_updated le in
       (optimal_proof tp msaux_updated, msaux_updated)
 end
 
@@ -612,39 +626,39 @@ module Future = struct
       alphas_in = alphas_in
     ; alphas_out = alphas_out }
 
-  let update_until interval tp ts p1 p2 muaux sl =
-    let a = get_a_I interval in
-    let b = get_b_until_I interval in
-    (* TODO: Fix l and r, we should consider the type of the interval *)
-    let z = min 0 (ts - b) in
-    let l = min 0 (ts - (b - a)) in
-    let r = ts in
-    let muaux_ts_updated = update_ts (l, r) a ts muaux in
-    let muaux_updated = advance_muaux (l, r) z ts tp p1 p2 muaux_ts_updated sl
-    in muaux_updated
-
-  let eval_until tp muaux =
-    if not (Deque.is_empty muaux.alphas_beta) then
-      let cur_alphas_beta = Deque.peek_front_exn muaux.alphas_beta in
-      match Deque.peek_front_exn cur_alphas_beta with
-      | (_, _, p) -> [p]
-    else
-      let p1_l = if not (Deque.is_empty muaux.betas_alpha) then
-                   let cur_betas_alpha = Deque.peek_front_exn muaux.betas_alpha in
-                   match Deque.peek_front_exn cur_betas_alpha with
-                   | (_, _, p) -> [p]
-                 else [] in
-      let p2_l = if not (Deque.is_empty muaux.alphas_out) then
-                   let vvp1 = snd(Deque.peek_front_exn muaux.alphas_out) in
-                   match vvp1 with
-                   | V vp1 -> [V (VUntil (tp, vp1, []))]
-                   | S _ -> raise VEXPL
-                 else [] in
-      let p3_l = if (Deque.length muaux.betas_suffix_in) = (Deque.length muaux.ts_in) then
-                   let betas_suffix = betas_suffix_in_to_list muaux.betas_suffix_in in
-                   [V (VUntilInf (tp, betas_suffix))]
-                 else [] in
-      (p1_l @ p2_l @ p3_l)
+  (* let update_until interval tp ts p1 p2 muaux sl =
+   *   let a = get_a_I interval in
+   *   let b = get_b_I interval in
+   *   (\* TODO: Fix l and r, we should consider the type of the interval *\)
+   *   let z = min 0 (ts - b) in
+   *   let l = min 0 (ts - (b - a)) in
+   *   let r = ts in
+   *   let muaux_ts_updated = update_ts (l, r) a ts muaux in
+   *   let muaux_updated = advance_muaux (l, r) z ts tp p1 p2 muaux_ts_updated sl
+   *   in muaux_updated
+   *
+   * let eval_until tp muaux =
+   *   if not (Deque.is_empty muaux.alphas_beta) then
+   *     let cur_alphas_beta = Deque.peek_front_exn muaux.alphas_beta in
+   *     match Deque.peek_front_exn cur_alphas_beta with
+   *     | (_, _, p) -> [p]
+   *   else
+   *     let p1_l = if not (Deque.is_empty muaux.betas_alpha) then
+   *                  let cur_betas_alpha = Deque.peek_front_exn muaux.betas_alpha in
+   *                  match Deque.peek_front_exn cur_betas_alpha with
+   *                  | (_, _, p) -> [p]
+   *                else [] in
+   *     let p2_l = if not (Deque.is_empty muaux.alphas_out) then
+   *                  let vvp1 = snd(Deque.peek_front_exn muaux.alphas_out) in
+   *                  match vvp1 with
+   *                  | V vp1 -> [V (VUntil (tp, vp1, []))]
+   *                  | S _ -> raise VEXPL
+   *                else [] in
+   *     let p3_l = if (Deque.length muaux.betas_suffix_in) = (Deque.length muaux.ts_in) then
+   *                  let betas_suffix = betas_suffix_in_to_list muaux.betas_suffix_in in
+   *                  [V (VUntilInf (tp, betas_suffix))]
+   *                else [] in
+   *     (p1_l @ p2_l @ p3_l) *)
 
 end
 
@@ -803,8 +817,10 @@ let meval' tp ts sap mform le sl minimuml =
        let p1 = minimuml ps_f1 in
        let p2 = minimuml ps_f2 in
        let (ps, new_msaux) = Past.update_since interval tp ts p1 p2 msaux le in
-       let _ = Printf.fprintf stdout "---------------\n%s\n\n" (Past.msaux_to_string new_msaux) in
-       ([minimuml ps], MSince (interval, mf1', mf2', new_msaux))
+       let p = minimuml ps in
+       (* let _ = Printf.fprintf stdout "---------------\n%s\n\n" (Past.msaux_to_string new_msaux) in
+        * let _ = Printf.fprintf stdout "Optimal proof:\n%s\n\n" (Expl.expl_to_string p) in *)
+       ([p], MSince (interval, mf1', mf2', new_msaux))
     (* | MUntil (interval, mf1, mf2, muaux) -> *)
     | _ -> failwith "This formula cannot be monitored" in
   meval tp ts sap mform
