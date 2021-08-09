@@ -90,13 +90,9 @@ let get_a_UI (UI l) = l
 let get_a_BI (BI (l, r)) = l
 let get_a_I = case_I get_a_BI get_a_UI
 
-let get_b_since_UI ts_zero (UI l) = ts_zero
-let get_b_since_BI (BI (l, r)) = r
-let get_b_since_I ts_zero = case_I get_b_since_BI (get_b_since_UI ts_zero)
-
-let get_b_until_UI (UI l) = failwith "Unbounded future"
-let get_b_until_BI (BI (l, r)) = r
-let get_b_until_I = case_I get_b_until_BI get_b_until_UI
+let get_b_UI (UI l) = None
+let get_b_BI (BI (l, r)) = Some(r)
+let get_b_I = case_I get_b_BI get_b_UI
 
 (* ETP: earliest i s.t. \tau_i >= \tau *)
 let get_etp ltp tau ts_lst =
