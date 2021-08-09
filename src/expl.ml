@@ -74,10 +74,10 @@ let sappend sp sp1 = match sp with
   | _ -> failwith "Bad arguments for sappend"
 
 let vappend vp vp2 = match vp with
-  | VSince (i, vp1, vp2s) -> VSince (i+1, vp1, List.append vp2s [vp2])
-  | VSinceInf (i, vp2s) -> VSinceInf (i+1, List.append vp2s [vp2])
-  | VUntil (i, vp1, vp2s) -> VUntil (i+1, vp1, vp2 :: vp2s)
-  | VUntilInf (i, vp2s) -> VUntilInf (i+1, vp2 :: vp2s)
+  | VSince (i, vp1, vp2s) -> VSince (i,  vp1, List.append vp2s [vp2])
+  | VSinceInf (i, vp2s) -> VSinceInf (i, List.append vp2s [vp2])
+  | VUntil (i, vp1, vp2s) -> VUntil (i, vp1, vp2 :: vp2s)
+  | VUntilInf (i, vp2s) -> VUntilInf (i, vp2 :: vp2s)
   | _ -> failwith "Bad arguments for vappend"
 
 let sdrop sp = match sp with
