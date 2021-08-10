@@ -90,3 +90,5 @@ val predicates_sl: expl -> expl -> bool
 val s_to_string: string -> sexpl -> string
 val v_to_string: string -> vexpl -> string
 val expl_to_string: expl -> string
+
+val s_at: sexpl -> int
