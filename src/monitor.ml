@@ -472,12 +472,14 @@ module Future = struct
         ~f:(fun acc (ts, ps) ->
           acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Expl.v_to_string "" ps)
 
-  let sdrop_from_deque z d =
+  let sdrop_from_deque z l d =
     let _ = List.iteri (Deque.to_list d) ~f:(fun i (lts, hts, ssp) ->
                 match ssp with
                 | S sp -> (if lts < z then
                              (if hts < z then Deque.drop_front d
-                              else Deque.set_exn d i (lts, hts, S (sdrop sp))))
+                              else Deque.set_exn d i (lts, hts, S (sdrop sp)))
+                           else
+                             (if hts < l then Deque.drop_front d))
                 | V _ -> raise SEXPL) in d
 
   let vdrop_from_deque l d =
@@ -644,7 +646,7 @@ module Future = struct
                  Deque.drop_front muaux.alphas_beta) in
     let _ = (match Deque.peek_front muaux.alphas_beta with
              | None -> failwith "muaux.alphas_beta should never be empty"
-             | Some(d) -> let first_alphas_beta = sdrop_from_deque z d in
+             | Some(d) -> let first_alphas_beta = sdrop_from_deque z l d in
                           let _ = Deque.drop_front muaux.alphas_beta in
                           Deque.enqueue_front muaux.alphas_beta first_alphas_beta) in
     (* betas_alpha *)
@@ -674,45 +676,52 @@ module Future = struct
     let b = match get_b_I interval with
       | None -> failwith "Unbounded interval for future operators is not supported"
       | Some(b') -> b' in
-    let z = min 0 (ts - b) in
-    let l = min 0 (ts - (b - a)) in
+    let z = max 0 (ts - b) in
+    let l = max 0 (ts - (b - a)) in
     let r = ts in
+    Printf.fprintf stdout "z = %d; l = %d; r = %d\n" z l r;
     let muaux_ts_updated = update_ts z l ts tp muaux in
     let muaux_updated = advance_muaux (l, r) z ts tp p1 p2 muaux_ts_updated sl le
     in muaux_updated
 
-  let eval_until interval ts muaux =
-    let b = match get_b_I interval with
-      | None -> failwith "Unbounded interval for future operators is not supported"
-      | Some(b') -> b' in
-    (* TOFIX: This is wrong *)
-    if ts - b > 0 then
-      if not (Deque.is_empty muaux.alphas_beta) then
-        let cur_alphas_beta = Deque.peek_front_exn muaux.alphas_beta in
-        if not (Deque.is_empty cur_alphas_beta) then
-          match Deque.peek_front_exn cur_alphas_beta with
-          | (_, _, p) -> [p]
-        else []
-      else
-        let p1_l = if not (Deque.is_empty muaux.betas_alpha) then
-                     let cur_betas_alpha = Deque.peek_front_exn muaux.betas_alpha in
-                     match Deque.peek_front_exn cur_betas_alpha with
-                     | (_, _, p) -> [p]
-                   else [] in
-        let p2_l = if not (Deque.is_empty muaux.alphas_out) then
-                     let tp = snd(Deque.peek_front_exn muaux.ts_tp_out) in
-                     let vvp1 = snd(Deque.peek_front_exn muaux.alphas_out) in
-                     match vvp1 with
-                     | V vp1 -> [V (VUntil (tp, vp1, []))]
-                     | S _ -> raise VEXPL
-                   else [] in
-        let p3_l = if (Deque.length muaux.betas_suffix_in) = (Deque.length muaux.ts_tp_in) then
-                     let tp = snd(Deque.peek_front_exn muaux.ts_tp_out) in
-                     let betas_suffix = betas_suffix_in_to_list muaux.betas_suffix_in in
-                     [V (VUntilInf (tp, betas_suffix))]
-                   else [] in
-        (p1_l @ p2_l @ p3_l)
-    else []
+  let eval_until interval ts tp muaux =
+    Printf.fprintf stdout "tp = %d\n" tp;
+    (* let b = match get_b_I interval with
+     *   | None -> failwith "Unbounded interval for future operators is not supported"
+     *   | Some(b') -> b' in *)
+    (* let z = if not (Deque.is_empty muaux.ts_tp_out) then
+     *           fst(Deque.peek_front_exn muaux.ts_tp_out)
+     *         else fst(Deque.peek_front_exn muaux.ts_tp_in) in
+     * if ts - b >= z then *)
+    if not (Deque.is_empty muaux.alphas_beta) then
+      let cur_alphas_beta = Deque.peek_front_exn muaux.alphas_beta in
+      if not (Deque.is_empty cur_alphas_beta) then
+        match Deque.peek_front_exn cur_alphas_beta with
+        | (_, _, S sp) -> if (s_at sp) = tp then [(S sp)] else []
+        | _ -> raise VEXPL
+      else []
+    else
+      let p1_l = if not (Deque.is_empty muaux.betas_alpha) then
+                   let cur_betas_alpha = Deque.peek_front_exn muaux.betas_alpha in
+                   match Deque.peek_front_exn cur_betas_alpha with
+                   | (_, _, p) -> [p]
+                 else [] in
+      let p2_l = if not (Deque.is_empty muaux.alphas_out) then
+                   let tp = snd(Deque.peek_front_exn muaux.ts_tp_out) in
+                   let vvp1 = snd(Deque.peek_front_exn muaux.alphas_out) in
+                   match vvp1 with
+                   | V vp1 -> [V (VUntil (tp, vp1, []))]
+                   | S _ -> raise VEXPL
+                 else [] in
+      let p3_l = if (Deque.length muaux.betas_suffix_in) = (Deque.length muaux.ts_tp_in) then
+                   let tp = if not (Deque.is_empty muaux.ts_tp_out) then
+                              snd(Deque.peek_front_exn muaux.ts_tp_out)
+                            else snd(Deque.peek_front_exn muaux.ts_tp_in) in
+                   let betas_suffix = betas_suffix_in_to_list muaux.betas_suffix_in in
+                   [V (VUntilInf (tp, betas_suffix))]
+                 else [] in
+      (p1_l @ p2_l @ p3_l)
+
 end
 
 type mformula =
@@ -887,7 +896,10 @@ let meval' tp ts sap mform le sl minimuml =
        let p2 = minimuml ps_f2 in
        let new_muaux = Future.update_until interval tp ts p1 p2 muaux sl le in
        let _ = Printf.fprintf stdout "---------------\n%s\n\n" (Future.muaux_to_string new_muaux) in
-       let ps = Future.eval_until interval ts new_muaux in
+       let (ts', tp') = if not (Deque.is_empty new_muaux.ts_tp_out) then
+                          Deque.peek_front_exn new_muaux.ts_tp_out
+                        else Deque.peek_front_exn new_muaux.ts_tp_in in
+       let ps = Future.eval_until interval ts' tp' new_muaux in
        let out = if not (List.is_empty ps) then [minimuml ps]
                  else [] in
        let _ = if not (List.is_empty out) then
