@@ -85,8 +85,8 @@ let sdrop sp = match sp with
   | _ -> failwith "Bad arguments for sdrop"
 
 let vdrop vp = match vp with
-  | VUntil (i, sp1, sp2s) -> VUntil (i+1, sp1, drop_front sp2s)
-  | VUntilInf (i, sp2s) -> VUntilInf (i+1, drop_front sp2s)
+  | VUntil (i, sp1, sp2s) -> VUntil (i, sp1, drop_front sp2s)
+  | VUntilInf (i, sp2s) -> VUntilInf (i, drop_front sp2s)
   | _ -> failwith "Bad arguments for vdrop"
 
 let slift = function

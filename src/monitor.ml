@@ -482,12 +482,14 @@ module Future = struct
                              (if hts < l then Deque.drop_front d))
                 | V _ -> raise SEXPL) in d
 
+  (* TODO: This function should return some information regarding changes so
+   * drop_from_muaux can update the outer deque correctly *)
   let vdrop_from_deque l d =
     let _ = List.iteri (Deque.to_list d) ~f:(fun i (lts, hts, vvp) ->
                 match vvp with
                 | V vp -> (if lts < l then
-                             (if hts < l then Deque.drop_front d
-                              else Deque.set_exn d i (lts, hts, V (vdrop vp))))
+                             if hts < l then (Deque.drop_front d)
+                             else (Deque.set_exn d i (lts, hts, V (vdrop vp))))
                 | S _ -> raise VEXPL) in d
 
   let current ts_tp_out ts_tp_in =
@@ -572,11 +574,13 @@ module Future = struct
     | S sp1, S sp2 ->
        (* alphas_beta *)
        let cur_alphas_beta = Deque.peek_back_exn muaux.alphas_beta in
-       let sp = S (SUntil (sp2, (alphas_suffix_to_list muaux.alphas_suffix))) in
+       let p1 = S (SUntil (sp2, (alphas_suffix_to_list muaux.alphas_suffix))) in
+       let p2 = S (SUntil (sp2, [])) in
        let lts = match Deque.peek_front muaux.alphas_suffix with
          | Some(ts, _) -> ts
          | None -> hts in
-       let _ = Deque.enqueue_back cur_alphas_beta (lts, hts, sp) in
+       let _ = Deque.enqueue_back cur_alphas_beta (lts, hts, p1) in
+       let _ = Deque.enqueue_back cur_alphas_beta (hts, hts, p2) in
        let _ = Deque.drop_back muaux.alphas_beta in
        let _ = Deque.enqueue_back muaux.alphas_beta cur_alphas_beta in
        (* alphas_suffix *)
@@ -599,11 +603,13 @@ module Future = struct
        let cur_alphas_beta = if not (Deque.is_empty (Deque.peek_back_exn muaux.alphas_beta))
                              then Deque.create ()
                              else Deque.peek_back_exn muaux.alphas_beta in
-       let sp = S (SUntil (sp2, (alphas_suffix_to_list muaux.alphas_suffix))) in
+       let p1 = S (SUntil (sp2, (alphas_suffix_to_list muaux.alphas_suffix))) in
+       let p2 = S (SUntil (sp2, [])) in
        let lts = match Deque.peek_front muaux.alphas_suffix with
          | Some(ts, _) -> ts
          | None -> hts in
-       let _ = Deque.enqueue_back cur_alphas_beta (lts, hts, sp) in
+       let _ = Deque.enqueue_back cur_alphas_beta (lts, hts, p1) in
+       let _ = Deque.enqueue_back cur_alphas_beta (hts, hts, p2) in
        let _ = Deque.drop_back muaux.alphas_beta in
        let _ = Deque.enqueue_back muaux.alphas_beta cur_alphas_beta in
        (* alphas_suffix *)
@@ -651,18 +657,22 @@ module Future = struct
                   && (Deque.length muaux.alphas_beta) > 1 then
                  Deque.drop_front muaux.alphas_beta) in
     let _ = (match Deque.peek_front muaux.alphas_beta with
-             | None -> failwith "muaux.alphas_beta should never be empty"
-             | Some(d) -> let first_alphas_beta = sdrop_from_deque z l d in
-                          Deque.enqueue_front muaux.alphas_beta first_alphas_beta) in
+             | None -> failwith "muaux.alphas_beta must never be empty"
+             | Some(d) -> if not (Deque.is_empty d) then
+                            let first_alphas_beta = sdrop_from_deque z l d in
+                            if not (Deque.is_empty first_alphas_beta) then
+                              Deque.enqueue_front muaux.alphas_beta first_alphas_beta) in
     (* betas_alpha *)
     let _ = if not (Deque.is_empty muaux.betas_alpha) then
               (if Deque.is_empty (Deque.peek_front_exn muaux.betas_alpha)
                   && (Deque.length muaux.betas_alpha) > 1 then
                  Deque.drop_front muaux.betas_alpha) in
     let _ = (match Deque.peek_front muaux.betas_alpha with
-             | None -> failwith "muaux.betas_alpha should never be empty"
-             | Some(d) -> let first_betas_alpha = vdrop_from_deque l d in
-                          Deque.enqueue_front muaux.betas_alpha first_betas_alpha)
+             | None -> failwith "muaux.betas_alpha must never be empty"
+             | Some(d) -> if not (Deque.is_empty d) then
+                            let first_betas_alpha = vdrop_from_deque l d in
+                            if not (Deque.is_empty first_betas_alpha) then
+                              Deque.enqueue_front muaux.betas_alpha first_betas_alpha)
     in muaux
 
   let advance_muaux (l, r) z ts tp p1 p2 muaux sl le =
@@ -689,7 +699,7 @@ module Future = struct
     in muaux_updated
 
   let eval_until interval ts tp future_ts muaux =
-    (* Printf.printf "eval tp = %d\n" tp; *)
+    Printf.printf "eval tp = %d\n" tp;
     let b = match get_b_I interval with
       | None -> failwith "Unbounded interval for future operators is not supported"
       | Some(b') -> b' in
@@ -900,16 +910,16 @@ let meval' tp ts sap mform le sl minimuml =
        let p1 = minimuml ps_f1 in
        let p2 = minimuml ps_f2 in
        let new_muaux = Future.update_until interval tp ts p1 p2 muaux sl le in
-       (* let _ = Printf.fprintf stdout "---------------\n%s\n\n" (Future.muaux_to_string new_muaux) in *)
        let ts_tp_list = Future.current new_muaux.ts_tp_out new_muaux.ts_tp_in in
+       let _ = Printf.fprintf stdout "---------------\n%s\n\n" (Future.muaux_to_string new_muaux) in
        (* TOFIX: Check if this List.rev is necessary or not *)
        let ops = List.rev (List.fold ts_tp_list ~init:[] ~f:(fun acc (ts', tp') ->
                                let ps = Future.eval_until interval ts' tp' ts new_muaux in
                                if (List.is_empty ps) then acc
                                else (minimuml ps)::acc)) in
-       (* let _ = if not (List.is_empty ops) then
-        *           List.iter ops ~f:(fun p ->
-        *               Printf.fprintf stdout "Optimal proof:\n%s\n\n" (Expl.expl_to_string p)) in *)
+       let _ = if not (List.is_empty ops) then
+                 List.iter ops ~f:(fun p ->
+                     Printf.fprintf stdout "Optimal proof:\n%s\n\n" (Expl.expl_to_string p)) in
        (ops, MUntil (interval, mf1', mf2', new_muaux))
     | _ -> failwith "This formula cannot be monitored" in
   meval tp ts sap mform
