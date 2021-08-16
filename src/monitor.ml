@@ -650,30 +650,42 @@ module Future = struct
     ; alphas_in = alphas_in
     ; betas_suffix_in = betas_suffix_in }
 
-  let drop_from_muaux z l muaux =
-    (* alphas_beta *)
-    let _ = if not (Deque.is_empty muaux.alphas_beta) then
-              (if Deque.is_empty (Deque.peek_front_exn muaux.alphas_beta)
-                  && (Deque.length muaux.alphas_beta) > 1 then
-                 Deque.drop_front muaux.alphas_beta) in
-    let _ = (match Deque.peek_front muaux.alphas_beta with
+
+  let drop_alphas_beta z l alphas_beta =
+    let _ = if not (Deque.is_empty alphas_beta) then
+              (if Deque.is_empty (Deque.peek_front_exn alphas_beta)
+                  && (Deque.length alphas_beta) > 1 then
+                 Deque.drop_front alphas_beta) in
+    let _ = (match Deque.peek_front alphas_beta with
              | None -> failwith "muaux.alphas_beta must never be empty"
              | Some(d) -> if not (Deque.is_empty d) then
                             let first_alphas_beta = sdrop_from_deque z l d in
                             if not (Deque.is_empty first_alphas_beta) then
-                              Deque.enqueue_front muaux.alphas_beta first_alphas_beta) in
-    (* betas_alpha *)
-    let _ = if not (Deque.is_empty muaux.betas_alpha) then
-              (if Deque.is_empty (Deque.peek_front_exn muaux.betas_alpha)
-                  && (Deque.length muaux.betas_alpha) > 1 then
-                 Deque.drop_front muaux.betas_alpha) in
-    let _ = (match Deque.peek_front muaux.betas_alpha with
+                              (let _ = Deque.drop_front alphas_beta in
+                               Deque.enqueue_front alphas_beta first_alphas_beta))
+    in alphas_beta
+
+  let drop_betas_alpha l betas_alpha =
+    let _ = if not (Deque.is_empty betas_alpha) then
+              (if Deque.is_empty (Deque.peek_front_exn betas_alpha)
+                  && (Deque.length betas_alpha) > 1 then
+                 Deque.drop_front betas_alpha) in
+    let _ = (match Deque.peek_front betas_alpha with
              | None -> failwith "muaux.betas_alpha must never be empty"
              | Some(d) -> if not (Deque.is_empty d) then
                             let first_betas_alpha = vdrop_from_deque l d in
                             if not (Deque.is_empty first_betas_alpha) then
-                              Deque.enqueue_front muaux.betas_alpha first_betas_alpha)
-    in muaux
+                              (let _ = Deque.drop_front betas_alpha in
+                               Deque.enqueue_front betas_alpha first_betas_alpha))
+
+    in betas_alpha
+
+  let drop_from_muaux z l muaux =
+    let alphas_beta = drop_alphas_beta z l muaux.alphas_beta in
+    let betas_alpha = drop_betas_alpha l muaux.betas_alpha in
+    { muaux with
+      alphas_beta
+    ; betas_alpha }
 
   let advance_muaux (l, r) z ts tp p1 p2 muaux sl le =
     let muaux_minus_old = remove_from_muaux z l muaux in
@@ -682,8 +694,8 @@ module Future = struct
     let alphas_in, new_out_alphas = split_in_out2 z l muaux.alphas_in in
     let alphas_out = update_alphas_out ts muaux.alphas_out new_out_alphas le in
     { muaux with
-      alphas_in = alphas_in
-    ; alphas_out = alphas_out }
+      alphas_in
+    ; alphas_out }
 
   let update_until interval tp ts p1 p2 muaux sl le =
     let a = get_a_I interval in
