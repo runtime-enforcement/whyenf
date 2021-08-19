@@ -515,8 +515,8 @@ module Future = struct
     let ts_tp_list = (Deque.to_list ts_tp_out) @ (Deque.to_list ts_tp_in) in
     match List.hd ts_tp_list with
     | None -> []
-    | Some((cur_ts, _)) -> List.filter ts_tp_list ~f:(fun (ts, tp) -> cur_ts = ts)
-
+    | Some((cur_ts, _)) -> List.filter ts_tp_list ~f:(fun (ts, tp) -> cur_ts = ts
+)
   let update_ts z l ts tp muaux =
     let _ = Deque.enqueue_back muaux.ts_tp_in (ts, tp) in
     let _ = List.iter (Deque.to_list muaux.ts_tp_in)
@@ -699,7 +699,6 @@ module Future = struct
                             if not (Deque.is_empty first_betas_alpha) then
                               (let _ = Deque.drop_front betas_alpha in
                                Deque.enqueue_front betas_alpha first_betas_alpha))
-
     in betas_alpha
 
   let drop_from_muaux tp z l muaux =
@@ -733,42 +732,42 @@ module Future = struct
     in muaux_updated
 
   let eval_until interval ts tp future_ts muaux =
+    let _ = Printf.printf "eval tp = %d; ts = %d; future_ts = %d\n" tp ts future_ts in
     let b = match get_b_I interval with
       | None -> failwith "Unbounded interval for future operators is not supported"
       | Some(b') -> b' in
-    if ts + b <= future_ts then
+    if ts + b < future_ts then
+      let _ = Printf.printf "SHOULD OUTPUT SOMETHING\n" in
       if not (Deque.is_empty muaux.alphas_beta) then
         let cur_alphas_beta = Deque.peek_front_exn muaux.alphas_beta in
         if not (Deque.is_empty cur_alphas_beta) then
-          match Deque.peek_front_exn cur_alphas_beta with
-          | (_, _, S sp) ->
-             (if (s_at sp) = tp then [(S sp)]
-              else (let p1_l = if not (Deque.is_empty muaux.betas_alpha) then
-                                 let cur_betas_alpha = Deque.peek_front_exn muaux.betas_alpha in
-                                 (if not (Deque.is_empty cur_betas_alpha) then
-                                    (* Every time we consider a VUntil proof its tp must be fixed *)
-                                    match Deque.peek_front_exn cur_betas_alpha with
-                                    | (_, _, V vp) -> if (v_at vp) = tp then [V vp]
-                                                      else []
-                                    | _ -> raise INVALID_FORM
-                                  else [])
-                               else [] in
-                    let p2_l = if not (Deque.is_empty muaux.alphas_out) then
-                                 let vvp1 = snd(Deque.peek_front_exn muaux.alphas_out) in
-                                 match vvp1 with
-                                 | V vp1 -> [V (VUntil (tp, vp1, []))]
-                                 | S _ -> raise VEXPL
-                               else [] in
-                    let p3_l = if (Deque.length muaux.betas_suffix_in) = (Deque.length muaux.ts_tp_in) then
-                                 let betas_suffix = betas_suffix_in_to_list muaux.betas_suffix_in in
-                                 [V (VUntilInf (tp, betas_suffix))]
-                               else [] in
-                    (p1_l @ p2_l @ p3_l)))
-          | _ -> raise VEXPL
-        else []
+          (match Deque.peek_front_exn cur_alphas_beta with
+           | (_, _, S sp) -> if (s_at sp) = tp then [(S sp)]
+                             else []
+           | _ -> raise VEXPL)
+        else (let p1_l = if not (Deque.is_empty muaux.betas_alpha) then
+                           let cur_betas_alpha = Deque.peek_front_exn muaux.betas_alpha in
+                           (if not (Deque.is_empty cur_betas_alpha) then
+                              (* Every time we consider a VUntil proof its tp must be fixed *)
+                              match Deque.peek_front_exn cur_betas_alpha with
+                              | (_, _, V vp) -> if (v_at vp) = tp then [V vp]
+                                                else []
+                              | _ -> raise INVALID_FORM
+                            else [])
+                         else [] in
+              let p2_l = if not (Deque.is_empty muaux.alphas_out) then
+                           let vvp1 = snd(Deque.peek_front_exn muaux.alphas_out) in
+                           match vvp1 with
+                           | V vp1 -> [V (VUntil (tp, vp1, []))]
+                           | S _ -> raise VEXPL
+                         else [] in
+              let p3_l = if (Deque.length muaux.betas_suffix_in) = (Deque.length muaux.ts_tp_in) then
+                           let betas_suffix = betas_suffix_in_to_list muaux.betas_suffix_in in
+                           [V (VUntilInf (tp, betas_suffix))]
+                         else [] in
+              (p1_l @ p2_l @ p3_l))
       else []
     else []
-
 end
 
 type mformula =
@@ -781,7 +780,7 @@ type mformula =
   | MPrev of interval * mformula * bool * expl list * timestamp list
   | MNext of interval * mformula * bool * timestamp list
   | MSince of interval * mformula * mformula * Past.msaux
-  | MUntil of interval * mformula * mformula * Future.muaux
+  | MUntil of interval * mformula * mformula * mbuf2 * Future.muaux
 
 let rec mformula_to_string l f =
   match f with
@@ -794,7 +793,7 @@ let rec mformula_to_string l f =
   | MPrev (i, f, _, _, _) -> Printf.sprintf (paren l 5 "●%a %a") (fun x -> interval_to_string) i (fun x -> mformula_to_string 5) f
   | MNext (i, f, _, _) -> Printf.sprintf (paren l 5 "○%a %a") (fun x -> interval_to_string) i (fun x -> mformula_to_string 5) f
   | MSince (i, f, g, _) -> Printf.sprintf (paren l 0 "%a S%a %a") (fun x -> mformula_to_string 5) f (fun x -> interval_to_string) i (fun x -> mformula_to_string 5) g
-  | MUntil (i, f, g, _) -> Printf.sprintf (paren l 0 "%a U%a %a") (fun x -> mformula_to_string 5) f (fun x -> interval_to_string) i (fun x -> mformula_to_string 5) g
+  | MUntil (i, f, g, _, _) -> Printf.sprintf (paren l 0 "%a U%a %a") (fun x -> mformula_to_string 5) f (fun x -> interval_to_string) i (fun x -> mformula_to_string 5) g
 let mformula_to_string = mformula_to_string 0
 
 let relevant_ap mf =
@@ -809,7 +808,7 @@ let relevant_ap mf =
     | MPrev (i, f, _, _, _) -> aux f
     | MNext (i, f, _, _) -> aux f
     | MSince (i, f, g, _) -> aux f @ aux g
-    | MUntil (i, f, g, _) -> aux f @ aux g in
+    | MUntil (i, f, g, _, _) -> aux f @ aux g in
   let lst_with_dup = aux mf in
   List.fold_left lst_with_dup ~init:[] ~f:(fun acc s ->
       if (List.mem acc s ~equal:(fun x y -> x = y)) then acc
@@ -866,7 +865,7 @@ let rec minit f =
                  ; alphas_in = Deque.create ()
                  ; betas_suffix_in = Deque.create ()
                  ; } in
-     MUntil (i, minit f, minit g, muaux)
+     MUntil (i, minit f, minit g, ([], []), muaux)
   | _ -> failwith "This formula cannot be monitored"
 
 (* mbuf2: auxiliary data structure for the conj/disj operators *)
@@ -936,17 +935,19 @@ let meval' tp ts sap mform le sl minimuml =
        (* let _ = Printf.fprintf stdout "---------------\n%s\n\n" (Past.msaux_to_string new_msaux) in
         * let _ = Printf.fprintf stdout "Optimal proof:\n%s\n\n" (Expl.expl_to_string p) in *)
        ([p], MSince (interval, mf1', mf2', new_msaux))
-    | MUntil (interval, mf1, mf2, muaux) ->
+    | MUntil (interval, mf1, mf2, mbuf2, muaux) ->
        let (ps_f1, mf1') = meval tp ts sap mf1 in
        let (ps_f2, mf2') = meval tp ts sap mf2 in
        if not (List.is_empty ps_f1) && not (List.is_empty ps_f2) then
          let p1 = minimuml ps_f1 in
          let p2 = minimuml ps_f2 in
          let _ = Printf.printf "---------------\n" in
+         let _ = Printf.printf "mf = %s\n" (mformula_to_string (MUntil (interval, mf1, mf2, mbuf2, muaux))) in
          let new_muaux = Future.update_until interval tp ts p1 p2 muaux sl le in
          let ts_tp_list = Future.current new_muaux.ts_tp_out new_muaux.ts_tp_in in
          let _ = Printf.fprintf stdout "%s\n\n" (Future.muaux_to_string new_muaux) in
-         (* TOFIX: Check if this List.rev is necessary or not *)
+         let _ = Printf.printf "current ts = %d\n" ts in
+         let _ = List.iter ts_tp_list ~f:(fun (ts', tp') -> (Printf.printf "ts' = %d; tp' = %d\n" ts' tp')) in
          let ops = List.rev (List.fold ts_tp_list ~init:[] ~f:(fun acc (ts', tp') ->
                                  let ps = Future.eval_until interval ts' tp' ts new_muaux in
                                  if (List.is_empty ps) then acc
@@ -954,8 +955,8 @@ let meval' tp ts sap mform le sl minimuml =
          let _ = if not (List.is_empty ops) then
                    List.iter ops ~f:(fun p ->
                        Printf.fprintf stdout "Optimal proof:\n%s\n\n" (Expl.expl_to_string p)) in
-         (ops, MUntil (interval, mf1', mf2', new_muaux))
-       else ([], MUntil (interval, mf1, mf2, muaux))
+         (ops, MUntil (interval, mf1', mf2', mbuf2, new_muaux))
+       else ([], MUntil (interval, mf1', mf2', mbuf2, muaux))
     | _ -> failwith "This formula cannot be monitored" in
   meval tp ts sap mform
 
@@ -970,13 +971,13 @@ let monitor in_ch out_ch mode debug check le sl f =
             ; events = [] } in
   let s (ctx, in_ch) =
     let ((sap, ts), in_ch) = input_event in_ch out_ch in
-    let sap' = filter_ap sap mf_ap in
-    let (ps, mf') = meval' ctx.tp ts sap' ctx.mf le sl minimuml in
-    let events' = (sap', ts)::ctx.events in
-    let checker_ps = if check || debug then Some (check_ps events' f ps) else None in
+    let sap_filtered = filter_ap sap mf_ap in
+    let events_updated = (sap_filtered, ts)::ctx.events in
+    let (ps, mf_updated) = meval' ctx.tp ts sap_filtered ctx.mf le sl minimuml in
+    let checker_ps = if check || debug then Some (check_ps events_updated f ps) else None in
     let _ = print_ps out_ch mode ts ctx.tp ps checker_ps debug in
-    let ctx' = { tp = ctx.tp+1
-               ; mf = mf'
-               ; events = events' } in
-    (ctx', in_ch) in
+    let ctx_updated = { tp = ctx.tp+1
+                      ; mf = mf_updated
+                      ; events = events_updated } in
+    (ctx_updated, in_ch) in
   loop s (ctx, in_ch)
