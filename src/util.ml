@@ -36,7 +36,7 @@ let lex p q r s = p r s || (not (p s r) && q r s)
 
 let mk_le f r s = f r <= f s
 
-let mk_sl f r s = f r < f s
+let sl_le a b le = (le a b) && not (le b a)
 
 let eat s t = s ^ String.trim t
 
