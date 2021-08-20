@@ -19,8 +19,6 @@ module List = Core_kernel.List
 
 exception INVALID_FORM
 
-type mbuf2 = expl list * expl list
-
 let sappend_to_deque sp1 d =
   let _ = Deque.iteri d ~f:(fun i (ts, ssp) ->
               match ssp with
@@ -40,9 +38,9 @@ let betas_suffix_in_to_list betas_suffix_in =
 (* Sort proofs wrt a particular measure, i.e.,
    if |p_1| <= |p_2| in [p_1, p_2, p_3, ..., p_n]
    then p_2 must be removed (and so on).
-   The order of resulting list is reversed, which
-   means that the smallest element is also the head. *)
-let sort_new le new_in =
+   The order of the resulting list is reversed, which
+   means that the smallest element is also the head *)
+let sort_ps le new_in =
   let rec aux ps acc =
     match ps with
     | [] -> acc
@@ -52,6 +50,17 @@ let sort_new le new_in =
        else aux xs (x'::acc)
     | x::xs -> x::acc
   in aux new_in []
+
+let sort_ps2 le l =
+  let rec aux ps acc =
+    match ps with
+    | [] -> acc
+    | (ets1, lts1, x)::(ets2, lts2, x')::xs ->
+       if le x x' then
+         aux xs ((ets1, lts1, x)::acc)
+       else aux xs ((ets2, lts2, x')::acc)
+    | x::xs -> x::acc
+  in aux l []
 
 module Past = struct
   type msaux = {
@@ -201,7 +210,7 @@ module Past = struct
     if (List.is_empty new_in) then
       beta_alphas
     else (
-      let new_in' = sort_new le new_in in
+      let new_in' = sort_ps le new_in in
       let hd_p = List.hd_exn new_in' in
       let _ = Deque.iter beta_alphas ~f:(fun (ts, sp) ->
                   if le (snd(hd_p)) sp then
@@ -409,15 +418,15 @@ module Future = struct
   type muaux = {
       ts_tp_in: (timestamp * timepoint) Deque.t
     ; ts_tp_out: (timestamp * timepoint) Deque.t
-    (* deque of sorted deques of U^+ beta [alphas] proofs where (lts, hts, expl):
-     * lts corresponds to the timestamp of the first alpha proof
-     * hts corresponds to the timestamp of the beta proof *)
+    (* deque of sorted deques of U^+ beta [alphas] proofs where (ets, lts, expl):
+     * etc corresponds to the timestamp of the first alpha proof
+     * lts corresponds to the timestamp of the beta proof *)
     ; alphas_beta: ((timestamp * timestamp * expl) Deque.t) Deque.t
     (* most recent sequence of alpha satisfactions w/o holes *)
     ; alphas_suffix: (timestamp * sexpl) Deque.t
-    (* deque of sorted deques of U^- ~alpha [~betas] proofs where (lts, hts, expl):
-     * lts corresponds to the timestamp of the first ~beta proof
-     * hts corresponds to the timestamp of the ~alpha proof *)
+    (* deque of sorted deques of U^- ~alpha [~betas] proofs where (ets, lts, expl):
+     * ets corresponds to the timestamp of the first ~beta proof
+     * lts corresponds to the timestamp of the ~alpha proof *)
     ; betas_alpha: ((timestamp * timestamp * expl) Deque.t) Deque.t
     (* deque of alpha proofs outside the interval *)
     ; alphas_out: (timestamp * expl) Deque.t
@@ -473,41 +482,41 @@ module Future = struct
           acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Expl.v_to_string "" ps)
 
   let sdrop_from_deque tp z l d =
-    let _ = List.iteri (Deque.to_list d) ~f:(fun i (lts, hts, ssp) ->
+    let _ = List.iteri (Deque.to_list d) ~f:(fun i (ets, lts, ssp) ->
                 match ssp with
-                | S sp -> (if lts < z then
-                             (if hts < z then Deque.drop_front d
+                | S sp -> (if ets < z then
+                             (if lts < z then Deque.drop_front d
                               else (match sp with
                                     | SUntil (sp2, sp1s) ->
                                        if not (List.is_empty sp1s) then
-                                         Deque.set_exn d i (lts, hts, S (sdrop sp))
+                                         Deque.set_exn d i (ets, lts, S (sdrop sp))
                                     | _ -> raise VEXPL))
                            else
-                             (if hts < l then Deque.drop_front d
+                             (if lts < l then Deque.drop_front d
                               else (match sp with
                                     | SUntil (sp2, sp1s) ->
                                        if not (List.is_empty sp1s) then
-                                         Deque.enqueue_back d (lts, hts, S (sdrop sp))
+                                         Deque.enqueue_back d (ets, lts, S (sdrop sp))
                                     | _ -> raise VEXPL)))
                 | V _ -> raise SEXPL) in d
 
   let vdrop_from_deque tp l d =
-    let _ = List.iteri (Deque.to_list d) ~f:(fun i (lts, hts, vvp) ->
+    let _ = List.iteri (Deque.to_list d) ~f:(fun i (ets, lts, vvp) ->
                 match vvp with
                 | V vp ->
-                   if lts < l then
-                     (if hts < l then (Deque.drop_front d)
+                   if ets < l then
+                     (if lts < l then (Deque.drop_front d)
                       else (match vp with
                             | VUntil (tp, vp1, vp2s) ->
                                if not (List.is_empty vp2s) then
-                                 Deque.set_exn d i (lts, hts, V (vdrop vp))
+                                 Deque.set_exn d i (ets, lts, V (vdrop vp))
                             | _ -> raise SEXPL))
                    else
-                     (if hts < l then Deque.drop_front d
+                     (if lts < l then Deque.drop_front d
                       else (match vp with
                             | VUntil (tp, vp1, vp2s) ->
                                if not (List.is_empty vp2s) then
-                                 Deque.enqueue_back d (lts, hts, V (vdrop vp))
+                                 Deque.enqueue_back d (ets, lts, V (vdrop vp))
                             | _ -> raise SEXPL))
                 | S _ -> raise VEXPL) in d
 
@@ -515,8 +524,8 @@ module Future = struct
     let ts_tp_list = (Deque.to_list ts_tp_out) @ (Deque.to_list ts_tp_in) in
     match List.hd ts_tp_list with
     | None -> []
-    | Some((cur_ts, _)) -> List.filter ts_tp_list ~f:(fun (ts, tp) -> cur_ts = ts
-)
+    | Some((cur_ts, _)) -> List.filter ts_tp_list ~f:(fun (ts, tp) -> cur_ts = ts)
+
   let update_ts z l ts tp muaux =
     let _ = Deque.enqueue_back muaux.ts_tp_in (ts, tp) in
     let _ = List.iter (Deque.to_list muaux.ts_tp_in)
@@ -576,7 +585,7 @@ module Future = struct
     in alphas_out
 
   let update_alphas_out ts alphas_out new_out_alphas le =
-    let new_out_alphas_sorted = sort_new le new_out_alphas in
+    let new_out_alphas_sorted = sort_ps le new_out_alphas in
     List.fold_left (List.rev (new_out_alphas_sorted)) ~init:(Deque.create ())
       ~f:(fun acc (_, vvp1) -> add_alphas_out ts vvp1 alphas_out le)
 
@@ -588,36 +597,38 @@ module Future = struct
     List.rev(List.fold_left (Deque.to_list betas_suffix_in) ~init:[]
                ~f:(fun acc (_, vp2) -> vp2::acc))
 
-  let add_to_muaux hts tp p1 p2 muaux sl =
+  let add_to_muaux lts tp p1 p2 muaux le =
     match p1, p2 with
     | S sp1, S sp2 ->
        Printf.printf "SS\n";
        (* alphas_beta *)
        let cur_alphas_beta = Deque.peek_back_exn muaux.alphas_beta in
        let p1 = S (SUntil (sp2, (alphas_suffix_to_list muaux.alphas_suffix))) in
-       (* let p2 = S (SUntil (sp2, [])) in *)
-       let lts = match Deque.peek_front muaux.alphas_suffix with
+       let ets = match Deque.peek_front muaux.alphas_suffix with
          | Some(ts, _) -> ts
-         | None -> hts in
-       let _ = Deque.enqueue_back cur_alphas_beta (lts, hts, p1) in
-       (* let _ = Deque.enqueue_back cur_alphas_beta (hts, hts, p2) in *)
+         | None -> lts in
+       let _ = Deque.enqueue_back cur_alphas_beta (ets, lts, p1) in
+       let cur_alphas_beta_sorted_list = sort_ps2 le (List.rev (Deque.to_list cur_alphas_beta)) in
+       let _ = Deque.clear cur_alphas_beta in
+       let _ = List.iter cur_alphas_beta_sorted_list ~f:(fun (e, l, p) ->
+                   Deque.enqueue_back cur_alphas_beta (e, l, p)) in
        let _ = Deque.drop_back muaux.alphas_beta in
        let _ = Deque.enqueue_back muaux.alphas_beta cur_alphas_beta in
        (* alphas_suffix *)
-       let _ = Deque.enqueue_back muaux.alphas_suffix (hts, sp1) in
+       let _ = Deque.enqueue_back muaux.alphas_suffix (lts, sp1) in
        (* alphas_in *)
-       let _ = Deque.enqueue_back muaux.alphas_in (hts, tp, None) in
+       let _ = Deque.enqueue_back muaux.alphas_in (lts, tp, None) in
        (* betas_suffix_in *)
        let _ = Deque.clear muaux.betas_suffix_in in
        muaux
     | S sp1, V vp2 ->
        Printf.printf "SV\n";
        (* alphas_suffix *)
-       let _ = Deque.enqueue_back muaux.alphas_suffix (hts, sp1) in
+       let _ = Deque.enqueue_back muaux.alphas_suffix (lts, sp1) in
        (* alphas_in *)
-       let _ = Deque.enqueue_back muaux.alphas_in (hts, tp, None) in
+       let _ = Deque.enqueue_back muaux.alphas_in (lts, tp, None) in
        (* betas_suffix_in *)
-       let _ = Deque.enqueue_back muaux.betas_suffix_in (hts, vp2) in
+       let _ = Deque.enqueue_back muaux.betas_suffix_in (lts, vp2) in
        muaux
     | V vp1, S sp2 ->
        Printf.printf "VS\n";
@@ -626,18 +637,20 @@ module Future = struct
                              then Deque.create ()
                              else Deque.peek_back_exn muaux.alphas_beta in
        let p1 = S (SUntil (sp2, (alphas_suffix_to_list muaux.alphas_suffix))) in
-       (* let p2 = S (SUntil (sp2, [])) in *)
-       let lts = match Deque.peek_front muaux.alphas_suffix with
+       let ets = match Deque.peek_front muaux.alphas_suffix with
          | Some(ts, _) -> ts
-         | None -> hts in
-       let _ = Deque.enqueue_back cur_alphas_beta (lts, hts, p1) in
-       (* let _ = Deque.enqueue_back cur_alphas_beta (hts, hts, p2) in *)
+         | None -> lts in
+       let _ = Deque.enqueue_back cur_alphas_beta (ets, lts, p1) in
+       let cur_alphas_beta_sorted_list = sort_ps2 le (List.rev (Deque.to_list cur_alphas_beta)) in
+       let _ = Deque.clear cur_alphas_beta in
+       let _ = List.iter cur_alphas_beta_sorted_list ~f:(fun (e, l, p) ->
+                   Deque.enqueue_back cur_alphas_beta (e, l, p)) in
        let _ = Deque.drop_back muaux.alphas_beta in
        let _ = Deque.enqueue_back muaux.alphas_beta cur_alphas_beta in
        (* alphas_suffix *)
        let _ = Deque.clear muaux.alphas_suffix in
        (* alphas_in *)
-       let _ = Deque.enqueue_back muaux.alphas_in (hts, tp, Some(vp1)) in
+       let _ = Deque.enqueue_back muaux.alphas_in (lts, tp, Some(vp1)) in
        (* betas_suffix_in *)
        let _ = Deque.clear muaux.betas_suffix_in in
        muaux
@@ -646,20 +659,24 @@ module Future = struct
        (* alphas_suffix *)
        let _ = Deque.clear muaux.alphas_suffix in
        (* betas_suffix_in *)
-       let _ = Deque.enqueue_back muaux.betas_suffix_in (hts, vp2) in
+       let _ = Deque.enqueue_back muaux.betas_suffix_in (lts, vp2) in
        (* betas_alpha *)
        let cur_betas_alpha = if not (Deque.is_empty (Deque.peek_back_exn muaux.betas_alpha))
                              then Deque.create ()
                              else Deque.peek_back_exn muaux.betas_alpha in
        let vp = V (VUntil (tp, vp1, (betas_suffix_in_to_list muaux.betas_suffix_in))) in
-       let lts = match Deque.peek_front muaux.betas_suffix_in with
+       let ets = match Deque.peek_front muaux.betas_suffix_in with
          | Some(ts, _) -> ts
-         | None -> hts in
-       let _ = Deque.enqueue_back cur_betas_alpha (lts, hts, vp) in
+         | None -> lts in
+       let _ = Deque.enqueue_back cur_betas_alpha (ets, lts, vp) in
+       let cur_betas_alpha_sorted_list = sort_ps2 le (List.rev (Deque.to_list cur_betas_alpha)) in
+       let _ = Deque.clear cur_betas_alpha in
+       let _ = List.iter cur_betas_alpha_sorted_list ~f:(fun (e, l, p) ->
+                   Deque.enqueue_back cur_betas_alpha (e, l, p)) in
        let _ = Deque.drop_back muaux.betas_alpha in
        let _ = Deque.enqueue_back muaux.betas_alpha cur_betas_alpha in
        (* alphas_in *)
-       let _ = Deque.enqueue_back muaux.alphas_in (hts, tp, Some(vp1)) in
+       let _ = Deque.enqueue_back muaux.alphas_in (lts, tp, Some(vp1)) in
        muaux
 
   let remove_from_muaux z l muaux =
@@ -708,17 +725,17 @@ module Future = struct
       alphas_beta
     ; betas_alpha }
 
-  let advance_muaux (l, r) z ts tp p1 p2 muaux sl le =
+  let advance_muaux (l, r) z ts tp p1 p2 muaux le =
     let muaux_minus_old = remove_from_muaux z l muaux in
     let muaux_dropped = drop_from_muaux tp z l muaux_minus_old in
-    let muaux = add_to_muaux ts tp p1 p2 muaux_dropped sl in
+    let muaux = add_to_muaux ts tp p1 p2 muaux_dropped le in
     let alphas_in, new_out_alphas = split_in_out2 z l muaux.alphas_in in
     let alphas_out = update_alphas_out ts muaux.alphas_out new_out_alphas le in
     { muaux with
       alphas_in
     ; alphas_out }
 
-  let update_until interval tp ts p1 p2 muaux sl le =
+  let update_until interval tp ts p1 p2 muaux le =
     let a = get_a_I interval in
     let b = match get_b_I interval with
       | None -> failwith "Unbounded interval for future operators is not supported"
@@ -728,7 +745,7 @@ module Future = struct
     let r = ts in
     (* Printf.fprintf stdout "z = %d; l = %d; r = %d\n" z l r; *)
     let muaux_ts_updated = update_ts z l ts tp muaux in
-    let muaux_updated = advance_muaux (l, r) z ts tp p1 p2 muaux_ts_updated sl le
+    let muaux_updated = advance_muaux (l, r) z ts tp p1 p2 muaux_ts_updated le
     in muaux_updated
 
   let eval_until interval ts tp future_ts muaux =
@@ -770,6 +787,34 @@ module Future = struct
     else []
 end
 
+(* mbuf2: auxiliary data structure for the conj/disj operators *)
+type mbuf2 = expl Deque.t * expl Deque.t
+
+let mbuf2_add p1s p2s (d1, d2) =
+  let _ = List.iter p1s ~f:(fun p1 -> Deque.enqueue_front d1 p1) in
+  let _ = List.iter p2s ~f:(fun p2 -> Deque.enqueue_front d2 p2) in
+  (d1, d2)
+
+let rec mbuf2_take f (p1s, p2s) =
+  match (Deque.is_empty p1s, Deque.is_empty p2s) with
+  | true, _ -> (Deque.create (), (p1s, p2s))
+  | _, true -> (Deque.create (), (p1s, p2s))
+  | false, false -> let p1 = Deque.dequeue_front_exn p1s in
+                    let p2 = Deque.dequeue_front_exn p2s in
+                    let (p3s, buf') = mbuf2_take f (p1s, p2s) in
+                    let _ = Deque.enqueue_front p3s (f p1 p2) in
+                    (p3s, buf')
+
+let rec mbuf2t_take f z (p1s, p2s) tss =
+  match (Deque.is_empty p1s, Deque.is_empty p2s, Deque.is_empty tss) with
+  | true, _, _ -> (z, (p1s, p2s), tss)
+  | _, true, _ -> (z, (p1s, p2s), tss)
+  | _, _, true -> (z, (p1s, p2s), tss)
+  | false, false, false -> let p1 = Deque.dequeue_front_exn p1s in
+                           let p2 = Deque.dequeue_front_exn p2s in
+                           let ts = Deque.dequeue_front_exn tss in
+                           mbuf2t_take f (f p1 p2 ts z) (p1s, p2s) tss
+
 type mformula =
   | MTT
   | MFF
@@ -779,8 +824,8 @@ type mformula =
   | MDisj of mformula * mformula * mbuf2
   | MPrev of interval * mformula * bool * expl list * timestamp list
   | MNext of interval * mformula * bool * timestamp list
-  | MSince of interval * mformula * mformula * Past.msaux
-  | MUntil of interval * mformula * mformula * mbuf2 * Future.muaux
+  | MSince of interval * mformula * mformula * mbuf2 * timestamp Deque.t * Past.msaux
+  | MUntil of interval * mformula * mformula * mbuf2 * timestamp Deque.t * Future.muaux
 
 let rec mformula_to_string l f =
   match f with
@@ -792,8 +837,8 @@ let rec mformula_to_string l f =
   | MNeg f -> Printf.sprintf "¬%a" (fun x -> mformula_to_string 5) f
   | MPrev (i, f, _, _, _) -> Printf.sprintf (paren l 5 "●%a %a") (fun x -> interval_to_string) i (fun x -> mformula_to_string 5) f
   | MNext (i, f, _, _) -> Printf.sprintf (paren l 5 "○%a %a") (fun x -> interval_to_string) i (fun x -> mformula_to_string 5) f
-  | MSince (i, f, g, _) -> Printf.sprintf (paren l 0 "%a S%a %a") (fun x -> mformula_to_string 5) f (fun x -> interval_to_string) i (fun x -> mformula_to_string 5) g
-  | MUntil (i, f, g, _, _) -> Printf.sprintf (paren l 0 "%a U%a %a") (fun x -> mformula_to_string 5) f (fun x -> interval_to_string) i (fun x -> mformula_to_string 5) g
+  | MSince (i, f, g, _, _, _) -> Printf.sprintf (paren l 0 "%a S%a %a") (fun x -> mformula_to_string 5) f (fun x -> interval_to_string) i (fun x -> mformula_to_string 5) g
+  | MUntil (i, f, g, _, _, _) -> Printf.sprintf (paren l 0 "%a U%a %a") (fun x -> mformula_to_string 5) f (fun x -> interval_to_string) i (fun x -> mformula_to_string 5) g
 let mformula_to_string = mformula_to_string 0
 
 let relevant_ap mf =
@@ -807,8 +852,8 @@ let relevant_ap mf =
     | MNeg f -> aux f
     | MPrev (i, f, _, _, _) -> aux f
     | MNext (i, f, _, _) -> aux f
-    | MSince (i, f, g, _) -> aux f @ aux g
-    | MUntil (i, f, g, _, _) -> aux f @ aux g in
+    | MSince (i, f, g, _, _, _) -> aux f @ aux g
+    | MUntil (i, f, g, _, _, _) -> aux f @ aux g in
   let lst_with_dup = aux mf in
   List.fold_left lst_with_dup ~init:[] ~f:(fun acc s ->
       if (List.mem acc s ~equal:(fun x y -> x = y)) then acc
@@ -833,11 +878,16 @@ let rec minit f =
   | FF -> MFF
   | P (x) -> MP (x)
   | Neg (f) -> MNeg (minit f)
-  | Conj (f, g) -> MConj (minit f, minit g, ([], []))
-  | Disj (f, g) -> MDisj (minit f, minit g, ([], []))
+  | Conj (f, g) ->
+     let buf = (Deque.create (), Deque.create ()) in
+     MConj (minit f, minit g, buf)
+  | Disj (f, g) ->
+     let buf = (Deque.create (), Deque.create ()) in
+     MDisj (minit f, minit g, buf)
   | Prev (i, f) -> MPrev (i, minit f, true, [], [])
   | Next (i, f) -> MNext (i, minit f, true, [])
   | Since (i, f, g) ->
+     let buf = (Deque.create (), Deque.create ()) in
      let msaux = { Past.ts_zero = None
                  ; ts_in = Deque.create ()
                  ; ts_out = Deque.create ()
@@ -848,8 +898,9 @@ let rec minit f =
                  ; betas_suffix_in = Deque.create ()
                  ; alphas_betas_out = Deque.create ()
                  ; } in
-     MSince (i, minit f, minit g, msaux)
+     MSince (i, minit f, minit g, buf, Deque.create (), msaux)
   | Until (i, f, g) ->
+     let buf = (Deque.create (), Deque.create ()) in
      let empty_d1 = Deque.create () in
      let empty_d2 = Deque.create () in
      let alphas_beta = Deque.create () in
@@ -865,21 +916,8 @@ let rec minit f =
                  ; alphas_in = Deque.create ()
                  ; betas_suffix_in = Deque.create ()
                  ; } in
-     MUntil (i, minit f, minit g, ([], []), muaux)
+     MUntil (i, minit f, minit g, buf, Deque.create (), muaux)
   | _ -> failwith "This formula cannot be monitored"
-
-(* mbuf2: auxiliary data structure for the conj/disj operators *)
-let mbuf2_add e1 e2 buf =
-  (e1 @ fst(buf), e2 @ snd(buf))
-
-let rec mbuf2_take f buf =
-  let (e_l1, e_l2) = buf in
-  match e_l1, e_l2 with
-  | [], _ -> ([], buf)
-  | _, [] -> ([], buf)
-  | e1::e_l1', e2::e_l2' ->
-     let (e_l3, buf') = mbuf2_take f (e_l1', e_l2') in
-     ((f e1 e2)::e_l3, buf')
 
 let do_disj minimum2 expl_f1 expl_f2 =
   match expl_f1, expl_f2 with
@@ -895,8 +933,9 @@ let do_conj minimum2 expl_f1 expl_f2 =
   | V f1, S _ -> V (VConjL (f1))
   | V f1, V f2 -> minimum2 (V (VConjL (f1))) (V (VConjR (f2)))
 
-let meval' tp ts sap mform le sl minimuml =
+let meval' tp ts sap mform le minimuml =
   let minimum2 a b = minimuml [a; b] in
+  (* TODO: This function should return (Deque.t, mformula) *)
   let rec meval tp ts sap mform =
     match mform with
     | MTT -> ([S (STT tp)], MTT)
@@ -913,54 +952,59 @@ let meval' tp ts sap mform le sl minimuml =
        (ps_z, MNeg(mf'))
     | MConj (mf1, mf2, buf) ->
        let op p1 p2 = do_conj minimum2 p1 p2 in
-       let (ps_f1, mf1') = meval tp ts sap mf1 in
-       let (ps_f2, mf2') = meval tp ts sap mf2 in
-       let (ps_f, buf') = mbuf2_take op (mbuf2_add ps_f1 ps_f2 buf) in
-       (ps_f, MConj (mf1', mf2', buf'))
+       let (p1s, mf1') = meval tp ts sap mf1 in
+       let (p2s, mf2') = meval tp ts sap mf2 in
+       let (ps, buf') = mbuf2_take op (mbuf2_add p1s p2s buf) in
+       ((Deque.to_list ps), MConj (mf1', mf2', buf'))
     | MDisj (mf1, mf2, buf) ->
        let op p1 p2 = do_disj minimum2 p1 p2 in
-       let (ps_f1, mf1') = meval tp ts sap mf1 in
-       let (ps_f2, mf2') = meval tp ts sap mf2 in
-       let (ps_f, buf') = mbuf2_take op (mbuf2_add ps_f1 ps_f2 buf) in
-       (ps_f, MDisj (mf1', mf2', buf'))
+       let (p1s, mf1') = meval tp ts sap mf1 in
+       let (p2s, mf2') = meval tp ts sap mf2 in
+       let (ps, buf') = mbuf2_take op (mbuf2_add p1s p2s buf) in
+       ((Deque.to_list ps), MDisj (mf1', mf2', buf'))
     (* | MPrev (interval, mf, b, expl_lst, ts_d_lst) ->
      * | MNext (interval, mf, b, ts_a_lst) -> *)
-    | MSince (interval, mf1, mf2, msaux) ->
-       let (ps_f1, mf1') = meval tp ts sap mf1 in
-       let (ps_f2, mf2') = meval tp ts sap mf2 in
-       let p1 = minimuml ps_f1 in
-       let p2 = minimuml ps_f2 in
-       let (ps, new_msaux) = Past.update_since interval tp ts p1 p2 msaux le in
-       let p = minimuml ps in
+    | MSince (interval, mf1, mf2, buf, tss, msaux) ->
+       let (p1s, mf1') = meval tp ts sap mf1 in
+       let (p2s, mf2') = meval tp ts sap mf2 in
+       let _ = Deque.enqueue_back tss ts in
+       let ((ps, msaux'), buf', tss') =
+         mbuf2t_take
+           (fun p1 p2 ts (ps, aux) ->
+             let (cps, aux) = Past.update_since interval tp ts p1 p2 msaux le in
+             let op = minimuml cps in
+             let _ = Deque.enqueue_back ps op in
+             (ps, aux))
+           (Deque.create (), msaux) (mbuf2_add p1s p2s buf) tss
        (* let _ = Printf.fprintf stdout "---------------\n%s\n\n" (Past.msaux_to_string new_msaux) in
         * let _ = Printf.fprintf stdout "Optimal proof:\n%s\n\n" (Expl.expl_to_string p) in *)
-       ([p], MSince (interval, mf1', mf2', new_msaux))
-    | MUntil (interval, mf1, mf2, mbuf2, muaux) ->
-       let (ps_f1, mf1') = meval tp ts sap mf1 in
-       let (ps_f2, mf2') = meval tp ts sap mf2 in
-       if not (List.is_empty ps_f1) && not (List.is_empty ps_f2) then
-         let p1 = minimuml ps_f1 in
-         let p2 = minimuml ps_f2 in
-         let _ = Printf.printf "---------------\n" in
-         let _ = Printf.printf "mf = %s\n" (mformula_to_string (MUntil (interval, mf1, mf2, mbuf2, muaux))) in
-         let new_muaux = Future.update_until interval tp ts p1 p2 muaux sl le in
-         let ts_tp_list = Future.current new_muaux.ts_tp_out new_muaux.ts_tp_in in
-         let _ = Printf.fprintf stdout "%s\n\n" (Future.muaux_to_string new_muaux) in
-         let _ = Printf.printf "current ts = %d\n" ts in
-         let _ = List.iter ts_tp_list ~f:(fun (ts', tp') -> (Printf.printf "ts' = %d; tp' = %d\n" ts' tp')) in
-         let ops = List.rev (List.fold ts_tp_list ~init:[] ~f:(fun acc (ts', tp') ->
-                                 let ps = Future.eval_until interval ts' tp' ts new_muaux in
-                                 if (List.is_empty ps) then acc
-                                 else (minimuml ps)::acc)) in
-         let _ = if not (List.is_empty ops) then
-                   List.iter ops ~f:(fun p ->
-                       Printf.fprintf stdout "Optimal proof:\n%s\n\n" (Expl.expl_to_string p)) in
-         (ops, MUntil (interval, mf1', mf2', mbuf2, new_muaux))
-       else ([], MUntil (interval, mf1', mf2', mbuf2, muaux))
+       in ((Deque.to_list ps), MSince (interval, mf1', mf2', buf', tss', msaux'))
+    (* | MUntil (interval, mf1, mf2, buf, tss, muaux) ->
+     *    let (ps_f1, mf1') = meval tp ts sap mf1 in
+     *    let (ps_f2, mf2') = meval tp ts sap mf2 in
+     *    if not (List.is_empty ps_f1) && not (List.is_empty ps_f2) then
+     *      let p1 = minimuml ps_f1 in
+     *      let p2 = minimuml ps_f2 in
+     *      (\* let _ = Printf.printf "---------------\n" in
+     *       * let _ = Printf.printf "mf = %s\n" (mformula_to_string (MUntil (interval, mf1, mf2, buf, muaux))) in *\)
+     *      let new_muaux = Future.update_until interval tp ts p1 p2 muaux le in
+     *      let ts_tp_list = Future.current new_muaux.ts_tp_out new_muaux.ts_tp_in in
+     *      (\* let _ = Printf.fprintf stdout "%s\n\n" (Future.muaux_to_string new_muaux) in
+     *       * let _ = Printf.printf "current ts = %d\n" ts in
+     *       * let _ = List.iter ts_tp_list ~f:(fun (ts', tp') -> (Printf.printf "ts' = %d; tp' = %d\n" ts' tp')) in *\)
+     *      let ops = List.rev (List.fold ts_tp_list ~init:[] ~f:(fun acc (ts', tp') ->
+     *                              let ps = Future.eval_until interval ts' tp' ts new_muaux in
+     *                              if (List.is_empty ps) then acc
+     *                              else (minimuml ps)::acc)) in
+     *      (\* let _ = if not (List.is_empty ops) then
+     *       *           List.iter ops ~f:(fun p ->
+     *       *               Printf.fprintf stdout "Optimal proof:\n%s\n\n" (Expl.expl_to_string p)) in *\)
+     *      (ops, MUntil (interval, mf1', mf2', buf, new_muaux))
+     *    else ([], MUntil (interval, mf1', mf2', buf, muaux)) *)
     | _ -> failwith "This formula cannot be monitored" in
   meval tp ts sap mform
 
-let monitor in_ch out_ch mode debug check le sl f =
+let monitor in_ch out_ch mode debug check le f =
   let minimuml ps = minsize_list (get_mins le ps) in
   let rec loop f x = loop f (f x) in
   let mf = minit f in
@@ -973,7 +1017,7 @@ let monitor in_ch out_ch mode debug check le sl f =
     let ((sap, ts), in_ch) = input_event in_ch out_ch in
     let sap_filtered = filter_ap sap mf_ap in
     let events_updated = (sap_filtered, ts)::ctx.events in
-    let (ps, mf_updated) = meval' ctx.tp ts sap_filtered ctx.mf le sl minimuml in
+    let (ps, mf_updated) = meval' ctx.tp ts sap_filtered ctx.mf le minimuml in
     let checker_ps = if check || debug then Some (check_ps events_updated f ps) else None in
     let _ = print_ps out_ch mode ts ctx.tp ps checker_ps debug in
     let ctx_updated = { tp = ctx.tp+1
