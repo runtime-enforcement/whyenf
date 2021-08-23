@@ -520,12 +520,6 @@ module Future = struct
                             | _ -> raise SEXPL))
                 | S _ -> raise VEXPL) in d
 
-  let current ts_tp_out ts_tp_in =
-    let ts_tp_list = (Deque.to_list ts_tp_out) @ (Deque.to_list ts_tp_in) in
-    match List.hd ts_tp_list with
-    | None -> []
-    | Some((cur_ts, _)) -> List.filter ts_tp_list ~f:(fun (ts, tp) -> cur_ts = ts)
-
   let update_ts z l ts tp muaux =
     let _ = Deque.enqueue_back muaux.ts_tp_in (ts, tp) in
     let _ = List.iter (Deque.to_list muaux.ts_tp_in)
@@ -748,12 +742,12 @@ module Future = struct
     let muaux_updated = advance_muaux (l, r) z ts tp p1 p2 muaux_ts_updated le
     in muaux_updated
 
-  let eval_until interval ts tp future_ts muaux =
-    let _ = Printf.printf "eval tp = %d; ts = %d; future_ts = %d\n" tp ts future_ts in
+  let eval_until interval ts tp nts muaux =
+    (* let _ = Printf.printf "eval tp = %d; ts = %d; nts = %d\n" tp ts nts in *)
     let b = match get_b_I interval with
       | None -> failwith "Unbounded interval for future operators is not supported"
       | Some(b') -> b' in
-    if ts + b < future_ts then
+    if ts + b < nts then
       let _ = Printf.printf "SHOULD OUTPUT SOMETHING\n" in
       if not (Deque.is_empty muaux.alphas_beta) then
         let cur_alphas_beta = Deque.peek_front_exn muaux.alphas_beta in
@@ -805,15 +799,15 @@ let rec mbuf2_take f (p1s, p2s) =
                     let _ = Deque.enqueue_front p3s (f p1 p2) in
                     (p3s, buf')
 
-let rec mbuf2t_take f z (p1s, p2s) tss =
-  match (Deque.is_empty p1s, Deque.is_empty p2s, Deque.is_empty tss) with
-  | true, _, _ -> (z, (p1s, p2s), tss)
-  | _, true, _ -> (z, (p1s, p2s), tss)
-  | _, _, true -> (z, (p1s, p2s), tss)
+let rec mbuf2t_take f z (p1s, p2s) tss_tps =
+  match (Deque.is_empty p1s, Deque.is_empty p2s, Deque.is_empty tss_tps) with
+  | true, _, _ -> (z, (p1s, p2s), tss_tps)
+  | _, true, _ -> (z, (p1s, p2s), tss_tps)
+  | _, _, true -> (z, (p1s, p2s), tss_tps)
   | false, false, false -> let p1 = Deque.dequeue_front_exn p1s in
                            let p2 = Deque.dequeue_front_exn p2s in
-                           let ts = Deque.dequeue_front_exn tss in
-                           mbuf2t_take f (f p1 p2 ts z) (p1s, p2s) tss
+                           let (ts, tp) = Deque.dequeue_front_exn tss_tps in
+                           mbuf2t_take f (f p1 p2 ts tp z) (p1s, p2s) tss_tps
 
 type mformula =
   | MTT
@@ -824,8 +818,8 @@ type mformula =
   | MDisj of mformula * mformula * mbuf2
   | MPrev of interval * mformula * bool * expl list * timestamp list
   | MNext of interval * mformula * bool * timestamp list
-  | MSince of interval * mformula * mformula * mbuf2 * timestamp Deque.t * Past.msaux
-  | MUntil of interval * mformula * mformula * mbuf2 * timestamp Deque.t * Future.muaux
+  | MSince of interval * mformula * mformula * mbuf2 * (timestamp * timepoint) Deque.t * Past.msaux
+  | MUntil of interval * mformula * mformula * mbuf2 * (timestamp * timepoint) Deque.t * Future.muaux
 
 let rec mformula_to_string l f =
   match f with
@@ -964,43 +958,43 @@ let meval' tp ts sap mform le minimuml =
        ((Deque.to_list ps), MDisj (mf1', mf2', buf'))
     (* | MPrev (interval, mf, b, expl_lst, ts_d_lst) ->
      * | MNext (interval, mf, b, ts_a_lst) -> *)
-    | MSince (interval, mf1, mf2, buf, tss, msaux) ->
+    | MSince (interval, mf1, mf2, buf, tss_tps, msaux) ->
        let (p1s, mf1') = meval tp ts sap mf1 in
        let (p2s, mf2') = meval tp ts sap mf2 in
-       let _ = Deque.enqueue_back tss ts in
-       let ((ps, msaux'), buf', tss') =
+       let _ = Deque.enqueue_back tss_tps (ts, tp) in
+       let ((ps, msaux'), buf', tss_tps') =
          mbuf2t_take
-           (fun p1 p2 ts (ps, aux) ->
+           (fun p1 p2 ts tp (ps, aux) ->
              let (cps, aux) = Past.update_since interval tp ts p1 p2 msaux le in
              let op = minimuml cps in
              let _ = Deque.enqueue_back ps op in
              (ps, aux))
-           (Deque.create (), msaux) (mbuf2_add p1s p2s buf) tss
+           (Deque.create (), msaux) (mbuf2_add p1s p2s buf) tss_tps in
        (* let _ = Printf.fprintf stdout "---------------\n%s\n\n" (Past.msaux_to_string new_msaux) in
         * let _ = Printf.fprintf stdout "Optimal proof:\n%s\n\n" (Expl.expl_to_string p) in *)
-       in ((Deque.to_list ps), MSince (interval, mf1', mf2', buf', tss', msaux'))
-    (* | MUntil (interval, mf1, mf2, buf, tss, muaux) ->
-     *    let (ps_f1, mf1') = meval tp ts sap mf1 in
-     *    let (ps_f2, mf2') = meval tp ts sap mf2 in
-     *    if not (List.is_empty ps_f1) && not (List.is_empty ps_f2) then
-     *      let p1 = minimuml ps_f1 in
-     *      let p2 = minimuml ps_f2 in
-     *      (\* let _ = Printf.printf "---------------\n" in
-     *       * let _ = Printf.printf "mf = %s\n" (mformula_to_string (MUntil (interval, mf1, mf2, buf, muaux))) in *\)
-     *      let new_muaux = Future.update_until interval tp ts p1 p2 muaux le in
-     *      let ts_tp_list = Future.current new_muaux.ts_tp_out new_muaux.ts_tp_in in
-     *      (\* let _ = Printf.fprintf stdout "%s\n\n" (Future.muaux_to_string new_muaux) in
-     *       * let _ = Printf.printf "current ts = %d\n" ts in
-     *       * let _ = List.iter ts_tp_list ~f:(fun (ts', tp') -> (Printf.printf "ts' = %d; tp' = %d\n" ts' tp')) in *\)
-     *      let ops = List.rev (List.fold ts_tp_list ~init:[] ~f:(fun acc (ts', tp') ->
-     *                              let ps = Future.eval_until interval ts' tp' ts new_muaux in
-     *                              if (List.is_empty ps) then acc
-     *                              else (minimuml ps)::acc)) in
-     *      (\* let _ = if not (List.is_empty ops) then
-     *       *           List.iter ops ~f:(fun p ->
-     *       *               Printf.fprintf stdout "Optimal proof:\n%s\n\n" (Expl.expl_to_string p)) in *\)
-     *      (ops, MUntil (interval, mf1', mf2', buf, new_muaux))
-     *    else ([], MUntil (interval, mf1', mf2', buf, muaux)) *)
+       ((Deque.to_list ps), MSince (interval, mf1', mf2', buf', tss_tps', msaux'))
+    (* | MUntil (interval, mf1, mf2, buf, tss_tps, muaux) ->
+     *    let (p1s, mf1') = meval tp ts sap mf1 in
+     *    let (p2s, mf2') = meval tp ts sap mf2 in
+     *    (\* let _ = Printf.printf "---------------\n" in
+     *     * let _ = Printf.printf "mf = %s\n" (mformula_to_string (MUntil (interval, mf1, mf2, buf, tss_tps, muaux))) in *\)
+     *    let _ = Deque.enqueue_back tss_tps (ts, tp) in
+     *    let (muaux', buf', tss_tps') =
+     *      mbuf2t_take
+     *        (fun p1 p2 ts tp aux -> Future.update_until interval tp ts p1 p2 muaux le)
+     *        muaux (mbuf2_add p1s p2s buf) tss_tps in
+     *    (\* let _ = Printf.fprintf stdout "%s\n\n" (Future.muaux_to_string muaux') in
+     *     * let _ = Printf.printf "len(tss_tps') = %d\n" (Deque.length tss_tps') in
+     *     * let _ = Deque.iter tss_tps' ~f:(fun (ts', tp') -> (Printf.printf "ts' = %d; tp' = %d\n" ts' tp')) in *\)
+     *    let ops = List.rev (Deque.fold tss_tps' ~init:[] ~f:(fun acc (ts', tp') ->
+     *                  (\* let _ = Printf.printf "current (ts, tp) = (%d, %d)\n" ts' tp' in *\)
+     *                  let cps = Future.eval_until interval ts' tp' ts muaux' in
+     *                  if (List.is_empty cps) then acc
+     *                  else (minimuml cps)::acc)) in
+     *    (\* let _ = if not (List.is_empty ops) then
+     *     *           List.iter ops ~f:(fun p ->
+     *     *               Printf.fprintf stdout "Optimal proof:\n%s\n\n" (Expl.expl_to_string p)) in *\)
+     *    (ops, MUntil (interval, mf1', mf2', buf', tss_tps', muaux')) *)
     | _ -> failwith "This formula cannot be monitored" in
   meval tp ts sap mform
 
