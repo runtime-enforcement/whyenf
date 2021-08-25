@@ -50,14 +50,16 @@ and convert_vp vp =
                            let p2s' = List.rev(List.fold_left (fun acc p2 ->
                                                 (convert_vp p2)::acc) [] p2s) in
                            VUntil (i_nat, p2s', convert_vp p1)
-  | VSinceInf (i, p2s) -> let i_nat = nat_of_integer (of_int i) in
-                          let p2s' = List.rev(List.fold_left (fun acc p2 ->
-                                                  (convert_vp p2)::acc) [] p2s) in
-                          VSince_never (i_nat, p2s')
-  | VUntilInf (i, p2s) -> let i_nat = nat_of_integer (of_int i) in
-                          let p2s' = List.rev(List.fold_left (fun acc p2 ->
-                                                  (convert_vp p2)::acc) [] p2s) in
-                          VUntil_never (i_nat, p2s')
+  | VSinceInf (i, etp, p2s) -> let i_nat = nat_of_integer (of_int i) in
+                               let etp_nat = nat_of_integer (of_int etp) in
+                               let p2s' = List.rev(List.fold_left (fun acc p2 ->
+                                                       (convert_vp p2)::acc) [] p2s) in
+                               VSince_never (i_nat, etp_nat, p2s')
+  | VUntilInf (i, ltp, p2s) -> let i_nat = nat_of_integer (of_int i) in
+                               let ltp_nat = nat_of_integer (of_int ltp) in
+                               let p2s' = List.rev(List.fold_left (fun acc p2 ->
+                                                       (convert_vp p2)::acc) [] p2s) in
+                               VUntil_never (i_nat, ltp_nat, p2s')
   | VSinceOutL i -> let i_nat = nat_of_integer (of_int i) in
                     VSince_le i_nat
   | VNext p1 -> VNext (convert_vp p1)
@@ -161,8 +163,10 @@ and s_of_vproof = function
   | VConjR p -> "VConjR (" ^ s_of_vproof p ^ ")"
   | VSince (n, p, qs) -> "VSince (" ^ s_of_nat n ^ ", " ^ s_of_vproof p ^ ", " ^ s_of_list s_of_vproof qs ^ ")"
   | VUntil (n, qs, p) -> "VUntil (" ^ s_of_nat n ^ ", " ^ s_of_list s_of_vproof qs ^ ", " ^ s_of_vproof p ^ ")"
-  | VSince_never (n, qs) -> "VSince_never (" ^ s_of_nat n ^ ", " ^ s_of_list s_of_vproof qs ^ ")"
-  | VUntil_never (n, qs) -> "VUntil_never (" ^ s_of_nat n ^ ", " ^ s_of_list s_of_vproof qs ^ ")"
+  | VSince_never (n, etp, qs) -> "VSince_never (" ^ s_of_nat n ^ ", " ^ s_of_nat etp ^ ", "
+                                 ^ s_of_list s_of_vproof qs ^ ")"
+  | VUntil_never (n, ltp, qs) -> "VUntil_never (" ^ s_of_nat n ^ ", " ^ s_of_nat ltp ^ ", "
+                                 ^ s_of_list s_of_vproof qs ^ ")"
   | VSince_le n -> "VSince_le " ^ s_of_nat n
   | VNext p -> "VNext (" ^ s_of_vproof p ^ ")"
   | VNext_ge n -> "VNext_ge " ^ s_of_nat n

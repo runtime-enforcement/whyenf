@@ -51,10 +51,10 @@ and vexpl =
   | VEventually of vexpl list
   | VAlways of int * vexpl
   | VSince of int * vexpl * vexpl list
-  | VSinceInf of int * vexpl list
+  | VSinceInf of int * int * vexpl list
   | VSinceOutL of int
   | VUntil of int * vexpl * vexpl list
-  | VUntilInf of int * vexpl list
+  | VUntilInf of int * int * vexpl list
 
 type expl = S of sexpl | V of vexpl
 
@@ -75,9 +75,9 @@ let sappend sp sp1 = match sp with
 
 let vappend vp vp2 = match vp with
   | VSince (i, vp1, vp2s) -> VSince (i,  vp1, List.append vp2s [vp2])
-  | VSinceInf (i, vp2s) -> VSinceInf (i, List.append vp2s [vp2])
+  | VSinceInf (i, etp, vp2s) -> VSinceInf (i, etp, List.append vp2s [vp2])
   | VUntil (i, vp1, vp2s) -> VUntil (i, vp1, vp2 :: vp2s)
-  | VUntilInf (i, vp2s) -> VUntilInf (i, vp2 :: vp2s)
+  | VUntilInf (i, ltp, vp2s) -> VUntilInf (i, ltp, vp2 :: vp2s)
   | _ -> failwith "Bad arguments for vappend"
 
 let sdrop sp = match sp with
@@ -86,7 +86,7 @@ let sdrop sp = match sp with
 
 let vdrop vp = match vp with
   | VUntil (i, sp1, sp2s) -> VUntil (i, sp1, drop_front sp2s)
-  | VUntilInf (i, sp2s) -> VUntilInf (i, drop_front sp2s)
+  | VUntilInf (i, ltp, sp2s) -> VUntilInf (i, ltp, drop_front sp2s)
   | _ -> failwith "Bad arguments for vdrop"
 
 let slift = function
@@ -144,10 +144,10 @@ and v_at = function
   | VEventually vphis -> v_at (List.hd vphis)
   | VAlways (i, _) -> i
   | VSince (i, _, _) -> i
-  | VSinceInf (i, _) -> i
+  | VSinceInf (i, _, _) -> i
   | VSinceOutL i -> i
   | VUntil (i, _, _) -> i
-  | VUntilInf (i, _) -> i
+  | VUntilInf (i, _, _) -> i
 
 let p_at = function
 | S s_p -> s_at s_p
@@ -199,10 +199,10 @@ and v_size = function
   | VEventually expls -> 1 + sum v_size expls
   | VAlways (_, expl) -> 1 + v_size expl
   | VSince (_, vphi, vpsis) -> 1 + v_size vphi + sum v_size vpsis
-  | VSinceInf (i, vpsis) -> 1 + sum v_size vpsis
+  | VSinceInf (i, _, vpsis) -> 1 + sum v_size vpsis
   | VSinceOutL _ -> 1
   | VUntil (i, vphi, vpsis) -> 1 + v_size vphi + sum v_size vpsis
-  | VUntilInf (i, vpsis) -> 1 + sum v_size vpsis
+  | VUntilInf (i, _, vpsis) -> 1 + sum v_size vpsis
 
 let size = function
   | S s_p -> s_size s_p
@@ -262,10 +262,10 @@ and v_high p = match p with
   | VAlways (i, vphi) -> max i (v_high vphi)
   (* TODO: Check if we should consider i here *)
   | VSince (_, vphi, vpsis) -> max (v_high vphi) (max_list (List.map v_high vpsis))
-  | VSinceInf (_, vpsis) -> max_list (List.map v_high vpsis)
+  | VSinceInf (_, _, vpsis) -> max_list (List.map v_high vpsis)
   | VSinceOutL i -> i
   | VUntil (_, vphi, vpsis) -> max (v_high vphi) (max_list (List.map v_high vpsis))
-  | VUntilInf (_, vpsis) -> max_list (List.map v_high vpsis)
+  | VUntilInf (_, _, vpsis) -> max_list (List.map v_high vpsis)
 
 let rec s_low = function
   | STT i -> i
@@ -309,10 +309,10 @@ and v_low p = match p with
   | VAlways (i, vphi) -> min i (v_low vphi)
   (* TODO: Check if we should consider i here *)
   | VSince (_, vphi, vpsis) -> min (v_low vphi) (min_list (List.map v_low vpsis))
-  | VSinceInf (_, vpsis) -> min_list (List.map v_low vpsis)
+  | VSinceInf (_, _, vpsis) -> min_list (List.map v_low vpsis)
   | VSinceOutL i -> i
   | VUntil (_, vphi, vpsis) -> min (v_low vphi) (min_list (List.map v_low vpsis))
-  | VUntilInf (_, vpsis) -> min_list (List.map v_low vpsis)
+  | VUntilInf (_, _, vpsis) -> min_list (List.map v_low vpsis)
 
 let high p = match p with
   | S s_p -> s_high s_p
@@ -373,10 +373,10 @@ and v_pred = function
   | VEventually expls -> sum v_pred expls
   | VAlways (i, expl) -> v_pred expl
   | VSince (_, vphi, vpsis) -> v_pred vphi + sum v_pred vpsis
-  | VSinceInf (_, vpsis) -> sum v_pred vpsis
+  | VSinceInf (_, _, vpsis) -> sum v_pred vpsis
   | VSinceOutL _ -> 0
   | VUntil (_, vphi, vpsis) -> v_pred vphi + sum v_pred vpsis
-  | VUntilInf (_, vpsis) -> sum v_pred vpsis
+  | VUntilInf (_, _, vpsis) -> sum v_pred vpsis
 
 let predicates = function
   | S s_p -> s_pred s_p
@@ -433,12 +433,12 @@ and v_to_string indent p =
   | VAlways (_, vphi) -> Printf.sprintf "%sVAlways{%d}\n%s" indent (v_at p) (v_to_string indent' vphi)
   | VSince (_, vphi, vpsis) ->
      Printf.sprintf "%sVSince{%d}\n%s\n%s" indent (v_at p) (v_to_string indent' vphi) (list_to_string indent' v_to_string vpsis)
-  | VSinceInf (_, vpsis) ->
+  | VSinceInf (_, _, vpsis) ->
      Printf.sprintf "%sVSinceInf{%d}\n%s" indent (v_at p) (list_to_string indent' v_to_string vpsis)
   | VSinceOutL i -> Printf.sprintf "%sVSinceOutL{%d}" indent' i
   | VUntil (_, vphi, vpsis) ->
       Printf.sprintf "%sVUntil{%d}\n%s\n%s" indent (v_at p) (list_to_string indent' v_to_string vpsis) (v_to_string indent' vphi)
-  | VUntilInf (_, vpsis) ->
+  | VUntilInf (_, _, vpsis) ->
      Printf.sprintf "%sVUntilInf{%d}\n%s" indent (v_at p) (list_to_string indent' v_to_string vpsis)
 
 let expl_to_string = function
