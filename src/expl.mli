@@ -49,10 +49,10 @@ and vexpl =
   | VEventually of vexpl list
   | VAlways of int * vexpl
   | VSince of int * vexpl * vexpl list
-  | VSinceInf of int * vexpl list
+  | VSinceInf of int * int * vexpl list
   | VSinceOutL of int
   | VUntil of int * vexpl * vexpl list
-  | VUntilInf of int * vexpl list
+  | VUntilInf of int * int * vexpl list
 
 type expl = S of sexpl | V of vexpl
 
