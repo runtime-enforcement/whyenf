@@ -13,7 +13,6 @@ open Expl
 open Interval
 open Checker.Explanator2
 open Checker_interface
-open Ocolor_format
 
 type output =
   | Boolean of (timestamp * timepoint) * bool
@@ -62,14 +61,9 @@ let output_result out_ch res =
      Printf.fprintf out_ch "%d:%d\nProof: \n%s\n" ts tp (expl_to_string p);
      Printf.fprintf out_ch "\nChecker output: %B\n\n" b
   | ExplanationDebug ((ts, tp), p, b, cp, ctrace) ->
-     (* Ocolor_format.printf "@{<yellow;bold>%d:%d@}\nProof: \n%s\n" ts tp (expl_to_string p);
-      * (if b then Ocolor_format.printf "\nChecker output: %B\n" b
-      *  else Ocolor_format.printf "\nChecker output: @{<red;bold>%B@}\n" b);
-      * Ocolor_format.printf "\nTrace: \n%s\n\n" (s_of_trace ctrace);
-      * Ocolor_format.printf "\nChecker proof: \n%s\n\n" (s_of_proof cp) *)
      Printf.printf "%d:%d\nProof: \n%s\n" ts tp (expl_to_string p);
      Printf.printf "\nChecker output: %B\n" b;
-     Printf.printf "\nTrace: \n%s\n\n" (s_of_trace ctrace);
+     (* Printf.printf "\nTrace: \n%s\n\n" (s_of_trace ctrace); *)
      Printf.printf "\nChecker proof: \n%s\n\n" (s_of_proof cp)
   | Info s ->
      Printf.fprintf out_ch "\nInfo: %s\n" s

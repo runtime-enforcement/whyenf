@@ -106,7 +106,7 @@ let rec convert_f f =
 let convert_event sap ts =
   let ts_nat = nat_of_integer (of_int ts) in
   let sap_lst = SS.elements sap in
-  let set_check = Set sap_lst in
+  let set_check = strset sap_lst in
   (set_check, ts_nat)
 
 let convert_trace trace =
@@ -117,7 +117,7 @@ let convert_trace trace =
 let check_ps trace f ps =
   let checker_f = convert_f f in
   let trace_converted = convert_trace trace in
-  let checker_trace = to_trace trace_converted in
+  let checker_trace = trace_of_list trace_converted in
   List.rev(List.fold_left (fun acc p ->
                let checker_p = convert_p p in
                match checker_p with
@@ -134,14 +134,11 @@ let s_of_nat n = Z.to_string (integer_of_nat n)
 
 let s_of_list s_of xs = "[" ^ String.concat ", " (List.map s_of xs) ^ "]"
 
-let s_of_trace trace =
-  String.concat "\n"
-    (List.map (fun (checker_sap, checker_nat) ->
-         let s_of_checker_sap =
-           match checker_sap with
-           | Set lst -> s_of_list (fun s -> s) lst
-           | Coset lst -> s_of_list (fun s -> s) lst in
-         ("(" ^ s_of_nat checker_nat ^ ", " ^ s_of_checker_sap ^ ")")) trace)
+(* let s_of_trace trace =
+ *   String.concat "\n"
+ *     (List.map (fun (checker_sap, checker_nat) ->
+ *          let s_of_checker_sap = s_of_list (fun s -> s) checker_sap in
+ *          ("(" ^ s_of_nat checker_nat ^ ", " ^ s_of_checker_sap ^ ")")) trace) *)
 
 let rec s_of_sproof = function
   | STT n -> "STT " ^ s_of_nat n
