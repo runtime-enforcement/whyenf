@@ -774,7 +774,7 @@ module Future = struct
                            | S _ -> raise VEXPL
                          else [] in
               let p3_l = if (Deque.length muaux.betas_suffix_in) = (Deque.length muaux.ts_tp_in) then
-                           let ltp = v_at (snd(Deque.peek_back_exn msaux.betas_suffix_in)) in
+                           let ltp = v_at (snd(Deque.peek_back_exn muaux.betas_suffix_in)) in
                            let betas_suffix = betas_suffix_in_to_list muaux.betas_suffix_in in
                            [V (VUntilInf (tp, ltp, betas_suffix))]
                          else [] in
