@@ -419,6 +419,7 @@ module Future = struct
   type muaux = {
       ts_tp_in: (timestamp * timepoint) Deque.t
     ; ts_tp_out: (timestamp * timepoint) Deque.t
+    ; ne_ts_tp: (timestamp * timepoint) Deque.t
     (* deque of sorted deques of U^+ beta [alphas] proofs where (ets, lts, expl):
      * etc corresponds to the timestamp of the first alpha proof
      * lts corresponds to the timestamp of the beta proof *)
@@ -542,7 +543,9 @@ module Future = struct
                   Deque.drop_front muaux.ts_tp_in) in
     let _ = List.iter (Deque.to_list muaux.ts_tp_out)
               ~f:(fun (ts', tp') ->
-                if ts' < z then Deque.drop_front muaux.ts_tp_out)
+                if ts' < z then
+                  let _ = Deque.enqueue_back muaux.ne_ts_tp (ts', tp') in
+                  Deque.drop_front muaux.ts_tp_out)
     in muaux
 
   let remove_out_less_dd lim d =
@@ -787,7 +790,7 @@ module Future = struct
                        else [] in
             Deque.enqueue_back muaux.optimal_proofs (ts, minimuml (p1_l @ p2_l @ p3_l)))
 
-  let rec eval_until interval tp nts muaux =
+  let rec eval_until interval nts muaux =
     (* let _ = Printf.printf "eval tp = %d; ts = %d; nts = %d\n" tp ts nts in *)
     let b = match get_b_I interval with
       | None -> failwith "Unbounded interval for future operators is not supported"
@@ -797,14 +800,8 @@ module Future = struct
     | Some(ts, _) -> if ts + b < nts then
                         (* let _ = Printf.printf "should output something\n" in *)
                        let (_, op) = Deque.dequeue_front_exn muaux.optimal_proofs in
-                       (match op with
-                        | V (VUntilInf (_, ltp, vp2s)) ->
-                           let op = V (VUntilInf (tp, ltp, vp2s)) in
-                           let (ops, muaux) = eval_until interval tp nts muaux in
-                           (op::ops, muaux)
-                        | _ ->
-                           let (ops, muaux) = eval_until interval tp nts muaux in
-                           (op::ops, muaux))
+                       let (ops, muaux) = eval_until interval nts muaux in
+                       (op::ops, muaux)
                      else ([], muaux)
 end
 
@@ -930,6 +927,7 @@ let rec minit f =
      let _ = Deque.enqueue_front betas_alpha empty_d2 in
      let muaux = { Future.ts_tp_in = Deque.create ()
                  ; ts_tp_out = Deque.create ()
+                 ; ne_ts_tp = Deque.create ()
                  ; alphas_beta = alphas_beta
                  ; alphas_suffix = Deque.create ()
                  ; betas_alpha = betas_alpha
@@ -1015,11 +1013,9 @@ let meval' tp ts sap mform le minimuml =
        let nts = match Deque.peek_front ntss_ntps with
          | None -> ts
          | Some(nts', _) -> nts' in
-       let _ = Future.eval_until_aux interval ts tp muaux minimuml in
-       let eval_tp = match Future.current_ts_tp muaux.ts_tp_out muaux.ts_tp_in with
-         | None -> tp
-         | Some(tp') -> tp' in
-       let (ps, muaux'') = Future.eval_until interval eval_tp nts muaux in
+       let _ = Deque.iter muaux.ne_ts_tp ~f:(fun (ts', tp') ->
+                   Future.eval_until_aux interval ts tp muaux minimuml) in
+       let (ps, muaux'') = Future.eval_until interval nts muaux in
        let _ = Printf.fprintf stdout "|ps| = %d\n" (List.length ps) in
        (List.rev ps, MUntil (interval, mf1', mf2', buf', ntss_ntps, muaux''))
     | _ -> failwith "This formula cannot be monitored" in
