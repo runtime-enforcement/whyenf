@@ -419,7 +419,6 @@ module Future = struct
   type muaux = {
       ts_tp_in: (timestamp * timepoint) Deque.t
     ; ts_tp_out: (timestamp * timepoint) Deque.t
-    ; ne_ts_tp: (timestamp * timepoint) Deque.t
     (* deque of sorted deques of U^+ beta [alphas] proofs where (ets, lts, expl):
      * etc corresponds to the timestamp of the first alpha proof
      * lts corresponds to the timestamp of the beta proof *)
@@ -534,19 +533,14 @@ module Future = struct
                             | _ -> raise SEXPL))
                 | S _ -> raise VEXPL) in d
 
-  let update_ts z l ts tp muaux =
-    let _ = Deque.enqueue_back muaux.ts_tp_in (ts, tp) in
-    let _ = List.iter (Deque.to_list muaux.ts_tp_in)
+  let update_ts z l ts tp ts_tp_out ts_tp_in =
+    let _ = Deque.enqueue_back ts_tp_in (ts, tp) in
+    let _ = List.iter (Deque.to_list ts_tp_in)
               ~f:(fun (ts', tp') ->
                 if ts' < l then
-                  let _ = Deque.enqueue_back muaux.ts_tp_out (ts', tp') in
-                  Deque.drop_front muaux.ts_tp_in) in
-    let _ = List.iter (Deque.to_list muaux.ts_tp_out)
-              ~f:(fun (ts', tp') ->
-                if ts' < z then
-                  let _ = Deque.enqueue_back muaux.ne_ts_tp (ts', tp') in
-                  Deque.drop_front muaux.ts_tp_out)
-    in muaux
+                  let _ = Deque.enqueue_back ts_tp_out (ts', tp') in
+                  Deque.drop_front ts_tp_in)
+    in (ts_tp_out, ts_tp_in)
 
   let remove_out_less_dd lim d =
     let _ = Deque.iter d ~f:(fun d' ->
@@ -745,7 +739,7 @@ module Future = struct
       alphas_in
     ; alphas_out }
 
-  let update_until interval tp ts p1 p2 muaux le =
+  let update_until interval ts tp p1 p2 muaux le =
     let a = get_a_I interval in
     let b = match get_b_I interval with
       | None -> failwith "Unbounded interval for future operators is not supported"
@@ -754,8 +748,10 @@ module Future = struct
     let l = max 0 (ts - (b - a)) in
     let r = ts in
     (* Printf.fprintf stdout "z = %d; l = %d; r = %d\n" z l r; *)
-    let muaux_ts_updated = update_ts z l ts tp muaux in
-    let muaux_updated = advance_muaux (l, r) z ts tp p1 p2 muaux_ts_updated le
+
+    let (ts_tp_out, ts_tp_in) = update_ts z l ts tp muaux.ts_tp_out muaux.ts_tp_in in
+    let muaux_updated = advance_muaux (l, r) z ts tp p1 p2
+                          { muaux with ts_tp_out = ts_tp_out; ts_tp_in = ts_tp_in } le
     in muaux_updated
 
   let eval_until_aux interval ts tp muaux minimuml =
@@ -927,7 +923,6 @@ let rec minit f =
      let _ = Deque.enqueue_front betas_alpha empty_d2 in
      let muaux = { Future.ts_tp_in = Deque.create ()
                  ; ts_tp_out = Deque.create ()
-                 ; ne_ts_tp = Deque.create ()
                  ; alphas_beta = alphas_beta
                  ; alphas_suffix = Deque.create ()
                  ; betas_alpha = betas_alpha
@@ -1007,14 +1002,12 @@ let meval' tp ts sap mform le minimuml =
        let _ = Deque.enqueue_back tss_tps (ts, tp) in
        let (muaux', buf', ntss_ntps) =
          mbuf2t_take
-           (fun p1 p2 ts tp aux -> Future.update_until interval tp ts p1 p2 muaux le)
+           (fun p1 p2 ts tp aux -> Future.update_until interval ts tp p1 p2 muaux le)
            muaux (mbuf2_add p1s p2s buf) tss_tps in
        let _ = Printf.fprintf stdout "%s\n\n" (Future.muaux_to_string muaux') in
        let nts = match Deque.peek_front ntss_ntps with
          | None -> ts
          | Some(nts', _) -> nts' in
-       let _ = Deque.iter muaux.ne_ts_tp ~f:(fun (ts', tp') ->
-                   Future.eval_until_aux interval ts tp muaux minimuml) in
        let (ps, muaux'') = Future.eval_until interval nts muaux in
        let _ = Printf.fprintf stdout "|ps| = %d\n" (List.length ps) in
        (List.rev ps, MUntil (interval, mf1', mf2', buf', ntss_ntps, muaux''))
