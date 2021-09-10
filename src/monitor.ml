@@ -419,6 +419,7 @@ module Future = struct
   type muaux = {
       ts_tp_in: (timestamp * timepoint) Deque.t
     ; ts_tp_out: (timestamp * timepoint) Deque.t
+    ; ne_ts_tp: (timestamp * timepoint) Deque.t
     (* deque of sorted deques of U^+ beta [alphas] proofs where (ets, lts, expl):
      * etc corresponds to the timestamp of the first alpha proof
      * lts corresponds to the timestamp of the beta proof *)
@@ -487,6 +488,13 @@ module Future = struct
         ~f:(fun acc (ts, ps) ->
           acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Expl.expl_to_string ps)
 
+  let current_ts_tp ts_tp_out ts_tp_in =
+    match Deque.peek_front ts_tp_out with
+    | None -> (match Deque.peek_front ts_tp_in with
+               | None -> None
+               | Some (ts, tp) -> Some(tp))
+    | Some (ts, tp) -> Some(tp)
+
   let sdrop_from_deque tp z l d =
     let _ = List.iteri (Deque.to_list d) ~f:(fun i (ets, lts, ssp) ->
                 match ssp with
@@ -535,7 +543,9 @@ module Future = struct
                   Deque.drop_front muaux.ts_tp_in) in
     let _ = List.iter (Deque.to_list muaux.ts_tp_out)
               ~f:(fun (ts', tp') ->
-                if ts' < z then Deque.drop_front muaux.ts_tp_out)
+                if ts' < z then
+                  let _ = Deque.enqueue_back muaux.ne_ts_tp (ts', tp') in
+                  Deque.drop_front muaux.ts_tp_out)
     in muaux
 
   let remove_out_less_dd lim d =
@@ -749,6 +759,7 @@ module Future = struct
     in muaux_updated
 
   let eval_until_aux interval ts tp muaux minimuml =
+    let _ = Printf.printf "eval_until_aux ts = %d; tp = %d\n" ts tp in
     if not (Deque.is_empty muaux.alphas_beta) then
       let cur_alphas_beta = Deque.peek_front_exn muaux.alphas_beta in
       if not (Deque.is_empty cur_alphas_beta) then
@@ -788,10 +799,10 @@ module Future = struct
     | None -> ([], muaux)
     | Some(ts, _) -> if ts + b < nts then
                         (* let _ = Printf.printf "should output something\n" in *)
-                        let (_, op) = Deque.dequeue_front_exn muaux.optimal_proofs in
-                        let (ops, muaux) = eval_until interval nts muaux in
-                        (op::ops, muaux)
-                      else ([], muaux)
+                       let (_, op) = Deque.dequeue_front_exn muaux.optimal_proofs in
+                       let (ops, muaux) = eval_until interval nts muaux in
+                       (op::ops, muaux)
+                     else ([], muaux)
 end
 
 (* mbuf2: auxiliary data structure for binary operators *)
@@ -916,6 +927,7 @@ let rec minit f =
      let _ = Deque.enqueue_front betas_alpha empty_d2 in
      let muaux = { Future.ts_tp_in = Deque.create ()
                  ; ts_tp_out = Deque.create ()
+                 ; ne_ts_tp = Deque.create ()
                  ; alphas_beta = alphas_beta
                  ; alphas_suffix = Deque.create ()
                  ; betas_alpha = betas_alpha
@@ -1001,7 +1013,8 @@ let meval' tp ts sap mform le minimuml =
        let nts = match Deque.peek_front ntss_ntps with
          | None -> ts
          | Some(nts', _) -> nts' in
-       let _ = Future.eval_until_aux interval ts tp muaux minimuml in
+       let _ = Deque.iter muaux.ne_ts_tp ~f:(fun (ts', tp') ->
+                   Future.eval_until_aux interval ts tp muaux minimuml) in
        let (ps, muaux'') = Future.eval_until interval nts muaux in
        let _ = Printf.fprintf stdout "|ps| = %d\n" (List.length ps) in
        (List.rev ps, MUntil (interval, mf1', mf2', buf', ntss_ntps, muaux''))
