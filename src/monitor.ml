@@ -739,30 +739,29 @@ module Future = struct
       alphas_in
     ; alphas_out }
 
-  let update_until interval ts tp p1 p2 muaux le =
-    let a = get_a_I interval in
-    let b = match get_b_I interval with
-      | None -> failwith "Unbounded interval for future operators is not supported"
-      | Some(b') -> b' in
-    let z = max 0 (ts - b) in
-    let l = max 0 (ts - (b - a)) in
-    let r = ts in
-    (* Printf.fprintf stdout "z = %d; l = %d; r = %d\n" z l r; *)
+  let ready_tss_tps ts_tp_out ts_tp_in nts b =
+    let d = Deque.create () in
+    let _ = Deque.iter ts_tp_out ~f:(fun (ts, tp) ->
+                if ts + b < nts then Deque.enqueue_back d (ts, tp)) in
+    Deque.iter ts_tp_in ~f:(fun (ts, tp) ->
+        if ts + b < nts then Deque.enqueue_back d (ts, tp))
 
-    let (ts_tp_out, ts_tp_in) = update_ts z l ts tp muaux.ts_tp_out muaux.ts_tp_in in
-    let muaux_updated = advance_muaux (l, r) z ts tp p1 p2
-                          { muaux with ts_tp_out = ts_tp_out; ts_tp_in = ts_tp_in } le
-    in muaux_updated
-
-  let eval_until_aux interval ts tp muaux minimuml =
+  let eval_until_aux ts tp muaux minimuml =
     let _ = Printf.printf "eval_until_aux ts = %d; tp = %d\n" ts tp in
+    (* U^+ (satisfaction) case *)
     if not (Deque.is_empty muaux.alphas_beta) then
       let cur_alphas_beta = Deque.peek_front_exn muaux.alphas_beta in
       if not (Deque.is_empty cur_alphas_beta) then
         (match Deque.peek_front_exn cur_alphas_beta with
          | (_, _, S sp) -> if (s_at sp) = tp then
-                             Deque.enqueue_back muaux.optimal_proofs (ts, S sp)
+                             let _ = Deque.enqueue_back muaux.optimal_proofs (ts, S sp) in
+                             let _ = Deque.drop_front cur_alphas_beta in
+                             (if not (Deque.is_empty cur_alphas_beta) then
+                                let _ = Deque.drop_front muaux.alphas_beta in
+                                Deque.enqueue_front muaux.alphas_beta cur_alphas_beta
+                              else Deque.drop_front muaux.alphas_beta)
          | _ -> raise VEXPL)
+      (* U^-/U_{\infty}^- (violation) cases *)
       else (let p1_l = if not (Deque.is_empty muaux.betas_alpha) then
                          let cur_betas_alpha = Deque.peek_front_exn muaux.betas_alpha in
                          (if not (Deque.is_empty cur_betas_alpha) then
@@ -785,6 +784,21 @@ module Future = struct
                          [V (VUntilInf (tp, ltp, betas_suffix))]
                        else [] in
             Deque.enqueue_back muaux.optimal_proofs (ts, minimuml (p1_l @ p2_l @ p3_l)))
+
+  let update_until interval ts tp p1 p2 muaux le =
+    let a = get_a_I interval in
+    let b = match get_b_I interval with
+      | None -> failwith "Unbounded interval for future operators is not supported"
+      | Some(b') -> b' in
+    let z = max 0 (ts - b) in
+    let l = max 0 (ts - (b - a)) in
+    let r = ts in
+    (* Printf.fprintf stdout "z = %d; l = %d; r = %d\n" z l r; *)
+    let muaux_ops =
+    let (ts_tp_out, ts_tp_in) = update_ts z l ts tp muaux.ts_tp_out muaux.ts_tp_in in
+    let muaux_ts_tp = { muaux_ops with ts_tp_out = ts_tp_out; ts_tp_in = ts_tp_in } in
+    let muaux_updated = advance_muaux (l, r) z ts tp p1 p2 muaux_ts_tp le
+    in muaux_updated
 
   let rec eval_until interval nts muaux =
     (* let _ = Printf.printf "eval tp = %d; ts = %d; nts = %d\n" tp ts nts in *)
