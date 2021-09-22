@@ -17,7 +17,10 @@ open Checker_interface
 module Deque = Core_kernel.Deque
 module List = Core_kernel.List
 
-exception INVALID_FORM
+exception INVALID_EXPL
+exception EMPTY_DEQUE
+
+(* TODO: Rewrite every occurrence of Deque.to_list in this file *)
 
 let sappend_to_deque sp1 d =
   let _ = Deque.iteri d ~f:(fun i (ts, ssp) ->
@@ -280,7 +283,7 @@ module Past = struct
                 | V vp -> (match vp with
                            | VSince (tp', vp1, vp2s) ->
                               Deque.enqueue_back alpha_betas_updated (ts, V (VSince (tp, vp1, vp2s)))
-                           | _ -> raise INVALID_FORM)
+                           | _ -> raise INVALID_EXPL)
                 | S _ -> raise VEXPL)
     in alpha_betas_updated
 
@@ -494,7 +497,7 @@ module Future = struct
                | Some (ts, tp) -> Some(tp))
     | Some (ts, tp) -> Some(tp)
 
-  let sdrop_from_deque tp z l d =
+  let sdrop_advance z l d =
     let _ = List.iteri (Deque.to_list d) ~f:(fun i (ets, lts, ssp) ->
                 match ssp with
                 | S sp -> (if ets < z then
@@ -513,7 +516,7 @@ module Future = struct
                                     | _ -> raise VEXPL)))
                 | V _ -> raise SEXPL) in d
 
-  let vdrop_from_deque tp l d =
+  let vdrop_advance tp l d =
     let _ = List.iteri (Deque.to_list d) ~f:(fun i (ets, lts, vvp) ->
                 match vvp with
                 | V vp ->
@@ -532,6 +535,54 @@ module Future = struct
                                  Deque.enqueue_back d (ets, lts, V (vdrop vp))
                             | _ -> raise SEXPL))
                 | S _ -> raise VEXPL) in d
+
+  (* let sdrop_output d =
+   *   match Deque.peek_front muaux.alphas_beta with
+   *   | None -> raise EMPTY_DEQUE
+   *   | Some (cur_alphas_beta) -> let _ = Deque.drop_front cur_alphas_beta in
+   *                               (if not (Deque.is_empty cur_alphas_beta) then
+   *                                  let _ = Deque.drop_front muaux.alphas_beta in
+   *                                  Deque.enqueue_front muaux.alphas_beta cur_alphas_beta
+   *                                else (if Deque.length muaux.alphas_beta > 1 then
+   *                                        Deque.drop_front muaux.alphas_beta))
+   *
+   * let _ = List.iteri (Deque.to_list d) ~f:(fun i (ets, lts, ssp) ->
+   *               match ssp with
+   *               | S sp -> (if ets < z then
+   *                            (if lts < z then Deque.drop_front d
+   *                             else (match sp with
+   *                                   | SUntil (sp2, sp1s) ->
+   *                                      if not (List.is_empty sp1s) then
+   *                                        Deque.set_exn d i (ets, lts, S (sdrop sp))
+   *                                   | _ -> raise VEXPL))
+   *                          else
+   *                            (if lts < l then Deque.drop_front d
+   *                             else (match sp with
+   *                                   | SUntil (sp2, sp1s) ->
+   *                                      if not (List.is_empty sp1s) then
+   *                                        Deque.enqueue_back d (ets, lts, S (sdrop sp))
+   *                                   | _ -> raise VEXPL)))
+   *               | V _ -> raise SEXPL) in d
+   *
+   * let vdrop_output tp l d =
+   *   let _ = List.iteri (Deque.to_list d) ~f:(fun i (ets, lts, vvp) ->
+   *               match vvp with
+   *               | V vp ->
+   *                  if ets < l then
+   *                    (if lts < l then (Deque.drop_front d)
+   *                     else (match vp with
+   *                           | VUntil (tp, vp1, vp2s) ->
+   *                              if not (List.is_empty vp2s) then
+   *                                Deque.set_exn d i (ets, lts, V (vdrop vp))
+   *                           | _ -> raise SEXPL))
+   *                  else
+   *                    (if lts < l then Deque.drop_front d
+   *                     else (match vp with
+   *                           | VUntil (tp, vp1, vp2s) ->
+   *                              if not (List.is_empty vp2s) then
+   *                                Deque.enqueue_back d (ets, lts, V (vdrop vp))
+   *                           | _ -> raise SEXPL))
+   *               | S _ -> raise VEXPL) in d *)
 
   let update_ts z l ts tp ts_tp_out ts_tp_in =
     let _ = Deque.enqueue_back ts_tp_in (ts, tp) in
@@ -702,7 +753,7 @@ module Future = struct
     let _ = (match Deque.peek_front alphas_beta with
              | None -> failwith "muaux.alphas_beta must never be empty"
              | Some(d) -> if not (Deque.is_empty d) then
-                            let first_alphas_beta = sdrop_from_deque tp z l d in
+                            let first_alphas_beta = sdrop_advance z l d in
                             if not (Deque.is_empty first_alphas_beta) then
                               (let _ = Deque.drop_front alphas_beta in
                                Deque.enqueue_front alphas_beta first_alphas_beta))
@@ -716,7 +767,7 @@ module Future = struct
     let _ = (match Deque.peek_front betas_alpha with
              | None -> failwith "muaux.betas_alpha must never be empty"
              | Some(d) -> if not (Deque.is_empty d) then
-                            let first_betas_alpha = vdrop_from_deque tp l d in
+                            let first_betas_alpha = vdrop_advance tp l d in
                             if not (Deque.is_empty first_betas_alpha) then
                               (let _ = Deque.drop_front betas_alpha in
                                Deque.enqueue_front betas_alpha first_betas_alpha))
@@ -747,49 +798,47 @@ module Future = struct
                 if ts + b < nts then Deque.enqueue_back d (ts, tp)) in
     d
 
-  let eval_until_aux ts tp muaux minimuml =
-    let _ = Printf.printf "eval_until_aux ts = %d; tp = %d\n" ts tp in
-    (* U^+ (satisfaction) case *)
-    if not (Deque.is_empty muaux.alphas_beta) then
-      let cur_alphas_beta = Deque.peek_front_exn muaux.alphas_beta in
-      if not (Deque.is_empty cur_alphas_beta) then
-        (match Deque.peek_front_exn cur_alphas_beta with
-         | (_, _, S sp) -> let _ = Deque.enqueue_back muaux.optimal_proofs (ts, S sp) in
-                           let _ = Deque.drop_front cur_alphas_beta in
-                           (if not (Deque.is_empty cur_alphas_beta) then
-                              let _ = Deque.drop_front muaux.alphas_beta in
-                              Deque.enqueue_front muaux.alphas_beta cur_alphas_beta
-                            else Deque.drop_front muaux.alphas_beta)
-         | _ -> raise VEXPL)
-      (* U^-/U_{\infty}^- (violation) cases *)
-      else (let p1_l = if not (Deque.is_empty muaux.betas_alpha) then
-                         let cur_betas_alpha = Deque.peek_front_exn muaux.betas_alpha in
-                         (if not (Deque.is_empty cur_betas_alpha) then
-                            (* Every time we consider a VUntil proof its tp must be fixed *)
-                            match Deque.peek_front_exn cur_betas_alpha with
-                            | (_, _, V vp) -> let _ = Deque.drop_front cur_betas_alpha in
-                                              (if not (Deque.is_empty cur_betas_alpha) then
-                                                 let _ = Deque.drop_front muaux.betas_alpha in
-                                                 Deque.enqueue_front muaux.betas_alpha cur_betas_alpha
-                                               else Deque.drop_front muaux.betas_alpha);
-                                              [V vp]
-                            | _ -> raise INVALID_FORM
-                          else [])
-                       else [] in
-            let p2_l = if not (Deque.is_empty muaux.alphas_out) then
-                         let vvp1 = snd(Deque.peek_front_exn muaux.alphas_out) in
-                         match vvp1 with
-                         | V vp1 -> let _ = Deque.drop_front muaux.alphas_out in
-                                    [V (VUntil (tp, vp1, []))]
-                         | S _ -> raise VEXPL
-                       else [] in
-            let p3_l = if (Deque.length muaux.betas_suffix_in) = (Deque.length muaux.ts_tp_in) then
-                         let ltp = v_at (snd(Deque.peek_back_exn muaux.betas_suffix_in)) in
-                         let betas_suffix = betas_suffix_in_to_list muaux.betas_suffix_in in
-                         let _ = Deque.drop_front muaux.betas_suffix_in in
-                         [V (VUntilInf (tp, ltp, betas_suffix))]
-                       else [] in
-            Deque.enqueue_back muaux.optimal_proofs (ts, minimuml (p1_l @ p2_l @ p3_l)))
+  let eval_until_aux ts tp muaux minimuml = ()
+    (* let _ = Printf.printf "eval_until_aux ts = %d; tp = %d\n" ts tp in
+     * (\* U^+ (satisfaction) case *\)
+     * if not (Deque.is_empty muaux.alphas_beta) then
+     *   let cur_alphas_beta = Deque.peek_front_exn muaux.alphas_beta in
+     *   if not (Deque.is_empty cur_alphas_beta) then
+     *     (match Deque.peek_front_exn cur_alphas_beta with
+     *      | (_, _, S sp) -> let _ = Deque.enqueue_back muaux.optimal_proofs (ts, S sp)
+     *      | _ -> raise VEXPL)
+     *   (\* U^-/U_{\infty}^- (violation) cases *\)
+     *   else (let p1_l = if not (Deque.is_empty muaux.betas_alpha) then
+     *                      let cur_betas_alpha = Deque.peek_front_exn muaux.betas_alpha in
+     *                      (if not (Deque.is_empty cur_betas_alpha) then
+     *
+     *                         match Deque.peek_front_exn cur_betas_alpha with
+     *                         | (_, _, V vp) -> let _ = Deque.drop_front cur_betas_alpha in
+     *                                           (if not (Deque.is_empty cur_betas_alpha) then
+     *                                              let _ = Deque.drop_front muaux.betas_alpha in
+     *                                              Deque.enqueue_front muaux.betas_alpha cur_betas_alpha
+     *                                            else Deque.drop_front muaux.betas_alpha);
+     *                                           (match vp with
+     *                                            (\* Fix tp of VUntil proofs *\)
+     *                                            | VUntil (_, vp1, vp2s) -> [V (VUntil(tp, vp1, vp2s))]
+     *                                            | _ -> raise INVALID_EXPL)
+     *                         | _ -> raise INVALID_EXPL
+     *                       else [])
+     *                    else [] in
+     *         let p2_l = if not (Deque.is_empty muaux.alphas_out) then
+     *                      let vvp1 = snd(Deque.peek_front_exn muaux.alphas_out) in
+     *                      match vvp1 with
+     *                      | V vp1 -> let _ = Deque.drop_front muaux.alphas_out in
+     *                                 [V (VUntil (tp, vp1, []))]
+     *                      | S _ -> raise VEXPL
+     *                    else [] in
+     *         let p3_l = if (Deque.length muaux.betas_suffix_in) = (Deque.length muaux.ts_tp_in) then
+     *                      let ltp = v_at (snd(Deque.peek_back_exn muaux.betas_suffix_in)) in
+     *                      let betas_suffix = betas_suffix_in_to_list muaux.betas_suffix_in in
+     *                      let _ = Deque.drop_front muaux.betas_suffix_in in
+     *                      [V (VUntilInf (tp, ltp, betas_suffix))]
+     *                    else [] in
+     *         Deque.enqueue_back muaux.optimal_proofs (ts, minimuml (p1_l @ p2_l @ p3_l))) *)
 
   let update_until interval ts tp p1 p2 muaux le minimuml =
     let a = get_a_I interval in
