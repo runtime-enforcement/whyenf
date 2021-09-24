@@ -7,6 +7,8 @@
 (*  Dmitriy Traytel (ETH Zürich)                                   *)
 (*******************************************************************)
 
+exception EMPTY_LIST
+
 module SS: Set.S with type elt = string
 type timestamp = int
 type timepoint = int

@@ -8,6 +8,8 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
+exception EMPTY_LIST
+
 (* Sets are defined using a functional interface given a type *)
 module SS = Set.Make(String)
 type timestamp = int
@@ -59,5 +61,5 @@ let get_mins le ps =
 
 let drop_front l =
   match l with
-  | [] -> []
+  | [] -> raise EMPTY_LIST
   | x :: xs -> xs
