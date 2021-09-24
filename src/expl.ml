@@ -74,29 +74,32 @@ let sappend sp sp1 = match sp with
   | _ -> failwith "Bad arguments for sappend"
 
 let vappend vp vp2 = match vp with
-  | VSince (i, vp1, vp2s) -> VSince (i,  vp1, List.append vp2s [vp2])
-  | VSinceInf (i, etp, vp2s) -> VSinceInf (i, etp, List.append vp2s [vp2])
-  | VUntil (i, vp1, vp2s) -> VUntil (i, vp1, vp2 :: vp2s)
-  | VUntilInf (i, ltp, vp2s) -> VUntilInf (i, ltp, vp2 :: vp2s)
+  | VSince (tp, vp1, vp2s) -> VSince (tp,  vp1, List.append vp2s [vp2])
+  | VSinceInf (tp, etp, vp2s) -> VSinceInf (tp, etp, List.append vp2s [vp2])
+  | VUntil (tp, vp1, vp2s) -> VUntil (tp, vp1, vp2 :: vp2s)
+  | VUntilInf (tp, ltp, vp2s) -> VUntilInf (tp, ltp, vp2 :: vp2s)
   | _ -> failwith "Bad arguments for vappend"
 
 let sdrop sp = match sp with
-  | SUntil (sp2, sp1s) -> SUntil (sp2, drop_front sp1s)
+  | SUntil (_, []) -> None
+  | SUntil (sp2, sp1s) -> Some (SUntil (sp2, drop_front sp1s))
   | _ -> failwith "Bad arguments for sdrop"
 
 let vdrop vp = match vp with
-  | VUntil (i, vp1, vp2s) -> VUntil (i, vp1, drop_front vp2s)
-  | VUntilInf (i, ltp, vp2s) -> VUntilInf (i, ltp, drop_front vp2s)
+  | VUntil (_, _, []) -> None
+  | VUntil (tp, vp1, vp2s) -> Some (VUntil (tp, vp1, drop_front vp2s))
+  | VUntilInf (_, _, []) -> None
+  | VUntilInf (tp, ltp, vp2s) -> Some (VUntilInf (tp, ltp, drop_front vp2s))
   | _ -> failwith "Bad arguments for vdrop"
 
 let slift = function
-  | SOnce (i, sp) -> SOnce (i + 1, sp)
-  | SEventually (i, sp) -> SEventually (i - 1, sp)
+  | SOnce (tp, sp) -> SOnce (tp + 1, sp)
+  | SEventually (tp, sp) -> SEventually (tp - 1, sp)
   | _ -> failwith "Bad arguments for slift"
 
 let vlift = function
-  | VHistorically (i, vp) -> VHistorically (i + 1, vp)
-  | VAlways (i, vp) -> VAlways (i - 1, vp)
+  | VHistorically (tp, vp) -> VHistorically (tp + 1, vp)
+  | VAlways (tp, vp) -> VAlways (tp - 1, vp)
   | _ -> failwith "Bad arguments for vlift"
 
 let rec s_at = function
