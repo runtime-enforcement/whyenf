@@ -33,6 +33,7 @@ let usage () =
      Arguments:
      \t -ap      - output only the \"responsible atomic proposition\" view
      \t -check   - include output of verified checker
+     \t -debug   - verbose output (useful for debugging)
      \t -mode
      \t\t all    - output all satisfaction and violation proofs (default)
      \t\t sat    - output only satisfaction proofs
@@ -44,12 +45,11 @@ let usage () =
      \t\t pred   - optimize multiset cardinality of atomic predicates
      \t\t none   - give any proof
      \t -fmla
-     \t\t <file> or <string> - formula to be explained (if none given some default formula will be used)\n
+     \t\t <file> or <string> - formula to be explained
      \t -log
      \t\t <file> - log file (default: stdin)
      \t -out
-     \t\t <file> - output file where the explanation is printed to (default: stdout)
-     \t -debug   - verbose output (useful for debugging)\n%!";
+     \t\t <file> - output file where the explanation is printed to (default: stdout)\n%!";
   raise EXIT
 
 let mode_error () =
