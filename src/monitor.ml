@@ -853,8 +853,8 @@ end
 type mbuf2 = expl Deque.t * expl Deque.t
 
 let mbuf2_add p1s p2s (d1, d2) =
-  let _ = List.iter p1s ~f:(fun p1 -> Deque.enqueue_front d1 p1) in
-  let _ = List.iter p2s ~f:(fun p2 -> Deque.enqueue_front d2 p2) in
+  let _ = Deque.iter p1s ~f:(fun p1 -> Deque.enqueue_front d1 p1) in
+  let _ = Deque.iter p2s ~f:(fun p2 -> Deque.enqueue_front d2 p2) in
   (d1, d2)
 
 let rec mbuf2_take f (p1s, p2s) =
@@ -1001,30 +1001,37 @@ let meval' tp ts sap mform le minimuml =
   (* TODO: This function should return (Deque.t, mformula) *)
   let rec meval tp ts sap mform =
     match mform with
-    | MTT -> ([S (STT tp)], MTT)
-    | MFF -> ([V (VFF tp)], MFF)
+    | MTT -> let d = Deque.create () in
+             let _ = Deque.enqueue_back d (S (STT tp)) in
+             (d, MTT)
+    | MFF -> let d = Deque.create () in
+             let _ = Deque.enqueue_back d (V (VFF tp)) in
+             (d, MFF)
     | MP a ->
-       if Util.SS.mem a sap then ([S (SAtom (tp, a))], MP a)
-       else ([V (VAtom (tp, a))], MP a)
+       let d = Deque.create () in
+       let _ = if Util.SS.mem a sap then Deque.enqueue_back d (S (SAtom (tp, a)))
+               else Deque.enqueue_back d (V (VAtom (tp, a))) in
+       (d, MP a)
     | MNeg (mf) ->
-       let (ps_f, mf') = meval tp ts sap mf in
-       let ps_z = List.map ps_f ~f:(fun p ->
-                      match p with
-                      | S p' -> V (VNeg p')
-                      | V p' -> S (SNeg p')) in
-       (ps_z, MNeg(mf'))
+       let (ps, mf') = meval tp ts sap mf in
+       let ps' = Deque.fold ps ~init:(Deque.create ())
+                   ~f:(fun d p ->
+                     match p with
+                     | S p' -> let _ = Deque.enqueue_back d (V (VNeg p')) in d
+                     | V p' -> let _ = Deque.enqueue_back d (S (SNeg p')) in d) in
+       (ps', MNeg(mf'))
     | MConj (mf1, mf2, buf) ->
        let op p1 p2 = do_conj minimum2 p1 p2 in
        let (p1s, mf1') = meval tp ts sap mf1 in
        let (p2s, mf2') = meval tp ts sap mf2 in
        let (ps, buf') = mbuf2_take op (mbuf2_add p1s p2s buf) in
-       ((Deque.to_list ps), MConj (mf1', mf2', buf'))
+       (ps, MConj (mf1', mf2', buf'))
     | MDisj (mf1, mf2, buf) ->
        let op p1 p2 = do_disj minimum2 p1 p2 in
        let (p1s, mf1') = meval tp ts sap mf1 in
        let (p2s, mf2') = meval tp ts sap mf2 in
        let (ps, buf') = mbuf2_take op (mbuf2_add p1s p2s buf) in
-       ((Deque.to_list ps), MDisj (mf1', mf2', buf'))
+       (ps, MDisj (mf1', mf2', buf'))
     (* | MPrev (interval, mf, b, expl_lst, ts_d_lst) ->
      * | MNext (interval, mf, b, ts_a_lst) -> *)
     | MSince (interval, mf1, mf2, buf, tss_tps, msaux) ->
@@ -1041,24 +1048,24 @@ let meval' tp ts sap mform le minimuml =
            (Deque.create (), msaux) (mbuf2_add p1s p2s buf) tss_tps in
        (* let _ = Printf.fprintf stdout "---------------\n%s\n\n" (Past.msaux_to_string new_msaux) in
         * let _ = Printf.fprintf stdout "Optimal proof:\n%s\n\n" (Expl.expl_to_string p) in *)
-       ((Deque.to_list ps), MSince (interval, mf1', mf2', buf', tss_tps', msaux'))
-    | MUntil (interval, mf1, mf2, buf, tss_tps, muaux) ->
-       let (p1s, mf1') = meval tp ts sap mf1 in
-       let (p2s, mf2') = meval tp ts sap mf2 in
-       let _ = Printf.printf "---------------\n" in
-       (* let _ = Printf.printf "mf = %s\n" (mformula_to_string (MUntil (interval, mf1, mf2, buf, tss_tps, muaux))) in *)
-       let _ = Deque.enqueue_back tss_tps (ts, tp) in
-       let (muaux', buf', ntss_ntps) =
-         mbuf2t_take
-           (fun p1 p2 ts tp aux -> Future.update_until interval ts tp p1 p2 muaux le minimuml)
-           muaux (mbuf2_add p1s p2s buf) tss_tps in
-       let _ = Printf.fprintf stdout "%s\n\n" (Future.muaux_to_string muaux') in
-       let nts = match Deque.peek_front ntss_ntps with
-         | None -> ts
-         | Some(nts', _) -> nts' in
-       let (ps, muaux'') = Future.eval_until interval nts muaux in
-       let _ = Printf.fprintf stdout "|ps| = %d\n" (List.length ps) in
-       (List.rev ps, MUntil (interval, mf1', mf2', buf', ntss_ntps, muaux''))
+       (ps, MSince (interval, mf1', mf2', buf', tss_tps', msaux'))
+    (* | MUntil (interval, mf1, mf2, buf, tss_tps, muaux) ->
+     *    let (p1s, mf1') = meval tp ts sap mf1 in
+     *    let (p2s, mf2') = meval tp ts sap mf2 in
+     *    let _ = Printf.printf "---------------\n" in
+     *    (\* let _ = Printf.printf "mf = %s\n" (mformula_to_string (MUntil (interval, mf1, mf2, buf, tss_tps, muaux))) in *\)
+     *    let _ = Deque.enqueue_back tss_tps (ts, tp) in
+     *    let (muaux', buf', ntss_ntps) =
+     *      mbuf2t_take
+     *        (fun p1 p2 ts tp aux -> Future.update_until interval ts tp p1 p2 muaux le minimuml)
+     *        muaux (mbuf2_add p1s p2s buf) tss_tps in
+     *    let _ = Printf.fprintf stdout "%s\n\n" (Future.muaux_to_string muaux') in
+     *    let nts = match Deque.peek_front ntss_ntps with
+     *      | None -> ts
+     *      | Some(nts', _) -> nts' in
+     *    let (ps, muaux'') = Future.eval_until interval nts muaux in
+     *    let _ = Printf.fprintf stdout "|ps| = %d\n" (List.length ps) in
+     *    (List.rev ps, MUntil (interval, mf1', mf2', buf', ntss_ntps, muaux'')) *)
     | _ -> failwith "This formula cannot be monitored" in
   meval tp ts sap mform
 
@@ -1077,8 +1084,8 @@ let monitor in_ch out_ch mode debug check le f =
     let events_updated = (sap_filtered, ts)::ctx.events in
     let (ps, mf_updated) = meval' ctx.tp ts sap_filtered ctx.mf le minimuml in
     (* let _ = Printf.fprintf stdout "|ps| outside = %d\n" (List.length ps) in *)
-    let checker_ps = if check || debug then Some (check_ps events_updated f ps) else None in
-    let _ = print_ps out_ch mode ts ctx.tp ps checker_ps debug in
+    let checker_ps = if check || debug then Some (check_ps events_updated f (Deque.to_list ps)) else None in
+    let _ = print_ps out_ch mode ts ctx.tp (Deque.to_list ps) checker_ps debug in
     let ctx_updated = { tp = ctx.tp+1
                       ; mf = mf_updated
                       ; events = events_updated } in
