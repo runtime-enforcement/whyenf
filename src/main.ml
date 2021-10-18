@@ -21,6 +21,7 @@ exception EXIT
 let full_ref = ref true
 let check_ref = ref false
 let debug_ref = ref false
+let test_ref = ref false
 let mode_ref = ref ALL
 let measure_le_ref = ref None
 let fmla_ref = ref None
@@ -34,6 +35,7 @@ let usage () =
      \t -ap      - output only the \"responsible atomic proposition\" view
      \t -check   - include output of verified checker
      \t -debug   - verbose output (useful for debugging)
+     \t -test    - verbose output (violations only)
      \t -mode
      \t\t all    - output all satisfaction and violation proofs (default)
      \t\t sat    - output only satisfaction proofs
@@ -70,6 +72,9 @@ let process_args =
        go args
     | ("-debug" :: args) ->
        debug_ref := true;
+       go args
+    | ("-test" :: args) ->
+       test_ref := true;
        go args
     | ("-mode" :: mode :: args) ->
        mode_ref :=
@@ -134,7 +139,7 @@ let _ =
                    | None -> size_le
                    | Some measure_le' -> measure_le' in
                  if !full_ref then
-                   let _ = monitor !log_ref !out_ref !mode_ref !debug_ref !check_ref measure_le f in ()
+                   let _ = monitor !log_ref !out_ref !mode_ref !debug_ref !check_ref !test_ref measure_le f in ()
                  else ()
   with
   | End_of_file -> let _ = output_event !out_ref "Bye.\n" in close_out !out_ref; exit 0
