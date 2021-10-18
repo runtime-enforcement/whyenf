@@ -1,5 +1,12 @@
 _build/
-test/
+test/*.csv
+test/*.log
+test/*.mdl
+test/*.mfotl
+test/*.mlog
+test/*.r2u2
+test/gen_log
+test/gen_fmla
 *.native
 *.aux
 *.log
