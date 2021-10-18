@@ -81,18 +81,18 @@ let preamble out_ch mode f =
                           | BOOL -> "BOOL")
                          ^ "\n\n")
 
-let print_ps out_ch mode ts tp ps checker_ps_opt debug =
+let print_ps out_ch mode ts tp ps checker_ps_opt debug test =
   let checker_ps =
     match checker_ps_opt with
     | None -> []
     | Some checker_ps -> checker_ps in
-  let ps = if debug then
+  let ps = if test then
              List.rev(List.fold_left2
                         (fun acc p (b, checker_p, trace) ->
                           if b then acc
                           else p::acc) [] ps checker_ps)
                else ps in
-  let checker_ps = if debug then
+  let checker_ps = if test then
                      List.filter (fun (b, checker_p, trace) -> not b) checker_ps
                    else checker_ps in
   match mode with
