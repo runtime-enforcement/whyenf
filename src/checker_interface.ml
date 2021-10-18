@@ -120,11 +120,13 @@ let check_ps trace f ps =
   let checker_trace = trace_of_list trace_converted in
   List.rev(List.fold_left (fun acc p ->
                let checker_p = convert_p p in
-               match checker_p with
-               | CS checker_sp -> let b = strs_check checker_trace checker_f checker_sp in
-                                  (b, checker_p, trace_converted)::acc
-               | CV checker_vp -> let b = strv_check checker_trace checker_f checker_vp in
-                                  (b, checker_p, trace_converted)::acc) [] ps)
+               let checker_p_sum = match checker_p with
+                 | CS checker_sp -> Inl checker_sp
+                 | CV checker_vp -> Inr checker_vp in
+               let f_size = (fun s -> nat_of_integer (of_int 1)) in
+               let tp_nat = nat_of_integer (of_int (p_at p)) in
+               let b = is_opt_atm f_size checker_trace tp_nat checker_f checker_p_sum in
+               (b, checker_p, trace_converted)::acc) [] ps)
 
 let s_of_sum s_of_left s_of_right = function
   | Inl x -> "Inl (" ^ s_of_left x ^ ")"

@@ -21,7 +21,6 @@ exception INVALID_EXPL
 exception EMPTY_DEQUE
 
 (* TODO: Rewrite every occurrence of Deque.to_list in this file *)
-
 let sappend_to_deque sp1 d =
   let _ = Deque.iteri d ~f:(fun i (ts, ssp) ->
               match ssp with
@@ -719,14 +718,11 @@ module Future = struct
 
   let ready_tss_tps ts_tp_out ts_tp_in nts b =
     let d = Deque.create () in
-    let d' = Deque.fold ts_tp_out ~init:d
-              ~f:(fun (ts, tp) ->
-                if ts + b < nts then
-                  let _ = Deque.drop_front ts_tp_out in
-                  Deque.enqueue_back d (ts, tp)) in
-    let d'' = Deque.iter ts_tp_in ~f:(fun (ts, tp) ->
-                if ts + b < nts then Deque.enqueue_back d (ts, tp))
-    in d''
+    let _ = Deque.iter ts_tp_out ~f:(fun (ts, tp) ->
+                if ts + b < nts then Deque.enqueue_back d (ts, tp)) in
+    let _ = Deque.iter ts_tp_in ~f:(fun (ts, tp) ->
+                if ts + b < nts then Deque.enqueue_back d (ts, tp)) in
+    d
 
   let shift_muaux' l ts muaux le =
     let muaux_minus_old = remove_from_muaux ts l muaux in

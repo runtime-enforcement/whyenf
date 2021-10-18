@@ -89,3 +89,4 @@ val expl_to_string: expl -> string
 
 val s_at: sexpl -> int
 val v_at: vexpl -> int
+val p_at: expl -> int
