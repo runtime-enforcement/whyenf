@@ -264,10 +264,11 @@ module Past = struct
                     let vp = V (VSince (tp, vp1, [vp2])) in
                     (ts, vp)::new_acc))
 
-  let add_new_ps_alpha_betas tp new_in alpha_betas =
+  let add_new_ps_alpha_betas tp new_in alpha_betas le =
     let new_vps_in = construct_vsinceps tp new_in in
-    let _ = List.iter new_vps_in
-              ~f:(fun (ts, vp) ->
+    let vps = sort_ps le (List.rev((Deque.to_list alpha_betas) @ new_vps_in)) in
+    let _ = Deque.clear alpha_betas in
+    let _ = List.iter vps ~f:(fun (ts, vp) ->
                 Deque.enqueue_back alpha_betas (ts, vp))
     in alpha_betas
 
@@ -283,7 +284,7 @@ module Past = struct
                 | S _ -> raise VEXPL)
     in alpha_betas_updated
 
-  let update_alpha_betas tp new_in alpha_betas =
+  let update_alpha_betas tp new_in alpha_betas le =
     if (List.is_empty new_in) then
       (update_alpha_betas_tps tp alpha_betas)
     else (
@@ -295,7 +296,7 @@ module Past = struct
         let new_in' = List.rev (List.take_while (List.rev new_in)
                                   ~f:(fun (_, _, vp2_opt) ->
                                     Option.is_some vp2_opt)) in
-        let alpha_betas' = add_new_ps_alpha_betas tp new_in' alpha_betas in
+        let alpha_betas' = add_new_ps_alpha_betas tp new_in' alpha_betas le in
         (update_alpha_betas_tps tp alpha_betas')
       else (
         let alpha_betas_vapp = List.fold new_in ~init:alpha_betas
@@ -303,7 +304,7 @@ module Past = struct
                                    match vp2_opt with
                                    | None -> d
                                    | Some(vp2) -> vappend_to_deque vp2 d) in
-        let alpha_betas' = add_new_ps_alpha_betas tp new_in alpha_betas_vapp in
+        let alpha_betas' = add_new_ps_alpha_betas tp new_in alpha_betas_vapp le in
         (update_alpha_betas_tps tp alpha_betas')))
 
   let etp ts_tp_in ts_tp_out tp =
@@ -389,7 +390,7 @@ module Past = struct
     let beta_alphas = update_beta_alphas new_in_sat msaux_minus_old.beta_alphas le in
     let alphas_betas_out, new_in_viol = split_in_out2 (l, r) msaux_minus_old.alphas_betas_out in
     let betas_suffix_in = update_betas_suffix_in new_in_viol msaux_minus_old.betas_suffix_in in
-    let alpha_betas = update_alpha_betas tp new_in_viol msaux_minus_old.alpha_betas in
+    let alpha_betas = update_alpha_betas tp new_in_viol msaux_minus_old.alpha_betas le in
     { msaux_minus_old with
       beta_alphas = beta_alphas
     ; beta_alphas_out = beta_alphas_out
@@ -1001,8 +1002,8 @@ let meval' tp ts sap mform le minimuml =
              let _ = Deque.enqueue_back ps op in
              (ps, aux))
            (Deque.create (), msaux) (mbuf2_add p1s p2s buf) tss_tps in
-       (* let _ = Printf.fprintf stdout "---------------\n%s\n\n" (Past.msaux_to_string new_msaux) in
-        * let _ = Printf.fprintf stdout "Optimal proof:\n%s\n\n" (Expl.expl_to_string p) in *)
+       let _ = Printf.fprintf stdout "---------------\n%s\n\n" (Past.msaux_to_string msaux') in
+       (* let _ = Printf.fprintf stdout "Optimal proof:\n%s\n\n" (Expl.expl_to_string p) in *)
        (ps, MSince (interval, mf1', mf2', buf', tss_tps', msaux'))
     | MUntil (interval, mf1, mf2, buf, tss_tps, muaux) ->
        let (p1s, mf1') = meval tp ts sap mf1 in
