@@ -1,9 +1,9 @@
 #!/bin/bash
 
 rm 1
-rm *.csv
-rm *.log
-rm *.mdl
-rm *.mfotl
-rm *.mlog
-rm *.r2u2
+rm TMP*.csv
+rm TMP*.log
+rm TMP*.mdl
+rm TMP*.mfotl
+rm TMP*.mlog
+rm TMP*.r2u2
