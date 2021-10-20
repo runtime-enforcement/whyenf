@@ -18,10 +18,10 @@ type output =
   | BooleanCheck of (timestamp * timepoint) * bool * bool
   | Explanation of (timestamp * timepoint) * expl
   | ExplanationCheck of (timestamp * timepoint)  * expl * bool
-  | ExplanationDebug of (timestamp * timepoint)  * expl * bool * checker_proof * checker_trace
+  | ExplanationDebug of (timestamp * timepoint)  * expl * bool * checker_proof * trace_t
   | Info of string
 
 val input_event: in_channel -> out_channel -> event * in_channel
 val output_event: out_channel -> string -> unit
 val preamble: out_channel -> mode -> formula -> unit
-val print_ps: out_channel -> mode -> timestamp -> timepoint -> expl list -> (bool * checker_proof * checker_trace) list option -> bool -> bool -> unit
+val print_ps: out_channel -> mode -> timestamp -> timepoint -> expl list -> (bool * checker_proof * trace_t) list option -> bool -> bool -> unit
