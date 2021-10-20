@@ -16,6 +16,7 @@ open Checker.Explanator2
 
 type checker_proof = CS of string sproof | CV of string vproof
 type checker_trace = (string set * nat) list
+type trace_t = (SS.t * int) list
 
 let rec convert_sp sp =
   match sp with
@@ -126,7 +127,7 @@ let check_ps trace f ps =
                let f_size = (fun s -> nat_of_integer (of_int 1)) in
                let tp_nat = nat_of_integer (of_int (p_at p)) in
                let b = is_opt_atm f_size checker_trace tp_nat checker_f checker_p_sum in
-               (b, checker_p, trace_converted)::acc) [] ps)
+               (b, checker_p, trace)::acc) [] ps)
 
 let s_of_sum s_of_left s_of_right = function
   | Inl x -> "Inl (" ^ s_of_left x ^ ")"
@@ -136,11 +137,13 @@ let s_of_nat n = Z.to_string (integer_of_nat n)
 
 let s_of_list s_of xs = "[" ^ String.concat ", " (List.map s_of xs) ^ "]"
 
-(* let s_of_trace trace =
- *   String.concat "\n"
- *     (List.map (fun (checker_sap, checker_nat) ->
- *          let s_of_checker_sap = s_of_list (fun s -> s) checker_sap in
- *          ("(" ^ s_of_nat checker_nat ^ ", " ^ s_of_checker_sap ^ ")")) trace) *)
+let s_of_set sap = "[" ^ String.concat ", " (List.rev(SS.fold (fun s acc -> s::acc) sap [])) ^ "]"
+
+let s_of_trace trace =
+  String.concat "\n"
+    (List.rev (List.map (fun (sap, ts) ->
+         let s_of_sap = s_of_set sap in
+         ("(" ^ (string_of_int ts) ^ ", " ^ s_of_sap ^ ")")) trace))
 
 let rec s_of_sproof = function
   | STT n -> "STT " ^ s_of_nat n

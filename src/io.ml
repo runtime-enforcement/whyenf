@@ -19,7 +19,7 @@ type output =
   | BooleanCheck of (timestamp * timepoint) * bool * bool
   | Explanation of (timestamp * timepoint) * expl
   | ExplanationCheck of (timestamp * timepoint)  * expl * bool
-  | ExplanationDebug of (timestamp * timepoint)  * expl * bool * checker_proof * checker_trace
+  | ExplanationDebug of (timestamp * timepoint)  * expl * bool * checker_proof * trace_t
   | Info of string
 
 let parse_line s =
@@ -60,10 +60,10 @@ let output_result out_ch res =
   | ExplanationCheck ((ts, tp), p, b) ->
      Printf.fprintf out_ch "%d:%d\nProof: \n%s\n" ts tp (expl_to_string p);
      Printf.fprintf out_ch "\nChecker output: %B\n\n" b
-  | ExplanationDebug ((ts, tp), p, b, cp, ctrace) ->
+  | ExplanationDebug ((ts, tp), p, b, cp, trace) ->
      Printf.printf "%d:%d\nProof: \n%s\n" ts tp (expl_to_string p);
      Printf.printf "\nChecker output: %B\n" b;
-     (* Printf.printf "\nTrace: \n%s\n\n" (s_of_trace ctrace); *)
+     Printf.printf "\nTrace: \n%s\n\n" (s_of_trace trace);
      Printf.printf "\nChecker proof: \n%s\n\n" (s_of_proof cp)
   | Info s ->
      Printf.fprintf out_ch "\nInfo: %s\n" s
