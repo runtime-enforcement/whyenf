@@ -67,8 +67,8 @@ let sort_ps2 le l =
 module Past = struct
   type msaux = {
       ts_zero: timestamp option
-    ; ts_in: timestamp Deque.t
-    ; ts_out: timestamp Deque.t
+    ; ts_tp_in: (timestamp * timepoint) Deque.t
+    ; ts_tp_out: (timestamp * timepoint) Deque.t
 
     (* sorted deque of S^+ beta [alphas] *)
     ; beta_alphas: (timestamp * expl) Deque.t
@@ -85,21 +85,21 @@ module Past = struct
     ; alphas_betas_out: (timestamp * vexpl option * vexpl option) Deque.t
     ; }
 
-  let print_ts_lists { ts_zero; ts_in; ts_out } =
+  let print_ts_lists { ts_zero; ts_tp_in; ts_tp_out } =
     Printf.fprintf stdout "%s" (
     (match ts_zero with
      | None -> ""
      | Some(ts) -> Printf.sprintf "\n\tts_zero = (%d)\n" ts) ^
-    Deque.fold ts_in ~init:"\n\tts_in = ["
-      ~f:(fun acc ts -> acc ^ (Printf.sprintf "%d;" ts)) ^
+    Deque.fold ts_tp_in ~init:"\n\tts_in = ["
+      ~f:(fun acc (ts, tp) -> acc ^ (Printf.sprintf "(%d, %d);" ts tp)) ^
       (Printf.sprintf "]\n") ^
-    Deque.fold ts_out ~init:"\n\tts_out = ["
-      ~f:(fun acc ts -> acc ^ (Printf.sprintf "%d;" ts)) ^
+    Deque.fold ts_tp_out ~init:"\n\tts_out = ["
+      ~f:(fun acc (ts, tp) -> acc ^ (Printf.sprintf "(%d, %d);" ts tp)) ^
       (Printf.sprintf "]\n"))
 
   let msaux_to_string { ts_zero
-                      ; ts_in
-                      ; ts_out
+                      ; ts_tp_in
+                      ; ts_tp_out
                       ; beta_alphas
                       ; beta_alphas_out
                       ; alpha_betas
@@ -110,11 +110,11 @@ module Past = struct
       (match ts_zero with
        | None -> ""
        | Some(ts) -> Printf.sprintf "\nts_zero = (%d)\n" ts) ^
-      Deque.fold ts_in ~init:"\nts_in = ["
-        ~f:(fun acc ts -> acc ^ (Printf.sprintf "%d;" ts)) ^
+      Deque.fold ts_tp_in ~init:"\nts_in = ["
+        ~f:(fun acc (ts, tp) -> acc ^ (Printf.sprintf "(%d, %d);" ts tp)) ^
       (Printf.sprintf "]\n") ^
-      Deque.fold ts_out ~init:"\nts_out = ["
-        ~f:(fun acc ts -> acc ^ (Printf.sprintf "%d;" ts)) ^
+      Deque.fold ts_tp_out ~init:"\nts_out = ["
+        ~f:(fun acc (ts, tp) -> acc ^ (Printf.sprintf "(%d, %d);" ts tp)) ^
       (Printf.sprintf "]\n") ^
       Deque.fold beta_alphas ~init:"\nbeta_alphas = "
         ~f:(fun acc (ts, ps) ->
@@ -144,23 +144,20 @@ module Past = struct
                                   (Printf.sprintf "\n(%d)\nbeta = " ts) ^
                                   Expl.v_to_string "" p2)
 
-  let update_ts (l, r) a ts msaux =
+  let update_ts (l, r) a ts tp msaux =
     if a = 0 then
-      let _ = Deque.enqueue_back msaux.ts_in ts in
-      let ts_in_lst = Deque.to_list msaux.ts_in in
-      let _ = List.iter ts_in_lst
-                ~f:(fun ts' -> if ts' < l then Deque.drop_front msaux.ts_in) in
+      let _ = Deque.enqueue_back msaux.ts_tp_in (ts, tp) in
+      let _ = List.iter (Deque.to_list msaux.ts_tp_in)
+                ~f:(fun (ts', _) -> if ts' < l then Deque.drop_front msaux.ts_tp_in) in
       msaux
     else
-      let _ = Deque.enqueue_back msaux.ts_out ts in
-      let out_lst = Deque.to_list msaux.ts_out in
-      let _ = List.iter out_lst
-                ~f:(fun ts' -> if ts' <= r then
-                                 let _ = Deque.enqueue_back msaux.ts_in ts' in
-                                 Deque.drop_front msaux.ts_out) in
-      let in_lst = Deque.to_list msaux.ts_in in
-      let _ = List.iter in_lst
-                ~f:(fun ts' -> if ts' < l then Deque.drop_front msaux.ts_in) in
+      let _ = Deque.enqueue_back msaux.ts_tp_out (ts, tp) in
+      let _ = List.iter (Deque.to_list msaux.ts_tp_out)
+                ~f:(fun (ts', tp') -> if ts' <= r then
+                                        let _ = Deque.enqueue_back msaux.ts_tp_in (ts', tp') in
+                                        Deque.drop_front msaux.ts_tp_out) in
+      let _ = List.iter (Deque.to_list msaux.ts_tp_in)
+                ~f:(fun (ts', _) -> if ts' < l then Deque.drop_front msaux.ts_tp_in) in
       msaux
 
   (* Resulting list is in ascending order, e.g.,
@@ -309,6 +306,12 @@ module Past = struct
         let alpha_betas' = add_new_ps_alpha_betas tp new_in alpha_betas_vapp in
         (update_alpha_betas_tps tp alpha_betas')))
 
+  let etp ts_tp_in ts_tp_out tp =
+    let lst = (Deque.to_list ts_tp_in) @ (Deque.to_list ts_tp_out) in
+    match List.hd(lst) with
+    | None -> tp
+    | Some (_, tp') -> tp'
+
   let optimal_proof tp msaux =
     if not (Deque.is_empty msaux.beta_alphas) then
       [snd(Deque.peek_front_exn msaux.beta_alphas)]
@@ -322,8 +325,10 @@ module Past = struct
                    | V f2 -> [V (VSince (tp, f2, []))]
                    | S _ -> raise VEXPL
                  else [] in
-      let p3_l = if (Deque.length msaux.betas_suffix_in) = (Deque.length msaux.ts_in) then
-                   let etp = v_at (snd(Deque.peek_front_exn msaux.betas_suffix_in)) in
+      let p3_l = if (Deque.length msaux.betas_suffix_in) = (Deque.length msaux.ts_tp_in) then
+                   let etp = match Deque.is_empty msaux.betas_suffix_in with
+                     | true -> etp msaux.ts_tp_in msaux.ts_tp_out tp
+                     | false -> v_at (snd(Deque.peek_front_exn msaux.betas_suffix_in)) in
                    let betas_suffix = betas_suffix_in_to_list msaux.betas_suffix_in in
                    [V (VSinceInf (tp, etp, betas_suffix))]
                  else [] in
@@ -402,7 +407,7 @@ module Past = struct
       let msaux_ts_zero_updated = if Option.is_none msaux.ts_zero then
                                     { msaux with ts_zero = Some(ts) }
                                   else msaux in
-      let msaux_ts_updated = update_ts (l, r) a ts msaux_ts_zero_updated in
+      let msaux_ts_updated = update_ts (l, r) a ts tp msaux_ts_zero_updated in
       let msaux_updated = advance_msaux (l, r) tp ts p1 p2 msaux_ts_updated le in
       let p = V (VSinceOutL tp) in
       ([p], msaux_updated)
@@ -412,7 +417,7 @@ module Past = struct
       let l = if (Option.is_some b) then max 0 (ts - (Option.get b))
               else (Option.get msaux.ts_zero) in
       let r = ts - a in
-      let msaux_ts_updated = update_ts (l, r) a ts msaux in
+      let msaux_ts_updated = update_ts (l, r) a ts tp msaux in
       let msaux_updated = advance_msaux (l, r) tp ts p1 p2 msaux_ts_updated le in
       (optimal_proof tp msaux_updated, msaux_updated)
 end
@@ -901,8 +906,8 @@ let rec minit f =
   | Since (i, f, g) ->
      let buf = (Deque.create (), Deque.create ()) in
      let msaux = { Past.ts_zero = None
-                 ; ts_in = Deque.create ()
-                 ; ts_out = Deque.create ()
+                 ; ts_tp_in = Deque.create ()
+                 ; ts_tp_out = Deque.create ()
                  ; beta_alphas = Deque.create ()
                  ; beta_alphas_out = Deque.create ()
                  ; alpha_betas = Deque.create ()
@@ -1005,11 +1010,12 @@ let meval' tp ts sap mform le minimuml =
        let _ = Printf.printf "---------------\n" in
        (* let _ = Printf.printf "mf = %s\n" (mformula_to_string (MUntil (interval, mf1, mf2, buf, tss_tps, muaux))) in *)
        let _ = Deque.enqueue_back tss_tps (ts, tp) in
+       let _ = Printf.fprintf stdout "---------------\n%s\n\n" (Future.muaux_to_string muaux) in
        let (muaux', buf', ntss_ntps) =
          mbuf2t_take
            (fun p1 p2 ts tp aux -> Future.update_until interval ts tp p1 p2 muaux le minimuml)
            muaux (mbuf2_add p1s p2s buf) tss_tps in
-       let _ = Printf.fprintf stdout "%s\n\n" (Future.muaux_to_string muaux') in
+       (* let _ = Printf.fprintf stdout "%s\n\n" (Future.muaux_to_string muaux') in *)
        let nts = match Deque.peek_front ntss_ntps with
          | None -> ts
          | Some(nts', _) -> nts' in
@@ -1018,7 +1024,7 @@ let meval' tp ts sap mform le minimuml =
     | _ -> failwith "This formula cannot be monitored" in
   meval tp ts sap mform
 
-let monitor in_ch out_ch mode debug test check le f =
+let monitor in_ch out_ch mode debug check test le f =
   let minimuml ps = minsize_list (get_mins le ps) in
   let rec loop f x = loop f (f x) in
   let mf = minit f in
