@@ -19,8 +19,10 @@ module List = Core_kernel.List
 
 exception INVALID_EXPL
 exception EMPTY_DEQUE
+exception UNEXPECTED_BEHAVIOR
 
 (* TODO: Rewrite every occurrence of Deque.to_list in this file *)
+
 let sappend_to_deque sp1 d =
   let _ = Deque.iteri d ~f:(fun i (ts, ssp) ->
               match ssp with
@@ -40,18 +42,24 @@ let betas_suffix_in_to_list betas_suffix_in =
 (* Sort proofs wrt a particular measure, i.e.,
    if |p_1| <= |p_2| in [p_1, p_2, p_3, ..., p_n]
    then p_2 must be removed (and so on).
-   The order of the resulting list is reversed, which
-   means that the smallest element is also the head *)
+   In the resulting list, the smallest element
+   will be in the tail. *)
 let sort_ps le new_in =
   let rec aux ps acc =
     match ps with
     | [] -> acc
-    | x::x'::xs ->
-       if le (snd(x)) (snd(x')) then
-         aux xs (x::acc)
-       else aux xs (x'::acc)
-    | x::xs -> x::acc
-  in aux new_in []
+    | p::p'::ps' ->
+       if le (snd(p)) (snd(p')) then
+         aux ps' (p::acc)
+       else aux ps' (p'::acc)
+    | p::[] -> p::acc in
+  let almost_sorted = aux new_in [] in
+  match almost_sorted with
+  | [] -> []
+  | p::[] -> [p]
+  | p::p'::ps -> if le (snd(p)) (snd(p')) then
+                   (List.rev (p::ps))
+                 else (List.rev (p'::ps))
 
 let sort_ps2 le l =
   let rec aux ps acc =
@@ -209,7 +217,13 @@ module Past = struct
     if (List.is_empty new_in) then
       beta_alphas
     else (
-      let new_in' = sort_ps le new_in in
+      let _ = Printf.printf "\nnew_in = \n" in
+      let _ = List.iter new_in ~f:(fun (ts, ps) ->
+                  Printf.printf "\n(%d)\n%s\n" ts (Expl.expl_to_string ps)) in
+      let new_in' = List.rev(sort_ps le new_in) in
+      let _ = Printf.printf "\nnew_in' = \n" in
+      let _ = List.iter new_in ~f:(fun (ts, ps) ->
+                  Printf.printf "\n(%d)\n%s\n" ts (Expl.expl_to_string ps)) in
       let hd_p = List.hd_exn new_in' in
       let _ = Deque.iter beta_alphas ~f:(fun (ts, sp) ->
                   if le (snd(hd_p)) sp then
@@ -293,16 +307,16 @@ module Past = struct
              Option.is_none vp2_opt)
       then
         let _ = Deque.clear alpha_betas in
-        let new_in' = List.rev (List.take_while (List.rev new_in)
-                                  ~f:(fun (_, _, vp2_opt) ->
-                                    Option.is_some vp2_opt)) in
-        let alpha_betas' = add_new_ps_alpha_betas tp new_in' alpha_betas le in
+        let new_in_vbeta_seq = List.rev (List.take_while (List.rev new_in)
+                                           ~f:(fun (_, _, vp2_opt) ->
+                                             Option.is_some vp2_opt)) in
+        let alpha_betas' = add_new_ps_alpha_betas tp new_in_vbeta_seq alpha_betas le in
         (update_alpha_betas_tps tp alpha_betas')
       else (
         let alpha_betas_vapp = List.fold new_in ~init:alpha_betas
                                  ~f:(fun d (_, _, vp2_opt) ->
                                    match vp2_opt with
-                                   | None -> d
+                                   | None -> raise UNEXPECTED_BEHAVIOR
                                    | Some(vp2) -> vappend_to_deque vp2 d) in
         let alpha_betas' = add_new_ps_alpha_betas tp new_in alpha_betas_vapp le in
         (update_alpha_betas_tps tp alpha_betas')))
@@ -578,7 +592,7 @@ module Future = struct
     in alphas_out
 
   let update_alphas_out ts alphas_out new_out_alphas le =
-    let new_out_alphas_sorted = sort_ps le new_out_alphas in
+    let new_out_alphas_sorted = List.rev(sort_ps le new_out_alphas) in
     List.fold_left (List.rev (new_out_alphas_sorted)) ~init:(Deque.create ())
       ~f:(fun acc (_, vvp1) -> add_alphas_out ts vvp1 alphas_out le)
 
@@ -1002,8 +1016,10 @@ let meval' tp ts sap mform le minimuml =
              let _ = Deque.enqueue_back ps op in
              (ps, aux))
            (Deque.create (), msaux) (mbuf2_add p1s p2s buf) tss_tps in
-       let _ = Printf.fprintf stdout "---------------\n%s\n\n" (Past.msaux_to_string msaux') in
-       (* let _ = Printf.fprintf stdout "Optimal proof:\n%s\n\n" (Expl.expl_to_string p) in *)
+       let _ = Printf.fprintf stdout "---------------\n" in
+       let _ = Printf.printf "mf = %s\n" (mformula_to_string (MSince (interval, mf1, mf2, buf, tss_tps, msaux))) in
+       let _ = Printf.fprintf stdout "%s\n\n" (Past.msaux_to_string msaux') in
+       let _ = Printf.fprintf stdout "Optimal proof:\n%s\n\n" (Expl.expl_to_string (Deque.peek_front_exn ps)) in
        (ps, MSince (interval, mf1', mf2', buf', tss_tps', msaux'))
     | MUntil (interval, mf1, mf2, buf, tss_tps, muaux) ->
        let (p1s, mf1') = meval tp ts sap mf1 in
