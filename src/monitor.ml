@@ -54,7 +54,7 @@ let min_ps new_in le =
                                                 (ts, p)::ps'
                                               else (ts', p')::ps') in
   match List.hd sorted_new_in with
-  | None -> failwith "ih"
+  | None -> raise LIST_SHOULD_NOT_BE_EMPTY
   | Some (pair) -> pair
 
 (* Considering new_in to be sorted in descending order, i.e.,
