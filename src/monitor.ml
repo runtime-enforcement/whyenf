@@ -738,6 +738,11 @@ module Future = struct
                 if ts + b < nts then Deque.enqueue_back d (ts, tp)) in
     d
 
+  let shift_ts_tp muaux =
+    if (Deque.is_empty muaux.ts_tp_out) then
+      Deque.dequeue_front_exn muaux.ts_tp_in
+    else Deque.dequeue_front_exn muaux.ts_tp_out
+
   let shift_muaux' l ts muaux le =
     let muaux_minus_old = remove_from_muaux ts l muaux in
     let muaux_dropped = drop_muaux l muaux_minus_old in
@@ -749,35 +754,38 @@ module Future = struct
 
   let shift_muaux l ts tp muaux le minimuml =
     let _ = Printf.printf "shift_muaux ts = %d; tp = %d\n" ts tp in
+    let _ = shift_ts_tp muaux in
     (* U^+ (satisfaction) case *)
     let _ = if not (Deque.is_empty muaux.alphas_beta) then
               let cur_alphas_beta = Deque.peek_front_exn muaux.alphas_beta in
-              if not (Deque.is_empty cur_alphas_beta) then
-                (match Deque.peek_front_exn cur_alphas_beta with
-                 | (_, _, S sp) -> Deque.enqueue_back muaux.optimal_proofs (ts, S sp)
-                 | _ -> raise VEXPL)
-              (* U^-/U_{\infty}^- (violation) cases *)
-              else (let p1_l = if not (Deque.is_empty muaux.betas_alpha) then
-                                 let cur_betas_alpha = Deque.peek_front_exn muaux.betas_alpha in
-                                 (if not (Deque.is_empty cur_betas_alpha) then
-                                    match Deque.peek_front_exn cur_betas_alpha with
-                                    | (_, _, V VUntil(_, vp1, vp2s)) -> [V (VUntil(tp, vp1, vp2s))]
-                                    | _ -> raise (INVALID_EXPL "Explanation should be VUntil")
-                                  else [])
-                               else [] in
-                    let p2_l = if not (Deque.is_empty muaux.alphas_out) then
-                                 let vvp1 = snd(Deque.peek_front_exn muaux.alphas_out) in
-                                 match vvp1 with
-                                 | V vp1 -> let _ = Deque.drop_front muaux.alphas_out in
-                                            [V (VUntil (tp, vp1, []))]
-                                 | S _ -> raise VEXPL
-                               else [] in
-                    let p3_l = if (Deque.length muaux.betas_suffix_in) = (Deque.length muaux.ts_tp_in) then
-                                 let ltp = v_at (snd(Deque.peek_back_exn muaux.betas_suffix_in)) in
-                                 let betas_suffix = betas_suffix_in_to_list muaux.betas_suffix_in in
-                                 [V (VUntilInf (tp, ltp, betas_suffix))]
-                               else [] in
-                    Deque.enqueue_back muaux.optimal_proofs (ts, minimuml (p1_l @ p2_l @ p3_l))) in
+              (if not (Deque.is_empty cur_alphas_beta) then
+                 (match Deque.peek_front_exn cur_alphas_beta with
+                  | (_, _, S sp) -> Deque.enqueue_back muaux.optimal_proofs (ts, S sp)
+                  | _ -> raise VEXPL))
+            (* U^-/U_{\infty}^- (violation) cases *)
+            else (let p1_l = if not (Deque.is_empty muaux.betas_alpha) then
+                               let cur_betas_alpha = Deque.peek_front_exn muaux.betas_alpha in
+                               (if not (Deque.is_empty cur_betas_alpha) then
+                                  match Deque.peek_front_exn cur_betas_alpha with
+                                  | (_, _, V VUntil(_, vp1, vp2s)) -> [V (VUntil(tp, vp1, vp2s))]
+                                  | _ -> raise (INVALID_EXPL "Explanation should be VUntil")
+                                else [])
+                             else [] in
+                  let p2_l = if not (Deque.is_empty muaux.alphas_out) then
+                               let vvp1 = snd(Deque.peek_front_exn muaux.alphas_out) in
+                               match vvp1 with
+                               | V vp1 -> let _ = Deque.drop_front muaux.alphas_out in
+                                          [V (VUntil (tp, vp1, []))]
+                               | S _ -> raise VEXPL
+                             else [] in
+                  let p3_l = if (Deque.length muaux.betas_suffix_in) = (Deque.length muaux.ts_tp_in) then
+                               let ltp = v_at (snd(Deque.peek_back_exn muaux.betas_suffix_in)) in
+                               let betas_suffix = betas_suffix_in_to_list muaux.betas_suffix_in in
+                               [V (VUntilInf (tp, ltp, betas_suffix))]
+                             else [] in
+                  let _ = Printf.printf "Possible proofs:\n" in
+                  let _ = List.iter (p1_l @ p2_l @ p3_l) ~f:(fun p -> Printf.printf "%s\n" (Expl.expl_to_string p)) in
+                  Deque.enqueue_back muaux.optimal_proofs (ts, minimuml (p1_l @ p2_l @ p3_l))) in
     let muaux' = shift_muaux' l ts muaux le in
     muaux'
 
@@ -792,7 +800,7 @@ module Future = struct
     let tss_tps = ready_tss_tps muaux.ts_tp_out muaux.ts_tp_in ts b in
     let muaux_shifted = Deque.fold tss_tps ~init:muaux
                           ~f:(fun muaux (ts', tp') -> shift_muaux l ts' tp' muaux le minimuml) in
-    let (ts_tp_out, ts_tp_in) = add_ts l ts tp muaux_shifted.ts_tp_out muaux_shifted.ts_tp_in in
+    let (ts_tp_out, ts_tp_in) = add_ts l ts tp muaux.ts_tp_out muaux.ts_tp_in in
     let muaux_plus_ts_tp = { muaux_shifted with ts_tp_out = ts_tp_out; ts_tp_in = ts_tp_in } in
     let muaux_plus_p1_p2 = add_p1_p2 ts tp p1 p2 muaux_plus_ts_tp le in
     muaux_plus_p1_p2
@@ -802,11 +810,11 @@ module Future = struct
     let b = match get_b_I interval with
       | None -> raise UNBOUNDED_FUTURE
       | Some(b') -> b' in
-    match Deque.peek_front muaux.optimal_proofs with
+    match Deque.peek_back muaux.optimal_proofs with
     | None -> (d, muaux)
     | Some(ts, _) -> if ts + b < nts then
-                        (* let _ = Printf.printf "should output something\n" in *)
-                       let (_, op) = Deque.dequeue_front_exn muaux.optimal_proofs in
+                       (* let _ = Printf.printf "should output something\n" in *)
+                       let (_, op) = Deque.dequeue_back_exn muaux.optimal_proofs in
                        let (ops, muaux) = eval_until d interval nts muaux in
                        let _ = Deque.enqueue_back ops op in
                        (ops, muaux)
