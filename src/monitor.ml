@@ -17,10 +17,11 @@ open Checker_interface
 module Deque = Core_kernel.Deque
 module List = Core_kernel.List
 
-exception INVALID_EXPL
-exception EMPTY_DEQUE
-exception UNEXPECTED_BEHAVIOR
-exception LIST_SHOULD_NOT_BE_EMPTY
+exception UNBOUNDED_FUTURE
+exception INVALID_EXPL of string
+exception EMPTY_DEQUE of string
+exception EMPTY_LIST of string
+exception UNEXPECTED_BEHAVIOR of string
 
 (* TODO: Rewrite every occurrence of Deque.to_list in this file *)
 
@@ -54,7 +55,7 @@ let min_ps new_in le =
                                                 (ts, p)::ps'
                                               else (ts', p')::ps') in
   match List.hd sorted_new_in with
-  | None -> raise LIST_SHOULD_NOT_BE_EMPTY
+  | None -> raise (EMPTY_LIST "sorted_new_in")
   | Some (pair) -> pair
 
 (* Considering new_in to be sorted in descending order, i.e.,
@@ -68,6 +69,16 @@ let sorted_append new_in d le =
   let _ = match Deque.peek_front d' with
     | None -> Deque.enqueue_front d' (ts, p)
     | Some ((ts', p')) -> if le p p' then Deque.enqueue_front d' (ts, p) in
+  d'
+
+let sorted_append2 (ets, lts, p) d le =
+  let d' = Deque.create () in
+  let _ = Deque.iter d ~f:(fun (ets', lts', p') ->
+              if le p p' then ()
+              else Deque.enqueue_back d' (ets', lts', p')) in
+  let _ = match Deque.peek_front d' with
+    | None -> Deque.enqueue_front d' (ets, lts, p)
+    | Some ((ets', lts', p')) -> if le p p' then Deque.enqueue_front d' (ets, lts, p) in
   d'
 
 let sort_ps le new_in =
@@ -297,7 +308,7 @@ module Past = struct
                 | V vp -> (match vp with
                            | VSince (tp', vp1, vp2s) ->
                               Deque.enqueue_back alpha_betas_updated (ts, V (VSince (tp, vp1, vp2s)))
-                           | _ -> raise INVALID_EXPL)
+                           | _ -> raise (INVALID_EXPL "Explanation should be VSince"))
                 | S _ -> raise VEXPL)
     in alpha_betas_updated
 
@@ -319,7 +330,7 @@ module Past = struct
         let alpha_betas_vapp = List.fold new_in ~init:alpha_betas
                                  ~f:(fun d (_, _, vp2_opt) ->
                                    match vp2_opt with
-                                   | None -> raise UNEXPECTED_BEHAVIOR
+                                   | None -> raise (UNEXPECTED_BEHAVIOR "vp2_opt should not be None")
                                    | Some(vp2) -> vappend_to_deque vp2 d) in
         let alpha_betas' = add_new_ps_alpha_betas tp new_in alpha_betas_vapp le in
         (update_alpha_betas_tps tp alpha_betas')))
@@ -613,17 +624,13 @@ module Future = struct
        Printf.printf "SS\n";
        (* alphas_beta *)
        let cur_alphas_beta = Deque.peek_back_exn muaux.alphas_beta in
-       let p1 = S (SUntil (sp2, (alphas_suffix_to_list muaux.alphas_suffix))) in
+       let sp = S (SUntil (sp2, (alphas_suffix_to_list muaux.alphas_suffix))) in
        let ets = match Deque.peek_front muaux.alphas_suffix with
          | Some(ts, _) -> ts
          | None -> lts in
-       let _ = Deque.enqueue_back cur_alphas_beta (ets, lts, p1) in
-       let cur_alphas_beta_sorted_list = sort_ps2 le (List.rev (Deque.to_list cur_alphas_beta)) in
-       let _ = Deque.clear cur_alphas_beta in
-       let _ = List.iter cur_alphas_beta_sorted_list ~f:(fun (e, l, p) ->
-                   Deque.enqueue_back cur_alphas_beta (e, l, p)) in
+       let cur_alphas_beta_sorted = sorted_append2 (ets, lts, sp) cur_alphas_beta le in
        let _ = Deque.drop_back muaux.alphas_beta in
-       let _ = Deque.enqueue_back muaux.alphas_beta cur_alphas_beta in
+       let _ = Deque.enqueue_back muaux.alphas_beta cur_alphas_beta_sorted in
        (* alphas_suffix *)
        let _ = Deque.enqueue_back muaux.alphas_suffix (lts, sp1) in
        (* alphas_in *)
@@ -646,21 +653,14 @@ module Future = struct
     | V vp1, S sp2 ->
        Printf.printf "VS\n";
        (* alphas_beta *)
-       let cur_alphas_beta = if not (Deque.is_empty (Deque.peek_back_exn muaux.alphas_beta))
-                             then Deque.create ()
-                             else Deque.peek_back_exn muaux.alphas_beta in
-       let p1 = S (SUntil (sp2, (alphas_suffix_to_list muaux.alphas_suffix))) in
+       let cur_alphas_beta = Deque.peek_back_exn muaux.alphas_beta in
+       let sp = S (SUntil (sp2, (alphas_suffix_to_list muaux.alphas_suffix))) in
        let ets = match Deque.peek_front muaux.alphas_suffix with
          | Some(ts, _) -> ts
          | None -> lts in
-       let _ = Deque.enqueue_back cur_alphas_beta (ets, lts, p1) in
-       let cur_alphas_beta_sorted_list = sort_ps2 le (List.rev (Deque.to_list cur_alphas_beta)) in
-       let _ = Deque.clear cur_alphas_beta in
-       let _ = List.iter cur_alphas_beta_sorted_list ~f:(fun (e, l, p) ->
-                   Deque.enqueue_back cur_alphas_beta (e, l, p)) in
-       let _ = if not (Deque.is_empty (Deque.peek_back_exn muaux.alphas_beta)) then
-                 Deque.drop_back muaux.alphas_beta in
-       let _ = Deque.enqueue_back muaux.alphas_beta cur_alphas_beta in
+       let cur_alphas_beta_sorted = sorted_append2 (ets, lts, sp) cur_alphas_beta le in
+       let _ = Deque.drop_back muaux.alphas_beta in
+       let _ = Deque.enqueue_back muaux.alphas_beta cur_alphas_beta_sorted in
        (* append empty deque *)
        let _ = if not (Deque.is_empty (Deque.peek_back_exn muaux.alphas_beta)) then
                  Deque.enqueue_back muaux.alphas_beta (Deque.create ()) in
@@ -678,23 +678,14 @@ module Future = struct
        (* betas_suffix_in *)
        let _ = Deque.enqueue_back muaux.betas_suffix_in (lts, vp2) in
        (* betas_alpha *)
-       let cur_betas_alpha = if not (Deque.is_empty (Deque.peek_back_exn muaux.betas_alpha))
-                             then Deque.create ()
-                             else Deque.peek_back_exn muaux.betas_alpha in
+       let cur_betas_alpha = Deque.peek_back_exn muaux.betas_alpha in
        let vp = V (VUntil (tp, vp1, (betas_suffix_in_to_list muaux.betas_suffix_in))) in
        let ets = match Deque.peek_front muaux.betas_suffix_in with
          | Some(ts, _) -> ts
          | None -> lts in
-       let _ = Deque.enqueue_back cur_betas_alpha (ets, lts, vp) in
-       let cur_betas_alpha_sorted_list = sort_ps2 le (List.rev (Deque.to_list cur_betas_alpha)) in
-       let _ = Deque.clear cur_betas_alpha in
-       let _ = List.iter cur_betas_alpha_sorted_list ~f:(fun (e, l, p) ->
-                   Deque.enqueue_back cur_betas_alpha (e, l, p)) in
-       let _ = Printf.printf "|muaux.betas_alpha| = %d\n" (Deque.length muaux.betas_alpha) in
-       let _ = if not (Deque.is_empty (Deque.peek_back_exn muaux.betas_alpha)) then
-                 Deque.drop_back muaux.betas_alpha in
-       let _ = Deque.enqueue_back muaux.betas_alpha cur_betas_alpha in
-       let _ = Printf.printf "|muaux.betas_alpha| = %d\n" (Deque.length muaux.betas_alpha) in
+       let cur_betas_alpha_sorted = sorted_append2 (ets, lts, vp) cur_betas_alpha le in
+       let _ = Deque.drop_back muaux.betas_alpha in
+       let _ = Deque.enqueue_back muaux.betas_alpha cur_betas_alpha_sorted in
        (* alphas_in *)
        let _ = Deque.enqueue_back muaux.alphas_in (lts, tp, Some(vp1)) in
        muaux
@@ -708,24 +699,24 @@ module Future = struct
     ; alphas_out = alphas_out
     ; betas_suffix_in = betas_suffix_in }
 
-  let drop_alphas_beta f_drop alphas_beta =
+  let drop_alphas_beta l alphas_beta =
     let _ = (match Deque.peek_front alphas_beta with
-             | None -> failwith "muaux.alphas_beta must never be empty"
+             | None -> raise (EMPTY_DEQUE "alphas_beta")
              | Some(front_alphas_beta) -> if not (Deque.is_empty front_alphas_beta) then
                                             let _ = Deque.drop_front alphas_beta in
-                                            let front_alphas_beta' = f_drop front_alphas_beta in
+                                            let front_alphas_beta' = shift_sdrop l front_alphas_beta in
                                             if not (Deque.is_empty front_alphas_beta') then
                                               Deque.enqueue_front alphas_beta front_alphas_beta'
                                             else (if Deque.is_empty alphas_beta then
                                                     Deque.enqueue_front alphas_beta front_alphas_beta')) in
     alphas_beta
 
-  let drop_betas_alpha f_drop betas_alpha =
+  let drop_betas_alpha l betas_alpha =
     let _ = (match Deque.peek_front betas_alpha with
-             | None -> failwith "muaux.betas_alpha must never be empty"
+             | None -> raise (EMPTY_DEQUE "betas_alpha")
              | Some(front_betas_alpha) -> if not (Deque.is_empty front_betas_alpha) then
                                             let _ = Deque.drop_front betas_alpha in
-                                            let front_betas_alpha' = f_drop front_betas_alpha in
+                                            let front_betas_alpha' = shift_vdrop l front_betas_alpha in
                                             if not (Deque.is_empty front_betas_alpha') then
                                               Deque.enqueue_front betas_alpha front_betas_alpha'
                                             else (if Deque.is_empty betas_alpha then
@@ -733,8 +724,8 @@ module Future = struct
     betas_alpha
 
   let drop_muaux l muaux =
-    let alphas_beta = drop_alphas_beta (shift_sdrop l) muaux.alphas_beta in
-    let betas_alpha = drop_betas_alpha (shift_vdrop l) muaux.betas_alpha in
+    let alphas_beta = drop_alphas_beta l muaux.alphas_beta in
+    let betas_alpha = drop_betas_alpha l muaux.betas_alpha in
     { muaux with
       alphas_beta
     ; betas_alpha }
@@ -771,7 +762,7 @@ module Future = struct
                                  (if not (Deque.is_empty cur_betas_alpha) then
                                     match Deque.peek_front_exn cur_betas_alpha with
                                     | (_, _, V VUntil(_, vp1, vp2s)) -> [V (VUntil(tp, vp1, vp2s))]
-                                    | _ -> raise INVALID_EXPL
+                                    | _ -> raise (INVALID_EXPL "Explanation should be VUntil")
                                   else [])
                                else [] in
                     let p2_l = if not (Deque.is_empty muaux.alphas_out) then
@@ -793,7 +784,7 @@ module Future = struct
   let update_until interval ts tp p1 p2 muaux le minimuml =
     let a = get_a_I interval in
     let b = match get_b_I interval with
-      | None -> failwith "Unbounded interval for future operators is not supported"
+      | None -> raise UNBOUNDED_FUTURE
       | Some(b') -> b' in
     (* let z = max 0 (ts - b) in *)
     let l = max 0 (ts - (b - a)) in
@@ -803,13 +794,13 @@ module Future = struct
                           ~f:(fun muaux (ts', tp') -> shift_muaux l ts' tp' muaux le minimuml) in
     let (ts_tp_out, ts_tp_in) = add_ts l ts tp muaux_shifted.ts_tp_out muaux_shifted.ts_tp_in in
     let muaux_plus_ts_tp = { muaux_shifted with ts_tp_out = ts_tp_out; ts_tp_in = ts_tp_in } in
-    let muaux_plus_p1_p2 = add_p1_p2 ts tp p1 p2 muaux_plus_ts_tp le
-    in muaux_plus_p1_p2
+    let muaux_plus_p1_p2 = add_p1_p2 ts tp p1 p2 muaux_plus_ts_tp le in
+    muaux_plus_p1_p2
 
   let rec eval_until d interval nts muaux =
     (* let _ = Printf.printf "eval tp = %d; ts = %d; nts = %d\n" tp ts nts in *)
     let b = match get_b_I interval with
-      | None -> failwith "Unbounded interval for future operators is not supported"
+      | None -> raise UNBOUNDED_FUTURE
       | Some(b') -> b' in
     match Deque.peek_front muaux.optimal_proofs with
     | None -> (d, muaux)
