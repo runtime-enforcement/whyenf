@@ -25,6 +25,7 @@ exception UNEXPECTED_BEHAVIOR of string
 
 (* TODO: Rewrite every occurrence of Deque.to_list in this file *)
 
+(* TODO: Stick to one paradigm. For instance, why those 3 functions below return a deque? *)
 let sappend_to_deque sp1 d =
   let _ = Deque.iteri d ~f:(fun i (ts, ssp) ->
               match ssp with
@@ -41,36 +42,39 @@ let betas_suffix_in_to_list betas_suffix_in =
   Deque.fold' betas_suffix_in ~init:[]
     ~f:(fun acc (ts, vp) -> vp::acc) `back_to_front
 
+(* TODO: Write a tail-recursive function to replace sorted_append *)
+
 (* Sort proofs wrt a particular measure, i.e.,
    if |p_1| <= |p_2| in [p_1, p_2, p_3, ..., p_n]
    then p_2 must be removed (and so on).
    In the resulting list, the smallest element
    will be the only element. *)
 let min_ps new_in le =
-  let sorted_new_in = List.fold_left new_in ~init:[]
-                        ~f:(fun acc (ts, p) ->
-                          match acc with
-                          | [] -> [(ts, p)]
-                          | (ts', p')::ps' -> if le p p' then
-                                                (ts, p)::ps'
-                                              else (ts', p')::ps') in
-  match List.hd sorted_new_in with
-  | None -> raise (EMPTY_LIST "sorted_new_in")
+  let min_new_in = List.fold_left new_in ~init:[]
+                     ~f:(fun acc (ts, p) ->
+                       match acc with
+                       | [] -> [(ts, p)]
+                       | (ts', p')::ps' -> if le p p' then
+                                             (ts, p)::ps'
+                                           else (ts', p')::ps') in
+  match List.hd min_new_in with
+  | None -> raise (EMPTY_LIST "min_new_in")
   | Some (pair) -> pair
 
 (* Considering new_in to be sorted in descending order, i.e.,
    \forall i < j. |p_i| > |p_j| in [p_1, p_2, p_3, ..., p_n] *)
+(* FIX: We can't consider only the minimum element *)
 let sorted_append new_in d le =
   let (ts, p) = min_ps (List.rev new_in) le in
   let d' = Deque.create () in
   let _ = Deque.iter d ~f:(fun (ts', p') ->
               if le p p' then ()
               else Deque.enqueue_back d' (ts', p')) in
-  let _ = match Deque.peek_front d' with
-    | None -> Deque.enqueue_front d' (ts, p)
-    | Some ((ts', p')) -> if le p p' then Deque.enqueue_front d' (ts, p) in
+  let _ = Deque.enqueue_back d' (ts, p) in
   d'
 
+(* TODO: The tail-recursive function should use a higher-order function so
+   sorted_append2 won't be necessary *)
 let sorted_append2 (ets, lts, p) d le =
   let d' = Deque.create () in
   let _ = Deque.iter d ~f:(fun (ets', lts', p') ->
@@ -81,6 +85,8 @@ let sorted_append2 (ets, lts, p) d le =
     | Some ((ets', lts', p')) -> if le p p' then Deque.enqueue_front d' (ets, lts, p) in
   d'
 
+(* TODO: Those functions are only used in the until case, replace them with
+   the tail-recursive function mentioned above *)
 let sort_ps le new_in =
   let rec aux ps acc =
     match ps with
@@ -232,16 +238,11 @@ module Past = struct
               ~f:(fun (ts, _) -> if ts <= r then Deque.drop_front d)
     in d
 
-  let remove_out_less2 l d =
-    let _ = List.iter (Deque.to_list d)
-              ~f:(fun (ts, _, _) -> if ts < l then Deque.drop_front d)
-    in d
-
-  let add_alphas_out ts vvp1 alphas_out le =
+  let add_alphas_out ts vvp' alphas_out le =
     let _ = List.iter (List.rev(Deque.to_list alphas_out))
               ~f:(fun (_, vvp) ->
-                if le vvp1 vvp then Deque.drop_back alphas_out) in
-    let _ = Deque.enqueue_back alphas_out (ts, vvp1)
+                if le vvp' vvp then Deque.drop_back alphas_out) in
+    let _ = Deque.enqueue_back alphas_out (ts, vvp')
     in alphas_out
 
   let update_beta_alphas new_in beta_alphas le =
@@ -249,30 +250,12 @@ module Past = struct
     else sorted_append new_in beta_alphas le
 
   let update_betas_suffix_in new_in betas_suffix_in =
-    if (List.is_empty new_in) then
-      betas_suffix_in
-    else (
-      if List.exists new_in
-           (fun (_, _, vp2_opt) ->
-             Option.is_none vp2_opt)
-      then (
-        let _ = Deque.clear betas_suffix_in in
-        let new_in' = List.rev (List.take_while (List.rev new_in)
-                                  ~f:(fun (_, _, vp2_opt) ->
-                                    Option.is_some vp2_opt)) in
-        let _ = List.iter new_in'
-                  ~f:(fun (ts, _, vp2_opt) ->
-                    match vp2_opt with
-                    | None -> ()
-                    | Some (vp2) -> Deque.enqueue_back betas_suffix_in (ts, vp2))
-        in betas_suffix_in)
-      else (
-        let _ = List.iter new_in
-                  ~f:(fun (ts, _, vp2_opt) ->
-                    match vp2_opt with
-                    | None -> ()
-                    | Some(vp2) -> Deque.enqueue_back betas_suffix_in (ts, vp2))
-        in betas_suffix_in))
+    let _ = List.iter new_in
+              ~f:(fun (ts, _, vp2_opt) ->
+                match vp2_opt with
+                | None -> Deque.clear betas_suffix_in
+                | Some(vp2) -> Deque.enqueue_back betas_suffix_in (ts, vp2))
+    in betas_suffix_in
 
   let construct_vsinceps tp new_in =
     List.rev(List.fold new_in ~init:[]
@@ -295,7 +278,8 @@ module Past = struct
                     (ts, vp)::new_acc))
 
   let add_new_ps_alpha_betas tp new_in alpha_betas le =
-    let new_vps_in = construct_vsinceps tp new_in in
+    let new_vps_in = construct_vsinceps
+                       tp new_in in
     if not (List.is_empty new_vps_in) then
       sorted_append new_vps_in alpha_betas le
     else alpha_betas
@@ -313,32 +297,19 @@ module Past = struct
     in alpha_betas_updated
 
   let update_alpha_betas tp new_in alpha_betas le =
-    if (List.is_empty new_in) then
-      (update_alpha_betas_tps tp alpha_betas)
-    else (
-      if List.exists new_in
-           ~f:(fun (_, _, vp2_opt) ->
-             Option.is_none vp2_opt)
-      then
-        let _ = Deque.clear alpha_betas in
-        let new_in_vbeta_seq = List.rev (List.take_while (List.rev new_in)
-                                           ~f:(fun (_, _, vp2_opt) ->
-                                             Option.is_some vp2_opt)) in
-        let alpha_betas' = add_new_ps_alpha_betas tp new_in_vbeta_seq alpha_betas le in
-        (update_alpha_betas_tps tp alpha_betas')
-      else (
-        let alpha_betas_vapp = List.fold new_in ~init:alpha_betas
-                                 ~f:(fun d (_, _, vp2_opt) ->
-                                   match vp2_opt with
-                                   | None -> raise (UNEXPECTED_BEHAVIOR "vp2_opt should not be None")
-                                   | Some(vp2) -> vappend_to_deque vp2 d) in
-        let alpha_betas' = add_new_ps_alpha_betas tp new_in alpha_betas_vapp le in
-        (update_alpha_betas_tps tp alpha_betas')))
+    let alpha_betas_vapp = List.fold new_in ~init:alpha_betas
+                             ~f:(fun d (_, _, vp2_opt) ->
+                               match vp2_opt with
+                               | None -> let _ = Deque.clear alpha_betas in d
+                               | Some(vp2) -> vappend_to_deque vp2 d) in
+    let alpha_betas' = add_new_ps_alpha_betas tp new_in alpha_betas_vapp le in
+    (update_alpha_betas_tps tp alpha_betas')
 
   let etp ts_tp_in ts_tp_out tp =
-    let lst = (Deque.to_list ts_tp_in) @ (Deque.to_list ts_tp_out) in
-    match List.hd(lst) with
-    | None -> tp
+    match Deque.peek_front ts_tp_in with
+    | None -> (match Deque.peek_front ts_tp_out with
+               | None -> tp
+               | Some (_, tp') -> tp')
     | Some (_, tp') -> tp'
 
   let optimal_proof tp msaux =
@@ -366,53 +337,65 @@ module Past = struct
   let add_to_msaux ts p1 p2 msaux le =
     match p1, p2 with
     | S sp1, S sp2 ->
+       (* TODO: Check if sat queues are empty before sappending *)
+       (* beta_alphas *)
        let beta_alphas = sappend_to_deque sp1 msaux.beta_alphas in
+       (* beta_alphas_out *)
        let beta_alphas_out = sappend_to_deque sp1 msaux.beta_alphas_out in
        let sp = S (SSince (sp2, [])) in
        let _ = Deque.enqueue_back beta_alphas_out (ts, sp) in
+       (* alphas_betas_out *)
        let _ = Deque.enqueue_back msaux.alphas_betas_out (ts, None, None) in
        { msaux with
          beta_alphas = beta_alphas
        ; beta_alphas_out = beta_alphas_out }
     | S sp1, V vp2 ->
+       (* TODO: Check if sat queues are empty before sappending *)
+       (* beta_alphas *)
        let beta_alphas = sappend_to_deque sp1 msaux.beta_alphas in
        let beta_alphas_out = sappend_to_deque sp1 msaux.beta_alphas_out in
+       (* alphas_betas_out *)
        let _ = Deque.enqueue_back msaux.alphas_betas_out (ts, None, Some(vp2)) in
        { msaux with
          beta_alphas = beta_alphas
        ; beta_alphas_out = beta_alphas_out }
     | V vp1, S sp2 ->
-       let alphas_out = add_alphas_out ts (V vp1) msaux.alphas_out le in
-       let _ = Deque.enqueue_back msaux.alphas_betas_out (ts, Some(vp1), None) in
+       (* beta_alphas *)
        let _ = Deque.clear msaux.beta_alphas in
+       (* beta_alphas_out *)
        let _ = Deque.clear msaux.beta_alphas_out in
        let sp = S (SSince (sp2, [])) in
        let _ = Deque.enqueue_back msaux.beta_alphas_out (ts, sp) in
+       (* alphas_out *)
+       let alphas_out = add_alphas_out ts (V vp1) msaux.alphas_out le in
+       (* alphas_betas_out *)
+       let _ = Deque.enqueue_back msaux.alphas_betas_out (ts, Some(vp1), None) in
        { msaux with alphas_out = alphas_out }
     | V vp1, V vp2 ->
-       let alphas_out = add_alphas_out ts (V vp1) msaux.alphas_out le in
-       let _ = Deque.enqueue_back msaux.alphas_betas_out (ts, Some(vp1), Some(vp2)) in
+       (* beta_alphas *)
        let _ = Deque.clear msaux.beta_alphas in
+       (* beta_alphas_out *)
        let _ = Deque.clear msaux.beta_alphas_out in
+       (* alphas_out *)
+       let alphas_out = add_alphas_out ts (V vp1) msaux.alphas_out le in
+       (* alphas_betas_out *)
+       let _ = Deque.enqueue_back msaux.alphas_betas_out (ts, Some(vp1), Some(vp2)) in
        { msaux with alphas_out = alphas_out }
 
   let remove_from_msaux (l, r) msaux =
     let beta_alphas = remove_out_less l msaux.beta_alphas in
-    let beta_alphas_out = remove_out_less l msaux.beta_alphas_out in
     let alpha_betas = remove_out_less l msaux.alpha_betas in
     let alphas_out = remove_out_leq r msaux.alphas_out in
     let betas_suffix_in = remove_out_less l msaux.betas_suffix_in in
-    let alphas_betas_out = remove_out_less2 l msaux.alphas_betas_out in
     { msaux with
       beta_alphas = beta_alphas
-    ; beta_alphas_out = beta_alphas_out
     ; alpha_betas = alpha_betas
     ; alphas_out = alphas_out
-    ; betas_suffix_in = betas_suffix_in
-    ; alphas_betas_out = alphas_betas_out }
+    ; betas_suffix_in = betas_suffix_in }
 
-  let advance_msaux (l, r) tp ts p1 p2 msaux le =
-    let msaux_plus_new = add_to_msaux ts p1 p2 msaux le in
+  let advance_msaux (l, r) a tp ts p1 p2 msaux le =
+    let msaux_ts_updated = update_ts (l, r) a ts tp msaux in
+    let msaux_plus_new = add_to_msaux ts p1 p2 msaux_ts_updated le in
     let msaux_minus_old = remove_from_msaux (l, r) msaux_plus_new in
     let beta_alphas_out, new_in_sat = split_in_out (l, r) msaux_minus_old.beta_alphas_out in
     let beta_alphas = update_beta_alphas new_in_sat msaux_minus_old.beta_alphas le in
@@ -428,7 +411,7 @@ module Past = struct
   let update_since interval tp ts p1 p2 msaux le =
     let a = get_a_I interval in
     (* Case 1: interval has not yet started, i.e.,
-     \tau_{tp} < \tau_{0} + a OR \tau_{tp} - a < 0 *)
+     \tau_{tp} < (\tau_{0} + a) OR (\tau_{tp} - a) < 0 *)
     if ((Option.is_none msaux.ts_zero) && (ts - a) < 0) ||
          (Option.is_some msaux.ts_zero) && ts < (Option.get msaux.ts_zero) + a then
       let l = (-1) in
@@ -437,17 +420,16 @@ module Past = struct
                                     { msaux with ts_zero = Some(ts) }
                                   else msaux in
       let msaux_ts_updated = update_ts (l, r) a ts tp msaux_ts_zero_updated in
-      let msaux_updated = advance_msaux (l, r) tp ts p1 p2 msaux_ts_updated le in
+      let msaux_updated = advance_msaux (l, r) a tp ts p1 p2 msaux_ts_updated le in
       let p = V (VSinceOutL tp) in
       ([p], msaux_updated)
-    (* Case 2: \tau_{tp-1} exists *)
+    (* Case 2: there exists a \tau_{tp'} inside the interval s.t. tp' < tp *)
     else
       let b = get_b_I interval in
       let l = if (Option.is_some b) then max 0 (ts - (Option.get b))
               else (Option.get msaux.ts_zero) in
       let r = ts - a in
-      let msaux_ts_updated = update_ts (l, r) a ts tp msaux in
-      let msaux_updated = advance_msaux (l, r) tp ts p1 p2 msaux_ts_updated le in
+      let msaux_updated = advance_msaux (l, r) a tp ts p1 p2 msaux le in
       (optimal_proof tp msaux_updated, msaux_updated)
 end
 
