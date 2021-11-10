@@ -12,10 +12,6 @@ PREFIX="TMP_${SIZE}_${ER}_${SEED}"
 ./gen_fmla ${PREFIX} ${SIZE} 10 2 1 ${SEED} 16
 ./gen_log ${PREFIX} 100 ${ER} 4 ${SEED} 16
 OUT=$(../explanator2.native -O ${MEASURE} -mode all -test -fmla ${PREFIX}.mdl -log ${PREFIX}.log 2>1 | grep "Checker output")
-echo -n "${PREFIX} ... "
-if [[ "${OUT}" == "" ]]
-        then echo "OK"
-fi
 if [[ "${OUT}" != "" ]]
-        then echo " !! FAILED !!"
+        then echo "${PREFIX} ... !! FAILED !!"
 fi
