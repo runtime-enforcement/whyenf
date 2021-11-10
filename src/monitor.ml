@@ -262,24 +262,25 @@ module Past = struct
                ~f:(fun acc (ts, vp1_opt, vp2_opt) ->
                  match vp1_opt with
                  | None ->
-                    let vp2 = Option.get vp2_opt in
-                    List.map ~f:(fun (ts, vvp) ->
-                        match vvp with
-                        | V vp -> (ts, V (vappend vp vp2))
-                        | S _ -> raise VEXPL) acc
+                    (match vp2_opt with
+                     | None -> []
+                     | Some(vp2) -> (List.map ~f:(fun (ts, vvp) ->
+                                         match vvp with
+                                         | V vp -> (ts, V (vappend vp vp2))
+                                         | S _ -> raise VEXPL) acc))
                  | Some(vp1) ->
-                    let vp2 = Option.get vp2_opt in
-                    let new_acc =
-                      List.map ~f:(fun (ts, vvp) ->
-                          match vvp with
-                          | V vp -> (ts, V (vappend vp vp2))
-                          | S _ -> raise VEXPL) acc in
-                    let vp = V (VSince (tp, vp1, [vp2])) in
-                    (ts, vp)::new_acc))
+                    (match vp2_opt with
+                     | None -> []
+                     | Some(vp2) -> let new_acc =
+                                      List.map ~f:(fun (ts, vvp) ->
+                                          match vvp with
+                                          | V vp -> (ts, V (vappend vp vp2))
+                                          | S _ -> raise VEXPL) acc in
+                                    let vp = V (VSince (tp, vp1, [vp2])) in
+                                    (ts, vp)::new_acc)))
 
   let add_new_ps_alpha_betas tp new_in alpha_betas le =
-    let new_vps_in = construct_vsinceps
-                       tp new_in in
+    let new_vps_in = construct_vsinceps tp new_in in
     if not (List.is_empty new_vps_in) then
       sorted_append new_vps_in alpha_betas le
     else alpha_betas
@@ -393,9 +394,8 @@ module Past = struct
     ; alphas_out = alphas_out
     ; betas_suffix_in = betas_suffix_in }
 
-  let advance_msaux (l, r) a tp ts p1 p2 msaux le =
-    let msaux_ts_updated = update_ts (l, r) a ts tp msaux in
-    let msaux_plus_new = add_to_msaux ts p1 p2 msaux_ts_updated le in
+  let advance_msaux (l, r) tp ts p1 p2 msaux le =
+    let msaux_plus_new = add_to_msaux ts p1 p2 msaux le in
     let msaux_minus_old = remove_from_msaux (l, r) msaux_plus_new in
     let beta_alphas_out, new_in_sat = split_in_out (l, r) msaux_minus_old.beta_alphas_out in
     let beta_alphas = update_beta_alphas new_in_sat msaux_minus_old.beta_alphas le in
@@ -420,7 +420,7 @@ module Past = struct
                                     { msaux with ts_zero = Some(ts) }
                                   else msaux in
       let msaux_ts_updated = update_ts (l, r) a ts tp msaux_ts_zero_updated in
-      let msaux_updated = advance_msaux (l, r) a tp ts p1 p2 msaux_ts_updated le in
+      let msaux_updated = advance_msaux (l, r) tp ts p1 p2 msaux_ts_updated le in
       let p = V (VSinceOutL tp) in
       ([p], msaux_updated)
     (* Case 2: there exists a \tau_{tp'} inside the interval s.t. tp' < tp *)
@@ -429,7 +429,8 @@ module Past = struct
       let l = if (Option.is_some b) then max 0 (ts - (Option.get b))
               else (Option.get msaux.ts_zero) in
       let r = ts - a in
-      let msaux_updated = advance_msaux (l, r) a tp ts p1 p2 msaux le in
+      let msaux_ts_updated = update_ts (l, r) a ts tp msaux in
+      let msaux_updated = advance_msaux (l, r) tp ts p1 p2 msaux_ts_updated le in
       (optimal_proof tp msaux_updated, msaux_updated)
 end
 
