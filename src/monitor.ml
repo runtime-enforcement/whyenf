@@ -232,7 +232,7 @@ module Past = struct
     let l = List.fold (Deque.to_list d) ~init:[]
               ~f:(fun acc (ts, p) ->
                 if ts <= r then (
-                  let _ = Deque.drop_front d in
+                  let () = Deque.drop_front d in
                   if ts >= l then (ts, p)::acc
                   else acc)
                 else acc)
@@ -242,17 +242,17 @@ module Past = struct
     let l = List.rev (List.fold (Deque.to_list d) ~init:[]
                         ~f:(fun acc (ts, vp1_opt, vp2_opt) ->
                           if ts <= r then (
-                            let _ = Deque.drop_front d in
+                            let () = Deque.drop_front d in
                             if ts >= l then (ts, vp1_opt, vp2_opt)::acc
                             else acc)
                           else acc))
     in (d, l)
 
   let add_alphas_out ts vvp' alphas_out le =
-    let _ = List.iter (List.rev(Deque.to_list alphas_out))
+    let () = List.iter (List.rev(Deque.to_list alphas_out))
               ~f:(fun (_, vvp) ->
                 if le vvp' vvp then Deque.drop_back alphas_out) in
-    let _ = Deque.enqueue_back alphas_out (ts, vvp')
+    let () = Deque.enqueue_back alphas_out (ts, vvp')
     in alphas_out
 
   let update_beta_alphas new_in beta_alphas le =
@@ -262,7 +262,7 @@ module Past = struct
      * else sorted_append' le (List.rev new_in) beta_alphas *)
 
   let update_betas_suffix_in new_in betas_suffix_in =
-    let _ = List.iter new_in
+    let () = List.iter new_in
               ~f:(fun (ts, _, vp2_opt) ->
                 match vp2_opt with
                 | None -> Deque.clear betas_suffix_in
@@ -299,7 +299,7 @@ module Past = struct
 
   let update_alpha_betas_tps tp alpha_betas =
     let alpha_betas_updated = Deque.create () in
-    let _ = Deque.iter alpha_betas
+    let () = Deque.iter alpha_betas
               ~f:(fun (ts, vvp) ->
                 match vvp with
                 | V vp -> (match vp with
@@ -356,38 +356,38 @@ module Past = struct
        (* beta_alphas_out *)
        let beta_alphas_out = sappend_to_deque sp1 msaux.beta_alphas_out in
        let sp = S (SSince (sp2, [])) in
-       let _ = Deque.enqueue_back beta_alphas_out (ts, sp) in
+       let () = Deque.enqueue_back beta_alphas_out (ts, sp) in
        (* alphas_betas_out *)
-       let _ = Deque.enqueue_back msaux.alphas_betas_out (ts, None, None) in
+       let () = Deque.enqueue_back msaux.alphas_betas_out (ts, None, None) in
        { msaux with beta_alphas; beta_alphas_out }
     | S sp1, V vp2 ->
        (* beta_alphas *)
        let beta_alphas = sappend_to_deque sp1 msaux.beta_alphas in
        let beta_alphas_out = sappend_to_deque sp1 msaux.beta_alphas_out in
        (* alphas_betas_out *)
-       let _ = Deque.enqueue_back msaux.alphas_betas_out (ts, None, Some(vp2)) in
+       let () = Deque.enqueue_back msaux.alphas_betas_out (ts, None, Some(vp2)) in
        { msaux with beta_alphas; beta_alphas_out }
     | V vp1, S sp2 ->
        (* beta_alphas *)
-       let _ = Deque.clear msaux.beta_alphas in
+       let () = Deque.clear msaux.beta_alphas in
        (* beta_alphas_out *)
-       let _ = Deque.clear msaux.beta_alphas_out in
+       let () = Deque.clear msaux.beta_alphas_out in
        let sp = S (SSince (sp2, [])) in
-       let _ = Deque.enqueue_back msaux.beta_alphas_out (ts, sp) in
+       let () = Deque.enqueue_back msaux.beta_alphas_out (ts, sp) in
        (* alphas_out *)
        let alphas_out = add_alphas_out ts (V vp1) msaux.alphas_out le in
        (* alphas_betas_out *)
-       let _ = Deque.enqueue_back msaux.alphas_betas_out (ts, Some(vp1), None) in
+       let () = Deque.enqueue_back msaux.alphas_betas_out (ts, Some(vp1), None) in
        { msaux with alphas_out }
     | V vp1, V vp2 ->
        (* beta_alphas *)
-       let _ = Deque.clear msaux.beta_alphas in
+       let () = Deque.clear msaux.beta_alphas in
        (* beta_alphas_out *)
-       let _ = Deque.clear msaux.beta_alphas_out in
+       let () = Deque.clear msaux.beta_alphas_out in
        (* alphas_out *)
        let alphas_out = add_alphas_out ts (V vp1) msaux.alphas_out le in
        (* alphas_betas_out *)
-       let _ = Deque.enqueue_back msaux.alphas_betas_out (ts, Some(vp1), Some(vp2)) in
+       let () = Deque.enqueue_back msaux.alphas_betas_out (ts, Some(vp1), Some(vp2)) in
        { msaux with alphas_out }
 
   let remove_from_msaux (l, r) msaux =
