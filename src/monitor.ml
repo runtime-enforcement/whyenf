@@ -41,10 +41,6 @@ let betas_suffix_in_to_list betas_suffix_in =
   Deque.fold' betas_suffix_in ~init:[]
     ~f:(fun acc (ts, vp) -> vp::acc) `back_to_front
 
-(* TODO: Maybe rename this function to remove_if_pred_rec *)
-(* Also, it might be better to write the recursive function as aux
-   and return the resulting deque here, in order to follow the pattern
-   that has been used throughout the code *)
 let remove_if_pred f d =
   let rec aux f d =
     let el = Deque.dequeue_front d in
@@ -55,14 +51,14 @@ let remove_if_pred f d =
   let () = aux f d in d
 
 let sorted_append' le new_in d =
-  let _ = Deque.iter d (fun (ts, p) -> Printf.printf "\n(%d)\n%s\n" ts (Expl.expl_to_string p)) in
+  let () = Deque.iter d (fun (ts, p) -> Printf.printf "\n(%d)\n%s\n" ts (Expl.expl_to_string p)) in
   let rec aux le (ts, p) d =
     let el_opt = Deque.peek_back d in
     match el_opt with
     | None -> ()
     | Some((ts', p')) -> if le p' p then Deque.enqueue_back d (ts, p)
                          else (let () = Deque.drop_back d in aux le (ts, p) d) in
-  let _ = List.iter new_in ~f:(fun (ts, p) -> aux le (ts, p) d) in
+  let () = List.iter new_in ~f:(fun (ts, p) -> aux le (ts, p) d) in
   Deque.iter d (fun (ts, p) -> Printf.printf "\n(%d)\n%s\n" ts (Expl.expl_to_string p))
 
 (* Sort proofs wrt a particular measure, i.e.,
