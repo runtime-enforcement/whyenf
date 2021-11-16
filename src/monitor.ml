@@ -82,7 +82,8 @@ let min_ps new_in le =
    \forall i < j. |p_i| > |p_j| in [p_1, p_2, p_3, ..., p_n] *)
 (* FIX: We can't consider only the minimum element *)
 let sorted_append new_in d le =
-  let (ts, p) = min_ps (List.rev new_in) le in
+  let new_in = Deque.to_list new_in in
+  let (ts, p) = min_ps new_in le in
   let d' = Deque.create () in
   let _ = Deque.iter d ~f:(fun (ts', p') ->
               if le p p' then ()
@@ -242,7 +243,7 @@ module Past = struct
     in alphas_out
 
   let update_beta_alphas new_in beta_alphas le =
-    if (List.is_empty new_in) then beta_alphas
+    if (Deque.is_empty new_in) then beta_alphas
     else sorted_append new_in beta_alphas le
 
   let update_betas_suffix_in new_in betas_suffix_in =
@@ -254,33 +255,28 @@ module Past = struct
     in betas_suffix_in
 
   let construct_vsinceps tp new_in =
-    List.rev(List.fold new_in ~init:[]
-               ~f:(fun acc (ts, vp1_opt, vp2_opt) ->
-                 match vp1_opt with
-                 | None ->
-                    (match vp2_opt with
-                     | None -> []
-                     | Some(vp2) -> (List.map ~f:(fun (ts, vvp) ->
-                                         match vvp with
-                                         | V vp -> (ts, V (vappend vp vp2))
-                                         | S _ -> raise VEXPL) acc))
-                 | Some(vp1) ->
-                    (match vp2_opt with
-                     | None -> []
-                     | Some(vp2) -> let new_acc =
-                                      List.map ~f:(fun (ts, vvp) ->
-                                          match vvp with
-                                          | V vp -> (ts, V (vappend vp vp2))
-                                          | S _ -> raise VEXPL) acc in
-                                    let vp = V (VSince (tp, vp1, [vp2])) in
-                                    (ts, vp)::new_acc)))
+    Deque.fold new_in ~init:(Deque.create ())
+      ~f:(fun acc (ts, vp1_opt, vp2_opt) ->
+        match vp1_opt with
+        | None ->
+           (match vp2_opt with
+            | None -> (let () = Deque.clear acc in acc)
+            | Some(vp2) -> (let new_acc = vappend_to_deque vp2 acc in new_acc))
+        | Some(vp1) ->
+           (match vp2_opt with
+            | None -> (let () = Deque.clear acc in acc)
+            | Some(vp2) -> (let new_acc = vappend_to_deque vp2 acc in
+                            let vp = V (VSince (tp, vp1, [vp2])) in
+                            let () = Deque.enqueue_back new_acc (ts, vp) in
+                            new_acc)))
 
   let add_new_ps_alpha_betas tp new_in alpha_betas le =
     let new_vps_in = construct_vsinceps tp new_in in
-    if not (List.is_empty new_vps_in) then
+    if not (Deque.is_empty new_vps_in) then
       sorted_append new_vps_in alpha_betas le
     else alpha_betas
 
+  (* TODO: Rewrite this function *)
   let update_alpha_betas_tps tp alpha_betas =
     let alpha_betas_updated = Deque.create () in
     let _ = Deque.iter alpha_betas
@@ -294,7 +290,7 @@ module Past = struct
     in alpha_betas_updated
 
   let update_alpha_betas tp new_in alpha_betas le =
-    let alpha_betas_vapp = List.fold new_in ~init:alpha_betas
+    let alpha_betas_vapp = Deque.fold new_in ~init:alpha_betas
                              ~f:(fun d (_, _, vp2_opt) ->
                                match vp2_opt with
                                | None -> let _ = Deque.clear alpha_betas in d
@@ -391,10 +387,10 @@ module Past = struct
     let msaux_plus_new = add_to_msaux ts p1 p2 msaux le in
     let msaux_minus_old = remove_from_msaux (l, r) msaux_plus_new in
     let beta_alphas_out, new_in_sat = split_in_out (fun (ts, _) -> ts) (l, r) msaux_minus_old.beta_alphas_out in
-    let beta_alphas = update_beta_alphas (List.rev (Deque.to_list new_in_sat)) msaux_minus_old.beta_alphas le in
+    let beta_alphas = update_beta_alphas new_in_sat msaux_minus_old.beta_alphas le in
     let alphas_betas_out, new_in_viol = split_in_out (fun (ts, _, _) -> ts) (l, r) msaux_minus_old.alphas_betas_out in
     let betas_suffix_in = update_betas_suffix_in (Deque.to_list new_in_viol) msaux_minus_old.betas_suffix_in in
-    let alpha_betas = update_alpha_betas tp (Deque.to_list new_in_viol) msaux_minus_old.alpha_betas le in
+    let alpha_betas = update_alpha_betas tp new_in_viol msaux_minus_old.alpha_betas le in
     { msaux_minus_old with beta_alphas
                          ; beta_alphas_out
                          ; alpha_betas
