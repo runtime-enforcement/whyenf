@@ -223,8 +223,8 @@ module Past = struct
       { msaux with ts_tp_out; ts_tp_in }
 
   (* Resulting list is in ascending order, e.g.,
-   d = [(1, p_1), (2, p_2), ..., (n, p_n)]
-   results in [(n, p_n), ...]  *)
+   * d = [(1, p_1), (2, p_2), ..., (n, p_n)]
+   * results in [(n, p_n), ...] *)
   let split_in_out (l, r) d =
     let l = List.fold (Deque.to_list d) ~init:[]
               ~f:(fun acc (ts, p) ->
@@ -244,16 +244,6 @@ module Past = struct
                             else acc)
                           else acc))
     in (d, l)
-
-  let remove_out_less l d =
-    let _ = List.iter (Deque.to_list d)
-              ~f:(fun (ts, _) -> if ts < l then Deque.drop_front d)
-    in d
-
-  let remove_out_leq r d =
-    let _ = List.iter (Deque.to_list d)
-              ~f:(fun (ts, _) -> if ts <= r then Deque.drop_front d)
-    in d
 
   let add_alphas_out ts vvp' alphas_out le =
     let () = List.iter (List.rev(Deque.to_list alphas_out))
@@ -416,11 +406,10 @@ module Past = struct
     let alphas_betas_out, new_in_viol = split_in_out2 (l, r) msaux_minus_old.alphas_betas_out in
     let betas_suffix_in = update_betas_suffix_in new_in_viol msaux_minus_old.betas_suffix_in in
     let alpha_betas = update_alpha_betas tp new_in_viol msaux_minus_old.alpha_betas le in
-    { msaux_minus_old with
-      beta_alphas = beta_alphas
-    ; beta_alphas_out = beta_alphas_out
-    ; alpha_betas = alpha_betas
-    ; betas_suffix_in = betas_suffix_in }
+    { msaux_minus_old with beta_alphas
+                         ; beta_alphas_out
+                         ; alpha_betas
+                         ; betas_suffix_in }
 
   let update_since interval tp ts p1 p2 msaux le =
     let a = get_a_I interval in
