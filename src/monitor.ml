@@ -21,7 +21,6 @@ exception UNBOUNDED_FUTURE
 exception INVALID_EXPL of string
 exception EMPTY_DEQUE of string
 exception EMPTY_LIST of string
-exception UNEXPECTED_BEHAVIOR of string
 
 (* TODO: Rewrite every occurrence of Deque.to_list in this file *)
 (* TODO: Rename every (ts, p) as el or whatever. p should denote the proof element and not the pair *)
