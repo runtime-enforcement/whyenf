@@ -59,37 +59,11 @@ let remove_if_pred_back f d =
                    else Deque.enqueue_back d el' in
   let () = aux f d in d
 
-(* TODO: Write a tail-recursive function to replace sorted_append *)
-
-(* Sort proofs wrt a particular measure, i.e.,
-   if |p_1| <= |p_2| in [p_1, p_2, p_3, ..., p_n]
-   then p_2 must be removed (and so on).
-   In the resulting list, the smallest element
-   will be the only element. *)
-let min_ps new_in le =
-  let min_new_in = List.fold_left new_in ~init:[]
-                     ~f:(fun acc (ts, p) ->
-                       match acc with
-                       | [] -> [(ts, p)]
-                       | (ts', p')::ps' -> if le p p' then
-                                             (ts, p)::ps'
-                                           else (ts', p')::ps') in
-  match List.hd min_new_in with
-  | None -> raise (EMPTY_LIST "min_new_in")
-  | Some (pair) -> pair
-
-(* Considering new_in to be sorted in descending order, i.e.,
-   \forall i < j. |p_i| > |p_j| in [p_1, p_2, p_3, ..., p_n] *)
-(* FIX: We can't consider only the minimum element *)
 let sorted_append new_in d le =
-  let new_in = Deque.to_list new_in in
-  let (ts, p) = min_ps new_in le in
-  let d' = Deque.create () in
-  let _ = Deque.iter d ~f:(fun (ts', p') ->
-              if le p p' then ()
-              else Deque.enqueue_back d' (ts', p')) in
-  let _ = Deque.enqueue_back d' (ts, p) in
-  d'
+  let () = Deque.iter new_in ~f:(fun (ts, p) ->
+               let _ = remove_if_pred_back (fun (ts', p') -> le p p') d in
+               Deque.enqueue_back d (ts, p)) in
+  d
 
 (* TODO: The tail-recursive function should use a higher-order function so
    sorted_append2 won't be necessary *)
