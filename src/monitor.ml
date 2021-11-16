@@ -221,28 +221,18 @@ module Past = struct
       let ts_tp_in = remove_if_pred_front (fun (ts', _) -> ts' < l) msaux.ts_tp_in in
       { msaux with ts_tp_out; ts_tp_in }
 
-  (* Resulting list is in ascending order, e.g.,
-   * d = [(1, p_1), (2, p_2), ..., (n, p_n)]
-   * results in [(n, p_n), ...] *)
-  let split_in_out (l, r) d =
-    let l = List.fold (Deque.to_list d) ~init:[]
-              ~f:(fun acc (ts, p) ->
-                if ts <= r then (
-                  let _ = Deque.drop_front d in
-                  if ts >= l then (ts, p)::acc
-                  else acc)
-                else acc)
-    in (d, l)
-
-  let split_in_out2 (l, r) d =
-    let l = List.rev (List.fold (Deque.to_list d) ~init:[]
-                        ~f:(fun acc (ts, vp1_opt, vp2_opt) ->
-                          if ts <= r then (
-                            let _ = Deque.drop_front d in
-                            if ts >= l then (ts, vp1_opt, vp2_opt)::acc
-                            else acc)
-                          else acc))
-    in (d, l)
+  let split_in_out get_ts (l, r) d =
+    let new_in = Deque.create () in
+    let rec aux d =
+      let el_opt = Deque.dequeue_front d in
+      match el_opt with
+      | None -> ()
+      | Some(el) -> (let ts = get_ts el in
+                     if ts <= r then
+                       (let () = if ts >= l then Deque.enqueue_back new_in el in aux d)
+                     else Deque.enqueue_front d el) in
+    let () = aux d in
+    (d, new_in)
 
   let add_alphas_out ts vvp' alphas_out le =
     let () = List.iter (List.rev(Deque.to_list alphas_out))
@@ -397,14 +387,14 @@ module Past = struct
                ; alphas_out
                ; betas_suffix_in }
 
-  let advance_msaux (l, r) tp ts p1 p2 msaux le =
+ let advance_msaux (l, r) tp ts p1 p2 msaux le =
     let msaux_plus_new = add_to_msaux ts p1 p2 msaux le in
     let msaux_minus_old = remove_from_msaux (l, r) msaux_plus_new in
-    let beta_alphas_out, new_in_sat = split_in_out (l, r) msaux_minus_old.beta_alphas_out in
-    let beta_alphas = update_beta_alphas new_in_sat msaux_minus_old.beta_alphas le in
-    let alphas_betas_out, new_in_viol = split_in_out2 (l, r) msaux_minus_old.alphas_betas_out in
-    let betas_suffix_in = update_betas_suffix_in new_in_viol msaux_minus_old.betas_suffix_in in
-    let alpha_betas = update_alpha_betas tp new_in_viol msaux_minus_old.alpha_betas le in
+    let beta_alphas_out, new_in_sat = split_in_out (fun (ts, _) -> ts) (l, r) msaux_minus_old.beta_alphas_out in
+    let beta_alphas = update_beta_alphas (List.rev (Deque.to_list new_in_sat)) msaux_minus_old.beta_alphas le in
+    let alphas_betas_out, new_in_viol = split_in_out (fun (ts, _, _) -> ts) (l, r) msaux_minus_old.alphas_betas_out in
+    let betas_suffix_in = update_betas_suffix_in (Deque.to_list new_in_viol) msaux_minus_old.betas_suffix_in in
+    let alpha_betas = update_alpha_betas tp (Deque.to_list new_in_viol) msaux_minus_old.alpha_betas le in
     { msaux_minus_old with beta_alphas
                          ; beta_alphas_out
                          ; alpha_betas
