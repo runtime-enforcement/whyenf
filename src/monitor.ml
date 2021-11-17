@@ -304,7 +304,6 @@ module Past = struct
   let add_to_msaux ts p1 p2 msaux le =
     match p1, p2 with
     | S sp1, S sp2 ->
-       (* Printf.printf "============> SS\n"; *)
        (* beta_alphas *)
        let beta_alphas = sappend_to_deque sp1 msaux.beta_alphas in
        (* beta_alphas_out *)
@@ -315,7 +314,6 @@ module Past = struct
        let () = Deque.enqueue_back msaux.alphas_betas_out (ts, None, None) in
        { msaux with beta_alphas; beta_alphas_out }
     | S sp1, V vp2 ->
-       (* Printf.printf "============> SV\n"; *)
        (* beta_alphas *)
        let beta_alphas = sappend_to_deque sp1 msaux.beta_alphas in
        let beta_alphas_out = sappend_to_deque sp1 msaux.beta_alphas_out in
@@ -323,7 +321,6 @@ module Past = struct
        let () = Deque.enqueue_back msaux.alphas_betas_out (ts, None, Some(vp2)) in
        { msaux with beta_alphas; beta_alphas_out }
     | V vp1, S sp2 ->
-       (* Printf.printf "============> VS\n"; *)
        (* beta_alphas *)
        let () = Deque.clear msaux.beta_alphas in
        (* beta_alphas_out *)
@@ -336,7 +333,6 @@ module Past = struct
        let () = Deque.enqueue_back msaux.alphas_betas_out (ts, Some(vp1), None) in
        { msaux with alphas_out }
     | V vp1, V vp2 ->
-       (* Printf.printf "============> VV\n"; *)
        (* beta_alphas *)
        let () = Deque.clear msaux.beta_alphas in
        (* beta_alphas_out *)
@@ -391,7 +387,6 @@ module Past = struct
       let l = if (Option.is_some b) then max 0 (ts - (Option.get b))
               else (Option.get msaux.ts_zero) in
       let r = ts - a in
-      (* Printf.printf "l = %d; r = %d\n" l r; *)
       let msaux_ts_updated = update_ts (l, r) a ts tp msaux in
       let msaux_updated = advance_msaux (l, r) tp ts p1 p2 msaux_ts_updated le in
       (optimal_proof tp msaux_updated, msaux_updated)
@@ -982,10 +977,6 @@ let meval' tp ts sap mform le minimuml =
              let _ = Deque.enqueue_back ps op in
              (ps, aux))
            (Deque.create (), msaux) (mbuf2_add p1s p2s buf) tss_tps in
-       (* let _ = Printf.fprintf stdout "---------------\n" in
-        * let _ = Printf.printf "mf = %s\n" (mformula_to_string (MSince (interval, mf1, mf2, buf, tss_tps, msaux))) in
-        * let _ = Printf.fprintf stdout "%s\n\n" (Past.msaux_to_string msaux') in
-        * let _ = Printf.fprintf stdout "Optimal proof:\n%s\n\n" (Expl.expl_to_string (Deque.peek_front_exn ps)) in *)
        (ps, MSince (interval, mf1', mf2', buf', tss_tps', msaux'))
     | MUntil (interval, mf1, mf2, buf, tss_tps, muaux) ->
        let (p1s, mf1') = meval tp ts sap mf1 in
