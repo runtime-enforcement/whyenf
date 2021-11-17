@@ -250,18 +250,12 @@ module Past = struct
       sorted_append new_vps_in alpha_betas le
     else alpha_betas
 
-  (* TODO: Rewrite this function *)
   let update_alpha_betas_tps tp alpha_betas =
-    let alpha_betas_updated = Deque.create () in
-    let _ = Deque.iter alpha_betas
-              ~f:(fun (ts, vvp) ->
-                match vvp with
-                | V vp -> (match vp with
-                           | VSince (tp', vp1, vp2s) ->
-                              Deque.enqueue_back alpha_betas_updated (ts, V (VSince (tp, vp1, vp2s)))
-                           | _ -> raise (INVALID_EXPL "Explanation should be VSince"))
-                | S _ -> raise VEXPL)
-    in alpha_betas_updated
+    let () = Deque.iteri alpha_betas ~f:(fun i (ts, vvp) ->
+                 match vvp with
+                 | V (VSince (tp', vp1, vp2s)) -> Deque.set_exn alpha_betas i (ts, V (VSince (tp, vp1, vp2s)))
+                 | _ -> raise (INVALID_EXPL "Explanation should be VSince")) in
+    alpha_betas
 
   let update_alpha_betas tp new_in alpha_betas le =
     let alpha_betas_vapp = Deque.fold new_in ~init:alpha_betas
