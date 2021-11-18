@@ -433,13 +433,6 @@ module Future = struct
         ~f:(fun acc (ts, ps) ->
           acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Expl.v_to_string "" ps)
 
-  let current_ts_tp ts_tp_out ts_tp_in =
-    match Deque.peek_front ts_tp_out with
-    | None -> (match Deque.peek_front ts_tp_in with
-               | None -> None
-               | Some (ts, tp) -> Some(tp))
-    | Some (ts, tp) -> Some(tp)
-
   let step_sdrop l alphas_beta =
     Deque.fold alphas_beta ~init:(Deque.create ())
       ~f:(fun acc (ets, lts, ssp) ->
@@ -470,15 +463,13 @@ module Future = struct
     in (ts_tp_out, ts_tp_in)
 
   let remove_out_less2_lts lim d =
-    let () = Deque.iter d (fun d' ->
-                 List.iter (Deque.to_list d')
-                   ~f:(fun (_, lts, _) -> if lts < lim then Deque.drop_front d)) in
-    remove_if_pred_front (fun d' -> Deque.is_empty d') d
-
-  let remove_out_less2_lts lim d =
-    Deque.iter d (fun d' ->
-        List.iter (Deque.to_list d')
-          ~f:(fun (_, lts, _) -> if lts < lim then Deque.drop_front d))
+    let () = Deque.iteri d ~f:(fun i d' ->
+                 Deque.set_exn d i
+                   (Deque.fold d' ~init:(Deque.create ())
+                      ~f:(fun acc (ets, lts, p) ->
+                        let () = if lts >= lim then Deque.enqueue_back acc (ets, lts, p) in acc))) in
+    let d = remove_if_pred_front (fun d' -> Deque.is_empty d') d in
+    let () = if (Deque.is_empty d) then Deque.enqueue_front d (Deque.create ()) in d
 
   let remove_step_muaux tp muaux =
     (* alphas_beta *)
@@ -509,14 +500,10 @@ module Future = struct
     let alphas_in, new_out_alphas = split_in_out (fun (ts, _) -> ts) (z, l) muaux.alphas_in in
     let alphas_out = sorted_append new_out_alphas muaux.alphas_out le in
     (* alphas_beta *)
-    let () = remove_out_less2_lts l muaux.alphas_beta in
-    let alphas_beta = remove_if_pred_front (fun d' -> Deque.is_empty d') muaux.alphas_beta in
-    let () = if (Deque.is_empty muaux.alphas_beta) then
-               Deque.enqueue_front muaux.alphas_beta (Deque.create ()) in
-    { muaux with
-      alphas_beta
-    ; alphas_in
-    ; alphas_out }
+    let alphas_beta = remove_out_less2_lts l muaux.alphas_beta in
+    { muaux with alphas_beta
+               ; alphas_in
+               ; alphas_out }
 
   let alphas_suffix_to_list alphas_suffix =
     List.rev(List.fold_left (Deque.to_list alphas_suffix) ~init:[]
