@@ -65,17 +65,9 @@ let sorted_append new_in d le =
                Deque.enqueue_back d (ts, p)) in
   d
 
-(* TODO: The tail-recursive function should use a higher-order function so
-   sorted_append2 won't be necessary *)
-let sorted_append2 (ets, lts, p) d le =
-  let d' = Deque.create () in
-  let _ = Deque.iter d ~f:(fun (ets', lts', p') ->
-              if le p p' then ()
-              else Deque.enqueue_back d' (ets', lts', p')) in
-  let _ = match Deque.peek_front d' with
-    | None -> Deque.enqueue_front d' (ets, lts, p)
-    | Some ((ets', lts', p')) -> if le p p' then Deque.enqueue_front d' (ets, lts, p) in
-  d'
+let sorted_enqueue (ets, lts, p) d le =
+  let _ = remove_if_pred_back (fun (ets', lts', p') -> le p p') d in
+  let () = Deque.enqueue_back d (ets, lts, p) in d
 
 (* TODO: Those functions are only used in the until case, replace them with
    the tail-recursive function mentioned above *)
@@ -89,17 +81,6 @@ let sort_ps le new_in =
        else aux xs (x'::acc)
     | x::xs -> x::acc
   in aux new_in []
-
-let sort_ps2 le l =
-  let rec aux ps acc =
-    match ps with
-    | [] -> acc
-    | (ets1, lts1, x)::(ets2, lts2, x')::xs ->
-       if le x x' then
-         aux xs ((ets1, lts1, x)::acc)
-       else aux xs ((ets2, lts2, x')::acc)
-    | x::xs -> x::acc
-  in aux l []
 
 module Past = struct
   type msaux = {
@@ -594,7 +575,7 @@ module Future = struct
        let ets = match Deque.peek_front muaux.alphas_suffix with
          | Some(ts, _) -> ts
          | None -> lts in
-       let cur_alphas_beta_sorted = sorted_append2 (ets, lts, sp) cur_alphas_beta le in
+       let cur_alphas_beta_sorted = sorted_enqueue (ets, lts, sp) cur_alphas_beta le in
        let _ = Deque.drop_back muaux.alphas_beta in
        let _ = Deque.enqueue_back muaux.alphas_beta cur_alphas_beta_sorted in
        (* alphas_suffix *)
@@ -624,7 +605,7 @@ module Future = struct
        let ets = match Deque.peek_front muaux.alphas_suffix with
          | Some(ts, _) -> ts
          | None -> lts in
-       let cur_alphas_beta_sorted = sorted_append2 (ets, lts, sp) cur_alphas_beta le in
+       let cur_alphas_beta_sorted = sorted_enqueue (ets, lts, sp) cur_alphas_beta le in
        let _ = Deque.drop_back muaux.alphas_beta in
        let _ = Deque.enqueue_back muaux.alphas_beta cur_alphas_beta_sorted in
        (* append empty deque *)
@@ -649,7 +630,7 @@ module Future = struct
        let ets = match Deque.peek_front muaux.betas_suffix_in with
          | Some(ts, _) -> ts
          | None -> lts in
-       let cur_betas_alpha_sorted = sorted_append2 (ets, lts, vp) cur_betas_alpha le in
+       let cur_betas_alpha_sorted = sorted_enqueue (ets, lts, vp) cur_betas_alpha le in
        let _ = Deque.drop_back muaux.betas_alpha in
        let _ = Deque.enqueue_back muaux.betas_alpha cur_betas_alpha_sorted in
        (* alphas_in *)
