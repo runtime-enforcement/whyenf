@@ -69,6 +69,19 @@ let sorted_enqueue (ets, lts, p) d le =
   let _ = remove_if_pred_back (fun (ets', lts', p') -> le p p') d in
   let () = Deque.enqueue_back d (ets, lts, p) in d
 
+let split_in_out get_ts (l, r) d =
+  let new_in = Deque.create () in
+  let rec aux d =
+    let el_opt = Deque.dequeue_front d in
+    match el_opt with
+    | None -> ()
+    | Some(el) -> (let ts = get_ts el in
+                   if ts <= r then
+                     (let () = if ts >= l then Deque.enqueue_back new_in el in aux d)
+                   else Deque.enqueue_front d el) in
+  let () = aux d in
+  (d, new_in)
+
 (* TODO: Those functions are only used in the until case, replace them with
    the tail-recursive function mentioned above *)
 let sort_ps le new_in =
@@ -176,19 +189,6 @@ module Past = struct
       let ts_tp_out = remove_if_pred_front (fun (ts', _) -> ts' <= r) msaux.ts_tp_out in
       let ts_tp_in = remove_if_pred_front (fun (ts', _) -> ts' < l) msaux.ts_tp_in in
       { msaux with ts_tp_out; ts_tp_in }
-
-  let split_in_out get_ts (l, r) d =
-    let new_in = Deque.create () in
-    let rec aux d =
-      let el_opt = Deque.dequeue_front d in
-      match el_opt with
-      | None -> ()
-      | Some(el) -> (let ts = get_ts el in
-                     if ts <= r then
-                       (let () = if ts >= l then Deque.enqueue_back new_in el in aux d)
-                     else Deque.enqueue_front d el) in
-    let () = aux d in
-    (d, new_in)
 
   let add_alphas_out ts vvp' alphas_out le =
     let () = List.iter (List.rev(Deque.to_list alphas_out))
@@ -384,7 +384,7 @@ module Future = struct
     (* sorted deque of alpha proofs outside the interval *)
     ; alphas_out: (timestamp * expl) Deque.t
     (* deque of alpha violations inside the interval *)
-    ; alphas_in: (timestamp * timepoint * vexpl option) Deque.t
+    ; alphas_in: (timestamp * vexpl) Deque.t
     (* deque of beta violations inside the interval *)
     ; betas_suffix_in: (timestamp * vexpl) Deque.t
     ; optimal_proofs: (timestamp * expl) Deque.t
@@ -427,11 +427,8 @@ module Future = struct
         ~f:(fun acc (ts, ps) ->
           acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Expl.expl_to_string ps) ^
       Deque.fold alphas_in ~init:"\nalphas_in = "
-        ~f:(fun acc (ts1, ts2, ps) ->
-          match ps with
-          | None -> acc
-          | Some(ps') ->
-             acc ^ (Printf.sprintf "\n(%d, %d)\n" ts1 ts2) ^ Expl.v_to_string "" ps') ^
+        ~f:(fun acc (ts, ps) ->
+          acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Expl.v_to_string "" ps) ^
       Deque.fold betas_suffix_in ~init:"\nbetas_suffix_in = "
         ~f:(fun acc (ts, ps) ->
           acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Expl.v_to_string "" ps)
@@ -483,16 +480,6 @@ module Future = struct
         List.iter (Deque.to_list d')
           ~f:(fun (_, lts, _) -> if lts < lim then Deque.drop_front d))
 
-  let split_in_out (l, r) d =
-    let l = List.fold (Deque.to_list d) ~init:[]
-              ~f:(fun acc (ts, p) ->
-                if ts >= l then (
-                  let _ = Deque.drop_front d in
-                  if ts <= r then (ts, p)::acc
-                  else acc)
-                else acc)
-    in (d, l)
-
   let split_in_out2 z l d =
     let lst = List.fold (Deque.to_list d) ~init:[]
                 ~f:(fun acc (ts, _, vp1_opt) ->
@@ -531,22 +518,13 @@ module Future = struct
                ; alphas_out
                ; betas_suffix_in }
 
-  let add_alphas_out ts vvp1 alphas_out le =
-    let _ = List.iter (Deque.to_list alphas_out)
-              ~f:(fun (_, vvp) ->
-                if le vvp1 vvp then Deque.drop_front alphas_out) in
-    let _ = Deque.enqueue_front alphas_out (ts, vvp1)
-    in alphas_out
+  let v_deque new_out_alphas =
+    let d = Deque.create () in
+    let () = Deque.iter new_out_alphas ~f:(fun (ts, vp) -> Deque.enqueue_back d (ts, V vp)) in d
 
-  let update_alphas_out ts alphas_out new_out_alphas le =
-    let new_out_alphas_sorted = List.rev(sort_ps le new_out_alphas) in
-    List.fold_left (List.rev (new_out_alphas_sorted)) ~init:(Deque.create ())
-      ~f:(fun acc (_, vvp1) -> add_alphas_out ts vvp1 alphas_out le)
-
-  let remove_muaux ts l muaux le =
-    (* TODO: Fix split_in_out2 and update_alphas_out *)
-    let alphas_in, new_out_alphas = split_in_out2 ts l muaux.alphas_in in
-    let alphas_out = update_alphas_out ts muaux.alphas_out new_out_alphas le in
+  let remove_muaux (z, l) muaux le =
+    let alphas_in, new_out_alphas = split_in_out (fun (ts, _) -> ts) (z, l) muaux.alphas_in in
+    let alphas_out = sorted_append (v_deque new_out_alphas) muaux.alphas_out le in
     (* alphas_beta *)
     let () = remove_out_less2_lts l muaux.alphas_beta in
     let alphas_beta = remove_if_pred_front (fun d' -> Deque.is_empty d') muaux.alphas_beta in
@@ -580,8 +558,6 @@ module Future = struct
        let _ = Deque.enqueue_back muaux.alphas_beta cur_alphas_beta_sorted in
        (* alphas_suffix *)
        let _ = Deque.enqueue_back muaux.alphas_suffix (lts, sp1) in
-       (* alphas_in *)
-       let _ = Deque.enqueue_back muaux.alphas_in (lts, tp, None) in
        (* betas_suffix_in *)
        let _ = Deque.clear muaux.betas_suffix_in in
        muaux
@@ -592,8 +568,6 @@ module Future = struct
                  Deque.enqueue_back muaux.betas_alpha (Deque.create ()) in
        (* alphas_suffix *)
        let _ = Deque.enqueue_back muaux.alphas_suffix (lts, sp1) in
-       (* alphas_in *)
-       let _ = Deque.enqueue_back muaux.alphas_in (lts, tp, None) in
        (* betas_suffix_in *)
        let _ = Deque.enqueue_back muaux.betas_suffix_in (lts, vp2) in
        muaux
@@ -614,7 +588,7 @@ module Future = struct
        (* alphas_suffix *)
        let _ = Deque.clear muaux.alphas_suffix in
        (* alphas_in *)
-       let _ = Deque.enqueue_back muaux.alphas_in (lts, tp, Some(vp1)) in
+       let _ = Deque.enqueue_back muaux.alphas_in (lts, vp1) in
        (* betas_suffix_in *)
        let _ = Deque.clear muaux.betas_suffix_in in
        muaux
@@ -634,7 +608,7 @@ module Future = struct
        let _ = Deque.drop_back muaux.betas_alpha in
        let _ = Deque.enqueue_back muaux.betas_alpha cur_betas_alpha_sorted in
        (* alphas_in *)
-       let _ = Deque.enqueue_back muaux.alphas_in (lts, tp, Some(vp1)) in
+       let _ = Deque.enqueue_back muaux.alphas_in (lts, vp1) in
        muaux
 
   let drop_alphas_beta l alphas_beta =
@@ -728,13 +702,13 @@ module Future = struct
     let b = match get_b_I interval with
       | None -> raise UNBOUNDED_FUTURE
       | Some(b') -> b' in
+    let z = max 0 (ts - b) in
     let l = max 0 (ts - (b - a)) in
-    (* let z = max 0 (ts - b) in *)
     (* Printf.fprintf stdout "z = %d; l = %d; r = %d\n" z l ts; *)
     let muaux_shifted = shift_muaux b l ts muaux le minimuml in
     let muaux_plus_p1_p2 = add_p1_p2 ts tp p1 p2 muaux_shifted le in
     let (ts_tp_out, ts_tp_in) = append_ts l ts tp muaux_plus_p1_p2.ts_tp_out muaux_plus_p1_p2.ts_tp_in in
-    let muaux_minus_old = remove_muaux ts l muaux le in
+    let muaux_minus_old = remove_muaux (z, l) muaux le in
     { muaux_minus_old with
       ts_tp_out
     ; ts_tp_in }
