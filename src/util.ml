@@ -26,6 +26,9 @@ let rec min_list = List.fold_left min 0
 let rec ( -- ) i j =
   if i > j then [] else i :: (i + 1 -- j)
 
+let thd el = match el with
+  | (_, _, t) -> t
+
 let last l = List.nth l (List.length l - 1)
 
 let paren h k x = if h>k then "("^^x^^")" else x

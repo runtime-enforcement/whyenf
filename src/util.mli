@@ -19,6 +19,7 @@ type mode = SAT | VIOL | ALL | BOOL
 val max_list: int list -> int
 val min_list: int list -> int
 val ( -- ): int -> int -> int list
+val thd: ('a * 'b * 'c) -> 'c
 val last: 'a list -> 'a
 val paren: int -> int -> ('b, 'c, 'd, 'e, 'f, 'g) format6 -> ('b, 'c, 'd, 'e, 'f, 'g) format6
 val sum: ('a -> int) -> 'a list -> int
