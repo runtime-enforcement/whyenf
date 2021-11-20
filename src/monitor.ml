@@ -623,39 +623,41 @@ module Future = struct
 
   let eval_step_muaux l ts tp muaux le minimuml =
     let _ = Printf.printf "eval_step_muaux ts = %d; tp = %d\n" ts tp in
+    let optimal_proofs_len = Deque.length muaux.optimal_proofs in
     (* U^+ (satisfaction) case *)
-    let _ = let cur_alphas_beta = Deque.peek_front_exn muaux.alphas_beta in
-            if not (Deque.is_empty cur_alphas_beta) then
-              ((* let _ = Deque.iter cur_alphas_beta ~f:(fun (ts, tp, p) -> Printf.printf "%s\n" (Expl.expl_to_string p)) in *)
-               match Deque.dequeue_front_exn cur_alphas_beta with
-               | (_, _, S sp) -> Deque.enqueue_back muaux.optimal_proofs (ts, S sp)
-               | _ -> raise VEXPL)
-            (* U^-/U_{\infty}^- (violation) cases *)
-            else (let p1_l = if not (Deque.is_empty muaux.betas_alpha) then
-                               let cur_betas_alpha = Deque.peek_front_exn muaux.betas_alpha in
-                               (if not (Deque.is_empty cur_betas_alpha) then
-                                  match Deque.dequeue_front_exn cur_betas_alpha with
-                                  | (_, _, V VUntil(_, vp1, vp2s)) -> [V (VUntil(tp, vp1, vp2s))]
-                                  | _ -> raise (INVALID_EXPL "Explanation should be VUntil")
-                                else [])
-                             else [] in
-                  let p2_l = if not (Deque.is_empty muaux.alphas_out) then
-                               let vvp1 = snd(Deque.peek_front_exn muaux.alphas_out) in
-                               match vvp1 with
-                               | V vp1 -> let _ = Deque.drop_front muaux.alphas_out in
-                                          [V (VUntil (tp, vp1, []))]
-                               | S _ -> raise VEXPL
-                             else [] in
-                  let p3_l = if (Deque.length muaux.betas_suffix_in) > 0 &&
-                                  (Deque.length muaux.betas_suffix_in) = (Deque.length muaux.ts_tp_in) then
-                               let _ = Printf.printf "|betas_suffix_in| = %d\n" (Deque.length muaux.betas_suffix_in) in
-                               let ltp = v_at (snd(Deque.peek_back_exn muaux.betas_suffix_in)) in
-                               let betas_suffix = betas_suffix_in_to_list muaux.betas_suffix_in in
-                               [V (VUntilInf (tp, ltp, betas_suffix))]
-                             else [] in
-                  (* let _ = Printf.printf "Possible proofs:\n" in
-                   * let _ = List.iter (p1_l @ p2_l @ p3_l) ~f:(fun p -> Printf.printf "%s\n" (Expl.expl_to_string p)) in *)
-                  Deque.enqueue_back muaux.optimal_proofs (ts, minimuml (p1_l @ p2_l @ p3_l))) in
+    let () = let cur_alphas_beta = Deque.peek_front_exn muaux.alphas_beta in
+             let () = (if not (Deque.is_empty cur_alphas_beta) then
+                         ((* let _ = Deque.iter cur_alphas_beta ~f:(fun (ts, tp, p) -> Printf.printf "%s\n" (Expl.expl_to_string p)) in *)
+                          match Deque.dequeue_front_exn cur_alphas_beta with
+                          | (_, _, S sp) -> if tp = (s_at sp) then Deque.enqueue_back muaux.optimal_proofs (ts, S sp)
+                          | _ -> raise VEXPL)) in
+             (* U^-/U_{\infty}^- (violation) cases *)
+             if (Deque.length muaux.optimal_proofs) = optimal_proofs_len then
+               (let p1_l = if not (Deque.is_empty muaux.betas_alpha) then
+                             let cur_betas_alpha = Deque.peek_front_exn muaux.betas_alpha in
+                             (if not (Deque.is_empty cur_betas_alpha) then
+                                match Deque.dequeue_front_exn cur_betas_alpha with
+                                | (_, _, V VUntil(_, vp1, vp2s)) -> [V (VUntil(tp, vp1, vp2s))]
+                                | _ -> raise (INVALID_EXPL "Explanation should be VUntil")
+                              else [])
+                           else [] in
+                let p2_l = if not (Deque.is_empty muaux.alphas_out) then
+                             let vvp1 = snd(Deque.peek_front_exn muaux.alphas_out) in
+                             match vvp1 with
+                             | V vp1 -> let _ = Deque.drop_front muaux.alphas_out in
+                                        [V (VUntil (tp, vp1, []))]
+                             | S _ -> raise VEXPL
+                           else [] in
+                let p3_l = if (Deque.length muaux.betas_suffix_in) > 0 &&
+                                (Deque.length muaux.betas_suffix_in) = (Deque.length muaux.ts_tp_in) then
+                             let _ = Printf.printf "|betas_suffix_in| = %d\n" (Deque.length muaux.betas_suffix_in) in
+                             let ltp = v_at (snd(Deque.peek_back_exn muaux.betas_suffix_in)) in
+                             let betas_suffix = betas_suffix_in_to_list muaux.betas_suffix_in in
+                             [V (VUntilInf (tp, ltp, betas_suffix))]
+                           else [] in
+                (* let _ = Printf.printf "Possible proofs:\n" in
+                 * let _ = List.iter (p1_l @ p2_l @ p3_l) ~f:(fun p -> Printf.printf "%s\n" (Expl.expl_to_string p)) in *)
+                Deque.enqueue_back muaux.optimal_proofs (ts, minimuml (p1_l @ p2_l @ p3_l))) in
     let _ = Deque.iter muaux.optimal_proofs ~f:(fun (ts, p) -> Printf.printf "%s\n" (Expl.expl_to_string p)) in
     let () = if (Deque.is_empty muaux.ts_tp_out) then
                Deque.drop_front muaux.ts_tp_in
