@@ -473,7 +473,8 @@ module Future = struct
 
   let remove_step_muaux tp muaux =
     (* alphas_beta *)
-    (* let () = match Deque.peek_front muaux.alphas_beta with
+    (* let () = Printf.printf "remove_step_muaux\n" in
+     * let () = match Deque.peek_front muaux.alphas_beta with
      *   | None -> ()
      *   | Some(d) -> Deque.iter d ~f:(fun (_, _, p) -> Printf.printf "tp = %d\np = %s\n" (p_at p) (Expl.expl_to_string p)) in *)
     let () = Deque.iteri muaux.alphas_beta
@@ -643,9 +644,11 @@ module Future = struct
              let () = (if not (Deque.is_empty cur_alphas_beta) then
                          (let () = Printf.printf "cur_alphas_beta =\n" in
                           let () = Deque.iter cur_alphas_beta ~f:(fun (ts, tp, p) -> Printf.printf "%s\n" (Expl.expl_to_string p)) in
-                          let () = match Deque.dequeue_front_exn cur_alphas_beta with
-                            | (ets, lts, S sp) -> if tp = (s_until_ltp sp) then Deque.enqueue_back muaux.optimal_proofs (ts, S sp)
-                                                  else Deque.enqueue_front cur_alphas_beta (ets, lts, S sp)
+                          let () = match Deque.peek_front_exn cur_alphas_beta with
+                            | (_, _, S sp) -> if tp = (s_until_ltp sp) then
+                                                    let () = Deque.enqueue_back muaux.optimal_proofs (ts, S sp) in
+                                                    Deque.drop_front cur_alphas_beta
+
                             | _ -> raise VEXPL in
                           Printf.printf "|muaux.optimal_proofs| = %d\n" (Deque.length muaux.optimal_proofs))) in
              (* U^-/U_{\infty}^- (violation) cases *)
@@ -686,9 +689,10 @@ module Future = struct
   let shift_muaux b l ts muaux le minimuml =
     let tss_tps = ready_tss_tps muaux.ts_tp_out muaux.ts_tp_in ts b in
     Deque.foldi tss_tps ~init:muaux
-      ~f:(fun i muaux (ts', tp') ->
+      ~f:(fun i muaux' (ts', tp') ->
+        let () = Printf.fprintf stdout "---------------\n%s\n\n" (muaux_to_string muaux) in
         let progress = ((Deque.length tss_tps) - i - 1) in
-        eval_step_muaux progress l ts' tp' muaux le minimuml)
+        eval_step_muaux progress l ts' tp' muaux' le minimuml)
 
   let update_until interval ts tp p1 p2 muaux le minimuml =
     let a = get_a_I interval in
