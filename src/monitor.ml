@@ -538,6 +538,9 @@ module Future = struct
        let cur_alphas_beta_sorted = sorted_enqueue (ets, lts, sp) cur_alphas_beta le in
        let _ = Deque.drop_back muaux.alphas_beta in
        let _ = Deque.enqueue_back muaux.alphas_beta cur_alphas_beta_sorted in
+       (* betas_alpha (add empty deque) *)
+       let _ = if not (Deque.is_empty (Deque.peek_back_exn muaux.betas_alpha)) then
+                 Deque.enqueue_back muaux.betas_alpha (Deque.create ()) in
        (* alphas_suffix *)
        let _ = Deque.enqueue_back muaux.alphas_suffix (lts, sp1) in
        (* betas_suffix_in *)
@@ -545,9 +548,6 @@ module Future = struct
        muaux
     | S sp1, V vp2 ->
        Printf.printf "SV\n";
-       (* betas_alpha (add empty deque) *)
-       let _ = if not (Deque.is_empty (Deque.peek_back_exn muaux.betas_alpha)) then
-                 Deque.enqueue_back muaux.betas_alpha (Deque.create ()) in
        (* alphas_suffix *)
        let _ = Deque.enqueue_back muaux.alphas_suffix (lts, sp1) in
        (* betas_suffix_in *)
@@ -564,9 +564,12 @@ module Future = struct
        let cur_alphas_beta_sorted = sorted_enqueue (ets, lts, sp) cur_alphas_beta le in
        let _ = Deque.drop_back muaux.alphas_beta in
        let _ = Deque.enqueue_back muaux.alphas_beta cur_alphas_beta_sorted in
-       (* append empty deque *)
+       (* alphas_beta (append empty deque) *)
        let _ = if not (Deque.is_empty (Deque.peek_back_exn muaux.alphas_beta)) then
                  Deque.enqueue_back muaux.alphas_beta (Deque.create ()) in
+       (* betas_alpha (add empty deque) *)
+       let _ = if not (Deque.is_empty (Deque.peek_back_exn muaux.betas_alpha)) then
+                 Deque.enqueue_back muaux.betas_alpha (Deque.create ()) in
        (* alphas_suffix *)
        let _ = Deque.clear muaux.alphas_suffix in
        (* alphas_in *)
