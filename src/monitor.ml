@@ -386,7 +386,7 @@ module Future = struct
     (* deque of alpha violations inside the interval *)
     ; alphas_in: (timestamp * expl) Deque.t
     (* deque of beta violations inside the interval *)
-    ; betas_suffix_in: (timestamp * vexpl) Deque.t
+    ; betas_suffix_in: (timestamp * timepoint * vexpl option) Deque.t
     ; optimal_proofs: (timestamp * expl) Deque.t
     ; }
 
@@ -430,8 +430,10 @@ module Future = struct
         ~f:(fun acc (ts, ps) ->
           acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Expl.expl_to_string ps) ^
       Deque.fold betas_suffix_in ~init:"\nbetas_suffix_in = "
-        ~f:(fun acc (ts, ps) ->
-          acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Expl.v_to_string "" ps)
+        ~f:(fun acc (ts, tp, ps) ->
+          match ps with
+          | None -> acc ^ (Printf.sprintf "\n(%d, %d) None\n" ts tp)
+          | Some(p) -> acc ^ (Printf.sprintf "\n(%d, %d)\n" ts tp) ^ Expl.v_to_string "" p)
 
   let step_sdrop l alphas_beta =
     Deque.fold alphas_beta ~init:(Deque.create ())
@@ -490,7 +492,7 @@ module Future = struct
     (* alphas_out *)
     let alphas_out = remove_if_pred_front (fun (_, p) -> tp = (p_at p)) muaux.alphas_out in
     (* betas_suffix_in *)
-    let betas_suffix_in = remove_if_pred_front (fun (ts, p) -> tp = (v_at p)) muaux.betas_suffix_in in
+    let betas_suffix_in = remove_if_pred_front (fun (ts, tp', p_opt) -> tp = tp') muaux.betas_suffix_in in
     { muaux with alphas_beta
                ; alphas_suffix
                ; betas_alpha
@@ -511,8 +513,17 @@ module Future = struct
                ~f:(fun acc (_, sp1) -> sp1::acc))
 
   let betas_suffix_in_to_list betas_suffix_in =
-    List.rev(List.fold_left (Deque.to_list betas_suffix_in) ~init:[]
-               ~f:(fun acc (_, vp2) -> vp2::acc))
+    List.rev(Deque.fold betas_suffix_in ~init:[]
+               ~f:(fun acc (ts, tp, vp2_opt) -> match vp2_opt with
+                                                | None -> []
+                                                | Some(vp2) -> vp2::acc))
+
+  let first_somes_betas_suffix_in_to_list betas_suffix_in =
+    List.rev(Deque.fold_until betas_suffix_in ~init:[]
+               ~f:(fun acc (ts, tp, vp2_opt) -> match vp2_opt with
+                                                | None -> Stop acc
+                                                | Some(vp2) -> Continue (vp2::acc))
+               ~finish:(fun acc -> acc))
 
   let add_p1_p2 lts tp p1 p2 muaux le =
     match p1, p2 with
@@ -530,7 +541,7 @@ module Future = struct
        (* alphas_suffix *)
        let _ = Deque.enqueue_back muaux.alphas_suffix (lts, sp1) in
        (* betas_suffix_in *)
-       let _ = Deque.clear muaux.betas_suffix_in in
+       let _ = Deque.enqueue_back muaux.betas_suffix_in (lts, tp, None) in
        muaux
     | S sp1, V vp2 ->
        Printf.printf "SV\n";
@@ -540,7 +551,7 @@ module Future = struct
        (* alphas_suffix *)
        let _ = Deque.enqueue_back muaux.alphas_suffix (lts, sp1) in
        (* betas_suffix_in *)
-       let _ = Deque.enqueue_back muaux.betas_suffix_in (lts, vp2) in
+       let _ = Deque.enqueue_back muaux.betas_suffix_in (lts, tp, Some(vp2)) in
        muaux
     | V vp1, S sp2 ->
        Printf.printf "VS\n";
@@ -561,19 +572,19 @@ module Future = struct
        (* alphas_in *)
        let _ = Deque.enqueue_back muaux.alphas_in (lts, V vp1) in
        (* betas_suffix_in *)
-       let _ = Deque.clear muaux.betas_suffix_in in
+       let _ = Deque.enqueue_back muaux.betas_suffix_in (lts, tp, None) in
        muaux
     | V vp1, V vp2 ->
        Printf.printf "VV\n";
        (* alphas_suffix *)
        let _ = Deque.clear muaux.alphas_suffix in
        (* betas_suffix_in *)
-       let _ = Deque.enqueue_back muaux.betas_suffix_in (lts, vp2) in
+       let _ = Deque.enqueue_back muaux.betas_suffix_in (lts, tp, Some(vp2)) in
        (* betas_alpha *)
        let cur_betas_alpha = Deque.peek_back_exn muaux.betas_alpha in
        let vp = V (VUntil (tp, vp1, (betas_suffix_in_to_list muaux.betas_suffix_in))) in
        let ets = match Deque.peek_front muaux.betas_suffix_in with
-         | Some(ts, _) -> ts
+         | Some(ts, tp, _) -> ts
          | None -> lts in
        let cur_betas_alpha_sorted = sorted_enqueue (ets, lts, vp) cur_betas_alpha le in
        let _ = Deque.drop_back muaux.betas_alpha in
@@ -621,16 +632,19 @@ module Future = struct
                 if ts + b < nts then Deque.enqueue_back d (ts, tp)) in
     d
 
-  let eval_step_muaux l ts tp muaux le minimuml =
+  let eval_step_muaux progress l ts tp muaux le minimuml =
     let _ = Printf.printf "eval_step_muaux ts = %d; tp = %d\n" ts tp in
     let optimal_proofs_len = Deque.length muaux.optimal_proofs in
     (* U^+ (satisfaction) case *)
     let () = let cur_alphas_beta = Deque.peek_front_exn muaux.alphas_beta in
              let () = (if not (Deque.is_empty cur_alphas_beta) then
-                         ((* let _ = Deque.iter cur_alphas_beta ~f:(fun (ts, tp, p) -> Printf.printf "%s\n" (Expl.expl_to_string p)) in *)
-                          match Deque.dequeue_front_exn cur_alphas_beta with
-                          | (_, _, S sp) -> if tp = (s_at sp) then Deque.enqueue_back muaux.optimal_proofs (ts, S sp)
-                          | _ -> raise VEXPL)) in
+                         (let () = Printf.printf "cur_alphas_beta =\n" in
+                          let () = Deque.iter cur_alphas_beta ~f:(fun (ts, tp, p) -> Printf.printf "%s\n" (Expl.expl_to_string p)) in
+                          let () = match Deque.dequeue_front_exn cur_alphas_beta with
+                            | (ets, lts, S sp) -> if tp = (s_until_ltp sp) then Deque.enqueue_back muaux.optimal_proofs (ts, S sp)
+                                                  else Deque.enqueue_front cur_alphas_beta (ets, lts, S sp)
+                            | _ -> raise VEXPL in
+                          Printf.printf "|muaux.optimal_proofs| = %d\n" (Deque.length muaux.optimal_proofs))) in
              (* U^-/U_{\infty}^- (violation) cases *)
              if (Deque.length muaux.optimal_proofs) = optimal_proofs_len then
                (let p1_l = if not (Deque.is_empty muaux.betas_alpha) then
@@ -648,11 +662,11 @@ module Future = struct
                                         [V (VUntil (tp, vp1, []))]
                              | S _ -> raise VEXPL
                            else [] in
-                let p3_l = if (Deque.length muaux.betas_suffix_in) > 0 &&
-                                (Deque.length muaux.betas_suffix_in) = (Deque.length muaux.ts_tp_in) then
-                             let _ = Printf.printf "|betas_suffix_in| = %d\n" (Deque.length muaux.betas_suffix_in) in
-                             let ltp = v_at (snd(Deque.peek_back_exn muaux.betas_suffix_in)) in
-                             let betas_suffix = betas_suffix_in_to_list muaux.betas_suffix_in in
+                let p3_l = let betas_suffix = first_somes_betas_suffix_in_to_list muaux.betas_suffix_in in
+                           if (List.length betas_suffix) > 0 &&
+                                (List.length betas_suffix) = (Deque.length muaux.ts_tp_in) - progress then
+                             let (_, ltp, _) = Deque.peek_back_exn muaux.betas_suffix_in in
+                             let _ = Printf.printf "|betas_suffix_in| = %d; ltp = %d\n" (List.length betas_suffix) ltp in
                              [V (VUntilInf (tp, ltp, betas_suffix))]
                            else [] in
                 (* let _ = Printf.printf "Possible proofs:\n" in
@@ -668,9 +682,10 @@ module Future = struct
 
   let shift_muaux b l ts muaux le minimuml =
     let tss_tps = ready_tss_tps muaux.ts_tp_out muaux.ts_tp_in ts b in
-    Deque.fold tss_tps ~init:muaux
-      ~f:(fun muaux (ts', tp') ->
-        eval_step_muaux l ts' tp' muaux le minimuml)
+    Deque.foldi tss_tps ~init:muaux
+      ~f:(fun i muaux (ts', tp') ->
+        let progress = ((Deque.length tss_tps) - i - 1) in
+        eval_step_muaux progress l ts' tp' muaux le minimuml)
 
   let update_until interval ts tp p1 p2 muaux le minimuml =
     let a = get_a_I interval in
