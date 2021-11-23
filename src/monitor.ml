@@ -474,6 +474,10 @@ module Future = struct
     let () = if (Deque.is_empty d) then Deque.enqueue_front d (Deque.create ()) in d
 
   let remove_step_muaux tp muaux =
+    (* ts_tp_in *)
+    let ts_tp_in = remove_if_pred_front (fun (_, tp') -> tp = tp') muaux.ts_tp_in in
+    (* ts_tp_out *)
+    let ts_tp_out = remove_if_pred_front (fun (_, tp') -> tp = tp') muaux.ts_tp_out in
     (* alphas_beta *)
     (* let () = Printf.printf "remove_step_muaux\n" in
      * let () = match Deque.peek_front muaux.alphas_beta with
@@ -496,7 +500,9 @@ module Future = struct
     let alphas_out = remove_if_pred_front (fun (_, p) -> tp = (p_at p)) muaux.alphas_out in
     (* betas_suffix_in *)
     let betas_suffix_in = remove_if_pred_front (fun (ts, tp', p_opt) -> tp = tp') muaux.betas_suffix_in in
-    { muaux with alphas_beta
+    { muaux with ts_tp_in
+               ; ts_tp_out
+               ; alphas_beta
                ; alphas_suffix
                ; betas_alpha
                ; alphas_out
@@ -638,7 +644,7 @@ module Future = struct
                 if ts + b < nts then Deque.enqueue_back d (ts, tp)) in
     d
 
-  let eval_step_muaux progress l ts tp muaux le minimuml =
+  let eval_step_muaux l ts tp muaux le minimuml =
     let _ = Printf.printf "eval_step_muaux ts = %d; tp = %d\n" ts tp in
     let optimal_proofs_len = Deque.length muaux.optimal_proofs in
     (* U^+ (satisfaction) case *)
@@ -668,7 +674,7 @@ module Future = struct
                            else [] in
                 let p3_l = let betas_suffix = first_somes_betas_suffix_in_to_list muaux.betas_suffix_in in
                            if (List.length betas_suffix) > 0 &&
-                                (List.length betas_suffix) = (Deque.length muaux.ts_tp_in) - progress then
+                                (List.length betas_suffix) = (Deque.length muaux.ts_tp_in) then
                              let (_, ltp, _) = Deque.peek_back_exn muaux.betas_suffix_in in
                              (* let _ = Printf.printf "|betas_suffix_in| = %d; ltp = %d\n" (List.length betas_suffix) ltp in *)
                              [V (VUntilInf (tp, ltp, betas_suffix))]
@@ -693,8 +699,8 @@ module Future = struct
     Deque.foldi tss_tps ~init:muaux
       ~f:(fun i muaux' (ts', tp') ->
         (* let () = Printf.fprintf stdout "---------------\n%s\n\n" (muaux_to_string muaux) in *)
-        let progress = ((Deque.length tss_tps) - i - 1) in
-        eval_step_muaux progress l ts' tp' muaux' le minimuml)
+        (* let progress = ((Deque.length tss_tps) - i - 1) in *)
+        eval_step_muaux l ts' tp' muaux' le minimuml)
 
   let update_until interval ts tp p1 p2 muaux le minimuml =
     let a = get_a_I interval in
