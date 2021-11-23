@@ -156,10 +156,6 @@ let p_at = function
 | S s_p -> s_at s_p
 | V v_p -> v_at v_p
 
-let s_until_ltp = function
-  | SUntil (sp2, _) -> s_at sp2
-  | _ -> failwith "Bad arguments for s_until_ltp"
-
 (***********************************
  *                                 *
  * Measure: size                   *

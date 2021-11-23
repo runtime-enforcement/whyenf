@@ -645,7 +645,7 @@ module Future = struct
                          (let () = Printf.printf "cur_alphas_beta =\n" in
                           let () = Deque.iter cur_alphas_beta ~f:(fun (ts, tp, p) -> Printf.printf "%s\n" (Expl.expl_to_string p)) in
                           let () = match Deque.peek_front_exn cur_alphas_beta with
-                            | (_, _, S sp) -> if tp = (s_until_ltp sp) then
+                            | (_, _, S sp) -> if tp = (s_at sp) then
                                                     let () = Deque.enqueue_back muaux.optimal_proofs (ts, S sp) in
                                                     Deque.drop_front cur_alphas_beta
 
