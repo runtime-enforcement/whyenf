@@ -69,6 +69,8 @@ let sorted_enqueue (ets, lts, p) d le =
   let _ = remove_if_pred_back (fun (ets', lts', p') -> le p p') d in
   let () = Deque.enqueue_back d (ets, lts, p) in d
 
+(* TODO: split_in_out and spit_in_out should be rewritten as a single function *)
+(* Considering a closed interval [l, r] *)
 let split_in_out get_ts (l, r) d =
   let new_in = Deque.create () in
   let rec aux d =
@@ -78,6 +80,20 @@ let split_in_out get_ts (l, r) d =
     | Some(el) -> (let ts = get_ts el in
                    if ts <= r then
                      (let () = if ts >= l then Deque.enqueue_back new_in el in aux d)
+                   else Deque.enqueue_front d el) in
+  let () = aux d in
+  (d, new_in)
+
+(* Considering an interval of the form [z, l) *)
+let split_in_out2 get_ts (z, l) d =
+  let new_in = Deque.create () in
+  let rec aux d =
+    let el_opt = Deque.dequeue_front d in
+    match el_opt with
+    | None -> ()
+    | Some(el) -> (let ts = get_ts el in
+                   if ts < l then
+                     (let () = if ts >= z then Deque.enqueue_back new_in el in aux d)
                    else Deque.enqueue_front d el) in
   let () = aux d in
   (d, new_in)
@@ -509,7 +525,7 @@ module Future = struct
                ; betas_suffix_in }
 
   let remove_muaux (z, l) muaux le =
-    let alphas_in, new_out_alphas = split_in_out (fun (ts, _) -> ts) (z, l) muaux.alphas_in in
+    let alphas_in, new_out_alphas = split_in_out2 (fun (ts, _) -> ts) (z, l) muaux.alphas_in in
     let alphas_out = sorted_append new_out_alphas muaux.alphas_out le in
     (* alphas_beta *)
     let alphas_beta = remove_out_less2_lts l muaux.alphas_beta in
