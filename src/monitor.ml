@@ -471,15 +471,6 @@ module Future = struct
                   | S _ -> raise VEXPL)) in
     betas_alpha
 
-  let append_ts l ts tp ts_tp_out ts_tp_in =
-    let _ = Deque.enqueue_back ts_tp_in (ts, tp) in
-    let _ = List.iter (Deque.to_list ts_tp_in)
-              ~f:(fun (ts', tp') ->
-                if ts' < l then
-                  let _ = Deque.enqueue_back ts_tp_out (ts', tp') in
-                  Deque.drop_front ts_tp_in)
-    in (ts_tp_out, ts_tp_in)
-
   let remove_out_less2_lts lim d =
     let () = Deque.iteri d ~f:(fun i d' ->
                  Deque.set_exn d i
@@ -660,14 +651,14 @@ module Future = struct
                 if ts + b < nts then Deque.enqueue_back d (ts, tp)) in
     d
 
-  let eval_step_muaux l ts tp muaux le minimuml =
+  let eval_step_muaux ts tp muaux le minimuml =
     let _ = Printf.printf "eval_step_muaux ts = %d; tp = %d\n" ts tp in
     let optimal_proofs_len = Deque.length muaux.optimal_proofs in
     (* U^+ (satisfaction) case *)
     let () = let cur_alphas_beta = Deque.peek_front_exn muaux.alphas_beta in
              let () = (if not (Deque.is_empty cur_alphas_beta) then
-                         (let () = Printf.printf "cur_alphas_beta =\n" in
-                          let () = Deque.iter cur_alphas_beta ~f:(fun (ts, tp, p) -> Printf.printf "%s\n" (Expl.expl_to_string p)) in
+                         ((* let () = Printf.printf "cur_alphas_beta =\n" in
+                           * let () = Deque.iter cur_alphas_beta ~f:(fun (ts, tp, p) -> Printf.printf "%s\n" (Expl.expl_to_string p)) in *)
                           match Deque.peek_front_exn cur_alphas_beta with
                           | (_, _, S sp) -> if tp = (s_at sp) then Deque.enqueue_back muaux.optimal_proofs (ts, S sp)
                           | _ -> raise VEXPL)) in
@@ -710,29 +701,44 @@ module Future = struct
     let muaux_minus_tp = remove_step_muaux tp muaux_dropped in
     muaux_minus_tp
 
-  let shift_muaux b l ts muaux le minimuml =
+  let shift_muaux b ts muaux le minimuml =
     let tss_tps = ready_tss_tps muaux.ts_tp_out muaux.ts_tp_in ts b in
     Deque.foldi tss_tps ~init:muaux
       ~f:(fun i muaux' (ts', tp') ->
         (* let () = Printf.fprintf stdout "---------------\n%s\n\n" (muaux_to_string muaux) in *)
         (* let progress = ((Deque.length tss_tps) - i - 1) in *)
-        eval_step_muaux l ts' tp' muaux' le minimuml)
+        eval_step_muaux ts' tp' muaux' le minimuml)
+
+let append_ts l ts tp muaux =
+  let () = Deque.enqueue_back muaux.ts_tp_in (ts, tp) in
+  let () = Deque.iter muaux.ts_tp_in
+             ~f:(fun (ts', tp') ->
+               if ts' < l then
+                 (* let _ = drop_betas_alpha tp muaux.betas_alpha in *)
+                 Deque.enqueue_back muaux.ts_tp_out (ts', tp')) in
+  let _ = remove_if_pred_front (fun (ts', _) -> ts' < l) muaux.ts_tp_in in
+  muaux
+
+  let ets muaux ts =
+    match Deque.peek_front muaux.ts_tp_out with
+    | None -> (match Deque.peek_front muaux.ts_tp_in with
+               | None -> ts
+               | Some (ts', _) -> ts')
+    | Some (ts', _) -> ts'
 
   let update_until interval ts tp p1 p2 muaux le minimuml =
     let a = get_a_I interval in
     let b = match get_b_I interval with
       | None -> raise UNBOUNDED_FUTURE
       | Some(b') -> b' in
-    let z = max 0 (ts - b) in
-    let l = max 0 (ts - (b - a)) in
-    (* Printf.fprintf stdout "z = %d; l = %d; r = %d\n" z l ts; *)
-    let muaux_shifted = shift_muaux b l ts muaux le minimuml in
+    let muaux_shifted = shift_muaux b ts muaux le minimuml in
     let muaux_plus_p1_p2 = add_p1_p2 ts tp p1 p2 muaux_shifted le in
-    let (ts_tp_out, ts_tp_in) = append_ts l ts tp muaux_plus_p1_p2.ts_tp_out muaux_plus_p1_p2.ts_tp_in in
-    let muaux_minus_old = remove_muaux (z, l) muaux le in
-    { muaux_minus_old with
-      ts_tp_out
-    ; ts_tp_in }
+    let z = max 0 (ets muaux ts) in
+    let l = max 0 ((ets muaux ts) + a) in
+    Printf.fprintf stdout "z = %d; l = %d; r = %d\n" z l ts;
+    let muaux_plus_ts = append_ts l ts tp muaux_plus_p1_p2 in
+    let muaux_minus_old = remove_muaux (z, l) muaux_plus_ts le in
+    muaux_minus_old
 
   let rec eval_until d interval nts muaux =
     (* let _ = Printf.printf "|muaux.optimal_proofs| = %d\n" (Deque.length muaux.optimal_proofs) in *)
