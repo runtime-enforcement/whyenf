@@ -673,13 +673,23 @@ module Future = struct
                 if ts + b < nts then Deque.enqueue_back d (ts, tp)) in
     d
 
+  let adjust_ts_tp a ts muaux =
+    let () = Deque.iter muaux.ts_tp_in
+               ~f:(fun (ts', tp') ->
+                 if ts' < ts + a then
+                   (* let _ = drop_betas_alpha_tp tp muaux.betas_alpha in *)
+                   Deque.enqueue_back muaux.ts_tp_out (ts', tp')) in
+    let _ = remove_if_pred_front (fun (ts', _) -> ts' < ts + a) muaux.ts_tp_in in
+    let _ = remove_if_pred_front (fun (ts', _) -> ts' < ts) muaux.ts_tp_out in
+    muaux
+
   let adjust_muaux a ts muaux =
     let muaux_dropped_ts = drop_muaux_ts a ts muaux in
-    let () = Deque.iteri muaux.alphas_beta
+    let muaux_adjusted_ts_tp = adjust_ts_tp a ts muaux_dropped_ts in
+    let () = Deque.iteri muaux_adjusted_ts_tp.alphas_beta
                ~f:(fun i d -> Deque.set_exn muaux.alphas_beta i (remove_if_pred_front (fun (_, lts, _) -> lts < ts + a) d)) in
-    let betas_suffix_in = remove_if_pred_front (fun (ts', _, _) -> ts' < ts + a) muaux_dropped_ts.betas_suffix_in in
-    { muaux_dropped_ts with betas_suffix_in }
-    (* { muaux_dropped_ts with betas_alpha = remove_out_less2_lts (ts + a) muaux_dropped_ts.betas_alpha } *)
+    let betas_suffix_in = remove_if_pred_front (fun (ts', _, _) -> ts' < ts + a) muaux_adjusted_ts_tp.betas_suffix_in in
+    { muaux_adjusted_ts_tp with betas_suffix_in }
 
   let eval_step_muaux a ts tp muaux le minimuml =
     let _ = Printf.printf "eval_step_muaux ts = %d; tp = %d\n" ts tp in
@@ -733,16 +743,6 @@ module Future = struct
     Deque.foldi tss_tps ~init:muaux
       ~f:(fun i muaux' (ts', tp') -> eval_step_muaux a ts' tp' muaux' le minimuml)
 
-let append_ts l ts tp muaux =
-  let () = Deque.enqueue_back muaux.ts_tp_in (ts, tp) in
-  let () = Deque.iter muaux.ts_tp_in
-             ~f:(fun (ts', tp') ->
-               if ts' < l then
-                 (* let _ = drop_betas_alpha_tp tp muaux.betas_alpha in *)
-                 Deque.enqueue_back muaux.ts_tp_out (ts', tp')) in
-  let _ = remove_if_pred_front (fun (ts', _) -> ts' < l) muaux.ts_tp_in in
-  muaux
-
   let ets muaux ts =
     match Deque.peek_front muaux.ts_tp_out with
     | None -> (match Deque.peek_front muaux.ts_tp_in with
@@ -760,8 +760,8 @@ let append_ts l ts tp muaux =
     let z = max 0 (ets muaux ts) in
     let l = max 0 ((ets muaux ts) + a) in
     Printf.fprintf stdout "z = %d; l = %d; r = %d\n" z l ts;
-    let muaux_plus_ts = append_ts l ts tp muaux_plus_p1_p2 in
-    let muaux_minus_old = remove_muaux (z, l) muaux_plus_ts le in
+    let () = Deque.enqueue_back muaux.ts_tp_in (ts, tp) in
+    let muaux_minus_old = remove_muaux (z, l) muaux_plus_p1_p2 le in
 
     muaux_minus_old
 
