@@ -51,6 +51,16 @@ let remove_if_pred_front f d =
                    else Deque.enqueue_front d el' in
   let () = aux f d in d
 
+let remove_if_pred_front_ne f d =
+  let rec aux f d =
+    if (Deque.length d) > 1 then
+      let el = Deque.dequeue_front d in
+      match el with
+      | None -> ()
+      | Some(el') -> if (f el') then aux f d
+                     else Deque.enqueue_front d el' in
+  let () = aux f d in d
+
 let remove_if_pred_back f d =
   let rec aux f d =
     let el = Deque.dequeue_back d in
@@ -492,8 +502,7 @@ module Future = struct
                    (Deque.fold d' ~init:(Deque.create ())
                       ~f:(fun acc (ets, lts, p) ->
                         let () = if lts >= lim then Deque.enqueue_back acc (ets, lts, p) in acc))) in
-    let d = remove_if_pred_front (fun d' -> Deque.is_empty d') d in
-    let () = if (Deque.is_empty d) then Deque.enqueue_front d (Deque.create ()) in d
+    remove_if_pred_front_ne (fun d' -> Deque.is_empty d') d
 
   let remove_step_muaux tp muaux =
     (* ts_tp_in *)
@@ -507,17 +516,13 @@ module Future = struct
      *   | Some(d) -> Deque.iter d ~f:(fun (_, _, p) -> Printf.printf "tp = %d\np = %s\n" (p_at p) (Expl.expl_to_string p)) in *)
     let () = Deque.iteri muaux.alphas_beta
                ~f:(fun i d -> Deque.set_exn muaux.alphas_beta i (remove_if_pred_front (fun (_, _, p) -> tp = (p_at p)) d)) in
-    let alphas_beta = remove_if_pred_front (fun d' -> Deque.is_empty d') muaux.alphas_beta in
-    let () = if (Deque.is_empty alphas_beta) then
-               Deque.enqueue_front alphas_beta (Deque.create ()) in
+    let alphas_beta = remove_if_pred_front_ne (fun d' -> Deque.is_empty d') muaux.alphas_beta in
     (* alphas_suffix *)
     let alphas_suffix = remove_if_pred_front (fun (_, p) -> tp = (s_at p)) muaux.alphas_suffix in
     (* betas_alpha *)
     let () = Deque.iteri muaux.betas_alpha
                ~f:(fun i d -> Deque.set_exn muaux.betas_alpha i (remove_if_pred_front (fun (_, _, p) -> tp = (p_at p)) d)) in
-    let betas_alpha = remove_if_pred_front (fun d' -> Deque.is_empty d') muaux.betas_alpha in
-    let () = if (Deque.is_empty muaux.betas_alpha) then
-               Deque.enqueue_front muaux.betas_alpha (Deque.create ()) in
+    let betas_alpha = remove_if_pred_front_ne (fun d' -> Deque.is_empty d') muaux.betas_alpha in
     (* alphas_out *)
     let alphas_out = remove_if_pred_front (fun (_, p) -> tp = (p_at p)) muaux.alphas_out in
     (* betas_suffix_in *)
@@ -725,7 +730,7 @@ module Future = struct
     Deque.foldi tss_tps ~init:muaux
       ~f:(fun i muaux' (ts', tp') ->
         (* let () = Printf.fprintf stdout "---------------\n%s\n\n" (muaux_to_string muaux) in *)
-        (* let progress = ((Deque.length tss_tps) - i - 1) in *)
+        (* let  progress = ((Deque.length tss_tps) - i - 1) in *)
         eval_step_muaux a ts' tp' muaux' le minimuml)
 
 let append_ts l ts tp muaux =
