@@ -512,7 +512,7 @@ module Future = struct
     let ts_tp_out = remove_if_pred_front (fun (_, tp') -> tp = tp') muaux.ts_tp_out in
     (* alphas_beta *)
     let () = Deque.iteri muaux.alphas_beta
-               ~f:(fun i d -> Deque.set_exn muaux.alphas_beta i (remove_if_pred_front (fun (_, lts, _) -> lts < ts + a) d)) in
+               ~f:(fun i d -> Deque.set_exn muaux.alphas_beta i (remove_if_pred_front (fun (_, _, p) -> tp = (p_at p)) d)) in
     let alphas_beta = remove_if_pred_front_ne (fun d' -> Deque.is_empty d') muaux.alphas_beta in
     (* alphas_suffix *)
     let alphas_suffix = remove_if_pred_front (fun (_, p) -> tp = (s_at p)) muaux.alphas_suffix in
@@ -523,7 +523,7 @@ module Future = struct
     (* alphas_out *)
     let alphas_out = remove_if_pred_front (fun (_, p) -> tp = (p_at p)) muaux.alphas_out in
     (* betas_suffix_in *)
-    let betas_suffix_in = remove_if_pred_front (fun (ts, tp', p_opt) -> tp = tp') muaux.betas_suffix_in in
+    let betas_suffix_in = remove_if_pred_front (fun (_, tp', _) -> tp = tp') muaux.betas_suffix_in in
     { muaux with ts_tp_in
                ; ts_tp_out
                ; alphas_beta
@@ -673,14 +673,18 @@ module Future = struct
                 if ts + b < nts then Deque.enqueue_back d (ts, tp)) in
     d
 
-  let update_viol a ts muaux =
-    let muaux_dropped_ts = drop_muaux_ts a ts muaux in muaux_dropped_ts
+  let adjust_muaux a ts muaux =
+    let muaux_dropped_ts = drop_muaux_ts a ts muaux in
+    let () = Deque.iteri muaux.alphas_beta
+               ~f:(fun i d -> Deque.set_exn muaux.alphas_beta i (remove_if_pred_front (fun (_, lts, _) -> lts < ts + a) d)) in
+    let betas_suffix_in = remove_if_pred_front (fun (ts', _, _) -> ts' < ts + a) muaux_dropped_ts.betas_suffix_in in
+    { muaux_dropped_ts with betas_suffix_in }
     (* { muaux_dropped_ts with betas_alpha = remove_out_less2_lts (ts + a) muaux_dropped_ts.betas_alpha } *)
 
   let eval_step_muaux a ts tp muaux le minimuml =
     let _ = Printf.printf "eval_step_muaux ts = %d; tp = %d\n" ts tp in
     let optimal_proofs_len = Deque.length muaux.optimal_proofs in
-    let muaux = update_viol a ts muaux in
+    let muaux = adjust_muaux a ts muaux in
     (* let () = Printf.printf "after drop_muaux_ts\n" in
      * let () = match Deque.peek_front muaux.betas_alpha with
      *   | None -> ()
@@ -727,10 +731,7 @@ module Future = struct
   let shift_muaux a b ts muaux le minimuml =
     let tss_tps = ready_tss_tps muaux.ts_tp_out muaux.ts_tp_in ts b in
     Deque.foldi tss_tps ~init:muaux
-      ~f:(fun i muaux' (ts', tp') ->
-        (* let () = Printf.fprintf stdout "---------------\n%s\n\n" (muaux_to_string muaux) in *)
-        (* let  progress = ((Deque.length tss_tps) - i - 1) in *)
-        eval_step_muaux a ts' tp' muaux' le minimuml)
+      ~f:(fun i muaux' (ts', tp') -> eval_step_muaux a ts' tp' muaux' le minimuml)
 
 let append_ts l ts tp muaux =
   let () = Deque.enqueue_back muaux.ts_tp_in (ts, tp) in
