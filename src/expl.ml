@@ -152,6 +152,11 @@ and v_at = function
   | VUntil (i, _, _) -> i
   | VUntilInf (i, _, _) -> i
 
+let v_etp vp = match vp with
+  | VUntil (i, _, []) -> i
+  | VUntil (_, _, vp2::_) -> v_at vp2
+  | _ -> failwith "Bad arguments for v_ets"
+
 let p_at = function
 | S s_p -> s_at s_p
 | V v_p -> v_at v_p
