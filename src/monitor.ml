@@ -533,14 +533,14 @@ module Future = struct
                ; alphas_out
                ; betas_suffix_in }
 
-  let remove_muaux (z, l) muaux le =
-    let alphas_in, new_out_alphas = split_in_out2 (fun (ts, _) -> ts) (z, l) muaux.alphas_in in
-    let alphas_out = sorted_append new_out_alphas muaux.alphas_out le in
-    (* alphas_beta *)
-    let alphas_beta = remove_out_less2_lts l muaux.alphas_beta in
-    { muaux with alphas_beta
-               ; alphas_in
-               ; alphas_out }
+  let remove_muaux (z, l) muaux le = muaux
+    (* let alphas_in, new_out_alphas = split_in_out2 (fun (ts, _) -> ts) (z, l) muaux.alphas_in in
+     * let alphas_out = sorted_append new_out_alphas muaux.alphas_out le in
+     * (\* alphas_beta *\)
+     * let alphas_beta = remove_out_less2_lts l muaux.alphas_beta in
+     * { muaux with alphas_beta
+     *            ; alphas_in
+     *            ; alphas_out } *)
 
   let alphas_suffix_to_list alphas_suffix =
     List.rev(List.fold_left (Deque.to_list alphas_suffix) ~init:[]
@@ -684,18 +684,31 @@ module Future = struct
     let _ = remove_if_pred_front (fun (ts', _) -> ts' < ts) muaux.ts_tp_out in
     muaux
 
-  let adjust_muaux a ts muaux =
-    let muaux_dropped_ts = drop_muaux_ts a ts muaux in
-    let muaux_adjusted_ts_tp = adjust_ts_tp a ts muaux_dropped_ts in
-    let () = Deque.iteri muaux_adjusted_ts_tp.alphas_beta
-               ~f:(fun i d -> Deque.set_exn muaux.alphas_beta i (remove_if_pred_front (fun (_, lts, _) -> lts < ts + a) d)) in
-    let betas_suffix_in = remove_if_pred_front (fun (ts', _, _) -> ts' < ts + a) muaux_adjusted_ts_tp.betas_suffix_in in
-    { muaux_adjusted_ts_tp with betas_suffix_in }
+  let adjust_muaux a ts muaux le =
+    (* ts_tp_out and ts_tp_out *)
+    let muaux_adjusted_ts_tp = adjust_ts_tp a ts muaux in
+    (* alphas_beta *)
+    let () = Deque.iteri muaux_adjusted_ts_tp.alphas_beta ~f:(fun i d ->
+                 Deque.set_exn muaux_adjusted_ts_tp.alphas_beta i (remove_if_pred_front (fun (_, lts, _) -> lts < ts + a) d)) in
+    let alphas_beta = remove_if_pred_front_ne (fun d' -> Deque.is_empty d') muaux_adjusted_ts_tp.alphas_beta in
+    (* betas_alpha *)
+    let muaux_dropped_ts = drop_muaux_ts a ts muaux_adjusted_ts_tp in
+    let betas_alpha = remove_if_pred_front_ne (fun d' -> Deque.is_empty d') muaux_dropped_ts.betas_alpha in
+    (* alphas_in and alphas_out *)
+    let alphas_in, new_out_alphas = split_in_out2 (fun (ts', _) -> ts') (ts, (ts + a)) muaux_dropped_ts.alphas_in in
+    let alphas_out = sorted_append new_out_alphas muaux_dropped_ts.alphas_out le in
+    (* betas_suffix_in *)
+    let betas_suffix_in = remove_if_pred_front (fun (ts', _, _) -> ts' < ts + a) muaux_dropped_ts.betas_suffix_in in
+    { muaux_dropped_ts with alphas_beta
+                          ; betas_alpha
+                          ; alphas_in
+                          ; alphas_out
+                          ; betas_suffix_in}
 
   let eval_step_muaux a ts tp muaux le minimuml =
     let _ = Printf.printf "eval_step_muaux ts = %d; tp = %d\n" ts tp in
     let optimal_proofs_len = Deque.length muaux.optimal_proofs in
-    let muaux = adjust_muaux a ts muaux in
+    let muaux = adjust_muaux a ts muaux le in
     (* let () = Printf.printf "after drop_muaux_ts\n" in
      * let () = match Deque.peek_front muaux.betas_alpha with
      *   | None -> ()
