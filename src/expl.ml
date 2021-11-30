@@ -86,7 +86,7 @@ let sdrop sp = match sp with
   | _ -> failwith "Bad arguments for sdrop"
 
 let vdrop vp = match vp with
-  | VUntil (_, _, []) -> None
+  | VUntil (_, _, vp2::[]) -> None
   | VUntil (tp, vp1, vp2s) -> Some (VUntil (tp, vp1, drop_front vp2s))
   | VUntilInf (_, _, []) -> None
   | VUntilInf (tp, ltp, vp2s) -> Some (VUntilInf (tp, ltp, drop_front vp2s))
