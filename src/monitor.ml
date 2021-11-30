@@ -470,31 +470,32 @@ module Future = struct
     | Some(ts, _) -> ts
 
   let step_sdrop_tp tp alphas_beta =
-    let () = Deque.iteri alphas_beta ~f:(fun i (ets, lts, ssp) ->
+    Deque.fold alphas_beta ~init:(Deque.create ())
+               ~f:(fun acc (ets, lts, ssp) ->
                  (match ssp with
-                  | S sp ->  if tp = (s_at sp) then
-                               (match sdrop sp with
-                                | None -> ()
-                                | Some (sp') -> Deque.set_exn alphas_beta i (ets, lts, S sp'))
-                  | V _ -> raise SEXPL)) in
-    alphas_beta
+                  | S sp -> if tp = (s_at sp) then
+                              (match sdrop sp with
+                               | None -> acc
+                               | Some (sp') -> let () = Deque.enqueue_back acc (ets, lts, S sp') in acc)
+                            else let () = Deque.enqueue_back acc (ets, lts, ssp) in acc
+                  | V _ -> raise SEXPL))
 
   let step_vdrop_ts a ts betas_alpha muaux =
     let () = Printf.printf "HI1!\n" in
     let rec vdrop_until vp =
-      let () = Printf.printf "tp = %d; ts = %d\n" (v_at vp) (ts_of_tp (v_at vp) muaux) in
+      let () = Printf.printf "tp = %d; ts_of_tp = %d; ts + a = %d\n" (v_at vp) (ts_of_tp (v_at vp) muaux) (ts + a) in
       if (ts_of_tp (v_etp vp) muaux) < (ts + a) then
         (match vdrop vp with
          | None -> None
          | Some(vp') -> vdrop_until vp')
       else Some(vp) in
-    let () = Deque.iteri betas_alpha ~f:(fun i (ets, lts, vvp) ->
-                 (match vvp with
-                  | V vp -> (match vdrop_until vp with
-                             | None -> ()
-                             | Some (vp') -> Deque.set_exn betas_alpha i (ets, lts, V vp'))
-                  | S _ -> raise VEXPL)) in
-    betas_alpha
+    Deque.fold betas_alpha ~init:(Deque.create ())
+      ~f:(fun acc (ets, lts, vvp) ->
+        (match vvp with
+         | V vp -> (match vdrop_until vp with
+                    | None -> acc
+                    | Some (vp') -> let () = Deque.enqueue_back acc (ets, lts, V vp') in acc)
+         | S _ -> raise VEXPL))
 
   let remove_out_less2_lts lim d =
     let () = Deque.iteri d ~f:(fun i d' ->
