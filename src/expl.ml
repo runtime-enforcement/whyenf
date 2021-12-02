@@ -155,7 +155,7 @@ and v_at = function
 let v_etp vp = match vp with
   | VUntil (i, _, []) -> i
   | VUntil (_, _, vp2::_) -> v_at vp2
-  | _ -> failwith "Bad arguments for v_ets"
+  | _ -> failwith "Bad arguments for v_etp"
 
 let p_at = function
 | S s_p -> s_at s_p
