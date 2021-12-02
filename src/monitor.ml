@@ -80,7 +80,7 @@ let sorted_enqueue (ets, lts, p) d le =
   let _ = remove_if_pred_back (fun (ets', lts', p') -> le p p') d in
   let () = Deque.enqueue_back d (ets, lts, p) in d
 
-(* TODO: split_in_out and spit_in_out should be rewritten as a single function *)
+(* TODO: split_in_out and split_out_in should be rewritten as a single function *)
 (* Considering a closed interval [l, r] *)
 let split_in_out get_ts (l, r) d =
   let new_in = Deque.create () in
@@ -89,8 +89,8 @@ let split_in_out get_ts (l, r) d =
     match el_opt with
     | None -> ()
     | Some(el) -> (let ts = get_ts el in
-                   if ts <= r then
-                     (let () = if ts >= l then Deque.enqueue_back new_in el in aux d)
+                   if ts >= l && ts <= r then
+                     (let () = Deque.enqueue_back new_in el in aux d)
                    else Deque.enqueue_front d el) in
   let () = aux d in
   (d, new_in)
