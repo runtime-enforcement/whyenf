@@ -96,18 +96,18 @@ let split_in_out get_ts (l, r) d =
   (d, new_in)
 
 (* Considering an interval of the form [z, l) *)
-let split_in_out2 get_ts (z, l) d =
-  let new_in = Deque.create () in
+let split_out_in get_ts (z, l) d =
+  let new_out = Deque.create () in
   let rec aux d =
     let el_opt = Deque.dequeue_front d in
     match el_opt with
     | None -> ()
     | Some(el) -> (let ts = get_ts el in
-                   if ts < l then
-                     (let () = if ts >= z then Deque.enqueue_back new_in el in aux d)
+                   if ts >= z && ts < l then
+                     (let () = Deque.enqueue_back new_out el in aux d)
                    else Deque.enqueue_front d el) in
   let () = aux d in
-  (d, new_in)
+  (d, new_out)
 
 (* TODO: Those functions are only used in the until case, replace them with
    the tail-recursive function mentioned above *)
@@ -481,7 +481,7 @@ module Future = struct
                   | V _ -> raise SEXPL))
 
   let step_vdrop_ts a ts betas_alpha muaux =
-    let () = Printf.printf "HI1!\n" in
+    (* let () = Printf.printf "HI1!\n" in *)
     let rec vdrop_until vp =
       let () = Printf.printf "tp = %d; ts_of_tp = %d; ts + a = %d\n" (v_at vp) (ts_of_tp (v_at vp) muaux) (ts + a) in
       if (ts_of_tp (v_etp vp) muaux) < (ts + a) then
@@ -646,7 +646,7 @@ module Future = struct
     alphas_beta
 
   let drop_betas_alpha_ts a ts muaux =
-    let () = Printf.printf "HI2!\n" in
+    (* let () = Printf.printf "HI2!\n" in *)
     let _ = (match Deque.peek_front muaux.betas_alpha with
              | None -> raise (EMPTY_DEQUE "betas_alpha")
              | Some(front_betas_alpha) -> if not (Deque.is_empty front_betas_alpha) then
@@ -697,6 +697,7 @@ module Future = struct
     muaux
 
   let adjust_muaux a muaux le =
+    let () = drop_first_ts_tp muaux in
     let (ts, tp) = first_ts_tp muaux in
     (* ts_tp_out and ts_tp_out *)
     let muaux = adjust_ts_tp a ts muaux in
@@ -713,8 +714,13 @@ module Future = struct
                                                         lts < ts + a) d)) in
     let betas_alpha = remove_if_pred_front_ne (fun d' -> Deque.is_empty d') muaux.betas_alpha in
     (* alphas_in and alphas_out *)
-    let alphas_in, new_out_alphas = split_in_out2 (fun (ts', _) -> ts') (ts, (ts + a)) muaux.alphas_in in
-    let alphas_out = sorted_append new_out_alphas muaux.alphas_out le in
+    let alphas_in, new_out_alphas = split_out_in (fun (ts', _) -> ts') (ts, (ts + a)) muaux.alphas_in in
+    let () = Printf.printf "\nnew_out_alphas = \n" in
+    let () = Deque.iter new_out_alphas ~f:(fun (ts, p) -> Printf.printf "%s\n" (Expl.expl_to_string p)) in
+    let alphas_out_plus = sorted_append new_out_alphas muaux.alphas_out le in
+    let () = Printf.printf "\nalphas_out_plus = \n" in
+    let () = Deque.iter alphas_out_plus ~f:(fun (ts, p) -> Printf.printf "%s\n" (Expl.expl_to_string p)) in
+    let alphas_out = remove_if_pred_front (fun (_, p) -> (p_at p) <= tp) alphas_out_plus in
     (* betas_suffix_in *)
     let betas_suffix_in = remove_if_pred_front (fun (ts', _, _) -> ts' < ts + a) muaux.betas_suffix_in in
     { muaux with alphas_beta
@@ -744,7 +750,11 @@ module Future = struct
                              let cur_betas_alpha = Deque.peek_front_exn muaux.betas_alpha in
                              (if not (Deque.is_empty cur_betas_alpha) then
                                 match Deque.peek_front_exn cur_betas_alpha with
-                                | (_, _, V VUntil(_, vp1, vp2s)) -> [V (VUntil(tp, vp1, vp2s))]
+                                | (_, _, V VUntil(tp', vp1, vp2s)) -> (match Deque.peek_front muaux.ts_tp_in with
+                                                                     | None -> []
+                                                                     | Some(_, first_tp_in) -> if tp' = first_tp_in then
+                                                                                                 [V (VUntil(tp, vp1, vp2s))]
+                                                                                               else [])
                                 | _ -> raise (INVALID_EXPL "Explanation should be VUntil")
                               else [])
                            else [] in
@@ -772,17 +782,15 @@ module Future = struct
   let shift_muaux (a, b) nts muaux le minimuml =
     let tss_tps = ready_tss_tps muaux.ts_tp_out muaux.ts_tp_in nts b in
     Deque.fold tss_tps ~init:muaux
-      ~f:(fun acc (ts, tp) -> if ts + b < nts then
-                                (let acc' = eval_step_muaux a ts tp acc le minimuml in
-                                 let () = drop_first_ts_tp acc' in acc')
+      ~f:(fun acc (ts, tp) -> if ts + b < nts then eval_step_muaux a ts tp acc le minimuml
                               else acc)
 
-  let ets muaux ts =
-    match Deque.peek_front muaux.ts_tp_out with
-    | None -> (match Deque.peek_front muaux.ts_tp_in with
-               | None -> ts
-               | Some (ts', _) -> ts')
-    | Some (ts', _) -> ts'
+  (* let ets muaux ts =
+   *   match Deque.peek_front muaux.ts_tp_out with
+   *   | None -> (match Deque.peek_front muaux.ts_tp_in with
+   *              | None -> ts
+   *              | Some (ts', _) -> ts')
+   *   | Some (ts', _) -> ts' *)
 
   let update_until interval nts tp p1 p2 muaux le minimuml =
     let a = get_a_I interval in
@@ -797,7 +805,6 @@ module Future = struct
                  else Deque.enqueue_back muaux.ts_tp_in (nts, tp)))
              else (if nts >= a && nts <= b then Deque.enqueue_back muaux.ts_tp_in (nts, tp)
                    else Deque.enqueue_back muaux.ts_tp_out (nts, tp)) in
-    let muaux = adjust_muaux a muaux le in
     (* let () = Deque.enqueue_back muaux.ts_tp_in (nts, tp) in *)
     (* let z = max 0 (ets muaux ts) in
      * let l = max 0 ((ets muaux ts) + a) in
