@@ -481,7 +481,7 @@ module Future = struct
   let step_vdrop_ts a ts betas_alpha muaux =
     (* let () = Printf.printf "HI1!\n" in *)
     let rec vdrop_until vp =
-      let () = Printf.printf "tp = %d; ts_of_tp = %d; ts + a = %d\n" (v_at vp) (ts_of_tp (v_at vp) muaux) (ts + a) in
+      (* let () = Printf.printf "tp = %d; ts_of_tp = %d; ts + a = %d\n" (v_at vp) (ts_of_tp (v_at vp) muaux) (ts + a) in *)
       if (ts_of_tp (v_etp vp) muaux) < (ts + a) then
         (match vdrop vp with
          | None -> None
@@ -743,11 +743,11 @@ module Future = struct
                               let cur_betas_alpha = Deque.peek_front_exn muaux.betas_alpha in
                               (if not (Deque.is_empty cur_betas_alpha) then
                                  match Deque.peek_front_exn cur_betas_alpha with
-                                 | (_, V VUntil(tp', vp1, vp2s)) -> (match Deque.peek_front muaux.ts_tp_in with
-                                                                     | None -> []
-                                                                     | Some(_, first_tp_in) -> if tp' = first_tp_in then
-                                                                                                 [V (VUntil(tp, vp1, vp2s))]
-                                                                                               else [])
+                                 | (_, V VUntil(_, vp1, vp2s)) -> (match Deque.peek_front muaux.ts_tp_in with
+                                                                   | None -> []
+                                                                   | Some(_, first_tp_in) -> if (v_etp (VUntil(tp, vp1, vp2s))) = first_tp_in then
+                                                                                               [V (VUntil(tp, vp1, vp2s))]
+                                                                                             else [])
                                  | _ -> raise (INVALID_EXPL "Explanation should be VUntil")
                                else [])
                             else [] in
