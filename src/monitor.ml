@@ -685,14 +685,10 @@ module Future = struct
     (* ts_tp_out and ts_tp_out *)
     let () = adjust_ts_tp a first_ts muaux in
     (* alphas_beta *)
-
-
-    let () = Printf.printf "before alphas_beta =\n" in
-    let () = match Deque.peek_front muaux.alphas_beta with
-      | None -> ()
-      | Some(d) -> Deque.iter d ~f:(fun  (_, p) -> Printf.printf "tp = %d; p = %s\n" (p_at p) (Expl.expl_to_string p)) in
-
-
+    (* let () = Printf.printf "before alphas_beta =\n" in
+     * let () = match Deque.peek_front muaux.alphas_beta with
+     *   | None -> ()
+     *   | Some(d) -> Deque.iter d ~f:(fun  (_, p) -> Printf.printf "tp = %d; p = %s\n" (p_at p) (Expl.expl_to_string p)) in *)
     let () = drop_muaux_tp (first_tp - 1) muaux in
     let () = Deque.iteri muaux.alphas_beta ~f:(fun i d ->
                  Deque.set_exn muaux.alphas_beta i
@@ -700,12 +696,10 @@ module Future = struct
                                                           | S sp -> (ts_of_tp (s_ltp sp) muaux) < (first_ts + a)
                                                           | V _ -> raise SEXPL) d)) in
     let _ = remove_if_pred_front_ne (fun d' -> Deque.is_empty d') muaux.alphas_beta in
-
-    let () = Printf.printf "after alphas_beta =\n" in
-    let () = match Deque.peek_front muaux.alphas_beta with
-      | None -> ()
-      | Some(d) -> Deque.iter d ~f:(fun  (_, p) -> Printf.printf "tp = %d; p = %s\n" (p_at p) (Expl.expl_to_string p)) in
-
+    (* let () = Printf.printf "after alphas_beta =\n" in
+     * let () = match Deque.peek_front muaux.alphas_beta with
+     *   | None -> ()
+     *   | Some(d) -> Deque.iter d ~f:(fun  (_, p) -> Printf.printf "tp = %d; p = %s\n" (p_at p) (Expl.expl_to_string p)) in *)
     (* alphas_suffix *)
     let _ = remove_if_pred_front (fun (_, sp) -> (s_at sp) < first_tp) muaux.alphas_suffix in
     (* betas_alpha *)
@@ -764,9 +758,10 @@ module Future = struct
                               | S _ -> raise VEXPL
                             else [] in
                  let p3_l = let betas_suffix = first_somes_betas_suffix_in_to_list muaux.betas_suffix_in in
-                            if (List.length betas_suffix) > 0 &&
-                                 (List.length betas_suffix) = (Deque.length muaux.ts_tp_in) then
-                              let (_, ltp, _) = Deque.peek_back_exn muaux.betas_suffix_in in
+                            if (List.length betas_suffix) = (Deque.length muaux.ts_tp_in) then
+                              let ltp = match Deque.peek_back muaux.betas_suffix_in with
+                                | None -> snd(Deque.peek_back_exn muaux.ts_tp_out)
+                                | Some(_, tp', _) -> tp' in
                               (* let _ = Printf.printf "|betas_suffix_in| = %d; ltp = %d\n" (List.length betas_suffix) ltp in *)
                               [V (VUntilInf (tp, ltp, betas_suffix))]
                             else [] in
