@@ -828,9 +828,12 @@ end
 type mbuf2 = expl Deque.t * expl Deque.t
 
 let mbuf2_add p1s p2s (d1, d2) =
-  let _ = Deque.iter p1s ~f:(fun p1 -> Deque.enqueue_front d1 p1) in
-  let _ = Deque.iter p2s ~f:(fun p2 -> Deque.enqueue_front d2 p2) in
-  (d1, d2)
+  let () = Deque.iter p1s ~f:(fun p1 -> Deque.enqueue_back d1 p1) in
+  let () = Deque.iter p2s ~f:(fun p2 -> Deque.enqueue_back d2 p2) in
+  (* let () = Printf.printf "d1 = [\n" in
+   * let () = Deque.iter d1 ~f:(fun p1 -> Printf.printf "%s\n" (Expl.expl_to_string p1)) in
+   * let () = Printf.printf "]\n" in *)
+(d1, d2)
 
 let rec mbuf2_take f (p1s, p2s) =
   match (Deque.is_empty p1s, Deque.is_empty p2s) with
