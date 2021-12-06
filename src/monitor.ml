@@ -375,15 +375,17 @@ module Past = struct
      \tau_{tp} < (\tau_{0} + a) OR (\tau_{tp} - a) < 0 *)
     if ((Option.is_none msaux.ts_zero) && (ts - a) < 0) ||
          (Option.is_some msaux.ts_zero) && ts < (Option.get msaux.ts_zero) + a then
+      let () = Printf.printf "INSIDE ==> ts = %d; tp = %d\n" ts tp in
       let l = (-1) in
       let r = (-1) in
-      let msaux_ts_zero_updated = if Option.is_none msaux.ts_zero then
-                                    { msaux with ts_zero = Some(ts) }
-                                  else msaux in
-      let msaux_ts_updated = update_ts (l, r) a ts tp msaux_ts_zero_updated in
+      let ts_zero = if Option.is_none msaux.ts_zero then Some(ts) else msaux.ts_zero in
+      let () = match ts_zero with
+        | None -> ()
+        | Some(ts') -> Printf.printf "TEMP ts_zero = %d\n" ts' in
+      let msaux_ts_updated = update_ts (l, r) a ts tp msaux in
       let msaux_updated = advance_msaux (l, r) tp ts p1 p2 msaux_ts_updated le in
       let p = V (VSinceOutL tp) in
-      ([p], msaux_updated)
+      ([p], { msaux_updated with ts_zero })
     (* Case 2: there exists a \tau_{tp'} inside the interval s.t. tp' < tp *)
     else
       let b = get_b_I interval in
@@ -1017,15 +1019,18 @@ let meval' tp ts sap mform le minimuml =
        let (p1s, mf1') = meval tp ts sap mf1 in
        let (p2s, mf2') = meval tp ts sap mf2 in
        let _ = Deque.enqueue_back tss_tps (ts, tp) in
-       let _ = Printf.fprintf stdout "---------------\n%s\n\n" (Past.msaux_to_string msaux) in
+       let _ = Printf.printf "---------------\n%s\n\n" (Past.msaux_to_string msaux) in
        let ((ps, msaux'), buf', tss_tps') =
          mbuf2t_take
            (fun p1 p2 ts tp (ps, aux) ->
-             let (cps, aux) = Past.update_since interval tp ts p1 p2 msaux le in
+             let (cps, aux) = Past.update_since interval tp ts p1 p2 aux le in
              let op = minimuml cps in
              let _ = Deque.enqueue_back ps op in
              (ps, aux))
            (Deque.create (), msaux) (mbuf2_add p1s p2s buf) tss_tps in
+       let () = match msaux.ts_zero with
+         | None -> ()
+         | Some(ts') -> Printf.printf "msaux.ts_zero = %d\n" ts' in
        (ps, MSince (interval, mf1', mf2', buf', tss_tps', msaux'))
     | MUntil (interval, mf1, mf2, buf, tss_tps, muaux) ->
        let (p1s, mf1') = meval tp ts sap mf1 in
