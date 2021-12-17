@@ -110,7 +110,7 @@ let split_out_in get_ts (z, l) d =
   let () = aux d in
   (d, new_out)
 
-module Past = struct
+module Since = struct
   type msaux = {
       ts_zero: timestamp option
     ; ts_tp_in: (timestamp * timepoint) Deque.t
@@ -380,7 +380,7 @@ module Past = struct
       (optimal_proof tp msaux_updated, msaux_updated)
 end
 
-module Future = struct
+module Until = struct
   type muaux = {
       ts_tp_in: (timestamp * timepoint) Deque.t
     ; ts_tp_out: (timestamp * timepoint) Deque.t
@@ -773,8 +773,8 @@ type mformula =
   | MDisj of mformula * mformula * mbuf2
   | MPrev of interval * mformula * bool * expl Deque.t * timestamp Deque.t
   | MNext of interval * mformula * bool * timestamp Deque.t
-  | MSince of interval * mformula * mformula * mbuf2 * (timestamp * timepoint) Deque.t * Past.msaux
-  | MUntil of interval * mformula * mformula * mbuf2 * (timestamp * timepoint) Deque.t * Future.muaux
+  | MSince of interval * mformula * mformula * mbuf2 * (timestamp * timepoint) Deque.t * Since.msaux
+  | MUntil of interval * mformula * mformula * mbuf2 * (timestamp * timepoint) Deque.t * Until.muaux
 
 let rec mformula_to_string l f =
   match f with
@@ -837,7 +837,7 @@ let rec minit f =
   | Next (i, f) -> MNext (i, minit f, true, (Deque.create ()))
   | Since (i, f, g) ->
      let buf = (Deque.create (), Deque.create ()) in
-     let msaux = { Past.ts_zero = None
+     let msaux = { Since.ts_zero = None
                  ; ts_tp_in = Deque.create ()
                  ; ts_tp_out = Deque.create ()
                  ; beta_alphas = Deque.create ()
@@ -856,7 +856,7 @@ let rec minit f =
      let betas_alpha = Deque.create () in
      let _ = Deque.enqueue_front alphas_beta empty_d1 in
      let _ = Deque.enqueue_front betas_alpha empty_d2 in
-     let muaux = { Future.ts_tp_in = Deque.create ()
+     let muaux = { Until.ts_tp_in = Deque.create ()
                  ; ts_tp_out = Deque.create ()
                  ; alphas_beta = alphas_beta
                  ; alphas_suffix = Deque.create ()
@@ -938,7 +938,7 @@ let meval' tp ts sap mform le minimuml =
        let ((ps, msaux'), buf', tss_tps') =
          mbuf2t_take
            (fun p1 p2 ts tp (ps, aux) ->
-             let (cps, aux) = Past.update_since interval tp ts p1 p2 aux le in
+             let (cps, aux) = Since.update_since interval tp ts p1 p2 aux le in
              let op = minimuml cps in
              let _ = Deque.enqueue_back ps op in
              (ps, aux))
@@ -950,12 +950,12 @@ let meval' tp ts sap mform le minimuml =
        let () = Deque.enqueue_back tss_tps (ts, tp) in
        let (muaux', buf', ntss_ntps) =
          mbuf2t_take
-           (fun p1 p2 ts tp aux -> Future.update_until interval ts tp p1 p2 muaux le minimuml)
+           (fun p1 p2 ts tp aux -> Until.update_until interval ts tp p1 p2 muaux le minimuml)
            muaux (mbuf2_add p1s p2s buf) tss_tps in
        let nts = match Deque.peek_front ntss_ntps with
          | None -> ts
          | Some(nts', _) -> nts' in
-       let (ps, muaux'') = Future.eval_until (Deque.create ()) interval nts muaux in
+       let (ps, muaux'') = Until.eval_until (Deque.create ()) interval nts muaux in
        (ps, MUntil (interval, mf1', mf2', buf', ntss_ntps, muaux''))
     | _ -> failwith "This formula cannot be monitored" in
   meval tp ts sap mform
