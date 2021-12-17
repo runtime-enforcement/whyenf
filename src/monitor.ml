@@ -784,8 +784,8 @@ type mformula =
   | MNeg of mformula
   | MConj of mformula * mformula * mbuf2
   | MDisj of mformula * mformula * mbuf2
-  | MPrev of interval * mformula * bool * expl list * timestamp list
-  | MNext of interval * mformula * bool * timestamp list
+  | MPrev of interval * mformula * bool * expl Deque.t * timestamp Deque.t
+  | MNext of interval * mformula * bool * timestamp Deque.t
   | MSince of interval * mformula * mformula * mbuf2 * (timestamp * timepoint) Deque.t * Past.msaux
   | MUntil of interval * mformula * mformula * mbuf2 * (timestamp * timepoint) Deque.t * Future.muaux
 
@@ -846,8 +846,8 @@ let rec minit f =
   | Disj (f, g) ->
      let buf = (Deque.create (), Deque.create ()) in
      MDisj (minit f, minit g, buf)
-  | Prev (i, f) -> MPrev (i, minit f, true, [], [])
-  | Next (i, f) -> MNext (i, minit f, true, [])
+  | Prev (i, f) -> MPrev (i, minit f, true, (Deque.create ()), (Deque.create ()))
+  | Next (i, f) -> MNext (i, minit f, true, (Deque.create ()))
   | Since (i, f, g) ->
      let buf = (Deque.create (), Deque.create ()) in
      let msaux = { Past.ts_zero = None
@@ -898,7 +898,6 @@ let do_conj minimum2 expl_f1 expl_f2 =
 
 let meval' tp ts sap mform le minimuml =
   let minimum2 a b = minimuml [a; b] in
-  (* TODO: This function should return (Deque.t, mformula) *)
   let rec meval tp ts sap mform =
     match mform with
     | MTT -> let d = Deque.create () in
@@ -932,8 +931,19 @@ let meval' tp ts sap mform le minimuml =
        let (p2s, mf2') = meval tp ts sap mf2 in
        let (ps, buf') = mbuf2_take op (mbuf2_add p1s p2s buf) in
        (ps, MDisj (mf1', mf2', buf'))
-    (* | MPrev (interval, mf, b, expl_lst, ts_d_lst) ->
-     * | MNext (interval, mf, b, ts_a_lst) -> *)
+    (* | MPrev (interval, mf, first, buf, tss) ->
+     *    let (ps, mf') = meval tp ts sap mf in
+     *    let () = Deque.iter ps ~f:(fun p -> Deque.enqueue_back buf p) in
+     *    let () = Deque.enqueue_back tss ts in
+     *    let (ps', buf', tss') = mprev_next interval buf tss in
+     *    ((if first then (let () = Deque.enqueue_front ps' (V VPrev0) in ps')
+     *      else ps'), MPrev (interval, mf', false, buf', tss'))
+     * | MNext (interval, mf, first, tss) ->
+     *    let (ps, mf') = meval tp ts sap mf in
+     *    let () = Deque.enqueue_back tss ts in
+     *    let () = if first then Deque.drop_front ps in
+     *    let (ps', _, tss') = mprev_next interval ps tss in
+     *    (ps', MNext (interval, mf', false, tss')) *)
     | MSince (interval, mf1, mf2, buf, tss_tps, msaux) ->
        let (p1s, mf1') = meval tp ts sap mf1 in
        let (p2s, mf2') = meval tp ts sap mf2 in
