@@ -110,19 +110,6 @@ let split_out_in get_ts (z, l) d =
   let () = aux d in
   (d, new_out)
 
-(* TODO: Those functions are only used in the until case, replace them with
-   the tail-recursive function mentioned above *)
-let sort_ps le new_in =
-  let rec aux ps acc =
-    match ps with
-    | [] -> acc
-    | x::x'::xs ->
-       if le (snd(x)) (snd(x')) then
-         aux xs (x::acc)
-       else aux xs (x'::acc)
-    | x::xs -> x::acc
-  in aux new_in []
-
 module Past = struct
   type msaux = {
       ts_zero: timestamp option
