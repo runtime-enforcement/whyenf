@@ -627,6 +627,7 @@ module Until = struct
     let (first_ts, first_tp) = match first_ts_tp muaux with
       | None -> raise (NOT_FOUND "(ts, tp) deques are empty")
       | Some(ts', tp') -> (ts', tp') in
+    (* let () = Printf.printf "first_ts = %d; first_tp = %d\n" first_ts first_tp in *)
     (* ts_tp_out and ts_tp_out *)
     let () = adjust_ts_tp a first_ts muaux in
     (* alphas_beta *)
@@ -652,13 +653,22 @@ module Until = struct
      * let () = Deque.iter new_out_alphas ~f:(fun (ts, p) -> Printf.printf "%s\n" (Expl.expl_to_string p)) in *)
     let alphas_out = sorted_append new_out_alphas muaux.alphas_out le in
     (* betas_suffix_in *)
-    let betas_suffix_in = remove_if_pred_front (fun (ts', _, _) -> ts' < first_ts + a) muaux.betas_suffix_in in
+    let betas_suffix_in = remove_if_pred_front (fun (_, tp', _) ->
+                              match Deque.peek_front muaux.ts_tp_in with
+                              | None -> let (_, tp'') = Deque.peek_back_exn muaux.ts_tp_out in
+                                        tp' <= tp'')
+                              | Some (_, tp'') -> tp' < tp'') muaux.betas_suffix_in in
+    (* let () = Printf.printf "\nbetas_suffix_in = \n" in
+     * let () = Deque.iter betas_suffix_in ~f:(fun (ts', tp', op) ->
+     *              match op with
+     *              | None -> ()
+     *              | Some (vp) -> Printf.printf "(%d, %d): %s\n" ts' tp' (Expl.v_to_string "" vp)) in *)
     { muaux with alphas_in
                ; alphas_out
                ; betas_suffix_in}
 
   let eval_step_muaux a ts tp muaux le minimuml =
-    (* let () = Printf.printf "eval_step_muaux ts = %d; tp = %d\n" ts tp in *)
+    let () = Printf.printf "eval_step_muaux ts = %d; tp = %d\n" ts tp in
     let optimal_proofs_len = Deque.length muaux.optimal_proofs in
     let () = (let cur_alphas_beta = Deque.peek_front_exn muaux.alphas_beta in
               let () = (if not (Deque.is_empty cur_alphas_beta) then
@@ -772,7 +782,9 @@ module Prev_Next = struct
                                                    | S sp ->
                                                       let () = Printf.printf "\n%s\n" (Expl.expl_to_string (S (SNext sp))) in
                                                       Deque.enqueue_front ps (S (SNext sp))
-                                                   | V vp -> Deque.enqueue_front ps (V (VNext vp))) in
+                                                   | V vp ->
+                                                      let () = Printf.printf "\n%s\n" (Expl.expl_to_string (V (VNext vp))) in
+                                                      Deque.enqueue_front ps (V (VNext vp))) in
                                        let () = if (below_I (t' - t) interval) then
                                                   let () = Printf.printf "> 2\n" in
                                                   let () = Printf.printf "\n%s\n" (Expl.expl_to_string (V (VNextOutL ((p_at p)-1)))) in
