@@ -655,14 +655,9 @@ module Until = struct
     (* betas_suffix_in *)
     let betas_suffix_in = remove_if_pred_front (fun (_, tp', _) ->
                               match Deque.peek_front muaux.ts_tp_in with
-                              | None -> let (_, tp'') = Deque.peek_back_exn muaux.ts_tp_out in
-                                        tp' <= tp'')
+                              | None -> (let (_, tp'') = Deque.peek_back_exn muaux.ts_tp_out in
+                                         tp' <= tp'')
                               | Some (_, tp'') -> tp' < tp'') muaux.betas_suffix_in in
-    (* let () = Printf.printf "\nbetas_suffix_in = \n" in
-     * let () = Deque.iter betas_suffix_in ~f:(fun (ts', tp', op) ->
-     *              match op with
-     *              | None -> ()
-     *              | Some (vp) -> Printf.printf "(%d, %d): %s\n" ts' tp' (Expl.v_to_string "" vp)) in *)
     { muaux with alphas_in
                ; alphas_out
                ; betas_suffix_in}
