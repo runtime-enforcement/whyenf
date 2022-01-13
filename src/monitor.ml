@@ -643,7 +643,7 @@ module Until = struct
     (* betas_alpha *)
     let () = Deque.iteri muaux.betas_alpha ~f:(fun i d ->
                  Deque.set_exn muaux.betas_alpha i
-                   (remove_if_pred_front (fun (ts', _) -> ts' < first_ts + a) d)) in
+                   (remove_if_pred_front (fun (ts', p) -> (ts' < first_ts + a) || ((p_at p) < first_tp)) d)) in
     let () = drop_muaux_ts a first_ts muaux in
     let _ = remove_if_pred_front_ne (fun d' -> Deque.is_empty d') muaux.betas_alpha in
     (* alphas_in and alphas_out *)
@@ -663,7 +663,7 @@ module Until = struct
                ; betas_suffix_in}
 
   let eval_step_muaux a ts tp muaux le minimuml =
-    let () = Printf.printf "eval_step_muaux ts = %d; tp = %d\n" ts tp in
+    (* let () = Printf.printf "eval_step_muaux ts = %d; tp = %d\n" ts tp in *)
     let optimal_proofs_len = Deque.length muaux.optimal_proofs in
     let () = (let cur_alphas_beta = Deque.peek_front_exn muaux.alphas_beta in
               let () = (if not (Deque.is_empty cur_alphas_beta) then
@@ -747,8 +747,8 @@ module Prev_Next = struct
   type operator = Prev | Next
 
   let rec mprev_next op interval tp buf tss =
-    let () = Printf.printf "\nbuf = \n" in
-    let () = Deque.iter buf ~f:(fun p -> Printf.printf "\n%s\n" (Expl.expl_to_string p)) in
+    (* let () = Printf.printf "\nbuf = \n" in
+     * let () = Deque.iter buf ~f:(fun p -> Printf.printf "\n%s\n" (Expl.expl_to_string p)) in *)
     match (Deque.is_empty buf, Deque.is_empty tss) with
     | true, _ -> ((Deque.create ()), (Deque.create ()), tss)
     | _, true -> ((Deque.create ()), buf, (Deque.create ()))
@@ -770,23 +770,13 @@ module Prev_Next = struct
                                        let t' = Deque.peek_front_exn tss in
                                        let p = Deque.dequeue_front_exn buf in
                                        let (ps, buf', tss') = mprev_next op interval tp buf tss in
-                                       let () = Printf.printf "t' = %d; t = %d\n" t' t in
                                        let () = if (mem_I (t' - t) interval) then
-                                                  let () = Printf.printf "> 1\n" in
                                                   (match p with
-                                                   | S sp ->
-                                                      let () = Printf.printf "\n%s\n" (Expl.expl_to_string (S (SNext sp))) in
-                                                      Deque.enqueue_front ps (S (SNext sp))
-                                                   | V vp ->
-                                                      let () = Printf.printf "\n%s\n" (Expl.expl_to_string (V (VNext vp))) in
-                                                      Deque.enqueue_front ps (V (VNext vp))) in
+                                                   | S sp -> Deque.enqueue_front ps (S (SNext sp))
+                                                   | V vp -> Deque.enqueue_front ps (V (VNext vp))) in
                                        let () = if (below_I (t' - t) interval) then
-                                                  let () = Printf.printf "> 2\n" in
-                                                  let () = Printf.printf "\n%s\n" (Expl.expl_to_string (V (VNextOutL ((p_at p)-1)))) in
                                                   Deque.enqueue_front ps (V (VNextOutL ((p_at p)-1))) in
                                        let () = if (above_I (t' - t) interval) then
-                                                  let () = Printf.printf "> 3\n" in
-                                                  let () = Printf.printf "\n%s\n" (Expl.expl_to_string (V (VNextOutR ((p_at p)-1)))) in
                                                   Deque.enqueue_front ps (V (VNextOutR ((p_at p)-1))) in
                                        (ps, buf', tss')
     | _ -> failwith "Bad arguments for mprev_next"
@@ -987,8 +977,6 @@ let meval' tp ts sap mform le minimuml =
        let () = Deque.enqueue_back tss ts in
        let first = if first && (Deque.length ps) > 0 then (let () = Deque.drop_front ps in false) else first in
        let (ps', _, tss') = Prev_Next.mprev_next Next interval tp ps tss in
-       let () = Printf.printf "\nps' = \n" in
-       let () = Deque.iter ps' ~f:(fun p -> Printf.printf "\n%s\n" (Expl.expl_to_string p)) in
        (ps', MNext (interval, mf', first, tss'))
     | MSince (interval, mf1, mf2, buf, tss_tps, msaux) ->
        let (p1s, mf1') = meval tp ts sap mf1 in
