@@ -1,3 +1,4 @@
+visualization/node_modules/
 _build/
 test/*.csv
 test/*.log
