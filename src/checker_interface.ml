@@ -98,11 +98,15 @@ let rec convert_f f =
   | P (x) -> Atom (x)
   | Neg (f) -> Neg (convert_f f)
   | Disj (f, g) -> Disj (convert_f f, convert_f g)
-    | Since (interval, f, g) -> let interval' = convert_interval interval in
-                                Since (convert_f f, interval', convert_f g)
-    | Until (interval, f, g) -> let interval' = convert_interval interval in
-                         Until (convert_f f, interval', convert_f g)
-    | _ -> failwith "This formula cannot be checked"
+  | Since (interval, f, g) -> let interval' = convert_interval interval in
+                              Since (convert_f f, interval', convert_f g)
+  | Until (interval, f, g) -> let interval' = convert_interval interval in
+                              Until (convert_f f, interval', convert_f g)
+  | Prev (interval, f) -> let interval' = convert_interval interval in
+                          Prev (interval', convert_f f)
+  | Next (interval, f) -> let interval' = convert_interval interval in
+                          Next (interval', convert_f f)
+  | _ -> failwith "This formula cannot be checked"
 
 let convert_event sap ts =
   let ts_nat = nat_of_integer (of_int ts) in

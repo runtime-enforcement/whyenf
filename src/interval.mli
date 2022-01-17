@@ -28,6 +28,8 @@ val right_I: interval -> int
 val full: interval
 val subtract_I: int -> interval -> interval
 val multiply_I: int -> interval -> interval
+val below_I: int -> interval -> bool
+val above_I: int -> interval -> bool
 val mem_I: int -> interval -> bool
 val where_I: int -> interval -> rel
 val get_a_I: interval -> int

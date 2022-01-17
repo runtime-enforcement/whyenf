@@ -432,7 +432,7 @@ and v_to_string indent p =
   | VImpl (sphi, vpsi) -> Printf.sprintf "%sVImpl{%d}\n%s\n%s)" indent (v_at p) (s_to_string indent' sphi) (v_to_string indent' vpsi)
   | VIffL (sphi, vpsi) -> Printf.sprintf "%sVIffL{%d}\n%s\n%s)" indent (v_at p) (s_to_string indent' sphi) (v_to_string indent' vpsi)
   | VIffR (vphi, spsi) -> Printf.sprintf "%sVIffR{%d}\n%s\n%s)" indent (v_at p) (v_to_string indent' vphi) (s_to_string indent' spsi)
-  | VPrev0 -> Printf.sprintf "%sVPrev{0}" indent'
+  | VPrev0 -> Printf.sprintf "%sVPrev0{0}" indent'
   | VPrevOutL i -> Printf.sprintf "%sVPrevOutL{%d}" indent' i
   | VPrevOutR i -> Printf.sprintf "%sVPrevOutR{%d}" indent' i
   | VPrev vphi -> Printf.sprintf "%sVPrev{%d}\n%s" indent (v_at p) (v_to_string indent' vphi)
