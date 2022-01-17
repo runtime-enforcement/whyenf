@@ -746,40 +746,38 @@ module Prev_Next = struct
 
   type operator = Prev | Next
 
-  let rec mprev_next op interval tp buf tss =
-    (* let () = Printf.printf "\nbuf = \n" in
-     * let () = Deque.iter buf ~f:(fun p -> Printf.printf "\n%s\n" (Expl.expl_to_string p)) in *)
+  let rec mprev_next_aux op interval buf tss minimuml =
+      let t = Deque.dequeue_front_exn tss in
+      let t' = Deque.peek_front_exn tss in
+      let p = Deque.dequeue_front_exn buf in
+      let (ps, buf', tss') = mprev_next op interval buf tss minimuml in
+      let p1_l = (match p with
+                  | S sp -> if (mem_I (t' - t) interval) then
+                              (match op with
+                               | Prev -> [S (SPrev sp)]
+                               | Next -> [S (SNext sp)])
+                            else []
+                  | V vp -> (match op with
+                             | Prev -> [V (VPrev vp)]
+                             | Next -> [V (VNext vp)])) in
+      let p2_l = if (below_I (t' - t) interval) then
+                   (match op with
+                    | Prev -> [V (VPrevOutL ((p_at p)+1))]
+                    | Next -> [V (VNextOutL ((p_at p)-1))])
+                 else [] in
+      let p3_l = if (above_I (t' - t) interval) then
+                   (match op with
+                    | Prev -> [V (VPrevOutR ((p_at p)+1))]
+                    | Next -> [V (VNextOutR ((p_at p)-1))])
+                 else [] in
+      let () = Deque.enqueue_front ps (minimuml (p1_l @ p2_l @ p3_l)) in
+      (ps, buf', tss')
+  and mprev_next op interval buf tss minimuml =
     match (Deque.is_empty buf, Deque.is_empty tss) with
     | true, _ -> ((Deque.create ()), (Deque.create ()), tss)
     | _, true -> ((Deque.create ()), buf, (Deque.create ()))
     | false, false when ((Deque.length tss) = 1) -> ((Deque.create ()), buf, tss)
-    | false, false when (op = Prev) -> let t = Deque.dequeue_front_exn tss in
-                                       let t' = Deque.peek_front_exn tss in
-                                       let p = Deque.dequeue_front_exn buf in
-                                       let (ps, buf', tss') = mprev_next op interval tp buf tss in
-                                       let () = if (mem_I (t' - t) interval) then
-                                                  (match p with
-                                                   | S sp -> Deque.enqueue_front ps (S (SPrev sp))
-                                                   | V vp -> Deque.enqueue_front ps (V (VPrev vp))) in
-                                       let () = if (below_I (t' - t) interval) then
-                                                  Deque.enqueue_front ps (V (VPrevOutL ((p_at p)+1))) in
-                                       let () = if (above_I (t' - t) interval) then
-                                                  Deque.enqueue_front ps (V (VPrevOutR ((p_at p)+1))) in
-                                       (ps, buf', tss')
-    | false, false when (op = Next) -> let t = Deque.dequeue_front_exn tss in
-                                       let t' = Deque.peek_front_exn tss in
-                                       let p = Deque.dequeue_front_exn buf in
-                                       let (ps, buf', tss') = mprev_next op interval tp buf tss in
-                                       let () = if (mem_I (t' - t) interval) then
-                                                  (match p with
-                                                   | S sp -> Deque.enqueue_front ps (S (SNext sp))
-                                                   | V vp -> Deque.enqueue_front ps (V (VNext vp))) in
-                                       let () = if (below_I (t' - t) interval) then
-                                                  Deque.enqueue_front ps (V (VNextOutL ((p_at p)-1))) in
-                                       let () = if (above_I (t' - t) interval) then
-                                                  Deque.enqueue_front ps (V (VNextOutR ((p_at p)-1))) in
-                                       (ps, buf', tss')
-    | _ -> failwith "Bad arguments for mprev_next"
+    | false, false -> mprev_next_aux op interval buf tss minimuml
 
 end
 
@@ -969,14 +967,14 @@ let meval' tp ts sap mform le minimuml =
        let (ps, mf') = meval tp ts sap mf in
        let () = Deque.iter ps ~f:(fun p -> Deque.enqueue_back buf p) in
        let () = Deque.enqueue_back tss ts in
-       let (ps', buf', tss') = Prev_Next.mprev_next Prev interval tp buf tss in
+       let (ps', buf', tss') = Prev_Next.mprev_next Prev interval buf tss minimuml in
        ((if first then (let () = Deque.enqueue_front ps' (V VPrev0) in ps')
          else ps'), MPrev (interval, mf', false, buf', tss'))
     | MNext (interval, mf, first, tss) ->
        let (ps, mf') = meval tp ts sap mf in
        let () = Deque.enqueue_back tss ts in
        let first = if first && (Deque.length ps) > 0 then (let () = Deque.drop_front ps in false) else first in
-       let (ps', _, tss') = Prev_Next.mprev_next Next interval tp ps tss in
+       let (ps', _, tss') = Prev_Next.mprev_next Next interval ps tss minimuml in
        (ps', MNext (interval, mf', first, tss'))
     | MSince (interval, mf1, mf2, buf, tss_tps, msaux) ->
        let (p1s, mf1') = meval tp ts sap mf1 in
