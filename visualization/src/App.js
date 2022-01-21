@@ -1,31 +1,22 @@
 import React from 'react';
 import logo from './logo.svg';
 import './App.css';
-import TraceBox from './TraceBox';
+import TraceTextField from './TraceTextField';
+import FormulaTextField from './FormulaTextField';
+import MeasureSelect from './MeasureSelect';
 
 function App() {
   return (
-    <TraceBox />
+    <div class="flexbox-container">
+      <div>
+        <TraceTextField />
+      </div>
+      <div>
+        <FormulaTextField />
+        <MeasureSelect />
+      </div>
+    </div>
   );
-
-  // return (
-  //   <div className="App">
-  //     <header className="App-header">
-  //       <img src={logo} className="App-logo" alt="logo" />
-  //       <p>
-  //         Edit <code>src/App.js</code> and save to reload.
-  //       </p>
-  //       <a
-  //         className="App-link"
-  //         href="https://reactjs.org"
-  //         target="_blank"
-  //         rel="noopener noreferrer"
-  //       >
-  //         Learn React
-  //       </a>
-  //     </header>
-  //   </div>
-  // );
 }
 
 export default App;
