@@ -6,10 +6,7 @@ import Box from '@mui/material/Box';
 
 export default function CheckerSwitch() {
   return (
-    <Box
-      component="form"
-      sx={{ mt: 4 }}
-    >
+    <Box sx={{ mt: 4 }}>
       <FormControlLabel control={<Switch />} label="Verified Checker" />
     </Box>
   );
