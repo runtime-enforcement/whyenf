@@ -49,7 +49,7 @@ const rows = [
 export default class TimeGrid extends React.Component {
   render() {
     return (
-      <Box sx={{ mt: 2, height: 640 }}>
+      <Box sx={{ height: 640 }}>
         <DataGrid
           rows={rows}
           columns={columns}

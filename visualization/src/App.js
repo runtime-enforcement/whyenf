@@ -19,11 +19,11 @@ function App() {
       <Container maxWidth="lg">
         <Box>
           <Grid container spacing={2}>
-            <Grid item xs={6} sm={6} md={1.5} lg={1.5} xl={1.5}>
-              <CheckerSwitch />
-            </Grid>
             <Grid item xs={6} sm={6} md={2.5} lg={2.5} xl={2.5}>
               <MeasureSelect />
+            </Grid>
+            <Grid item xs={6} sm={6} md={1.5} lg={1.5} xl={1.5}>
+              <CheckerSwitch />
             </Grid>
             <Grid item xs={12} sm={12} md={8} lg={8} xl={8}>
               <FormulaTextField />
