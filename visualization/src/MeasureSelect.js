@@ -20,7 +20,7 @@ export default class MeasureSelect extends React.Component {
       <Box
         component="form"
         sx={{
-          '& .MuiTextField-root': { m: 1, width: '50ch' },
+          '& .MuiTextField-root': { mt: 4, width: '15ch' },
         }}
         noValidate
         autoComplete="off"
@@ -29,8 +29,7 @@ export default class MeasureSelect extends React.Component {
           <TextField
             id="outlined-select-measure"
             select
-            label="Select Measure"
-            helperText="MeasureSelect helper text"
+            label="Measure"
           >
             {measures.map((option) => (
               <MenuItem key={option.value} value={option.value}>

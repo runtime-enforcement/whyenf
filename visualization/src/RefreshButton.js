@@ -4,24 +4,27 @@ import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
 import RefreshIcon from '@mui/icons-material/Refresh';
 
-export default class TraceTextField extends React.Component {
+export default class RefreshButton extends React.Component {
   render() {
     return (
       <Box
         component="form"
-        sx={{
-          '& .MuiTextField-root': { mt: 2, width: '30ch' },
-        }}
+        sx={{ mt: 2 }}
         noValidate
         autoComplete="off"
       >
-        <TextField
-          id="outlined-multiline-static"
-          label="Trace"
-          multiline
-          rows={16}
-          defaultValue="@0 a1 a2..."
-        />
+        <Button
+          variant="contained"
+          size="large"
+          sx={{
+            width: '35.3ch'
+          }}
+        >
+          <Box pr={1} pt={1}>
+            <RefreshIcon color="action" />
+          </Box>
+          Refresh
+        </Button>
       </Box>
     );
   }

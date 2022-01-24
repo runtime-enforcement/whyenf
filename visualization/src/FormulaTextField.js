@@ -8,7 +8,7 @@ export default class FormulaTextField extends React.Component {
       <Box
         component="form"
         sx={{
-          '& .MuiTextField-root': { m: 1, width: '50ch' },
+          '& .MuiTextField-root': { mt: 4, width: '100%' },
         }}
         noValidate
         autoComplete="off"
@@ -19,7 +19,6 @@ export default class FormulaTextField extends React.Component {
             id="outlined-required"
             label="Formula"
             defaultValue="a1 S[2,4] a2"
-            helperText="FormulaTextField helper text"
           />
         </div>
       </Box>
