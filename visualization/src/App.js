@@ -7,18 +7,23 @@ import './App.css';
 import TraceTextField from './TraceTextField';
 import FormulaTextField from './FormulaTextField';
 import MeasureSelect from './MeasureSelect';
-import AppBar from './AppBar';
+import NavBar from './NavBar';
+import BottomBar from './BottomBar';
 import TimeGrid from './TimeGrid';
 import RefreshButton from './RefreshButton';
 import CheckerSwitch from './CheckerSwitch';
+import PreambleCard from './PreambleCard';
 
 function App() {
   return (
     <Box>
-      <AppBar />
+      <NavBar />
       <Container maxWidth="lg">
         <Box>
           <Grid container spacing={2}>
+            <Grid item xs={12} sm={12} md={12} lg={12} xl={12}>
+              <PreambleCard />
+            </Grid>
             <Grid item xs={6} sm={6} md={2.5} lg={2.5} xl={2.5}>
               <MeasureSelect />
             </Grid>
@@ -38,6 +43,7 @@ function App() {
           </Grid>
         </Box>
       </Container>
+      <BottomBar />
     </Box>
   );
 }

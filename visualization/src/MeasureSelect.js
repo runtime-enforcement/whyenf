@@ -20,7 +20,7 @@ export default class MeasureSelect extends React.Component {
       <Box
         component="form"
         sx={{
-          '& .MuiTextField-root': { mt: 4, width: '100%' },
+          '& .MuiTextField-root': { mt: 2, width: '100%' },
         }}
         noValidate
         autoComplete="off"

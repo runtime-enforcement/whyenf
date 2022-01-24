@@ -20,7 +20,10 @@ export default class TraceTextField extends React.Component {
           label="Trace"
           multiline
           rows={23}
-          defaultValue="@0 a1 a2..."
+          defaultValue="@0 a1
+@3 a1 a2
+@7
+@11 a1"
         />
       </Box>
     );
