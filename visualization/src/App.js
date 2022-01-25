@@ -10,6 +10,7 @@ import NavBar from './NavBar';
 import BottomBar from './BottomBar';
 import TimeGrid from './TimeGrid';
 import RefreshButton from './RefreshButton';
+import RandomExampleButton from './RandomExampleButton';
 import CheckerSwitch from './CheckerSwitch';
 import PreambleCard from './PreambleCard';
 
@@ -35,17 +36,22 @@ function App() {
               <Grid item xs={12} sm={12} md={12} lg={12} xl={12}>
                 <PreambleCard />
               </Grid>
-              <Grid item xs={6} sm={6} md={2.5} lg={2.5} xl={2.5}>
-                <MeasureSelect />
+              <Grid item xs={3} sm={3} md={1.5} lg={1.5} xl={1.5}>
+                <RefreshButton />
+              </Grid>
+              <Grid item xs={3} sm={3} md={1} lg={1} xl={1}>
+                <RandomExampleButton />
               </Grid>
               <Grid item xs={6} sm={6} md={1.5} lg={1.5} xl={1.5}>
                 <CheckerSwitch />
               </Grid>
-              <Grid item xs={12} sm={12} md={8} lg={8} xl={8}>
+              <Grid item xs={12} sm={12} md={1.5} lg={1.5} xl={1.5}>
+                <MeasureSelect />
+              </Grid>
+              <Grid item xs={12} sm={12} md={6.5} lg={6.5} xl={6.5}>
                 <FormulaTextField />
               </Grid>
               <Grid item xs={12} sm={12} md={4} lg={4} xl={4}>
-                <RefreshButton />
                 <TraceTextField />
               </Grid>
               <Grid item xs={12} sm={12} md={8} lg={8} xl={8}>

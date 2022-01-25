@@ -1,9 +1,9 @@
 import React from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import RefreshIcon from '@mui/icons-material/Refresh';
+import ShuffleIcon from '@mui/icons-material/Shuffle';
 
-export default class RefreshButton extends React.Component {
+export default class RandomExampleButton extends React.Component {
   render() {
     return (
         <Button
@@ -14,7 +14,7 @@ export default class RefreshButton extends React.Component {
           }}
         >
           <Box pt={1}>
-            <RefreshIcon color="inherit" />
+            <ShuffleIcon color="inherit" />
           </Box>
         </Button>
     );

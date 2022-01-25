@@ -5,7 +5,7 @@ import Box from '@mui/material/Box';
 
 export default function CheckerSwitch() {
   return (
-    <Box sx={{ ml: 1, mt: 2 }}>
+    <Box sx={{ ml: 1 }}>
       <FormControlLabel control={<Switch />} label="Verified Checker" />
     </Box>
   );
