@@ -1,6 +1,6 @@
 export const mockData = {
   formula: "(NOT a1) SINCE[4,8] a2",
-  subformulas: ["(NOT a1)", "a2", "a1"],
+  subformulas: ["(NOT a1) SINCE[4,8] a2", "(NOT a1)", "a2", "a1"],
   explanations: [
     {
       ts: 0,

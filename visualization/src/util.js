@@ -10,34 +10,25 @@ import Filter9Icon from '@mui/icons-material/Filter9';
 import CropSquareIcon from '@mui/icons-material/CropSquare';
 
 export function pickColumnItem(i) {
-  switch (i+1) {
-  case 1:
+  switch (i) {
+  case 0:
     return <Filter1Icon />;
-    break;
-  case 2:
+  case 1:
     return <Filter2Icon />;
-    break;
-  case 3:
+  case 2:
     return <Filter3Icon />;
-    break;
-  case 4:
+  case 3:
     return <Filter4Icon />;
-    break;
-  case 5:
+  case 4:
     return <Filter5Icon />;
-    break;
-  case 6:
+  case 5:
     return <Filter6Icon />;
-    break;
-  case 7:
+  case 6:
     return <Filter7Icon />;
-    break;
-  case 8:
+  case 7:
     return <Filter8Icon />;
-    break;
-  case 9:
+  case 8:
     return <Filter9Icon />;
-    break;
   default:
     return <CropSquareIcon />;
   }
