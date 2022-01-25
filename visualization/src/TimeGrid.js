@@ -65,7 +65,7 @@ const rows = [
 export default class TimeGrid extends React.Component {
   render() {
     return (
-      <Box sx={{ height: 640 }}>
+      <Box sx={{ height: 585 }}>
         <DataGrid
           rows={rows}
           columns={fixedColumns.concat(dynamicColumns)}
