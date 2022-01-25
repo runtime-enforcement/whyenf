@@ -1,30 +1,45 @@
 import * as React from 'react';
 import Box from '@mui/material/Box';
 import { DataGrid } from '@mui/x-data-grid';
-import Data from './mock';
+import { mockData } from './data';
+import { pickColumnItem } from './util';
+import SquareIcon from '@mui/icons-material/Square';
+import CropSquareIcon from '@mui/icons-material/CropSquare';
+import Filter1Icon from '@mui/icons-material/Filter1';
+import Filter2Icon from '@mui/icons-material/Filter2';
+import Filter3Icon from '@mui/icons-material/Filter3';
+import Filter4Icon from '@mui/icons-material/Filter4';
+import Filter5Icon from '@mui/icons-material/Filter5';
+import Filter6Icon from '@mui/icons-material/Filter6';
+import Filter7Icon from '@mui/icons-material/Filter7';
+import Filter8Icon from '@mui/icons-material/Filter8';
+import Filter9Icon from '@mui/icons-material/Filter9';
 
-const columns = [
-  { field: 'id', headerName: 'ID', width: 70 },
-  { field: 'firstName', headerName: 'First name', width: 130 },
-  { field: 'lastName', headerName: 'Last name', width: 130 },
+console.log(mockData);
+
+const fixedColumns = [
   {
-    field: 'age',
-    headerName: 'Age',
-    type: 'number',
-    width: 90,
-  },
-  {
-    field: 'fullName',
-    headerName: 'Full name',
-    description: 'This column has a value getter and is not sortable.',
+    field: 'tp',
+    headerName: 'TP',
+    width: 50,
     sortable: false,
-    width: 160,
-    valueGetter: (params) =>
-      `${params.getValue(params.id, 'firstName') || ''} ${
-        params.getValue(params.id, 'lastName') || ''
-      }`,
+  },
+  { field: 'ts',
+    headerName: 'TS',
+    width: 50,
+    sortable: false
   },
 ];
+
+const dynamicColumns = mockData.subformulas.map((f, i) =>
+  ({
+    field: i,
+    headerName: f,
+    width: 50,
+    sortable: false,
+    renderHeader: () => pickColumnItem(i),
+    renderCell: () => <SquareIcon />
+  }));
 
 const rows = [
   { id: 1, lastName: 'Snow', firstName: 'Jon', age: 35 },
@@ -53,10 +68,11 @@ export default class TimeGrid extends React.Component {
       <Box sx={{ height: 640 }}>
         <DataGrid
           rows={rows}
-          columns={columns}
+          columns={fixedColumns.concat(dynamicColumns)}
           pageSize={10}
           rowsPerPageOptions={[5]}
-          checkboxSelection
+          density="compact"
+          disableColumnMenu
         />
       </Box>
     );
