@@ -1,6 +1,6 @@
 export const mockData = {
   formula: "(NOT a1) SINCE[4,8] a2",
-  subformulas: ["(NOT a1) SINCE[4,8] a2", "(NOT a1)", "a2", "a1"],
+  subformulas: ["(NOT a1)", "a2", "a1"],
   explanations: [
     {
       ts: 0,
@@ -31,7 +31,7 @@ export const mockData = {
         subexplanation: {
           type: "SAtom",
           tp: 1,
-          formula: "a4"
+          atom: "a2"
         },
         subexplanations: [
           {
@@ -40,7 +40,7 @@ export const mockData = {
             subexplanation: {
               type: "VAtom",
               tp: 1,
-              formula: "a3"
+              atom: "a1"
             },
             subexplanations: []
           }
@@ -59,7 +59,7 @@ export const mockData = {
           subexplanation: {
             type: "SAtom",
             tp: 3,
-            formula: "a3"
+            atom: "a1"
           }
         },
         subexplanations: []
