@@ -23,5 +23,5 @@ type output =
 
 val input_event: in_channel -> out_channel -> event * in_channel
 val output_event: out_channel -> string -> unit
-val preamble: out_channel -> mode -> formula -> unit
+val preamble_cl: out_channel -> mode -> formula -> unit
 val print_ps: out_channel -> mode -> timestamp -> timepoint -> expl list -> (bool * checker_proof * trace_t) list option -> bool -> bool -> unit

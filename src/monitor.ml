@@ -1009,7 +1009,7 @@ let monitor in_ch out_ch mode debug check test le f =
   let rec loop f x = loop f (f x) in
   let mf = minit f in
   let mf_ap = relevant_ap mf in
-  let _ = preamble out_ch mode f in
+  let _ = preamble_cl out_ch mode f in
   let ctx = { tp = 0
             ; mf = mf
             ; events = [] } in
