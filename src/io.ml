@@ -70,7 +70,7 @@ let output_result out_ch res =
 
 let output_interval out_ch i = output_event out_ch (interval_to_string i)
 
-let preamble out_ch mode f =
+let preamble_cl out_ch mode f =
   output_event out_ch "Monitoring ";
   output_event out_ch (formula_to_string f);
   output_event out_ch (" in mode " ^
@@ -80,6 +80,11 @@ let preamble out_ch mode f =
                           | ALL -> "ALL"
                           | BOOL -> "BOOL")
                          ^ "\n\n")
+
+let preamble_json out_ch f subf =
+  let indent = "  " in
+  Printf.sprintf "{\n%s\"formula\": %s\n%s\"subformulas\": [%s]\n" indent (formula_to_string f) indent (list_to_json subf)
+(* \"tps_in\": [" ^ (list_to_json (List.map (fun el -> string_of_int el) tps_in)) ^ "\n" *)
 
 let print_ps out_ch mode ts tp ps checker_ps_opt debug test =
   let checker_ps =

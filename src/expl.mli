@@ -83,12 +83,15 @@ val low_le: expl -> expl -> bool
 val predicates: expl -> int
 val predicates_le: expl -> expl -> bool
 
-val s_to_string: string -> sexpl -> string
-val v_to_string: string -> vexpl -> string
-val expl_to_string: expl -> string
-
 val s_at: sexpl -> int
 val v_at: vexpl -> int
 val s_ltp: sexpl -> int
 val v_etp: vexpl -> int
 val p_at: expl -> int
+
+val s_to_string: string -> sexpl -> string
+val v_to_string: string -> vexpl -> string
+val expl_to_string: expl -> string
+
+val list_to_json: string list -> string
+val expl_to_json: expl -> string
