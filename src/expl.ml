@@ -534,5 +534,5 @@ and v_to_json indent p =
   | _ -> ""
 
 let expl_to_json = function
-  | S p -> s_to_json "  " p
-  | V p -> v_to_json "  " p
+  | S p -> s_to_json "    " p
+  | V p -> v_to_json "    " p

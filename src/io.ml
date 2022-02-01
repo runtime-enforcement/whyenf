@@ -17,9 +17,9 @@ open Checker_interface
 type output =
   | Boolean of (timestamp * timepoint) * bool
   | BooleanCheck of (timestamp * timepoint) * bool * bool
-  | Explanation of (timestamp * timepoint) * expl
-  | ExplanationCheck of (timestamp * timepoint)  * expl * bool
-  | ExplanationDebug of (timestamp * timepoint)  * expl * bool * checker_proof * trace_t
+  | Explanation of (timestamp * timepoint) * expl * bool option
+  | ExplanationJSON of (timestamp * timepoint) * timepoint list * expl * bool option
+  | ExplanationDebug of (timestamp * timepoint) * expl * bool * checker_proof * trace_t
   | Info of string
 
 let parse_line s =
@@ -55,68 +55,64 @@ let output_result out_ch res =
   | BooleanCheck ((ts, tp), b, cb) ->
      Printf.fprintf out_ch "%d:%d %B\n" ts tp b;
      Printf.fprintf out_ch "\nChecker output: \n%B\n" cb
-  | Explanation ((ts, tp), p) ->
-     Printf.fprintf out_ch "%d:%d\nProof: \n%s\n" ts tp (expl_to_string p)
-  | ExplanationCheck ((ts, tp), p, b) ->
+  | Explanation ((ts, tp), p, b_opt) ->
      Printf.fprintf out_ch "%d:%d\nProof: \n%s\n" ts tp (expl_to_string p);
-     Printf.fprintf out_ch "\nChecker output: %B\n\n" b
+     (match b_opt with
+      | None -> ()
+      | Some b -> Printf.fprintf out_ch "\nChecker output: %B\n\n" b);
+  | ExplanationJSON ((ts, tp), tps_in, p, b_opt) ->
+     let tps_in_str = list_to_json (List.map (fun el -> string_of_int el) tps_in) in
+     Printf.printf "    \"ts\": %d,\n" ts;
+     Printf.printf "    \"tp\": %d,\n" tp;
+     let () = match b_opt with
+       | None -> ()
+       | Some b -> Printf.printf "    \"checker\": \"%B\",\n" b in
+     Printf.printf "    \"tps_in\": %s\n" tps_in_str;
+     Printf.printf "%s\n" (expl_to_json p);
   | ExplanationDebug ((ts, tp), p, b, cp, trace) ->
      Printf.printf "%d:%d\nProof: \n%s\n" ts tp (expl_to_string p);
      Printf.printf "\nChecker output: %B\n" b;
      Printf.printf "\nTrace: \n%s\n\n" (s_of_trace trace);
      Printf.printf "\nChecker proof: \n%s\n\n" (s_of_proof cp)
-  | Info s ->
-     Printf.fprintf out_ch "\nInfo: %s\n" s
+  | Info s -> Printf.fprintf out_ch "\nInfo: %s\n" s
 
 let output_interval out_ch i = output_event out_ch (interval_to_string i)
 
-let preamble_cl out_ch mode f =
-  output_event out_ch "Monitoring ";
-  output_event out_ch (formula_to_string f);
-  output_event out_ch (" in mode " ^
-                         (match mode with
-                          | SAT -> "SAT"
-                          | VIOL -> "VIOL"
-                          | ALL -> "ALL"
-                          | BOOL -> "BOOL")
-                         ^ "\n\n")
+let output_preamble out_ch mode out_mode f =
+  let preamble_cl mode f =
+    let mode_str = match mode with
+      | SAT -> "SAT"
+      | VIOL -> "VIOL"
+      | ALL -> "ALL"
+      | BOOL -> "BOOL" in
+    "Monitoring " ^ (formula_to_string f) ^ " in mode " ^ mode_str ^ "\n\n" in
+  let preamble_json mode f subfs =
+    "{\n  \"formula\": \"" ^ (formula_to_string f) ^ "\"\n  \"subformulas\": \"" ^ (list_to_json subfs) ^ "\"\n" in
+  match out_mode with
+  | PLAIN -> preamble_cl mode f
+  | JSON -> preamble_json mode f []
+  | DEBUG -> preamble_cl mode f
 
-let preamble_json out_ch f subf =
-  let indent = "  " in
-  Printf.sprintf "{\n%s\"formula\": %s\n%s\"subformulas\": [%s]\n" indent (formula_to_string f) indent (list_to_json subf)
-(* \"tps_in\": [" ^ (list_to_json (List.map (fun el -> string_of_int el) tps_in)) ^ "\n" *)
-
-let print_ps out_ch mode ts tp ps checker_ps_opt debug test =
-  let checker_ps =
-    match checker_ps_opt with
-    | None -> []
-    | Some checker_ps -> checker_ps in
-  let ps = if test then
-             List.rev(List.fold_left2
-                        (fun acc p (b, checker_p, trace) ->
-                          if b then acc
-                          else p::acc) [] ps checker_ps)
-               else ps in
-  let checker_ps = if test then
-                     List.filter (fun (b, checker_p, trace) -> not b) checker_ps
-                   else checker_ps in
+let print_ps out_ch mode out_mode ts tp ps tps_in checker_ps_opt =
   match mode with
-  | SAT -> if (List.length checker_ps) > 0 then
-             List.iter2 (fun p (b, checker_p, trace) ->
-                 match p with
-                 | S _ -> if debug then
-                            let out = ExplanationDebug ((ts, tp), p, b, checker_p, trace) in
-                            output_result out_ch out
-                          else
-                            let out = ExplanationCheck ((ts, tp), p, b) in
-                            output_result out_ch out
-                 | V _ -> ()) ps checker_ps
-           else
-             List.iter (fun p ->
-                 match p with
-                 | S _ -> let out = Explanation ((ts, tp), p) in
-                          output_result out_ch out
-                 | V _ -> ()) ps
+  | SAT -> let ps' = List.filter (fun p -> match p with
+                                           | S _ -> true
+                                           | V _ -> false) ps in
+           (match checker_ps_opt with
+            | None -> (List.iter (fun p -> match out_mode with
+                                           | PLAIN -> let out = Explanation ((ts, tp), p, None) in
+                                                      output_result out_ch out
+                                           | JSON -> let out = ExplanationJSON ((ts, tp), tps_in, p, None) in
+                                                     output_result out_ch out
+                                           | _ -> ()) ps')
+            | Some checker_ps -> (List.iter2 (fun p (b, checker_p, trace) ->
+                                      match out_mode with
+                                      | PLAIN -> let out = Explanation ((ts, tp), p, Some(b)) in
+                                                 output_result out_ch out
+                                      | JSON -> let out = ExplanationJSON ((ts, tp), tps_in, p, Some(b)) in
+                                                output_result out_ch out
+                                      | DEBUG -> let out = ExplanationDebug ((ts, tp), p, b, checker_p, trace) in
+                                                 output_result out_ch out) ps' checker_ps))
   | VIOL -> if (List.length checker_ps) > 0 then
               List.iter2 (fun p (b, checker_p, trace) ->
                   match p with

@@ -21,9 +21,9 @@ exception EXIT
 let full_ref = ref true
 let check_ref = ref false
 let debug_ref = ref false
-let test_ref = ref false
 let json_ref = ref false
 let mode_ref = ref ALL
+let out_mode_ref = ref PLAIN
 let measure_le_ref = ref None
 let fmla_ref = ref None
 let log_ref = ref stdin
@@ -35,15 +35,16 @@ let usage () =
      Arguments:
      \t -ap      - output only the \"responsible atomic proposition\" view
      \t -check   - include output of verified checker
-     \t -debug   - verbose output (useful for debugging)
-     \t -test    - verbose output (violations only)
-     \t -json    - json output
      \t -mode
      \t\t all    - output all satisfaction and violation proofs (default)
      \t\t sat    - output only satisfaction proofs
      \t\t viol   - output only violation proofs
      \t\t bool   - output boolean values (for testing)
-     \t -O
+     \t -out_mode
+     \t\t plain  - plain output (default)
+     \t\t json   - JSON output
+     \t\t debug  - plain verbose output (useful for debugging)
+     \t -O (measure)
      \t\t size   - optimize proof size (default)
      \t\t high   - optimize highest time-point occuring in a proof (lower is better)
      \t\t pred   - optimize multiset cardinality of atomic predicates
@@ -60,6 +61,10 @@ let mode_error () =
   Format.eprintf "mode should be either \"sat\", \"viol\" or \"all\" (without quotes)\n%!";
   raise EXIT
 
+let out_mode_error () =
+  Format.eprintf "out_mode should be either \"plain\", \"json\" or \"debug\" (without quotes)\n%!";
+  raise EXIT
+
 let measure_error () =
   Format.eprintf "measure should be either \"size\", \"high\", \"pred\", or \"none\" (without quotes)\n%!";
   raise EXIT
@@ -72,14 +77,13 @@ let process_args =
     | ("-check" :: args) ->
        check_ref := true;
        go args
-    | ("-debug" :: args) ->
-       debug_ref := true;
-       go args
-    | ("-test" :: args) ->
-       test_ref := true;
-       go args
-    | ("-json" :: args) ->
-       json_ref := true;
+    | ("-out_mode" :: out_mode :: args) ->
+       out_mode_ref :=
+         (match out_mode with
+          | "plain" | "PLAIN" | "Plain" -> PLAIN
+          | "json" | "JSON" | "Json" -> JSON
+          | "debug" | "DEBUG" | "Debug" -> DEBUG
+          | _ -> mode_error ());
        go args
     | ("-mode" :: mode :: args) ->
        mode_ref :=
@@ -144,7 +148,7 @@ let _ =
                    | None -> size_le
                    | Some measure_le' -> measure_le' in
                  if !full_ref then
-                   let _ = monitor !log_ref !out_ref !mode_ref !debug_ref !check_ref !test_ref measure_le f in ()
+                   let _ = monitor !log_ref !out_ref !mode_ref !out_mode_ref !check_ref measure_le f in ()
                  else ()
   with
   | End_of_file -> let _ = output_event !out_ref "Bye.\n" in close_out !out_ref; exit 0

@@ -16,12 +16,12 @@ open Checker.Explanator2
 type output =
   | Boolean of (timestamp * timepoint) * bool
   | BooleanCheck of (timestamp * timepoint) * bool * bool
-  | Explanation of (timestamp * timepoint) * expl
-  | ExplanationCheck of (timestamp * timepoint)  * expl * bool
-  | ExplanationDebug of (timestamp * timepoint)  * expl * bool * checker_proof * trace_t
+  | Explanation of (timestamp * timepoint) * expl * bool option
+  | ExplanationJSON of (timestamp * timepoint) * timepoint list * expl * bool option
+  | ExplanationDebug of (timestamp * timepoint) * expl * bool * checker_proof * trace_t
   | Info of string
 
 val input_event: in_channel -> out_channel -> event * in_channel
 val output_event: out_channel -> string -> unit
-val preamble_cl: out_channel -> mode -> formula -> unit
-val print_ps: out_channel -> mode -> timestamp -> timepoint -> expl list -> (bool * checker_proof * trace_t) list option -> bool -> bool -> unit
+val output_preamble: out_channel -> mode -> out_mode -> formula
+val print_ps: out_channel -> mode -> out_mode -> timestamp -> timepoint -> expl list -> (bool * checker_proof * trace_t) list option -> unit
