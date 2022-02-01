@@ -39,7 +39,6 @@ let usage () =
      \t\t all    - output all satisfaction and violation proofs (default)
      \t\t sat    - output only satisfaction proofs
      \t\t viol   - output only violation proofs
-     \t\t bool   - output boolean values (for testing)
      \t -out_mode
      \t\t plain  - plain output (default)
      \t\t json   - JSON output
@@ -91,7 +90,6 @@ let process_args =
           | "all" | "ALL" | "All" -> ALL
           | "sat" | "SAT" | "Sat" -> SAT
           | "viol" | "VIOL" | "Viol" -> VIOL
-          | "bool" | "BOOL" | "Bool" -> BOOL
           | _ -> mode_error ());
        go args
     | ("-O" :: measure :: args) ->

@@ -1019,7 +1019,7 @@ let monitor in_ch out_ch mode out_mode check le f =
     let events_updated = (sap_filtered, ts)::ctx.events in
     let (ps, mf_updated) = meval' ctx.tp ts sap_filtered ctx.mf le minimuml in
     let checker_ps = if check then Some (check_ps events_updated f (Deque.to_list ps)) else None in
-    let _ = print_ps out_ch mode ts ctx.tp (Deque.to_list ps) checker_ps debug in
+    let () = print_ps out_ch mode out_mode ts ctx.tp (Deque.to_list ps) [] checker_ps in
     let ctx_updated = { tp = ctx.tp+1
                       ; mf = mf_updated
                       ; events = events_updated } in
