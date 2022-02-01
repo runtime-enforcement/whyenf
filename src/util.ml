@@ -18,6 +18,7 @@ type timepoint = int
 type event = SS.t * timestamp
 type trace = event list
 type mode = SAT | VIOL | ALL | BOOL
+type out_mode = PLAIN | JSON | DEBUG
 
 let rec max_list = List.fold_left max 0
 let rec min_list = List.fold_left min 0
