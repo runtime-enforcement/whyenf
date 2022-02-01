@@ -17,7 +17,7 @@ type timepoint = int
 (* (atomic propositions satisfied at that event * timestamp) *)
 type event = SS.t * timestamp
 type trace = event list
-type mode = SAT | VIOL | ALL | BOOL
+type mode = SAT | VIOL | ALL
 type out_mode = PLAIN | JSON | DEBUG
 
 let rec max_list = List.fold_left max 0

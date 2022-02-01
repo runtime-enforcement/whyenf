@@ -14,7 +14,7 @@ type timestamp = int
 type timepoint = int
 type event = SS.t * timestamp
 type trace = event list
-type mode = SAT | VIOL | ALL | BOOL
+type mode = SAT | VIOL | ALL
 type out_mode = PLAIN | JSON | DEBUG
 
 val max_list: int list -> int
