@@ -67,3 +67,15 @@ let drop_front l =
   match l with
   | [] -> raise EMPTY_LIST
   | x :: xs -> xs
+
+let count_lines file =
+  let in_ch = open_in file in
+  let n = ref 0 in
+  let rec read_line () =
+    try
+      let _ = input_line in_ch in
+      let () = n := !n + 1 in
+      read_line ()
+    with End_of_file -> () in
+  let () = read_line () in
+  !n
