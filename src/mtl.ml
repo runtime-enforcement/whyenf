@@ -132,97 +132,6 @@ let rec hf x = match x.node with
 
 let height f = hp f + hf f
 
-(***********************************
- *                                 *
- * Algorithm: Computing optimal    *
- *            proofs               *
- *                                 *
- ***********************************)
-
-(* let doPrev minimum i interval ts expl =
- *   match expl, where_I ts interval with
- *   | S _ , Below -> V (VPrevB (i))
- *   | S f , Inside -> S (SPrev (f))
- *   | S _ , Above -> V (VPrevA (i))
- *   | V f , Below -> minimum (V (VPrev (f))) (V (VPrevB (i)))
- *   | V f , Inside -> V (VPrev (f))
- *   | V f , Above -> minimum (V (VPrev (f))) (V (VPrevA (i)))
- * 
- * let doNext minimum i interval ts expl =
- *   match expl, where_I ts interval with
- *   | S _ , Below -> V (VNextB (i))
- *   | S f , Inside -> S (SNext (f))
- *   | S _ , Above -> V (VNextA (i))
- *   | V f , Below -> minimum (V (VNext (f))) (V (VNextB (i)))
- *   | V f , Inside -> V (VNext (f))
- *   | V f , Above -> minimum (V (VNext (f))) (V (VNextA (i)))
- * 
- * let doSinceBase minimum i a expl_f1 expl_f2 =
- *   match expl_f1, expl_f2, a = 0 with
- *   | _ , S f2, true -> S (SSince (f2, []))
- *   | S f1, _ , false -> V (VSinceInf (i, []))
- *   | S _ , V f2, true -> V (VSinceInf (i, [f2]))
- *   | V f1 , _ , false -> minimum (V (VSince (i, f1, []))) (V (VSinceInf (i, [])))
- *   | V f1, V f2, true -> minimum (V (VSince (i, f1, [f2]))) (V (VSinceInf (i, [f2])))
- * 
- * let doSince minimum i a expl_f1 expl_f2 expl_f =
- *   match expl_f1, expl_f2, a = 0, expl_f with
- *   | V f1, V f2, true, S (SSince (sp_f2, sp_f1s)) -> V (VSince (i, f1, [f2]))
- *   | V f1, _ , false, S (SSince (sp_f2, sp_f1s)) -> V (VSince (i, f1, []))
- *   | V _ , S f2, true, S (SSince (sp_f2, sp_f1s)) -> S (SSince (f2, []))
- *   | S f1, V _ , true, S (SSince (sp_f2, sp_f1s)) -> S (sappend (SSince (sp_f2, sp_f1s)) f1)
- *   | S f1, _ , false, S (SSince (sp_f2, sp_f1s)) -> S (sappend (SSince (sp_f2, sp_f1s)) f1)
- *   | S f1, S f2, true, S (SSince (sp_f2, sp_f1s)) -> minimum (S (sappend (SSince (sp_f2, sp_f1s)) f1))
- *                                                             (S (SSince (f2, [])))
- *   | V f1, V f2, true, V (VSinceInf (i, vp_f2s)) -> minimum (V (VSince (i, f1, [f2])))
- *                                                            (V (vappend (VSinceInf (i, vp_f2s)) f2))
- *   | V f1, _ , false, V (VSinceInf (i, vp_f2s)) -> minimum (V (VSince (i, f1, [])))
- *                                                           (V (VSinceInf (i, vp_f2s)))
- *   | _ , S f2, true, V (VSinceInf (i, vp_f2s)) -> S (SSince (f2, []))
- *   | S _, V f2, true, V (VSinceInf (i, vp_f2s)) -> V (vappend (VSinceInf (i, vp_f2s)) f2)
- *   | S _, _ , false, V (VSinceInf (i, vp_f2s)) -> V (VSinceInf (i, vp_f2s))
- *   | V f1, V f2, true, V (VSince (i, vp_f1, vp_f2s)) -> minimum (V (VSince (i, f1, [f2])))
- *                                                                (V (vappend (VSince (i, vp_f1, vp_f2s)) f2))
- *   | V f1, _ , false, V (VSince (i, vp_f1, vp_f2s)) -> minimum (V (VSince (i, f1, [])))
- *                                                               (V (VSince (i, vp_f1, vp_f2s)))
- *   | _ , S f2, true, V (VSince (i, vp_f1, vp_f2s)) -> S (SSince (f2, []))
- *   | S _, V f2, true, V (VSince (i, vp_f1, vp_f2s)) -> V (vappend (VSince (i, vp_f1, vp_f2s)) f2)
- *   | S _, _ , false, V (VSince (i, vp_f1, vp_f2s)) -> V (VSince (i, vp_f1, vp_f2s))
- *   | _ -> failwith "Bad arguments for doSince"
- * 
- * let doUntilBase minimum i a expl_f1 expl_f2 =
- *   match expl_f1, expl_f2, a = 0 with
- *   | _ , S f2, true -> S (SUntil (f2, []))
- *   | S _, _ , false -> V (VUntilInf (i, []))
- *   | S _, V f2, true -> V (VUntilInf (i, [f2]))
- *   | V f1, _ , false -> minimum (V (VUntil (i, f1, []))) (V (VUntilInf (i, [])))
- *   | V f1, V f2, true -> minimum (V (VUntil (i, f1, [f2]))) (V (VUntilInf (i, [f2])))
- * 
- * let doUntil minimum i a expl_f1 expl_f2 expl_f =
- *   match expl_f1, expl_f2, a = 0, expl_f with
- *   | V f1, V f2, true, S (SUntil (sp_f2, sp_f1s)) -> V (VUntil (i, f1, [f2]))
- *   | V f1, _ , false, S (SUntil (sp_f2, sp_f1s)) -> V (VUntil (i, f1, []))
- *   | V f1, S f2, true, S (SUntil (sp_f2, sp_f1s)) -> S (SUntil (f2, []))
- *   | S f1, V f2, true, S (SUntil (sp_f2, sp_f1s)) -> S (sappend (SUntil (sp_f2, sp_f1s)) f1)
- *   | S f1, _ , false, S (SUntil (sp_f2, sp_f1s)) -> S (sappend (SUntil (sp_f2, sp_f1s)) f1)
- *   | S f1, S f2, true, S (SUntil (sp_f2, sp_f1s)) -> minimum (S (sappend (SUntil (sp_f2, sp_f1s)) f1))
- *                                                             (S (SUntil (f2, [])))
- *   | V f1, V f2, true, V (VUntilInf (i, vp_f2s)) -> minimum (V (VUntil (i, f1, [f2])))
- *                                                            (V (vappend (VUntilInf (i, vp_f2s)) f2))
- *   | V f1, _ , false, V (VUntilInf (i, vp_f2s)) -> minimum (V (VUntil (i, f1, [])))
- *                                                           (V (VUntilInf (i, vp_f2s)))
- *   | _ , S f2, true, V (VUntilInf (i, vp_f2s)) -> S (SUntil (f2, []))
- *   | S _ , V f2, true, V (VUntilInf (i, vp_f2s)) -> V (vappend (VUntilInf (i, vp_f2s)) f2)
- *   | S _ , _ , false, V (VUntilInf (i, vp_f2s)) -> V (VUntilInf (i, vp_f2s))
- *   | V f1, V f2, true, V (VUntil (i, vp_f1, vp_f2s)) -> minimum (V (VUntil (i, f1, [f2])))
- *                                                                (V (vappend (VUntil (i, vp_f1, vp_f2s)) f2))
- *   | V f1, _ , false, V (VUntil (i, vp_f1, vp_f2s)) -> minimum (V (VUntil (i, f1, [])))
- *                                                               (V (VUntil (i, vp_f1, vp_f2s)))
- *   | _ , S f2, true, V (VUntil (i, vp_f1, vp_f2s)) -> S (SUntil (f2, []))
- *   | S _ , V f2, true, V (VUntil (i, vp_f1, vp_f2s)) -> V (vappend (VUntil (i, vp_f1, vp_f2s)) f2)
- *   | S f1, _ , false, V (VUntil (i, vp_f1, vp_f2s)) -> V (VUntil (i, vp_f1, vp_f2s))
- *   | _ -> failwith "Bad arguments for doUntil" *)
-
 let rec formula_to_string l f = match f.node with
   | P x -> Printf.sprintf "%s" x
   | TT -> Printf.sprintf "⊤"
@@ -241,3 +150,39 @@ let rec formula_to_string l f = match f.node with
   | Since (i, f, g) -> Printf.sprintf (paren l 0 "%a S%a %a") (fun x -> formula_to_string 5) f (fun x -> interval_to_string) i (fun x -> formula_to_string 5) g
   | Until (i, f, g) -> Printf.sprintf (paren l 0 "%a U%a %a") (fun x -> formula_to_string 5) f (fun x -> interval_to_string) i (fun x -> formula_to_string 5) g
 let formula_to_string = formula_to_string 0
+
+(* let rec subfs x = match x.node with
+ *   | TT -> [formula_to_string x]
+ *   | FF -> [formula_to_string x]
+ *   | P x -> [x]
+ *   | Neg f -> ["(Neg " ^ (subfs f) ^ ")"] @ (subfs f)
+ *   | Conj (f, g) -> ["(Conj " ^ (subfs f) ^ (subfs g) ^ ")"] @ (subfs f) @ (subfs g)
+ *   | Disj (f, g) -> ["(Disj " ^ (subfs f) ^ (subfs g) ^ ")"] @ (subfs f) @ (subfs g)
+ *   | Impl (f, g) -> ["(Impl " ^ (subfs f) ^ (subfs g) ^ ")"] @ (subfs f) @ (subfs g)
+ *   | Iff (f, g) -> ["(Iff " ^ (subfs f) ^ (subfs g) ^ ")"] @ (subfs f) @ (subfs g)
+ *   | Prev (i, f) -> ["(Prev" ^ (interval_to_string i) ^ " " ^ (subfs f) ^ ")"] @ (subfs f)
+ *   | Once (i, f) -> ["(Once" ^ (interval_to_string i) ^ " " ^ (subfs f) ^ ")"] @ (subfs f)
+ *   | Historically (i, f) -> ["(Historically" ^ (interval_to_string i) ^ " " ^ (subfs f) ^ ")"] @ (subfs f)
+ *   | Since (i, f, g) -> ["(Since" ^ (interval_to_string i) ^ " " ^ (subfs f) ^ (subfs g) ^ ")"] @ (subfs f) @ (subfs g)
+ *   | Next (i, f) -> ["(Next" ^ (interval_to_string i) ^ " " ^ (subfs f) ^ ")"] @ (subfs f)
+ *   | Always (i, f) -> ["(Always" ^ (interval_to_string i) ^ " " ^ (subfs f) ^ ")"] @ (subfs f)
+ *   | Eventually (i, f) -> ["(Eventually" ^ (interval_to_string i) ^ " " ^ (subfs f) ^ ")"] @ (subfs f)
+ *   | Until (i, f, g) -> ["(Until" ^ (interval_to_string i) ^ " " ^ (subfs f) ^ (subfs g) ^ ")"] @ (subfs f) @ (subfs g) *)
+
+let rec subfs x = match x.node with
+  | TT -> [formula_to_string x]
+  | FF -> [formula_to_string x]
+  | P x -> [x]
+  | Neg f -> [formula_to_string x] @ (subfs f)
+  | Conj (f, g) -> [formula_to_string x] @ (subfs f) @ (subfs g)
+  | Disj (f, g) -> [formula_to_string x] @ (subfs f) @ (subfs g)
+  | Impl (f, g) -> [formula_to_string x] @ (subfs f) @ (subfs g)
+  | Iff (f, g) -> [formula_to_string x] @ (subfs f) @ (subfs g)
+  | Prev (_, f) -> [formula_to_string x] @ (subfs f)
+  | Once (_, f) -> [formula_to_string x] @ (subfs f)
+  | Historically (_, f) -> [formula_to_string x] @ (subfs f)
+  | Since (_, f, g) -> [formula_to_string x] @ (subfs f) @ (subfs g)
+  | Next (_, f) -> [formula_to_string x] @ (subfs f)
+  | Always (_, f) -> [formula_to_string x] @ (subfs f)
+  | Eventually (_, f) -> [formula_to_string x] @ (subfs f)
+  | Until (_, f, g) -> [formula_to_string x] @ (subfs f) @ (subfs g)
