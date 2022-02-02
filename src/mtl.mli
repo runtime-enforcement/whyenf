@@ -65,25 +65,4 @@ val height: formula -> int
 
 val formula_to_string: formula -> string
 
-(* val mem_word: string list list -> int -> string -> bool *)
-
-(* val optimal_proof: lasso -> (expl -> expl -> bool) -> formula -> expl
- * val check_proof: lasso -> formula -> expl -> bool
- * val size: expl -> int
- * val high: expl -> int
- * val low: expl -> int
- * val predicates: expl -> int
- * val size_le: expl -> expl -> bool
- * val high_le: expl -> expl -> bool
- * val low_le: expl -> expl -> bool
- * val predicates_le: expl -> expl -> bool
- * val p_at: expl -> int
- * val formula_to_string: formula -> string
- * val to_string: expl -> string
- * val lasso_to_string: lasso -> string
- * val hp: formula -> int
- * val hf: formula -> int
- * val height: formula -> int
- * val length_pair_lasso: lasso -> (int * int)
- * val mem_expl: expl -> int -> string -> bool
- * val mem_lasso: lasso -> int -> string -> bool *)
+val subfs: formula -> string list

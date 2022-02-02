@@ -78,11 +78,11 @@ let output_preamble out_ch mode out_mode f =
       | VIOL -> "VIOL"
       | ALL -> "ALL" in
     "Monitoring " ^ (formula_to_string f) ^ " in mode " ^ mode_str ^ "\n\n" in
-  let preamble_json mode f subfs =
-    "{\n  \"formula\": \"" ^ (formula_to_string f) ^ "\",\n  \"subformulas\": " ^ (list_to_json subfs) ^ ",\n  \"explanations\": [\n" in
+  let preamble_json mode f =
+    "{\n  \"formula\": \"" ^ (formula_to_string f) ^ "\",\n  \"subformulas\": " ^ (list_to_json (subfs f)) ^ ",\n  \"explanations\": [\n" in
   match out_mode with
   | PLAIN -> output_event out_ch (preamble_cl mode f)
-  | JSON -> output_event out_ch  (preamble_json mode f [])
+  | JSON -> output_event out_ch  (preamble_json mode f)
   | DEBUG -> output_event out_ch (preamble_cl mode f)
 
 let output_closing out_ch out_mode =
