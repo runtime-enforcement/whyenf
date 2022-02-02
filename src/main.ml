@@ -28,6 +28,7 @@ let measure_le_ref = ref None
 let fmla_ref = ref None
 let log_ref = ref stdin
 let out_ref = ref stdout
+let last_tp = ref 0
 
 let usage () =
   Format.eprintf
@@ -119,6 +120,7 @@ let process_args =
           | Some measure_le' -> Some(lex measure_le measure_le'));
        go args
     | ("-log" :: logfile :: args) ->
+       last_tp := (count_lines logfile) - 1;
        log_ref := open_in logfile;
        go args
     | ("-fmla" :: fmlafile :: args) ->
@@ -146,8 +148,8 @@ let _ =
                    | None -> size_le
                    | Some measure_le' -> measure_le' in
                  if !full_ref then
-                   let _ = monitor !log_ref !out_ref !mode_ref !out_mode_ref !check_ref measure_le f in ()
+                   let _ = monitor !log_ref !out_ref !mode_ref !out_mode_ref !check_ref measure_le f !last_tp in ()
                  else ()
   with
-  | End_of_file -> let _ = output_event !out_ref "Bye.\n" in close_out !out_ref; exit 0
+  | End_of_file -> let () = output_closing !out_ref !out_mode_ref in close_out !out_ref; exit 0
   | EXIT -> close_out !out_ref; exit 1

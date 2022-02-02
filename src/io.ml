@@ -60,7 +60,7 @@ let output_result out_ch res =
      let () = match b_opt with
        | None -> ()
        | Some b -> Printf.printf "    \"checker\": \"%B\",\n" b in
-     Printf.printf "    \"tps_in\": %s\n" tps_in_str;
+     Printf.printf "    \"tps_in\": %s,\n" tps_in_str;
      Printf.printf "%s\n" (expl_to_json p);
   | ExplanationDebug ((ts, tp), p, b, cp, trace) ->
      Printf.printf "%d:%d\nProof: \n%s\n" ts tp (expl_to_string p);
@@ -79,13 +79,19 @@ let output_preamble out_ch mode out_mode f =
       | ALL -> "ALL" in
     "Monitoring " ^ (formula_to_string f) ^ " in mode " ^ mode_str ^ "\n\n" in
   let preamble_json mode f subfs =
-    "{\n  \"formula\": \"" ^ (formula_to_string f) ^ "\"\n  \"subformulas\": \"" ^ (list_to_json subfs) ^ "\"\n" in
+    "{\n  \"formula\": \"" ^ (formula_to_string f) ^ "\",\n  \"subformulas\": " ^ (list_to_json subfs) ^ ",\n  \"explanations\": [\n" in
   match out_mode with
   | PLAIN -> output_event out_ch (preamble_cl mode f)
   | JSON -> output_event out_ch  (preamble_json mode f [])
   | DEBUG -> output_event out_ch (preamble_cl mode f)
 
-let print_ps out_ch mode out_mode ts tp ps tps_in checker_ps_opt =
+let output_closing out_ch out_mode =
+  match out_mode with
+  | PLAIN -> output_event out_ch "Bye.\n"
+  | JSON -> output_event out_ch "  ]\n}"
+  | DEBUG -> ()
+
+let print_ps out_ch mode out_mode ts tp ps tps_in checker_ps_opt last_tp =
   let ps' = match mode with
     | SAT -> List.filter (fun p -> match p with
                                    | S _ -> true
@@ -99,13 +105,19 @@ let print_ps out_ch mode out_mode ts tp ps tps_in checker_ps_opt =
                                  | PLAIN -> let out = Explanation ((ts, tp), p, None) in
                                             output_result out_ch out
                                  | JSON -> let out = ExplanationJSON ((ts, tp), tps_in, p, None) in
-                                           output_result out_ch out
+                                           let () = output_event out_ch "  {\n" in
+                                           let () = output_result out_ch out in
+                                           if last_tp then output_event out_ch "  }\n"
+                                           else output_event out_ch "  },\n"
                                  | _ -> ()) ps')
   | Some checker_ps -> (List.iter2 (fun p (b, checker_p, trace) ->
                             match out_mode with
                             | PLAIN -> let out = Explanation ((ts, tp), p, Some(b)) in
                                        output_result out_ch out
                             | JSON -> let out = ExplanationJSON ((ts, tp), tps_in, p, Some(b)) in
-                                      output_result out_ch out
+                                      let () = output_event out_ch "  {\n" in
+                                      let () = output_result out_ch out in
+                                      if last_tp then output_event out_ch "  }\n"
+                                      else output_event out_ch "  },\n"
                             | DEBUG -> let out = ExplanationDebug ((ts, tp), p, b, checker_p, trace) in
                                        output_result out_ch out) ps' checker_ps)
