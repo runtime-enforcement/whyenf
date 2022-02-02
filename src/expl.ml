@@ -462,7 +462,7 @@ let list_to_json l =
   match l with
   | [] -> "[]"
   | _ -> let els_str = String.concat "" (List.map (fun el -> "\"" ^ el ^ "\",")  l) in
-         "[" ^ (String.sub els_str 0 ((String.length els_str)-1)) ^ "]\n"
+         "[" ^ (String.sub els_str 0 ((String.length els_str)-1)) ^ "]"
 
 let expl_list_to_json l =
   match l with
