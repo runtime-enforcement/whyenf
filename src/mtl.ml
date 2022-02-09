@@ -151,38 +151,22 @@ let rec formula_to_string l f = match f.node with
   | Until (i, f, g) -> Printf.sprintf (paren l 0 "%a U%a %a") (fun x -> formula_to_string 5) f (fun x -> interval_to_string) i (fun x -> formula_to_string 5) g
 let formula_to_string = formula_to_string 0
 
-(* let rec subfs x = match x.node with
- *   | TT -> [formula_to_string x]
- *   | FF -> [formula_to_string x]
- *   | P x -> [x]
- *   | Neg f -> ["(Neg " ^ (subfs f) ^ ")"] @ (subfs f)
- *   | Conj (f, g) -> ["(Conj " ^ (subfs f) ^ (subfs g) ^ ")"] @ (subfs f) @ (subfs g)
- *   | Disj (f, g) -> ["(Disj " ^ (subfs f) ^ (subfs g) ^ ")"] @ (subfs f) @ (subfs g)
- *   | Impl (f, g) -> ["(Impl " ^ (subfs f) ^ (subfs g) ^ ")"] @ (subfs f) @ (subfs g)
- *   | Iff (f, g) -> ["(Iff " ^ (subfs f) ^ (subfs g) ^ ")"] @ (subfs f) @ (subfs g)
- *   | Prev (i, f) -> ["(Prev" ^ (interval_to_string i) ^ " " ^ (subfs f) ^ ")"] @ (subfs f)
- *   | Once (i, f) -> ["(Once" ^ (interval_to_string i) ^ " " ^ (subfs f) ^ ")"] @ (subfs f)
- *   | Historically (i, f) -> ["(Historically" ^ (interval_to_string i) ^ " " ^ (subfs f) ^ ")"] @ (subfs f)
- *   | Since (i, f, g) -> ["(Since" ^ (interval_to_string i) ^ " " ^ (subfs f) ^ (subfs g) ^ ")"] @ (subfs f) @ (subfs g)
- *   | Next (i, f) -> ["(Next" ^ (interval_to_string i) ^ " " ^ (subfs f) ^ ")"] @ (subfs f)
- *   | Always (i, f) -> ["(Always" ^ (interval_to_string i) ^ " " ^ (subfs f) ^ ")"] @ (subfs f)
- *   | Eventually (i, f) -> ["(Eventually" ^ (interval_to_string i) ^ " " ^ (subfs f) ^ ")"] @ (subfs f)
- *   | Until (i, f, g) -> ["(Until" ^ (interval_to_string i) ^ " " ^ (subfs f) ^ (subfs g) ^ ")"] @ (subfs f) @ (subfs g) *)
-
-let rec subfs x = match x.node with
+let rec subfs_aux x = match x.node with
   | TT -> [formula_to_string x]
   | FF -> [formula_to_string x]
   | P x -> [x]
-  | Neg f -> [formula_to_string x] @ (subfs f)
-  | Conj (f, g) -> [formula_to_string x] @ (subfs f) @ (subfs g)
-  | Disj (f, g) -> [formula_to_string x] @ (subfs f) @ (subfs g)
-  | Impl (f, g) -> [formula_to_string x] @ (subfs f) @ (subfs g)
-  | Iff (f, g) -> [formula_to_string x] @ (subfs f) @ (subfs g)
-  | Prev (_, f) -> [formula_to_string x] @ (subfs f)
-  | Once (_, f) -> [formula_to_string x] @ (subfs f)
-  | Historically (_, f) -> [formula_to_string x] @ (subfs f)
-  | Since (_, f, g) -> [formula_to_string x] @ (subfs f) @ (subfs g)
-  | Next (_, f) -> [formula_to_string x] @ (subfs f)
-  | Always (_, f) -> [formula_to_string x] @ (subfs f)
-  | Eventually (_, f) -> [formula_to_string x] @ (subfs f)
-  | Until (_, f, g) -> [formula_to_string x] @ (subfs f) @ (subfs g)
+  | Neg f -> [formula_to_string x] @ (subfs_aux f)
+  | Conj (f, g) -> [formula_to_string x] @ (subfs_aux f) @ (subfs_aux g)
+  | Disj (f, g) -> [formula_to_string x] @ (subfs_aux f) @ (subfs_aux g)
+  | Impl (f, g) -> [formula_to_string x] @ (subfs_aux f) @ (subfs_aux g)
+  | Iff (f, g) -> [formula_to_string x] @ (subfs_aux f) @ (subfs_aux g)
+  | Prev (_, f) -> [formula_to_string x] @ (subfs_aux f)
+  | Once (_, f) -> [formula_to_string x] @ (subfs_aux f)
+  | Historically (_, f) -> [formula_to_string x] @ (subfs_aux f)
+  | Since (_, f, g) -> [formula_to_string x] @ (subfs_aux f) @ (subfs_aux g)
+  | Next (_, f) -> [formula_to_string x] @ (subfs_aux f)
+  | Always (_, f) -> [formula_to_string x] @ (subfs_aux f)
+  | Eventually (_, f) -> [formula_to_string x] @ (subfs_aux f)
+  | Until (_, f, g) -> [formula_to_string x] @ (subfs_aux f) @ (subfs_aux g)
+
+let subfs x = remove_duplicates (subfs_aux x)
