@@ -79,3 +79,7 @@ let count_lines file =
     with End_of_file -> () in
   let () = read_line () in
   !n
+
+let prepend_uniq xs x = if List.mem x xs then xs else x :: xs
+
+let remove_duplicates xs = List.rev (List.fold_left prepend_uniq [] xs)

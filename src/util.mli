@@ -32,3 +32,4 @@ val list_to_string: string -> (string -> 'a -> string) -> 'a list -> string
 val get_mins: ('a -> 'a -> bool) -> 'a list -> 'a list
 val drop_front: 'a list -> 'a list
 val count_lines: string -> int
+val remove_duplicates: 'a list -> 'a list
