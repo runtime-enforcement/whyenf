@@ -1,0 +1,122 @@
+{
+  "formula": "¬a3 S[4,8] a4",
+  "columns": ["¬a3 S[4,8] a4","¬a3","a3","a4"],
+  "subformulas": [
+  {
+    "formula": {
+      "type": "Since",
+      "interval": "[4,8]",
+      "lformula": {
+        "type": "Neg",
+        "formula": {
+          "type": "P",
+          "atom": "a3"
+        }
+      },
+      "rformula": {
+        "type": "P",
+        "atom": "a4"
+      }
+    }
+  },
+  {
+    "formula": {
+      "type": "Neg",
+      "formula": {
+        "type": "P",
+        "atom": "a3"
+      }
+    }
+  },
+  {
+    "formula": {
+      "type": "P",
+      "atom": "a3"
+    }
+  },
+  {
+    "formula": {
+      "type": "P",
+      "atom": "a4"
+    }
+  }],
+  "explanations": [
+  {
+    "ts": 0,
+    "tp": 0,
+    "tps_in": [],
+    "explanation": {
+      "type": "VSinceOutL",
+      "tp": 0
+    }
+  },
+  {
+    "ts": 3,
+    "tp": 1,
+    "tps_in": [],
+    "explanation": {
+      "type": "VSinceOutL",
+      "tp": 1
+    }
+  },
+  {
+    "ts": 7,
+    "tp": 2,
+    "tps_in": [],
+    "explanation": {
+      "type": "SSince",
+      "tp": 2,
+      "explanation": {
+        "type": "SAtom",
+        "atom": "a4",
+        "tp": 1
+      },
+      "explanations": {
+        "0explanation": {
+          "type": "SNeg",
+          "tp": 2,
+          "explanation": {
+            "type": "VAtom",
+            "atom": "a3",
+            "tp": 2
+          }
+        }
+      }
+    }
+  },
+  {
+    "ts": 11,
+    "tp": 3,
+    "tps_in": [],
+    "explanation": {
+      "type": "VSince",
+      "tp": 3,
+      "explanation": {
+        "type": "VNeg",
+        "tp": 3,
+        "explanation": {
+          "type": "SAtom",
+          "atom": "a3",
+          "tp": 3
+        }
+      },
+      "explanations": {}
+    }
+  },
+  {
+    "ts": 13,
+    "tp": 4,
+    "tps_in": [],
+    "explanation": {
+      "type": "VSinceInf",
+      "tp": 4,
+      "explanations": {
+        "0explanation": {
+          "type": "VAtom",
+          "atom": "a4",
+          "tp": 2
+        }
+      }
+    }
+  }]
+}
