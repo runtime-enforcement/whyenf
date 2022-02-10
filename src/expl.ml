@@ -467,94 +467,94 @@ let list_to_json l =
 let expl_list_to_json l =
   match l with
   | [] -> "[]"
-  | _ -> let els_str = String.concat "" (List.map (fun el -> el ^ ",")  l) in
+  | _ -> let els_str = String.concat "\n" (List.map (fun el -> el ^ ",")  l) in
          (String.sub els_str 0 ((String.length els_str)-1))
 
-let rec s_to_json indent p =
+let rec s_to_json indent pos p =
   let indent' = "  " ^ indent in
   let indent'' = "    " ^ indent in
   match p with
-  | STT i -> Printf.sprintf "%s\"explanation\": {\n%s\"type\": \"true\",\n%s\"tp\": %d\n%s}"
-               indent indent' indent' i indent
-  | SAtom (i, a) -> Printf.sprintf "%s\"explanation\": {\n%s\"type\": \"SAtom\",\n%s\"atom\": \"%s\",\n%s\"tp\": %d\n%s}"
-                      indent indent' indent' a indent' i indent
-  | SNeg vphi -> Printf.sprintf "%s\"explanation\": {\n%s\"type\": \"SNeg\",\n%s\"tp\": %d,\n%s\n%s}"
-                   indent indent' indent' (s_at p) (v_to_json indent' vphi) indent
-  | SDisjL sphi -> Printf.sprintf "%s\"explanation\": {\n%s\"type\": \"SDisjL\",\n%s\"tp\": %d,\n%s%s\n%s}"
-                     indent indent' indent' (s_at p) indent' (s_to_json indent' sphi) indent
-  | SDisjR spsi -> Printf.sprintf "%s\"explanation\": {\n%s\"type\": \"SDisjR\",\n%s\"tp\": %d,\n%s%s\n%s}"
-                     indent indent' indent' (s_at p) indent' (s_to_json indent' spsi) indent
-  | SConj (sphi, spsi) -> Printf.sprintf "%s\"explanation\": {\n%s\"type\": \"SConj\",\n%s\"tp\": %d,\n%s%s,\n%s%s\n%s}"
-                            indent indent' indent' (s_at p) indent' (s_to_json indent' sphi) indent' (s_to_json indent' spsi) indent
-  | SPrev sphi -> Printf.sprintf "%s\"explanation\": {\n%s\"type\": \"SPrev\",\n%s\"tp\": %d,\n%s%s\n%s}"
-                    indent indent' indent' (s_at p) indent' (s_to_json indent' sphi) indent
-  | SNext sphi -> Printf.sprintf "%s\"explanation\": {\n%s\"type\": \"SNext\",\n%s\"tp\": %d,\n%s%s\n%s}"
-                    indent indent' indent' (s_at p) indent' (s_to_json indent' sphi) indent
-  | SSince (spsi, sphis) -> let sphis_str = expl_list_to_json (List.map (fun el -> s_to_json indent'' el) sphis) in
+  | STT i -> Printf.sprintf "%s\"%sexplanation\": {\n%s\"type\": \"true\",\n%s\"tp\": %d\n%s}"
+               indent pos indent' indent' i indent
+  | SAtom (i, a) -> Printf.sprintf "%s\"%sexplanation\": {\n%s\"type\": \"SAtom\",\n%s\"atom\": \"%s\",\n%s\"tp\": %d\n%s}"
+                      indent pos indent' indent' a indent' i indent
+  | SNeg vphi -> Printf.sprintf "%s\"%sexplanation\": {\n%s\"type\": \"SNeg\",\n%s\"tp\": %d,\n%s\n%s}"
+                   indent pos indent' indent' (s_at p) (v_to_json indent' "" vphi) indent
+  | SDisjL sphi -> Printf.sprintf "%s\"%sexplanation\": {\n%s\"type\": \"SDisjL\",\n%s\"tp\": %d,\n%s\n%s}"
+                     indent pos indent' indent' (s_at p) (s_to_json indent' "" sphi) indent
+  | SDisjR spsi -> Printf.sprintf "%s\"%sexplanation\": {\n%s\"type\": \"SDisjR\",\n%s\"tp\": %d,\n%s\n%s}"
+                     indent pos indent' indent' (s_at p) (s_to_json indent' "" spsi) indent
+  | SConj (sphi, spsi) -> Printf.sprintf "%s\"%sexplanation\": {\n%s\"type\": \"SConj\",\n%s\"tp\": %d,\n%s%s,\n%s%s\n%s}"
+                            indent pos indent' indent' (s_at p) indent' (s_to_json indent' "l" sphi) indent' (s_to_json indent' "r" spsi) indent
+  | SPrev sphi -> Printf.sprintf "%s\"%sexplanation\": {\n%s\"type\": \"SPrev\",\n%s\"tp\": %d,\n%s%s\n%s}"
+                    indent pos indent' indent' (s_at p) indent' (s_to_json indent' "" sphi) indent
+  | SNext sphi -> Printf.sprintf "%s\"%sexplanation\": {\n%s\"type\": \"SNext\",\n%s\"tp\": %d,\n%s%s\n%s}"
+                    indent pos indent' indent' (s_at p) indent' (s_to_json indent' "" sphi) indent
+  | SSince (spsi, sphis) -> let sphis_str = expl_list_to_json (List.mapi (fun i el -> s_to_json indent'' (string_of_int i) el) sphis) in
                             let explanations_str = if sphis_str = "[]" then "[]"
                                                    else "[\n" ^ indent' ^ "{\n" ^ sphis_str ^ "\n" ^ indent' ^ "}]" in
-                            Printf.sprintf "%s\"explanation\": {\n%s\"type\": \"SSince\",\n%s\"tp\": %d,\n%s,\n%s\"explanations\": %s\n%s}"
-                              indent indent' indent' (s_at p) (s_to_json indent' spsi) indent' explanations_str indent
-  | SUntil (spsi, sphis) -> let sphis_str = expl_list_to_json (List.map (fun el -> s_to_json indent'' el) sphis) in
+                            Printf.sprintf "%s\"%sexplanation\": {\n%s\"type\": \"SSince\",\n%s\"tp\": %d,\n%s,\n%s\"explanations\": %s\n%s}"
+                              indent pos indent' indent' (s_at p) (s_to_json indent' "" spsi) indent' explanations_str indent
+  | SUntil (spsi, sphis) -> let sphis_str = expl_list_to_json (List.mapi (fun i el -> s_to_json indent'' (string_of_int i) el) sphis) in
                             let explanations_str = if sphis_str = "[]" then "[]"
                                                    else "[\n" ^ indent' ^ "{\n" ^ sphis_str ^ "\n" ^ indent' ^ "}]" in
-                            Printf.sprintf "%s\"explanation\": {\n%s\"type\": \"SUntil\",\n%s\"tp\": %d,\n%s,\n%s\"explanations\": %s\n%s}"
-                              indent indent' indent' (s_at p) (s_to_json indent' spsi) indent' explanations_str indent
+                            Printf.sprintf "%s\"%sexplanation\": {\n%s\"type\": \"SUntil\",\n%s\"tp\": %d,\n%s,\n%s\"explanations\": %s\n%s}"
+                              indent pos indent' indent' (s_at p) (s_to_json indent' "" spsi) indent' explanations_str indent
   | _ -> ""
-and v_to_json indent p =
+and v_to_json indent pos p =
   let indent' = "  " ^ indent in
   let indent'' = "    " ^ indent in
   match p with
-  | VFF i -> Printf.sprintf "%s\"explanation\": {\n%s\"type\": \"false\",\n%s\"tp\": %d\n%s}"
-               indent indent' indent' i indent
-  | VAtom (i, a) -> Printf.sprintf "%s\"explanation\": {\n%s\"type\": \"VAtom\",\n%s\"atom\": \"%s\",\n%s\"tp\": %d\n%s}"
-                      indent indent' indent' a indent' i indent
-  | VNeg sphi -> Printf.sprintf "%s\"explanation\": {\n%s\"type\": \"VNeg\",\n%s\"tp\": %d,\n%s\n%s}"
-                   indent indent' indent' (v_at p) (s_to_json indent' sphi) indent
-  | VDisj (vphi, vpsi) -> Printf.sprintf "%s\"explanation\": {\n%s\"type\": \"VDisj\",\n%s\"tp\": %d,\n%s%s,\n%s%s\n%s}"
-                            indent indent' indent' (v_at p) indent' (v_to_json indent' vphi) indent' (v_to_json indent' vpsi) indent
-  | VConjL vphi -> Printf.sprintf "%s\"explanation\": {\n%s\"type\": \"VConjL\",\n%s\"tp\": %d,\n%s%s\n%s}"
-                     indent indent' indent' (v_at p) indent' (v_to_json indent' vphi) indent
-  | VConjR vpsi -> Printf.sprintf "%s\"explanation\": {\n%s\"type\": \"VConjR\",\n%s\"tp\": %d,\n%s%s\n%s}"
-                     indent indent' indent' (v_at p) indent' (v_to_json indent' vpsi) indent
-  | VPrev0 -> Printf.sprintf "%s\"explanation\": {\n%s\"type\": \"VPrev0\",\n%s\"tp\": 0\n%s}"
-               indent indent' indent' indent
-  | VPrevOutL i -> Printf.sprintf "%s\"explanation\": {\n%s\"type\": \"VPrevOutL\",\n%s\"tp\": %d\n%s}"
-                     indent indent' indent' i indent
-  | VPrevOutR i -> Printf.sprintf "%s\"explanation\": {\n%s\"type\": \"VPrevOutR\",\n%s\"tp\": %d\n%s}"
-                     indent indent' indent' i indent
-  | VPrev vphi -> Printf.sprintf "%s\"explanation\": {\n%s\"type\": \"VPrev\",\n%s\"tp\": %d,\n%s%s\n%s}"
-                    indent indent' indent' (v_at p) indent' (v_to_json indent' vphi) indent
-  | VNextOutL i -> Printf.sprintf "%s\"explanation\": {\n%s\"type\": \"VNextOutL\",\n%s\"tp\": %d\n%s}"
-                     indent indent' indent' i indent
-  | VNextOutR i -> Printf.sprintf "%s\"explanation\": {\n%s\"type\": \"VNextOutR\",\n%s\"tp\": %d\n%s}"
-                     indent indent' indent' i indent
-  | VNext vphi -> Printf.sprintf "%s\"explanation\": {\n%s\"type\": \"VNext\",\n%s\"tp\": %d,\n%s%s\n%s}"
-                    indent indent' indent' (v_at p) indent' (v_to_json indent' vphi) indent
-  | VSince (_, vphi, vpsis) -> let vpsis_str = expl_list_to_json (List.map (fun el -> v_to_json indent'' el) vpsis) in
+  | VFF i -> Printf.sprintf "%s\"%sexplanation\": {\n%s\"type\": \"false\",\n%s\"tp\": %d\n%s}"
+               indent pos indent' indent' i indent
+  | VAtom (i, a) -> Printf.sprintf "%s\"%sexplanation\": {\n%s\"type\": \"VAtom\",\n%s\"atom\": \"%s\",\n%s\"tp\": %d\n%s}"
+                      indent pos indent' indent' a indent' i indent
+  | VNeg sphi -> Printf.sprintf "%s\"%sexplanation\": {\n%s\"type\": \"VNeg\",\n%s\"tp\": %d,\n%s\n%s}"
+                   indent pos indent' indent' (v_at p) (s_to_json indent' "" sphi) indent
+  | VDisj (vphi, vpsi) -> Printf.sprintf "%s\"%sexplanation\": {\n%s\"type\": \"VDisj\",\n%s\"tp\": %d,\n%s,\n%s\n%s}"
+                            indent pos indent' indent' (v_at p) (v_to_json indent' "l" vphi) (v_to_json indent' "r" vpsi) indent
+  | VConjL vphi -> Printf.sprintf "%s\"%sexplanation\": {\n%s\"type\": \"VConjL\",\n%s\"tp\": %d,\n%s%s\n%s}"
+                     indent pos indent' indent' (v_at p) indent' (v_to_json indent' "" vphi) indent
+  | VConjR vpsi -> Printf.sprintf "%s\"%sexplanation\": {\n%s\"type\": \"VConjR\",\n%s\"tp\": %d,\n%s%s\n%s}"
+                     indent pos indent' indent' (v_at p) indent' (v_to_json indent' "" vpsi) indent
+  | VPrev0 -> Printf.sprintf "%s\"%sexplanation\": {\n%s\"type\": \"VPrev0\",\n%s\"tp\": 0\n%s}"
+               indent pos indent' indent' indent
+  | VPrevOutL i -> Printf.sprintf "%s\"%sexplanation\": {\n%s\"type\": \"VPrevOutL\",\n%s\"tp\": %d\n%s}"
+                     indent pos indent' indent' i indent
+  | VPrevOutR i -> Printf.sprintf "%s\"%sexplanation\": {\n%s\"type\": \"VPrevOutR\",\n%s\"tp\": %d\n%s}"
+                     indent pos indent' indent' i indent
+  | VPrev vphi -> Printf.sprintf "%s\"%sexplanation\": {\n%s\"type\": \"VPrev\",\n%s\"tp\": %d,\n%s%s\n%s}"
+                    indent pos indent' indent' (v_at p) indent' (v_to_json indent' "" vphi) indent
+  | VNextOutL i -> Printf.sprintf "%s\"%sexplanation\": {\n%s\"type\": \"VNextOutL\",\n%s\"tp\": %d\n%s}"
+                     indent pos indent' indent' i indent
+  | VNextOutR i -> Printf.sprintf "%s\"%sexplanation\": {\n%s\"type\": \"VNextOutR\",\n%s\"tp\": %d\n%s}"
+                     indent pos indent' indent' i indent
+  | VNext vphi -> Printf.sprintf "%s\"%sexplanation\": {\n%s\"type\": \"VNext\",\n%s\"tp\": %d,\n%s%s\n%s}"
+                    indent pos indent' indent' (v_at p) indent' (v_to_json indent' "" vphi) indent
+  | VSince (_, vphi, vpsis) -> let vpsis_str = expl_list_to_json (List.mapi (fun i el -> v_to_json indent'' (string_of_int i) el) vpsis) in
                                let explanations_str = if vpsis_str = "[]" then "[]"
                                                       else "[\n" ^ indent' ^ "{\n" ^ vpsis_str ^ "\n" ^ indent' ^ "}]" in
-                               Printf.sprintf "%s\"explanation\": {\n%s\"type\": \"VSince\",\n%s\"tp\": %d,\n%s,\n%s\"explanations\": %s\n%s}"
-                                 indent indent' indent' (v_at p) (v_to_json indent' vphi) indent' explanations_str indent
-  | VSinceInf (_, _, vpsis) -> let vpsis_str = expl_list_to_json (List.map (fun el -> v_to_json indent'' el) vpsis) in
+                               Printf.sprintf "%s\"%sexplanation\": {\n%s\"type\": \"VSince\",\n%s\"tp\": %d,\n%s,\n%s\"explanations\": %s\n%s}"
+                                 indent pos indent' indent' (v_at p) (v_to_json indent' "" vphi) indent' explanations_str indent
+  | VSinceInf (_, _, vpsis) -> let vpsis_str = expl_list_to_json (List.mapi (fun i el -> v_to_json indent'' (string_of_int i) el) vpsis) in
                                let explanations_str = if vpsis_str = "[]" then "[]"
                                                       else "[\n" ^ indent' ^ "{\n" ^ vpsis_str ^ "\n" ^ indent' ^ "}]" in
-                               Printf.sprintf "%s\"explanation\": {\n%s\"type\": \"VSinceInf\",\n%s\"tp\": %d,\n%s\"explanations\": %s\n%s}"
-                                 indent indent' indent' (v_at p) indent' explanations_str indent
-  | VSinceOutL i -> Printf.sprintf "%s\"explanation\": {\n%s\"type\": \"VSinceOutL\",\n%s\"tp\": %d\n%s}"
-                     indent indent' indent' i indent
-  | VUntil (_, vphi, vpsis) -> let vpsis_str = expl_list_to_json (List.map (fun el -> v_to_json indent'' el) vpsis) in
+                               Printf.sprintf "%s\"%sexplanation\": {\n%s\"type\": \"VSinceInf\",\n%s\"tp\": %d,\n%s\"explanations\": %s\n%s}"
+                                 indent pos indent' indent' (v_at p) indent' explanations_str indent
+  | VSinceOutL i -> Printf.sprintf "%s\"%sexplanation\": {\n%s\"type\": \"VSinceOutL\",\n%s\"tp\": %d\n%s}"
+                     indent pos indent' indent' i indent
+  | VUntil (_, vphi, vpsis) -> let vpsis_str = expl_list_to_json (List.mapi (fun i el -> v_to_json indent'' (string_of_int i) el) vpsis) in
                                let explanations_str = if vpsis_str = "[]" then "[]"
                                                       else "[\n" ^ indent' ^ "{\n" ^ vpsis_str ^ "\n" ^ indent' ^ "}]" in
-                               Printf.sprintf "%s\"explanation\": {\n%s\"type\": \"VUntil\",\n%s\"tp\": %d,\n%s,\n%s\"explanations\": %s\n%s}"
-                                 indent indent' indent' (v_at p) (v_to_json indent' vphi) indent' explanations_str indent
-  | VUntilInf (_, _, vpsis) -> let vpsis_str = expl_list_to_json (List.map (fun el -> v_to_json indent'' el) vpsis) in
+                               Printf.sprintf "%s\"%sexplanation\": {\n%s\"type\": \"VUntil\",\n%s\"tp\": %d,\n%s,\n%s\"explanations\": %s\n%s}"
+                                 indent pos indent' indent' (v_at p) (v_to_json indent' "" vphi) indent' explanations_str indent
+  | VUntilInf (_, _, vpsis) -> let vpsis_str = expl_list_to_json (List.mapi (fun i el -> v_to_json indent'' (string_of_int i) el) vpsis) in
                                let explanations_str = if vpsis_str = "[]" then "[]"
                                                       else "[\n" ^ indent' ^ "{\n" ^ vpsis_str ^ "\n" ^ indent' ^ "}]" in
-                               Printf.sprintf "%s\"explanation\": {\n%s\"type\": \"VUntilInf\",\n%s\"tp\": %d,\n%s\"explanations\": %s\n%s}"
-                                 indent indent' indent' (v_at p) indent' explanations_str indent
+                               Printf.sprintf "%s\"%sexplanation\": {\n%s\"type\": \"VUntilInf\",\n%s\"tp\": %d,\n%s\"explanations\": %s\n%s}"
+                                 indent pos indent' indent' (v_at p) indent' explanations_str indent
   | _ -> ""
 
 let expl_to_json = function
-  | S p -> s_to_json "    " p
-  | V p -> v_to_json "    " p
+  | S p -> s_to_json "    " "" p
+  | V p -> v_to_json "    " "" p
