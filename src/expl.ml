@@ -474,7 +474,7 @@ let rec s_to_json indent pos p =
   let indent' = "  " ^ indent in
   let indent'' = "    " ^ indent in
   match p with
-  | STT i -> Printf.sprintf "%s\"%sexplanation\": {\n%s\"type\": \"true\",\n%s\"tp\": %d\n%s}"
+  | STT i -> Printf.sprintf "%s\"%sexplanation\": {\n%s\"type\": \"STT\",\n%s\"tp\": %d\n%s}"
                indent pos indent' indent' i indent
   | SAtom (i, a) -> Printf.sprintf "%s\"%sexplanation\": {\n%s\"type\": \"SAtom\",\n%s\"atom\": \"%s\",\n%s\"tp\": %d\n%s}"
                       indent pos indent' indent' a indent' i indent
@@ -505,7 +505,7 @@ and v_to_json indent pos p =
   let indent' = "  " ^ indent in
   let indent'' = "    " ^ indent in
   match p with
-  | VFF i -> Printf.sprintf "%s\"%sexplanation\": {\n%s\"type\": \"false\",\n%s\"tp\": %d\n%s}"
+  | VFF i -> Printf.sprintf "%s\"%sexplanation\": {\n%s\"type\": \"VFF\",\n%s\"tp\": %d\n%s}"
                indent pos indent' indent' i indent
   | VAtom (i, a) -> Printf.sprintf "%s\"%sexplanation\": {\n%s\"type\": \"VAtom\",\n%s\"atom\": \"%s\",\n%s\"tp\": %d\n%s}"
                       indent pos indent' indent' a indent' i indent
