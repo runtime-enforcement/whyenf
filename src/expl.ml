@@ -491,13 +491,13 @@ let rec s_to_json indent pos p =
   | SNext sphi -> Printf.sprintf "%s\"%sexplanation\": {\n%s\"type\": \"SNext\",\n%s\"tp\": %d,\n%s%s\n%s}"
                     indent pos indent' indent' (s_at p) indent' (s_to_json indent' "" sphi) indent
   | SSince (spsi, sphis) -> let sphis_str = expl_list_to_json (List.mapi (fun i el -> s_to_json indent'' (string_of_int i) el) sphis) in
-                            let explanations_str = if sphis_str = "[]" then "[]"
-                                                   else "[\n" ^ indent' ^ "{\n" ^ sphis_str ^ "\n" ^ indent' ^ "}]" in
+                            let explanations_str = if sphis_str = "[]" then "{}"
+                                                   else "{\n" ^ sphis_str ^ "\n" ^ indent' ^ "}" in
                             Printf.sprintf "%s\"%sexplanation\": {\n%s\"type\": \"SSince\",\n%s\"tp\": %d,\n%s,\n%s\"explanations\": %s\n%s}"
                               indent pos indent' indent' (s_at p) (s_to_json indent' "" spsi) indent' explanations_str indent
   | SUntil (spsi, sphis) -> let sphis_str = expl_list_to_json (List.mapi (fun i el -> s_to_json indent'' (string_of_int i) el) sphis) in
-                            let explanations_str = if sphis_str = "[]" then "[]"
-                                                   else "[\n" ^ indent' ^ "{\n" ^ sphis_str ^ "\n" ^ indent' ^ "}]" in
+                            let explanations_str = if sphis_str = "[]" then "{}"
+                                                   else "{\n" ^ sphis_str ^ "\n" ^ indent' ^ "}" in
                             Printf.sprintf "%s\"%sexplanation\": {\n%s\"type\": \"SUntil\",\n%s\"tp\": %d,\n%s,\n%s\"explanations\": %s\n%s}"
                               indent pos indent' indent' (s_at p) (s_to_json indent' "" spsi) indent' explanations_str indent
   | _ -> ""
@@ -532,25 +532,25 @@ and v_to_json indent pos p =
   | VNext vphi -> Printf.sprintf "%s\"%sexplanation\": {\n%s\"type\": \"VNext\",\n%s\"tp\": %d,\n%s%s\n%s}"
                     indent pos indent' indent' (v_at p) indent' (v_to_json indent' "" vphi) indent
   | VSince (_, vphi, vpsis) -> let vpsis_str = expl_list_to_json (List.mapi (fun i el -> v_to_json indent'' (string_of_int i) el) vpsis) in
-                               let explanations_str = if vpsis_str = "[]" then "[]"
-                                                      else "[\n" ^ indent' ^ "{\n" ^ vpsis_str ^ "\n" ^ indent' ^ "}]" in
+                               let explanations_str = if vpsis_str = "[]" then "{}"
+                                                      else "{\n" ^ vpsis_str ^ "\n" ^ indent' ^ "}" in
                                Printf.sprintf "%s\"%sexplanation\": {\n%s\"type\": \"VSince\",\n%s\"tp\": %d,\n%s,\n%s\"explanations\": %s\n%s}"
                                  indent pos indent' indent' (v_at p) (v_to_json indent' "" vphi) indent' explanations_str indent
   | VSinceInf (_, _, vpsis) -> let vpsis_str = expl_list_to_json (List.mapi (fun i el -> v_to_json indent'' (string_of_int i) el) vpsis) in
-                               let explanations_str = if vpsis_str = "[]" then "[]"
-                                                      else "[\n" ^ indent' ^ "{\n" ^ vpsis_str ^ "\n" ^ indent' ^ "}]" in
+                               let explanations_str = if vpsis_str = "[]" then "{}"
+                                                      else "{\n" ^ vpsis_str ^ "\n" ^ indent' ^ "}" in
                                Printf.sprintf "%s\"%sexplanation\": {\n%s\"type\": \"VSinceInf\",\n%s\"tp\": %d,\n%s\"explanations\": %s\n%s}"
                                  indent pos indent' indent' (v_at p) indent' explanations_str indent
   | VSinceOutL i -> Printf.sprintf "%s\"%sexplanation\": {\n%s\"type\": \"VSinceOutL\",\n%s\"tp\": %d\n%s}"
                      indent pos indent' indent' i indent
   | VUntil (_, vphi, vpsis) -> let vpsis_str = expl_list_to_json (List.mapi (fun i el -> v_to_json indent'' (string_of_int i) el) vpsis) in
-                               let explanations_str = if vpsis_str = "[]" then "[]"
-                                                      else "[\n" ^ indent' ^ "{\n" ^ vpsis_str ^ "\n" ^ indent' ^ "}]" in
+                               let explanations_str = if vpsis_str = "[]" then "{}"
+                                                      else "{\n" ^ vpsis_str ^ "\n" ^ indent' ^ "}" in
                                Printf.sprintf "%s\"%sexplanation\": {\n%s\"type\": \"VUntil\",\n%s\"tp\": %d,\n%s,\n%s\"explanations\": %s\n%s}"
                                  indent pos indent' indent' (v_at p) (v_to_json indent' "" vphi) indent' explanations_str indent
   | VUntilInf (_, _, vpsis) -> let vpsis_str = expl_list_to_json (List.mapi (fun i el -> v_to_json indent'' (string_of_int i) el) vpsis) in
-                               let explanations_str = if vpsis_str = "[]" then "[]"
-                                                      else "[\n" ^ indent' ^ "{\n" ^ vpsis_str ^ "\n" ^ indent' ^ "}]" in
+                               let explanations_str = if vpsis_str = "[]" then "{}"
+                                                      else "{\n" ^ vpsis_str ^ "\n" ^ indent' ^ "}" in
                                Printf.sprintf "%s\"%sexplanation\": {\n%s\"type\": \"VUntilInf\",\n%s\"tp\": %d,\n%s\"explanations\": %s\n%s}"
                                  indent pos indent' indent' (v_at p) indent' explanations_str indent
   | _ -> ""
