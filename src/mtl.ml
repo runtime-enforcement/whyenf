@@ -132,6 +132,25 @@ let rec hf x = match x.node with
 
 let height f = hp f + hf f
 
+let rec subfs_aux x = match x.node with
+  | TT -> [tt]
+  | FF -> [ff]
+  | P x -> [p x]
+  | Neg f -> [neg f] @ (subfs_aux f)
+  | Conj (f, g) -> [conj f g] @ (subfs_aux f) @ (subfs_aux g)
+  | Disj (f, g) -> [disj f g] @ (subfs_aux f) @ (subfs_aux g)
+  | Impl (f, g) -> [impl f g] @ (subfs_aux f) @ (subfs_aux g)
+  | Iff (f, g) -> [iff f g] @ (subfs_aux f) @ (subfs_aux g)
+  | Prev (i, f) -> [prev i f] @ (subfs_aux f)
+  | Once (i, f) -> [once i f] @ (subfs_aux f)
+  | Historically (i, f) -> [historically i f] @ (subfs_aux f)
+  | Since (i, f, g) -> [since i f g] @ (subfs_aux f) @ (subfs_aux g)
+  | Next (i, f) -> [next i f] @ (subfs_aux f)
+  | Always (i, f) -> [always i f] @ (subfs_aux f)
+  | Eventually (i, f) -> [eventually i f] @ (subfs_aux f)
+  | Until (i, f, g) -> [until i f g] @ (subfs_aux f) @ (subfs_aux g)
+let subfs x = remove_duplicates (subfs_aux x)
+
 let rec formula_to_string l f = match f.node with
   | P x -> Printf.sprintf "%s" x
   | TT -> Printf.sprintf "⊤"
@@ -151,22 +170,28 @@ let rec formula_to_string l f = match f.node with
   | Until (i, f, g) -> Printf.sprintf (paren l 0 "%a U%a %a") (fun x -> formula_to_string 5) f (fun x -> interval_to_string) i (fun x -> formula_to_string 5) g
 let formula_to_string = formula_to_string 0
 
-let rec subfs_aux x = match x.node with
-  | TT -> [formula_to_string x]
-  | FF -> [formula_to_string x]
-  | P x -> [x]
-  | Neg f -> [formula_to_string x] @ (subfs_aux f)
-  | Conj (f, g) -> [formula_to_string x] @ (subfs_aux f) @ (subfs_aux g)
-  | Disj (f, g) -> [formula_to_string x] @ (subfs_aux f) @ (subfs_aux g)
-  | Impl (f, g) -> [formula_to_string x] @ (subfs_aux f) @ (subfs_aux g)
-  | Iff (f, g) -> [formula_to_string x] @ (subfs_aux f) @ (subfs_aux g)
-  | Prev (_, f) -> [formula_to_string x] @ (subfs_aux f)
-  | Once (_, f) -> [formula_to_string x] @ (subfs_aux f)
-  | Historically (_, f) -> [formula_to_string x] @ (subfs_aux f)
-  | Since (_, f, g) -> [formula_to_string x] @ (subfs_aux f) @ (subfs_aux g)
-  | Next (_, f) -> [formula_to_string x] @ (subfs_aux f)
-  | Always (_, f) -> [formula_to_string x] @ (subfs_aux f)
-  | Eventually (_, f) -> [formula_to_string x] @ (subfs_aux f)
-  | Until (_, f, g) -> [formula_to_string x] @ (subfs_aux f) @ (subfs_aux g)
-
-let subfs x = remove_duplicates (subfs_aux x)
+let rec f_to_json indent pos f =
+  let indent' = "  " ^ indent in
+  match f.node with
+  | P a -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"P\",\n%s\"atom\": \"%s\"\n%s}"
+             indent pos indent' indent' a indent
+  | TT -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"True\"\n%s}"
+               indent pos indent' indent
+  | FF -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"False\"\n%s}"
+               indent pos indent' indent
+  | Conj (f, g) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Conj\",\n%s,\n%s\n%s}"
+                     indent pos indent' (f_to_json indent' "l" f) (f_to_json indent' "r" g) indent
+  | Disj (f, g) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Disj\",\n%s,\n%s\n%s}"
+                     indent pos indent' (f_to_json indent' "l" f) (f_to_json indent' "r" g) indent
+  | Neg f -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Neg\",\n%s\n%s}"
+               indent pos indent' (f_to_json indent' "" f) indent
+  | Prev (i, f) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Prev\",\n%s\"interval\": \"%s\",\n%s\n%s}"
+                     indent pos indent' indent' (interval_to_string i) (f_to_json indent' "" f) indent
+  | Next (i, f) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Next\",\n%s\"interval\": \"%s\",\n%s\n%s}"
+                     indent pos indent' indent' (interval_to_string i) (f_to_json indent' "" f) indent
+  | Since (i, f, g) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Since\",\n%s\"interval\": \"%s\",\n%s,\n%s\n%s}"
+                         indent pos indent' indent' (interval_to_string i) (f_to_json indent' "l" f) (f_to_json indent' "r" g) indent
+  | Until (i, f, g) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Until\",\n%s\"interval\": \"%s\",\n%s,\n%s\n%s}"
+                         indent pos indent' indent' (interval_to_string i) (f_to_json indent' "l" f) (f_to_json indent' "r" g) indent
+  | _ -> ""
+let formula_to_json = f_to_json "    " ""
