@@ -175,9 +175,9 @@ let rec f_to_json indent pos f =
   match f.node with
   | P a -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"P\",\n%s\"atom\": \"%s\"\n%s}"
              indent pos indent' indent' a indent
-  | TT -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"True\"\n%s}"
+  | TT -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"TT\"\n%s}"
                indent pos indent' indent
-  | FF -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"False\"\n%s}"
+  | FF -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"FF\"\n%s}"
                indent pos indent' indent
   | Conj (f, g) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Conj\",\n%s,\n%s\n%s}"
                      indent pos indent' (f_to_json indent' "l" f) (f_to_json indent' "r" g) indent
