@@ -9,8 +9,12 @@ const measures = [
     label: "Size",
   },
   {
-    value: "reach",
-    label: "Reach",
+    value: "minreach",
+    label: "Minimum Reach",
+  },
+  {
+    value: "maxreach",
+    label: "Maximum Reach",
   }
 ]
 
