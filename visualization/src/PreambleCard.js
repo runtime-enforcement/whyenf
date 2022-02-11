@@ -5,6 +5,7 @@ import CardActions from '@mui/material/CardActions';
 import CardContent from '@mui/material/CardContent';
 import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
+import Link from '@mui/material/Link';
 
 const bull = (
   <Box
@@ -18,24 +19,15 @@ const bull = (
 const card = (
   <React.Fragment>
     <CardContent>
-      <Typography sx={{ fontSize: 14 }} color="text.secondary" gutterBottom>
-        Word of the Day
-      </Typography>
       <Typography variant="h5" component="div">
-        be{bull}nev{bull}o{bull}lent
+        Explanator2: Judgement Day
       </Typography>
-      <Typography sx={{ mb: 1.5 }} color="text.secondary">
-        adjective
-      </Typography>
-      <Typography variant="body2">
-        well meaning and kindly.
-        <br />
-        {'"a benevolent smile"'}
+      <Typography sx={{ mt: 3 }} variant="body2">
+        This is a tool for online monitoring satisfaction and violation explanations
+        of MTL (Metric Temporal Logic) and MDL (Metric Dynamic Logic) formulas on arbitrary words. <br />
+        It is built upon the <Link href="https://bitbucket.org/traytel/explanator/src/master/">Explanator</Link>.
       </Typography>
     </CardContent>
-    <CardActions>
-      <Button size="small">Learn More</Button>
-    </CardActions>
   </React.Fragment>
 );
 
