@@ -9,7 +9,7 @@ import TwitterIcon from '@mui/icons-material/Twitter';
 
 export default function BottomBar() {
   return (
-    <Box sx={{ mt: 4, flexGrow: 1 }}>
+    <Box sx={{ mt: 4, flexGrow: 1, width: '100%', bottom: 0, position: 'fixed' }}>
       <AppBar position="static">
         <Toolbar>
           <Typography align="center" variant="h8" component="div" sx={{ flexGrow: 1 }}>
