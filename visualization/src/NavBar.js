@@ -16,10 +16,14 @@ export default function NavBar() {
             eXpLaNaToR
           </Typography>
           <Button color="inherit">
-            <HelpIcon color="inherit" sx={{ mr: 0.5 }} /> help
+            <Typography variant="h7" component="div" sx={{ flexGrow: 1 }}>
+              help
+            </Typography>
           </Button>
           <Button color="inherit">
-            <InfoIcon color="inherit" sx={{ mr: 0.5 }} /> about
+            <Typography variant="h7" component="div" sx={{ flexGrow: 1 }}>
+              about
+            </Typography>
           </Button>
     </Toolbar>
     </AppBar>
