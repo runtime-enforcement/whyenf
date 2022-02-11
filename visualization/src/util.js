@@ -169,16 +169,17 @@ function findMatch(explanation, subformulas) {
 }
 
 export function updateSquares(explanation, subformulas, squares) {
-  var cells = [];
+
+  var changedSquares = [];
 
   switch (explanation.type) {
   case "STT":
   case "SAtom":
   case "VFF":
   case "VAtom":
-    cells.push({ tp: explanation.tp,
-                 col: findMatch(explanation, subformulas),
-                 color: squareColor(explanation.type) });
+    changedSquares.push({ tp: explanation.tp,
+                          col: findMatch(explanation, subformulas),
+                          color: squareColor(explanation.type) });
     break;
   case "SNeg":
   case "SDisjL":
@@ -190,42 +191,48 @@ export function updateSquares(explanation, subformulas, squares) {
   case "VConjR":
   case "VPrev":
   case "VNext":
-    cells.push({ tp: explanation.explanation.tp,
-                 col: findMatch(explanation.explanation, subformulas),
-                 color: squareColor(explanation.explanation.type) });
+    changedSquares.push({ tp: explanation.explanation.tp,
+                          col: findMatch(explanation.explanation, subformulas),
+                          color: squareColor(explanation.explanation.type) });
     break;
   case "SConj":
   case "VDisj":
-    cells.push({ tp: explanation.lexplanation.tp,
-                 col: findMatch(explanation.lexplanation, subformulas),
-                 color: squareColor(explanation.lexplanation.type) });
-    cells.push({ tp: explanation.rexplanation.tp,
-                 col: findMatch(explanation.rexplanation, subformulas),
-                 color: squareColor(explanation.rexplanation.type) });
+    changedSquares.push({ tp: explanation.lexplanation.tp,
+                          col: findMatch(explanation.lexplanation, subformulas),
+                          color: squareColor(explanation.lexplanation.type) });
+    changedSquares.push({ tp: explanation.rexplanation.tp,
+                          col: findMatch(explanation.rexplanation, subformulas),
+                          color: squareColor(explanation.rexplanation.type) });
     break;
   case "SSince":
   case "SUntil":
   case "VSince":
   case "VUntil":
-    cells.push({ tp: explanation.explanation.tp,
-                 col: findMatch(explanation.explanation, subformulas),
-                 color: squareColor(explanation.explanation.type) });
-    cells.push({ tp: explanation.explanations['0explanation'].tp,
-                 col: findMatch(explanation.explanations['0explanation'], subformulas),
-                 color: squareColor(explanation.explanations['0explanation'].type) });
+    console.log(explanation);
+    changedSquares.push({ tp: explanation.explanation.tp,
+                          col: findMatch(explanation.explanation, subformulas),
+                          color: squareColor(explanation.explanation.type) });
+    if (!(Object.keys(explanation.explanations).length === 0)) {
+      changedSquares.push({ tp: explanation.explanations['0explanation'].tp,
+                            col: findMatch(explanation.explanations['0explanation'], subformulas),
+                            color: squareColor(explanation.explanations['0explanation'].type) });
+    }
     break;
   case "VSinceInf":
   case "VUntilInf":
-    cells.push({ tp: explanation.explanations['0explanation'].tp,
-                 col: findMatch(explanation.explanations['0explanation'], subformulas),
-                 color: squareColor(explanation.explanations['0explanation'].type) });
+    if (!(Object.keys(explanation.explanations).length === 0)) {
+      changedSquares.push({ tp: explanation.explanations['0explanation'].tp,
+                            col: findMatch(explanation.explanations['0explanation'], subformulas),
+                            color: squareColor(explanation.explanations['0explanation'].type) });
+    }
     break;
   default:
     break;
   }
-  console.log(cells);
-  for (let i = 0; i < cells.length; ++i) {
-    squares[cells[i].tp][cells[i].col] = cells[i].color;
+
+  for (let i = 0; i < changedSquares.length; ++i) {
+    squares[changedSquares[i].tp][changedSquares[i].col] = changedSquares[i].color;
   }
+
   return squares;
 }

@@ -21,8 +21,8 @@ function initSquares(explanationsLength, columns) {
   for (let tp = 0; tp < explanationsLength; ++tp) {
     squares[tp] = {};
     for (let j = 0; j < columns.length; ++j) {
-      if (j === 0) squares[tp][columns[j]] = squareColor(mockData.explanations[tp].explanation.type);
-      else squares[tp][columns[j]] = "primary";
+      if (j === 0) squares[tp][j] = squareColor(mockData.explanations[tp].explanation.type);
+      else squares[tp][j] = "primary";
     }
   }
   return squares;
@@ -55,8 +55,8 @@ function TimeGrid () {
       width: 50,
       sortable: false,
       renderHeader: () => pickColumnItem(0),
-      renderCell: (params) => <Square value={squares[params.row.tp][params.colDef.field]}
-                                      onClick={() => handleClick(params.row.tp, params.colDef.field)} />,
+      renderCell: (params) => <Square value={squares[params.row.tp][0]}
+                                      onClick={() => handleClick(params, params.row.tp, params.colDef.field)} />,
       headerAlign: 'center',
       align: 'center',
       disableClickEventBubbling: true
@@ -70,7 +70,7 @@ function TimeGrid () {
       width: 50,
       sortable: false,
       renderHeader: () => pickColumnItem(i+1),
-      renderCell: () => <Square value="primary" />,
+      renderCell: (params) => <Square value={squares[params.row.tp][i+1]} />,
       headerAlign: 'center',
       align: 'center',
       disableClickEventBubbling: true
@@ -87,9 +87,11 @@ function TimeGrid () {
       f3: ""
     }));
 
-  const handleClick = (tp, formString) => {
+  const handleClick = (params, tp, formString) => {
     let newSquares = squares.slice();
-    setSquares({ squares: updateSquares(mockData.explanations[tp].explanation, mockData.subformulas, newSquares) });
+    newSquares = updateSquares(mockData.explanations[tp].explanation, mockData.subformulas, newSquares);
+    setSquares(sq);
+    setSquares(newSquares);
   };
 
   const renderSquare = (tp, formString) => {
