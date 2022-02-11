@@ -168,16 +168,15 @@ function findMatch(explanation, subformulas) {
   }
 }
 
-export function updateSquares(explanation, subformulas, squares) {
-
-  var changedSquares = [];
+export function changedSquares(explanation, subformulas) {
+  var chSquares = [];
 
   switch (explanation.type) {
   case "STT":
   case "SAtom":
   case "VFF":
   case "VAtom":
-    changedSquares.push({ tp: explanation.tp,
+    chSquares.push({ tp: explanation.tp,
                           col: findMatch(explanation, subformulas),
                           color: squareColor(explanation.type) });
     break;
@@ -191,16 +190,16 @@ export function updateSquares(explanation, subformulas, squares) {
   case "VConjR":
   case "VPrev":
   case "VNext":
-    changedSquares.push({ tp: explanation.explanation.tp,
+    chSquares.push({ tp: explanation.explanation.tp,
                           col: findMatch(explanation.explanation, subformulas),
                           color: squareColor(explanation.explanation.type) });
     break;
   case "SConj":
   case "VDisj":
-    changedSquares.push({ tp: explanation.lexplanation.tp,
+    chSquares.push({ tp: explanation.lexplanation.tp,
                           col: findMatch(explanation.lexplanation, subformulas),
                           color: squareColor(explanation.lexplanation.type) });
-    changedSquares.push({ tp: explanation.rexplanation.tp,
+    chSquares.push({ tp: explanation.rexplanation.tp,
                           col: findMatch(explanation.rexplanation, subformulas),
                           color: squareColor(explanation.rexplanation.type) });
     break;
@@ -208,12 +207,11 @@ export function updateSquares(explanation, subformulas, squares) {
   case "SUntil":
   case "VSince":
   case "VUntil":
-    console.log(explanation);
-    changedSquares.push({ tp: explanation.explanation.tp,
+    chSquares.push({ tp: explanation.explanation.tp,
                           col: findMatch(explanation.explanation, subformulas),
                           color: squareColor(explanation.explanation.type) });
     if (!(Object.keys(explanation.explanations).length === 0)) {
-      changedSquares.push({ tp: explanation.explanations['0explanation'].tp,
+      chSquares.push({ tp: explanation.explanations['0explanation'].tp,
                             col: findMatch(explanation.explanations['0explanation'], subformulas),
                             color: squareColor(explanation.explanations['0explanation'].type) });
     }
@@ -221,7 +219,7 @@ export function updateSquares(explanation, subformulas, squares) {
   case "VSinceInf":
   case "VUntilInf":
     if (!(Object.keys(explanation.explanations).length === 0)) {
-      changedSquares.push({ tp: explanation.explanations['0explanation'].tp,
+      chSquares.push({ tp: explanation.explanations['0explanation'].tp,
                             col: findMatch(explanation.explanations['0explanation'], subformulas),
                             color: squareColor(explanation.explanations['0explanation'].type) });
     }
@@ -230,9 +228,5 @@ export function updateSquares(explanation, subformulas, squares) {
     break;
   }
 
-  for (let i = 0; i < changedSquares.length; ++i) {
-    squares[changedSquares[i].tp][changedSquares[i].col] = changedSquares[i].color;
-  }
-
-  return squares;
+  return chSquares;
 }

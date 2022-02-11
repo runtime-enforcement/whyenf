@@ -3,7 +3,7 @@ import Box from '@mui/material/Box';
 import { DataGrid } from '@mui/x-data-grid';
 import Button from '@mui/material/Button';
 import SquareIcon from '@mui/icons-material/Square';
-import { pickColumnItem, squareColor, updateSquares } from './util';
+import { pickColumnItem, squareColor, changedSquares } from './util';
 
 let mockData = require('./data.json');
 console.log(mockData);
@@ -29,9 +29,8 @@ function initSquares(explanationsLength, columns) {
 }
 
 function TimeGrid () {
-  let sq = initSquares(mockData.explanations.length, mockData.columns);
-
-  const [squares, setSquares] = React.useState(sq);
+  let initState = initSquares(mockData.explanations.length, mockData.columns);
+  const [squares, setSquares] = React.useState(initState);
 
   const fixedColumns = [
     {
@@ -52,9 +51,9 @@ function TimeGrid () {
     {
       field: mockData.columns[0],
       headerName: mockData.columns[0],
-      width: 50,
+      width: 100,
       sortable: false,
-      renderHeader: () => pickColumnItem(0),
+      renderHeader: () => mockData.columns[0],
       renderCell: (params) => <Square value={squares[params.row.tp][0]}
                                       onClick={() => handleClick(params, params.row.tp, params.colDef.field)} />,
       headerAlign: 'center',
@@ -69,7 +68,7 @@ function TimeGrid () {
       headerName: f,
       width: 50,
       sortable: false,
-      renderHeader: () => pickColumnItem(i+1),
+      renderHeader: () => mockData.columns[i+1],
       renderCell: (params) => <Square value={squares[params.row.tp][i+1]} />,
       headerAlign: 'center',
       align: 'center',
@@ -88,10 +87,11 @@ function TimeGrid () {
     }));
 
   const handleClick = (params, tp, formString) => {
-    let newSquares = squares.slice();
-    newSquares = updateSquares(mockData.explanations[tp].explanation, mockData.subformulas, newSquares);
-    setSquares(sq);
-    setSquares(newSquares);
+    let chSquares = changedSquares(mockData.explanations[tp].explanation, mockData.subformulas);
+    for (let i = 0; i < chSquares.length; ++i) {
+      squares[chSquares[i].tp][chSquares[i].col] = chSquares[i].color;
+    }
+    setSquares(squares);
   };
 
   const renderSquare = (tp, formString) => {
