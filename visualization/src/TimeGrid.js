@@ -94,15 +94,6 @@ function TimeGrid () {
     setSquares(squares);
   };
 
-  const renderSquare = (tp, formString) => {
-    return (
-      <Square
-        value={squares[tp][formString]}
-        onClick={() => handleClick(tp, formString)}
-      />
-    );
-  };
-
   return (
     <Box sx={{ height: 585 }}>
       <DataGrid

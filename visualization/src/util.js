@@ -11,69 +11,6 @@ import CropSquareIcon from '@mui/icons-material/CropSquare';
 import Button from '@mui/material/Button';
 import { red, lightGreen } from '@mui/material/colors';
 
-// function convertToMTL(explanation) {
-//   switch (explanation.type) {
-//   case "STT":
-//     return { type: "TT" };
-//   case "SAtom":
-//     return { type: "P", atom: explanation.atom };
-//   case "SNeg":
-//     return { type: "Neg", formula: convertToMTL(explanation.explanation) };
-//   case "SDisjL":
-//     return { type: "Disj", lformula: convertToMTL(explanation.explanation) };
-//   case "SDisjR":
-//     return { type: "Disj", rformula: convertToMTL(explanation.explanation) };
-//   case "SConj":
-//     return { type: "Conj",
-//              lformula: convertToMTL(explanation.lexplanation),
-//              rformula: convertToMTL(explanation.rexplanation) };
-//   case "SPrev":
-//     return {type: "Prev", formula: convertToMTL(explanation.explanation)};
-//   case "SNext":
-//     return {type: "Next", formula: convertToMTL(explanation.explanation)};
-//   case "SSince":
-//     return { type: "Since",
-//              lformula: convertToMTL(explanation.explanation),
-//              rformula: convertToMTL(explanation.explanations['0explanation']) };
-//   case "SUntil":
-//     return { type: "Until",
-//              lformula: convertToMTL(explanation.explanation),
-//              rformula: convertToMTL(explanation.explanations['0explanation']) };
-//   case "VFF":
-//     return { type: "FF" };
-//   case "VAtom":
-//     return { type: "P", atom: explanation.atom };
-//   case "VNeg":
-//     return {type: "Neg", formula: convertToMTL(explanation.explanation)};
-//   case "VDisj":
-//     return { type: "Disj",
-//              lformula: convertToMTL(explanation.lexplanation),
-//              rformula: convertToMTL(explanation.rexplanation) };
-//   case "VConjL":
-//     return { type: "Conj", lformula: convertToMTL(explanation.explanation) };
-//   case "VConjR":
-//     return { type: "Conj", rformula: convertToMTL(explanation.explanation) };
-//   case "VPrev":
-//     return { type: "Prev", formula: convertToMTL(explanation.explanation) };
-//   case "VNext":
-//     return { type: "Next", formula: convertToMTL(explanation.explanation) };
-//   case "VSince":
-//     return { type: "Since",
-//              lformula: convertToMTL(explanation.explanation),
-//              rformula: convertToMTL(explanation.explanations['0explanation']) };
-//   case "VSinceInf":
-//     return { type: "Since",
-//              rformula: convertToMTL(explanation.explanations['0explanation']) };
-//   case "VUntil":
-//     return { type: "Until",
-//              lformula: convertToMTL(explanation.explanation),
-//              rformula: convertToMTL(explanation.explanations['0explanation']) };
-//   case "VUntilInf":
-//     return { type: "Until",
-//              rformula: convertToMTL(explanation.explanations['0explanation']) };
-//   }
-// }
-
 export function pickColumnItem(i, f) {
   switch (i) {
   case 0:
