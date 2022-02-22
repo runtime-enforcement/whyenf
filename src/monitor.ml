@@ -131,15 +131,15 @@ module Since = struct
     ; alphas_betas_out: (timestamp * vexpl option * vexpl option) Deque.t
     ; }
 
-  let print_ts_lists { ts_zero; ts_tp_in; ts_tp_out } =
+  let print_ts_lists msaux =
     Printf.fprintf stdout "%s" (
-    (match ts_zero with
+    (match msaux.ts_zero with
      | None -> ""
      | Some(ts) -> Printf.sprintf "\n\tts_zero = (%d)\n" ts) ^
-    Deque.fold ts_tp_in ~init:"\n\tts_in = ["
+    Deque.fold msaux.ts_tp_in ~init:"\n\tts_in = ["
       ~f:(fun acc (ts, tp) -> acc ^ (Printf.sprintf "(%d, %d);" ts tp)) ^
       (Printf.sprintf "]\n") ^
-    Deque.fold ts_tp_out ~init:"\n\tts_out = ["
+    Deque.fold msaux.ts_tp_out ~init:"\n\tts_out = ["
       ~f:(fun acc (ts, tp) -> acc ^ (Printf.sprintf "(%d, %d);" ts tp)) ^
       (Printf.sprintf "]\n"))
 
@@ -356,13 +356,13 @@ module Since = struct
                          ; alpha_betas
                          ; betas_suffix_in }
 
-  let update_since interval tp ts p1 p2 msaux le =
+ let update_since interval tp ts p1 p2 msaux le =
     let a = get_a_I interval in
     (* Case 1: interval has not yet started, i.e.,
      \tau_{tp} < (\tau_{0} + a) OR (\tau_{tp} - a) < 0 *)
-    if ((Option.is_none msaux.ts_zero) && (ts - a) < 0) ||
+    if (Option.is_none msaux.ts_zero) ||
          (Option.is_some msaux.ts_zero) && ts < (Option.get msaux.ts_zero) + a then
-      let l = (-1) in
+      let l = ts - a in
       let r = (-1) in
       let ts_zero = if Option.is_none msaux.ts_zero then Some(ts) else msaux.ts_zero in
       let msaux_ts_updated = update_ts (l, r) a ts tp msaux in
@@ -977,9 +977,11 @@ let meval' tp ts sap mform le minimuml =
        let (ps', _, tss') = Prev_Next.mprev_next Next interval ps tss minimuml in
        (ps', MNext (interval, mf', first, tss'))
     | MSince (interval, mf1, mf2, buf, tss_tps, msaux) ->
+       (* let () = Printf.printf "\nsince: %s\n" (mformula_to_string (MSince (interval, mf1, mf2, buf, tss_tps, msaux))) in *)
        let (p1s, mf1') = meval tp ts sap mf1 in
        let (p2s, mf2') = meval tp ts sap mf2 in
        let _ = Deque.enqueue_back tss_tps (ts, tp) in
+
        let ((ps, msaux'), buf', tss_tps') =
          mbuf2t_take
            (fun p1 p2 ts tp (ps, aux) ->
