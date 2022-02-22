@@ -97,6 +97,7 @@ let rec convert_f f =
   match (value f) with
   | P (x) -> Atom (x)
   | Neg (f) -> Neg (convert_f f)
+  | Conj (f, g) -> Conj (convert_f f, convert_f g)
   | Disj (f, g) -> Disj (convert_f f, convert_f g)
   | Since (interval, f, g) -> let interval' = convert_interval interval in
                               Since (convert_f f, interval', convert_f g)
