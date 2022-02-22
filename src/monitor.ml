@@ -360,9 +360,9 @@ module Since = struct
     let a = get_a_I interval in
     (* Case 1: interval has not yet started, i.e.,
      \tau_{tp} < (\tau_{0} + a) OR (\tau_{tp} - a) < 0 *)
-    if (Option.is_none msaux.ts_zero) ||
-         (Option.is_some msaux.ts_zero) && ts < (Option.get msaux.ts_zero) + a then
-      let l = ts - a in
+    if ((Option.is_none msaux.ts_zero) && (ts - a) < 0) ||
+          (Option.is_some msaux.ts_zero) && ts < (Option.get msaux.ts_zero) + a then
+      let l = (-1) in
       let r = (-1) in
       let ts_zero = if Option.is_none msaux.ts_zero then Some(ts) else msaux.ts_zero in
       let msaux_ts_updated = update_ts (l, r) a ts tp msaux in
@@ -371,13 +371,14 @@ module Since = struct
       ([p], { msaux_updated with ts_zero })
     (* Case 2: there exists a \tau_{tp'} inside the interval s.t. tp' < tp *)
     else
+      let ts_zero = if Option.is_none msaux.ts_zero then Some(ts) else msaux.ts_zero in
       let b = get_b_I interval in
       let l = if (Option.is_some b) then max 0 (ts - (Option.get b))
-              else (Option.get msaux.ts_zero) in
+              else (Option.get ts_zero) in
       let r = ts - a in
       let msaux_ts_updated = update_ts (l, r) a ts tp msaux in
       let msaux_updated = advance_msaux (l, r) tp ts p1 p2 msaux_ts_updated le in
-      (optimal_proof tp msaux_updated, msaux_updated)
+      (optimal_proof tp { msaux_updated with ts_zero }, { msaux_updated with ts_zero })
 end
 
 module Until = struct
