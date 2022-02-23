@@ -3,6 +3,7 @@ _build/
 test/*.csv
 test/*.log
 test/*.mdl
+test/*.mtl
 test/*.mfotl
 test/*.mlog
 test/*.r2u2
