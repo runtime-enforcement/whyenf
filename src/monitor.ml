@@ -269,7 +269,7 @@ module Since = struct
                | Some (_, tp') -> tp')
     | Some (_, tp') -> tp'
 
-  let optimal_proof tp msaux =
+  let candidate_proofs tp msaux =
     if not (Deque.is_empty msaux.beta_alphas) then
       [snd(Deque.peek_front_exn msaux.beta_alphas)]
     else
@@ -289,6 +289,7 @@ module Since = struct
                    let betas_suffix = betas_suffix_in_to_list msaux.betas_suffix_in in
                    [V (VSinceInf (tp, etp, betas_suffix))]
                  else [] in
+      (* let () = List.iter (p1_l @ p2_l @ p3_l) ~f:(fun p -> (Printf.printf "\n(%s)\n" (Expl.expl_to_string p))) in *)
       (p1_l @ p2_l @ p3_l)
 
   let add_to_msaux ts p1 p2 msaux le =
@@ -378,7 +379,7 @@ module Since = struct
       let r = ts - a in
       let msaux_ts_updated = update_ts (l, r) a ts tp msaux in
       let msaux_updated = advance_msaux (l, r) tp ts p1 p2 msaux_ts_updated le in
-      (optimal_proof tp { msaux_updated with ts_zero }, { msaux_updated with ts_zero })
+      (candidate_proofs tp { msaux_updated with ts_zero }, { msaux_updated with ts_zero })
 end
 
 module Until = struct
@@ -982,7 +983,6 @@ let meval' tp ts sap mform le minimuml =
        let (p1s, mf1') = meval tp ts sap mf1 in
        let (p2s, mf2') = meval tp ts sap mf2 in
        let _ = Deque.enqueue_back tss_tps (ts, tp) in
-
        let ((ps, msaux'), buf', tss_tps') =
          mbuf2t_take
            (fun p1 p2 ts tp (ps, aux) ->
