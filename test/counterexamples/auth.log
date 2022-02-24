@@ -1,3 +1,5 @@
 @0 error
-@40 error
-@100 auth
+@400 error
+@800 auth
+@900 reset
+@1000 auth
