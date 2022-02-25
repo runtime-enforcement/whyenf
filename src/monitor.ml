@@ -629,7 +629,7 @@ module Until = struct
     let (first_ts, first_tp) = match first_ts_tp muaux with
       | None -> raise (NOT_FOUND "(ts, tp) deques are empty")
       | Some(ts', tp') -> (ts', tp') in
-    (* let () = Printf.printf "first_ts = %d; first_tp = %d\n" first_ts first_tp in *)
+    let () = Printf.printf "first_ts = %d; first_tp = %d\n" first_ts  first_tp in
     (* ts_tp_out and ts_tp_out *)
     let () = adjust_ts_tp a first_ts muaux in
     (* alphas_beta *)
@@ -665,7 +665,8 @@ module Until = struct
                ; betas_suffix_in}
 
   let eval_step_muaux a ts tp muaux le minimuml =
-    (* let () = Printf.printf "eval_step_muaux ts = %d; tp = %d\n" ts tp in *)
+    let () = Printf.printf "eval_step_muaux ts = %d; tp = %d\n" ts tp in
+    let () = Printf.printf "\nbefore: %s\n" (muaux_to_string muaux) in
     let optimal_proofs_len = Deque.length muaux.optimal_proofs in
     let () = (let cur_alphas_beta = Deque.peek_front_exn muaux.alphas_beta in
               let () = (if not (Deque.is_empty cur_alphas_beta) then
@@ -705,6 +706,7 @@ module Until = struct
                   * let _ = List.iter (p1_l @ p2_l @ p3_l) ~f:(fun p -> Printf.printf "%s\n" (Expl.expl_to_string p)) in *)
                  Deque.enqueue_back muaux.optimal_proofs (ts, minimuml (p1_l @ p2_l @ p3_l)))) in
     let muaux = adjust_muaux a muaux le in
+    let () = Printf.printf "\nafter: %s\n" (muaux_to_string muaux) in
     muaux
 
   let shift_muaux (a, b) nts muaux le minimuml =
