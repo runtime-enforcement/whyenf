@@ -456,6 +456,8 @@ module Until = struct
     | V _, V _ -> Printf.printf "VV\n"
 
   let ts_of_tp tp muaux =
+    Deque.iter muaux.ts_tp_in ~f:(fun (ts', tp') -> Printf.printf "(ts, tp) = (%d, %d)\n" ts' tp');
+    Printf.printf "ts_of_tp; tp = %d\n" tp;
     match (Deque.find muaux.ts_tp_out ~f:(fun (ts', tp') -> tp = tp')) with
     | None -> (match (Deque.find muaux.ts_tp_in ~f:(fun (ts', tp') -> tp = tp')) with
                | None -> raise (NOT_FOUND "ts not found")
@@ -521,7 +523,7 @@ module Until = struct
                | Some(ts, tp) -> Some(ts, tp))
     | Some(ts, tp) -> Some(ts, tp)
 
-  let add_p1_p2 a ts tp p1 p2 muaux le =
+  let add_p1_p2 a (ts, tp) p1 p2 muaux le =
     let first_ts = match first_ts_tp muaux with
       | None -> 0
       | Some(ts', _) -> ts' in
@@ -624,13 +626,14 @@ module Until = struct
     let _ = remove_if_pred_front (fun (ts', _) -> ts' < ts) muaux.ts_tp_out in
     ()
 
-  let adjust_muaux a muaux le =
+  let adjust_muaux a (nts, ntp) muaux le =
     let () = drop_first_ts_tp muaux in
     let (first_ts, first_tp) = match first_ts_tp muaux with
-      | None -> raise (NOT_FOUND "(ts, tp) deques are empty")
+      | None -> (nts, ntp)
       | Some(ts', tp') -> (ts', tp') in
-    let () = Printf.printf "first_ts = %d; first_tp = %d\n" first_ts  first_tp in
+    (* let () = Printf.printf "first_ts = %d; first_tp = %d\n" first_ts  first_tp in *)
     (* ts_tp_out and ts_tp_out *)
+    Deque.iter muaux.ts_tp_in ~f:(fun (ts', tp') -> Printf.printf "(ts, tp) = (%d, %d)\n" ts' tp');
     let () = adjust_ts_tp a first_ts muaux in
     (* alphas_beta *)
     let () = drop_muaux_tp (first_tp - 1) muaux in
@@ -646,6 +649,8 @@ module Until = struct
     let () = Deque.iteri muaux.betas_alpha ~f:(fun i d ->
                  Deque.set_exn muaux.betas_alpha i
                    (remove_if_pred_front (fun (ts', p) -> (ts' < first_ts + a) || ((p_at p) < first_tp)) d)) in
+    let () = Printf.printf "\nbetas_alpha = \n" in
+    let () = Deque.iter (Deque.peek_front_exn muaux.betas_alpha) ~f:(fun (ts, p) -> Printf.printf "%s\n" (Expl.expl_to_string p)) in
     let () = drop_muaux_ts a first_ts muaux in
     let _ = remove_if_pred_front_ne (fun d' -> Deque.is_empty d') muaux.betas_alpha in
     (* alphas_in and alphas_out *)
@@ -657,16 +662,17 @@ module Until = struct
     (* betas_suffix_in *)
     let betas_suffix_in = remove_if_pred_front (fun (_, tp', _) ->
                               match Deque.peek_front muaux.ts_tp_in with
-                              | None -> (let (_, tp'') = Deque.peek_back_exn muaux.ts_tp_out in
-                                         tp' <= tp'')
+                              | None -> (match Deque.peek_back muaux.ts_tp_out with
+                                         | None -> tp' < ntp
+                                         | Some(_, tp'') -> tp' < tp'')
                               | Some (_, tp'') -> tp' < tp'') muaux.betas_suffix_in in
     { muaux with alphas_in
                ; alphas_out
                ; betas_suffix_in}
 
-  let eval_step_muaux a ts tp muaux le minimuml =
-    let () = Printf.printf "eval_step_muaux ts = %d; tp = %d\n" ts tp in
-    let () = Printf.printf "\nbefore: %s\n" (muaux_to_string muaux) in
+  let eval_step_muaux a (nts, ntp) ts tp muaux le minimuml =
+    (* let () = Printf.printf "eval_step_muaux ts = %d; tp = %d\n" ts tp in
+     * let () = Printf.printf "\nbefore: %s\n" (muaux_to_string muaux) in *)
     let optimal_proofs_len = Deque.length muaux.optimal_proofs in
     let () = (let cur_alphas_beta = Deque.peek_front_exn muaux.alphas_beta in
               let () = (if not (Deque.is_empty cur_alphas_beta) then
@@ -705,31 +711,36 @@ module Until = struct
                  (* let _ = Printf.printf "Possible proofs:\n" in
                   * let _ = List.iter (p1_l @ p2_l @ p3_l) ~f:(fun p -> Printf.printf "%s\n" (Expl.expl_to_string p)) in *)
                  Deque.enqueue_back muaux.optimal_proofs (ts, minimuml (p1_l @ p2_l @ p3_l)))) in
-    let muaux = adjust_muaux a muaux le in
-    let () = Printf.printf "\nafter: %s\n" (muaux_to_string muaux) in
+    let muaux = adjust_muaux a (nts, ntp) muaux le in
+    (* let () = Printf.printf "\nafter: %s\n" (muaux_to_string muaux) in *)
     muaux
 
-  let shift_muaux (a, b) nts muaux le minimuml =
+  let shift_muaux (a, b) (nts, ntp) muaux le minimuml =
     let tss_tps = ready_tss_tps muaux.ts_tp_out muaux.ts_tp_in nts b in
     Deque.fold tss_tps ~init:muaux
-      ~f:(fun acc (ts, tp) -> if ts + b < nts then eval_step_muaux a ts tp acc le minimuml
+      ~f:(fun acc (ts, tp) -> if ts + b < nts then eval_step_muaux a (nts, ntp) ts tp acc le minimuml
                               else acc)
 
-  let update_until interval nts tp p1 p2 muaux le minimuml =
+  let update_until interval nts ntp p1 p2 muaux le minimuml =
     let a = get_a_I interval in
     let b = match get_b_I interval with
       | None -> raise UNBOUNDED_FUTURE
       | Some(b') -> b' in
-    let muaux = shift_muaux (a, b) nts muaux le minimuml in
-    let muaux = add_p1_p2 a nts tp p1 p2 muaux le in
-    let () = if ((Deque.length muaux.ts_tp_out) + (Deque.length muaux.ts_tp_in)) > 0 then
+    let muaux = shift_muaux (a, b) (nts, ntp) muaux le minimuml in
+    (* (ts, tp) update is performed differently if there is anything *)
+    let () = if (not (Deque.is_empty muaux.ts_tp_out)) || (not (Deque.is_empty muaux.ts_tp_in)) then
                (let ts = match first_ts_tp muaux with
                   | None -> raise (NOT_FOUND "(ts, tp) deques are empty")
                   | Some(ts', _) -> ts' in
-                (if nts < ts + a then Deque.enqueue_back muaux.ts_tp_out (nts, tp)
-                 else Deque.enqueue_back muaux.ts_tp_in (nts, tp)))
-             else (if nts >= a && nts <= b then Deque.enqueue_back muaux.ts_tp_in (nts, tp)
-                   else Deque.enqueue_back muaux.ts_tp_out (nts, tp)) in
+                let () = Printf.printf "ts = %d\n" ts in
+                (if nts < ts + a then Deque.enqueue_back muaux.ts_tp_out (nts, ntp)
+                 else Deque.enqueue_back muaux.ts_tp_in (nts, ntp)))
+             else (if (nts >= a && nts <= b) || (a == 0 && b == 0) then
+                     Deque.enqueue_back muaux.ts_tp_in (nts, ntp)
+                   else Deque.enqueue_back muaux.ts_tp_out (nts, ntp)) in
+    let muaux = add_p1_p2 a (nts, ntp) p1 p2 muaux le in
+    let () = Printf.printf "\nnts = %d; ntp = %d\n" nts ntp in
+    let () = Printf.printf "\nmuaux: %s\n" (muaux_to_string muaux) in
     muaux
 
   let rec eval_until d interval nts muaux =
