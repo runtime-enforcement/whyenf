@@ -456,8 +456,6 @@ module Until = struct
     | V _, V _ -> Printf.printf "VV\n"
 
   let ts_of_tp tp muaux =
-    Deque.iter muaux.ts_tp_in ~f:(fun (ts', tp') -> Printf.printf "(ts, tp) = (%d, %d)\n" ts' tp');
-    Printf.printf "ts_of_tp; tp = %d\n" tp;
     match (Deque.find muaux.ts_tp_out ~f:(fun (ts', tp') -> tp = tp')) with
     | None -> (match (Deque.find muaux.ts_tp_in ~f:(fun (ts', tp') -> tp = tp')) with
                | None -> raise (NOT_FOUND "ts not found")
@@ -476,13 +474,11 @@ module Until = struct
                   | V _ -> raise SEXPL))
 
   let step_vdrop_ts a ts tp betas_alpha muaux =
-    Printf.printf "step_vdrop_ts -- ts = %d; tp = %d\n" ts tp;
     let rec vdrop_until vp =
       let vp_tp = v_etp vp in
       let is_out = match Deque.find ~f:(fun (_, tp', vp) -> vp_tp = tp') muaux.betas_suffix_in with
         | None -> true
-        | Some(ts', _, _) -> let () = Printf.printf "vp_tp = %d; ts' = %d\n" vp_tp ts' in
-                             (ts' < (ts + a)) || ((ts <= ts') && (vp_tp < tp)) in
+        | Some(ts', _, _) -> (ts' < (ts + a)) || ((ts <= ts') && (vp_tp < tp)) in
       if is_out then
         (match vdrop vp with
          | None -> None
@@ -745,7 +741,7 @@ module Until = struct
                 let () = Printf.printf "ts = %d\n" ts in
                 (if nts < ts + a then Deque.enqueue_back muaux.ts_tp_out (nts, ntp)
                  else Deque.enqueue_back muaux.ts_tp_in (nts, ntp)))
-             else (if (nts >= a && nts <= b) || (a == 0 && b == 0) then
+             else (if (nts >= a && nts <= b) || (a == 0) then
                      Deque.enqueue_back muaux.ts_tp_in (nts, ntp)
                    else Deque.enqueue_back muaux.ts_tp_out (nts, ntp)) in
     let muaux = add_p1_p2 a (nts, ntp) p1 p2 muaux le in
