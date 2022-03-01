@@ -475,13 +475,14 @@ module Until = struct
                             else let () = Deque.enqueue_back acc (ts, ssp) in acc
                   | V _ -> raise SEXPL))
 
-  let step_vdrop_ts a ts betas_alpha muaux =
-    Printf.printf "step_vdrop_ts: %d\n" ts;
+  let step_vdrop_ts a ts tp betas_alpha muaux =
+    Printf.printf "step_vdrop_ts -- ts = %d; tp = %d\n" ts tp;
     let rec vdrop_until vp =
-      let tp = v_etp vp in
-      let is_out = match Deque.find ~f:(fun (_, tp', vp) -> tp = tp') muaux.betas_suffix_in with
+      let vp_tp = v_etp vp in
+      let is_out = match Deque.find ~f:(fun (_, tp', vp) -> vp_tp = tp') muaux.betas_suffix_in with
         | None -> true
-        | Some(ts', _, _) -> let () = Printf.printf "found ts is %d\n" ts' in (ts' < (ts + a)) in
+        | Some(ts', _, _) -> let () = Printf.printf "vp_tp = %d; ts' = %d\n" vp_tp ts' in
+                             (ts' < (ts + a)) || ((ts <= ts') && (vp_tp < tp)) in
       if is_out then
         (match vdrop vp with
          | None -> None
@@ -610,9 +611,9 @@ module Until = struct
                                    let front_index = Deque.front_index_exn muaux.alphas_beta in
                                    Deque.set_exn muaux.alphas_beta front_index (step_sdrop_tp tp front_alphas_beta)
 
-  let drop_muaux_ts a ts muaux =
+  let drop_muaux_ts a ts tp muaux =
     Deque.iteri muaux.betas_alpha ~f:(fun i d ->
-        Deque.set_exn muaux.betas_alpha i (step_vdrop_ts a ts d muaux))
+        Deque.set_exn muaux.betas_alpha i (step_vdrop_ts a ts tp d muaux))
 
   let ready_tss_tps ts_tp_out ts_tp_in nts b =
     let d = Deque.create () in
@@ -660,7 +661,7 @@ module Until = struct
                    (remove_if_pred_front (fun (ts', p) -> (ts' < first_ts + a) || ((p_at p) < first_tp)) d)) in
     (* let () = Printf.printf "\nbetas_alpha = \n" in
      * let () = Deque.iter (Deque.peek_front_exn muaux.betas_alpha) ~f:(fun (ts, p) -> Printf.printf "%s\n" (Expl.expl_to_string p)) in *)
-    let () = drop_muaux_ts a first_ts muaux in
+    let () = drop_muaux_ts a first_ts first_tp muaux in
     let _ = remove_if_pred_front_ne (fun d' -> Deque.is_empty d') muaux.betas_alpha in
     (* alphas_in and alphas_out *)
     let _ = remove_if_pred_front (fun (_, p) -> (p_at p) < first_tp) muaux.alphas_out in
