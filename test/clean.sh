@@ -1,6 +1,5 @@
 #!/bin/bash
 
-rm 1
 rm TMP*.csv
 rm TMP*.log
 rm TMP*.mdl

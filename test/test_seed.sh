@@ -13,22 +13,28 @@ PREFIX="TMP_${SIZE}_${ER}_${SEED}"
 simp () {
     ./gen_fmla ${PREFIX} ${SIZE} 10 0 1 ${SEED} 16
     ./gen_log ${PREFIX} 100 ${ER} 4 ${SEED} 16
-    OUT=$(../explanator2.native -O ${MEASURE} -mode all -fmla ${PREFIX}.mdl -log ${PREFIX}.log -out_mode debug -check | grep "Checker output: false")
-    if [[ "${OUT}" != "" ]]
-    then echo "${PREFIX} ... !! FAILED !!"
+    OUT=$(../explanator2.native -O ${MEASURE} -mode all -fmla ${PREFIX}.mdl -log ${PREFIX}.log -out_mode debug -check 2>&1 | grep "Checker output: false\|exception")
+    if [[ "${OUT}" == *"false"* ]]
+    then echo " !! CHECK FAILED !!"
+    fi
+    if [[ "${OUT}" == *"exception"* ]]
+    then echo " !! EXCEPTION RAISED !!"
     fi
 }
 
 verb () {
     ./gen_fmla ${PREFIX} ${SIZE} 10 0 1 ${SEED} 16
     ./gen_log ${PREFIX} 100 ${ER} 4 ${SEED} 16
-    OUT=$(../explanator2.native -O ${MEASURE} -mode all -fmla ${PREFIX}.mdl -log ${PREFIX}.log -out_mode debug -check | grep "Checker output: false")
+    OUT=$(../explanator2.native -O ${MEASURE} -mode all -fmla ${PREFIX}.mdl -log ${PREFIX}.log -out_mode debug -check 2>&1 | grep "Checker output: false\|exception")
     echo -n "${PREFIX} ... "
     if [[ "${OUT}" == "" ]]
     then echo "OK"
     fi
-    if [[ "${OUT}" != "" ]]
-    then echo " !! FAILED !!"
+    if [[ "${OUT}" == *"false"* ]]
+    then echo " !! CHECK FAILED !!"
+    fi
+    if [[ "${OUT}" == *"exception"* ]]
+    then echo " !! EXCEPTION RAISED !!"
     fi
 }
 
