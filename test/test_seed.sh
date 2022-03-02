@@ -35,14 +35,15 @@ verb () {
     OUT=$(../explanator2.native -O ${MEASURE} -mode all -fmla ${PREFIX}.mdl -log ${PREFIX}.log -out_mode debug -check 2>&1 | grep "Checker output: false\|exception")
     printf "${PREFIX} ... "
     if [[ "${OUT}" == "" ]]
-    then printf "OK\n"
+    then printf "OK"
     fi
     if [[ "${OUT}" == *"false"* ]]
-    then printf " !! CHECK FAILED !!\n"
+    then printf " !! CHECK FAILED !!"
     fi
     if [[ "${OUT}" == *"exception"* ]]
-    then printf " !! EXCEPTION RAISED !!\n"
+    then printf " !! EXCEPTION RAISED !!"
     fi
+    printf "\n"
 }
 
 if [[ "${MODE}" == "simp" ]]
