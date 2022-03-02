@@ -38,7 +38,7 @@ for i in "${SIZES[@]}"; do
             for l in "${DELTAS[@]}"; do
                 printf "<@> Running set of tests with parameters\n"
                 printf "<@> { size = $i | scale = $j | er = $k | delta = $l }\n"
-                parallel ./test_seed.sh simp $i $j $k $l "${MEASURE}" ::: "${SEEDS}"
+                time parallel ./test_seed.sh simp $i $j $k $l "${MEASURE}" ::: "${SEEDS}"
                 printf "\n"
             done
         done
