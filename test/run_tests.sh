@@ -28,8 +28,8 @@ fi
 # Arrays:
 SIZES=(10 20)
 SCALES=(1 5 10)
-ERS=(1 10 20)
-DELTAS=(4 20)
+ERS=(1 5 10)
+DELTAS=(4 8 12)
 SEEDS=$(seq 0 "${N_SEEDS}")
 
 for i in "${SIZES[@]}"; do
