@@ -1,40 +1,47 @@
 #!/bin/bash
 
-# ./test_seed 10 2 size 0
-# parallel ./test_seed.sh 10 2 size ::: {0..100}
+# ./test_seed verb 10 1 1 4 size 144
+# parallel ./test_seed verb 10 1 1 4 size ::: {0..100}
 
-SIZE=$1
-ER=$2
-MEASURE=$3
-MODE=$4
-SEED=$5
-PREFIX="TMP_${SIZE}_${ER}_${SEED}"
+# Input parameters:
+MODE=$1
+SIZE=$2
+SCALE=$3
+ER=$4
+DELTA=$5
+MEASURE=$6
+SEED=$7
+PREFIX="TMP_${SIZE}_${SCALE}_${ER}_${DELTA}_${MEASURE}_${SEED}"
 
 simp () {
-    ./gen_fmla ${PREFIX} ${SIZE} 10 0 1 ${SEED} 16
-    ./gen_log ${PREFIX} 100 ${ER} 4 ${SEED} 16
+    ./gen_fmla ${PREFIX} ${SIZE} 10 0 ${SCALE} ${SEED} 16
+    ./gen_log ${PREFIX} 100 ${ER} ${DELTA} ${SEED} 16
     OUT=$(../explanator2.native -O ${MEASURE} -mode all -fmla ${PREFIX}.mdl -log ${PREFIX}.log -out_mode debug -check 2>&1 | grep "Checker output: false\|exception")
     if [[ "${OUT}" == *"false"* ]]
-    then echo " !! CHECK FAILED !!"
+    then
+        printf "${PREFIX} ... "
+        printf " !! CHECK FAILED !!\n"
     fi
     if [[ "${OUT}" == *"exception"* ]]
-    then echo " !! EXCEPTION RAISED !!"
+    then
+        printf "${PREFIX} ... "
+        printf " !! EXCEPTION RAISED !!\n"
     fi
 }
 
 verb () {
-    ./gen_fmla ${PREFIX} ${SIZE} 10 0 1 ${SEED} 16
-    ./gen_log ${PREFIX} 100 ${ER} 4 ${SEED} 16
+    ./gen_fmla ${PREFIX} ${SIZE} 10 0 ${SCALE} ${SEED} 16
+    ./gen_log ${PREFIX} 100 ${ER} ${DELTA} ${SEED} 16
     OUT=$(../explanator2.native -O ${MEASURE} -mode all -fmla ${PREFIX}.mdl -log ${PREFIX}.log -out_mode debug -check 2>&1 | grep "Checker output: false\|exception")
-    echo -n "${PREFIX} ... "
+    printf "${PREFIX} ... "
     if [[ "${OUT}" == "" ]]
-    then echo "OK"
+    then printf "OK\n"
     fi
     if [[ "${OUT}" == *"false"* ]]
-    then echo " !! CHECK FAILED !!"
+    then printf " !! CHECK FAILED !!\n"
     fi
     if [[ "${OUT}" == *"exception"* ]]
-    then echo " !! EXCEPTION RAISED !!"
+    then printf " !! EXCEPTION RAISED !!\n"
     fi
 }
 
