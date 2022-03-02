@@ -399,7 +399,7 @@ module Until = struct
     (* deque of alpha violations inside the interval *)
     ; alphas_in: (timestamp * expl) Deque.t
     (* deque of beta violations inside the interval *)
-    ; betas_in: (timestamp * timepoint * vexpl option) Deque.t
+    ; betas_suffix_in: (timestamp * vexpl) Deque.t
     ; optimal_proofs: (timestamp * expl) Deque.t
     ; }
 
@@ -410,7 +410,7 @@ module Until = struct
                       ; betas_alpha
                       ; alphas_out
                       ; alphas_in
-                      ; betas_in
+                      ; betas_suffix_in
                       ; optimal_proofs } =
     "\n\nmuaux: " ^
       Deque.fold ts_tp_in ~init:"\nts_tp_in = ["
@@ -442,11 +442,9 @@ module Until = struct
       Deque.fold alphas_in ~init:"\nalphas_in = "
         ~f:(fun acc (ts, ps) ->
           acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Expl.expl_to_string ps) ^
-      Deque.fold betas_in ~init:"\nbetas_suffix_in = "
-        ~f:(fun acc (ts, tp, ps) ->
-          match ps with
-          | None -> acc ^ (Printf.sprintf "\n(%d, %d) None\n" ts tp)
-          | Some(p) -> acc ^ (Printf.sprintf "\n(%d, %d)\n" ts tp) ^ Expl.v_to_string "" p)
+      Deque.fold betas_suffix_in ~init:"\nbetas_suffix_in = "
+        ~f:(fun acc (ts, p) ->
+          acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Expl.v_to_string "" p)
 
   let print_subf_pol p1 p2 =
     match p1, p2 with
@@ -473,12 +471,11 @@ module Until = struct
                             else let () = Deque.enqueue_back acc (ts, ssp) in acc
                   | V _ -> raise SEXPL))
 
-  let step_vdrop_ts a ts tp betas_alpha muaux =
+  let step_vdrop_ts a first_ts betas_alpha muaux =
     let rec vdrop_until vp =
-      let vp_tp = v_etp vp in
-      let is_out = match Deque.find ~f:(fun (_, tp', _) -> vp_tp = tp') muaux.betas_in with
+      let is_out = match Deque.find ~f:(fun (_, tp') -> (v_etp vp) = tp') muaux.ts_tp_in with
         | None -> true
-        | Some(ts', _, _) -> (ts' < (ts + a)) || ((ts <= ts') && (vp_tp < tp)) in
+        | Some(ts', _) -> ts' < (first_ts + a) in
       if is_out then
         (match vdrop vp with
          | None -> None
@@ -502,21 +499,10 @@ module Until = struct
     d
 
   let alphas_suffix_to_list alphas_suffix =
-    List.rev(List.fold_left (Deque.to_list alphas_suffix) ~init:[]
-               ~f:(fun acc (_, sp1) -> sp1::acc))
+    List.rev(Deque.fold alphas_suffix ~init:[] ~f:(fun acc (_, sp1) -> sp1::acc))
 
-  let betas_suffix_in_to_list betas_in =
-    List.rev(Deque.fold betas_in ~init:[]
-               ~f:(fun acc (ts, tp, vp2_opt) -> match vp2_opt with
-                                                | None -> []
-                                                | Some(vp2) -> vp2::acc))
-
-  let first_somes_betas_suffix_in_to_list betas_in =
-    List.rev(Deque.fold_until betas_in ~init:[]
-               ~f:(fun acc (ts, tp, vp2_opt) -> match vp2_opt with
-                                                | None -> Stop acc
-                                                | Some(vp2) -> Continue (vp2::acc))
-               ~finish:(fun acc -> acc))
+  let betas_suffix_in_to_list betas_suffix_in =
+    List.rev(Deque.fold betas_suffix_in ~init:[] ~f:(fun acc (_, vp2) -> vp2::acc))
 
   let first_ts_tp muaux =
     match Deque.peek_front muaux.ts_tp_out with
@@ -544,13 +530,13 @@ module Until = struct
        (* alphas_suffix *)
        let _ = Deque.enqueue_back muaux.alphas_suffix (ts, sp1) in
        (* betas_in *)
-       let () = if ts >= (first_ts + a) then Deque.enqueue_back muaux.betas_in (ts, tp, None) in
+       let () = if ts >= (first_ts + a) then Deque.clear muaux.betas_suffix_in in
        muaux
     | S sp1, V vp2 ->
        (* alphas_suffix *)
        let _ = Deque.enqueue_back muaux.alphas_suffix (ts, sp1) in
        (* betas_in *)
-       let () = if ts >= (first_ts + a) then Deque.enqueue_back muaux.betas_in (ts, tp, Some(vp2)) in
+       let () = if ts >= (first_ts + a) then Deque.enqueue_back muaux.betas_suffix_in (ts, vp2) in
        muaux
     | V vp1, S sp2 ->
        (* alphas_beta *)
@@ -573,7 +559,7 @@ module Until = struct
                 else (let _ = remove_if_pred_back (fun (_, p') -> le (V vp1) p') muaux.alphas_out in
                       Deque.enqueue_back muaux.alphas_out (ts, V vp1)) in
        (* betas_in *)
-       let () = if ts >= (first_ts + a) then Deque.enqueue_back muaux.betas_in (ts, tp, None) in
+       let () = if ts >= (first_ts + a) then Deque.clear muaux.betas_suffix_in in
        muaux
     | V vp1, V vp2 ->
        (* alphas_beta (add empty deque) *)
@@ -582,11 +568,11 @@ module Until = struct
        (* alphas_suffix *)
        let _ = Deque.clear muaux.alphas_suffix in
        (* betas_in *)
-       let () = if ts >= (first_ts + a) then Deque.enqueue_back muaux.betas_in (ts, tp, Some(vp2)) in
+       let () = if ts >= (first_ts + a) then Deque.enqueue_back muaux.betas_suffix_in (ts, vp2) in
        (* betas_alpha *)
        let () = if ts >= (first_ts + a) then
                   (let cur_betas_alpha = Deque.peek_back_exn muaux.betas_alpha in
-                   let vp = V (VUntil (tp, vp1, (betas_suffix_in_to_list muaux.betas_in))) in
+                   let vp = V (VUntil (tp, vp1, (betas_suffix_in_to_list muaux.betas_suffix_in))) in
                    let cur_betas_alpha_sorted = sorted_enqueue (ts, vp) cur_betas_alpha le in
                    let () = Deque.drop_back muaux.betas_alpha in
                    Deque.enqueue_back muaux.betas_alpha cur_betas_alpha_sorted) in
@@ -603,9 +589,22 @@ module Until = struct
                                    let front_index = Deque.front_index_exn muaux.alphas_beta in
                                    Deque.set_exn muaux.alphas_beta front_index (step_sdrop_tp tp front_alphas_beta)
 
-  let drop_muaux_ts a ts tp muaux =
+  let drop_muaux_ts a ts muaux =
     Deque.iteri muaux.betas_alpha ~f:(fun i d ->
-        Deque.set_exn muaux.betas_alpha i (step_vdrop_ts a ts tp d muaux))
+        Deque.set_exn muaux.betas_alpha i (step_vdrop_ts a ts d muaux))
+
+  let drop_muaux_single_ts current_tp muaux =
+      let first_betas_alpha = Deque.fold (Deque.peek_front_exn muaux.betas_alpha) ~init:(Deque.create ())
+                                ~f:(fun acc (ts', vvp) ->
+                                  (match vvp with
+                                   | V vp -> if (v_etp vp) <= current_tp then
+                                               (match vdrop vp with
+                                                | None -> acc
+                                                | Some (vp') -> let () = Deque.enqueue_back acc (ts', V vp') in acc)
+                                             else (let () = Deque.enqueue_back acc (ts', V vp) in acc)
+                                   | S _ -> raise VEXPL)) in
+      let () = Deque.drop_front muaux.betas_alpha in
+      Deque.enqueue_front muaux.betas_alpha first_betas_alpha
 
   let ready_tss_tps ts_tp_out ts_tp_in nts b =
     let d = Deque.create () in
@@ -620,21 +619,33 @@ module Until = struct
     | None -> Deque.drop_front muaux.ts_tp_in
     | Some (_) -> Deque.drop_front muaux.ts_tp_out
 
-  let adjust_ts_tp a ts muaux =
+  let adjust_ts_tp a ts tp muaux =
+    (* let () = Printf.printf "adjust_ts_tp ts = %d; tp = %d\n" ts tp in *)
     let () = Deque.iter muaux.ts_tp_in
                ~f:(fun (ts', tp') ->
-                 if ts' < ts + a then Deque.enqueue_back muaux.ts_tp_out (ts', tp')) in
-    let _ = remove_if_pred_front (fun (ts', _) -> ts' < ts + a) muaux.ts_tp_in in
-    let _ = remove_if_pred_front (fun (ts', _) -> ts' < ts) muaux.ts_tp_out in
+                 if (ts' < ts + a) && (tp' < tp) then Deque.enqueue_back muaux.ts_tp_out (ts', tp')) in
+    let _ = remove_if_pred_front (fun (ts', tp') -> (ts' < ts) && (tp' < tp)) muaux.ts_tp_out in
+    let _ = remove_if_pred_front (fun (ts', tp') -> (ts' < ts + a) && (tp' < tp)) muaux.ts_tp_in in
     ()
 
   let adjust_muaux a (nts, ntp) muaux le =
+    let (_, current_tp) = match first_ts_tp muaux with
+      | None -> raise (NOT_FOUND "ts not found")
+      | Some(ts', tp') -> (ts', tp') in
     let () = drop_first_ts_tp muaux in
     let (first_ts, first_tp) = match first_ts_tp muaux with
       | None -> (nts, ntp)
       | Some(ts', tp') -> (ts', tp') in
+    (* betas_alpha *)
+    let () = Deque.iteri muaux.betas_alpha ~f:(fun i d ->
+                 Deque.set_exn muaux.betas_alpha i
+                   (remove_if_pred_front (fun (ts', p) -> (ts' < first_ts + a) || ((p_at p) < first_tp)) d)) in
+    let () = match a with
+      | 0 -> drop_muaux_single_ts current_tp muaux
+      | _ -> drop_muaux_ts a first_ts muaux in
+    let _ = remove_if_pred_front_ne (fun d' -> Deque.is_empty d') muaux.betas_alpha in
     (* ts_tp_out and ts_tp_out *)
-    let () = adjust_ts_tp a first_ts muaux in
+    let () = adjust_ts_tp a first_ts ntp muaux in
     (* alphas_beta *)
     let () = drop_muaux_tp (first_tp - 1) muaux in
     let () = Deque.iteri muaux.alphas_beta ~f:(fun i d ->
@@ -645,12 +656,6 @@ module Until = struct
     let _ = remove_if_pred_front_ne (fun d' -> Deque.is_empty d') muaux.alphas_beta in
     (* alphas_suffix *)
     let _ = remove_if_pred_front (fun (_, sp) -> (s_at sp) < first_tp) muaux.alphas_suffix in
-    (* betas_alpha *)
-    let () = Deque.iteri muaux.betas_alpha ~f:(fun i d ->
-                 Deque.set_exn muaux.betas_alpha i
-                   (remove_if_pred_front (fun (ts', p) -> (ts' < first_ts + a) || ((p_at p) < first_tp)) d)) in
-    let () = drop_muaux_ts a first_ts first_tp muaux in
-    let _ = remove_if_pred_front_ne (fun d' -> Deque.is_empty d') muaux.betas_alpha in
     (* alphas_in and alphas_out *)
     let _ = remove_if_pred_front (fun (_, p) -> (p_at p) < first_tp) muaux.alphas_out in
     let alphas_in, new_out_alphas = split_out_in (fun (ts', _) -> ts') (first_ts, (first_ts + a)) muaux.alphas_in in
@@ -658,17 +663,19 @@ module Until = struct
      * let () = Deque.iter new_out_alphas ~f:(fun (ts, p) -> Printf.printf "%s\n" (Expl.expl_to_string p)) in *)
     let alphas_out = sorted_append new_out_alphas muaux.alphas_out le in
     (* betas_in *)
-    let betas_in = remove_if_pred_front (fun (_, tp', _) ->
+    let betas_suffix_in = remove_if_pred_front (fun (_, vp) ->
                               match Deque.peek_front muaux.ts_tp_in with
                               | None -> (match Deque.peek_back muaux.ts_tp_out with
-                                         | None -> tp' <= ntp
-                                         | Some(_, tp'') -> tp' <= tp'')
-                              | Some (_, tp'') -> tp' < tp'') muaux.betas_in in
+                                         | None -> (v_at vp) <= ntp
+                                         | Some(_, tp') -> (v_at vp) <= tp')
+                              | Some (_, tp') -> (v_at vp) < tp') muaux.betas_suffix_in in
     { muaux with alphas_in
                ; alphas_out
-               ; betas_in}
+               ; betas_suffix_in }
 
   let eval_step_muaux a (nts, ntp) ts tp muaux le minimuml =
+    (* let () = Printf.printf "eval_step_muaux ts = %d; tp = %d\n" ts tp in
+     * let () = Printf.printf "\nbefore: %s\n" (muaux_to_string muaux) in *)
     let optimal_proofs_len = Deque.length muaux.optimal_proofs in
     let () = (let cur_alphas_beta = Deque.peek_front_exn muaux.alphas_beta in
               let () = (if not (Deque.is_empty cur_alphas_beta) then
@@ -697,15 +704,16 @@ module Until = struct
                               | V vp1 -> [V (VUntil (tp, vp1, []))]
                               | S _ -> raise VEXPL
                             else [] in
-                 let p3_l = let betas_suffix = first_somes_betas_suffix_in_to_list muaux.betas_in in
+                 let p3_l = let betas_suffix = betas_suffix_in_to_list muaux.betas_suffix_in in
                             if (List.length betas_suffix) = (Deque.length muaux.ts_tp_in) then
-                              let ltp = match Deque.peek_back muaux.betas_in with
+                              let ltp = match Deque.peek_back muaux.betas_suffix_in with
                                 | None -> snd(Deque.peek_back_exn muaux.ts_tp_out)
-                                | Some(_, tp', _) -> tp' in
+                                | Some(_, vp2) -> (v_at vp2) in
                               [V (VUntilInf (tp, ltp, betas_suffix))]
                             else [] in
                  Deque.enqueue_back muaux.optimal_proofs (ts, minimuml (p1_l @ p2_l @ p3_l)))) in
     let muaux = adjust_muaux a (nts, ntp) muaux le in
+    (* let () = Printf.printf "\nafter: %s\n" (muaux_to_string muaux) in *)
     muaux
 
   let shift_muaux (a, b) (nts, ntp) muaux le minimuml =
@@ -913,7 +921,7 @@ let rec minit f =
                  ; betas_alpha = betas_alpha
                  ; alphas_out = Deque.create ()
                  ; alphas_in = Deque.create ()
-                 ; betas_in = Deque.create ()
+                 ; betas_suffix_in = Deque.create ()
                  ; optimal_proofs = Deque.create ()
                  } in
      MUntil (i, minit f, minit g, buf, Deque.create (), muaux)
