@@ -677,7 +677,7 @@ module Until = struct
                ; betas_suffix_in }
 
   let eval_step_muaux a (nts, ntp) ts tp muaux le minimuml =
-    let () = Printf.printf "eval_step_muaux ts = %d; tp = %d\n" ts tp in
+    (* let () = Printf.printf "eval_step_muaux ts = %d; tp = %d\n" ts tp in *)
     (* let () = Printf.printf "\nbefore: %s\n" (muaux_to_string muaux) in *)
     let optimal_proofs_len = Deque.length muaux.optimal_proofs in
     let () = (let cur_alphas_beta = Deque.peek_front_exn muaux.alphas_beta in
@@ -720,13 +720,14 @@ module Until = struct
     muaux
 
   let shift_muaux (a, b) (nts, ntp) muaux le minimuml =
+    (* let () = Printf.printf "shift_muaux nts = %d; ntp = %d\n" nts ntp in *)
     let tss_tps = ready_tss_tps muaux.ts_tp_out muaux.ts_tp_in nts b in
     Deque.fold tss_tps ~init:muaux
       ~f:(fun acc (ts, tp) -> if ts + b < nts then eval_step_muaux a (nts, ntp) ts tp acc le minimuml
                               else acc)
 
   let update_until interval nts ntp p1 p2 muaux le minimuml =
-    let () = Printf.printf "update_until nts = %d; ntp = %d\n" nts ntp in
+    (* let () = Printf.printf "update_until nts = %d; ntp = %d\n" nts ntp in *)
     let a = get_a_I interval in
     let b = match get_b_I interval with
       | None -> raise UNBOUNDED_FUTURE
