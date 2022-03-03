@@ -1,8 +1,8 @@
 #!/bin/bash
 
-rm TMP*.csv
-rm TMP*.log
-rm TMP*.mdl
-rm TMP*.mfotl
-rm TMP*.mlog
-rm TMP*.r2u2
+rm tmp/TMP*.csv
+rm tmp/TMP*.log
+rm tmp/TMP*.mdl
+rm tmp/TMP*.mfotl
+rm tmp/TMP*.mlog
+rm tmp/TMP*.r2u2
