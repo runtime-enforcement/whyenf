@@ -444,7 +444,10 @@ module Until = struct
           acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Expl.expl_to_string ps) ^
       Deque.fold betas_suffix_in ~init:"\nbetas_suffix_in = "
         ~f:(fun acc (ts, p) ->
-          acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Expl.v_to_string "" p)
+          acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Expl.v_to_string "" p) ^
+      Deque.fold optimal_proofs ~init:"\noptimal_proofs = "
+        ~f:(fun acc (ts, ps) ->
+          acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Expl.expl_to_string ps)
 
   let print_subf_pol p1 p2 =
     match p1, p2 with
@@ -674,8 +677,8 @@ module Until = struct
                ; betas_suffix_in }
 
   let eval_step_muaux a (nts, ntp) ts tp muaux le minimuml =
-    (* let () = Printf.printf "eval_step_muaux ts = %d; tp = %d\n" ts tp in
-     * let () = Printf.printf "\nbefore: %s\n" (muaux_to_string muaux) in *)
+    let () = Printf.printf "eval_step_muaux ts = %d; tp = %d\n" ts tp in
+    (* let () = Printf.printf "\nbefore: %s\n" (muaux_to_string muaux) in *)
     let optimal_proofs_len = Deque.length muaux.optimal_proofs in
     let () = (let cur_alphas_beta = Deque.peek_front_exn muaux.alphas_beta in
               let () = (if not (Deque.is_empty cur_alphas_beta) then
@@ -723,6 +726,7 @@ module Until = struct
                               else acc)
 
   let update_until interval nts ntp p1 p2 muaux le minimuml =
+    let () = Printf.printf "update_until nts = %d; ntp = %d\n" nts ntp in
     let a = get_a_I interval in
     let b = match get_b_I interval with
       | None -> raise UNBOUNDED_FUTURE
@@ -741,15 +745,17 @@ module Until = struct
     let muaux = add_p1_p2 a (nts, ntp) p1 p2 muaux le in
     muaux
 
-  let rec eval_until d interval nts muaux =
+  let rec eval_until d interval nts ntp muaux le minimuml =
+    let a = get_a_I interval in
     let b = match get_b_I interval with
       | None -> raise UNBOUNDED_FUTURE
       | Some(b') -> b' in
+    let muaux = shift_muaux (a, b) (nts, ntp) muaux le minimuml in
     match Deque.peek_back muaux.optimal_proofs with
     | None -> (d, muaux)
     | Some(ts, _) -> if ts + b < nts then
                        let (_, op) = Deque.dequeue_back_exn muaux.optimal_proofs in
-                       let (ops, muaux) = eval_until d interval nts muaux in
+                       let (ops, muaux) = eval_until d interval nts ntp muaux le minimuml in
                        let _ = Deque.enqueue_back ops op in
                        (ops, muaux)
                      else (d, muaux)
@@ -1011,10 +1017,10 @@ let meval' tp ts sap mform le minimuml =
          mbuf2t_take
            (fun p1 p2 ts tp aux -> Until.update_until interval ts tp p1 p2 muaux le minimuml)
            muaux (mbuf2_add p1s p2s buf) tss_tps in
-       let nts = match Deque.peek_front ntss_ntps with
-         | None -> ts
-         | Some(nts', _) -> nts' in
-       let (ps, muaux'') = Until.eval_until (Deque.create ()) interval nts muaux in
+       let (nts, ntp) = match Deque.peek_front ntss_ntps with
+         | None -> (ts, tp)
+         | Some(nts', ntp') -> (nts', ntp') in
+       let (ps, muaux'') = Until.eval_until (Deque.create ()) interval nts ntp muaux le minimuml in
        (ps, MUntil (interval, mf1', mf2', buf', ntss_ntps, muaux'')) in
   meval tp ts sap mform
 
