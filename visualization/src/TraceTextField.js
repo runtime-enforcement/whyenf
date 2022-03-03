@@ -8,7 +8,7 @@ export default class TraceTextField extends React.Component {
       <Box
         component="form"
         sx={{
-          '& .MuiTextField-root': { mt: 3, width: '100%' },
+          '& .MuiTextField-root': { mt: 0, width: '100%' },
         }}
         noValidate
         autoComplete="off"
@@ -17,7 +17,7 @@ export default class TraceTextField extends React.Component {
           id="outlined-multiline-static"
           label="Trace"
           multiline
-          rows={23}
+          rows={24}
           defaultValue="@0 a
 @3 a b
 @7

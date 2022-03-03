@@ -11,6 +11,7 @@ import BottomBar from './BottomBar';
 import TimeGrid from './TimeGrid';
 import RefreshButton from './RefreshButton';
 import RandomExampleButton from './RandomExampleButton';
+import ResetButton from './ResetButton';
 import CheckerSwitch from './CheckerSwitch';
 import PreambleCard from './PreambleCard';
 
@@ -31,18 +32,18 @@ function App() {
       <Box>
         <NavBar />
         <Container maxWidth="lg">
-          <Box>
+          <Box sx={{ mb: 12 }}>
             <Grid container spacing={2}>
               <Grid item xs={12} sm={12} md={12} lg={12} xl={12}>
                 <PreambleCard />
               </Grid>
-              <Grid item xs={3} sm={3} md={1.5} lg={1.5} xl={1.5}>
+              <Grid item xs={6} sm={6} md={2} lg={2} xl={2}>
                 <RefreshButton />
               </Grid>
               <Grid item xs={3} sm={3} md={1} lg={1} xl={1}>
-                <RandomExampleButton />
+                <ResetButton />
               </Grid>
-              <Grid item xs={6} sm={6} md={1.5} lg={1.5} xl={1.5}>
+              <Grid item xs={2} sm={2} md={1} lg={1} xl={1}>
                 <CheckerSwitch />
               </Grid>
               <Grid item xs={12} sm={12} md={1.5} lg={1.5} xl={1.5}>
