@@ -19,30 +19,55 @@
 N_SEEDS=$1
 MEASURE=$2
 
-if ! [[ "${N_SEEDS}" =~ ^[0-9]+$ ]] || [[ "${MEASURE}" != "size" ]]
-then
-    printf "usage: run_tests.sh [n_seeds] [measure]\n"
+# Flags:
+CHECK_FLAG=$3
+
+usage () {
+    printf "usage: run_tests.sh [n_seeds] [measure] [check or no-check]\n"
     exit 1
+}
+
+if ! [[ "${N_SEEDS}" =~ ^[0-9]+$ ]] || [[ "${MEASURE}" != "size" ]] || ! [ "$#" -eq 3 ]
+then
+    usage
 fi
 
 # Arrays:
-SIZES=(10 20)
-SCALES=(1 5 10)
-ERS=(1 5 10)
-DELTAS=(4 8 12)
+# SIZES=(10 20)
+# SCALES=(1 5 10)
+# ERS=(1 5 10)
+# DELTAS=(4 8 12)
+SIZES=(3 4 5 6 7 8 9 10)
+SCALES=(1 5)
+ERS=(1 5)
+DELTAS=(4)
 SEEDS=$(seq 0 "${N_SEEDS}")
 
 for i in "${SIZES[@]}"; do
     for j in "${SCALES[@]}"; do
         for k in "${ERS[@]}"; do
             for l in "${DELTAS[@]}"; do
-                printf "<@> Running set of tests with parameters\n"
-                printf "<@> { size = $i | scale = $j | er = $k | delta = $l }\n"
-                time parallel ./test_seed.sh simp $i $j $k $l "${MEASURE}" ::: "${SEEDS}"
-                printf "\n"
+                if [[ "${CHECK_FLAG}" == "check" ]]
+                then
+                    printf "<@> Running ${N_SEEDS} verified tests with parameters\n"
+                    printf "<@> { size = $i | scale = $j | er = $k | delta = $l }\n"
+                    time parallel ./test_seed.sh check simp $i $j $k $l "${MEASURE}" ::: "${SEEDS}"
+                    ./clean.sh
+                    printf "\n"
+                else
+                    if [[ "${CHECK_FLAG}" == "no-check" ]]
+                    then
+                        printf "<@> Running ${N_SEEDS} tests with parameters\n"
+                        printf "<@> { size = $i | scale = $j | er = $k | delta = $l }\n"
+                        time parallel ./test_seed.sh no-check simp $i $j $k $l "${MEASURE}" ::: "${SEEDS}"
+                        ./clean.sh
+                        printf "\n"
+                    else
+                        usage
+                    fi
+                fi
+
             done
         done
     done
 done
-
-./clean.sh
