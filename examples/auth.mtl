@@ -1,0 +1,1 @@
+((NOT reset) SINCE[0,60] (error AND (PREV ((NOT reset) AND (NOT auth)) SINCE error))) AND auth
