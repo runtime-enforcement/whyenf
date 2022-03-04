@@ -79,7 +79,7 @@ let output_preamble out_ch mode out_mode f =
       | ALL -> "ALL" in
     "Monitoring " ^ (formula_to_string f) ^ " in mode " ^ mode_str ^ "\n\n" in
   let preamble_json mode f =
-    let subformulas = subfs f in
+    let subformulas = subfs [f] in
     let subformulas_json = String.concat "\n  },\n  {\n" (List.map formula_to_json subformulas) in
     Printf.sprintf "{\n  \"formula\": \"%s\",\n  \"columns\": %s,\n  \"subformulas\": [\n  {\n%s\n  }],\n  \"explanations\": [\n"
       (formula_to_string f) (list_to_json (List.map formula_to_string subformulas)) subformulas_json in
