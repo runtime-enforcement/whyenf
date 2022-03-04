@@ -63,7 +63,7 @@ val hp: formula -> int
 val hf: formula -> int
 val height: formula -> int
 
-val subfs: formula -> formula list
+val subfs: formula list -> formula list
 
 val formula_to_string: formula -> string
 val formula_to_json: formula -> string

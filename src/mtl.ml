@@ -13,6 +13,8 @@ open Expl
 open Interval
 open Hashcons
 
+module Deque = Core_kernel.Deque
+
 type formula_ =
   | TT
   | FF
@@ -132,25 +134,6 @@ let rec hf x = match x.node with
 
 let height f = hp f + hf f
 
-let rec subfs_aux x = match x.node with
-  | TT -> [tt]
-  | FF -> [ff]
-  | P x -> [p x]
-  | Neg f -> [neg f] @ (subfs_aux f)
-  | Conj (f, g) -> [conj f g] @ (subfs_aux f) @ (subfs_aux g)
-  | Disj (f, g) -> [disj f g] @ (subfs_aux f) @ (subfs_aux g)
-  | Impl (f, g) -> [impl f g] @ (subfs_aux f) @ (subfs_aux g)
-  | Iff (f, g) -> [iff f g] @ (subfs_aux f) @ (subfs_aux g)
-  | Prev (i, f) -> [prev i f] @ (subfs_aux f)
-  | Once (i, f) -> [once i f] @ (subfs_aux f)
-  | Historically (i, f) -> [historically i f] @ (subfs_aux f)
-  | Since (i, f, g) -> [since i f g] @ (subfs_aux f) @ (subfs_aux g)
-  | Next (i, f) -> [next i f] @ (subfs_aux f)
-  | Always (i, f) -> [always i f] @ (subfs_aux f)
-  | Eventually (i, f) -> [eventually i f] @ (subfs_aux f)
-  | Until (i, f, g) -> [until i f g] @ (subfs_aux f) @ (subfs_aux g)
-let subfs x = remove_duplicates (subfs_aux x)
-
 let rec formula_to_string l f = match f.node with
   | P x -> Printf.sprintf "%s" x
   | TT -> Printf.sprintf "⊤"
@@ -195,3 +178,25 @@ let rec f_to_json indent pos f =
                          indent pos indent' indent' (interval_to_string i) (f_to_json indent' "l" f) (f_to_json indent' "r" g) indent
   | _ -> ""
 let formula_to_json = f_to_json "    " ""
+
+let children x =
+  match x.node with
+  | TT -> []
+  | FF -> []
+  | P x -> []
+  | Neg f -> [f]
+  | Conj (f, g) -> [f; g]
+  | Disj (f, g) -> [f; g]
+  | Impl (f, g) -> [f; g]
+  | Iff (f, g) -> [f; g]
+  | Prev (i, f) -> [f]
+  | Once (i, f) -> [f]
+  | Historically (i, f) -> [f]
+  | Since (i, f, g) -> [f; g]
+  | Next (i, f) -> [f]
+  | Always (i, f) -> [f]
+  | Eventually (i, f) -> [f]
+  | Until (i, f, g) -> [f; g]
+
+let rec subfs xs =
+  xs @ (List.concat (List.map (fun x -> subfs (children x)) xs))
