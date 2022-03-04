@@ -36,14 +36,14 @@ function TimeGrid () {
     {
       field: 'tp',
       headerName: 'TP',
-      width: 50,
+      width: 55,
       sortable: false,
       align: 'center',
       disableClickEventBubbling: true
     },
     { field: 'ts',
       headerName: 'TS',
-      width: 50,
+      width: 55,
       sortable: false,
       align: 'center',
       disableClickEventBubbling: true
@@ -51,7 +51,7 @@ function TimeGrid () {
     {
       field: mockData.columns[0],
       headerName: mockData.columns[0],
-      width: 100,
+      width: (10*(mockData.columns[0].length)),
       sortable: false,
       renderHeader: () => mockData.columns[0],
       renderCell: (params) => <Square value={squares[params.row.tp][0]}
@@ -66,7 +66,7 @@ function TimeGrid () {
     ({
       field: f,
       headerName: f,
-      width: 50,
+      width: (10*(f.length)),
       sortable: false,
       renderHeader: () => mockData.columns[i+1],
       renderCell: (params) => <Square value={squares[params.row.tp][i+1]} />,
