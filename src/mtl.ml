@@ -179,7 +179,7 @@ let rec f_to_json indent pos f =
   | _ -> ""
 let formula_to_json = f_to_json "    " ""
 
-let children x =
+let immediate_subfs x =
   match x.node with
   | TT -> []
   | FF -> []
@@ -199,4 +199,4 @@ let children x =
   | Until (i, f, g) -> [f; g]
 
 let rec subfs xs =
-  xs @ (List.concat (List.map (fun x -> subfs (children x)) xs))
+  xs @ (List.concat (List.map (fun x -> subfs (immediate_subfs x)) xs))
