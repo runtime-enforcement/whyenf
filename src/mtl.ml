@@ -40,6 +40,18 @@ let value x = x.node
 
 let m = Hashcons.create 271
 
+let equal x y = match x, y with
+  | TT, TT -> true
+  | P x, P y -> x = y
+  | Neg f, Neg f' -> f == f'
+  | Conj (f, g), Conj (f', g') | Disj (f, g), Disj (f', g')
+  | Impl (f, g), Impl (f', g') | Iff (f, g), Iff (f', g') -> f == f' && g == g'
+  | Prev (i, f), Prev (i', f') | Next (i, f), Next (i', f')
+  | Once (i, f), Once (i', f') | Historically (i, f), Historically (i', f')
+  | Always (i, f), Always (i', f') | Eventually (i, f), Eventually (i', f') -> i == i' && f == f'
+  | Since (i, f, g), Since (i', f', g') | Until (i, f, g), Until (i', f', g') -> i == i' && f == f' && g == g'
+  | _ -> false
+
 let hashcons =
   let hash = function
     | TT -> Hashtbl.hash 1
@@ -58,17 +70,6 @@ let hashcons =
     | Always (i, f) -> Hashtbl.hash (23, f.hkey)
     | Eventually (i, f) -> Hashtbl.hash (29, f.hkey)
     | Until (i, f, g) -> Hashtbl.hash (31, f.hkey, g.hkey) in
-  let equal x y = match x, y with
-    | TT, TT -> true
-    | P x, P y -> x = y
-    | Neg f, Neg f' -> f == f'
-    | Conj (f, g), Conj (f', g') | Disj (f, g), Disj (f', g')
-    | Impl (f, g), Impl (f', g') | Iff (f, g), Iff (f', g') -> f == f' && g == g'
-    | Prev (i, f), Prev (i', f') | Next (i, f), Next (i', f')
-    | Once (i, f), Once (i', f') | Historically (i, f), Historically (i', f')
-    | Always (i, f), Always (i', f') | Eventually (i, f), Eventually (i', f') -> i == i' && f == f'
-    | Since (i, f, g), Since (i', f', g') | Until (i, f, g), Until (i', f', g') -> i == i' && f == f' && g == g'
-    | _ -> false in
   Hashcons.hashcons hash equal m
 
 let tt = hashcons TT
