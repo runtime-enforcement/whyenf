@@ -15,7 +15,7 @@ open Interval
 open Checker_interface
 
 module Deque = Core_kernel.Deque
-module List = Core_kernel.List
+module List = Base.List
 
 exception UNBOUNDED_FUTURE
 exception INVALID_EXPL of string
