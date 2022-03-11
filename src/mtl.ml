@@ -40,18 +40,6 @@ let value x = x.node
 
 let m = Hashcons.create 271
 
-let equal x y = match x, y with
-  | TT, TT -> true
-  | P x, P y -> x = y
-  | Neg f, Neg f' -> f == f'
-  | Conj (f, g), Conj (f', g') | Disj (f, g), Disj (f', g')
-  | Impl (f, g), Impl (f', g') | Iff (f, g), Iff (f', g') -> f == f' && g == g'
-  | Prev (i, f), Prev (i', f') | Next (i, f), Next (i', f')
-  | Once (i, f), Once (i', f') | Historically (i, f), Historically (i', f')
-  | Always (i, f), Always (i', f') | Eventually (i, f), Eventually (i', f') -> i == i' && f == f'
-  | Since (i, f, g), Since (i', f', g') | Until (i, f, g), Until (i', f', g') -> i == i' && f == f' && g == g'
-  | _ -> false
-
 let hashcons =
   let hash = function
     | TT -> Hashtbl.hash 1
@@ -70,6 +58,17 @@ let hashcons =
     | Always (i, f) -> Hashtbl.hash (23, f.hkey)
     | Eventually (i, f) -> Hashtbl.hash (29, f.hkey)
     | Until (i, f, g) -> Hashtbl.hash (31, f.hkey, g.hkey) in
+  let equal x y = match x, y with
+    | TT, TT -> true
+    | P x, P y -> x = y
+    | Neg f, Neg f' -> f == f'
+    | Conj (f, g), Conj (f', g') | Disj (f, g), Disj (f', g')
+    | Impl (f, g), Impl (f', g') | Iff (f, g), Iff (f', g') -> f == f' && g == g'
+    | Prev (i, f), Prev (i', f') | Next (i, f), Next (i', f')
+    | Once (i, f), Once (i', f') | Historically (i, f), Historically (i', f')
+    | Always (i, f), Always (i', f') | Eventually (i, f), Eventually (i', f') -> i == i' && f == f'
+    | Since (i, f, g), Since (i', f', g') | Until (i, f, g), Until (i', f', g') -> i == i' && f == f' && g == g'
+    | _ -> false in
   Hashcons.hashcons hash equal m
 
 let tt = hashcons TT
@@ -98,7 +97,7 @@ let release i f g = neg (until i (neg f) (neg g))
 let weak_until i f g = release i g (disj f g)
 let trigger i f g = neg (since i (neg f) (neg g))
 
-let rec atoms x = match x.node with
+let rec atoms x = match value x with
   | TT | FF -> []
   | P x -> [x]
   (* Propositional operators *)
@@ -112,7 +111,7 @@ let rec atoms x = match x.node with
      List.sort_uniq String.compare (List.append (atoms f1) (atoms f2))
 
 (* Past height *)
-let rec hp x = match x.node with
+let rec hp x = match value x with
   | TT | FF | P _ -> 0
   | Neg f -> hp f
   | Conj (f1, f2) | Disj (f1, f2)
@@ -123,7 +122,7 @@ let rec hp x = match x.node with
   | Since (i, f1, f2) -> max (hp f1) (hp f2) + 1
 
 (* Future height *)
-let rec hf x = match x.node with
+let rec hf x = match value x with
   | TT | FF | P _ -> 0
   | Neg f -> hf f
   | Conj (f1, f2) | Disj (f1, f2)
@@ -135,7 +134,7 @@ let rec hf x = match x.node with
 
 let height f = hp f + hf f
 
-let rec formula_to_string l f = match f.node with
+let rec formula_to_string l f = match value f with
   | P x -> Printf.sprintf "%s" x
   | TT -> Printf.sprintf "⊤"
   | FF -> Printf.sprintf "⊥"
@@ -156,7 +155,7 @@ let formula_to_string = formula_to_string 0
 
 let rec f_to_json indent pos f =
   let indent' = "  " ^ indent in
-  match f.node with
+  match value f with
   | P a -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"P\",\n%s\"atom\": \"%s\"\n%s}"
              indent pos indent' indent' a indent
   | TT -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"TT\"\n%s}"
@@ -181,7 +180,7 @@ let rec f_to_json indent pos f =
 let formula_to_json = f_to_json "    " ""
 
 let immediate_subfs x =
-  match x.node with
+  match value x with
   | TT -> []
   | FF -> []
   | P x -> []
