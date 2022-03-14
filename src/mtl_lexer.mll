@@ -33,7 +33,7 @@ rule token = parse
   | newline                                       { Lexing.new_line lexbuf; token lexbuf }
   | blank                                         { token lexbuf }
   | "false" | "⊥"                                 { FALSE }
-  | "true" | "⊤" 		                  { TRUE }
+  | "true" | "⊤"                                  { TRUE }
   | '!' | "¬" | "NOT"                             { NEG }
   | '&' | "∧" | "AND"                             { CONJ }
   | '|' | "∨" | "OR"                              { DISJ }
@@ -41,12 +41,9 @@ rule token = parse
   | "<=>"  | "<->" | "↔"                          { IFF }
   | "SINCE" | "S" | "U⁻"                          { SINCE }
   | "UNTIL" |	"U"                               { UNTIL }
-  | "WEAK_UNTIL" | "W"                            { WUNTIL }
-  | "RELEASE" | "R" 		                  { RELEASE }
-  | "TRIGGER" |	"T"	| "R⁻"                    { TRIGGER }
-  | "NEXT" | "X" | "○"	                          { NEXT }
-  | "PREV" | "PREVIOUS" | "Y" | "X⁻" | "●" 	  { PREV }
-  | "GLOBALLY" | "ALWAYS" | "G" | "□" 	          { ALWAYS }
+  | "NEXT" | "X" | "○"                            { NEXT }
+  | "PREV" | "PREVIOUS" | "Y" | "X⁻" | "●"        { PREV }
+  | "GLOBALLY" | "ALWAYS" | "G" | "□"             { ALWAYS }
   | "FINALLY" | "EVENTUALLY" | "F" | "◊"          { EVENTUALLY }
   | "GLOBALLY_PAST" | "HISTORICALLY" | "G⁻" | "■" { HISTORICALLY }
   | "FINALLY_PAST" | "ONCE" | "F⁻" | "⧫"          { ONCE }

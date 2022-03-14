@@ -889,7 +889,7 @@ let print_ps_list l =
 
 (* Convert formula into a formula state *)
 let rec minit f =
-  match (value f) with
+  match f with
   | TT -> MTT
   | FF -> MFF
   | P (x) -> MP (x)

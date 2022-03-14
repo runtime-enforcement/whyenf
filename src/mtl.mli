@@ -11,9 +11,8 @@
 open Util
 open Expl
 open Interval
-open Hashcons
 
-type formula_ =
+type formula =
   | TT
   | FF
   | P of string
@@ -30,10 +29,6 @@ type formula_ =
   | Eventually of interval * formula
   | Since of interval * formula * formula
   | Until of interval * formula * formula
-and formula = formula_ hash_consed
-
-val hash: formula -> int
-val value: formula -> formula_
 
 val tt: formula
 val ff: formula
@@ -53,9 +48,6 @@ val always: interval -> formula -> formula
 val eventually: interval -> formula -> formula
 val since: interval -> formula -> formula -> formula
 val until: interval -> formula -> formula -> formula
-val release: interval -> formula -> formula -> formula
-val weak_until: interval -> formula -> formula -> formula
-val trigger: interval -> formula -> formula -> formula
 
 val atoms: formula -> string list
 

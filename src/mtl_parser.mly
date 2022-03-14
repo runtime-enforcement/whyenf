@@ -9,7 +9,7 @@
  *******************************************************************/
 
 %{
-open Interval        
+open Interval
 open Mtl
 %}
 
@@ -17,14 +17,14 @@ open Mtl
 %token <Interval.interval> INTERVAL
 %token LOPEN ROPEN
 %token FALSE TRUE NEG CONJ DISJ IMPL IFF EOF
-%token SINCE UNTIL WUNTIL RELEASE TRIGGER
+%token SINCE UNTIL
 %token NEXT PREV ALWAYS EVENTUALLY HISTORICALLY ONCE
 
 %nonassoc INTERVAL
 %right IFF
 %right IMPL
 %nonassoc PREV NEXT ALWAYS EVENTUALLY ONCE HISTORICALLY
-%nonassoc SINCE UNTIL WUNTIL RELEASE TRIGGER
+%nonassoc SINCE UNTIL
 %left DISJ
 %left CONJ
 %nonassoc NEG
@@ -49,14 +49,8 @@ e:
 | ATOM                    { p $1 }
 | e SINCE INTERVAL e      { since $3 $1 $4 }
 | e SINCE e               { since full $1 $3 }
-| e TRIGGER INTERVAL e    { trigger $3 $1 $4 }
-| e TRIGGER e             { trigger full $1 $3 }
 | e UNTIL INTERVAL e      { until $3 $1 $4 }
 | e UNTIL e               { until full $1 $3 }
-| e WUNTIL INTERVAL e     { weak_until $3 $1 $4 }
-| e WUNTIL e              { weak_until full $1 $3 }
-| e RELEASE INTERVAL e    { release $3 $1 $4 }
-| e RELEASE e             { release full $1 $3 }
 | NEXT INTERVAL e         { next $2 $3 }
 | NEXT e                  { next full $2 }
 | PREV INTERVAL e         { prev $2 $3 }
