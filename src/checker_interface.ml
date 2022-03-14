@@ -94,7 +94,7 @@ let convert_interval i =
                 interval l_nat Infinity_enat)
 
 let rec convert_f f =
-  match (value f) with
+  match f with
   | P (x) -> Atom (x)
   | Neg (f) -> Neg (convert_f f)
   | Conj (f, g) -> Conj (convert_f f, convert_f g)
