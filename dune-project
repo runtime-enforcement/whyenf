@@ -5,11 +5,11 @@
 (generate_opam_files true)
 
 (source
- (github username/reponame))
+ (github runtime-monitoring/explanator2))
 
-(authors "Author Name")
+(authors "Leonardo Lima")
 
-(maintainers "Maintainer Name")
+(maintainers "Leonardo Lima")
 
 (license LICENSE)
 
@@ -19,8 +19,8 @@
 
 (package
  (name explanator2)
- (synopsis "A short synopsis")
- (description "A longer description")
+ (synopsis "Explanator2 is a tool for online monitoring satisfaction and violation explanations of MTL (Metric Temporal Logic) formulas on arbitrary words")
+ (description "")
  (depends
   (ocaml (>= 4.11))
   (dune (>= 3.0))
