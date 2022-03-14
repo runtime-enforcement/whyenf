@@ -10,7 +10,6 @@
 open Mtl
 open Expl
 open Util
-open Yojson
 
 module List = Base.List
 
@@ -71,30 +70,31 @@ let rec update_state st f p =
      (tbl, st_alist st_2, st_idx st_2)
   | _ -> failwith ""
 
-let json_output tbl =
-  `Assoc
-    (List.map tbl ~f:(fun ((tp, col, b), cells) ->
-         [
-           ("tp", `Int tp);
-           ("col", `Int col);
-           ("verdict", `Bool b);
-           ("cells",
-            `Assoc
-              (List.map cells ~f:(fun (tp', col', b') ->
-                   [
-                     ("tp", `Int tp');
-                     ("col", `Int col');
-                     ("verdict", `Bool b');
-                   ]
-                 )
-              )
-           );
-         ]
-       )
-    )
-
-let json f p =
-  let st = update_state ([], [], 0) f p in
-  let oc = stdout in
-  Yojson.Basic.pretty_to_channel oc (json_output (st_tbl st));
-  output_string oc "\n"
+(* let json_cells cells =
+ *   `Assoc
+ *     (List.map cells ~f:(fun (tp', col', b') ->
+ *          [
+ *            ("tp", `Int tp');
+ *            ("col", `Int col');
+ *            ("verdict", `Bool b');
+ *          ]
+ *        )
+ *     )
+ *
+ * let json_pair (tp, col, b) cells =
+ *   `Assoc
+ *     [
+ *       ("tp", `Int tp);
+ *       ("col", `Int col);
+ *       ("verdict", `Bool b);
+ *       (\* ("cells", (json_cells cells)); *\)
+ *     ]
+ *
+ * let json_output tbl =
+ *   List.map tbl ~f:(fun (cell, cells) -> json_pair cell cells)
+ *
+ * let json f p =
+ *   let st = update_state ([], [], 0) f p in
+ *   let oc = stdout in
+ *   List.iter (json_output (st_tbl st)) ~f:(fun json -> Yojson.Basic.pretty_to_channel oc json);
+ *   output_string oc "\n" *)
