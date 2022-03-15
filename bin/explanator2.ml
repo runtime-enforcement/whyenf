@@ -16,7 +16,7 @@ open Lib.Mtl_parser
 open Lib.Mtl_lexer
 open Lib.Monitor
 
-module Main = struct
+module Explanator2 = struct
 
   exception EXIT
 

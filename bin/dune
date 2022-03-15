@@ -1,5 +1,4 @@
 (executable
- (public_name explanator2)
- (name main)
+ (name explanator2)
  (libraries lib)
  (promote (until-clean)))
