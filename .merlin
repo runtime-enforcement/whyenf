@@ -1,4 +1,0 @@
-S src
-B _build/*
-PKG zarith
-PKG core_kernel
