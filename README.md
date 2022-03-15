@@ -1,6 +1,6 @@
 # Explanator2: Judgement Day
 
-The Explanator2 is a tool for online monitoring satisfaction/violation explanations of MTL (Metric Temporal Logic) and MDL (Metric Dynamic Logic) formulas on arbitrary words. 
+The Explanator2 is a tool for online monitoring satisfaction and violation explanations of MTL (Metric Temporal Logic) formulas on arbitrary words.
 
 It is built upon the [Explanator](https://bitbucket.org/traytel/explanator/src/master/), a previous work by [Bhargav Bhatt](https://bhargavbh.github.io/) and [Dmitriy Traytel](https://www21.in.tum.de/~traytel/).
 
@@ -18,51 +18,43 @@ In particular, if you are a Debian/Ubuntu user
 
 ```
 # apt-get install opam
-$ opam switch 4.11.1
+$ opam switch 4.13.1
 $ eval $(opam config env)
-$ opam install safa menhir
+$ opam install dune core_kernel base zarith menhir
 ```
 
 or if you are an Arch Linux user
 
 ```
 # pacman -S opam
-$ opam switch 4.11.1
+$ opam switch 4.13.1
 $ eval $(opam config env)
-$ opam install safa menhir
+$ opam install dune core_kernel base zarith menhir
 ```
 
 should be enough.
 
 ### Running
 
-Inside [src/](src/) there is a **Makefile**. You can compile the code with
+You can compile the code with
 
 ```
-$ make
+$ dune build
 ```
 
-to obtain a binary **explanator2.native**, and
+to obtain a binary **explanator2.exe** inside [bin/](bin/), and
 
 ```
-$ ./explanator2.native
+$ ./bin/explanator2.exe --help
 ```
 
-to run an example. When finished,
+to check the usage statement. When finished,
 
 ```
-$ make clean
+$ dune clean
 ```
 
 will remove the binary and clean the working directory.
-
-### Usage
-
-```
-$ ./explanator2.native -?
-```
-
-provides information about the tool's user interface.
 
 ## License
 
