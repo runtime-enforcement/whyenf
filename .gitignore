@@ -9,7 +9,7 @@ test/tmp/*.mlog
 test/tmp/*.r2u2
 test/tmp/gen_log
 test/tmp/gen_fmla
-*.native
+*.exe
 *.aux
 *.log
 *.txt
