@@ -55,7 +55,8 @@ val hp: formula -> int
 val hf: formula -> int
 val height: formula -> int
 
-val subfs: formula list -> formula list
+val subfs_bfs: formula list -> formula list
+val subfs_dfs: formula -> formula list
 
 val formula_to_string: formula -> string
 val formula_to_json: formula -> string
