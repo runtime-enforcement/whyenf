@@ -165,5 +165,23 @@ let immediate_subfs x =
   | Eventually (i, f) -> [f]
   | Until (i, f, g) -> [f; g]
 
-let rec subfs xs =
-  xs @ (List.concat (List.map (fun x -> subfs (immediate_subfs x)) xs))
+let rec subfs_bfs xs =
+  xs @ (List.concat (List.map (fun x -> subfs_bfs (immediate_subfs x)) xs))
+
+let rec subfs_dfs x = match x with
+  | TT -> [tt]
+  | FF -> [ff]
+  | P x -> [p x]
+  | Neg f -> [neg f] @ (subfs_dfs f)
+  | Conj (f, g) -> [conj f g] @ (subfs_dfs f) @ (subfs_dfs g)
+  | Disj (f, g) -> [disj f g] @ (subfs_dfs f) @ (subfs_dfs g)
+  | Impl (f, g) -> [impl f g] @ (subfs_dfs f) @ (subfs_dfs g)
+  | Iff (f, g) -> [iff f g] @ (subfs_dfs f) @ (subfs_dfs g)
+  | Prev (i, f) -> [prev i f] @ (subfs_dfs f)
+  | Once (i, f) -> [once i f] @ (subfs_dfs f)
+  | Historically (i, f) -> [historically i f] @ (subfs_dfs f)
+  | Since (i, f, g) -> [since i f g] @ (subfs_dfs f) @ (subfs_dfs g)
+  | Next (i, f) -> [next i f] @ (subfs_dfs f)
+  | Always (i, f) -> [always i f] @ (subfs_dfs f)
+  | Eventually (i, f) -> [eventually i f] @ (subfs_dfs f)
+  | Until (i, f, g) -> [until i f g] @ (subfs_dfs f) @ (subfs_dfs g)
