@@ -26,8 +26,9 @@
   (dune (>= 3.0))
   (core_kernel (>= v0.14))
   (base (>= v0.14))
+  (menhir (>= 20220210))
   (zarith (>= 1.11))
-  (menhir (>= 20220210)))
+  (zarith_stubs_js (>= v0.14.1)))
  (tags
   (topics "to describe" your project)))
 
