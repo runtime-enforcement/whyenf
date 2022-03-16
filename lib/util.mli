@@ -33,3 +33,4 @@ val get_mins: ('a -> 'a -> bool) -> 'a list -> 'a list
 val drop_front: 'a list -> 'a list
 val count_lines: string -> int
 val remove_duplicates: 'a list -> 'a list
+val list_to_json: string list -> string
