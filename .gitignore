@@ -1,3 +1,4 @@
+js/*.bc*
 visualization/node_modules/
 _build/
 test/tmp/*.csv
