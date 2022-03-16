@@ -92,6 +92,3 @@ val p_at: expl -> int
 val s_to_string: string -> sexpl -> string
 val v_to_string: string -> vexpl -> string
 val expl_to_string: expl -> string
-
-val list_to_json: string list -> string
-val expl_to_json: expl -> string

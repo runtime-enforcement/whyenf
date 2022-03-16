@@ -83,3 +83,10 @@ let count_lines file =
 let prepend_uniq xs x = if List.mem x xs then xs else x :: xs
 
 let remove_duplicates xs = List.rev (List.fold_left prepend_uniq [] xs)
+
+(* JSON-related *)
+let list_to_json l =
+  match l with
+  | [] -> "[]"
+  | _ -> let els_str = String.concat "" (List.map (fun el -> "\"" ^ el ^ "\",")  l) in
+         "[" ^ (String.sub els_str 0 ((String.length els_str)-1)) ^ "]"

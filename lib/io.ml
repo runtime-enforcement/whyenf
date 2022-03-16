@@ -16,8 +16,8 @@ open Checker_interface
 
 type output =
   | Explanation of (timestamp * timepoint) * expl * bool option
-  | ExplanationJSON of (timestamp * timepoint) * timepoint list * expl * bool option
   | ExplanationDebug of (timestamp * timepoint) * expl * bool * checker_proof * trace_t
+  | ExplanationToJSON of (timestamp * timepoint) * timepoint list * formula * expl * bool option
   | Info of string
 
 let parse_line s =
@@ -46,53 +46,42 @@ let input_event in_ch out_ch =
 
 let output_event out_ch event = Printf.fprintf out_ch "%s" event
 
-let output_result out_ch res =
-  match res with
+let output_explanation out_ch expl_out =
+  match expl_out with
   | Explanation ((ts, tp), p, b_opt) ->
      Printf.fprintf out_ch "%d:%d\nProof: \n%s\n" ts tp (expl_to_string p);
      (match b_opt with
       | None -> ()
       | Some b -> Printf.fprintf out_ch "\nChecker output: %B\n\n" b);
-  | ExplanationJSON ((ts, tp), tps_in, p, b_opt) ->
-     let tps_in_str = list_to_json (List.map (fun el -> string_of_int el) tps_in) in
-     Printf.printf "    \"ts\": %d,\n" ts;
-     Printf.printf "    \"tp\": %d,\n" tp;
-     let () = match b_opt with
-       | None -> ()
-       | Some b -> Printf.printf "    \"checker\": \"%B\",\n" b in
-     Printf.printf "    \"tps_in\": %s,\n" tps_in_str;
-     Printf.printf "%s\n" (expl_to_json p);
   | ExplanationDebug ((ts, tp), p, b, cp, trace) ->
      Printf.printf "%d:%d\nProof: \n%s\n" ts tp (expl_to_string p);
      Printf.printf "\nChecker output: %B\n" b;
      Printf.printf "\nTrace: \n%s\n\n" (s_of_trace trace);
      Printf.printf "\nChecker proof: \n%s\n\n" (s_of_proof cp)
+  | ExplanationToJSON ((ts, tp), tps_in, f, p, cb_opt) ->
+     let ident = "    " in
+     let tps_in_json = list_to_json (List.map (fun el -> string_of_int el) tps_in) in
+     Printf.fprintf out_ch "%s\"ts\": %d,\n" ident ts;
+     Printf.fprintf out_ch "%s\"tp\": %d,\n" ident tp;
+     Printf.fprintf out_ch "%s\"tps_in\": %s,\n" ident tps_in_json;
+     (match cb_opt with
+      | None -> ()
+      | Some cb -> Printf.fprintf out_ch "%s\"checker\": \"%B\",\n" ident cb);
+     Printf.printf "%s\n" (expl_to_json p);
   | Info s -> Printf.fprintf out_ch "\nInfo: %s\n" s
 
-let output_interval out_ch i = output_event out_ch (interval_to_string i)
+let preamble_stdout out_ch mode f =
+  let m = match mode with
+    | SAT -> "SAT"
+    | VIOL -> "VIOL"
+    | ALL -> "ALL" in
+  "Monitoring " ^ (formula_to_string f) ^ " in mode " ^ m ^ "\n\n"
 
-let output_preamble out_ch mode out_mode f =
-  let preamble_cl mode f =
-    let mode_str = match mode with
-      | SAT -> "SAT"
-      | VIOL -> "VIOL"
-      | ALL -> "ALL" in
-    "Monitoring " ^ (formula_to_string f) ^ " in mode " ^ mode_str ^ "\n\n" in
-  let preamble_json mode f =
-    let subformulas = subfs_bfs [f] in
-    let subformulas_json = String.concat "\n  },\n  {\n" (List.map formula_to_json subformulas) in
-    Printf.sprintf "{\n  \"formula\": \"%s\",\n  \"columns\": %s,\n  \"subformulas\": [\n  {\n%s\n  }],\n  \"explanations\": [\n"
-      (formula_to_string f) (list_to_json (List.map formula_to_string subformulas)) subformulas_json in
-  match out_mode with
-  | PLAIN -> output_event out_ch (preamble_cl mode f)
-  | JSON -> output_event out_ch  (preamble_json mode f)
-  | DEBUG -> output_event out_ch (preamble_cl mode f)
+let closing_stdout out_ch out_mode =
+  output_event out_ch "Bye.\n"
 
-let output_closing out_ch out_mode =
-  match out_mode with
-  | PLAIN -> output_event out_ch "Bye.\n"
-  | JSON -> output_event out_ch "  ]\n}"
-  | DEBUG -> ()
+let preamble_json out_ch f =
+  Printf.sprintf "{\n  \"columns\": %s,\n}" (list_to_json (List.map formula_to_string (subfs_dfs f)))
 
 let print_ps out_ch mode out_mode ts tp ps tps_in checker_ps_opt last_tp =
   let ps' = match mode with
