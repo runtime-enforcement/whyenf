@@ -13,14 +13,15 @@ open Expl
 open Checker_interface
 open Checker.Explanator2
 
-type output =
-  | Explanation of (timestamp * timepoint) * expl * bool option
-  | ExplanationJSON of (timestamp * timepoint) * timepoint list * expl * bool option
-  | ExplanationDebug of (timestamp * timepoint) * expl * bool * checker_proof * trace_t
-  | Info of string
+(* type output =
+ *   | Explanation of (timestamp * timepoint) * expl * bool option
+ *   | ExplanationJSON of (timestamp * timepoint) * timepoint list * expl * bool option
+ *   | ExplanationDebug of (timestamp * timepoint) * expl * bool * checker_proof * trace_t
+ *   | Info of string *)
 
 val input_event: in_channel -> out_channel -> event * in_channel
-val output_event: out_channel -> string -> unit
-val output_preamble: out_channel -> mode -> out_mode -> formula -> unit
-val output_closing: out_channel -> out_mode -> unit
-val print_ps: out_channel -> mode -> out_mode -> timestamp -> timepoint -> expl list -> timepoint list -> (bool * checker_proof * trace_t) list option -> bool -> unit
+(* val output_event: out_channel -> string -> unit *)
+val preamble_stdout: out_channel -> mode -> formula -> unit
+val closing_stdout: out_channel -> unit
+val preamble_json: out_channel -> formula -> unit
+val output_ps: out_channel -> mode -> out_mode -> timestamp -> timepoint -> timepoint list -> formula -> expl list -> (bool * checker_proof * trace_t) list option -> unit

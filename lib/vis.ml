@@ -46,31 +46,28 @@ let rec update_state st f p =
      (tbl, cur_idx)
   | _ -> failwith ""
 
-(* let json_cells cells =
- *   `Assoc
- *     (List.map cells ~f:(fun (tp', col', b') ->
- *          [
- *            ("tp", `Int tp');
- *            ("col", `Int col');
- *            ("verdict", `Bool b');
- *          ]
- *        )
- *     )
- *
- * let json_pair (tp, col, b) cells =
- *   `Assoc
- *     [
- *       ("tp", `Int tp);
- *       ("col", `Int col);
- *       ("verdict", `Bool b);
- *       (\* ("cells", (json_cells cells)); *\)
- *     ]
- *
- * let json_output tbl =
- *   List.map tbl ~f:(fun (cell, cells) -> json_pair cell cells)
- *
- * let json f p =
- *   let st = update_state ([], [], 0) f p in
- *   let oc = stdout in
- *   List.iter (json_output (st_tbl st)) ~f:(fun json -> Yojson.Basic.pretty_to_channel oc json);
- *   output_string oc "\n" *)
+let cell_to_json (tp, col, b) cells =
+  let ident = "    " in
+  let ident2 = "    " ^ ident in
+  let ident3 = "    " ^ ident2 in
+  (Printf.sprintf "%s{\n" ident) ^
+  (Printf.sprintf "%s\"tp\": %d,\n" ident2 tp) ^
+  (Printf.sprintf "%s\"col\": %d,\n" ident2 col) ^
+  (Printf.sprintf "%s\"bool\": %B\n" ident2 b) ^
+  (Printf.sprintf "%s\"cells\": [\n" ident2) ^
+  (String.concat ", " (List.map cells ~f:(fun (tp', col', b') ->
+                           (Printf.sprintf "%s{\n" ident2) ^
+                           (Printf.sprintf "%s\"tp\": %d,\n" ident3 tp) ^
+                           (Printf.sprintf "%s\"col\": %d,\n" ident3 col) ^
+                           (Printf.sprintf "%s\"bool\": %B\n" ident3 b) ^
+                           (Printf.sprintf "%s}\n" ident2)))) ^
+  (Printf.sprintf "%s}\n" ident)
+
+let expl_to_json f p =
+  let st = update_state ([], 0) f p in
+  let ident = "    " in
+  (Printf.sprintf "{\n") ^
+  (Printf.sprintf "%s\"table:\" [\n" ident) ^
+  (String.concat "," (List.map (st_tbl st) ~f:(fun (cell, cells) -> cell_to_json cell cells))) ^
+  (Printf.sprintf "%s]\n" ident) ^
+  (Printf.sprintf "}\n")

@@ -118,7 +118,6 @@ module Explanator2 = struct
             | Some measure_le' -> Some(lex measure_le measure_le'));
          go args
       | ("-log" :: logfile :: args) ->
-         last_tp := (count_lines logfile) - 1;
          log_ref := open_in logfile;
          go args
       | ("-fmla" :: fmlafile :: args) ->
@@ -145,9 +144,11 @@ module Explanator2 = struct
                      match !measure_le_ref with
                      | None -> size_le
                      | Some measure_le' -> measure_le' in
-                   let _ = monitor !log_ref !out_ref !mode_ref !out_mode_ref !check_ref measure_le f !last_tp in ()
+                   let _ = monitor !log_ref !out_ref !mode_ref !out_mode_ref !check_ref measure_le f in ()
     with
-    | End_of_file -> let () = output_closing !out_ref !out_mode_ref in close_out !out_ref; exit 0
+    | End_of_file -> (if !out_mode_ref = PLAIN then
+                        closing_stdout !out_ref);
+                     close_out !out_ref; exit 0
     | EXIT -> close_out !out_ref; exit 1
 
 end
