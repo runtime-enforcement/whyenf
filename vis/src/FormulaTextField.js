@@ -18,7 +18,7 @@ export default class FormulaTextField extends React.Component {
             required
             id="outlined-required"
             label="Formula"
-            defaultValue="a SINCE[4,8] b"
+            defaultValue="a SINCE b"
           />
         </div>
       </Box>

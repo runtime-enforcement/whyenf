@@ -18,43 +18,12 @@ export default class TraceTextField extends React.Component {
           label="Trace"
           multiline
           rows={24}
-          defaultValue="@0 a
+          defaultValue="@0 b
+@2 a
+@2 a
 @3 a b
-@7
-@11 a
-@13 a
-@17 a
-@18 a b
-@18 a b
-@22 a
-@26 a
-@29 a
-@29
-@33 a
-@33 a
-@34 a
-@38 a b
-@41 a b
-@41 a
-@45 b
-@47 a
-@47 a
-@49 a
-@49 a
-@53 b
-@53 a b
-@56
-@56 a
-@60 a b
-@63 a
-@66 a b
-@67 a b
-@67 a
-@70 a b
-@72 a b
-@72 a b
-@73 a
-@77 a b"
+@4 a
+@10 a"
         />
       </Box>
     );
