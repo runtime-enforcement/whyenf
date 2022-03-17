@@ -15,6 +15,8 @@ open Vis
 open Checker.Explanator2
 open Checker_interface
 
+module String = Base.String
+
 type output =
   | Explanation of (timestamp * timepoint) * expl * bool option
   | ExplanationDebug of (timestamp * timepoint) * expl * bool * checker_proof * trace_t
@@ -22,21 +24,22 @@ type output =
   | Info of string
 
 let parse_line s =
-  let s = String.trim s in
+  let s = String.strip s in
   if String.length s > 1 && (String.get s 0) = '@' then
-    match String.split_on_char ' ' (String.sub s 1 (String.length s - 1)) with
+    match String.split_on_chars (String.sub s 1 (String.length s - 1)) [' '] with
     | [] -> None
     | raw_t :: preds ->
        try Some (SS.of_list (List.map
                                (fun p ->
-                                 String.trim (String.map (fun c ->
+                                 String.strip (String.map p (fun c ->
                                                   if c = '(' || c = ')' then ' '
-                                                  else c) p))
+                                                  else c)))
                                (List.filter (fun x -> x <> "()") preds)),
                  int_of_string raw_t)
        with Failure _ -> None
   else None
 
+(* in/out_channel related *)
 let rec parse_lines line in_ch out_ch =
   match parse_line line with
   | Some s -> (s, in_ch)
@@ -110,3 +113,13 @@ let output_ps out_ch mode out_mode ts tp tps_in f ps checker_ps_opt =
                                       output_explanation out_ch expl
                             | DEBUG -> let expl = ExplanationDebug ((ts, tp), p, b, checker_p, trace) in
                                        output_explanation out_ch expl) ps' checker_ps)
+
+(* from/to_string related *)
+let parse_lines_from_string s =
+  let events = String.split_lines s in
+  List.map (fun e -> match parse_line e with
+                     | Some s -> s
+                     | None -> failwith "") events
+
+let input_event in_ch out_ch =
+  parse_lines (input_line in_ch) in_ch out_ch
