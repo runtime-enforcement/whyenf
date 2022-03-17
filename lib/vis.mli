@@ -9,3 +9,5 @@
 
 open Mtl
 open Expl
+
+val expl_to_json: formula -> expl -> string
