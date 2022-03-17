@@ -53,21 +53,22 @@ let cell_to_json (tp, col, b) cells =
   (Printf.sprintf "%s{\n" ident) ^
   (Printf.sprintf "%s\"tp\": %d,\n" ident2 tp) ^
   (Printf.sprintf "%s\"col\": %d,\n" ident2 col) ^
-  (Printf.sprintf "%s\"bool\": %B\n" ident2 b) ^
-  (Printf.sprintf "%s\"cells\": [\n" ident2) ^
-  (String.concat ", " (List.map cells ~f:(fun (tp', col', b') ->
-                           (Printf.sprintf "%s{\n" ident2) ^
-                           (Printf.sprintf "%s\"tp\": %d,\n" ident3 tp) ^
-                           (Printf.sprintf "%s\"col\": %d,\n" ident3 col) ^
-                           (Printf.sprintf "%s\"bool\": %B\n" ident3 b) ^
-                           (Printf.sprintf "%s}\n" ident2)))) ^
-  (Printf.sprintf "%s}\n" ident)
+  (Printf.sprintf "%s\"bool\": %B,\n" ident2 b) ^
+  (Printf.sprintf "%s\"cells\":" ident2) ^
+  (if List.is_empty cells then " []"
+   else ((Printf.sprintf " [\n") ^
+         (String.concat ",\n" (List.map cells ~f:(fun (tp', col', b') ->
+                                   (Printf.sprintf "%s{\n" ident2) ^
+                                   (Printf.sprintf "%s\"tp\": %d,\n" ident3 tp') ^
+                                   (Printf.sprintf "%s\"col\": %d,\n" ident3 col') ^
+                                   (Printf.sprintf "%s\"bool\": %B\n" ident3 b') ^
+                                   (Printf.sprintf "%s}" ident2)))) ^
+         (Printf.sprintf "]\n"))) ^
+  (Printf.sprintf "\n%s}" ident)
 
 let expl_to_json f p =
   let st = update_state ([], 0) f p in
   let ident = "    " in
-  (Printf.sprintf "{\n") ^
-  (Printf.sprintf "%s\"table:\" [\n" ident) ^
-  (String.concat "," (List.map (st_tbl st) ~f:(fun (cell, cells) -> cell_to_json cell cells))) ^
-  (Printf.sprintf "%s]\n" ident) ^
-  (Printf.sprintf "}\n")
+  (Printf.sprintf "%s\"table\": [\n" ident) ^
+  (String.concat ",\n" (List.map (st_tbl st) ~f:(fun (cell, cells) -> cell_to_json cell cells))) ^
+  (Printf.sprintf "]")
