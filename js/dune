@@ -2,4 +2,5 @@
  (name explanator2)
  (modes js)
  (libraries lib zarith_stubs_js)
- (promote (until-clean)))
+ (promote (until-clean))
+ (preprocess (pps ppx_jane)))
