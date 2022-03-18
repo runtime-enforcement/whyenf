@@ -31,7 +31,7 @@ module Explanator2 = struct
     | "pred" -> predicates_le
     | _ -> (fun _ _ -> true)
 
-  let monitor_wrapper log check measure formula =
+  let main_monitor log check measure formula =
     let c = validate_check check in
     let le = validate_measure measure in
     let f = Lib.Mtl_parser.formula Lib.Mtl_lexer.token (Lexing.from_string formula) in

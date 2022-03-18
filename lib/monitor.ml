@@ -1053,26 +1053,28 @@ let monitor in_ch out_ch mode out_mode check le f =
   loop s (ctx, in_ch)
 
 let monitor2 log c le f =
-  let minimuml ps = minsize_list (get_mins le ps) in
-  let rec loop f x = loop f (f x) in
+  let events = parse_lines_from_string log in
   let mf = minit f in
   let mf_ap = relevant_ap mf in
-  let ctx = { tp = 0
-            ; mf = mf
-            ; events = []
-            } in
-  let () = preamble_json f in
-  let s (ctx, in_ch) =
-    let ((sap, ts), in_ch) = input_event in_ch out_ch in
-    let sap_filtered = filter_ap sap mf_ap in
-    let events_updated = (sap_filtered, ts)::ctx.events in
-    let (ps, mf_updated) = meval' ctx.tp ts sap_filtered ctx.mf le minimuml in
-    let checker_ps = if check then Some (check_ps events_updated f (Deque.to_list ps)) else None in
-    let () = output_ps out_ch mode out_mode ts ctx.tp [] f (Deque.to_list ps) checker_ps in
-    let ctx_updated =
-      { tp = ctx.tp+1
-      ; mf = mf_updated
-      ; events = events_updated
-      } in
-    (ctx_updated, in_ch) in
-  loop s (ctx, in_ch)
+  let st = { tp = 0
+           ; mf = mf
+           ; events = []
+           } in
+  match events with
+  | Ok es -> (let minimuml ps = minsize_list (get_mins le ps) in
+              let ((m, s), o) = List.fold_map es ~init:(mf, st) ~f:(fun (mf', st') (sap, ts) ->
+                                    let sap_filtered = filter_ap sap mf_ap in
+                                    let (ps, mf_updated) = meval' st'.tp ts sap_filtered mf' le minimuml in
+                                    let events_updated = (sap_filtered, ts)::st'.events in
+                                    let cbs_opt = if c then
+                                                    let checks = check_ps events_updated f (Deque.to_list ps) in
+                                                    Some (List.map checks (fun (b, _, _) -> b))
+                                                  else None in
+                                    let st_updated =
+                                      { tp = st'.tp+1
+                                      ; mf = mf_updated
+                                      ; events = events_updated
+                                      } in
+                                    ((mf_updated, st_updated), json_expls ts st'.tp [] f (Deque.to_list ps) cbs_opt)) in
+              ((m, s), String.concat "" o))
+  | Error err -> ((mf, st), json_error err)

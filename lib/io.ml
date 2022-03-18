@@ -15,7 +15,10 @@ open Vis
 open Checker.Explanator2
 open Checker_interface
 
+module List = Base.List
 module String = Base.String
+module Error = Base.Error
+module Or_error = Base.Or_error
 
 type output =
   | Explanation of (timestamp * timepoint) * expl * bool option
@@ -29,12 +32,11 @@ let parse_line s =
     match String.split_on_chars (String.sub s 1 (String.length s - 1)) [' '] with
     | [] -> None
     | raw_t :: preds ->
-       try Some (SS.of_list (List.map
+       try Some (SS.of_list (List.map (List.filter preds (fun x -> x <> "()"))
                                (fun p ->
                                  String.strip (String.map p (fun c ->
-                                                  if c = '(' || c = ')' then ' '
-                                                  else c)))
-                               (List.filter (fun x -> x <> "()") preds)),
+                                                   if c = '(' || c = ')' then ' '
+                                                   else c)))),
                  int_of_string raw_t)
        with Failure _ -> None
   else None
@@ -64,7 +66,7 @@ let output_explanation out_ch expl =
      Printf.printf "\nChecker proof: \n%s\n\n" (s_of_proof cp)
   | ExplanationToJSON ((ts, tp), tps_in, f, p, cb_opt) ->
      let ident = "    " in
-     let tps_in_json = list_to_json (List.map (fun el -> string_of_int el) tps_in) in
+     let tps_in_json = list_to_json (List.map tps_in (fun el -> string_of_int el)) in
      Printf.fprintf out_ch "{\n";
      Printf.fprintf out_ch "%s\"ts\": %d,\n" ident ts;
      Printf.fprintf out_ch "%s\"tp\": %d,\n" ident tp;
@@ -87,39 +89,70 @@ let closing_stdout out_ch =
   output_event out_ch "Bye.\n"
 
 let preamble_json out_ch f =
-  Printf.fprintf out_ch "{\n  \"columns\": %s\n}\n" (list_to_json (List.map formula_to_string (subfs_dfs f)))
+  Printf.fprintf out_ch "{\n  \"columns\": %s\n}\n" (list_to_json (List.map (subfs_dfs f) formula_to_string))
 
 let output_ps out_ch mode out_mode ts tp tps_in f ps checker_ps_opt =
   let ps' = match mode with
-    | SAT -> List.filter (fun p -> match p with
-                                   | S _ -> true
-                                   | V _ -> false) ps
-    | VIOL -> List.filter (fun p -> match p with
-                                    | S _ -> false
-                                    | V _ -> true) ps
+    | SAT -> List.filter ps (fun p -> match p with
+                                      | S _ -> true
+                                      | V _ -> false)
+    | VIOL -> List.filter ps (fun p -> match p with
+                                       | S _ -> false
+                                       | V _ -> true)
     | ALL -> ps in
   match checker_ps_opt with
-  | None -> (List.iter (fun p -> match out_mode with
-                                 | PLAIN -> let expl = Explanation ((ts, tp), p, None) in
-                                            output_explanation out_ch expl
-                                 | JSON -> let expl = ExplanationToJSON ((ts, tp), tps_in, f, p, None) in
-                                           output_explanation out_ch expl
-                                 | _ -> ()) ps')
-  | Some checker_ps -> (List.iter2 (fun p (b, checker_p, trace) ->
+  | None -> (List.iter ps' (fun p -> match out_mode with
+                                     | PLAIN -> let expl = Explanation ((ts, tp), p, None) in
+                                                output_explanation out_ch expl
+                                     | JSON -> let expl = ExplanationToJSON ((ts, tp), tps_in, f, p, None) in
+                                               output_explanation out_ch expl
+                                     | _ -> ()))
+  | Some checker_ps -> (List.iter2_exn ps' checker_ps (fun p (b, checker_p, trace) ->
                             match out_mode with
                             | PLAIN -> let expl = Explanation ((ts, tp), p, Some(b)) in
                                        output_explanation out_ch expl
                             | JSON -> let expl = ExplanationToJSON ((ts, tp), tps_in, f, p, Some(b)) in
                                       output_explanation out_ch expl
                             | DEBUG -> let expl = ExplanationDebug ((ts, tp), p, b, checker_p, trace) in
-                                       output_explanation out_ch expl) ps' checker_ps)
+                                       output_explanation out_ch expl))
 
 (* from/to_string related *)
+(* Here, instead of using exceptions, errors are handled
+ * using error-aware return types. This is particularly
+ * useful for returning errors to the visualization. *)
+let trace_error = "Events are specified in the format: @1 a b"
+
 let parse_lines_from_string s =
   let events = String.split_lines s in
-  List.map (fun e -> match parse_line e with
-                     | Some s -> s
-                     | None -> failwith "") events
+  List.fold_until events ~init:[] ~finish:(fun acc -> Ok (List.rev acc))
+    ~f:(fun acc e -> match parse_line e with
+                     | None -> Stop (Or_error.error_string trace_error)
+                     | Some s -> Continue (s::acc))
 
-let input_event in_ch out_ch =
-  parse_lines (input_line in_ch) in_ch out_ch
+let json_table_columns f =
+  Printf.sprintf "{\n  \"columns\": %s\n}\n" (list_to_json (List.map (subfs_dfs f) formula_to_string))
+
+let json_expls ts tp tps_in f ps cbs_opt =
+  match cbs_opt with
+  | None -> List.fold ps ~init:"" ~f:(fun acc p ->
+                let ident = "    " in
+                let tps_in_json = list_to_json (List.map tps_in (fun el -> string_of_int el)) in
+                Printf.sprintf "{\n" ^
+                Printf.sprintf "%s\"ts\": %d,\n" ident ts ^
+                Printf.sprintf "%s\"tp\": %d,\n" ident tp ^
+                Printf.sprintf "%s\"tps_in\": %s,\n" ident tps_in_json ^
+                Printf.sprintf "%s\n" (expl_to_json f p) ^
+                Printf.sprintf "}\n" ^ acc)
+  | Some cbs -> List.fold2_exn ps cbs ~init:"" ~f:(fun acc p cb ->
+                    let ident = "    " in
+                    let tps_in_json = list_to_json (List.map tps_in (fun el -> string_of_int el)) in
+                    Printf.sprintf "{\n" ^
+                    Printf.sprintf "%s\"ts\": %d,\n" ident ts ^
+                    Printf.sprintf "%s\"tp\": %d,\n" ident tp ^
+                    Printf.sprintf "%s\"tps_in\": %s,\n" ident tps_in_json ^
+                    Printf.sprintf "%s\"checker\": \"%B\",\n" ident cb ^
+                    Printf.sprintf "%s\n" (expl_to_json f p) ^
+                    Printf.sprintf "}\n" ^ acc)
+
+let json_error err =
+  Printf.sprintf "ERROR: %s" (Error.to_string_hum err)
