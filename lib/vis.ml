@@ -67,6 +67,8 @@ let cell_to_json (tp, col, b) cells =
   (Printf.sprintf "\n%s}" ident)
 
 let expl_to_json f p =
+  (* (Printf.printf "f = %s\n" (formula_to_string f));
+   * (Printf.printf "p = %s\n" (expl_to_string p)); *)
   let st = update_state ([], 0) f p in
   let ident = "    " in
   (Printf.sprintf "%s\"table\": [\n" ident) ^
