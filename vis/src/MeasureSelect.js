@@ -1,48 +1,39 @@
 import React from 'react';
 import Box from '@mui/material/Box';
-import TextField from '@mui/material/TextField';
+import FormControl from '@mui/material/FormControl';
+import InputLabel from '@mui/material/InputLabel';
+import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 
-const measures = [
-  {
-    value: "size",
-    label: "Size",
-  },
-  {
-    value: "minreach",
-    label: "Minimum Reach",
-  },
-  {
-    value: "maxreach",
-    label: "Maximum Reach",
-  }
-]
+export default function MeasureSelect ({ measure, setMeasure }) {
 
-export default class MeasureSelect extends React.Component {
-  render() {
-    return (
-      <Box
-        component="form"
-        sx={{
-          '& .MuiTextField-root': { width: '100%' },
-        }}
-        noValidate
-        autoComplete="off"
-      >
-        <div>
-          <TextField
-            id="outlined-select-measure"
-            select
-            label="Measure"
-          >
-            {measures.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                {option.label}
-              </MenuItem>
-            ))}
-          </TextField>
-        </div>
-      </Box>
-    );
-  }
+  const handleChange = (event) => {
+    setMeasure(event.target.value);
+  };
+
+  return (
+    <Box
+      component="form"
+      sx={{
+        '& .MuiTextField-root': { width: '100%' },
+      }}
+      noValidate
+      autoComplete="off"
+    >
+      <FormControl fullWidth>
+        <InputLabel id="measure-select-label">Measure</InputLabel>
+        <Select
+          labelId="measure-select-label"
+          id="measure-select"
+          value={measure}
+          label="Measure"
+          onChange={handleChange}
+        >
+          <MenuItem value={"size"}>Size</MenuItem>
+          <MenuItem value={"minreach"}>Minimum reach</MenuItem>
+          <MenuItem value={"maxreach"}>Maximum reach</MenuItem>
+        </Select>
+      </FormControl>
+    </Box>
+  );
 }
