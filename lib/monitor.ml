@@ -876,7 +876,7 @@ let relevant_ap mf =
 let filter_ap sap mf_ap =
   Util.SS.filter (fun s -> List.mem mf_ap s ~equal:(fun x y -> x = y)) sap
 
-type context =
+type state =
   { tp: timepoint
   ; mf: mformula
   ; events: (Util.SS.t * timestamp) list
@@ -1065,7 +1065,7 @@ let monitor2 log c le f =
               let ((m, s), o) = List.fold_map es ~init:(mf, st) ~f:(fun (mf', st') (sap, ts) ->
                                     let sap_filtered = filter_ap sap mf_ap in
                                     let (ps, mf_updated) = meval' st'.tp ts sap_filtered mf' le minimuml in
-                                    let events_updated = (sap_filtered, ts)::st'.events in
+                                    let events_updated = if c then (sap_filtered, ts)::st'.events else [] in
                                     let cbs_opt = if c then
                                                     let checks = check_ps events_updated f (Deque.to_list ps) in
                                                     Some (List.map checks (fun (b, _, _) -> b))

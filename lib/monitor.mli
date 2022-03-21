@@ -72,13 +72,11 @@ type mformula =
   | MSince of interval * mformula * mformula * mbuf2 * (timestamp * timepoint) Deque.t * Since.msaux
   | MUntil of interval * mformula * mformula * mbuf2 * (timestamp * timepoint) Deque.t * Until.muaux
 
-type context =
+type state =
   { tp: timepoint
   ; mf: mformula
   ; events: (Util.SS.t * timestamp) list
   }
 
-
-
 val monitor: in_channel -> out_channel -> mode -> out_mode -> bool -> (expl -> expl -> bool) -> formula -> out_channel
-val monitor2: string -> bool -> (expl -> expl -> bool) -> formula -> (mformula * context) * string
+val monitor2: string -> bool -> (expl -> expl -> bool) -> formula -> (mformula * state) * string
