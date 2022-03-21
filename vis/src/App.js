@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from "react";
 import Grid from '@mui/material/Grid';
 import Box from '@mui/material/Box';
 import Container from '@mui/material/Container';
@@ -27,6 +27,11 @@ const theme = createTheme({
 });
 
 function App() {
+  const [checker, setChecker] = useState(false);
+  const [measure, setMeasure] = useState("size");
+  const [formula, setFormula] = useState("a SINCE b");
+  const [trace, setTrace] = useState("@0 b\n@2 a\n@2 a\n@3 a b\n@4 a\n@10 a");
+
   return (
     <ThemeProvider theme={theme}>
       <Box>
@@ -44,19 +49,23 @@ function App() {
                 <ResetButton />
               </Grid>
               <Grid item xs={2} sm={2} md={1} lg={1} xl={1}>
-                <CheckerSwitch />
+                <CheckerSwitch checker={checker} setChecker={setChecker} />
               </Grid>
               <Grid item xs={12} sm={12} md={1.5} lg={1.5} xl={1.5}>
-                <MeasureSelect />
+                <MeasureSelect measure={measure} setMeasure={setMeasure} />
               </Grid>
               <Grid item xs={12} sm={12} md={6.5} lg={6.5} xl={6.5}>
-                <FormulaTextField />
+                <FormulaTextField formula={formula} setFormula={setFormula} />
               </Grid>
               <Grid item xs={12} sm={12} md={4} lg={4} xl={4}>
-                <TraceTextField />
+                <TraceTextField trace={trace} setTrace={setTrace} />
               </Grid>
               <Grid item xs={12} sm={12} md={8} lg={8} xl={8}>
-                <TimeGrid />
+                <TimeGrid checker={checker}
+                          measure={measure}
+                          formula={formula}
+                          trace={trace}
+                />
               </Grid>
             </Grid>
           </Box>

@@ -5,6 +5,10 @@ import Button from '@mui/material/Button';
 import SquareIcon from '@mui/icons-material/Square';
 import { pickColumnItem, squareColor, changedSquares } from './util';
 
+// Babel transpilation
+// npx babel explanator2.bc.js --out-file explanator2.bc-babel.js --presets @babel/preset-env
+// var explanator2 = require("./js_of_ocaml/explanator2.bc-babel.js");
+
 let mockData = require('./data.json');
 console.log(mockData);
 
@@ -28,7 +32,7 @@ function initSquares(explanationsLength, columns) {
   return squares;
 }
 
-function TimeGrid () {
+function TimeGrid ({ checker, measure, formula, trace }) {
   let initState = initSquares(mockData.explanations.length, mockData.columns);
   const [squares, setSquares] = React.useState(initState);
 
