@@ -28,10 +28,22 @@ let next_idx l = (max_list l) + 1
 
 let rec update_state st f p =
   match f, p with
+  | TT, S (STT i) ->
+     let cur_idx = st_idx st in
+     let cell = (p_at p, cur_idx, true) in
+     let tbl = (cell, []) :: (st_tbl st) in
+     (tbl, cur_idx)
   | P s1, S (SAtom (i, s2)) ->
      let cur_idx = st_idx st in
      let cell = (p_at p, cur_idx, true) in
      let tbl = (cell, []) :: (st_tbl st) in
+     (tbl, cur_idx)
+  | Neg f, S (SNeg vp) ->
+     let cur_idx = st_idx st in
+     let st_0 = update_state (st_tbl st, cur_idx+1) f (V vp) in
+     let cell = (p_at p, cur_idx, true) in
+     let cells = [(v_at vp, cur_idx+1, false)] in
+     let tbl = (cell, cells) :: (st_tbl st) in
      (tbl, cur_idx)
   | Since (i, f1, f2), S (SSince (sp2, sp1s)) ->
      let cur_idx = st_idx st in
