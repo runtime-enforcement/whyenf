@@ -16,14 +16,12 @@ open Mtl
 %token <string> ATOM
 %token <Interval.interval> INTERVAL
 %token LOPEN ROPEN
-%token FALSE TRUE NEG CONJ DISJ IMPL IFF EOF
+%token FALSE TRUE NEG CONJ DISJ EOF
 %token SINCE UNTIL
-%token NEXT PREV ALWAYS EVENTUALLY HISTORICALLY ONCE
+%token NEXT PREV
 
 %nonassoc INTERVAL
-%right IFF
-%right IMPL
-%nonassoc PREV NEXT ALWAYS EVENTUALLY ONCE HISTORICALLY
+%nonassoc PREV NEXT
 %nonassoc SINCE UNTIL
 %left DISJ
 %left CONJ
@@ -43,8 +41,6 @@ e:
 | FALSE                   { ff }
 | e CONJ e                { conj $1 $3 }
 | e DISJ e                { disj $1 $3 }
-| e IMPL e                { impl $1 $3 }
-| e IFF e                 { iff $1 $3 }
 | NEG e                   { neg $2 }
 | ATOM                    { p $1 }
 | e SINCE INTERVAL e      { since $3 $1 $4 }
@@ -55,11 +51,3 @@ e:
 | NEXT e                  { next full $2 }
 | PREV INTERVAL e         { prev $2 $3 }
 | PREV e                  { prev full $2 }
-| ONCE INTERVAL e         { once $2 $3 }
-| ONCE e                  { once full $2 }
-| HISTORICALLY INTERVAL e { historically $2 $3 }
-| HISTORICALLY e          { historically full $2 }
-| ALWAYS INTERVAL e       { always $2 $3 }
-| ALWAYS e                { always full $2 }
-| EVENTUALLY INTERVAL e   { eventually $2 $3 }
-| EVENTUALLY e            { eventually full $2 }

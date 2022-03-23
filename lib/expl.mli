@@ -15,16 +15,8 @@ type sexpl =
   | SDisjL of sexpl
   | SDisjR of sexpl
   | SConj of sexpl * sexpl
-  | SImplL of vexpl
-  | SImplR of sexpl
-  | SIffS of sexpl * sexpl
-  | SIffV of vexpl * vexpl
   | SPrev of sexpl
-  | SOnce of int * sexpl
-  | SHistorically of sexpl list
   | SNext of sexpl
-  | SEventually of int * sexpl
-  | SAlways of sexpl list
   | SSince of sexpl * sexpl list
   | SUntil of sexpl * sexpl list
 and vexpl =
@@ -34,20 +26,13 @@ and vexpl =
   | VDisj of vexpl * vexpl
   | VConjL of vexpl
   | VConjR of vexpl
-  | VImpl of sexpl * vexpl
-  | VIffL of sexpl * vexpl
-  | VIffR of vexpl * sexpl
   | VPrev0
   | VPrevOutL of int
   | VPrevOutR of int
   | VPrev of vexpl
-  | VOnce of vexpl list
-  | VHistorically of int * vexpl
   | VNextOutL of int
   | VNextOutR of int
   | VNext of vexpl
-  | VEventually of vexpl list
-  | VAlways of int * vexpl
   | VSince of int * vexpl * vexpl list
   | VSinceInf of int * int * vexpl list
   | VSinceOutL of int
@@ -64,8 +49,6 @@ val unV: expl -> vexpl
 
 val sappend: sexpl -> sexpl -> sexpl
 val vappend: vexpl -> vexpl -> vexpl
-val slift: sexpl -> sexpl
-val vlift: vexpl -> vexpl
 val sdrop: sexpl -> sexpl option
 val vdrop: vexpl -> vexpl option
 
