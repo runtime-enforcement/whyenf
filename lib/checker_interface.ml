@@ -34,7 +34,6 @@ let rec convert_sp sp =
                         SUntil (p1s', convert_sp p2)
   | SNext p1 -> SNext (convert_sp p1)
   | SPrev p1 -> SPrev (convert_sp p1)
-  | _ -> failwith "This proof cannot be checked"
 and convert_vp vp =
   match vp with
   | VAtom (i, s) -> let i_nat = nat_of_integer (of_int i) in
@@ -74,7 +73,6 @@ and convert_vp vp =
   | VPrevOutR i -> let i_nat = nat_of_integer (of_int i) in
                    VPrev_ge i_nat
   | VPrev0 -> VPrev_zero
-  | _ -> failwith "This proof cannot be checked"
 
 let convert_p = function
   | S sp -> CS (convert_sp sp)
@@ -99,15 +97,14 @@ let rec convert_f f =
   | Neg (f) -> Neg (convert_f f)
   | Conj (f, g) -> Conj (convert_f f, convert_f g)
   | Disj (f, g) -> Disj (convert_f f, convert_f g)
-  | Since (interval, f, g) -> let interval' = convert_interval interval in
-                              Since (convert_f f, interval', convert_f g)
-  | Until (interval, f, g) -> let interval' = convert_interval interval in
-                              Until (convert_f f, interval', convert_f g)
   | Prev (interval, f) -> let interval' = convert_interval interval in
                           Prev (interval', convert_f f)
   | Next (interval, f) -> let interval' = convert_interval interval in
                           Next (interval', convert_f f)
-  | _ -> failwith "This formula cannot be checked"
+  | Since (interval, f, g) -> let interval' = convert_interval interval in
+                              Since (convert_f f, interval', convert_f g)
+  | Until (interval, f, g) -> let interval' = convert_interval interval in
+                              Until (convert_f f, interval', convert_f g)
 
 let convert_event sap ts =
   let ts_nat = nat_of_integer (of_int ts) in

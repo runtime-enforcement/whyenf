@@ -19,14 +19,8 @@ type formula =
   | Neg of formula
   | Conj of formula * formula
   | Disj of formula * formula
-  | Impl of formula * formula
-  | Iff of formula * formula
   | Prev of interval * formula
   | Next of interval * formula
-  | Once of interval * formula
-  | Historically of interval * formula
-  | Always of interval * formula
-  | Eventually of interval * formula
   | Since of interval * formula * formula
   | Until of interval * formula * formula
 
@@ -37,15 +31,9 @@ val p: string -> formula
 val neg: formula -> formula
 val conj: formula -> formula -> formula
 val disj: formula -> formula -> formula
-val impl: formula -> formula -> formula
-val iff: formula -> formula -> formula
 (* temporal operators *)
 val prev: interval -> formula -> formula
 val next: interval -> formula -> formula
-val once: interval -> formula -> formula
-val historically: interval -> formula -> formula
-val always: interval -> formula -> formula
-val eventually: interval -> formula -> formula
 val since: interval -> formula -> formula -> formula
 val until: interval -> formula -> formula -> formula
 

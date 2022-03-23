@@ -37,16 +37,10 @@ rule token = parse
   | '!' | "¬" | "NOT"                             { NEG }
   | '&' | "∧" | "AND"                             { CONJ }
   | '|' | "∨" | "OR"                              { DISJ }
-  | "=>" | "->" | "→"                             { IMPL }
-  | "<=>"  | "<->" | "↔"                          { IFF }
   | "SINCE" | "S" | "U⁻"                          { SINCE }
   | "UNTIL" |	"U"                               { UNTIL }
   | "NEXT" | "X" | "○"                            { NEXT }
   | "PREV" | "PREVIOUS" | "Y" | "X⁻" | "●"        { PREV }
-  | "GLOBALLY" | "ALWAYS" | "G" | "□"             { ALWAYS }
-  | "FINALLY" | "EVENTUALLY" | "F" | "◊"          { EVENTUALLY }
-  | "GLOBALLY_PAST" | "HISTORICALLY" | "G⁻" | "■" { HISTORICALLY }
-  | "FINALLY_PAST" | "ONCE" | "F⁻" | "⧫"          { ONCE }
   | "("                                           { LOPEN }
   | ")"                                           { ROPEN }
   | (alpha alphanums)	as name "()"?             { ATOM name }
