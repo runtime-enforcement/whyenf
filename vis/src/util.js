@@ -9,7 +9,7 @@ import Filter8Icon from '@mui/icons-material/Filter8';
 import Filter9Icon from '@mui/icons-material/Filter9';
 import CropSquareIcon from '@mui/icons-material/CropSquare';
 import Button from '@mui/material/Button';
-import { red, lightGreen } from '@mui/material/colors';
+import { red, purple, yellow, lightGreen } from '@mui/material/colors';
 
 export function pickColumnItem(i, f) {
   switch (i) {
@@ -44,126 +44,10 @@ export function pickColumnItem(i, f) {
   }
 }
 
-export function squareColor(explanationType) {
-  return (explanationType.charAt(0) === 'S' ? lightGreen[500] : red[500]);
+export function squareColor(bool) {
+  return (bool ? lightGreen[500] : red[500]);
 }
 
-function match(explanation, f) {
-  switch (explanation.type) {
-  case "STT":
-    return f.type === "TT";
-  case "SAtom":
-    return f.atom === explanation.atom;
-  case "SNeg":
-    return (f.type === "Neg") ? match(explanation.explanation, f.formula) : false;
-  case "SDisjL":
-    return (f.type === "Disj") ? match(explanation.explanation, f.lformula) : false;
-  case "SDisjR":
-    return (f.type === "Disj") ? match(explanation.explanation, f.rformula) : false;
-  case "SConj":
-    return (f.type === "Conj") ? (match(explanation.lexplanation, f.lformula) && match(explanation.rexplanation, f.rformula)) : false;
-  case "SPrev":
-    return (f.type === "Prev") ? match(explanation.explanation, f.formula) : false;
-  case "SNext":
-    return (f.type === "Next") ? match(explanation.explanation, f.formula) : false;
-  case "SSince":
-    return (f.type === "Since") ? (match(explanation.explanation, f.lformula) && match(explanation.explanations['0explanation'], f.rformula)) : false;
-  case "SUntil":
-    return (f.type === "Until") ? (match(explanation.explanation, f.lformula) && match(explanation.explanations['0explanation'], f.rformula)) : false;
-  case "VFF":
-    return f.type === "FF";
-  case "VAtom":
-    return f.atom === explanation.atom;
-  case "VNeg":
-    return (f.type === "Neg") ? match(explanation.explanation, f.formula) : false;
-  case "VDisj":
-    return (f.type === "Disj") ? (match(explanation.lexplanation, f.lformula) && match(explanation.rexplanation, f.rformula)) : false;
-  case "VConjL":
-    return (f.type === "Conj") ? match(explanation.explanation, f.lformula) : false;
-  case "VConjR":
-    return (f.type === "Conj") ? match(explanation.explanation, f.rformula) : false;
-  case "VPrev":
-    return (f.type === "Prev") ? match(explanation.explanation, f.formula) : false;
-  case "VNext":
-    return (f.type === "Next") ? match(explanation.explanation, f.formula) : false;
-  case "VSince":
-    return (f.type === "Since") ? (match(explanation.explanation, f.lformula) && match(explanation.explanations['0explanation'], f.rformula)) : false;
-  case "VSinceInf":
-    return (f.type === "Since") ? match(explanation.explanations['0explanation'], f.rformula) : false;
-  case "VUntil":
-    return (f.type === "Until") ? (match(explanation.explanation, f.lformula) && match(explanation.explanations['0explanation'], f.rformula)) : false;
-  case "VUntilInf":
-    return (f.type === "Until") ? match(explanation.explanations['0explanation'], f.rformula) : false;
-  default:
-    return false;
-  }
-}
-
-function findMatch(explanation, subformulas) {
-  for (let i = 0; i < subformulas.length; ++i) {
-    if (match(explanation, subformulas[i].formula)) return i;
-  }
-}
-
-export function changedSquares(explanation, subformulas) {
-  var chSquares = [];
-
-  switch (explanation.type) {
-  case "STT":
-  case "SAtom":
-  case "VFF":
-  case "VAtom":
-    chSquares.push({ tp: explanation.tp,
-                          col: findMatch(explanation, subformulas),
-                          color: squareColor(explanation.type) });
-    break;
-  case "SNeg":
-  case "SDisjL":
-  case "SDisjR":
-  case "SPrev":
-  case "SNext":
-  case "VNeg":
-  case "VConjL":
-  case "VConjR":
-  case "VPrev":
-  case "VNext":
-    chSquares.push({ tp: explanation.explanation.tp,
-                          col: findMatch(explanation.explanation, subformulas),
-                          color: squareColor(explanation.explanation.type) });
-    break;
-  case "SConj":
-  case "VDisj":
-    chSquares.push({ tp: explanation.lexplanation.tp,
-                          col: findMatch(explanation.lexplanation, subformulas),
-                          color: squareColor(explanation.lexplanation.type) });
-    chSquares.push({ tp: explanation.rexplanation.tp,
-                          col: findMatch(explanation.rexplanation, subformulas),
-                          color: squareColor(explanation.rexplanation.type) });
-    break;
-  case "SSince":
-  case "SUntil":
-  case "VSince":
-  case "VUntil":
-    chSquares.push({ tp: explanation.explanation.tp,
-                          col: findMatch(explanation.explanation, subformulas),
-                          color: squareColor(explanation.explanation.type) });
-    if (!(Object.keys(explanation.explanations).length === 0)) {
-      chSquares.push({ tp: explanation.explanations['0explanation'].tp,
-                            col: findMatch(explanation.explanations['0explanation'], subformulas),
-                            color: squareColor(explanation.explanations['0explanation'].type) });
-    }
-    break;
-  case "VSinceInf":
-  case "VUntilInf":
-    if (!(Object.keys(explanation.explanations).length === 0)) {
-      chSquares.push({ tp: explanation.explanations['0explanation'].tp,
-                            col: findMatch(explanation.explanations['0explanation'], subformulas),
-                            color: squareColor(explanation.explanations['0explanation'].type) });
-    }
-    break;
-  default:
-    break;
-  }
-
-  return chSquares;
+export function squareColorTest(bool) {
+  return (bool ? yellow[500] : purple[500]);
 }

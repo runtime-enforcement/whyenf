@@ -3,14 +3,10 @@ import Box from '@mui/material/Box';
 import { DataGrid } from '@mui/x-data-grid';
 import Button from '@mui/material/Button';
 import SquareIcon from '@mui/icons-material/Square';
-import { pickColumnItem, squareColor, changedSquares } from './util';
-
-// Babel transpilation
-// npx babel explanator2.bc.js --out-file explanator2.bc-babel.js --presets @babel/preset-env
-// var explanator2 = require("./js_of_ocaml/explanator2.bc-babel.js");
+import { squareColor, squareColorTest } from './util';
 
 let mockData = require('./data.json');
-console.log(mockData);
+// console.log(mockData);
 
 function Square(props) {
   return (
@@ -20,21 +16,38 @@ function Square(props) {
   );
 }
 
-function initSquares(explanationsLength, columns) {
+function initSquares(explanations) {
   var squares = [];
-  for (let tp = 0; tp < explanationsLength; ++tp) {
-    squares[tp] = {};
-    for (let j = 0; j < columns.length; ++j) {
-      if (j === 0) squares[tp][j] = squareColor(mockData.explanations[tp].explanation.type);
-      else squares[tp][j] = "primary";
+  for (let tp = 0; tp < explanations.length; ++tp) {
+    let tbl = explanations[tp].table;
+    squares[tp] = [];
+    console.log(tbl);
+    for (let j = 0; j < tbl.length; ++j) {
+      if (tp === tbl[j].tp) {
+        switch(tbl[j].bool) {
+        case true:
+          squares[tp][tbl[j].col] = squareColor(true);
+          break;
+        case false:
+          squares[tp][tbl[j].col] = squareColor(false);
+          break;
+        default:
+          squares[tp][tbl[j].col] = "primary";
+          break;
+        }
+      }
     }
   }
   return squares;
 }
 
 function TimeGrid ({ checker, measure, formula, trace }) {
-  let initState = initSquares(mockData.explanations.length, mockData.columns);
-  const [squares, setSquares] = React.useState(initState);
+  const [explanations, setExplanations] = React.useState(JSON.parse(window.monitor(trace, checker, measure, formula)[2]));
+  const [columns, setColumns] = React.useState((JSON.parse(window.getColumns(formula))).columns);
+  const [squares, setSquares] = React.useState(initSquares(explanations));
+  console.log(columns);
+  console.log(explanations);
+  console.log(squares);
 
   const fixedColumns = [
     {
@@ -53,11 +66,11 @@ function TimeGrid ({ checker, measure, formula, trace }) {
       disableClickEventBubbling: true
     },
     {
-      field: mockData.columns[0],
-      headerName: mockData.columns[0],
-      width: (10*(mockData.columns[0].length)),
+      field: "0",
+      headerName: columns[0],
+      width: (10*(columns[0].length)),
       sortable: false,
-      renderHeader: () => mockData.columns[0],
+      renderHeader: () => columns[0],
       renderCell: (params) => <Square value={squares[params.row.tp][0]}
                                       onClick={() => handleClick(params, params.row.tp, params.colDef.field)} />,
       headerAlign: 'center',
@@ -66,36 +79,37 @@ function TimeGrid ({ checker, measure, formula, trace }) {
     }
   ];
 
-  const dynamicColumns = mockData.columns.slice(1).map((f, i) =>
+  const dynamicColumns = columns.slice(1).map((f, i) =>
     ({
-      field: f,
+      field: (i+1).toString(),
       headerName: f,
       width: (10*(f.length)),
       sortable: false,
-      renderHeader: () => mockData.columns[i+1],
-      renderCell: (params) => <Square value={squares[params.row.tp][i+1]} />,
+      renderHeader: () => columns[i+1],
+      renderCell: (params) => <Square value={squares[params.row.tp][i+1]}
+                                      onClick={() => handleClick(params, params.row.tp, params.colDef.field)} />,
       headerAlign: 'center',
       align: 'center',
       disableClickEventBubbling: true
     }));
 
-  const rows = mockData.explanations.map((p, i) =>
+  const rows = explanations.map(({ ts, tp }) =>
     ({
-      id: i,
-      tp: p.tp,
-      ts: p.ts,
-      f0: "",
-      f1: "",
-      f2: "",
-      f3: ""
+      id: tp,
+      tp: tp,
+      ts: ts
     }));
 
-  const handleClick = (params, tp, formString) => {
-    let chSquares = changedSquares(mockData.explanations[tp].explanation, mockData.subformulas);
-    for (let i = 0; i < chSquares.length; ++i) {
-      squares[chSquares[i].tp][chSquares[i].col] = chSquares[i].color;
+  const handleClick = (params, tp, col) => {
+    const colIndex = parseInt(col);
+    const cloneSquares = [...squares];
+
+    const cell = explanations[tp].table.find(c => c.tp === tp && c.col === colIndex);
+    for (let i = 0; i < cell.cells.length; ++i) {
+      cloneSquares[cell.cells[i].tp][cell.cells[i].col] = squareColorTest(cell.cells[i].bool);
     }
-    setSquares(squares);
+
+    setSquares(cloneSquares);
   };
 
   return (
