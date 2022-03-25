@@ -142,7 +142,7 @@ let json_expls ts tp tps_in f ps cbs_opt =
                 Printf.sprintf "%s\"tp\": %d,\n" ident tp ^
                 Printf.sprintf "%s\"tps_in\": %s,\n" ident tps_in_json ^
                 Printf.sprintf "%s\n" (expl_to_json f p) ^
-                Printf.sprintf "}\n" ^ acc)
+                Printf.sprintf "}" ^ acc)
   | Some cbs -> List.fold2_exn ps cbs ~init:"" ~f:(fun acc p cb ->
                     let ident = "    " in
                     let tps_in_json = list_to_json (List.map tps_in (fun el -> string_of_int el)) in
