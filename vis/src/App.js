@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useReducer } from "react";
 import Grid from '@mui/material/Grid';
 import Box from '@mui/material/Box';
 import Container from '@mui/material/Container';
@@ -14,6 +14,7 @@ import RandomExampleButton from './RandomExampleButton';
 import ResetButton from './ResetButton';
 import CheckerSwitch from './CheckerSwitch';
 import PreambleCard from './PreambleCard';
+import { initSquares } from './util';
 
 const theme = createTheme({
   palette: {
@@ -26,11 +27,48 @@ const theme = createTheme({
   },
 });
 
+function init(action) {
+  const e = JSON.parse(window.monitor(action.trace, action.checker, action.measure, action.formula)[2]);
+  const c = JSON.parse(window.getColumns(action.formula)).columns;
+  const s = initSquares(e);
+  return { explanations: e, columns: c, squares: s };
+}
+
+function reducer(state, action) {
+  switch (action.type) {
+  case 'init':
+    return init(action);
+  case 'reset':
+    return { explanations: state.explanations, columns: state.columns, squares: initSquares(state.explanations) }
+  case 'update':
+    return { explanations: state.explanations, columns: state.columns, squares: action.squares }
+  }
+}
+
 function App() {
   const [checker, setChecker] = useState(false);
   const [measure, setMeasure] = useState("size");
   const [formula, setFormula] = useState("a SINCE b");
   const [trace, setTrace] = useState("@0 b\n@2 a\n@2 a\n@3 a b\n@4 a\n@10 a");
+  const [state, dispatch] = useReducer(reducer, { explanations: [], columns: [], squares: [] });
+
+  const handleRefresh = (e) => {
+    e.preventDefault();
+    let action = {
+      checker: checker,
+      measure: measure,
+      formula: formula,
+      trace: trace,
+      type: 'init'
+    };
+    dispatch(action);
+  };
+
+  const handleReset = (e) => {
+    e.preventDefault();
+    let action = { type: 'reset' };
+    dispatch(action);
+  };
 
   return (
     <ThemeProvider theme={theme}>
@@ -43,10 +81,10 @@ function App() {
                 <PreambleCard />
               </Grid>
               <Grid item xs={6} sm={6} md={2} lg={2} xl={2}>
-                <RefreshButton />
+                <RefreshButton handleRefresh={handleRefresh} />
               </Grid>
               <Grid item xs={3} sm={3} md={1} lg={1} xl={1}>
-                <ResetButton />
+                <ResetButton handleReset={handleReset} />
               </Grid>
               <Grid item xs={2} sm={2} md={1} lg={1} xl={1}>
                 <CheckerSwitch checker={checker} setChecker={setChecker} />
@@ -61,10 +99,10 @@ function App() {
                 <TraceTextField trace={trace} setTrace={setTrace} />
               </Grid>
               <Grid item xs={12} sm={12} md={8} lg={8} xl={8}>
-                <TimeGrid checker={checker}
-                          measure={measure}
-                          formula={formula}
-                          trace={trace}
+                <TimeGrid explanations={state.explanations}
+                          columns={state.columns}
+                          squares={state.squares}
+                          dispatch={dispatch}
                 />
               </Grid>
             </Grid>

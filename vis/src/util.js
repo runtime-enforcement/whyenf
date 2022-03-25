@@ -51,3 +51,28 @@ export function squareColor(bool) {
 export function squareColorTest(bool) {
   return (bool ? yellow[500] : purple[500]);
 }
+
+export function initSquares(explanations) {
+  var squares = [];
+  for (let tp = 0; tp < explanations.length; ++tp) {
+    let tbl = explanations[tp].table;
+    squares[tp] = [];
+    // console.log(tbl);
+    for (let j = 0; j < tbl.length; ++j) {
+      if (tp === tbl[j].tp) {
+        switch(tbl[j].bool) {
+        case true:
+          squares[tp][tbl[j].col] = squareColor(true);
+          break;
+        case false:
+          squares[tp][tbl[j].col] = squareColor(false);
+          break;
+        default:
+          squares[tp][tbl[j].col] = "primary";
+          break;
+        }
+      }
+    }
+  }
+  return squares;
+}
