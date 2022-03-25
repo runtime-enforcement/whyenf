@@ -1,12 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import Box from '@mui/material/Box';
 import { DataGrid } from '@mui/x-data-grid';
 import Button from '@mui/material/Button';
 import SquareIcon from '@mui/icons-material/Square';
 import { squareColor, squareColorTest } from './util';
-
-let mockData = require('./data.json');
-// console.log(mockData);
 
 function Square(props) {
   return (
@@ -16,38 +13,7 @@ function Square(props) {
   );
 }
 
-function initSquares(explanations) {
-  var squares = [];
-  for (let tp = 0; tp < explanations.length; ++tp) {
-    let tbl = explanations[tp].table;
-    squares[tp] = [];
-    console.log(tbl);
-    for (let j = 0; j < tbl.length; ++j) {
-      if (tp === tbl[j].tp) {
-        switch(tbl[j].bool) {
-        case true:
-          squares[tp][tbl[j].col] = squareColor(true);
-          break;
-        case false:
-          squares[tp][tbl[j].col] = squareColor(false);
-          break;
-        default:
-          squares[tp][tbl[j].col] = "primary";
-          break;
-        }
-      }
-    }
-  }
-  return squares;
-}
-
-function TimeGrid ({ checker, measure, formula, trace }) {
-  const [explanations, setExplanations] = React.useState(JSON.parse(window.monitor(trace, checker, measure, formula)[2]));
-  const [columns, setColumns] = React.useState((JSON.parse(window.getColumns(formula))).columns);
-  const [squares, setSquares] = React.useState(initSquares(explanations));
-  console.log(columns);
-  console.log(explanations);
-  console.log(squares);
+function TimeGrid ({ explanations, columns, squares, dispatch }) {
 
   const fixedColumns = [
     {
@@ -64,29 +30,17 @@ function TimeGrid ({ checker, measure, formula, trace }) {
       sortable: false,
       align: 'center',
       disableClickEventBubbling: true
-    },
-    {
-      field: "0",
-      headerName: columns[0],
-      width: (10*(columns[0].length)),
-      sortable: false,
-      renderHeader: () => columns[0],
-      renderCell: (params) => <Square value={squares[params.row.tp][0]}
-                                      onClick={() => handleClick(params, params.row.tp, params.colDef.field)} />,
-      headerAlign: 'center',
-      align: 'center',
-      disableClickEventBubbling: true
     }
   ];
 
-  const dynamicColumns = columns.slice(1).map((f, i) =>
+  const dynamicColumns = columns.slice(0).map((f, i) =>
     ({
-      field: (i+1).toString(),
+      field: i.toString(),
       headerName: f,
       width: (10*(f.length)),
       sortable: false,
-      renderHeader: () => columns[i+1],
-      renderCell: (params) => <Square value={squares[params.row.tp][i+1]}
+      renderHeader: () => columns[i],
+      renderCell: (params) => <Square value={squares[params.row.tp][i]}
                                       onClick={() => handleClick(params, params.row.tp, params.colDef.field)} />,
       headerAlign: 'center',
       align: 'center',
@@ -109,7 +63,8 @@ function TimeGrid ({ checker, measure, formula, trace }) {
       cloneSquares[cell.cells[i].tp][cell.cells[i].col] = squareColorTest(cell.cells[i].bool);
     }
 
-    setSquares(cloneSquares);
+    let action = { squares: cloneSquares, type: 'update' };
+    dispatch(action);
   };
 
   return (
