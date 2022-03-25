@@ -1052,14 +1052,18 @@ let monitor in_ch out_ch mode out_mode check le f =
     (ctx_updated, in_ch) in
   loop s (ctx, in_ch)
 
-let monitor2 log c le f =
+let monitor2 ?mf ?st log c le f =
   let events = parse_lines_from_string log in
-  let mf = minit f in
+  let mf = match mf with
+    | None -> minit f
+    | Some mf -> mf in
   let mf_ap = relevant_ap mf in
-  let st = { tp = 0
-           ; mf = mf
-           ; events = []
-           } in
+  let st = match st with
+    | None -> { tp = 0
+              ; mf = mf
+              ; events = []
+              }
+    | Some st -> st in
   match events with
   | Ok es -> (let minimuml ps = minsize_list (get_mins le ps) in
               let ((m, s), o) = List.fold_map es ~init:(mf, st) ~f:(fun (mf', st') (sap, ts) ->
@@ -1076,5 +1080,6 @@ let monitor2 log c le f =
                                       ; events = events_updated
                                       } in
                                     ((mf_updated, st_updated), json_expls ts st'.tp [] f (Deque.to_list ps) cbs_opt)) in
-              ((m, s), String.concat "" o))
+              let o' = String.concat ",\n" o in
+              ((m, s), ("[" ^ o' ^ "]\n")))
   | Error err -> ((mf, st), json_error err)
