@@ -5,7 +5,6 @@ import TextField from '@mui/material/TextField';
 export default function FormulaTextField ({ formula, setFormula }) {
 
   const handleChange = (event) => {
-    console.log(event.target.value);
     setFormula(event.target.value);
   };
 

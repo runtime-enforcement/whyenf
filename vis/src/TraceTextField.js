@@ -5,7 +5,6 @@ import TextField from '@mui/material/TextField';
 export default function TraceTextField ({ trace, setTrace }) {
 
   const handleChange = (event) => {
-    console.log(event.target.value);
     setTrace(event.target.value);
   };
 
