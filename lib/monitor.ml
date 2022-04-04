@@ -1080,6 +1080,7 @@ let monitor2 ?mf ?st log c le f =
                                       ; events = events_updated
                                       } in
                                     ((mf_updated, st_updated), json_expls ts st'.tp [] f (Deque.to_list ps) cbs_opt)) in
-              let o' = String.concat ",\n" o in
+              (List.iter (List.filter o (fun s -> not (String.equal s ""))) ~f:(fun s -> Printf.printf "s = '%s'\n" s));
+              let o' = String.concat ",\n" (List.filter o (fun s -> not (String.equal s ""))) in
               ((m, s), ("[" ^ o' ^ "]\n")))
   | Error err -> ((mf, st), json_error err)

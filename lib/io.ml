@@ -134,25 +134,26 @@ let json_table_columns f =
 
 let json_expls ts tp tps_in f ps cbs_opt =
   match cbs_opt with
-  | None -> List.fold ps ~init:"" ~f:(fun acc p ->
-                let ident = "    " in
-                let tps_in_json = list_to_json (List.map tps_in (fun el -> string_of_int el)) in
-                Printf.sprintf "{\n" ^
-                Printf.sprintf "%s\"ts\": %d,\n" ident ts ^
-                Printf.sprintf "%s\"tp\": %d,\n" ident tp ^
-                Printf.sprintf "%s\"tps_in\": %s,\n" ident tps_in_json ^
-                Printf.sprintf "%s\n" (expl_to_json f p) ^
-                Printf.sprintf "}" ^ acc)
-  | Some cbs -> List.fold2_exn ps cbs ~init:"" ~f:(fun acc p cb ->
-                    let ident = "    " in
-                    let tps_in_json = list_to_json (List.map tps_in (fun el -> string_of_int el)) in
-                    Printf.sprintf "{\n" ^
-                    Printf.sprintf "%s\"ts\": %d,\n" ident ts ^
-                    Printf.sprintf "%s\"tp\": %d,\n" ident tp ^
-                    Printf.sprintf "%s\"tps_in\": %s,\n" ident tps_in_json ^
-                    Printf.sprintf "%s\"checker\": \"%B\",\n" ident cb ^
-                    Printf.sprintf "%s\n" (expl_to_json f p) ^
-                    Printf.sprintf "}\n" ^ acc)
+  | None -> String.concat ~sep:",\n" (List.map ps ~f:(fun p ->
+                                          let ident = "    " in
+                                          let tps_in_json = list_to_json (List.map tps_in (fun el -> string_of_int el)) in
+                                          Printf.sprintf "{\n" ^
+                                          Printf.sprintf "%s\"ts\": %d,\n" ident ts ^
+                                          Printf.sprintf "%s\"tp\": %d,\n" ident tp ^
+                                          Printf.sprintf "%s\"tps_in\": %s,\n" ident tps_in_json ^
+                                          Printf.sprintf "%s\n" (expl_to_json f p) ^
+                                          Printf.sprintf "}"))
+  | Some cbs -> String.concat ~sep:",\n" (List.map2_exn ps cbs ~f:(fun p cb ->
+                                              let ident = "    " in
+                                              let tps_in_json = list_to_json (List.map tps_in (fun el ->
+                                                                                  string_of_int el)) in
+                                              Printf.sprintf "{\n" ^
+                                              Printf.sprintf "%s\"ts\": %d,\n" ident ts ^
+                                              Printf.sprintf "%s\"tp\": %d,\n" ident tp ^
+                                              Printf.sprintf "%s\"tps_in\": %s,\n" ident tps_in_json ^
+                                              Printf.sprintf "%s\"checker\": \"%B\",\n" ident cb ^
+                                              Printf.sprintf "%s\n" (expl_to_json f p) ^
+                                              Printf.sprintf "}\n"))
 
 let json_error err =
   Printf.sprintf "ERROR: %s" (Error.to_string_hum err)
