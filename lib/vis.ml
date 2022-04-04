@@ -73,11 +73,11 @@ let rec update_state tbl idx f p =
      let sp1_idx = idx+1 in
      (* Recursive calls *)
      let sp2_idx = (f_idx sp1_idx f1)+1 in
-     let (tbl'', idx'') = update_state tbl sp2_idx f2 (S sp2) in
+     let (tbl', idx') = update_state tbl sp2_idx f2 (S sp2) in
      (* State update *)
      let cell = (p_at p, idx, true) in
      let cells = [(s_at sp2, sp2_idx, true)] in
-     ((cell, cells) :: tbl'', idx'')
+     ((cell, cells) :: tbl', idx')
   | Since (_, f1, f2), S (SSince (sp2, sp1s))
   | Until (_, f1, f2), S (SUntil (sp2, sp1s)) ->
      let sp1_idx = idx+1 in
