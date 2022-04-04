@@ -132,14 +132,14 @@ let rec update_state tbl idx f p =
      let cells = [(v_at vp, vp_idx, false)] in
      ((cell, cells) :: tbl', idx')
   | Since (_, f1, _), V (VSince (_, vp1, []))
-  | Until (_, f1, _), V (VSince (_, vp1, [])) ->
+  | Until (_, f1, _), V (VUntil (_, vp1, [])) ->
      let vp1_idx = idx+1 in
      let (tbl', idx') = update_state tbl vp1_idx f1 (V vp1) in
      let cell = (p_at p, idx, false) in
      let cells = [(v_at vp1, vp1_idx, false)] in
      ((cell, cells) :: tbl', idx')
   | Since (_, f1, f2), V (VSince (_, vp1, vp2s))
-  | Until (_, f1, f2), V (VSince (_, vp1, vp2s)) ->
+  | Until (_, f1, f2), V (VUntil (_, vp1, vp2s)) ->
      let vp1_idx = idx+1 in
      let (tbl', idx') = update_state tbl vp1_idx f1 (V vp1) in
      let vp2_idx = idx'+1 in
