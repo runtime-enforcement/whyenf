@@ -28,12 +28,17 @@ const theme = createTheme({
 });
 
 function init(action) {
-  const e = JSON.parse(window.monitor(action.trace, action.checker, action.measure, action.formula)[2]);
-  const c = JSON.parse(window.getColumns(action.formula)).columns;
-  const s = initSquares(e);
-  console.log(e);
-  console.log(c);
-  return { explanations: e, columns: c, squares: s };
+  try {
+    const e = JSON.parse(window.monitor(action.trace, action.checker, action.measure, action.formula)[2]);
+    const c = JSON.parse(window.getColumns(action.formula)).columns;
+    const s = initSquares(e);
+    console.log(e);
+    console.log(c);
+    return { explanations: e, columns: c, squares: s };
+  } catch (error) {
+    console.error(error);
+    return { explanations: [], columns: [], squares: [] };
+  }
 }
 
 function reducer(state, action) {
