@@ -31,5 +31,5 @@ val output_ps: out_channel -> mode -> out_mode -> timestamp -> timepoint -> time
 
 val parse_lines_from_string: string -> (SS.t * timepoint) list Or_error.t
 val json_table_columns: formula -> string
-val json_expls: timepoint -> timepoint -> timepoint list -> formula -> expl list -> (bool list) option -> string
+val json_expls: (timepoint, timestamp) Hashtbl.t -> timepoint list -> formula -> expl list -> (bool list) option -> string
 val json_error: Error.t -> string
