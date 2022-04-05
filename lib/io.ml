@@ -132,9 +132,11 @@ let parse_lines_from_string s =
 let json_table_columns f =
   Printf.sprintf "{\n  \"columns\": %s\n}\n" (list_to_json (List.map (subfs_dfs f) formula_to_string))
 
-let json_expls ts tp tps_in f ps cbs_opt =
+let json_expls tp_ts tps_in f ps cbs_opt =
   match cbs_opt with
   | None -> String.concat ~sep:",\n" (List.map ps ~f:(fun p ->
+                                          let tp = (p_at p) in
+                                          let ts = Hashtbl.find tp_ts tp in
                                           let ident = "    " in
                                           let tps_in_json = list_to_json (List.map tps_in (fun el -> string_of_int el)) in
                                           Printf.sprintf "{\n" ^
@@ -144,6 +146,8 @@ let json_expls ts tp tps_in f ps cbs_opt =
                                           Printf.sprintf "%s\n" (expl_to_json f p) ^
                                           Printf.sprintf "}"))
   | Some cbs -> String.concat ~sep:",\n" (List.map2_exn ps cbs ~f:(fun p cb ->
+                                              let tp = (p_at p) in
+                                              let ts = Hashtbl.find tp_ts tp in
                                               let ident = "    " in
                                               let tps_in_json = list_to_json (List.map tps_in (fun el ->
                                                                                   string_of_int el)) in

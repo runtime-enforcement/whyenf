@@ -880,6 +880,7 @@ type state =
   { tp: timepoint
   ; mf: mformula
   ; events: (Util.SS.t * timestamp) list
+  ; tp_ts: (timepoint, timestamp) Hashtbl.t
   }
 
 let print_ps_list l =
@@ -1030,27 +1031,29 @@ let monitor in_ch out_ch mode out_mode check le f =
   let rec loop f x = loop f (f x) in
   let mf = minit f in
   let mf_ap = relevant_ap mf in
-  let ctx = { tp = 0
+  let st = { tp = 0
             ; mf = mf
             ; events = []
+            ; tp_ts = Hashtbl.create 0
             } in
   (match out_mode with
    | PLAIN | DEBUG -> preamble_stdout out_ch mode f
    | JSON -> preamble_json out_ch f);
-  let s (ctx, in_ch) =
+  let s (st, in_ch) =
     let ((sap, ts), in_ch) = input_event in_ch out_ch in
     let sap_filtered = filter_ap sap mf_ap in
-    let events_updated = (sap_filtered, ts)::ctx.events in
-    let (ps, mf_updated) = meval' ctx.tp ts sap_filtered ctx.mf le minimuml in
+    let events_updated = (sap_filtered, ts)::st.events in
+    let (ps, mf_updated) = meval' st.tp ts sap_filtered st.mf le minimuml in
     let checker_ps = if check then Some (check_ps events_updated f (Deque.to_list ps)) else None in
-    let () = output_ps out_ch mode out_mode ts ctx.tp [] f (Deque.to_list ps) checker_ps in
-    let ctx_updated =
-      { tp = ctx.tp+1
+    let () = output_ps out_ch mode out_mode ts st.tp [] f (Deque.to_list ps) checker_ps in
+    let st_updated =
+      { st with
+        tp = st.tp+1
       ; mf = mf_updated
       ; events = events_updated
       } in
-    (ctx_updated, in_ch) in
-  loop s (ctx, in_ch)
+    (st_updated, in_ch) in
+  loop s (st, in_ch)
 
 let monitor2 ?mf ?st log c le f =
   let events = parse_lines_from_string log in
@@ -1062,11 +1065,13 @@ let monitor2 ?mf ?st log c le f =
     | None -> { tp = 0
               ; mf = mf
               ; events = []
+              ; tp_ts = Hashtbl.create 100
               }
     | Some st -> st in
   match events with
   | Ok es -> (let minimuml ps = minsize_list (get_mins le ps) in
               let ((m, s), o) = List.fold_map es ~init:(mf, st) ~f:(fun (mf', st') (sap, ts) ->
+                                    Hashtbl.add st.tp_ts st'.tp ts;
                                     let sap_filtered = filter_ap sap mf_ap in
                                     let (ps, mf_updated) = meval' st'.tp ts sap_filtered mf' le minimuml in
                                     let events_updated = if c then (sap_filtered, ts)::st'.events else [] in
@@ -1075,12 +1080,12 @@ let monitor2 ?mf ?st log c le f =
                                                     Some (List.map checks (fun (b, _, _) -> b))
                                                   else None in
                                     let st_updated =
-                                      { tp = st'.tp+1
+                                      { st with
+                                        tp = st'.tp+1
                                       ; mf = mf_updated
                                       ; events = events_updated
                                       } in
-                                    ((mf_updated, st_updated), json_expls ts st'.tp [] f (Deque.to_list ps) cbs_opt)) in
-              (List.iter (List.filter o (fun s -> not (String.equal s ""))) ~f:(fun s -> Printf.printf "s = '%s'\n" s));
+                                    ((mf_updated, st_updated), json_expls st.tp_ts [] f (Deque.to_list ps) cbs_opt)) in
               let o' = String.concat ",\n" (List.filter o (fun s -> not (String.equal s ""))) in
               ((m, s), ("[" ^ o' ^ "]\n")))
   | Error err -> ((mf, st), json_error err)

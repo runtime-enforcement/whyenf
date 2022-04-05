@@ -17,6 +17,9 @@ type idx = int
 type cell = timepoint * idx * bool
 type table = (cell * (cell list)) list
 
+let cell_col cell = match cell with
+  | (_, col, _) -> col
+
 let rec f_idx idx f =
   match f with
   | TT -> idx
@@ -175,22 +178,22 @@ let cell_to_json (tp, col, b) cells =
   (Printf.sprintf "%s\"col\": %d,\n" ident2 col) ^
   (Printf.sprintf "%s\"bool\": %B,\n" ident2 b) ^
   (Printf.sprintf "%s\"cells\":" ident2) ^
-  (if List.is_empty cells then " []"
-   else ((Printf.sprintf " [\n") ^
-         (String.concat ",\n" (List.map cells ~f:(fun (tp', col', b') ->
-                                   (Printf.sprintf "%s{\n" ident2) ^
-                                   (Printf.sprintf "%s\"tp\": %d,\n" ident3 tp') ^
-                                   (Printf.sprintf "%s\"col\": %d,\n" ident3 col') ^
-                                   (Printf.sprintf "%s\"bool\": %B\n" ident3 b') ^
-                                   (Printf.sprintf "%s}" ident2)))) ^
-         (Printf.sprintf "]\n"))) ^
-  (Printf.sprintf "\n%s}" ident)
+  (Printf.sprintf " [\n") ^
+  (String.concat ",\n" (List.map cells ~f:(fun (tp', col', b') ->
+                            (Printf.sprintf "%s{\n" ident2) ^
+                            (Printf.sprintf "%s\"tp\": %d,\n" ident3 tp') ^
+                            (Printf.sprintf "%s\"col\": %d,\n" ident3 col') ^
+                            (Printf.sprintf "%s\"bool\": %B\n" ident3 b') ^
+                            (Printf.sprintf "%s}" ident2)))) ^
+    (Printf.sprintf "]\n") ^
+    (Printf.sprintf "\n%s}" ident)
 
 let expl_to_json f p =
   (* (Printf.printf "f = %s\n" (formula_to_string f));
    * (Printf.printf "p = %s\n" (expl_to_string p)); *)
   let (tbl, _) = update_state [] 0 f p in
+  let tbl' = List.filter tbl ~f:(fun (cell, cells) -> (not (List.is_empty cells)) || (cell_col cell) = 0) in
   let ident = "    " in
   (Printf.sprintf "%s\"table\": [\n" ident) ^
-  (String.concat ",\n" (List.map tbl ~f:(fun (cell, cells) -> cell_to_json cell cells))) ^
+  (String.concat ",\n" (List.map tbl' ~f:(fun (cell, cells) -> cell_to_json cell cells))) ^
   (Printf.sprintf "]")
