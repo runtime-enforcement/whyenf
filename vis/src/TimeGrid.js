@@ -57,14 +57,21 @@ function TimeGrid ({ explanations, columns, squares, dispatch }) {
   const handleClick = (params, tp, col) => {
     const colIndex = parseInt(col);
     const cloneSquares = [...squares];
+    let cell;
 
-    const cell = explanations[tp].table.find(c => c.tp === tp && c.col === colIndex);
-    for (let i = 0; i < cell.cells.length; ++i) {
-      cloneSquares[cell.cells[i].tp][cell.cells[i].col] = squareColorTest(cell.cells[i].bool);
+    for (let i = 0; i < explanations.length; ++i) {
+      let c = explanations[i].table.find(c => c.tp === tp && c.col === colIndex);
+      if (c !== undefined) cell = c;
     }
 
-    let action = { squares: cloneSquares, type: 'update' };
-    dispatch(action);
+    if (cell !== undefined) {
+      for (let i = 0; i < cell.cells.length; ++i) {
+        cloneSquares[cell.cells[i].tp][cell.cells[i].col] = squareColorTest(cell.cells[i].bool);
+      }
+
+      let action = { squares: cloneSquares, type: 'update' };
+      dispatch(action);
+    }
   };
 
   return (
