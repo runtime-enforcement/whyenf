@@ -146,7 +146,7 @@ let rec update_state tbl idx f p =
      let vp1_idx = idx+1 in
      let (tbl', idx') = update_state tbl vp1_idx f1 (V vp1) in
      let vp2_idx = idx'+1 in
-     let (tbl'', idx'') = List.fold vp2s ~init:(tbl, vp2_idx)
+     let (tbl'', idx'') = List.fold vp2s ~init:(tbl', vp2_idx)
                             ~f:(fun (t, i) vp2 -> update_state t i f2 (V vp2)) in
      let cell = (p_at p, idx, false) in
      let cells = (v_at vp1, vp1_idx, false) ::
