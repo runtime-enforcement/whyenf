@@ -136,7 +136,7 @@ module Explanator2 = struct
       | ("-vis" :: fmla :: args) ->
          (* Quick sanity check (visualization related) *)
          vis_ref := true;
-         log_str_ref := "@0 b\n@3 a\n@7 a\n@11 a b\n@13 a\n@17 a";
+         log_str_ref := "@0 a\n@3 a b\n@7\n@11 a\n@13 a\n@17 a\n@18 a b\n@18 a b\n@22 a";
          check_ref := true;
          measure_le_ref := Some(size_le);
          fmla_ref := Some(Lib.Mtl_parser.formula Lib.Mtl_lexer.token (Lexing.from_string fmla));
