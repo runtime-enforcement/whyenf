@@ -64,9 +64,9 @@ function TimeGrid ({ explanations, columns, squares, dispatch }) {
       if (c !== undefined) cell = c;
     }
 
-    if (cell !== undefined) {
+    if (cell !== undefined && squares[cell.tp][cell.col] !== undefined) {
       for (let i = 0; i < cell.cells.length; ++i) {
-        cloneSquares[cell.cells[i].tp][cell.cells[i].col] = squareColorTest(cell.cells[i].bool);
+        cloneSquares[cell.cells[i].tp][cell.cells[i].col] = squareColor(cell.cells[i].bool);
       }
 
       let action = { squares: cloneSquares, type: 'update' };
