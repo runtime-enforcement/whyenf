@@ -50,7 +50,7 @@ function reducer(state, action) {
     return { explanations: state.explanations,
              atoms: state.atoms,
              columns: state.columns,
-             squares: initSquares(state.explanations)
+             squares: initSquares(state.explanations, state.atoms)
            }
   case 'update':
     return { explanations: state.explanations,
