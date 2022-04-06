@@ -1079,13 +1079,22 @@ let monitor2 ?mf ?st log c le f =
                                                     let checks = check_ps events_updated f (Deque.to_list ps) in
                                                     Some (List.map checks (fun (b, _, _) -> b))
                                                   else None in
+                                    let expls = json_expls st.tp_ts [] f (Deque.to_list ps) cbs_opt in
+                                    let atoms = json_atoms f sap_filtered st'.tp ts in
                                     let st_updated =
                                       { st with
                                         tp = st'.tp+1
                                       ; mf = mf_updated
                                       ; events = events_updated
                                       } in
-                                    ((mf_updated, st_updated), json_expls st.tp_ts [] f (Deque.to_list ps) cbs_opt)) in
-              let o' = String.concat ",\n" (List.filter o (fun s -> not (String.equal s ""))) in
-              ((m, s), ("[" ^ o' ^ "]\n")))
+                                    ((mf_updated, st_updated), (expls, atoms))) in
+              let expls = List.map o (fun (e, _) -> e) in
+              let expls' = String.concat ",\n" (List.filter expls (fun e -> not (String.equal e ""))) in
+              let atoms = List.map o (fun (_, a) -> a) in
+              let atoms' = String.concat ",\n" (List.filter atoms (fun a -> not (String.equal a ""))) in
+              let ident = "    " in
+              let json = (Printf.sprintf "{\n") ^
+                         (Printf.sprintf "%s\"expls\": [\n%s],\n" ident expls') ^
+                         (Printf.sprintf "%s\"atoms\": [\n%s]\n}" ident atoms') in
+              ((m, s), json))
   | Error err -> ((mf, st), json_error err)
