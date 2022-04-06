@@ -30,93 +30,33 @@ let rec f_idx idx f =
   | Since (_, f1, f2) | Until (_, f1, f2) -> let idx' = f_idx (idx+1) f1 in
                                              f_idx (idx'+1) f2
 
-let rec atoms tbl idx f p =
-  match f, p with
-  | TT, S (STT i) ->
-     let cell = (p_at p, idx, true) in
+let rec atoms tbl idx f sap tp =
+  match f with
+  | TT ->
+     let cell = (tp, idx, true) in
      ((cell, []) :: tbl, idx)
-  | P s1, S (SAtom (i, s2)) ->
-     let cell = (p_at p, idx, true) in
+  | FF ->
+     let cell = (tp, idx, false) in
      ((cell, []) :: tbl, idx)
-  | Neg f', S (SNeg vp) ->
+  | P s ->
+     let b = SS.mem s sap in
+     let cell = (tp, idx, b) in
+     ((cell, []) :: tbl, idx)
+  | Neg f' ->
      let vp_idx = idx+1 in
-     atoms tbl vp_idx f' (V vp)
-  | Disj (f1, _), S (SDisjL sp1) ->
+     atoms tbl vp_idx f' sap tp
+  | Conj (f1, f2)
+  | Disj (f1, f2)
+  | Since (_, f1, f2)
+  | Until (_, f1, f2) ->
      let sp1_idx = idx+1 in
-     atoms tbl sp1_idx f1 (S sp1)
-  | Disj (f1, f2), S (SDisjR sp2) ->
-     let sp1_idx = idx+1 in
-     let sp2_idx = (f_idx sp1_idx f1)+1 in
-     atoms tbl sp2_idx f2 (S sp2)
-  | Conj (f1, f2), S (SConj (sp1, sp2)) ->
-     let sp1_idx = idx+1 in
-     let (tbl', idx') = atoms tbl sp1_idx f1 (S sp1) in
+     let (tbl', idx') = atoms tbl sp1_idx f1 sap tp in
      let sp2_idx = idx'+1 in
-     atoms tbl' sp2_idx f2 (S sp2)
-  | Prev (_, f'), S (SPrev sp) ->
+     atoms tbl' sp2_idx f2 sap tp
+  | Prev (_, f')
+  | Next (_, f') ->
      let sp_idx = idx+1 in
-     atoms tbl sp_idx f' (S sp)
-  | Since (_, f1, f2), S (SSince (sp2, []))
-  | Until (_, f1, f2), S (SUntil (sp2, [])) ->
-     let sp1_idx = idx+1 in
-     let sp2_idx = (f_idx sp1_idx f1)+1 in
-     atoms tbl sp2_idx f2 (S sp2)
-  | Since (_, f1, f2), S (SSince (sp2, sp1s))
-  | Until (_, f1, f2), S (SUntil (sp2, sp1s)) ->
-     let sp1_idx = idx+1 in
-     let (tbl', idx') = List.fold sp1s ~init:(tbl, sp1_idx)
-                          ~f:(fun (t, i) sp1 -> atoms t i f1 (S sp1)) in
-     let sp2_idx = idx'+1 in
-     atoms tbl' sp2_idx f2 (S sp2)
-  | FF, V (VFF i) ->
-     let cell = (p_at p, idx, false) in
-     ((cell, []) :: tbl, idx)
-  | P s1, V (VAtom (i, s2)) ->
-     let cell = (p_at p, idx, false) in
-     ((cell, []) :: tbl, idx)
-  | Neg f', V (VNeg sp) ->
-     let sp_idx = idx+1 in
-     atoms tbl sp_idx f' (S sp)
-  | Disj (f1, f2), V (VDisj (vp1, vp2)) ->
-     let vp1_idx = idx+1 in
-     let (tbl', idx') = atoms tbl vp1_idx f1 (V vp1) in
-     let vp2_idx = idx'+1 in
-     atoms tbl' vp2_idx f2 (V vp2)
-  | Conj (f1, _), V (VConjL vp1) ->
-     let vp1_idx = idx+1 in
-     atoms tbl vp1_idx f1 (V vp1)
-  | Conj (f1, f2), V (VConjR vp2) ->
-     let vp1_idx = idx+1 in
-     let vp2_idx = (f_idx vp1_idx f1)+1 in
-     atoms tbl vp2_idx f2 (V vp2)
-  | Next (_, f'), V (VNext vp)
-  | Prev (_, f'), V (VPrev vp) ->
-     let vp_idx = idx+1 in
-     atoms tbl vp_idx f' (V vp)
-  | Since (_, f1, _), V (VSince (_, vp1, []))
-  | Until (_, f1, _), V (VUntil (_, vp1, [])) ->
-     let vp1_idx = idx+1 in
-     atoms tbl vp1_idx f1 (V vp1)
-  | Since (_, f1, f2), V (VSince (_, vp1, vp2s))
-  | Until (_, f1, f2), V (VUntil (_, vp1, vp2s)) ->
-     let vp1_idx = idx+1 in
-     let (tbl', idx') = atoms tbl vp1_idx f1 (V vp1) in
-     let vp2_idx = idx'+1 in
-     List.fold vp2s ~init:(tbl', vp2_idx)
-       ~f:(fun (t, i) vp2 -> atoms t i f2 (V vp2))
-  | Since (_, f1, f2), V (VSinceInf (_, _, vp2s))
-  | Until (_, f1, f2), V (VUntilInf (_, _, vp2s)) ->
-     let vp1_idx = idx+1 in
-     let vp2_idx = (f_idx vp1_idx f1)+1 in
-     List.fold vp2s ~init:(tbl, vp2_idx)
-       ~f:(fun (t, i) vp2 -> atoms t i f2 (V vp2))
-  | Prev (_, _), V VPrev0
-  | Prev (_, _), V (VPrevOutL _)
-  | Prev (_, _), V (VPrevOutR _)
-  | Next (_, _), V (VNextOutL _)
-  | Next (_, _), V (VNextOutR _)
-  | Since (_, _, _), V (VSinceOutL _) ->
-     (tbl, idx)
+     atoms tbl sp_idx f' sap tp
 
 let rec update_state tbl idx f p =
   match f, p with
@@ -261,26 +201,28 @@ let cell_to_json (tp, col, b) cells =
   let ident = "    " in
   let ident2 = "    " ^ ident in
   let ident3 = "    " ^ ident2 in
-  (Printf.sprintf "%s{\n" ident) ^
-  (Printf.sprintf "%s\"tp\": %d,\n" ident2 tp) ^
-  (Printf.sprintf "%s\"col\": %d,\n" ident2 col) ^
-  (Printf.sprintf "%s\"bool\": %B,\n" ident2 b) ^
-  (Printf.sprintf "%s\"cells\":" ident2) ^
+  let ident4 = "    " ^ ident3 in
+  (Printf.sprintf "%s{\n" ident2) ^
+  (Printf.sprintf "%s\"tp\": %d,\n" ident3 tp) ^
+  (Printf.sprintf "%s\"col\": %d,\n" ident3 col) ^
+  (Printf.sprintf "%s\"bool\": %B,\n" ident3 b) ^
+  (Printf.sprintf "%s\"cells\":" ident3) ^
     (if List.is_empty cells then " []"
      else ((Printf.sprintf " [\n") ^
            (String.concat ",\n" (List.map cells ~f:(fun (tp', col', b') ->
-                                     (Printf.sprintf "%s{\n" ident2) ^
-                                     (Printf.sprintf "%s\"tp\": %d,\n" ident3 tp') ^
-                                     (Printf.sprintf "%s\"col\": %d,\n" ident3 col') ^
-                                     (Printf.sprintf "%s\"bool\": %B\n" ident3 b') ^
-                                     (Printf.sprintf "%s}" ident2))))) ^
+                                     (Printf.sprintf "%s{\n" ident3) ^
+                                     (Printf.sprintf "%s\"tp\": %d,\n" ident4 tp') ^
+                                     (Printf.sprintf "%s\"col\": %d,\n" ident4 col') ^
+                                     (Printf.sprintf "%s\"bool\": %B\n" ident4 b') ^
+                                     (Printf.sprintf "%s}" ident3))))) ^
            (Printf.sprintf "]\n")) ^
-   (Printf.sprintf "\n%s}" ident)
+   (Printf.sprintf "\n%s}" ident2)
 
-let atoms_to_json f p =
-  let (tbl, _) = atoms [] 0 f p in
+let atoms_to_json f sap tp =
+  let (tbl, _) = atoms [] 0 f sap tp in
   let ident = "    " in
-  (Printf.sprintf "%s\"atoms\": [\n" ident) ^
+  let ident2 = "    " ^ ident in
+  (Printf.sprintf "%s\"aps\": [\n" ident2) ^
   (String.concat ",\n" (List.map tbl ~f:(fun (cell, cells) -> cell_to_json cell cells))) ^
   (Printf.sprintf "]")
 
@@ -290,6 +232,7 @@ let expl_to_json f p =
   let (tbl, _) = update_state [] 0 f p in
   let tbl' = List.filter tbl ~f:(fun (cell, cells) -> (not (List.is_empty cells)) || (cell_col cell) = 0) in
   let ident = "    " in
-  (Printf.sprintf "%s\"table\": [\n" ident) ^
+  let ident2 = "    " ^ ident in
+  (Printf.sprintf "%s\"table\": [\n" ident2) ^
   (String.concat ",\n" (List.map tbl' ~f:(fun (cell, cells) -> cell_to_json cell cells))) ^
   (Printf.sprintf "]")

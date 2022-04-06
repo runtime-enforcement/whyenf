@@ -133,31 +133,40 @@ let json_table_columns f =
   Printf.sprintf "{\n  \"columns\": %s\n}\n" (list_to_json (List.map (subfs_dfs f) formula_to_string))
 
 let json_expls tp_ts tps_in f ps cbs_opt =
+  let ident = "    " in
+  let ident2 = "    " ^ ident in
   match cbs_opt with
   | None -> String.concat ~sep:",\n" (List.map ps ~f:(fun p ->
                                           let tp = (p_at p) in
                                           let ts = Hashtbl.find tp_ts tp in
-                                          let ident = "    " in
                                           let tps_in_json = list_to_json (List.map tps_in (fun el -> string_of_int el)) in
-                                          Printf.sprintf "{\n" ^
-                                          Printf.sprintf "%s\"ts\": %d,\n" ident ts ^
-                                          Printf.sprintf "%s\"tp\": %d,\n" ident tp ^
-                                          Printf.sprintf "%s\"tps_in\": %s,\n" ident tps_in_json ^
+                                          Printf.sprintf "%s{\n" ident ^
+                                          Printf.sprintf "%s\"ts\": %d,\n" ident2 ts ^
+                                          Printf.sprintf "%s\"tp\": %d,\n" ident2 tp ^
+                                          Printf.sprintf "%s\"tps_in\": %s,\n" ident2 tps_in_json ^
                                           Printf.sprintf "%s\n" (expl_to_json f p) ^
-                                          Printf.sprintf "}"))
+                                          Printf.sprintf "%s}" ident))
   | Some cbs -> String.concat ~sep:",\n" (List.map2_exn ps cbs ~f:(fun p cb ->
                                               let tp = (p_at p) in
                                               let ts = Hashtbl.find tp_ts tp in
-                                              let ident = "    " in
                                               let tps_in_json = list_to_json (List.map tps_in (fun el ->
                                                                                   string_of_int el)) in
-                                              Printf.sprintf "{\n" ^
-                                              Printf.sprintf "%s\"ts\": %d,\n" ident ts ^
-                                              Printf.sprintf "%s\"tp\": %d,\n" ident tp ^
-                                              Printf.sprintf "%s\"tps_in\": %s,\n" ident tps_in_json ^
-                                              Printf.sprintf "%s\"checker\": \"%B\",\n" ident cb ^
+                                              Printf.sprintf "%s{\n" ident ^
+                                              Printf.sprintf "%s\"ts\": %d,\n" ident2 ts ^
+                                              Printf.sprintf "%s\"tp\": %d,\n" ident2 tp ^
+                                              Printf.sprintf "%s\"tps_in\": %s,\n" ident2 tps_in_json ^
+                                              Printf.sprintf "%s\"checker\": \"%B\",\n" ident2 cb ^
                                               Printf.sprintf "%s\n" (expl_to_json f p) ^
-                                              Printf.sprintf "}\n"))
+                                              Printf.sprintf "%s}" ident))
 
 let json_error err =
   Printf.sprintf "ERROR: %s" (Error.to_string_hum err)
+
+let json_atoms f sap tp ts =
+  let ident = "    " in
+  let ident2 = "    " ^ ident in
+  Printf.sprintf "%s{\n" ident ^
+  Printf.sprintf "%s\"ts\": %d,\n" ident2 ts ^
+  Printf.sprintf "%s\"tp\": %d,\n" ident2 tp ^
+  Printf.sprintf "%s\n" (atoms_to_json f sap tp) ^
+  Printf.sprintf "%s}" ident
