@@ -24,7 +24,7 @@ const card = (
       </Typography>
       <Typography sx={{ mt: 3 }} variant="body2">
         This is a tool for online monitoring satisfaction and violation explanations
-        of MTL (Metric Temporal Logic) and MDL (Metric Dynamic Logic) formulas on arbitrary words. <br />
+        of MTL (Metric Temporal Logic) formulas on arbitrary traces. <br />
         It is built upon the <Link href="https://bitbucket.org/traytel/explanator/src/master/">Explanator</Link>.
       </Typography>
     </CardContent>
