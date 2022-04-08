@@ -2,13 +2,18 @@ import React, { useState } from "react";
 import Box from '@mui/material/Box';
 import { DataGrid } from '@mui/x-data-grid';
 import Button from '@mui/material/Button';
-import SquareIcon from '@mui/icons-material/Square';
+import CircleIcon from '@mui/icons-material/Circle';
+import CancelIcon from '@mui/icons-material/Cancel';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import { red, purple, yellow, lightGreen } from '@mui/material/colors';
 import { squareColor, squareColorTest } from './util';
 
-function Square(props) {
+function Cell(props) {
   return (
     <Button onClick={props.onClick}>
-      <SquareIcon style={{ color: props.value }} />
+      { props.value === undefined && <CircleIcon style={{ color: props.value }} /> }
+      { props.value === red[500] && <CancelIcon style={{ color: props.value }} /> }
+      { props.value === lightGreen[500] && <CheckCircleIcon style={{ color: props.value }} /> }
     </Button>
   );
 }
@@ -40,7 +45,7 @@ function TimeGrid ({ explanations, columns, squares, dispatch }) {
       width: (10*(f.length)),
       sortable: false,
       renderHeader: () => columns[i],
-      renderCell: (params) => <Square value={squares[params.row.tp][i]}
+      renderCell: (params) => <Cell value={squares[params.row.tp][i]}
                                       onClick={() => handleClick(params, params.row.tp, params.colDef.field)} />,
       headerAlign: 'center',
       align: 'center',
