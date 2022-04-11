@@ -151,6 +151,7 @@ module Explanator2 = struct
       let measure_le = Option.get !measure_le_ref in
       let formula = Option.get !fmla_ref in
       if !vis_ref then
+        let () = Printf.printf "%s" (json_table_columns formula) in
         let (_, out) = monitor2 !log_str_ref !check_ref measure_le formula in
         Printf.printf "%s" out
       else
