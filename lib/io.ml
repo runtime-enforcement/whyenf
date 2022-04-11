@@ -130,31 +130,29 @@ let parse_lines_from_string s =
                      | Some s -> Continue (s::acc))
 
 let json_table_columns f =
-  Printf.sprintf "{\n  \"columns\": %s\n}\n" (list_to_json (List.map (subfs_dfs f) formula_to_string))
+  let aps_columns = Mtl.atoms f in
+  let subfs_columns = List.map (subfs_dfs f) formula_to_string in
+  Printf.sprintf "{\n  \"apsColumns\": %s,\n  \"subfsColumns\": %s\n}\n"
+    (list_to_json aps_columns) (list_to_json subfs_columns)
 
-let json_expls tp_ts tps_in f ps cbs_opt =
+let json_expls tp_ts f ps cbs_opt =
   let ident = "    " in
   let ident2 = "    " ^ ident in
   match cbs_opt with
   | None -> String.concat ~sep:",\n" (List.map ps ~f:(fun p ->
                                           let tp = (p_at p) in
                                           let ts = Hashtbl.find tp_ts tp in
-                                          let tps_in_json = list_to_json (List.map tps_in (fun el -> string_of_int el)) in
                                           Printf.sprintf "%s{\n" ident ^
                                           Printf.sprintf "%s\"ts\": %d,\n" ident2 ts ^
                                           Printf.sprintf "%s\"tp\": %d,\n" ident2 tp ^
-                                          Printf.sprintf "%s\"tps_in\": %s,\n" ident2 tps_in_json ^
                                           Printf.sprintf "%s\n" (expl_to_json f p) ^
                                           Printf.sprintf "%s}" ident))
   | Some cbs -> String.concat ~sep:",\n" (List.map2_exn ps cbs ~f:(fun p cb ->
                                               let tp = (p_at p) in
                                               let ts = Hashtbl.find tp_ts tp in
-                                              let tps_in_json = list_to_json (List.map tps_in (fun el ->
-                                                                                  string_of_int el)) in
                                               Printf.sprintf "%s{\n" ident ^
                                               Printf.sprintf "%s\"ts\": %d,\n" ident2 ts ^
                                               Printf.sprintf "%s\"tp\": %d,\n" ident2 tp ^
-                                              Printf.sprintf "%s\"tps_in\": %s,\n" ident2 tps_in_json ^
                                               Printf.sprintf "%s\"checker\": \"%B\",\n" ident2 cb ^
                                               Printf.sprintf "%s\n" (expl_to_json f p) ^
                                               Printf.sprintf "%s}" ident))

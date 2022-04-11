@@ -1079,7 +1079,7 @@ let monitor2 ?mf ?st log c le f =
                                                     let checks = check_ps events_updated f (Deque.to_list ps) in
                                                     Some (List.map checks (fun (b, _, _) -> b))
                                                   else None in
-                                    let expls = json_expls st.tp_ts [] f (Deque.to_list ps) cbs_opt in
+                                    let expls = json_expls st.tp_ts f (Deque.to_list ps) cbs_opt in
                                     let atoms = json_atoms f sap_filtered st'.tp ts in
                                     let st_updated =
                                       { st with
