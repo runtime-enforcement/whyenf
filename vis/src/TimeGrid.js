@@ -11,16 +11,29 @@ import { squareColor, squareColorTest } from './util';
 function Cell(props) {
   return (
     <Button onClick={props.onClick}>
-      { props.value === undefined && <CircleIcon style={{ color: props.value }} /> }
+      { props.value === undefined && <CircleIcon /> }
       { props.value === red[500] && <CancelIcon style={{ color: props.value }} /> }
       { props.value === lightGreen[500] && <CheckCircleIcon style={{ color: props.value }} /> }
     </Button>
   );
 }
 
-function TimeGrid ({ explanations, columns, squares, dispatch }) {
+function TimeGrid ({ explanations, apsColumns, subfsColumns, squares, dispatch }) {
 
-  const fixedColumns = [
+  const apsGridColumns = apsColumns.slice(0).map((a, i) =>
+    ({
+      field: i.toString(),
+      headerName: a,
+      width: (10*(a.length)),
+      sortable: false,
+      renderHeader: () => apsColumns[i],
+      renderCell: (params) => <Cell value={squares[params.row.tp][i]} onClick={() => {}} />,
+      headerAlign: 'center',
+      align: 'center',
+      disableClickEventBubbling: true
+    }));
+
+  const fixedGridColumns = [
     {
       field: 'tp',
       headerName: 'TP',
@@ -38,15 +51,15 @@ function TimeGrid ({ explanations, columns, squares, dispatch }) {
     }
   ];
 
-  const dynamicColumns = columns.slice(0).map((f, i) =>
+  const subfsGridColumns = subfsColumns.slice(0).map((f, i) =>
     ({
-      field: i.toString(),
+      field: (i+apsColumns.length+2).toString(),
       headerName: f,
       width: (10*(f.length)),
       sortable: false,
-      renderHeader: () => columns[i],
+      renderHeader: () => subfsColumns[i],
       renderCell: (params) => <Cell value={squares[params.row.tp][i]}
-                                      onClick={() => handleClick(params, params.row.tp, params.colDef.field)} />,
+                                    onClick={() => handleClick(params, params.row.tp, params.colDef.field)} />,
       headerAlign: 'center',
       align: 'center',
       disableClickEventBubbling: true
@@ -83,7 +96,7 @@ function TimeGrid ({ explanations, columns, squares, dispatch }) {
     <Box sx={{ height: 585 }}>
       <DataGrid
         rows={rows}
-        columns={fixedColumns.concat(dynamicColumns)}
+        columns={apsGridColumns.concat(fixedGridColumns.concat(subfsGridColumns))}
         pageSize={13}
         rowsPerPageOptions={[5]}
         density="compact"

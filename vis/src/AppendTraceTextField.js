@@ -2,10 +2,10 @@ import React from 'react';
 import Box from '@mui/material/Box';
 import TextField from '@mui/material/TextField';
 
-export default function TraceTextField ({ trace, setTrace }) {
+export default function AppendTraceTextField ({ appendTrace, setAppendTrace }) {
 
   const handleChange = (event) => {
-    setTrace(event.target.value);
+    setAppendTrace(event.target.value);
   };
 
   return (
@@ -21,8 +21,8 @@ export default function TraceTextField ({ trace, setTrace }) {
         id="outlined-multiline-static"
         label="Trace"
         multiline
-        rows={24}
-        value={trace}
+        rows={2}
+        value={appendTrace}
         onChange={handleChange}
       />
     </Box>
