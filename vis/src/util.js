@@ -54,48 +54,68 @@ export function squareColorTest(bool) {
 
 export function initSquares(explanations, atoms) {
 
-  var squares = [];
+  let maxRow = explanations.length;
+  let maxCol = 0;
 
+  // Find maxCol
   for (let tp = 0; tp < explanations.length; ++tp) {
     let tbl = explanations[tp].table;
-    squares[tp] = [];
-    // console.log(tbl);
     for (let j = 0; j < tbl.length; ++j) {
-      if (tp === tbl[j].tp && tbl[j].col === 0) {
-        switch(tbl[j].bool) {
-        case true:
-          squares[tp][tbl[j].col] = squareColor(true);
-          break;
-        case false:
-          squares[tp][tbl[j].col] = squareColor(false);
-          break;
-        default:
-          squares[tp][tbl[j].col] = "primary";
-          break;
-        }
-      }
+      if (tbl[j].col > maxCol) maxCol = tbl[j].col;
     }
   }
 
-  for (let tp = 0; tp < atoms.length; ++tp) {
-    let aps = atoms[tp].aps;
-    console.log(aps);
-    for (let j = 0; j < aps.length; ++j) {
-      if (tp === aps[j].tp) {
-        switch(aps[j].bool) {
-        case true:
-          squares[tp][aps[j].col] = squareColor(true);
-          break;
-        case false:
-          squares[tp][aps[j].col] = squareColor(false);
-          break;
-        default:
-          squares[tp][aps[j].col] = "primary";
-          break;
-        }
-      }
-    }
-  }
+  console.log("maxRow = " + maxRow);
+  console.log("maxCol = " + maxCol);
+
+  // Initialize empty squares
+  var squares = new Array(maxRow).fill(null).map(() => Array(maxCol).fill(null));
+
+  console.log(atoms);
+
+  // Populate atoms with data
+  // for (let tp = 0; tp < atoms.length; ++tp) {
+  //   let aps = atoms[tp].aps;
+  //   for (let j = 0; j < aps.length; ++j) {
+  //     if (tp === aps[j].tp) {
+  //       switch(aps[j].bool) {
+  //       case true:
+  //         squares[tp][aps[j].col] = squareColor(true);
+  //         break;
+  //       case false:
+  //         squares[tp][aps[j].col] = squareColor(false);
+  //         break;
+  //       default:
+  //         squares[tp][aps[j].col] = "primary";
+  //         break;
+  //       }
+  //     }
+  //   }
+  // }
+
+  // Populate main subformula column with data
+  // for (let tp = 0; tp < explanations.length; ++tp) {
+  //   let tbl = explanations[tp].table;
+  //   squares[tp] = [];
+  //   // console.log(tbl);
+  //   for (let j = 0; j < tbl.length; ++j) {
+  //     if (tp === tbl[j].tp) {
+  //       switch(tbl[j].bool) {
+  //       case true:
+  //         squares[tp][tbl[j].col] = squareColor(true);
+  //         break;
+  //       case false:
+  //         squares[tp][tbl[j].col] = squareColor(false);
+  //         break;
+  //       default:
+  //         squares[tp][tbl[j].col] = "primary";
+  //         break;
+  //       }
+  //     }
+  //   }
+  // }
+
+  // console.log(squares);
 
   return squares;
 }
