@@ -37,6 +37,7 @@ function init(action) {
     const c = JSON.parse(window.getColumns(action.formula));
     const s = initSquares(e, a);
 
+    console.log(e);
     return { explanations: e,
              atoms: a,
              apsColumns: c.apsColumns,
@@ -50,7 +51,10 @@ function init(action) {
              atoms: [],
              apsColumns: [],
              subfsColumns: [],
-             squares: [] };
+             squares: [],
+             selectedRows: [],
+             hideTrace: false
+           };
   }
 }
 
@@ -64,6 +68,7 @@ function reducer(state, action) {
              apsColumns: state.apsColumns,
              subfsColumns: state.subfsColumns,
              squares: initSquares(state.explanations, state.atoms),
+             selectedRows: [],
              hideTrace: true
            }
   case 'update':
@@ -72,6 +77,7 @@ function reducer(state, action) {
              apsColumns: state.apsColumns,
              subfsColumns: state.subfsColumns,
              squares: action.squares,
+             selectedRows: action.selectedRows,
              hideTrace: true
            }
   }
@@ -88,6 +94,7 @@ function App() {
                                                   apsColumns: [],
                                                   subfsColumns: [],
                                                   squares: [],
+                                                  selectedRows: [],
                                                   hideTrace: false
                                                 });
   const [errorDialog, setErrorDialog] = useState({ open: false, error: "" });
@@ -152,6 +159,7 @@ function App() {
                               apsColumns={state.apsColumns}
                               subfsColumns={state.subfsColumns}
                               squares={state.squares}
+                              selectedRows={state.selectedRows}
                               dispatch={dispatch}
                     />
                   </Grid>

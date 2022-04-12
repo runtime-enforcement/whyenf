@@ -6,7 +6,7 @@ import CircleIcon from '@mui/icons-material/Circle';
 import CancelIcon from '@mui/icons-material/Cancel';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { red, purple, yellow, lightGreen } from '@mui/material/colors';
-import { squareColor, squareColorTest } from './util';
+import { squareColor, squareColorTest, tpsIn } from './util';
 
 function Cell(props) {
   return (
@@ -18,7 +18,7 @@ function Cell(props) {
   );
 }
 
-function TimeGrid ({ explanations, apsColumns, subfsColumns, squares, dispatch }) {
+function TimeGrid ({ explanations, apsColumns, subfsColumns, squares, selectedRows, dispatch }) {
 
   const apsGridColumns = apsColumns.slice(0).map((a, i) =>
     ({
@@ -59,7 +59,7 @@ function TimeGrid ({ explanations, apsColumns, subfsColumns, squares, dispatch }
       sortable: false,
       renderHeader: () => subfsColumns[i],
       renderCell: (params) => { return <Cell value={squares[params.row.tp][i+apsColumns.length]}
-                                             onClick={() => handleClick(params, params.row.tp, params.colDef.field)} /> },
+                                             onClick={() => handleClick(params.row.ts, params.row.tp, params.colDef.field)} /> },
       headerAlign: 'center',
       align: 'center',
       disableClickEventBubbling: true
@@ -72,7 +72,7 @@ function TimeGrid ({ explanations, apsColumns, subfsColumns, squares, dispatch }
       ts: ts
     }));
 
-  const handleClick = (params, tp, col) => {
+  const handleClick = (ts, tp, col) => {
     const colIndex = parseInt(col);
     const cloneSquares = [...squares];
     let cell;
@@ -87,7 +87,12 @@ function TimeGrid ({ explanations, apsColumns, subfsColumns, squares, dispatch }
         cloneSquares[cell.cells[i].tp][cell.cells[i].col] = squareColor(cell.cells[i].bool);
       }
 
-      let action = { squares: cloneSquares, type: 'update' };
+      let selRows = tpsIn(ts, cell.interval, cell.period, explanations);
+      let action = { type: "update",
+                     squares: cloneSquares,
+                     selectedRows: selRows
+                   };
+
       dispatch(action);
     }
   };
@@ -97,10 +102,12 @@ function TimeGrid ({ explanations, apsColumns, subfsColumns, squares, dispatch }
       <DataGrid
         rows={rows}
         columns={apsGridColumns.concat(fixedGridColumns.concat(subfsGridColumns))}
+        selectionModel={selectedRows}
         pageSize={13}
         rowsPerPageOptions={[5]}
         density="compact"
         disableColumnMenu
+        disableSelectionOnClick
       />
     </Box>
   );
