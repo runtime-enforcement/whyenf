@@ -104,3 +104,37 @@ export function initSquares(explanations, atoms) {
 
   return squares;
 }
+
+export function tpsIn (ts, interval, period, explanations) {
+  const i = interval.split(',');
+  const a = parseInt(i[0].slice(1));
+  const bString = i[1].slice(0, i[1].length-1);
+
+  let idxs = [];
+  let b, l, r;
+
+  if (period === "past") {
+    if (bString === '∞') {
+      l = 0;
+      r = ts - a;
+    } else {
+      b = parseInt(bString);
+      l = ts - b;
+      r = ts - a;
+    }
+  } else {
+    b = parseInt(bString);
+    l = ts + a;
+    r = ts + b;
+  }
+
+  for (let tp = 0; tp < explanations.length; ++tp) {
+    if (explanations[tp].ts >= l && explanations[tp].ts <= r) {
+      idxs.push(tp);
+    }
+  }
+
+  console.log("idxs = " + idxs);
+
+  return idxs;
+}
