@@ -11,7 +11,7 @@ import { squareColor, squareColorTest } from './util';
 function Cell(props) {
   return (
     <Button onClick={props.onClick}>
-      { props.value === undefined && <CircleIcon /> }
+      { props.value === "" && <CircleIcon /> }
       { props.value === red[500] && <CancelIcon style={{ color: props.value }} /> }
       { props.value === lightGreen[500] && <CheckCircleIcon style={{ color: props.value }} /> }
     </Button>
@@ -53,13 +53,13 @@ function TimeGrid ({ explanations, apsColumns, subfsColumns, squares, dispatch }
 
   const subfsGridColumns = subfsColumns.slice(0).map((f, i) =>
     ({
-      field: (i+apsColumns.length+2).toString(),
+      field: (i+apsColumns.length).toString(),
       headerName: f,
       width: (10*(f.length)),
       sortable: false,
       renderHeader: () => subfsColumns[i],
-      renderCell: (params) => <Cell value={squares[params.row.tp][i]}
-                                    onClick={() => handleClick(params, params.row.tp, params.colDef.field)} />,
+      renderCell: (params) => { return <Cell value={squares[params.row.tp][i+apsColumns.length]}
+                                             onClick={() => handleClick(params, params.row.tp, params.colDef.field)} /> },
       headerAlign: 'center',
       align: 'center',
       disableClickEventBubbling: true
@@ -82,7 +82,7 @@ function TimeGrid ({ explanations, apsColumns, subfsColumns, squares, dispatch }
       if (c !== undefined) cell = c;
     }
 
-    if (cell !== undefined && squares[cell.tp][cell.col] !== undefined) {
+    if (cell !== undefined && squares[cell.tp][cell.col] !== "") {
       for (let i = 0; i < cell.cells.length; ++i) {
         cloneSquares[cell.cells[i].tp][cell.cells[i].col] = squareColor(cell.cells[i].bool);
       }
