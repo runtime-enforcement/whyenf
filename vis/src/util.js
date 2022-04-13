@@ -136,8 +136,6 @@ export function tpsIn (ts, tp, interval, period, explanations) {
     }
   }
 
-  // console.log("idxs = " + idxs);
-
   return idxs;
 }
 
@@ -149,8 +147,13 @@ export function translateError (error) {
   if (error.message === undefined && error[1].c !== undefined) {
     switch (error[1].c) {
     case "Lib.Mtl_parser.MenhirBasics.Error":
-      translatedError = { name: "Error", message: "Formula could not be parsed.\n\nPlease make sure the syntax is correct." }
+      translatedError = { name: "Error",
+                          message: "Formula could not be parsed.\n\nPlease make sure the syntax is correct."
+                        }
       break;
+    case "Lib.Monitor.UNBOUNDED_FUTURE":
+      translatedError = { name: "Error",
+                          message: "Your formula has an unbounded UNTIL.\n\nPlease make sure all UNTIL instances are bounded." }
     }
   } else {
     if (error.message.includes("Unexpected token")) {
