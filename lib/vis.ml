@@ -239,9 +239,9 @@ let expl_to_json f p =
   let atoms = Mtl.atoms f in
   let start_idx = List.length atoms in
   let (tbl, _) = update_expl_table [] start_idx f p in
-  let tbl' = List.filter tbl ~f:(fun (cell, cells) -> (not (List.is_empty cells)) || (cell_col cell) = 0) in
+  (* let tbl' = List.filter tbl ~f:(fun (cell, cells) -> (not (List.is_empty cells)) || (cell_col cell) = 0) in *)
   let ident = "    " in
   let ident2 = "    " ^ ident in
   (Printf.sprintf "%s\"table\": [\n" ident2) ^
-  (String.concat ",\n" (List.map tbl' ~f:(fun (cell, cells) -> cell_to_json cell cells))) ^
+  (String.concat ",\n" (List.map tbl ~f:(fun (cell, cells) -> cell_to_json cell cells))) ^
   (Printf.sprintf "]")
