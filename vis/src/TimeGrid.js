@@ -5,7 +5,8 @@ import Button from '@mui/material/Button';
 import CircleIcon from '@mui/icons-material/Circle';
 import CancelIcon from '@mui/icons-material/Cancel';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import { red, purple, yellow, lightGreen } from '@mui/material/colors';
+import { red, purple, yellow, lightGreen, cyan } from '@mui/material/colors';
+import { common } from '@mui/material/colors'
 import { squareColor, squareColorTest, tpsIn } from './util';
 
 function Cell(props) {
@@ -87,7 +88,7 @@ function TimeGrid ({ explanations, apsColumns, subfsColumns, squares, selectedRo
         cloneSquares[cell.cells[i].tp][cell.cells[i].col] = squareColor(cell.cells[i].bool);
       }
 
-      let selRows = tpsIn(ts, cell.interval, cell.period, explanations);
+      let selRows = tpsIn(ts, tp, cell.interval, cell.period, explanations);
       let action = { type: "update",
                      squares: cloneSquares,
                      selectedRows: selRows
@@ -98,11 +99,25 @@ function TimeGrid ({ explanations, apsColumns, subfsColumns, squares, selectedRo
   };
 
   return (
-    <Box sx={{ height: 585 }}>
+    <Box sx={{ height: 585,
+               '& .row--Highlighted': {
+                 bgcolor: (theme) => cyan[100],
+                 '&:hover': {
+                   bgcolor: (theme) => cyan[200],
+                 },
+               },
+               '& .row--Plain': {
+                 bgcolor: (theme) => common.white,
+                 '&:hover': {
+                   bgcolor: (theme) => common.gray,
+                 },
+               }}}>
       <DataGrid
         rows={rows}
         columns={apsGridColumns.concat(fixedGridColumns.concat(subfsGridColumns))}
-        selectionModel={selectedRows}
+        getRowClassName={(params) => {
+          if (selectedRows.includes(params.row.tp)) return `row--Highlighted`
+          else return `row--Plain` }}
         pageSize={13}
         rowsPerPageOptions={[5]}
         density="compact"

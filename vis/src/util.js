@@ -105,7 +105,7 @@ export function initSquares(explanations, atoms) {
   return squares;
 }
 
-export function tpsIn (ts, interval, period, explanations) {
+export function tpsIn (ts, tp, interval, period, explanations) {
   const i = interval.split(',');
   const a = parseInt(i[0].slice(1));
   const bString = i[1].slice(0, i[1].length-1);
@@ -128,13 +128,15 @@ export function tpsIn (ts, interval, period, explanations) {
     r = ts + b;
   }
 
-  for (let tp = 0; tp < explanations.length; ++tp) {
-    if (explanations[tp].ts >= l && explanations[tp].ts <= r) {
-      idxs.push(tp);
+  for (let i = 0; i < explanations.length; ++i) {
+    if (explanations[i].ts >= l && explanations[i].ts <= r
+        && ((period === "past" && explanations[i].tp <= tp)
+            || (period === "future" && explanations[i].tp >= tp))) {
+      idxs.push(i);
     }
   }
 
-  console.log("idxs = " + idxs);
+  // console.log("idxs = " + idxs);
 
   return idxs;
 }
