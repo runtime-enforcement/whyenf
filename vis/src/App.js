@@ -37,12 +37,13 @@ function init(action) {
     const c = JSON.parse(window.getColumns(action.formula));
     const s = initSquares(e, a);
 
-    console.log(e);
+    // console.log(e);
     return { explanations: e,
              atoms: a,
              apsColumns: c.apsColumns,
              subfsColumns: c.subfsColumns,
              squares: s,
+             selectedRows: [],
              hideTrace: true
            };
   } catch (error) {
