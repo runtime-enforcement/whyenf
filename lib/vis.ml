@@ -106,7 +106,7 @@ let rec update_expl_table tbl idx f p =
      let sp1_idx = idx+1 in
      (* Recursive calls *)
      let (tbl', idx') = List.fold sp1s ~init:(tbl, sp1_idx)
-                          ~f:(fun (t, i) sp1 -> update_expl_table t i f1 (S sp1)) in
+                          ~f:(fun (t, _) sp1 -> update_expl_table t sp1_idx f1 (S sp1)) in
      let sp2_idx = idx'+1 in
      let (tbl'', idx'') = update_expl_table tbl' sp2_idx f2 (S sp2) in
      (* State update *)
@@ -171,7 +171,7 @@ let rec update_expl_table tbl idx f p =
      let (tbl', idx') = update_expl_table tbl vp1_idx f1 (V vp1) in
      let vp2_idx = idx'+1 in
      let (tbl'', idx'') = List.fold vp2s ~init:(tbl', vp2_idx)
-                            ~f:(fun (t, i) vp2 -> update_expl_table t i f2 (V vp2)) in
+                            ~f:(fun (t, _) vp2 -> update_expl_table t vp2_idx f2 (V vp2)) in
      let cell = match f with Since _ -> (p_at p, idx, Some(i, PAST), false)
                            | Until _ -> (p_at p, idx, Some(i, FUTURE), false)
                            | _ -> raise (UNEXPECTED_FORMULA "Formula must be either Since or Until") in
@@ -183,7 +183,7 @@ let rec update_expl_table tbl idx f p =
      let vp1_idx = idx+1 in
      let vp2_idx = (f_idx vp1_idx f1)+1 in
      let (tbl', idx') = List.fold vp2s ~init:(tbl, vp2_idx)
-                          ~f:(fun (t, i) vp2 -> update_expl_table t i f2 (V vp2)) in
+                          ~f:(fun (t, _) vp2 -> update_expl_table t vp2_idx f2 (V vp2)) in
      let cell = match f with Since _ -> (p_at p, idx, Some(i, PAST), false)
                            | Until _ -> (p_at p, idx, Some(i, FUTURE), false)
                            | _ -> raise (UNEXPECTED_FORMULA "Formula must be either Since or Until") in
