@@ -73,13 +73,8 @@ export function initSquares(explanations, atoms) {
     let aps = atoms[tp].aps;
     for (let j = 0; j < aps.length; ++j) {
       if (tp === aps[j].tp) {
-        switch(aps[j].bool) {
-        case true:
-          squares[tp][aps[j].col] = squareColor(true);
-          break;
-        case false:
-          squares[tp][aps[j].col] = squareColor(false);
-          break;
+        if (squares[tp] !== undefined) {
+          squares[tp][aps[j].col] = aps[j].bool ? squareColor(true) : squareColor(false);
         }
       }
     }
@@ -90,13 +85,8 @@ export function initSquares(explanations, atoms) {
     let tbl = explanations[tp].table;
     for (let j = 0; j < tbl.length; ++j) {
       if (tp === tbl[j].tp && tbl[j].col === atoms[0].aps.length) {
-        switch(tbl[j].bool) {
-        case true:
-          squares[tp][tbl[j].col] = squareColor(true);
-          break;
-        case false:
-          squares[tp][tbl[j].col] = squareColor(false);
-          break;
+        if (squares[tp] !== undefined) {
+          squares[tp][tbl[j].col] = tbl[j].bool ? squareColor(true) : squareColor(false);
         }
       }
     }
@@ -149,15 +139,18 @@ export function translateError (error) {
     case "Lib.Mtl_parser.MenhirBasics.Error":
       translatedError = { name: "Error",
                           message: "Formula could not be parsed.\n\nPlease make sure the syntax is correct."
-                        }
+                        };
       break;
     case "Lib.Monitor.UNBOUNDED_FUTURE":
       translatedError = { name: "Error",
-                          message: "Your formula has an unbounded UNTIL.\n\nPlease make sure all UNTIL instances are bounded." }
+                          message: "Your formula has an unbounded UNTIL.\n\nPlease make sure all UNTIL instances are bounded."
+                        };
     }
   } else {
     if (error.message.includes("Unexpected token")) {
-      translatedError = { name: "Error", message: "Trace could not be parsed.\n\nPlease make sure the syntax is correct." }
+      translatedError = { name: "Error",
+                          message: "Trace could not be parsed.\n\nPlease make sure the syntax is correct."
+                        };
     }
   }
 
