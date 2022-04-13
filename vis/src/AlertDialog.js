@@ -5,26 +5,28 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogContentText from '@mui/material/DialogContentText';
 import DialogTitle from '@mui/material/DialogTitle';
+import ErrorIcon from '@mui/icons-material/Error';
 
-export default function ErrorDialog({ errorDialog, setErrorDialog }) {
+export default function AlertDialog({ open, dialog, dispatch }) {
 
   return (
     <Dialog
-      open={errorDialog.open}
-      onClose={() => setErrorDialog({ open: false, error: "" })}
+      open={open}
+      onClose={() => dispatch({ type: "closeDialog" })}
       aria-labelledby="alert-dialog-title"
       aria-describedby="alert-dialog-description"
     >
       <DialogTitle id="alert-dialog-title">
-        {"Error"}
+        {dialog.name === "Error" && <ErrorIcon sx={{ fontSize: 30, mb: -1, pr: 1 }} /> }
+        {dialog.name}
       </DialogTitle>
       <DialogContent>
-        <DialogContentText id="alert-dialog-description">
-          {errorDialog.error}
+        <DialogContentText id="alert-dialog-description" sx={{ whiteSpace: 'break-spaces' }}>
+          {dialog.message}
         </DialogContentText>
       </DialogContent>
       <DialogActions>
-        <Button onClick={() => setErrorDialog({ open: false, error: "" })} autoFocus>Close</Button>
+        <Button onClick={() => dispatch({ type: "closeDialog" })} autoFocus>Close</Button>
       </DialogActions>
     </Dialog>
   );

@@ -140,3 +140,23 @@ export function tpsIn (ts, tp, interval, period, explanations) {
 
   return idxs;
 }
+
+export function translateError (error) {
+  console.log(error);
+
+  let translatedError = {};
+
+  if (error.message === undefined && error[1].c !== undefined) {
+    switch (error[1].c) {
+    case "Lib.Mtl_parser.MenhirBasics.Error":
+      translatedError = { name: "Error", message: "Formula could not be parsed.\n\nPlease make sure the syntax is correct." }
+      break;
+    }
+  } else {
+    if (error.message.includes("Unexpected token")) {
+      translatedError = { name: "Error", message: "Trace could not be parsed.\n\nPlease make sure the syntax is correct." }
+    }
+  }
+
+  return translatedError;
+}

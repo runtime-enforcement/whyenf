@@ -15,8 +15,8 @@ import RandomExampleSelect from './RandomExampleSelect';
 import ResetButton from './ResetButton';
 import CheckerSwitch from './CheckerSwitch';
 import PreambleCard from './PreambleCard';
-import ErrorDialog from './ErrorDialog';
-import { initSquares } from './util';
+import AlertDialog from './AlertDialog';
+import { initSquares, translateError } from './util';
 
 const theme = createTheme({
   palette: {
@@ -37,7 +37,6 @@ function init(action) {
     const c = JSON.parse(window.getColumns(action.formula));
     const s = initSquares(e, a);
 
-    // console.log(e);
     return { explanations: e,
              atoms: a,
              apsColumns: c.apsColumns,
@@ -47,13 +46,13 @@ function init(action) {
              hideTrace: true
            };
   } catch (error) {
-    console.error(error);
     return { explanations: [],
              atoms: [],
              apsColumns: [],
              subfsColumns: [],
              squares: [],
              selectedRows: [],
+             dialog: translateError(error),
              hideTrace: false
            };
   }
@@ -81,6 +80,26 @@ function reducer(state, action) {
              selectedRows: action.selectedRows,
              hideTrace: true
            }
+  case 'openDialog':
+    return { explanations: state.explanations,
+             atoms: state.atoms,
+             apsColumns: state.apsColumns,
+             subfsColumns: state.subfsColumns,
+             squares: state.squares,
+             selectedRows: state.selectedRows,
+             dialog: { type: action.dialogType, text: action.dialogText },
+             hideTrace: state.hideTrace
+           }
+  case 'closeDialog':
+    return { explanations: state.explanations,
+             atoms: state.atoms,
+             apsColumns: state.apsColumns,
+             subfsColumns: state.subfsColumns,
+             squares: state.squares,
+             selectedRows: state.selectedRows,
+             dialog: {},
+             hideTrace: state.hideTrace
+           }
   }
 }
 
@@ -96,9 +115,9 @@ function App() {
                                                   subfsColumns: [],
                                                   squares: [],
                                                   selectedRows: [],
+                                                  dialog: {},
                                                   hideTrace: false
                                                 });
-  const [errorDialog, setErrorDialog] = useState({ open: false, error: "" });
 
   const handleRefresh = (e) => {
     e.preventDefault();
@@ -118,7 +137,9 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <Box>
-        { errorDialog.open && <ErrorDialog errorDialog={errorDialog} setErrorDialog={setErrorDialog} /> }
+        { (state.dialog !== undefined && (Object.keys(state.dialog).length !== 0)) &&
+          <AlertDialog open={true} dialog={state.dialog} dispatch={dispatch} />
+        }
         <NavBar />
         <Container maxWidth="lg">
           <Box sx={{ mb: 12 }}>
