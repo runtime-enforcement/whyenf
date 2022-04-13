@@ -11,6 +11,7 @@ import NavBar from './NavBar';
 import BottomBar from './BottomBar';
 import TimeGrid from './TimeGrid';
 import RefreshButton from './RefreshButton';
+import AppendButton from './AppendButton';
 import RandomExampleSelect from './RandomExampleSelect';
 import ResetButton from './ResetButton';
 import CheckerSwitch from './CheckerSwitch';
@@ -147,9 +148,24 @@ function App() {
               <Grid item xs={12} sm={12} md={12} lg={12} xl={12}>
                 <PreambleCard />
               </Grid>
-              <Grid item xs={11} sm={11} md={4} lg={4} xl={4}>
-                <RefreshButton handleRefresh={handleRefresh} />
-              </Grid>
+
+              { !state.hideTrace &&
+                <Grid item xs={12} sm={12} md={4} lg={4} xl={4}>
+                  <RefreshButton handleRefresh={handleRefresh} />
+                </Grid>
+              }
+
+              { state.hideTrace &&
+                <Grid container item xs={12} sm={12} md={4} lg={4} xl={4} spacing={2}>
+                  <Grid item xs={12} sm={12} md={8} lg={8} xl={8}>
+                    <RefreshButton handleRefresh={handleRefresh} />
+                  </Grid>
+                  <Grid item xs={12} sm={12} md={4} lg={4} xl={4}>
+                    <AppendButton handleRefresh={handleRefresh} />
+                  </Grid>
+                </Grid>
+              }
+
               <Grid item xs={12} sm={12} md={1.5} lg={1.5} xl={1.5}>
                 <MeasureSelect measure={measure} setMeasure={setMeasure} />
               </Grid>
