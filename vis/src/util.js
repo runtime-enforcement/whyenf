@@ -52,7 +52,7 @@ export function squareColorTest(bool) {
   return (bool ? yellow[500] : purple[500]);
 }
 
-export function initSquares(explanations, atoms) {
+export function computeSquares(explanations, atoms, squares = []) {
 
   let maxRow = explanations.length;
   let maxCol = 0;
@@ -66,7 +66,7 @@ export function initSquares(explanations, atoms) {
   }
 
   // Initialize empty squares
-  var squares = new Array(maxRow).fill(null).map(() => Array(maxCol+3).fill(""));
+  squares = (squares.length === 0) ? new Array(maxRow).fill(null).map(() => Array(maxCol+3).fill("")) : squares;
 
   // Populate atoms with data
   for (let tp = 0; tp < atoms.length; ++tp) {
