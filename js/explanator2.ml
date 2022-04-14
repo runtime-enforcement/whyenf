@@ -37,7 +37,7 @@ module Explanator2 = struct
     let f = Lib.Mtl_parser.formula Lib.Mtl_lexer.token (Lexing.from_string formula) in
     Js.string (json_table_columns f)
 
-  let main_monitor js_log js_check js_measure js_formula =
+  let monitor_init js_log js_check js_measure js_formula =
     let log = (Js_of_ocaml.Js.to_string js_log) in
     let check = (Js_of_ocaml.Js.to_string js_check) in
     let measure = (Js_of_ocaml.Js.to_string js_measure) in
@@ -45,18 +45,35 @@ module Explanator2 = struct
     let c = validate_check check in
     let le = validate_measure measure in
     let f = Lib.Mtl_parser.formula Lib.Mtl_lexer.token (Lexing.from_string formula) in
-    let (obj, s) = monitor2 log c le f in
-    (obj, Js.string (s))
+    let (obj_opt, s) = monitor2 None log c le f in
+    (obj_opt, Js.string(s))
+
+  let monitor_append js_log js_check js_measure js_formula obj_opt =
+    let log = (Js_of_ocaml.Js.to_string js_log) in
+    let check = (Js_of_ocaml.Js.to_string js_check) in
+    let measure = (Js_of_ocaml.Js.to_string js_measure) in
+    let formula = (Js_of_ocaml.Js.to_string js_formula) in
+    let c = validate_check check in
+    let le = validate_measure measure in
+    let f = Lib.Mtl_parser.formula Lib.Mtl_lexer.token (Lexing.from_string formula) in
+    let (obj_opt', s) = monitor2 obj_opt log c le f in
+    (obj_opt', Js.string(s))
 
   let (_: unit) =
     Js.export_all
       (object%js
          method getColumns (js_formula: Js.js_string Js.t) = get_columns js_formula
-         method monitor (js_log: Js.js_string Js.t)
+         method monitorInit (js_log: Js.js_string Js.t)
                   (js_check: Js.js_string Js.t)
                   (js_measure: Js.js_string Js.t)
                   (js_formula: Js.js_string Js.t) =
-           main_monitor js_log js_check js_measure js_formula
+           monitor_init js_log js_check js_measure js_formula
+         method monitorAppend (js_log: Js.js_string Js.t)
+                  (js_check: Js.js_string Js.t)
+                  (js_measure: Js.js_string Js.t)
+                  (js_formula: Js.js_string Js.t)
+                  (obj_opt: (mformula * state) option)=
+           monitor_append js_log js_check js_measure js_formula obj_opt
        end)
 
 

@@ -1055,19 +1055,17 @@ let monitor in_ch out_ch mode out_mode check le f =
     (st_updated, in_ch) in
   loop s (st, in_ch)
 
-let monitor2 ?mf ?st log c le f =
+let monitor2 obj_opt log c le f =
   let events = parse_lines_from_string log in
-  let mf = match mf with
-    | None -> minit f
-    | Some mf -> mf in
+  let (mf, st) = match obj_opt with
+    | None -> let mf = minit f in
+              (mf, { tp = 0
+                   ; mf = mf
+                   ; events = []
+                   ; tp_ts = Hashtbl.create 100
+              })
+    | Some (mf', st') -> (mf', st') in
   let mf_ap = relevant_ap mf in
-  let st = match st with
-    | None -> { tp = 0
-              ; mf = mf
-              ; events = []
-              ; tp_ts = Hashtbl.create 100
-              }
-    | Some st -> st in
   match events with
   | Ok es -> (let minimuml ps = minsize_list (get_mins le ps) in
               let ((m, s), o) = List.fold_map es ~init:(mf, st) ~f:(fun (mf', st') (sap, ts) ->
@@ -1096,5 +1094,5 @@ let monitor2 ?mf ?st log c le f =
               let json = (Printf.sprintf "{\n") ^
                          (Printf.sprintf "%s\"expls\": [\n%s],\n" ident expls') ^
                          (Printf.sprintf "%s\"atoms\": [\n%s]\n}" ident atoms') in
-              ((m, s), json))
-  | Error err -> ((mf, st), json_error err)
+              (Some(m, s), json))
+  | Error err -> (None, json_error err)
