@@ -12,12 +12,11 @@ import BottomBar from './BottomBar';
 import TimeGrid from './TimeGrid';
 import RefreshButton from './RefreshButton';
 import AppendButton from './AppendButton';
+import ClearButton from './ClearButton';
 import RandomExampleSelect from './RandomExampleSelect';
-import ResetButton from './ResetButton';
-import CheckerSwitch from './CheckerSwitch';
 import PreambleCard from './PreambleCard';
 import AlertDialog from './AlertDialog';
-import { initSquares, translateError } from './util';
+import { computeSquares, translateError } from './util';
 
 const theme = createTheme({
   palette: {
@@ -30,77 +29,60 @@ const theme = createTheme({
   },
 });
 
-function init(action) {
+function execMonitor(state, action) {
   try {
-    const m = JSON.parse(window.monitor(action.trace, action.checker, action.measure, action.formula)[2]);
-    const e = m.expls;
-    const a = m.atoms;
-    const c = JSON.parse(window.getColumns(action.formula));
-    const s = initSquares(e, a);
+    const monitor = window.monitorInit(action.trace, action.checker, action.measure, action.formula);
+    const monitorState = monitor[1];
+    const explanations = (JSON.parse(monitor[2])).expls;
+    const atoms = (JSON.parse(monitor[2])).atoms;
+    const columns = JSON.parse(window.getColumns(action.formula));
+    const squares = computeSquares(explanations, atoms);
 
-    return { explanations: e,
-             atoms: a,
-             apsColumns: c.apsColumns,
-             subfsColumns: c.subfsColumns,
-             squares: s,
+    return { explanations: explanations,
+             atoms: atoms,
+             apsColumns: columns.apsColumns,
+             subfsColumns: columns.subfsColumns,
+             squares: squares,
+             monitorState: monitorState,
              selectedRows: [],
-             hideTrace: true
+             fixParameters: true
            };
   } catch (error) {
-    return { explanations: [],
-             atoms: [],
-             apsColumns: [],
-             subfsColumns: [],
-             squares: [],
-             selectedRows: [],
-             dialog: translateError(error),
-             hideTrace: false
-           };
+    return {
+      ...state,
+      dialog: translateError(error),
+    };
   }
 }
 
 function reducer(state, action) {
   switch (action.type) {
   case 'init':
-    return init(action);
+    return execMonitor(state, action);
   case 'reset':
-    return { explanations: state.explanations,
-             atoms: state.atoms,
-             apsColumns: state.apsColumns,
-             subfsColumns: state.subfsColumns,
-             squares: initSquares(state.explanations, state.atoms),
-             selectedRows: [],
-             hideTrace: true
-           }
+    return {
+      ...state,
+      squares: computeSquares(state.explanations, state.atoms),
+      selectedRows: [],
+      fixParameters: true
+    }
   case 'update':
-    return { explanations: state.explanations,
-             atoms: state.atoms,
-             apsColumns: state.apsColumns,
-             subfsColumns: state.subfsColumns,
-             squares: action.squares,
-             selectedRows: action.selectedRows,
-             hideTrace: true
-           }
+    return {
+      ...state,
+      squares: action.squares,
+      selectedRows: action.selectedRows,
+      fixParameters: true
+    }
   case 'openDialog':
-    return { explanations: state.explanations,
-             atoms: state.atoms,
-             apsColumns: state.apsColumns,
-             subfsColumns: state.subfsColumns,
-             squares: state.squares,
-             selectedRows: state.selectedRows,
-             dialog: { type: action.dialogType, text: action.dialogText },
-             hideTrace: state.hideTrace
-           }
+    return {
+      ...state,
+      dialog: { type: action.dialogType, text: action.dialogText }
+    }
   case 'closeDialog':
-    return { explanations: state.explanations,
-             atoms: state.atoms,
-             apsColumns: state.apsColumns,
-             subfsColumns: state.subfsColumns,
-             squares: state.squares,
-             selectedRows: state.selectedRows,
-             dialog: {},
-             hideTrace: state.hideTrace
-           }
+    return {
+      ...state,
+      dialog: {},
+    }
   }
 }
 
@@ -115,9 +97,11 @@ function App() {
                                                   apsColumns: [],
                                                   subfsColumns: [],
                                                   squares: [],
+                                                  monitorState: [],
                                                   selectedRows: [],
                                                   dialog: {},
-                                                  hideTrace: false
+                                                  fixParameters: false,
+                                                  lockFormulaAndMeasure: false
                                                 });
 
   const handleRefresh = (e) => {
@@ -125,13 +109,28 @@ function App() {
 
     let action;
     if (state.measure === measure && state.formula === formula && state.trace === trace) action = { type: 'reset' };
-    else action = {
-      checker: false,
-      measure: measure,
-      formula: formula,
-      trace: trace,
-      type: 'init'
-    };
+    else action = { checker: checker,
+                    measure: measure,
+                    formula: formula,
+                    trace: trace,
+                    type: 'init'
+                  };
+
+    dispatch(action);
+  };
+
+  const handleAppend = (e) => {
+    e.preventDefault();
+
+    let action;
+    if (appendTrace === "") return;
+    else action = { checker: checker,
+                    measure: measure,
+                    formula: formula,
+                    trace: trace,
+                    type: 'append'
+                  };
+
     dispatch(action);
   };
 
@@ -142,26 +141,29 @@ function App() {
           <AlertDialog open={true} dialog={state.dialog} dispatch={dispatch} />
         }
         <NavBar />
-        <Container maxWidth="lg">
+        <Container maxWidth="xl">
           <Box sx={{ mb: 12 }}>
             <Grid container spacing={2}>
               <Grid item xs={12} sm={12} md={12} lg={12} xl={12}>
                 <PreambleCard />
               </Grid>
 
-              { !state.hideTrace &&
+              { !state.fixParameters &&
                 <Grid item xs={12} sm={12} md={4} lg={4} xl={4}>
                   <RefreshButton handleRefresh={handleRefresh} />
                 </Grid>
               }
 
-              { state.hideTrace &&
+              { state.fixParameters &&
                 <Grid container item xs={12} sm={12} md={4} lg={4} xl={4} spacing={2}>
                   <Grid item xs={12} sm={12} md={8} lg={8} xl={8}>
                     <RefreshButton handleRefresh={handleRefresh} />
                   </Grid>
-                  <Grid item xs={12} sm={12} md={4} lg={4} xl={4}>
+                  <Grid item xs={12} sm={12} md={2} lg={2} xl={2}>
                     <AppendButton handleRefresh={handleRefresh} />
+                  </Grid>
+                  <Grid item xs={12} sm={12} md={2} lg={2} xl={2}>
+                    <ClearButton handleRefresh={handleRefresh} />
                   </Grid>
                 </Grid>
               }
@@ -173,7 +175,7 @@ function App() {
                 <FormulaTextField formula={formula} setFormula={setFormula} />
               </Grid>
 
-              { !state.hideTrace &&
+              { !state.fixParameters &&
                 <Grid container item xs={24} sm={24} md={12} lg={12} xl={12} spacing={2}>
                   <Grid item xs={12} sm={12} md={4} lg={4} xl={4}>
                     <TraceTextField trace={trace} setTrace={setTrace} />
@@ -190,7 +192,7 @@ function App() {
               }
 
 
-              { state.hideTrace &&
+              { state.fixParameters &&
                 <Grid container item xs={24} sm={24} md={12} lg={12} xl={12} spacing={2}>
                   <Grid item xs={24} sm={24} md={12} lg={12} xl={12}>
                     <TimeGrid explanations={state.explanations}
