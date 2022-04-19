@@ -13,7 +13,7 @@ export default function NavBar() {
       <AppBar position="fixed">
         <Toolbar>
           <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            eXpLaNaToR
+            explanator2: Judgement Day
           </Typography>
           <Button color="inherit">
             <Typography variant="h7" component="div" sx={{ flexGrow: 1 }}>

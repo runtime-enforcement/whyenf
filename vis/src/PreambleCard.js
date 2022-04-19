@@ -19,10 +19,7 @@ const bull = (
 const card = (
   <React.Fragment>
     <CardContent>
-      <Typography variant="h5" component="div">
-        Explanator2: Judgement Day
-      </Typography>
-      <Typography sx={{ mt: 3 }} variant="body2">
+      <Typography variant="body2">
         This is a tool for online monitoring satisfaction and violation explanations
         of MTL (Metric Temporal Logic) formulas on arbitrary traces. <br />
         It is built upon the <Link href="https://bitbucket.org/traytel/explanator/src/master/">Explanator</Link>.
