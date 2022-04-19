@@ -182,6 +182,7 @@ function App() {
                   </Grid>
                   <Grid item xs={12} sm={12} md={8} lg={8} xl={8}>
                     <TimeGrid explanations={state.explanations}
+                              atoms={state.atoms}
                               apsColumns={state.apsColumns}
                               subfsColumns={state.subfsColumns}
                               squares={state.squares}
@@ -196,6 +197,7 @@ function App() {
                 <Grid container item xs={24} sm={24} md={12} lg={12} xl={12} spacing={2}>
                   <Grid item xs={24} sm={24} md={12} lg={12} xl={12}>
                     <TimeGrid explanations={state.explanations}
+                              atoms={state.atoms}
                               apsColumns={state.apsColumns}
                               subfsColumns={state.subfsColumns}
                               squares={state.squares}

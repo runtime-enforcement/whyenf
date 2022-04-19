@@ -19,7 +19,7 @@ function Cell(props) {
   );
 }
 
-function TimeGrid ({ explanations, apsColumns, subfsColumns, squares, selectedRows, dispatch }) {
+function TimeGrid ({ explanations, atoms, apsColumns, subfsColumns, squares, selectedRows, dispatch }) {
 
   const apsGridColumns = apsColumns.slice(0).map((a, i) =>
     ({
@@ -28,7 +28,7 @@ function TimeGrid ({ explanations, apsColumns, subfsColumns, squares, selectedRo
       width: (10*(a.length)),
       sortable: false,
       renderHeader: () => apsColumns[i],
-      renderCell: (params) => <Cell value={squares[params.row.tp][i]} onClick={() => {}} />,
+      renderCell: (params) => <Cell value={squares[params.row.tp][i]} />,
       headerAlign: 'center',
       align: 'center',
       disableClickEventBubbling: true
@@ -66,7 +66,7 @@ function TimeGrid ({ explanations, apsColumns, subfsColumns, squares, selectedRo
       disableClickEventBubbling: true
     }));
 
-  const rows = explanations.map(({ ts, tp }) =>
+  const rows = atoms.map(({ ts, tp }) =>
     ({
       id: tp,
       tp: tp,

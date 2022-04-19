@@ -54,7 +54,7 @@ export function squareColorTest(bool) {
 
 export function computeSquares(explanations, atoms, squares = []) {
 
-  let maxRow = explanations.length;
+  let maxRow = atoms.length;
   let maxCol = 0;
 
   // Find maxCol
@@ -73,9 +73,7 @@ export function computeSquares(explanations, atoms, squares = []) {
     let aps = atoms[tp].aps;
     for (let j = 0; j < aps.length; ++j) {
       if (tp === aps[j].tp) {
-        if (squares[tp] !== undefined) {
-          squares[tp][aps[j].col] = aps[j].bool ? squareColor(true) : squareColor(false);
-        }
+        squares[tp][aps[j].col] = aps[j].bool ? squareColor(true) : squareColor(false);
       }
     }
   }
@@ -85,9 +83,7 @@ export function computeSquares(explanations, atoms, squares = []) {
     let tbl = explanations[tp].table;
     for (let j = 0; j < tbl.length; ++j) {
       if (tp === tbl[j].tp && tbl[j].col === atoms[0].aps.length) {
-        if (squares[tp] !== undefined) {
-          squares[tp][tbl[j].col] = tbl[j].bool ? squareColor(true) : squareColor(false);
-        }
+        squares[tp][tbl[j].col] = tbl[j].bool ? squareColor(true) : squareColor(false);
       }
     }
   }
