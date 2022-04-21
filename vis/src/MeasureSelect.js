@@ -5,7 +5,7 @@ import InputLabel from '@mui/material/InputLabel';
 import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 
-export default function MeasureSelect ({ measure, setMeasure }) {
+export default function MeasureSelect ({ measure, setMeasure, fixParameters }) {
 
   const handleChange = (event) => {
     setMeasure(event.target.value);
@@ -20,7 +20,7 @@ export default function MeasureSelect ({ measure, setMeasure }) {
       noValidate
       autoComplete="off"
     >
-      <FormControl fullWidth>
+      <FormControl fullWidth disabled={fixParameters}>
         <InputLabel id="measure-select-label">Measure</InputLabel>
         <Select
           labelId="measure-select-label"

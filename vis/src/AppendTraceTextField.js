@@ -1,12 +1,22 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import TextField from '@mui/material/TextField';
 
 export default function AppendTraceTextField ({ appendTrace, setAppendTrace }) {
 
+  const [localTrace, setLocalTrace] = useState("");
+
   const handleChange = (event) => {
+    setLocalTrace(event.target.value);
+  };
+
+  const handleBlur = (event) => {
     setAppendTrace(event.target.value);
   };
+
+  useEffect(() => {
+    setAppendTrace(localTrace);
+  }, [appendTrace]);
 
   return (
     <Box
@@ -17,14 +27,16 @@ export default function AppendTraceTextField ({ appendTrace, setAppendTrace }) {
       noValidate
       autoComplete="off"
     >
-      <TextField
-        id="outlined-multiline-static"
-        label="Trace"
-        multiline
-        rows={2}
-        value={appendTrace}
-        onChange={handleChange}
-      />
+      <div>
+        <TextField
+          multiline
+          id="outlined-required"
+          label="Trace"
+          value={localTrace}
+          onChange={handleChange}
+          onBlur={handleBlur}
+        />
+      </div>
     </Box>
   );
 }

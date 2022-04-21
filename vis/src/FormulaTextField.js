@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import TextField from '@mui/material/TextField';
 
-export default function FormulaTextField ({ formula, setFormula }) {
+export default function FormulaTextField ({ formula, setFormula, fixParameters }) {
 
   const [localFormula, setLocalFormula] = useState("(a SINCE b) SINCE (a SINCE b)");
 
@@ -35,6 +35,7 @@ export default function FormulaTextField ({ formula, setFormula }) {
           value={localFormula}
           onChange={handleChange}
           onBlur={handleBlur}
+          disabled={fixParameters}
         />
       </div>
     </Box>

@@ -16,7 +16,7 @@ import ClearButton from './ClearButton';
 import RandomExampleSelect from './RandomExampleSelect';
 import PreambleCard from './PreambleCard';
 import AlertDialog from './AlertDialog';
-import { computeSquares, translateError } from './util';
+import { initSquares, appendSquares, translateError } from './util';
 
 const theme = createTheme({
   palette: {
@@ -29,14 +29,14 @@ const theme = createTheme({
   },
 });
 
-function execMonitor(state, action) {
+function initMonitor(state, action) {
   try {
     const monitor = window.monitorInit(action.trace, action.checker, action.measure, action.formula);
     const monitorState = monitor[1];
     const explanations = (JSON.parse(monitor[2])).expls;
     const atoms = (JSON.parse(monitor[2])).atoms;
     const columns = JSON.parse(window.getColumns(action.formula));
-    const squares = computeSquares(explanations, atoms);
+    const squares = initSquares(explanations, atoms);
 
     return { explanations: explanations,
              atoms: atoms,
@@ -55,14 +55,44 @@ function execMonitor(state, action) {
   }
 }
 
+function execMonitor(state, action) {
+  try {
+    const monitor = window.monitorAppend(action.appendTrace,
+                                         action.checker,
+                                         action.measure,
+                                         action.formula,
+                                         action.monitorState);
+    const monitorState = monitor[1];
+    const explanations = state.explanations.concat((JSON.parse(monitor[2])).expls);
+    const atoms = state.atoms.concat((JSON.parse(monitor[2])).atoms);
+    const squares = appendSquares(explanations, atoms, state.squares);
+
+    return { ...state,
+             explanations: explanations,
+             atoms: atoms,
+             squares: squares,
+             monitorState: monitorState,
+             selectedRows: [],
+             fixParameters: true
+           };
+  } catch (error) {
+    return {
+      ...state,
+      dialog: translateError(error),
+    };
+  }
+}
+
 function reducer(state, action) {
   switch (action.type) {
   case 'init':
+    return initMonitor(state, action);
+  case 'append':
     return execMonitor(state, action);
   case 'reset':
     return {
       ...state,
-      squares: computeSquares(state.explanations, state.atoms),
+      squares: initSquares(state.explanations, state.atoms),
       selectedRows: [],
       fixParameters: true
     }
@@ -100,8 +130,7 @@ function App() {
                                                   monitorState: [],
                                                   selectedRows: [],
                                                   dialog: {},
-                                                  fixParameters: false,
-                                                  lockFormulaAndMeasure: false
+                                                  fixParameters: false
                                                 });
 
   const handleRefresh = (e) => {
@@ -122,12 +151,15 @@ function App() {
   const handleAppend = (e) => {
     e.preventDefault();
 
+    console.log("Hi!");
+
     let action;
     if (appendTrace === "") return;
     else action = { checker: checker,
                     measure: measure,
                     formula: formula,
-                    trace: trace,
+                    appendTrace: appendTrace,
+                    monitorState: state.monitorState,
                     type: 'append'
                   };
 
@@ -157,22 +189,28 @@ function App() {
               { state.fixParameters &&
                 <Grid container item xs={12} sm={12} md={4} lg={4} xl={4} spacing={2}>
                   <Grid item xs={12} sm={12} md={8} lg={8} xl={8}>
-                    <RefreshButton handleRefresh={handleRefresh} />
+                    <AppendTraceTextField appendTrace={appendTrace} setAppendTrace={setAppendTrace} />
                   </Grid>
                   <Grid item xs={12} sm={12} md={2} lg={2} xl={2}>
-                    <AppendButton handleRefresh={handleRefresh} />
+                    <AppendButton handleAppend={handleAppend} />
                   </Grid>
                   <Grid item xs={12} sm={12} md={2} lg={2} xl={2}>
-                    <ClearButton handleRefresh={handleRefresh} />
+                    <ClearButton />
                   </Grid>
                 </Grid>
               }
 
               <Grid item xs={12} sm={12} md={1.5} lg={1.5} xl={1.5}>
-                <MeasureSelect measure={measure} setMeasure={setMeasure} />
+                <MeasureSelect measure={measure}
+                               setMeasure={setMeasure}
+                               fixParameters={state.fixParameters}
+                />
               </Grid>
               <Grid item xs={12} sm={12} md={6.5} lg={6.5} xl={6.5}>
-                <FormulaTextField formula={formula} setFormula={setFormula} />
+                <FormulaTextField formula={formula}
+                                  setFormula={setFormula}
+                                  fixParameters={state.fixParameters}
+                />
               </Grid>
 
               { !state.fixParameters &&
@@ -204,9 +242,6 @@ function App() {
                               selectedRows={state.selectedRows}
                               dispatch={dispatch}
                     />
-                  </Grid>
-                  <Grid item xs={12} sm={12} md={4} lg={4} xl={4}>
-                    <AppendTraceTextField appendTrace={appendTrace} setAppendTrace={setAppendTrace} />
                   </Grid>
                 </Grid>
               }
