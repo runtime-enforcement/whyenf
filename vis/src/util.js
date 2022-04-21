@@ -11,6 +11,19 @@ import CropSquareIcon from '@mui/icons-material/CropSquare';
 import Button from '@mui/material/Button';
 import { red, purple, yellow, lightGreen } from '@mui/material/colors';
 
+function computeMaxCol(explanations) {
+  let maxCol = 0;
+
+  for (let tp = 0; tp < explanations.length; ++tp) {
+    let tbl = explanations[tp].table;
+    for (let j = 0; j < tbl.length; ++j) {
+      if (tbl[j].col > maxCol) maxCol = tbl[j].col;
+    }
+  }
+
+  return maxCol;
+}
+
 export function pickColumnItem(i, f) {
   switch (i) {
   case 0:
@@ -52,21 +65,13 @@ export function squareColorTest(bool) {
   return (bool ? yellow[500] : purple[500]);
 }
 
-export function computeSquares(explanations, atoms, squares = []) {
+export function initSquares(explanations, atoms) {
 
   let maxRow = atoms.length;
-  let maxCol = 0;
-
-  // Find maxCol
-  for (let tp = 0; tp < explanations.length; ++tp) {
-    let tbl = explanations[tp].table;
-    for (let j = 0; j < tbl.length; ++j) {
-      if (tbl[j].col > maxCol) maxCol = tbl[j].col;
-    }
-  }
+  let maxCol = computeMaxCol(explanations);
 
   // Initialize empty squares
-  squares = (squares.length === 0) ? new Array(maxRow).fill(null).map(() => Array(maxCol+3).fill("")) : squares;
+  let squares = new Array(maxRow).fill(null).map(() => Array(maxCol+3).fill(""));
 
   // Populate atoms with data
   for (let tp = 0; tp < atoms.length; ++tp) {
@@ -91,7 +96,22 @@ export function computeSquares(explanations, atoms, squares = []) {
   return squares;
 }
 
-export function tpsIn (ts, tp, interval, period, atoms) {
+export function appendSquares(explanations, atoms, squares) {
+  let maxRow = atoms.length;
+  let maxCol = computeMaxCol(explanations);
+
+  // Populate atoms with data
+  // for (let tp = 0; tp < atoms.length; ++tp) {
+  //   let aps = atoms[tp].aps;
+  //   for (let j = 0; j < aps.length; ++j) {
+  //     if (tp === aps[j].tp) {
+  //       squares[tp][aps[j].col] = aps[j].bool ? squareColor(true) : squareColor(false);
+  //     }
+  //   }
+  // }
+}
+
+export function tpsIn(ts, tp, interval, period, atoms) {
   const i = interval.split(',');
   const a = parseInt(i[0].slice(1));
   const bString = i[1].slice(0, i[1].length-1);
@@ -125,7 +145,7 @@ export function tpsIn (ts, tp, interval, period, atoms) {
   return idxs;
 }
 
-export function translateError (error) {
+export function translateError(error) {
   console.log(error);
 
   let translatedError = {};
