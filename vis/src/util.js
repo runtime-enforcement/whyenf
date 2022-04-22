@@ -65,13 +65,21 @@ export function squareColorTest(bool) {
   return (bool ? yellow[500] : purple[500]);
 }
 
-export function initSquares(explanations, atoms) {
+export function computeSquares(explanations, atoms, squares = []) {
 
   let maxRow = atoms.length;
-  let maxCol = computeMaxCol(explanations);
+  let maxCol = 0;
+
+  // Find maxCol
+  for (let tp = 0; tp < explanations.length; ++tp) {
+    let tbl = explanations[tp].table;
+    for (let j = 0; j < tbl.length; ++j) {
+      if (tbl[j].col > maxCol) maxCol = tbl[j].col;
+    }
+  }
 
   // Initialize empty squares
-  let squares = new Array(maxRow).fill(null).map(() => Array(maxCol+3).fill(""));
+  squares = (squares.length === 0) ? new Array(maxRow).fill(null).map(() => Array(maxCol+3).fill("")) : squares;
 
   // Populate atoms with data
   for (let tp = 0; tp < atoms.length; ++tp) {
@@ -94,21 +102,6 @@ export function initSquares(explanations, atoms) {
   }
 
   return squares;
-}
-
-export function appendSquares(explanations, atoms, squares) {
-  let maxRow = atoms.length;
-  let maxCol = computeMaxCol(explanations);
-
-  // Populate atoms with data
-  // for (let tp = 0; tp < atoms.length; ++tp) {
-  //   let aps = atoms[tp].aps;
-  //   for (let j = 0; j < aps.length; ++j) {
-  //     if (tp === aps[j].tp) {
-  //       squares[tp][aps[j].col] = aps[j].bool ? squareColor(true) : squareColor(false);
-  //     }
-  //   }
-  // }
 }
 
 export function tpsIn(ts, tp, interval, period, atoms) {

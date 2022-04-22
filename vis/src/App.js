@@ -16,7 +16,7 @@ import ClearButton from './ClearButton';
 import RandomExampleSelect from './RandomExampleSelect';
 import PreambleCard from './PreambleCard';
 import AlertDialog from './AlertDialog';
-import { initSquares, appendSquares, translateError } from './util';
+import { computeSquares, translateError } from './util';
 
 const theme = createTheme({
   palette: {
@@ -36,7 +36,7 @@ function initMonitor(state, action) {
     const explanations = (JSON.parse(monitor[2])).expls;
     const atoms = (JSON.parse(monitor[2])).atoms;
     const columns = JSON.parse(window.getColumns(action.formula));
-    const squares = initSquares(explanations, atoms);
+    const squares = computeSquares(explanations, atoms);
 
     return { explanations: explanations,
              atoms: atoms,
@@ -65,7 +65,7 @@ function execMonitor(state, action) {
     const monitorState = monitor[1];
     const explanations = state.explanations.concat((JSON.parse(monitor[2])).expls);
     const atoms = state.atoms.concat((JSON.parse(monitor[2])).atoms);
-    const squares = appendSquares(explanations, atoms, state.squares);
+    const squares = computeSquares(explanations, atoms);
 
     return { ...state,
              explanations: explanations,
@@ -92,7 +92,7 @@ function reducer(state, action) {
   case 'reset':
     return {
       ...state,
-      squares: initSquares(state.explanations, state.atoms),
+      squares: computeSquares(state.explanations, state.atoms),
       selectedRows: [],
       fixParameters: true
     }
