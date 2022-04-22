@@ -101,18 +101,22 @@ function TimeGrid ({ explanations, atoms, apsColumns, subfsColumns, squares, sel
 
   return (
     <Box sx={{ height: 585,
+               '& .cell--Highlighted': {
+                 backgroundColor: purple[300],
+               },
                '& .row--Highlighted': {
-                 bgcolor: (theme) => cyan[100],
+                 bgcolor: cyan[100],
                  '&:hover': {
-                   bgcolor: (theme) => cyan[200],
+                   bgcolor: cyan[200],
                  },
                },
                '& .row--Plain': {
-                 bgcolor: (theme) => common.white,
+                 bgcolor: common.white,
                  '&:hover': {
-                   bgcolor: (theme) => common.gray,
+                   bgcolor: common.gray,
                  },
-               }}}>
+               },
+             }}>
       <DataGrid
         rows={rows}
         columns={apsGridColumns.concat(fixedGridColumns.concat(subfsGridColumns))}
