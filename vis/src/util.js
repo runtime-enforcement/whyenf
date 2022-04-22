@@ -139,7 +139,6 @@ export function tpsIn(ts, tp, interval, period, atoms) {
 }
 
 export function translateError(error) {
-  console.log(error);
 
   let translatedError = {};
 

@@ -1,9 +1,9 @@
 import React from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import RefreshIcon from '@mui/icons-material/Refresh';
+import MonitorIcon from '@mui/icons-material/Monitor';
 
-export default function RefreshButton ({ handleRefresh }) {
+export default function MonitorButton ({ handleMonitor }) {
   return (
     <Button
       variant="contained"
@@ -11,10 +11,10 @@ export default function RefreshButton ({ handleRefresh }) {
       sx={{
         width: '100%'
       }}
-      onClick={handleRefresh}
+      onClick={handleMonitor}
     >
       <Box pt={1}>
-        <RefreshIcon color="inherit" />
+        <MonitorIcon color="inherit" />
       </Box>
     </Button>
   );

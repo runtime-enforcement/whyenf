@@ -16,7 +16,6 @@ export default function CheckerSwitch({ refresh, checker, setChecker }) {
   useEffect(() => {
     if (refresh) {
       setChecker(localChecker);
-      console.log("checker = " + checker);
     }
   });
 
