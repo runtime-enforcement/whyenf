@@ -8,7 +8,6 @@ import AppendTraceTextField from './AppendTraceTextField';
 import FormulaTextField from './FormulaTextField';
 import MeasureSelect from './MeasureSelect';
 import NavBar from './NavBar';
-import BottomBar from './BottomBar';
 import TimeGrid from './TimeGrid';
 import MonitorButton from './MonitorButton';
 import AppendButton from './AppendButton';
@@ -47,6 +46,7 @@ function initMonitor(state, action) {
              squares: squares,
              monitorState: monitorState,
              selectedRows: [],
+             highlightedCells: [],
              fixParameters: true
            };
   } catch (error) {
@@ -74,7 +74,6 @@ function execMonitor(state, action) {
              atoms: atoms,
              squares: squares,
              monitorState: monitorState,
-             selectedRows: [],
              fixParameters: true
            };
   } catch (error) {
@@ -96,6 +95,7 @@ function reducer(state, action) {
       ...state,
       squares: action.squares,
       selectedRows: action.selectedRows,
+      highlightedCells: action.highlightedCells,
       fixParameters: true
     }
   case 'resetTable':
@@ -103,6 +103,7 @@ function reducer(state, action) {
       ...state,
       squares: computeSquares(state.explanations, state.atoms),
       selectedRows: [],
+      highlightedCells: [],
       fixParameters: true
     }
   case 'leaveMonitor':
@@ -113,6 +114,7 @@ function reducer(state, action) {
              squares: [],
              monitorState: [],
              selectedRows: [],
+             highlightedCells: [],
              dialog: {},
              fixParameters: false
            }
@@ -126,6 +128,8 @@ function reducer(state, action) {
       ...state,
       dialog: {},
     }
+  default:
+    return state;
   }
 }
 
@@ -142,6 +146,7 @@ function App() {
                                                   squares: [],
                                                   monitorState: [],
                                                   selectedRows: [],
+                                                  highlightedCells: [],
                                                   dialog: {},
                                                   fixParameters: false
                                                 });
@@ -276,6 +281,7 @@ function App() {
                               subfsColumns={state.subfsColumns}
                               squares={state.squares}
                               selectedRows={state.selectedRows}
+                              highlightedCells={state.highlightedCells}
                               dispatch={dispatch}
                     />
                   </Grid>
@@ -285,7 +291,6 @@ function App() {
             </Grid>
           </Box>
         </Container>
-        <BottomBar />
       </Box>
     </ThemeProvider>
   );
