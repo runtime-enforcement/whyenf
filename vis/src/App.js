@@ -10,9 +10,11 @@ import MeasureSelect from './MeasureSelect';
 import NavBar from './NavBar';
 import BottomBar from './BottomBar';
 import TimeGrid from './TimeGrid';
-import RefreshButton from './RefreshButton';
+import MonitorButton from './MonitorButton';
 import AppendButton from './AppendButton';
+import LeaveButton from './LeaveButton';
 import ClearButton from './ClearButton';
+import ResetButton from './ResetButton';
 import RandomExampleSelect from './RandomExampleSelect';
 import PreambleCard from './PreambleCard';
 import AlertDialog from './AlertDialog';
@@ -24,7 +26,7 @@ const theme = createTheme({
       main: "#000000",
     },
     secondary: {
-      main: "#39ff14",
+      main: "#6EB5FF",
     },
   },
 });
@@ -85,28 +87,39 @@ function execMonitor(state, action) {
 
 function reducer(state, action) {
   switch (action.type) {
-  case 'init':
+  case 'initTable':
     return initMonitor(state, action);
-  case 'append':
+  case 'appendTable':
     return execMonitor(state, action);
-  case 'reset':
-    return {
-      ...state,
-      squares: computeSquares(state.explanations, state.atoms),
-      selectedRows: [],
-      fixParameters: true
-    }
-  case 'update':
+  case 'updateTable':
     return {
       ...state,
       squares: action.squares,
       selectedRows: action.selectedRows,
       fixParameters: true
     }
+  case 'resetTable':
+    return {
+      ...state,
+      squares: computeSquares(state.explanations, state.atoms),
+      selectedRows: [],
+      fixParameters: true
+    }
+  case 'leaveMonitor':
+    return { explanations: [],
+             atoms: [],
+             apsColumns: [],
+             subfsColumns: [],
+             squares: [],
+             monitorState: [],
+             selectedRows: [],
+             dialog: {},
+             fixParameters: false
+           }
   case 'openDialog':
     return {
       ...state,
-      dialog: { type: action.dialogType, text: action.dialogText }
+      dialog: { name: action.name, message: action.message }
     }
   case 'closeDialog':
     return {
@@ -133,17 +146,15 @@ function App() {
                                                   fixParameters: false
                                                 });
 
-  const handleRefresh = (e) => {
+  const handleMonitor = (e) => {
     e.preventDefault();
 
-    let action;
-    if (state.measure === measure && state.formula === formula && state.trace === trace) action = { type: 'reset' };
-    else action = { checker: checker,
-                    measure: measure,
-                    formula: formula,
-                    trace: trace,
-                    type: 'init'
-                  };
+    let action = { checker: checker,
+                   measure: measure,
+                   formula: formula,
+                   trace: trace,
+                   type: 'initTable'
+                 };
 
     dispatch(action);
   };
@@ -151,19 +162,36 @@ function App() {
   const handleAppend = (e) => {
     e.preventDefault();
 
-    console.log("Hi!");
-
     let action;
-    if (appendTrace === "") return;
+    if (appendTrace === "") action = { type: 'openDialog',
+                                       name: 'Error',
+                                       message: 'Your trace is empty. Please try again.'
+                                     };
     else action = { checker: checker,
                     measure: measure,
                     formula: formula,
                     appendTrace: appendTrace,
                     monitorState: state.monitorState,
-                    type: 'append'
+                    type: 'appendTable'
                   };
 
     dispatch(action);
+  };
+
+  const handleReset = (e) => {
+    e.preventDefault();
+    let action = { type: 'resetTable' };
+    dispatch(action);
+  }
+
+  const handleLeave = (e) => {
+    e.preventDefault();
+    let action = { type: 'leaveMonitor' };
+    dispatch(action);
+  };
+
+  const handleClear = (e) => {
+    e.preventDefault();
   };
 
   return (
@@ -181,21 +209,29 @@ function App() {
               </Grid>
 
               { !state.fixParameters &&
-                <Grid item xs={12} sm={12} md={4} lg={4} xl={4}>
-                  <RefreshButton handleRefresh={handleRefresh} />
+                <Grid container item xs={12} sm={12} md={4} lg={4} xl={4} spacing={2}>
+                  <Grid item xs={12} sm={12} md={10} lg={10} xl={10}>
+                    <MonitorButton handleMonitor={handleMonitor} />
+                  </Grid>
+                  <Grid item xs={12} sm={12} md={2} lg={2} xl={2}>
+                    <ClearButton handleMonitor={handleMonitor} />
+                  </Grid>
                 </Grid>
               }
 
               { state.fixParameters &&
                 <Grid container item xs={12} sm={12} md={4} lg={4} xl={4} spacing={2}>
-                  <Grid item xs={12} sm={12} md={8} lg={8} xl={8}>
+                  <Grid item xs={12} sm={12} md={6} lg={6} xl={6}>
                     <AppendTraceTextField appendTrace={appendTrace} setAppendTrace={setAppendTrace} />
                   </Grid>
                   <Grid item xs={12} sm={12} md={2} lg={2} xl={2}>
                     <AppendButton handleAppend={handleAppend} />
                   </Grid>
                   <Grid item xs={12} sm={12} md={2} lg={2} xl={2}>
-                    <ClearButton />
+                    <ResetButton handleReset={handleReset} />
+                  </Grid>
+                  <Grid item xs={12} sm={12} md={2} lg={2} xl={2}>
+                    <LeaveButton handleLeave={handleLeave} />
                   </Grid>
                 </Grid>
               }

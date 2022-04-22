@@ -90,7 +90,7 @@ function TimeGrid ({ explanations, atoms, apsColumns, subfsColumns, squares, sel
 
       let selRows = tpsIn(ts, tp, cell.interval, cell.period, atoms);
 
-      let action = { type: "update",
+      let action = { type: "updateTable",
                      squares: cloneSquares,
                      selectedRows: selRows
                    };

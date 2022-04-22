@@ -1,7 +1,7 @@
 import React from 'react';
 import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import ClearIcon from '@mui/icons-material/Clear';
+import Button from '@mui/material/Button'
+import ClearAllIcon from '@mui/icons-material/ClearAll';
 
 export default function ClearButton ({ handleClear }) {
   return (
@@ -9,13 +9,11 @@ export default function ClearButton ({ handleClear }) {
       variant="contained"
       size="large"
       color="error"
-      sx={{
-        width: '100%'
-      }}
       onClick={handleClear}
+      fullWidth
     >
       <Box pt={1}>
-        <ClearIcon color="inherit" />
+        <ClearAllIcon color="inherit" />
       </Box>
     </Button>
   );
