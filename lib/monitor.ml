@@ -1026,7 +1026,7 @@ let meval' tp ts sap mform le minimuml =
        (ps, MUntil (interval, mf1', mf2', buf', ntss_ntps, muaux'')) in
   meval tp ts sap mform
 
-let monitor in_ch out_ch mode out_mode check le f =
+let monitor in_ch out_ch mode out_mode check le is_opt f =
   let minimuml ps = minsize_list (get_mins le ps) in
   let rec loop f x = loop f (f x) in
   let mf = minit f in
@@ -1044,7 +1044,7 @@ let monitor in_ch out_ch mode out_mode check le f =
     let sap_filtered = filter_ap sap mf_ap in
     let events_updated = (sap_filtered, ts)::st.events in
     let (ps, mf_updated) = meval' st.tp ts sap_filtered st.mf le minimuml in
-    let checker_ps = if check then Some (check_ps events_updated f (Deque.to_list ps)) else None in
+    let checker_ps = if check then Some (check_ps is_opt events_updated f (Deque.to_list ps)) else None in
     let () = output_ps out_ch mode out_mode ts st.tp [] f (Deque.to_list ps) checker_ps in
     let st_updated =
       { st with
@@ -1073,10 +1073,7 @@ let monitor2 obj_opt log c le f =
                                     let sap_filtered = filter_ap sap mf_ap in
                                     let (ps, mf_updated) = meval' st'.tp ts sap_filtered mf' le minimuml in
                                     let events_updated = if c then (sap_filtered, ts)::st'.events else [] in
-                                    let cbs_opt = if c then
-                                                    let checks = check_ps events_updated f (Deque.to_list ps) in
-                                                    Some (List.map checks (fun (b, _, _) -> b))
-                                                  else None in
+                                    let cbs_opt = None in
                                     let expls = json_expls st.tp_ts f (Deque.to_list ps) cbs_opt in
                                     let atoms = json_atoms f sap_filtered st'.tp ts in
                                     let st_updated =

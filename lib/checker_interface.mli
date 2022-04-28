@@ -18,4 +18,5 @@ type trace_t = (SS.t * int) list
 
 val s_of_proof: checker_proof -> string
 val s_of_trace: trace_t -> string
-val check_ps: (Util.SS.t * int) list -> formula -> expl list -> (bool * checker_proof * trace_t) list
+val check_ps: (string trace -> nat -> string mtl -> (string sproof, string vproof) sum -> bool) ->
+	(Util.SS.t * int) list -> formula -> expl list -> (bool * checker_proof * trace_t) list

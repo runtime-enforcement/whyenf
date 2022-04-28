@@ -15,6 +15,7 @@ open Lib.Io
 open Lib.Mtl_parser
 open Lib.Mtl_lexer
 open Lib.Monitor
+open Lib.Checker.Explanator2
 
 module Explanator2 = struct
 
@@ -26,6 +27,7 @@ module Explanator2 = struct
   let mode_ref = ref ALL
   let out_mode_ref = ref PLAIN
   let measure_le_ref = ref None
+  let is_opt_ref = ref None
   let fmla_ref = ref None
   let log_ref = ref stdin
   let out_ref = ref stdout
@@ -98,26 +100,16 @@ module Explanator2 = struct
            match measure with
            | "size" | "SIZE" | "Size" -> size_le
            | "high" | "HIGH" | "High" -> high_le
-           | "pred" | "PRED" | "Pred" -> predicates_le
            | "none" | "NONE" | "None" -> (fun _ _ -> true)
            | _ -> measure_error () in
-         measure_le_ref :=
-           (match !measure_le_ref with
-            | None -> Some measure_le
-            | Some measure_le' -> Some(prod measure_le measure_le'));
-         go args
-      | ("-Olex" :: measure :: args) ->
-         let measure_le =
+         measure_le_ref := Some measure_le;
+         let is_opt =
            match measure with
-           | "size" | "SIZE" | "Size" -> size_le
-           | "high" | "HIGH" | "High" -> high_le
-           | "pred" | "PRED" | "Pred" -> predicates_le
-           | "none" | "NONE" | "None" -> (fun _ _ -> true)
+           | "size" | "SIZE" | "Size" -> is_opt_atm (fun s -> nat_of_integer (Z.of_int 1))
+           | "high" | "HIGH" | "High" -> is_opt_minmaxreach
+           | "none" | "NONE" | "None" -> (fun _ _ _ _ -> true)
            | _ -> measure_error () in
-         measure_le_ref :=
-           (match !measure_le_ref with
-            | None -> Some measure_le
-            | Some measure_le' -> Some(lex measure_le measure_le'));
+         is_opt_ref := Some is_opt;
          go args
       | ("-log" :: logfile :: args) ->
          log_ref := open_in logfile;
@@ -149,13 +141,14 @@ module Explanator2 = struct
     try
       process_args (List.tl (Array.to_list Sys.argv));
       let measure_le = Option.get !measure_le_ref in
+      let is_opt = Option.get !is_opt_ref in
       let formula = Option.get !fmla_ref in
       if !vis_ref then
         let () = Printf.printf "%s" (json_table_columns formula) in
         let (_, out) = monitor2 None !log_str_ref !check_ref measure_le formula in
         Printf.printf "%s" out
       else
-        let _ = monitor !log_ref !out_ref !mode_ref !out_mode_ref !check_ref measure_le formula in ()
+        let _ = monitor !log_ref !out_ref !mode_ref !out_mode_ref !check_ref measure_le is_opt formula in ()
     with
     | End_of_file -> (if !out_mode_ref = PLAIN then
                         closing_stdout !out_ref);
