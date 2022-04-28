@@ -22,6 +22,8 @@ let rec convert_sp sp =
   match sp with
   | SAtom (i, s) -> let i_nat = nat_of_integer (of_int i) in
                     SAtm (s, i_nat)
+  | STT i -> let i_nat = nat_of_integer (of_int i) in
+             STT i_nat
   | SNeg p1 -> SNeg (convert_vp p1)
   | SDisjL p1 -> SDisjL (convert_sp p1)
   | SDisjR p2 -> SDisjR (convert_sp p2)
@@ -38,6 +40,8 @@ and convert_vp vp =
   match vp with
   | VAtom (i, s) -> let i_nat = nat_of_integer (of_int i) in
                     VAtm (s, i_nat)
+  | VFF i -> let i_nat = nat_of_integer (of_int i) in
+             VFF i_nat
   | VNeg p1 -> VNeg (convert_sp p1)
   | VDisj (p1, p2) -> VDisj (convert_vp p1, convert_vp p2)
   | VConjL p1 -> VConjL (convert_vp p1)
@@ -94,6 +98,8 @@ let convert_interval i =
 let rec convert_f f =
   match f with
   | P (x) -> Atom (x)
+  | TT -> TT
+  | FF -> FF
   | Neg (f) -> Neg (convert_f f)
   | Conj (f, g) -> Conj (convert_f f, convert_f g)
   | Disj (f, g) -> Disj (convert_f f, convert_f g)
@@ -117,7 +123,7 @@ let convert_trace trace =
     (fun acc (sap, ts) ->
       (convert_event sap ts)::acc) [] trace
 
-let check_ps trace f ps =
+let check_ps is_opt trace f ps =
   let checker_f = convert_f f in
   let trace_converted = convert_trace trace in
   let checker_trace = trace_of_list trace_converted in
@@ -126,9 +132,8 @@ let check_ps trace f ps =
                let checker_p_sum = match checker_p with
                  | CS checker_sp -> Inl checker_sp
                  | CV checker_vp -> Inr checker_vp in
-               let f_size = (fun s -> nat_of_integer (of_int 1)) in
                let tp_nat = nat_of_integer (of_int (p_at p)) in
-               let b = is_opt_atm f_size checker_trace tp_nat checker_f checker_p_sum in
+               let b = is_opt checker_trace tp_nat checker_f checker_p_sum in
                (b, checker_p, trace)::acc) [] ps)
 
 let s_of_sum s_of_left s_of_right = function

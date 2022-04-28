@@ -11,6 +11,7 @@ open Mtl
 open Expl
 open Util
 open Interval
+open Checker.Explanator2
 
 module Deque = Core_kernel.Deque
 
@@ -79,7 +80,8 @@ type state =
   ; tp_ts: (timepoint, timestamp) Hashtbl.t
   }
 
-val monitor: in_channel -> out_channel -> mode -> out_mode -> bool -> (expl -> expl -> bool) -> formula ->
+val monitor: in_channel -> out_channel -> mode -> out_mode -> bool -> (expl -> expl -> bool) ->
+	         (string trace -> nat -> string mtl -> (string sproof, string vproof) sum -> bool) -> formula ->
              out_channel
 val monitor2: (mformula * state) option -> string -> bool -> (expl -> expl -> bool) -> formula ->
               (mformula * state) option * string
