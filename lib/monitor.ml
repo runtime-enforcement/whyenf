@@ -344,7 +344,7 @@ module Since = struct
                ; alphas_out
                ; betas_in }
 
- let advance_msaux (l, r) tp ts p1 p2 msaux le =
+ let advance_msaux (l, r) ts tp p1 p2 msaux le =
     let msaux_plus_new = add_to_msaux ts p1 p2 msaux le in
     let msaux_minus_old = remove_from_msaux (l, r) msaux_plus_new in
     let beta_alphas_out, new_in_sat = split_in_out (fun (ts, _) -> ts) (l, r) msaux_minus_old.beta_alphas_out in
@@ -357,7 +357,7 @@ module Since = struct
                          ; alpha_betas
                          ; betas_in }
 
- let update_since interval tp ts p1 p2 msaux le =
+ let update_since interval ts tp p1 p2 msaux le =
     let a = get_a_I interval in
     (* Case 1: interval has not yet started, i.e.,
      \tau_{tp} < (\tau_{0} + a) OR (\tau_{tp} - a) < 0 *)
@@ -367,7 +367,7 @@ module Since = struct
       let r = (-1) in
       let ts_zero = if Option.is_none msaux.ts_zero then Some(ts) else msaux.ts_zero in
       let msaux_ts_updated = update_ts (l, r) a ts tp msaux in
-      let msaux_updated = advance_msaux (l, r) tp ts p1 p2 msaux_ts_updated le in
+      let msaux_updated = advance_msaux (l, r) ts tp p1 p2 msaux_ts_updated le in
       let p = V (VSinceOutL tp) in
       ([p], { msaux_updated with ts_zero })
     (* Case 2: there exists a \tau_{tp'} inside the interval s.t. tp' < tp *)
@@ -378,7 +378,7 @@ module Since = struct
               else (Option.get ts_zero) in
       let r = ts - a in
       let msaux_ts_updated = update_ts (l, r) a ts tp msaux in
-      let msaux_updated = advance_msaux (l, r) tp ts p1 p2 msaux_ts_updated le in
+      let msaux_updated = advance_msaux (l, r) ts tp p1 p2 msaux_ts_updated le in
       (candidate_proofs tp { msaux_updated with ts_zero }, { msaux_updated with ts_zero })
 end
 
@@ -1005,7 +1005,7 @@ let meval' tp ts sap mform le minimuml =
        let ((ps, msaux'), buf', tss_tps') =
          mbuf2t_take
            (fun p1 p2 ts tp (ps, aux) ->
-             let (cps, aux) = Since.update_since interval tp ts p1 p2 aux le in
+             let (cps, aux) = Since.update_since interval ts tp p1 p2 aux le in
              let op = minimuml cps in
              let _ = Deque.enqueue_back ps op in
              (ps, aux))
