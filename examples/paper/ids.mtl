@@ -1,0 +1,1 @@
+(out1 AND out2 AND out3) AND (PREV (ONCE ((in1 AND in2 AND in3) AND (EVENTUALLY[0,60] (ids1 AND ids2 AND ids3)))))
