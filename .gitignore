@@ -12,5 +12,4 @@ test/tmp/gen_log
 test/tmp/gen_fmla
 *.exe
 *.aux
-*.log
 *.txt
