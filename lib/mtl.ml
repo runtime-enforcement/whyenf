@@ -31,14 +31,24 @@ let ff = FF
 let p x = P x
 (* Propositional operators *)
 let neg f = Neg f
-let conj f g = Conj (f, g)
-let disj f g = Disj (f, g)
+let conj f g = Conj(f, g)
+let disj f g = Disj(f, g)
 
 (* Temporal operators *)
-let prev i f = Prev (i, f)
-let next i f = Next (i, f)
-let since i f g = Since (i, f, g)
-let until i f g = Until (i, f, g)
+let prev i f = Prev(i, f)
+let next i f = Next(i, f)
+let since i f g = Since(i, f, g)
+let until i f g = Until(i, f, g)
+
+(* Partially supported *)
+let imp f g = Disj(Neg f, g)
+let iff f g = Disj(Conj(f, g), Conj(Neg f, Neg g))
+let trigger i f g = Neg(Since(i, Neg(f), Neg(g)))
+let release i f g = Neg(Until(i, Neg(f), Neg(g)))
+let eventually i f = Until(i, TT, f)
+let once i f = Since(i, TT, f)
+let always i f = Neg(eventually i (Neg f))
+let historically i f = Neg(once i (Neg f))
 
 let equal x y = match x, y with
   | TT, TT -> true
