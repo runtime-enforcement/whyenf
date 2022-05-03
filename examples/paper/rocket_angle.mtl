@@ -1,0 +1,1 @@
+(a0 AND a1) => (EVENTUALLY[0,500] a2)
