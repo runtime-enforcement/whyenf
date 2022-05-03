@@ -344,7 +344,7 @@ module Since = struct
                ; alphas_out
                ; betas_in }
 
- let advance_msaux (l, r) ts tp p1 p2 msaux le =
+  let advance_msaux (l, r) ts tp p1 p2 msaux le =
     let msaux_plus_new = add_to_msaux ts p1 p2 msaux le in
     let msaux_minus_old = remove_from_msaux (l, r) msaux_plus_new in
     let beta_alphas_out, new_in_sat = split_in_out (fun (ts, _) -> ts) (l, r) msaux_minus_old.beta_alphas_out in
@@ -357,12 +357,13 @@ module Since = struct
                          ; alpha_betas
                          ; betas_in }
 
- let update_since interval ts tp p1 p2 msaux le =
+  let update_since interval ts tp p1 p2 msaux le =
     let a = get_a_I interval in
+    Printf.printf "ts = %d; tp = %d\n" ts tp;
     (* Case 1: interval has not yet started, i.e.,
      \tau_{tp} < (\tau_{0} + a) OR (\tau_{tp} - a) < 0 *)
-    if ((Option.is_none msaux.ts_zero) && (ts - a) < 0) ||
-          (Option.is_some msaux.ts_zero) && ts < (Option.get msaux.ts_zero) + a then
+    if ((Option.is_none msaux.ts_zero) && a > 0) ||
+         (Option.is_some msaux.ts_zero) && ts < (Option.get msaux.ts_zero) + a then
       let l = (-1) in
       let r = (-1) in
       let ts_zero = if Option.is_none msaux.ts_zero then Some(ts) else msaux.ts_zero in
