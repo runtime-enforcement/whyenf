@@ -37,6 +37,15 @@ val next: interval -> formula -> formula
 val since: interval -> formula -> formula -> formula
 val until: interval -> formula -> formula -> formula
 
+val imp: formula -> formula -> formula
+val iff: formula -> formula -> formula
+val trigger: interval -> formula -> formula -> formula
+val release: interval -> formula -> formula -> formula
+val eventually: interval -> formula -> formula
+val once: interval -> formula -> formula
+val always: interval -> formula -> formula
+val historically: interval -> formula -> formula
+
 val atoms: formula -> string list
 
 val hp: formula -> int
