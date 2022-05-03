@@ -359,9 +359,8 @@ module Since = struct
 
   let update_since interval ts tp p1 p2 msaux le =
     let a = get_a_I interval in
-    Printf.printf "ts = %d; tp = %d\n" ts tp;
     (* Case 1: interval has not yet started, i.e.,
-     \tau_{tp} < (\tau_{0} + a) OR (\tau_{tp} - a) < 0 *)
+     a > 0 OR (\tau_{tp} - a) < 0 *)
     if ((Option.is_none msaux.ts_zero) && a > 0) ||
          (Option.is_some msaux.ts_zero) && ts < (Option.get msaux.ts_zero) + a then
       let l = (-1) in
