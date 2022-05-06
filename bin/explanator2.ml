@@ -58,8 +58,7 @@ module Explanator2 = struct
        \t\t json   - JSON output (only useful for the visualization)
        \t\t debug  - plain verbose output (only useful for debugging)
        \t -out
-       \t\t <file> - output file where the explanation is printed to (default: stdout)
-       \t -vis     - execute monitor wrapper (only useful when debugging visualization related functions)\n%!";
+       \t\t <file> - output file where the explanation is printed to (default: stdout)\n%!";
     exit 0
 
   let mode_error () =
