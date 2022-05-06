@@ -30,12 +30,12 @@ simp () {
 
     if [[ "${CHECK_FLAG}" = "check" ]]
     then
-        OUT=$(../explanator2.native -O ${MEASURE} -mode all -fmla tmp/${PREFIX}.mdl -log tmp/${PREFIX}.log -out_mode plain \
+        OUT=$(../bin/explanator2.exe -O ${MEASURE} -mode all -fmla tmp/${PREFIX}.mdl -log tmp/${PREFIX}.log -out_mode plain \
                                     -check 2>&1)
     else
         if [[ "${CHECK_FLAG}" = "no-check" ]]
         then
-            OUT=$(../explanator2.native -O ${MEASURE} -mode all -fmla tmp/${PREFIX}.mdl -log tmp/${PREFIX}.log -out_mode plain \
+            OUT=$(../bin/explanator2.exe -O ${MEASURE} -mode all -fmla tmp/${PREFIX}.mdl -log tmp/${PREFIX}.log -out_mode plain \
                                         2>&1)
         else
             usage
@@ -71,12 +71,12 @@ verb () {
 
     if [[ "${CHECK_FLAG}" = "check" ]]
     then
-        OUT=$(../explanator2.native -O ${MEASURE} -mode all -fmla tmp/${PREFIX}.mdl -log tmp/${PREFIX}.log -out_mode plain \
+        OUT=$(../bin/explanator2.exe -O ${MEASURE} -mode all -fmla tmp/${PREFIX}.mdl -log tmp/${PREFIX}.log -out_mode plain \
                                     -check 2>&1)
     else
         if [[ "${CHECK_FLAG}" = "no-check" ]]
         then
-            OUT=$(../explanator2.native -O ${MEASURE} -mode all -fmla tmp/${PREFIX}.mdl -log tmp/${PREFIX}.log -out_mode plain \
+            OUT=$(../bin/explanator2.exe -O ${MEASURE} -mode all -fmla tmp/${PREFIX}.mdl -log tmp/${PREFIX}.log -out_mode plain \
                                         2>&1)
         else
             usage
