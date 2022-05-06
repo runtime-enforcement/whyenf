@@ -12,7 +12,7 @@ import { squareColor, squareColorTest, tpsIn } from './util';
 function Cell(props) {
   return (
     <Button onClick={props.onClick}>
-      { props.value === "" && <CircleIcon /> }
+      { props.value === "#000000" && <CircleIcon /> }
       { props.value === red[500] && <CancelIcon style={{ color: props.value }} /> }
       { props.value === lightGreen[500] && <CheckCircleIcon style={{ color: props.value }} /> }
     </Button>
@@ -83,7 +83,7 @@ function TimeGrid ({ explanations, atoms, apsColumns, subfsColumns, squares, sel
       if (c !== undefined) cell = c;
     }
 
-    if (cell !== undefined && squares[cell.tp][cell.col] !== "") {
+    if (cell !== undefined && squares[cell.tp][cell.col] !== "" && cell.cells.length !== 0) {
       for (let i = 0; i < cell.cells.length; ++i) {
         cloneSquares[cell.cells[i].tp][cell.cells[i].col] = squareColor(cell.cells[i].bool);
       }

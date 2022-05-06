@@ -50,6 +50,16 @@ export function computeSquares(explanations, atoms, squares = []) {
     }
   }
 
+  // Initialize the other parts of the explanations with black
+  for (let i = 0; i < explanations.length; ++i) {
+    for (let j = 0; j < explanations[i].table.length; ++j) {
+      let tbl = explanations[i].table[j];
+      for (let k = 0; k < tbl.cells.length; ++k) {
+        squares[tbl.cells[k].tp][tbl.cells[k].col] = "#000000";
+      }
+    }
+  }
+
   return squares;
 }
 
