@@ -71,7 +71,7 @@ let sdrop sp = match sp with
   | _ -> failwith "Bad arguments for sdrop"
 
 let vdrop vp = match vp with
-  | VUntil (_, _, vp2::[]) -> None
+  | VUntil (_, _, _::[]) -> None
   | VUntil (tp, vp1, vp2s) -> Some (VUntil (tp, vp1, drop_front vp2s))
   | VUntilInf (_, _, []) -> None
   | VUntilInf (tp, ltp, vp2s) -> Some (VUntilInf (tp, ltp, drop_front vp2s))
@@ -83,7 +83,7 @@ let rec s_at = function
   | SNeg vphi -> v_at vphi
   | SDisjL sphi -> s_at sphi
   | SDisjR spsi -> s_at spsi
-  | SConj (sphi, spsi) -> s_at sphi
+  | SConj (sphi, _) -> s_at sphi
   | SPrev sphi -> s_at sphi + 1
   | SNext sphi -> s_at sphi - 1
   | SSince (spsi, sphis) -> (match sphis with
@@ -91,12 +91,12 @@ let rec s_at = function
       | _ -> s_at (last sphis))
   | SUntil (spsi, sphis) -> (match sphis with
       | [] -> s_at spsi
-      | x::xs -> s_at x)
+      | x :: _ -> s_at x)
 and v_at = function
   | VFF i -> i
   | VAtom (i, _) -> i
   | VNeg sphi -> s_at sphi
-  | VDisj (vphi, vpsi) -> v_at vphi
+  | VDisj (vphi, _) -> v_at vphi
   | VConjL vphi -> v_at vphi
   | VConjR vpsi -> v_at vpsi
   | VPrev0 -> 0
@@ -156,10 +156,10 @@ and v_size = function
   | VNextOutR _ -> 1
   | VNext vphi -> 1 + v_size vphi
   | VSince (_, vphi, vpsis) -> 1 + v_size vphi + sum v_size vpsis
-  | VSinceInf (i, _, vpsis) -> 1 + sum v_size vpsis
+  | VSinceInf (_, _, vpsis) -> 1 + sum v_size vpsis
   | VSinceOutL _ -> 1
-  | VUntil (i, vphi, vpsis) -> 1 + v_size vphi + sum v_size vpsis
-  | VUntilInf (i, _, vpsis) -> 1 + sum v_size vpsis
+  | VUntil (_, vphi, vpsis) -> 1 + v_size vphi + sum v_size vpsis
+  | VUntilInf (_, _, vpsis) -> 1 + sum v_size vpsis
 
 let size = function
   | S s_p -> s_size s_p
@@ -260,8 +260,8 @@ let low_le = mk_le (fun p -> - low p)
  *                                 *
  ***********************************)
 let rec s_pred = function
-  | STT i -> 0
-  | SAtom (i, _) -> 1
+  | STT _ -> 0
+  | SAtom (_, _) -> 1
   | SNeg expl -> v_pred expl
   | SDisjL sphi -> s_pred sphi
   | SDisjR spsi -> s_pred spsi
@@ -271,8 +271,8 @@ let rec s_pred = function
   | SSince (spsi, sphis) -> s_pred spsi + sum s_pred sphis
   | SUntil (spsi, sphis) -> s_pred spsi + sum s_pred sphis
 and v_pred = function
-  | VFF i -> 0
-  | VAtom (i, _) -> 1
+  | VFF _ -> 0
+  | VAtom (_, _) -> 1
   | VNeg sphi -> s_pred sphi
   | VDisj (vphi, vpsi) -> v_pred vphi + v_pred vpsi
   | VConjL vphi -> v_pred vphi
@@ -306,6 +306,7 @@ let rec s_to_string indent p =
   | SDisjL sphi -> Printf.sprintf "%sSDisjL{%d}\n%s" indent (s_at p) (s_to_string indent' sphi)
   | SDisjR spsi -> Printf.sprintf "%sSDisjR{%d}\n%s" indent (s_at p) (s_to_string indent' spsi)
   | SConj (sphi, spsi) -> Printf.sprintf "%sSConj{%d}\n%s\n%s)" indent (s_at p) (s_to_string indent' sphi) (s_to_string indent' spsi)
+  | SPrev sphi -> Printf.sprintf "%sSPrev{%d}\n%s" indent (s_at p) (s_to_string indent' sphi)
   | SNext sphi -> Printf.sprintf "%sSNext{%d}\n%s" indent (s_at p) (s_to_string indent' sphi)
   | SSince (spsi, sphis) ->
       Printf.sprintf "%sSSince{%d}\n%s\n%s" indent (s_at p) (s_to_string indent' spsi) (list_to_string indent' s_to_string sphis)

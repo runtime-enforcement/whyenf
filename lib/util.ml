@@ -20,8 +20,8 @@ type trace = event list
 type mode = SAT | VIOL | ALL
 type out_mode = PLAIN | JSON | DEBUG
 
-let rec max_list = List.fold_left max 0
-let rec min_list = List.fold_left min 0
+let max_list = List.fold_left max 0
+let min_list = List.fold_left min 0
 
 (* Make the list [i, i+1, i+2, ..., j] *)
 let rec ( -- ) i j =
@@ -66,7 +66,7 @@ let get_mins le ps =
 let drop_front l =
   match l with
   | [] -> raise EMPTY_LIST
-  | x :: xs -> xs
+  | _ :: xs -> xs
 
 let count_lines file =
   let in_ch = open_in file in

@@ -9,7 +9,6 @@
 (*******************************************************************)
 
 open Util
-open Expl
 
 type uinterval = UI of int
 type binterval = BI of int * int
