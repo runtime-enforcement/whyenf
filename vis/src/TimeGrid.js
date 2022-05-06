@@ -10,13 +10,17 @@ import { common } from '@mui/material/colors'
 import { black, squareColor, squareColorTest, tpsIn } from './util';
 
 function Cell(props) {
-  return (
-    <Button onClick={props.onClick}>
-      { props.value === black && <CircleIcon /> }
-      { props.value === red[500] && <CancelIcon style={{ color: props.value }} /> }
-      { props.value === lightGreen[500] && <CheckCircleIcon style={{ color: props.value }} /> }
-    </Button>
-  );
+  if (props.value === red[500] || props.value === lightGreen[500] || props.value === black) {
+    return (
+      <Button onClick={props.onClick}>
+        { props.value === black && <CircleIcon /> }
+        { props.value === red[500] && <CancelIcon style={{ color: props.value }} /> }
+        { props.value === lightGreen[500] && <CheckCircleIcon style={{ color: props.value }} /> }
+      </Button>
+    );
+  } else {
+    return "";
+  }
 }
 
 function TimeGrid ({ explanations, atoms, apsColumns, subfsColumns, squares, selectedRows, dispatch }) {
