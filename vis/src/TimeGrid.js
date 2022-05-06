@@ -7,12 +7,12 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { red, purple, yellow, lightGreen, cyan } from '@mui/material/colors';
 import { common } from '@mui/material/colors'
-import { squareColor, squareColorTest, tpsIn } from './util';
+import { black, squareColor, squareColorTest, tpsIn } from './util';
 
 function Cell(props) {
   return (
     <Button onClick={props.onClick}>
-      { props.value === "#000000" && <CircleIcon /> }
+      { props.value === black && <CircleIcon /> }
       { props.value === red[500] && <CancelIcon style={{ color: props.value }} /> }
       { props.value === lightGreen[500] && <CheckCircleIcon style={{ color: props.value }} /> }
     </Button>
@@ -83,7 +83,7 @@ function TimeGrid ({ explanations, atoms, apsColumns, subfsColumns, squares, sel
       if (c !== undefined) cell = c;
     }
 
-    if (cell !== undefined && squares[cell.tp][cell.col] !== "" && cell.cells.length !== 0) {
+    if (cell !== undefined && squares[cell.tp][cell.col] !== black && cell.cells.length !== 0) {
       for (let i = 0; i < cell.cells.length; ++i) {
         cloneSquares[cell.cells[i].tp][cell.cells[i].col] = squareColor(cell.cells[i].bool);
       }

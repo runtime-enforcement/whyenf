@@ -1,6 +1,8 @@
 import Button from '@mui/material/Button';
 import { red, purple, yellow, lightGreen } from '@mui/material/colors';
 
+export const black = "#000000";
+
 function computeMaxCol(explanations) {
   let maxCol = 0;
 
@@ -55,7 +57,7 @@ export function computeSquares(explanations, atoms, squares = []) {
     for (let j = 0; j < explanations[i].table.length; ++j) {
       let tbl = explanations[i].table[j];
       for (let k = 0; k < tbl.cells.length; ++k) {
-        squares[tbl.cells[k].tp][tbl.cells[k].col] = "#000000";
+        squares[tbl.cells[k].tp][tbl.cells[k].col] = black;
       }
     }
   }
