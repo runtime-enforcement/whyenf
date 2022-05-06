@@ -139,7 +139,7 @@ function App() {
   const [checker, setChecker] = useState(false);
   const [measure, setMeasure] = useState("size");
   const [formula, setFormula] = useState("");
-  const [trace, setTrace] = useState("");
+  const [trace, setTrace] = useState("@0 a\n@3 a b\n@7\n@11 a\n@13 a\n@17 a\n@18 a b\n@18 a b\n@22 a\n@26 a\n@29 a\n@29\n@33 a\n@33 a\n@34 a\n@38 a b\n@41 a b\n@41 a\n@45 b\n@47 a\n@47 a\n@49 a\n@49 a\n@53 b\n@53 a b\n@56\n@56 a\n@60 a b\n@63 a\n@66 a b\n@67 a b\n@67 a\n@70 a b\n@72 a b\n@72 a b\n@73 a\n@77 a b");
   const [appendTrace, setAppendTrace] = useState("");
   const [state, dispatch] = useReducer(reducer, { explanations: [],
                                                   atoms: [],
