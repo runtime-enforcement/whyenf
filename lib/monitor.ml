@@ -26,6 +26,8 @@ exception NOT_FOUND of string
 (* TODO: Rewrite every occurrence of Deque.to_list in this file *)
 (* TODO: Rename every (ts, p) as el or whatever. p should denote the proof element and not the pair *)
 
+let minimuml le ps = minsize_list (get_mins le ps)
+
 let sappend_to_deque sp1 d =
   let () = Deque.iteri d ~f:(fun i (ts, ssp) ->
               match ssp with
@@ -676,7 +678,7 @@ module Until = struct
                ; alphas_out
                ; betas_suffix_in }
 
-  let eval_step_muaux a (nts, ntp) ts tp muaux le minimuml =
+  let eval_step_muaux a (nts, ntp) ts tp muaux le =
     (* let () = Printf.printf "eval_step_muaux ts = %d; tp = %d\n" ts tp in *)
     (* let () = Printf.printf "\nbefore: %s\n" (muaux_to_string muaux) in *)
     let optimal_proofs_len = Deque.length muaux.optimal_proofs in
@@ -714,25 +716,25 @@ module Until = struct
                                 | Some(_, vp2) -> (v_at vp2) in
                               [V (VUntilInf (tp, ltp, betas_suffix))]
                             else [] in
-                 Deque.enqueue_back muaux.optimal_proofs (ts, minimuml (p1_l @ p2_l @ p3_l)))) in
+                 Deque.enqueue_back muaux.optimal_proofs (ts, minimuml le (p1_l @ p2_l @ p3_l)))) in
     let muaux = adjust_muaux a (nts, ntp) muaux le in
     (* let () = Printf.printf "\nafter: %s\n" (muaux_to_string muaux) in *)
     muaux
 
-  let shift_muaux (a, b) (nts, ntp) muaux le minimuml =
+  let shift_muaux (a, b) (nts, ntp) muaux le =
     (* let () = Printf.printf "shift_muaux nts = %d; ntp = %d\n" nts ntp in *)
     let tss_tps = ready_tss_tps muaux.ts_tp_out muaux.ts_tp_in nts b in
     Deque.fold tss_tps ~init:muaux
-      ~f:(fun acc (ts, tp) -> if ts + b < nts then eval_step_muaux a (nts, ntp) ts tp acc le minimuml
+      ~f:(fun acc (ts, tp) -> if ts + b < nts then eval_step_muaux a (nts, ntp) ts tp acc le
                               else acc)
 
-  let update_until interval nts ntp p1 p2 muaux le minimuml =
+  let update_until interval nts ntp p1 p2 muaux le =
     (* let () = Printf.printf "update_until nts = %d; ntp = %d\n" nts ntp in *)
     let a = get_a_I interval in
     let b = match get_b_I interval with
       | None -> raise UNBOUNDED_FUTURE
       | Some(b') -> b' in
-    let muaux = shift_muaux (a, b) (nts, ntp) muaux le minimuml in
+    let muaux = shift_muaux (a, b) (nts, ntp) muaux le in
     (* (ts, tp) update is performed differently if there is anything *)
     let () = if (not (Deque.is_empty muaux.ts_tp_out)) || (not (Deque.is_empty muaux.ts_tp_in)) then
                (let ts = match first_ts_tp muaux with
@@ -746,17 +748,17 @@ module Until = struct
     let muaux = add_p1_p2 a (nts, ntp) p1 p2 muaux le in
     muaux
 
-  let rec eval_until d interval nts ntp muaux le minimuml =
+  let rec eval_until d interval nts ntp muaux le =
     let a = get_a_I interval in
     let b = match get_b_I interval with
       | None -> raise UNBOUNDED_FUTURE
       | Some(b') -> b' in
-    let muaux = shift_muaux (a, b) (nts, ntp) muaux le minimuml in
+    let muaux = shift_muaux (a, b) (nts, ntp) muaux le in
     match Deque.peek_back muaux.optimal_proofs with
     | None -> (d, muaux)
     | Some(ts, _) -> if ts + b < nts then
                        let (_, op) = Deque.dequeue_back_exn muaux.optimal_proofs in
-                       let (ops, muaux) = eval_until d interval nts ntp muaux le minimuml in
+                       let (ops, muaux) = eval_until d interval nts ntp muaux le in
                        let _ = Deque.enqueue_back ops op in
                        (ops, muaux)
                      else (d, muaux)
@@ -766,11 +768,11 @@ module Prev_Next = struct
 
   type operator = Prev | Next
 
-  let rec mprev_next_aux op interval buf tss minimuml =
+  let rec mprev_next_aux op interval buf tss le =
       let t = Deque.dequeue_front_exn tss in
       let t' = Deque.peek_front_exn tss in
       let p = Deque.dequeue_front_exn buf in
-      let (ps, buf', tss') = mprev_next op interval buf tss minimuml in
+      let (ps, buf', tss') = mprev_next op interval buf tss le in
       let p1_l = (match p with
                   | S sp -> if (mem_I (t' - t) interval) then
                               (match op with
@@ -790,14 +792,14 @@ module Prev_Next = struct
                     | Prev -> [V (VPrevOutR ((p_at p)+1))]
                     | Next -> [V (VNextOutR ((p_at p)-1))])
                  else [] in
-      let () = Deque.enqueue_front ps (minimuml (p1_l @ p2_l @ p3_l)) in
+      let () = Deque.enqueue_front ps (minimuml le (p1_l @ p2_l @ p3_l)) in
       (ps, buf', tss')
-  and mprev_next op interval buf tss minimuml =
+  and mprev_next op interval buf tss le =
     match (Deque.is_empty buf, Deque.is_empty tss) with
     | true, _ -> ((Deque.create ()), (Deque.create ()), tss)
     | _, true -> ((Deque.create ()), buf, (Deque.create ()))
     | false, false when ((Deque.length tss) = 1) -> ((Deque.create ()), buf, tss)
-    | false, false -> mprev_next_aux op interval buf tss minimuml
+    | false, false -> mprev_next_aux op interval buf tss le
 
 end
 
@@ -935,22 +937,21 @@ let rec minit f =
      MUntil (i, minit f, minit g, buf, Deque.create (), muaux)
   | _ -> failwith "This formula cannot be monitored"
 
-let do_disj minimum2 expl_f1 expl_f2 =
+let do_disj expl_f1 expl_f2 le =
   match expl_f1, expl_f2 with
-  | S f1, S f2 -> minimum2 (S (SDisjL (f1))) (S (SDisjR(f2)))
+  | S f1, S f2 -> minimuml le [(S (SDisjL (f1))); (S (SDisjR(f2)))]
   | S f1, V _ -> S (SDisjL (f1))
   | V _ , S f2 -> S (SDisjR (f2))
   | V f1, V f2 -> V (VDisj (f1, f2))
 
-let do_conj minimum2 expl_f1 expl_f2 =
+let do_conj expl_f1 expl_f2 le =
   match expl_f1, expl_f2 with
   | S f1, S f2 -> S (SConj (f1, f2))
   | S _ , V f2 -> V (VConjR (f2))
   | V f1, S _ -> V (VConjL (f1))
-  | V f1, V f2 -> minimum2 (V (VConjL (f1))) (V (VConjR (f2)))
+  | V f1, V f2 -> minimuml le [(V (VConjL (f1))); (V (VConjR (f2)))]
 
-let meval' tp ts sap mform le minimuml =
-  let minimum2 a b = minimuml [a; b] in
+let meval' tp ts sap mform le =
   let rec meval tp ts sap mform =
     match mform with
     | MTT -> let d = Deque.create () in
@@ -973,13 +974,13 @@ let meval' tp ts sap mform le minimuml =
                      | V p' -> let _ = Deque.enqueue_back d (S (SNeg p')) in d) in
        (ps', MNeg(mf'))
     | MConj (mf1, mf2, buf) ->
-       let op p1 p2 = do_conj minimum2 p1 p2 in
+       let op p1 p2 = do_conj p1 p2 le in
        let (p1s, mf1') = meval tp ts sap mf1 in
        let (p2s, mf2') = meval tp ts sap mf2 in
        let (ps, buf') = mbuf2_take op (mbuf2_add p1s p2s buf) in
        (ps, MConj (mf1', mf2', buf'))
     | MDisj (mf1, mf2, buf) ->
-       let op p1 p2 = do_disj minimum2 p1 p2 in
+       let op p1 p2 = do_disj p1 p2 le in
        let (p1s, mf1') = meval tp ts sap mf1 in
        let (p2s, mf2') = meval tp ts sap mf2 in
        let (ps, buf') = mbuf2_take op (mbuf2_add p1s p2s buf) in
@@ -988,14 +989,14 @@ let meval' tp ts sap mform le minimuml =
        let (ps, mf') = meval tp ts sap mf in
        let () = Deque.iter ps ~f:(fun p -> Deque.enqueue_back buf p) in
        let () = Deque.enqueue_back tss ts in
-       let (ps', buf', tss') = Prev_Next.mprev_next Prev interval buf tss minimuml in
+       let (ps', buf', tss') = Prev_Next.mprev_next Prev interval buf tss le in
        ((if first then (let () = Deque.enqueue_front ps' (V VPrev0) in ps')
          else ps'), MPrev (interval, mf', false, buf', tss'))
     | MNext (interval, mf, first, tss) ->
        let (ps, mf') = meval tp ts sap mf in
        let () = Deque.enqueue_back tss ts in
        let first = if first && (Deque.length ps) > 0 then (let () = Deque.drop_front ps in false) else first in
-       let (ps', _, tss') = Prev_Next.mprev_next Next interval ps tss minimuml in
+       let (ps', _, tss') = Prev_Next.mprev_next Next interval ps tss le in
        (ps', MNext (interval, mf', first, tss'))
     | MSince (interval, mf1, mf2, buf, tss_tps, msaux) ->
        (* let () = Printf.printf "\nsince: %s\n" (mformula_to_string (MSince (interval, mf1, mf2, buf, tss_tps, msaux))) in *)
@@ -1006,7 +1007,7 @@ let meval' tp ts sap mform le minimuml =
          mbuf2t_take
            (fun p1 p2 ts tp (ps, aux) ->
              let (cps, aux) = Since.update_since interval ts tp p1 p2 aux le in
-             let op = minimuml cps in
+             let op = minimuml le cps in
              let _ = Deque.enqueue_back ps op in
              (ps, aux))
            (Deque.create (), msaux) (mbuf2_add p1s p2s buf) tss_tps in
@@ -1017,17 +1018,16 @@ let meval' tp ts sap mform le minimuml =
        let () = Deque.enqueue_back tss_tps (ts, tp) in
        let (muaux', buf', ntss_ntps) =
          mbuf2t_take
-           (fun p1 p2 ts tp aux -> Until.update_until interval ts tp p1 p2 muaux le minimuml)
+           (fun p1 p2 ts tp aux -> Until.update_until interval ts tp p1 p2 muaux le)
            muaux (mbuf2_add p1s p2s buf) tss_tps in
        let (nts, ntp) = match Deque.peek_front ntss_ntps with
          | None -> (ts, tp)
          | Some(nts', ntp') -> (nts', ntp') in
-       let (ps, muaux'') = Until.eval_until (Deque.create ()) interval nts ntp muaux le minimuml in
+       let (ps, muaux'') = Until.eval_until (Deque.create ()) interval nts ntp muaux le in
        (ps, MUntil (interval, mf1', mf2', buf', ntss_ntps, muaux'')) in
   meval tp ts sap mform
 
 let monitor in_ch out_ch mode out_mode check le is_opt f =
-  let minimuml ps = minsize_list (get_mins le ps) in
   let rec loop f x = loop f (f x) in
   let mf = minit f in
   let mf_ap = relevant_ap mf in
@@ -1043,7 +1043,7 @@ let monitor in_ch out_ch mode out_mode check le is_opt f =
     let ((sap, ts), in_ch) = input_event in_ch out_ch in
     let sap_filtered = filter_ap sap mf_ap in
     let events_updated = (sap_filtered, ts)::st.events in
-    let (ps, mf_updated) = meval' st.tp ts sap_filtered st.mf le minimuml in
+    let (ps, mf_updated) = meval' st.tp ts sap_filtered st.mf le in
     let checker_ps = if check then Some (check_ps is_opt events_updated f (Deque.to_list ps)) else None in
     let () = output_ps out_ch mode out_mode ts st.tp [] f (Deque.to_list ps) checker_ps in
     let st_updated =
@@ -1067,11 +1067,11 @@ let monitor2 obj_opt log c le f =
     | Some (mf', st') -> (mf', st') in
   let mf_ap = relevant_ap mf in
   match events with
-  | Ok es -> (let minimuml ps = minsize_list (get_mins le ps) in
+  | Ok es -> (
               let ((m, s), o) = List.fold_map es ~init:(mf, st) ~f:(fun (mf', st') (sap, ts) ->
                                     Hashtbl.add st.tp_ts st'.tp ts;
                                     let sap_filtered = filter_ap sap mf_ap in
-                                    let (ps, mf_updated) = meval' st'.tp ts sap_filtered mf' le minimuml in
+                                    let (ps, mf_updated) = meval' st'.tp ts sap_filtered mf' le in
                                     let events_updated = if c then (sap_filtered, ts)::st'.events else [] in
                                     let cbs_opt = None in
                                     let expls = json_expls st.tp_ts f (Deque.to_list ps) cbs_opt in
