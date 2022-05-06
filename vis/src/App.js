@@ -50,6 +50,7 @@ function initMonitor(state, action) {
              fixParameters: true
            };
   } catch (error) {
+    console.log(error);
     return {
       ...state,
       dialog: translateError(error),
@@ -77,6 +78,7 @@ function execMonitor(state, action) {
              fixParameters: true
            };
   } catch (error) {
+    console.log(error);
     return {
       ...state,
       dialog: translateError(error),
@@ -195,10 +197,6 @@ function App() {
     dispatch(action);
   };
 
-  const handleClear = (e) => {
-    e.preventDefault();
-  };
-
   return (
     <ThemeProvider theme={theme}>
       <Box>
@@ -214,13 +212,8 @@ function App() {
               </Grid>
 
               { !state.fixParameters &&
-                <Grid container item xs={12} sm={12} md={4} lg={4} xl={4} spacing={2}>
-                  <Grid item xs={12} sm={12} md={10} lg={10} xl={10}>
-                    <MonitorButton handleMonitor={handleMonitor} />
-                  </Grid>
-                  <Grid item xs={12} sm={12} md={2} lg={2} xl={2}>
-                    <ClearButton handleMonitor={handleMonitor} />
-                  </Grid>
+                <Grid item xs={12} sm={12} md={4} lg={4} xl={4}>
+                  <MonitorButton handleMonitor={handleMonitor} />
                 </Grid>
               }
 
@@ -241,13 +234,7 @@ function App() {
                 </Grid>
               }
 
-              <Grid item xs={12} sm={12} md={1.5} lg={1.5} xl={1.5}>
-                <MeasureSelect measure={measure}
-                               setMeasure={setMeasure}
-                               fixParameters={state.fixParameters}
-                />
-              </Grid>
-              <Grid item xs={12} sm={12} md={6.5} lg={6.5} xl={6.5}>
+              <Grid item xs={12} sm={12} md={8} lg={8} xl={8}>
                 <FormulaTextField formula={formula}
                                   setFormula={setFormula}
                                   fixParameters={state.fixParameters}
