@@ -101,27 +101,26 @@ export function tpsIn(ts, tp, interval, period, atoms) {
 
 export function translateError(error) {
 
-  let translatedError = {};
-
   if (error.message === undefined && error[1].c !== undefined) {
     switch (error[1].c) {
     case "Lib.Mtl_parser.MenhirBasics.Error":
-      translatedError = { name: "Error",
-                          message: "Formula could not be parsed.\n\nPlease make sure the syntax is correct."
-                        };
-      break;
+        return { name: "Error",
+                 message: "Formula could not be parsed.\n\nPlease make sure the syntax is correct."
+               };
     case "Lib.Monitor.UNBOUNDED_FUTURE":
-      translatedError = { name: "Error",
-                          message: "Your formula has an unbounded UNTIL.\n\nPlease make sure all UNTIL instances are bounded."
-                        };
+      return { name: "Error",
+               message: "Your formula has an unbounded UNTIL.\n\nPlease make sure all UNTIL instances are bounded."
+             };
     }
   } else {
-    if (error.message.includes("Unexpected token")) {
-      translatedError = { name: "Error",
-                          message: "Trace could not be parsed.\n\nPlease make sure the syntax is correct."
-                        };
+    if (error.message !== undefined && error.message.includes("Unexpected token")) {
+      return { name: "Error",
+               message: "Trace could not be parsed.\n\nPlease make sure the syntax is correct."
+             };
     }
   }
 
-  return translatedError;
+  return { name: "Error",
+           message: "Something bad happened.\n\nPlease try again."
+         };
 }
