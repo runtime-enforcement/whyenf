@@ -46,9 +46,8 @@ module Explanator2 = struct
        \t\t viol   - output only violation explanations
        \t -O (measure)
        \t\t size   - optimize proof size
-       \t\t high   - optimize highest time-point occuring in a proof (lower is better)
-       \t\t pred   - optimize multiset cardinality of atomic predicates
-       \t\t none   - give any proof
+       \t\t wsize  - optimize weighted proof size (less is better)
+       \t\t none   - pick any proof
        \t -fmla
        \t\t <file> or <string> - formula to be explained
        \t -log
@@ -70,7 +69,7 @@ module Explanator2 = struct
     raise UNEXPECTED_EXIT
 
   let measure_error () =
-    Format.eprintf "measure should be either \"size\", \"high\", \"pred\", or \"none\" (without quotes)\n%!";
+    Format.eprintf "measure should be either \"size\", \"wsize\" or \"none\" (without quotes)\n%!";
     raise UNEXPECTED_EXIT
 
   let process_args =
