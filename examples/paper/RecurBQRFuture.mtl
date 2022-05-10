@@ -1,0 +1,1 @@
+ALWAYS((q AND (NOT r) AND (EVENTUALLY r)) => ((EVENTUALLY[0,10] (p OR r)) UNTIL r))
