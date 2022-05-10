@@ -29,7 +29,7 @@ function TimeGrid ({ explanations, atoms, apsColumns, subfsColumns, squares, sel
     ({
       field: i.toString(),
       headerName: a,
-      width: (10*(a.length)),
+      width: (11*(a.length)),
       sortable: false,
       renderHeader: () => apsColumns[i],
       renderCell: (params) => <Cell value={squares[params.row.tp][i]} />,
@@ -60,7 +60,7 @@ function TimeGrid ({ explanations, atoms, apsColumns, subfsColumns, squares, sel
     ({
       field: (i+apsColumns.length).toString(),
       headerName: f,
-      width: (10*(f.length)),
+      width: (11*(f.length)),
       sortable: false,
       renderHeader: () => subfsColumns[i],
       renderCell: (params) => { return <Cell value={squares[params.row.tp][i+apsColumns.length]}
@@ -127,8 +127,8 @@ function TimeGrid ({ explanations, atoms, apsColumns, subfsColumns, squares, sel
         getRowClassName={(params) => {
           if (selectedRows.includes(params.row.tp)) return `row--Highlighted`
           else return `row--Plain` }}
-        pageSize={13}
-        rowsPerPageOptions={[5]}
+        pageSize={100}
+        rowsPerPageOptions={[100]}
         density="compact"
         disableColumnMenu
         disableSelectionOnClick
