@@ -25,7 +25,7 @@ try:
                 atoms = []
 
                 for i in range(1, len(header)):
-                    if row[i] == '1':
+                    if row[i] == 'True':
                         atoms.append(header[i])
 
                 writer.write('@' + row[0] + ' ' + (' '.join(atoms)) + '\n')
