@@ -1,1 +1,1 @@
-HISTORICALLY((r AND (NOT q) AND (ONCE q)) => ((ONCE[0,10] (p OR q)) SINCE q))
+(r AND (NOT q) AND (ONCE q)) => ((ONCE[0,10] (p OR q)) SINCE q)
