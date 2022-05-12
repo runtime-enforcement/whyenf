@@ -92,13 +92,11 @@ function TimeGrid ({ explanations, atoms, apsColumns, subfsColumns, squares, sel
         cloneSquares[cell.cells[i].tp][cell.cells[i].col] = squareColor(cell.cells[i].bool);
       }
 
-      let selRows = tpsIn(ts, tp, cell.interval, cell.period, atoms);
-
+      let selRows = (cell.interval !== undefined) ? tpsIn(ts, tp, cell.interval, cell.period, atoms) : [];
       let action = { type: "updateTable",
                      squares: cloneSquares,
                      selectedRows: selRows
                    };
-
       dispatch(action);
     }
   };
