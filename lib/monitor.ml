@@ -1011,6 +1011,7 @@ let meval' tp ts sap mform le =
              let _ = Deque.enqueue_back ps op in
              (ps, aux))
            (Deque.create (), msaux) (mbuf2_add p1s p2s buf) tss_tps in
+       (* let () = Printf.printf "----------%s\n" (Since.msaux_to_string msaux') in *)
        (ps, MSince (interval, mf1', mf2', buf', tss_tps', msaux'))
     | MUntil (interval, mf1, mf2, buf, tss_tps, muaux) ->
        let (p1s, mf1') = meval tp ts sap mf1 in
