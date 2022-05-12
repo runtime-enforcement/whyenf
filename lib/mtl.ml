@@ -62,13 +62,13 @@ let equal x y = match x, y with
 let rec atoms x = match x with
   | TT | FF -> []
   | P x -> [x]
-  (* Propositional operators *)
   | Neg f -> atoms f
-  | Conj (f1, f2) | Disj (f1, f2) -> List.sort_uniq String.compare (List.append (atoms f1) (atoms f2))
-  (* Temporal operators *)
-  | Next (i, f) | Prev (i, f) -> atoms f
-  | Until (i, f1, f2) | Since (i, f1, f2) ->
-     List.sort_uniq String.compare (List.append (atoms f1) (atoms f2))
+  | Next (_, f) | Prev (_, f) -> atoms f
+  | Conj (f1, f2) | Disj (f1, f2)
+  | Until (_, f1, f2) | Since (_, f1, f2) -> let a1s = List.fold_right (fun a acc -> if List.mem a acc then acc
+                                                                                     else a::acc) (atoms f1) [] in
+                                             List.fold_right (fun a acc -> if List.mem a acc then acc
+                                                                           else a::acc) (atoms f2) a1s
 
 (* Past height *)
 let rec hp x = match x with
