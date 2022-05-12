@@ -123,14 +123,15 @@ module Explanator2 = struct
       | ("-out" :: outfile :: args) ->
          out_ref := open_out outfile;
          go args
-      | ("-vis" :: fmla :: args) ->
+      | ("-vis" :: fmlafile :: args) ->
          (* Quick sanity check (visualization related) *)
+         let in_ch = open_in fmlafile in
+         fmla_ref := Some(Lib.Mtl_parser.formula Lib.Mtl_lexer.token (Lexing.from_channel in_ch));
+         log_str_ref := "@0 q\n@1 p\n@2 r\n@3 q";
          is_opt_ref := Some(is_opt_atm (fun s -> nat_of_integer (Z.of_int 1)));
          vis_ref := true;
-         log_str_ref := "@0 a\n@3 a b\n@7\n@11 a\n@13 a\n@17 a\n@18 a b\n@18 a b\n@22 a";
-         check_ref := true;
+         check_ref := false;
          measure_le_ref := Some(size_le);
-         fmla_ref := Some(Lib.Mtl_parser.formula Lib.Mtl_lexer.token (Lexing.from_string fmla));
          go args
       | [] -> ()
       | _ -> usage () in
