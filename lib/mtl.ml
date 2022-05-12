@@ -59,16 +59,6 @@ let equal x y = match x, y with
   | Since (i, f, g), Since (i', f', g') | Until (i, f, g), Until (i', f', g') -> i == i' && f == f' && g == g'
   | _ -> false
 
-let rec atoms x = match x with
-  | TT | FF -> []
-  | P x -> [x]
-  | Neg f | Next (_, f) | Prev (_, f) -> atoms f
-  | Conj (f1, f2) | Disj (f1, f2)
-  | Until (_, f1, f2) | Since (_, f1, f2) -> let a1s = List.fold_right (fun a acc -> if List.mem a acc then acc
-                                                                                     else acc @ [a]) (atoms f1) [] in
-                                             List.fold_right (fun a acc -> if List.mem a acc then acc
-                                                                           else acc @ [a]) (atoms f2) a1s
-
 (* Past height *)
 let rec hp x = match x with
   | TT | FF | P _ -> 0
@@ -157,3 +147,22 @@ let rec subfs_dfs x = match x with
   | Since (i, f, g) -> [since i f g] @ (subfs_dfs f) @ (subfs_dfs g)
   | Next (i, f) -> [next i f] @ (subfs_dfs f)
   | Until (i, f, g) -> [until i f g] @ (subfs_dfs f) @ (subfs_dfs g)
+
+let rec atoms x = match x with
+  | TT | FF -> []
+  | P x -> [x]
+  | Neg f | Next (_, f) | Prev (_, f) -> atoms f
+  | Conj (f1, f2) | Disj (f1, f2)
+  | Until (_, f1, f2) | Since (_, f1, f2) -> let a1s = List.fold_left (fun acc a -> if List.mem a acc then acc
+                                                                                       else acc @ [a]) [] (atoms f1) in
+                                             (* Printf.printf "\n-----------\nf = %s\n" (formula_to_string x);
+                                              * Printf.printf "a1s = [";
+                                              * List.iter (fun a -> Printf.printf "%s; " a) a1s;
+                                              * Printf.printf "]\n"; *)
+                                             let a2s = List.fold_left (fun acc a ->
+                                                           if (List.mem a acc) || (List.mem a a1s) then acc
+                                                           else acc @ [a]) [] (atoms f2) in
+                                             (* Printf.printf "a2s = [";
+                                              * List.iter (fun a -> Printf.printf "%s; " a) a2s;
+                                              * Printf.printf "]\n-----------\n"; *)
+                                             List.append a1s a2s
