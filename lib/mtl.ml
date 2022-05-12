@@ -62,8 +62,7 @@ let equal x y = match x, y with
 let rec atoms x = match x with
   | TT | FF -> []
   | P x -> [x]
-  | Neg f | Next (_, f) | Prev (_, f) -> List.fold_right (fun a acc -> if List.mem a acc then acc
-                                                                       else acc @ [a]) (atoms f) []
+  | Neg f | Next (_, f) | Prev (_, f) -> atoms f
   | Conj (f1, f2) | Disj (f1, f2)
   | Until (_, f1, f2) | Since (_, f1, f2) -> let a1s = List.fold_right (fun a acc -> if List.mem a acc then acc
                                                                                      else acc @ [a]) (atoms f1) [] in
