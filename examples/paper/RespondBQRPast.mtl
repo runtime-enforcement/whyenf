@@ -1,1 +1,1 @@
-(r AND (NOT q) AND (ONCE q)) => (((s => (ONCE[3,10] p)) AND (NOT((NOT s) SINCE[10, INFINITY] p))) SINCE q)
+(r AND (NOT q) AND (ONCE q)) => (((s => (ONCE[0,3] p)) AND (NOT((NOT s) SINCE[3, INFINITY] p))) SINCE q)
