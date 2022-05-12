@@ -62,13 +62,13 @@ let equal x y = match x, y with
 let rec atoms x = match x with
   | TT | FF -> []
   | P x -> [x]
-  | Neg f -> atoms f
-  | Next (_, f) | Prev (_, f) -> atoms f
+  | Neg f | Next (_, f) | Prev (_, f) -> List.fold_right (fun a acc -> if List.mem a acc then acc
+                                                                       else acc @ [a]) (atoms f) []
   | Conj (f1, f2) | Disj (f1, f2)
   | Until (_, f1, f2) | Since (_, f1, f2) -> let a1s = List.fold_right (fun a acc -> if List.mem a acc then acc
-                                                                                     else a::acc) (atoms f1) [] in
+                                                                                     else acc @ [a]) (atoms f1) [] in
                                              List.fold_right (fun a acc -> if List.mem a acc then acc
-                                                                           else a::acc) (atoms f2) a1s
+                                                                           else acc @ [a]) (atoms f2) a1s
 
 (* Past height *)
 let rec hp x = match x with
