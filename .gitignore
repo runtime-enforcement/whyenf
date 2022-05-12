@@ -13,3 +13,4 @@ test/tmp/gen_fmla
 *.exe
 *.aux
 *.txt
+*.DS_Store
