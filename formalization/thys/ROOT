@@ -1,0 +1,10 @@
+chapter AFP
+
+session Explanator (AFP) = Containers +
+  sessions
+    Well_Quasi_Orders
+  theories
+    Interval
+    LTL_Explanations
+    MTL
+    Trace
