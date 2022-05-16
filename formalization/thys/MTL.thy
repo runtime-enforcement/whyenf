@@ -2636,7 +2636,7 @@ proof (cases "left I")
         using p2_def "local.0" Inr i_props i_etp_to_tau
           sinceBase_constrs[OF i_props] ** ETP_lt_delta enat_iless
         unfolding optimal_def valid_def
-        by (auto simp: Let_def min.absorb_iff1 split: sum.splits enat.splits)
+        by (auto split: sum.splits enat.splits)
     qed
   next
     case (Inr b)
@@ -2655,9 +2655,7 @@ proof (cases "left I")
       then show ?thesis using p_def p1_def p2_def i_props Inr p1v "local.0"
           sinceBase_constrs[OF i_props] ** ETP_lt_delta enat_iless
         unfolding optimal_def valid_def
-        apply (auto simp: Let_def i_etp_to_tau split: enat.splits sum.splits)
-         apply (meson min.orderE)
-        by (metis i_le_ltpi min_def)
+        by (auto simp: Let_def i_etp_to_tau split: enat.splits sum.splits)
     qed
   qed
 next
@@ -4015,7 +4013,7 @@ next
           then have "valid rho i (Since phi I psi) p"
             using p1_def p2_def Inr p2r bf True i_le_ltpi i_props
             unfolding optimal_def valid_def
-            by (auto simp add: i_etp_to_tau min.absorb1 split: enat.splits)
+            by (auto simp add: i_etp_to_tau split: enat.splits)
         }
         ultimately show ?thesis by auto
         qed
@@ -4183,6 +4181,7 @@ next
             then show ?thesis using * ** n_def p'_def p2_def p2r p'r VSince_never
                 True i_props i_le_ltpi
               unfolding optimal_def valid_def
+              using [[linarith_split_limit=20]]
               apply (auto 0 0 simp: Let_def split: if_splits)
               using min.orderE apply blast
                    apply (metis One_nat_def Suc_diff_1 le_SucI)
@@ -4203,6 +4202,7 @@ next
               then have "valid rho i (Since phi I psi) p" using * ** n_def p'_def p2_def p2r p'r VSince_never
                   True i_props i_le_ltpi
                 unfolding optimal_def valid_def
+                using [[linarith_split_limit=20]]
                 apply (auto 0 0 simp: Let_def split: if_splits)
                 using min.orderE apply blast
                      apply (metis One_nat_def Suc_diff_1 le_SucI)
@@ -4260,7 +4260,7 @@ next
             then show ?thesis using infinity p'_def p2_def p2r p'r VSince_never
                 True i_props i_le_ltpi **
               unfolding optimal_def valid_def
-              by (auto simp: Let_def i_etp_to_tau min.absorb1 i_le_ltpi split: if_splits)
+              by (auto simp: Let_def i_etp_to_tau i_le_ltpi split: if_splits)
           next
             case (Inr b1)
             then have "p = Inr (VSince i (projr p1) [projr p2]) \<or> p = p' \<oplus> p2"
@@ -4276,7 +4276,7 @@ next
               then have "valid rho i (Since phi I psi) p" using ** infinity p'_def p2_def p2r p'r VSince_never
                   True i_props i_le_ltpi
                 unfolding optimal_def valid_def
-                by (auto simp: Let_def  i_etp_to_tau min.absorb1 i_le_ltpi split: if_splits)
+                by (auto simp: Let_def  i_etp_to_tau i_le_ltpi split: if_splits)
             }
             moreover
             {
@@ -4700,8 +4700,6 @@ proof (cases "left I = 0")
     unfolding optimal_def valid_def
     apply (auto simp add: Let_def i_ltp_to_tau ys_def split: if_splits)
     using i_le_ltpi apply (auto simp: min_def split: enat.splits)
-    apply (metis Suc_pred upt_Suc_append)
-    apply (metis (no_types, lifting) Suc_pred upt_Suc_append)
     done
 next
   case False
@@ -4758,8 +4756,7 @@ proof (cases "left I = 0")
     unfolding optimal_def valid_def
     apply (auto simp add: Let_def i_ltp_to_tau ys_def split: if_splits)
     using i_le_ltpi apply (auto simp: min_def split: enat.splits)
-    apply (metis Suc_pred upt_Suc_append)
-    by (metis Suc_pred less_Suc_eq_le upt_Suc_append)
+    done
 next
   case False
   have b: "\<tau> rho i \<ge> \<tau> rho 0 + left I"
@@ -6879,8 +6876,7 @@ next
               j_def n_def *
             unfolding optimal_def valid_def
             apply (auto simp: add.commute Let_def i_ge_etpi)
-             apply (metis i_ge_etpi le_Suc_eq le_Suc_ex trans_le_add1)
-            using i_ge_etpi le_trans by blast
+            done
         next
           case (Inr b1)
           then have "p = Inr (VUntil i [b2] b1) \<or> p = p' \<oplus> p2"
@@ -6895,8 +6891,7 @@ next
                 j_def n_def *
               unfolding optimal_def valid_def
               apply (auto simp: add.commute Let_def i_ge_etpi)
-               apply (metis i_ge_etpi le_Suc_eq le_Suc_ex trans_le_add1)
-              using i_ge_etpi le_trans by blast
+              done
           }
           moreover
           {
@@ -7286,8 +7281,7 @@ proof -
       using i_props v_at_p valid
       unfolding valid_def
       apply (auto simp add: Let_def Cons_eq_append_conv Cons_eq_upt_conv add.commute True i_le_ltpi min_def i_ltp_to_tau rI ys_def i_etp_to_tau le_diff_conv split: if_splits)
-       apply (metis Lattices.linorder_class.max.absorb1 i_ge_etpi not_less_eq_eq)
-      by (metis Lattices.linorder_class.max.absorb1 i_ge_etpi)
+      done
   next
     case False
     have rw: "\<tau> rho i - (left I + \<tau> rho i - \<tau> rho (Suc i)) =
@@ -7309,7 +7303,7 @@ proof -
       using False valid e v_at_p i_ge_etpi[of rho "Suc i"] ee etp i_props
       apply (cases ys rule: rev_cases)
        apply (auto simp: valid_def Let_def rw t rI add.commute split: if_splits)
-      by (metis Lattices.linorder_class.max.absorb1)
+      done
   qed
 qed
 
@@ -7334,8 +7328,7 @@ proof -
       using i_props valid
       unfolding valid_def
       apply (auto simp add: Let_def Cons_eq_append_conv Cons_eq_upt_conv add.commute True i_le_ltpi min_def i_ltp_to_tau rI ys_def i_etp_to_tau le_diff_conv split: if_splits)
-       apply (metis Lattices.linorder_class.max.absorb1 i_ge_etpi not_less_eq_eq)
-      by (metis Lattices.linorder_class.max.absorb1 i_ge_etpi)
+      done
   next
     case False
     have rw: "\<tau> rho i - (left I + \<tau> rho i - \<tau> rho (Suc i)) =
@@ -7357,7 +7350,7 @@ proof -
       using False valid e i_ge_etpi[of rho "Suc i"] ee etp i_props
       apply (cases ys rule: rev_cases)
        apply (auto simp: valid_def Let_def rw t rI add.commute split: if_splits)
-      by (metis Lattices.linorder_class.max.absorb1)
+      done
   qed
 qed
 
@@ -7818,8 +7811,7 @@ proof (rule ccontr)
             unfolding optimal_def by auto
           have "left I = 0 \<Longrightarrow> False"
             using vmin
-            by (auto simp: pv valid_def Let_def n_def split: if_splits enat.splits)
-               (meson Orderings.order_class.dual_order.trans i_ge_etpi)
+            by (auto simp: pv valid_def Let_def n_def i_etp_to_tau split: if_splits enat.splits)
           then have ps_Nil: "ps = []"
             using q_val
             apply (cases "left I")
