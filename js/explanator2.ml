@@ -45,7 +45,7 @@ module Explanator2 = struct
     let c = validate_check check in
     let le = validate_measure measure in
     let f = Src.Mtl_parser.formula Src.Mtl_lexer.token (Lexing.from_string formula) in
-    let (obj_opt, s) = monitor2 None log c le f in
+    let (obj_opt, s) = monitor_vis None log c le f in
     (obj_opt, Js.string(s))
 
   let monitor_append js_log js_check js_measure js_formula obj_opt =
@@ -56,7 +56,7 @@ module Explanator2 = struct
     let c = validate_check check in
     let le = validate_measure measure in
     let f = Src.Mtl_parser.formula Src.Mtl_lexer.token (Lexing.from_string formula) in
-    let (obj_opt', s) = monitor2 obj_opt log c le f in
+    let (obj_opt', s) = monitor_vis obj_opt log c le f in
     (obj_opt', Js.string(s))
 
   let (_: unit) =
