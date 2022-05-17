@@ -951,7 +951,7 @@ let do_conj expl_f1 expl_f2 le =
   | V f1, S _ -> V (VConjL (f1))
   | V f1, V f2 -> minimuml le [(V (VConjL (f1))); (V (VConjR (f2)))]
 
-let meval' tp ts sap mform le =
+let meval' ts tp sap mform le =
   let rec meval tp ts sap mform =
     match mform with
     | MTT -> let d = Deque.create () in
@@ -1044,7 +1044,7 @@ let monitor in_ch out_ch mode out_mode check le is_opt f =
     let ((sap, ts), in_ch) = input_event in_ch out_ch in
     let sap_filtered = filter_ap sap mf_ap in
     let events_updated = (sap_filtered, ts)::st.events in
-    let (ps, mf_updated) = meval' st.tp ts sap_filtered st.mf le in
+    let (ps, mf_updated) = meval' ts st.tp sap_filtered st.mf le in
     let checker_ps = if check then Some (check_ps is_opt events_updated f (Deque.to_list ps)) else None in
     let () = output_ps out_ch mode out_mode ts st.tp [] f (Deque.to_list ps) checker_ps in
     let st_updated =
@@ -1072,7 +1072,7 @@ let monitor2 obj_opt log c le f =
               let ((m, s), o) = List.fold_map es ~init:(mf, st) ~f:(fun (mf', st') (sap, ts) ->
                                     Hashtbl.add st.tp_ts st'.tp ts;
                                     let sap_filtered = filter_ap sap mf_ap in
-                                    let (ps, mf_updated) = meval' st'.tp ts sap_filtered mf' le in
+                                    let (ps, mf_updated) = meval' ts st'.tp sap_filtered mf' le in
                                     let events_updated = if c then (sap_filtered, ts)::st'.events else [] in
                                     let cbs_opt = None in
                                     let expls = json_expls st.tp_ts f (Deque.to_list ps) cbs_opt in
