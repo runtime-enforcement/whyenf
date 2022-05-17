@@ -4,8 +4,6 @@ import Box from '@mui/material/Box';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
-import HelpIcon from '@mui/icons-material/Help';
-import InfoIcon from '@mui/icons-material/Info';
 
 export default function NavBar() {
   return (
@@ -13,7 +11,7 @@ export default function NavBar() {
       <AppBar position="fixed">
         <Toolbar>
           <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            explanator2: Judgement Day
+            Explanator2
           </Typography>
           <Button color="inherit">
             <Typography variant="h7" component="div" sx={{ flexGrow: 1 }}>

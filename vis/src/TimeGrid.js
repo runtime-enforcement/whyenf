@@ -1,13 +1,13 @@
-import React, { useState } from "react";
+import React from "react";
 import Box from '@mui/material/Box';
 import { DataGrid } from '@mui/x-data-grid';
 import Button from '@mui/material/Button';
 import CircleIcon from '@mui/icons-material/Circle';
 import CancelIcon from '@mui/icons-material/Cancel';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import { red, purple, yellow, lightGreen, cyan } from '@mui/material/colors';
+import { red, purple, lightGreen, cyan } from '@mui/material/colors';
 import { common } from '@mui/material/colors'
-import { black, squareColor, squareColorTest, tpsIn } from './util';
+import { black, squareColor, tpsIn } from './util';
 
 function Cell(props) {
   if (props.value === red[500] || props.value === lightGreen[500] || props.value === black) {

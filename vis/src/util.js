@@ -1,4 +1,3 @@
-import Button from '@mui/material/Button';
 import { red, purple, yellow, lightGreen } from '@mui/material/colors';
 
 export const black = "#000000";
@@ -111,6 +110,8 @@ export function translateError(error) {
       return { name: "Error",
                message: "Your formula has an unbounded UNTIL.\n\nPlease make sure all UNTIL instances are bounded."
              };
+    default:
+      return;
     }
   } else {
     if (error.message !== undefined && error.message.includes("Unexpected token")) {
