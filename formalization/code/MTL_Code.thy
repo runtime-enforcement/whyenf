@@ -37,7 +37,7 @@ proof -
       unfolding less_Suc_eq_le
       by (rule diff_le_mono)
     then show ?thesis
-      by (auto simp: Suc) (meson Orderings.order_class.dual_order.trans enat_ord_simps(1))
+      by (auto simp: Suc) (meson order.trans enat_ord_simps(1))
   qed (auto simp: enat_0)
   show ?thesis
     unfolding progress.simps Let_def P_def[symmetric] Inf_Min[where ?P=P, OF P_j] all_wit[symmetric]
@@ -419,10 +419,17 @@ proof (induction rule: s_at_v_at.induct)
       apply (metis last_ConsR last_snoc)
       done
     then show ?thesis
-      by (auto simp: snoc case_list_app min_proofs_Cons min_proofs_app Lattices.linorder_class.min.coboundedI1 Lattices.linorder_class.min.coboundedI2 split: list.splits)
+      apply (auto simp: case_list_app)
+      apply (metis list.case_eq_if list.discI order.trans append_is_Nil_conv last_ConsR last_in_set last_snoc min_proofs_sound snoc)
+      done
   qed simp
-qed (auto simp: min_proofs_Cons Lattices.linorder_class.min.coboundedI1
-     intro: le_enat_SucI enat_minus_leI split: list.splits)
+next
+  case (10 sphis spsi)
+  then show ?case
+    apply (auto split: list.splits)
+    apply (meson list.set_intros(1) order.trans min_proofs_sound)
+    done
+qed (auto simp: min.coboundedI1 intro: le_enat_SucI enat_minus_leI)
 
 (* Depth measure *)
 
@@ -710,9 +717,9 @@ lemma min_permute7:
   shows "x0 \<le> x1 \<Longrightarrow> min (enat (min x0 x2)) x3 =
     min (min (enat (min x1 x2)) x3) (enat x0)"
   apply (auto simp: min_def)
-    apply (meson Orderings.order_class.dual_order.trans enat_ord_simps(1))
+    apply (meson order.trans enat_ord_simps(1))
    apply (meson enat_ord_simps(1) order_trans)
-  apply (meson Orderings.order_class.dual_order.trans enat_ord_simps(1) linear)
+  apply (meson order.trans enat_ord_simps(1) linear)
   done
 
 lemma v_check_VSince_never_li: "v_check rho phi (VSince_never i li p1) \<Longrightarrow> li \<le> i"
@@ -1049,7 +1056,7 @@ next
   have "j \<le> max i (ETP rho (\<tau> rho i + n)) \<longleftrightarrow> (\<forall>ia. \<tau> rho i + n \<le> \<tau> rho ia \<longrightarrow> j \<le> ia)"
     unfolding max
     unfolding ETP_def
-    by (meson LeastI_ex Least_le Orderings.order_class.order.trans ex_le_\<tau>)
+    by (meson LeastI_ex Least_le order.trans ex_le_\<tau>)
   moreover have "\<dots> \<longleftrightarrow> (case j of 0 \<Rightarrow> True | Suc j' \<Rightarrow> \<not>\<tau> rho i + n \<le> \<tau> rho j')"
     by (auto split: nat.splits) (meson i_etp_to_tau le_trans not_less_eq_eq)
   moreover have "\<dots> \<longleftrightarrow> (case j of 0 \<Rightarrow> True | Suc j' \<Rightarrow> delta rho j' i < n)"
@@ -1070,10 +1077,8 @@ lemma check_upt_lu_cong:
   shows "check_upt_lu rho I i xs hi = check_upt_lu rho' I i xs hi"
   using assms
   apply (auto simp: check_upt_lu_def Let_def simp del: upt.simps split: list.splits nat.splits)
-     apply (smt (z3) Lattices.linorder_class.min.coboundedI1 \<tau>_mono diff_is_0_eq diff_le_self le_Suc_eq le_add2 le_max_iff_disj le_trans plus_1_eq_Suc)
-    apply (metis Lattices.linorder_class.min.coboundedI1 diff_le_self le_max_iff_disj)
-   apply (metis (no_types, lifting) Lattices.linorder_class.min.coboundedI1 Nat.nat.simps(3) Suc_leD \<tau>_mono diff_is_0_eq diff_le_self le_Suc_eq le_max_iff_disj le_zero_eq)
-  apply (metis Lattices.linorder_class.min.coboundedI1 diff_le_self le_max_iff_disj)
+   apply (smt (z3) Lattices.linorder_class.min.coboundedI1 \<tau>_mono diff_is_0_eq diff_le_self le_Suc_eq le_add2 le_max_iff_disj le_trans plus_1_eq_Suc)
+  apply (smt (z3) Lattices.linorder_class.min.coboundedI1 \<tau>_mono diff_is_0_eq diff_le_self le_Suc_eq le_add2 le_max_iff_disj le_trans plus_1_eq_Suc)
   done
 
 lemma check_upt_lu_eq: "xs = [lu rho i I..<Suc hi] \<longleftrightarrow> check_upt_lu rho I i xs hi"
