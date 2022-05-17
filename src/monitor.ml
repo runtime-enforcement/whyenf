@@ -1028,7 +1028,7 @@ let meval' ts tp sap mform le =
        (ps, MUntil (interval, mf1', mf2', buf', ntss_ntps, muaux'')) in
   meval tp ts sap mform
 
-let monitor in_ch out_ch mode out_mode check le is_opt f =
+let monitor_cli in_ch out_ch mode out_mode check le is_opt f =
   let rec loop f x = loop f (f x) in
   let mf = minit f in
   let mf_ap = relevant_ap mf in
@@ -1056,7 +1056,7 @@ let monitor in_ch out_ch mode out_mode check le is_opt f =
     (st_updated, in_ch) in
   loop s (st, in_ch)
 
-let monitor2 obj_opt log c le f =
+let monitor_vis obj_opt log c le f =
   let events = parse_lines_from_string log in
   let (mf, st) = match obj_opt with
     | None -> let mf = minit f in

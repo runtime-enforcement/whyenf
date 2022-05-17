@@ -80,8 +80,8 @@ type state =
   ; tp_ts: (timepoint, timestamp) Hashtbl.t
   }
 
-val monitor: in_channel -> out_channel -> mode -> out_mode -> bool -> (expl -> expl -> bool) ->
-	         (string trace -> nat -> string mtl -> (string sproof, string vproof) sum -> bool) -> formula ->
+val monitor_cli: in_channel -> out_channel -> mode -> out_mode -> bool -> (expl -> expl -> bool) ->
+                 (string trace -> nat -> string mtl -> (string sproof, string vproof) sum -> bool) -> formula ->
              out_channel
-val monitor2: (mformula * state) option -> string -> bool -> (expl -> expl -> bool) -> formula ->
-              (mformula * state) option * string
+val monitor_vis: (mformula * state) option -> string -> bool -> (expl -> expl -> bool) -> formula ->
+                 (mformula * state) option * string

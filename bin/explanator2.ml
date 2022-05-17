@@ -145,10 +145,10 @@ module Explanator2 = struct
       let formula = Option.get !fmla_ref in
       if !vis_ref then
         let () = Printf.printf "%s" (json_table_columns formula) in
-        let (_, out) = monitor2 None !log_str_ref !check_ref measure_le formula in
+        let (_, out) = monitor_vis None !log_str_ref !check_ref measure_le formula in
         Printf.printf "%s" out
       else
-        let _ = monitor !log_ref !out_ref !mode_ref !out_mode_ref !check_ref measure_le is_opt formula in ()
+        let _ = monitor_cli !log_ref !out_ref !mode_ref !out_mode_ref !check_ref measure_le is_opt formula in ()
     with
     | End_of_file -> (if !out_mode_ref = PLAIN then
                         closing_stdout !out_ref);
