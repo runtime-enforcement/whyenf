@@ -16,7 +16,7 @@ export default function TraceTextField ({ trace, setTrace }) {
 
   useEffect(() => {
     setTrace(localTrace);
-  }, [trace]);
+  }, [localTrace, setTrace]);
 
   return (
     <Box

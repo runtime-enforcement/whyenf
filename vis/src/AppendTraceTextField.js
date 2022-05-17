@@ -16,7 +16,7 @@ export default function AppendTraceTextField ({ appendTrace, setAppendTrace }) {
 
   useEffect(() => {
     setAppendTrace(localTrace);
-  }, [appendTrace]);
+  }, [appendTrace, localTrace, setAppendTrace]);
 
   return (
     <Box

@@ -6,15 +6,13 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import TraceTextField from './TraceTextField';
 import AppendTraceTextField from './AppendTraceTextField';
 import FormulaTextField from './FormulaTextField';
-import MeasureSelect from './MeasureSelect';
 import NavBar from './NavBar';
 import TimeGrid from './TimeGrid';
 import MonitorButton from './MonitorButton';
 import AppendButton from './AppendButton';
 import LeaveButton from './LeaveButton';
-import ClearButton from './ClearButton';
 import ResetButton from './ResetButton';
-import RandomExampleSelect from './RandomExampleSelect';
+import ExampleSelect from './ExampleSelect';
 import PreambleCard from './PreambleCard';
 import AlertDialog from './AlertDialog';
 import { computeSquares, translateError } from './util';
@@ -32,7 +30,7 @@ const theme = createTheme({
 
 function initMonitor(state, action) {
   try {
-    const monitor = window.monitorInit(action.trace, action.checker, action.measure, action.formula);
+    const monitor = window.monitorInit(action.trace, action.measure, action.formula);
     const monitorState = monitor[1];
     const explanations = (JSON.parse(monitor[2])).expls;
     const atoms = (JSON.parse(monitor[2])).atoms;
@@ -61,7 +59,6 @@ function initMonitor(state, action) {
 function execMonitor(state, action) {
   try {
     const monitor = window.monitorAppend(action.appendTrace,
-                                         action.checker,
                                          action.measure,
                                          action.formula,
                                          action.monitorState);
@@ -136,7 +133,6 @@ function reducer(state, action) {
 }
 
 function App() {
-  const [checker, setChecker] = useState(false);
   const [measure, setMeasure] = useState("size");
   const [formula, setFormula] = useState("");
   const [trace, setTrace] = useState("@0 a\n@3 a b\n@7\n@11 a\n@13 a\n@17 a\n@18 a b\n@18 a b\n@22 a\n@26 a\n@29 a\n@29\n@33 a\n@33 a\n@34 a\n@38 a b\n@41 a b\n@41 a\n@45 b\n@47 a\n@47 a\n@49 a\n@49 a\n@53 b\n@53 a b\n@56\n@56 a\n@60 a b\n@63 a\n@66 a b\n@67 a b\n@67 a\n@70 a b\n@72 a b\n@72 a b\n@73 a\n@77 a b");
@@ -156,8 +152,7 @@ function App() {
   const handleMonitor = (e) => {
     e.preventDefault();
 
-    let action = { checker: checker,
-                   measure: measure,
+    let action = { measure: measure,
                    formula: formula,
                    trace: trace,
                    type: 'initTable'
@@ -174,8 +169,7 @@ function App() {
                                        name: 'Error',
                                        message: 'Your trace is empty. Please try again.'
                                      };
-    else action = { checker: checker,
-                    measure: measure,
+    else action = { measure: measure,
                     formula: formula,
                     appendTrace: appendTrace,
                     monitorState: state.monitorState,

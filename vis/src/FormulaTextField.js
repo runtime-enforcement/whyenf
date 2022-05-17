@@ -16,7 +16,7 @@ export default function FormulaTextField ({ formula, setFormula, fixParameters }
 
   useEffect(() => {
     setFormula(localFormula);
-  }, [formula]);
+  }, [localFormula, setFormula]);
 
   return (
     <Box
