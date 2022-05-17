@@ -8,14 +8,14 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
-open Lib.Util
-open Lib.Expl
-open Lib.Mtl
-open Lib.Io
-open Lib.Mtl_parser
-open Lib.Mtl_lexer
-open Lib.Monitor
-open Lib.Checker.Explanator2
+open Src.Util
+open Src.Expl
+open Src.Mtl
+open Src.Io
+open Src.Mtl_parser
+open Src.Mtl_lexer
+open Src.Monitor
+open Src.Checker.Explanator2
 
 module Explanator2 = struct
 
@@ -115,10 +115,10 @@ module Explanator2 = struct
       | ("-fmla" :: fmlafile :: args) ->
          (try
             let in_ch = open_in fmlafile in
-            fmla_ref := Some(Lib.Mtl_parser.formula Lib.Mtl_lexer.token (Lexing.from_channel in_ch));
+            fmla_ref := Some(Src.Mtl_parser.formula Src.Mtl_lexer.token (Lexing.from_channel in_ch));
             close_in in_ch
           with
-            _ -> fmla_ref := Some(Lib.Mtl_parser.formula Lib.Mtl_lexer.token (Lexing.from_string fmlafile)));
+            _ -> fmla_ref := Some(Src.Mtl_parser.formula Src.Mtl_lexer.token (Lexing.from_string fmlafile)));
          go args
       | ("-out" :: outfile :: args) ->
          out_ref := open_out outfile;
@@ -126,7 +126,7 @@ module Explanator2 = struct
       | ("-vis" :: fmlafile :: args) ->
          (* Quick sanity check (visualization related) *)
          let in_ch = open_in fmlafile in
-         fmla_ref := Some(Lib.Mtl_parser.formula Lib.Mtl_lexer.token (Lexing.from_channel in_ch));
+         fmla_ref := Some(Src.Mtl_parser.formula Src.Mtl_lexer.token (Lexing.from_channel in_ch));
          log_str_ref := "@0 q\n@1 p\n@2 r\n@3 q";
          is_opt_ref := Some(is_opt_atm (fun s -> nat_of_integer (Z.of_int 1)));
          vis_ref := true;

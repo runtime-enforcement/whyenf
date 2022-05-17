@@ -1,6 +1,6 @@
 (executable
  (name explanator2)
  (modes js)
- (libraries js_of_ocaml lib zarith_stubs_js)
+ (libraries src js_of_ocaml zarith_stubs_js)
  (promote (until-clean))
  (preprocess (pps ppx_jane js_of_ocaml-ppx)))

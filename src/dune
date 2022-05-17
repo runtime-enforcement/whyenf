@@ -5,5 +5,5 @@
  (modules mtl_parser))
 
 (library
- (name lib)
+ (name src)
  (libraries core_kernel base zarith))

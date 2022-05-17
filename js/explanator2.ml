@@ -8,13 +8,13 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
-open Lib.Util
-open Lib.Expl
-open Lib.Mtl
-open Lib.Io
-open Lib.Mtl_parser
-open Lib.Mtl_lexer
-open Lib.Monitor
+open Src.Util
+open Src.Expl
+open Src.Mtl
+open Src.Io
+open Src.Mtl_parser
+open Src.Mtl_lexer
+open Src.Monitor
 open Js_of_ocaml
 
 module Explanator2 = struct
@@ -34,7 +34,7 @@ module Explanator2 = struct
 
   let get_columns js_formula =
     let formula = (Js_of_ocaml.Js.to_string js_formula) in
-    let f = Lib.Mtl_parser.formula Lib.Mtl_lexer.token (Lexing.from_string formula) in
+    let f = Src.Mtl_parser.formula Src.Mtl_lexer.token (Lexing.from_string formula) in
     Js.string (json_table_columns f)
 
   let monitor_init js_log js_check js_measure js_formula =
@@ -44,7 +44,7 @@ module Explanator2 = struct
     let formula = (Js_of_ocaml.Js.to_string js_formula) in
     let c = validate_check check in
     let le = validate_measure measure in
-    let f = Lib.Mtl_parser.formula Lib.Mtl_lexer.token (Lexing.from_string formula) in
+    let f = Src.Mtl_parser.formula Src.Mtl_lexer.token (Lexing.from_string formula) in
     let (obj_opt, s) = monitor2 None log c le f in
     (obj_opt, Js.string(s))
 
@@ -55,7 +55,7 @@ module Explanator2 = struct
     let formula = (Js_of_ocaml.Js.to_string js_formula) in
     let c = validate_check check in
     let le = validate_measure measure in
-    let f = Lib.Mtl_parser.formula Lib.Mtl_lexer.token (Lexing.from_string formula) in
+    let f = Src.Mtl_parser.formula Src.Mtl_lexer.token (Lexing.from_string formula) in
     let (obj_opt', s) = monitor2 obj_opt log c le f in
     (obj_opt', Js.string(s))
 
