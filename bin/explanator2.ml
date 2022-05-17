@@ -130,7 +130,6 @@ module Explanator2 = struct
          log_str_ref := "@0 q\n@1 p\n@2 r\n@3 q";
          is_opt_ref := Some(is_opt_atm (fun s -> nat_of_integer (Z.of_int 1)));
          vis_ref := true;
-         check_ref := false;
          measure_le_ref := Some(size_le);
          go args
       | [] -> ()
@@ -145,7 +144,7 @@ module Explanator2 = struct
       let formula = Option.get !fmla_ref in
       if !vis_ref then
         let () = Printf.printf "%s" (json_table_columns formula) in
-        let (_, out) = monitor_vis None !log_str_ref !check_ref measure_le formula in
+        let (_, out) = monitor_vis None !log_str_ref measure_le formula in
         Printf.printf "%s" out
       else
         let _ = monitor_cli !log_ref !out_ref !mode_ref !out_mode_ref !check_ref measure_le is_opt formula in ()

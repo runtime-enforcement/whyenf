@@ -1056,7 +1056,7 @@ let monitor_cli in_ch out_ch mode out_mode check le is_opt f =
     (st_updated, in_ch) in
   loop s (st, in_ch)
 
-let monitor_vis obj_opt log c le f =
+let monitor_vis obj_opt log le f =
   let events = parse_lines_from_string log in
   let (mf, st) = match obj_opt with
     | None -> let mf = minit f in
@@ -1073,7 +1073,6 @@ let monitor_vis obj_opt log c le f =
                                     Hashtbl.add st.tp_ts st'.tp ts;
                                     let sap_filtered = filter_ap sap mf_ap in
                                     let (ps, mf_updated) = meval' ts st'.tp sap_filtered mf' le in
-                                    let events_updated = if c then (sap_filtered, ts)::st'.events else [] in
                                     let cbs_opt = None in
                                     let expls = json_expls st.tp_ts f (Deque.to_list ps) cbs_opt in
                                     let atoms = json_atoms f sap_filtered st'.tp ts in
@@ -1081,7 +1080,6 @@ let monitor_vis obj_opt log c le f =
                                       { st with
                                         tp = st'.tp+1
                                       ; mf = mf_updated
-                                      ; events = events_updated
                                       } in
                                     ((mf_updated, st_updated), (expls, atoms))) in
               let expls = List.map o (fun (e, _) -> e) in

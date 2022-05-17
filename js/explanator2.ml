@@ -19,17 +19,10 @@ open Js_of_ocaml
 
 module Explanator2 = struct
 
-  let validate_check c =
-    match c with
-    | "true" -> true
-    | "false" -> false
-    | _ -> false
-
   let validate_measure m =
     match m with
     | "size" -> size_le
-    | "high" -> high_le
-    | "pred" -> predicates_le
+    | "wsize" -> high_le
     | _ -> (fun _ _ -> true)
 
   let get_columns js_formula =
@@ -37,26 +30,20 @@ module Explanator2 = struct
     let f = Src.Mtl_parser.formula Src.Mtl_lexer.token (Lexing.from_string formula) in
     Js.string (json_table_columns f)
 
-  let monitor_init js_log js_check js_measure js_formula =
+  let monitor_init js_log js_measure js_formula =
     let log = (Js_of_ocaml.Js.to_string js_log) in
-    let check = (Js_of_ocaml.Js.to_string js_check) in
-    let measure = (Js_of_ocaml.Js.to_string js_measure) in
+    let measure = validate_measure (Js_of_ocaml.Js.to_string js_measure) in
     let formula = (Js_of_ocaml.Js.to_string js_formula) in
-    let c = validate_check check in
-    let le = validate_measure measure in
-    let f = Src.Mtl_parser.formula Src.Mtl_lexer.token (Lexing.from_string formula) in
-    let (obj_opt, s) = monitor_vis None log c le f in
+    let formula_parsed = Src.Mtl_parser.formula Src.Mtl_lexer.token (Lexing.from_string formula) in
+    let (obj_opt, s) = monitor_vis None log measure formula_parsed in
     (obj_opt, Js.string(s))
 
-  let monitor_append js_log js_check js_measure js_formula obj_opt =
+  let monitor_append js_log js_measure js_formula obj_opt =
     let log = (Js_of_ocaml.Js.to_string js_log) in
-    let check = (Js_of_ocaml.Js.to_string js_check) in
-    let measure = (Js_of_ocaml.Js.to_string js_measure) in
+    let measure = validate_measure (Js_of_ocaml.Js.to_string js_measure) in
     let formula = (Js_of_ocaml.Js.to_string js_formula) in
-    let c = validate_check check in
-    let le = validate_measure measure in
-    let f = Src.Mtl_parser.formula Src.Mtl_lexer.token (Lexing.from_string formula) in
-    let (obj_opt', s) = monitor_vis obj_opt log c le f in
+    let formula_parsed = Src.Mtl_parser.formula Src.Mtl_lexer.token (Lexing.from_string formula) in
+    let (obj_opt', s) = monitor_vis obj_opt log measure formula_parsed in
     (obj_opt', Js.string(s))
 
   let (_: unit) =
@@ -64,16 +51,14 @@ module Explanator2 = struct
       (object%js
          method getColumns (js_formula: Js.js_string Js.t) = get_columns js_formula
          method monitorInit (js_log: Js.js_string Js.t)
-                  (js_check: Js.js_string Js.t)
                   (js_measure: Js.js_string Js.t)
                   (js_formula: Js.js_string Js.t) =
-           monitor_init js_log js_check js_measure js_formula
+           monitor_init js_log js_measure js_formula
          method monitorAppend (js_log: Js.js_string Js.t)
-                  (js_check: Js.js_string Js.t)
                   (js_measure: Js.js_string Js.t)
                   (js_formula: Js.js_string Js.t)
                   (obj_opt: (mformula * state) option)=
-           monitor_append js_log js_check js_measure js_formula obj_opt
+           monitor_append js_log js_measure js_formula obj_opt
        end)
 
 
