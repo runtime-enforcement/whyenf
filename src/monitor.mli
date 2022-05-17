@@ -83,5 +83,5 @@ type state =
 val monitor_cli: in_channel -> out_channel -> mode -> out_mode -> bool -> (expl -> expl -> bool) ->
                  (string trace -> nat -> string mtl -> (string sproof, string vproof) sum -> bool) -> formula ->
              out_channel
-val monitor_vis: (mformula * state) option -> string -> bool -> (expl -> expl -> bool) -> formula ->
+val monitor_vis: (mformula * state) option -> string -> (expl -> expl -> bool) -> formula ->
                  (mformula * state) option * string
