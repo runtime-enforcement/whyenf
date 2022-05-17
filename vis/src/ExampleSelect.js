@@ -5,7 +5,7 @@ import InputLabel from '@mui/material/InputLabel';
 import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 
-export default function RandomExampleSelect ({ example, setExample }) {
+export default function ExampleSelect ({ example, setExample }) {
 
   const handleChange = (event) => {
     setExample(event.target.value);
@@ -21,15 +21,14 @@ export default function RandomExampleSelect ({ example, setExample }) {
       autoComplete="off"
     >
       <FormControl fullWidth>
-        <InputLabel id="random-example-select-label">Measure</InputLabel>
         <Select
-          labelId="random-example-select-label"
-          id="random-example-select"
+          labelId="example-select-label"
+          id="example-select"
+          label="Ex"
           value={example}
-          label="Example"
           onChange={handleChange}
         >
-          <MenuItem value={"example1"}>Example1</MenuItem>
+          <MenuItem value={"intrusion-detection"}>Intrusion Detection</MenuItem>
         </Select>
       </FormControl>
     </Box>

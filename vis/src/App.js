@@ -206,8 +206,13 @@ function App() {
               </Grid>
 
               { !state.fixParameters &&
-                <Grid item xs={12} sm={12} md={4} lg={4} xl={4}>
-                  <MonitorButton handleMonitor={handleMonitor} />
+                <Grid container item xs={12} sm={12} md={4} lg={4} xl={4} spacing={2}>
+                  <Grid item xs={12} sm={12} md={6} lg={6} xl={6}>
+                    <ExampleSelect />
+                  </Grid>
+                  <Grid item xs={12} sm={12} md={6} lg={6} xl={6}>
+                    <MonitorButton handleMonitor={handleMonitor} />
+                  </Grid>
                 </Grid>
               }
 
