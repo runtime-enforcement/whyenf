@@ -28,7 +28,7 @@ const theme = createTheme({
   },
 });
 
-function initMonitor(state, action) {
+function initMonitor(monitorState, action) {
   try {
     const monitor = window.monitorInit(action.trace, action.measure, action.formula);
     const monitorState = monitor[1];
@@ -50,24 +50,24 @@ function initMonitor(state, action) {
   } catch (error) {
     console.log(error);
     return {
-      ...state,
+      ...monitorState,
       dialog: translateError(error),
     };
   }
 }
 
-function execMonitor(state, action) {
+function execMonitor(monitorState, action) {
   try {
     const monitor = window.monitorAppend(action.appendTrace,
                                          action.measure,
                                          action.formula,
                                          action.monitorState);
     const monitorState = monitor[1];
-    const explanations = state.explanations.concat((JSON.parse(monitor[2])).expls);
-    const atoms = state.atoms.concat((JSON.parse(monitor[2])).atoms);
+    const explanations = monitorState.explanations.concat((JSON.parse(monitor[2])).expls);
+    const atoms = monitorState.atoms.concat((JSON.parse(monitor[2])).atoms);
     const squares = computeSquares(explanations, atoms);
 
-    return { ...state,
+    return { ...monitorState,
              explanations: explanations,
              atoms: atoms,
              squares: squares,
@@ -77,21 +77,43 @@ function execMonitor(state, action) {
   } catch (error) {
     console.log(error);
     return {
-      ...state,
+      ...monitorState,
       dialog: translateError(error),
     };
   }
 }
 
-function reducer(state, action) {
+function formStateReducer(formState, action) {
+  switch (action.type) {
+  case 'setFormula':
+    return {
+      ...formState,
+      formula: action.formula
+    }
+  case 'setTrace':
+    return {
+      ...formState,
+      trace: action.trace
+    }
+  case 'setFormulaAndTrace':
+    return {
+      formula: action.formula,
+      trace: action.trace
+    }
+  default:
+    return formState;
+  }
+}
+
+function monitorStateReducer(monitorState, action) {
   switch (action.type) {
   case 'initTable':
-    return initMonitor(state, action);
+    return initMonitor(monitorState, action);
   case 'appendTable':
-    return execMonitor(state, action);
+    return execMonitor(monitorState, action);
   case 'updateTable':
     return {
-      ...state,
+      ...monitorState,
       squares: action.squares,
       selectedRows: action.selectedRows,
       highlightedCells: action.highlightedCells,
@@ -99,8 +121,8 @@ function reducer(state, action) {
     }
   case 'resetTable':
     return {
-      ...state,
-      squares: computeSquares(state.explanations, state.atoms),
+      ...monitorState,
+      squares: computeSquares(monitorState.explanations, monitorState.atoms),
       selectedRows: [],
       highlightedCells: [],
       fixParameters: true
@@ -119,46 +141,46 @@ function reducer(state, action) {
            }
   case 'openDialog':
     return {
-      ...state,
+      ...monitorState,
       dialog: { name: action.name, message: action.message }
     }
   case 'closeDialog':
     return {
-      ...state,
+      ...monitorState,
       dialog: {},
     }
   default:
-    return state;
+    return monitorState;
   }
 }
 
 function App() {
   const [measure, setMeasure] = useState("size");
-  const [formula, setFormula] = useState("");
-  const [trace, setTrace] = useState("");
   const [appendTrace, setAppendTrace] = useState("");
-  const [state, dispatch] = useReducer(reducer, { explanations: [],
-                                                  atoms: [],
-                                                  apsColumns: [],
-                                                  subfsColumns: [],
-                                                  squares: [],
-                                                  monitorState: [],
-                                                  selectedRows: [],
-                                                  highlightedCells: [],
-                                                  dialog: {},
-                                                  fixParameters: false
-                                                });
+  const [formState, setFormState] = useReducer(formStateReducer, { formula: "", trace: "" });
+  const [monitorState, setMonitorState] = useReducer(monitorStateReducer,
+                                              { explanations: [],
+                                                atoms: [],
+                                                apsColumns: [],
+                                                subfsColumns: [],
+                                                squares: [],
+                                                monitorState: [],
+                                                selectedRows: [],
+                                                highlightedCells: [],
+                                                dialog: {},
+                                                fixParameters: false
+                                              });
 
   const handleMonitor = (e) => {
     e.preventDefault();
 
     let action = { measure: measure,
-                   formula: formula,
-                   trace: trace,
+                   formula: formState.formula,
+                   trace: formState.trace,
                    type: 'initTable'
                  };
 
-    dispatch(action);
+    setMonitorState(action);
   };
 
   const handleAppend = (e) => {
@@ -170,32 +192,32 @@ function App() {
                                        message: 'Your trace is empty. Please try again.'
                                      };
     else action = { measure: measure,
-                    formula: formula,
+                    formula: formState.formula,
                     appendTrace: appendTrace,
-                    monitorState: state.monitorState,
+                    monitorState: monitorState.monitorState,
                     type: 'appendTable'
                   };
 
-    dispatch(action);
+    setMonitorState(action);
   };
 
   const handleReset = (e) => {
     e.preventDefault();
     let action = { type: 'resetTable' };
-    dispatch(action);
+    setMonitorState(action);
   }
 
   const handleLeave = (e) => {
     e.preventDefault();
     let action = { type: 'leaveMonitor' };
-    dispatch(action);
+    setMonitorState(action);
   };
 
   return (
     <ThemeProvider theme={theme}>
       <Box>
-        { (state.dialog !== undefined && (Object.keys(state.dialog).length !== 0)) &&
-          <AlertDialog open={true} dialog={state.dialog} dispatch={dispatch} />
+        { (monitorState.dialog !== undefined && (Object.keys(monitorState.dialog).length !== 0)) &&
+          <AlertDialog open={true} dialog={monitorState.dialog} setMonitorState={setMonitorState} />
         }
         <NavBar />
         <Container maxWidth="xl">
@@ -205,10 +227,10 @@ function App() {
                 <PreambleCard />
               </Grid>
 
-              { !state.fixParameters &&
+              { !monitorState.fixParameters &&
                 <Grid container item xs={12} sm={12} md={4} lg={4} xl={4} spacing={2}>
                   <Grid item xs={12} sm={12} md={6} lg={6} xl={6}>
-                    <ExampleSelect setTrace={setTrace} setFormula={setFormula} />
+                    <ExampleSelect setFormState={setFormState} />
                   </Grid>
                   <Grid item xs={12} sm={12} md={6} lg={6} xl={6}>
                     <MonitorButton handleMonitor={handleMonitor} />
@@ -216,7 +238,7 @@ function App() {
                 </Grid>
               }
 
-              { state.fixParameters &&
+              { monitorState.fixParameters &&
                 <Grid container item xs={12} sm={12} md={4} lg={4} xl={4} spacing={2}>
                   <Grid item xs={12} sm={12} md={6} lg={6} xl={6}>
                     <AppendTraceTextField appendTrace={appendTrace} setAppendTrace={setAppendTrace} />
@@ -234,41 +256,41 @@ function App() {
               }
 
               <Grid item xs={12} sm={12} md={8} lg={8} xl={8}>
-                <FormulaTextField formula={formula}
-                                  setFormula={setFormula}
-                                  fixParameters={state.fixParameters}
+                <FormulaTextField formula={formState.formula}
+                                  setFormState={setFormState}
+                                  fixParameters={monitorState.fixParameters}
                 />
               </Grid>
 
-              { !state.fixParameters &&
+              { !monitorState.fixParameters &&
                 <Grid container item xs={24} sm={24} md={12} lg={12} xl={12} spacing={2}>
                   <Grid item xs={12} sm={12} md={4} lg={4} xl={4}>
-                    <TraceTextField trace={trace} setTrace={setTrace} />
+                    <TraceTextField trace={formState.trace} setFormState={setFormState} />
                   </Grid>
                   <Grid item xs={12} sm={12} md={8} lg={8} xl={8}>
-                    <TimeGrid explanations={state.explanations}
-                              atoms={state.atoms}
-                              apsColumns={state.apsColumns}
-                              subfsColumns={state.subfsColumns}
-                              squares={state.squares}
-                              dispatch={dispatch}
+                    <TimeGrid explanations={monitorState.explanations}
+                              atoms={monitorState.atoms}
+                              apsColumns={monitorState.apsColumns}
+                              subfsColumns={monitorState.subfsColumns}
+                              squares={monitorState.squares}
+                              setMonitorState={setMonitorState}
                     />
                   </Grid>
                 </Grid>
               }
 
 
-              { state.fixParameters &&
+              { monitorState.fixParameters &&
                 <Grid container item xs={24} sm={24} md={12} lg={12} xl={12} spacing={2}>
                   <Grid item xs={24} sm={24} md={12} lg={12} xl={12}>
-                    <TimeGrid explanations={state.explanations}
-                              atoms={state.atoms}
-                              apsColumns={state.apsColumns}
-                              subfsColumns={state.subfsColumns}
-                              squares={state.squares}
-                              selectedRows={state.selectedRows}
-                              highlightedCells={state.highlightedCells}
-                              dispatch={dispatch}
+                    <TimeGrid explanations={monitorState.explanations}
+                              atoms={monitorState.atoms}
+                              apsColumns={monitorState.apsColumns}
+                              subfsColumns={monitorState.subfsColumns}
+                              squares={monitorState.squares}
+                              selectedRows={monitorState.selectedRows}
+                              highlightedCells={monitorState.highlightedCells}
+                              setMonitorState={setMonitorState}
                     />
                   </Grid>
                 </Grid>

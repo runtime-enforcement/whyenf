@@ -23,7 +23,7 @@ function Cell(props) {
   }
 }
 
-function TimeGrid ({ explanations, atoms, apsColumns, subfsColumns, squares, selectedRows, dispatch }) {
+function TimeGrid ({ explanations, atoms, apsColumns, subfsColumns, squares, selectedRows, setMonitorState }) {
 
   const apsGridColumns = apsColumns.slice(0).map((a, i) =>
     ({
@@ -97,7 +97,7 @@ function TimeGrid ({ explanations, atoms, apsColumns, subfsColumns, squares, sel
                      squares: cloneSquares,
                      selectedRows: selRows
                    };
-      dispatch(action);
+      setMonitorState(action);
     }
   };
 
