@@ -7,12 +7,12 @@ import DialogContentText from '@mui/material/DialogContentText';
 import DialogTitle from '@mui/material/DialogTitle';
 import ErrorIcon from '@mui/icons-material/Error';
 
-export default function AlertDialog({ open, dialog, dispatch }) {
+export default function AlertDialog({ open, dialog, setMonitorState }) {
 
   return (
     <Dialog
       open={open}
-      onClose={() => dispatch({ type: "closeDialog" })}
+      onClose={() => setMonitorState({ type: "closeDialog" })}
       aria-labelledby="alert-dialog-title"
       aria-describedby="alert-dialog-description"
     >
@@ -26,7 +26,7 @@ export default function AlertDialog({ open, dialog, dispatch }) {
         </DialogContentText>
       </DialogContent>
       <DialogActions>
-        <Button onClick={() => dispatch({ type: "closeDialog" })} autoFocus>Close</Button>
+        <Button onClick={() => setMonitorState({ type: "closeDialog" })} autoFocus>Close</Button>
       </DialogActions>
     </Dialog>
   );

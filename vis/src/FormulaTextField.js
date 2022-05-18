@@ -2,21 +2,21 @@ import React, { useState, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import TextField from '@mui/material/TextField';
 
-export default function FormulaTextField ({ formula, setFormula, fixParameters }) {
+export default function FormulaTextField ({ formula, setFormState, fixParameters }) {
 
-  const [localFormula, setLocalFormula] = useState("(a SINCE b) SINCE (a SINCE b)");
+  const [localFormula, setLocalFormula] = useState("");
 
   const handleChange = (event) => {
     setLocalFormula(event.target.value);
   };
 
   const handleBlur = (event) => {
-    setFormula(event.target.value);
+    setFormState({ type: 'setFormula', formula: localFormula });
   };
 
   useEffect(() => {
-    setFormula(localFormula);
-  }, [localFormula, setFormula]);
+    setLocalFormula(formula);
+  }, [formula, setLocalFormula]);
 
   return (
     <Box

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import TextField from '@mui/material/TextField';
 
-export default function TraceTextField ({ trace, setTrace }) {
+export default function TraceTextField ({ trace, setFormState }) {
 
   const [localTrace, setLocalTrace] = useState(trace);
 
@@ -11,12 +11,12 @@ export default function TraceTextField ({ trace, setTrace }) {
   };
 
   const handleBlur = (event) => {
-    setTrace(event.target.value);
+    setFormState({ type: 'setTrace', trace: localTrace });
   };
 
   useEffect(() => {
-    setTrace(localTrace);
-  }, [localTrace, setTrace]);
+    setLocalTrace(trace);
+  }, [trace, setLocalTrace]);
 
   return (
     <Box
