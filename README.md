@@ -56,6 +56,49 @@ $ dune clean
 
 will remove the binary and clean the working directory.
 
+### Formalization
+
+File [src/checker.ml](src/checker.ml) corresponds to the code extracted from the Isabelle formalization.
+
+However, you can extract the code using the command:
+
+```
+$ Isabelle build -vd thys -eD code
+```
+
+### Syntax
+
+#### Metric Temporal Logic
+```
+{f} ::=   true
+        | false
+        | {ATOM}
+        | NOT {f}
+        | {f} AND {f}
+        | {f} OR  {f}
+        | {f} IFF {f}
+        | {f} IMPLIES {f}
+        | PREV{i} {f}
+        | NEXT{i} {f}
+        | ONCE{i} {f}
+        | EVENTUALLY{i} {f}
+        | HISTORICALLY{i} {f}
+        | ALWAYS{i} {f}
+        | {f} SINCE{i} {f}
+        | {f} UNTIL{i} {f}
+        | {f} TRIGGER{i} {f}
+        | {f} RELEASE{i} {f}
+
+{i}  ::= [{NAT}, {UPPERBOUND}]
+{UPPERBOUND} ::= {NAT} | INFINITY
+```
+
+#### Log
+```
+{LOG} :=   @{NAT} {ATOM}*
+         | @{NAT} {ATOM}* \n {LOG}
+```
+
 ## License
 
 This project is licensed under the GNU Lesser GPL-3.0 license - see [LICENSE](LICENSE) for details.
