@@ -37,8 +37,8 @@ rule token = parse
   | '!' | "¬" | "NOT"                             { NEG }
   | '&' | "∧" | "AND"                             { CONJ }
   | '|' | "∨" | "OR"                              { DISJ }
-  | "=>" | "->" | "→"                             { IMP }
-  | "<=>"  | "<->" | "↔"                          { IFF }
+  | "=>" | "->" | "→" | "IMPLIES"                 { IMP }
+  | "<=>"  | "<->" | "↔" | "IFF"                  { IFF }
   | "SINCE" | "S" | "U⁻"                          { SINCE }
   | "UNTIL" |	"U"                               { UNTIL }
   | "RELEASE" | "R"                               { RELEASE }
