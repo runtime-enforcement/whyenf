@@ -1,11 +1,13 @@
-import React from "react";
+import React, { useState } from "react";
 import Box from '@mui/material/Box';
 import { DataGrid } from '@mui/x-data-grid';
 import Button from '@mui/material/Button';
 import CircleIcon from '@mui/icons-material/Circle';
 import CancelIcon from '@mui/icons-material/Cancel';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import { red, purple, amber, lightGreen, cyan } from '@mui/material/colors';
+import Popover from '@mui/material/Popover';
+import Typography from '@mui/material/Typography';
+import { red, amber, lightGreen } from '@mui/material/colors';
 import { common } from '@mui/material/colors'
 import { black, squareColor, tpsIn, computeMaxCol } from './util';
 
@@ -32,13 +34,30 @@ function TimeGrid ({ explanations,
                      highlightedCells,
                      setMonitorState }) {
 
+  const [anchorEl, setAnchorEl] = React.useState(null);
+  const [value, setValue] = React.useState('');
+  const open = Boolean(anchorEl);
+
+  const handlePopoverOpen = (event) => {
+    const col = parseInt(event.currentTarget.dataset.field);
+    const row = event.currentTarget.parentElement.dataset.id;
+    if (col >= apsColumns.length) {
+      setValue(subfsColumns[col - apsColumns.length]);
+      setAnchorEl(event.currentTarget);
+    }
+  };
+
+  const handlePopoverClose = () => {
+    setAnchorEl(null);
+  };
+
   const apsGridColumns = apsColumns.slice(0).map((a, i) =>
     ({
       field: i.toString(),
       headerName: a,
       width: (11*(a.length)),
       sortable: false,
-      renderHeader: () => apsColumns[i],
+      renderHeader: () => a,
       renderCell: (params) => <Cell value={squares[params.row.tp][i]} />,
       headerAlign: 'center',
       align: 'center',
@@ -71,7 +90,7 @@ function TimeGrid ({ explanations,
       headerName: f,
       width: (11*(f.length)),
       sortable: false,
-      renderHeader: () => subfsColumns[i],
+      renderHeader: () => f,
       renderCell: (params) => { return <Cell value={squares[params.row.tp][i+apsColumns.length]}
                                              onClick={() => handleClick(params.row.ts, params.row.tp, params.colDef.field)} /> },
       headerAlign: 'center',
@@ -142,12 +161,37 @@ function TimeGrid ({ explanations,
               && highlightedCells[params.row.tp][parseInt(params.colDef.field)])
             return 'cell--Highlighted';
         }}
+        componentsProps={{
+          cell: {
+            onMouseEnter: handlePopoverOpen,
+            onMouseLeave: handlePopoverClose,
+          },
+        }}
         pageSize={100}
         rowsPerPageOptions={[100]}
         density="compact"
         disableColumnMenu
         disableSelectionOnClick
       />
+      <Popover
+        sx={{
+          pointerEvents: 'none',
+        }}
+        open={open}
+        anchorEl={anchorEl}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'left',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'left',
+        }}
+        onClose={handlePopoverClose}
+        disableRestoreFocus
+      >
+        <Typography sx={{ p: 1 }}>{value}</Typography>
+      </Popover>
     </Box>
   );
 }
