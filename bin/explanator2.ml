@@ -45,17 +45,19 @@ module Explanator2 = struct
        \t\t sat    - output only satisfaction explanations
        \t\t viol   - output only violation explanations
        \t -O (measure)
-       \t\t size   - optimize proof size
-       \t\t wsize  - optimize weighted proof size (less is better)
+       \t\t size   - optimize proof size (default)
+       \t\t wsize  - optimize weighted proof size
        \t\t none   - pick any proof
+       \t -weights
+       \t\t <file> - atom weights file
        \t -fmla
        \t\t <file> or <string> - formula to be explained
        \t -log
        \t\t <file> - log file (default: stdin)
        \t -out_mode
        \t\t plain  - plain output (default)
-       \t\t json   - JSON output (only useful for the visualization)
-       \t\t debug  - plain verbose output (only useful for debugging)
+       \t\t debug  - plain verbose output
+       \t\t json   - JSON output
        \t -out
        \t\t <file> - output file where the explanation is printed to (default: stdout)\n%!";
     exit 0
