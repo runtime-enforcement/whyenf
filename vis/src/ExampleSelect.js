@@ -34,8 +34,6 @@ export default function ExampleSelect ({ setFormState }) {
   const handleClose = (event) => {
     const result = examples.find( ({ name }) => name === example );
     if (result !== undefined) {
-      console.log("Hi!");
-      console.log(result);
       setFormState({ type: 'setFormulaAndTrace', formula: result.formula, trace: result.trace });
     }
   };

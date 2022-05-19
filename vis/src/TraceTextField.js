@@ -30,6 +30,7 @@ export default function TraceTextField ({ trace, setFormState }) {
       <TextField
         id="outlined-multiline-static"
         label="Trace"
+        required
         multiline
         rows={24}
         value={localTrace}

@@ -2,7 +2,7 @@ import { red, purple, yellow, lightGreen } from '@mui/material/colors';
 
 export const black = "#000000";
 
-function computeMaxCol(explanations) {
+export function computeMaxCol(explanations) {
   let maxCol = 0;
 
   for (let tp = 0; tp < explanations.length; ++tp) {
@@ -25,11 +25,11 @@ export function squareColorTest(bool) {
 
 export function computeSquares(explanations, atoms, squares = []) {
 
-  let maxRow = atoms.length;
+  let maxRow = explanations.length;
   let maxCol = computeMaxCol(explanations);
 
   // Initialize empty squares
-  squares = (squares.length === 0) ? new Array(maxRow).fill(null).map(() => Array(maxCol+3).fill("")) : squares;
+  squares = (squares.length === 0) ? new Array(maxRow).fill(null).map(() => Array(maxCol+1).fill("")) : squares;
 
   // Populate atoms with data
   for (let tp = 0; tp < atoms.length; ++tp) {

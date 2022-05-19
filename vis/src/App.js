@@ -19,11 +19,12 @@ import { computeSquares, translateError } from './util';
 
 const theme = createTheme({
   palette: {
+    type: 'light',
     primary: {
-      main: "#000000",
+      main: '#222222',
     },
     secondary: {
-      main: "#6EB5FF",
+      main: '#fdd835',
     },
   },
 });
