@@ -11,7 +11,7 @@ export default function NavBar() {
       <AppBar position="fixed">
         <Toolbar>
           <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            Explanator2
+            Explanator2: MTL Monitor
           </Typography>
           <Button color="inherit">
             <Typography variant="h7" component="div" sx={{ flexGrow: 1 }}>

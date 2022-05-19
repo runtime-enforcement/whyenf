@@ -5,15 +5,15 @@ import Button from '@mui/material/Button';
 import CircleIcon from '@mui/icons-material/Circle';
 import CancelIcon from '@mui/icons-material/Cancel';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import { red, purple, lightGreen, cyan } from '@mui/material/colors';
+import { red, purple, amber, lightGreen, cyan } from '@mui/material/colors';
 import { common } from '@mui/material/colors'
-import { black, squareColor, tpsIn } from './util';
+import { black, squareColor, tpsIn, computeMaxCol } from './util';
 
 function Cell(props) {
   if (props.value === red[500] || props.value === lightGreen[500] || props.value === black) {
     return (
       <Button onClick={props.onClick}>
-        { props.value === black && <CircleIcon /> }
+        { props.value === black && <CircleIcon style={{ color: props.value }} /> }
         { props.value === red[500] && <CancelIcon style={{ color: props.value }} /> }
         { props.value === lightGreen[500] && <CheckCircleIcon style={{ color: props.value }} /> }
       </Button>
@@ -23,7 +23,14 @@ function Cell(props) {
   }
 }
 
-function TimeGrid ({ explanations, atoms, apsColumns, subfsColumns, squares, selectedRows, setMonitorState }) {
+function TimeGrid ({ explanations,
+                     atoms,
+                     apsColumns,
+                     subfsColumns,
+                     squares,
+                     selectedRows,
+                     highlightedCells,
+                     setMonitorState }) {
 
   const apsGridColumns = apsColumns.slice(0).map((a, i) =>
     ({
@@ -44,6 +51,7 @@ function TimeGrid ({ explanations, atoms, apsColumns, subfsColumns, squares, sel
       headerName: 'TP',
       width: 55,
       sortable: false,
+      headerAlign: 'center',
       align: 'center',
       disableClickEventBubbling: true
     },
@@ -51,6 +59,7 @@ function TimeGrid ({ explanations, atoms, apsColumns, subfsColumns, squares, sel
       headerName: 'TS',
       width: 55,
       sortable: false,
+      headerAlign: 'center',
       align: 'center',
       disableClickEventBubbling: true
     }
@@ -88,14 +97,17 @@ function TimeGrid ({ explanations, atoms, apsColumns, subfsColumns, squares, sel
     }
 
     if (cell !== undefined && squares[cell.tp][cell.col] !== black && cell.cells.length !== 0) {
+      let highlightedCells = [...Array(explanations.length)].map(x=>Array(computeMaxCol(explanations)+1).fill(false));
       for (let i = 0; i < cell.cells.length; ++i) {
         cloneSquares[cell.cells[i].tp][cell.cells[i].col] = squareColor(cell.cells[i].bool);
+        highlightedCells[cell.cells[i].tp][cell.cells[i].col] = true;
       }
 
       let selRows = (cell.interval !== undefined) ? tpsIn(ts, tp, cell.interval, cell.period, atoms) : [];
       let action = { type: "updateTable",
                      squares: cloneSquares,
-                     selectedRows: selRows
+                     selectedRows: selRows,
+                     highlightedCells: highlightedCells
                    };
       setMonitorState(action);
     }
@@ -104,12 +116,12 @@ function TimeGrid ({ explanations, atoms, apsColumns, subfsColumns, squares, sel
   return (
     <Box sx={{ height: 585,
                '& .cell--Highlighted': {
-                 backgroundColor: purple[300],
+                 backgroundColor: amber[300],
                },
                '& .row--Highlighted': {
-                 bgcolor: cyan[100],
+                 bgcolor: amber[50],
                  '&:hover': {
-                   bgcolor: cyan[200],
+                   bgcolor: amber[50],
                  },
                },
                '& .row--Plain': {
@@ -123,8 +135,13 @@ function TimeGrid ({ explanations, atoms, apsColumns, subfsColumns, squares, sel
         rows={rows}
         columns={apsGridColumns.concat(fixedGridColumns.concat(subfsGridColumns))}
         getRowClassName={(params) => {
-          if (selectedRows.includes(params.row.tp)) return `row--Highlighted`
-          else return `row--Plain` }}
+          if (selectedRows.includes(params.row.tp)) return 'row--Highlighted'
+          else return 'row--Plain' }}
+        getCellClassName={(params) => {
+          if (highlightedCells.length !== 0
+              && highlightedCells[params.row.tp][parseInt(params.colDef.field)])
+            return 'cell--Highlighted';
+        }}
         pageSize={100}
         rowsPerPageOptions={[100]}
         density="compact"

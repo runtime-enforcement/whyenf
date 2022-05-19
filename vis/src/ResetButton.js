@@ -8,6 +8,7 @@ export default function ResetButton ({ handleReset }) {
     <Button
       variant="contained"
       size="large"
+      color="secondary"
       sx={{
         width: '100%'
       }}

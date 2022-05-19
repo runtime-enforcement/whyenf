@@ -11,7 +11,7 @@ const card = (
       <Typography variant="body2">
         This is a tool for online monitoring satisfaction and violation explanations
         of MTL (Metric Temporal Logic) formulas on arbitrary traces. <br />
-        It is the successor of <Link href="https://bitbucket.org/traytel/explanator/src/master/">Explanator</Link>.
+        It is the successor of the <Link href="https://bitbucket.org/traytel/explanator/src/master/">Explanator</Link>.
       </Typography>
     </CardContent>
   </React.Fragment>
