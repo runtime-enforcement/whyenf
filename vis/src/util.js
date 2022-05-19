@@ -102,11 +102,11 @@ export function translateError(error) {
 
   if (error.message === undefined && error[1].c !== undefined) {
     switch (error[1].c) {
-    case "Lib.Mtl_parser.MenhirBasics.Error":
+    case "Src.Mtl_parser.MenhirBasics.Error":
         return { name: "Error",
                  message: "Formula could not be parsed.\n\nPlease make sure the syntax is correct."
                };
-    case "Lib.Monitor.UNBOUNDED_FUTURE":
+    case "Src.Monitor.UNBOUNDED_FUTURE":
       return { name: "Error",
                message: "Your formula has an unbounded UNTIL.\n\nPlease make sure all UNTIL instances are bounded."
              };
