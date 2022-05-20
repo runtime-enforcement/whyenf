@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import Box from '@mui/material/Box';
 import { DataGrid } from '@mui/x-data-grid';
 import Button from '@mui/material/Button';
@@ -42,7 +42,7 @@ function TimeGrid ({ explanations,
   const handlePopoverOpen = (event) => {
     const col = parseInt(event.currentTarget.dataset.field);
     const row = event.currentTarget.parentElement.dataset.id;
-    if (col >= apsColumns.length && squares[row][col] != "" && squares[row][col] != black) {
+    if (col >= apsColumns.length && squares[row][col] !== "" && squares[row][col] !== black) {
       if (value !== subformulas[col - apsColumns.length]) setValue(subformulas[col - apsColumns.length]);
       setAnchorEl(event.currentTarget);
     }
@@ -56,7 +56,7 @@ function TimeGrid ({ explanations,
     ({
       field: i.toString(),
       headerName: a,
-      width: 40,
+      width: 60,
       sortable: false,
       renderHeader: () => a,
       renderCell: (params) => <Cell value={squares[params.row.tp][i]} />,
@@ -69,7 +69,7 @@ function TimeGrid ({ explanations,
     {
       field: 'tp',
       headerName: 'TP',
-      width: 40,
+      width: 60,
       sortable: false,
       headerAlign: 'center',
       align: 'center',
@@ -77,7 +77,7 @@ function TimeGrid ({ explanations,
     },
     { field: 'ts',
       headerName: 'TS',
-      width: 40,
+      width: 60,
       sortable: false,
       headerAlign: 'center',
       align: 'center',
