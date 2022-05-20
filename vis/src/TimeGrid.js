@@ -42,7 +42,7 @@ function TimeGrid ({ explanations,
   const handlePopoverOpen = (event) => {
     const col = parseInt(event.currentTarget.dataset.field);
     const row = event.currentTarget.parentElement.dataset.id;
-    if (col >= apsColumns.length && squares[row][col] != "") {
+    if (col >= apsColumns.length && squares[row][col] != "" && squares[row][col] != black) {
       setValue(subformulas[col - apsColumns.length]);
       setAnchorEl(event.currentTarget);
     }
