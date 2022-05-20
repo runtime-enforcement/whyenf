@@ -56,4 +56,5 @@ val subfs_bfs: formula list -> formula list
 val subfs_dfs: formula -> formula list
 
 val formula_to_string: formula -> string
+val op_to_string: formula -> string
 val formula_to_json: formula -> string

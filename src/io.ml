@@ -131,9 +131,10 @@ let parse_lines_from_string s =
 
 let json_table_columns f =
   let aps_columns = Mtl.atoms f in
-  let subfs_columns = List.map (subfs_dfs f) formula_to_string in
-  Printf.sprintf "{\n  \"apsColumns\": %s,\n  \"subfsColumns\": %s\n}\n"
-    (list_to_json aps_columns) (list_to_json subfs_columns)
+  let subfs_columns = List.map (subfs_dfs f) op_to_string in
+  let subfs = List.map (subfs_dfs f) formula_to_string in
+  Printf.sprintf "{\n  \"apsColumns\": %s,\n  \"subfsColumns\": %s,\n  \"subformulas\": %s}\n"
+    (list_to_json aps_columns) (list_to_json subfs_columns) (list_to_json subfs)
 
 let json_expls tp_ts f ps cbs_opt =
   let ident = "    " in

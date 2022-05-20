@@ -94,6 +94,18 @@ let rec formula_to_string l f = match f with
   | Until (i, f, g) -> Printf.sprintf (paren l 0 "%a U%a %a") (fun x -> formula_to_string 5) f (fun x -> interval_to_string) i (fun x -> formula_to_string 5) g
 let formula_to_string = formula_to_string 0
 
+let op_to_string f = match f with
+  | P x -> Printf.sprintf "%s" x
+  | TT -> Printf.sprintf "⊤"
+  | FF -> Printf.sprintf "⊥"
+  | Conj (_, _) -> Printf.sprintf "∧"
+  | Disj (_, _) -> Printf.sprintf "∨"
+  | Neg _ -> Printf.sprintf "¬"
+  | Prev (i, _) -> Printf.sprintf "●%s" (interval_to_string i)
+  | Next (i, _) -> Printf.sprintf "○%s" (interval_to_string i)
+  | Since (i, _, _) -> Printf.sprintf "S%s" (interval_to_string i)
+  | Until (i, _, _) -> Printf.sprintf "U%s" (interval_to_string i)
+
 let rec f_to_json indent pos f =
   let indent' = "  " ^ indent in
   match f with
