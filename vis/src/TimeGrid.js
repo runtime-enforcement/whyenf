@@ -29,6 +29,7 @@ function TimeGrid ({ explanations,
                      atoms,
                      apsColumns,
                      subfsColumns,
+                     subformulas,
                      squares,
                      selectedRows,
                      highlightedCells,
@@ -42,7 +43,7 @@ function TimeGrid ({ explanations,
     const col = parseInt(event.currentTarget.dataset.field);
     const row = event.currentTarget.parentElement.dataset.id;
     if (col >= apsColumns.length && squares[row][col] != "") {
-      setValue(subfsColumns[col - apsColumns.length]);
+      setValue(subformulas[col - apsColumns.length]);
       setAnchorEl(event.currentTarget);
     }
   };

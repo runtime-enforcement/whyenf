@@ -42,6 +42,7 @@ function initMonitor(monitorState, action) {
              atoms: atoms,
              apsColumns: columns.apsColumns,
              subfsColumns: columns.subfsColumns,
+             subformulas: columns.subformulas,
              squares: squares,
              monitorState: monitorState,
              selectedRows: [],
@@ -133,6 +134,7 @@ function monitorStateReducer(monitorState, action) {
              atoms: [],
              apsColumns: [],
              subfsColumns: [],
+             subformulas: [],
              squares: [],
              monitorState: [],
              selectedRows: [],
@@ -164,6 +166,7 @@ function App() {
                                                 atoms: [],
                                                 apsColumns: [],
                                                 subfsColumns: [],
+                                                subformulas: [],
                                                 squares: [],
                                                 monitorState: [],
                                                 selectedRows: [],
@@ -273,6 +276,7 @@ function App() {
                               atoms={monitorState.atoms}
                               apsColumns={monitorState.apsColumns}
                               subfsColumns={monitorState.subfsColumns}
+                              subformulas={monitorState.subformulas}
                               squares={monitorState.squares}
                               setMonitorState={setMonitorState}
                     />
@@ -288,6 +292,7 @@ function App() {
                               atoms={monitorState.atoms}
                               apsColumns={monitorState.apsColumns}
                               subfsColumns={monitorState.subfsColumns}
+                              subformulas={monitorState.subformulas}
                               squares={monitorState.squares}
                               selectedRows={monitorState.selectedRows}
                               highlightedCells={monitorState.highlightedCells}
