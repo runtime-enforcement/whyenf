@@ -43,7 +43,7 @@ function TimeGrid ({ explanations,
     const col = parseInt(event.currentTarget.dataset.field);
     const row = event.currentTarget.parentElement.dataset.id;
     if (col >= apsColumns.length && squares[row][col] != "" && squares[row][col] != black) {
-      setValue(subformulas[col - apsColumns.length]);
+      if (value !== subformulas[col - apsColumns.length]) setValue(subformulas[col - apsColumns.length]);
       setAnchorEl(event.currentTarget);
     }
   };
