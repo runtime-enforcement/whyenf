@@ -117,13 +117,18 @@ function TimeGrid ({ explanations,
     }
 
     if (cell !== undefined && squares[cell.tp][cell.col] !== black && cell.cells.length !== 0) {
-      let highlightedCells = [...Array(explanations.length)].map(x=>Array(computeMaxCol(explanations)+1).fill(false));
+      let maxRow = Math.max(explanations.length, atoms.length);
+      let maxCol = computeMaxCol(explanations) + 1;
+
+      let highlightedCells = [...Array(maxRow)].map(x=>Array(maxCol).fill(false));
+
       for (let i = 0; i < cell.cells.length; ++i) {
         cloneSquares[cell.cells[i].tp][cell.cells[i].col] = squareColor(cell.cells[i].bool);
         highlightedCells[cell.cells[i].tp][cell.cells[i].col] = true;
       }
 
-      let selRows = (cell.interval !== undefined) ? tpsIn(ts, tp, cell.interval, cell.period, atoms) : [];
+      let lastTS = atoms[atoms.length - 1].ts;
+      let selRows = (cell.interval !== undefined) ? tpsIn(ts, tp, cell.interval, cell.period, lastTS, atoms) : [];
       let action = { type: "updateTable",
                      squares: cloneSquares,
                      selectedRows: selRows,

@@ -20,6 +20,7 @@ type cell = timepoint * idx * (interval * period) option * bool
 type table = (cell * (cell list)) list
 
 exception UNEXPECTED_FORMULA of string
+exception UNEXPECTED_PAIR of string
 
 let cell_col cell = match cell with
   | (_, col, _, _) -> col
@@ -83,10 +84,13 @@ let rec update_expl_table tbl idx f p =
      let cell = (p_at p, idx, None, true) in
      let cells = [(s_at sp1, sp1_idx, None, true); (s_at sp2, sp2_idx, None, true)] in
      ((cell, cells) :: tbl'', idx'')
-  | Prev (i, f'), S (SPrev sp) ->
+  | Prev (i, f'), S (SPrev sp)
+  | Next (i, f'), S (SNext sp) ->
      let sp_idx = idx+1 in
      let (tbl', idx') = update_expl_table tbl sp_idx f' (S sp) in
-     let cell = (p_at p, idx, Some(i, PAST), true) in
+     let cell = match f with Prev _ -> (p_at p, idx, Some(i, PAST), true)
+                           | Next _ -> (p_at p, idx, Some(i, FUTURE), true)
+                           | _ -> raise (UNEXPECTED_FORMULA "Formula must be either Next or Prev") in
      let cells = [(s_at sp, sp_idx, None, true)] in
      ((cell, cells) :: tbl', idx')
   | Since (i, f1, f2), S (SSince (sp2, []))
@@ -153,7 +157,9 @@ let rec update_expl_table tbl idx f p =
   | Prev (i, f'), V (VPrev vp) ->
      let vp_idx = idx+1 in
      let (tbl', idx') = update_expl_table tbl vp_idx f' (V vp) in
-     let cell = (p_at p, idx, Some(i, PAST), false) in
+     let cell = match f with Prev _ -> (p_at p, idx, Some(i, PAST), false)
+                           | Next _ -> (p_at p, idx, Some(i, FUTURE), false)
+                           | _ -> raise (UNEXPECTED_FORMULA "Formula must be either Next or Prev") in
      let cells = [(v_at vp, vp_idx, None, false)] in
      ((cell, cells) :: tbl', idx')
   | Since (i, f1, _), V (VSince (_, vp1, []))
@@ -197,6 +203,7 @@ let rec update_expl_table tbl idx f p =
   | Since (_, _, _), V (VSinceOutL _) ->
      let cell = (p_at p, idx, None, false) in
      ((cell, []) :: tbl, idx)
+  | _ -> raise (UNEXPECTED_PAIR "Explanator2 can't handle this pair of formula/proof.")
 
 let cell_to_json (tp, col, i_opt, b) cells =
   let ident = "    " in

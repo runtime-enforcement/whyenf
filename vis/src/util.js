@@ -25,11 +25,11 @@ export function squareColorTest(bool) {
 
 export function computeSquares(explanations, atoms, squares = []) {
 
-  let maxRow = explanations.length;
-  let maxCol = computeMaxCol(explanations);
+  let maxRow = Math.max(explanations.length, atoms.length);
+  let maxCol = computeMaxCol(explanations) + 1;
 
   // Initialize empty squares
-  squares = (squares.length === 0) ? new Array(maxRow).fill(null).map(() => Array(maxCol+1).fill("")) : squares;
+  squares = (squares.length === 0) ? new Array(maxRow).fill(null).map(() => Array(maxCol).fill("")) : squares;
 
   // Populate atoms with data
   for (let tp = 0; tp < atoms.length; ++tp) {
@@ -64,7 +64,7 @@ export function computeSquares(explanations, atoms, squares = []) {
   return squares;
 }
 
-export function tpsIn(ts, tp, interval, period, atoms) {
+export function tpsIn(ts, tp, interval, period, lastTS, atoms) {
   const i = interval.split(',');
   const a = parseInt(i[0].slice(1));
   const bString = i[1].slice(0, i[1].length-1);
@@ -82,9 +82,16 @@ export function tpsIn(ts, tp, interval, period, atoms) {
       r = ts - a;
     }
   } else {
-    b = parseInt(bString);
-    l = ts + a;
-    r = ts + b;
+    if (period === "future") {
+      if (bString === '∞') {
+        l = ts + a;
+        r = lastTS;
+      } else {
+        b = parseInt(bString);
+        l = ts + a;
+        r = ts + b;
+      }
+    }
   }
 
   for (let i = 0; i < atoms.length; ++i) {
