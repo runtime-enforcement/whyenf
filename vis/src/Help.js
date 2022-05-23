@@ -21,7 +21,7 @@ const card = (
 export default function Help() {
   return (
     <Box style={{ height: '100vh', margin: 0, padding: 0 }}>
-      <Container maxWidth={false} maxHeight={false}>
+      <Container maxWidth={false}>
         <Box sx={{ mt: 11 }}>
           <Card variant="outlined">{card}</Card>
         </Box>
