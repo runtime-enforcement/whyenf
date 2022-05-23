@@ -9,7 +9,7 @@ import Popover from '@mui/material/Popover';
 import Typography from '@mui/material/Typography';
 import { red, amber, lightGreen } from '@mui/material/colors';
 import { common } from '@mui/material/colors'
-import { black, squareColor, tpsIn, computeMaxCol } from './util';
+import { black, squareColor, tpsIn, computeMaxCol } from '../util';
 
 function Cell(props) {
   if (props.value === red[500] || props.value === lightGreen[500] || props.value === black) {

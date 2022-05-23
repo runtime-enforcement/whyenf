@@ -2,19 +2,17 @@ import React, { useState, useReducer } from "react";
 import Grid from '@mui/material/Grid';
 import Box from '@mui/material/Box';
 import Container from '@mui/material/Container';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
-import TraceTextField from './TraceTextField';
-import AppendTraceTextField from './AppendTraceTextField';
-import FormulaTextField from './FormulaTextField';
-import NavBar from './NavBar';
-import TimeGrid from './TimeGrid';
-import MonitorButton from './MonitorButton';
-import AppendButton from './AppendButton';
-import LeaveButton from './LeaveButton';
-import ResetButton from './ResetButton';
-import ExampleSelect from './ExampleSelect';
-import PreambleCard from './PreambleCard';
-import AlertDialog from './AlertDialog';
+import TraceTextField from './components/TraceTextField';
+import AppendTraceTextField from './components/AppendTraceTextField';
+import FormulaTextField from './components/FormulaTextField';
+import TimeGrid from './components/TimeGrid';
+import MonitorButton from './components/MonitorButton';
+import AppendButton from './components/AppendButton';
+import LeaveButton from './components/LeaveButton';
+import ResetButton from './components/ResetButton';
+import ExampleSelect from './components/ExampleSelect';
+import PreambleCard from './components/PreambleCard';
+import AlertDialog from './components/AlertDialog';
 import { computeSquares, translateError } from './util';
 
 function initMonitor(monitorState, action) {
@@ -146,7 +144,8 @@ function monitorStateReducer(monitorState, action) {
 }
 
 export default function Monitor() {
-  const [measure, setMeasure] = useState("size");
+  const measure = "size";
+
   const [appendTrace, setAppendTrace] = useState("");
   const [formState, setFormState] = useReducer(formStateReducer, { formula: "", trace: "" });
   const [monitorState, setMonitorState] = useReducer(monitorStateReducer,

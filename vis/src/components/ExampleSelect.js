@@ -43,7 +43,7 @@ export default function ExampleSelect ({ setFormState }) {
     if (result !== undefined) {
       setFormState({ type: 'setFormulaAndTrace', formula: result.formula, trace: result.trace });
     }
-  }, [example, setFormState]);
+  }, [example, setFormState, examples]);
 
   return (
     <Box

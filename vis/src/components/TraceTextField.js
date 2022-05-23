@@ -20,7 +20,7 @@ export default function TraceTextField ({ trace, setFormState }) {
   useEffect(() => {
     setRows(ref.current.clientHeight/25.5);
     setLocalTrace(trace);
-  }, [trace, setLocalTrace, rows, setRows]);
+  }, [trace, setLocalTrace, rows, setRows, ref]);
 
   return (
     <Box
