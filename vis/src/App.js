@@ -2,7 +2,7 @@ import React from "react";
 import Box from '@mui/material/Box';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import NavBar from './NavBar';
+import NavBar from './components/NavBar';
 import Monitor from './Monitor';
 import Help from './Help';
 import About from './About';
