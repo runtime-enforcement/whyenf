@@ -19,7 +19,7 @@ const card = (
 
 export default function PreambleCard() {
   return (
-    <Box sx={{ mt: 12, minWidth: 275 }}>
+    <Box sx={{ mt: 11 }}>
       <Card variant="outlined">{card}</Card>
     </Box>
   );
