@@ -210,7 +210,7 @@ export default function Monitor() {
       { (monitorState.dialog !== undefined && (Object.keys(monitorState.dialog).length !== 0)) &&
         <AlertDialog open={true} dialog={monitorState.dialog} setMonitorState={setMonitorState} />
       }
-      <Container maxWidth={false} maxHeight={false}>
+      <Container maxWidth={false}>
         <Box sx={{ mb: 12 }}>
           <Grid container spacing={2}>
             <Grid item xs={12} sm={12} md={12} lg={12} xl={12}>

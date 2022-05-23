@@ -5,6 +5,9 @@ import TextField from '@mui/material/TextField';
 export default function TraceTextField ({ trace, setFormState }) {
 
   const [localTrace, setLocalTrace] = useState(trace);
+  const [rows, setRows] = useState(10);
+
+  const ref = React.createRef();
 
   const handleChange = (event) => {
     setLocalTrace(event.target.value);
@@ -15,8 +18,9 @@ export default function TraceTextField ({ trace, setFormState }) {
   };
 
   useEffect(() => {
+    setRows(ref.current.clientHeight/25.5);
     setLocalTrace(trace);
-  }, [trace, setLocalTrace]);
+  }, [trace, setLocalTrace, rows, setRows]);
 
   return (
     <Box
@@ -26,6 +30,7 @@ export default function TraceTextField ({ trace, setFormState }) {
       }}
       noValidate
       autoComplete="off"
+      ref={ref}
     >
       <TextField
         id="outlined-multiline-static"
@@ -35,8 +40,8 @@ export default function TraceTextField ({ trace, setFormState }) {
         value={localTrace}
         onChange={handleChange}
         onBlur={handleBlur}
-        minRows={22}
-        maxRows={22}
+        minRows={rows}
+        maxRows={rows}
         InputProps={{style: { minHeight: '65vh' }}}
       />
     </Box>
