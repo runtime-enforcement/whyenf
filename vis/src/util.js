@@ -129,6 +129,6 @@ export function translateError(error) {
   }
 
   return { name: "Error",
-           message: "Something bad happened.\n\nPlease try again."
+           message: "Something bad happened.\n\nPlease re-check your formula/trace and try again."
          };
 }
