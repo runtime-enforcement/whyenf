@@ -1,8 +1,11 @@
 import React from "react";
 import Box from '@mui/material/Box';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import NavBar from './NavBar';
 import Monitor from './Monitor';
+import Help from './Help';
+import About from './About';
 
 const theme = createTheme({
   palette: {
@@ -20,8 +23,14 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <Box>
-        <NavBar />
-        <Monitor />
+        <BrowserRouter>
+          <NavBar />
+          <Routes>
+            <Route path="/" element={<Monitor />} />
+            <Route path="help" element={<Help />} />
+            <Route path="about" element={<About />} />
+          </Routes>
+        </BrowserRouter>
       </Box>
     </ThemeProvider>
   );
