@@ -32,10 +32,12 @@ export default function TraceTextField ({ trace, setFormState }) {
         label="Trace"
         required
         multiline
-        rows={24}
         value={localTrace}
         onChange={handleChange}
         onBlur={handleBlur}
+        minRows={22}
+        maxRows={22}
+        InputProps={{style: { minHeight: '65vh' }}}
       />
     </Box>
   );

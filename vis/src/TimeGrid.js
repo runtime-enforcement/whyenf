@@ -139,23 +139,24 @@ function TimeGrid ({ explanations,
   };
 
   return (
-    <Box sx={{ height: 585,
-               '& .cell--Highlighted': {
-                 backgroundColor: amber[300],
-               },
-               '& .row--Highlighted': {
-                 bgcolor: amber[50],
-                 '&:hover': {
-                   bgcolor: amber[50],
-                 },
-               },
-               '& .row--Plain': {
-                 bgcolor: common.white,
-                 '&:hover': {
-                   bgcolor: common.gray,
-                 },
-               },
-             }}>
+    <Box height="65vh"
+         sx={{
+           '& .cell--Highlighted': {
+             backgroundColor: amber[300],
+           },
+           '& .row--Highlighted': {
+             bgcolor: amber[50],
+             '&:hover': {
+               bgcolor: amber[50],
+             },
+           },
+           '& .row--Plain': {
+             bgcolor: common.white,
+             '&:hover': {
+               bgcolor: common.gray,
+             },
+           },
+         }}>
       <DataGrid
         rows={rows}
         columns={apsGridColumns.concat(fixedGridColumns.concat(subfsGridColumns))}
