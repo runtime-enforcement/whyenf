@@ -23,12 +23,12 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <Box>
-        <BrowserRouter>
+        <BrowserRouter basename="/explanator2">
           <NavBar />
           <Routes>
             <Route path="/" element={<Monitor />} />
-            <Route path="help" element={<Help />} />
-            <Route path="about" element={<About />} />
+            <Route path="/help" element={<Help />} />
+            <Route path="/about" element={<About />} />
           </Routes>
         </BrowserRouter>
       </Box>
