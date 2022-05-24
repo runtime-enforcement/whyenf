@@ -13,16 +13,17 @@ const card = (
   <React.Fragment>
     <CardContent>
       <Typography variant="body2">
-        The <strong>Explanator2</strong> is an online monitoring tool that produces explanations for verdicts of
+        {/*The <strong>Explanator2</strong> is an online monitoring tool that produces explanations for verdicts of
         Metric Temporal Logic formulas on arbitrary traces. <br />
-        It is the successor of the <Link href="https://bitbucket.org/traytel/explanator/src/master/">Explanator</Link>.
+        It is the successor of the <Link href="https://bitbucket.org/traytel/explanator/src/master/">Explanator</Link>.*/}
+        Soon.
       </Typography>
     </CardContent>
     <Box sx={{ mt: 2, mb: 4 }}>
       <Grid container
             justifyContent="center"
             alignItems="center"
-            spacing={10}>
+            spacing={0}>
         <Grid item xs={9} sm={9} md={3} lg={3} xl={3}>
           <Box component="img"
                sx={{
@@ -31,17 +32,6 @@ const card = (
                }}
                alt="University of Copenhagen's logo."
                src={KULogo}>
-          </Box>
-        </Grid>
-        <Grid item xs={6} sm={6} md={3} lg={3} xl={3}>
-          <Box component="img"
-               sx={{
-                 mt: { md: 4, lg: 4, xl: 4 },
-                 maxWidth: 166,
-                 maxHeight: 130,
-               }}
-               alt="Novo Nordisk foundations' logo."
-               src={NNFLogo}>
           </Box>
         </Grid>
       </Grid>
