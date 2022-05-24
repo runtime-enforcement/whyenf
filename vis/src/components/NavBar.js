@@ -6,7 +6,6 @@ import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import { Link } from 'react-router-dom';
 
-
 export default function NavBar() {
   return (
     <Box sx={{ flexGrow: 1 }}>
