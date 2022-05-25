@@ -6,8 +6,9 @@ begin
 declare [[names_short]]
 section \<open>Formulas and Satisfiability\<close>
 
-datatype 'a mtl = TT | FF | Atom 'a | Neg "'a mtl" | Disj "'a mtl" "'a mtl"
+datatype 'a mtl = TT | FF | Atom 'a | Neg "'a mtl" | Disj "'a mtl" "'a mtl" 
   | Conj "'a mtl" "'a mtl"
+  | Impl "'a mtl" "'a mtl"
   | Next \<I> "'a mtl" | Prev \<I> "'a mtl"
   | Since "'a mtl" \<I> "'a mtl" | Until "'a mtl" \<I> "'a mtl"
 (*  | MatchF \<I> "'a mtl Regex.regex" | MatchP \<I> "'a mtl Regex.regex" *)
@@ -19,6 +20,7 @@ fun sat :: "'a trace \<Rightarrow> nat \<Rightarrow> 'a mtl \<Rightarrow> bool" 
 | "sat \<sigma> i (Neg \<phi>) = (\<not> sat \<sigma> i \<phi>)"
 | "sat \<sigma> i (Disj \<phi> \<psi>) = (sat \<sigma> i \<phi> \<or> sat \<sigma> i \<psi>)"
 | "sat \<sigma> i (Conj \<phi> \<psi>) = (sat \<sigma> i \<phi> \<and> sat \<sigma> i \<psi>)"
+| "sat \<sigma> i (Impl \<phi> \<psi>) = (sat \<sigma> i \<phi> \<longrightarrow> sat \<sigma> i \<psi>)"
 | "sat \<sigma> i (Next I \<phi>) = (mem (\<tau> \<sigma> (i + 1) - \<tau> \<sigma> i) I \<and> sat \<sigma> (i + 1) \<phi>)"
 | "sat \<sigma> i (Prev I \<phi>) = (case i of 0 \<Rightarrow> False | Suc j \<Rightarrow> mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I \<and> sat \<sigma> j \<phi>)"
 | "sat \<sigma> i (Since \<phi> I \<psi>) = (\<exists>j\<le>i. mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I \<and> sat \<sigma> j \<psi> \<and> (\<forall>k \<in> {j <.. i}. sat \<sigma> k \<phi>))"
@@ -30,7 +32,7 @@ fun sat :: "'a trace \<Rightarrow> nat \<Rightarrow> 'a mtl \<Rightarrow> bool" 
 
 abbreviation "delta rho i j \<equiv> (\<tau> rho i) - (\<tau> rho j)"
 
-context begin
+(* context begin
 
 qualified abbreviation "Imp \<phi> \<psi> \<equiv> Disj (Neg \<phi>) \<psi>"
 qualified abbreviation "Iff \<phi> \<psi> \<equiv> Conj (Imp \<phi> \<psi>) (Imp \<psi> \<phi>)"
@@ -39,7 +41,7 @@ qualified abbreviation "Historically I \<phi> \<equiv> Neg (Once I (Neg \<phi>))
 qualified abbreviation "Eventually I \<phi> \<equiv> Until TT I \<phi>"
 qualified abbreviation "Always I \<phi> \<equiv> Neg (Eventually I (Neg \<phi>))"
 
-end
+end *)
 
 lemma sat_Until_rec: "sat \<sigma> i (Until \<phi> I \<psi>) \<longleftrightarrow>
   mem 0 I \<and> sat \<sigma> i \<psi> \<or>
@@ -326,8 +328,6 @@ proof -
     by (auto split: enat.splits dest!: spec[of _ j])
 qed
 
-
-
 context fixes rho:: "'a trace"
 begin
 
@@ -388,6 +388,9 @@ inductive SAT and VIO where
 | VConjR: "VIO i psi \<Longrightarrow> VIO i (Conj phi psi)"
 | SNeg: "VIO i phi \<Longrightarrow> SAT i (Neg phi)"
 | VNeg: "SAT i phi \<Longrightarrow> VIO i (Neg phi)"
+| SImplR: "SAT i psi \<Longrightarrow> SAT i (Impl phi psi)"
+| SImplLR: "VIO i phi \<Longrightarrow> VIO i psi \<Longrightarrow> SAT i (Impl phi psi)"
+| VImpl: "SAT i phi \<Longrightarrow> VIO i psi \<Longrightarrow> VIO i (Impl phi psi)"
 | SNext: "mem (\<Delta> rho (i+1)) I \<Longrightarrow> SAT (i+1) phi \<Longrightarrow> SAT i (Next I phi)"
 | VNext: "VIO (i+1) phi \<Longrightarrow> VIO i (Next I phi)"
 | VNext_le: "(\<Delta> rho (i+1)) < (left I) \<Longrightarrow> VIO i (Next I phi)"
@@ -878,11 +881,11 @@ setup \<open>
 
 (*Added proofs for Prev and Next, as well as constraint violation proofs *)
 datatype 'a sproof = STT nat | SAtm 'a nat | SNeg "'a vproof" | SDisjL "'a sproof" | SDisjR "'a sproof"
-   | SConj "'a sproof" "'a sproof"
+   | SConj "'a sproof" "'a sproof" | SImplR "'a sproof" | SImplLR "'a vproof" "'a vproof"
    | SSince "'a sproof" "'a sproof list" | SUntil "'a sproof list" "'a sproof" | SNext "'a sproof"
    | SPrev "'a sproof" (*| SMatchP "('a sproof) rsproof" | SMatchF "('a sproof) rsproof"*)
    and 'a vproof = VFF nat | VAtm 'a nat | VNeg "'a sproof" | VDisj "'a vproof" "'a vproof"
-   | VConjL "'a vproof" | VConjR "'a vproof"
+   | VConjL "'a vproof" | VConjR "'a vproof" | VImpl "'a sproof" "'a vproof"
    | VSince nat "'a vproof" "'a vproof list" | VUntil nat "'a vproof list" "'a vproof"
    | VSince_never nat nat "'a vproof list" | VUntil_never nat nat "'a vproof list" | VSince_le nat
    | VNext "'a vproof" | VNext_ge nat | VNext_le nat | VPrev "'a vproof" | VPrev_ge nat | VPrev_le nat
@@ -921,6 +924,8 @@ fun s_at and v_at where
 | "s_at (SDisjL sphi) = s_at sphi"
 | "s_at (SDisjR spsi) = s_at spsi"
 | "s_at (SConj sphi spsi) = s_at sphi"
+| "s_at (SImplR spsi) = s_at spsi"
+| "s_at (SImplLR vphi vpsi) = v_at vphi"
 | "s_at (SNext sphi) = s_at sphi - 1"
 | "s_at (SPrev sphi) = s_at sphi + 1"
 | "s_at (SSince spsi sphis) = (case sphis of [] \<Rightarrow> s_at spsi | _ \<Rightarrow> s_at (last sphis))"
@@ -935,6 +940,7 @@ fun s_at and v_at where
 | "v_at (VDisj vphi vpsi) = v_at vphi"
 | "v_at (VConjL vphi) = v_at vphi"
 | "v_at (VConjR vpsi) = v_at vpsi"
+| "v_at (VImpl sphi vpsi) = s_at sphi"
 | "v_at (VNext vphi) = v_at vphi - 1"
 | "v_at (VNext_ge n) = n"
 | "v_at (VNext_le n) = n"
@@ -963,6 +969,8 @@ fun s_check and v_check where
   | (Disj phi psi, SDisjL sphi) \<Rightarrow> s_check phi sphi
   | (Disj phi psi, SDisjR spsi) \<Rightarrow> s_check psi spsi
   | (Conj phi psi, SConj sphi spsi) \<Rightarrow> s_check phi sphi \<and> s_check psi spsi \<and> s_at sphi = s_at spsi
+  | (Impl phi psi, SImplR spsi) \<Rightarrow> s_check psi spsi
+  | (Impl phi psi, SImplLR vphi vpsi) \<Rightarrow> v_check phi vphi \<and> v_check psi vpsi \<and> v_at vphi = v_at vpsi
   | (Since phi I psi, SSince spsi sphis) \<Rightarrow>
     (let i = s_at (SSince spsi sphis); j = s_at spsi
     in j \<le> i \<and> mem (\<tau> rho i - \<tau> rho j) I \<and> map s_at sphis = [Suc j ..< Suc i] \<and> s_check psi spsi
@@ -993,6 +1001,7 @@ fun s_check and v_check where
   | (Disj phi psi, VDisj vphi vpsi) \<Rightarrow> v_check phi vphi \<and> v_check psi vpsi \<and> v_at vphi = v_at vpsi
   | (Conj phi psi, VConjL vphi) \<Rightarrow> v_check phi vphi
   | (Conj phi psi, VConjR vpsi) \<Rightarrow> v_check psi vpsi
+  | (Impl phi psi, VImpl sphi vpsi) \<Rightarrow> s_check phi sphi \<and> v_check psi vpsi \<and> s_at sphi = v_at vpsi
   | (Since phi I psi, VSince_le i) \<Rightarrow>
     \<tau> rho i < \<tau> rho 0 + left I
   | (Since phi I psi, VSince i vphi vpsis) \<Rightarrow>
@@ -1093,6 +1102,12 @@ next
   case SDisjR
   then show ?case by (cases phi) (auto intro: SAT_VIO.SDisjR)
 next
+  case SImplR
+  then show ?case by(cases phi) (auto intro: SAT_VIO.SImplR)
+next
+  case SImplLR
+  then show ?case by (cases phi) (auto intro: SAT_VIO.SImplLR)
+next
   case (SSince spsi sphis)
   then show ?case
   proof (cases phi)
@@ -1150,6 +1165,9 @@ next
 next
   case VConjR
   then show ?case by (cases phi) (auto intro: SAT_VIO.VConjR)
+next
+  case VImpl
+  then show ?case by (cases phi) (auto intro: SAT_VIO.VImpl)
 next
   case VNext
   then show ?case by (cases phi) (auto intro: SAT_VIO.VNext SAT_VIO.VPrev_zero)
@@ -1905,6 +1923,14 @@ definition doConj :: "('a sproof + 'a vproof) \<Rightarrow> ('a sproof + 'a vpro
 | (Inr p1, Inl p2) \<Rightarrow> [Inr (VConjL p1)]
 | (Inr p1, Inr p2) \<Rightarrow> [Inr (VConjL p1), Inr (VConjR p2)])"
 
+definition doImpl :: "('a sproof + 'a vproof) \<Rightarrow> ('a sproof + 'a vproof) \<Rightarrow>
+('a sproof + 'a vproof) list" where
+"doImpl p1 p2 = (case (p1, p2) of
+  (Inl p1, Inl p2) \<Rightarrow> [Inl (SImplR p2)]
+| (Inl p1, Inr p2) \<Rightarrow> [Inr (VImpl p1 p2)]
+| (Inr p1, Inl p2) \<Rightarrow> [Inl (SImplR p2)]
+| (Inr p1, Inr p2) \<Rightarrow> [Inl (SImplLR p1 p2)])"
+
 definition doPrev :: "nat \<Rightarrow> \<I> \<Rightarrow> nat \<Rightarrow> ('a sproof + 'a vproof)
 \<Rightarrow> ('a sproof + 'a vproof) list" where
 "doPrev i I tau p = (case (p, tau < left I) of
@@ -1993,6 +2019,7 @@ and Opt :: "nat \<Rightarrow> 'a mtl \<Rightarrow> ('a sproof + 'a vproof)" wher
   True \<Rightarrow> [Inl (SAtm n i)] | False \<Rightarrow> [Inr (VAtm n i)])"
 | "Cand i (Disj phi psi) = doDisj (Opt i phi) (Opt i psi)"
 | "Cand i (Conj phi psi) = doConj (Opt i phi) (Opt i psi)"
+| "Cand i (Impl phi psi) = doImpl (Opt i phi) (Opt i psi)"
 | "Cand i (Neg phi) = (let p = Opt i phi
   in (if isl p then [Inr (VNeg (projl p))] else [Inl (SNeg (projr p))]))"
 | "Cand i (Prev I phi) = (if i = 0 then [Inr VPrev_zero]
@@ -2082,6 +2109,11 @@ and SConj: "\<And>p1 p1' p2 p2'. wqo (Inl p1) (Inl p1') \<Longrightarrow> wqo (I
   wqo (Inl (SConj p1 p2)) (Inl (SConj p1' p2'))"
 and VConjL: "\<And>p p'. wqo (Inr p) (Inr p') \<Longrightarrow> wqo (Inr (VConjL p)) (Inr (VConjL p'))"
 and VConjR: "\<And>p p'. wqo (Inr p) (Inr p') \<Longrightarrow> wqo (Inr (VConjR p)) (Inr (VConjR p'))"
+(* and SImplR: "\<And>p p'. wqo (In p) (Inl p') \<Longrightarrow> wqo (Inl (SImplR p)) (Inl (SImplR p'))"
+and SImplLR: "\<And>p1 p1' p2 p2'. wqo (Inr p1) (Inr p1') \<Longrightarrow> wqo (Inr p2) (Inr p2' ) \<Longrightarrow>
+  wqo (Inl (SImplLR p1 p2)) (Inl (SImplLR p1' p2'))"
+and VImpl: "\<And>p1 p1' p2 p2'. wqo (Inl p1) (Inl p1') \<Longrightarrow> wqo (Inr p2) (Inr p2' ) \<Longrightarrow>
+  wqo (Inr (VImpl p1 p2)) (Inr (VImpl p1' p2'))" *)
 and SSince: "\<And>p p'. wqo (Inl p) (Inl p') \<Longrightarrow> wqo (Inl (SSince p [])) (Inl (SSince p' []))"
 and VSince_Nil: "\<And>i p p'. wqo (Inr p) (Inr p') \<Longrightarrow> wqo (Inr (VSince i p [])) (Inr (VSince i p' []))"
 and VSince: "\<And>i p p' q q'. wqo (Inr p) (Inr p') \<Longrightarrow> wqo (Inr q) (Inr q') \<Longrightarrow>
@@ -3349,7 +3381,7 @@ proof (rule ccontr)
     then have satp: "sat rho i (Prev I phi)" using soundness
       by blast
     then have sat_phi: "sat rho (i-1) phi \<and> mem (\<Delta> rho i) I"
-      using sat.simps(7)[of rho i I phi] i_props
+      using sat.simps(8)[of rho i I phi] i_props
       by (auto split: nat.splits)
     then have SAT_phi: "SAT rho (i-1) phi" using completeness[of rho _ phi] i_props bf
       by auto
@@ -3542,7 +3574,7 @@ proof (rule ccontr)
     then have satn: "sat rho i (Next I phi)" using soundness
       by blast
     then have sat_phi: "sat rho (i+1) phi \<and> mem (\<Delta> rho (i+1)) I"
-      using sat.simps(7)[of rho i I phi]
+      using sat.simps(8)[of rho i I phi]
       by (auto split: nat.splits)
     then have SAT_phi: "SAT rho (i+1) phi" using completeness[of rho _ phi] bf
       by auto
@@ -3888,6 +3920,9 @@ next
     then show ?thesis using p'r p'_def unfolding optimal_def valid_def by auto
   next
     case (VConjR x31)
+    then show ?thesis using p'r p'_def unfolding optimal_def valid_def by auto
+  next
+    case (VImpl x71 x72)
     then show ?thesis using p'r p'_def unfolding optimal_def valid_def by auto
   next
     case (VUntil x51 x52 x53)
@@ -5066,9 +5101,9 @@ proof (rule ccontr)
         by (auto simp: Let_def)
       then have satc: "mem 0 I \<and> sat rho i psi" using i_props sats sat_Since_rec
         apply auto
-          apply (metis MTL.sat.simps(9) le_zero_eq sat_Since_rec viosp)
+          apply (metis MTL.sat.simps(10) le_zero_eq sat_Since_rec viosp)
          apply (metis enat_0_iff(2) zero_le)
-        by (metis MTL.sat.simps(9) sat_Since_rec viosp)
+        by (metis MTL.sat.simps(10) sat_Since_rec viosp)
       from vmin SATs val_SAT_imp_l obtain ap where ap_def: "minp = Inl ap"
         using minp unfolding valid_def apply auto
         using bf by blast
@@ -6798,6 +6833,9 @@ next
     then show ?thesis using p'r p'_def unfolding optimal_def valid_def by auto
   next
     case (VConjR x32)
+    then show ?thesis using p'r p'_def unfolding optimal_def valid_def by auto
+  next
+    case (VImpl x71 x72)
     then show ?thesis using p'r p'_def unfolding optimal_def valid_def by auto
   next
     case (VSince x51 x52 x53)
@@ -9198,6 +9236,9 @@ lemma s_check_SinceE[elim]:
      (\<And>q qs. p = SSince q qs \<Longrightarrow> s_check rho psi q \<Longrightarrow> list_all (s_check rho phi) qs \<Longrightarrow> P) \<Longrightarrow> P"
   by (cases p) (auto simp: Let_def list.pred_set)
 
+thm Cand_Opt.induct(1)
+thm Cand_Opt.induct(2)
+
 theorem alg_optimal:
   "bounded_future phi \<Longrightarrow> optimal i phi (Opt i phi)"
 proof (induction i phi rule: Cand_Opt.induct(2)[where P = "\<lambda>i phi. bounded_future phi \<longrightarrow>
@@ -9223,7 +9264,8 @@ next
   case (Neg i phi')
   then show ?case using NegBF[of phi'] neg_sound[OF Neg] neg_optimal[OF Neg]
     unfolding valid_def
-    by (auto simp: min_list_wrt_def Let_def VNeg optimal_def SNeg)
+    apply (auto simp: min_list_wrt_def Let_def VNeg optimal_def SNeg)
+    
 next
   note Opt.simps[simp del]
   case (Disj i phi' psi)
