@@ -343,6 +343,8 @@ inductive bounded_future where
 \<Longrightarrow> bounded_future (Disj phi psi)"
 | ConjBF: "bounded_future phi \<Longrightarrow> bounded_future psi
 \<Longrightarrow> bounded_future (Conj phi psi)"
+| ImplBF: "bounded_future phi \<Longrightarrow> bounded_future psi
+\<Longrightarrow> bounded_future (Impl phi psi)"
 | NegBF:  "bounded_future phi \<Longrightarrow> bounded_future (Neg phi)"
 | NextBF: "bounded_future phi \<Longrightarrow> bounded_future (Next I phi)"
 | PrevBF: "bounded_future phi \<Longrightarrow> bounded_future (Prev I phi)"
@@ -363,6 +365,7 @@ lemma bounded_future_simps[simp]:
   "bounded_future (Atom n) \<longleftrightarrow> True"
   "bounded_future (Disj phi psi) \<longleftrightarrow> bounded_future phi \<and> bounded_future psi"
   "bounded_future (Conj phi psi) \<longleftrightarrow> bounded_future phi \<and> bounded_future psi"
+  "bounded_future (Impl phi psi) \<longleftrightarrow> bounded_future phi \<and> bounded_future psi"
   "bounded_future (Neg phi) \<longleftrightarrow> bounded_future phi"
   "bounded_future (Next I phi) \<longleftrightarrow> bounded_future phi"
   "bounded_future (Prev I phi) \<longleftrightarrow> bounded_future phi"
@@ -1453,12 +1456,12 @@ next
     then have "\<exists>sphi. s_at sphi = i \<and> s_check (Conj phi psi) sphi"
     proof (cases)
       case (SConj)
-    then obtain sphi and spsi where sphi: "s_at sphi = i \<and> s_check phi sphi"
-    and spsi: "s_at spsi = i \<and> s_check psi spsi" using ConjBF by blast
-    then have "s_at (SConj sphi spsi) = i \<and> s_check (Conj phi psi) (SConj sphi spsi)"
-      by auto
-    then show ?thesis by blast
-  qed
+      then obtain sphi and spsi where sphi: "s_at sphi = i \<and> s_check phi sphi"
+        and spsi: "s_at spsi = i \<and> s_check psi spsi" using ConjBF by blast
+      then have "s_at (SConj sphi spsi) = i \<and> s_check (Conj phi psi) (SConj sphi spsi)"
+        by auto
+      then show ?thesis by blast
+    qed
   }
   moreover
   {assume "VIO rho i (Conj phi psi)"
@@ -1497,6 +1500,41 @@ next
       case (VNeg)
       then obtain sphi where sphi: "s_at sphi = i \<and> s_check phi sphi" using NegBF by auto
       then have "v_at (VNeg sphi) = i \<and> v_check (Neg phi) (VNeg sphi)"
+        by auto
+      then show ?thesis by blast
+    qed
+  }
+  ultimately show ?case by blast
+next
+  case (ImplBF phi psi)
+  {assume "SAT rho i (Impl phi psi)"
+    then have "\<exists>sp. s_at sp = i \<and> s_check (Impl phi psi) sp"
+    proof (cases)
+      case (SImplLR)
+      then obtain vphi and vpsi where vphi: "v_at vphi = i \<and> v_check phi vphi"
+        and vpsi: "v_at vpsi = i \<and> v_check psi vpsi" 
+        using ImplBF by blast
+      then have "s_at (SImplLR vphi vpsi) = i \<and> s_check (Impl phi psi) (SImplLR vphi vpsi)"
+        by auto
+      then show ?thesis by blast
+    next
+      case (SImplR)
+      then obtain spsi where spsi: "s_at spsi = i \<and> s_check psi spsi"
+        using ImplBF by blast
+      then have "s_at (SImplR spsi) = i \<and> s_check (Impl phi psi) (SImplR spsi)"
+        by auto
+      then show ?thesis by blast
+    qed
+  }
+  moreover
+  {assume "VIO rho i (Impl phi psi)"
+    then have "\<exists>vp. v_at vp = i \<and> v_check (Impl phi psi) vp"
+    proof (cases)
+    case (VImpl)
+    then obtain sphi and vpsi where sphi: "s_at sphi = i \<and> s_check phi sphi" 
+      and vpsi: "v_at vpsi = i \<and> v_check psi vpsi"
+      using ImplBF by blast
+    then have "v_at (VImpl sphi vpsi) = i \<and> v_check (Impl phi psi) (VImpl sphi vpsi)"
         by auto
       then show ?thesis by blast
     qed
@@ -2109,11 +2147,11 @@ and SConj: "\<And>p1 p1' p2 p2'. wqo (Inl p1) (Inl p1') \<Longrightarrow> wqo (I
   wqo (Inl (SConj p1 p2)) (Inl (SConj p1' p2'))"
 and VConjL: "\<And>p p'. wqo (Inr p) (Inr p') \<Longrightarrow> wqo (Inr (VConjL p)) (Inr (VConjL p'))"
 and VConjR: "\<And>p p'. wqo (Inr p) (Inr p') \<Longrightarrow> wqo (Inr (VConjR p)) (Inr (VConjR p'))"
-(* and SImplR: "\<And>p p'. wqo (In p) (Inl p') \<Longrightarrow> wqo (Inl (SImplR p)) (Inl (SImplR p'))"
+and SImplR: "\<And>p p'. wqo (Inl p) (Inl p') \<Longrightarrow> wqo (Inl (SImplR p)) (Inl (SImplR p'))"
 and SImplLR: "\<And>p1 p1' p2 p2'. wqo (Inr p1) (Inr p1') \<Longrightarrow> wqo (Inr p2) (Inr p2' ) \<Longrightarrow>
   wqo (Inl (SImplLR p1 p2)) (Inl (SImplLR p1' p2'))"
 and VImpl: "\<And>p1 p1' p2 p2'. wqo (Inl p1) (Inl p1') \<Longrightarrow> wqo (Inr p2) (Inr p2' ) \<Longrightarrow>
-  wqo (Inr (VImpl p1 p2)) (Inr (VImpl p1' p2'))" *)
+  wqo (Inr (VImpl p1 p2)) (Inr (VImpl p1' p2'))"
 and SSince: "\<And>p p'. wqo (Inl p) (Inl p') \<Longrightarrow> wqo (Inl (SSince p [])) (Inl (SSince p' []))"
 and VSince_Nil: "\<And>i p p'. wqo (Inr p) (Inr p') \<Longrightarrow> wqo (Inr (VSince i p [])) (Inr (VSince i p' []))"
 and VSince: "\<And>i p p' q q'. wqo (Inr p) (Inr p') \<Longrightarrow> wqo (Inr q) (Inr q') \<Longrightarrow>
@@ -2467,6 +2505,110 @@ proof (rule ccontr)
   qed
   then show False using q_le by auto
 qed
+
+lemma impl_sound:
+  assumes p1_def: "optimal i phi p1" and p2_def: "optimal i psi p2"
+  and p_def: "p \<in> set (doImpl p1 p2)"
+shows "valid rho i (Impl phi psi) p"
+proof (cases p1)
+  case (Inr va)
+  then have vp1: "p1 = Inr va" 
+    by simp
+  then show ?thesis
+  proof (cases p2)
+    case (Inr vb)
+    then have sp: "p = Inl (SImplLR va vb)"
+      using p_def vp1 Inr unfolding doImpl_def valid_def 
+      by simp
+    then show ?thesis using Inr p_def p1_def p2_def vp1
+      unfolding optimal_def valid_def
+      by simp
+  next
+    case (Inl sb)
+    then have sp: "p = Inl (SImplR sb)"
+      using p_def vp1 Inl unfolding doImpl_def 
+      by simp
+    then show ?thesis using Inl p_def p1_def p2_def vp1
+      unfolding optimal_def valid_def 
+      by simp
+  qed
+next
+  case (Inl sa)
+  then have sp1: "p1 = Inl sa" 
+    by simp
+  then show ?thesis
+  proof (cases p2)
+    case (Inr vb)
+    then have vp: "p = Inr (VImpl sa vb)" 
+      using p_def Inl unfolding doImpl_def 
+      by simp
+    then show ?thesis using Inr p_def p1_def p2_def sp1
+      unfolding optimal_def valid_def 
+      by simp
+  next
+    case (Inl sb)
+    then have sp: "p = Inl (SImplR sb)"
+      using p_def Inl sp1 unfolding doImpl_def
+      by simp
+    then show ?thesis using Inl p_def p1_def p2_def sp1
+      unfolding optimal_def valid_def 
+      by simp
+  qed
+qed
+
+(* lemma impl_optimal:
+  assumes bf: "bounded_future (Impl phi psi)" and
+    p1_def: "optimal i phi p1" and p2_def: "optimal i psi p2"
+  shows "optimal i (Impl phi psi) (min_list_wrt wqo (doImpl p1 p2))"
+proof(rule ccontr)
+  have bf_phi: "bounded_future phi"
+    using bf by auto
+  have bf_psi: "bounded_future psi"
+    using bf by auto
+  from p1_def p2_def have nnil: "doImpl p1 p2 \<noteq> []"
+    using doImpl_def[of p1 p2]
+    by (cases p1; cases p2; auto)
+  assume nopt: "\<not> optimal i (Impl phi psi) (min_list_wrt wqo (doImpl p1 p2))"
+  from impl_sound[OF p1_def p2_def min_list_wrt_in[of "doImpl p1 p2" wqo]]
+    refl_wqo trans_wqo pw_total nnil
+  have vmin: "valid rho i (Impl phi psi) (min_list_wrt wqo (doImpl p1 p2))"
+    apply auto
+    by (metis impl_sound not_wqo p1_def p2_def total_onI)
+  from this nopt 
+  obtain q where q_val: "valid rho i (Impl phi psi) q" and
+    q_le: "\<not> wqo (min_list_wrt wqo (doImpl p1 p2)) q"
+    unfolding optimal_def 
+    by auto
+  then have "wqo (min_list_wrt wqo (doImpl p1 p2)) q"
+  proof(cases q)
+    case (Inr vq)
+    then obtain sp1 and vp2 where formq: "vq = VImpl sp1 vp2" using q_val
+      unfolding valid_def by (cases vq) auto
+    then have p_val: "valid rho i phi (Inl sp1) \<and> valid rho i psi (Inr vp2)" using q_val Inr
+      unfolding valid_def by auto
+    then have sub: "wqo p1 (Inl sp1) \<and> wqo p2 (Inr vp2)" using p1_def p2_def formq
+      unfolding optimal_def by auto
+    obtain p1' where p1'_def: "p1 = Inl p1'"
+      using p_val p1_def check_consistent[OF bf_phi]
+      by (auto simp add: optimal_def valid_def split: sum.splits)
+    obtain p2' where p2'_def: "p2 = Inr p2'"
+      using p_val p2_def check_consistent[OF bf_psi]
+      by (auto simp add: optimal_def valid_def split: sum.splits)
+    have "wqo (Inr (VImpl (projl p1) (projr p2))) (Inr vq)"
+        using formq VImpl p1'_def p2'_def sub by auto
+      moreover have "Inr (VImpl (projl p1) (projr p2)) \<in> set (doImpl p1 p2)"
+        using p1_def p2_def bf check_consistent[of phi] check_consistent[of psi] p_val
+        by (auto simp add: doImpl_def optimal_def valid_def split: sum.splits)
+      ultimately show ?thesis
+        using min_list_wrt_le[OF _ refl_wqo] impl_sound[OF p1_def p2_def]
+          pw_total[of i "Impl phi psi"] trans_wqo Inr
+          apply (auto simp add: total_on_def)
+        by (metis transpD)
+      qed
+  next
+    case (Inl b)
+    then show ?thesis sorry
+  qed *)
                         
 lemma sinceBase0_sound:
   assumes p1_def: "optimal i phi p1" and p2_def: "optimal i psi p2" and
