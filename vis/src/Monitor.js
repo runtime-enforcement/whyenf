@@ -13,12 +13,12 @@ import ResetButton from './components/ResetButton';
 import ExampleSelect from './components/ExampleSelect';
 import PreambleCard from './components/PreambleCard';
 import AlertDialog from './components/AlertDialog';
-import { computeSquares, translateError } from './util';
+import { computeMaxCol, computeSquares, translateError } from './util';
 
 function initMonitor(monitorState, action) {
   try {
     const monitor = window.monitorInit(action.trace, action.measure, action.formula);
-    const monitorState = monitor[1];
+    const jsooMonitorState = monitor[1];
     const explanations = (JSON.parse(monitor[2])).expls;
     const atoms = (JSON.parse(monitor[2])).atoms;
     const columns = JSON.parse(window.getColumns(action.formula));
@@ -30,7 +30,7 @@ function initMonitor(monitorState, action) {
              subfsColumns: columns.subfsColumns,
              subformulas: columns.subformulas,
              squares: squares,
-             monitorState: monitorState,
+             jsooMonitorState: jsooMonitorState,
              selectedRows: [],
              highlightedCells: [],
              fixParameters: true
@@ -49,9 +49,10 @@ function execMonitor(monitorState, action) {
     const monitor = window.monitorAppend(action.appendTrace,
                                          action.measure,
                                          action.formula,
-                                         action.monitorState);
-    const monitorState = monitor[1];
-    const explanations = monitorState.explanations.concat((JSON.parse(monitor[2])).expls);
+                                         action.jsooMonitorState);
+    const jsooMonitorState = monitor[1];
+    const newExplanations = (JSON.parse(monitor[2])).expls;
+    const explanations = monitorState.explanations.concat(newExplanations);
     const atoms = monitorState.atoms.concat((JSON.parse(monitor[2])).atoms);
     const squares = computeSquares(explanations, atoms);
 
@@ -59,7 +60,9 @@ function execMonitor(monitorState, action) {
              explanations: explanations,
              atoms: atoms,
              squares: squares,
-             monitorState: monitorState,
+             jsooMonitorState: jsooMonitorState,
+             highlightedCells: [],
+             selectedRows: [],
              fixParameters: true
            };
   } catch (error) {
@@ -122,7 +125,7 @@ function monitorStateReducer(monitorState, action) {
              subfsColumns: [],
              subformulas: [],
              squares: [],
-             monitorState: [],
+             jsooMonitorState: [],
              selectedRows: [],
              highlightedCells: [],
              dialog: {},
@@ -155,7 +158,7 @@ export default function Monitor() {
                                                 subfsColumns: [],
                                                 subformulas: [],
                                                 squares: [],
-                                                monitorState: [],
+                                                jsooMonitorState: [],
                                                 selectedRows: [],
                                                 highlightedCells: [],
                                                 dialog: {},
@@ -185,7 +188,7 @@ export default function Monitor() {
     else action = { measure: measure,
                     formula: formState.formula,
                     appendTrace: appendTrace,
-                    monitorState: monitorState.monitorState,
+                    jsooMonitorState: monitorState.jsooMonitorState,
                     type: 'appendTable'
                   };
 
