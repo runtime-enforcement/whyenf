@@ -95,10 +95,10 @@ from inside the [formalization](formalization/) folder.
 {UPPERBOUND} ::= {NAT} | INFINITY
 ```
 
-#### Log
+#### Trace
 ```
-{LOG} :=   @{NAT} {ATOM}*
-         | @{NAT} {ATOM}* \n {LOG}
+{TRACE} :=   @{NAT} {ATOM}*
+           | @{NAT} {ATOM}* \n {TRACE}
 ```
 
 ## License
