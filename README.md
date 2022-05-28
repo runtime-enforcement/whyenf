@@ -42,13 +42,13 @@ You can compile the code with
 $ dune build
 ```
 
-to obtain a binary **explanator2.exe** inside [bin/](bin/), and
+to obtain the executable **explanator2.exe** inside the folder [bin](bin/). Moreover,
 
 ```
 $ ./bin/explanator2.exe --help
 ```
 
-to check the usage statement. When finished,
+will print the usage statement. When finished,
 
 ```
 $ dune clean
@@ -66,7 +66,7 @@ Alternatively, you can extract the code on your local machine using the command:
 $ isabelle build -vd thys -eD code
 ```
 
-from inside the [formalization/](formalization/) folder.
+from inside the [formalization](formalization/) folder.
 
 ### Syntax
 
