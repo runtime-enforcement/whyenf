@@ -1,6 +1,6 @@
-# Explanator2: Judgement Day
+# Explanator2: Judgment Day
 
-The Explanator2 is a tool for online monitoring satisfaction and violation explanations of MTL (Metric Temporal Logic) formulas on an arbitrary trace.
+The Explanator2 is an online monitor that produces verdicts in the form of explanations for Metric Temporal Logic formulas on arbitrary traces.
 
 It is the successor of the [Explanator](https://bitbucket.org/traytel/explanator/src/master/), a previous work by [Bhargav Bhatt](https://bhargavbh.github.io/) and [Dmitriy Traytel](https://www21.in.tum.de/~traytel/).
 
