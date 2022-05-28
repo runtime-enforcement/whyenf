@@ -60,11 +60,13 @@ will remove the binary and clean the working directory.
 
 File [src/checker.ml](src/checker.ml) corresponds to the code extracted from the Isabelle formalization.
 
-Alternatively, you can extract the code using the command:
+Alternatively, you can extract the code on your local machine using the command:
 
 ```
-$ Isabelle build -vd thys -eD code
+$ isabelle build -vd thys -eD code
 ```
+
+from inside the [formalization/](formalization/) folder.
 
 ### Syntax
 
