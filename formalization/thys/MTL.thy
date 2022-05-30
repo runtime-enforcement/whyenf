@@ -8,7 +8,7 @@ section \<open>Formulas and Satisfiability\<close>
 
 datatype 'a mtl = TT | FF | Atom 'a | Neg "'a mtl" | Disj "'a mtl" "'a mtl" 
   | Conj "'a mtl" "'a mtl" | Impl "'a mtl" "'a mtl" | Iff "'a mtl" "'a mtl"
-  | Next \<I> "'a mtl" | Prev \<I> "'a mtl"
+  | Next \<I> "'a mtl" | Prev \<I> "'a mtl" | Once \<I> "'a mtl" 
   | Since "'a mtl" \<I> "'a mtl" | Until "'a mtl" \<I> "'a mtl"
 (*  | MatchF \<I> "'a mtl Regex.regex" | MatchP \<I> "'a mtl Regex.regex" *)
 
@@ -23,6 +23,7 @@ fun sat :: "'a trace \<Rightarrow> nat \<Rightarrow> 'a mtl \<Rightarrow> bool" 
 | "sat \<sigma> i (Iff \<phi> \<psi>) = (sat \<sigma> i \<phi> \<longleftrightarrow> sat \<sigma> i \<psi>)"
 | "sat \<sigma> i (Next I \<phi>) = (mem (\<tau> \<sigma> (i + 1) - \<tau> \<sigma> i) I \<and> sat \<sigma> (i + 1) \<phi>)"
 | "sat \<sigma> i (Prev I \<phi>) = (case i of 0 \<Rightarrow> False | Suc j \<Rightarrow> mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I \<and> sat \<sigma> j \<phi>)"
+| "sat \<sigma> i (Once I \<phi>) = (\<exists>j\<le>i. mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I \<and> sat \<sigma> j \<phi>)"
 | "sat \<sigma> i (Since \<phi> I \<psi>) = (\<exists>j\<le>i. mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I \<and> sat \<sigma> j \<psi> \<and> (\<forall>k \<in> {j <.. i}. sat \<sigma> k \<phi>))"
 | "sat \<sigma> i (Until \<phi> I \<psi>) = (\<exists>j\<ge>i. mem (\<tau> \<sigma> j - \<tau> \<sigma> i) I \<and> sat \<sigma> j \<psi> \<and> (\<forall>k \<in> {i ..< j}. sat \<sigma> k \<phi>))"
 (*
@@ -76,6 +77,10 @@ lemma sat_Since_rec: "sat \<sigma> i (Since \<phi> I \<psi>) \<longleftrightarro
     done
   subgoal for k j apply (rule exI[of _ "j"]; auto simp: diff_enat_def le_diff_conv2 le_Suc_eq split: enat.splits) done
   done
+
+lemma sat_Once_rec: "sat \<sigma> i (Once I \<phi>) \<longleftrightarrow>
+  mem 0 I \<and> i > 0 \<and> \<Delta> \<sigma> i \<le> right I \<and> sat \<sigma> i \<phi>"
+  sorry
 
 (*
 lemma sat_MatchF_rec: "sat \<sigma> i (MatchF I r) \<longleftrightarrow> mem 0 I \<and> Regex.eps (sat \<sigma>) i r \<or>
@@ -350,6 +355,7 @@ inductive bounded_future where
 | NegBF:  "bounded_future phi \<Longrightarrow> bounded_future (Neg phi)"
 | NextBF: "bounded_future phi \<Longrightarrow> bounded_future (Next I phi)"
 | PrevBF: "bounded_future phi \<Longrightarrow> bounded_future (Prev I phi)"
+| OnceBF: "bounded_future phi \<Longrightarrow> bounded_future (Once I phi)"
 | SinceBF: "bounded_future phi \<Longrightarrow> bounded_future psi
 \<Longrightarrow> bounded_future (Since phi I psi)"
 | UntilBF: "right I \<noteq> \<infinity> \<Longrightarrow> bounded_future phi \<Longrightarrow> bounded_future psi
@@ -372,6 +378,7 @@ lemma bounded_future_simps[simp]:
   "bounded_future (Neg phi) \<longleftrightarrow> bounded_future phi"
   "bounded_future (Next I phi) \<longleftrightarrow> bounded_future phi"
   "bounded_future (Prev I phi) \<longleftrightarrow> bounded_future phi"
+  "bounded_future (Once I phi) \<longleftrightarrow> bounded_future phi"
   "bounded_future (Since phi I psi) \<longleftrightarrow> bounded_future phi \<and> bounded_future psi"
   "bounded_future (Until phi I psi) \<longleftrightarrow> bounded_future phi \<and> bounded_future psi \<and> right I \<noteq> \<infinity>"
 (*
@@ -410,6 +417,11 @@ inductive SAT and VIO where
 | VPrev_zero: "i = 0 \<Longrightarrow> VIO i (Prev I phi)"
 | VPrev_le: "i > 0 \<Longrightarrow> (\<Delta> rho i) < (left I) \<Longrightarrow> VIO i (Prev I phi)"
 | VPrev_ge: "i > 0 \<Longrightarrow> enat (\<Delta> rho i) > (right I) \<Longrightarrow> VIO i (Prev I phi)"
+| SOnce: "j \<le> i \<Longrightarrow> mem (delta rho i j) I  \<Longrightarrow> SAT j phi \<Longrightarrow> SAT i (Once I phi)"
+| VOnce_le: "\<tau> rho i < \<tau> rho 0 + left I \<Longrightarrow> VIO i (Once I phi)"
+| VOnce_never: "j = (case right I of \<infinity> \<Rightarrow> 0 | enat n \<Rightarrow> ETP rho ((\<tau> rho i) - n)) \<Longrightarrow>
+ (\<tau> rho i) \<ge> (\<tau> rho 0) + left I \<Longrightarrow>
+(\<And>k. k \<in> {j .. l i I} \<Longrightarrow> VIO k phi) \<Longrightarrow> VIO i (Once I phi)"
 | SSince: "j \<le> i \<Longrightarrow> mem (delta rho i j) I  \<Longrightarrow> SAT j psi \<Longrightarrow> (\<And>k. k \<in> {j <.. i}
 \<Longrightarrow> SAT k phi) \<Longrightarrow> SAT i (Since phi I psi)"
 | VSince_le: "\<tau> rho i < \<tau> rho 0 + left I \<Longrightarrow> VIO i (Since phi I psi)"
@@ -444,6 +456,28 @@ proof (induct phi arbitrary: i)
   case (Prev I phi)
   show ?case using  local.Prev
     by (auto intro: SAT_VIO.SPrev SAT_VIO.VPrev SAT_VIO.VPrev_le SAT_VIO.VPrev_ge SAT_VIO.VPrev_zero split: nat.splits)
+next
+  case (Once I phi)
+  {assume "sat rho i (Once I phi)"
+    then have "SAT i (Once I phi)"
+      using SAT_VIO.SOnce local.Once
+      by auto}
+  moreover
+  {assume unsat: "\<not> sat rho i (Once I phi)"
+    and i_l: "\<tau> rho i < \<tau> rho 0 + left I"
+    then have "VIO i (Once I phi)"
+      using SAT_VIO.VOnce_le local.Once
+      by auto}
+  moreover
+  {assume unsat: "\<not> sat rho i (Once I phi)"
+    and nw: "\<forall>j\<le>i. \<not> mem (delta rho i j) I \<or> \<not> sat rho j phi"
+    and i_ge: "\<tau> rho 0 + left I \<le> \<tau> rho i"
+      then have "VIO i (Once I phi)"
+      using local.Once
+      by (auto intro!: SAT_VIO.VOnce_never simp: i_ltp_to_tau i_etp_to_tau
+      split: enat.splits)}
+  ultimately show ?case
+    by force
 next
   case (Since phi I psi)
   {assume "sat rho i (Since phi I psi)"
@@ -650,6 +684,46 @@ next
   {assume "VIO i (Prev I phi)"
     then have "\<not> sat rho i (Prev I phi)" using Prev
       by (cases) (auto split: nat.splits)
+  }
+  ultimately show ?case by auto
+next
+  case (Once I phi)
+  {assume "SAT i (Once I phi)"
+    then have "sat rho i (Once I phi)" using Once by (cases) (auto)
+  }
+  moreover
+  {assume "VIO i (Once I phi)"
+    then have "\<not> sat rho i (Once I phi)" using Once
+    proof (cases)
+      case (VOnce_le)
+      {fix j
+      from \<tau>_mono have j0: "\<tau> rho 0 \<le> \<tau> rho j" by auto
+      then have "\<tau> rho i < \<tau> rho j + left I" using VOnce_le apply auto
+        using j0 by linarith
+      then have "delta rho i j < left I"
+        using VOnce_le less_\<tau>D verit_comp_simplify1(3) by fastforce
+      then have "\<not> mem (delta rho i j) I" by auto}
+      then show ?thesis using VOnce_le OnceBF by auto
+      next
+      case (VOnce_never j)
+      {fix k
+      assume k_def: "sat rho k phi \<and> mem (delta rho i k) I \<and> k \<le> i"
+      then have k_tau: "\<tau> rho k \<le> \<tau> rho i - left I"
+        using diff_le_mono2 by fastforce
+      then have k_ltp: "k \<le> LTP rho (\<tau> rho i - left I)"
+        using VOnce_never i_ltp_to_tau add_le_imp_le_diff
+        by blast
+      then have "k \<notin> {j .. l i I}"
+        using k_def VOnce_never Once k_tau
+        by auto
+      then have "k < j" using k_def k_ltp by auto
+      }
+      then show ?thesis
+        using VOnce_never Once
+      apply (cases "right I = \<infinity>")
+        apply (auto)
+      by (metis diff_commute diff_is_0_eq i_etp_to_tau leD)
+  qed  
   }
   ultimately show ?case by auto
 next
@@ -912,12 +986,13 @@ setup \<open>
 (*Added proofs for Prev and Next, as well as constraint violation proofs *)
 datatype 'a sproof = STT nat | SAtm 'a nat | SNeg "'a vproof" | SDisjL "'a sproof" | SDisjR "'a sproof"
   | SConj "'a sproof" "'a sproof" | SImplR "'a sproof" | SImplL "'a vproof"
-  | SIff_ss "'a sproof" "'a sproof" | SIff_vv "'a vproof" "'a vproof"
+  | SIff_ss "'a sproof" "'a sproof" | SIff_vv "'a vproof" "'a vproof" | SOnce "'a sproof"
   | SSince "'a sproof" "'a sproof list" | SUntil "'a sproof list" "'a sproof" | SNext "'a sproof"
   | SPrev "'a sproof" (*| SMatchP "('a sproof) rsproof" | SMatchF "('a sproof) rsproof"*) 
     and 'a vproof = VFF nat | VAtm 'a nat | VNeg "'a sproof" | VDisj "'a vproof" "'a vproof"
   | VConjL "'a vproof" | VConjR "'a vproof" | VImpl "'a sproof" "'a vproof"
   | VIff_sv "'a sproof" "'a vproof" | VIff_vs "'a vproof" "'a sproof"
+  | VOnce_le nat | VOnce_never nat "'a vproof"
   | VSince nat "'a vproof" "'a vproof list" | VUntil nat "'a vproof list" "'a vproof"
   | VSince_never nat nat "'a vproof list" | VUntil_never nat nat "'a vproof list" | VSince_le nat
   | VNext "'a vproof" | VNext_ge nat | VNext_le nat | VPrev "'a vproof" | VPrev_ge nat | VPrev_le nat
@@ -962,6 +1037,7 @@ fun s_at and v_at where
 | "s_at (SIff_vv vphi vpsi) = v_at vphi"
 | "s_at (SNext sphi) = s_at sphi - 1"
 | "s_at (SPrev sphi) = s_at sphi + 1"
+| "s_at (SOnce sphi) = s_at sphi"
 | "s_at (SSince spsi sphis) = (case sphis of [] \<Rightarrow> s_at spsi | _ \<Rightarrow> s_at (last sphis))"
 | "s_at (SUntil sphis spsi) = (case sphis of [] \<Rightarrow> s_at spsi | x # _ \<Rightarrow> s_at x)"
 (*
@@ -984,6 +1060,8 @@ fun s_at and v_at where
 | "v_at (VPrev_ge n) = n"
 | "v_at (VPrev_le n) = n"
 | "v_at (VPrev_zero) = 0"
+| "v_at (VOnce_le n) = n"
+| "v_at (VOnce_never n vphi) = v"
 | "v_at (VSince n vpsi vphis) = n"
 | "v_at (VSince_le n) = n"
 | "v_at (VUntil n vphis vpsi) = n"
