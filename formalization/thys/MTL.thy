@@ -988,7 +988,7 @@ datatype 'a sproof = STT nat | SAtm 'a nat | SNeg "'a vproof" | SDisjL "'a sproo
   | SConj "'a sproof" "'a sproof" | SImplR "'a sproof" | SImplL "'a vproof"
   | SIff_ss "'a sproof" "'a sproof" | SIff_vv "'a vproof" "'a vproof" | SOnce "'a sproof"
   | SSince "'a sproof" "'a sproof list" | SUntil "'a sproof list" "'a sproof" | SNext "'a sproof"
-  | SPrev "'a sproof" (*| SMatchP "('a sproof) rsproof" | SMatchF "('a sproof) rsproof"*) 
+  | SPrev "'a sproof" (*| SMatchP "('a sproof) rsproof" | SMatchF "('a sproof) rsproof"*)
     and 'a vproof = VFF nat | VAtm 'a nat | VNeg "'a sproof" | VDisj "'a vproof" "'a vproof"
   | VConjL "'a vproof" | VConjR "'a vproof" | VImpl "'a sproof" "'a vproof"
   | VIff_sv "'a sproof" "'a vproof" | VIff_vs "'a vproof" "'a sproof"
@@ -998,8 +998,45 @@ datatype 'a sproof = STT nat | SAtm 'a nat | SNeg "'a vproof" | SDisjL "'a sproo
   | VNext "'a vproof" | VNext_ge nat | VNext_le nat | VPrev "'a vproof" | VPrev_ge nat | VPrev_le nat
   | VPrev_zero (*| VMatchP nat "('a vproof) rvproof list" | VMatchF nat "('a vproof) rvproof list"
   | VMatchP_le nat*)
-
+(*
 derive ccompare sproof vproof
+*)
+print_theorems
+(*
+thm comparator_sproof_simps[no_vars] comparator_vproof_simps[no_vars]
+*)
+instantiation sproof and vproof :: (ccompare) ccompare begin
+
+primrec comparator_sproof :: "('a \<Rightarrow> 'b \<Rightarrow> order) \<Rightarrow> 'a sproof \<Rightarrow> 'b sproof \<Rightarrow> order"
+    and comparator_vproof :: "('a \<Rightarrow> 'b \<Rightarrow> order) \<Rightarrow> 'a vproof \<Rightarrow> 'b vproof \<Rightarrow> order" where
+  "comparator_sproof compa (STT i) rhs =
+    (case rhs of
+      STT j \<Rightarrow> comparator_of i j
+    | _ \<Rightarrow> Lt)"
+| "comparator_sproof compa (SAtm p i) rhs =
+    (case rhs of
+      STT y \<Rightarrow> Gt
+    | SAtm q j \<Rightarrow> (case compa p q of Eq \<Rightarrow> comparator_of i j | Lt \<Rightarrow> Lt | Gt \<Rightarrow> Gt)
+    | _ \<Rightarrow> Lt)"
+| "comparator_vproof compa (VFF i) rhs =
+    (case rhs of
+      VFF j \<Rightarrow> comparator_of i j
+    | _ \<Rightarrow> Lt)"
+| "comparator_vproof compa (VAtm p i) rhs =
+    (case rhs of
+      VFF y \<Rightarrow> Gt
+    | VAtm q j \<Rightarrow> (case compa p q of Eq \<Rightarrow> comparator_of i j | Lt \<Rightarrow> Lt | Gt \<Rightarrow> Gt)
+    | _ \<Rightarrow> Lt)"
+
+definition "ccompare_sproof = (case ID ccompare of None \<Rightarrow> None | Some comp_'a \<Rightarrow> Some (comparator_sproof comp_'a))"
+definition "ccompare_vproof = (case ID ccompare of None \<Rightarrow> None | Some comp_'a \<Rightarrow> Some (comparator_vproof comp_'a))"
+
+instance
+   apply standard
+   apply (auto simp add: ccompare_sproof_def ccompare_vproof_def comparator_def)
+  sorry
+
+end
 derive (eq) ceq sproof
 derive (rbt) set_impl sproof
 derive (eq) ceq vproof
