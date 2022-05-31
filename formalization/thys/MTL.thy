@@ -986,9 +986,10 @@ setup \<open>
 (*Added proofs for Prev and Next, as well as constraint violation proofs *)
 datatype 'a sproof = STT nat | SAtm 'a nat | SNeg "'a vproof" | SDisjL "'a sproof" | SDisjR "'a sproof"
   | SConj "'a sproof" "'a sproof" | SImplR "'a sproof" | SImplL "'a vproof"
-  | SIff_ss "'a sproof" "'a sproof" | SIff_vv "'a vproof" "'a vproof" | SOnce "'a sproof"
+  | SIff_ss "'a sproof" "'a sproof" | SIff_vv "'a vproof" "'a vproof" | SOnce nat "'a sproof"
   | SSince "'a sproof" "'a sproof list" | SUntil "'a sproof list" "'a sproof" | SNext "'a sproof"
-  | SPrev "'a sproof" (*| SMatchP "('a sproof) rsproof" | SMatchF "('a sproof) rsproof"*)
+  | SPrev "'a sproof"
+  (*| SMatchP "('a sproof) rsproof" | SMatchF "('a sproof) rsproof"*)
     and 'a vproof = VFF nat | VAtm 'a nat | VNeg "'a sproof" | VDisj "'a vproof" "'a vproof"
   | VConjL "'a vproof" | VConjR "'a vproof" | VImpl "'a sproof" "'a vproof"
   | VIff_sv "'a sproof" "'a vproof" | VIff_vs "'a vproof" "'a sproof"
@@ -996,8 +997,10 @@ datatype 'a sproof = STT nat | SAtm 'a nat | SNeg "'a vproof" | SDisjL "'a sproo
   | VSince nat "'a vproof" "'a vproof list" | VUntil nat "'a vproof list" "'a vproof"
   | VSince_never nat nat "'a vproof list" | VUntil_never nat nat "'a vproof list" | VSince_le nat
   | VNext "'a vproof" | VNext_ge nat | VNext_le nat | VPrev "'a vproof" | VPrev_ge nat | VPrev_le nat
-  | VPrev_zero (*| VMatchP nat "('a vproof) rvproof list" | VMatchF nat "('a vproof) rvproof list"
-  | VMatchP_le nat*)
+  | VPrev_zero
+  (*| VMatchP nat "('a vproof) rvproof list" | VMatchF nat "('a vproof) rvproof list"
+    | VMatchP_le nat*)
+
 (*
 derive ccompare sproof vproof
 *)
@@ -1015,8 +1018,106 @@ primrec comparator_sproof :: "('a \<Rightarrow> 'b \<Rightarrow> order) \<Righta
     | _ \<Rightarrow> Lt)"
 | "comparator_sproof compa (SAtm p i) rhs =
     (case rhs of
-      STT y \<Rightarrow> Gt
+      STT _ \<Rightarrow> Gt
     | SAtm q j \<Rightarrow> (case compa p q of Eq \<Rightarrow> comparator_of i j | Lt \<Rightarrow> Lt | Gt \<Rightarrow> Gt)
+    | _ \<Rightarrow> Lt)"
+| "comparator_sproof compa (SNeg vp) rhs =
+    (case rhs of
+      STT _ \<Rightarrow> Gt
+    | SAtm _ _ \<Rightarrow> Gt
+    | SNeg vp' \<Rightarrow> comparator_vproof compa vp vp'
+    | _ \<Rightarrow> Lt)"
+| "comparator_sproof compa (SDisjL sp) rhs =
+    (case rhs of
+      STT _ \<Rightarrow> Gt
+    | SAtm _ _ \<Rightarrow> Gt
+    | SNeg _ \<Rightarrow> Gt
+    | SDisjL sp' \<Rightarrow> comparator_sproof compa sp sp'
+    | _ \<Rightarrow> Lt)"
+| "comparator_sproof compa (SDisjR sp) rhs =
+    (case rhs of
+      STT _ \<Rightarrow> Gt
+    | SAtm _ _ \<Rightarrow> Gt
+    | SNeg _ \<Rightarrow> Gt
+    | SDisjL _ \<Rightarrow> Gt
+    | SDisjR sp' \<Rightarrow> comparator_sproof compa sp sp'
+    | _ \<Rightarrow> Lt)"
+| "comparator_sproof compa (SConj sp1 sp2) rhs =
+    (case rhs of
+      STT _ \<Rightarrow> Gt
+    | SAtm _ _ \<Rightarrow> Gt
+    | SNeg _ \<Rightarrow> Gt
+    | SDisjL _ \<Rightarrow> Gt
+    | SDisjR _ \<Rightarrow> Gt
+    | SConj sp1' sp2' \<Rightarrow> (comparator_sproof compa sp1 sp1')
+    | _ \<Rightarrow> Lt)"
+| "comparator_sproof compa (SImplR sp) rhs =
+    (case rhs of
+      STT y \<Rightarrow> Gt
+    | SAtm q j \<Rightarrow> Gt
+    | SNeg vp \<Rightarrow> Gt
+    | SDisjL sp \<Rightarrow> Gt
+    | SDisjR sp \<Rightarrow> Gt
+    | SConj sp1 sp2 \<Rightarrow> Gt
+    | _ \<Rightarrow> Lt)"
+| "comparator_sproof compa (SImplL vp) rhs =
+    (case rhs of
+      STT y \<Rightarrow> Gt
+    | SAtm q j \<Rightarrow> Gt
+    | SNeg vp \<Rightarrow> Gt
+    | SDisjL sp \<Rightarrow> Gt
+    | SDisjR sp \<Rightarrow> Gt
+    | SConj sp1 sp2 \<Rightarrow> Gt
+    | SImplR sp \<Rightarrow> Gt
+    | _ \<Rightarrow> Lt)"
+| "comparator_sproof compa (SIff_ss sp1 sp2) rhs =
+    (case rhs of
+      STT y \<Rightarrow> Gt
+    | SAtm q j \<Rightarrow> Gt
+    | SNeg vp \<Rightarrow> Gt
+    | SDisjL sp \<Rightarrow> Gt
+    | SDisjR sp \<Rightarrow> Gt
+    | SConj sp1 sp2 \<Rightarrow> Gt
+    | SImplR sp \<Rightarrow> Gt
+    | SImplL vp \<Rightarrow> Gt
+    | _ \<Rightarrow> Lt)"
+| "comparator_sproof compa (SIff_vv vp1 vp2) rhs =
+    (case rhs of
+      STT y \<Rightarrow> Gt
+    | SAtm q j \<Rightarrow> Gt
+    | SNeg vp \<Rightarrow> Gt
+    | SDisjL sp \<Rightarrow> Gt
+    | SDisjR sp \<Rightarrow> Gt
+    | SConj sp1 sp2 \<Rightarrow> Gt
+    | SImplR sp \<Rightarrow> Gt
+    | SImplL vp \<Rightarrow> Gt
+    | SIff_ss sp1 sp2 \<Rightarrow> Gt
+    | _ \<Rightarrow> Lt)"
+| "comparator_sproof compa (SOnce i sp) rhs =
+    (case rhs of
+      STT y \<Rightarrow> Gt
+    | SAtm q j \<Rightarrow> Gt
+    | SNeg vp \<Rightarrow> Gt
+    | SDisjL sp \<Rightarrow> Gt
+    | SDisjR sp \<Rightarrow> Gt
+    | SConj sp1 sp2 \<Rightarrow> Gt
+    | SImplR sp \<Rightarrow> Gt
+    | SImplL vp \<Rightarrow> Gt
+    | SIff_ss sp1 sp2 \<Rightarrow> Gt
+    | SIff_vv sp1 sp2 \<Rightarrow> Gt
+    | _ \<Rightarrow> Lt)"
+| "comparator_sproof compa (SSince sp2 sp1s) rhs =
+    (case rhs of
+      STT y \<Rightarrow> Gt
+    | SAtm q j \<Rightarrow> Gt
+    | SNeg vp \<Rightarrow> Gt
+    | SDisjL sp \<Rightarrow> Gt
+    | SDisjR sp \<Rightarrow> Gt
+    | SConj sp1 sp2 \<Rightarrow> Gt
+    | SImplR sp \<Rightarrow> Gt
+    | SImplL vp \<Rightarrow> Gt
+    | SIff_ss sp1 sp2 \<Rightarrow> Gt
+    | SIff_vv sp1 sp2 \<Rightarrow> Gt
     | _ \<Rightarrow> Lt)"
 | "comparator_vproof compa (VFF i) rhs =
     (case rhs of
@@ -1026,6 +1127,62 @@ primrec comparator_sproof :: "('a \<Rightarrow> 'b \<Rightarrow> order) \<Righta
     (case rhs of
       VFF y \<Rightarrow> Gt
     | VAtm q j \<Rightarrow> (case compa p q of Eq \<Rightarrow> comparator_of i j | Lt \<Rightarrow> Lt | Gt \<Rightarrow> Gt)
+    | _ \<Rightarrow> Lt)"
+| "comparator_vproof compa (VNeg sp) rhs =
+    (case rhs of
+      VFF y \<Rightarrow> Gt
+    | VAtm q j \<Rightarrow> Gt
+    | _ \<Rightarrow> Lt)"
+| "comparator_vproof compa (VDisj vp1 vp2) rhs =
+    (case rhs of
+      VFF y \<Rightarrow> Gt
+    | VAtm q j \<Rightarrow> Gt
+    | VNeg sp \<Rightarrow> Gt
+    | _ \<Rightarrow> Lt)"
+| "comparator_vproof compa (VConjL vp) rhs =
+    (case rhs of
+      VFF y \<Rightarrow> Gt
+    | VAtm q j \<Rightarrow> Gt
+    | VNeg sp \<Rightarrow> Gt
+    | VDisj vp1 vp2 \<Rightarrow> Gt
+    | _ \<Rightarrow> Lt)"
+| "comparator_vproof compa (VConjR vp) rhs =
+    (case rhs of
+      VFF y \<Rightarrow> Gt
+    | VAtm q j \<Rightarrow> Gt
+    | VNeg sp \<Rightarrow> Gt
+    | VDisj vp1 vp2 \<Rightarrow> Gt
+    | VConjL vp \<Rightarrow> Gt
+    | _ \<Rightarrow> Lt)"
+| "comparator_vproof compa (VImpl sp1 vp2) rhs =
+    (case rhs of
+      VFF y \<Rightarrow> Gt
+    | VAtm q j \<Rightarrow> Gt
+    | VNeg sp \<Rightarrow> Gt
+    | VDisj vp1 vp2 \<Rightarrow> Gt
+    | VConjL vp \<Rightarrow> Gt
+    | VConjR vp \<Rightarrow> Gt
+    | _ \<Rightarrow> Lt)"
+| "comparator_vproof compa (VIff_sv sp1 vp2) rhs =
+    (case rhs of
+      VFF y \<Rightarrow> Gt
+    | VAtm q j \<Rightarrow> Gt
+    | VNeg sp \<Rightarrow> Gt
+    | VDisj vp1 vp2 \<Rightarrow> Gt
+    | VConjL vp \<Rightarrow> Gt
+    | VConjR vp \<Rightarrow> Gt
+    | VImpl sp1 vp2 \<Rightarrow> Gt
+    | _ \<Rightarrow> Lt)"
+| "comparator_vproof compa (VIff_vs vp1 sp2) rhs =
+    (case rhs of
+      VFF y \<Rightarrow> Gt
+    | VAtm q j \<Rightarrow> Gt
+    | VNeg sp \<Rightarrow> Gt
+    | VDisj vp1 vp2 \<Rightarrow> Gt
+    | VConjL vp \<Rightarrow> Gt
+    | VConjR vp \<Rightarrow> Gt
+    | VImpl sp1 vp2 \<Rightarrow> Gt
+    | VIff_vs vp1 sp2 \<Rightarrow> Gt
     | _ \<Rightarrow> Lt)"
 
 definition "ccompare_sproof = (case ID ccompare of None \<Rightarrow> None | Some comp_'a \<Rightarrow> Some (comparator_sproof comp_'a))"
