@@ -23,6 +23,7 @@ module Error = Base.Error
  *   | Info of string *)
 
 val input_event: in_channel -> out_channel -> event * in_channel
+val input_weight: in_channel -> (string * int) option * in_channel
 (* val output_event: out_channel -> string -> unit *)
 val preamble_stdout: out_channel -> mode -> formula -> unit
 val closing_stdout: out_channel -> unit

@@ -33,6 +33,7 @@ module Explanator2 = struct
   let out_ref = ref stdout
   let vis_ref = ref false
   let log_str_ref = ref ""
+  let weights_ref = ref []
 
   let usage () =
     Format.eprintf
@@ -121,6 +122,21 @@ module Explanator2 = struct
             close_in in_ch
           with
             _ -> fmla_ref := Some(Src.Mtl_parser.formula Src.Mtl_lexer.token (Lexing.from_string fmlafile)));
+         go args
+      | ("-weights" :: wfile :: args) ->
+         (* (try
+          *    let in_ch = open_in wfile in
+          *    let f (weights, in_ch) =
+          *      let (w_opt, in_ch) = input_weight in_ch in
+          *      match w_opt with
+          *      | None -> (weights, in_ch)
+          *      | Some (atm, w) -> (w :: weights, in_ch) in
+          *    weights_ref := loop f ([], in_ch);
+          *    Printf.printf "%d\n" (List.length !weights_ref);
+          *    List.iter (fun (atm, w) -> Printf.printf "%s = %d\n" atm w) !weights_ref;
+          *    close_in in_ch
+          *  with
+          *    _ -> go args); *)
          go args
       | ("-out" :: outfile :: args) ->
          out_ref := open_out outfile;

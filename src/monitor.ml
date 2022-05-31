@@ -1029,7 +1029,6 @@ let meval' ts tp sap mform le =
   meval tp ts sap mform
 
 let monitor_cli in_ch out_ch mode out_mode check le is_opt f =
-  let rec loop f x = loop f (f x) in
   let mf = minit f in
   let mf_ap = relevant_ap mf in
   let st = { tp = 0

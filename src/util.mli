@@ -19,6 +19,7 @@ type out_mode = PLAIN | JSON | DEBUG
 
 val max_list: int list -> int
 val min_list: int list -> int
+val loop: ('a -> 'a) -> 'a -> 'b
 val ( -- ): int -> int -> int list
 val thd: ('a * 'b * 'c) -> 'c
 val last: 'a list -> 'a
