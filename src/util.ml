@@ -23,6 +23,8 @@ type out_mode = PLAIN | JSON | DEBUG
 let max_list = List.fold_left max 0
 let min_list = List.fold_left min 0
 
+let rec loop f x = loop f (f x)
+
 (* Make the list [i, i+1, i+2, ..., j] *)
 let rec ( -- ) i j =
   if i > j then [] else i :: (i + 1 -- j)
