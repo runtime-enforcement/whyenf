@@ -26,14 +26,13 @@ module Explanator2 = struct
   let json_ref = ref false
   let mode_ref = ref ALL
   let out_mode_ref = ref PLAIN
-  let measure_le_ref = ref None
-  let is_opt_ref = ref None
+  let measure_ref = ref ""
   let fmla_ref = ref None
   let log_ref = ref stdin
   let out_ref = ref stdout
   let vis_ref = ref false
   let log_str_ref = ref ""
-  let weights_ref = ref []
+  let weights_tbl = Hashtbl.create 10
 
   let usage () =
     Format.eprintf
@@ -97,20 +96,7 @@ module Explanator2 = struct
             | _ -> mode_error ());
          go args
       | ("-O" :: measure :: args) ->
-         let measure_le =
-           match measure with
-           | "size" | "SIZE" | "Size" -> size_le
-           | "high" | "HIGH" | "High" -> high_le
-           | "none" | "NONE" | "None" -> (fun _ _ -> true)
-           | _ -> measure_error () in
-         measure_le_ref := Some measure_le;
-         let is_opt =
-           match measure with
-           | "size" | "SIZE" | "Size" -> is_opt_atm (fun s -> nat_of_integer (Z.of_int 1))
-           | "high" | "HIGH" | "High" -> is_opt_minmaxreach
-           | "none" | "NONE" | "None" -> (fun _ _ _ _ -> true)
-           | _ -> measure_error () in
-         is_opt_ref := Some is_opt;
+         measure_ref := measure;
          go args
       | ("-log" :: logfile :: args) ->
          log_ref := open_in logfile;
@@ -124,19 +110,15 @@ module Explanator2 = struct
             _ -> fmla_ref := Some(Src.Mtl_parser.formula Src.Mtl_lexer.token (Lexing.from_string fmlafile)));
          go args
       | ("-weights" :: wfile :: args) ->
-         (* (try
-          *    let in_ch = open_in wfile in
-          *    let f (weights, in_ch) =
-          *      let (w_opt, in_ch) = input_weight in_ch in
-          *      match w_opt with
-          *      | None -> (weights, in_ch)
-          *      | Some (atm, w) -> (w :: weights, in_ch) in
-          *    weights_ref := loop f ([], in_ch);
-          *    Printf.printf "%d\n" (List.length !weights_ref);
-          *    List.iter (fun (atm, w) -> Printf.printf "%s = %d\n" atm w) !weights_ref;
-          *    close_in in_ch
-          *  with
-          *    _ -> go args); *)
+         let in_ch = open_in wfile in
+         let rec get_weights l =
+           match input_line in_ch with
+           | line -> (match parse_weight_line line with
+                      | None -> l
+                      | Some(aw) -> get_weights (aw :: l))
+           | exception End_of_file -> close_in in_ch; List.rev l in
+         let () = List.iter (fun (a, w) -> Hashtbl.add weights_tbl a w) (get_weights []) in
+         (* List.iter (fun (atm, w) -> Printf.printf "%s = %d\n" atm w) !weights_ref; *)
          go args
       | ("-out" :: outfile :: args) ->
          out_ref := open_out outfile;
@@ -146,19 +128,38 @@ module Explanator2 = struct
          let in_ch = open_in fmlafile in
          fmla_ref := Some(Src.Mtl_parser.formula Src.Mtl_lexer.token (Lexing.from_channel in_ch));
          log_str_ref := "@0 q\n@1 p\n@2 r\n@3 q";
-         is_opt_ref := Some(is_opt_atm (fun s -> nat_of_integer (Z.of_int 1)));
+         measure_ref := "size";
          vis_ref := true;
-         measure_le_ref := Some(size_le);
          go args
       | [] -> ()
       | _ -> usage () in
     go
 
+  let set_measure measure =
+    let measure_le =
+      match measure with
+      | "size" | "SIZE" | "Size" -> if (Hashtbl.length weights_tbl) == 0 then size_le
+                                    else wsize_le weights_tbl
+      | "high" | "HIGH" | "High" -> high_le
+      | "none" | "NONE" | "None" -> (fun _ _ -> true)
+      | _ -> measure_error () in
+    let is_opt =
+      match measure with
+      | "size" | "SIZE" | "Size" -> if (Hashtbl.length weights_tbl) == 0 then
+                                      is_opt_atm (fun s -> nat_of_integer (Z.of_int 1))
+                                    else
+                                      is_opt_atm (fun s -> match Hashtbl.find_opt weights_tbl s with
+                                                           | None -> nat_of_integer (Z.of_int 1)
+                                                           | Some(w) -> nat_of_integer (Z.of_int w))
+      | "high" | "HIGH" | "High" -> is_opt_minmaxreach
+      | "none" | "NONE" | "None" -> (fun _ _ _ _ -> true)
+      | _ -> measure_error () in
+    (measure_le, is_opt)
+
   let _ =
     try
       process_args (List.tl (Array.to_list Sys.argv));
-      let measure_le = Option.get !measure_le_ref in
-      let is_opt = Option.get !is_opt_ref in
+      let (measure_le, is_opt) = set_measure !measure_ref in
       let formula = Option.get !fmla_ref in
       if !vis_ref then
         let () = Printf.printf "%s" (json_table_columns formula) in

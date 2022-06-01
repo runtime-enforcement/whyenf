@@ -174,6 +174,52 @@ let minsize_list = function
 
 (***********************************
  *                                 *
+ * Measure: wsize                   *
+ *                                 *
+ ***********************************)
+let rec s_wsize ws = function
+  | STT _ -> 1
+  | SAtom (_, s) -> (match Hashtbl.find_opt ws s with
+                     | None -> 1
+                     | Some(w) -> w)
+  | SNeg expl -> 1 + v_size expl
+  | SDisjL sphi -> 1 + s_size sphi
+  | SDisjR spsi -> 1 + s_size spsi
+  | SConj (sphi, spsi) -> 1 + s_size sphi + s_size spsi
+  | SPrev expl -> 1 + s_size expl
+  | SNext expl -> 1 + s_size expl
+  | SSince (spsi, sphis) -> 1 + s_size spsi + sum s_size sphis
+  | SUntil (spsi, sphis) -> 1 + s_size spsi + sum s_size sphis
+and v_wsize ws = function
+  | VFF _ -> 1
+  | VAtom (_, s) -> (match Hashtbl.find_opt ws s with
+                     | None -> 1
+                     | Some(w) -> w)
+  | VNeg sphi -> 1 + s_size sphi
+  | VDisj (vphi, vpsi) -> 1 + v_size vphi + v_size vpsi
+  | VConjL vphi -> 1 + v_size vphi
+  | VConjR vpsi -> 1 + v_size vpsi
+  | VPrev0 -> 1
+  | VPrevOutL _ -> 1
+  | VPrevOutR _ -> 1
+  | VPrev vphi -> 1 + v_size vphi
+  | VNextOutL _ -> 1
+  | VNextOutR _ -> 1
+  | VNext vphi -> 1 + v_size vphi
+  | VSince (_, vphi, vpsis) -> 1 + v_size vphi + sum v_size vpsis
+  | VSinceInf (_, _, vpsis) -> 1 + sum v_size vpsis
+  | VSinceOutL _ -> 1
+  | VUntil (_, vphi, vpsis) -> 1 + v_size vphi + sum v_size vpsis
+  | VUntilInf (_, _, vpsis) -> 1 + sum v_size vpsis
+
+let wsize ws = function
+  | S sp -> s_wsize ws sp
+  | V vp -> v_wsize ws vp
+
+let wsize_le ws = mk_le (wsize ws)
+
+(***********************************
+ *                                 *
  * Measure: width                  *
  *                                 *
  ***********************************)

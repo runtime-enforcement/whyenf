@@ -26,7 +26,21 @@ exception NOT_FOUND of string
 (* TODO: Rewrite every occurrence of Deque.to_list in this file *)
 (* TODO: Rename every (ts, p) as el or whatever. p should denote the proof element and not the pair *)
 
-let minimuml le ps = minsize_list (get_mins le ps)
+let minimuml le l = match l with
+  | [] -> failwith "empty list for minimuml"
+  | x::xs -> List.fold_left xs ~init:x ~f:(fun a b ->
+                 (* Printf.printf "-------------START-------------\n";
+                  * Printf.printf "a = %s\n" (expl_to_string a);
+                  * Printf.printf "b = %s\n" (expl_to_string b); *)
+                 if le a b then (
+                   (* Printf.printf " A \n";
+                    * Printf.printf "--------------END--------------\n"; *)
+                   a)
+                 else (
+                   (* Printf.printf " B \n";
+                    * Printf.printf "--------------END--------------\n"; *)
+                   b)
+               )
 
 let sappend_to_deque sp1 d =
   let () = Deque.iteri d ~f:(fun i (ts, ssp) ->
