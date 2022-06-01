@@ -57,6 +57,9 @@ val size_le: expl -> expl -> bool
 val minsize: expl -> expl -> expl
 val minsize_list: expl list -> expl
 
+val wsize: (string, int) Hashtbl.t -> expl -> int
+val wsize_le: (string, int) Hashtbl.t -> expl -> expl -> bool
+
 val high: expl -> int
 val high_le: expl -> expl -> bool
 

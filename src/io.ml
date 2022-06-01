@@ -57,21 +57,13 @@ let output_event out_ch event = Printf.fprintf out_ch "%s" event
 let parse_weight_line s =
   let s = String.strip s in
   if String.length s > 1 then
-    (match String.split_on_chars s ['='] with
+    (match String.split_on_chars s [':'] with
      | [] -> None
      | raw_atm :: [raw_weight] ->
         try Some (String.strip raw_atm, int_of_string (String.strip raw_weight))
         with Failure _ -> None
      | _ -> None)
   else None
-
-let rec parse_weight_lines line in_ch =
-  match parse_weight_line line with
-  | Some s -> (Some s, in_ch)
-  | None -> parse_weight_lines (input_line in_ch) in_ch
-
-let input_weight in_ch =
-  parse_weight_lines (input_line in_ch) in_ch
 
 let output_explanation out_ch expl =
   match expl with
