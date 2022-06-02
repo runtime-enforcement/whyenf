@@ -21,13 +21,14 @@ MEASURE=$2
 
 # Flags:
 CHECK_FLAG=$3
+WEIGHT_FLAG=$4
 
 usage () {
-    printf "usage: run_tests.sh [n_seeds] [measure] [check or no-check]\n"
+    printf "usage: run_tests.sh [n_seeds] [measure] [check or no-check] [weight or no-weight]\n"
     exit 1
 }
 
-if ! [[ "${N_SEEDS}" =~ ^[0-9]+$ ]] || [[ "${MEASURE}" != "size" ]] || ! [ "$#" -eq 3 ]
+if ! [[ "${N_SEEDS}" =~ ^[0-9]+$ ]] || [[ "${MEASURE}" != "size" ]] || ! [ "$#" -eq 4 ]
 then
     usage
 fi
@@ -51,7 +52,15 @@ for i in "${SIZES[@]}"; do
                 then
                     printf "<@> Running ${N_SEEDS} verified tests with parameters\n"
                     printf "<@> { size = $i | scale = $j | er = $k | delta = $l }\n"
-                    time parallel ./test_seed.sh check simp $i $j $k $l "${MEASURE}" ::: "${SEEDS}"
+
+                    if [[ "${WEIGHT_FLAG}" == "weight" ]]
+                    then
+                        printf "<@> Loading random weights... Done.\n"
+                        time parallel ./test_seed.sh check weight simp $i $j $k $l "${MEASURE}" ::: "${SEEDS}"
+                    else
+                        time parallel ./test_seed.sh check no-weight simp $i $j $k $l "${MEASURE}" ::: "${SEEDS}"
+                    fi
+
                     ./clean.sh
                     printf "\n"
                 else
@@ -59,14 +68,21 @@ for i in "${SIZES[@]}"; do
                     then
                         printf "<@> Running ${N_SEEDS} tests with parameters\n"
                         printf "<@> { size = $i | scale = $j | er = $k | delta = $l }\n"
-                        time parallel ./test_seed.sh no-check simp $i $j $k $l "${MEASURE}" ::: "${SEEDS}"
+
+                        if [[ "${WEIGHT_FLAG}" == "weight" ]]
+                        then
+                            printf "<@> Loading random weights... Done.\n"
+                            time parallel ./test_seed.sh no-check weight simp $i $j $k $l "${MEASURE}" ::: "${SEEDS}"
+                        else
+                            time parallel ./test_seed.sh no-check no-weight simp $i $j $k $l "${MEASURE}" ::: "${SEEDS}"
+                        fi
+
                         ./clean.sh
                         printf "\n"
                     else
                         usage
                     fi
                 fi
-
             done
         done
     done
