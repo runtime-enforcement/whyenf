@@ -182,35 +182,35 @@ let rec s_wsize ws = function
   | SAtom (_, s) -> (match Hashtbl.find_opt ws s with
                      | None -> 1
                      | Some(w) -> w)
-  | SNeg expl -> 1 + v_size expl
-  | SDisjL sphi -> 1 + s_size sphi
-  | SDisjR spsi -> 1 + s_size spsi
-  | SConj (sphi, spsi) -> 1 + s_size sphi + s_size spsi
-  | SPrev expl -> 1 + s_size expl
-  | SNext expl -> 1 + s_size expl
-  | SSince (spsi, sphis) -> 1 + s_size spsi + sum s_size sphis
-  | SUntil (spsi, sphis) -> 1 + s_size spsi + sum s_size sphis
+  | SNeg expl -> 1 + v_wsize ws expl
+  | SDisjL sphi -> 1 + s_wsize ws sphi
+  | SDisjR spsi -> 1 + s_wsize ws spsi
+  | SConj (sphi, spsi) -> 1 + (s_wsize ws sphi) + (s_wsize ws spsi)
+  | SPrev expl -> 1 + s_wsize ws expl
+  | SNext expl -> 1 + s_wsize ws expl
+  | SSince (spsi, sphis) -> 1 + (s_wsize ws spsi) + (sum (s_wsize ws) sphis)
+  | SUntil (spsi, sphis) -> 1 + (s_wsize ws spsi) + (sum (s_wsize ws) sphis)
 and v_wsize ws = function
   | VFF _ -> 1
   | VAtom (_, s) -> (match Hashtbl.find_opt ws s with
                      | None -> 1
                      | Some(w) -> w)
-  | VNeg sphi -> 1 + s_size sphi
-  | VDisj (vphi, vpsi) -> 1 + v_size vphi + v_size vpsi
-  | VConjL vphi -> 1 + v_size vphi
-  | VConjR vpsi -> 1 + v_size vpsi
+  | VNeg sphi -> 1 + s_wsize ws sphi
+  | VDisj (vphi, vpsi) -> 1 + v_wsize ws vphi + v_wsize ws vpsi
+  | VConjL vphi -> 1 + v_wsize ws vphi
+  | VConjR vpsi -> 1 + v_wsize ws vpsi
   | VPrev0 -> 1
   | VPrevOutL _ -> 1
   | VPrevOutR _ -> 1
-  | VPrev vphi -> 1 + v_size vphi
+  | VPrev vphi -> 1 + v_wsize ws vphi
   | VNextOutL _ -> 1
   | VNextOutR _ -> 1
-  | VNext vphi -> 1 + v_size vphi
-  | VSince (_, vphi, vpsis) -> 1 + v_size vphi + sum v_size vpsis
-  | VSinceInf (_, _, vpsis) -> 1 + sum v_size vpsis
+  | VNext vphi -> 1 + v_wsize ws vphi
+  | VSince (_, vphi, vpsis) -> 1 + v_wsize ws vphi + (sum (v_wsize ws) vpsis)
+  | VSinceInf (_, _, vpsis) -> 1 + (sum (v_wsize ws) vpsis)
   | VSinceOutL _ -> 1
-  | VUntil (_, vphi, vpsis) -> 1 + v_size vphi + sum v_size vpsis
-  | VUntilInf (_, _, vpsis) -> 1 + sum v_size vpsis
+  | VUntil (_, vphi, vpsis) -> 1 + v_wsize ws vphi + (sum (v_wsize ws) vpsis)
+  | VUntilInf (_, _, vpsis) -> 1 + (sum (v_wsize ws) vpsis)
 
 let wsize ws = function
   | S sp -> s_wsize ws sp
