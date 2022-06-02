@@ -28,19 +28,7 @@ exception NOT_FOUND of string
 
 let minimuml le l = match l with
   | [] -> failwith "empty list for minimuml"
-  | x::xs -> List.fold_left xs ~init:x ~f:(fun a b ->
-                 (* Printf.printf "-------------START-------------\n";
-                  * Printf.printf "a = %s\n" (expl_to_string a);
-                  * Printf.printf "b = %s\n" (expl_to_string b); *)
-                 if le a b then (
-                   (* Printf.printf " A \n";
-                    * Printf.printf "--------------END--------------\n"; *)
-                   a)
-                 else (
-                   (* Printf.printf " B \n";
-                    * Printf.printf "--------------END--------------\n"; *)
-                   b)
-               )
+  | x::xs -> List.fold_left xs ~init:x ~f:(fun a b -> if le a b then a else b)
 
 let sappend_to_deque sp1 d =
   let () = Deque.iteri d ~f:(fun i (ts, ssp) ->
