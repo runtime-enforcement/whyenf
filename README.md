@@ -103,8 +103,8 @@ from inside the [formalization](formalization/) folder.
 
 #### Weights
 ```
-{WEIGHTS} :=   {ATOM}: {NAT}*
-             | {ATOM}: {NAT}* \n {WEIGHTS}
+{WEIGHTS} :=   {ATOM}: {NAT}
+             | {ATOM}: {NAT} \n {WEIGHTS}
 ```
 
 ## License
