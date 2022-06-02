@@ -101,6 +101,12 @@ from inside the [formalization](formalization/) folder.
            | @{NAT} {ATOM}* \n {TRACE}
 ```
 
+#### Weights
+```
+{WEIGHTS} :=   {ATOM}: {NAT}*
+             | {ATOM}: {NAT}* \n {WEIGHTS}
+```
+
 ## License
 
 This project is licensed under the GNU Lesser GPL-3.0 license - see [LICENSE](LICENSE) for details.
