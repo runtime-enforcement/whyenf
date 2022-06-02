@@ -3,23 +3,24 @@
 # ./test_seed.sh no-check verb 10 1 1 4 size 144
 
 # Input parameters:
-MODE=$2
-SIZE=$3
-SCALE=$4
-ER=$5
-DELTA=$6
-MEASURE=$7
-SEED=$8
+MODE=$3
+SIZE=$4
+SCALE=$5
+ER=$6
+DELTA=$7
+MEASURE=$8
+SEED=$9
 
 # Flags:
 CHECK_FLAG=$1
+WEIGHT_FLAG=$2
 
 # Variables:
 PREFIX="TMP_${SIZE}_${SCALE}_${ER}_${DELTA}_${MEASURE}_${SEED}"
 OUT=""
 
 usage () {
-    printf "usage: test_seed.sh [check or no-check] [mode] [size] [scale] [er] [delta] [measure] [seed]\n"
+    printf "usage: test_seed.sh [check or no-check] [weight or no-weight] [mode] [size] [scale] [er] [delta] [measure] [seed]\n"
     exit 1
 }
 
@@ -30,13 +31,25 @@ simp () {
 
     if [[ "${CHECK_FLAG}" = "check" ]]
     then
-        OUT=$(../bin/explanator2.exe -O ${MEASURE} -mode all -fmla tmp/${PREFIX}.mdl -log tmp/${PREFIX}.log -out_mode plain \
-                                    -check 2>&1)
+        if [[ "${WEIGHT_FLAG}" = "weight" ]]
+        then
+            OUT=$(../bin/explanator2.exe -O ${MEASURE} -mode all -fmla tmp/${PREFIX}.mdl -log tmp/${PREFIX}.log \
+                                         -check -out_mode plain -weights test_weights.ws 2>&1)
+        else
+            OUT=$(../bin/explanator2.exe -O ${MEASURE} -mode all -fmla tmp/${PREFIX}.mdl -log tmp/${PREFIX}.log -out_mode plain \
+                                         -check 2>&1)
+        fi
     else
         if [[ "${CHECK_FLAG}" = "no-check" ]]
         then
-            OUT=$(../bin/explanator2.exe -O ${MEASURE} -mode all -fmla tmp/${PREFIX}.mdl -log tmp/${PREFIX}.log -out_mode plain \
-                                        2>&1)
+            if [[ "${WEIGHT_FLAG}" = "weight" ]]
+            then
+                OUT=$(../bin/explanator2.exe -O ${MEASURE} -mode all -fmla tmp/${PREFIX}.mdl -log tmp/${PREFIX}.log \
+                                             -out_mode plain -weights test_weights.ws 2>&1)
+            else
+                OUT=$(../bin/explanator2.exe -O ${MEASURE} -mode all -fmla tmp/${PREFIX}.mdl -log tmp/${PREFIX}.log -out_mode plain \
+                                              2>&1)
+            fi
         else
             usage
         fi
@@ -71,13 +84,25 @@ verb () {
 
     if [[ "${CHECK_FLAG}" = "check" ]]
     then
-        OUT=$(../bin/explanator2.exe -O ${MEASURE} -mode all -fmla tmp/${PREFIX}.mdl -log tmp/${PREFIX}.log -out_mode plain \
-                                    -check 2>&1)
+        if [[ "${WEIGHT_FLAG}" = "weight" ]]
+        then
+            OUT=$(../bin/explanator2.exe -O ${MEASURE} -mode all -fmla tmp/${PREFIX}.mdl -log tmp/${PREFIX}.log \
+                                         -check -out_mode plain -weights test_weights.ws 2>&1)
+        else
+            OUT=$(../bin/explanator2.exe -O ${MEASURE} -mode all -fmla tmp/${PREFIX}.mdl -log tmp/${PREFIX}.log -out_mode plain \
+                                         -check 2>&1)
+        fi
     else
         if [[ "${CHECK_FLAG}" = "no-check" ]]
         then
-            OUT=$(../bin/explanator2.exe -O ${MEASURE} -mode all -fmla tmp/${PREFIX}.mdl -log tmp/${PREFIX}.log -out_mode plain \
-                                        2>&1)
+            if [[ "${WEIGHT_FLAG}" = "weight" ]]
+            then
+                OUT=$(../bin/explanator2.exe -O ${MEASURE} -mode all -fmla tmp/${PREFIX}.mdl -log tmp/${PREFIX}.log \
+                                             -out_mode plain -weights test_weights.ws 2>&1)
+            else
+                OUT=$(../bin/explanator2.exe -O ${MEASURE} -mode all -fmla tmp/${PREFIX}.mdl -log tmp/${PREFIX}.log -out_mode plain \
+                                              2>&1)
+            fi
         else
             usage
         fi
@@ -107,7 +132,7 @@ verb () {
     printf "\n"
 }
 
-if [ "$#" -eq 8 ]
+if [ "$#" -eq 9 ]
 then
     if [[ "${MODE}" == "simp" ]]
     then simp
