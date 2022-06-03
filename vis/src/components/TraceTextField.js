@@ -4,7 +4,7 @@ import TextField from '@mui/material/TextField';
 
 export default function TraceTextField ({ trace, setFormState }) {
 
-  const [localTrace, setLocalTrace] = useState(trace);
+  const [localTrace, setLocalTrace] = useState("");
   const [rows, setRows] = useState(10);
 
   const ref = React.createRef();
@@ -20,7 +20,7 @@ export default function TraceTextField ({ trace, setFormState }) {
   useEffect(() => {
     setRows(ref.current.clientHeight/25.5);
     setLocalTrace(trace);
-  }, [trace, setLocalTrace, rows, setRows, ref]);
+  }, [trace, setLocalTrace]);
 
   return (
     <Box
