@@ -48,13 +48,23 @@ to obtain the executable **explanator2.exe** inside the folder [bin](bin/). More
 $ ./bin/explanator2.exe --help
 ```
 
-will print the usage statement. When finished,
+will print the usage statement. For instance, you can run one of our predefined examples:
+
+```
+$ ./bin/explanator2.exe -fmla examples/paper/ex1.mtl -log examples/paper/ex1.log -O size -check
+```
+
+Alternatively, you can assign different weights to the atomic propositions:
+
+```
+./bin/explanator2.exe -fmla examples/paper/ex1.mtl -log examples/paper/ex1.log -O size -weights examples/paper/ex1.ws -check
+```
+
+You can remove the binary and clean the working directory with
 
 ```
 $ dune clean
 ```
-
-will remove the binary and clean the working directory.
 
 ### Formalization
 
