@@ -12,6 +12,7 @@ The source code of the project is available <a style="color: #977b01;" href="htt
 
 We welcome suggestions! Please let us know what do you think <a style="color: #977b01;" href="https://github.com/runtime-monitoring/explanator2/issues" target="_blank">here</a>.
 
-<p style="text-align:center;">
-    <img alt="Monitoring button" src="./assets/ku_logo.png" width="25%" height="25%" />
+
+<p style="margin: 0 auto; display: block; float: none; max-width: 400px">
+    <img alt="University of Copenhagen's logo" src="./assets/ku_logo.png" style="max-width: 100%; height: auto;" />
 </p>
