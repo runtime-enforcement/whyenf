@@ -13,9 +13,11 @@ export default function NavBar() {
         <Toolbar>
           <Typography variant="h5" component="div" sx={{ flexGrow: 1 }}>
             <Link to="/" style={{ textDecoration: 'none' }}>
-              <Typography variant="h5" color="secondary">
-                Explanator2
-              </Typography>
+              <Button color="secondary">
+                <Typography variant="h6" component="div">
+                  Explanator2
+                </Typography>
+              </Button>
             </Link>
           </Typography>
           <Link to="/help" style={{ textDecoration: 'none' }}>
