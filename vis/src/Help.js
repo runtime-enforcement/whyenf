@@ -19,7 +19,7 @@ export default function Help() {
 
   return (
     <Box style={{ height: '100vh', margin: 0, padding: 0 }}>
-      <Container maxWidth={false}>
+      <Container maxWidth={false} sx={{ pb: 4 }}>
         <Box sx={{ mt: 11 }}>
           <Card variant="outlined">
             <CardContent sx={{ mt: -2}}>

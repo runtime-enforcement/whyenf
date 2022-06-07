@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import ReactMarkdown from 'react-markdown';
+import rehypeRaw from 'rehype-raw'
 import Box from '@mui/material/Box';
 import Container from '@mui/material/Container';
 import Card from '@mui/material/Card';
@@ -18,11 +19,11 @@ export default function About() {
 
   return (
     <Box style={{ height: '100vh', margin: 0, padding: 0 }}>
-      <Container maxWidth={false}>
+      <Container maxWidth={false} sx={{ pb: 4 }}>
         <Box sx={{ mt: 11 }}>
           <Card variant="outlined">
             <CardContent sx={{ mt: -2 }}>
-              <ReactMarkdown children={content} />
+              <ReactMarkdown rehypePlugins={[rehypeRaw]} children={content} />
             </CardContent>
           </Card>
         </Box>
