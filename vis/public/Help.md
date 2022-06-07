@@ -37,7 +37,7 @@ Alternatively, you can write your own Metric Temporal Logic specification and tr
 
 Once you have a valid MTL formula and trace, you can enter the monitoring state by clicking on the button:
 
-<img alt="Monitoring button" src="./assets/monitoring_button.png" width="15%" height="15%" style="margin:0px 25px" />
+<img alt="Button to start monitoring state" src="./assets/monitoring_button.png" style="margin:0px 25px; max-width: 200px; height: auto;" />
 
 At this point, you should be able to see a table with satisfactions and violations, where each row corresponds to a single event.
 The first columns consist of the atomic propositions occurring in your formula.
@@ -50,11 +50,11 @@ The first column corresponds to ϕ itself, and at every time-point where it is p
 Moreover, in the table header only the main operator of a subformula is shown.
 To see the entire subformula, you can hover your cursor over a Boolean verdict:
 
-<img alt="Buttons in the monitoring state" src="./assets/popover.png" width="10%" height="10%" style="margin:0px 25px" />
+<img alt="Popover feature" src="./assets/popover.png" style="margin:0px 25px; max-width: 125px; height: auto;" />
 
 In addition, you can inspect a Boolean verdict by clicking on it:
 
-<img alt="Buttons in the monitoring state" src="./assets/click.png" width="18%" height="18%" style="margin:0px 25px" />
+<img alt="Verdict inspection" src="./assets/click.png" style="margin:0px 25px; max-width: 230px; height: auto;" />
 
 Whenever you click on a Boolean verdict, the Explanator2 shows and highlights an explanation for the Boolean verdict currently being inspected.
 Furthermore, it also highlights the time interval associated with the corresponding subformula.
@@ -62,7 +62,7 @@ You may further inspect Boolean verdicts until you reach atomic propositions.
 
 In the monitoring state, three different buttons are displayed:
 
-<img alt="Buttons in the monitoring state" src="./assets/buttons.png" width="18%" height="18%" style="margin:0px 25px" />
+<img alt="Buttons in the monitoring state" src="./assets/buttons.png" style="margin:0px 25px; max-width: 250px; height: auto;" />
 
 You can add events to your trace using the text area on the left and clicking on the *plus* button.
 At every moment you can reset the state of your table by clicking on the *refresh* button.
