@@ -52,11 +52,16 @@ function TimeGrid ({ explanations,
     setAnchorEl(null);
   };
 
+  const apsWidth = apsColumns.reduce(
+    (acc, ap) => Math.max(acc, (10*(ap.length))),
+    60
+  );
+
   const apsGridColumns = apsColumns.slice(0).map((a, i) =>
     ({
       field: i.toString(),
       headerName: a,
-      width: 60,
+      width: apsWidth,
       sortable: false,
       renderHeader: () => a,
       renderCell: (params) => <Cell value={squares[params.row.tp][i]} />,
@@ -85,11 +90,16 @@ function TimeGrid ({ explanations,
     }
   ];
 
+  const subfsWidth = subfsColumns.reduce(
+    (acc, ap) => Math.max(acc, (10*(ap.length))),
+    60
+  );
+
   const subfsGridColumns = subfsColumns.slice(0).map((f, i) =>
     ({
       field: (i+apsColumns.length).toString(),
       headerName: f,
-      width: 60,
+      width: subfsWidth,
       sortable: false,
       renderHeader: () => f,
       renderCell: (params) => { return <Cell value={squares[params.row.tp][i+apsColumns.length]}
