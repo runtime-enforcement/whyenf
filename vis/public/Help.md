@@ -56,7 +56,8 @@ In addition, you can inspect a Boolean verdict by clicking on it:
 
 <img alt="Verdict inspection" src="./assets/click.png" style="margin:0px 25px; max-width: 230px; height: auto;" />
 
-Whenever you click on a Boolean verdict, the Explanator2 shows and highlights an explanation for the Boolean verdict currently being inspected.
+Whenever you click on a Boolean verdict, the Explanator2 shows and highlights the Boolean verdicts for subformulas that justify the verdict for the
+overall formula according to the standard MTL semantics.
 Furthermore, it also highlights the time interval associated with the corresponding subformula.
 You may further inspect Boolean verdicts until you reach atomic propositions.
 
