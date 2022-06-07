@@ -4,6 +4,8 @@ import Box from '@mui/material/Box';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
+import HelpIcon from '@mui/icons-material/Help';
+import InfoIcon from '@mui/icons-material/Info';
 import { Link } from 'react-router-dom';
 
 export default function NavBar() {
@@ -21,14 +23,14 @@ export default function NavBar() {
             </Link>
           </Typography>
           <Link to="/help" style={{ textDecoration: 'none' }}>
-            <Button color="secondary">
-              <Typography variant="button" component="div">
-              help
+            <Button color="secondary" startIcon={<HelpIcon />}>
+              <Typography variant="button" component="div" >
+                help
               </Typography>
             </Button>
           </Link>
           <Link to="/about" style={{ textDecoration: 'none' }}>
-            <Button color="secondary">
+            <Button color="secondary" startIcon={<InfoIcon />}>
               <Typography variant="button" component="div">
               about
               </Typography>
