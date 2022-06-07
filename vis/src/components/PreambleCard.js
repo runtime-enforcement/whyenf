@@ -9,12 +9,12 @@ const card = (
   <React.Fragment>
     <CardContent>
       <Typography variant="h6">
-        Welcome to the Explanator2,
+        Welcome to the Explanator2
       </Typography>
       <Typography variant="body2">
         This is a tool for online monitoring satisfaction and violation verdicts
         of Metric Temporal Logic formulas on arbitrary traces. <br />
-        For more details, click <Link to="/about" style={{ textDecoration: 'none' }}>here</Link>.
+        For more details, click <Link to="/about" style={{ color: '#977b01' }}>here</Link>.
       </Typography>
     </CardContent>
   </React.Fragment>
