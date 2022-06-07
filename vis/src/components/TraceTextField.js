@@ -42,7 +42,7 @@ export default function TraceTextField ({ trace, setFormState }) {
         onBlur={handleBlur}
         minRows={rows}
         maxRows={rows}
-        InputProps={{style: { minHeight: '65vh' }}}
+        InputProps={{style: { minHeight: '60vh' }}}
       />
     </Box>
   );

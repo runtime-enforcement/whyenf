@@ -139,7 +139,7 @@ function TimeGrid ({ explanations,
   };
 
   return (
-    <Box height="65vh"
+    <Box height="60vh"
          sx={{
            '& .cell--Highlighted': {
              backgroundColor: amber[300],
