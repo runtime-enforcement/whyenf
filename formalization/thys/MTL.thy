@@ -993,7 +993,7 @@ datatype 'a sproof = STT nat | SAtm 'a nat | SNeg "'a vproof" | SDisjL "'a sproo
     and 'a vproof = VFF nat | VAtm 'a nat | VNeg "'a sproof" | VDisj "'a vproof" "'a vproof"
   | VConjL "'a vproof" | VConjR "'a vproof" | VImpl "'a sproof" "'a vproof"
   | VIff_sv "'a sproof" "'a vproof" | VIff_vs "'a vproof" "'a sproof" 
-  | VOnce_le nat | VOnce_never nat "'a vproof list"
+  | VOnce_le nat | VOnce_never nat nat "'a vproof list"
   | VSince nat "'a vproof" "'a vproof list" | VUntil nat "'a vproof list" "'a vproof"
   | VSince_never nat nat "'a vproof list" | VUntil_never nat nat "'a vproof list" | VSince_le nat
   | VNext "'a vproof" | VNext_ge nat | VNext_le nat | VPrev "'a vproof" | VPrev_ge nat | VPrev_le nat
@@ -1269,7 +1269,7 @@ primrec comparator_sproof :: "('a \<Rightarrow> 'b \<Rightarrow> order) \<Righta
     | VIff_vs _ _ \<Rightarrow> Gt
     | VOnce_le i' \<Rightarrow> comparator_of i i'
     | _ \<Rightarrow> Lt)"
-| "comparator_vproof compa (VOnce_never i vps) rhs =
+| "comparator_vproof compa (VOnce_never i t vps) rhs =
     (case rhs of
       VFF _ \<Rightarrow> Gt
     | VAtm _ _ \<Rightarrow> Gt
@@ -1281,9 +1281,9 @@ primrec comparator_sproof :: "('a \<Rightarrow> 'b \<Rightarrow> order) \<Righta
     | VIff_sv _ _ \<Rightarrow> Gt
     | VIff_vs _ _ \<Rightarrow> Gt
     | VOnce_le _ \<Rightarrow> Gt
-    | VOnce_never i' vps' \<Rightarrow> (case comparator_of i i' of 
-                               Eq \<Rightarrow> comparator_list' (\<lambda>f x. f x) (map (comparator_vproof compa) vps) vps'
-                             | Lt \<Rightarrow> Lt | Gt \<Rightarrow> Gt)
+    | VOnce_never i' t' vps' \<Rightarrow> (case comparator_of i i' of 
+                                   Eq \<Rightarrow> (case comparator_of t t' of Eq \<Rightarrow> comparator_list' (\<lambda>f x. f x) (map (comparator_vproof compa) vps) vps' | Lt \<Rightarrow> Lt | Gt \<Rightarrow> Gt)
+                                 | Lt \<Rightarrow> Lt | Gt \<Rightarrow> Gt)
     | _ \<Rightarrow> Lt)"
 | "comparator_vproof compa (VSince i vp1 vp2s) rhs =
     (case rhs of
@@ -1297,7 +1297,7 @@ primrec comparator_sproof :: "('a \<Rightarrow> 'b \<Rightarrow> order) \<Righta
     | VIff_sv _ _ \<Rightarrow> Gt
     | VIff_vs _ _ \<Rightarrow> Gt
     | VOnce_le _ \<Rightarrow> Gt
-    | VOnce_never _ _ \<Rightarrow> Gt
+    | VOnce_never _ _ _ \<Rightarrow> Gt
     | VSince i' vp1' vp2s' \<Rightarrow> (case comparator_of i i' of 
                                 Eq \<Rightarrow> (case comparator_vproof compa vp1 vp1' of
                                         Eq \<Rightarrow> comparator_list' (\<lambda>f x. f x) (map (comparator_vproof compa) vp2s) vp2s'
@@ -1316,7 +1316,7 @@ primrec comparator_sproof :: "('a \<Rightarrow> 'b \<Rightarrow> order) \<Righta
     | VIff_sv _ _ \<Rightarrow> Gt
     | VIff_vs _ _ \<Rightarrow> Gt
     | VOnce_le _ \<Rightarrow> Gt
-    | VOnce_never _ _ \<Rightarrow> Gt
+    | VOnce_never _ _ _ \<Rightarrow> Gt
     | VSince _ _ _ \<Rightarrow> Gt
     | VUntil i' vp2s' vp1' \<Rightarrow> (case comparator_of i i' of 
                                 Eq \<Rightarrow> (case comparator_vproof compa vp1 vp1' of
@@ -1336,12 +1336,12 @@ primrec comparator_sproof :: "('a \<Rightarrow> 'b \<Rightarrow> order) \<Righta
     | VIff_sv _ _ \<Rightarrow> Gt
     | VIff_vs _ _ \<Rightarrow> Gt
     | VOnce_le _ \<Rightarrow> Gt
-    | VOnce_never _ _ \<Rightarrow> Gt
+    | VOnce_never _ _ _ \<Rightarrow> Gt
     | VSince _ _ _ \<Rightarrow> Gt
     | VUntil _ _ _ \<Rightarrow> Gt
     | VSince_never i' t' vp2s' \<Rightarrow> (case comparator_of i i' of 
                                    Eq \<Rightarrow> (case comparator_of t t' of Eq \<Rightarrow> comparator_list' (\<lambda>f x. f x) (map (comparator_vproof compa) vp2s) vp2s' | Lt \<Rightarrow> Lt | Gt \<Rightarrow> Gt)
-                                 | Lt \<Rightarrow> Lt | Gt \<Rightarrow> Gt)
+                                  | Lt \<Rightarrow> Lt | Gt \<Rightarrow> Gt)
     | _ \<Rightarrow> Lt)"
 | "comparator_vproof compa (VUntil_never i t vp2s) rhs =
     (case rhs of
@@ -1355,7 +1355,7 @@ primrec comparator_sproof :: "('a \<Rightarrow> 'b \<Rightarrow> order) \<Righta
     | VIff_sv _ _ \<Rightarrow> Gt
     | VIff_vs _ _ \<Rightarrow> Gt
     | VOnce_le _ \<Rightarrow> Gt
-    | VOnce_never _ _ \<Rightarrow> Gt
+    | VOnce_never _ _ _ \<Rightarrow> Gt
     | VSince _ _ _ \<Rightarrow> Gt
     | VUntil _ _ _ \<Rightarrow> Gt
     | VSince_never _ _ _ \<Rightarrow> Gt
@@ -1375,7 +1375,7 @@ primrec comparator_sproof :: "('a \<Rightarrow> 'b \<Rightarrow> order) \<Righta
     | VIff_sv _ _ \<Rightarrow> Gt
     | VIff_vs _ _ \<Rightarrow> Gt
     | VOnce_le _ \<Rightarrow> Gt
-    | VOnce_never _ _ \<Rightarrow> Gt
+    | VOnce_never _ _ _ \<Rightarrow> Gt
     | VSince _ _ _ \<Rightarrow> Gt
     | VUntil _ _ _ \<Rightarrow> Gt
     | VSince_never _ _ _ \<Rightarrow> Gt
@@ -1394,7 +1394,7 @@ primrec comparator_sproof :: "('a \<Rightarrow> 'b \<Rightarrow> order) \<Righta
     | VIff_sv _ _ \<Rightarrow> Gt
     | VIff_vs _ _ \<Rightarrow> Gt
     | VOnce_le _ \<Rightarrow> Gt
-    | VOnce_never _ _ \<Rightarrow> Gt
+    | VOnce_never _ _ _ \<Rightarrow> Gt
     | VSince _ _ _ \<Rightarrow> Gt
     | VUntil _ _ _ \<Rightarrow> Gt
     | VSince_never _ _ _ \<Rightarrow> Gt
@@ -1414,7 +1414,7 @@ primrec comparator_sproof :: "('a \<Rightarrow> 'b \<Rightarrow> order) \<Righta
     | VIff_sv _ _ \<Rightarrow> Gt
     | VIff_vs _ _ \<Rightarrow> Gt
     | VOnce_le _ \<Rightarrow> Gt
-    | VOnce_never _ _ \<Rightarrow> Gt
+    | VOnce_never _ _ _ \<Rightarrow> Gt
     | VSince _ _ _ \<Rightarrow> Gt
     | VUntil _ _ _ \<Rightarrow> Gt
     | VSince_never _ _ _ \<Rightarrow> Gt
@@ -1435,7 +1435,7 @@ primrec comparator_sproof :: "('a \<Rightarrow> 'b \<Rightarrow> order) \<Righta
     | VIff_sv _ _ \<Rightarrow> Gt
     | VIff_vs _ _ \<Rightarrow> Gt
     | VOnce_le _ \<Rightarrow> Gt
-    | VOnce_never _ _ \<Rightarrow> Gt
+    | VOnce_never _ _ _ \<Rightarrow> Gt
     | VSince _ _ _ \<Rightarrow> Gt
     | VUntil _ _ _ \<Rightarrow> Gt
     | VSince_never _ _ _ \<Rightarrow> Gt
@@ -1457,7 +1457,7 @@ primrec comparator_sproof :: "('a \<Rightarrow> 'b \<Rightarrow> order) \<Righta
     | VIff_sv _ _ \<Rightarrow> Gt
     | VIff_vs _ _ \<Rightarrow> Gt
     | VOnce_le _ \<Rightarrow> Gt
-    | VOnce_never _ _ \<Rightarrow> Gt
+    | VOnce_never _ _ _ \<Rightarrow> Gt
     | VSince _ _ _ \<Rightarrow> Gt
     | VUntil _ _ _ \<Rightarrow> Gt
     | VSince_never _ _ _ \<Rightarrow> Gt
@@ -1480,7 +1480,7 @@ primrec comparator_sproof :: "('a \<Rightarrow> 'b \<Rightarrow> order) \<Righta
     | VIff_sv _ _ \<Rightarrow> Gt
     | VIff_vs _ _ \<Rightarrow> Gt
     | VOnce_le _ \<Rightarrow> Gt
-    | VOnce_never _ _ \<Rightarrow> Gt
+    | VOnce_never _ _ _ \<Rightarrow> Gt
     | VSince _ _ _ \<Rightarrow> Gt
     | VUntil _ _ _ \<Rightarrow> Gt
     | VSince_never _ _ _ \<Rightarrow> Gt
@@ -1504,7 +1504,7 @@ primrec comparator_sproof :: "('a \<Rightarrow> 'b \<Rightarrow> order) \<Righta
     | VIff_sv _ _ \<Rightarrow> Gt
     | VIff_vs _ _ \<Rightarrow> Gt
     | VOnce_le _ \<Rightarrow> Gt
-    | VOnce_never _ _ \<Rightarrow> Gt
+    | VOnce_never _ _ _ \<Rightarrow> Gt
     | VSince _ _ _ \<Rightarrow> Gt
     | VUntil _ _ _ \<Rightarrow> Gt
     | VSince_never _ _ _ \<Rightarrow> Gt
@@ -1529,7 +1529,7 @@ primrec comparator_sproof :: "('a \<Rightarrow> 'b \<Rightarrow> order) \<Righta
     | VIff_sv _ _ \<Rightarrow> Gt
     | VIff_vs _ _ \<Rightarrow> Gt
     | VOnce_le _ \<Rightarrow> Gt
-    | VOnce_never _ _ \<Rightarrow> Gt
+    | VOnce_never _ _ _ \<Rightarrow> Gt
     | VSince _ _ _ \<Rightarrow> Gt
     | VUntil _ _ _ \<Rightarrow> Gt
     | VSince_never _ _ _ \<Rightarrow> Gt
@@ -1791,7 +1791,7 @@ next
   then show ?case
     by (simp add: comparator_of_def split: sproof.splits vproof.splits order.splits if_splits)
 next
-  case (VOnce_never x1 x2)
+  case (VOnce_never x1 x2 x3)
   then show ?case
     using comparator_list_pointwise(3)[unfolded ptrans_comp_def, of _ "comparator_vproof compa"]
     by (simp add: comparator_of_def split: sproof.splits vproof.splits order.splits if_splits)
@@ -1922,7 +1922,7 @@ fun s_at and v_at where
 | "v_at (VPrev_le n) = n"
 | "v_at (VPrev_zero) = 0"
 | "v_at (VOnce_le n) = n"
-| "v_at (VOnce_never n vphi) = n"
+| "v_at (VOnce_never n li vphi) = n"
 | "v_at (VSince n vpsi vphis) = n"
 | "v_at (VSince_le n) = n"
 | "v_at (VUntil n vphis vpsi) = n"
@@ -1948,6 +1948,9 @@ fun s_check and v_check where
   | (Impl phi psi, SImplR spsi) \<Rightarrow> s_check psi spsi
   | (Iff phi psi, SIff_ss sphi spsi) \<Rightarrow> s_check phi sphi \<and> s_check psi spsi \<and> s_at sphi = s_at spsi
   | (Iff phi psi, SIff_vv vphi vpsi) \<Rightarrow> v_check phi vphi \<and> v_check psi vpsi \<and> v_at vphi = v_at vpsi
+  | (Once I phi, SOnce i sphi) \<Rightarrow> 
+    (let j = s_at sphi
+    in j \<le> i \<and> mem (\<tau> rho i - \<tau> rho j) I \<and> s_check phi sphi)
   | (Since phi I psi, SSince spsi sphis) \<Rightarrow>
     (let i = s_at (SSince spsi sphis); j = s_at spsi
     in j \<le> i \<and> mem (\<tau> rho i - \<tau> rho j) I \<and> map s_at sphis = [Suc j ..< Suc i] \<and> s_check psi spsi
@@ -1981,6 +1984,13 @@ fun s_check and v_check where
   | (Impl phi psi, VImpl sphi vpsi) \<Rightarrow> s_check phi sphi \<and> v_check psi vpsi \<and> s_at sphi = v_at vpsi
   | (Iff phi psi, VIff_sv sphi vpsi) \<Rightarrow> s_check phi sphi \<and> v_check psi vpsi \<and> s_at sphi = v_at vpsi
   | (Iff phi psi, VIff_vs vphi spsi) \<Rightarrow> v_check phi vphi \<and> s_check psi spsi \<and> v_at vphi = s_at spsi
+  | (Once I phi, VOnce_le i) \<Rightarrow> 
+    \<tau> rho i < \<tau> rho 0 + left I
+  | (Once I phi, VOnce_never i li vphis) \<Rightarrow>
+    (li = (case right I of \<infinity> \<Rightarrow> 0 | enat n \<Rightarrow> ETP rho (\<tau> rho i - n))
+    \<and> \<tau> rho 0 + left I \<le> \<tau> rho i
+    \<and> map v_at vphis = [li ..< Suc (l rho i I)]
+    \<and> (\<forall>vphi \<in> set vphis. v_check phi vphi))
   | (Since phi I psi, VSince_le i) \<Rightarrow>
     \<tau> rho i < \<tau> rho 0 + left I
   | (Since phi I psi, VSince i vphi vpsis) \<Rightarrow>
@@ -2110,6 +2120,19 @@ next
       done
   qed auto
 next
+  case (SOnce i sphi)
+  then show ?case
+  proof (cases phi)
+    case (Once I phi)
+    show ?thesis
+      using SOnce
+      unfolding Once
+      apply (intro SAT_VIO.SOnce[of "s_at sphi"])
+        apply (auto simp: Let_def le_Suc_eq Cons_eq_append_conv Cons_eq_upt_conv 
+                split: if_splits list.splits)
+      done
+  qed auto
+next
   case (SUntil sphis spsi)
   then show ?case
   proof (cases phi)
@@ -2160,29 +2183,56 @@ next
   case VIff_vs
   then show ?case by (cases phi) (auto intro: SAT_VIO.VIff_vs)
 next
+  case VOnce_le
+  then show ?case by (cases phi) (auto intro: SAT_VIO.VOnce_le)
+next
+  case (VOnce_never i li vphis)
+  then show ?case
+  proof (cases phi)
+    case (Once I phi)
+    {fix k
+      define j where j_def: "j \<equiv> case right I of \<infinity> \<Rightarrow> 0 | enat n \<Rightarrow> ETP rho (\<tau> rho i - n)"
+      assume k_def: "k \<ge> j \<and> k \<le> i \<and> k \<le> LTP rho (\<tau> rho i - left I)"
+      from VOnce_never Once j_def have map: "set (map v_at vphis) = set [j ..< Suc (l rho i I)]"
+        by (auto simp: Let_def)
+      then have kset: "k \<in> set ([j ..< Suc (l rho i I)])" using j_def k_def by auto
+      then obtain x where x: "x \<in> set vphis"  "v_at x = k" using k_def map
+        apply auto
+        apply (metis imageE insertI1)
+      by (metis List.List.list.set_map imageE kset map)
+      then have "VIO rho k phi" using VOnce_never unfolding Once
+        by (auto simp: Let_def)
+      } note * = this
+    show ?thesis
+      using VOnce_never
+      unfolding Once
+      apply (auto simp: Let_def intro!: SAT_VIO.VOnce_never)
+      using VOnce_never.IH *  by (auto split: if_splits)
+  qed (auto intro: SAT_VIO.intros)
+next
   case VNext
-  then show ?case by (cases phi) (auto intro: SAT_VIO.VNext SAT_VIO.VPrev_zero)
+  then show ?case by (cases phi) (auto intro: SAT_VIO.VNext)
 next
   case VNext_ge
-  then show ?case by (cases phi) (auto intro: SAT_VIO.VNext_ge SAT_VIO.VPrev_zero)
+  then show ?case by (cases phi) (auto intro: SAT_VIO.VNext_ge)
 next
   case VNext_le
-  then show ?case by (cases phi) (auto intro: SAT_VIO.VNext_le SAT_VIO.VPrev_zero)
+  then show ?case by (cases phi) (auto intro: SAT_VIO.VNext_le)
 next
   case VPrev
-  then show ?case by (cases phi) (auto intro: SAT_VIO.VPrev SAT_VIO.VPrev_zero)
+  then show ?case by (cases phi) (auto intro: SAT_VIO.VPrev)
 next
   case VPrev_ge
-  then show ?case by (cases phi) (auto intro: SAT_VIO.VPrev_ge SAT_VIO.VPrev_zero)
+  then show ?case by (cases phi) (auto intro: SAT_VIO.VPrev_ge)
 next
   case VPrev_le
-  then show ?case by (cases phi) (auto intro: SAT_VIO.VPrev_le SAT_VIO.VPrev_zero)
+  then show ?case by (cases phi) (auto intro: SAT_VIO.VPrev_le)
 next
   case VPrev_zero
   then show ?case by (cases phi) (auto intro: SAT_VIO.VPrev_zero)
 next
   case VSince_le
-  then show ?case by (cases phi) (auto intro: SAT_VIO.VPrev_zero SAT_VIO.VSince_le)
+  then show ?case by (cases phi) (auto intro: SAT_VIO.VSince_le)
 next
   case (VSince i vphi vpsi)
   then show ?case
@@ -2703,6 +2753,21 @@ next
   }
   ultimately show ?case by blast
 next
+(*   case (OnceBF phi I)
+  {assume "SAT rho i (Once I phi)"
+    then have "\<exists>sphi. s_at sphi = i \<and> s_check (Once I phi) sphi"
+    proof (cases)
+      case (SOnce j)
+      then obtain sphi where sphi: "s_at sphi = j \<and> s_check phi sphi" using OnceBF by blast
+      {assume "Suc j > i"
+        then have "s_at (SOnce sphi) = i \<and> s_check (Once I phi) (SOnce sphi [])"
+          using spsi SSince by auto
+        then have "\<exists>sphi. s_at sphi = i \<and> s_check (Since phi I psi) sphi" by blast
+      }
+    } *)
+
+
+
   case (UntilBF I phi psi)
   {assume "SAT rho i (Until phi I psi)"
     then have "\<exists>sphi. s_at sphi = i \<and> s_check (Until phi I psi) sphi"
