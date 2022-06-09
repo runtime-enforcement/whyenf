@@ -46,7 +46,6 @@ module Explanator2 = struct
        \t\t viol   - output only violation explanations
        \t -O (measure)
        \t\t size   - optimize proof size (default)
-       \t\t wsize  - optimize weighted proof size
        \t\t none   - pick any proof
        \t -weights
        \t\t <file> - atom weights file
@@ -71,7 +70,7 @@ module Explanator2 = struct
     raise UNEXPECTED_EXIT
 
   let measure_error () =
-    Format.eprintf "measure should be either \"size\", \"wsize\" or \"none\" (without quotes)\n%!";
+    Format.eprintf "measure should be either \"size\" or \"none\" (without quotes)\n%!";
     raise UNEXPECTED_EXIT
 
   let process_args =
@@ -83,7 +82,7 @@ module Explanator2 = struct
          out_mode_ref :=
            (match out_mode with
             | "plain" | "PLAIN" | "Plain" -> PLAIN
-            | "json" | "JSON" | "Json" -> JSON
+            | "json"  | "JSON"  | "Json" -> JSON
             | "debug" | "DEBUG" | "Debug" -> DEBUG
             | _ -> mode_error ());
          go args
