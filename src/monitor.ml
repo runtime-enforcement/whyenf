@@ -718,7 +718,9 @@ module Until = struct
                                 | Some(_, vp2) -> (v_at vp2) in
                               [V (VUntilInf (tp, ltp, betas_suffix))]
                             else [] in
-                 Deque.enqueue_back muaux.optimal_proofs (ts, minimuml le (p1_l @ p2_l @ p3_l)))) in
+                 let cps = p1_l @ p2_l @ p3_l in
+                 if List.length cps > 0 then
+                   Deque.enqueue_back muaux.optimal_proofs (ts, minimuml le cps))) in
     let muaux = adjust_muaux a (nts, ntp) muaux le in
     (* let () = Printf.printf "\nafter: %s\n" (muaux_to_string muaux) in *)
     muaux
@@ -1016,6 +1018,7 @@ let meval' ts tp sap mform le =
        (* let () = Printf.printf "----------%s\n" (Since.msaux_to_string msaux') in *)
        (ps, MSince (interval, mf1', mf2', buf', tss_tps', msaux'))
     | MUntil (interval, mf1, mf2, buf, tss_tps, muaux) ->
+       (* let () = Printf.printf "----------%s\n" (Until.muaux_to_string muaux) in *)
        let (p1s, mf1') = meval tp ts sap mf1 in
        let (p2s, mf2') = meval tp ts sap mf2 in
        let () = Deque.enqueue_back tss_tps (ts, tp) in
