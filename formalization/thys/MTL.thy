@@ -2753,21 +2753,49 @@ next
   }
   ultimately show ?case by blast
 next
-(*   case (OnceBF phi I)
+case (OnceBF phi I)
   {assume "SAT rho i (Once I phi)"
     then have "\<exists>sphi. s_at sphi = i \<and> s_check (Once I phi) sphi"
     proof (cases)
       case (SOnce j)
       then obtain sphi where sphi: "s_at sphi = j \<and> s_check phi sphi" using OnceBF by blast
       {assume "Suc j > i"
-        then have "s_at (SOnce sphi) = i \<and> s_check (Once I phi) (SOnce sphi [])"
-          using spsi SSince by auto
-        then have "\<exists>sphi. s_at sphi = i \<and> s_check (Since phi I psi) sphi" by blast
+        then have "s_at (SOnce i sphi) = i \<and> s_check (Once I phi) (SOnce i sphi)"
+          using sphi SOnce by auto
+        then have "\<exists>sphi. s_at sphi = i \<and> s_check (Once I phi) sphi" by blast
       }
-    } *)
-
-
-
+      moreover
+      {assume j_i: "Suc j \<le> i"
+        have "s_at (SOnce i sphi) = i \<and> s_check (Once I phi) (SOnce i sphi)"
+          using sphi j_i SOnce
+          by (auto)
+      }
+      ultimately show ?thesis
+        using not_less by blast
+    qed
+  }
+  moreover
+  {assume "VIO rho i (Once I phi)"
+    then have "\<exists>vphi. v_at vphi = i \<and> v_check (Once I phi) vphi"
+    proof (cases)
+      case (VOnce_le)
+        then have "v_at (VOnce_le i) = i \<and> v_check (Once I phi) (VOnce_le i)"
+          by auto
+        then show ?thesis by blast
+      next
+        case (VOnce_never j)
+        from OnceBF VOnce_never obtain f where f_def: "\<forall>k \<in> {j .. l rho i I}. v_at (f k) = k \<and> v_check phi (f k)"
+          by atomize_elim (auto intro: bchoice)
+        then obtain vphis where vphis: "map (v_at) vphis = [j ..< Suc (l rho i I)]
+          \<and> (\<forall>vphi \<in> set vphis. v_check phi vphi)"
+          by atomize_elim (auto intro!: trans[OF list.map_cong list.map_id] exI[of _ "map f ([j ..< Suc (l rho i I)])"])
+        then have "v_at (VOnce_never i j vphis) = i \<and> v_check (Once I phi) (VOnce_never i j vphis)"
+        using VOnce_never by auto
+      then show ?thesis by blast
+    qed
+  }
+  ultimately show ?case by blast
+next
   case (UntilBF I phi psi)
   {assume "SAT rho i (Until phi I psi)"
     then have "\<exists>sphi. s_at sphi = i \<and> s_check (Until phi I psi) sphi"
@@ -2936,6 +2964,7 @@ definition proofApp :: "('a sproof + 'a vproof) \<Rightarrow> ('a sproof + 'a vp
    (Inl (SSince p1 p2), Inl r) \<Rightarrow> Inl (SSince p1 (p2 @ [r]))
  | (Inl (SUntil p1 p2), Inl r) \<Rightarrow> Inl (SUntil (r # p1) p2)
  | (Inr (VSince i p1 p2), Inr r) \<Rightarrow> Inr (VSince (Suc i) p1 (p2 @ [r]))
+ | (Inr (VOnce_never i li p1), Inr r) \<Rightarrow> Inr (VOnce_never (Suc i) li (p1 @ [r]))
  | (Inr (VSince_never i li p1), Inr r) \<Rightarrow> Inr (VSince_never (Suc i) li (p1 @ [r]))
  | (Inr (VUntil i p1 p2), Inr r) \<Rightarrow> Inr (VUntil (i-1) (r # p1) p2)
  | (Inr (VUntil_never i hi p1), Inr r) \<Rightarrow> Inr (VUntil_never (i-1) hi (r # p1)))"
@@ -2943,6 +2972,7 @@ definition proofApp :: "('a sproof + 'a vproof) \<Rightarrow> ('a sproof + 'a vp
 definition proofIncr :: "('a sproof + 'a vproof) \<Rightarrow> ('a sproof + 'a vproof)" where
 "proofIncr p = (case p of
    Inr (VSince i p1 p2) \<Rightarrow> Inr (VSince (Suc i) p1 p2)
+ | Inr (VOnce_never i li p1) \<Rightarrow> Inr (VSince_never (Suc i) li p1)
  | Inr (VSince_never i li p1) \<Rightarrow> Inr (VSince_never (Suc i) li p1)
  | Inr (VUntil i p1 p2) \<Rightarrow> Inr (VUntil (i-1) p1 p2)
  | Inr (VUntil_never i hi p1) \<Rightarrow> Inr (VUntil_never (i-1) hi (p1)))"
@@ -3089,6 +3119,25 @@ definition doNext :: "nat \<Rightarrow> \<I> \<Rightarrow> nat \<Rightarrow> ('a
 | (Inr p, True) \<Rightarrow> [Inr (VNext p), Inr (VNext_le i)]
 | (Inr p, False) \<Rightarrow> (if mem tau I then [Inr (VNext p)] else [Inr (VNext p), Inr (VNext_ge i)]))"
 
+definition doOnceBase :: "nat \<Rightarrow> nat \<Rightarrow> ('a sproof + 'a vproof)
+\<Rightarrow> ('a sproof + 'a vproof) list" where
+"doOnceBase i a p = (case (p, a = 0) of
+  (Inl p, True) \<Rightarrow> [Inl (SOnce i p)]
+| (Inr p, True) \<Rightarrow> [Inr (VOnce_never i i [p])]
+| (_, False) \<Rightarrow> [Inr (VOnce_never i i [])])"
+
+definition doOnce :: "nat \<Rightarrow> nat \<Rightarrow> ('a sproof + 'a vproof) \<Rightarrow> ('a sproof + 'a vproof)
+\<Rightarrow> ('a sproof + 'a vproof) list" where
+"doOnce i a p p' = (case (p, a = 0, p') of
+(Inr p, True, Inl p') \<Rightarrow> [Inr (VOnce_never i i [p])]
+| (Inr p, True, Inr p') \<Rightarrow> [(Inr p') \<oplus> (Inr p)]
+| (Inr p, False, Inl (SOnce j p'')) \<Rightarrow> [Inl (SOnce i p'')]
+| (Inr p, False, Inr (VOnce_never j li q)) \<Rightarrow> [Inr (VOnce_never i li q)]
+| (Inl p, True, Inr (VOnce_never j li q)) \<Rightarrow> [Inl (SOnce i p)]
+| (Inl p, True, Inl (SOnce j p'')) \<Rightarrow> [Inl (SOnce i p), Inl (SOnce i p'')]
+| (Inl p, False, Inl (SOnce j p'')) \<Rightarrow> [Inl (SOnce i p'')]
+| (Inl p, False, Inr (VOnce_never j li q)) \<Rightarrow> [Inr (VOnce_never i li q)])"
+
 definition doSinceBase :: "nat \<Rightarrow> nat \<Rightarrow> ('a sproof + 'a vproof)
 \<Rightarrow> ('a sproof + 'a vproof) \<Rightarrow> ('a sproof + 'a vproof) list" where
 "doSinceBase i a p1 p2 = (case (p1, p2, a = 0) of
@@ -3180,6 +3229,12 @@ and Opt :: "nat \<Rightarrow> 'a mtl \<Rightarrow> ('a sproof + 'a vproof)" wher
   in (if right I = \<infinity> then undefined else if right I \<ge> enat (\<Delta> rho (i+1)) then
   doUntil i (left I) p1 p2 (Opt (i+1) (Until phi (subtract (\<Delta> rho (i+1)) I) psi))
   else doUntilBase i (left I) p1 p2))"
+| "Cand i (Once I phi) = (if \<tau> rho i < \<tau> rho 0 + left I then [Inr (VOnce_le i)]
+  else (let p = Opt i phi in 
+  (if i = 0 then doOnceBase 0 0 p
+    else if right I \<ge> enat (\<Delta> rho i)
+    then doOnce i (left I) p (Opt (i-1) (Once (subtract (\<Delta> rho i) I) phi))
+    else doOnceBase i (left I) p)))"
 (*
 | "Cand i (MatchP I r) = (if \<tau> rho i < \<tau> rho 0 + left I then [Inr (VMatchP_le i)]
   else (let k = ETP rho (case right I of \<infinity> \<Rightarrow> 0 | enat n \<Rightarrow> \<tau> rho i - n);
@@ -3219,7 +3274,7 @@ termination Cand
       using i_ltp_to_tau ge0 local.Suc by auto
     then show ?case by (simp add: add.commute)
   qed
-  done
+  sorry
 end
 
 definition "valid rho i phi p = (case p of
