@@ -3251,6 +3251,7 @@ and Opt :: "nat \<Rightarrow> 'a mtl \<Rightarrow> ('a sproof + 'a vproof)" wher
 
 fun dist where
   "dist i (Since _ _ _) = i"
+| "dist i (Once _ _) = i"
 | "dist i (Until _ I _) =  LTP rho (case right I of \<infinity> \<Rightarrow> 0 | enat n \<Rightarrow> (\<tau> rho i + n)) - i"
 | "dist _ _ = undefined"
 
@@ -3274,7 +3275,7 @@ termination Cand
       using i_ltp_to_tau ge0 local.Suc by auto
     then show ?case by (simp add: add.commute)
   qed
-  sorry
+  done
 end
 
 definition "valid rho i phi p = (case p of
@@ -3319,6 +3320,9 @@ and VIff_sv: "\<And>p1 p1' p2 p2'. wqo (Inl p1) (Inl p1') \<Longrightarrow> wqo 
   wqo (Inr (VIff_sv p1 p2)) (Inr (VIff_sv p1' p2'))"
 and VIff_vs: "\<And>p1 p1' p2 p2'. wqo (Inr p1) (Inr p1') \<Longrightarrow> wqo (Inl p2) (Inl p2' ) \<Longrightarrow>
   wqo (Inr (VIff_vs p1 p2)) (Inr (VIff_vs p1' p2'))"
+and SOnce: "\<And>i p p'. wqo (Inl p) (Inl p') \<Longrightarrow> wqo (Inl (SOnce i p)) (Inl (SOnce i p'))"
+and VOnce_never: "\<And>i li q q'. wqo (Inr q) (Inr q') \<Longrightarrow>
+  wqo (Inr (VOnce_never i li [q])) (Inr (VOnce_never i li [q']))"
 and SSince: "\<And>p p'. wqo (Inl p) (Inl p') \<Longrightarrow> wqo (Inl (SSince p [])) (Inl (SSince p' []))"
 and VSince_Nil: "\<And>i p p'. wqo (Inr p) (Inr p') \<Longrightarrow> wqo (Inr (VSince i p [])) (Inr (VSince i p' []))"
 and VSince: "\<And>i p p' q q'. wqo (Inr p) (Inr p') \<Longrightarrow> wqo (Inr q) (Inr q') \<Longrightarrow>
@@ -3987,6 +3991,16 @@ next
   qed
   then show False using q_le by auto
 qed
+
+lemma onceBase0_sound:
+  assumes p1_def: "optimal i phi p1" and
+    i_props: "i = 0 \<and> \<tau> rho i \<ge> \<tau> rho 0 + left I" and
+    p_def: "p \<in> set (doOnceBase 0 0 p1)"
+  shows "valid rho i (Once I phi) p"
+  using assms unfolding optimal_def valid_def
+  apply (auto simp: i_etp_to_tau doOnceBase_def zero_enat_def[symmetric] split: sum.splits enat.splits)
+    apply (meson Orderings.order_class.order.not_eq_order_implies_strict diff_le_self i_etp_to_tau less_nat_zero_code)
+  done
                         
 lemma sinceBase0_sound:
   assumes p1_def: "optimal i phi p1" and p2_def: "optimal i psi p2" and
@@ -4123,6 +4137,53 @@ proof (rule ccontr)
   qed
   then show False using q_le by auto
 qed
+
+lemma onceBase0_optimal:
+  assumes bf: "bounded_future (Once I phi)" and
+    p1_def: "optimal i phi p1" and
+    i_props: "i = 0 \<and> \<tau> rho i \<ge> \<tau> rho 0 + left I"
+  shows
+   "optimal i (Once I phi) (min_list_wrt wqo (doOnceBase 0 0 p1))"
+proof (rule ccontr)
+  have bf_phi: "bounded_future phi"
+    using bf by auto
+  from doOnceBase_def[of 0 0 p1]
+  have nnil: "doOnceBase 0 0 p1 \<noteq> []"
+    by (cases p1; auto)
+  assume nopt: "\<not> optimal i (Once I phi) (min_list_wrt wqo (doOnceBase 0 0 p1))"
+  from onceBase0_sound[OF p1_def i_props min_list_wrt_in[of _ wqo]]
+    refl_wqo pw_total trans_wqo nnil
+  have vmin: "valid rho i (Once I phi) (min_list_wrt wqo (doOnceBase 0 0 p1))"
+    apply auto
+    by (metis i_props not_wqo p1_def onceBase0_sound total_onI)
+  then obtain q where q_val: "valid rho i (Once I phi) q" and
+   q_le: "\<not> wqo (min_list_wrt wqo (doOnceBase 0 0 p1)) q" using nopt
+    unfolding optimal_def by auto
+  then have "wqo (min_list_wrt wqo (doOnceBase 0 0 p1)) q"
+  proof (cases q)
+    case (Inl a)
+    then obtain sphiq where sq: "a = SOnce i sphiq"
+      using q_val unfolding valid_def
+      by (cases a) auto
+    then have p_val: "valid rho i phi (Inl sphiq)" using Inl q_val i_props
+      unfolding valid_def
+      by (auto simp: Let_def)
+    then have p_le: "wqo p1 (Inl sphiq)" using p1_def unfolding optimal_def
+      by auto
+    obtain p1' where p1'_def: "p1 = Inl p1'"
+      using p_val p1_def check_consistent[OF bf_phi]
+      by (auto simp add: optimal_def valid_def split: sum.splits)
+    moreover have "Inl (SOnce i (projl p1)) \<in> set (doOnceBase 0 0 p1)"
+      using i_props p1_def bf check_consistent[of phi] p_val
+      unfolding doOnceBase_def optimal_def valid_def
+      by (auto split: sum.splits)
+    ultimately show ?thesis using min_list_wrt_le[OF _ refl_wqo]
+        onceBase0_sound[OF p1_def i_props] pw_total[of i "Once I phi"]
+        trans_wqo Inl
+      apply (auto simp add: total_on_def p1'_def)
+        
+      by (metis transpD)
+
 
 lemma r_less_Delta_imp_less:
   assumes "(i > 0 \<and> right I < enat (\<Delta> rho i))"
