@@ -33,6 +33,7 @@ function initMonitor(monitorState, action) {
              jsooMonitorState: jsooMonitorState,
              selectedRows: [],
              highlightedCells: [],
+             highlightedPath: [],
              fixParameters: true
            };
   } catch (error) {
@@ -62,6 +63,7 @@ function execMonitor(monitorState, action) {
              squares: squares,
              jsooMonitorState: jsooMonitorState,
              highlightedCells: [],
+             highlightedPath: [],
              selectedRows: [],
              fixParameters: true
            };
@@ -108,6 +110,7 @@ function monitorStateReducer(monitorState, action) {
       squares: action.squares,
       selectedRows: action.selectedRows,
       highlightedCells: action.highlightedCells,
+      highlightedPath: action.highlightedPath,
       fixParameters: true
     }
   case 'resetTable':
@@ -116,6 +119,7 @@ function monitorStateReducer(monitorState, action) {
       squares: computeSquares(monitorState.explanations, monitorState.atoms),
       selectedRows: [],
       highlightedCells: [],
+      highlightedPath: [],
       fixParameters: true
     }
   case 'leaveMonitor':
@@ -128,6 +132,7 @@ function monitorStateReducer(monitorState, action) {
              jsooMonitorState: [],
              selectedRows: [],
              highlightedCells: [],
+             highlightedPath: [],
              dialog: {},
              fixParameters: false
            }
@@ -161,6 +166,7 @@ export default function Monitor() {
                                                 jsooMonitorState: [],
                                                 selectedRows: [],
                                                 highlightedCells: [],
+                                                highlightedPath: [],
                                                 dialog: {},
                                                 fixParameters: false
                                               });
@@ -283,6 +289,7 @@ export default function Monitor() {
                             squares={monitorState.squares}
                             selectedRows={monitorState.selectedRows}
                             highlightedCells={monitorState.highlightedCells}
+                            highlightedPath={monitorState.highlightedPath}
                             setMonitorState={setMonitorState}
                   />
                 </Grid>

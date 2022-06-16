@@ -33,6 +33,7 @@ function TimeGrid ({ explanations,
                      squares,
                      selectedRows,
                      highlightedCells,
+                     highlightedPath,
                      setMonitorState }) {
 
   const [anchorEl, setAnchorEl] = React.useState(null);
