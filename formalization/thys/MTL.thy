@@ -10,7 +10,7 @@ datatype 'a mtl = TT | FF | Atom 'a | Neg "'a mtl" | Disj "'a mtl" "'a mtl"
   | Conj "'a mtl" "'a mtl" | Impl "'a mtl" "'a mtl" | Iff "'a mtl" "'a mtl"
   | Next \<I> "'a mtl" | Prev \<I> "'a mtl" | Once \<I> "'a mtl" 
   | Since "'a mtl" \<I> "'a mtl" | Until "'a mtl" \<I> "'a mtl"
-(*  | MatchF \<I> "'a mtl Regex.regex" | MatchP \<I> "'a mtl Regex.regex" *)
+    (*  | MatchF \<I> "'a mtl Regex.regex" | MatchP \<I> "'a mtl Regex.regex" *)
 
 fun sat :: "'a trace \<Rightarrow> nat \<Rightarrow> 'a mtl \<Rightarrow> bool" where
   "sat \<sigma> i TT = True"
@@ -26,7 +26,7 @@ fun sat :: "'a trace \<Rightarrow> nat \<Rightarrow> 'a mtl \<Rightarrow> bool" 
 | "sat \<sigma> i (Once I \<phi>) = (\<exists>j\<le>i. mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I \<and> sat \<sigma> j \<phi>)"
 | "sat \<sigma> i (Since \<phi> I \<psi>) = (\<exists>j\<le>i. mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I \<and> sat \<sigma> j \<psi> \<and> (\<forall>k \<in> {j <.. i}. sat \<sigma> k \<phi>))"
 | "sat \<sigma> i (Until \<phi> I \<psi>) = (\<exists>j\<ge>i. mem (\<tau> \<sigma> j - \<tau> \<sigma> i) I \<and> sat \<sigma> j \<psi> \<and> (\<forall>k \<in> {i ..< j}. sat \<sigma> k \<phi>))"
-(*
+  (*
 | "sat \<sigma> i (MatchF I r) = (\<exists>j\<ge>i. mem (\<tau> \<sigma> j - \<tau> \<sigma> i) I \<and> Regex.match (sat \<sigma>) r i j)"
 | "sat \<sigma> i (MatchP I r) = (\<exists>j\<le>i. mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I \<and> Regex.match (sat \<sigma>) r j i)"
 *)
@@ -142,14 +142,14 @@ qed (auto simp: eps_match intro!: exI[of _ i])
 
 definition ETP:: "'a trace \<Rightarrow> nat \<Rightarrow> nat"
   where
-  "ETP rho t = (LEAST i. \<tau> rho i \<ge> t)"
+    "ETP rho t = (LEAST i. \<tau> rho i \<ge> t)"
 
 lemma ETP_zero[simp]: "ETP rho 0 = 0"
   by (auto simp add: ETP_def)
 
 definition LTP:: "'a trace \<Rightarrow> nat \<Rightarrow> nat"
   where
-  "LTP rho t = Max {i. (\<tau> rho i) \<le> t}"
+    "LTP rho t = Max {i. (\<tau> rho i) \<le> t}"
 
 (*ETP and LTP lemmas for arbitrary event streams*)
 lemma i_etp_to_tau: "i \<ge> ETP rho n \<longleftrightarrow> \<tau> rho i \<ge> n"
@@ -170,7 +170,7 @@ lemma i_ltp_to_tau:
   assumes n_asm: "n \<ge> \<tau> rho 0"
   shows "(i \<le> LTP rho n \<longleftrightarrow> \<tau> rho i \<le> n)"
 proof
-define A and j where A_def: "A \<equiv> {i. \<tau> rho i \<le> n}"  and j_def: "j \<equiv> LTP rho n"
+  define A and j where A_def: "A \<equiv> {i. \<tau> rho i \<le> n}"  and j_def: "j \<equiv> LTP rho n"
   assume P: "i \<le> LTP rho n"
   from n_asm A_def have A_ne: "A \<noteq> {}" by auto
   from j_def have i_j: "\<tau> rho i \<le> \<tau> rho j" using P by auto
@@ -179,11 +179,11 @@ define A and j where A_def: "A \<equiv> {i. \<tau> rho i \<le> n}"  and j_def: "
     by (metis \<tau>_mono finite_nat_set_iff_bounded_le le_trans mem_Collect_eq nat_le_linear)
   then show "\<tau> rho i \<le> n" using i_j by auto
 next
-define A and j where A_def: "A \<equiv> {i. \<tau> rho i \<le> n}"  and j_def: "j \<equiv> LTP rho n"
+  define A and j where A_def: "A \<equiv> {i. \<tau> rho i \<le> n}"  and j_def: "j \<equiv> LTP rho n"
   assume Q: "\<tau> rho i \<le> n"
   then have "i \<in> A" using A_def by auto
   then show "i \<le> LTP rho n" unfolding LTP_def using Max_ge[of A] A_def
-  by (metis finite_Collect_le_nat i_etp_to_tau infinite_nat_iff_unbounded_le mem_Collect_eq)
+    by (metis finite_Collect_le_nat i_etp_to_tau infinite_nat_iff_unbounded_le mem_Collect_eq)
 qed
 
 lemma etp_to_delta: "i \<ge> ETP rho (\<tau> rho l + n) \<Longrightarrow> delta rho i l \<ge> n"
@@ -236,7 +236,7 @@ lemma enat_trans[simp]: "enat i \<le> enat j \<and> enat j \<le> enat k \<Longri
 (*sat lemmas*)
 lemma not_sat_SinceD:
   assumes unsat: "\<not> sat rho i (Since phi I psi)" and
-  witness: "\<exists>j \<le> i. mem (\<tau> rho i - \<tau> rho j) I \<and> sat rho j psi"
+    witness: "\<exists>j \<le> i. mem (\<tau> rho i - \<tau> rho j) I \<and> sat rho j psi"
   shows "\<exists>j \<le> i. ETP rho (case right I of \<infinity> \<Rightarrow> 0 | enat n \<Rightarrow> \<tau> rho i - n) \<le> j \<and> \<not> sat rho j phi
   \<and> (\<forall>k \<in> {j .. (min i (LTP rho (\<tau> rho i - left I)))}. \<not> sat rho k psi)"
 proof -
@@ -269,7 +269,7 @@ proof -
          apply auto
         prefer 2
       using \<tau>_mono le_trans nat_add_left_cancel_le apply blast
-      apply (rule finite_subset[of _ "{0 .. ETP rho (\<tau> rho i + 1)}"])
+       apply (rule finite_subset[of _ "{0 .. ETP rho (\<tau> rho i + 1)}"])
         apply (auto simp: * Suc_le_eq) [2]
       apply (cases "right I")
        apply (auto simp: le_diff_conv)
@@ -288,14 +288,14 @@ lemma min_not_in: "finite A \<Longrightarrow> A \<noteq> {} \<Longrightarrow> x 
 
 lemma not_sat_UntilD:
   assumes unsat: "\<not> (sat rho i (Until phi I psi))"
-  and witness: "\<exists>j \<ge> i. mem (delta rho j i) I \<and> sat rho j psi"
+    and witness: "\<exists>j \<ge> i. mem (delta rho j i) I \<and> sat rho j psi"
   shows "\<exists>j \<ge> i. (case right I of \<infinity> \<Rightarrow> True | enat n \<Rightarrow> j \<le> LTP rho (\<tau> rho i + n))
   \<and> \<not> (sat rho j phi) \<and> (\<forall>k \<in> {(max i (ETP rho (\<tau> rho i + left I))) .. j}.
    \<not> sat rho k psi)"
 proof -
   from \<tau>_mono have i0: "\<tau> rho 0 \<le> \<tau> rho i" by auto
   from witness obtain jmax where jmax: "jmax \<ge> i" "sat rho jmax psi"
-  "mem (delta rho jmax i) I" by blast
+    "mem (delta rho jmax i) I" by blast
   define A and j where A_def: "A \<equiv> {j. j \<ge> i \<and> j \<le> jmax
   \<and> mem (delta rho j i) I \<and> sat rho j psi}" and j_def: "j \<equiv> Min A"
   have j: "j \<ge> i" "sat rho j psi" "mem (delta rho j i) I"
@@ -321,14 +321,14 @@ proof -
     with j_def have "j \<le> jmax" using Min_in[of A]
       using jmax A_def
       by (metis (mono_tags, lifting) Collect_empty_eq
-      finite_nat_set_iff_bounded_le mem_Collect_eq order_refl)
+          finite_nat_set_iff_bounded_le mem_Collect_eq order_refl)
     with this k_def have kjm: "k \<le> jmax" by auto
 
-   with this mem_k ki Min_le[of A k] min_not_in[of A k] k_def have "k \<notin> A"
-     unfolding j_def[symmetric] unfolding A_def unfolding ETP_def
-     using finite_nat_set_iff_bounded_le kj by blast
-   with this mem_k k_def kjm have "\<not> sat rho k psi"
-     by (simp add: A_def)}
+    with this mem_k ki Min_le[of A k] min_not_in[of A k] k_def have "k \<notin> A"
+      unfolding j_def[symmetric] unfolding A_def unfolding ETP_def
+      using finite_nat_set_iff_bounded_le kj by blast
+    with this mem_k k_def kjm have "\<not> sat rho k psi"
+      by (simp add: A_def)}
   ultimately show ?thesis using unsat
     by (auto split: enat.splits dest!: spec[of _ j])
 qed
@@ -360,7 +360,7 @@ inductive bounded_future where
 \<Longrightarrow> bounded_future (Since phi I psi)"
 | UntilBF: "right I \<noteq> \<infinity> \<Longrightarrow> bounded_future phi \<Longrightarrow> bounded_future psi
 \<Longrightarrow> bounded_future (Until phi I psi)"
-(*
+  (*
 | MatchPBF: "\<forall>x \<in> Regex.atms r. bounded_future x
 \<Longrightarrow> bounded_future (MatchP I r)"
 | MatchFBF: "right I \<noteq> \<infinity> \<Longrightarrow> \<forall>x \<in> Regex.atms r. bounded_future x
@@ -369,19 +369,19 @@ inductive bounded_future where
 
 lemma bounded_future_simps[simp]:
   shows
-  "bounded_future TT \<longleftrightarrow> True" "bounded_future FF \<longleftrightarrow> True"
-  "bounded_future (Atom n) \<longleftrightarrow> True"
-  "bounded_future (Disj phi psi) \<longleftrightarrow> bounded_future phi \<and> bounded_future psi"
-  "bounded_future (Conj phi psi) \<longleftrightarrow> bounded_future phi \<and> bounded_future psi"
-  "bounded_future (Impl phi psi) \<longleftrightarrow> bounded_future phi \<and> bounded_future psi"
-  "bounded_future (Iff phi psi) \<longleftrightarrow> bounded_future phi \<and> bounded_future psi"
-  "bounded_future (Neg phi) \<longleftrightarrow> bounded_future phi"
-  "bounded_future (Next I phi) \<longleftrightarrow> bounded_future phi"
-  "bounded_future (Prev I phi) \<longleftrightarrow> bounded_future phi"
-  "bounded_future (Once I phi) \<longleftrightarrow> bounded_future phi"
-  "bounded_future (Since phi I psi) \<longleftrightarrow> bounded_future phi \<and> bounded_future psi"
-  "bounded_future (Until phi I psi) \<longleftrightarrow> bounded_future phi \<and> bounded_future psi \<and> right I \<noteq> \<infinity>"
-(*
+    "bounded_future TT \<longleftrightarrow> True" "bounded_future FF \<longleftrightarrow> True"
+    "bounded_future (Atom n) \<longleftrightarrow> True"
+    "bounded_future (Disj phi psi) \<longleftrightarrow> bounded_future phi \<and> bounded_future psi"
+    "bounded_future (Conj phi psi) \<longleftrightarrow> bounded_future phi \<and> bounded_future psi"
+    "bounded_future (Impl phi psi) \<longleftrightarrow> bounded_future phi \<and> bounded_future psi"
+    "bounded_future (Iff phi psi) \<longleftrightarrow> bounded_future phi \<and> bounded_future psi"
+    "bounded_future (Neg phi) \<longleftrightarrow> bounded_future phi"
+    "bounded_future (Next I phi) \<longleftrightarrow> bounded_future phi"
+    "bounded_future (Prev I phi) \<longleftrightarrow> bounded_future phi"
+    "bounded_future (Once I phi) \<longleftrightarrow> bounded_future phi"
+    "bounded_future (Since phi I psi) \<longleftrightarrow> bounded_future phi \<and> bounded_future psi"
+    "bounded_future (Until phi I psi) \<longleftrightarrow> bounded_future phi \<and> bounded_future psi \<and> right I \<noteq> \<infinity>"
+    (*
   "bounded_future (MatchP I r) \<longleftrightarrow> (\<forall>x \<in> Regex.atms r. bounded_future x)"
   "bounded_future (MatchF I r) \<longleftrightarrow> right I \<noteq> \<infinity> \<and> (\<forall>x \<in> Regex.atms r. bounded_future x)"
 *)
@@ -437,7 +437,7 @@ inductive SAT and VIO where
 \<Longrightarrow> VIO j phi \<Longrightarrow> (\<And>k. k \<in> {lu i I .. j} \<Longrightarrow> VIO k psi) \<Longrightarrow> VIO i (Until phi I psi)"
 | VUntil_never: "(\<And>k. k \<in> (case right I of \<infinity> \<Rightarrow> {lu i I ..} | enat n \<Rightarrow> {lu i I .. LTP rho ((\<tau> rho i) + n)}) \<Longrightarrow> VIO k psi)
 \<Longrightarrow> VIO i (Until phi I psi)"
-(*
+  (*
 | SMatchP: "j \<le> i \<Longrightarrow> mem (delta rho i j) I \<Longrightarrow> Regex.SAT SAT j i r
 \<Longrightarrow> SAT i (MatchP I r)"
 | VMatchP_le: "\<tau> rho i < \<tau> rho 0 + left I \<Longrightarrow> VIO i (MatchP I r)"
@@ -464,18 +464,18 @@ next
       by auto}
   moreover
   {assume unsat: "\<not> sat rho i (Once I phi)"
-    and i_l: "\<tau> rho i < \<tau> rho 0 + left I"
+      and i_l: "\<tau> rho i < \<tau> rho 0 + left I"
     then have "VIO i (Once I phi)"
       using SAT_VIO.VOnce_le local.Once
       by auto}
   moreover
   {assume unsat: "\<not> sat rho i (Once I phi)"
-    and nw: "\<forall>j\<le>i. \<not> mem (delta rho i j) I \<or> \<not> sat rho j phi"
-    and i_ge: "\<tau> rho 0 + left I \<le> \<tau> rho i"
-      then have "VIO i (Once I phi)"
+      and nw: "\<forall>j\<le>i. \<not> mem (delta rho i j) I \<or> \<not> sat rho j phi"
+      and i_ge: "\<tau> rho 0 + left I \<le> \<tau> rho i"
+    then have "VIO i (Once I phi)"
       using local.Once
       by (auto intro!: SAT_VIO.VOnce_never simp: i_ltp_to_tau i_etp_to_tau
-      split: enat.splits)}
+          split: enat.splits)}
   ultimately show ?case
     by force
 next
@@ -484,28 +484,28 @@ next
     then have "SAT i (Since phi I psi)"
       using SAT_VIO.SSince local.Since
       by auto}
-    moreover
-    {assume unsat: "\<not> sat rho i (Since phi I psi)"
-    and i_l: "\<tau> rho i < \<tau> rho 0 + left I"
+  moreover
+  {assume unsat: "\<not> sat rho i (Since phi I psi)"
+      and i_l: "\<tau> rho i < \<tau> rho 0 + left I"
     then have "VIO i (Since phi I psi)"
       using SAT_VIO.VSince_le local.Since
       by auto}
-    moreover
-    {assume unsat: "\<not> sat rho i (Since phi I psi)"
-    and nw: "\<forall>j\<le>i. \<not> mem (delta rho i j) I \<or> \<not> sat rho j psi"
-    and i_ge: "\<tau> rho 0 + left I \<le> \<tau> rho i"
-      then have "VIO i (Since phi I psi)"
+  moreover
+  {assume unsat: "\<not> sat rho i (Since phi I psi)"
+      and nw: "\<forall>j\<le>i. \<not> mem (delta rho i j) I \<or> \<not> sat rho j psi"
+      and i_ge: "\<tau> rho 0 + left I \<le> \<tau> rho i"
+    then have "VIO i (Since phi I psi)"
       using local.Since
       by (auto intro!: SAT_VIO.VSince_never simp: i_ltp_to_tau i_etp_to_tau
-      split: enat.splits)}
-    moreover
-    {assume unsat: "\<not> sat rho i (Since phi I psi)"
-    and jw: "\<exists>j\<le>i. mem (delta rho i j) I \<and> sat rho j psi"
-    and i_ge: "\<tau> rho 0 + left I \<le> \<tau> rho i"
+          split: enat.splits)}
+  moreover
+  {assume unsat: "\<not> sat rho i (Since phi I psi)"
+      and jw: "\<exists>j\<le>i. mem (delta rho i j) I \<and> sat rho j psi"
+      and i_ge: "\<tau> rho 0 + left I \<le> \<tau> rho i"
     from unsat jw not_sat_SinceD[of rho i phi I psi]
     obtain j where j: "j \<le> i"
-     "case right I of \<infinity> \<Rightarrow> True | enat n \<Rightarrow> ETP rho (\<tau> rho i - n) \<le> j"
-     "\<not> sat rho j phi" "(\<forall>k \<in> {j .. (min i (LTP rho (\<tau> rho i - left I)))}.
+      "case right I of \<infinity> \<Rightarrow> True | enat n \<Rightarrow> ETP rho (\<tau> rho i - n) \<le> j"
+      "\<not> sat rho j phi" "(\<forall>k \<in> {j .. (min i (LTP rho (\<tau> rho i - left I)))}.
       \<not> sat rho k psi)" by (auto split: enat.splits)
     then have "VIO i (Since phi I psi)"
       using i_ge unsat jw SAT_VIO.VSince local.Since
@@ -521,25 +521,25 @@ next
       by auto}
   moreover
   {assume unsat: "\<not> sat rho i (Until phi I psi)"
-   and witness: "\<exists>j \<ge> i. mem (delta rho j i) I \<and> sat rho j psi"
+      and witness: "\<exists>j \<ge> i. mem (delta rho j i) I \<and> sat rho j psi"
     from this local.Until not_sat_UntilD[of rho i phi I psi] obtain j
       where j: "j \<ge> i" "(case right I of \<infinity> \<Rightarrow> True | enat n
       \<Rightarrow> j \<le> LTP rho (\<tau> rho i + n))" "\<not> (sat rho j phi)"
-      "(\<forall>k \<in> {(max i (ETP rho (\<tau> rho i + left I))) .. j}. \<not> sat rho k psi)"
+        "(\<forall>k \<in> {(max i (ETP rho (\<tau> rho i + left I))) .. j}. \<not> sat rho k psi)"
       by auto
     then have "VIO i (Until phi I psi)"
       using unsat witness SAT_VIO.VUntil local.Until
       by auto}
   moreover
   {assume unsat: "\<not> sat rho i (Until phi I psi)"
-  and no_witness: "\<forall>j \<ge> i. \<not> mem (delta rho j i) I \<or> \<not> sat rho j psi"
+      and no_witness: "\<forall>j \<ge> i. \<not> mem (delta rho j i) I \<or> \<not> sat rho j psi"
     then have "VIO i (Until phi I psi)"
       using local.Until
       by (auto intro!: SAT_VIO.VUntil_never simp: add_increasing2 i0 i_ltp_to_tau i_etp_to_tau
           split: enat.splits)
   }
   ultimately show ?case by auto
-(*
+      (*
 next
   case (MatchPBF r I)
   {
@@ -697,33 +697,33 @@ next
     proof (cases)
       case (VOnce_le)
       {fix j
-      from \<tau>_mono have j0: "\<tau> rho 0 \<le> \<tau> rho j" by auto
-      then have "\<tau> rho i < \<tau> rho j + left I" using VOnce_le apply auto
-        using j0 by linarith
-      then have "delta rho i j < left I"
-        using VOnce_le less_\<tau>D verit_comp_simplify1(3) by fastforce
-      then have "\<not> mem (delta rho i j) I" by auto}
+        from \<tau>_mono have j0: "\<tau> rho 0 \<le> \<tau> rho j" by auto
+        then have "\<tau> rho i < \<tau> rho j + left I" using VOnce_le apply auto
+          using j0 by linarith
+        then have "delta rho i j < left I"
+          using VOnce_le less_\<tau>D verit_comp_simplify1(3) by fastforce
+        then have "\<not> mem (delta rho i j) I" by auto}
       then show ?thesis using VOnce_le OnceBF by auto
-      next
+    next
       case (VOnce_never j)
       {fix k
-      assume k_def: "sat rho k phi \<and> mem (delta rho i k) I \<and> k \<le> i"
-      then have k_tau: "\<tau> rho k \<le> \<tau> rho i - left I"
-        using diff_le_mono2 by fastforce
-      then have k_ltp: "k \<le> LTP rho (\<tau> rho i - left I)"
-        using VOnce_never i_ltp_to_tau add_le_imp_le_diff
-        by blast
-      then have "k \<notin> {j .. l i I}"
-        using k_def VOnce_never Once k_tau
-        by auto
-      then have "k < j" using k_def k_ltp by auto
+        assume k_def: "sat rho k phi \<and> mem (delta rho i k) I \<and> k \<le> i"
+        then have k_tau: "\<tau> rho k \<le> \<tau> rho i - left I"
+          using diff_le_mono2 by fastforce
+        then have k_ltp: "k \<le> LTP rho (\<tau> rho i - left I)"
+          using VOnce_never i_ltp_to_tau add_le_imp_le_diff
+          by blast
+        then have "k \<notin> {j .. l i I}"
+          using k_def VOnce_never Once k_tau
+          by auto
+        then have "k < j" using k_def k_ltp by auto
       }
       then show ?thesis
         using VOnce_never Once
-      apply (cases "right I = \<infinity>")
-        apply (auto)
-      by (metis diff_commute diff_is_0_eq i_etp_to_tau leD)
-  qed  
+        apply (cases "right I = \<infinity>")
+         apply (auto)
+        by (metis diff_commute diff_is_0_eq i_etp_to_tau leD)
+    qed  
   }
   ultimately show ?case by auto
 next
@@ -736,17 +736,17 @@ next
     then have "\<not> sat rho i (Since phi I psi)" using Since
     proof (cases)
       case (VSince_le)
-        {fix j
+      {fix j
         from \<tau>_mono have j0: "\<tau> rho 0 \<le> \<tau> rho j" by auto
         then have "\<tau> rho i < \<tau> rho j + left I" using VSince_le apply auto
           using j0 by linarith
         then have "delta rho i j < left I" using VSince_le j0 apply auto
-        by (metis Groups.ab_semigroup_add_class.add.commute Nat.less_eq_nat.simps(1) \<open>\<tau> rho i < \<tau> rho j + left I\<close> \<tau>_mono diff_is_0_eq less_diff_conv2 linorder_neqE_nat local.VSince_le nat_le_linear not_less0)
+          by (metis Groups.ab_semigroup_add_class.add.commute Nat.less_eq_nat.simps(1) \<open>\<tau> rho i < \<tau> rho j + left I\<close> \<tau>_mono diff_is_0_eq less_diff_conv2 linorder_neqE_nat local.VSince_le nat_le_linear not_less0)
         then have "\<not> mem (delta rho i j) I" by auto}
-        then show ?thesis using VSince_le SinceBF by auto
-      next
+      then show ?thesis using VSince_le SinceBF by auto
+    next
       case (VSince j)
-        {fix k
+      {fix k
         assume k_def: "sat rho k psi \<and> mem (delta rho i k) I \<and> k \<le> i"
         then have "\<tau> rho k \<le> \<tau> rho i - left I" using diff_le_mono2 by fastforce
         then have k_ltp: "k \<le> LTP rho (\<tau> rho i - left I)"
@@ -754,36 +754,36 @@ next
           by blast
         then have "k < j" using k_def VSince Since apply auto
           by (meson diff_is_0_eq not_gr_zero zero_less_diff)
-         then have "j \<in> {k <.. i} \<and> \<not> sat rho j phi" using VSince Since
-           by auto
-        }
-        then show ?thesis using VSince Since
-          by force
-      next
-        case (VSince_never j)
-          {fix k
-          assume k_def: "sat rho k psi \<and> mem (delta rho i k) I \<and> k \<le> i"
-          then have k_tau: "\<tau> rho k \<le> \<tau> rho i - left I"
-            using diff_le_mono2 by fastforce
-          then have k_ltp: "k \<le> LTP rho (\<tau> rho i - left I)"
-            using VSince_never i_ltp_to_tau add_le_imp_le_diff
-            by blast
-          then have "k \<notin> {j .. l i I}"
-            using k_def VSince_never Since k_tau
-            by auto
-          then have "k < j" using k_def k_ltp by auto
-          }
-          then show ?thesis
-          using VSince_never Since
-          apply (cases "right I = \<infinity>")
-          apply (auto)
-            by (metis diff_commute diff_is_0_eq i_etp_to_tau leD)
-       qed
+        then have "j \<in> {k <.. i} \<and> \<not> sat rho j phi" using VSince Since
+          by auto
+      }
+      then show ?thesis using VSince Since
+        by force
+    next
+      case (VSince_never j)
+      {fix k
+        assume k_def: "sat rho k psi \<and> mem (delta rho i k) I \<and> k \<le> i"
+        then have k_tau: "\<tau> rho k \<le> \<tau> rho i - left I"
+          using diff_le_mono2 by fastforce
+        then have k_ltp: "k \<le> LTP rho (\<tau> rho i - left I)"
+          using VSince_never i_ltp_to_tau add_le_imp_le_diff
+          by blast
+        then have "k \<notin> {j .. l i I}"
+          using k_def VSince_never Since k_tau
+          by auto
+        then have "k < j" using k_def k_ltp by auto
+      }
+      then show ?thesis
+        using VSince_never Since
+        apply (cases "right I = \<infinity>")
+         apply (auto)
+        by (metis diff_commute diff_is_0_eq i_etp_to_tau leD)
+    qed
   }
   ultimately show ?case by auto
 next
   case (Until phi I psi)
-   {assume "SAT i (Until phi I psi)"
+  {assume "SAT i (Until phi I psi)"
     then have "sat rho i (Until phi I psi)" using Until
       by (cases) (auto)
   }
@@ -792,61 +792,61 @@ next
     then have "\<not> sat rho i (Until phi I psi)" using Until
     proof (cases)
       case (VUntil j)
-        {fix k
-          assume k_def: "sat rho k psi \<and> mem (delta rho k i) I \<and> i \<le> k"
-          then have "\<tau> rho k \<ge> \<tau> rho i + left I"
-            using le_diff_conv2 by auto
-          then have k_etp: "k \<ge> ETP rho (\<tau> rho i + left I)"
-            using VUntil i_etp_to_tau by blast
-          from this k_def VUntil Until have "k \<notin> {lu i I .. j}" by auto
-          then have "j < k" using k_etp k_def by auto
-          then have "j \<in> {i ..< k} \<and> VIO j phi" using VUntil k_def
-            by auto
-        }
-        then show ?thesis
+      {fix k
+        assume k_def: "sat rho k psi \<and> mem (delta rho k i) I \<and> i \<le> k"
+        then have "\<tau> rho k \<ge> \<tau> rho i + left I"
+          using le_diff_conv2 by auto
+        then have k_etp: "k \<ge> ETP rho (\<tau> rho i + left I)"
+          using VUntil i_etp_to_tau by blast
+        from this k_def VUntil Until have "k \<notin> {lu i I .. j}" by auto
+        then have "j < k" using k_etp k_def by auto
+        then have "j \<in> {i ..< k} \<and> VIO j phi" using VUntil k_def
+          by auto
+      }
+      then show ?thesis
         using VUntil Until by force
-      next
-        case (VUntil_never)
-        {fix k n
-          assume r: "right I = enat n"
-          from this VUntil_never UntilBF have tin0: "\<tau> rho i + n \<ge> \<tau> rho 0"
-            by (auto simp add: trans_le_add1)
-          define j where "j = LTP rho ((\<tau> rho i) + n)"
-          from VUntil_never UntilBF have j_i: "i \<le> j"
-            by (auto simp add: i_ltp_to_tau trans_le_add1 j_def)
-           assume k_def: "sat rho k psi \<and> mem (delta rho k i) I \<and> i \<le> k"
-           then have "\<tau> rho k \<ge> \<tau> rho i + left I"
-             using le_diff_conv2 by auto
-           then have k_etp: "k \<ge> ETP rho (\<tau> rho i + left I)"
-             using VUntil_never i_etp_to_tau by blast
-          from this k_def VUntil_never Until have "k \<notin> {lu i I .. j}"
-             by (auto simp: r j_def)
-          then have "j < k" using VUntil_never UntilBF k_def k_etp by auto
-          from k_def r have "delta rho k i \<le> n" by auto
-          then have "\<tau> rho k \<le> \<tau> rho i + n" by auto
-          then have "k \<le> j"
-            using tin0 VUntil_never UntilBF i_ltp_to_tau r k_def apply (auto simp: j_def)
-            by blast
-        }
-        note aux = this
+    next
+      case (VUntil_never)
+      {fix k n
+        assume r: "right I = enat n"
+        from this VUntil_never UntilBF have tin0: "\<tau> rho i + n \<ge> \<tau> rho 0"
+          by (auto simp add: trans_le_add1)
+        define j where "j = LTP rho ((\<tau> rho i) + n)"
+        from VUntil_never UntilBF have j_i: "i \<le> j"
+          by (auto simp add: i_ltp_to_tau trans_le_add1 j_def)
+        assume k_def: "sat rho k psi \<and> mem (delta rho k i) I \<and> i \<le> k"
+        then have "\<tau> rho k \<ge> \<tau> rho i + left I"
+          using le_diff_conv2 by auto
+        then have k_etp: "k \<ge> ETP rho (\<tau> rho i + left I)"
+          using VUntil_never i_etp_to_tau by blast
+        from this k_def VUntil_never Until have "k \<notin> {lu i I .. j}"
+          by (auto simp: r j_def)
+        then have "j < k" using VUntil_never UntilBF k_def k_etp by auto
+        from k_def r have "delta rho k i \<le> n" by auto
+        then have "\<tau> rho k \<le> \<tau> rho i + n" by auto
+        then have "k \<le> j"
+          using tin0 VUntil_never UntilBF i_ltp_to_tau r k_def apply (auto simp: j_def)
+          by blast
+      }
+      note aux = this
+      show ?thesis
+      proof (cases "right I")
+        case (enat n)
         show ?thesis
-        proof (cases "right I")
-          case (enat n)
-          show ?thesis
-            using VUntil_never Until aux
-            unfolding enat
-            apply (auto simp: i_etp_to_tau le_diff_conv2)
-            by (metis Groups.ab_semigroup_add_class.add.commute add_le_imp_le_diff enat enat_ord_simps(1))
-        next
-          case infinity
-          show ?thesis
-            using VUntil_never Until
-            by (auto simp: infinity i_etp_to_tau le_diff_conv2)
-        qed
+          using VUntil_never Until aux
+          unfolding enat
+          apply (auto simp: i_etp_to_tau le_diff_conv2)
+          by (metis Groups.ab_semigroup_add_class.add.commute add_le_imp_le_diff enat enat_ord_simps(1))
+      next
+        case infinity
+        show ?thesis
+          using VUntil_never Until
+          by (auto simp: infinity i_etp_to_tau le_diff_conv2)
+      qed
     qed
   }
   ultimately show ?case by auto
-(*
+      (*
 next
   case (MatchPBF r I)
   {
@@ -989,7 +989,7 @@ datatype 'a sproof = STT nat | SAtm 'a nat | SNeg "'a vproof" | SDisjL "'a sproo
   | SIff_ss "'a sproof" "'a sproof" | SIff_vv "'a vproof" "'a vproof" | SOnce nat "'a sproof"
   | SSince "'a sproof" "'a sproof list" | SUntil "'a sproof list" "'a sproof" | SNext "'a sproof"
   | SPrev "'a sproof"
-  (*| SMatchP "('a sproof) rsproof" | SMatchF "('a sproof) rsproof"*)
+    (*| SMatchP "('a sproof) rsproof" | SMatchF "('a sproof) rsproof"*)
     and 'a vproof = VFF nat | VAtm 'a nat | VNeg "'a sproof" | VDisj "'a vproof" "'a vproof"
   | VConjL "'a vproof" | VConjR "'a vproof" | VImpl "'a sproof" "'a vproof"
   | VIff_sv "'a sproof" "'a vproof" | VIff_vs "'a vproof" "'a sproof" 
@@ -998,7 +998,7 @@ datatype 'a sproof = STT nat | SAtm 'a nat | SNeg "'a vproof" | SDisjL "'a sproo
   | VSince_never nat nat "'a vproof list" | VUntil_never nat nat "'a vproof list" | VSince_le nat
   | VNext "'a vproof" | VNext_ge nat | VNext_le nat | VPrev "'a vproof" | VPrev_ge nat | VPrev_le nat
   | VPrev_zero
-  (*| VMatchP nat "('a vproof) rvproof list" | VMatchF nat "('a vproof) rvproof list"
+    (*| VMatchP nat "('a vproof) rvproof list" | VMatchF nat "('a vproof) rvproof list"
     | VMatchP_le nat*)
 
 
@@ -1009,13 +1009,13 @@ fun comparator_list' :: "'a list \<Rightarrow> 'b list \<Rightarrow> order" wher
 | "comparator_list' (x # xs) [] = Gt"
 | "comparator_list' (x # xs) (y # ys) = (case compa x y of Eq \<Rightarrow> comparator_list' xs ys | Lt \<Rightarrow> Lt | Gt \<Rightarrow> Gt)"
 end
-(*
+  (*
 thm comparator_sproof_simps[no_vars] comparator_vproof_simps[no_vars]
 *)
 instantiation sproof and vproof :: (ccompare) ccompare begin
 
 primrec comparator_sproof :: "('a \<Rightarrow> 'b \<Rightarrow> order) \<Rightarrow> 'a sproof \<Rightarrow> 'b sproof \<Rightarrow> order"
-    and comparator_vproof :: "('a \<Rightarrow> 'b \<Rightarrow> order) \<Rightarrow> 'a vproof \<Rightarrow> 'b vproof \<Rightarrow> order" where
+  and comparator_vproof :: "('a \<Rightarrow> 'b \<Rightarrow> order) \<Rightarrow> 'a vproof \<Rightarrow> 'b vproof \<Rightarrow> order" where
   "comparator_sproof compa (STT i) rhs =
     (case rhs of
       STT j \<Rightarrow> comparator_of i j
@@ -1552,13 +1552,13 @@ lemma comparator_list'_map[simp]: "comparator_list' (\<lambda>f x. f x) (map f x
 lemma eq_Eq_comparator_proof:
   assumes "ID ccompare = Some compa"
   shows "comparator_sproof compa sp sp' = Eq \<longleftrightarrow> sp = sp'"
-        "comparator_vproof compa vp vp' = Eq \<longleftrightarrow> vp = vp'"
+    "comparator_vproof compa vp vp' = Eq \<longleftrightarrow> vp = vp'"
    apply (induct sp and vp arbitrary: sp' and vp')
                       apply (simp_all add:  comparator_list_pointwise(1)[unfolded peq_comp_def, rule_format] comparator_of_def
-                        comparator.eq_Eq_conv[OF ID_ccompare'[OF assms]]
-                        comparator.Lt_lt_conv[OF ID_ccompare'[OF assms]]
-                        comparator.Gt_lt_conv[OF ID_ccompare'[OF assms]]
-                        split: sproof.splits vproof.splits order.splits if_splits)
+      comparator.eq_Eq_conv[OF ID_ccompare'[OF assms]]
+      comparator.Lt_lt_conv[OF ID_ccompare'[OF assms]]
+      comparator.Gt_lt_conv[OF ID_ccompare'[OF assms]]
+      split: sproof.splits vproof.splits order.splits if_splits)
               apply (meson ID_ccompare' anti_sym assms)
              apply (metis order.simps(2) order.simps(4))
             apply (metis order.simps(2) order.simps(4))
@@ -1584,7 +1584,7 @@ declare trans_order_different[simp]
 lemma invert_order_comparator_proof:
   assumes "ID ccompare = Some compa"
   shows "invert_order (comparator_sproof compa sp sp') = comparator_sproof compa sp' sp"
-        "invert_order (comparator_vproof compa vp vp') = comparator_vproof compa vp' vp"
+    "invert_order (comparator_vproof compa vp vp') = comparator_vproof compa vp' vp"
    apply (induct sp and vp arbitrary: sp' and vp')
                       apply (simp_all add: comparator_of_def comparator_list_pointwise(2)[unfolded psym_comp_def, rule_format] split: sproof.splits vproof.splits order.splits)
               apply (metis comparator.eq_Eq_conv comparator.nGt_le_conv comparator.nLt_le_conv order.simps(6) ID_ccompare' assms)
@@ -1605,7 +1605,7 @@ lemma invert_order_comparator_proof:
 lemma trans_comparator_proof:
   assumes "ID ccompare = Some compa"
   shows "trans_order (comparator_sproof compa sp sp') (comparator_sproof compa sp' sp'') (comparator_sproof compa sp sp'')"
-        "trans_order (comparator_vproof compa vp vp') (comparator_vproof compa vp' vp'') (comparator_vproof compa vp vp'')"
+    "trans_order (comparator_vproof compa vp vp') (comparator_vproof compa vp' vp'') (comparator_vproof compa vp vp'')"
 proof (induct sp and vp arbitrary: sp' sp'' and vp' vp'')
   case (STT x)
   then show ?case
@@ -1646,7 +1646,7 @@ next
      apply (metis comparator.sym invert_order.simps(1) order.distinct(5) ID_ccompare' assms)
     apply (metis comparator.comp_trans order.distinct(5) ID_ccompare' assms)
     done
-  next
+next
   case (SNeg x)
   then show ?case
     by (simp add: comparator_of_def split: sproof.splits vproof.splits order.splits if_splits)
@@ -1856,7 +1856,7 @@ qed
 instance
    apply standard
    apply (force simp add: ccompare_sproof_def ccompare_vproof_def comparator_def
-     eq_Eq_comparator_proof invert_order_comparator_proof intro: trans_comparator_proof[THEN trans_orderD(2)] split: option.splits)+
+      eq_Eq_comparator_proof invert_order_comparator_proof intro: trans_comparator_proof[THEN trans_orderD(2)] split: option.splits)+
   done
 
 end
@@ -1867,11 +1867,11 @@ derive (eq) ceq vproof
 derive (rbt) set_impl vproof
 
 lemma neq_Nil_conv_snoc: "(xs \<noteq> []) = (\<exists>y ys. xs = ys @ [y])"
-by (induct xs) auto
+  by (induct xs) auto
 
 lemma size_last_estimation[termination_simp]: "xs \<noteq> [] \<Longrightarrow> size (last xs) < size_list size xs"
   by (induct xs) auto
-(*
+    (*
 lemma size_nehd_estimation[termination_simp]: "size (nehd xs) < size_nelist size xs"
   unfolding size_nelist_overloaded_def by transfer (auto simp: neq_Nil_conv)
 lemma size_nelast_estimation[termination_simp]: "size (nelast xs) < size_nelist size xs"
@@ -1901,7 +1901,7 @@ fun s_at and v_at where
 | "s_at (SOnce n sphi) = n"
 | "s_at (SSince spsi sphis) = (case sphis of [] \<Rightarrow> s_at spsi | _ \<Rightarrow> s_at (last sphis))"
 | "s_at (SUntil sphis spsi) = (case sphis of [] \<Rightarrow> s_at spsi | x # _ \<Rightarrow> s_at x)"
-(*
+  (*
 | "s_at (SMatchP p) = snd (rs_at s_at p)"
 | "s_at (SMatchF p) = fst (rs_at s_at p)"
 *)
@@ -1928,7 +1928,7 @@ fun s_at and v_at where
 | "v_at (VUntil n vphis vpsi) = n"
 | "v_at (VSince_never n li vpsis) = n"
 | "v_at (VUntil_never n hi vpsis) = n"
-(*
+  (*
 | "v_at (VMatchP n ps) = n"
 | "v_at (VMatchP_le n) = n"
 | "v_at (VMatchF n ps) = n"
@@ -1966,7 +1966,7 @@ fun s_check and v_check where
     (let j = s_at sphi; i = s_at (SPrev sphi)
     in i = Suc j \<and> mem (\<Delta> rho i) I \<and> s_check phi sphi)
   | (_, _) \<Rightarrow> False)"
-(*
+  (*
 | (MatchP I r, SMatchP sp) \<Rightarrow>
     (let rt = rs_at s_at sp
     in fst rt \<le> snd rt \<and> mem (delta rho (snd rt) (fst rt)) I \<and> rs_check s_check s_at r sp)
@@ -2030,7 +2030,7 @@ fun s_check and v_check where
   | (Prev I phi, VPrev_zero) \<Rightarrow>
     v_at (VPrev_zero :: 'a vproof) = 0
   | (_, _) \<Rightarrow> False)"
-(*
+  (*
   | (MatchP I r, VMatchP_le i) \<Rightarrow>
     \<tau> rho i < \<tau> rho 0 + left I
   | (MatchP I r, VMatchP i vps) \<Rightarrow> 
@@ -2111,7 +2111,7 @@ next
       using SSince
       unfolding Since
       apply (intro SAT_VIO.SSince[of "s_at spsi"])
-        apply (auto simp: Let_def le_Suc_eq Cons_eq_append_conv Cons_eq_upt_conv
+         apply (auto simp: Let_def le_Suc_eq Cons_eq_append_conv Cons_eq_upt_conv
           split: if_splits list.splits)
       subgoal for k z zs
         apply (cases "k \<le> s_at z")
@@ -2129,7 +2129,7 @@ next
       unfolding Once
       apply (intro SAT_VIO.SOnce[of "s_at sphi"])
         apply (auto simp: Let_def le_Suc_eq Cons_eq_append_conv Cons_eq_upt_conv 
-                split: if_splits list.splits)
+          split: if_splits list.splits)
       done
   qed auto
 next
@@ -2141,7 +2141,7 @@ next
       using SUntil
       unfolding Until
       apply (intro SAT_VIO.SUntil[of _ "s_at spsi"])
-        apply (auto simp: Let_def le_Suc_eq Cons_eq_append_conv Cons_eq_upt_conv
+         apply (auto simp: Let_def le_Suc_eq Cons_eq_append_conv Cons_eq_upt_conv
           split: if_splits list.splits)
       subgoal for k z zs
         apply (cases "k \<le> s_at z")
@@ -2198,11 +2198,11 @@ next
       then have kset: "k \<in> set ([j ..< Suc (l rho i I)])" using j_def k_def by auto
       then obtain x where x: "x \<in> set vphis"  "v_at x = k" using k_def map
         apply auto
-        apply (metis imageE insertI1)
-      by (metis List.List.list.set_map imageE kset map)
+         apply (metis imageE insertI1)
+        by (metis List.List.list.set_map imageE kset map)
       then have "VIO rho k phi" using VOnce_never unfolding Once
         by (auto simp: Let_def)
-      } note * = this
+    } note * = this
     show ?thesis
       using VOnce_never
       unfolding Once
@@ -2238,23 +2238,23 @@ next
   then show ?case
   proof (cases phi)
     case (Since phi I psi)
-   {fix k
-     assume k_def: "k \<ge> v_at vphi \<and> k \<le> i \<and> k \<le> LTP rho (\<tau> rho i - left I)"
+    {fix k
+      assume k_def: "k \<ge> v_at vphi \<and> k \<le> i \<and> k \<le> LTP rho (\<tau> rho i - left I)"
       from VSince Since have map: "set (map v_at vpsi) = set ([(v_at vphi) ..< Suc (l rho i I)])"
         by (auto simp: Let_def)
       then have kset: "k \<in> set ([(v_at vphi) ..< Suc (l rho i I)])" using k_def by auto
       then obtain x where x: "x \<in> set vpsi" "v_at x = k" using k_def map kset
         apply auto
          apply (metis imageE insertI1)
-      by (metis List.List.list.set_map imageE kset map)
+        by (metis List.List.list.set_map imageE kset map)
       then have "VIO rho k psi" using VSince unfolding Since
         by (auto simp: Let_def)
-      } note * = this
+    } note * = this
     show ?thesis
       using VSince
       unfolding Since
       apply (auto simp: Let_def split: enat.splits if_splits
-        intro!: SAT_VIO.VSince[of _ i "v_at vphi"])
+          intro!: SAT_VIO.VSince[of _ i "v_at vphi"])
       using VSince.IH * by (auto split: if_splits)
   qed (auto intro: SAT_VIO.intros)
 next
@@ -2270,15 +2270,15 @@ next
       then obtain x where x: "x \<in> set vpsis" "v_at x = k" using k_def map kset
         apply auto
          apply (metis imageE insertI1)
-      by (metis List.List.list.set_map imageE kset map)
+        by (metis List.List.list.set_map imageE kset map)
       then have "VIO rho k psi" using VUntil unfolding Until
         by (auto simp: Let_def)
-      } note * = this
-      then show ?thesis
-        using VUntil
+    } note * = this
+    then show ?thesis
+      using VUntil
       unfolding Until
       by (auto simp: Let_def split: enat.splits if_splits
-        intro!: SAT_VIO.VUntil)
+          intro!: SAT_VIO.VUntil)
   qed(auto intro: SAT_VIO.intros)
 next
   case (VSince_never i li vpsis)
@@ -2293,11 +2293,11 @@ next
       then have kset: "k \<in> set ([j ..< Suc (l rho i I)])" using j_def k_def by auto
       then obtain x where x: "x \<in> set vpsis"  "v_at x = k" using k_def map
         apply auto
-        apply (metis imageE insertI1)
-      by (metis List.List.list.set_map imageE kset map)
+         apply (metis imageE insertI1)
+        by (metis List.List.list.set_map imageE kset map)
       then have "VIO rho k psi" using VSince_never unfolding Since
         by (auto simp: Let_def)
-      } note * = this
+    } note * = this
     show ?thesis
       using VSince_never
       unfolding Since
@@ -2319,18 +2319,18 @@ next
         by (auto simp: Let_def n_def)
       then have kset: "k \<in> set ([(lu rho i I) ..< Suc j])" using k_def j_def by auto
       then obtain x where x: "x \<in> set vpsis" "v_at x = k" using k_def map
-              apply auto
-              apply (metis imageE insertI1)
-      by (metis List.List.list.set_map imageE kset map)
+        apply auto
+         apply (metis imageE insertI1)
+        by (metis List.List.list.set_map imageE kset map)
       then have "VIO rho k psi" using VUntil_never unfolding Until
         by (auto simp: Let_def n_def)
-      } note * = this
-      then show ?thesis
-        using VUntil_never
+    } note * = this
+    then show ?thesis
+      using VUntil_never
       unfolding Until
       by (auto simp: Let_def n_def intro: SAT_VIO.VUntil_never split: if_splits enat.splits)
   qed(auto intro: SAT_VIO.intros)
-(*
+    (*
 next
   case (SMatchP sp)
   then show ?case
@@ -2462,13 +2462,13 @@ next
   {assume "SAT rho i (Disj phi psi)"
     then have "\<exists>sphi. s_at sphi = i \<and> s_check (Disj phi psi) sphi"
     proof (cases)
-    case (SDisjL)
+      case (SDisjL)
       then obtain sphi where sphi: "s_at sphi = i \<and> s_check phi sphi" using DisjBF by auto
       then have "s_at (SDisjL sphi) = i \<and> s_check (Disj phi psi) (SDisjL sphi)"
         by auto
       then show ?thesis by blast
     next
-    case (SDisjR)
+      case (SDisjR)
       then obtain spsi where spsi: "s_at spsi = i \<and> s_check psi spsi" using DisjBF by auto
       then have "s_at (SDisjR spsi) = i \<and> s_check (Disj phi psi) (SDisjR spsi)"
         by auto
@@ -2480,12 +2480,12 @@ next
     then have "\<exists>vphi. v_at vphi = i \<and> v_check (Disj phi psi) vphi"
     proof (cases)
       case (VDisj)
-    then obtain vphi and vpsi where sphi: "v_at vphi = i \<and> v_check phi vphi"
-    and vpsi: "v_at vpsi = i \<and> v_check psi vpsi" using DisjBF by blast
-    then have "v_at (VDisj vphi vpsi) = i \<and> v_check (Disj phi psi) (VDisj vphi vpsi)"
-      by auto
-    then show ?thesis by blast
-  qed
+      then obtain vphi and vpsi where sphi: "v_at vphi = i \<and> v_check phi vphi"
+        and vpsi: "v_at vpsi = i \<and> v_check psi vpsi" using DisjBF by blast
+      then have "v_at (VDisj vphi vpsi) = i \<and> v_check (Disj phi psi) (VDisj vphi vpsi)"
+        by auto
+      then show ?thesis by blast
+    qed
   }
   ultimately show ?case by blast
 next
@@ -2505,13 +2505,13 @@ next
   {assume "VIO rho i (Conj phi psi)"
     then have "\<exists>vphi. v_at vphi = i \<and> v_check (Conj phi psi) vphi"
     proof (cases)
-    case (VConjL)
+      case (VConjL)
       then obtain vphi where vphi: "v_at vphi = i \<and> v_check phi vphi" using ConjBF by auto
       then have "v_at (VConjL vphi) = i \<and> v_check (Conj phi psi) (VConjL vphi)"
         by auto
       then show ?thesis by blast
     next
-    case (VConjR)
+      case (VConjR)
       then obtain vpsi where vpsi: "v_at vpsi = i \<and> v_check psi vpsi" using ConjBF by auto
       then have "v_at (VConjR vpsi) = i \<and> v_check (Conj phi psi) (VConjR vpsi)"
         by auto
@@ -2567,11 +2567,11 @@ next
   {assume "VIO rho i (Impl phi psi)"
     then have "\<exists>vp. v_at vp = i \<and> v_check (Impl phi psi) vp"
     proof (cases)
-    case (VImpl)
-    then obtain sphi and vpsi where sphi: "s_at sphi = i \<and> s_check phi sphi" 
-      and vpsi: "v_at vpsi = i \<and> v_check psi vpsi"
-      using ImplBF by blast
-    then have "v_at (VImpl sphi vpsi) = i \<and> v_check (Impl phi psi) (VImpl sphi vpsi)"
+      case (VImpl)
+      then obtain sphi and vpsi where sphi: "s_at sphi = i \<and> s_check phi sphi" 
+        and vpsi: "v_at vpsi = i \<and> v_check psi vpsi"
+        using ImplBF by blast
+      then have "v_at (VImpl sphi vpsi) = i \<and> v_check (Impl phi psi) (VImpl sphi vpsi)"
         by auto
       then show ?thesis by blast
     qed
@@ -2584,7 +2584,7 @@ next
     proof (cases)
       case (SIff_ss)
       then obtain sphi and spsi where sphi: "s_at sphi = i \<and> s_check phi sphi" 
-      and spsi: "s_at spsi = i \<and> s_check psi spsi"
+        and spsi: "s_at spsi = i \<and> s_check psi spsi"
         using IffBF by blast
       then have "s_at (SIff_ss sphi spsi) = i \<and> s_check (Iff phi psi) (SIff_ss sphi spsi)"
         by auto
@@ -2592,7 +2592,7 @@ next
     next
       case (SIff_vv)
       then obtain vphi and vpsi where sphi: "v_at vphi = i \<and> v_check phi vphi" 
-      and vpsi: "v_at vpsi = i \<and> v_check psi vpsi"
+        and vpsi: "v_at vpsi = i \<and> v_check psi vpsi"
         using IffBF by blast
       then have "s_at (SIff_vv vphi vpsi) = i \<and> s_check (Iff phi psi) (SIff_vv vphi vpsi)"
         by auto
@@ -2605,7 +2605,7 @@ next
     proof (cases)
       case (VIff_sv)
       then obtain sphi and vpsi where sphi: "s_at sphi = i \<and> s_check phi sphi"
-      and vpsi: "v_at vpsi = i \<and> v_check psi vpsi"
+        and vpsi: "v_at vpsi = i \<and> v_check psi vpsi"
         using IffBF by blast
       then have "v_at (VIff_sv sphi vpsi) = i \<and> v_check (Iff phi psi) (VIff_sv sphi vpsi)"
         by auto
@@ -2613,7 +2613,7 @@ next
     next
       case (VIff_vs)
       then obtain vphi and spsi where sphi: "v_at vphi = i \<and> v_check phi vphi"
-      and spsi: "s_at spsi = i \<and> s_check psi spsi"
+        and spsi: "s_at spsi = i \<and> s_check psi spsi"
         using IffBF by blast
       then have "v_at (VIff_vs vphi spsi) = i \<and> v_check (Iff phi psi) (VIff_vs vphi spsi)"
         by auto
@@ -2626,7 +2626,7 @@ next
   {assume "SAT rho i (Next I phi)"
     then have "\<exists>sphi. s_at sphi = i \<and> s_check (Next I phi) sphi"
     proof (cases)
-    case (SNext)
+      case (SNext)
       then obtain sphi where sphi: "s_at sphi = (Suc i) \<and> s_check phi sphi" using NextBF by auto
       then have "s_at (SNext sphi) = i \<and> s_check (Next I phi) (SNext sphi)"
         using SNext sphi by auto
@@ -2637,7 +2637,7 @@ next
   {assume "VIO rho i (Next I phi)"
     then have "\<exists>vphi. v_at vphi = i \<and> v_check (Next I phi) vphi"
     proof (cases)
-    case (VNext)
+      case (VNext)
       then obtain vphi where vphi: "v_at vphi = (Suc i) \<and> v_check phi vphi" using NextBF by auto
       then have "v_at (VNext vphi) = i \<and> v_check (Next I phi) (VNext vphi)"
         using VNext vphi by auto
@@ -2647,7 +2647,7 @@ next
       then have "v_at (VNext_le i) = i \<and> v_check (Next I phi) (VNext_le i)" by auto
       then show ?thesis by blast
     next
-    case (VNext_ge)
+      case (VNext_ge)
       then have "v_at (VNext_ge i) = i \<and> v_check (Next I phi) (VNext_ge i)" by auto
       then show ?thesis by blast
     qed
@@ -2658,7 +2658,7 @@ next
   {assume "SAT rho i (Prev I phi)"
     then have "\<exists>sphi. s_at sphi = i \<and> s_check (Prev I phi) sphi"
     proof (cases)
-    case (SPrev)
+      case (SPrev)
       then obtain sphi where sphi: "s_at sphi = i - 1 \<and> s_check phi sphi" using PrevBF by auto
       then have "s_at (SPrev sphi) = i \<and> s_check (Prev I phi) (SPrev sphi)"
         using SPrev sphi by auto
@@ -2669,8 +2669,8 @@ next
   {assume "VIO rho i (Prev I phi)"
     then have "\<exists>vphi. v_at vphi = i \<and> v_check (Prev I phi) vphi"
     proof (cases)
-    case (VPrev)
-    then obtain vphi where vphi: "v_at vphi = i - 1 \<and> v_check phi vphi" using PrevBF by auto
+      case (VPrev)
+      then obtain vphi where vphi: "v_at vphi = i - 1 \<and> v_check phi vphi" using PrevBF by auto
       then have "v_at (VPrev vphi) = i \<and> v_check (Prev I phi) (VPrev vphi)"
         using VPrev vphi by auto
       then show ?thesis by blast
@@ -2694,7 +2694,7 @@ next
   {assume "SAT rho i (Since phi I psi)"
     then have "\<exists>sphi. s_at sphi = i \<and> s_check (Since phi I psi) sphi"
     proof (cases)
-    case (SSince j)
+      case (SSince j)
       then obtain spsi where spsi: "s_at spsi = j \<and> s_check psi spsi" using SinceBF by blast
       {assume "Suc j > i"
         then have "s_at (SSince spsi []) = i \<and> s_check (Since phi I psi) (SSince spsi [])"
@@ -2711,7 +2711,7 @@ next
         then have "sphis \<noteq> []" using j_i by auto
         then have "s_at (SSince spsi sphis) = i \<and> s_check (Since phi I psi) (SSince spsi sphis)"
           using spsi j_i sphis SSince
-            apply (auto)
+          apply (auto)
            apply (metis List.list.exhaust List.list.simps(5) last_map last_snoc)
           by (metis (full_types) List.list.exhaust List.list.simps(5) last_map last_snoc)
         then have "\<exists>sphi. s_at sphi = i \<and> s_check (Since phi I psi) sphi" by blast
@@ -2724,7 +2724,7 @@ next
   {assume "VIO rho i (Since phi I psi)"
     then have "\<exists>vphi. v_at vphi = i \<and> v_check (Since phi I psi) vphi"
     proof (cases)
-    case (VSince_le)
+      case (VSince_le)
       then have "v_at (VSince_le i) = i \<and> v_check (Since phi I psi) (VSince_le i)"
         by auto
       then show ?thesis by blast
@@ -2753,7 +2753,7 @@ next
   }
   ultimately show ?case by blast
 next
-case (OnceBF phi I)
+  case (OnceBF phi I)
   {assume "SAT rho i (Once I phi)"
     then have "\<exists>sphi. s_at sphi = i \<and> s_check (Once I phi) sphi"
     proof (cases)
@@ -2779,17 +2779,17 @@ case (OnceBF phi I)
     then have "\<exists>vphi. v_at vphi = i \<and> v_check (Once I phi) vphi"
     proof (cases)
       case (VOnce_le)
-        then have "v_at (VOnce_le i) = i \<and> v_check (Once I phi) (VOnce_le i)"
-          by auto
-        then show ?thesis by blast
-      next
-        case (VOnce_never j)
-        from OnceBF VOnce_never obtain f where f_def: "\<forall>k \<in> {j .. l rho i I}. v_at (f k) = k \<and> v_check phi (f k)"
-          by atomize_elim (auto intro: bchoice)
-        then obtain vphis where vphis: "map (v_at) vphis = [j ..< Suc (l rho i I)]
+      then have "v_at (VOnce_le i) = i \<and> v_check (Once I phi) (VOnce_le i)"
+        by auto
+      then show ?thesis by blast
+    next
+      case (VOnce_never j)
+      from OnceBF VOnce_never obtain f where f_def: "\<forall>k \<in> {j .. l rho i I}. v_at (f k) = k \<and> v_check phi (f k)"
+        by atomize_elim (auto intro: bchoice)
+      then obtain vphis where vphis: "map (v_at) vphis = [j ..< Suc (l rho i I)]
           \<and> (\<forall>vphi \<in> set vphis. v_check phi vphi)"
-          by atomize_elim (auto intro!: trans[OF list.map_cong list.map_id] exI[of _ "map f ([j ..< Suc (l rho i I)])"])
-        then have "v_at (VOnce_never i j vphis) = i \<and> v_check (Once I phi) (VOnce_never i j vphis)"
+        by atomize_elim (auto intro!: trans[OF list.map_cong list.map_id] exI[of _ "map f ([j ..< Suc (l rho i I)])"])
+      then have "v_at (VOnce_never i j vphis) = i \<and> v_check (Once I phi) (VOnce_never i j vphis)"
         using VOnce_never by auto
       then show ?thesis by blast
     qed
@@ -2800,7 +2800,7 @@ next
   {assume "SAT rho i (Until phi I psi)"
     then have "\<exists>sphi. s_at sphi = i \<and> s_check (Until phi I psi) sphi"
     proof (cases)
-    case (SUntil j)
+      case (SUntil j)
       then obtain spsi where spsi: "s_at spsi = j \<and> s_check psi spsi" using UntilBF SUntil by blast
       {assume "i \<ge> j"
         then have "s_at (SUntil [] spsi) = i \<and> s_check (Until phi I psi) (SUntil [] spsi)"
@@ -2829,7 +2829,7 @@ next
   {assume "VIO rho i (Until phi I psi)"
     then have "\<exists>vphi. v_at vphi = i \<and> v_check (Until phi I psi) vphi"
     proof (cases)
-    case (VUntil j)
+      case (VUntil j)
       then obtain vphi where vphi: "v_at vphi = j \<and> v_check phi vphi" using UntilBF by auto
       from UntilBF VUntil obtain f where f_def: "\<forall>k \<in> {lu rho i I .. j}. v_at (f k) = k \<and> v_check psi (f k)"
         by atomize_elim (auto intro: bchoice)
@@ -2856,7 +2856,7 @@ next
     qed
   }
   ultimately show ?case by blast
-(*
+      (*
 next
   case (MatchPBF r I)
   {
@@ -2960,7 +2960,7 @@ definition "p_at = (\<lambda>p. case_sum s_at v_at p)"
 (* ++ operator from paper *)
 definition proofApp :: "('a sproof + 'a vproof) \<Rightarrow> ('a sproof + 'a vproof)
 \<Rightarrow> ('a sproof + 'a vproof)" (infixl "\<oplus>" 65) where
-"p \<oplus> r = (case (p, r) of
+  "p \<oplus> r = (case (p, r) of
    (Inl (SSince p1 p2), Inl r) \<Rightarrow> Inl (SSince p1 (p2 @ [r]))
  | (Inl (SUntil p1 p2), Inl r) \<Rightarrow> Inl (SUntil (r # p1) p2)
  | (Inr (VSince i p1 p2), Inr r) \<Rightarrow> Inr (VSince (Suc i) p1 (p2 @ [r]))
@@ -2970,7 +2970,7 @@ definition proofApp :: "('a sproof + 'a vproof) \<Rightarrow> ('a sproof + 'a vp
  | (Inr (VUntil_never i hi p1), Inr r) \<Rightarrow> Inr (VUntil_never (i-1) hi (r # p1)))"
 
 definition proofIncr :: "('a sproof + 'a vproof) \<Rightarrow> ('a sproof + 'a vproof)" where
-"proofIncr p = (case p of
+  "proofIncr p = (case p of
    Inr (VSince i p1 p2) \<Rightarrow> Inr (VSince (Suc i) p1 p2)
  | Inr (VOnce_never i li p1) \<Rightarrow> Inr (VSince_never (Suc i) li p1)
  | Inr (VSince_never i li p1) \<Rightarrow> Inr (VSince_never (Suc i) li p1)
@@ -2994,10 +2994,10 @@ lemma min_onetwo_le: "reflp r \<Longrightarrow> total_on r (set_onetwo ot) \<Lon
   by (cases ot) (auto simp add: reflp_def total_on_def)
 
 definition min_list_wrt where
-"min_list_wrt r xs = hd [x \<leftarrow> xs. \<forall>y \<in> set xs. r x y]"
+  "min_list_wrt r xs = hd [x \<leftarrow> xs. \<forall>y \<in> set xs. r x y]"
 
 lemma refl_total_transp_imp_ex_min:
-"xs \<noteq> [] \<Longrightarrow> reflp r \<Longrightarrow> total_on r (set xs) \<Longrightarrow> transp r \<Longrightarrow> \<exists>x \<in> set xs. \<forall>y \<in> set xs. r x y"
+  "xs \<noteq> [] \<Longrightarrow> reflp r \<Longrightarrow> total_on r (set xs) \<Longrightarrow> transp r \<Longrightarrow> \<exists>x \<in> set xs. \<forall>y \<in> set xs. r x y"
 proof(induction xs)
   case (Cons y' ys)
   then show ?case
@@ -3073,7 +3073,7 @@ qed
 (* Helper functions for Cand *)
 definition doDisj :: "('a sproof + 'a vproof) \<Rightarrow> ('a sproof + 'a vproof) \<Rightarrow>
 ('a sproof + 'a vproof) list" where
-"doDisj p1 p2 = (case (p1, p2) of
+  "doDisj p1 p2 = (case (p1, p2) of
   (Inl p1, Inl p2) \<Rightarrow> [Inl (SDisjL p1), Inl (SDisjR p2)]
 | (Inl p1, Inr p2) \<Rightarrow> [Inl (SDisjL p1)]
 | (Inr p1, Inl p2) \<Rightarrow> [Inl (SDisjR p2)]
@@ -3081,7 +3081,7 @@ definition doDisj :: "('a sproof + 'a vproof) \<Rightarrow> ('a sproof + 'a vpro
 
 definition doConj :: "('a sproof + 'a vproof) \<Rightarrow> ('a sproof + 'a vproof) \<Rightarrow>
 ('a sproof + 'a vproof) list" where
-"doConj p1 p2 = (case (p1, p2) of
+  "doConj p1 p2 = (case (p1, p2) of
   (Inl p1, Inl p2) \<Rightarrow> [Inl (SConj p1 p2)]
 | (Inl p1, Inr p2) \<Rightarrow> [Inr (VConjR p2)]
 | (Inr p1, Inl p2) \<Rightarrow> [Inr (VConjL p1)]
@@ -3089,7 +3089,7 @@ definition doConj :: "('a sproof + 'a vproof) \<Rightarrow> ('a sproof + 'a vpro
 
 definition doImpl :: "('a sproof + 'a vproof) \<Rightarrow> ('a sproof + 'a vproof) \<Rightarrow>
 ('a sproof + 'a vproof) list" where
-"doImpl p1 p2 = (case (p1, p2) of
+  "doImpl p1 p2 = (case (p1, p2) of
   (Inl p1, Inl p2) \<Rightarrow> [Inl (SImplR p2)]
 | (Inl p1, Inr p2) \<Rightarrow> [Inr (VImpl p1 p2)]
 | (Inr p1, Inl p2) \<Rightarrow> [Inl (SImplL p1), Inl (SImplR p2)]
@@ -3097,7 +3097,7 @@ definition doImpl :: "('a sproof + 'a vproof) \<Rightarrow> ('a sproof + 'a vpro
 
 definition doIff :: "('a sproof + 'a vproof) \<Rightarrow> ('a sproof + 'a vproof) \<Rightarrow>
 ('a sproof + 'a vproof) list" where
-"doIff p1 p2 = (case (p1, p2) of
+  "doIff p1 p2 = (case (p1, p2) of
   (Inl p1, Inl p2) \<Rightarrow> [Inl (SIff_ss p1 p2)]
 | (Inl p1, Inr p2) \<Rightarrow> [Inr (VIff_sv p1 p2)]
 | (Inr p1, Inl p2) \<Rightarrow> [Inr (VIff_vs p1 p2)]
@@ -3105,7 +3105,7 @@ definition doIff :: "('a sproof + 'a vproof) \<Rightarrow> ('a sproof + 'a vproo
 
 definition doPrev :: "nat \<Rightarrow> \<I> \<Rightarrow> nat \<Rightarrow> ('a sproof + 'a vproof)
 \<Rightarrow> ('a sproof + 'a vproof) list" where
-"doPrev i I tau p = (case (p, tau < left I) of
+  "doPrev i I tau p = (case (p, tau < left I) of
   (Inl p, True) \<Rightarrow> [Inr (VPrev_le i)]
 | (Inl p, False) \<Rightarrow> (if mem tau I then [Inl (SPrev p)] else [Inr (VPrev_ge i)])
 | (Inr p, True) \<Rightarrow> [Inr (VPrev p), Inr (VPrev_le i)]
@@ -3113,7 +3113,7 @@ definition doPrev :: "nat \<Rightarrow> \<I> \<Rightarrow> nat \<Rightarrow> ('a
 
 definition doNext :: "nat \<Rightarrow> \<I> \<Rightarrow> nat \<Rightarrow> ('a sproof + 'a vproof)
 \<Rightarrow> ('a sproof + 'a vproof) list" where
-"doNext i I tau p = (case (p, tau < left I) of
+  "doNext i I tau p = (case (p, tau < left I) of
   (Inl p, True) \<Rightarrow> [Inr (VNext_le i)]
 | (Inl p, False) \<Rightarrow> (if mem tau I then [Inl (SNext p)] else [Inr (VNext_ge i)])
 | (Inr p, True) \<Rightarrow> [Inr (VNext p), Inr (VNext_le i)]
@@ -3121,14 +3121,14 @@ definition doNext :: "nat \<Rightarrow> \<I> \<Rightarrow> nat \<Rightarrow> ('a
 
 definition doOnceBase :: "nat \<Rightarrow> nat \<Rightarrow> ('a sproof + 'a vproof)
 \<Rightarrow> ('a sproof + 'a vproof) list" where
-"doOnceBase i a p = (case (p, a = 0) of
+  "doOnceBase i a p = (case (p, a = 0) of
   (Inl p, True) \<Rightarrow> [Inl (SOnce i p)]
 | (Inr p, True) \<Rightarrow> [Inr (VOnce_never i i [p])]
 | (_, False) \<Rightarrow> [Inr (VOnce_never i i [])])"
 
 definition doOnce :: "nat \<Rightarrow> nat \<Rightarrow> ('a sproof + 'a vproof) \<Rightarrow> ('a sproof + 'a vproof)
 \<Rightarrow> ('a sproof + 'a vproof) list" where
-"doOnce i a p p' = (case (p, a = 0, p') of
+  "doOnce i a p p' = (case (p, a = 0, p') of
 (Inr p, True, Inl (SOnce j p'')) \<Rightarrow> [Inl (SOnce i p'')]
 | (Inr p, True, Inr p') \<Rightarrow> [(Inr p') \<oplus> (Inr p)]
 | (Inr p, False, Inl (SOnce j p'')) \<Rightarrow> [Inl (SOnce i p'')]
@@ -3140,7 +3140,7 @@ definition doOnce :: "nat \<Rightarrow> nat \<Rightarrow> ('a sproof + 'a vproof
 
 definition doSinceBase :: "nat \<Rightarrow> nat \<Rightarrow> ('a sproof + 'a vproof)
 \<Rightarrow> ('a sproof + 'a vproof) \<Rightarrow> ('a sproof + 'a vproof) list" where
-"doSinceBase i a p1 p2 = (case (p1, p2, a = 0) of
+  "doSinceBase i a p1 p2 = (case (p1, p2, a = 0) of
   (_, Inl p2, True) \<Rightarrow> [Inl (SSince p2 [])]
 | (Inl p1, _, False) \<Rightarrow> [Inr (VSince_never i i [])]
 | (Inl p1, Inr p2, True) \<Rightarrow> [Inr (VSince_never i i [p2])]
@@ -3149,7 +3149,7 @@ definition doSinceBase :: "nat \<Rightarrow> nat \<Rightarrow> ('a sproof + 'a v
 
 definition doSince :: "nat \<Rightarrow> nat \<Rightarrow> ('a sproof + 'a vproof) \<Rightarrow> ('a sproof + 'a vproof)
 \<Rightarrow> ('a sproof + 'a vproof) \<Rightarrow> ('a sproof + 'a vproof) list" where
-"doSince i a p1 p2 p' = (case (p1, p2, a = 0, p') of
+  "doSince i a p1 p2 p' = (case (p1, p2, a = 0, p') of
   (Inr p1, Inr p2, True, Inl p') \<Rightarrow> [Inr (VSince i p1 [p2])]
 | (Inr p1, _, False, Inl p') \<Rightarrow> [Inr (VSince i p1 [])]
 | (Inr p1, Inl p2, True, Inl p') \<Rightarrow> [Inl (SSince p2 [])]
@@ -3169,7 +3169,7 @@ definition doSince :: "nat \<Rightarrow> nat \<Rightarrow> ('a sproof + 'a vproo
 
 definition doUntilBase :: "nat \<Rightarrow> nat \<Rightarrow> ('a sproof + 'a vproof) \<Rightarrow> ('a sproof + 'a vproof)
 \<Rightarrow> ('a sproof + 'a vproof) list" where
-"doUntilBase i a p1 p2 = (case (p1, p2, a = 0) of
+  "doUntilBase i a p1 p2 = (case (p1, p2, a = 0) of
   (_, Inl p2, True) \<Rightarrow> [Inl (SUntil [] p2)]
 | (Inl p1, _, False) \<Rightarrow> [Inr (VUntil_never i i [])]
 | (Inl p1, Inr p2, True) \<Rightarrow> [Inr (VUntil_never i i [p2])]
@@ -3178,7 +3178,7 @@ definition doUntilBase :: "nat \<Rightarrow> nat \<Rightarrow> ('a sproof + 'a v
 
 definition doUntil :: "nat \<Rightarrow> nat \<Rightarrow> ('a sproof + 'a vproof) \<Rightarrow> ('a sproof + 'a vproof)
 \<Rightarrow> ('a sproof + 'a vproof) \<Rightarrow> ('a sproof + 'a vproof) list" where
-"doUntil i a p1 p2 p' = (case (p1, p2, a = 0, p') of
+  "doUntil i a p1 p2 p' = (case (p1, p2, a = 0, p') of
   (Inr p1, Inr p2, True, Inl (SUntil q1 q2)) \<Rightarrow> [Inr (VUntil i [p2] p1)]
 | (Inr p1, _, False, Inl (SUntil q1 q2)) \<Rightarrow> [Inr (VUntil i [] p1)]
 | (Inr p1, Inl p2, True, Inl (SUntil q1 q2)) \<Rightarrow> [Inl (SUntil [] p2)]
@@ -3198,12 +3198,12 @@ definition doUntil :: "nat \<Rightarrow> nat \<Rightarrow> ('a sproof + 'a vproo
 
 locale alg = fixes rho :: "'a trace" and
   wqo :: "('a sproof + 'a vproof) \<Rightarrow> ('a sproof + 'a vproof) \<Rightarrow> bool"
-(*and f :: "('a sproof rsproof + 'a vproof rvproof) \<Rightarrow> nat"*)
+  (*and f :: "('a sproof rsproof + 'a vproof rvproof) \<Rightarrow> nat"*)
 begin
 
 (* O and C from paper *)
 function (sequential) Cand :: "nat \<Rightarrow> 'a mtl \<Rightarrow> ('a sproof + 'a vproof) list"
-and Opt :: "nat \<Rightarrow> 'a mtl \<Rightarrow> ('a sproof + 'a vproof)" where
+  and Opt :: "nat \<Rightarrow> 'a mtl \<Rightarrow> ('a sproof + 'a vproof)" where
   "Cand i TT = [Inl (STT i)]"
 | "Cand i FF = [Inr (VFF i)]"
 | "Cand i (Atom n) = (case n \<in> \<Gamma> rho i of
@@ -3235,7 +3235,7 @@ and Opt :: "nat \<Rightarrow> 'a mtl \<Rightarrow> ('a sproof + 'a vproof)" wher
     else if right I \<ge> enat (\<Delta> rho i)
     then doOnce i (left I) p (Opt (i-1) (Once (subtract (\<Delta> rho i) I) phi))
     else doOnceBase i (left I) p)))"
-(*
+  (*
 | "Cand i (MatchP I r) = (if \<tau> rho i < \<tau> rho 0 + left I then [Inr (VMatchP_le i)]
   else (let k = ETP rho (case right I of \<infinity> \<Rightarrow> 0 | enat n \<Rightarrow> \<tau> rho i - n);
   ps = map (\<lambda>x. Optr f Opt x i r) [k ..< Suc (l rho i I)]
@@ -3260,7 +3260,7 @@ termination Cand
     [\<lambda>args. case args of Inl (_, \<phi>) \<Rightarrow> size \<phi> | Inr (_, \<phi>) \<Rightarrow> size \<phi>,
      \<lambda>args. case args of Inl (i, \<phi>) \<Rightarrow> dist i \<phi> | Inr (i, \<phi>) \<Rightarrow> dist i \<phi>,
      \<lambda>args. case args of Inl _ \<Rightarrow> 0 | Inr _ \<Rightarrow> 1]")
-  apply (auto simp: add.commute termination_simp)
+                      apply (auto simp: add.commute termination_simp)
   subgoal for i _ I _ x
   proof (induction i)
     case 0
@@ -3299,61 +3299,61 @@ inductive checkIncr :: "('a sproof + 'a vproof) \<Rightarrow> bool" where
 locale cmonotone = fixes wqo :: "'a sproof + 'a vproof \<Rightarrow> 'a sproof + 'a vproof \<Rightarrow> bool"
   assumes
     SNeg: "\<And>p p'. wqo (Inr p) (Inr p') \<Longrightarrow> wqo (Inl (SNeg p)) (Inl (SNeg p'))"
-and VNeg: "\<And>p p'. wqo (Inl p) (Inl p') \<Longrightarrow> wqo (Inr (VNeg p)) (Inr (VNeg p'))"
-and SDisjL: "\<And>p p'. wqo (Inl p) (Inl p') \<Longrightarrow> wqo (Inl (SDisjL p)) (Inl (SDisjL p'))"
-and SDisjR: "\<And>p p'. wqo (Inl p) (Inl p') \<Longrightarrow> wqo (Inl (SDisjR p)) (Inl (SDisjR p'))"
-and VDisj: "\<And>p1 p1' p2 p2'. wqo (Inr p1) (Inr p1') \<Longrightarrow> wqo (Inr p2) (Inr p2' ) \<Longrightarrow>
+    and VNeg: "\<And>p p'. wqo (Inl p) (Inl p') \<Longrightarrow> wqo (Inr (VNeg p)) (Inr (VNeg p'))"
+    and SDisjL: "\<And>p p'. wqo (Inl p) (Inl p') \<Longrightarrow> wqo (Inl (SDisjL p)) (Inl (SDisjL p'))"
+    and SDisjR: "\<And>p p'. wqo (Inl p) (Inl p') \<Longrightarrow> wqo (Inl (SDisjR p)) (Inl (SDisjR p'))"
+    and VDisj: "\<And>p1 p1' p2 p2'. wqo (Inr p1) (Inr p1') \<Longrightarrow> wqo (Inr p2) (Inr p2' ) \<Longrightarrow>
   wqo (Inr (VDisj p1 p2)) (Inr (VDisj p1' p2'))"
-and SConj: "\<And>p1 p1' p2 p2'. wqo (Inl p1) (Inl p1') \<Longrightarrow> wqo (Inl p2) (Inl p2' ) \<Longrightarrow>
+    and SConj: "\<And>p1 p1' p2 p2'. wqo (Inl p1) (Inl p1') \<Longrightarrow> wqo (Inl p2) (Inl p2' ) \<Longrightarrow>
   wqo (Inl (SConj p1 p2)) (Inl (SConj p1' p2'))"
-and VConjL: "\<And>p p'. wqo (Inr p) (Inr p') \<Longrightarrow> wqo (Inr (VConjL p)) (Inr (VConjL p'))"
-and VConjR: "\<And>p p'. wqo (Inr p) (Inr p') \<Longrightarrow> wqo (Inr (VConjR p)) (Inr (VConjR p'))"
-and SImplR: "\<And>p p'. wqo (Inl p) (Inl p') \<Longrightarrow> wqo (Inl (SImplR p)) (Inl (SImplR p'))"
-and SImplL: "\<And>p p'. wqo (Inr p) (Inr p') \<Longrightarrow> wqo (Inl (SImplL p)) (Inl (SImplL p'))"
-and VImpl: "\<And>p1 p1' p2 p2'. wqo (Inl p1) (Inl p1') \<Longrightarrow> wqo (Inr p2) (Inr p2' ) \<Longrightarrow>
+    and VConjL: "\<And>p p'. wqo (Inr p) (Inr p') \<Longrightarrow> wqo (Inr (VConjL p)) (Inr (VConjL p'))"
+    and VConjR: "\<And>p p'. wqo (Inr p) (Inr p') \<Longrightarrow> wqo (Inr (VConjR p)) (Inr (VConjR p'))"
+    and SImplR: "\<And>p p'. wqo (Inl p) (Inl p') \<Longrightarrow> wqo (Inl (SImplR p)) (Inl (SImplR p'))"
+    and SImplL: "\<And>p p'. wqo (Inr p) (Inr p') \<Longrightarrow> wqo (Inl (SImplL p)) (Inl (SImplL p'))"
+    and VImpl: "\<And>p1 p1' p2 p2'. wqo (Inl p1) (Inl p1') \<Longrightarrow> wqo (Inr p2) (Inr p2' ) \<Longrightarrow>
   wqo (Inr (VImpl p1 p2)) (Inr (VImpl p1' p2'))"
-and SIff_ss: "\<And>p1 p1' p2 p2'. wqo (Inl p1) (Inl p1') \<Longrightarrow> wqo (Inl p2) (Inl p2' ) \<Longrightarrow>
+    and SIff_ss: "\<And>p1 p1' p2 p2'. wqo (Inl p1) (Inl p1') \<Longrightarrow> wqo (Inl p2) (Inl p2' ) \<Longrightarrow>
   wqo (Inl (SIff_ss p1 p2)) (Inl (SIff_ss p1' p2'))"
-and SIff_vv: "\<And>p1 p1' p2 p2'. wqo (Inr p1) (Inr p1') \<Longrightarrow> wqo (Inr p2) (Inr p2' ) \<Longrightarrow>
+    and SIff_vv: "\<And>p1 p1' p2 p2'. wqo (Inr p1) (Inr p1') \<Longrightarrow> wqo (Inr p2) (Inr p2' ) \<Longrightarrow>
   wqo (Inl (SIff_vv p1 p2)) (Inl (SIff_vv p1' p2'))"
-and VIff_sv: "\<And>p1 p1' p2 p2'. wqo (Inl p1) (Inl p1') \<Longrightarrow> wqo (Inr p2) (Inr p2' ) \<Longrightarrow>
+    and VIff_sv: "\<And>p1 p1' p2 p2'. wqo (Inl p1) (Inl p1') \<Longrightarrow> wqo (Inr p2) (Inr p2' ) \<Longrightarrow>
   wqo (Inr (VIff_sv p1 p2)) (Inr (VIff_sv p1' p2'))"
-and VIff_vs: "\<And>p1 p1' p2 p2'. wqo (Inr p1) (Inr p1') \<Longrightarrow> wqo (Inl p2) (Inl p2' ) \<Longrightarrow>
+    and VIff_vs: "\<And>p1 p1' p2 p2'. wqo (Inr p1) (Inr p1') \<Longrightarrow> wqo (Inl p2) (Inl p2' ) \<Longrightarrow>
   wqo (Inr (VIff_vs p1 p2)) (Inr (VIff_vs p1' p2'))"
-and SOnce: "\<And>i p p'. wqo (Inl p) (Inl p') \<Longrightarrow> wqo (Inl (SOnce i p)) (Inl (SOnce i p'))"
-and VOnce_never: "\<And>i li q q'. wqo (Inr q) (Inr q') \<Longrightarrow>
+    and SOnce: "\<And>i p p'. wqo (Inl p) (Inl p') \<Longrightarrow> wqo (Inl (SOnce i p)) (Inl (SOnce i p'))"
+    and VOnce_never: "\<And>i li q q'. wqo (Inr q) (Inr q') \<Longrightarrow>
   wqo (Inr (VOnce_never i li [q])) (Inr (VOnce_never i li [q']))"
-and SSince: "\<And>p p'. wqo (Inl p) (Inl p') \<Longrightarrow> wqo (Inl (SSince p [])) (Inl (SSince p' []))"
-and VSince_Nil: "\<And>i p p'. wqo (Inr p) (Inr p') \<Longrightarrow> wqo (Inr (VSince i p [])) (Inr (VSince i p' []))"
-and VSince: "\<And>i p p' q q'. wqo (Inr p) (Inr p') \<Longrightarrow> wqo (Inr q) (Inr q') \<Longrightarrow>
+    and SSince: "\<And>p p'. wqo (Inl p) (Inl p') \<Longrightarrow> wqo (Inl (SSince p [])) (Inl (SSince p' []))"
+    and VSince_Nil: "\<And>i p p'. wqo (Inr p) (Inr p') \<Longrightarrow> wqo (Inr (VSince i p [])) (Inr (VSince i p' []))"
+    and VSince: "\<And>i p p' q q'. wqo (Inr p) (Inr p') \<Longrightarrow> wqo (Inr q) (Inr q') \<Longrightarrow>
   wqo (Inr (VSince i p [q])) (Inr (VSince i p' [q']))"
-and VSince_never: "\<And>i li q q'. wqo (Inr q) (Inr q') \<Longrightarrow>
+    and VSince_never: "\<And>i li q q'. wqo (Inr q) (Inr q') \<Longrightarrow>
   wqo (Inr (VSince_never i li [q])) (Inr (VSince_never i li [q']))"
-and SUntil_Nil: "\<And>p p'. wqo (Inl p) (Inl p') \<Longrightarrow>
+    and SUntil_Nil: "\<And>p p'. wqo (Inl p) (Inl p') \<Longrightarrow>
   wqo (Inl (SUntil [] p)) (Inl (SUntil [] p'))"
-and SUntil: "\<And>p p' q q'. wqo (Inl p) (Inl p') \<Longrightarrow> wqo (Inl q) (Inl q') \<Longrightarrow>
+    and SUntil: "\<And>p p' q q'. wqo (Inl p) (Inl p') \<Longrightarrow> wqo (Inl q) (Inl q') \<Longrightarrow>
   wqo (Inl (SUntil [q] p)) (Inl (SUntil [q'] p'))"
-and VUntil_Nil: "\<And>i p p'. wqo (Inr p) (Inr p') \<Longrightarrow>
+    and VUntil_Nil: "\<And>i p p'. wqo (Inr p) (Inr p') \<Longrightarrow>
   wqo (Inr (VUntil i [] p)) (Inr (VUntil i [] p'))"
-and VUntil: "\<And>i p p' q q'. wqo (Inr p) (Inr p') \<Longrightarrow> wqo (Inr q) (Inr q') \<Longrightarrow>
+    and VUntil: "\<And>i p p' q q'. wqo (Inr p) (Inr p') \<Longrightarrow> wqo (Inr q) (Inr q') \<Longrightarrow>
   wqo (Inr (VUntil i [q] p)) (Inr (VUntil i [q'] p'))"
-and VUntil_never: "\<And>i hi q q'. wqo (Inr q) (Inr q') \<Longrightarrow>
+    and VUntil_never: "\<And>i hi q q'. wqo (Inr q) (Inr q') \<Longrightarrow>
   wqo (Inr (VUntil_never i hi [q])) (Inr (VUntil_never i hi [q']))"
-and SNext: "\<And>p p'. wqo (Inl p) (Inl p') \<Longrightarrow> wqo (Inl (SNext p)) (Inl (SNext p'))"
-and VNext: "\<And>p p'. wqo (Inr p) (Inr p') \<Longrightarrow> wqo (Inr (VNext p)) (Inr (VNext p'))"
-and SPrev: "\<And>p p'. wqo (Inl p) (Inl p') \<Longrightarrow> wqo (Inl (SPrev p)) (Inl (SPrev p'))"
-and VPrev: "\<And>p p'. wqo (Inr p) (Inr p') \<Longrightarrow> wqo (Inr (VPrev p)) (Inr (VPrev p'))"
-and proofApp_mono: "\<And>i phi p p' r r'. checkApp p r \<Longrightarrow> checkApp p' r' \<Longrightarrow> wqo p p' \<Longrightarrow> wqo r r' \<Longrightarrow>
+    and SNext: "\<And>p p'. wqo (Inl p) (Inl p') \<Longrightarrow> wqo (Inl (SNext p)) (Inl (SNext p'))"
+    and VNext: "\<And>p p'. wqo (Inr p) (Inr p') \<Longrightarrow> wqo (Inr (VNext p)) (Inr (VNext p'))"
+    and SPrev: "\<And>p p'. wqo (Inl p) (Inl p') \<Longrightarrow> wqo (Inl (SPrev p)) (Inl (SPrev p'))"
+    and VPrev: "\<And>p p'. wqo (Inr p) (Inr p') \<Longrightarrow> wqo (Inr (VPrev p)) (Inr (VPrev p'))"
+    and proofApp_mono: "\<And>i phi p p' r r'. checkApp p r \<Longrightarrow> checkApp p' r' \<Longrightarrow> wqo p p' \<Longrightarrow> wqo r r' \<Longrightarrow>
   valid rho i phi (p \<oplus> r) \<Longrightarrow> valid rho i phi (p' \<oplus> r') \<Longrightarrow> wqo (p \<oplus> r) (p' \<oplus> r')"
-and proofIncr_mono: "\<And>i phi p p'. checkIncr p \<Longrightarrow> checkIncr p' \<Longrightarrow> wqo p p' \<Longrightarrow>
+    and proofIncr_mono: "\<And>i phi p p'. checkIncr p \<Longrightarrow> checkIncr p' \<Longrightarrow> wqo p p' \<Longrightarrow>
   valid rho i phi p \<Longrightarrow> valid rho i phi p' \<Longrightarrow> wqo (proofIncr p) (proofIncr p')"
 
 (* Algorithm lemmas  *)
 locale trans_wqo = cmonotone wqo + alg (*sp mc*) rho wqo (*f + algr sp mc f Opt "s_check rho" "v_check rho" s_at v_at*)
   for (*sp mc*) wqo rho (*f*) +
-assumes refl_wqo: "reflp wqo"
-  and trans_wqo: "transp wqo"
-  and pw_total: "\<And>i \<phi>. total_on wqo {p. valid rho i \<phi> p}"
+  assumes refl_wqo: "reflp wqo"
+    and trans_wqo: "transp wqo"
+    and pw_total: "\<And>i \<phi>. total_on wqo {p. valid rho i \<phi> p}"
 begin
 
 (*
@@ -3388,7 +3388,7 @@ lemma valid_UntilE: "
 simps_of_case proofApp_simps[simp]: proofApp_def
 
 lemma not_wqo:
-"valid rho i phi p1 \<Longrightarrow> valid rho i phi p2 \<Longrightarrow> \<not> wqo p1 p2 \<Longrightarrow> wqo p2 p1"
+  "valid rho i phi p1 \<Longrightarrow> valid rho i phi p2 \<Longrightarrow> \<not> wqo p1 p2 \<Longrightarrow> wqo p2 p1"
   using pw_total trans_wqo refl_wqo
   by (metis mem_Collect_eq reflpD total_on_def)
 
@@ -3398,21 +3398,21 @@ lemma check_consistent:
   assumes bf: "bounded_future phi"
   shows "s_check rho phi p \<Longrightarrow> s_at p = v_at q \<Longrightarrow> \<not> v_check rho phi q"
   by (auto simp only: s_at.simps list.case dest!: check_sound
-    soundness[THEN conjunct1, THEN mp]
-    soundness[THEN conjunct2, THEN mp])
+      soundness[THEN conjunct1, THEN mp]
+      soundness[THEN conjunct2, THEN mp])
 
 lemma val_SAT_imp_l:
-assumes bf: "bounded_future phi" and
-val: " valid rho i phi p" and sat: "SAT rho i phi"
-shows "\<exists>a. p = Inl a"
+  assumes bf: "bounded_future phi" and
+    val: " valid rho i phi p" and sat: "SAT rho i phi"
+  shows "\<exists>a. p = Inl a"
   using check_consistent[OF bf] check_complete[OF bf] assms unfolding valid_def
   apply (cases p) apply auto
   by blast
 
 lemma val_VIO_imp_r:
-assumes bf: "bounded_future phi" and
-val: "valid rho i phi p" and vio: "VIO rho i phi"
-shows "\<exists>a. p = Inr a"
+  assumes bf: "bounded_future phi" and
+    val: "valid rho i phi p" and vio: "VIO rho i phi"
+  shows "\<exists>a. p = Inr a"
   using check_consistent[OF bf] check_complete[OF bf] assms unfolding valid_def
   apply (cases p) apply auto
   by fastforce
@@ -3420,8 +3420,8 @@ shows "\<exists>a. p = Inr a"
 (* Lemma 30 *)
 lemma disj_sound:
   assumes p1_def: "optimal i phi p1" and p2_def: "optimal i psi p2"
-  and p_def: "p \<in> set (doDisj p1 p2)"
-shows "valid rho i (Disj phi psi) p"
+    and p_def: "p \<in> set (doDisj p1 p2)"
+  shows "valid rho i (Disj phi psi) p"
 proof (cases p1)
   case (Inl a)
   then have p1s: "p1 = Inl a" by auto
@@ -3429,10 +3429,10 @@ proof (cases p1)
   proof (cases p2)
     case (Inl a2)
     then have sp: "p = Inl (SDisjL a) \<or> p = Inl (SDisjR a2)"
-    using p_def p1s local.Inl unfolding doDisj_def valid_def by auto
-  then show ?thesis using Inl p_def p1_def p2_def p1s
-    unfolding optimal_def valid_def
-    by auto
+      using p_def p1s local.Inl unfolding doDisj_def valid_def by auto
+    then show ?thesis using Inl p_def p1_def p2_def p1s
+      unfolding optimal_def valid_def
+      by auto
   next
     case (Inr b2)
     then have "p = Inl (SDisjL a)"
@@ -3461,8 +3461,8 @@ qed
 
 lemma disj_optimal:
   assumes bf: "bounded_future (Disj phi psi)" and
-  p1_def: "optimal i phi p1" and p2_def: "optimal i psi p2"
-shows "optimal i (Disj phi psi) (min_list_wrt wqo (doDisj p1 p2))"
+    p1_def: "optimal i phi p1" and p2_def: "optimal i psi p2"
+  shows "optimal i (Disj phi psi) (min_list_wrt wqo (doDisj p1 p2))"
 proof (rule ccontr)
   have bf_phi: "bounded_future phi"
     using bf by auto
@@ -3478,7 +3478,7 @@ proof (rule ccontr)
     apply auto
     by (metis disj_sound not_wqo p1_def p2_def total_onI)
   from this nopt obtain q where q_val: "valid rho i (Disj phi psi) q" and
-  q_le: "\<not> wqo (min_list_wrt wqo (doDisj p1 p2)) q"
+    q_le: "\<not> wqo (min_list_wrt wqo (doDisj p1 p2)) q"
     unfolding optimal_def by auto
   then have "wqo (min_list_wrt wqo (doDisj p1 p2)) q"
   proof(cases q)
@@ -3497,7 +3497,7 @@ proof (rule ccontr)
         by (auto simp add: doDisj_def optimal_def valid_def split: sum.splits)
       ultimately have "wqo (min_list_wrt wqo (doDisj p1 p2)) q"
         using min_list_wrt_le[OF _ refl_wqo]
-        disj_sound[OF p1_def p2_def] pw_total[of i "Disj phi psi"] trans_wqo
+          disj_sound[OF p1_def p2_def] pw_total[of i "Disj phi psi"] trans_wqo
         by (metis not_wqo total_on_def transpE)
     } note * = this
     {fix p
@@ -3514,7 +3514,7 @@ proof (rule ccontr)
         by (auto simp add: doDisj_def optimal_def valid_def split: sum.splits)
       ultimately have "wqo (min_list_wrt wqo (doDisj p1 p2)) q"
         using min_list_wrt_le[OF _ refl_wqo]
-        disj_sound[OF p1_def p2_def] pw_total[of i "Disj phi psi"] trans_wqo
+          disj_sound[OF p1_def p2_def] pw_total[of i "Disj phi psi"] trans_wqo
         by (metis not_wqo total_on_def transpE)
     } note ** = this
     then show ?thesis using * ** q_val Inl unfolding valid_def doDisj_def
@@ -3534,15 +3534,15 @@ proof (rule ccontr)
       using p_val p2_def check_consistent[OF bf_psi]
       by (auto simp add: optimal_def valid_def split: sum.splits)
     have "wqo (Inr (VDisj (projr p1) (projr p2))) (Inr b)"
-        using formq VDisj p1'_def p2'_def sub by auto
-      moreover have "Inr (VDisj (projr p1) (projr p2)) \<in> set (doDisj p1 p2)"
-        using p1_def p2_def bf check_consistent[of phi] check_consistent[of psi] p_val
-        by (auto simp add: doDisj_def optimal_def valid_def split: sum.splits)
-      ultimately show ?thesis
-        using min_list_wrt_le[OF _ refl_wqo] disj_sound[OF p1_def p2_def]
-          pw_total[of i "Disj phi psi"] trans_wqo Inr
-          apply (auto simp add: total_on_def)
-          by (metis transpD)
+      using formq VDisj p1'_def p2'_def sub by auto
+    moreover have "Inr (VDisj (projr p1) (projr p2)) \<in> set (doDisj p1 p2)"
+      using p1_def p2_def bf check_consistent[of phi] check_consistent[of psi] p_val
+      by (auto simp add: doDisj_def optimal_def valid_def split: sum.splits)
+    ultimately show ?thesis
+      using min_list_wrt_le[OF _ refl_wqo] disj_sound[OF p1_def p2_def]
+        pw_total[of i "Disj phi psi"] trans_wqo Inr
+      apply (auto simp add: total_on_def)
+      by (metis transpD)
   qed
   then show False using q_le by auto
 qed
@@ -3550,8 +3550,8 @@ qed
 (* Lemma ?? *)
 lemma conj_sound:
   assumes p1_def: "optimal i phi p1" and p2_def: "optimal i psi p2"
-  and p_def: "p \<in> set (doConj p1 p2)"
-shows "valid rho i (Conj phi psi) p"
+    and p_def: "p \<in> set (doConj p1 p2)"
+  shows "valid rho i (Conj phi psi) p"
 proof (cases p1)
   case (Inr a)
   then have p1s: "p1 = Inr a" by auto
@@ -3559,10 +3559,10 @@ proof (cases p1)
   proof (cases p2)
     case (Inr a2)
     then have vp: "p = Inr (VConjL a) \<or> p = Inr (VConjR a2)"
-    using p_def p1s local.Inr unfolding doConj_def valid_def by auto
-  then show ?thesis using Inr p_def p1_def p2_def p1s
-    unfolding optimal_def valid_def
-    by auto
+      using p_def p1s local.Inr unfolding doConj_def valid_def by auto
+    then show ?thesis using Inr p_def p1_def p2_def p1s
+      unfolding optimal_def valid_def
+      by auto
   next
     case (Inl b2)
     then have "p = Inr (VConjL a)"
@@ -3591,8 +3591,8 @@ qed
 
 lemma conj_optimal:
   assumes bf: "bounded_future (Conj phi psi)" and
-  p1_def: "optimal i phi p1" and p2_def: "optimal i psi p2"
-shows "optimal i (Conj phi psi) (min_list_wrt wqo (doConj p1 p2))"
+    p1_def: "optimal i phi p1" and p2_def: "optimal i psi p2"
+  shows "optimal i (Conj phi psi) (min_list_wrt wqo (doConj p1 p2))"
 proof (rule ccontr)
   have bf_phi: "bounded_future phi"
     using bf by auto
@@ -3608,7 +3608,7 @@ proof (rule ccontr)
     apply auto
     by (metis conj_sound not_wqo p1_def p2_def total_onI)
   from this nopt obtain q where q_val: "valid rho i (Conj phi psi) q" and
-  q_le: "\<not> wqo (min_list_wrt wqo (doConj p1 p2)) q"
+    q_le: "\<not> wqo (min_list_wrt wqo (doConj p1 p2)) q"
     unfolding optimal_def by auto
   then have "wqo (min_list_wrt wqo (doConj p1 p2)) q"
   proof(cases q)
@@ -3627,7 +3627,7 @@ proof (rule ccontr)
         by (auto simp add: doConj_def optimal_def valid_def split: sum.splits)
       ultimately have "wqo (min_list_wrt wqo (doConj p1 p2)) q"
         using min_list_wrt_le[OF _ refl_wqo]
-        conj_sound[OF p1_def p2_def] pw_total[of i "Conj phi psi"] trans_wqo
+          conj_sound[OF p1_def p2_def] pw_total[of i "Conj phi psi"] trans_wqo
         by (metis not_wqo total_on_def transpE)
     } note * = this
     {fix p
@@ -3644,7 +3644,7 @@ proof (rule ccontr)
         by (auto simp add: doConj_def optimal_def valid_def split: sum.splits)
       ultimately have "wqo (min_list_wrt wqo (doConj p1 p2)) q"
         using min_list_wrt_le[OF _ refl_wqo]
-        conj_sound[OF p1_def p2_def] pw_total[of i "Conj phi psi"] trans_wqo
+          conj_sound[OF p1_def p2_def] pw_total[of i "Conj phi psi"] trans_wqo
         by (metis not_wqo total_on_def transpE)
     } note ** = this
     then show ?thesis using * ** q_val Inr unfolding valid_def doConj_def
@@ -3664,23 +3664,23 @@ proof (rule ccontr)
       using p_val p2_def check_consistent[OF bf_psi]
       by (auto simp add: optimal_def valid_def split: sum.splits)
     have "wqo (Inl (SConj (projl p1) (projl p2))) (Inl b)"
-        using formq SConj p1'_def p2'_def sub by auto
-      moreover have "Inl (SConj (projl p1) (projl p2)) \<in> set (doConj p1 p2)"
-        using p1_def p2_def bf check_consistent[of phi] check_consistent[of psi] p_val
-        by (auto simp add: doConj_def optimal_def valid_def split: sum.splits)
-      ultimately show ?thesis
-        using min_list_wrt_le[OF _ refl_wqo] conj_sound[OF p1_def p2_def]
-          pw_total[of i "Conj phi psi"] trans_wqo Inl
-          apply (auto simp add: total_on_def)
-          by (metis transpD)
+      using formq SConj p1'_def p2'_def sub by auto
+    moreover have "Inl (SConj (projl p1) (projl p2)) \<in> set (doConj p1 p2)"
+      using p1_def p2_def bf check_consistent[of phi] check_consistent[of psi] p_val
+      by (auto simp add: doConj_def optimal_def valid_def split: sum.splits)
+    ultimately show ?thesis
+      using min_list_wrt_le[OF _ refl_wqo] conj_sound[OF p1_def p2_def]
+        pw_total[of i "Conj phi psi"] trans_wqo Inl
+      apply (auto simp add: total_on_def)
+      by (metis transpD)
   qed
   then show False using q_le by auto
 qed
 
 lemma impl_sound:
   assumes p1_def: "optimal i phi p1" and p2_def: "optimal i psi p2"
-  and p_def: "p \<in> set (doImpl p1 p2)"
-shows "valid rho i (Impl phi psi) p"
+    and p_def: "p \<in> set (doImpl p1 p2)"
+  shows "valid rho i (Impl phi psi) p"
 proof (cases p1)
   case (Inr va)
   then have vp1: "p1 = Inr va" 
@@ -3772,7 +3772,7 @@ proof(rule ccontr)
       by (auto simp add: doImpl_def optimal_def valid_def split: sum.splits)
     ultimately show ?thesis
       using min_list_wrt_le[OF _ refl_wqo] impl_sound[OF p1_def p2_def]
-      pw_total[of i "Impl phi psi"] trans_wqo Inr
+        pw_total[of i "Impl phi psi"] trans_wqo Inr
       apply (auto simp add: total_on_def)
       by (metis transpD)
   next
@@ -3792,7 +3792,7 @@ proof(rule ccontr)
         by (auto simp add: doImpl_def optimal_def valid_def split: sum.splits)
       ultimately have "wqo (min_list_wrt wqo (doImpl p1 p2)) q"
         using min_list_wrt_le[OF _ refl_wqo]
-        impl_sound[OF p1_def p2_def] pw_total[of i "Impl phi psi"] trans_wqo
+          impl_sound[OF p1_def p2_def] pw_total[of i "Impl phi psi"] trans_wqo
         by (metis not_wqo total_on_def transpE)
     } note * = this
     {fix p
@@ -3809,7 +3809,7 @@ proof(rule ccontr)
         by (auto simp add: doImpl_def optimal_def valid_def split: sum.splits)
       ultimately have "wqo (min_list_wrt wqo (doImpl p1 p2)) q"
         using min_list_wrt_le[OF _ refl_wqo]
-        impl_sound[OF p1_def p2_def] pw_total[of i "Impl phi psi"] trans_wqo
+          impl_sound[OF p1_def p2_def] pw_total[of i "Impl phi psi"] trans_wqo
         by (metis not_wqo total_on_def transpE)
     } note ** = this
     then show ?thesis using * ** q_val Inl unfolding valid_def doImpl_def
@@ -3819,9 +3819,9 @@ proof(rule ccontr)
 qed
 
 lemma iff_sound:
-assumes p1_def: "optimal i phi p1" and p2_def: "optimal i psi p2"
-  and p_def: "p \<in> set (doIff p1 p2)"
-shows "valid rho i (Iff phi psi) p"
+  assumes p1_def: "optimal i phi p1" and p2_def: "optimal i psi p2"
+    and p_def: "p \<in> set (doIff p1 p2)"
+  shows "valid rho i (Iff phi psi) p"
 proof (cases p1)
   case (Inr va)
   then have vp1: "p1 = Inr va" 
@@ -3896,98 +3896,98 @@ proof(rule ccontr)
     case (Inr a)
     {fix p p'
       assume formq: "a = VIff_sv p p'"
-    then have p_val: "valid rho i phi (Inl p) \<and> valid rho i psi (Inr p')" using q_val Inr
-      unfolding valid_def by auto
-    then have sub: "wqo p1 (Inl p) \<and> wqo p2 (Inr p')" using p1_def p2_def formq
-      unfolding optimal_def by auto
-    obtain p1' where p1'_def: "p1 = Inl p1'"
-      using p_val p1_def check_consistent[OF bf_phi]
-      by (auto simp add: optimal_def valid_def split: sum.splits)
-    obtain p2' where p2'_def: "p2 = Inr p2'"
-      using p_val p2_def check_consistent[OF bf_psi]
-      by (auto simp add: optimal_def valid_def split: sum.splits)
-    have "wqo (Inr (VIff_sv (projl p1) (projr p2))) (Inr a)"
-      using formq VIff_sv p1'_def p2'_def sub by auto
-    moreover have "Inr (VIff_sv (projl p1) (projr p2)) \<in> set (doIff p1 p2)"
-      using p1_def p2_def bf check_consistent[of phi] check_consistent[of psi] p_val
-      by (auto simp add: doIff_def optimal_def valid_def split: sum.splits)
-    ultimately have "wqo (min_list_wrt wqo (doIff p1 p2)) q"
-      using min_list_wrt_le[OF _ refl_wqo] iff_sound[OF p1_def p2_def]
-      pw_total[of i "Iff phi psi"] trans_wqo Inr
-      by (metis not_wqo total_on_def transpE)
-  } note * = this
-  {fix p p'
+      then have p_val: "valid rho i phi (Inl p) \<and> valid rho i psi (Inr p')" using q_val Inr
+        unfolding valid_def by auto
+      then have sub: "wqo p1 (Inl p) \<and> wqo p2 (Inr p')" using p1_def p2_def formq
+        unfolding optimal_def by auto
+      obtain p1' where p1'_def: "p1 = Inl p1'"
+        using p_val p1_def check_consistent[OF bf_phi]
+        by (auto simp add: optimal_def valid_def split: sum.splits)
+      obtain p2' where p2'_def: "p2 = Inr p2'"
+        using p_val p2_def check_consistent[OF bf_psi]
+        by (auto simp add: optimal_def valid_def split: sum.splits)
+      have "wqo (Inr (VIff_sv (projl p1) (projr p2))) (Inr a)"
+        using formq VIff_sv p1'_def p2'_def sub by auto
+      moreover have "Inr (VIff_sv (projl p1) (projr p2)) \<in> set (doIff p1 p2)"
+        using p1_def p2_def bf check_consistent[of phi] check_consistent[of psi] p_val
+        by (auto simp add: doIff_def optimal_def valid_def split: sum.splits)
+      ultimately have "wqo (min_list_wrt wqo (doIff p1 p2)) q"
+        using min_list_wrt_le[OF _ refl_wqo] iff_sound[OF p1_def p2_def]
+          pw_total[of i "Iff phi psi"] trans_wqo Inr
+        by (metis not_wqo total_on_def transpE)
+    } note * = this
+    {fix p p'
       assume formq: "a = VIff_vs p p'"
-    then have p_val: "valid rho i phi (Inr p) \<and> valid rho i psi (Inl p')" using q_val Inr
-      unfolding valid_def by auto
-    then have sub: "wqo p1 (Inr p) \<and> wqo p2 (Inl p')" using p1_def p2_def formq
-      unfolding optimal_def by auto
-    obtain p1' where p1'_def: "p1 = Inr p1'"
-      using p_val p1_def check_consistent[OF bf_phi]
-      by (auto simp add: optimal_def valid_def split: sum.splits)
-    obtain p2' where p2'_def: "p2 = Inl p2'"
-      using p_val p2_def check_consistent[OF bf_psi]
-      by (auto simp add: optimal_def valid_def split: sum.splits)
-    have "wqo (Inr (VIff_vs (projr p1) (projl p2))) (Inr a)"
-      using formq VIff_vs p1'_def p2'_def sub by auto
-    moreover have "Inr (VIff_vs (projr p1) (projl p2)) \<in> set (doIff p1 p2)"
-      using p1_def p2_def bf check_consistent[of phi] check_consistent[of psi] p_val
-      by (auto simp add: doIff_def optimal_def valid_def split: sum.splits)
-    ultimately have "wqo (min_list_wrt wqo (doIff p1 p2)) q"
-      using min_list_wrt_le[OF _ refl_wqo] iff_sound[OF p1_def p2_def]
-      pw_total[of i "Iff phi psi"] trans_wqo Inr
-      by (metis not_wqo total_on_def transpE)
-  } note ** = this
-  then show ?thesis using * ** q_val Inr unfolding valid_def doIff_def
-    by (cases a) auto
-next
-  case (Inl b)
-  {fix p p'
-    assume formq: "b = SIff_ss p p'"
-    then have p_val: "valid rho i phi (Inl p) \<and> valid rho i psi (Inl p')" using q_val Inl
-      unfolding valid_def by auto
-    then have sub: "wqo p1 (Inl p) \<and> wqo p2 (Inl p')" using p1_def p2_def formq
-      unfolding optimal_def by auto
-    obtain p1' where p1'_def: "p1 = Inl p1'"
-      using p_val p1_def check_consistent[OF bf_phi]
-      by (auto simp add: optimal_def valid_def split: sum.splits)
-    obtain p2' where p2'_def: "p2 = Inl p2'"
-      using p_val p2_def check_consistent[OF bf_psi]
-      by (auto simp add: optimal_def valid_def split: sum.splits)
-    have "wqo (Inl (SIff_ss (projl p1) (projl p2))) (Inl b)"
-      using formq SIff_ss p1'_def p2'_def sub by auto
-    moreover have "Inl (SIff_ss (projl p1) (projl p2)) \<in> set (doIff p1 p2)"
-      using p1_def p2_def bf check_consistent[of phi] check_consistent[of psi] p_val
-      by (auto simp add: doIff_def optimal_def valid_def split: sum.splits)
-    ultimately have "wqo (min_list_wrt wqo (doIff p1 p2)) q"
-      using min_list_wrt_le[OF _ refl_wqo] iff_sound[OF p1_def p2_def]
-      pw_total[of i "Iff phi psi"] trans_wqo Inl
-      by (metis not_wqo total_on_def transpE)
-  } note * = this
-  {fix p p'
+      then have p_val: "valid rho i phi (Inr p) \<and> valid rho i psi (Inl p')" using q_val Inr
+        unfolding valid_def by auto
+      then have sub: "wqo p1 (Inr p) \<and> wqo p2 (Inl p')" using p1_def p2_def formq
+        unfolding optimal_def by auto
+      obtain p1' where p1'_def: "p1 = Inr p1'"
+        using p_val p1_def check_consistent[OF bf_phi]
+        by (auto simp add: optimal_def valid_def split: sum.splits)
+      obtain p2' where p2'_def: "p2 = Inl p2'"
+        using p_val p2_def check_consistent[OF bf_psi]
+        by (auto simp add: optimal_def valid_def split: sum.splits)
+      have "wqo (Inr (VIff_vs (projr p1) (projl p2))) (Inr a)"
+        using formq VIff_vs p1'_def p2'_def sub by auto
+      moreover have "Inr (VIff_vs (projr p1) (projl p2)) \<in> set (doIff p1 p2)"
+        using p1_def p2_def bf check_consistent[of phi] check_consistent[of psi] p_val
+        by (auto simp add: doIff_def optimal_def valid_def split: sum.splits)
+      ultimately have "wqo (min_list_wrt wqo (doIff p1 p2)) q"
+        using min_list_wrt_le[OF _ refl_wqo] iff_sound[OF p1_def p2_def]
+          pw_total[of i "Iff phi psi"] trans_wqo Inr
+        by (metis not_wqo total_on_def transpE)
+    } note ** = this
+    then show ?thesis using * ** q_val Inr unfolding valid_def doIff_def
+      by (cases a) auto
+  next
+    case (Inl b)
+    {fix p p'
+      assume formq: "b = SIff_ss p p'"
+      then have p_val: "valid rho i phi (Inl p) \<and> valid rho i psi (Inl p')" using q_val Inl
+        unfolding valid_def by auto
+      then have sub: "wqo p1 (Inl p) \<and> wqo p2 (Inl p')" using p1_def p2_def formq
+        unfolding optimal_def by auto
+      obtain p1' where p1'_def: "p1 = Inl p1'"
+        using p_val p1_def check_consistent[OF bf_phi]
+        by (auto simp add: optimal_def valid_def split: sum.splits)
+      obtain p2' where p2'_def: "p2 = Inl p2'"
+        using p_val p2_def check_consistent[OF bf_psi]
+        by (auto simp add: optimal_def valid_def split: sum.splits)
+      have "wqo (Inl (SIff_ss (projl p1) (projl p2))) (Inl b)"
+        using formq SIff_ss p1'_def p2'_def sub by auto
+      moreover have "Inl (SIff_ss (projl p1) (projl p2)) \<in> set (doIff p1 p2)"
+        using p1_def p2_def bf check_consistent[of phi] check_consistent[of psi] p_val
+        by (auto simp add: doIff_def optimal_def valid_def split: sum.splits)
+      ultimately have "wqo (min_list_wrt wqo (doIff p1 p2)) q"
+        using min_list_wrt_le[OF _ refl_wqo] iff_sound[OF p1_def p2_def]
+          pw_total[of i "Iff phi psi"] trans_wqo Inl
+        by (metis not_wqo total_on_def transpE)
+    } note * = this
+    {fix p p'
       assume formq: "b = SIff_vv p p'"
-    then have p_val: "valid rho i phi (Inr p) \<and> valid rho i psi (Inr p')" using q_val Inl
-      unfolding valid_def by auto
-    then have sub: "wqo p1 (Inr p) \<and> wqo p2 (Inr p')" using p1_def p2_def formq
-      unfolding optimal_def by auto
-    obtain p1' where p1'_def: "p1 = Inr p1'"
-      using p_val p1_def check_consistent[OF bf_phi]
-      by (auto simp add: optimal_def valid_def split: sum.splits)
-    obtain p2' where p2'_def: "p2 = Inr p2'"
-      using p_val p2_def check_consistent[OF bf_psi]
-      by (auto simp add: optimal_def valid_def split: sum.splits)
-    have "wqo (Inl (SIff_vv (projr p1) (projr p2))) (Inl b)"
-      using formq SIff_vv p1'_def p2'_def sub by auto
-    moreover have "Inl(SIff_vv (projr p1) (projr p2)) \<in> set (doIff p1 p2)"
-      using p1_def p2_def bf check_consistent[of phi] check_consistent[of psi] p_val
-      by (auto simp add: doIff_def optimal_def valid_def split: sum.splits)
-    ultimately have "wqo (min_list_wrt wqo (doIff p1 p2)) q"
-      using min_list_wrt_le[OF _ refl_wqo] iff_sound[OF p1_def p2_def]
-      pw_total[of i "Iff phi psi"] trans_wqo Inl
-      by (metis not_wqo total_on_def transpE)
-  } note ** = this
-  then show ?thesis using * ** q_val Inl unfolding valid_def doIff_def
-    by (cases b) auto
+      then have p_val: "valid rho i phi (Inr p) \<and> valid rho i psi (Inr p')" using q_val Inl
+        unfolding valid_def by auto
+      then have sub: "wqo p1 (Inr p) \<and> wqo p2 (Inr p')" using p1_def p2_def formq
+        unfolding optimal_def by auto
+      obtain p1' where p1'_def: "p1 = Inr p1'"
+        using p_val p1_def check_consistent[OF bf_phi]
+        by (auto simp add: optimal_def valid_def split: sum.splits)
+      obtain p2' where p2'_def: "p2 = Inr p2'"
+        using p_val p2_def check_consistent[OF bf_psi]
+        by (auto simp add: optimal_def valid_def split: sum.splits)
+      have "wqo (Inl (SIff_vv (projr p1) (projr p2))) (Inl b)"
+        using formq SIff_vv p1'_def p2'_def sub by auto
+      moreover have "Inl(SIff_vv (projr p1) (projr p2)) \<in> set (doIff p1 p2)"
+        using p1_def p2_def bf check_consistent[of phi] check_consistent[of psi] p_val
+        by (auto simp add: doIff_def optimal_def valid_def split: sum.splits)
+      ultimately have "wqo (min_list_wrt wqo (doIff p1 p2)) q"
+        using min_list_wrt_le[OF _ refl_wqo] iff_sound[OF p1_def p2_def]
+          pw_total[of i "Iff phi psi"] trans_wqo Inl
+        by (metis not_wqo total_on_def transpE)
+    } note ** = this
+    then show ?thesis using * ** q_val Inl unfolding valid_def doIff_def
+      by (cases b) auto
   qed
   then show False using q_le by auto
 qed
@@ -3999,7 +3999,7 @@ lemma onceBase0_sound:
   shows "valid rho i (Once I phi) p"
   using assms unfolding optimal_def valid_def
   apply (auto simp: i_etp_to_tau doOnceBase_def zero_enat_def[symmetric] split: sum.splits enat.splits)
-    apply (meson Orderings.order_class.order.not_eq_order_implies_strict diff_le_self i_etp_to_tau less_nat_zero_code)
+  apply (meson Orderings.order_class.order.not_eq_order_implies_strict diff_le_self i_etp_to_tau less_nat_zero_code)
   done
 
 lemma onceBase0_optimal:
@@ -4007,7 +4007,7 @@ lemma onceBase0_optimal:
     p1_def: "optimal i phi p1" and
     i_props: "i = 0 \<and> \<tau> rho i \<ge> \<tau> rho 0 + left I"
   shows
-   "optimal i (Once I phi) (min_list_wrt wqo (doOnceBase 0 0 p1))"
+    "optimal i (Once I phi) (min_list_wrt wqo (doOnceBase 0 0 p1))"
 proof (rule ccontr)
   have bf_phi: "bounded_future phi"
     using bf by auto
@@ -4021,7 +4021,7 @@ proof (rule ccontr)
     apply auto
     by (metis i_props not_wqo p1_def onceBase0_sound total_onI)
   then obtain q where q_val: "valid rho i (Once I phi) q" and
-   q_le: "\<not> wqo (min_list_wrt wqo (doOnceBase 0 0 p1)) q" using nopt
+    q_le: "\<not> wqo (min_list_wrt wqo (doOnceBase 0 0 p1)) q" using nopt
     unfolding optimal_def by auto
   then have "wqo (min_list_wrt wqo (doOnceBase 0 0 p1)) q"
   proof (cases q)
@@ -4075,21 +4075,21 @@ proof (rule ccontr)
         by (auto split: sum.splits enat.splits simp: p1'_def li_def etp_0)
       ultimately have "wqo (min_list_wrt wqo (doOnceBase 0 0 p1)) q"
         using min_list_wrt_le[OF _ refl_wqo]
-        onceBase0_sound[OF p1_def i_props] pw_total[of i "Once I phi"]
-        trans_wqo Inr
+          onceBase0_sound[OF p1_def i_props] pw_total[of i "Once I phi"]
+          trans_wqo Inr
         apply (auto simp add: total_on_def)
         by (metis transpD)
     }
     then show ?thesis using Inr q_val assms unfolding valid_def
       apply (cases b)
                           apply (auto simp: Let_def split: if_splits enat.splits)
-         apply (metis order.asym diff_le_self i_etp_to_tau i_props le_0_eq)
+       apply (metis order.asym diff_le_self i_etp_to_tau i_props le_0_eq)
       apply (metis diff_le_self i_etp_to_tau i_le_ltpi le_zero_eq)
       done
   qed
   then show False using q_le by auto
 qed
-                        
+
 lemma sinceBase0_sound:
   assumes p1_def: "optimal i phi p1" and p2_def: "optimal i psi p2" and
     i_props: "i = 0 \<and> \<tau> rho i \<ge> \<tau> rho 0 + left I" and
@@ -4097,8 +4097,8 @@ lemma sinceBase0_sound:
   shows "valid rho i (Since phi I psi) p"
   using assms unfolding optimal_def valid_def
   apply (auto simp: i_etp_to_tau doSinceBase_def zero_enat_def[symmetric] split: sum.splits enat.splits)
-    apply (meson Orderings.order_class.order.not_eq_order_implies_strict diff_le_self i_etp_to_tau less_nat_zero_code)
-   apply (metis add_cancel_right_left add_diff_cancel_left' diff_is_0_eq diff_less i_etp_to_tau le_0_eq le_iff_add nat_le_linear nat_less_le)
+   apply (meson Orderings.order_class.order.not_eq_order_implies_strict diff_le_self i_etp_to_tau less_nat_zero_code)
+  apply (metis add_cancel_right_left add_diff_cancel_left' diff_is_0_eq diff_less i_etp_to_tau le_0_eq le_iff_add nat_le_linear nat_less_le)
   done
 
 lemma sinceBase0_optimal:
@@ -4106,7 +4106,7 @@ lemma sinceBase0_optimal:
     p1_def: "optimal i phi p1" and p2_def: "optimal i psi p2" and
     i_props: "i = 0 \<and> \<tau> rho i \<ge> \<tau> rho 0 + left I"
   shows
-   "optimal i (Since phi I psi) (min_list_wrt wqo (doSinceBase 0 0 p1 p2))"
+    "optimal i (Since phi I psi) (min_list_wrt wqo (doSinceBase 0 0 p1 p2))"
 proof (rule ccontr)
   have bf_phi: "bounded_future phi"
     using bf by auto
@@ -4122,7 +4122,7 @@ proof (rule ccontr)
     apply auto
     by (metis i_props not_wqo p1_def p2_def sinceBase0_sound total_onI)
   then obtain q  where q_val: "valid rho i (Since phi I psi) q" and
-   q_le: "\<not> wqo (min_list_wrt wqo (doSinceBase 0 0 p1 p2)) q" using nopt
+    q_le: "\<not> wqo (min_list_wrt wqo (doSinceBase 0 0 p1 p2)) q" using nopt
     unfolding optimal_def by auto
   then have "wqo (min_list_wrt wqo (doSinceBase 0 0 p1 p2)) q"
   proof (cases q)
@@ -4182,8 +4182,8 @@ proof (rule ccontr)
         by (auto split: sum.splits simp: p1'_def p2'_def)
       ultimately have "wqo (min_list_wrt wqo (doSinceBase 0 0 p1 p2)) q"
         using min_list_wrt_le[OF _ refl_wqo]
-        sinceBase0_sound[OF p1_def p2_def i_props] pw_total[of i "Since phi I psi"]
-        trans_wqo Inr
+          sinceBase0_sound[OF p1_def p2_def i_props] pw_total[of i "Since phi I psi"]
+          trans_wqo Inr
         apply (auto simp add: total_on_def)
         by (metis transpD)
     } note * = this
@@ -4211,15 +4211,15 @@ proof (rule ccontr)
         by (auto split: sum.splits enat.splits simp: p2'_def li_def etp_0)
       ultimately have "wqo (min_list_wrt wqo (doSinceBase 0 0 p1 p2)) q"
         using min_list_wrt_le[OF _ refl_wqo]
-        sinceBase0_sound[OF p1_def p2_def i_props] pw_total[of i "Since phi I psi"]
-        trans_wqo Inr
+          sinceBase0_sound[OF p1_def p2_def i_props] pw_total[of i "Since phi I psi"]
+          trans_wqo Inr
         apply (auto simp add: total_on_def)
         by (metis transpD)
     }
     then show ?thesis using * Inr q_val assms unfolding valid_def doSinceBase_def
       apply (cases b)
-                       apply (auto simp: Let_def split: if_splits enat.splits)
-         apply (metis order.asym diff_le_self i_etp_to_tau i_props le_0_eq)
+                          apply (auto simp: Let_def split: if_splits enat.splits)
+       apply (metis order.asym diff_le_self i_etp_to_tau i_props le_0_eq)
       apply (metis diff_le_self i_etp_to_tau i_le_ltpi le_zero_eq)
       done
   qed
@@ -4237,10 +4237,10 @@ proof -
 qed
 
 lemma sinceBase_constrs:
-assumes i_props: "i > 0 \<and> \<tau> rho i \<ge> \<tau> rho 0 + left I
+  assumes i_props: "i > 0 \<and> \<tau> rho i \<ge> \<tau> rho 0 + left I
   \<and> right I < enat (\<Delta> rho i)" and
-  n_def: "right I = enat n" and j_def: "j \<le> (i-1)"
-shows "j < ETP rho (\<tau> rho i - n)"
+    n_def: "right I = enat n" and j_def: "j \<le> (i-1)"
+  shows "j < ETP rho (\<tau> rho i - n)"
 proof -
   from \<tau>_mono j_def have tjs: "\<tau> rho j \<le> \<tau> rho (i-1)" by auto
   from i_props have "n < \<tau> rho i - \<tau> rho (i-1)" using n_def by auto
@@ -4257,11 +4257,11 @@ lemma ETP_lt_delta: "n < delta rho i (i - 1) \<Longrightarrow> i = ETP rho (\<ta
   by (smt (verit, ccfv_threshold) add_diff_cancel_left' diff_is_0_eq' i_etp_to_tau leD le_add_diff_inverse2 le_diff_iff' le_trans less_or_eq_imp_le nat_le_linear not_less_eq not_less_eq_eq)
 
 lemma onceBaseNZ_sound:
-assumes i_props: "i > 0 \<and> \<tau> rho i \<ge> \<tau> rho 0 + left I
+  assumes i_props: "i > 0 \<and> \<tau> rho i \<ge> \<tau> rho 0 + left I
   \<and> right I < enat (\<Delta> rho i)" and
-  p1_def: "optimal i phi p1"
-  and p_def: "p \<in> set (doOnceBase i (left I) p1)"
-shows "valid rho i (Once I phi) p"
+    p1_def: "optimal i phi p1"
+    and p_def: "p \<in> set (doOnceBase i (left I) p1)"
+  shows "valid rho i (Once I phi) p"
 proof (cases "left I")
   {fix i::nat
     assume i_ge: "i > 0"
@@ -4285,7 +4285,7 @@ proof (cases "left I")
     then have "p = Inr (VOnce_never i i [b])" using p_def p1v "local.0"
       unfolding doOnceBase_def by simp
     then show ?thesis using p_def p1_def i_props Inr p1v "local.0"
-         sinceBase_constrs[OF i_props] ** ETP_lt_delta enat_iless
+        sinceBase_constrs[OF i_props] ** ETP_lt_delta enat_iless
       unfolding optimal_def valid_def
       by (auto simp: Let_def i_etp_to_tau split: enat.splits sum.splits)
   qed
@@ -4299,7 +4299,7 @@ next
     then show ?thesis using Inl p_def p1_def Suc i_props sinceBase_constrs[OF i_props] ETP_lt_delta enat_iless
       unfolding valid_def
       by (auto simp: Let_def split: enat.splits)
-         (metis add_Suc_right i_le_ltpi_minus leD not_less_eq_eq zero_less_Suc)
+        (metis add_Suc_right i_le_ltpi_minus leD not_less_eq_eq zero_less_Suc)
   next
     case (Inr b)
     then have "p = Inr (VOnce_never i i [])"
@@ -4307,16 +4307,16 @@ next
     then show ?thesis using Inr p1_def i_props Suc sinceBase_constrs[OF i_props] ETP_lt_delta enat_iless
       unfolding optimal_def valid_def
       by (auto simp: Let_def split: enat.splits)
-         (metis i_le_ltpi_minus i_props leD zero_less_Suc)+
+        (metis i_le_ltpi_minus i_props leD zero_less_Suc)+
   qed
 qed
 
 lemma onceBaseNZ_optimal:
-assumes i_props: "i > 0 \<and> \<tau> rho i \<ge> \<tau> rho 0 + left I
+  assumes i_props: "i > 0 \<and> \<tau> rho i \<ge> \<tau> rho 0 + left I
   \<and> right I < enat (\<Delta> rho i)" and
-  p1_def: "optimal i phi p1"
-  and bf: "bounded_future (Once I phi)"
-shows "optimal i (Once I phi) (min_list_wrt wqo (doOnceBase i (left I) p1))"
+    p1_def: "optimal i phi p1"
+    and bf: "bounded_future (Once I phi)"
+  shows "optimal i (Once I phi) (min_list_wrt wqo (doOnceBase i (left I) p1))"
 proof (rule ccontr)
   have bf_phi: "bounded_future phi"
     using bf by auto
@@ -4454,7 +4454,7 @@ proof (rule ccontr)
         have vphis_Nil: "vphis = []"
           using q_val i_props
           by (auto simp: Inr bv valid_def Let_def split: if_splits enat.splits)
-             (smt (z3) "**" Lattices.linorder_class.min.cobounded1 Suc i_le_ltpi i_le_ltpi_minus leD le_trans min_def zero_less_Suc)
+            (smt (z3) "**" Lattices.linorder_class.min.cobounded1 Suc i_le_ltpi i_le_ltpi_minus leD le_trans min_def zero_less_Suc)
         have li_def: "li = i"
           using q_val
           apply (auto simp: Inr bv vphis_Nil valid_def split: enat.splits if_splits)
@@ -4483,11 +4483,11 @@ proof (rule ccontr)
 qed
 
 lemma sinceBaseNZ_sound:
-assumes i_props: "i > 0 \<and> \<tau> rho i \<ge> \<tau> rho 0 + left I
+  assumes i_props: "i > 0 \<and> \<tau> rho i \<ge> \<tau> rho 0 + left I
   \<and> right I < enat (\<Delta> rho i)" and
-  p1_def: "optimal i phi p1"and p2_def: "optimal i psi p2"
-  and p_def: "p \<in> set (doSinceBase i (left I) p1 p2)"
-shows "valid rho i (Since phi I psi) p"
+    p1_def: "optimal i phi p1"and p2_def: "optimal i psi p2"
+    and p_def: "p \<in> set (doSinceBase i (left I) p1 p2)"
+  shows "valid rho i (Since phi I psi) p"
 proof (cases "left I")
   {fix i::nat
     assume i_ge: "i > 0"
@@ -4549,7 +4549,7 @@ next
     then show ?thesis using Inl p_def p1_def Suc i_props sinceBase_constrs[OF i_props] ETP_lt_delta enat_iless
       unfolding valid_def
       by (auto simp: Let_def split: enat.splits)
-         (metis add_Suc_right i_le_ltpi_minus leD not_less_eq_eq zero_less_Suc)
+        (metis add_Suc_right i_le_ltpi_minus leD not_less_eq_eq zero_less_Suc)
   next
     case (Inr b)
     then have "p = Inr (VSince i b []) \<or> p = Inr (VSince_never i i [])"
@@ -4558,16 +4558,16 @@ next
     then show ?thesis using Inr p1_def i_props Suc sinceBase_constrs[OF i_props] ETP_lt_delta enat_iless
       unfolding optimal_def valid_def
       by (auto simp: Let_def split: enat.splits)
-         (metis i_le_ltpi_minus i_props leD zero_less_Suc)+
+        (metis i_le_ltpi_minus i_props leD zero_less_Suc)+
   qed
 qed
 
 lemma sinceBaseNZ_optimal:
-assumes i_props: "i > 0 \<and> \<tau> rho i \<ge> \<tau> rho 0 + left I
+  assumes i_props: "i > 0 \<and> \<tau> rho i \<ge> \<tau> rho 0 + left I
   \<and> right I < enat (\<Delta> rho i)" and
-  p1_def: "optimal i phi p1" and p2_def: "optimal i psi p2"
-  and bf: "bounded_future (Since phi I psi)"
-shows "optimal i (Since phi I psi) (min_list_wrt wqo (doSinceBase i (left I) p1 p2))"
+    p1_def: "optimal i phi p1" and p2_def: "optimal i psi p2"
+    and bf: "bounded_future (Since phi I psi)"
+  shows "optimal i (Since phi I psi) (min_list_wrt wqo (doSinceBase i (left I) p1 p2))"
 proof (rule ccontr)
   have bf_phi: "bounded_future phi"
     using bf by auto
@@ -4644,16 +4644,16 @@ proof (rule ccontr)
   next
     case (Inr b)
     {fix n j
-       assume j_def: "right I = enat n \<and> j \<le> LTP rho (\<tau> rho i)
+      assume j_def: "right I = enat n \<and> j \<le> LTP rho (\<tau> rho i)
        \<and> ETP rho (\<tau> rho i - n) \<le> j \<and> j \<le> i"
-       then have jin: "\<tau> rho j \<ge> \<tau> rho i - n" using i_etp_to_tau by auto
-       from \<tau>_mono have j_lei: "\<forall>j < i. \<tau> rho j \<le> \<tau> rho (i-1)" by auto
-       from this i_props j_def have "\<forall>j < i. \<tau> rho j \<le> \<tau> rho i - n"
-         apply auto
-         by (metis One_nat_def j_lei add_diff_inverse_nat add_le_imp_le_diff add_le_mono less_imp_le_nat less_nat_zero_code nat_diff_split_asm)
-       then have "j = i" using j_def jin apply auto
-         by (metis add.commute order.not_eq_order_implies_strict diff_diff_left enat_ord_simps(2) i_props j_lei less_le_not_le zero_less_diff)
-     } note ** = this
+      then have jin: "\<tau> rho j \<ge> \<tau> rho i - n" using i_etp_to_tau by auto
+      from \<tau>_mono have j_lei: "\<forall>j < i. \<tau> rho j \<le> \<tau> rho (i-1)" by auto
+      from this i_props j_def have "\<forall>j < i. \<tau> rho j \<le> \<tau> rho i - n"
+        apply auto
+        by (metis One_nat_def j_lei add_diff_inverse_nat add_le_imp_le_diff add_le_mono less_imp_le_nat less_nat_zero_code nat_diff_split_asm)
+      then have "j = i" using j_def jin apply auto
+        by (metis add.commute order.not_eq_order_implies_strict diff_diff_left enat_ord_simps(2) i_props j_lei less_le_not_le zero_less_diff)
+    } note ** = this
     then show ?thesis
     proof (cases "left I")
       case 0
@@ -4717,7 +4717,7 @@ proof (rule ccontr)
       ultimately show ?thesis using q_val "0" Inr minp assms **
         unfolding valid_def doSinceBase_def
         apply (cases b)
-        apply (auto simp: Let_def split: if_splits enat.splits)
+                            apply (auto simp: Let_def split: if_splits enat.splits)
              apply (metis (no_types, lifting) list.map_disc_iff append_eq_append_conv2 map_eq_Cons_conv min_less_iff_conj nat_less_le self_append_conv upt_rec)
             apply (meson i_le_ltpi le_trans)
            apply (metis (no_types, lifting) list.map_disc_iff append_eq_append_conv2 eq_imp_le map_eq_Cons_conv min_less_iff_conj nat_less_le self_append_conv upt_rec)
@@ -4729,7 +4729,7 @@ proof (rule ccontr)
       from q_val Inr have "VIO rho i (Since phi I psi)"
         using check_sound(2)[of rho "Since phi I psi" b]
         unfolding valid_def by auto
-(*
+          (*
       have minp_def: "minp = Inr (VSince i (projr p1) []) \<or> minp = Inr (VSince_never i i [])"
         using minp vmin Suc nnil doSinceBase_def[of i "left I" p1 p2]
           trans_wqo pw_total filter_nnil
@@ -4773,7 +4773,7 @@ proof (rule ccontr)
         have vpsis_Nil: "vpsis = []"
           using q_val i_props
           by (auto simp: Inr bv valid_def Let_def split: if_splits enat.splits)
-             (smt (z3) "**" Lattices.linorder_class.min.cobounded1 Suc i_le_ltpi i_le_ltpi_minus leD le_trans min_def zero_less_Suc)
+            (smt (z3) "**" Lattices.linorder_class.min.cobounded1 Suc i_le_ltpi i_le_ltpi_minus leD le_trans min_def zero_less_Suc)
         have li_def: "li = i"
           using q_val
           apply (auto simp: Inr bv vpsis_Nil valid_def split: enat.splits if_splits)
@@ -4802,9 +4802,9 @@ proof (rule ccontr)
 qed
 
 lemma untilBase_constrs:
-assumes n_def: "right I = enat n" and j_def: "j \<ge> (i+1)"
-and i_props: "right I < enat (\<Delta> rho (i+1))"
-shows "LTP rho (\<tau> rho i + n) < j"
+  assumes n_def: "right I = enat n" and j_def: "j \<ge> (i+1)"
+    and i_props: "right I < enat (\<Delta> rho (i+1))"
+  shows "LTP rho (\<tau> rho i + n) < j"
 proof -
   from assms have tjs: "\<tau> rho (i+1) \<le> \<tau> rho j" by auto
   from i_props have "n < \<tau> rho (i+1) - \<tau> rho i" using n_def by auto
@@ -4820,10 +4820,10 @@ lemma LTP_lt_delta: "n < delta rho (Suc i) i \<Longrightarrow> i = LTP rho (\<ta
   using less_diff_conv trans_le_add1 by force
 
 lemma untilBase_sound:
-assumes i_props: "right I < enat (\<Delta> rho (i+1))" and
-  p1_def: "optimal i phi p1" and p2_def: "optimal i psi p2" and
-  p_def: "p \<in> set (doUntilBase i (left I) p1 p2)"
-shows "valid rho i (Until phi I psi) p"
+  assumes i_props: "right I < enat (\<Delta> rho (i+1))" and
+    p1_def: "optimal i phi p1" and p2_def: "optimal i psi p2" and
+    p_def: "p \<in> set (doUntilBase i (left I) p1 p2)"
+  shows "valid rho i (Until phi I psi) p"
 proof(cases "left I")
   case 0
   then show ?thesis
@@ -4854,7 +4854,7 @@ proof(cases "left I")
         unfolding doUntilBase_def
         by auto
       then show ?thesis using untilBase_constrs assms "0" Inr
-        p2v i_ge_etpi[of rho i] i_le_ltpi_add[of i rho] LTP_lt_delta enat_iless
+          p2v i_ge_etpi[of rho i] i_le_ltpi_add[of i rho] LTP_lt_delta enat_iless
         unfolding optimal_def valid_def
         by (auto simp: Let_def split: enat.splits)
     qed
@@ -4879,7 +4879,7 @@ next
     then show ?thesis using Inr Suc assms untilBase_constrs i_ge_etpi[of rho i] LTP_lt_delta enat_iless
       unfolding optimal_def valid_def
       apply (auto simp: Let_def split: enat.splits)
-        apply (simp add: i_etp_to_tau)
+       apply (simp add: i_etp_to_tau)
       by (metis (no_types, lifting) Suc_le_lessD i_etp_to_tau not_add_less1)
   qed
 qed
@@ -4895,10 +4895,10 @@ proof -
 qed
 
 lemma untilBase_optimal:
-assumes bf: "bounded_future (Until phi I psi)" and
-  i_props: "right I < enat (\<Delta> rho (i+1))" and
-  p1_def: "optimal i phi p1" and p2_def: "optimal i psi p2"
-shows "optimal i (Until phi I psi) (min_list_wrt wqo (doUntilBase i (left I) p1 p2))"
+  assumes bf: "bounded_future (Until phi I psi)" and
+    i_props: "right I < enat (\<Delta> rho (i+1))" and
+    p1_def: "optimal i phi p1" and p2_def: "optimal i psi p2"
+  shows "optimal i (Until phi I psi) (min_list_wrt wqo (doUntilBase i (left I) p1 p2))"
 proof (rule ccontr)
   have bf_phi: "bounded_future phi"
     using bf by auto
@@ -4947,7 +4947,7 @@ proof (rule ccontr)
     have sphis_Nil: "sphis = []"
       using q_val i_props
       by (auto simp: Inl a_def valid_def Let_def split: list.splits)
-         (metis (no_types, lifting) Cons_eq_upt_conv Suc_eq_plus1 diff_add_inverse2 r_less_imp_nphi)
+        (metis (no_types, lifting) Cons_eq_upt_conv Suc_eq_plus1 diff_add_inverse2 r_less_imp_nphi)
     obtain p2' where p2'_def: "p2 = Inl p2'"
       using p_val p2_def check_consistent[OF bf_psi]
       by (auto simp add: optimal_def valid_def split: sum.splits)
@@ -4955,10 +4955,10 @@ proof (rule ccontr)
       using Inl a_def SUntil_Nil[OF p2_le[unfolded p2'_def]]
       by (fastforce simp add: p2'_def map_idI sphis_Nil)
     moreover have "Inl (SUntil [] (projl p2)) \<in> set (doUntilBase i (left I) p1 p2)"
-     using assms check_consistent[of psi] satu * p_val
-     unfolding doUntilBase_def optimal_def valid_def
-     by (auto split: sum.splits)
-   ultimately show ?thesis using min_list_wrt_le[OF _ refl_wqo]
+      using assms check_consistent[of psi] satu * p_val
+      unfolding doUntilBase_def optimal_def valid_def
+      by (auto split: sum.splits)
+    ultimately show ?thesis using min_list_wrt_le[OF _ refl_wqo]
         untilBase_sound[OF i_props p1_def p2_def] pw_total[of i "Until phi I psi"]
         trans_wqo Inl minp
       apply (auto simp add: total_on_def)
@@ -4968,17 +4968,17 @@ proof (rule ccontr)
     then show ?thesis
     proof (cases "left I")
       {fix n j
-       assume j_def: "right I = enat n \<and> ETP rho (\<tau> rho i) \<le> j
+        assume j_def: "right I = enat n \<and> ETP rho (\<tau> rho i) \<le> j
        \<and> j \<le> LTP rho (\<tau> rho i + n) \<and> j \<ge> i"
-       from \<tau>_mono have "\<tau> rho i + n \<ge> \<tau> rho 0"  by (auto simp add: trans_le_add1)
-       then have jin: "\<tau> rho j \<le> \<tau> rho i + n" using j_def i_ltp_to_tau by auto
-       from \<tau>_mono have j_gei: "\<forall>j > i. \<tau> rho j \<ge> \<tau> rho (i+1)" by auto
-       from this i_props j_def have "\<forall>j > i. \<tau> rho j \<ge> \<tau> rho i + n"
-         apply auto
-         by (smt Suc_eq_plus1 diff_is_0_eq' j_gei le_add_diff_inverse le_trans less_imp_le_nat less_nat_zero_code nat_add_left_cancel_le nat_le_linear)
-       then have "j = i" using j_def jin apply auto
-         by (metis dual_order.strict_implies_not_eq add_diff_cancel_left' add_diff_cancel_right' i_props j_gei le_antisym le_neq_implies_less less_add_one)
-     } note ** = this
+        from \<tau>_mono have "\<tau> rho i + n \<ge> \<tau> rho 0"  by (auto simp add: trans_le_add1)
+        then have jin: "\<tau> rho j \<le> \<tau> rho i + n" using j_def i_ltp_to_tau by auto
+        from \<tau>_mono have j_gei: "\<forall>j > i. \<tau> rho j \<ge> \<tau> rho (i+1)" by auto
+        from this i_props j_def have "\<forall>j > i. \<tau> rho j \<ge> \<tau> rho i + n"
+          apply auto
+          by (smt Suc_eq_plus1 diff_is_0_eq' j_gei le_add_diff_inverse le_trans less_imp_le_nat less_nat_zero_code nat_add_left_cancel_le nat_le_linear)
+        then have "j = i" using j_def jin apply auto
+          by (metis dual_order.strict_implies_not_eq add_diff_cancel_left' add_diff_cancel_right' i_props j_gei le_antisym le_neq_implies_less less_add_one)
+      } note ** = this
       case 0
       {fix vpsi vphi
         assume bv: "b = VUntil i [vpsi] vphi"
@@ -5006,8 +5006,8 @@ proof (rule ccontr)
           unfolding doUntilBase_def optimal_def valid_def
           by (auto split: sum.splits)
         ultimately have "wqo minp q" using min_list_wrt_le[OF _ refl_wqo]
-          untilBase_sound[OF i_props p1_def p2_def] pw_total[of i "Until phi I psi"]
-          trans_wqo Inr minp
+            untilBase_sound[OF i_props p1_def p2_def] pw_total[of i "Until phi I psi"]
+            trans_wqo Inr minp
           apply (auto simp add: total_on_def p1'_def p2'_def)
           by (metis transpD)
       }
@@ -5031,32 +5031,32 @@ proof (rule ccontr)
           unfolding doUntilBase_def optimal_def valid_def
           by (auto split: sum.splits simp: p2'_def)
         ultimately have "wqo minp q" using min_list_wrt_le[OF _ refl_wqo]
-          untilBase_sound[OF i_props p1_def p2_def] pw_total[of i "Until phi I psi"]
-          trans_wqo Inr minp
+            untilBase_sound[OF i_props p1_def p2_def] pw_total[of i "Until phi I psi"]
+            trans_wqo Inr minp
           apply (auto simp add: total_on_def p2'_def)
           by (metis transpD)
       }
       ultimately show ?thesis using minp Inr "0" q_val assms **
         unfolding doUntilBase_def valid_def
         apply (cases b)
-         apply (auto simp: Let_def split: if_splits)
-          apply fastforce
+                            apply (auto simp: Let_def split: if_splits)
+            apply fastforce
         using i_ge_etpi le_trans apply blast
           apply fastforce
          apply (simp add: i_le_ltpi_add)
         using i_ge_etpi i_le_ltpi_add le_trans by blast
     next
       {fix n j
-       assume j_def: "right I = enat n \<and> ETP rho (\<tau> rho i) \<le> j
+        assume j_def: "right I = enat n \<and> ETP rho (\<tau> rho i) \<le> j
        \<and> j \<le> LTP rho (\<tau> rho i + n) \<and> j \<ge> i"
-       from \<tau>_mono have "\<tau> rho i + n \<ge> \<tau> rho 0"  by (auto simp add: trans_le_add1)
-       then have jin: "\<tau> rho j \<le> \<tau> rho i + n" using j_def i_ltp_to_tau by auto
-       from \<tau>_mono have j_gei: "\<forall>j > i. \<tau> rho j \<ge> \<tau> rho (i+1)" by auto
-       from this i_props j_def have "\<forall>j > i. \<tau> rho j \<ge> \<tau> rho i + n"
-         apply auto
-         by (smt Suc_eq_plus1 diff_is_0_eq' j_gei le_add_diff_inverse le_trans less_imp_le_nat less_nat_zero_code nat_add_left_cancel_le nat_le_linear)
-       then have "j = i" using j_def jin apply auto
-         by (metis dual_order.strict_implies_not_eq add_diff_cancel_left' add_diff_cancel_right' i_props j_gei le_antisym le_neq_implies_less less_add_one)
+        from \<tau>_mono have "\<tau> rho i + n \<ge> \<tau> rho 0"  by (auto simp add: trans_le_add1)
+        then have jin: "\<tau> rho j \<le> \<tau> rho i + n" using j_def i_ltp_to_tau by auto
+        from \<tau>_mono have j_gei: "\<forall>j > i. \<tau> rho j \<ge> \<tau> rho (i+1)" by auto
+        from this i_props j_def have "\<forall>j > i. \<tau> rho j \<ge> \<tau> rho i + n"
+          apply auto
+          by (smt Suc_eq_plus1 diff_is_0_eq' j_gei le_add_diff_inverse le_trans less_imp_le_nat less_nat_zero_code nat_add_left_cancel_le nat_le_linear)
+        then have "j = i" using j_def jin apply auto
+          by (metis dual_order.strict_implies_not_eq add_diff_cancel_left' add_diff_cancel_right' i_props j_gei le_antisym le_neq_implies_less less_add_one)
       } note ** = this
       case (Suc nat)
       then have "minp = Inr (VUntil_never i i []) \<or> minp = Inr (VUntil i [] (projr p1))"
@@ -5069,7 +5069,7 @@ proof (rule ccontr)
         have vpsis_Nil: "vpsis = []"
           using q_val
           by (auto simp: Inr bv valid_def Let_def split: enat.splits if_splits)
-             (smt (z3) "**" Lattices.linorder_class.max.cobounded2 Suc Suc_n_not_le_n add_Suc_shift i_etp_to_tau le_add1 le_trans max_def)
+            (smt (z3) "**" Lattices.linorder_class.max.cobounded2 Suc Suc_n_not_le_n add_Suc_shift i_etp_to_tau le_add1 le_trans max_def)
         have hi_def: "hi = i"
           using q_val
           using i_le_ltpi_add
@@ -5084,8 +5084,8 @@ proof (rule ccontr)
           unfolding doUntilBase_def optimal_def valid_def
           by (auto split: sum.splits)
         ultimately have "wqo minp q" using min_list_wrt_le[OF _ refl_wqo]
-          untilBase_sound[OF i_props p1_def p2_def] pw_total[of i "Until phi I psi"]
-          trans_wqo Inr minp
+            untilBase_sound[OF i_props p1_def p2_def] pw_total[of i "Until phi I psi"]
+            trans_wqo Inr minp
           apply (auto simp add: total_on_def hi_def)
           by (metis transpD)
       }
@@ -5102,7 +5102,7 @@ proof (rule ccontr)
         have vpsis_Nil: "vpsis = []"
           using q_val i_props
           by (auto simp: Inr bv valid_def Let_def split: if_splits enat.splits)
-             (metis "**" Suc Zero_not_Suc add_diff_cancel_left' diff_is_0_eq' i_etp_to_tau i_ge_etpi le_trans)
+            (metis "**" Suc Zero_not_Suc add_diff_cancel_left' diff_is_0_eq' i_etp_to_tau i_ge_etpi le_trans)
         obtain p1' where p1'_def: "p1 = Inr p1'"
           using p_val p1_def check_consistent[OF bf_phi]
           by (auto simp add: optimal_def valid_def split: sum.splits)
@@ -5114,8 +5114,8 @@ proof (rule ccontr)
           unfolding doUntilBase_def optimal_def valid_def
           by (auto split: sum.splits)
         ultimately have "wqo minp q" using min_list_wrt_le[OF _ refl_wqo]
-          untilBase_sound[OF i_props p1_def p2_def] pw_total[of i "Until phi I psi"]
-          trans_wqo Inr minp
+            untilBase_sound[OF i_props p1_def p2_def] pw_total[of i "Until phi I psi"]
+            trans_wqo Inr minp
           apply (auto simp add: total_on_def)
           by (metis transpD)
       }
@@ -5196,9 +5196,9 @@ next
 qed
 
 lemma prev_optimal:
-assumes i_props: "i > 0" and
-  p1_def: "optimal (i-1) phi p1" and bf: "bounded_future (Prev I phi)"
-shows "optimal i (Prev I phi) (min_list_wrt wqo (doPrev i I (\<Delta> rho i) p1))"
+  assumes i_props: "i > 0" and
+    p1_def: "optimal (i-1) phi p1" and bf: "bounded_future (Prev I phi)"
+  shows "optimal i (Prev I phi) (min_list_wrt wqo (doPrev i I (\<Delta> rho i) p1))"
 proof (rule ccontr)
   have bf_phi: "bounded_future phi"
     using bf by auto
@@ -5215,7 +5215,7 @@ proof (rule ccontr)
   define minp where minp: "minp \<equiv> min_list_wrt wqo (doPrev i I (\<Delta> rho i) p1)"
   assume nopt: "\<not> optimal i (Prev I phi) minp"
   from prev_sound[OF i_props p1_def min_list_wrt_in[OF nnil total_set refl_wqo trans_wqo]]
-     minp
+    minp
   have vmin: "valid rho i (Prev I phi) minp" 
     by auto
   then obtain q where q_val: "valid rho i (Prev I phi) q" and
@@ -5322,9 +5322,9 @@ proof (rule ccontr)
 qed
 
 lemma next_sound:
-assumes p1_def: "optimal (i+1) phi p1" and
+  assumes p1_def: "optimal (i+1) phi p1" and
     p_def: "p \<in> set (doNext i I (\<Delta> rho (i+1)) p1)"
-shows "valid rho i (Next I phi) p"
+  shows "valid rho i (Next I phi) p"
 proof (cases p1)
   define \<tau> where \<tau>_def: "\<tau> \<equiv> \<Delta> rho (i+1)"
   case (Inl a)
@@ -5390,9 +5390,9 @@ next
 qed
 
 lemma next_optimal:
-assumes p1_def: "optimal (i+1) phi p1" and
-bf: "bounded_future (Next I phi)"
-shows "optimal i (Next I phi) (min_list_wrt wqo (doNext i I (\<Delta> rho (i+1)) p1))"
+  assumes p1_def: "optimal (i+1) phi p1" and
+    bf: "bounded_future (Next I phi)"
+  shows "optimal i (Next I phi) (min_list_wrt wqo (doNext i I (\<Delta> rho (i+1)) p1))"
 proof (rule ccontr)
   have bf_phi: "bounded_future phi"
     using bf by auto
@@ -5523,230 +5523,230 @@ lemma diff_cancel_middle:
   by simp
 
 lemma since_sound:
-assumes i_props: "i > 0 \<and> \<tau> rho i \<ge> \<tau> rho 0 + left I
+  assumes i_props: "i > 0 \<and> \<tau> rho i \<ge> \<tau> rho 0 + left I
   \<and> right I \<ge> enat (\<Delta> rho i)" and
-  p1_def: "optimal i phi p1" and p2_def: "optimal i psi p2" and
-  p'_def: "optimal (i-1) (Since phi (subtract (\<Delta> rho i) I) psi) p'"
-  and p_def: "p \<in> set (doSince i (left I) p1 p2 p')"
-  and bf: "bounded_future (Since phi I psi)"
-  and bf': "bounded_future (Since phi (subtract (\<Delta> rho i) I) psi)"
-shows "valid rho i (Since phi I psi) p"
+    p1_def: "optimal i phi p1" and p2_def: "optimal i psi p2" and
+    p'_def: "optimal (i-1) (Since phi (subtract (\<Delta> rho i) I) psi) p'"
+    and p_def: "p \<in> set (doSince i (left I) p1 p2 p')"
+    and bf: "bounded_future (Since phi I psi)"
+    and bf': "bounded_future (Since phi (subtract (\<Delta> rho i) I) psi)"
+  shows "valid rho i (Since phi I psi) p"
 proof (cases p')
   case (Inl a)
-    then have p'l: "p' = Inl a" by auto
-    then have satp': "sat rho (i-1) (Since phi (subtract (\<Delta> rho i) I) psi)"
-      using soundness p'_def check_sound(1)[of rho "Since phi (subtract (\<Delta> rho i) I) psi" a]
-      unfolding optimal_def valid_def by fastforce
-    then obtain q qs where a_def: "a = SSince q qs" using Inl p'_def
-      unfolding optimal_def valid_def by (cases a) auto
-    then have a_val: "s_check rho (Since phi (subtract (\<Delta> rho i) I) psi) a"
-      using Inl p'_def unfolding optimal_def valid_def by (auto simp: Let_def)
-    then have mem: "mem (delta rho (i-1) (s_at q)) (subtract (\<Delta> rho i) I)"
-      using a_def Inl p'_def s_check.simps unfolding optimal_def valid_def
-      by (auto simp: Let_def)
-    then have "left I - \<Delta> rho i \<le> delta rho (i-1) (s_at q)" by auto
-    then have tmp: "left I \<le> \<tau> rho i - \<tau> rho (i-1) + (\<tau> rho (i-1) - \<tau> rho (s_at q))"
+  then have p'l: "p' = Inl a" by auto
+  then have satp': "sat rho (i-1) (Since phi (subtract (\<Delta> rho i) I) psi)"
+    using soundness p'_def check_sound(1)[of rho "Since phi (subtract (\<Delta> rho i) I) psi" a]
+    unfolding optimal_def valid_def by fastforce
+  then obtain q qs where a_def: "a = SSince q qs" using Inl p'_def
+    unfolding optimal_def valid_def by (cases a) auto
+  then have a_val: "s_check rho (Since phi (subtract (\<Delta> rho i) I) psi) a"
+    using Inl p'_def unfolding optimal_def valid_def by (auto simp: Let_def)
+  then have mem: "mem (delta rho (i-1) (s_at q)) (subtract (\<Delta> rho i) I)"
+    using a_def Inl p'_def s_check.simps unfolding optimal_def valid_def
+    by (auto simp: Let_def)
+  then have "left I - \<Delta> rho i \<le> delta rho (i-1) (s_at q)" by auto
+  then have tmp: "left I \<le> \<tau> rho i - \<tau> rho (i-1) + (\<tau> rho (i-1) - \<tau> rho (s_at q))"
+    by auto
+  from a_val have qi: "(s_at q) \<le> (i-1)" using a_def p'l p'_def
+    unfolding optimal_def valid_def
+    by (auto simp: Let_def)
+  then have liq: "left I \<le> delta rho i (s_at q)" using diff_add_assoc tmp
+    by auto
+  show ?thesis
+  proof (cases "right I")
+    case n_def: (enat n)
+    from mem n_def have "enat (delta rho (i-1) (s_at q)) \<le> enat n - enat (\<Delta> rho i)"
       by auto
-    from a_val have qi: "(s_at q) \<le> (i-1)" using a_def p'l p'_def
-      unfolding optimal_def valid_def
-      by (auto simp: Let_def)
-    then have liq: "left I \<le> delta rho i (s_at q)" using diff_add_assoc tmp
-      by auto
-    show ?thesis
-    proof (cases "right I")
-      case n_def: (enat n)
-      from mem n_def have "enat (delta rho (i-1) (s_at q)) \<le> enat n - enat (\<Delta> rho i)"
-        by auto
-      then have "delta rho (i-1) (s_at q) + \<Delta> rho i \<le> n"
-        apply auto
-        by (metis One_nat_def enat_ord_simps(1) i_props le_diff_conv le_diff_conv2 n_def)
-      then have riq: "enat (delta rho i (s_at q)) \<le> right I" using n_def by auto
+    then have "delta rho (i-1) (s_at q) + \<Delta> rho i \<le> n"
+      apply auto
+      by (metis One_nat_def enat_ord_simps(1) i_props le_diff_conv le_diff_conv2 n_def)
+    then have riq: "enat (delta rho i (s_at q)) \<le> right I" using n_def by auto
+    then show ?thesis
+    proof (cases "left I = 0")
+      case True
       then show ?thesis
-      proof (cases "left I = 0")
-        case True
+      proof (cases p1)
+        case (Inl a1)
+        then have p1l: "p1 = Inl a1" by auto
         then show ?thesis
-        proof (cases p1)
-          case (Inl a1)
-          then have p1l: "p1 = Inl a1" by auto
-          then show ?thesis
-          proof (cases p2)
-            case (Inl a2)
-            then have por: "p = p' \<oplus> p1 \<or> p = Inl (SSince (projl p2) [])"
-              using a_def p'l p1l True p_def unfolding doSince_def by auto
-            moreover
-            {
-              assume pplus: "p = p' \<oplus> p1"
-              then have "p = Inl (SSince q (qs @ [projl p1]))" using a_def p'l p1l
-                  p'_def p1_def unfolding proofApp_def by auto
-              then have "valid rho i (Since phi I psi) p"
-                using a_def True p'_def p1_def p'l p1l i_props liq riq
-                unfolding optimal_def valid_def
-                apply (auto simp: Let_def split: list.splits)
-                by (metis Suc_pred i_props upt_Suc_append)
-            }
-            ultimately show ?thesis
-              using Inl p1l True assms n_def unfolding optimal_def valid_def
-              by auto
-          next
-            case (Inr b2)
-            then have pplus: "p = p' \<oplus> p1" using p1l p_def True p'l
-              unfolding doSince_def by auto
+        proof (cases p2)
+          case (Inl a2)
+          then have por: "p = p' \<oplus> p1 \<or> p = Inl (SSince (projl p2) [])"
+            using a_def p'l p1l True p_def unfolding doSince_def by auto
+          moreover
+          {
+            assume pplus: "p = p' \<oplus> p1"
             then have "p = Inl (SSince q (qs @ [projl p1]))" using a_def p'l p1l
                 p'_def p1_def unfolding proofApp_def by auto
-            then show ?thesis
-              using a_def True p'_def p1_def p'l p1l i_props liq riq n_def
+            then have "valid rho i (Since phi I psi) p"
+              using a_def True p'_def p1_def p'l p1l i_props liq riq
               unfolding optimal_def valid_def
               apply (auto simp: Let_def split: list.splits)
               by (metis Suc_pred i_props upt_Suc_append)
-          qed
+          }
+          ultimately show ?thesis
+            using Inl p1l True assms n_def unfolding optimal_def valid_def
+            by auto
         next
-          case (Inr b1)
-          then have p1r: "p1 = Inr b1" by auto
+          case (Inr b2)
+          then have pplus: "p = p' \<oplus> p1" using p1l p_def True p'l
+            unfolding doSince_def by auto
+          then have "p = Inl (SSince q (qs @ [projl p1]))" using a_def p'l p1l
+              p'_def p1_def unfolding proofApp_def by auto
           then show ?thesis
-          proof (cases p2)
-            case (Inl a2)
-            then have "p = Inl (SSince (projl p2) [])" using p_def Inr True p'l
-              unfolding doSince_def by auto
-            then show ?thesis using p2_def True Inl Inr p'l i_props zero_enat_def
-              unfolding optimal_def valid_def by auto
-          next
-            case (Inr b2)
-            then have "p = Inr (VSince i (projr p1) [projr p2])" using p1r True p'l p_def
-              unfolding doSince_def by auto
-            then show ?thesis using i_props p1_def p2_def True p1r Inr bf n_def
-              unfolding optimal_def valid_def
-              apply (auto split: enat.splits)
-              using diff_le_self i_etp_to_tau apply blast
-              using i_le_ltpi by blast
-          qed
+            using a_def True p'_def p1_def p'l p1l i_props liq riq n_def
+            unfolding optimal_def valid_def
+            apply (auto simp: Let_def split: list.splits)
+            by (metis Suc_pred i_props upt_Suc_append)
         qed
       next
-        case False
+        case (Inr b1)
+        then have p1r: "p1 = Inr b1" by auto
         then show ?thesis
-        proof (cases p1)
-          case (Inl a1)
-          then have pplus: "p = p' \<oplus> p1" using p_def False p'l
-            unfolding doSince_def by (cases p2) auto
-          then have pl: "p = Inl (SSince q (qs @ [projl p1]))" using a_def p'l Inl
-            unfolding proofApp_def by auto thm s_check.simps
-          from p'_def p'l a_def Inl i_props liq riq have p'_props:
-            "map s_at qs = [Suc (s_at q) ..< i] \<and> (\<forall>q' \<in> set qs. s_check rho phi q')"
-            unfolding optimal_def valid_def
-            apply (auto simp: Let_def split: list.splits if_splits)
-             apply (metis One_nat_def Suc_diff_1 Suc_leI diff_Suc_less le_add_diff_inverse2 upt_eq_Cons_conv upt_eq_Nil_conv)
-            by (metis One_nat_def Suc_diff_1 upt_Suc_append)
-          then have map_eq: "map s_at (qs @ [projl p1]) = [Suc (s_at q) ..< Suc i]
-            \<and> (\<forall>q' \<in> set (qs @ [projl p1]). s_check rho phi q')"
-            using Inl p1_def i_props qi
-            by (auto simp: optimal_def valid_def)
-          from pl p1_def Inl have at_p1: "s_at (last (qs @ [projl p1])) = s_at a1"
-            by (auto simp: optimal_def valid_def)
-          from a_def p'_def p'l have "s_check rho psi q \<and> mem (delta rho i (s_at q)) I"
-            using liq riq
-            by (auto simp: Let_def optimal_def valid_def)
-          then show ?thesis
-            using False pl Inl p1_def i_props liq riq map_eq at_p1
-            unfolding optimal_def valid_def
-            apply (auto simp: Let_def n_def at_p1 split: if_splits list.splits)
-            by (metis last_ConsR last_snoc)+
+        proof (cases p2)
+          case (Inl a2)
+          then have "p = Inl (SSince (projl p2) [])" using p_def Inr True p'l
+            unfolding doSince_def by auto
+          then show ?thesis using p2_def True Inl Inr p'l i_props zero_enat_def
+            unfolding optimal_def valid_def by auto
         next
-          case (Inr b1)
-          then have "p = Inr (VSince i (projr p1) [])" using Inr False p'l p_def
-            unfolding doSince_def by (cases p2) auto
-          then show ?thesis using p1_def i_props Inr False bf
+          case (Inr b2)
+          then have "p = Inr (VSince i (projr p1) [projr p2])" using p1r True p'l p_def
+            unfolding doSince_def by auto
+          then show ?thesis using i_props p1_def p2_def True p1r Inr bf n_def
             unfolding optimal_def valid_def
-            by (auto simp add: i_etp_to_tau Let_def False i_ltp_to_tau le_diff_conv2
-                split: enat.splits)
+            apply (auto split: enat.splits)
+            using diff_le_self i_etp_to_tau apply blast
+            using i_le_ltpi by blast
         qed
       qed
     next
-      case infinity
-      then have riq: "enat (delta rho i (s_at q)) \<le> right I" by auto
+      case False
       then show ?thesis
-      proof (cases "left I = 0")
-        case True
+      proof (cases p1)
+        case (Inl a1)
+        then have pplus: "p = p' \<oplus> p1" using p_def False p'l
+          unfolding doSince_def by (cases p2) auto
+        then have pl: "p = Inl (SSince q (qs @ [projl p1]))" using a_def p'l Inl
+          unfolding proofApp_def by auto thm s_check.simps
+        from p'_def p'l a_def Inl i_props liq riq have p'_props:
+          "map s_at qs = [Suc (s_at q) ..< i] \<and> (\<forall>q' \<in> set qs. s_check rho phi q')"
+          unfolding optimal_def valid_def
+          apply (auto simp: Let_def split: list.splits if_splits)
+           apply (metis One_nat_def Suc_diff_1 Suc_leI diff_Suc_less le_add_diff_inverse2 upt_eq_Cons_conv upt_eq_Nil_conv)
+          by (metis One_nat_def Suc_diff_1 upt_Suc_append)
+        then have map_eq: "map s_at (qs @ [projl p1]) = [Suc (s_at q) ..< Suc i]
+            \<and> (\<forall>q' \<in> set (qs @ [projl p1]). s_check rho phi q')"
+          using Inl p1_def i_props qi
+          by (auto simp: optimal_def valid_def)
+        from pl p1_def Inl have at_p1: "s_at (last (qs @ [projl p1])) = s_at a1"
+          by (auto simp: optimal_def valid_def)
+        from a_def p'_def p'l have "s_check rho psi q \<and> mem (delta rho i (s_at q)) I"
+          using liq riq
+          by (auto simp: Let_def optimal_def valid_def)
         then show ?thesis
-        proof (cases p1)
-          case (Inl a1)
-          then have p1l: "p1 = Inl a1" by auto
-          then show ?thesis
-          proof (cases p2)
-            case (Inl a2)
-            then have por: "p = p' \<oplus> p1 \<or> p = Inl (SSince (projl p2) [])"
-              using a_def p'l p1l True p_def unfolding doSince_def by auto
-            moreover
-            {
-              assume pplus: "p = p' \<oplus> p1"
-              then have "p = Inl (SSince q (qs @ [projl p1]))" using a_def p'l p1l
-                  p'_def p1_def unfolding proofApp_def by auto
-              then have "valid rho i (Since phi I psi) p"
-                using a_def True p'_def p1_def p'l p1l i_props liq riq
-                unfolding optimal_def valid_def
-                apply (auto simp: Let_def split: list.splits)
-                by (metis Suc_pred i_props upt_Suc_append)
-            }
-            ultimately show ?thesis
-              using Inl p1l True assms infinity unfolding optimal_def valid_def
-              by auto
-          next
-            case (Inr b2)
-            then have pplus: "p = p' \<oplus> p1" using p1l p_def True p'l
-              unfolding doSince_def by auto
+          using False pl Inl p1_def i_props liq riq map_eq at_p1
+          unfolding optimal_def valid_def
+          apply (auto simp: Let_def n_def at_p1 split: if_splits list.splits)
+          by (metis last_ConsR last_snoc)+
+      next
+        case (Inr b1)
+        then have "p = Inr (VSince i (projr p1) [])" using Inr False p'l p_def
+          unfolding doSince_def by (cases p2) auto
+        then show ?thesis using p1_def i_props Inr False bf
+          unfolding optimal_def valid_def
+          by (auto simp add: i_etp_to_tau Let_def False i_ltp_to_tau le_diff_conv2
+              split: enat.splits)
+      qed
+    qed
+  next
+    case infinity
+    then have riq: "enat (delta rho i (s_at q)) \<le> right I" by auto
+    then show ?thesis
+    proof (cases "left I = 0")
+      case True
+      then show ?thesis
+      proof (cases p1)
+        case (Inl a1)
+        then have p1l: "p1 = Inl a1" by auto
+        then show ?thesis
+        proof (cases p2)
+          case (Inl a2)
+          then have por: "p = p' \<oplus> p1 \<or> p = Inl (SSince (projl p2) [])"
+            using a_def p'l p1l True p_def unfolding doSince_def by auto
+          moreover
+          {
+            assume pplus: "p = p' \<oplus> p1"
             then have "p = Inl (SSince q (qs @ [projl p1]))" using a_def p'l p1l
                 p'_def p1_def unfolding proofApp_def by auto
-            then show ?thesis
-              using a_def True p'_def p1_def p'l p1l i_props liq riq infinity
+            then have "valid rho i (Since phi I psi) p"
+              using a_def True p'_def p1_def p'l p1l i_props liq riq
               unfolding optimal_def valid_def
               apply (auto simp: Let_def split: list.splits)
               by (metis Suc_pred i_props upt_Suc_append)
-          qed
+          }
+          ultimately show ?thesis
+            using Inl p1l True assms infinity unfolding optimal_def valid_def
+            by auto
         next
-          case (Inr b1)
-          then have p1r: "p1 = Inr b1" by auto
+          case (Inr b2)
+          then have pplus: "p = p' \<oplus> p1" using p1l p_def True p'l
+            unfolding doSince_def by auto
+          then have "p = Inl (SSince q (qs @ [projl p1]))" using a_def p'l p1l
+              p'_def p1_def unfolding proofApp_def by auto
           then show ?thesis
-          proof (cases p2)
-            case (Inl a2)
-            then have "p = Inl (SSince (projl p2) [])" using p_def Inr True p'l
-              unfolding doSince_def by auto
-            then show ?thesis using p2_def True Inl Inr p'l i_props zero_enat_def
-              unfolding optimal_def valid_def by auto
-          next
-            case (Inr b2)
-            then have "p = Inr (VSince i (projr p1) [projr p2])" using p1r True p'l p_def
-              unfolding doSince_def by auto
-            then show ?thesis using i_props p1_def p2_def True p1r Inr bf infinity
-              unfolding optimal_def valid_def
-              apply (auto split: enat.splits)
-              using i_le_ltpi by blast
-          qed
+            using a_def True p'_def p1_def p'l p1l i_props liq riq infinity
+            unfolding optimal_def valid_def
+            apply (auto simp: Let_def split: list.splits)
+            by (metis Suc_pred i_props upt_Suc_append)
         qed
       next
-        case False
+        case (Inr b1)
+        then have p1r: "p1 = Inr b1" by auto
         then show ?thesis
-        proof (cases p1)
-          case (Inl a1)
-          then have pplus: "p = p' \<oplus> p1" using p_def False p'l
-            unfolding doSince_def by (cases p2) auto
-          then have pl: "p = Inl (SSince q (qs @ [projl p1]))" using a_def p'l Inl
-            unfolding proofApp_def by auto
-          then show ?thesis
-            using False p1_def p'_def Inl i_props liq riq a_def p'l infinity
+        proof (cases p2)
+          case (Inl a2)
+          then have "p = Inl (SSince (projl p2) [])" using p_def Inr True p'l
+            unfolding doSince_def by auto
+          then show ?thesis using p2_def True Inl Inr p'l i_props zero_enat_def
+            unfolding optimal_def valid_def by auto
+        next
+          case (Inr b2)
+          then have "p = Inr (VSince i (projr p1) [projr p2])" using p1r True p'l p_def
+            unfolding doSince_def by auto
+          then show ?thesis using i_props p1_def p2_def True p1r Inr bf infinity
             unfolding optimal_def valid_def
-            apply (auto simp: Let_def split: list.splits if_splits)
-            apply (simp_all add: Cons_eq_upt_conv)
-             apply (metis One_nat_def Suc_diff_1 i_props upt_Suc_append)
-            done
-          next
-          case (Inr b1)
-          then have "p = Inr (VSince i (projr p1) [])" using Inr False p'l p_def
-            unfolding doSince_def by (cases p2) auto
-          then show ?thesis using p1_def i_props Inr False bf
-            unfolding optimal_def valid_def
-            by (auto simp add: i_etp_to_tau Let_def False i_ltp_to_tau le_diff_conv2
-                split: enat.splits)
+            apply (auto split: enat.splits)
+            using i_le_ltpi by blast
         qed
       qed
+    next
+      case False
+      then show ?thesis
+      proof (cases p1)
+        case (Inl a1)
+        then have pplus: "p = p' \<oplus> p1" using p_def False p'l
+          unfolding doSince_def by (cases p2) auto
+        then have pl: "p = Inl (SSince q (qs @ [projl p1]))" using a_def p'l Inl
+          unfolding proofApp_def by auto
+        then show ?thesis
+          using False p1_def p'_def Inl i_props liq riq a_def p'l infinity
+          unfolding optimal_def valid_def
+          apply (auto simp: Let_def split: list.splits if_splits)
+           apply (simp_all add: Cons_eq_upt_conv)
+          apply (metis One_nat_def Suc_diff_1 i_props upt_Suc_append)
+          done
+      next
+        case (Inr b1)
+        then have "p = Inr (VSince i (projr p1) [])" using Inr False p'l p_def
+          unfolding doSince_def by (cases p2) auto
+        then show ?thesis using p1_def i_props Inr False bf
+          unfolding optimal_def valid_def
+          by (auto simp add: i_etp_to_tau Let_def False i_ltp_to_tau le_diff_conv2
+              split: enat.splits)
+      qed
     qed
+  qed
 next
   case (Inr b)
   then have p'r: "p' = Inr b" by auto
@@ -5837,20 +5837,20 @@ next
         case (Inr b2)
         then have p2r: "p2 = Inr b2" by auto
         {
-            from i_props have b2_ge: "v_at b2 > 0" using p2r p2_def
-              unfolding optimal_def valid_def by auto
-            then have nl_def: "v_at q \<le> v_at b2 -1" using VSince p'r p'_def p2_def p2r
-              unfolding optimal_def valid_def by (auto simp: Let_def)
-            define l where l_def: "l \<equiv> [v_at q ..< min (v_at b2 -1) (LTP rho (\<tau> rho (v_at b2 -1)))]"
-            then have "l = [v_at q ..< v_at b2 -1]"
-              by (auto simp add: i_le_ltpi min_def)
-            then have "l @ [min (v_at b2 -1) (LTP rho (\<tau> rho (v_at b2 -1)))] = l @ [v_at b2 -1]"
-              by (auto simp add: i_le_ltpi min_def)
-            then have "l @ [min (v_at b2 -1) (LTP rho (\<tau> rho (v_at b2 -1)))] = [v_at q ..< min (v_at b2 ) (LTP rho (\<tau> rho (v_at b2)))]"
-              using nl_def l_def b2_ge
-              apply (auto simp add: i_le_ltpi min_def)
-              by (metis Suc_pred upt_Suc_append)
-          } note * = this
+          from i_props have b2_ge: "v_at b2 > 0" using p2r p2_def
+            unfolding optimal_def valid_def by auto
+          then have nl_def: "v_at q \<le> v_at b2 -1" using VSince p'r p'_def p2_def p2r
+            unfolding optimal_def valid_def by (auto simp: Let_def)
+          define l where l_def: "l \<equiv> [v_at q ..< min (v_at b2 -1) (LTP rho (\<tau> rho (v_at b2 -1)))]"
+          then have "l = [v_at q ..< v_at b2 -1]"
+            by (auto simp add: i_le_ltpi min_def)
+          then have "l @ [min (v_at b2 -1) (LTP rho (\<tau> rho (v_at b2 -1)))] = l @ [v_at b2 -1]"
+            by (auto simp add: i_le_ltpi min_def)
+          then have "l @ [min (v_at b2 -1) (LTP rho (\<tau> rho (v_at b2 -1)))] = [v_at q ..< min (v_at b2 ) (LTP rho (\<tau> rho (v_at b2)))]"
+            using nl_def l_def b2_ge
+            apply (auto simp add: i_le_ltpi min_def)
+            by (metis Suc_pred upt_Suc_append)
+        } note * = this
         then show ?thesis
         proof (cases p1)
           case (Inl a1)
@@ -5858,23 +5858,23 @@ next
             unfolding doSince_def by auto
           then have "p = Inr (VSince i q (qs @ [projr p2]))" using VSince p'r
               p2_def p2r i_props unfolding optimal_def valid_def proofApp_def j_def
-              by auto
-            then show ?thesis using p'_def p2_def i_props True Inl p2r VSince p'r bf'
-                j_def i_le_ltpi
-              unfolding optimal_def valid_def
-              apply (auto simp: Let_def)
-              apply (auto split: if_splits enat.splits)
-                using * apply auto
-                using min.order_iff apply blast
-                using min.order_iff apply blast
-                apply (meson diff_le_self le_trans)
-                apply (meson diff_le_self le_trans)
-                using le_trans apply blast
-                using le_trans apply blast
-                using le_trans apply blast
-                using le_trans apply blast
-                using le_trans apply blast
-                using le_trans by blast
+            by auto
+          then show ?thesis using p'_def p2_def i_props True Inl p2r VSince p'r bf'
+              j_def i_le_ltpi
+            unfolding optimal_def valid_def
+            apply (auto simp: Let_def)
+                   apply (auto split: if_splits enat.splits)
+            using * apply auto
+            using min.order_iff apply blast
+            using min.order_iff apply blast
+                   apply (meson diff_le_self le_trans)
+                  apply (meson diff_le_self le_trans)
+            using le_trans apply blast
+            using le_trans apply blast
+            using le_trans apply blast
+            using le_trans apply blast
+            using le_trans apply blast
+            using le_trans by blast
         next
           case (Inr b1)
           then have "p = Inr (VSince i (projr p1) [projr p2]) \<or> p = p' \<oplus> p2"
@@ -5883,34 +5883,34 @@ next
           {
             assume pplus: "p = p' \<oplus> p2"
             then have "p = Inr (VSince i q (qs @ [projr p2]))" using VSince p'r
-              p2_def p2r i_props unfolding optimal_def valid_def proofApp_def j_def
+                p2_def p2r i_props unfolding optimal_def valid_def proofApp_def j_def
               by auto
             then have "valid rho i (Since phi I psi) p" using p'_def p2_def i_props True Inr p2r VSince p'r bf'
                 j_def i_le_ltpi
-            unfolding optimal_def valid_def
-            apply (auto simp: Let_def)
-            apply (auto split: if_splits enat.splits)
-            using * apply auto
-            using Lattices.linorder_class.min.order_iff apply blast
-            using Lattices.linorder_class.min.order_iff apply blast
-               apply (meson diff_le_self le_trans)
-               apply (meson diff_le_self le_trans)
-            using le_trans apply blast
-            using le_trans apply blast
-            using le_trans apply blast
-            using le_trans apply blast
-            using le_trans apply blast
-            using le_trans by blast
-        }
-        moreover
-        {
-          assume p: "p = Inr (VSince i (projr p1) [projr p2])"
-          then have "valid rho i (Since phi I psi) p"
-            using p1_def p2_def Inr p2r bf True i_le_ltpi i_props
-            unfolding optimal_def valid_def
-            by (auto simp add: i_etp_to_tau split: enat.splits)
-        }
-        ultimately show ?thesis by auto
+              unfolding optimal_def valid_def
+              apply (auto simp: Let_def)
+                     apply (auto split: if_splits enat.splits)
+              using * apply auto
+              using Lattices.linorder_class.min.order_iff apply blast
+              using Lattices.linorder_class.min.order_iff apply blast
+                     apply (meson diff_le_self le_trans)
+                    apply (meson diff_le_self le_trans)
+              using le_trans apply blast
+              using le_trans apply blast
+              using le_trans apply blast
+              using le_trans apply blast
+              using le_trans apply blast
+              using le_trans by blast
+          }
+          moreover
+          {
+            assume p: "p = Inr (VSince i (projr p1) [projr p2])"
+            then have "valid rho i (Since phi I psi) p"
+              using p1_def p2_def Inr p2r bf True i_le_ltpi i_props
+              unfolding optimal_def valid_def
+              by (auto simp add: i_etp_to_tau split: enat.splits)
+          }
+          ultimately show ?thesis by auto
         qed
       qed
     next
@@ -5935,7 +5935,7 @@ next
         have l_subtract: "l rho (i - 1) (subtract (\<Delta> rho i) I) = l rho i I"
           using False i_props
           apply (auto simp: min_def)
-          apply (smt False add_leD2 diff_diff_cancel diff_is_0_eq' i_ltp_to_tau le_diff_conv2)
+             apply (smt False add_leD2 diff_diff_cancel diff_is_0_eq' i_ltp_to_tau le_diff_conv2)
           subgoal
             apply (rule antisym)
             subgoal apply (subst i_ltp_to_tau)
@@ -5956,7 +5956,7 @@ next
           unfolding optimal_def valid_def
           by (auto simp: Let_def)
         then show ?thesis using False i_props VSince p'r bf' formp ** vq
-          v_at_qs[unfolded l_subtract]
+            v_at_qs[unfolded l_subtract]
           unfolding valid_def
           by (auto simp: Let_def i_etp_to_tau split: enat.splits)
       next
@@ -5979,37 +5979,37 @@ next
         moreover
         {
           assume formp: "p = Inr (VSince i q qs)"
-        from p'_def have v_at_qs: "map v_at qs = [v_at q ..< Suc (l rho (i - 1) (subtract (\<Delta> rho i) I))]"
-          unfolding optimal_def valid_def VSince p'r
-          by (auto simp: Let_def)
-        have l_subtract: "l rho (i - 1) (subtract (\<Delta> rho i) I) = l rho i I"
-          using False i_props
-          apply (auto simp: min_def)
-          apply (smt False add_leD2 diff_diff_cancel diff_is_0_eq' i_ltp_to_tau le_diff_conv2)
-          subgoal
-            apply (rule antisym)
-            subgoal apply (subst i_ltp_to_tau)
-               apply  (auto simp: gr0_conv_Suc not_le)
-              by (smt order.trans add_Suc diff_cancel_middle diff_diff_left diff_is_0_eq i_ltp_to_tau i_props le_add2 le_diff_conv2 nat_le_linear)
+          from p'_def have v_at_qs: "map v_at qs = [v_at q ..< Suc (l rho (i - 1) (subtract (\<Delta> rho i) I))]"
+            unfolding optimal_def valid_def VSince p'r
+            by (auto simp: Let_def)
+          have l_subtract: "l rho (i - 1) (subtract (\<Delta> rho i) I) = l rho i I"
+            using False i_props
+            apply (auto simp: min_def)
+               apply (smt False add_leD2 diff_diff_cancel diff_is_0_eq' i_ltp_to_tau le_diff_conv2)
             subgoal
-              by (auto simp: gr0_conv_Suc)
+              apply (rule antisym)
+              subgoal apply (subst i_ltp_to_tau)
+                 apply  (auto simp: gr0_conv_Suc not_le)
+                by (smt order.trans add_Suc diff_cancel_middle diff_diff_left diff_is_0_eq i_ltp_to_tau i_props le_add2 le_diff_conv2 nat_le_linear)
+              subgoal
+                by (auto simp: gr0_conv_Suc)
+              done
+            subgoal
+              by (smt False add_leD2 diff_diff_cancel diff_is_0_eq' i_ltp_to_tau le_diff_conv2)
+            subgoal
+              by (metis diff_cancel_middle diff_zero i_le_ltpi less_le neq0_conv zero_less_diff)
             done
-          subgoal
-            by (smt False add_leD2 diff_diff_cancel diff_is_0_eq' i_ltp_to_tau le_diff_conv2)
-          subgoal
-            by (metis diff_cancel_middle diff_zero i_le_ltpi less_le neq0_conv zero_less_diff)
-          done
-        from p'_def have vq: "v_check rho phi q \<and> (\<forall>q \<in> set qs. v_check rho psi q)"
-          unfolding optimal_def valid_def VSince p'r
-          by (auto simp: Let_def)
-        from p'_def i_props have "v_at q \<le> i" using VSince p'r
-          unfolding optimal_def valid_def
-          by (auto simp: Let_def)
-        then have "valid rho i (Since phi I psi) p" using False i_props VSince p'r
-          bf' formp ** vq v_at_qs[unfolded l_subtract]
-          unfolding valid_def
-          by (auto simp: Let_def i_etp_to_tau split: enat.splits)
-      }
+          from p'_def have vq: "v_check rho phi q \<and> (\<forall>q \<in> set qs. v_check rho psi q)"
+            unfolding optimal_def valid_def VSince p'r
+            by (auto simp: Let_def)
+          from p'_def i_props have "v_at q \<le> i" using VSince p'r
+            unfolding optimal_def valid_def
+            by (auto simp: Let_def)
+          then have "valid rho i (Since phi I psi) p" using False i_props VSince p'r
+              bf' formp ** vq v_at_qs[unfolded l_subtract]
+            unfolding valid_def
+            by (auto simp: Let_def i_etp_to_tau split: enat.splits)
+        }
         ultimately show ?thesis by auto
       qed
     qed
@@ -6080,7 +6080,7 @@ next
               apply (auto 0 0 simp: Let_def split: if_splits)
               using min.orderE apply blast
                    apply (metis One_nat_def Suc_diff_1 le_SucI)
-              apply (metis Suc_pred le_trans nat_le_linear not_less_eq_eq)
+                  apply (metis Suc_pred le_trans nat_le_linear not_less_eq_eq)
               using le_trans by blast+
           next
             case (Inr b1)
@@ -6258,7 +6258,7 @@ next
           then have "map v_at qs = [ETP rho 0 ..< Suc (l rho i I)]"
             using v_at_qs[unfolded l_subtract] by auto
           then have ?thesis using False i_props VSince_never p'r bf' bf formp vq
-            infinity unfolding valid_def
+              infinity unfolding valid_def
             by (auto simp: Let_def li)
         }
         moreover case Inl
@@ -6365,11 +6365,12 @@ next
           }
           ultimately have ?thesis by auto
         }
+        thm calculation this
         moreover case Inr
         ultimately show ?thesis by (cases "right I"; blast)
       qed
     qed
-(*
+      (*
  next
     case (VMatchP x12a)
     then show ?thesis using p'r p'_def unfolding optimal_def valid_def by auto
@@ -6384,14 +6385,14 @@ next
 qed
 
 lemma once_sound:
-assumes i_props: "i > 0 \<and> \<tau> rho i \<ge> \<tau> rho 0 + left I
+  assumes i_props: "i > 0 \<and> \<tau> rho i \<ge> \<tau> rho 0 + left I
   \<and> right I \<ge> enat (\<Delta> rho i)" and
-  p1_def: "optimal i phi p1" and
-  p'_def: "optimal (i-1) (Once (subtract (\<Delta> rho i) I) phi) p'"
-  and p_def: "p \<in> set (doOnce i (left I) p1 p')"
-  and bf: "bounded_future (Once I phi)"
-  and bf': "bounded_future (Once (subtract (\<Delta> rho i) I) phi)"
-shows "valid rho i (Once I phi) p"
+    p1_def: "optimal i phi p1" and
+    p'_def: "optimal (i-1) (Once (subtract (\<Delta> rho i) I) phi) p'"
+    and p_def: "p \<in> set (doOnce i (left I) p1 p')"
+    and bf: "bounded_future (Once I phi)"
+    and bf': "bounded_future (Once (subtract (\<Delta> rho i) I) phi)"
+  shows "valid rho i (Once I phi) p"
 proof (cases p')
   case (Inl a)
   then have p'l: "p' = Inl a" by auto
@@ -6607,11 +6608,11 @@ next
               by (metis Suc_pred upt_Suc_append)
           } note ** = this
           then have "p = p' \<oplus> p1" using p1r p'r VOnce_never True p_def
-              unfolding doOnce_def by auto
-            then have "p = Inr (VOnce_never i li (qs @ [projr p1]))"
-              using VOnce_never p'r p1_def p1r i_props
-              unfolding optimal_def valid_def proofApp_def j_def
-              by auto
+            unfolding doOnce_def by auto
+          then have "p = Inr (VOnce_never i li (qs @ [projr p1]))"
+            using VOnce_never p'r p1_def p1r i_props
+            unfolding optimal_def valid_def proofApp_def j_def
+            by auto
           then show ?thesis
             using * ** n_def p'_def p1_def p1r p'r VOnce_never
               True i_props i_le_ltpi
@@ -6619,10 +6620,10 @@ next
             using [[linarith_split_limit=20]]
             apply (auto 0 0 simp: Let_def split: if_splits)
             using min.orderE apply blast
-              apply (metis One_nat_def Suc_diff_1 le_SucI)
-              apply (metis Suc_pred le_trans nat_le_linear not_less_eq_eq)
-              using le_trans by blast+
-          qed
+                 apply (metis One_nat_def Suc_diff_1 le_SucI)
+                apply (metis Suc_pred le_trans nat_le_linear not_less_eq_eq)
+            using le_trans by blast+
+        qed
       next
         case infinity
         then show ?thesis
@@ -6654,13 +6655,13 @@ next
           then have "p = p' \<oplus> p1" using p1r p'r VOnce_never True p_def
             unfolding doOnce_def by auto
           then have "p = Inr (VOnce_never i li (qs @ [projr p1]))"
-              using VOnce_never p'r p1_def p1r i_props
-              unfolding optimal_def valid_def proofApp_def j_def
-              by auto
+            using VOnce_never p'r p1_def p1r i_props
+            unfolding optimal_def valid_def proofApp_def j_def
+            by auto
           then show ?thesis
-           using infinity p'_def p1_def p1r p'r VOnce_never
-             True i_props i_le_ltpi **
-           unfolding optimal_def valid_def
+            using infinity p'_def p1_def p1r p'r VOnce_never
+              True i_props i_le_ltpi **
+            unfolding optimal_def valid_def
             by (auto simp: Let_def i_etp_to_tau i_le_ltpi split: if_splits)
         qed
       qed
@@ -6700,7 +6701,9 @@ next
             by auto
           then have "map v_at qs = [ETP rho (\<tau> rho i - n) ..< Suc (l rho i I)]"
             using v_at_qs[unfolded l_subtract] by auto
-          
+          then have ?thesis using False i_props VOnce_never p'r bf' bf formp vq n_def 
+            unfolding valid_def
+            by (auto simp: Let_def li)
         }
         moreover
         { assume infinity: "right I = \<infinity>"
@@ -6738,46 +6741,51 @@ next
             by (auto simp: Let_def li)
         }
         moreover case Inl
-        ultimately show ?thesis by (cases "right I"; blast)
+        ultimately show ?thesis 
+          by (cases "right I"; auto)
       next
-        { fix n assume n_def: "right I = enat n"
+        { fix n 
+          assume n_def: "right I = enat n"
           case (Inr b1)
           then have "p = Inr (VOnce_never i li qs)"
             using p'r VOnce_never False p_def unfolding doOnce_def
             by (simp add: Inr)
-          assume formp: "p = Inr (VOnce_never i li qs)"
-          from p'_def have v_at_qs: "map v_at qs = [ETP rho (\<tau> rho (i-1) - (n - \<Delta> rho i)) ..< Suc (l rho (i - 1) (subtract (\<Delta> rho i) I))]"
-            using n_def unfolding optimal_def valid_def VOnce_never p'r
-            by (auto simp: Let_def)
-          have l_subtract: "l rho (i - 1) (subtract (\<Delta> rho i) I) = l rho i I"
-            using False i_props
-            apply (auto simp: min_def)
-               apply (smt False add_leD2 diff_diff_cancel diff_is_0_eq' i_ltp_to_tau le_diff_conv2)
-            subgoal
-              apply (rule antisym)
-              subgoal apply (subst i_ltp_to_tau)
-                apply  (auto simp: gr0_conv_Suc not_le)
-                by (smt order.trans add_Suc diff_cancel_middle diff_diff_left diff_is_0_eq i_ltp_to_tau i_props le_add2 le_diff_conv2 nat_le_linear)
+          moreover
+          {
+            assume formp: "p = Inr (VOnce_never i li qs)"
+            from p'_def have v_at_qs: "map v_at qs = [ETP rho (\<tau> rho (i-1) - (n - \<Delta> rho i)) ..< Suc (l rho (i - 1) (subtract (\<Delta> rho i) I))]"
+              using n_def unfolding optimal_def valid_def VOnce_never p'r
+              by (auto simp: Let_def)
+            have l_subtract: "l rho (i - 1) (subtract (\<Delta> rho i) I) = l rho i I"
+              using False i_props
+              apply (auto simp: min_def)
+                 apply (smt False add_leD2 diff_diff_cancel diff_is_0_eq' i_ltp_to_tau le_diff_conv2)
               subgoal
-                by (auto simp: gr0_conv_Suc)
+                apply (rule antisym)
+                subgoal apply (subst i_ltp_to_tau)
+                   apply  (auto simp: gr0_conv_Suc not_le)
+                  by (smt order.trans add_Suc diff_cancel_middle diff_diff_left diff_is_0_eq i_ltp_to_tau i_props le_add2 le_diff_conv2 nat_le_linear)
+                subgoal
+                  by (auto simp: gr0_conv_Suc)
+                done
+              subgoal
+                by (smt False add_leD2 diff_diff_cancel diff_is_0_eq' i_ltp_to_tau le_diff_conv2)
+              subgoal
+                by (metis diff_cancel_middle diff_zero i_le_ltpi less_le neq0_conv zero_less_diff)
               done
-            subgoal
-              by (smt False add_leD2 diff_diff_cancel diff_is_0_eq' i_ltp_to_tau le_diff_conv2)
-            subgoal
-              by (metis diff_cancel_middle diff_zero i_le_ltpi less_le neq0_conv zero_less_diff)
-            done
-          from p'_def have vq: "\<forall>q \<in> set qs. v_check rho phi q"
-            unfolding optimal_def valid_def VOnce_never p'r
-            by (auto simp: Let_def)
-          from n_def i_props have "ETP rho (\<tau> rho (i-1) - (n - \<Delta> rho i)) = ETP rho (\<tau> rho i - n)"
-            by auto
-          then have "map v_at qs = [ETP rho (\<tau> rho i - n) ..< Suc (l rho i I)]"
-            using v_at_qs[unfolded l_subtract] by auto
-          then have "valid rho i (Once I phi) p"
-            using False i_props VOnce_never p'r bf' bf formp vq n_def
-            unfolding valid_def
-            by (auto simp: Let_def li)
-          then have ?thesis by auto
+            from p'_def have vq: "\<forall>q \<in> set qs. v_check rho phi q"
+              unfolding optimal_def valid_def VOnce_never p'r
+              by (auto simp: Let_def)
+            from n_def i_props have "ETP rho (\<tau> rho (i-1) - (n - \<Delta> rho i)) = ETP rho (\<tau> rho i - n)"
+              by auto
+            then have "map v_at qs = [ETP rho (\<tau> rho i - n) ..< Suc (l rho i I)]"
+              using v_at_qs[unfolded l_subtract] by auto
+            then have "valid rho i (Once I phi) p"
+              using False i_props VOnce_never p'r bf' bf formp vq n_def
+              unfolding valid_def
+              by (auto simp: Let_def li)
+          }
+          ultimately have ?thesis by auto
         }
         moreover
         { assume infinity: "right I = infinity"
@@ -6785,40 +6793,43 @@ next
           then have "p = Inr (VOnce_never i li qs)"
             using p'r VOnce_never False p_def unfolding doOnce_def
             by (simp add: Inr)
-          assume formp: "p = Inr (VOnce_never i li qs)"
-          from p'_def have v_at_qs: "map v_at qs = [ETP rho 0 ..< Suc (l rho (i - 1) (subtract (\<Delta> rho i) I))]"
-            using infinity unfolding optimal_def valid_def VOnce_never p'r
-            by (auto simp: Let_def)
-          have l_subtract: "l rho (i - 1) (subtract (\<Delta> rho i) I) = l rho i I"
-            using False i_props
-            apply (auto simp: min_def)
-               apply (smt False add_leD2 diff_diff_cancel diff_is_0_eq' i_ltp_to_tau le_diff_conv2)
-            subgoal
-              apply (rule antisym)
-              subgoal apply (subst i_ltp_to_tau)
-                 apply  (auto simp: gr0_conv_Suc not_le)
-                by (smt order.trans add_Suc diff_cancel_middle diff_diff_left diff_is_0_eq i_ltp_to_tau i_props le_add2 le_diff_conv2 nat_le_linear)
+          moreover
+          {
+            assume formp: "p = Inr (VOnce_never i li qs)"
+            from p'_def have v_at_qs: "map v_at qs = [ETP rho 0 ..< Suc (l rho (i - 1) (subtract (\<Delta> rho i) I))]"
+              using infinity unfolding optimal_def valid_def VOnce_never p'r
+              by (auto simp: Let_def)
+            have l_subtract: "l rho (i - 1) (subtract (\<Delta> rho i) I) = l rho i I"
+              using False i_props
+              apply (auto simp: min_def)
+                 apply (smt False add_leD2 diff_diff_cancel diff_is_0_eq' i_ltp_to_tau le_diff_conv2)
               subgoal
-                by (auto simp: gr0_conv_Suc)
+                apply (rule antisym)
+                subgoal apply (subst i_ltp_to_tau)
+                   apply  (auto simp: gr0_conv_Suc not_le)
+                  by (smt order.trans add_Suc diff_cancel_middle diff_diff_left diff_is_0_eq i_ltp_to_tau i_props le_add2 le_diff_conv2 nat_le_linear)
+                subgoal
+                  by (auto simp: gr0_conv_Suc)
+                done
+              subgoal
+                by (smt False add_leD2 diff_diff_cancel diff_is_0_eq' i_ltp_to_tau le_diff_conv2)
+              subgoal
+                by (metis diff_cancel_middle diff_zero i_le_ltpi less_le neq0_conv zero_less_diff)
               done
-            subgoal
-              by (smt False add_leD2 diff_diff_cancel diff_is_0_eq' i_ltp_to_tau le_diff_conv2)
-            subgoal
-              by (metis diff_cancel_middle diff_zero i_le_ltpi less_le neq0_conv zero_less_diff)
-            done
-          from p'_def have vq: "\<forall>q \<in> set qs. v_check rho phi q"
-            unfolding optimal_def valid_def VOnce_never p'r
-            by (auto simp: Let_def)
-          then have "map v_at qs = [ETP rho 0 ..< Suc (l rho i I)]"
-            using v_at_qs[unfolded l_subtract] by auto
-          then have "valid rho i (Once I phi) p"
-            using False i_props VSince_never p'r bf' bf formp vq infinity
-            unfolding valid_def
-            by (auto simp: Let_def li)
-          then have ?thesis by auto
+            from p'_def have vq: "\<forall>q \<in> set qs. v_check rho phi q"
+              unfolding optimal_def valid_def VOnce_never p'r
+              by (auto simp: Let_def)
+            then have "map v_at qs = [ETP rho 0 ..< Suc (l rho i I)]"
+              using v_at_qs[unfolded l_subtract] by auto
+            then have "valid rho i (Once I phi) p"
+              using False i_props VSince_never p'r bf' bf formp vq infinity
+              unfolding valid_def
+              by (auto simp: Let_def li)
+          }
+          ultimately have ?thesis by auto
         }
         moreover case Inr
-        ultimately show ?thesis sorry
+        ultimately show ?thesis by (cases "right I"; auto)
       qed
     qed
   next
@@ -6857,7 +6868,7 @@ next
   next
     case (VSince_never x51 x52 x53)
     then show ?thesis using p'r p'_def unfolding optimal_def valid_def by auto
-(*
+        (*
  next
     case (VMatchP x12a)
     then show ?thesis using p'r p'_def unfolding optimal_def valid_def by auto
@@ -6872,10 +6883,10 @@ next
 qed
 
 lemma map_set_in_imp_set_in:
-"\<forall>p \<in> set qs. v_check rho phi p
+  "\<forall>p \<in> set qs. v_check rho phi p
   \<Longrightarrow> \<forall>j \<in> set (map v_at qs). \<exists>p \<in> set qs. v_at p = j \<and> v_check rho phi p"
-and
-"\<forall>p \<in> set ps. s_check rho phi p
+  and
+  "\<forall>p \<in> set ps. s_check rho phi p
   \<Longrightarrow> \<forall>j \<in> set (map s_at ps). \<exists>p \<in> set ps. s_at p = j \<and> s_check rho phi p"
   by auto
 
@@ -6895,7 +6906,7 @@ proof (cases "right I")
 qed (auto simp add: i_etp_to_tau)
 
 lemma mem_imp_le_ltp:
-assumes mem: "mem (delta rho (i-1) j) (subtract (\<Delta> rho i) I)"
+  assumes mem: "mem (delta rho (i-1) j) (subtract (\<Delta> rho i) I)"
     and j_le_i: "j \<le> i-1" and
     i_props: "i > 0 \<and> \<tau> rho i \<ge> \<tau> rho 0 + left I \<and> right I \<ge> enat (\<Delta> rho i)"
   shows "j \<le> LTP rho (\<tau> rho i - left I)"
@@ -6909,10 +6920,10 @@ proof -
 qed
 
 lemma i_props_imp_not_le:
-assumes i_props: "i > 0 \<and> \<tau> rho i \<ge> \<tau> rho 0 + left I
+  assumes i_props: "i > 0 \<and> \<tau> rho i \<ge> \<tau> rho 0 + left I
    \<and> right I \<ge> enat (\<Delta> rho i)" and
-   p'_def: "optimal (i-1) (Since phi (subtract (\<Delta> rho i) I) psi) p'"
-shows "p' \<noteq> Inr (VSince_le (i-1))"
+    p'_def: "optimal (i-1) (Since phi (subtract (\<Delta> rho i) I) psi) p'"
+  shows "p' \<noteq> Inr (VSince_le (i-1))"
 proof (rule ccontr)
   assume p'_le: "\<not> p' \<noteq> Inr (VSince_le (i-1))"
   then have "\<tau> rho (i-1) < \<tau> rho 0 + (left I - \<Delta> rho i)" using p'_def
@@ -6927,9 +6938,9 @@ lemma case_snoc: "(case xs @ [x] of [] \<Rightarrow> a | x # xs \<Rightarrow> b)
   by (cases xs; auto)
 
 lemma sval_to_sval':
-assumes val: "valid rho i (Since phi I psi) (Inl (SSince spsi (ys @ [y])))" and
-i_props: "0 < i \<and> \<tau> rho 0 + left I \<le> \<tau> rho i \<and> enat (\<Delta> rho i) \<le> right I"
-shows "valid rho (i - 1) (Since phi (subtract (\<Delta> rho i) I) psi)
+  assumes val: "valid rho i (Since phi I psi) (Inl (SSince spsi (ys @ [y])))" and
+    i_props: "0 < i \<and> \<tau> rho 0 + left I \<le> \<tau> rho i \<and> enat (\<Delta> rho i) \<le> right I"
+  shows "valid rho (i - 1) (Since phi (subtract (\<Delta> rho i) I) psi)
      (Inl (SSince spsi ys))"
 proof -
   from val have spsi_i: "s_at spsi \<le> s_at y" unfolding valid_def
@@ -6970,9 +6981,9 @@ proof -
 qed
 
 lemma etpi_imp_etp_suci:
-assumes rI: "n \<ge> \<Delta> rho i"
-and etpj: "i > 0 \<and> ETP rho (\<tau> rho i - n) \<le> j"
-shows "ETP rho (\<tau> rho (i-1) - (n - (\<Delta> rho i))) \<le> j"
+  assumes rI: "n \<ge> \<Delta> rho i"
+    and etpj: "i > 0 \<and> ETP rho (\<tau> rho i - n) \<le> j"
+  shows "ETP rho (\<tau> rho (i-1) - (n - (\<Delta> rho i))) \<le> j"
 proof -
   have "\<tau> rho (i-1) - (n - (\<Delta> rho i)) = \<tau> rho i - n"
     using assms diff_diff_right[of "\<tau> rho (i-1)" "\<tau> rho i" n] by auto
@@ -6981,14 +6992,14 @@ qed
 
 lemma val_ge_zero:
   assumes pr: "p = Inr p'" and form_p': "p' = VSince (i-1) p1 p2"
-and val: "valid rho (i-1) (Since phi (subtract (\<Delta> rho i) I) psi) p"
-shows "\<tau> rho 0 \<le> \<tau> rho (i-1) - (left I - (\<Delta> rho i))"
+    and val: "valid rho (i-1) (Since phi (subtract (\<Delta> rho i) I) psi) p"
+  shows "\<tau> rho 0 \<le> \<tau> rho (i-1) - (left I - (\<Delta> rho i))"
   using assms unfolding valid_def by (auto simp: Let_def)
 
 lemma val_ge_zero_never:
   assumes pr: "p = Inr p'" and form_p': "p' = VSince_never (i-1) li p1"
-and val: "valid rho (i-1) (Since phi (subtract (\<Delta> rho i) I) psi) p"
-shows "\<tau> rho 0 \<le> \<tau> rho (i-1) - (left I - (\<Delta> rho i))"
+    and val: "valid rho (i-1) (Since phi (subtract (\<Delta> rho i) I) psi) p"
+  shows "\<tau> rho 0 \<le> \<tau> rho (i-1) - (left I - (\<Delta> rho i))"
   using assms unfolding valid_def
   by (auto simp: Let_def split: enat.splits)
 
@@ -7041,16 +7052,16 @@ lemma valid_checkApp_VSince_never: "valid rho j (Since phi I psi) (Inr (VSince_n
   left I = 0 \<or> (case right I of \<infinity> \<Rightarrow> True | enat n \<Rightarrow> ETP rho (\<tau> rho j - n) \<le> LTP rho (\<tau> rho j - left I)) \<Longrightarrow>
   checkApp (Inr (VSince_never j li vpsis')) (Inr p2')"
   apply (auto simp: valid_def Let_def split: if_splits enat.splits intro!: checkApp.intros)
-    apply (meson diff_le_self i_etp_to_tau)
-   apply (meson diff_le_self i_etp_to_tau i_le_ltpi leD le_less_trans not_le_imp_less)
+  apply (meson diff_le_self i_etp_to_tau)
+  apply (meson diff_le_self i_etp_to_tau i_le_ltpi leD le_less_trans not_le_imp_less)
   by (meson diff_le_self i_etp_to_tau)
 
 lemma valid_checkIncr_VSince: "valid rho j phi (Inr (VSince j vphi' vpsis')) \<Longrightarrow>
   checkIncr (Inr (VSince j vphi' vpsis'))"
   apply (cases phi)
-           apply (auto simp: valid_def Let_def split: if_splits enat.splits dest!: arg_cong[where ?x="map _ _" and ?f=set] intro!: checkIncr.intros)
-   apply (drule imageI[where ?A="set vpsis'" and ?f=v_at])
-   apply auto[1]
+  apply (auto simp: valid_def Let_def split: if_splits enat.splits dest!: arg_cong[where ?x="map _ _" and ?f=set] intro!: checkIncr.intros)
+  apply (drule imageI[where ?A="set vpsis'" and ?f=v_at])
+  apply auto[1]
   apply (drule imageI[where ?A="set vpsis'" and ?f=v_at])
   apply auto[1]
   done
@@ -7058,9 +7069,9 @@ lemma valid_checkIncr_VSince: "valid rho j phi (Inr (VSince j vphi' vpsis')) \<L
 lemma valid_checkIncr_VSince_never: "valid rho j phi (Inr (VSince_never j li vpsis')) \<Longrightarrow>
   checkIncr (Inr (VSince_never j li vpsis'))"
   apply (cases phi)
-           apply (auto simp: valid_def Let_def split: if_splits enat.splits dest!: arg_cong[where ?x="map _ _" and ?f=set] intro!: checkIncr.intros)
-   apply (drule imageI[where ?A="set vpsis'" and ?f=v_at])
-   apply auto[1]
+  apply (auto simp: valid_def Let_def split: if_splits enat.splits dest!: arg_cong[where ?x="map _ _" and ?f=set] intro!: checkIncr.intros)
+  apply (drule imageI[where ?A="set vpsis'" and ?f=v_at])
+  apply auto[1]
   apply (drule imageI[where ?A="set vpsis'" and ?f=v_at])
   apply auto[1]
   done
@@ -7075,8 +7086,8 @@ proof (cases "left I = 0")
   obtain z zs where ys_def: "ys = zs @ [z]"
     using valid True
     apply (cases ys rule: rev_cases)
-     apply (auto simp: valid_def Let_def split: if_splits enat.splits)
-     apply (meson i_le_ltpi le_trans)+
+    apply (auto simp: valid_def Let_def split: if_splits enat.splits)
+    apply (meson i_le_ltpi le_trans)+
     done
   show ?thesis
     using assms etpi_imp_etp_suci i_props True
@@ -7131,8 +7142,8 @@ proof (cases "left I = 0")
   obtain z zs where ys_def: "ys = zs @ [z]"
     using valid True
     apply (cases ys rule: rev_cases)
-     apply (auto simp: valid_def Let_def split: if_splits enat.splits)
-     apply (meson diff_le_self i_etp_to_tau)
+    apply (auto simp: valid_def Let_def split: if_splits enat.splits)
+    apply (meson diff_le_self i_etp_to_tau)
     by (meson \<tau>_mono diff_le_self i_etp_to_tau i_ltp_to_tau i_props(1) less_or_eq_imp_le)
   show ?thesis
     using assms etpi_imp_etp_suci i_props True
@@ -7186,7 +7197,7 @@ proof (rule ccontr)
   define minp where minp: "minp \<equiv> min_list_wrt wqo (doSince i (left I) p1 p2 p')"
   from bf have bfpsi: "bounded_future psi" by auto
   from bf have bfphi: "bounded_future phi" by auto
-(*  from bf obtain n where n_def: "right I = enat n" by auto*)
+      (*  from bf obtain n where n_def: "right I = enat n" by auto*)
   from pw_total[of i "Since phi I psi"] have total_set: "total_on wqo (set (doSince i (left I) p1 p2 p'))"
     using since_sound[OF i_props p1_def p2_def p'_def _ bf bf']
     by (metis not_wqo total_onI)
@@ -7449,8 +7460,8 @@ proof (rule ccontr)
         by (auto simp: Let_def)
       then have satc: "mem 0 I \<and> sat rho i psi" using i_props sats sat_Since_rec
         apply auto
-          apply (metis MTL.sat.simps(11) le_zero_eq sat_Since_rec viosp)
-         apply (metis enat_0_iff(2) zero_le)
+        apply (metis MTL.sat.simps(11) le_zero_eq sat_Since_rec viosp)
+        apply (metis enat_0_iff(2) zero_le)
         by (metis MTL.sat.simps(11) sat_Since_rec viosp)
       from vmin SATs val_SAT_imp_l obtain ap where ap_def: "minp = Inl ap"
         using minp unfolding valid_def apply auto
@@ -7479,7 +7490,7 @@ proof (rule ccontr)
         then have "s_at spsi = i"
           using spsi_bounds check_spsi jc tc check_consistent[OF bfpsi]
           apply (auto split: enat.splits)
-           apply force
+          apply force
           by (metis Nat.add_0_right add_diff_inverse_nat atLeastLessThan_iff diff_is_0_eq le0)
       }
       moreover
@@ -7638,7 +7649,7 @@ proof (rule ccontr)
             have ps_Nil: "ps = []"
               using q_val p_eq_i
               apply (auto simp: Inr bv Suc valid_def Let_def split: enat.splits if_splits)
-               apply (metis add_Suc_right i_le_ltpi_minus i_props leD zero_less_Suc)
+              apply (metis add_Suc_right i_le_ltpi_minus i_props leD zero_less_Suc)
               by (metis add_Suc_right i_le_ltpi_minus i_props leD zero_less_Suc)
             show ?thesis
               using VSince_Nil[of a1 p] wqo_p pv bv qr a1_def
@@ -7672,7 +7683,7 @@ proof (rule ccontr)
               then show ?thesis
                 using form_min qr bv Inl p1_def q_val unfolding optimal_def valid_def
                 apply (cases ps rule: rev_cases)
-                 apply (auto simp add: Let_def True i_ltp_to_tau split: if_splits enat.splits)[1]
+                apply (auto simp add: Let_def True i_ltp_to_tau split: if_splits enat.splits)[1]
                 subgoal premises prems for ys y
                 proof -
                   from vmin form_min p2r have p_val: "valid rho i (Since phi I psi) (p' \<oplus> (Inr p2'))"
@@ -7717,7 +7728,7 @@ proof (rule ccontr)
               then show ?thesis using qr bv q_val Inl p1_def i_props
                 unfolding optimal_def valid_def
                 apply (cases ps rule: rev_cases)
-                 apply (auto simp add: Let_def False i_ltp_to_tau split: if_splits)[1]
+                apply (auto simp add: Let_def False i_ltp_to_tau split: if_splits)[1]
                 subgoal premises prems
                 proof -
                   from p'_def have p'_val: "valid rho (i-1) (Since phi (subtract (\<Delta> rho i) I) psi) p'"
@@ -7763,7 +7774,7 @@ proof (rule ccontr)
                   then have p_le_predi: "v_at p \<le> s_at a1 - 1"
                     using p_bounds prems thm i_le_ltpi_minus
                     by (auto simp: Let_def)
-(*
+                      (*
                   with a1_i prems(2-4, 7-8) False i_props p_bounds have "map v_at ps = [v_at p ..< Suc (l rho (i-1) (subtract (\<Delta> rho i) I))]"
                     apply (auto simp: Let_def split: enat.splits)
                          apply (simp add: min_def split: if_splits)
@@ -7933,7 +7944,7 @@ proof (rule ccontr)
                 then show ?thesis using qr bv q_val Inr p1_def i_props
                   unfolding optimal_def valid_def
                   apply (cases ps rule: rev_cases)
-                   apply (auto simp add: Let_def False i_ltp_to_tau split: if_splits)[1]
+                  apply (auto simp add: Let_def False i_ltp_to_tau split: if_splits)[1]
                   subgoal premises prems
                   proof -
                     from p'_def have p'_val: "valid rho (i-1) (Since phi (subtract (\<Delta> rho i) I) psi) p'"
@@ -7974,7 +7985,7 @@ proof (rule ccontr)
                     from False have p_le_predi: "v_at p \<le> i - 1"
                       using p_bounds
                       by auto
-(*
+                        (*
                     with prems(2-4, 7-8) False i_props p_bounds have "map v_at ps = [v_at p ..< Suc (l rho (i-1) (subtract (\<Delta> rho i) I))]"
                     apply (auto simp: Let_def split: enat.splits)
                          apply (simp add: min_def split: if_splits)
@@ -8051,15 +8062,15 @@ proof (rule ccontr)
               then show ?thesis
                 using form_min qr bv Inl p1_def q_val unfolding optimal_def valid_def
                 apply (cases ps rule: rev_cases)
-                 apply (auto simp add: Let_def True i_ltp_to_tau split: if_splits enat.splits)[1]
+                apply (auto simp add: Let_def True i_ltp_to_tau split: if_splits enat.splits)[1]
                 subgoal premises prems for ys y
                 proof -
                   from vmin form_min p2r have p_val: "valid rho i (Since phi I psi) (p' \<oplus> (Inr p2'))"
                     by auto
-                   have check_p: "checkApp p' (Inr p2')"
-                     using p'_def True
-                     unfolding p2r b'v p'b'
-                     by (auto simp: optimal_def intro!: valid_checkApp_VSince_never)
+                  have check_p: "checkApp p' (Inr p2')"
+                    using p'_def True
+                    unfolding p2r b'v p'b'
+                    by (auto simp: optimal_def intro!: valid_checkApp_VSince_never)
                   from prems have y_val: "valid rho i psi (Inr y)"
                     using q_val True i_le_ltpi i_props unfolding valid_def
                     by (auto simp: Let_def min_def split: if_splits)
@@ -8096,7 +8107,7 @@ proof (rule ccontr)
               then show ?thesis using qr bv q_val Inl p1_def i_props
                 unfolding optimal_def valid_def
                 apply (cases ps rule: rev_cases)
-                 apply (auto simp add: Let_def False i_ltp_to_tau split: if_splits)[1]
+                apply (auto simp add: Let_def False i_ltp_to_tau split: if_splits)[1]
                 subgoal premises prems
                 proof -
                   from p'_def have p'_val: "valid rho (i-1) (Since phi (subtract (\<Delta> rho i) I) psi) p'"
@@ -8138,7 +8149,7 @@ proof (rule ccontr)
                   then have p_le_predi: "v_at p \<le> s_at a1 - 1"
                     using p_bounds prems
                     by auto
-(*
+                      (*
                    with a1_i prems(2-4, 8) False i_props p_bounds have "map v_at ps = [v_at p ..< Suc (l rho (i-1) (subtract (\<Delta> rho i) I))]"
                     apply (auto simp: Let_def split: enat.splits)
                          apply (simp add: min_def split: if_splits)
@@ -8311,7 +8322,7 @@ proof (rule ccontr)
                 then show ?thesis using qr bv q_val Inr p1_def i_props
                   unfolding optimal_def valid_def
                   apply (cases ps rule: rev_cases)
-                   apply (auto simp add: Let_def False i_ltp_to_tau split: if_splits)[1]
+                  apply (auto simp add: Let_def False i_ltp_to_tau split: if_splits)[1]
                   subgoal premises prems
                   proof -
                     from p'_def have p'_val: "valid rho (i-1) (Since phi (subtract (\<Delta> rho i) I) psi) p'"
@@ -8350,7 +8361,7 @@ proof (rule ccontr)
                   proof -
                     from False have p_le_predi: "v_at p \<le> i - 1"
                       using p_bounds by auto
-(*
+                        (*
                     with prems(2-4, 8) False i_props p_bounds have "map v_at ps = [v_at p ..< Suc (l rho (i-1) (subtract (\<Delta> rho i) I))]"
                     apply (auto simp: Let_def split: enat.splits)
                          apply (simp add: min_def split: if_splits)
@@ -8466,7 +8477,7 @@ proof (rule ccontr)
               then show ?thesis
                 using form_min qr bv Inl p1_def q_val unfolding optimal_def valid_def
                 apply (cases ps rule: rev_cases)
-                 apply (auto simp add: Let_def True i_ltp_to_tau i_etp_to_tau split: if_splits enat.splits)[1]
+                apply (auto simp add: Let_def True i_ltp_to_tau i_etp_to_tau split: if_splits enat.splits)[1]
                 subgoal premises prems for ys y
                 proof -
                   from vmin form_min p2r have p_val: "valid rho i (Since phi I psi) (p' \<oplus> (Inr p2'))"
@@ -8548,7 +8559,7 @@ proof (rule ccontr)
                     by (auto simp add: proofIncr_def li intro: checkIncr.intros)
                 qed
                 using p1_def False Inl q_val i_props vmin apply (auto simp: Let_def optimal_def valid_def i_ltp_to_tau i_etp_to_tau i_le_ltpi split: if_splits)
-                 apply (metis add_leD2 i_etp_to_tau i_ltp_to_tau le_diff_conv2 le_trans)
+                apply (metis add_leD2 i_etp_to_tau i_ltp_to_tau le_diff_conv2 le_trans)
                 subgoal premises prems for n
                 proof -
                   have valid_q_before: "valid rho (i-1) (Since phi (subtract (\<Delta> rho i) I) psi) (Inr (VSince_never (i-1) li' ps))"
@@ -8698,7 +8709,7 @@ proof (rule ccontr)
                     apply (auto simp add: total_on_def)
                     by (metis transpD)
                 qed
-                 using p1_def False Inr q_val i_props vmin apply (auto simp: Let_def optimal_def valid_def i_ltp_to_tau i_etp_to_tau i_le_ltpi split: enat.splits)
+                using p1_def False Inr q_val i_props vmin apply (auto simp: Let_def optimal_def valid_def i_ltp_to_tau i_etp_to_tau i_le_ltpi split: enat.splits)
                 subgoal premises prems for n
                 proof -
                   have valid_q_before: "valid rho (i-1) (Since phi (subtract (\<Delta> rho i) I) psi) (Inr (VSince_never (i-1) li' ps))"
@@ -8755,15 +8766,15 @@ proof (rule ccontr)
               then show ?thesis
                 using form_min qr bv Inl p1_def q_val unfolding optimal_def valid_def
                 apply (cases ps rule: rev_cases)
-                 apply (auto simp add: Let_def True i_ltp_to_tau i_etp_to_tau split: if_splits enat.splits)[1]
+                apply (auto simp add: Let_def True i_ltp_to_tau i_etp_to_tau split: if_splits enat.splits)[1]
                 subgoal premises prems for ys y
                 proof -
                   from vmin form_min p2r have p_val: "valid rho i (Since phi I psi) (p' \<oplus> (Inr p2'))"
                     by auto
                   have check_p: "checkApp p' (Inr p2')"
                     using p'_def True
-                     unfolding p2r b'v p'b'
-                     by (auto simp: optimal_def intro!: valid_checkApp_VSince_never)
+                    unfolding p2r b'v p'b'
+                    by (auto simp: optimal_def intro!: valid_checkApp_VSince_never)
                   from prems have y_val: "valid rho i psi (Inr y)"
                     using q_val True i_le_ltpi i_props unfolding valid_def
                     by (auto simp: Let_def min_def split: if_splits)
@@ -9022,15 +9033,15 @@ lemma valid_checkApp_VUntil_never: "valid rho j (Until phi I psi) (Inr (VUntil_n
   checkApp (Inr (VUntil_never j hi vpsis')) (Inr p2')"
   apply (auto simp: valid_def Let_def split: if_splits enat.splits intro!: checkApp.intros)
   using i_le_ltpi_add apply blast
-   apply (meson i_ge_etpi i_le_ltpi_add le_trans)
+  apply (meson i_ge_etpi i_le_ltpi_add le_trans)
   using i_le_ltpi_add by blast
 
 lemma valid_checkIncr_VUntil: "valid rho j phi (Inr (VUntil j vpsis' vphi')) \<Longrightarrow>
   checkIncr (Inr (VUntil j vpsis' vphi' ))"
   apply (cases phi)
-           apply (auto simp: valid_def Let_def split: if_splits enat.splits dest!: arg_cong[where ?x="map _ _" and ?f=set] intro!: checkIncr.intros)
-   apply (drule imageI[where ?A="set vpsis'" and ?f=v_at])
-   apply auto[1]
+  apply (auto simp: valid_def Let_def split: if_splits enat.splits dest!: arg_cong[where ?x="map _ _" and ?f=set] intro!: checkIncr.intros)
+  apply (drule imageI[where ?A="set vpsis'" and ?f=v_at])
+  apply auto[1]
   apply (drule imageI[where ?A="set vpsis'" and ?f=v_at])
   apply auto[1]
   done
@@ -9038,127 +9049,127 @@ lemma valid_checkIncr_VUntil: "valid rho j phi (Inr (VUntil j vpsis' vphi')) \<L
 lemma valid_checkIncr_VUntil_never: "valid rho j phi (Inr (VUntil_never j hi vpsis')) \<Longrightarrow>
   checkIncr (Inr (VUntil_never j hi vpsis'))"
   apply (cases phi)
-           apply (auto simp: valid_def Let_def split: if_splits enat.splits dest!: arg_cong[where ?x="map _ _" and ?f=set] intro!: checkIncr.intros)
-   apply (drule imageI[where ?A="set vpsis'" and ?f=v_at])
-   apply auto[1]
+  apply (auto simp: valid_def Let_def split: if_splits enat.splits dest!: arg_cong[where ?x="map _ _" and ?f=set] intro!: checkIncr.intros)
+  apply (drule imageI[where ?A="set vpsis'" and ?f=v_at])
+  apply auto[1]
   done
 
 lemma until_sound:
-assumes i_props: "right I \<ge> enat (\<Delta> rho (i+1))" and
-  p1_def: "optimal i phi p1" and p2_def: "optimal i psi p2" and
-  p'_def: "optimal (i+1) (Until phi (subtract (\<Delta> rho (i+1)) I) psi) p'"
-  and p_def: "p \<in> set (doUntil i (left I) p1 p2 p')"
-  and bf: "bounded_future (Until phi I psi)"
-  and bf': "bounded_future (Until phi (subtract (\<Delta> rho (i+1)) I) psi)"
-shows "valid rho i (Until phi I psi) p"
+  assumes i_props: "right I \<ge> enat (\<Delta> rho (i+1))" and
+    p1_def: "optimal i phi p1" and p2_def: "optimal i psi p2" and
+    p'_def: "optimal (i+1) (Until phi (subtract (\<Delta> rho (i+1)) I) psi) p'"
+    and p_def: "p \<in> set (doUntil i (left I) p1 p2 p')"
+    and bf: "bounded_future (Until phi I psi)"
+    and bf': "bounded_future (Until phi (subtract (\<Delta> rho (i+1)) I) psi)"
+  shows "valid rho i (Until phi I psi) p"
 proof (cases p')
   case (Inl a)
-    then have p'l: "p' = Inl a" by auto
-    then have satp': "sat rho (i+1) (Until phi (subtract (\<Delta> rho (i+1)) I) psi)"
-      using soundness[of _ _ "Until phi (subtract (\<Delta> rho (i+1)) I) psi"] p'_def check_sound(1)[of rho "Until phi (subtract (\<Delta> rho (i+1)) I) psi" a]
-      unfolding optimal_def valid_def by auto
-    then obtain q qs where a_def: "a = SUntil qs q" using Inl p'_def
-      unfolding optimal_def valid_def by (cases a) auto
-    then have a_val: "s_check rho (Until phi (subtract (\<Delta> rho (i+1)) I) psi) a"
-      using Inl p'_def unfolding optimal_def valid_def by (auto simp: Let_def)
-    then have mem: "mem (delta rho (s_at q) (i+1)) (subtract (\<Delta> rho (i+1)) I)"
-      using a_def Inl p'_def s_check.simps unfolding optimal_def valid_def
-      by (auto simp: Let_def)
-    then have "left I - \<Delta> rho (i+1) \<le> delta rho (s_at q) (i+1) " by auto
-    then have tmp: "left I \<le> \<tau> rho (i+1) - \<tau> rho i + (\<tau> rho (s_at q) - \<tau> rho (i+1))"
-      by auto
-    from a_val have qi: "i + 1\<le> s_at q" using a_def p'l p'_def
-      unfolding optimal_def valid_def
-      by (auto simp: Let_def)
-    then have liq: "left I \<le> delta rho (s_at q) i" using diff_add_assoc tmp
-      by auto
-    from bf obtain n where n_def: "right I = enat n" by auto
-    from mem n_def have "enat (delta rho (s_at q) (i+1))  \<le> enat n - enat (\<Delta> rho (i+1))"
-      by auto
-    then have "delta rho (s_at q) (i+1) + \<Delta> rho (i+1) \<le> n"
-      apply auto
-      by (metis Suc_eq_plus1 diff_add_inverse2 enat_ord_simps(1) i_props le_diff_conv le_diff_conv2 n_def)
-    then have riq: "enat (delta rho (s_at q) i) \<le> right I" using n_def by auto
+  then have p'l: "p' = Inl a" by auto
+  then have satp': "sat rho (i+1) (Until phi (subtract (\<Delta> rho (i+1)) I) psi)"
+    using soundness[of _ _ "Until phi (subtract (\<Delta> rho (i+1)) I) psi"] p'_def check_sound(1)[of rho "Until phi (subtract (\<Delta> rho (i+1)) I) psi" a]
+    unfolding optimal_def valid_def by auto
+  then obtain q qs where a_def: "a = SUntil qs q" using Inl p'_def
+    unfolding optimal_def valid_def by (cases a) auto
+  then have a_val: "s_check rho (Until phi (subtract (\<Delta> rho (i+1)) I) psi) a"
+    using Inl p'_def unfolding optimal_def valid_def by (auto simp: Let_def)
+  then have mem: "mem (delta rho (s_at q) (i+1)) (subtract (\<Delta> rho (i+1)) I)"
+    using a_def Inl p'_def s_check.simps unfolding optimal_def valid_def
+    by (auto simp: Let_def)
+  then have "left I - \<Delta> rho (i+1) \<le> delta rho (s_at q) (i+1) " by auto
+  then have tmp: "left I \<le> \<tau> rho (i+1) - \<tau> rho i + (\<tau> rho (s_at q) - \<tau> rho (i+1))"
+    by auto
+  from a_val have qi: "i + 1\<le> s_at q" using a_def p'l p'_def
+    unfolding optimal_def valid_def
+    by (auto simp: Let_def)
+  then have liq: "left I \<le> delta rho (s_at q) i" using diff_add_assoc tmp
+    by auto
+  from bf obtain n where n_def: "right I = enat n" by auto
+  from mem n_def have "enat (delta rho (s_at q) (i+1))  \<le> enat n - enat (\<Delta> rho (i+1))"
+    by auto
+  then have "delta rho (s_at q) (i+1) + \<Delta> rho (i+1) \<le> n"
+    apply auto
+    by (metis Suc_eq_plus1 diff_add_inverse2 enat_ord_simps(1) i_props le_diff_conv le_diff_conv2 n_def)
+  then have riq: "enat (delta rho (s_at q) i) \<le> right I" using n_def by auto
+  then show ?thesis
+  proof (cases "left I = 0")
+    case True
     then show ?thesis
-    proof (cases "left I = 0")
-      case True
+    proof (cases p1)
+      case (Inl a1)
+      then have p1l: "p1 = Inl a1" by auto
       then show ?thesis
-      proof (cases p1)
-        case (Inl a1)
-        then have p1l: "p1 = Inl a1" by auto
-        then show ?thesis
-        proof (cases p2)
-          case (Inl a2)
-          then have por: "p = p' \<oplus> p1 \<or> p = Inl (SUntil [] a2)"
-            using a_def p'l p1l True p_def unfolding doUntil_def by auto
-          moreover
-          {
-            assume pplus: "p = p' \<oplus> p1"
-            then have "p = Inl (SUntil (a1 # qs) q)" using a_def p'l p1l
-                p'_def p1_def unfolding proofApp_def by auto
-            then have "valid rho i (Until phi I psi) p"
-              using a_def True p'_def p1_def p'l p1l i_props liq riq
-              unfolding optimal_def valid_def
-              by (auto simp: upt_rec Let_def split: list.splits)
-          }
-          ultimately show ?thesis
-            using Inl p1l True assms unfolding optimal_def valid_def
-            by auto
-        next
-          case (Inr b2)
-          then have pplus: "p = p' \<oplus> p1" using p1l p_def True p'l a_def
-            unfolding doUntil_def by auto
-            then have "p = Inl (SUntil (a1 # qs) q)" using a_def p'l p1l
-                p'_def p1_def unfolding proofApp_def by auto
-            then show ?thesis
-              using a_def True p'_def p1_def p'l p1l i_props liq riq
-              unfolding optimal_def valid_def
-              by (auto simp: upt_rec Let_def split: list.splits)
-          qed
-      next
-        case (Inr b1)
-        then have p1r: "p1 = Inr b1" by auto
-        then show ?thesis
-        proof (cases p2)
-          case (Inl a2)
-          then have "p = Inl (SUntil [] a2)" using p_def Inr True p'l a_def
-            unfolding doUntil_def by auto
-          then show ?thesis using p2_def True Inl Inr p'l i_props zero_enat_def
-            unfolding optimal_def valid_def by auto
-        next
-          case (Inr b2)
-          then have "p = Inr (VUntil i [b2] b1)" using p1r True p'l p_def a_def
-            unfolding doUntil_def by auto
-          then show ?thesis using i_props p1_def p2_def True p1r Inr bf
+      proof (cases p2)
+        case (Inl a2)
+        then have por: "p = p' \<oplus> p1 \<or> p = Inl (SUntil [] a2)"
+          using a_def p'l p1l True p_def unfolding doUntil_def by auto
+        moreover
+        {
+          assume pplus: "p = p' \<oplus> p1"
+          then have "p = Inl (SUntil (a1 # qs) q)" using a_def p'l p1l
+              p'_def p1_def unfolding proofApp_def by auto
+          then have "valid rho i (Until phi I psi) p"
+            using a_def True p'_def p1_def p'l p1l i_props liq riq
             unfolding optimal_def valid_def
-            apply (auto simp: upt_rec split: enat.splits)
-            using i_le_ltpi_add apply blast
-            using i_ge_etpi less_Suc_eq_le by blast
-        qed
+            by (auto simp: upt_rec Let_def split: list.splits)
+        }
+        ultimately show ?thesis
+          using Inl p1l True assms unfolding optimal_def valid_def
+          by auto
+      next
+        case (Inr b2)
+        then have pplus: "p = p' \<oplus> p1" using p1l p_def True p'l a_def
+          unfolding doUntil_def by auto
+        then have "p = Inl (SUntil (a1 # qs) q)" using a_def p'l p1l
+            p'_def p1_def unfolding proofApp_def by auto
+        then show ?thesis
+          using a_def True p'_def p1_def p'l p1l i_props liq riq
+          unfolding optimal_def valid_def
+          by (auto simp: upt_rec Let_def split: list.splits)
       qed
     next
-      case False
+      case (Inr b1)
+      then have p1r: "p1 = Inr b1" by auto
       then show ?thesis
-      proof (cases p1)
-        case (Inl a1)
-        then have pplus: "p = p' \<oplus> p1" using p_def False p'l a_def
-            unfolding doUntil_def by (cases p2) auto
-        then have pl: "p = Inl (SUntil (a1 # qs) q)" using a_def p'l Inl
-          unfolding proofApp_def by auto
-        then show ?thesis
-            using False p1_def p'_def Inl i_props liq riq a_def p'l
-            unfolding optimal_def valid_def
-            by (auto simp: Cons_eq_upt_conv Let_def split: list.splits if_splits)
+      proof (cases p2)
+        case (Inl a2)
+        then have "p = Inl (SUntil [] a2)" using p_def Inr True p'l a_def
+          unfolding doUntil_def by auto
+        then show ?thesis using p2_def True Inl Inr p'l i_props zero_enat_def
+          unfolding optimal_def valid_def by auto
       next
-        case (Inr b1)
-        then have "p = Inr (VUntil i [] b1)" using Inr False p'l p_def a_def
-          unfolding doUntil_def by (cases p2) auto
-        then show ?thesis using p1_def i_props Inr False bf n_def i_le_ltpi_add
+        case (Inr b2)
+        then have "p = Inr (VUntil i [b2] b1)" using p1r True p'l p_def a_def
+          unfolding doUntil_def by auto
+        then show ?thesis using i_props p1_def p2_def True p1r Inr bf
           unfolding optimal_def valid_def
-          by (auto simp add: i_etp_to_tau Let_def False i_ltp_to_tau le_diff_conv2
-              split: enat.splits)
+          apply (auto simp: upt_rec split: enat.splits)
+          using i_le_ltpi_add apply blast
+          using i_ge_etpi less_Suc_eq_le by blast
       qed
     qed
+  next
+    case False
+    then show ?thesis
+    proof (cases p1)
+      case (Inl a1)
+      then have pplus: "p = p' \<oplus> p1" using p_def False p'l a_def
+        unfolding doUntil_def by (cases p2) auto
+      then have pl: "p = Inl (SUntil (a1 # qs) q)" using a_def p'l Inl
+        unfolding proofApp_def by auto
+      then show ?thesis
+        using False p1_def p'_def Inl i_props liq riq a_def p'l
+        unfolding optimal_def valid_def
+        by (auto simp: Cons_eq_upt_conv Let_def split: list.splits if_splits)
+    next
+      case (Inr b1)
+      then have "p = Inr (VUntil i [] b1)" using Inr False p'l p_def a_def
+        unfolding doUntil_def by (cases p2) auto
+      then show ?thesis using p1_def i_props Inr False bf n_def i_le_ltpi_add
+        unfolding optimal_def valid_def
+        by (auto simp add: i_etp_to_tau Let_def False i_ltp_to_tau le_diff_conv2
+            split: enat.splits)
+    qed
+  qed
 next
   case (Inr b)
   then have p'r: "p' = Inr b" by auto
@@ -9252,8 +9263,8 @@ next
           then have "v_at b2 # l = [max (v_at b2) (ETP rho (\<tau> rho (v_at b2))) ..< v_at q]"
             using nl_def l_def b2_ge
             apply (auto simp add: antisym b2_cons upt_eq_Cons_conv i_ge_etpi max_def)
-               apply (metis antisym i_ge_etpi less_eq_Suc_le upt_conv_Cons)
-              apply (metis Suc_le_eq l2_def upt_eq_Cons_conv)
+            apply (metis antisym i_ge_etpi less_eq_Suc_le upt_conv_Cons)
+            apply (metis Suc_le_eq l2_def upt_eq_Cons_conv)
             using b2_ge upt_conv_Cons by auto
         } note * = this
         then show ?thesis
@@ -9423,8 +9434,8 @@ next
           then have "v_at b2 # l = [max (v_at b2) (ETP rho (\<tau> rho (v_at b2))) ..< LTP rho (\<tau> rho i + n)]"
             using nl_def l_def b2_ge
             apply (auto simp add: antisym b2_cons upt_eq_Cons_conv i_ge_etpi max_def)
-               apply (metis antisym i_ge_etpi less_eq_Suc_le upt_conv_Cons)
-              apply (metis Suc_le_eq l2_def upt_eq_Cons_conv)
+            apply (metis antisym i_ge_etpi less_eq_Suc_le upt_conv_Cons)
+            apply (metis Suc_le_eq l2_def upt_eq_Cons_conv)
             using b2_ge upt_conv_Cons by auto
         } note * = this
         then show ?thesis
@@ -9440,9 +9451,9 @@ next
               True i_props i_ge_etpi i_le_ltpi_add
             unfolding optimal_def valid_def
             apply (auto simp: Let_def add.commute split: if_splits)
-                apply (smt Suc_leD i_ge_etpi le_trans)
-               apply (smt Cons_eq_upt_conv Suc_le_mono i_ge_etpi le_SucE le_trans upt_conv_Nil)
-              apply (smt Suc_le_mono i_ge_etpi le_SucE le_antisym le_trans)
+            apply (smt Suc_leD i_ge_etpi le_trans)
+            apply (smt Cons_eq_upt_conv Suc_le_mono i_ge_etpi le_SucE le_trans upt_conv_Nil)
+            apply (smt Suc_le_mono i_ge_etpi le_SucE le_antisym le_trans)
             using max.orderE apply blast
             using le_trans by blast
         next
@@ -9461,9 +9472,9 @@ next
                 True i_props i_ge_etpi i_le_ltpi_add
               unfolding optimal_def valid_def
               apply (auto simp: Let_def add.commute split: if_splits)
-                  apply (smt Suc_leD i_ge_etpi le_trans)
-                 apply (smt Cons_eq_upt_conv Suc_le_mono i_ge_etpi le_SucE le_trans upt_conv_Nil)
-                apply (smt Suc_le_mono i_ge_etpi le_SucE le_antisym le_trans)
+              apply (smt Suc_leD i_ge_etpi le_trans)
+              apply (smt Cons_eq_upt_conv Suc_le_mono i_ge_etpi le_SucE le_trans upt_conv_Nil)
+              apply (smt Suc_le_mono i_ge_etpi le_SucE le_antisym le_trans)
               using max.orderE apply blast
               using le_trans by blast
           }
@@ -9570,7 +9581,7 @@ next
         ultimately show ?thesis by auto
       qed
     qed
-(*
+      (*
   next
     case (VMatchP x12a)
     then show ?thesis using p'r p'_def unfolding optimal_def valid_def by auto
@@ -9585,10 +9596,10 @@ next
 qed
 
 lemma sval_to_sval'_u:
-assumes val: "valid rho i (Until phi I psi) (Inl (SUntil (y # ys) spsi))" and
-i_props: "enat (\<Delta> rho (i+1)) \<le> right I"
-and rI: "right I = enat n"
-shows "valid rho (i + 1) (Until phi (subtract (\<Delta> rho (i+1)) I) psi)
+  assumes val: "valid rho i (Until phi I psi) (Inl (SUntil (y # ys) spsi))" and
+    i_props: "enat (\<Delta> rho (i+1)) \<le> right I"
+    and rI: "right I = enat n"
+  shows "valid rho (i + 1) (Until phi (subtract (\<Delta> rho (i+1)) I) psi)
      (Inl (SUntil ys spsi))"
 proof -
   from val have spsi_i: "s_at spsi \<ge> s_at y" unfolding valid_def
@@ -9617,8 +9628,8 @@ proof -
     case Nil
     then show ?thesis using assms y_i map_ys unfolding valid_def
       apply (auto simp add: Let_def le_diff_conv2 split: if_splits)
-       prefer 2
-       apply (metis le_Suc_eq neq_Nil_conv upt_eq_Nil_conv)
+      prefer 2
+      apply (metis le_Suc_eq neq_Nil_conv upt_eq_Nil_conv)
       by (metis le_Suc_eq not_Cons_self2 upt_eq_Nil_conv)
   next
     case (Cons a as)
@@ -9632,15 +9643,15 @@ qed
 
 lemma mem_imp_le_ltp_u:
   assumes mem: "mem (delta rho j (Suc i)) (subtract (\<Delta> rho (Suc i)) I)" and
-j_ge: "j \<ge> Suc i" and rI: "right I = enat n" and i_props: "\<Delta> rho (Suc i) \<le> n"
-shows "j \<le> LTP rho (\<tau> rho i + n)"
+    j_ge: "j \<ge> Suc i" and rI: "right I = enat n" and i_props: "\<Delta> rho (Suc i) \<le> n"
+  shows "j \<le> LTP rho (\<tau> rho i + n)"
   using assms apply (auto simp add: add.commute i_le_ltpi_add)
   by (metis add.commute i_le_ltpi_add le_add_diff_inverse le_diff_conv)
 
 lemma mem_imp_ge_etp_u:
   assumes mem: "mem (delta rho j (Suc i)) (subtract (\<Delta> rho (Suc i)) I)" and
-j_ge: "j \<ge> Suc i" and rI: "right I = enat n" and i_props: "\<Delta> rho (Suc i) \<le> n"
-shows "j \<ge> ETP rho (\<tau> rho i + left I)"
+    j_ge: "j \<ge> Suc i" and rI: "right I = enat n" and i_props: "\<Delta> rho (Suc i) \<le> n"
+  shows "j \<ge> ETP rho (\<tau> rho i + left I)"
 proof -
   from assms have "left I \<le> \<tau> rho j - \<tau> rho i" using le_diff_conv by auto
   then show ?thesis using j_ge le_diff_conv2 by (auto simp add: i_etp_to_tau)
@@ -9666,8 +9677,8 @@ proof -
     obtain z zs where ys_def: "ys = z # zs"
       using valid True
       apply (cases ys)
-       apply (auto simp: valid_def Let_def split: if_splits enat.splits)
-       apply (meson i_ge_etpi order_trans)+
+      apply (auto simp: valid_def Let_def split: if_splits enat.splits)
+      apply (meson i_ge_etpi order_trans)+
       done
     show ?thesis
       using i_props v_at_p valid
@@ -9694,7 +9705,7 @@ proof -
     show ?thesis
       using False valid e v_at_p i_ge_etpi[of rho "Suc i"] ee etp i_props
       apply (cases ys rule: rev_cases)
-       apply (auto simp: valid_def Let_def rw t rI add.commute split: if_splits)
+      apply (auto simp: valid_def Let_def rw t rI add.commute split: if_splits)
       done
   qed
 qed
@@ -9713,8 +9724,8 @@ proof -
     obtain z zs where ys_def: "ys = z # zs"
       using valid True
       apply (cases ys)
-       apply (auto simp: valid_def Let_def split: if_splits enat.splits)
-       apply (meson i_le_ltpi_add)
+      apply (auto simp: valid_def Let_def split: if_splits enat.splits)
+      apply (meson i_le_ltpi_add)
       by (meson i_ge_etpi i_le_ltpi_add le_trans)
     show ?thesis
       using i_props valid
@@ -9741,7 +9752,7 @@ proof -
     show ?thesis
       using False valid e i_ge_etpi[of rho "Suc i"] ee etp i_props
       apply (cases ys rule: rev_cases)
-       apply (auto simp: valid_def Let_def rw t rI add.commute split: if_splits)
+      apply (auto simp: valid_def Let_def rw t rI add.commute split: if_splits)
       done
   qed
 qed
@@ -10021,7 +10032,7 @@ proof (rule ccontr)
       then have satc: "mem 0 I \<and> sat rho i psi"
         using i_props sats sat_Until_rec zero_enat_def
         apply auto
-         apply (metis Suc_eq_plus1 add_implies_diff le_neq_implies_less less_nat_zero_code sat_Until_rec sats viosp)
+        apply (metis Suc_eq_plus1 add_implies_diff le_neq_implies_less less_nat_zero_code sat_Until_rec sats viosp)
         by (meson sat_Until_rec sats viosp)
       from vmin SATs val_SAT_imp_l obtain ap where ap_def: "minp = Inl ap"
         using minp unfolding valid_def apply auto
@@ -10051,7 +10062,7 @@ proof (rule ccontr)
         then have jc: "\<forall>j \<in> set (map v_at qs). \<exists>p. v_at p = j \<and> v_check rho psi p"
           using map_set_in_imp_set_in[of qs psi] qs_check by auto
         then have "s_at spsi \<notin> set (map v_at qs)" using spsi_bounds
-          check_consistent[OF bfpsi] check_spsi by auto
+            check_consistent[OF bfpsi] check_spsi by auto
         then have "s_at spsi = i"
           using spsi_bounds tc
           by auto
@@ -10068,7 +10079,7 @@ proof (rule ccontr)
         then have jc: "\<forall>j \<in> set (map v_at qs). \<exists>p. v_at p = j \<and> v_check rho psi p"
           using map_set_in_imp_set_in[of qs psi] by auto
         then have spsi_not_in: "s_at spsi \<notin> set (map v_at qs)" using spsi_bounds
-          check_consistent[OF bfpsi] check_spsi by auto
+            check_consistent[OF bfpsi] check_spsi by auto
         from bv Inr p'_def have qa_ge_i: "v_at qa \<ge> i"
           unfolding optimal_def valid_def by (auto simp: Let_def)
         from bv Inr p'_def have qa_check: "v_check rho phi qa"
@@ -10207,7 +10218,7 @@ proof (rule ccontr)
           then have ps_Nil: "ps = []"
             using q_val
             apply (cases "left I")
-             apply (auto simp: Inr bv valid_def Let_def n_def split: if_splits enat.splits)
+            apply (auto simp: Inr bv valid_def Let_def n_def split: if_splits enat.splits)
             apply (metis Suc_n_not_le_n i_etp_to_tau le_add1 le_trans p_eq_i)
             done
           have "wqo minp q"
@@ -10242,7 +10253,7 @@ proof (rule ccontr)
               then show ?thesis
                 using form_min qr bv Inl p1_def q_val unfolding optimal_def valid_def
                 apply (cases ps)
-                 apply (auto simp add: Let_def True i_etp_to_tau split: if_splits enat.splits)[1]
+                apply (auto simp add: Let_def True i_etp_to_tau split: if_splits enat.splits)[1]
                 subgoal premises prems for y ys
                 proof -
                   from vmin form_min p2r have p_val: "valid rho i (Until phi I psi) (p' \<oplus> (Inr p2'))"
@@ -10258,7 +10269,7 @@ proof (rule ccontr)
                   have "Suc i \<le> v_at p"
                     using q_val p1_def check_consistent[OF bfphi]
                     by (auto simp: Inl qr bv prems(8) optimal_def valid_def Let_def split: if_splits enat.splits)
-                       (meson le_antisym not_less_eq_eq)+
+                      (meson le_antisym not_less_eq_eq)+
                   then have val_q': "valid rho (i + 1) (Until phi (subtract (\<Delta> rho (i+1)) I) psi) (Inr (VUntil (i+1) ys p))"
                     using valid_shift_VUntil[of i I phi psi ps p] rfin(1) i_props q_val
                     by (auto simp: qr bv True prems(8))
@@ -10285,7 +10296,7 @@ proof (rule ccontr)
               then show ?thesis using qr bv q_val Inl p1_def i_props n_def
                 unfolding optimal_def valid_def
                 apply (cases ps)
-                 apply (auto simp add: Let_def False i_etp_to_tau split: if_splits)[1]
+                apply (auto simp add: Let_def False i_etp_to_tau split: if_splits)[1]
                 subgoal premises prems
                 proof -
                   from p'_def have p'_val: "valid rho (i+1) (Until phi (subtract (\<Delta> rho (i+1)) I) psi) p'"
@@ -10323,7 +10334,7 @@ proof (rule ccontr)
                   from p'_def p'b' b'v n_def have suc_le_etp: "Suc i \<le> ETP rho (\<tau> rho i + left I)"
                     unfolding optimal_def valid_def
                     apply (auto simp: Let_def split: if_splits)
-                     apply (meson False add_cancel_left_left etp_to_delta le_add2 le_antisym le_diff_conv2 le_refl not_less_eq_eq)
+                    apply (meson False add_cancel_left_left etp_to_delta le_add2 le_antisym le_diff_conv2 le_refl not_less_eq_eq)
                     by (metis False diff_add_inverse diff_is_0_eq' i_etp_to_tau not_less_eq_eq)
                   from p1_def have p_ni: "\<not> v_at p = s_at a1"
                     using check_consistent[OF bfphi] prems
@@ -10464,7 +10475,7 @@ proof (rule ccontr)
                 then have ps_nil: "ps = []" using qr bv q_val n_def False
                   unfolding valid_def
                   apply (auto simp: Let_def max_def split: if_splits)
-                   apply (metis add_le_same_cancel1 i_etp_to_tau lI le0 le_antisym le_refl)
+                  apply (metis add_le_same_cancel1 i_etp_to_tau lI le0 le_antisym le_refl)
                   by (meson add_le_same_cancel1 i_etp_to_tau lI le_0_eq nat_le_linear)
                 from True vp have wqo_p1: "wqo (Inr b1) (Inr p)" using p1_def Inr
                   unfolding optimal_def by auto
@@ -10485,79 +10496,79 @@ proof (rule ccontr)
                 then show ?thesis using qr bv q_val Inr p1_def i_props n_def
                   unfolding optimal_def valid_def
                   apply (cases ps)
-                   apply (auto simp add: Let_def False i_etp_to_tau split: if_splits)[1]
-                subgoal premises prems
-                proof -
-                  from p'_def have p'_val: "valid rho (i+1) (Until phi (subtract (\<Delta> rho (i+1)) I) psi) p'"
-                    unfolding optimal_def by auto
-                  then have valid_q_before: "valid rho (i+1) (Until phi (subtract (\<Delta> rho (i+1)) I) psi) (Inr (VUntil (i+1) ps p))"
-                    using prems unfolding valid_def
-                    apply (auto simp add: le_diff_conv Let_def i_etp_to_tau add.commute)
-                    using p_le_predi apply linarith
-                    using False by linarith
-                  then have "wqo p' (Inr (VUntil (i+1) ps p))" using p'_def
-                    unfolding optimal_def by auto
-                  moreover have "checkIncr p'"
-                    using p'_def
-                    unfolding p'b' b'v
-                    by (auto simp: optimal_def intro!: valid_checkIncr_VUntil)
-                  moreover have "checkIncr (Inr (VUntil (i + 1) ps p))"
-                    using valid_q_before
-                    by (auto intro!: valid_checkIncr_VUntil)
-                  ultimately have "wqo (Inr (VUntil i vpsis' vphi')) q"
-                    using proofIncr_mono[OF _ _ _ p'_val, of "Inr (VUntil (i+1) ps p)"]
-                      valid_q_before i_props prems(4) qr bv
-                    unfolding p'b' b'v prems(11)[symmetric]
-                    by (auto simp add: proofIncr_def intro: checkIncr.intros)
-                  moreover have comp_in: "(Inr (VUntil i vpsis' vphi')) \<in> set (doUntil i (left I) p1 p2 p')"
-                    using Inr b'v p'b' res by auto
-                  ultimately show ?thesis using minp min_list_wrt_le[OF total_set refl_wqo]
-                      until_sound[OF i_props p1_def p2_def p'_def comp_in bf bf'] form
-                      pw_total[of i "Until phi I psi"] p'b' trans_wqo Inr b'v
-                      res prems
-                    unfolding prems(11)[symmetric]
-                    apply (auto simp add: total_on_def)
-                    by (metis transpD)
-                qed
-                subgoal premises prems for y ys
-                proof -
-                  from p'_def have p'_val: "valid rho (i+1) (Until phi (subtract (\<Delta> rho (i+1)) I) psi) p'"
-                    unfolding optimal_def by auto
-                  from Inr p1_def have b1_i: "v_at b1 = i" unfolding optimal_def valid_def
-                    by auto
-                  from p'_def p'b' b'v n_def have suc_le_etp: "Suc i \<le> ETP rho (\<tau> rho i + left I)"
-                    unfolding optimal_def valid_def
-                    apply (auto simp: Let_def split: if_splits)
-                    apply (meson add_eq_self_zero i_etp_to_tau lI le_add1 le_antisym not_less_eq_eq)
-                    by (meson add_eq_self_zero i_etp_to_tau lI le_neq_implies_less not_add_less1 not_less_eq_eq)
-                  have valid_q_before: "valid rho (i+1) (Until phi (subtract (\<Delta> rho (i+1)) I) psi) (Inr (VUntil (i+1) ps p))"
-                    using p_le_predi valid_shift_VUntil[of i I phi psi ps p] rfin(1) i_props q_val False lI
-                    by (auto simp: qr bv prems(8))
-                  then have "wqo p' (Inr (VUntil (i+1) ps p))" using p'_def
-                    unfolding optimal_def by auto
-                  moreover have "checkIncr p'"
-                    using p'_def
-                    unfolding p'b' b'v
-                    by (auto simp: optimal_def intro!: valid_checkIncr_VUntil)
-                  moreover have "checkIncr (Inr (VUntil (i + 1) ps p))"
-                    using valid_q_before
-                    by (auto intro!: valid_checkIncr_VUntil)
-                  ultimately have "wqo (Inr (VUntil i vpsis' vphi')) q"
-                    using proofIncr_mono[OF _ _ _ p'_val, of "Inr (VUntil (i+1) ps p)"]
-                      valid_q_before i_props prems(4) qr bv
-                    unfolding p'b' b'v b1_i[symmetric]
-                    by (auto simp add: proofIncr_def intro: checkIncr.intros)
-                  moreover have comp_in: "(Inr (VUntil i vpsis' vphi')) \<in> set (doUntil i (left I) p1 p2 p')"
-                    using Inr b'v p'b' res by auto
-                  ultimately show ?thesis using minp min_list_wrt_le[OF total_set refl_wqo]
-                      until_sound[OF i_props p1_def p2_def p'_def comp_in bf bf'] form
-                      pw_total[of i "Until phi I psi"] p'b' trans_wqo Inr b'v
-                      res prems
-                    unfolding b1_i[symmetric]
-                    apply (auto simp add: total_on_def)
-                    by (metis transpD)
-                qed
-                done
+                  apply (auto simp add: Let_def False i_etp_to_tau split: if_splits)[1]
+                  subgoal premises prems
+                  proof -
+                    from p'_def have p'_val: "valid rho (i+1) (Until phi (subtract (\<Delta> rho (i+1)) I) psi) p'"
+                      unfolding optimal_def by auto
+                    then have valid_q_before: "valid rho (i+1) (Until phi (subtract (\<Delta> rho (i+1)) I) psi) (Inr (VUntil (i+1) ps p))"
+                      using prems unfolding valid_def
+                      apply (auto simp add: le_diff_conv Let_def i_etp_to_tau add.commute)
+                      using p_le_predi apply linarith
+                      using False by linarith
+                    then have "wqo p' (Inr (VUntil (i+1) ps p))" using p'_def
+                      unfolding optimal_def by auto
+                    moreover have "checkIncr p'"
+                      using p'_def
+                      unfolding p'b' b'v
+                      by (auto simp: optimal_def intro!: valid_checkIncr_VUntil)
+                    moreover have "checkIncr (Inr (VUntil (i + 1) ps p))"
+                      using valid_q_before
+                      by (auto intro!: valid_checkIncr_VUntil)
+                    ultimately have "wqo (Inr (VUntil i vpsis' vphi')) q"
+                      using proofIncr_mono[OF _ _ _ p'_val, of "Inr (VUntil (i+1) ps p)"]
+                        valid_q_before i_props prems(4) qr bv
+                      unfolding p'b' b'v prems(11)[symmetric]
+                      by (auto simp add: proofIncr_def intro: checkIncr.intros)
+                    moreover have comp_in: "(Inr (VUntil i vpsis' vphi')) \<in> set (doUntil i (left I) p1 p2 p')"
+                      using Inr b'v p'b' res by auto
+                    ultimately show ?thesis using minp min_list_wrt_le[OF total_set refl_wqo]
+                        until_sound[OF i_props p1_def p2_def p'_def comp_in bf bf'] form
+                        pw_total[of i "Until phi I psi"] p'b' trans_wqo Inr b'v
+                        res prems
+                      unfolding prems(11)[symmetric]
+                      apply (auto simp add: total_on_def)
+                      by (metis transpD)
+                  qed
+                  subgoal premises prems for y ys
+                  proof -
+                    from p'_def have p'_val: "valid rho (i+1) (Until phi (subtract (\<Delta> rho (i+1)) I) psi) p'"
+                      unfolding optimal_def by auto
+                    from Inr p1_def have b1_i: "v_at b1 = i" unfolding optimal_def valid_def
+                      by auto
+                    from p'_def p'b' b'v n_def have suc_le_etp: "Suc i \<le> ETP rho (\<tau> rho i + left I)"
+                      unfolding optimal_def valid_def
+                      apply (auto simp: Let_def split: if_splits)
+                      apply (meson add_eq_self_zero i_etp_to_tau lI le_add1 le_antisym not_less_eq_eq)
+                      by (meson add_eq_self_zero i_etp_to_tau lI le_neq_implies_less not_add_less1 not_less_eq_eq)
+                    have valid_q_before: "valid rho (i+1) (Until phi (subtract (\<Delta> rho (i+1)) I) psi) (Inr (VUntil (i+1) ps p))"
+                      using p_le_predi valid_shift_VUntil[of i I phi psi ps p] rfin(1) i_props q_val False lI
+                      by (auto simp: qr bv prems(8))
+                    then have "wqo p' (Inr (VUntil (i+1) ps p))" using p'_def
+                      unfolding optimal_def by auto
+                    moreover have "checkIncr p'"
+                      using p'_def
+                      unfolding p'b' b'v
+                      by (auto simp: optimal_def intro!: valid_checkIncr_VUntil)
+                    moreover have "checkIncr (Inr (VUntil (i + 1) ps p))"
+                      using valid_q_before
+                      by (auto intro!: valid_checkIncr_VUntil)
+                    ultimately have "wqo (Inr (VUntil i vpsis' vphi')) q"
+                      using proofIncr_mono[OF _ _ _ p'_val, of "Inr (VUntil (i+1) ps p)"]
+                        valid_q_before i_props prems(4) qr bv
+                      unfolding p'b' b'v b1_i[symmetric]
+                      by (auto simp add: proofIncr_def intro: checkIncr.intros)
+                    moreover have comp_in: "(Inr (VUntil i vpsis' vphi')) \<in> set (doUntil i (left I) p1 p2 p')"
+                      using Inr b'v p'b' res by auto
+                    ultimately show ?thesis using minp min_list_wrt_le[OF total_set refl_wqo]
+                        until_sound[OF i_props p1_def p2_def p'_def comp_in bf bf'] form
+                        pw_total[of i "Until phi I psi"] p'b' trans_wqo Inr b'v
+                        res prems
+                      unfolding b1_i[symmetric]
+                      apply (auto simp add: total_on_def)
+                      by (metis transpD)
+                  qed
+                  done
               qed
             qed
           qed
@@ -10586,7 +10597,7 @@ proof (rule ccontr)
               then show ?thesis
                 using form_min qr bv Inl p1_def q_val unfolding optimal_def valid_def
                 apply (cases ps)
-                 apply (auto simp add: Let_def True i_etp_to_tau split: if_splits enat.splits)[1]
+                apply (auto simp add: Let_def True i_etp_to_tau split: if_splits enat.splits)[1]
                 subgoal premises prems for y ys
                 proof -
                   from vmin form_min p2r have p_val: "valid rho i (Until phi I psi) (p' \<oplus> (Inr p2'))"
@@ -10605,7 +10616,7 @@ proof (rule ccontr)
                     unfolding optimal_def valid_def
                     apply (auto simp add: Let_def True i_etp_to_tau split: if_splits)
                     using i_ge_etpi[of rho "s_at a1"] i_ge_etpi[of rho "Suc (s_at a1)"]
-                      by (auto simp: max_def add.commute Cons_eq_append_conv Cons_eq_upt_conv split: if_splits)
+                    by (auto simp: max_def add.commute Cons_eq_append_conv Cons_eq_upt_conv split: if_splits)
                   then have q_val2: "valid rho i (Until phi I psi) ((Inr (VUntil (i+1) ys p)) \<oplus> (Inr y))"
                     using q_val prems i_props by auto
                   have check_q: "checkApp (Inr (VUntil (i+1) ys p)) (Inr y)"
@@ -10629,7 +10640,7 @@ proof (rule ccontr)
               then show ?thesis using qr bv q_val Inl p1_def i_props n_def
                 unfolding optimal_def valid_def
                 apply (cases ps)
-                 apply (auto simp add: Let_def False i_etp_to_tau split: if_splits)[1]
+                apply (auto simp add: Let_def False i_etp_to_tau split: if_splits)[1]
                 subgoal premises prems
                 proof -
                   from p'_def have p'_val: "valid rho (i+1) (Until phi (subtract (\<Delta> rho (i+1)) I) psi) p'"
@@ -10667,8 +10678,8 @@ proof (rule ccontr)
                   from p'_def p'b' b'v n_def have suc_le_etp: "Suc i \<le> ETP rho (\<tau> rho i + left I)"
                     unfolding optimal_def valid_def
                     apply (auto simp: Let_def split: if_splits)
-                     apply (meson False add_cancel_left_left etp_to_delta le_add2 le_antisym le_diff_conv2 le_refl not_less_eq_eq)
-                     apply (metis False diff_add_inverse diff_is_0_eq' i_etp_to_tau not_less_eq_eq)
+                    apply (meson False add_cancel_left_left etp_to_delta le_add2 le_antisym le_diff_conv2 le_refl not_less_eq_eq)
+                    apply (metis False diff_add_inverse diff_is_0_eq' i_etp_to_tau not_less_eq_eq)
                     by (metis False diff_add_inverse diff_is_0_eq' i_etp_to_tau not_less_eq_eq)
                   from p1_def have p_ni: "\<not> v_at p = s_at a1"
                     using check_consistent[OF bfphi] prems
@@ -10679,7 +10690,7 @@ proof (rule ccontr)
                   then have valid_q_before: "valid rho (i+1) (Until phi (subtract (\<Delta> rho (i+1)) I) psi) (Inr (VUntil (i+1) ps p))"
                     using prems False i_props p_ni suc_le_etp unfolding valid_def
                     apply (auto simp add: le_diff_conv Let_def i_etp_to_tau i_ltp_to_tau add.commute)
-                     apply (simp add: max_def split: if_splits)
+                    apply (simp add: max_def split: if_splits)
                     apply (metis (no_types, lifting) Nat.add_0_right add_diff_inverse_nat diff_is_0_eq i_etp_to_tau less_irrefl_nat nat_le_linear zero_less_diff)
                     using i_etp_to_tau i_ge_etpi i_to_suci_le le_trans by blast
                   then have "wqo p' (Inr (VUntil (i+1) ps p))" using p'_def
@@ -10812,7 +10823,7 @@ proof (rule ccontr)
                 then have ps_nil: "ps = []" using qr bv q_val n_def False
                   unfolding valid_def
                   apply (auto simp: Let_def max_def split: if_splits)
-                   apply (metis add_le_same_cancel1 i_etp_to_tau lI le0 le_antisym le_refl)
+                  apply (metis add_le_same_cancel1 i_etp_to_tau lI le0 le_antisym le_refl)
                   by (meson add_le_same_cancel1 i_etp_to_tau lI le_0_eq nat_le_linear)
                 from True vp have wqo_p1: "wqo (Inr b1) (Inr p)" using p1_def Inr
                   unfolding optimal_def by auto
@@ -10833,83 +10844,83 @@ proof (rule ccontr)
                 then show ?thesis using qr bv q_val Inr p1_def i_props n_def
                   unfolding optimal_def valid_def
                   apply (cases ps)
-                   apply (auto simp add: Let_def False i_etp_to_tau split: if_splits)[1]
-                subgoal premises prems
-                proof -
-                  from p'_def have p'_val: "valid rho (i+1) (Until phi (subtract (\<Delta> rho (i+1)) I) psi) p'"
-                    unfolding optimal_def by auto
-                  then have valid_q_before: "valid rho (i+1) (Until phi (subtract (\<Delta> rho (i+1)) I) psi) (Inr (VUntil (i+1) ps p))"
-                    using prems unfolding valid_def
-                    apply (auto simp add: le_diff_conv Let_def i_etp_to_tau add.commute)
-                    using p_le_predi apply linarith
-                    using False by linarith
-                  then have "wqo p' (Inr (VUntil (i+1) ps p))" using p'_def
-                    unfolding optimal_def by auto
-                  moreover have "checkIncr p'"
-                    using p'_def
-                    unfolding p'b' b'v
-                    by (auto simp: optimal_def intro!: valid_checkIncr_VUntil_never)
-                  moreover have "checkIncr (Inr (VUntil (i + 1) ps p))"
-                    using valid_q_before
-                    by (auto intro!: valid_checkIncr_VUntil)
-                  ultimately  have "wqo (Inr (VUntil_never i hi' vpsis')) q"
-                    using proofIncr_mono[OF _ _ _ p'_val, of "Inr (VUntil (i+1) ps p)"]
-                      valid_q_before i_props prems(4) qr bv
-                    unfolding p'b' b'v prems(11)[symmetric]
-                    by (auto simp add: proofIncr_def intro: checkIncr.intros)
-                  moreover have comp_in: "(Inr (VUntil_never i hi' vpsis')) \<in> set (doUntil i (left I) p1 p2 p')"
-                    using Inr b'v p'b' res by auto
-                  ultimately show ?thesis using minp min_list_wrt_le[OF total_set refl_wqo]
-                      until_sound[OF i_props p1_def p2_def p'_def comp_in bf bf'] form
-                      pw_total[of i "Until phi I psi"] p'b' trans_wqo Inr b'v
-                      res prems
-                    unfolding prems(11)[symmetric]
-                    apply (auto simp add: total_on_def)
-                    by (metis transpD)
-                qed
-                subgoal premises prems for y ys
-                proof -
-                  from p'_def have p'_val: "valid rho (i+1) (Until phi (subtract (\<Delta> rho (i+1)) I) psi) p'"
-                    unfolding optimal_def by auto
-                  from Inr p1_def have b1_i: "v_at b1 = i" unfolding optimal_def valid_def
-                    by auto
-                  from p'_def p'b' b'v n_def have suc_le_etp: "Suc i \<le> ETP rho (\<tau> rho i + left I)"
-                    unfolding optimal_def valid_def
-                    apply (auto simp: Let_def split: if_splits)
-                    apply (meson add_eq_self_zero i_etp_to_tau lI le_add1 le_antisym not_less_eq_eq)
-                     apply (meson add_eq_self_zero i_etp_to_tau lI le_neq_implies_less not_add_less1 not_less_eq_eq)
-                    by (metis diff_add_inverse diff_is_0_eq' i_etp_to_tau lI not_less_eq_eq)
-                  then have valid_q_before: "valid rho (i+1) (Until phi (subtract (\<Delta> rho (i+1)) I) psi) (Inr (VUntil (i+1) ps p))"
-                    using prems False i_props unfolding valid_def
-                    apply (auto simp add: le_diff_conv Let_def i_etp_to_tau i_ltp_to_tau add.commute)
-                     apply (simp add: max_def split: if_splits)
-                    apply (metis (no_types, lifting) Nat.add_0_right add_diff_inverse_nat diff_is_0_eq i_etp_to_tau less_irrefl_nat nat_le_linear zero_less_diff)
-                    by (meson i_etp_to_tau i_ge_etpi i_to_suci_le le_trans)
-                  then have "wqo p' (Inr (VUntil (i+1) ps p))" using p'_def
-                    unfolding optimal_def by auto
-                  moreover have "checkIncr p'"
-                    using p'_def
-                    unfolding p'b' b'v
-                    by (auto simp: optimal_def intro!: valid_checkIncr_VUntil_never)
-                  moreover have "checkIncr (Inr (VUntil (i + 1) ps p))"
-                    using valid_q_before
-                    by (auto intro!: valid_checkIncr_VUntil)
-                  ultimately have "wqo (Inr (VUntil_never i hi' vpsis')) q"
-                    using proofIncr_mono[OF _ _ _ p'_val, of "Inr (VUntil (i+1) ps p)"]
-                      valid_q_before i_props prems(4) qr bv
-                    unfolding p'b' b'v b1_i[symmetric]
-                    by (auto simp add: proofIncr_def intro: checkIncr.intros)
-                  moreover have comp_in: "(Inr (VUntil_never i hi' vpsis')) \<in> set (doUntil i (left I) p1 p2 p')"
-                    using Inr b'v p'b' res by auto
-                  ultimately show ?thesis using minp min_list_wrt_le[OF total_set refl_wqo]
-                      until_sound[OF i_props p1_def p2_def p'_def comp_in bf bf'] form
-                      pw_total[of i "Until phi I psi"] p'b' trans_wqo Inr b'v
-                      res prems
-                    unfolding b1_i[symmetric]
-                    apply (auto simp add: total_on_def)
-                    by (metis transpD)
-                qed
-                done
+                  apply (auto simp add: Let_def False i_etp_to_tau split: if_splits)[1]
+                  subgoal premises prems
+                  proof -
+                    from p'_def have p'_val: "valid rho (i+1) (Until phi (subtract (\<Delta> rho (i+1)) I) psi) p'"
+                      unfolding optimal_def by auto
+                    then have valid_q_before: "valid rho (i+1) (Until phi (subtract (\<Delta> rho (i+1)) I) psi) (Inr (VUntil (i+1) ps p))"
+                      using prems unfolding valid_def
+                      apply (auto simp add: le_diff_conv Let_def i_etp_to_tau add.commute)
+                      using p_le_predi apply linarith
+                      using False by linarith
+                    then have "wqo p' (Inr (VUntil (i+1) ps p))" using p'_def
+                      unfolding optimal_def by auto
+                    moreover have "checkIncr p'"
+                      using p'_def
+                      unfolding p'b' b'v
+                      by (auto simp: optimal_def intro!: valid_checkIncr_VUntil_never)
+                    moreover have "checkIncr (Inr (VUntil (i + 1) ps p))"
+                      using valid_q_before
+                      by (auto intro!: valid_checkIncr_VUntil)
+                    ultimately  have "wqo (Inr (VUntil_never i hi' vpsis')) q"
+                      using proofIncr_mono[OF _ _ _ p'_val, of "Inr (VUntil (i+1) ps p)"]
+                        valid_q_before i_props prems(4) qr bv
+                      unfolding p'b' b'v prems(11)[symmetric]
+                      by (auto simp add: proofIncr_def intro: checkIncr.intros)
+                    moreover have comp_in: "(Inr (VUntil_never i hi' vpsis')) \<in> set (doUntil i (left I) p1 p2 p')"
+                      using Inr b'v p'b' res by auto
+                    ultimately show ?thesis using minp min_list_wrt_le[OF total_set refl_wqo]
+                        until_sound[OF i_props p1_def p2_def p'_def comp_in bf bf'] form
+                        pw_total[of i "Until phi I psi"] p'b' trans_wqo Inr b'v
+                        res prems
+                      unfolding prems(11)[symmetric]
+                      apply (auto simp add: total_on_def)
+                      by (metis transpD)
+                  qed
+                  subgoal premises prems for y ys
+                  proof -
+                    from p'_def have p'_val: "valid rho (i+1) (Until phi (subtract (\<Delta> rho (i+1)) I) psi) p'"
+                      unfolding optimal_def by auto
+                    from Inr p1_def have b1_i: "v_at b1 = i" unfolding optimal_def valid_def
+                      by auto
+                    from p'_def p'b' b'v n_def have suc_le_etp: "Suc i \<le> ETP rho (\<tau> rho i + left I)"
+                      unfolding optimal_def valid_def
+                      apply (auto simp: Let_def split: if_splits)
+                      apply (meson add_eq_self_zero i_etp_to_tau lI le_add1 le_antisym not_less_eq_eq)
+                      apply (meson add_eq_self_zero i_etp_to_tau lI le_neq_implies_less not_add_less1 not_less_eq_eq)
+                      by (metis diff_add_inverse diff_is_0_eq' i_etp_to_tau lI not_less_eq_eq)
+                    then have valid_q_before: "valid rho (i+1) (Until phi (subtract (\<Delta> rho (i+1)) I) psi) (Inr (VUntil (i+1) ps p))"
+                      using prems False i_props unfolding valid_def
+                      apply (auto simp add: le_diff_conv Let_def i_etp_to_tau i_ltp_to_tau add.commute)
+                      apply (simp add: max_def split: if_splits)
+                      apply (metis (no_types, lifting) Nat.add_0_right add_diff_inverse_nat diff_is_0_eq i_etp_to_tau less_irrefl_nat nat_le_linear zero_less_diff)
+                      by (meson i_etp_to_tau i_ge_etpi i_to_suci_le le_trans)
+                    then have "wqo p' (Inr (VUntil (i+1) ps p))" using p'_def
+                      unfolding optimal_def by auto
+                    moreover have "checkIncr p'"
+                      using p'_def
+                      unfolding p'b' b'v
+                      by (auto simp: optimal_def intro!: valid_checkIncr_VUntil_never)
+                    moreover have "checkIncr (Inr (VUntil (i + 1) ps p))"
+                      using valid_q_before
+                      by (auto intro!: valid_checkIncr_VUntil)
+                    ultimately have "wqo (Inr (VUntil_never i hi' vpsis')) q"
+                      using proofIncr_mono[OF _ _ _ p'_val, of "Inr (VUntil (i+1) ps p)"]
+                        valid_q_before i_props prems(4) qr bv
+                      unfolding p'b' b'v b1_i[symmetric]
+                      by (auto simp add: proofIncr_def intro: checkIncr.intros)
+                    moreover have comp_in: "(Inr (VUntil_never i hi' vpsis')) \<in> set (doUntil i (left I) p1 p2 p')"
+                      using Inr b'v p'b' res by auto
+                    ultimately show ?thesis using minp min_list_wrt_le[OF total_set refl_wqo]
+                        until_sound[OF i_props p1_def p2_def p'_def comp_in bf bf'] form
+                        pw_total[of i "Until phi I psi"] p'b' trans_wqo Inr b'v
+                        res prems
+                      unfolding b1_i[symmetric]
+                      apply (auto simp add: total_on_def)
+                      by (metis transpD)
+                  qed
+                  done
               qed
             qed
           qed
@@ -10982,7 +10993,7 @@ proof (rule ccontr)
                 using form_min qr bv Inl p1_def q_val n_def
                 unfolding optimal_def valid_def
                 apply (cases ps)
-                 apply (auto simp add: Let_def True i_le_ltpi_add i_etp_to_tau split: if_splits)
+                apply (auto simp add: Let_def True i_le_ltpi_add i_etp_to_tau split: if_splits)
                 subgoal premises prems for y ys
                 proof -
                   from vmin form_min p2r have p_val: "valid rho i (Until phi I psi) (p' \<oplus> (Inr p2'))"
@@ -11054,7 +11065,7 @@ proof (rule ccontr)
                   from p'_def p'b' b'v n_def have suc_le_etp: "Suc i \<le> ETP rho (\<tau> rho i + left I)"
                     unfolding optimal_def valid_def
                     apply (auto simp: Let_def split: if_splits)
-                     apply (meson False add_cancel_left_left etp_to_delta le_add2 le_antisym le_diff_conv2 le_refl not_less_eq_eq)
+                    apply (meson False add_cancel_left_left etp_to_delta le_add2 le_antisym le_diff_conv2 le_refl not_less_eq_eq)
                     by (metis False diff_add_inverse diff_is_0_eq' i_etp_to_tau not_less_eq_eq)
                   then have valid_q_before: "valid rho (i+1) (Until phi (subtract (\<Delta> rho (i+1)) I) psi) (Inr (VUntil_never (i+1) hi' ps))"
                     using valid_shift_VUntil_never[of i I phi psi hi' ps] rfin(1) i_props q_val False
@@ -11105,34 +11116,34 @@ proof (rule ccontr)
               then have q'_val: "valid rho (i+1) (Until phi (subtract (\<Delta> rho (i+1)) I) psi) (Inr (VUntil_never (i+1) hi' ys))"
                 using valid_shift_VUntil_never[of i I phi psi hi' ps] rfin(1) i_props q_val
                 by (auto simp: True qr bv cons_q)
-                then have wqo_p': "wqo p' (Inr (VUntil_never (i+1) hi' ys))"
-                  using p'_def unfolding optimal_def by auto
-                have check_q: "checkApp (Inr (VUntil_never (i+1) hi' ys)) (Inr y)"
-                  using q'_val True
-                  by (auto intro!: valid_checkApp_VUntil_never)
-                have check_min: "checkApp p' (Inr p2')" using p2r p'b' b'v
-                  using p'_def True
-                  unfolding p2r b'v p'b'
-                  by (auto simp: optimal_def intro!: valid_checkApp_VUntil)
-                from res have val_min: "valid rho i (Until phi I psi) (p' \<oplus> (Inr p2'))"
-                  using b'v p'b' p2r
-                    until_sound[OF i_props p1_def p2_def p'_def _ bf bf']
-                  by auto
-                from q_val have q_val2: "valid rho i (Until phi I psi) ((Inr (VUntil_never (i+1) hi' ys)) \<oplus> (Inr y))"
-                  using qr bv cons_q i_props unfolding proofApp_def by auto
-                then have "wqo (p' \<oplus> (Inr p2')) q"
-                  using qr bv cons_q p'b' b'v i_props
-                    proofApp_mono[OF check_min check_q wqo_p' wqo_p2 val_min q_val2]
-                  by auto
-                moreover have "(p' \<oplus> (Inr p2')) \<in> set (doUntil i (left I) p1 p2 p')"
-                  using form minp Inr p2r Inr True b'v p'b'
-                  unfolding doUntil_def by auto
-                ultimately show ?thesis using minp min_list_wrt_le[OF total_set refl_wqo]
-                    until_sound[OF i_props p1_def p2_def p'_def _ bf bf'] form
-                    pw_total[of i "Until phi I psi"] p'b' trans_wqo Inr b'v p2r
-                  unfolding proofApp_def
-                  apply (auto simp add: total_on_def)
-                  by (metis transpD)
+              then have wqo_p': "wqo p' (Inr (VUntil_never (i+1) hi' ys))"
+                using p'_def unfolding optimal_def by auto
+              have check_q: "checkApp (Inr (VUntil_never (i+1) hi' ys)) (Inr y)"
+                using q'_val True
+                by (auto intro!: valid_checkApp_VUntil_never)
+              have check_min: "checkApp p' (Inr p2')" using p2r p'b' b'v
+                using p'_def True
+                unfolding p2r b'v p'b'
+                by (auto simp: optimal_def intro!: valid_checkApp_VUntil)
+              from res have val_min: "valid rho i (Until phi I psi) (p' \<oplus> (Inr p2'))"
+                using b'v p'b' p2r
+                  until_sound[OF i_props p1_def p2_def p'_def _ bf bf']
+                by auto
+              from q_val have q_val2: "valid rho i (Until phi I psi) ((Inr (VUntil_never (i+1) hi' ys)) \<oplus> (Inr y))"
+                using qr bv cons_q i_props unfolding proofApp_def by auto
+              then have "wqo (p' \<oplus> (Inr p2')) q"
+                using qr bv cons_q p'b' b'v i_props
+                  proofApp_mono[OF check_min check_q wqo_p' wqo_p2 val_min q_val2]
+                by auto
+              moreover have "(p' \<oplus> (Inr p2')) \<in> set (doUntil i (left I) p1 p2 p')"
+                using form minp Inr p2r Inr True b'v p'b'
+                unfolding doUntil_def by auto
+              ultimately show ?thesis using minp min_list_wrt_le[OF total_set refl_wqo]
+                  until_sound[OF i_props p1_def p2_def p'_def _ bf bf'] form
+                  pw_total[of i "Until phi I psi"] p'b' trans_wqo Inr b'v p2r
+                unfolding proofApp_def
+                apply (auto simp add: total_on_def)
+                by (metis transpD)
             next
               case False
               from p'_def have p'_val: "valid rho (i+1) (Until phi (subtract (\<Delta> rho (i+1)) I) psi) p'"
@@ -11146,7 +11157,7 @@ proof (rule ccontr)
               then show ?thesis using qr bv q_val Inr p1_def i_props n_def
                 unfolding optimal_def valid_def
                 apply (cases ps)
-                 apply (auto simp add: Let_def False i_le_ltpi_add split: if_splits)[1]
+                apply (auto simp add: Let_def False i_le_ltpi_add split: if_splits)[1]
                 subgoal premises prems
                 proof -
                   from p'_def have p'_val: "valid rho (i+1) (Until phi (subtract (\<Delta> rho (i+1)) I) psi) p'"
@@ -11187,7 +11198,7 @@ proof (rule ccontr)
                   from p'_def p'b' b'v n_def have suc_le_etp: "Suc i \<le> ETP rho (\<tau> rho i + left I)"
                     unfolding optimal_def valid_def
                     apply (auto simp: Let_def split: if_splits)
-                     apply (meson add_eq_self_zero i_etp_to_tau False le_add1 le_antisym not_less_eq_eq)
+                    apply (meson add_eq_self_zero i_etp_to_tau False le_add1 le_antisym not_less_eq_eq)
                     by (meson add_eq_self_zero i_etp_to_tau False le_neq_implies_less not_add_less1 not_less_eq_eq)
                   then have valid_q_before: "valid rho (i+1) (Until phi (subtract (\<Delta> rho (i+1)) I) psi) (Inr (VUntil_never (i+1) hi' ps))"
                     using valid_shift_VUntil_never[of i I phi psi hi' ps] rfin(1) i_props q_val False
@@ -11244,15 +11255,15 @@ proof (rule ccontr)
               then show ?thesis
                 using form_min qr bv Inl p1_def q_val n_def unfolding optimal_def valid_def
                 apply (cases ps)
-                 apply (auto simp add: Let_def True i_etp_to_tau i_le_ltpi_add split: if_splits enat.splits)[1]
+                apply (auto simp add: Let_def True i_etp_to_tau i_le_ltpi_add split: if_splits enat.splits)[1]
                 subgoal premises prems for y ys
                 proof -
                   from vmin form_min p2r have p_val: "valid rho i (Until phi I psi) (p' \<oplus> (Inr p2'))"
                     by auto
                   from p2r b'v p'b' have check_p: "checkApp p' (Inr p2')"
                     using p'_def True
-                     unfolding p2r b'v p'b'
-                     by (auto simp: optimal_def intro!: valid_checkApp_VUntil_never)
+                    unfolding p2r b'v p'b'
+                    by (auto simp: optimal_def intro!: valid_checkApp_VUntil_never)
                   from prems have y_val: "valid rho i psi (Inr y)"
                     using q_val True i_ge_etpi[of rho "s_at a1"] i_props unfolding valid_def
                     apply (auto simp: Let_def split: if_splits)
@@ -11317,7 +11328,7 @@ proof (rule ccontr)
                   from p'_def p'b' b'v n_def have suc_le_etp: "Suc i \<le> ETP rho (\<tau> rho i + left I)"
                     unfolding optimal_def valid_def
                     apply (auto simp: Let_def split: if_splits)
-                      apply (meson False add_cancel_left_left etp_to_delta le_add2 le_antisym le_diff_conv2 le_refl not_less_eq_eq)
+                    apply (meson False add_cancel_left_left etp_to_delta le_add2 le_antisym le_diff_conv2 le_refl not_less_eq_eq)
                     using i_le_ltpi_add apply blast
                     by (metis False diff_add_inverse diff_is_0_eq' i_etp_to_tau not_less_eq_eq)
                   then have valid_q_before: "valid rho (i+1) (Until phi (subtract (\<Delta> rho (i+1)) I) psi) (Inr (VUntil_never (i+1) hi' ps))"
@@ -11369,34 +11380,34 @@ proof (rule ccontr)
               then have q'_val: "valid rho (i+1) (Until phi (subtract (\<Delta> rho (i+1)) I) psi) (Inr (VUntil_never (i+1) hi' ys))"
                 using valid_shift_VUntil_never[of i I phi psi hi' ps] rfin(1) i_props q_val
                 by (auto simp: True qr bv cons_q)
-                then have wqo_p': "wqo p' (Inr (VUntil_never (i+1) hi' ys))"
-                  using p'_def unfolding optimal_def by auto
-                have check_q: "checkApp (Inr (VUntil_never (i+1) hi' ys)) (Inr y)"
-                  using q'_val True
-                  by (auto intro!: valid_checkApp_VUntil_never)
-                have check_min: "checkApp p' (Inr p2')" using p2r p'b' b'v
-                  using p'_def True
-                  unfolding p2r b'v p'b'
-                  by (auto simp: optimal_def intro!: valid_checkApp_VUntil_never)
-                from res have val_min: "valid rho i (Until phi I psi) (p' \<oplus> (Inr p2'))"
-                  using b'v p'b' p2r
-                    until_sound[OF i_props p1_def p2_def p'_def _ bf bf']
-                  by auto
-                from q_val have q_val2: "valid rho i (Until phi I psi) ((Inr (VUntil_never (i+1) hi' ys)) \<oplus> (Inr y))"
-                  using qr bv cons_q i_props unfolding proofApp_def by auto
-                then have "wqo (p' \<oplus> (Inr p2')) q"
-                  using qr bv cons_q p'b' b'v i_props
-                    proofApp_mono[OF check_min check_q wqo_p' wqo_p2 val_min q_val2]
-                  by auto
-                moreover have "(p' \<oplus> (Inr p2')) \<in> set (doUntil i (left I) p1 p2 p')"
-                  using form minp Inr p2r Inr True b'v p'b'
-                  unfolding doUntil_def by auto
-                ultimately show ?thesis using minp min_list_wrt_le[OF total_set refl_wqo]
-                    until_sound[OF i_props p1_def p2_def p'_def _ bf bf'] form
-                    pw_total[of i "Until phi I psi"] p'b' trans_wqo Inr b'v p2r
-                  unfolding proofApp_def
-                  apply (auto simp add: total_on_def)
-                  by (metis transpD)
+              then have wqo_p': "wqo p' (Inr (VUntil_never (i+1) hi' ys))"
+                using p'_def unfolding optimal_def by auto
+              have check_q: "checkApp (Inr (VUntil_never (i+1) hi' ys)) (Inr y)"
+                using q'_val True
+                by (auto intro!: valid_checkApp_VUntil_never)
+              have check_min: "checkApp p' (Inr p2')" using p2r p'b' b'v
+                using p'_def True
+                unfolding p2r b'v p'b'
+                by (auto simp: optimal_def intro!: valid_checkApp_VUntil_never)
+              from res have val_min: "valid rho i (Until phi I psi) (p' \<oplus> (Inr p2'))"
+                using b'v p'b' p2r
+                  until_sound[OF i_props p1_def p2_def p'_def _ bf bf']
+                by auto
+              from q_val have q_val2: "valid rho i (Until phi I psi) ((Inr (VUntil_never (i+1) hi' ys)) \<oplus> (Inr y))"
+                using qr bv cons_q i_props unfolding proofApp_def by auto
+              then have "wqo (p' \<oplus> (Inr p2')) q"
+                using qr bv cons_q p'b' b'v i_props
+                  proofApp_mono[OF check_min check_q wqo_p' wqo_p2 val_min q_val2]
+                by auto
+              moreover have "(p' \<oplus> (Inr p2')) \<in> set (doUntil i (left I) p1 p2 p')"
+                using form minp Inr p2r Inr True b'v p'b'
+                unfolding doUntil_def by auto
+              ultimately show ?thesis using minp min_list_wrt_le[OF total_set refl_wqo]
+                  until_sound[OF i_props p1_def p2_def p'_def _ bf bf'] form
+                  pw_total[of i "Until phi I psi"] p'b' trans_wqo Inr b'v p2r
+                unfolding proofApp_def
+                apply (auto simp add: total_on_def)
+                by (metis transpD)
             next
               case False
               from p'_def have p'_val: "valid rho (i+1) (Until phi (subtract (\<Delta> rho (i+1)) I) psi) p'"
@@ -11410,7 +11421,7 @@ proof (rule ccontr)
               then show ?thesis using qr bv q_val Inr p1_def i_props n_def
                 unfolding optimal_def valid_def
                 apply (cases ps)
-                 apply (auto simp add: Let_def False i_le_ltpi_add split: if_splits)[1]
+                apply (auto simp add: Let_def False i_le_ltpi_add split: if_splits)[1]
                 subgoal premises prems
                 proof -
                   from p'_def have p'_val: "valid rho (i+1) (Until phi (subtract (\<Delta> rho (i+1)) I) psi) p'"
@@ -11451,7 +11462,7 @@ proof (rule ccontr)
                   from p'_def p'b' b'v n_def have suc_le_etp: "Suc i \<le> ETP rho (\<tau> rho i + left I)"
                     unfolding optimal_def valid_def
                     apply (auto simp: Let_def i_le_ltpi_add split: if_splits)
-                      apply (meson add_eq_self_zero i_etp_to_tau False le_add1 le_antisym not_less_eq_eq)
+                    apply (meson add_eq_self_zero i_etp_to_tau False le_add1 le_antisym not_less_eq_eq)
                     by (meson add_eq_self_zero i_etp_to_tau False le_neq_implies_less not_add_less1 not_less_eq_eq)
                   then have valid_q_before: "valid rho (i+1) (Until phi (subtract (\<Delta> rho (i+1)) I) psi) (Inr (VUntil_never (i+1) hi' ps))"
                     using valid_shift_VUntil_never[of i I phi psi hi' ps] rfin(1) i_props q_val False
@@ -11688,14 +11699,14 @@ next
   ultimately show ?case thm Cand.simps
     using trans_wqo refl_wqo pw_total[of i "Prev I phi'"] Prev prev_optimal[of i, OF _ Prev] prev_sound[of i, OF _ Prev]
     apply (cases i)
-      apply (auto simp: doPrev_def valid_def split: sum.splits bool.splits)[1]
+    apply (auto simp: doPrev_def valid_def split: sum.splits bool.splits)[1]
     by (auto simp: total_on_def elim: bounded_future.cases intro!: bexI[OF _ min_list_wrt_in, of _ wqo])
 next
   note Opt.simps[simp del]
   case (Since i phi' I psi)
   show ?case using Since
     apply auto
-       apply (auto simp: optimal_def valid_def refl_wqo[unfolded reflp_def]
+    apply (auto simp: optimal_def valid_def refl_wqo[unfolded reflp_def]
         split: sum.splits)[1]
     subgoal
       using check_consistent[of "Since phi' I psi"]
@@ -11703,9 +11714,9 @@ next
           split: sum.splits vproof.splits)[1]
       by (metis VSince_le bounded_future_simps(11) check_complete check_consistent)
     subgoal
-     by (auto simp: Let_def dest!: sinceBase0_sound[rotated -1] sinceBaseNZ_sound[rotated -1]
-        since_sound[rotated -3, of _ _ _ _ _ _ phi' psi] split: if_splits)
-   subgoal
+      by (auto simp: Let_def dest!: sinceBase0_sound[rotated -1] sinceBaseNZ_sound[rotated -1]
+          since_sound[rotated -3, of _ _ _ _ _ _ phi' psi] split: if_splits)
+    subgoal
       apply (auto simp: Let_def split: if_splits)
       subgoal premises prems
       proof -
@@ -11725,7 +11736,7 @@ next
           using trans_wqo refl_wqo total_set prems Since p1_def p2_def
           apply auto
           apply (rule bexI[OF _ min_list_wrt_in])
-              apply (rule sinceBase0_optimal[simplified]; auto)
+          apply (rule sinceBase0_optimal[simplified]; auto)
           by auto
       qed
       subgoal premises prems
@@ -11759,7 +11770,7 @@ next
           using trans_wqo refl_wqo total_set prems Since p'_def p1_def p2_def
           apply auto
           apply (rule bexI[OF _ min_list_wrt_in])
-              apply (rule since_optimal[simplified]; auto)
+          apply (rule since_optimal[simplified]; auto)
           by auto
       qed
       subgoal premises prems
@@ -11799,7 +11810,7 @@ next
   case (Until i phi' I psi)
   then show ?case using trans_wqo pw_total refl_wqo
     apply auto
-     apply (auto simp: Let_def dest!: untilBase_sound[rotated -1]
+    apply (auto simp: Let_def dest!: untilBase_sound[rotated -1]
         until_sound[rotated -3, of _ _ _ _ _ _ phi' psi] split: if_splits)[1]
     subgoal for x
       apply (auto simp: Let_def split: if_splits)
@@ -11830,7 +11841,7 @@ next
           using trans_wqo refl_wqo total_set prems Until p'_def p1_def p2_def
           apply auto
           apply (rule bexI[OF _ min_list_wrt_in])
-              apply (rule until_optimal[simplified]; auto)
+          apply (rule until_optimal[simplified]; auto)
           by auto
       qed
       subgoal premises prems
@@ -11864,9 +11875,9 @@ next
     apply (auto simp: total_on_def)
     apply (metis empty_iff empty_set min_list_wrt_in total_onI)
     apply (rule trans_wqo[unfolded transp_def, rule_format, rotated])
-     apply (drule spec, erule mp, assumption)
+    apply (drule spec, erule mp, assumption)
     apply (rule min_list_wrt_le[of wqo])
-      apply (auto simp: total_on_def refl_wqo dest: not_wqo[rotated -1])
+    apply (auto simp: total_on_def refl_wqo dest: not_wqo[rotated -1])
     done
 qed
 
