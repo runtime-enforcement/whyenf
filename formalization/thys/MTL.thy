@@ -3287,12 +3287,14 @@ inductive checkApp :: "('a sproof + 'a vproof) \<Rightarrow> ('a sproof + 'a vpr
 | "checkApp (Inl (SUntil p1 p2)) (Inl r)"
 | "p2 \<noteq> [] \<Longrightarrow> checkApp (Inr (VSince i p1 p2)) (Inr r)"
 | "p1 \<noteq> [] \<Longrightarrow> checkApp (Inr (VSince_never i li p1)) (Inr r)"
+| "p1 \<noteq> [] \<Longrightarrow> checkApp (Inr (VOnce_never i li p1)) (Inr r)"
 | "p1 \<noteq> [] \<Longrightarrow> checkApp (Inr (VUntil i p1 p2)) (Inr r)"
 | "p1 \<noteq> [] \<Longrightarrow> checkApp (Inr (VUntil_never i hi p1)) (Inr r)"
 
 inductive checkIncr :: "('a sproof + 'a vproof) \<Rightarrow> bool" where
   "v_at p1 \<le> i \<Longrightarrow> (\<And>p. p \<in> set p2 \<Longrightarrow> v_at p \<le> i) \<Longrightarrow> checkIncr (Inr (VSince i p1 p2))"
 | "(\<And>p. p \<in> set p1 \<Longrightarrow> v_at p \<le> i) \<Longrightarrow> checkIncr (Inr (VSince_never i li p1))"
+| "(\<And>p. p \<in> set p1 \<Longrightarrow> v_at p \<le> i) \<Longrightarrow> checkIncr (Inr (VOnce_never i li p1))"
 | "(\<And>p. p \<in> set p1 \<Longrightarrow> i \<le> v_at p) \<Longrightarrow> i \<le> v_at p2 \<Longrightarrow> checkIncr (Inr (VUntil i p1 p2))"
 | "(\<And>p. p \<in> set p1 \<Longrightarrow> i \<le> v_at p) \<Longrightarrow> checkIncr (Inr (VUntil_never i hi p1))"
 
@@ -3360,6 +3362,17 @@ begin
 lemma "valid rho i (Since phi I psi) p \<Longrightarrow> valid rho (i+1) phi r \<Longrightarrow> valid rho i (Since phi I psi) (p \<oplus> r)"
   apply (auto simp: valid_def proofApp_def split: sum.splits)
 *)
+
+lemma valid_OnceE: "valid rho i (Once I phi) p \<Longrightarrow>
+  (\<And>i sphi. p = Inl (SOnce i sphi) \<Longrightarrow> P) \<Longrightarrow>
+  (\<And>i li vphis. p = Inr (VOnce_never i li vphis) \<Longrightarrow> P) \<Longrightarrow>
+  (\<And>i. p = Inr (VOnce_le i) \<Longrightarrow> P) \<Longrightarrow> P"
+  apply (cases p)
+  subgoal for x
+    by (cases x) (auto simp: valid_def)
+  subgoal for x
+    by (cases x) (auto simp: valid_def)
+  done
 
 lemma valid_SinceE: "valid rho i (Since phi I psi) p \<Longrightarrow>
   (\<And>spsi sphis. p = Inl (SSince spsi sphis) \<Longrightarrow> P) \<Longrightarrow>
@@ -7048,6 +7061,24 @@ lemma valid_checkApp_VSince: "valid rho j (Since phi I psi) (Inr (VSince j vphi'
   apply blast+
   done
 
+lemma valid_checkApp_VOnce_never: "valid rho j (Once I phi) (Inr (VOnce_never j li vphis')) \<Longrightarrow>
+  left I = 0 \<or> (case right I of \<infinity> \<Rightarrow> True | enat n \<Rightarrow> ETP rho (\<tau> rho j - n) \<le> LTP rho (\<tau> rho j - left I)) \<Longrightarrow>
+  checkApp (Inr (VOnce_never j li vphis')) (Inr p1')"
+  apply (auto simp: valid_def Let_def split: if_splits enat.splits intro!: checkApp.intros)
+  apply (meson diff_le_self i_etp_to_tau)
+  apply (meson diff_le_self i_etp_to_tau i_le_ltpi leD le_less_trans not_le_imp_less)
+  by (meson diff_le_self i_etp_to_tau)
+
+lemma valid_checkIncr_VOnce_never: "valid rho j phi (Inr (VOnce_never j li vphis')) \<Longrightarrow>
+  checkIncr (Inr (VOnce_never j li vphis'))"
+  apply (cases phi)
+  apply (auto simp: valid_def Let_def split: if_splits enat.splits dest!: arg_cong[where ?x="map _ _" and ?f=set] intro!: checkIncr.intros)
+  apply (drule imageI[where ?A="set vphis'" and ?f=v_at])
+  apply auto[1]
+  apply (drule imageI[where ?A="set vphis'" and ?f=v_at])
+  apply auto[1]
+  done
+
 lemma valid_checkApp_VSince_never: "valid rho j (Since phi I psi) (Inr (VSince_never j li vpsis')) \<Longrightarrow>
   left I = 0 \<or> (case right I of \<infinity> \<Rightarrow> True | enat n \<Rightarrow> ETP rho (\<tau> rho j - n) \<le> LTP rho (\<tau> rho j - left I)) \<Longrightarrow>
   checkApp (Inr (VSince_never j li vpsis')) (Inr p2')"
@@ -7137,6 +7168,58 @@ lemma valid_shift_VSince_never:
   assumes i_props: "i > 0" "right I \<ge> enat (\<Delta> rho i)"
     and valid: "valid rho i (Since phi I psi) (Inr (VSince_never i li ys))"
   shows "valid rho (i - 1) (Since phi (subtract (delta rho i (i - 1)) I) psi) (Inr (VSince_never (i - 1) li (if left I = 0 then butlast ys else ys)))"
+proof (cases "left I = 0")
+  case True
+  obtain z zs where ys_def: "ys = zs @ [z]"
+    using valid True
+    apply (cases ys rule: rev_cases)
+    apply (auto simp: valid_def Let_def split: if_splits enat.splits)
+    apply (meson diff_le_self i_etp_to_tau)
+    by (meson \<tau>_mono diff_le_self i_etp_to_tau i_ltp_to_tau i_props(1) less_or_eq_imp_le)
+  show ?thesis
+    using assms etpi_imp_etp_suci i_props True
+    unfolding optimal_def valid_def
+    apply (auto simp add: Let_def i_ltp_to_tau ys_def split: if_splits)
+    using i_le_ltpi apply (auto simp: min_def split: enat.splits)
+    done
+next
+  case False
+  have b: "\<tau> rho i \<ge> \<tau> rho 0 + left I"
+    using valid
+    by (auto simp: valid_def Let_def)
+  have rw: "\<tau> rho (i - Suc 0) - (left I + \<tau> rho (i - Suc 0) - \<tau> rho i) =
+    (if left I + \<tau> rho (i - Suc 0) \<ge> \<tau> rho i then \<tau> rho i - left I else \<tau> rho (i - Suc 0))"
+    by auto
+  have e: "right I = enat n \<Longrightarrow> right (subtract (delta rho i (i - 1)) I) = enat n' \<Longrightarrow>
+    ETP rho (\<tau> rho i - n) = ETP rho (\<tau> rho (i - 1) - n')" for n n'
+    apply (auto)
+    by (metis One_nat_def diff_cancel_middle enat_ord_simps(1) i_props(2) le_diff_conv)
+  have l: "l rho i I = min (i - Suc 0) (LTP rho (\<tau> rho i - left I))"
+    using False b
+    apply (auto simp: min_def)
+    by (meson i_le_ltpi_minus i_props leD)
+  have t: "\<tau> rho (i - 1) - left (subtract (delta rho i (i - 1)) I) =
+  (if left I + \<tau> rho (i - Suc 0) \<ge> \<tau> rho i then \<tau> rho i - left I else \<tau> rho (i - Suc 0))"
+    using i_props
+    by auto
+  have F1: "\<tau> rho (i - Suc 0) \<ge> \<tau> rho 0 + left (subtract (delta rho i (i - 1)) I)"
+    using i_props b
+    apply (auto)
+    using i_props i_to_predi_props by blast
+  have F3: "\<not> \<tau> rho i \<le> left I + \<tau> rho (i - Suc 0) \<Longrightarrow>
+    LTP rho (\<tau> rho i - left I) = LTP rho (\<tau> rho (i - 1))"
+    using False i_props LTP_lt_delta b
+    apply (auto)
+    by (smt (z3) One_nat_def Suc_pred diff_is_0_eq i_le_ltpi_minus le_add_diff_inverse2 nat_le_linear neq0_conv predi_eq_ltp rw trans_le_add2)
+  show ?thesis
+    using False F1 valid e
+    by (auto simp: valid_def Let_def rw t l F3) (auto split: enat.splits)
+qed
+
+lemma valid_shift_VOnce_never:
+  assumes i_props: "i > 0" "right I \<ge> enat (\<Delta> rho i)"
+    and valid: "valid rho i (Once I phi) (Inr (VOnce_never i li ys))"
+  shows "valid rho (i - 1) (Once (subtract (delta rho i (i - 1)) I) phi) (Inr (VOnce_never (i - 1) li (if left I = 0 then butlast ys else ys)))"
 proof (cases "left I = 0")
   case True
   obtain z zs where ys_def: "ys = zs @ [z]"
