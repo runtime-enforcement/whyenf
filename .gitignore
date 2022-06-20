@@ -14,3 +14,4 @@ test/tmp/gen_fmla
 *.aux
 *.txt
 *.DS_Store
+*.~undo-tree~
