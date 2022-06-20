@@ -33,7 +33,7 @@ function initMonitor(monitorState, action) {
              jsooMonitorState: jsooMonitorState,
              selectedRows: [],
              highlightedCells: [],
-             highlightedPath: [],
+             allHighlightedPaths: [],
              fixParameters: true
            };
   } catch (error) {
@@ -63,7 +63,7 @@ function execMonitor(monitorState, action) {
              squares: squares,
              jsooMonitorState: jsooMonitorState,
              highlightedCells: [],
-             highlightedPath: [],
+             allHighlightedPaths: [],
              selectedRows: [],
              fixParameters: true
            };
@@ -110,7 +110,7 @@ function monitorStateReducer(monitorState, action) {
       squares: action.squares,
       selectedRows: action.selectedRows,
       highlightedCells: action.highlightedCells,
-      highlightedPath: action.highlightedPath,
+      allHighlightedPaths: action.allHighlightedPaths,
       fixParameters: true
     }
   case 'resetTable':
@@ -119,7 +119,7 @@ function monitorStateReducer(monitorState, action) {
       squares: computeSquares(monitorState.explanations, monitorState.atoms),
       selectedRows: [],
       highlightedCells: [],
-      highlightedPath: [],
+      allHighlightedPaths: [],
       fixParameters: true
     }
   case 'leaveMonitor':
@@ -132,7 +132,7 @@ function monitorStateReducer(monitorState, action) {
              jsooMonitorState: [],
              selectedRows: [],
              highlightedCells: [],
-             highlightedPath: [],
+             allHighlightedPaths: [],
              dialog: {},
              fixParameters: false
            }
@@ -166,7 +166,7 @@ export default function Monitor() {
                                                 jsooMonitorState: [],
                                                 selectedRows: [],
                                                 highlightedCells: [],
-                                                highlightedPath: [],
+                                                allHighlightedPaths: [],
                                                 dialog: {},
                                                 fixParameters: false
                                               });
@@ -289,7 +289,7 @@ export default function Monitor() {
                             squares={monitorState.squares}
                             selectedRows={monitorState.selectedRows}
                             highlightedCells={monitorState.highlightedCells}
-                            highlightedPath={monitorState.highlightedPath}
+                            allHighlightedPaths={monitorState.allHighlightedPaths}
                             setMonitorState={setMonitorState}
                   />
                 </Grid>
