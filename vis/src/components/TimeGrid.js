@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import Box from '@mui/material/Box';
 import { DataGrid } from '@mui/x-data-grid';
 import Button from '@mui/material/Button';
@@ -8,7 +8,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import Popover from '@mui/material/Popover';
 import Typography from '@mui/material/Typography';
 import { red, amber, lightGreen } from '@mui/material/colors';
-import { common } from '@mui/material/colors'
+import { common } from '@mui/material/colors';
 import { black, squareColor, tpsIn, computeMaxCol } from '../util';
 
 function Cell(props) {
@@ -33,11 +33,11 @@ function TimeGrid ({ explanations,
                      squares,
                      selectedRows,
                      highlightedCells,
-                     highlightedPath,
+                     allHighlightedPaths,
                      setMonitorState }) {
 
-  const [anchorEl, setAnchorEl] = React.useState(null);
-  const [value, setValue] = React.useState('');
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [value, setValue] = useState('');
   const open = Boolean(anchorEl);
 
   const handlePopoverOpen = (event) => {
@@ -104,7 +104,7 @@ function TimeGrid ({ explanations,
       sortable: false,
       renderHeader: () => f,
       renderCell: (params) => { return <Cell value={squares[params.row.tp][i+apsColumns.length]}
-                                             onClick={() => handleClick(params.row.ts, params.row.tp, params.colDef.field)} /> },
+                                             onClick={() => handleClick(params.row.ts, params.row.tp, params.colDef.field)} />; },
       headerAlign: 'center',
       align: 'center',
       disableClickEventBubbling: true
@@ -155,6 +155,9 @@ function TimeGrid ({ explanations,
            '& .cell--Highlighted': {
              backgroundColor: amber[300],
            },
+           '& .cell--Plain': {
+             backgroundColor: common.white,
+           },
            '& .row--Highlighted': {
              bgcolor: amber[50],
              '&:hover': {
@@ -172,12 +175,14 @@ function TimeGrid ({ explanations,
         rows={rows}
         columns={apsGridColumns.concat(fixedGridColumns.concat(subfsGridColumns))}
         getRowClassName={(params) => {
-          if (selectedRows.includes(params.row.tp)) return 'row--Highlighted'
-          else return 'row--Plain' }}
+          if (selectedRows.includes(params.row.tp)) return 'row--Highlighted';
+          else return 'row--Plain';
+        }}
         getCellClassName={(params) => {
           if (highlightedCells.length !== 0
               && highlightedCells[params.row.tp][parseInt(params.colDef.field)])
             return 'cell--Highlighted';
+          else return 'cell--Plain';
         }}
         componentsProps={{
           cell: {
