@@ -136,10 +136,12 @@ export function translateError(error) {
 export function computeHighlightedPathCells(highlightedPaths) {
   let cells = [];
 
-  for (let i = 0; i < highlightedPaths.length; ++i) {
-    if (highlightedPaths[i].isHighlighted) cells.push({ tp: highlightedPaths[i].tp, col: highlightedPaths[i].col });
-    for (let j = 0; j < highlightedPaths[i].children.length; ++j) {
-      if (highlightedPaths[i].children[j].isHighlighted) cells.push({ tp: highlightedPaths[i].children[j].tp, col: highlightedPaths[i].children[j].col });
+  if (highlightedPaths !== undefined) {
+    for (let i = 0; i < highlightedPaths.length; ++i) {
+      if (highlightedPaths[i].isHighlighted) cells.push({ tp: highlightedPaths[i].tp, col: highlightedPaths[i].col });
+      for (let j = 0; j < highlightedPaths[i].children.length; ++j) {
+        if (highlightedPaths[i].children[j].isHighlighted) cells.push({ tp: highlightedPaths[i].children[j].tp, col: highlightedPaths[i].children[j].col });
+      }
     }
   }
 
