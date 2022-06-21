@@ -188,9 +188,8 @@ function TimeGrid ({ explanations,
   };
 
   useEffect(() => {
-    // setHighlightedPathCells = computeHighlightedPathCells(highlightedPaths);
-    console.log(highlightedPaths);
-  }, [highlightedPaths]);
+    setHighlightedPathCells(computeHighlightedPathCells(highlightedPaths));
+  }, [setHighlightedPathCells, highlightedPaths]);
 
   return (
     <Box height="60vh"
@@ -199,7 +198,7 @@ function TimeGrid ({ explanations,
              backgroundColor: amber[300],
            },
            '& .cell--PathHighlighted': {
-             backgroundColor: indigo[200],
+             backgroundColor: indigo[100],
            },
            '& .row--Highlighted': {
              bgcolor: amber[50],
@@ -225,10 +224,13 @@ function TimeGrid ({ explanations,
           if (highlightedCells.length !== 0
               && highlightedCells[params.row.tp][parseInt(params.colDef.field)])
             return 'cell--Highlighted';
-          if (highlightedPathCells.length !== 0
-              && highlightedPathCells.tp === params.row.tp
-              && highlightedPathCells.col === parseInt(params.colDef.field))
-            return 'cell--PathHighlighted';
+          if (highlightedPathCells.length !== 0) {
+            for (let i = 0; i < highlightedPathCells.length; ++i) {
+              if (highlightedPathCells[i].tp === params.row.tp
+                  && highlightedPathCells[i].col === parseInt(params.colDef.field))
+                return 'cell--PathHighlighted';
+            }
+          }
         }}
         componentsProps={{
           cell: {
