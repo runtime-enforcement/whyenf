@@ -33,7 +33,7 @@ function initMonitor(monitorState, action) {
              jsooMonitorState: jsooMonitorState,
              selectedRows: [],
              highlightedCells: [],
-             highlightedPaths: [],
+             pathsMap: new Map(),
              fixParameters: true
            };
   } catch (error) {
@@ -63,7 +63,7 @@ function execMonitor(monitorState, action) {
              squares: squares,
              jsooMonitorState: jsooMonitorState,
              highlightedCells: [],
-             highlightedPaths: [],
+             pathsMap: new Map(),
              selectedRows: [],
              fixParameters: true
            };
@@ -110,7 +110,7 @@ function monitorStateReducer(monitorState, action) {
       squares: action.squares,
       selectedRows: action.selectedRows,
       highlightedCells: action.highlightedCells,
-      highlightedPaths: action.highlightedPaths,
+      pathsMap: action.pathsMap,
       fixParameters: true
     }
   case 'resetTable':
@@ -119,7 +119,7 @@ function monitorStateReducer(monitorState, action) {
       squares: computeSquares(monitorState.explanations, monitorState.atoms),
       selectedRows: [],
       highlightedCells: [],
-      highlightedPaths: [],
+      pathsMap: new Map(),
       fixParameters: true
     }
   case 'leaveMonitor':
@@ -132,7 +132,7 @@ function monitorStateReducer(monitorState, action) {
              jsooMonitorState: [],
              selectedRows: [],
              highlightedCells: [],
-             highlightedPaths: [],
+             pathsMap: new Map(),
              dialog: {},
              fixParameters: false
            }
@@ -166,7 +166,7 @@ export default function Monitor() {
                                                 jsooMonitorState: [],
                                                 selectedRows: [],
                                                 highlightedCells: [],
-                                                highlightedPaths: [],
+                                                pathsMap: new Map(),
                                                 dialog: {},
                                                 fixParameters: false
                                               });
@@ -289,7 +289,7 @@ export default function Monitor() {
                             squares={monitorState.squares}
                             selectedRows={monitorState.selectedRows}
                             highlightedCells={monitorState.highlightedCells}
-                            highlightedPaths={monitorState.highlightedPaths}
+                            pathsMap={monitorState.pathsMap}
                             setMonitorState={setMonitorState}
                   />
                 </Grid>

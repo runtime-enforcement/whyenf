@@ -37,7 +37,7 @@ function TimeGrid ({ explanations,
                      squares,
                      selectedRows,
                      highlightedCells,
-                     highlightedPaths,
+                     pathsMap,
                      setMonitorState }) {
 
   const [anchorEl, setAnchorEl] = useState(null);
@@ -127,7 +127,7 @@ function TimeGrid ({ explanations,
     const mainColumnIndex = apsColumns.length;
 
     let cloneSquares = [...squares];
-    let cloneHighlightedPaths = [...highlightedPaths];
+    let clonePathsMap = new Map(pathsMap);
     let cell;
 
     for (let i = 0; i < explanations.length; ++i) {
@@ -154,44 +154,43 @@ function TimeGrid ({ explanations,
       let selRows = (cell.interval !== undefined) ? tpsIn(ts, tp, cell.interval, cell.period, lastTS, atoms) : [];
 
       // Update (potentially multiple) open paths to be highlighted
-      for (let i = 0; i < cloneHighlightedPaths.length; ++i) {
-        for (let j = 0; j < cloneHighlightedPaths[i].children.length; ++j) {
-          cloneHighlightedPaths[i].children[j] = {...cloneHighlightedPaths[i].children[j], isHighlighted: false };
-        }
-        cloneHighlightedPaths[i] = {...cloneHighlightedPaths[i], isHighlighted: false };
-      }
+      // let parent = null;
+      // clonePathsMap.set(tp.toString() + colIndex.toString(), );
+      // for (let i = 0; i < clonePathsMap.length; ++i) {
+      //   clonePathsMap[i] = {...clonePathsMap[i], isHighlighted: false };
+      // }
 
-      if (colIndex === mainColumnIndex) {
-        const i = cloneHighlightedPaths.findIndex(c => c.tp === tp && c.col === colIndex);
-        if (i === -1) cloneHighlightedPaths.push({ tp: tp, col: colIndex, isHighlighted: true, children: children });
-        else cloneHighlightedPaths[i] = {...cloneHighlightedPaths[i], isHighlighted: true };
-      } else {
-        for (let i = 0; i < cloneHighlightedPaths.length; ++i) {
-          const k = cloneHighlightedPaths[i].children.findIndex(c => c.tp === tp && c.col === colIndex);
-          if (k !== -1) {
-            cloneHighlightedPaths[i] = {...cloneHighlightedPaths[i], isHighlighted: true, children: cloneHighlightedPaths[i].children.concat(children) };
-            for (let j = 0; j <= k; ++j) {
-              // if ((cloneHighlightedPaths[i].children[j].tp <= tp && cloneHighlightedPaths[i].children[j].col >= colIndex)
-              //     || cloneHighlightedPaths[i].children[j].col < colIndex)
-              cloneHighlightedPaths[i].children[j] = {...cloneHighlightedPaths[i].children[j], isHighlighted: true };
-            }
-          }
-        }
-      }
+      // if (colIndex === mainColumnIndex) {
+      //   const i = clonePathsMap.findIndex(c => c.tp === tp && c.col === colIndex);
+      //   if (i === -1) clonePathsMap.push({ tp: tp, col: colIndex, isHighlighted: true, children: children });
+      //   else clonePathsMap[i] = {...clonePathsMap[i], isHighlighted: true };
+      // } else {
+      //   for (let i = 0; i < clonePathsMap.length; ++i) {
+      //     const k = clonePathsMap[i].children.findIndex(c => c.tp === tp && c.col === colIndex);
+      //     if (k !== -1) {
+      //       clonePathsMap[i] = {...clonePathsMap[i], isHighlighted: true, children: clonePathsMap[i].children.concat(children) };
+      //       for (let j = 0; j <= k; ++j) {
+      //         if ((clonePathsMap[i].children[j].tp <= tp && clonePathsMap[i].children[j].col >= colIndex)
+      //             || clonePathsMap[i].children[j].col < colIndex)
+      //         clonePathsMap[i].children[j] = {...clonePathsMap[i].children[j], isHighlighted: true };
+      //       }
+      //     }
+      //   }
+      // }
 
       let action = { type: "updateTable",
                      squares: cloneSquares,
                      selectedRows: selRows,
                      highlightedCells: highlightedCells,
-                     highlightedPaths: cloneHighlightedPaths,
+                     pathsMap: clonePathsMap,
                    };
       setMonitorState(action);
     }
   };
 
   useEffect(() => {
-    setHighlightedPathCells(computeHighlightedPathCells(highlightedPaths));
-  }, [setHighlightedPathCells, highlightedPaths]);
+    setHighlightedPathCells(computeHighlightedPathCells(pathsMap));
+  }, [setHighlightedPathCells, pathsMap]);
 
   return (
     <Box height="60vh"
