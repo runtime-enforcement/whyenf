@@ -171,6 +171,8 @@ function TimeGrid ({ explanations,
           if (k !== -1) {
             cloneHighlightedPaths[i] = {...cloneHighlightedPaths[i], isHighlighted: true, children: cloneHighlightedPaths[i].children.concat(children) };
             for (let j = 0; j <= k; ++j) {
+              // if ((cloneHighlightedPaths[i].children[j].tp <= tp && cloneHighlightedPaths[i].children[j].col >= colIndex)
+              //     || cloneHighlightedPaths[i].children[j].col < colIndex)
               cloneHighlightedPaths[i].children[j] = {...cloneHighlightedPaths[i].children[j], isHighlighted: true };
             }
           }
@@ -198,7 +200,7 @@ function TimeGrid ({ explanations,
              backgroundColor: amber[300],
            },
            '& .cell--PathHighlighted': {
-             backgroundColor: indigo[100],
+             backgroundColor: indigo[50],
            },
            '& .row--Highlighted': {
              bgcolor: amber[50],
