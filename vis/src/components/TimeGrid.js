@@ -12,8 +12,7 @@ import { common } from '@mui/material/colors';
 import { black,
          squareColor,
          tpsIn,
-         computeMaxCol,
-         computeHighlightedPathCells } from '../util';
+         computeMaxCol } from '../util';
 
 function Cell(props) {
   if (props.value === red[500] || props.value === lightGreen[500] || props.value === black) {
@@ -42,7 +41,6 @@ function TimeGrid ({ explanations,
 
   const [anchorEl, setAnchorEl] = useState(null);
   const [value, setValue] = useState('');
-  const [highlightedPathCells, setHighlightedPathCells] = useState([]);
   const open = Boolean(anchorEl);
 
   const handlePopoverOpen = (event) => {
@@ -154,29 +152,27 @@ function TimeGrid ({ explanations,
       let selRows = (cell.interval !== undefined) ? tpsIn(ts, tp, cell.interval, cell.period, lastTS, atoms) : [];
 
       // Update (potentially multiple) open paths to be highlighted
-      // let parent = null;
-      // clonePathsMap.set(tp.toString() + colIndex.toString(), );
-      // for (let i = 0; i < clonePathsMap.length; ++i) {
-      //   clonePathsMap[i] = {...clonePathsMap[i], isHighlighted: false };
-      // }
+      for (const [k, obj] of pathsMap) {
+        if (obj.isHighlighted) clonePathsMap.set(k, {...obj, isHighlighted: false });
+      }
 
-      // if (colIndex === mainColumnIndex) {
-      //   const i = clonePathsMap.findIndex(c => c.tp === tp && c.col === colIndex);
-      //   if (i === -1) clonePathsMap.push({ tp: tp, col: colIndex, isHighlighted: true, children: children });
-      //   else clonePathsMap[i] = {...clonePathsMap[i], isHighlighted: true };
-      // } else {
-      //   for (let i = 0; i < clonePathsMap.length; ++i) {
-      //     const k = clonePathsMap[i].children.findIndex(c => c.tp === tp && c.col === colIndex);
-      //     if (k !== -1) {
-      //       clonePathsMap[i] = {...clonePathsMap[i], isHighlighted: true, children: clonePathsMap[i].children.concat(children) };
-      //       for (let j = 0; j <= k; ++j) {
-      //         if ((clonePathsMap[i].children[j].tp <= tp && clonePathsMap[i].children[j].col >= colIndex)
-      //             || clonePathsMap[i].children[j].col < colIndex)
-      //         clonePathsMap[i].children[j] = {...clonePathsMap[i].children[j], isHighlighted: true };
-      //       }
-      //     }
-      //   }
-      // }
+      for (let i = 0; i < children.length; ++i) {
+        clonePathsMap.set(children[i].tp.toString() + children[i].col.toString(),
+                          { parent: tp.toString() + colIndex.toString(), isHighlighted: false,
+                            tp: children[i].tp, col: children[i].col });
+      }
+
+      let cur = clonePathsMap.get(tp.toString() + colIndex.toString());
+      if (cur === undefined) clonePathsMap.set(tp.toString() + colIndex.toString(),
+                                               { parent: null, isHighlighted: true, tp: tp, col: colIndex });
+      else clonePathsMap.set(tp.toString() + colIndex.toString(), {...cur, isHighlighted: true });
+
+      if (cur !== undefined) {
+        while (cur.parent !== null) {
+          cur = clonePathsMap.get(cur.parent);
+          clonePathsMap.set(cur, {...cur, isHighlighted: true });
+        }
+      }
 
       let action = { type: "updateTable",
                      squares: cloneSquares,
@@ -188,10 +184,6 @@ function TimeGrid ({ explanations,
     }
   };
 
-  useEffect(() => {
-    setHighlightedPathCells(computeHighlightedPathCells(pathsMap));
-  }, [setHighlightedPathCells, pathsMap]);
-
   return (
     <Box height="60vh"
          sx={{
@@ -199,7 +191,7 @@ function TimeGrid ({ explanations,
              backgroundColor: amber[300],
            },
            '& .cell--PathHighlighted': {
-             backgroundColor: indigo[50],
+             backgroundColor: indigo[100],
            },
            '& .row--Highlighted': {
              bgcolor: amber[50],
@@ -229,12 +221,9 @@ function TimeGrid ({ explanations,
                 return 'cell--Highlighted';
             }
           }
-          if (highlightedPathCells.length !== 0) {
-            for (let i = 0; i < highlightedPathCells.length; ++i) {
-              if (highlightedPathCells[i].tp === params.row.tp
-                  && highlightedPathCells[i].col === parseInt(params.colDef.field))
-                return 'cell--PathHighlighted';
-            }
+          for (const [k, obj] of pathsMap) {
+            if (obj.isHighlighted && obj.tp === params.row.tp && obj.col === parseInt(params.colDef.field))
+              return 'cell--PathHighlighted';
           }
         }}
         componentsProps={{
