@@ -107,8 +107,22 @@ export function tpsIn(ts, tp, interval, period, lastTS, atoms) {
 
 export function translateError(error) {
 
+  let message;
+
   if (error.message === undefined && error[1].c !== undefined) {
-    switch (error[1].c) {
+    message = error[1].c;
+  } else {
+    if (error.message === undefined && error[1][1].c !== undefined) {
+      message = error[1][1].c;
+    } else {
+      if (error.message !== undefined && error.message.includes("Unexpected token")) {
+        message = error.message;
+      }
+    }
+  }
+
+  if (error.message === undefined) {
+    switch (message) {
     case "Src.Mtl_parser.MenhirBasics.Error":
         return { name: "Error",
                  message: "Formula could not be parsed.\n\nPlease make sure the syntax is correct."
@@ -116,6 +130,10 @@ export function translateError(error) {
     case "Src.Monitor.UNBOUNDED_FUTURE":
       return { name: "Error",
                message: "Your formula has an unbounded UNTIL.\n\nPlease make sure all UNTIL instances are bounded."
+             };
+    case "Src.Monitor.INVALID_TIMESTAMP":
+      return { name: "Error",
+               message: "Your time-stamps are not monotonically increasing.\n\nPlease rectify your trace and try again."
              };
     default:
       return;

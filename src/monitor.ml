@@ -22,6 +22,7 @@ exception INVALID_EXPL of string
 exception EMPTY_DEQUE of string
 exception EMPTY_LIST of string
 exception NOT_FOUND of string
+exception INVALID_TIMESTAMP of string
 
 (* TODO: Rewrite every occurrence of Deque.to_list in this file *)
 (* TODO: Rename every (ts, p) as el or whatever. p should denote the proof element and not the pair *)
@@ -1072,27 +1073,30 @@ let monitor_vis obj_opt log le f =
     | Some (mf', st') -> (mf', st') in
   let mf_ap = relevant_ap mf in
   match events with
-  | Ok es -> (
-              let ((m, s), o) = List.fold_map es ~init:(mf, st) ~f:(fun (mf', st') (sap, ts) ->
-                                    Hashtbl.add st.tp_ts st'.tp ts;
-                                    let sap_filtered = filter_ap sap mf_ap in
-                                    let (ps, mf_updated) = meval' ts st'.tp sap_filtered mf' le in
-                                    let cbs_opt = None in
-                                    let expls = json_expls st.tp_ts f (Deque.to_list ps) cbs_opt in
-                                    let atoms = json_atoms f sap_filtered st'.tp ts in
-                                    let st_updated =
-                                      { st with
-                                        tp = st'.tp+1
-                                      ; mf = mf_updated
-                                      } in
-                                    ((mf_updated, st_updated), (expls, atoms))) in
-              let expls = List.map o (fun (e, _) -> e) in
-              let expls' = String.concat ",\n" (List.filter expls (fun e -> not (String.equal e ""))) in
-              let atoms = List.map o (fun (_, a) -> a) in
-              let atoms' = String.concat ",\n" (List.filter atoms (fun a -> not (String.equal a ""))) in
-              let ident = "    " in
-              let json = (Printf.sprintf "{\n") ^
-                         (Printf.sprintf "%s\"expls\": [\n%s],\n" ident expls') ^
-                         (Printf.sprintf "%s\"atoms\": [\n%s]\n}" ident atoms') in
-              (Some(m, s), json))
+  | Ok es ->
+     (let ((m, s), o) = List.fold_map es ~init:(mf, st) ~f:(fun (mf', st') (sap, ts) ->
+                            let last_ts = match Hashtbl.find_opt st.tp_ts (st'.tp-1) with
+                              | None -> ts
+                              | Some(ts') -> ts' in
+                            if last_ts <= ts then
+                              (Hashtbl.add st.tp_ts st'.tp ts;
+                               let sap_filtered = filter_ap sap mf_ap in
+                               let (ps, mf_updated) = meval' ts st'.tp sap_filtered mf' le in
+                               let cbs_opt = None in
+                               let expls = json_expls st.tp_ts f (Deque.to_list ps) cbs_opt in
+                               let atoms = json_atoms f sap_filtered st'.tp ts in
+                               let st_updated = { st with
+                                                  tp = st'.tp+1
+                                                ; mf = mf_updated } in
+                               ((mf_updated, st_updated), (expls, atoms)))
+                            else raise (INVALID_TIMESTAMP "Timestamp violates monotonicity constraint")) in
+      let expls = List.map o (fun (e, _) -> e) in
+      let expls' = String.concat ",\n" (List.filter expls (fun e -> not (String.equal e ""))) in
+      let atoms = List.map o (fun (_, a) -> a) in
+      let atoms' = String.concat ",\n" (List.filter atoms (fun a -> not (String.equal a ""))) in
+      let ident = "    " in
+      let json = (Printf.sprintf "{\n") ^
+                   (Printf.sprintf "%s\"expls\": [\n%s],\n" ident expls') ^
+                     (Printf.sprintf "%s\"atoms\": [\n%s]\n}" ident atoms') in
+      (Some(m, s), json))
   | Error err -> (None, json_error err)
