@@ -139,13 +139,13 @@ function TimeGrid ({ explanations,
       // Update highlighted cells (i.e. the ones who appear after a click)
       let maxRow = Math.max(explanations.length, atoms.length);
       let maxCol = computeMaxCol(explanations) + 1;
-      let highlightedCells = [...Array(maxRow)].map(x=>Array(maxCol).fill(false));
+      let highlightedCells = [];
       let children = [];
 
       // Update cells (show hidden verdicts after a click)
       for (let i = 0; i < cell.cells.length; ++i) {
         cloneSquares[cell.cells[i].tp][cell.cells[i].col] = squareColor(cell.cells[i].bool);
-        highlightedCells[cell.cells[i].tp][cell.cells[i].col] = true;
+        highlightedCells.push({ tp: cell.cells[i].tp, col: cell.cells[i].col });
         children.push({ tp: cell.cells[i].tp, col: cell.cells[i].col, isHighlighted: false });
       }
 
@@ -223,9 +223,13 @@ function TimeGrid ({ explanations,
           else return 'row--Plain';
         }}
         getCellClassName={(params) => {
-          if (highlightedCells.length !== 0
-              && highlightedCells[params.row.tp][parseInt(params.colDef.field)])
-            return 'cell--Highlighted';
+          if (highlightedCells.length !== 0) {
+            for (let i = 0; i < highlightedCells.length; ++i) {
+              if (highlightedCells[i].tp === params.row.tp
+                  && highlightedCells[i].col === parseInt(params.colDef.field))
+                return 'cell--Highlighted';
+            }
+          }
           if (highlightedPathCells.length !== 0) {
             for (let i = 0; i < highlightedPathCells.length; ++i) {
               if (highlightedPathCells[i].tp === params.row.tp
