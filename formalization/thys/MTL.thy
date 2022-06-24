@@ -9220,7 +9220,7 @@ proof (rule ccontr)
         then show ?thesis
         proof (cases "left I = 0")
           case True
-          (* then have form: "minp = Inl (SOnce i a1)"
+            (* then have form: "minp = Inl (SOnce i a1)"
             using a'_def Inl minp p'_def p1l p'l SOnce optimal_def p1_def 
             unfolding doOnce_def
             by (auto simp: min_list_wrt_def) *)
@@ -9282,67 +9282,72 @@ proof (rule ccontr)
       then obtain vphis' where b'_def: "b' = VOnce_never (i-1) li vphis'"
         using p'_def doOnce_def p'_form by auto
       then show ?thesis
-        proof (cases p1)
-          case (Inl a1)
-          then have p1l: "p1 = Inl a1" by auto
-          then show ?thesis
-          proof (cases "left I = 0")
-            case True
-            then have form: "doOnce i (left I) p1 p' = [Inl (SOnce i a1)]"
-              using p1l p'r True b'_def unfolding doOnce_def by auto
-            then have "wqo (Inl (SOnce i a1)) q"
-              using Inl q_val p1_def SOnce[of a1 sphi]
-              unfolding doOnce_def class.wqo_def
-              apply (auto simp: optimal_def valid_def q_s a_def)
-              sorry
-            moreover have "Inl (SOnce i a1) \<in> set (doOnce i (left I) p1 p')"
-              using form by auto
-            ultimately show ?thesis using minp min_list_wrt_le[OF _ refl_wqo]
-                once_sound[OF i_props p1_def p'_def _ bf bf']
-                pw_total[of i "Once I phi"] q_val
-                trans_wqo q_s
-              apply (auto simp add: total_on_def)
-              by (metis transpD)
-          next
-            case False
-            then have form: "minp = Inr (VOnce_never i li vphis')"
-              using b'_def Inr minp p'_def p'r p1_def unfolding doOnce_def
-              apply (auto simp: min_list_wrt_def split: if_splits)
-              by (meson leD sat_Once_rec sats)
-            then show ?thesis using q_s a_def q_val Inl p1_def i_props bfphi
-              unfolding optimal_def valid_def
-              apply (auto simp add: Let_def False i_ltp_to_tau)
-              by (meson False le0 le_antisym sat_Once_rec sats)
-          qed
+      proof (cases p1)
+        case (Inl a1)
+        then have p1l: "p1 = Inl a1" by auto
+        then show ?thesis
+        proof (cases "left I = 0")
+          case True
+          then have form: "doOnce i (left I) p1 p' = [Inl (SOnce i a1)]"
+            using p1l p'r True b'_def unfolding doOnce_def by auto
+          then have "wqo (Inl (SOnce i a1)) q"
+            using Inl q_val p1_def SOnce[of a1 sphi]
+            unfolding doOnce_def class.wqo_def
+            apply (auto simp: optimal_def valid_def q_s a_def)
+            sorry
+          moreover have "Inl (SOnce i a1) \<in> set (doOnce i (left I) p1 p')"
+            using form by auto
+          ultimately show ?thesis using minp min_list_wrt_le[OF _ refl_wqo]
+              once_sound[OF i_props p1_def p'_def _ bf bf']
+              pw_total[of i "Once I phi"] q_val
+              trans_wqo q_s
+            apply (auto simp add: total_on_def)
+            by (metis transpD)
         next
-          case (Inr b1)
-          then have p1r: "p1 = Inr b1" by auto
-          then show ?thesis
-          proof (cases "left I = 0")
-            case True
-            then have form: "doOnce i (left I) p1 p' = [(p' \<oplus> p1)]"
-              using p1r p'r True b'_def unfolding doOnce_def by auto
-            from p'r p1r b'_def have check_p: "checkApp p' p1"
-              apply (auto intro: checkApp.intros)
-              by (metis Inr_Inl_False bfphi completeness optimal_def p1_def sat_Once_rec sats val_SAT_imp_l)
-            from form once_sound[OF i_props p1_def p'_def _ bf bf']
-              have p_val: "valid rho i (Once I phi) (p' \<oplus> p1)"
-                by auto
-            then show ?thesis sorry
-          next
-            case False
-            then have form: "minp = Inr (VOnce_never i li vphis')"
-              using b'_def Inr minp p'_def p'r p1_def unfolding doOnce_def
-              apply (auto simp: min_list_wrt_def split: if_splits)
-              by (meson leD sat_Once_rec sats)
-            then show ?thesis using q_s a_def q_val Inl p1_def i_props bfphi
-              unfolding optimal_def valid_def
-              apply (auto simp add: Let_def False i_ltp_to_tau)
-              by (meson False le0 le_antisym sat_Once_rec sats)
-          qed
+          case False
+          then have form: "minp = Inr (VOnce_never i li vphis')"
+            using b'_def Inr minp p'_def p'r p1_def unfolding doOnce_def
+            apply (auto simp: min_list_wrt_def split: if_splits)
+            by (meson leD sat_Once_rec sats)
+          then show ?thesis using q_s a_def q_val Inl p1_def i_props bfphi
+            unfolding optimal_def valid_def
+            apply (auto simp add: Let_def False i_ltp_to_tau)
+            by (meson False le0 le_antisym sat_Once_rec sats)
+        qed
+      next
+        case (Inr b1)
+        then have p1r: "p1 = Inr b1" by auto
+        then show ?thesis
+        proof (cases "left I = 0")
+          case True
+          then have form: "doOnce i (left I) p1 p' = [(p' \<oplus> p1)]"
+            using p1r p'r True b'_def unfolding doOnce_def by auto
+          from p'r p1r b'_def have check_p: "checkApp p' p1"
+            apply (auto intro: checkApp.intros)
+            by (metis Inr_Inl_False bfphi completeness optimal_def p1_def sat_Once_rec sats val_SAT_imp_l)
+          from form once_sound[OF i_props p1_def p'_def _ bf bf']
+          have p_val: "valid rho i (Once I phi) (p' \<oplus> p1)"
+            by auto
+          then show ?thesis sorry
+        next
+          case False
+          then have form: "minp = Inr (VOnce_never i li vphis')"
+            using b'_def Inr minp p'_def p'r p1_def unfolding doOnce_def
+            apply (auto simp: min_list_wrt_def split: if_splits)
+            by (meson leD sat_Once_rec sats)
+          then show ?thesis using q_s a_def q_val Inl p1_def i_props bfphi
+            unfolding optimal_def valid_def
+            apply (auto simp add: Let_def False i_ltp_to_tau)
+            by (meson False le0 le_antisym sat_Once_rec sats)
         qed
       qed
-      oops
+    qed
+  next
+    case (Inr b)
+    then show ?thesis sorry
+  qed
+  then show False using q_le by auto
+qed
 
 lemma valid_checkApp_VUntil: "valid rho j (Until phi I psi) (Inr (VUntil j vpsis' vphi')) \<Longrightarrow>
   left I = 0 \<or> ETP rho (\<tau> rho j + left I) \<le> v_at vphi' \<Longrightarrow> checkApp (Inr (VUntil j vpsis' vphi')) (Inr p2')"
@@ -9523,6 +9528,12 @@ next
     then show ?thesis using p'r p'_def unfolding optimal_def valid_def by auto
   next
     case (VIff_vs x71 x72)
+    then show ?thesis using p'r p'_def unfolding optimal_def valid_def by auto
+  next
+    case (VOnce_never x71 x72)
+    then show ?thesis using p'r p'_def unfolding optimal_def valid_def by auto
+  next
+    case (VOnce_le x8)
     then show ?thesis using p'r p'_def unfolding optimal_def valid_def by auto
   next
     case (VSince x51 x52 x53)
@@ -11931,7 +11942,7 @@ theorem alg_optimal:
 proof (induction i phi rule: Cand_Opt.induct(2)[where P = "\<lambda>i phi. bounded_future phi \<longrightarrow>
   (\<forall>x \<in> set (Cand i phi). valid rho i phi x) \<and>
   (\<exists>x \<in> set (Cand i phi). optimal i phi x)",
-      case_names TT FF Atom Disj Conj Impl Iff Neg Prev Next Since Until (*MatchP MatchF*) Opt])
+      case_names TT FF Atom Disj Conj Impl Iff Neg Prev Next Since Until Once (*MatchP MatchF*) Opt])
   case (TT i)
   then show ?case unfolding optimal_def valid_def
     by (auto simp: refl_wqo[unfolded reflp_def] s_check.simps
@@ -12034,7 +12045,7 @@ next
       using check_consistent[of "Since phi' I psi"]
       apply (auto simp: optimal_def valid_def refl_wqo[unfolded reflp_def]
           split: sum.splits vproof.splits)[1]
-      by (metis VSince_le bounded_future_simps(11) check_complete check_consistent)
+      by (metis VSince_le bounded_future_simps(12) check_complete check_consistent)
     subgoal
       by (auto simp: Let_def dest!: sinceBase0_sound[rotated -1] sinceBaseNZ_sound[rotated -1]
           since_sound[rotated -3, of _ _ _ _ _ _ phi' psi] split: if_splits)
@@ -12097,6 +12108,7 @@ next
       qed
       subgoal premises prems
       proof -
+        thm prems
         from prems(3, 6) left_right[of I]
         have False 
           by auto
@@ -12185,6 +12197,111 @@ next
           apply auto
           apply (rule bexI[OF _ min_list_wrt_in])
           apply (rule untilBase_optimal[simplified]; auto)
+          by auto
+      qed
+      done
+    done
+next
+  note Opt.simps[simp del]
+  case (Once i I phi')
+  show ?case using Once
+    apply auto
+    apply (auto simp: optimal_def valid_def refl_wqo[unfolded reflp_def]
+        split: sum.splits)[1]
+    subgoal
+      using check_consistent[of "Once I phi'"]
+      apply (auto simp: optimal_def valid_def refl_wqo[unfolded reflp_def]
+          split: sum.splits vproof.splits)[1]
+      by (metis VOnce_le bounded_future_simps(11) check_complete check_consistent)
+    subgoal
+      by (auto simp: Let_def dest!: onceBase0_sound[rotated -1] onceBaseNZ_sound[rotated -1]
+          once_sound[rotated -3, of _ _ _ _ _ phi'] split: if_splits)
+    subgoal
+      apply (auto simp: Let_def split: if_splits)
+      subgoal premises prems
+      proof -
+        define p1 where p1_def: "p1 = Opt i phi'"
+        from prems have i_props: "i = 0 \<and>  \<tau> rho 0 + left I \<le> \<tau> rho i"
+          by simp
+        from pw_total[of 0 "Once I phi'"]
+        have total_set: "total_on wqo (set (doOnceBase i (left I) p1))"
+          using onceBase0_sound[OF _ i_props] i_props prems(1,2)
+            p1_def
+          by (fastforce simp: total_on_def)
+        from prems p1_def have "doOnceBase i (left I) p1 \<noteq> []"
+          unfolding doOnceBase_def
+          by (auto split: sum.splits bool.splits)
+        then show ?thesis
+          using trans_wqo refl_wqo total_set prems Once p1_def
+          apply auto
+          apply (rule bexI[OF _ min_list_wrt_in])
+          apply (rule onceBase0_optimal[simplified]; auto)
+          by auto
+      qed
+      subgoal premises prems
+      proof -
+        define p1 where p1_def: "p1 = Opt i phi'"
+        define p' where p'_def: "p' \<equiv> Opt (i - 1) (Once (subtract (delta rho i (i - 1)) I) phi')"
+        from prems have i_props: "0 < i \<and>  \<tau> rho 0 + left I \<le> \<tau> rho i
+        \<and> enat (delta rho i (i - 1)) \<le> right I"
+          by simp
+        from prems p'_def
+        have opt: "optimal (i - 1) (Once (subtract (delta rho i (i - 1)) I) phi') p'"
+          by simp
+        thm prems
+        from prems(4-6) have bf: "bounded_future (Once I phi')"
+          and bf': "bounded_future (Once (subtract (delta rho i (i - 1)) I) phi')"
+          by (auto intro: OnceBF)
+        from pw_total[of i "Since phi' I psi"]
+        have total_set: "total_on wqo (set (doOnce i (left I) p1 p'))"
+          thm prems
+          using once_sound[OF i_props prems(1) opt _ bf bf']
+            p'_def p1_def
+          apply (auto simp: total_on_def)
+          by (meson not_wqo)
+        from opt have not_le: "p' \<noteq> Inr (VOnce_le (i-1))"
+          using i_props_imp_not_le_once[OF i_props opt] p'_def
+          by auto
+        then have nnil: "doOnce i (left I) p1 p' \<noteq> []"
+          using opt p1_def p'_def
+          unfolding doOnce_def
+          apply (auto simp: optimal_def valid_def split: sum.splits bool.splits)
+          by (auto simp: Let_def split: sproof.splits vproof.splits)
+        then show ?thesis
+          using trans_wqo refl_wqo total_set prems Once p'_def p1_def
+          apply auto
+          apply (rule bexI[OF _ min_list_wrt_in])
+          apply (rule once_optimal[simplified]; auto)
+          by auto
+      qed
+      subgoal premises prems
+      proof -
+        thm prems
+        from prems(2, 4) left_right[of I]
+        have False 
+          by auto
+        then show ?thesis
+          by auto
+      qed
+      subgoal premises prems
+      proof -
+        define p1 where p1_def: "p1 = Opt i phi'"
+        from prems have i_props: "0 < i \<and>  \<tau> rho 0 + left I \<le> \<tau> rho i
+        \<and> right I < enat (delta rho i (i - 1))"
+          by simp
+        from pw_total[of i "Once I phi'"]
+        have total_set: "total_on wqo (set (doOnceBase i (left I) p1))"
+          using onceBaseNZ_sound[OF i_props prems(1)]
+            p1_def
+          by (auto simp: total_on_def)
+        from prems p1_def have "doOnceBase i (left I) p1 \<noteq> []"
+          unfolding doOnceBase_def
+          by (auto split: sum.splits bool.splits)
+        then show ?thesis
+          using trans_wqo refl_wqo total_set prems Once p1_def
+          apply auto
+          apply (rule bexI[OF _ min_list_wrt_in])
+          apply (rule onceBaseNZ_optimal[simplified]; auto)
           by auto
       qed
       done
