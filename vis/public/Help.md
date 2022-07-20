@@ -61,6 +61,11 @@ overall formula according to the standard MTL semantics.
 Furthermore, it also highlights the time interval associated with the corresponding subformula.
 You may further inspect Boolean verdicts until you reach atomic propositions.
 
+Multiple Boolean verdicts can be explored simultaneously, so the Explanator2 additionally highlights the overall Boolean verdict
+(i.e., the context) of the current inspection:
+
+<img alt="Verdict inspection" src="./assets/click.png" style="margin:0px 25px; max-width: 230px; height: auto;" />
+
 In the monitoring state, three different buttons are displayed:
 
 <img alt="Buttons in the monitoring state" src="./assets/buttons.png" style="margin:0px 25px; max-width: 250px; height: auto;" />
