@@ -2972,7 +2972,7 @@ definition proofApp :: "('a sproof + 'a vproof) \<Rightarrow> ('a sproof + 'a vp
 definition proofIncr :: "('a sproof + 'a vproof) \<Rightarrow> ('a sproof + 'a vproof)" where
   "proofIncr p = (case p of
    Inr (VSince i p1 p2) \<Rightarrow> Inr (VSince (Suc i) p1 p2)
- | Inr (VOnce_never i li p1) \<Rightarrow> Inr (VSince_never (Suc i) li p1)
+ | Inr (VOnce_never i li p1) \<Rightarrow> Inr (VOnce_never (Suc i) li p1)
  | Inr (VSince_never i li p1) \<Rightarrow> Inr (VSince_never (Suc i) li p1)
  | Inr (VUntil i p1 p2) \<Rightarrow> Inr (VUntil (i-1) p1 p2)
  | Inr (VUntil_never i hi p1) \<Rightarrow> Inr (VUntil_never (i-1) hi (p1)))"
@@ -7244,6 +7244,60 @@ next
     by (auto simp: valid_def Let_def rw t l F3) (auto split: enat.splits)
 qed
 
+lemma valid_shift_SOnce:
+  assumes i_props: "i > 0" "right I \<ge> enat (\<Delta> rho i)"
+    and valid: "valid rho i (Once I phi) (Inl (SOnce i p))"
+    and s_at_p: "s_at p \<le> i"
+  shows "valid rho (i - 1) (Once (subtract (delta rho i (i - 1)) I) phi) (Inl (SOnce (i - 1) p))"
+proof (cases "left I = 0")
+  case True
+  obtain z where p_def: "p = z"
+    using valid True
+    by blast
+  then show ?thesis
+    using assms etpi_imp_etp_suci i_props True i_le_ltpi
+    unfolding optimal_def valid_def
+    apply (auto simp add: Let_def i_ltp_to_tau split: if_splits enat.splits)
+    sorry
+    (* using i_le_ltpi apply (auto simp: min_def split: enat.splits)
+    done *)
+next
+  case False
+  have b: "\<tau> rho i \<ge> \<tau> rho 0 + left I"
+    using valid False
+    apply (auto simp: valid_def Let_def)
+    by (smt (verit, best) diff_cancel_middle diff_diff_right diff_is_0_eq diff_le_self le_add_diff_inverse2 le_trans less_\<tau>D linorder_not_le)
+  have rw: "\<tau> rho (i - Suc 0) - (left I + \<tau> rho (i - Suc 0) - \<tau> rho i) =
+    (if left I + \<tau> rho (i - Suc 0) \<ge> \<tau> rho i then \<tau> rho i - left I else \<tau> rho (i - Suc 0))"
+    by auto
+  have e: "right I = enat n \<Longrightarrow> right (subtract (delta rho i (i - 1)) I) = enat n' \<Longrightarrow>
+    ETP rho (\<tau> rho i - n) = ETP rho (\<tau> rho (i - 1) - n')" for n n'
+    apply (auto)
+    by (metis One_nat_def diff_cancel_middle enat_ord_simps(1) i_props(2) le_diff_conv)
+  have l: "l rho i I = min (i - Suc 0) (LTP rho (\<tau> rho i - left I))"
+    using False b
+    apply (auto simp: min_def)
+    by (meson i_le_ltpi_minus i_props leD)
+  have t: "\<tau> rho (i - 1) - left (subtract (delta rho i (i - 1)) I) =
+  (if left I + \<tau> rho (i - Suc 0) \<ge> \<tau> rho i then \<tau> rho i - left I else \<tau> rho (i - Suc 0))"
+    using i_props
+    by auto
+  have F1: "\<tau> rho (i - Suc 0) \<ge> \<tau> rho 0 + left (subtract (delta rho i (i - 1)) I)"
+    using i_props b
+    apply (auto)
+    using i_props i_to_predi_props by blast
+  have F3: "\<not> \<tau> rho i \<le> left I + \<tau> rho (i - Suc 0) \<Longrightarrow>
+    LTP rho (\<tau> rho i - left I) = LTP rho (\<tau> rho (i - 1))"
+    using False i_props LTP_lt_delta b
+    apply (auto)
+    by (smt (z3) One_nat_def Suc_pred diff_is_0_eq i_le_ltpi_minus le_add_diff_inverse2 nat_le_linear neq0_conv predi_eq_ltp rw trans_le_add2)
+  show ?thesis
+    using False F1 valid e s_at_p
+    apply (auto simp: valid_def Let_def rw t l F3)
+     apply (metis One_nat_def Suc_pred' \<tau>_mono diff_is_0_eq' i_props(1) leD not_less_eq_eq)
+    by (metis MTL.sat.simps(11) MTL.sat.simps(8) leD sat_Once_rec)
+qed
+
 lemma valid_shift_VOnce_never:
   assumes i_props: "i > 0" "right I \<ge> enat (\<Delta> rho i)"
     and valid: "valid rho i (Once I phi) (Inr (VOnce_never i li ys))"
@@ -9218,6 +9272,13 @@ proof (rule ccontr)
       then obtain sphi' where a'_def: "a' = SOnce (i-1) sphi'"
         using p'_def unfolding optimal_def valid_def
         by (cases a') auto
+      (* then have sphi'_bounds: "ETP rho (case right I of enat n \<Rightarrow> (\<tau> rho i - n) | \<infinity> \<Rightarrow> 0) \<le> s_at sphi'
+      \<and> s_at sphi' < i \<and> s_at sphi' \<le> LTP rho (\<tau> rho i - left I)"
+        using a'_def Inl p'_def i_props mem_imp_le_ltp[of i I "s_at sphi'"]
+        unfolding optimal_def valid_def
+        by (auto simp: Let_def diff_commute i_etp_to_tau le_diff_conv split: enat.splits)
+      from a'_def Inl have "s_check rho phi sphi'" using p'_def
+        unfolding optimal_def valid_def by (auto simp: Let_def) *)
       from SATs vmin have minl: "\<exists>a. minp = Inl a" using minp val_SAT_imp_l[OF bf]
         by auto
       then show ?thesis
@@ -9227,6 +9288,35 @@ proof (rule ccontr)
         then show ?thesis
         proof (cases "left I = 0")
           case True
+          (* from p'_def have p'_val: "valid rho (i-1) (Once (subtract (\<Delta> rho i) I) phi) p'"
+            unfolding optimal_def by auto
+          from True have form: "minp = Inl (SOnce i a1)"
+            using p1l p'l True a'_def minp filter_nnil
+            unfolding doOnce_def 
+            by (cases p1) (auto simp: min_list_wrt_def)
+          then show ?thesis using q_s a_def q_val i_props
+            unfolding optimal_def valid_def
+            apply (auto simp add: Let_def True i_ltp_to_tau i_etp_to_tau split: if_splits)[1]
+            subgoal premises prems
+            proof -
+              have valid_q_before: "valid rho (i-1) (Once (subtract (\<Delta> rho i) I) phi) (Inl (SOnce (i-1) sphi))"
+                using valid_shift_VOnce_never[of i I phi li' ps] i_props q_val False
+                by (auto simp: qr bv)
+              then have "wqo p' (Inr (VOnce_never (i-1) li' ps))" using p'_def
+                unfolding optimal_def by auto
+              moreover have "checkIncr p'"
+                using p'_def
+                unfolding p'b' b'v
+                by (auto simp: optimal_def intro!: valid_checkIncr_VOnce_never)
+              moreover have "checkIncr (Inr (VOnce_never (i-1) li' ps))"
+                using valid_q_before
+                by (auto intro!: valid_checkIncr_VOnce_never)
+              ultimately show ?thesis
+                using proofIncr_mono[OF _ _ _ p'_val, of "Inr (VOnce_never (i-1) li' ps)"]
+                      valid_q_before i_props prems
+                unfolding p'b' b'v
+                by (auto simp add: proofIncr_def li'_def li''_def intro: checkIncr.intros)
+            qed *)
           then have form: "doOnce i (left I) p1 p' = [Inl (SOnce i a1)]"
             using p1l p'l True a'_def unfolding doOnce_def by auto
           then have "wqo (Inl (SOnce i a1)) q"
@@ -9443,8 +9533,7 @@ proof (rule ccontr)
                     using proofIncr_mono[OF _ _ _ p'_val, of "Inr (VOnce_never (i-1) li' ps)"]
                       valid_q_before i_props prems
                     unfolding p'b' b'v
-                    apply (auto simp add: proofIncr_def li'_def li''_def intro: checkIncr.intros)
-                    sorry
+                    by (auto simp add: proofIncr_def li'_def li''_def intro: checkIncr.intros)
                 qed
                 subgoal premises prems
                 proof -
@@ -9465,8 +9554,7 @@ proof (rule ccontr)
                     using proofIncr_mono[OF _ _ _ p'_val, of "Inr (VOnce_never (i-1) li ps)"]
                       valid_q_before i_props prems
                     unfolding p'b' b'v  
-                    apply (auto simp add: proofIncr_def li'_def li''_def intro: checkIncr.intros)
-                    sorry
+                    by (auto simp add: proofIncr_def li'_def li''_def intro: checkIncr.intros)
                 qed
                 using p1_def False Inl q_val i_props vmin
                 apply (auto simp: Let_def optimal_def valid_def i_ltp_to_tau i_etp_to_tau i_le_ltpi split: if_splits)
