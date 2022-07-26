@@ -79,8 +79,27 @@ lemma sat_Since_rec: "sat \<sigma> i (Since \<phi> I \<psi>) \<longleftrightarro
   done
 
 lemma sat_Once_rec: "sat \<sigma> i (Once I \<phi>) \<longleftrightarrow>
-  mem 0 I \<and> i > 0 \<and> \<Delta> \<sigma> i \<le> right I \<and> sat \<sigma> i \<phi>"
-  sorry
+  mem 0 I \<and> sat \<sigma> i \<phi> \<or> 
+  (i > 0 \<and> \<Delta> \<sigma> i \<le> right I \<and> sat \<sigma> (i - 1) (Once (subtract (\<Delta> \<sigma> i) I) \<phi>))"
+  apply (auto elim!: less_enatE simp: gr0_conv_Suc le_Suc_eq not_le)
+  subgoal apply (cases i) apply auto done
+  subgoal apply (cases i) apply auto done
+  subgoal for j k apply (cases i; auto simp: le_Suc_eq Suc_le_eq)
+    apply (meson \<tau>_mono diff_le_mono2 order.trans enat_ord_simps(1)) done
+  subgoal for j apply (rule exI[of _ "j"]) apply (auto simp: diff_enat_def Suc_le_eq split: enat.splits)
+    using not_less_eq_eq 
+     apply fastforce
+    using linorder_not_le 
+    by fastforce
+  subgoal for j k apply (cases i; auto simp: le_Suc_eq Suc_le_eq)
+    apply (meson \<tau>_mono diff_le_mono2 le_less_trans not_le) done
+  subgoal for j apply (cases i; auto simp: le_Suc_eq)
+    apply (auto simp: diff_enat_def Suc_le_eq split: enat.splits)
+    sorry
+    (* apply (metis Nat.le_diff_conv2 \<tau>_mono add_diff_cancel_left' diff_diff_left diff_le_mono2 le_eq_less_or_eq le_imp_less_Suc)
+    apply (metis Nat.le_diff_conv2 \<tau>_mono add_diff_cancel_left' diff_diff_left diff_le_mono2 le_imp_less_Suc order_less_imp_le) *)
+  subgoal for k j apply (rule exI[of _ "j"]; auto simp: diff_enat_def le_diff_conv2 le_Suc_eq split: enat.splits) done
+  done
 
 (*
 lemma sat_MatchF_rec: "sat \<sigma> i (MatchF I r) \<longleftrightarrow> mem 0 I \<and> Regex.eps (sat \<sigma>) i r \<or>
@@ -7247,7 +7266,7 @@ qed
 lemma valid_shift_SOnce:
   assumes i_props: "i > 0" "right I \<ge> enat (\<Delta> rho i)"
     and valid: "valid rho i (Once I phi) (Inl (SOnce i p))"
-    and s_at_p: "s_at p \<le> i"
+    and s_at_p: "s_at p \<le> i - (Suc 0)"
   shows "valid rho (i - 1) (Once (subtract (delta rho i (i - 1)) I) phi) (Inl (SOnce (i - 1) p))"
 proof (cases "left I = 0")
   case True
@@ -7257,10 +7276,18 @@ proof (cases "left I = 0")
   then show ?thesis
     using assms etpi_imp_etp_suci i_props True i_le_ltpi
     unfolding optimal_def valid_def
-    apply (auto simp add: Let_def i_ltp_to_tau split: if_splits enat.splits)
-    sorry
-    (* using i_le_ltpi apply (auto simp: min_def split: enat.splits)
-    done *)
+    apply (auto simp add: Let_def i_ltp_to_tau p_def split: if_splits enat.splits)
+    subgoal premises prems
+    proof (cases "right I")
+      case (enat nat)
+      then show ?thesis
+        using i_le_ltpi prems enat_ord_simps(1) idiff_enat_enat by force
+    next
+      case infinity
+      then show ?thesis 
+        using i_le_ltpi prems enat_ord_simps(1) idiff_enat_enat by force
+    qed
+    done
 next
   case False
   have b: "\<tau> rho i \<ge> \<tau> rho 0 + left I"
@@ -7294,8 +7321,19 @@ next
   show ?thesis
     using False F1 valid e s_at_p
     apply (auto simp: valid_def Let_def rw t l F3)
-     apply (metis One_nat_def Suc_pred' \<tau>_mono diff_is_0_eq' i_props(1) leD not_less_eq_eq)
-    by (metis MTL.sat.simps(11) MTL.sat.simps(8) leD sat_Once_rec)
+    subgoal premises prems
+    proof (cases "right I")
+      case (enat nat)
+      then show ?thesis
+        using prems
+        by (auto simp add: sat_Once_rec le_diff_conv)
+    next
+      case infinity
+      then show ?thesis
+        using prems
+        by (auto simp add: sat_Once_rec le_diff_conv)
+    qed
+    done
 qed
 
 lemma valid_shift_VOnce_never:
@@ -9272,13 +9310,13 @@ proof (rule ccontr)
       then obtain sphi' where a'_def: "a' = SOnce (i-1) sphi'"
         using p'_def unfolding optimal_def valid_def
         by (cases a') auto
-      (* then have sphi'_bounds: "ETP rho (case right I of enat n \<Rightarrow> (\<tau> rho i - n) | \<infinity> \<Rightarrow> 0) \<le> s_at sphi'
+      then have sphi'_bounds: "ETP rho (case right I of enat n \<Rightarrow> (\<tau> rho i - n) | \<infinity> \<Rightarrow> 0) \<le> s_at sphi'
       \<and> s_at sphi' < i \<and> s_at sphi' \<le> LTP rho (\<tau> rho i - left I)"
         using a'_def Inl p'_def i_props mem_imp_le_ltp[of i I "s_at sphi'"]
         unfolding optimal_def valid_def
         by (auto simp: Let_def diff_commute i_etp_to_tau le_diff_conv split: enat.splits)
       from a'_def Inl have "s_check rho phi sphi'" using p'_def
-        unfolding optimal_def valid_def by (auto simp: Let_def) *)
+        unfolding optimal_def valid_def by (auto simp: Let_def)
       from SATs vmin have minl: "\<exists>a. minp = Inl a" using minp val_SAT_imp_l[OF bf]
         by auto
       then show ?thesis
@@ -9288,50 +9326,32 @@ proof (rule ccontr)
         then show ?thesis
         proof (cases "left I = 0")
           case True
-          (* from p'_def have p'_val: "valid rho (i-1) (Once (subtract (\<Delta> rho i) I) phi) p'"
+          from p'_def have p'_val: "valid rho (i-1) (Once (subtract (\<Delta> rho i) I) phi) p'"
             unfolding optimal_def by auto
           from True have form: "minp = Inl (SOnce i a1)"
             using p1l p'l True a'_def minp filter_nnil
             unfolding doOnce_def 
             by (cases p1) (auto simp: min_list_wrt_def)
-          then show ?thesis using q_s a_def q_val i_props
-            unfolding optimal_def valid_def
-            apply (auto simp add: Let_def True i_ltp_to_tau i_etp_to_tau split: if_splits)[1]
-            subgoal premises prems
-            proof -
-              have valid_q_before: "valid rho (i-1) (Once (subtract (\<Delta> rho i) I) phi) (Inl (SOnce (i-1) sphi))"
-                using valid_shift_VOnce_never[of i I phi li' ps] i_props q_val False
-                by (auto simp: qr bv)
-              then have "wqo p' (Inr (VOnce_never (i-1) li' ps))" using p'_def
-                unfolding optimal_def by auto
-              moreover have "checkIncr p'"
-                using p'_def
-                unfolding p'b' b'v
-                by (auto simp: optimal_def intro!: valid_checkIncr_VOnce_never)
-              moreover have "checkIncr (Inr (VOnce_never (i-1) li' ps))"
-                using valid_q_before
-                by (auto intro!: valid_checkIncr_VOnce_never)
-              ultimately show ?thesis
-                using proofIncr_mono[OF _ _ _ p'_val, of "Inr (VOnce_never (i-1) li' ps)"]
-                      valid_q_before i_props prems
-                unfolding p'b' b'v
-                by (auto simp add: proofIncr_def li'_def li''_def intro: checkIncr.intros)
-            qed *)
-          then have form: "doOnce i (left I) p1 p' = [Inl (SOnce i a1)]"
+          then have form_do_once: "doOnce i (left I) p1 p' = [Inl (SOnce i a1)]"
             using p1l p'l True a'_def unfolding doOnce_def by auto
-          then have "wqo (Inl (SOnce i a1)) q"
-            using Inl q_val p1_def SOnce[of a1 sphi] sphi_bounds
-            unfolding doOnce_def class.wqo_def
-            apply (auto simp: optimal_def valid_def q_s a_def i_etp_to_tau Let_def)
+          then have p_eq_i: "s_at sphi \<le> i"
+            using sphi_bounds
+            by simp
+          then have wqo_p: "wqo p1 (Inl a)" 
+            using p1_def p_eq_i valphi a_def p1l SOnce form q_le q_s
+            unfolding optimal_def 
+            sorry
+          then have "wqo minp q"
+            using vmin True SOnce a_def optimal_def p1_def p1l q_s valphi
+            apply (auto simp: form valid_def Let_def i_ltp_to_tau split: enat.splits if_splits)
             sorry
           moreover have "Inl (SOnce i a1) \<in> set (doOnce i (left I) p1 p')"
-            using form by auto
+            using form_do_once by auto
           ultimately show ?thesis using minp min_list_wrt_le[OF _ refl_wqo]
               once_sound[OF i_props p1_def p'_def _ bf bf']
               pw_total[of i "Once I phi"] q_val
               trans_wqo q_s
-            apply (auto simp add: total_on_def)
-            by (metis transpD)
+            by (auto simp add: total_on_def)
         next
           case False
           then have form: "minp = Inl (SOnce i sphi')"
