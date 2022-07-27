@@ -369,7 +369,7 @@ module Since = struct
       let msaux_ts_updated = update_tss (l, r) a ts tp msaux in
       let msaux_updated = shift_msaux (l, r) ts tp p1 p2 msaux_ts_updated le in
       let p = V (VSinceOutL tp) in
-      ([p], { msaux_updated with ts_zero })
+      (p, { msaux_updated with ts_zero })
     (* Case 2: there exists a \tau_{tp'} inside the interval s.t. tp' < tp *)
     else
       let ts_zero = if Option.is_none msaux.ts_zero then Some(ts) else msaux.ts_zero in
@@ -379,7 +379,7 @@ module Since = struct
       let r = ts - a in
       let msaux_ts_updated = update_tss (l, r) a ts tp msaux in
       let msaux_updated = shift_msaux (l, r) ts tp p1 p2 msaux_ts_updated le in
-      ([minimuml le (candidate_proofs tp { msaux_updated with ts_zero })], { msaux_updated with ts_zero })
+      (minimuml le (candidate_proofs tp { msaux_updated with ts_zero }), { msaux_updated with ts_zero })
 end
 
 module Until = struct
@@ -1006,10 +1006,8 @@ let meval' ts tp sap mform le =
        let ((ps, msaux'), buf', tss_tps') =
          mbuf2t_take
            (fun p1 p2 ts tp (ps, aux) ->
-             let (opl, aux) = Since.update_since interval ts tp p1 p2 aux le in
-             let () = match List.hd opl with
-             | None -> ()
-             | Some(op) -> Deque.enqueue_back ps op in
+             let (op, aux) = Since.update_since interval ts tp p1 p2 aux le in
+             let () = Deque.enqueue_back ps op in
              (ps, aux))
            (Deque.create (), msaux) (mbuf2_add p1s p2s buf) tss_tps in
        (* let () = Printf.printf "----------%s\n" (Since.msaux_to_string msaux') in *)
