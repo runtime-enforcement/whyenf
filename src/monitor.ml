@@ -379,7 +379,7 @@ module Since = struct
       let r = ts - a in
       let msaux_ts_updated = update_tss (l, r) a ts tp msaux in
       let msaux_updated = shift_msaux (l, r) ts tp p1 p2 msaux_ts_updated le in
-      (candidate_proofs tp { msaux_updated with ts_zero }, { msaux_updated with ts_zero })
+      ([minimuml le (candidate_proofs tp { msaux_updated with ts_zero })], { msaux_updated with ts_zero })
 end
 
 module Until = struct
@@ -1006,9 +1006,10 @@ let meval' ts tp sap mform le =
        let ((ps, msaux'), buf', tss_tps') =
          mbuf2t_take
            (fun p1 p2 ts tp (ps, aux) ->
-             let (cps, aux) = Since.update_since interval ts tp p1 p2 aux le in
-             let op = minimuml le cps in
-             let _ = Deque.enqueue_back ps op in
+             let (opl, aux) = Since.update_since interval ts tp p1 p2 aux le in
+             let () = match List.hd opl with
+             | None -> ()
+             | Some(op) -> Deque.enqueue_back ps op in
              (ps, aux))
            (Deque.create (), msaux) (mbuf2_add p1s p2s buf) tss_tps in
        (* let () = Printf.printf "----------%s\n" (Since.msaux_to_string msaux') in *)
