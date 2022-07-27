@@ -28,7 +28,7 @@ val parse_weight_line: string -> (string * int) option
 val preamble_stdout: out_channel -> mode -> formula -> unit
 val closing_stdout: out_channel -> unit
 val preamble_json: out_channel -> formula -> unit
-val output_ps: out_channel -> mode -> out_mode -> timestamp -> timepoint -> timepoint list -> formula -> expl list -> (bool * checker_proof * trace_t) list option -> unit
+val output_ps: out_channel -> mode -> out_mode -> timestamp -> timepoint list -> formula -> expl list -> (bool * checker_proof * trace_t) list option -> unit
 
 val parse_lines_from_string: string -> (SS.t * timepoint) list Or_error.t
 val json_table_columns: formula -> string

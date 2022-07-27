@@ -104,7 +104,7 @@ let closing_stdout out_ch =
 let preamble_json out_ch f =
   Printf.fprintf out_ch "{\n  \"columns\": %s\n}\n" (list_to_json (List.map (subfs_dfs f) formula_to_string))
 
-let output_ps out_ch mode out_mode ts tp tps_in f ps checker_ps_opt =
+let output_ps out_ch mode out_mode ts tps_in f ps checker_ps_opt =
   let ps' = match mode with
     | SAT -> List.filter ps (fun p -> match p with
                                       | S _ -> true
@@ -115,18 +115,18 @@ let output_ps out_ch mode out_mode ts tp tps_in f ps checker_ps_opt =
     | ALL -> ps in
   match checker_ps_opt with
   | None -> (List.iter ps' (fun p -> match out_mode with
-                                     | PLAIN -> let expl = Explanation ((ts, tp), p, None) in
+                                     | PLAIN -> let expl = Explanation ((ts, (p_at p)), p, None) in
                                                 output_explanation out_ch expl
-                                     | JSON -> let expl = ExplanationToJSON ((ts, tp), tps_in, f, p, None) in
+                                     | JSON -> let expl = ExplanationToJSON ((ts, (p_at p)), tps_in, f, p, None) in
                                                output_explanation out_ch expl
                                      | _ -> ()))
   | Some checker_ps -> (List.iter2_exn ps' checker_ps (fun p (b, checker_p, trace) ->
                             match out_mode with
-                            | PLAIN -> let expl = Explanation ((ts, tp), p, Some(b)) in
+                            | PLAIN -> let expl = Explanation ((ts, (p_at p)), p, Some(b)) in
                                        output_explanation out_ch expl
-                            | JSON -> let expl = ExplanationToJSON ((ts, tp), tps_in, f, p, Some(b)) in
+                            | JSON -> let expl = ExplanationToJSON ((ts, (p_at p)), tps_in, f, p, Some(b)) in
                                       output_explanation out_ch expl
-                            | DEBUG -> let expl = ExplanationDebug ((ts, tp), p, b, checker_p, trace) in
+                            | DEBUG -> let expl = ExplanationDebug ((ts, (p_at p)), p, b, checker_p, trace) in
                                        output_explanation out_ch expl))
 
 (* from/to_string related *)

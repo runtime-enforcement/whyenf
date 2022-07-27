@@ -755,13 +755,13 @@ module Until = struct
       | Some(b') -> b' in
     let muaux = shift_muaux (a, b) (nts, ntp) muaux le in
     match Deque.peek_back muaux.optimal_proofs with
-    | None -> (d, muaux)
+    | None -> (nts, d, muaux)
     | Some(ts, _) -> if ts + b < nts then
-                       let (_, op) = Deque.dequeue_back_exn muaux.optimal_proofs in
-                       let (ops, muaux) = eval_until d interval nts ntp muaux le in
+                       let (ts', op) = Deque.dequeue_back_exn muaux.optimal_proofs in
+                       let (_, ops, muaux) = eval_until d interval nts ntp muaux le in
                        let _ = Deque.enqueue_back ops op in
-                       (ops, muaux)
-                     else (d, muaux)
+                       (ts', ops, muaux)
+                     else (ts, d, muaux)
 end
 
 module Prev_Next = struct
@@ -956,52 +956,52 @@ let meval' ts tp sap mform le =
     match mform with
     | MTT -> let d = Deque.create () in
              let _ = Deque.enqueue_back d (S (STT tp)) in
-             (d, MTT)
+             (ts, d, MTT)
     | MFF -> let d = Deque.create () in
              let _ = Deque.enqueue_back d (V (VFF tp)) in
-             (d, MFF)
+             (ts, d, MFF)
     | MP a ->
        let d = Deque.create () in
        let _ = if Util.SS.mem a sap then Deque.enqueue_back d (S (SAtom (tp, a)))
                else Deque.enqueue_back d (V (VAtom (tp, a))) in
-       (d, MP a)
+       (ts, d, MP a)
     | MNeg (mf) ->
-       let (ps, mf') = meval tp ts sap mf in
+       let (_, ps, mf') = meval tp ts sap mf in
        let ps' = Deque.fold ps ~init:(Deque.create ())
                    ~f:(fun d p ->
                      match p with
                      | S p' -> let _ = Deque.enqueue_back d (V (VNeg p')) in d
                      | V p' -> let _ = Deque.enqueue_back d (S (SNeg p')) in d) in
-       (ps', MNeg(mf'))
+       (ts, ps', MNeg(mf'))
     | MConj (mf1, mf2, buf) ->
        let op p1 p2 = do_conj p1 p2 le in
-       let (p1s, mf1') = meval tp ts sap mf1 in
-       let (p2s, mf2') = meval tp ts sap mf2 in
+       let (_, p1s, mf1') = meval tp ts sap mf1 in
+       let (_, p2s, mf2') = meval tp ts sap mf2 in
        let (ps, buf') = mbuf2_take op (mbuf2_add p1s p2s buf) in
-       (ps, MConj (mf1', mf2', buf'))
+       (ts, ps, MConj (mf1', mf2', buf'))
     | MDisj (mf1, mf2, buf) ->
        let op p1 p2 = do_disj p1 p2 le in
-       let (p1s, mf1') = meval tp ts sap mf1 in
-       let (p2s, mf2') = meval tp ts sap mf2 in
+       let (_, p1s, mf1') = meval tp ts sap mf1 in
+       let (_, p2s, mf2') = meval tp ts sap mf2 in
        let (ps, buf') = mbuf2_take op (mbuf2_add p1s p2s buf) in
-       (ps, MDisj (mf1', mf2', buf'))
+       (ts, ps, MDisj (mf1', mf2', buf'))
     | MPrev (interval, mf, first, buf, tss) ->
-       let (ps, mf') = meval tp ts sap mf in
+       let (_, ps, mf') = meval tp ts sap mf in
        let () = Deque.iter ps ~f:(fun p -> Deque.enqueue_back buf p) in
        let () = Deque.enqueue_back tss ts in
        let (ps', buf', tss') = Prev_Next.mprev_next Prev interval buf tss le in
-       ((if first then (let () = Deque.enqueue_front ps' (V VPrev0) in ps')
+       (ts, (if first then (let () = Deque.enqueue_front ps' (V VPrev0) in ps')
          else ps'), MPrev (interval, mf', false, buf', tss'))
     | MNext (interval, mf, first, tss) ->
-       let (ps, mf') = meval tp ts sap mf in
+       let (_, ps, mf') = meval tp ts sap mf in
        let () = Deque.enqueue_back tss ts in
        let first = if first && (Deque.length ps) > 0 then (let () = Deque.drop_front ps in false) else first in
        let (ps', _, tss') = Prev_Next.mprev_next Next interval ps tss le in
-       (ps', MNext (interval, mf', first, tss'))
+       (ts, ps', MNext (interval, mf', first, tss'))
     | MSince (interval, mf1, mf2, buf, tss_tps, msaux) ->
        (* let () = Printf.printf "\nsince: %s\n" (mformula_to_string (MSince (interval, mf1, mf2, buf, tss_tps, msaux))) in *)
-       let (p1s, mf1') = meval tp ts sap mf1 in
-       let (p2s, mf2') = meval tp ts sap mf2 in
+       let (_, p1s, mf1') = meval tp ts sap mf1 in
+       let (_, p2s, mf2') = meval tp ts sap mf2 in
        let _ = Deque.enqueue_back tss_tps (ts, tp) in
        let ((ps, msaux'), buf', tss_tps') =
          mbuf2t_take
@@ -1012,11 +1012,11 @@ let meval' ts tp sap mform le =
              (ps, aux))
            (Deque.create (), msaux) (mbuf2_add p1s p2s buf) tss_tps in
        (* let () = Printf.printf "----------%s\n" (Since.msaux_to_string msaux') in *)
-       (ps, MSince (interval, mf1', mf2', buf', tss_tps', msaux'))
+       (ts, ps, MSince (interval, mf1', mf2', buf', tss_tps', msaux'))
     | MUntil (interval, mf1, mf2, buf, tss_tps, muaux) ->
        (* let () = Printf.printf "----------%s\n" (Until.muaux_to_string muaux) in *)
-       let (p1s, mf1') = meval tp ts sap mf1 in
-       let (p2s, mf2') = meval tp ts sap mf2 in
+       let (_, p1s, mf1') = meval tp ts sap mf1 in
+       let (_, p2s, mf2') = meval tp ts sap mf2 in
        let () = Deque.enqueue_back tss_tps (ts, tp) in
        let (muaux', buf', ntss_ntps) =
          mbuf2t_take
@@ -1025,8 +1025,8 @@ let meval' ts tp sap mform le =
        let (nts, ntp) = match Deque.peek_front ntss_ntps with
          | None -> (ts, tp)
          | Some(nts', ntp') -> (nts', ntp') in
-       let (ps, muaux'') = Until.eval_until (Deque.create ()) interval nts ntp muaux le in
-       (ps, MUntil (interval, mf1', mf2', buf', ntss_ntps, muaux'')) in
+       let (ts', ps, muaux'') = Until.eval_until (Deque.create ()) interval nts ntp muaux le in
+       (ts', ps, MUntil (interval, mf1', mf2', buf', ntss_ntps, muaux'')) in
   meval tp ts sap mform
 
 let monitor_cli in_ch out_ch mode out_mode check le is_opt f =
@@ -1044,10 +1044,10 @@ let monitor_cli in_ch out_ch mode out_mode check le is_opt f =
     let ((sap, ts), in_ch) = input_event in_ch out_ch in
     let sap_filtered = filter_ap sap mf_ap in
     let events_updated = (sap_filtered, ts)::st.events in
-    let (ps, mf_updated) = meval' ts st.tp sap_filtered st.mf le in
+    let (ts', ps, mf_updated) = meval' ts st.tp sap_filtered st.mf le in
     let lps = Deque.to_list ps in
     let checker_ps = if check then Some (check_ps is_opt events_updated f lps) else None in
-    let () = output_ps out_ch mode out_mode ts st.tp [] f lps checker_ps in
+    let () = output_ps out_ch mode out_mode ts' [] f lps checker_ps in
     let st_updated =
       { st with
         tp = st.tp+1
@@ -1077,7 +1077,7 @@ let monitor_vis obj_opt log le f =
                             if last_ts <= ts then
                               (Hashtbl.add st.tp_ts st'.tp ts;
                                let sap_filtered = filter_ap sap mf_ap in
-                               let (ps, mf_updated) = meval' ts st'.tp sap_filtered mf' le in
+                               let (ts', ps, mf_updated) = meval' ts st'.tp sap_filtered mf' le in
                                let cbs_opt = None in
                                let expls = json_expls st.tp_ts f (Deque.to_list ps) cbs_opt in
                                let atoms = json_atoms f sap_filtered st'.tp ts in
