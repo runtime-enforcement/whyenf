@@ -24,9 +24,6 @@ exception EMPTY_LIST of string
 exception NOT_FOUND of string
 exception INVALID_TIMESTAMP of string
 
-(* TODO: Rewrite every occurrence of Deque.to_list in this file *)
-(* TODO: Rename every (ts, p) as el or whatever. p should denote the proof element and not the pair *)
-
 let minimuml le l = match l with
   | [] -> failwith "empty list for minimuml"
   | x::xs -> List.fold_left xs ~init:x ~f:(fun a b -> if le a b then a else b)
@@ -211,10 +208,8 @@ module Since = struct
       { msaux with ts_tp_out; ts_tp_in }
 
   let add_alphas_out ts vvp' alphas_out le =
-    let () = List.iter (List.rev(Deque.to_list alphas_out))
-              ~f:(fun (_, vvp) ->
-                if le vvp' vvp then Deque.drop_back alphas_out) in
-    let () = Deque.enqueue_back alphas_out (ts, vvp')
+    let alphas_out' = remove_if_pred_back (fun (_, vvp) -> le vvp' vvp) alphas_out in
+    let () = Deque.enqueue_back alphas_out' (ts, vvp')
     in alphas_out
 
   let update_beta_alphas new_in beta_alphas le =
@@ -222,7 +217,7 @@ module Since = struct
     else sorted_append new_in beta_alphas le
 
   let update_betas_suffix_in new_in betas_in =
-    let _ = List.iter new_in
+    let () = Deque.iter new_in
               ~f:(fun (ts, _, vp2_opt) ->
                 match vp2_opt with
                 | None -> Deque.clear betas_in
@@ -355,7 +350,7 @@ module Since = struct
     let beta_alphas_out, new_in_sat = split_in_out (fun (ts, _) -> ts) (l, r) msaux_minus_old.beta_alphas_out in
     let beta_alphas = update_beta_alphas new_in_sat msaux_minus_old.beta_alphas le in
     let alphas_betas_out, new_in_viol = split_in_out (fun (ts, _, _) -> ts) (l, r) msaux_minus_old.alphas_betas_out in
-    let betas_in = update_betas_suffix_in (Deque.to_list new_in_viol) msaux_minus_old.betas_in in
+    let betas_in = update_betas_suffix_in new_in_viol msaux_minus_old.betas_in in
     let alpha_betas = update_alpha_betas tp new_in_viol msaux_minus_old.alpha_betas le in
     { msaux_minus_old with beta_alphas
                          ; beta_alphas_out
@@ -1050,8 +1045,9 @@ let monitor_cli in_ch out_ch mode out_mode check le is_opt f =
     let sap_filtered = filter_ap sap mf_ap in
     let events_updated = (sap_filtered, ts)::st.events in
     let (ps, mf_updated) = meval' ts st.tp sap_filtered st.mf le in
-    let checker_ps = if check then Some (check_ps is_opt events_updated f (Deque.to_list ps)) else None in
-    let () = output_ps out_ch mode out_mode ts st.tp [] f (Deque.to_list ps) checker_ps in
+    let lps = Deque.to_list ps in
+    let checker_ps = if check then Some (check_ps is_opt events_updated f lps) else None in
+    let () = output_ps out_ch mode out_mode ts st.tp [] f lps checker_ps in
     let st_updated =
       { st with
         tp = st.tp+1
