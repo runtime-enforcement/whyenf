@@ -192,7 +192,7 @@ module Since = struct
                                   (Printf.sprintf "\n(%d)\nbeta = " ts) ^
                                   Expl.v_to_string "" p2)
 
-  let update_ts (l, r) a ts tp msaux =
+  let update_tss (l, r) a ts tp msaux =
     if a = 0 then
       let () = Deque.enqueue_back msaux.ts_tp_in (ts, tp) in
       let ts_tp_in = remove_if_pred_front (fun (ts', _) -> ts' < l) msaux.ts_tp_in in
@@ -344,7 +344,7 @@ module Since = struct
                ; alphas_out
                ; betas_in }
 
-  let advance_msaux (l, r) ts tp p1 p2 msaux le =
+  let shift_msaux (l, r) ts tp p1 p2 msaux le =
     let msaux_plus_new = add_to_msaux ts p1 p2 msaux le in
     let msaux_minus_old = remove_from_msaux (l, r) msaux_plus_new in
     let beta_alphas_out, new_in_sat = split_in_out (fun (ts, _) -> ts) (l, r) msaux_minus_old.beta_alphas_out in
@@ -366,8 +366,8 @@ module Since = struct
       let l = (-1) in
       let r = (-1) in
       let ts_zero = if Option.is_none msaux.ts_zero then Some(ts) else msaux.ts_zero in
-      let msaux_ts_updated = update_ts (l, r) a ts tp msaux in
-      let msaux_updated = advance_msaux (l, r) ts tp p1 p2 msaux_ts_updated le in
+      let msaux_ts_updated = update_tss (l, r) a ts tp msaux in
+      let msaux_updated = shift_msaux (l, r) ts tp p1 p2 msaux_ts_updated le in
       let p = V (VSinceOutL tp) in
       ([p], { msaux_updated with ts_zero })
     (* Case 2: there exists a \tau_{tp'} inside the interval s.t. tp' < tp *)
@@ -377,8 +377,8 @@ module Since = struct
       let l = if (Option.is_some b) then max 0 (ts - (Option.get b))
               else (Option.get ts_zero) in
       let r = ts - a in
-      let msaux_ts_updated = update_ts (l, r) a ts tp msaux in
-      let msaux_updated = advance_msaux (l, r) ts tp p1 p2 msaux_ts_updated le in
+      let msaux_ts_updated = update_tss (l, r) a ts tp msaux in
+      let msaux_updated = shift_msaux (l, r) ts tp p1 p2 msaux_ts_updated le in
       (candidate_proofs tp { msaux_updated with ts_zero }, { msaux_updated with ts_zero })
 end
 
