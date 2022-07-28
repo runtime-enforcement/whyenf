@@ -19,6 +19,7 @@ type sexpl =
   | SConj of sexpl * sexpl
   | SPrev of sexpl
   | SNext of sexpl
+  | SOnce of int * sexpl
   | SSince of sexpl * sexpl list
   | SUntil of sexpl * sexpl list
 and vexpl =
@@ -35,6 +36,8 @@ and vexpl =
   | VNextOutL of int
   | VNextOutR of int
   | VNext of vexpl
+  | VOnceOutL of int
+  | VOnceInf of int * int * vexpl list
   | VSince of int * vexpl * vexpl list
   | VSinceInf of int * int * vexpl list
   | VSinceOutL of int
@@ -59,6 +62,7 @@ let sappend sp sp1 = match sp with
   | _ -> failwith "Bad arguments for sappend"
 
 let vappend vp vp2 = match vp with
+  | VOnceInf (tp, etp, vp2s) -> VOnceInf (tp, etp, List.append vp2s [vp2])
   | VSince (tp, vp1, vp2s) -> VSince (tp,  vp1, List.append vp2s [vp2])
   | VSinceInf (tp, etp, vp2s) -> VSinceInf (tp, etp, List.append vp2s [vp2])
   | VUntil (tp, vp1, vp2s) -> VUntil (tp, vp1, vp2 :: vp2s)
@@ -86,6 +90,7 @@ let rec s_at = function
   | SConj (sphi, _) -> s_at sphi
   | SPrev sphi -> s_at sphi + 1
   | SNext sphi -> s_at sphi - 1
+  | SOnce (i, _) -> i
   | SSince (spsi, sphis) -> (match sphis with
       | [] -> s_at spsi
       | _ -> s_at (last sphis))
@@ -106,6 +111,8 @@ and v_at = function
   | VNextOutL i -> i
   | VNextOutR i -> i
   | VNext vphi -> v_at vphi - 1
+  | VOnceOutL i -> i
+  | VOnceInf (i, _, _) -> i
   | VSince (i, _, _) -> i
   | VSinceInf (i, _, _) -> i
   | VSinceOutL i -> i
@@ -133,12 +140,13 @@ let p_at = function
 let rec s_size = function
   | STT _ -> 1
   | SAtom (_, _) -> 1
-  | SNeg expl -> 1 + v_size expl
+  | SNeg vphi -> 1 + v_size vphi
   | SDisjL sphi -> 1 + s_size sphi
   | SDisjR spsi -> 1 + s_size spsi
   | SConj (sphi, spsi) -> 1 + s_size sphi + s_size spsi
-  | SPrev expl -> 1 + s_size expl
-  | SNext expl -> 1 + s_size expl
+  | SPrev sphi -> 1 + s_size sphi
+  | SNext sphi -> 1 + s_size sphi
+  | SOnce (_, sphi) -> 1 + s_size sphi
   | SSince (spsi, sphis) -> 1 + s_size spsi + sum s_size sphis
   | SUntil (spsi, sphis) -> 1 + s_size spsi + sum s_size sphis
 and v_size = function
@@ -155,8 +163,10 @@ and v_size = function
   | VNextOutL _ -> 1
   | VNextOutR _ -> 1
   | VNext vphi -> 1 + v_size vphi
+  | VOnceOutL _ -> 1
+  | VOnceInf (_, _, vpsis) -> 1 + sum v_size vpsis
   | VSince (_, vphi, vpsis) -> 1 + v_size vphi + sum v_size vpsis
-  | VSinceInf (_, _, vpsis) -> 1 + sum v_size vpsis
+  | VSinceInf (_, _, vphis) -> 1 + sum v_size vphis
   | VSinceOutL _ -> 1
   | VUntil (_, vphi, vpsis) -> 1 + v_size vphi + sum v_size vpsis
   | VUntilInf (_, _, vpsis) -> 1 + sum v_size vpsis
@@ -182,12 +192,13 @@ let rec s_wsize ws = function
   | SAtom (_, s) -> (match Hashtbl.find_opt ws s with
                      | None -> 1
                      | Some(w) -> w)
-  | SNeg expl -> 1 + v_wsize ws expl
+  | SNeg vphi -> 1 + v_wsize ws vphi
   | SDisjL sphi -> 1 + s_wsize ws sphi
   | SDisjR spsi -> 1 + s_wsize ws spsi
   | SConj (sphi, spsi) -> 1 + (s_wsize ws sphi) + (s_wsize ws spsi)
-  | SPrev expl -> 1 + s_wsize ws expl
-  | SNext expl -> 1 + s_wsize ws expl
+  | SPrev sphi -> 1 + s_wsize ws sphi
+  | SNext sphi -> 1 + s_wsize ws sphi
+  | SOnce (_, sphi) -> 1 + s_wsize ws sphi
   | SSince (spsi, sphis) -> 1 + (s_wsize ws spsi) + (sum (s_wsize ws) sphis)
   | SUntil (spsi, sphis) -> 1 + (s_wsize ws spsi) + (sum (s_wsize ws) sphis)
 and v_wsize ws = function
@@ -206,8 +217,10 @@ and v_wsize ws = function
   | VNextOutL _ -> 1
   | VNextOutR _ -> 1
   | VNext vphi -> 1 + v_wsize ws vphi
+  | VOnceOutL _ -> 1
+  | VOnceInf (_, _, vpsis) -> 1 + (sum (v_wsize ws) vpsis)
   | VSince (_, vphi, vpsis) -> 1 + v_wsize ws vphi + (sum (v_wsize ws) vpsis)
-  | VSinceInf (_, _, vpsis) -> 1 + (sum (v_wsize ws) vpsis)
+  | VSinceInf (_, _, vphis) -> 1 + (sum (v_wsize ws) vphis)
   | VSinceOutL _ -> 1
   | VUntil (_, vphi, vpsis) -> 1 + v_wsize ws vphi + (sum (v_wsize ws) vpsis)
   | VUntilInf (_, _, vpsis) -> 1 + (sum (v_wsize ws) vpsis)
@@ -230,8 +243,9 @@ let rec s_high = function
   | SDisjL sphi -> s_high sphi
   | SDisjR spsi -> s_high spsi
   | SConj (sphi, spsi) -> max (s_high sphi) (s_high spsi)
-  | SPrev sphi -> max (s_at (SPrev sphi)) (s_high sphi)
-  | SNext sphi -> max (s_at (SNext sphi)) (s_high sphi)
+  | SPrev sphi -> s_high sphi
+  | SNext sphi -> s_high sphi
+  | SOnce (_, sphi) -> s_high sphi
   | SSince (spsi, sphis) -> max (s_high spsi) (max_list (List.map s_high sphis))
   | SUntil (spsi, sphis) -> max (s_high spsi) (max_list (List.map s_high sphis))
 and v_high p = match p with
@@ -249,8 +263,10 @@ and v_high p = match p with
   | VNextOutR i -> i
   | VNext vphi -> max (v_at (VNext vphi)) (v_high vphi)
   (* TODO: Check if we should consider i here *)
+  | VOnceOutL i -> i
+  | VOnceInf (_, _, vpsis) -> max_list (List.map v_high vpsis)
   | VSince (_, vphi, vpsis) -> max (v_high vphi) (max_list (List.map v_high vpsis))
-  | VSinceInf (_, _, vpsis) -> max_list (List.map v_high vpsis)
+  | VSinceInf (_, _, vphis) -> max_list (List.map v_high vphis)
   | VSinceOutL i -> i
   | VUntil (_, vphi, vpsis) -> max (v_high vphi) (max_list (List.map v_high vpsis))
   | VUntilInf (_, _, vpsis) -> max_list (List.map v_high vpsis)
@@ -262,8 +278,9 @@ let rec s_low = function
   | SDisjL sphi -> s_low sphi
   | SDisjR spsi -> s_low spsi
   | SConj (sphi, spsi) -> min (s_low sphi) (s_low spsi)
-  | SPrev sphi -> min (s_at (SPrev sphi)) (s_low sphi)
-  | SNext sphi -> min (s_at (SNext sphi)) (s_low sphi)
+  | SPrev sphi -> s_low sphi
+  | SNext sphi -> s_low sphi
+  | SOnce (_, sphi) -> s_low sphi
   | SSince (spsi, sphis) -> min (s_low spsi) (min_list (List.map s_low sphis))
   | SUntil (spsi, sphis) -> min (s_low spsi) (min_list (List.map s_low sphis))
 and v_low p = match p with
@@ -280,9 +297,11 @@ and v_low p = match p with
   | VNextOutL i -> i
   | VNextOutR i -> i
   | VNext vphi -> min (v_at (VNext vphi)) (v_low vphi)
+  | VOnceOutL i -> i
+  | VOnceInf (_, _, vpsis) -> min_list (List.map v_low vpsis)
   (* TODO: Check if we should consider i here *)
   | VSince (_, vphi, vpsis) -> min (v_low vphi) (min_list (List.map v_low vpsis))
-  | VSinceInf (_, _, vpsis) -> min_list (List.map v_low vpsis)
+  | VSinceInf (_, _, vphis) -> min_list (List.map v_low vphis)
   | VSinceOutL i -> i
   | VUntil (_, vphi, vpsis) -> min (v_low vphi) (min_list (List.map v_low vpsis))
   | VUntilInf (_, _, vpsis) -> min_list (List.map v_low vpsis)
@@ -308,12 +327,13 @@ let low_le = mk_le (fun p -> - low p)
 let rec s_pred = function
   | STT _ -> 0
   | SAtom (_, _) -> 1
-  | SNeg expl -> v_pred expl
+  | SNeg sphi -> v_pred sphi
   | SDisjL sphi -> s_pred sphi
   | SDisjR spsi -> s_pred spsi
   | SConj (sphi, spsi) -> s_pred sphi + s_pred spsi
-  | SPrev expl -> s_pred expl
-  | SNext expl -> s_pred expl
+  | SPrev sphi -> s_pred sphi
+  | SNext sphi -> s_pred sphi
+  | SOnce (_, sphi) -> s_pred sphi
   | SSince (spsi, sphis) -> s_pred spsi + sum s_pred sphis
   | SUntil (spsi, sphis) -> s_pred spsi + sum s_pred sphis
 and v_pred = function
@@ -330,8 +350,10 @@ and v_pred = function
   | VNextOutL _ -> 0
   | VNextOutR _ -> 0
   | VNext vphi -> v_pred vphi
+  | VOnceOutL _ -> 0
+  | VOnceInf (_, _, vpsis) -> sum v_pred vpsis
   | VSince (_, vphi, vpsis) -> v_pred vphi + sum v_pred vpsis
-  | VSinceInf (_, _, vpsis) -> sum v_pred vpsis
+  | VSinceInf (_, _, vphis) -> sum v_pred vphis
   | VSinceOutL _ -> 0
   | VUntil (_, vphi, vpsis) -> v_pred vphi + sum v_pred vpsis
   | VUntilInf (_, _, vpsis) -> sum v_pred vpsis
@@ -354,6 +376,7 @@ let rec s_to_string indent p =
   | SConj (sphi, spsi) -> Printf.sprintf "%sSConj{%d}\n%s\n%s)" indent (s_at p) (s_to_string indent' sphi) (s_to_string indent' spsi)
   | SPrev sphi -> Printf.sprintf "%sSPrev{%d}\n%s" indent (s_at p) (s_to_string indent' sphi)
   | SNext sphi -> Printf.sprintf "%sSNext{%d}\n%s" indent (s_at p) (s_to_string indent' sphi)
+  | SOnce (_, sphi) -> Printf.sprintf "%sSOnce{%d}\n%s" indent (s_at p) (s_to_string indent' sphi)
   | SSince (spsi, sphis) ->
       Printf.sprintf "%sSSince{%d}\n%s\n%s" indent (s_at p) (s_to_string indent' spsi) (list_to_string indent' s_to_string sphis)
   | SUntil (spsi, sphis) ->
@@ -374,10 +397,13 @@ and v_to_string indent p =
   | VNextOutL i -> Printf.sprintf "%sVNextOutL{%d}" indent' i
   | VNextOutR i -> Printf.sprintf "%sVNextOutR{%d}" indent' i
   | VNext vphi -> Printf.sprintf "%sVNext{%d}\n%s" indent (v_at p) (v_to_string indent' vphi)
+  | VOnceOutL i -> Printf.sprintf "%sVOnceOutL{%d}" indent' i
+  | VOnceInf (_, _, vpsis) ->
+     Printf.sprintf "%sVOnceInf{%d}\n%s" indent (v_at p) (list_to_string indent' v_to_string vpsis)
   | VSince (_, vphi, vpsis) ->
      Printf.sprintf "%sVSince{%d}\n%s\n%s" indent (v_at p) (v_to_string indent' vphi) (list_to_string indent' v_to_string vpsis)
-  | VSinceInf (_, _, vpsis) ->
-     Printf.sprintf "%sVSinceInf{%d}\n%s" indent (v_at p) (list_to_string indent' v_to_string vpsis)
+  | VSinceInf (_, _, vphis) ->
+     Printf.sprintf "%sVSinceInf{%d}\n%s" indent (v_at p) (list_to_string indent' v_to_string vphis)
   | VSinceOutL i -> Printf.sprintf "%sVSinceOutL{%d}" indent' i
   | VUntil (_, vphi, vpsis) ->
       Printf.sprintf "%sVUntil{%d}\n%s\n%s" indent (v_at p) (list_to_string indent' v_to_string vpsis) (v_to_string indent' vphi)

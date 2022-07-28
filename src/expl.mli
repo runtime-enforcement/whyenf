@@ -17,6 +17,7 @@ type sexpl =
   | SConj of sexpl * sexpl
   | SPrev of sexpl
   | SNext of sexpl
+  | SOnce of int * sexpl
   | SSince of sexpl * sexpl list
   | SUntil of sexpl * sexpl list
 and vexpl =
@@ -33,6 +34,8 @@ and vexpl =
   | VNextOutL of int
   | VNextOutR of int
   | VNext of vexpl
+  | VOnceOutL of int
+  | VOnceInf of int * int * vexpl list
   | VSince of int * vexpl * vexpl list
   | VSinceInf of int * int * vexpl list
   | VSinceOutL of int
