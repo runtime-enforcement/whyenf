@@ -112,6 +112,20 @@ let split_out_in get_ts (z, l) d =
   let () = aux d in
   (d, new_out)
 
+module Once = struct
+  type moaux = {
+      ts_zero: timestamp option
+    ; ts_tp_in: (timestamp * timepoint) Deque.t
+    ; ts_tp_out: (timestamp * timepoint) Deque.t
+    ; s_alphas_in: (timestamp * expl) Deque.t
+    ; v_alphas_in: (timestamp * vexpl) Deque.t
+    ; v_alphas_out: (timestamp * vexpl option) Deque.t
+    ; }
+
+  let update_once interval ts tp p1 moaux le = V (VOnceOutL tp)
+
+end
+
 module Since = struct
   type msaux = {
       ts_zero: timestamp option
@@ -840,6 +854,7 @@ type mformula =
   | MDisj of mformula * mformula * mbuf2
   | MPrev of interval * mformula * bool * expl Deque.t * timestamp Deque.t
   | MNext of interval * mformula * bool * timestamp Deque.t
+  | MOnce of interval * mformula * Once.moaux
   | MSince of interval * mformula * mformula * mbuf2 * (timestamp * timepoint) Deque.t * Since.msaux
   | MUntil of interval * mformula * mformula * mbuf2 * (timestamp * timepoint) Deque.t * Until.muaux
 
@@ -853,6 +868,7 @@ let rec mformula_to_string l f =
   | MNeg f -> Printf.sprintf "¬%a" (fun x -> mformula_to_string 5) f
   | MPrev (i, f, _, _, _) -> Printf.sprintf (paren l 5 "●%a %a") (fun x -> interval_to_string) i (fun x -> mformula_to_string 5) f
   | MNext (i, f, _, _) -> Printf.sprintf (paren l 5 "○%a %a") (fun x -> interval_to_string) i (fun x -> mformula_to_string 5) f
+  | MOnce (i, f, _) -> Printf.sprintf (paren l 5 "⧫%a %a") (fun x -> interval_to_string) i (fun x -> mformula_to_string 5) f
   | MSince (i, f, g, _, _, _) -> Printf.sprintf (paren l 0 "%a S%a %a") (fun x -> mformula_to_string 5) f (fun x -> interval_to_string) i (fun x -> mformula_to_string 5) g
   | MUntil (i, f, g, _, _, _) -> Printf.sprintf (paren l 0 "%a U%a %a") (fun x -> mformula_to_string 5) f (fun x -> interval_to_string) i (fun x -> mformula_to_string 5) g
 let mformula_to_string = mformula_to_string 0
@@ -868,6 +884,7 @@ let relevant_ap mf =
     | MNeg f -> aux f
     | MPrev (i, f, _, _, _) -> aux f
     | MNext (i, f, _, _) -> aux f
+    | MOnce (i, f, _) -> aux f
     | MSince (i, f, g, _, _, _) -> aux f @ aux g
     | MUntil (i, f, g, _, _, _) -> aux f @ aux g in
   let lst_with_dup = aux mf in
@@ -903,6 +920,15 @@ let rec minit f =
      MDisj (minit f, minit g, buf)
   | Prev (i, f) -> MPrev (i, minit f, true, (Deque.create ()), (Deque.create ()))
   | Next (i, f) -> MNext (i, minit f, true, (Deque.create ()))
+  | Once (i, f) ->
+     let moaux = { Once.ts_zero = None
+                 ; ts_tp_in = Deque.create ()
+                 ; ts_tp_out = Deque.create ()
+                 ; s_alphas_in = Deque.create ()
+                 ; v_alphas_in = Deque.create ()
+                 ; v_alphas_out = Deque.create ()
+                 ; } in
+     MOnce (i, minit f, moaux)
   | Since (i, f, g) ->
      let buf = (Deque.create (), Deque.create ()) in
      let msaux = { Since.ts_zero = None
@@ -998,6 +1024,13 @@ let meval' ts tp sap mform le =
        let first = if first && (Deque.length ps) > 0 then (let () = Deque.drop_front ps in false) else first in
        let (ps', _, tss') = Prev_Next.mprev_next Next interval ps tss le in
        (ts, ps', MNext (interval, mf', first, tss'))
+    | MOnce (interval, mf, moaux) ->
+       let (_, ps, mf') = meval tp ts sap mf in
+       let ps' = Deque.fold ps ~init:(Deque.create ())
+                   ~f:(fun d p ->
+                     let p' = Once.update_once interval ts tp p moaux le in
+                     let () = Deque.enqueue_back d p' in d) in
+       (ts, ps', MOnce (interval, mf', moaux))
     | MSince (interval, mf1, mf2, buf, tss_tps, msaux) ->
        (* let () = Printf.printf "\nsince: %s\n" (mformula_to_string (MSince (interval, mf1, mf2, buf, tss_tps, msaux))) in *)
        let (_, p1s, mf1') = meval tp ts sap mf1 in
