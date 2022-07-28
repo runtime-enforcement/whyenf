@@ -17,6 +17,17 @@ module Deque = Core_kernel.Deque
 
 type mbuf2 = expl Deque.t * expl Deque.t
 
+module Once : sig
+  type moaux = {
+      ts_zero: timestamp option
+    ; ts_tp_in: (timestamp * timepoint) Deque.t
+    ; ts_tp_out: (timestamp * timepoint) Deque.t
+    ; s_alphas_in: (timestamp * expl) Deque.t
+    ; v_alphas_in: (timestamp * vexpl) Deque.t
+    ; v_alphas_out: (timestamp * vexpl option) Deque.t
+    ; }
+end
+
 module Since : sig
   type msaux = {
       ts_zero: timestamp option
@@ -70,6 +81,7 @@ type mformula =
   | MDisj of mformula * mformula * mbuf2
   | MPrev of interval * mformula * bool * expl Deque.t * timestamp Deque.t
   | MNext of interval * mformula * bool * timestamp Deque.t
+  | MOnce of interval * mformula * Once.moaux
   | MSince of interval * mformula * mformula * mbuf2 * (timestamp * timepoint) Deque.t * Since.msaux
   | MUntil of interval * mformula * mformula * mbuf2 * (timestamp * timepoint) Deque.t * Until.muaux
 
