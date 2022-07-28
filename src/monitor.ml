@@ -122,7 +122,7 @@ module Once = struct
     ; v_alphas_out: (timestamp * vexpl option) Deque.t
     ; }
 
-  let update_once interval ts tp p1 moaux le = V (VOnceOutL tp)
+  let update_once interval ts tp p1 moaux le = (V (VOnceOutL tp), moaux)
 
 end
 
@@ -1026,11 +1026,11 @@ let meval' ts tp sap mform le =
        (ts, ps', MNext (interval, mf', first, tss'))
     | MOnce (interval, mf, moaux) ->
        let (_, ps, mf') = meval tp ts sap mf in
-       let ps' = Deque.fold ps ~init:(Deque.create ())
-                   ~f:(fun d p ->
-                     let p' = Once.update_once interval ts tp p moaux le in
-                     let () = Deque.enqueue_back d p' in d) in
-       (ts, ps', MOnce (interval, mf', moaux))
+       let (ps', moaux') = Deque.fold ps ~init:(Deque.create (), moaux)
+                   ~f:(fun (d, moaux') p ->
+                     let (p', moaux') = Once.update_once interval ts tp p moaux' le in
+                     let () = Deque.enqueue_back d p' in (d, moaux')) in
+       (ts, ps', MOnce (interval, mf', moaux'))
     | MSince (interval, mf1, mf2, buf, tss_tps, msaux) ->
        (* let () = Printf.printf "\nsince: %s\n" (mformula_to_string (MSince (interval, mf1, mf2, buf, tss_tps, msaux))) in *)
        let (_, p1s, mf1') = meval tp ts sap mf1 in
