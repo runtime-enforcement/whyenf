@@ -112,17 +112,136 @@ let split_out_in get_ts (z, l) d =
   let () = aux d in
   (d, new_out)
 
+let etp ts_tp_in ts_tp_out tp =
+  match Deque.peek_front ts_tp_in with
+  | None -> (match Deque.peek_front ts_tp_out with
+             | None -> tp
+             | Some (_, tp') -> tp')
+  | Some (_, tp') -> tp'
+
 module Once = struct
   type moaux = {
       ts_zero: timestamp option
     ; ts_tp_in: (timestamp * timepoint) Deque.t
     ; ts_tp_out: (timestamp * timepoint) Deque.t
     ; s_alphas_in: (timestamp * expl) Deque.t
+    ; s_alphas_out: (timestamp * expl) Deque.t
     ; v_alphas_in: (timestamp * vexpl) Deque.t
-    ; v_alphas_out: (timestamp * vexpl option) Deque.t
+    ; v_alphas_out: (timestamp * vexpl) Deque.t
     ; }
 
-  let update_once interval ts tp p1 moaux le = (V (VOnceOutL tp), moaux)
+  let moaux_to_string { ts_zero
+                      ; ts_tp_in
+                      ; ts_tp_out
+                      ; s_alphas_in
+                      ; s_alphas_out
+                      ; v_alphas_in
+                      ; v_alphas_out } =
+    "\n\nmoaux: " ^
+      (match ts_zero with
+       | None -> ""
+       | Some(ts) -> Printf.sprintf "\nts_zero = (%d)\n" ts) ^
+      Deque.fold ts_tp_in ~init:"\nts_in = ["
+        ~f:(fun acc (ts, tp) -> acc ^ (Printf.sprintf "(%d, %d);" ts tp)) ^
+      (Printf.sprintf "]\n") ^
+      Deque.fold ts_tp_out ~init:"\nts_out = ["
+        ~f:(fun acc (ts, tp) -> acc ^ (Printf.sprintf "(%d, %d);" ts tp)) ^
+      (Printf.sprintf "]\n") ^
+      Deque.fold s_alphas_in ~init:"\ns_alphas_in = "
+        ~f:(fun acc (ts, p) ->
+          acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Expl.expl_to_string p) ^
+      Deque.fold s_alphas_out ~init:"\ns_alphas_out = "
+        ~f:(fun acc (ts, p) ->
+          acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Expl.expl_to_string p) ^
+      Deque.fold v_alphas_in ~init:"\nv_alphas_in = "
+        ~f:(fun acc (ts, p) ->
+          acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Expl.v_to_string "" p) ^
+      Deque.fold v_alphas_in ~init:"\nv_alphas_out = "
+        ~f:(fun acc (ts, p) ->
+          acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Expl.v_to_string "" p)
+
+  let update_tss (l, r) a ts tp aux =
+    if a = 0 then
+      let () = Deque.enqueue_back aux.ts_tp_in (ts, tp) in
+      let ts_tp_in = remove_if_pred_front (fun (ts', _) -> ts' < l) aux.ts_tp_in in
+      { aux with ts_tp_in }
+    else
+      let () = Deque.enqueue_back aux.ts_tp_out (ts, tp) in
+      let () = Deque.iter aux.ts_tp_out
+                 ~f:(fun (ts', tp') ->
+                   if ts' <= r then
+                     Deque.enqueue_back aux.ts_tp_in (ts', tp')) in
+      let ts_tp_out = remove_if_pred_front (fun (ts', _) -> ts' <= r) aux.ts_tp_out in
+      let ts_tp_in = remove_if_pred_front (fun (ts', _) -> ts' < l) aux.ts_tp_in in
+      { aux with ts_tp_out; ts_tp_in }
+
+  let update_s_alphas_in new_in_sat s_alphas_in le =
+    if (Deque.is_empty new_in_sat) then s_alphas_in
+    else sorted_append new_in_sat s_alphas_in le
+
+  let update_v_alphas_in new_in_viol v_alphas_in =
+    let () = Deque.iter new_in_viol (fun (ts, vp) ->
+                 Deque.enqueue_back v_alphas_in (ts, vp)) in
+    v_alphas_in
+
+  let eval_moaux tp moaux =
+    if not (Deque.is_empty moaux.s_alphas_in) then
+      S (SOnce (tp, unS(snd(Deque.peek_front_exn moaux.s_alphas_in))))
+    else
+      let etp = match Deque.is_empty moaux.v_alphas_in with
+        | true -> etp moaux.ts_tp_in moaux.ts_tp_out tp
+        | false -> v_at (snd(Deque.peek_front_exn moaux.v_alphas_in)) in
+      let v_alphas_in' = List.rev(Deque.fold moaux.v_alphas_in ~init:[]
+                                    ~f:(fun acc (_, vp1) -> vp1::acc)) in
+      V (VOnceInf (tp, etp, v_alphas_in'))
+
+  let add_to_moaux ts p1 moaux le =
+    match p1 with
+    | S sp1 -> let () = Deque.enqueue_back moaux.s_alphas_out (ts, (S sp1)) in moaux
+    | V vp1 -> let () = Deque.enqueue_back moaux.v_alphas_out (ts, vp1) in moaux
+
+  let remove_from_moaux (l, r) moaux =
+    let s_alphas_in = remove_if_pred_front (fun (ts, _) -> ts < l) moaux.s_alphas_in in
+    let s_alphas_out = remove_if_pred_front (fun (ts, _) -> ts <= r) moaux.s_alphas_out in
+    let v_alphas_in = remove_if_pred_front (fun (ts, _) -> ts < l) moaux.v_alphas_in in
+    let v_alphas_out = remove_if_pred_front (fun (ts, _) -> ts <= r) moaux.v_alphas_out in
+    { moaux with s_alphas_in
+               ; s_alphas_out
+               ; v_alphas_in
+               ; v_alphas_out }
+
+  let shift_moaux (l, r) ts tp p1 moaux le =
+    let moaux_plus_new = add_to_moaux ts p1 moaux le in
+    let s_alphas_out, new_in_sat = split_in_out (fun (ts, _) -> ts) (l, r) moaux_plus_new.s_alphas_out in
+    let s_alphas_in = update_s_alphas_in new_in_sat moaux_plus_new.s_alphas_in le in
+    let v_alphas_out, new_in_viol = split_in_out (fun (ts, _) -> ts) (l, r) moaux_plus_new.v_alphas_out in
+    let v_alphas_in = update_v_alphas_in new_in_viol moaux_plus_new.v_alphas_in in
+    let moaux_minus_old = remove_from_moaux (l, r) moaux_plus_new in
+    { moaux_minus_old with s_alphas_out
+                         ; s_alphas_in
+                         ; v_alphas_out
+                         ; v_alphas_in }
+
+  let update_once interval ts tp p1 moaux le =
+    let a = get_a_I interval in
+    if ((Option.is_none moaux.ts_zero) && a > 0) ||
+         (Option.is_some moaux.ts_zero) && ts < (Option.get moaux.ts_zero) + a then
+      let l = (-1) in
+      let r = (-1) in
+      let ts_zero = if Option.is_none moaux.ts_zero then Some(ts) else moaux.ts_zero in
+      let moaux_ts_updated = update_tss (l, r) a ts tp moaux in
+      let moaux_updated = shift_moaux (l, r) ts tp p1 moaux_ts_updated le in
+      let p = V (VOnceOutL tp) in
+      (p, { moaux_updated with ts_zero })
+    else
+      let ts_zero = if Option.is_none moaux.ts_zero then Some(ts) else moaux.ts_zero in
+      let b = get_b_I interval in
+      let l = if (Option.is_some b) then max 0 (ts - (Option.get b))
+              else (Option.get ts_zero) in
+      let r = ts - a in
+      let moaux_ts_updated = update_tss (l, r) a ts tp moaux in
+      let moaux_updated = shift_moaux (l, r) ts tp p1 moaux_ts_updated le in
+      (eval_moaux tp { moaux_updated with ts_zero }, { moaux_updated with ts_zero })
 
 end
 
@@ -206,20 +325,20 @@ module Since = struct
                                   (Printf.sprintf "\n(%d)\nbeta = " ts) ^
                                   Expl.v_to_string "" p2)
 
-  let update_tss (l, r) a ts tp msaux =
+  let update_tss (l, r) a ts tp aux =
     if a = 0 then
-      let () = Deque.enqueue_back msaux.ts_tp_in (ts, tp) in
-      let ts_tp_in = remove_if_pred_front (fun (ts', _) -> ts' < l) msaux.ts_tp_in in
-      { msaux with ts_tp_in }
+      let () = Deque.enqueue_back aux.ts_tp_in (ts, tp) in
+      let ts_tp_in = remove_if_pred_front (fun (ts', _) -> ts' < l) aux.ts_tp_in in
+      { aux with ts_tp_in }
     else
-      let () = Deque.enqueue_back msaux.ts_tp_out (ts, tp) in
-      let () = Deque.iter msaux.ts_tp_out
+      let () = Deque.enqueue_back aux.ts_tp_out (ts, tp) in
+      let () = Deque.iter aux.ts_tp_out
                 ~f:(fun (ts', tp') ->
                   if ts' <= r then
-                    Deque.enqueue_back msaux.ts_tp_in (ts', tp')) in
-      let ts_tp_out = remove_if_pred_front (fun (ts', _) -> ts' <= r) msaux.ts_tp_out in
-      let ts_tp_in = remove_if_pred_front (fun (ts', _) -> ts' < l) msaux.ts_tp_in in
-      { msaux with ts_tp_out; ts_tp_in }
+                    Deque.enqueue_back aux.ts_tp_in (ts', tp')) in
+      let ts_tp_out = remove_if_pred_front (fun (ts', _) -> ts' <= r) aux.ts_tp_out in
+      let ts_tp_in = remove_if_pred_front (fun (ts', _) -> ts' < l) aux.ts_tp_in in
+      { aux with ts_tp_out; ts_tp_in }
 
   let add_alphas_out ts vvp' alphas_out le =
     let alphas_out' = remove_if_pred_back (fun (_, vvp) -> le vvp' vvp) alphas_out in
@@ -275,13 +394,6 @@ module Since = struct
                                | Some(vp2) -> vappend_to_deque vp2 d) in
     let alpha_betas' = add_new_ps_alpha_betas tp new_in alpha_betas_vapp le in
     (update_alpha_betas_tps tp alpha_betas')
-
-  let etp ts_tp_in ts_tp_out tp =
-    match Deque.peek_front ts_tp_in with
-    | None -> (match Deque.peek_front ts_tp_out with
-               | None -> tp
-               | Some (_, tp') -> tp')
-    | Some (_, tp') -> tp'
 
   let candidate_proofs tp msaux =
     if not (Deque.is_empty msaux.beta_alphas) then
@@ -515,6 +627,7 @@ module Until = struct
     let _ = remove_if_pred_front_ne (fun d' -> Deque.is_empty d') d in
     d
 
+  (* TODO: Remove the functions below (use Deque.to_list) *)
   let alphas_suffix_to_list alphas_suffix =
     List.rev(Deque.fold alphas_suffix ~init:[] ~f:(fun acc (_, sp1) -> sp1::acc))
 
@@ -925,6 +1038,7 @@ let rec minit f =
                  ; ts_tp_in = Deque.create ()
                  ; ts_tp_out = Deque.create ()
                  ; s_alphas_in = Deque.create ()
+                 ; s_alphas_out = Deque.create ()
                  ; v_alphas_in = Deque.create ()
                  ; v_alphas_out = Deque.create ()
                  ; } in
@@ -1030,6 +1144,7 @@ let meval' ts tp sap mform le =
                    ~f:(fun (d, moaux') p ->
                      let (p', moaux') = Once.update_once interval ts tp p moaux' le in
                      let () = Deque.enqueue_back d p' in (d, moaux')) in
+       (* let () = Printf.printf "%s\n" (Once.moaux_to_string moaux') in *)
        (ts, ps', MOnce (interval, mf', moaux'))
     | MSince (interval, mf1, mf2, buf, tss_tps, msaux) ->
        (* let () = Printf.printf "\nsince: %s\n" (mformula_to_string (MSince (interval, mf1, mf2, buf, tss_tps, msaux))) in *)
