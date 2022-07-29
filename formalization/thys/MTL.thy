@@ -9334,16 +9334,10 @@ proof (rule ccontr)
             by (cases p1) (auto simp: min_list_wrt_def)
           then have form_do_once: "doOnce i (left I) p1 p' = [Inl (SOnce i a1)]"
             using p1l p'l True a'_def unfolding doOnce_def by auto
-          then have p_eq_i: "s_at sphi \<le> i"
-            using sphi_bounds
-            by simp
-          then have wqo_p: "wqo p1 (Inl a)" 
-            using p1_def p_eq_i valphi a_def p1l SOnce form q_le q_s
-            unfolding optimal_def 
-            sorry
           then have "wqo minp q"
-            using vmin True SOnce a_def optimal_def p1_def p1l q_s valphi
-            apply (auto simp: form valid_def Let_def i_ltp_to_tau split: enat.splits if_splits)
+            using Inl q_val p1_def SOnce[of a1 sphi] sphi_bounds
+            unfolding doOnce_def class.wqo_def
+            apply (auto simp: optimal_def valid_def q_s a_def i_etp_to_tau Let_def)
             sorry
           moreover have "Inl (SOnce i a1) \<in> set (doOnce i (left I) p1 p')"
             using form_do_once by auto
