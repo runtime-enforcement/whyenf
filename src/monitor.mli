@@ -29,6 +29,18 @@ module Once : sig
     ; }
 end
 
+module Historically : sig
+  type mhaux = {
+      ts_zero: timestamp option
+    ; ts_tp_in: (timestamp * timepoint) Deque.t
+    ; ts_tp_out: (timestamp * timepoint) Deque.t
+    ; s_alphas_in: (timestamp * sexpl) Deque.t
+    ; s_alphas_out: (timestamp * sexpl) Deque.t
+    ; v_alphas_in: (timestamp * expl) Deque.t
+    ; v_alphas_out: (timestamp * expl) Deque.t
+    ; }
+end
+
 module Since : sig
   type msaux = {
       ts_zero: timestamp option
@@ -83,6 +95,7 @@ type mformula =
   | MPrev of interval * mformula * bool * expl Deque.t * timestamp Deque.t
   | MNext of interval * mformula * bool * timestamp Deque.t
   | MOnce of interval * mformula * Once.moaux
+  | MHistorically of interval * mformula * Historically.mhaux
   | MSince of interval * mformula * mformula * mbuf2 * (timestamp * timepoint) Deque.t * Since.msaux
   | MUntil of interval * mformula * mformula * mbuf2 * (timestamp * timepoint) Deque.t * Until.muaux
 
