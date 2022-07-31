@@ -19,6 +19,8 @@ type sexpl =
   | SNext of sexpl
   | SOnce of int * sexpl
   | SHistorically of int * int * sexpl list
+  | SEventually of int * sexpl
+  | SAlways of int * int * sexpl list
   | SSince of sexpl * sexpl list
   | SUntil of sexpl * sexpl list
 and vexpl =
@@ -39,6 +41,8 @@ and vexpl =
   | VOnceInf of int * int * vexpl list
   | VHistoricallyOutL of int
   | VHistorically of int * vexpl
+  | VEventually of int * int * vexpl list
+  | VAlways of int * vexpl
   | VSince of int * vexpl * vexpl list
   | VSinceInf of int * int * vexpl list
   | VSinceOutL of int
