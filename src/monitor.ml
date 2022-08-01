@@ -388,16 +388,21 @@ end
 
 module Eventually = struct
   type meaux = {
-      ts_tp_in: (timestamp * timepoint) Deque.t
+      ts_tp_out: (timestamp * timepoint) Deque.t
+    ; ts_tp_in: (timestamp * timepoint) Deque.t
     ; s_alphas_in: (timestamp * expl) Deque.t
     ; v_alphas_in: (timestamp * vexpl) Deque.t
     ; optimal_proofs: (timestamp * expl) Deque.t
     ; }
 
-  let meaux_to_string { ts_tp_in
+  let meaux_to_string { ts_tp_out
+                      ; ts_tp_in
                       ; s_alphas_in
                       ; v_alphas_in } =
     "\n\nmeaux: " ^
+      Deque.fold ts_tp_out ~init:"\nts_out = ["
+        ~f:(fun acc (ts, tp) -> acc ^ (Printf.sprintf "(%d, %d);" ts tp)) ^
+      (Printf.sprintf "]\n") ^
       Deque.fold ts_tp_in ~init:"\nts_in = ["
         ~f:(fun acc (ts, tp) -> acc ^ (Printf.sprintf "(%d, %d);" ts tp)) ^
       (Printf.sprintf "]\n") ^
@@ -411,16 +416,35 @@ module Eventually = struct
         ~f:(fun acc (ts, p) ->
           acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Expl.expl_to_string p)
 
+  let drop_first_ts_tp meaux =
+    match Deque.peek_front meaux.ts_tp_out with
+    | None -> Deque.drop_front meaux.ts_tp_in
+    | Some (_) -> Deque.drop_front meaux.ts_tp_out
+
+  let adjust_ts_tp a ts tp meaux =
+    let () = Deque.iter meaux.ts_tp_in
+               ~f:(fun (ts', tp') ->
+                 if (ts' < ts + a) && (tp' < tp) then Deque.enqueue_back meaux.ts_tp_out (ts', tp')) in
+    let _ = remove_if_pred_front (fun (ts', tp') -> (ts' < ts) && (tp' < tp)) meaux.ts_tp_out in
+    let _ = remove_if_pred_front (fun (ts', tp') -> (ts' < ts + a) && (tp' < tp)) meaux.ts_tp_in in
+    ()
+
   let adjust_meaux a (nts, ntp) meaux le =
-    let current_tp = match Deque.peek_front meaux.ts_tp_in with
+    let current_tp = match first_ts_tp meaux.ts_tp_out meaux.ts_tp_in with
       | None -> raise (NOT_FOUND "tp not found")
       | Some(_, tp') -> tp' in
-    let () = Deque.drop_front meaux.ts_tp_in in
-    let (first_ts, first_tp) = match Deque.peek_front meaux.ts_tp_in with
+    let () = drop_first_ts_tp meaux in
+    let (first_ts, first_tp) = match first_ts_tp meaux.ts_tp_out meaux.ts_tp_in with
       | None -> (nts, ntp)
       | Some(ts', tp') -> (ts', tp') in
+    let () = adjust_ts_tp a first_ts ntp meaux in
     let s_alphas_in = remove_if_pred_front (fun (ts', p) -> ts' < first_ts + a) meaux.s_alphas_in in
-    let v_alphas_in = remove_if_pred_front (fun (_, vp) -> (v_at vp) < first_tp) meaux.v_alphas_in in
+    let v_alphas_in = remove_if_pred_front (fun (_, vp) ->
+                              match Deque.peek_front meaux.ts_tp_in with
+                              | None -> (match Deque.peek_back meaux.ts_tp_out with
+                                         | None -> (v_at vp) <= ntp
+                                         | Some(_, tp') -> (v_at vp) <= tp')
+                              | Some (_, tp') -> (v_at vp) < tp') meaux.v_alphas_in in
     { meaux with s_alphas_in; v_alphas_in }
 
   let eval_step_meaux a (nts, ntp) ts tp meaux le =
@@ -429,9 +453,9 @@ module Eventually = struct
                 | (_, S sp) -> if tp = (s_at sp) then Deque.enqueue_back meaux.optimal_proofs (ts, S sp)
                 | _ -> raise VEXPL)
              else
-               (let ltp = match Deque.is_empty meaux.v_alphas_in with
-                  | true -> tp
-                  | false -> v_at (snd(Deque.peek_back_exn meaux.v_alphas_in)) in
+               (let ltp = match Deque.peek_back meaux.v_alphas_in with
+                  | None -> snd(Deque.peek_back_exn meaux.ts_tp_out)
+                  | Some (_, vp2) -> v_at vp2 in
                 let v_alphas_in' = List.rev(Deque.fold meaux.v_alphas_in ~init:[]
                                               ~f:(fun acc (_, vp1) -> vp1::acc)) in
                 Deque.enqueue_back meaux.optimal_proofs (ts, V (VEventually (tp, ltp, v_alphas_in')))) in
@@ -439,12 +463,13 @@ module Eventually = struct
 
   let shift_meaux (a, b) (nts, ntp) meaux le =
     let () = Printf.printf "shift_meaux nts = %d; ntp = %d\n" nts ntp in
-    Deque.fold meaux.ts_tp_in ~init:meaux
+    let tss_tps = ready_tss_tps meaux.ts_tp_out meaux.ts_tp_in nts b in
+    Deque.fold tss_tps ~init:meaux
       ~f:(fun acc (ts, tp) -> if ts + b < nts then eval_step_meaux a (nts, ntp) ts tp acc le
                               else acc)
 
   let add_to_meaux a (ts, tp) p1 meaux le =
-    let first_ts = match Deque.peek_front meaux.ts_tp_in with
+    let first_ts = match first_ts_tp meaux.ts_tp_out meaux.ts_tp_in with
       | None -> 0
       | Some(ts', _) -> ts' in
     match p1 with
@@ -463,11 +488,15 @@ module Eventually = struct
       | None -> raise UNBOUNDED_FUTURE
       | Some(b') -> b' in
     let meaux = shift_meaux (a, b) (nts, ntp) meaux le in
-    let () = if (not (Deque.is_empty meaux.ts_tp_in)) then
-               (let (first_ts, _) = Deque.peek_front_exn meaux.ts_tp_in in
-                if nts >= first_ts + a then Deque.enqueue_back meaux.ts_tp_in (nts, ntp))
+    let () = if (not (Deque.is_empty meaux.ts_tp_out)) || (not (Deque.is_empty meaux.ts_tp_in)) then
+               (let ts = match first_ts_tp meaux.ts_tp_out meaux.ts_tp_in with
+                  | None -> raise (NOT_FOUND "(ts, tp) deques are empty")
+                  | Some(ts', _) -> ts' in
+                (if nts < ts + a then Deque.enqueue_back meaux.ts_tp_out (nts, ntp)
+                 else Deque.enqueue_back meaux.ts_tp_in (nts, ntp)))
              else (if (nts >= a && nts <= b) || (a == 0) then
-                     Deque.enqueue_back meaux.ts_tp_in (nts, ntp)) in
+                     Deque.enqueue_back meaux.ts_tp_in (nts, ntp)
+                   else Deque.enqueue_back meaux.ts_tp_out (nts, ntp)) in
     let meaux = add_to_meaux a (nts, ntp) p meaux le in
     meaux
 
@@ -1291,6 +1320,7 @@ let rec minit f =
      MHistorically (i, minit f, mhaux)
   | Eventually (i, f) ->
      let meaux = { Eventually.ts_tp_in = Deque.create ()
+                 ; ts_tp_out = Deque.create ()
                  ; s_alphas_in = Deque.create ()
                  ; v_alphas_in = Deque.create ()
                  ; optimal_proofs = Deque.create ()
