@@ -1578,19 +1578,13 @@ lemma eq_Eq_comparator_proof:
       comparator.Lt_lt_conv[OF ID_ccompare'[OF assms]]
       comparator.Gt_lt_conv[OF ID_ccompare'[OF assms]]
       split: sproof.splits vproof.splits order.splits if_splits)
-              apply (meson ID_ccompare' anti_sym assms)
-             apply (metis order.simps(2) order.simps(4))
-            apply (metis order.simps(2) order.simps(4))
-           apply (metis order.simps(2) order.simps(4))
-          apply (metis order.simps(2) order.simps(4))
-         apply (metis order.simps(2) order.simps(4))
-        apply (meson ID_ccompare' anti_sym assms)
-       apply (metis order.simps(2) order.simps(4))
-      apply (metis order.simps(2) order.simps(4))
-     apply (metis order.simps(2) order.simps(4))
-    apply (metis order.simps(2) order.simps(4))
-   apply (metis order.simps(2) order.simps(4))
-  apply (metis order.simps(2) order.simps(4))
+              apply auto[1]
+  apply (metis Comparator.comparator.Gt_lt_conv Comparator.comparator.Lt_lt_conv Comparator.order.simps(6) ID_ccompare' assms)
+  apply (metis Comparator.comparator.Gt_lt_conv Comparator.comparator.Lt_lt_conv Comparator.order.simps(6) ID_ccompare' assms)
+  apply (metis Comparator.order.distinct(1) Comparator.order.distinct(3) order.simps(2,4))+
+  apply (metis Comparator.comparator.Gt_lt_conv Comparator.comparator.Lt_lt_conv Comparator.order.simps(6) ID_code assms ccompare)
+  apply (metis Comparator.order.distinct(1) Comparator.order.distinct(3))
+             apply (metis order.simps(2) order.simps(4))+
   done
 
 lemma trans_order_equal[simp]:
@@ -1634,37 +1628,8 @@ next
   then show ?case
     apply (simp add: comparator_of_def comparator.comp_same[OF ID_ccompare'[OF assms]]
         comparator.eq_Eq_conv[OF ID_ccompare'[OF assms]] split: sproof.splits vproof.splits order.splits if_splits)
-    apply safe
-                        apply (metis comparator.sym invert_order.simps(1) order.distinct(5) ID_ccompare' assms)
-                        apply (metis order.distinct(5))
-                        apply (metis order.distinct(5))
-                        apply (metis comparator.sym invert_order.simps(1) order.distinct(5) ID_ccompare' assms)
-                        apply (metis comparator.comp_trans order.distinct(5) ID_ccompare' assms)
-                        apply (metis comparator.comp_trans order.distinct(5) ID_ccompare' assms)
-                        apply (metis comparator.sym invert_order.simps(1) order.distinct(5) ID_ccompare' assms)
-                        apply (metis comparator.comp_trans order.distinct(5) ID_ccompare' assms)
-                        apply (metis order.distinct(5))
-                       apply (metis comparator.sym invert_order.simps(1) order.distinct(5) ID_ccompare' assms)
-                      apply (metis order.distinct(5))
-                     apply (metis comparator.comp_trans order.distinct(5) ID_ccompare' assms)
-                    apply (metis comparator.sym invert_order.simps(1) order.distinct(5) ID_ccompare' assms)
-                   apply (metis comparator.comp_trans order.distinct(5) ID_ccompare' assms)
-                  apply (metis comparator.sym invert_order.simps(1) order.distinct(5) ID_ccompare' assms)
-                 apply (metis order.distinct(5))
-                apply (metis order.distinct(5))
-               apply (metis comparator.sym invert_order.simps(1) order.distinct(5) ID_ccompare' assms)
-              apply (metis order.distinct(5))
-             apply (metis comparator.sym invert_order.simps(1) order.distinct(5) ID_ccompare' assms)
-            apply (metis comparator.comp_trans order.distinct(5) ID_ccompare' assms)
-           apply (metis comparator.comp_trans order.distinct(5) ID_ccompare' assms)
-          apply (metis comparator.sym invert_order.simps(1) order.distinct(5) ID_ccompare' assms)
-         apply (metis comparator.comp_trans order.distinct(5) ID_ccompare' assms)
-        apply (metis comparator.sym invert_order.simps(1) order.distinct(5) ID_ccompare' assms)
-       apply (metis comparator.comp_trans order.distinct(5) ID_ccompare' assms)
-      apply (metis comparator.comp_trans order.distinct(5) ID_ccompare' assms)
-     apply (metis comparator.sym invert_order.simps(1) order.distinct(5) ID_ccompare' assms)
-    apply (metis comparator.comp_trans order.distinct(5) ID_ccompare' assms)
-    done
+    by safe
+      (metis Comparator.invert_order.simps(1) Comparator.order.simps(6) ID_code assms ccompare comparator_def)+
 next
   case (SNeg x)
   then show ?case
@@ -1738,37 +1703,8 @@ next
   then show ?case
     apply (simp add: comparator_of_def comparator.comp_same[OF ID_ccompare'[OF assms]]
         comparator.eq_Eq_conv[OF ID_ccompare'[OF assms]] split: sproof.splits vproof.splits order.splits if_splits)
-    apply safe
-                        apply (metis comparator.sym invert_order.simps(1) order.distinct(5) ID_ccompare' assms)
-                        apply (metis order.distinct(5))
-                        apply (metis order.distinct(5))
-                        apply (metis comparator.sym invert_order.simps(1) order.distinct(5) ID_ccompare' assms)
-                        apply (metis comparator.comp_trans order.distinct(5) ID_ccompare' assms)
-                        apply (metis comparator.comp_trans order.distinct(5) ID_ccompare' assms)
-                        apply (metis comparator.sym invert_order.simps(1) order.distinct(5) ID_ccompare' assms)
-                        apply (metis comparator.comp_trans order.distinct(5) ID_ccompare' assms)
-                        apply (metis order.distinct(5))
-                       apply (metis comparator.sym invert_order.simps(1) order.distinct(5) ID_ccompare' assms)
-                      apply (metis order.distinct(5))
-                     apply (metis comparator.comp_trans order.distinct(5) ID_ccompare' assms)
-                    apply (metis comparator.sym invert_order.simps(1) order.distinct(5) ID_ccompare' assms)
-                   apply (metis comparator.comp_trans order.distinct(5) ID_ccompare' assms)
-                  apply (metis comparator.sym invert_order.simps(1) order.distinct(5) ID_ccompare' assms)
-                 apply (metis order.distinct(5))
-                apply (metis order.distinct(5))
-               apply (metis comparator.sym invert_order.simps(1) order.distinct(5) ID_ccompare' assms)
-              apply (metis order.distinct(5))
-             apply (metis comparator.sym invert_order.simps(1) order.distinct(5) ID_ccompare' assms)
-            apply (metis comparator.comp_trans order.distinct(5) ID_ccompare' assms)
-           apply (metis comparator.comp_trans order.distinct(5) ID_ccompare' assms)
-          apply (metis comparator.sym invert_order.simps(1) order.distinct(5) ID_ccompare' assms)
-         apply (metis comparator.comp_trans order.distinct(5) ID_ccompare' assms)
-        apply (metis comparator.sym invert_order.simps(1) order.distinct(5) ID_ccompare' assms)
-       apply (metis comparator.comp_trans order.distinct(5) ID_ccompare' assms)
-      apply (metis comparator.comp_trans order.distinct(5) ID_ccompare' assms)
-     apply (metis comparator.sym invert_order.simps(1) order.distinct(5) ID_ccompare' assms)
-    apply (metis comparator.comp_trans order.distinct(5) ID_ccompare' assms)
-    done
+    by safe
+      (metis Comparator.invert_order.simps(1) Comparator.order.simps(6) ID_code assms ccompare comparator_def)+
 next
   case (VNeg x)
   then show ?case
@@ -7171,8 +7107,7 @@ proof (cases "left I = 0")
     using assms etpi_imp_etp_suci i_props True
     unfolding optimal_def valid_def
     apply (auto simp add: Let_def i_ltp_to_tau ys_def split: if_splits)
-    using i_le_ltpi apply (auto simp: min_def split: enat.splits)
-    done
+    using i_le_ltpi by (auto simp: min_def split: enat.splits)
 next
   case False
   have b: "\<tau> rho i \<ge> \<tau> rho 0 + left I"
@@ -7227,8 +7162,7 @@ proof (cases "left I = 0")
     using assms etpi_imp_etp_suci i_props True
     unfolding optimal_def valid_def
     apply (auto simp add: Let_def i_ltp_to_tau ys_def split: if_splits)
-    using i_le_ltpi apply (auto simp: min_def split: enat.splits)
-    done
+    using i_le_ltpi by (auto simp: min_def split: enat.splits)
 next
   case False
   have b: "\<tau> rho i \<ge> \<tau> rho 0 + left I"
@@ -7352,8 +7286,7 @@ proof (cases "left I = 0")
     using assms etpi_imp_etp_suci i_props True
     unfolding optimal_def valid_def
     apply (auto simp add: Let_def i_ltp_to_tau ys_def split: if_splits)
-    using i_le_ltpi apply (auto simp: min_def split: enat.splits)
-    done
+    using i_le_ltpi by (auto simp: min_def split: enat.splits)
 next
   case False
   have b: "\<tau> rho i \<ge> \<tau> rho 0 + left I"
@@ -9415,6 +9348,7 @@ proof (rule ccontr)
           then have form: "minp = Inr (VOnce_never i li vphis')"
             using b'_def Inr minp p'_def p'r p1_def unfolding doOnce_def
             apply (auto simp: min_list_wrt_def split: if_splits)
+            oops
             by (meson leD sat_Once_rec sats)
           then show ?thesis using q_s a_def q_val Inl p1_def i_props bfphi
             unfolding optimal_def valid_def
