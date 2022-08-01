@@ -43,7 +43,8 @@ end
 
 module Eventually : sig
   type meaux = {
-      ts_tp_in: (timestamp * timepoint) Deque.t
+      ts_tp_out: (timestamp * timepoint) Deque.t
+    ; ts_tp_in: (timestamp * timepoint) Deque.t
     ; s_alphas_in: (timestamp * expl) Deque.t
     ; v_alphas_in: (timestamp * vexpl) Deque.t
     ; optimal_proofs: (timestamp * expl) Deque.t
