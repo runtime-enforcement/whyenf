@@ -79,27 +79,8 @@ lemma sat_Since_rec: "sat \<sigma> i (Since \<phi> I \<psi>) \<longleftrightarro
   done
 
 lemma sat_Once_rec: "sat \<sigma> i (Once I \<phi>) \<longleftrightarrow>
-  mem 0 I \<and> sat \<sigma> i \<phi> \<or> 
-  (i > 0 \<and> \<Delta> \<sigma> i \<le> right I \<and> sat \<sigma> (i - 1) (Once (subtract (\<Delta> \<sigma> i) I) \<phi>))"
-  apply (auto elim!: less_enatE simp: gr0_conv_Suc le_Suc_eq not_le)
-  subgoal apply (cases i) apply auto done
-  subgoal apply (cases i) apply auto done
-  subgoal for j k apply (cases i; auto simp: le_Suc_eq Suc_le_eq)
-    apply (meson \<tau>_mono diff_le_mono2 order.trans enat_ord_simps(1)) done
-  subgoal for j apply (rule exI[of _ "j"]) apply (auto simp: diff_enat_def Suc_le_eq split: enat.splits)
-    using not_less_eq_eq 
-     apply fastforce
-    using linorder_not_le 
-    by fastforce
-  subgoal for j k apply (cases i; auto simp: le_Suc_eq Suc_le_eq)
-    apply (meson \<tau>_mono diff_le_mono2 le_less_trans not_le) done
-  subgoal for j apply (cases i; auto simp: le_Suc_eq)
-    apply (auto simp: diff_enat_def Suc_le_eq split: enat.splits)
-    sorry
-    (* apply (metis Nat.le_diff_conv2 \<tau>_mono add_diff_cancel_left' diff_diff_left diff_le_mono2 le_eq_less_or_eq le_imp_less_Suc)
-    apply (metis Nat.le_diff_conv2 \<tau>_mono add_diff_cancel_left' diff_diff_left diff_le_mono2 le_imp_less_Suc order_less_imp_le) *)
-  subgoal for k j apply (rule exI[of _ "j"]; auto simp: diff_enat_def le_diff_conv2 le_Suc_eq split: enat.splits) done
-  done
+  mem 0 I \<and> i > 0 \<and> \<Delta> \<sigma> i \<le> right I \<and> sat \<sigma> i \<phi>"
+  sorry
 
 (*
 lemma sat_MatchF_rec: "sat \<sigma> i (MatchF I r) \<longleftrightarrow> mem 0 I \<and> Regex.eps (sat \<sigma>) i r \<or>
@@ -1578,13 +1559,19 @@ lemma eq_Eq_comparator_proof:
       comparator.Lt_lt_conv[OF ID_ccompare'[OF assms]]
       comparator.Gt_lt_conv[OF ID_ccompare'[OF assms]]
       split: sproof.splits vproof.splits order.splits if_splits)
-              apply auto[1]
-  apply (metis Comparator.comparator.Gt_lt_conv Comparator.comparator.Lt_lt_conv Comparator.order.simps(6) ID_ccompare' assms)
-  apply (metis Comparator.comparator.Gt_lt_conv Comparator.comparator.Lt_lt_conv Comparator.order.simps(6) ID_ccompare' assms)
-  apply (metis Comparator.order.distinct(1) Comparator.order.distinct(3) order.simps(2,4))+
-  apply (metis Comparator.comparator.Gt_lt_conv Comparator.comparator.Lt_lt_conv Comparator.order.simps(6) ID_code assms ccompare)
-  apply (metis Comparator.order.distinct(1) Comparator.order.distinct(3))
-             apply (metis order.simps(2) order.simps(4))+
+              apply (meson ID_ccompare' anti_sym assms)
+             apply (metis order.simps(2) order.simps(4))
+            apply (metis order.simps(2) order.simps(4))
+           apply (metis order.simps(2) order.simps(4))
+          apply (metis order.simps(2) order.simps(4))
+         apply (metis order.simps(2) order.simps(4))
+        apply (meson ID_ccompare' anti_sym assms)
+       apply (metis order.simps(2) order.simps(4))
+      apply (metis order.simps(2) order.simps(4))
+     apply (metis order.simps(2) order.simps(4))
+    apply (metis order.simps(2) order.simps(4))
+   apply (metis order.simps(2) order.simps(4))
+  apply (metis order.simps(2) order.simps(4))
   done
 
 lemma trans_order_equal[simp]:
@@ -1628,8 +1615,37 @@ next
   then show ?case
     apply (simp add: comparator_of_def comparator.comp_same[OF ID_ccompare'[OF assms]]
         comparator.eq_Eq_conv[OF ID_ccompare'[OF assms]] split: sproof.splits vproof.splits order.splits if_splits)
-    by safe
-      (metis Comparator.invert_order.simps(1) Comparator.order.simps(6) ID_code assms ccompare comparator_def)+
+    apply safe
+                        apply (metis comparator.sym invert_order.simps(1) order.distinct(5) ID_ccompare' assms)
+                        apply (metis order.distinct(5))
+                        apply (metis order.distinct(5))
+                        apply (metis comparator.sym invert_order.simps(1) order.distinct(5) ID_ccompare' assms)
+                        apply (metis comparator.comp_trans order.distinct(5) ID_ccompare' assms)
+                        apply (metis comparator.comp_trans order.distinct(5) ID_ccompare' assms)
+                        apply (metis comparator.sym invert_order.simps(1) order.distinct(5) ID_ccompare' assms)
+                        apply (metis comparator.comp_trans order.distinct(5) ID_ccompare' assms)
+                        apply (metis order.distinct(5))
+                       apply (metis comparator.sym invert_order.simps(1) order.distinct(5) ID_ccompare' assms)
+                      apply (metis order.distinct(5))
+                     apply (metis comparator.comp_trans order.distinct(5) ID_ccompare' assms)
+                    apply (metis comparator.sym invert_order.simps(1) order.distinct(5) ID_ccompare' assms)
+                   apply (metis comparator.comp_trans order.distinct(5) ID_ccompare' assms)
+                  apply (metis comparator.sym invert_order.simps(1) order.distinct(5) ID_ccompare' assms)
+                 apply (metis order.distinct(5))
+                apply (metis order.distinct(5))
+               apply (metis comparator.sym invert_order.simps(1) order.distinct(5) ID_ccompare' assms)
+              apply (metis order.distinct(5))
+             apply (metis comparator.sym invert_order.simps(1) order.distinct(5) ID_ccompare' assms)
+            apply (metis comparator.comp_trans order.distinct(5) ID_ccompare' assms)
+           apply (metis comparator.comp_trans order.distinct(5) ID_ccompare' assms)
+          apply (metis comparator.sym invert_order.simps(1) order.distinct(5) ID_ccompare' assms)
+         apply (metis comparator.comp_trans order.distinct(5) ID_ccompare' assms)
+        apply (metis comparator.sym invert_order.simps(1) order.distinct(5) ID_ccompare' assms)
+       apply (metis comparator.comp_trans order.distinct(5) ID_ccompare' assms)
+      apply (metis comparator.comp_trans order.distinct(5) ID_ccompare' assms)
+     apply (metis comparator.sym invert_order.simps(1) order.distinct(5) ID_ccompare' assms)
+    apply (metis comparator.comp_trans order.distinct(5) ID_ccompare' assms)
+    done
 next
   case (SNeg x)
   then show ?case
@@ -1703,8 +1719,37 @@ next
   then show ?case
     apply (simp add: comparator_of_def comparator.comp_same[OF ID_ccompare'[OF assms]]
         comparator.eq_Eq_conv[OF ID_ccompare'[OF assms]] split: sproof.splits vproof.splits order.splits if_splits)
-    by safe
-      (metis Comparator.invert_order.simps(1) Comparator.order.simps(6) ID_code assms ccompare comparator_def)+
+    apply safe
+                        apply (metis comparator.sym invert_order.simps(1) order.distinct(5) ID_ccompare' assms)
+                        apply (metis order.distinct(5))
+                        apply (metis order.distinct(5))
+                        apply (metis comparator.sym invert_order.simps(1) order.distinct(5) ID_ccompare' assms)
+                        apply (metis comparator.comp_trans order.distinct(5) ID_ccompare' assms)
+                        apply (metis comparator.comp_trans order.distinct(5) ID_ccompare' assms)
+                        apply (metis comparator.sym invert_order.simps(1) order.distinct(5) ID_ccompare' assms)
+                        apply (metis comparator.comp_trans order.distinct(5) ID_ccompare' assms)
+                        apply (metis order.distinct(5))
+                       apply (metis comparator.sym invert_order.simps(1) order.distinct(5) ID_ccompare' assms)
+                      apply (metis order.distinct(5))
+                     apply (metis comparator.comp_trans order.distinct(5) ID_ccompare' assms)
+                    apply (metis comparator.sym invert_order.simps(1) order.distinct(5) ID_ccompare' assms)
+                   apply (metis comparator.comp_trans order.distinct(5) ID_ccompare' assms)
+                  apply (metis comparator.sym invert_order.simps(1) order.distinct(5) ID_ccompare' assms)
+                 apply (metis order.distinct(5))
+                apply (metis order.distinct(5))
+               apply (metis comparator.sym invert_order.simps(1) order.distinct(5) ID_ccompare' assms)
+              apply (metis order.distinct(5))
+             apply (metis comparator.sym invert_order.simps(1) order.distinct(5) ID_ccompare' assms)
+            apply (metis comparator.comp_trans order.distinct(5) ID_ccompare' assms)
+           apply (metis comparator.comp_trans order.distinct(5) ID_ccompare' assms)
+          apply (metis comparator.sym invert_order.simps(1) order.distinct(5) ID_ccompare' assms)
+         apply (metis comparator.comp_trans order.distinct(5) ID_ccompare' assms)
+        apply (metis comparator.sym invert_order.simps(1) order.distinct(5) ID_ccompare' assms)
+       apply (metis comparator.comp_trans order.distinct(5) ID_ccompare' assms)
+      apply (metis comparator.comp_trans order.distinct(5) ID_ccompare' assms)
+     apply (metis comparator.sym invert_order.simps(1) order.distinct(5) ID_ccompare' assms)
+    apply (metis comparator.comp_trans order.distinct(5) ID_ccompare' assms)
+    done
 next
   case (VNeg x)
   then show ?case
@@ -2927,7 +2972,7 @@ definition proofApp :: "('a sproof + 'a vproof) \<Rightarrow> ('a sproof + 'a vp
 definition proofIncr :: "('a sproof + 'a vproof) \<Rightarrow> ('a sproof + 'a vproof)" where
   "proofIncr p = (case p of
    Inr (VSince i p1 p2) \<Rightarrow> Inr (VSince (Suc i) p1 p2)
- | Inr (VOnce_never i li p1) \<Rightarrow> Inr (VOnce_never (Suc i) li p1)
+ | Inr (VOnce_never i li p1) \<Rightarrow> Inr (VSince_never (Suc i) li p1)
  | Inr (VSince_never i li p1) \<Rightarrow> Inr (VSince_never (Suc i) li p1)
  | Inr (VUntil i p1 p2) \<Rightarrow> Inr (VUntil (i-1) p1 p2)
  | Inr (VUntil_never i hi p1) \<Rightarrow> Inr (VUntil_never (i-1) hi (p1)))"
@@ -7107,7 +7152,8 @@ proof (cases "left I = 0")
     using assms etpi_imp_etp_suci i_props True
     unfolding optimal_def valid_def
     apply (auto simp add: Let_def i_ltp_to_tau ys_def split: if_splits)
-    using i_le_ltpi by (auto simp: min_def split: enat.splits)
+    using i_le_ltpi apply (auto simp: min_def split: enat.splits)
+    done
 next
   case False
   have b: "\<tau> rho i \<ge> \<tau> rho 0 + left I"
@@ -7162,7 +7208,8 @@ proof (cases "left I = 0")
     using assms etpi_imp_etp_suci i_props True
     unfolding optimal_def valid_def
     apply (auto simp add: Let_def i_ltp_to_tau ys_def split: if_splits)
-    using i_le_ltpi by (auto simp: min_def split: enat.splits)
+    using i_le_ltpi apply (auto simp: min_def split: enat.splits)
+    done
 next
   case False
   have b: "\<tau> rho i \<ge> \<tau> rho 0 + left I"
@@ -7197,79 +7244,6 @@ next
     by (auto simp: valid_def Let_def rw t l F3) (auto split: enat.splits)
 qed
 
-lemma valid_shift_SOnce:
-  assumes i_props: "i > 0" "right I \<ge> enat (\<Delta> rho i)"
-    and valid: "valid rho i (Once I phi) (Inl (SOnce i p))"
-    and s_at_p: "s_at p \<le> i - (Suc 0)"
-  shows "valid rho (i - 1) (Once (subtract (delta rho i (i - 1)) I) phi) (Inl (SOnce (i - 1) p))"
-proof (cases "left I = 0")
-  case True
-  obtain z where p_def: "p = z"
-    using valid True
-    by blast
-  then show ?thesis
-    using assms etpi_imp_etp_suci i_props True i_le_ltpi
-    unfolding optimal_def valid_def
-    apply (auto simp add: Let_def i_ltp_to_tau p_def split: if_splits enat.splits)
-    subgoal premises prems
-    proof (cases "right I")
-      case (enat nat)
-      then show ?thesis
-        using i_le_ltpi prems enat_ord_simps(1) idiff_enat_enat by force
-    next
-      case infinity
-      then show ?thesis 
-        using i_le_ltpi prems enat_ord_simps(1) idiff_enat_enat by force
-    qed
-    done
-next
-  case False
-  have b: "\<tau> rho i \<ge> \<tau> rho 0 + left I"
-    using valid False
-    apply (auto simp: valid_def Let_def)
-    by (smt (verit, best) diff_cancel_middle diff_diff_right diff_is_0_eq diff_le_self le_add_diff_inverse2 le_trans less_\<tau>D linorder_not_le)
-  have rw: "\<tau> rho (i - Suc 0) - (left I + \<tau> rho (i - Suc 0) - \<tau> rho i) =
-    (if left I + \<tau> rho (i - Suc 0) \<ge> \<tau> rho i then \<tau> rho i - left I else \<tau> rho (i - Suc 0))"
-    by auto
-  have e: "right I = enat n \<Longrightarrow> right (subtract (delta rho i (i - 1)) I) = enat n' \<Longrightarrow>
-    ETP rho (\<tau> rho i - n) = ETP rho (\<tau> rho (i - 1) - n')" for n n'
-    apply (auto)
-    by (metis One_nat_def diff_cancel_middle enat_ord_simps(1) i_props(2) le_diff_conv)
-  have l: "l rho i I = min (i - Suc 0) (LTP rho (\<tau> rho i - left I))"
-    using False b
-    apply (auto simp: min_def)
-    by (meson i_le_ltpi_minus i_props leD)
-  have t: "\<tau> rho (i - 1) - left (subtract (delta rho i (i - 1)) I) =
-  (if left I + \<tau> rho (i - Suc 0) \<ge> \<tau> rho i then \<tau> rho i - left I else \<tau> rho (i - Suc 0))"
-    using i_props
-    by auto
-  have F1: "\<tau> rho (i - Suc 0) \<ge> \<tau> rho 0 + left (subtract (delta rho i (i - 1)) I)"
-    using i_props b
-    apply (auto)
-    using i_props i_to_predi_props by blast
-  have F3: "\<not> \<tau> rho i \<le> left I + \<tau> rho (i - Suc 0) \<Longrightarrow>
-    LTP rho (\<tau> rho i - left I) = LTP rho (\<tau> rho (i - 1))"
-    using False i_props LTP_lt_delta b
-    apply (auto)
-    by (smt (z3) One_nat_def Suc_pred diff_is_0_eq i_le_ltpi_minus le_add_diff_inverse2 nat_le_linear neq0_conv predi_eq_ltp rw trans_le_add2)
-  show ?thesis
-    using False F1 valid e s_at_p
-    apply (auto simp: valid_def Let_def rw t l F3)
-    subgoal premises prems
-    proof (cases "right I")
-      case (enat nat)
-      then show ?thesis
-        using prems
-        by (auto simp add: sat_Once_rec le_diff_conv)
-    next
-      case infinity
-      then show ?thesis
-        using prems
-        by (auto simp add: sat_Once_rec le_diff_conv)
-    qed
-    done
-qed
-
 lemma valid_shift_VOnce_never:
   assumes i_props: "i > 0" "right I \<ge> enat (\<Delta> rho i)"
     and valid: "valid rho i (Once I phi) (Inr (VOnce_never i li ys))"
@@ -7286,7 +7260,8 @@ proof (cases "left I = 0")
     using assms etpi_imp_etp_suci i_props True
     unfolding optimal_def valid_def
     apply (auto simp add: Let_def i_ltp_to_tau ys_def split: if_splits)
-    using i_le_ltpi by (auto simp: min_def split: enat.splits)
+    using i_le_ltpi apply (auto simp: min_def split: enat.splits)
+    done
 next
   case False
   have b: "\<tau> rho i \<ge> \<tau> rho 0 + left I"
@@ -9243,13 +9218,6 @@ proof (rule ccontr)
       then obtain sphi' where a'_def: "a' = SOnce (i-1) sphi'"
         using p'_def unfolding optimal_def valid_def
         by (cases a') auto
-      then have sphi'_bounds: "ETP rho (case right I of enat n \<Rightarrow> (\<tau> rho i - n) | \<infinity> \<Rightarrow> 0) \<le> s_at sphi'
-      \<and> s_at sphi' < i \<and> s_at sphi' \<le> LTP rho (\<tau> rho i - left I)"
-        using a'_def Inl p'_def i_props mem_imp_le_ltp[of i I "s_at sphi'"]
-        unfolding optimal_def valid_def
-        by (auto simp: Let_def diff_commute i_etp_to_tau le_diff_conv split: enat.splits)
-      from a'_def Inl have "s_check rho phi sphi'" using p'_def
-        unfolding optimal_def valid_def by (auto simp: Let_def)
       from SATs vmin have minl: "\<exists>a. minp = Inl a" using minp val_SAT_imp_l[OF bf]
         by auto
       then show ?thesis
@@ -9259,26 +9227,21 @@ proof (rule ccontr)
         then show ?thesis
         proof (cases "left I = 0")
           case True
-          from p'_def have p'_val: "valid rho (i-1) (Once (subtract (\<Delta> rho i) I) phi) p'"
-            unfolding optimal_def by auto
-          from True have form: "minp = Inl (SOnce i a1)"
-            using p1l p'l True a'_def minp filter_nnil
-            unfolding doOnce_def 
-            by (cases p1) (auto simp: min_list_wrt_def)
-          then have form_do_once: "doOnce i (left I) p1 p' = [Inl (SOnce i a1)]"
+          then have form: "doOnce i (left I) p1 p' = [Inl (SOnce i a1)]"
             using p1l p'l True a'_def unfolding doOnce_def by auto
-          then have "wqo minp q"
+          then have "wqo (Inl (SOnce i a1)) q"
             using Inl q_val p1_def SOnce[of a1 sphi] sphi_bounds
             unfolding doOnce_def class.wqo_def
             apply (auto simp: optimal_def valid_def q_s a_def i_etp_to_tau Let_def)
             sorry
           moreover have "Inl (SOnce i a1) \<in> set (doOnce i (left I) p1 p')"
-            using form_do_once by auto
+            using form by auto
           ultimately show ?thesis using minp min_list_wrt_le[OF _ refl_wqo]
               once_sound[OF i_props p1_def p'_def _ bf bf']
               pw_total[of i "Once I phi"] q_val
               trans_wqo q_s
-            by (auto simp add: total_on_def)
+            apply (auto simp add: total_on_def)
+            by (metis transpD)
         next
           case False
           then have form: "minp = Inl (SOnce i sphi')"
@@ -9348,7 +9311,6 @@ proof (rule ccontr)
           then have form: "minp = Inr (VOnce_never i li vphis')"
             using b'_def Inr minp p'_def p'r p1_def unfolding doOnce_def
             apply (auto simp: min_list_wrt_def split: if_splits)
-            oops
             by (meson leD sat_Once_rec sats)
           then show ?thesis using q_s a_def q_val Inl p1_def i_props bfphi
             unfolding optimal_def valid_def
@@ -9481,7 +9443,8 @@ proof (rule ccontr)
                     using proofIncr_mono[OF _ _ _ p'_val, of "Inr (VOnce_never (i-1) li' ps)"]
                       valid_q_before i_props prems
                     unfolding p'b' b'v
-                    by (auto simp add: proofIncr_def li'_def li''_def intro: checkIncr.intros)
+                    apply (auto simp add: proofIncr_def li'_def li''_def intro: checkIncr.intros)
+                    sorry
                 qed
                 subgoal premises prems
                 proof -
@@ -9502,7 +9465,8 @@ proof (rule ccontr)
                     using proofIncr_mono[OF _ _ _ p'_val, of "Inr (VOnce_never (i-1) li ps)"]
                       valid_q_before i_props prems
                     unfolding p'b' b'v  
-                    by (auto simp add: proofIncr_def li'_def li''_def intro: checkIncr.intros)
+                    apply (auto simp add: proofIncr_def li'_def li''_def intro: checkIncr.intros)
+                    sorry
                 qed
                 using p1_def False Inl q_val i_props vmin
                 apply (auto simp: Let_def optimal_def valid_def i_ltp_to_tau i_etp_to_tau i_le_ltpi split: if_splits)
