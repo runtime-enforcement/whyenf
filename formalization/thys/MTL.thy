@@ -6398,11 +6398,11 @@ proof (cases p')
       proof (cases p1)
         case (Inl a1)
         then have p1l: "p1 = Inl a1" by auto
-        then have sps: "p = Inl (SOnce i (projl p')) \<or> p = Inl (SOnce i (projl p1))"
-          using a_def p'l p1l True p_def p'_def p1_def
-          unfolding doOnce_def optimal_def by auto
+        then have sps: "p = Inl (SOnce i q) \<or> p = Inl (SOnce i (projl p1))"
+          using a_def p'l True p_def  unfolding doOnce_def optimal_def by auto
         then show ?thesis
-          using Inl True assms n_def unfolding optimal_def valid_def
+          using Inl True assms n_def a_val a_def qi riq 
+          unfolding optimal_def valid_def
           by auto
       next
         case (Inr b2)
@@ -6444,10 +6444,10 @@ proof (cases p')
       proof (cases p1)
         case (Inl a1)
         then have p1l: "p1 = Inl a1" by auto
-        then have sp: "p = Inl (SOnce i (projl p1)) \<or> p = Inl (SOnce i (projl p'))"
+        then have sps: "p = Inl (SOnce i q) \<or> p = Inl (SOnce i (projl p1))"
           using a_def p'l p1l True p_def unfolding doOnce_def by auto
         then show ?thesis
-          using a_def True p'_def p1_def p'l p1l i_props zero_enat_def
+          using a_def True p'_def p1_def p'l p1l i_props zero_enat_def qi riq
           unfolding optimal_def valid_def
           by auto
       next
