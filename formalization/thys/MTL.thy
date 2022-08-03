@@ -9320,9 +9320,14 @@ proof (rule ccontr)
             using p1l p'l False a'_def minp filter_nnil
             unfolding doOnce_def 
             by (cases p') (auto simp: min_list_wrt_def)
+          then have sphi'_le_predi: "s_at sphi' \<le> i - 1" using sphi'_bounds
+            apply (cases "right I") by auto
+          from p'_def have p'_val: "valid rho (i-1) (Once (subtract (\<Delta> rho i) I) phi) p'"
+            unfolding optimal_def by auto
           then show ?thesis using q_s a_def q_val Inl p1_def i_props form
             unfolding optimal_def valid_def
             apply (auto simp add: Let_def False i_ltp_to_tau)
+            
             (* by (meson False Nat.bot_nat_0.extremum_unique sat_Once_rec sats) *)
             sorry
         qed
