@@ -93,11 +93,8 @@ lemma sat_Once_rec: "sat \<sigma> i (Once I \<phi>) \<longleftrightarrow>
     by fastforce
   subgoal for j k apply (cases i; auto simp: le_Suc_eq Suc_le_eq)
     apply (meson \<tau>_mono diff_le_mono2 le_less_trans not_le) done
-  subgoal for j apply (cases i; auto simp: le_Suc_eq)
-    apply (auto simp: diff_enat_def Suc_le_eq split: enat.splits)
-    sorry
-    (* apply (metis Nat.le_diff_conv2 \<tau>_mono add_diff_cancel_left' diff_diff_left diff_le_mono2 le_eq_less_or_eq le_imp_less_Suc)
-    apply (metis Nat.le_diff_conv2 \<tau>_mono add_diff_cancel_left' diff_diff_left diff_le_mono2 le_imp_less_Suc order_less_imp_le) *)
+  subgoal for j
+    by (cases i; auto dest: spec[of _ j] simp: le_Suc_eq diff_enat_def Suc_le_eq le_diff_conv2 split: enat.splits)
   subgoal for k j apply (rule exI[of _ "j"]; auto simp: diff_enat_def le_diff_conv2 le_Suc_eq split: enat.splits) done
   done
 
@@ -3089,7 +3086,7 @@ definition doOnce :: "nat \<Rightarrow> nat \<Rightarrow> ('a sproof + 'a vproof
 | (Inr p, False, Inl (SOnce j p'')) \<Rightarrow> [Inl (SOnce i p'')]
 | (Inr p, False, Inr (VOnce_never j li q)) \<Rightarrow> [Inr (VOnce_never i li q)]
 | (Inl p, True, Inr (VOnce_never j li q)) \<Rightarrow> [Inl (SOnce i p)]
-| (Inl p, True, Inl (SOnce j p'')) \<Rightarrow> [Inl (SOnce i p)]
+| (Inl p, True, Inl (SOnce j p'')) \<Rightarrow> [Inl (SOnce i p''), Inl (SOnce i p)]
 | (Inl p, False, Inl (SOnce j p'')) \<Rightarrow> [Inl (SOnce i p'')]
 | (Inl p, False, Inr (VOnce_never j li q)) \<Rightarrow> [Inr (VOnce_never i li q)])"
 
@@ -6401,8 +6398,9 @@ proof (cases p')
       proof (cases p1)
         case (Inl a1)
         then have p1l: "p1 = Inl a1" by auto
-        then have sp: "p = Inl (SOnce i (projl p1))"
-          using a_def p'l p1l True p_def unfolding doOnce_def by auto
+        then have sps: "p = Inl (SOnce i (projl p')) \<or> p = Inl (SOnce i (projl p1))"
+          using a_def p'l p1l True p_def p'_def p1_def
+          unfolding doOnce_def optimal_def by auto
         then show ?thesis
           using Inl True assms n_def unfolding optimal_def valid_def
           by auto
@@ -6446,7 +6444,7 @@ proof (cases p')
       proof (cases p1)
         case (Inl a1)
         then have p1l: "p1 = Inl a1" by auto
-        then have sp: "p = Inl (SOnce i (projl p1))"
+        then have sp: "p = Inl (SOnce i (projl p1)) \<or> p = Inl (SOnce i (projl p'))"
           using a_def p'l p1l True p_def unfolding doOnce_def by auto
         then show ?thesis
           using a_def True p'_def p1_def p'l p1l i_props zero_enat_def
