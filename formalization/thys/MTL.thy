@@ -9251,6 +9251,8 @@ proof (rule ccontr)
         unfolding optimal_def valid_def by (auto simp: Let_def)
       from SATs vmin have minl: "\<exists>a. minp = Inl a" using minp val_SAT_imp_l[OF bf]
         by auto
+      from p'_def have p'_val: "valid rho (i-1) (Once (subtract (\<Delta> rho i) I) phi) p'"
+        unfolding optimal_def by auto
       then show ?thesis
       proof (cases p1)
         case (Inl a1)
@@ -9258,12 +9260,10 @@ proof (rule ccontr)
         then show ?thesis
         proof (cases "left I = 0")
           case True
-          from p'_def have p'_val: "valid rho (i-1) (Once (subtract (\<Delta> rho i) I) phi) p'"
-            unfolding optimal_def by auto
-          from True have form: "minp = min_list_wrt wqo [Inl (SOnce i sphi'), Inl (SOnce i a1)]"
+          then have form: "minp = min_list_wrt wqo [Inl (SOnce i sphi'), Inl (SOnce i a1)]"
             using p1l p'l True a'_def minp filter_nnil
             unfolding doOnce_def 
-            by (cases p1) (auto simp: )
+            by (cases p1) auto
           show ?thesis
           proof (cases "s_at sphi = i")
             case sphi_i: True
@@ -9299,33 +9299,31 @@ proof (rule ccontr)
           qed
         next
           case False
-          then have form: "minp = Inl (SOnce i sphi')"
+          have form: "minp = min_list_wrt wqo [Inl (SOnce i sphi')]"
             using p1l p'l False a'_def minp filter_nnil
             unfolding doOnce_def 
             by (cases p') (auto simp: min_list_wrt_def)
-          then show ?thesis 
-            using q_s a_def i_props form p'_def p'l a'_def
-            unfolding optimal_def valid_def
-            apply (auto simp add: Let_def False i_ltp_to_tau split: if_splits)[1]
-            subgoal premises prems
-            proof -
-              have valid_q_before: "valid rho (i-1) (Once (subtract (\<Delta> rho i) I) phi) (Inl (SOnce (i-1) sphi'))"
-                using valid_shift_SOnce[of i I phi sphi'] i_props q_val prems vmin
-                by auto
-              then have p'_val: "valid rho (i-1) (Once (subtract (\<Delta> rho i) I) phi) p'"
-                using p'_def unfolding optimal_def by auto
-              then have "wqo p' (Inl (SOnce (i-1) sphi'))" using p'_def valid_q_before
-                unfolding optimal_def by auto
-              moreover have "checkIncr (Inl (SOnce (i-1) sphi'))" using p'_val
-                by (auto simp: p'l a'_def intro!: valid_checkIncr_SOnce)
-              ultimately show ?thesis 
-                using proofIncr_mono[OF _ _ _ p'_val, of "Inl (SOnce (i-1) sphi)"]
-                      valid_q_before i_props
-                unfolding p'l a'_def
-                apply (auto simp add: proofIncr_def intro: checkIncr.intros split: enat.splits)
-                sorry
-            qed
-            sorry
+          have sphi_le_i: "s_at sphi < i"
+            using False a_def q_s q_val unfolding valid_def 
+            apply (auto simp add: Let_def)
+            by (metis diff_self_eq_0 leD nat_less_le)
+          then have incr: "checkIncr (Inl (SOnce (i-1) sphi'))" "checkIncr (Inl (SOnce (i-1) sphi))"
+            using p'l a'_def False sphi'_bounds sphi_bounds
+            by (auto intro!: checkIncr.intros)
+          have valid: "valid rho (i - 1) (Once (subtract (\<Delta> rho i) I) phi) (Inl (SOnce (i-1) sphi))"
+            using False valid_shift_SOnce a_def i_props q_s q_val sphi_bounds sphi_le_i by fastforce
+          have wqo: "wqo (Inl (SOnce (i-1) sphi')) (Inl (SOnce (i-1) sphi))"
+            by (metis (no_types, lifting) valid_shift_SOnce Suc_pred a'_def a_def i_props le_antisym nat_less_le not_less_eq_eq optimal_def p'_def p'l q_s q_val sphi_le_i)
+          from proofIncr_mono[OF incr wqo p'_val[unfolded p'l a'_def] valid] have "wqo (Inl (SOnce i sphi')) q"
+            unfolding q_s a_def using i_props
+            by (auto simp add: Let_def proofIncr_def)
+          then show ?thesis
+            using q_s a_def pw_total[of i "Once I phi"]
+                once_sound[OF i_props p1_def p'_def _ bf bf'] p'l a'_def p1l False
+            unfolding form doOnce_def
+            apply (elim trans_wqo[THEN transpD,rotated])
+            apply (intro min_list_wrt_le[OF _ refl_wqo trans_wqo])
+            by (auto simp add: total_on_def)
         qed
       next
         case (Inr b1)
@@ -9333,27 +9331,58 @@ proof (rule ccontr)
         then show ?thesis
         proof (cases "left I = 0")
           case True
-          then have form: "minp = Inl (SOnce i sphi')"
-            using a'_def Inr minp p'_def p'l p1_def unfolding doOnce_def
-            apply (auto simp: min_list_wrt_def split: if_splits)
-            (* by (metis Inl_Inr_False bfphi completeness optimal_def sat_Once_rec sats val_SAT_imp_l) *)
-            sorry
-          then show ?thesis using q_s a_def q_val Inl p1_def i_props bfphi
-            unfolding optimal_def valid_def
-            apply (auto simp add: Let_def True i_ltp_to_tau)
-            (* by (metis Inr_Inl_False completeness optimal_def p1_def p1r sat_Once_rec sats val_SAT_imp_l) *)
-            sorry
+          have form: "minp = min_list_wrt wqo [Inl (SOnce i sphi')]"
+            using p1r p'l True a'_def minp filter_nnil
+            unfolding doOnce_def 
+            by (cases p') (auto simp: min_list_wrt_def)
+          have sphi_le_i: "s_at sphi < i"
+            using True a_def q_s q_val p1r sphi_bounds unfolding valid_def 
+            apply (auto simp add: Let_def)
+            by (metis Inl_Inr_False optimal_def bfphi check_sound(1) le_neq_implies_less p1_def val_SAT_imp_l)
+          then have incr: "checkIncr (Inl (SOnce (i-1) sphi'))" "checkIncr (Inl (SOnce (i-1) sphi))"
+            using p'l a'_def True sphi'_bounds sphi_bounds
+            by (auto intro!: checkIncr.intros)
+          have valid: "valid rho (i - 1) (Once (subtract (\<Delta> rho i) I) phi) (Inl (SOnce (i-1) sphi))"
+            using True valid_shift_SOnce a_def i_props q_s q_val sphi_bounds sphi_le_i by fastforce
+          have wqo: "wqo (Inl (SOnce (i-1) sphi')) (Inl (SOnce (i-1) sphi))"
+            by (metis (no_types, lifting) valid_shift_SOnce Suc_pred a'_def a_def i_props le_antisym nat_less_le not_less_eq_eq optimal_def p'_def p'l q_s q_val sphi_le_i)
+          from proofIncr_mono[OF incr wqo p'_val[unfolded p'l a'_def] valid] have "wqo (Inl (SOnce i sphi')) q"
+            unfolding q_s a_def using i_props
+            by (auto simp add: Let_def proofIncr_def)
+          then show ?thesis
+            using q_s a_def pw_total[of i "Once I phi"]
+                once_sound[OF i_props p1_def p'_def _ bf bf'] p'l a'_def p1l False
+            unfolding form doOnce_def
+            apply (elim trans_wqo[THEN transpD,rotated])
+            apply (intro min_list_wrt_le[OF _ refl_wqo trans_wqo])
+            by (auto simp add: total_on_def)
         next
           case False
-          then have form: "minp = Inl (SOnce i sphi')"
+          have form: "minp = min_list_wrt wqo [Inl (SOnce i sphi')]"
             using p1r p'l False a'_def minp filter_nnil
             unfolding doOnce_def 
             by (cases p') (auto simp: min_list_wrt_def)
-          then show ?thesis using q_s a_def q_val Inl p1_def i_props bfphi
-            unfolding optimal_def valid_def
-            apply (auto simp add: Let_def False i_ltp_to_tau)
-            (* by (metis Inr_Inl_False completeness optimal_def p1_def p1r sat_Once_rec sats val_SAT_imp_l) *)
-            sorry
+          have sphi_le_i: "s_at sphi < i"
+            using False a_def q_s q_val p1r sphi_bounds unfolding valid_def 
+            apply (auto simp add: Let_def)
+            by (metis Inl_Inr_False optimal_def bfphi check_sound(1) le_neq_implies_less p1_def val_SAT_imp_l)
+          then have incr: "checkIncr (Inl (SOnce (i-1) sphi'))" "checkIncr (Inl (SOnce (i-1) sphi))"
+            using p'l a'_def False sphi'_bounds sphi_bounds
+            by (auto intro!: checkIncr.intros)
+          have valid: "valid rho (i - 1) (Once (subtract (\<Delta> rho i) I) phi) (Inl (SOnce (i-1) sphi))"
+            using False valid_shift_SOnce a_def i_props q_s q_val sphi_bounds sphi_le_i by fastforce
+          have wqo: "wqo (Inl (SOnce (i-1) sphi')) (Inl (SOnce (i-1) sphi))"
+            by (metis (no_types, lifting) valid_shift_SOnce Suc_pred a'_def a_def i_props le_antisym nat_less_le not_less_eq_eq optimal_def p'_def p'l q_s q_val sphi_le_i)
+          from proofIncr_mono[OF incr wqo p'_val[unfolded p'l a'_def] valid] have "wqo (Inl (SOnce i sphi')) q"
+            unfolding q_s a_def using i_props
+            by (auto simp add: Let_def proofIncr_def)
+          then show ?thesis
+            using q_s a_def pw_total[of i "Once I phi"]
+                once_sound[OF i_props p1_def p'_def _ bf bf'] p'l a'_def p1l False
+            unfolding form doOnce_def
+            apply (elim trans_wqo[THEN transpD,rotated])
+            apply (intro min_list_wrt_le[OF _ refl_wqo trans_wqo])
+            by (auto simp add: total_on_def)
         qed
       qed
     next
@@ -9368,21 +9397,41 @@ proof (rule ccontr)
         then show ?thesis
         proof (cases "left I = 0")
           case True
-          then have form: "doOnce i (left I) p1 p' = [Inl (SOnce i a1)]"
-            using p1l p'r True b'_def unfolding doOnce_def by auto
-          then have "wqo (Inl (SOnce i a1)) q"
-            using Inl q_val p1_def SOnce[of a1 sphi]
-            unfolding doOnce_def class.wqo_def
-            apply (auto simp: optimal_def valid_def q_s a_def)
-            sorry
-          moreover have "Inl (SOnce i a1) \<in> set (doOnce i (left I) p1 p')"
-            using form by auto
-          ultimately show ?thesis using minp min_list_wrt_le[OF _ refl_wqo]
-              once_sound[OF i_props p1_def p'_def _ bf bf']
-              pw_total[of i "Once I phi"] q_val
-              trans_wqo q_s
-            apply (auto simp add: total_on_def)
-            by (metis transpD)
+          then have form: "minp = min_list_wrt wqo [Inl (SOnce i a1)]"
+            using p1l p'r True b'_def minp filter_nnil
+            unfolding doOnce_def 
+            by (cases p1) (auto)
+          show ?thesis
+          proof (cases "s_at sphi = i")
+            case sphi_i: True
+            have "wqo (Inl (SOnce i a1)) q"
+              using SOnce a_def optimal_def p1_def p1l sphi_i valphi q_s
+              unfolding optimal_def valid_def by auto
+            then show ?thesis
+              using q_s a_def pw_total[of i "Once I phi"]
+                once_sound[OF i_props p1_def p'_def _ bf bf'] p1l True
+              unfolding form doOnce_def
+              apply (elim trans_wqo[THEN transpD,rotated])
+              apply (intro min_list_wrt_le[OF _ refl_wqo trans_wqo])
+              by (auto simp add: total_on_def)
+          next
+            case False
+            have sphi_le_i: "s_at sphi < i"
+              using False a_def q_s q_val p1l sphi_bounds unfolding valid_def 
+              by (auto simp add: Let_def)
+            from True valphi have wqo_p1: "wqo (Inl a1) (Inl sphi)" using p1_def Inl
+              unfolding optimal_def apply auto
+              by (metis (no_types, lifting) MTL.trans_wqo.valid_shift_SOnce One_nat_def Suc_diff_1 Sum_Type.old.sum.distinct(1) a_def bf' completeness i_props le_Suc_eq optimal_def p'_def p'r q_s q_val sphi_bounds trans_wqo_axioms val_SAT_imp_l val_VIO_imp_r)
+            have "wqo (Inl (SOnce i a1)) q"
+              using q_s a_def SOnce[OF wqo_p1] by auto
+            then show ?thesis
+              using q_s a_def pw_total[of i "Once I phi"]
+                once_sound[OF i_props p1_def p'_def _ bf bf'] p1l True
+              unfolding form doOnce_def
+              apply (elim trans_wqo[THEN transpD,rotated])
+              apply (intro min_list_wrt_le[OF _ refl_wqo trans_wqo])
+              by (auto simp add: total_on_def)
+          qed
         next
           case False
           then have form: "minp = Inr (VOnce_never i li vphis')"
