@@ -9279,8 +9279,16 @@ proof (rule ccontr)
               by (auto simp add: total_on_def)
           next
             case False
-            have "wqo (Inl (SOnce i sphi')) q"
-              sorry
+            have incr: "checkIncr (Inl (SOnce (i-1) sphi'))" "checkIncr (Inl (SOnce (i-1) sphi))"
+              using p'l a'_def False sphi'_bounds sphi_bounds
+              by (auto intro!: checkIncr.intros)
+            have valid: "valid rho (i - 1) (Once (subtract (\<Delta> rho i) I) phi) (Inl (SOnce (i-1) sphi))"
+              using False valid_shift_SOnce a_def i_props q_s q_val sphi_bounds by fastforce
+            have wqo: "wqo (Inl (SOnce (i-1) sphi')) (Inl (SOnce (i-1) sphi))"
+              by (smt (verit) False valid_shift_SOnce Suc_pred a'_def a_def i_props le_antisym not_less_eq_eq optimal_def p'_def p'l q_s q_val sphi_bounds)
+            from proofIncr_mono[OF incr wqo p'_val[unfolded p'l a'_def] valid] have "wqo (Inl (SOnce i sphi')) q"
+              unfolding q_s a_def using i_props
+              by (auto simp add: Let_def proofIncr_def)
             then show ?thesis
               using q_s a_def pw_total[of i "Once I phi"]
                 once_sound[OF i_props p1_def p'_def _ bf bf'] p'l a'_def p1l True
