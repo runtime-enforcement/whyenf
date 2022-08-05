@@ -9678,7 +9678,59 @@ proof (rule ccontr)
                 done
             next
               case False
-              then show ?thesis sorry 
+              from p'_def have p'_val: "valid rho (i-1) (Once (subtract (\<Delta> rho i) I) phi) p'"
+                unfolding optimal_def by auto
+              from False have form: "minp = Inr (VOnce_never i li vphis')"
+                using b'v minp Inr filter_nnil p'b' unfolding doOnce_def
+                by (cases p1) (auto simp: min_list_wrt_def li''_def split: enat.splits)
+              then show ?thesis using qr bv q_val i_props
+                unfolding optimal_def valid_def
+                apply (auto simp add: Let_def False i_ltp_to_tau i_etp_to_tau split: if_splits)[1]
+                subgoal premises prems
+                proof -
+                  have valid_q_before: "valid rho (i-1) (Once (subtract (\<Delta> rho i) I) phi) (Inr (VOnce_never (i-1) li' ps))"
+                    using valid_shift_VOnce_never[of i I phi li' ps] i_props q_val False
+                    by (auto simp: qr bv)
+                  then have "wqo p' (Inr (VOnce_never (i-1) li' ps))" using p'_def
+                    unfolding optimal_def by auto
+                  moreover have "checkIncr p'"
+                    using p'_def
+                    unfolding p'b' b'v
+                    by (auto simp: optimal_def intro!: valid_checkIncr_VOnce_never)
+                  moreover have "checkIncr (Inr (VOnce_never (i-1) li' ps))"
+                    using valid_q_before
+                    by (auto intro!: valid_checkIncr_VOnce_never)
+                  ultimately show ?thesis
+                    using proofIncr_mono[OF _ _ _ p'_val, of "Inr (VOnce_never (i-1) li' ps)"]
+                      valid_q_before i_props prems
+                    unfolding p'b' b'v
+                    by (auto simp add: proofIncr_def li'_def li''_def intro: checkIncr.intros)
+                qed
+                subgoal premises prems
+                proof -
+                  have valid_q_before: "valid rho (i-1) (Once (subtract (\<Delta> rho i) I) phi) (Inr (VOnce_never (i-1) li ps))"
+                    using prems val_ge_zero_never_once[OF p'b' b'v p'_val] diff_cancel_middle[of "\<tau> rho i" "left I" "\<tau> rho (i-1)"]
+                    unfolding valid_def
+                    by (auto simp add: le_diff_conv Let_def i_ltp_to_tau i_etp_to_tau li'_def li''_def split: enat.splits)
+                  then have "wqo p' (Inr (VOnce_never (i-1) li ps))" using p'_def
+                    unfolding optimal_def by auto
+                  moreover have "checkIncr p'"
+                    using p'_def
+                    unfolding p'b' b'v
+                    by (auto simp: optimal_def intro!: valid_checkIncr_VOnce_never)
+                  moreover have "checkIncr (Inr (VOnce_never (i - 1) li ps))"
+                    using valid_q_before
+                    by (auto intro!: valid_checkIncr_VOnce_never)
+                  ultimately show ?thesis
+                    using proofIncr_mono[OF _ _ _ p'_val, of "Inr (VOnce_never (i-1) li ps)"]
+                      valid_q_before i_props prems
+                    unfolding p'b' b'v  
+                    by (auto simp add: proofIncr_def li'_def li''_def intro: checkIncr.intros)
+                qed
+                using p1_def False q_val i_props vmin
+                apply (auto simp: Let_def optimal_def valid_def i_ltp_to_tau i_etp_to_tau i_le_ltpi split: if_splits)
+                using not_wqo vmin apply blast
+                done
             qed
           qed
         }
