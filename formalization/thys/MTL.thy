@@ -9447,16 +9447,46 @@ proof (rule ccontr)
           qed
         next
           case False
-          then have form: "minp = Inr (VOnce_never i li vphis')"
-            using b'_def Inr minp p'_def p'r p1_def unfolding doOnce_def
-            apply (auto simp: min_list_wrt_def split: if_splits)
-            (* by (meson leD sat_Once_rec sats) *)
-            sorry
-          then show ?thesis using q_s a_def q_val Inl p1_def i_props bfphi
+          (* from p'_def have p'_val: "valid rho (i-1) (Once (subtract (\<Delta> rho i) I) phi) p'"
+            unfolding optimal_def by auto
+          from False have form: "minp = Inr (VOnce_never i li vphis')"
+            using b'_def Inl minp Inr filter_nnil unfolding doOnce_def
+            by (cases p1) (auto simp: min_list_wrt_def split: enat.splits)
+          then have "wqo p' (Inr (VOnce_never (i-1) li' ps))" using p'_def
+                unfolding optimal_def by auto
+              moreover have "checkIncr p'"
+                using p'_def
+                unfolding p'b' b'v
+                by (auto simp: optimal_def intro!: valid_checkIncr_VOnce_never)
+              moreover have "checkIncr (Inr (VOnce_never (i-1) li' ps))"
+                using valid_q_before
+                by (auto intro!: valid_checkIncr_VOnce_never)
+              ultimately show ?thesis
+                using proofIncr_mono[OF _ _ _ p'_val, of "Inr (VOnce_never (i-1) li' ps)"]
+                      valid_q_before i_props prems
+                unfolding p'b' b'v
+                by (auto simp add: proofIncr_def li'_def li''_def intro: checkIncr.intros)
+
+
+
+          then have qs_check: "\<forall>p \<in> set qs. v_check rho psi p"
+            using bv min satc Inr p'_def i_props
+            unfolding optimal_def valid_def by auto
+          then have jc: "\<forall>j \<in> set (map v_at qs). \<exists>p. v_at p = j \<and> v_check rho psi p"
+            using map_set_in_imp_set_in qs_check by auto
+          then have "s_at spsi = i"
+            using spsi_bounds check_spsi jc tc check_consistent[OF bfpsi]
+            apply (auto split: enat.splits)
+            apply force
+            (* by (metis Nat.add_0_right add_diff_inverse_nat atLeastLessThan_iff diff_is_0_eq le0 *)) *)
+
+
+
+          (* then show ?thesis using q_s a_def q_val Inl p1_def i_props bfphi
             unfolding optimal_def valid_def
             apply (auto simp add: Let_def False i_ltp_to_tau)
-            (* by (meson False le0 le_antisym sat_Once_rec sats) *)
-            sorry
+            (* by (meson False le0 le_antisym sat_Once_rec sats) *) *)
+            then show ?thesis sorry
         qed
       next
         case (Inr b1)
