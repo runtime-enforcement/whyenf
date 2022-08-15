@@ -8,7 +8,8 @@ section \<open>Formulas and Satisfiability\<close>
 
 datatype 'a mtl = TT | FF | Atom 'a | Neg "'a mtl" | Disj "'a mtl" "'a mtl" 
   | Conj "'a mtl" "'a mtl" | Impl "'a mtl" "'a mtl" | Iff "'a mtl" "'a mtl"
-  | Next \<I> "'a mtl" | Prev \<I> "'a mtl" | Once \<I> "'a mtl" 
+  | Next \<I> "'a mtl" | Prev \<I> "'a mtl" | Once \<I> "'a mtl" (* | Historically \<I> "'a mtl" *)
+  | Eventually \<I> "'a mtl"
   | Since "'a mtl" \<I> "'a mtl" | Until "'a mtl" \<I> "'a mtl"
     (*  | MatchF \<I> "'a mtl Regex.regex" | MatchP \<I> "'a mtl Regex.regex" *)
 
@@ -24,6 +25,8 @@ fun sat :: "'a trace \<Rightarrow> nat \<Rightarrow> 'a mtl \<Rightarrow> bool" 
 | "sat \<sigma> i (Next I \<phi>) = (mem (\<tau> \<sigma> (i + 1) - \<tau> \<sigma> i) I \<and> sat \<sigma> (i + 1) \<phi>)"
 | "sat \<sigma> i (Prev I \<phi>) = (case i of 0 \<Rightarrow> False | Suc j \<Rightarrow> mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I \<and> sat \<sigma> j \<phi>)"
 | "sat \<sigma> i (Once I \<phi>) = (\<exists>j\<le>i. mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I \<and> sat \<sigma> j \<phi>)"
+(* | "sat \<sigma> i (Historically I \<phi>) = (\<forall>j\<le>i. mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I \<and> sat \<sigma> j \<phi>)" *)
+| "sat \<sigma> i (Eventually I \<phi>) = (\<exists>j\<ge>i. mem (\<tau> \<sigma> j - \<tau> \<sigma> i) I \<and> sat \<sigma> j \<phi>)"
 | "sat \<sigma> i (Since \<phi> I \<psi>) = (\<exists>j\<le>i. mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I \<and> sat \<sigma> j \<psi> \<and> (\<forall>k \<in> {j <.. i}. sat \<sigma> k \<phi>))"
 | "sat \<sigma> i (Until \<phi> I \<psi>) = (\<exists>j\<ge>i. mem (\<tau> \<sigma> j - \<tau> \<sigma> i) I \<and> sat \<sigma> j \<psi> \<and> (\<forall>k \<in> {i ..< j}. sat \<sigma> k \<phi>))"
   (*
@@ -96,6 +99,26 @@ lemma sat_Once_rec: "sat \<sigma> i (Once I \<phi>) \<longleftrightarrow>
   subgoal for j
     by (cases i; auto dest: spec[of _ j] simp: le_Suc_eq diff_enat_def Suc_le_eq le_diff_conv2 split: enat.splits)
   subgoal for k j apply (rule exI[of _ "j"]; auto simp: diff_enat_def le_diff_conv2 le_Suc_eq split: enat.splits) done
+  done
+
+(* lemma sat_Historically_rec: "sat \<sigma> i (Historically I \<phi>) \<longleftrightarrow>
+  (\<Delta> \<sigma> i \<le> right I \<and> sat \<sigma> (i - 1) (Historically (subtract (\<Delta> \<sigma> i) I) \<phi>))"
+  apply (auto elim!: less_enatE simp: gr0_conv_Suc le_Suc_eq not_le)
+  subgoal for j apply (cases i; auto)  *)
+
+lemma sat_Eventually_rec: "sat \<sigma> i (Eventually I \<phi>) \<longleftrightarrow>
+  mem 0 I \<and> sat \<sigma> i \<phi> \<or> 
+  (\<Delta> \<sigma> (i + 1) \<le> right I \<and> sat \<sigma> (i + 1) (Eventually (subtract (\<Delta> \<sigma> (i + 1)) I) \<phi>))"
+  apply (auto elim!: less_enatE simp: gr0_conv_Suc le_Suc_eq not_le)
+  subgoal apply (metis (no_types, lifting) Suc_leI \<tau>_mono diff_is_0_eq' diff_le_mono diff_zero order.order_iff_strict leD le_less_trans) done
+  subgoal apply (metis (no_types, lifting) Suc_leI \<tau>_mono diff_le_mono order.order_iff_strict leD le_less_trans) done
+  subgoal apply (simp add: diff_enat_def le_diff_conv2 less_Suc_eq split: enat.splits)
+     apply (smt (verit) diff_add diff_diff_cancel diff_diff_right diff_is_0_eq' le_simps(3) less_diff_iff less_imp_diff_less nat_less_le not_less_eq_eq)
+    by (metis add_diff_cancel_right' diff_is_0_eq diff_le_mono leD)
+  subgoal apply (simp add: diff_enat_def le_diff_conv2 less_Suc_eq split: enat.splits)
+     apply (smt (verit) diff_add diff_diff_cancel diff_diff_right diff_is_0_eq' le_simps(3) less_diff_iff less_imp_diff_less nat_less_le not_less_eq_eq)
+    by (metis diff_le_mono less_le_not_le)
+  subgoal for j apply (rule exI[of _ "j"]; auto simp: diff_enat_def le_diff_conv2 Suc_le_eq split: enat.splits) done
   done
 
 (*
@@ -372,6 +395,7 @@ inductive bounded_future where
 | NextBF: "bounded_future phi \<Longrightarrow> bounded_future (Next I phi)"
 | PrevBF: "bounded_future phi \<Longrightarrow> bounded_future (Prev I phi)"
 | OnceBF: "bounded_future phi \<Longrightarrow> bounded_future (Once I phi)"
+| EventuallyBF: "right I \<noteq> \<infinity> \<Longrightarrow> bounded_future phi \<Longrightarrow> bounded_future (Eventually I phi)"
 | SinceBF: "bounded_future phi \<Longrightarrow> bounded_future psi
 \<Longrightarrow> bounded_future (Since phi I psi)"
 | UntilBF: "right I \<noteq> \<infinity> \<Longrightarrow> bounded_future phi \<Longrightarrow> bounded_future psi
@@ -395,6 +419,7 @@ lemma bounded_future_simps[simp]:
     "bounded_future (Next I phi) \<longleftrightarrow> bounded_future phi"
     "bounded_future (Prev I phi) \<longleftrightarrow> bounded_future phi"
     "bounded_future (Once I phi) \<longleftrightarrow> bounded_future phi"
+    "bounded_future (Eventually I phi) \<longleftrightarrow> bounded_future phi \<and> right I \<noteq> \<infinity>"
     "bounded_future (Since phi I psi) \<longleftrightarrow> bounded_future phi \<and> bounded_future psi"
     "bounded_future (Until phi I psi) \<longleftrightarrow> bounded_future phi \<and> bounded_future psi \<and> right I \<noteq> \<infinity>"
     (*
@@ -438,6 +463,9 @@ inductive SAT and VIO where
 | VOnce_never: "j = (case right I of \<infinity> \<Rightarrow> 0 | enat n \<Rightarrow> ETP rho ((\<tau> rho i) - n)) \<Longrightarrow>
  (\<tau> rho i) \<ge> (\<tau> rho 0) + left I \<Longrightarrow>
 (\<And>k. k \<in> {j .. l i I} \<Longrightarrow> VIO k phi) \<Longrightarrow> VIO i (Once I phi)"
+| SEventually: "j \<ge> i \<Longrightarrow> mem (delta rho j i) I  \<Longrightarrow> SAT j phi \<Longrightarrow> SAT i (Eventually I phi)"
+| VEventually_never: "(\<And>k. k \<in> (case right I of \<infinity> \<Rightarrow> {lu i I ..} | enat n \<Rightarrow> {lu i I .. LTP rho ((\<tau> rho i) + n)}) \<Longrightarrow> VIO k phi)
+\<Longrightarrow> VIO i (Eventually I phi)"
 | SSince: "j \<le> i \<Longrightarrow> mem (delta rho i j) I  \<Longrightarrow> SAT j psi \<Longrightarrow> (\<And>k. k \<in> {j <.. i}
 \<Longrightarrow> SAT k phi) \<Longrightarrow> SAT i (Since phi I psi)"
 | VSince_le: "\<tau> rho i < \<tau> rho 0 + left I \<Longrightarrow> VIO i (Since phi I psi)"
@@ -494,6 +522,21 @@ next
           split: enat.splits)}
   ultimately show ?case
     by force
+next
+  case (Eventually I phi)
+  from \<tau>_mono have i0: "\<tau> rho 0 \<le> \<tau> rho i" by auto
+  {assume "sat rho i (Eventually I phi)"
+    then have "SAT i (Eventually I phi)"
+      using SAT_VIO.SEventually local.Eventually
+      by auto}
+  moreover
+  {assume unsat: "\<not> sat rho i (Eventually I phi)"
+      and nw: "\<forall>j \<ge> i. \<not> mem (delta rho j i) I \<or> \<not> sat rho j phi"
+    then have "VIO i (Eventually I phi)"
+      using local.Eventually
+      by (auto intro!: SAT_VIO.VEventually simp: add_increasing2 i0 i_ltp_to_tau i_etp_to_tau
+          split: enat.splits)}
+  ultimately show ?case by auto
 next
   case (Since phi I psi)
   {assume "sat rho i (Since phi I psi)"
@@ -740,6 +783,55 @@ next
          apply (auto)
         by (metis diff_commute diff_is_0_eq i_etp_to_tau leD)
     qed  
+  }
+  ultimately show ?case by auto
+next
+  case (Eventually I phi)
+  {assume "SAT i (Eventually I phi)"
+    then have "sat rho i (Eventually I phi)" using Eventually by (cases) (auto)
+  }
+  moreover
+  {assume "VIO i (Eventually I phi)"
+    then have "\<not> sat rho i (Eventually I phi)" using Eventually
+    proof (cases)
+      case (VEventually_never)
+      {fix k n
+        assume r: "right I = enat n"
+        from this VEventually_never EventuallyBF have tin0: "\<tau> rho i + n \<ge> \<tau> rho 0"
+          by (auto simp add: trans_le_add1)
+        define j where "j = LTP rho ((\<tau> rho i) + n)"
+        from VEventually_never EventuallyBF have j_i: "i \<le> j"
+          by (auto simp add: i_ltp_to_tau trans_le_add1 j_def)
+        assume k_def: "sat rho k phi \<and> mem (delta rho k i) I \<and> i \<le> k"
+        then have "\<tau> rho k \<ge> \<tau> rho i + left I"
+          using le_diff_conv2 by auto
+        then have k_etp: "k \<ge> ETP rho (\<tau> rho i + left I)"
+          using VEventually_never i_etp_to_tau by blast
+        from this k_def VEventually_never Eventually have "k \<notin> {lu i I .. j}"
+          by (auto simp: r j_def)
+        then have "j < k" using VEventually_never EventuallyBF k_def k_etp by auto
+        from k_def r have "delta rho k i \<le> n" by auto
+        then have "\<tau> rho k \<le> \<tau> rho i + n" by auto
+        then have "k \<le> j"
+          using tin0 VEventually_never EventuallyBF i_ltp_to_tau r k_def apply (auto simp: j_def)
+          by blast
+      }
+      note aux = this
+      show ?thesis
+      proof (cases "right I")
+        case (enat n)
+        show ?thesis
+          using VEventually_never Eventually aux
+          unfolding enat
+          apply (auto simp: i_etp_to_tau le_diff_conv2)
+          by (metis Groups.ab_semigroup_add_class.add.commute add_le_imp_le_diff enat enat_ord_simps(1))
+      next
+        case infinity
+        show ?thesis
+          using VEventually_never Eventually
+          by (auto simp: infinity i_etp_to_tau le_diff_conv2)
+      qed
+    qed
   }
   ultimately show ?case by auto
 next
