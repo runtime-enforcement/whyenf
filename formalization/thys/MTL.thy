@@ -534,7 +534,7 @@ next
       and nw: "\<forall>j \<ge> i. \<not> mem (delta rho j i) I \<or> \<not> sat rho j phi"
     then have "VIO i (Eventually I phi)"
       using local.Eventually
-      by (auto intro!: SAT_VIO.VEventually simp: add_increasing2 i0 i_ltp_to_tau i_etp_to_tau
+      by (auto intro!: SAT_VIO.VEventually_never simp: add_increasing2 i0 i_ltp_to_tau i_etp_to_tau
           split: enat.splits)}
   ultimately show ?case by auto
 next
