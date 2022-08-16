@@ -8,10 +8,9 @@ section \<open>Formulas and Satisfiability\<close>
 
 datatype 'a mtl = TT | FF | Atom 'a | Neg "'a mtl" | Disj "'a mtl" "'a mtl" 
   | Conj "'a mtl" "'a mtl" | Impl "'a mtl" "'a mtl" | Iff "'a mtl" "'a mtl"
-  | Next \<I> "'a mtl" | Prev \<I> "'a mtl" | Once \<I> "'a mtl" (* | Historically \<I> "'a mtl" *)
-  | Eventually \<I> "'a mtl"
+  | Next \<I> "'a mtl" | Prev \<I> "'a mtl" | Once \<I> "'a mtl" | Historically \<I> "'a mtl"
+  | Eventually \<I> "'a mtl" | Always \<I> "'a mtl"
   | Since "'a mtl" \<I> "'a mtl" | Until "'a mtl" \<I> "'a mtl"
-    (*  | MatchF \<I> "'a mtl Regex.regex" | MatchP \<I> "'a mtl Regex.regex" *)
 
 fun sat :: "'a trace \<Rightarrow> nat \<Rightarrow> 'a mtl \<Rightarrow> bool" where
   "sat \<sigma> i TT = True"
@@ -25,159 +24,109 @@ fun sat :: "'a trace \<Rightarrow> nat \<Rightarrow> 'a mtl \<Rightarrow> bool" 
 | "sat \<sigma> i (Next I \<phi>) = (mem (\<tau> \<sigma> (i + 1) - \<tau> \<sigma> i) I \<and> sat \<sigma> (i + 1) \<phi>)"
 | "sat \<sigma> i (Prev I \<phi>) = (case i of 0 \<Rightarrow> False | Suc j \<Rightarrow> mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I \<and> sat \<sigma> j \<phi>)"
 | "sat \<sigma> i (Once I \<phi>) = (\<exists>j\<le>i. mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I \<and> sat \<sigma> j \<phi>)"
-(* | "sat \<sigma> i (Historically I \<phi>) = (\<forall>j\<le>i. mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I \<and> sat \<sigma> j \<phi>)" *)
+| "sat \<sigma> i (Historically I \<phi>) = (\<forall>j\<le>i. mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I \<longrightarrow> sat \<sigma> j \<phi>)"
 | "sat \<sigma> i (Eventually I \<phi>) = (\<exists>j\<ge>i. mem (\<tau> \<sigma> j - \<tau> \<sigma> i) I \<and> sat \<sigma> j \<phi>)"
+| "sat \<sigma> i (Always I \<phi>) = (\<forall>j\<ge>i. mem (\<tau> \<sigma> j - \<tau> \<sigma> i) I \<longrightarrow> sat \<sigma> j \<phi>)"
 | "sat \<sigma> i (Since \<phi> I \<psi>) = (\<exists>j\<le>i. mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I \<and> sat \<sigma> j \<psi> \<and> (\<forall>k \<in> {j <.. i}. sat \<sigma> k \<phi>))"
 | "sat \<sigma> i (Until \<phi> I \<psi>) = (\<exists>j\<ge>i. mem (\<tau> \<sigma> j - \<tau> \<sigma> i) I \<and> sat \<sigma> j \<psi> \<and> (\<forall>k \<in> {i ..< j}. sat \<sigma> k \<phi>))"
-  (*
-| "sat \<sigma> i (MatchF I r) = (\<exists>j\<ge>i. mem (\<tau> \<sigma> j - \<tau> \<sigma> i) I \<and> Regex.match (sat \<sigma>) r i j)"
-| "sat \<sigma> i (MatchP I r) = (\<exists>j\<le>i. mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I \<and> Regex.match (sat \<sigma>) r j i)"
-*)
 
 abbreviation "delta rho i j \<equiv> (\<tau> rho i) - (\<tau> rho j)"
-
-(* context begin
-
-qualified abbreviation "Imp \<phi> \<psi> \<equiv> Disj (Neg \<phi>) \<psi>"
-qualified abbreviation "Iff \<phi> \<psi> \<equiv> Conj (Imp \<phi> \<psi>) (Imp \<psi> \<phi>)"
-qualified abbreviation "Once I \<phi> \<equiv> Since TT I \<phi>"
-qualified abbreviation "Historically I \<phi> \<equiv> Neg (Once I (Neg \<phi>))"
-qualified abbreviation "Eventually I \<phi> \<equiv> Until TT I \<phi>"
-qualified abbreviation "Always I \<phi> \<equiv> Neg (Eventually I (Neg \<phi>))"
-
-end *)
 
 lemma sat_Until_rec: "sat \<sigma> i (Until \<phi> I \<psi>) \<longleftrightarrow>
   mem 0 I \<and> sat \<sigma> i \<psi> \<or>
   (\<Delta> \<sigma> (i + 1) \<le> right I \<and> sat \<sigma> i \<phi> \<and> sat \<sigma> (i + 1) (Until \<phi> (subtract (\<Delta> \<sigma> (i + 1)) I) \<psi>))"
-  apply (auto elim!: less_enatE simp: gr0_conv_Suc le_Suc_eq not_le)
-  subgoal apply (metis (no_types, lifting) Suc_leI \<tau>_mono diff_is_0_eq' diff_le_mono diff_zero order.order_iff_strict leD le_less_trans) done
-  subgoal apply (metis (no_types, lifting) Suc_leI \<tau>_mono diff_le_mono order.order_iff_strict leD le_less_trans) done
-  subgoal for j apply (rule exI[of _ "j"]) apply (auto simp: diff_enat_def Suc_le_eq split: enat.splits)
-     apply (metis Suc_leI diff_self_eq_0 le_0_eq le_neq_implies_less nat.simps(3))
-    apply (metis Suc_leI diff_self_eq_0 le_0_eq le_neq_implies_less nat.simps(3)) done
-  subgoal apply (auto simp: diff_enat_def le_diff_conv2 less_Suc_eq split: enat.splits) done
-  subgoal for j apply (rule exI[of _ "j"]; auto simp: diff_enat_def le_diff_conv2 Suc_le_eq split: enat.splits) done
-  done
+  (is "?L \<longleftrightarrow> ?R")
+proof (rule iffI; (elim disjE conjE)?)
+  assume ?L
+  then obtain j where j: "i \<le> j" "mem (\<tau> \<sigma> j - \<tau> \<sigma> i) I" "sat \<sigma> j \<psi>" "\<forall>k \<in> {i ..< j}. sat \<sigma> k \<phi>"
+    by auto
+  then show ?R
+  proof (cases "i = j")
+    case False
+    with j(1,2) have "\<Delta> \<sigma> (i + 1) \<le> right I"
+      by (auto elim: order_trans[rotated] simp: diff_le_mono)
+    moreover from False j(1,4) have "sat \<sigma> i \<phi>" by auto
+    moreover from False j have "sat \<sigma> (i + 1) (Until \<phi> (subtract (\<Delta> \<sigma> (i + 1)) I) \<psi>)"
+      by (cases "right I") (auto simp: le_diff_conv le_diff_conv2 intro!: exI[of _ j])
+    ultimately show ?thesis by blast
+  qed simp
+next
+  assume \<Delta>: "\<Delta> \<sigma> (i + 1) \<le> right I" and now: "sat \<sigma> i \<phi>" and
+   "next": "sat \<sigma> (i + 1) (Until \<phi> (subtract (\<Delta> \<sigma> (i + 1)) I) \<psi>)"
+  from "next" obtain j where j: "i + 1 \<le> j" "mem (\<tau> \<sigma> j - \<tau> \<sigma> (i + 1)) ((subtract (\<Delta> \<sigma> (i + 1)) I))"
+      "sat \<sigma> j \<psi>" "\<forall>k \<in> {i + 1 ..< j}. sat \<sigma> k \<phi>"
+    by auto
+  from \<Delta> j(1,2) have "mem (\<tau> \<sigma> j - \<tau> \<sigma> i) I"
+    by (cases "right I") (auto simp: le_diff_conv2)
+  with now j(1,3,4) show ?L by (auto simp: le_eq_less_or_eq[of i] intro!: exI[of _ j])
+qed auto
 
 lemma sat_Since_rec: "sat \<sigma> i (Since \<phi> I \<psi>) \<longleftrightarrow>
   mem 0 I \<and> sat \<sigma> i \<psi> \<or>
   (i > 0 \<and> \<Delta> \<sigma> i \<le> right I \<and> sat \<sigma> i \<phi> \<and> sat \<sigma> (i - 1) (Since \<phi> (subtract (\<Delta> \<sigma> i) I) \<psi>))"
-  apply (auto elim!: less_enatE simp: gr0_conv_Suc le_Suc_eq not_le)
-  subgoal apply (cases i) apply auto done
-  subgoal apply (cases i) apply auto done
-  subgoal for j k apply (cases i; auto simp: le_Suc_eq Suc_le_eq)
-    apply (meson \<tau>_mono diff_le_mono2 order.trans enat_ord_simps(1)) done
-  subgoal for j  apply (rule exI[of _ "j"]) apply (auto simp: diff_enat_def Suc_le_eq split: enat.splits)
-    using not_less_eq_eq apply fastforce
-    using not_less_eq_eq apply fastforce done
-  subgoal for j k apply (cases i; auto simp: le_Suc_eq Suc_le_eq)
-    apply (meson \<tau>_mono diff_le_mono2 le_less_trans not_le) done
-  subgoal for j apply (cases i; auto simp: le_Suc_eq)
-    apply (rule exI[of _ "j"]) apply (auto simp: diff_enat_def Suc_le_eq split: enat.splits)
-     apply (metis Nat.le_diff_conv2 \<tau>_mono add_diff_cancel_left' diff_diff_left diff_le_mono2 le_eq_less_or_eq le_imp_less_Suc)
-    apply (metis Nat.le_diff_conv2 \<tau>_mono add_diff_cancel_left' diff_diff_left diff_le_mono2 le_imp_less_Suc order_less_imp_le)
-    done
-  subgoal for k j apply (rule exI[of _ "j"]; auto simp: diff_enat_def le_diff_conv2 le_Suc_eq split: enat.splits) done
-  done
+  (is "?L \<longleftrightarrow> ?R")
+proof (rule iffI; (elim disjE conjE)?)
+  assume ?L
+  then obtain j where j: "j \<le> i" "mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I" "sat \<sigma> j \<psi>" "\<forall>k \<in> {j <.. i}. sat \<sigma> k \<phi>"
+    by auto
+  then show ?R
+  proof (cases "i = j")
+    case False
+    with j(1) obtain k where [simp]: "i = k + 1"
+      by (cases i) auto
+    with j(1,2) False have "\<Delta> \<sigma> i \<le> right I"
+      by (auto elim: order_trans[rotated] simp: diff_le_mono2 le_Suc_eq)
+    moreover from False j(1,4) have "sat \<sigma> i \<phi>" by auto
+    moreover from False j have "sat \<sigma> (i - 1) (Since \<phi> (subtract (\<Delta> \<sigma> i) I) \<psi>)"
+      by (cases "right I") (auto simp: le_diff_conv le_diff_conv2 intro!: exI[of _ j])
+    ultimately show ?thesis by auto
+  qed simp
+next
+  assume i: "0 < i" and \<Delta>: "\<Delta> \<sigma> i \<le> right I" and now: "sat \<sigma> i \<phi>" and
+   "prev": "sat \<sigma> (i - 1) (Since \<phi> (subtract (\<Delta> \<sigma> i) I) \<psi>)"
+  from "prev" obtain j where j: "j \<le> i - 1" "mem (\<tau> \<sigma> (i - 1) - \<tau> \<sigma> j) ((subtract (\<Delta> \<sigma> i) I))"
+      "sat \<sigma> j \<psi>" "\<forall>k \<in> {j <.. i - 1}. sat \<sigma> k \<phi>"
+    by auto
+  from \<Delta> i j(1,2) have "mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I"
+    by (cases "right I") (auto simp: le_diff_conv2)
+  with now i j(1,3,4) show ?L by (auto simp: le_Suc_eq gr0_conv_Suc intro!: exI[of _ j])
+qed auto
+
+lemma sat_Once_Since: "sat \<sigma> i (Once I \<phi>) = sat \<sigma> i (Since TT I \<phi>)"
+  by auto
 
 lemma sat_Once_rec: "sat \<sigma> i (Once I \<phi>) \<longleftrightarrow>
   mem 0 I \<and> sat \<sigma> i \<phi> \<or> 
   (i > 0 \<and> \<Delta> \<sigma> i \<le> right I \<and> sat \<sigma> (i - 1) (Once (subtract (\<Delta> \<sigma> i) I) \<phi>))"
-  apply (auto elim!: less_enatE simp: gr0_conv_Suc le_Suc_eq not_le)
-  subgoal apply (cases i) apply auto done
-  subgoal apply (cases i) apply auto done
-  subgoal for j k apply (cases i; auto simp: le_Suc_eq Suc_le_eq)
-    apply (meson \<tau>_mono diff_le_mono2 order.trans enat_ord_simps(1)) done
-  subgoal for j apply (rule exI[of _ "j"]) apply (auto simp: diff_enat_def Suc_le_eq split: enat.splits)
-    using not_less_eq_eq 
-     apply fastforce
-    using linorder_not_le 
-    by fastforce
-  subgoal for j k apply (cases i; auto simp: le_Suc_eq Suc_le_eq)
-    apply (meson \<tau>_mono diff_le_mono2 le_less_trans not_le) done
-  subgoal for j
-    by (cases i; auto dest: spec[of _ j] simp: le_Suc_eq diff_enat_def Suc_le_eq le_diff_conv2 split: enat.splits)
-  subgoal for k j apply (rule exI[of _ "j"]; auto simp: diff_enat_def le_diff_conv2 le_Suc_eq split: enat.splits) done
-  done
+  unfolding sat_Once_Since
+  by (subst sat_Since_rec) auto
 
-(* lemma sat_Historically_rec: "sat \<sigma> i (Historically I \<phi>) \<longleftrightarrow>
-  (\<Delta> \<sigma> i \<le> right I \<and> sat \<sigma> (i - 1) (Historically (subtract (\<Delta> \<sigma> i) I) \<phi>))"
-  apply (auto elim!: less_enatE simp: gr0_conv_Suc le_Suc_eq not_le)
-  subgoal for j apply (cases i; auto)  *)
+lemma sat_Historically_Once: "sat \<sigma> i (Historically I \<phi>) = sat \<sigma> i (Neg (Once I (Neg \<phi>)))"
+  by auto
+
+lemma sat_Historically_rec: "sat \<sigma> i (Historically I \<phi>) \<longleftrightarrow>
+  (mem 0 I \<longrightarrow> sat \<sigma> i \<phi>) \<and> 
+  (i > 0 \<longrightarrow> \<Delta> \<sigma> i \<le> right I \<longrightarrow> sat \<sigma> (i - 1) (Historically (subtract (\<Delta> \<sigma> i) I) \<phi>))"
+  unfolding sat_Historically_Once sat.simps(4)
+  by (subst sat_Once_rec) auto
+
+lemma sat_Eventually_Until: "sat \<sigma> i (Eventually I \<phi>) = sat \<sigma> i (Until TT I \<phi>)"
+  by auto
 
 lemma sat_Eventually_rec: "sat \<sigma> i (Eventually I \<phi>) \<longleftrightarrow>
   mem 0 I \<and> sat \<sigma> i \<phi> \<or> 
   (\<Delta> \<sigma> (i + 1) \<le> right I \<and> sat \<sigma> (i + 1) (Eventually (subtract (\<Delta> \<sigma> (i + 1)) I) \<phi>))"
-  apply (auto elim!: less_enatE simp: gr0_conv_Suc le_Suc_eq not_le)
-  subgoal apply (metis (no_types, lifting) Suc_leI \<tau>_mono diff_is_0_eq' diff_le_mono diff_zero order.order_iff_strict leD le_less_trans) done
-  subgoal apply (metis (no_types, lifting) Suc_leI \<tau>_mono diff_le_mono order.order_iff_strict leD le_less_trans) done
-  subgoal apply (simp add: diff_enat_def le_diff_conv2 less_Suc_eq split: enat.splits)
-     apply (smt (verit) diff_add diff_diff_cancel diff_diff_right diff_is_0_eq' le_simps(3) less_diff_iff less_imp_diff_less nat_less_le not_less_eq_eq)
-    by (metis add_diff_cancel_right' diff_is_0_eq diff_le_mono leD)
-  subgoal apply (simp add: diff_enat_def le_diff_conv2 less_Suc_eq split: enat.splits)
-     apply (smt (verit) diff_add diff_diff_cancel diff_diff_right diff_is_0_eq' le_simps(3) less_diff_iff less_imp_diff_less nat_less_le not_less_eq_eq)
-    by (metis diff_le_mono less_le_not_le)
-  subgoal for j apply (rule exI[of _ "j"]; auto simp: diff_enat_def le_diff_conv2 Suc_le_eq split: enat.splits) done
-  done
+  unfolding sat_Eventually_Until
+  by (subst sat_Until_rec) auto
 
-(*
-lemma sat_MatchF_rec: "sat \<sigma> i (MatchF I r) \<longleftrightarrow> mem 0 I \<and> Regex.eps (sat \<sigma>) i r \<or>
-  \<Delta> \<sigma> (i + 1) \<le> right I \<and> (\<exists>s \<in> Regex.lpd (sat \<sigma>) i r. sat \<sigma> (i + 1) (MatchF (subtract (\<Delta> \<sigma> (i + 1)) I) s))"
-  (is "?L \<longleftrightarrow> ?R1 \<or> ?R2")
-proof (rule iffI; (elim disjE conjE bexE)?)
-  assume ?L
-  then obtain j where j: "j \<ge> i" "mem (\<tau> \<sigma> j - \<tau> \<sigma> i) I" and"Regex.match (sat \<sigma>) r i j" by auto
-  then show "?R1 \<or> ?R2"
-  proof (cases "i < j")
-    case True
-    with \<open>Regex.match (sat \<sigma>) r i j\<close> lpd_match[of _ _ "sat \<sigma>"] obtain s
-      where "s \<in> Regex.lpd (sat \<sigma>) i r" "Regex.match (sat \<sigma>) s (i + 1) j" by auto
-    with True j have ?R2
-      by (cases "right I")
-        (auto simp: le_diff_conv le_diff_conv2 intro!: exI[of _ j] elim: le_trans[rotated])
-    then show ?thesis by blast
-  qed (auto simp: eps_match)
-next
-  assume "enat (\<Delta> \<sigma> (i + 1)) \<le> right I"
-  moreover
-  fix s
-  assume [simp]: "s \<in> Regex.lpd (sat \<sigma>) i r" and "(sat \<sigma>) (i + 1) (MatchF (subtract (\<Delta> \<sigma> (i + 1)) I) s)"
-  then obtain j where "j > i" "Regex.match (sat \<sigma>) s (i + 1) j"
-    "mem (\<tau> \<sigma> j - \<tau> \<sigma> (Suc i)) (subtract (\<Delta> \<sigma> (i + 1)) I)" by (auto simp: Suc_le_eq)
-  ultimately show ?L
-    by (cases "right I")
-      (auto simp: le_diff_conv lpd_match intro!: exI[of _ j] bexI[of _ s])
-qed (auto simp: eps_match intro!: exI[of _ i])
+lemma sat_Always_Eventually: "sat \<sigma> i (Always I \<phi>) = sat \<sigma> i (Neg (Eventually I (Neg \<phi>)))"
+  by auto
 
-lemma sat_PossiblyP_rec: "(sat \<sigma>) i (MatchP I r) \<longleftrightarrow> mem 0 I \<and> Regex.eps (sat \<sigma>) i r \<or>
-  i > 0 \<and> \<Delta> \<sigma> i \<le> right I \<and> (\<exists>s \<in> Regex.rpd (sat \<sigma>) i r. (sat \<sigma>) (i - 1) (MatchP (subtract (\<Delta> \<sigma> i) I) s))"
-  (is "?L \<longleftrightarrow> ?R1 \<or> ?R2")
-proof (rule iffI; (elim disjE conjE bexE)?)
-  assume ?L
-  then obtain j where j: "j \<le> i" "mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I" and "Regex.match (sat \<sigma>) r j i" by auto
-  then show "?R1 \<or> ?R2"
-  proof (cases "j < i")
-    case True
-    with \<open>Regex.match (sat \<sigma>) r j i\<close> rpd_match[of _ _ "sat \<sigma>"] obtain s
-      where "s \<in> Regex.rpd (sat \<sigma>) i r" "Regex.match (sat \<sigma>) s j (i - 1)" by auto
-    with True j have ?R2
-      by (cases "right I")
-        (auto simp: le_diff_conv le_diff_conv2 intro!: exI[of _ j] elim: le_trans)
-    then show ?thesis by blast
-  qed (auto simp: eps_match)
-next
-  assume "enat (\<Delta> \<sigma> i) \<le> right I"
-  moreover
-  fix s
-  assume [simp]: "s \<in> Regex.rpd (sat \<sigma>) i r" and "(sat \<sigma>) (i - 1) (MatchP (subtract (\<Delta> \<sigma> i) I) s)" "i > 0"
-  then obtain j where "j < i" "Regex.match (sat \<sigma>) s j (i - 1)"
-    "mem (\<tau> \<sigma> (i - 1) - \<tau> \<sigma> j) (subtract (\<Delta> \<sigma> i) I)" by (auto simp: gr0_conv_Suc less_Suc_eq_le)
-  ultimately show ?L
-    by (cases "right I")
-      (auto simp: le_diff_conv rpd_match intro!: exI[of _ j] bexI[of _ s])
-qed (auto simp: eps_match intro!: exI[of _ i])
-*)
+lemma sat_Always_rec: "sat \<sigma> i (Always I \<phi>) \<longleftrightarrow>
+  (mem 0 I \<longrightarrow> sat \<sigma> i \<phi>) \<and> 
+  (\<Delta> \<sigma> (i + 1) \<le> right I \<longrightarrow> sat \<sigma> (i + 1) (Always (subtract (\<Delta> \<sigma> (i + 1)) I) \<phi>))"
+  unfolding sat_Always_Eventually sat.simps(4)
+  by (subst sat_Eventually_rec) auto
 
 definition ETP:: "'a trace \<Rightarrow> nat \<Rightarrow> nat"
   where
@@ -375,7 +324,7 @@ qed
 context fixes rho:: "'a trace"
 begin
 
-(*Abbreviations for readability*)
+(* Abbreviations for readability *)
 abbreviation "l i I \<equiv> min i (LTP rho ((\<tau> rho i) - left I))"
 abbreviation "lu i I \<equiv> max i (ETP rho ((\<tau> rho i) + left I))"
 
@@ -395,17 +344,13 @@ inductive bounded_future where
 | NextBF: "bounded_future phi \<Longrightarrow> bounded_future (Next I phi)"
 | PrevBF: "bounded_future phi \<Longrightarrow> bounded_future (Prev I phi)"
 | OnceBF: "bounded_future phi \<Longrightarrow> bounded_future (Once I phi)"
+| HistoricallyBF: "bounded_future phi \<Longrightarrow> bounded_future (Historically I phi)"
 | EventuallyBF: "right I \<noteq> \<infinity> \<Longrightarrow> bounded_future phi \<Longrightarrow> bounded_future (Eventually I phi)"
+| AlwaysBF: "right I \<noteq> \<infinity> \<Longrightarrow> bounded_future phi \<Longrightarrow> bounded_future (Always I phi)"
 | SinceBF: "bounded_future phi \<Longrightarrow> bounded_future psi
 \<Longrightarrow> bounded_future (Since phi I psi)"
 | UntilBF: "right I \<noteq> \<infinity> \<Longrightarrow> bounded_future phi \<Longrightarrow> bounded_future psi
 \<Longrightarrow> bounded_future (Until phi I psi)"
-  (*
-| MatchPBF: "\<forall>x \<in> Regex.atms r. bounded_future x
-\<Longrightarrow> bounded_future (MatchP I r)"
-| MatchFBF: "right I \<noteq> \<infinity> \<Longrightarrow> \<forall>x \<in> Regex.atms r. bounded_future x
-\<Longrightarrow> bounded_future (MatchF I r)"
-*)
 
 lemma bounded_future_simps[simp]:
   shows
@@ -419,16 +364,13 @@ lemma bounded_future_simps[simp]:
     "bounded_future (Next I phi) \<longleftrightarrow> bounded_future phi"
     "bounded_future (Prev I phi) \<longleftrightarrow> bounded_future phi"
     "bounded_future (Once I phi) \<longleftrightarrow> bounded_future phi"
+    "bounded_future (Historically I phi) \<longleftrightarrow> bounded_future phi"
     "bounded_future (Eventually I phi) \<longleftrightarrow> bounded_future phi \<and> right I \<noteq> \<infinity>"
+    "bounded_future (Always I phi) \<longleftrightarrow> bounded_future phi \<and> right I \<noteq> \<infinity>"
     "bounded_future (Since phi I psi) \<longleftrightarrow> bounded_future phi \<and> bounded_future psi"
     "bounded_future (Until phi I psi) \<longleftrightarrow> bounded_future phi \<and> bounded_future psi \<and> right I \<noteq> \<infinity>"
-    (*
-  "bounded_future (MatchP I r) \<longleftrightarrow> (\<forall>x \<in> Regex.atms r. bounded_future x)"
-  "bounded_future (MatchF I r) \<longleftrightarrow> right I \<noteq> \<infinity> \<and> (\<forall>x \<in> Regex.atms r. bounded_future x)"
-*)
   by (auto intro: bounded_future.intros elim: bounded_future.cases)
 
-(*Updated definitions for temporal operators; added constraint violations*)
 inductive SAT and VIO where
   STT: "SAT i TT"
 | VFF: "VIO i FF"
@@ -463,9 +405,19 @@ inductive SAT and VIO where
 | VOnce_never: "j = (case right I of \<infinity> \<Rightarrow> 0 | enat n \<Rightarrow> ETP rho ((\<tau> rho i) - n)) \<Longrightarrow>
  (\<tau> rho i) \<ge> (\<tau> rho 0) + left I \<Longrightarrow>
 (\<And>k. k \<in> {j .. l i I} \<Longrightarrow> VIO k phi) \<Longrightarrow> VIO i (Once I phi)"
+
+| SHistorically: "j = (case right I of \<infinity> \<Rightarrow> 0 | enat n \<Rightarrow> ETP rho ((\<tau> rho i) - n)) \<Longrightarrow>
+ (\<tau> rho i) \<ge> (\<tau> rho 0) + left I \<Longrightarrow>
+(\<And>k. k \<in> {j .. l i I} \<Longrightarrow> SAT k phi) \<Longrightarrow> SAT i (Historically I phi)"
+| VHistorically_le: "\<tau> rho i < \<tau> rho 0 + left I \<Longrightarrow> VIO i (Historically I phi)"
+| VHistorically: "j \<le> i \<Longrightarrow> mem (delta rho i j) I  \<Longrightarrow> VIO j phi \<Longrightarrow> VIO i (Historically I phi)"
+
 | SEventually: "j \<ge> i \<Longrightarrow> mem (delta rho j i) I  \<Longrightarrow> SAT j phi \<Longrightarrow> SAT i (Eventually I phi)"
 | VEventually_never: "(\<And>k. k \<in> (case right I of \<infinity> \<Rightarrow> {lu i I ..} | enat n \<Rightarrow> {lu i I .. LTP rho ((\<tau> rho i) + n)}) \<Longrightarrow> VIO k phi)
 \<Longrightarrow> VIO i (Eventually I phi)"
+| SAlways: "(\<And>k. k \<in> (case right I of \<infinity> \<Rightarrow> {lu i I ..} | enat n \<Rightarrow> {lu i I .. LTP rho ((\<tau> rho i) + n)}) \<Longrightarrow> SAT k phi)
+\<Longrightarrow> SAT i (Always I phi)"
+| VAlways: "j \<ge> i \<Longrightarrow> mem (delta rho j i) I  \<Longrightarrow> VIO j phi \<Longrightarrow> VIO i (Always I phi)"
 | SSince: "j \<le> i \<Longrightarrow> mem (delta rho i j) I  \<Longrightarrow> SAT j psi \<Longrightarrow> (\<And>k. k \<in> {j <.. i}
 \<Longrightarrow> SAT k phi) \<Longrightarrow> SAT i (Since phi I psi)"
 | VSince_le: "\<tau> rho i < \<tau> rho 0 + left I \<Longrightarrow> VIO i (Since phi I psi)"
@@ -481,18 +433,6 @@ inductive SAT and VIO where
 \<Longrightarrow> VIO j phi \<Longrightarrow> (\<And>k. k \<in> {lu i I .. j} \<Longrightarrow> VIO k psi) \<Longrightarrow> VIO i (Until phi I psi)"
 | VUntil_never: "(\<And>k. k \<in> (case right I of \<infinity> \<Rightarrow> {lu i I ..} | enat n \<Rightarrow> {lu i I .. LTP rho ((\<tau> rho i) + n)}) \<Longrightarrow> VIO k psi)
 \<Longrightarrow> VIO i (Until phi I psi)"
-  (*
-| SMatchP: "j \<le> i \<Longrightarrow> mem (delta rho i j) I \<Longrightarrow> Regex.SAT SAT j i r
-\<Longrightarrow> SAT i (MatchP I r)"
-| VMatchP_le: "\<tau> rho i < \<tau> rho 0 + left I \<Longrightarrow> VIO i (MatchP I r)"
-| VMatchP: "k = ETP rho (case right I of \<infinity> \<Rightarrow> 0 | enat n \<Rightarrow> \<tau> rho i - n)
-\<Longrightarrow> \<tau> rho i \<ge> \<tau> rho 0 + left I \<Longrightarrow> (\<And>j. j \<in> {k .. l i I} \<Longrightarrow> Regex.VIO VIO j i r)
-\<Longrightarrow> VIO i (MatchP I r)"
-| SMatchF: "i \<le> j \<Longrightarrow> mem (delta rho j i) I \<Longrightarrow> Regex.SAT SAT i j r
-\<Longrightarrow> SAT i (MatchF I r)"
-| VMatchF: "k = LTP rho (case right I of \<infinity> \<Rightarrow> 0 | enat n \<Rightarrow> \<tau> rho i + n)
-\<Longrightarrow> (\<And>j. j \<in> {lu i I .. k} \<Longrightarrow> Regex.VIO VIO i j r) \<Longrightarrow> VIO i (MatchF I r)"
-*)
 
 lemma completeness: "
 (sat rho i phi \<longrightarrow> SAT i phi) \<and> (\<not> sat rho i phi \<longrightarrow> VIO i phi)"
@@ -507,8 +447,7 @@ next
       using SAT_VIO.SOnce local.Once
       by auto}
   moreover
-  {assume unsat: "\<not> sat rho i (Once I phi)"
-      and i_l: "\<tau> rho i < \<tau> rho 0 + left I"
+  {assume i_l: "\<tau> rho i < \<tau> rho 0 + left I"
     then have "VIO i (Once I phi)"
       using SAT_VIO.VOnce_le local.Once
       by auto}
@@ -522,6 +461,28 @@ next
           split: enat.splits)}
   ultimately show ?case
     by force
+next
+  case (Historically I phi)
+  {assume sat: "sat rho i (Historically I phi)"
+      and nw: "\<forall>j\<le>i. mem (delta rho i j) I \<longrightarrow> sat rho j phi"
+      and i_ge: "\<tau> rho i \<ge> \<tau> rho 0 + left I"
+    then have "SAT i (Historically I phi)"
+      using local.Historically le_diff_conv
+      by (auto intro!: SAT_VIO.SHistorically simp: i_ltp_to_tau i_etp_to_tau
+          split: enat.splits)}
+  moreover
+  {assume "\<not> sat rho i (Historically I phi)"
+    then have "VIO i (Historically I phi)"
+      using SAT_VIO.VHistorically local.Historically
+      by auto}
+  moreover
+  {assume i_l: "\<tau> rho i < \<tau> rho 0 + left I"
+    then have "VIO i (Historically I phi)"
+      using SAT_VIO.VHistorically_le local.Historically
+      by auto}
+  ultimately show ?case
+    apply auto
+    sorry
 next
   case (Eventually I phi)
   from \<tau>_mono have i0: "\<tau> rho 0 \<le> \<tau> rho i" by auto
@@ -537,6 +498,9 @@ next
       by (auto intro!: SAT_VIO.VEventually_never simp: add_increasing2 i0 i_ltp_to_tau i_etp_to_tau
           split: enat.splits)}
   ultimately show ?case by auto
+next
+  case (Always I phi)
+  then show ?case sorry
 next
   case (Since phi I psi)
   {assume "sat rho i (Since phi I psi)"
@@ -598,68 +562,6 @@ next
           split: enat.splits)
   }
   ultimately show ?case by auto
-      (*
-next
-  case (MatchPBF r I)
-  {
-    assume sat: "sat rho i (MatchP I r)"
-    then obtain j where j_def: "j \<le> i \<and> mem (delta rho i j) I \<and> Regex.match (sat rho) r j i"
-      by auto
-    then have "Regex.SAT SAT j i r" using MatchPBF Regex.completeness_SAT[of r (*bounded_future*) "sat rho" "SAT" j i]
-      by auto
-    then have "SAT i (MatchP I r)" using j_def
-      by (auto intro: SAT_VIO.SMatchP)
-  }
-  moreover
-  {
-    assume unsat: "\<not> sat rho i (MatchP I r)"
-    then have "VIO i (MatchP I r)"
-    proof (cases "\<tau> rho 0 + left I \<le> \<tau> rho i")
-      case True
-      from unsat have "\<forall>j\<le> i. \<not> mem (delta rho i j) I \<or> \<not> Regex.match (sat rho) r j i"
-        by auto
-      then have "\<forall>j \<in> {ETP rho (case right I of enat n \<Rightarrow> (\<tau> rho i - n) | \<infinity> \<Rightarrow> 0) .. l i I}. \<not> Regex.match (sat rho) r j i"
-        apply (auto split: enat.splits)
-         apply (metis add.commute True add_leD2 i_etp_to_tau i_ltp_to_tau le_diff_conv le_diff_conv2)
-        by (metis add.commute True add_leD2 i_ltp_to_tau le_diff_conv2)
-      then show ?thesis
-        using True MatchPBF Regex.completeness_VIO[of r (*bounded_future*) "sat rho" "VIO" _ i]
-        by (auto intro: SAT_VIO.VMatchP)
-    next
-      case False
-      then show ?thesis
-        by (auto intro: SAT_VIO.VMatchP_le)
-    qed
-  }
-  ultimately show ?case by auto
-next
-  case (MatchFBF I r)
-  then obtain n where n_def: "right I = enat n" by auto
-  {
-    assume sat: "sat rho i (MatchF I r)"
-    then obtain j where j_def: "i \<le> j \<and> mem (delta rho j i) I \<and> Regex.match (sat rho) r i j"
-      by auto
-    then have "Regex.SAT SAT i j r" using MatchFBF Regex.completeness_SAT[of r "sat rho" "SAT" i j]
-      by auto
-    then have "SAT i (MatchF I r)" using j_def 
-      by (auto intro: SAT_VIO.SMatchF)
-  }
-  moreover
-  {
-    assume unsat: "\<not> sat rho i (MatchF I r)"
-    then have j_ge_props: "\<forall>j\<ge>i. \<not> mem (delta rho j i) I \<or> \<not> Regex.match (sat rho) r i j"
-      by auto
-    moreover
-    have "\<forall>j. j \<le> LTP rho (\<tau> rho i + n) \<longrightarrow> delta rho j i \<le> n"
-      by (auto simp add: add.commute i_ltp_to_tau trans_le_add2)
-    ultimately have "\<forall>j \<in> {lu i I  .. LTP rho (\<tau> rho i + n)}. \<not> Regex.match (sat rho) r i j"
-      by (auto simp add: etp_to_delta n_def)
-    then have "VIO i (MatchF I r)"
-      using n_def MatchFBF Regex.completeness_VIO[of r "sat rho" "VIO" i _]
-      by (auto intro: SAT_VIO.VMatchF)
-  }
-  ultimately show ?case by auto
-*)
 qed(auto intro: SAT_VIO.intros)
 
 lemma soundness: "(SAT i phi \<longrightarrow> sat rho i phi) \<and> (VIO i phi \<longrightarrow> \<not> sat rho i phi)"
@@ -954,144 +856,10 @@ next
     qed
   }
   ultimately show ?case by auto
-      (*
-next
-  case (MatchPBF r I)
-  {
-    assume SAT: "SAT i (MatchP I r)"
-    then have "sat rho i (MatchP I r)" using MatchPBF Regex.soundness_SAT[of r SAT "sat rho" ]
-      by cases auto
-  }
-  moreover
-  {
-    assume VIO: "VIO i (MatchP I r)"
-    then have "\<not> sat rho i (MatchP I r)" using MatchPBF
-    proof (cases)
-      case (VMatchP_le)
-      {
-        fix j
-        from \<tau>_mono have j0: "\<tau> rho 0 \<le> \<tau> rho j" by auto
-        then have i_less: "\<tau> rho i < \<tau> rho j + left I" using VMatchP_le apply auto
-          using j0 by linarith
-        then have "delta rho i j < left I" using VMatchP_le j0 apply auto
-          by (metis add.commute Nat.less_eq_nat.simps(1) i_less \<tau>_mono diff_is_0_eq less_diff_conv2 linorder_neqE_nat nat_le_linear not_less0)
-        then have "\<not> mem (delta rho i j) I" by auto
-      }
-      then show ?thesis by auto
-    next
-      case (VMatchP k)
-      from VMatchP MatchPBF have nmatch: "\<forall>j \<in> {k .. l i I}. \<not> Regex.match (sat rho) r j i"
-        using Regex.soundness_VIO[of r VIO "sat rho"]
-        by auto
-      from VMatchP MatchPBF have "\<forall>j\<le>i. j \<notin> {k .. l i I} \<longrightarrow> \<not> mem (delta rho i j) I"
-        apply (auto simp add: i_etp_to_tau split: enat.splits)
-        subgoal premises prems for i' j
-        proof -
-          have f5: "j \<le> LTP rho (\<tau> rho i)"
-            using prems(6) by (metis i_le_ltpi le_trans)
-          have "\<tau> rho 0 \<le> \<tau> rho i"
-            using prems(2)
-            by auto
-          then show False
-            using f5 prems(7) prems(9)
-            by (metis (no_types) add_diff_assoc i_le_ltpi_add i_ltp_to_tau le_add_diff_inverse)
-        qed
-        subgoal premises prems for j
-        proof -
-          from prems(6) have "\<tau> rho j \<le> \<tau> rho i"
-            by auto
-          then show False
-            using prems(7,8)
-            by (metis (no_types) add_diff_assoc i_le_ltpi_add le_add_diff_inverse)
-        qed
-        done
-        then show ?thesis using nmatch
-          by auto
-      qed
-  }
-  ultimately show ?case by auto
-next
-  case (MatchFBF I r)
-  {
-    assume SAT: "SAT i (MatchF I r)"
-    then have "sat rho i (MatchF I r)" using MatchFBF Regex.soundness_SAT[of r SAT "sat rho" ]
-      by cases auto
-  }
-  moreover
-  {
-    assume VIO: "VIO i (MatchF I r)"
-    then have "\<not> sat rho i (MatchF I r)" using MatchPBF
-    proof (cases)
-      case (VMatchF k)
-      from MatchFBF(1) obtain n where n_def: "right I = enat n" by auto
-      from VMatchF MatchFBF have nmatch: "\<forall>j \<in> {lu i I .. k}. \<not> Regex.match (sat rho) r i j"
-        using n_def Regex.soundness_VIO[of r VIO "sat rho"]
-        by auto
-      from VMatchF MatchFBF have "\<forall>j\<ge>i. j \<notin> {lu i I .. k} \<longrightarrow> \<not> mem (delta rho j i) I"
-        using n_def
-        apply (auto simp: i_ltp_to_tau)
-         apply (metis add.right_neutral add_diff_inverse i_etp_to_tau le_trans nat_add_left_cancel_le nat_diff_split)
-        by (metis add.commute i_le_ltpi_add le_add_diff_inverse le_diff_conv)
-      then show ?thesis using nmatch
-        by auto
-    qed
-  }
-  ultimately show ?case by auto
-*)
 qed (auto elim: SAT.cases VIO.cases)
 
 end
 
-(*
-typedef 'a nelist = "{xs :: 'a list. xs \<noteq> []}" by auto
-
-setup_lifting type_definition_nelist
-
-lift_bnf (no_warn_wits) (neset: 'a) nelist
-  for map: nemap
-  by auto
-
-lift_definition nenth :: "'a nelist \<Rightarrow> nat \<Rightarrow> 'a" (infixl "ne!" 100) is nth .
-lift_definition nehd :: "'a nelist \<Rightarrow> 'a" is hd .
-lift_definition netl :: "'a nelist \<Rightarrow> 'a list" is tl .
-lift_definition nelast :: "'a nelist \<Rightarrow> 'a" is last .
-lift_definition neupto :: "nat \<Rightarrow> nat \<Rightarrow> nat nelist" is "\<lambda>i j. if i > j then [i] else [i ..< j+1]"
-  by auto
-
-lift_definition nesingle :: "'a \<Rightarrow> 'a nelist" is "\<lambda>a. [a]" by simp
-lift_definition necons :: "'a \<Rightarrow> 'a list \<Rightarrow> 'a nelist" is Cons by simp
-
-lemma nehd_nesingle: "nehd (nesingle a) = a"
-  apply transfer
-  by simp
-
-lemma nehd_necons: "nehd (necons a as) = a"
-  apply transfer
-  by simp
-
-lift_definition size_nelist :: "('a \<Rightarrow> nat) \<Rightarrow> 'a nelist \<Rightarrow> nat" is size_list .
-
-
-instantiation nelist :: (size) size begin
-definition size_nelist :: "'a nelist \<Rightarrow> nat" where
-  size_nelist_overloaded_def: "size_nelist = MTL.size_nelist size"
-instance proof qed
-end
-
-lemma size_nelist_o_map: "size_nelist g \<circ> nemap f = size_nelist (g \<circ> f)"
-  unfolding nemap_def
-  apply (auto simp: fun_eq_iff size_nelist_def)
-  by (metis (mono_tags, lifting) Abs_nelist_inverse MTL.size_nelist.rep_eq List.list.map_disc_iff Rep_nelist mem_Collect_eq size_list_map)
-
-setup \<open>
-  BNF_LFP_Size.register_size_global \<^type_name>\<open>nelist\<close> \<^const_name>\<open>size_nelist\<close>
-    @{thm size_nelist_overloaded_def}
-    @{thms }
-    @{thms size_nelist_o_map}
-\<close>
-*)
-
-(*Added proofs for Prev and Next, as well as constraint violation proofs *)
 datatype 'a sproof = STT nat | SAtm 'a nat | SNeg "'a vproof" | SDisjL "'a sproof" | SDisjR "'a sproof"
   | SConj "'a sproof" "'a sproof" | SImplR "'a sproof" | SImplL "'a vproof"
   | SIff_ss "'a sproof" "'a sproof" | SIff_vv "'a vproof" "'a vproof" | SOnce nat "'a sproof"
@@ -5055,14 +4823,37 @@ proof (rule ccontr)
   then show False using q_le by auto
 qed
 
+
+lemma *: "valid rho (i - Suc 0)
+    (Once (subtract (delta rho i (i - Suc 0)) I) phi)
+    (Inr (VOnce_never ia li p1)) \<Longrightarrow>
+  left I = 0 \<Longrightarrow>
+  valid rho i phi (Inr r) \<Longrightarrow>
+  valid rho i (Once I phi)
+    (Inr (VOnce_never (Suc ia) li (p1 @ [r])))"
+  unfolding valid_def
+  apply (auto simp only: sum.case prod.case mtl.case vproof.case
+    v_at.simps v_check_simps split: enat.splits)
+                    apply (simp_all split: if_splits)
+           apply hypsubst_thin
+           apply simp
+  sorry
+
+lemma 
+  "checkApp p' p \<Longrightarrow> valid rho (i - 1) (Once (subtract (delta rho i (i - 1)) I) phi) p' \<Longrightarrow>
+  valid rho i phi p \<Longrightarrow> left I = 0 \<Longrightarrow> valid rho i (Once I phi) (p' \<oplus> p)"
+proof (induct p' p rule: checkApp.induct)
+  case (5 p1 i li r)
+  then show ?case
+    by (auto  dest!: *)
+qed (simp_all add: valid_def)
+
 lemma once_sound:
   assumes i_props: "i > 0 \<and> \<tau> rho i \<ge> \<tau> rho 0 + left I
   \<and> right I \<ge> enat (\<Delta> rho i)" and
     p1_def: "optimal i phi p1" and
     p'_def: "optimal (i-1) (Once (subtract (\<Delta> rho i) I) phi) p'"
     and p_def: "p \<in> set (doOnce i (left I) p1 p')"
-    and bf: "bounded_future (Once I phi)"
-    and bf': "bounded_future (Once (subtract (\<Delta> rho i) I) phi)"
   shows "valid rho i (Once I phi) p"
 proof (cases p')
   case (Inl a)
@@ -5127,7 +4918,7 @@ proof (cases p')
         then have sp: "p = Inl (SOnce i q)"
           using p1l p_def False p'l a_def unfolding doOnce_def by auto
         then show ?thesis
-          using Inl False assms n_def a_def bf qi liq riq a_val unfolding optimal_def valid_def
+          using Inl False assms n_def a_def qi liq riq a_val unfolding optimal_def valid_def
           by (auto simp: Let_def)
       next
         case (Inr b2)
@@ -5135,7 +4926,7 @@ proof (cases p')
         then have sp: "p = Inl (SOnce i q)"
           using p1r p_def False p'l a_def unfolding doOnce_def by auto
         then show ?thesis
-          using Inr False assms n_def a_def bf qi liq riq a_val unfolding optimal_def valid_def
+          using Inr False assms n_def a_def qi liq riq a_val unfolding optimal_def valid_def
           by (auto simp: Let_def)
       qed
     qed
@@ -5174,7 +4965,7 @@ proof (cases p')
         then have sp: "p = Inl (SOnce i q)"
           using p1l p_def False p'l a_def unfolding doOnce_def by auto
         then show ?thesis
-          using Inl False assms zero_enat_def a_def bf qi liq riq a_val 
+          using Inl False assms zero_enat_def a_def qi liq riq a_val 
           unfolding optimal_def valid_def
           by (auto simp: Let_def)
       next
@@ -5183,7 +4974,7 @@ proof (cases p')
         then have sp: "p = Inl (SOnce i q)"
           using p1r p_def False p'l a_def unfolding doOnce_def by auto
         then show ?thesis
-          using Inr False assms zero_enat_def a_def bf qi liq riq a_val
+          using Inr False assms zero_enat_def a_def qi liq riq a_val
           unfolding optimal_def valid_def
           by (auto simp: Let_def)
       qed
@@ -5283,7 +5074,7 @@ next
             unfolding doOnce_def by auto
           then have "p = Inr (VOnce_never i li (qs @ [projr p1]))"
             using VOnce_never p'r p1_def p1r i_props
-            unfolding optimal_def valid_def proofApp_def j_def
+            unfolding proofApp_def j_def
             by auto
           then show ?thesis
             using * ** n_def p'_def p1_def p1r p'r VOnce_never
@@ -5373,7 +5164,7 @@ next
             by auto
           then have "map v_at qs = [ETP rho (\<tau> rho i - n) ..< Suc (l rho i I)]"
             using v_at_qs[unfolded l_subtract] by auto
-          then have ?thesis using False i_props VOnce_never p'r bf' bf formp vq n_def 
+          then have ?thesis using False i_props VOnce_never p'r formp vq n_def 
             unfolding valid_def
             by (auto simp: Let_def li)
         }
@@ -5408,7 +5199,7 @@ next
             by (auto simp: Let_def)
           then have "map v_at qs = [ETP rho 0 ..< Suc (l rho i I)]"
             using v_at_qs[unfolded l_subtract] by auto
-          then have ?thesis using False i_props VOnce_never p'r bf' bf formp vq infinity
+          then have ?thesis using False i_props VOnce_never p'r formp vq infinity
             unfolding valid_def
             by (auto simp: Let_def li)
         }
@@ -5453,7 +5244,7 @@ next
             then have "map v_at qs = [ETP rho (\<tau> rho i - n) ..< Suc (l rho i I)]"
               using v_at_qs[unfolded l_subtract] by auto
             then have "valid rho i (Once I phi) p"
-              using False i_props VOnce_never p'r bf' bf formp vq n_def
+              using False i_props VOnce_never p'r formp vq n_def
               unfolding valid_def
               by (auto simp: Let_def li)
           }
@@ -5494,7 +5285,7 @@ next
             then have "map v_at qs = [ETP rho 0 ..< Suc (l rho i I)]"
               using v_at_qs[unfolded l_subtract] by auto
             then have "valid rho i (Once I phi) p"
-              using False i_props VSince_never p'r bf' bf formp vq infinity
+              using False i_props VSince_never p'r formp vq infinity
               unfolding valid_def
               by (auto simp: Let_def li)
           }
@@ -5569,7 +5360,7 @@ proof (rule ccontr)
   define minp where minp: "minp \<equiv> min_list_wrt wqo (doOnce i (left I) p1 p')"
   from bf have bfphi: "bounded_future phi" by simp
   from pw_total[of i "Once I phi"] have total_set: "total_on wqo (set (doOnce i (left I) p1 p'))"
-    using once_sound[OF i_props p1_def p'_def _ bf bf']
+    using once_sound[OF i_props p1_def p'_def]
     by (metis not_wqo total_onI)
   define li where "li = (case right I - enat (delta rho i (i - Suc 0)) of enat n \<Rightarrow>
       ETP rho (\<tau> rho (i - Suc 0) - n) | \<infinity> \<Rightarrow> 0)"
@@ -5610,7 +5401,7 @@ proof (rule ccontr)
       filter_empty_conv[of "(\<lambda>x. \<forall>y \<in> set (doOnce i (left I) p1 p'). wqo x y)" "(doOnce i (left I) p1 p')"]
     by simp
   assume nopt: "\<not> optimal i (Once I phi) minp"
-  from once_sound[OF i_props p1_def p'_def min_list_wrt_in bf bf']
+  from once_sound[OF i_props p1_def p'_def min_list_wrt_in]
     total_set trans_wqo refl_wqo nnil minp
   have vmin: "valid rho i (Once I phi) minp"
     by auto
@@ -5672,7 +5463,7 @@ proof (rule ccontr)
               unfolding optimal_def valid_def by auto
             then show ?thesis
               using q_s a_def pw_total[of i "Once I phi"]
-                once_sound[OF i_props p1_def p'_def _ bf bf'] p'l a'_def p1l True
+                once_sound[OF i_props p1_def p'_def] p'l a'_def p1l True
               unfolding form doOnce_def
               apply (elim trans_wqo[THEN transpD,rotated])
               apply (intro min_list_wrt_le[OF _ refl_wqo trans_wqo])
@@ -5693,7 +5484,7 @@ proof (rule ccontr)
               by (auto simp add: Let_def proofIncr_def)
             then show ?thesis
               using q_s a_def pw_total[of i "Once I phi"]
-                once_sound[OF i_props p1_def p'_def _ bf bf'] p'l a'_def p1l True
+                once_sound[OF i_props p1_def p'_def] p'l a'_def p1l True
               unfolding form doOnce_def
               apply (elim trans_wqo[THEN transpD,rotated])
               apply (intro min_list_wrt_le[OF _ refl_wqo trans_wqo])
@@ -5723,7 +5514,7 @@ proof (rule ccontr)
             by (auto simp add: Let_def proofIncr_def)
           then show ?thesis
             using q_s a_def pw_total[of i "Once I phi"]
-                once_sound[OF i_props p1_def p'_def _ bf bf'] p'l a'_def p1l False
+                once_sound[OF i_props p1_def p'_def] p'l a'_def p1l False
             unfolding form doOnce_def
             apply (elim trans_wqo[THEN transpD,rotated])
             apply (intro min_list_wrt_le[OF _ refl_wqo trans_wqo])
@@ -5759,7 +5550,7 @@ proof (rule ccontr)
             by (auto simp add: Let_def proofIncr_def)
           then show ?thesis
             using q_s a_def pw_total[of i "Once I phi"]
-                once_sound[OF i_props p1_def p'_def _ bf bf'] p'l a'_def p1r True
+                once_sound[OF i_props p1_def p'_def] p'l a'_def p1r True
             unfolding form doOnce_def
             apply (elim trans_wqo[THEN transpD,rotated])
             apply (intro min_list_wrt_le[OF _ refl_wqo trans_wqo])
@@ -5790,7 +5581,7 @@ proof (rule ccontr)
             by (auto simp add: Let_def proofIncr_def)
           then show ?thesis
             using q_s a_def pw_total[of i "Once I phi"]
-                once_sound[OF i_props p1_def p'_def _ bf bf'] p'l a'_def p1r False
+                once_sound[OF i_props p1_def p'_def] p'l a'_def p1r False
             unfolding form doOnce_def
             apply (elim trans_wqo[THEN transpD,rotated])
             apply (intro min_list_wrt_le[OF _ refl_wqo trans_wqo])
@@ -5823,7 +5614,7 @@ proof (rule ccontr)
               unfolding optimal_def valid_def by auto
             then show ?thesis
               using q_s a_def pw_total[of i "Once I phi"]
-                once_sound[OF i_props p1_def p'_def _ bf bf'] p1l True
+                once_sound[OF i_props p1_def p'_def] p1l True
               unfolding form doOnce_def
               apply (elim trans_wqo[THEN transpD,rotated])
               apply (intro min_list_wrt_le[OF _ refl_wqo trans_wqo])
@@ -5841,7 +5632,7 @@ proof (rule ccontr)
               using q_s a_def SOnce[OF wqo_p1] by auto
             then show ?thesis
               using q_s a_def pw_total[of i "Once I phi"]
-                once_sound[OF i_props p1_def p'_def _ bf bf'] p1l True
+                once_sound[OF i_props p1_def p'_def] p1l True
               unfolding form doOnce_def
               apply (elim trans_wqo[THEN transpD,rotated])
               apply (intro min_list_wrt_le[OF _ refl_wqo trans_wqo])
@@ -5879,7 +5670,7 @@ proof (rule ccontr)
              apply (metis (no_types, lifting) checkApp.intros(5) Nil_is_append_conv map_is_Nil_conv not_Cons_self2)
             using b'_def diff_0_eq_0 p'_val subtract_simps(1) valid_checkApp_VOnce_never by presburger
           have p_val: "valid rho i (Once I phi) (p' \<oplus> p1)"
-            using p'r b'_def p1r vmin form once_sound[OF i_props p1_def p'_def _ bf bf']
+            using p'r b'_def p1r vmin form once_sound[OF i_props p1_def p'_def]
             by auto
           then have p_optimal: "optimal i (Once I phi) (p' \<oplus> p1)"
             using p'r b'_def p1r vmin form check_p 
