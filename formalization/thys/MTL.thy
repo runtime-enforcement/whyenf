@@ -405,13 +405,11 @@ inductive SAT and VIO where
 | VOnce_never: "j = (case right I of \<infinity> \<Rightarrow> 0 | enat n \<Rightarrow> ETP rho ((\<tau> rho i) - n)) \<Longrightarrow>
  (\<tau> rho i) \<ge> (\<tau> rho 0) + left I \<Longrightarrow>
 (\<And>k. k \<in> {j .. l i I} \<Longrightarrow> VIO k phi) \<Longrightarrow> VIO i (Once I phi)"
-
 | SHistorically: "j = (case right I of \<infinity> \<Rightarrow> 0 | enat n \<Rightarrow> ETP rho ((\<tau> rho i) - n)) \<Longrightarrow>
  (\<tau> rho i) \<ge> (\<tau> rho 0) + left I \<Longrightarrow>
 (\<And>k. k \<in> {j .. l i I} \<Longrightarrow> SAT k phi) \<Longrightarrow> SAT i (Historically I phi)"
 | VHistorically_le: "\<tau> rho i < \<tau> rho 0 + left I \<Longrightarrow> VIO i (Historically I phi)"
 | VHistorically: "j \<le> i \<Longrightarrow> mem (delta rho i j) I  \<Longrightarrow> VIO j phi \<Longrightarrow> VIO i (Historically I phi)"
-
 | SEventually: "j \<ge> i \<Longrightarrow> mem (delta rho j i) I  \<Longrightarrow> SAT j phi \<Longrightarrow> SAT i (Eventually I phi)"
 | VEventually_never: "(\<And>k. k \<in> (case right I of \<infinity> \<Rightarrow> {lu i I ..} | enat n \<Rightarrow> {lu i I .. LTP rho ((\<tau> rho i) + n)}) \<Longrightarrow> VIO k phi)
 \<Longrightarrow> VIO i (Eventually I phi)"
@@ -463,8 +461,9 @@ next
     by force
 next
   case (Historically I phi)
+  from \<tau>_mono have i0: "\<tau> rho 0 \<le> \<tau> rho i" by auto
   {assume sat: "sat rho i (Historically I phi)"
-      and nw: "\<forall>j\<le>i. mem (delta rho i j) I \<longrightarrow> sat rho j phi"
+      and w: "\<forall>j\<le>i. mem (delta rho i j) I \<longrightarrow> sat rho j phi"
       and i_ge: "\<tau> rho i \<ge> \<tau> rho 0 + left I"
     then have "SAT i (Historically I phi)"
       using local.Historically le_diff_conv
@@ -481,7 +480,6 @@ next
       using SAT_VIO.VHistorically_le local.Historically
       by auto}
   ultimately show ?case
-    apply auto
     sorry
 next
   case (Eventually I phi)
@@ -500,7 +498,18 @@ next
   ultimately show ?case by auto
 next
   case (Always I phi)
-  then show ?case sorry
+    from \<tau>_mono have i0: "\<tau> rho 0 \<le> \<tau> rho i" by auto
+  {assume "\<not> sat rho i (Always I phi)"
+    then have "VIO i (Always I phi)"
+      using SAT_VIO.VAlways local.Always
+      by auto}
+  moreover
+  {assume sat: "sat rho i (Always I phi)"
+      and w: "\<forall>j \<ge> i. mem (delta rho j i) I \<longrightarrow> sat rho j phi"
+    then have "SAT i (Always I phi)"
+      using local.Always
+      by (auto intro!: SAT_VIO.SAlways simp: add_increasing2 i0 i_ltp_to_tau i_etp_to_tau le_diff_conv split: enat.splits)}
+  ultimately show ?case by auto
 next
   case (Since phi I psi)
   {assume "sat rho i (Since phi I psi)"
@@ -659,7 +668,7 @@ next
       case (VOnce_le)
       {fix j
         from \<tau>_mono have j0: "\<tau> rho 0 \<le> \<tau> rho j" by auto
-        then have "\<tau> rho i < \<tau> rho j + left I" using VOnce_le apply auto
+        then have "\<tau> rho i < \<tau> rho j + left I" using VOnce_le apply simp
           using j0 by linarith
         then have "delta rho i j < left I"
           using VOnce_le less_\<tau>D verit_comp_simplify1(3) by fastforce
@@ -688,6 +697,9 @@ next
   }
   ultimately show ?case by auto
 next
+  case (Historically I phi)
+  show ?case sorry
+next
   case (Eventually I phi)
   {assume "SAT i (Eventually I phi)"
     then have "sat rho i (Eventually I phi)" using Eventually by (cases) (auto)
@@ -699,23 +711,24 @@ next
       case (VEventually_never)
       {fix k n
         assume r: "right I = enat n"
-        from this VEventually_never EventuallyBF have tin0: "\<tau> rho i + n \<ge> \<tau> rho 0"
+        from this have tin0: "\<tau> rho i + n \<ge> \<tau> rho 0"
           by (auto simp add: trans_le_add1)
         define j where "j = LTP rho ((\<tau> rho i) + n)"
-        from VEventually_never EventuallyBF have j_i: "i \<le> j"
+        then have j_i: "i \<le> j"
           by (auto simp add: i_ltp_to_tau trans_le_add1 j_def)
         assume k_def: "sat rho k phi \<and> mem (delta rho k i) I \<and> i \<le> k"
         then have "\<tau> rho k \<ge> \<tau> rho i + left I"
           using le_diff_conv2 by auto
         then have k_etp: "k \<ge> ETP rho (\<tau> rho i + left I)"
-          using VEventually_never i_etp_to_tau by blast
+          using i_etp_to_tau by blast
         from this k_def VEventually_never Eventually have "k \<notin> {lu i I .. j}"
           by (auto simp: r j_def)
-        then have "j < k" using VEventually_never EventuallyBF k_def k_etp by auto
+        then have "j < k" using r k_def k_etp by auto
         from k_def r have "delta rho k i \<le> n" by auto
         then have "\<tau> rho k \<le> \<tau> rho i + n" by auto
         then have "k \<le> j"
-          using tin0 VEventually_never EventuallyBF i_ltp_to_tau r k_def apply (auto simp: j_def)
+          using tin0 i_ltp_to_tau
+          apply (simp add: j_def)
           by blast
       }
       note aux = this
@@ -724,13 +737,61 @@ next
         case (enat n)
         show ?thesis
           using VEventually_never Eventually aux
-          unfolding enat
-          apply (auto simp: i_etp_to_tau le_diff_conv2)
-          by (metis Groups.ab_semigroup_add_class.add.commute add_le_imp_le_diff enat enat_ord_simps(1))
+          apply (simp add: i_etp_to_tau le_diff_conv2 enat add_le_imp_le_diff)
+          by (metis \<tau>_mono le_add_diff_inverse nat_add_left_cancel_le)
       next
         case infinity
         show ?thesis
           using VEventually_never Eventually
+          by (auto simp: infinity i_etp_to_tau le_diff_conv2)
+      qed
+    qed
+  }
+  ultimately show ?case by auto
+next
+  case (Always I phi)
+  {assume "VIO i (Always I phi)"
+    then have "\<not> sat rho i (Always I phi)" using Always by (cases) (auto)
+  }
+  moreover
+  {assume "SAT i (Always I phi)"
+    then have "sat rho i (Always I phi)" using Always 
+    proof (cases)
+      case (SAlways)
+      {fix k n
+        assume r: "right I = enat n"
+        from this SAlways have tin0: "\<tau> rho i + n \<ge> \<tau> rho 0"
+          by (auto simp add: trans_le_add1)
+        define j where "j = LTP rho ((\<tau> rho i) + n)"
+        from SAlways have j_i: "i \<le> j"
+          by (auto simp add: i_ltp_to_tau trans_le_add1 j_def)
+        assume k_def: "\<not> sat rho k phi \<and> mem (delta rho k i) I \<and> i \<le> k"
+        then have "\<tau> rho k \<ge> \<tau> rho i + left I"
+          using le_diff_conv2 by auto
+        then have k_etp: "k \<ge> ETP rho (\<tau> rho i + left I)"
+          using SAlways i_etp_to_tau by blast
+        from this k_def SAlways Always have "k \<notin> {lu i I .. j}"
+          by (auto simp: r j_def)
+        then have "j < k" using SAlways k_def k_etp by simp
+        from k_def r have "delta rho k i \<le> n" by simp
+        then have "\<tau> rho k \<le> \<tau> rho i + n" by simp
+        then have "k \<le> j"
+          using tin0 i_ltp_to_tau  
+          apply (simp add: j_def)
+          by blast
+      }
+      note aux = this
+      show ?thesis
+      proof (cases "right I")
+        case (enat n)
+        show ?thesis
+          using SAlways Always aux
+          apply (simp add: i_etp_to_tau le_diff_conv2 enat)
+          by (metis Groups.ab_semigroup_add_class.add.commute add_le_imp_le_diff)
+      next
+        case infinity
+        show ?thesis
+          using SAlways Always
           by (auto simp: infinity i_etp_to_tau le_diff_conv2)
       qed
     qed
@@ -748,9 +809,9 @@ next
       case (VSince_le)
       {fix j
         from \<tau>_mono have j0: "\<tau> rho 0 \<le> \<tau> rho j" by auto
-        then have "\<tau> rho i < \<tau> rho j + left I" using VSince_le apply auto
+        then have "\<tau> rho i < \<tau> rho j + left I" using VSince_le apply simp
           using j0 by linarith
-        then have "delta rho i j < left I" using VSince_le j0 apply auto
+        then have "delta rho i j < left I" using VSince_le j0 apply simp
           by (metis Groups.ab_semigroup_add_class.add.commute Nat.less_eq_nat.simps(1) \<open>\<tau> rho i < \<tau> rho j + left I\<close> \<tau>_mono diff_is_0_eq less_diff_conv2 linorder_neqE_nat local.VSince_le nat_le_linear not_less0)
         then have "\<not> mem (delta rho i j) I" by auto}
       then show ?thesis using VSince_le SinceBF by auto
@@ -762,7 +823,7 @@ next
         then have k_ltp: "k \<le> LTP rho (\<tau> rho i - left I)"
           using VSince i_ltp_to_tau add_le_imp_le_diff
           by blast
-        then have "k < j" using k_def VSince Since apply auto
+        then have "k < j" using k_def VSince Since apply simp
           by (meson diff_is_0_eq not_gr_zero zero_less_diff)
         then have "j \<in> {k <.. i} \<and> \<not> sat rho j phi" using VSince Since
           by auto
@@ -835,7 +896,8 @@ next
         from k_def r have "delta rho k i \<le> n" by auto
         then have "\<tau> rho k \<le> \<tau> rho i + n" by auto
         then have "k \<le> j"
-          using tin0 VUntil_never UntilBF i_ltp_to_tau r k_def apply (auto simp: j_def)
+          using tin0 VUntil_never UntilBF i_ltp_to_tau r k_def 
+          apply (simp add: j_def)
           by blast
       }
       note aux = this
@@ -844,9 +906,8 @@ next
         case (enat n)
         show ?thesis
           using VUntil_never Until aux
-          unfolding enat
-          apply (auto simp: i_etp_to_tau le_diff_conv2)
-          by (metis Groups.ab_semigroup_add_class.add.commute add_le_imp_le_diff enat enat_ord_simps(1))
+          apply (simp add: i_etp_to_tau le_diff_conv2 enat add_le_imp_le_diff)
+          by (metis \<tau>_mono le_add_diff_inverse nat_add_left_cancel_le)
       next
         case infinity
         show ?thesis
