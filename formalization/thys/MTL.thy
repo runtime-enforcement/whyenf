@@ -12210,30 +12210,84 @@ next
           case (Inr b1)
           then have p1r: "p1 = Inr b1" by simp
           {
-            from i_ge_etpi have b2_ge: "v_at b1 \<ge> ETP rho (\<tau> rho (v_at b1))"
+            from i_ge_etpi have b1_ge: "v_at b1 \<ge> ETP rho (\<tau> rho (v_at b1))"
             using p1r p1_def
             unfolding optimal_def valid_def by simp
           then have nl_def: "LTP rho (\<tau> rho i + n) \<ge> v_at b1 + 1"
             using n_def VEventually_never p'r p'_def p1_def p1r i_props
-            unfolding optimal_def valid_def apply (auto simp: Let_def split: if_splits)
-              apply (metis diff_add_inverse le_add1 le_add_diff_inverse2)
-            sledgehammer
-            by (metis diff_add_inverse diff_add_inverse2 enat_ord_simps(1) i_etp_to_tau i_le_ltpi_add i_props le_SucI le_add1 le_diff_iff le_imp_diff_is_add plus_1_eq_Suc)
-          define l where l_def: "l \<equiv> [max (v_at b2+1) (ETP rho (\<tau> rho (v_at b2+1))) ..< LTP rho (\<tau> rho i + n)]"
-          then have l2_def: "l = [v_at b2+1..< LTP rho (\<tau> rho i + n)]" using i_ge_etpi[of rho "v_at b2 + 1"]
-            by (auto simp add: max_def)
-          then have b2_cons: "(max (v_at b2) (ETP rho (\<tau> rho (v_at b2)))) # l = v_at b2 # l"
-            by (auto simp add: antisym b2_ge max_def)
-          then have "v_at b2 # l = [max (v_at b2) (ETP rho (\<tau> rho (v_at b2))) ..< LTP rho (\<tau> rho i + n)]"
-            using nl_def l_def b2_ge
-            apply (auto simp add: antisym b2_cons upt_eq_Cons_conv i_ge_etpi max_def)
-            apply (metis antisym i_ge_etpi less_eq_Suc_le upt_conv_Cons)
-            apply (metis Suc_le_eq l2_def upt_eq_Cons_conv)
-            using b2_ge upt_conv_Cons by auto
+            unfolding optimal_def valid_def apply (simp add: Let_def)
+            by (metis add.commute diff_add_assoc diff_add_inverse i_le_ltpi_add le_diff_conv)
+          define l where l_def: "l \<equiv> [max (v_at b1+1) (ETP rho (\<tau> rho (v_at b1+1))) ..< LTP rho (\<tau> rho i + n)]"
+          then have l1_def: "l = [v_at b1+1..< LTP rho (\<tau> rho i + n)]" using i_ge_etpi[of rho "v_at b1 + 1"]
+            by (simp add: max_def)
+          then have b1_cons: "(max (v_at b1) (ETP rho (\<tau> rho (v_at b1)))) # l = v_at b1 # l"
+            by (simp add: antisym b1_ge max_def)
+          then have "v_at b1 # l = [max (v_at b1) (ETP rho (\<tau> rho (v_at b1))) ..< LTP rho (\<tau> rho i + n)]"
+            using nl_def l_def b1_ge
+            apply (simp add: antisym b1_cons i_ge_etpi)
+            by (metis less_eq_Suc_le upt_conv_Cons)
         } note * = this
+        then have "p = p' \<oplus> p1" using p1r p'r VEventually_never True p_def
+          unfolding doEventually_def by simp
+        then have "p = Inr (VEventually_never i hi ((projr p1) # qs))"
+          using VEventually_never p'r p1_def p1r i_props j_def
+          unfolding proofApp_def optimal_def valid_def
+          by simp
+        then show ?thesis using * n_def p'_def p1_def p1r p'r VEventually_never
+              True i_props
+          unfolding optimal_def valid_def
+          by (simp add: Let_def add.commute i_ge_etpi split: if_splits)
+      qed
     next
       case False
-      then show ?thesis sorry
+      then show ?thesis
+      proof (cases p1)
+        case (Inl a1)
+        then have formp: "p = Inr (VEventually_never i hi qs)"
+            using False p_def p'r VEventually_never
+            unfolding doEventually_def by simp 
+          from p'_def have v_at_qs: "map v_at qs = [lu rho (i+1) (subtract (\<Delta> rho (i+1)) I)..< Suc (LTP rho (\<tau> rho (i+1) + (n - \<Delta> rho (i+1))))]"
+            using VEventually_never p'r n_def unfolding optimal_def valid_def
+            by (auto simp: Let_def)
+          have l_subtract: "lu rho (i + 1) (subtract (\<Delta> rho (i+1)) I) = lu rho i I"
+            using False i_props 
+            apply (simp add: max_def i_etp_to_tau etpi_imp_etp_suci)
+            by (smt (verit) diff_add_inverse2 diff_is_0_eq' i_etp_to_tau le_add_diff_inverse le_less_Suc_eq less_le_not_le nle_le)
+        from p'_def have vq: "(\<forall>q \<in> set qs. v_check rho phi q)"
+          unfolding optimal_def valid_def VEventually_never p'r
+          by (auto simp: Let_def split: enat.splits)
+        from p'_def i_props have "i \<le> LTP rho (\<tau> rho (i+1) + (n - \<Delta> rho (i+1)))"
+          using VEventually_never p'r n_def i_le_ltpi_add[of i rho n]
+          unfolding optimal_def valid_def
+          by (auto simp: Let_def add.commute)
+        then show ?thesis using False i_props VEventually_never p'r
+            bf' formp vq v_at_qs[unfolded l_subtract] p'_def n_def
+          unfolding optimal_def valid_def
+          by (auto simp: Let_def add.commute)
+      next
+        case (Inr b1)
+        then have formp: "p = Inr (VEventually_never i hi qs)"
+          using p'r VEventually_never False p_def 
+          unfolding doEventually_def by simp
+        from p'_def have v_at_qs: "map v_at qs = [lu rho (i+1) (subtract (\<Delta> rho (i+1)) I)..< Suc (LTP rho (\<tau> rho (i+1) + (n - \<Delta> rho (i+1))))]"
+          using VEventually_never p'r n_def unfolding optimal_def valid_def
+          by (auto simp: Let_def)
+        have l_subtract: "lu rho (i + 1) (subtract (\<Delta> rho (i+1)) I) = lu rho i I"
+          using False i_props 
+          apply (simp add: max_def i_etp_to_tau etpi_imp_etp_suci)
+          by (smt (verit) diff_add_inverse2 diff_is_0_eq' i_etp_to_tau le_add_diff_inverse le_less_Suc_eq less_le_not_le nle_le)
+        from p'_def have vq: "(\<forall>q \<in> set qs. v_check rho phi q)"
+          unfolding optimal_def valid_def VEventually_never p'r
+          by (auto simp: Let_def split: enat.splits)
+        from p'_def i_props have "i \<le> LTP rho (\<tau> rho (i+1) + (n - \<Delta> rho (i+1)))"
+          using VEventually_never p'r n_def i_le_ltpi_add[of i rho n]
+          unfolding optimal_def valid_def
+          by (auto simp: Let_def add.commute)
+        then show ?thesis using False i_props VEventually_never p'r
+            bf' formp vq v_at_qs[unfolded l_subtract] p'_def n_def
+          unfolding optimal_def valid_def
+          by (auto simp: Let_def add.commute)
+      qed
     qed
   next
     case (VSince x131 x132 x133)
