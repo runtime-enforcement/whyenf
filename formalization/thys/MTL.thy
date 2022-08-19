@@ -12328,6 +12328,64 @@ next
   qed
 qed
 
+lemma valid_shift_SOnce:
+  assumes i_props: "right I \<ge> enat (\<Delta> rho (i+1))"
+    and valid: "valid rho i (Once I phi) (Inl (SOnce i p))"
+    and rfin: "right I \<noteq> \<infinity>"
+  shows "valid rho (i + 1) (Eventually (subtract (delta rho (i + 1) i) I) phi) (Inr (VEventually_never (i + 1) hi (if left I = 0 then tl ys else ys)))"
+proof -
+  show ?thesis
+    oops
+
+lemma valid_shift_VEventually_never:
+  assumes i_props: "right I \<ge> enat (\<Delta> rho (i+1))"
+    and valid: "valid rho i (Eventually I phi) (Inr (VEventually_never i hi ys))"
+    and rfin: "right I \<noteq> \<infinity>"
+  shows "valid rho (i + 1) (Eventually (subtract (delta rho (i + 1) i) I) phi) (Inr (VEventually_never (i + 1) hi (if left I = 0 then tl ys else ys)))"
+proof -
+  obtain n where rI: "right I = enat n"
+    using rfin by (cases "right I") auto
+  show ?thesis
+  proof (cases "left I = 0")
+    obtain n where rI: "right I = enat n"
+      using rfin by (cases "right I") auto
+    case True
+    obtain z zs where ys_def: "ys = zs @ [z]"
+      using valid True 
+      unfolding valid_def
+      apply (cases ys)
+       apply (simp add: Let_def i_etp_to_tau i_le_ltpi_add split: if_splits enat.splits)
+      by (meson neq_Nil_conv rev_exhaust)
+  show ?thesis
+    using i_props valid
+      unfolding valid_def
+      apply (simp add: map_tl i_etp_to_tau i_ltp_to_tau split: if_splits sum.splits list.splits)
+      sorry
+  next
+    case False
+    have rw: "\<tau> rho i - (left I + \<tau> rho i - \<tau> rho (Suc i)) =
+    (if left I + \<tau> rho i \<ge> \<tau> rho (Suc i) then \<tau> rho (Suc i) - left I else \<tau> rho i)"
+      by auto
+    have e: "right I = enat n \<Longrightarrow> right (subtract (delta rho (Suc i) i) I) = enat n' \<Longrightarrow>
+    ETP rho (\<tau> rho (Suc i) - n) = ETP rho (\<tau> rho i - n')" for n n'
+      by auto (metis Suc_eq_plus1 diff_add_inverse2 diff_cancel_middle enat_ord_simps(1) i_props le_diff_conv)
+    have t: "\<tau> rho (Suc i) + (left I + \<tau> rho i - \<tau> rho (Suc i)) =
+    (if left I + \<tau> rho i \<ge> \<tau> rho (Suc i) then \<tau> rho i + left I else \<tau> rho (Suc i))"
+      by auto
+    have etp: "max (Suc i) (ETP rho (left I + \<tau> rho i)) = max i (ETP rho (left I + \<tau> rho i))"
+      using False
+      by (auto simp: max_def)
+        (meson add_le_same_cancel2 i_etp_to_tau leD not_less_eq_eq)
+    have ee: "\<not> \<tau> rho (Suc i) \<le> left I + \<tau> rho i \<Longrightarrow> ETP rho (\<tau> rho i + left I) = Suc i"
+      by (metis Groups.ab_semigroup_add_class.add.commute Lattices.linorder_class.max.absorb1 etp i_etp_to_tau max_def n_not_Suc_n nat_le_linear)
+    show ?thesis
+      using False valid e i_ge_etpi[of rho "Suc i"] ee etp i_props
+      apply (cases ys rule: rev_cases)
+      apply (auto simp: valid_def Let_def rw t rI add.commute split: if_splits)
+      done
+  qed
+qed
+
 subsection \<open>Operator: Prev\<close>
 
 lemma prev_sound:
