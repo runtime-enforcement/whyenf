@@ -4729,7 +4729,7 @@ proof (rule ccontr)
         ultimately have "wqo minp q" using min_list_wrt_le[OF _ refl_wqo]
             onceBaseNZ_sound[OF i_props p1_def] pw_total[of i "Once I phi"]
             trans_wqo bv Inr minp
-          apply (auto simp add: total_on_def)
+          apply (simp add: total_on_def)
           by (metis transpD)
       }
       then show ?thesis
@@ -9374,7 +9374,7 @@ proof (rule ccontr)
         ultimately have "wqo minp q" using min_list_wrt_le[OF _ refl_wqo]
             untilBase_sound[OF i_props p1_def p2_def] pw_total[of i "Until phi I psi"]
             trans_wqo Inr minp
-          apply (auto simp add: total_on_def p2'_def)
+          apply (simp add: total_on_def p2'_def)
           by (metis transpD)
       }
       ultimately show ?thesis using minp Inr "0" q_val assms **
@@ -9400,10 +9400,6 @@ proof (rule ccontr)
           by (metis dual_order.strict_implies_not_eq add_diff_cancel_left' add_diff_cancel_right' i_props j_gei le_antisym le_neq_implies_less less_add_one)
       } note ** = this
       case (Suc nat)
-      then have "minp = Inr (VUntil_never i i []) \<or> minp = Inr (VUntil i [] (projr p1))"
-        using minp assms q_val Inr filter_nnil
-        unfolding doUntilBase_def valid_def
-        by (cases p1; cases p2; auto simp: min_list_wrt_def)
       moreover
       {fix hi vpsis
         assume bv: "b = VUntil_never i hi vpsis"
@@ -11977,8 +11973,8 @@ proof (rule ccontr)
     ultimately show ?thesis using min_list_wrt_le[OF _ refl_wqo]
         eventuallyBase_sound[OF i_props p1_def] pw_total[of i "Eventually I phi"]
         trans_wqo Inl minp
-      apply (auto simp add: total_on_def transp_def)
-      by metis
+      apply (simp add: total_on_def)
+      by (metis transpD)
   next
     case (Inr b)
     then show ?thesis
@@ -12017,30 +12013,225 @@ proof (rule ccontr)
           by (auto split: sum.splits simp: p1'_def)
         ultimately have "wqo minp q" using min_list_wrt_le[OF _ refl_wqo]
             eventuallyBase_sound[OF i_props p1_def] pw_total[of i "Eventually I phi"]
-            trans_wqo bv Inr minp
-          apply (auto simp add: total_on_def)
+            trans_wqo bv Inr minp 
+          apply (simp add: total_on_def)
           by (metis transpD)
       }
-      then show ?thesis using minp Inr "0" q_val assms ** diff_is_0_eq'
-        unfolding doEventuallyBase_def valid_def optimal_def 
+      then show ?thesis using minp Inr "0" q_val ** i_props LTP_lt_delta i_ge_etpi
+        unfolding doEventuallyBase_def valid_def
         apply (cases b)
-                            apply (auto simp: Let_def split: if_splits sum.splits)
-        
-            (* apply fastforce
-        using i_ge_etpi le_trans apply blas
-          apply fastforce
-         apply (simp add: i_le_ltpi_add)
-        using i_ge_etpi i_le_ltpi_add le_trans by blast *)
-
-
-      }
-      then show ?thesis sorry
+                            apply (auto simp add: i_le_ltpi_add Let_def split: if_splits)
+        by blast
     next
       case (Suc nat)
-      then show ?thesis sorry
+      {fix n j
+        assume j_def: "right I = enat n \<and> ETP rho (\<tau> rho i) \<le> j
+       \<and> j \<le> LTP rho (\<tau> rho i + n) \<and> j \<ge> i"
+        from \<tau>_mono have "\<tau> rho i + n \<ge> \<tau> rho 0"  by (auto simp add: trans_le_add1)
+        then have jin: "\<tau> rho j \<le> \<tau> rho i + n" using j_def i_ltp_to_tau by auto
+        from \<tau>_mono have j_gei: "\<forall>j > i. \<tau> rho j \<ge> \<tau> rho (i+1)" by auto
+        from this i_props j_def have "\<forall>j > i. \<tau> rho j \<ge> \<tau> rho i + n"
+          apply auto
+          by (smt Suc_eq_plus1 diff_is_0_eq' j_gei le_add_diff_inverse le_trans less_imp_le_nat less_nat_zero_code nat_add_left_cancel_le nat_le_linear)
+        then have "j = i" using j_def jin apply auto
+          by (metis dual_order.strict_implies_not_eq add_diff_cancel_left' add_diff_cancel_right' i_props j_gei le_antisym le_neq_implies_less less_add_one)
+      } note ** = this
+      moreover
+      {fix li vphis
+        assume bv: "b = VEventually_never i li vphis"
+        have vphis_Nil: "vphis = []"
+          using q_val i_props Suc Inr bv i_le_ltpi LTP_lt_delta
+          unfolding valid_def
+          by (auto simp add: Let_def i_etp_to_tau split: if_splits)
+        have li_def: "li = i"
+          using q_val Inr bv LTP_lt_delta i_props
+          unfolding valid_def
+          by (auto simp: i_le_ltpi_add vphis_Nil split: if_splits)
+        have "wqo (Inr (VEventually_never i i [])) q"
+          using q_val bv Inr not_wqo
+          by (fastforce simp add: map_idI vphis_Nil li_def)
+        moreover have "Inr (VEventually_never i i []) \<in> set (doEventuallyBase i (left I) p1)"
+          using i_props Suc
+          unfolding doEventuallyBase_def optimal_def valid_def
+          by (auto split: sum.splits)
+        ultimately have "wqo minp q" using min_list_wrt_le[OF _ refl_wqo]
+            eventuallyBase_sound[OF i_props p1_def] pw_total[of i "Eventually I phi"]
+            trans_wqo bv Inr minp
+          apply (simp add: total_on_def)
+          by (metis transpD)
+      }
+      then show ?thesis
+        using Inr q_val
+        unfolding valid_def
+        by (cases b) (auto)
     qed
   qed
   then show False using q_le by auto
+qed
+
+lemma eventually_sound:
+  assumes i_props: "right I \<ge> enat (\<Delta> rho (i+1))" and
+    p1_def: "optimal i phi p1" and
+    p'_def: "optimal (i+1) (Eventually (subtract (\<Delta> rho (i+1)) I) phi) p'"
+    and p_def: "p \<in> set (doEventually i (left I) p1 p')"
+    and bf: "bounded_future (Eventually I phi)"
+    and bf': "bounded_future (Eventually (subtract (\<Delta> rho (i+1)) I) phi)"
+  shows "valid rho i (Eventually I phi) p"
+proof (cases p')
+  case (Inl a)
+  then have p'l: "p' = Inl a" by auto
+  then have satp': "sat rho (i+1) (Eventually (subtract (\<Delta> rho (i+1)) I) phi)"
+    using soundness[of _ _ "Eventually (subtract (\<Delta> rho (i+1)) I) phi"] p'_def 
+      check_sound(1)[of rho "Eventually (subtract (\<Delta> rho (i+1)) I) phi" a]
+    unfolding optimal_def valid_def by auto
+  then obtain q where a_def: "a = SEventually (i+1) q" using Inl p'_def
+    unfolding optimal_def valid_def
+    by (cases a) (auto)
+  then have a_val: "s_check rho (Eventually (subtract (\<Delta> rho (i+1)) I) phi) a"
+    using Inl p'_def unfolding optimal_def valid_def by (auto simp: Let_def)
+  then have mem: "mem (delta rho (s_at q) (i+1)) (subtract (\<Delta> rho (i+1)) I)"
+    using a_def Inl p'_def unfolding optimal_def valid_def
+    by (auto simp: Let_def)
+  then have "left I - \<Delta> rho (i+1) \<le> delta rho (s_at q) (i+1) " by auto
+  then have tmp: "left I \<le> \<tau> rho (i+1) - \<tau> rho i + (\<tau> rho (s_at q) - \<tau> rho (i+1))"
+    by auto
+  from a_val have qi: "i+1 \<le> s_at q" using a_def p'l p'_def
+    unfolding optimal_def valid_def
+    by (auto simp: Let_def)
+  then have liq: "left I \<le> delta rho (s_at q) i" using diff_add_assoc tmp
+    by simp
+  from bf obtain n where n_def: "right I = enat n" by auto
+  from mem n_def have "enat (delta rho (s_at q) (i+1)) \<le> enat n - enat (\<Delta> rho (i+1))"
+    by simp
+  then have "delta rho (s_at q) (i+1) + \<Delta> rho (i+1) \<le> n"
+    using i_props n_def by simp
+  then have riq: "enat (delta rho (s_at q) i) \<le> right I" using n_def by simp
+  then show ?thesis
+  proof (cases "left I = 0")
+    case True
+    then show ?thesis
+    proof (cases p1)
+      case (Inl a1)
+      then have p1l: "p1 = Inl a1" by simp
+      then have sps: "p = Inl (SEventually i q) \<or> p = Inl (SEventually i (projl p1))"
+        using a_def p'l True p_def unfolding doEventually_def optimal_def by auto
+      then show ?thesis
+        using Inl True n_def a_val a_def qi riq p1_def
+        unfolding optimal_def valid_def
+        by auto
+    next
+      case (Inr b2)
+        then have p1r: "p1 = Inr b2" by simp
+        then have sp: "p = Inl (SEventually i q)"
+          using p1r p_def True p'l a_def unfolding doEventually_def by simp
+        then show ?thesis
+          using Inr Inl True n_def a_def p'_def i_props unfolding optimal_def valid_def
+          by (auto simp: Let_def)
+      qed
+  next
+    case False
+    then show ?thesis
+    proof (cases p1)
+      case (Inl a1)
+      then have p1l: "p1 = Inl a1" by simp
+      then have sp: "p = Inl (SEventually i q)"
+        using p1l p_def False p'l a_def unfolding doEventually_def by simp
+      then show ?thesis
+        using Inl False n_def a_def qi liq riq a_val unfolding optimal_def valid_def
+        by (auto simp: Let_def)
+    next
+      case (Inr b2)
+        then have p1r: "p1 = Inr b2" by simp
+        then have sp: "p = Inl (SEventually i q)"
+          using p1r p_def False p'l a_def unfolding doEventually_def by simp
+        then show ?thesis
+          using Inr False n_def a_def qi liq riq a_val unfolding optimal_def valid_def
+          by (auto simp: Let_def)
+      qed
+  qed
+next
+  case (Inr b)
+  then have p'r: "p' = Inr b" by auto
+  from bf obtain n where n_def: "right I = enat n" by auto
+  then show ?thesis
+  proof (cases b)
+    case (VFF x1)
+    then show ?thesis using p'r p'_def unfolding optimal_def valid_def by simp
+  next
+    case (VAtm x21 x22)
+    then show ?thesis using p'r p'_def unfolding optimal_def valid_def by simp
+  next
+    case (VNeg x3)
+    then show ?thesis using p'r p'_def unfolding optimal_def valid_def by simp
+  next
+    case (VDisj x41 x42)
+    then show ?thesis using p'r p'_def unfolding optimal_def valid_def by simp
+  next
+    case (VConjL x5)
+    then show ?thesis using p'r p'_def unfolding optimal_def valid_def by simp
+  next
+    case (VConjR x6)
+    then show ?thesis using p'r p'_def unfolding optimal_def valid_def by simp
+  next
+    case (VImpl x71 x72)
+    then show ?thesis using p'r p'_def unfolding optimal_def valid_def by simp
+  next
+    case (VIff_sv x81 x82)
+    then show ?thesis using p'r p'_def unfolding optimal_def valid_def by simp
+  next
+    case (VIff_vs x91 x92)
+    then show ?thesis using p'r p'_def unfolding optimal_def valid_def by simp
+  next
+    case (VOnce_le x10)
+    then show ?thesis using p'r p'_def unfolding optimal_def valid_def by simp
+  next
+    case (VOnce_never x111 x112 x113)
+    then show ?thesis using p'r p'_def unfolding optimal_def valid_def by simp
+  next
+    case (VEventually_never j hi qs)
+    have hi_def: "hi = LTP rho (n + \<tau> rho i)"
+      using p'_def VEventually_never i_props Inr n_def
+      unfolding optimal_def valid_def by auto
+    have j_def: "j = i+1" using p'r p'_def unfolding optimal_def valid_def VUntil_never
+      by auto
+
+  next
+    case (VSince x131 x132 x133)
+    then show ?thesis using p'r p'_def unfolding optimal_def valid_def by simp
+  next
+    case (VUntil x141 x142 x143)
+    then show ?thesis using p'r p'_def unfolding optimal_def valid_def by simp
+  next
+    case (VSince_never x151 x152 x153)
+    then show ?thesis using p'r p'_def unfolding optimal_def valid_def by simp
+  next
+    case (VUntil_never x161 x162 x163)
+    then show ?thesis using p'r p'_def unfolding optimal_def valid_def by simp
+  next
+    case (VSince_le x17)
+    then show ?thesis using p'r p'_def unfolding optimal_def valid_def by simp
+  next
+    case (VNext x18)
+    then show ?thesis using p'r p'_def unfolding optimal_def valid_def by simp
+  next
+    case (VNext_ge x19)
+    then show ?thesis using p'r p'_def unfolding optimal_def valid_def by simp
+  next
+    case (VNext_le x20)
+    then show ?thesis using p'r p'_def unfolding optimal_def valid_def by simp
+  next
+    case (VPrev x21a)
+    then show ?thesis using p'r p'_def unfolding optimal_def valid_def by simp
+  next
+    case (VPrev_ge x22a)
+    then show ?thesis using p'r p'_def unfolding optimal_def valid_def by simp
+  next
+    case (VPrev_le x23)
+    then show ?thesis using p'r p'_def unfolding optimal_def valid_def by simp
+  next
+    case VPrev_zero
+    then show ?thesis using p'r p'_def unfolding optimal_def valid_def by simp
+  qed
 qed
 
 subsection \<open>Operator: Prev\<close>
