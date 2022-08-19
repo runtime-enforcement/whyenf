@@ -12192,9 +12192,49 @@ next
     have hi_def: "hi = LTP rho (n + \<tau> rho i)"
       using p'_def VEventually_never i_props Inr n_def
       unfolding optimal_def valid_def by auto
-    have j_def: "j = i+1" using p'r p'_def unfolding optimal_def valid_def VUntil_never
-      by auto
-
+    have j_def: "j = i+1" using p'r p'_def unfolding optimal_def valid_def VEventually_never
+      by simp
+    from bf obtain n where n_def: "right I = enat n" by auto
+    then show ?thesis
+    proof (cases "left I = 0")
+      case True
+      then show ?thesis 
+      proof (cases p1)
+          case (Inl a1)
+          then have "p = Inl (SEventually i (projl p1))"
+            using p'r VEventually_never True p_def unfolding doEventually_def
+            by simp
+          then show ?thesis using p1_def i_props Inl True zero_enat_def
+            unfolding optimal_def valid_def by simp
+        next
+          case (Inr b1)
+          then have p1r: "p1 = Inr b1" by simp
+          {
+            from i_ge_etpi have b2_ge: "v_at b1 \<ge> ETP rho (\<tau> rho (v_at b1))"
+            using p1r p1_def
+            unfolding optimal_def valid_def by simp
+          then have nl_def: "LTP rho (\<tau> rho i + n) \<ge> v_at b1 + 1"
+            using n_def VEventually_never p'r p'_def p1_def p1r i_props
+            unfolding optimal_def valid_def apply (auto simp: Let_def split: if_splits)
+              apply (metis diff_add_inverse le_add1 le_add_diff_inverse2)
+            sledgehammer
+            by (metis diff_add_inverse diff_add_inverse2 enat_ord_simps(1) i_etp_to_tau i_le_ltpi_add i_props le_SucI le_add1 le_diff_iff le_imp_diff_is_add plus_1_eq_Suc)
+          define l where l_def: "l \<equiv> [max (v_at b2+1) (ETP rho (\<tau> rho (v_at b2+1))) ..< LTP rho (\<tau> rho i + n)]"
+          then have l2_def: "l = [v_at b2+1..< LTP rho (\<tau> rho i + n)]" using i_ge_etpi[of rho "v_at b2 + 1"]
+            by (auto simp add: max_def)
+          then have b2_cons: "(max (v_at b2) (ETP rho (\<tau> rho (v_at b2)))) # l = v_at b2 # l"
+            by (auto simp add: antisym b2_ge max_def)
+          then have "v_at b2 # l = [max (v_at b2) (ETP rho (\<tau> rho (v_at b2))) ..< LTP rho (\<tau> rho i + n)]"
+            using nl_def l_def b2_ge
+            apply (auto simp add: antisym b2_cons upt_eq_Cons_conv i_ge_etpi max_def)
+            apply (metis antisym i_ge_etpi less_eq_Suc_le upt_conv_Cons)
+            apply (metis Suc_le_eq l2_def upt_eq_Cons_conv)
+            using b2_ge upt_conv_Cons by auto
+        } note * = this
+    next
+      case False
+      then show ?thesis sorry
+    qed
   next
     case (VSince x131 x132 x133)
     then show ?thesis using p'r p'_def unfolding optimal_def valid_def by simp
