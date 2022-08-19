@@ -410,7 +410,7 @@ inductive SAT and VIO where
 | SHistorically: "j = (case right I of \<infinity> \<Rightarrow> 0 | enat n \<Rightarrow> ETP rho ((\<tau> rho i) - n)) \<Longrightarrow>
  (\<tau> rho i) \<ge> (\<tau> rho 0) + left I \<Longrightarrow>
 (\<And>k. k \<in> {j .. l i I} \<Longrightarrow> SAT k phi) \<Longrightarrow> SAT i (Historically I phi)"
-| VHistorically_le: "\<tau> rho i < \<tau> rho 0 + left I \<Longrightarrow> VIO i (Historically I phi)"
+| SHistorically_le: "\<tau> rho i < \<tau> rho 0 + left I \<Longrightarrow> SAT i (Historically I phi)"
 | VHistorically: "j \<le> i \<Longrightarrow> mem (delta rho i j) I  \<Longrightarrow> VIO j phi \<Longrightarrow> VIO i (Historically I phi)"
 | SEventually: "j \<ge> i \<Longrightarrow> mem (delta rho j i) I  \<Longrightarrow> SAT j phi \<Longrightarrow> SAT i (Eventually I phi)"
 | VEventually_never: "(\<And>k. k \<in> (case right I of \<infinity> \<Rightarrow> {lu i I ..} | enat n \<Rightarrow> {lu i I .. LTP rho ((\<tau> rho i) + n)}) \<Longrightarrow> VIO k phi)
@@ -453,7 +453,6 @@ next
       by auto}
   moreover
   {assume unsat: "\<not> sat rho i (Once I phi)"
-      and nw: "\<forall>j\<le>i. \<not> mem (delta rho i j) I \<or> \<not> sat rho j phi"
       and i_ge: "\<tau> rho 0 + left I \<le> \<tau> rho i"
     then have "VIO i (Once I phi)"
       using local.Once
@@ -465,7 +464,6 @@ next
   case (Historically I phi)
   from \<tau>_mono have i0: "\<tau> rho 0 \<le> \<tau> rho i" by auto
   {assume sat: "sat rho i (Historically I phi)"
-      and w: "\<forall>j\<le>i. mem (delta rho i j) I \<longrightarrow> sat rho j phi"
       and i_ge: "\<tau> rho i \<ge> \<tau> rho 0 + left I"
     then have "SAT i (Historically I phi)"
       using local.Historically le_diff_conv
@@ -478,11 +476,11 @@ next
       by auto}
   moreover
   {assume i_l: "\<tau> rho i < \<tau> rho 0 + left I"
-    then have "VIO i (Historically I phi)"
-      using SAT_VIO.VHistorically_le local.Historically
+    then have "SAT i (Historically I phi)"
+      using SAT_VIO.SHistorically_le local.Historically
       by auto}
   ultimately show ?case
-    sorry
+    by force
 next
   case (Eventually I phi)
   from \<tau>_mono have i0: "\<tau> rho 0 \<le> \<tau> rho i" by auto
@@ -492,7 +490,6 @@ next
       by auto}
   moreover
   {assume unsat: "\<not> sat rho i (Eventually I phi)"
-      and nw: "\<forall>j \<ge> i. \<not> mem (delta rho j i) I \<or> \<not> sat rho j phi"
     then have "VIO i (Eventually I phi)"
       using local.Eventually
       by (auto intro!: SAT_VIO.VEventually_never simp: add_increasing2 i0 i_ltp_to_tau i_etp_to_tau
@@ -507,7 +504,6 @@ next
       by auto}
   moreover
   {assume sat: "sat rho i (Always I phi)"
-      and w: "\<forall>j \<ge> i. mem (delta rho j i) I \<longrightarrow> sat rho j phi"
     then have "SAT i (Always I phi)"
       using local.Always
       by (auto intro!: SAT_VIO.SAlways simp: add_increasing2 i0 i_ltp_to_tau i_etp_to_tau le_diff_conv split: enat.splits)}
@@ -519,8 +515,7 @@ next
       using SAT_VIO.SSince local.Since
       by auto}
   moreover
-  {assume unsat: "\<not> sat rho i (Since phi I psi)"
-      and i_l: "\<tau> rho i < \<tau> rho 0 + left I"
+  {assume i_l: "\<tau> rho i < \<tau> rho 0 + left I"
     then have "VIO i (Since phi I psi)"
       using SAT_VIO.VSince_le local.Since
       by auto}
@@ -675,7 +670,7 @@ next
         then have "delta rho i j < left I"
           using VOnce_le less_\<tau>D verit_comp_simplify1(3) by fastforce
         then have "\<not> mem (delta rho i j) I" by auto}
-      then show ?thesis using VOnce_le OnceBF by auto
+      then show ?thesis by auto
     next
       case (VOnce_never j)
       {fix k
@@ -700,7 +695,45 @@ next
   ultimately show ?case by auto
 next
   case (Historically I phi)
-  show ?case sorry
+  {assume "VIO i (Historically I phi)"
+    then have "\<not> sat rho i (Historically I phi)" using Historically by (cases) (auto)
+  }
+  moreover
+  {assume "SAT i (Historically I phi)"
+    then have "sat rho i (Historically I phi)" using Historically
+    proof (cases)
+      case (SHistorically_le)
+      {fix j
+        from \<tau>_mono have j0: "\<tau> rho 0 \<le> \<tau> rho j" by auto
+        then have "\<tau> rho i < \<tau> rho j + left I" using SHistorically_le apply simp
+          using j0 by linarith
+        then have "delta rho i j < left I"
+          using SHistorically_le less_\<tau>D verit_comp_simplify1(3) by fastforce
+        then have "\<not> mem (delta rho i j) I" by auto}
+      then show ?thesis by auto
+    next
+      case (SHistorically j)
+      {fix k
+        assume k_def: "\<not> sat rho k phi \<and> mem (delta rho i k) I \<and> k \<le> i"
+        then have k_tau: "\<tau> rho k \<le> \<tau> rho i - left I"
+          using diff_le_mono2 by fastforce
+        then have k_ltp: "k \<le> LTP rho (\<tau> rho i - left I)"
+          using SHistorically i_ltp_to_tau add_le_imp_le_diff
+          by blast
+        then have "k \<notin> {j .. l i I}"
+          using k_def SHistorically Historically k_tau
+          by auto
+        then have "k < j" using k_def k_ltp by auto
+      }
+      then show ?thesis
+        using SHistorically Historically
+        apply (cases "right I = \<infinity>")
+        apply (simp add: i_etp_to_tau i_ltp_to_tau leD)
+         apply blast
+        by (auto simp add: le_diff_conv2 i_etp_to_tau i_ltp_to_tau)
+    qed
+  }
+  ultimately show ?case by auto
 next
   case (Eventually I phi)
   {assume "SAT i (Eventually I phi)"
@@ -11964,9 +11997,9 @@ proof (rule ccontr)
       } note ** = this
       case 0
       {fix vphi
-        assume bv: "b = VEventually i i [vphi]"
+        assume bv: "b = VEventually_never i i [vphi]"
         then have b_val: "valid rho i phi (Inr vphi)"
-          using q_val Inr min.absorb_iff1 i_props "0" i_le_ltpi
+          using q_val Inr
           unfolding valid_def
           by (auto simp: Let_def split: if_splits enat.splits)
         then have p1_wqo: "wqo p1 (Inr vphi)"
@@ -11975,18 +12008,31 @@ proof (rule ccontr)
         obtain p1' where p1'_def: "p1 = Inr p1'"
           using b_val p1_def check_consistent[OF bf_phi]
           by (auto simp add: optimal_def valid_def split: sum.splits)
-        have "wqo (Inr (VOnce_never i i [p1'])) q"
-          using bv Inr VOnce_never p1_wqo
+        have "wqo (Inr (VEventually_never i i [p1'])) q"
+          using bv Inr VEventually_never p1_wqo
           by (auto simp add: p1'_def)
-        moreover have "Inr (VOnce_never i i [p1']) \<in> set (doOnceBase i (left I) p1)"
-          using i_props bf check_consistent b_val "0"
-          unfolding doOnceBase_def optimal_def valid_def
-          by (auto split: sum.splits nat.splits simp: p1'_def)
+        moreover have "Inr (VEventually_never i i [p1']) \<in> set (doEventuallyBase i (left I) p1)"
+          using b_val "0"
+          unfolding doEventuallyBase_def
+          by (auto split: sum.splits simp: p1'_def)
         ultimately have "wqo minp q" using min_list_wrt_le[OF _ refl_wqo]
-            onceBaseNZ_sound[OF i_props p1_def] pw_total[of i "Once I phi"]
+            eventuallyBase_sound[OF i_props p1_def] pw_total[of i "Eventually I phi"]
             trans_wqo bv Inr minp
           apply (auto simp add: total_on_def)
           by (metis transpD)
+      }
+      then show ?thesis using minp Inr "0" q_val assms ** diff_is_0_eq'
+        unfolding doEventuallyBase_def valid_def optimal_def 
+        apply (cases b)
+                            apply (auto simp: Let_def split: if_splits sum.splits)
+        
+            (* apply fastforce
+        using i_ge_etpi le_trans apply blas
+          apply fastforce
+         apply (simp add: i_le_ltpi_add)
+        using i_ge_etpi i_le_ltpi_add le_trans by blast *)
+
+
       }
       then show ?thesis sorry
     next
