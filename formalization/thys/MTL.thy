@@ -12760,7 +12760,29 @@ proof (rule ccontr)
     qed
   next
     case (Inr b)
-    then show ?thesis sorry
+    then have qr: "q = Inr b" by simp
+    then have VIO: "VIO rho i (Eventually I phi)"
+      using q_val check_sound(2)[of rho "Eventually I phi" b]
+      unfolding valid_def by simp
+    then have formb: "\<exists>ps. b = VEventually_never i hi ps"
+      using Inr q_val i_props unfolding valid_def by (cases b) (auto simp: hi)
+    moreover
+    {fix hi' ps
+      assume bv: "b = VEventually_never i hi' ps"
+      have li'_def: "hi' = hi"
+        using q_val
+        by (auto simp: Inr bv valid_def hi)
+      have "wqo minp q"
+        using bv
+      proof (cases p')
+        case (Inl a')
+        then show ?thesis sorry
+      next
+        case (Inr b')
+        then show ?thesis sorry
+      qed
+    }
+    then show ?thesis using formb by blast
   qed
   then show False using q_le by auto
 qed
