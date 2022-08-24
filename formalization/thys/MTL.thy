@@ -12615,7 +12615,7 @@ proof (rule ccontr)
             by (auto simp add: Let_def proofIncr_def)
           then show ?thesis
             using q_s a_def pw_total[of i "Eventually I phi"]
-                eventually_sound[OF i_props p1_def p'_def] p'l a'_def p1l False
+                eventually_sound[OF i_props p1_def p'_def] p'l a'_def p1r True
             unfolding form doEventually_def
             apply (elim trans_wqo[THEN transpD,rotated])
             apply (intro min_list_wrt_le[OF _ refl_wqo trans_wqo])
@@ -13701,9 +13701,9 @@ next
           split: sum.splits vproof.splits)[1]
       by (metis VOnce_le bounded_future_simps(11) check_complete check_consistent)
     subgoal
-      thm once_sound
-      by (auto simp: Let_def dest!: onceBase0_sound[rotated -1] onceBaseNZ_sound[rotated -1]
-          once_sound[rotated -3, of _ phi' _ _ _ _] split: if_splits)
+      apply (auto simp: Let_def dest!: onceBase0_sound[rotated -1] onceBaseNZ_sound[rotated -1]
+          once_sound[rotated -3, of _ phi' _ _ _] split: if_splits)
+      using local.Once.IH(1) by force+
     subgoal
       apply (auto simp: Let_def split: if_splits)
       subgoal premises prems
@@ -13736,24 +13736,21 @@ next
         from prems p'_def
         have opt: "optimal (i - 1) (Once (subtract (delta rho i (i - 1)) I) phi') p'"
           by simp
-        thm prems
         from prems(4-6) have bf: "bounded_future (Once I phi')"
           and bf': "bounded_future (Once (subtract (delta rho i (i - 1)) I) phi')"
           by (auto intro: OnceBF)
-        from pw_total[of i "Since phi' I psi"]
+        from pw_total[of i "Once I phi'"]
         have total_set: "total_on wqo (set (doOnce i (left I) p1 p'))"
-          thm prems
-          using once_sound[OF i_props prems(1) opt _ bf bf']
+          using once_sound[OF i_props prems(1) opt _ ]
             p'_def p1_def
-          apply (auto simp: total_on_def)
-          by (meson not_wqo)
+          by (auto simp: total_on_def)
         from opt have not_le: "p' \<noteq> Inr (VOnce_le (i-1))"
           using i_props_imp_not_le_once[OF i_props opt] p'_def
           by auto
         then have nnil: "doOnce i (left I) p1 p' \<noteq> []"
           using opt p1_def p'_def
-          unfolding doOnce_def
-          apply (auto simp: optimal_def valid_def split: sum.splits bool.splits)
+          unfolding doOnce_def optimal_def valid_def
+          apply (simp add: Let_def split: if_splits sum.splits bool.splits)
           by (auto simp: Let_def split: sproof.splits vproof.splits)
         then show ?thesis
           using trans_wqo refl_wqo total_set prems Once p'_def p1_def
@@ -13790,6 +13787,69 @@ next
           apply auto
           apply (rule bexI[OF _ min_list_wrt_in])
           apply (rule onceBaseNZ_optimal[simplified]; auto)
+          by auto
+      qed
+      done
+    done
+next
+  note Opt.simps[simp del]
+  case (Historically i I phi')
+  show ?case sorry
+next
+  note Opt.simps[simp del]
+  case (Eventually i I phi')
+  then show ?case using trans_wqo pw_total refl_wqo
+    apply auto
+    apply (auto simp: Let_def dest!: eventuallyBase_sound[rotated -1]
+        eventually_sound [rotated -3, of _ _ _ _ _ phi'] split: if_splits)[1]
+    subgoal for x
+      apply (auto simp: Let_def split: if_splits)
+      subgoal premises prems
+      proof -
+        define p1 where p1_def: "p1 = Opt i phi'"
+        define p' where p'_def: "p' \<equiv> Opt (i + 1) (Eventually (subtract (delta rho (i + 1) i) I) phi')"
+        from prems(7,8) have i_props: "enat (\<Delta> rho (i+1)) \<le> right I"
+          by auto
+        from prems p'_def
+        have opt: "optimal (i + 1) (Eventually (subtract (\<Delta> rho (i+1)) I) phi') p'"
+          by simp
+        from prems(6-8) have bf: "bounded_future (Eventually I phi')"
+          and bf': "bounded_future (Eventually (subtract (\<Delta> rho (i+1)) I) phi')"
+          by (auto intro: EventuallyBF)
+        from pw_total[of i "Eventually I phi'"]
+        have total_set: "total_on wqo (set (doEventually i (left I) p1 p'))"
+          using eventually_sound[OF i_props prems(1) opt _ bf bf']
+            p'_def p1_def
+          by (auto simp: total_on_def)
+        have nnil: "doEventually i (left I) p1 p' \<noteq> []"
+          using opt p1_def p1_def p'_def prems(8)
+          unfolding doEventually_def optimal_def valid_def
+          apply (simp add: Let_def  split: sum.splits bool.splits)
+          by (auto simp: Let_def split: sproof.splits vproof.splits)
+        then show ?thesis
+          using trans_wqo refl_wqo total_set prems Eventually p'_def p1_def
+          apply auto
+          apply (rule bexI[OF _ min_list_wrt_in])
+          apply (rule eventually_optimal[simplified]; auto)
+          by auto
+      qed
+      subgoal premises prems
+      proof -
+        define p1 where p1_def: "p1 = Opt i phi'"
+        from prems(6,7) have i_props: "right I < enat (\<Delta> rho (i+1))"
+          by simp
+        from pw_total[of i "Eventually I phi'"]
+        have total_set: "total_on wqo (set (doEventuallyBase i (left I) p1))"
+          using eventuallyBase_sound[OF i_props prems(1)] p1_def
+          by (auto simp: total_on_def)
+        from prems p1_def have "doEventuallyBase i (left I) p1 \<noteq> []"
+          unfolding doEventuallyBase_def
+          by (auto split: sum.splits bool.splits)
+        then show ?thesis
+          using trans_wqo refl_wqo total_set prems Eventually p1_def
+          apply auto
+          apply (rule bexI[OF _ min_list_wrt_in])
+          apply (rule eventuallyBase_optimal[simplified]; auto)
           by auto
       qed
       done
