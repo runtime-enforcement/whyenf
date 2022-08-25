@@ -959,13 +959,14 @@ end
 datatype 'a sproof = STT nat | SAtm 'a nat | SNeg "'a vproof" | SDisjL "'a sproof" | SDisjR "'a sproof"
   | SConj "'a sproof" "'a sproof" | SImplR "'a sproof" | SImplL "'a vproof"
   | SIff_ss "'a sproof" "'a sproof" | SIff_vv "'a vproof" "'a vproof" | SOnce nat "'a sproof"
-  | SEventually nat "'a sproof"
+  | SEventually nat "'a sproof" | SHistorically nat nat "'a sproof list" | SHistorically_le nat
   | SSince "'a sproof" "'a sproof list" | SUntil "'a sproof list" "'a sproof" | SNext "'a sproof"
   | SPrev "'a sproof"
     and 'a vproof = VFF nat | VAtm 'a nat | VNeg "'a sproof" | VDisj "'a vproof" "'a vproof"
   | VConjL "'a vproof" | VConjR "'a vproof" | VImpl "'a sproof" "'a vproof"
   | VIff_sv "'a sproof" "'a vproof" | VIff_vs "'a vproof" "'a sproof" 
   | VOnce_le nat | VOnce_never nat nat "'a vproof list" | VEventually_never nat nat "'a vproof list"
+  | VHistorically nat "'a vproof"
   | VSince nat "'a vproof" "'a vproof list" | VUntil nat "'a vproof list" "'a vproof"
   | VSince_never nat nat "'a vproof list" | VUntil_never nat nat "'a vproof list" | VSince_le nat
   | VNext "'a vproof" | VNext_ge nat | VNext_le nat | VPrev "'a vproof" | VPrev_ge nat | VPrev_le nat
@@ -1100,6 +1101,41 @@ primrec comparator_sproof :: "('a \<Rightarrow> 'b \<Rightarrow> order) \<Righta
     | SOnce _ _ \<Rightarrow> Gt
     | SEventually i' sp' \<Rightarrow> (case comparator_of i i' of Eq \<Rightarrow> comparator_sproof compa sp sp' | Lt \<Rightarrow> Lt | Gt \<Rightarrow> Gt)
     | _ \<Rightarrow> Lt)"
+| "comparator_sproof compa (SHistorically i t sps) rhs =
+    (case rhs of
+      STT _ \<Rightarrow> Gt
+    | SAtm _ _ \<Rightarrow> Gt
+    | SNeg _ \<Rightarrow> Gt
+    | SDisjL _ \<Rightarrow> Gt
+    | SDisjR _ \<Rightarrow> Gt
+    | SConj _ _ \<Rightarrow> Gt
+    | SImplR _ \<Rightarrow> Gt
+    | SImplL _ \<Rightarrow> Gt
+    | SIff_ss _ _ \<Rightarrow> Gt
+    | SIff_vv _ _ \<Rightarrow> Gt
+    | SOnce _ _ \<Rightarrow> Gt
+    | SEventually _ _ \<Rightarrow> Gt
+    | SHistorically i' t' sps' \<Rightarrow> (case comparator_of i i' of 
+                                   Eq \<Rightarrow> (case comparator_of t t' of Eq \<Rightarrow> comparator_list' (\<lambda>f x. f x) (map (comparator_sproof compa) sps) sps' | Lt \<Rightarrow> Lt | Gt \<Rightarrow> Gt)
+                                 | Lt \<Rightarrow> Lt | Gt \<Rightarrow> Gt)
+    | _ \<Rightarrow> Lt)"
+| "comparator_sproof compa (SHistorically_le i) rhs =
+    (case rhs of
+      STT _ \<Rightarrow> Gt
+    | SAtm _ _ \<Rightarrow> Gt
+    | SNeg _ \<Rightarrow> Gt
+    | SDisjL _ \<Rightarrow> Gt
+    | SDisjR _ \<Rightarrow> Gt
+    | SConj _ _ \<Rightarrow> Gt
+    | SImplR _ \<Rightarrow> Gt
+    | SImplL _ \<Rightarrow> Gt
+    | SIff_ss _ _ \<Rightarrow> Gt
+    | SIff_vv _ _ \<Rightarrow> Gt
+    | SOnce _ _ \<Rightarrow> Gt
+    | SEventually _ _ \<Rightarrow> Gt
+    | SHistorically _ _ _ \<Rightarrow> Gt
+    | SHistorically_le i' \<Rightarrow> comparator_of i i'
+    | _ \<Rightarrow> Lt)"
 | "comparator_sproof compa (SSince sp2 sp1s) rhs =
     (case rhs of
       STT _ \<Rightarrow> Gt
@@ -1114,6 +1150,8 @@ primrec comparator_sproof :: "('a \<Rightarrow> 'b \<Rightarrow> order) \<Righta
     | SIff_vv _ _ \<Rightarrow> Gt
     | SOnce _ _ \<Rightarrow> Gt
     | SEventually _ _ \<Rightarrow> Gt
+    | SHistorically _ _ _ \<Rightarrow> Gt
+    | SHistorically_le _ \<Rightarrow> Gt
     | SSince sp2' sp1s' \<Rightarrow> (case comparator_sproof compa sp2 sp2' of 
                              Eq \<Rightarrow> comparator_list' (\<lambda>f x. f x) (map (comparator_sproof compa) sp1s) sp1s'
                            | Lt \<Rightarrow> Lt | Gt \<Rightarrow> Gt)
@@ -1132,6 +1170,8 @@ primrec comparator_sproof :: "('a \<Rightarrow> 'b \<Rightarrow> order) \<Righta
     | SIff_vv _ _ \<Rightarrow> Gt
     | SOnce _ _ \<Rightarrow> Gt
     | SEventually _ _ \<Rightarrow> Gt
+    | SHistorically _ _ _ \<Rightarrow> Gt
+    | SHistorically_le _ \<Rightarrow> Gt
     | SSince _ _ \<Rightarrow> Gt
     | SUntil sp1s' sp2' \<Rightarrow> (case comparator_sproof compa sp2 sp2' of 
                              Eq \<Rightarrow> comparator_list' (\<lambda>f x. f x) (map (comparator_sproof compa) sp1s) sp1s'
@@ -1151,6 +1191,8 @@ primrec comparator_sproof :: "('a \<Rightarrow> 'b \<Rightarrow> order) \<Righta
     | SIff_vv _ _ \<Rightarrow> Gt
     | SOnce _ _ \<Rightarrow> Gt
     | SEventually _ _ \<Rightarrow> Gt
+    | SHistorically _ _ _ \<Rightarrow> Gt
+    | SHistorically_le _ \<Rightarrow> Gt
     | SSince _ _ \<Rightarrow> Gt
     | SUntil _ _  \<Rightarrow> Gt
     | SPrev sp' \<Rightarrow> comparator_sproof compa sp sp'
@@ -1169,6 +1211,8 @@ primrec comparator_sproof :: "('a \<Rightarrow> 'b \<Rightarrow> order) \<Righta
     | SIff_vv _ _ \<Rightarrow> Gt
     | SOnce _ _ \<Rightarrow> Gt
     | SEventually _ _ \<Rightarrow> Gt
+    | SHistorically _ _ _ \<Rightarrow> Gt
+    | SHistorically_le _ \<Rightarrow> Gt
     | SSince _ _ \<Rightarrow> Gt
     | SUntil _ _  \<Rightarrow> Gt
     | SPrev _ \<Rightarrow> Gt
@@ -1291,6 +1335,22 @@ primrec comparator_sproof :: "('a \<Rightarrow> 'b \<Rightarrow> order) \<Righta
                                         Eq \<Rightarrow> (case comparator_of t t' of Eq \<Rightarrow> comparator_list' (\<lambda>f x. f x) (map (comparator_vproof compa) vps) vps' | Lt \<Rightarrow> Lt | Gt \<Rightarrow> Gt)
                                       | Lt \<Rightarrow> Lt | Gt \<Rightarrow> Gt)
     | _ \<Rightarrow> Lt)"
+| "comparator_vproof compa (VHistorically i vp) rhs =
+    (case rhs of
+      VFF _ \<Rightarrow> Gt
+    | VAtm _ _ \<Rightarrow> Gt
+    | VNeg _ \<Rightarrow> Gt
+    | VDisj _ _ \<Rightarrow> Gt
+    | VConjL _ \<Rightarrow> Gt
+    | VConjR _ \<Rightarrow> Gt
+    | VImpl _ _ \<Rightarrow> Gt
+    | VIff_sv _ _ \<Rightarrow> Gt
+    | VIff_vs _ _ \<Rightarrow> Gt
+    | VOnce_le _ \<Rightarrow> Gt
+    | VOnce_never _ _ _ \<Rightarrow> Gt
+    | VEventually_never _ _ _ \<Rightarrow> Gt
+    | VHistorically i' vp' \<Rightarrow> (case comparator_of i i' of Eq \<Rightarrow> comparator_vproof compa vp vp' | Lt \<Rightarrow> Lt | Gt \<Rightarrow> Gt)
+    | _ \<Rightarrow> Lt)"
 | "comparator_vproof compa (VSince i vp1 vp2s) rhs =
     (case rhs of
       VFF _ \<Rightarrow> Gt
@@ -1305,6 +1365,7 @@ primrec comparator_sproof :: "('a \<Rightarrow> 'b \<Rightarrow> order) \<Righta
     | VOnce_le _ \<Rightarrow> Gt
     | VOnce_never _ _ _ \<Rightarrow> Gt
     | VEventually_never _ _ _ \<Rightarrow> Gt
+    | VHistorically _ _ \<Rightarrow> Gt
     | VSince i' vp1' vp2s' \<Rightarrow> (case comparator_of i i' of 
                                 Eq \<Rightarrow> (case comparator_vproof compa vp1 vp1' of
                                         Eq \<Rightarrow> comparator_list' (\<lambda>f x. f x) (map (comparator_vproof compa) vp2s) vp2s'
@@ -1325,6 +1386,7 @@ primrec comparator_sproof :: "('a \<Rightarrow> 'b \<Rightarrow> order) \<Righta
     | VOnce_le _ \<Rightarrow> Gt
     | VOnce_never _ _ _ \<Rightarrow> Gt
     | VEventually_never _ _ _ \<Rightarrow> Gt
+    | VHistorically _ _ \<Rightarrow> Gt
     | VSince _ _ _ \<Rightarrow> Gt
     | VUntil i' vp2s' vp1' \<Rightarrow> (case comparator_of i i' of 
                                 Eq \<Rightarrow> (case comparator_vproof compa vp1 vp1' of
@@ -1346,6 +1408,7 @@ primrec comparator_sproof :: "('a \<Rightarrow> 'b \<Rightarrow> order) \<Righta
     | VOnce_le _ \<Rightarrow> Gt
     | VOnce_never _ _ _ \<Rightarrow> Gt
     | VEventually_never _ _ _ \<Rightarrow> Gt
+    | VHistorically _ _ \<Rightarrow> Gt
     | VSince _ _ _ \<Rightarrow> Gt
     | VUntil _ _ _ \<Rightarrow> Gt
     | VSince_never i' t' vp2s' \<Rightarrow> (case comparator_of i i' of 
@@ -1366,6 +1429,7 @@ primrec comparator_sproof :: "('a \<Rightarrow> 'b \<Rightarrow> order) \<Righta
     | VOnce_le _ \<Rightarrow> Gt
     | VOnce_never _ _ _ \<Rightarrow> Gt
     | VEventually_never _ _ _ \<Rightarrow> Gt
+    | VHistorically _ _ \<Rightarrow> Gt
     | VSince _ _ _ \<Rightarrow> Gt
     | VUntil _ _ _ \<Rightarrow> Gt
     | VSince_never _ _ _ \<Rightarrow> Gt
@@ -1387,6 +1451,7 @@ primrec comparator_sproof :: "('a \<Rightarrow> 'b \<Rightarrow> order) \<Righta
     | VOnce_le _ \<Rightarrow> Gt
     | VOnce_never _ _ _ \<Rightarrow> Gt
     | VEventually_never _ _ _ \<Rightarrow> Gt
+    | VHistorically _ _ \<Rightarrow> Gt
     | VSince _ _ _ \<Rightarrow> Gt
     | VUntil _ _ _ \<Rightarrow> Gt
     | VSince_never _ _ _ \<Rightarrow> Gt
@@ -1407,6 +1472,7 @@ primrec comparator_sproof :: "('a \<Rightarrow> 'b \<Rightarrow> order) \<Righta
     | VOnce_le _ \<Rightarrow> Gt
     | VOnce_never _ _ _ \<Rightarrow> Gt
     | VEventually_never _ _ _ \<Rightarrow> Gt
+    | VHistorically _ _ \<Rightarrow> Gt
     | VSince _ _ _ \<Rightarrow> Gt
     | VUntil _ _ _ \<Rightarrow> Gt
     | VSince_never _ _ _ \<Rightarrow> Gt
@@ -1428,6 +1494,7 @@ primrec comparator_sproof :: "('a \<Rightarrow> 'b \<Rightarrow> order) \<Righta
     | VOnce_le _ \<Rightarrow> Gt
     | VOnce_never _ _ _ \<Rightarrow> Gt
     | VEventually_never _ _ _ \<Rightarrow> Gt
+    | VHistorically _ _ \<Rightarrow> Gt
     | VSince _ _ _ \<Rightarrow> Gt
     | VUntil _ _ _ \<Rightarrow> Gt
     | VSince_never _ _ _ \<Rightarrow> Gt
@@ -1450,6 +1517,7 @@ primrec comparator_sproof :: "('a \<Rightarrow> 'b \<Rightarrow> order) \<Righta
     | VOnce_le _ \<Rightarrow> Gt
     | VOnce_never _ _ _ \<Rightarrow> Gt
     | VEventually_never _ _ _ \<Rightarrow> Gt
+    | VHistorically _ _ \<Rightarrow> Gt
     | VSince _ _ _ \<Rightarrow> Gt
     | VUntil _ _ _ \<Rightarrow> Gt
     | VSince_never _ _ _ \<Rightarrow> Gt
@@ -1473,6 +1541,7 @@ primrec comparator_sproof :: "('a \<Rightarrow> 'b \<Rightarrow> order) \<Righta
     | VOnce_le _ \<Rightarrow> Gt
     | VOnce_never _ _ _ \<Rightarrow> Gt
     | VEventually_never _ _ _ \<Rightarrow> Gt
+    | VHistorically _ _ \<Rightarrow> Gt
     | VSince _ _ _ \<Rightarrow> Gt
     | VUntil _ _ _ \<Rightarrow> Gt
     | VSince_never _ _ _ \<Rightarrow> Gt
@@ -1497,6 +1566,7 @@ primrec comparator_sproof :: "('a \<Rightarrow> 'b \<Rightarrow> order) \<Righta
     | VOnce_le _ \<Rightarrow> Gt
     | VOnce_never _ _ _ \<Rightarrow> Gt
     | VEventually_never _ _ _ \<Rightarrow> Gt
+    | VHistorically _ _ \<Rightarrow> Gt
     | VSince _ _ _ \<Rightarrow> Gt
     | VUntil _ _ _ \<Rightarrow> Gt
     | VSince_never _ _ _ \<Rightarrow> Gt
@@ -1522,6 +1592,7 @@ primrec comparator_sproof :: "('a \<Rightarrow> 'b \<Rightarrow> order) \<Righta
     | VOnce_le _ \<Rightarrow> Gt
     | VOnce_never _ _ _ \<Rightarrow> Gt
     | VEventually_never _ _ _ \<Rightarrow> Gt
+    | VHistorically _ _ \<Rightarrow> Gt
     | VSince _ _ _ \<Rightarrow> Gt
     | VUntil _ _ _ \<Rightarrow> Gt
     | VSince_never _ _ _ \<Rightarrow> Gt
@@ -1548,6 +1619,7 @@ primrec comparator_sproof :: "('a \<Rightarrow> 'b \<Rightarrow> order) \<Righta
     | VOnce_le _ \<Rightarrow> Gt
     | VOnce_never _ _ _ \<Rightarrow> Gt
     | VEventually_never _ _ _ \<Rightarrow> Gt
+    | VHistorically _ _ \<Rightarrow> Gt
     | VSince _ _ _ \<Rightarrow> Gt
     | VUntil _ _ _ \<Rightarrow> Gt
     | VSince_never _ _ _ \<Rightarrow> Gt
@@ -1676,6 +1748,15 @@ next
   then show ?case
     by (simp add: comparator_of_def split: sproof.splits vproof.splits order.splits if_splits)
 next
+  case (SHistorically_le x)
+  then show ?case
+    by (simp add: comparator_of_def split: sproof.splits vproof.splits order.splits if_splits)
+next
+  case (SHistorically x1 x2 x3)
+  then show ?case
+    using comparator_list_pointwise(3)[unfolded ptrans_comp_def, of _ "comparator_sproof compa"]
+    by (simp add: comparator_of_def split: sproof.splits vproof.splits order.splits if_splits)
+next
   case (SSince x1 x2)
   then show ?case
     using comparator_list_pointwise(3)[unfolded ptrans_comp_def, of _ "comparator_sproof compa"]
@@ -1757,6 +1838,10 @@ next
   case (VEventually_never x1 x2 x3)
   then show ?case
     using comparator_list_pointwise(3)[unfolded ptrans_comp_def, of _ "comparator_vproof compa"]
+    by (simp add: comparator_of_def split: sproof.splits vproof.splits order.splits if_splits)
+next
+case (VHistorically x1 x2)
+  then show ?case
     by (simp add: comparator_of_def split: sproof.splits vproof.splits order.splits if_splits)
 next
   case (VSince x1 x2 x3)
@@ -1863,12 +1948,10 @@ fun s_at and v_at where
 | "s_at (SPrev sphi) = s_at sphi + 1"
 | "s_at (SOnce n sphi) = n"
 | "s_at (SEventually n sphi) = n"
+| "s_at (SHistorically n li sphis) = n"
+| "s_at (SHistorically_le n) = n"
 | "s_at (SSince spsi sphis) = (case sphis of [] \<Rightarrow> s_at spsi | _ \<Rightarrow> s_at (last sphis))"
 | "s_at (SUntil sphis spsi) = (case sphis of [] \<Rightarrow> s_at spsi | x # _ \<Rightarrow> s_at x)"
-  (*
-| "s_at (SMatchP p) = snd (rs_at s_at p)"
-| "s_at (SMatchF p) = fst (rs_at s_at p)"
-*)
 | "v_at (VFF n) = n"
 | "v_at (VAtm _ n) = n"
 | "v_at (VNeg sphi) = s_at sphi"
@@ -1888,16 +1971,12 @@ fun s_at and v_at where
 | "v_at (VOnce_le n) = n"
 | "v_at (VOnce_never n li vphi) = n"
 | "v_at (VEventually_never n li vphi) = n"
+| "v_at (VHistorically n vphi) = n"
 | "v_at (VSince n vpsi vphis) = n"
 | "v_at (VSince_le n) = n"
 | "v_at (VUntil n vphis vpsi) = n"
 | "v_at (VSince_never n li vpsis) = n"
 | "v_at (VUntil_never n hi vpsis) = n"
-  (*
-| "v_at (VMatchP n ps) = n"
-| "v_at (VMatchP_le n) = n"
-| "v_at (VMatchF n ps) = n"
-*)
 context fixes rho :: "'a trace"
 begin
 
@@ -1919,6 +1998,13 @@ fun s_check and v_check where
   | (Eventually I phi, SEventually i sphi) \<Rightarrow> 
     (let j = s_at sphi
     in j \<ge> i \<and> mem (\<tau> rho j - \<tau> rho i) I \<and> s_check phi sphi)
+  | (Historically I phi, SHistorically_le i) \<Rightarrow> 
+    \<tau> rho i < \<tau> rho 0 + left I
+  | (Historically I phi, SHistorically i li sphis) \<Rightarrow>
+    (li = (case right I of \<infinity> \<Rightarrow> 0 | enat n \<Rightarrow> ETP rho (\<tau> rho i - n))
+    \<and> \<tau> rho 0 + left I \<le> \<tau> rho i
+    \<and> map s_at sphis = [li ..< Suc (l rho i I)]
+    \<and> (\<forall>sphi \<in> set sphis. s_check phi sphi))
   | (Since phi I psi, SSince spsi sphis) \<Rightarrow>
     (let i = s_at (SSince spsi sphis); j = s_at spsi
     in j \<le> i \<and> mem (\<tau> rho i - \<tau> rho j) I \<and> map s_at sphis = [Suc j ..< Suc i] \<and> s_check psi spsi
@@ -1934,14 +2020,6 @@ fun s_check and v_check where
     (let j = s_at sphi; i = s_at (SPrev sphi)
     in i = Suc j \<and> mem (\<Delta> rho i) I \<and> s_check phi sphi)
   | (_, _) \<Rightarrow> False)"
-  (*
-| (MatchP I r, SMatchP sp) \<Rightarrow>
-    (let rt = rs_at s_at sp
-    in fst rt \<le> snd rt \<and> mem (delta rho (snd rt) (fst rt)) I \<and> rs_check s_check s_at r sp)
-  | (MatchF I r, SMatchF sp) \<Rightarrow>
-    (let rt = rs_at s_at sp
-    in fst rt \<le> snd rt \<and> mem (delta rho (snd rt) (fst rt)) I \<and> rs_check s_check s_at r sp)
-*)
 | "v_check f p = (case (f, p) of
     (FF, VFF i) \<Rightarrow> True
   | (Atom a, VAtm b i) \<Rightarrow> (a = b \<and> a \<notin> (\<Gamma> rho i))
@@ -1963,6 +2041,9 @@ fun s_check and v_check where
     (hi = (case right I of enat n \<Rightarrow> LTP rho (\<tau> rho i + n)) \<and> right I \<noteq> \<infinity>
     \<and> map v_at vphis = [(lu rho i I) ..< Suc hi]
     \<and> (\<forall>vphi \<in> set vphis. v_check phi vphi))
+  | (Historically I phi, VHistorically i vphi) \<Rightarrow> 
+    (let j = v_at vphi
+    in j \<le> i \<and> mem (\<tau> rho i - \<tau> rho j) I \<and> v_check phi vphi)
   | (Since phi I psi, VSince_le i) \<Rightarrow>
     \<tau> rho i < \<tau> rho 0 + left I
   | (Since phi I psi, VSince i vphi vpsis) \<Rightarrow>
@@ -2002,18 +2083,6 @@ fun s_check and v_check where
   | (Prev I phi, VPrev_zero) \<Rightarrow>
     v_at (VPrev_zero :: 'a vproof) = 0
   | (_, _) \<Rightarrow> False)"
-  (*
-  | (MatchP I r, VMatchP_le i) \<Rightarrow>
-    \<tau> rho i < \<tau> rho 0 + left I
-  | (MatchP I r, VMatchP i vps) \<Rightarrow> 
-    (let j = ETP rho (case right I of \<infinity> \<Rightarrow> 0 | enat n \<Rightarrow> (\<tau> rho i - n))
-    in \<tau> rho i \<ge> \<tau> rho 0 + left I \<and>  map (fst \<circ> rv_at v_at) vps = [j ..< Suc (l rho i I)]
-    \<and> (\<forall>vp \<in> set vps. rv_check v_check v_at r vp \<and> snd (rv_at v_at vp) = i))
-  | (MatchF I r, VMatchF i vps) \<Rightarrow> 
-    (let j = LTP rho (case right I of \<infinity> \<Rightarrow> 0 | enat n \<Rightarrow> (\<tau> rho i + n))
-    in map (snd \<circ> rv_at v_at) vps = [(lu rho i I) ..< Suc j]
-    \<and> (\<forall>vp \<in> set vps. rv_check v_check v_at r vp \<and> fst (rv_at v_at vp) = i))
-*)
 
 declare s_check.simps[simp del] v_check.simps[simp del]
 simps_of_case s_check_simps[simp, code]: s_check.simps[unfolded prod.case] (splits: mtl.split sproof.split)
@@ -2115,6 +2184,33 @@ next
         apply (auto simp: Let_def)
       done
   qed auto
+next
+  case SHistorically_le
+  then show ?case by (cases phi) (auto intro: SAT_VIO.SHistorically_le)
+next
+  case (SHistorically i li sphis)
+  then show ?case
+  proof (cases phi)
+    case (Historically I phi)
+    {fix k
+      define j where j_def: "j \<equiv> case right I of \<infinity> \<Rightarrow> 0 | enat n \<Rightarrow> ETP rho (\<tau> rho i - n)"
+      assume k_def: "k \<ge> j \<and> k \<le> i \<and> k \<le> LTP rho (\<tau> rho i - left I)"
+      from SHistorically Historically j_def have map: "set (map s_at sphis) = set [j ..< Suc (l rho i I)]"
+        by (auto simp: Let_def)
+      then have kset: "k \<in> set ([j ..< Suc (l rho i I)])" using j_def k_def by auto
+      then obtain x where x: "x \<in> set sphis"  "s_at x = k" using k_def map
+        apply auto
+         apply (metis imageE insertI1)
+        by (metis List.List.list.set_map imageE kset map)
+      then have "SAT rho k phi" using SHistorically unfolding Historically
+        by (auto simp: Let_def)
+    } note * = this
+    show ?thesis
+      using SHistorically
+      unfolding Historically
+      apply (auto simp: Let_def intro!: SAT_VIO.SHistorically)
+      using SHistorically.IH *  by (auto split: if_splits)
+  qed (auto intro: SAT_VIO.intros)
 next
   case (SUntil sphis spsi)
   then show ?case
@@ -2218,6 +2314,18 @@ next
       unfolding Eventually
       by (auto simp: Let_def n_def intro: SAT_VIO.VEventually_never split: if_splits enat.splits)
   qed(auto intro: SAT_VIO.intros)
+next
+case (VHistorically i vphi)
+  then show ?case
+  proof (cases phi)
+    case (Historically I phi)
+    show ?thesis
+      using VHistorically
+      unfolding Historically
+      apply (intro SAT_VIO.VHistorically[of "v_at vphi"])
+        apply (auto simp: Let_def)
+      done
+  qed auto
 next
   case VNext
   then show ?case by (cases phi) (auto intro: SAT_VIO.VNext)
@@ -2664,8 +2772,49 @@ next
   }
   ultimately show ?case by blast
 next
-  case (HistoricallyBF I phi)
-  show ?case sorry
+  case (HistoricallyBF phi I)
+  {assume "VIO rho i (Historically I phi)"
+    then have "\<exists>vphi. v_at vphi = i \<and> v_check (Historically I phi) vphi"
+    proof (cases)
+      case (VHistorically j)
+      then obtain vphi where vphi: "v_at vphi = j \<and> v_check phi vphi" 
+        using HistoricallyBF by blast
+      {assume "Suc j > i"
+        then have "v_at (VHistorically i vphi) = i \<and> v_check (Historically I phi) (VHistorically i vphi)"
+          using vphi VHistorically by auto
+        then have "\<exists>vphi. v_at vphi = i \<and> v_check (Historically I phi) vphi" by blast
+      }
+      moreover
+      {assume j_i: "Suc j \<le> i"
+        have "v_at (VHistorically i vphi) = i \<and> v_check (Historically I phi) (VHistorically i vphi)"
+          using vphi j_i VHistorically
+          by (auto)
+      }
+      ultimately show ?thesis
+        using not_less by blast
+    qed
+  }
+  moreover
+  {assume "SAT rho i (Historically I phi)"
+    then have "\<exists>sphi. s_at sphi = i \<and> s_check (Historically I phi) sphi"
+    proof (cases)
+      case (SHistorically_le)
+      then have "s_at (SHistorically_le i) = i \<and> s_check (Historically I phi) (SHistorically_le i)"
+        by auto
+      then show ?thesis by blast
+    next
+      case (SHistorically j)
+      from HistoricallyBF SHistorically obtain f where f_def: "\<forall>k \<in> {j .. l rho i I}. s_at (f k) = k \<and> s_check phi (f k)"
+        by atomize_elim (auto intro: bchoice)
+      then obtain sphis where sphis: "map (s_at) sphis = [j ..< Suc (l rho i I)]
+          \<and> (\<forall>sphi \<in> set sphis. s_check phi sphi)"
+        by atomize_elim (auto intro!: trans[OF list.map_cong list.map_id] exI[of _ "map f ([j ..< Suc (l rho i I)])"])
+      then have "s_at (SHistorically i j sphis) = i \<and> s_check (Historically I phi) (SHistorically i j sphis)"
+        using SHistorically by auto
+      then show ?thesis by blast
+    qed
+  }
+  ultimately show ?case by blast
 next
   case (EventuallyBF I phi)
   {assume "SAT rho i (Eventually I phi)"
@@ -2856,7 +3005,8 @@ definition "p_at = (\<lambda>p. case_sum s_at v_at p)"
 definition proofApp :: "('a sproof + 'a vproof) \<Rightarrow> ('a sproof + 'a vproof)
 \<Rightarrow> ('a sproof + 'a vproof)" (infixl "\<oplus>" 65) where
   "p \<oplus> r = (case (p, r) of
-   (Inl (SSince p1 p2), Inl r) \<Rightarrow> Inl (SSince p1 (p2 @ [r]))
+   (Inl (SHistorically i li p1), Inl r) \<Rightarrow> Inl (SHistorically (Suc i) li (p1 @ [r]))
+ | (Inl (SSince p1 p2), Inl r) \<Rightarrow> Inl (SSince p1 (p2 @ [r]))
  | (Inl (SUntil p1 p2), Inl r) \<Rightarrow> Inl (SUntil (r # p1) p2)
  | (Inr (VSince i p1 p2), Inr r) \<Rightarrow> Inr (VSince (Suc i) p1 (p2 @ [r]))
  | (Inr (VOnce_never i li p1), Inr r) \<Rightarrow> Inr (VOnce_never (Suc i) li (p1 @ [r]))
