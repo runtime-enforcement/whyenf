@@ -8458,6 +8458,9 @@ next
     case (VUntil_never x71 x72)
     then show ?thesis using p'r p'_def unfolding optimal_def valid_def by auto
   next
+    case (VHistorically x131 x132)
+    then show ?thesis using p'r p'_def unfolding optimal_def valid_def by auto
+  next
     case (VSince_le x8)
     then have c: "\<tau> rho (i-1) < \<tau> rho 0 + (left I - \<Delta> rho i)" using p'r p'_def
       unfolding optimal_def valid_def by auto
@@ -9037,17 +9040,6 @@ next
         ultimately show ?thesis by (cases "right I"; blast)
       qed
     qed
-      (*
- next
-    case (VMatchP x12a)
-    then show ?thesis using p'r p'_def unfolding optimal_def valid_def by auto
-  next
-    case (VMatchF x13)
-    then show ?thesis using p'r p'_def unfolding optimal_def valid_def by auto
-  next
-    case (VMatchP_le x14)
-    then show ?thesis using p'r p'_def unfolding optimal_def valid_def by auto
-*)
   qed
 qed
 
@@ -11367,6 +11359,9 @@ next
     then show ?thesis using p'r p'_def unfolding optimal_def valid_def by auto
   next
     case (VEventually_never x51 x52 x53)
+    then show ?thesis using p'r p'_def unfolding optimal_def valid_def by auto
+  next
+    case (VHistorically x131 x132)
     then show ?thesis using p'r p'_def unfolding optimal_def valid_def by auto
   next
     case (VSince x51 x52 x53)
@@ -14037,6 +14032,9 @@ next
       qed
     qed
   next
+    case (VHistorically x131 x132)
+    then show ?thesis using p'r p'_def unfolding optimal_def valid_def by auto
+  next
     case (VSince x131 x132 x133)
     then show ?thesis using p'r p'_def unfolding optimal_def valid_def by simp
   next
@@ -14472,7 +14470,7 @@ proof (rule ccontr)
               p'r p1r b'_def True p1_def p'_def
             unfolding optimal_def valid_def
             apply (simp add: Let_def split: sum.split if_splits)
-             apply (metis (no_types, lifting) checkApp.intros(6) Nil_is_append_conv map_is_Nil_conv not_Cons_self2)
+             apply (metis (no_types, lifting) checkApp.intros(7) Nil_is_append_conv map_is_Nil_conv not_Cons_self2)
             using b'_def diff_0_eq_0 p'_val subtract_simps(1) valid_checkApp_VEventually_never by presburger
           have p_val: "valid rho i (Eventually I phi) (p' \<oplus> p1)"
             using p'r b'_def p1r vmin form eventually_sound[OF i_props p1_def p'_def]
@@ -15203,7 +15201,7 @@ theorem alg_optimal:
 proof (induction i phi rule: Cand_Opt.induct(2)[where P = "\<lambda>i phi. bounded_future phi \<longrightarrow>
   (\<forall>x \<in> set (Cand i phi). valid rho i phi x) \<and>
   (\<exists>x \<in> set (Cand i phi). optimal i phi x)",
-      case_names TT FF Atom Disj Conj Impl Iff Neg Prev Next Since Until Once Eventually Opt])
+      case_names TT FF Atom Disj Conj Impl Iff Neg Prev Next Since Until Once Historically Eventually Opt])
   case (TT i)
   then show ?case unfolding optimal_def valid_def
     by (auto simp: refl_wqo[unfolded reflp_def] s_check.simps
@@ -15568,7 +15566,111 @@ next
 next
   note Opt.simps[simp del]
   case (Historically i I phi')
-  show ?case sorry
+  show ?case using Historically
+    apply auto
+    apply (auto simp: optimal_def valid_def refl_wqo[unfolded reflp_def]
+        split: sum.splits)[1]
+    subgoal
+      using check_consistent[of "Historically I phi'"] refl_wqo[unfolded reflp_def]
+        (* check_complete[of "Historically I phi'"] bounded_future_simps(12) *)
+      unfolding optimal_def valid_def 
+      apply (simp add: Let_def  split: sum.splits sproof.splits)
+      sorry
+      (* using check_consistent[of "Historically I phi'"]
+      apply (simp add: optimal_def valid_def refl_wqo[unfolded reflp_def]
+          split: sum.splits vproof.splits)[1]
+      by (metis SHistorically_le bounded_future_simps(12) check_complete check_consistent) *)
+    subgoal
+      apply (auto simp: Let_def dest!: historicallyBase0_sound[rotated -1] historicallyBaseNZ_sound[rotated -1]
+          historically_sound[rotated -3, of _ phi' _ _ _] split: if_splits)
+      using local.Historically.IH(1) by force+
+    subgoal
+      apply (auto simp: Let_def split: if_splits)
+      subgoal premises prems
+      proof -
+        define p1 where p1_def: "p1 = Opt i phi'"
+        from prems have i_props: "i = 0 \<and>  \<tau> rho 0 + left I \<le> \<tau> rho i"
+          by simp
+        from pw_total[of 0 "Historically I phi'"]
+        have total_set: "total_on wqo (set (doHistoricallyBase i (left I) p1))"
+          using historicallyBase0_sound[OF _ i_props] i_props prems(1,2)
+            p1_def
+          by (fastforce simp: total_on_def)
+        from prems p1_def have "doHistoricallyBase i (left I) p1 \<noteq> []"
+          unfolding doHistoricallyBase_def
+          by (auto split: sum.splits bool.splits)
+        then show ?thesis
+          using trans_wqo refl_wqo total_set prems Historically p1_def
+          apply auto
+          apply (rule bexI[OF _ min_list_wrt_in])
+          apply (rule historicallyBase0_optimal[simplified]; auto)
+          by auto
+      qed
+      subgoal premises prems
+      proof -
+        define p1 where p1_def: "p1 = Opt i phi'"
+        define p' where p'_def: "p' \<equiv> Opt (i - 1) (Historically (subtract (delta rho i (i - 1)) I) phi')"
+        from prems have i_props: "0 < i \<and>  \<tau> rho 0 + left I \<le> \<tau> rho i
+        \<and> enat (delta rho i (i - 1)) \<le> right I"
+          by simp
+        from prems p'_def
+        have opt: "optimal (i - 1) (Historically (subtract (delta rho i (i - 1)) I) phi') p'"
+          by simp
+        from prems(4-6) have bf: "bounded_future (Historically I phi')"
+          and bf': "bounded_future (Historically (subtract (delta rho i (i - 1)) I) phi')"
+          by (auto intro: HistoricallyBF)
+        from pw_total[of i "Historically I phi'"]
+        have total_set: "total_on wqo (set (doHistorically i (left I) p1 p'))"
+          using historically_sound[OF i_props prems(1) opt _ ]
+            p'_def p1_def
+          by (auto simp: total_on_def)
+        from opt have not_le: "p' \<noteq> Inl (SHistorically_le (i-1))"
+          using i_props_imp_not_le_historically[OF i_props opt] p'_def
+          by auto
+        then have nnil: "doHistorically i (left I) p1 p' \<noteq> []"
+          using opt p1_def p'_def
+          unfolding doHistorically_def optimal_def valid_def
+          apply (simp add: Let_def split: if_splits sum.splits bool.splits)
+          by (auto simp: Let_def split: sproof.splits vproof.splits)
+        then show ?thesis
+          using trans_wqo refl_wqo total_set prems Historically p'_def p1_def
+          apply auto
+          apply (rule bexI[OF _ min_list_wrt_in])
+          apply (rule historically_optimal[simplified]; auto)
+          by auto
+      qed
+      subgoal premises prems
+      proof -
+        thm prems
+        from prems(2, 4) left_right[of I]
+        have False 
+          by auto
+        then show ?thesis
+          by auto
+      qed
+      subgoal premises prems
+      proof -
+        define p1 where p1_def: "p1 = Opt i phi'"
+        from prems have i_props: "0 < i \<and>  \<tau> rho 0 + left I \<le> \<tau> rho i
+        \<and> right I < enat (delta rho i (i - 1))"
+          by simp
+        from pw_total[of i "Historically I phi'"]
+        have total_set: "total_on wqo (set (doHistoricallyBase i (left I) p1))"
+          using historicallyBaseNZ_sound[OF i_props prems(1)]
+            p1_def
+          by (auto simp: total_on_def)
+        from prems p1_def have "doHistoricallyBase i (left I) p1 \<noteq> []"
+          unfolding doHistoricallyBase_def
+          by (auto split: sum.splits bool.splits)
+        then show ?thesis
+          using trans_wqo refl_wqo total_set prems Historically p1_def
+          apply auto
+          apply (rule bexI[OF _ min_list_wrt_in])
+          apply (rule historicallyBaseNZ_optimal[simplified]; auto)
+          by auto
+      qed
+      done
+    done
 next
   note Opt.simps[simp del]
   case (Eventually i I phi')
