@@ -15289,6 +15289,630 @@ next
   qed (auto simp add: optimal_def valid_def)
 qed
 
+lemma valid_shift_SAlways:
+  assumes i_props: "right I \<ge> enat (\<Delta> rho (i+1))"
+    and valid: "valid rho i (Always I phi) (Inl (SAlways i hi ys))"
+    and rfin: "right I \<noteq> \<infinity>"
+  shows "valid rho (i + 1) (Always (subtract (delta rho (i + 1) i) I) phi) (Inl (SAlways (i + 1) hi (if left I = 0 then tl ys else ys)))"
+proof -
+  obtain n where rI: "right I = enat n"
+    using rfin by (cases "right I") auto
+  show ?thesis
+  proof (cases "left I = 0")
+    obtain n where rI: "right I = enat n"
+      using rfin by (cases "right I") auto
+    case True
+    obtain z zs where ys_def: "ys = zs @ [z]"
+      using valid True 
+      unfolding valid_def
+      apply (cases ys)
+       apply (simp add: Let_def i_etp_to_tau i_le_ltpi_add split: if_splits enat.splits)
+      by (meson neq_Nil_conv rev_exhaust)
+    show ?thesis
+      using i_props valid True
+      unfolding valid_def
+      apply (simp add: map_tl i_etp_to_tau i_ltp_to_tau i_le_ltpi_add split: if_splits enat.splits)
+      by (metis add.commute list.discI list.set_sel(2) append_is_Nil_conv ys_def)
+  next
+    case False
+    have rw: "\<tau> rho i - (left I + \<tau> rho i - \<tau> rho (Suc i)) =
+    (if left I + \<tau> rho i \<ge> \<tau> rho (Suc i) then \<tau> rho (Suc i) - left I else \<tau> rho i)"
+      by auto
+    have e: "right I = enat n \<Longrightarrow> right (subtract (delta rho (Suc i) i) I) = enat n' \<Longrightarrow>
+    ETP rho (\<tau> rho (Suc i) - n) = ETP rho (\<tau> rho i - n')" for n n'
+      by auto (metis Suc_eq_plus1 diff_add_inverse2 diff_cancel_middle enat_ord_simps(1) i_props le_diff_conv)
+    have t: "\<tau> rho (Suc i) + (left I + \<tau> rho i - \<tau> rho (Suc i)) =
+    (if left I + \<tau> rho i \<ge> \<tau> rho (Suc i) then \<tau> rho i + left I else \<tau> rho (Suc i))"
+      by auto
+    have etp: "max (Suc i) (ETP rho (left I + \<tau> rho i)) = max i (ETP rho (left I + \<tau> rho i))"
+      using False
+      by (auto simp: max_def)
+        (meson add_le_same_cancel2 i_etp_to_tau leD not_less_eq_eq)
+    have ee: "\<not> \<tau> rho (Suc i) \<le> left I + \<tau> rho i \<Longrightarrow> ETP rho (\<tau> rho i + left I) = Suc i"
+      by (metis Groups.ab_semigroup_add_class.add.commute Lattices.linorder_class.max.absorb1 etp i_etp_to_tau max_def n_not_Suc_n nat_le_linear)
+    show ?thesis
+      using False valid e i_ge_etpi[of rho "Suc i"] ee etp i_props
+      apply (cases ys rule: rev_cases)
+      by (auto simp: valid_def Let_def rw t rI add.commute split: if_splits)
+  qed
+qed
+
+lemma valid_shift_VAlways:
+  assumes i_props: "right I \<ge> enat (\<Delta> rho (i+1))"
+    and valid: "valid rho i (Always I phi) (Inr (VAlways i p))"
+    and v_at_p: "v_at p \<ge> i + (Suc 0)"
+    and rfin: "right I \<noteq> \<infinity>"
+  shows "valid rho (i + 1) (Always (subtract (delta rho (i + 1) i) I) phi) (Inr (VAlways (i + 1) p))"
+proof -
+  obtain n where rI: "right I = enat n"
+    using rfin by (cases "right I") auto
+  show ?thesis
+  proof (cases "left I = 0")
+    obtain n where rI: "right I = enat n"
+      using rfin by (cases "right I") auto
+    case True
+    obtain z where p_def: "p = z"
+      using valid True 
+      unfolding valid_def
+      apply (cases p)
+      by (auto simp add: Let_def i_etp_to_tau i_le_ltpi_add split: if_splits enat.splits)
+    show ?thesis
+      using i_props valid True v_at_p
+      unfolding valid_def
+      by (simp add: le_diff_conv rI split: if_splits enat.splits)
+  next
+    case False
+    show ?thesis
+      using False valid i_props v_at_p
+      unfolding valid_def
+      by (auto simp: Let_def rI)
+  qed
+qed
+
+lemma always_optimal:
+  assumes i_props: "right I \<ge> enat (\<Delta> rho (i+1))" 
+    and p1_def: "optimal i phi p1"
+    and p'_def: "optimal (i+1) (Always (subtract (\<Delta> rho (i+1)) I) phi) p'"
+    and bf: "bounded_future (Always I phi)"
+    and bf': "bounded_future (Always (subtract (\<Delta> rho (i+1)) I) phi)"
+  shows "optimal i (Always I phi) (min_list_wrt wqo (doAlways i (left I) p1 p'))"
+proof (rule ccontr)
+  define minp where minp: "minp \<equiv> min_list_wrt wqo (doAlways i (left I) p1 p')"
+  from bf have bfphi: "bounded_future phi" by auto
+  from bf obtain n where n_def: "right I = enat n" by auto
+  from pw_total[of i "Always I phi"]
+  have total_set: "total_on wqo (set (doAlways i (left I) p1 p'))"
+    using always_sound[OF i_props p1_def p'_def _ bf bf']
+    by (metis not_wqo total_onI)
+  define hi where "hi = (case right I - enat (delta rho (i + Suc 0) i) of enat n \<Rightarrow> LTP rho (\<tau> rho (Suc i) + n))"
+  have rfin: "right I \<noteq> \<infinity>" "right I - enat (delta rho (i + Suc 0) i) \<noteq> \<infinity>"
+    using bf by auto
+  have hi: "hi = (case right I of enat n \<Rightarrow> LTP rho (\<tau> rho i + n) | \<infinity> \<Rightarrow> 0)"
+    using i_props rfin
+    by (auto simp: hi_def add.commute split: enat.splits)
+  from p'_def have p'_form: "(\<exists>p. p' = Inr (VAlways (i+1) p)) \<or>
+    (\<exists>ps. p' = Inl (SAlways (i+1) hi ps))"
+  proof(cases "VIO rho (i+1) (Always (subtract (\<Delta> rho (i+1)) I) phi)")
+    case True
+    then obtain b' where b'_def: "p' = Inr b'"
+      using val_VIO_imp_r[OF bf'] p'_def
+      unfolding optimal_def
+      by force
+    then show ?thesis
+      using val_VIO_imp_r[OF bf', of "i+1" p'] p'_def
+      unfolding optimal_def valid_def
+      by (cases b') (auto simp: hi_def)
+  next
+    case False
+    then have SAT: "SAT rho (i+1) (Always (subtract (\<Delta> rho (i+1)) I) phi)"
+      using SAT_or_VIO by auto
+    then obtain a' where a'_def: "p' = Inl a'"
+      using val_SAT_imp_l[OF bf'] p'_def
+      unfolding optimal_def
+      by force
+    then show ?thesis
+      using val_VIO_imp_r[OF bf', of "i+1" p'] p'_def
+      unfolding optimal_def valid_def
+      by (cases a') (auto simp: hi_def)
+  qed
+  from doAlways_def[of i "left I" p1 p'] p'_form
+  have nnil: "doAlways i (left I) p1 p' \<noteq> []"
+    by (cases p1; cases "left I"; cases p'; auto)
+  have filter_nnil: "filter (\<lambda>x. \<forall>y \<in> set (doAlways i (left I) p1 p'). wqo x y) (doAlways i (left I) p1 p') \<noteq> []"
+    using refl_total_transp_imp_ex_min[OF nnil refl_wqo total_set trans_wqo]
+      filter_empty_conv[of "(\<lambda>x. \<forall>y \<in> set (doAlways i (left I) p1 p'). wqo x y)" "(doAlways i (left I) p1 p')"]
+    by simp
+  assume nopt: "\<not> optimal i (Always I phi) minp"
+  from always_sound[OF i_props p1_def p'_def min_list_wrt_in]
+    total_set trans_wqo refl_wqo nnil minp i_props bf'
+  have vmin: "valid rho i (Always I phi) minp"
+    unfolding valid_def optimal_def
+    apply (simp add: Let_def split: if_splits sum.splits enat.splits)
+    by fastforce+
+  then obtain q where q_val: "valid rho i (Always I phi) q" and
+    q_le: "\<not> wqo minp q" using minp nopt unfolding optimal_def by auto
+  then have "wqo minp q" using minp
+  proof (cases q)
+    case (Inr b)
+    then have q_v: "q = Inr b" by auto
+    then have VIO: "VIO rho i (Always I phi)" using q_val check_sound(2)
+      unfolding valid_def apply auto
+    then have vio: "sat rho i (Eventually I phi)" using soundness
+      by blast
+    from Inl obtain sphi where a_def: "a = SEventually i sphi"
+      using q_val unfolding valid_def by (cases a) auto
+    then have valphi: "valid rho (s_at sphi) phi (Inl sphi)" using q_val Inl
+      unfolding valid_def by (auto simp: Let_def)
+    from q_val Inl a_def n_def
+    have sphi_bounds: "s_at sphi \<le> LTP rho (\<tau> rho i + n) \<and> s_at sphi \<ge> i"
+      unfolding valid_def
+      apply (simp add: Let_def)
+      by (metis add.commute i_le_ltpi_add le_Suc_ex le_diff_conv)
+    from valphi val_SAT_imp_l[OF bf] SATs have check_sphi: "s_check rho phi sphi"
+      unfolding valid_def by auto
+    then show ?thesis
+    proof (cases p')
+      case (Inl a')
+      then have p'l: "p' = Inl a'" by simp
+      then obtain sphi' where a'_def: "a' = SEventually (i+1) sphi'"
+        using p'_def unfolding optimal_def valid_def
+        by (cases a') auto
+      from SATs vmin have minl: "\<exists>a. minp = Inl a" using minp val_SAT_imp_l[OF bf]
+        by auto
+      from p'_def have p'_val: "valid rho (i+1) (Eventually (subtract (\<Delta> rho (i+1)) I) phi) p'"
+        unfolding optimal_def by auto
+      then show ?thesis
+      proof (cases p1)
+        case (Inl a1)
+        then have p1l: "p1 = Inl a1" by auto
+        then show ?thesis
+        proof (cases "left I = 0")
+          case True
+          then have form: "minp = min_list_wrt wqo [Inl (SEventually i sphi'), Inl (SEventually i a1)]"
+            using p1l p'l True a'_def minp filter_nnil
+            unfolding doEventually_def 
+            by (cases p1) auto
+          show ?thesis
+          proof (cases "s_at sphi = i")
+            case sphi_i: True
+            have "wqo (Inl (SEventually i a1)) q"
+              using SEventually a_def optimal_def p1_def p1l sphi_i valphi q_s
+              unfolding optimal_def valid_def by auto
+            then show ?thesis
+              using q_s a_def pw_total[of i "Eventually I phi"]
+                eventually_sound[OF i_props p1_def p'_def] p'l a'_def p1l True
+                bf bf'
+              unfolding form doEventually_def
+              apply (elim trans_wqo[THEN transpD,rotated])
+              apply (intro min_list_wrt_le[OF _ refl_wqo trans_wqo])
+              by (auto simp add: total_on_def)
+          next
+            case False
+            have incr: "checkIncr (Inl (SEventually (i+1) sphi'))" "checkIncr (Inl (SEventually (i+1) sphi))"
+              using p'l a'_def False sphi_bounds p'_def
+              unfolding optimal_def valid_def
+              by (auto simp: Let_def intro!: checkIncr.intros)
+            have valid: "valid rho (i+1) (Eventually (subtract (\<Delta> rho (i+1)) I) phi) (Inl (SEventually (i+1) sphi))"
+              using False valid_shift_SEventually a_def i_props q_s q_val sphi_bounds n_def
+              by (auto simp: Let_def)
+            have wqo: "wqo (Inl (SEventually (i+1) sphi')) (Inl (SEventually (i+1) sphi))"
+              using valphi p'_def p'l a'_def a_def valid
+              unfolding optimal_def valid_def
+              by (simp add: Let_def split: sum.split)
+            from proofIncr_mono[OF incr wqo p'_val[unfolded p'l a'_def] valid] have "wqo (Inl (SEventually i sphi')) q"
+              unfolding q_s a_def using i_props
+              by (auto simp add: Let_def proofIncr_def)
+            then show ?thesis
+              using q_s a_def pw_total[of i "Eventually I phi"]
+                eventually_sound[OF i_props p1_def p'_def] p'l a'_def p1l True bfphi n_def
+              unfolding form doEventually_def
+              apply (elim trans_wqo[THEN transpD,rotated])
+              apply (intro min_list_wrt_le[OF _ refl_wqo trans_wqo])
+              by (auto simp add: total_on_def)
+          qed
+        next
+          case False
+          have form: "minp = min_list_wrt wqo [Inl (SEventually i sphi')]"
+            using p1l p'l False a'_def minp filter_nnil
+            unfolding doEventually_def 
+            by (cases p') (auto simp: min_list_wrt_def)
+          have sphi_g_i: "s_at sphi > i"
+            using False a_def q_s q_val soundness check_sound(1) le_eq_less_or_eq 
+            unfolding valid_def 
+            by (auto simp add: Let_def  split: sum.splits)
+          have incr: "checkIncr (Inl (SEventually (i+1) sphi'))" "checkIncr (Inl (SEventually (i+1) sphi))"
+            using p'l a'_def False sphi_bounds p'_def Suc_le_eq sphi_g_i
+            unfolding optimal_def valid_def
+            by (auto simp: Let_def intro!: checkIncr.intros split: sum.splits)
+          have valid: "valid rho (i+1) (Eventually (subtract (\<Delta> rho (i+1)) I) phi) (Inl (SEventually (i+1) sphi))"
+            using False valid_shift_SEventually a_def i_props q_s q_val sphi_bounds sphi_g_i n_def by simp
+          have wqo: "wqo (Inl (SEventually (i+1) sphi')) (Inl (SEventually (i+1) sphi))"
+            using valphi p'_def p'l a'_def a_def valid
+            unfolding optimal_def valid_def
+            by (simp add: Let_def split: sum.split)
+          from proofIncr_mono[OF incr wqo p'_val[unfolded p'l a'_def] valid] have "wqo (Inl (SEventually i sphi')) q"
+            unfolding q_s a_def using i_props
+            by (auto simp add: Let_def proofIncr_def)
+          then show ?thesis
+            using q_s a_def pw_total[of i "Eventually I phi"]
+                eventually_sound[OF i_props p1_def p'_def] p'l a'_def p1l False
+            unfolding form doEventually_def
+            apply (elim trans_wqo[THEN transpD,rotated])
+            apply (intro min_list_wrt_le[OF _ refl_wqo trans_wqo])
+            by (auto simp add: total_on_def)
+        qed
+      next
+        case (Inr b1)
+        then have p1r: "p1 = Inr b1" by auto
+        then show ?thesis
+        proof (cases "left I = 0")
+          case True
+          have form: "minp = min_list_wrt wqo [Inl (SEventually i sphi')]"
+            using p1r p'l True a'_def minp filter_nnil
+            unfolding doEventually_def 
+            by (cases p') (auto simp: min_list_wrt_def)
+          have sphi_g_i: "s_at sphi > i"
+            using True a_def q_s q_val p1r bfphi check_sound(1) p1_def val_SAT_imp_l check_consistent linorder_not_le
+            unfolding valid_def optimal_def
+            apply (simp add: Let_def split: sum.splits)
+            by fastforce
+          have incr: "checkIncr (Inl (SEventually (i+1) sphi'))" "checkIncr (Inl (SEventually (i+1) sphi))"
+            using p'l a'_def True sphi_bounds p'_def Suc_le_eq sphi_g_i
+            unfolding optimal_def valid_def
+            by (auto simp: Let_def intro!: checkIncr.intros split: sum.splits)
+          have valid: "valid rho (i+1) (Eventually (subtract (\<Delta> rho (i+1)) I) phi) (Inl (SEventually (i+1) sphi))"
+            using True valid_shift_SEventually a_def i_props q_s q_val sphi_bounds sphi_g_i n_def by simp
+          have wqo: "wqo (Inl (SEventually (i+1) sphi')) (Inl (SEventually (i+1) sphi))"
+            using valphi p'_def p'l a'_def a_def valid
+            unfolding optimal_def valid_def
+            by (simp add: Let_def split: sum.split)
+          from proofIncr_mono[OF incr wqo p'_val[unfolded p'l a'_def] valid] have "wqo (Inl (SEventually i sphi')) q"
+            unfolding q_s a_def using i_props
+            by (auto simp add: Let_def proofIncr_def)
+          then show ?thesis
+            using q_s a_def pw_total[of i "Eventually I phi"]
+                eventually_sound[OF i_props p1_def p'_def] p'l a'_def p1r True
+            unfolding form doEventually_def
+            apply (elim trans_wqo[THEN transpD,rotated])
+            apply (intro min_list_wrt_le[OF _ refl_wqo trans_wqo])
+            by (auto simp add: total_on_def)
+          next
+            case False
+            have form: "minp = min_list_wrt wqo [Inl (SEventually i sphi')]"
+            using p1r p'l False a'_def minp filter_nnil
+            unfolding doEventually_def 
+            by (cases p') (auto simp: min_list_wrt_def)
+          have sphi_g_i: "s_at sphi > i"
+            using False a_def q_s q_val soundness check_sound(1) le_eq_less_or_eq 
+            unfolding valid_def 
+            by (auto simp add: Let_def  split: sum.splits)
+          have incr: "checkIncr (Inl (SEventually (i+1) sphi'))" "checkIncr (Inl (SEventually (i+1) sphi))"
+            using p'l a'_def False sphi_bounds p'_def Suc_le_eq sphi_g_i
+            unfolding optimal_def valid_def
+            by (auto simp: Let_def intro!: checkIncr.intros split: sum.splits)
+          have valid: "valid rho (i+1) (Eventually (subtract (\<Delta> rho (i+1)) I) phi) (Inl (SEventually (i+1) sphi))"
+            using False valid_shift_SEventually a_def i_props q_s q_val sphi_bounds sphi_g_i n_def by simp
+          have wqo: "wqo (Inl (SEventually (i+1) sphi')) (Inl (SEventually (i+1) sphi))"
+            using valphi p'_def p'l a'_def a_def valid
+            unfolding optimal_def valid_def
+            by (simp add: Let_def split: sum.split)
+          from proofIncr_mono[OF incr wqo p'_val[unfolded p'l a'_def] valid] have "wqo (Inl (SEventually i sphi')) q"
+            unfolding q_s a_def using i_props
+            by (auto simp add: Let_def proofIncr_def)
+          then show ?thesis
+            using q_s a_def pw_total[of i "Eventually I phi"]
+                eventually_sound[OF i_props p1_def p'_def] p'l a'_def p1r False
+            unfolding form doEventually_def
+            apply (elim trans_wqo[THEN transpD,rotated])
+            apply (intro min_list_wrt_le[OF _ refl_wqo trans_wqo])
+            by (auto simp add: total_on_def)
+        qed
+      qed
+    next
+      case (Inr b')
+      then have p'r: "p' = Inr b'" by simp
+      then obtain vphis' where b'_def: "b' = VEventually_never (i+1) hi vphis'"
+        using p'_def doEventually_def p'_form by auto
+      from p'_def have p'_val: "valid rho (i+1) (Eventually (subtract (\<Delta> rho (i+1)) I) phi) p'"
+        unfolding optimal_def by auto
+      then show ?thesis
+      proof (cases p1)
+        case (Inl a1)
+        then have p1l: "p1 = Inl a1" by auto
+        then show ?thesis
+        proof (cases "left I = 0")
+          case True
+          then have form: "minp = min_list_wrt wqo [Inl (SEventually i a1)]"
+            using p1l p'r True b'_def minp filter_nnil
+            unfolding doEventually_def 
+            by (cases p1) (auto)
+          show ?thesis
+          proof (cases "s_at sphi = i")
+            case sphi_i: True
+            have "wqo (Inl (SEventually i a1)) q"
+              using SEventually a_def optimal_def p1_def p1l sphi_i valphi q_s
+              unfolding optimal_def valid_def by auto
+            then show ?thesis
+              using q_s a_def pw_total[of i "Eventually I phi"]
+                eventually_sound[OF i_props p1_def p'_def] p1l True
+              unfolding form doOnce_def
+              apply (elim trans_wqo[THEN transpD,rotated])
+              apply (intro min_list_wrt_le[OF _ refl_wqo trans_wqo])
+              by (auto simp add: total_on_def)
+          next
+            case False
+            have sphi_g_i: "s_at sphi > i"
+              using False a_def q_s q_val p1l sphi_bounds 
+              unfolding valid_def by simp
+            then have wqo_p1: "wqo (Inl a1) (Inl sphi)" 
+              using p1_def Inl True valphi p'_def p'r q_s q_val 
+              unfolding optimal_def apply simp
+              by (metis Inr_Inl_False trans_wqo.valid_shift_SEventually One_nat_def SAT_or_VIO Suc_eq_plus1 Suc_leI a_def bf' diff_Suc_1 i_props rfin(1) trans_wqo_axioms val_SAT_imp_l val_VIO_imp_r)
+            have "wqo (Inl (SEventually i a1)) q"
+              using q_s a_def SEventually[OF wqo_p1] by auto
+            then show ?thesis
+              using q_s a_def pw_total[of i "Eventually I phi"]
+                eventually_sound[OF i_props p1_def p'_def] p1l True
+              unfolding form doEventually_def
+              apply (elim trans_wqo[THEN transpD,rotated])
+              apply (intro min_list_wrt_le[OF _ refl_wqo trans_wqo])
+              by (auto simp add: total_on_def)
+          qed
+        next
+          case False
+          then have form: "minp = Inr (VEventually_never i hi vphis')"
+            using b'_def Inl minp Inr filter_nnil unfolding doEventually_def
+            by (cases p1) (auto simp: min_list_wrt_def split: enat.splits)
+          then show ?thesis
+            using q_s a_def valphi p'_def
+            unfolding optimal_def valid_def
+            apply (simp add: Let_def split: sum.split)
+            using SATs val_SAT_imp_l[OF bf] vmin by auto
+        qed
+      next
+        case (Inr b1)
+        then have p1r: "p1 = Inr b1" by simp
+        then show ?thesis
+        proof (cases "left I = 0")
+          case True
+          then have form: "minp = (p' \<oplus> p1)"
+            using p'r b'_def Inl minp Inr filter_nnil val_VIO_imp_r[OF bf vmin]
+            unfolding doEventually_def 
+            by (cases p1) (auto simp add: min_list_wrt_def split: sum.split)
+          have form_algo: "doEventually i (left I) p1 p' = [(p' \<oplus> p1)]"
+            using p1r p'r True b'_def unfolding doEventually_def by auto
+          have check_p: "checkApp p' p1"
+            using valid_checkApp_VEventually_never[of i I phi li vphis']
+              p'r p1r b'_def True p1_def p'_def
+            unfolding optimal_def valid_def
+            apply (simp add: Let_def split: sum.split if_splits)
+             apply (metis (no_types, lifting) checkApp.intros(8) Nil_is_append_conv map_is_Nil_conv not_Cons_self2)
+            using b'_def diff_0_eq_0 p'_val subtract_simps(1) valid_checkApp_VEventually_never by presburger
+          have p_val: "valid rho i (Eventually I phi) (p' \<oplus> p1)"
+            using p'r b'_def p1r vmin form eventually_sound[OF i_props p1_def p'_def]
+            by auto
+          then have p_optimal: "optimal i (Eventually I phi) (p' \<oplus> p1)"
+            using p'r b'_def p1r vmin form check_p 
+            unfolding optimal_def valid_def
+            apply (simp add: Let_def split: if_split sum.split)
+            using SATs val_SAT_imp_l[OF bf vmin] vmin by blast
+          then show ?thesis using form check_p p_val p'r b'_def p1r vmin q_s nopt p_optimal
+            unfolding optimal_def valid_def
+            by blast 
+        next
+          case False
+          then have form: "minp = Inr (VEventually_never i hi vphis')"
+            using p'r b'_def Inl minp Inr filter_nnil unfolding doEventually_def
+            by (cases p1) (auto simp: min_list_wrt_def split: enat.splits)
+          then show ?thesis
+            using q_s a_def valphi p'_def
+            unfolding optimal_def valid_def
+            apply (simp add: Let_def split: sum.split)
+            using SATs val_SAT_imp_l[OF bf] vmin by auto
+        qed
+      qed
+    qed
+  next
+    case (Inr b)
+    then have qr: "q = Inr b" by simp
+    then have VIO: "VIO rho i (Eventually I phi)"
+      using q_val check_sound(2)[of rho "Eventually I phi" b]
+      unfolding valid_def by simp
+    then have formb: "\<exists>ps. b = VEventually_never i hi ps"
+      using Inr q_val i_props unfolding valid_def by (cases b) (auto simp: hi)
+    moreover
+    {fix hi' ps
+      assume bv: "b = VEventually_never i hi' ps"
+      have hi'_def: "hi' = hi"
+        using q_val
+        by (auto simp: Inr bv valid_def hi)
+      have "wqo minp q"
+        using bv
+      proof (cases p')
+        case (Inl a')
+        then obtain p1' where a's: "a' = SEventually (i+1) p1'"
+          using p'_def
+          unfolding optimal_def valid_def
+          by (cases a') auto
+        from bv qr have mapt: "map v_at ps = [lu rho i I  ..< Suc (LTP rho (\<tau> rho i + n))]"
+          using n_def bv qr q_val unfolding valid_def by simp
+        then have ps_check: "\<forall>p \<in> set ps. v_check rho phi p"
+          using bv qr q_val unfolding valid_def
+          by (auto simp: Let_def)
+        then have jc: "\<forall>j \<in> set (map v_at ps). \<exists>p. v_at p = j \<and> v_check rho phi p"
+          using map_set_in_imp_set_in[OF ps_check] by auto
+        then have sp1'_bounds: "lu rho i I \<le> s_at p1' \<and> s_at p1' \<le> LTP rho (\<tau> rho i + n)"
+          using a's Inl p'_def i_props n_def
+          unfolding optimal_def valid_def
+          apply (simp add: Let_def add.commute i_etp_to_tau le_diff_conv i_le_ltpi_add split: sum.splits)
+          by (metis i_le_ltpi_add le_add_diff_inverse)
+        from sp1'_bounds have p1'_in: "s_at p1' \<in> set (map v_at ps)" using mapt
+          by (auto split: if_splits)
+        from a's Inl have "s_check rho phi p1'" using p'_def
+          unfolding optimal_def valid_def by (auto simp: Let_def)
+        then have False using jc p1'_in check_consistent[OF bfphi] by auto
+        then show ?thesis by simp
+      next
+        case (Inr b')
+        then have p'b': "p' = Inr b'" by simp
+        then have b'v: "(\<exists>ps. b' = VEventually_never (i+1) hi ps)"
+          using Inr p'_def 
+          unfolding optimal_def valid_def 
+          by (cases b') (auto simp: hi_def)
+        moreover
+        {fix hi'' vphis'
+          assume b'v: "b' = VEventually_never (i+1) hi'' vphis'"
+          have hi''_def: "hi'' = hi"
+            using p'_def
+            unfolding optimal_def valid_def
+            by (simp add: b'v Inr hi_def)
+          have "wqo minp q"
+            using b'v
+          proof (cases p1)
+            case (Inl a1)
+            then show ?thesis
+            proof (cases "left I = 0")
+              case True
+              then have form: "minp = Inl (SEventually i (projl p1))"
+                using Inl p'b' b'v minp val_VIO_imp_r[OF bf vmin VIO] filter_nnil
+                unfolding doEventually_def 
+                by (cases p1) (auto simp: min_list_wrt_def)
+              then obtain p1' where p1l: "p1 = Inl p1'"
+                using True b'v Inl minp Inr val_VIO_imp_r[OF bf vmin VIO] filter_nnil
+                by (cases p1; auto simp: min_list_wrt_def split: if_splits)
+              then show ?thesis
+                using form VIO bf val_VIO_imp_r vmin
+                unfolding optimal_def valid_def
+                by blast
+            next
+              case False
+              from p'_def have p'_val: "valid rho (i+1) (Eventually (subtract (\<Delta> rho (i+1)) I) phi) p'"
+                unfolding optimal_def by auto
+              from False have form: "minp = Inr (VEventually_never i hi vphis')"
+                using b'v Inl minp Inr filter_nnil unfolding doEventually_def
+                by (cases p1) (auto simp: min_list_wrt_def hi''_def)
+              have valid_q_after: "valid rho (i+1) (Eventually (subtract (\<Delta> rho (i+1)) I) phi) (Inr (VEventually_never (i+1) hi' ps))"
+                using valid_shift_VEventually_never[of i I phi hi' ps] i_props q_val False n_def qr bv 
+                unfolding valid_def optimal_def
+                apply (simp split: if_splits)
+                by force
+              then have "wqo p' (Inr (VEventually_never (i+1) hi' ps))" using p'_def
+                unfolding optimal_def by auto
+              moreover have "checkIncr p'"
+                using p'_def
+                unfolding p'b' b'v
+                by (auto simp: optimal_def intro!: valid_checkIncr_VEventually_never)
+              moreover have "checkIncr (Inr (VEventually_never (i+1) hi' ps))"
+                using valid_q_after
+                by (auto intro!: valid_checkIncr_VEventually_never)
+              ultimately show ?thesis
+                using proofIncr_mono[OF _ _ _ p'_val, of "Inr (VEventually_never (i+1) hi' ps)"]
+                      valid_q_after p'b'
+                unfolding valid_def optimal_def
+                by (auto simp add: proofIncr_def hi''_def b'v bv form qr)
+            qed
+          next
+            case (Inr b1)
+            then show ?thesis
+            proof (cases "left I = 0")
+              (* case True
+              then have form_min: "minp = p' \<oplus> p1" using Inr b'v p'b' minp
+                  val_VIO_imp_r[OF bf vmin VIO] filter_nnil
+                unfolding doEventually_def 
+                by (cases p1) (auto simp: min_list_wrt_def)
+              then obtain p1' where p1r: "p1 = Inr p1'"
+                using True b'v Inr minp Inr val_VIO_imp_r[OF bf vmin VIO]
+                  filter_nnil
+                by (cases p1; auto simp: min_list_wrt_def split: if_splits)
+              from vmin form_min p1r have p_val: "valid rho i (Eventually I phi) (p' \<oplus> (Inr p1'))"
+                by auto
+              then have check_p: "checkApp p' (Inr p1')"
+                using p'_def True
+                unfolding p1r b'v p'b'
+                by (auto simp: optimal_def intro!: valid_checkApp_VEventually_never)
+              then show ?thesis *)
+              case True
+              then have form_min: "minp = p' \<oplus> p1" using Inr b'v p'b' minp
+                  val_VIO_imp_r[OF bf vmin VIO] filter_nnil
+                unfolding doEventually_def 
+                by (cases p1) (auto simp: min_list_wrt_def)
+              then obtain p1' where p1r: "p1 = Inr p1'"
+                using True b'v Inr minp Inr val_VIO_imp_r[OF bf vmin VIO]
+                  filter_nnil
+                unfolding doEventually_def
+                by (cases p1; auto simp: min_list_wrt_def split: if_splits)
+              then show ?thesis
+                using form_min qr bv Inr p1_def q_val i_le_ltpi_add unfolding optimal_def valid_def
+                apply (cases ps)
+                 apply (auto simp add: Let_def True i_ltp_to_tau i_etp_to_tau split: if_splits enat.splits)[1]
+                subgoal premises prems for y ys
+                proof -
+                  from vmin form_min p1r have p_val: "valid rho i (Eventually I phi) (p' \<oplus> (Inr p1'))"
+                    by auto
+                  have check_p: "checkApp p' (Inr p1')"
+                    using p'_def True
+                    unfolding p1r b'v p'b'
+                    by (auto simp: optimal_def intro!: valid_checkApp_VEventually_never)
+                  from prems have y_val: "valid rho i phi (Inr y)"
+                    using q_val True i_props n_def i_ge_etpi[of rho i]
+                    unfolding valid_def
+                    apply (simp add: Cons_eq_append_conv split: if_splits)
+                    by (metis Cons_eq_upt_conv bot_nat_0.extremum le_antisym)
+                  have val_q': "valid rho (i + 1) (Eventually (subtract (\<Delta> rho (i+1)) I) phi) (Inr (VEventually_never (i+1) hi' ys))"
+                    using valid_shift_VEventually_never[of i I phi hi' ps] i_props q_val True prems(9) n_def
+                    by (auto simp: qr bv)
+                  then have q_val2: "valid rho i (Eventually I phi) ((Inr (VEventually_never (i+1) hi' ys)) \<oplus> (Inr y))"
+                    using q_val prems i_props by auto
+                  have check_q: "checkApp (Inr (VEventually_never (i+1) hi' ys)) (Inr y)"
+                    using val_q' True
+                    by (auto intro!: valid_checkApp_VEventually_never)
+                  from p'_def have wqo_p': "wqo p' (Inr (VEventually_never (i+1) hi' ys))"
+                    using val_q' unfolding optimal_def by simp
+                  moreover have wqo_p1: "wqo p1 (Inr y)" using i_props p1_def y_val
+                    unfolding optimal_def by auto
+                  ultimately show ?thesis
+                    using p'b' b'v q_val prems unfolding valid_def optimal_def
+                    using proofApp_mono[OF check_p check_q wqo_p' _ p_val q_val2]
+                    by auto
+                qed
+                done
+            next
+              case False
+              from p'_def have p'_val: "valid rho (i+1) (Eventually (subtract (\<Delta> rho (i+1)) I) phi) p'"
+                unfolding optimal_def by auto
+              from False have form: "minp = Inr (VEventually_never i hi vphis')"
+                using b'v Inr minp Inr filter_nnil p'b' unfolding doEventually_def
+                by (cases p1) (auto simp: min_list_wrt_def hi''_def split: if_splits sum.splits)
+              have valid_q_after: "valid rho (i+1) (Eventually (subtract (\<Delta> rho (i+1)) I) phi) (Inr (VEventually_never (i+1) hi' ps))"
+                using valid_shift_VEventually_never[of i I phi hi' ps] i_props q_val False n_def qr bv p'b'
+                unfolding valid_def optimal_def
+                apply (simp split: if_splits)
+                by force
+              then have "wqo p' (Inr (VEventually_never (i+1) hi' ps))" using p'_def
+                unfolding optimal_def by auto
+              moreover have "checkIncr p'"
+                using p'_def
+                unfolding p'b' b'v
+                by (auto simp: optimal_def intro!: valid_checkIncr_VEventually_never)
+              moreover have "checkIncr (Inr (VEventually_never (i+1) hi' ps))"
+                using valid_q_after
+                by (auto intro!: valid_checkIncr_VEventually_never)
+              ultimately show ?thesis
+                using proofIncr_mono[OF _ _ _ p'_val, of "Inr (VEventually_never (i+1) hi' ps)"]
+                      valid_q_after p'b'
+                unfolding valid_def optimal_def
+                by (auto simp add: proofIncr_def hi''_def b'v bv form qr)
+            qed
+          qed
+        }
+        then show ?thesis using b'v by blast
+      qed
+    }
+    then show ?thesis using formb by blast
+  qed
+  then show False using q_le by auto
+qed
+
 subsection \<open>Operator: Prev\<close>
 
 lemma prev_sound:
