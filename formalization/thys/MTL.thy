@@ -16770,17 +16770,14 @@ next
     apply (auto simp: optimal_def valid_def refl_wqo[unfolded reflp_def] 
         split: sum.splits)[1]
     subgoal
-      sorry
-      (* using check_consistent[of "Historically I phi'"] 
+      thm sproof.splits
+      using check_consistent[of "Historically I phi'"] 
       unfolding optimal_def valid_def
-      apply (auto simp: refl_wqo[unfolded reflp_def] split: sum.splits sproof.splits)
+      apply (auto simp: refl_wqo[unfolded reflp_def] Let_def split: sum.splits)
+      apply (case_tac x1; simp add: refl_wqo[unfolded reflp_def])
        defer
       using MTL.s_at.simps(16) s_check_simps(205) apply blast
-      
-      using check_consistent[of "Historically I phi'"] SHistorically_le[of rho i I phi'] SAT_or_VIO[of rho i phi']
-      unfolding optimal_def valid_def
-      apply (auto simp: refl_wqo[unfolded reflp_def] split: sum.splits sproof.splits *)
-      (* apply (metis SHistorically_le bounded_future_simps(12) check_complete check_consistent) *)
+      sorry
     subgoal
       apply (auto simp: Let_def dest!: historicallyBase0_sound[rotated -1] historicallyBaseNZ_sound[rotated -1]
           historically_sound[rotated -3, of _ phi' _ _ _] split: if_splits)
