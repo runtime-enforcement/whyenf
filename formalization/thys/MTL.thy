@@ -16775,9 +16775,7 @@ next
       unfolding optimal_def valid_def
       apply (auto simp: refl_wqo[unfolded reflp_def] Let_def split: sum.splits)
       apply (case_tac x1; simp add: refl_wqo[unfolded reflp_def])
-       defer
-      using MTL.s_at.simps(16) s_check_simps(205) apply blast
-      sorry
+      using MTL.s_at.simps(16) s_check_simps(205) by blast
     subgoal
       apply (auto simp: Let_def dest!: historicallyBase0_sound[rotated -1] historicallyBaseNZ_sound[rotated -1]
           historically_sound[rotated -3, of _ phi' _ _ _] split: if_splits)
