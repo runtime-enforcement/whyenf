@@ -9,9 +9,17 @@ primrec progress :: "'a trace \<Rightarrow> 'a mtl \<Rightarrow> nat \<Rightarro
 | "progress \<sigma> (Neg \<phi>) j = progress \<sigma> \<phi> j"
 | "progress \<sigma> (Disj \<phi> \<psi>) j = min (progress \<sigma> \<phi> j) (progress \<sigma> \<psi> j)"
 | "progress \<sigma> (Conj \<phi> \<psi>) j = min (progress \<sigma> \<phi> j) (progress \<sigma> \<psi> j)"
+| "progress \<sigma> (Impl \<phi> \<psi>) j = min (progress \<sigma> \<phi> j) (progress \<sigma> \<psi> j)"
+| "progress \<sigma> (Iff \<phi> \<psi>) j = min (progress \<sigma> \<phi> j) (progress \<sigma> \<psi> j)"
 | "progress \<sigma> (Prev I \<phi>) j = (if j = 0 then 0 else min (Suc (progress \<sigma> \<phi> j)) j)"
 | "progress \<sigma> (Next I \<phi>) j = progress \<sigma> \<phi> j - 1"
+| "progress \<sigma> (Once I \<phi>) j = progress \<sigma> \<phi> j"
+| "progress \<sigma> (Historically I \<phi>) j = progress \<sigma> \<phi> j"
 | "progress \<sigma> (Since \<phi> I \<psi>) j = min (progress \<sigma> \<phi> j) (progress \<sigma> \<psi> j)"
+| "progress \<sigma> (Eventually I \<phi>) j =
+    Inf {i. \<forall>k. k < j \<and> k \<le> (progress \<sigma> \<phi> j) \<longrightarrow> (\<tau> \<sigma> k - \<tau> \<sigma> i) \<le> right I}"
+| "progress \<sigma> (Always I \<phi>) j =
+    Inf {i. \<forall>k. k < j \<and> k \<le> (progress \<sigma> \<phi> j) \<longrightarrow> (\<tau> \<sigma> k - \<tau> \<sigma> i) \<le> right I}"
 | "progress \<sigma> (Until \<phi> I \<psi>) j =
     Inf {i. \<forall>k. k < j \<and> k \<le> min (progress \<sigma> \<phi> j) (progress \<sigma> \<psi> j) \<longrightarrow> (\<tau> \<sigma> k - \<tau> \<sigma> i) \<le> right I}"
 
@@ -22,6 +30,48 @@ lemma Inf_Min:
   using Min_in[where ?A="Set.filter P {..j}"] assms
   by (auto simp: Set.filter_def intro: cInf_lower intro!: antisym[OF _ Min_le])
     (metis Inf_nat_def1 empty_iff mem_Collect_eq)
+
+lemma progress_Eventually_code: "progress \<sigma> (Eventually I \<phi>) j =
+  (let m = min j (Suc (progress \<sigma> \<phi> j)) - 1 in Min (Set.filter (\<lambda>i. enat (delta \<sigma> m i) \<le> right I) {..j}))"
+proof -
+  define P where "P \<equiv> (\<lambda>i. \<forall>k. k < j \<and> k \<le> (progress \<sigma> \<phi> j) \<longrightarrow> enat (delta \<sigma> k i) \<le> right I)"
+  have P_j: "P j"
+    by (auto simp: P_def enat_0)
+  have all_wit: "(\<forall>k \<in> {..<m}. enat (delta \<sigma> k i) \<le> right I) \<longleftrightarrow> (enat (delta \<sigma> (m - 1) i) \<le> right I)" for i m
+  proof (cases m)
+    case (Suc ma)
+    have "k < Suc ma \<Longrightarrow> delta \<sigma> k i \<le> delta \<sigma> ma i" for k
+      using \<tau>_mono
+      unfolding less_Suc_eq_le
+      by (rule diff_le_mono)
+    then show ?thesis
+      by (auto simp: Suc) (meson order.trans enat_ord_simps(1))
+  qed (auto simp: enat_0)
+  show ?thesis
+    unfolding progress.simps Let_def P_def[symmetric] Inf_Min[where ?P=P, OF P_j] all_wit[symmetric]
+    by (fastforce simp: P_def intro: arg_cong[where ?f=Min])
+qed
+
+lemma progress_Always_code: "progress \<sigma> (Always I \<phi>) j =
+  (let m = min j (Suc (progress \<sigma> \<phi> j)) - 1 in Min (Set.filter (\<lambda>i. enat (delta \<sigma> m i) \<le> right I) {..j}))"
+proof -
+  define P where "P \<equiv> (\<lambda>i. \<forall>k. k < j \<and> k \<le> (progress \<sigma> \<phi> j) \<longrightarrow> enat (delta \<sigma> k i) \<le> right I)"
+  have P_j: "P j"
+    by (auto simp: P_def enat_0)
+  have all_wit: "(\<forall>k \<in> {..<m}. enat (delta \<sigma> k i) \<le> right I) \<longleftrightarrow> (enat (delta \<sigma> (m - 1) i) \<le> right I)" for i m
+  proof (cases m)
+    case (Suc ma)
+    have "k < Suc ma \<Longrightarrow> delta \<sigma> k i \<le> delta \<sigma> ma i" for k
+      using \<tau>_mono
+      unfolding less_Suc_eq_le
+      by (rule diff_le_mono)
+    then show ?thesis
+      by (auto simp: Suc) (meson order.trans enat_ord_simps(1))
+  qed (auto simp: enat_0)
+  show ?thesis
+    unfolding progress.simps Let_def P_def[symmetric] Inf_Min[where ?P=P, OF P_j] all_wit[symmetric]
+    by (fastforce simp: P_def intro: arg_cong[where ?f=Min])
+qed
 
 lemma progress_Until_code: "progress \<sigma> (Until \<phi> I \<psi>) j =
   (let m = min j (Suc (min (progress \<sigma> \<phi> j) (progress \<sigma> \<psi> j))) - 1 in Min (Set.filter (\<lambda>i. enat (delta \<sigma> m i) \<le> right I) {..j}))"
@@ -44,7 +94,7 @@ proof -
     by (fastforce simp: P_def intro: arg_cong[where ?f=Min])
 qed
 
-lemmas progress_code[code] = progress.simps(1-9) progress_Until_code
+lemmas progress_code[code] = progress.simps(1-13) progress_Eventually_code progress_Always_code progress_Until_code
 
 (* Lexicographic combination *)
 
@@ -138,6 +188,7 @@ lemma lex_trans_wqo_axioms: "trans_wqo (lex_wqo wqo wqo') rho"
   using a.VNext b.VNext c.VNext apply (auto simp: lex_wqo_def)[1]
   using a.SPrev b.SPrev c.SPrev apply (auto simp: lex_wqo_def)[1]
   using a.VPrev b.VPrev c.VPrev apply (auto simp: lex_wqo_def)[1]
+  using a.SIff_ss b.SIff_vv apply (auto simp: lex_wqo_def)[1]
   subgoal for rho i phi p p' r r'
     using a.proofApp_mono b.proofApp_mono c.proofApp_monoL c.proofApp_monoR
     by (auto simp: lex_wqo_def)
