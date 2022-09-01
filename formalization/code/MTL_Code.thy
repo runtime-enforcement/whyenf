@@ -140,21 +140,40 @@ and SNext: "\<And>p p'. strict wqo (Inl p) (Inl p') \<Longrightarrow> strict wqo
 and VNext: "\<And>p p'. strict wqo (Inr p) (Inr p') \<Longrightarrow> strict wqo (Inr (VNext p)) (Inr (VNext p'))"
 and SPrev: "\<And>p p'. strict wqo (Inl p) (Inl p') \<Longrightarrow> strict wqo (Inl (SPrev p)) (Inl (SPrev p'))"
 and VPrev: "\<And>p p'. strict wqo (Inr p) (Inr p') \<Longrightarrow> strict wqo (Inr (VPrev p)) (Inr (VPrev p'))"
-and SImplR: "\<And>p p'. wqo (Inl p) (Inl p') \<Longrightarrow> strict wqo (Inl (SImplR p)) (Inl (SImplR p'))"
-and SImplL: "\<And>p p'. wqo (Inr p) (Inr p') \<Longrightarrow> strict wqo (Inl (SImplL p)) (Inl (SImplL p'))"
+and SImplR: "\<And>p p'. strict wqo (Inl p) (Inl p') \<Longrightarrow> strict wqo (Inl (SImplR p)) (Inl (SImplR p'))"
+and SImplL: "\<And>p p'. strict wqo (Inr p) (Inr p') \<Longrightarrow> strict wqo (Inl (SImplL p)) (Inl (SImplL p'))"
 and VImplL: "\<And>p1 p1' p2 p2'. strict wqo (Inl p1) (Inl p1') \<Longrightarrow> wqo (Inr p2) (Inr p2') \<Longrightarrow>
   strict wqo (Inr (VImpl p1 p2)) (Inr (VImpl p1' p2'))"
 and VImplR: "\<And>p1 p1' p2 p2'. wqo (Inl p1) (Inl p1') \<Longrightarrow> strict wqo (Inr p2) (Inr p2') \<Longrightarrow>
   strict wqo (Inr (VImpl p1 p2)) (Inr (VImpl p1' p2'))"
-and SIff_ss: "\<And>p1 p1' p2 p2'. wqo (Inl p1) (Inl p1') \<Longrightarrow> wqo (Inl p2) (Inl p2' ) \<Longrightarrow>
-  wqo (Inl (SIff_ss p1 p2)) (Inl (SIff_ss p1' p2'))"
-and SIff_vv: "\<And>p1 p1' p2 p2'. wqo (Inr p1) (Inr p1') \<Longrightarrow> wqo (Inr p2) (Inr p2' ) \<Longrightarrow>
-  wqo (Inl (SIff_vv p1 p2)) (Inl (SIff_vv p1' p2'))"
-and VIff_sv: "\<And>p1 p1' p2 p2'. wqo (Inl p1) (Inl p1') \<Longrightarrow> wqo (Inr p2) (Inr p2' ) \<Longrightarrow>
-  wqo (Inr (VIff_sv p1 p2)) (Inr (VIff_sv p1' p2'))"
-and VIff_vs: "\<And>p1 p1' p2 p2'. wqo (Inr p1) (Inr p1') \<Longrightarrow> wqo (Inl p2) (Inl p2' ) \<Longrightarrow>
-  wqo (Inr (VIff_vs p1 p2)) (Inr (VIff_vs p1' p2'))"
-
+and SIff_ssL: "\<And>p1 p1' p2 p2'. strict wqo (Inl p1) (Inl p1') \<Longrightarrow> wqo (Inl p2) (Inl p2') \<Longrightarrow>
+  strict wqo (Inl (SIff_ss p1 p2)) (Inl (SIff_ss p1' p2'))"
+and SIff_ssR: "\<And>p1 p1' p2 p2'. wqo (Inl p1) (Inl p1') \<Longrightarrow> strict wqo (Inl p2) (Inl p2') \<Longrightarrow>
+  strict wqo (Inl (SIff_ss p1 p2)) (Inl (SIff_ss p1' p2'))"
+and SIff_vvL: "\<And>p1 p1' p2 p2'. strict wqo (Inr p1) (Inr p1') \<Longrightarrow> wqo (Inr p2) (Inr p2') \<Longrightarrow>
+  strict wqo (Inl (SIff_vv p1 p2)) (Inl (SIff_vv p1' p2'))"
+and SIff_vvR: "\<And>p1 p1' p2 p2'. wqo (Inr p1) (Inr p1') \<Longrightarrow> strict wqo (Inr p2) (Inr p2') \<Longrightarrow>
+  strict wqo (Inl (SIff_vv p1 p2)) (Inl (SIff_vv p1' p2'))"
+and VIff_svL: "\<And>p1 p1' p2 p2'. strict wqo (Inl p1) (Inl p1') \<Longrightarrow> wqo (Inr p2) (Inr p2') \<Longrightarrow>
+  strict wqo (Inr (VIff_sv p1 p2)) (Inr (VIff_sv p1' p2'))"
+and VIff_svR: "\<And>p1 p1' p2 p2'. wqo (Inl p1) (Inl p1') \<Longrightarrow> strict wqo (Inr p2) (Inr p2') \<Longrightarrow>
+  strict wqo (Inr (VIff_sv p1 p2)) (Inr (VIff_sv p1' p2'))"
+and VIff_vsL: "\<And>p1 p1' p2 p2'. strict wqo (Inr p1) (Inr p1') \<Longrightarrow> wqo (Inl p2) (Inl p2' ) \<Longrightarrow>
+  strict wqo (Inr (VIff_vs p1 p2)) (Inr (VIff_vs p1' p2'))"
+and VIff_vsR: "\<And>p1 p1' p2 p2'. wqo (Inr p1) (Inr p1') \<Longrightarrow> strict wqo (Inl p2) (Inl p2' ) \<Longrightarrow>
+  strict wqo (Inr (VIff_vs p1 p2)) (Inr (VIff_vs p1' p2'))"
+and SOnce: "\<And>i p p'. strict wqo (Inl p) (Inl p') \<Longrightarrow> strict wqo (Inl (SOnce i p)) (Inl (SOnce i p'))"
+and VOnce: "\<And>i li q q'. strict wqo (Inr q) (Inr q') \<Longrightarrow>
+  strict wqo (Inr (VOnce i li [q])) (Inr (VOnce i li [q']))"
+and SHistorically: "\<And>i li q q'. strict wqo (Inl q) (Inl q') \<Longrightarrow>
+  strict wqo (Inl (SHistorically i li [q])) (Inl (SHistorically i li [q']))"
+and VHistorically: "\<And>i p p'. strict wqo (Inr p) (Inr p') \<Longrightarrow> strict wqo (Inr (VHistorically i p)) (Inr (VHistorically i p'))"
+and SEventually: "\<And>i p p'. strict wqo (Inl p) (Inl p') \<Longrightarrow> strict wqo (Inl (SEventually i p)) (Inl (SEventually i p'))"
+and VEventually: "\<And>i hi q q'. strict wqo (Inr q) (Inr q') \<Longrightarrow>
+  strict wqo (Inr (VEventually i hi [q])) (Inr (VEventually i hi [q']))"
+and SAlways: "\<And>i hi q q'. strict wqo (Inl q) (Inl q') \<Longrightarrow>
+  strict wqo (Inl (SAlways i hi [q])) (Inl (SAlways i hi [q']))"
+and VAlways: "\<And>i p p'. strict wqo (Inr p) (Inr p') \<Longrightarrow> strict wqo (Inr (VAlways i p)) (Inr (VAlways i p'))"
 and proofApp_monoL: "\<And>i phi p p' r r'. checkApp p r \<Longrightarrow> checkApp p' r' \<Longrightarrow> strict wqo p p' \<Longrightarrow> wqo r r' \<Longrightarrow>
   valid rho i phi (p \<oplus> r) \<Longrightarrow> valid rho i phi (p' \<oplus> r') \<Longrightarrow> strict wqo (p \<oplus> r) (p' \<oplus> r')"
 and proofApp_monoR: "\<And>i phi p p' r r'. checkApp p r \<Longrightarrow> checkApp p' r' \<Longrightarrow> wqo p p' \<Longrightarrow> strict wqo r r' \<Longrightarrow>
@@ -190,6 +209,21 @@ lemma lex_trans_wqo_axioms: "trans_wqo (lex_wqo wqo wqo') rho"
   using a.SConj b.SConj c.SConjL c.SConjR apply (auto simp: lex_wqo_def)[1]
   using a.VConjL b.VConjL c.VConjL apply (auto simp: lex_wqo_def)[1]
   using a.VConjR b.VConjR c.VConjR apply (auto simp: lex_wqo_def)[1]
+  using a.SImplR b.SImplR c.SImplR apply (auto simp: lex_wqo_def)[1]
+  using a.SImplL b.SImplL c.SImplL apply (auto simp: lex_wqo_def)[1]
+  using a.VImpl b.VImpl c.VImplL c.VImplR apply (auto simp: lex_wqo_def)[1]
+  using a.SIff_ss b.SIff_ss c.SIff_ssL c.SIff_ssR apply (auto simp: lex_wqo_def)[1]
+  using a.SIff_vv b.SIff_vv c.SIff_vvL c.SIff_vvR apply (auto simp: lex_wqo_def)[1]
+  using a.VIff_sv b.VIff_sv c.VIff_svL c.VIff_svR apply (auto simp: lex_wqo_def)[1]
+  using a.VIff_vs b.VIff_vs c.VIff_vsL c.VIff_vsR apply (auto simp: lex_wqo_def)[1]
+  using a.SOnce b.SOnce c.SOnce apply (auto simp: lex_wqo_def)[1]
+  using a.VOnce b.VOnce c.VOnce apply (auto simp: lex_wqo_def)[1]
+  using a.SHistorically b.SHistorically c.SHistorically apply (auto simp: lex_wqo_def)[1]
+  using a.VHistorically b.VHistorically c.VHistorically apply (auto simp: lex_wqo_def)[1]
+  using a.SEventually b.SEventually c.SEventually apply (auto simp: lex_wqo_def)[1]
+  using a.VEventually b.VEventually c.VEventually apply (auto simp: lex_wqo_def)[1]
+  using a.SAlways b.SAlways c.SAlways apply (auto simp: lex_wqo_def)[1]
+  using a.VAlways b.VAlways c.VAlways apply (auto simp: lex_wqo_def)[1]
   using a.SSince b.SSince c.SSince apply (auto simp: lex_wqo_def)[1]
   using a.VSince_Nil b.VSince_Nil c.VSince_Nil apply (auto simp: lex_wqo_def)[1]
   using a.VSince b.VSince c.VSinceL c.VSinceR apply (auto simp: lex_wqo_def)[1]
@@ -203,7 +237,6 @@ lemma lex_trans_wqo_axioms: "trans_wqo (lex_wqo wqo wqo') rho"
   using a.VNext b.VNext c.VNext apply (auto simp: lex_wqo_def)[1]
   using a.SPrev b.SPrev c.SPrev apply (auto simp: lex_wqo_def)[1]
   using a.VPrev b.VPrev c.VPrev apply (auto simp: lex_wqo_def)[1]
-  using a.SIff_ss b.SIff_vv apply (auto simp: lex_wqo_def)[1]
   subgoal for rho i phi p p' r r'
     using a.proofApp_mono b.proofApp_mono c.proofApp_monoL c.proofApp_monoR
     by (auto simp: lex_wqo_def)
@@ -246,6 +279,26 @@ lemma lex_scmonotone_axioms: "scmonotone (lex_wqo wqo wqo')"
   using a.VNext b.VNext c.VNext d.VNext apply (auto simp: lex_wqo_def)[1]
   using a.SPrev b.SPrev c.SPrev d.SPrev apply (auto simp: lex_wqo_def)[1]
   using a.VPrev b.VPrev c.VPrev d.VPrev apply (auto simp: lex_wqo_def)[1]
+  using a.SImplR b.SImplR c.SImplR d.SImplR apply (auto simp: lex_wqo_def)[1]
+  using a.SImplL b.SImplL c.SImplL d.SImplL apply (auto simp: lex_wqo_def)[1]
+  using a.VImpl b.VImpl c.VImplL d.VImplL c.VImplR d.VImplR apply (auto simp: lex_wqo_def)[1]
+  using a.VImpl b.VImpl c.VImplL d.VImplL c.VImplR d.VImplR apply (auto simp: lex_wqo_def)[1]
+  using a.SIff_ss b.SIff_ss c.SIff_ssL d.SIff_ssL c.SIff_ssR d.SIff_ssR apply (auto simp: lex_wqo_def)[1]
+  using a.SIff_ss b.SIff_ss c.SIff_ssL d.SIff_ssL c.SIff_ssR d.SIff_ssR apply (auto simp: lex_wqo_def)[1]
+  using a.SIff_vv b.SIff_vv c.SIff_vvL c.SIff_vvR d.SIff_vvL d.SIff_vvR apply (auto simp: lex_wqo_def)[1]
+  using a.SIff_vv b.SIff_vv c.SIff_vvL c.SIff_vvR d.SIff_vvL d.SIff_vvR apply (auto simp: lex_wqo_def)[1]
+  using a.VIff_sv b.VIff_sv c.VIff_svL c.VIff_svR d.VIff_svL d.VIff_svR apply (auto simp: lex_wqo_def)[1]
+  using a.VIff_sv b.VIff_sv c.VIff_svL c.VIff_svR d.VIff_svL d.VIff_svR apply (auto simp: lex_wqo_def)[1]
+  using a.VIff_vs b.VIff_vs c.VIff_vsL c.VIff_vsR d.VIff_vsL d.VIff_vsR apply (auto simp: lex_wqo_def)[1]
+  using a.VIff_vs b.VIff_vs c.VIff_vsL c.VIff_vsR d.VIff_vsL d.VIff_vsR apply (auto simp: lex_wqo_def)[1]
+  using a.SOnce b.SOnce c.SOnce d.SOnce apply (auto simp: lex_wqo_def)[1]
+  using a.VOnce b.VOnce c.VOnce d.VOnce apply (auto simp: lex_wqo_def)[1]
+  using a.SHistorically b.SHistorically c.SHistorically d.SHistorically apply (auto simp: lex_wqo_def)[1]
+  using a.VHistorically b.VHistorically c.VHistorically d.VHistorically apply (auto simp: lex_wqo_def)[1]
+  using a.SEventually b.SEventually c.SEventually d.SEventually apply (auto simp: lex_wqo_def)[1]
+  using a.VEventually b.VEventually c.VEventually d.VEventually apply (auto simp: lex_wqo_def)[1]
+  using a.SAlways b.SAlways c.SAlways d.SAlways apply (auto simp: lex_wqo_def)[1]
+  using a.VAlways b.VAlways c.VAlways d.VAlways apply (auto simp: lex_wqo_def)[1]
   subgoal for rho i phi p p' r r'
     using a.proofApp_mono b.proofApp_mono c.proofApp_monoL c.proofApp_monoR d.proofApp_monoL d.proofApp_monoR
     by (auto simp: lex_wqo_def simp del: a.proofApp_simps)
@@ -255,7 +308,7 @@ lemma lex_scmonotone_axioms: "scmonotone (lex_wqo wqo wqo')"
   subgoal for rho i phi p p'
     using a.proofIncr_mono b.proofIncr_mono c.proofIncr_mono d.proofIncr_mono
     by (auto simp: lex_wqo_def)
-  done
+  done 
 
 end
 
@@ -266,8 +319,11 @@ begin
 
 lemma flipped_trans_wqo_axioms: "trans_wqo wqo\<inverse>\<inverse> rho"
   apply unfold_locales
-  using SNeg VNeg SDisjL SDisjR VDisj SConj VConjL VConjR SSince VSince_Nil VSince VSince_never SUntil_Nil SUntil VUntil_Nil VUntil VUntil_never SNext VNext SPrev VPrev proofApp_mono proofIncr_mono
-                      apply (auto simp: simp del: proofApp_simps)[23]
+  using SNeg VNeg SDisjL SDisjR VDisj SConj VConjL VConjR SSince VSince_Nil VSince VSince_never 
+    SUntil_Nil SUntil VUntil_Nil VUntil VUntil_never SNext VNext SPrev VPrev SImplL SImplR VImpl 
+    SIff_ss SIff_vv VIff_sv VIff_vs SOnce VOnce SHistorically VHistorically SEventually VEventually 
+    SAlways VAlways proofApp_mono proofIncr_mono
+                      apply (auto simp: simp del: proofApp_simps)[38]
   using refl_wqo trans_wqo pw_total
     apply (fastforce simp: reflp_def transp_def total_on_def)+
   done
@@ -405,6 +461,15 @@ fun s_htp :: "'a sproof \<Rightarrow> nat" and v_htp :: "'a vproof \<Rightarrow>
 | "s_htp (SUntil qs p) = max_proofs s_htp (qs @ [p])"
 | "s_htp (SNext p) = s_htp p"
 | "s_htp (SPrev p) = max (s_at (SPrev p)) (s_htp p)"
+| "s_htp (SImplL p) = v_htp p"
+| "s_htp (SImplR q) = s_htp q"
+| "s_htp (SIff_ss p q) = max (s_htp p) (s_htp q)"
+| "s_htp (SIff_vv p q) = max (v_htp p) (v_htp q)"
+| "s_htp (SOnce i p) = max i (s_htp p)"
+| "s_htp (SEventually i p) = max i (s_htp p)"
+| "s_htp (SHistorically i li qs) = max (max i li) (max_proofs s_htp qs)"
+| "s_htp (SHistorically_le i) = i"
+| "s_htp (SAlways i hi qs) = max (max i (Suc hi)) (max_proofs s_htp qs)"
 | "v_htp (VFF i) = i"
 | "v_htp (VAtm atm i) = i"
 | "v_htp (VNeg p) = s_htp p"
@@ -423,6 +488,14 @@ fun s_htp :: "'a sproof \<Rightarrow> nat" and v_htp :: "'a vproof \<Rightarrow>
 | "v_htp (VPrev_le i) = i"
 | "v_htp (VPrev_ge i) = i"
 | "v_htp (VPrev_zero) = 0"
+| "v_htp (VImpl p q) = max (s_htp p) (v_htp q)"
+| "v_htp (VIff_sv p q) = max (s_htp p) (v_htp q)"
+| "v_htp (VIff_vs p q) = max (v_htp p) (s_htp q)"
+| "v_htp (VOnce_le i) = i"
+| "v_htp (VOnce i li qs) = max (max i li) (max_proofs v_htp qs)"
+| "v_htp (VEventually i hi qs) = max (max i (Suc hi)) (max_proofs v_htp qs)"
+| "v_htp (VHistorically i p) = max i (v_htp p)"
+| "v_htp (VAlways i p) = max i (v_htp p)"
 
 lemma at_htp:
   fixes p :: "'a sproof" and p' :: "'a vproof"
@@ -442,6 +515,17 @@ fun s_ltp :: "'a sproof \<Rightarrow> enat" and v_ltp :: "'a vproof \<Rightarrow
 | "s_ltp (SUntil qs p) = min_proofs s_ltp (qs @ [p])"
 | "s_ltp (SNext p) = min (s_at (SNext p)) (s_ltp p)"
 | "s_ltp (SPrev p) = s_ltp p"
+
+| "s_ltp (SImplL p) = v_ltp p"
+| "s_ltp (SImplR q) = s_ltp q"
+| "s_ltp (SIff_ss p q) = min (s_ltp p) (s_ltp q)"
+| "s_ltp (SIff_vv p q) = min (v_ltp p) (v_ltp q)"
+| "s_ltp (SOnce i p) = min i (s_ltp p)"
+| "s_ltp (SEventually i p) = min i (s_ltp p)"
+| "s_ltp (SHistorically i li qs) = min (min i li) (min_proofs s_ltp qs)"
+| "s_ltp (SHistorically_le i) = i"
+| "s_ltp (SAlways i hi qs) = min (min i hi) (min_proofs s_ltp qs)"
+
 | "v_ltp (VFF i) = i"
 | "v_ltp (VAtm atm i) = i"
 | "v_ltp (VNeg p) = s_ltp p"
@@ -461,6 +545,15 @@ fun s_ltp :: "'a sproof \<Rightarrow> enat" and v_ltp :: "'a vproof \<Rightarrow
 | "v_ltp (VPrev_ge i) = i - 1"
 | "v_ltp (VPrev_zero) = 0"
 
+| "v_ltp (VImpl p q) = min (s_ltp p) (v_ltp q)"
+| "v_ltp (VIff_sv p q) = min (s_ltp p) (v_ltp q)"
+| "v_ltp (VIff_vs p q) = min (v_ltp p) (s_ltp q)"
+| "v_ltp (VOnce_le i) = 0"
+| "v_ltp (VOnce i li qs) = 0"
+| "v_ltp (VEventually i hi qs) = min (max i hi) (min_proofs v_htp qs)"
+| "v_ltp (VHistorically i p) = min i (v_htp p)"
+| "v_ltp (VAlways i p) = min i (v_htp p)"
+
 lemma le_enat_SucI: "x \<le> enat n \<Longrightarrow> x \<le> enat (Suc n)"
   by (metis eSuc_enat ile_eSuc order_trans)
 
@@ -470,7 +563,7 @@ lemma enat_minus_leI: "enat n - m \<le> enat n"
 lemma case_list_app: "(case ys @ [y] of [] \<Rightarrow> a | _ \<Rightarrow> b) = b"
   by (auto split: list.splits)
 
-lemma at_ltp:
+(* lemma at_ltp:
   fixes p :: "'a sproof" and p' :: "'a vproof"
   shows "s_ltp p \<le> s_at p" "v_ltp p' \<le> v_at p'"
 proof (induction rule: s_at_v_at.induct)
@@ -495,7 +588,7 @@ next
     apply (auto split: list.splits)
     apply (meson list.set_intros(1) order.trans min_proofs_sound)
     done
-qed (auto simp: min.coboundedI1 intro: le_enat_SucI enat_minus_leI)
+qed (auto simp: min.coboundedI1 intro: le_enat_SucI enat_minus_leI) *)
 
 (* Depth measure *)
 
