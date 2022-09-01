@@ -140,6 +140,21 @@ and SNext: "\<And>p p'. strict wqo (Inl p) (Inl p') \<Longrightarrow> strict wqo
 and VNext: "\<And>p p'. strict wqo (Inr p) (Inr p') \<Longrightarrow> strict wqo (Inr (VNext p)) (Inr (VNext p'))"
 and SPrev: "\<And>p p'. strict wqo (Inl p) (Inl p') \<Longrightarrow> strict wqo (Inl (SPrev p)) (Inl (SPrev p'))"
 and VPrev: "\<And>p p'. strict wqo (Inr p) (Inr p') \<Longrightarrow> strict wqo (Inr (VPrev p)) (Inr (VPrev p'))"
+and SImplR: "\<And>p p'. wqo (Inl p) (Inl p') \<Longrightarrow> strict wqo (Inl (SImplR p)) (Inl (SImplR p'))"
+and SImplL: "\<And>p p'. wqo (Inr p) (Inr p') \<Longrightarrow> strict wqo (Inl (SImplL p)) (Inl (SImplL p'))"
+and VImplL: "\<And>p1 p1' p2 p2'. strict wqo (Inl p1) (Inl p1') \<Longrightarrow> wqo (Inr p2) (Inr p2') \<Longrightarrow>
+  strict wqo (Inr (VImpl p1 p2)) (Inr (VImpl p1' p2'))"
+and VImplR: "\<And>p1 p1' p2 p2'. wqo (Inl p1) (Inl p1') \<Longrightarrow> strict wqo (Inr p2) (Inr p2') \<Longrightarrow>
+  strict wqo (Inr (VImpl p1 p2)) (Inr (VImpl p1' p2'))"
+and SIff_ss: "\<And>p1 p1' p2 p2'. wqo (Inl p1) (Inl p1') \<Longrightarrow> wqo (Inl p2) (Inl p2' ) \<Longrightarrow>
+  wqo (Inl (SIff_ss p1 p2)) (Inl (SIff_ss p1' p2'))"
+and SIff_vv: "\<And>p1 p1' p2 p2'. wqo (Inr p1) (Inr p1') \<Longrightarrow> wqo (Inr p2) (Inr p2' ) \<Longrightarrow>
+  wqo (Inl (SIff_vv p1 p2)) (Inl (SIff_vv p1' p2'))"
+and VIff_sv: "\<And>p1 p1' p2 p2'. wqo (Inl p1) (Inl p1') \<Longrightarrow> wqo (Inr p2) (Inr p2' ) \<Longrightarrow>
+  wqo (Inr (VIff_sv p1 p2)) (Inr (VIff_sv p1' p2'))"
+and VIff_vs: "\<And>p1 p1' p2 p2'. wqo (Inr p1) (Inr p1') \<Longrightarrow> wqo (Inl p2) (Inl p2' ) \<Longrightarrow>
+  wqo (Inr (VIff_vs p1 p2)) (Inr (VIff_vs p1' p2'))"
+
 and proofApp_monoL: "\<And>i phi p p' r r'. checkApp p r \<Longrightarrow> checkApp p' r' \<Longrightarrow> strict wqo p p' \<Longrightarrow> wqo r r' \<Longrightarrow>
   valid rho i phi (p \<oplus> r) \<Longrightarrow> valid rho i phi (p' \<oplus> r') \<Longrightarrow> strict wqo (p \<oplus> r) (p' \<oplus> r')"
 and proofApp_monoR: "\<And>i phi p p' r r'. checkApp p r \<Longrightarrow> checkApp p' r' \<Longrightarrow> wqo p p' \<Longrightarrow> strict wqo r r' \<Longrightarrow>
