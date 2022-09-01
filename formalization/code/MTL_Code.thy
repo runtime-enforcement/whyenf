@@ -515,17 +515,15 @@ fun s_ltp :: "'a sproof \<Rightarrow> enat" and v_ltp :: "'a vproof \<Rightarrow
 | "s_ltp (SUntil qs p) = min_proofs s_ltp (qs @ [p])"
 | "s_ltp (SNext p) = min (s_at (SNext p)) (s_ltp p)"
 | "s_ltp (SPrev p) = s_ltp p"
-
 | "s_ltp (SImplL p) = v_ltp p"
 | "s_ltp (SImplR q) = s_ltp q"
 | "s_ltp (SIff_ss p q) = min (s_ltp p) (s_ltp q)"
 | "s_ltp (SIff_vv p q) = min (v_ltp p) (v_ltp q)"
 | "s_ltp (SOnce i p) = min i (s_ltp p)"
 | "s_ltp (SEventually i p) = min i (s_ltp p)"
-| "s_ltp (SHistorically i li qs) = min (min i li) (min_proofs s_ltp qs)"
-| "s_ltp (SHistorically_le i) = i"
+| "s_ltp (SHistorically i li qs) = 0"
+| "s_ltp (SHistorically_le i) = 0"
 | "s_ltp (SAlways i hi qs) = min (min i hi) (min_proofs s_ltp qs)"
-
 | "v_ltp (VFF i) = i"
 | "v_ltp (VAtm atm i) = i"
 | "v_ltp (VNeg p) = s_ltp p"
@@ -544,14 +542,13 @@ fun s_ltp :: "'a sproof \<Rightarrow> enat" and v_ltp :: "'a vproof \<Rightarrow
 | "v_ltp (VPrev_le i) = i - 1"
 | "v_ltp (VPrev_ge i) = i - 1"
 | "v_ltp (VPrev_zero) = 0"
-
 | "v_ltp (VImpl p q) = min (s_ltp p) (v_ltp q)"
 | "v_ltp (VIff_sv p q) = min (s_ltp p) (v_ltp q)"
 | "v_ltp (VIff_vs p q) = min (v_ltp p) (s_ltp q)"
 | "v_ltp (VOnce_le i) = 0"
 | "v_ltp (VOnce i li qs) = 0"
-| "v_ltp (VEventually i hi qs) = min (max i hi) (min_proofs v_htp qs)"
-| "v_ltp (VHistorically i p) = min i (v_htp p)"
+| "v_ltp (VEventually i hi qs) = min (min i hi) (min_proofs v_htp qs)"
+| "v_ltp (VHistorically i p) = min i (v_ltp p)"
 | "v_ltp (VAlways i p) = min i (v_htp p)"
 
 lemma le_enat_SucI: "x \<le> enat n \<Longrightarrow> x \<le> enat (Suc n)"
@@ -563,16 +560,17 @@ lemma enat_minus_leI: "enat n - m \<le> enat n"
 lemma case_list_app: "(case ys @ [y] of [] \<Rightarrow> a | _ \<Rightarrow> b) = b"
   by (auto split: list.splits)
 
-(* lemma at_ltp:
+lemma at_ltp:
   fixes p :: "'a sproof" and p' :: "'a vproof"
   shows "s_ltp p \<le> s_at p" "v_ltp p' \<le> v_at p'"
+  thm s_at_v_at.induct
 proof (induction rule: s_at_v_at.induct)
-  case (9 spsi sphis)
+  case (18 spsi sphis)
   then show ?case
   proof (cases sphis rule: rev_cases)
     case (snoc ys y)
     have IH: "s_ltp y \<le> enat (s_at y)"
-      using 9(2)
+      using 18(2)
       apply (cases sphis)
        apply (auto simp: snoc split: if_splits)
       apply (metis last_ConsR last_snoc)
@@ -583,12 +581,12 @@ proof (induction rule: s_at_v_at.induct)
       done
   qed simp
 next
-  case (10 sphis spsi)
+  case (19 sphis spsi)
   then show ?case
     apply (auto split: list.splits)
     apply (meson list.set_intros(1) order.trans min_proofs_sound)
     done
-qed (auto simp: min.coboundedI1 intro: le_enat_SucI enat_minus_leI) *)
+qed (auto simp: min.coboundedI1 intro: le_enat_SucI enat_minus_leI)
 
 (* Depth measure *)
 
@@ -603,6 +601,15 @@ fun s_depth :: "'a sproof \<Rightarrow> nat" and v_depth :: "'a vproof \<Rightar
 | "s_depth (SUntil qs p) = Suc (max_proofs s_depth (qs @ [p]))"
 | "s_depth (SNext p) = Suc (s_depth p)"
 | "s_depth (SPrev p) = Suc (s_depth p)"
+| "s_depth (SImplL p) = Suc (v_depth p)"
+| "s_depth (SImplR q) = Suc (s_depth q)"
+| "s_depth (SIff_ss p q) = Suc (max (s_depth p) (s_depth q))"
+| "s_depth (SIff_vv p q) = Suc (max (v_depth p) (v_depth q))"
+| "s_depth (SOnce i p) = Suc (s_depth p)"
+| "s_depth (SEventually i p) = Suc (s_depth p)"
+| "s_depth (SHistorically i li qs) = Suc (max_proofs s_depth qs)"
+| "s_depth (SHistorically_le i) = 1"
+| "s_depth (SAlways i hi qs) = Suc (max_proofs s_depth qs)"
 | "v_depth (VFF i) = 1"
 | "v_depth (VAtm atm i) = 1"
 | "v_depth (VNeg p) = Suc (s_depth p)"
@@ -621,6 +628,14 @@ fun s_depth :: "'a sproof \<Rightarrow> nat" and v_depth :: "'a vproof \<Rightar
 | "v_depth (VPrev_le i) = 1"
 | "v_depth (VPrev_ge i) = 1"
 | "v_depth (VPrev_zero) = 1"
+| "v_depth (VImpl p q) = Suc (max (s_depth p) (v_depth q))"
+| "v_depth (VIff_sv p q) = Suc (max (s_depth p) (v_depth q))"
+| "v_depth (VIff_vs p q) = Suc (max (v_depth p) (s_depth q))"
+| "v_depth (VOnce_le i) = 1"
+| "v_depth (VOnce i li qs) = Suc (max_proofs v_depth qs)"
+| "v_depth (VEventually i hi qs) = Suc (max_proofs v_depth qs)"
+| "v_depth (VHistorically i p) = Suc (v_depth p)"
+| "v_depth (VAlways i p) = Suc (v_depth p)"
 
 definition mdepth :: "'a sproof + 'a vproof \<Rightarrow> nat" where
   "mdepth = case_sum s_depth v_depth"
@@ -671,6 +686,15 @@ fun s_atm :: "'a sproof \<Rightarrow> nat" and v_atm :: "'a vproof \<Rightarrow>
 | "s_atm (SUntil qs p) = Suc (sum_proofs s_atm (qs @ [p]))"
 | "s_atm (SNext p) = Suc (s_atm p)"
 | "s_atm (SPrev p) = Suc (s_atm p)"
+| "s_atm (SImplL p) = Suc (v_atm p)"
+| "s_atm (SImplR q) = Suc (s_atm q)"
+| "s_atm (SIff_ss p q) = Suc ((s_atm p) + (s_atm q))"
+| "s_atm (SIff_vv p q) = Suc ((v_atm p) + (v_atm q))"
+| "s_atm (SOnce i p) = Suc (s_atm p)"
+| "s_atm (SEventually i p) = Suc (s_atm p)"
+| "s_atm (SHistorically i li qs) = Suc (sum_proofs s_atm qs)"
+| "s_atm (SHistorically_le i) = 1"
+| "s_atm (SAlways i hi qs) = Suc (sum_proofs s_atm qs)"
 | "v_atm (VFF i) = 1"
 | "v_atm (VAtm atm i) = w atm"
 | "v_atm (VNeg p) = Suc (s_atm p)"
@@ -689,6 +713,14 @@ fun s_atm :: "'a sproof \<Rightarrow> nat" and v_atm :: "'a vproof \<Rightarrow>
 | "v_atm (VPrev_le i) = 1"
 | "v_atm (VPrev_ge i) = 1"
 | "v_atm (VPrev_zero) = 1"
+| "v_atm (VImpl p q) = Suc ((s_atm p) + (v_atm q))"
+| "v_atm (VIff_sv p q) = Suc ((s_atm p) + (v_atm q))"
+| "v_atm (VIff_vs p q) = Suc ((v_atm p) + (s_atm q))"
+| "v_atm (VOnce_le i) = 1"
+| "v_atm (VOnce i li qs) = Suc (sum_proofs v_atm qs)"
+| "v_atm (VEventually i hi qs) = Suc (sum_proofs v_atm qs)"
+| "v_atm (VHistorically i p) = Suc (v_atm p)"
+| "v_atm (VAlways i p) = Suc (v_atm p)"
 
 definition matm :: "'a sproof + 'a vproof \<Rightarrow> nat" where
   "matm = case_sum s_atm v_atm"
@@ -730,7 +762,7 @@ global_interpretation matm_scmonotone: scmonotone "ratm w"
   for w
   apply (unfold_locales)
   unfolding ratm_def strmatm_def
-                      apply (auto simp: matm_def sum_proofs_Cons)[26]
+                      apply (auto simp: matm_def sum_proofs_Cons)[46]
   subgoal for rho i phi p p' r r'
     by (rule checkApp.cases[of p r]; rule checkApp.cases[of p' r'])
        (auto simp: valid_def matm_def sum_proofs_Cons sum_proofs_app split: sum.splits)
@@ -750,8 +782,16 @@ lemma valid_sat: "valid rho i phi (Inl p) \<Longrightarrow> sat rho i phi"
   by (fastforce simp: valid_def)+
 
 lemma check_cases:
+  "\<And>i x. s_check rho phi (SOnce i x) \<Longrightarrow> (case phi of Once _ _ \<Rightarrow> True | _ \<Rightarrow> False)"
+  "\<And>i li x. s_check rho phi (SHistorically i li x) \<Longrightarrow> (case phi of Historically _ _ \<Rightarrow> True | _ \<Rightarrow> False)"
+  "\<And>i x. s_check rho phi (SEventually i x) \<Longrightarrow> (case phi of Eventually _ _ \<Rightarrow> True | _ \<Rightarrow> False)"
+  "\<And>i hi x. s_check rho phi (SAlways i hi x) \<Longrightarrow> (case phi of Always _ _ \<Rightarrow> True | _ \<Rightarrow> False)"
   "\<And>x y. s_check rho phi (SSince x y) \<Longrightarrow> (case phi of Since _ _ _ \<Rightarrow> True | _ \<Rightarrow> False)"
   "\<And>x y. s_check rho phi (SUntil x y) \<Longrightarrow> (case phi of Until _ _ _ \<Rightarrow> True | _ \<Rightarrow> False)"
+  "\<And>i li x. v_check rho phi (VOnce i li x) \<Longrightarrow> (case phi of Once _ _ \<Rightarrow> True | _ \<Rightarrow> False)"
+  "\<And>i x. v_check rho phi (VHistorically i x) \<Longrightarrow> (case phi of Historically _ _ \<Rightarrow> True | _ \<Rightarrow> False)"
+  "\<And>i hi x. v_check rho phi (VEventually i hi x) \<Longrightarrow> (case phi of Eventually _ _ \<Rightarrow> True | _ \<Rightarrow> False)"
+  "\<And>i x. v_check rho phi (VAlways i x) \<Longrightarrow> (case phi of Always _ _ \<Rightarrow> True | _ \<Rightarrow> False)"
   "\<And>i x y. v_check rho phi (VSince i x y) \<Longrightarrow> (case phi of Since _ _ _ \<Rightarrow> True | _ \<Rightarrow> False)"
   "\<And>i li x. v_check rho phi (VSince_never i li x) \<Longrightarrow> (case phi of Since _ _ _ \<Rightarrow> True | _ \<Rightarrow> False)"
   "\<And>i x y. v_check rho phi (VUntil i x y) \<Longrightarrow> (case phi of Until _ _ _ \<Rightarrow> True | _ \<Rightarrow> False)"
