@@ -854,6 +854,14 @@ lemma valid_VSince_never_nonempty:
   "valid rho (Suc i) phi (Inr (VSince_never (Suc i) li (a # list @ [s]))) \<Longrightarrow> v_at a \<le> enat i"
   by (cases phi) (auto simp: valid_def Cons_eq_upt_conv split: if_splits enat.splits)
 
+lemma valid_VOnce_nonempty:
+  "valid rho (Suc i) phi (Inr (VOnce (Suc i) li (a # list @ [s]))) \<Longrightarrow> v_at a \<le> enat i"
+  by (cases phi) (auto simp: valid_def Cons_eq_upt_conv split: if_splits enat.splits)
+
+lemma valid_SHistorically_nonempty:
+  "valid rho (Suc i) phi (Inl (SHistorically (Suc i) li (a # list @ [s]))) \<Longrightarrow> s_at a \<le> enat i"
+  by (cases phi) (auto simp: valid_def Cons_eq_upt_conv split: if_splits enat.splits)
+
 lemma min_permute1: fixes x0 :: "'a :: linorder"
   shows "x1 \<le> x4 \<Longrightarrow> min x0 (min x1 (case p2 of [] \<Rightarrow> x2 | a # list \<Rightarrow> min x2 x3)) =
     min x0 (min (min x4 (case p2 of [] \<Rightarrow> x1 | a # list \<Rightarrow> min x1 x3)) x2)"
@@ -886,6 +894,14 @@ lemma checkApp_minreach: "checkApp p r \<Longrightarrow>
     apply (auto simp: minreach_def min_proofs_Cons min_proofs_app case_list_app p_at_def)   
     apply (auto simp: min_def split: list.split)
     done
+  subgoal for p1 j li r
+    using valid_SHistorically_nonempty order_subst1
+    by (fastforce simp: minreach_def min_proofs_Cons min_proofs_app case_list_app p_at_def valid_def split: if_splits intro!: min_permute1)
+  subgoal for p1 j hi r
+    using at_ltp(1)[of r]
+    apply (auto simp: minreach_def min_proofs_Cons min_proofs_app case_list_app p_at_def) 
+    apply (auto simp: min_def split: list.split)
+    sorry
   subgoal for p2 j p1 s
     using at_ltp(2)[of p1] valid_VSince_nonempty[of rho j phi p1 p2 s] order_subst1
     by (fastforce simp: minreach_def min_proofs_Cons min_proofs_app case_list_app p_at_def valid_def split: if_splits intro!: min_permute1)
@@ -893,6 +909,12 @@ lemma checkApp_minreach: "checkApp p r \<Longrightarrow>
     apply (cases p1)
     using valid_VSince_never_nonempty at_ltp(2)
     by (auto simp: minreach_def case_list_app min_proofs_Cons min_proofs_app p_at_def valid_def intro!: min_permute2)
+  subgoal for p1 j li s
+    apply (cases p1)
+    using valid_VOnce_nonempty at_ltp(2)
+    by (auto simp: minreach_def case_list_app min_proofs_Cons min_proofs_app p_at_def valid_def intro!: min_permute2)
+  subgoal for p1 j hi
+    sorry
   subgoal for p1 j p2 s
     using at_ltp(2)[of p2]
     by (cases p1) (auto simp: minreach_def min_proofs_Cons min_proofs_app case_list_app p_at_def valid_def split: if_splits intro!: min_permute3)
@@ -929,12 +951,12 @@ lemma v_check_VSince_never_li: "v_check rho phi (VSince_never i li p1) \<Longrig
 
 lemma minr: "checkIncr p \<Longrightarrow> valid rho i phi p \<Longrightarrow> minreach (proofIncr p) = min (minreach p) (incroff p)"
   apply (rule checkIncr.cases[of p])
-      apply (auto simp: proofIncr_def minreach_def valid_def incroff_def min_proofs_Cons min_proofs_app p_at_def)
+              apply (auto simp: proofIncr_def minreach_def valid_def incroff_def min_proofs_Cons min_proofs_app p_at_def)
   subgoal for p1 p2
     by (rule min_permute5) auto
   subgoal for p1 li
     by (rule min_permute7) auto
-  done
+  done             
 
 global_interpretation minminreach_trans_wqo: trans_wqo rminminreach
   defines opt_minminreach = "minminreach_trans_wqo.Opt"
