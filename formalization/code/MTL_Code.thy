@@ -1488,14 +1488,15 @@ next
       by (cases phi) (auto simp add: at_ltp(1) le_enat_SucI le_max_iff_disj)
     done
 next
-  case (11 i)
+  case (11 p)
   show ?case
     apply (rule allI)
     subgoal for phi
+      using 11
       by (cases phi) auto
     done
 next
-  case (12 atm i)
+  case (12 p)
   show ?case
     apply (rule allI)
     subgoal for phi
@@ -1503,12 +1504,12 @@ next
       by (cases phi) auto
     done
 next
-  case (13 p)
+  case (13 p q)
   show ?case
     apply (rule allI)
     subgoal for phi
       using 13
-      by (cases phi) auto
+      by (cases phi) (simp_all add: linorder_class.max.coboundedI1 linorder_class.max.coboundedI2 min_le_iff_disj)
     done
 next
   case (14 p q)
@@ -1516,115 +1517,57 @@ next
     apply (rule allI)
     subgoal for phi
       using 14
-      by (cases phi) (auto simp add: Lattices.linorder_class.min.coboundedI1 Lattices.linorder_class.min.coboundedI2 le_max_iff_disj)
+      by (cases phi) (simp_all add: linorder_class.max.coboundedI1 linorder_class.max.coboundedI2 min_le_iff_disj)
     done
 next
-  case (15 p)
+  case (15 i p)
   show ?case
     apply (rule allI)
     subgoal for phi
       using 15
-      by (cases phi) auto
+      sorry
     done
 next
-  case (16 q)
+  case (16 i p)
   show ?case
     apply (rule allI)
     subgoal for phi
       using 16
+      sorry
+    done
+next
+  case (17 i li qs)
+  show ?case
+    apply (rule allI)
+    subgoal for phi
+      using 17
+      sorry
+    done
+next
+  case (18 i)
+  show ?case
+    apply (rule allI)
+    subgoal for phi
+      using 18
+      sorry
+    done
+next
+  case (19 i hi qs)
+  show ?case
+    apply (rule allI)
+    subgoal for phi
+      using 19
+      sorry
+    done
+next
+  case (20 i)
+  show ?case
+    apply (rule allI)
+    subgoal for phi
       by (cases phi) auto
     done
 next
-  case (17 i p qs)
-  have at_le_htp: "v_ltp (VSince i p qs) \<le> i \<and> i \<le> v_htp (VSince i p qs)"
-    "v_ltp (VSince i p qs) \<le> v_at p \<and> v_at p \<le> v_htp (VSince i p qs)"
-    "v_ltp (VSince i p qs) \<le> enat 0 \<and> 0 \<le> v_htp (VSince i p qs)"
-    using at_htp(2)[of p]
-    by (auto simp: max_proofs_Cons)
-  have aux: "x \<in> set (p # qs) \<Longrightarrow> v_ltp (VSince i p qs) \<le> v_ltp x \<and> v_htp x \<le> v_htp (VSince i p qs)" for x
-    using max_proofs_sound[where ?x=x and ?xs="p # qs" and ?f=v_htp]
-    by auto
-  have IH: "x \<in> set (p # qs) \<Longrightarrow> v_check rho phi x \<Longrightarrow> v_check rho' phi x" for x phi
-    using 17(1)[OF _ 17(2,3)] aux
-    by force
-  show ?case
-    apply (rule allI)
-    subgoal for phi
-      using IH check_upt_l_cong[OF 17(2)] at_le_htp
-      by (cases phi) (auto simp: v_check_Since_code Let_def 17(2)[OF at_le_htp(1)]
-          17(2)[OF at_le_htp(2)] 17(2)[OF at_le_htp(3)] simp del: v_check_simps(9) split: enat.splits)
-    done
-next
-  case (18 i qs p)
-  have at_le_htp: "v_ltp (VUntil i qs p) \<le> i \<and> i \<le> v_htp (VUntil i qs p)"
-    "v_ltp (VUntil i qs p) \<le> v_at p \<and> v_at p \<le> v_htp (VUntil i qs p)"
-    using at_htp(2)[of p] at_ltp(2)[of p] min_proofs_sound[where ?xs="qs @ [p]" and ?f=v_ltp]
-    by (auto simp: max_proofs_app) (metis Lattices.linorder_class.min.coboundedI2 order_trans)
-  have aux: "x \<in> set (qs @ [p]) \<Longrightarrow> v_ltp (VUntil i qs p) \<le> v_ltp x \<and> v_htp x \<le> v_htp (VUntil i qs p)" for x
-    using max_proofs_sound[where ?x=x and ?xs="qs @ [p]" and ?f=v_htp]
-      min_proofs_sound[where ?x=x and ?xs="qs @ [p]" and ?f=v_ltp]
-    by auto (meson Lattices.linorder_class.min.coboundedI2)+
-  have IH: "x \<in> set (qs @ [p]) \<Longrightarrow> v_check rho phi x \<Longrightarrow> v_check rho' phi x" for x phi
-    using 18(1)[OF _ 18(2,3)] aux
-    by force
-  have foo: "min i (v_at p) \<le> j \<and> j \<le> max i (v_at p) \<Longrightarrow>
-          v_ltp (VUntil i qs p) \<le> enat j \<and> j \<le> v_htp (VUntil i qs p)" for j
-    using at_le_htp
-    by (auto simp: min_def split: if_splits) (meson enat_ord_simps(1) order_trans)+
-  show ?case
-    apply (rule allI)
-    subgoal for phi
-      using IH check_upt_lu_cong[OF 18(2)] foo
-      by (cases phi) (auto simp: v_check_Until_code Let_def 18(2)[OF at_le_htp(1)]
-          18(2)[OF at_le_htp(2)] simp del: v_check_simps(10) split: enat.splits)
-    done
-next
-  case (19 i li qs)
-  have le_htp: "v_ltp (VSince_never i li qs) \<le> i \<and> i \<le> v_htp (VSince_never i li qs)"
-    "v_ltp (VSince_never i li qs) \<le> li \<and> li \<le> v_htp (VSince_never i li qs)"
-    "v_ltp (VSince_never i li qs) \<le> li - Suc 0 \<and> li - Suc 0 \<le> v_htp (VSince_never i li qs)"
-    "v_ltp (VSince_never i li qs) \<le> enat 0 \<and> 0 \<le> v_htp (VSince_never i li qs)"
-    by auto
-  have aux: "x \<in> set qs \<Longrightarrow> v_htp x \<le> v_htp (VSince_never i li qs)" for x
-    using max_proofs_sound[where ?x=x and ?xs=qs and ?f=v_htp]
-    by (auto simp: max_proofs_app)
-  have IH: "x \<in> set qs \<Longrightarrow> v_check rho phi x \<Longrightarrow> v_check rho' phi x" for x phi
-    using 19(1)[OF _ 19(2,3)] aux
-    by force
-  show ?case
-    apply (rule allI)
-    subgoal for phi
-      using IH check_upt_l_cong[OF 19(2)] le_htp(1-2)
-      by (cases phi) (auto simp: v_check_Since_code 19(2)[OF le_htp(1)] 19(2)[OF le_htp(2)] 19(2)[OF le_htp(3)] 19(2)[OF le_htp(4)]
-          simp del: v_check_simps(9) split: enat.splits)
-    done
-next
-  case (20 i hi qs)
-  have at_le_htp: "v_ltp (VUntil_never i hi qs) \<le> i \<and> i \<le> v_htp (VUntil_never i hi qs)"
-    "v_ltp (VUntil_never i hi qs) \<le> hi \<and> hi \<le> v_htp (VUntil_never i hi qs)"
-    "v_ltp (VUntil_never i hi qs) \<le> Suc hi \<and> Suc hi \<le> v_htp (VUntil_never i hi qs)"
-    using min_proofs_sound[where ?xs="qs" and ?f=v_ltp]
-    by (auto simp add: Lattices.linorder_class.min.coboundedI1)
-  have aux: "x \<in> set (qs) \<Longrightarrow> v_ltp (VUntil_never i hi qs) \<le> v_ltp x \<and> v_htp x \<le> v_htp (VUntil_never i hi qs)" for x
-    using max_proofs_sound[where ?x=x and ?xs="qs" and ?f=v_htp]
-      min_proofs_sound[where ?x=x and ?xs="qs" and ?f=v_ltp]
-    by auto (meson Lattices.linorder_class.min.coboundedI2)+
-  have IH: "x \<in> set (qs) \<Longrightarrow> v_check rho phi x \<Longrightarrow> v_check rho' phi x" for x phi
-    using 20(1)[OF _ 20(2,3)] aux
-    by force
-  have foo: "min i hi \<le> j \<and> j \<le> max i hi \<Longrightarrow>
-          v_ltp (VUntil_never i hi qs) \<le> enat j \<and> j \<le> v_htp (VUntil_never i hi qs)" for j
-    using at_le_htp
-    by (auto simp: min_def split: if_splits) (meson enat_ord_simps(1) order_trans)+
-  show ?case
-    apply (rule allI)
-    subgoal for phi
-      using IH check_upt_lu_cong[OF 20(2)] foo
-      by (cases phi) (auto simp: v_check_Until_code Let_def 20(2)[OF at_le_htp(1)] 20(2)[OF at_le_htp(2)] 20(2)[OF at_le_htp(3)]
-          simp del: v_check_simps(10) split: enat.splits)
-    done
-next
-  case (21 i)
+  case (21 atm i)
   show ?case
     apply (rule allI)
     subgoal for phi
@@ -1636,19 +1579,19 @@ next
   show ?case
     apply (rule allI)
     subgoal for phi
-      using 22 Lattices.linorder_class.min.coboundedI2
-      by (cases phi) fastforce+
+      using 22
+      by (cases phi) auto
     done
 next
-  case (23 i)
+  case (23 p q)
   show ?case
     apply (rule allI)
     subgoal for phi
       using 23
-      by (cases phi) auto
+      by (cases phi) (simp_all add: Lattices.linorder_class.min.coboundedI1 Lattices.linorder_class.min.coboundedI2 le_max_iff_disj)
     done
 next
-  case (24 i)
+  case (24 p)
   show ?case
     apply (rule allI)
     subgoal for phi
@@ -1656,41 +1599,237 @@ next
       by (cases phi) auto
     done
 next
-  case (25 p)
+  case (25 q)
   show ?case
     apply (rule allI)
     subgoal for phi
       using 25
+      by (cases phi) auto
+    done
+next
+  case (26 i p qs)
+  have at_le_htp: "v_ltp (VSince i p qs) \<le> i \<and> i \<le> v_htp (VSince i p qs)"
+    "v_ltp (VSince i p qs) \<le> v_at p \<and> v_at p \<le> v_htp (VSince i p qs)"
+    "v_ltp (VSince i p qs) \<le> enat 0 \<and> 0 \<le> v_htp (VSince i p qs)"
+    using at_htp(2)[of p]
+    by (auto simp: max_proofs_Cons)
+  have aux: "x \<in> set (p # qs) \<Longrightarrow> v_ltp (VSince i p qs) \<le> v_ltp x \<and> v_htp x \<le> v_htp (VSince i p qs)" for x
+    using max_proofs_sound[where ?x=x and ?xs="p # qs" and ?f=v_htp]
+    by auto
+  have IH: "x \<in> set (p # qs) \<Longrightarrow> v_check rho phi x \<Longrightarrow> v_check rho' phi x" for x phi
+    using 26(1)[OF _ 26(2,3)] aux
+    by force
+  show ?case
+    apply (rule allI)
+    subgoal for phi
+      using IH check_upt_l_cong[OF 26(2)] at_le_htp
+      by (cases phi) (auto simp: v_check_Since_code Let_def 26(2)[OF at_le_htp(1)]
+          26(2)[OF at_le_htp(2)] 26(2)[OF at_le_htp(3)] simp del: v_check_simps(15) split: enat.splits)
+    done
+next
+  case (27 i qs p)
+  have at_le_htp: "v_ltp (VUntil i qs p) \<le> i \<and> i \<le> v_htp (VUntil i qs p)"
+    "v_ltp (VUntil i qs p) \<le> v_at p \<and> v_at p \<le> v_htp (VUntil i qs p)"
+    using at_htp(2)[of p] at_ltp(2)[of p] min_proofs_sound[where ?xs="qs @ [p]" and ?f=v_ltp]
+    by (auto simp: max_proofs_app) (metis Lattices.linorder_class.min.coboundedI2 order_trans)
+  have aux: "x \<in> set (qs @ [p]) \<Longrightarrow> v_ltp (VUntil i qs p) \<le> v_ltp x \<and> v_htp x \<le> v_htp (VUntil i qs p)" for x
+    using max_proofs_sound[where ?x=x and ?xs="qs @ [p]" and ?f=v_htp]
+      min_proofs_sound[where ?x=x and ?xs="qs @ [p]" and ?f=v_ltp]
+    by auto (meson Lattices.linorder_class.min.coboundedI2)+
+  have IH: "x \<in> set (qs @ [p]) \<Longrightarrow> v_check rho phi x \<Longrightarrow> v_check rho' phi x" for x phi
+    using 27(1)[OF _ 27(2,3)] aux
+    by force
+  have foo: "min i (v_at p) \<le> j \<and> j \<le> max i (v_at p) \<Longrightarrow>
+          v_ltp (VUntil i qs p) \<le> enat j \<and> j \<le> v_htp (VUntil i qs p)" for j
+    using at_le_htp
+    by (auto simp: min_def split: if_splits) (meson enat_ord_simps(1) order_trans)+
+  show ?case
+    apply (rule allI)
+    subgoal for phi
+      using IH check_upt_lu_cong[OF 27(2)] foo
+      by (cases phi) (auto simp: v_check_Until_code Let_def 27(2)[OF at_le_htp(1)]
+          27(2)[OF at_le_htp(2)] simp del: v_check_simps(16) split: enat.splits)
+    done
+next
+  case (28 i li qs)
+  have le_htp: "v_ltp (VSince_never i li qs) \<le> i \<and> i \<le> v_htp (VSince_never i li qs)"
+    "v_ltp (VSince_never i li qs) \<le> li \<and> li \<le> v_htp (VSince_never i li qs)"
+    "v_ltp (VSince_never i li qs) \<le> li - Suc 0 \<and> li - Suc 0 \<le> v_htp (VSince_never i li qs)"
+    "v_ltp (VSince_never i li qs) \<le> enat 0 \<and> 0 \<le> v_htp (VSince_never i li qs)"
+    by auto
+  have aux: "x \<in> set qs \<Longrightarrow> v_htp x \<le> v_htp (VSince_never i li qs)" for x
+    using max_proofs_sound[where ?x=x and ?xs=qs and ?f=v_htp]
+    by (auto simp: max_proofs_app)
+  have IH: "x \<in> set qs \<Longrightarrow> v_check rho phi x \<Longrightarrow> v_check rho' phi x" for x phi
+    using 28(1)[OF _ 28(2,3)] aux
+    by force
+  show ?case
+    apply (rule allI)
+    subgoal for phi
+      using IH check_upt_l_cong[OF 28(2)] le_htp(1-2)
+      by (cases phi) (auto simp: v_check_Since_code 28(2)[OF le_htp(1)] 28(2)[OF le_htp(2)] 28(2)[OF le_htp(3)] 28(2)[OF le_htp(4)]
+          simp del: v_check_simps(15) split: enat.splits)
+    done
+next
+  case (29 i hi qs)
+  have at_le_htp: "v_ltp (VUntil_never i hi qs) \<le> i \<and> i \<le> v_htp (VUntil_never i hi qs)"
+    "v_ltp (VUntil_never i hi qs) \<le> hi \<and> hi \<le> v_htp (VUntil_never i hi qs)"
+    "v_ltp (VUntil_never i hi qs) \<le> Suc hi \<and> Suc hi \<le> v_htp (VUntil_never i hi qs)"
+    using min_proofs_sound[where ?xs="qs" and ?f=v_ltp]
+    by (auto simp add: Lattices.linorder_class.min.coboundedI1)
+  have aux: "x \<in> set (qs) \<Longrightarrow> v_ltp (VUntil_never i hi qs) \<le> v_ltp x \<and> v_htp x \<le> v_htp (VUntil_never i hi qs)" for x
+    using max_proofs_sound[where ?x=x and ?xs="qs" and ?f=v_htp]
+      min_proofs_sound[where ?x=x and ?xs="qs" and ?f=v_ltp]
+    by auto (meson Lattices.linorder_class.min.coboundedI2)+
+  have IH: "x \<in> set (qs) \<Longrightarrow> v_check rho phi x \<Longrightarrow> v_check rho' phi x" for x phi
+    using 29(1)[OF _ 29(2,3)] aux
+    by force
+  have foo: "min i hi \<le> j \<and> j \<le> max i hi \<Longrightarrow>
+          v_ltp (VUntil_never i hi qs) \<le> enat j \<and> j \<le> v_htp (VUntil_never i hi qs)" for j
+    using at_le_htp
+    by (auto simp: min_def split: if_splits) (meson enat_ord_simps(1) order_trans)+
+  show ?case
+    apply (rule allI)
+    subgoal for phi
+      using IH check_upt_lu_cong[OF 29(2)] foo
+      by (cases phi) (auto simp: v_check_Until_code Let_def 29(2)[OF at_le_htp(1)] 29(2)[OF at_le_htp(2)] 29(2)[OF at_le_htp(3)]
+          simp del: v_check_simps(16) split: enat.splits)
+    done
+next
+  case (30 i)
+  show ?case
+    apply (rule allI)
+    subgoal for phi
+      using 30
+      by (cases phi) auto
+    done
+next
+  case (31 p)
+  show ?case
+    apply (rule allI)
+    subgoal for phi
+      using 31 Lattices.linorder_class.min.coboundedI2
+      by (cases phi) fastforce+
+    done
+next
+  case (32 i)
+  show ?case
+    apply (rule allI)
+    subgoal for phi
+      using 32
+      by (cases phi) auto
+    done
+next
+  case (33 i)
+  show ?case
+    apply (rule allI)
+    subgoal for phi
+      using 33
+      by (cases phi) auto
+    done
+next
+  case (34 p)
+  show ?case
+    apply (rule allI)
+    subgoal for phi
+      using 34
       by (cases phi) (auto simp add: le_max_iff_disj)
     done
 next
-  case (26 i)
+  case (35 i)
   show ?case
     apply (rule allI)
     subgoal for phi
-      using 26
+      using 35
       apply (cases phi)
                apply auto
-      apply (metis One_nat_def diff_le_self enat_minus_leI eq_iff idiff_enat_enat one_enat_def
+      apply (metis One_nat_def diff_le_self enat_minus_leI eq_iff idiff_enat_enat one_enat_def)
       done
     done
 next
-  case (27 i)
+  case (36 i)
   show ?case
     apply (rule allI)
     subgoal for phi
-      using 27
+      using 36
       apply (cases phi)
                apply auto
-      apply (metis One_nat_def diff_le_self enat_minus_leI eq_iff idiff_enat_enat one_enat_def
+      apply (metis One_nat_def diff_le_self enat_minus_leI eq_iff idiff_enat_enat one_enat_def)
       done
     done
 next
-  case 28
+  case 37
   show ?case
     apply (rule allI)
     subgoal for phi
       by (cases phi) auto
+    done
+next
+  case (38 p q)
+  show ?case
+    apply (rule allI)
+    subgoal for phi
+      apply (cases phi) 
+                     apply simp_all
+      sorry
+    done
+next
+  case (39 p q)
+  show ?case
+    apply (rule allI)
+    subgoal for phi
+      apply (cases phi) 
+                     apply simp_all
+      sorry
+    done
+next
+  case (40 p q)
+  show ?case
+    apply (rule allI)
+    subgoal for phi
+      apply (cases phi) 
+                     apply simp_all
+      sorry
+    done
+next
+  case (41 i)
+  show ?case
+    apply (rule allI)
+    subgoal for phi
+      using 41
+      by (cases phi) auto
+    done
+next
+  case (42 i li qs)
+  show ?case
+    apply (rule allI)
+    subgoal for phi
+      using 42
+      sorry
+    done
+next
+  case (43 i hi qs)
+  show ?case
+    apply (rule allI)
+    subgoal for phi
+      using 43
+      sorry
+    done
+next
+  case (44 i p)
+  show ?case
+    apply (rule allI)
+    subgoal for phi
+      using 44
+      sorry
+    done
+next
+  case (45 i p)
+  show ?case
+    apply (rule allI)
+    subgoal for phi
+      using 45
+      sorry
     done
 qed
 
