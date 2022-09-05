@@ -519,7 +519,7 @@ fun s_ltp :: "'a sproof \<Rightarrow> enat" and v_ltp :: "'a vproof \<Rightarrow
 | "s_ltp (SImplR q) = s_ltp q"
 | "s_ltp (SIff_ss p q) = min (s_ltp p) (s_ltp q)"
 | "s_ltp (SIff_vv p q) = min (v_ltp p) (v_ltp q)"
-| "s_ltp (SOnce i p) = min i (s_ltp p)"
+| "s_ltp (SOnce i p) = 0"
 | "s_ltp (SEventually i p) = min i (s_ltp p)"
 | "s_ltp (SHistorically i li qs) = 0"
 | "s_ltp (SHistorically_le i) = 0"
@@ -547,9 +547,9 @@ fun s_ltp :: "'a sproof \<Rightarrow> enat" and v_ltp :: "'a vproof \<Rightarrow
 | "v_ltp (VIff_vs p q) = min (v_ltp p) (s_ltp q)"
 | "v_ltp (VOnce_le i) = 0"
 | "v_ltp (VOnce i li qs) = 0"
-| "v_ltp (VEventually i hi qs) = min (min i hi) (min_proofs v_htp qs)"
-| "v_ltp (VHistorically i p) = min i (v_ltp p)"
-| "v_ltp (VAlways i p) = min i (v_htp p)"
+| "v_ltp (VEventually i hi qs) = min (min i hi) (min_proofs v_ltp qs)"
+| "v_ltp (VHistorically i p) = 0"
+| "v_ltp (VAlways i p) = min i (v_ltp p)"
 
 lemma le_enat_SucI: "x \<le> enat n \<Longrightarrow> x \<le> enat (Suc n)"
   by (metis eSuc_enat ile_eSuc order_trans)
@@ -825,16 +825,25 @@ lemma checkIncr_at: "checkIncr p \<Longrightarrow> checkIncr p' \<Longrightarrow
   by (rule checkIncr.cases[of p]; rule checkIncr.cases[of p'])
      (auto simp: p_at_def proofIncr_def valid_def dest!: check_cases split: mtl.splits)
 
-definition "incroff p = (case p of Inr (VSince _ _ _) \<Rightarrow> Suc (p_at p) | Inr (VSince_never _ _ _) \<Rightarrow> Suc (p_at p)
-  | Inr (VUntil _ _ _) \<Rightarrow> p_at p - 1 | Inr (VUntil_never _ _ _) \<Rightarrow> p_at p - 1)"
+definition "incroff p = (case p of 
+    Inr (VSince _ _ _) \<Rightarrow> Suc (p_at p) 
+  | Inr (VSince_never _ _ _) \<Rightarrow> Suc (p_at p)
+  | Inr (VUntil _ _ _) \<Rightarrow> p_at p - 1 
+  | Inr (VUntil_never _ _ _) \<Rightarrow> p_at p - 1
+  | Inl (SOnce _ _) \<Rightarrow> Suc (p_at p)
+  | Inl (SHistorically _ _ _) \<Rightarrow> Suc (p_at p)
+  | Inl (SEventually _ _) \<Rightarrow> p_at p - 1
+  | Inl (SAlways _ _ _) \<Rightarrow> p_at p - 1
+  | Inr (VOnce _ _ _) \<Rightarrow> Suc (p_at p)
+  | Inr (VHistorically _ _) \<Rightarrow> Suc (p_at p)
+  | Inr (VEventually _ _ _) \<Rightarrow> p_at p - 1
+  | Inr (VAlways _ _ ) \<Rightarrow> p_at p - 1)"
 
 lemma p_at_incroff: "valid rho i phi p \<Longrightarrow> checkIncr p \<Longrightarrow>
     valid rho i phi p' \<Longrightarrow> checkIncr p' \<Longrightarrow>
     p_at p = p_at p' \<Longrightarrow> incroff p = incroff p'"
   by (cases phi; rule checkIncr.cases[of p]; rule checkIncr.cases[of p'])
      (auto simp: incroff_def valid_def p_at_def)
-
-
 
 definition minreach :: "'a sproof + 'a vproof \<Rightarrow> enat" where
   "minreach = case_sum s_ltp v_ltp"
@@ -897,11 +906,8 @@ lemma checkApp_minreach: "checkApp p r \<Longrightarrow>
   subgoal for p1 j li r
     using valid_SHistorically_nonempty order_subst1
     by (fastforce simp: minreach_def min_proofs_Cons min_proofs_app case_list_app p_at_def valid_def split: if_splits intro!: min_permute1)
-  subgoal for p1 j hi r
-    using at_ltp(1)[of r]
-    apply (auto simp: minreach_def min_proofs_Cons min_proofs_app case_list_app p_at_def) 
-    apply (auto simp: min_def split: list.split)
-    sorry
+  subgoal for p1 j hi s
+    by (cases phi; cases p1) (auto simp: minreach_def p_at_def min_proofs_Cons valid_def i_le_ltpi_add intro!: min_permute4)
   subgoal for p2 j p1 s
     using at_ltp(2)[of p1] valid_VSince_nonempty[of rho j phi p1 p2 s] order_subst1
     by (fastforce simp: minreach_def min_proofs_Cons min_proofs_app case_list_app p_at_def valid_def split: if_splits intro!: min_permute1)
@@ -913,8 +919,8 @@ lemma checkApp_minreach: "checkApp p r \<Longrightarrow>
     apply (cases p1)
     using valid_VOnce_nonempty at_ltp(2)
     by (auto simp: minreach_def case_list_app min_proofs_Cons min_proofs_app p_at_def valid_def intro!: min_permute2)
-  subgoal for p1 j hi
-    sorry
+  subgoal for p1 j hi r
+    by (cases phi; cases p1) (auto simp: minreach_def p_at_def min_proofs_Cons valid_def i_le_ltpi_add intro!: min_permute4)
   subgoal for p1 j p2 s
     using at_ltp(2)[of p2]
     by (cases p1) (auto simp: minreach_def min_proofs_Cons min_proofs_app case_list_app p_at_def valid_def split: if_splits intro!: min_permute3)
@@ -952,11 +958,19 @@ lemma v_check_VSince_never_li: "v_check rho phi (VSince_never i li p1) \<Longrig
 lemma minr: "checkIncr p \<Longrightarrow> valid rho i phi p \<Longrightarrow> minreach (proofIncr p) = min (minreach p) (incroff p)"
   apply (rule checkIncr.cases[of p])
               apply (auto simp: proofIncr_def minreach_def valid_def incroff_def min_proofs_Cons min_proofs_app p_at_def)
+  subgoal for p1
+    by (rule min_permute5) auto
+  subgoal for p1 hi
+    by (rule min_permute7) auto
+  subgoal for p1 hi
+    by (rule min_permute7) auto
+  subgoal for p1
+    by (rule min_permute5) auto
   subgoal for p1 p2
     by (rule min_permute5) auto
   subgoal for p1 li
     by (rule min_permute7) auto
-  done             
+  done
 
 global_interpretation minminreach_trans_wqo: trans_wqo rminminreach
   defines opt_minminreach = "minminreach_trans_wqo.Opt"
@@ -964,7 +978,7 @@ global_interpretation minminreach_trans_wqo: trans_wqo rminminreach
     and is_opt_minminreach = "minminreach_trans_wqo.optimal"
   apply (unfold_locales)
   unfolding rminminreach_def strminreach_def
-                      apply (auto simp: p_at_def minreach_def min_proofs_Cons Lattices.linorder_class.min.coboundedI1 Lattices.linorder_class.min.coboundedI2)[21]
+                      apply (auto simp: p_at_def minreach_def min_proofs_Cons Lattices.linorder_class.min.coboundedI1 Lattices.linorder_class.min.coboundedI2)[36]
   subgoal for rho i phi p p' r r'
     using checkApp_at[of p r p' r' rho i phi]
     by (auto simp only: checkApp_minreach min_def split: if_splits)
@@ -980,7 +994,7 @@ global_interpretation maxminreach_trans_wqo: trans_wqo rmaxminreach
     and is_opt_maxminreach = "maxminreach_trans_wqo.optimal"
   apply (unfold_locales)
   unfolding rmaxminreach_def strminreach_def
-                      apply (auto simp: p_at_def minreach_def min_proofs_Cons Lattices.linorder_class.min.coboundedI1 Lattices.linorder_class.min.coboundedI2)[21]
+                      apply (auto simp: p_at_def minreach_def min_proofs_Cons Lattices.linorder_class.min.coboundedI1 Lattices.linorder_class.min.coboundedI2)[36]
   subgoal for rho i phi p p' r r'
     using checkApp_at[of p r p' r' rho i phi]
     by (auto simp only: checkApp_minreach min_def split: if_splits)
@@ -1013,6 +1027,12 @@ lemma checkApp_maxreach: "checkApp p r \<Longrightarrow>
   subgoal for p1 p2 r
     using at_htp(1)[of r]
     by auto
+  subgoal for p1 j hi r
+    by (cases phi; cases p1; cases j)
+       (auto simp: valid_def Let_def max_def dest!: Cons2_rangeD split: if_splits)
+  subgoal for p1 j hi r
+    by (cases phi; cases p1; cases j)
+       (auto simp: valid_def Let_def max_def dest!: Cons2_rangeD split: if_splits)
   subgoal for p1 j p2 r
     using at_htp(2)[of p2]
     by (cases phi; cases p1; cases j)
@@ -1026,9 +1046,19 @@ lemma v_check_VUntil_never_hi: "v_check rho phi (VUntil_never i hi ps) \<Longrig
   using i_le_ltpi_add
   by (cases phi) fastforce+
 
+lemma v_check_VEventually_hi: "v_check rho phi (VEventually i hi ps) \<Longrightarrow> i \<le> hi"
+  using i_le_ltpi_add
+  by (cases phi) fastforce+
+
+lemma s_check_SAlways_hi: "s_check rho phi (SAlways i hi ps) \<Longrightarrow> i \<le> hi"
+  using i_le_ltpi_add
+  by (cases phi) fastforce+
+
 lemma maxr: "checkIncr p \<Longrightarrow> valid rho i phi p \<Longrightarrow> maxreach (proofIncr p) = max (maxreach p) (incroff p)"
   by (rule checkIncr.cases[of p])
-     (auto simp: proofIncr_def maxreach_def valid_def incroff_def max_proofs_Cons max_proofs_app p_at_def dest: v_check_VUntil_never_hi le_trans[OF _ at_htp(2), of i])
+     (auto simp: proofIncr_def maxreach_def valid_def incroff_def max_proofs_Cons max_proofs_app p_at_def 
+       dest: v_check_VUntil_never_hi v_check_VEventually_hi s_check_SAlways_hi le_trans[OF _ at_htp(2), of i]
+             le_trans[OF _ at_htp(1), of i])
 
 global_interpretation minmaxreach_trans_wqo: trans_wqo rminmaxreach
   defines opt_minmaxreach = "minmaxreach_trans_wqo.Opt"
@@ -1036,7 +1066,7 @@ global_interpretation minmaxreach_trans_wqo: trans_wqo rminmaxreach
     and is_opt_minmaxreach = "minmaxreach_trans_wqo.optimal"
   apply (unfold_locales)
   unfolding rminmaxreach_def strmaxreach_def
-                      apply (auto simp: p_at_def maxreach_def max_proofs_Cons)[21]
+                      apply (auto simp: p_at_def maxreach_def max_proofs_Cons)[36]
   subgoal for rho i phi p p' r r'
     using checkApp_at[of p r p' r' rho i phi]
     by (auto simp only: checkApp_maxreach)
@@ -1052,7 +1082,7 @@ global_interpretation maxmaxreach_trans_wqo: trans_wqo rmaxmaxreach
     and is_opt_maxmaxreach = "maxmaxreach_trans_wqo.optimal"
   apply (unfold_locales)
   unfolding rmaxmaxreach_def strmaxreach_def
-                      apply (auto simp: p_at_def maxreach_def max_proofs_Cons)[21]
+                      apply (auto simp: p_at_def maxreach_def max_proofs_Cons)[36]
   subgoal for rho i phi p p' r r'
     using checkApp_at[of p r p' r' rho i phi]
     by (auto simp only: checkApp_maxreach)
@@ -1641,7 +1671,7 @@ next
       using 26
       apply (cases phi)
                apply auto
-      apply (metis One_nat_def diff_le_self enat_minus_leI eq_iff idiff_enat_enat one_enat_def)
+      apply (metis One_nat_def diff_le_self enat_minus_leI eq_iff idiff_enat_enat one_enat_def
       done
     done
 next
@@ -1652,7 +1682,7 @@ next
       using 27
       apply (cases phi)
                apply auto
-      apply (metis One_nat_def diff_le_self enat_minus_leI eq_iff idiff_enat_enat one_enat_def)
+      apply (metis One_nat_def diff_le_self enat_minus_leI eq_iff idiff_enat_enat one_enat_def
       done
     done
 next
