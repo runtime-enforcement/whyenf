@@ -1289,6 +1289,26 @@ lemma v_check_Since_code[code]: "v_check rho (Since phi I psi) p = (case p of
   | VSince_le i \<Rightarrow> \<tau> rho i < \<tau> rho 0 + left I | _ \<Rightarrow> False)"
   by (auto simp: Let_def check_upt_l_eq ETP_minus_le_iff ETP_minus_eq_iff split: vproof.splits enat.splits simp del: upt_Suc)
 
+lemma v_check_Once_code[code]: "v_check rho (Once I phi) p = (case p of
+    VOnce i li vphis \<Rightarrow>
+     (case right I of enat n \<Rightarrow> ((li = 0 \<or> n < delta rho i (li - 1)) \<and> delta rho i li \<le> n) | \<infinity> \<Rightarrow> li = 0) \<and>
+     \<tau> rho 0 + left I \<le> \<tau> rho i \<and>
+     check_upt_l rho I li (map v_at vphis) i \<and> Ball (set vphis) (v_check rho phi)
+  | VOnce_le i \<Rightarrow> \<tau> rho i < \<tau> rho 0 + left I 
+  | _ \<Rightarrow> False)"
+  by (auto simp: Let_def check_upt_l_eq ETP_minus_le_iff ETP_minus_eq_iff split: vproof.splits enat.splits simp del: upt_Suc)
+
+lemma s_check_Historically_code[code]: "s_check rho (Historically I phi) p = 
+(case p of
+  SHistorically i li vphis \<Rightarrow>
+     (case right I of enat n \<Rightarrow> ((li = 0 \<or> n < delta rho i (li - 1)) \<and> delta rho i li \<le> n) | \<infinity> \<Rightarrow> li = 0) \<and>
+     \<tau> rho 0 + left I \<le> \<tau> rho i \<and>
+     check_upt_l rho I li (map s_at vphis) i \<and> Ball (set vphis) (s_check rho phi)
+  | SHistorically_le i \<Rightarrow> \<tau> rho i < \<tau> rho 0 + left I 
+  | _ \<Rightarrow> False)"
+  by (auto simp: Let_def check_upt_l_eq ETP_minus_le_iff ETP_minus_eq_iff split: sproof.splits enat.splits simp del: upt_Suc)
+
+
 lemma lu_le_iff: "max i (ETP rho (\<tau> rho i + n)) \<le> j \<longleftrightarrow> i \<le> j \<and> delta rho j i \<ge> n"
   by (metis Groups.ab_semigroup_add_class.add.commute Lattices.linorder_class.max.bounded_iff
       \<tau>_mono i_etp_to_tau le_diff_conv2)
@@ -1521,27 +1541,57 @@ next
     done
 next
   case (15 i p)
+  then have IH: "x \<in> set [p] \<Longrightarrow> s_check rho phi x \<Longrightarrow> s_check rho' phi x" for x phi
+    by force
+  have at_le_htp: "s_ltp (SOnce i p) \<le> i \<and> i \<le> s_htp (SOnce i p)"
+    "s_ltp (SOnce i p) \<le> s_at p \<and> s_at p \<le> s_htp (SOnce i p)"
+    using at_htp(1)[of p]
+    by (auto simp: max_proofs_Cons)
   show ?case
     apply (rule allI)
     subgoal for phi
-      using 15
-      sorry
+      using IH check_upt_l_cong[OF 15(2)] at_le_htp
+      by (cases phi) (auto simp: Let_def 15(2)[OF at_le_htp(1)] 15(2)[OF at_le_htp(2)])
     done
 next
   case (16 i p)
+  have at_le_htp: "s_ltp (SEventually i p) \<le> i \<and> i \<le> s_htp (SEventually i p)"
+    "s_ltp (SEventually i p) \<le> s_at p \<and> s_at p \<le> s_htp (SEventually i p)"
+    using at_ltp(1)[of p] at_htp(1)[of p] min_proofs_sound[where ?xs="[p]" and ?f=s_ltp]
+    by (auto simp add: min_le_iff_disj)
+  have aux: "x \<in> set [p] \<Longrightarrow> s_ltp (SEventually i p) \<le> s_ltp x \<and> s_htp x \<le> s_htp (SEventually i p)" for x
+    by auto
+  then have IH: "x \<in> set [p] \<Longrightarrow> s_check rho phi x \<Longrightarrow> s_check rho' phi x" for x phi
+    by (smt (verit, best) "local.16.IH" "local.16.prems" preorder_class.order.trans in_set_simps(2))
+  have foo: "min i (s_at p) \<le> j \<and> j \<le> max i (s_at p) \<Longrightarrow>
+          s_ltp (SEventually i p) \<le> enat j \<and> j \<le> s_htp (SEventually i p)" for j
+    using at_le_htp
+    by (auto simp: min_def split: if_splits) (meson enat_ord_simps(1) order_trans)+
   show ?case
     apply (rule allI)
     subgoal for phi
-      using 16
-      sorry
+      using IH check_upt_lu_cong[OF 16(2)] foo
+      by (cases phi) (auto simp: Let_def 16(2)[OF at_le_htp(1)] 16(2)[OF at_le_htp(2)])
     done
 next
   case (17 i li qs)
+  have le_htp: "s_ltp (SHistorically i li qs) \<le> i \<and> i \<le> s_htp (SHistorically i li qs)"
+    "s_ltp (SHistorically i li qs) \<le> li \<and> li \<le> s_htp (SHistorically i li qs)"
+    "s_ltp (SHistorically i li qs) \<le> li - Suc 0 \<and> li - Suc 0 \<le> s_htp (SHistorically i li qs)"
+    "s_ltp (SHistorically i li qs) \<le> enat 0 \<and> 0 \<le> s_htp (SHistorically i li qs)"
+    by auto
+  have aux: "x \<in> set qs \<Longrightarrow> s_htp x \<le> s_htp (SHistorically i li qs)" for x
+    using max_proofs_sound[where ?x=x and ?xs=qs and ?f=s_htp]
+    by (auto simp: max_proofs_app)
+  have IH: "x \<in> set qs \<Longrightarrow> s_check rho phi x \<Longrightarrow> s_check rho' phi x" for x phi
+    using 17(1)[OF _ 17(2,3)] aux
+    by force
   show ?case
     apply (rule allI)
     subgoal for phi
-      using 17
-      sorry
+      using IH check_upt_l_cong[OF 17(2)] le_htp(1-2)
+      by (cases phi) (auto simp: s_check_Historically_code 17(2)[OF le_htp(1)] 17(2)[OF le_htp(2)] 
+          17(2)[OF le_htp(3)] 17(2)[OF le_htp(4)] split: enat.splits)
     done
 next
   case (18 i)
@@ -1617,6 +1667,7 @@ next
     using max_proofs_sound[where ?x=x and ?xs="p # qs" and ?f=v_htp]
     by auto
   have IH: "x \<in> set (p # qs) \<Longrightarrow> v_check rho phi x \<Longrightarrow> v_check rho' phi x" for x phi
+    thm 26
     using 26(1)[OF _ 26(2,3)] aux
     by force
   show ?case
