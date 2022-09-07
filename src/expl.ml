@@ -17,6 +17,10 @@ type sexpl =
   | SDisjL of sexpl
   | SDisjR of sexpl
   | SConj of sexpl * sexpl
+  | SImplL of vexpl
+  | SImplR of sexpl
+  | SIffSS of sexpl * sexpl
+  | SIffVV of vexpl * vexpl
   | SPrev of sexpl
   | SNext of sexpl
   | SOnce of int * sexpl
@@ -33,6 +37,9 @@ and vexpl =
   | VDisj of vexpl * vexpl
   | VConjL of vexpl
   | VConjR of vexpl
+  | VImpl of sexpl * vexpl
+  | VIffSV of sexpl * vexpl
+  | VIffVS of vexpl * sexpl
   | VPrev0
   | VPrevOutL of int
   | VPrevOutR of int
@@ -94,6 +101,10 @@ let rec s_at = function
   | SDisjL sphi -> s_at sphi
   | SDisjR spsi -> s_at spsi
   | SConj (sphi, _) -> s_at sphi
+  | SImplL vphi -> v_at vphi
+  | SImplR spsi -> s_at spsi
+  | SIffSS (sphi, _) -> s_at sphi
+  | SIffVV (vphi, _) -> v_at vphi
   | SPrev sphi -> s_at sphi + 1
   | SNext sphi -> s_at sphi - 1
   | SOnce (i, _) -> i
@@ -114,6 +125,9 @@ and v_at = function
   | VDisj (vphi, _) -> v_at vphi
   | VConjL vphi -> v_at vphi
   | VConjR vpsi -> v_at vpsi
+  | VImpl (sphi, _) -> s_at sphi
+  | VIffSV (sphi, _) -> s_at sphi
+  | VIffVS (vphi, _) -> v_at vphi
   | VPrev0 -> 0
   | VPrevOutL i -> i
   | VPrevOutR i -> i
@@ -157,6 +171,10 @@ let rec s_size = function
   | SDisjL sphi -> 1 + s_size sphi
   | SDisjR spsi -> 1 + s_size spsi
   | SConj (sphi, spsi) -> 1 + s_size sphi + s_size spsi
+  | SImplL vphi -> 1 + v_size vphi
+  | SImplR spsi -> 1 + s_size spsi
+  | SIffSS (sphi, spsi) -> 1 + s_size sphi + s_size spsi
+  | SIffVV (vphi, vpsi) -> 1 + v_size vphi + v_size vpsi
   | SPrev sphi -> 1 + s_size sphi
   | SNext sphi -> 1 + s_size sphi
   | SOnce (_, sphi) -> 1 + s_size sphi
@@ -173,6 +191,9 @@ and v_size = function
   | VDisj (vphi, vpsi) -> 1 + v_size vphi + v_size vpsi
   | VConjL vphi -> 1 + v_size vphi
   | VConjR vpsi -> 1 + v_size vpsi
+  | VImpl (sphi, vpsi) -> 1 + s_size sphi + v_size vpsi
+  | VIffSV (sphi, vpsi) -> 1 + s_size sphi + v_size vpsi
+  | VIffVS (vphi, spsi) -> 1 + v_size vphi + s_size spsi
   | VPrev0 -> 1
   | VPrevOutL _ -> 1
   | VPrevOutR _ -> 1
@@ -216,6 +237,10 @@ let rec s_wsize ws = function
   | SDisjL sphi -> 1 + s_wsize ws sphi
   | SDisjR spsi -> 1 + s_wsize ws spsi
   | SConj (sphi, spsi) -> 1 + (s_wsize ws sphi) + (s_wsize ws spsi)
+  | SImplL vphi -> 1 + v_wsize ws vphi
+  | SImplR spsi -> 1 + s_wsize ws spsi
+  | SIffSS (sphi, spsi) -> 1 + (s_wsize ws sphi) + (s_wsize ws spsi)
+  | SIffVV (vphi, vpsi) -> 1 + (v_wsize ws vphi) + (v_wsize ws vpsi)
   | SPrev sphi -> 1 + s_wsize ws sphi
   | SNext sphi -> 1 + s_wsize ws sphi
   | SOnce (_, sphi) -> 1 + s_wsize ws sphi
@@ -234,6 +259,9 @@ and v_wsize ws = function
   | VDisj (vphi, vpsi) -> 1 + v_wsize ws vphi + v_wsize ws vpsi
   | VConjL vphi -> 1 + v_wsize ws vphi
   | VConjR vpsi -> 1 + v_wsize ws vpsi
+  | VImpl (sphi, vpsi) -> 1 + (s_wsize ws sphi) + (v_wsize ws vpsi)
+  | VIffSV (sphi, vpsi) -> 1 + (s_wsize ws sphi) + (v_wsize ws vpsi)
+  | VIffVS (vphi, spsi) -> 1 + (v_wsize ws vphi) + (s_wsize ws spsi)
   | VPrev0 -> 1
   | VPrevOutL _ -> 1
   | VPrevOutR _ -> 1
@@ -270,6 +298,10 @@ let rec s_high = function
   | SDisjL sphi -> s_high sphi
   | SDisjR spsi -> s_high spsi
   | SConj (sphi, spsi) -> max (s_high sphi) (s_high spsi)
+  | SImplL vphi -> v_high vphi
+  | SImplR spsi -> s_high spsi
+  | SIffSS (sphi, spsi) -> max (s_high sphi) (s_high spsi)
+  | SIffVV (vphi, vpsi) -> max (v_high vphi) (v_high vpsi)
   | SPrev sphi -> s_high sphi
   | SNext sphi -> s_high sphi
   | SOnce (_, sphi) -> s_high sphi
@@ -286,6 +318,9 @@ and v_high p = match p with
   | VDisj (vphi, vpsi) -> max (v_high vphi) (v_high vpsi)
   | VConjL vphi -> v_high vphi
   | VConjR vpsi -> v_high vpsi
+  | VImpl (sphi, vpsi) -> max (s_high sphi) (v_high vpsi)
+  | VIffSV (sphi, vpsi) -> max (s_high sphi) (v_high vpsi)
+  | VIffVS (vphi, spsi) -> max (v_high vphi) (s_high spsi)
   | VPrev0 -> 0
   | VPrevOutL i -> i
   | VPrevOutR i -> i
@@ -312,6 +347,10 @@ let rec s_low = function
   | SDisjL sphi -> s_low sphi
   | SDisjR spsi -> s_low spsi
   | SConj (sphi, spsi) -> min (s_low sphi) (s_low spsi)
+  | SImplL vphi -> v_low vphi
+  | SImplR spsi -> s_low spsi
+  | SIffSS (sphi, spsi) -> min (s_low sphi) (s_low spsi)
+  | SIffVV (vphi, vpsi) -> min (v_low vphi) (v_low vpsi)
   | SPrev sphi -> s_low sphi
   | SNext sphi -> s_low sphi
   | SOnce (_, sphi) -> s_low sphi
@@ -328,6 +367,9 @@ and v_low p = match p with
   | VDisj (vphi, vpsi) -> min (v_low vphi) (v_low vpsi)
   | VConjL vphi -> v_low vphi
   | VConjR vpsi -> v_low vpsi
+  | VImpl (sphi, vpsi) -> min (s_low sphi) (v_low vpsi)
+  | VIffSV (sphi, vpsi) -> min (s_low sphi) (v_low vpsi)
+  | VIffVS (vphi, spsi) -> min (v_low vphi) (s_low spsi)
   | VPrev0 -> 0
   | VPrevOutL i -> i
   | VPrevOutR i -> i
@@ -372,6 +414,10 @@ let rec s_pred = function
   | SDisjL sphi -> s_pred sphi
   | SDisjR spsi -> s_pred spsi
   | SConj (sphi, spsi) -> s_pred sphi + s_pred spsi
+  | SImplL vphi -> v_pred vphi
+  | SImplR spsi -> s_pred spsi
+  | SIffSS (sphi, spsi) -> s_pred sphi + s_pred spsi
+  | SIffVV (vphi, vpsi) -> v_pred vphi + v_pred vpsi
   | SPrev sphi -> s_pred sphi
   | SNext sphi -> s_pred sphi
   | SOnce (_, sphi) -> s_pred sphi
@@ -388,6 +434,9 @@ and v_pred = function
   | VDisj (vphi, vpsi) -> v_pred vphi + v_pred vpsi
   | VConjL vphi -> v_pred vphi
   | VConjR vpsi -> v_pred vpsi
+  | VImpl (sphi, vpsi) -> s_pred sphi + v_pred vpsi
+  | VIffSV (sphi, vpsi) -> s_pred sphi + v_pred vpsi
+  | VIffVS (vphi, spsi) -> v_pred vphi + s_pred spsi
   | VPrev0 -> 0
   | VPrevOutL _ -> 0
   | VPrevOutR _ -> 0
@@ -422,6 +471,10 @@ let rec s_to_string indent p =
   | SDisjL sphi -> Printf.sprintf "%sSDisjL{%d}\n%s" indent (s_at p) (s_to_string indent' sphi)
   | SDisjR spsi -> Printf.sprintf "%sSDisjR{%d}\n%s" indent (s_at p) (s_to_string indent' spsi)
   | SConj (sphi, spsi) -> Printf.sprintf "%sSConj{%d}\n%s\n%s)" indent (s_at p) (s_to_string indent' sphi) (s_to_string indent' spsi)
+  | SImplL vphi -> Printf.sprintf "%sSImplL{%d}\n%s" indent (s_at p) (v_to_string indent' vphi)
+  | SImplR spsi -> Printf.sprintf "%sSImplR{%d}\n%s" indent (s_at p) (s_to_string indent' spsi)
+  | SIffSS (sphi, spsi) -> Printf.sprintf "%sSIffSS{%d}\n%s\n%s)" indent (s_at p) (s_to_string indent' sphi) (s_to_string indent' spsi)
+  | SIffVV (vphi, vpsi) -> Printf.sprintf "%sSIffVV{%d}\n%s\n%s)" indent (s_at p) (v_to_string indent' vphi) (v_to_string indent' vpsi)
   | SPrev sphi -> Printf.sprintf "%sSPrev{%d}\n%s" indent (s_at p) (s_to_string indent' sphi)
   | SNext sphi -> Printf.sprintf "%sSNext{%d}\n%s" indent (s_at p) (s_to_string indent' sphi)
   | SOnce (_, sphi) -> Printf.sprintf "%sSOnce{%d}\n%s" indent (s_at p) (s_to_string indent' sphi)
@@ -442,6 +495,9 @@ and v_to_string indent p =
   | VDisj (vphi, vpsi) -> Printf.sprintf "%sVDisj{%d}\n%s\n%s" indent (v_at p) (v_to_string indent' vphi) (v_to_string indent' vpsi)
   | VConjL vphi -> Printf.sprintf "%sVConjL{%d}\n%s" indent (v_at p) (v_to_string indent' vphi)
   | VConjR vpsi -> Printf.sprintf "%sVConjR{%d}\n%s" indent (v_at p) (v_to_string indent' vpsi)
+  | VImpl (sphi, vpsi) -> Printf.sprintf "%sVImpl{%d}\n%s\n%s" indent (v_at p) (s_to_string indent' sphi) (v_to_string indent' vpsi)
+  | VIffSV (sphi, vpsi) -> Printf.sprintf "%sVIffSV{%d}\n%s\n%s" indent (v_at p) (s_to_string indent' sphi) (v_to_string indent' vpsi)
+  | VIffVS (vphi, spsi) -> Printf.sprintf "%sVIffVS{%d}\n%s\n%s" indent (v_at p) (v_to_string indent' vphi) (s_to_string indent' spsi)
   | VPrev0 -> Printf.sprintf "%sVPrev0{0}" indent'
   | VPrevOutL i -> Printf.sprintf "%sVPrevOutL{%d}" indent' i
   | VPrevOutR i -> Printf.sprintf "%sVPrevOutR{%d}" indent' i

@@ -15,6 +15,10 @@ type sexpl =
   | SDisjL of sexpl
   | SDisjR of sexpl
   | SConj of sexpl * sexpl
+  | SImplL of vexpl
+  | SImplR of sexpl
+  | SIffSS of sexpl * sexpl
+  | SIffVV of vexpl * vexpl
   | SPrev of sexpl
   | SNext of sexpl
   | SOnce of int * sexpl
@@ -31,6 +35,9 @@ and vexpl =
   | VDisj of vexpl * vexpl
   | VConjL of vexpl
   | VConjR of vexpl
+  | VImpl of sexpl * vexpl
+  | VIffSV of sexpl * vexpl
+  | VIffVS of vexpl * sexpl
   | VPrev0
   | VPrevOutL of int
   | VPrevOutR of int
