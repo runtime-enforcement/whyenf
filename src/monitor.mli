@@ -58,18 +58,18 @@ module Since : sig
     ; ts_tp_out: (timestamp * timepoint) Deque.t
 
     (* sorted deque of S^+ beta [alphas] *)
-    ; beta_alphas: (timestamp * expl) Deque.t
+    ; s_beta_alphas_in: (timestamp * expl) Deque.t
     (* deque of S^+ beta [alphas] outside of the interval *)
-    ; beta_alphas_out: (timestamp * expl) Deque.t
+    ; s_beta_alphas_out: (timestamp * expl) Deque.t
 
     (* sorted deque of S^- alpha [betas] *)
-    ; alpha_betas: (timestamp * expl) Deque.t
+    ; v_alpha_betas_in: (timestamp * expl) Deque.t
     (* sorted deque of alpha proofs *)
-    ; alphas_out: (timestamp * expl) Deque.t
+    ; v_alphas_out: (timestamp * expl) Deque.t
     (* list of beta violations inside the interval *)
-    ; betas_in: (timestamp * vexpl) Deque.t
+    ; v_betas_in: (timestamp * vexpl) Deque.t
     (* list of alpha/beta violations *)
-    ; alphas_betas_out: (timestamp * vexpl option * vexpl option) Deque.t
+    ; v_alphas_betas_out: (timestamp * vexpl option * vexpl option) Deque.t
     ; }
 end
 
@@ -86,7 +86,7 @@ module Until : sig
      * ts corresponds to the timestamp of the ~alpha proof *)
     ; betas_alpha: ((timestamp * expl) Deque.t) Deque.t
     (* sorted deque of alpha proofs outside the interval *)
-    ; alphas_out: (timestamp * expl) Deque.t
+    ; v_alphas_out: (timestamp * expl) Deque.t
     (* deque of alpha violations inside the interval *)
     ; alphas_in: (timestamp * expl) Deque.t
     (* deque of beta violations inside the interval *)
