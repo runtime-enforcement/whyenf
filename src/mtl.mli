@@ -19,6 +19,8 @@ type formula =
   | Neg of formula
   | Conj of formula * formula
   | Disj of formula * formula
+  | Imp of formula * formula
+  | Iff of formula * formula
   | Prev of interval * formula
   | Next of interval * formula
   | Once of interval * formula
