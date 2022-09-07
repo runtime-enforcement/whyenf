@@ -208,7 +208,7 @@ module Once = struct
         | false -> v_at (snd(Deque.peek_front_exn moaux.v_alphas_in)) in
       let v_alphas_in' = List.rev(Deque.fold moaux.v_alphas_in ~init:[]
                                     ~f:(fun acc (_, vp1) -> vp1::acc)) in
-      V (VOnceInf (tp, etp, v_alphas_in'))
+      V (VOnce (tp, etp, v_alphas_in'))
 
   let add_to_moaux ts p1 moaux le =
     match p1 with
