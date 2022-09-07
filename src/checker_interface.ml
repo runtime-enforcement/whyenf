@@ -24,46 +24,46 @@ let rec convert_sp sp =
                     SAtm (s, i_nat)
   | STT i -> let i_nat = nat_of_integer (of_int i) in
              STT i_nat
-  | SNeg p1 -> SNeg (convert_vp p1)
-  | SDisjL p1 -> SDisjL (convert_sp p1)
-  | SDisjR p2 -> SDisjR (convert_sp p2)
-  | SConj (p1, p2) -> SConj (convert_sp p1, convert_sp p2)
-  | SSince (p2, p1s) -> let p1s' = List.rev(List.fold_left (fun acc p1 ->
-                                                (convert_sp p1)::acc) [] p1s) in
-                        SSince (convert_sp p2, p1s')
-  | SUntil (p2, p1s) -> let p1s' = List.rev(List.fold_left (fun acc p1 ->
-                                                (convert_sp p1)::acc) [] p1s) in
-                        SUntil (p1s', convert_sp p2)
-  | SNext p1 -> SNext (convert_sp p1)
-  | SPrev p1 -> SPrev (convert_sp p1)
+  | SNeg vp1 -> SNeg (convert_vp vp1)
+  | SDisjL sp1 -> SDisjL (convert_sp sp1)
+  | SDisjR sp2 -> SDisjR (convert_sp sp2)
+  | SConj (sp1, sp2) -> SConj (convert_sp sp1, convert_sp sp2)
+  | SPrev sp1 -> SPrev (convert_sp sp1)
+  | SNext sp1 -> SNext (convert_sp sp1)
+  | SSince (sp2, sp1s) -> let sp1s' = List.rev(List.fold_left (fun acc sp1 ->
+                                                   (convert_sp sp1)::acc) [] sp1s) in
+                          SSince (convert_sp sp2, sp1s')
+  | SUntil (sp2, sp1s) -> let sp1s' = List.rev(List.fold_left (fun acc sp1 ->
+                                                   (convert_sp sp1)::acc) [] sp1s) in
+                          SUntil (sp1s', convert_sp sp2)
 and convert_vp vp =
   match vp with
   | VAtom (i, s) -> let i_nat = nat_of_integer (of_int i) in
                     VAtm (s, i_nat)
   | VFF i -> let i_nat = nat_of_integer (of_int i) in
              VFF i_nat
-  | VNeg p1 -> VNeg (convert_sp p1)
-  | VDisj (p1, p2) -> VDisj (convert_vp p1, convert_vp p2)
-  | VConjL p1 -> VConjL (convert_vp p1)
-  | VConjR p2 -> VConjR (convert_vp p2)
-  | VSince (i, p1, p2s) -> let i_nat = nat_of_integer (of_int i) in
-                           let p2s' = List.rev(List.fold_left (fun acc p2 ->
-                                                (convert_vp p2)::acc) [] p2s) in
-                           VSince (i_nat, convert_vp p1, p2s')
-  | VUntil (i, p1, p2s) -> let i_nat = nat_of_integer (of_int i) in
-                           let p2s' = List.rev(List.fold_left (fun acc p2 ->
-                                                (convert_vp p2)::acc) [] p2s) in
-                           VUntil (i_nat, p2s', convert_vp p1)
-  | VSinceInf (i, etp, p2s) -> let i_nat = nat_of_integer (of_int i) in
-                               let etp_nat = nat_of_integer (of_int etp) in
-                               let p2s' = List.rev(List.fold_left (fun acc p2 ->
-                                                       (convert_vp p2)::acc) [] p2s) in
-                               VSince_never (i_nat, etp_nat, p2s')
-  | VUntilInf (i, ltp, p2s) -> let i_nat = nat_of_integer (of_int i) in
-                               let ltp_nat = nat_of_integer (of_int ltp) in
-                               let p2s' = List.rev(List.fold_left (fun acc p2 ->
-                                                       (convert_vp p2)::acc) [] p2s) in
-                               VUntil_never (i_nat, ltp_nat, p2s')
+  | VNeg sp1 -> VNeg (convert_sp sp1)
+  | VDisj (vp1, vp2) -> VDisj (convert_vp vp1, convert_vp vp2)
+  | VConjL vp1 -> VConjL (convert_vp vp1)
+  | VConjR vp2 -> VConjR (convert_vp vp2)
+  | VSince (i, vp1, vp2s) -> let i_nat = nat_of_integer (of_int i) in
+                             let vp2s' = List.rev(List.fold_left (fun acc vp2 ->
+                                                (convert_vp vp2)::acc) [] vp2s) in
+                             VSince (i_nat, convert_vp vp1, vp2s')
+  | VUntil (i, vp1, vp2s) -> let i_nat = nat_of_integer (of_int i) in
+                             let vp2s' = List.rev(List.fold_left (fun acc vp2 ->
+                                                      (convert_vp vp2)::acc) [] vp2s) in
+                             VUntil (i_nat, vp2s', convert_vp vp1)
+  | VSinceInf (i, etp, vp2s) -> let i_nat = nat_of_integer (of_int i) in
+                                let etp_nat = nat_of_integer (of_int etp) in
+                                let vp2s' = List.rev(List.fold_left (fun acc vp2 ->
+                                                         (convert_vp vp2)::acc) [] vp2s) in
+                                VSince_never (i_nat, etp_nat, vp2s')
+  | VUntilInf (i, ltp, vp2s) -> let i_nat = nat_of_integer (of_int i) in
+                                let ltp_nat = nat_of_integer (of_int ltp) in
+                                let vp2s' = List.rev(List.fold_left (fun acc vp2 ->
+                                                         (convert_vp vp2)::acc) [] vp2s) in
+                               VUntil_never (i_nat, ltp_nat, vp2s')
   | VSinceOutL i -> let i_nat = nat_of_integer (of_int i) in
                     VSince_le i_nat
   | VNext p1 -> VNext (convert_vp p1)
