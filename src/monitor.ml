@@ -372,7 +372,7 @@ module Historically = struct
       let ts_zero = if Option.is_none mhaux.ts_zero then Some(ts) else mhaux.ts_zero in
       let mhaux_ts_updated = update_tss (l, r) a ts tp mhaux in
       let mhaux_updated = shift_mhaux (l, r) ts tp p1 mhaux_ts_updated le in
-      let p = V (VHistoricallyOutL tp) in
+      let p = S (SHistoricallyOutL tp) in
       (p, { mhaux_updated with ts_zero })
     else
       let ts_zero = if Option.is_none mhaux.ts_zero then Some(ts) else mhaux.ts_zero in
