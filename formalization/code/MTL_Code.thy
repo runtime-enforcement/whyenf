@@ -9,9 +9,17 @@ primrec progress :: "'a trace \<Rightarrow> 'a mtl \<Rightarrow> nat \<Rightarro
 | "progress \<sigma> (Neg \<phi>) j = progress \<sigma> \<phi> j"
 | "progress \<sigma> (Disj \<phi> \<psi>) j = min (progress \<sigma> \<phi> j) (progress \<sigma> \<psi> j)"
 | "progress \<sigma> (Conj \<phi> \<psi>) j = min (progress \<sigma> \<phi> j) (progress \<sigma> \<psi> j)"
+| "progress \<sigma> (Impl \<phi> \<psi>) j = min (progress \<sigma> \<phi> j) (progress \<sigma> \<psi> j)"
+| "progress \<sigma> (Iff \<phi> \<psi>) j = min (progress \<sigma> \<phi> j) (progress \<sigma> \<psi> j)"
 | "progress \<sigma> (Prev I \<phi>) j = (if j = 0 then 0 else min (Suc (progress \<sigma> \<phi> j)) j)"
 | "progress \<sigma> (Next I \<phi>) j = progress \<sigma> \<phi> j - 1"
+| "progress \<sigma> (Once I \<phi>) j = progress \<sigma> \<phi> j"
+| "progress \<sigma> (Historically I \<phi>) j = progress \<sigma> \<phi> j"
 | "progress \<sigma> (Since \<phi> I \<psi>) j = min (progress \<sigma> \<phi> j) (progress \<sigma> \<psi> j)"
+| "progress \<sigma> (Eventually I \<phi>) j =
+    Inf {i. \<forall>k. k < j \<and> k \<le> (progress \<sigma> \<phi> j) \<longrightarrow> (\<tau> \<sigma> k - \<tau> \<sigma> i) \<le> right I}"
+| "progress \<sigma> (Always I \<phi>) j =
+    Inf {i. \<forall>k. k < j \<and> k \<le> (progress \<sigma> \<phi> j) \<longrightarrow> (\<tau> \<sigma> k - \<tau> \<sigma> i) \<le> right I}"
 | "progress \<sigma> (Until \<phi> I \<psi>) j =
     Inf {i. \<forall>k. k < j \<and> k \<le> min (progress \<sigma> \<phi> j) (progress \<sigma> \<psi> j) \<longrightarrow> (\<tau> \<sigma> k - \<tau> \<sigma> i) \<le> right I}"
 
@@ -22,6 +30,48 @@ lemma Inf_Min:
   using Min_in[where ?A="Set.filter P {..j}"] assms
   by (auto simp: Set.filter_def intro: cInf_lower intro!: antisym[OF _ Min_le])
     (metis Inf_nat_def1 empty_iff mem_Collect_eq)
+
+lemma progress_Eventually_code: "progress \<sigma> (Eventually I \<phi>) j =
+  (let m = min j (Suc (progress \<sigma> \<phi> j)) - 1 in Min (Set.filter (\<lambda>i. enat (delta \<sigma> m i) \<le> right I) {..j}))"
+proof -
+  define P where "P \<equiv> (\<lambda>i. \<forall>k. k < j \<and> k \<le> (progress \<sigma> \<phi> j) \<longrightarrow> enat (delta \<sigma> k i) \<le> right I)"
+  have P_j: "P j"
+    by (auto simp: P_def enat_0)
+  have all_wit: "(\<forall>k \<in> {..<m}. enat (delta \<sigma> k i) \<le> right I) \<longleftrightarrow> (enat (delta \<sigma> (m - 1) i) \<le> right I)" for i m
+  proof (cases m)
+    case (Suc ma)
+    have "k < Suc ma \<Longrightarrow> delta \<sigma> k i \<le> delta \<sigma> ma i" for k
+      using \<tau>_mono
+      unfolding less_Suc_eq_le
+      by (rule diff_le_mono)
+    then show ?thesis
+      by (auto simp: Suc) (meson order.trans enat_ord_simps(1))
+  qed (auto simp: enat_0)
+  show ?thesis
+    unfolding progress.simps Let_def P_def[symmetric] Inf_Min[where ?P=P, OF P_j] all_wit[symmetric]
+    by (fastforce simp: P_def intro: arg_cong[where ?f=Min])
+qed
+
+lemma progress_Always_code: "progress \<sigma> (Always I \<phi>) j =
+  (let m = min j (Suc (progress \<sigma> \<phi> j)) - 1 in Min (Set.filter (\<lambda>i. enat (delta \<sigma> m i) \<le> right I) {..j}))"
+proof -
+  define P where "P \<equiv> (\<lambda>i. \<forall>k. k < j \<and> k \<le> (progress \<sigma> \<phi> j) \<longrightarrow> enat (delta \<sigma> k i) \<le> right I)"
+  have P_j: "P j"
+    by (auto simp: P_def enat_0)
+  have all_wit: "(\<forall>k \<in> {..<m}. enat (delta \<sigma> k i) \<le> right I) \<longleftrightarrow> (enat (delta \<sigma> (m - 1) i) \<le> right I)" for i m
+  proof (cases m)
+    case (Suc ma)
+    have "k < Suc ma \<Longrightarrow> delta \<sigma> k i \<le> delta \<sigma> ma i" for k
+      using \<tau>_mono
+      unfolding less_Suc_eq_le
+      by (rule diff_le_mono)
+    then show ?thesis
+      by (auto simp: Suc) (meson order.trans enat_ord_simps(1))
+  qed (auto simp: enat_0)
+  show ?thesis
+    unfolding progress.simps Let_def P_def[symmetric] Inf_Min[where ?P=P, OF P_j] all_wit[symmetric]
+    by (fastforce simp: P_def intro: arg_cong[where ?f=Min])
+qed
 
 lemma progress_Until_code: "progress \<sigma> (Until \<phi> I \<psi>) j =
   (let m = min j (Suc (min (progress \<sigma> \<phi> j) (progress \<sigma> \<psi> j))) - 1 in Min (Set.filter (\<lambda>i. enat (delta \<sigma> m i) \<le> right I) {..j}))"
@@ -44,7 +94,7 @@ proof -
     by (fastforce simp: P_def intro: arg_cong[where ?f=Min])
 qed
 
-lemmas progress_code[code] = progress.simps(1-9) progress_Until_code
+lemmas progress_code[code] = progress.simps(1-13) progress_Eventually_code progress_Always_code progress_Until_code
 
 (* Lexicographic combination *)
 
@@ -90,6 +140,40 @@ and SNext: "\<And>p p'. strict wqo (Inl p) (Inl p') \<Longrightarrow> strict wqo
 and VNext: "\<And>p p'. strict wqo (Inr p) (Inr p') \<Longrightarrow> strict wqo (Inr (VNext p)) (Inr (VNext p'))"
 and SPrev: "\<And>p p'. strict wqo (Inl p) (Inl p') \<Longrightarrow> strict wqo (Inl (SPrev p)) (Inl (SPrev p'))"
 and VPrev: "\<And>p p'. strict wqo (Inr p) (Inr p') \<Longrightarrow> strict wqo (Inr (VPrev p)) (Inr (VPrev p'))"
+and SImplR: "\<And>p p'. strict wqo (Inl p) (Inl p') \<Longrightarrow> strict wqo (Inl (SImplR p)) (Inl (SImplR p'))"
+and SImplL: "\<And>p p'. strict wqo (Inr p) (Inr p') \<Longrightarrow> strict wqo (Inl (SImplL p)) (Inl (SImplL p'))"
+and VImplL: "\<And>p1 p1' p2 p2'. strict wqo (Inl p1) (Inl p1') \<Longrightarrow> wqo (Inr p2) (Inr p2') \<Longrightarrow>
+  strict wqo (Inr (VImpl p1 p2)) (Inr (VImpl p1' p2'))"
+and VImplR: "\<And>p1 p1' p2 p2'. wqo (Inl p1) (Inl p1') \<Longrightarrow> strict wqo (Inr p2) (Inr p2') \<Longrightarrow>
+  strict wqo (Inr (VImpl p1 p2)) (Inr (VImpl p1' p2'))"
+and SIff_ssL: "\<And>p1 p1' p2 p2'. strict wqo (Inl p1) (Inl p1') \<Longrightarrow> wqo (Inl p2) (Inl p2') \<Longrightarrow>
+  strict wqo (Inl (SIff_ss p1 p2)) (Inl (SIff_ss p1' p2'))"
+and SIff_ssR: "\<And>p1 p1' p2 p2'. wqo (Inl p1) (Inl p1') \<Longrightarrow> strict wqo (Inl p2) (Inl p2') \<Longrightarrow>
+  strict wqo (Inl (SIff_ss p1 p2)) (Inl (SIff_ss p1' p2'))"
+and SIff_vvL: "\<And>p1 p1' p2 p2'. strict wqo (Inr p1) (Inr p1') \<Longrightarrow> wqo (Inr p2) (Inr p2') \<Longrightarrow>
+  strict wqo (Inl (SIff_vv p1 p2)) (Inl (SIff_vv p1' p2'))"
+and SIff_vvR: "\<And>p1 p1' p2 p2'. wqo (Inr p1) (Inr p1') \<Longrightarrow> strict wqo (Inr p2) (Inr p2') \<Longrightarrow>
+  strict wqo (Inl (SIff_vv p1 p2)) (Inl (SIff_vv p1' p2'))"
+and VIff_svL: "\<And>p1 p1' p2 p2'. strict wqo (Inl p1) (Inl p1') \<Longrightarrow> wqo (Inr p2) (Inr p2') \<Longrightarrow>
+  strict wqo (Inr (VIff_sv p1 p2)) (Inr (VIff_sv p1' p2'))"
+and VIff_svR: "\<And>p1 p1' p2 p2'. wqo (Inl p1) (Inl p1') \<Longrightarrow> strict wqo (Inr p2) (Inr p2') \<Longrightarrow>
+  strict wqo (Inr (VIff_sv p1 p2)) (Inr (VIff_sv p1' p2'))"
+and VIff_vsL: "\<And>p1 p1' p2 p2'. strict wqo (Inr p1) (Inr p1') \<Longrightarrow> wqo (Inl p2) (Inl p2' ) \<Longrightarrow>
+  strict wqo (Inr (VIff_vs p1 p2)) (Inr (VIff_vs p1' p2'))"
+and VIff_vsR: "\<And>p1 p1' p2 p2'. wqo (Inr p1) (Inr p1') \<Longrightarrow> strict wqo (Inl p2) (Inl p2' ) \<Longrightarrow>
+  strict wqo (Inr (VIff_vs p1 p2)) (Inr (VIff_vs p1' p2'))"
+and SOnce: "\<And>i p p'. strict wqo (Inl p) (Inl p') \<Longrightarrow> strict wqo (Inl (SOnce i p)) (Inl (SOnce i p'))"
+and VOnce: "\<And>i li q q'. strict wqo (Inr q) (Inr q') \<Longrightarrow>
+  strict wqo (Inr (VOnce i li [q])) (Inr (VOnce i li [q']))"
+and SHistorically: "\<And>i li q q'. strict wqo (Inl q) (Inl q') \<Longrightarrow>
+  strict wqo (Inl (SHistorically i li [q])) (Inl (SHistorically i li [q']))"
+and VHistorically: "\<And>i p p'. strict wqo (Inr p) (Inr p') \<Longrightarrow> strict wqo (Inr (VHistorically i p)) (Inr (VHistorically i p'))"
+and SEventually: "\<And>i p p'. strict wqo (Inl p) (Inl p') \<Longrightarrow> strict wqo (Inl (SEventually i p)) (Inl (SEventually i p'))"
+and VEventually: "\<And>i hi q q'. strict wqo (Inr q) (Inr q') \<Longrightarrow>
+  strict wqo (Inr (VEventually i hi [q])) (Inr (VEventually i hi [q']))"
+and SAlways: "\<And>i hi q q'. strict wqo (Inl q) (Inl q') \<Longrightarrow>
+  strict wqo (Inl (SAlways i hi [q])) (Inl (SAlways i hi [q']))"
+and VAlways: "\<And>i p p'. strict wqo (Inr p) (Inr p') \<Longrightarrow> strict wqo (Inr (VAlways i p)) (Inr (VAlways i p'))"
 and proofApp_monoL: "\<And>i phi p p' r r'. checkApp p r \<Longrightarrow> checkApp p' r' \<Longrightarrow> strict wqo p p' \<Longrightarrow> wqo r r' \<Longrightarrow>
   valid rho i phi (p \<oplus> r) \<Longrightarrow> valid rho i phi (p' \<oplus> r') \<Longrightarrow> strict wqo (p \<oplus> r) (p' \<oplus> r')"
 and proofApp_monoR: "\<And>i phi p p' r r'. checkApp p r \<Longrightarrow> checkApp p' r' \<Longrightarrow> wqo p p' \<Longrightarrow> strict wqo r r' \<Longrightarrow>
@@ -125,6 +209,21 @@ lemma lex_trans_wqo_axioms: "trans_wqo (lex_wqo wqo wqo') rho"
   using a.SConj b.SConj c.SConjL c.SConjR apply (auto simp: lex_wqo_def)[1]
   using a.VConjL b.VConjL c.VConjL apply (auto simp: lex_wqo_def)[1]
   using a.VConjR b.VConjR c.VConjR apply (auto simp: lex_wqo_def)[1]
+  using a.SImplR b.SImplR c.SImplR apply (auto simp: lex_wqo_def)[1]
+  using a.SImplL b.SImplL c.SImplL apply (auto simp: lex_wqo_def)[1]
+  using a.VImpl b.VImpl c.VImplL c.VImplR apply (auto simp: lex_wqo_def)[1]
+  using a.SIff_ss b.SIff_ss c.SIff_ssL c.SIff_ssR apply (auto simp: lex_wqo_def)[1]
+  using a.SIff_vv b.SIff_vv c.SIff_vvL c.SIff_vvR apply (auto simp: lex_wqo_def)[1]
+  using a.VIff_sv b.VIff_sv c.VIff_svL c.VIff_svR apply (auto simp: lex_wqo_def)[1]
+  using a.VIff_vs b.VIff_vs c.VIff_vsL c.VIff_vsR apply (auto simp: lex_wqo_def)[1]
+  using a.SOnce b.SOnce c.SOnce apply (auto simp: lex_wqo_def)[1]
+  using a.VOnce b.VOnce c.VOnce apply (auto simp: lex_wqo_def)[1]
+  using a.SHistorically b.SHistorically c.SHistorically apply (auto simp: lex_wqo_def)[1]
+  using a.VHistorically b.VHistorically c.VHistorically apply (auto simp: lex_wqo_def)[1]
+  using a.SEventually b.SEventually c.SEventually apply (auto simp: lex_wqo_def)[1]
+  using a.VEventually b.VEventually c.VEventually apply (auto simp: lex_wqo_def)[1]
+  using a.SAlways b.SAlways c.SAlways apply (auto simp: lex_wqo_def)[1]
+  using a.VAlways b.VAlways c.VAlways apply (auto simp: lex_wqo_def)[1]
   using a.SSince b.SSince c.SSince apply (auto simp: lex_wqo_def)[1]
   using a.VSince_Nil b.VSince_Nil c.VSince_Nil apply (auto simp: lex_wqo_def)[1]
   using a.VSince b.VSince c.VSinceL c.VSinceR apply (auto simp: lex_wqo_def)[1]
@@ -180,6 +279,26 @@ lemma lex_scmonotone_axioms: "scmonotone (lex_wqo wqo wqo')"
   using a.VNext b.VNext c.VNext d.VNext apply (auto simp: lex_wqo_def)[1]
   using a.SPrev b.SPrev c.SPrev d.SPrev apply (auto simp: lex_wqo_def)[1]
   using a.VPrev b.VPrev c.VPrev d.VPrev apply (auto simp: lex_wqo_def)[1]
+  using a.SImplR b.SImplR c.SImplR d.SImplR apply (auto simp: lex_wqo_def)[1]
+  using a.SImplL b.SImplL c.SImplL d.SImplL apply (auto simp: lex_wqo_def)[1]
+  using a.VImpl b.VImpl c.VImplL d.VImplL c.VImplR d.VImplR apply (auto simp: lex_wqo_def)[1]
+  using a.VImpl b.VImpl c.VImplL d.VImplL c.VImplR d.VImplR apply (auto simp: lex_wqo_def)[1]
+  using a.SIff_ss b.SIff_ss c.SIff_ssL d.SIff_ssL c.SIff_ssR d.SIff_ssR apply (auto simp: lex_wqo_def)[1]
+  using a.SIff_ss b.SIff_ss c.SIff_ssL d.SIff_ssL c.SIff_ssR d.SIff_ssR apply (auto simp: lex_wqo_def)[1]
+  using a.SIff_vv b.SIff_vv c.SIff_vvL c.SIff_vvR d.SIff_vvL d.SIff_vvR apply (auto simp: lex_wqo_def)[1]
+  using a.SIff_vv b.SIff_vv c.SIff_vvL c.SIff_vvR d.SIff_vvL d.SIff_vvR apply (auto simp: lex_wqo_def)[1]
+  using a.VIff_sv b.VIff_sv c.VIff_svL c.VIff_svR d.VIff_svL d.VIff_svR apply (auto simp: lex_wqo_def)[1]
+  using a.VIff_sv b.VIff_sv c.VIff_svL c.VIff_svR d.VIff_svL d.VIff_svR apply (auto simp: lex_wqo_def)[1]
+  using a.VIff_vs b.VIff_vs c.VIff_vsL c.VIff_vsR d.VIff_vsL d.VIff_vsR apply (auto simp: lex_wqo_def)[1]
+  using a.VIff_vs b.VIff_vs c.VIff_vsL c.VIff_vsR d.VIff_vsL d.VIff_vsR apply (auto simp: lex_wqo_def)[1]
+  using a.SOnce b.SOnce c.SOnce d.SOnce apply (auto simp: lex_wqo_def)[1]
+  using a.VOnce b.VOnce c.VOnce d.VOnce apply (auto simp: lex_wqo_def)[1]
+  using a.SHistorically b.SHistorically c.SHistorically d.SHistorically apply (auto simp: lex_wqo_def)[1]
+  using a.VHistorically b.VHistorically c.VHistorically d.VHistorically apply (auto simp: lex_wqo_def)[1]
+  using a.SEventually b.SEventually c.SEventually d.SEventually apply (auto simp: lex_wqo_def)[1]
+  using a.VEventually b.VEventually c.VEventually d.VEventually apply (auto simp: lex_wqo_def)[1]
+  using a.SAlways b.SAlways c.SAlways d.SAlways apply (auto simp: lex_wqo_def)[1]
+  using a.VAlways b.VAlways c.VAlways d.VAlways apply (auto simp: lex_wqo_def)[1]
   subgoal for rho i phi p p' r r'
     using a.proofApp_mono b.proofApp_mono c.proofApp_monoL c.proofApp_monoR d.proofApp_monoL d.proofApp_monoR
     by (auto simp: lex_wqo_def simp del: a.proofApp_simps)
@@ -189,7 +308,7 @@ lemma lex_scmonotone_axioms: "scmonotone (lex_wqo wqo wqo')"
   subgoal for rho i phi p p'
     using a.proofIncr_mono b.proofIncr_mono c.proofIncr_mono d.proofIncr_mono
     by (auto simp: lex_wqo_def)
-  done
+  done 
 
 end
 
@@ -200,8 +319,11 @@ begin
 
 lemma flipped_trans_wqo_axioms: "trans_wqo wqo\<inverse>\<inverse> rho"
   apply unfold_locales
-  using SNeg VNeg SDisjL SDisjR VDisj SConj VConjL VConjR SSince VSince_Nil VSince VSince_never SUntil_Nil SUntil VUntil_Nil VUntil VUntil_never SNext VNext SPrev VPrev proofApp_mono proofIncr_mono
-                      apply (auto simp: simp del: proofApp_simps)[23]
+  using SNeg VNeg SDisjL SDisjR VDisj SConj VConjL VConjR SSince VSince_Nil VSince VSince_never 
+    SUntil_Nil SUntil VUntil_Nil VUntil VUntil_never SNext VNext SPrev VPrev SImplL SImplR VImpl 
+    SIff_ss SIff_vv VIff_sv VIff_vs SOnce VOnce SHistorically VHistorically SEventually VEventually 
+    SAlways VAlways proofApp_mono proofIncr_mono
+                      apply (auto simp: simp del: proofApp_simps)[38]
   using refl_wqo trans_wqo pw_total
     apply (fastforce simp: reflp_def transp_def total_on_def)+
   done
@@ -339,6 +461,15 @@ fun s_htp :: "'a sproof \<Rightarrow> nat" and v_htp :: "'a vproof \<Rightarrow>
 | "s_htp (SUntil qs p) = max_proofs s_htp (qs @ [p])"
 | "s_htp (SNext p) = s_htp p"
 | "s_htp (SPrev p) = max (s_at (SPrev p)) (s_htp p)"
+| "s_htp (SImplL p) = v_htp p"
+| "s_htp (SImplR q) = s_htp q"
+| "s_htp (SIff_ss p q) = max (s_htp p) (s_htp q)"
+| "s_htp (SIff_vv p q) = max (v_htp p) (v_htp q)"
+| "s_htp (SOnce i p) = max i (s_htp p)"
+| "s_htp (SEventually i p) = max i (s_htp p)"
+| "s_htp (SHistorically i li qs) = max (max i li) (max_proofs s_htp qs)"
+| "s_htp (SHistorically_le i) = i"
+| "s_htp (SAlways i hi qs) = max (max i (Suc hi)) (max_proofs s_htp qs)"
 | "v_htp (VFF i) = i"
 | "v_htp (VAtm atm i) = i"
 | "v_htp (VNeg p) = s_htp p"
@@ -357,6 +488,14 @@ fun s_htp :: "'a sproof \<Rightarrow> nat" and v_htp :: "'a vproof \<Rightarrow>
 | "v_htp (VPrev_le i) = i"
 | "v_htp (VPrev_ge i) = i"
 | "v_htp (VPrev_zero) = 0"
+| "v_htp (VImpl p q) = max (s_htp p) (v_htp q)"
+| "v_htp (VIff_sv p q) = max (s_htp p) (v_htp q)"
+| "v_htp (VIff_vs p q) = max (v_htp p) (s_htp q)"
+| "v_htp (VOnce_le i) = i"
+| "v_htp (VOnce i li qs) = max (max i li) (max_proofs v_htp qs)"
+| "v_htp (VEventually i hi qs) = max (max i (Suc hi)) (max_proofs v_htp qs)"
+| "v_htp (VHistorically i p) = max i (v_htp p)"
+| "v_htp (VAlways i p) = max i (v_htp p)"
 
 lemma at_htp:
   fixes p :: "'a sproof" and p' :: "'a vproof"
@@ -376,6 +515,15 @@ fun s_ltp :: "'a sproof \<Rightarrow> enat" and v_ltp :: "'a vproof \<Rightarrow
 | "s_ltp (SUntil qs p) = min_proofs s_ltp (qs @ [p])"
 | "s_ltp (SNext p) = min (s_at (SNext p)) (s_ltp p)"
 | "s_ltp (SPrev p) = s_ltp p"
+| "s_ltp (SImplL p) = v_ltp p"
+| "s_ltp (SImplR q) = s_ltp q"
+| "s_ltp (SIff_ss p q) = min (s_ltp p) (s_ltp q)"
+| "s_ltp (SIff_vv p q) = min (v_ltp p) (v_ltp q)"
+| "s_ltp (SOnce i p) = 0"
+| "s_ltp (SEventually i p) = min i (s_ltp p)"
+| "s_ltp (SHistorically i li qs) = 0"
+| "s_ltp (SHistorically_le i) = 0"
+| "s_ltp (SAlways i hi qs) = min (min i hi) (min_proofs s_ltp qs)"
 | "v_ltp (VFF i) = i"
 | "v_ltp (VAtm atm i) = i"
 | "v_ltp (VNeg p) = s_ltp p"
@@ -394,6 +542,14 @@ fun s_ltp :: "'a sproof \<Rightarrow> enat" and v_ltp :: "'a vproof \<Rightarrow
 | "v_ltp (VPrev_le i) = i - 1"
 | "v_ltp (VPrev_ge i) = i - 1"
 | "v_ltp (VPrev_zero) = 0"
+| "v_ltp (VImpl p q) = min (s_ltp p) (v_ltp q)"
+| "v_ltp (VIff_sv p q) = min (s_ltp p) (v_ltp q)"
+| "v_ltp (VIff_vs p q) = min (v_ltp p) (s_ltp q)"
+| "v_ltp (VOnce_le i) = 0"
+| "v_ltp (VOnce i li qs) = 0"
+| "v_ltp (VEventually i hi qs) = min (min i hi) (min_proofs v_ltp qs)"
+| "v_ltp (VHistorically i p) = 0"
+| "v_ltp (VAlways i p) = min i (v_ltp p)"
 
 lemma le_enat_SucI: "x \<le> enat n \<Longrightarrow> x \<le> enat (Suc n)"
   by (metis eSuc_enat ile_eSuc order_trans)
@@ -407,13 +563,14 @@ lemma case_list_app: "(case ys @ [y] of [] \<Rightarrow> a | _ \<Rightarrow> b) 
 lemma at_ltp:
   fixes p :: "'a sproof" and p' :: "'a vproof"
   shows "s_ltp p \<le> s_at p" "v_ltp p' \<le> v_at p'"
+  thm s_at_v_at.induct
 proof (induction rule: s_at_v_at.induct)
-  case (9 spsi sphis)
+  case (18 spsi sphis)
   then show ?case
   proof (cases sphis rule: rev_cases)
     case (snoc ys y)
     have IH: "s_ltp y \<le> enat (s_at y)"
-      using 9(2)
+      using 18(2)
       apply (cases sphis)
        apply (auto simp: snoc split: if_splits)
       apply (metis last_ConsR last_snoc)
@@ -424,7 +581,7 @@ proof (induction rule: s_at_v_at.induct)
       done
   qed simp
 next
-  case (10 sphis spsi)
+  case (19 sphis spsi)
   then show ?case
     apply (auto split: list.splits)
     apply (meson list.set_intros(1) order.trans min_proofs_sound)
@@ -444,6 +601,15 @@ fun s_depth :: "'a sproof \<Rightarrow> nat" and v_depth :: "'a vproof \<Rightar
 | "s_depth (SUntil qs p) = Suc (max_proofs s_depth (qs @ [p]))"
 | "s_depth (SNext p) = Suc (s_depth p)"
 | "s_depth (SPrev p) = Suc (s_depth p)"
+| "s_depth (SImplL p) = Suc (v_depth p)"
+| "s_depth (SImplR q) = Suc (s_depth q)"
+| "s_depth (SIff_ss p q) = Suc (max (s_depth p) (s_depth q))"
+| "s_depth (SIff_vv p q) = Suc (max (v_depth p) (v_depth q))"
+| "s_depth (SOnce i p) = Suc (s_depth p)"
+| "s_depth (SEventually i p) = Suc (s_depth p)"
+| "s_depth (SHistorically i li qs) = Suc (max_proofs s_depth qs)"
+| "s_depth (SHistorically_le i) = 1"
+| "s_depth (SAlways i hi qs) = Suc (max_proofs s_depth qs)"
 | "v_depth (VFF i) = 1"
 | "v_depth (VAtm atm i) = 1"
 | "v_depth (VNeg p) = Suc (s_depth p)"
@@ -462,6 +628,14 @@ fun s_depth :: "'a sproof \<Rightarrow> nat" and v_depth :: "'a vproof \<Rightar
 | "v_depth (VPrev_le i) = 1"
 | "v_depth (VPrev_ge i) = 1"
 | "v_depth (VPrev_zero) = 1"
+| "v_depth (VImpl p q) = Suc (max (s_depth p) (v_depth q))"
+| "v_depth (VIff_sv p q) = Suc (max (s_depth p) (v_depth q))"
+| "v_depth (VIff_vs p q) = Suc (max (v_depth p) (s_depth q))"
+| "v_depth (VOnce_le i) = 1"
+| "v_depth (VOnce i li qs) = Suc (max_proofs v_depth qs)"
+| "v_depth (VEventually i hi qs) = Suc (max_proofs v_depth qs)"
+| "v_depth (VHistorically i p) = Suc (v_depth p)"
+| "v_depth (VAlways i p) = Suc (v_depth p)"
 
 definition mdepth :: "'a sproof + 'a vproof \<Rightarrow> nat" where
   "mdepth = case_sum s_depth v_depth"
@@ -512,6 +686,15 @@ fun s_atm :: "'a sproof \<Rightarrow> nat" and v_atm :: "'a vproof \<Rightarrow>
 | "s_atm (SUntil qs p) = Suc (sum_proofs s_atm (qs @ [p]))"
 | "s_atm (SNext p) = Suc (s_atm p)"
 | "s_atm (SPrev p) = Suc (s_atm p)"
+| "s_atm (SImplL p) = Suc (v_atm p)"
+| "s_atm (SImplR q) = Suc (s_atm q)"
+| "s_atm (SIff_ss p q) = Suc ((s_atm p) + (s_atm q))"
+| "s_atm (SIff_vv p q) = Suc ((v_atm p) + (v_atm q))"
+| "s_atm (SOnce i p) = Suc (s_atm p)"
+| "s_atm (SEventually i p) = Suc (s_atm p)"
+| "s_atm (SHistorically i li qs) = Suc (sum_proofs s_atm qs)"
+| "s_atm (SHistorically_le i) = 1"
+| "s_atm (SAlways i hi qs) = Suc (sum_proofs s_atm qs)"
 | "v_atm (VFF i) = 1"
 | "v_atm (VAtm atm i) = w atm"
 | "v_atm (VNeg p) = Suc (s_atm p)"
@@ -530,6 +713,14 @@ fun s_atm :: "'a sproof \<Rightarrow> nat" and v_atm :: "'a vproof \<Rightarrow>
 | "v_atm (VPrev_le i) = 1"
 | "v_atm (VPrev_ge i) = 1"
 | "v_atm (VPrev_zero) = 1"
+| "v_atm (VImpl p q) = Suc ((s_atm p) + (v_atm q))"
+| "v_atm (VIff_sv p q) = Suc ((s_atm p) + (v_atm q))"
+| "v_atm (VIff_vs p q) = Suc ((v_atm p) + (s_atm q))"
+| "v_atm (VOnce_le i) = 1"
+| "v_atm (VOnce i li qs) = Suc (sum_proofs v_atm qs)"
+| "v_atm (VEventually i hi qs) = Suc (sum_proofs v_atm qs)"
+| "v_atm (VHistorically i p) = Suc (v_atm p)"
+| "v_atm (VAlways i p) = Suc (v_atm p)"
 
 definition matm :: "'a sproof + 'a vproof \<Rightarrow> nat" where
   "matm = case_sum s_atm v_atm"
@@ -571,7 +762,7 @@ global_interpretation matm_scmonotone: scmonotone "ratm w"
   for w
   apply (unfold_locales)
   unfolding ratm_def strmatm_def
-                      apply (auto simp: matm_def sum_proofs_Cons)[26]
+                      apply (auto simp: matm_def sum_proofs_Cons)[46]
   subgoal for rho i phi p p' r r'
     by (rule checkApp.cases[of p r]; rule checkApp.cases[of p' r'])
        (auto simp: valid_def matm_def sum_proofs_Cons sum_proofs_app split: sum.splits)
@@ -591,8 +782,16 @@ lemma valid_sat: "valid rho i phi (Inl p) \<Longrightarrow> sat rho i phi"
   by (fastforce simp: valid_def)+
 
 lemma check_cases:
+  "\<And>i x. s_check rho phi (SOnce i x) \<Longrightarrow> (case phi of Once _ _ \<Rightarrow> True | _ \<Rightarrow> False)"
+  "\<And>i li x. s_check rho phi (SHistorically i li x) \<Longrightarrow> (case phi of Historically _ _ \<Rightarrow> True | _ \<Rightarrow> False)"
+  "\<And>i x. s_check rho phi (SEventually i x) \<Longrightarrow> (case phi of Eventually _ _ \<Rightarrow> True | _ \<Rightarrow> False)"
+  "\<And>i hi x. s_check rho phi (SAlways i hi x) \<Longrightarrow> (case phi of Always _ _ \<Rightarrow> True | _ \<Rightarrow> False)"
   "\<And>x y. s_check rho phi (SSince x y) \<Longrightarrow> (case phi of Since _ _ _ \<Rightarrow> True | _ \<Rightarrow> False)"
   "\<And>x y. s_check rho phi (SUntil x y) \<Longrightarrow> (case phi of Until _ _ _ \<Rightarrow> True | _ \<Rightarrow> False)"
+  "\<And>i li x. v_check rho phi (VOnce i li x) \<Longrightarrow> (case phi of Once _ _ \<Rightarrow> True | _ \<Rightarrow> False)"
+  "\<And>i x. v_check rho phi (VHistorically i x) \<Longrightarrow> (case phi of Historically _ _ \<Rightarrow> True | _ \<Rightarrow> False)"
+  "\<And>i hi x. v_check rho phi (VEventually i hi x) \<Longrightarrow> (case phi of Eventually _ _ \<Rightarrow> True | _ \<Rightarrow> False)"
+  "\<And>i x. v_check rho phi (VAlways i x) \<Longrightarrow> (case phi of Always _ _ \<Rightarrow> True | _ \<Rightarrow> False)"
   "\<And>i x y. v_check rho phi (VSince i x y) \<Longrightarrow> (case phi of Since _ _ _ \<Rightarrow> True | _ \<Rightarrow> False)"
   "\<And>i li x. v_check rho phi (VSince_never i li x) \<Longrightarrow> (case phi of Since _ _ _ \<Rightarrow> True | _ \<Rightarrow> False)"
   "\<And>i x y. v_check rho phi (VUntil i x y) \<Longrightarrow> (case phi of Until _ _ _ \<Rightarrow> True | _ \<Rightarrow> False)"
@@ -626,16 +825,25 @@ lemma checkIncr_at: "checkIncr p \<Longrightarrow> checkIncr p' \<Longrightarrow
   by (rule checkIncr.cases[of p]; rule checkIncr.cases[of p'])
      (auto simp: p_at_def proofIncr_def valid_def dest!: check_cases split: mtl.splits)
 
-definition "incroff p = (case p of Inr (VSince _ _ _) \<Rightarrow> Suc (p_at p) | Inr (VSince_never _ _ _) \<Rightarrow> Suc (p_at p)
-  | Inr (VUntil _ _ _) \<Rightarrow> p_at p - 1 | Inr (VUntil_never _ _ _) \<Rightarrow> p_at p - 1)"
+definition "incroff p = (case p of 
+    Inr (VSince _ _ _) \<Rightarrow> Suc (p_at p) 
+  | Inr (VSince_never _ _ _) \<Rightarrow> Suc (p_at p)
+  | Inr (VUntil _ _ _) \<Rightarrow> p_at p - 1 
+  | Inr (VUntil_never _ _ _) \<Rightarrow> p_at p - 1
+  | Inl (SOnce _ _) \<Rightarrow> Suc (p_at p)
+  | Inl (SHistorically _ _ _) \<Rightarrow> Suc (p_at p)
+  | Inl (SEventually _ _) \<Rightarrow> p_at p - 1
+  | Inl (SAlways _ _ _) \<Rightarrow> p_at p - 1
+  | Inr (VOnce _ _ _) \<Rightarrow> Suc (p_at p)
+  | Inr (VHistorically _ _) \<Rightarrow> Suc (p_at p)
+  | Inr (VEventually _ _ _) \<Rightarrow> p_at p - 1
+  | Inr (VAlways _ _ ) \<Rightarrow> p_at p - 1)"
 
 lemma p_at_incroff: "valid rho i phi p \<Longrightarrow> checkIncr p \<Longrightarrow>
     valid rho i phi p' \<Longrightarrow> checkIncr p' \<Longrightarrow>
     p_at p = p_at p' \<Longrightarrow> incroff p = incroff p'"
   by (cases phi; rule checkIncr.cases[of p]; rule checkIncr.cases[of p'])
      (auto simp: incroff_def valid_def p_at_def)
-
-
 
 definition minreach :: "'a sproof + 'a vproof \<Rightarrow> enat" where
   "minreach = case_sum s_ltp v_ltp"
@@ -653,6 +861,14 @@ lemma valid_VSince_nonempty:
 
 lemma valid_VSince_never_nonempty:
   "valid rho (Suc i) phi (Inr (VSince_never (Suc i) li (a # list @ [s]))) \<Longrightarrow> v_at a \<le> enat i"
+  by (cases phi) (auto simp: valid_def Cons_eq_upt_conv split: if_splits enat.splits)
+
+lemma valid_VOnce_nonempty:
+  "valid rho (Suc i) phi (Inr (VOnce (Suc i) li (a # list @ [s]))) \<Longrightarrow> v_at a \<le> enat i"
+  by (cases phi) (auto simp: valid_def Cons_eq_upt_conv split: if_splits enat.splits)
+
+lemma valid_SHistorically_nonempty:
+  "valid rho (Suc i) phi (Inl (SHistorically (Suc i) li (a # list @ [s]))) \<Longrightarrow> s_at a \<le> enat i"
   by (cases phi) (auto simp: valid_def Cons_eq_upt_conv split: if_splits enat.splits)
 
 lemma min_permute1: fixes x0 :: "'a :: linorder"
@@ -687,6 +903,11 @@ lemma checkApp_minreach: "checkApp p r \<Longrightarrow>
     apply (auto simp: minreach_def min_proofs_Cons min_proofs_app case_list_app p_at_def)   
     apply (auto simp: min_def split: list.split)
     done
+  subgoal for p1 j li r
+    using valid_SHistorically_nonempty order_subst1
+    by (fastforce simp: minreach_def min_proofs_Cons min_proofs_app case_list_app p_at_def valid_def split: if_splits intro!: min_permute1)
+  subgoal for p1 j hi s
+    by (cases phi; cases p1) (auto simp: minreach_def p_at_def min_proofs_Cons valid_def i_le_ltpi_add intro!: min_permute4)
   subgoal for p2 j p1 s
     using at_ltp(2)[of p1] valid_VSince_nonempty[of rho j phi p1 p2 s] order_subst1
     by (fastforce simp: minreach_def min_proofs_Cons min_proofs_app case_list_app p_at_def valid_def split: if_splits intro!: min_permute1)
@@ -694,6 +915,12 @@ lemma checkApp_minreach: "checkApp p r \<Longrightarrow>
     apply (cases p1)
     using valid_VSince_never_nonempty at_ltp(2)
     by (auto simp: minreach_def case_list_app min_proofs_Cons min_proofs_app p_at_def valid_def intro!: min_permute2)
+  subgoal for p1 j li s
+    apply (cases p1)
+    using valid_VOnce_nonempty at_ltp(2)
+    by (auto simp: minreach_def case_list_app min_proofs_Cons min_proofs_app p_at_def valid_def intro!: min_permute2)
+  subgoal for p1 j hi r
+    by (cases phi; cases p1) (auto simp: minreach_def p_at_def min_proofs_Cons valid_def i_le_ltpi_add intro!: min_permute4)
   subgoal for p1 j p2 s
     using at_ltp(2)[of p2]
     by (cases p1) (auto simp: minreach_def min_proofs_Cons min_proofs_app case_list_app p_at_def valid_def split: if_splits intro!: min_permute3)
@@ -730,7 +957,15 @@ lemma v_check_VSince_never_li: "v_check rho phi (VSince_never i li p1) \<Longrig
 
 lemma minr: "checkIncr p \<Longrightarrow> valid rho i phi p \<Longrightarrow> minreach (proofIncr p) = min (minreach p) (incroff p)"
   apply (rule checkIncr.cases[of p])
-      apply (auto simp: proofIncr_def minreach_def valid_def incroff_def min_proofs_Cons min_proofs_app p_at_def)
+              apply (auto simp: proofIncr_def minreach_def valid_def incroff_def min_proofs_Cons min_proofs_app p_at_def)
+  subgoal for p1
+    by (rule min_permute5) auto
+  subgoal for p1 hi
+    by (rule min_permute7) auto
+  subgoal for p1 hi
+    by (rule min_permute7) auto
+  subgoal for p1
+    by (rule min_permute5) auto
   subgoal for p1 p2
     by (rule min_permute5) auto
   subgoal for p1 li
@@ -743,7 +978,7 @@ global_interpretation minminreach_trans_wqo: trans_wqo rminminreach
     and is_opt_minminreach = "minminreach_trans_wqo.optimal"
   apply (unfold_locales)
   unfolding rminminreach_def strminreach_def
-                      apply (auto simp: p_at_def minreach_def min_proofs_Cons Lattices.linorder_class.min.coboundedI1 Lattices.linorder_class.min.coboundedI2)[21]
+                      apply (auto simp: p_at_def minreach_def min_proofs_Cons Lattices.linorder_class.min.coboundedI1 Lattices.linorder_class.min.coboundedI2)[36]
   subgoal for rho i phi p p' r r'
     using checkApp_at[of p r p' r' rho i phi]
     by (auto simp only: checkApp_minreach min_def split: if_splits)
@@ -759,7 +994,7 @@ global_interpretation maxminreach_trans_wqo: trans_wqo rmaxminreach
     and is_opt_maxminreach = "maxminreach_trans_wqo.optimal"
   apply (unfold_locales)
   unfolding rmaxminreach_def strminreach_def
-                      apply (auto simp: p_at_def minreach_def min_proofs_Cons Lattices.linorder_class.min.coboundedI1 Lattices.linorder_class.min.coboundedI2)[21]
+                      apply (auto simp: p_at_def minreach_def min_proofs_Cons Lattices.linorder_class.min.coboundedI1 Lattices.linorder_class.min.coboundedI2)[36]
   subgoal for rho i phi p p' r r'
     using checkApp_at[of p r p' r' rho i phi]
     by (auto simp only: checkApp_minreach min_def split: if_splits)
@@ -792,6 +1027,12 @@ lemma checkApp_maxreach: "checkApp p r \<Longrightarrow>
   subgoal for p1 p2 r
     using at_htp(1)[of r]
     by auto
+  subgoal for p1 j hi r
+    by (cases phi; cases p1; cases j)
+       (auto simp: valid_def Let_def max_def dest!: Cons2_rangeD split: if_splits)
+  subgoal for p1 j hi r
+    by (cases phi; cases p1; cases j)
+       (auto simp: valid_def Let_def max_def dest!: Cons2_rangeD split: if_splits)
   subgoal for p1 j p2 r
     using at_htp(2)[of p2]
     by (cases phi; cases p1; cases j)
@@ -805,9 +1046,19 @@ lemma v_check_VUntil_never_hi: "v_check rho phi (VUntil_never i hi ps) \<Longrig
   using i_le_ltpi_add
   by (cases phi) fastforce+
 
+lemma v_check_VEventually_hi: "v_check rho phi (VEventually i hi ps) \<Longrightarrow> i \<le> hi"
+  using i_le_ltpi_add
+  by (cases phi) fastforce+
+
+lemma s_check_SAlways_hi: "s_check rho phi (SAlways i hi ps) \<Longrightarrow> i \<le> hi"
+  using i_le_ltpi_add
+  by (cases phi) fastforce+
+
 lemma maxr: "checkIncr p \<Longrightarrow> valid rho i phi p \<Longrightarrow> maxreach (proofIncr p) = max (maxreach p) (incroff p)"
   by (rule checkIncr.cases[of p])
-     (auto simp: proofIncr_def maxreach_def valid_def incroff_def max_proofs_Cons max_proofs_app p_at_def dest: v_check_VUntil_never_hi le_trans[OF _ at_htp(2), of i])
+     (auto simp: proofIncr_def maxreach_def valid_def incroff_def max_proofs_Cons max_proofs_app p_at_def 
+       dest: v_check_VUntil_never_hi v_check_VEventually_hi s_check_SAlways_hi le_trans[OF _ at_htp(2), of i]
+             le_trans[OF _ at_htp(1), of i])
 
 global_interpretation minmaxreach_trans_wqo: trans_wqo rminmaxreach
   defines opt_minmaxreach = "minmaxreach_trans_wqo.Opt"
@@ -815,7 +1066,7 @@ global_interpretation minmaxreach_trans_wqo: trans_wqo rminmaxreach
     and is_opt_minmaxreach = "minmaxreach_trans_wqo.optimal"
   apply (unfold_locales)
   unfolding rminmaxreach_def strmaxreach_def
-                      apply (auto simp: p_at_def maxreach_def max_proofs_Cons)[21]
+                      apply (auto simp: p_at_def maxreach_def max_proofs_Cons)[36]
   subgoal for rho i phi p p' r r'
     using checkApp_at[of p r p' r' rho i phi]
     by (auto simp only: checkApp_maxreach)
@@ -831,7 +1082,7 @@ global_interpretation maxmaxreach_trans_wqo: trans_wqo rmaxmaxreach
     and is_opt_maxmaxreach = "maxmaxreach_trans_wqo.optimal"
   apply (unfold_locales)
   unfolding rmaxmaxreach_def strmaxreach_def
-                      apply (auto simp: p_at_def maxreach_def max_proofs_Cons)[21]
+                      apply (auto simp: p_at_def maxreach_def max_proofs_Cons)[36]
   subgoal for rho i phi p p' r r'
     using checkApp_at[of p r p' r' rho i phi]
     by (auto simp only: checkApp_maxreach)
@@ -1038,6 +1289,26 @@ lemma v_check_Since_code[code]: "v_check rho (Since phi I psi) p = (case p of
   | VSince_le i \<Rightarrow> \<tau> rho i < \<tau> rho 0 + left I | _ \<Rightarrow> False)"
   by (auto simp: Let_def check_upt_l_eq ETP_minus_le_iff ETP_minus_eq_iff split: vproof.splits enat.splits simp del: upt_Suc)
 
+lemma v_check_Once_code[code]: "v_check rho (Once I phi) p = (case p of
+    VOnce i li vphis \<Rightarrow>
+     (case right I of enat n \<Rightarrow> ((li = 0 \<or> n < delta rho i (li - 1)) \<and> delta rho i li \<le> n) | \<infinity> \<Rightarrow> li = 0) \<and>
+     \<tau> rho 0 + left I \<le> \<tau> rho i \<and>
+     check_upt_l rho I li (map v_at vphis) i \<and> Ball (set vphis) (v_check rho phi)
+  | VOnce_le i \<Rightarrow> \<tau> rho i < \<tau> rho 0 + left I 
+  | _ \<Rightarrow> False)"
+  by (auto simp: Let_def check_upt_l_eq ETP_minus_le_iff ETP_minus_eq_iff split: vproof.splits enat.splits simp del: upt_Suc)
+
+lemma s_check_Historically_code[code]: "s_check rho (Historically I phi) p = 
+(case p of
+  SHistorically i li vphis \<Rightarrow>
+     (case right I of enat n \<Rightarrow> ((li = 0 \<or> n < delta rho i (li - 1)) \<and> delta rho i li \<le> n) | \<infinity> \<Rightarrow> li = 0) \<and>
+     \<tau> rho 0 + left I \<le> \<tau> rho i \<and>
+     check_upt_l rho I li (map s_at vphis) i \<and> Ball (set vphis) (s_check rho phi)
+  | SHistorically_le i \<Rightarrow> \<tau> rho i < \<tau> rho 0 + left I 
+  | _ \<Rightarrow> False)"
+  by (auto simp: Let_def check_upt_l_eq ETP_minus_le_iff ETP_minus_eq_iff split: sproof.splits enat.splits simp del: upt_Suc)
+
+
 lemma lu_le_iff: "max i (ETP rho (\<tau> rho i + n)) \<le> j \<longleftrightarrow> i \<le> j \<and> delta rho j i \<ge> n"
   by (metis Groups.ab_semigroup_add_class.add.commute Lattices.linorder_class.max.bounded_iff
       \<tau>_mono i_etp_to_tau le_diff_conv2)
@@ -1122,6 +1393,24 @@ lemma v_check_Until_code[code]: "v_check rho (Until phi I psi) p = (case p of
     (case right I of enat n \<Rightarrow> (delta rho hi i \<le> n \<and> n < delta rho (Suc hi) i) | \<infinity> \<Rightarrow> False) \<and>
      check_upt_lu rho I i (map v_at vpsis) hi \<and> Ball (set vpsis) (v_check rho psi)
  | _ \<Rightarrow> False)"
+  by (auto simp: Let_def LTP_plus_ge_iff LTP_plus_eq_iff check_upt_lu_eq simp del: upt_Suc
+      split: vproof.splits enat.splits)
+
+lemma s_check_Always_code[code]: "s_check rho (Always I phi) p = 
+(case p of
+  SAlways i hi sphis \<Rightarrow>
+    (case right I of enat n \<Rightarrow> (delta rho hi i \<le> n \<and> n < delta rho (Suc hi) i) | \<infinity> \<Rightarrow> False) \<and>
+     check_upt_lu rho I i (map s_at sphis) hi \<and> Ball (set sphis) (s_check rho phi)
+  | _ \<Rightarrow> False)"
+  by (auto simp: Let_def LTP_plus_ge_iff LTP_plus_eq_iff check_upt_lu_eq simp del: upt_Suc
+      split: sproof.splits enat.splits)
+
+lemma v_check_Eventually_code[code]: "v_check rho (Eventually I phi) p = 
+(case p of
+  VEventually i hi vphis \<Rightarrow>
+    (case right I of enat n \<Rightarrow> (delta rho hi i \<le> n \<and> n < delta rho (Suc hi) i) | \<infinity> \<Rightarrow> False) \<and>
+     check_upt_lu rho I i (map v_at vphis) hi \<and> Ball (set vphis) (v_check rho phi)
+  | _ \<Rightarrow> False)"
   by (auto simp: Let_def LTP_plus_ge_iff LTP_plus_eq_iff check_upt_lu_eq simp del: upt_Suc
       split: vproof.splits enat.splits)
 
@@ -1237,14 +1526,15 @@ next
       by (cases phi) (auto simp add: at_ltp(1) le_enat_SucI le_max_iff_disj)
     done
 next
-  case (11 i)
+  case (11 p)
   show ?case
     apply (rule allI)
     subgoal for phi
+      using 11
       by (cases phi) auto
     done
 next
-  case (12 atm i)
+  case (12 p)
   show ?case
     apply (rule allI)
     subgoal for phi
@@ -1252,12 +1542,12 @@ next
       by (cases phi) auto
     done
 next
-  case (13 p)
+  case (13 p q)
   show ?case
     apply (rule allI)
     subgoal for phi
       using 13
-      by (cases phi) auto
+      by (cases phi) (simp_all add: linorder_class.max.coboundedI1 linorder_class.max.coboundedI2 min_le_iff_disj)
     done
 next
   case (14 p q)
@@ -1265,115 +1555,104 @@ next
     apply (rule allI)
     subgoal for phi
       using 14
-      by (cases phi) (auto simp add: Lattices.linorder_class.min.coboundedI1 Lattices.linorder_class.min.coboundedI2 le_max_iff_disj)
+      by (cases phi) (simp_all add: linorder_class.max.coboundedI1 linorder_class.max.coboundedI2 min_le_iff_disj)
     done
 next
-  case (15 p)
-  show ?case
-    apply (rule allI)
-    subgoal for phi
-      using 15
-      by (cases phi) auto
-    done
-next
-  case (16 q)
-  show ?case
-    apply (rule allI)
-    subgoal for phi
-      using 16
-      by (cases phi) auto
-    done
-next
-  case (17 i p qs)
-  have at_le_htp: "v_ltp (VSince i p qs) \<le> i \<and> i \<le> v_htp (VSince i p qs)"
-    "v_ltp (VSince i p qs) \<le> v_at p \<and> v_at p \<le> v_htp (VSince i p qs)"
-    "v_ltp (VSince i p qs) \<le> enat 0 \<and> 0 \<le> v_htp (VSince i p qs)"
-    using at_htp(2)[of p]
+  case (15 i p)
+  then have IH: "x \<in> set [p] \<Longrightarrow> s_check rho phi x \<Longrightarrow> s_check rho' phi x" for x phi
+    by force
+  have at_le_htp: "s_ltp (SOnce i p) \<le> i \<and> i \<le> s_htp (SOnce i p)"
+    "s_ltp (SOnce i p) \<le> s_at p \<and> s_at p \<le> s_htp (SOnce i p)"
+    using at_htp(1)[of p]
     by (auto simp: max_proofs_Cons)
-  have aux: "x \<in> set (p # qs) \<Longrightarrow> v_ltp (VSince i p qs) \<le> v_ltp x \<and> v_htp x \<le> v_htp (VSince i p qs)" for x
-    using max_proofs_sound[where ?x=x and ?xs="p # qs" and ?f=v_htp]
+  show ?case
+    apply (rule allI)
+    subgoal for phi
+      using IH check_upt_l_cong[OF 15(2)] at_le_htp
+      by (cases phi) (auto simp: Let_def 15(2)[OF at_le_htp(1)] 15(2)[OF at_le_htp(2)])
+    done
+next
+  case (16 i p)
+  have at_le_htp: "s_ltp (SEventually i p) \<le> i \<and> i \<le> s_htp (SEventually i p)"
+    "s_ltp (SEventually i p) \<le> s_at p \<and> s_at p \<le> s_htp (SEventually i p)"
+    using at_ltp(1)[of p] at_htp(1)[of p] min_proofs_sound[where ?xs="[p]" and ?f=s_ltp]
+    by (auto simp add: min_le_iff_disj)
+  have aux: "x \<in> set [p] \<Longrightarrow> s_ltp (SEventually i p) \<le> s_ltp x \<and> s_htp x \<le> s_htp (SEventually i p)" for x
     by auto
-  have IH: "x \<in> set (p # qs) \<Longrightarrow> v_check rho phi x \<Longrightarrow> v_check rho' phi x" for x phi
+  then have IH: "x \<in> set [p] \<Longrightarrow> s_check rho phi x \<Longrightarrow> s_check rho' phi x" for x phi
+    by (smt (verit, best) "local.16.IH" "local.16.prems" preorder_class.order.trans in_set_simps(2))
+  have foo: "min i (s_at p) \<le> j \<and> j \<le> max i (s_at p) \<Longrightarrow>
+          s_ltp (SEventually i p) \<le> enat j \<and> j \<le> s_htp (SEventually i p)" for j
+    using at_le_htp
+    by (auto simp: min_def split: if_splits) (meson enat_ord_simps(1) order_trans)+
+  show ?case
+    apply (rule allI)
+    subgoal for phi
+      using IH check_upt_lu_cong[OF 16(2)] foo
+      by (cases phi) (auto simp: Let_def 16(2)[OF at_le_htp(1)] 16(2)[OF at_le_htp(2)])
+    done
+next
+  case (17 i li qs)
+  have le_htp: "s_ltp (SHistorically i li qs) \<le> i \<and> i \<le> s_htp (SHistorically i li qs)"
+    "s_ltp (SHistorically i li qs) \<le> li \<and> li \<le> s_htp (SHistorically i li qs)"
+    "s_ltp (SHistorically i li qs) \<le> li - Suc 0 \<and> li - Suc 0 \<le> s_htp (SHistorically i li qs)"
+    "s_ltp (SHistorically i li qs) \<le> enat 0 \<and> 0 \<le> s_htp (SHistorically i li qs)"
+    by auto
+  have aux: "x \<in> set qs \<Longrightarrow> s_htp x \<le> s_htp (SHistorically i li qs)" for x
+    using max_proofs_sound[where ?x=x and ?xs=qs and ?f=s_htp]
+    by (auto simp: max_proofs_app)
+  have IH: "x \<in> set qs \<Longrightarrow> s_check rho phi x \<Longrightarrow> s_check rho' phi x" for x phi
     using 17(1)[OF _ 17(2,3)] aux
     by force
   show ?case
     apply (rule allI)
     subgoal for phi
-      using IH check_upt_l_cong[OF 17(2)] at_le_htp
-      by (cases phi) (auto simp: v_check_Since_code Let_def 17(2)[OF at_le_htp(1)]
-          17(2)[OF at_le_htp(2)] 17(2)[OF at_le_htp(3)] simp del: v_check_simps(9) split: enat.splits)
+      using IH check_upt_l_cong[OF 17(2)] le_htp(1-2)
+      by (cases phi) (auto simp: s_check_Historically_code 17(2)[OF le_htp(1)] 17(2)[OF le_htp(2)] 
+          17(2)[OF le_htp(3)] 17(2)[OF le_htp(4)] split: enat.splits)
     done
 next
-  case (18 i qs p)
-  have at_le_htp: "v_ltp (VUntil i qs p) \<le> i \<and> i \<le> v_htp (VUntil i qs p)"
-    "v_ltp (VUntil i qs p) \<le> v_at p \<and> v_at p \<le> v_htp (VUntil i qs p)"
-    using at_htp(2)[of p] at_ltp(2)[of p] min_proofs_sound[where ?xs="qs @ [p]" and ?f=v_ltp]
-    by (auto simp: max_proofs_app) (metis Lattices.linorder_class.min.coboundedI2 order_trans)
-  have aux: "x \<in> set (qs @ [p]) \<Longrightarrow> v_ltp (VUntil i qs p) \<le> v_ltp x \<and> v_htp x \<le> v_htp (VUntil i qs p)" for x
-    using max_proofs_sound[where ?x=x and ?xs="qs @ [p]" and ?f=v_htp]
-      min_proofs_sound[where ?x=x and ?xs="qs @ [p]" and ?f=v_ltp]
-    by auto (meson Lattices.linorder_class.min.coboundedI2)+
-  have IH: "x \<in> set (qs @ [p]) \<Longrightarrow> v_check rho phi x \<Longrightarrow> v_check rho' phi x" for x phi
-    using 18(1)[OF _ 18(2,3)] aux
-    by force
-  have foo: "min i (v_at p) \<le> j \<and> j \<le> max i (v_at p) \<Longrightarrow>
-          v_ltp (VUntil i qs p) \<le> enat j \<and> j \<le> v_htp (VUntil i qs p)" for j
-    using at_le_htp
-    by (auto simp: min_def split: if_splits) (meson enat_ord_simps(1) order_trans)+
+  case (18 i)
   show ?case
     apply (rule allI)
     subgoal for phi
-      using IH check_upt_lu_cong[OF 18(2)] foo
-      by (cases phi) (auto simp: v_check_Until_code Let_def 18(2)[OF at_le_htp(1)]
-          18(2)[OF at_le_htp(2)] simp del: v_check_simps(10) split: enat.splits)
+      using 18
+      by (cases phi) auto
     done
 next
-  case (19 i li qs)
-  have le_htp: "v_ltp (VSince_never i li qs) \<le> i \<and> i \<le> v_htp (VSince_never i li qs)"
-    "v_ltp (VSince_never i li qs) \<le> li \<and> li \<le> v_htp (VSince_never i li qs)"
-    "v_ltp (VSince_never i li qs) \<le> li - Suc 0 \<and> li - Suc 0 \<le> v_htp (VSince_never i li qs)"
-    "v_ltp (VSince_never i li qs) \<le> enat 0 \<and> 0 \<le> v_htp (VSince_never i li qs)"
-    by auto
-  have aux: "x \<in> set qs \<Longrightarrow> v_htp x \<le> v_htp (VSince_never i li qs)" for x
-    using max_proofs_sound[where ?x=x and ?xs=qs and ?f=v_htp]
-    by (auto simp: max_proofs_app)
-  have IH: "x \<in> set qs \<Longrightarrow> v_check rho phi x \<Longrightarrow> v_check rho' phi x" for x phi
+  case (19 i hi qs)
+  have at_le_htp: "s_ltp (SAlways i hi qs) \<le> i \<and> i \<le> s_htp (SAlways i hi qs)"
+    "s_ltp (SAlways i hi qs) \<le> hi \<and> hi \<le> s_htp (SAlways i hi qs)"
+    "s_ltp (SAlways i hi qs) \<le> Suc hi \<and> Suc hi \<le> s_htp (SAlways i hi qs)"
+    using min_proofs_sound[where ?xs="qs" and ?f=s_ltp]
+    by (auto simp add: Lattices.linorder_class.min.coboundedI1)
+  have aux: "x \<in> set (qs) \<Longrightarrow> s_ltp (SAlways i hi qs) \<le> s_ltp x \<and> s_htp x \<le> s_htp (SAlways i hi qs)" for x
+    using max_proofs_sound[where ?x=x and ?xs="qs" and ?f=s_htp]
+      min_proofs_sound[where ?x=x and ?xs="qs" and ?f=s_ltp]
+    by auto (meson Lattices.linorder_class.min.coboundedI2)+
+  have IH: "x \<in> set (qs) \<Longrightarrow> s_check rho phi x \<Longrightarrow> s_check rho' phi x" for x phi
     using 19(1)[OF _ 19(2,3)] aux
     by force
-  show ?case
-    apply (rule allI)
-    subgoal for phi
-      using IH check_upt_l_cong[OF 19(2)] le_htp(1-2)
-      by (cases phi) (auto simp: v_check_Since_code 19(2)[OF le_htp(1)] 19(2)[OF le_htp(2)] 19(2)[OF le_htp(3)] 19(2)[OF le_htp(4)]
-          simp del: v_check_simps(9) split: enat.splits)
-    done
-next
-  case (20 i hi qs)
-  have at_le_htp: "v_ltp (VUntil_never i hi qs) \<le> i \<and> i \<le> v_htp (VUntil_never i hi qs)"
-    "v_ltp (VUntil_never i hi qs) \<le> hi \<and> hi \<le> v_htp (VUntil_never i hi qs)"
-    "v_ltp (VUntil_never i hi qs) \<le> Suc hi \<and> Suc hi \<le> v_htp (VUntil_never i hi qs)"
-    using min_proofs_sound[where ?xs="qs" and ?f=v_ltp]
-    by (auto simp add: Lattices.linorder_class.min.coboundedI1)
-  have aux: "x \<in> set (qs) \<Longrightarrow> v_ltp (VUntil_never i hi qs) \<le> v_ltp x \<and> v_htp x \<le> v_htp (VUntil_never i hi qs)" for x
-    using max_proofs_sound[where ?x=x and ?xs="qs" and ?f=v_htp]
-      min_proofs_sound[where ?x=x and ?xs="qs" and ?f=v_ltp]
-    by auto (meson Lattices.linorder_class.min.coboundedI2)+
-  have IH: "x \<in> set (qs) \<Longrightarrow> v_check rho phi x \<Longrightarrow> v_check rho' phi x" for x phi
-    using 20(1)[OF _ 20(2,3)] aux
-    by force
   have foo: "min i hi \<le> j \<and> j \<le> max i hi \<Longrightarrow>
-          v_ltp (VUntil_never i hi qs) \<le> enat j \<and> j \<le> v_htp (VUntil_never i hi qs)" for j
+          s_ltp (SAlways i hi qs) \<le> enat j \<and> j \<le> s_htp (SAlways i hi qs)" for j
     using at_le_htp
     by (auto simp: min_def split: if_splits) (meson enat_ord_simps(1) order_trans)+
   show ?case
     apply (rule allI)
     subgoal for phi
-      using IH check_upt_lu_cong[OF 20(2)] foo
-      by (cases phi) (auto simp: v_check_Until_code Let_def 20(2)[OF at_le_htp(1)] 20(2)[OF at_le_htp(2)] 20(2)[OF at_le_htp(3)]
-          simp del: v_check_simps(10) split: enat.splits)
+      using IH check_upt_lu_cong[OF 19(2)] foo
+      by (cases phi) (auto simp: s_check_Always_code Let_def 19(2)[OF at_le_htp(1)] 
+          19(2)[OF at_le_htp(2)] 19(2)[OF at_le_htp(3)] split: enat.splits)
     done
 next
-  case (21 i)
+  case (20 i)
+  show ?case
+    apply (rule allI)
+    subgoal for phi
+      by (cases phi) auto
+    done
+next
+  case (21 atm i)
   show ?case
     apply (rule allI)
     subgoal for phi
@@ -1385,19 +1664,19 @@ next
   show ?case
     apply (rule allI)
     subgoal for phi
-      using 22 Lattices.linorder_class.min.coboundedI2
-      by (cases phi) fastforce+
+      using 22
+      by (cases phi) auto
     done
 next
-  case (23 i)
+  case (23 p q)
   show ?case
     apply (rule allI)
     subgoal for phi
       using 23
-      by (cases phi) auto
+      by (cases phi) (simp_all add: Lattices.linorder_class.min.coboundedI1 Lattices.linorder_class.min.coboundedI2 le_max_iff_disj)
     done
 next
-  case (24 i)
+  case (24 p)
   show ?case
     apply (rule allI)
     subgoal for phi
@@ -1405,41 +1684,285 @@ next
       by (cases phi) auto
     done
 next
-  case (25 p)
+  case (25 q)
   show ?case
     apply (rule allI)
     subgoal for phi
       using 25
+      by (cases phi) auto
+    done
+next
+  case (26 i p qs)
+  have at_le_htp: "v_ltp (VSince i p qs) \<le> i \<and> i \<le> v_htp (VSince i p qs)"
+    "v_ltp (VSince i p qs) \<le> v_at p \<and> v_at p \<le> v_htp (VSince i p qs)"
+    "v_ltp (VSince i p qs) \<le> enat 0 \<and> 0 \<le> v_htp (VSince i p qs)"
+    using at_htp(2)[of p]
+    by (auto simp: max_proofs_Cons)
+  have aux: "x \<in> set (p # qs) \<Longrightarrow> v_ltp (VSince i p qs) \<le> v_ltp x \<and> v_htp x \<le> v_htp (VSince i p qs)" for x
+    using max_proofs_sound[where ?x=x and ?xs="p # qs" and ?f=v_htp]
+    by auto
+  have IH: "x \<in> set (p # qs) \<Longrightarrow> v_check rho phi x \<Longrightarrow> v_check rho' phi x" for x phi
+    thm 26
+    using 26(1)[OF _ 26(2,3)] aux
+    by force
+  show ?case
+    apply (rule allI)
+    subgoal for phi
+      using IH check_upt_l_cong[OF 26(2)] at_le_htp
+      by (cases phi) (auto simp: v_check_Since_code Let_def 26(2)[OF at_le_htp(1)]
+          26(2)[OF at_le_htp(2)] 26(2)[OF at_le_htp(3)] simp del: v_check_simps(15) split: enat.splits)
+    done
+next
+  case (27 i qs p)
+  have at_le_htp: "v_ltp (VUntil i qs p) \<le> i \<and> i \<le> v_htp (VUntil i qs p)"
+    "v_ltp (VUntil i qs p) \<le> v_at p \<and> v_at p \<le> v_htp (VUntil i qs p)"
+    using at_htp(2)[of p] at_ltp(2)[of p] min_proofs_sound[where ?xs="qs @ [p]" and ?f=v_ltp]
+    by (auto simp: max_proofs_app) (metis Lattices.linorder_class.min.coboundedI2 order_trans)
+  have aux: "x \<in> set (qs @ [p]) \<Longrightarrow> v_ltp (VUntil i qs p) \<le> v_ltp x \<and> v_htp x \<le> v_htp (VUntil i qs p)" for x
+    using max_proofs_sound[where ?x=x and ?xs="qs @ [p]" and ?f=v_htp]
+      min_proofs_sound[where ?x=x and ?xs="qs @ [p]" and ?f=v_ltp]
+    by auto (meson Lattices.linorder_class.min.coboundedI2)+
+  have IH: "x \<in> set (qs @ [p]) \<Longrightarrow> v_check rho phi x \<Longrightarrow> v_check rho' phi x" for x phi
+    using 27(1)[OF _ 27(2,3)] aux
+    by force
+  have foo: "min i (v_at p) \<le> j \<and> j \<le> max i (v_at p) \<Longrightarrow>
+          v_ltp (VUntil i qs p) \<le> enat j \<and> j \<le> v_htp (VUntil i qs p)" for j
+    using at_le_htp
+    by (auto simp: min_def split: if_splits) (meson enat_ord_simps(1) order_trans)+
+  show ?case
+    apply (rule allI)
+    subgoal for phi
+      using IH check_upt_lu_cong[OF 27(2)] foo
+      by (cases phi) (auto simp: v_check_Until_code Let_def 27(2)[OF at_le_htp(1)]
+          27(2)[OF at_le_htp(2)] simp del: v_check_simps(16) split: enat.splits)
+    done
+next
+  case (28 i li qs)
+  have le_htp: "v_ltp (VSince_never i li qs) \<le> i \<and> i \<le> v_htp (VSince_never i li qs)"
+    "v_ltp (VSince_never i li qs) \<le> li \<and> li \<le> v_htp (VSince_never i li qs)"
+    "v_ltp (VSince_never i li qs) \<le> li - Suc 0 \<and> li - Suc 0 \<le> v_htp (VSince_never i li qs)"
+    "v_ltp (VSince_never i li qs) \<le> enat 0 \<and> 0 \<le> v_htp (VSince_never i li qs)"
+    by auto
+  have aux: "x \<in> set qs \<Longrightarrow> v_htp x \<le> v_htp (VSince_never i li qs)" for x
+    using max_proofs_sound[where ?x=x and ?xs=qs and ?f=v_htp]
+    by (auto simp: max_proofs_app)
+  have IH: "x \<in> set qs \<Longrightarrow> v_check rho phi x \<Longrightarrow> v_check rho' phi x" for x phi
+    using 28(1)[OF _ 28(2,3)] aux
+    by force
+  show ?case
+    apply (rule allI)
+    subgoal for phi
+      using IH check_upt_l_cong[OF 28(2)] le_htp(1-2)
+      by (cases phi) (auto simp: v_check_Since_code 28(2)[OF le_htp(1)] 28(2)[OF le_htp(2)] 28(2)[OF le_htp(3)] 28(2)[OF le_htp(4)]
+          simp del: v_check_simps(15) split: enat.splits)
+    done
+next
+  case (29 i hi qs)
+  have at_le_htp: "v_ltp (VUntil_never i hi qs) \<le> i \<and> i \<le> v_htp (VUntil_never i hi qs)"
+    "v_ltp (VUntil_never i hi qs) \<le> hi \<and> hi \<le> v_htp (VUntil_never i hi qs)"
+    "v_ltp (VUntil_never i hi qs) \<le> Suc hi \<and> Suc hi \<le> v_htp (VUntil_never i hi qs)"
+    using min_proofs_sound[where ?xs="qs" and ?f=v_ltp]
+    by (auto simp add: Lattices.linorder_class.min.coboundedI1)
+  have aux: "x \<in> set (qs) \<Longrightarrow> v_ltp (VUntil_never i hi qs) \<le> v_ltp x \<and> v_htp x \<le> v_htp (VUntil_never i hi qs)" for x
+    using max_proofs_sound[where ?x=x and ?xs="qs" and ?f=v_htp]
+      min_proofs_sound[where ?x=x and ?xs="qs" and ?f=v_ltp]
+    by auto (meson Lattices.linorder_class.min.coboundedI2)+
+  have IH: "x \<in> set (qs) \<Longrightarrow> v_check rho phi x \<Longrightarrow> v_check rho' phi x" for x phi
+    using 29(1)[OF _ 29(2,3)] aux
+    by force
+  have foo: "min i hi \<le> j \<and> j \<le> max i hi \<Longrightarrow>
+          v_ltp (VUntil_never i hi qs) \<le> enat j \<and> j \<le> v_htp (VUntil_never i hi qs)" for j
+    using at_le_htp
+    by (auto simp: min_def split: if_splits) (meson enat_ord_simps(1) order_trans)+
+  show ?case
+    apply (rule allI)
+    subgoal for phi
+      using IH check_upt_lu_cong[OF 29(2)] foo
+      by (cases phi) (auto simp: v_check_Until_code Let_def 29(2)[OF at_le_htp(1)] 29(2)[OF at_le_htp(2)] 29(2)[OF at_le_htp(3)]
+          simp del: v_check_simps(16) split: enat.splits)
+    done
+next
+  case (30 i)
+  show ?case
+    apply (rule allI)
+    subgoal for phi
+      using 30
+      by (cases phi) auto
+    done
+next
+  case (31 p)
+  show ?case
+    apply (rule allI)
+    subgoal for phi
+      using 31 Lattices.linorder_class.min.coboundedI2
+      by (cases phi) fastforce+
+    done
+next
+  case (32 i)
+  show ?case
+    apply (rule allI)
+    subgoal for phi
+      using 32
+      by (cases phi) auto
+    done
+next
+  case (33 i)
+  show ?case
+    apply (rule allI)
+    subgoal for phi
+      using 33
+      by (cases phi) auto
+    done
+next
+  case (34 p)
+  show ?case
+    apply (rule allI)
+    subgoal for phi
+      using 34
       by (cases phi) (auto simp add: le_max_iff_disj)
     done
 next
-  case (26 i)
+  case (35 i)
   show ?case
     apply (rule allI)
     subgoal for phi
-      using 26
+      using 35
       apply (cases phi)
                apply auto
       apply (metis One_nat_def diff_le_self enat_minus_leI eq_iff idiff_enat_enat one_enat_def)
       done
     done
 next
-  case (27 i)
+  case (36 i)
   show ?case
     apply (rule allI)
     subgoal for phi
-      using 27
+      using 36
       apply (cases phi)
                apply auto
       apply (metis One_nat_def diff_le_self enat_minus_leI eq_iff idiff_enat_enat one_enat_def)
       done
     done
 next
-  case 28
+  case 37
   show ?case
     apply (rule allI)
     subgoal for phi
       by (cases phi) auto
+    done
+next
+  case (38 p q)
+  show ?case
+    apply (rule allI)
+    subgoal for phi
+      apply (cases phi) 
+        using 38
+        by (auto simp add: le_max_iff_disj min_le_iff_disj)
+    done
+next
+  case (39 p q)
+  show ?case
+    apply (rule allI)
+    subgoal for phi
+      apply (cases phi) 
+        using 39
+        by (auto simp add: le_max_iff_disj min_le_iff_disj)
+    done
+next
+  case (40 p q)
+  show ?case
+    apply (rule allI)
+    subgoal for phi
+      apply (cases phi) 
+        using 40
+        by (auto simp add: le_max_iff_disj min_le_iff_disj)
+    done
+next
+  case (41 i)
+  show ?case
+    apply (rule allI)
+    subgoal for phi
+      using 41
+      by (cases phi) auto
+    done
+next
+  case (42 i li qs)
+  have le_htp: "v_ltp (VOnce i li qs) \<le> i \<and> i \<le> v_htp (VOnce i li qs)"
+    "v_ltp (VOnce i li qs) \<le> li \<and> li \<le> v_htp (VOnce i li qs)"
+    "v_ltp (VOnce i li qs) \<le> li - Suc 0 \<and> li - Suc 0 \<le> v_htp (VOnce i li qs)"
+    "v_ltp (VOnce i li qs) \<le> enat 0 \<and> 0 \<le> v_htp (VOnce i li qs)"
+    by auto
+  have aux: "x \<in> set qs \<Longrightarrow> v_htp x \<le> v_htp (VOnce i li qs)" for x
+    using max_proofs_sound[where ?x=x and ?xs=qs and ?f=v_htp]
+    by (auto simp: max_proofs_app)
+  have IH: "x \<in> set qs \<Longrightarrow> v_check rho phi x \<Longrightarrow> v_check rho' phi x" for x phi
+    using 42(1)[OF _ 42(2,3)] aux
+    by force
+  show ?case
+    apply (rule allI)
+    subgoal for phi
+      using IH check_upt_l_cong[OF 42(2)] le_htp(1-2)
+      by (cases phi) (auto simp: v_check_Once_code 42(2)[OF le_htp(1)] 42(2)[OF le_htp(2)] 42(2)[OF le_htp(3)] 42(2)[OF le_htp(4)]
+          simp del: v_check_simps(11) split: enat.splits)
+    done
+next
+  case (43 i hi qs)
+  have at_le_htp: "v_ltp (VEventually i hi qs) \<le> i \<and> i \<le> v_htp (VEventually i hi qs)"
+    "v_ltp (VEventually i hi qs) \<le> hi \<and> hi \<le> v_htp (VEventually i hi qs)"
+    "v_ltp (VEventually i hi qs) \<le> Suc hi \<and> Suc hi \<le> v_htp (VEventually i hi qs)"
+    using min_proofs_sound[where ?xs="qs" and ?f=v_ltp]
+    by (auto simp add: Lattices.linorder_class.min.coboundedI1)
+  have aux: "x \<in> set (qs) \<Longrightarrow> v_ltp (VEventually i hi qs) \<le> v_ltp x \<and> v_htp x \<le> v_htp (VEventually i hi qs)" for x
+    using max_proofs_sound[where ?x=x and ?xs="qs" and ?f=v_htp]
+      min_proofs_sound[where ?x=x and ?xs="qs" and ?f=v_ltp]
+    by auto (meson Lattices.linorder_class.min.coboundedI2)+
+  have IH: "x \<in> set (qs) \<Longrightarrow> v_check rho phi x \<Longrightarrow> v_check rho' phi x" for x phi
+    using 43(1)[OF _ 43(2,3)] aux
+    by force
+  have foo: "min i hi \<le> j \<and> j \<le> max i hi \<Longrightarrow>
+          v_ltp (VEventually i hi qs) \<le> enat j \<and> j \<le> v_htp (VEventually i hi qs)" for j
+    using at_le_htp
+    by (auto simp: min_def split: if_splits) (meson enat_ord_simps(1) order_trans)+
+  show ?case
+    apply (rule allI)
+    subgoal for phi
+      using IH check_upt_lu_cong[OF 43(2)] foo
+      by (cases phi) (auto simp: v_check_Eventually_code Let_def 43(2)[OF at_le_htp(1)] 43(2)[OF at_le_htp(2)] 
+          43(2)[OF at_le_htp(3)] simp del: v_check_simps(13) split: enat.splits)
+    done
+next
+  case (44 i p)
+  then have IH: "x \<in> set [p] \<Longrightarrow> v_check rho phi x \<Longrightarrow> v_check rho' phi x" for x phi
+    by force
+  have at_le_htp: "v_ltp (VHistorically i p) \<le> i \<and> i \<le> v_htp (VHistorically i p)"
+    "v_ltp (VHistorically i p) \<le> v_at p \<and> v_at p \<le> v_htp (VHistorically i p)"
+    using at_htp(2)[of p]
+    by (auto simp: max_proofs_Cons)
+  show ?case
+    apply (rule allI)
+    subgoal for phi
+      using IH check_upt_l_cong[OF 44(2)] at_le_htp
+      by (cases phi) (auto simp: Let_def 44(2)[OF at_le_htp(1)] 44(2)[OF at_le_htp(2)])
+    done
+next
+  case (45 i p)
+    have at_le_htp: "v_ltp (VAlways i p) \<le> i \<and> i \<le> v_htp (VAlways i p)"
+    "v_ltp (VAlways i p) \<le> v_at p \<and> v_at p \<le> v_htp (VAlways i p)"
+    using at_ltp(2)[of p] at_htp(2)[of p] min_proofs_sound[where ?xs="[p]" and ?f=v_ltp]
+    by (auto simp add: min_le_iff_disj)
+  have aux: "x \<in> set [p] \<Longrightarrow> v_ltp (VAlways i p) \<le> v_ltp x \<and> v_htp x \<le> v_htp (VAlways i p)" for x
+    by auto
+  then have IH: "x \<in> set [p] \<Longrightarrow> v_check rho phi x \<Longrightarrow> v_check rho' phi x" for x phi
+    by (smt (verit, best) "local.45.IH" "local.45.prems" preorder_class.order.trans in_set_simps(2))
+  have foo: "min i (v_at p) \<le> j \<and> j \<le> max i (v_at p) \<Longrightarrow>
+          v_ltp (VAlways i p) \<le> enat j \<and> j \<le> v_htp (VAlways i p)" for j
+    using at_le_htp
+    by (auto simp: min_def split: if_splits) (meson enat_ord_simps(1) order_trans)+
+  show ?case
+    apply (rule allI)
+    subgoal for phi
+      using IH check_upt_lu_cong[OF 45(2)] foo
+      by (cases phi) (auto simp: Let_def 45(2)[OF at_le_htp(1)] 45(2)[OF at_le_htp(2)])
     done
 qed
 
