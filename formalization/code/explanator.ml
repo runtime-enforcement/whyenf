@@ -3,7 +3,11 @@ module Explanator : sig
   val integer_of_nat : nat -> Z.t
   type 'a vproof = VFF of nat | VAtm of 'a * nat | VNeg of 'a sproof |
     VDisj of 'a vproof * 'a vproof | VConjL of 'a vproof | VConjR of 'a vproof |
-    VSince of nat * 'a vproof * 'a vproof list |
+    VImpl of 'a sproof * 'a vproof | VIff_sv of 'a sproof * 'a vproof |
+    VIff_vs of 'a vproof * 'a sproof | VOnce_le of nat |
+    VOnce of nat * nat * 'a vproof list |
+    VEventually of nat * nat * 'a vproof list | VHistorically of nat * 'a vproof
+    | VAlways of nat * 'a vproof | VSince of nat * 'a vproof * 'a vproof list |
     VUntil of nat * 'a vproof list * 'a vproof |
     VSince_never of nat * nat * 'a vproof list |
     VUntil_never of nat * nat * 'a vproof list | VSince_le of nat |
@@ -11,13 +15,19 @@ module Explanator : sig
     | VPrev_ge of nat | VPrev_le of nat | VPrev_zero
   and 'a sproof = STT of nat | SAtm of 'a * nat | SNeg of 'a vproof |
     SDisjL of 'a sproof | SDisjR of 'a sproof | SConj of 'a sproof * 'a sproof |
+    SImplR of 'a sproof | SImplL of 'a vproof | SIff_ss of 'a sproof * 'a sproof
+    | SIff_vv of 'a vproof * 'a vproof | SOnce of nat * 'a sproof |
+    SEventually of nat * 'a sproof | SHistorically of nat * nat * 'a sproof list
+    | SHistorically_le of nat | SAlways of nat * nat * 'a sproof list |
     SSince of 'a sproof * 'a sproof list | SUntil of 'a sproof list * 'a sproof
     | SNext of 'a sproof | SPrev of 'a sproof
   type enat = Enat of nat | Infinity_enat
   type i
   type 'a mtl = TT | FF | Atom of 'a | Neg of 'a mtl | Disj of 'a mtl * 'a mtl |
-    Conj of 'a mtl * 'a mtl | Next of i * 'a mtl | Prev of i * 'a mtl |
-    Since of 'a mtl * i * 'a mtl | Until of 'a mtl * i * 'a mtl
+    Conj of 'a mtl * 'a mtl | Impl of 'a mtl * 'a mtl | Iff of 'a mtl * 'a mtl |
+    Next of i * 'a mtl | Prev of i * 'a mtl | Once of i * 'a mtl |
+    Historically of i * 'a mtl | Eventually of i * 'a mtl | Always of i * 'a mtl
+    | Since of 'a mtl * i * 'a mtl | Until of 'a mtl * i * 'a mtl
   type 'a set
   type 'a trace_rbt
   type 'a trace
@@ -260,7 +270,11 @@ let rec equal_list _A
 
 type 'a vproof = VFF of nat | VAtm of 'a * nat | VNeg of 'a sproof |
   VDisj of 'a vproof * 'a vproof | VConjL of 'a vproof | VConjR of 'a vproof |
-  VSince of nat * 'a vproof * 'a vproof list |
+  VImpl of 'a sproof * 'a vproof | VIff_sv of 'a sproof * 'a vproof |
+  VIff_vs of 'a vproof * 'a sproof | VOnce_le of nat |
+  VOnce of nat * nat * 'a vproof list |
+  VEventually of nat * nat * 'a vproof list | VHistorically of nat * 'a vproof |
+  VAlways of nat * 'a vproof | VSince of nat * 'a vproof * 'a vproof list |
   VUntil of nat * 'a vproof list * 'a vproof |
   VSince_never of nat * nat * 'a vproof list |
   VUntil_never of nat * nat * 'a vproof list | VSince_le of nat |
@@ -268,75 +282,313 @@ type 'a vproof = VFF of nat | VAtm of 'a * nat | VNeg of 'a sproof |
   VPrev_ge of nat | VPrev_le of nat | VPrev_zero
 and 'a sproof = STT of nat | SAtm of 'a * nat | SNeg of 'a vproof |
   SDisjL of 'a sproof | SDisjR of 'a sproof | SConj of 'a sproof * 'a sproof |
+  SImplR of 'a sproof | SImplL of 'a vproof | SIff_ss of 'a sproof * 'a sproof |
+  SIff_vv of 'a vproof * 'a vproof | SOnce of nat * 'a sproof |
+  SEventually of nat * 'a sproof | SHistorically of nat * nat * 'a sproof list |
+  SHistorically_le of nat | SAlways of nat * nat * 'a sproof list |
   SSince of 'a sproof * 'a sproof list | SUntil of 'a sproof list * 'a sproof |
   SNext of 'a sproof | SPrev of 'a sproof;;
 
 let rec equal_sproof _A = ({equal = equal_sproofa _A} : 'a sproof equal)
 and equal_sproofa _A
-  x0 x1 = match x0, x1 with SNext x9, SPrev x10 -> false
-    | SPrev x10, SNext x9 -> false
-    | SUntil (x81, x82), SPrev x10 -> false
-    | SPrev x10, SUntil (x81, x82) -> false
-    | SUntil (x81, x82), SNext x9 -> false
-    | SNext x9, SUntil (x81, x82) -> false
-    | SSince (x71, x72), SPrev x10 -> false
-    | SPrev x10, SSince (x71, x72) -> false
-    | SSince (x71, x72), SNext x9 -> false
-    | SNext x9, SSince (x71, x72) -> false
-    | SSince (x71, x72), SUntil (x81, x82) -> false
-    | SUntil (x81, x82), SSince (x71, x72) -> false
-    | SConj (x61, x62), SPrev x10 -> false
-    | SPrev x10, SConj (x61, x62) -> false
-    | SConj (x61, x62), SNext x9 -> false
-    | SNext x9, SConj (x61, x62) -> false
-    | SConj (x61, x62), SUntil (x81, x82) -> false
-    | SUntil (x81, x82), SConj (x61, x62) -> false
-    | SConj (x61, x62), SSince (x71, x72) -> false
-    | SSince (x71, x72), SConj (x61, x62) -> false
-    | SDisjR x5, SPrev x10 -> false
-    | SPrev x10, SDisjR x5 -> false
-    | SDisjR x5, SNext x9 -> false
-    | SNext x9, SDisjR x5 -> false
-    | SDisjR x5, SUntil (x81, x82) -> false
-    | SUntil (x81, x82), SDisjR x5 -> false
-    | SDisjR x5, SSince (x71, x72) -> false
-    | SSince (x71, x72), SDisjR x5 -> false
+  x0 x1 = match x0, x1 with SNext x18, SPrev x19 -> false
+    | SPrev x19, SNext x18 -> false
+    | SUntil (x171, x172), SPrev x19 -> false
+    | SPrev x19, SUntil (x171, x172) -> false
+    | SUntil (x171, x172), SNext x18 -> false
+    | SNext x18, SUntil (x171, x172) -> false
+    | SSince (x161, x162), SPrev x19 -> false
+    | SPrev x19, SSince (x161, x162) -> false
+    | SSince (x161, x162), SNext x18 -> false
+    | SNext x18, SSince (x161, x162) -> false
+    | SSince (x161, x162), SUntil (x171, x172) -> false
+    | SUntil (x171, x172), SSince (x161, x162) -> false
+    | SAlways (x151, x152, x153), SPrev x19 -> false
+    | SPrev x19, SAlways (x151, x152, x153) -> false
+    | SAlways (x151, x152, x153), SNext x18 -> false
+    | SNext x18, SAlways (x151, x152, x153) -> false
+    | SAlways (x151, x152, x153), SUntil (x171, x172) -> false
+    | SUntil (x171, x172), SAlways (x151, x152, x153) -> false
+    | SAlways (x151, x152, x153), SSince (x161, x162) -> false
+    | SSince (x161, x162), SAlways (x151, x152, x153) -> false
+    | SHistorically_le x14, SPrev x19 -> false
+    | SPrev x19, SHistorically_le x14 -> false
+    | SHistorically_le x14, SNext x18 -> false
+    | SNext x18, SHistorically_le x14 -> false
+    | SHistorically_le x14, SUntil (x171, x172) -> false
+    | SUntil (x171, x172), SHistorically_le x14 -> false
+    | SHistorically_le x14, SSince (x161, x162) -> false
+    | SSince (x161, x162), SHistorically_le x14 -> false
+    | SHistorically_le x14, SAlways (x151, x152, x153) -> false
+    | SAlways (x151, x152, x153), SHistorically_le x14 -> false
+    | SHistorically (x131, x132, x133), SPrev x19 -> false
+    | SPrev x19, SHistorically (x131, x132, x133) -> false
+    | SHistorically (x131, x132, x133), SNext x18 -> false
+    | SNext x18, SHistorically (x131, x132, x133) -> false
+    | SHistorically (x131, x132, x133), SUntil (x171, x172) -> false
+    | SUntil (x171, x172), SHistorically (x131, x132, x133) -> false
+    | SHistorically (x131, x132, x133), SSince (x161, x162) -> false
+    | SSince (x161, x162), SHistorically (x131, x132, x133) -> false
+    | SHistorically (x131, x132, x133), SAlways (x151, x152, x153) -> false
+    | SAlways (x151, x152, x153), SHistorically (x131, x132, x133) -> false
+    | SHistorically (x131, x132, x133), SHistorically_le x14 -> false
+    | SHistorically_le x14, SHistorically (x131, x132, x133) -> false
+    | SEventually (x121, x122), SPrev x19 -> false
+    | SPrev x19, SEventually (x121, x122) -> false
+    | SEventually (x121, x122), SNext x18 -> false
+    | SNext x18, SEventually (x121, x122) -> false
+    | SEventually (x121, x122), SUntil (x171, x172) -> false
+    | SUntil (x171, x172), SEventually (x121, x122) -> false
+    | SEventually (x121, x122), SSince (x161, x162) -> false
+    | SSince (x161, x162), SEventually (x121, x122) -> false
+    | SEventually (x121, x122), SAlways (x151, x152, x153) -> false
+    | SAlways (x151, x152, x153), SEventually (x121, x122) -> false
+    | SEventually (x121, x122), SHistorically_le x14 -> false
+    | SHistorically_le x14, SEventually (x121, x122) -> false
+    | SEventually (x121, x122), SHistorically (x131, x132, x133) -> false
+    | SHistorically (x131, x132, x133), SEventually (x121, x122) -> false
+    | SOnce (x111, x112), SPrev x19 -> false
+    | SPrev x19, SOnce (x111, x112) -> false
+    | SOnce (x111, x112), SNext x18 -> false
+    | SNext x18, SOnce (x111, x112) -> false
+    | SOnce (x111, x112), SUntil (x171, x172) -> false
+    | SUntil (x171, x172), SOnce (x111, x112) -> false
+    | SOnce (x111, x112), SSince (x161, x162) -> false
+    | SSince (x161, x162), SOnce (x111, x112) -> false
+    | SOnce (x111, x112), SAlways (x151, x152, x153) -> false
+    | SAlways (x151, x152, x153), SOnce (x111, x112) -> false
+    | SOnce (x111, x112), SHistorically_le x14 -> false
+    | SHistorically_le x14, SOnce (x111, x112) -> false
+    | SOnce (x111, x112), SHistorically (x131, x132, x133) -> false
+    | SHistorically (x131, x132, x133), SOnce (x111, x112) -> false
+    | SOnce (x111, x112), SEventually (x121, x122) -> false
+    | SEventually (x121, x122), SOnce (x111, x112) -> false
+    | SIff_vv (x101, x102), SPrev x19 -> false
+    | SPrev x19, SIff_vv (x101, x102) -> false
+    | SIff_vv (x101, x102), SNext x18 -> false
+    | SNext x18, SIff_vv (x101, x102) -> false
+    | SIff_vv (x101, x102), SUntil (x171, x172) -> false
+    | SUntil (x171, x172), SIff_vv (x101, x102) -> false
+    | SIff_vv (x101, x102), SSince (x161, x162) -> false
+    | SSince (x161, x162), SIff_vv (x101, x102) -> false
+    | SIff_vv (x101, x102), SAlways (x151, x152, x153) -> false
+    | SAlways (x151, x152, x153), SIff_vv (x101, x102) -> false
+    | SIff_vv (x101, x102), SHistorically_le x14 -> false
+    | SHistorically_le x14, SIff_vv (x101, x102) -> false
+    | SIff_vv (x101, x102), SHistorically (x131, x132, x133) -> false
+    | SHistorically (x131, x132, x133), SIff_vv (x101, x102) -> false
+    | SIff_vv (x101, x102), SEventually (x121, x122) -> false
+    | SEventually (x121, x122), SIff_vv (x101, x102) -> false
+    | SIff_vv (x101, x102), SOnce (x111, x112) -> false
+    | SOnce (x111, x112), SIff_vv (x101, x102) -> false
+    | SIff_ss (x91, x92), SPrev x19 -> false
+    | SPrev x19, SIff_ss (x91, x92) -> false
+    | SIff_ss (x91, x92), SNext x18 -> false
+    | SNext x18, SIff_ss (x91, x92) -> false
+    | SIff_ss (x91, x92), SUntil (x171, x172) -> false
+    | SUntil (x171, x172), SIff_ss (x91, x92) -> false
+    | SIff_ss (x91, x92), SSince (x161, x162) -> false
+    | SSince (x161, x162), SIff_ss (x91, x92) -> false
+    | SIff_ss (x91, x92), SAlways (x151, x152, x153) -> false
+    | SAlways (x151, x152, x153), SIff_ss (x91, x92) -> false
+    | SIff_ss (x91, x92), SHistorically_le x14 -> false
+    | SHistorically_le x14, SIff_ss (x91, x92) -> false
+    | SIff_ss (x91, x92), SHistorically (x131, x132, x133) -> false
+    | SHistorically (x131, x132, x133), SIff_ss (x91, x92) -> false
+    | SIff_ss (x91, x92), SEventually (x121, x122) -> false
+    | SEventually (x121, x122), SIff_ss (x91, x92) -> false
+    | SIff_ss (x91, x92), SOnce (x111, x112) -> false
+    | SOnce (x111, x112), SIff_ss (x91, x92) -> false
+    | SIff_ss (x91, x92), SIff_vv (x101, x102) -> false
+    | SIff_vv (x101, x102), SIff_ss (x91, x92) -> false
+    | SImplL x8, SPrev x19 -> false
+    | SPrev x19, SImplL x8 -> false
+    | SImplL x8, SNext x18 -> false
+    | SNext x18, SImplL x8 -> false
+    | SImplL x8, SUntil (x171, x172) -> false
+    | SUntil (x171, x172), SImplL x8 -> false
+    | SImplL x8, SSince (x161, x162) -> false
+    | SSince (x161, x162), SImplL x8 -> false
+    | SImplL x8, SAlways (x151, x152, x153) -> false
+    | SAlways (x151, x152, x153), SImplL x8 -> false
+    | SImplL x8, SHistorically_le x14 -> false
+    | SHistorically_le x14, SImplL x8 -> false
+    | SImplL x8, SHistorically (x131, x132, x133) -> false
+    | SHistorically (x131, x132, x133), SImplL x8 -> false
+    | SImplL x8, SEventually (x121, x122) -> false
+    | SEventually (x121, x122), SImplL x8 -> false
+    | SImplL x8, SOnce (x111, x112) -> false
+    | SOnce (x111, x112), SImplL x8 -> false
+    | SImplL x8, SIff_vv (x101, x102) -> false
+    | SIff_vv (x101, x102), SImplL x8 -> false
+    | SImplL x8, SIff_ss (x91, x92) -> false
+    | SIff_ss (x91, x92), SImplL x8 -> false
+    | SImplR x7, SPrev x19 -> false
+    | SPrev x19, SImplR x7 -> false
+    | SImplR x7, SNext x18 -> false
+    | SNext x18, SImplR x7 -> false
+    | SImplR x7, SUntil (x171, x172) -> false
+    | SUntil (x171, x172), SImplR x7 -> false
+    | SImplR x7, SSince (x161, x162) -> false
+    | SSince (x161, x162), SImplR x7 -> false
+    | SImplR x7, SAlways (x151, x152, x153) -> false
+    | SAlways (x151, x152, x153), SImplR x7 -> false
+    | SImplR x7, SHistorically_le x14 -> false
+    | SHistorically_le x14, SImplR x7 -> false
+    | SImplR x7, SHistorically (x131, x132, x133) -> false
+    | SHistorically (x131, x132, x133), SImplR x7 -> false
+    | SImplR x7, SEventually (x121, x122) -> false
+    | SEventually (x121, x122), SImplR x7 -> false
+    | SImplR x7, SOnce (x111, x112) -> false
+    | SOnce (x111, x112), SImplR x7 -> false
+    | SImplR x7, SIff_vv (x101, x102) -> false
+    | SIff_vv (x101, x102), SImplR x7 -> false
+    | SImplR x7, SIff_ss (x91, x92) -> false
+    | SIff_ss (x91, x92), SImplR x7 -> false
+    | SImplR x7, SImplL x8 -> false
+    | SImplL x8, SImplR x7 -> false
+    | SConj (x61, x62), SPrev x19 -> false
+    | SPrev x19, SConj (x61, x62) -> false
+    | SConj (x61, x62), SNext x18 -> false
+    | SNext x18, SConj (x61, x62) -> false
+    | SConj (x61, x62), SUntil (x171, x172) -> false
+    | SUntil (x171, x172), SConj (x61, x62) -> false
+    | SConj (x61, x62), SSince (x161, x162) -> false
+    | SSince (x161, x162), SConj (x61, x62) -> false
+    | SConj (x61, x62), SAlways (x151, x152, x153) -> false
+    | SAlways (x151, x152, x153), SConj (x61, x62) -> false
+    | SConj (x61, x62), SHistorically_le x14 -> false
+    | SHistorically_le x14, SConj (x61, x62) -> false
+    | SConj (x61, x62), SHistorically (x131, x132, x133) -> false
+    | SHistorically (x131, x132, x133), SConj (x61, x62) -> false
+    | SConj (x61, x62), SEventually (x121, x122) -> false
+    | SEventually (x121, x122), SConj (x61, x62) -> false
+    | SConj (x61, x62), SOnce (x111, x112) -> false
+    | SOnce (x111, x112), SConj (x61, x62) -> false
+    | SConj (x61, x62), SIff_vv (x101, x102) -> false
+    | SIff_vv (x101, x102), SConj (x61, x62) -> false
+    | SConj (x61, x62), SIff_ss (x91, x92) -> false
+    | SIff_ss (x91, x92), SConj (x61, x62) -> false
+    | SConj (x61, x62), SImplL x8 -> false
+    | SImplL x8, SConj (x61, x62) -> false
+    | SConj (x61, x62), SImplR x7 -> false
+    | SImplR x7, SConj (x61, x62) -> false
+    | SDisjR x5, SPrev x19 -> false
+    | SPrev x19, SDisjR x5 -> false
+    | SDisjR x5, SNext x18 -> false
+    | SNext x18, SDisjR x5 -> false
+    | SDisjR x5, SUntil (x171, x172) -> false
+    | SUntil (x171, x172), SDisjR x5 -> false
+    | SDisjR x5, SSince (x161, x162) -> false
+    | SSince (x161, x162), SDisjR x5 -> false
+    | SDisjR x5, SAlways (x151, x152, x153) -> false
+    | SAlways (x151, x152, x153), SDisjR x5 -> false
+    | SDisjR x5, SHistorically_le x14 -> false
+    | SHistorically_le x14, SDisjR x5 -> false
+    | SDisjR x5, SHistorically (x131, x132, x133) -> false
+    | SHistorically (x131, x132, x133), SDisjR x5 -> false
+    | SDisjR x5, SEventually (x121, x122) -> false
+    | SEventually (x121, x122), SDisjR x5 -> false
+    | SDisjR x5, SOnce (x111, x112) -> false
+    | SOnce (x111, x112), SDisjR x5 -> false
+    | SDisjR x5, SIff_vv (x101, x102) -> false
+    | SIff_vv (x101, x102), SDisjR x5 -> false
+    | SDisjR x5, SIff_ss (x91, x92) -> false
+    | SIff_ss (x91, x92), SDisjR x5 -> false
+    | SDisjR x5, SImplL x8 -> false
+    | SImplL x8, SDisjR x5 -> false
+    | SDisjR x5, SImplR x7 -> false
+    | SImplR x7, SDisjR x5 -> false
     | SDisjR x5, SConj (x61, x62) -> false
     | SConj (x61, x62), SDisjR x5 -> false
-    | SDisjL x4, SPrev x10 -> false
-    | SPrev x10, SDisjL x4 -> false
-    | SDisjL x4, SNext x9 -> false
-    | SNext x9, SDisjL x4 -> false
-    | SDisjL x4, SUntil (x81, x82) -> false
-    | SUntil (x81, x82), SDisjL x4 -> false
-    | SDisjL x4, SSince (x71, x72) -> false
-    | SSince (x71, x72), SDisjL x4 -> false
+    | SDisjL x4, SPrev x19 -> false
+    | SPrev x19, SDisjL x4 -> false
+    | SDisjL x4, SNext x18 -> false
+    | SNext x18, SDisjL x4 -> false
+    | SDisjL x4, SUntil (x171, x172) -> false
+    | SUntil (x171, x172), SDisjL x4 -> false
+    | SDisjL x4, SSince (x161, x162) -> false
+    | SSince (x161, x162), SDisjL x4 -> false
+    | SDisjL x4, SAlways (x151, x152, x153) -> false
+    | SAlways (x151, x152, x153), SDisjL x4 -> false
+    | SDisjL x4, SHistorically_le x14 -> false
+    | SHistorically_le x14, SDisjL x4 -> false
+    | SDisjL x4, SHistorically (x131, x132, x133) -> false
+    | SHistorically (x131, x132, x133), SDisjL x4 -> false
+    | SDisjL x4, SEventually (x121, x122) -> false
+    | SEventually (x121, x122), SDisjL x4 -> false
+    | SDisjL x4, SOnce (x111, x112) -> false
+    | SOnce (x111, x112), SDisjL x4 -> false
+    | SDisjL x4, SIff_vv (x101, x102) -> false
+    | SIff_vv (x101, x102), SDisjL x4 -> false
+    | SDisjL x4, SIff_ss (x91, x92) -> false
+    | SIff_ss (x91, x92), SDisjL x4 -> false
+    | SDisjL x4, SImplL x8 -> false
+    | SImplL x8, SDisjL x4 -> false
+    | SDisjL x4, SImplR x7 -> false
+    | SImplR x7, SDisjL x4 -> false
     | SDisjL x4, SConj (x61, x62) -> false
     | SConj (x61, x62), SDisjL x4 -> false
     | SDisjL x4, SDisjR x5 -> false
     | SDisjR x5, SDisjL x4 -> false
-    | SNeg x3, SPrev x10 -> false
-    | SPrev x10, SNeg x3 -> false
-    | SNeg x3, SNext x9 -> false
-    | SNext x9, SNeg x3 -> false
-    | SNeg x3, SUntil (x81, x82) -> false
-    | SUntil (x81, x82), SNeg x3 -> false
-    | SNeg x3, SSince (x71, x72) -> false
-    | SSince (x71, x72), SNeg x3 -> false
+    | SNeg x3, SPrev x19 -> false
+    | SPrev x19, SNeg x3 -> false
+    | SNeg x3, SNext x18 -> false
+    | SNext x18, SNeg x3 -> false
+    | SNeg x3, SUntil (x171, x172) -> false
+    | SUntil (x171, x172), SNeg x3 -> false
+    | SNeg x3, SSince (x161, x162) -> false
+    | SSince (x161, x162), SNeg x3 -> false
+    | SNeg x3, SAlways (x151, x152, x153) -> false
+    | SAlways (x151, x152, x153), SNeg x3 -> false
+    | SNeg x3, SHistorically_le x14 -> false
+    | SHistorically_le x14, SNeg x3 -> false
+    | SNeg x3, SHistorically (x131, x132, x133) -> false
+    | SHistorically (x131, x132, x133), SNeg x3 -> false
+    | SNeg x3, SEventually (x121, x122) -> false
+    | SEventually (x121, x122), SNeg x3 -> false
+    | SNeg x3, SOnce (x111, x112) -> false
+    | SOnce (x111, x112), SNeg x3 -> false
+    | SNeg x3, SIff_vv (x101, x102) -> false
+    | SIff_vv (x101, x102), SNeg x3 -> false
+    | SNeg x3, SIff_ss (x91, x92) -> false
+    | SIff_ss (x91, x92), SNeg x3 -> false
+    | SNeg x3, SImplL x8 -> false
+    | SImplL x8, SNeg x3 -> false
+    | SNeg x3, SImplR x7 -> false
+    | SImplR x7, SNeg x3 -> false
     | SNeg x3, SConj (x61, x62) -> false
     | SConj (x61, x62), SNeg x3 -> false
     | SNeg x3, SDisjR x5 -> false
     | SDisjR x5, SNeg x3 -> false
     | SNeg x3, SDisjL x4 -> false
     | SDisjL x4, SNeg x3 -> false
-    | SAtm (x21, x22), SPrev x10 -> false
-    | SPrev x10, SAtm (x21, x22) -> false
-    | SAtm (x21, x22), SNext x9 -> false
-    | SNext x9, SAtm (x21, x22) -> false
-    | SAtm (x21, x22), SUntil (x81, x82) -> false
-    | SUntil (x81, x82), SAtm (x21, x22) -> false
-    | SAtm (x21, x22), SSince (x71, x72) -> false
-    | SSince (x71, x72), SAtm (x21, x22) -> false
+    | SAtm (x21, x22), SPrev x19 -> false
+    | SPrev x19, SAtm (x21, x22) -> false
+    | SAtm (x21, x22), SNext x18 -> false
+    | SNext x18, SAtm (x21, x22) -> false
+    | SAtm (x21, x22), SUntil (x171, x172) -> false
+    | SUntil (x171, x172), SAtm (x21, x22) -> false
+    | SAtm (x21, x22), SSince (x161, x162) -> false
+    | SSince (x161, x162), SAtm (x21, x22) -> false
+    | SAtm (x21, x22), SAlways (x151, x152, x153) -> false
+    | SAlways (x151, x152, x153), SAtm (x21, x22) -> false
+    | SAtm (x21, x22), SHistorically_le x14 -> false
+    | SHistorically_le x14, SAtm (x21, x22) -> false
+    | SAtm (x21, x22), SHistorically (x131, x132, x133) -> false
+    | SHistorically (x131, x132, x133), SAtm (x21, x22) -> false
+    | SAtm (x21, x22), SEventually (x121, x122) -> false
+    | SEventually (x121, x122), SAtm (x21, x22) -> false
+    | SAtm (x21, x22), SOnce (x111, x112) -> false
+    | SOnce (x111, x112), SAtm (x21, x22) -> false
+    | SAtm (x21, x22), SIff_vv (x101, x102) -> false
+    | SIff_vv (x101, x102), SAtm (x21, x22) -> false
+    | SAtm (x21, x22), SIff_ss (x91, x92) -> false
+    | SIff_ss (x91, x92), SAtm (x21, x22) -> false
+    | SAtm (x21, x22), SImplL x8 -> false
+    | SImplL x8, SAtm (x21, x22) -> false
+    | SAtm (x21, x22), SImplR x7 -> false
+    | SImplR x7, SAtm (x21, x22) -> false
     | SAtm (x21, x22), SConj (x61, x62) -> false
     | SConj (x61, x62), SAtm (x21, x22) -> false
     | SAtm (x21, x22), SDisjR x5 -> false
@@ -345,14 +597,32 @@ and equal_sproofa _A
     | SDisjL x4, SAtm (x21, x22) -> false
     | SAtm (x21, x22), SNeg x3 -> false
     | SNeg x3, SAtm (x21, x22) -> false
-    | STT x1, SPrev x10 -> false
-    | SPrev x10, STT x1 -> false
-    | STT x1, SNext x9 -> false
-    | SNext x9, STT x1 -> false
-    | STT x1, SUntil (x81, x82) -> false
-    | SUntil (x81, x82), STT x1 -> false
-    | STT x1, SSince (x71, x72) -> false
-    | SSince (x71, x72), STT x1 -> false
+    | STT x1, SPrev x19 -> false
+    | SPrev x19, STT x1 -> false
+    | STT x1, SNext x18 -> false
+    | SNext x18, STT x1 -> false
+    | STT x1, SUntil (x171, x172) -> false
+    | SUntil (x171, x172), STT x1 -> false
+    | STT x1, SSince (x161, x162) -> false
+    | SSince (x161, x162), STT x1 -> false
+    | STT x1, SAlways (x151, x152, x153) -> false
+    | SAlways (x151, x152, x153), STT x1 -> false
+    | STT x1, SHistorically_le x14 -> false
+    | SHistorically_le x14, STT x1 -> false
+    | STT x1, SHistorically (x131, x132, x133) -> false
+    | SHistorically (x131, x132, x133), STT x1 -> false
+    | STT x1, SEventually (x121, x122) -> false
+    | SEventually (x121, x122), STT x1 -> false
+    | STT x1, SOnce (x111, x112) -> false
+    | SOnce (x111, x112), STT x1 -> false
+    | STT x1, SIff_vv (x101, x102) -> false
+    | SIff_vv (x101, x102), STT x1 -> false
+    | STT x1, SIff_ss (x91, x92) -> false
+    | SIff_ss (x91, x92), STT x1 -> false
+    | STT x1, SImplL x8 -> false
+    | SImplL x8, STT x1 -> false
+    | STT x1, SImplR x7 -> false
+    | SImplR x7, STT x1 -> false
     | STT x1, SConj (x61, x62) -> false
     | SConj (x61, x62), STT x1 -> false
     | STT x1, SDisjR x5 -> false
@@ -363,12 +633,29 @@ and equal_sproofa _A
     | SNeg x3, STT x1 -> false
     | STT x1, SAtm (x21, x22) -> false
     | SAtm (x21, x22), STT x1 -> false
-    | SPrev x10, SPrev y10 -> equal_sproofa _A x10 y10
-    | SNext x9, SNext y9 -> equal_sproofa _A x9 y9
-    | SUntil (x81, x82), SUntil (y81, y82) ->
-        equal_list (equal_sproof _A) x81 y81 && equal_sproofa _A x82 y82
-    | SSince (x71, x72), SSince (y71, y72) ->
-        equal_sproofa _A x71 y71 && equal_list (equal_sproof _A) x72 y72
+    | SPrev x19, SPrev y19 -> equal_sproofa _A x19 y19
+    | SNext x18, SNext y18 -> equal_sproofa _A x18 y18
+    | SUntil (x171, x172), SUntil (y171, y172) ->
+        equal_list (equal_sproof _A) x171 y171 && equal_sproofa _A x172 y172
+    | SSince (x161, x162), SSince (y161, y162) ->
+        equal_sproofa _A x161 y161 && equal_list (equal_sproof _A) x162 y162
+    | SAlways (x151, x152, x153), SAlways (y151, y152, y153) ->
+        equal_nata x151 y151 &&
+          (equal_nata x152 y152 && equal_list (equal_sproof _A) x153 y153)
+    | SHistorically_le x14, SHistorically_le y14 -> equal_nata x14 y14
+    | SHistorically (x131, x132, x133), SHistorically (y131, y132, y133) ->
+        equal_nata x131 y131 &&
+          (equal_nata x132 y132 && equal_list (equal_sproof _A) x133 y133)
+    | SEventually (x121, x122), SEventually (y121, y122) ->
+        equal_nata x121 y121 && equal_sproofa _A x122 y122
+    | SOnce (x111, x112), SOnce (y111, y112) ->
+        equal_nata x111 y111 && equal_sproofa _A x112 y112
+    | SIff_vv (x101, x102), SIff_vv (y101, y102) ->
+        equal_vproofa _A x101 y101 && equal_vproofa _A x102 y102
+    | SIff_ss (x91, x92), SIff_ss (y91, y92) ->
+        equal_sproofa _A x91 y91 && equal_sproofa _A x92 y92
+    | SImplL x8, SImplL y8 -> equal_vproofa _A x8 y8
+    | SImplR x7, SImplR y7 -> equal_sproofa _A x7 y7
     | SConj (x61, x62), SConj (y61, y62) ->
         equal_sproofa _A x61 y61 && equal_sproofa _A x62 y62
     | SDisjR x5, SDisjR y5 -> equal_sproofa _A x5 y5
@@ -377,240 +664,552 @@ and equal_sproofa _A
     | SAtm (x21, x22), SAtm (y21, y22) -> eq _A x21 y21 && equal_nata x22 y22
     | STT x1, STT y1 -> equal_nata x1 y1
 and equal_vproofa _A
-  x0 x1 = match x0, x1 with VPrev_le x17, VPrev_zero -> false
-    | VPrev_zero, VPrev_le x17 -> false
-    | VPrev_ge x16, VPrev_zero -> false
-    | VPrev_zero, VPrev_ge x16 -> false
-    | VPrev_ge x16, VPrev_le x17 -> false
-    | VPrev_le x17, VPrev_ge x16 -> false
-    | VPrev x15, VPrev_zero -> false
-    | VPrev_zero, VPrev x15 -> false
-    | VPrev x15, VPrev_le x17 -> false
-    | VPrev_le x17, VPrev x15 -> false
-    | VPrev x15, VPrev_ge x16 -> false
-    | VPrev_ge x16, VPrev x15 -> false
-    | VNext_le x14, VPrev_zero -> false
-    | VPrev_zero, VNext_le x14 -> false
-    | VNext_le x14, VPrev_le x17 -> false
-    | VPrev_le x17, VNext_le x14 -> false
-    | VNext_le x14, VPrev_ge x16 -> false
-    | VPrev_ge x16, VNext_le x14 -> false
-    | VNext_le x14, VPrev x15 -> false
-    | VPrev x15, VNext_le x14 -> false
-    | VNext_ge x13, VPrev_zero -> false
-    | VPrev_zero, VNext_ge x13 -> false
-    | VNext_ge x13, VPrev_le x17 -> false
-    | VPrev_le x17, VNext_ge x13 -> false
-    | VNext_ge x13, VPrev_ge x16 -> false
-    | VPrev_ge x16, VNext_ge x13 -> false
-    | VNext_ge x13, VPrev x15 -> false
-    | VPrev x15, VNext_ge x13 -> false
-    | VNext_ge x13, VNext_le x14 -> false
-    | VNext_le x14, VNext_ge x13 -> false
-    | VNext x12, VPrev_zero -> false
-    | VPrev_zero, VNext x12 -> false
-    | VNext x12, VPrev_le x17 -> false
-    | VPrev_le x17, VNext x12 -> false
-    | VNext x12, VPrev_ge x16 -> false
-    | VPrev_ge x16, VNext x12 -> false
-    | VNext x12, VPrev x15 -> false
-    | VPrev x15, VNext x12 -> false
-    | VNext x12, VNext_le x14 -> false
-    | VNext_le x14, VNext x12 -> false
-    | VNext x12, VNext_ge x13 -> false
-    | VNext_ge x13, VNext x12 -> false
-    | VSince_le x11, VPrev_zero -> false
-    | VPrev_zero, VSince_le x11 -> false
-    | VSince_le x11, VPrev_le x17 -> false
-    | VPrev_le x17, VSince_le x11 -> false
-    | VSince_le x11, VPrev_ge x16 -> false
-    | VPrev_ge x16, VSince_le x11 -> false
-    | VSince_le x11, VPrev x15 -> false
-    | VPrev x15, VSince_le x11 -> false
-    | VSince_le x11, VNext_le x14 -> false
-    | VNext_le x14, VSince_le x11 -> false
-    | VSince_le x11, VNext_ge x13 -> false
-    | VNext_ge x13, VSince_le x11 -> false
-    | VSince_le x11, VNext x12 -> false
-    | VNext x12, VSince_le x11 -> false
-    | VUntil_never (x101, x102, x103), VPrev_zero -> false
-    | VPrev_zero, VUntil_never (x101, x102, x103) -> false
-    | VUntil_never (x101, x102, x103), VPrev_le x17 -> false
-    | VPrev_le x17, VUntil_never (x101, x102, x103) -> false
-    | VUntil_never (x101, x102, x103), VPrev_ge x16 -> false
-    | VPrev_ge x16, VUntil_never (x101, x102, x103) -> false
-    | VUntil_never (x101, x102, x103), VPrev x15 -> false
-    | VPrev x15, VUntil_never (x101, x102, x103) -> false
-    | VUntil_never (x101, x102, x103), VNext_le x14 -> false
-    | VNext_le x14, VUntil_never (x101, x102, x103) -> false
-    | VUntil_never (x101, x102, x103), VNext_ge x13 -> false
-    | VNext_ge x13, VUntil_never (x101, x102, x103) -> false
-    | VUntil_never (x101, x102, x103), VNext x12 -> false
-    | VNext x12, VUntil_never (x101, x102, x103) -> false
-    | VUntil_never (x101, x102, x103), VSince_le x11 -> false
-    | VSince_le x11, VUntil_never (x101, x102, x103) -> false
-    | VSince_never (x91, x92, x93), VPrev_zero -> false
-    | VPrev_zero, VSince_never (x91, x92, x93) -> false
-    | VSince_never (x91, x92, x93), VPrev_le x17 -> false
-    | VPrev_le x17, VSince_never (x91, x92, x93) -> false
-    | VSince_never (x91, x92, x93), VPrev_ge x16 -> false
-    | VPrev_ge x16, VSince_never (x91, x92, x93) -> false
-    | VSince_never (x91, x92, x93), VPrev x15 -> false
-    | VPrev x15, VSince_never (x91, x92, x93) -> false
-    | VSince_never (x91, x92, x93), VNext_le x14 -> false
-    | VNext_le x14, VSince_never (x91, x92, x93) -> false
-    | VSince_never (x91, x92, x93), VNext_ge x13 -> false
-    | VNext_ge x13, VSince_never (x91, x92, x93) -> false
-    | VSince_never (x91, x92, x93), VNext x12 -> false
-    | VNext x12, VSince_never (x91, x92, x93) -> false
-    | VSince_never (x91, x92, x93), VSince_le x11 -> false
-    | VSince_le x11, VSince_never (x91, x92, x93) -> false
-    | VSince_never (x91, x92, x93), VUntil_never (x101, x102, x103) -> false
-    | VUntil_never (x101, x102, x103), VSince_never (x91, x92, x93) -> false
-    | VUntil (x81, x82, x83), VPrev_zero -> false
-    | VPrev_zero, VUntil (x81, x82, x83) -> false
-    | VUntil (x81, x82, x83), VPrev_le x17 -> false
-    | VPrev_le x17, VUntil (x81, x82, x83) -> false
-    | VUntil (x81, x82, x83), VPrev_ge x16 -> false
-    | VPrev_ge x16, VUntil (x81, x82, x83) -> false
-    | VUntil (x81, x82, x83), VPrev x15 -> false
-    | VPrev x15, VUntil (x81, x82, x83) -> false
-    | VUntil (x81, x82, x83), VNext_le x14 -> false
-    | VNext_le x14, VUntil (x81, x82, x83) -> false
-    | VUntil (x81, x82, x83), VNext_ge x13 -> false
-    | VNext_ge x13, VUntil (x81, x82, x83) -> false
-    | VUntil (x81, x82, x83), VNext x12 -> false
-    | VNext x12, VUntil (x81, x82, x83) -> false
-    | VUntil (x81, x82, x83), VSince_le x11 -> false
-    | VSince_le x11, VUntil (x81, x82, x83) -> false
-    | VUntil (x81, x82, x83), VUntil_never (x101, x102, x103) -> false
-    | VUntil_never (x101, x102, x103), VUntil (x81, x82, x83) -> false
-    | VUntil (x81, x82, x83), VSince_never (x91, x92, x93) -> false
-    | VSince_never (x91, x92, x93), VUntil (x81, x82, x83) -> false
-    | VSince (x71, x72, x73), VPrev_zero -> false
-    | VPrev_zero, VSince (x71, x72, x73) -> false
-    | VSince (x71, x72, x73), VPrev_le x17 -> false
-    | VPrev_le x17, VSince (x71, x72, x73) -> false
-    | VSince (x71, x72, x73), VPrev_ge x16 -> false
-    | VPrev_ge x16, VSince (x71, x72, x73) -> false
-    | VSince (x71, x72, x73), VPrev x15 -> false
-    | VPrev x15, VSince (x71, x72, x73) -> false
-    | VSince (x71, x72, x73), VNext_le x14 -> false
-    | VNext_le x14, VSince (x71, x72, x73) -> false
-    | VSince (x71, x72, x73), VNext_ge x13 -> false
-    | VNext_ge x13, VSince (x71, x72, x73) -> false
-    | VSince (x71, x72, x73), VNext x12 -> false
-    | VNext x12, VSince (x71, x72, x73) -> false
-    | VSince (x71, x72, x73), VSince_le x11 -> false
-    | VSince_le x11, VSince (x71, x72, x73) -> false
-    | VSince (x71, x72, x73), VUntil_never (x101, x102, x103) -> false
-    | VUntil_never (x101, x102, x103), VSince (x71, x72, x73) -> false
-    | VSince (x71, x72, x73), VSince_never (x91, x92, x93) -> false
-    | VSince_never (x91, x92, x93), VSince (x71, x72, x73) -> false
-    | VSince (x71, x72, x73), VUntil (x81, x82, x83) -> false
-    | VUntil (x81, x82, x83), VSince (x71, x72, x73) -> false
+  x0 x1 = match x0, x1 with VPrev_le x25, VPrev_zero -> false
+    | VPrev_zero, VPrev_le x25 -> false
+    | VPrev_ge x24, VPrev_zero -> false
+    | VPrev_zero, VPrev_ge x24 -> false
+    | VPrev_ge x24, VPrev_le x25 -> false
+    | VPrev_le x25, VPrev_ge x24 -> false
+    | VPrev x23, VPrev_zero -> false
+    | VPrev_zero, VPrev x23 -> false
+    | VPrev x23, VPrev_le x25 -> false
+    | VPrev_le x25, VPrev x23 -> false
+    | VPrev x23, VPrev_ge x24 -> false
+    | VPrev_ge x24, VPrev x23 -> false
+    | VNext_le x22a, VPrev_zero -> false
+    | VPrev_zero, VNext_le x22a -> false
+    | VNext_le x22a, VPrev_le x25 -> false
+    | VPrev_le x25, VNext_le x22a -> false
+    | VNext_le x22a, VPrev_ge x24 -> false
+    | VPrev_ge x24, VNext_le x22a -> false
+    | VNext_le x22a, VPrev x23 -> false
+    | VPrev x23, VNext_le x22a -> false
+    | VNext_ge x21a, VPrev_zero -> false
+    | VPrev_zero, VNext_ge x21a -> false
+    | VNext_ge x21a, VPrev_le x25 -> false
+    | VPrev_le x25, VNext_ge x21a -> false
+    | VNext_ge x21a, VPrev_ge x24 -> false
+    | VPrev_ge x24, VNext_ge x21a -> false
+    | VNext_ge x21a, VPrev x23 -> false
+    | VPrev x23, VNext_ge x21a -> false
+    | VNext_ge x21a, VNext_le x22a -> false
+    | VNext_le x22a, VNext_ge x21a -> false
+    | VNext x20, VPrev_zero -> false
+    | VPrev_zero, VNext x20 -> false
+    | VNext x20, VPrev_le x25 -> false
+    | VPrev_le x25, VNext x20 -> false
+    | VNext x20, VPrev_ge x24 -> false
+    | VPrev_ge x24, VNext x20 -> false
+    | VNext x20, VPrev x23 -> false
+    | VPrev x23, VNext x20 -> false
+    | VNext x20, VNext_le x22a -> false
+    | VNext_le x22a, VNext x20 -> false
+    | VNext x20, VNext_ge x21a -> false
+    | VNext_ge x21a, VNext x20 -> false
+    | VSince_le x19, VPrev_zero -> false
+    | VPrev_zero, VSince_le x19 -> false
+    | VSince_le x19, VPrev_le x25 -> false
+    | VPrev_le x25, VSince_le x19 -> false
+    | VSince_le x19, VPrev_ge x24 -> false
+    | VPrev_ge x24, VSince_le x19 -> false
+    | VSince_le x19, VPrev x23 -> false
+    | VPrev x23, VSince_le x19 -> false
+    | VSince_le x19, VNext_le x22a -> false
+    | VNext_le x22a, VSince_le x19 -> false
+    | VSince_le x19, VNext_ge x21a -> false
+    | VNext_ge x21a, VSince_le x19 -> false
+    | VSince_le x19, VNext x20 -> false
+    | VNext x20, VSince_le x19 -> false
+    | VUntil_never (x181, x182, x183), VPrev_zero -> false
+    | VPrev_zero, VUntil_never (x181, x182, x183) -> false
+    | VUntil_never (x181, x182, x183), VPrev_le x25 -> false
+    | VPrev_le x25, VUntil_never (x181, x182, x183) -> false
+    | VUntil_never (x181, x182, x183), VPrev_ge x24 -> false
+    | VPrev_ge x24, VUntil_never (x181, x182, x183) -> false
+    | VUntil_never (x181, x182, x183), VPrev x23 -> false
+    | VPrev x23, VUntil_never (x181, x182, x183) -> false
+    | VUntil_never (x181, x182, x183), VNext_le x22a -> false
+    | VNext_le x22a, VUntil_never (x181, x182, x183) -> false
+    | VUntil_never (x181, x182, x183), VNext_ge x21a -> false
+    | VNext_ge x21a, VUntil_never (x181, x182, x183) -> false
+    | VUntil_never (x181, x182, x183), VNext x20 -> false
+    | VNext x20, VUntil_never (x181, x182, x183) -> false
+    | VUntil_never (x181, x182, x183), VSince_le x19 -> false
+    | VSince_le x19, VUntil_never (x181, x182, x183) -> false
+    | VSince_never (x171, x172, x173), VPrev_zero -> false
+    | VPrev_zero, VSince_never (x171, x172, x173) -> false
+    | VSince_never (x171, x172, x173), VPrev_le x25 -> false
+    | VPrev_le x25, VSince_never (x171, x172, x173) -> false
+    | VSince_never (x171, x172, x173), VPrev_ge x24 -> false
+    | VPrev_ge x24, VSince_never (x171, x172, x173) -> false
+    | VSince_never (x171, x172, x173), VPrev x23 -> false
+    | VPrev x23, VSince_never (x171, x172, x173) -> false
+    | VSince_never (x171, x172, x173), VNext_le x22a -> false
+    | VNext_le x22a, VSince_never (x171, x172, x173) -> false
+    | VSince_never (x171, x172, x173), VNext_ge x21a -> false
+    | VNext_ge x21a, VSince_never (x171, x172, x173) -> false
+    | VSince_never (x171, x172, x173), VNext x20 -> false
+    | VNext x20, VSince_never (x171, x172, x173) -> false
+    | VSince_never (x171, x172, x173), VSince_le x19 -> false
+    | VSince_le x19, VSince_never (x171, x172, x173) -> false
+    | VSince_never (x171, x172, x173), VUntil_never (x181, x182, x183) -> false
+    | VUntil_never (x181, x182, x183), VSince_never (x171, x172, x173) -> false
+    | VUntil (x161, x162, x163), VPrev_zero -> false
+    | VPrev_zero, VUntil (x161, x162, x163) -> false
+    | VUntil (x161, x162, x163), VPrev_le x25 -> false
+    | VPrev_le x25, VUntil (x161, x162, x163) -> false
+    | VUntil (x161, x162, x163), VPrev_ge x24 -> false
+    | VPrev_ge x24, VUntil (x161, x162, x163) -> false
+    | VUntil (x161, x162, x163), VPrev x23 -> false
+    | VPrev x23, VUntil (x161, x162, x163) -> false
+    | VUntil (x161, x162, x163), VNext_le x22a -> false
+    | VNext_le x22a, VUntil (x161, x162, x163) -> false
+    | VUntil (x161, x162, x163), VNext_ge x21a -> false
+    | VNext_ge x21a, VUntil (x161, x162, x163) -> false
+    | VUntil (x161, x162, x163), VNext x20 -> false
+    | VNext x20, VUntil (x161, x162, x163) -> false
+    | VUntil (x161, x162, x163), VSince_le x19 -> false
+    | VSince_le x19, VUntil (x161, x162, x163) -> false
+    | VUntil (x161, x162, x163), VUntil_never (x181, x182, x183) -> false
+    | VUntil_never (x181, x182, x183), VUntil (x161, x162, x163) -> false
+    | VUntil (x161, x162, x163), VSince_never (x171, x172, x173) -> false
+    | VSince_never (x171, x172, x173), VUntil (x161, x162, x163) -> false
+    | VSince (x151, x152, x153), VPrev_zero -> false
+    | VPrev_zero, VSince (x151, x152, x153) -> false
+    | VSince (x151, x152, x153), VPrev_le x25 -> false
+    | VPrev_le x25, VSince (x151, x152, x153) -> false
+    | VSince (x151, x152, x153), VPrev_ge x24 -> false
+    | VPrev_ge x24, VSince (x151, x152, x153) -> false
+    | VSince (x151, x152, x153), VPrev x23 -> false
+    | VPrev x23, VSince (x151, x152, x153) -> false
+    | VSince (x151, x152, x153), VNext_le x22a -> false
+    | VNext_le x22a, VSince (x151, x152, x153) -> false
+    | VSince (x151, x152, x153), VNext_ge x21a -> false
+    | VNext_ge x21a, VSince (x151, x152, x153) -> false
+    | VSince (x151, x152, x153), VNext x20 -> false
+    | VNext x20, VSince (x151, x152, x153) -> false
+    | VSince (x151, x152, x153), VSince_le x19 -> false
+    | VSince_le x19, VSince (x151, x152, x153) -> false
+    | VSince (x151, x152, x153), VUntil_never (x181, x182, x183) -> false
+    | VUntil_never (x181, x182, x183), VSince (x151, x152, x153) -> false
+    | VSince (x151, x152, x153), VSince_never (x171, x172, x173) -> false
+    | VSince_never (x171, x172, x173), VSince (x151, x152, x153) -> false
+    | VSince (x151, x152, x153), VUntil (x161, x162, x163) -> false
+    | VUntil (x161, x162, x163), VSince (x151, x152, x153) -> false
+    | VAlways (x141, x142), VPrev_zero -> false
+    | VPrev_zero, VAlways (x141, x142) -> false
+    | VAlways (x141, x142), VPrev_le x25 -> false
+    | VPrev_le x25, VAlways (x141, x142) -> false
+    | VAlways (x141, x142), VPrev_ge x24 -> false
+    | VPrev_ge x24, VAlways (x141, x142) -> false
+    | VAlways (x141, x142), VPrev x23 -> false
+    | VPrev x23, VAlways (x141, x142) -> false
+    | VAlways (x141, x142), VNext_le x22a -> false
+    | VNext_le x22a, VAlways (x141, x142) -> false
+    | VAlways (x141, x142), VNext_ge x21a -> false
+    | VNext_ge x21a, VAlways (x141, x142) -> false
+    | VAlways (x141, x142), VNext x20 -> false
+    | VNext x20, VAlways (x141, x142) -> false
+    | VAlways (x141, x142), VSince_le x19 -> false
+    | VSince_le x19, VAlways (x141, x142) -> false
+    | VAlways (x141, x142), VUntil_never (x181, x182, x183) -> false
+    | VUntil_never (x181, x182, x183), VAlways (x141, x142) -> false
+    | VAlways (x141, x142), VSince_never (x171, x172, x173) -> false
+    | VSince_never (x171, x172, x173), VAlways (x141, x142) -> false
+    | VAlways (x141, x142), VUntil (x161, x162, x163) -> false
+    | VUntil (x161, x162, x163), VAlways (x141, x142) -> false
+    | VAlways (x141, x142), VSince (x151, x152, x153) -> false
+    | VSince (x151, x152, x153), VAlways (x141, x142) -> false
+    | VHistorically (x131, x132), VPrev_zero -> false
+    | VPrev_zero, VHistorically (x131, x132) -> false
+    | VHistorically (x131, x132), VPrev_le x25 -> false
+    | VPrev_le x25, VHistorically (x131, x132) -> false
+    | VHistorically (x131, x132), VPrev_ge x24 -> false
+    | VPrev_ge x24, VHistorically (x131, x132) -> false
+    | VHistorically (x131, x132), VPrev x23 -> false
+    | VPrev x23, VHistorically (x131, x132) -> false
+    | VHistorically (x131, x132), VNext_le x22a -> false
+    | VNext_le x22a, VHistorically (x131, x132) -> false
+    | VHistorically (x131, x132), VNext_ge x21a -> false
+    | VNext_ge x21a, VHistorically (x131, x132) -> false
+    | VHistorically (x131, x132), VNext x20 -> false
+    | VNext x20, VHistorically (x131, x132) -> false
+    | VHistorically (x131, x132), VSince_le x19 -> false
+    | VSince_le x19, VHistorically (x131, x132) -> false
+    | VHistorically (x131, x132), VUntil_never (x181, x182, x183) -> false
+    | VUntil_never (x181, x182, x183), VHistorically (x131, x132) -> false
+    | VHistorically (x131, x132), VSince_never (x171, x172, x173) -> false
+    | VSince_never (x171, x172, x173), VHistorically (x131, x132) -> false
+    | VHistorically (x131, x132), VUntil (x161, x162, x163) -> false
+    | VUntil (x161, x162, x163), VHistorically (x131, x132) -> false
+    | VHistorically (x131, x132), VSince (x151, x152, x153) -> false
+    | VSince (x151, x152, x153), VHistorically (x131, x132) -> false
+    | VHistorically (x131, x132), VAlways (x141, x142) -> false
+    | VAlways (x141, x142), VHistorically (x131, x132) -> false
+    | VEventually (x121, x122, x123), VPrev_zero -> false
+    | VPrev_zero, VEventually (x121, x122, x123) -> false
+    | VEventually (x121, x122, x123), VPrev_le x25 -> false
+    | VPrev_le x25, VEventually (x121, x122, x123) -> false
+    | VEventually (x121, x122, x123), VPrev_ge x24 -> false
+    | VPrev_ge x24, VEventually (x121, x122, x123) -> false
+    | VEventually (x121, x122, x123), VPrev x23 -> false
+    | VPrev x23, VEventually (x121, x122, x123) -> false
+    | VEventually (x121, x122, x123), VNext_le x22a -> false
+    | VNext_le x22a, VEventually (x121, x122, x123) -> false
+    | VEventually (x121, x122, x123), VNext_ge x21a -> false
+    | VNext_ge x21a, VEventually (x121, x122, x123) -> false
+    | VEventually (x121, x122, x123), VNext x20 -> false
+    | VNext x20, VEventually (x121, x122, x123) -> false
+    | VEventually (x121, x122, x123), VSince_le x19 -> false
+    | VSince_le x19, VEventually (x121, x122, x123) -> false
+    | VEventually (x121, x122, x123), VUntil_never (x181, x182, x183) -> false
+    | VUntil_never (x181, x182, x183), VEventually (x121, x122, x123) -> false
+    | VEventually (x121, x122, x123), VSince_never (x171, x172, x173) -> false
+    | VSince_never (x171, x172, x173), VEventually (x121, x122, x123) -> false
+    | VEventually (x121, x122, x123), VUntil (x161, x162, x163) -> false
+    | VUntil (x161, x162, x163), VEventually (x121, x122, x123) -> false
+    | VEventually (x121, x122, x123), VSince (x151, x152, x153) -> false
+    | VSince (x151, x152, x153), VEventually (x121, x122, x123) -> false
+    | VEventually (x121, x122, x123), VAlways (x141, x142) -> false
+    | VAlways (x141, x142), VEventually (x121, x122, x123) -> false
+    | VEventually (x121, x122, x123), VHistorically (x131, x132) -> false
+    | VHistorically (x131, x132), VEventually (x121, x122, x123) -> false
+    | VOnce (x111, x112, x113), VPrev_zero -> false
+    | VPrev_zero, VOnce (x111, x112, x113) -> false
+    | VOnce (x111, x112, x113), VPrev_le x25 -> false
+    | VPrev_le x25, VOnce (x111, x112, x113) -> false
+    | VOnce (x111, x112, x113), VPrev_ge x24 -> false
+    | VPrev_ge x24, VOnce (x111, x112, x113) -> false
+    | VOnce (x111, x112, x113), VPrev x23 -> false
+    | VPrev x23, VOnce (x111, x112, x113) -> false
+    | VOnce (x111, x112, x113), VNext_le x22a -> false
+    | VNext_le x22a, VOnce (x111, x112, x113) -> false
+    | VOnce (x111, x112, x113), VNext_ge x21a -> false
+    | VNext_ge x21a, VOnce (x111, x112, x113) -> false
+    | VOnce (x111, x112, x113), VNext x20 -> false
+    | VNext x20, VOnce (x111, x112, x113) -> false
+    | VOnce (x111, x112, x113), VSince_le x19 -> false
+    | VSince_le x19, VOnce (x111, x112, x113) -> false
+    | VOnce (x111, x112, x113), VUntil_never (x181, x182, x183) -> false
+    | VUntil_never (x181, x182, x183), VOnce (x111, x112, x113) -> false
+    | VOnce (x111, x112, x113), VSince_never (x171, x172, x173) -> false
+    | VSince_never (x171, x172, x173), VOnce (x111, x112, x113) -> false
+    | VOnce (x111, x112, x113), VUntil (x161, x162, x163) -> false
+    | VUntil (x161, x162, x163), VOnce (x111, x112, x113) -> false
+    | VOnce (x111, x112, x113), VSince (x151, x152, x153) -> false
+    | VSince (x151, x152, x153), VOnce (x111, x112, x113) -> false
+    | VOnce (x111, x112, x113), VAlways (x141, x142) -> false
+    | VAlways (x141, x142), VOnce (x111, x112, x113) -> false
+    | VOnce (x111, x112, x113), VHistorically (x131, x132) -> false
+    | VHistorically (x131, x132), VOnce (x111, x112, x113) -> false
+    | VOnce (x111, x112, x113), VEventually (x121, x122, x123) -> false
+    | VEventually (x121, x122, x123), VOnce (x111, x112, x113) -> false
+    | VOnce_le x10, VPrev_zero -> false
+    | VPrev_zero, VOnce_le x10 -> false
+    | VOnce_le x10, VPrev_le x25 -> false
+    | VPrev_le x25, VOnce_le x10 -> false
+    | VOnce_le x10, VPrev_ge x24 -> false
+    | VPrev_ge x24, VOnce_le x10 -> false
+    | VOnce_le x10, VPrev x23 -> false
+    | VPrev x23, VOnce_le x10 -> false
+    | VOnce_le x10, VNext_le x22a -> false
+    | VNext_le x22a, VOnce_le x10 -> false
+    | VOnce_le x10, VNext_ge x21a -> false
+    | VNext_ge x21a, VOnce_le x10 -> false
+    | VOnce_le x10, VNext x20 -> false
+    | VNext x20, VOnce_le x10 -> false
+    | VOnce_le x10, VSince_le x19 -> false
+    | VSince_le x19, VOnce_le x10 -> false
+    | VOnce_le x10, VUntil_never (x181, x182, x183) -> false
+    | VUntil_never (x181, x182, x183), VOnce_le x10 -> false
+    | VOnce_le x10, VSince_never (x171, x172, x173) -> false
+    | VSince_never (x171, x172, x173), VOnce_le x10 -> false
+    | VOnce_le x10, VUntil (x161, x162, x163) -> false
+    | VUntil (x161, x162, x163), VOnce_le x10 -> false
+    | VOnce_le x10, VSince (x151, x152, x153) -> false
+    | VSince (x151, x152, x153), VOnce_le x10 -> false
+    | VOnce_le x10, VAlways (x141, x142) -> false
+    | VAlways (x141, x142), VOnce_le x10 -> false
+    | VOnce_le x10, VHistorically (x131, x132) -> false
+    | VHistorically (x131, x132), VOnce_le x10 -> false
+    | VOnce_le x10, VEventually (x121, x122, x123) -> false
+    | VEventually (x121, x122, x123), VOnce_le x10 -> false
+    | VOnce_le x10, VOnce (x111, x112, x113) -> false
+    | VOnce (x111, x112, x113), VOnce_le x10 -> false
+    | VIff_vs (x91, x92), VPrev_zero -> false
+    | VPrev_zero, VIff_vs (x91, x92) -> false
+    | VIff_vs (x91, x92), VPrev_le x25 -> false
+    | VPrev_le x25, VIff_vs (x91, x92) -> false
+    | VIff_vs (x91, x92), VPrev_ge x24 -> false
+    | VPrev_ge x24, VIff_vs (x91, x92) -> false
+    | VIff_vs (x91, x92), VPrev x23 -> false
+    | VPrev x23, VIff_vs (x91, x92) -> false
+    | VIff_vs (x91, x92), VNext_le x22a -> false
+    | VNext_le x22a, VIff_vs (x91, x92) -> false
+    | VIff_vs (x91, x92), VNext_ge x21a -> false
+    | VNext_ge x21a, VIff_vs (x91, x92) -> false
+    | VIff_vs (x91, x92), VNext x20 -> false
+    | VNext x20, VIff_vs (x91, x92) -> false
+    | VIff_vs (x91, x92), VSince_le x19 -> false
+    | VSince_le x19, VIff_vs (x91, x92) -> false
+    | VIff_vs (x91, x92), VUntil_never (x181, x182, x183) -> false
+    | VUntil_never (x181, x182, x183), VIff_vs (x91, x92) -> false
+    | VIff_vs (x91, x92), VSince_never (x171, x172, x173) -> false
+    | VSince_never (x171, x172, x173), VIff_vs (x91, x92) -> false
+    | VIff_vs (x91, x92), VUntil (x161, x162, x163) -> false
+    | VUntil (x161, x162, x163), VIff_vs (x91, x92) -> false
+    | VIff_vs (x91, x92), VSince (x151, x152, x153) -> false
+    | VSince (x151, x152, x153), VIff_vs (x91, x92) -> false
+    | VIff_vs (x91, x92), VAlways (x141, x142) -> false
+    | VAlways (x141, x142), VIff_vs (x91, x92) -> false
+    | VIff_vs (x91, x92), VHistorically (x131, x132) -> false
+    | VHistorically (x131, x132), VIff_vs (x91, x92) -> false
+    | VIff_vs (x91, x92), VEventually (x121, x122, x123) -> false
+    | VEventually (x121, x122, x123), VIff_vs (x91, x92) -> false
+    | VIff_vs (x91, x92), VOnce (x111, x112, x113) -> false
+    | VOnce (x111, x112, x113), VIff_vs (x91, x92) -> false
+    | VIff_vs (x91, x92), VOnce_le x10 -> false
+    | VOnce_le x10, VIff_vs (x91, x92) -> false
+    | VIff_sv (x81, x82), VPrev_zero -> false
+    | VPrev_zero, VIff_sv (x81, x82) -> false
+    | VIff_sv (x81, x82), VPrev_le x25 -> false
+    | VPrev_le x25, VIff_sv (x81, x82) -> false
+    | VIff_sv (x81, x82), VPrev_ge x24 -> false
+    | VPrev_ge x24, VIff_sv (x81, x82) -> false
+    | VIff_sv (x81, x82), VPrev x23 -> false
+    | VPrev x23, VIff_sv (x81, x82) -> false
+    | VIff_sv (x81, x82), VNext_le x22a -> false
+    | VNext_le x22a, VIff_sv (x81, x82) -> false
+    | VIff_sv (x81, x82), VNext_ge x21a -> false
+    | VNext_ge x21a, VIff_sv (x81, x82) -> false
+    | VIff_sv (x81, x82), VNext x20 -> false
+    | VNext x20, VIff_sv (x81, x82) -> false
+    | VIff_sv (x81, x82), VSince_le x19 -> false
+    | VSince_le x19, VIff_sv (x81, x82) -> false
+    | VIff_sv (x81, x82), VUntil_never (x181, x182, x183) -> false
+    | VUntil_never (x181, x182, x183), VIff_sv (x81, x82) -> false
+    | VIff_sv (x81, x82), VSince_never (x171, x172, x173) -> false
+    | VSince_never (x171, x172, x173), VIff_sv (x81, x82) -> false
+    | VIff_sv (x81, x82), VUntil (x161, x162, x163) -> false
+    | VUntil (x161, x162, x163), VIff_sv (x81, x82) -> false
+    | VIff_sv (x81, x82), VSince (x151, x152, x153) -> false
+    | VSince (x151, x152, x153), VIff_sv (x81, x82) -> false
+    | VIff_sv (x81, x82), VAlways (x141, x142) -> false
+    | VAlways (x141, x142), VIff_sv (x81, x82) -> false
+    | VIff_sv (x81, x82), VHistorically (x131, x132) -> false
+    | VHistorically (x131, x132), VIff_sv (x81, x82) -> false
+    | VIff_sv (x81, x82), VEventually (x121, x122, x123) -> false
+    | VEventually (x121, x122, x123), VIff_sv (x81, x82) -> false
+    | VIff_sv (x81, x82), VOnce (x111, x112, x113) -> false
+    | VOnce (x111, x112, x113), VIff_sv (x81, x82) -> false
+    | VIff_sv (x81, x82), VOnce_le x10 -> false
+    | VOnce_le x10, VIff_sv (x81, x82) -> false
+    | VIff_sv (x81, x82), VIff_vs (x91, x92) -> false
+    | VIff_vs (x91, x92), VIff_sv (x81, x82) -> false
+    | VImpl (x71, x72), VPrev_zero -> false
+    | VPrev_zero, VImpl (x71, x72) -> false
+    | VImpl (x71, x72), VPrev_le x25 -> false
+    | VPrev_le x25, VImpl (x71, x72) -> false
+    | VImpl (x71, x72), VPrev_ge x24 -> false
+    | VPrev_ge x24, VImpl (x71, x72) -> false
+    | VImpl (x71, x72), VPrev x23 -> false
+    | VPrev x23, VImpl (x71, x72) -> false
+    | VImpl (x71, x72), VNext_le x22a -> false
+    | VNext_le x22a, VImpl (x71, x72) -> false
+    | VImpl (x71, x72), VNext_ge x21a -> false
+    | VNext_ge x21a, VImpl (x71, x72) -> false
+    | VImpl (x71, x72), VNext x20 -> false
+    | VNext x20, VImpl (x71, x72) -> false
+    | VImpl (x71, x72), VSince_le x19 -> false
+    | VSince_le x19, VImpl (x71, x72) -> false
+    | VImpl (x71, x72), VUntil_never (x181, x182, x183) -> false
+    | VUntil_never (x181, x182, x183), VImpl (x71, x72) -> false
+    | VImpl (x71, x72), VSince_never (x171, x172, x173) -> false
+    | VSince_never (x171, x172, x173), VImpl (x71, x72) -> false
+    | VImpl (x71, x72), VUntil (x161, x162, x163) -> false
+    | VUntil (x161, x162, x163), VImpl (x71, x72) -> false
+    | VImpl (x71, x72), VSince (x151, x152, x153) -> false
+    | VSince (x151, x152, x153), VImpl (x71, x72) -> false
+    | VImpl (x71, x72), VAlways (x141, x142) -> false
+    | VAlways (x141, x142), VImpl (x71, x72) -> false
+    | VImpl (x71, x72), VHistorically (x131, x132) -> false
+    | VHistorically (x131, x132), VImpl (x71, x72) -> false
+    | VImpl (x71, x72), VEventually (x121, x122, x123) -> false
+    | VEventually (x121, x122, x123), VImpl (x71, x72) -> false
+    | VImpl (x71, x72), VOnce (x111, x112, x113) -> false
+    | VOnce (x111, x112, x113), VImpl (x71, x72) -> false
+    | VImpl (x71, x72), VOnce_le x10 -> false
+    | VOnce_le x10, VImpl (x71, x72) -> false
+    | VImpl (x71, x72), VIff_vs (x91, x92) -> false
+    | VIff_vs (x91, x92), VImpl (x71, x72) -> false
+    | VImpl (x71, x72), VIff_sv (x81, x82) -> false
+    | VIff_sv (x81, x82), VImpl (x71, x72) -> false
     | VConjR x6, VPrev_zero -> false
     | VPrev_zero, VConjR x6 -> false
-    | VConjR x6, VPrev_le x17 -> false
-    | VPrev_le x17, VConjR x6 -> false
-    | VConjR x6, VPrev_ge x16 -> false
-    | VPrev_ge x16, VConjR x6 -> false
-    | VConjR x6, VPrev x15 -> false
-    | VPrev x15, VConjR x6 -> false
-    | VConjR x6, VNext_le x14 -> false
-    | VNext_le x14, VConjR x6 -> false
-    | VConjR x6, VNext_ge x13 -> false
-    | VNext_ge x13, VConjR x6 -> false
-    | VConjR x6, VNext x12 -> false
-    | VNext x12, VConjR x6 -> false
-    | VConjR x6, VSince_le x11 -> false
-    | VSince_le x11, VConjR x6 -> false
-    | VConjR x6, VUntil_never (x101, x102, x103) -> false
-    | VUntil_never (x101, x102, x103), VConjR x6 -> false
-    | VConjR x6, VSince_never (x91, x92, x93) -> false
-    | VSince_never (x91, x92, x93), VConjR x6 -> false
-    | VConjR x6, VUntil (x81, x82, x83) -> false
-    | VUntil (x81, x82, x83), VConjR x6 -> false
-    | VConjR x6, VSince (x71, x72, x73) -> false
-    | VSince (x71, x72, x73), VConjR x6 -> false
+    | VConjR x6, VPrev_le x25 -> false
+    | VPrev_le x25, VConjR x6 -> false
+    | VConjR x6, VPrev_ge x24 -> false
+    | VPrev_ge x24, VConjR x6 -> false
+    | VConjR x6, VPrev x23 -> false
+    | VPrev x23, VConjR x6 -> false
+    | VConjR x6, VNext_le x22a -> false
+    | VNext_le x22a, VConjR x6 -> false
+    | VConjR x6, VNext_ge x21a -> false
+    | VNext_ge x21a, VConjR x6 -> false
+    | VConjR x6, VNext x20 -> false
+    | VNext x20, VConjR x6 -> false
+    | VConjR x6, VSince_le x19 -> false
+    | VSince_le x19, VConjR x6 -> false
+    | VConjR x6, VUntil_never (x181, x182, x183) -> false
+    | VUntil_never (x181, x182, x183), VConjR x6 -> false
+    | VConjR x6, VSince_never (x171, x172, x173) -> false
+    | VSince_never (x171, x172, x173), VConjR x6 -> false
+    | VConjR x6, VUntil (x161, x162, x163) -> false
+    | VUntil (x161, x162, x163), VConjR x6 -> false
+    | VConjR x6, VSince (x151, x152, x153) -> false
+    | VSince (x151, x152, x153), VConjR x6 -> false
+    | VConjR x6, VAlways (x141, x142) -> false
+    | VAlways (x141, x142), VConjR x6 -> false
+    | VConjR x6, VHistorically (x131, x132) -> false
+    | VHistorically (x131, x132), VConjR x6 -> false
+    | VConjR x6, VEventually (x121, x122, x123) -> false
+    | VEventually (x121, x122, x123), VConjR x6 -> false
+    | VConjR x6, VOnce (x111, x112, x113) -> false
+    | VOnce (x111, x112, x113), VConjR x6 -> false
+    | VConjR x6, VOnce_le x10 -> false
+    | VOnce_le x10, VConjR x6 -> false
+    | VConjR x6, VIff_vs (x91, x92) -> false
+    | VIff_vs (x91, x92), VConjR x6 -> false
+    | VConjR x6, VIff_sv (x81, x82) -> false
+    | VIff_sv (x81, x82), VConjR x6 -> false
+    | VConjR x6, VImpl (x71, x72) -> false
+    | VImpl (x71, x72), VConjR x6 -> false
     | VConjL x5, VPrev_zero -> false
     | VPrev_zero, VConjL x5 -> false
-    | VConjL x5, VPrev_le x17 -> false
-    | VPrev_le x17, VConjL x5 -> false
-    | VConjL x5, VPrev_ge x16 -> false
-    | VPrev_ge x16, VConjL x5 -> false
-    | VConjL x5, VPrev x15 -> false
-    | VPrev x15, VConjL x5 -> false
-    | VConjL x5, VNext_le x14 -> false
-    | VNext_le x14, VConjL x5 -> false
-    | VConjL x5, VNext_ge x13 -> false
-    | VNext_ge x13, VConjL x5 -> false
-    | VConjL x5, VNext x12 -> false
-    | VNext x12, VConjL x5 -> false
-    | VConjL x5, VSince_le x11 -> false
-    | VSince_le x11, VConjL x5 -> false
-    | VConjL x5, VUntil_never (x101, x102, x103) -> false
-    | VUntil_never (x101, x102, x103), VConjL x5 -> false
-    | VConjL x5, VSince_never (x91, x92, x93) -> false
-    | VSince_never (x91, x92, x93), VConjL x5 -> false
-    | VConjL x5, VUntil (x81, x82, x83) -> false
-    | VUntil (x81, x82, x83), VConjL x5 -> false
-    | VConjL x5, VSince (x71, x72, x73) -> false
-    | VSince (x71, x72, x73), VConjL x5 -> false
+    | VConjL x5, VPrev_le x25 -> false
+    | VPrev_le x25, VConjL x5 -> false
+    | VConjL x5, VPrev_ge x24 -> false
+    | VPrev_ge x24, VConjL x5 -> false
+    | VConjL x5, VPrev x23 -> false
+    | VPrev x23, VConjL x5 -> false
+    | VConjL x5, VNext_le x22a -> false
+    | VNext_le x22a, VConjL x5 -> false
+    | VConjL x5, VNext_ge x21a -> false
+    | VNext_ge x21a, VConjL x5 -> false
+    | VConjL x5, VNext x20 -> false
+    | VNext x20, VConjL x5 -> false
+    | VConjL x5, VSince_le x19 -> false
+    | VSince_le x19, VConjL x5 -> false
+    | VConjL x5, VUntil_never (x181, x182, x183) -> false
+    | VUntil_never (x181, x182, x183), VConjL x5 -> false
+    | VConjL x5, VSince_never (x171, x172, x173) -> false
+    | VSince_never (x171, x172, x173), VConjL x5 -> false
+    | VConjL x5, VUntil (x161, x162, x163) -> false
+    | VUntil (x161, x162, x163), VConjL x5 -> false
+    | VConjL x5, VSince (x151, x152, x153) -> false
+    | VSince (x151, x152, x153), VConjL x5 -> false
+    | VConjL x5, VAlways (x141, x142) -> false
+    | VAlways (x141, x142), VConjL x5 -> false
+    | VConjL x5, VHistorically (x131, x132) -> false
+    | VHistorically (x131, x132), VConjL x5 -> false
+    | VConjL x5, VEventually (x121, x122, x123) -> false
+    | VEventually (x121, x122, x123), VConjL x5 -> false
+    | VConjL x5, VOnce (x111, x112, x113) -> false
+    | VOnce (x111, x112, x113), VConjL x5 -> false
+    | VConjL x5, VOnce_le x10 -> false
+    | VOnce_le x10, VConjL x5 -> false
+    | VConjL x5, VIff_vs (x91, x92) -> false
+    | VIff_vs (x91, x92), VConjL x5 -> false
+    | VConjL x5, VIff_sv (x81, x82) -> false
+    | VIff_sv (x81, x82), VConjL x5 -> false
+    | VConjL x5, VImpl (x71, x72) -> false
+    | VImpl (x71, x72), VConjL x5 -> false
     | VConjL x5, VConjR x6 -> false
     | VConjR x6, VConjL x5 -> false
     | VDisj (x41, x42), VPrev_zero -> false
     | VPrev_zero, VDisj (x41, x42) -> false
-    | VDisj (x41, x42), VPrev_le x17 -> false
-    | VPrev_le x17, VDisj (x41, x42) -> false
-    | VDisj (x41, x42), VPrev_ge x16 -> false
-    | VPrev_ge x16, VDisj (x41, x42) -> false
-    | VDisj (x41, x42), VPrev x15 -> false
-    | VPrev x15, VDisj (x41, x42) -> false
-    | VDisj (x41, x42), VNext_le x14 -> false
-    | VNext_le x14, VDisj (x41, x42) -> false
-    | VDisj (x41, x42), VNext_ge x13 -> false
-    | VNext_ge x13, VDisj (x41, x42) -> false
-    | VDisj (x41, x42), VNext x12 -> false
-    | VNext x12, VDisj (x41, x42) -> false
-    | VDisj (x41, x42), VSince_le x11 -> false
-    | VSince_le x11, VDisj (x41, x42) -> false
-    | VDisj (x41, x42), VUntil_never (x101, x102, x103) -> false
-    | VUntil_never (x101, x102, x103), VDisj (x41, x42) -> false
-    | VDisj (x41, x42), VSince_never (x91, x92, x93) -> false
-    | VSince_never (x91, x92, x93), VDisj (x41, x42) -> false
-    | VDisj (x41, x42), VUntil (x81, x82, x83) -> false
-    | VUntil (x81, x82, x83), VDisj (x41, x42) -> false
-    | VDisj (x41, x42), VSince (x71, x72, x73) -> false
-    | VSince (x71, x72, x73), VDisj (x41, x42) -> false
+    | VDisj (x41, x42), VPrev_le x25 -> false
+    | VPrev_le x25, VDisj (x41, x42) -> false
+    | VDisj (x41, x42), VPrev_ge x24 -> false
+    | VPrev_ge x24, VDisj (x41, x42) -> false
+    | VDisj (x41, x42), VPrev x23 -> false
+    | VPrev x23, VDisj (x41, x42) -> false
+    | VDisj (x41, x42), VNext_le x22a -> false
+    | VNext_le x22a, VDisj (x41, x42) -> false
+    | VDisj (x41, x42), VNext_ge x21a -> false
+    | VNext_ge x21a, VDisj (x41, x42) -> false
+    | VDisj (x41, x42), VNext x20 -> false
+    | VNext x20, VDisj (x41, x42) -> false
+    | VDisj (x41, x42), VSince_le x19 -> false
+    | VSince_le x19, VDisj (x41, x42) -> false
+    | VDisj (x41, x42), VUntil_never (x181, x182, x183) -> false
+    | VUntil_never (x181, x182, x183), VDisj (x41, x42) -> false
+    | VDisj (x41, x42), VSince_never (x171, x172, x173) -> false
+    | VSince_never (x171, x172, x173), VDisj (x41, x42) -> false
+    | VDisj (x41, x42), VUntil (x161, x162, x163) -> false
+    | VUntil (x161, x162, x163), VDisj (x41, x42) -> false
+    | VDisj (x41, x42), VSince (x151, x152, x153) -> false
+    | VSince (x151, x152, x153), VDisj (x41, x42) -> false
+    | VDisj (x41, x42), VAlways (x141, x142) -> false
+    | VAlways (x141, x142), VDisj (x41, x42) -> false
+    | VDisj (x41, x42), VHistorically (x131, x132) -> false
+    | VHistorically (x131, x132), VDisj (x41, x42) -> false
+    | VDisj (x41, x42), VEventually (x121, x122, x123) -> false
+    | VEventually (x121, x122, x123), VDisj (x41, x42) -> false
+    | VDisj (x41, x42), VOnce (x111, x112, x113) -> false
+    | VOnce (x111, x112, x113), VDisj (x41, x42) -> false
+    | VDisj (x41, x42), VOnce_le x10 -> false
+    | VOnce_le x10, VDisj (x41, x42) -> false
+    | VDisj (x41, x42), VIff_vs (x91, x92) -> false
+    | VIff_vs (x91, x92), VDisj (x41, x42) -> false
+    | VDisj (x41, x42), VIff_sv (x81, x82) -> false
+    | VIff_sv (x81, x82), VDisj (x41, x42) -> false
+    | VDisj (x41, x42), VImpl (x71, x72) -> false
+    | VImpl (x71, x72), VDisj (x41, x42) -> false
     | VDisj (x41, x42), VConjR x6 -> false
     | VConjR x6, VDisj (x41, x42) -> false
     | VDisj (x41, x42), VConjL x5 -> false
     | VConjL x5, VDisj (x41, x42) -> false
     | VNeg x3, VPrev_zero -> false
     | VPrev_zero, VNeg x3 -> false
-    | VNeg x3, VPrev_le x17 -> false
-    | VPrev_le x17, VNeg x3 -> false
-    | VNeg x3, VPrev_ge x16 -> false
-    | VPrev_ge x16, VNeg x3 -> false
-    | VNeg x3, VPrev x15 -> false
-    | VPrev x15, VNeg x3 -> false
-    | VNeg x3, VNext_le x14 -> false
-    | VNext_le x14, VNeg x3 -> false
-    | VNeg x3, VNext_ge x13 -> false
-    | VNext_ge x13, VNeg x3 -> false
-    | VNeg x3, VNext x12 -> false
-    | VNext x12, VNeg x3 -> false
-    | VNeg x3, VSince_le x11 -> false
-    | VSince_le x11, VNeg x3 -> false
-    | VNeg x3, VUntil_never (x101, x102, x103) -> false
-    | VUntil_never (x101, x102, x103), VNeg x3 -> false
-    | VNeg x3, VSince_never (x91, x92, x93) -> false
-    | VSince_never (x91, x92, x93), VNeg x3 -> false
-    | VNeg x3, VUntil (x81, x82, x83) -> false
-    | VUntil (x81, x82, x83), VNeg x3 -> false
-    | VNeg x3, VSince (x71, x72, x73) -> false
-    | VSince (x71, x72, x73), VNeg x3 -> false
+    | VNeg x3, VPrev_le x25 -> false
+    | VPrev_le x25, VNeg x3 -> false
+    | VNeg x3, VPrev_ge x24 -> false
+    | VPrev_ge x24, VNeg x3 -> false
+    | VNeg x3, VPrev x23 -> false
+    | VPrev x23, VNeg x3 -> false
+    | VNeg x3, VNext_le x22a -> false
+    | VNext_le x22a, VNeg x3 -> false
+    | VNeg x3, VNext_ge x21a -> false
+    | VNext_ge x21a, VNeg x3 -> false
+    | VNeg x3, VNext x20 -> false
+    | VNext x20, VNeg x3 -> false
+    | VNeg x3, VSince_le x19 -> false
+    | VSince_le x19, VNeg x3 -> false
+    | VNeg x3, VUntil_never (x181, x182, x183) -> false
+    | VUntil_never (x181, x182, x183), VNeg x3 -> false
+    | VNeg x3, VSince_never (x171, x172, x173) -> false
+    | VSince_never (x171, x172, x173), VNeg x3 -> false
+    | VNeg x3, VUntil (x161, x162, x163) -> false
+    | VUntil (x161, x162, x163), VNeg x3 -> false
+    | VNeg x3, VSince (x151, x152, x153) -> false
+    | VSince (x151, x152, x153), VNeg x3 -> false
+    | VNeg x3, VAlways (x141, x142) -> false
+    | VAlways (x141, x142), VNeg x3 -> false
+    | VNeg x3, VHistorically (x131, x132) -> false
+    | VHistorically (x131, x132), VNeg x3 -> false
+    | VNeg x3, VEventually (x121, x122, x123) -> false
+    | VEventually (x121, x122, x123), VNeg x3 -> false
+    | VNeg x3, VOnce (x111, x112, x113) -> false
+    | VOnce (x111, x112, x113), VNeg x3 -> false
+    | VNeg x3, VOnce_le x10 -> false
+    | VOnce_le x10, VNeg x3 -> false
+    | VNeg x3, VIff_vs (x91, x92) -> false
+    | VIff_vs (x91, x92), VNeg x3 -> false
+    | VNeg x3, VIff_sv (x81, x82) -> false
+    | VIff_sv (x81, x82), VNeg x3 -> false
+    | VNeg x3, VImpl (x71, x72) -> false
+    | VImpl (x71, x72), VNeg x3 -> false
     | VNeg x3, VConjR x6 -> false
     | VConjR x6, VNeg x3 -> false
     | VNeg x3, VConjL x5 -> false
@@ -619,28 +1218,44 @@ and equal_vproofa _A
     | VDisj (x41, x42), VNeg x3 -> false
     | VAtm (x21, x22), VPrev_zero -> false
     | VPrev_zero, VAtm (x21, x22) -> false
-    | VAtm (x21, x22), VPrev_le x17 -> false
-    | VPrev_le x17, VAtm (x21, x22) -> false
-    | VAtm (x21, x22), VPrev_ge x16 -> false
-    | VPrev_ge x16, VAtm (x21, x22) -> false
-    | VAtm (x21, x22), VPrev x15 -> false
-    | VPrev x15, VAtm (x21, x22) -> false
-    | VAtm (x21, x22), VNext_le x14 -> false
-    | VNext_le x14, VAtm (x21, x22) -> false
-    | VAtm (x21, x22), VNext_ge x13 -> false
-    | VNext_ge x13, VAtm (x21, x22) -> false
-    | VAtm (x21, x22), VNext x12 -> false
-    | VNext x12, VAtm (x21, x22) -> false
-    | VAtm (x21, x22), VSince_le x11 -> false
-    | VSince_le x11, VAtm (x21, x22) -> false
-    | VAtm (x21, x22), VUntil_never (x101, x102, x103) -> false
-    | VUntil_never (x101, x102, x103), VAtm (x21, x22) -> false
-    | VAtm (x21, x22), VSince_never (x91, x92, x93) -> false
-    | VSince_never (x91, x92, x93), VAtm (x21, x22) -> false
-    | VAtm (x21, x22), VUntil (x81, x82, x83) -> false
-    | VUntil (x81, x82, x83), VAtm (x21, x22) -> false
-    | VAtm (x21, x22), VSince (x71, x72, x73) -> false
-    | VSince (x71, x72, x73), VAtm (x21, x22) -> false
+    | VAtm (x21, x22), VPrev_le x25 -> false
+    | VPrev_le x25, VAtm (x21, x22) -> false
+    | VAtm (x21, x22), VPrev_ge x24 -> false
+    | VPrev_ge x24, VAtm (x21, x22) -> false
+    | VAtm (x21, x22), VPrev x23 -> false
+    | VPrev x23, VAtm (x21, x22) -> false
+    | VAtm (x21, x22), VNext_le x22a -> false
+    | VNext_le x22a, VAtm (x21, x22) -> false
+    | VAtm (x21, x22), VNext_ge x21a -> false
+    | VNext_ge x21a, VAtm (x21, x22) -> false
+    | VAtm (x21, x22), VNext x20 -> false
+    | VNext x20, VAtm (x21, x22) -> false
+    | VAtm (x21, x22), VSince_le x19 -> false
+    | VSince_le x19, VAtm (x21, x22) -> false
+    | VAtm (x21, x22), VUntil_never (x181, x182, x183) -> false
+    | VUntil_never (x181, x182, x183), VAtm (x21, x22) -> false
+    | VAtm (x21, x22), VSince_never (x171, x172, x173) -> false
+    | VSince_never (x171, x172, x173), VAtm (x21, x22) -> false
+    | VAtm (x21, x22), VUntil (x161, x162, x163) -> false
+    | VUntil (x161, x162, x163), VAtm (x21, x22) -> false
+    | VAtm (x21, x22), VSince (x151, x152, x153) -> false
+    | VSince (x151, x152, x153), VAtm (x21, x22) -> false
+    | VAtm (x21, x22), VAlways (x141, x142) -> false
+    | VAlways (x141, x142), VAtm (x21, x22) -> false
+    | VAtm (x21, x22), VHistorically (x131, x132) -> false
+    | VHistorically (x131, x132), VAtm (x21, x22) -> false
+    | VAtm (x21, x22), VEventually (x121, x122, x123) -> false
+    | VEventually (x121, x122, x123), VAtm (x21, x22) -> false
+    | VAtm (x21, x22), VOnce (x111, x112, x113) -> false
+    | VOnce (x111, x112, x113), VAtm (x21, x22) -> false
+    | VAtm (x21, x22), VOnce_le x10 -> false
+    | VOnce_le x10, VAtm (x21, x22) -> false
+    | VAtm (x21, x22), VIff_vs (x91, x92) -> false
+    | VIff_vs (x91, x92), VAtm (x21, x22) -> false
+    | VAtm (x21, x22), VIff_sv (x81, x82) -> false
+    | VIff_sv (x81, x82), VAtm (x21, x22) -> false
+    | VAtm (x21, x22), VImpl (x71, x72) -> false
+    | VImpl (x71, x72), VAtm (x21, x22) -> false
     | VAtm (x21, x22), VConjR x6 -> false
     | VConjR x6, VAtm (x21, x22) -> false
     | VAtm (x21, x22), VConjL x5 -> false
@@ -651,28 +1266,44 @@ and equal_vproofa _A
     | VNeg x3, VAtm (x21, x22) -> false
     | VFF x1, VPrev_zero -> false
     | VPrev_zero, VFF x1 -> false
-    | VFF x1, VPrev_le x17 -> false
-    | VPrev_le x17, VFF x1 -> false
-    | VFF x1, VPrev_ge x16 -> false
-    | VPrev_ge x16, VFF x1 -> false
-    | VFF x1, VPrev x15 -> false
-    | VPrev x15, VFF x1 -> false
-    | VFF x1, VNext_le x14 -> false
-    | VNext_le x14, VFF x1 -> false
-    | VFF x1, VNext_ge x13 -> false
-    | VNext_ge x13, VFF x1 -> false
-    | VFF x1, VNext x12 -> false
-    | VNext x12, VFF x1 -> false
-    | VFF x1, VSince_le x11 -> false
-    | VSince_le x11, VFF x1 -> false
-    | VFF x1, VUntil_never (x101, x102, x103) -> false
-    | VUntil_never (x101, x102, x103), VFF x1 -> false
-    | VFF x1, VSince_never (x91, x92, x93) -> false
-    | VSince_never (x91, x92, x93), VFF x1 -> false
-    | VFF x1, VUntil (x81, x82, x83) -> false
-    | VUntil (x81, x82, x83), VFF x1 -> false
-    | VFF x1, VSince (x71, x72, x73) -> false
-    | VSince (x71, x72, x73), VFF x1 -> false
+    | VFF x1, VPrev_le x25 -> false
+    | VPrev_le x25, VFF x1 -> false
+    | VFF x1, VPrev_ge x24 -> false
+    | VPrev_ge x24, VFF x1 -> false
+    | VFF x1, VPrev x23 -> false
+    | VPrev x23, VFF x1 -> false
+    | VFF x1, VNext_le x22a -> false
+    | VNext_le x22a, VFF x1 -> false
+    | VFF x1, VNext_ge x21a -> false
+    | VNext_ge x21a, VFF x1 -> false
+    | VFF x1, VNext x20 -> false
+    | VNext x20, VFF x1 -> false
+    | VFF x1, VSince_le x19 -> false
+    | VSince_le x19, VFF x1 -> false
+    | VFF x1, VUntil_never (x181, x182, x183) -> false
+    | VUntil_never (x181, x182, x183), VFF x1 -> false
+    | VFF x1, VSince_never (x171, x172, x173) -> false
+    | VSince_never (x171, x172, x173), VFF x1 -> false
+    | VFF x1, VUntil (x161, x162, x163) -> false
+    | VUntil (x161, x162, x163), VFF x1 -> false
+    | VFF x1, VSince (x151, x152, x153) -> false
+    | VSince (x151, x152, x153), VFF x1 -> false
+    | VFF x1, VAlways (x141, x142) -> false
+    | VAlways (x141, x142), VFF x1 -> false
+    | VFF x1, VHistorically (x131, x132) -> false
+    | VHistorically (x131, x132), VFF x1 -> false
+    | VFF x1, VEventually (x121, x122, x123) -> false
+    | VEventually (x121, x122, x123), VFF x1 -> false
+    | VFF x1, VOnce (x111, x112, x113) -> false
+    | VOnce (x111, x112, x113), VFF x1 -> false
+    | VFF x1, VOnce_le x10 -> false
+    | VOnce_le x10, VFF x1 -> false
+    | VFF x1, VIff_vs (x91, x92) -> false
+    | VIff_vs (x91, x92), VFF x1 -> false
+    | VFF x1, VIff_sv (x81, x82) -> false
+    | VIff_sv (x81, x82), VFF x1 -> false
+    | VFF x1, VImpl (x71, x72) -> false
+    | VImpl (x71, x72), VFF x1 -> false
     | VFF x1, VConjR x6 -> false
     | VConjR x6, VFF x1 -> false
     | VFF x1, VConjL x5 -> false
@@ -683,25 +1314,42 @@ and equal_vproofa _A
     | VNeg x3, VFF x1 -> false
     | VFF x1, VAtm (x21, x22) -> false
     | VAtm (x21, x22), VFF x1 -> false
-    | VPrev_le x17, VPrev_le y17 -> equal_nata x17 y17
-    | VPrev_ge x16, VPrev_ge y16 -> equal_nata x16 y16
-    | VPrev x15, VPrev y15 -> equal_vproofa _A x15 y15
-    | VNext_le x14, VNext_le y14 -> equal_nata x14 y14
-    | VNext_ge x13, VNext_ge y13 -> equal_nata x13 y13
-    | VNext x12, VNext y12 -> equal_vproofa _A x12 y12
-    | VSince_le x11, VSince_le y11 -> equal_nata x11 y11
-    | VUntil_never (x101, x102, x103), VUntil_never (y101, y102, y103) ->
-        equal_nata x101 y101 &&
-          (equal_nata x102 y102 && equal_list (equal_vproof _A) x103 y103)
-    | VSince_never (x91, x92, x93), VSince_never (y91, y92, y93) ->
-        equal_nata x91 y91 &&
-          (equal_nata x92 y92 && equal_list (equal_vproof _A) x93 y93)
-    | VUntil (x81, x82, x83), VUntil (y81, y82, y83) ->
-        equal_nata x81 y81 &&
-          (equal_list (equal_vproof _A) x82 y82 && equal_vproofa _A x83 y83)
-    | VSince (x71, x72, x73), VSince (y71, y72, y73) ->
-        equal_nata x71 y71 &&
-          (equal_vproofa _A x72 y72 && equal_list (equal_vproof _A) x73 y73)
+    | VPrev_le x25, VPrev_le y25 -> equal_nata x25 y25
+    | VPrev_ge x24, VPrev_ge y24 -> equal_nata x24 y24
+    | VPrev x23, VPrev y23 -> equal_vproofa _A x23 y23
+    | VNext_le x22a, VNext_le y22a -> equal_nata x22a y22a
+    | VNext_ge x21a, VNext_ge y21a -> equal_nata x21a y21a
+    | VNext x20, VNext y20 -> equal_vproofa _A x20 y20
+    | VSince_le x19, VSince_le y19 -> equal_nata x19 y19
+    | VUntil_never (x181, x182, x183), VUntil_never (y181, y182, y183) ->
+        equal_nata x181 y181 &&
+          (equal_nata x182 y182 && equal_list (equal_vproof _A) x183 y183)
+    | VSince_never (x171, x172, x173), VSince_never (y171, y172, y173) ->
+        equal_nata x171 y171 &&
+          (equal_nata x172 y172 && equal_list (equal_vproof _A) x173 y173)
+    | VUntil (x161, x162, x163), VUntil (y161, y162, y163) ->
+        equal_nata x161 y161 &&
+          (equal_list (equal_vproof _A) x162 y162 && equal_vproofa _A x163 y163)
+    | VSince (x151, x152, x153), VSince (y151, y152, y153) ->
+        equal_nata x151 y151 &&
+          (equal_vproofa _A x152 y152 && equal_list (equal_vproof _A) x153 y153)
+    | VAlways (x141, x142), VAlways (y141, y142) ->
+        equal_nata x141 y141 && equal_vproofa _A x142 y142
+    | VHistorically (x131, x132), VHistorically (y131, y132) ->
+        equal_nata x131 y131 && equal_vproofa _A x132 y132
+    | VEventually (x121, x122, x123), VEventually (y121, y122, y123) ->
+        equal_nata x121 y121 &&
+          (equal_nata x122 y122 && equal_list (equal_vproof _A) x123 y123)
+    | VOnce (x111, x112, x113), VOnce (y111, y112, y113) ->
+        equal_nata x111 y111 &&
+          (equal_nata x112 y112 && equal_list (equal_vproof _A) x113 y113)
+    | VOnce_le x10, VOnce_le y10 -> equal_nata x10 y10
+    | VIff_vs (x91, x92), VIff_vs (y91, y92) ->
+        equal_vproofa _A x91 y91 && equal_sproofa _A x92 y92
+    | VIff_sv (x81, x82), VIff_sv (y81, y82) ->
+        equal_sproofa _A x81 y81 && equal_vproofa _A x82 y82
+    | VImpl (x71, x72), VImpl (y71, y72) ->
+        equal_sproofa _A x71 y71 && equal_vproofa _A x72 y72
     | VConjR x6, VConjR y6 -> equal_vproofa _A x6 y6
     | VConjL x5, VConjL y5 -> equal_vproofa _A x5 y5
     | VDisj (x41, x42), VDisj (y41, y42) ->
@@ -721,488 +1369,618 @@ let set_impl_sproofa : ('a sproof, set_impla) phantom = Phantom Set_RBT;;
 let set_impl_sproof = ({set_impl = set_impl_sproofa} : 'a sproof set_impl);;
 
 let rec comparator_list
-  comp_a x1 x2 = match comp_a, x1, x2 with
-    comp_a, x :: xa, y :: ya ->
-      (match comp_a x y with Eq -> comparator_list comp_a xa ya | Lt -> Lt
-        | Gt -> Gt)
-    | comp_a, x :: xa, [] -> Gt
-    | comp_a, [], y :: ya -> Lt
-    | comp_a, [], [] -> Eq;;
+  compa x1 x2 = match compa, x1, x2 with compa, [], [] -> Eq
+    | compa, [], y :: ys -> Lt
+    | compa, x :: xs, [] -> Gt
+    | compa, x :: xs, y :: ys ->
+        (match compa x y with Eq -> comparator_list compa xs ys | Lt -> Lt
+          | Gt -> Gt);;
 
-let rec comparator_sproof
-  comp_a x1 x2 = match comp_a, x1, x2 with
-    comp_a, SPrev x, SPrev ym -> comparator_sproof comp_a x ym
-    | comp_a, SPrev x, SNext yl -> Gt
-    | comp_a, SPrev x, SUntil (yj, yk) -> Gt
-    | comp_a, SPrev x, SSince (yh, yi) -> Gt
-    | comp_a, SPrev x, SConj (yf, yg) -> Gt
-    | comp_a, SPrev x, SDisjR ye -> Gt
-    | comp_a, SPrev x, SDisjL yd -> Gt
-    | comp_a, SPrev x, SNeg yc -> Gt
-    | comp_a, SPrev x, SAtm (ya, yb) -> Gt
-    | comp_a, SPrev x, STT y -> Gt
-    | comp_a, SNext x, SPrev ym -> Lt
-    | comp_a, SNext x, SNext yl -> comparator_sproof comp_a x yl
-    | comp_a, SNext x, SUntil (yj, yk) -> Gt
-    | comp_a, SNext x, SSince (yh, yi) -> Gt
-    | comp_a, SNext x, SConj (yf, yg) -> Gt
-    | comp_a, SNext x, SDisjR ye -> Gt
-    | comp_a, SNext x, SDisjL yd -> Gt
-    | comp_a, SNext x, SNeg yc -> Gt
-    | comp_a, SNext x, SAtm (ya, yb) -> Gt
-    | comp_a, SNext x, STT y -> Gt
-    | comp_a, SUntil (x, xa), SPrev ym -> Lt
-    | comp_a, SUntil (x, xa), SNext yl -> Lt
-    | comp_a, SUntil (x, xa), SUntil (yj, yk) ->
-        (match comparator_list (comparator_sproof comp_a) x yj
-          with Eq -> comparator_sproof comp_a xa yk | Lt -> Lt | Gt -> Gt)
-    | comp_a, SUntil (x, xa), SSince (yh, yi) -> Gt
-    | comp_a, SUntil (x, xa), SConj (yf, yg) -> Gt
-    | comp_a, SUntil (x, xa), SDisjR ye -> Gt
-    | comp_a, SUntil (x, xa), SDisjL yd -> Gt
-    | comp_a, SUntil (x, xa), SNeg yc -> Gt
-    | comp_a, SUntil (x, xa), SAtm (ya, yb) -> Gt
-    | comp_a, SUntil (x, xa), STT y -> Gt
-    | comp_a, SSince (x, xa), SPrev ym -> Lt
-    | comp_a, SSince (x, xa), SNext yl -> Lt
-    | comp_a, SSince (x, xa), SUntil (yj, yk) -> Lt
-    | comp_a, SSince (x, xa), SSince (yh, yi) ->
-        (match comparator_sproof comp_a x yh
-          with Eq -> comparator_list (comparator_sproof comp_a) xa yi | Lt -> Lt
-          | Gt -> Gt)
-    | comp_a, SSince (x, xa), SConj (yf, yg) -> Gt
-    | comp_a, SSince (x, xa), SDisjR ye -> Gt
-    | comp_a, SSince (x, xa), SDisjL yd -> Gt
-    | comp_a, SSince (x, xa), SNeg yc -> Gt
-    | comp_a, SSince (x, xa), SAtm (ya, yb) -> Gt
-    | comp_a, SSince (x, xa), STT y -> Gt
-    | comp_a, SConj (x, xa), SPrev ym -> Lt
-    | comp_a, SConj (x, xa), SNext yl -> Lt
-    | comp_a, SConj (x, xa), SUntil (yj, yk) -> Lt
-    | comp_a, SConj (x, xa), SSince (yh, yi) -> Lt
-    | comp_a, SConj (x, xa), SConj (yf, yg) ->
-        (match comparator_sproof comp_a x yf
-          with Eq -> comparator_sproof comp_a xa yg | Lt -> Lt | Gt -> Gt)
-    | comp_a, SConj (x, xa), SDisjR ye -> Gt
-    | comp_a, SConj (x, xa), SDisjL yd -> Gt
-    | comp_a, SConj (x, xa), SNeg yc -> Gt
-    | comp_a, SConj (x, xa), SAtm (ya, yb) -> Gt
-    | comp_a, SConj (x, xa), STT y -> Gt
-    | comp_a, SDisjR x, SPrev ym -> Lt
-    | comp_a, SDisjR x, SNext yl -> Lt
-    | comp_a, SDisjR x, SUntil (yj, yk) -> Lt
-    | comp_a, SDisjR x, SSince (yh, yi) -> Lt
-    | comp_a, SDisjR x, SConj (yf, yg) -> Lt
-    | comp_a, SDisjR x, SDisjR ye -> comparator_sproof comp_a x ye
-    | comp_a, SDisjR x, SDisjL yd -> Gt
-    | comp_a, SDisjR x, SNeg yc -> Gt
-    | comp_a, SDisjR x, SAtm (ya, yb) -> Gt
-    | comp_a, SDisjR x, STT y -> Gt
-    | comp_a, SDisjL x, SPrev ym -> Lt
-    | comp_a, SDisjL x, SNext yl -> Lt
-    | comp_a, SDisjL x, SUntil (yj, yk) -> Lt
-    | comp_a, SDisjL x, SSince (yh, yi) -> Lt
-    | comp_a, SDisjL x, SConj (yf, yg) -> Lt
-    | comp_a, SDisjL x, SDisjR ye -> Lt
-    | comp_a, SDisjL x, SDisjL yd -> comparator_sproof comp_a x yd
-    | comp_a, SDisjL x, SNeg yc -> Gt
-    | comp_a, SDisjL x, SAtm (ya, yb) -> Gt
-    | comp_a, SDisjL x, STT y -> Gt
-    | comp_a, SNeg x, SPrev ym -> Lt
-    | comp_a, SNeg x, SNext yl -> Lt
-    | comp_a, SNeg x, SUntil (yj, yk) -> Lt
-    | comp_a, SNeg x, SSince (yh, yi) -> Lt
-    | comp_a, SNeg x, SConj (yf, yg) -> Lt
-    | comp_a, SNeg x, SDisjR ye -> Lt
-    | comp_a, SNeg x, SDisjL yd -> Lt
-    | comp_a, SNeg x, SNeg yc -> comparator_vproof comp_a x yc
-    | comp_a, SNeg x, SAtm (ya, yb) -> Gt
-    | comp_a, SNeg x, STT y -> Gt
-    | comp_a, SAtm (x, xa), SPrev ym -> Lt
-    | comp_a, SAtm (x, xa), SNext yl -> Lt
-    | comp_a, SAtm (x, xa), SUntil (yj, yk) -> Lt
-    | comp_a, SAtm (x, xa), SSince (yh, yi) -> Lt
-    | comp_a, SAtm (x, xa), SConj (yf, yg) -> Lt
-    | comp_a, SAtm (x, xa), SDisjR ye -> Lt
-    | comp_a, SAtm (x, xa), SDisjL yd -> Lt
-    | comp_a, SAtm (x, xa), SNeg yc -> Lt
-    | comp_a, SAtm (x, xa), SAtm (ya, yb) ->
-        (match comp_a x ya
-          with Eq -> comparator_of (equal_nat, linorder_nat) xa yb | Lt -> Lt
-          | Gt -> Gt)
-    | comp_a, SAtm (x, xa), STT y -> Gt
-    | comp_a, STT x, SPrev ym -> Lt
-    | comp_a, STT x, SNext yl -> Lt
-    | comp_a, STT x, SUntil (yj, yk) -> Lt
-    | comp_a, STT x, SSince (yh, yi) -> Lt
-    | comp_a, STT x, SConj (yf, yg) -> Lt
-    | comp_a, STT x, SDisjR ye -> Lt
-    | comp_a, STT x, SDisjL yd -> Lt
-    | comp_a, STT x, SNeg yc -> Lt
-    | comp_a, STT x, SAtm (ya, yb) -> Lt
-    | comp_a, STT x, STT y -> comparator_of (equal_nat, linorder_nat) x y
-and comparator_vproof
-  comp_a x1 x2 = match comp_a, x1, x2 with comp_a, VPrev_zero, VPrev_zero -> Eq
-    | comp_a, VPrev_zero, VPrev_le yz -> Gt
-    | comp_a, VPrev_zero, VPrev_ge yy -> Gt
-    | comp_a, VPrev_zero, VPrev yx -> Gt
-    | comp_a, VPrev_zero, VNext_le yw -> Gt
-    | comp_a, VPrev_zero, VNext_ge yv -> Gt
-    | comp_a, VPrev_zero, VNext yu -> Gt
-    | comp_a, VPrev_zero, VSince_le yt -> Gt
-    | comp_a, VPrev_zero, VUntil_never (yq, yr, ys) -> Gt
-    | comp_a, VPrev_zero, VSince_never (yn, yo, yp) -> Gt
-    | comp_a, VPrev_zero, VUntil (yk, yl, ym) -> Gt
-    | comp_a, VPrev_zero, VSince (yh, yi, yj) -> Gt
-    | comp_a, VPrev_zero, VConjR yg -> Gt
-    | comp_a, VPrev_zero, VConjL yf -> Gt
-    | comp_a, VPrev_zero, VDisj (yd, ye) -> Gt
-    | comp_a, VPrev_zero, VNeg yc -> Gt
-    | comp_a, VPrev_zero, VAtm (ya, yb) -> Gt
-    | comp_a, VPrev_zero, VFF y -> Gt
-    | comp_a, VPrev_le x, VPrev_zero -> Lt
-    | comp_a, VPrev_le x, VPrev_le yz ->
-        comparator_of (equal_nat, linorder_nat) x yz
-    | comp_a, VPrev_le x, VPrev_ge yy -> Gt
-    | comp_a, VPrev_le x, VPrev yx -> Gt
-    | comp_a, VPrev_le x, VNext_le yw -> Gt
-    | comp_a, VPrev_le x, VNext_ge yv -> Gt
-    | comp_a, VPrev_le x, VNext yu -> Gt
-    | comp_a, VPrev_le x, VSince_le yt -> Gt
-    | comp_a, VPrev_le x, VUntil_never (yq, yr, ys) -> Gt
-    | comp_a, VPrev_le x, VSince_never (yn, yo, yp) -> Gt
-    | comp_a, VPrev_le x, VUntil (yk, yl, ym) -> Gt
-    | comp_a, VPrev_le x, VSince (yh, yi, yj) -> Gt
-    | comp_a, VPrev_le x, VConjR yg -> Gt
-    | comp_a, VPrev_le x, VConjL yf -> Gt
-    | comp_a, VPrev_le x, VDisj (yd, ye) -> Gt
-    | comp_a, VPrev_le x, VNeg yc -> Gt
-    | comp_a, VPrev_le x, VAtm (ya, yb) -> Gt
-    | comp_a, VPrev_le x, VFF y -> Gt
-    | comp_a, VPrev_ge x, VPrev_zero -> Lt
-    | comp_a, VPrev_ge x, VPrev_le yz -> Lt
-    | comp_a, VPrev_ge x, VPrev_ge yy ->
-        comparator_of (equal_nat, linorder_nat) x yy
-    | comp_a, VPrev_ge x, VPrev yx -> Gt
-    | comp_a, VPrev_ge x, VNext_le yw -> Gt
-    | comp_a, VPrev_ge x, VNext_ge yv -> Gt
-    | comp_a, VPrev_ge x, VNext yu -> Gt
-    | comp_a, VPrev_ge x, VSince_le yt -> Gt
-    | comp_a, VPrev_ge x, VUntil_never (yq, yr, ys) -> Gt
-    | comp_a, VPrev_ge x, VSince_never (yn, yo, yp) -> Gt
-    | comp_a, VPrev_ge x, VUntil (yk, yl, ym) -> Gt
-    | comp_a, VPrev_ge x, VSince (yh, yi, yj) -> Gt
-    | comp_a, VPrev_ge x, VConjR yg -> Gt
-    | comp_a, VPrev_ge x, VConjL yf -> Gt
-    | comp_a, VPrev_ge x, VDisj (yd, ye) -> Gt
-    | comp_a, VPrev_ge x, VNeg yc -> Gt
-    | comp_a, VPrev_ge x, VAtm (ya, yb) -> Gt
-    | comp_a, VPrev_ge x, VFF y -> Gt
-    | comp_a, VPrev x, VPrev_zero -> Lt
-    | comp_a, VPrev x, VPrev_le yz -> Lt
-    | comp_a, VPrev x, VPrev_ge yy -> Lt
-    | comp_a, VPrev x, VPrev yx -> comparator_vproof comp_a x yx
-    | comp_a, VPrev x, VNext_le yw -> Gt
-    | comp_a, VPrev x, VNext_ge yv -> Gt
-    | comp_a, VPrev x, VNext yu -> Gt
-    | comp_a, VPrev x, VSince_le yt -> Gt
-    | comp_a, VPrev x, VUntil_never (yq, yr, ys) -> Gt
-    | comp_a, VPrev x, VSince_never (yn, yo, yp) -> Gt
-    | comp_a, VPrev x, VUntil (yk, yl, ym) -> Gt
-    | comp_a, VPrev x, VSince (yh, yi, yj) -> Gt
-    | comp_a, VPrev x, VConjR yg -> Gt
-    | comp_a, VPrev x, VConjL yf -> Gt
-    | comp_a, VPrev x, VDisj (yd, ye) -> Gt
-    | comp_a, VPrev x, VNeg yc -> Gt
-    | comp_a, VPrev x, VAtm (ya, yb) -> Gt
-    | comp_a, VPrev x, VFF y -> Gt
-    | comp_a, VNext_le x, VPrev_zero -> Lt
-    | comp_a, VNext_le x, VPrev_le yz -> Lt
-    | comp_a, VNext_le x, VPrev_ge yy -> Lt
-    | comp_a, VNext_le x, VPrev yx -> Lt
-    | comp_a, VNext_le x, VNext_le yw ->
-        comparator_of (equal_nat, linorder_nat) x yw
-    | comp_a, VNext_le x, VNext_ge yv -> Gt
-    | comp_a, VNext_le x, VNext yu -> Gt
-    | comp_a, VNext_le x, VSince_le yt -> Gt
-    | comp_a, VNext_le x, VUntil_never (yq, yr, ys) -> Gt
-    | comp_a, VNext_le x, VSince_never (yn, yo, yp) -> Gt
-    | comp_a, VNext_le x, VUntil (yk, yl, ym) -> Gt
-    | comp_a, VNext_le x, VSince (yh, yi, yj) -> Gt
-    | comp_a, VNext_le x, VConjR yg -> Gt
-    | comp_a, VNext_le x, VConjL yf -> Gt
-    | comp_a, VNext_le x, VDisj (yd, ye) -> Gt
-    | comp_a, VNext_le x, VNeg yc -> Gt
-    | comp_a, VNext_le x, VAtm (ya, yb) -> Gt
-    | comp_a, VNext_le x, VFF y -> Gt
-    | comp_a, VNext_ge x, VPrev_zero -> Lt
-    | comp_a, VNext_ge x, VPrev_le yz -> Lt
-    | comp_a, VNext_ge x, VPrev_ge yy -> Lt
-    | comp_a, VNext_ge x, VPrev yx -> Lt
-    | comp_a, VNext_ge x, VNext_le yw -> Lt
-    | comp_a, VNext_ge x, VNext_ge yv ->
-        comparator_of (equal_nat, linorder_nat) x yv
-    | comp_a, VNext_ge x, VNext yu -> Gt
-    | comp_a, VNext_ge x, VSince_le yt -> Gt
-    | comp_a, VNext_ge x, VUntil_never (yq, yr, ys) -> Gt
-    | comp_a, VNext_ge x, VSince_never (yn, yo, yp) -> Gt
-    | comp_a, VNext_ge x, VUntil (yk, yl, ym) -> Gt
-    | comp_a, VNext_ge x, VSince (yh, yi, yj) -> Gt
-    | comp_a, VNext_ge x, VConjR yg -> Gt
-    | comp_a, VNext_ge x, VConjL yf -> Gt
-    | comp_a, VNext_ge x, VDisj (yd, ye) -> Gt
-    | comp_a, VNext_ge x, VNeg yc -> Gt
-    | comp_a, VNext_ge x, VAtm (ya, yb) -> Gt
-    | comp_a, VNext_ge x, VFF y -> Gt
-    | comp_a, VNext x, VPrev_zero -> Lt
-    | comp_a, VNext x, VPrev_le yz -> Lt
-    | comp_a, VNext x, VPrev_ge yy -> Lt
-    | comp_a, VNext x, VPrev yx -> Lt
-    | comp_a, VNext x, VNext_le yw -> Lt
-    | comp_a, VNext x, VNext_ge yv -> Lt
-    | comp_a, VNext x, VNext yu -> comparator_vproof comp_a x yu
-    | comp_a, VNext x, VSince_le yt -> Gt
-    | comp_a, VNext x, VUntil_never (yq, yr, ys) -> Gt
-    | comp_a, VNext x, VSince_never (yn, yo, yp) -> Gt
-    | comp_a, VNext x, VUntil (yk, yl, ym) -> Gt
-    | comp_a, VNext x, VSince (yh, yi, yj) -> Gt
-    | comp_a, VNext x, VConjR yg -> Gt
-    | comp_a, VNext x, VConjL yf -> Gt
-    | comp_a, VNext x, VDisj (yd, ye) -> Gt
-    | comp_a, VNext x, VNeg yc -> Gt
-    | comp_a, VNext x, VAtm (ya, yb) -> Gt
-    | comp_a, VNext x, VFF y -> Gt
-    | comp_a, VSince_le x, VPrev_zero -> Lt
-    | comp_a, VSince_le x, VPrev_le yz -> Lt
-    | comp_a, VSince_le x, VPrev_ge yy -> Lt
-    | comp_a, VSince_le x, VPrev yx -> Lt
-    | comp_a, VSince_le x, VNext_le yw -> Lt
-    | comp_a, VSince_le x, VNext_ge yv -> Lt
-    | comp_a, VSince_le x, VNext yu -> Lt
-    | comp_a, VSince_le x, VSince_le yt ->
-        comparator_of (equal_nat, linorder_nat) x yt
-    | comp_a, VSince_le x, VUntil_never (yq, yr, ys) -> Gt
-    | comp_a, VSince_le x, VSince_never (yn, yo, yp) -> Gt
-    | comp_a, VSince_le x, VUntil (yk, yl, ym) -> Gt
-    | comp_a, VSince_le x, VSince (yh, yi, yj) -> Gt
-    | comp_a, VSince_le x, VConjR yg -> Gt
-    | comp_a, VSince_le x, VConjL yf -> Gt
-    | comp_a, VSince_le x, VDisj (yd, ye) -> Gt
-    | comp_a, VSince_le x, VNeg yc -> Gt
-    | comp_a, VSince_le x, VAtm (ya, yb) -> Gt
-    | comp_a, VSince_le x, VFF y -> Gt
-    | comp_a, VUntil_never (x, xa, xb), VPrev_zero -> Lt
-    | comp_a, VUntil_never (x, xa, xb), VPrev_le yz -> Lt
-    | comp_a, VUntil_never (x, xa, xb), VPrev_ge yy -> Lt
-    | comp_a, VUntil_never (x, xa, xb), VPrev yx -> Lt
-    | comp_a, VUntil_never (x, xa, xb), VNext_le yw -> Lt
-    | comp_a, VUntil_never (x, xa, xb), VNext_ge yv -> Lt
-    | comp_a, VUntil_never (x, xa, xb), VNext yu -> Lt
-    | comp_a, VUntil_never (x, xa, xb), VSince_le yt -> Lt
-    | comp_a, VUntil_never (x, xa, xb), VUntil_never (yq, yr, ys) ->
-        (match comparator_of (equal_nat, linorder_nat) x yq
-          with Eq ->
-            (match comparator_of (equal_nat, linorder_nat) xa yr
-              with Eq -> comparator_list (comparator_vproof comp_a) xb ys
+let rec map f x1 = match f, x1 with f, [] -> []
+              | f, x21 :: x22 -> f x21 :: map f x22;;
+
+let rec comparator_sproof _A
+  compa x1 rhs = match compa, x1, rhs with
+    compa, STT i, rhs ->
+      (match rhs with STT a -> comparator_of (equal_nat, linorder_nat) i a
+        | SAtm (_, _) -> Lt | SNeg _ -> Lt | SDisjL _ -> Lt | SDisjR _ -> Lt
+        | SConj (_, _) -> Lt | SImplR _ -> Lt | SImplL _ -> Lt
+        | SIff_ss (_, _) -> Lt | SIff_vv (_, _) -> Lt | SOnce (_, _) -> Lt
+        | SEventually (_, _) -> Lt | SHistorically (_, _, _) -> Lt
+        | SHistorically_le _ -> Lt | SAlways (_, _, _) -> Lt
+        | SSince (_, _) -> Lt | SUntil (_, _) -> Lt | SNext _ -> Lt
+        | SPrev _ -> Lt)
+    | compa, SAtm (p, i), rhs ->
+        (match rhs with STT _ -> Gt
+          | SAtm (q, j) ->
+            (match compa p q
+              with Eq -> comparator_of (equal_nat, linorder_nat) i j | Lt -> Lt
+              | Gt -> Gt)
+          | SNeg _ -> Lt | SDisjL _ -> Lt | SDisjR _ -> Lt | SConj (_, _) -> Lt
+          | SImplR _ -> Lt | SImplL _ -> Lt | SIff_ss (_, _) -> Lt
+          | SIff_vv (_, _) -> Lt | SOnce (_, _) -> Lt | SEventually (_, _) -> Lt
+          | SHistorically (_, _, _) -> Lt | SHistorically_le _ -> Lt
+          | SAlways (_, _, _) -> Lt | SSince (_, _) -> Lt | SUntil (_, _) -> Lt
+          | SNext _ -> Lt | SPrev _ -> Lt)
+    | compa, SNeg vp, rhs ->
+        (match rhs with STT _ -> Gt | SAtm (_, _) -> Gt
+          | SNeg a -> comparator_vproof _A compa vp a | SDisjL _ -> Lt
+          | SDisjR _ -> Lt | SConj (_, _) -> Lt | SImplR _ -> Lt
+          | SImplL _ -> Lt | SIff_ss (_, _) -> Lt | SIff_vv (_, _) -> Lt
+          | SOnce (_, _) -> Lt | SEventually (_, _) -> Lt
+          | SHistorically (_, _, _) -> Lt | SHistorically_le _ -> Lt
+          | SAlways (_, _, _) -> Lt | SSince (_, _) -> Lt | SUntil (_, _) -> Lt
+          | SNext _ -> Lt | SPrev _ -> Lt)
+    | compa, SDisjL sp, rhs ->
+        (match rhs with STT _ -> Gt | SAtm (_, _) -> Gt | SNeg _ -> Gt
+          | SDisjL a -> comparator_sproof _A compa sp a | SDisjR _ -> Lt
+          | SConj (_, _) -> Lt | SImplR _ -> Lt | SImplL _ -> Lt
+          | SIff_ss (_, _) -> Lt | SIff_vv (_, _) -> Lt | SOnce (_, _) -> Lt
+          | SEventually (_, _) -> Lt | SHistorically (_, _, _) -> Lt
+          | SHistorically_le _ -> Lt | SAlways (_, _, _) -> Lt
+          | SSince (_, _) -> Lt | SUntil (_, _) -> Lt | SNext _ -> Lt
+          | SPrev _ -> Lt)
+    | compa, SDisjR sp, rhs ->
+        (match rhs with STT _ -> Gt | SAtm (_, _) -> Gt | SNeg _ -> Gt
+          | SDisjL _ -> Gt | SDisjR a -> comparator_sproof _A compa sp a
+          | SConj (_, _) -> Lt | SImplR _ -> Lt | SImplL _ -> Lt
+          | SIff_ss (_, _) -> Lt | SIff_vv (_, _) -> Lt | SOnce (_, _) -> Lt
+          | SEventually (_, _) -> Lt | SHistorically (_, _, _) -> Lt
+          | SHistorically_le _ -> Lt | SAlways (_, _, _) -> Lt
+          | SSince (_, _) -> Lt | SUntil (_, _) -> Lt | SNext _ -> Lt
+          | SPrev _ -> Lt)
+    | compa, SConj (sp1, sp2), rhs ->
+        (match rhs with STT _ -> Gt | SAtm (_, _) -> Gt | SNeg _ -> Gt
+          | SDisjL _ -> Gt | SDisjR _ -> Gt
+          | SConj (sp1a, sp2a) ->
+            (match comparator_sproof _A compa sp1 sp1a
+              with Eq -> comparator_sproof _A compa sp2 sp2a | Lt -> Lt
+              | Gt -> Gt)
+          | SImplR _ -> Lt | SImplL _ -> Lt | SIff_ss (_, _) -> Lt
+          | SIff_vv (_, _) -> Lt | SOnce (_, _) -> Lt | SEventually (_, _) -> Lt
+          | SHistorically (_, _, _) -> Lt | SHistorically_le _ -> Lt
+          | SAlways (_, _, _) -> Lt | SSince (_, _) -> Lt | SUntil (_, _) -> Lt
+          | SNext _ -> Lt | SPrev _ -> Lt)
+    | compa, SImplR sp, rhs ->
+        (match rhs with STT _ -> Gt | SAtm (_, _) -> Gt | SNeg _ -> Gt
+          | SDisjL _ -> Gt | SDisjR _ -> Gt | SConj (_, _) -> Gt
+          | SImplR a -> comparator_sproof _A compa sp a | SImplL _ -> Lt
+          | SIff_ss (_, _) -> Lt | SIff_vv (_, _) -> Lt | SOnce (_, _) -> Lt
+          | SEventually (_, _) -> Lt | SHistorically (_, _, _) -> Lt
+          | SHistorically_le _ -> Lt | SAlways (_, _, _) -> Lt
+          | SSince (_, _) -> Lt | SUntil (_, _) -> Lt | SNext _ -> Lt
+          | SPrev _ -> Lt)
+    | compa, SImplL vp, rhs ->
+        (match rhs with STT _ -> Gt | SAtm (_, _) -> Gt | SNeg _ -> Gt
+          | SDisjL _ -> Gt | SDisjR _ -> Gt | SConj (_, _) -> Gt
+          | SImplR _ -> Gt | SImplL a -> comparator_vproof _A compa vp a
+          | SIff_ss (_, _) -> Lt | SIff_vv (_, _) -> Lt | SOnce (_, _) -> Lt
+          | SEventually (_, _) -> Lt | SHistorically (_, _, _) -> Lt
+          | SHistorically_le _ -> Lt | SAlways (_, _, _) -> Lt
+          | SSince (_, _) -> Lt | SUntil (_, _) -> Lt | SNext _ -> Lt
+          | SPrev _ -> Lt)
+    | compa, SIff_ss (sp1, sp2), rhs ->
+        (match rhs with STT _ -> Gt | SAtm (_, _) -> Gt | SNeg _ -> Gt
+          | SDisjL _ -> Gt | SDisjR _ -> Gt | SConj (_, _) -> Gt
+          | SImplR _ -> Gt | SImplL _ -> Gt
+          | SIff_ss (sp1a, sp2a) ->
+            (match comparator_sproof _A compa sp1 sp1a
+              with Eq -> comparator_sproof _A compa sp2 sp2a | Lt -> Lt
+              | Gt -> Gt)
+          | SIff_vv (_, _) -> Lt | SOnce (_, _) -> Lt | SEventually (_, _) -> Lt
+          | SHistorically (_, _, _) -> Lt | SHistorically_le _ -> Lt
+          | SAlways (_, _, _) -> Lt | SSince (_, _) -> Lt | SUntil (_, _) -> Lt
+          | SNext _ -> Lt | SPrev _ -> Lt)
+    | compa, SIff_vv (vp1, vp2), rhs ->
+        (match rhs with STT _ -> Gt | SAtm (_, _) -> Gt | SNeg _ -> Gt
+          | SDisjL _ -> Gt | SDisjR _ -> Gt | SConj (_, _) -> Gt
+          | SImplR _ -> Gt | SImplL _ -> Gt | SIff_ss (_, _) -> Gt
+          | SIff_vv (vp1a, vp2a) ->
+            (match comparator_vproof _A compa vp1 vp1a
+              with Eq -> comparator_vproof _A compa vp2 vp2a | Lt -> Lt
+              | Gt -> Gt)
+          | SOnce (_, _) -> Lt | SEventually (_, _) -> Lt
+          | SHistorically (_, _, _) -> Lt | SHistorically_le _ -> Lt
+          | SAlways (_, _, _) -> Lt | SSince (_, _) -> Lt | SUntil (_, _) -> Lt
+          | SNext _ -> Lt | SPrev _ -> Lt)
+    | compa, SOnce (i, sp), rhs ->
+        (match rhs with STT _ -> Gt | SAtm (_, _) -> Gt | SNeg _ -> Gt
+          | SDisjL _ -> Gt | SDisjR _ -> Gt | SConj (_, _) -> Gt
+          | SImplR _ -> Gt | SImplL _ -> Gt | SIff_ss (_, _) -> Gt
+          | SIff_vv (_, _) -> Gt
+          | SOnce (ia, spa) ->
+            (match comparator_of (equal_nat, linorder_nat) i ia
+              with Eq -> comparator_sproof _A compa sp spa | Lt -> Lt
+              | Gt -> Gt)
+          | SEventually (_, _) -> Lt | SHistorically (_, _, _) -> Lt
+          | SHistorically_le _ -> Lt | SAlways (_, _, _) -> Lt
+          | SSince (_, _) -> Lt | SUntil (_, _) -> Lt | SNext _ -> Lt
+          | SPrev _ -> Lt)
+    | compa, SEventually (i, sp), rhs ->
+        (match rhs with STT _ -> Gt | SAtm (_, _) -> Gt | SNeg _ -> Gt
+          | SDisjL _ -> Gt | SDisjR _ -> Gt | SConj (_, _) -> Gt
+          | SImplR _ -> Gt | SImplL _ -> Gt | SIff_ss (_, _) -> Gt
+          | SIff_vv (_, _) -> Gt | SOnce (_, _) -> Gt
+          | SEventually (ia, spa) ->
+            (match comparator_of (equal_nat, linorder_nat) i ia
+              with Eq -> comparator_sproof _A compa sp spa | Lt -> Lt
+              | Gt -> Gt)
+          | SHistorically (_, _, _) -> Lt | SHistorically_le _ -> Lt
+          | SAlways (_, _, _) -> Lt | SSince (_, _) -> Lt | SUntil (_, _) -> Lt
+          | SNext _ -> Lt | SPrev _ -> Lt)
+    | compa, SHistorically (i, t, sps), rhs ->
+        (match rhs with STT _ -> Gt | SAtm (_, _) -> Gt | SNeg _ -> Gt
+          | SDisjL _ -> Gt | SDisjR _ -> Gt | SConj (_, _) -> Gt
+          | SImplR _ -> Gt | SImplL _ -> Gt | SIff_ss (_, _) -> Gt
+          | SIff_vv (_, _) -> Gt | SOnce (_, _) -> Gt | SEventually (_, _) -> Gt
+          | SHistorically (ia, ta, spsa) ->
+            (match comparator_of (equal_nat, linorder_nat) i ia
+              with Eq ->
+                (match comparator_of (equal_nat, linorder_nat) t ta
+                  with Eq ->
+                    comparator_list (fun f -> f)
+                      (map (comparator_sproof _A compa) sps) spsa
+                  | Lt -> Lt | Gt -> Gt)
               | Lt -> Lt | Gt -> Gt)
-          | Lt -> Lt | Gt -> Gt)
-    | comp_a, VUntil_never (x, xa, xb), VSince_never (yn, yo, yp) -> Gt
-    | comp_a, VUntil_never (x, xa, xb), VUntil (yk, yl, ym) -> Gt
-    | comp_a, VUntil_never (x, xa, xb), VSince (yh, yi, yj) -> Gt
-    | comp_a, VUntil_never (x, xa, xb), VConjR yg -> Gt
-    | comp_a, VUntil_never (x, xa, xb), VConjL yf -> Gt
-    | comp_a, VUntil_never (x, xa, xb), VDisj (yd, ye) -> Gt
-    | comp_a, VUntil_never (x, xa, xb), VNeg yc -> Gt
-    | comp_a, VUntil_never (x, xa, xb), VAtm (ya, yb) -> Gt
-    | comp_a, VUntil_never (x, xa, xb), VFF y -> Gt
-    | comp_a, VSince_never (x, xa, xb), VPrev_zero -> Lt
-    | comp_a, VSince_never (x, xa, xb), VPrev_le yz -> Lt
-    | comp_a, VSince_never (x, xa, xb), VPrev_ge yy -> Lt
-    | comp_a, VSince_never (x, xa, xb), VPrev yx -> Lt
-    | comp_a, VSince_never (x, xa, xb), VNext_le yw -> Lt
-    | comp_a, VSince_never (x, xa, xb), VNext_ge yv -> Lt
-    | comp_a, VSince_never (x, xa, xb), VNext yu -> Lt
-    | comp_a, VSince_never (x, xa, xb), VSince_le yt -> Lt
-    | comp_a, VSince_never (x, xa, xb), VUntil_never (yq, yr, ys) -> Lt
-    | comp_a, VSince_never (x, xa, xb), VSince_never (yn, yo, yp) ->
-        (match comparator_of (equal_nat, linorder_nat) x yn
-          with Eq ->
-            (match comparator_of (equal_nat, linorder_nat) xa yo
-              with Eq -> comparator_list (comparator_vproof comp_a) xb yp
+          | SHistorically_le _ -> Lt | SAlways (_, _, _) -> Lt
+          | SSince (_, _) -> Lt | SUntil (_, _) -> Lt | SNext _ -> Lt
+          | SPrev _ -> Lt)
+    | compa, SHistorically_le i, rhs ->
+        (match rhs with STT _ -> Gt | SAtm (_, _) -> Gt | SNeg _ -> Gt
+          | SDisjL _ -> Gt | SDisjR _ -> Gt | SConj (_, _) -> Gt
+          | SImplR _ -> Gt | SImplL _ -> Gt | SIff_ss (_, _) -> Gt
+          | SIff_vv (_, _) -> Gt | SOnce (_, _) -> Gt | SEventually (_, _) -> Gt
+          | SHistorically (_, _, _) -> Gt
+          | SHistorically_le a -> comparator_of (equal_nat, linorder_nat) i a
+          | SAlways (_, _, _) -> Lt | SSince (_, _) -> Lt | SUntil (_, _) -> Lt
+          | SNext _ -> Lt | SPrev _ -> Lt)
+    | compa, SAlways (i, t, sps), rhs ->
+        (match rhs with STT _ -> Gt | SAtm (_, _) -> Gt | SNeg _ -> Gt
+          | SDisjL _ -> Gt | SDisjR _ -> Gt | SConj (_, _) -> Gt
+          | SImplR _ -> Gt | SImplL _ -> Gt | SIff_ss (_, _) -> Gt
+          | SIff_vv (_, _) -> Gt | SOnce (_, _) -> Gt | SEventually (_, _) -> Gt
+          | SHistorically (_, _, _) -> Gt | SHistorically_le _ -> Gt
+          | SAlways (ia, ta, spsa) ->
+            (match comparator_of (equal_nat, linorder_nat) i ia
+              with Eq ->
+                (match comparator_of (equal_nat, linorder_nat) t ta
+                  with Eq ->
+                    comparator_list (fun f -> f)
+                      (map (comparator_sproof _A compa) sps) spsa
+                  | Lt -> Lt | Gt -> Gt)
               | Lt -> Lt | Gt -> Gt)
-          | Lt -> Lt | Gt -> Gt)
-    | comp_a, VSince_never (x, xa, xb), VUntil (yk, yl, ym) -> Gt
-    | comp_a, VSince_never (x, xa, xb), VSince (yh, yi, yj) -> Gt
-    | comp_a, VSince_never (x, xa, xb), VConjR yg -> Gt
-    | comp_a, VSince_never (x, xa, xb), VConjL yf -> Gt
-    | comp_a, VSince_never (x, xa, xb), VDisj (yd, ye) -> Gt
-    | comp_a, VSince_never (x, xa, xb), VNeg yc -> Gt
-    | comp_a, VSince_never (x, xa, xb), VAtm (ya, yb) -> Gt
-    | comp_a, VSince_never (x, xa, xb), VFF y -> Gt
-    | comp_a, VUntil (x, xa, xb), VPrev_zero -> Lt
-    | comp_a, VUntil (x, xa, xb), VPrev_le yz -> Lt
-    | comp_a, VUntil (x, xa, xb), VPrev_ge yy -> Lt
-    | comp_a, VUntil (x, xa, xb), VPrev yx -> Lt
-    | comp_a, VUntil (x, xa, xb), VNext_le yw -> Lt
-    | comp_a, VUntil (x, xa, xb), VNext_ge yv -> Lt
-    | comp_a, VUntil (x, xa, xb), VNext yu -> Lt
-    | comp_a, VUntil (x, xa, xb), VSince_le yt -> Lt
-    | comp_a, VUntil (x, xa, xb), VUntil_never (yq, yr, ys) -> Lt
-    | comp_a, VUntil (x, xa, xb), VSince_never (yn, yo, yp) -> Lt
-    | comp_a, VUntil (x, xa, xb), VUntil (yk, yl, ym) ->
-        (match comparator_of (equal_nat, linorder_nat) x yk
-          with Eq ->
-            (match comparator_list (comparator_vproof comp_a) xa yl
-              with Eq -> comparator_vproof comp_a xb ym | Lt -> Lt | Gt -> Gt)
-          | Lt -> Lt | Gt -> Gt)
-    | comp_a, VUntil (x, xa, xb), VSince (yh, yi, yj) -> Gt
-    | comp_a, VUntil (x, xa, xb), VConjR yg -> Gt
-    | comp_a, VUntil (x, xa, xb), VConjL yf -> Gt
-    | comp_a, VUntil (x, xa, xb), VDisj (yd, ye) -> Gt
-    | comp_a, VUntil (x, xa, xb), VNeg yc -> Gt
-    | comp_a, VUntil (x, xa, xb), VAtm (ya, yb) -> Gt
-    | comp_a, VUntil (x, xa, xb), VFF y -> Gt
-    | comp_a, VSince (x, xa, xb), VPrev_zero -> Lt
-    | comp_a, VSince (x, xa, xb), VPrev_le yz -> Lt
-    | comp_a, VSince (x, xa, xb), VPrev_ge yy -> Lt
-    | comp_a, VSince (x, xa, xb), VPrev yx -> Lt
-    | comp_a, VSince (x, xa, xb), VNext_le yw -> Lt
-    | comp_a, VSince (x, xa, xb), VNext_ge yv -> Lt
-    | comp_a, VSince (x, xa, xb), VNext yu -> Lt
-    | comp_a, VSince (x, xa, xb), VSince_le yt -> Lt
-    | comp_a, VSince (x, xa, xb), VUntil_never (yq, yr, ys) -> Lt
-    | comp_a, VSince (x, xa, xb), VSince_never (yn, yo, yp) -> Lt
-    | comp_a, VSince (x, xa, xb), VUntil (yk, yl, ym) -> Lt
-    | comp_a, VSince (x, xa, xb), VSince (yh, yi, yj) ->
-        (match comparator_of (equal_nat, linorder_nat) x yh
-          with Eq ->
-            (match comparator_vproof comp_a xa yi
-              with Eq -> comparator_list (comparator_vproof comp_a) xb yj
+          | SSince (_, _) -> Lt | SUntil (_, _) -> Lt | SNext _ -> Lt
+          | SPrev _ -> Lt)
+    | compa, SSince (sp2, sp1s), rhs ->
+        (match rhs with STT _ -> Gt | SAtm (_, _) -> Gt | SNeg _ -> Gt
+          | SDisjL _ -> Gt | SDisjR _ -> Gt | SConj (_, _) -> Gt
+          | SImplR _ -> Gt | SImplL _ -> Gt | SIff_ss (_, _) -> Gt
+          | SIff_vv (_, _) -> Gt | SOnce (_, _) -> Gt | SEventually (_, _) -> Gt
+          | SHistorically (_, _, _) -> Gt | SHistorically_le _ -> Gt
+          | SAlways (_, _, _) -> Gt
+          | SSince (sp2a, sp1sa) ->
+            (match comparator_sproof _A compa sp2 sp2a
+              with Eq ->
+                comparator_list (fun f -> f)
+                  (map (comparator_sproof _A compa) sp1s) sp1sa
               | Lt -> Lt | Gt -> Gt)
-          | Lt -> Lt | Gt -> Gt)
-    | comp_a, VSince (x, xa, xb), VConjR yg -> Gt
-    | comp_a, VSince (x, xa, xb), VConjL yf -> Gt
-    | comp_a, VSince (x, xa, xb), VDisj (yd, ye) -> Gt
-    | comp_a, VSince (x, xa, xb), VNeg yc -> Gt
-    | comp_a, VSince (x, xa, xb), VAtm (ya, yb) -> Gt
-    | comp_a, VSince (x, xa, xb), VFF y -> Gt
-    | comp_a, VConjR x, VPrev_zero -> Lt
-    | comp_a, VConjR x, VPrev_le yz -> Lt
-    | comp_a, VConjR x, VPrev_ge yy -> Lt
-    | comp_a, VConjR x, VPrev yx -> Lt
-    | comp_a, VConjR x, VNext_le yw -> Lt
-    | comp_a, VConjR x, VNext_ge yv -> Lt
-    | comp_a, VConjR x, VNext yu -> Lt
-    | comp_a, VConjR x, VSince_le yt -> Lt
-    | comp_a, VConjR x, VUntil_never (yq, yr, ys) -> Lt
-    | comp_a, VConjR x, VSince_never (yn, yo, yp) -> Lt
-    | comp_a, VConjR x, VUntil (yk, yl, ym) -> Lt
-    | comp_a, VConjR x, VSince (yh, yi, yj) -> Lt
-    | comp_a, VConjR x, VConjR yg -> comparator_vproof comp_a x yg
-    | comp_a, VConjR x, VConjL yf -> Gt
-    | comp_a, VConjR x, VDisj (yd, ye) -> Gt
-    | comp_a, VConjR x, VNeg yc -> Gt
-    | comp_a, VConjR x, VAtm (ya, yb) -> Gt
-    | comp_a, VConjR x, VFF y -> Gt
-    | comp_a, VConjL x, VPrev_zero -> Lt
-    | comp_a, VConjL x, VPrev_le yz -> Lt
-    | comp_a, VConjL x, VPrev_ge yy -> Lt
-    | comp_a, VConjL x, VPrev yx -> Lt
-    | comp_a, VConjL x, VNext_le yw -> Lt
-    | comp_a, VConjL x, VNext_ge yv -> Lt
-    | comp_a, VConjL x, VNext yu -> Lt
-    | comp_a, VConjL x, VSince_le yt -> Lt
-    | comp_a, VConjL x, VUntil_never (yq, yr, ys) -> Lt
-    | comp_a, VConjL x, VSince_never (yn, yo, yp) -> Lt
-    | comp_a, VConjL x, VUntil (yk, yl, ym) -> Lt
-    | comp_a, VConjL x, VSince (yh, yi, yj) -> Lt
-    | comp_a, VConjL x, VConjR yg -> Lt
-    | comp_a, VConjL x, VConjL yf -> comparator_vproof comp_a x yf
-    | comp_a, VConjL x, VDisj (yd, ye) -> Gt
-    | comp_a, VConjL x, VNeg yc -> Gt
-    | comp_a, VConjL x, VAtm (ya, yb) -> Gt
-    | comp_a, VConjL x, VFF y -> Gt
-    | comp_a, VDisj (x, xa), VPrev_zero -> Lt
-    | comp_a, VDisj (x, xa), VPrev_le yz -> Lt
-    | comp_a, VDisj (x, xa), VPrev_ge yy -> Lt
-    | comp_a, VDisj (x, xa), VPrev yx -> Lt
-    | comp_a, VDisj (x, xa), VNext_le yw -> Lt
-    | comp_a, VDisj (x, xa), VNext_ge yv -> Lt
-    | comp_a, VDisj (x, xa), VNext yu -> Lt
-    | comp_a, VDisj (x, xa), VSince_le yt -> Lt
-    | comp_a, VDisj (x, xa), VUntil_never (yq, yr, ys) -> Lt
-    | comp_a, VDisj (x, xa), VSince_never (yn, yo, yp) -> Lt
-    | comp_a, VDisj (x, xa), VUntil (yk, yl, ym) -> Lt
-    | comp_a, VDisj (x, xa), VSince (yh, yi, yj) -> Lt
-    | comp_a, VDisj (x, xa), VConjR yg -> Lt
-    | comp_a, VDisj (x, xa), VConjL yf -> Lt
-    | comp_a, VDisj (x, xa), VDisj (yd, ye) ->
-        (match comparator_vproof comp_a x yd
-          with Eq -> comparator_vproof comp_a xa ye | Lt -> Lt | Gt -> Gt)
-    | comp_a, VDisj (x, xa), VNeg yc -> Gt
-    | comp_a, VDisj (x, xa), VAtm (ya, yb) -> Gt
-    | comp_a, VDisj (x, xa), VFF y -> Gt
-    | comp_a, VNeg x, VPrev_zero -> Lt
-    | comp_a, VNeg x, VPrev_le yz -> Lt
-    | comp_a, VNeg x, VPrev_ge yy -> Lt
-    | comp_a, VNeg x, VPrev yx -> Lt
-    | comp_a, VNeg x, VNext_le yw -> Lt
-    | comp_a, VNeg x, VNext_ge yv -> Lt
-    | comp_a, VNeg x, VNext yu -> Lt
-    | comp_a, VNeg x, VSince_le yt -> Lt
-    | comp_a, VNeg x, VUntil_never (yq, yr, ys) -> Lt
-    | comp_a, VNeg x, VSince_never (yn, yo, yp) -> Lt
-    | comp_a, VNeg x, VUntil (yk, yl, ym) -> Lt
-    | comp_a, VNeg x, VSince (yh, yi, yj) -> Lt
-    | comp_a, VNeg x, VConjR yg -> Lt
-    | comp_a, VNeg x, VConjL yf -> Lt
-    | comp_a, VNeg x, VDisj (yd, ye) -> Lt
-    | comp_a, VNeg x, VNeg yc -> comparator_sproof comp_a x yc
-    | comp_a, VNeg x, VAtm (ya, yb) -> Gt
-    | comp_a, VNeg x, VFF y -> Gt
-    | comp_a, VAtm (x, xa), VPrev_zero -> Lt
-    | comp_a, VAtm (x, xa), VPrev_le yz -> Lt
-    | comp_a, VAtm (x, xa), VPrev_ge yy -> Lt
-    | comp_a, VAtm (x, xa), VPrev yx -> Lt
-    | comp_a, VAtm (x, xa), VNext_le yw -> Lt
-    | comp_a, VAtm (x, xa), VNext_ge yv -> Lt
-    | comp_a, VAtm (x, xa), VNext yu -> Lt
-    | comp_a, VAtm (x, xa), VSince_le yt -> Lt
-    | comp_a, VAtm (x, xa), VUntil_never (yq, yr, ys) -> Lt
-    | comp_a, VAtm (x, xa), VSince_never (yn, yo, yp) -> Lt
-    | comp_a, VAtm (x, xa), VUntil (yk, yl, ym) -> Lt
-    | comp_a, VAtm (x, xa), VSince (yh, yi, yj) -> Lt
-    | comp_a, VAtm (x, xa), VConjR yg -> Lt
-    | comp_a, VAtm (x, xa), VConjL yf -> Lt
-    | comp_a, VAtm (x, xa), VDisj (yd, ye) -> Lt
-    | comp_a, VAtm (x, xa), VNeg yc -> Lt
-    | comp_a, VAtm (x, xa), VAtm (ya, yb) ->
-        (match comp_a x ya
-          with Eq -> comparator_of (equal_nat, linorder_nat) xa yb | Lt -> Lt
-          | Gt -> Gt)
-    | comp_a, VAtm (x, xa), VFF y -> Gt
-    | comp_a, VFF x, VPrev_zero -> Lt
-    | comp_a, VFF x, VPrev_le yz -> Lt
-    | comp_a, VFF x, VPrev_ge yy -> Lt
-    | comp_a, VFF x, VPrev yx -> Lt
-    | comp_a, VFF x, VNext_le yw -> Lt
-    | comp_a, VFF x, VNext_ge yv -> Lt
-    | comp_a, VFF x, VNext yu -> Lt
-    | comp_a, VFF x, VSince_le yt -> Lt
-    | comp_a, VFF x, VUntil_never (yq, yr, ys) -> Lt
-    | comp_a, VFF x, VSince_never (yn, yo, yp) -> Lt
-    | comp_a, VFF x, VUntil (yk, yl, ym) -> Lt
-    | comp_a, VFF x, VSince (yh, yi, yj) -> Lt
-    | comp_a, VFF x, VConjR yg -> Lt
-    | comp_a, VFF x, VConjL yf -> Lt
-    | comp_a, VFF x, VDisj (yd, ye) -> Lt
-    | comp_a, VFF x, VNeg yc -> Lt
-    | comp_a, VFF x, VAtm (ya, yb) -> Lt
-    | comp_a, VFF x, VFF y -> comparator_of (equal_nat, linorder_nat) x y;;
+          | SUntil (_, _) -> Lt | SNext _ -> Lt | SPrev _ -> Lt)
+    | compa, SUntil (sp1s, sp2), rhs ->
+        (match rhs with STT _ -> Gt | SAtm (_, _) -> Gt | SNeg _ -> Gt
+          | SDisjL _ -> Gt | SDisjR _ -> Gt | SConj (_, _) -> Gt
+          | SImplR _ -> Gt | SImplL _ -> Gt | SIff_ss (_, _) -> Gt
+          | SIff_vv (_, _) -> Gt | SOnce (_, _) -> Gt | SEventually (_, _) -> Gt
+          | SHistorically (_, _, _) -> Gt | SHistorically_le _ -> Gt
+          | SAlways (_, _, _) -> Gt | SSince (_, _) -> Gt
+          | SUntil (sp1sa, sp2a) ->
+            (match comparator_sproof _A compa sp2 sp2a
+              with Eq ->
+                comparator_list (fun f -> f)
+                  (map (comparator_sproof _A compa) sp1s) sp1sa
+              | Lt -> Lt | Gt -> Gt)
+          | SNext _ -> Lt | SPrev _ -> Lt)
+    | compa, SPrev sp, rhs ->
+        (match rhs with STT _ -> Gt | SAtm (_, _) -> Gt | SNeg _ -> Gt
+          | SDisjL _ -> Gt | SDisjR _ -> Gt | SConj (_, _) -> Gt
+          | SImplR _ -> Gt | SImplL _ -> Gt | SIff_ss (_, _) -> Gt
+          | SIff_vv (_, _) -> Gt | SOnce (_, _) -> Gt | SEventually (_, _) -> Gt
+          | SHistorically (_, _, _) -> Gt | SHistorically_le _ -> Gt
+          | SAlways (_, _, _) -> Gt | SSince (_, _) -> Gt | SUntil (_, _) -> Gt
+          | SNext _ -> Lt | SPrev a -> comparator_sproof _A compa sp a)
+    | compa, SNext sp, rhs ->
+        (match rhs with STT _ -> Gt | SAtm (_, _) -> Gt | SNeg _ -> Gt
+          | SDisjL _ -> Gt | SDisjR _ -> Gt | SConj (_, _) -> Gt
+          | SImplR _ -> Gt | SImplL _ -> Gt | SIff_ss (_, _) -> Gt
+          | SIff_vv (_, _) -> Gt | SOnce (_, _) -> Gt | SEventually (_, _) -> Gt
+          | SHistorically (_, _, _) -> Gt | SHistorically_le _ -> Gt
+          | SAlways (_, _, _) -> Gt | SSince (_, _) -> Gt | SUntil (_, _) -> Gt
+          | SNext a -> comparator_sproof _A compa sp a | SPrev _ -> Gt)
+and comparator_vproof _A
+  compa x1 rhs = match compa, x1, rhs with
+    compa, VFF i, rhs ->
+      (match rhs with VFF a -> comparator_of (equal_nat, linorder_nat) i a
+        | VAtm (_, _) -> Lt | VNeg _ -> Lt | VDisj (_, _) -> Lt | VConjL _ -> Lt
+        | VConjR _ -> Lt | VImpl (_, _) -> Lt | VIff_sv (_, _) -> Lt
+        | VIff_vs (_, _) -> Lt | VOnce_le _ -> Lt | VOnce (_, _, _) -> Lt
+        | VEventually (_, _, _) -> Lt | VHistorically (_, _) -> Lt
+        | VAlways (_, _) -> Lt | VSince (_, _, _) -> Lt | VUntil (_, _, _) -> Lt
+        | VSince_never (_, _, _) -> Lt | VUntil_never (_, _, _) -> Lt
+        | VSince_le _ -> Lt | VNext _ -> Lt | VNext_ge _ -> Lt
+        | VNext_le _ -> Lt | VPrev _ -> Lt | VPrev_ge _ -> Lt | VPrev_le _ -> Lt
+        | VPrev_zero -> Lt)
+    | compa, VAtm (p, i), rhs ->
+        (match rhs with VFF _ -> Gt
+          | VAtm (q, j) ->
+            (match compa p q
+              with Eq -> comparator_of (equal_nat, linorder_nat) i j | Lt -> Lt
+              | Gt -> Gt)
+          | VNeg _ -> Lt | VDisj (_, _) -> Lt | VConjL _ -> Lt | VConjR _ -> Lt
+          | VImpl (_, _) -> Lt | VIff_sv (_, _) -> Lt | VIff_vs (_, _) -> Lt
+          | VOnce_le _ -> Lt | VOnce (_, _, _) -> Lt
+          | VEventually (_, _, _) -> Lt | VHistorically (_, _) -> Lt
+          | VAlways (_, _) -> Lt | VSince (_, _, _) -> Lt
+          | VUntil (_, _, _) -> Lt | VSince_never (_, _, _) -> Lt
+          | VUntil_never (_, _, _) -> Lt | VSince_le _ -> Lt | VNext _ -> Lt
+          | VNext_ge _ -> Lt | VNext_le _ -> Lt | VPrev _ -> Lt
+          | VPrev_ge _ -> Lt | VPrev_le _ -> Lt | VPrev_zero -> Lt)
+    | compa, VNeg sp, rhs ->
+        (match rhs with VFF _ -> Gt | VAtm (_, _) -> Gt
+          | VNeg a -> comparator_sproof _A compa sp a | VDisj (_, _) -> Lt
+          | VConjL _ -> Lt | VConjR _ -> Lt | VImpl (_, _) -> Lt
+          | VIff_sv (_, _) -> Lt | VIff_vs (_, _) -> Lt | VOnce_le _ -> Lt
+          | VOnce (_, _, _) -> Lt | VEventually (_, _, _) -> Lt
+          | VHistorically (_, _) -> Lt | VAlways (_, _) -> Lt
+          | VSince (_, _, _) -> Lt | VUntil (_, _, _) -> Lt
+          | VSince_never (_, _, _) -> Lt | VUntil_never (_, _, _) -> Lt
+          | VSince_le _ -> Lt | VNext _ -> Lt | VNext_ge _ -> Lt
+          | VNext_le _ -> Lt | VPrev _ -> Lt | VPrev_ge _ -> Lt
+          | VPrev_le _ -> Lt | VPrev_zero -> Lt)
+    | compa, VDisj (vp1, vp2), rhs ->
+        (match rhs with VFF _ -> Gt | VAtm (_, _) -> Gt | VNeg _ -> Gt
+          | VDisj (vp1a, vp2a) ->
+            (match comparator_vproof _A compa vp1 vp1a
+              with Eq -> comparator_vproof _A compa vp2 vp2a | Lt -> Lt
+              | Gt -> Gt)
+          | VConjL _ -> Lt | VConjR _ -> Lt | VImpl (_, _) -> Lt
+          | VIff_sv (_, _) -> Lt | VIff_vs (_, _) -> Lt | VOnce_le _ -> Lt
+          | VOnce (_, _, _) -> Lt | VEventually (_, _, _) -> Lt
+          | VHistorically (_, _) -> Lt | VAlways (_, _) -> Lt
+          | VSince (_, _, _) -> Lt | VUntil (_, _, _) -> Lt
+          | VSince_never (_, _, _) -> Lt | VUntil_never (_, _, _) -> Lt
+          | VSince_le _ -> Lt | VNext _ -> Lt | VNext_ge _ -> Lt
+          | VNext_le _ -> Lt | VPrev _ -> Lt | VPrev_ge _ -> Lt
+          | VPrev_le _ -> Lt | VPrev_zero -> Lt)
+    | compa, VConjL vp, rhs ->
+        (match rhs with VFF _ -> Gt | VAtm (_, _) -> Gt | VNeg _ -> Gt
+          | VDisj (_, _) -> Gt | VConjL a -> comparator_vproof _A compa vp a
+          | VConjR _ -> Lt | VImpl (_, _) -> Lt | VIff_sv (_, _) -> Lt
+          | VIff_vs (_, _) -> Lt | VOnce_le _ -> Lt | VOnce (_, _, _) -> Lt
+          | VEventually (_, _, _) -> Lt | VHistorically (_, _) -> Lt
+          | VAlways (_, _) -> Lt | VSince (_, _, _) -> Lt
+          | VUntil (_, _, _) -> Lt | VSince_never (_, _, _) -> Lt
+          | VUntil_never (_, _, _) -> Lt | VSince_le _ -> Lt | VNext _ -> Lt
+          | VNext_ge _ -> Lt | VNext_le _ -> Lt | VPrev _ -> Lt
+          | VPrev_ge _ -> Lt | VPrev_le _ -> Lt | VPrev_zero -> Lt)
+    | compa, VConjR vp, rhs ->
+        (match rhs with VFF _ -> Gt | VAtm (_, _) -> Gt | VNeg _ -> Gt
+          | VDisj (_, _) -> Gt | VConjL _ -> Gt
+          | VConjR a -> comparator_vproof _A compa vp a | VImpl (_, _) -> Lt
+          | VIff_sv (_, _) -> Lt | VIff_vs (_, _) -> Lt | VOnce_le _ -> Lt
+          | VOnce (_, _, _) -> Lt | VEventually (_, _, _) -> Lt
+          | VHistorically (_, _) -> Lt | VAlways (_, _) -> Lt
+          | VSince (_, _, _) -> Lt | VUntil (_, _, _) -> Lt
+          | VSince_never (_, _, _) -> Lt | VUntil_never (_, _, _) -> Lt
+          | VSince_le _ -> Lt | VNext _ -> Lt | VNext_ge _ -> Lt
+          | VNext_le _ -> Lt | VPrev _ -> Lt | VPrev_ge _ -> Lt
+          | VPrev_le _ -> Lt | VPrev_zero -> Lt)
+    | compa, VImpl (sp1, vp2), rhs ->
+        (match rhs with VFF _ -> Gt | VAtm (_, _) -> Gt | VNeg _ -> Gt
+          | VDisj (_, _) -> Gt | VConjL _ -> Gt | VConjR _ -> Gt
+          | VImpl (sp1a, vp2a) ->
+            (match comparator_sproof _A compa sp1 sp1a
+              with Eq -> comparator_vproof _A compa vp2 vp2a | Lt -> Lt
+              | Gt -> Gt)
+          | VIff_sv (_, _) -> Lt | VIff_vs (_, _) -> Lt | VOnce_le _ -> Lt
+          | VOnce (_, _, _) -> Lt | VEventually (_, _, _) -> Lt
+          | VHistorically (_, _) -> Lt | VAlways (_, _) -> Lt
+          | VSince (_, _, _) -> Lt | VUntil (_, _, _) -> Lt
+          | VSince_never (_, _, _) -> Lt | VUntil_never (_, _, _) -> Lt
+          | VSince_le _ -> Lt | VNext _ -> Lt | VNext_ge _ -> Lt
+          | VNext_le _ -> Lt | VPrev _ -> Lt | VPrev_ge _ -> Lt
+          | VPrev_le _ -> Lt | VPrev_zero -> Lt)
+    | compa, VIff_sv (sp1, vp2), rhs ->
+        (match rhs with VFF _ -> Gt | VAtm (_, _) -> Gt | VNeg _ -> Gt
+          | VDisj (_, _) -> Gt | VConjL _ -> Gt | VConjR _ -> Gt
+          | VImpl (_, _) -> Gt
+          | VIff_sv (sp1a, vp2a) ->
+            (match comparator_sproof _A compa sp1 sp1a
+              with Eq -> comparator_vproof _A compa vp2 vp2a | Lt -> Lt
+              | Gt -> Gt)
+          | VIff_vs (_, _) -> Lt | VOnce_le _ -> Lt | VOnce (_, _, _) -> Lt
+          | VEventually (_, _, _) -> Lt | VHistorically (_, _) -> Lt
+          | VAlways (_, _) -> Lt | VSince (_, _, _) -> Lt
+          | VUntil (_, _, _) -> Lt | VSince_never (_, _, _) -> Lt
+          | VUntil_never (_, _, _) -> Lt | VSince_le _ -> Lt | VNext _ -> Lt
+          | VNext_ge _ -> Lt | VNext_le _ -> Lt | VPrev _ -> Lt
+          | VPrev_ge _ -> Lt | VPrev_le _ -> Lt | VPrev_zero -> Lt)
+    | compa, VIff_vs (vp1, sp2), rhs ->
+        (match rhs with VFF _ -> Gt | VAtm (_, _) -> Gt | VNeg _ -> Gt
+          | VDisj (_, _) -> Gt | VConjL _ -> Gt | VConjR _ -> Gt
+          | VImpl (_, _) -> Gt | VIff_sv (_, _) -> Gt
+          | VIff_vs (vp1a, sp2a) ->
+            (match comparator_vproof _A compa vp1 vp1a
+              with Eq -> comparator_sproof _A compa sp2 sp2a | Lt -> Lt
+              | Gt -> Gt)
+          | VOnce_le _ -> Lt | VOnce (_, _, _) -> Lt
+          | VEventually (_, _, _) -> Lt | VHistorically (_, _) -> Lt
+          | VAlways (_, _) -> Lt | VSince (_, _, _) -> Lt
+          | VUntil (_, _, _) -> Lt | VSince_never (_, _, _) -> Lt
+          | VUntil_never (_, _, _) -> Lt | VSince_le _ -> Lt | VNext _ -> Lt
+          | VNext_ge _ -> Lt | VNext_le _ -> Lt | VPrev _ -> Lt
+          | VPrev_ge _ -> Lt | VPrev_le _ -> Lt | VPrev_zero -> Lt)
+    | compa, VOnce_le i, rhs ->
+        (match rhs with VFF _ -> Gt | VAtm (_, _) -> Gt | VNeg _ -> Gt
+          | VDisj (_, _) -> Gt | VConjL _ -> Gt | VConjR _ -> Gt
+          | VImpl (_, _) -> Gt | VIff_sv (_, _) -> Gt | VIff_vs (_, _) -> Gt
+          | VOnce_le a -> comparator_of (equal_nat, linorder_nat) i a
+          | VOnce (_, _, _) -> Lt | VEventually (_, _, _) -> Lt
+          | VHistorically (_, _) -> Lt | VAlways (_, _) -> Lt
+          | VSince (_, _, _) -> Lt | VUntil (_, _, _) -> Lt
+          | VSince_never (_, _, _) -> Lt | VUntil_never (_, _, _) -> Lt
+          | VSince_le _ -> Lt | VNext _ -> Lt | VNext_ge _ -> Lt
+          | VNext_le _ -> Lt | VPrev _ -> Lt | VPrev_ge _ -> Lt
+          | VPrev_le _ -> Lt | VPrev_zero -> Lt)
+    | compa, VOnce (i, t, vps), rhs ->
+        (match rhs with VFF _ -> Gt | VAtm (_, _) -> Gt | VNeg _ -> Gt
+          | VDisj (_, _) -> Gt | VConjL _ -> Gt | VConjR _ -> Gt
+          | VImpl (_, _) -> Gt | VIff_sv (_, _) -> Gt | VIff_vs (_, _) -> Gt
+          | VOnce_le _ -> Gt
+          | VOnce (ia, ta, vpsa) ->
+            (match comparator_of (equal_nat, linorder_nat) i ia
+              with Eq ->
+                (match comparator_of (equal_nat, linorder_nat) t ta
+                  with Eq ->
+                    comparator_list (fun f -> f)
+                      (map (comparator_vproof _A compa) vps) vpsa
+                  | Lt -> Lt | Gt -> Gt)
+              | Lt -> Lt | Gt -> Gt)
+          | VEventually (_, _, _) -> Lt | VHistorically (_, _) -> Lt
+          | VAlways (_, _) -> Lt | VSince (_, _, _) -> Lt
+          | VUntil (_, _, _) -> Lt | VSince_never (_, _, _) -> Lt
+          | VUntil_never (_, _, _) -> Lt | VSince_le _ -> Lt | VNext _ -> Lt
+          | VNext_ge _ -> Lt | VNext_le _ -> Lt | VPrev _ -> Lt
+          | VPrev_ge _ -> Lt | VPrev_le _ -> Lt | VPrev_zero -> Lt)
+    | compa, VEventually (i, t, vps), rhs ->
+        (match rhs with VFF _ -> Gt | VAtm (_, _) -> Gt | VNeg _ -> Gt
+          | VDisj (_, _) -> Gt | VConjL _ -> Gt | VConjR _ -> Gt
+          | VImpl (_, _) -> Gt | VIff_sv (_, _) -> Gt | VIff_vs (_, _) -> Gt
+          | VOnce_le _ -> Gt | VOnce (_, _, _) -> Gt
+          | VEventually (ia, ta, vpsa) ->
+            (match comparator_of (equal_nat, linorder_nat) i ia
+              with Eq ->
+                (match comparator_of (equal_nat, linorder_nat) t ta
+                  with Eq ->
+                    comparator_list (fun f -> f)
+                      (map (comparator_vproof _A compa) vps) vpsa
+                  | Lt -> Lt | Gt -> Gt)
+              | Lt -> Lt | Gt -> Gt)
+          | VHistorically (_, _) -> Lt | VAlways (_, _) -> Lt
+          | VSince (_, _, _) -> Lt | VUntil (_, _, _) -> Lt
+          | VSince_never (_, _, _) -> Lt | VUntil_never (_, _, _) -> Lt
+          | VSince_le _ -> Lt | VNext _ -> Lt | VNext_ge _ -> Lt
+          | VNext_le _ -> Lt | VPrev _ -> Lt | VPrev_ge _ -> Lt
+          | VPrev_le _ -> Lt | VPrev_zero -> Lt)
+    | compa, VHistorically (i, vp), rhs ->
+        (match rhs with VFF _ -> Gt | VAtm (_, _) -> Gt | VNeg _ -> Gt
+          | VDisj (_, _) -> Gt | VConjL _ -> Gt | VConjR _ -> Gt
+          | VImpl (_, _) -> Gt | VIff_sv (_, _) -> Gt | VIff_vs (_, _) -> Gt
+          | VOnce_le _ -> Gt | VOnce (_, _, _) -> Gt
+          | VEventually (_, _, _) -> Gt
+          | VHistorically (ia, vpa) ->
+            (match comparator_of (equal_nat, linorder_nat) i ia
+              with Eq -> comparator_vproof _A compa vp vpa | Lt -> Lt
+              | Gt -> Gt)
+          | VAlways (_, _) -> Lt | VSince (_, _, _) -> Lt
+          | VUntil (_, _, _) -> Lt | VSince_never (_, _, _) -> Lt
+          | VUntil_never (_, _, _) -> Lt | VSince_le _ -> Lt | VNext _ -> Lt
+          | VNext_ge _ -> Lt | VNext_le _ -> Lt | VPrev _ -> Lt
+          | VPrev_ge _ -> Lt | VPrev_le _ -> Lt | VPrev_zero -> Lt)
+    | compa, VAlways (i, vp), rhs ->
+        (match rhs with VFF _ -> Gt | VAtm (_, _) -> Gt | VNeg _ -> Gt
+          | VDisj (_, _) -> Gt | VConjL _ -> Gt | VConjR _ -> Gt
+          | VImpl (_, _) -> Gt | VIff_sv (_, _) -> Gt | VIff_vs (_, _) -> Gt
+          | VOnce_le _ -> Gt | VOnce (_, _, _) -> Gt
+          | VEventually (_, _, _) -> Gt | VHistorically (_, _) -> Gt
+          | VAlways (ia, vpa) ->
+            (match comparator_of (equal_nat, linorder_nat) i ia
+              with Eq -> comparator_vproof _A compa vp vpa | Lt -> Lt
+              | Gt -> Gt)
+          | VSince (_, _, _) -> Lt | VUntil (_, _, _) -> Lt
+          | VSince_never (_, _, _) -> Lt | VUntil_never (_, _, _) -> Lt
+          | VSince_le _ -> Lt | VNext _ -> Lt | VNext_ge _ -> Lt
+          | VNext_le _ -> Lt | VPrev _ -> Lt | VPrev_ge _ -> Lt
+          | VPrev_le _ -> Lt | VPrev_zero -> Lt)
+    | compa, VSince (i, vp1, vp2s), rhs ->
+        (match rhs with VFF _ -> Gt | VAtm (_, _) -> Gt | VNeg _ -> Gt
+          | VDisj (_, _) -> Gt | VConjL _ -> Gt | VConjR _ -> Gt
+          | VImpl (_, _) -> Gt | VIff_sv (_, _) -> Gt | VIff_vs (_, _) -> Gt
+          | VOnce_le _ -> Gt | VOnce (_, _, _) -> Gt
+          | VEventually (_, _, _) -> Gt | VHistorically (_, _) -> Gt
+          | VAlways (_, _) -> Gt
+          | VSince (ia, vp1a, vp2sa) ->
+            (match comparator_of (equal_nat, linorder_nat) i ia
+              with Eq ->
+                (match comparator_vproof _A compa vp1 vp1a
+                  with Eq ->
+                    comparator_list (fun f -> f)
+                      (map (comparator_vproof _A compa) vp2s) vp2sa
+                  | Lt -> Lt | Gt -> Gt)
+              | Lt -> Lt | Gt -> Gt)
+          | VUntil (_, _, _) -> Lt | VSince_never (_, _, _) -> Lt
+          | VUntil_never (_, _, _) -> Lt | VSince_le _ -> Lt | VNext _ -> Lt
+          | VNext_ge _ -> Lt | VNext_le _ -> Lt | VPrev _ -> Lt
+          | VPrev_ge _ -> Lt | VPrev_le _ -> Lt | VPrev_zero -> Lt)
+    | compa, VUntil (i, vp2s, vp1), rhs ->
+        (match rhs with VFF _ -> Gt | VAtm (_, _) -> Gt | VNeg _ -> Gt
+          | VDisj (_, _) -> Gt | VConjL _ -> Gt | VConjR _ -> Gt
+          | VImpl (_, _) -> Gt | VIff_sv (_, _) -> Gt | VIff_vs (_, _) -> Gt
+          | VOnce_le _ -> Gt | VOnce (_, _, _) -> Gt
+          | VEventually (_, _, _) -> Gt | VHistorically (_, _) -> Gt
+          | VAlways (_, _) -> Gt | VSince (_, _, _) -> Gt
+          | VUntil (ia, vp2sa, vp1a) ->
+            (match comparator_of (equal_nat, linorder_nat) i ia
+              with Eq ->
+                (match comparator_vproof _A compa vp1 vp1a
+                  with Eq ->
+                    comparator_list (fun f -> f)
+                      (map (comparator_vproof _A compa) vp2s) vp2sa
+                  | Lt -> Lt | Gt -> Gt)
+              | Lt -> Lt | Gt -> Gt)
+          | VSince_never (_, _, _) -> Lt | VUntil_never (_, _, _) -> Lt
+          | VSince_le _ -> Lt | VNext _ -> Lt | VNext_ge _ -> Lt
+          | VNext_le _ -> Lt | VPrev _ -> Lt | VPrev_ge _ -> Lt
+          | VPrev_le _ -> Lt | VPrev_zero -> Lt)
+    | compa, VSince_never (i, t, vp2s), rhs ->
+        (match rhs with VFF _ -> Gt | VAtm (_, _) -> Gt | VNeg _ -> Gt
+          | VDisj (_, _) -> Gt | VConjL _ -> Gt | VConjR _ -> Gt
+          | VImpl (_, _) -> Gt | VIff_sv (_, _) -> Gt | VIff_vs (_, _) -> Gt
+          | VOnce_le _ -> Gt | VOnce (_, _, _) -> Gt
+          | VEventually (_, _, _) -> Gt | VHistorically (_, _) -> Gt
+          | VAlways (_, _) -> Gt | VSince (_, _, _) -> Gt
+          | VUntil (_, _, _) -> Gt
+          | VSince_never (ia, ta, vp2sa) ->
+            (match comparator_of (equal_nat, linorder_nat) i ia
+              with Eq ->
+                (match comparator_of (equal_nat, linorder_nat) t ta
+                  with Eq ->
+                    comparator_list (fun f -> f)
+                      (map (comparator_vproof _A compa) vp2s) vp2sa
+                  | Lt -> Lt | Gt -> Gt)
+              | Lt -> Lt | Gt -> Gt)
+          | VUntil_never (_, _, _) -> Lt | VSince_le _ -> Lt | VNext _ -> Lt
+          | VNext_ge _ -> Lt | VNext_le _ -> Lt | VPrev _ -> Lt
+          | VPrev_ge _ -> Lt | VPrev_le _ -> Lt | VPrev_zero -> Lt)
+    | compa, VUntil_never (i, t, vp2s), rhs ->
+        (match rhs with VFF _ -> Gt | VAtm (_, _) -> Gt | VNeg _ -> Gt
+          | VDisj (_, _) -> Gt | VConjL _ -> Gt | VConjR _ -> Gt
+          | VImpl (_, _) -> Gt | VIff_sv (_, _) -> Gt | VIff_vs (_, _) -> Gt
+          | VOnce_le _ -> Gt | VOnce (_, _, _) -> Gt
+          | VEventually (_, _, _) -> Gt | VHistorically (_, _) -> Gt
+          | VAlways (_, _) -> Gt | VSince (_, _, _) -> Gt
+          | VUntil (_, _, _) -> Gt | VSince_never (_, _, _) -> Gt
+          | VUntil_never (ia, ta, vp2sa) ->
+            (match comparator_of (equal_nat, linorder_nat) i ia
+              with Eq ->
+                (match comparator_of (equal_nat, linorder_nat) t ta
+                  with Eq ->
+                    comparator_list (fun f -> f)
+                      (map (comparator_vproof _A compa) vp2s) vp2sa
+                  | Lt -> Lt | Gt -> Gt)
+              | Lt -> Lt | Gt -> Gt)
+          | VSince_le _ -> Lt | VNext _ -> Lt | VNext_ge _ -> Lt
+          | VNext_le _ -> Lt | VPrev _ -> Lt | VPrev_ge _ -> Lt
+          | VPrev_le _ -> Lt | VPrev_zero -> Lt)
+    | compa, VSince_le i, rhs ->
+        (match rhs with VFF _ -> Gt | VAtm (_, _) -> Gt | VNeg _ -> Gt
+          | VDisj (_, _) -> Gt | VConjL _ -> Gt | VConjR _ -> Gt
+          | VImpl (_, _) -> Gt | VIff_sv (_, _) -> Gt | VIff_vs (_, _) -> Gt
+          | VOnce_le _ -> Gt | VOnce (_, _, _) -> Gt
+          | VEventually (_, _, _) -> Gt | VHistorically (_, _) -> Gt
+          | VAlways (_, _) -> Gt | VSince (_, _, _) -> Gt
+          | VUntil (_, _, _) -> Gt | VSince_never (_, _, _) -> Gt
+          | VUntil_never (_, _, _) -> Gt
+          | VSince_le a -> comparator_of (equal_nat, linorder_nat) i a
+          | VNext _ -> Lt | VNext_ge _ -> Lt | VNext_le _ -> Lt | VPrev _ -> Lt
+          | VPrev_ge _ -> Lt | VPrev_le _ -> Lt | VPrev_zero -> Lt)
+    | compa, VNext vp, rhs ->
+        (match rhs with VFF _ -> Gt | VAtm (_, _) -> Gt | VNeg _ -> Gt
+          | VDisj (_, _) -> Gt | VConjL _ -> Gt | VConjR _ -> Gt
+          | VImpl (_, _) -> Gt | VIff_sv (_, _) -> Gt | VIff_vs (_, _) -> Gt
+          | VOnce_le _ -> Gt | VOnce (_, _, _) -> Gt
+          | VEventually (_, _, _) -> Gt | VHistorically (_, _) -> Gt
+          | VAlways (_, _) -> Gt | VSince (_, _, _) -> Gt
+          | VUntil (_, _, _) -> Gt | VSince_never (_, _, _) -> Gt
+          | VUntil_never (_, _, _) -> Gt | VSince_le _ -> Gt
+          | VNext a -> comparator_vproof _A compa vp a | VNext_ge _ -> Lt
+          | VNext_le _ -> Lt | VPrev _ -> Lt | VPrev_ge _ -> Lt
+          | VPrev_le _ -> Lt | VPrev_zero -> Lt)
+    | compa, VNext_ge i, rhs ->
+        (match rhs with VFF _ -> Gt | VAtm (_, _) -> Gt | VNeg _ -> Gt
+          | VDisj (_, _) -> Gt | VConjL _ -> Gt | VConjR _ -> Gt
+          | VImpl (_, _) -> Gt | VIff_sv (_, _) -> Gt | VIff_vs (_, _) -> Gt
+          | VOnce_le _ -> Gt | VOnce (_, _, _) -> Gt
+          | VEventually (_, _, _) -> Gt | VHistorically (_, _) -> Gt
+          | VAlways (_, _) -> Gt | VSince (_, _, _) -> Gt
+          | VUntil (_, _, _) -> Gt | VSince_never (_, _, _) -> Gt
+          | VUntil_never (_, _, _) -> Gt | VSince_le _ -> Gt | VNext _ -> Gt
+          | VNext_ge a -> comparator_of (equal_nat, linorder_nat) i a
+          | VNext_le _ -> Lt | VPrev _ -> Lt | VPrev_ge _ -> Lt
+          | VPrev_le _ -> Lt | VPrev_zero -> Lt)
+    | compa, VNext_le i, rhs ->
+        (match rhs with VFF _ -> Gt | VAtm (_, _) -> Gt | VNeg _ -> Gt
+          | VDisj (_, _) -> Gt | VConjL _ -> Gt | VConjR _ -> Gt
+          | VImpl (_, _) -> Gt | VIff_sv (_, _) -> Gt | VIff_vs (_, _) -> Gt
+          | VOnce_le _ -> Gt | VOnce (_, _, _) -> Gt
+          | VEventually (_, _, _) -> Gt | VHistorically (_, _) -> Gt
+          | VAlways (_, _) -> Gt | VSince (_, _, _) -> Gt
+          | VUntil (_, _, _) -> Gt | VSince_never (_, _, _) -> Gt
+          | VUntil_never (_, _, _) -> Gt | VSince_le _ -> Gt | VNext _ -> Gt
+          | VNext_ge _ -> Gt
+          | VNext_le a -> comparator_of (equal_nat, linorder_nat) i a
+          | VPrev _ -> Lt | VPrev_ge _ -> Lt | VPrev_le _ -> Lt
+          | VPrev_zero -> Lt)
+    | compa, VPrev vp, rhs ->
+        (match rhs with VFF _ -> Gt | VAtm (_, _) -> Gt | VNeg _ -> Gt
+          | VDisj (_, _) -> Gt | VConjL _ -> Gt | VConjR _ -> Gt
+          | VImpl (_, _) -> Gt | VIff_sv (_, _) -> Gt | VIff_vs (_, _) -> Gt
+          | VOnce_le _ -> Gt | VOnce (_, _, _) -> Gt
+          | VEventually (_, _, _) -> Gt | VHistorically (_, _) -> Gt
+          | VAlways (_, _) -> Gt | VSince (_, _, _) -> Gt
+          | VUntil (_, _, _) -> Gt | VSince_never (_, _, _) -> Gt
+          | VUntil_never (_, _, _) -> Gt | VSince_le _ -> Gt | VNext _ -> Gt
+          | VNext_ge _ -> Gt | VNext_le _ -> Gt
+          | VPrev a -> comparator_vproof _A compa vp a | VPrev_ge _ -> Lt
+          | VPrev_le _ -> Lt | VPrev_zero -> Lt)
+    | compa, VPrev_ge i, rhs ->
+        (match rhs with VFF _ -> Gt | VAtm (_, _) -> Gt | VNeg _ -> Gt
+          | VDisj (_, _) -> Gt | VConjL _ -> Gt | VConjR _ -> Gt
+          | VImpl (_, _) -> Gt | VIff_sv (_, _) -> Gt | VIff_vs (_, _) -> Gt
+          | VOnce_le _ -> Gt | VOnce (_, _, _) -> Gt
+          | VEventually (_, _, _) -> Gt | VHistorically (_, _) -> Gt
+          | VAlways (_, _) -> Gt | VSince (_, _, _) -> Gt
+          | VUntil (_, _, _) -> Gt | VSince_never (_, _, _) -> Gt
+          | VUntil_never (_, _, _) -> Gt | VSince_le _ -> Gt | VNext _ -> Gt
+          | VNext_ge _ -> Gt | VNext_le _ -> Gt | VPrev _ -> Gt
+          | VPrev_ge a -> comparator_of (equal_nat, linorder_nat) i a
+          | VPrev_le _ -> Lt | VPrev_zero -> Lt)
+    | compa, VPrev_le i, rhs ->
+        (match rhs with VFF _ -> Gt | VAtm (_, _) -> Gt | VNeg _ -> Gt
+          | VDisj (_, _) -> Gt | VConjL _ -> Gt | VConjR _ -> Gt
+          | VImpl (_, _) -> Gt | VIff_sv (_, _) -> Gt | VIff_vs (_, _) -> Gt
+          | VOnce_le _ -> Gt | VOnce (_, _, _) -> Gt
+          | VEventually (_, _, _) -> Gt | VHistorically (_, _) -> Gt
+          | VAlways (_, _) -> Gt | VSince (_, _, _) -> Gt
+          | VUntil (_, _, _) -> Gt | VSince_never (_, _, _) -> Gt
+          | VUntil_never (_, _, _) -> Gt | VSince_le _ -> Gt | VNext _ -> Gt
+          | VNext_ge _ -> Gt | VNext_le _ -> Gt | VPrev _ -> Gt
+          | VPrev_ge _ -> Gt
+          | VPrev_le a -> comparator_of (equal_nat, linorder_nat) i a
+          | VPrev_zero -> Lt)
+    | compa, VPrev_zero, rhs ->
+        (match rhs with VFF _ -> Gt | VAtm (_, _) -> Gt | VNeg _ -> Gt
+          | VDisj (_, _) -> Gt | VConjL _ -> Gt | VConjR _ -> Gt
+          | VImpl (_, _) -> Gt | VIff_sv (_, _) -> Gt | VIff_vs (_, _) -> Gt
+          | VOnce_le _ -> Gt | VOnce (_, _, _) -> Gt
+          | VEventually (_, _, _) -> Gt | VHistorically (_, _) -> Gt
+          | VAlways (_, _) -> Gt | VSince (_, _, _) -> Gt
+          | VUntil (_, _, _) -> Gt | VSince_never (_, _, _) -> Gt
+          | VUntil_never (_, _, _) -> Gt | VSince_le _ -> Gt | VNext _ -> Gt
+          | VNext_ge _ -> Gt | VNext_le _ -> Gt | VPrev _ -> Gt
+          | VPrev_ge _ -> Gt | VPrev_le _ -> Gt | VPrev_zero -> Eq);;
 
 let rec ccompare_sproofa _A
   = (match ccompare _A with None -> None
-      | Some comp_a -> Some (comparator_sproof comp_a));;
+      | Some comp_a -> Some (comparator_sproof _A comp_a));;
 
 let rec ccompare_sproof _A =
   ({ccompare = ccompare_sproofa _A} : 'a sproof ccompare);;
@@ -1217,7 +1995,7 @@ let set_impl_vproof = ({set_impl = set_impl_vproofa} : 'a vproof set_impl);;
 
 let rec ccompare_vproofa _A
   = (match ccompare _A with None -> None
-      | Some comp_a -> Some (comparator_vproof comp_a));;
+      | Some comp_a -> Some (comparator_vproof _A comp_a));;
 
 let rec ccompare_vproof _A =
   ({ccompare = ccompare_vproofa _A} : 'a vproof ccompare);;
@@ -1324,7 +2102,9 @@ let ord_integer = ({less_eq = Z.leq; less = Z.lt} : Z.t ord);;
 type i = Abs_I of (nat * enat);;
 
 type 'a mtl = TT | FF | Atom of 'a | Neg of 'a mtl | Disj of 'a mtl * 'a mtl |
-  Conj of 'a mtl * 'a mtl | Next of i * 'a mtl | Prev of i * 'a mtl |
+  Conj of 'a mtl * 'a mtl | Impl of 'a mtl * 'a mtl | Iff of 'a mtl * 'a mtl |
+  Next of i * 'a mtl | Prev of i * 'a mtl | Once of i * 'a mtl |
+  Historically of i * 'a mtl | Eventually of i * 'a mtl | Always of i * 'a mtl |
   Since of 'a mtl * i * 'a mtl | Until of 'a mtl * i * 'a mtl;;
 
 type num = One | Bit0 of num | Bit1 of num;;
@@ -1353,8 +2133,6 @@ type 'a trace_rbt =
 type 'a trace = Trace_RBT of 'a trace_rbt;;
 
 type ('a, 'b) sum = Inl of 'a | Inr of 'b;;
-
-type compare = LT | GT | EQ;;
 
 type 'a semilattice_set = Abs_semilattice_set of ('a -> 'a -> 'a);;
 
@@ -1386,6 +2164,9 @@ let rec v_at = function VFF n -> n
                | VDisj (vphi, vpsi) -> v_at vphi
                | VConjL vphi -> v_at vphi
                | VConjR vpsi -> v_at vpsi
+               | VImpl (sphi, vpsi) -> s_at sphi
+               | VIff_sv (sphi, vpsi) -> s_at sphi
+               | VIff_vs (vphi, spsi) -> v_at vphi
                | VNext vphi -> minus_nat (v_at vphi) one_nat
                | VNext_ge n -> n
                | VNext_le n -> n
@@ -1393,6 +2174,11 @@ let rec v_at = function VFF n -> n
                | VPrev_ge n -> n
                | VPrev_le n -> n
                | VPrev_zero -> zero_nata
+               | VOnce_le n -> n
+               | VOnce (n, li, vphi) -> n
+               | VEventually (n, li, vphi) -> n
+               | VHistorically (n, vphi) -> n
+               | VAlways (n, vphi) -> n
                | VSince (n, vpsi, vphis) -> n
                | VSince_le n -> n
                | VUntil (n, vphis, vpsi) -> n
@@ -1405,8 +2191,17 @@ and s_at
     | SDisjL sphi -> s_at sphi
     | SDisjR spsi -> s_at spsi
     | SConj (sphi, spsi) -> s_at sphi
+    | SImplL vphi -> v_at vphi
+    | SImplR spsi -> s_at spsi
+    | SIff_ss (sphi, spsi) -> s_at sphi
+    | SIff_vv (vphi, vpsi) -> v_at vphi
     | SNext sphi -> minus_nat (s_at sphi) one_nat
     | SPrev sphi -> plus_nata (s_at sphi) one_nat
+    | SOnce (n, sphi) -> n
+    | SEventually (n, sphi) -> n
+    | SHistorically (n, li, sphis) -> n
+    | SHistorically_le n -> n
+    | SAlways (n, hi, sphis) -> n
     | SSince (spsi, sphis) ->
         (match sphis with [] -> s_at spsi | _ :: _ -> s_at (last sphis))
     | SUntil (sphis, spsi) ->
@@ -1417,6 +2212,13 @@ let rec p_at
 
 let rec fold f x1 s = match f, x1, s with f, x :: xs, s -> fold f xs (f x s)
                | f, [], s -> s;;
+
+let rec doIff
+  p1 p2 =
+    (match (p1, p2) with (Inl p1a, Inl p2a) -> [Inl (SIff_ss (p1a, p2a))]
+      | (Inl p1a, Inr p2a) -> [Inr (VIff_sv (p1a, p2a))]
+      | (Inr p1a, Inl p2a) -> [Inr (VIff_vs (p1a, p2a))]
+      | (Inr p1a, Inr p2a) -> [Inl (SIff_vv (p1a, p2a))]);;
 
 let rec gen_length n x1 = match n, x1 with n, x :: xs -> gen_length (suc n) xs
                      | n, [] -> n;;
@@ -1550,9 +2352,6 @@ let rec gamma (_A1, _A2, _A3)
 
 let rec right x = snd (rep_I x);;
 
-let rec map f x1 = match f, x1 with f, [] -> []
-              | f, x21 :: x22 -> f x21 :: map f x22;;
-
 let rec list_member
   equal x1 y = match equal, x1, y with
     equal, x :: xs, y -> equal x y || list_member equal xs y
@@ -1584,25 +2383,13 @@ let rec member (_A1, _A2)
 
 let rec v_check (_A1, _A2, _A3, _A4)
   rho x1 p = match rho, x1, p with
-    rho, Until (phi, i, psi), p ->
+    rho, Eventually (i, phi), p ->
       (match p with VFF _ -> false | VAtm (_, _) -> false | VNeg _ -> false
         | VDisj (_, _) -> false | VConjL _ -> false | VConjR _ -> false
-        | VSince (_, _, _) -> false
-        | VUntil (ia, vpsis, vphi) ->
-          (let j = v_at vphi in
-            (match right i
-              with Enat a ->
-                less_eq_nat
-                  (minus_nat (tau (_A1, _A2, _A4) rho j)
-                    (tau (_A1, _A2, _A4) rho ia))
-                  a
-              | Infinity_enat -> true) &&
-              (less_eq_nat ia j &&
-                (check_upt_lu (_A1, _A2, _A4) rho i ia (map v_at vpsis) j &&
-                  (v_check (_A1, _A2, _A3, _A4) rho phi vphi &&
-                    list_all (v_check (_A1, _A2, _A3, _A4) rho psi) vpsis))))
-        | VSince_never (_, _, _) -> false
-        | VUntil_never (ia, hi, vpsis) ->
+        | VImpl (_, _) -> false | VIff_sv (_, _) -> false
+        | VIff_vs (_, _) -> false | VOnce_le _ -> false
+        | VOnce (_, _, _) -> false
+        | VEventually (ia, hi, vphis) ->
           (match right i
             with Enat n ->
               less_eq_nat
@@ -1613,14 +2400,91 @@ let rec v_check (_A1, _A2, _A3, _A4)
                   (minus_nat (tau (_A1, _A2, _A4) rho (suc hi))
                     (tau (_A1, _A2, _A4) rho ia))
             | Infinity_enat -> false) &&
-            (check_upt_lu (_A1, _A2, _A4) rho i ia (map v_at vpsis) hi &&
-              list_all (v_check (_A1, _A2, _A3, _A4) rho psi) vpsis)
+            (check_upt_lu (_A1, _A2, _A4) rho i ia (map v_at vphis) hi &&
+              list_all (v_check (_A1, _A2, _A3, _A4) rho phi) vphis)
+        | VHistorically (_, _) -> false | VAlways (_, _) -> false
+        | VSince (_, _, _) -> false | VUntil (_, _, _) -> false
+        | VSince_never (_, _, _) -> false | VUntil_never (_, _, _) -> false
         | VSince_le _ -> false | VNext _ -> false | VNext_ge _ -> false
         | VNext_le _ -> false | VPrev _ -> false | VPrev_ge _ -> false
         | VPrev_le _ -> false | VPrev_zero -> false)
+    | rho, Until (phi, i, psi), p ->
+        (match p with VFF _ -> false | VAtm (_, _) -> false | VNeg _ -> false
+          | VDisj (_, _) -> false | VConjL _ -> false | VConjR _ -> false
+          | VImpl (_, _) -> false | VIff_sv (_, _) -> false
+          | VIff_vs (_, _) -> false | VOnce_le _ -> false
+          | VOnce (_, _, _) -> false | VEventually (_, _, _) -> false
+          | VHistorically (_, _) -> false | VAlways (_, _) -> false
+          | VSince (_, _, _) -> false
+          | VUntil (ia, vpsis, vphi) ->
+            (let j = v_at vphi in
+              (match right i
+                with Enat a ->
+                  less_eq_nat
+                    (minus_nat (tau (_A1, _A2, _A4) rho j)
+                      (tau (_A1, _A2, _A4) rho ia))
+                    a
+                | Infinity_enat -> true) &&
+                (less_eq_nat ia j &&
+                  (check_upt_lu (_A1, _A2, _A4) rho i ia (map v_at vpsis) j &&
+                    (v_check (_A1, _A2, _A3, _A4) rho phi vphi &&
+                      list_all (v_check (_A1, _A2, _A3, _A4) rho psi) vpsis))))
+          | VSince_never (_, _, _) -> false
+          | VUntil_never (ia, hi, vpsis) ->
+            (match right i
+              with Enat n ->
+                less_eq_nat
+                  (minus_nat (tau (_A1, _A2, _A4) rho hi)
+                    (tau (_A1, _A2, _A4) rho ia))
+                  n &&
+                  less_nat n
+                    (minus_nat (tau (_A1, _A2, _A4) rho (suc hi))
+                      (tau (_A1, _A2, _A4) rho ia))
+              | Infinity_enat -> false) &&
+              (check_upt_lu (_A1, _A2, _A4) rho i ia (map v_at vpsis) hi &&
+                list_all (v_check (_A1, _A2, _A3, _A4) rho psi) vpsis)
+          | VSince_le _ -> false | VNext _ -> false | VNext_ge _ -> false
+          | VNext_le _ -> false | VPrev _ -> false | VPrev_ge _ -> false
+          | VPrev_le _ -> false | VPrev_zero -> false)
+    | rho, Once (i, phi), p ->
+        (match p with VFF _ -> false | VAtm (_, _) -> false | VNeg _ -> false
+          | VDisj (_, _) -> false | VConjL _ -> false | VConjR _ -> false
+          | VImpl (_, _) -> false | VIff_sv (_, _) -> false
+          | VIff_vs (_, _) -> false
+          | VOnce_le ia ->
+            less_nat (tau (_A1, _A2, _A4) rho ia)
+              (plus_nata (tau (_A1, _A2, _A4) rho zero_nata) (left i))
+          | VOnce (ia, li, vphis) ->
+            (match right i
+              with Enat n ->
+                (equal_nata li zero_nata ||
+                  less_nat n
+                    (minus_nat (tau (_A1, _A2, _A4) rho ia)
+                      (tau (_A1, _A2, _A4) rho (minus_nat li one_nat)))) &&
+                  less_eq_nat
+                    (minus_nat (tau (_A1, _A2, _A4) rho ia)
+                      (tau (_A1, _A2, _A4) rho li))
+                    n
+              | Infinity_enat -> equal_nata li zero_nata) &&
+              (less_eq_nat
+                 (plus_nata (tau (_A1, _A2, _A4) rho zero_nata) (left i))
+                 (tau (_A1, _A2, _A4) rho ia) &&
+                (check_upt_l (_A1, _A2, _A4) rho i li (map v_at vphis) ia &&
+                  list_all (v_check (_A1, _A2, _A3, _A4) rho phi) vphis))
+          | VEventually (_, _, _) -> false | VHistorically (_, _) -> false
+          | VAlways (_, _) -> false | VSince (_, _, _) -> false
+          | VUntil (_, _, _) -> false | VSince_never (_, _, _) -> false
+          | VUntil_never (_, _, _) -> false | VSince_le _ -> false
+          | VNext _ -> false | VNext_ge _ -> false | VNext_le _ -> false
+          | VPrev _ -> false | VPrev_ge _ -> false | VPrev_le _ -> false
+          | VPrev_zero -> false)
     | rho, Since (phi, i, psi), p ->
         (match p with VFF _ -> false | VAtm (_, _) -> false | VNeg _ -> false
           | VDisj (_, _) -> false | VConjL _ -> false | VConjR _ -> false
+          | VImpl (_, _) -> false | VIff_sv (_, _) -> false
+          | VIff_vs (_, _) -> false | VOnce_le _ -> false
+          | VOnce (_, _, _) -> false | VEventually (_, _, _) -> false
+          | VHistorically (_, _) -> false | VAlways (_, _) -> false
           | VSince (ia, vphi, vpsis) ->
             (let j = v_at vphi in
               (match right i
@@ -1663,48 +2527,86 @@ let rec v_check (_A1, _A2, _A3, _A4)
           | VNext _ -> false | VNext_ge _ -> false | VNext_le _ -> false
           | VPrev _ -> false | VPrev_ge _ -> false | VPrev_le _ -> false
           | VPrev_zero -> false)
-    | rho, Prev (xa, x), p ->
+    | rho, Always (xa, x), p ->
         (match p with VFF _ -> false | VAtm (_, _) -> false | VNeg _ -> false
           | VDisj (_, _) -> false | VConjL _ -> false | VConjR _ -> false
+          | VImpl (_, _) -> false | VIff_sv (_, _) -> false
+          | VIff_vs (_, _) -> false | VOnce_le _ -> false
+          | VOnce (_, _, _) -> false | VEventually (_, _, _) -> false
+          | VHistorically (_, _) -> false
+          | VAlways (i, vphi) ->
+            (let j = v_at vphi in
+              less_eq_nat i j &&
+                (less_eq_nat (left xa)
+                   (minus_nat (tau (_A1, _A2, _A4) rho j)
+                     (tau (_A1, _A2, _A4) rho i)) &&
+                   less_eq_enat
+                     (Enat (minus_nat (tau (_A1, _A2, _A4) rho j)
+                             (tau (_A1, _A2, _A4) rho i)))
+                     (right xa) &&
+                  v_check (_A1, _A2, _A3, _A4) rho x vphi))
           | VSince (_, _, _) -> false | VUntil (_, _, _) -> false
           | VSince_never (_, _, _) -> false | VUntil_never (_, _, _) -> false
           | VSince_le _ -> false | VNext _ -> false | VNext_ge _ -> false
-          | VNext_le _ -> false
-          | VPrev vphi ->
-            (let j = v_at vphi in
-             let i = v_at (VPrev vphi) in
-              equal_nata i (suc j) && v_check (_A1, _A2, _A3, _A4) rho x vphi)
-          | VPrev_ge i ->
-            less_nat zero_nata i &&
-              less_enat (right xa)
-                (Enat (minus_nat (tau (_A1, _A2, _A4) rho i)
-                        (tau (_A1, _A2, _A4) rho (minus_nat i one_nat))))
-          | VPrev_le i ->
-            less_nat zero_nata i &&
-              less_nat
-                (minus_nat (tau (_A1, _A2, _A4) rho i)
-                  (tau (_A1, _A2, _A4) rho (minus_nat i one_nat)))
-                (left xa)
-          | VPrev_zero -> equal_nata (v_at VPrev_zero) zero_nata)
-    | rho, Next (xa, x), p ->
+          | VNext_le _ -> false | VPrev _ -> false | VPrev_ge _ -> false
+          | VPrev_le _ -> false | VPrev_zero -> false)
+    | rho, Historically (xa, x), p ->
         (match p with VFF _ -> false | VAtm (_, _) -> false | VNeg _ -> false
           | VDisj (_, _) -> false | VConjL _ -> false | VConjR _ -> false
-          | VSince (_, _, _) -> false | VUntil (_, _, _) -> false
-          | VSince_never (_, _, _) -> false | VUntil_never (_, _, _) -> false
-          | VSince_le _ -> false
-          | VNext vphi ->
+          | VImpl (_, _) -> false | VIff_sv (_, _) -> false
+          | VIff_vs (_, _) -> false | VOnce_le _ -> false
+          | VOnce (_, _, _) -> false | VEventually (_, _, _) -> false
+          | VHistorically (i, vphi) ->
             (let j = v_at vphi in
-             let i = v_at (VNext vphi) in
-              equal_nata j (suc i) && v_check (_A1, _A2, _A3, _A4) rho x vphi)
-          | VNext_ge i ->
-            less_enat (right xa)
-              (Enat (minus_nat (tau (_A1, _A2, _A4) rho (suc i))
-                      (tau (_A1, _A2, _A4) rho (minus_nat (suc i) one_nat))))
-          | VNext_le i ->
-            less_nat
-              (minus_nat (tau (_A1, _A2, _A4) rho (suc i))
-                (tau (_A1, _A2, _A4) rho (minus_nat (suc i) one_nat)))
-              (left xa)
+              less_eq_nat j i &&
+                (less_eq_nat (left xa)
+                   (minus_nat (tau (_A1, _A2, _A4) rho i)
+                     (tau (_A1, _A2, _A4) rho j)) &&
+                   less_eq_enat
+                     (Enat (minus_nat (tau (_A1, _A2, _A4) rho i)
+                             (tau (_A1, _A2, _A4) rho j)))
+                     (right xa) &&
+                  v_check (_A1, _A2, _A3, _A4) rho x vphi))
+          | VAlways (_, _) -> false | VSince (_, _, _) -> false
+          | VUntil (_, _, _) -> false | VSince_never (_, _, _) -> false
+          | VUntil_never (_, _, _) -> false | VSince_le _ -> false
+          | VNext _ -> false | VNext_ge _ -> false | VNext_le _ -> false
+          | VPrev _ -> false | VPrev_ge _ -> false | VPrev_le _ -> false
+          | VPrev_zero -> false)
+    | rho, Iff (xa, x), p ->
+        (match p with VFF _ -> false | VAtm (_, _) -> false | VNeg _ -> false
+          | VDisj (_, _) -> false | VConjL _ -> false | VConjR _ -> false
+          | VImpl (_, _) -> false
+          | VIff_sv (sphi, vpsi) ->
+            s_check (_A1, _A2, _A3, _A4) rho xa sphi &&
+              (v_check (_A1, _A2, _A3, _A4) rho x vpsi &&
+                equal_nata (s_at sphi) (v_at vpsi))
+          | VIff_vs (vphi, spsi) ->
+            v_check (_A1, _A2, _A3, _A4) rho xa vphi &&
+              (s_check (_A1, _A2, _A3, _A4) rho x spsi &&
+                equal_nata (v_at vphi) (s_at spsi))
+          | VOnce_le _ -> false | VOnce (_, _, _) -> false
+          | VEventually (_, _, _) -> false | VHistorically (_, _) -> false
+          | VAlways (_, _) -> false | VSince (_, _, _) -> false
+          | VUntil (_, _, _) -> false | VSince_never (_, _, _) -> false
+          | VUntil_never (_, _, _) -> false | VSince_le _ -> false
+          | VNext _ -> false | VNext_ge _ -> false | VNext_le _ -> false
+          | VPrev _ -> false | VPrev_ge _ -> false | VPrev_le _ -> false
+          | VPrev_zero -> false)
+    | rho, Impl (xa, x), p ->
+        (match p with VFF _ -> false | VAtm (_, _) -> false | VNeg _ -> false
+          | VDisj (_, _) -> false | VConjL _ -> false | VConjR _ -> false
+          | VImpl (sphi, vpsi) ->
+            s_check (_A1, _A2, _A3, _A4) rho xa sphi &&
+              (v_check (_A1, _A2, _A3, _A4) rho x vpsi &&
+                equal_nata (s_at sphi) (v_at vpsi))
+          | VIff_sv (_, _) -> false | VIff_vs (_, _) -> false
+          | VOnce_le _ -> false | VOnce (_, _, _) -> false
+          | VEventually (_, _, _) -> false | VHistorically (_, _) -> false
+          | VAlways (_, _) -> false | VSince (_, _, _) -> false
+          | VUntil (_, _, _) -> false | VSince_never (_, _, _) -> false
+          | VUntil_never (_, _, _) -> false | VSince_le _ -> false
+          | VNext _ -> false | VNext_ge _ -> false | VNext_le _ -> false
           | VPrev _ -> false | VPrev_ge _ -> false | VPrev_le _ -> false
           | VPrev_zero -> false)
     | rho, Conj (xa, x), p ->
@@ -1712,6 +2614,10 @@ let rec v_check (_A1, _A2, _A3, _A4)
           | VDisj (_, _) -> false
           | VConjL a -> v_check (_A1, _A2, _A3, _A4) rho xa a
           | VConjR a -> v_check (_A1, _A2, _A3, _A4) rho x a
+          | VImpl (_, _) -> false | VIff_sv (_, _) -> false
+          | VIff_vs (_, _) -> false | VOnce_le _ -> false
+          | VOnce (_, _, _) -> false | VEventually (_, _, _) -> false
+          | VHistorically (_, _) -> false | VAlways (_, _) -> false
           | VSince (_, _, _) -> false | VUntil (_, _, _) -> false
           | VSince_never (_, _, _) -> false | VUntil_never (_, _, _) -> false
           | VSince_le _ -> false | VNext _ -> false | VNext_ge _ -> false
@@ -1723,7 +2629,11 @@ let rec v_check (_A1, _A2, _A3, _A4)
             v_check (_A1, _A2, _A3, _A4) rho xa vphi &&
               (v_check (_A1, _A2, _A3, _A4) rho x vpsi &&
                 equal_nata (v_at vphi) (v_at vpsi))
-          | VConjL _ -> false | VConjR _ -> false | VSince (_, _, _) -> false
+          | VConjL _ -> false | VConjR _ -> false | VImpl (_, _) -> false
+          | VIff_sv (_, _) -> false | VIff_vs (_, _) -> false
+          | VOnce_le _ -> false | VOnce (_, _, _) -> false
+          | VEventually (_, _, _) -> false | VHistorically (_, _) -> false
+          | VAlways (_, _) -> false | VSince (_, _, _) -> false
           | VUntil (_, _, _) -> false | VSince_never (_, _, _) -> false
           | VUntil_never (_, _, _) -> false | VSince_le _ -> false
           | VNext _ -> false | VNext_ge _ -> false | VNext_le _ -> false
@@ -1733,6 +2643,10 @@ let rec v_check (_A1, _A2, _A3, _A4)
         (match p with VFF _ -> false | VAtm (_, _) -> false
           | VNeg a -> s_check (_A1, _A2, _A3, _A4) rho x a
           | VDisj (_, _) -> false | VConjL _ -> false | VConjR _ -> false
+          | VImpl (_, _) -> false | VIff_sv (_, _) -> false
+          | VIff_vs (_, _) -> false | VOnce_le _ -> false
+          | VOnce (_, _, _) -> false | VEventually (_, _, _) -> false
+          | VHistorically (_, _) -> false | VAlways (_, _) -> false
           | VSince (_, _, _) -> false | VUntil (_, _, _) -> false
           | VSince_never (_, _, _) -> false | VUntil_never (_, _, _) -> false
           | VSince_le _ -> false | VNext _ -> false | VNext_ge _ -> false
@@ -1744,15 +2658,22 @@ let rec v_check (_A1, _A2, _A3, _A4)
             eq _A3 x b &&
               not (member (_A1, _A2) x (gamma (_A1, _A2, _A4) rho i))
           | VNeg _ -> false | VDisj (_, _) -> false | VConjL _ -> false
-          | VConjR _ -> false | VSince (_, _, _) -> false
-          | VUntil (_, _, _) -> false | VSince_never (_, _, _) -> false
-          | VUntil_never (_, _, _) -> false | VSince_le _ -> false
-          | VNext _ -> false | VNext_ge _ -> false | VNext_le _ -> false
-          | VPrev _ -> false | VPrev_ge _ -> false | VPrev_le _ -> false
-          | VPrev_zero -> false)
+          | VConjR _ -> false | VImpl (_, _) -> false | VIff_sv (_, _) -> false
+          | VIff_vs (_, _) -> false | VOnce_le _ -> false
+          | VOnce (_, _, _) -> false | VEventually (_, _, _) -> false
+          | VHistorically (_, _) -> false | VAlways (_, _) -> false
+          | VSince (_, _, _) -> false | VUntil (_, _, _) -> false
+          | VSince_never (_, _, _) -> false | VUntil_never (_, _, _) -> false
+          | VSince_le _ -> false | VNext _ -> false | VNext_ge _ -> false
+          | VNext_le _ -> false | VPrev _ -> false | VPrev_ge _ -> false
+          | VPrev_le _ -> false | VPrev_zero -> false)
     | rho, FF, p ->
         (match p with VFF _ -> true | VAtm (_, _) -> false | VNeg _ -> false
           | VDisj (_, _) -> false | VConjL _ -> false | VConjR _ -> false
+          | VImpl (_, _) -> false | VIff_sv (_, _) -> false
+          | VIff_vs (_, _) -> false | VOnce_le _ -> false
+          | VOnce (_, _, _) -> false | VEventually (_, _, _) -> false
+          | VHistorically (_, _) -> false | VAlways (_, _) -> false
           | VSince (_, _, _) -> false | VUntil (_, _, _) -> false
           | VSince_never (_, _, _) -> false | VUntil_never (_, _, _) -> false
           | VSince_le _ -> false | VNext _ -> false | VNext_ge _ -> false
@@ -1760,7 +2681,58 @@ let rec v_check (_A1, _A2, _A3, _A4)
           | VPrev_le _ -> false | VPrev_zero -> false)
     | rho, TT, p -> false
 and s_check (_A1, _A2, _A3, _A4)
-  rho x1 p = match rho, x1, p with rho, Until (xa, xaa, xb), SPrev x -> false
+  rho x1 p = match rho, x1, p with
+    rho, Always (i, phi), p ->
+      (match p with STT _ -> false | SAtm (_, _) -> false | SNeg _ -> false
+        | SDisjL _ -> false | SDisjR _ -> false | SConj (_, _) -> false
+        | SImplR _ -> false | SImplL _ -> false | SIff_ss (_, _) -> false
+        | SIff_vv (_, _) -> false | SOnce (_, _) -> false
+        | SEventually (_, _) -> false | SHistorically (_, _, _) -> false
+        | SHistorically_le _ -> false
+        | SAlways (ia, hi, sphis) ->
+          (match right i
+            with Enat n ->
+              less_eq_nat
+                (minus_nat (tau (_A1, _A2, _A4) rho hi)
+                  (tau (_A1, _A2, _A4) rho ia))
+                n &&
+                less_nat n
+                  (minus_nat (tau (_A1, _A2, _A4) rho (suc hi))
+                    (tau (_A1, _A2, _A4) rho ia))
+            | Infinity_enat -> false) &&
+            (check_upt_lu (_A1, _A2, _A4) rho i ia (map s_at sphis) hi &&
+              list_all (s_check (_A1, _A2, _A3, _A4) rho phi) sphis)
+        | SSince (_, _) -> false | SUntil (_, _) -> false | SNext _ -> false
+        | SPrev _ -> false)
+    | rho, Historically (i, phi), p ->
+        (match p with STT _ -> false | SAtm (_, _) -> false | SNeg _ -> false
+          | SDisjL _ -> false | SDisjR _ -> false | SConj (_, _) -> false
+          | SImplR _ -> false | SImplL _ -> false | SIff_ss (_, _) -> false
+          | SIff_vv (_, _) -> false | SOnce (_, _) -> false
+          | SEventually (_, _) -> false
+          | SHistorically (ia, li, vphis) ->
+            (match right i
+              with Enat n ->
+                (equal_nata li zero_nata ||
+                  less_nat n
+                    (minus_nat (tau (_A1, _A2, _A4) rho ia)
+                      (tau (_A1, _A2, _A4) rho (minus_nat li one_nat)))) &&
+                  less_eq_nat
+                    (minus_nat (tau (_A1, _A2, _A4) rho ia)
+                      (tau (_A1, _A2, _A4) rho li))
+                    n
+              | Infinity_enat -> equal_nata li zero_nata) &&
+              (less_eq_nat
+                 (plus_nata (tau (_A1, _A2, _A4) rho zero_nata) (left i))
+                 (tau (_A1, _A2, _A4) rho ia) &&
+                (check_upt_l (_A1, _A2, _A4) rho i li (map s_at vphis) ia &&
+                  list_all (s_check (_A1, _A2, _A3, _A4) rho phi) vphis))
+          | SHistorically_le ia ->
+            less_nat (tau (_A1, _A2, _A4) rho ia)
+              (plus_nata (tau (_A1, _A2, _A4) rho zero_nata) (left i))
+          | SAlways (_, _, _) -> false | SSince (_, _) -> false
+          | SUntil (_, _) -> false | SNext _ -> false | SPrev _ -> false)
+    | rho, Until (xa, xaa, xb), SPrev x -> false
     | rho, Until (xa, xaa, xb), SNext x -> false
     | rho, Until (xb, xaa, xba), SUntil (xa, x) ->
         (let i = s_at (SUntil (xa, x)) in
@@ -1777,6 +2749,15 @@ and s_check (_A1, _A2, _A3, _A4)
                 (s_check (_A1, _A2, _A3, _A4) rho xba x &&
                   list_all (s_check (_A1, _A2, _A3, _A4) rho xb) xa))))
     | rho, Until (xb, xaa, xba), SSince (xa, x) -> false
+    | rho, Until (xc, xaa, xba), SAlways (xb, xa, x) -> false
+    | rho, Until (xa, xaa, xb), SHistorically_le x -> false
+    | rho, Until (xc, xaa, xba), SHistorically (xb, xa, x) -> false
+    | rho, Until (xb, xaa, xba), SEventually (xa, x) -> false
+    | rho, Until (xb, xaa, xba), SOnce (xa, x) -> false
+    | rho, Until (xb, xaa, xba), SIff_vv (xa, x) -> false
+    | rho, Until (xb, xaa, xba), SIff_ss (xa, x) -> false
+    | rho, Until (xa, xaa, xb), SImplL x -> false
+    | rho, Until (xa, xaa, xb), SImplR x -> false
     | rho, Until (xb, xaa, xba), SConj (xa, x) -> false
     | rho, Until (xa, xaa, xb), SDisjR x -> false
     | rho, Until (xa, xaa, xb), SDisjL x -> false
@@ -1800,12 +2781,79 @@ and s_check (_A1, _A2, _A3, _A4)
               (equal_list equal_nat (map s_at x) (upt (suc j) (suc i)) &&
                 (s_check (_A1, _A2, _A3, _A4) rho xba xa &&
                   list_all (s_check (_A1, _A2, _A3, _A4) rho xb) x))))
+    | rho, Since (xc, xaa, xba), SAlways (xb, xa, x) -> false
+    | rho, Since (xa, xaa, xb), SHistorically_le x -> false
+    | rho, Since (xc, xaa, xba), SHistorically (xb, xa, x) -> false
+    | rho, Since (xb, xaa, xba), SEventually (xa, x) -> false
+    | rho, Since (xb, xaa, xba), SOnce (xa, x) -> false
+    | rho, Since (xb, xaa, xba), SIff_vv (xa, x) -> false
+    | rho, Since (xb, xaa, xba), SIff_ss (xa, x) -> false
+    | rho, Since (xa, xaa, xb), SImplL x -> false
+    | rho, Since (xa, xaa, xb), SImplR x -> false
     | rho, Since (xb, xaa, xba), SConj (xa, x) -> false
     | rho, Since (xa, xaa, xb), SDisjR x -> false
     | rho, Since (xa, xaa, xb), SDisjL x -> false
     | rho, Since (xa, xaa, xb), SNeg x -> false
     | rho, Since (xb, xaa, xba), SAtm (xa, x) -> false
     | rho, Since (xa, xaa, xb), STT x -> false
+    | rho, Eventually (xa, xaa), SPrev x -> false
+    | rho, Eventually (xa, xaa), SNext x -> false
+    | rho, Eventually (xb, xaa), SUntil (xa, x) -> false
+    | rho, Eventually (xb, xaa), SSince (xa, x) -> false
+    | rho, Eventually (xc, xaa), SAlways (xb, xa, x) -> false
+    | rho, Eventually (xa, xaa), SHistorically_le x -> false
+    | rho, Eventually (xc, xaa), SHistorically (xb, xa, x) -> false
+    | rho, Eventually (xb, xaa), SEventually (xa, x) ->
+        (let j = s_at x in
+          less_eq_nat xa j &&
+            (less_eq_nat (left xb)
+               (minus_nat (tau (_A1, _A2, _A4) rho j)
+                 (tau (_A1, _A2, _A4) rho xa)) &&
+               less_eq_enat
+                 (Enat (minus_nat (tau (_A1, _A2, _A4) rho j)
+                         (tau (_A1, _A2, _A4) rho xa)))
+                 (right xb) &&
+              s_check (_A1, _A2, _A3, _A4) rho xaa x))
+    | rho, Eventually (xb, xaa), SOnce (xa, x) -> false
+    | rho, Eventually (xb, xaa), SIff_vv (xa, x) -> false
+    | rho, Eventually (xb, xaa), SIff_ss (xa, x) -> false
+    | rho, Eventually (xa, xaa), SImplL x -> false
+    | rho, Eventually (xa, xaa), SImplR x -> false
+    | rho, Eventually (xb, xaa), SConj (xa, x) -> false
+    | rho, Eventually (xa, xaa), SDisjR x -> false
+    | rho, Eventually (xa, xaa), SDisjL x -> false
+    | rho, Eventually (xa, xaa), SNeg x -> false
+    | rho, Eventually (xb, xaa), SAtm (xa, x) -> false
+    | rho, Eventually (xa, xaa), STT x -> false
+    | rho, Once (xa, xaa), SPrev x -> false
+    | rho, Once (xa, xaa), SNext x -> false
+    | rho, Once (xb, xaa), SUntil (xa, x) -> false
+    | rho, Once (xb, xaa), SSince (xa, x) -> false
+    | rho, Once (xc, xaa), SAlways (xb, xa, x) -> false
+    | rho, Once (xa, xaa), SHistorically_le x -> false
+    | rho, Once (xc, xaa), SHistorically (xb, xa, x) -> false
+    | rho, Once (xb, xaa), SEventually (xa, x) -> false
+    | rho, Once (xb, xaa), SOnce (xa, x) ->
+        (let j = s_at x in
+          less_eq_nat j xa &&
+            (less_eq_nat (left xb)
+               (minus_nat (tau (_A1, _A2, _A4) rho xa)
+                 (tau (_A1, _A2, _A4) rho j)) &&
+               less_eq_enat
+                 (Enat (minus_nat (tau (_A1, _A2, _A4) rho xa)
+                         (tau (_A1, _A2, _A4) rho j)))
+                 (right xb) &&
+              s_check (_A1, _A2, _A3, _A4) rho xaa x))
+    | rho, Once (xb, xaa), SIff_vv (xa, x) -> false
+    | rho, Once (xb, xaa), SIff_ss (xa, x) -> false
+    | rho, Once (xa, xaa), SImplL x -> false
+    | rho, Once (xa, xaa), SImplR x -> false
+    | rho, Once (xb, xaa), SConj (xa, x) -> false
+    | rho, Once (xa, xaa), SDisjR x -> false
+    | rho, Once (xa, xaa), SDisjL x -> false
+    | rho, Once (xa, xaa), SNeg x -> false
+    | rho, Once (xb, xaa), SAtm (xa, x) -> false
+    | rho, Once (xa, xaa), STT x -> false
     | rho, Prev (xa, xaa), SPrev x ->
         (let j = s_at x in
          let i = s_at (SPrev x) in
@@ -1821,6 +2869,15 @@ and s_check (_A1, _A2, _A3, _A4)
     | rho, Prev (xa, xaa), SNext x -> false
     | rho, Prev (xb, xaa), SUntil (xa, x) -> false
     | rho, Prev (xb, xaa), SSince (xa, x) -> false
+    | rho, Prev (xc, xaa), SAlways (xb, xa, x) -> false
+    | rho, Prev (xa, xaa), SHistorically_le x -> false
+    | rho, Prev (xc, xaa), SHistorically (xb, xa, x) -> false
+    | rho, Prev (xb, xaa), SEventually (xa, x) -> false
+    | rho, Prev (xb, xaa), SOnce (xa, x) -> false
+    | rho, Prev (xb, xaa), SIff_vv (xa, x) -> false
+    | rho, Prev (xb, xaa), SIff_ss (xa, x) -> false
+    | rho, Prev (xa, xaa), SImplL x -> false
+    | rho, Prev (xa, xaa), SImplR x -> false
     | rho, Prev (xb, xaa), SConj (xa, x) -> false
     | rho, Prev (xa, xaa), SDisjR x -> false
     | rho, Prev (xa, xaa), SDisjL x -> false
@@ -1842,16 +2899,78 @@ and s_check (_A1, _A2, _A3, _A4)
               s_check (_A1, _A2, _A3, _A4) rho xaa x))
     | rho, Next (xb, xaa), SUntil (xa, x) -> false
     | rho, Next (xb, xaa), SSince (xa, x) -> false
+    | rho, Next (xc, xaa), SAlways (xb, xa, x) -> false
+    | rho, Next (xa, xaa), SHistorically_le x -> false
+    | rho, Next (xc, xaa), SHistorically (xb, xa, x) -> false
+    | rho, Next (xb, xaa), SEventually (xa, x) -> false
+    | rho, Next (xb, xaa), SOnce (xa, x) -> false
+    | rho, Next (xb, xaa), SIff_vv (xa, x) -> false
+    | rho, Next (xb, xaa), SIff_ss (xa, x) -> false
+    | rho, Next (xa, xaa), SImplL x -> false
+    | rho, Next (xa, xaa), SImplR x -> false
     | rho, Next (xb, xaa), SConj (xa, x) -> false
     | rho, Next (xa, xaa), SDisjR x -> false
     | rho, Next (xa, xaa), SDisjL x -> false
     | rho, Next (xa, xaa), SNeg x -> false
     | rho, Next (xb, xaa), SAtm (xa, x) -> false
     | rho, Next (xa, xaa), STT x -> false
+    | rho, Iff (xa, xaa), SPrev x -> false
+    | rho, Iff (xa, xaa), SNext x -> false
+    | rho, Iff (xb, xaa), SUntil (xa, x) -> false
+    | rho, Iff (xb, xaa), SSince (xa, x) -> false
+    | rho, Iff (xc, xaa), SAlways (xb, xa, x) -> false
+    | rho, Iff (xa, xaa), SHistorically_le x -> false
+    | rho, Iff (xc, xaa), SHistorically (xb, xa, x) -> false
+    | rho, Iff (xb, xaa), SEventually (xa, x) -> false
+    | rho, Iff (xb, xaa), SOnce (xa, x) -> false
+    | rho, Iff (xb, xaa), SIff_vv (xa, x) ->
+        v_check (_A1, _A2, _A3, _A4) rho xb xa &&
+          (v_check (_A1, _A2, _A3, _A4) rho xaa x &&
+            equal_nata (v_at xa) (v_at x))
+    | rho, Iff (xb, xaa), SIff_ss (xa, x) ->
+        s_check (_A1, _A2, _A3, _A4) rho xb xa &&
+          (s_check (_A1, _A2, _A3, _A4) rho xaa x &&
+            equal_nata (s_at xa) (s_at x))
+    | rho, Iff (xa, xaa), SImplL x -> false
+    | rho, Iff (xa, xaa), SImplR x -> false
+    | rho, Iff (xb, xaa), SConj (xa, x) -> false
+    | rho, Iff (xa, xaa), SDisjR x -> false
+    | rho, Iff (xa, xaa), SDisjL x -> false
+    | rho, Iff (xa, xaa), SNeg x -> false
+    | rho, Iff (xb, xaa), SAtm (xa, x) -> false
+    | rho, Iff (xa, xaa), STT x -> false
+    | rho, Impl (xa, xaa), SPrev x -> false
+    | rho, Impl (xa, xaa), SNext x -> false
+    | rho, Impl (xb, xaa), SUntil (xa, x) -> false
+    | rho, Impl (xb, xaa), SSince (xa, x) -> false
+    | rho, Impl (xc, xaa), SAlways (xb, xa, x) -> false
+    | rho, Impl (xa, xaa), SHistorically_le x -> false
+    | rho, Impl (xc, xaa), SHistorically (xb, xa, x) -> false
+    | rho, Impl (xb, xaa), SEventually (xa, x) -> false
+    | rho, Impl (xb, xaa), SOnce (xa, x) -> false
+    | rho, Impl (xb, xaa), SIff_vv (xa, x) -> false
+    | rho, Impl (xb, xaa), SIff_ss (xa, x) -> false
+    | rho, Impl (xa, xaa), SImplL x -> v_check (_A1, _A2, _A3, _A4) rho xa x
+    | rho, Impl (xa, xaa), SImplR x -> s_check (_A1, _A2, _A3, _A4) rho xaa x
+    | rho, Impl (xb, xaa), SConj (xa, x) -> false
+    | rho, Impl (xa, xaa), SDisjR x -> false
+    | rho, Impl (xa, xaa), SDisjL x -> false
+    | rho, Impl (xa, xaa), SNeg x -> false
+    | rho, Impl (xb, xaa), SAtm (xa, x) -> false
+    | rho, Impl (xa, xaa), STT x -> false
     | rho, Conj (xa, xaa), SPrev x -> false
     | rho, Conj (xa, xaa), SNext x -> false
     | rho, Conj (xb, xaa), SUntil (xa, x) -> false
     | rho, Conj (xb, xaa), SSince (xa, x) -> false
+    | rho, Conj (xc, xaa), SAlways (xb, xa, x) -> false
+    | rho, Conj (xa, xaa), SHistorically_le x -> false
+    | rho, Conj (xc, xaa), SHistorically (xb, xa, x) -> false
+    | rho, Conj (xb, xaa), SEventually (xa, x) -> false
+    | rho, Conj (xb, xaa), SOnce (xa, x) -> false
+    | rho, Conj (xb, xaa), SIff_vv (xa, x) -> false
+    | rho, Conj (xb, xaa), SIff_ss (xa, x) -> false
+    | rho, Conj (xa, xaa), SImplL x -> false
+    | rho, Conj (xa, xaa), SImplR x -> false
     | rho, Conj (xb, xaa), SConj (xa, x) ->
         s_check (_A1, _A2, _A3, _A4) rho xb xa &&
           (s_check (_A1, _A2, _A3, _A4) rho xaa x &&
@@ -1865,6 +2984,15 @@ and s_check (_A1, _A2, _A3, _A4)
     | rho, Disj (xa, xaa), SNext x -> false
     | rho, Disj (xb, xaa), SUntil (xa, x) -> false
     | rho, Disj (xb, xaa), SSince (xa, x) -> false
+    | rho, Disj (xc, xaa), SAlways (xb, xa, x) -> false
+    | rho, Disj (xa, xaa), SHistorically_le x -> false
+    | rho, Disj (xc, xaa), SHistorically (xb, xa, x) -> false
+    | rho, Disj (xb, xaa), SEventually (xa, x) -> false
+    | rho, Disj (xb, xaa), SOnce (xa, x) -> false
+    | rho, Disj (xb, xaa), SIff_vv (xa, x) -> false
+    | rho, Disj (xb, xaa), SIff_ss (xa, x) -> false
+    | rho, Disj (xa, xaa), SImplL x -> false
+    | rho, Disj (xa, xaa), SImplR x -> false
     | rho, Disj (xb, xaa), SConj (xa, x) -> false
     | rho, Disj (xa, xaa), SDisjR x -> s_check (_A1, _A2, _A3, _A4) rho xaa x
     | rho, Disj (xa, xaa), SDisjL x -> s_check (_A1, _A2, _A3, _A4) rho xa x
@@ -1875,6 +3003,15 @@ and s_check (_A1, _A2, _A3, _A4)
     | rho, Neg xa, SNext x -> false
     | rho, Neg xb, SUntil (xa, x) -> false
     | rho, Neg xb, SSince (xa, x) -> false
+    | rho, Neg xc, SAlways (xb, xa, x) -> false
+    | rho, Neg xa, SHistorically_le x -> false
+    | rho, Neg xc, SHistorically (xb, xa, x) -> false
+    | rho, Neg xb, SEventually (xa, x) -> false
+    | rho, Neg xb, SOnce (xa, x) -> false
+    | rho, Neg xb, SIff_vv (xa, x) -> false
+    | rho, Neg xb, SIff_ss (xa, x) -> false
+    | rho, Neg xa, SImplL x -> false
+    | rho, Neg xa, SImplR x -> false
     | rho, Neg xb, SConj (xa, x) -> false
     | rho, Neg xa, SDisjR x -> false
     | rho, Neg xa, SDisjL x -> false
@@ -1885,6 +3022,15 @@ and s_check (_A1, _A2, _A3, _A4)
     | rho, Atom xa, SNext x -> false
     | rho, Atom xb, SUntil (xa, x) -> false
     | rho, Atom xb, SSince (xa, x) -> false
+    | rho, Atom xc, SAlways (xb, xa, x) -> false
+    | rho, Atom xa, SHistorically_le x -> false
+    | rho, Atom xc, SHistorically (xb, xa, x) -> false
+    | rho, Atom xb, SEventually (xa, x) -> false
+    | rho, Atom xb, SOnce (xa, x) -> false
+    | rho, Atom xb, SIff_vv (xa, x) -> false
+    | rho, Atom xb, SIff_ss (xa, x) -> false
+    | rho, Atom xa, SImplL x -> false
+    | rho, Atom xa, SImplR x -> false
     | rho, Atom xb, SConj (xa, x) -> false
     | rho, Atom xa, SDisjR x -> false
     | rho, Atom xa, SDisjL x -> false
@@ -1897,6 +3043,15 @@ and s_check (_A1, _A2, _A3, _A4)
     | rho, TT, SNext x -> false
     | rho, TT, SUntil (xa, x) -> false
     | rho, TT, SSince (xa, x) -> false
+    | rho, TT, SAlways (xb, xa, x) -> false
+    | rho, TT, SHistorically_le x -> false
+    | rho, TT, SHistorically (xb, xa, x) -> false
+    | rho, TT, SEventually (xa, x) -> false
+    | rho, TT, SOnce (xa, x) -> false
+    | rho, TT, SIff_vv (xa, x) -> false
+    | rho, TT, SIff_ss (xa, x) -> false
+    | rho, TT, SImplL x -> false
+    | rho, TT, SImplR x -> false
     | rho, TT, SConj (xa, x) -> false
     | rho, TT, SDisjR x -> false
     | rho, TT, SDisjL x -> false
@@ -2286,6 +3441,13 @@ let rec doDisj
       | (Inr _, Inl p2a) -> [Inl (SDisjR p2a)]
       | (Inr p1a, Inr p2a) -> [Inr (VDisj (p1a, p2a))]);;
 
+let rec doImpl
+  p1 p2 =
+    (match (p1, p2) with (Inl _, Inl p2a) -> [Inl (SImplR p2a)]
+      | (Inl p1a, Inr p2a) -> [Inr (VImpl (p1a, p2a))]
+      | (Inr p1a, Inl p2a) -> [Inl (SImplL p1a); Inl (SImplR p2a)]
+      | (Inr p1a, Inr _) -> [Inl (SImplL p1a)]);;
+
 let rec doNext
   ia i tau p =
     (match (p, less_nat tau (left i)) with (Inl _, true) -> [Inr (VNext_le ia)]
@@ -2296,6 +3458,43 @@ let rec doNext
       | (Inr pa, false) ->
         (if less_eq_nat (left i) tau && less_eq_enat (Enat tau) (right i)
           then [Inr (VNext pa)] else [Inr (VNext pa); Inr (VNext_ge ia)]));;
+
+let rec proofApp
+  p r = (match (p, r)
+          with (Inl (SHistorically (i, li, p1)), Inl ra) ->
+            Inl (SHistorically (suc i, li, p1 @ [ra]))
+          | (Inl (SAlways (i, hi, p1)), Inl ra) ->
+            Inl (SAlways (minus_nat i one_nat, hi, ra :: p1))
+          | (Inl (SSince (p1, p2)), Inl ra) -> Inl (SSince (p1, p2 @ [ra]))
+          | (Inl (SUntil (p1, p2)), Inl ra) -> Inl (SUntil (ra :: p1, p2))
+          | (Inr (VOnce (i, li, p1)), Inr ra) ->
+            Inr (VOnce (suc i, li, p1 @ [ra]))
+          | (Inr (VEventually (i, hi, p1)), Inr ra) ->
+            Inr (VEventually (minus_nat i one_nat, hi, ra :: p1))
+          | (Inr (VSince (i, p1, p2)), Inr ra) ->
+            Inr (VSince (suc i, p1, p2 @ [ra]))
+          | (Inr (VUntil (i, p1, p2)), Inr ra) ->
+            Inr (VUntil (minus_nat i one_nat, ra :: p1, p2))
+          | (Inr (VSince_never (i, li, p1)), Inr ra) ->
+            Inr (VSince_never (suc i, li, p1 @ [ra]))
+          | (Inr (VUntil_never (i, hi, p1)), Inr ra) ->
+            Inr (VUntil_never (minus_nat i one_nat, hi, ra :: p1)));;
+
+let rec doOnce
+  i a pa p =
+    (match (pa, (equal_nata a zero_nata, p))
+      with (Inl pb, aa) ->
+        (match aa
+          with (true, Inl (SOnce (_, paa))) ->
+            [Inl (SOnce (i, paa)); Inl (SOnce (i, pb))]
+          | (true, Inr (VOnce (_, _, _))) -> [Inl (SOnce (i, pb))]
+          | (false, Inl (SOnce (_, pc))) -> [Inl (SOnce (i, pc))]
+          | (false, Inr (VOnce (_, li, q))) -> [Inr (VOnce (i, li, q))])
+      | (Inr pb, aa) ->
+        (match aa with (true, Inl (SOnce (_, pc))) -> [Inl (SOnce (i, pc))]
+          | (true, Inr paa) -> [proofApp (Inr paa) (Inr pb)]
+          | (false, Inl (SOnce (_, pc))) -> [Inl (SOnce (i, pc))]
+          | (false, Inr (VOnce (_, li, q))) -> [Inr (VOnce (i, li, q))]));;
 
 let rec doPrev
   ia i tau p =
@@ -2312,51 +3511,166 @@ let rec uminus_set = function Complement b -> b
                      | Collect_set p -> Collect_set (fun x -> not (p x))
                      | a -> Complement a;;
 
-let rec comp_sunion_with
-  c f asa bs = match c, f, asa, bs with
-    c, f, (ka, va) :: asa, (k, v) :: bs ->
-      (match c k ka with Eq -> (ka, f ka va v) :: comp_sunion_with c f asa bs
-        | Lt -> (k, v) :: comp_sunion_with c f ((ka, va) :: asa) bs
-        | Gt -> (ka, va) :: comp_sunion_with c f asa ((k, v) :: bs))
-    | c, f, [], bs -> bs
-    | c, f, asa, [] -> asa;;
+let rec rbt_baliR
+  t1 ab bb x3 = match t1, ab, bb, x3 with
+    t1, ab, bb, Branch (R, t2, aa, ba, Branch (R, t3, a, b, t4)) ->
+      Branch (R, Branch (B, t1, ab, bb, t2), aa, ba, Branch (B, t3, a, b, t4))
+    | t1, ab, bb, Branch (R, Branch (R, t2, aa, ba, t3), a, b, Empty) ->
+        Branch
+          (R, Branch (B, t1, ab, bb, t2), aa, ba, Branch (B, t3, a, b, Empty))
+    | t1, ab, bb,
+        Branch (R, Branch (R, t2, aa, ba, t3), a, b, Branch (B, va, vb, vc, vd))
+        -> Branch
+             (R, Branch (B, t1, ab, bb, t2), aa, ba,
+               Branch (B, t3, a, b, Branch (B, va, vb, vc, vd)))
+    | t1, a, b, Empty -> Branch (B, t1, a, b, Empty)
+    | t1, a, b, Branch (B, va, vb, vc, vd) ->
+        Branch (B, t1, a, b, Branch (B, va, vb, vc, vd))
+    | t1, a, b, Branch (v, Empty, vb, vc, Empty) ->
+        Branch (B, t1, a, b, Branch (v, Empty, vb, vc, Empty))
+    | t1, a, b, Branch (v, Branch (B, ve, vf, vg, vh), vb, vc, Empty) ->
+        Branch
+          (B, t1, a, b, Branch (v, Branch (B, ve, vf, vg, vh), vb, vc, Empty))
+    | t1, a, b, Branch (v, Empty, vb, vc, Branch (B, vf, vg, vh, vi)) ->
+        Branch
+          (B, t1, a, b, Branch (v, Empty, vb, vc, Branch (B, vf, vg, vh, vi)))
+    | t1, a, b,
+        Branch
+          (v, Branch (B, ve, vj, vk, vl), vb, vc, Branch (B, vf, vg, vh, vi))
+        -> Branch
+             (B, t1, a, b,
+               Branch
+                 (v, Branch (B, ve, vj, vk, vl), vb, vc,
+                   Branch (B, vf, vg, vh, vi)));;
 
-let rec skip_red = function Branch (R, l, k, v, r) -> l
-                   | Empty -> Empty
-                   | Branch (B, va, vb, vc, vd) -> Branch (B, va, vb, vc, vd);;
+let rec equal_color x0 x1 = match x0, x1 with R, B -> false
+                      | B, R -> false
+                      | B, B -> true
+                      | R, R -> true;;
 
-let rec skip_black
-  t = (let ta = skip_red t in
-        (match ta with Empty -> ta | Branch (R, _, _, _, _) -> ta
-          | Branch (B, l, _, _, _) -> l));;
+let rec bheight
+  = function Empty -> zero_nata
+    | Branch (c, lt, k, v, rt) ->
+        (if equal_color c B then suc (bheight lt) else bheight lt);;
 
-let rec compare_height
-  sx s t tx =
-    (match (skip_red sx, (skip_red s, (skip_red t, skip_red tx)))
-      with (Empty, (Empty, (_, Empty))) -> EQ
-      | (Empty, (Empty, (_, Branch (_, _, _, _, _)))) -> LT
-      | (Empty, (Branch (_, _, _, _, _), (Empty, _))) -> EQ
-      | (Empty, (Branch (_, _, _, _, _), (Branch (_, _, _, _, _), Empty))) -> EQ
-      | (Empty,
-          (Branch (_, sa, _, _, _),
-            (Branch (_, ta, _, _, _), Branch (_, txa, _, _, _))))
-        -> compare_height Empty sa ta (skip_black txa)
-      | (Branch (_, _, _, _, _), (Empty, (Empty, Empty))) -> GT
-      | (Branch (_, _, _, _, _), (Empty, (Empty, Branch (_, _, _, _, _)))) -> LT
-      | (Branch (_, _, _, _, _), (Empty, (Branch (_, _, _, _, _), Empty))) -> EQ
-      | (Branch (_, _, _, _, _),
-          (Empty, (Branch (_, _, _, _, _), Branch (_, _, _, _, _))))
-        -> LT
-      | (Branch (_, _, _, _, _), (Branch (_, _, _, _, _), (Empty, _))) -> GT
-      | (Branch (_, sxa, _, _, _),
-          (Branch (_, sa, _, _, _), (Branch (_, ta, _, _, _), Empty)))
-        -> compare_height (skip_black sxa) sa ta Empty
-      | (Branch (_, sxa, _, _, _),
-          (Branch (_, sa, _, _, _),
-            (Branch (_, ta, _, _, _), Branch (_, txa, _, _, _))))
-        -> compare_height (skip_black sxa) sa ta (skip_black txa));;
+let rec rbt_joinR
+  l a b r =
+    (if less_eq_nat (bheight l) (bheight r) then Branch (R, l, a, b, r)
+      else (match l
+             with Branch (R, la, ab, ba, ra) ->
+               Branch (R, la, ab, ba, rbt_joinR ra a b r)
+             | Branch (B, la, ab, ba, ra) ->
+               rbt_baliR la ab ba (rbt_joinR ra a b r)));;
+
+let rec rbt_baliL
+  x0 a b t4 = match x0, a, b, t4 with
+    Branch (R, Branch (R, t1, ab, bb, t2), aa, ba, t3), a, b, t4 ->
+      Branch (R, Branch (B, t1, ab, bb, t2), aa, ba, Branch (B, t3, a, b, t4))
+    | Branch (R, Empty, ab, bb, Branch (R, t2, aa, ba, t3)), a, b, t4 ->
+        Branch
+          (R, Branch (B, Empty, ab, bb, t2), aa, ba, Branch (B, t3, a, b, t4))
+    | Branch
+        (R, Branch (B, va, vb, vc, vd), ab, bb, Branch (R, t2, aa, ba, t3)),
+        a, b, t4
+        -> Branch
+             (R, Branch (B, Branch (B, va, vb, vc, vd), ab, bb, t2), aa, ba,
+               Branch (B, t3, a, b, t4))
+    | Empty, a, b, t2 -> Branch (B, Empty, a, b, t2)
+    | Branch (B, va, vb, vc, vd), a, b, t2 ->
+        Branch (B, Branch (B, va, vb, vc, vd), a, b, t2)
+    | Branch (v, Empty, vb, vc, Empty), a, b, t2 ->
+        Branch (B, Branch (v, Empty, vb, vc, Empty), a, b, t2)
+    | Branch (v, Empty, vb, vc, Branch (B, ve, vf, vg, vh)), a, b, t2 ->
+        Branch
+          (B, Branch (v, Empty, vb, vc, Branch (B, ve, vf, vg, vh)), a, b, t2)
+    | Branch (v, Branch (B, vf, vg, vh, vi), vb, vc, Empty), a, b, t2 ->
+        Branch
+          (B, Branch (v, Branch (B, vf, vg, vh, vi), vb, vc, Empty), a, b, t2)
+    | Branch
+        (v, Branch (B, vf, vg, vh, vi), vb, vc, Branch (B, ve, vj, vk, vl)),
+        a, b, t2
+        -> Branch
+             (B, Branch
+                   (v, Branch (B, vf, vg, vh, vi), vb, vc,
+                     Branch (B, ve, vj, vk, vl)),
+               a, b, t2);;
+
+let rec rbt_joinL
+  l a b r =
+    (if less_eq_nat (bheight r) (bheight l) then Branch (R, l, a, b, r)
+      else (match r
+             with Branch (R, la, ab, ba, ra) ->
+               Branch (R, rbt_joinL l a b la, ab, ba, ra)
+             | Branch (B, la, ab, ba, ra) ->
+               rbt_baliL (rbt_joinL l a b la) ab ba ra));;
+
+let rec rbt_join
+  l a b r =
+    (let bhl = bheight l in
+     let bhr = bheight r in
+      (if less_nat bhr bhl then paint B (rbt_joinR l a b r)
+        else (if less_nat bhl bhr then paint B (rbt_joinL l a b r)
+               else Branch (B, l, a, b, r))));;
+
+let rec rbt_split_comp
+  c x1 k = match c, x1, k with c, Empty, k -> (Empty, (None, Empty))
+    | c, Branch (uu, l, a, b, r), x ->
+        (match c x a with Eq -> (l, (Some b, r))
+          | Lt ->
+            (let (l1, (beta, l2)) = rbt_split_comp c l x in
+              (l1, (beta, rbt_join l2 a b r)))
+          | Gt ->
+            (let (r1, (beta, r2)) = rbt_split_comp c r x in
+              (rbt_join l a b r1, (beta, r2))));;
 
 let rec nat_of_integer k = Nat (max ord_integer Z.zero k);;
+
+let rec rbt_comp_union_swap_rec
+  c f gamma t1 t2 =
+    (let bh1 = bheight t1 in
+     let bh2 = bheight t2 in
+     let (gammaa, (t2a, (bh2a, (t1a, _)))) =
+       (if less_nat bh1 bh2 then (not gamma, (t1, (bh1, (t2, bh2))))
+         else (gamma, (t2, (bh2, (t1, bh1)))))
+       in
+     let fa = (if gammaa then (fun k v va -> f k va v) else f) in
+      (if less_nat bh2a (nat_of_integer (Z.of_int 4))
+        then folda (rbt_comp_insert_with_key c fa) t2a t1a
+        else (match t1a with Empty -> t2a
+               | Branch (_, l1, a, b, r1) ->
+                 (let (l2, (beta, r2)) = rbt_split_comp c t2a a in
+                   rbt_join (rbt_comp_union_swap_rec c f gammaa l1 l2) a
+                     (match beta with None -> b | Some ca -> fa a b ca)
+                     (rbt_comp_union_swap_rec c f gammaa r1 r2)))));;
+
+let rec rbt_comp_union_with_key
+  c f t1 t2 = paint B (rbt_comp_union_swap_rec c f false t1 t2);;
+
+let rec join _A
+  xc xd xe =
+    Mapping_RBTa
+      (rbt_comp_union_with_key (the (ccompare _A)) xc (impl_ofa _A xd)
+        (impl_ofa _A xe));;
+
+let rec union _A = foldc _A (inserta _A);;
+
+let rec is_none = function Some x -> false
+                  | None -> true;;
+
+let rec filtera
+  p x1 = match p, x1 with p, [] -> []
+    | p, x :: xs -> (if p x then x :: filtera p xs else filtera p xs);;
+
+let rec inter_list _A
+  xb xc =
+    Mapping_RBTa
+      (fold (fun k -> rbt_comp_insert (the (ccompare _A)) k ())
+        (filtera
+          (fun x ->
+            not (is_none
+                  (rbt_comp_lookup (the (ccompare _A)) (impl_ofa _A xb) x)))
+          xc)
+        Empty);;
 
 let rec apfst f (x, y) = (f x, y);;
 
@@ -2408,53 +3722,8 @@ let rec gen_entries
 
 let rec entries x = gen_entries [] x;;
 
-let rec rbt_comp_union_with_key
-  c f t1 t2 =
-    (match compare_height t1 t1 t2 t2
-      with LT -> folda (rbt_comp_insert_with_key c (fun k v w -> f k w v)) t1 t2
-      | GT -> folda (rbt_comp_insert_with_key c f) t2 t1
-      | EQ -> rbtreeify (comp_sunion_with c f (entries t1) (entries t2)));;
-
-let rec join _A
-  xc xd xe =
-    Mapping_RBTa
-      (rbt_comp_union_with_key (the (ccompare _A)) xc (impl_ofa _A xd)
-        (impl_ofa _A xe));;
-
-let rec union _A = foldc _A (inserta _A);;
-
-let rec is_none = function Some x -> false
-                  | None -> true;;
-
-let rec filtera
-  p x1 = match p, x1 with p, [] -> []
-    | p, x :: xs -> (if p x then x :: filtera p xs else filtera p xs);;
-
-let rec inter_list _A
-  xb xc =
-    Mapping_RBTa
-      (fold (fun k -> rbt_comp_insert (the (ccompare _A)) k ())
-        (filtera
-          (fun x ->
-            not (is_none
-                  (rbt_comp_lookup (the (ccompare _A)) (impl_ofa _A xb) x)))
-          xc)
-        Empty);;
-
 let rec filterc _A
   xb xc = Mapping_RBTa (rbtreeify (filtera xb (entries (impl_ofa _A xc))));;
-
-let rec comp_sinter_with
-  c f uv uu = match c, f, uv, uu with
-    c, f, (ka, va) :: asa, (k, v) :: bs ->
-      (match c k ka with Eq -> (ka, f ka va v) :: comp_sinter_with c f asa bs
-        | Lt -> comp_sinter_with c f ((ka, va) :: asa) bs
-        | Gt -> comp_sinter_with c f asa ((k, v) :: bs))
-    | c, f, [], uu -> []
-    | c, f, uv, [] -> [];;
-
-let rec map_option f x1 = match f, x1 with f, None -> None
-                     | f, Some x2 -> Some (f x2);;
 
 let rec map_filter
   f x1 = match f, x1 with f, [] -> []
@@ -2462,22 +3731,52 @@ let rec map_filter
         (match f x with None -> map_filter f xs
           | Some y -> y :: map_filter f xs);;
 
-let rec rbt_comp_inter_with_key
+let rec map_filter_comp_inter
   c f t1 t2 =
-    (match compare_height t1 t1 t2 t2
-      with LT ->
-        rbtreeify
-          (map_filter
-            (fun (k, v) ->
-              map_option (fun w -> (k, f k v w)) (rbt_comp_lookup c t2 k))
-            (entries t1))
-      | GT ->
-        rbtreeify
-          (map_filter
-            (fun (k, v) ->
-              map_option (fun w -> (k, f k w v)) (rbt_comp_lookup c t1 k))
-            (entries t2))
-      | EQ -> rbtreeify (comp_sinter_with c f (entries t1) (entries t2)));;
+    map_filter
+      (fun (k, v) ->
+        (match rbt_comp_lookup c t1 k with None -> None
+          | Some va -> Some (k, f k va v)))
+      (entries t2);;
+
+let rec is_rbt_empty
+  t = (match t with Empty -> true | Branch (_, _, _, _, _) -> false);;
+
+let rec rbt_split_min
+  = function Empty -> failwith "undefined"
+    | Branch (uu, l, a, b, r) ->
+        (if is_rbt_empty l then (a, (b, r))
+          else (let (aa, (ba, la)) = rbt_split_min l in
+                 (aa, (ba, rbt_join la a b r))));;
+
+let rec rbt_join2
+  l r = (if is_rbt_empty r then l
+          else (let a = rbt_split_min r in
+                let (aa, b) = a in
+                let (ba, c) = b in
+                 rbt_join l aa ba c));;
+
+let rec rbt_comp_inter_swap_rec
+  c f gamma t1 t2 =
+    (let bh1 = bheight t1 in
+     let bh2 = bheight t2 in
+     let (gammaa, (t2a, (bh2a, (t1a, _)))) =
+       (if less_nat bh1 bh2 then (not gamma, (t1, (bh1, (t2, bh2))))
+         else (gamma, (t2, (bh2, (t1, bh1)))))
+       in
+     let fa = (if gammaa then (fun k v va -> f k va v) else f) in
+      (if less_nat bh2a (nat_of_integer (Z.of_int 4))
+        then rbtreeify (map_filter_comp_inter c fa t1a t2a)
+        else (match t1a with Empty -> Empty
+               | Branch (_, l1, a, b, r1) ->
+                 (let (l2, (beta, r2)) = rbt_split_comp c t2a a in
+                  let l = rbt_comp_inter_swap_rec c f gammaa l1 l2 in
+                  let r = rbt_comp_inter_swap_rec c f gammaa r1 r2 in
+                   (match beta with None -> rbt_join2 l r
+                     | Some ba -> rbt_join l a (fa a b ba) r)))));;
+
+let rec rbt_comp_inter_with_key
+  c f t1 t2 = paint B (rbt_comp_inter_swap_rec c f false t1 t2);;
 
 let rec meet _A
   xc xd xe =
@@ -2658,19 +3957,6 @@ and sup_set (_A1, _A2)
 
 let rec filter (_A1, _A2) p a = inf_set (_A1, _A2) a (Collect_set p);;
 
-let rec proofApp
-  p r = (match (p, r)
-          with (Inl (SSince (p1, p2)), Inl ra) -> Inl (SSince (p1, p2 @ [ra]))
-          | (Inl (SUntil (p1, p2)), Inl ra) -> Inl (SUntil (ra :: p1, p2))
-          | (Inr (VSince (i, p1, p2)), Inr ra) ->
-            Inr (VSince (suc i, p1, p2 @ [ra]))
-          | (Inr (VUntil (i, p1, p2)), Inr ra) ->
-            Inr (VUntil (minus_nat i one_nat, ra :: p1, p2))
-          | (Inr (VSince_never (i, li, p1)), Inr ra) ->
-            Inr (VSince_never (suc i, li, p1 @ [ra]))
-          | (Inr (VUntil_never (i, hi, p1)), Inr ra) ->
-            Inr (VUntil_never (minus_nat i one_nat, hi, ra :: p1)));;
-
 let rec doSince
   i a p1 p2 p =
     (match (p1, (p2, (equal_nata a zero_nata, p)))
@@ -2779,6 +4065,22 @@ let rec tla = function [] -> []
 
 let rec tl _A xa = Abs_dlist (tla (list_of_dlist _A xa));;
 
+let rec doAlways
+  i a pa p =
+    (match (pa, (equal_nata a zero_nata, p))
+      with (Inl pb, aa) ->
+        (match aa with (true, Inl paa) -> [proofApp (Inl paa) (Inl pb)]
+          | (true, Inr (VAlways (_, pc))) -> [Inr (VAlways (i, pc))]
+          | (false, Inl (SAlways (_, li, q))) -> [Inl (SAlways (i, li, q))]
+          | (false, Inr (VAlways (_, pc))) -> [Inr (VAlways (i, pc))])
+      | (Inr pb, aa) ->
+        (match aa
+          with (true, Inl (SAlways (_, _, _))) -> [Inr (VAlways (i, pb))]
+          | (true, Inr (VAlways (_, paa))) ->
+            [Inr (VAlways (i, pb)); Inr (VAlways (i, paa))]
+          | (false, Inl (SAlways (_, li, q))) -> [Inl (SAlways (i, li, q))]
+          | (false, Inr (VAlways (_, pc))) -> [Inr (VAlways (i, pc))]));;
+
 let rec set_aux (_A1, _A2)
   = function Set_Monada -> (fun a -> Set_Monad a)
     | Set_Choose ->
@@ -2825,6 +4127,14 @@ let rec v_atm
     | w, VPrev_le i -> one_nat
     | w, VPrev_ge i -> one_nat
     | w, VPrev_zero -> one_nat
+    | w, VImpl (p, q) -> suc (plus_nata (s_atm w p) (v_atm w q))
+    | w, VIff_sv (p, q) -> suc (plus_nata (s_atm w p) (v_atm w q))
+    | w, VIff_vs (p, q) -> suc (plus_nata (v_atm w p) (s_atm w q))
+    | w, VOnce_le i -> one_nat
+    | w, VOnce (i, li, qs) -> suc (sum_proofs monoid_add_nat (v_atm w) qs)
+    | w, VEventually (i, hi, qs) -> suc (sum_proofs monoid_add_nat (v_atm w) qs)
+    | w, VHistorically (i, p) -> suc (v_atm w p)
+    | w, VAlways (i, p) -> suc (v_atm w p)
 and s_atm
   w x1 = match w, x1 with w, STT i -> one_nat
     | w, SAtm (atm, i) -> w atm
@@ -2835,7 +4145,17 @@ and s_atm
     | w, SSince (p, qs) -> suc (sum_proofs monoid_add_nat (s_atm w) (p :: qs))
     | w, SUntil (qs, p) -> suc (sum_proofs monoid_add_nat (s_atm w) (qs @ [p]))
     | w, SNext p -> suc (s_atm w p)
-    | w, SPrev p -> suc (s_atm w p);;
+    | w, SPrev p -> suc (s_atm w p)
+    | w, SImplL p -> suc (v_atm w p)
+    | w, SImplR q -> suc (s_atm w q)
+    | w, SIff_ss (p, q) -> suc (plus_nata (s_atm w p) (s_atm w q))
+    | w, SIff_vv (p, q) -> suc (plus_nata (v_atm w p) (v_atm w q))
+    | w, SOnce (i, p) -> suc (s_atm w p)
+    | w, SEventually (i, p) -> suc (s_atm w p)
+    | w, SHistorically (i, li, qs) ->
+        suc (sum_proofs monoid_add_nat (s_atm w) qs)
+    | w, SHistorically_le i -> one_nat
+    | w, SAlways (i, hi, qs) -> suc (sum_proofs monoid_add_nat (s_atm w) qs);;
 
 let rec matm
   w = (fun a -> (match a with Inl aa -> s_atm w aa | Inr aa -> v_atm w aa));;
@@ -2845,6 +4165,14 @@ let rec strmatm x = matm x;;
 let rec ratm f p1 p2 = less_eq_nat (strmatm f p1) (strmatm f p2);;
 
 let rec nulla _A xa = null (list_of_dlist _A xa);;
+
+let rec doOnceBase
+  i a p =
+    (match (p, equal_nata a zero_nata)
+      with (Inl pa, true) -> [Inl (SOnce (i, pa))]
+      | (Inl _, false) -> [Inr (VOnce (i, i, []))]
+      | (Inr pa, true) -> [Inr (VOnce (i, i, [pa]))]
+      | (Inr _, false) -> [Inr (VOnce (i, i, []))]);;
 
 let rec conversep p = (fun x y -> p y x);;
 
@@ -2929,6 +4257,25 @@ let rec s_htp (_A1, _A2)
           (s_htp (_A1, _A2)) (qs @ [p])
     | SNext p -> s_htp (_A1, _A2) p
     | SPrev p -> max ord_nat (s_at (SPrev p)) (s_htp (_A1, _A2) p)
+    | SImplL p -> v_htp (_A1, _A2) p
+    | SImplR q -> s_htp (_A1, _A2) q
+    | SIff_ss (p, q) -> max ord_nat (s_htp (_A1, _A2) p) (s_htp (_A1, _A2) q)
+    | SIff_vv (p, q) -> max ord_nat (v_htp (_A1, _A2) p) (v_htp (_A1, _A2) q)
+    | SOnce (i, p) -> max ord_nat i (s_htp (_A1, _A2) p)
+    | SEventually (i, p) -> max ord_nat i (s_htp (_A1, _A2) p)
+    | SHistorically (i, li, qs) ->
+        max ord_nat (max ord_nat i li)
+          (max_proofs ((ceq_sproof _A2), (ccompare_sproof _A1), set_impl_sproof)
+            (ceq_nat, ccompare_nat, zero_nat, lattice_nat, linorder_nat,
+              set_impl_nat)
+            (s_htp (_A1, _A2)) qs)
+    | SHistorically_le i -> i
+    | SAlways (i, hi, qs) ->
+        max ord_nat (max ord_nat i (suc hi))
+          (max_proofs ((ceq_sproof _A2), (ccompare_sproof _A1), set_impl_sproof)
+            (ceq_nat, ccompare_nat, zero_nat, lattice_nat, linorder_nat,
+              set_impl_nat)
+            (s_htp (_A1, _A2)) qs)
 and v_htp (_A1, _A2)
   = function VFF i -> i
     | VAtm (atm, i) -> i
@@ -2967,7 +4314,27 @@ and v_htp (_A1, _A2)
     | VPrev p -> max ord_nat (v_at (VPrev p)) (v_htp (_A1, _A2) p)
     | VPrev_le i -> i
     | VPrev_ge i -> i
-    | VPrev_zero -> zero_nata;;
+    | VPrev_zero -> zero_nata
+    | VImpl (p, q) -> max ord_nat (s_htp (_A1, _A2) p) (v_htp (_A1, _A2) q)
+    | VIff_sv (p, q) -> max ord_nat (s_htp (_A1, _A2) p) (v_htp (_A1, _A2) q)
+    | VIff_vs (p, q) -> max ord_nat (v_htp (_A1, _A2) p) (s_htp (_A1, _A2) q)
+    | VOnce_le i -> i
+    | VOnce (i, li, qs) ->
+        max ord_nat (max ord_nat i li)
+          (max_proofs ((ceq_vproof _A2), (ccompare_vproof _A1), set_impl_vproof)
+            (ceq_nat, ccompare_nat, zero_nat, lattice_nat, linorder_nat,
+              set_impl_nat)
+            (v_htp (_A1, _A2)) qs)
+    | VEventually (i, hi, qs) ->
+        max ord_nat (max ord_nat i (suc hi))
+          (max_proofs ((ceq_vproof _A2), (ccompare_vproof _A1), set_impl_vproof)
+            (ceq_nat, ccompare_nat, zero_nat, lattice_nat, linorder_nat,
+              set_impl_nat)
+            (v_htp (_A1, _A2)) qs)
+    | VHistorically (i, p) -> max ord_nat i (v_htp (_A1, _A2) p)
+    | VAlways (i, p) -> max ord_nat i (v_htp (_A1, _A2) p);;
+
+let zero_enat : enat = Enat zero_nata;;
 
 let rec min_sls _A
   = Abs_semilattice_set (min _A.order_linorder.preorder_order.ord_preorder);;
@@ -2981,8 +4348,6 @@ let rec min_proofs (_A1, _A2, _A3) (_B1, _B2, _B3, _B4, _B5, _B6)
       | _ :: _ ->
         mina (_B1, _B2, _B4, _B5)
           (image (_A1, _A2) (_B1, _B2, _B6) f (set (_A1, _A2, _A3) xs)));;
-
-let zero_enat : enat = Enat zero_nata;;
 
 let rec minus_enat x0 n = match x0, n with Enat a, Infinity_enat -> zero_enat
                      | Infinity_enat, n -> Infinity_enat
@@ -3009,6 +4374,20 @@ let rec s_ltp (_A1, _A2)
           (s_ltp (_A1, _A2)) (qs @ [p])
     | SNext p -> min ord_enat (Enat (s_at (SNext p))) (s_ltp (_A1, _A2) p)
     | SPrev p -> s_ltp (_A1, _A2) p
+    | SImplL p -> v_ltp (_A1, _A2) p
+    | SImplR q -> s_ltp (_A1, _A2) q
+    | SIff_ss (p, q) -> min ord_enat (s_ltp (_A1, _A2) p) (s_ltp (_A1, _A2) q)
+    | SIff_vv (p, q) -> min ord_enat (v_ltp (_A1, _A2) p) (v_ltp (_A1, _A2) q)
+    | SOnce (i, p) -> zero_enat
+    | SEventually (i, p) -> min ord_enat (Enat i) (s_ltp (_A1, _A2) p)
+    | SHistorically (i, li, qs) -> zero_enat
+    | SHistorically_le i -> zero_enat
+    | SAlways (i, hi, qs) ->
+        min ord_enat (min ord_enat (Enat i) (Enat hi))
+          (min_proofs ((ceq_sproof _A2), (ccompare_sproof _A1), set_impl_sproof)
+            (ceq_enat, ccompare_enat, infinity_enat, lattice_enat,
+              linorder_enat, set_impl_enat)
+            (s_ltp (_A1, _A2)) qs)
 and v_ltp (_A1, _A2)
   = function VFF i -> Enat i
     | VAtm (atm, i) -> Enat i
@@ -3037,7 +4416,23 @@ and v_ltp (_A1, _A2)
     | VPrev p -> v_ltp (_A1, _A2) p
     | VPrev_le i -> minus_enat (Enat i) one_enat
     | VPrev_ge i -> minus_enat (Enat i) one_enat
-    | VPrev_zero -> zero_enat;;
+    | VPrev_zero -> zero_enat
+    | VImpl (p, q) -> min ord_enat (s_ltp (_A1, _A2) p) (v_ltp (_A1, _A2) q)
+    | VIff_sv (p, q) -> min ord_enat (s_ltp (_A1, _A2) p) (v_ltp (_A1, _A2) q)
+    | VIff_vs (p, q) -> min ord_enat (v_ltp (_A1, _A2) p) (s_ltp (_A1, _A2) q)
+    | VOnce_le i -> zero_enat
+    | VOnce (i, li, qs) -> zero_enat
+    | VEventually (i, hi, qs) ->
+        min ord_enat (min ord_enat (Enat i) (Enat hi))
+          (min_proofs ((ceq_vproof _A2), (ccompare_vproof _A1), set_impl_vproof)
+            (ceq_enat, ccompare_enat, infinity_enat, lattice_enat,
+              linorder_enat, set_impl_enat)
+            (v_ltp (_A1, _A2)) qs)
+    | VHistorically (i, p) -> zero_enat
+    | VAlways (i, p) -> min ord_enat (Enat i) (v_ltp (_A1, _A2) p);;
+
+let rec sorted_wrt p x1 = match p, x1 with p, [] -> true
+                     | p, x :: ys -> list_all (p x) ys && sorted_wrt p ys;;
 
 let rec doSinceBase
   i a p1 p2 =
@@ -3109,6 +4504,27 @@ let rec v_depth (_A1, _A2)
     | VPrev_le i -> one_nat
     | VPrev_ge i -> one_nat
     | VPrev_zero -> one_nat
+    | VImpl (p, q) ->
+        suc (max ord_nat (s_depth (_A1, _A2) p) (v_depth (_A1, _A2) q))
+    | VIff_sv (p, q) ->
+        suc (max ord_nat (s_depth (_A1, _A2) p) (v_depth (_A1, _A2) q))
+    | VIff_vs (p, q) ->
+        suc (max ord_nat (v_depth (_A1, _A2) p) (s_depth (_A1, _A2) q))
+    | VOnce_le i -> one_nat
+    | VOnce (i, li, qs) ->
+        suc (max_proofs
+              ((ceq_vproof _A2), (ccompare_vproof _A1), set_impl_vproof)
+              (ceq_nat, ccompare_nat, zero_nat, lattice_nat, linorder_nat,
+                set_impl_nat)
+              (v_depth (_A1, _A2)) qs)
+    | VEventually (i, hi, qs) ->
+        suc (max_proofs
+              ((ceq_vproof _A2), (ccompare_vproof _A1), set_impl_vproof)
+              (ceq_nat, ccompare_nat, zero_nat, lattice_nat, linorder_nat,
+                set_impl_nat)
+              (v_depth (_A1, _A2)) qs)
+    | VHistorically (i, p) -> suc (v_depth (_A1, _A2) p)
+    | VAlways (i, p) -> suc (v_depth (_A1, _A2) p)
 and s_depth (_A1, _A2)
   = function STT i -> one_nat
     | SAtm (atm, i) -> one_nat
@@ -3130,7 +4546,28 @@ and s_depth (_A1, _A2)
                 set_impl_nat)
               (s_depth (_A1, _A2)) (qs @ [p]))
     | SNext p -> suc (s_depth (_A1, _A2) p)
-    | SPrev p -> suc (s_depth (_A1, _A2) p);;
+    | SPrev p -> suc (s_depth (_A1, _A2) p)
+    | SImplL p -> suc (v_depth (_A1, _A2) p)
+    | SImplR q -> suc (s_depth (_A1, _A2) q)
+    | SIff_ss (p, q) ->
+        suc (max ord_nat (s_depth (_A1, _A2) p) (s_depth (_A1, _A2) q))
+    | SIff_vv (p, q) ->
+        suc (max ord_nat (v_depth (_A1, _A2) p) (v_depth (_A1, _A2) q))
+    | SOnce (i, p) -> suc (s_depth (_A1, _A2) p)
+    | SEventually (i, p) -> suc (s_depth (_A1, _A2) p)
+    | SHistorically (i, li, qs) ->
+        suc (max_proofs
+              ((ceq_sproof _A2), (ccompare_sproof _A1), set_impl_sproof)
+              (ceq_nat, ccompare_nat, zero_nat, lattice_nat, linorder_nat,
+                set_impl_nat)
+              (s_depth (_A1, _A2)) qs)
+    | SHistorically_le i -> one_nat
+    | SAlways (i, hi, qs) ->
+        suc (max_proofs
+              ((ceq_sproof _A2), (ccompare_sproof _A1), set_impl_sproof)
+              (ceq_nat, ccompare_nat, zero_nat, lattice_nat, linorder_nat,
+                set_impl_nat)
+              (s_depth (_A1, _A2)) qs);;
 
 let rec mdepth (_A1, _A2)
   = (fun a ->
@@ -3143,14 +4580,78 @@ let rec rdepth p1 p2 = less_eq_nat (strmdepth p1) (strmdepth p2);;
 
 let rec strset x = set (ceq_literal, ccompare_literal, set_impl_literal) x;;
 
+let rec doAlwaysBase
+  i a p =
+    (match (p, equal_nata a zero_nata)
+      with (Inl pa, true) -> [Inl (SAlways (i, i, [pa]))]
+      | (Inl _, false) -> [Inl (SAlways (i, i, []))]
+      | (Inr pa, true) -> [Inr (VAlways (i, pa))]
+      | (Inr _, false) -> [Inl (SAlways (i, i, []))]);;
+
+let rec doEventually
+  i a pa p =
+    (match (pa, (equal_nata a zero_nata, p))
+      with (Inl pb, aa) ->
+        (match aa
+          with (true, Inl (SEventually (_, paa))) ->
+            [Inl (SEventually (i, paa)); Inl (SEventually (i, pb))]
+          | (true, Inr (VEventually (_, _, _))) -> [Inl (SEventually (i, pb))]
+          | (false, Inl (SEventually (_, pc))) -> [Inl (SEventually (i, pc))]
+          | (false, Inr (VEventually (_, hi, q))) ->
+            [Inr (VEventually (i, hi, q))])
+      | (Inr pb, aa) ->
+        (match aa
+          with (true, Inl (SEventually (_, pc))) -> [Inl (SEventually (i, pc))]
+          | (true, Inr paa) -> [proofApp (Inr paa) (Inr pb)]
+          | (false, Inl (SEventually (_, pc))) -> [Inl (SEventually (i, pc))]
+          | (false, Inr (VEventually (_, hi, q))) ->
+            [Inr (VEventually (i, hi, q))]));;
+
 let rec min_list_wrt r xs = hda (filtera (fun x -> list_all (r x) xs) xs);;
 
 let rec lex_wqo
   wqoa wqo = (fun x y -> wqoa x y && (if wqoa y x then wqo x y else true));;
 
+let rec doHistoricallyBase
+  i a p =
+    (match (p, equal_nata a zero_nata)
+      with (Inl pa, true) -> [Inl (SHistorically (i, i, [pa]))]
+      | (Inl _, false) -> [Inl (SHistorically (i, i, []))]
+      | (Inr pa, true) -> [Inr (VHistorically (i, pa))]
+      | (Inr _, false) -> [Inl (SHistorically (i, i, []))]);;
+
+let rec doEventuallyBase
+  i a p =
+    (match (p, equal_nata a zero_nata)
+      with (Inl pa, true) -> [Inl (SEventually (i, pa))]
+      | (Inl _, false) -> [Inr (VEventually (i, i, []))]
+      | (Inr pa, true) -> [Inr (VEventually (i, i, [pa]))]
+      | (Inr _, false) -> [Inr (VEventually (i, i, []))]);;
+
 let rec projr (Inr x2) = x2;;
 
 let rec projl (Inl x1) = x1;;
+
+let rec doHistorically
+  i a pa p =
+    (match (pa, (equal_nata a zero_nata, p))
+      with (Inl pb, aa) ->
+        (match aa with (true, Inl paa) -> [proofApp (Inl paa) (Inl pb)]
+          | (true, Inr (VHistorically (_, pc))) -> [Inr (VHistorically (i, pc))]
+          | (false, Inl (SHistorically (_, li, q))) ->
+            [Inl (SHistorically (i, li, q))]
+          | (false, Inr (VHistorically (_, pc))) ->
+            [Inr (VHistorically (i, pc))])
+      | (Inr pb, aa) ->
+        (match aa
+          with (true, Inl (SHistorically (_, _, _))) ->
+            [Inr (VHistorically (i, pb))]
+          | (true, Inr (VHistorically (_, paa))) ->
+            [Inr (VHistorically (i, pb)); Inr (VHistorically (i, paa))]
+          | (false, Inl (SHistorically (_, li, q))) ->
+            [Inl (SHistorically (i, li, q))]
+          | (false, Inr (VHistorically (_, pc))) ->
+            [Inr (VHistorically (i, pc))]));;
 
 let rec subtract
   xb xc =
@@ -3172,6 +4673,10 @@ and cand_atm
         doDisj (opt_atm w rho i phi) (opt_atm w rho i psi)
     | w, rho, i, Conj (phi, psi) ->
         doConj (opt_atm w rho i phi) (opt_atm w rho i psi)
+    | w, rho, i, Impl (phi, psi) ->
+        doImpl (opt_atm w rho i phi) (opt_atm w rho i psi)
+    | w, rho, i, Iff (phi, psi) ->
+        doIff (opt_atm w rho i phi) (opt_atm w rho i psi)
     | w, rho, i, Neg phi ->
         (let p = opt_atm w rho i phi in
           (if isl p then [Inr (VNeg (projl p))] else [Inl (SNeg (projr p))]))
@@ -3246,7 +4751,110 @@ set_impl_literal)
  one_nat)))
                                i,
                          psi)))
-            else doUntilBase ia (left i) p1 p2));;
+            else doUntilBase ia (left i) p1 p2))
+    | w, rho, ia, Once (i, phi) ->
+        (if less_nat
+              (tau (ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+              (plus_nata
+                (tau (ceq_literal, ccompare_literal, set_impl_literal) rho
+                  zero_nata)
+                (left i))
+          then [Inr (VOnce_le ia)]
+          else (let p = opt_atm w rho ia phi in
+                 (if equal_nata ia zero_nata
+                   then doOnceBase zero_nata zero_nata p
+                   else (if less_eq_enat
+                              (Enat (minus_nat
+                                      (tau
+(ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+                                      (tau
+(ceq_literal, ccompare_literal, set_impl_literal) rho (minus_nat ia one_nat))))
+                              (right i)
+                          then doOnce ia (left i) p
+                                 (opt_atm w rho (minus_nat ia one_nat)
+                                   (Once (subtract
+    (minus_nat (tau (ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+      (tau (ceq_literal, ccompare_literal, set_impl_literal) rho
+        (minus_nat ia one_nat)))
+    i,
+   phi)))
+                          else doOnceBase ia (left i) p))))
+    | w, rho, ia, Historically (i, phi) ->
+        (if less_nat
+              (tau (ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+              (plus_nata
+                (tau (ceq_literal, ccompare_literal, set_impl_literal) rho
+                  zero_nata)
+                (left i))
+          then [Inl (SHistorically_le ia)]
+          else (let p = opt_atm w rho ia phi in
+                 (if equal_nata ia zero_nata
+                   then doHistoricallyBase zero_nata zero_nata p
+                   else (if less_eq_enat
+                              (Enat (minus_nat
+                                      (tau
+(ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+                                      (tau
+(ceq_literal, ccompare_literal, set_impl_literal) rho (minus_nat ia one_nat))))
+                              (right i)
+                          then doHistorically ia (left i) p
+                                 (opt_atm w rho (minus_nat ia one_nat)
+                                   (Historically
+                                     (subtract
+(minus_nat (tau (ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+  (tau (ceq_literal, ccompare_literal, set_impl_literal) rho
+    (minus_nat ia one_nat)))
+i,
+                                       phi)))
+                          else doHistoricallyBase ia (left i) p))))
+    | w, rho, ia, Eventually (i, phi) ->
+        (let p1 = opt_atm w rho ia phi in
+         let false = equal_enat (right i) Infinity_enat in
+          (if less_eq_enat
+                (Enat (minus_nat
+                        (tau (ceq_literal, ccompare_literal, set_impl_literal)
+                          rho (plus_nata ia one_nat))
+                        (tau (ceq_literal, ccompare_literal, set_impl_literal)
+                          rho (minus_nat (plus_nata ia one_nat) one_nat))))
+                (right i)
+            then doEventually ia (left i) p1
+                   (opt_atm w rho (plus_nata ia one_nat)
+                     (Eventually
+                       (subtract
+                          (minus_nat
+                            (tau (ceq_literal, ccompare_literal,
+                                   set_impl_literal)
+                              rho (plus_nata ia one_nat))
+                            (tau (ceq_literal, ccompare_literal,
+                                   set_impl_literal)
+                              rho (minus_nat (plus_nata ia one_nat) one_nat)))
+                          i,
+                         phi)))
+            else doEventuallyBase ia (left i) p1))
+    | w, rho, ia, Always (i, phi) ->
+        (let p1 = opt_atm w rho ia phi in
+         let false = equal_enat (right i) Infinity_enat in
+          (if less_eq_enat
+                (Enat (minus_nat
+                        (tau (ceq_literal, ccompare_literal, set_impl_literal)
+                          rho (plus_nata ia one_nat))
+                        (tau (ceq_literal, ccompare_literal, set_impl_literal)
+                          rho (minus_nat (plus_nata ia one_nat) one_nat))))
+                (right i)
+            then doAlways ia (left i) p1
+                   (opt_atm w rho (plus_nata ia one_nat)
+                     (Always
+                       (subtract
+                          (minus_nat
+                            (tau (ceq_literal, ccompare_literal,
+                                   set_impl_literal)
+                              rho (plus_nata ia one_nat))
+                            (tau (ceq_literal, ccompare_literal,
+                                   set_impl_literal)
+                              rho (minus_nat (plus_nata ia one_nat) one_nat)))
+                          i,
+                         phi)))
+            else doAlwaysBase ia (left i) p1));;
 
 let rec rrdepth x = conversep rdepth x;;
 
@@ -3300,14 +4908,52 @@ let rec progress (_A1, _A2, _A3)
                 (right i))
             (set (ceq_nat, ccompare_nat, set_impl_nat)
               (upt zero_nata (suc j)))))
+    | sigma, Always (i, phi), j ->
+        (let m =
+           minus_nat
+             (min ord_nat j (suc (progress (_A1, _A2, _A3) sigma phi j)))
+             one_nat
+           in
+          mina (ceq_nat, ccompare_nat, lattice_nat, linorder_nat)
+            (filter (ceq_nat, ccompare_nat)
+              (fun ia ->
+                less_eq_enat
+                  (Enat (minus_nat (tau (_A1, _A2, _A3) sigma m)
+                          (tau (_A1, _A2, _A3) sigma ia)))
+                  (right i))
+              (set (ceq_nat, ccompare_nat, set_impl_nat)
+                (upt zero_nata (suc j)))))
+    | sigma, Eventually (i, phi), j ->
+        (let m =
+           minus_nat
+             (min ord_nat j (suc (progress (_A1, _A2, _A3) sigma phi j)))
+             one_nat
+           in
+          mina (ceq_nat, ccompare_nat, lattice_nat, linorder_nat)
+            (filter (ceq_nat, ccompare_nat)
+              (fun ia ->
+                less_eq_enat
+                  (Enat (minus_nat (tau (_A1, _A2, _A3) sigma m)
+                          (tau (_A1, _A2, _A3) sigma ia)))
+                  (right i))
+              (set (ceq_nat, ccompare_nat, set_impl_nat)
+                (upt zero_nata (suc j)))))
     | sigma, Since (phi, i, psi), j ->
         min ord_nat (progress (_A1, _A2, _A3) sigma phi j)
           (progress (_A1, _A2, _A3) sigma psi j)
+    | sigma, Historically (i, phi), j -> progress (_A1, _A2, _A3) sigma phi j
+    | sigma, Once (i, phi), j -> progress (_A1, _A2, _A3) sigma phi j
     | sigma, Next (i, phi), j ->
         minus_nat (progress (_A1, _A2, _A3) sigma phi j) one_nat
     | sigma, Prev (i, phi), j ->
         (if equal_nata j zero_nata then zero_nata
           else min ord_nat (suc (progress (_A1, _A2, _A3) sigma phi j)) j)
+    | sigma, Iff (phi, psi), j ->
+        min ord_nat (progress (_A1, _A2, _A3) sigma phi j)
+          (progress (_A1, _A2, _A3) sigma psi j)
+    | sigma, Impl (phi, psi), j ->
+        min ord_nat (progress (_A1, _A2, _A3) sigma phi j)
+          (progress (_A1, _A2, _A3) sigma psi j)
     | sigma, Conj (phi, psi), j ->
         min ord_nat (progress (_A1, _A2, _A3) sigma phi j)
           (progress (_A1, _A2, _A3) sigma psi j)
@@ -3325,9 +4971,17 @@ let rec bounded_future
       bounded_future phi &&
         (bounded_future psi && not (equal_enat (right i) Infinity_enat))
     | Since (phi, i, psi) -> bounded_future phi && bounded_future psi
+    | Always (i, phi) ->
+        bounded_future phi && not (equal_enat (right i) Infinity_enat)
+    | Eventually (i, phi) ->
+        bounded_future phi && not (equal_enat (right i) Infinity_enat)
+    | Historically (i, phi) -> bounded_future phi
+    | Once (i, phi) -> bounded_future phi
     | Prev (i, phi) -> bounded_future phi
     | Next (i, phi) -> bounded_future phi
     | Neg phi -> bounded_future phi
+    | Iff (phi, psi) -> bounded_future phi && bounded_future psi
+    | Impl (phi, psi) -> bounded_future phi && bounded_future psi
     | Conj (phi, psi) -> bounded_future phi && bounded_future psi
     | Disj (phi, psi) -> bounded_future phi && bounded_future psi
     | Atom n -> true
@@ -3347,6 +5001,10 @@ and cand_depth
         doDisj (opt_depth rho i phi) (opt_depth rho i psi)
     | rho, i, Conj (phi, psi) ->
         doConj (opt_depth rho i phi) (opt_depth rho i psi)
+    | rho, i, Impl (phi, psi) ->
+        doImpl (opt_depth rho i phi) (opt_depth rho i psi)
+    | rho, i, Iff (phi, psi) ->
+        doIff (opt_depth rho i phi) (opt_depth rho i psi)
     | rho, i, Neg phi ->
         (let p = opt_depth rho i phi in
           (if isl p then [Inr (VNeg (projl p))] else [Inl (SNeg (projr p))]))
@@ -3421,7 +5079,110 @@ set_impl_literal)
  one_nat)))
                                i,
                          psi)))
-            else doUntilBase ia (left i) p1 p2));;
+            else doUntilBase ia (left i) p1 p2))
+    | rho, ia, Once (i, phi) ->
+        (if less_nat
+              (tau (ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+              (plus_nata
+                (tau (ceq_literal, ccompare_literal, set_impl_literal) rho
+                  zero_nata)
+                (left i))
+          then [Inr (VOnce_le ia)]
+          else (let p = opt_depth rho ia phi in
+                 (if equal_nata ia zero_nata
+                   then doOnceBase zero_nata zero_nata p
+                   else (if less_eq_enat
+                              (Enat (minus_nat
+                                      (tau
+(ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+                                      (tau
+(ceq_literal, ccompare_literal, set_impl_literal) rho (minus_nat ia one_nat))))
+                              (right i)
+                          then doOnce ia (left i) p
+                                 (opt_depth rho (minus_nat ia one_nat)
+                                   (Once (subtract
+    (minus_nat (tau (ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+      (tau (ceq_literal, ccompare_literal, set_impl_literal) rho
+        (minus_nat ia one_nat)))
+    i,
+   phi)))
+                          else doOnceBase ia (left i) p))))
+    | rho, ia, Historically (i, phi) ->
+        (if less_nat
+              (tau (ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+              (plus_nata
+                (tau (ceq_literal, ccompare_literal, set_impl_literal) rho
+                  zero_nata)
+                (left i))
+          then [Inl (SHistorically_le ia)]
+          else (let p = opt_depth rho ia phi in
+                 (if equal_nata ia zero_nata
+                   then doHistoricallyBase zero_nata zero_nata p
+                   else (if less_eq_enat
+                              (Enat (minus_nat
+                                      (tau
+(ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+                                      (tau
+(ceq_literal, ccompare_literal, set_impl_literal) rho (minus_nat ia one_nat))))
+                              (right i)
+                          then doHistorically ia (left i) p
+                                 (opt_depth rho (minus_nat ia one_nat)
+                                   (Historically
+                                     (subtract
+(minus_nat (tau (ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+  (tau (ceq_literal, ccompare_literal, set_impl_literal) rho
+    (minus_nat ia one_nat)))
+i,
+                                       phi)))
+                          else doHistoricallyBase ia (left i) p))))
+    | rho, ia, Eventually (i, phi) ->
+        (let p1 = opt_depth rho ia phi in
+         let false = equal_enat (right i) Infinity_enat in
+          (if less_eq_enat
+                (Enat (minus_nat
+                        (tau (ceq_literal, ccompare_literal, set_impl_literal)
+                          rho (plus_nata ia one_nat))
+                        (tau (ceq_literal, ccompare_literal, set_impl_literal)
+                          rho (minus_nat (plus_nata ia one_nat) one_nat))))
+                (right i)
+            then doEventually ia (left i) p1
+                   (opt_depth rho (plus_nata ia one_nat)
+                     (Eventually
+                       (subtract
+                          (minus_nat
+                            (tau (ceq_literal, ccompare_literal,
+                                   set_impl_literal)
+                              rho (plus_nata ia one_nat))
+                            (tau (ceq_literal, ccompare_literal,
+                                   set_impl_literal)
+                              rho (minus_nat (plus_nata ia one_nat) one_nat)))
+                          i,
+                         phi)))
+            else doEventuallyBase ia (left i) p1))
+    | rho, ia, Always (i, phi) ->
+        (let p1 = opt_depth rho ia phi in
+         let false = equal_enat (right i) Infinity_enat in
+          (if less_eq_enat
+                (Enat (minus_nat
+                        (tau (ceq_literal, ccompare_literal, set_impl_literal)
+                          rho (plus_nata ia one_nat))
+                        (tau (ceq_literal, ccompare_literal, set_impl_literal)
+                          rho (minus_nat (plus_nata ia one_nat) one_nat))))
+                (right i)
+            then doAlways ia (left i) p1
+                   (opt_depth rho (plus_nata ia one_nat)
+                     (Always
+                       (subtract
+                          (minus_nat
+                            (tau (ceq_literal, ccompare_literal,
+                                   set_impl_literal)
+                              rho (plus_nata ia one_nat))
+                            (tau (ceq_literal, ccompare_literal,
+                                   set_impl_literal)
+                              rho (minus_nat (plus_nata ia one_nat) one_nat)))
+                          i,
+                         phi)))
+            else doAlwaysBase ia (left i) p1));;
 
 let rec sprogress
   x = progress (ceq_literal, ccompare_literal, set_impl_literal) x;;
@@ -3489,17 +5250,9 @@ let rec mapping_empty _A = function Mapping_RBT -> RBT_Mapping (emptyb _A)
                            | Mapping_Mapping -> Mapping (fun _ -> None)
                            | Mapping_Choose -> mapping_empty_choose _A;;
 
-let rec sorted _A
-  = function
-    x :: y :: zs ->
-      less_eq _A.order_linorder.preorder_order.ord_preorder x y &&
-        sorted _A (y :: zs)
-    | [x] -> true
-    | [] -> true;;
-
 let rec trace_rbt_of_list
   xa = Abs_trace_rbt
-         (if sorted linorder_nat (map snd xa)
+         (if sorted_wrt less_eq_nat (map snd xa)
            then (if null xa
                   then (zero_nata,
                          (zero_nata,
@@ -3527,6 +5280,10 @@ and cand_flipped_atm
         doDisj (opt_flipped_atm w rho i phi) (opt_flipped_atm w rho i psi)
     | w, rho, i, Conj (phi, psi) ->
         doConj (opt_flipped_atm w rho i phi) (opt_flipped_atm w rho i psi)
+    | w, rho, i, Impl (phi, psi) ->
+        doImpl (opt_flipped_atm w rho i phi) (opt_flipped_atm w rho i psi)
+    | w, rho, i, Iff (phi, psi) ->
+        doIff (opt_flipped_atm w rho i phi) (opt_flipped_atm w rho i psi)
     | w, rho, i, Neg phi ->
         (let p = opt_flipped_atm w rho i phi in
           (if isl p then [Inr (VNeg (projl p))] else [Inl (SNeg (projr p))]))
@@ -3601,7 +5358,110 @@ set_impl_literal)
  one_nat)))
                                i,
                          psi)))
-            else doUntilBase ia (left i) p1 p2));;
+            else doUntilBase ia (left i) p1 p2))
+    | w, rho, ia, Once (i, phi) ->
+        (if less_nat
+              (tau (ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+              (plus_nata
+                (tau (ceq_literal, ccompare_literal, set_impl_literal) rho
+                  zero_nata)
+                (left i))
+          then [Inr (VOnce_le ia)]
+          else (let p = opt_flipped_atm w rho ia phi in
+                 (if equal_nata ia zero_nata
+                   then doOnceBase zero_nata zero_nata p
+                   else (if less_eq_enat
+                              (Enat (minus_nat
+                                      (tau
+(ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+                                      (tau
+(ceq_literal, ccompare_literal, set_impl_literal) rho (minus_nat ia one_nat))))
+                              (right i)
+                          then doOnce ia (left i) p
+                                 (opt_flipped_atm w rho (minus_nat ia one_nat)
+                                   (Once (subtract
+    (minus_nat (tau (ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+      (tau (ceq_literal, ccompare_literal, set_impl_literal) rho
+        (minus_nat ia one_nat)))
+    i,
+   phi)))
+                          else doOnceBase ia (left i) p))))
+    | w, rho, ia, Historically (i, phi) ->
+        (if less_nat
+              (tau (ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+              (plus_nata
+                (tau (ceq_literal, ccompare_literal, set_impl_literal) rho
+                  zero_nata)
+                (left i))
+          then [Inl (SHistorically_le ia)]
+          else (let p = opt_flipped_atm w rho ia phi in
+                 (if equal_nata ia zero_nata
+                   then doHistoricallyBase zero_nata zero_nata p
+                   else (if less_eq_enat
+                              (Enat (minus_nat
+                                      (tau
+(ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+                                      (tau
+(ceq_literal, ccompare_literal, set_impl_literal) rho (minus_nat ia one_nat))))
+                              (right i)
+                          then doHistorically ia (left i) p
+                                 (opt_flipped_atm w rho (minus_nat ia one_nat)
+                                   (Historically
+                                     (subtract
+(minus_nat (tau (ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+  (tau (ceq_literal, ccompare_literal, set_impl_literal) rho
+    (minus_nat ia one_nat)))
+i,
+                                       phi)))
+                          else doHistoricallyBase ia (left i) p))))
+    | w, rho, ia, Eventually (i, phi) ->
+        (let p1 = opt_flipped_atm w rho ia phi in
+         let false = equal_enat (right i) Infinity_enat in
+          (if less_eq_enat
+                (Enat (minus_nat
+                        (tau (ceq_literal, ccompare_literal, set_impl_literal)
+                          rho (plus_nata ia one_nat))
+                        (tau (ceq_literal, ccompare_literal, set_impl_literal)
+                          rho (minus_nat (plus_nata ia one_nat) one_nat))))
+                (right i)
+            then doEventually ia (left i) p1
+                   (opt_flipped_atm w rho (plus_nata ia one_nat)
+                     (Eventually
+                       (subtract
+                          (minus_nat
+                            (tau (ceq_literal, ccompare_literal,
+                                   set_impl_literal)
+                              rho (plus_nata ia one_nat))
+                            (tau (ceq_literal, ccompare_literal,
+                                   set_impl_literal)
+                              rho (minus_nat (plus_nata ia one_nat) one_nat)))
+                          i,
+                         phi)))
+            else doEventuallyBase ia (left i) p1))
+    | w, rho, ia, Always (i, phi) ->
+        (let p1 = opt_flipped_atm w rho ia phi in
+         let false = equal_enat (right i) Infinity_enat in
+          (if less_eq_enat
+                (Enat (minus_nat
+                        (tau (ceq_literal, ccompare_literal, set_impl_literal)
+                          rho (plus_nata ia one_nat))
+                        (tau (ceq_literal, ccompare_literal, set_impl_literal)
+                          rho (minus_nat (plus_nata ia one_nat) one_nat))))
+                (right i)
+            then doAlways ia (left i) p1
+                   (opt_flipped_atm w rho (plus_nata ia one_nat)
+                     (Always
+                       (subtract
+                          (minus_nat
+                            (tau (ceq_literal, ccompare_literal,
+                                   set_impl_literal)
+                              rho (plus_nata ia one_nat))
+                            (tau (ceq_literal, ccompare_literal,
+                                   set_impl_literal)
+                              rho (minus_nat (plus_nata ia one_nat) one_nat)))
+                          i,
+                         phi)))
+            else doAlwaysBase ia (left i) p1));;
 
 let rec opt_maxmaxreach
   rho i phi = min_list_wrt rmaxmaxreach (cand_maxmaxreach rho i phi)
@@ -3617,6 +5477,10 @@ and cand_maxmaxreach
         doDisj (opt_maxmaxreach rho i phi) (opt_maxmaxreach rho i psi)
     | rho, i, Conj (phi, psi) ->
         doConj (opt_maxmaxreach rho i phi) (opt_maxmaxreach rho i psi)
+    | rho, i, Impl (phi, psi) ->
+        doImpl (opt_maxmaxreach rho i phi) (opt_maxmaxreach rho i psi)
+    | rho, i, Iff (phi, psi) ->
+        doIff (opt_maxmaxreach rho i phi) (opt_maxmaxreach rho i psi)
     | rho, i, Neg phi ->
         (let p = opt_maxmaxreach rho i phi in
           (if isl p then [Inr (VNeg (projl p))] else [Inl (SNeg (projr p))]))
@@ -3691,7 +5555,110 @@ set_impl_literal)
  one_nat)))
                                i,
                          psi)))
-            else doUntilBase ia (left i) p1 p2));;
+            else doUntilBase ia (left i) p1 p2))
+    | rho, ia, Once (i, phi) ->
+        (if less_nat
+              (tau (ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+              (plus_nata
+                (tau (ceq_literal, ccompare_literal, set_impl_literal) rho
+                  zero_nata)
+                (left i))
+          then [Inr (VOnce_le ia)]
+          else (let p = opt_maxmaxreach rho ia phi in
+                 (if equal_nata ia zero_nata
+                   then doOnceBase zero_nata zero_nata p
+                   else (if less_eq_enat
+                              (Enat (minus_nat
+                                      (tau
+(ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+                                      (tau
+(ceq_literal, ccompare_literal, set_impl_literal) rho (minus_nat ia one_nat))))
+                              (right i)
+                          then doOnce ia (left i) p
+                                 (opt_maxmaxreach rho (minus_nat ia one_nat)
+                                   (Once (subtract
+    (minus_nat (tau (ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+      (tau (ceq_literal, ccompare_literal, set_impl_literal) rho
+        (minus_nat ia one_nat)))
+    i,
+   phi)))
+                          else doOnceBase ia (left i) p))))
+    | rho, ia, Historically (i, phi) ->
+        (if less_nat
+              (tau (ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+              (plus_nata
+                (tau (ceq_literal, ccompare_literal, set_impl_literal) rho
+                  zero_nata)
+                (left i))
+          then [Inl (SHistorically_le ia)]
+          else (let p = opt_maxmaxreach rho ia phi in
+                 (if equal_nata ia zero_nata
+                   then doHistoricallyBase zero_nata zero_nata p
+                   else (if less_eq_enat
+                              (Enat (minus_nat
+                                      (tau
+(ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+                                      (tau
+(ceq_literal, ccompare_literal, set_impl_literal) rho (minus_nat ia one_nat))))
+                              (right i)
+                          then doHistorically ia (left i) p
+                                 (opt_maxmaxreach rho (minus_nat ia one_nat)
+                                   (Historically
+                                     (subtract
+(minus_nat (tau (ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+  (tau (ceq_literal, ccompare_literal, set_impl_literal) rho
+    (minus_nat ia one_nat)))
+i,
+                                       phi)))
+                          else doHistoricallyBase ia (left i) p))))
+    | rho, ia, Eventually (i, phi) ->
+        (let p1 = opt_maxmaxreach rho ia phi in
+         let false = equal_enat (right i) Infinity_enat in
+          (if less_eq_enat
+                (Enat (minus_nat
+                        (tau (ceq_literal, ccompare_literal, set_impl_literal)
+                          rho (plus_nata ia one_nat))
+                        (tau (ceq_literal, ccompare_literal, set_impl_literal)
+                          rho (minus_nat (plus_nata ia one_nat) one_nat))))
+                (right i)
+            then doEventually ia (left i) p1
+                   (opt_maxmaxreach rho (plus_nata ia one_nat)
+                     (Eventually
+                       (subtract
+                          (minus_nat
+                            (tau (ceq_literal, ccompare_literal,
+                                   set_impl_literal)
+                              rho (plus_nata ia one_nat))
+                            (tau (ceq_literal, ccompare_literal,
+                                   set_impl_literal)
+                              rho (minus_nat (plus_nata ia one_nat) one_nat)))
+                          i,
+                         phi)))
+            else doEventuallyBase ia (left i) p1))
+    | rho, ia, Always (i, phi) ->
+        (let p1 = opt_maxmaxreach rho ia phi in
+         let false = equal_enat (right i) Infinity_enat in
+          (if less_eq_enat
+                (Enat (minus_nat
+                        (tau (ceq_literal, ccompare_literal, set_impl_literal)
+                          rho (plus_nata ia one_nat))
+                        (tau (ceq_literal, ccompare_literal, set_impl_literal)
+                          rho (minus_nat (plus_nata ia one_nat) one_nat))))
+                (right i)
+            then doAlways ia (left i) p1
+                   (opt_maxmaxreach rho (plus_nata ia one_nat)
+                     (Always
+                       (subtract
+                          (minus_nat
+                            (tau (ceq_literal, ccompare_literal,
+                                   set_impl_literal)
+                              rho (plus_nata ia one_nat))
+                            (tau (ceq_literal, ccompare_literal,
+                                   set_impl_literal)
+                              rho (minus_nat (plus_nata ia one_nat) one_nat)))
+                          i,
+                         phi)))
+            else doAlwaysBase ia (left i) p1));;
 
 let rec opt_maxminreach
   rho i phi = min_list_wrt rmaxminreach (cand_maxminreach rho i phi)
@@ -3707,6 +5674,10 @@ and cand_maxminreach
         doDisj (opt_maxminreach rho i phi) (opt_maxminreach rho i psi)
     | rho, i, Conj (phi, psi) ->
         doConj (opt_maxminreach rho i phi) (opt_maxminreach rho i psi)
+    | rho, i, Impl (phi, psi) ->
+        doImpl (opt_maxminreach rho i phi) (opt_maxminreach rho i psi)
+    | rho, i, Iff (phi, psi) ->
+        doIff (opt_maxminreach rho i phi) (opt_maxminreach rho i psi)
     | rho, i, Neg phi ->
         (let p = opt_maxminreach rho i phi in
           (if isl p then [Inr (VNeg (projl p))] else [Inl (SNeg (projr p))]))
@@ -3781,7 +5752,110 @@ set_impl_literal)
  one_nat)))
                                i,
                          psi)))
-            else doUntilBase ia (left i) p1 p2));;
+            else doUntilBase ia (left i) p1 p2))
+    | rho, ia, Once (i, phi) ->
+        (if less_nat
+              (tau (ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+              (plus_nata
+                (tau (ceq_literal, ccompare_literal, set_impl_literal) rho
+                  zero_nata)
+                (left i))
+          then [Inr (VOnce_le ia)]
+          else (let p = opt_maxminreach rho ia phi in
+                 (if equal_nata ia zero_nata
+                   then doOnceBase zero_nata zero_nata p
+                   else (if less_eq_enat
+                              (Enat (minus_nat
+                                      (tau
+(ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+                                      (tau
+(ceq_literal, ccompare_literal, set_impl_literal) rho (minus_nat ia one_nat))))
+                              (right i)
+                          then doOnce ia (left i) p
+                                 (opt_maxminreach rho (minus_nat ia one_nat)
+                                   (Once (subtract
+    (minus_nat (tau (ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+      (tau (ceq_literal, ccompare_literal, set_impl_literal) rho
+        (minus_nat ia one_nat)))
+    i,
+   phi)))
+                          else doOnceBase ia (left i) p))))
+    | rho, ia, Historically (i, phi) ->
+        (if less_nat
+              (tau (ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+              (plus_nata
+                (tau (ceq_literal, ccompare_literal, set_impl_literal) rho
+                  zero_nata)
+                (left i))
+          then [Inl (SHistorically_le ia)]
+          else (let p = opt_maxminreach rho ia phi in
+                 (if equal_nata ia zero_nata
+                   then doHistoricallyBase zero_nata zero_nata p
+                   else (if less_eq_enat
+                              (Enat (minus_nat
+                                      (tau
+(ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+                                      (tau
+(ceq_literal, ccompare_literal, set_impl_literal) rho (minus_nat ia one_nat))))
+                              (right i)
+                          then doHistorically ia (left i) p
+                                 (opt_maxminreach rho (minus_nat ia one_nat)
+                                   (Historically
+                                     (subtract
+(minus_nat (tau (ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+  (tau (ceq_literal, ccompare_literal, set_impl_literal) rho
+    (minus_nat ia one_nat)))
+i,
+                                       phi)))
+                          else doHistoricallyBase ia (left i) p))))
+    | rho, ia, Eventually (i, phi) ->
+        (let p1 = opt_maxminreach rho ia phi in
+         let false = equal_enat (right i) Infinity_enat in
+          (if less_eq_enat
+                (Enat (minus_nat
+                        (tau (ceq_literal, ccompare_literal, set_impl_literal)
+                          rho (plus_nata ia one_nat))
+                        (tau (ceq_literal, ccompare_literal, set_impl_literal)
+                          rho (minus_nat (plus_nata ia one_nat) one_nat))))
+                (right i)
+            then doEventually ia (left i) p1
+                   (opt_maxminreach rho (plus_nata ia one_nat)
+                     (Eventually
+                       (subtract
+                          (minus_nat
+                            (tau (ceq_literal, ccompare_literal,
+                                   set_impl_literal)
+                              rho (plus_nata ia one_nat))
+                            (tau (ceq_literal, ccompare_literal,
+                                   set_impl_literal)
+                              rho (minus_nat (plus_nata ia one_nat) one_nat)))
+                          i,
+                         phi)))
+            else doEventuallyBase ia (left i) p1))
+    | rho, ia, Always (i, phi) ->
+        (let p1 = opt_maxminreach rho ia phi in
+         let false = equal_enat (right i) Infinity_enat in
+          (if less_eq_enat
+                (Enat (minus_nat
+                        (tau (ceq_literal, ccompare_literal, set_impl_literal)
+                          rho (plus_nata ia one_nat))
+                        (tau (ceq_literal, ccompare_literal, set_impl_literal)
+                          rho (minus_nat (plus_nata ia one_nat) one_nat))))
+                (right i)
+            then doAlways ia (left i) p1
+                   (opt_maxminreach rho (plus_nata ia one_nat)
+                     (Always
+                       (subtract
+                          (minus_nat
+                            (tau (ceq_literal, ccompare_literal,
+                                   set_impl_literal)
+                              rho (plus_nata ia one_nat))
+                            (tau (ceq_literal, ccompare_literal,
+                                   set_impl_literal)
+                              rho (minus_nat (plus_nata ia one_nat) one_nat)))
+                          i,
+                         phi)))
+            else doAlwaysBase ia (left i) p1));;
 
 let rec opt_minmaxreach
   rho i phi = min_list_wrt rminmaxreach (cand_minmaxreach rho i phi)
@@ -3797,6 +5871,10 @@ and cand_minmaxreach
         doDisj (opt_minmaxreach rho i phi) (opt_minmaxreach rho i psi)
     | rho, i, Conj (phi, psi) ->
         doConj (opt_minmaxreach rho i phi) (opt_minmaxreach rho i psi)
+    | rho, i, Impl (phi, psi) ->
+        doImpl (opt_minmaxreach rho i phi) (opt_minmaxreach rho i psi)
+    | rho, i, Iff (phi, psi) ->
+        doIff (opt_minmaxreach rho i phi) (opt_minmaxreach rho i psi)
     | rho, i, Neg phi ->
         (let p = opt_minmaxreach rho i phi in
           (if isl p then [Inr (VNeg (projl p))] else [Inl (SNeg (projr p))]))
@@ -3871,7 +5949,110 @@ set_impl_literal)
  one_nat)))
                                i,
                          psi)))
-            else doUntilBase ia (left i) p1 p2));;
+            else doUntilBase ia (left i) p1 p2))
+    | rho, ia, Once (i, phi) ->
+        (if less_nat
+              (tau (ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+              (plus_nata
+                (tau (ceq_literal, ccompare_literal, set_impl_literal) rho
+                  zero_nata)
+                (left i))
+          then [Inr (VOnce_le ia)]
+          else (let p = opt_minmaxreach rho ia phi in
+                 (if equal_nata ia zero_nata
+                   then doOnceBase zero_nata zero_nata p
+                   else (if less_eq_enat
+                              (Enat (minus_nat
+                                      (tau
+(ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+                                      (tau
+(ceq_literal, ccompare_literal, set_impl_literal) rho (minus_nat ia one_nat))))
+                              (right i)
+                          then doOnce ia (left i) p
+                                 (opt_minmaxreach rho (minus_nat ia one_nat)
+                                   (Once (subtract
+    (minus_nat (tau (ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+      (tau (ceq_literal, ccompare_literal, set_impl_literal) rho
+        (minus_nat ia one_nat)))
+    i,
+   phi)))
+                          else doOnceBase ia (left i) p))))
+    | rho, ia, Historically (i, phi) ->
+        (if less_nat
+              (tau (ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+              (plus_nata
+                (tau (ceq_literal, ccompare_literal, set_impl_literal) rho
+                  zero_nata)
+                (left i))
+          then [Inl (SHistorically_le ia)]
+          else (let p = opt_minmaxreach rho ia phi in
+                 (if equal_nata ia zero_nata
+                   then doHistoricallyBase zero_nata zero_nata p
+                   else (if less_eq_enat
+                              (Enat (minus_nat
+                                      (tau
+(ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+                                      (tau
+(ceq_literal, ccompare_literal, set_impl_literal) rho (minus_nat ia one_nat))))
+                              (right i)
+                          then doHistorically ia (left i) p
+                                 (opt_minmaxreach rho (minus_nat ia one_nat)
+                                   (Historically
+                                     (subtract
+(minus_nat (tau (ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+  (tau (ceq_literal, ccompare_literal, set_impl_literal) rho
+    (minus_nat ia one_nat)))
+i,
+                                       phi)))
+                          else doHistoricallyBase ia (left i) p))))
+    | rho, ia, Eventually (i, phi) ->
+        (let p1 = opt_minmaxreach rho ia phi in
+         let false = equal_enat (right i) Infinity_enat in
+          (if less_eq_enat
+                (Enat (minus_nat
+                        (tau (ceq_literal, ccompare_literal, set_impl_literal)
+                          rho (plus_nata ia one_nat))
+                        (tau (ceq_literal, ccompare_literal, set_impl_literal)
+                          rho (minus_nat (plus_nata ia one_nat) one_nat))))
+                (right i)
+            then doEventually ia (left i) p1
+                   (opt_minmaxreach rho (plus_nata ia one_nat)
+                     (Eventually
+                       (subtract
+                          (minus_nat
+                            (tau (ceq_literal, ccompare_literal,
+                                   set_impl_literal)
+                              rho (plus_nata ia one_nat))
+                            (tau (ceq_literal, ccompare_literal,
+                                   set_impl_literal)
+                              rho (minus_nat (plus_nata ia one_nat) one_nat)))
+                          i,
+                         phi)))
+            else doEventuallyBase ia (left i) p1))
+    | rho, ia, Always (i, phi) ->
+        (let p1 = opt_minmaxreach rho ia phi in
+         let false = equal_enat (right i) Infinity_enat in
+          (if less_eq_enat
+                (Enat (minus_nat
+                        (tau (ceq_literal, ccompare_literal, set_impl_literal)
+                          rho (plus_nata ia one_nat))
+                        (tau (ceq_literal, ccompare_literal, set_impl_literal)
+                          rho (minus_nat (plus_nata ia one_nat) one_nat))))
+                (right i)
+            then doAlways ia (left i) p1
+                   (opt_minmaxreach rho (plus_nata ia one_nat)
+                     (Always
+                       (subtract
+                          (minus_nat
+                            (tau (ceq_literal, ccompare_literal,
+                                   set_impl_literal)
+                              rho (plus_nata ia one_nat))
+                            (tau (ceq_literal, ccompare_literal,
+                                   set_impl_literal)
+                              rho (minus_nat (plus_nata ia one_nat) one_nat)))
+                          i,
+                         phi)))
+            else doAlwaysBase ia (left i) p1));;
 
 let rec opt_minminreach
   rho i phi = min_list_wrt rminminreach (cand_minminreach rho i phi)
@@ -3887,6 +6068,10 @@ and cand_minminreach
         doDisj (opt_minminreach rho i phi) (opt_minminreach rho i psi)
     | rho, i, Conj (phi, psi) ->
         doConj (opt_minminreach rho i phi) (opt_minminreach rho i psi)
+    | rho, i, Impl (phi, psi) ->
+        doImpl (opt_minminreach rho i phi) (opt_minminreach rho i psi)
+    | rho, i, Iff (phi, psi) ->
+        doIff (opt_minminreach rho i phi) (opt_minminreach rho i psi)
     | rho, i, Neg phi ->
         (let p = opt_minminreach rho i phi in
           (if isl p then [Inr (VNeg (projl p))] else [Inl (SNeg (projr p))]))
@@ -3961,7 +6146,110 @@ set_impl_literal)
  one_nat)))
                                i,
                          psi)))
-            else doUntilBase ia (left i) p1 p2));;
+            else doUntilBase ia (left i) p1 p2))
+    | rho, ia, Once (i, phi) ->
+        (if less_nat
+              (tau (ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+              (plus_nata
+                (tau (ceq_literal, ccompare_literal, set_impl_literal) rho
+                  zero_nata)
+                (left i))
+          then [Inr (VOnce_le ia)]
+          else (let p = opt_minminreach rho ia phi in
+                 (if equal_nata ia zero_nata
+                   then doOnceBase zero_nata zero_nata p
+                   else (if less_eq_enat
+                              (Enat (minus_nat
+                                      (tau
+(ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+                                      (tau
+(ceq_literal, ccompare_literal, set_impl_literal) rho (minus_nat ia one_nat))))
+                              (right i)
+                          then doOnce ia (left i) p
+                                 (opt_minminreach rho (minus_nat ia one_nat)
+                                   (Once (subtract
+    (minus_nat (tau (ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+      (tau (ceq_literal, ccompare_literal, set_impl_literal) rho
+        (minus_nat ia one_nat)))
+    i,
+   phi)))
+                          else doOnceBase ia (left i) p))))
+    | rho, ia, Historically (i, phi) ->
+        (if less_nat
+              (tau (ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+              (plus_nata
+                (tau (ceq_literal, ccompare_literal, set_impl_literal) rho
+                  zero_nata)
+                (left i))
+          then [Inl (SHistorically_le ia)]
+          else (let p = opt_minminreach rho ia phi in
+                 (if equal_nata ia zero_nata
+                   then doHistoricallyBase zero_nata zero_nata p
+                   else (if less_eq_enat
+                              (Enat (minus_nat
+                                      (tau
+(ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+                                      (tau
+(ceq_literal, ccompare_literal, set_impl_literal) rho (minus_nat ia one_nat))))
+                              (right i)
+                          then doHistorically ia (left i) p
+                                 (opt_minminreach rho (minus_nat ia one_nat)
+                                   (Historically
+                                     (subtract
+(minus_nat (tau (ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+  (tau (ceq_literal, ccompare_literal, set_impl_literal) rho
+    (minus_nat ia one_nat)))
+i,
+                                       phi)))
+                          else doHistoricallyBase ia (left i) p))))
+    | rho, ia, Eventually (i, phi) ->
+        (let p1 = opt_minminreach rho ia phi in
+         let false = equal_enat (right i) Infinity_enat in
+          (if less_eq_enat
+                (Enat (minus_nat
+                        (tau (ceq_literal, ccompare_literal, set_impl_literal)
+                          rho (plus_nata ia one_nat))
+                        (tau (ceq_literal, ccompare_literal, set_impl_literal)
+                          rho (minus_nat (plus_nata ia one_nat) one_nat))))
+                (right i)
+            then doEventually ia (left i) p1
+                   (opt_minminreach rho (plus_nata ia one_nat)
+                     (Eventually
+                       (subtract
+                          (minus_nat
+                            (tau (ceq_literal, ccompare_literal,
+                                   set_impl_literal)
+                              rho (plus_nata ia one_nat))
+                            (tau (ceq_literal, ccompare_literal,
+                                   set_impl_literal)
+                              rho (minus_nat (plus_nata ia one_nat) one_nat)))
+                          i,
+                         phi)))
+            else doEventuallyBase ia (left i) p1))
+    | rho, ia, Always (i, phi) ->
+        (let p1 = opt_minminreach rho ia phi in
+         let false = equal_enat (right i) Infinity_enat in
+          (if less_eq_enat
+                (Enat (minus_nat
+                        (tau (ceq_literal, ccompare_literal, set_impl_literal)
+                          rho (plus_nata ia one_nat))
+                        (tau (ceq_literal, ccompare_literal, set_impl_literal)
+                          rho (minus_nat (plus_nata ia one_nat) one_nat))))
+                (right i)
+            then doAlways ia (left i) p1
+                   (opt_minminreach rho (plus_nata ia one_nat)
+                     (Always
+                       (subtract
+                          (minus_nat
+                            (tau (ceq_literal, ccompare_literal,
+                                   set_impl_literal)
+                              rho (plus_nata ia one_nat))
+                            (tau (ceq_literal, ccompare_literal,
+                                   set_impl_literal)
+                              rho (minus_nat (plus_nata ia one_nat) one_nat)))
+                          i,
+                         phi)))
+            else doAlwaysBase ia (left i) p1));;
 
 let rec opt_flipped_depth
   rho i phi = min_list_wrt rrdepth (cand_flipped_depth rho i phi)
@@ -3977,6 +6265,10 @@ and cand_flipped_depth
         doDisj (opt_flipped_depth rho i phi) (opt_flipped_depth rho i psi)
     | rho, i, Conj (phi, psi) ->
         doConj (opt_flipped_depth rho i phi) (opt_flipped_depth rho i psi)
+    | rho, i, Impl (phi, psi) ->
+        doImpl (opt_flipped_depth rho i phi) (opt_flipped_depth rho i psi)
+    | rho, i, Iff (phi, psi) ->
+        doIff (opt_flipped_depth rho i phi) (opt_flipped_depth rho i psi)
     | rho, i, Neg phi ->
         (let p = opt_flipped_depth rho i phi in
           (if isl p then [Inr (VNeg (projl p))] else [Inl (SNeg (projr p))]))
@@ -4051,7 +6343,110 @@ set_impl_literal)
  one_nat)))
                                i,
                          psi)))
-            else doUntilBase ia (left i) p1 p2));;
+            else doUntilBase ia (left i) p1 p2))
+    | rho, ia, Once (i, phi) ->
+        (if less_nat
+              (tau (ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+              (plus_nata
+                (tau (ceq_literal, ccompare_literal, set_impl_literal) rho
+                  zero_nata)
+                (left i))
+          then [Inr (VOnce_le ia)]
+          else (let p = opt_flipped_depth rho ia phi in
+                 (if equal_nata ia zero_nata
+                   then doOnceBase zero_nata zero_nata p
+                   else (if less_eq_enat
+                              (Enat (minus_nat
+                                      (tau
+(ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+                                      (tau
+(ceq_literal, ccompare_literal, set_impl_literal) rho (minus_nat ia one_nat))))
+                              (right i)
+                          then doOnce ia (left i) p
+                                 (opt_flipped_depth rho (minus_nat ia one_nat)
+                                   (Once (subtract
+    (minus_nat (tau (ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+      (tau (ceq_literal, ccompare_literal, set_impl_literal) rho
+        (minus_nat ia one_nat)))
+    i,
+   phi)))
+                          else doOnceBase ia (left i) p))))
+    | rho, ia, Historically (i, phi) ->
+        (if less_nat
+              (tau (ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+              (plus_nata
+                (tau (ceq_literal, ccompare_literal, set_impl_literal) rho
+                  zero_nata)
+                (left i))
+          then [Inl (SHistorically_le ia)]
+          else (let p = opt_flipped_depth rho ia phi in
+                 (if equal_nata ia zero_nata
+                   then doHistoricallyBase zero_nata zero_nata p
+                   else (if less_eq_enat
+                              (Enat (minus_nat
+                                      (tau
+(ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+                                      (tau
+(ceq_literal, ccompare_literal, set_impl_literal) rho (minus_nat ia one_nat))))
+                              (right i)
+                          then doHistorically ia (left i) p
+                                 (opt_flipped_depth rho (minus_nat ia one_nat)
+                                   (Historically
+                                     (subtract
+(minus_nat (tau (ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+  (tau (ceq_literal, ccompare_literal, set_impl_literal) rho
+    (minus_nat ia one_nat)))
+i,
+                                       phi)))
+                          else doHistoricallyBase ia (left i) p))))
+    | rho, ia, Eventually (i, phi) ->
+        (let p1 = opt_flipped_depth rho ia phi in
+         let false = equal_enat (right i) Infinity_enat in
+          (if less_eq_enat
+                (Enat (minus_nat
+                        (tau (ceq_literal, ccompare_literal, set_impl_literal)
+                          rho (plus_nata ia one_nat))
+                        (tau (ceq_literal, ccompare_literal, set_impl_literal)
+                          rho (minus_nat (plus_nata ia one_nat) one_nat))))
+                (right i)
+            then doEventually ia (left i) p1
+                   (opt_flipped_depth rho (plus_nata ia one_nat)
+                     (Eventually
+                       (subtract
+                          (minus_nat
+                            (tau (ceq_literal, ccompare_literal,
+                                   set_impl_literal)
+                              rho (plus_nata ia one_nat))
+                            (tau (ceq_literal, ccompare_literal,
+                                   set_impl_literal)
+                              rho (minus_nat (plus_nata ia one_nat) one_nat)))
+                          i,
+                         phi)))
+            else doEventuallyBase ia (left i) p1))
+    | rho, ia, Always (i, phi) ->
+        (let p1 = opt_flipped_depth rho ia phi in
+         let false = equal_enat (right i) Infinity_enat in
+          (if less_eq_enat
+                (Enat (minus_nat
+                        (tau (ceq_literal, ccompare_literal, set_impl_literal)
+                          rho (plus_nata ia one_nat))
+                        (tau (ceq_literal, ccompare_literal, set_impl_literal)
+                          rho (minus_nat (plus_nata ia one_nat) one_nat))))
+                (right i)
+            then doAlways ia (left i) p1
+                   (opt_flipped_depth rho (plus_nata ia one_nat)
+                     (Always
+                       (subtract
+                          (minus_nat
+                            (tau (ceq_literal, ccompare_literal,
+                                   set_impl_literal)
+                              rho (plus_nata ia one_nat))
+                            (tau (ceq_literal, ccompare_literal,
+                                   set_impl_literal)
+                              rho (minus_nat (plus_nata ia one_nat) one_nat)))
+                          i,
+                         phi)))
+            else doAlwaysBase ia (left i) p1));;
 
 let rec is_opt_flipped_atm
   w rho i phi p =
@@ -4132,6 +6527,12 @@ and cand_lex_atm_minmaxreach
     | w, rho, i, Conj (phi, psi) ->
         doConj (opt_lex_atm_minmaxreach w rho i phi)
           (opt_lex_atm_minmaxreach w rho i psi)
+    | w, rho, i, Impl (phi, psi) ->
+        doImpl (opt_lex_atm_minmaxreach w rho i phi)
+          (opt_lex_atm_minmaxreach w rho i psi)
+    | w, rho, i, Iff (phi, psi) ->
+        doIff (opt_lex_atm_minmaxreach w rho i phi)
+          (opt_lex_atm_minmaxreach w rho i psi)
     | w, rho, i, Neg phi ->
         (let p = opt_lex_atm_minmaxreach w rho i phi in
           (if isl p then [Inr (VNeg (projl p))] else [Inl (SNeg (projr p))]))
@@ -4207,7 +6608,112 @@ set_impl_literal)
  one_nat)))
                                i,
                          psi)))
-            else doUntilBase ia (left i) p1 p2));;
+            else doUntilBase ia (left i) p1 p2))
+    | w, rho, ia, Once (i, phi) ->
+        (if less_nat
+              (tau (ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+              (plus_nata
+                (tau (ceq_literal, ccompare_literal, set_impl_literal) rho
+                  zero_nata)
+                (left i))
+          then [Inr (VOnce_le ia)]
+          else (let p = opt_lex_atm_minmaxreach w rho ia phi in
+                 (if equal_nata ia zero_nata
+                   then doOnceBase zero_nata zero_nata p
+                   else (if less_eq_enat
+                              (Enat (minus_nat
+                                      (tau
+(ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+                                      (tau
+(ceq_literal, ccompare_literal, set_impl_literal) rho (minus_nat ia one_nat))))
+                              (right i)
+                          then doOnce ia (left i) p
+                                 (opt_lex_atm_minmaxreach w rho
+                                   (minus_nat ia one_nat)
+                                   (Once (subtract
+    (minus_nat (tau (ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+      (tau (ceq_literal, ccompare_literal, set_impl_literal) rho
+        (minus_nat ia one_nat)))
+    i,
+   phi)))
+                          else doOnceBase ia (left i) p))))
+    | w, rho, ia, Historically (i, phi) ->
+        (if less_nat
+              (tau (ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+              (plus_nata
+                (tau (ceq_literal, ccompare_literal, set_impl_literal) rho
+                  zero_nata)
+                (left i))
+          then [Inl (SHistorically_le ia)]
+          else (let p = opt_lex_atm_minmaxreach w rho ia phi in
+                 (if equal_nata ia zero_nata
+                   then doHistoricallyBase zero_nata zero_nata p
+                   else (if less_eq_enat
+                              (Enat (minus_nat
+                                      (tau
+(ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+                                      (tau
+(ceq_literal, ccompare_literal, set_impl_literal) rho (minus_nat ia one_nat))))
+                              (right i)
+                          then doHistorically ia (left i) p
+                                 (opt_lex_atm_minmaxreach w rho
+                                   (minus_nat ia one_nat)
+                                   (Historically
+                                     (subtract
+(minus_nat (tau (ceq_literal, ccompare_literal, set_impl_literal) rho ia)
+  (tau (ceq_literal, ccompare_literal, set_impl_literal) rho
+    (minus_nat ia one_nat)))
+i,
+                                       phi)))
+                          else doHistoricallyBase ia (left i) p))))
+    | w, rho, ia, Eventually (i, phi) ->
+        (let p1 = opt_lex_atm_minmaxreach w rho ia phi in
+         let false = equal_enat (right i) Infinity_enat in
+          (if less_eq_enat
+                (Enat (minus_nat
+                        (tau (ceq_literal, ccompare_literal, set_impl_literal)
+                          rho (plus_nata ia one_nat))
+                        (tau (ceq_literal, ccompare_literal, set_impl_literal)
+                          rho (minus_nat (plus_nata ia one_nat) one_nat))))
+                (right i)
+            then doEventually ia (left i) p1
+                   (opt_lex_atm_minmaxreach w rho (plus_nata ia one_nat)
+                     (Eventually
+                       (subtract
+                          (minus_nat
+                            (tau (ceq_literal, ccompare_literal,
+                                   set_impl_literal)
+                              rho (plus_nata ia one_nat))
+                            (tau (ceq_literal, ccompare_literal,
+                                   set_impl_literal)
+                              rho (minus_nat (plus_nata ia one_nat) one_nat)))
+                          i,
+                         phi)))
+            else doEventuallyBase ia (left i) p1))
+    | w, rho, ia, Always (i, phi) ->
+        (let p1 = opt_lex_atm_minmaxreach w rho ia phi in
+         let false = equal_enat (right i) Infinity_enat in
+          (if less_eq_enat
+                (Enat (minus_nat
+                        (tau (ceq_literal, ccompare_literal, set_impl_literal)
+                          rho (plus_nata ia one_nat))
+                        (tau (ceq_literal, ccompare_literal, set_impl_literal)
+                          rho (minus_nat (plus_nata ia one_nat) one_nat))))
+                (right i)
+            then doAlways ia (left i) p1
+                   (opt_lex_atm_minmaxreach w rho (plus_nata ia one_nat)
+                     (Always
+                       (subtract
+                          (minus_nat
+                            (tau (ceq_literal, ccompare_literal,
+                                   set_impl_literal)
+                              rho (plus_nata ia one_nat))
+                            (tau (ceq_literal, ccompare_literal,
+                                   set_impl_literal)
+                              rho (minus_nat (plus_nata ia one_nat) one_nat)))
+                          i,
+                         phi)))
+            else doAlwaysBase ia (left i) p1));;
 
 let rec is_opt_lex_atm_minmaxreach
   w rho i phi p =
