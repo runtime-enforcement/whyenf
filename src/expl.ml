@@ -48,7 +48,7 @@ and vexpl =
   | VNextOutR of int
   | VNext of vexpl
   | VOnceOutL of int
-  | VOnceInf of int * int * vexpl list
+  | VOnce of int * int * vexpl list
   | VHistorically of int * vexpl
   | VEventually of int * int * vexpl list
   | VAlways of int * vexpl
@@ -136,7 +136,7 @@ and v_at = function
   | VNextOutR i -> i
   | VNext vphi -> v_at vphi - 1
   | VOnceOutL i -> i
-  | VOnceInf (i, _, _) -> i
+  | VOnce (i, _, _) -> i
   | VHistorically (i, _) -> i
   | VEventually (i, _, _) -> i
   | VAlways (i, _) -> i
@@ -202,7 +202,7 @@ and v_size = function
   | VNextOutR _ -> 1
   | VNext vphi -> 1 + v_size vphi
   | VOnceOutL _ -> 1
-  | VOnceInf (_, _, vphis) -> 1 + sum v_size vphis
+  | VOnce (_, _, vphis) -> 1 + sum v_size vphis
   | VHistorically (_, vphi) -> 1 + v_size vphi
   | VEventually (_, _, vphis) -> 1 + sum v_size vphis
   | VAlways (_, vphi) -> 1 + v_size vphi
@@ -270,7 +270,7 @@ and v_wsize ws = function
   | VNextOutR _ -> 1
   | VNext vphi -> 1 + v_wsize ws vphi
   | VOnceOutL _ -> 1
-  | VOnceInf (_, _, vphis) -> 1 + (sum (v_wsize ws) vphis)
+  | VOnce (_, _, vphis) -> 1 + (sum (v_wsize ws) vphis)
   | VHistorically (_, vphi) -> 1 + v_wsize ws vphi
   | VEventually (_, _, vphis) -> 1 + (sum (v_wsize ws) vphis)
   | VAlways (_, vphi) -> 1 + v_wsize ws vphi
@@ -330,7 +330,7 @@ and v_high p = match p with
   | VNext vphi -> max (v_at (VNext vphi)) (v_high vphi)
   (* TODO: Check if we should consider i here *)
   | VOnceOutL i -> i
-  | VOnceInf (_, _, vphis) -> max_list (List.map v_high vphis)
+  | VOnce (_, _, vphis) -> max_list (List.map v_high vphis)
   | VHistorically (_, vphi) -> v_high vphi
   | VEventually (_, _, vphis) -> max_list (List.map v_high vphis)
   | VAlways (_, vphi) -> v_high vphi
@@ -378,7 +378,7 @@ and v_low p = match p with
   | VNextOutR i -> i
   | VNext vphi -> min (v_at (VNext vphi)) (v_low vphi)
   | VOnceOutL i -> i
-  | VOnceInf (_, _, vphis) -> min_list (List.map v_low vphis)
+  | VOnce (_, _, vphis) -> min_list (List.map v_low vphis)
   | VHistorically (_, vphi) -> v_low vphi
   | VEventually (_, _, vphis) -> min_list (List.map v_low vphis)
   | VAlways (_, vphi) -> v_low vphi
@@ -445,7 +445,7 @@ and v_pred = function
   | VNextOutR _ -> 0
   | VNext vphi -> v_pred vphi
   | VOnceOutL _ -> 0
-  | VOnceInf (_, _, vphis) -> sum v_pred vphis
+  | VOnce (_, _, vphis) -> sum v_pred vphis
   | VHistorically (_, vphi) -> v_pred vphi
   | VEventually (_, _, vphis) -> sum v_pred vphis
   | VAlways (_, vphi) -> v_pred vphi
@@ -506,8 +506,8 @@ and v_to_string indent p =
   | VNextOutR i -> Printf.sprintf "%sVNextOutR{%d}" indent' i
   | VNext vphi -> Printf.sprintf "%sVNext{%d}\n%s" indent (v_at p) (v_to_string indent' vphi)
   | VOnceOutL i -> Printf.sprintf "%sVOnceOutL{%d}" indent' i
-  | VOnceInf (_, _, vphis) ->
-     Printf.sprintf "%sVOnceInf{%d}\n%s" indent (v_at p) (list_to_string indent' v_to_string vphis)
+  | VOnce (_, _, vphis) ->
+     Printf.sprintf "%sVOnce{%d}\n%s" indent (v_at p) (list_to_string indent' v_to_string vphis)
   | VHistorically (_, vphi) -> Printf.sprintf "%sVHistorically{%d}\n%s" indent (v_at p) (v_to_string indent' vphi)
   | VEventually (_, _, vphis) ->
      Printf.sprintf "%sVEventually{%d}\n%s" indent (v_at p) (list_to_string indent' v_to_string vphis)

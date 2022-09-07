@@ -46,7 +46,7 @@ and vexpl =
   | VNextOutR of int
   | VNext of vexpl
   | VOnceOutL of int
-  | VOnceInf of int * int * vexpl list
+  | VOnce of int * int * vexpl list
   | VHistorically of int * vexpl
   | VEventually of int * int * vexpl list
   | VAlways of int * vexpl
