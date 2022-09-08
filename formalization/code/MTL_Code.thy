@@ -1930,7 +1930,7 @@ next
     subgoal for phi
       using IH check_upt_lu_cong[OF 43(2)] foo
       by (cases phi) (auto simp: v_check_Eventually_code Let_def 43(2)[OF at_le_htp(1)] 43(2)[OF at_le_htp(2)] 
-          43(2)[OF at_le_htp(3)] simp del: v_check_simps(13) split: enat.splits)
+          43(2)[OF at_le_htp(3)] split: enat.splits)
     done
 next
   case (44 i p)
@@ -2121,7 +2121,7 @@ export_code strset trace_of_list strs_at strv_at strs_check strv_check sprogress
   opt_minmaxreach is_opt_minmaxreach rminmaxreach opt_maxmaxreach is_opt_maxmaxreach rmaxmaxreach strmaxreach
   opt_lex_atm_minmaxreach is_opt_lex_atm_minmaxreach rlex_atm_minmaxreach
   TT STT Inl interval enat nat_of_integer integer_of_nat is_minimal is_valid
-  in OCaml module_name Explanator file_prefix "checker"
+  in OCaml module_name VerifiedExplanator2 file_prefix "checker"
 
 (* ETP/LTP code setup *)
 
