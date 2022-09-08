@@ -12,7 +12,7 @@ open Mtl
 open Expl
 open Interval
 open Util
-open Checker.Explanator2
+open Checker.VerifiedExplanator2
 
 type checker_proof = CS of string sproof | CV of string vproof
 type checker_trace = (string set * nat) list

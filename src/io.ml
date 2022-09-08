@@ -12,7 +12,7 @@ open Util
 open Expl
 open Interval
 open Vis
-open Checker.Explanator2
+open Checker.VerifiedExplanator2
 open Checker_interface
 
 module List = Base.List

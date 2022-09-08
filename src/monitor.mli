@@ -11,7 +11,7 @@ open Mtl
 open Expl
 open Util
 open Interval
-open Checker.Explanator2
+open Checker.VerifiedExplanator2
 
 module Deque = Core_kernel.Deque
 
