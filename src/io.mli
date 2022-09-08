@@ -11,7 +11,7 @@ open Mtl
 open Util
 open Expl
 open Checker_interface
-open Checker.Explanator2
+open Checker.VerifiedExplanator2
 
 module Or_error = Base.Or_error
 module Error = Base.Error
