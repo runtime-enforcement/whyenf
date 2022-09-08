@@ -2144,7 +2144,9 @@ fun s_check and v_check where
 
 declare s_check.simps[simp del] v_check.simps[simp del]
 simps_of_case s_check_simps[simp, code]: s_check.simps[unfolded prod.case] (splits: mtl.split sproof.split)
-simps_of_case v_check_simps[simp, code]: v_check.simps[unfolded prod.case] (splits: mtl.split sproof.split)
+simps_of_case v_check_simps[simp, code]: v_check.simps[unfolded prod.case] (splits: mtl.split vproof.split)
+
+thm s_check_simps
 
 lemma Cons_eq_upt_conv: "x # xs = [m ..< n] \<longleftrightarrow> m < n \<and> x = m \<and> xs = [Suc m ..< n]"
   by (induct n arbitrary: xs) (force simp: Cons_eq_append_conv)+
@@ -7921,7 +7923,8 @@ lemma sinceBase0_sound:
   using assms unfolding optimal_def valid_def
   apply (auto simp: i_etp_to_tau doSinceBase_def zero_enat_def[symmetric] split: sum.splits enat.splits)
    apply (meson Orderings.order_class.order.not_eq_order_implies_strict diff_le_self i_etp_to_tau less_nat_zero_code)
-  apply (metis add_cancel_right_left add_diff_cancel_left' diff_is_0_eq diff_less i_etp_to_tau le_0_eq le_iff_add nat_le_linear nat_less_le)
+   apply (metis add_cancel_right_left add_diff_cancel_left' diff_is_0_eq diff_less i_etp_to_tau le_0_eq le_iff_add nat_le_linear nat_less_le)
+  apply (meson Nat.bot_nat_0.extremum_uniqueI diff_le_self i_etp_to_tau)
   done
 
 lemma sinceBase0_optimal:
@@ -16408,12 +16411,12 @@ proof (induction i phi rule: Cand_Opt.induct(2)[where P = "\<lambda>i phi. bound
 next
   case (FF i)
   then show ?case unfolding optimal_def valid_def
-    by (auto simp: refl_wqo[unfolded reflp_def] s_check.simps
+    by (auto simp: refl_wqo[unfolded reflp_def] s_check.simps v_check.simps
         split: sum.splits sproof.splits vproof.splits)
 next
   case (Atom i x)
   then show ?case unfolding optimal_def valid_def
-    by (cases "x \<in> \<Gamma> rho i"; auto simp: refl_wqo[unfolded reflp_def]
+    by (cases "x \<in> \<Gamma> rho i"; auto simp: refl_wqo[unfolded reflp_def] v_check.simps
         split: sum.splits vproof.splits)
 next
   note Opt.simps[simp del]
@@ -16486,7 +16489,7 @@ next
     by (auto split: sum.splits bool.splits)
   moreover have "optimal 0 (Prev I phi') (Inr VPrev_zero)"
     using refl_wqo
-    by (auto simp: optimal_def valid_def reflp_def split: sum.splits vproof.splits)
+    by (auto simp: optimal_def valid_def reflp_def v_check.simps split: sum.splits vproof.splits)
   ultimately show ?case thm Cand.simps
     using trans_wqo refl_wqo pw_total[of i "Prev I phi'"] Prev prev_optimal[of i, OF _ Prev] prev_sound[of i, OF _ Prev]
     apply (cases i)
@@ -16501,7 +16504,7 @@ next
         split: sum.splits)[1]
     subgoal
       using check_consistent[of "Since phi' I psi"]
-      apply (auto simp: optimal_def valid_def refl_wqo[unfolded reflp_def]
+      apply (auto simp: optimal_def valid_def refl_wqo[unfolded reflp_def] v_check.simps
           split: sum.splits vproof.splits)[1]
       by (metis VSince_le bounded_future_simps(15) check_complete check_consistent)
     subgoal
@@ -16669,8 +16672,10 @@ next
     subgoal
       using check_consistent[of "Once I phi'"]
       unfolding optimal_def valid_def
-      apply (auto simp: refl_wqo[unfolded reflp_def] split: sum.splits vproof.splits)
-      by (metis VOnce_le bounded_future_simps(11) check_complete check_consistent)
+      apply (auto simp: refl_wqo[unfolded reflp_def] Let_def split: sum.splits)
+       apply (metis OnceBF VOnce_le check_complete)
+      apply (case_tac x2; simp add: refl_wqo[unfolded reflp_def])
+      done
     subgoal
       apply (auto simp: Let_def dest!: onceBase0_sound[rotated -1] onceBaseNZ_sound[rotated -1]
           once_sound[rotated -3, of _ phi' _ _ _] split: if_splits)

@@ -1,4 +1,4 @@
-module Explanator : sig
+module VerifiedExplanator2 : sig
   type nat
   val integer_of_nat : nat -> Z.t
   type 'a vproof = VFF of nat | VAtm of 'a * nat | VNeg of 'a sproof |
@@ -56,6 +56,8 @@ module Explanator : sig
   val strs_at : string sproof -> nat
   val strv_at : string vproof -> nat
   val interval : nat -> enat -> i
+  val is_valid :
+    string trace -> string mtl -> (string sproof, string vproof) sum -> bool
   val opt_depth :
     string trace -> nat -> string mtl -> (string sproof, string vproof) sum
   val sprogress : string trace -> string mtl -> nat -> nat
@@ -63,6 +65,9 @@ module Explanator : sig
     (string -> nat) ->
       string trace ->
         nat -> string mtl -> (string sproof, string vproof) sum -> bool
+  val is_minimal :
+    string trace ->
+      nat -> string mtl -> (string sproof, string vproof) sum -> bool
   val strs_check : string trace -> string mtl -> string sproof -> bool
   val strv_check : string trace -> string mtl -> string vproof -> bool
   val strmaxreach : (string sproof, string vproof) sum -> nat
@@ -2527,158 +2532,347 @@ let rec v_check (_A1, _A2, _A3, _A4)
           | VNext _ -> false | VNext_ge _ -> false | VNext_le _ -> false
           | VPrev _ -> false | VPrev_ge _ -> false | VPrev_le _ -> false
           | VPrev_zero -> false)
-    | rho, Always (xa, x), p ->
-        (match p with VFF _ -> false | VAtm (_, _) -> false | VNeg _ -> false
-          | VDisj (_, _) -> false | VConjL _ -> false | VConjR _ -> false
-          | VImpl (_, _) -> false | VIff_sv (_, _) -> false
-          | VIff_vs (_, _) -> false | VOnce_le _ -> false
-          | VOnce (_, _, _) -> false | VEventually (_, _, _) -> false
-          | VHistorically (_, _) -> false
-          | VAlways (i, vphi) ->
-            (let j = v_at vphi in
-              less_eq_nat i j &&
-                (less_eq_nat (left xa)
-                   (minus_nat (tau (_A1, _A2, _A4) rho j)
-                     (tau (_A1, _A2, _A4) rho i)) &&
-                   less_eq_enat
-                     (Enat (minus_nat (tau (_A1, _A2, _A4) rho j)
-                             (tau (_A1, _A2, _A4) rho i)))
-                     (right xa) &&
-                  v_check (_A1, _A2, _A3, _A4) rho x vphi))
-          | VSince (_, _, _) -> false | VUntil (_, _, _) -> false
-          | VSince_never (_, _, _) -> false | VUntil_never (_, _, _) -> false
-          | VSince_le _ -> false | VNext _ -> false | VNext_ge _ -> false
-          | VNext_le _ -> false | VPrev _ -> false | VPrev_ge _ -> false
-          | VPrev_le _ -> false | VPrev_zero -> false)
-    | rho, Historically (xa, x), p ->
-        (match p with VFF _ -> false | VAtm (_, _) -> false | VNeg _ -> false
-          | VDisj (_, _) -> false | VConjL _ -> false | VConjR _ -> false
-          | VImpl (_, _) -> false | VIff_sv (_, _) -> false
-          | VIff_vs (_, _) -> false | VOnce_le _ -> false
-          | VOnce (_, _, _) -> false | VEventually (_, _, _) -> false
-          | VHistorically (i, vphi) ->
-            (let j = v_at vphi in
-              less_eq_nat j i &&
-                (less_eq_nat (left xa)
-                   (minus_nat (tau (_A1, _A2, _A4) rho i)
-                     (tau (_A1, _A2, _A4) rho j)) &&
-                   less_eq_enat
-                     (Enat (minus_nat (tau (_A1, _A2, _A4) rho i)
-                             (tau (_A1, _A2, _A4) rho j)))
-                     (right xa) &&
-                  v_check (_A1, _A2, _A3, _A4) rho x vphi))
-          | VAlways (_, _) -> false | VSince (_, _, _) -> false
-          | VUntil (_, _, _) -> false | VSince_never (_, _, _) -> false
-          | VUntil_never (_, _, _) -> false | VSince_le _ -> false
-          | VNext _ -> false | VNext_ge _ -> false | VNext_le _ -> false
-          | VPrev _ -> false | VPrev_ge _ -> false | VPrev_le _ -> false
-          | VPrev_zero -> false)
-    | rho, Iff (xa, x), p ->
-        (match p with VFF _ -> false | VAtm (_, _) -> false | VNeg _ -> false
-          | VDisj (_, _) -> false | VConjL _ -> false | VConjR _ -> false
-          | VImpl (_, _) -> false
-          | VIff_sv (sphi, vpsi) ->
-            s_check (_A1, _A2, _A3, _A4) rho xa sphi &&
-              (v_check (_A1, _A2, _A3, _A4) rho x vpsi &&
-                equal_nata (s_at sphi) (v_at vpsi))
-          | VIff_vs (vphi, spsi) ->
-            v_check (_A1, _A2, _A3, _A4) rho xa vphi &&
-              (s_check (_A1, _A2, _A3, _A4) rho x spsi &&
-                equal_nata (v_at vphi) (s_at spsi))
-          | VOnce_le _ -> false | VOnce (_, _, _) -> false
-          | VEventually (_, _, _) -> false | VHistorically (_, _) -> false
-          | VAlways (_, _) -> false | VSince (_, _, _) -> false
-          | VUntil (_, _, _) -> false | VSince_never (_, _, _) -> false
-          | VUntil_never (_, _, _) -> false | VSince_le _ -> false
-          | VNext _ -> false | VNext_ge _ -> false | VNext_le _ -> false
-          | VPrev _ -> false | VPrev_ge _ -> false | VPrev_le _ -> false
-          | VPrev_zero -> false)
-    | rho, Impl (xa, x), p ->
-        (match p with VFF _ -> false | VAtm (_, _) -> false | VNeg _ -> false
-          | VDisj (_, _) -> false | VConjL _ -> false | VConjR _ -> false
-          | VImpl (sphi, vpsi) ->
-            s_check (_A1, _A2, _A3, _A4) rho xa sphi &&
-              (v_check (_A1, _A2, _A3, _A4) rho x vpsi &&
-                equal_nata (s_at sphi) (v_at vpsi))
-          | VIff_sv (_, _) -> false | VIff_vs (_, _) -> false
-          | VOnce_le _ -> false | VOnce (_, _, _) -> false
-          | VEventually (_, _, _) -> false | VHistorically (_, _) -> false
-          | VAlways (_, _) -> false | VSince (_, _, _) -> false
-          | VUntil (_, _, _) -> false | VSince_never (_, _, _) -> false
-          | VUntil_never (_, _, _) -> false | VSince_le _ -> false
-          | VNext _ -> false | VNext_ge _ -> false | VNext_le _ -> false
-          | VPrev _ -> false | VPrev_ge _ -> false | VPrev_le _ -> false
-          | VPrev_zero -> false)
-    | rho, Conj (xa, x), p ->
-        (match p with VFF _ -> false | VAtm (_, _) -> false | VNeg _ -> false
-          | VDisj (_, _) -> false
-          | VConjL a -> v_check (_A1, _A2, _A3, _A4) rho xa a
-          | VConjR a -> v_check (_A1, _A2, _A3, _A4) rho x a
-          | VImpl (_, _) -> false | VIff_sv (_, _) -> false
-          | VIff_vs (_, _) -> false | VOnce_le _ -> false
-          | VOnce (_, _, _) -> false | VEventually (_, _, _) -> false
-          | VHistorically (_, _) -> false | VAlways (_, _) -> false
-          | VSince (_, _, _) -> false | VUntil (_, _, _) -> false
-          | VSince_never (_, _, _) -> false | VUntil_never (_, _, _) -> false
-          | VSince_le _ -> false | VNext _ -> false | VNext_ge _ -> false
-          | VNext_le _ -> false | VPrev _ -> false | VPrev_ge _ -> false
-          | VPrev_le _ -> false | VPrev_zero -> false)
-    | rho, Disj (xa, x), p ->
-        (match p with VFF _ -> false | VAtm (_, _) -> false | VNeg _ -> false
-          | VDisj (vphi, vpsi) ->
-            v_check (_A1, _A2, _A3, _A4) rho xa vphi &&
-              (v_check (_A1, _A2, _A3, _A4) rho x vpsi &&
-                equal_nata (v_at vphi) (v_at vpsi))
-          | VConjL _ -> false | VConjR _ -> false | VImpl (_, _) -> false
-          | VIff_sv (_, _) -> false | VIff_vs (_, _) -> false
-          | VOnce_le _ -> false | VOnce (_, _, _) -> false
-          | VEventually (_, _, _) -> false | VHistorically (_, _) -> false
-          | VAlways (_, _) -> false | VSince (_, _, _) -> false
-          | VUntil (_, _, _) -> false | VSince_never (_, _, _) -> false
-          | VUntil_never (_, _, _) -> false | VSince_le _ -> false
-          | VNext _ -> false | VNext_ge _ -> false | VNext_le _ -> false
-          | VPrev _ -> false | VPrev_ge _ -> false | VPrev_le _ -> false
-          | VPrev_zero -> false)
-    | rho, Neg x, p ->
-        (match p with VFF _ -> false | VAtm (_, _) -> false
-          | VNeg a -> s_check (_A1, _A2, _A3, _A4) rho x a
-          | VDisj (_, _) -> false | VConjL _ -> false | VConjR _ -> false
-          | VImpl (_, _) -> false | VIff_sv (_, _) -> false
-          | VIff_vs (_, _) -> false | VOnce_le _ -> false
-          | VOnce (_, _, _) -> false | VEventually (_, _, _) -> false
-          | VHistorically (_, _) -> false | VAlways (_, _) -> false
-          | VSince (_, _, _) -> false | VUntil (_, _, _) -> false
-          | VSince_never (_, _, _) -> false | VUntil_never (_, _, _) -> false
-          | VSince_le _ -> false | VNext _ -> false | VNext_ge _ -> false
-          | VNext_le _ -> false | VPrev _ -> false | VPrev_ge _ -> false
-          | VPrev_le _ -> false | VPrev_zero -> false)
-    | rho, Atom x, p ->
-        (match p with VFF _ -> false
-          | VAtm (b, i) ->
-            eq _A3 x b &&
-              not (member (_A1, _A2) x (gamma (_A1, _A2, _A4) rho i))
-          | VNeg _ -> false | VDisj (_, _) -> false | VConjL _ -> false
-          | VConjR _ -> false | VImpl (_, _) -> false | VIff_sv (_, _) -> false
-          | VIff_vs (_, _) -> false | VOnce_le _ -> false
-          | VOnce (_, _, _) -> false | VEventually (_, _, _) -> false
-          | VHistorically (_, _) -> false | VAlways (_, _) -> false
-          | VSince (_, _, _) -> false | VUntil (_, _, _) -> false
-          | VSince_never (_, _, _) -> false | VUntil_never (_, _, _) -> false
-          | VSince_le _ -> false | VNext _ -> false | VNext_ge _ -> false
-          | VNext_le _ -> false | VPrev _ -> false | VPrev_ge _ -> false
-          | VPrev_le _ -> false | VPrev_zero -> false)
-    | rho, FF, p ->
-        (match p with VFF _ -> true | VAtm (_, _) -> false | VNeg _ -> false
-          | VDisj (_, _) -> false | VConjL _ -> false | VConjR _ -> false
-          | VImpl (_, _) -> false | VIff_sv (_, _) -> false
-          | VIff_vs (_, _) -> false | VOnce_le _ -> false
-          | VOnce (_, _, _) -> false | VEventually (_, _, _) -> false
-          | VHistorically (_, _) -> false | VAlways (_, _) -> false
-          | VSince (_, _, _) -> false | VUntil (_, _, _) -> false
-          | VSince_never (_, _, _) -> false | VUntil_never (_, _, _) -> false
-          | VSince_le _ -> false | VNext _ -> false | VNext_ge _ -> false
-          | VNext_le _ -> false | VPrev _ -> false | VPrev_ge _ -> false
-          | VPrev_le _ -> false | VPrev_zero -> false)
+    | rho, Always (x, xa), VPrev_zero -> false
+    | rho, Always (xa, xaa), VPrev_le x -> false
+    | rho, Always (xa, xaa), VPrev_ge x -> false
+    | rho, Always (xa, xaa), VPrev x -> false
+    | rho, Always (xa, xaa), VNext_le x -> false
+    | rho, Always (xa, xaa), VNext_ge x -> false
+    | rho, Always (xa, xaa), VNext x -> false
+    | rho, Always (xa, xaa), VSince_le x -> false
+    | rho, Always (xc, xaa), VUntil_never (xb, xa, x) -> false
+    | rho, Always (xc, xaa), VSince_never (xb, xa, x) -> false
+    | rho, Always (xc, xaa), VUntil (xb, xa, x) -> false
+    | rho, Always (xc, xaa), VSince (xb, xa, x) -> false
+    | rho, Always (xb, xaa), VAlways (xa, x) ->
+        (let j = v_at x in
+          less_eq_nat xa j &&
+            (less_eq_nat (left xb)
+               (minus_nat (tau (_A1, _A2, _A4) rho j)
+                 (tau (_A1, _A2, _A4) rho xa)) &&
+               less_eq_enat
+                 (Enat (minus_nat (tau (_A1, _A2, _A4) rho j)
+                         (tau (_A1, _A2, _A4) rho xa)))
+                 (right xb) &&
+              v_check (_A1, _A2, _A3, _A4) rho xaa x))
+    | rho, Always (xb, xaa), VHistorically (xa, x) -> false
+    | rho, Always (xc, xaa), VEventually (xb, xa, x) -> false
+    | rho, Always (xc, xaa), VOnce (xb, xa, x) -> false
+    | rho, Always (xa, xaa), VOnce_le x -> false
+    | rho, Always (xb, xaa), VIff_vs (xa, x) -> false
+    | rho, Always (xb, xaa), VIff_sv (xa, x) -> false
+    | rho, Always (xb, xaa), VImpl (xa, x) -> false
+    | rho, Always (xa, xaa), VConjR x -> false
+    | rho, Always (xa, xaa), VConjL x -> false
+    | rho, Always (xb, xaa), VDisj (xa, x) -> false
+    | rho, Always (xa, xaa), VNeg x -> false
+    | rho, Always (xb, xaa), VAtm (xa, x) -> false
+    | rho, Always (xa, xaa), VFF x -> false
+    | rho, Historically (x, xa), VPrev_zero -> false
+    | rho, Historically (xa, xaa), VPrev_le x -> false
+    | rho, Historically (xa, xaa), VPrev_ge x -> false
+    | rho, Historically (xa, xaa), VPrev x -> false
+    | rho, Historically (xa, xaa), VNext_le x -> false
+    | rho, Historically (xa, xaa), VNext_ge x -> false
+    | rho, Historically (xa, xaa), VNext x -> false
+    | rho, Historically (xa, xaa), VSince_le x -> false
+    | rho, Historically (xc, xaa), VUntil_never (xb, xa, x) -> false
+    | rho, Historically (xc, xaa), VSince_never (xb, xa, x) -> false
+    | rho, Historically (xc, xaa), VUntil (xb, xa, x) -> false
+    | rho, Historically (xc, xaa), VSince (xb, xa, x) -> false
+    | rho, Historically (xb, xaa), VAlways (xa, x) -> false
+    | rho, Historically (xb, xaa), VHistorically (xa, x) ->
+        (let j = v_at x in
+          less_eq_nat j xa &&
+            (less_eq_nat (left xb)
+               (minus_nat (tau (_A1, _A2, _A4) rho xa)
+                 (tau (_A1, _A2, _A4) rho j)) &&
+               less_eq_enat
+                 (Enat (minus_nat (tau (_A1, _A2, _A4) rho xa)
+                         (tau (_A1, _A2, _A4) rho j)))
+                 (right xb) &&
+              v_check (_A1, _A2, _A3, _A4) rho xaa x))
+    | rho, Historically (xc, xaa), VEventually (xb, xa, x) -> false
+    | rho, Historically (xc, xaa), VOnce (xb, xa, x) -> false
+    | rho, Historically (xa, xaa), VOnce_le x -> false
+    | rho, Historically (xb, xaa), VIff_vs (xa, x) -> false
+    | rho, Historically (xb, xaa), VIff_sv (xa, x) -> false
+    | rho, Historically (xb, xaa), VImpl (xa, x) -> false
+    | rho, Historically (xa, xaa), VConjR x -> false
+    | rho, Historically (xa, xaa), VConjL x -> false
+    | rho, Historically (xb, xaa), VDisj (xa, x) -> false
+    | rho, Historically (xa, xaa), VNeg x -> false
+    | rho, Historically (xb, xaa), VAtm (xa, x) -> false
+    | rho, Historically (xa, xaa), VFF x -> false
+    | rho, Prev (x, xa), VPrev_zero -> equal_nata (v_at VPrev_zero) zero_nata
+    | rho, Prev (xa, xaa), VPrev_le x ->
+        less_nat zero_nata x &&
+          less_nat
+            (minus_nat (tau (_A1, _A2, _A4) rho x)
+              (tau (_A1, _A2, _A4) rho (minus_nat x one_nat)))
+            (left xa)
+    | rho, Prev (xa, xaa), VPrev_ge x ->
+        less_nat zero_nata x &&
+          less_enat (right xa)
+            (Enat (minus_nat (tau (_A1, _A2, _A4) rho x)
+                    (tau (_A1, _A2, _A4) rho (minus_nat x one_nat))))
+    | rho, Prev (xa, xaa), VPrev x ->
+        (let j = v_at x in
+         let i = v_at (VPrev x) in
+          equal_nata i (suc j) && v_check (_A1, _A2, _A3, _A4) rho xaa x)
+    | rho, Prev (xa, xaa), VNext_le x -> false
+    | rho, Prev (xa, xaa), VNext_ge x -> false
+    | rho, Prev (xa, xaa), VNext x -> false
+    | rho, Prev (xa, xaa), VSince_le x -> false
+    | rho, Prev (xc, xaa), VUntil_never (xb, xa, x) -> false
+    | rho, Prev (xc, xaa), VSince_never (xb, xa, x) -> false
+    | rho, Prev (xc, xaa), VUntil (xb, xa, x) -> false
+    | rho, Prev (xc, xaa), VSince (xb, xa, x) -> false
+    | rho, Prev (xb, xaa), VAlways (xa, x) -> false
+    | rho, Prev (xb, xaa), VHistorically (xa, x) -> false
+    | rho, Prev (xc, xaa), VEventually (xb, xa, x) -> false
+    | rho, Prev (xc, xaa), VOnce (xb, xa, x) -> false
+    | rho, Prev (xa, xaa), VOnce_le x -> false
+    | rho, Prev (xb, xaa), VIff_vs (xa, x) -> false
+    | rho, Prev (xb, xaa), VIff_sv (xa, x) -> false
+    | rho, Prev (xb, xaa), VImpl (xa, x) -> false
+    | rho, Prev (xa, xaa), VConjR x -> false
+    | rho, Prev (xa, xaa), VConjL x -> false
+    | rho, Prev (xb, xaa), VDisj (xa, x) -> false
+    | rho, Prev (xa, xaa), VNeg x -> false
+    | rho, Prev (xb, xaa), VAtm (xa, x) -> false
+    | rho, Prev (xa, xaa), VFF x -> false
+    | rho, Next (x, xa), VPrev_zero -> false
+    | rho, Next (xa, xaa), VPrev_le x -> false
+    | rho, Next (xa, xaa), VPrev_ge x -> false
+    | rho, Next (xa, xaa), VPrev x -> false
+    | rho, Next (xa, xaa), VNext_le x ->
+        less_nat
+          (minus_nat (tau (_A1, _A2, _A4) rho (suc x))
+            (tau (_A1, _A2, _A4) rho (minus_nat (suc x) one_nat)))
+          (left xa)
+    | rho, Next (xa, xaa), VNext_ge x ->
+        less_enat (right xa)
+          (Enat (minus_nat (tau (_A1, _A2, _A4) rho (suc x))
+                  (tau (_A1, _A2, _A4) rho (minus_nat (suc x) one_nat))))
+    | rho, Next (xa, xaa), VNext x ->
+        (let j = v_at x in
+         let i = v_at (VNext x) in
+          equal_nata j (suc i) && v_check (_A1, _A2, _A3, _A4) rho xaa x)
+    | rho, Next (xa, xaa), VSince_le x -> false
+    | rho, Next (xc, xaa), VUntil_never (xb, xa, x) -> false
+    | rho, Next (xc, xaa), VSince_never (xb, xa, x) -> false
+    | rho, Next (xc, xaa), VUntil (xb, xa, x) -> false
+    | rho, Next (xc, xaa), VSince (xb, xa, x) -> false
+    | rho, Next (xb, xaa), VAlways (xa, x) -> false
+    | rho, Next (xb, xaa), VHistorically (xa, x) -> false
+    | rho, Next (xc, xaa), VEventually (xb, xa, x) -> false
+    | rho, Next (xc, xaa), VOnce (xb, xa, x) -> false
+    | rho, Next (xa, xaa), VOnce_le x -> false
+    | rho, Next (xb, xaa), VIff_vs (xa, x) -> false
+    | rho, Next (xb, xaa), VIff_sv (xa, x) -> false
+    | rho, Next (xb, xaa), VImpl (xa, x) -> false
+    | rho, Next (xa, xaa), VConjR x -> false
+    | rho, Next (xa, xaa), VConjL x -> false
+    | rho, Next (xb, xaa), VDisj (xa, x) -> false
+    | rho, Next (xa, xaa), VNeg x -> false
+    | rho, Next (xb, xaa), VAtm (xa, x) -> false
+    | rho, Next (xa, xaa), VFF x -> false
+    | rho, Iff (x, xa), VPrev_zero -> false
+    | rho, Iff (xa, xaa), VPrev_le x -> false
+    | rho, Iff (xa, xaa), VPrev_ge x -> false
+    | rho, Iff (xa, xaa), VPrev x -> false
+    | rho, Iff (xa, xaa), VNext_le x -> false
+    | rho, Iff (xa, xaa), VNext_ge x -> false
+    | rho, Iff (xa, xaa), VNext x -> false
+    | rho, Iff (xa, xaa), VSince_le x -> false
+    | rho, Iff (xc, xaa), VUntil_never (xb, xa, x) -> false
+    | rho, Iff (xc, xaa), VSince_never (xb, xa, x) -> false
+    | rho, Iff (xc, xaa), VUntil (xb, xa, x) -> false
+    | rho, Iff (xc, xaa), VSince (xb, xa, x) -> false
+    | rho, Iff (xb, xaa), VAlways (xa, x) -> false
+    | rho, Iff (xb, xaa), VHistorically (xa, x) -> false
+    | rho, Iff (xc, xaa), VEventually (xb, xa, x) -> false
+    | rho, Iff (xc, xaa), VOnce (xb, xa, x) -> false
+    | rho, Iff (xa, xaa), VOnce_le x -> false
+    | rho, Iff (xb, xaa), VIff_vs (xa, x) ->
+        v_check (_A1, _A2, _A3, _A4) rho xb xa &&
+          (s_check (_A1, _A2, _A3, _A4) rho xaa x &&
+            equal_nata (v_at xa) (s_at x))
+    | rho, Iff (xb, xaa), VIff_sv (xa, x) ->
+        s_check (_A1, _A2, _A3, _A4) rho xb xa &&
+          (v_check (_A1, _A2, _A3, _A4) rho xaa x &&
+            equal_nata (s_at xa) (v_at x))
+    | rho, Iff (xb, xaa), VImpl (xa, x) -> false
+    | rho, Iff (xa, xaa), VConjR x -> false
+    | rho, Iff (xa, xaa), VConjL x -> false
+    | rho, Iff (xb, xaa), VDisj (xa, x) -> false
+    | rho, Iff (xa, xaa), VNeg x -> false
+    | rho, Iff (xb, xaa), VAtm (xa, x) -> false
+    | rho, Iff (xa, xaa), VFF x -> false
+    | rho, Impl (x, xa), VPrev_zero -> false
+    | rho, Impl (xa, xaa), VPrev_le x -> false
+    | rho, Impl (xa, xaa), VPrev_ge x -> false
+    | rho, Impl (xa, xaa), VPrev x -> false
+    | rho, Impl (xa, xaa), VNext_le x -> false
+    | rho, Impl (xa, xaa), VNext_ge x -> false
+    | rho, Impl (xa, xaa), VNext x -> false
+    | rho, Impl (xa, xaa), VSince_le x -> false
+    | rho, Impl (xc, xaa), VUntil_never (xb, xa, x) -> false
+    | rho, Impl (xc, xaa), VSince_never (xb, xa, x) -> false
+    | rho, Impl (xc, xaa), VUntil (xb, xa, x) -> false
+    | rho, Impl (xc, xaa), VSince (xb, xa, x) -> false
+    | rho, Impl (xb, xaa), VAlways (xa, x) -> false
+    | rho, Impl (xb, xaa), VHistorically (xa, x) -> false
+    | rho, Impl (xc, xaa), VEventually (xb, xa, x) -> false
+    | rho, Impl (xc, xaa), VOnce (xb, xa, x) -> false
+    | rho, Impl (xa, xaa), VOnce_le x -> false
+    | rho, Impl (xb, xaa), VIff_vs (xa, x) -> false
+    | rho, Impl (xb, xaa), VIff_sv (xa, x) -> false
+    | rho, Impl (xb, xaa), VImpl (xa, x) ->
+        s_check (_A1, _A2, _A3, _A4) rho xb xa &&
+          (v_check (_A1, _A2, _A3, _A4) rho xaa x &&
+            equal_nata (s_at xa) (v_at x))
+    | rho, Impl (xa, xaa), VConjR x -> false
+    | rho, Impl (xa, xaa), VConjL x -> false
+    | rho, Impl (xb, xaa), VDisj (xa, x) -> false
+    | rho, Impl (xa, xaa), VNeg x -> false
+    | rho, Impl (xb, xaa), VAtm (xa, x) -> false
+    | rho, Impl (xa, xaa), VFF x -> false
+    | rho, Conj (x, xa), VPrev_zero -> false
+    | rho, Conj (xa, xaa), VPrev_le x -> false
+    | rho, Conj (xa, xaa), VPrev_ge x -> false
+    | rho, Conj (xa, xaa), VPrev x -> false
+    | rho, Conj (xa, xaa), VNext_le x -> false
+    | rho, Conj (xa, xaa), VNext_ge x -> false
+    | rho, Conj (xa, xaa), VNext x -> false
+    | rho, Conj (xa, xaa), VSince_le x -> false
+    | rho, Conj (xc, xaa), VUntil_never (xb, xa, x) -> false
+    | rho, Conj (xc, xaa), VSince_never (xb, xa, x) -> false
+    | rho, Conj (xc, xaa), VUntil (xb, xa, x) -> false
+    | rho, Conj (xc, xaa), VSince (xb, xa, x) -> false
+    | rho, Conj (xb, xaa), VAlways (xa, x) -> false
+    | rho, Conj (xb, xaa), VHistorically (xa, x) -> false
+    | rho, Conj (xc, xaa), VEventually (xb, xa, x) -> false
+    | rho, Conj (xc, xaa), VOnce (xb, xa, x) -> false
+    | rho, Conj (xa, xaa), VOnce_le x -> false
+    | rho, Conj (xb, xaa), VIff_vs (xa, x) -> false
+    | rho, Conj (xb, xaa), VIff_sv (xa, x) -> false
+    | rho, Conj (xb, xaa), VImpl (xa, x) -> false
+    | rho, Conj (xa, xaa), VConjR x -> v_check (_A1, _A2, _A3, _A4) rho xaa x
+    | rho, Conj (xa, xaa), VConjL x -> v_check (_A1, _A2, _A3, _A4) rho xa x
+    | rho, Conj (xb, xaa), VDisj (xa, x) -> false
+    | rho, Conj (xa, xaa), VNeg x -> false
+    | rho, Conj (xb, xaa), VAtm (xa, x) -> false
+    | rho, Conj (xa, xaa), VFF x -> false
+    | rho, Disj (x, xa), VPrev_zero -> false
+    | rho, Disj (xa, xaa), VPrev_le x -> false
+    | rho, Disj (xa, xaa), VPrev_ge x -> false
+    | rho, Disj (xa, xaa), VPrev x -> false
+    | rho, Disj (xa, xaa), VNext_le x -> false
+    | rho, Disj (xa, xaa), VNext_ge x -> false
+    | rho, Disj (xa, xaa), VNext x -> false
+    | rho, Disj (xa, xaa), VSince_le x -> false
+    | rho, Disj (xc, xaa), VUntil_never (xb, xa, x) -> false
+    | rho, Disj (xc, xaa), VSince_never (xb, xa, x) -> false
+    | rho, Disj (xc, xaa), VUntil (xb, xa, x) -> false
+    | rho, Disj (xc, xaa), VSince (xb, xa, x) -> false
+    | rho, Disj (xb, xaa), VAlways (xa, x) -> false
+    | rho, Disj (xb, xaa), VHistorically (xa, x) -> false
+    | rho, Disj (xc, xaa), VEventually (xb, xa, x) -> false
+    | rho, Disj (xc, xaa), VOnce (xb, xa, x) -> false
+    | rho, Disj (xa, xaa), VOnce_le x -> false
+    | rho, Disj (xb, xaa), VIff_vs (xa, x) -> false
+    | rho, Disj (xb, xaa), VIff_sv (xa, x) -> false
+    | rho, Disj (xb, xaa), VImpl (xa, x) -> false
+    | rho, Disj (xa, xaa), VConjR x -> false
+    | rho, Disj (xa, xaa), VConjL x -> false
+    | rho, Disj (xb, xaa), VDisj (xa, x) ->
+        v_check (_A1, _A2, _A3, _A4) rho xb xa &&
+          (v_check (_A1, _A2, _A3, _A4) rho xaa x &&
+            equal_nata (v_at xa) (v_at x))
+    | rho, Disj (xa, xaa), VNeg x -> false
+    | rho, Disj (xb, xaa), VAtm (xa, x) -> false
+    | rho, Disj (xa, xaa), VFF x -> false
+    | rho, Neg x, VPrev_zero -> false
+    | rho, Neg xa, VPrev_le x -> false
+    | rho, Neg xa, VPrev_ge x -> false
+    | rho, Neg xa, VPrev x -> false
+    | rho, Neg xa, VNext_le x -> false
+    | rho, Neg xa, VNext_ge x -> false
+    | rho, Neg xa, VNext x -> false
+    | rho, Neg xa, VSince_le x -> false
+    | rho, Neg xc, VUntil_never (xb, xa, x) -> false
+    | rho, Neg xc, VSince_never (xb, xa, x) -> false
+    | rho, Neg xc, VUntil (xb, xa, x) -> false
+    | rho, Neg xc, VSince (xb, xa, x) -> false
+    | rho, Neg xb, VAlways (xa, x) -> false
+    | rho, Neg xb, VHistorically (xa, x) -> false
+    | rho, Neg xc, VEventually (xb, xa, x) -> false
+    | rho, Neg xc, VOnce (xb, xa, x) -> false
+    | rho, Neg xa, VOnce_le x -> false
+    | rho, Neg xb, VIff_vs (xa, x) -> false
+    | rho, Neg xb, VIff_sv (xa, x) -> false
+    | rho, Neg xb, VImpl (xa, x) -> false
+    | rho, Neg xa, VConjR x -> false
+    | rho, Neg xa, VConjL x -> false
+    | rho, Neg xb, VDisj (xa, x) -> false
+    | rho, Neg xa, VNeg x -> s_check (_A1, _A2, _A3, _A4) rho xa x
+    | rho, Neg xb, VAtm (xa, x) -> false
+    | rho, Neg xa, VFF x -> false
+    | rho, Atom x, VPrev_zero -> false
+    | rho, Atom xa, VPrev_le x -> false
+    | rho, Atom xa, VPrev_ge x -> false
+    | rho, Atom xa, VPrev x -> false
+    | rho, Atom xa, VNext_le x -> false
+    | rho, Atom xa, VNext_ge x -> false
+    | rho, Atom xa, VNext x -> false
+    | rho, Atom xa, VSince_le x -> false
+    | rho, Atom xc, VUntil_never (xb, xa, x) -> false
+    | rho, Atom xc, VSince_never (xb, xa, x) -> false
+    | rho, Atom xc, VUntil (xb, xa, x) -> false
+    | rho, Atom xc, VSince (xb, xa, x) -> false
+    | rho, Atom xb, VAlways (xa, x) -> false
+    | rho, Atom xb, VHistorically (xa, x) -> false
+    | rho, Atom xc, VEventually (xb, xa, x) -> false
+    | rho, Atom xc, VOnce (xb, xa, x) -> false
+    | rho, Atom xa, VOnce_le x -> false
+    | rho, Atom xb, VIff_vs (xa, x) -> false
+    | rho, Atom xb, VIff_sv (xa, x) -> false
+    | rho, Atom xb, VImpl (xa, x) -> false
+    | rho, Atom xa, VConjR x -> false
+    | rho, Atom xa, VConjL x -> false
+    | rho, Atom xb, VDisj (xa, x) -> false
+    | rho, Atom xa, VNeg x -> false
+    | rho, Atom xb, VAtm (xa, x) ->
+        eq _A3 xb xa && not (member (_A1, _A2) xb (gamma (_A1, _A2, _A4) rho x))
+    | rho, Atom xa, VFF x -> false
+    | rho, FF, VPrev_zero -> false
+    | rho, FF, VPrev_le x -> false
+    | rho, FF, VPrev_ge x -> false
+    | rho, FF, VPrev x -> false
+    | rho, FF, VNext_le x -> false
+    | rho, FF, VNext_ge x -> false
+    | rho, FF, VNext x -> false
+    | rho, FF, VSince_le x -> false
+    | rho, FF, VUntil_never (xb, xa, x) -> false
+    | rho, FF, VSince_never (xb, xa, x) -> false
+    | rho, FF, VUntil (xb, xa, x) -> false
+    | rho, FF, VSince (xb, xa, x) -> false
+    | rho, FF, VAlways (xa, x) -> false
+    | rho, FF, VHistorically (xa, x) -> false
+    | rho, FF, VEventually (xb, xa, x) -> false
+    | rho, FF, VOnce (xb, xa, x) -> false
+    | rho, FF, VOnce_le x -> false
+    | rho, FF, VIff_vs (xa, x) -> false
+    | rho, FF, VIff_sv (xa, x) -> false
+    | rho, FF, VImpl (xa, x) -> false
+    | rho, FF, VConjR x -> false
+    | rho, FF, VConjL x -> false
+    | rho, FF, VDisj (xa, x) -> false
+    | rho, FF, VNeg x -> false
+    | rho, FF, VAtm (xa, x) -> false
+    | rho, FF, VFF x -> true
     | rho, TT, p -> false
 and s_check (_A1, _A2, _A3, _A4)
   rho x1 p = match rho, x1, p with
@@ -4054,6 +4248,11 @@ let rec doUntil
       | (Inr p1a, (Inr _, (false, Inr (VUntil_never (_, hi, q))))) ->
         [Inr (VUntil (i, [], p1a)); Inr (VUntil_never (i, hi, q))]);;
 
+let rec p_check (_A1, _A2, _A3, _A4)
+  rho = (fun phi a ->
+          (match a with Inl aa -> s_check (_A1, _A2, _A3, _A4) rho phi aa
+            | Inr aa -> v_check (_A1, _A2, _A3, _A4) rho phi aa));;
+
 let empty : ('a, 'b) alist = Alist [];;
 
 let rec hda (x21 :: x22) = x21;;
@@ -4879,6 +5078,10 @@ let rec interval
   l r = Abs_I (if less_eq_enat (Enat l) r then (l, r)
                 else rep_I (failwith "undefined"));;
 
+let rec is_valid
+  x = p_check (ceq_literal, ccompare_literal, equal_literal, set_impl_literal)
+        x;;
+
 let rec maxreach (_A1, _A2)
   = (fun a ->
       (match a with Inl aa -> s_htp (_A1, _A2) aa
@@ -5196,6 +5399,8 @@ let rec is_opt_atm
              ratm w p (opt_atm w rho i phi)
       else failwith "optimal: not bounded future"
              (fun _ -> is_opt_atm w rho i phi p));;
+
+let rec is_minimal x = is_opt_atm (fun _ -> one_nat) x;;
 
 let rec strs_check
   x = s_check (ceq_literal, ccompare_literal, equal_literal, set_impl_literal)
@@ -6725,4 +6930,4 @@ let rec is_opt_lex_atm_minmaxreach
       else failwith "optimal: not bounded future"
              (fun _ -> is_opt_lex_atm_minmaxreach w rho i phi p));;
 
-end;; (*struct Explanator*)
+end;; (*struct VerifiedExplanator2*)
