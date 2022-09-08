@@ -347,6 +347,9 @@ definition strv_check :: "String.literal trace \<Rightarrow> _ mtl \<Rightarrow>
 definition strv_at :: "String.literal vproof \<Rightarrow> nat"
   where "strv_at = v_at"
 
+definition is_valid :: "String.literal trace \<Rightarrow> _ mtl \<Rightarrow> (_ sproof + _ vproof) \<Rightarrow> bool"
+  where "is_valid = p_check"
+
 declare bounded_future_simps[code]
 
 context trans_wqo
@@ -358,6 +361,8 @@ lemma optimal_code[code]: "optimal i phi p = (if bounded_future phi then
   by (auto simp: optimal_def transp_def)
 
 end
+
+typ "((_ sproof) + (_ vproof))"
 
 (* Setup for maximum measures *)
 
@@ -748,6 +753,8 @@ global_interpretation matm_trans_wqo: trans_wqo "ratm w"
        (auto simp add: valid_def proofIncr_def checkIncr.simps split: sum.splits)
   done
 
+definition "is_minimal = is_opt_atm (\<lambda> _. 1)"
+
 definition "rratm w = (ratm w)\<inverse>\<inverse>"
 
 global_interpretation mmatm_trans_wqo: trans_wqo "rratm w"
@@ -1003,7 +1010,6 @@ global_interpretation maxminreach_trans_wqo: trans_wqo rmaxminreach
     by (auto simp only: minr min_def split: if_splits)
   apply (auto simp: reflp_def transp_def total_on_def valid_def p_at_def split: sum.splits)
   done
-
 
 definition maxreach :: "'a sproof + 'a vproof \<Rightarrow> nat" where
   "maxreach = case_sum s_htp v_htp"
@@ -1272,8 +1278,6 @@ proof -
     by simp
 qed
 
-declare v_check_simps(9)[code del]
-
 lemma v_check_Since_code[code]: "v_check rho (Since phi I psi) p = (case p of
   VSince i vphi vpsis \<Rightarrow>
    let j = v_at vphi
@@ -1380,8 +1384,6 @@ proof -
   finally show ?thesis
     unfolding check_upt_lu_def .
 qed
-
-declare v_check_simps(10)[code del]
 
 lemma v_check_Until_code[code]: "v_check rho (Until phi I psi) p = (case p of
   VUntil i vpsis vphi \<Rightarrow>
@@ -1928,7 +1930,7 @@ next
     subgoal for phi
       using IH check_upt_lu_cong[OF 43(2)] foo
       by (cases phi) (auto simp: v_check_Eventually_code Let_def 43(2)[OF at_le_htp(1)] 43(2)[OF at_le_htp(2)] 
-          43(2)[OF at_le_htp(3)] simp del: v_check_simps(13) split: enat.splits)
+          43(2)[OF at_le_htp(3)] split: enat.splits)
     done
 next
   case (44 i p)
@@ -2118,8 +2120,8 @@ export_code strset trace_of_list strs_at strv_at strs_check strv_check sprogress
   opt_minminreach is_opt_minminreach rminminreach opt_maxminreach is_opt_maxminreach rmaxminreach strminreach
   opt_minmaxreach is_opt_minmaxreach rminmaxreach opt_maxmaxreach is_opt_maxmaxreach rmaxmaxreach strmaxreach
   opt_lex_atm_minmaxreach is_opt_lex_atm_minmaxreach rlex_atm_minmaxreach
-  TT STT Inl interval enat nat_of_integer integer_of_nat
-  in OCaml module_name Explanator file_prefix "explanator"
+  TT STT Inl interval enat nat_of_integer integer_of_nat is_minimal is_valid
+  in OCaml module_name VerifiedExplanator2 file_prefix "checker"
 
 (* ETP/LTP code setup *)
 
