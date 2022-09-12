@@ -7,6 +7,8 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
+[@@@landmark "auto"]
+
 open Io
 open Mtl
 open Expl
