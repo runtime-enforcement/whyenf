@@ -6,4 +6,7 @@
 
 (library
  (name src)
- (libraries core_kernel base zarith))
+ (libraries core_kernel base zarith landmarks)
+ (preprocess (pps landmarks-ppx --auto))
+ (instrumentation (backend landmarks))
+)
