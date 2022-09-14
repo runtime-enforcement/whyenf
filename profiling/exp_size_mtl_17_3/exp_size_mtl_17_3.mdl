@@ -1,0 +1,1 @@
+(NEXT[0,18] (NOT ((NOT (NEXT[0,0] (((NOT a15) AND (NEXT[24,31] (NEXT[0,25] a01))) UNTIL[7,47] (a11 OR a01)))) SINCE[15,42] (NOT a15))))
