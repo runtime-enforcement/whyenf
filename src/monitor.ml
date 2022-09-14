@@ -398,7 +398,8 @@ module Eventually = struct
   let meaux_to_string { ts_tp_out
                       ; ts_tp_in
                       ; s_alphas_in
-                      ; v_alphas_in } =
+                      ; v_alphas_in
+                      ; optimal_proofs } =
     "\n\nmeaux: " ^
       Deque.fold ts_tp_out ~init:"\nts_out = ["
         ~f:(fun acc (ts, tp) -> acc ^ (Printf.sprintf "(%d, %d);" ts tp)) ^
@@ -412,7 +413,7 @@ module Eventually = struct
       Deque.fold v_alphas_in ~init:"\nv_alphas_in = "
         ~f:(fun acc (ts, p) ->
           acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Expl.v_to_string "" p) ^
-      Deque.fold s_alphas_in ~init:"\noptimal_proofs = "
+      Deque.fold optimal_proofs ~init:"\noptimal_proofs = "
         ~f:(fun acc (ts, p) ->
           acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Expl.expl_to_string p)
 
@@ -437,20 +438,18 @@ module Eventually = struct
     let (first_ts, first_tp) = match first_ts_tp meaux.ts_tp_out meaux.ts_tp_in with
       | None -> (nts, ntp)
       | Some(ts', tp') -> (ts', tp') in
+    (* let () = Printf.printf "adjust_meaux current_tp = %d; (first_ts, first_tp) = (%d,%d)\n" current_tp first_ts first_tp in *)
+    let s_alphas_in = remove_if_pred_front (fun (ts', _) -> ts' < first_ts + a) meaux.s_alphas_in in
+    let v_alphas_in = remove_if_pred_front (fun (ts', _) -> ts' < first_ts + a) meaux.v_alphas_in in
     let () = adjust_ts_tp a first_ts ntp meaux in
-    let s_alphas_in = remove_if_pred_front (fun (ts', p) -> ts' < first_ts + a) meaux.s_alphas_in in
-    let v_alphas_in = remove_if_pred_front (fun (_, vp) ->
-                              match Deque.peek_front meaux.ts_tp_in with
-                              | None -> (match Deque.peek_back meaux.ts_tp_out with
-                                         | None -> (v_at vp) <= ntp
-                                         | Some(_, tp') -> (v_at vp) <= tp')
-                              | Some (_, tp') -> (v_at vp) < tp') meaux.v_alphas_in in
     { meaux with s_alphas_in; v_alphas_in }
 
   let eval_step_meaux a (nts, ntp) ts tp meaux le =
+    (* let () = Printf.printf "eval_step_meaux nts = %d; ntp = %d\n" nts ntp in *)
     let () = if not (Deque.is_empty meaux.s_alphas_in) then
                (match Deque.peek_front_exn meaux.s_alphas_in with
-                | (_, S sp) -> if tp = (s_at sp) then Deque.enqueue_back meaux.optimal_proofs (ts, S sp)
+                | (_, S sp) -> Deque.enqueue_back meaux.optimal_proofs
+                                 (ts, S (SEventually (tp, unS(snd(Deque.peek_front_exn meaux.s_alphas_in)))))
                 | _ -> raise VEXPL)
              else
                (let ltp = match Deque.peek_back meaux.v_alphas_in with
@@ -462,8 +461,9 @@ module Eventually = struct
   let meaux = adjust_meaux a (nts, ntp) meaux le in meaux
 
   let shift_meaux (a, b) (nts, ntp) meaux le =
-    let () = Printf.printf "shift_meaux nts = %d; ntp = %d\n" nts ntp in
+    (* let () = Printf.printf "shift_meaux nts = %d; ntp = %d\n" nts ntp in *)
     let tss_tps = ready_tss_tps meaux.ts_tp_out meaux.ts_tp_in nts b in
+    (* let () = Printf.printf "ready_tss_tps = [" in *)
     Deque.fold tss_tps ~init:meaux
       ~f:(fun acc (ts, tp) -> if ts + b < nts then eval_step_meaux a (nts, ntp) ts tp acc le
                               else acc)
@@ -482,7 +482,8 @@ module Eventually = struct
                else meaux
 
   let update_eventually interval nts ntp p meaux le =
-    let () = Printf.printf "update_eventually nts = %d; ntp = %d\n" nts ntp in
+    (* let () = Printf.printf "\n-------------------------------------\n" in *)
+    (* let () = Printf.printf "update_eventually nts = %d; ntp = %d\n" nts ntp in *)
     let a = get_a_I interval in
     let b = match get_b_I interval with
       | None -> raise UNBOUNDED_FUTURE
@@ -501,7 +502,8 @@ module Eventually = struct
     meaux
 
   let rec eval_eventually d interval nts ntp meaux le =
-    let () = Printf.printf "%s\n" (meaux_to_string meaux) in
+    (* let () = Printf.printf "eval_eventually nts = %d; ntp = %d\n" nts ntp in *)
+    (* let () = Printf.printf "%s\n" (meaux_to_string meaux) in *)
     let a = get_a_I interval in
     let b = match get_b_I interval with
       | None -> raise UNBOUNDED_FUTURE
@@ -1464,18 +1466,18 @@ let meval' ts tp sap mform le =
        let (_, p2s, mf2') = meval tp ts sap mf2 in
        let () = Deque.enqueue_back tss_tps (ts, tp) in
 
-       let () = Printf.printf "tss_tps = [" in
-       let () = Deque.iter tss_tps (fun (ts, tp) -> Printf.printf "(%d, %d)" ts tp) in
-       let () = Printf.printf "]\n" in
+       (* let () = Printf.printf "tss_tps = [" in *)
+       (* let () = Deque.iter tss_tps (fun (ts, tp) -> Printf.printf "(%d, %d)" ts tp) in *)
+       (* let () = Printf.printf "]\n" in *)
 
        let (muaux', buf', ntss_ntps) =
          mbuf2t_take
            (fun p1 p2 ts tp aux -> Until.update_until interval ts tp p1 p2 muaux le)
            muaux (mbuf2_add p1s p2s buf) tss_tps in
 
-       let () = Printf.printf "ntss_ntps = [" in
-       let () = Deque.iter ntss_ntps (fun (ts, tp) -> Printf.printf "(%d, %d)" ts tp) in
-       let () = Printf.printf "]\n" in
+       (* let () = Printf.printf "ntss_ntps = [" in *)
+       (* let () = Deque.iter ntss_ntps (fun (ts, tp) -> Printf.printf "(%d, %d)" ts tp) in *)
+       (* let () = Printf.printf "]\n" in *)
 
        let (nts, ntp) = match Deque.peek_front ntss_ntps with
          | None -> (ts, tp)
