@@ -1020,7 +1020,7 @@ module Until = struct
     let _ = remove_if_pred_front (fun (ts', tp') -> (ts' < ts + a) && (tp' < tp)) muaux.ts_tp_in in
     ()
 
-  let adjust_muaux a (nts, ntp) muaux le =
+  let adjust_muaux a (nts, ntp) le muaux =
     let current_tp = match first_ts_tp muaux.ts_tp_out muaux.ts_tp_in with
       | None -> raise (NOT_FOUND "tp not found")
       | Some(_, tp') -> tp' in
@@ -1105,7 +1105,7 @@ module Until = struct
                  let cps = p1 @ p2 @ p3 in
                  if List.length cps > 0 then
                    Deque.enqueue_back muaux.optimal_proofs (ts, minimuml le cps))) in
-    let muaux = adjust_muaux a (nts, ntp) muaux le in
+    let muaux = adjust_muaux a (nts, ntp) le muaux in
     (* let () = Printf.printf "\nafter: %s\n" (muaux_to_string muaux) in *)
     muaux
 
