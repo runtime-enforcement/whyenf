@@ -600,7 +600,7 @@ module Since = struct
                                   (Printf.sprintf "\n(%d)\nbeta = " ts) ^
                                   Expl.v_to_string "" p2)
 
-  let update_tss (l, r) a ts tp aux =
+  let update_ts_tps (l, r) a ts tp aux =
     if a = 0 then
       let () = Deque.enqueue_back aux.ts_tp_in (ts, tp) in
       let ts_tp_in = remove_if_pred_front (fun (ts', _) -> ts' < l) aux.ts_tp_in in
@@ -670,29 +670,6 @@ module Since = struct
     let alpha_betas' = add_new_ps_v_alpha_betas_in tp new_in alpha_betas_vapp le in
     (update_v_alpha_betas_in_tps tp alpha_betas')
 
-  let candidate_proofs tp msaux =
-    if not (Deque.is_empty msaux.s_beta_alphas_in) then
-      [snd(Deque.peek_front_exn msaux.s_beta_alphas_in)]
-    else
-      let p1_l = if not (Deque.is_empty msaux.v_alpha_betas_in) then
-                   [snd(Deque.peek_front_exn msaux.v_alpha_betas_in)]
-                 else [] in
-      let p2_l = if not (Deque.is_empty msaux.v_alphas_out) then
-                   let vp_f2 = snd(Deque.peek_front_exn msaux.v_alphas_out) in
-                   match vp_f2 with
-                   | V f2 -> [V (VSince (tp, f2, []))]
-                   | S _ -> raise VEXPL
-                 else [] in
-      let p3_l = if (Deque.length msaux.v_betas_in) = (Deque.length msaux.ts_tp_in) then
-                   let etp = match Deque.is_empty msaux.v_betas_in with
-                     | true -> etp msaux.ts_tp_in msaux.ts_tp_out tp
-                     | false -> v_at (snd(Deque.peek_front_exn msaux.v_betas_in)) in
-                   let betas_suffix = betas_suffix_in_to_list msaux.v_betas_in in
-                   [V (VSinceInf (tp, etp, betas_suffix))]
-                 else [] in
-      (* let () = List.iter (p1_l @ p2_l @ p3_l) ~f:(fun p -> (Printf.printf "\n(%s)\n" (Expl.expl_to_string p))) in *)
-      (p1_l @ p2_l @ p3_l)
-
   let add_to_msaux ts p1 p2 msaux le =
     match p1, p2 with
     | S sp1, S sp2 ->
@@ -758,29 +735,55 @@ module Since = struct
                          ; v_alpha_betas_in
                          ; v_betas_in }
 
+
+  let eval_msaux tp le msaux =
+    if not (Deque.is_empty msaux.s_beta_alphas_in) then
+      snd(Deque.peek_front_exn msaux.s_beta_alphas_in)
+    else
+      let p1 = if not (Deque.is_empty msaux.v_alpha_betas_in) then
+                 [snd(Deque.peek_front_exn msaux.v_alpha_betas_in)]
+               else [] in
+      let p2 = if not (Deque.is_empty msaux.v_alphas_out) then
+                 let vp_f2 = snd(Deque.peek_front_exn msaux.v_alphas_out) in
+                 match vp_f2 with
+                 | V f2 -> [V (VSince (tp, f2, []))]
+                 | S _ -> raise VEXPL
+               else [] in
+      let p3 = if (Deque.length msaux.v_betas_in) = (Deque.length msaux.ts_tp_in) then
+                 let etp = match Deque.is_empty msaux.v_betas_in with
+                   | true -> etp msaux.ts_tp_in msaux.ts_tp_out tp
+                   | false -> v_at (snd(Deque.peek_front_exn msaux.v_betas_in)) in
+                 let betas_suffix = betas_suffix_in_to_list msaux.v_betas_in in
+                 [V (VSinceInf (tp, etp, betas_suffix))]
+               else [] in
+      (* let () = List.iter (p1_l @ p2_l @ p3_l) ~f:(fun p -> (Printf.printf "\n(%s)\n" (Expl.expl_to_string p))) in *)
+      minimuml le (p1 @ p2 @ p3)
+
   let update_since interval ts tp p1 p2 msaux le =
     let a = get_a_I interval in
     (* Case 1: interval has not yet started, i.e.,
      a > 0 OR (\tau_{tp} - a) < 0 *)
+    let ts_zero = if Option.is_none msaux.ts_zero then Some(ts) else msaux.ts_zero in
     if ((Option.is_none msaux.ts_zero) && a > 0) ||
          (Option.is_some msaux.ts_zero) && ts < (Option.get msaux.ts_zero) + a then
       let l = (-1) in
       let r = (-1) in
-      let ts_zero = if Option.is_none msaux.ts_zero then Some(ts) else msaux.ts_zero in
-      let msaux_ts_updated = update_tss (l, r) a ts tp msaux in
-      let msaux_updated = shift_msaux (l, r) ts tp p1 p2 msaux_ts_updated le in
+      let msaux = { msaux with ts_zero } in
+      let msaux = update_ts_tps (l, r) a ts tp msaux in
+      let msaux = shift_msaux (l, r) ts tp p1 p2 msaux le in
       let p = V (VSinceOutL tp) in
-      (p, { msaux_updated with ts_zero })
+      (p, msaux)
     (* Case 2: there exists a \tau_{tp'} inside the interval s.t. tp' < tp *)
     else
-      let ts_zero = if Option.is_none msaux.ts_zero then Some(ts) else msaux.ts_zero in
       let b = get_b_I interval in
       let l = if (Option.is_some b) then max 0 (ts - (Option.get b))
               else (Option.get ts_zero) in
       let r = ts - a in
-      let msaux_ts_updated = update_tss (l, r) a ts tp msaux in
-      let msaux_updated = shift_msaux (l, r) ts tp p1 p2 msaux_ts_updated le in
-      (minimuml le (candidate_proofs tp { msaux_updated with ts_zero }), { msaux_updated with ts_zero })
+      let msaux = { msaux with ts_zero } in
+      let msaux = update_ts_tps (l, r) a ts tp msaux in
+      let msaux = shift_msaux (l, r) ts tp p1 p2 msaux le in
+      let p = eval_msaux tp le msaux in
+      (p, msaux)
 end
 
 module Until = struct
