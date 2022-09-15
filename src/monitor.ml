@@ -1065,45 +1065,44 @@ module Until = struct
                ; v_alphas_out
                ; betas_suffix_in }
 
-  let eval_step_muaux a (nts, ntp) ts tp muaux le =
+  let eval_step_muaux a (nts, ntp) ts tp le muaux =
     (* let () = Printf.printf "eval_step_muaux ts = %d; tp = %d\n" ts tp in *)
     (* let () = Printf.printf "\nbefore: %s\n" (muaux_to_string muaux) in *)
     let optimal_proofs_len = Deque.length muaux.optimal_proofs in
-    let () = (let cur_alphas_beta = Deque.peek_front_exn muaux.alphas_beta in
-              let () = (if not (Deque.is_empty cur_alphas_beta) then
-                          (match Deque.peek_front_exn cur_alphas_beta with
-                           | (_, S sp) -> if tp = (s_at sp) then Deque.enqueue_back muaux.optimal_proofs (ts, S sp)
-                           | _ -> raise VEXPL)) in
-              (* U^-/U_{\infty}^- (violation) cases *)
-              if (Deque.length muaux.optimal_proofs) = optimal_proofs_len then
-                (let p1_l = if not (Deque.is_empty muaux.betas_alpha) then
-                              let cur_betas_alpha = Deque.peek_front_exn muaux.betas_alpha in
-                              (if not (Deque.is_empty cur_betas_alpha) then
-                                 match Deque.peek_front_exn cur_betas_alpha with
-                                 | (_, V VUntil(_, vp1, vp2s)) -> (match Deque.peek_front muaux.ts_tp_in with
-                                                                   | None -> []
-                                                                   | Some(_, first_tp_in) ->
-                                                                      (* TODO: This should be simply tp = first_tp_in *)
-                                                                      if (v_etp (VUntil(tp, vp1, vp2s))) = first_tp_in then
-                                                                        [V (VUntil(tp, vp1, vp2s))]
-                                                                      else [])
-                                 | _ -> raise (INVALID_EXPL "Explanation should be VUntil")
-                               else [])
-                            else [] in
-                 let p2_l = if not (Deque.is_empty muaux.v_alphas_out) then
-                              let vvp1 = snd(Deque.peek_front_exn muaux.v_alphas_out) in
-                              match vvp1 with
-                              | V vp1 -> [V (VUntil (tp, vp1, []))]
-                              | S _ -> raise VEXPL
-                            else [] in
-                 let p3_l = let betas_suffix = betas_suffix_in_to_list muaux.betas_suffix_in in
-                            if (List.length betas_suffix) = (Deque.length muaux.ts_tp_in) then
-                              let ltp = match Deque.peek_back muaux.betas_suffix_in with
-                                | None -> snd(Deque.peek_back_exn muaux.ts_tp_out)
-                                | Some(_, vp2) -> (v_at vp2) in
-                              [V (VUntilInf (tp, ltp, betas_suffix))]
-                            else [] in
-                 let cps = p1_l @ p2_l @ p3_l in
+    let cur_alphas_beta = Deque.peek_front_exn muaux.alphas_beta in
+    let () = (if not (Deque.is_empty cur_alphas_beta) then
+                (match Deque.peek_front_exn cur_alphas_beta with
+                 | (_, S sp) -> if tp = (s_at sp) then
+                                  Deque.enqueue_back muaux.optimal_proofs (ts, S sp)
+                 | _ -> raise VEXPL)) in
+    let () = (if (Deque.length muaux.optimal_proofs) = optimal_proofs_len then
+                (let p1 = if not (Deque.is_empty muaux.betas_alpha) then
+                            let cur_betas_alpha = Deque.peek_front_exn muaux.betas_alpha in
+                            (if not (Deque.is_empty cur_betas_alpha) then
+                               match Deque.peek_front_exn cur_betas_alpha with
+                               | (_, V VUntil(_, vp1, vp2s)) -> (match Deque.peek_front muaux.ts_tp_in with
+                                                                 | None -> []
+                                                                 | Some(_, first_tp_in) ->
+                                                                    if (v_etp (VUntil(tp, vp1, vp2s))) = first_tp_in then
+                                                                      [V (VUntil(tp, vp1, vp2s))]
+                                                                    else [])
+                               | _ -> raise (INVALID_EXPL "Explanation should be VUntil")
+                             else [])
+                          else [] in
+                 let p2 = if not (Deque.is_empty muaux.v_alphas_out) then
+                            let vvp1 = snd(Deque.peek_front_exn muaux.v_alphas_out) in
+                            match vvp1 with
+                            | V vp1 -> [V (VUntil (tp, vp1, []))]
+                            | S _ -> raise VEXPL
+                          else [] in
+                 let p3 = let betas_suffix = betas_suffix_in_to_list muaux.betas_suffix_in in
+                          if (List.length betas_suffix) = (Deque.length muaux.ts_tp_in) then
+                            let ltp = match Deque.peek_back muaux.betas_suffix_in with
+                              | None -> snd(Deque.peek_back_exn muaux.ts_tp_out)
+                              | Some(_, vp2) -> (v_at vp2) in
+                            [V (VUntilInf (tp, ltp, betas_suffix))]
+                          else [] in
+                 let cps = p1 @ p2 @ p3 in
                  if List.length cps > 0 then
                    Deque.enqueue_back muaux.optimal_proofs (ts, minimuml le cps))) in
     let muaux = adjust_muaux a (nts, ntp) muaux le in
@@ -1114,7 +1113,7 @@ module Until = struct
     (* let () = Printf.printf "shift_muaux nts = %d; ntp = %d\n" nts ntp in *)
     let ts_tps = ready_ts_tps b nts muaux.ts_tp_out muaux.ts_tp_in in
     Deque.fold ts_tps ~init:muaux
-      ~f:(fun muaux' (ts, tp) -> eval_step_muaux a (nts, ntp) ts tp muaux' le)
+      ~f:(fun muaux' (ts, tp) -> eval_step_muaux a (nts, ntp) ts tp le muaux')
 
   let add_ts_tp a b nts ntp muaux =
     (* (ts, tp) update is performed differently if the queues are not empty *)
