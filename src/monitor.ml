@@ -1021,7 +1021,7 @@ module Until = struct
     ()
 
   let adjust_muaux a (nts, ntp) le muaux =
-    let current_tp = match first_ts_tp muaux.ts_tp_out muaux.ts_tp_in with
+    let eval_tp = match first_ts_tp muaux.ts_tp_out muaux.ts_tp_in with
       | None -> raise (NOT_FOUND "tp not found")
       | Some(_, tp') -> tp' in
     let () = drop_first_ts_tp muaux in
@@ -1032,14 +1032,15 @@ module Until = struct
     let () = Deque.iteri muaux.betas_alpha ~f:(fun i d ->
                  Deque.set_exn muaux.betas_alpha i
                    (remove_if_pred_front (fun (ts', p) -> (ts' < first_ts + a) || ((p_at p) < first_tp)) d)) in
-    let () = match a with
-      | 0 -> drop_muaux_single_ts current_tp muaux
-      | _ -> drop_muaux_ts a first_ts muaux in
+    let () = if a = 0 then
+               drop_muaux_single_ts eval_tp muaux
+             else
+               drop_muaux_ts a first_ts muaux in
     let _ = remove_if_pred_front_ne (fun d' -> Deque.is_empty d') muaux.betas_alpha in
     (* ts_tp_out and ts_tp_out *)
     let () = adjust_ts_tp a first_ts ntp muaux in
     (* alphas_beta *)
-    let () = drop_muaux_tp (first_tp - 1) muaux in
+    let () = drop_muaux_tp eval_tp muaux in
     let () = Deque.iteri muaux.alphas_beta ~f:(fun i d ->
                  Deque.set_exn muaux.alphas_beta i
                    (remove_if_pred_front (fun (ts', p) -> match p with
