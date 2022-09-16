@@ -886,6 +886,7 @@ module Until = struct
          | None -> None
          | Some(vp') -> vdrop_until vp')
       else Some(vp) in
+    (* TODO: This fold should not be initialized with a fresh deque *)
     Deque.fold betas_alpha ~init:(Deque.create ())
       ~f:(fun acc (ts, vvp) ->
         (match vvp with
