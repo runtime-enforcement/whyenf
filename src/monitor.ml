@@ -1011,13 +1011,12 @@ module Until = struct
     | None -> Deque.drop_front muaux.ts_tp_in
     | Some (_) -> Deque.drop_front muaux.ts_tp_out
 
-  let adjust_ts_tp a ts tp muaux =
-    (* let () = Printf.printf "adjust_ts_tp ts = %d; tp = %d\n" ts tp in *)
+  let adjust_ts_tp a first_ts ntp muaux =
     let () = Deque.iter muaux.ts_tp_in
                ~f:(fun (ts', tp') ->
-                 if (ts' < ts + a) && (tp' < tp) then Deque.enqueue_back muaux.ts_tp_out (ts', tp')) in
-    let _ = remove_if_pred_front (fun (ts', tp') -> (ts' < ts) && (tp' < tp)) muaux.ts_tp_out in
-    let _ = remove_if_pred_front (fun (ts', tp') -> (ts' < ts + a) && (tp' < tp)) muaux.ts_tp_in in
+                 if (ts' < first_ts + a) && (tp' < ntp) then Deque.enqueue_back muaux.ts_tp_out (ts', tp')) in
+    let _ = remove_if_pred_front (fun (ts', tp') -> (ts' < first_ts) && (tp' < ntp)) muaux.ts_tp_out in
+    let _ = remove_if_pred_front (fun (ts', tp') -> (ts' < first_ts + a) && (tp' < ntp)) muaux.ts_tp_in in
     ()
 
   let adjust_muaux a (nts, ntp) le muaux =
@@ -1037,7 +1036,7 @@ module Until = struct
              else
                drop_muaux_ts a first_ts muaux in
     let _ = remove_if_pred_front_ne (fun d' -> Deque.is_empty d') muaux.betas_alpha in
-    (* ts_tp_out and ts_tp_out *)
+    (* ts_tp_in and ts_tp_out *)
     let () = adjust_ts_tp a first_ts ntp muaux in
     (* alphas_beta *)
     let () = drop_muaux_tp eval_tp muaux in
