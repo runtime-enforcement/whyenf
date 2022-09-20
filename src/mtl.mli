@@ -19,8 +19,14 @@ type formula =
   | Neg of formula
   | Conj of formula * formula
   | Disj of formula * formula
+  | Imp of formula * formula
+  | Iff of formula * formula
   | Prev of interval * formula
   | Next of interval * formula
+  | Once of interval * formula
+  | Historically of interval * formula
+  | Eventually of interval * formula
+  | Always of interval * formula
   | Since of interval * formula * formula
   | Until of interval * formula * formula
 
@@ -34,6 +40,10 @@ val disj: formula -> formula -> formula
 (* temporal operators *)
 val prev: interval -> formula -> formula
 val next: interval -> formula -> formula
+val once: interval -> formula -> formula
+val historically: interval -> formula -> formula
+val eventually: interval -> formula -> formula
+val always: interval -> formula -> formula
 val since: interval -> formula -> formula -> formula
 val until: interval -> formula -> formula -> formula
 
@@ -41,10 +51,6 @@ val imp: formula -> formula -> formula
 val iff: formula -> formula -> formula
 val trigger: interval -> formula -> formula -> formula
 val release: interval -> formula -> formula -> formula
-val eventually: interval -> formula -> formula
-val once: interval -> formula -> formula
-val always: interval -> formula -> formula
-val historically: interval -> formula -> formula
 
 val atoms: formula -> string list
 

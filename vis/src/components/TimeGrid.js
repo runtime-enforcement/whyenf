@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import { DataGrid } from '@mui/x-data-grid';
 import Button from '@mui/material/Button';
@@ -7,9 +7,13 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import Popover from '@mui/material/Popover';
 import Typography from '@mui/material/Typography';
-import { red, amber, lightGreen } from '@mui/material/colors';
-import { common } from '@mui/material/colors'
-import { black, squareColor, tpsIn, computeMaxCol } from '../util';
+import { red, amber, lightGreen, indigo } from '@mui/material/colors';
+import { common } from '@mui/material/colors';
+import { black,
+         squareColor,
+         tpsIn,
+         computeMaxCol,
+         computeHighlightedPathCells } from '../util';
 
 function Cell(props) {
   if (props.value === red[500] || props.value === lightGreen[500] || props.value === black) {
@@ -33,10 +37,12 @@ function TimeGrid ({ explanations,
                      squares,
                      selectedRows,
                      highlightedCells,
+                     highlightedPaths,
                      setMonitorState }) {
 
-  const [anchorEl, setAnchorEl] = React.useState(null);
-  const [value, setValue] = React.useState('');
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [value, setValue] = useState('');
+  const [highlightedPathCells, setHighlightedPathCells] = useState([]);
   const open = Boolean(anchorEl);
 
   const handlePopoverOpen = (event) => {
@@ -103,7 +109,7 @@ function TimeGrid ({ explanations,
       sortable: false,
       renderHeader: () => f,
       renderCell: (params) => { return <Cell value={squares[params.row.tp][i+apsColumns.length]}
-                                             onClick={() => handleClick(params.row.ts, params.row.tp, params.colDef.field)} /> },
+                                             onClick={() => handleClick(params.row.ts, params.row.tp, params.colDef.field)} />; },
       headerAlign: 'center',
       align: 'center',
       disableClickEventBubbling: true
@@ -118,7 +124,10 @@ function TimeGrid ({ explanations,
 
   const handleClick = (ts, tp, col) => {
     const colIndex = parseInt(col);
-    const cloneSquares = [...squares];
+    const mainColumnIndex = apsColumns.length;
+
+    let cloneSquares = [...squares];
+    let cloneHighlightedPaths = [...highlightedPaths];
     let cell;
 
     for (let i = 0; i < explanations.length; ++i) {
@@ -127,32 +136,69 @@ function TimeGrid ({ explanations,
     }
 
     if (cell !== undefined && squares[cell.tp][cell.col] !== black && cell.cells.length !== 0) {
+      // Update highlighted cells (i.e. the ones who appear after a click)
       let maxRow = Math.max(explanations.length, atoms.length);
       let maxCol = computeMaxCol(explanations) + 1;
-
       let highlightedCells = [...Array(maxRow)].map(x=>Array(maxCol).fill(false));
+      let children = [];
 
+      // Update cells (show hidden verdicts after a click)
       for (let i = 0; i < cell.cells.length; ++i) {
         cloneSquares[cell.cells[i].tp][cell.cells[i].col] = squareColor(cell.cells[i].bool);
         highlightedCells[cell.cells[i].tp][cell.cells[i].col] = true;
+        children.push({ tp: cell.cells[i].tp, col: cell.cells[i].col, isHighlighted: false });
       }
 
+      // Update interval highlighting
       let lastTS = atoms[atoms.length - 1].ts;
       let selRows = (cell.interval !== undefined) ? tpsIn(ts, tp, cell.interval, cell.period, lastTS, atoms) : [];
+
+      // Update (potentially multiple) open paths to be highlighted
+      for (let i = 0; i < cloneHighlightedPaths.length; ++i) {
+        for (let j = 0; j < cloneHighlightedPaths[i].children.length; ++j) {
+          cloneHighlightedPaths[i].children[j] = {...cloneHighlightedPaths[i].children[j], isHighlighted: false };
+        }
+        cloneHighlightedPaths[i] = {...cloneHighlightedPaths[i], isHighlighted: false };
+      }
+
+      if (colIndex === mainColumnIndex) {
+        const i = cloneHighlightedPaths.findIndex(c => c.tp === tp && c.col === colIndex);
+        if (i === -1) cloneHighlightedPaths.push({ tp: tp, col: colIndex, isHighlighted: true, children: children });
+        else cloneHighlightedPaths[i] = {...cloneHighlightedPaths[i], isHighlighted: true };
+      } else {
+        for (let i = 0; i < cloneHighlightedPaths.length; ++i) {
+          const k = cloneHighlightedPaths[i].children.findIndex(c => c.tp === tp && c.col === colIndex);
+          if (k !== -1) {
+            cloneHighlightedPaths[i] = {...cloneHighlightedPaths[i], isHighlighted: true, children: cloneHighlightedPaths[i].children.concat(children) };
+            for (let j = 0; j <= k; ++j) {
+              cloneHighlightedPaths[i].children[j] = {...cloneHighlightedPaths[i].children[j], isHighlighted: true };
+            }
+          }
+        }
+      }
+
       let action = { type: "updateTable",
                      squares: cloneSquares,
                      selectedRows: selRows,
-                     highlightedCells: highlightedCells
+                     highlightedCells: highlightedCells,
+                     highlightedPaths: cloneHighlightedPaths,
                    };
       setMonitorState(action);
     }
   };
+
+  useEffect(() => {
+    setHighlightedPathCells(computeHighlightedPathCells(highlightedPaths));
+  }, [setHighlightedPathCells, highlightedPaths]);
 
   return (
     <Box height="60vh"
          sx={{
            '& .cell--Highlighted': {
              backgroundColor: amber[300],
+           },
+           '& .cell--PathHighlighted': {
+             backgroundColor: indigo[100],
            },
            '& .row--Highlighted': {
              bgcolor: amber[50],
@@ -171,12 +217,20 @@ function TimeGrid ({ explanations,
         rows={rows}
         columns={apsGridColumns.concat(fixedGridColumns.concat(subfsGridColumns))}
         getRowClassName={(params) => {
-          if (selectedRows.includes(params.row.tp)) return 'row--Highlighted'
-          else return 'row--Plain' }}
+          if (selectedRows.includes(params.row.tp)) return 'row--Highlighted';
+          else return 'row--Plain';
+        }}
         getCellClassName={(params) => {
           if (highlightedCells.length !== 0
               && highlightedCells[params.row.tp][parseInt(params.colDef.field)])
             return 'cell--Highlighted';
+          if (highlightedPathCells.length !== 0) {
+            for (let i = 0; i < highlightedPathCells.length; ++i) {
+              if (highlightedPathCells[i].tp === params.row.tp
+                  && highlightedPathCells[i].col === parseInt(params.colDef.field))
+                return 'cell--PathHighlighted';
+            }
+          }
         }}
         componentsProps={{
           cell: {
