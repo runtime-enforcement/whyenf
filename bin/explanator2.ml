@@ -15,7 +15,7 @@ open Src.Io
 open Src.Mtl_parser
 open Src.Mtl_lexer
 open Src.Monitor
-open Src.Checker.Explanator2
+open Src.Checker.VerifiedExplanator2
 
 module Explanator2 = struct
 
