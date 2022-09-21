@@ -51,6 +51,16 @@ module Eventually : sig
     ; }
 end
 
+module Always : sig
+  type maaux = {
+      ts_tp_out: (timestamp * timepoint) Deque.t
+    ; ts_tp_in: (timestamp * timepoint) Deque.t
+    ; v_alphas_in: (timestamp * expl) Deque.t
+    ; s_alphas_in: (timestamp * sexpl) Deque.t
+    ; optimal_proofs: (timestamp * expl) Deque.t
+    ; }
+end
+
 module Since : sig
   type msaux = {
       ts_zero: timestamp option
@@ -107,6 +117,7 @@ type mformula =
   | MOnce of interval * mformula * Once.moaux
   | MHistorically of interval * mformula * Historically.mhaux
   | MEventually of interval * mformula * Eventually.meaux
+  | MAlways of interval * mformula * Always.maaux
   | MSince of interval * mformula * mformula * mbuf2 * (timestamp * timepoint) Deque.t * Since.msaux
   | MUntil of interval * mformula * mformula * mbuf2 * (timestamp * timepoint) Deque.t * Until.muaux
 
