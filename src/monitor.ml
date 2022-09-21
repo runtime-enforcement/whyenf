@@ -171,7 +171,7 @@ module Once = struct
       Deque.fold v_alphas_in ~init:"\nv_alphas_in = "
         ~f:(fun acc (ts, p) ->
           acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Expl.v_to_string "" p) ^
-      Deque.fold v_alphas_in ~init:"\nv_alphas_out = "
+      Deque.fold v_alphas_out ~init:"\nv_alphas_out = "
         ~f:(fun acc (ts, p) ->
           acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Expl.v_to_string "" p)
 
@@ -226,18 +226,24 @@ module Once = struct
                ; v_alphas_out }
 
   let shift_moaux (l, r) ts tp p1 moaux le =
-    let moaux_plus_new = add_to_moaux ts p1 moaux le in
-    let s_alphas_out, new_in_sat = split_in_out (fun (ts, _) -> ts) (l, r) moaux_plus_new.s_alphas_out in
-    let s_alphas_in = update_s_alphas_in new_in_sat moaux_plus_new.s_alphas_in le in
-    let v_alphas_out, new_in_viol = split_in_out (fun (ts, _) -> ts) (l, r) moaux_plus_new.v_alphas_out in
-    let v_alphas_in = update_v_alphas_in new_in_viol moaux_plus_new.v_alphas_in in
-    let moaux_minus_old = remove_from_moaux (l, r) moaux_plus_new in
-    { moaux_minus_old with s_alphas_out
-                         ; s_alphas_in
-                         ; v_alphas_out
-                         ; v_alphas_in }
+    let moaux = add_to_moaux ts p1 moaux le in
+    let s_alphas_out, new_in_sat = split_in_out (fun (ts, _) -> ts) (l, r) moaux.s_alphas_out in
+    let s_alphas_in = update_s_alphas_in new_in_sat moaux.s_alphas_in le in
+    (* let () = Printf.printf "|v_alphas_out| = %d\n" (Deque.length moaux.v_alphas_out) in *)
+    (* let () = Printf.printf "|v_alphas_in| = %d\n" (Deque.length moaux.v_alphas_in) in *)
+    let v_alphas_out, new_in_viol = split_in_out (fun (ts, _) -> ts) (l, r) moaux.v_alphas_out in
+    let v_alphas_in = update_v_alphas_in new_in_viol moaux.v_alphas_in in
+    let moaux = remove_from_moaux (l, r) moaux in
+    let moaux = { moaux with s_alphas_out
+                           ; s_alphas_in
+                           ; v_alphas_out
+                           ; v_alphas_in } in
+    (* let () = Printf.printf "|v_alphas_out| = %d\n" (Deque.length moaux.v_alphas_out) in *)
+    (* let () = Printf.printf "|v_alphas_in| = %d\n" (Deque.length moaux.v_alphas_in) in *)
+    moaux
 
   let update_once interval ts tp p1 moaux le =
+    (* let () = Printf.printf "tp = %d\n" tp in *)
     let a = get_a_I interval in
     if ((Option.is_none moaux.ts_zero) && a > 0) ||
          (Option.is_some moaux.ts_zero) && ts < (Option.get moaux.ts_zero) + a then
@@ -254,9 +260,12 @@ module Once = struct
       let l = if (Option.is_some b) then max 0 (ts - (Option.get b))
               else (Option.get ts_zero) in
       let r = ts - a in
-      let moaux_ts_updated = update_tss (l, r) a ts tp moaux in
-      let moaux_updated = shift_moaux (l, r) ts tp p1 moaux_ts_updated le in
-      (eval_moaux tp { moaux_updated with ts_zero }, { moaux_updated with ts_zero })
+      let moaux = update_tss (l, r) a ts tp moaux in
+      let moaux = shift_moaux (l, r) ts tp p1 moaux le in
+      let moaux = { moaux with ts_zero } in
+      (* let () = Printf.printf "|v_alphas_out| = %d\n" (Deque.length moaux.v_alphas_out) in *)
+      (* let () = Printf.printf "%s\n" (moaux_to_string moaux) in *)
+      (eval_moaux tp moaux, moaux)
 
 end
 
@@ -271,7 +280,7 @@ module Historically = struct
     ; v_alphas_out: (timestamp * expl) Deque.t
     ; }
 
-  let moaux_to_string { ts_zero
+  let mhaux_to_string { ts_zero
                       ; ts_tp_in
                       ; ts_tp_out
                       ; s_alphas_in
