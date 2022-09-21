@@ -114,8 +114,8 @@ type mformula =
   | MDisj of mformula * mformula * mbuf2
   | MPrev of interval * mformula * bool * expl Deque.t * timestamp Deque.t
   | MNext of interval * mformula * bool * timestamp Deque.t
-  | MOnce of interval * mformula * Once.moaux
-  | MHistorically of interval * mformula * Historically.mhaux
+  | MOnce of interval * mformula * (timestamp * timepoint) Deque.t * Once.moaux
+  | MHistorically of interval * mformula * (timestamp * timepoint) Deque.t * Historically.mhaux
   | MEventually of interval * mformula * Eventually.meaux
   | MAlways of interval * mformula * Always.maaux
   | MSince of interval * mformula * mformula * mbuf2 * (timestamp * timepoint) Deque.t * Since.msaux
