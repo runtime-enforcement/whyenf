@@ -486,16 +486,12 @@ module Eventually = struct
                 Deque.enqueue_back meaux.optimal_proofs (ts, V (VEventually (tp, ltp, v_alphas_in')))) in
   let meaux = adjust_meaux a (nts, ntp) meaux le in meaux
 
-  let shift_meaux (a, b) (nts, ntp) meaux le =
-    (* let () = Printf.printf "\n-------------------------------------\n" in *)
-    (* let () = Printf.printf "shift_meaux nts = %d; ntp = %d\n" nts ntp in *)
-    (* let () = Printf.printf "%s\n" (meaux_to_string meaux) in *)
+  let shift_meaux (a, b) (nts, ntp) le meaux =
     let ts_tps = ready_ts_tps b nts meaux.ts_tp_out meaux.ts_tp_in in
-    (* let () = Printf.printf "ready_ts_tps = [" in *)
     Deque.fold ts_tps ~init:meaux
       ~f:(fun meaux' (ts, tp) -> eval_step_meaux a (nts, ntp) ts tp meaux' le)
 
-  let add_to_meaux a (ts, tp) p1 meaux le =
+  let add_subps a (ts, tp) p1 le meaux =
     let first_ts = match first_ts_tp meaux.ts_tp_out meaux.ts_tp_in with
       | None -> 0
       | Some(ts', _) -> ts' in
@@ -508,40 +504,28 @@ module Eventually = struct
                  let () = Deque.enqueue_back meaux.v_alphas_in (ts, vp1) in meaux
                else meaux
 
-  let update_eventually interval nts ntp p meaux le =
-    (* let () = Printf.printf "\n-------------------------------------\n" in *)
-    (* let () = Printf.printf "update_eventually nts = %d; ntp = %d\n" nts ntp in *)
+  let update_eventually interval nts ntp p le meaux =
     let a = get_a_I interval in
     let b = match get_b_I interval with
       | None -> raise UNBOUNDED_FUTURE
       | Some(b') -> b' in
-    let meaux = shift_meaux (a, b) (nts, ntp) meaux le in
-    let () = if (not (Deque.is_empty meaux.ts_tp_out)) || (not (Deque.is_empty meaux.ts_tp_in)) then
-               (let ts = match first_ts_tp meaux.ts_tp_out meaux.ts_tp_in with
-                  | None -> raise (NOT_FOUND "(ts, tp) deques are empty")
-                  | Some(ts', _) -> ts' in
-                (if nts < ts + a then Deque.enqueue_back meaux.ts_tp_out (nts, ntp)
-                 else Deque.enqueue_back meaux.ts_tp_in (nts, ntp)))
-             else (if (nts >= a && nts <= b) || (a == 0) then
-                     Deque.enqueue_back meaux.ts_tp_in (nts, ntp)
-                   else Deque.enqueue_back meaux.ts_tp_out (nts, ntp)) in
-    let meaux = add_to_meaux a (nts, ntp) p meaux le in
-    (* let () = Printf.printf "%s\n" (meaux_to_string meaux) in *)
+    let meaux = shift_meaux (a, b) (nts, ntp) le meaux in
+    let (ts_tp_out, ts_tp_in) = add_ts_tp_future a b nts ntp meaux.ts_tp_out meaux.ts_tp_in in
+    let meaux = { meaux with ts_tp_out; ts_tp_in } in
+    let meaux = add_subps a (nts, ntp) p le meaux in
     meaux
 
-  let rec eval_eventually d interval nts ntp meaux le =
-    (* let () = Printf.printf "eval_eventually nts = %d; ntp = %d\n" nts ntp in *)
-    (* let () = Printf.printf "%s\n" (meaux_to_string meaux) in *)
+  let rec eval_eventually d interval nts ntp le meaux =
     let a = get_a_I interval in
     let b = match get_b_I interval with
       | None -> raise UNBOUNDED_FUTURE
       | Some(b') -> b' in
-    let meaux = shift_meaux (a, b) (nts, ntp) meaux le in
+    let meaux = shift_meaux (a, b) (nts, ntp) le meaux in
     match Deque.peek_back meaux.optimal_proofs with
     | None -> (nts, d, meaux)
     | Some(ts, _) -> if ts + b < nts then
                        let (ts', op) = Deque.dequeue_back_exn meaux.optimal_proofs in
-                       let (_, ops, meaux) = eval_eventually d interval nts ntp meaux le in
+                       let (_, ops, meaux) = eval_eventually d interval nts ntp le meaux in
                        let _ = Deque.enqueue_back ops op in
                        (ts', ops, meaux)
                      else (ts, d, meaux)
@@ -1361,7 +1345,7 @@ type mformula =
   | MNext of interval * mformula * bool * timestamp Deque.t
   | MOnce of interval * mformula * (timestamp * timepoint) Deque.t * Once.moaux
   | MHistorically of interval * mformula * (timestamp * timepoint) Deque.t * Historically.mhaux
-  | MEventually of interval * mformula * Eventually.meaux
+  | MEventually of interval * mformula * expl Deque.t * (timestamp * timepoint) Deque.t * Eventually.meaux
   | MAlways of interval * mformula * expl Deque.t * (timestamp * timepoint) Deque.t * Always.maaux
   | MSince of interval * mformula * mformula * mbuf2 * (timestamp * timepoint) Deque.t * Since.msaux
   | MUntil of interval * mformula * mformula * mbuf2 * (timestamp * timepoint) Deque.t * Until.muaux
@@ -1378,7 +1362,7 @@ let rec mformula_to_string l f =
   | MNext (i, f, _, _) -> Printf.sprintf (paren l 5 "○%a %a") (fun x -> interval_to_string) i (fun x -> mformula_to_string 5) f
   | MOnce (i, f, _, _) -> Printf.sprintf (paren l 5 "⧫%a %a") (fun x -> interval_to_string) i (fun x -> mformula_to_string 5) f
   | MHistorically (i, f, _, _) -> Printf.sprintf (paren l 5 "■%a %a") (fun x -> interval_to_string) i (fun x -> mformula_to_string 5) f
-  | MEventually (i, f, _) -> Printf.sprintf (paren l 5 "◊%a %a") (fun x -> interval_to_string) i (fun x -> mformula_to_string 5) f
+  | MEventually (i, f, _, _, _) -> Printf.sprintf (paren l 5 "◊%a %a") (fun x -> interval_to_string) i (fun x -> mformula_to_string 5) f
   | MAlways (i, f, _, _, _) -> Printf.sprintf (paren l 5 "□%a %a") (fun x -> interval_to_string) i (fun x -> mformula_to_string 5) f
   | MSince (i, f, g, _, _, _) -> Printf.sprintf (paren l 0 "%a S%a %a") (fun x -> mformula_to_string 5) f (fun x -> interval_to_string) i (fun x -> mformula_to_string 5) g
   | MUntil (i, f, g, _, _, _) -> Printf.sprintf (paren l 0 "%a U%a %a") (fun x -> mformula_to_string 5) f (fun x -> interval_to_string) i (fun x -> mformula_to_string 5) g
@@ -1397,7 +1381,7 @@ let relevant_ap mf =
     | MNext (i, f, _, _) -> aux f
     | MOnce (i, f, _, _) -> aux f
     | MHistorically (i, f, _, _) -> aux f
-    | MEventually (i, f, _) -> aux f
+    | MEventually (i, f, _, _, _) -> aux f
     | MAlways (i, f, _, _, _) -> aux f
     | MSince (i, f, g, _, _, _) -> aux f @ aux g
     | MUntil (i, f, g, _, _, _) -> aux f @ aux g in
@@ -1461,7 +1445,7 @@ let rec minit f =
                  ; v_alphas_in = Deque.create ()
                  ; optimal_proofs = Deque.create ()
                  ; } in
-     MEventually (i, minit f, meaux)
+     MEventually (i, minit f, Deque.create (), Deque.create (), meaux)
   | Always (i, f) ->
      let maaux = { Always.ts_tp_in = Deque.create ()
                  ; ts_tp_out = Deque.create ()
@@ -1587,13 +1571,19 @@ let meval' ts tp sap mform le =
              (ps, aux))
            (Deque.create (), mhaux) ps ts_tps in
        (ts, ps, MHistorically (interval, mf', ts_tps', mhaux'))
-    | MEventually (interval, mf, meaux) ->
-       (* let () = Printf.printf "----------%s\n" (Until.muaux_to_string muaux) in *)
+    | MEventually (interval, mf, buf, nts_ntps, meaux) ->
        let (_, ps, mf') = meval tp ts sap mf in
-       let meaux' = Deque.fold ps ~init:meaux
-                             ~f:(fun meaux' p -> Eventually.update_eventually interval ts tp p meaux le) in
-       let (ts', ps, meaux'') = Eventually.eval_eventually (Deque.create ()) interval ts tp meaux le in
-       (ts', ps, MEventually (interval, mf', meaux''))
+       let () = Deque.enqueue_back nts_ntps (ts, tp) in
+       let () = Deque.iter ps ~f:(fun p -> Deque.enqueue_back buf p) in
+       let (meaux', buf', nts_ntps') =
+         mbuft_take
+           (fun p ts tp aux -> Eventually.update_eventually interval ts tp p le aux)
+           meaux buf nts_ntps in
+       let (nts, ntp) = match Deque.peek_front nts_ntps' with
+         | None -> (ts, tp)
+         | Some(nts', ntp') -> (nts', ntp') in
+       let (ts', ps, meaux'') = Eventually.eval_eventually (Deque.create ()) interval ts tp le meaux' in
+       (ts', ps, MEventually (interval, mf', buf', nts_ntps', meaux''))
     | MAlways (interval, mf, buf, nts_ntps, maaux) ->
        let (_, ps, mf') = meval tp ts sap mf in
        let () = Deque.enqueue_back nts_ntps (ts, tp) in
@@ -1608,7 +1598,6 @@ let meval' ts tp sap mform le =
        let (ts', ps, maaux'') = Always.eval_always (Deque.create ()) interval ts tp le maaux' in
        (ts', ps, MAlways (interval, mf', buf', nts_ntps', maaux''))
     | MSince (interval, mf1, mf2, buf, ts_tps, msaux) ->
-       (* let () = Printf.printf "\nsince: %s\n" (mformula_to_string (MSince (interval, mf1, mf2, buf, ts_tps, msaux))) in *)
        let (_, p1s, mf1') = meval tp ts sap mf1 in
        let (_, p2s, mf2') = meval tp ts sap mf2 in
        let _ = Deque.enqueue_back ts_tps (ts, tp) in
@@ -1619,27 +1608,15 @@ let meval' ts tp sap mform le =
              let () = Deque.enqueue_back ps op in
              (ps, aux))
            (Deque.create (), msaux) (mbuf2_add p1s p2s buf) ts_tps in
-       (* let () = Printf.printf "----------%s\n" (Since.msaux_to_string msaux') in *)
        (ts, ps, MSince (interval, mf1', mf2', buf', tss_tps', msaux'))
     | MUntil (interval, mf1, mf2, buf, nts_ntps, muaux) ->
-       (* let () = Printf.printf "----------%s\n" (Until.muaux_to_string muaux) in *)
        let (_, p1s, mf1') = meval tp ts sap mf1 in
        let (_, p2s, mf2') = meval tp ts sap mf2 in
        let () = Deque.enqueue_back nts_ntps (ts, tp) in
-
-       (* let () = Printf.printf "ts_tps = [" in *)
-       (* let () = Deque.iter ts_tps (fun (ts, tp) -> Printf.printf "(%d, %d)" ts tp) in *)
-       (* let () = Printf.printf "]\n" in *)
-
        let (muaux', buf', nts_ntps') =
          mbuf2t_take
            (fun p1 p2 ts tp aux -> Until.update_until interval ts tp p1 p2 le aux)
            muaux (mbuf2_add p1s p2s buf) nts_ntps in
-
-       (* let () = Printf.printf "ntss_ntps = [" in *)
-       (* let () = Deque.iter ntss_ntps (fun (ts, tp) -> Printf.printf "(%d, %d)" ts tp) in *)
-       (* let () = Printf.printf "]\n" in *)
-
        let (nts, ntp) = match Deque.peek_front nts_ntps' with
          | None -> (ts, tp)
          | Some(nts', ntp') -> (nts', ntp') in

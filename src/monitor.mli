@@ -116,7 +116,7 @@ type mformula =
   | MNext of interval * mformula * bool * timestamp Deque.t
   | MOnce of interval * mformula * (timestamp * timepoint) Deque.t * Once.moaux
   | MHistorically of interval * mformula * (timestamp * timepoint) Deque.t * Historically.mhaux
-  | MEventually of interval * mformula * Eventually.meaux
+  | MEventually of interval * mformula * expl Deque.t * (timestamp * timepoint) Deque.t * Eventually.meaux
   | MAlways of interval * mformula * expl Deque.t * (timestamp * timepoint) Deque.t * Always.maaux
   | MSince of interval * mformula * mformula * mbuf2 * (timestamp * timepoint) Deque.t * Since.msaux
   | MUntil of interval * mformula * mformula * mbuf2 * (timestamp * timepoint) Deque.t * Until.muaux
