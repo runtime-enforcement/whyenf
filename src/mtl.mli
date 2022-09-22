@@ -8,8 +8,6 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
-open Util
-open Expl
 open Interval
 
 type formula =
