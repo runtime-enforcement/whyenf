@@ -1507,6 +1507,20 @@ let do_conj p1 p2 le =
   | V vp1, S _ -> V (VConjL (vp1))
   | V vp1, V vp2 -> minimuml le [(V (VConjL (vp1))); (V (VConjR (vp2)))]
 
+let do_imp p1 p2 le =
+  match p1, p2 with
+  | S _, S sp2 -> S (SImplR sp2)
+  | S sp1, V vp2 -> V (VImpl (sp1, vp2))
+  | V vp1, S sp2 -> minimuml le [S (SImplL vp1); S (SImplR sp2)]
+  | V vp1, V _ -> S (SImplL vp1)
+
+let do_iff p1 p2 le =
+  match p1, p2 with
+  | S sp1, S sp2 -> S (SIffSS (sp1, sp2))
+  | S sp1, V vp2 -> V (VIffSV (sp1, vp2))
+  | V vp1, S sp2 -> V (VIffVS (vp1, sp2))
+  | V vp1, V vp2 -> S (SIffVV (vp1, vp2))
+
 let meval' ts tp sap mform le =
   let rec meval tp ts sap mform =
     match mform with
