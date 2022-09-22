@@ -1346,6 +1346,8 @@ type mformula =
   | MNeg of mformula
   | MConj of mformula * mformula * mbuf2
   | MDisj of mformula * mformula * mbuf2
+  | MImp of mformula * mformula * mbuf2
+  | MIff of mformula * mformula * mbuf2
   | MPrev of interval * mformula * bool * expl Deque.t * timestamp Deque.t
   | MNext of interval * mformula * bool * timestamp Deque.t
   | MOnce of interval * mformula * (timestamp * timepoint) Deque.t * Once.moaux
@@ -1360,9 +1362,11 @@ let rec mformula_to_string l f =
   | MP x -> Printf.sprintf "%s" x
   | MTT -> Printf.sprintf "⊤"
   | MFF -> Printf.sprintf "⊥"
+  | MNeg f -> Printf.sprintf "¬%a" (fun x -> mformula_to_string 5) f
   | MConj (f, g, _) -> Printf.sprintf (paren l 4 "%a ∧ %a") (fun x -> mformula_to_string 4) f (fun x -> mformula_to_string 4) g
   | MDisj (f, g, _) -> Printf.sprintf (paren l 3 "%a ∨ %a") (fun x -> mformula_to_string 3) f (fun x -> mformula_to_string 4) g
-  | MNeg f -> Printf.sprintf "¬%a" (fun x -> mformula_to_string 5) f
+  | MImp (f, g, _) -> Printf.sprintf (paren l 4 "%a → %a") (fun x -> mformula_to_string 4) f (fun x -> mformula_to_string 4) g
+  | MIff (f, g, _) -> Printf.sprintf (paren l 4 "%a ↔ %a") (fun x -> mformula_to_string 4) f (fun x -> mformula_to_string 4) g
   | MPrev (i, f, _, _, _) -> Printf.sprintf (paren l 5 "●%a %a") (fun x -> interval_to_string) i (fun x -> mformula_to_string 5) f
   | MNext (i, f, _, _) -> Printf.sprintf (paren l 5 "○%a %a") (fun x -> interval_to_string) i (fun x -> mformula_to_string 5) f
   | MOnce (i, f, _, _) -> Printf.sprintf (paren l 5 "⧫%a %a") (fun x -> interval_to_string) i (fun x -> mformula_to_string 5) f
@@ -1381,6 +1385,8 @@ let relevant_ap mf =
     | MFF -> []
     | MConj (f, g, _) -> aux f @ aux g
     | MDisj (f, g, _) -> aux f @ aux g
+    | MImp (f, g, _) -> aux f @ aux g
+    | MIff (f, g, _) -> aux f @ aux g
     | MNeg f -> aux f
     | MPrev (i, f, _, _, _) -> aux f
     | MNext (i, f, _, _) -> aux f
@@ -1421,6 +1427,12 @@ let rec minit f =
   | Disj (f, g) ->
      let buf = (Deque.create (), Deque.create ()) in
      MDisj (minit f, minit g, buf)
+  | Imp (f, g) ->
+     let buf = (Deque.create (), Deque.create ()) in
+     MImp (minit f, minit g, buf)
+  | Iff (f, g) ->
+     let buf = (Deque.create (), Deque.create ()) in
+     MIff (minit f, minit g, buf)
   | Prev (i, f) -> MPrev (i, minit f, true, (Deque.create ()), (Deque.create ()))
   | Next (i, f) -> MNext (i, minit f, true, (Deque.create ()))
   | Once (i, f) ->
@@ -1555,6 +1567,18 @@ let meval' ts tp sap mform le =
        let (_, p2s, mf2') = meval tp ts sap mf2 in
        let (ps, buf') = mbuf2_take op (mbuf2_add p1s p2s buf) in
        (ts, ps, MDisj (mf1', mf2', buf'))
+    | MImp (mf1, mf2, buf) ->
+       let op p1 p2 = do_imp p1 p2 le in
+       let (_, p1s, mf1') = meval tp ts sap mf1 in
+       let (_, p2s, mf2') = meval tp ts sap mf2 in
+       let (ps, buf') = mbuf2_take op (mbuf2_add p1s p2s buf) in
+       (ts, ps, MImp (mf1', mf2', buf'))
+    | MIff (mf1, mf2, buf) ->
+       let op p1 p2 = do_iff p1 p2 le in
+       let (_, p1s, mf1') = meval tp ts sap mf1 in
+       let (_, p2s, mf2') = meval tp ts sap mf2 in
+       let (ps, buf') = mbuf2_take op (mbuf2_add p1s p2s buf) in
+       (ts, ps, MIff (mf1', mf2', buf'))
     | MPrev (interval, mf, first, buf, tss) ->
        let (_, ps, mf') = meval tp ts sap mf in
        let () = Deque.iter ps ~f:(fun p -> Deque.enqueue_back buf p) in

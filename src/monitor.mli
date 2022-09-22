@@ -112,6 +112,8 @@ type mformula =
   | MNeg of mformula
   | MConj of mformula * mformula * mbuf2
   | MDisj of mformula * mformula * mbuf2
+  | MImp of mformula * mformula * mbuf2
+  | MIff of mformula * mformula * mbuf2
   | MPrev of interval * mformula * bool * expl Deque.t * timestamp Deque.t
   | MNext of interval * mformula * bool * timestamp Deque.t
   | MOnce of interval * mformula * (timestamp * timepoint) Deque.t * Once.moaux
