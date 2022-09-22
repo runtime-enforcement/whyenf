@@ -1493,19 +1493,19 @@ let rec minit f =
      MUntil (i, minit f, minit g, buf, Deque.create (), muaux)
   | _ -> failwith "This formula cannot be monitored"
 
-let do_disj expl_f1 expl_f2 le =
-  match expl_f1, expl_f2 with
-  | S f1, S f2 -> minimuml le [(S (SDisjL (f1))); (S (SDisjR(f2)))]
-  | S f1, V _ -> S (SDisjL (f1))
-  | V _ , S f2 -> S (SDisjR (f2))
-  | V f1, V f2 -> V (VDisj (f1, f2))
+let do_disj p1 p2 le =
+  match p1, p2 with
+  | S sp1, S sp2 -> minimuml le [(S (SDisjL (sp1))); (S (SDisjR(sp2)))]
+  | S sp1, V _ -> S (SDisjL (sp1))
+  | V _ , S sp2 -> S (SDisjR (sp2))
+  | V vp1, V vp2 -> V (VDisj (vp1, vp2))
 
-let do_conj expl_f1 expl_f2 le =
-  match expl_f1, expl_f2 with
-  | S f1, S f2 -> S (SConj (f1, f2))
-  | S _ , V f2 -> V (VConjR (f2))
-  | V f1, S _ -> V (VConjL (f1))
-  | V f1, V f2 -> minimuml le [(V (VConjL (f1))); (V (VConjR (f2)))]
+let do_conj p1 p2 le =
+  match p1, p2 with
+  | S sp1, S sp2 -> S (SConj (sp1, sp2))
+  | S _ , V vp2 -> V (VConjR (vp2))
+  | V vp1, S _ -> V (VConjL (vp1))
+  | V vp1, V vp2 -> minimuml le [(V (VConjL (vp1))); (V (VConjR (vp2)))]
 
 let meval' ts tp sap mform le =
   let rec meval tp ts sap mform =
