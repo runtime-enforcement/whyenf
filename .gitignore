@@ -11,6 +11,7 @@ test/tmp/*.mlog
 test/tmp/*.r2u2
 test/tmp/gen_log
 test/tmp/gen_fmla
+test/tmp/gen_fmla_full
 *.exe
 *.aux
 *.txt
