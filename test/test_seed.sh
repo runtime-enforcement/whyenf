@@ -9,7 +9,8 @@ SCALE=$5
 ER=$6
 DELTA=$7
 MEASURE=$8
-SEED=$9
+OPERATORS=$9
+SEED=$10
 
 # Flags:
 CHECK_FLAG=$1
@@ -20,12 +21,18 @@ PREFIX="TMP_${SIZE}_${SCALE}_${ER}_${DELTA}_${MEASURE}_${SEED}"
 OUT=""
 
 usage () {
-    printf "usage: test_seed.sh [check or no-check] [weight or no-weight] [mode] [size] [scale] [er] [delta] [measure] [seed]\n"
+    printf "usage: test_seed.sh [check or no-check] [weight or no-weight] [mode] [size] [scale] [er] [delta] [measure] [mtl or extended-mtl] [seed]\n"
     exit 1
 }
 
 simp () {
-    ./tmp/gen_fmla ${PREFIX} ${SIZE} 10 0 ${SCALE} ${SEED} 16
+    if [[ "${OPERATORS}" = "mtl" ]]
+    then
+        ./tmp/gen_fmla ${PREFIX} ${SIZE} 10 0 ${SCALE} ${SEED} 16
+    else
+        ./tmp/gen_fmla_full ${PREFIX} ${SIZE} 10 0 ${SCALE} ${SEED} 16
+    fi
+
     ./tmp/gen_log ${PREFIX} 100 ${ER} ${DELTA} ${SEED} 16
     mv ${PREFIX}.* tmp/
 
@@ -69,16 +76,25 @@ simp () {
         printf "${PREFIX} ... "
         printf " !! EXCEPTION RAISED !!\n"
     fi
-    if [[ "${N_VERDICTS_EXPLANATOR}" != "${N_VERDICTS_VERIMON}" ]]
+    if [[ "${OPERATORS}" = "mtl" ]]
     then
-        printf "${PREFIX} ... "
-        printf " !! N_VERDICTS_EXPLANATOR = ${N_VERDICTS_EXPLANATOR};"
-        printf " N_VERDICTS_VERIMON = ${N_VERDICTS_VERIMON} !!\n"
+        if [[ "${N_VERDICTS_EXPLANATOR}" != "${N_VERDICTS_VERIMON}" ]]
+        then
+            printf "${PREFIX} ... "
+            printf " !! N_VERDICTS_EXPLANATOR = ${N_VERDICTS_EXPLANATOR};"
+            printf " N_VERDICTS_VERIMON = ${N_VERDICTS_VERIMON} !!\n"
+        fi
     fi
 }
 
 verb () {
-    ./tmp/gen_fmla ${PREFIX} ${SIZE} 10 0 ${SCALE} ${SEED} 16
+    if [[ "${OPERATORS}" = "mtl" ]]
+    then
+        ./tmp/gen_fmla ${PREFIX} ${SIZE} 10 0 ${SCALE} ${SEED} 16
+    else
+        ./tmp/gen_fmla_full ${PREFIX} ${SIZE} 10 0 ${SCALE} ${SEED} 16
+    fi
+
     ./tmp/gen_log ${PREFIX} 100 ${ER} ${DELTA} ${SEED} 16
     mv ${PREFIX}.* tmp/
 
@@ -124,15 +140,19 @@ verb () {
     then
         printf " !! EXCEPTION RAISED !!"
     fi
-    if [[ "${N_VERDICTS_EXPLANATOR}" != "${N_VERDICTS_VERIMON}" ]]
+    if [[ "${OPERATORS}" = "mtl" ]]
     then
-        printf " !! N_VERDICTS_EXPLANATOR = ${N_VERDICTS_EXPLANATOR};"
-        printf " N_VERDICTS_VERIMON = ${N_VERDICTS_VERIMON} !!"
+        if [[ "${N_VERDICTS_EXPLANATOR}" != "${N_VERDICTS_VERIMON}" ]]
+        then
+            printf "${PREFIX} ... "
+            printf " !! N_VERDICTS_EXPLANATOR = ${N_VERDICTS_EXPLANATOR};"
+            printf " N_VERDICTS_VERIMON = ${N_VERDICTS_VERIMON} !!\n"
+        fi
     fi
     printf "\n"
 }
 
-if [ "$#" -eq 9 ]
+if [ "$#" -eq 10 ]
 then
     if [[ "${MODE}" == "simp" ]]
     then simp
