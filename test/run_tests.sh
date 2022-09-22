@@ -22,13 +22,14 @@ MEASURE=$2
 # Flags:
 CHECK_FLAG=$3
 WEIGHT_FLAG=$4
+OPERATORS=$5
 
 usage () {
-    printf "usage: run_tests.sh [n_seeds] [measure] [check or no-check] [weight or no-weight]\n"
+    printf "usage: run_tests.sh [n_seeds] [measure] [check or no-check] [weight or no-weight] [mtl or extended-mtl]\n"
     exit 1
 }
 
-if ! [[ "${N_SEEDS}" =~ ^[0-9]+$ ]] || [[ "${MEASURE}" != "size" ]] || ! [ "$#" -eq 4 ]
+if ! [[ "${N_SEEDS}" =~ ^[0-9]+$ ]] || [[ "${MEASURE}" != "size" ]] || ! [ "$#" -eq 5 ]
 then
     usage
 fi
@@ -56,9 +57,9 @@ for i in "${SIZES[@]}"; do
                     if [[ "${WEIGHT_FLAG}" == "weight" ]]
                     then
                         printf "<@> Loading random weights... Done.\n"
-                        time parallel ./test_seed.sh check weight simp $i $j $k $l "${MEASURE}" ::: "${SEEDS}"
+                        time parallel ./test_seed.sh check weight simp $i $j $k $l "${MEASURE}" "${OPERATORS}" ::: "${SEEDS}"
                     else
-                        time parallel ./test_seed.sh check no-weight simp $i $j $k $l "${MEASURE}" ::: "${SEEDS}"
+                        time parallel ./test_seed.sh check no-weight simp $i $j $k $l "${MEASURE}" "${OPERATORS}" ::: "${SEEDS}"
                     fi
 
                     ./clean.sh
@@ -72,9 +73,9 @@ for i in "${SIZES[@]}"; do
                         if [[ "${WEIGHT_FLAG}" == "weight" ]]
                         then
                             printf "<@> Loading random weights... Done.\n"
-                            time parallel ./test_seed.sh no-check weight simp $i $j $k $l "${MEASURE}" ::: "${SEEDS}"
+                            time parallel ./test_seed.sh no-check weight simp $i $j $k $l "${MEASURE}" "${OPERATORS}" ::: "${SEEDS}"
                         else
-                            time parallel ./test_seed.sh no-check no-weight simp $i $j $k $l "${MEASURE}" ::: "${SEEDS}"
+                            time parallel ./test_seed.sh no-check no-weight simp $i $j $k $l "${MEASURE}" "${OPERATORS}" ::: "${SEEDS}"
                         fi
 
                         ./clean.sh
