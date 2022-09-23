@@ -798,7 +798,7 @@ module Since = struct
     let alpha_betas' = add_new_ps_v_alpha_betas_in tp new_in alpha_betas_vapp le in
     (update_v_alpha_betas_in_tps tp alpha_betas')
 
-  let add_to_msaux ts p1 p2 msaux le =
+  let add_subps ts p1 p2 msaux le =
     match p1, p2 with
     | S sp1, S sp2 ->
        (* s_beta_alphas_in *)
@@ -851,18 +851,16 @@ module Since = struct
                ; v_betas_in }
 
   let shift_msaux (l, r) ts tp p1 p2 msaux le =
-    let msaux_plus_new = add_to_msaux ts p1 p2 msaux le in
-    let msaux_minus_old = remove_from_msaux (l, r) msaux_plus_new in
-    let s_beta_alphas_out, new_in_sat = split_in_out (fun (ts, _) -> ts) (l, r) msaux_minus_old.s_beta_alphas_out in
-    let s_beta_alphas_in = update_s_beta_alphas_in new_in_sat msaux_minus_old.s_beta_alphas_in le in
-    let v_alphas_betas_out, new_in_viol = split_in_out (fun (ts, _, _) -> ts) (l, r) msaux_minus_old.v_alphas_betas_out in
-    let v_betas_in = update_v_betas_in new_in_viol msaux_minus_old.v_betas_in in
-    let v_alpha_betas_in = update_v_alpha_betas_in tp new_in_viol msaux_minus_old.v_alpha_betas_in le in
-    { msaux_minus_old with s_beta_alphas_in
-                         ; s_beta_alphas_out
-                         ; v_alpha_betas_in
-                         ; v_betas_in }
-
+    let msaux = remove_from_msaux (l, r) msaux in
+    let s_beta_alphas_out, new_in_sat = split_in_out (fun (ts, _) -> ts) (l, r) msaux.s_beta_alphas_out in
+    let s_beta_alphas_in = update_s_beta_alphas_in new_in_sat msaux.s_beta_alphas_in le in
+    let v_alphas_betas_out, new_in_viol = split_in_out (fun (ts, _, _) -> ts) (l, r) msaux.v_alphas_betas_out in
+    let v_betas_in = update_v_betas_in new_in_viol msaux.v_betas_in in
+    let v_alpha_betas_in = update_v_alpha_betas_in tp new_in_viol msaux.v_alpha_betas_in le in
+    { msaux with s_beta_alphas_in
+               ; s_beta_alphas_out
+               ; v_alpha_betas_in
+               ; v_betas_in }
 
   let eval_msaux tp le msaux =
     if not (Deque.is_empty msaux.s_beta_alphas_in) then
@@ -897,6 +895,7 @@ module Since = struct
       let r = (-1) in
       let msaux = { msaux with ts_zero } in
       let msaux = update_ts_tps (l, r) a ts tp msaux in
+      let msaux = add_subps ts p1 p2 msaux le in
       let msaux = shift_msaux (l, r) ts tp p1 p2 msaux le in
       let p = V (VSinceOutL tp) in
       (p, msaux)
@@ -908,6 +907,7 @@ module Since = struct
       let r = ts - a in
       let msaux = { msaux with ts_zero } in
       let msaux = update_ts_tps (l, r) a ts tp msaux in
+      let msaux = add_subps ts p1 p2 msaux le in
       let msaux = shift_msaux (l, r) ts tp p1 p2 msaux le in
       let p = eval_msaux tp le msaux in
       (p, msaux)
