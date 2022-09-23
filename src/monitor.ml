@@ -840,6 +840,17 @@ module Since = struct
        let () = Deque.enqueue_back msaux.v_alphas_betas_out (ts, Some(vp1), Some(vp2)) in
        { msaux with v_alphas_out }
 
+  let move_beta_alphas (l,r) s_beta_alphas_out s_beta_alphas_in le =
+    let s_beta_alphas_out, new_in_sat = split_in_out (fun (ts, _) -> ts) (l, r) s_beta_alphas_out in
+    let s_beta_alphas_in = update_s_beta_alphas_in new_in_sat s_beta_alphas_in le in
+    (s_beta_alphas_out, s_beta_alphas_in)
+
+  let move_alphas_betas_out (l,r) tp v_alphas_betas_out v_alpha_betas_in v_betas_in le =
+    let v_alphas_betas_out, new_in_viol = split_in_out (fun (ts, _, _) -> ts) (l, r) v_alphas_betas_out in
+    let v_betas_in = update_v_betas_in new_in_viol v_betas_in in
+    let v_alpha_betas_in = update_v_alpha_betas_in tp new_in_viol v_alpha_betas_in le in
+    (v_alphas_betas_out, v_alpha_betas_in, v_betas_in)
+
   let remove_from_msaux (l, r) msaux =
     let s_beta_alphas_in = remove_if_pred_front (fun (ts, _) -> ts < l) msaux.s_beta_alphas_in in
     let v_alpha_betas_in = remove_if_pred_front (fun (ts, _) -> ts < l) msaux.v_alpha_betas_in in
@@ -852,11 +863,10 @@ module Since = struct
 
   let shift_msaux (l, r) ts tp p1 p2 msaux le =
     let msaux = remove_from_msaux (l, r) msaux in
-    let s_beta_alphas_out, new_in_sat = split_in_out (fun (ts, _) -> ts) (l, r) msaux.s_beta_alphas_out in
-    let s_beta_alphas_in = update_s_beta_alphas_in new_in_sat msaux.s_beta_alphas_in le in
-    let v_alphas_betas_out, new_in_viol = split_in_out (fun (ts, _, _) -> ts) (l, r) msaux.v_alphas_betas_out in
-    let v_betas_in = update_v_betas_in new_in_viol msaux.v_betas_in in
-    let v_alpha_betas_in = update_v_alpha_betas_in tp new_in_viol msaux.v_alpha_betas_in le in
+    let (s_beta_alphas_out, s_beta_alphas_in) = move_beta_alphas (l,r)
+                                                  msaux.s_beta_alphas_out msaux.s_beta_alphas_in le in
+    let (v_alphas_betas_out, v_alpha_betas_in, v_betas_in) = move_alphas_betas_out (l,r) tp msaux.v_alphas_betas_out
+                                                               msaux.v_alpha_betas_in msaux.v_betas_in le in
     { msaux with s_beta_alphas_in
                ; s_beta_alphas_out
                ; v_alpha_betas_in
