@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Box from '@mui/material/Box';
 import { DataGrid } from '@mui/x-data-grid';
 import Button from '@mui/material/Button';
@@ -11,8 +11,7 @@ import { red, amber, lightGreen, indigo } from '@mui/material/colors';
 import { common } from '@mui/material/colors';
 import { black,
          squareColor,
-         tpsIn,
-         computeMaxCol } from '../util';
+         tpsIn } from '../util';
 
 function Cell(props) {
   if (props.value === red[500] || props.value === lightGreen[500] || props.value === black) {
@@ -122,7 +121,6 @@ function TimeGrid ({ explanations,
 
   const handleClick = (ts, tp, col) => {
     const colIndex = parseInt(col);
-    const mainColumnIndex = apsColumns.length;
 
     let cloneSquares = [...squares];
     let clonePathsMap = new Map(pathsMap);
@@ -135,8 +133,6 @@ function TimeGrid ({ explanations,
 
     if (cell !== undefined && squares[cell.tp][cell.col] !== black && cell.cells.length !== 0) {
       // Update highlighted cells (i.e. the ones who appear after a click)
-      let maxRow = Math.max(explanations.length, atoms.length);
-      let maxCol = computeMaxCol(explanations) + 1;
       let highlightedCells = [];
       let children = [];
 
