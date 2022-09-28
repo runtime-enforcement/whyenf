@@ -6,28 +6,31 @@ Alternatively, you can write your own Metric Temporal Logic specification and tr
 
 ### Metric Temporal Logic
 ```
-{f} ::=   true
-        | false
-        | {ATOM}
-        | NOT {f}
-        | {f} AND {f}
-        | {f} OR  {f}
-        | {f} IFF {f}
-        | {f} IMPLIES {f}
-        | PREV{i} {f}
-        | NEXT{i} {f}
-        | ONCE{i} {f}
-        | EVENTUALLY{i} {f}
-        | HISTORICALLY{i} {f}
-        | ALWAYS{i} {f}
-        | {f} SINCE{i} {f}
-        | {f} UNTIL{i} {f}
-        | {f} TRIGGER{i} {f}
-        | {f} RELEASE{i} {f}
+{f} ::=   {ATOM}
+        | true                (⊤)
+        | false               (⊥)
+        | NOT {f}             (¬)
+        | {f} AND {f}         (∧)
+        | {f} OR  {f}         (∨)
+        | {f} IFF {f}         (↔)
+        | {f} IMPLIES {f}     (→)
+        | PREV{i} {f}         (●)
+        | NEXT{i} {f}         (○)
+        | ONCE{i} {f}         (⧫)
+        | EVENTUALLY{i} {f}   (◊)
+        | HISTORICALLY{i} {f} (■)
+        | ALWAYS{i} {f}       (□)
+        | {f} SINCE{i} {f}    (S)
+        | {f} UNTIL{i} {f}    (U)
+        | {f} TRIGGER{i} {f}  (T)
+        | {f} RELEASE{i} {f}  (R)
 
 {i}  ::= [{NAT}, {UPPERBOUND}]
-{UPPERBOUND} ::= {NAT} | INFINITY
+{UPPERBOUND} ::=   {NAT}
+                 | INFINITY   (∞)
 ```
+
+Note that this tool also supports the equivalent Unicode characters (on the right).
 
 ### Trace
 ```
