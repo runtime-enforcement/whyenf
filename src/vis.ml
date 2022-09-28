@@ -28,8 +28,11 @@ let cell_col cell = match cell with
 let rec f_idx idx f =
   match f with
   | TT | FF | P _ -> idx
-  | Neg f' | Prev (_, f') | Next (_, f') -> f_idx (idx+1) f'
+  | Neg f' | Prev (_, f') | Next (_, f')
+  | Once (_, f') | Historically (_, f')
+  | Eventually (_, f') | Always (_, f') -> f_idx (idx+1) f'
   | Conj (f1, f2) | Disj (f1, f2)
+  | Imp (f1, f2) | Iff (f1, f2)
   | Since (_, f1, f2) | Until (_, f1, f2) -> let idx' = f_idx (idx+1) f1 in
                                              f_idx (idx'+1) f2
 
@@ -40,14 +43,14 @@ let rec update_atoms_table tbl idx f sap tp atoms =
            let cell = (tp, idx, None, b) in
            if (List.exists atoms ~f:(fun s' -> s = s')) then (tbl, idx, atoms)
            else ((cell, []) :: tbl, idx+1, s :: atoms)
-  | Neg f' -> update_atoms_table tbl idx f' sap tp atoms
-  | Conj (f1, f2)
-  | Disj (f1, f2)
+  | Neg f' | Prev (_, f') | Next (_, f')
+  | Once (_, f') | Historically (_, f')
+  | Eventually (_, f') | Always (_, f') -> update_atoms_table tbl idx f' sap tp atoms
+  | Conj (f1, f2) | Disj (f1, f2)
+  | Imp (f1, f2) | Iff (f1, f2)
   | Since (_, f1, f2)
   | Until (_, f1, f2) -> let (tbl', idx', atoms') = update_atoms_table tbl idx f1 sap tp atoms in
                          update_atoms_table tbl' idx' f2 sap tp atoms'
-  | Prev (_, f')
-  | Next (_, f') -> update_atoms_table tbl idx f' sap tp atoms
 
 let rec update_expl_table tbl idx f p =
   match f, p with
@@ -84,14 +87,57 @@ let rec update_expl_table tbl idx f p =
      let cell = (p_at p, idx, None, true) in
      let cells = [(s_at sp1, sp1_idx, None, true); (s_at sp2, sp2_idx, None, true)] in
      ((cell, cells) :: tbl'', idx'')
+  | Imp (f1, f2), S (SImplL (vp1)) ->
+     let vp1_idx = idx+1 in
+     let (tbl', idx') = update_expl_table tbl vp1_idx f1 (V vp1) in
+     let cell = (p_at p, idx, None, true) in
+     let cells = [(v_at vp1, vp1_idx, None, false)] in
+     ((cell, cells) :: tbl', idx')
+  | Imp (f1, f2), S (SImplR (sp2)) ->
+     let sp1_idx = idx+1 in
+     let sp2_idx = (f_idx sp1_idx f1)+1 in
+     let (tbl', idx') = update_expl_table tbl sp2_idx f2 (S sp2) in
+     let cell = (p_at p, idx, None, true) in
+     let cells = [(s_at sp2, sp2_idx, None, true)] in
+     ((cell, cells) :: tbl', idx')
+  | Iff (f1, f2), S (SIffSS (sp1, sp2)) ->
+     let sp1_idx = idx+1 in
+     let (tbl', idx') = update_expl_table tbl sp1_idx f1 (S sp1) in
+     let sp2_idx = idx'+1 in
+     let (tbl'', idx'') = update_expl_table tbl' sp2_idx f2 (S sp2) in
+     let cell = (p_at p, idx, None, true) in
+     let cells = [(s_at sp1, sp1_idx, None, true); (s_at sp2, sp2_idx, None, true)] in
+     ((cell, cells) :: tbl'', idx'')
+  | Iff (f1, f2), S (SIffVV (vp1, vp2)) ->
+     let vp1_idx = idx+1 in
+     let (tbl', idx') = update_expl_table tbl vp1_idx f1 (V vp1) in
+     let vp2_idx = idx'+1 in
+     let (tbl'', idx'') = update_expl_table tbl' vp2_idx f2 (V vp2) in
+     let cell = (p_at p, idx, None, true) in
+     let cells = [(v_at vp1, vp1_idx, None, false); (v_at vp2, vp2_idx, None, false)] in
+     ((cell, cells) :: tbl'', idx'')
   | Prev (i, f'), S (SPrev sp)
-  | Next (i, f'), S (SNext sp) ->
+  | Once (i, f'), S (SOnce (_, sp))
+  | Next (i, f'), S (SNext sp)
+  | Eventually (i, f'), S (SEventually (_, sp)) ->
      let sp_idx = idx+1 in
      let (tbl', idx') = update_expl_table tbl sp_idx f' (S sp) in
-     let cell = match f with Prev _ -> (p_at p, idx, Some(i, PAST), true)
-                           | Next _ -> (p_at p, idx, Some(i, FUTURE), true)
+     let cell = match f with Prev _
+                           | Once _ -> (p_at p, idx, Some(i, PAST), true)
+                           | Next _
+                           | Eventually _ -> (p_at p, idx, Some(i, FUTURE), true)
                            | _ -> raise (UNEXPECTED_FORMULA "Formula must be either Next or Prev") in
      let cells = [(s_at sp, sp_idx, None, true)] in
+     ((cell, cells) :: tbl', idx')
+  | Historically (i, f'), S (SHistorically (_, _, sps))
+  | Always (i, f'), S (SAlways (_, _, sps)) ->
+     let sps_idx = idx+1 in
+     let (tbl', idx') = List.fold sps ~init:(tbl, sps_idx)
+                          ~f:(fun (t, _) sp -> update_expl_table t sps_idx f' (S sp)) in
+     let cell = match f with Historically _ -> (p_at p, idx, Some(i, PAST), true)
+                           | Always _ -> (p_at p, idx, Some(i, FUTURE), true)
+                           | _ -> raise (UNEXPECTED_FORMULA "Formula must be either Historically or Always") in
+     let cells = List.map sps ~f:(fun sp -> (s_at sp, sps_idx, None, true)) in
      ((cell, cells) :: tbl', idx')
   | Since (i, f1, f2), S (SSince (sp2, []))
   | Until (i, f1, f2), S (SUntil (sp2, [])) ->
@@ -153,14 +199,45 @@ let rec update_expl_table tbl idx f p =
      let cell = (p_at p, idx, None, false) in
      let cells = [(v_at vp2, vp2_idx, None, false)] in
      ((cell, cells) :: tbl', idx')
+  | Imp (f1, f2), V (VImpl (sp1, vp2))
+  | Iff (f1, f2), V (VIffSV (sp1, vp2)) ->
+     let sp1_idx = idx+1 in
+     let (tbl', idx') = update_expl_table tbl sp1_idx f1 (S sp1) in
+     let vp2_idx = idx'+1 in
+     let (tbl'', idx'') = update_expl_table tbl' vp2_idx f2 (V vp2) in
+     let cell = (p_at p, idx, None, false) in
+     let cells = [(s_at sp1, sp1_idx, None, true); (v_at vp2, vp2_idx, None, false)] in
+     ((cell, cells) :: tbl'', idx'')
+  | Iff (f1, f2), V (VIffVS (vp1, sp2)) ->
+     let vp1_idx = idx+1 in
+     let (tbl', idx') = update_expl_table tbl vp1_idx f1 (V vp1) in
+     let sp2_idx = idx'+1 in
+     let (tbl'', idx'') = update_expl_table tbl' sp2_idx f2 (S sp2) in
+     let cell = (p_at p, idx, None, false) in
+     let cells = [(v_at vp1, vp1_idx, None, false); (s_at sp2, sp2_idx, None, true)] in
+     ((cell, cells) :: tbl'', idx'')
+  | Prev (i, f'), V (VPrev vp)
+  | Historically (i, f'), V (VHistorically (_, vp))
   | Next (i, f'), V (VNext vp)
-  | Prev (i, f'), V (VPrev vp) ->
+  | Always (i, f'), V (VAlways (_, vp)) ->
      let vp_idx = idx+1 in
      let (tbl', idx') = update_expl_table tbl vp_idx f' (V vp) in
-     let cell = match f with Prev _ -> (p_at p, idx, Some(i, PAST), false)
+     let cell = match f with Prev _
+                           | Historically _ -> (p_at p, idx, Some(i, PAST), false)
+                           | Always _
                            | Next _ -> (p_at p, idx, Some(i, FUTURE), false)
                            | _ -> raise (UNEXPECTED_FORMULA "Formula must be either Next or Prev") in
      let cells = [(v_at vp, vp_idx, None, false)] in
+     ((cell, cells) :: tbl', idx')
+  | Once (i, f'), V (VOnce (_, _, vps))
+  | Eventually (i, f'), V (VEventually (_, _, vps)) ->
+     let vps_idx = idx+1 in
+     let (tbl', idx') = List.fold vps ~init:(tbl, vps_idx)
+                          ~f:(fun (t, _) vp -> update_expl_table t vps_idx f' (V vp)) in
+     let cell = match f with Once _ -> (p_at p, idx, Some(i, PAST), false)
+                           | Eventually _ -> (p_at p, idx, Some(i, FUTURE), false)
+                           | _ -> raise (UNEXPECTED_FORMULA "Formula must be either Historically or Always") in
+     let cells = List.map vps ~f:(fun vp -> (v_at vp, vps_idx, None, false)) in
      ((cell, cells) :: tbl', idx')
   | Since (i, f1, _), V (VSince (_, vp1, []))
   | Until (i, f1, _), V (VUntil (_, vp1, [])) ->
@@ -195,6 +272,8 @@ let rec update_expl_table tbl idx f p =
                            | _ -> raise (UNEXPECTED_FORMULA "Formula must be either Since or Until") in
      let cells = List.map vp2s ~f:(fun vp2 -> (v_at vp2, vp2_idx, None, false)) in
      ((cell, cells) :: tbl', idx')
+  | Historically (_, _), S (SHistoricallyOutL _)
+  | Once (_, _), V (VOnceOutL _)
   | Prev (_, _), V VPrev0
   | Prev (_, _), V (VPrevOutL _)
   | Prev (_, _), V (VPrevOutR _)
