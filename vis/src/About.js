@@ -5,8 +5,6 @@ import Box from '@mui/material/Box';
 import Container from '@mui/material/Container';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
-import Typography from '@mui/material/Typography';
-import Link from '@mui/material/Link';
 
 export default function About() {
   const [content, setContent] = useState("");

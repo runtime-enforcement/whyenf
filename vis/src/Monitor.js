@@ -13,7 +13,7 @@ import ResetButton from './components/ResetButton';
 import ExampleSelect from './components/ExampleSelect';
 import PreambleCard from './components/PreambleCard';
 import AlertDialog from './components/AlertDialog';
-import { computeMaxCol, computeSquares, translateError } from './util';
+import { computeSquares, translateError } from './util';
 
 function initMonitor(monitorState, action) {
   try {
