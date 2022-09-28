@@ -8,9 +8,6 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
-open Util
-open Expl
-
 (* Intervals bounded by +∞, i.e., [i,+∞) *)
 type uinterval = UI of int
 
