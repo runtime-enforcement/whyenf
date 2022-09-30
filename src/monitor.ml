@@ -728,7 +728,7 @@ module Since = struct
                                   (Printf.sprintf "\n(%d)\nbeta = " ts) ^
                                   Expl.v_to_string "" p2)
 
-  let update_ts_tps (l, r) a ts tp aux =
+  let shift_ts_tps (l, r) a ts tp aux =
     if a = 0 then
       let () = Deque.enqueue_back aux.ts_tp_in (ts, tp) in
       let ts_tp_in = remove_if_pred_front (fun (ts', _) -> ts' < l) aux.ts_tp_in in
@@ -840,12 +840,12 @@ module Since = struct
        let () = Deque.enqueue_back msaux.v_alphas_betas_out (ts, Some(vp1), Some(vp2)) in
        { msaux with v_alphas_out }
 
-  let move_beta_alphas (l,r) s_beta_alphas_out s_beta_alphas_in le =
+  let shift_sat (l,r) s_beta_alphas_out s_beta_alphas_in le =
     let s_beta_alphas_out, new_in_sat = split_in_out (fun (ts, _) -> ts) (l, r) s_beta_alphas_out in
     let s_beta_alphas_in = update_s_beta_alphas_in new_in_sat s_beta_alphas_in le in
     (s_beta_alphas_out, s_beta_alphas_in)
 
-  let move_alphas_betas_out (l,r) tp v_alphas_betas_out v_alpha_betas_in v_betas_in le =
+  let shift_vio (l,r) tp v_alphas_betas_out v_alpha_betas_in v_betas_in le =
     let v_alphas_betas_out, new_in_viol = split_in_out (fun (ts, _, _) -> ts) (l, r) v_alphas_betas_out in
     let v_betas_in = update_v_betas_in new_in_viol v_betas_in in
     let v_alpha_betas_in = update_v_alpha_betas_in tp new_in_viol v_alpha_betas_in le in
@@ -861,12 +861,13 @@ module Since = struct
                ; v_alphas_out
                ; v_betas_in }
 
-  let shift_msaux (l, r) ts tp p1 p2 msaux le =
-    let msaux = remove_from_msaux (l, r) msaux in
-    let (s_beta_alphas_out, s_beta_alphas_in) = move_beta_alphas (l,r)
+  let shift_msaux (l, r) a ts tp p1 p2 msaux le =
+    let msaux = shift_ts_tps (l, r) a ts tp msaux in
+    let (s_beta_alphas_out, s_beta_alphas_in) = shift_sat (l,r)
                                                   msaux.s_beta_alphas_out msaux.s_beta_alphas_in le in
-    let (v_alphas_betas_out, v_alpha_betas_in, v_betas_in) = move_alphas_betas_out (l,r) tp msaux.v_alphas_betas_out
+    let (v_alphas_betas_out, v_alpha_betas_in, v_betas_in) = shift_vio (l,r) tp msaux.v_alphas_betas_out
                                                                msaux.v_alpha_betas_in msaux.v_betas_in le in
+    let msaux = remove_from_msaux (l, r) msaux in
     { msaux with s_beta_alphas_in
                ; s_beta_alphas_out
                ; v_alpha_betas_in
@@ -904,9 +905,8 @@ module Since = struct
       let l = (-1) in
       let r = (-1) in
       let msaux = { msaux with ts_zero } in
-      let msaux = update_ts_tps (l, r) a ts tp msaux in
       let msaux = add_subps ts p1 p2 msaux le in
-      let msaux = shift_msaux (l, r) ts tp p1 p2 msaux le in
+      let msaux = shift_msaux (l, r) a ts tp p1 p2 msaux le in
       let p = V (VSinceOutL tp) in
       (p, msaux)
     (* Case 2: there exists a \tau_{tp'} inside the interval s.t. tp' < tp *)
@@ -916,9 +916,8 @@ module Since = struct
               else (Option.get ts_zero) in
       let r = ts - a in
       let msaux = { msaux with ts_zero } in
-      let msaux = update_ts_tps (l, r) a ts tp msaux in
       let msaux = add_subps ts p1 p2 msaux le in
-      let msaux = shift_msaux (l, r) ts tp p1 p2 msaux le in
+      let msaux = shift_msaux (l, r) a ts tp p1 p2 msaux le in
       let p = eval_msaux tp le msaux in
       (p, msaux)
 end
