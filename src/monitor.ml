@@ -899,11 +899,11 @@ module Since = struct
     let a = get_a_I interval in
     (* Case 1: interval has not yet started, i.e.,
      a > 0 OR (\tau_{tp} - a) < 0 *)
+    let msaux = add_subps ts p1 p2 msaux le in
     let ts_zero = if Option.is_none msaux.ts_zero then Some(ts) else msaux.ts_zero in
     if ((Option.is_none msaux.ts_zero) && a > 0) ||
          (Option.is_some msaux.ts_zero) && ts < (Option.get msaux.ts_zero) + a then
       let msaux = { msaux with ts_zero } in
-      let msaux = add_subps ts p1 p2 msaux le in
       let () = Deque.enqueue_back msaux.ts_tp_out (ts, tp) in
       let p = V (VSinceOutL tp) in
       (p, msaux)
@@ -914,7 +914,6 @@ module Since = struct
               else (Option.get ts_zero) in
       let r = ts - a in
       let msaux = { msaux with ts_zero } in
-      let msaux = add_subps ts p1 p2 msaux le in
       let msaux = shift_msaux (l, r) a ts tp msaux le in
       let p = eval_msaux tp le msaux in
       (p, msaux)
