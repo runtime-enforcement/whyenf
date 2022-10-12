@@ -861,7 +861,7 @@ module Since = struct
                ; v_alphas_out
                ; v_betas_in }
 
-  let shift_msaux (l, r) a ts tp p1 p2 msaux le =
+  let shift_msaux (l, r) a ts tp msaux le =
     let msaux = shift_ts_tps (l, r) a ts tp msaux in
     let (s_beta_alphas_out, s_beta_alphas_in) = shift_sat (l,r)
                                                   msaux.s_beta_alphas_out msaux.s_beta_alphas_in le in
@@ -915,7 +915,7 @@ module Since = struct
       let r = ts - a in
       let msaux = { msaux with ts_zero } in
       let msaux = add_subps ts p1 p2 msaux le in
-      let msaux = shift_msaux (l, r) a ts tp p1 p2 msaux le in
+      let msaux = shift_msaux (l, r) a ts tp msaux le in
       let p = eval_msaux tp le msaux in
       (p, msaux)
 end
