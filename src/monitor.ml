@@ -902,11 +902,9 @@ module Since = struct
     let ts_zero = if Option.is_none msaux.ts_zero then Some(ts) else msaux.ts_zero in
     if ((Option.is_none msaux.ts_zero) && a > 0) ||
          (Option.is_some msaux.ts_zero) && ts < (Option.get msaux.ts_zero) + a then
-      let l = (-1) in
-      let r = (-1) in
       let msaux = { msaux with ts_zero } in
       let msaux = add_subps ts p1 p2 msaux le in
-      let msaux = shift_msaux (l, r) a ts tp p1 p2 msaux le in
+      let () = Deque.enqueue_back msaux.ts_tp_out (ts, tp) in
       let p = V (VSinceOutL tp) in
       (p, msaux)
     (* Case 2: there exists a \tau_{tp'} inside the interval s.t. tp' < tp *)
