@@ -5,7 +5,7 @@ It is the successor of the <a style="color: #977b01;" href="https://bitbucket.or
 
 This work is described in our paper draft <a style="color: #977b01;" href="https://github.com/runtime-monitoring/explanator2/blob/main/doc/mtl/online-mtl-expl.pdf" target="_blank">Explainable Online Monitoring of Metric Temporal Logic</a>.
 
-This web application was developed by Leonardo Lima and <a style="color: #977b01;" href="https://traytel.bitbucket.io/" target="_blank">Dmitriy Traytel</a>.
+This web application was developed by <a style="color: #977b01;" href="https://www.excludedmiddle.net/" target="_blank">Leonardo Lima</a> and <a style="color: #977b01;" href="https://traytel.bitbucket.io/" target="_blank">Dmitriy Traytel</a>.
 
 Andrei Herasimau, Martin Raszyk, and Simon Yuan contributed to the design and implementation of the underlying algorithms.
 

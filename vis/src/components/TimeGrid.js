@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Box from '@mui/material/Box';
 import { DataGrid } from '@mui/x-data-grid';
 import Button from '@mui/material/Button';
@@ -11,9 +11,7 @@ import { red, amber, lightGreen, indigo } from '@mui/material/colors';
 import { common } from '@mui/material/colors';
 import { black,
          squareColor,
-         tpsIn,
-         computeMaxCol,
-         computeHighlightedPathCells } from '../util';
+         tpsIn } from '../util';
 
 function Cell(props) {
   if (props.value === red[500] || props.value === lightGreen[500] || props.value === black) {
@@ -37,12 +35,11 @@ function TimeGrid ({ explanations,
                      squares,
                      selectedRows,
                      highlightedCells,
-                     highlightedPaths,
+                     pathsMap,
                      setMonitorState }) {
 
   const [anchorEl, setAnchorEl] = useState(null);
   const [value, setValue] = useState('');
-  const [highlightedPathCells, setHighlightedPathCells] = useState([]);
   const open = Boolean(anchorEl);
 
   const handlePopoverOpen = (event) => {
@@ -124,10 +121,9 @@ function TimeGrid ({ explanations,
 
   const handleClick = (ts, tp, col) => {
     const colIndex = parseInt(col);
-    const mainColumnIndex = apsColumns.length;
 
     let cloneSquares = [...squares];
-    let cloneHighlightedPaths = [...highlightedPaths];
+    let clonePathsMap = new Map(pathsMap);
     let cell;
 
     for (let i = 0; i < explanations.length; ++i) {
@@ -137,15 +133,13 @@ function TimeGrid ({ explanations,
 
     if (cell !== undefined && squares[cell.tp][cell.col] !== black && cell.cells.length !== 0) {
       // Update highlighted cells (i.e. the ones who appear after a click)
-      let maxRow = Math.max(explanations.length, atoms.length);
-      let maxCol = computeMaxCol(explanations) + 1;
-      let highlightedCells = [...Array(maxRow)].map(x=>Array(maxCol).fill(false));
+      let highlightedCells = [];
       let children = [];
 
       // Update cells (show hidden verdicts after a click)
       for (let i = 0; i < cell.cells.length; ++i) {
         cloneSquares[cell.cells[i].tp][cell.cells[i].col] = squareColor(cell.cells[i].bool);
-        highlightedCells[cell.cells[i].tp][cell.cells[i].col] = true;
+        highlightedCells.push({ tp: cell.cells[i].tp, col: cell.cells[i].col });
         children.push({ tp: cell.cells[i].tp, col: cell.cells[i].col, isHighlighted: false });
       }
 
@@ -154,26 +148,25 @@ function TimeGrid ({ explanations,
       let selRows = (cell.interval !== undefined) ? tpsIn(ts, tp, cell.interval, cell.period, lastTS, atoms) : [];
 
       // Update (potentially multiple) open paths to be highlighted
-      for (let i = 0; i < cloneHighlightedPaths.length; ++i) {
-        for (let j = 0; j < cloneHighlightedPaths[i].children.length; ++j) {
-          cloneHighlightedPaths[i].children[j] = {...cloneHighlightedPaths[i].children[j], isHighlighted: false };
-        }
-        cloneHighlightedPaths[i] = {...cloneHighlightedPaths[i], isHighlighted: false };
+      for (const [k, obj] of pathsMap) {
+        if (obj.isHighlighted) clonePathsMap.set(k, {...obj, isHighlighted: false });
       }
 
-      if (colIndex === mainColumnIndex) {
-        const i = cloneHighlightedPaths.findIndex(c => c.tp === tp && c.col === colIndex);
-        if (i === -1) cloneHighlightedPaths.push({ tp: tp, col: colIndex, isHighlighted: true, children: children });
-        else cloneHighlightedPaths[i] = {...cloneHighlightedPaths[i], isHighlighted: true };
-      } else {
-        for (let i = 0; i < cloneHighlightedPaths.length; ++i) {
-          const k = cloneHighlightedPaths[i].children.findIndex(c => c.tp === tp && c.col === colIndex);
-          if (k !== -1) {
-            cloneHighlightedPaths[i] = {...cloneHighlightedPaths[i], isHighlighted: true, children: cloneHighlightedPaths[i].children.concat(children) };
-            for (let j = 0; j <= k; ++j) {
-              cloneHighlightedPaths[i].children[j] = {...cloneHighlightedPaths[i].children[j], isHighlighted: true };
-            }
-          }
+      for (let i = 0; i < children.length; ++i) {
+        clonePathsMap.set(children[i].tp.toString() + children[i].col.toString(),
+                          { parent: tp.toString() + colIndex.toString(), isHighlighted: false,
+                            tp: children[i].tp, col: children[i].col });
+      }
+
+      let cur = clonePathsMap.get(tp.toString() + colIndex.toString());
+      if (cur === undefined) clonePathsMap.set(tp.toString() + colIndex.toString(),
+                                               { parent: null, isHighlighted: true, tp: tp, col: colIndex });
+      else clonePathsMap.set(tp.toString() + colIndex.toString(), {...cur, isHighlighted: true });
+
+      if (cur !== undefined) {
+        while (cur.parent !== null) {
+          cur = clonePathsMap.get(cur.parent);
+          clonePathsMap.set(cur, {...cur, isHighlighted: true });
         }
       }
 
@@ -181,15 +174,11 @@ function TimeGrid ({ explanations,
                      squares: cloneSquares,
                      selectedRows: selRows,
                      highlightedCells: highlightedCells,
-                     highlightedPaths: cloneHighlightedPaths,
+                     pathsMap: clonePathsMap,
                    };
       setMonitorState(action);
     }
   };
-
-  useEffect(() => {
-    setHighlightedPathCells(computeHighlightedPathCells(highlightedPaths));
-  }, [setHighlightedPathCells, highlightedPaths]);
 
   return (
     <Box height="60vh"
@@ -221,15 +210,16 @@ function TimeGrid ({ explanations,
           else return 'row--Plain';
         }}
         getCellClassName={(params) => {
-          if (highlightedCells.length !== 0
-              && highlightedCells[params.row.tp][parseInt(params.colDef.field)])
-            return 'cell--Highlighted';
-          if (highlightedPathCells.length !== 0) {
-            for (let i = 0; i < highlightedPathCells.length; ++i) {
-              if (highlightedPathCells[i].tp === params.row.tp
-                  && highlightedPathCells[i].col === parseInt(params.colDef.field))
-                return 'cell--PathHighlighted';
+          if (highlightedCells.length !== 0) {
+            for (let i = 0; i < highlightedCells.length; ++i) {
+              if (highlightedCells[i].tp === params.row.tp
+                  && highlightedCells[i].col === parseInt(params.colDef.field))
+                return 'cell--Highlighted';
             }
+          }
+          for (const [k, obj] of pathsMap) {
+            if (obj.isHighlighted && obj.tp === params.row.tp && obj.col === parseInt(params.colDef.field))
+              return 'cell--PathHighlighted';
           }
         }}
         componentsProps={{
