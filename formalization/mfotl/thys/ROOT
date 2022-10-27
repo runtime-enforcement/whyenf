@@ -1,0 +1,5 @@
+chapter AFP
+
+session Explanator2 (AFP) = "Containers" +
+  theories
+    Proof_System
