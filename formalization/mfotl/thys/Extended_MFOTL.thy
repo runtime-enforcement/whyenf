@@ -8,7 +8,7 @@ section \<open>Extended Metric First-Order Temporal Logic\<close>
 
 context begin
 
-subsection \<open>Formulas and satisfiability\<close>
+subsection \<open>Formulas and Satisfiability\<close>
 
 qualified type_synonym name = string
 qualified type_synonym 'a event = "(name \<times> 'a list)"
@@ -18,7 +18,7 @@ qualified type_synonym 'a trace = "(name \<times> 'a list) trace"
 
 qualified type_synonym 'a env = "'a list"
 
-qualified datatype 'a trm = Var nat | is_Const: Const 'a
+qualified datatype 'a trm = is_Var: Var nat | is_Const: Const 'a
 
 qualified primrec fvi_trm :: "nat \<Rightarrow> 'a trm \<Rightarrow> nat set" where
   "fvi_trm b (Var x) = (if b \<le> x then {x - b} else {})"
@@ -105,8 +105,15 @@ qualified definition envs :: "'a formula \<Rightarrow> 'a env set" where
 lemma nfv_simps[simp]:
   "nfv (Neg \<phi>) = nfv \<phi>"
   "nfv (Or \<phi> \<psi>) = max (nfv \<phi>) (nfv \<psi>)"
+  "nfv (And \<phi> \<psi>) = max (nfv \<phi>) (nfv \<psi>)"
+  "nfv (Imp \<phi> \<psi>) = max (nfv \<phi>) (nfv \<psi>)"
+  "nfv (Iff \<phi> \<psi>) = max (nfv \<phi>) (nfv \<psi>)"
   "nfv (Prev I \<phi>) = nfv \<phi>"
   "nfv (Next I \<phi>) = nfv \<phi>"
+  "nfv (Once I \<phi>) = nfv \<phi>"
+  "nfv (Hist I \<phi>) = nfv \<phi>"
+  "nfv (Event I \<phi>) = nfv \<phi>"
+  "nfv (Always I \<phi>) = nfv \<phi>"
   "nfv (Since \<phi> I \<psi>) = max (nfv \<phi>) (nfv \<psi>)"
   "nfv (Until \<phi> I \<psi>) = max (nfv \<phi>) (nfv \<psi>)"
   unfolding nfv_def by (simp_all add: image_Un Max_Un[symmetric])
@@ -115,27 +122,43 @@ lemma fvi_less_nfv: "\<forall>i\<in>fv \<phi>. i < nfv \<phi>"
   unfolding nfv_def
   by (auto simp add: Max_gr_iff intro: max.strict_coboundedI2)
 
-
-qualified primrec future_reach :: "'a formula \<Rightarrow> enat" where
-  "future_reach (Pred _ _) = 0"
-| "future_reach (Eq _ _) = 0"
-| "future_reach (Neg \<phi>) = future_reach \<phi>"
-| "future_reach (Or \<phi> \<psi>) = max (future_reach \<phi>) (future_reach \<psi>)"
-| "future_reach (Exists \<phi>) = future_reach \<phi>"
-| "future_reach (Prev I \<phi>) = future_reach \<phi> - left I"
-| "future_reach (Next I \<phi>) = future_reach \<phi> + right I + 1"
-| "future_reach (Since \<phi> I \<psi>) = max (future_reach \<phi>) (future_reach \<psi> - left I)"
-| "future_reach (Until \<phi> I \<psi>) = max (future_reach \<phi>) (future_reach \<psi>) + right I + 1"
-
+qualified fun future_bounded :: "'a formula \<Rightarrow> bool" where
+  "future_bounded (TT) = True"
+| "future_bounded (FF) = True"
+| "future_bounded (Pred _ _) = True"
+| "future_bounded (Eq _ _) = True"
+| "future_bounded (Neg \<phi>) = future_bounded \<phi>"
+| "future_bounded (Or \<phi> \<psi>) = (future_bounded \<phi> \<and> future_bounded \<psi>)"
+| "future_bounded (And \<phi> \<psi>) = (future_bounded \<phi> \<and> future_bounded \<psi>)"
+| "future_bounded (Imp \<phi> \<psi>) = (future_bounded \<phi> \<and> future_bounded \<psi>)"
+| "future_bounded (Iff \<phi> \<psi>) = (future_bounded \<phi> \<and> future_bounded \<psi>)"
+| "future_bounded (Exists \<phi>) = future_bounded \<phi>"
+| "future_bounded (Prev I \<phi>) = future_bounded \<phi>"
+| "future_bounded (Next I \<phi>) = future_bounded \<phi>"
+| "future_bounded (Once I \<phi>) = future_bounded \<phi>"
+| "future_bounded (Hist I \<phi>) = future_bounded \<phi>"
+| "future_bounded (Event I \<phi>) = (future_bounded \<phi> \<and> right I \<noteq> \<infinity>)"
+| "future_bounded (Always I \<phi>) = (future_bounded \<phi> \<and> right I \<noteq> \<infinity>)"
+| "future_bounded (Since \<phi> I \<psi>) = (future_bounded \<phi> \<and> future_bounded \<psi>)"
+| "future_bounded (Until \<phi> I \<psi>) = (future_bounded \<phi> \<and> future_bounded \<psi> \<and> right I \<noteq> \<infinity>)"
 
 qualified primrec sat :: "'a trace \<Rightarrow> 'a env \<Rightarrow> nat \<Rightarrow> 'a formula \<Rightarrow> bool" where
-  "sat \<sigma> v i (Pred r ts) = ((r, map (eval_trm v) ts) \<in> \<Gamma> \<sigma> i)"
+  "sat \<sigma> v i (TT) = True"
+| "sat \<sigma> v i (FF) = False"
+| "sat \<sigma> v i (Pred r ts) = ((r, map (eval_trm v) ts) \<in> \<Gamma> \<sigma> i)"
 | "sat \<sigma> v i (Eq t1 t2) = (eval_trm v t1 = eval_trm v t2)"
 | "sat \<sigma> v i (Neg \<phi>) = (\<not> sat \<sigma> v i \<phi>)"
 | "sat \<sigma> v i (Or \<phi> \<psi>) = (sat \<sigma> v i \<phi> \<or> sat \<sigma> v i \<psi>)"
+| "sat \<sigma> v i (And \<phi> \<psi>) = (sat \<sigma> v i \<phi> \<and> sat \<sigma> v i \<psi>)"
+| "sat \<sigma> v i (Imp \<phi> \<psi>) = (sat \<sigma> v i \<phi> \<longrightarrow> sat \<sigma> v i \<psi>)"
+| "sat \<sigma> v i (Iff \<phi> \<psi>) = (sat \<sigma> v i \<phi> \<longleftrightarrow> sat \<sigma> v i \<psi>)"
 | "sat \<sigma> v i (Exists \<phi>) = (\<exists>z. sat \<sigma> (z # v) i \<phi>)"
 | "sat \<sigma> v i (Prev I \<phi>) = (case i of 0 \<Rightarrow> False | Suc j \<Rightarrow> mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I \<and> sat \<sigma> v j \<phi>)"
 | "sat \<sigma> v i (Next I \<phi>) = (mem (\<tau> \<sigma> (Suc i) - \<tau> \<sigma> i) I \<and> sat \<sigma> v (Suc i) \<phi>)"
+| "sat \<sigma> v i (Once I \<phi>) = (\<exists>j\<le>i. mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I \<and> sat \<sigma> v j \<phi>)"
+| "sat \<sigma> v i (Hist I \<phi>) = (\<forall>j\<le>i. mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I \<longrightarrow> sat \<sigma> v j \<phi>)"
+| "sat \<sigma> v i (Event I \<phi>) = (\<exists>j\<ge>i. mem (\<tau> \<sigma> j - \<tau> \<sigma> i) I \<and> sat \<sigma> v j \<phi>)"
+| "sat \<sigma> v i (Always I \<phi>) = (\<forall>j\<ge>i. mem (\<tau> \<sigma> j - \<tau> \<sigma> i) I \<longrightarrow> sat \<sigma> v j \<phi>)"
 | "sat \<sigma> v i (Since \<phi> I \<psi>) = (\<exists>j\<le>i. mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I \<and> sat \<sigma> v j \<psi> \<and> (\<forall>k \<in> {j <.. i}. sat \<sigma> v k \<phi>))"
 | "sat \<sigma> v i (Until \<phi> I \<psi>) = (\<exists>j\<ge>i. mem (\<tau> \<sigma> j - \<tau> \<sigma> i) I \<and> sat \<sigma> v j \<psi> \<and> (\<forall>k \<in> {i ..< j}. sat \<sigma> v k \<phi>))"
 
@@ -224,95 +247,181 @@ next
   then show ?case unfolding sat.simps by (intro iff_exI) (simp add: fvi_Suc nth_Cons')
 qed (auto 8 0 simp add: nth_Cons' split: nat.splits intro!: iff_exI)
 
+lemma sat_Once_Since: "sat \<sigma> v i (Once I \<phi>) = sat \<sigma> v i (Since TT I \<phi>)"
+  by auto
 
-subsection \<open>Defined connectives\<close>
+lemma sat_Once_rec: "sat \<sigma> v i (Once I \<phi>) \<longleftrightarrow>
+  mem 0 I \<and> sat \<sigma> v i \<phi> \<or> 
+  (i > 0 \<and> \<Delta> \<sigma> i \<le> right I \<and> sat \<sigma> v (i - 1) (Once (subtract (\<Delta> \<sigma> i) I) \<phi>))"
+  unfolding sat_Once_Since
+  by (subst sat_Since_rec) auto
 
-qualified definition "And \<phi> \<psi> = Neg (Or (Neg \<phi>) (Neg \<psi>))"
+lemma sat_Hist_Once: "sat \<sigma> v i (Hist I \<phi>) = sat \<sigma> v i (Neg (Once I (Neg \<phi>)))"
+  by auto
 
-lemma fvi_And: "fvi b (And \<phi> \<psi>) = fvi b \<phi> \<union> fvi b \<psi>"
-  unfolding And_def by simp
+lemma sat_Hist_rec: "sat \<sigma> v i (Hist I \<phi>) \<longleftrightarrow>
+  (mem 0 I \<longrightarrow> sat \<sigma> v i \<phi>) \<and> 
+  (i > 0 \<longrightarrow> \<Delta> \<sigma> i \<le> right I \<longrightarrow> sat \<sigma> v (i - 1) (Hist (subtract (\<Delta> \<sigma> i) I) \<phi>))"
+  unfolding sat_Hist_Once sat.simps(5)
+  by (subst sat_Once_rec) auto
 
-lemma nfv_And[simp]: "nfv (And \<phi> \<psi>) = max (nfv \<phi>) (nfv \<psi>)"
-  unfolding nfv_def by (simp add: fvi_And image_Un Max_Un[symmetric])
+lemma sat_Event_Until: "sat \<sigma> v i (Event I \<phi>) = sat \<sigma> v i (Until TT I \<phi>)"
+  by auto
 
-lemma future_reach_And: "future_reach (And \<phi> \<psi>) = max (future_reach \<phi>) (future_reach \<psi>)"
-  unfolding And_def by simp
+lemma sat_Event_rec: "sat \<sigma> v i (Event I \<phi>) \<longleftrightarrow>
+  mem 0 I \<and> sat \<sigma> v i \<phi> \<or> 
+  (\<Delta> \<sigma> (i + 1) \<le> right I \<and> sat \<sigma> v (i + 1) (Event (subtract (\<Delta> \<sigma> (i + 1)) I) \<phi>))"
+  unfolding sat_Event_Until
+  by (subst sat_Until_rec) auto
 
-lemma sat_And: "sat \<sigma> v i (And \<phi> \<psi>) = (sat \<sigma> v i \<phi> \<and> sat \<sigma> v i \<psi>)"
-  unfolding And_def by simp
+lemma sat_Always_Event: "sat \<sigma> v i (Always I \<phi>) = sat \<sigma> v i (Neg (Event I (Neg \<phi>)))"
+  by auto
 
-qualified definition "And_Not \<phi> \<psi> = Neg (Or (Neg \<phi>) \<psi>)"
-
-lemma fvi_And_Not: "fvi b (And_Not \<phi> \<psi>) = fvi b \<phi> \<union> fvi b \<psi>"
-  unfolding And_Not_def by simp
-
-lemma nfv_And_Not[simp]: "nfv (And_Not \<phi> \<psi>) = max (nfv \<phi>) (nfv \<psi>)"
-  unfolding nfv_def by (simp add: fvi_And_Not image_Un Max_Un[symmetric])
-
-lemma future_reach_And_Not: "future_reach (And_Not \<phi> \<psi>) = max (future_reach \<phi>) (future_reach \<psi>)"
-  unfolding And_Not_def by simp
-
-lemma sat_And_Not: "sat \<sigma> v i (And_Not \<phi> \<psi>) = (sat \<sigma> v i \<phi> \<and> \<not> sat \<sigma> v i \<psi>)"
-  unfolding And_Not_def by simp
+lemma sat_Always_rec: "sat \<sigma> v i (Always I \<phi>) \<longleftrightarrow>
+  (mem 0 I \<longrightarrow> sat \<sigma> v i \<phi>) \<and> 
+  (\<Delta> \<sigma> (i + 1) \<le> right I \<longrightarrow> sat \<sigma> v (i + 1) (Always (subtract (\<Delta> \<sigma> (i + 1)) I) \<phi>))"
+  unfolding sat_Always_Event sat.simps(5)
+  by (subst sat_Event_rec) auto
 
 
-subsection \<open>Safe formulas\<close>
+subsection \<open>Safe Formulas\<close>
 
-fun safe_formula :: "'a MFOTL.formula \<Rightarrow> bool" where
-  "safe_formula (MFOTL.Eq t1 t2) = (MFOTL.is_Const t1 \<or> MFOTL.is_Const t2)"
-| "safe_formula (MFOTL.Neg (MFOTL.Eq (MFOTL.Const x) (MFOTL.Const y))) = True"
-| "safe_formula (MFOTL.Neg (MFOTL.Eq (MFOTL.Var x) (MFOTL.Var y))) = (x = y)"
-| "safe_formula (MFOTL.Pred e ts) = True"
-| "safe_formula (MFOTL.Neg (MFOTL.Or (MFOTL.Neg \<phi>) \<psi>)) = (safe_formula \<phi> \<and>
-    (safe_formula \<psi> \<and> MFOTL.fv \<psi> \<subseteq> MFOTL.fv \<phi> \<or> (case \<psi> of MFOTL.Neg \<psi>' \<Rightarrow> safe_formula \<psi>' | _ \<Rightarrow> False)))"
-| "safe_formula (MFOTL.Or \<phi> \<psi>) = (MFOTL.fv \<psi> = MFOTL.fv \<phi> \<and> safe_formula \<phi> \<and> safe_formula \<psi>)"
-| "safe_formula (MFOTL.Exists \<phi>) = (safe_formula \<phi>)"
-| "safe_formula (MFOTL.Prev I \<phi>) = (safe_formula \<phi>)"
-| "safe_formula (MFOTL.Next I \<phi>) = (safe_formula \<phi>)"
-| "safe_formula (MFOTL.Since \<phi> I \<psi>) = (MFOTL.fv \<phi> \<subseteq> MFOTL.fv \<psi> \<and>
-    (safe_formula \<phi> \<or> (case \<phi> of MFOTL.Neg \<phi>' \<Rightarrow> safe_formula \<phi>' | _ \<Rightarrow> False)) \<and> safe_formula \<psi>)"
-| "safe_formula (MFOTL.Until \<phi> I \<psi>) = (MFOTL.fv \<phi> \<subseteq> MFOTL.fv \<psi> \<and>
-    (safe_formula \<phi> \<or> (case \<phi> of MFOTL.Neg \<phi>' \<Rightarrow> safe_formula \<phi>' | _ \<Rightarrow> False)) \<and> safe_formula \<psi>)"
-| "safe_formula _ = False"
+fun remove_neg :: "'a formula \<Rightarrow> 'a formula" where
+  "remove_neg (Neg \<phi>) = \<phi>"
+| "remove_neg \<phi> = \<phi>"
+
+lemma fvi_remove_neg[simp]: "fvi b (remove_neg \<phi>) = fvi b \<phi>"
+  by (cases \<phi>) simp_all
+
+lemma partition_cong[fundef_cong]:
+  "xs = ys \<Longrightarrow> (\<And>x. x\<in>set xs \<Longrightarrow> f x = g x) \<Longrightarrow> partition f xs = partition g ys"
+  by (induction xs arbitrary: ys) auto
+
+lemma size_remove_neg[termination_simp]: "size (remove_neg \<phi>) \<le> size \<phi>"
+  by (cases \<phi>) simp_all
+
+fun is_constraint :: "'a formula \<Rightarrow> bool" where
+  "is_constraint (Eq t1 t2) = True"
+| "is_constraint (Neg (Eq t1 t2)) = True"
+| "is_constraint _ = False"
+
+definition safe_assignment :: "nat set \<Rightarrow> 'a formula \<Rightarrow> bool" where
+  "safe_assignment X \<phi> = (case \<phi> of
+       Eq (Var x) (Var y) \<Rightarrow> (x \<notin> X \<longleftrightarrow> y \<in> X)
+     | Eq (Var x) t \<Rightarrow> (x \<notin> X \<and> fv_trm t \<subseteq> X)
+     | Eq t (Var x) \<Rightarrow> (x \<notin> X \<and> fv_trm t \<subseteq> X)
+     | _ \<Rightarrow> False)"
+
+fun safe_formula :: "'a formula \<Rightarrow> bool" where
+  "safe_formula (TT) = True"
+| "safe_formula (FF) = True"
+| "safe_formula (Pred e ts) = (\<forall>t\<in>set ts. is_Var t \<or> is_Const t)"
+| "safe_formula (Eq t1 t2) = (is_Const t1 \<and> (is_Const t2 \<or> is_Var t2) \<or> is_Var t1 \<and> is_Const t2)"
+| "safe_formula (Neg (Eq (Var x) (Var y))) = (x = y)"
+| "safe_formula (Neg \<phi>) = (fv \<phi> = {} \<and> safe_formula \<phi>)"
+| "safe_formula (Or \<phi> \<psi>) = (fv \<psi> = fv \<phi> \<and> safe_formula \<phi> \<and> safe_formula \<psi>)"
+| "safe_formula (And \<phi> \<psi>) = (safe_formula \<phi> \<and>
+    (safe_assignment (fv \<phi>) \<psi> \<or> safe_formula \<psi> \<or>
+      fv \<psi> \<subseteq> fv \<phi> \<and> (is_constraint \<psi> \<or> (case \<psi> of Neg \<psi>' \<Rightarrow> safe_formula \<psi>' | _ \<Rightarrow> False))))"
+| "safe_formula (Imp \<phi> \<psi>) = (fv \<psi> = {} \<and> safe_formula \<phi> \<and> safe_formula \<psi>)"
+| "safe_formula (Iff \<phi> \<psi>) = (fv \<phi> = {} \<and> fv \<psi> = {} \<and> safe_formula \<phi> \<and> safe_formula \<psi>)"
+| "safe_formula (Exists \<phi>) = (safe_formula \<phi>)"
+| "safe_formula (Prev I \<phi>) = (safe_formula \<phi>)"
+| "safe_formula (Next I \<phi>) = (safe_formula \<phi>)"
+| "safe_formula (Once I \<phi>) = (safe_formula \<phi>)"
+| "safe_formula (Hist I \<phi>) = (safe_formula \<phi>)"
+| "safe_formula (Event I \<phi>) = (safe_formula \<phi>)"
+| "safe_formula (Always I \<phi>) = (safe_formula \<phi>)"
+| "safe_formula (Since \<phi> I \<psi>) = (fv \<phi> \<subseteq> fv \<psi> \<and>
+    (safe_formula \<phi> \<or> (case \<phi> of Neg \<phi>' \<Rightarrow> safe_formula \<phi>' | _ \<Rightarrow> False)) \<and> safe_formula \<psi>)"
+| "safe_formula (Until \<phi> I \<psi>) = (fv \<phi> \<subseteq> fv \<psi> \<and>
+    (safe_formula \<phi> \<or> (case \<phi> of Neg \<phi>' \<Rightarrow> safe_formula \<phi>' | _ \<Rightarrow> False)) \<and> safe_formula \<psi>)"
+
 
 lemma disjE_Not2: "P \<or> Q \<Longrightarrow> (P \<Longrightarrow> R) \<Longrightarrow> (\<not>P \<Longrightarrow> Q \<Longrightarrow> R) \<Longrightarrow> R"
-  by blast
+  by auto
 
-lemma safe_formula_induct[consumes 1]:
+term "\<And>c d. P (Eq (Const c) (Const d))"
+term "P (TT)"
+
+lemma safe_formula_induct[consumes 1, case_names TT FF Pred Eq_Const Eq_Var1 Eq_Var2 neq_Var
+    Neg Or And_assign And_safe And_constraint And_Not Exists Prev Next Once Hist Event Always
+    Since Not_Since Until Not_Until]:
   assumes "safe_formula \<phi>"
-    and "\<And>t1 t2. MFOTL.is_Const t1 \<Longrightarrow> P (MFOTL.Eq t1 t2)"
-    and "\<And>t1 t2. MFOTL.is_Const t2 \<Longrightarrow> P (MFOTL.Eq t1 t2)"
-    and "\<And>x y. P (MFOTL.Neg (MFOTL.Eq (MFOTL.Const x) (MFOTL.Const y)))"
-    and "\<And>x y. x = y \<Longrightarrow> P (MFOTL.Neg (MFOTL.Eq (MFOTL.Var x) (MFOTL.Var y)))"
-    and "\<And>e ts. P (MFOTL.Pred e ts)"
-    and "\<And>\<phi> \<psi>. \<not> (safe_formula (MFOTL.Neg \<psi>) \<and> MFOTL.fv \<psi> \<subseteq> MFOTL.fv \<phi>) \<Longrightarrow> P \<phi> \<Longrightarrow> P \<psi> \<Longrightarrow> P (MFOTL.And \<phi> \<psi>)"
-    and "\<And>\<phi> \<psi>. safe_formula \<psi> \<Longrightarrow> MFOTL.fv \<psi> \<subseteq> MFOTL.fv \<phi> \<Longrightarrow> P \<phi> \<Longrightarrow> P \<psi> \<Longrightarrow> P (MFOTL.And_Not \<phi> \<psi>)"
-    and "\<And>\<phi> \<psi>. MFOTL.fv \<psi> = MFOTL.fv \<phi> \<Longrightarrow> P \<phi> \<Longrightarrow> P \<psi> \<Longrightarrow> P (MFOTL.Or \<phi> \<psi>)"
-    and "\<And>\<phi>. P \<phi> \<Longrightarrow> P (MFOTL.Exists \<phi>)"
-    and "\<And>I \<phi>. P \<phi> \<Longrightarrow> P (MFOTL.Prev I \<phi>)"
-    and "\<And>I \<phi>. P \<phi> \<Longrightarrow> P (MFOTL.Next I \<phi>)"
-    and "\<And>\<phi> I \<psi>. MFOTL.fv \<phi> \<subseteq> MFOTL.fv \<psi> \<Longrightarrow> safe_formula \<phi> \<Longrightarrow> P \<phi> \<Longrightarrow> P \<psi> \<Longrightarrow> P (MFOTL.Since \<phi> I \<psi>)"
-    and "\<And>\<phi> I \<psi>. MFOTL.fv (MFOTL.Neg \<phi>) \<subseteq> MFOTL.fv \<psi> \<Longrightarrow>
-      \<not> safe_formula (MFOTL.Neg \<phi>) \<Longrightarrow> P \<phi> \<Longrightarrow> P \<psi> \<Longrightarrow> P (MFOTL.Since (MFOTL.Neg \<phi>) I \<psi> )"
-    and "\<And>\<phi> I \<psi>. MFOTL.fv \<phi> \<subseteq> MFOTL.fv \<psi> \<Longrightarrow> safe_formula \<phi> \<Longrightarrow> P \<phi> \<Longrightarrow> P \<psi> \<Longrightarrow> P (MFOTL.Until \<phi> I \<psi>)"
-    and "\<And>\<phi> I \<psi>. MFOTL.fv (MFOTL.Neg \<phi>) \<subseteq> MFOTL.fv \<psi> \<Longrightarrow>
-      \<not> safe_formula (MFOTL.Neg \<phi>) \<Longrightarrow> P \<phi> \<Longrightarrow> P \<psi> \<Longrightarrow> P (MFOTL.Until (MFOTL.Neg \<phi>) I \<psi>)"
+    and TT: "True \<Longrightarrow> P (TT)"
+    and TT: "True \<Longrightarrow> P (FF)"
+    and Pred: "\<And>e ts. \<forall>t\<in>set ts. is_Var t \<or> is_Const t \<Longrightarrow> P (Pred e ts)"
+    and Eq_Const: "\<And>c d. P (Eq (Const c) (Const d))"
+    and Eq_Var1: "\<And>c x. P (Eq (Const c) (Var x))"
+    and Eq_Var2: "\<And>c x. P (Eq (Var x) (Const c))"
+    and neq_Var: "\<And>x. P (Neg (Eq (Var x) (Var x)))"
+    and Neg: "\<And>\<phi>. fv \<phi> = {} \<Longrightarrow> safe_formula \<phi> \<Longrightarrow> P \<phi> \<Longrightarrow> P (Neg \<phi>)"
+    and Or: "\<And>\<phi> \<psi>. fv \<psi> = fv \<phi> \<Longrightarrow> safe_formula \<phi> \<Longrightarrow> safe_formula \<psi> \<Longrightarrow> P \<phi> \<Longrightarrow> P \<psi> \<Longrightarrow> P (Or \<phi> \<psi>)"
+    and And_assign: "\<And>\<phi> \<psi>. safe_formula \<phi> \<Longrightarrow> safe_assignment (fv \<phi>) \<psi> \<Longrightarrow> P \<phi> \<Longrightarrow> P (And \<phi> \<psi>)"
+    and And_safe: "\<And>\<phi> \<psi>. safe_formula \<phi> \<Longrightarrow> \<not> safe_assignment (fv \<phi>) \<psi> \<Longrightarrow> safe_formula \<psi> \<Longrightarrow>
+      P \<phi> \<Longrightarrow> P \<psi> \<Longrightarrow> P (And \<phi> \<psi>)"
+    and And_constraint: "\<And>\<phi> \<psi>. safe_formula \<phi> \<Longrightarrow> \<not> safe_assignment (fv \<phi>) \<psi> \<Longrightarrow> \<not> safe_formula \<psi> \<Longrightarrow>
+      fv \<psi> \<subseteq> fv \<phi> \<Longrightarrow> is_constraint \<psi> \<Longrightarrow> P \<phi> \<Longrightarrow> P (And \<phi> \<psi>)"
+    and And_Not: "\<And>\<phi> \<psi>. safe_formula \<phi> \<Longrightarrow> \<not> safe_assignment (fv \<phi>) (Neg \<psi>) \<Longrightarrow> \<not> safe_formula (Neg \<psi>) \<Longrightarrow>
+      fv (Neg \<psi>) \<subseteq> fv \<phi> \<Longrightarrow> \<not> is_constraint (Neg \<psi>) \<Longrightarrow> safe_formula \<psi> \<Longrightarrow> P \<phi> \<Longrightarrow> P \<psi> \<Longrightarrow> P (And \<phi> (Neg \<psi>))"
+    and Imp: "\<And>\<phi> \<psi>. fv \<psi> = {} \<Longrightarrow> safe_formula \<phi> \<Longrightarrow> safe_formula \<psi> \<Longrightarrow> P \<phi> \<Longrightarrow> P \<psi> \<Longrightarrow> P (And \<phi> \<psi>)"
+    and Iff: "\<And>\<phi> \<psi>. fv \<phi> = {} \<Longrightarrow> fv \<psi> = {} \<Longrightarrow> safe_formula \<phi> \<Longrightarrow> safe_formula \<psi> \<Longrightarrow> P \<phi> \<Longrightarrow> P \<psi> \<Longrightarrow> P (And \<phi> \<psi>)"
+    and Exists: "\<And>\<phi>. safe_formula \<phi> \<Longrightarrow> P \<phi> \<Longrightarrow> P (Exists \<phi>)"
+    and Prev: "\<And>I \<phi>. safe_formula \<phi> \<Longrightarrow> P \<phi> \<Longrightarrow> P (Prev I \<phi>)"
+    and Next: "\<And>I \<phi>. safe_formula \<phi> \<Longrightarrow> P \<phi> \<Longrightarrow> P (Next I \<phi>)"
+    and Once: "\<And>I \<phi>. safe_formula \<phi> \<Longrightarrow> P \<phi> \<Longrightarrow> P (Once I \<phi>)"
+    and Hist: "\<And>I \<phi>. safe_formula \<phi> \<Longrightarrow> P \<phi> \<Longrightarrow> P (Hist I \<phi>)"
+    and Event: "\<And>I \<phi>. safe_formula \<phi> \<Longrightarrow> P \<phi> \<Longrightarrow> P (Event I \<phi>)"
+    and Always: "\<And>I \<phi>. safe_formula \<phi> \<Longrightarrow> P \<phi> \<Longrightarrow> P (Always I \<phi>)"
+    and Since: "\<And>\<phi> I \<psi>. fv \<phi> \<subseteq> fv \<psi> \<Longrightarrow> safe_formula \<phi> \<Longrightarrow> safe_formula \<psi> \<Longrightarrow> P \<phi> \<Longrightarrow> P \<psi> \<Longrightarrow> P (Since \<phi> I \<psi>)"
+    and Not_Since: "\<And>\<phi> I \<psi>. fv (Neg \<phi>) \<subseteq> fv \<psi> \<Longrightarrow> safe_formula \<phi> \<Longrightarrow>
+      \<not> safe_formula (Neg \<phi>) \<Longrightarrow> safe_formula \<psi> \<Longrightarrow> P \<phi> \<Longrightarrow> P \<psi> \<Longrightarrow> P (Since (Neg \<phi>) I \<psi> )"
+    and Until: "\<And>\<phi> I \<psi>. fv \<phi> \<subseteq> fv \<psi> \<Longrightarrow> safe_formula \<phi> \<Longrightarrow> safe_formula \<psi> \<Longrightarrow> P \<phi> \<Longrightarrow> P \<psi> \<Longrightarrow> P (Until \<phi> I \<psi>)"
+    and Not_Until: "\<And>\<phi> I \<psi>. fv (Neg \<phi>) \<subseteq> fv \<psi> \<Longrightarrow> safe_formula \<phi> \<Longrightarrow>
+      \<not> safe_formula (Neg \<phi>) \<Longrightarrow> safe_formula \<psi> \<Longrightarrow> P \<phi> \<Longrightarrow> P \<psi> \<Longrightarrow> P (Until (Neg \<phi>) I \<psi>)"
   shows "P \<phi>"
-  using assms(1)
-proof (induction rule: safe_formula.induct)
-  case (5 \<phi> \<psi>)
-  then show ?case
-    by (cases \<psi>)
-      (auto 0 3 elim!: disjE_Not2 intro: assms[unfolded MFOTL.And_def MFOTL.And_Not_def])
+  using assms(1) proof (induction \<phi> rule: safe_formula.induct)
+  case (4 t1 t2)
+  then show ?case using Eq_Const Eq_Var1 Eq_Var2 by (auto simp: trm.is_Const_def trm.is_Var_def)
 next
-  case (10 \<phi> I \<psi>)
-  then show ?case
-    by (cases \<phi>) (auto 0 3 elim!: disjE_Not2 intro: assms)
+  case (8 \<phi> \<psi>)
+  from \<open>safe_formula (And \<phi> \<psi>)\<close> have "safe_formula \<phi>" by simp
+  from \<open>safe_formula (And \<phi> \<psi>)\<close> consider
+    (a) "safe_assignment (fv \<phi>) \<psi>"
+    | (b) "\<not> safe_assignment (fv \<phi>) \<psi>" "safe_formula \<psi>"
+    | (c) "fv \<psi> \<subseteq> fv \<phi>" "\<not> safe_assignment (fv \<phi>) \<psi>" "\<not> safe_formula \<psi>" "is_constraint \<psi>"
+    | (d) \<psi>' where "fv \<psi> \<subseteq> fv \<phi>" "\<not> safe_assignment (fv \<phi>) \<psi>" "\<not> safe_formula \<psi>" "\<not> is_constraint \<psi>"
+        "\<psi> = Neg \<psi>'" "safe_formula \<psi>'"
+    by (cases \<psi>) auto
+  then show ?case proof cases
+    case a
+    then show ?thesis using "8.IH" \<open>safe_formula \<phi>\<close> by (intro And_assign)
+  next
+    case b
+    then show ?thesis using "8.IH" \<open>safe_formula \<phi>\<close> by (intro And_safe)
+  next
+    case c
+    then show ?thesis using "8.IH" \<open>safe_formula \<phi>\<close> by (intro And_constraint)
+  next
+    case d
+    then show ?thesis using "8.IH" \<open>safe_formula \<phi>\<close> by (blast intro!: And_Not)
+  qed
 next
-  case (11 \<phi> I \<psi>)
+  case (9 \<phi> \<psi>)
+  then show ?case sorry
+next
+  case (10 \<phi> \<psi>)
+  then show ?case sorry
+next
+  case (18 \<phi> I \<psi>)
   then show ?case
-    by (cases \<phi>) (auto 0 3 elim!: disjE_Not2 intro: assms)
-qed (auto intro: assms)
+  by (cases \<phi>; auto 0 3 elim!: disjE_Not2 intro: Since Not_Since) (*SLOW*)
+next
+  case (19 \<phi> I \<psi>)
+  then show ?case
+  by (cases \<phi>; auto 0 3 elim!: disjE_Not2 intro: Until Not_Until) (*SLOW*)
+next
+qed (auto simp: assms)
 
 
 subsection \<open>Slicing traces\<close>
@@ -383,7 +492,7 @@ interpretation MFOTL_slicer: abstract_slicer "relevant_events \<phi>" for \<phi>
 
 lemma sat_slice_iff:
   assumes "v \<in> S"
-  shows "MFOTL.sat \<sigma> v i \<phi> \<longleftrightarrow> MFOTL.sat (MFOTL_slicer.slice \<phi> S \<sigma>) v i \<phi>"
+  shows "sat \<sigma> v i \<phi> \<longleftrightarrow> sat (MFOTL_slicer.slice \<phi> S \<sigma>) v i \<phi>"
   by (rule sat_slice_strong[of S, OF subset_refl assms])
 
 lemma slice_replace_prefix:
