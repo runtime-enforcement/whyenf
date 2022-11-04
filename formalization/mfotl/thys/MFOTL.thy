@@ -1,6 +1,6 @@
 (*<*)
-theory Extended_MFOTL
-  imports MFOTL_Monitor.Interval MFOTL_Monitor.Trace MFOTL_Monitor.Abstract_Monitor
+theory MFOTL
+  imports MFOTL_Monitor.Interval MFOTL_Monitor.Trace 
 begin
 (*>*)
 
@@ -16,9 +16,9 @@ qualified type_synonym 'a database = "'a event set"
 qualified type_synonym 'a prefix = "(name \<times> 'a list) prefix"
 qualified type_synonym 'a trace = "(name \<times> 'a list) trace"
 
-qualified type_synonym 'a env = "'a list"
+qualified type_synonym 'a env = "'a list \<Rightarrow> 'a option"
 
-qualified datatype 'a trm = is_Var: Var nat | is_Const: Const 'a
+qualified datatype 'a trm = is_Var: Var string | is_Const: Const 'a
 
 qualified primrec fvi_trm :: "nat \<Rightarrow> 'a trm \<Rightarrow> nat set" where
   "fvi_trm b (Var x) = (if b \<le> x then {x - b} else {})"
@@ -27,7 +27,7 @@ qualified primrec fvi_trm :: "nat \<Rightarrow> 'a trm \<Rightarrow> nat set" wh
 abbreviation "fv_trm \<equiv> fvi_trm 0"
 
 qualified primrec eval_trm :: "'a env \<Rightarrow> 'a trm \<Rightarrow> 'a" where
-  "eval_trm v (Var x) = v ! x"
+  "eval_trm v (Var x) = find (\<lambda>x'. x = x') x"
 | "eval_trm v (Const x) = x"
 
 lemma eval_trm_cong: "\<forall>x\<in>fv_trm t. v ! x = v' ! x \<Longrightarrow> eval_trm v t = eval_trm v' t"
@@ -232,16 +232,13 @@ lemma sat_Since_point: "sat \<sigma> v i (Since \<phi> I \<psi>) \<Longrightarro
 lemma sat_Since_pointD: "sat \<sigma> v i (Since \<phi> (point t) \<psi>) \<Longrightarrow> mem t I \<Longrightarrow> sat \<sigma> v i (Since \<phi> I \<psi>)"
   by auto
 
-lemma eval_trm_fvi_cong: "\<forall>x\<in>fv_trm t. v!x = v'!x \<Longrightarrow> eval_trm v t = eval_trm v' t"
-  by (cases t) simp_all
-
 lemma sat_fvi_cong: "\<forall>x\<in>fv \<phi>. v!x = v'!x \<Longrightarrow> sat \<sigma> v i \<phi> = sat \<sigma> v' i \<phi>"
 proof (induct \<phi> arbitrary: v v' i)
   case (Pred n ts)
-  show ?case by (simp cong: map_cong eval_trm_fvi_cong[OF Pred[simplified, THEN bspec]])
+  show ?case by (simp cong: map_cong eval_trm_cong[OF Pred[simplified, THEN bspec]])
 next
   case (Eq x1 x2)
-  then show ?case  unfolding fvi.simps sat.simps by (metis UnCI eval_trm_fvi_cong)
+  then show ?case  unfolding fvi.simps sat.simps by (metis UnCI eval_trm_cong)
 next
   case (Exists \<phi>)
   then show ?case unfolding sat.simps by (intro iff_exI) (simp add: fvi_Suc nth_Cons')
@@ -341,9 +338,6 @@ fun safe_formula :: "'a formula \<Rightarrow> bool" where
 lemma disjE_Not2: "P \<or> Q \<Longrightarrow> (P \<Longrightarrow> R) \<Longrightarrow> (\<not>P \<Longrightarrow> Q \<Longrightarrow> R) \<Longrightarrow> R"
   by auto
 
-term "\<And>c d. P (Eq (Const c) (Const d))"
-term "P (TT)"
-
 lemma safe_formula_induct[consumes 1, case_names TT FF Pred Eq_Const Eq_Var1 Eq_Var2 neq_Var
     Neg Or And_assign And_safe And_constraint And_Not Exists Prev Next Once Hist Event Always
     Since Not_Since Until Not_Until]:
@@ -427,20 +421,29 @@ qed (auto simp: assms)
 subsection \<open>Slicing traces\<close>
 
 qualified primrec matches :: "'a env \<Rightarrow> 'a formula \<Rightarrow> name \<times> 'a list \<Rightarrow> bool" where
-  "matches v (Pred r ts) e = (r = fst e \<and> map (eval_trm v) ts = snd e)"
+  "matches v TT e = False"
+| "matches v FF e = False"
+| "matches v (Pred r ts) e = (r = fst e \<and> map (eval_trm v) ts = snd e)"
 | "matches v (Eq _ _) e = False"
 | "matches v (Neg \<phi>) e = matches v \<phi> e"
 | "matches v (Or \<phi> \<psi>) e = (matches v \<phi> e \<or> matches v \<psi> e)"
+| "matches v (And \<phi> \<psi>) e = (matches v \<phi> e \<or> matches v \<psi> e)"
+| "matches v (Imp \<phi> \<psi>) e = (matches v \<phi> e \<or> matches v \<psi> e)"
+| "matches v (Iff \<phi> \<psi>) e = (matches v \<phi> e \<or> matches v \<psi> e)"
 | "matches v (Exists \<phi>) e = (\<exists>z. matches (z # v) \<phi> e)"
 | "matches v (Prev I \<phi>) e = matches v \<phi> e"
 | "matches v (Next I \<phi>) e = matches v \<phi> e"
+| "matches v (Once I \<phi>) e = matches v \<phi> e"
+| "matches v (Hist I \<phi>) e = matches v \<phi> e"
+| "matches v (Event I \<phi>) e = matches v \<phi> e"
+| "matches v (Always I \<phi>) e = matches v \<phi> e"
 | "matches v (Since \<phi> I \<psi>) e = (matches v \<phi> e \<or> matches v \<psi> e)"
 | "matches v (Until \<phi> I \<psi>) e = (matches v \<phi> e \<or> matches v \<psi> e)"
 
 lemma matches_fvi_cong: "\<forall>x\<in>fv \<phi>. v!x = v'!x \<Longrightarrow> matches v \<phi> e = matches v' \<phi> e"
 proof (induct \<phi> arbitrary: v v')
   case (Pred n ts)
-  show ?case by (simp cong: map_cong eval_trm_fvi_cong[OF Pred[simplified, THEN bspec]])
+  show ?case by (simp cong: map_cong eval_trm_cong[OF Pred[simplified, THEN bspec]])
 next
   case (Exists \<phi>)
   then show ?case unfolding matches.simps by (intro iff_exI) (simp add: fvi_Suc nth_Cons')
@@ -451,6 +454,9 @@ abbreviation relevant_events where "relevant_events \<phi> S \<equiv> {e. S \<in
 lemma sat_slice_strong: "relevant_events \<phi> S \<subseteq> E \<Longrightarrow> v \<in> S \<Longrightarrow>
   sat \<sigma> v i \<phi> \<longleftrightarrow> sat (map_\<Gamma> (\<lambda>D. D \<inter> E) \<sigma>) v i \<phi>"
 proof (induction \<phi> arbitrary: v S i)
+  case FF
+  then show ?case by simp
+next
   case (Pred r ts)
   then show ?case by (auto simp: subset_eq)
 next
@@ -459,12 +465,18 @@ next
     unfolding sat.simps
     by simp
 next
-  case (Neg \<phi>)
-  then show ?case by simp
-next
   case (Or \<phi> \<psi>)
   show ?case using Or.IH[of S] Or.prems
     by (auto simp: Collect_disj_eq Int_Un_distrib subset_iff)
+next
+  case (And \<phi>1 \<phi>2)
+  then show ?case sorry
+next
+  case (Imp \<phi>1 \<phi>2)
+  then show ?case sorry
+next
+  case (Iff \<phi>1 \<phi>2)
+  then show ?case sorry
 next
   case (Exists \<phi>)
   have "sat \<sigma> (z # v) i \<phi> = sat (map_\<Gamma> (\<lambda>D. D \<inter> E) \<sigma>) (z # v) i \<phi>" for z
@@ -477,6 +489,18 @@ next
   case (Next I \<phi>)
   then show ?case by simp
 next
+  case (Once x1 \<phi>)
+  then show ?case sorry
+next
+  case (Hist x1 \<phi>)
+  then show ?case sorry
+next
+  case (Event x1 \<phi>)
+  then show ?case sorry
+next
+  case (Always x1 \<phi>)
+  then show ?case sorry
+next
   case (Since \<phi> I \<psi>)
   show ?case using Since.IH[of S] Since.prems
    by (auto simp: Collect_disj_eq Int_Un_distrib subset_iff)
@@ -484,21 +508,9 @@ next
   case (Until \<phi> I \<psi>)
   show ?case using Until.IH[of S] Until.prems
    by (auto simp: Collect_disj_eq Int_Un_distrib subset_iff)
-qed
+qed (simp_all)
 
 end (*context*)
-
-interpretation MFOTL_slicer: abstract_slicer "relevant_events \<phi>" for \<phi> .
-
-lemma sat_slice_iff:
-  assumes "v \<in> S"
-  shows "sat \<sigma> v i \<phi> \<longleftrightarrow> sat (MFOTL_slicer.slice \<phi> S \<sigma>) v i \<phi>"
-  by (rule sat_slice_strong[of S, OF subset_refl assms])
-
-lemma slice_replace_prefix:
-  "prefix_of (MFOTL_slicer.pslice \<phi> R \<pi>) \<sigma> \<Longrightarrow>
-    MFOTL_slicer.slice \<phi> R (replace_prefix \<pi> \<sigma>) = MFOTL_slicer.slice \<phi> R \<sigma>"
-  by (rule map_\<Gamma>_replace_prefix) auto
 
 (*<*)
 end
