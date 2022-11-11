@@ -16,21 +16,19 @@ qualified type_synonym 'a database = "'a event set"
 qualified type_synonym 'a prefix = "(name \<times> 'a list) prefix"
 qualified type_synonym 'a trace = "(name \<times> 'a list) trace"
 
-qualified type_synonym 'a env = "'a list \<Rightarrow> 'a option"
+qualified type_synonym 'a env = "string \<Rightarrow> 'a option"
 
 qualified datatype 'a trm = is_Var: Var string | is_Const: Const 'a
 
-qualified primrec fvi_trm :: "nat \<Rightarrow> 'a trm \<Rightarrow> nat set" where
-  "fvi_trm b (Var x) = (if b \<le> x then {x - b} else {})"
-| "fvi_trm b (Const _) = {}"
+qualified primrec fv_trm :: "'a trm \<Rightarrow> string set" where
+  "fv_trm (Var x) = {x}"
+| "fv_trm (Const _) = {}"
 
-abbreviation "fv_trm \<equiv> fvi_trm 0"
+qualified primrec eval_trm :: "'a env \<Rightarrow> 'a trm \<Rightarrow> 'a option" where
+  "eval_trm v (Var x) = v x"
+| "eval_trm v (Const x) = Some x"
 
-qualified primrec eval_trm :: "'a env \<Rightarrow> 'a trm \<Rightarrow> 'a" where
-  "eval_trm v (Var x) = find (\<lambda>x'. x = x') x"
-| "eval_trm v (Const x) = x"
-
-lemma eval_trm_cong: "\<forall>x\<in>fv_trm t. v ! x = v' ! x \<Longrightarrow> eval_trm v t = eval_trm v' t"
+lemma eval_trm_cong: "\<forall>x\<in>fv_trm t. v x = v' x \<Longrightarrow> eval_trm v t = eval_trm v' t"
   by (cases t) simp_all
 
 qualified datatype (discs_sels) 'a formula = 
@@ -53,74 +51,34 @@ qualified datatype (discs_sels) 'a formula =
 | Since "'a formula" \<I> "'a formula" 
 | Until "'a formula" \<I> "'a formula"
 
-qualified primrec fvi :: "nat \<Rightarrow> 'a formula \<Rightarrow> nat set" where
-  "fvi b (Pred r ts) = (\<Union>t\<in>set ts. fvi_trm b t)"
-| "fvi b (Eq t1 t2) = fvi_trm b t1 \<union> fvi_trm b t2"
-| "fvi b (TT) = {}"
-| "fvi b (FF) = {}"
-| "fvi b (Neg \<phi>) = fvi b \<phi>"
-| "fvi b (Or \<phi> \<psi>) = fvi b \<phi> \<union> fvi b \<psi>"
-| "fvi b (And \<phi> \<psi>) = fvi b \<phi> \<union> fvi b \<psi>"
-| "fvi b (Imp \<phi> \<psi>) = fvi b \<phi> \<union> fvi b \<psi>"
-| "fvi b (Iff \<phi> \<psi>) = fvi b \<phi> \<union> fvi b \<psi>"
-| "fvi b (Exists \<phi>) = fvi (Suc b) \<phi>"
-| "fvi b (Prev I \<phi>) = fvi b \<phi>"
-| "fvi b (Next I \<phi>) = fvi b \<phi>"
-| "fvi b (Once I \<phi>) = fvi b \<phi>"
-| "fvi b (Hist I \<phi>) = fvi b \<phi>"
-| "fvi b (Event I \<phi>) = fvi b \<phi>"
-| "fvi b (Always I \<phi>) = fvi b \<phi>"
-| "fvi b (Since \<phi> I \<psi>) = fvi b \<phi> \<union> fvi b \<psi>"
-| "fvi b (Until \<phi> I \<psi>) = fvi b \<phi> \<union> fvi b \<psi>"
+qualified primrec fv :: "'a formula \<Rightarrow> string set" where
+  "fv (Pred r ts) = (\<Union>t\<in>set ts. fv_trm t)"
+| "fv (Eq t1 t2) = fv_trm t1 \<union> fv_trm t2"
+| "fv (TT) = {}"
+| "fv (FF) = {}"
+| "fv (Neg \<phi>) = fv \<phi>"
+| "fv (Or \<phi> \<psi>) = fv \<phi> \<union> fv \<psi>"
+| "fv (And \<phi> \<psi>) = fv \<phi> \<union> fv \<psi>"
+| "fv (Imp \<phi> \<psi>) = fv \<phi> \<union> fv \<psi>"
+| "fv (Iff \<phi> \<psi>) = fv \<phi> \<union> fv \<psi>"
+| "fv (Exists \<phi>) = fv \<phi>"
+| "fv (Prev I \<phi>) = fv \<phi>"
+| "fv (Next I \<phi>) = fv \<phi>"
+| "fv (Once I \<phi>) = fv \<phi>"
+| "fv (Hist I \<phi>) = fv \<phi>"
+| "fv (Event I \<phi>) = fv \<phi>"
+| "fv (Always I \<phi>) = fv \<phi>"
+| "fv (Since \<phi> I \<psi>) = fv \<phi> \<union> fv \<psi>"
+| "fv (Until \<phi> I \<psi>) = fv \<phi> \<union> fv \<psi>"
 
-abbreviation "fv \<equiv> fvi 0"
-
-lemma finite_fvi_trm[simp]: "finite (fvi_trm b t)"
+lemma finite_fv_trm[simp]: "finite (fv_trm t)"
   by (cases t) simp_all
 
-lemma finite_fvi[simp]: "finite (fvi b \<phi>)"
-  by (induction \<phi> arbitrary: b) simp_all
-
-lemma fvi_trm_Suc: "x \<in> fvi_trm (Suc b) t \<longleftrightarrow> Suc x \<in> fvi_trm b t"
-  by (cases t) auto
-
-lemma fvi_Suc: "x \<in> fvi (Suc b) \<phi> \<longleftrightarrow> Suc x \<in> fvi b \<phi>"
-  by (induction \<phi> arbitrary: b) (simp_all add: fvi_trm_Suc)
-
-lemma fvi_Suc_bound:
-  assumes "\<forall>i\<in>fvi (Suc b) \<phi>. i < n"
-  shows "\<forall>i\<in>fvi b \<phi>. i < Suc n"
-proof
-  fix i
-  assume "i \<in> fvi b \<phi>"
-  with assms show "i < Suc n" by (cases i) (simp_all add: fvi_Suc)
-qed
+lemma finite_fv[simp]: "finite (fv \<phi>)"
+  by (induction \<phi>) simp_all
 
 qualified definition nfv :: "'a formula \<Rightarrow> nat" where
-  "nfv \<phi> = Max (insert 0 (Suc ` fv \<phi>))"
-
-qualified definition envs :: "'a formula \<Rightarrow> 'a env set" where
-  "envs \<phi> = {v. length v = nfv \<phi>}"
-
-lemma nfv_simps[simp]:
-  "nfv (Neg \<phi>) = nfv \<phi>"
-  "nfv (Or \<phi> \<psi>) = max (nfv \<phi>) (nfv \<psi>)"
-  "nfv (And \<phi> \<psi>) = max (nfv \<phi>) (nfv \<psi>)"
-  "nfv (Imp \<phi> \<psi>) = max (nfv \<phi>) (nfv \<psi>)"
-  "nfv (Iff \<phi> \<psi>) = max (nfv \<phi>) (nfv \<psi>)"
-  "nfv (Prev I \<phi>) = nfv \<phi>"
-  "nfv (Next I \<phi>) = nfv \<phi>"
-  "nfv (Once I \<phi>) = nfv \<phi>"
-  "nfv (Hist I \<phi>) = nfv \<phi>"
-  "nfv (Event I \<phi>) = nfv \<phi>"
-  "nfv (Always I \<phi>) = nfv \<phi>"
-  "nfv (Since \<phi> I \<psi>) = max (nfv \<phi>) (nfv \<psi>)"
-  "nfv (Until \<phi> I \<psi>) = max (nfv \<phi>) (nfv \<psi>)"
-  unfolding nfv_def by (simp_all add: image_Un Max_Un[symmetric])
-
-lemma fvi_less_nfv: "\<forall>i\<in>fv \<phi>. i < nfv \<phi>"
-  unfolding nfv_def
-  by (auto simp add: Max_gr_iff intro: max.strict_coboundedI2)
+  "nfv \<phi> = card (fv \<phi>)"
 
 qualified fun future_bounded :: "'a formula \<Rightarrow> bool" where
   "future_bounded (TT) = True"
@@ -144,7 +102,7 @@ qualified fun future_bounded :: "'a formula \<Rightarrow> bool" where
 
 qualified primrec sat :: "'a trace \<Rightarrow> 'a env \<Rightarrow> nat \<Rightarrow> 'a formula \<Rightarrow> bool" where
   "sat \<sigma> v i (TT) = True"
-| "sat \<sigma> v i (FF) = False"
+| "sat \<sigma> v i (FF) = False"              
 | "sat \<sigma> v i (Pred r ts) = ((r, map (eval_trm v) ts) \<in> \<Gamma> \<sigma> i)"
 | "sat \<sigma> v i (Eq t1 t2) = (eval_trm v t1 = eval_trm v t2)"
 | "sat \<sigma> v i (Neg \<phi>) = (\<not> sat \<sigma> v i \<phi>)"
