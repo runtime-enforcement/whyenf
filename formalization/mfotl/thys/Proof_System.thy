@@ -1,6 +1,12 @@
+(*<*)
 theory Proof_System
   imports MFOTL
 begin
+(*>*)
+
+section \<open>Proof System\<close>
+
+subsection \<open>Time-stamp-time-point Conversion\<close>
 
 definition ETP:: "'a trace \<Rightarrow> nat \<Rightarrow> nat"  where
     "ETP \<sigma> ts = (LEAST i. \<tau> \<sigma> i \<ge> ts)"
@@ -14,6 +20,8 @@ abbreviation "ETP_p \<sigma> i b \<equiv> ETP \<sigma> ((\<tau> \<sigma> i) - b)
 abbreviation "LTP_p \<sigma> i I \<equiv> min i (LTP \<sigma> ((\<tau> \<sigma> i) - left I))"
 abbreviation "ETP_f \<sigma> i I \<equiv> max i (ETP \<sigma> ((\<tau> \<sigma> i) + left I))"
 abbreviation "LTP_f \<sigma> i b \<equiv> LTP \<sigma> ((\<tau> \<sigma> i) + b)"
+
+subsection \<open>Soundness and Completeness\<close>
 
 inductive SAT and VIO :: "'a MFOTL.trace \<Rightarrow> 'a MFOTL.env \<Rightarrow> nat \<Rightarrow> 'a MFOTL.formula \<Rightarrow> bool" where
   STT: "SAT \<sigma> v i TT"
@@ -37,10 +45,10 @@ inductive SAT and VIO :: "'a MFOTL.trace \<Rightarrow> 'a MFOTL.env \<Rightarrow
 | SIffVV: "VIO \<sigma> v i \<phi> \<Longrightarrow> VIO \<sigma> v i \<psi> \<Longrightarrow> SAT \<sigma> v i (MFOTL.Iff \<phi> \<psi>)"
 | VIffSV: "SAT \<sigma> v i \<phi> \<Longrightarrow> VIO \<sigma> v i \<psi> \<Longrightarrow> VIO \<sigma> v i (MFOTL.Iff \<phi> \<psi>)"
 | VIffVS: "VIO \<sigma> v i \<phi> \<Longrightarrow> SAT \<sigma> v i \<psi> \<Longrightarrow> VIO \<sigma> v i (MFOTL.Iff \<phi> \<psi>)"
-
-| SExists: "SAT \<sigma> v i \<phi> \<Longrightarrow> SAT \<sigma> v i (MFOTL.Exists \<phi>)"
-| VExists: "VIO \<sigma> v i \<phi> \<Longrightarrow> VIO \<sigma> v i (MFOTL.Exists \<phi>)"
-
+| SExists: "\<exists>z. SAT \<sigma> (v (x := z)) i \<phi> \<Longrightarrow> SAT \<sigma> v i (MFOTL.Exists x \<phi>)"
+| VExists: "\<forall>z. VIO \<sigma> (v (x := z)) i \<phi> \<Longrightarrow> VIO \<sigma> v i (MFOTL.Exists x \<phi>)"
+| SForall: "\<forall>z. SAT \<sigma> (v (x := z)) i \<phi> \<Longrightarrow> SAT \<sigma> v i (MFOTL.Forall x \<phi>)"
+| VForall: "\<exists>z. VIO \<sigma> (v (x := z)) i \<phi> \<Longrightarrow> VIO \<sigma> v i (MFOTL.Forall x \<phi>)"
 | SPrev: "i > 0 \<Longrightarrow> mem (\<Delta> \<sigma> i) I \<Longrightarrow> SAT \<sigma> v (i-1) \<phi> \<Longrightarrow> SAT \<sigma> v i (MFOTL.Prev I \<phi>)"
 | VPrev: "i > 0 \<Longrightarrow> VIO \<sigma> v (i-1) \<phi> \<Longrightarrow> VIO \<sigma> v i (MFOTL.Prev I \<phi>)"
 | VPrevZ: "i = 0 \<Longrightarrow> VIO \<sigma> v i (MFOTL.Prev I \<phi>)"
@@ -59,13 +67,13 @@ inductive SAT and VIO :: "'a MFOTL.trace \<Rightarrow> 'a MFOTL.env \<Rightarrow
 | SHist: "j = (case right I of \<infinity> \<Rightarrow> 0 
                | enat b \<Rightarrow> ETP_p \<sigma> i b) \<Longrightarrow>
           (\<tau> \<sigma> i) \<ge> (\<tau> \<sigma> 0) + left I \<Longrightarrow>
-          (\<And>k. k \<in> {j .. LTP_p \<sigma> i I} \<Longrightarrow> SAT \<sigma> v k \<phi>) \<Longrightarrow> SAT \<sigma> v i (MFOTL.Hist I \<phi>)"
-| SHistoricallyOut: "\<tau> \<sigma> i < \<tau> \<sigma> 0 + left I \<Longrightarrow> SAT \<sigma> v i (MFOTL.Hist I \<phi>)"
-| VHistorically: "j \<le> i \<Longrightarrow> mem (\<delta> \<sigma> i j) I  \<Longrightarrow> VIO \<sigma> v j \<phi> \<Longrightarrow> VIO \<sigma> v i (MFOTL.Hist I \<phi>)"
-| SEventually: "j \<ge> i \<Longrightarrow> mem (\<delta> \<sigma> j i) I  \<Longrightarrow> SAT \<sigma> v j \<phi> \<Longrightarrow> SAT \<sigma> v i (MFOTL.Event I \<phi>)"
+          (\<And>k. k \<in> {j .. LTP_p \<sigma> i I} \<Longrightarrow> SAT \<sigma> v k \<phi>) \<Longrightarrow> SAT \<sigma> v i (MFOTL.Historically I \<phi>)"
+| SHistoricallyOut: "\<tau> \<sigma> i < \<tau> \<sigma> 0 + left I \<Longrightarrow> SAT \<sigma> v i (MFOTL.Historically I \<phi>)"
+| VHistorically: "j \<le> i \<Longrightarrow> mem (\<delta> \<sigma> i j) I  \<Longrightarrow> VIO \<sigma> v j \<phi> \<Longrightarrow> VIO \<sigma> v i (MFOTL.Historically I \<phi>)"
+| SEventually: "j \<ge> i \<Longrightarrow> mem (\<delta> \<sigma> j i) I  \<Longrightarrow> SAT \<sigma> v j \<phi> \<Longrightarrow> SAT \<sigma> v i (MFOTL.Eventually I \<phi>)"
 | VEventually: "(\<And>k. k \<in> (case right I of \<infinity> \<Rightarrow> {ETP_f \<sigma> i I ..}
                            | enat b \<Rightarrow> {ETP_f \<sigma> i I .. LTP_f \<sigma> i b}) \<Longrightarrow> VIO \<sigma> v k \<phi>) \<Longrightarrow> 
-                VIO \<sigma> v i (MFOTL.Event I \<phi>)"
+                VIO \<sigma> v i (MFOTL.Eventually I \<phi>)"
 | SAlways: "(\<And>k. k \<in> (case right I of \<infinity> \<Rightarrow> {lu i I ..} 
                        | enat b \<Rightarrow> {ETP_f \<sigma> i I .. LTP_f \<sigma> i b}) \<Longrightarrow> SAT \<sigma> v k \<phi>) \<Longrightarrow>
             SAT \<sigma> v i (MFOTL.Always I \<phi>)"
@@ -95,6 +103,46 @@ lemma soundness: "(SAT \<sigma> v i \<phi> \<longrightarrow> MFOTL.sat \<sigma> 
   oops
 
 lemma completeness: "(MFOTL.sat \<sigma> v i \<phi> \<longrightarrow> SAT \<sigma> v i \<phi>) \<and> (\<not> MFOTL.sat \<sigma> v i \<phi> \<longrightarrow> VIO \<sigma> v i \<phi>)"
-  oops
+proof (induct \<phi> arbitrary: i)
+  case (Prev x1 \<phi>)
+  then show ?case sorry
+next
+  case (Next x1 \<phi>)
+  then show ?case sorry
+next
+  case (Once x1 \<phi>)
+  then show ?case sorry
+next
+  case (Historically x1 \<phi>)
+  then show ?case sorry
+next
+  case (Eventually x1 \<phi>)
+  then show ?case sorry
+next
+  case (Always x1 \<phi>)
+  then show ?case sorry
+next
+  case (Since \<phi>1 x2 \<phi>2)
+  then show ?case sorry
+next
+  case (Until \<phi>1 x2 \<phi>2)
+  then show ?case sorry
+qed (auto intro: SAT_VIO.intros)
+
+typedef ('k, 'v) partition = "{xs :: ('k set \<times> 'v) list. (\<Union>X \<in> fst ` set xs. X) = UNIV
+  \<and> (\<forall>i < length xs. \<forall>j < length xs. i \<noteq> j \<longrightarrow> fst (xs ! i) \<inter> fst (xs ! j) = {})}"
+  by (rule exI[of _ "[(UNIV, undefined)]"]) auto
+
+lift_bnf (no_warn_wits, no_warn_transfer) (dead 'k, 'v) partition
+  by auto
+
+(*pdt = partitioned decision tree*)
+datatype ('v, 'd, 'e) pdt = Leaf 'e | Node 'v "('d, ('v, 'd, 'e) pdt) partition"
+
+datatype 'd sproof = STT | SForall "('d, 'd vproof) partition" | SExists "'d vproof"
+     and 'd vproof = VFF | VExists "('d, 'd vproof) partition" | VForall "'d vproof"
+
+type_synonym ('v, 'd) expl = "('v, 'd, 'd sproof + 'd vproof) pdt"
+  
 
 end

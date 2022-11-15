@@ -4,7 +4,7 @@ theory MFOTL
 begin
 (*>*)
 
-section \<open>Extended Metric First-Order Temporal Logic\<close>
+section \<open>Metric First-Order Temporal Logic\<close>
 
 context begin
 
@@ -16,25 +16,25 @@ qualified type_synonym 'a database = "'a event set"
 qualified type_synonym 'a prefix = "(name \<times> 'a list) prefix"
 qualified type_synonym 'a trace = "(name \<times> 'a list) trace"
 
-qualified type_synonym 'a env = "string \<Rightarrow> 'a option"
+qualified type_synonym 'a env = "name \<Rightarrow> 'a"
 
-qualified datatype 'a trm = is_Var: Var string | is_Const: Const 'a
+qualified datatype 'a trm = is_Var: Var name | is_Const: Const 'a
 
 qualified primrec fv_trm :: "'a trm \<Rightarrow> string set" where
   "fv_trm (Var x) = {x}"
 | "fv_trm (Const _) = {}"
 
-qualified primrec eval_trm :: "'a env \<Rightarrow> 'a trm \<Rightarrow> 'a option" where
+qualified primrec eval_trm :: "'a env \<Rightarrow> 'a trm \<Rightarrow> 'a" where
   "eval_trm v (Var x) = v x"
-| "eval_trm v (Const x) = Some x"
+| "eval_trm v (Const x) = x"
 
 qualified definition eval_trms :: "'a env \<Rightarrow> 'a trm list \<Rightarrow> 'a list" where
-  "eval_trms v ts = List.map_filter (eval_trm v) ts"
+  "eval_trms v ts = map (eval_trm v) ts"
 
 lemma eval_trm_cong: "\<forall>x\<in>fv_trm t. v x = v' x \<Longrightarrow> eval_trm v t = eval_trm v' t"
   by (cases t) simp_all
 
-qualified datatype (discs_sels) 'a formula = 
+qualified datatype 'a formula = 
   TT
 | FF
 | Pred name "'a trm list" 
@@ -44,12 +44,13 @@ qualified datatype (discs_sels) 'a formula =
 | And "'a formula" "'a formula"
 | Imp "'a formula" "'a formula"
 | Iff "'a formula" "'a formula"
-| Exists "'a formula"
+| Exists "name" "'a formula"
+| Forall "name" "'a formula"
 | Prev \<I> "'a formula" 
 | Next \<I> "'a formula"
 | Once \<I> "'a formula" 
-| Hist \<I> "'a formula"
-| Event \<I> "'a formula" 
+| Historically \<I> "'a formula"
+| Eventually \<I> "'a formula" 
 | Always \<I> "'a formula"
 | Since "'a formula" \<I> "'a formula" 
 | Until "'a formula" \<I> "'a formula"
@@ -64,12 +65,13 @@ qualified primrec fv :: "'a formula \<Rightarrow> string set" where
 | "fv (And \<phi> \<psi>) = fv \<phi> \<union> fv \<psi>"
 | "fv (Imp \<phi> \<psi>) = fv \<phi> \<union> fv \<psi>"
 | "fv (Iff \<phi> \<psi>) = fv \<phi> \<union> fv \<psi>"
-| "fv (Exists \<phi>) = fv \<phi>"
+| "fv (Exists x \<phi>) = fv \<phi> - {x}"
+| "fv (Forall x \<phi>) = fv \<phi> - {x}"
 | "fv (Prev I \<phi>) = fv \<phi>"
 | "fv (Next I \<phi>) = fv \<phi>"
 | "fv (Once I \<phi>) = fv \<phi>"
-| "fv (Hist I \<phi>) = fv \<phi>"
-| "fv (Event I \<phi>) = fv \<phi>"
+| "fv (Historically I \<phi>) = fv \<phi>"
+| "fv (Eventually I \<phi>) = fv \<phi>"
 | "fv (Always I \<phi>) = fv \<phi>"
 | "fv (Since \<phi> I \<psi>) = fv \<phi> \<union> fv \<psi>"
 | "fv (Until \<phi> I \<psi>) = fv \<phi> \<union> fv \<psi>"
@@ -93,12 +95,13 @@ qualified fun future_bounded :: "'a formula \<Rightarrow> bool" where
 | "future_bounded (And \<phi> \<psi>) = (future_bounded \<phi> \<and> future_bounded \<psi>)"
 | "future_bounded (Imp \<phi> \<psi>) = (future_bounded \<phi> \<and> future_bounded \<psi>)"
 | "future_bounded (Iff \<phi> \<psi>) = (future_bounded \<phi> \<and> future_bounded \<psi>)"
-| "future_bounded (Exists \<phi>) = future_bounded \<phi>"
+| "future_bounded (Exists _ \<phi>) = future_bounded \<phi>"
+| "future_bounded (Forall _ \<phi>) = future_bounded \<phi>"
 | "future_bounded (Prev I \<phi>) = future_bounded \<phi>"
 | "future_bounded (Next I \<phi>) = future_bounded \<phi>"
 | "future_bounded (Once I \<phi>) = future_bounded \<phi>"
-| "future_bounded (Hist I \<phi>) = future_bounded \<phi>"
-| "future_bounded (Event I \<phi>) = (future_bounded \<phi> \<and> right I \<noteq> \<infinity>)"
+| "future_bounded (Historically I \<phi>) = future_bounded \<phi>"
+| "future_bounded (Eventually I \<phi>) = (future_bounded \<phi> \<and> right I \<noteq> \<infinity>)"
 | "future_bounded (Always I \<phi>) = (future_bounded \<phi> \<and> right I \<noteq> \<infinity>)"
 | "future_bounded (Since \<phi> I \<psi>) = (future_bounded \<phi> \<and> future_bounded \<psi>)"
 | "future_bounded (Until \<phi> I \<psi>) = (future_bounded \<phi> \<and> future_bounded \<psi> \<and> right I \<noteq> \<infinity>)"
@@ -113,12 +116,13 @@ qualified primrec sat :: "'a trace \<Rightarrow> 'a env \<Rightarrow> nat \<Righ
 | "sat \<sigma> v i (And \<phi> \<psi>) = (sat \<sigma> v i \<phi> \<and> sat \<sigma> v i \<psi>)"
 | "sat \<sigma> v i (Imp \<phi> \<psi>) = (sat \<sigma> v i \<phi> \<longrightarrow> sat \<sigma> v i \<psi>)"
 | "sat \<sigma> v i (Iff \<phi> \<psi>) = (sat \<sigma> v i \<phi> \<longleftrightarrow> sat \<sigma> v i \<psi>)"
-| "sat \<sigma> v i (Exists \<phi>) = (sat \<sigma> v i \<phi>)" (* We must update v somehow *)
+| "sat \<sigma> v i (Exists x \<phi>) = (\<exists>z. sat \<sigma> (v (x := z)) i \<phi>)"
+| "sat \<sigma> v i (Forall x \<phi>) = (\<forall>z. sat \<sigma> (v (x := z)) i \<phi>)" 
 | "sat \<sigma> v i (Prev I \<phi>) = (case i of 0 \<Rightarrow> False | Suc j \<Rightarrow> mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I \<and> sat \<sigma> v j \<phi>)"
 | "sat \<sigma> v i (Next I \<phi>) = (mem (\<tau> \<sigma> (Suc i) - \<tau> \<sigma> i) I \<and> sat \<sigma> v (Suc i) \<phi>)"
 | "sat \<sigma> v i (Once I \<phi>) = (\<exists>j\<le>i. mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I \<and> sat \<sigma> v j \<phi>)"
-| "sat \<sigma> v i (Hist I \<phi>) = (\<forall>j\<le>i. mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I \<longrightarrow> sat \<sigma> v j \<phi>)"
-| "sat \<sigma> v i (Event I \<phi>) = (\<exists>j\<ge>i. mem (\<tau> \<sigma> j - \<tau> \<sigma> i) I \<and> sat \<sigma> v j \<phi>)"
+| "sat \<sigma> v i (Historically I \<phi>) = (\<forall>j\<le>i. mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I \<longrightarrow> sat \<sigma> v j \<phi>)"
+| "sat \<sigma> v i (Eventually I \<phi>) = (\<exists>j\<ge>i. mem (\<tau> \<sigma> j - \<tau> \<sigma> i) I \<and> sat \<sigma> v j \<phi>)"
 | "sat \<sigma> v i (Always I \<phi>) = (\<forall>j\<ge>i. mem (\<tau> \<sigma> j - \<tau> \<sigma> i) I \<longrightarrow> sat \<sigma> v j \<phi>)"
 | "sat \<sigma> v i (Since \<phi> I \<psi>) = (\<exists>j\<le>i. mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I \<and> sat \<sigma> v j \<psi> \<and> (\<forall>k \<in> {j <.. i}. sat \<sigma> v k \<phi>))"
 | "sat \<sigma> v i (Until \<phi> I \<psi>) = (\<exists>j\<ge>i. mem (\<tau> \<sigma> j - \<tau> \<sigma> i) I \<and> sat \<sigma> v j \<psi> \<and> (\<forall>k \<in> {i ..< j}. sat \<sigma> v k \<phi>))"
@@ -202,32 +206,32 @@ lemma sat_Once_rec: "sat \<sigma> v i (Once I \<phi>) \<longleftrightarrow>
   unfolding sat_Once_Since
   by (subst sat_Since_rec) auto
 
-lemma sat_Hist_Once: "sat \<sigma> v i (Hist I \<phi>) = sat \<sigma> v i (Neg (Once I (Neg \<phi>)))"
+lemma sat_Historically_Once: "sat \<sigma> v i (Historically I \<phi>) = sat \<sigma> v i (Neg (Once I (Neg \<phi>)))"
   by auto
 
-lemma sat_Hist_rec: "sat \<sigma> v i (Hist I \<phi>) \<longleftrightarrow>
+lemma sat_Historically_rec: "sat \<sigma> v i (Historically I \<phi>) \<longleftrightarrow>
   (mem 0 I \<longrightarrow> sat \<sigma> v i \<phi>) \<and> 
-  (i > 0 \<longrightarrow> \<Delta> \<sigma> i \<le> right I \<longrightarrow> sat \<sigma> v (i - 1) (Hist (subtract (\<Delta> \<sigma> i) I) \<phi>))"
-  unfolding sat_Hist_Once sat.simps(5)
+  (i > 0 \<longrightarrow> \<Delta> \<sigma> i \<le> right I \<longrightarrow> sat \<sigma> v (i - 1) (Historically (subtract (\<Delta> \<sigma> i) I) \<phi>))"
+  unfolding sat_Historically_Once sat.simps(5)
   by (subst sat_Once_rec) auto
 
-lemma sat_Event_Until: "sat \<sigma> v i (Event I \<phi>) = sat \<sigma> v i (Until TT I \<phi>)"
+lemma sat_Eventually_Until: "sat \<sigma> v i (Eventually I \<phi>) = sat \<sigma> v i (Until TT I \<phi>)"
   by auto
 
-lemma sat_Event_rec: "sat \<sigma> v i (Event I \<phi>) \<longleftrightarrow>
+lemma sat_Eventually_rec: "sat \<sigma> v i (Eventually I \<phi>) \<longleftrightarrow>
   mem 0 I \<and> sat \<sigma> v i \<phi> \<or> 
-  (\<Delta> \<sigma> (i + 1) \<le> right I \<and> sat \<sigma> v (i + 1) (Event (subtract (\<Delta> \<sigma> (i + 1)) I) \<phi>))"
-  unfolding sat_Event_Until
+  (\<Delta> \<sigma> (i + 1) \<le> right I \<and> sat \<sigma> v (i + 1) (Eventually (subtract (\<Delta> \<sigma> (i + 1)) I) \<phi>))"
+  unfolding sat_Eventually_Until
   by (subst sat_Until_rec) auto
 
-lemma sat_Always_Event: "sat \<sigma> v i (Always I \<phi>) = sat \<sigma> v i (Neg (Event I (Neg \<phi>)))"
+lemma sat_Always_Eventually: "sat \<sigma> v i (Always I \<phi>) = sat \<sigma> v i (Neg (Eventually I (Neg \<phi>)))"
   by auto
 
 lemma sat_Always_rec: "sat \<sigma> v i (Always I \<phi>) \<longleftrightarrow>
   (mem 0 I \<longrightarrow> sat \<sigma> v i \<phi>) \<and> 
   (\<Delta> \<sigma> (i + 1) \<le> right I \<longrightarrow> sat \<sigma> v (i + 1) (Always (subtract (\<Delta> \<sigma> (i + 1)) I) \<phi>))"
-  unfolding sat_Always_Event sat.simps(5)
-  by (subst sat_Event_rec) auto
+  unfolding sat_Always_Eventually sat.simps(5)
+  by (subst sat_Eventually_rec) auto
 
 end (*context*)
 
