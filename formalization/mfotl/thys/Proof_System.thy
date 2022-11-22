@@ -64,16 +64,16 @@ inductive SAT and VIO :: "'a MFOTL.trace \<Rightarrow> 'a MFOTL.env \<Rightarrow
                | enat b \<Rightarrow> ETP_p \<sigma> i b) \<Longrightarrow>
           (\<tau> \<sigma> i) \<ge> (\<tau> \<sigma> 0) + left I \<Longrightarrow>
           (\<And>k. k \<in> {j .. LTP_p \<sigma> i I} \<Longrightarrow> VIO \<sigma> v k \<phi>) \<Longrightarrow> VIO \<sigma> v i (MFOTL.Once I \<phi>)"
-| SHist: "j = (case right I of \<infinity> \<Rightarrow> 0 
+| SEventually: "j \<ge> i \<Longrightarrow> mem (\<delta> \<sigma> j i) I  \<Longrightarrow> SAT \<sigma> v j \<phi> \<Longrightarrow> SAT \<sigma> v i (MFOTL.Eventually I \<phi>)"
+| VEventually: "(\<And>k. k \<in> (case right I of \<infinity> \<Rightarrow> {ETP_f \<sigma> i I ..}
+                           | enat b \<Rightarrow> {ETP_f \<sigma> i I .. LTP_f \<sigma> i b}) \<Longrightarrow> VIO \<sigma> v k \<phi>) \<Longrightarrow> 
+                VIO \<sigma> v i (MFOTL.Eventually I \<phi>)"
+| SHistorically: "j = (case right I of \<infinity> \<Rightarrow> 0
                | enat b \<Rightarrow> ETP_p \<sigma> i b) \<Longrightarrow>
           (\<tau> \<sigma> i) \<ge> (\<tau> \<sigma> 0) + left I \<Longrightarrow>
           (\<And>k. k \<in> {j .. LTP_p \<sigma> i I} \<Longrightarrow> SAT \<sigma> v k \<phi>) \<Longrightarrow> SAT \<sigma> v i (MFOTL.Historically I \<phi>)"
 | SHistoricallyOut: "\<tau> \<sigma> i < \<tau> \<sigma> 0 + left I \<Longrightarrow> SAT \<sigma> v i (MFOTL.Historically I \<phi>)"
 | VHistorically: "j \<le> i \<Longrightarrow> mem (\<delta> \<sigma> i j) I  \<Longrightarrow> VIO \<sigma> v j \<phi> \<Longrightarrow> VIO \<sigma> v i (MFOTL.Historically I \<phi>)"
-| SEventually: "j \<ge> i \<Longrightarrow> mem (\<delta> \<sigma> j i) I  \<Longrightarrow> SAT \<sigma> v j \<phi> \<Longrightarrow> SAT \<sigma> v i (MFOTL.Eventually I \<phi>)"
-| VEventually: "(\<And>k. k \<in> (case right I of \<infinity> \<Rightarrow> {ETP_f \<sigma> i I ..}
-                           | enat b \<Rightarrow> {ETP_f \<sigma> i I .. LTP_f \<sigma> i b}) \<Longrightarrow> VIO \<sigma> v k \<phi>) \<Longrightarrow> 
-                VIO \<sigma> v i (MFOTL.Eventually I \<phi>)"
 | SAlways: "(\<And>k. k \<in> (case right I of \<infinity> \<Rightarrow> {lu i I ..} 
                        | enat b \<Rightarrow> {ETP_f \<sigma> i I .. LTP_f \<sigma> i b}) \<Longrightarrow> SAT \<sigma> v k \<phi>) \<Longrightarrow>
             SAT \<sigma> v i (MFOTL.Always I \<phi>)"
@@ -129,20 +129,69 @@ next
   then show ?case sorry
 qed (auto intro: SAT_VIO.intros)
 
-typedef ('k, 'v) partition = "{xs :: ('k set \<times> 'v) list. (\<Union>X \<in> fst ` set xs. X) = UNIV
+
+typedef ('d, 'v) partition = "{xs :: ('d set \<times> 'v) list. (\<Union>X \<in> fst ` set xs. X) = UNIV
   \<and> (\<forall>i < length xs. \<forall>j < length xs. i \<noteq> j \<longrightarrow> fst (xs ! i) \<inter> fst (xs ! j) = {})}"
   by (rule exI[of _ "[(UNIV, undefined)]"]) auto
 
-lift_bnf (no_warn_wits, no_warn_transfer) (dead 'k, 'v) partition
+lift_bnf (no_warn_wits, no_warn_transfer) (dead 'd, 'v) partition
   by auto
 
-(*pdt = partitioned decision tree*)
+datatype (dead 'd) sproof = STT nat 
+  | SPred nat MFOTL.name "'d MFOTL.trm list" 
+  | SEq nat "'d MFOTL.trm" "'d MFOTL.trm"
+  | SNeg "'d vproof" 
+  | SOrL "'d sproof" 
+  | SOrR "'d sproof" 
+  | SAnd "'d sproof" "'d sproof"
+  | SImplL "'d vproof" 
+  | SImplR "'d sproof"
+  | SIffSS "'d sproof" "'d sproof" 
+  | SIffVV "'d vproof" "'d vproof" 
+  | SExists "'d sproof"
+  | SForall "('d, 'd sproof) partition" 
+  | SPrev "'d sproof"
+  | SNext "'d sproof"
+  | SOnce nat "'d sproof"
+  | SEventually nat "'d sproof" 
+  | SHistorically nat nat "'d sproof list" 
+  | SHistoricallyOut nat
+  | SAlways nat nat "'d sproof list"
+  | SSince "'d sproof" "'d sproof list" 
+  | SUntil "'d sproof list" "'d sproof" 
+  and 'd vproof = VFF nat 
+  | VPred nat MFOTL.name "'d MFOTL.trm list" 
+  | VEq nat "'d MFOTL.trm" "'d MFOTL.trm"
+  | VNeg "'d sproof" 
+  | VOr "'d sproof" "'d sproof"
+  | VAndL "'d vproof" 
+  | VAndR "'d vproof" 
+  | VImpl "'d sproof" "'d vproof" 
+  | VIffSV "'d sproof" "'d vproof" 
+  | VIffVS "'d vproof" "'d sproof" 
+  | VExists "('d, 'd vproof) partition" 
+  | VForall "'d vproof"
+  | VPrev "'d vproof"
+  | VPrevZ
+  | VPrevOutL nat 
+  | VPrevOutR nat
+  | VNext "'d vproof" 
+  | VNextOutL nat 
+  | VNextOutR nat 
+  | VOnceOut nat 
+  | VOnce nat nat "'d vproof list" 
+  | VEventually nat nat "'d vproof list"
+  | VHistorically nat "'d vproof" 
+  | VAlways nat "'d vproof"
+  | VSinceOut nat
+  | VSince nat "'d vproof" "'d vproof list" 
+  | VSinceInf nat nat "'d vproof list" 
+  | VUntil nat "'d vproof list" "'d vproof"
+  | VUntilInf nat nat "'d vproof list" 
+
+(* Partitioned Decision Tree *)
 datatype ('v, 'd, 'e) pdt = Leaf 'e | Node 'v "('d, ('v, 'd, 'e) pdt) partition"
 
-datatype 'd sproof = STT | SForall "('d, 'd vproof) partition" | SExists "'d vproof"
-     and 'd vproof = VFF | VExists "('d, 'd vproof) partition" | VForall "'d vproof"
-
 type_synonym ('v, 'd) expl = "('v, 'd, 'd sproof + 'd vproof) pdt"
-  
 
 end
