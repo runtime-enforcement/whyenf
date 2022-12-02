@@ -129,7 +129,7 @@ next
   then show ?case sorry
 qed (auto intro: SAT_VIO.intros)
 
-
+(* 'd: value from the domain *)
 typedef ('d, 'v) partition = "{xs :: ('d set \<times> 'v) list. (\<Union>X \<in> fst ` set xs. X) = UNIV
   \<and> (\<forall>i < length xs. \<forall>j < length xs. i \<noteq> j \<longrightarrow> fst (xs ! i) \<inter> fst (xs ! j) = {})}"
   by (rule exI[of _ "[(UNIV, undefined)]"]) auto
@@ -189,8 +189,11 @@ datatype (dead 'd) sproof = STT nat
   | VUntil nat "'d vproof list" "'d vproof"
   | VUntilInf nat nat "'d vproof list" 
 
-(* Partitioned Decision Tree *)
-datatype ('v, 'd, 'e) pdt = Leaf 'e | Node 'v "('d, ('v, 'd, 'e) pdt) partition"
+(* Partitioned Decision Tree, where *)
+(* 'v: name (string) of a variable *)
+(* 'd: value of the domain *)
+(* 'p: proof tree *)
+datatype ('v, 'd, 'p) pdt = Leaf 'p | Node 'v "('d, ('v, 'd, 'p) pdt) partition"
 
 type_synonym ('v, 'd) expl = "('v, 'd, 'd sproof + 'd vproof) pdt"
 
