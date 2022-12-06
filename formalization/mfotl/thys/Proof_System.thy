@@ -130,11 +130,11 @@ next
 qed (auto intro: SAT_VIO.intros)
 
 (* 'd: value from the domain *)
-typedef ('d, 'v) partition = "{xs :: ('d set \<times> 'v) list. (\<Union>X \<in> fst ` set xs. X) = UNIV
+typedef ('d, 'v) part = "{xs :: ('d set \<times> 'v) list. (\<Union>X \<in> fst ` set xs. X) = UNIV
   \<and> (\<forall>i < length xs. \<forall>j < length xs. i \<noteq> j \<longrightarrow> fst (xs ! i) \<inter> fst (xs ! j) = {})}"
   by (rule exI[of _ "[(UNIV, undefined)]"]) auto
 
-lift_bnf (no_warn_wits, no_warn_transfer) (dead 'd, 'v) partition
+lift_bnf (no_warn_wits, no_warn_transfer) (dead 'd, 'v) part
   by auto
 
 datatype (dead 'd) sproof = STT nat 
@@ -149,7 +149,7 @@ datatype (dead 'd) sproof = STT nat
   | SIffSS "'d sproof" "'d sproof" 
   | SIffVV "'d vproof" "'d vproof" 
   | SExists "'d sproof"
-  | SForall "('d, 'd sproof) partition" 
+  | SForall "('d, 'd sproof) part" 
   | SPrev "'d sproof"
   | SNext "'d sproof"
   | SOnce nat "'d sproof"
@@ -169,7 +169,7 @@ datatype (dead 'd) sproof = STT nat
   | VImpl "'d sproof" "'d vproof" 
   | VIffSV "'d sproof" "'d vproof" 
   | VIffVS "'d vproof" "'d sproof" 
-  | VExists "('d, 'd vproof) partition" 
+  | VExists "('d, 'd vproof) part" 
   | VForall "'d vproof"
   | VPrev "'d vproof"
   | VPrevZ
@@ -190,11 +190,16 @@ datatype (dead 'd) sproof = STT nat
   | VUntilInf nat nat "'d vproof list" 
 
 (* Partitioned Decision Tree, where *)
-(* 'v: name (string) of a variable *)
 (* 'd: value of the domain *)
-(* 'p: proof tree *)
-datatype ('v, 'd, 'p) pdt = Leaf 'p | Node 'v "('d, ('v, 'd, 'p) pdt) partition"
+(* 'pt: proof tree *)
+datatype ('d, 'pt) pdt = Leaf 'pt | Node MFOTL.name "('d, ('d, 'pt) pdt) part"
 
-type_synonym ('v, 'd) expl = "('v, 'd, 'd sproof + 'd vproof) pdt"
+type_synonym 'd expl = "('d, 'd sproof + 'd vproof) pdt"
+
+fun vars_part :: "('d, ('d, 'pt) pdt) part \<Rightarrow> string set" 
+  and vars_expl :: "'d expl \<Rightarrow> string set" where
+  "vars_expl (Node x part) = {x} \<union> (vars_part part)"
+| "vars_expl (Leaf pt) = {}"
+| "vars_part part = {}"
 
 end
