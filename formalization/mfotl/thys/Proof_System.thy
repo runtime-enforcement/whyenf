@@ -129,7 +129,7 @@ next
   then show ?case sorry
 qed (auto intro: SAT_VIO.intros)
 
-(* 'd: value from the domain *)
+(* 'd: domain *)
 typedef ('d, 'v) part = "{xs :: ('d set \<times> 'v) list. (\<Union>X \<in> fst ` set xs. X) = UNIV
   \<and> (\<forall>i < length xs. \<forall>j < length xs. i \<noteq> j \<longrightarrow> fst (xs ! i) \<inter> fst (xs ! j) = {})}"
   by (rule exI[of _ "[(UNIV, undefined)]"]) auto
@@ -190,16 +190,20 @@ datatype (dead 'd) sproof = STT nat
   | VUntilInf nat nat "'d vproof list" 
 
 (* Partitioned Decision Tree, where *)
-(* 'd: value of the domain *)
+(* 'd: domain *)
 (* 'pt: proof tree *)
 datatype ('d, 'pt) pdt = Leaf 'pt | Node MFOTL.name "('d, ('d, 'pt) pdt) part"
 
 type_synonym 'd expl = "('d, 'd sproof + 'd vproof) pdt"
 
-fun vars_part :: "('d, ('d, 'pt) pdt) part \<Rightarrow> string set" 
-  and vars_expl :: "'d expl \<Rightarrow> string set" where
+lift_definition empty_part :: "('d, 'v) part \<Rightarrow> 'a list" is "\<lambda>p. []" .
+
+lift_definition map_part :: "(('d set \<times> 'v) \<Rightarrow> 'a) \<Rightarrow> ('d, 'v) part \<Rightarrow> 'a list" is "\<lambda>f. (List.map f) \<circ> Rep_part" .
+
+fun vars_part :: "('d, ('d, 'd sproof + 'd vproof) pdt) part \<Rightarrow> MFOTL.name set" 
+  and vars_expl :: "'d expl \<Rightarrow> MFOTL.name set" where
   "vars_expl (Node x part) = {x} \<union> (vars_part part)"
 | "vars_expl (Leaf pt) = {}"
-| "vars_part part = {}"
+| "vars_part part = (\<Union> (set (map_part (\<lambda>(_, n). vars_expl n) part)))"
 
 end
