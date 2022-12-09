@@ -134,6 +134,8 @@ typedef ('d, 'v) part = "{xs :: ('d set \<times> 'v) list. (\<Union>X \<in> fst 
   \<and> (\<forall>i < length xs. \<forall>j < length xs. i \<noteq> j \<longrightarrow> fst (xs ! i) \<inter> fst (xs ! j) = {})}"
   by (rule exI[of _ "[(UNIV, undefined)]"]) auto
 
+setup_lifting type_definition_part
+
 lift_bnf (no_warn_wits, no_warn_transfer) (dead 'd, 'v) part
   by auto
 
@@ -187,7 +189,38 @@ datatype (dead 'd) sproof = STT nat
   | VSince nat "'d vproof" "'d vproof list" 
   | VSinceInf nat nat "'d vproof list" 
   | VUntil nat "'d vproof list" "'d vproof"
-  | VUntilInf nat nat "'d vproof list" 
+  | VUntilInf nat nat "'d vproof list"
+
+subsection \<open>\<^const>\<open>size\<close> setup\<close>
+
+lift_definition vals :: "('d, 'v) part \<Rightarrow> 'v list" is "map snd" .
+
+lift_definition Vals :: "('d, 'v) part \<Rightarrow> 'v set" is "set o map snd" .
+find_consts "(_ \<Rightarrow> _) \<Rightarrow> _ set \<Rightarrow> _" name: um
+lift_definition size_part :: "('d \<Rightarrow> nat) \<Rightarrow> ('v \<Rightarrow> nat) \<Rightarrow> ('d, 'v) part \<Rightarrow> nat" is "\<lambda>f g. size_list (\<lambda>(x, y). sum f x + g y)" .
+
+instantiation part :: (type, type) size begin
+
+definition size_part where
+size_part_overloaded_def: "size_part = Proof_System.size_part (\<lambda>_. 0) (\<lambda>_. 0)"
+
+instance ..
+
+end
+
+lemma size_part_overloaded_simps[simp]: "size x = size (vals x)"
+  unfolding size_part_overloaded_def
+  by transfer (auto simp: size_list_conv_sum_list)
+
+lemma part_size_o_map: "inj h \<Longrightarrow> size_part f g \<circ> map_part h = size_part f (g \<circ> h)"
+  by (rule ext, transfer)
+    (auto simp: fun_eq_iff map_prod_def o_def split_beta case_prod_beta[abs_def])
+
+setup \<open>
+BNF_LFP_Size.register_size_global \<^type_name>\<open>part\<close> \<^const_name>\<open>size_part\<close>
+  @{thm size_part_overloaded_def} @{thms size_part_def size_part_overloaded_simps}
+  @{thms part_size_o_map}
+\<close>
 
 (* Partitioned Decision Tree, where *)
 (* 'd: domain *)
@@ -196,14 +229,20 @@ datatype ('d, 'pt) pdt = Leaf 'pt | Node MFOTL.name "('d, ('d, 'pt) pdt) part"
 
 type_synonym 'd expl = "('d, 'd sproof + 'd vproof) pdt"
 
-lift_definition empty_part :: "('d, 'v) part \<Rightarrow> 'a list" is "\<lambda>p. []" .
+lemma is_measure_size_part[measure_function]: "is_measure f \<Longrightarrow> is_measure g \<Longrightarrow> is_measure (size_part f g)"
+  by (rule is_measure_trivial)
 
-lift_definition map_part :: "(('d set \<times> 'v) \<Rightarrow> 'a) \<Rightarrow> ('d, 'v) part \<Rightarrow> 'a list" is "\<lambda>f. (List.map f) \<circ> Rep_part" .
+lemma size_part_estimation[termination_simp]: "x \<in> Vals xs \<Longrightarrow> y < g x \<Longrightarrow> y < size_part f g xs"
+  by transfer (auto simp: termination_simp)
 
-fun vars_part :: "('d, ('d, 'd sproof + 'd vproof) pdt) part \<Rightarrow> MFOTL.name set" 
-  and vars_expl :: "'d expl \<Rightarrow> MFOTL.name set" where
-  "vars_expl (Node x part) = {x} \<union> (vars_part part)"
+lemma size_part_estimation'[termination_simp]: "x \<in> Vals xs \<Longrightarrow> y \<le> g x \<Longrightarrow> y \<le> size_part f g xs"
+  by transfer (auto simp: termination_simp)
+
+lemma size_part_pointwise[termination_simp]: "(\<And>x. x \<in> Vals xs \<Longrightarrow> f x \<le> g x) \<Longrightarrow> size_part h f xs \<le> size_part h g xs"
+  by transfer (force simp: image_iff intro!: size_list_pointwise)
+
+fun vars_expl :: "'d expl \<Rightarrow> MFOTL.name set" where
+  "vars_expl (Node x part) = {x} \<union> (\<Union>pdt \<in> Vals part. vars_expl pdt)"
 | "vars_expl (Leaf pt) = {}"
-| "vars_part part = (\<Union> (set (map_part (\<lambda>(_, n). vars_expl n) part)))"
 
 end
