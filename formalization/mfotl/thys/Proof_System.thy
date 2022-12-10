@@ -130,13 +130,13 @@ next
 qed (auto intro: SAT_VIO.intros)
 
 (* 'd: domain *)
-typedef ('d, 'v) part = "{xs :: ('d set \<times> 'v) list. (\<Union>X \<in> fst ` set xs. X) = UNIV
+typedef ('d, 'a) part = "{xs :: ('d set \<times> 'a) list. (\<Union>X \<in> fst ` set xs. X) = UNIV
   \<and> (\<forall>i < length xs. \<forall>j < length xs. i \<noteq> j \<longrightarrow> fst (xs ! i) \<inter> fst (xs ! j) = {})}"
   by (rule exI[of _ "[(UNIV, undefined)]"]) auto
 
 setup_lifting type_definition_part
 
-lift_bnf (no_warn_wits, no_warn_transfer) (dead 'd, 'v) part
+lift_bnf (no_warn_wits, no_warn_transfer) (dead 'd, 'a) part
   by auto
 
 datatype (dead 'd) sproof = STT nat 
@@ -193,11 +193,11 @@ datatype (dead 'd) sproof = STT nat
 
 subsection \<open>\<^const>\<open>size\<close> setup\<close>
 
-lift_definition vals :: "('d, 'v) part \<Rightarrow> 'v list" is "map snd" .
+lift_definition vals :: "('d, 'a) part \<Rightarrow> 'a list" is "map snd" .
 
-lift_definition Vals :: "('d, 'v) part \<Rightarrow> 'v set" is "set o map snd" .
-find_consts "(_ \<Rightarrow> _) \<Rightarrow> _ set \<Rightarrow> _" name: um
-lift_definition size_part :: "('d \<Rightarrow> nat) \<Rightarrow> ('v \<Rightarrow> nat) \<Rightarrow> ('d, 'v) part \<Rightarrow> nat" is "\<lambda>f g. size_list (\<lambda>(x, y). sum f x + g y)" .
+lift_definition Vals :: "('d, 'a) part \<Rightarrow> 'a set" is "set o map snd" .
+
+lift_definition size_part :: "('d \<Rightarrow> nat) \<Rightarrow> ('a \<Rightarrow> nat) \<Rightarrow> ('d, 'a) part \<Rightarrow> nat" is "\<lambda>f g. size_list (\<lambda>(x, y). sum f x + g y)" .
 
 instantiation part :: (type, type) size begin
 
@@ -227,7 +227,9 @@ BNF_LFP_Size.register_size_global \<^type_name>\<open>part\<close> \<^const_name
 (* 'pt: proof tree *)
 datatype ('d, 'pt) pdt = Leaf 'pt | Node MFOTL.name "('d, ('d, 'pt) pdt) part"
 
-type_synonym 'd expl = "('d, 'd sproof + 'd vproof) pdt"
+type_synonym 'd "proof" = "'d sproof + 'd vproof"
+
+type_synonym 'd expl = "('d, 'd proof) pdt"
 
 lemma is_measure_size_part[measure_function]: "is_measure f \<Longrightarrow> is_measure g \<Longrightarrow> is_measure (size_part f g)"
   by (rule is_measure_trivial)
