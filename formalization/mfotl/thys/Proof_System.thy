@@ -247,4 +247,21 @@ fun vars_expl :: "'d expl \<Rightarrow> MFOTL.name set" where
   "vars_expl (Node x part) = {x} \<union> (\<Union>pdt \<in> Vals part. vars_expl pdt)"
 | "vars_expl (Leaf pt) = {}"
 
+consts merge_part :: "('a \<Rightarrow> 'a \<Rightarrow> 'a) \<Rightarrow> ('d, 'a) part \<Rightarrow> ('d, 'a) part \<Rightarrow> ('d, 'a) part"
+
+fun "apply_pdt" :: "MFOTL.name list \<Rightarrow> ('d proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof) \<Rightarrow> 'd expl \<Rightarrow> 'd expl \<Rightarrow> 'd expl" where
+  "apply_pdt vs f (Leaf pt1) (Leaf pt2) = Leaf (f pt1 pt2)"
+| "apply_pdt vs f (Leaf pt1) (Node x pdt) = Node x (map_part (map_pdt (f pt1)) pdt)"
+| "apply_pdt vs f (Node x pdt) (Leaf pt2) = Node x (map_part (map_pdt (\<lambda>pt1. f pt1 pt2)) pdt)"
+| "apply_pdt (v # vs) f (Node x part1) (Node y part2) =
+     (if x = v \<and> y = v then
+       Node x (merge_part (apply_pdt vs f) part1 part2)
+     else if x = v then
+       Node x (map_part (\<lambda>pdt1. apply_pdt vs f pdt1 (Node y part2)) part1)
+     else if y = v then
+       Node y (map_part (\<lambda>pdt2. apply_pdt vs f (Node x part1) pdt2) part2)
+     else
+       apply_pdt vs f (Node x part1) (Node y part2))"
+| "apply_pdt [] f (Node x part1) (Node y part2) = undefined"
+
 end
