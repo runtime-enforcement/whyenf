@@ -253,13 +253,15 @@ fun merge_part_raw :: "('a \<Rightarrow> 'a \<Rightarrow> 'a) \<Rightarrow> ('d 
   "merge_part_raw f [] part2 = part2"  
 | "merge_part_raw f (p1 # part1) part2 = 
     merge_part_raw f part1 (map (\<lambda>p2. 
-      if (fst p1) \<inter> (fst p2) = {} then 
-        (if card (fst p2) = 1 then
-           (fst p1, f (snd p1) (snd p2))
-         else ((fst p2) - (fst p1), f (snd p1) (snd p2)))
+      if (fst p1) \<inter> (fst p2) \<noteq> {} then 
+        (if card (fst p2) = 1 then 
+          (fst p1, f (snd p1) (snd p2))
+        else 
+          ((fst p2) - (fst p1), f (snd p1) (snd p2)))
       else p2) part2)"
 
-lift_definition merge_part :: "('a \<Rightarrow> 'a \<Rightarrow> 'a) \<Rightarrow> ('d, 'a) part \<Rightarrow> ('d, 'a) part \<Rightarrow> ('d, 'a) part" is merge_part_raw sorry
+lift_definition merge_part :: "('a \<Rightarrow> 'a \<Rightarrow> 'a) \<Rightarrow> ('d, 'a) part \<Rightarrow> ('d, 'a) part \<Rightarrow> ('d, 'a) part" is merge_part_raw
+  sorry
 
 fun "apply_pdt" :: "MFOTL.name list \<Rightarrow> ('d proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof) \<Rightarrow> 'd expl \<Rightarrow> 'd expl \<Rightarrow> 'd expl" where
   "apply_pdt vs f (Leaf pt1) (Leaf pt2) = Leaf (f pt1 pt2)"
@@ -274,10 +276,19 @@ fun "apply_pdt" :: "MFOTL.name list \<Rightarrow> ('d proof \<Rightarrow> 'd pro
       Node y (map_part (\<lambda>pdt2. apply_pdt vs f (Node x part1) pdt2) part2)
     else
       apply_pdt vs f (Node x part1) (Node y part2))"
-| "apply_pdt [] f (Node x part1) (Node y part2) = undefined"
+| "apply_pdt [] _ (Node _ _) (Node _ _) = undefined"
 
-fun sat_order :: "MFOTL.name list => 'd expl => bool" where
-  "sat_order vs (Leaf pt1) = True"
-| "sat_order vs (Node x part1) = True"
+term Ball
+term list_all
+
+(* lift_definition part_all :: "('b \<Rightarrow> bool) \<Rightarrow> ('d, 'a) part  \<Rightarrow> bool" is "set o map snd" .
+
+fun sat_vorder :: "MFOTL.name list \<Rightarrow> 'd expl \<Rightarrow> bool" where
+  "sat_vorder vs (Leaf _) = True"
+| "sat_vorder (v # vs) (Node x part1) = 
+    (if x = v then
+      sat_vorder vs ()
+    else
+      sat_vorder vs (Node x part1))" *)
 
 end
