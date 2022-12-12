@@ -129,7 +129,9 @@ next
   then show ?case sorry
 qed (auto intro: SAT_VIO.intros)
 
-(* 'd: domain *)
+subsection \<open>Proof Objects\<close>
+
+(* 'd: domain (such that 'd sets are always singletons or the complement of the union of the remaining sets) *)
 typedef ('d, 'a) part = "{xs :: ('d set \<times> 'a) list. (\<Union>X \<in> fst ` set xs. X) = UNIV
   \<and> (\<forall>i < length xs. \<forall>j < length xs. i \<noteq> j \<longrightarrow> fst (xs ! i) \<inter> fst (xs ! j) = {})}"
   by (rule exI[of _ "[(UNIV, undefined)]"]) auto
@@ -221,10 +223,10 @@ BNF_LFP_Size.register_size_global \<^type_name>\<open>part\<close> \<^const_name
   @{thm size_part_overloaded_def} @{thms size_part_def size_part_overloaded_simps}
   @{thms part_size_o_map}
 \<close>
+                                                                 
+subsection \<open>Partitioned Decision Trees\<close>
 
-(* Partitioned Decision Tree, where *)
-(* 'd: domain *)
-(* 'pt: proof tree *)
+(* 'd: domain; 'pt: proof tree *)
 datatype ('d, 'pt) pdt = Leaf 'pt | Node MFOTL.name "('d, ('d, 'pt) pdt) part"
 
 type_synonym 'd "proof" = "'d sproof + 'd vproof"
@@ -247,21 +249,35 @@ fun vars_expl :: "'d expl \<Rightarrow> MFOTL.name set" where
   "vars_expl (Node x part) = {x} \<union> (\<Union>pdt \<in> Vals part. vars_expl pdt)"
 | "vars_expl (Leaf pt) = {}"
 
-consts merge_part :: "('a \<Rightarrow> 'a \<Rightarrow> 'a) \<Rightarrow> ('d, 'a) part \<Rightarrow> ('d, 'a) part \<Rightarrow> ('d, 'a) part"
+fun merge_part_raw :: "('a \<Rightarrow> 'a \<Rightarrow> 'a) \<Rightarrow> ('d set \<times> 'a) list \<Rightarrow> ('d set \<times> 'a) list \<Rightarrow> ('d set \<times> 'a) list" where
+  "merge_part_raw f [] part2 = part2"  
+| "merge_part_raw f (p1 # part1) part2 = 
+    merge_part_raw f part1 (map (\<lambda>p2. 
+      if (fst p1) \<inter> (fst p2) = {} then 
+        (if card (fst p2) = 1 then
+           (fst p1, f (snd p1) (snd p2))
+         else ((fst p2) - (fst p1), f (snd p1) (snd p2)))
+      else p2) part2)"
+
+lift_definition merge_part :: "('a \<Rightarrow> 'a \<Rightarrow> 'a) \<Rightarrow> ('d, 'a) part \<Rightarrow> ('d, 'a) part \<Rightarrow> ('d, 'a) part" is merge_part_raw sorry
 
 fun "apply_pdt" :: "MFOTL.name list \<Rightarrow> ('d proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof) \<Rightarrow> 'd expl \<Rightarrow> 'd expl \<Rightarrow> 'd expl" where
   "apply_pdt vs f (Leaf pt1) (Leaf pt2) = Leaf (f pt1 pt2)"
-| "apply_pdt vs f (Leaf pt1) (Node x pdt) = Node x (map_part (map_pdt (f pt1)) pdt)"
-| "apply_pdt vs f (Node x pdt) (Leaf pt2) = Node x (map_part (map_pdt (\<lambda>pt1. f pt1 pt2)) pdt)"
+| "apply_pdt vs f (Leaf pt1) (Node x part2) = Node x (map_part (map_pdt (f pt1)) part2)"
+| "apply_pdt vs f (Node x part1) (Leaf pt2) = Node x (map_part (map_pdt (\<lambda>pt1. f pt1 pt2)) part1)"
 | "apply_pdt (v # vs) f (Node x part1) (Node y part2) =
-     (if x = v \<and> y = v then
-       Node x (merge_part (apply_pdt vs f) part1 part2)
-     else if x = v then
-       Node x (map_part (\<lambda>pdt1. apply_pdt vs f pdt1 (Node y part2)) part1)
-     else if y = v then
-       Node y (map_part (\<lambda>pdt2. apply_pdt vs f (Node x part1) pdt2) part2)
-     else
-       apply_pdt vs f (Node x part1) (Node y part2))"
+    (if x = v \<and> y = v then
+      Node x (merge_part (apply_pdt vs f) part1 part2)
+    else if x = v then
+      Node x (map_part (\<lambda>pdt1. apply_pdt vs f pdt1 (Node y part2)) part1)
+    else if y = v then
+      Node y (map_part (\<lambda>pdt2. apply_pdt vs f (Node x part1) pdt2) part2)
+    else
+      apply_pdt vs f (Node x part1) (Node y part2))"
 | "apply_pdt [] f (Node x part1) (Node y part2) = undefined"
+
+fun sat_order :: "MFOTL.name list => 'd expl => bool" where
+  "sat_order vs (Leaf pt1) = True"
+| "sat_order vs (Node x part1) = True"
 
 end
