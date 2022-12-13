@@ -278,17 +278,16 @@ fun "apply_pdt" :: "MFOTL.name list \<Rightarrow> ('d proof \<Rightarrow> 'd pro
       apply_pdt vs f (Node x part1) (Node y part2))"
 | "apply_pdt [] _ (Node _ _) (Node _ _) = undefined"
 
-term Ball
-term list_all
-
-(* lift_definition part_all :: "('b \<Rightarrow> bool) \<Rightarrow> ('d, 'a) part  \<Rightarrow> bool" is "set o map snd" .
+lift_definition part_all :: "('a \<Rightarrow> bool) \<Rightarrow> ('d, 'a) part \<Rightarrow> bool" is "\<lambda>f. list_all (f \<circ> snd)" .
 
 fun sat_vorder :: "MFOTL.name list \<Rightarrow> 'd expl \<Rightarrow> bool" where
   "sat_vorder vs (Leaf _) = True"
-| "sat_vorder (v # vs) (Node x part1) = 
+| "sat_vorder (v # vs) (Node x part1) =
     (if x = v then
-      sat_vorder vs ()
+      part_all (sat_vorder vs) part1
     else
-      sat_vorder vs (Node x part1))" *)
+      sat_vorder vs (Node x part1))"
+| "sat_vorder [] (Node _ _) = undefined"
+
 
 end
