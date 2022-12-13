@@ -10,31 +10,31 @@ context begin
 
 subsection \<open>Formulas and Satisfiability\<close>
 
-type_synonym name = string
-type_synonym 'a event = "(name \<times> 'a list)"
-type_synonym 'a database = "'a event set"
-type_synonym 'a prefix = "(name \<times> 'a list) prefix"
-type_synonym 'a trace = "(name \<times> 'a list) trace"
+qualified type_synonym name = string
+qualified type_synonym 'a event = "(name \<times> 'a list)"
+qualified type_synonym 'a database = "'a event set"
+qualified type_synonym 'a prefix = "(name \<times> 'a list) prefix"
+qualified type_synonym 'a trace = "(name \<times> 'a list) trace"
 
-type_synonym 'a env = "name \<Rightarrow> 'a"
+qualified type_synonym 'a env = "name \<Rightarrow> 'a"
 
-datatype 'a trm = is_Var: Var name | is_Const: Const 'a
+qualified datatype 'a trm = is_Var: Var name | is_Const: Const 'a
 
-primrec fv_trm :: "'a trm \<Rightarrow> string set" where
+qualified primrec fv_trm :: "'a trm \<Rightarrow> string set" where
   "fv_trm (Var x) = {x}"
 | "fv_trm (Const _) = {}"
 
-primrec eval_trm :: "'a env \<Rightarrow> 'a trm \<Rightarrow> 'a" where
+qualified primrec eval_trm :: "'a env \<Rightarrow> 'a trm \<Rightarrow> 'a" where
   "eval_trm v (Var x) = v x"
 | "eval_trm v (Const x) = x"
 
-definition eval_trms :: "'a env \<Rightarrow> 'a trm list \<Rightarrow> 'a list" where
+qualified definition eval_trms :: "'a env \<Rightarrow> 'a trm list \<Rightarrow> 'a list" where
   "eval_trms v ts = map (eval_trm v) ts"
 
 lemma eval_trm_cong: "\<forall>x\<in>fv_trm t. v x = v' x \<Longrightarrow> eval_trm v t = eval_trm v' t"
   by (cases t) simp_all
 
-datatype 'a formula = 
+qualified datatype 'a formula = 
   TT
 | FF
 | Pred name "'a trm list" 
@@ -55,7 +55,7 @@ datatype 'a formula =
 | Since "'a formula" \<I> "'a formula" 
 | Until "'a formula" \<I> "'a formula"
 
-primrec fv :: "'a formula \<Rightarrow> string set" where
+qualified primrec fv :: "'a formula \<Rightarrow> string set" where
   "fv (Pred r ts) = (\<Union>t\<in>set ts. fv_trm t)"
 | "fv (Eq t1 t2) = fv_trm t1 \<union> fv_trm t2"
 | "fv (TT) = {}"
@@ -82,10 +82,10 @@ lemma finite_fv_trm[simp]: "finite (fv_trm t)"
 lemma finite_fv[simp]: "finite (fv \<phi>)"
   by (induction \<phi>) simp_all
 
-definition nfv :: "'a formula \<Rightarrow> nat" where
+qualified definition nfv :: "'a formula \<Rightarrow> nat" where
   "nfv \<phi> = card (fv \<phi>)"
 
-fun future_bounded :: "'a formula \<Rightarrow> bool" where
+qualified fun future_bounded :: "'a formula \<Rightarrow> bool" where
   "future_bounded (TT) = True"
 | "future_bounded (FF) = True"
 | "future_bounded (Pred _ _) = True"
@@ -106,7 +106,7 @@ fun future_bounded :: "'a formula \<Rightarrow> bool" where
 | "future_bounded (Since \<phi> I \<psi>) = (future_bounded \<phi> \<and> future_bounded \<psi>)"
 | "future_bounded (Until \<phi> I \<psi>) = (future_bounded \<phi> \<and> future_bounded \<psi> \<and> right I \<noteq> \<infinity>)"
 
-primrec sat :: "'a trace \<Rightarrow> 'a env \<Rightarrow> nat \<Rightarrow> 'a formula \<Rightarrow> bool" where
+qualified primrec sat :: "'a trace \<Rightarrow> 'a env \<Rightarrow> nat \<Rightarrow> 'a formula \<Rightarrow> bool" where
   "sat \<sigma> v i (TT) = True"
 | "sat \<sigma> v i (FF) = False"              
 | "sat \<sigma> v i (Pred r ts) = ((r, eval_trms v ts) \<in> \<Gamma> \<sigma> i)"
