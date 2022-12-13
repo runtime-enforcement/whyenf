@@ -229,6 +229,8 @@ subsection \<open>Partitioned Decision Trees\<close>
 (* 'd: domain; 'pt: proof tree *)
 datatype ('d, 'pt) pdt = Leaf 'pt | Node MFOTL.name "('d, ('d, 'pt) pdt) part"
 
+thm pdt.size
+
 type_synonym 'd "proof" = "'d sproof + 'd vproof"
 
 type_synonym 'd expl = "('d, 'd proof) pdt"
@@ -251,17 +253,19 @@ fun vars_expl :: "'d expl \<Rightarrow> MFOTL.name set" where
 
 fun merge_part_raw :: "('a \<Rightarrow> 'a \<Rightarrow> 'a) \<Rightarrow> ('d set \<times> 'a) list \<Rightarrow> ('d set \<times> 'a) list \<Rightarrow> ('d set \<times> 'a) list" where
   "merge_part_raw f [] part2 = part2"  
-| "merge_part_raw f (p1 # part1) part2 = 
-    merge_part_raw f part1 (map (\<lambda>p2. 
-      if (fst p1) \<inter> (fst p2) \<noteq> {} then 
-        (if card (fst p2) = 1 then 
-          (fst p1, f (snd p1) (snd p2))
-        else 
-          ((fst p2) - (fst p1), f (snd p1) (snd p2)))
-      else p2) part2)"
+| "merge_part_raw f ((P1, v1) # part1) part2 = 
+    (let part12 = List.map_filter (\<lambda>(P2, v2). if P1 \<inter> P2 \<noteq> {} then Some(P1 \<inter> P2, f v1 v2) else None) part2 in
+     let part2not1 = List.map_filter (\<lambda>(P2, v2). if P2 - P1 \<noteq> {} then Some(P2 - P1, v2) else None) part2 in
+     part12 @ (merge_part_raw f part1 part2not1))"
+
+find_theorems List.map_filter
 
 lift_definition merge_part :: "('a \<Rightarrow> 'a \<Rightarrow> 'a) \<Rightarrow> ('d, 'a) part \<Rightarrow> ('d, 'a) part \<Rightarrow> ('d, 'a) part" is merge_part_raw
-  sorry
+  subgoal for f part1 part2
+    apply (induct f part1 part2 rule: merge_part_raw.induct)
+     apply (auto simp: map_filter_def)
+    sorry
+  done
 
 fun "apply_pdt" :: "MFOTL.name list \<Rightarrow> ('d proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof) \<Rightarrow> 'd expl \<Rightarrow> 'd expl \<Rightarrow> 'd expl" where
   "apply_pdt vs f (Leaf pt1) (Leaf pt2) = Leaf (f pt1 pt2)"
@@ -280,14 +284,10 @@ fun "apply_pdt" :: "MFOTL.name list \<Rightarrow> ('d proof \<Rightarrow> 'd pro
 
 lift_definition part_all :: "('a \<Rightarrow> bool) \<Rightarrow> ('d, 'a) part \<Rightarrow> bool" is "\<lambda>f. list_all (f \<circ> snd)" .
 
-fun sat_vorder :: "MFOTL.name list \<Rightarrow> 'd expl \<Rightarrow> bool" where
-  "sat_vorder vs (Leaf _) = True"
-| "sat_vorder (v # vs) (Node x part1) =
-    (if x = v then
-      part_all (sat_vorder vs) part1
-    else
-      sat_vorder vs (Node x part1))"
-| "sat_vorder [] (Node _ _) = undefined"
+inductive sat_vorder :: "MFOTL.name list \<Rightarrow> 'd expl \<Rightarrow> bool" where
+  "sat_vorder vs (Leaf _)"
+| "\<forall>expl \<in> Vals part1. sat_vorder vs expl \<Longrightarrow> sat_vorder (x # vs) (Node x part1)"
+| "sat_vorder vs (Node x part1) \<Longrightarrow> x \<noteq> v \<Longrightarrow> sat_vorder (v # vs) (Node x part1)"
 
 
 end
