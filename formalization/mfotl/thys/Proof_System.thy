@@ -1,6 +1,6 @@
 (*<*)
 theory Proof_System
-  imports MFOTL
+  imports MFOTL "HOL-Library.Disjoint_Sets"
 begin
 (*>*)
 
@@ -131,15 +131,44 @@ qed (auto intro: SAT_VIO.intros)
 
 subsection \<open>Proof Objects\<close>
 
+lemma part_list_set_eq: 
+  "{xs :: ('d set \<times> 'a) list. (\<Union>X \<in> fst ` set xs. X) = UNIV
+    \<and> (\<forall>i < length xs. \<forall>j < length xs. i \<noteq> j 
+      \<longrightarrow> fst (xs ! i) \<inter> fst (xs ! j) = {}) \<and> {} \<notin> fst ` set xs}
+  = {xs :: ('d set \<times> 'a) list. partition_on UNIV (set (map fst xs)) \<and> distinct (map fst xs)}"
+proof ((intro set_eqI iffI; clarsimp simp: partition_on_def), goal_cases)
+  case (1 xs)
+  hence "disjoint (fst ` set xs)"
+    by (metis disjnt_def in_set_conv_nth pairwise_imageI)
+  moreover have "distinct (map fst xs)"
+    using 1
+    by (smt (verit) distinct_conv_nth image_iff inf.idem 
+        length_map nth_map nth_mem) 
+  ultimately show ?case 
+    by blast
+next
+  case (2 xs i j)
+  hence "fst (xs ! i) \<in> fst ` set xs"
+    and "fst (xs ! j) \<in> fst ` set xs"
+    by auto
+  moreover have "fst (xs ! i) \<noteq> fst (xs ! j)"
+    using 2(4-) nth_eq_iff_index_eq 
+    by fastforce 
+  ultimately show ?case
+    using 2(2) unfolding disjoint_def
+    by blast
+qed
+
 (* 'd: domain (such that 'd sets are always singletons or the complement of the union of the remaining sets) *)
-typedef ('d, 'a) part = "{xs :: ('d set \<times> 'a) list. (\<Union>X \<in> fst ` set xs. X) = UNIV
-  \<and> (\<forall>i < length xs. \<forall>j < length xs. i \<noteq> j \<longrightarrow> fst (xs ! i) \<inter> fst (xs ! j) = {})}"
-  by (rule exI[of _ "[(UNIV, undefined)]"]) auto
+typedef ('d, 'a) part = "{xs :: ('d set \<times> 'a) list. partition_on UNIV (set (map fst xs)) \<and> distinct (map fst xs)}"
+  by (rule exI[of _ "[(UNIV, undefined)]"]) 
+    (auto simp: partition_on_def)
 
 setup_lifting type_definition_part
 
 lift_bnf (no_warn_wits, no_warn_transfer) (dead 'd, 'a) part
-  by auto
+  unfolding part_list_set_eq[symmetric]
+  by (auto simp: image_iff)
 
 datatype (dead 'd) sproof = STT nat 
   | SPred nat MFOTL.name "'d MFOTL.trm list" 
@@ -258,14 +287,132 @@ fun merge_part_raw :: "('a \<Rightarrow> 'a \<Rightarrow> 'a) \<Rightarrow> ('d 
      let part2not1 = List.map_filter (\<lambda>(P2, v2). if P2 - P1 \<noteq> {} then Some(P2 - P1, v2) else None) part2 in
      part12 @ (merge_part_raw f part1 part2not1))"
 
-find_theorems List.map_filter
+lemma partition_on_empty_iff: 
+  "partition_on X \<P> \<Longrightarrow> \<P> = {} \<longleftrightarrow> X = {}"
+  "partition_on X \<P> \<Longrightarrow> \<P> \<noteq> {} \<longleftrightarrow> X \<noteq> {}"
+  by (auto simp: partition_on_def)
+
+lemma wf_part_list_filter_inter: 
+  defines "inP1 P1 f v1 part2 
+    \<equiv> List.map_filter (\<lambda>(P2, v2). if P1 \<inter> P2 \<noteq> {} then Some(P1 \<inter> P2, f v1 v2) else None) part2"
+  assumes "partition_on X (set (map fst ((P1, v1) # part1)))"
+    and "partition_on X (set (map fst part2))"
+  shows "partition_on P1 (set (map fst (inP1 P1 f v1 part2)))"
+    and "distinct (map fst ((P1, v1) # part1)) \<Longrightarrow> distinct (map fst (part2)) 
+      \<Longrightarrow> distinct (map fst (inP1 P1 f v1 part2))"
+proof (rule partition_onI)
+  show "\<Union> (set (map fst (inP1 P1 f v1 part2))) = P1"
+    using partition_onD1[OF assms(2)] partition_onD1[OF assms(3)] inP1_def
+    by (auto simp: map_filter_def split: if_splits)
+      (metis (no_types, lifting) Int_iff UN_iff Un_Int_eq(3) empty_iff prod.collapse)
+  show "\<And>A1 A2. A1 \<in> set (map fst (inP1 P1 f v1 part2)) 
+    \<Longrightarrow> A2 \<in> set (map fst (inP1 P1 f v1 part2)) \<Longrightarrow> A1 \<noteq> A2 \<Longrightarrow> disjnt A1 A2" 
+    using partition_onD2[OF assms(2)] partition_onD2[OF assms(3)] inP1_def
+    by (clarsimp simp: disjnt_def map_filter_def disjoint_def split: if_splits)
+      (smt (verit, del_insts) Int_assoc Int_commute fst_conv inf_bot_right)
+  show "{} \<notin> set (map fst (inP1 P1 f v1 part2))" 
+    using assms
+    by (auto simp: map_filter_def split: if_splits)
+  show "distinct (map fst ((P1, v1) # part1)) \<Longrightarrow> distinct (map fst part2) 
+    \<Longrightarrow> distinct (map fst (inP1 P1 f v1 part2))"
+    using partition_onD2[OF assms(3), unfolded disjoint_def] distinct_map[of fst part2]
+    by (clarsimp simp: inP1_def map_filter_def distinct_map inj_on_def split: prod.splits)
+      (metis Int_assoc fst_conv inf.idem inf_bot_right prod.inject)
+qed
+
+lemma wf_part_list_filter_minus: 
+  defines "notinP2 P1 f v1 part2 
+    \<equiv> List.map_filter (\<lambda>(P2, v2). if P2 - P1 \<noteq> {} then Some(P2 - P1, v2) else None) part2"
+  assumes "partition_on X (set (map fst ((P1, v1) # part1)))"
+    and "partition_on X (set (map fst part2))"
+  shows "partition_on (X - P1) (set (map fst (notinP2 P1 f v1 part2)))"
+    and "distinct (map fst ((P1, v1) # part1)) \<Longrightarrow> distinct (map fst (part2)) 
+      \<Longrightarrow> distinct (map fst (notinP2 P1 f v1 part2))"
+proof (rule partition_onI)
+  show "\<Union> (set (map fst (notinP2 P1 f v1 part2))) = X - P1"
+    using partition_onD1[OF assms(2)] partition_onD1[OF assms(3)] notinP2_def
+    apply (intro set_eqI iffI; clarsimp simp: map_filter_def subset_eq split: if_splits)
+    by (metis (no_types, lifting) UN_iff Un_iff fst_conv prod.collapse)+
+  show "\<And>A1 A2. A1 \<in> set (map fst (notinP2 P1 f v1 part2)) 
+    \<Longrightarrow> A2 \<in> set (map fst (notinP2 P1 f v1 part2)) \<Longrightarrow> A1 \<noteq> A2 \<Longrightarrow> disjnt A1 A2" 
+    using partition_onD2[OF assms(2)] partition_onD2[OF assms(3)] notinP2_def
+    by (clarsimp simp: disjnt_def map_filter_def disjoint_def split: if_splits)
+      (smt (verit, ccfv_SIG) Diff_disjoint Int_Diff Int_commute fst_conv)
+  show "{} \<notin> set (map fst (notinP2 P1 f v1 part2))" 
+    using assms
+    by (auto simp: map_filter_def split: if_splits)
+  show "distinct (map fst ((P1, v1) # part1)) \<Longrightarrow> distinct (map fst part2) 
+    \<Longrightarrow> distinct (map fst ((notinP2 P1 f v1 part2)))"
+    using partition_onD2[OF assms(3), unfolded disjoint_def] distinct_map[of fst part2]
+    by (clarsimp simp: notinP2_def map_filter_def distinct_map inj_on_def split: prod.splits)
+      (metis Diff_Diff_Int Diff_empty Diff_iff fst_conv prod.inject)
+qed
+
+lemma wf_part_list_tail: 
+  assumes "partition_on X (set (map fst ((P1, v1) # part1)))"
+    and "distinct (map fst ((P1, v1) # part1))"
+  shows "partition_on (X - P1) (set (map fst part1))"
+    and "distinct (map fst part1)"
+proof (rule partition_onI)
+  show "\<Union> (set (map fst part1)) = X - P1"
+    using partition_onD1[OF assms(1)] partition_onD2[OF assms(1)] assms(2)
+    by (auto simp: disjoint_def image_iff)
+  show "\<And>A1 A2. A1 \<in> set (map fst part1) \<Longrightarrow> A2 \<in> set (map fst part1) \<Longrightarrow> A1 \<noteq> A2 \<Longrightarrow> disjnt A1 A2" 
+    using partition_onD2[OF assms(1)]
+    by (clarsimp simp: disjnt_def disjoint_def)
+      (smt (verit, ccfv_SIG) Diff_disjoint Int_Diff Int_commute fst_conv)
+  show "{} \<notin> set (map fst part1)" 
+    using partition_onD3[OF assms(1)]
+    by (auto simp: map_filter_def split: if_splits)
+  show "distinct (map fst (part1))"
+    using assms(2)
+    by auto
+qed
+
+lemma partition_on_append: "partition_on X (set xs) \<Longrightarrow> partition_on Y (set ys) 
+  \<Longrightarrow> X \<inter> Y = {} \<Longrightarrow> partition_on (X \<union> Y) (set (xs @ ys))"
+  by (auto simp: partition_on_def disjoint_def)
+    (metis disjoint_iff)+
+
+lemma wf_part_list_merge_part_raw: 
+  "partition_on X (set (map fst part1)) \<and> distinct (map fst part1) 
+  \<Longrightarrow> partition_on X (set (map fst part2)) \<and> distinct (map fst part2) 
+  \<Longrightarrow> partition_on X (set (map fst (merge_part_raw f part1 part2))) 
+    \<and> distinct (map fst (merge_part_raw f part1 part2))"
+proof(induct f part1 part2 arbitrary: X rule: merge_part_raw.induct)
+  case (2 f P1 v1 part1 part2)
+  let ?inP1 = "List.map_filter (\<lambda>(P2, v2). if P1 \<inter> P2 \<noteq> {} then Some (P1 \<inter> P2, f v1 v2) else None) part2"
+    and ?notinP1 = "List.map_filter (\<lambda>(P2, v2). if P2 - P1 \<noteq> {} then Some (P2 - P1, v2) else None) part2"
+  have "P1 \<union> X = X"
+    using "2.prems"
+    by (auto simp: partition_on_def)
+  have wf_part1: "partition_on (X - P1) (set (map fst part1))"
+    "distinct (map fst part1)"
+    using wf_part_list_tail "2.prems" by auto
+  moreover have wf_notinP1: "partition_on (X - P1) (set (map fst ?notinP1))" 
+    "distinct (map fst (?notinP1))"
+    using wf_part_list_filter_minus[OF 2(2)[THEN conjunct1]] 
+      "2.prems" by auto
+  ultimately have IH: "partition_on (X - P1) (set (map fst (merge_part_raw f part1 (?notinP1))))"
+    "distinct (map fst (merge_part_raw f part1 (?notinP1)))"
+    using "2.hyps"[OF refl refl] by auto
+  moreover have wf_inP1: "partition_on P1 (set (map fst ?inP1))" "distinct (map fst ?inP1)"
+    using wf_part_list_filter_inter[OF 2(2)[THEN conjunct1]]
+      "2.prems" by auto
+  moreover have "(fst ` set ?inP1) \<inter> (fst ` set (merge_part_raw f part1 (?notinP1))) = {}"
+    using IH(1)[THEN partition_onD1]
+    by (intro set_eqI iffI; clarsimp simp: map_filter_def split: prod.splits if_splits)
+      (smt (z3) Diff_disjoint Int_iff UN_iff disjoint_iff fst_conv)+
+  ultimately show ?case 
+    using partition_on_append[OF wf_inP1(1) IH(1)] \<open>P1 \<union> X = X\<close> wf_inP1(2) IH(2)
+    by simp
+qed simp
+
+thm wf_part_list_filter_inter wf_part_list_filter_minus wf_part_list_tail
 
 lift_definition merge_part :: "('a \<Rightarrow> 'a \<Rightarrow> 'a) \<Rightarrow> ('d, 'a) part \<Rightarrow> ('d, 'a) part \<Rightarrow> ('d, 'a) part" is merge_part_raw
-  subgoal for f part1 part2
-    apply (induct f part1 part2 rule: merge_part_raw.induct)
-     apply (auto simp: map_filter_def)
-    sorry
-  done
+  by (rule wf_part_list_merge_part_raw)
+
 
 fun "apply_pdt" :: "MFOTL.name list \<Rightarrow> ('d proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof) \<Rightarrow> 'd expl \<Rightarrow> 'd expl \<Rightarrow> 'd expl" where
   "apply_pdt vs f (Leaf pt1) (Leaf pt2) = Leaf (f pt1 pt2)"
