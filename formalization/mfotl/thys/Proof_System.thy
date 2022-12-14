@@ -428,8 +428,6 @@ fun "apply_pdt" :: "MFOTL.name list \<Rightarrow> ('d proof \<Rightarrow> 'd pro
       apply_pdt vs f (Node x part1) (Node y part2))"
 | "apply_pdt [] _ (Node _ _) (Node _ _) = undefined"
 
-lift_definition part_all :: "('a \<Rightarrow> bool) \<Rightarrow> ('d, 'a) part \<Rightarrow> bool" is "\<lambda>f. list_all (f \<circ> snd)" .
-
 inductive sat_vorder :: "MFOTL.name list \<Rightarrow> 'd expl \<Rightarrow> bool" where
   "sat_vorder vs (Leaf _)"
 | "\<forall>expl \<in> Vals part1. sat_vorder vs expl \<Longrightarrow> sat_vorder (x # vs) (Node x part1)"
