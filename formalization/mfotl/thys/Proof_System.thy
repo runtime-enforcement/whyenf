@@ -196,7 +196,7 @@ datatype (dead 'd) sproof = STT nat
   | VPred nat MFOTL.name "'d MFOTL.trm list" 
   | VEq nat "'d MFOTL.trm" "'d MFOTL.trm"
   | VNeg "'d sproof" 
-  | VOr "'d sproof" "'d sproof"
+  | VOr "'d vproof" "'d vproof"
   | VAndL "'d vproof" 
   | VAndR "'d vproof" 
   | VImpl "'d sproof" "'d vproof" 
