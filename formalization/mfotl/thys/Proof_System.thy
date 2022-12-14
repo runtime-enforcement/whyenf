@@ -159,7 +159,7 @@ next
     by blast
 qed
 
-(* 'd: domain (such that 'd sets are always singletons or the complement of the union of the remaining sets) *)
+(* 'd: domain (such that the union of 'd sets form a partition) *)
 typedef ('d, 'a) part = "{xs :: ('d set \<times> 'a) list. partition_on UNIV (set (map fst xs)) \<and> distinct (map fst xs)}"
   by (rule exI[of _ "[(UNIV, undefined)]"]) 
     (auto simp: partition_on_def)
@@ -412,7 +412,6 @@ thm wf_part_list_filter_inter wf_part_list_filter_minus wf_part_list_tail
 
 lift_definition merge_part :: "('a \<Rightarrow> 'a \<Rightarrow> 'a) \<Rightarrow> ('d, 'a) part \<Rightarrow> ('d, 'a) part \<Rightarrow> ('d, 'a) part" is merge_part_raw
   by (rule wf_part_list_merge_part_raw)
-
 
 fun "apply_pdt" :: "MFOTL.name list \<Rightarrow> ('d proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof) \<Rightarrow> 'd expl \<Rightarrow> 'd expl \<Rightarrow> 'd expl" where
   "apply_pdt vs f (Leaf pt1) (Leaf pt2) = Leaf (f pt1 pt2)"
