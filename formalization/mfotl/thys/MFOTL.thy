@@ -17,6 +17,7 @@ qualified type_synonym 'a prefix = "(name \<times> 'a list) prefix"
 qualified type_synonym 'a trace = "(name \<times> 'a list) trace"
 
 qualified type_synonym 'a env = "name \<Rightarrow> 'a"
+qualified type_synonym 'a envset = "name \<Rightarrow> 'a set"
 
 qualified datatype 'a trm = is_Var: Var name | is_Const: Const 'a
 
