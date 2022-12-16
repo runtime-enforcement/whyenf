@@ -224,6 +224,10 @@ datatype (dead 'd) sproof = STT nat
 
 subsection \<open>\<^const>\<open>size\<close> setup\<close>
 
+lift_definition subs :: "('d, 'a) part \<Rightarrow> 'd set list" is "map fst" .
+
+lift_definition Subs :: "('d, 'a) part \<Rightarrow> 'd set set" is "set o map fst" .
+
 lift_definition vals :: "('d, 'a) part \<Rightarrow> 'a list" is "map snd" .
 
 lift_definition Vals :: "('d, 'a) part \<Rightarrow> 'a set" is "set o map snd" .
@@ -258,8 +262,6 @@ subsection \<open>Partitioned Decision Trees\<close>
 (* 'd: domain; 'pt: proof tree *)
 datatype ('d, 'pt) pdt = Leaf 'pt | Node MFOTL.name "('d, ('d, 'pt) pdt) part"
 
-thm pdt.size
-
 type_synonym 'd "proof" = "'d sproof + 'd vproof"
 
 type_synonym 'd expl = "('d, 'd proof) pdt"
@@ -275,6 +277,12 @@ lemma size_part_estimation'[termination_simp]: "x \<in> Vals xs \<Longrightarrow
 
 lemma size_part_pointwise[termination_simp]: "(\<And>x. x \<in> Vals xs \<Longrightarrow> f x \<le> g x) \<Longrightarrow> size_part h f xs \<le> size_part h g xs"
   by transfer (force simp: image_iff intro!: size_list_pointwise)
+
+inductive is_partition :: "('d, 'a) part \<Rightarrow> bool" where
+  "partition_on UNIV (Subs part) \<Longrightarrow> distinct (subs part) \<Longrightarrow> is_partition part"
+
+lemma is_partition_inv: "is_partition part \<Longrightarrow> partition_on UNIV (Subs part) \<and> distinct (subs part)"
+  using is_partition.cases by auto
 
 fun vars_expl :: "'d expl \<Rightarrow> MFOTL.name set" where
   "vars_expl (Node x part) = {x} \<union> (\<Union>pdt \<in> Vals part. vars_expl pdt)"
@@ -408,30 +416,28 @@ proof(induct f part1 part2 arbitrary: X rule: merge_part_raw.induct)
     by simp
 qed simp
 
-thm wf_part_list_filter_inter wf_part_list_filter_minus wf_part_list_tail
-
 lift_definition merge_part :: "('a \<Rightarrow> 'a \<Rightarrow> 'a) \<Rightarrow> ('d, 'a) part \<Rightarrow> ('d, 'a) part \<Rightarrow> ('d, 'a) part" is merge_part_raw
   by (rule wf_part_list_merge_part_raw)
 
 fun "apply_pdt" :: "MFOTL.name list \<Rightarrow> ('d proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof) \<Rightarrow> 'd expl \<Rightarrow> 'd expl \<Rightarrow> 'd expl" where
-  "apply_pdt vs f (Leaf pt1) (Leaf pt2) = Leaf (f pt1 pt2)"
-| "apply_pdt vs f (Leaf pt1) (Node x part2) = Node x (map_part (map_pdt (f pt1)) part2)"
-| "apply_pdt vs f (Node x part1) (Leaf pt2) = Node x (map_part (map_pdt (\<lambda>pt1. f pt1 pt2)) part1)"
-| "apply_pdt (v # vs) f (Node x part1) (Node y part2) =
-    (if x = v \<and> y = v then
-      Node x (merge_part (apply_pdt vs f) part1 part2)
-    else if x = v then
-      Node x (map_part (\<lambda>pdt1. apply_pdt vs f pdt1 (Node y part2)) part1)
-    else if y = v then
-      Node y (map_part (\<lambda>pdt2. apply_pdt vs f (Node x part1) pdt2) part2)
+  "apply_pdt vars f (Leaf pt1) (Leaf pt2) = Leaf (f pt1 pt2)"
+| "apply_pdt vars f (Leaf pt1) (Node x part2) = Node x (map_part (map_pdt (f pt1)) part2)"
+| "apply_pdt vars f (Node x part1) (Leaf pt2) = Node x (map_part (map_pdt (\<lambda>pt1. f pt1 pt2)) part1)"
+| "apply_pdt (z # vars) f (Node x part1) (Node y part2) =
+    (if x = z \<and> y = z then
+      Node z (merge_part (apply_pdt vars f) part1 part2)
+    else if x = z then
+      Node x (map_part (\<lambda>expl1. apply_pdt vars f expl1 (Node y part2)) part1)
+    else if y = z then
+      Node y (map_part (\<lambda>expl2. apply_pdt vars f (Node x part1) expl2) part2)
     else
-      apply_pdt vs f (Node x part1) (Node y part2))"
+      apply_pdt vars f (Node x part1) (Node y part2))"
 | "apply_pdt [] _ (Node _ _) (Node _ _) = undefined"
 
 inductive sat_vorder :: "MFOTL.name list \<Rightarrow> 'd expl \<Rightarrow> bool" where
-  "sat_vorder vs (Leaf _)"
-| "\<forall>expl \<in> Vals part1. sat_vorder vs expl \<Longrightarrow> sat_vorder (x # vs) (Node x part1)"
-| "sat_vorder vs (Node x part1) \<Longrightarrow> x \<noteq> v \<Longrightarrow> sat_vorder (v # vs) (Node x part1)"
+  "sat_vorder vars (Leaf _)"
+| "\<forall>expl \<in> Vals part1. sat_vorder vars expl \<Longrightarrow> sat_vorder (x # vars) (Node x part1)"
+| "sat_vorder vars (Node x part1) \<Longrightarrow> x \<noteq> z \<Longrightarrow> sat_vorder (z # vars) (Node x part1)"
 
 
 end
