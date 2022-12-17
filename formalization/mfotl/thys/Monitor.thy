@@ -38,8 +38,8 @@ function (sequential) s_at :: "'d sproof \<Rightarrow> nat" and
 | "s_at (SOrL sp1) = s_at sp1"
 | "s_at (SOrR sp2) = s_at sp2"
 | "s_at (SAnd sp1 _) = s_at sp1"
-| "s_at (SImplL vp1) = v_at vp1"
-| "s_at (SImplR sp2) = s_at sp2"
+| "s_at (SImpL vp1) = v_at vp1"
+| "s_at (SImpR sp2) = s_at sp2"
 | "s_at (SIffSS sp1 _) = s_at sp1"
 | "s_at (SIffVV vp1 _) = v_at vp1"
 | "s_at (SExists sp) = s_at sp"
@@ -60,7 +60,7 @@ function (sequential) s_at :: "'d sproof \<Rightarrow> nat" and
 | "v_at (VOr vp1 _) = v_at vp1"
 | "v_at (VAndL vp1) = v_at vp1"
 | "v_at (VAndR vp2) = v_at vp2"
-| "v_at (VImpl sp1 _) = s_at sp1"
+| "v_at (VImp sp1 _) = s_at sp1"
 | "v_at (VIffSV sp1 _) = s_at sp1"
 | "v_at (VIffVS vp1 _) = v_at vp1"
 | "v_at (VExists part) = v_at (part_hd part)"
@@ -107,8 +107,8 @@ fun s_check :: "'a MFOTL.envset \<Rightarrow> 'a MFOTL.formula \<Rightarrow> 'a 
   | (MFOTL.Or \<phi> \<psi>, SOrL sp1) \<Rightarrow> s_check vs \<phi> sp1
   | (MFOTL.Or \<phi> \<psi>, SOrR sp2) \<Rightarrow> s_check vs \<psi> sp2
   | (MFOTL.And \<phi> \<psi>, SAnd sp1 sp2) \<Rightarrow> s_check vs \<phi> sp1 \<and> s_check vs \<psi> sp2 \<and> s_at sp1 = s_at sp2
-  | (MFOTL.Imp \<phi> \<psi>, SImplL vp1) \<Rightarrow> v_check vs \<phi> vp1
-  | (MFOTL.Imp \<phi> \<psi>, SImplR sp2) \<Rightarrow> s_check vs \<psi> sp2
+  | (MFOTL.Imp \<phi> \<psi>, SImpL vp1) \<Rightarrow> v_check vs \<phi> vp1
+  | (MFOTL.Imp \<phi> \<psi>, SImpR sp2) \<Rightarrow> s_check vs \<psi> sp2
   | (MFOTL.Iff \<phi> \<psi>, SIffSS sp1 sp2) \<Rightarrow> s_check vs \<phi> sp1 \<and> s_check vs \<psi> sp2 \<and> s_at sp1 = s_at sp2
   | (MFOTL.Iff \<phi> \<psi>, SIffVV vp1 vp2) \<Rightarrow> v_check vs \<phi> vp1 \<and> v_check vs \<psi> vp2 \<and> v_at vp1 = v_at vp2
   | (MFOTL.Exists x \<phi>, SExists part) \<Rightarrow> undefined
