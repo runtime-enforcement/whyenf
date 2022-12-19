@@ -35,6 +35,10 @@ qualified definition eval_trms :: "'a env \<Rightarrow> 'a trm list \<Rightarrow
 lemma eval_trm_cong: "\<forall>x\<in>fv_trm t. v x = v' x \<Longrightarrow> eval_trm v t = eval_trm v' t"
   by (cases t) simp_all
 
+qualified primrec eval_trm_set :: "'a envset \<Rightarrow> 'a trm \<Rightarrow> 'a set" where
+  "eval_trm_set vs (MFOTL.Var x) = vs x"
+| "eval_trm_set vs (MFOTL.Const x) = {x}"
+
 qualified datatype 'a formula = 
   TT
 | FF
