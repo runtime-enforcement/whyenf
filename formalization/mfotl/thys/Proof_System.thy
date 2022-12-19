@@ -170,6 +170,55 @@ lift_bnf (no_warn_wits, no_warn_transfer) (dead 'd, 'a) part
   unfolding part_list_set_eq[symmetric]
   by (auto simp: image_iff)
 
+subsection \<open>\<^const>\<open>size\<close> setup\<close>
+
+lift_definition subs :: "('d, 'a) part \<Rightarrow> 'd set list" is "map fst" .
+
+lift_definition Subs :: "('d, 'a) part \<Rightarrow> 'd set set" is "set o map fst" .
+
+lift_definition vals :: "('d, 'a) part \<Rightarrow> 'a list" is "map snd" .
+
+lift_definition Vals :: "('d, 'a) part \<Rightarrow> 'a set" is "set o map snd" .
+
+lift_definition size_part :: "('d \<Rightarrow> nat) \<Rightarrow> ('a \<Rightarrow> nat) \<Rightarrow> ('d, 'a) part \<Rightarrow> nat" is "\<lambda>f g. size_list (\<lambda>(x, y). sum f x + g y)" .
+
+instantiation part :: (type, type) size begin
+
+definition size_part where
+size_part_overloaded_def: "size_part = Proof_System.size_part (\<lambda>_. 0) (\<lambda>_. 0)"
+
+instance ..
+
+end
+
+lemma size_part_overloaded_simps[simp]: "size x = size (vals x)"
+  unfolding size_part_overloaded_def
+  by transfer (auto simp: size_list_conv_sum_list)
+
+lemma part_size_o_map: "inj h \<Longrightarrow> size_part f g \<circ> map_part h = size_part f (g \<circ> h)"
+  by (rule ext, transfer)
+    (auto simp: fun_eq_iff map_prod_def o_def split_beta case_prod_beta[abs_def])
+
+setup \<open>
+BNF_LFP_Size.register_size_global \<^type_name>\<open>part\<close> \<^const_name>\<open>size_part\<close>
+  @{thm size_part_overloaded_def} @{thms size_part_def size_part_overloaded_simps}
+  @{thms part_size_o_map}
+\<close>
+
+lemma is_measure_size_part[measure_function]: "is_measure f \<Longrightarrow> is_measure g \<Longrightarrow> is_measure (size_part f g)"
+  by (rule is_measure_trivial)
+
+lemma size_part_estimation[termination_simp]: "x \<in> Vals xs \<Longrightarrow> y < g x \<Longrightarrow> y < size_part f g xs"
+  by transfer (auto simp: termination_simp)
+
+lemma size_part_estimation'[termination_simp]: "x \<in> Vals xs \<Longrightarrow> y \<le> g x \<Longrightarrow> y \<le> size_part f g xs"
+  by transfer (auto simp: termination_simp)
+
+lemma size_part_pointwise[termination_simp]: "(\<And>x. x \<in> Vals xs \<Longrightarrow> f x \<le> g x) \<Longrightarrow> size_part h f xs \<le> size_part h g xs"
+  by transfer (force simp: image_iff intro!: size_list_pointwise)
+
+subsection \<open>Proof Objects\<close>
+
 datatype (dead 'd) sproof = STT nat 
   | SPred nat MFOTL.name "'d MFOTL.trm list" 
   | SEq nat "'d MFOTL.trm" "'d MFOTL.trm"
@@ -221,41 +270,6 @@ datatype (dead 'd) sproof = STT nat
   | VSinceInf nat nat "'d vproof list" 
   | VUntil nat "'d vproof list" "'d vproof"
   | VUntilInf nat nat "'d vproof list"
-
-subsection \<open>\<^const>\<open>size\<close> setup\<close>
-
-lift_definition subs :: "('d, 'a) part \<Rightarrow> 'd set list" is "map fst" .
-
-lift_definition Subs :: "('d, 'a) part \<Rightarrow> 'd set set" is "set o map fst" .
-
-lift_definition vals :: "('d, 'a) part \<Rightarrow> 'a list" is "map snd" .
-
-lift_definition Vals :: "('d, 'a) part \<Rightarrow> 'a set" is "set o map snd" .
-
-lift_definition size_part :: "('d \<Rightarrow> nat) \<Rightarrow> ('a \<Rightarrow> nat) \<Rightarrow> ('d, 'a) part \<Rightarrow> nat" is "\<lambda>f g. size_list (\<lambda>(x, y). sum f x + g y)" .
-
-instantiation part :: (type, type) size begin
-
-definition size_part where
-size_part_overloaded_def: "size_part = Proof_System.size_part (\<lambda>_. 0) (\<lambda>_. 0)"
-
-instance ..
-
-end
-
-lemma size_part_overloaded_simps[simp]: "size x = size (vals x)"
-  unfolding size_part_overloaded_def
-  by transfer (auto simp: size_list_conv_sum_list)
-
-lemma part_size_o_map: "inj h \<Longrightarrow> size_part f g \<circ> map_part h = size_part f (g \<circ> h)"
-  by (rule ext, transfer)
-    (auto simp: fun_eq_iff map_prod_def o_def split_beta case_prod_beta[abs_def])
-
-setup \<open>
-BNF_LFP_Size.register_size_global \<^type_name>\<open>part\<close> \<^const_name>\<open>size_part\<close>
-  @{thm size_part_overloaded_def} @{thms size_part_def size_part_overloaded_simps}
-  @{thms part_size_o_map}
-\<close>
                                                                  
 subsection \<open>Partitioned Decision Trees\<close>
 
@@ -265,24 +279,6 @@ datatype ('d, 'pt) pdt = Leaf 'pt | Node MFOTL.name "('d, ('d, 'pt) pdt) part"
 type_synonym 'd "proof" = "'d sproof + 'd vproof"
 
 type_synonym 'd expl = "('d, 'd proof) pdt"
-
-lemma is_measure_size_part[measure_function]: "is_measure f \<Longrightarrow> is_measure g \<Longrightarrow> is_measure (size_part f g)"
-  by (rule is_measure_trivial)
-
-lemma size_part_estimation[termination_simp]: "x \<in> Vals xs \<Longrightarrow> y < g x \<Longrightarrow> y < size_part f g xs"
-  by transfer (auto simp: termination_simp)
-
-lemma size_part_estimation'[termination_simp]: "x \<in> Vals xs \<Longrightarrow> y \<le> g x \<Longrightarrow> y \<le> size_part f g xs"
-  by transfer (auto simp: termination_simp)
-
-lemma size_part_pointwise[termination_simp]: "(\<And>x. x \<in> Vals xs \<Longrightarrow> f x \<le> g x) \<Longrightarrow> size_part h f xs \<le> size_part h g xs"
-  by transfer (force simp: image_iff intro!: size_list_pointwise)
-
-inductive is_partition :: "('d, 'a) part \<Rightarrow> bool" where
-  "partition_on UNIV (Subs part) \<Longrightarrow> distinct (subs part) \<Longrightarrow> is_partition part"
-
-lemma is_partition_inv: "is_partition part \<Longrightarrow> partition_on UNIV (Subs part) \<and> distinct (subs part)"
-  using is_partition.cases by auto
 
 fun vars_expl :: "'d expl \<Rightarrow> MFOTL.name set" where
   "vars_expl (Node x part) = {x} \<union> (\<Union>pdt \<in> Vals part. vars_expl pdt)"
