@@ -39,6 +39,9 @@ qualified primrec eval_trm_set :: "'a envset \<Rightarrow> 'a trm \<Rightarrow> 
   "eval_trm_set vs (MFOTL.Var x) = vs x"
 | "eval_trm_set vs (MFOTL.Const x) = {x}"
 
+qualified definition eval_trms_set :: "'a envset \<Rightarrow> 'a trm list \<Rightarrow> 'a set list" where
+  "eval_trms_set vs ts = map (eval_trm_set vs) ts"
+
 qualified datatype 'a formula = 
   TT
 | FF
