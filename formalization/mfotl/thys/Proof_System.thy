@@ -4,6 +4,8 @@ theory Proof_System
 begin
 (*>*)
 
+context begin
+
 section \<open>Proof System\<close>
 
 subsection \<open>Time-stamp-time-point Conversion\<close>
@@ -128,6 +130,11 @@ next
   case (Until \<phi>1 x2 \<phi>2)
   then show ?case sorry
 qed (auto intro: SAT_VIO.intros)
+
+lemma SAT_or_VIO: "SAT \<sigma> v i \<phi> \<or> VIO \<sigma> v i \<phi>"
+  using completeness by auto
+
+end
 
 subsection \<open>Proof Objects\<close>
 
