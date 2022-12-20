@@ -187,6 +187,8 @@ lift_definition vals :: "('d, 'a) part \<Rightarrow> 'a list" is "map snd" .
 
 lift_definition Vals :: "('d, 'a) part \<Rightarrow> 'a set" is "set o map snd" .
 
+lift_definition SubsVals :: "('d, 'a) part \<Rightarrow> ('d set \<times> 'a) set" is "set o map (\<lambda>x. x)" .
+
 lift_definition size_part :: "('d \<Rightarrow> nat) \<Rightarrow> ('a \<Rightarrow> nat) \<Rightarrow> ('d, 'a) part \<Rightarrow> nat" is "\<lambda>f g. size_list (\<lambda>(x, y). sum f x + g y)" .
 
 instantiation part :: (type, type) size begin

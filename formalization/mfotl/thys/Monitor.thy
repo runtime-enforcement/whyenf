@@ -94,8 +94,8 @@ fun s_check :: "'d MFOTL.envset \<Rightarrow> 'd MFOTL.formula \<Rightarrow> 'd 
   | (MFOTL.Imp \<phi> \<psi>, SImpR sp2) \<Rightarrow> s_check vs \<psi> sp2
   | (MFOTL.Iff \<phi> \<psi>, SIffSS sp1 sp2) \<Rightarrow> s_check vs \<phi> sp1 \<and> s_check vs \<psi> sp2 \<and> s_at sp1 = s_at sp2
   | (MFOTL.Iff \<phi> \<psi>, SIffVV vp1 vp2) \<Rightarrow> v_check vs \<phi> vp1 \<and> v_check vs \<psi> vp2 \<and> v_at vp1 = v_at vp2
-  | (MFOTL.Exists x \<phi>, SExists sp) \<Rightarrow> undefined
-  | (MFOTL.Forall x \<phi>, SForall sp_part) \<Rightarrow> \<forall>sp \<in> Vals sp_part. s_check undefined \<phi> sp
+  | (MFOTL.Exists x \<phi>, SExists sp) \<Rightarrow> \<exists>z. s_check (vs (x := z)) \<phi> sp 
+  | (MFOTL.Forall x \<phi>, SForall sp_part) \<Rightarrow> \<forall>(sub, sp) \<in> SubsVals sp_part. s_check (vs (x := sub)) \<phi> sp
   | (MFOTL.Prev \<I> \<phi>, SPrev sp) \<Rightarrow>
     (let j = s_at sp; i = s_at (SPrev sp) in 
     i = j+1 \<and> mem (\<Delta> \<sigma> i) \<I> \<and> s_check vs \<phi> sp)
