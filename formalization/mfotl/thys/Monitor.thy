@@ -236,8 +236,8 @@ definition proofApp :: "('d proof) \<Rightarrow> ('d proof) \<Rightarrow> ('d pr
  | (Inr (VUntil i vp2s vp1), Inr q) \<Rightarrow> Inr (VUntil (i-1) (q # vp2s) vp1)
  | (Inr (VUntilInf i hi vp2s), Inr q) \<Rightarrow> Inr (VUntilInf (i-1) hi (q # vp2s)))"
 
-definition proofIncr :: "('d proof) \<Rightarrow> ('d proof)" where
-  "proofIncr p = (case p of
+definition proof_incr :: "('d proof) \<Rightarrow> ('d proof)" where
+  "proof_incr p = (case p of
    Inl (SOnce i sp) \<Rightarrow> Inl (SOnce (i+1) sp)
  | Inl (SEventually i sp) \<Rightarrow> Inl (SEventually (i-1) sp)
  | Inl (SHistorically i li sps) \<Rightarrow> Inl (SHistorically (i+1) li sps)
@@ -254,29 +254,29 @@ definition proofIncr :: "('d proof) \<Rightarrow> ('d proof)" where
 (* "min_list_wrt r xs = hd [x \<leftarrow> xs. \<forall>y \<in> set xs. r x y]" *)
 consts min_list_wrt :: "('d proof \<Rightarrow> 'd proof \<Rightarrow> bool) \<Rightarrow> 'd expl list \<Rightarrow> 'd expl"
 
-definition doOr :: "('d proof) \<Rightarrow> ('d proof) \<Rightarrow> ('d proof) list" where
-  "doOr p1 p2 = (case (p1, p2) of
+definition do_or :: "('d proof) \<Rightarrow> ('d proof) \<Rightarrow> ('d proof) list" where
+  "do_or p1 p2 = (case (p1, p2) of
   (Inl sp1, Inl sp2) \<Rightarrow> [Inl (SOrL sp1), Inl (SOrR sp2)]
 | (Inl sp1, Inr _  ) \<Rightarrow> [Inl (SOrL sp1)]
 | (Inr _  , Inl sp2) \<Rightarrow> [Inl (SOrR sp2)]
 | (Inr vp1, Inr vp2) \<Rightarrow> [Inr (VOr vp1 vp2)])"
 
-definition doAnd :: "('d proof) \<Rightarrow> ('d proof) \<Rightarrow> ('d proof) list" where
-  "doAnd p1 p2 = (case (p1, p2) of
+definition do_and :: "('d proof) \<Rightarrow> ('d proof) \<Rightarrow> ('d proof) list" where
+  "do_and p1 p2 = (case (p1, p2) of
   (Inl sp1, Inl sp2) \<Rightarrow> [Inl (SAnd sp1 sp2)]
 | (Inl _  , Inr vp2) \<Rightarrow> [Inr (VAndR vp2)]
 | (Inr vp1, Inl _  ) \<Rightarrow> [Inr (VAndL vp1)]
 | (Inr vp1, Inr vp2) \<Rightarrow> [Inr (VAndL vp1), Inr (VAndR vp2)])"
 
-definition doImp :: "('d proof) \<Rightarrow> ('d proof) \<Rightarrow> ('d proof) list" where
-  "doImp p1 p2 = (case (p1, p2) of
+definition do_imp :: "('d proof) \<Rightarrow> ('d proof) \<Rightarrow> ('d proof) list" where
+  "do_imp p1 p2 = (case (p1, p2) of
   (Inl _  , Inl sp2) \<Rightarrow> [Inl (SImpR sp2)]
 | (Inl sp1, Inr vp2) \<Rightarrow> [Inr (VImp sp1 vp2)]
 | (Inr vp1, Inl sp2) \<Rightarrow> [Inl (SImpL vp1), Inl (SImpR sp2)]
 | (Inr vp1, Inr _  ) \<Rightarrow> [Inl (SImpL vp1)])"
 
-definition doIff :: "('d proof) \<Rightarrow> ('d proof) \<Rightarrow> ('d proof) list" where
-  "doIff p1 p2 = (case (p1, p2) of
+definition do_iff :: "('d proof) \<Rightarrow> ('d proof) \<Rightarrow> ('d proof) list" where
+  "do_iff p1 p2 = (case (p1, p2) of
   (Inl sp1, Inl sp2) \<Rightarrow> [Inl (SIffSS sp1 sp2)]
 | (Inl sp1, Inr vp2) \<Rightarrow> [Inr (VIffSV sp1 vp2)]
 | (Inr vp1, Inl sp2) \<Rightarrow> [Inr (VIffVS vp1 sp2)]
@@ -287,19 +287,19 @@ locale alg =
   wqo :: "('d proof) \<Rightarrow> ('d proof) \<Rightarrow> bool"
 begin
 
-function (sequential) Cand :: "MFOTL.name list \<Rightarrow> 'd MFOTL.envset \<Rightarrow> nat \<Rightarrow> 'd MFOTL.formula \<Rightarrow> ('d expl) list" and
-  Opt :: "MFOTL.name list \<Rightarrow> 'd MFOTL.envset \<Rightarrow> nat \<Rightarrow> 'd MFOTL.formula \<Rightarrow> 'd expl" where
-  "Cand vars vs i MFOTL.TT = [Leaf (Inl (STT i))]"
-| "Cand vars vs i MFOTL.FF = [Leaf (Inr (VFF i))]"
-| "Cand vars vs i (MFOTL.Pred r ts) = 
+function (sequential) cand :: "MFOTL.name list \<Rightarrow> 'd MFOTL.envset \<Rightarrow> nat \<Rightarrow> 'd MFOTL.formula \<Rightarrow> ('d expl) list" and
+  opt :: "MFOTL.name list \<Rightarrow> 'd MFOTL.envset \<Rightarrow> nat \<Rightarrow> 'd MFOTL.formula \<Rightarrow> 'd expl" where
+  "cand vars vs i MFOTL.TT = [Leaf (Inl (STT i))]"
+| "cand vars vs i MFOTL.FF = [Leaf (Inr (VFF i))]"
+| "cand vars vs i (MFOTL.Pred r ts) = 
   (case ({r} \<times> listset (MFOTL.eval_trms_set vs ts) \<subseteq> \<Gamma> \<sigma> i) of
     True \<Rightarrow> [Leaf (Inl (SPred i r ts))] 
   | False \<Rightarrow> [Leaf (Inr (VPred i r ts))])"
-| "Cand vars vs i (MFOTL.Or \<phi> \<psi>) = apply_pdt vars doOr (Opt vars vs i \<phi>) (Opt vars vs i \<psi>)"
-| "Cand vars vs i (MFOTL.And \<phi> \<psi>) = apply_pdt vars doAnd (Opt vars vs i \<phi>) (Opt vars vs i \<psi>)"
-| "Cand vars vs i (MFOTL.Imp \<phi> \<psi>) = apply_pdt vars doImp (Opt vars vs i \<phi>) (Opt vars vs i \<psi>)"
-| "Cand vars vs i (MFOTL.Iff \<phi> \<psi>) = apply_pdt vars doIff (Opt vars vs i \<phi>) (Opt vars vs i \<psi>)"
-| "Opt vars vs i \<phi> = min_list_wrt wqo (Cand vars vs i \<phi>)"
+| "cand vars vs i (MFOTL.Or \<phi> \<psi>) = apply_pdt vars do_or (opt vars vs i \<phi>) (opt vars vs i \<psi>)"
+| "cand vars vs i (MFOTL.And \<phi> \<psi>) = apply_pdt vars do_and (opt vars vs i \<phi>) (opt vars vs i \<psi>)"
+| "cand vars vs i (MFOTL.Imp \<phi> \<psi>) = apply_pdt vars do_imp (opt vars vs i \<phi>) (opt vars vs i \<psi>)"
+| "cand vars vs i (MFOTL.Iff \<phi> \<psi>) = apply_pdt vars do_iff (opt vars vs i \<phi>) (opt vars vs i \<psi>)"
+| "opt vars vs i \<phi> = min_list_wrt wqo (Cand vars vs i \<phi>)"
   by pat_completeness auto
 
 end
