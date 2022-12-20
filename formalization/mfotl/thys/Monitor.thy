@@ -209,8 +209,8 @@ simps_of_case s_check_simps[simp, code]: s_check.simps[unfolded prod.case] (spli
 simps_of_case v_check_simps[simp, code]: v_check.simps[unfolded prod.case] (splits: MFOTL.formula.split vproof.split)
 
 lemma check_soundness:
-  "s_check vs \<phi> sp \<Longrightarrow> SAT \<sigma> v (s_at sp) \<phi>"
-  "v_check vs \<phi> vp \<Longrightarrow> VIO \<sigma> v (v_at vp) \<phi>"
+  "s_check vs \<phi> sp \<Longrightarrow> (\<And>x. x \<in> MFOTL.fv \<phi> \<Longrightarrow> v x \<in> vs x) \<Longrightarrow> SAT \<sigma> v (s_at sp) \<phi>"
+  "v_check vs \<phi> vp \<Longrightarrow> (\<And>x. x \<in> MFOTL.fv \<phi> \<Longrightarrow> v x \<in> vs x) \<Longrightarrow> VIO \<sigma> v (v_at vp) \<phi>"
   oops
 
 lemma check_completeness:
@@ -252,7 +252,7 @@ definition proof_incr :: "('d proof) \<Rightarrow> ('d proof)" where
  | Inr (VUntilInf i hi vp2s) \<Rightarrow> Inr (VUntilInf (i-1) hi vp2s))"
 
 (* "min_list_wrt r xs = hd [x \<leftarrow> xs. \<forall>y \<in> set xs. r x y]" *)
-consts min_list_wrt :: "('d proof \<Rightarrow> 'd proof \<Rightarrow> bool) \<Rightarrow> 'd expl list \<Rightarrow> 'd expl"
+consts min_list_wrt :: "('d proof \<Rightarrow> 'd proof \<Rightarrow> bool) \<Rightarrow> 'd proof list \<Rightarrow> 'd proof"
 
 definition do_or :: "('d proof) \<Rightarrow> ('d proof) \<Rightarrow> ('d proof) list" where
   "do_or p1 p2 = (case (p1, p2) of
@@ -283,23 +283,40 @@ definition do_iff :: "('d proof) \<Rightarrow> ('d proof) \<Rightarrow> ('d proo
 | (Inr vp1, Inr vp2) \<Rightarrow> [Inl (SIffVV vp1 vp2)])"
 
 locale alg = 
-  fixes \<sigma> :: "'d MFOTL.trace" and
+  fixes \<sigma> :: "'d :: linorder MFOTL.trace" and
   wqo :: "('d proof) \<Rightarrow> ('d proof) \<Rightarrow> bool"
 begin
 
-function (sequential) cand :: "MFOTL.name list \<Rightarrow> 'd MFOTL.envset \<Rightarrow> nat \<Rightarrow> 'd MFOTL.formula \<Rightarrow> ('d expl) list" and
-  opt :: "MFOTL.name list \<Rightarrow> 'd MFOTL.envset \<Rightarrow> nat \<Rightarrow> 'd MFOTL.formula \<Rightarrow> 'd expl" where
-  "cand vars vs i MFOTL.TT = [Leaf (Inl (STT i))]"
-| "cand vars vs i MFOTL.FF = [Leaf (Inr (VFF i))]"
-| "cand vars vs i (MFOTL.Pred r ts) = 
-  (case ({r} \<times> listset (MFOTL.eval_trms_set vs ts) \<subseteq> \<Gamma> \<sigma> i) of
-    True \<Rightarrow> [Leaf (Inl (SPred i r ts))] 
-  | False \<Rightarrow> [Leaf (Inr (VPred i r ts))])"
-| "cand vars vs i (MFOTL.Or \<phi> \<psi>) = apply_pdt vars do_or (opt vars vs i \<phi>) (opt vars vs i \<psi>)"
-| "cand vars vs i (MFOTL.And \<phi> \<psi>) = apply_pdt vars do_and (opt vars vs i \<phi>) (opt vars vs i \<psi>)"
-| "cand vars vs i (MFOTL.Imp \<phi> \<psi>) = apply_pdt vars do_imp (opt vars vs i \<phi>) (opt vars vs i \<psi>)"
-| "cand vars vs i (MFOTL.Iff \<phi> \<psi>) = apply_pdt vars do_iff (opt vars vs i \<phi>) (opt vars vs i \<psi>)"
-| "opt vars vs i \<phi> = min_list_wrt wqo (Cand vars vs i \<phi>)"
+fun match :: "'d MFOTL.trm list \<Rightarrow> 'd list \<Rightarrow> (MFOTL.name \<rightharpoonup> 'd) option" where
+  "match [] [] = Some Map.empty"
+| "match (MFOTL.Const x # ts) (y # ys) = (if x = y then match ts ys else None)"
+| "match (MFOTL.Var x # ts) (y # ys) = (case match ts ys of
+      None \<Rightarrow> None
+    | Some f \<Rightarrow> (case f x of
+        None \<Rightarrow> Some (f(x \<mapsto> y))
+      | Some z \<Rightarrow> if y = z then Some f else None))"
+| "match _ _ = None"
+
+lift_definition tabulate :: "'d list \<Rightarrow> ('d \<Rightarrow> 'v) \<Rightarrow> 'v \<Rightarrow> ('d, 'v) part" is
+  "\<lambda>ds f z. (- set ds, z) # map (\<lambda>d. ({d}, f d)) ds"
+  sorry
+
+fun pdt_of :: "_ \<Rightarrow> _  \<Rightarrow> _  \<Rightarrow> MFOTL.name list \<Rightarrow> (MFOTL.name \<rightharpoonup> 'd) set \<Rightarrow> 'd expl" where
+  "pdt_of i r ts [] V = (if V = {} then Leaf (Inr (VPred i r ts)) else Leaf (Inl (SPred i r ts)))"
+| "pdt_of i r ts (x # vars) V =
+     (let ds = sorted_list_of_set (Option.these {v x | v. v \<in> V});
+          part = tabulate ds (\<lambda>d. pdt_of i r ts vars ({v \<in> V. v x = Some d})) (pdt_of i r ts vars {})
+     in Node x part)"
+
+function (sequential) opt :: "MFOTL.name list \<Rightarrow> nat \<Rightarrow> 'd MFOTL.formula \<Rightarrow> 'd expl" where
+  "opt vars i MFOTL.TT = Leaf (Inl (STT i))"
+| "opt vars i MFOTL.FF = Leaf (Inr (VFF i))"
+| "opt vars i (MFOTL.Pred r ts) = 
+  (pdt_of i r ts vars (Option.these (match ts ` {d. (r, d) \<in> \<Gamma> \<sigma> i})))"
+| "opt vars i (MFOTL.Or \<phi> \<psi>) = apply_pdt vars (\<lambda>l r. min_list_wrt wqo (do_or l r)) (opt vars i \<phi>) (opt vars i \<psi>)"
+(*| "opt vars vs i (MFOTL.And \<phi> \<psi>) = apply_pdt vars do_and (opt vars vs i \<phi>) (opt vars vs i \<psi>)"
+| "opt vars vs i (MFOTL.Imp \<phi> \<psi>) = apply_pdt vars do_imp (opt vars vs i \<phi>) (opt vars vs i \<psi>)"
+| "opt vars vs i (MFOTL.Iff \<phi> \<psi>) = apply_pdt vars do_iff (opt vars vs i \<phi>) (opt vars vs i \<psi>)"*)
   by pat_completeness auto
 
 end
