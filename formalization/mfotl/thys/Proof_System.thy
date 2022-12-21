@@ -239,7 +239,7 @@ datatype (dead 'd) sproof = STT nat
   | SImpR "'d sproof"
   | SIffSS "'d sproof" "'d sproof" 
   | SIffVV "'d vproof" "'d vproof" 
-  | SExists "'d sproof"
+  | SExists 'd "'d sproof"
   | SForall "('d, 'd sproof) part" 
   | SPrev "'d sproof"
   | SNext "'d sproof"
@@ -261,7 +261,7 @@ datatype (dead 'd) sproof = STT nat
   | VIffSV "'d sproof" "'d vproof" 
   | VIffVS "'d vproof" "'d sproof" 
   | VExists "('d, 'd vproof) part" 
-  | VForall "'d vproof"
+  | VForall 'd "'d vproof"
   | VPrev "'d vproof"
   | VPrevZ
   | VPrevOutL nat 
