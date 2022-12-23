@@ -223,7 +223,7 @@ end
 
 section \<open>Algorithm\<close>
 
-definition proofApp :: "('d proof) \<Rightarrow> ('d proof) \<Rightarrow> ('d proof)" (infixl "\<oplus>" 65) where
+definition proof_app :: "'d proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof" (infixl "\<oplus>" 65) where
   "p \<oplus> q = (case (p, q) of
    (Inl (SHistorically i li sps), Inl q) \<Rightarrow> Inl (SHistorically (i+1) li (sps @ [q]))
  | (Inl (SAlways i hi sps), Inl q) \<Rightarrow> Inl (SAlways (i-1) hi (q # sps))
@@ -236,7 +236,7 @@ definition proofApp :: "('d proof) \<Rightarrow> ('d proof) \<Rightarrow> ('d pr
  | (Inr (VUntil i vp2s vp1), Inr q) \<Rightarrow> Inr (VUntil (i-1) (q # vp2s) vp1)
  | (Inr (VUntilInf i hi vp2s), Inr q) \<Rightarrow> Inr (VUntilInf (i-1) hi (q # vp2s)))"
 
-definition proof_incr :: "('d proof) \<Rightarrow> ('d proof)" where
+definition proof_incr :: "'d proof \<Rightarrow> 'd proof" where
   "proof_incr p = (case p of
    Inl (SOnce i sp) \<Rightarrow> Inl (SOnce (i+1) sp)
  | Inl (SEventually i sp) \<Rightarrow> Inl (SEventually (i-1) sp)
@@ -251,40 +251,154 @@ definition proof_incr :: "('d proof) \<Rightarrow> ('d proof)" where
  | Inr (VUntil i vp2s vp1) \<Rightarrow> Inr (VUntil (i-1) vp2s vp1)
  | Inr (VUntilInf i hi vp2s) \<Rightarrow> Inr (VUntilInf (i-1) hi vp2s))"
 
-(* "min_list_wrt r xs = hd [x \<leftarrow> xs. \<forall>y \<in> set xs. r x y]" *)
-consts min_list_wrt :: "('d proof \<Rightarrow> 'd proof \<Rightarrow> bool) \<Rightarrow> 'd proof list \<Rightarrow> 'd proof"
+definition min_list_wrt :: "('d proof \<Rightarrow> 'd proof \<Rightarrow> bool) \<Rightarrow> 'd proof list \<Rightarrow> 'd proof" where
+  "min_list_wrt r xs = hd [x \<leftarrow> xs. \<forall>y \<in> set xs. r x y]"
 
-definition do_or :: "('d proof) \<Rightarrow> ('d proof) \<Rightarrow> ('d proof) list" where
+definition do_or :: "'d proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof list" where
   "do_or p1 p2 = (case (p1, p2) of
   (Inl sp1, Inl sp2) \<Rightarrow> [Inl (SOrL sp1), Inl (SOrR sp2)]
 | (Inl sp1, Inr _  ) \<Rightarrow> [Inl (SOrL sp1)]
 | (Inr _  , Inl sp2) \<Rightarrow> [Inl (SOrR sp2)]
 | (Inr vp1, Inr vp2) \<Rightarrow> [Inr (VOr vp1 vp2)])"
 
-definition do_and :: "('d proof) \<Rightarrow> ('d proof) \<Rightarrow> ('d proof) list" where
+definition do_and :: "'d proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof list" where
   "do_and p1 p2 = (case (p1, p2) of
   (Inl sp1, Inl sp2) \<Rightarrow> [Inl (SAnd sp1 sp2)]
 | (Inl _  , Inr vp2) \<Rightarrow> [Inr (VAndR vp2)]
 | (Inr vp1, Inl _  ) \<Rightarrow> [Inr (VAndL vp1)]
 | (Inr vp1, Inr vp2) \<Rightarrow> [Inr (VAndL vp1), Inr (VAndR vp2)])"
 
-definition do_imp :: "('d proof) \<Rightarrow> ('d proof) \<Rightarrow> ('d proof) list" where
+definition do_imp :: "'d proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof list" where
   "do_imp p1 p2 = (case (p1, p2) of
   (Inl _  , Inl sp2) \<Rightarrow> [Inl (SImpR sp2)]
 | (Inl sp1, Inr vp2) \<Rightarrow> [Inr (VImp sp1 vp2)]
 | (Inr vp1, Inl sp2) \<Rightarrow> [Inl (SImpL vp1), Inl (SImpR sp2)]
 | (Inr vp1, Inr _  ) \<Rightarrow> [Inl (SImpL vp1)])"
 
-definition do_iff :: "('d proof) \<Rightarrow> ('d proof) \<Rightarrow> ('d proof) list" where
+definition do_iff :: "'d proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof list" where
   "do_iff p1 p2 = (case (p1, p2) of
   (Inl sp1, Inl sp2) \<Rightarrow> [Inl (SIffSS sp1 sp2)]
 | (Inl sp1, Inr vp2) \<Rightarrow> [Inr (VIffSV sp1 vp2)]
 | (Inr vp1, Inl sp2) \<Rightarrow> [Inr (VIffVS vp1 sp2)]
 | (Inr vp1, Inr vp2) \<Rightarrow> [Inl (SIffVV vp1 vp2)])"
 
+consts do_exists :: "'d proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof list"
+
+consts do_forall :: "'d proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof list"
+
+definition do_prev :: "nat \<Rightarrow> \<I> \<Rightarrow> nat \<Rightarrow> 'd proof \<Rightarrow> 'd proof list" where
+  "do_prev i \<I> ts p = (case (p, ts < left \<I>) of
+  (Inl _ , True) \<Rightarrow> [Inr (VPrevOutL i)]
+| (Inl sp, False) \<Rightarrow> (if mem ts \<I> then [Inl (SPrev sp)] else [Inr (VPrevOutR i)])
+| (Inr vp, True) \<Rightarrow> [Inr (VPrev vp), Inr (VPrevOutL i)]
+| (Inr vp, False) \<Rightarrow> (if mem ts \<I> then [Inr (VPrev vp)] else [Inr (VPrev vp), Inr (VPrevOutR i)]))"
+
+definition do_next :: "nat \<Rightarrow> \<I> \<Rightarrow> nat \<Rightarrow> 'd proof \<Rightarrow> 'd proof list" where
+  "do_next i \<I> ts p = (case (p, ts < left \<I>) of
+  (Inl _ , True) \<Rightarrow> [Inr (VNextOutL i)]
+| (Inl sp, False) \<Rightarrow> (if mem ts \<I> then [Inl (SNext sp)] else [Inr (VNextOutR i)])
+| (Inr vp, True) \<Rightarrow> [Inr (VNext vp), Inr (VNextOutL i)]
+| (Inr vp, False) \<Rightarrow> (if mem ts \<I> then [Inr (VNext vp)] else [Inr (VNext vp), Inr (VNextOutR i)]))"
+
+definition do_once_base :: "nat \<Rightarrow> nat \<Rightarrow> 'd proof \<Rightarrow> 'd proof list" where
+  "do_once_base i a p' = (case (p', a = 0) of
+  (Inl sp', True) \<Rightarrow> [Inl (SOnce i sp')]
+| (Inr vp', True) \<Rightarrow> [Inr (VOnce i i [vp'])]
+| (_, False) \<Rightarrow> [Inr (VOnce i i [])])"
+
+definition do_once :: "nat \<Rightarrow> nat \<Rightarrow> 'd proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof list" where
+  "do_once i a p p' = (case (p, a = 0, p') of
+  (Inl sp, True,  Inr _ ) \<Rightarrow> [Inl (SOnce i sp)]
+| (Inl sp, True,  Inl (SOnce _ sp')) \<Rightarrow> [Inl (SOnce i sp'), Inl (SOnce i sp)]
+| (Inl _ , False, Inl (SOnce _ sp')) \<Rightarrow> [Inl (SOnce i sp')]
+| (Inl _ , False, Inr (VOnce _ li vps')) \<Rightarrow> [Inr (VOnce i li vps')]
+| (Inr _ , True,  Inl (SOnce _ sp')) \<Rightarrow> [Inl (SOnce i sp')]
+| (Inr vp, True,  Inr vp') \<Rightarrow> [(Inr vp') \<oplus> (Inr vp)]
+| (Inr _ , False, Inl (SOnce _ sp')) \<Rightarrow> [Inl (SOnce i sp')]
+| (Inr _ , False, Inr (VOnce _ li vps')) \<Rightarrow> [Inr (VOnce i li vps')])"
+
+definition do_eventually_base :: "nat \<Rightarrow> nat \<Rightarrow> 'd proof \<Rightarrow> 'd proof list" where
+  "do_eventually_base i a p' = (case (p', a = 0) of
+  (Inl sp', True) \<Rightarrow> [Inl (SEventually i sp')]
+| (Inr vp', True) \<Rightarrow> [Inr (VEventually i i [vp'])]
+| (_, False) \<Rightarrow> [Inr (VEventually i i [])])"
+
+definition do_eventually :: "nat \<Rightarrow> nat \<Rightarrow> 'd proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof list" where
+  "do_eventually i a p p' = (case (p, a = 0, p') of
+  (Inl sp, True,  Inr _ ) \<Rightarrow> [Inl (SEventually i sp)]
+| (Inl sp, True,  Inl (SEventually _ sp')) \<Rightarrow> [Inl (SEventually i sp'), Inl (SEventually i sp)]
+| (Inl _ , False, Inl (SEventually _ sp')) \<Rightarrow> [Inl (SEventually i sp')]
+| (Inl _ , False, Inr (VEventually _ hi vps')) \<Rightarrow> [Inr (VEventually i hi vps')]
+| (Inr _ , True,  Inl (SEventually _ sp')) \<Rightarrow> [Inl (SEventually i sp')]
+| (Inr vp, True,  Inr vp') \<Rightarrow> [(Inr vp') \<oplus> (Inr vp)]
+| (Inr _ , False, Inl (SEventually _ sp')) \<Rightarrow> [Inl (SEventually i sp')]
+| (Inr _ , False, Inr (VEventually _ hi vps')) \<Rightarrow> [Inr (VEventually i hi vps')])"
+
+definition do_historically_base :: "nat \<Rightarrow> nat \<Rightarrow> 'd proof \<Rightarrow> 'd proof list" where
+  "do_historically_base i a p' = (case (p', a = 0) of
+  (Inl sp', True) \<Rightarrow> [Inl (SHistorically i i [sp'])]
+| (Inr vp', True) \<Rightarrow> [Inr (VHistorically i vp')]
+| (_, False) \<Rightarrow> [Inl (SHistorically i i [])])"
+
+definition do_historically :: "nat \<Rightarrow> nat \<Rightarrow> 'd proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof list" where
+  "do_historically i a p p' = (case (p, a = 0, p') of
+  (Inl _ , True,  Inr (VHistorically _ vp')) \<Rightarrow> [Inr (VHistorically i vp')]
+| (Inl sp, True,  Inl sp') \<Rightarrow> [(Inl sp') \<oplus> (Inl sp)]
+| (Inl _ , False, Inl (SHistorically _ li sps')) \<Rightarrow> [Inl (SHistorically i li sps')]
+| (Inl _ , False, Inr (VHistorically _ vp')) \<Rightarrow> [Inr (VHistorically i vp')]
+| (Inr vp, True,  Inl _ ) \<Rightarrow> [Inr (VHistorically i vp)]
+| (Inr vp, True,  Inr (VHistorically _ vp')) \<Rightarrow> [Inr (VHistorically i vp), Inr (VHistorically i vp')]
+| (Inr _ , False, Inl (SHistorically _ li sps')) \<Rightarrow> [Inl (SHistorically i li sps')]
+| (Inr _ , False, Inr (VHistorically _ vp')) \<Rightarrow> [Inr (VHistorically i vp')])"
+
+definition do_always_base :: "nat \<Rightarrow> nat \<Rightarrow> 'd proof \<Rightarrow> 'd proof list" where
+  "do_always_base i a p' = (case (p', a = 0) of
+  (Inl sp', True) \<Rightarrow> [Inl (SAlways i i [sp'])]
+| (Inr vp', True) \<Rightarrow> [Inr (VAlways i vp')]
+| (_, False) \<Rightarrow> [Inl (SAlways i i [])])"
+
+definition do_always :: "nat \<Rightarrow> nat \<Rightarrow> 'd proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof list" where
+  "do_always i a p p' = (case (p, a = 0, p') of
+  (Inl _ , True,  Inr (VAlways _ vp')) \<Rightarrow> [Inr (VAlways i vp')]
+| (Inl sp, True,  Inl sp') \<Rightarrow> [(Inl sp') \<oplus> (Inl sp)]
+| (Inl _ , False, Inl (SAlways _ li sps')) \<Rightarrow> [Inl (SAlways i li sps')]
+| (Inl _ , False, Inr (VAlways _ vp')) \<Rightarrow> [Inr (VAlways i vp')]
+| (Inr vp, True,  Inl _ ) \<Rightarrow> [Inr (VAlways i vp)]
+| (Inr vp, True,  Inr (VAlways _ vp')) \<Rightarrow> [Inr (VAlways i vp), Inr (VAlways i vp')]
+| (Inr _ , False, Inl (SAlways _ li sps')) \<Rightarrow> [Inl (SAlways i li sps')]
+| (Inr _ , False, Inr (VAlways _ vp')) \<Rightarrow> [Inr (VAlways i vp')])"
+
+definition do_since_base :: "nat \<Rightarrow> nat \<Rightarrow> 'd proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof list" where
+  "do_since_base i a p1 p2 = (case (p1, p2, a = 0) of
+  ( _ , Inl sp2, True) \<Rightarrow> [Inl (SSince sp2 [])]
+| (Inl _ , _ , False) \<Rightarrow> [Inr (VSinceInf i i [])]
+| (Inl _ , Inr vp2, True) \<Rightarrow> [Inr (VSinceInf i i [vp2])]
+| (Inr vp1, _ , False) \<Rightarrow> [Inr (VSince i vp1 []), Inr (VSinceInf i i [])]
+| (Inr vp1, Inr sp2, True) \<Rightarrow> [Inr (VSince i vp1 [sp2]), Inr (VSinceInf i i [sp2])])"
+
+(* definition do_since :: "nat \<Rightarrow> nat \<Rightarrow> 'd proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof list" where
+  "do_since i a p1 p2 p' = (case (p1, p2, a = 0, p') of
+  (Inr vp1, Inr vp2, True, Inl p') \<Rightarrow> [Inr (VSince i vp1 [vp2])]
+| (Inr vp1, _ , False, Inl _ ) \<Rightarrow> [Inr (VSince i vp1 [])]
+| (Inr _ , Inl sp2, True, Inl _ ) \<Rightarrow> [Inl (SSince sp2 [])]
+| (Inl sp1, Inr _ , True, Inl sp') \<Rightarrow> [(Inl sp') \<oplus> (Inl sp1)]
+| (Inl sp1, _ , False, Inl sp') \<Rightarrow> [(Inl sp') \<oplus> (Inl sp1)]
+| (Inl sp1, Inl sp2, True, Inl sp') \<Rightarrow> [(Inl sp') \<oplus> (Inl sp1), Inl (SSince sp2 [])]
+| (Inr vp1, Inr vp2, True, Inr (VSinceInf _ _ _ )) \<Rightarrow> [Inr (VSince i vp1 [vp2]), p' \<oplus> (Inr vp2)]
+| (Inr vp1, _, False, Inr (VSinceInf _ li vp2s')) \<Rightarrow> [Inr (VSince i vp1 []), Inr (VSinceInf i li vp2s')]
+| (_ , Inl sp2, True, Inr (VSinceInf _ _ _ )) \<Rightarrow> [Inl (SSince sp2 [])]
+| (Inl _ , Inr vp2, True, Inr (VSinceInf _ _ _ )) \<Rightarrow> [p' \<oplus> (Inr vp2)]
+| (Inl _ , _ , False, Inr (VSinceInf _ li vp2s')) \<Rightarrow> [Inr (VSinceInf i li vp2s')]
+| (Inr vp1, Inr vp2, True, Inr (VSince _ q1 q2)) \<Rightarrow> [Inr (VSince i p1 [p2]), p' \<oplus> (Inr p2)]
+| (Inr p1, _, False, Inr (VSince j q1 q2)) \<Rightarrow> [Inr (VSince i p1 []), Inr (VSince i q1 q2)]
+| (_, Inl p2, True, Inr (VSince j q1 q2)) \<Rightarrow> [Inl (SSince p2 [])]
+| (Inl p1, Inr p2, True, Inr (VSince j q1 q2)) \<Rightarrow> [p' \<oplus> (Inr p2)]
+| (Inl p1, _, False, Inr (VSince j q1 q2)) \<Rightarrow> [Inr (VSince i q1 q2)])" *)
+
+
 locale alg = 
   fixes \<sigma> :: "'d :: linorder MFOTL.trace" and
-  wqo :: "('d proof) \<Rightarrow> ('d proof) \<Rightarrow> bool"
+  wqo :: "'d proof \<Rightarrow> 'd proof \<Rightarrow> bool"
 begin
 
 fun match :: "'d MFOTL.trm list \<Rightarrow> 'd list \<Rightarrow> (MFOTL.name \<rightharpoonup> 'd) option" where
@@ -301,7 +415,7 @@ lift_definition tabulate :: "'d list \<Rightarrow> ('d \<Rightarrow> 'v) \<Right
   "\<lambda>ds f z. (- set ds, z) # map (\<lambda>d. ({d}, f d)) ds"
   sorry
 
-fun pdt_of :: "_ \<Rightarrow> _  \<Rightarrow> _  \<Rightarrow> MFOTL.name list \<Rightarrow> (MFOTL.name \<rightharpoonup> 'd) set \<Rightarrow> 'd expl" where
+fun pdt_of :: "nat \<Rightarrow> MFOTL.name \<Rightarrow> 'd MFOTL.trm list  \<Rightarrow> MFOTL.name list \<Rightarrow> (MFOTL.name \<rightharpoonup> 'd) set \<Rightarrow> 'd expl" where
   "pdt_of i r ts [] V = (if V = {} then Leaf (Inr (VPred i r ts)) else Leaf (Inl (SPred i r ts)))"
 | "pdt_of i r ts (x # vars) V =
      (let ds = sorted_list_of_set (Option.these {v x | v. v \<in> V});
