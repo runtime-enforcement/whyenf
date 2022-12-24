@@ -15,7 +15,7 @@ const examples = [{
   trace: "@0 q\n@1 p\n@2 r\n@3 q\n@4 \n@5 \n@6 p\n@7 \n@8 p\n@9 \n@10 \n@11 p\n@12 p\n@13 \n@14 p\n@15 p\n@16 r\n@17 q\n@18 p\n@19 \n@20 p\n@21 \n@22 \n@23 p\n@24 p\n@25 p\n@26 \n@27 p\n@28 \n@29 r\n@30 \n@31 q\n@32 \n@33 \n@34 p\n@35 p\n@36 p\n@37 \n@38 \n@39 p\n@40 p\n@41 r\n@42 q\n@43 \n@44 p\n@45 \n@46 \n@47 p\n@48 \n@49 \n@50 p\n@51 \n@52 \n@53 r\n@54 \n@55 \n@56 q\n@57 \n@58 \n@59 \n@60 \n@61 r"
 }, {
   name: 'since-conjunction',
-  formula: "a SINCE[1,2] (b AND c)",
+  formula: "a S[1,2] (b ∧ c)",
   trace: "@1 a b c\n@3 a b\n@3 a b \n@3 \n@3 a\n@4 a"
 }, {
   name: 'respondbqr-past',
