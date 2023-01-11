@@ -131,7 +131,7 @@ fun s_check :: "'d MFOTL.envset \<Rightarrow> 'd MFOTL.formula \<Rightarrow> 'd 
     j \<ge> i \<and> mem (\<tau> \<sigma> j - \<tau> \<sigma> i) \<I>
     \<and> map s_at sp1s = [i ..< j] \<and> s_check vs \<psi> sp2
     \<and> (\<forall>sp1 \<in> set sp1s. s_check vs \<phi> sp1))
-  | (_, _) \<Rightarrow> False)"
+  | ( _ , _) \<Rightarrow> False)"
 | "v_check vs f p = (case (f, p) of
     (MFOTL.FF, VFF i) \<Rightarrow> True
   | (MFOTL.Pred r ts, VPred i pred ts') \<Rightarrow> 
@@ -202,7 +202,7 @@ fun s_check :: "'d MFOTL.envset \<Rightarrow> 'd MFOTL.formula \<Rightarrow> 'd 
     (hi = (case right \<I> of enat b \<Rightarrow> LTP_f \<sigma> i b) \<and> right \<I> \<noteq> \<infinity>
     \<and> map v_at vp2s = [ETP_f \<sigma> i \<I> ..< hi + 1]
     \<and> (\<forall>vp2 \<in> set vp2s. v_check vs \<psi> vp2))
-  | (_, _) \<Rightarrow> False)"
+  | ( _ , _) \<Rightarrow> False)"
 
 declare s_check.simps[simp del] v_check.simps[simp del]
 simps_of_case s_check_simps[simp, code]: s_check.simps[unfolded prod.case] (splits: MFOTL.formula.split sproof.split)
@@ -304,7 +304,7 @@ definition do_once_base :: "nat \<Rightarrow> nat \<Rightarrow> 'd proof \<Right
   "do_once_base i a p' = (case (p', a = 0) of
   (Inl sp', True) \<Rightarrow> [Inl (SOnce i sp')]
 | (Inr vp', True) \<Rightarrow> [Inr (VOnce i i [vp'])]
-| (_, False) \<Rightarrow> [Inr (VOnce i i [])])"
+| ( _ , False) \<Rightarrow> [Inr (VOnce i i [])])"
 
 definition do_once :: "nat \<Rightarrow> nat \<Rightarrow> 'd proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof list" where
   "do_once i a p p' = (case (p, a = 0, p') of
@@ -321,7 +321,7 @@ definition do_eventually_base :: "nat \<Rightarrow> nat \<Rightarrow> 'd proof \
   "do_eventually_base i a p' = (case (p', a = 0) of
   (Inl sp', True) \<Rightarrow> [Inl (SEventually i sp')]
 | (Inr vp', True) \<Rightarrow> [Inr (VEventually i i [vp'])]
-| (_, False) \<Rightarrow> [Inr (VEventually i i [])])"
+| ( _ , False) \<Rightarrow> [Inr (VEventually i i [])])"
 
 definition do_eventually :: "nat \<Rightarrow> nat \<Rightarrow> 'd proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof list" where
   "do_eventually i a p p' = (case (p, a = 0, p') of
@@ -338,7 +338,7 @@ definition do_historically_base :: "nat \<Rightarrow> nat \<Rightarrow> 'd proof
   "do_historically_base i a p' = (case (p', a = 0) of
   (Inl sp', True) \<Rightarrow> [Inl (SHistorically i i [sp'])]
 | (Inr vp', True) \<Rightarrow> [Inr (VHistorically i vp')]
-| (_, False) \<Rightarrow> [Inl (SHistorically i i [])])"
+| ( _ , False) \<Rightarrow> [Inl (SHistorically i i [])])"
 
 definition do_historically :: "nat \<Rightarrow> nat \<Rightarrow> 'd proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof list" where
   "do_historically i a p p' = (case (p, a = 0, p') of
@@ -355,7 +355,7 @@ definition do_always_base :: "nat \<Rightarrow> nat \<Rightarrow> 'd proof \<Rig
   "do_always_base i a p' = (case (p', a = 0) of
   (Inl sp', True) \<Rightarrow> [Inl (SAlways i i [sp'])]
 | (Inr vp', True) \<Rightarrow> [Inr (VAlways i vp')]
-| (_, False) \<Rightarrow> [Inl (SAlways i i [])])"
+| ( _ , False) \<Rightarrow> [Inl (SAlways i i [])])"
 
 definition do_always :: "nat \<Rightarrow> nat \<Rightarrow> 'd proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof list" where
   "do_always i a p p' = (case (p, a = 0, p') of
@@ -376,24 +376,24 @@ definition do_since_base :: "nat \<Rightarrow> nat \<Rightarrow> 'd proof \<Righ
 | (Inr vp1, _ , False) \<Rightarrow> [Inr (VSince i vp1 []), Inr (VSinceInf i i [])]
 | (Inr vp1, Inr sp2, True) \<Rightarrow> [Inr (VSince i vp1 [sp2]), Inr (VSinceInf i i [sp2])])"
 
-(* definition do_since :: "nat \<Rightarrow> nat \<Rightarrow> 'd proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof list" where
-  "do_since i a p1 p2 p' = (case (p1, p2, a = 0, p') of
-  (Inr vp1, Inr vp2, True, Inl p') \<Rightarrow> [Inr (VSince i vp1 [vp2])]
-| (Inr vp1, _ , False, Inl _ ) \<Rightarrow> [Inr (VSince i vp1 [])]
-| (Inr _ , Inl sp2, True, Inl _ ) \<Rightarrow> [Inl (SSince sp2 [])]
-| (Inl sp1, Inr _ , True, Inl sp') \<Rightarrow> [(Inl sp') \<oplus> (Inl sp1)]
+definition do_since :: "nat \<Rightarrow> nat \<Rightarrow> 'd proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof list" where
+  "do_since i a p1 p2 p' = (case (p1, p2, a = 0, p') of 
+  (Inl sp1, Inr _ , True, Inl sp') \<Rightarrow> [(Inl sp') \<oplus> (Inl sp1)]
 | (Inl sp1, _ , False, Inl sp') \<Rightarrow> [(Inl sp') \<oplus> (Inl sp1)]
 | (Inl sp1, Inl sp2, True, Inl sp') \<Rightarrow> [(Inl sp') \<oplus> (Inl sp1), Inl (SSince sp2 [])]
+| (Inl _ , Inr vp2, True, Inr (VSinceInf _ _ _ )) \<Rightarrow> [p' \<oplus> (Inr vp2)]
+| (Inl _ , _ , False, Inr (VSinceInf _ li vp2s')) \<Rightarrow> [Inr (VSinceInf i li vp2s')]
+| (Inl p1, Inr p2, True, Inr (VSince j q1 q2)) \<Rightarrow> [p' \<oplus> (Inr p2)]
+| (Inl p1, _ , False, Inr (VSince j q1 q2)) \<Rightarrow> [Inr (VSince i q1 q2)]
+| (Inr vp1, Inr vp2, True, Inl p') \<Rightarrow> [Inr (VSince i vp1 [vp2])]
+| (Inr vp1, _ , False, Inl _ ) \<Rightarrow> [Inr (VSince i vp1 [])]
+| (Inr _ , Inl sp2, True, Inl _ ) \<Rightarrow> [Inl (SSince sp2 [])]
 | (Inr vp1, Inr vp2, True, Inr (VSinceInf _ _ _ )) \<Rightarrow> [Inr (VSince i vp1 [vp2]), p' \<oplus> (Inr vp2)]
 | (Inr vp1, _, False, Inr (VSinceInf _ li vp2s')) \<Rightarrow> [Inr (VSince i vp1 []), Inr (VSinceInf i li vp2s')]
 | (_ , Inl sp2, True, Inr (VSinceInf _ _ _ )) \<Rightarrow> [Inl (SSince sp2 [])]
-| (Inl _ , Inr vp2, True, Inr (VSinceInf _ _ _ )) \<Rightarrow> [p' \<oplus> (Inr vp2)]
-| (Inl _ , _ , False, Inr (VSinceInf _ li vp2s')) \<Rightarrow> [Inr (VSinceInf i li vp2s')]
 | (Inr vp1, Inr vp2, True, Inr (VSince _ q1 q2)) \<Rightarrow> [Inr (VSince i p1 [p2]), p' \<oplus> (Inr p2)]
-| (Inr p1, _, False, Inr (VSince j q1 q2)) \<Rightarrow> [Inr (VSince i p1 []), Inr (VSince i q1 q2)]
-| (_, Inl p2, True, Inr (VSince j q1 q2)) \<Rightarrow> [Inl (SSince p2 [])]
-| (Inl p1, Inr p2, True, Inr (VSince j q1 q2)) \<Rightarrow> [p' \<oplus> (Inr p2)]
-| (Inl p1, _, False, Inr (VSince j q1 q2)) \<Rightarrow> [Inr (VSince i q1 q2)])" *)
+| (Inr p1, _ , False, Inr (VSince j q1 q2)) \<Rightarrow> [Inr (VSince i p1 []), Inr (VSince i q1 q2)]
+| (_ , Inl p2, True, Inr (VSince j q1 q2)) \<Rightarrow> [Inl (SSince p2 [])])"
 
 
 locale alg = 
