@@ -204,6 +204,10 @@ fun s_check :: "'d MFOTL.env \<Rightarrow> 'd MFOTL.formula \<Rightarrow> 'd spr
     \<and> (\<forall>vp2 \<in> set vp2s. v_check v \<psi> vp2))
   | ( _ , _) \<Rightarrow> False)"
 
+declare s_check.simps[simp del] v_check.simps[simp del]
+simps_of_case s_check_simps[simp, code]: s_check.simps[unfolded prod.case] (splits: MFOTL.formula.split sproof.split)
+simps_of_case v_check_simps[simp, code]: v_check.simps[unfolded prod.case] (splits: MFOTL.formula.split vproof.split)
+
 fun s_check_exec :: "'d MFOTL.envset \<Rightarrow> 'd MFOTL.formula \<Rightarrow> 'd sproof \<Rightarrow> bool"
   and v_check_exec :: "'d MFOTL.envset \<Rightarrow> 'd MFOTL.formula \<Rightarrow> 'd vproof \<Rightarrow> bool" where
   "s_check_exec vs f p = (case (f, p) of
@@ -330,10 +334,6 @@ fun s_check_exec :: "'d MFOTL.envset \<Rightarrow> 'd MFOTL.formula \<Rightarrow
     \<and> (\<forall>vp2 \<in> set vp2s. v_check_exec vs \<psi> vp2))
   | ( _ , _) \<Rightarrow> False)"
 
-declare s_check.simps[simp del] v_check.simps[simp del]
-simps_of_case s_check_simps[simp, code]: s_check.simps[unfolded prod.case] (splits: MFOTL.formula.split sproof.split)
-simps_of_case v_check_simps[simp, code]: v_check.simps[unfolded prod.case] (splits: MFOTL.formula.split vproof.split)
-
 declare s_check_exec.simps[simp del] v_check_exec.simps[simp del]
 simps_of_case s_check_exec_simps[simp, code]: s_check_exec.simps[unfolded prod.case] (splits: MFOTL.formula.split sproof.split)
 simps_of_case v_check_exec_simps[simp, code]: v_check_exec.simps[unfolded prod.case] (splits: MFOTL.formula.split vproof.split)
@@ -354,6 +354,11 @@ lemma "(\<forall>x \<in> MFOTL.fv \<phi>. v1 x = v2 x \<or>
     v1 x \<notin> AD \<sigma> \<phi> (s_at sp) \<and> v2 x \<notin> AD \<sigma> \<phi> (s_at sp)) \<longrightarrow>
   s_check v1 \<phi> sp \<longleftrightarrow> s_check v2 \<phi> sp"
   oops
+
+setup_lifting type_definition_part
+
+lift_definition trivial_part :: "'v \<Rightarrow> ('d, 'v) part" is "\<lambda>v. [(UNIV, v)]"
+  by (simp add: partition_on_space)
 
 lemma check_completeness:
   "(SAT \<sigma> v i \<phi> \<longrightarrow> MFOTL.future_bounded \<phi> \<longrightarrow> (\<exists>sp. s_at sp = i \<and> s_check v \<phi> sp)) \<and>
@@ -424,7 +429,7 @@ next
 next
   case (SExists v x i \<phi>)
   then show ?case
-    apply auto
+    apply clarsimp
     subgoal for z sp
       apply (rule exI[of _ "SExists z sp"])
       apply (auto simp: fun_upd_def)
@@ -432,7 +437,67 @@ next
     done
 next
   case (VExists v x i \<phi>)
-  then show ?case sorry
+  then show ?case
+  proof (cases \<phi>)
+    case FF
+    obtain vp where "vp = VExists (trivial_part (VFF i))"
+      sorry
+    then show ?thesis 
+      using FF VExists
+      apply auto
+      sorry
+  next
+    case (Pred x31 x32)
+    then show ?thesis sorry
+  next
+    case (Eq x41 x42)
+    then show ?thesis sorry
+  next
+    case (Neg x5)
+    then show ?thesis sorry
+  next
+    case (Or x61 x62)
+    then show ?thesis sorry
+  next
+    case (And x71 x72)
+    then show ?thesis sorry
+  next
+    case (Imp x81 x82)
+    then show ?thesis sorry
+  next
+    case (Iff x91 x92)
+    then show ?thesis sorry
+  next
+    case (Exists x101 x102)
+    then show ?thesis sorry
+  next
+    case (Forall x111 x112)
+    then show ?thesis sorry
+  next
+    case (Prev x121 x122)
+    then show ?thesis sorry
+  next
+    case (Next x131 x132)
+    then show ?thesis sorry
+  next
+    case (Once x141 x142)
+    then show ?thesis sorry
+  next
+    case (Historically x151 x152)
+    then show ?thesis sorry
+  next
+    case (Eventually x161 x162)
+    then show ?thesis sorry
+  next
+    case (Always x171 x172)
+    then show ?thesis sorry
+  next
+    case (Since x181 x182 x183)
+    then show ?thesis sorry
+  next
+    case (Until x191 x192 x193)
+    then show ?thesis sorry
+  qed simp
 next
   case (SForall v x i \<phi>)
   then show ?case sorry
