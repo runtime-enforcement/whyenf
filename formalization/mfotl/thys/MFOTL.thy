@@ -29,11 +29,16 @@ qualified primrec eval_trm :: "'a env \<Rightarrow> 'a trm \<Rightarrow> 'a" whe
   "eval_trm v (Var x) = v x"
 | "eval_trm v (Const x) = x"
 
+lemma eval_trm_fv_cong: "\<forall>x\<in>fv_trm t. v x = v' x \<Longrightarrow> eval_trm v t = eval_trm v' t"
+  by (induction t) simp_all
+
 qualified definition eval_trms :: "'a env \<Rightarrow> 'a trm list \<Rightarrow> 'a list" where
   "eval_trms v ts = map (eval_trm v) ts"
 
-lemma eval_trm_cong: "\<forall>x\<in>fv_trm t. v x = v' x \<Longrightarrow> eval_trm v t = eval_trm v' t"
-  by (cases t) simp_all
+lemma eval_trms_fv_cong: 
+  "\<forall>t\<in>set ts. \<forall>x\<in>fv_trm t. v x = v' x \<Longrightarrow> eval_trms v ts = eval_trms v' ts"
+  using eval_trm_fv_cong[of _ v v']
+  by (auto simp: eval_trms_def)
 
 qualified primrec eval_trm_set :: "'a envset \<Rightarrow> 'a trm \<Rightarrow> 'a set" where
   "eval_trm_set vs (MFOTL.Var x) = vs x"
@@ -134,6 +139,27 @@ qualified primrec sat :: "'a trace \<Rightarrow> 'a env \<Rightarrow> nat \<Righ
 | "sat \<sigma> v i (Always I \<phi>) = (\<forall>j\<ge>i. mem (\<tau> \<sigma> j - \<tau> \<sigma> i) I \<longrightarrow> sat \<sigma> v j \<phi>)"
 | "sat \<sigma> v i (Since \<phi> I \<psi>) = (\<exists>j\<le>i. mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I \<and> sat \<sigma> v j \<psi> \<and> (\<forall>k \<in> {j <.. i}. sat \<sigma> v k \<phi>))"
 | "sat \<sigma> v i (Until \<phi> I \<psi>) = (\<exists>j\<ge>i. mem (\<tau> \<sigma> j - \<tau> \<sigma> i) I \<and> sat \<sigma> v j \<psi> \<and> (\<forall>k \<in> {i ..< j}. sat \<sigma> v k \<phi>))"
+
+lemma sat_fv_cong: "\<forall>x\<in>fv \<phi>. v x = v' x \<Longrightarrow> sat \<sigma> v i \<phi> = sat \<sigma> v' i \<phi>"
+proof (induct \<phi> arbitrary: v v' i rule: formula.induct)
+  case (Pred n ts)
+  thus ?case
+    by (simp cong: map_cong eval_trms_fv_cong[rule_format, OF Pred[simplified, rule_format]] 
+        split: option.splits)
+next
+  case (Eq x1 x2)
+  then show ?case 
+    unfolding fv.simps sat.simps 
+    by (metis UnCI eval_trm_fv_cong)
+next
+  case (Exists t \<phi>)
+  then show ?case unfolding sat.simps 
+    by (intro iff_exI) (simp add: nth_Cons')
+next
+  case (Forall t \<phi>)
+  then show ?case unfolding sat.simps 
+    by (intro iff_allI) (simp add: nth_Cons')
+qed (auto 10 0 simp: Let_def split: nat.splits intro!: iff_exI)
 
 lemma sat_Until_rec: "sat \<sigma> v i (Until \<phi> I \<psi>) \<longleftrightarrow>
   mem 0 I \<and> sat \<sigma> v i \<psi> \<or>
