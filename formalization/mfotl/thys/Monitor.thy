@@ -20,7 +20,6 @@ fun s_at :: "'d sproof \<Rightarrow> nat" and
   v_at :: "'d vproof \<Rightarrow> nat" where
   "s_at (STT i) = i"
 | "s_at (SPred i _ _) = i"
-| "s_at (SEq i _ _) = i"
 | "s_at (SNeg vp) = v_at vp"
 | "s_at (SOrL sp1) = s_at sp1"
 | "s_at (SOrR sp2) = s_at sp2"
@@ -42,7 +41,6 @@ fun s_at :: "'d sproof \<Rightarrow> nat" and
 | "s_at (SUntil sp1s sp2) = (case sp1s of [] \<Rightarrow> s_at sp2 | sp1 # _ \<Rightarrow> s_at sp1)"
 | "v_at (VFF i) = i"
 | "v_at (VPred i _ _) = i"
-| "v_at (VEq i _ _ ) = i"
 | "v_at (VNeg sp) = s_at sp"
 | "v_at (VOr vp1 _) = v_at vp1"
 | "v_at (VAndL vp1) = v_at vp1"
@@ -84,8 +82,6 @@ fun s_check :: "'d MFOTL.env \<Rightarrow> 'd MFOTL.formula \<Rightarrow> 'd spr
     (MFOTL.TT, STT i) \<Rightarrow> True
   | (MFOTL.Pred r ts, SPred i s ts') \<Rightarrow> 
     (r = s \<and> ts = ts' \<and> (r, MFOTL.eval_trms v ts) \<in> \<Gamma> \<sigma> i)
-  | (MFOTL.Eq t1 t2, SEq i t1' t2') \<Rightarrow> 
-    (t1 = t1' \<and> t2 = t2' \<and> (MFOTL.eval_trm v t1) = (MFOTL.eval_trm v t2))
   | (MFOTL.Neg \<phi>, SNeg vp) \<Rightarrow> v_check v \<phi> vp
   | (MFOTL.Or \<phi> \<psi>, SOrL sp1) \<Rightarrow> s_check v \<phi> sp1
   | (MFOTL.Or \<phi> \<psi>, SOrR sp2) \<Rightarrow> s_check v \<psi> sp2
@@ -136,8 +132,6 @@ fun s_check :: "'d MFOTL.env \<Rightarrow> 'd MFOTL.formula \<Rightarrow> 'd spr
     (MFOTL.FF, VFF i) \<Rightarrow> True
   | (MFOTL.Pred r ts, VPred i pred ts') \<Rightarrow> 
     (r = pred \<and> ts = ts' \<and> (r, map (MFOTL.eval_trm v) ts) \<notin> \<Gamma> \<sigma> i)
-  | (MFOTL.Eq t1 t2, VEq i t1' t2') \<Rightarrow> 
-    (t1 = t1' \<and> t2 = t2' \<and> (MFOTL.eval_trm v t1) \<noteq> (MFOTL.eval_trm v t2))
   | (MFOTL.Neg \<phi>, VNeg sp) \<Rightarrow> s_check v \<phi> sp
   | (MFOTL.Or \<phi> \<psi>, VOr vp1 vp2) \<Rightarrow> v_check v \<phi> vp1 \<and> v_check v \<psi> vp2 \<and> v_at vp1 = v_at vp2
   | (MFOTL.And \<phi> \<psi>, VAndL vp1) \<Rightarrow> v_check v \<phi> vp1
@@ -214,8 +208,6 @@ fun s_check_exec :: "'d MFOTL.envset \<Rightarrow> 'd MFOTL.formula \<Rightarrow
     (MFOTL.TT, STT i) \<Rightarrow> True
   | (MFOTL.Pred r ts, SPred i s ts') \<Rightarrow> 
     (r = s \<and> ts = ts' \<and> {r} \<times> listset (MFOTL.eval_trms_set vs ts) \<subseteq> \<Gamma> \<sigma> i)
-  | (MFOTL.Eq t1 t2, SEq i t1' t2') \<Rightarrow> 
-    (t1 = t1' \<and> t2 = t2' \<and> (MFOTL.eval_trm_set vs t1) = (MFOTL.eval_trm_set vs t2))
   | (MFOTL.Neg \<phi>, SNeg vp) \<Rightarrow> v_check_exec vs \<phi> vp
   | (MFOTL.Or \<phi> \<psi>, SOrL sp1) \<Rightarrow> s_check_exec vs \<phi> sp1
   | (MFOTL.Or \<phi> \<psi>, SOrR sp2) \<Rightarrow> s_check_exec vs \<psi> sp2
@@ -266,8 +258,6 @@ fun s_check_exec :: "'d MFOTL.envset \<Rightarrow> 'd MFOTL.formula \<Rightarrow
     (MFOTL.FF, VFF i) \<Rightarrow> True
   | (MFOTL.Pred r ts, VPred i pred ts') \<Rightarrow> 
     (r = pred \<and> ts = ts' \<and> {r} \<times> listset (map (MFOTL.eval_trm_set vs) ts) \<subseteq> - \<Gamma> \<sigma> i)
-  | (MFOTL.Eq t1 t2, VEq i t1' t2') \<Rightarrow> 
-    (t1 = t1' \<and> t2 = t2' \<and> (MFOTL.eval_trm_set vs t1) \<noteq> (MFOTL.eval_trm_set vs t2))
   | (MFOTL.Neg \<phi>, VNeg sp) \<Rightarrow> s_check_exec vs \<phi> sp
   | (MFOTL.Or \<phi> \<psi>, VOr vp1 vp2) \<Rightarrow> v_check_exec vs \<phi> vp1 \<and> v_check_exec vs \<psi> vp2 \<and> v_at vp1 = v_at vp2
   | (MFOTL.And \<phi> \<psi>, VAndL vp1) \<Rightarrow> v_check_exec vs \<phi> vp1
@@ -393,15 +383,6 @@ next
         apply safe
       apply (auto simp: )
       sorry
-  next
-    case 2
-    then show ?case sorry
-  }
-next
-  case (Eq x1 x2)
-  {
-    case 1
-    then show ?case sorry
   next
     case 2
     then show ?case sorry
@@ -571,12 +552,6 @@ next
   case (VPred r v ts i)
   then show ?case sorry
 next
-  case (SEq v t1 t2 i)
-  then show ?case sorry
-next
-  case (VEq v t1 t2 i)
-  then show ?case sorry
-next
   case (SNeg v i \<phi>)
   then show ?case sorry
 next
@@ -643,9 +618,6 @@ next
       sorry
   next
     case (Pred x31 x32)
-    then show ?thesis sorry
-  next
-    case (Eq x41 x42)
     then show ?thesis sorry
   next
     case (Neg x5)
