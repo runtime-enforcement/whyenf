@@ -345,10 +345,205 @@ lemma check_soundness:
   "v_check v \<phi> vp \<Longrightarrow> VIO \<sigma> v (v_at vp) \<phi>"
   oops
 
+  find_theorems name: s_check_exec name: induct
+  thm s_check_v_check.induct
+  thm s_check_exec_v_check_exec.induct
+
 lemma check_exec_check:
-  "s_check_exec vs \<phi> sp \<longleftrightarrow> (\<forall>v \<in> compatible \<phi> vs. s_check v \<phi> sp)"
-  "v_check_exec vs \<phi> vp \<longleftrightarrow> (\<forall>v \<in> compatible \<phi> vs. v_check v \<phi> vp)"
-  oops
+  assumes "compatible \<phi> vs \<noteq> {}"
+  shows "s_check_exec vs \<phi> sp \<longleftrightarrow> (\<forall>v \<in> compatible \<phi> vs. s_check v \<phi> sp)" 
+    and "v_check_exec vs \<phi> vp \<longleftrightarrow> (\<forall>v \<in> compatible \<phi> vs. v_check v \<phi> vp)"
+  using assms
+proof (induct \<phi> arbitrary: vs sp vp)
+  case TT
+  {
+    case 1
+    then show ?case
+      by (cases sp)
+        (auto simp: compatible_def)
+  next
+    case 2
+    then show ?case 
+      by (auto simp: compatible_def)
+  }
+next
+  case FF
+  {
+    case 1
+    then show ?case 
+      by (cases sp)
+        (auto simp: compatible_def)
+  next
+    case 2
+    then show ?case 
+      by (cases vp)
+        (auto simp: compatible_def)
+  }
+next
+  case (Pred x1 x2)
+  {
+    case 1
+    hence "v \<in> compatible (formula.Pred x1 x2) vs \<Longrightarrow> MFOTL.eval_trms v x2 \<in> listset (MFOTL.eval_trms_set vs x2)" for v
+      apply (cases "MFOTL.eval_trms v x2 ")
+       apply (clarsimp simp: MFOTL.eval_trms_set_def MFOTL.eval_trms_def)
+      sorry
+    thus ?case
+        using 1
+        apply (cases sp; clarsimp)
+        apply safe
+      apply (auto simp: )
+      sorry
+  next
+    case 2
+    then show ?case sorry
+  }
+next
+  case (Eq x1 x2)
+  {
+    case 1
+    then show ?case sorry
+  next
+    case 2
+    then show ?case sorry
+  }
+next
+  case (Neg \<phi>)
+  {
+    case 1
+    then show ?case sorry
+  next
+    case 2
+    then show ?case sorry
+  }
+next
+  case (Or \<phi>1 \<phi>2)
+  {
+    case 1
+    then show ?case sorry
+  next
+    case 2
+    then show ?case sorry
+  }
+next
+  case (And \<phi>1 \<phi>2)
+  {
+    case 1
+    then show ?case sorry
+  next
+    case 2
+    then show ?case sorry
+  }
+next
+  case (Imp \<phi>1 \<phi>2)
+  {
+    case 1
+    then show ?case sorry
+  next
+    case 2
+    then show ?case sorry
+  }
+next
+  case (Iff \<phi>1 \<phi>2)
+  {
+    case 1
+    then show ?case sorry
+  next
+    case 2
+    then show ?case sorry
+  }
+next
+  case (Exists x1 \<phi>)
+  {
+    case 1
+    then show ?case sorry
+  next
+    case 2
+    then show ?case sorry
+  }
+next
+  case (Forall x1 \<phi>)
+  {
+    case 1
+    then show ?case sorry
+  next
+    case 2
+    then show ?case sorry
+  }
+next
+  case (Prev x1 \<phi>)
+  {
+    case 1
+    then show ?case sorry
+  next
+    case 2
+    then show ?case sorry
+  }
+next
+  case (Next x1 \<phi>)
+  {
+    case 1
+    then show ?case sorry
+  next
+    case 2
+    then show ?case sorry
+  }
+next
+  case (Once x1 \<phi>)
+  {
+    case 1
+    then show ?case sorry
+  next
+    case 2
+    then show ?case sorry
+  }
+next
+  case (Historically x1 \<phi>)
+  {
+    case 1
+    then show ?case sorry
+  next
+    case 2
+    then show ?case sorry
+  }
+next
+  case (Eventually x1 \<phi>)
+  {
+    case 1
+    then show ?case sorry
+  next
+    case 2
+    then show ?case sorry
+  }
+next
+  case (Always x1 \<phi>)
+  {
+    case 1
+    then show ?case sorry
+  next
+    case 2
+    then show ?case sorry
+  }
+next
+  case (Since \<phi>1 x2 \<phi>2)
+  {
+    case 1
+    then show ?case sorry
+  next
+    case 2
+    then show ?case sorry
+  }
+next
+  case (Until \<phi>1 x2 \<phi>2)
+  {
+    case 1
+    then show ?case sorry
+  next
+    case 2
+    then show ?case sorry
+  }
+qed
+(* proof (induct vs \<phi> sp and vs \<phi> vp arbitrary: vs rule: s_check_exec_v_check_exec.induct) *)
+
 
 lemma "(\<forall>x \<in> MFOTL.fv \<phi>. v1 x = v2 x \<or> 
     v1 x \<notin> AD \<sigma> \<phi> (s_at sp) \<and> v2 x \<notin> AD \<sigma> \<phi> (s_at sp)) \<longrightarrow>
