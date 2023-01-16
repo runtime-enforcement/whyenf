@@ -51,7 +51,6 @@ qualified datatype 'a formula =
   TT
 | FF
 | Pred name "'a trm list" 
-| Eq "'a trm" "'a trm"
 | Neg "'a formula" 
 | Or "'a formula" "'a formula" 
 | And "'a formula" "'a formula"
@@ -70,7 +69,6 @@ qualified datatype 'a formula =
 
 qualified primrec fv :: "'a formula \<Rightarrow> string set" where
   "fv (Pred r ts) = (\<Union>t\<in>set ts. fv_trm t)"
-| "fv (Eq t1 t2) = fv_trm t1 \<union> fv_trm t2"
 | "fv (TT) = {}"
 | "fv (FF) = {}"
 | "fv (Neg \<phi>) = fv \<phi>"
@@ -102,7 +100,6 @@ qualified fun future_bounded :: "'a formula \<Rightarrow> bool" where
   "future_bounded (TT) = True"
 | "future_bounded (FF) = True"
 | "future_bounded (Pred _ _) = True"
-| "future_bounded (Eq _ _) = True"
 | "future_bounded (Neg \<phi>) = future_bounded \<phi>"
 | "future_bounded (Or \<phi> \<psi>) = (future_bounded \<phi> \<and> future_bounded \<psi>)"
 | "future_bounded (And \<phi> \<psi>) = (future_bounded \<phi> \<and> future_bounded \<psi>)"
@@ -123,7 +120,6 @@ qualified primrec sat :: "'a trace \<Rightarrow> 'a env \<Rightarrow> nat \<Righ
   "sat \<sigma> v i (TT) = True"
 | "sat \<sigma> v i (FF) = False"              
 | "sat \<sigma> v i (Pred r ts) = ((r, eval_trms v ts) \<in> \<Gamma> \<sigma> i)"
-| "sat \<sigma> v i (Eq t1 t2) = (eval_trm v t1 = eval_trm v t2)"
 | "sat \<sigma> v i (Neg \<phi>) = (\<not> sat \<sigma> v i \<phi>)"
 | "sat \<sigma> v i (Or \<phi> \<psi>) = (sat \<sigma> v i \<phi> \<or> sat \<sigma> v i \<psi>)"
 | "sat \<sigma> v i (And \<phi> \<psi>) = (sat \<sigma> v i \<phi> \<and> sat \<sigma> v i \<psi>)"
@@ -146,11 +142,6 @@ proof (induct \<phi> arbitrary: v v' i rule: formula.induct)
   thus ?case
     by (simp cong: map_cong eval_trms_fv_cong[rule_format, OF Pred[simplified, rule_format]] 
         split: option.splits)
-next
-  case (Eq x1 x2)
-  then show ?case 
-    unfolding fv.simps sat.simps 
-    by (metis UnCI eval_trm_fv_cong)
 next
   case (Exists t \<phi>)
   then show ?case unfolding sat.simps 
@@ -246,7 +237,7 @@ lemma sat_Historically_Once: "sat \<sigma> v i (Historically I \<phi>) = sat \<s
 lemma sat_Historically_rec: "sat \<sigma> v i (Historically I \<phi>) \<longleftrightarrow>
   (mem 0 I \<longrightarrow> sat \<sigma> v i \<phi>) \<and> 
   (i > 0 \<longrightarrow> \<Delta> \<sigma> i \<le> right I \<longrightarrow> sat \<sigma> v (i - 1) (Historically (subtract (\<Delta> \<sigma> i) I) \<phi>))"
-  unfolding sat_Historically_Once sat.simps(5)
+  unfolding sat_Historically_Once sat.simps(4)
   by (subst sat_Once_rec) auto
 
 lemma sat_Eventually_Until: "sat \<sigma> v i (Eventually I \<phi>) = sat \<sigma> v i (Until TT I \<phi>)"
@@ -264,7 +255,7 @@ lemma sat_Always_Eventually: "sat \<sigma> v i (Always I \<phi>) = sat \<sigma> 
 lemma sat_Always_rec: "sat \<sigma> v i (Always I \<phi>) \<longleftrightarrow>
   (mem 0 I \<longrightarrow> sat \<sigma> v i \<phi>) \<and> 
   (\<Delta> \<sigma> (i + 1) \<le> right I \<longrightarrow> sat \<sigma> v (i + 1) (Always (subtract (\<Delta> \<sigma> (i + 1)) I) \<phi>))"
-  unfolding sat_Always_Eventually sat.simps(5)
+  unfolding sat_Always_Eventually sat.simps(4)
   by (subst sat_Eventually_rec) auto
 
 end (*context*)

@@ -30,8 +30,6 @@ inductive SAT and VIO :: "'a MFOTL.trace \<Rightarrow> 'a MFOTL.env \<Rightarrow
 | VFF: "VIO \<sigma> v i MFOTL.FF"
 | SPred: "(r, MFOTL.eval_trms v ts) \<in> \<Gamma> \<sigma> i \<Longrightarrow> SAT \<sigma> v i (MFOTL.Pred r ts)"
 | VPred: "(r, MFOTL.eval_trms v ts) \<notin> \<Gamma> \<sigma> i \<Longrightarrow> VIO \<sigma> v i (MFOTL.Pred r ts)"
-| SEq: "(MFOTL.eval_trm v t1) = (MFOTL.eval_trm v t2) \<Longrightarrow> SAT \<sigma> v i (MFOTL.Eq t1 t2)"
-| VEq: "(MFOTL.eval_trm v t1) \<noteq> (MFOTL.eval_trm v t2) \<Longrightarrow> VIO \<sigma> v i (MFOTL.Eq t1 t2)"
 | SNeg: "VIO \<sigma> v i \<phi> \<Longrightarrow> SAT \<sigma> v i (MFOTL.Neg \<phi>)"
 | VNeg: "SAT \<sigma> v i \<phi> \<Longrightarrow> VIO \<sigma> v i (MFOTL.Neg \<phi>)"
 | SOrL: "SAT \<sigma> v i \<phi> \<Longrightarrow> SAT \<sigma> v i (MFOTL.Or \<phi> \<psi>)"
@@ -302,7 +300,6 @@ subsection \<open>Proof Objects\<close>
 
 datatype (dead 'd) sproof = STT nat 
   | SPred nat MFOTL.name "'d MFOTL.trm list" 
-  | SEq nat "'d MFOTL.trm" "'d MFOTL.trm"
   | SNeg "'d vproof" 
   | SOrL "'d sproof" 
   | SOrR "'d sproof" 
@@ -324,7 +321,6 @@ datatype (dead 'd) sproof = STT nat
   | SUntil "'d sproof list" "'d sproof" 
   and 'd vproof = VFF nat 
   | VPred nat MFOTL.name "'d MFOTL.trm list" 
-  | VEq nat "'d MFOTL.trm" "'d MFOTL.trm"
   | VNeg "'d sproof" 
   | VOr "'d vproof" "'d vproof"
   | VAndL "'d vproof" 
