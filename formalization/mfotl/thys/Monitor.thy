@@ -533,8 +533,16 @@ lemma "(\<forall>x \<in> MFOTL.fv \<phi>. v1 x = v2 x \<or>
 
 setup_lifting type_definition_part
 
-lift_definition trivial_part :: "'v \<Rightarrow> ('d, 'v) part" is "\<lambda>v. [(UNIV, v)]"
+lift_definition trivial_part :: "'pt \<Rightarrow> ('d, 'pt) part" is "\<lambda>pt. [(UNIV, pt)]"
   by (simp add: partition_on_space)
+
+lemma part_hd_trivial[simp]: "part_hd (trivial_part pt) = pt"
+  unfolding part_hd_def
+  by (transfer) simp
+
+lemma SubsVals_trivial[simp]: "SubsVals (trivial_part pt) = {(UNIV, pt)}"
+  unfolding SubsVals_def
+  by (transfer) simp
 
 lemma check_completeness:
   "(SAT \<sigma> v i \<phi> \<longrightarrow> MFOTL.future_bounded \<phi> \<longrightarrow> (\<exists>sp. s_at sp = i \<and> s_check v \<phi> sp)) \<and>
@@ -610,15 +618,39 @@ next
   then show ?case
   proof (cases \<phi>)
     case FF
-    obtain vp where "vp = VExists (trivial_part (VFF i))"
-      sorry
-    then show ?thesis 
-      using FF VExists
-      apply auto
-      sorry
+    obtain vp where vp_def: "vp = VExists (trivial_part (VFF i))"
+      by (atomize_elim) simp
+    then have "v_at vp = i"
+      by simp
+    moreover have "v_check v (MFOTL.Exists x \<phi>) vp"
+      using FF vp_def
+      by simp
+    ultimately show ?thesis 
+      using FF by auto
   next
-    case (Pred x31 x32)
-    then show ?thesis sorry
+    case (Pred r ts)
+    note VExists[unfolded Pred, simplified]
+    {
+      fix z
+      have v_check_Pred_VPred: "\<And>v' vp. v_check v' (MFOTL.Pred r ts) vp \<Longrightarrow> i = v_at vp \<Longrightarrow> vp = VPred (v_at vp) r ts"
+        by (elim v_check.elims; clarsimp) 
+          (auto split: vproof.splits)
+      obtain vp where IH_unfolded: "v_at vp = i" 
+        "VIO \<sigma> (v(x := z)) i (formula.Pred r ts)" 
+        "v_check (v(x := z)) (formula.Pred r ts) vp"
+        using VExists[unfolded Pred, simplified] 
+        by (auto simp: fun_upd_def)
+      hence "vp = VPred i r ts"
+        using v_check_Pred_VPred by blast
+      hence "v_at (VPred i r ts) = i" 
+        "VIO \<sigma> (v(x := z)) i (MFOTL.Pred r ts)" 
+        "v_check (v(x := z)) (MFOTL.Pred r ts) (VPred i r ts)"
+        using IH_unfolded
+        by simp_all
+    }
+    thus ?thesis 
+      unfolding Pred
+      by (auto intro!: exI[of _ "VExists (trivial_part (VPred i r ts))"])
   next
     case (Neg x5)
     then show ?thesis sorry
@@ -635,7 +667,7 @@ next
     case (Iff x91 x92)
     then show ?thesis sorry
   next
-    case (Exists x101 x102)
+    case (Exists x \<alpha>)
     then show ?thesis sorry
   next
     case (Forall x111 x112)
