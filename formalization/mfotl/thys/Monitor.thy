@@ -938,24 +938,52 @@ definition do_since_base :: "nat \<Rightarrow> nat \<Rightarrow> 'd proof \<Righ
 | (Inr vp1, _ , False) \<Rightarrow> [Inr (VSince i vp1 []), Inr (VSinceInf i i [])]
 | (Inr vp1, Inr sp2, True) \<Rightarrow> [Inr (VSince i vp1 [sp2]), Inr (VSinceInf i i [sp2])])"
 
-(* definition do_since :: "nat \<Rightarrow> nat \<Rightarrow> 'd proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof list" where
+definition do_since :: "nat \<Rightarrow> nat \<Rightarrow> 'd proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof list" where
   "do_since i a p1 p2 p' = (case (p1, p2, a = 0, p') of 
   (Inl sp1, Inr _ , True, Inl sp') \<Rightarrow> [(Inl sp') \<oplus> (Inl sp1)]
 | (Inl sp1, _ , False, Inl sp') \<Rightarrow> [(Inl sp') \<oplus> (Inl sp1)]
 | (Inl sp1, Inl sp2, True, Inl sp') \<Rightarrow> [(Inl sp') \<oplus> (Inl sp1), Inl (SSince sp2 [])]
 | (Inl _ , Inr vp2, True, Inr (VSinceInf _ _ _ )) \<Rightarrow> [p' \<oplus> (Inr vp2)]
 | (Inl _ , _ , False, Inr (VSinceInf _ li vp2s')) \<Rightarrow> [Inr (VSinceInf i li vp2s')]
-| (Inl p1, Inr p2, True, Inr (VSince j q1 q2)) \<Rightarrow> [p' \<oplus> (Inr p2)]
-| (Inl p1, _ , False, Inr (VSince j q1 q2)) \<Rightarrow> [Inr (VSince i q1 q2)]
-| (Inr vp1, Inr vp2, True, Inl p') \<Rightarrow> [Inr (VSince i vp1 [vp2])]
+| (Inl _ , Inr vp2, True, Inr (VSince _ _ _ )) \<Rightarrow> [p' \<oplus> (Inr vp2)]
+| (Inl _ , _ , False, Inr (VSince _ vp1' vp2s')) \<Rightarrow> [Inr (VSince i vp1' vp2s')]
+| (Inr vp1, Inr vp2, True, Inl _ ) \<Rightarrow> [Inr (VSince i vp1 [vp2])]
 | (Inr vp1, _ , False, Inl _ ) \<Rightarrow> [Inr (VSince i vp1 [])]
 | (Inr _ , Inl sp2, True, Inl _ ) \<Rightarrow> [Inl (SSince sp2 [])]
 | (Inr vp1, Inr vp2, True, Inr (VSinceInf _ _ _ )) \<Rightarrow> [Inr (VSince i vp1 [vp2]), p' \<oplus> (Inr vp2)]
 | (Inr vp1, _, False, Inr (VSinceInf _ li vp2s')) \<Rightarrow> [Inr (VSince i vp1 []), Inr (VSinceInf i li vp2s')]
-| (_ , Inl sp2, True, Inr (VSinceInf _ _ _ )) \<Rightarrow> [Inl (SSince sp2 [])]
-| (Inr vp1, Inr vp2, True, Inr (VSince _ q1 q2)) \<Rightarrow> [Inr (VSince i p1 [p2]), p' \<oplus> (Inr p2)]
-| (Inr p1, _ , False, Inr (VSince j q1 q2)) \<Rightarrow> [Inr (VSince i p1 []), Inr (VSince i q1 q2)]
-| (_ , Inl p2, True, Inr (VSince j q1 q2)) \<Rightarrow> [Inl (SSince p2 [])])" *)
+| ( _ , Inl sp2, True, Inr (VSinceInf _ _ _ )) \<Rightarrow> [Inl (SSince sp2 [])]
+| (Inr vp1, Inr vp2, True, Inr (VSince _ _ _ )) \<Rightarrow> [Inr (VSince i vp1 [vp2]), p' \<oplus> (Inr vp2)]
+| (Inr vp1, _ , False, Inr (VSince _ vp1' vp2s')) \<Rightarrow> [Inr (VSince i vp1 []), Inr (VSince i vp1' vp2s')]
+| ( _ , Inl vp2, True, Inr (VSince _ _ _ )) \<Rightarrow> [Inl (SSince vp2 [])])"
+
+definition do_until_base :: "nat \<Rightarrow> nat \<Rightarrow> 'd proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof list" where
+  "do_until_base i a p1 p2 = (case (p1, p2, a = 0) of
+  ( _ , Inl sp2, True) \<Rightarrow> [Inl (SUntil [] sp2)]
+| (Inl sp1, _ , False) \<Rightarrow> [Inr (VUntilInf i i [])]
+| (Inl sp1, Inr vp2, True) \<Rightarrow> [Inr (VUntilInf i i [vp2])]
+| (Inr vp1, _ , False) \<Rightarrow> [Inr (VUntil i [] vp1), Inr (VUntilInf i i [])]
+| (Inr vp1, Inr vp2, True) \<Rightarrow> [Inr (VUntil i [vp2] vp1), Inr (VUntilInf i i [vp2])])"
+
+definition doUntil :: "nat \<Rightarrow> nat \<Rightarrow> ('a sproof + 'a vproof) \<Rightarrow> ('a sproof + 'a vproof)
+\<Rightarrow> ('a sproof + 'a vproof) \<Rightarrow> ('a sproof + 'a vproof) list" where
+  "doUntil i a p1 p2 p' = (case (p1, p2, a = 0, p') of
+  (Inl sp1, Inr _ , True, Inl (SUntil _ _ )) \<Rightarrow> [p' \<oplus> (Inl sp1)]
+| (Inl sp1, _ , False, Inl (SUntil _ _ )) \<Rightarrow> [p' \<oplus> (Inl sp1)]
+| (Inl sp1, Inl sp2, True, Inl (SUntil _ _ )) \<Rightarrow> [p' \<oplus> (Inl sp1), Inl (SUntil [] sp2)]
+| (Inl _ , Inr vp2, True, Inr (VUntilInf _ _ _ )) \<Rightarrow> [p' \<oplus> (Inr vp2)]
+| (Inl _ , _ , False, Inr (VUntilInf _ hi vp2s')) \<Rightarrow> [Inr (VUntilInf i hi vp2s')]
+| (Inl _ , Inr vp2, True, Inr (VUntil _ _ _ )) \<Rightarrow> [p' \<oplus> (Inr vp2)]
+| (Inl _ , _ , False, Inr (VUntil _ vp2s' vp1')) \<Rightarrow> [Inr (VUntil i vp2s' vp1')]
+| (Inr vp1, Inr vp2, True, Inl (SUntil _ _ )) \<Rightarrow> [Inr (VUntil i [vp2] vp1)]
+| (Inr vp1, _ , False, Inl (SUntil _ _ )) \<Rightarrow> [Inr (VUntil i [] vp1)]
+| (Inr vp1, Inl sp2, True, Inl (SUntil _ _ )) \<Rightarrow> [Inl (SUntil [] sp2)]
+| (Inr vp1, Inr vp2, True, Inr (VUntilInf _ _ _ )) \<Rightarrow> [Inr (VUntil i [vp2] vp1), p' \<oplus> (Inr vp2)]
+| (Inr vp1, _ , False, Inr (VUntilInf _ hi vp2s')) \<Rightarrow> [Inr (VUntil i [] vp1), Inr (VUntilInf i hi vp2s')]
+| ( _ , Inl sp2, True, Inr (VUntilInf _ hi vp2s')) \<Rightarrow> [Inl (SUntil [] sp2)]
+| (Inr vp1, Inr vp2, True, Inr (VUntil _ _ _ )) \<Rightarrow> [Inr (VUntil i [vp2] vp1), p' \<oplus> (Inr vp2)]
+| (Inr vp1, _ , False, Inr (VUntil _ vp2s' vp1')) \<Rightarrow> [Inr (VUntil i [] vp1), Inr (VUntil i vp2s' vp1')]
+| ( _ , Inl sp2, True, Inr (VUntil _ _ _ )) \<Rightarrow> [Inl (SUntil [] sp2)])"
 
 locale alg = 
   fixes \<sigma> :: "'d :: linorder MFOTL.trace" and
@@ -989,9 +1017,9 @@ function (sequential) opt :: "MFOTL.name list \<Rightarrow> nat \<Rightarrow> 'd
 | "opt vars i (MFOTL.Pred r ts) = 
   (pdt_of i r ts vars (Option.these (match ts ` {d. (r, d) \<in> \<Gamma> \<sigma> i})))"
 | "opt vars i (MFOTL.Or \<phi> \<psi>) = apply_pdt vars (\<lambda>l r. min_list_wrt wqo (do_or l r)) (opt vars i \<phi>) (opt vars i \<psi>)"
-(*| "opt vars vs i (MFOTL.And \<phi> \<psi>) = apply_pdt vars do_and (opt vars vs i \<phi>) (opt vars vs i \<psi>)"
-| "opt vars vs i (MFOTL.Imp \<phi> \<psi>) = apply_pdt vars do_imp (opt vars vs i \<phi>) (opt vars vs i \<psi>)"
-| "opt vars vs i (MFOTL.Iff \<phi> \<psi>) = apply_pdt vars do_iff (opt vars vs i \<phi>) (opt vars vs i \<psi>)"*)
+| "opt vars i (MFOTL.And \<phi> \<psi>) = apply_pdt vars (\<lambda>l r. min_list_wrt wqo (do_and l r)) (opt vars i \<phi>) (opt vars i \<psi>)"
+| "opt vars i (MFOTL.Imp \<phi> \<psi>) = apply_pdt vars (\<lambda>l r. min_list_wrt wqo (do_imp l r)) (opt vars i \<phi>) (opt vars i \<psi>)"
+| "opt vars i (MFOTL.Iff \<phi> \<psi>) = apply_pdt vars (\<lambda>l r. min_list_wrt wqo (do_iff l r)) (opt vars i \<phi>) (opt vars i \<psi>)"
   by pat_completeness auto
 
 end
