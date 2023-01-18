@@ -202,12 +202,116 @@ declare s_check.simps[simp del] v_check.simps[simp del]
 simps_of_case s_check_simps[simp, code]: s_check.simps[unfolded prod.case] (splits: MFOTL.formula.split sproof.split)
 simps_of_case v_check_simps[simp, code]: v_check.simps[unfolded prod.case] (splits: MFOTL.formula.split vproof.split)
 
+primrec fst_pos :: "'a list \<Rightarrow> 'a \<Rightarrow> nat option" 
+  where "fst_pos [] x = None" 
+  | "fst_pos (y#ys) x = (if x = y then Some 0 else 
+      (case fst_pos ys x of None \<Rightarrow> None | Some n \<Rightarrow> Some (Suc n)))"
+
+lemma fst_pos_None_iff: "fst_pos xs x = None \<longleftrightarrow> x \<notin> set xs"
+  by (induct xs arbitrary: x; force split: option.splits)
+
+lemma nth_fst_pos: "x \<in> set xs \<Longrightarrow> xs ! (the (fst_pos xs x)) = x"
+  by (induct xs arbitrary: x; fastforce simp: fst_pos_None_iff split: option.splits)
+
+primrec positions :: "'a list \<Rightarrow> 'a \<Rightarrow> nat list"
+  where "positions [] x = []" 
+  | "positions (y#ys) x = (if x = y then 0 # (map Suc (positions ys x)) else map Suc (positions ys x))"
+
+lemma positions_eq_nil_iff: "positions xs x = [] \<longleftrightarrow> x \<notin> set xs"
+  by (induct xs) simp_all
+
+lemma positions_nth: "n \<in> set (positions xs x) \<Longrightarrow> xs ! n = x"
+  by (induct xs arbitrary: n x)
+    (auto simp: positions_eq_nil_iff[symmetric] split: if_splits)
+
+lemma positions_length: "n \<in> set (positions xs x) \<Longrightarrow> n < length xs"
+  by (induct xs arbitrary: n x)
+    (auto simp: positions_eq_nil_iff[symmetric] split: if_splits)
+
+lemma positions_nth_cong: 
+  "m \<in> set (positions xs x) \<Longrightarrow> n \<in> set (positions xs x) \<Longrightarrow> xs ! n = xs ! m"
+  using positions_nth[of _ xs x] by simp
+
+lemma fst_pos_in_positions: "x \<in> set xs \<Longrightarrow> the (fst_pos xs x) \<in> set (positions xs x)"
+  by (induct xs arbitrary: x, simp)
+    (fastforce simp: hd_map fst_pos_None_iff split: option.splits)
+
+lemma hd_positions_eq_fst_pos: "x \<in> set xs \<Longrightarrow> hd (positions xs x) = the (fst_pos xs x)"
+  by (induct xs arbitrary: x)
+    (auto simp: hd_map fst_pos_None_iff positions_eq_nil_iff split: option.splits)
+
+lemma sorted_positions: "sorted (positions xs x)"
+  apply (induct xs arbitrary: x)
+  by simp_all (simp_all add: sorted_iff_nth_Suc)
+
+lemma Min_sorted_list: "sorted xs \<Longrightarrow> xs \<noteq> [] \<Longrightarrow> Min (set xs) = hd xs"
+  by (induct xs)
+    (auto simp: Min_insert2)
+
+lemma Min_positions: "x \<in> set xs \<Longrightarrow> Min (set (positions xs x)) = the (fst_pos xs x)"
+  by (auto simp: Min_sorted_list[OF sorted_positions] 
+      positions_eq_nil_iff hd_positions_eq_fst_pos)
+
+definition "compatible X vs v \<longleftrightarrow> (\<forall>x\<in>X. v x \<in> vs x)"
+
+definition "compatible_vals X vs = {v. \<forall>x \<in> X. v x \<in> vs x}"
+
+lemma compatible_iff_in_compatible_vals: 
+  "compatible X vs v \<longleftrightarrow> v \<in> compatible_vals X vs"
+  by (auto simp: compatible_def compatible_vals_def)
+
+primrec mk_values :: "('b MFOTL.trm \<times> 'a set) list \<Rightarrow> 'a list set" 
+  where "mk_values [] = {[]}" 
+  | "mk_values (T # Ts) = (case T of 
+      (MFOTL.Var x, X) \<Rightarrow> 
+        let terms = map fst Ts in
+        if MFOTL.Var x \<in> set terms then
+          let fst_pos = hd (positions terms (MFOTL.Var x)) in (\<lambda>xs. (xs ! fst_pos) # xs) ` (mk_values Ts)
+        else set_Cons X (mk_values Ts)
+    | (MFOTL.Const a, X) \<Rightarrow> set_Cons X (mk_values Ts))"
+
+lemma mk_values_nempty: 
+  "{} \<notin> set (map snd tXs) \<Longrightarrow> mk_values tXs \<noteq> {}"
+  by (induct tXs)
+    (auto simp: set_Cons_def image_iff split: MFOTL.trm.splits if_splits)
+
+lemma mk_values_not_Nil: 
+  "{} \<notin> set (map snd tXs) \<Longrightarrow> tXs \<noteq> [] \<Longrightarrow> vs \<in> mk_values tXs \<Longrightarrow> vs \<noteq> []"
+  by (induct tXs)
+    (auto simp: set_Cons_def image_iff split: MFOTL.trm.splits if_splits)
+
+lemma mk_values_nth_cong: "MFOTL.Var x \<in> set (map fst tXs) 
+  \<Longrightarrow> n \<in> set (positions (map fst tXs) (MFOTL.Var x))
+  \<Longrightarrow> m \<in> set (positions (map fst tXs) (MFOTL.Var x))
+  \<Longrightarrow> vs \<in> mk_values tXs
+  \<Longrightarrow> vs ! n = vs ! m"
+  apply (induct tXs arbitrary: n m vs x)
+   apply simp
+  subgoal for tX tXs n m v x
+    apply (cases "fst tX = MFOTL.Var x"; cases "MFOTL.Var x \<in> set (map fst tXs)")
+    subgoal
+      apply (simp add: image_iff split: prod.splits)
+      apply (elim disjE; simp?)
+        apply (metis hd_in_set length_greater_0_conv length_pos_if_in_set nth_Cons_0 nth_Cons_Suc)
+       apply (metis hd_in_set length_greater_0_conv length_pos_if_in_set nth_Cons_0 nth_Cons_Suc)
+      apply (metis nth_Cons_Suc)
+      done
+    subgoal
+      by (simp add: image_iff split: prod.splits)
+        (smt (verit, ccfv_threshold) empty_iff empty_set in_set_conv_nth length_map nth_map positions_eq_nil_iff)
+    subgoal
+      apply (clarsimp simp: image_iff set_Cons_def split: MFOTL.trm.splits)
+      by (split if_splits; simp add: image_iff set_Cons_def)
+        (metis fst_conv nth_Cons_Suc)+
+    by clarsimp
+  done
+
 fun s_check_exec :: "'d MFOTL.envset \<Rightarrow> 'd MFOTL.formula \<Rightarrow> 'd sproof \<Rightarrow> bool"
   and v_check_exec :: "'d MFOTL.envset \<Rightarrow> 'd MFOTL.formula \<Rightarrow> 'd vproof \<Rightarrow> bool" where
   "s_check_exec vs f p = (case (f, p) of
     (MFOTL.TT, STT i) \<Rightarrow> True
   | (MFOTL.Pred r ts, SPred i s ts') \<Rightarrow> 
-    (r = s \<and> ts = ts' \<and> {r} \<times> listset (MFOTL.eval_trms_set vs ts) \<subseteq> \<Gamma> \<sigma> i)
+    (r = s \<and> ts = ts' \<and> {r} \<times> mk_values (MFOTL.eval_trms_set vs ts) \<subseteq> \<Gamma> \<sigma> i)
   | (MFOTL.Neg \<phi>, SNeg vp) \<Rightarrow> v_check_exec vs \<phi> vp
   | (MFOTL.Or \<phi> \<psi>, SOrL sp1) \<Rightarrow> s_check_exec vs \<phi> sp1
   | (MFOTL.Or \<phi> \<psi>, SOrR sp2) \<Rightarrow> s_check_exec vs \<psi> sp2
@@ -257,7 +361,7 @@ fun s_check_exec :: "'d MFOTL.envset \<Rightarrow> 'd MFOTL.formula \<Rightarrow
 | "v_check_exec vs f p = (case (f, p) of
     (MFOTL.FF, VFF i) \<Rightarrow> True
   | (MFOTL.Pred r ts, VPred i pred ts') \<Rightarrow> 
-    (r = pred \<and> ts = ts' \<and> {r} \<times> listset (map (MFOTL.eval_trm_set vs) ts) \<subseteq> - \<Gamma> \<sigma> i)
+    (r = pred \<and> ts = ts' \<and> {r} \<times> mk_values (map (MFOTL.eval_trm_set vs) ts) \<subseteq> - \<Gamma> \<sigma> i)
   | (MFOTL.Neg \<phi>, VNeg sp) \<Rightarrow> s_check_exec vs \<phi> sp
   | (MFOTL.Or \<phi> \<psi>, VOr vp1 vp2) \<Rightarrow> v_check_exec vs \<phi> vp1 \<and> v_check_exec vs \<psi> vp2 \<and> v_at vp1 = v_at vp2
   | (MFOTL.And \<phi> \<psi>, VAndL vp1) \<Rightarrow> v_check_exec vs \<phi> vp1
@@ -328,21 +432,101 @@ declare s_check_exec.simps[simp del] v_check_exec.simps[simp del]
 simps_of_case s_check_exec_simps[simp, code]: s_check_exec.simps[unfolded prod.case] (splits: MFOTL.formula.split sproof.split)
 simps_of_case v_check_exec_simps[simp, code]: v_check_exec.simps[unfolded prod.case] (splits: MFOTL.formula.split vproof.split)
 
-definition "compatible \<phi> vs = {v. \<forall>x \<in> MFOTL.fv \<phi>. v x \<in> vs x}"
-
 lemma check_soundness:
   "s_check v \<phi> sp \<Longrightarrow> SAT \<sigma> v (s_at sp) \<phi>"
   "v_check v \<phi> vp \<Longrightarrow> VIO \<sigma> v (v_at vp) \<phi>"
   oops
 
-  find_theorems name: s_check_exec name: induct
-  thm s_check_v_check.induct
-  thm s_check_exec_v_check_exec.induct
+unbundle MFOTL_notation \<comment> \<open> enable notation \<close>
+
+lemma mk_values_sound: "as \<in> mk_values (MFOTL.eval_trms_set vs ts) 
+  \<Longrightarrow> \<exists>v\<in>compatible_vals (fv (p \<dagger> ts)) vs. as = MFOTL.eval_trms v ts"
+proof (induct ts arbitrary: as vs)
+  let ?evals = MFOTL.eval_trms_set
+    and ?eval = "MFOTL.eval_trm_set"
+  case (Cons t ts)
+  show ?case
+  proof(cases t)
+    case (Var x)
+    let ?Ts = "?evals vs ts"
+    have "?evals vs (t # ts) = (\<^bold>v x, vs x) # ?Ts"
+      using Var by (simp add: MFOTL.eval_trms_set_def)
+    show ?thesis
+    proof (cases "\<^bold>v x \<in> set ts")
+      case True
+      then obtain n where n_in: "n \<in> set (positions ts (\<^bold>v x))"
+        and nth_n: "ts ! n = \<^bold>v x"
+        by (meson fst_pos_in_positions nth_fst_pos)
+      hence n_in': "n \<in> set (positions (map fst ?Ts) (\<^bold>v x))"
+        by (induct ts arbitrary: n)
+          (auto simp: MFOTL.eval_trms_set_def split: if_splits)
+      have key: "\<^bold>v x \<in> set (map fst ?Ts)"
+        using True by (induct ts)
+          (auto simp: MFOTL.eval_trms_set_def)
+      then obtain a as' 
+        where as_head: "as' ! (hd (positions (map fst ?Ts) (\<^bold>v x))) = a"
+          and as_tail: "as' \<in> mk_values (MFOTL.eval_trms_set vs ts)" 
+          and as_shape: "as = a # as'"
+        using Cons(2) 
+        by (clarsimp simp add: MFOTL.eval_trms_set_def Var image_iff)
+      obtain v where v_hyps: "v \<in> compatible_vals (fv (p \<dagger> ts)) vs"
+        "as' = MFOTL.eval_trms v ts"
+        using Cons(1)[OF as_tail] by blast
+      hence as'_nth: "as' ! n = v x"
+        using nth_n positions_length[OF n_in]
+        by (simp add: MFOTL.eval_trms_def)
+      have evals_neq_Nil: "?evals vs ts \<noteq> []"
+        using key by auto
+      moreover have "positions (map fst (MFOTL.eval_trms_set vs ts)) (\<^bold>v x) \<noteq> []"
+        using positions_eq_nil_iff[of "map fst ?Ts" "\<^bold>v x"] key
+        by fastforce
+      ultimately have as_hyp: "a = as' ! n"
+        using mk_values_nth_cong[OF key hd_in_set n_in' as_tail] as_head  by blast
+      thus ?thesis
+        using Var as_shape True v_hyps as'_nth
+        by (auto simp: compatible_vals_def MFOTL.eval_trms_def intro!: exI[of _ v])
+    next
+      case False
+      hence "\<^bold>v x \<notin> set (map fst ?Ts)"
+        using Var
+        apply (induct ts arbitrary: x)
+        by (auto simp: MFOTL.eval_trms_set_def image_iff)
+          (metis eq_fst_iff eval_trm_set.simps(1) eval_trm_set.simps(2) trm.exhaust)
+      then show ?thesis 
+        using Cons(2) Var False
+        apply (clarsimp simp: MFOTL.eval_trms_set_def set_Cons_def 
+          MFOTL.eval_trms_def compatible_vals_def split: )
+        subgoal for a as'
+          using Cons(1)[of as' vs] 
+          apply (clarsimp simp: MFOTL.eval_trms_set_def MFOTL.eval_trms_def compatible_vals_def)
+          apply (rule_tac x="v(x := a)" in exI)
+          apply clarsimp
+          apply (rule eval_trm_fv_cong)
+          apply clarsimp
+          subgoal for v t'
+            by (rule trm.exhaust[of t'])
+              auto
+          done
+        done
+    qed
+  next
+    case (Const c)
+    then show ?thesis
+      using Cons(1)[of _ vs] Cons(2)
+      by (auto simp: MFOTL.eval_trms_set_def set_Cons_def 
+          MFOTL.eval_trms_def compatible_def)
+  qed
+qed (simp add: MFOTL.eval_trms_set_def MFOTL.eval_trms_def compatible_vals_def)
+ 
+lemma mk_values_complete: "as = MFOTL.eval_trms v ts 
+  \<Longrightarrow> v \<in> compatible_vals (fv (p \<dagger> ts)) vs
+  \<Longrightarrow> as \<in> mk_values (MFOTL.eval_trms_set vs ts)"
+  sorry
 
 lemma check_exec_check:
-  assumes "compatible \<phi> vs \<noteq> {}"
-  shows "s_check_exec vs \<phi> sp \<longleftrightarrow> (\<forall>v \<in> compatible \<phi> vs. s_check v \<phi> sp)" 
-    and "v_check_exec vs \<phi> vp \<longleftrightarrow> (\<forall>v \<in> compatible \<phi> vs. v_check v \<phi> vp)"
+  assumes "compatible_vals (fv \<phi>) vs \<noteq> {}"
+  shows "s_check_exec vs \<phi> sp \<longleftrightarrow> (\<forall>v \<in> compatible_vals (fv \<phi>) vs. s_check v \<phi> sp)" 
+    and "v_check_exec vs \<phi> vp \<longleftrightarrow> (\<forall>v \<in> compatible_vals (fv \<phi>) vs. v_check v \<phi> vp)"
   using assms
 proof (induct \<phi> arbitrary: vs sp vp)
   case TT
@@ -370,22 +554,29 @@ next
         (auto simp: compatible_def)
   }
 next
-  case (Pred x1 x2)
+  case (Pred p ts)
   {
     case 1
-    hence "v \<in> compatible (formula.Pred x1 x2) vs \<Longrightarrow> MFOTL.eval_trms v x2 \<in> listset (MFOTL.eval_trms_set vs x2)" for v
-      apply (cases "MFOTL.eval_trms v x2 ")
-       apply (clarsimp simp: MFOTL.eval_trms_set_def MFOTL.eval_trms_def)
-      sorry
     thus ?case
-        using 1
-        apply (cases sp; clarsimp)
-        apply safe
-      apply (auto simp: )
-      sorry
+      apply (cases sp; clarsimp simp: subset_eq simp del: fv.simps)
+      apply (intro iffI conjI impI allI ballI)
+           apply clarsimp
+          apply clarsimp
+         apply (elim conjE, clarsimp simp del: fv.simps)
+      using mk_values_complete apply force
+      using mk_values_sound by blast+
   next
     case 2
-    then show ?case sorry
+    then show ?case 
+      apply (cases vp; clarsimp simp: subset_eq simp del: fv.simps)
+      apply (intro iffI conjI impI allI ballI)
+           apply clarsimp
+           apply clarsimp
+         apply (elim conjE, clarsimp simp del: fv.simps)
+      apply (metis MFOTL.eval_trms_def MFOTL.eval_trms_set_def mk_values_complete)
+      using mk_values_sound apply blast
+        using mk_values_sound apply blast
+        by (metis MFOTL.eval_trms_def MFOTL.eval_trms_set_def mk_values_sound)
   }
 next
   case (Neg \<phi>)
@@ -524,6 +715,8 @@ next
   }
 qed
 (* proof (induct vs \<phi> sp and vs \<phi> vp arbitrary: vs rule: s_check_exec_v_check_exec.induct) *)
+
+unbundle MFOTL_no_notation \<comment> \<open> disable notation \<close>
 
 
 lemma "(\<forall>x \<in> MFOTL.fv \<phi>. v1 x = v2 x \<or> 
