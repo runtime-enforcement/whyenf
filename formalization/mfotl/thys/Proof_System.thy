@@ -308,8 +308,8 @@ datatype (dead 'd) sproof = STT nat
   | SImpR "'d sproof"
   | SIffSS "'d sproof" "'d sproof" 
   | SIffVV "'d vproof" "'d vproof" 
-  | SExists 'd "'d sproof"
-  | SForall "('d, 'd sproof) part" 
+  | SExists MFOTL.name 'd "'d sproof"
+  | SForall MFOTL.name "('d, 'd sproof) part" 
   | SPrev "'d sproof"
   | SNext "'d sproof"
   | SOnce nat "'d sproof"
@@ -328,8 +328,8 @@ datatype (dead 'd) sproof = STT nat
   | VImp "'d sproof" "'d vproof" 
   | VIffSV "'d sproof" "'d vproof" 
   | VIffVS "'d vproof" "'d sproof" 
-  | VExists "('d, 'd vproof) part" 
-  | VForall 'd "'d vproof"
+  | VExists MFOTL.name "('d, 'd vproof) part" 
+  | VForall MFOTL.name 'd "'d vproof"
   | VPrev "'d vproof"
   | VPrevZ
   | VPrevOutL nat 

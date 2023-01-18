@@ -28,8 +28,8 @@ fun s_at :: "'d sproof \<Rightarrow> nat" and
 | "s_at (SImpR sp2) = s_at sp2"
 | "s_at (SIffSS sp1 _) = s_at sp1"
 | "s_at (SIffVV vp1 _) = v_at vp1"
-| "s_at (SExists _ sp) = s_at sp"
-| "s_at (SForall part) = s_at (part_hd part)"
+| "s_at (SExists _ _ sp) = s_at sp"
+| "s_at (SForall _ part) = s_at (part_hd part)"
 | "s_at (SPrev sp) = s_at sp + 1"
 | "s_at (SNext sp) = s_at sp - 1"
 | "s_at (SOnce i _) = i"
@@ -48,8 +48,8 @@ fun s_at :: "'d sproof \<Rightarrow> nat" and
 | "v_at (VImp sp1 _) = s_at sp1"
 | "v_at (VIffSV sp1 _) = s_at sp1"
 | "v_at (VIffVS vp1 _) = v_at vp1"
-| "v_at (VExists part) = v_at (part_hd part)"
-| "v_at (VForall _ vp1) = v_at vp1"
+| "v_at (VExists _ part) = v_at (part_hd part)"
+| "v_at (VForall _ _ vp1) = v_at vp1"
 | "v_at (VPrev vp) = v_at vp + 1"
 | "v_at (VPrevZ) = 0"
 | "v_at (VPrevOutL i) = i"
@@ -72,8 +72,6 @@ context fixes \<sigma> :: "'d MFOTL.trace"
 
 begin
 
-term set_Cons
-
 value "{''r''} \<times> (listset [{0::nat}, {2,0}, {1,0}])"
 
 fun s_check :: "'d MFOTL.env \<Rightarrow> 'd MFOTL.formula \<Rightarrow> 'd sproof \<Rightarrow> bool"
@@ -90,8 +88,8 @@ fun s_check :: "'d MFOTL.env \<Rightarrow> 'd MFOTL.formula \<Rightarrow> 'd spr
   | (MFOTL.Imp \<phi> \<psi>, SImpR sp2) \<Rightarrow> s_check v \<psi> sp2
   | (MFOTL.Iff \<phi> \<psi>, SIffSS sp1 sp2) \<Rightarrow> s_check v \<phi> sp1 \<and> s_check v \<psi> sp2 \<and> s_at sp1 = s_at sp2
   | (MFOTL.Iff \<phi> \<psi>, SIffVV vp1 vp2) \<Rightarrow> v_check v \<phi> vp1 \<and> v_check v \<psi> vp2 \<and> v_at vp1 = v_at vp2
-  | (MFOTL.Exists x \<phi>, SExists val sp) \<Rightarrow> s_check (v (x := val)) \<phi> sp
-  | (MFOTL.Forall x \<phi>, SForall sp_part) \<Rightarrow> \<forall>(sub, sp) \<in> SubsVals sp_part. \<forall>z \<in> sub. s_check (v (x := z)) \<phi> sp
+  | (MFOTL.Exists x \<phi>, SExists y val sp) \<Rightarrow> (x = y \<and> s_check (v (x := val)) \<phi> sp)
+  | (MFOTL.Forall x \<phi>, SForall y sp_part) \<Rightarrow> (x = y \<and> (\<forall>(sub, sp) \<in> SubsVals sp_part. \<forall>z \<in> sub. s_check (v (x := z)) \<phi> sp))
   | (MFOTL.Prev \<I> \<phi>, SPrev sp) \<Rightarrow>
     (let j = s_at sp; i = s_at (SPrev sp) in 
     i = j+1 \<and> mem (\<Delta> \<sigma> i) \<I> \<and> s_check v \<phi> sp)
@@ -139,8 +137,8 @@ fun s_check :: "'d MFOTL.env \<Rightarrow> 'd MFOTL.formula \<Rightarrow> 'd spr
   | (MFOTL.Imp \<phi> \<psi>, VImp sp1 vp2) \<Rightarrow> s_check v \<phi> sp1 \<and> v_check v \<psi> vp2 \<and> s_at sp1 = v_at vp2
   | (MFOTL.Iff \<phi> \<psi>, VIffSV sp1 vp2) \<Rightarrow> s_check v \<phi> sp1 \<and> v_check v \<psi> vp2 \<and> s_at sp1 = v_at vp2
   | (MFOTL.Iff \<phi> \<psi>, VIffVS vp1 sp2) \<Rightarrow> v_check v \<phi> vp1 \<and> s_check v \<psi> sp2 \<and> v_at vp1 = s_at sp2
-  | (MFOTL.Exists x \<phi>, VExists vp_part) \<Rightarrow> \<forall>(sub, vp) \<in> SubsVals vp_part. \<forall>z \<in> sub. v_check (v (x := z)) \<phi> vp
-  | (MFOTL.Forall x \<phi>, VForall val vp) \<Rightarrow> v_check (v (x := val)) \<phi> vp
+  | (MFOTL.Exists x \<phi>, VExists y vp_part) \<Rightarrow> (x = y \<and> (\<forall>(sub, vp) \<in> SubsVals vp_part. \<forall>z \<in> sub. v_check (v (x := z)) \<phi> vp))
+  | (MFOTL.Forall x \<phi>, VForall y val vp) \<Rightarrow> (x = y \<and> v_check (v (x := val)) \<phi> vp)
   | (MFOTL.Prev \<I> \<phi>, VPrev vp) \<Rightarrow>
     (let j = v_at vp; i = v_at (VPrev vp) in
     i = j+1 \<and> v_check v \<phi> vp)
@@ -320,8 +318,8 @@ fun s_check_exec :: "'d MFOTL.envset \<Rightarrow> 'd MFOTL.formula \<Rightarrow
   | (MFOTL.Imp \<phi> \<psi>, SImpR sp2) \<Rightarrow> s_check_exec vs \<psi> sp2
   | (MFOTL.Iff \<phi> \<psi>, SIffSS sp1 sp2) \<Rightarrow> s_check_exec vs \<phi> sp1 \<and> s_check_exec vs \<psi> sp2 \<and> s_at sp1 = s_at sp2
   | (MFOTL.Iff \<phi> \<psi>, SIffVV vp1 vp2) \<Rightarrow> v_check_exec vs \<phi> vp1 \<and> v_check_exec vs \<psi> vp2 \<and> v_at vp1 = v_at vp2
-  | (MFOTL.Exists x \<phi>, SExists val sp) \<Rightarrow> s_check_exec (vs (x := {val})) \<phi> sp
-  | (MFOTL.Forall x \<phi>, SForall sp_part) \<Rightarrow> \<forall>(sub, sp) \<in> SubsVals sp_part. s_check_exec (vs (x := sub)) \<phi> sp
+  | (MFOTL.Exists x \<phi>, SExists y val sp) \<Rightarrow> (x = y \<and> s_check_exec (vs (x := {val})) \<phi> sp)
+  | (MFOTL.Forall x \<phi>, SForall y sp_part) \<Rightarrow> (x = y \<and> (\<forall>(sub, sp) \<in> SubsVals sp_part. s_check_exec (vs (x := sub)) \<phi> sp))
   | (MFOTL.Prev \<I> \<phi>, SPrev sp) \<Rightarrow>
     (let j = s_at sp; i = s_at (SPrev sp) in 
     i = j+1 \<and> mem (\<Delta> \<sigma> i) \<I> \<and> s_check_exec vs \<phi> sp)
@@ -369,8 +367,8 @@ fun s_check_exec :: "'d MFOTL.envset \<Rightarrow> 'd MFOTL.formula \<Rightarrow
   | (MFOTL.Imp \<phi> \<psi>, VImp sp1 vp2) \<Rightarrow> s_check_exec vs \<phi> sp1 \<and> v_check_exec vs \<psi> vp2 \<and> s_at sp1 = v_at vp2
   | (MFOTL.Iff \<phi> \<psi>, VIffSV sp1 vp2) \<Rightarrow> s_check_exec vs \<phi> sp1 \<and> v_check_exec vs \<psi> vp2 \<and> s_at sp1 = v_at vp2
   | (MFOTL.Iff \<phi> \<psi>, VIffVS vp1 sp2) \<Rightarrow> v_check_exec vs \<phi> vp1 \<and> s_check_exec vs \<psi> sp2 \<and> v_at vp1 = s_at sp2
-  | (MFOTL.Exists x \<phi>, VExists vp_part) \<Rightarrow> \<forall>(sub, vp) \<in> SubsVals vp_part. v_check_exec (vs (x := sub)) \<phi> vp
-  | (MFOTL.Forall x \<phi>, VForall val vp) \<Rightarrow> v_check_exec (vs (x := {val})) \<phi> vp
+  | (MFOTL.Exists x \<phi>, VExists y vp_part) \<Rightarrow> (x = y \<and> (\<forall>(sub, vp) \<in> SubsVals vp_part. v_check_exec (vs (x := sub)) \<phi> vp))
+  | (MFOTL.Forall x \<phi>, VForall y val vp) \<Rightarrow> (x = y \<and> v_check_exec (vs (x := {val})) \<phi> vp)
   | (MFOTL.Prev \<I> \<phi>, VPrev vp) \<Rightarrow>
     (let j = v_at vp; i = v_at (VPrev vp) in
     i = j+1 \<and> v_check_exec vs \<phi> vp)
@@ -726,8 +724,16 @@ lemma "(\<forall>x \<in> MFOTL.fv \<phi>. v1 x = v2 x \<or>
 
 setup_lifting type_definition_part
 
-lift_definition trivial_part :: "'v \<Rightarrow> ('d, 'v) part" is "\<lambda>v. [(UNIV, v)]"
+lift_definition trivial_part :: "'pt \<Rightarrow> ('d, 'pt) part" is "\<lambda>pt. [(UNIV, pt)]"
   by (simp add: partition_on_space)
+
+lemma part_hd_trivial[simp]: "part_hd (trivial_part pt) = pt"
+  unfolding part_hd_def
+  by (transfer) simp
+
+lemma SubsVals_trivial[simp]: "SubsVals (trivial_part pt) = {(UNIV, pt)}"
+  unfolding SubsVals_def
+  by (transfer) simp
 
 lemma check_completeness:
   "(SAT \<sigma> v i \<phi> \<longrightarrow> MFOTL.future_bounded \<phi> \<longrightarrow> (\<exists>sp. s_at sp = i \<and> s_check v \<phi> sp)) \<and>
@@ -794,7 +800,7 @@ next
   then show ?case
     apply clarsimp
     subgoal for z sp
-      apply (rule exI[of _ "SExists z sp"])
+      apply (rule exI[of _ "SExists x z sp"])
       apply (auto simp: fun_upd_def)
       done
     done
@@ -803,15 +809,39 @@ next
   then show ?case
   proof (cases \<phi>)
     case FF
-    obtain vp where "vp = VExists (trivial_part (VFF i))"
-      sorry
-    then show ?thesis 
-      using FF VExists
-      apply auto
-      sorry
+    obtain vp where vp_def: "vp = VExists x (trivial_part (VFF i))"
+      by (atomize_elim) simp
+    then have "v_at vp = i"
+      by simp
+    moreover have "v_check v (MFOTL.Exists x \<phi>) vp"
+      using FF vp_def
+      by simp
+    ultimately show ?thesis 
+      using FF by auto
   next
-    case (Pred x31 x32)
-    then show ?thesis sorry
+    case (Pred r ts)
+    note VExists[unfolded Pred, simplified]
+    {
+      fix z
+      have v_check_Pred_VPred: "\<And>v' vp. v_check v' (MFOTL.Pred r ts) vp \<Longrightarrow> i = v_at vp \<Longrightarrow> vp = VPred (v_at vp) r ts"
+        by (elim v_check.elims; clarsimp) 
+          (auto split: vproof.splits)
+      obtain vp where IH_unfolded: "v_at vp = i" 
+        "VIO \<sigma> (v(x := z)) i (formula.Pred r ts)" 
+        "v_check (v(x := z)) (formula.Pred r ts) vp"
+        using VExists[unfolded Pred, simplified] 
+        by (auto simp: fun_upd_def)
+      hence "vp = VPred i r ts"
+        using v_check_Pred_VPred by blast
+      hence "v_at (VPred i r ts) = i" 
+        "VIO \<sigma> (v(x := z)) i (MFOTL.Pred r ts)" 
+        "v_check (v(x := z)) (MFOTL.Pred r ts) (VPred i r ts)"
+        using IH_unfolded
+        by simp_all
+    }
+    thus ?thesis 
+      unfolding Pred
+      by (auto intro!: exI[of _ "VExists x (trivial_part (VPred i r ts))"])
   next
     case (Neg x5)
     then show ?thesis sorry
@@ -828,7 +858,7 @@ next
     case (Iff x91 x92)
     then show ?thesis sorry
   next
-    case (Exists x101 x102)
+    case (Exists x \<alpha>)
     then show ?thesis sorry
   next
     case (Forall x111 x112)
