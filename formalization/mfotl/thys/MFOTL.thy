@@ -40,11 +40,11 @@ lemma eval_trms_fv_cong:
   using eval_trm_fv_cong[of _ v v']
   by (auto simp: eval_trms_def)
 
-qualified primrec eval_trm_set :: "'a envset \<Rightarrow> 'a trm \<Rightarrow> 'a set" where
-  "eval_trm_set vs (MFOTL.Var x) = vs x"
-| "eval_trm_set vs (MFOTL.Const x) = {x}"
+qualified primrec eval_trm_set :: "'a envset \<Rightarrow> 'a trm \<Rightarrow> 'a trm \<times> 'a set" where
+  "eval_trm_set vs (MFOTL.Var x) = (Var x, vs x)"
+| "eval_trm_set vs (MFOTL.Const x) = (Const x, {x})"
 
-qualified definition eval_trms_set :: "'a envset \<Rightarrow> 'a trm list \<Rightarrow> 'a set list" where
+qualified definition eval_trms_set :: "'a envset \<Rightarrow> 'a trm list \<Rightarrow> ('a trm \<times> 'a set) list" where
   "eval_trms_set vs ts = map (eval_trm_set vs) ts"
 
 qualified datatype 'a formula = 
@@ -259,6 +259,89 @@ lemma sat_Always_rec: "sat \<sigma> v i (Always I \<phi>) \<longleftrightarrow>
   by (subst sat_Eventually_rec) auto
 
 end (*context*)
+
+bundle MFOTL_no_notation
+begin
+
+text \<open> For bold font, type ``backslash'' followed by the word ``bold''  \<close>
+no_notation trm.Var ("\<^bold>v")
+     and trm.Const ("\<^bold>c")
+
+text \<open> For subscripts type ``backslash'' followed by ``sub''  \<close>
+no_notation formula.TT ("\<top>")
+     and formula.FF ("\<bottom>")
+     and formula.Pred ("_ \<dagger> _" [85, 85] 85)
+     and formula.Neg ("\<not>\<^sub>F _" [82] 82)
+     and formula.And (infixr "\<and>\<^sub>F" 80)
+     and formula.Or (infixr "\<or>\<^sub>F" 80)
+     and formula.Imp (infixr "\<longrightarrow>\<^sub>F" 79)
+     and formula.Iff (infixr "\<longleftrightarrow>\<^sub>F" 79)
+     and formula.Exists ("\<exists>\<^sub>F_. _" [70,70] 70)
+     and formula.Forall ("\<forall>\<^sub>F_. _" [70,70] 70)
+     and formula.Prev ("\<^bold>Y _ _" [55, 65] 65)
+     and formula.Next ("\<^bold>X _ _" [55, 65] 65)
+     and formula.Once ("\<^bold>P _ _" [55, 65] 65)
+     and formula.Eventually ("\<^bold>F _ _" [55, 65] 65)
+     and formula.Once ("\<^bold>H _ _" [55, 65] 65)
+     and formula.Eventually ("\<^bold>G _ _" [55, 65] 65)
+     and formula.Since ("_ \<^bold>S _ _" [60,55,60] 60)
+     and formula.Until ("_ \<^bold>U _ _" [60,55,60] 60)
+
+no_notation MFOTL.fv_trm ("fv\<^sub>t")
+     and MFOTL.fv ("fv")
+     and MFOTL.eval_trm ("_\<lbrakk>_\<rbrakk>" [51,89] 89)
+     and MFOTL.sat ("\<langle>_, _, _\<rangle> \<Turnstile> _" [56, 56, 56, 56] 55)
+     and Interval.interval ("\<^bold>[_,_\<^bold>]")
+
+end
+
+bundle MFOTL_notation
+begin
+
+notation trm.Var ("\<^bold>v")
+     and trm.Const ("\<^bold>c")
+
+notation formula.TT ("\<top>")
+     and formula.FF ("\<bottom>")
+     and formula.Pred ("_ \<dagger> _" [85, 85] 85)
+     and formula.Neg ("\<not>\<^sub>F _" [82] 82)
+     and formula.And (infixr "\<and>\<^sub>F" 80)
+     and formula.Or (infixr "\<or>\<^sub>F" 80)
+     and formula.Imp (infixr "\<longrightarrow>\<^sub>F" 79)
+     and formula.Iff (infixr "\<longleftrightarrow>\<^sub>F" 79)
+     and formula.Exists ("\<exists>\<^sub>F_. _" [70,70] 70)
+     and formula.Forall ("\<forall>\<^sub>F_. _" [70,70] 70)
+     and formula.Prev ("\<^bold>Y _ _" [55, 65] 65)
+     and formula.Next ("\<^bold>X _ _" [55, 65] 65)
+     and formula.Once ("\<^bold>P _ _" [55, 65] 65)
+     and formula.Eventually ("\<^bold>F _ _" [55, 65] 65)
+     and formula.Once ("\<^bold>H _ _" [55, 65] 65)
+     and formula.Eventually ("\<^bold>G _ _" [55, 65] 65)
+     and formula.Since ("_ \<^bold>S _ _" [60,55,60] 60)
+     and formula.Until ("_ \<^bold>U _ _" [60,55,60] 60)
+
+notation MFOTL.fv_trm ("fv\<^sub>t")
+     and MFOTL.fv ("fv")
+     and MFOTL.eval_trm ("_\<lbrakk>_\<rbrakk>" [51,89] 89)
+     and MFOTL.sat ("\<langle>_, _, _\<rangle> \<Turnstile> _" [56, 56, 56, 56] 55)
+     and Interval.interval ("\<^bold>[_,_\<^bold>]")
+
+end
+
+unbundle MFOTL_notation \<comment> \<open> enable notation \<close>
+
+value "v\<lbrakk>\<^bold>c (0::nat)\<rbrakk> = 0"
+
+term "\<forall>\<^sub>F''x''. \<exists>\<^sub>F''y''. (P \<dagger> [\<^bold>c a, \<^bold>v ''x'']) \<and>\<^sub>F Q \<dagger> [\<^bold>v ''y''] \<longrightarrow>\<^sub>F \<phi> \<^bold>U I \<psi>"
+
+value "\<^bold>Y I (\<not>\<^sub>F (P \<dagger> [\<^bold>c a, \<^bold>v ''x'']) \<and>\<^sub>F (Q \<dagger> [\<^bold>v y])) \<^bold>S (point n) ((\<^bold>X \<^bold>[2,3\<^bold>] (P \<dagger> [\<^bold>c b, \<^bold>v ''x''])) \<or>\<^sub>F Q \<dagger> [\<^bold>v ''y''])
+ = MFOTL.Since (MFOTL.Prev I (MFOTL.And (MFOTL.Neg (MFOTL.Pred P [\<^bold>c a, \<^bold>v ''x''])) (MFOTL.Pred Q [\<^bold>v y]))) 
+  (point n) (MFOTL.Or (MFOTL.Next \<^bold>[2,3\<^bold>] (MFOTL.Pred P [\<^bold>c b, \<^bold>v ''x''])) (MFOTL.Pred Q [\<^bold>v ''y'']))"
+
+term "\<langle>\<sigma>, v, i\<rangle> \<Turnstile> \<^bold>Y I (\<not>\<^sub>F (P \<dagger> [\<^bold>c a, \<^bold>v ''x'']) \<and>\<^sub>F (Q \<dagger> [\<^bold>v y])) \<^bold>S (point n) ((\<^bold>X \<^bold>[2,3\<^bold>] (P \<dagger> [\<^bold>c b, \<^bold>v ''x''])) \<or>\<^sub>F Q \<dagger> [\<^bold>v ''y''])"
+
+unbundle MFOTL_no_notation \<comment> \<open> disable notation \<close>
+
 
 (*<*)
 end
