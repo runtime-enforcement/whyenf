@@ -888,16 +888,18 @@ next
         by blast
     }
     note IH_new = this
-    show ?thesis 
-      unfolding Neg
-      using IH_new[of ]
+    have obs: "\<exists>part. v_at (VExists x part) = i \<and> (\<forall>(sub, vp) \<in> SubsVals part. \<forall>z \<in> sub. v_check (v (x := z)) (formula.Neg \<alpha>) vp)  
+    \<Longrightarrow> \<exists>vp. v_at vp = i \<and> local.v_check v (formula.Exists x (formula.Neg \<alpha>)) vp"
       apply clarsimp
-      subgoal for sp'
-        apply (auto intro!: exI[of _ "VExists x (trivial_part (VNeg sp'))"])
-        subgoal for z
-          using IH_new[of z]
-           apply clarsimp
-          oops
+      subgoal for part by (auto intro!: exI[of _ "VExists x part"])
+      done
+    show ?thesis
+      unfolding Neg
+      apply clarify
+      apply (rule obs)
+      using IH_new[of ]
+      apply (clarsimp split: prod.splits)
+      oops
   next
     case (Or x61 x62)
     then show ?thesis sorry
