@@ -735,15 +735,25 @@ lemma SubsVals_trivial[simp]: "SubsVals (trivial_part pt) = {(UNIV, pt)}"
   unfolding SubsVals_def
   by (transfer) simp
 
+thm SAT_VIO.induct
+
 lemma check_completeness:
   "(SAT \<sigma> v i \<phi> \<longrightarrow> MFOTL.future_bounded \<phi> \<longrightarrow> (\<exists>sp. s_at sp = i \<and> s_check v \<phi> sp)) \<and>
    (VIO \<sigma> v i \<phi> \<longrightarrow> MFOTL.future_bounded \<phi> \<longrightarrow> (\<exists>vp. v_at vp = i \<and> v_check v \<phi> vp))"
 proof (induct v i \<phi> rule: SAT_VIO.induct)
   case (STT v i)
-  then show ?case sorry
+  then show ?case
+    apply simp
+    apply (rule exI[of _ "STT i"])
+    apply (simp add: fun_upd_def)
+    done
 next
   case (VFF v i)
-  then show ?case sorry
+  then show ?case 
+    apply simp
+    apply (rule exI[of _ "VFF i"])
+    apply (simp add: fun_upd_def)
+    done
 next
   case (SPred r v ts i)
   then show ?case sorry
@@ -801,40 +811,38 @@ next
     apply clarsimp
     subgoal for z sp
       apply (rule exI[of _ "SExists x z sp"])
-      apply (auto simp: fun_upd_def)
+      apply (simp add: fun_upd_def)
       done
     done
 next
-  case (VExists v x i \<phi>)
+  case (VExists v x i \<phi>')
   then show ?case
-  proof (cases \<phi>)
+  proof (cases \<phi>')
     case FF
     obtain vp where vp_def: "vp = VExists x (trivial_part (VFF i))"
       by (atomize_elim) simp
     then have "v_at vp = i"
       by simp
-    moreover have "v_check v (MFOTL.Exists x \<phi>) vp"
+    moreover have "v_check v (MFOTL.Exists x \<phi>') vp"
       using FF vp_def
       by simp
     ultimately show ?thesis 
       using FF by auto
   next
     case (Pred r ts)
-    note VExists[unfolded Pred, simplified]
     {
       fix z
-      have v_check_Pred_VPred: "\<And>v' vp. v_check v' (MFOTL.Pred r ts) vp \<Longrightarrow> i = v_at vp \<Longrightarrow> vp = VPred (v_at vp) r ts"
+      have v_check_Pred_VPred: "\<And>v' vp. v_check v' (MFOTL.Pred r ts) vp \<Longrightarrow> v_at vp = i \<Longrightarrow> vp = VPred (v_at vp) r ts"
         by (elim v_check.elims; clarsimp) 
           (auto split: vproof.splits)
       obtain vp where IH_unfolded: "v_at vp = i" 
-        "VIO \<sigma> (v(x := z)) i (formula.Pred r ts)" 
-        "v_check (v(x := z)) (formula.Pred r ts) vp"
-        using VExists[unfolded Pred, simplified] 
+        "VIO \<sigma> (v(x := z)) i (MFOTL.Pred r ts)" 
+        "v_check (v(x := z)) (MFOTL.Pred r ts) vp"
+        using VExists[unfolded Pred]
         by (auto simp: fun_upd_def)
       hence "vp = VPred i r ts"
-        using v_check_Pred_VPred by blast
-      hence "v_at (VPred i r ts) = i" 
-        "VIO \<sigma> (v(x := z)) i (MFOTL.Pred r ts)" 
+        using v_check_Pred_VPred by simp
+      hence "v_at (VPred i r ts) = i"  
         "v_check (v(x := z)) (MFOTL.Pred r ts) (VPred i r ts)"
         using IH_unfolded
         by simp_all
@@ -843,8 +851,53 @@ next
       unfolding Pred
       by (auto intro!: exI[of _ "VExists x (trivial_part (VPred i r ts))"])
   next
-    case (Neg x5)
-    then show ?thesis sorry
+    case (Neg \<alpha>)
+    thm VExists[unfolded Neg, rule_format, simplified] Neg
+    {
+      fix z assume "MFOTL.future_bounded (MFOTL.Neg \<alpha>)"
+      (* obtain sp' :: "'d sproof" where sp'_def: "s_check v \<alpha> sp'" "s_at sp' = i"
+        using VExists Neg
+        apply (atomize_elim)
+        sorry *)
+      (* have v_check_Neg_VNeg: "\<And>v' vp. v_check v' (MFOTL.Neg \<alpha>) vp \<Longrightarrow> v_at vp = i \<Longrightarrow> vp = VNeg sp'"
+        apply (elim v_check.elims) 
+        apply clarsimp
+        apply (auto split: vproof.splits)
+        sorry *)
+      then obtain vp where IH_unfolded: "v_at vp = i" 
+        "VIO \<sigma> (v(x := z)) i (MFOTL.Neg \<alpha>)" 
+        "v_check (v(x := z)) (MFOTL.Neg \<alpha>) vp"
+        using VExists[unfolded Neg]
+        by (auto simp: fun_upd_def)
+      then obtain sp' where "vp = VNeg sp'"
+        apply (elim v_check.elims)
+        apply clarsimp
+        apply (auto split: vproof.splits)
+        done
+      hence "v_at (VNeg sp') = i" 
+        "v_check (v(x := z)) (MFOTL.Neg \<alpha>) (VNeg sp')"
+        using IH_unfolded
+        by simp_all
+      hence "s_check (v(x := z)) \<alpha> sp'" "s_at sp' = i"
+        by auto
+      hence "\<exists>sp'. s_at sp' = i \<and> s_check (v(x := z)) \<alpha> sp'"
+        using IH_unfolded
+        by blast
+      hence "\<exists>vp. v_at vp = i \<and> v_check (v(x := z)) (MFOTL.Neg \<alpha>) vp"
+        using IH_unfolded
+        by blast
+    }
+    note IH_new = this
+    show ?thesis 
+      unfolding Neg
+      using IH_new[of ]
+      apply clarsimp
+      subgoal for sp'
+        apply (auto intro!: exI[of _ "VExists x (trivial_part (VNeg sp'))"])
+        subgoal for z
+          using IH_new[of z]
+           apply clarsimp
+          oops
   next
     case (Or x61 x62)
     then show ?thesis sorry
@@ -858,8 +911,10 @@ next
     case (Iff x91 x92)
     then show ?thesis sorry
   next
-    case (Exists x \<alpha>)
-    then show ?thesis sorry
+    case (Exists y \<alpha>)
+    then show ?thesis
+      using VExists
+      sorry
   next
     case (Forall x111 x112)
     then show ?thesis sorry
