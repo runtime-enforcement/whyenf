@@ -4,9 +4,9 @@ theory Monitor
 begin
 (*>*)
 
-lift_definition part_hd :: "('d, 'a) part \<Rightarrow> 'a" is "snd \<circ> hd" .
+consts future_reach :: "'a"
 
-find_theorems name:sum_list
+lift_definition part_hd :: "('d, 'a) part \<Rightarrow> 'a" is "snd \<circ> hd" .
 
 lemma size_part_hd_estimation[termination_simp]: "size (part_hd part) < Suc (size_part (\<lambda>_. 0) size part)"
   apply transfer
@@ -716,11 +716,21 @@ qed
 
 unbundle MFOTL_no_notation \<comment> \<open> disable notation \<close>
 
+definition AD where 
+  "AD \<phi> i = (\<Union> k \<le> future_reach \<sigma> \<phi> i. \<Union> (set ` snd ` \<Gamma> \<sigma> k))"
 
-lemma "(\<forall>x \<in> MFOTL.fv \<phi>. v1 x = v2 x \<or> 
-    v1 x \<notin> AD \<sigma> \<phi> (s_at sp) \<and> v2 x \<notin> AD \<sigma> \<phi> (s_at sp)) \<longrightarrow>
-  s_check v1 \<phi> sp \<longleftrightarrow> s_check v2 \<phi> sp"
-  oops
+lemma check_cong:
+  assumes "(\<forall>x \<in> MFOTL.fv \<phi>. v1 x = v2 x \<or> v1 x \<notin> AD \<phi> i \<and> v2 x \<notin> AD \<phi> i)"
+  shows
+  "(s_at sp = i \<Longrightarrow> s_check v1 \<phi> sp \<longleftrightarrow> s_check v2 \<phi> sp)"
+  "(v_at vp = i \<Longrightarrow> v_check v1 \<phi> vp \<longleftrightarrow> v_check v2 \<phi> vp)"
+proof (induction v1 \<phi> sp and v1 \<phi> vp rule: s_check_v_check.induct)
+  case (1 v f p)
+  then show ?case sorry
+next
+  case (2 v f p)
+  then show ?case sorry
+qed
 
 setup_lifting type_definition_part
 
@@ -817,16 +827,16 @@ next
 next
   case (VExists v x i \<phi>')
   then show ?case
-  proof (cases \<phi>')
+  proof (induction \<phi>')
     case FF
     obtain vp where vp_def: "vp = VExists x (trivial_part (VFF i))"
       by (atomize_elim) simp
     then have "v_at vp = i"
       by simp
-    moreover have "v_check v (MFOTL.Exists x \<phi>') vp"
+    moreover have "v_check v (MFOTL.Exists x MFOTL.FF) vp"
       using FF vp_def
       by simp
-    ultimately show ?thesis 
+    ultimately show ?case 
       using FF by auto
   next
     case (Pred r ts)
@@ -838,7 +848,7 @@ next
       obtain vp where IH_unfolded: "v_at vp = i" 
         "VIO \<sigma> (v(x := z)) i (MFOTL.Pred r ts)" 
         "v_check (v(x := z)) (MFOTL.Pred r ts) vp"
-        using VExists[unfolded Pred]
+        using Pred
         by (auto simp: fun_upd_def)
       hence "vp = VPred i r ts"
         using v_check_Pred_VPred by simp
@@ -847,7 +857,7 @@ next
         using IH_unfolded
         by simp_all
     }
-    thus ?thesis 
+    thus ?case
       unfolding Pred
       by (auto intro!: exI[of _ "VExists x (trivial_part (VPred i r ts))"])
   next
@@ -867,7 +877,7 @@ next
       then obtain vp where IH_unfolded: "v_at vp = i" 
         "VIO \<sigma> (v(x := z)) i (MFOTL.Neg \<alpha>)" 
         "v_check (v(x := z)) (MFOTL.Neg \<alpha>) vp"
-        using VExists[unfolded Neg]
+        using Neg
         by (auto simp: fun_upd_def)
       then obtain sp' where "vp = VNeg sp'"
         apply (elim v_check.elims)
@@ -893,7 +903,8 @@ next
       apply clarsimp
       subgoal for part by (auto intro!: exI[of _ "VExists x part"])
       done
-    show ?thesis
+    show ?case
+      using Neg
       unfolding Neg
       apply clarify
       apply (rule obs)
