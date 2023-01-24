@@ -899,7 +899,7 @@ next
       apply (rule obs)
       using IH_new[of ]
       apply (clarsimp split: prod.splits)
-      oops
+      sorry
   next
     case (Or x61 x62)
     then show ?thesis sorry
@@ -1215,9 +1215,9 @@ definition do_until_base :: "nat \<Rightarrow> nat \<Rightarrow> 'd proof \<Righ
 | (Inr vp1, _ , False) \<Rightarrow> [Inr (VUntil i [] vp1), Inr (VUntilInf i i [])]
 | (Inr vp1, Inr vp2, True) \<Rightarrow> [Inr (VUntil i [vp2] vp1), Inr (VUntilInf i i [vp2])])"
 
-definition doUntil :: "nat \<Rightarrow> nat \<Rightarrow> ('a sproof + 'a vproof) \<Rightarrow> ('a sproof + 'a vproof)
+definition do_until :: "nat \<Rightarrow> nat \<Rightarrow> ('a sproof + 'a vproof) \<Rightarrow> ('a sproof + 'a vproof)
 \<Rightarrow> ('a sproof + 'a vproof) \<Rightarrow> ('a sproof + 'a vproof) list" where
-  "doUntil i a p1 p2 p' = (case (p1, p2, a = 0, p') of
+  "do_until i a p1 p2 p' = (case (p1, p2, a = 0, p') of
   (Inl sp1, Inr _ , True, Inl (SUntil _ _ )) \<Rightarrow> [p' \<oplus> (Inl sp1)]
 | (Inl sp1, _ , False, Inl (SUntil _ _ )) \<Rightarrow> [p' \<oplus> (Inl sp1)]
 | (Inl sp1, Inl sp2, True, Inl (SUntil _ _ )) \<Rightarrow> [p' \<oplus> (Inl sp1), Inl (SUntil [] sp2)]
@@ -1254,6 +1254,11 @@ lift_definition tabulate :: "'d list \<Rightarrow> ('d \<Rightarrow> 'v) \<Right
   "\<lambda>ds f z. (- set ds, z) # map (\<lambda>d. ({d}, f d)) ds"
   sorry
 
+(* Note: this is only used in the Pred case.                                    *)
+(* Based on a set of (partial) functions from variables to values of a domain,  *)
+(* we compute values for each one of the variables in vars, put them in a list, *)
+(* and we create a partition with subsets considering each one of these values  *)
+(* and another subset considering the complement of the union of these values.  *)
 fun pdt_of :: "nat \<Rightarrow> MFOTL.name \<Rightarrow> 'd MFOTL.trm list  \<Rightarrow> MFOTL.name list \<Rightarrow> (MFOTL.name \<rightharpoonup> 'd) set \<Rightarrow> 'd expl" where
   "pdt_of i r ts [] V = (if V = {} then Leaf (Inr (VPred i r ts)) else Leaf (Inl (SPred i r ts)))"
 | "pdt_of i r ts (x # vars) V =
@@ -1273,5 +1278,11 @@ function (sequential) opt :: "MFOTL.name list \<Rightarrow> nat \<Rightarrow> 'd
   by pat_completeness auto
 
 end
+
+(* lift_definition mytrace :: "((MFOTL.name \<times> nat list) set \<times> nat) stream" is "({(''p'', [1::nat])}, 0::nat) ## s"
+
+term "mytrace 0"
+
+value "Monitor.alg.opt (({(''p'', [1::nat])}, 0::nat) ## s) [''x''] 0 (MFOTL.Pred ''p'' [MFOTL.Var ''x''])" *)
 
 end
