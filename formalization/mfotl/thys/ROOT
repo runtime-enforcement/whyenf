@@ -2,4 +2,6 @@ chapter AFP
 
 session Explanator2 (AFP) = "Containers" +
   theories
+    MFOTL
     Proof_System
+    Monitor
