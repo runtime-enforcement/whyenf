@@ -1,0 +1,7 @@
+chapter AFP
+
+session Explanator2_Code (AFP) = Explanator2 +
+  theories
+    Monitor_Code
+  export_files (in ".") [2]
+    "Explanator2_Code.Monitor_Code:code/**"
