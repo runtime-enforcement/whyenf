@@ -9,11 +9,12 @@ lemma extend_is_stream:
     sincreasing (smap snd (list @- smap (\<lambda>n. ({}, n + m)) nats))"
 proof -
   have A: "\<forall>x\<in>set list. n \<le> snd x \<Longrightarrow> n \<le> m \<Longrightarrow>
-    n \<le> (map snd list @- smap (\<lambda>x. x + m) nats) !! i" for n i and
-    list :: "('a set \<times> nat) list"
+    n \<le> (map snd list @- smap (\<lambda>x. x + m) nats) !! i" for n i 
+    and list :: "('a set \<times> nat) list"
     apply (induction i arbitrary: n list)
      apply (auto simp add: List.list.map_sel(1))
-    by (smt (verit, best) List.list.set_sel(2) map_tl)
+    apply (metis (no_types, lifting) list.set_sel(2) map_tl)
+    done
   have "ssorted (smap snd (list @- smap (\<lambda>n. ({}, n + m)) nats))"
     using assms
     apply (induction list)
@@ -30,27 +31,13 @@ proof -
       by (simp add: sincreasing_def) presburger
   next
     case (Cons a as)
-    have IH: "\<exists>j>i. smap snd (as @- smap (\<lambda>n. ({}, n + m)) nats) !! i
-            < smap snd (as @- smap (\<lambda>n. ({}, n + m)) nats) !! j" for i
+    have IH: "\<And>x. \<exists>i. x < smap snd (as @- smap (\<lambda>n. ({}, n + m)) nats) !! i"
       using Cons
-      by (auto simp: sincreasing_grD sincreasing_def)
-    obtain j where j_def: "0 < j" "smap snd (as @- smap (\<lambda>n. ({}, n + m)) nats) !! 0
-          < smap snd (as @- smap (\<lambda>n. ({}, n + m)) nats) !! j"
-      using IH[of 0]
-      by auto
+      by (auto simp: sincreasing_def)
     show ?case
-      apply (auto simp: sincreasing_def)
-      subgoal for i
-        apply (cases i)                              
-        subgoal
-          using j_def Cons
-          by (auto simp: list.map_sel(1) intro!: exI[of _ "Suc j"] split: if_splits)
-        subgoal for nat
-          using IH[of nat] 
-          apply clarsimp
-          sorry
-        done
-      done
+      using IH
+      by (simp add: sincreasing_def) 
+        (metis snth_Stream)
   qed
   ultimately show ?thesis
     by auto
