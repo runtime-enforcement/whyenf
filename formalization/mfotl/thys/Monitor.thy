@@ -1,6 +1,6 @@
 (*<*)
 theory Monitor
-  imports Proof_System "HOL-Library.Simps_Case_Conv"
+  imports Proof_System "HOL-Library.Simps_Case_Conv" "Well_Quasi_Orders.Well_Quasi_Orders"
 begin
 (*>*)
 
@@ -72,8 +72,6 @@ context fixes \<sigma> :: "'d MFOTL.trace"
 
 begin
 
-value "{''r''} \<times> (listset [{0::nat}, {2,0}, {1,0}])"
-
 fun s_check :: "'d MFOTL.env \<Rightarrow> 'd MFOTL.formula \<Rightarrow> 'd sproof \<Rightarrow> bool"
   and v_check :: "'d MFOTL.env \<Rightarrow> 'd MFOTL.formula \<Rightarrow> 'd vproof \<Rightarrow> bool" where
   "s_check v f p = (case (f, p) of
@@ -90,39 +88,39 @@ fun s_check :: "'d MFOTL.env \<Rightarrow> 'd MFOTL.formula \<Rightarrow> 'd spr
   | (MFOTL.Iff \<phi> \<psi>, SIffVV vp1 vp2) \<Rightarrow> v_check v \<phi> vp1 \<and> v_check v \<psi> vp2 \<and> v_at vp1 = v_at vp2
   | (MFOTL.Exists x \<phi>, SExists y val sp) \<Rightarrow> (x = y \<and> s_check (v (x := val)) \<phi> sp)
   | (MFOTL.Forall x \<phi>, SForall y sp_part) \<Rightarrow> (x = y \<and> (\<forall>(sub, sp) \<in> SubsVals sp_part. \<forall>z \<in> sub. s_check (v (x := z)) \<phi> sp))
-  | (MFOTL.Prev \<I> \<phi>, SPrev sp) \<Rightarrow>
+  | (MFOTL.Prev I \<phi>, SPrev sp) \<Rightarrow>
     (let j = s_at sp; i = s_at (SPrev sp) in 
-    i = j+1 \<and> mem (\<Delta> \<sigma> i) \<I> \<and> s_check v \<phi> sp)
-  | (MFOTL.Next \<I> \<phi>, SNext sp) \<Rightarrow>
+    i = j+1 \<and> mem (\<Delta> \<sigma> i) I \<and> s_check v \<phi> sp)
+  | (MFOTL.Next I \<phi>, SNext sp) \<Rightarrow>
     (let j = s_at sp; i = s_at (SNext sp) in
-    j = i+1 \<and> mem (\<Delta> \<sigma> j) \<I> \<and> s_check v \<phi> sp)
-  | (MFOTL.Once \<I> \<phi>, SOnce i sp) \<Rightarrow> 
+    j = i+1 \<and> mem (\<Delta> \<sigma> j) I \<and> s_check v \<phi> sp)
+  | (MFOTL.Once I \<phi>, SOnce i sp) \<Rightarrow> 
     (let j = s_at sp in
-    j \<le> i \<and> mem (\<tau> \<sigma> i - \<tau> \<sigma> j) \<I> \<and> s_check v \<phi> sp)
-  | (MFOTL.Eventually \<I> \<phi>, SEventually i sp) \<Rightarrow> 
+    j \<le> i \<and> mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I \<and> s_check v \<phi> sp)
+  | (MFOTL.Eventually I \<phi>, SEventually i sp) \<Rightarrow> 
     (let j = s_at sp in
-    j \<ge> i \<and> mem (\<tau> \<sigma> j - \<tau> \<sigma> i) \<I> \<and> s_check v \<phi> sp)
-  | (MFOTL.Historically \<I> \<phi>, SHistoricallyOut i) \<Rightarrow> 
-    \<tau> \<sigma> i < \<tau> \<sigma> 0 + left \<I>
-  | (MFOTL.Historically \<I> \<phi>, SHistorically i li sps) \<Rightarrow>
-    (li = (case right \<I> of \<infinity> \<Rightarrow> 0 | enat b \<Rightarrow> ETP \<sigma> (\<tau> \<sigma> i - b))
-    \<and> \<tau> \<sigma> 0 + left \<I> \<le> \<tau> \<sigma> i
-    \<and> map s_at sps = [li ..< (LTP_p \<sigma> i \<I>) + 1]
+    j \<ge> i \<and> mem (\<tau> \<sigma> j - \<tau> \<sigma> i) I \<and> s_check v \<phi> sp)
+  | (MFOTL.Historically I \<phi>, SHistoricallyOut i) \<Rightarrow> 
+    \<tau> \<sigma> i < \<tau> \<sigma> 0 + left I
+  | (MFOTL.Historically I \<phi>, SHistorically i li sps) \<Rightarrow>
+    (li = (case right I of \<infinity> \<Rightarrow> 0 | enat b \<Rightarrow> ETP \<sigma> (\<tau> \<sigma> i - b))
+    \<and> \<tau> \<sigma> 0 + left I \<le> \<tau> \<sigma> i
+    \<and> map s_at sps = [li ..< (LTP_p \<sigma> i I) + 1]
     \<and> (\<forall>sp \<in> set sps. s_check v \<phi> sp))
-  | (MFOTL.Always \<I> \<phi>, SAlways i hi sps) \<Rightarrow>
-    (hi = (case right \<I> of enat b \<Rightarrow> LTP_f \<sigma> i b) 
-    \<and> right \<I> \<noteq> \<infinity>
-    \<and> map s_at sps = [(ETP_f \<sigma> i \<I>) ..< hi + 1]
+  | (MFOTL.Always I \<phi>, SAlways i hi sps) \<Rightarrow>
+    (hi = (case right I of enat b \<Rightarrow> LTP_f \<sigma> i b) 
+    \<and> right I \<noteq> \<infinity>
+    \<and> map s_at sps = [(ETP_f \<sigma> i I) ..< hi + 1]
     \<and> (\<forall>sp \<in> set sps. s_check v \<phi> sp))
-  | (MFOTL.Since \<phi> \<I> \<psi>, SSince sp2 sp1s) \<Rightarrow>
+  | (MFOTL.Since \<phi> I \<psi>, SSince sp2 sp1s) \<Rightarrow>
     (let i = s_at (SSince sp2 sp1s); j = s_at sp2 in
-    j \<le> i \<and> mem (\<tau> \<sigma> i - \<tau> \<sigma> j) \<I> 
+    j \<le> i \<and> mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I 
     \<and> map s_at sp1s = [j+1 ..< i+1] 
     \<and> s_check v \<psi> sp2
     \<and> (\<forall>sp1 \<in> set sp1s. s_check v \<phi> sp1))
-  | (MFOTL.Until \<phi> \<I> \<psi>, SUntil sp1s sp2) \<Rightarrow>
+  | (MFOTL.Until \<phi> I \<psi>, SUntil sp1s sp2) \<Rightarrow>
     (let i = s_at (SUntil sp1s sp2); j = s_at sp2 in
-    j \<ge> i \<and> mem (\<tau> \<sigma> j - \<tau> \<sigma> i) \<I>
+    j \<ge> i \<and> mem (\<tau> \<sigma> j - \<tau> \<sigma> i) I
     \<and> map s_at sp1s = [i ..< j] \<and> s_check v \<psi> sp2
     \<and> (\<forall>sp1 \<in> set sp1s. s_check v \<phi> sp1))
   | ( _ , _) \<Rightarrow> False)"
@@ -139,60 +137,60 @@ fun s_check :: "'d MFOTL.env \<Rightarrow> 'd MFOTL.formula \<Rightarrow> 'd spr
   | (MFOTL.Iff \<phi> \<psi>, VIffVS vp1 sp2) \<Rightarrow> v_check v \<phi> vp1 \<and> s_check v \<psi> sp2 \<and> v_at vp1 = s_at sp2
   | (MFOTL.Exists x \<phi>, VExists y vp_part) \<Rightarrow> (x = y \<and> (\<forall>(sub, vp) \<in> SubsVals vp_part. \<forall>z \<in> sub. v_check (v (x := z)) \<phi> vp))
   | (MFOTL.Forall x \<phi>, VForall y val vp) \<Rightarrow> (x = y \<and> v_check (v (x := val)) \<phi> vp)
-  | (MFOTL.Prev \<I> \<phi>, VPrev vp) \<Rightarrow>
+  | (MFOTL.Prev I \<phi>, VPrev vp) \<Rightarrow>
     (let j = v_at vp; i = v_at (VPrev vp) in
     i = j+1 \<and> v_check v \<phi> vp)
-  | (MFOTL.Prev \<I> \<phi>, VPrevZ) \<Rightarrow>
+  | (MFOTL.Prev I \<phi>, VPrevZ) \<Rightarrow>
     v_at (VPrevZ::'d vproof) = 0
-  | (MFOTL.Prev \<I> \<phi>, VPrevOutL i) \<Rightarrow>
-    i > 0 \<and> \<Delta> \<sigma> i < left \<I>
-  | (MFOTL.Prev \<I> \<phi>, VPrevOutR i) \<Rightarrow>
-    i > 0 \<and> enat (\<Delta> \<sigma> i) > right \<I>
-  | (MFOTL.Next \<I> \<phi>, VNext vp) \<Rightarrow>
+  | (MFOTL.Prev I \<phi>, VPrevOutL i) \<Rightarrow>
+    i > 0 \<and> \<Delta> \<sigma> i < left I
+  | (MFOTL.Prev I \<phi>, VPrevOutR i) \<Rightarrow>
+    i > 0 \<and> enat (\<Delta> \<sigma> i) > right I
+  | (MFOTL.Next I \<phi>, VNext vp) \<Rightarrow>
     (let j = v_at vp; i = v_at (VNext vp) in
     j = i+1 \<and> v_check v \<phi> vp)
-  | (MFOTL.Next \<I> \<phi>, VNextOutL i) \<Rightarrow>
-    \<Delta> \<sigma> (i+1) < left \<I>
-  | (MFOTL.Next \<I> \<phi>, VNextOutR i) \<Rightarrow>
-    enat (\<Delta> \<sigma> (i+1)) > right \<I>
-  | (MFOTL.Once \<I> \<phi>, VOnceOut i) \<Rightarrow> 
-    \<tau> \<sigma> i < \<tau> \<sigma> 0 + left \<I>
-  | (MFOTL.Once \<I> \<phi>, VOnce i li vps) \<Rightarrow>
-    (li = (case right \<I> of \<infinity> \<Rightarrow> 0 | enat b \<Rightarrow> ETP_p \<sigma> i b)
-    \<and> \<tau> \<sigma> 0 + left \<I> \<le> \<tau> \<sigma> i
-    \<and> map v_at vps = [li ..< (LTP_p \<sigma> i \<I>) + 1]
+  | (MFOTL.Next I \<phi>, VNextOutL i) \<Rightarrow>
+    \<Delta> \<sigma> (i+1) < left I
+  | (MFOTL.Next I \<phi>, VNextOutR i) \<Rightarrow>
+    enat (\<Delta> \<sigma> (i+1)) > right I
+  | (MFOTL.Once I \<phi>, VOnceOut i) \<Rightarrow> 
+    \<tau> \<sigma> i < \<tau> \<sigma> 0 + left I
+  | (MFOTL.Once I \<phi>, VOnce i li vps) \<Rightarrow>
+    (li = (case right I of \<infinity> \<Rightarrow> 0 | enat b \<Rightarrow> ETP_p \<sigma> i b)
+    \<and> \<tau> \<sigma> 0 + left I \<le> \<tau> \<sigma> i
+    \<and> map v_at vps = [li ..< (LTP_p \<sigma> i I) + 1]
     \<and> (\<forall>vp \<in> set vps. v_check v \<phi> vp))
-  | (MFOTL.Eventually \<I> \<phi>, VEventually i hi vps) \<Rightarrow>
-    (hi = (case right \<I> of enat b \<Rightarrow> LTP_f \<sigma> i b) \<and> right \<I> \<noteq> \<infinity>
-    \<and> map v_at vps = [(ETP_f \<sigma> i \<I>) ..< hi + 1]
+  | (MFOTL.Eventually I \<phi>, VEventually i hi vps) \<Rightarrow>
+    (hi = (case right I of enat b \<Rightarrow> LTP_f \<sigma> i b) \<and> right I \<noteq> \<infinity>
+    \<and> map v_at vps = [(ETP_f \<sigma> i I) ..< hi + 1]
     \<and> (\<forall>vp \<in> set vps. v_check v \<phi> vp))
-  | (MFOTL.Historically \<I> \<phi>, VHistorically i vp) \<Rightarrow> 
+  | (MFOTL.Historically I \<phi>, VHistorically i vp) \<Rightarrow> 
     (let j = v_at vp in
-    j \<le> i \<and> mem (\<tau> \<sigma> i - \<tau> \<sigma> j) \<I> \<and> v_check v \<phi> vp)
-  | (MFOTL.Always \<I> \<phi>, VAlways i vp) \<Rightarrow> 
+    j \<le> i \<and> mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I \<and> v_check v \<phi> vp)
+  | (MFOTL.Always I \<phi>, VAlways i vp) \<Rightarrow> 
     (let j = v_at vp
-    in j \<ge> i \<and> mem (\<tau> \<sigma> j - \<tau> \<sigma> i) \<I> \<and> v_check v \<phi> vp)
-  | (MFOTL.Since \<phi> \<I> \<psi>, VSinceOut i) \<Rightarrow>
-    \<tau> \<sigma> i < \<tau> \<sigma> 0 + left \<I>
-  | (MFOTL.Since \<phi> \<I> \<psi>, VSince i vp1 vp2s) \<Rightarrow>
+    in j \<ge> i \<and> mem (\<tau> \<sigma> j - \<tau> \<sigma> i) I \<and> v_check v \<phi> vp)
+  | (MFOTL.Since \<phi> I \<psi>, VSinceOut i) \<Rightarrow>
+    \<tau> \<sigma> i < \<tau> \<sigma> 0 + left I
+  | (MFOTL.Since \<phi> I \<psi>, VSince i vp1 vp2s) \<Rightarrow>
     (let j = v_at vp1 in
-    (case right \<I> of \<infinity> \<Rightarrow> True | enat b \<Rightarrow> ETP_p \<sigma> i b \<le> j) \<and> j \<le> i
-    \<and> \<tau> \<sigma> 0 + left \<I> \<le> \<tau> \<sigma> i
-    \<and> map v_at vp2s = [j ..< (LTP_p \<sigma> i \<I>) + 1] \<and> v_check v \<phi> vp1
+    (case right I of \<infinity> \<Rightarrow> True | enat b \<Rightarrow> ETP_p \<sigma> i b \<le> j) \<and> j \<le> i
+    \<and> \<tau> \<sigma> 0 + left I \<le> \<tau> \<sigma> i
+    \<and> map v_at vp2s = [j ..< (LTP_p \<sigma> i I) + 1] \<and> v_check v \<phi> vp1
     \<and> (\<forall>vp2 \<in> set vp2s. v_check v \<psi> vp2))
-  | (MFOTL.Since \<phi> \<I> \<psi>, VSinceInf i li vp2s) \<Rightarrow>
-    (li = (case right \<I> of \<infinity> \<Rightarrow> 0 | enat b \<Rightarrow> ETP_p \<sigma> i b)
-    \<and> \<tau> \<sigma> 0 + left \<I> \<le> \<tau> \<sigma> i
-    \<and> map v_at vp2s = [li ..< (LTP_p \<sigma> i \<I>) + 1]
+  | (MFOTL.Since \<phi> I \<psi>, VSinceInf i li vp2s) \<Rightarrow>
+    (li = (case right I of \<infinity> \<Rightarrow> 0 | enat b \<Rightarrow> ETP_p \<sigma> i b)
+    \<and> \<tau> \<sigma> 0 + left I \<le> \<tau> \<sigma> i
+    \<and> map v_at vp2s = [li ..< (LTP_p \<sigma> i I) + 1]
     \<and> (\<forall>vp2 \<in> set vp2s. v_check v \<psi> vp2))
-  | (MFOTL.Until \<phi> \<I> \<psi>, VUntil i vp2s vp1) \<Rightarrow>
+  | (MFOTL.Until \<phi> I \<psi>, VUntil i vp2s vp1) \<Rightarrow>
     (let j = v_at vp1 in
-    (case right \<I> of \<infinity> \<Rightarrow> True | enat b \<Rightarrow> j \<le> LTP_f \<sigma> i b) \<and> i \<le> j
-    \<and> map v_at vp2s = [ETP_f \<sigma> i \<I> ..< j + 1] \<and> v_check v \<phi> vp1
+    (case right I of \<infinity> \<Rightarrow> True | enat b \<Rightarrow> j \<le> LTP_f \<sigma> i b) \<and> i \<le> j
+    \<and> map v_at vp2s = [ETP_f \<sigma> i I ..< j + 1] \<and> v_check v \<phi> vp1
     \<and> (\<forall>vp2 \<in> set vp2s. v_check v \<psi> vp2))
-  | (MFOTL.Until \<phi> \<I> \<psi>, VUntilInf i hi vp2s) \<Rightarrow>
-    (hi = (case right \<I> of enat b \<Rightarrow> LTP_f \<sigma> i b) \<and> right \<I> \<noteq> \<infinity>
-    \<and> map v_at vp2s = [ETP_f \<sigma> i \<I> ..< hi + 1]
+  | (MFOTL.Until \<phi> I \<psi>, VUntilInf i hi vp2s) \<Rightarrow>
+    (hi = (case right I of enat b \<Rightarrow> LTP_f \<sigma> i b) \<and> right I \<noteq> \<infinity>
+    \<and> map v_at vp2s = [ETP_f \<sigma> i I ..< hi + 1]
     \<and> (\<forall>vp2 \<in> set vp2s. v_check v \<psi> vp2))
   | ( _ , _) \<Rightarrow> False)"
 
@@ -320,39 +318,39 @@ fun s_check_exec :: "'d MFOTL.envset \<Rightarrow> 'd MFOTL.formula \<Rightarrow
   | (MFOTL.Iff \<phi> \<psi>, SIffVV vp1 vp2) \<Rightarrow> v_check_exec vs \<phi> vp1 \<and> v_check_exec vs \<psi> vp2 \<and> v_at vp1 = v_at vp2
   | (MFOTL.Exists x \<phi>, SExists y val sp) \<Rightarrow> (x = y \<and> s_check_exec (vs (x := {val})) \<phi> sp)
   | (MFOTL.Forall x \<phi>, SForall y sp_part) \<Rightarrow> (x = y \<and> (\<forall>(sub, sp) \<in> SubsVals sp_part. s_check_exec (vs (x := sub)) \<phi> sp))
-  | (MFOTL.Prev \<I> \<phi>, SPrev sp) \<Rightarrow>
+  | (MFOTL.Prev I \<phi>, SPrev sp) \<Rightarrow>
     (let j = s_at sp; i = s_at (SPrev sp) in 
-    i = j+1 \<and> mem (\<Delta> \<sigma> i) \<I> \<and> s_check_exec vs \<phi> sp)
-  | (MFOTL.Next \<I> \<phi>, SNext sp) \<Rightarrow>
+    i = j+1 \<and> mem (\<Delta> \<sigma> i) I \<and> s_check_exec vs \<phi> sp)
+  | (MFOTL.Next I \<phi>, SNext sp) \<Rightarrow>
     (let j = s_at sp; i = s_at (SNext sp) in
-    j = i+1 \<and> mem (\<Delta> \<sigma> j) \<I> \<and> s_check_exec vs \<phi> sp)
-  | (MFOTL.Once \<I> \<phi>, SOnce i sp) \<Rightarrow> 
+    j = i+1 \<and> mem (\<Delta> \<sigma> j) I \<and> s_check_exec vs \<phi> sp)
+  | (MFOTL.Once I \<phi>, SOnce i sp) \<Rightarrow> 
     (let j = s_at sp in
-    j \<le> i \<and> mem (\<tau> \<sigma> i - \<tau> \<sigma> j) \<I> \<and> s_check_exec vs \<phi> sp)
-  | (MFOTL.Eventually \<I> \<phi>, SEventually i sp) \<Rightarrow> 
+    j \<le> i \<and> mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I \<and> s_check_exec vs \<phi> sp)
+  | (MFOTL.Eventually I \<phi>, SEventually i sp) \<Rightarrow> 
     (let j = s_at sp in
-    j \<ge> i \<and> mem (\<tau> \<sigma> j - \<tau> \<sigma> i) \<I> \<and> s_check_exec vs \<phi> sp)
-  | (MFOTL.Historically \<I> \<phi>, SHistoricallyOut i) \<Rightarrow> 
-    \<tau> \<sigma> i < \<tau> \<sigma> 0 + left \<I>
-  | (MFOTL.Historically \<I> \<phi>, SHistorically i li sps) \<Rightarrow>
-    (li = (case right \<I> of \<infinity> \<Rightarrow> 0 | enat b \<Rightarrow> ETP \<sigma> (\<tau> \<sigma> i - b))
-    \<and> \<tau> \<sigma> 0 + left \<I> \<le> \<tau> \<sigma> i
-    \<and> map s_at sps = [li ..< (LTP_p \<sigma> i \<I>) + 1]
+    j \<ge> i \<and> mem (\<tau> \<sigma> j - \<tau> \<sigma> i) I \<and> s_check_exec vs \<phi> sp)
+  | (MFOTL.Historically I \<phi>, SHistoricallyOut i) \<Rightarrow> 
+    \<tau> \<sigma> i < \<tau> \<sigma> 0 + left I
+  | (MFOTL.Historically I \<phi>, SHistorically i li sps) \<Rightarrow>
+    (li = (case right I of \<infinity> \<Rightarrow> 0 | enat b \<Rightarrow> ETP \<sigma> (\<tau> \<sigma> i - b))
+    \<and> \<tau> \<sigma> 0 + left I \<le> \<tau> \<sigma> i
+    \<and> map s_at sps = [li ..< (LTP_p \<sigma> i I) + 1]
     \<and> (\<forall>sp \<in> set sps. s_check_exec vs \<phi> sp))
-  | (MFOTL.Always \<I> \<phi>, SAlways i hi sps) \<Rightarrow>
-    (hi = (case right \<I> of enat b \<Rightarrow> LTP_f \<sigma> i b) 
-    \<and> right \<I> \<noteq> \<infinity>
-    \<and> map s_at sps = [(ETP_f \<sigma> i \<I>) ..< hi + 1]
+  | (MFOTL.Always I \<phi>, SAlways i hi sps) \<Rightarrow>
+    (hi = (case right I of enat b \<Rightarrow> LTP_f \<sigma> i b) 
+    \<and> right I \<noteq> \<infinity>
+    \<and> map s_at sps = [(ETP_f \<sigma> i I) ..< hi + 1]
     \<and> (\<forall>sp \<in> set sps. s_check_exec vs \<phi> sp))
-  | (MFOTL.Since \<phi> \<I> \<psi>, SSince sp2 sp1s) \<Rightarrow>
+  | (MFOTL.Since \<phi> I \<psi>, SSince sp2 sp1s) \<Rightarrow>
     (let i = s_at (SSince sp2 sp1s); j = s_at sp2 in
-    j \<le> i \<and> mem (\<tau> \<sigma> i - \<tau> \<sigma> j) \<I> 
+    j \<le> i \<and> mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I 
     \<and> map s_at sp1s = [j+1 ..< i+1] 
     \<and> s_check_exec vs \<psi> sp2
     \<and> (\<forall>sp1 \<in> set sp1s. s_check_exec vs \<phi> sp1))
-  | (MFOTL.Until \<phi> \<I> \<psi>, SUntil sp1s sp2) \<Rightarrow>
+  | (MFOTL.Until \<phi> I \<psi>, SUntil sp1s sp2) \<Rightarrow>
     (let i = s_at (SUntil sp1s sp2); j = s_at sp2 in
-    j \<ge> i \<and> mem (\<tau> \<sigma> j - \<tau> \<sigma> i) \<I>
+    j \<ge> i \<and> mem (\<tau> \<sigma> j - \<tau> \<sigma> i) I
     \<and> map s_at sp1s = [i ..< j] \<and> s_check_exec vs \<psi> sp2
     \<and> (\<forall>sp1 \<in> set sp1s. s_check_exec vs \<phi> sp1))
   | ( _ , _) \<Rightarrow> False)"
@@ -369,60 +367,60 @@ fun s_check_exec :: "'d MFOTL.envset \<Rightarrow> 'd MFOTL.formula \<Rightarrow
   | (MFOTL.Iff \<phi> \<psi>, VIffVS vp1 sp2) \<Rightarrow> v_check_exec vs \<phi> vp1 \<and> s_check_exec vs \<psi> sp2 \<and> v_at vp1 = s_at sp2
   | (MFOTL.Exists x \<phi>, VExists y vp_part) \<Rightarrow> (x = y \<and> (\<forall>(sub, vp) \<in> SubsVals vp_part. v_check_exec (vs (x := sub)) \<phi> vp))
   | (MFOTL.Forall x \<phi>, VForall y val vp) \<Rightarrow> (x = y \<and> v_check_exec (vs (x := {val})) \<phi> vp)
-  | (MFOTL.Prev \<I> \<phi>, VPrev vp) \<Rightarrow>
+  | (MFOTL.Prev I \<phi>, VPrev vp) \<Rightarrow>
     (let j = v_at vp; i = v_at (VPrev vp) in
     i = j+1 \<and> v_check_exec vs \<phi> vp)
-  | (MFOTL.Prev \<I> \<phi>, VPrevZ) \<Rightarrow>
+  | (MFOTL.Prev I \<phi>, VPrevZ) \<Rightarrow>
     v_at (VPrevZ::'d vproof) = 0
-  | (MFOTL.Prev \<I> \<phi>, VPrevOutL i) \<Rightarrow>
-    i > 0 \<and> \<Delta> \<sigma> i < left \<I>
-  | (MFOTL.Prev \<I> \<phi>, VPrevOutR i) \<Rightarrow>
-    i > 0 \<and> enat (\<Delta> \<sigma> i) > right \<I>
-  | (MFOTL.Next \<I> \<phi>, VNext vp) \<Rightarrow>
+  | (MFOTL.Prev I \<phi>, VPrevOutL i) \<Rightarrow>
+    i > 0 \<and> \<Delta> \<sigma> i < left I
+  | (MFOTL.Prev I \<phi>, VPrevOutR i) \<Rightarrow>
+    i > 0 \<and> enat (\<Delta> \<sigma> i) > right I
+  | (MFOTL.Next I \<phi>, VNext vp) \<Rightarrow>
     (let j = v_at vp; i = v_at (VNext vp) in
     j = i+1 \<and> v_check_exec vs \<phi> vp)
-  | (MFOTL.Next \<I> \<phi>, VNextOutL i) \<Rightarrow>
-    \<Delta> \<sigma> (i+1) < left \<I>
-  | (MFOTL.Next \<I> \<phi>, VNextOutR i) \<Rightarrow>
-    enat (\<Delta> \<sigma> (i+1)) > right \<I>
-  | (MFOTL.Once \<I> \<phi>, VOnceOut i) \<Rightarrow> 
-    \<tau> \<sigma> i < \<tau> \<sigma> 0 + left \<I>
-  | (MFOTL.Once \<I> \<phi>, VOnce i li vps) \<Rightarrow>
-    (li = (case right \<I> of \<infinity> \<Rightarrow> 0 | enat b \<Rightarrow> ETP_p \<sigma> i b)
-    \<and> \<tau> \<sigma> 0 + left \<I> \<le> \<tau> \<sigma> i
-    \<and> map v_at vps = [li ..< (LTP_p \<sigma> i \<I>) + 1]
+  | (MFOTL.Next I \<phi>, VNextOutL i) \<Rightarrow>
+    \<Delta> \<sigma> (i+1) < left I
+  | (MFOTL.Next I \<phi>, VNextOutR i) \<Rightarrow>
+    enat (\<Delta> \<sigma> (i+1)) > right I
+  | (MFOTL.Once I \<phi>, VOnceOut i) \<Rightarrow> 
+    \<tau> \<sigma> i < \<tau> \<sigma> 0 + left I
+  | (MFOTL.Once I \<phi>, VOnce i li vps) \<Rightarrow>
+    (li = (case right I of \<infinity> \<Rightarrow> 0 | enat b \<Rightarrow> ETP_p \<sigma> i b)
+    \<and> \<tau> \<sigma> 0 + left I \<le> \<tau> \<sigma> i
+    \<and> map v_at vps = [li ..< (LTP_p \<sigma> i I) + 1]
     \<and> (\<forall>vp \<in> set vps. v_check_exec vs \<phi> vp))
-  | (MFOTL.Eventually \<I> \<phi>, VEventually i hi vps) \<Rightarrow>
-    (hi = (case right \<I> of enat b \<Rightarrow> LTP_f \<sigma> i b) \<and> right \<I> \<noteq> \<infinity>
-    \<and> map v_at vps = [(ETP_f \<sigma> i \<I>) ..< hi + 1]
+  | (MFOTL.Eventually I \<phi>, VEventually i hi vps) \<Rightarrow>
+    (hi = (case right I of enat b \<Rightarrow> LTP_f \<sigma> i b) \<and> right I \<noteq> \<infinity>
+    \<and> map v_at vps = [(ETP_f \<sigma> i I) ..< hi + 1]
     \<and> (\<forall>vp \<in> set vps. v_check_exec vs \<phi> vp))
-  | (MFOTL.Historically \<I> \<phi>, VHistorically i vp) \<Rightarrow> 
+  | (MFOTL.Historically I \<phi>, VHistorically i vp) \<Rightarrow> 
     (let j = v_at vp in
-    j \<le> i \<and> mem (\<tau> \<sigma> i - \<tau> \<sigma> j) \<I> \<and> v_check_exec vs \<phi> vp)
-  | (MFOTL.Always \<I> \<phi>, VAlways i vp) \<Rightarrow> 
+    j \<le> i \<and> mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I \<and> v_check_exec vs \<phi> vp)
+  | (MFOTL.Always I \<phi>, VAlways i vp) \<Rightarrow> 
     (let j = v_at vp
-    in j \<ge> i \<and> mem (\<tau> \<sigma> j - \<tau> \<sigma> i) \<I> \<and> v_check_exec vs \<phi> vp)
-  | (MFOTL.Since \<phi> \<I> \<psi>, VSinceOut i) \<Rightarrow>
-    \<tau> \<sigma> i < \<tau> \<sigma> 0 + left \<I>
-  | (MFOTL.Since \<phi> \<I> \<psi>, VSince i vp1 vp2s) \<Rightarrow>
+    in j \<ge> i \<and> mem (\<tau> \<sigma> j - \<tau> \<sigma> i) I \<and> v_check_exec vs \<phi> vp)
+  | (MFOTL.Since \<phi> I \<psi>, VSinceOut i) \<Rightarrow>
+    \<tau> \<sigma> i < \<tau> \<sigma> 0 + left I
+  | (MFOTL.Since \<phi> I \<psi>, VSince i vp1 vp2s) \<Rightarrow>
     (let j = v_at vp1 in
-    (case right \<I> of \<infinity> \<Rightarrow> True | enat b \<Rightarrow> ETP_p \<sigma> i b \<le> j) \<and> j \<le> i
-    \<and> \<tau> \<sigma> 0 + left \<I> \<le> \<tau> \<sigma> i
-    \<and> map v_at vp2s = [j ..< (LTP_p \<sigma> i \<I>) + 1] \<and> v_check_exec vs \<phi> vp1
+    (case right I of \<infinity> \<Rightarrow> True | enat b \<Rightarrow> ETP_p \<sigma> i b \<le> j) \<and> j \<le> i
+    \<and> \<tau> \<sigma> 0 + left I \<le> \<tau> \<sigma> i
+    \<and> map v_at vp2s = [j ..< (LTP_p \<sigma> i I) + 1] \<and> v_check_exec vs \<phi> vp1
     \<and> (\<forall>vp2 \<in> set vp2s. v_check_exec vs \<psi> vp2))
-  | (MFOTL.Since \<phi> \<I> \<psi>, VSinceInf i li vp2s) \<Rightarrow>
-    (li = (case right \<I> of \<infinity> \<Rightarrow> 0 | enat b \<Rightarrow> ETP_p \<sigma> i b)
-    \<and> \<tau> \<sigma> 0 + left \<I> \<le> \<tau> \<sigma> i
-    \<and> map v_at vp2s = [li ..< (LTP_p \<sigma> i \<I>) + 1]
+  | (MFOTL.Since \<phi> I \<psi>, VSinceInf i li vp2s) \<Rightarrow>
+    (li = (case right I of \<infinity> \<Rightarrow> 0 | enat b \<Rightarrow> ETP_p \<sigma> i b)
+    \<and> \<tau> \<sigma> 0 + left I \<le> \<tau> \<sigma> i
+    \<and> map v_at vp2s = [li ..< (LTP_p \<sigma> i I) + 1]
     \<and> (\<forall>vp2 \<in> set vp2s. v_check_exec vs \<psi> vp2))
-  | (MFOTL.Until \<phi> \<I> \<psi>, VUntil i vp2s vp1) \<Rightarrow>
+  | (MFOTL.Until \<phi> I \<psi>, VUntil i vp2s vp1) \<Rightarrow>
     (let j = v_at vp1 in
-    (case right \<I> of \<infinity> \<Rightarrow> True | enat b \<Rightarrow> j \<le> LTP_f \<sigma> i b) \<and> i \<le> j
-    \<and> map v_at vp2s = [ETP_f \<sigma> i \<I> ..< j + 1] \<and> v_check_exec vs \<phi> vp1
+    (case right I of \<infinity> \<Rightarrow> True | enat b \<Rightarrow> j \<le> LTP_f \<sigma> i b) \<and> i \<le> j
+    \<and> map v_at vp2s = [ETP_f \<sigma> i I ..< j + 1] \<and> v_check_exec vs \<phi> vp1
     \<and> (\<forall>vp2 \<in> set vp2s. v_check_exec vs \<psi> vp2))
-  | (MFOTL.Until \<phi> \<I> \<psi>, VUntilInf i hi vp2s) \<Rightarrow>
-    (hi = (case right \<I> of enat b \<Rightarrow> LTP_f \<sigma> i b) \<and> right \<I> \<noteq> \<infinity>
-    \<and> map v_at vp2s = [ETP_f \<sigma> i \<I> ..< hi + 1]
+  | (MFOTL.Until \<phi> I \<psi>, VUntilInf i hi vp2s) \<Rightarrow>
+    (hi = (case right I of enat b \<Rightarrow> LTP_f \<sigma> i b) \<and> right I \<noteq> \<infinity>
+    \<and> map v_at vp2s = [ETP_f \<sigma> i I ..< hi + 1]
     \<and> (\<forall>vp2 \<in> set vp2s. v_check_exec vs \<psi> vp2))
   | ( _ , _) \<Rightarrow> False)"
 
@@ -721,12 +719,72 @@ definition AD where
 
 lemma check_cong:
   assumes "(\<forall>x \<in> MFOTL.fv \<phi>. v1 x = v2 x \<or> v1 x \<notin> AD \<phi> i \<and> v2 x \<notin> AD \<phi> i)"
-  shows
-  "(s_at sp = i \<Longrightarrow> s_check v1 \<phi> sp \<longleftrightarrow> s_check v2 \<phi> sp)"
-  "(v_at vp = i \<Longrightarrow> v_check v1 \<phi> vp \<longleftrightarrow> v_check v2 \<phi> vp)"
+  shows "(s_at sp = i \<Longrightarrow> s_check v1 \<phi> sp \<longleftrightarrow> s_check v2 \<phi> sp)"
+    "(v_at vp = i \<Longrightarrow> v_check v1 \<phi> vp \<longleftrightarrow> v_check v2 \<phi> vp)"
 proof (induction v1 \<phi> sp and v1 \<phi> vp rule: s_check_v_check.induct)
   case (1 v f p)
-  then show ?case sorry
+  show ?case
+  proof (cases p)
+    case (SPred x21 x22 x23)
+    then show ?thesis sorry
+  next
+    case (SNeg x3)
+    then show ?thesis sorry
+  next
+    case (SOrL x4)
+    then show ?thesis sorry
+  next
+    case (SOrR x5)
+    then show ?thesis sorry
+  next
+    case (SAnd x61 x62)
+    then show ?thesis sorry
+  next
+    case (SImpL x7)
+    then show ?thesis sorry
+  next
+    case (SImpR x8)
+    then show ?thesis sorry
+  next
+    case (SIffSS x91 x92)
+    then show ?thesis sorry
+  next
+    case (SIffVV x101 x102)
+    then show ?thesis sorry
+  next
+    case (SExists x111 x112 x113)
+    then show ?thesis sorry
+  next
+    case (SForall x121 x122)
+    then show ?thesis sorry
+  next
+    case (SPrev x13)
+    then show ?thesis sorry
+  next
+    case (SNext x14)
+    then show ?thesis sorry
+  next
+    case (SOnce x151 x152)
+    then show ?thesis sorry
+  next
+    case (SEventually x161 x162)
+    then show ?thesis sorry
+  next
+    case (SHistorically x171 x172 x173)
+    then show ?thesis sorry
+  next
+    case (SHistoricallyOut x18)
+    then show ?thesis sorry
+  next
+    case (SAlways x191 x192 x193)
+    then show ?thesis sorry
+  next
+    case (SSince x201 x202)
+    then show ?thesis sorry
+  next
+    case (SUntil x211 x212)
+    then show ?thesis sorry
+  qed (cases f; simp_all)
 next
   case (2 v f p)
   then show ?case sorry
@@ -744,8 +802,6 @@ lemma part_hd_trivial[simp]: "part_hd (trivial_part pt) = pt"
 lemma SubsVals_trivial[simp]: "SubsVals (trivial_part pt) = {(UNIV, pt)}"
   unfolding SubsVals_def
   by (transfer) simp
-
-thm SAT_VIO.induct
 
 lemma check_completeness:
   "(SAT \<sigma> v i \<phi> \<longrightarrow> MFOTL.future_bounded \<phi> \<longrightarrow> (\<exists>sp. s_at sp = i \<and> s_check v \<phi> sp)) \<and>
@@ -878,7 +934,8 @@ next
         "VIO \<sigma> (v(x := z)) i (MFOTL.Neg \<alpha>)" 
         "v_check (v(x := z)) (MFOTL.Neg \<alpha>) vp"
         using Neg
-        by (auto simp: fun_upd_def)
+        (* by (auto simp: fun_upd_def) *)
+        sorry
       then obtain sp' where "vp = VNeg sp'"
         apply (elim v_check.elims)
         apply clarsimp
@@ -913,48 +970,48 @@ next
       sorry
   next
     case (Or x61 x62)
-    then show ?thesis sorry
+    then show ?case sorry
   next
     case (And x71 x72)
-    then show ?thesis sorry
+    then show ?case sorry
   next
     case (Imp x81 x82)
-    then show ?thesis sorry
+    then show ?case sorry
   next
     case (Iff x91 x92)
-    then show ?thesis sorry
+    then show ?case sorry
   next
     case (Exists y \<alpha>)
-    then show ?thesis
+    then show ?case
       using VExists
       sorry
   next
     case (Forall x111 x112)
-    then show ?thesis sorry
+    then show ?case sorry
   next
     case (Prev x121 x122)
-    then show ?thesis sorry
+    then show ?case sorry
   next
     case (Next x131 x132)
-    then show ?thesis sorry
+    then show ?case sorry
   next
     case (Once x141 x142)
-    then show ?thesis sorry
+    then show ?case sorry
   next
     case (Historically x151 x152)
-    then show ?thesis sorry
+    then show ?case sorry
   next
     case (Eventually x161 x162)
-    then show ?thesis sorry
+    then show ?case sorry
   next
     case (Always x171 x172)
-    then show ?thesis sorry
+    then show ?case sorry
   next
     case (Since x181 x182 x183)
-    then show ?thesis sorry
+    then show ?case sorry
   next
     case (Until x191 x192 x193)
-    then show ?thesis sorry
+    then show ?case sorry
   qed simp
 next
   case (SForall v x i \<phi>)
@@ -963,84 +1020,94 @@ next
   case (VForall v x i \<phi>)
   then show ?case sorry
 next
-  case (SPrev i \<I> v \<phi>)
+  case (SPrev i I v \<phi>)
   then show ?case sorry
 next
-  case (VPrev i v \<phi> \<I>)
+  case (VPrev i v \<phi> I)
   then show ?case sorry
 next
-  case (VPrevZ i v \<I> \<phi>)
+  case (VPrevZ i v I \<phi>)
   then show ?case sorry
 next
-  case (VPrevOutL i \<I> v \<phi>)
+  case (VPrevOutL i I v \<phi>)
   then show ?case sorry
 next
-  case (VPrevOutR i \<I> v \<phi>)
+  case (VPrevOutR i I v \<phi>)
   then show ?case sorry
 next
-  case (SNext i \<I> v \<phi>)
+  case (SNext i I v \<phi>)
   then show ?case sorry
 next
-  case (VNext v i \<phi> \<I>)
+  case (VNext v i \<phi> I)
   then show ?case sorry
 next
-  case (VNextOutL i \<I> v \<phi>)
+  case (VNextOutL i I v \<phi>)
   then show ?case sorry
 next
-  case (VNextOutR i \<I> v \<phi>)
+  case (VNextOutR i I v \<phi>)
   then show ?case sorry
 next
-  case (SOnce j i \<I> v \<phi>)
+  case (SOnce j i I v \<phi>)
   then show ?case sorry
 next
-  case (VOnceOut i \<I> v \<phi>)
+  case (VOnceOut i I v \<phi>)
   then show ?case sorry
 next
-  case (VOnce j \<I> i v \<phi>)
+  case (VOnce j I i v \<phi>)
   then show ?case sorry
 next
-  case (SEventually j i \<I> v \<phi>)
+  case (SEventually j i I v \<phi>)
   then show ?case sorry
 next
-  case (VEventually \<I> i v \<phi>)
+  case (VEventually I i v \<phi>)
   then show ?case sorry
 next
-  case (SHistorically j \<I> i v \<phi>)
+  case (SHistorically j I i v \<phi>)
   then show ?case sorry
 next
-  case (SHistoricallyOut i \<I> v \<phi>)
+  case (SHistoricallyOut i I v \<phi>)
   then show ?case sorry
 next
-  case (VHistorically j i \<I> v \<phi>)
+  case (VHistorically j i I v \<phi>)
   then show ?case sorry
 next
-  case (SAlways \<I> i v \<phi>)
+  case (SAlways I i v \<phi>)
   then show ?case sorry
 next
-  case (VAlways j i \<I> v \<phi>)
+  case (VAlways j i I v \<phi>)
   then show ?case sorry
 next
-  case (SSince j i \<I> v \<psi> \<phi>)
+  case (SSince j i I v \<psi> \<phi>)
   then show ?case sorry
 next
-  case (VSinceOut i \<I> v \<phi> \<psi>)
+  case (VSinceOut i I v \<phi> \<psi>)
   then show ?case sorry
 next
-  case (VSince \<I> i j v \<phi> \<psi>)
+  case (VSince I i j v \<phi> \<psi>)
   then show ?case sorry
 next
-  case (VSinceInf j \<I> i v \<psi> \<phi>)
+  case (VSinceInf j I i v \<psi> \<phi>)
   then show ?case sorry
 next
-  case (SUntil j i \<I> v \<psi> \<phi>)
+  case (SUntil j i I v \<psi> \<phi>)
   then show ?case sorry
 next
-  case (VUntil \<I> j i v \<phi> \<psi>)
+  case (VUntil I j i v \<phi> \<psi>)
   then show ?case sorry
 next
-  case (VUntilInf \<I> i v \<psi> \<phi>)
+  case (VUntilInf I i v \<psi> \<phi>)
   then show ?case sorry
 qed
+
+definition "p_at = (\<lambda>p. case_sum s_at v_at p)"
+
+definition "p_check = (\<lambda>vs \<phi> p. case_sum (s_check_exec vs \<phi>) (v_check_exec vs \<phi>) p)"
+
+definition valid :: "'d MFOTL.envset \<Rightarrow> nat \<Rightarrow> 'd MFOTL.formula \<Rightarrow> 'd proof \<Rightarrow> bool" where
+  "valid vs i \<phi> p = 
+    (case p of
+      Inl p \<Rightarrow> s_check_exec vs \<phi> p \<and> s_at p = i
+    | Inr p \<Rightarrow> v_check_exec vs \<phi> p \<and> v_at p = i)"
 
 end
 
@@ -1110,18 +1177,18 @@ consts do_exists :: "'d proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof list
 consts do_forall :: "'d proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof list"
 
 definition do_prev :: "nat \<Rightarrow> \<I> \<Rightarrow> nat \<Rightarrow> 'd proof \<Rightarrow> 'd proof list" where
-  "do_prev i \<I> ts p = (case (p, ts < left \<I>) of
+  "do_prev i I ts p = (case (p, ts < left I) of
   (Inl _ , True) \<Rightarrow> [Inr (VPrevOutL i)]
-| (Inl sp, False) \<Rightarrow> (if mem ts \<I> then [Inl (SPrev sp)] else [Inr (VPrevOutR i)])
+| (Inl sp, False) \<Rightarrow> (if mem ts I then [Inl (SPrev sp)] else [Inr (VPrevOutR i)])
 | (Inr vp, True) \<Rightarrow> [Inr (VPrev vp), Inr (VPrevOutL i)]
-| (Inr vp, False) \<Rightarrow> (if mem ts \<I> then [Inr (VPrev vp)] else [Inr (VPrev vp), Inr (VPrevOutR i)]))"
+| (Inr vp, False) \<Rightarrow> (if mem ts I then [Inr (VPrev vp)] else [Inr (VPrev vp), Inr (VPrevOutR i)]))"
 
 definition do_next :: "nat \<Rightarrow> \<I> \<Rightarrow> nat \<Rightarrow> 'd proof \<Rightarrow> 'd proof list" where
-  "do_next i \<I> ts p = (case (p, ts < left \<I>) of
+  "do_next i I ts p = (case (p, ts < left I) of
   (Inl _ , True) \<Rightarrow> [Inr (VNextOutL i)]
-| (Inl sp, False) \<Rightarrow> (if mem ts \<I> then [Inl (SNext sp)] else [Inr (VNextOutR i)])
+| (Inl sp, False) \<Rightarrow> (if mem ts I then [Inl (SNext sp)] else [Inr (VNextOutR i)])
 | (Inr vp, True) \<Rightarrow> [Inr (VNext vp), Inr (VNextOutL i)]
-| (Inr vp, False) \<Rightarrow> (if mem ts \<I> then [Inr (VNext vp)] else [Inr (VNext vp), Inr (VNextOutR i)]))"
+| (Inr vp, False) \<Rightarrow> (if mem ts I then [Inr (VNext vp)] else [Inr (VNext vp), Inr (VNextOutR i)]))"
 
 definition do_once_base :: "nat \<Rightarrow> nat \<Rightarrow> 'd proof \<Rightarrow> 'd proof list" where
   "do_once_base i a p' = (case (p', a = 0) of
@@ -1246,10 +1313,13 @@ definition do_until :: "nat \<Rightarrow> nat \<Rightarrow> ('a sproof + 'a vpro
 | (Inr vp1, _ , False, Inr (VUntil _ vp2s' vp1')) \<Rightarrow> [Inr (VUntil i [] vp1), Inr (VUntil i vp2s' vp1')]
 | ( _ , Inl sp2, True, Inr (VUntil _ _ _ )) \<Rightarrow> [Inl (SUntil [] sp2)])"
 
-locale alg = 
+context 
   fixes \<sigma> :: "'d :: linorder MFOTL.trace" and
   wqo :: "'d proof \<Rightarrow> 'd proof \<Rightarrow> bool"
 begin
+
+definition optimal :: "'d MFOTL.envset \<Rightarrow> nat \<Rightarrow> 'd MFOTL.formula \<Rightarrow> 'd proof \<Rightarrow> bool" where
+  "optimal vs i \<phi> p = (valid \<sigma> vs i \<phi> p \<and> (\<forall>q. valid \<sigma> vs i \<phi> q \<longrightarrow> wqo p q))"
 
 fun match :: "'d MFOTL.trm list \<Rightarrow> 'd list \<Rightarrow> (MFOTL.name \<rightharpoonup> 'd) option" where
   "match [] [] = Some Map.empty"
