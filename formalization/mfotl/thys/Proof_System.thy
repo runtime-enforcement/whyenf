@@ -10,10 +10,10 @@ section \<open>Proof System\<close>
 
 subsection \<open>Time-stamp-time-point Conversion\<close>
 
-definition ETP:: "'a trace \<Rightarrow> nat \<Rightarrow> nat"  where
+definition ETP:: "'a MFOTL.trace \<Rightarrow> nat \<Rightarrow> nat"  where
   "ETP \<sigma> ts = (LEAST i. \<tau> \<sigma> i \<ge> ts)"
 
-definition LTP:: "'a trace \<Rightarrow> nat \<Rightarrow> nat" where
+definition LTP:: "'a MFOTL.trace \<Rightarrow> nat \<Rightarrow> nat" where
   "LTP \<sigma> ts = Max {i. (\<tau> \<sigma> i) \<le> ts}"
 
 abbreviation "\<delta> \<sigma> i j \<equiv> (\<tau> \<sigma> i - \<tau> \<sigma> j)"
