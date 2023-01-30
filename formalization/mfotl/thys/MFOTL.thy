@@ -15,7 +15,6 @@ qualified type_synonym 'a event = "(name \<times> 'a list)"
 qualified type_synonym 'a database = "'a event set"
 qualified type_synonym 'a prefix = "(name \<times> 'a list) prefix"
 qualified type_synonym 'a trace = "(name \<times> 'a list) trace"
-
 qualified type_synonym 'a env = "name \<Rightarrow> 'a"
 qualified type_synonym 'a envset = "name \<Rightarrow> 'a set"
 
@@ -40,6 +39,7 @@ lemma eval_trms_fv_cong:
   using eval_trm_fv_cong[of _ v v']
   by (auto simp: eval_trms_def)
 
+(* vs :: "'a envset" is used whenever we define executable functions *)
 qualified primrec eval_trm_set :: "'a envset \<Rightarrow> 'a trm \<Rightarrow> 'a trm \<times> 'a set" where
   "eval_trm_set vs (MFOTL.Var x) = (Var x, vs x)"
 | "eval_trm_set vs (MFOTL.Const x) = (Const x, {x})"
