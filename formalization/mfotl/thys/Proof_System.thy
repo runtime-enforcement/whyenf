@@ -19,8 +19,8 @@ definition LTP:: "'a trace \<Rightarrow> nat \<Rightarrow> nat" where
 abbreviation "\<delta> \<sigma> i j \<equiv> (\<tau> \<sigma> i - \<tau> \<sigma> j)"
 
 abbreviation "ETP_p \<sigma> i b \<equiv> ETP \<sigma> ((\<tau> \<sigma> i) - b)"
-abbreviation "LTP_p \<sigma> i \<I> \<equiv> min i (LTP \<sigma> ((\<tau> \<sigma> i) - left \<I>))"
-abbreviation "ETP_f \<sigma> i \<I> \<equiv> max i (ETP \<sigma> ((\<tau> \<sigma> i) + left \<I>))"
+abbreviation "LTP_p \<sigma> i I \<equiv> min i (LTP \<sigma> ((\<tau> \<sigma> i) - left I))"
+abbreviation "ETP_f \<sigma> i I \<equiv> max i (ETP \<sigma> ((\<tau> \<sigma> i) + left I))"
 abbreviation "LTP_f \<sigma> i b \<equiv> LTP \<sigma> ((\<tau> \<sigma> i) + b)"
 
 subsection \<open>Soundness and Completeness\<close>
@@ -49,128 +49,128 @@ inductive SAT and VIO :: "'a MFOTL.trace \<Rightarrow> 'a MFOTL.env \<Rightarrow
 | VExists: "\<forall>z. VIO \<sigma> (v (x := z)) i \<phi> \<Longrightarrow> VIO \<sigma> v i (MFOTL.Exists x \<phi>)"
 | SForall: "\<forall>z. SAT \<sigma> (v (x := z)) i \<phi> \<Longrightarrow> SAT \<sigma> v i (MFOTL.Forall x \<phi>)"
 | VForall: "\<exists>z. VIO \<sigma> (v (x := z)) i \<phi> \<Longrightarrow> VIO \<sigma> v i (MFOTL.Forall x \<phi>)"
-| SPrev: "i > 0 \<Longrightarrow> mem (\<Delta> \<sigma> i) \<I> \<Longrightarrow> SAT \<sigma> v (i-1) \<phi> \<Longrightarrow> SAT \<sigma> v i (MFOTL.Prev \<I> \<phi>)"
-| VPrev: "i > 0 \<Longrightarrow> VIO \<sigma> v (i-1) \<phi> \<Longrightarrow> VIO \<sigma> v i (MFOTL.Prev \<I> \<phi>)"
-| VPrevZ: "i = 0 \<Longrightarrow> VIO \<sigma> v i (MFOTL.Prev \<I> \<phi>)"
-| VPrevOutL: "i > 0 \<Longrightarrow> (\<Delta> \<sigma> i) < (left \<I>) \<Longrightarrow> VIO \<sigma> v i (MFOTL.Prev \<I> \<phi>)"
-| VPrevOutR: "i > 0 \<Longrightarrow> enat (\<Delta> \<sigma> i) > (right \<I>) \<Longrightarrow> VIO \<sigma> v i (MFOTL.Prev \<I> \<phi>)"
-| SNext: "mem (\<Delta> \<sigma> (i+1)) \<I> \<Longrightarrow> SAT \<sigma> v (i+1) \<phi> \<Longrightarrow> SAT \<sigma> v i (MFOTL.Next \<I> \<phi>)"
-| VNext: "VIO \<sigma> v (i+1) \<phi> \<Longrightarrow> VIO \<sigma> v i (MFOTL.Next \<I> \<phi>)"
-| VNextOutL: "(\<Delta> \<sigma> (i+1)) < (left \<I>) \<Longrightarrow> VIO \<sigma> v i (MFOTL.Next \<I> \<phi>)"
-| VNextOutR: "enat (\<Delta> \<sigma> (i+1)) > (right \<I>) \<Longrightarrow> VIO \<sigma> v i (MFOTL.Next \<I> \<phi>)"
-| SOnce: "j \<le> i \<Longrightarrow> mem (\<delta> \<sigma> i j) \<I> \<Longrightarrow> SAT \<sigma> v j \<phi> \<Longrightarrow> SAT \<sigma> v i (MFOTL.Once \<I> \<phi>)"
-| VOnceOut: "\<tau> \<sigma> i < \<tau> \<sigma> 0 + left \<I> \<Longrightarrow> VIO \<sigma> v i (MFOTL.Once \<I> \<phi>)"
-| VOnce: "j = (case right \<I> of \<infinity> \<Rightarrow> 0 
+| SPrev: "i > 0 \<Longrightarrow> mem (\<Delta> \<sigma> i) I \<Longrightarrow> SAT \<sigma> v (i-1) \<phi> \<Longrightarrow> SAT \<sigma> v i (MFOTL.Prev I \<phi>)"
+| VPrev: "i > 0 \<Longrightarrow> VIO \<sigma> v (i-1) \<phi> \<Longrightarrow> VIO \<sigma> v i (MFOTL.Prev I \<phi>)"
+| VPrevZ: "i = 0 \<Longrightarrow> VIO \<sigma> v i (MFOTL.Prev I \<phi>)"
+| VPrevOutL: "i > 0 \<Longrightarrow> (\<Delta> \<sigma> i) < (left I) \<Longrightarrow> VIO \<sigma> v i (MFOTL.Prev I \<phi>)"
+| VPrevOutR: "i > 0 \<Longrightarrow> enat (\<Delta> \<sigma> i) > (right I) \<Longrightarrow> VIO \<sigma> v i (MFOTL.Prev I \<phi>)"
+| SNext: "mem (\<Delta> \<sigma> (i+1)) I \<Longrightarrow> SAT \<sigma> v (i+1) \<phi> \<Longrightarrow> SAT \<sigma> v i (MFOTL.Next I \<phi>)"
+| VNext: "VIO \<sigma> v (i+1) \<phi> \<Longrightarrow> VIO \<sigma> v i (MFOTL.Next I \<phi>)"
+| VNextOutL: "(\<Delta> \<sigma> (i+1)) < (left I) \<Longrightarrow> VIO \<sigma> v i (MFOTL.Next I \<phi>)"
+| VNextOutR: "enat (\<Delta> \<sigma> (i+1)) > (right I) \<Longrightarrow> VIO \<sigma> v i (MFOTL.Next I \<phi>)"
+| SOnce: "j \<le> i \<Longrightarrow> mem (\<delta> \<sigma> i j) I \<Longrightarrow> SAT \<sigma> v j \<phi> \<Longrightarrow> SAT \<sigma> v i (MFOTL.Once I \<phi>)"
+| VOnceOut: "\<tau> \<sigma> i < \<tau> \<sigma> 0 + left I \<Longrightarrow> VIO \<sigma> v i (MFOTL.Once I \<phi>)"
+| VOnce: "j = (case right I of \<infinity> \<Rightarrow> 0 
                | enat b \<Rightarrow> ETP_p \<sigma> i b) \<Longrightarrow>
-          (\<tau> \<sigma> i) \<ge> (\<tau> \<sigma> 0) + left \<I> \<Longrightarrow>
-          (\<And>k. k \<in> {j .. LTP_p \<sigma> i \<I>} \<Longrightarrow> VIO \<sigma> v k \<phi>) \<Longrightarrow> VIO \<sigma> v i (MFOTL.Once \<I> \<phi>)"
-| SEventually: "j \<ge> i \<Longrightarrow> mem (\<delta> \<sigma> j i) \<I>  \<Longrightarrow> SAT \<sigma> v j \<phi> \<Longrightarrow> SAT \<sigma> v i (MFOTL.Eventually \<I> \<phi>)"
-| VEventually: "(\<And>k. k \<in> (case right \<I> of \<infinity> \<Rightarrow> {ETP_f \<sigma> i \<I> ..}
-                           | enat b \<Rightarrow> {ETP_f \<sigma> i \<I> .. LTP_f \<sigma> i b}) \<Longrightarrow> VIO \<sigma> v k \<phi>) \<Longrightarrow> 
-                VIO \<sigma> v i (MFOTL.Eventually \<I> \<phi>)"
-| SHistorically: "j = (case right \<I> of \<infinity> \<Rightarrow> 0
+          (\<tau> \<sigma> i) \<ge> (\<tau> \<sigma> 0) + left I \<Longrightarrow>
+          (\<And>k. k \<in> {j .. LTP_p \<sigma> i I} \<Longrightarrow> VIO \<sigma> v k \<phi>) \<Longrightarrow> VIO \<sigma> v i (MFOTL.Once I \<phi>)"
+| SEventually: "j \<ge> i \<Longrightarrow> mem (\<delta> \<sigma> j i) I  \<Longrightarrow> SAT \<sigma> v j \<phi> \<Longrightarrow> SAT \<sigma> v i (MFOTL.Eventually I \<phi>)"
+| VEventually: "(\<And>k. k \<in> (case right I of \<infinity> \<Rightarrow> {ETP_f \<sigma> i I ..}
+                           | enat b \<Rightarrow> {ETP_f \<sigma> i I .. LTP_f \<sigma> i b}) \<Longrightarrow> VIO \<sigma> v k \<phi>) \<Longrightarrow> 
+                VIO \<sigma> v i (MFOTL.Eventually I \<phi>)"
+| SHistorically: "j = (case right I of \<infinity> \<Rightarrow> 0
                        | enat b \<Rightarrow> ETP_p \<sigma> i b) \<Longrightarrow>
-                 (\<tau> \<sigma> i) \<ge> (\<tau> \<sigma> 0) + left \<I> \<Longrightarrow>
-                 (\<And>k. k \<in> {j .. LTP_p \<sigma> i \<I>} \<Longrightarrow> SAT \<sigma> v k \<phi>) \<Longrightarrow> SAT \<sigma> v i (MFOTL.Historically \<I> \<phi>)"
-| SHistoricallyOut: "\<tau> \<sigma> i < \<tau> \<sigma> 0 + left \<I> \<Longrightarrow> SAT \<sigma> v i (MFOTL.Historically \<I> \<phi>)"
-| VHistorically: "j \<le> i \<Longrightarrow> mem (\<delta> \<sigma> i j) \<I>  \<Longrightarrow> VIO \<sigma> v j \<phi> \<Longrightarrow> VIO \<sigma> v i (MFOTL.Historically \<I> \<phi>)"
-| SAlways: "(\<And>k. k \<in> (case right \<I> of \<infinity> \<Rightarrow> {ETP_f \<sigma> i \<I> ..} 
-                       | enat b \<Rightarrow> {ETP_f \<sigma> i \<I> .. LTP_f \<sigma> i b}) \<Longrightarrow> SAT \<sigma> v k \<phi>) \<Longrightarrow>
-            SAT \<sigma> v i (MFOTL.Always \<I> \<phi>)"
-| VAlways: "j \<ge> i \<Longrightarrow> mem (\<delta> \<sigma> j i) \<I>  \<Longrightarrow> VIO \<sigma> v j \<phi> \<Longrightarrow> VIO \<sigma> v i (MFOTL.Always \<I> \<phi>)"
-| SSince: "j \<le> i \<Longrightarrow> mem (\<delta> \<sigma> i j) \<I>  \<Longrightarrow> SAT \<sigma> v j \<psi> \<Longrightarrow> (\<And>k. k \<in> {j <.. i} \<Longrightarrow> 
-           SAT \<sigma> v k \<phi>) \<Longrightarrow> SAT \<sigma> v i (MFOTL.Since \<phi> \<I> \<psi>)"
-| VSinceOut: "\<tau> \<sigma> i < \<tau> \<sigma> 0 + left \<I> \<Longrightarrow> VIO \<sigma> v i (MFOTL.Since \<phi> \<I> \<psi>)"
-| VSince: "(case right \<I> of \<infinity> \<Rightarrow> True 
+                 (\<tau> \<sigma> i) \<ge> (\<tau> \<sigma> 0) + left I \<Longrightarrow>
+                 (\<And>k. k \<in> {j .. LTP_p \<sigma> i I} \<Longrightarrow> SAT \<sigma> v k \<phi>) \<Longrightarrow> SAT \<sigma> v i (MFOTL.Historically I \<phi>)"
+| SHistoricallyOut: "\<tau> \<sigma> i < \<tau> \<sigma> 0 + left I \<Longrightarrow> SAT \<sigma> v i (MFOTL.Historically I \<phi>)"
+| VHistorically: "j \<le> i \<Longrightarrow> mem (\<delta> \<sigma> i j) I  \<Longrightarrow> VIO \<sigma> v j \<phi> \<Longrightarrow> VIO \<sigma> v i (MFOTL.Historically I \<phi>)"
+| SAlways: "(\<And>k. k \<in> (case right I of \<infinity> \<Rightarrow> {ETP_f \<sigma> i I ..} 
+                       | enat b \<Rightarrow> {ETP_f \<sigma> i I .. LTP_f \<sigma> i b}) \<Longrightarrow> SAT \<sigma> v k \<phi>) \<Longrightarrow>
+            SAT \<sigma> v i (MFOTL.Always I \<phi>)"
+| VAlways: "j \<ge> i \<Longrightarrow> mem (\<delta> \<sigma> j i) I  \<Longrightarrow> VIO \<sigma> v j \<phi> \<Longrightarrow> VIO \<sigma> v i (MFOTL.Always I \<phi>)"
+| SSince: "j \<le> i \<Longrightarrow> mem (\<delta> \<sigma> i j) I  \<Longrightarrow> SAT \<sigma> v j \<psi> \<Longrightarrow> (\<And>k. k \<in> {j <.. i} \<Longrightarrow> 
+           SAT \<sigma> v k \<phi>) \<Longrightarrow> SAT \<sigma> v i (MFOTL.Since \<phi> I \<psi>)"
+| VSinceOut: "\<tau> \<sigma> i < \<tau> \<sigma> 0 + left I \<Longrightarrow> VIO \<sigma> v i (MFOTL.Since \<phi> I \<psi>)"
+| VSince: "(case right I of \<infinity> \<Rightarrow> True 
             | enat b \<Rightarrow> ETP \<sigma> ((\<tau> \<sigma> i) - b) \<le> j) \<Longrightarrow> 
-           j \<le> i \<Longrightarrow> (\<tau> \<sigma> 0) + left \<I> \<le> (\<tau> \<sigma> i) \<Longrightarrow> VIO \<sigma> v j \<phi> \<Longrightarrow>
-           (\<And>k. k \<in> {j .. (LTP_p \<sigma> i \<I>)} \<Longrightarrow> VIO \<sigma> v k \<psi>) \<Longrightarrow> VIO \<sigma> v i (MFOTL.Since \<phi> \<I> \<psi>)"
-| VSinceInf: "j = (case right \<I> of \<infinity> \<Rightarrow> 0 
+           j \<le> i \<Longrightarrow> (\<tau> \<sigma> 0) + left I \<le> (\<tau> \<sigma> i) \<Longrightarrow> VIO \<sigma> v j \<phi> \<Longrightarrow>
+           (\<And>k. k \<in> {j .. (LTP_p \<sigma> i I)} \<Longrightarrow> VIO \<sigma> v k \<psi>) \<Longrightarrow> VIO \<sigma> v i (MFOTL.Since \<phi> I \<psi>)"
+| VSinceInf: "j = (case right I of \<infinity> \<Rightarrow> 0 
                    | enat b \<Rightarrow> ETP_p \<sigma> i b) \<Longrightarrow>
-             (\<tau> \<sigma> i) \<ge> (\<tau> \<sigma> 0) + left \<I> \<Longrightarrow> 
-             (\<And>k. k \<in> {j .. LTP_p \<sigma> i \<I>} \<Longrightarrow> VIO \<sigma> v k \<psi>) \<Longrightarrow> VIO \<sigma> v i (MFOTL.Since \<phi> \<I> \<psi>)"
-| SUntil: "j \<ge> i \<Longrightarrow> mem (\<delta> \<sigma> j i) \<I>  \<Longrightarrow> SAT \<sigma> v j \<psi> \<Longrightarrow> (\<And>k. k \<in> {i ..< j} \<Longrightarrow> SAT \<sigma> v k \<phi>) \<Longrightarrow> 
-           SAT \<sigma> v i (MFOTL.Until \<phi> \<I> \<psi>)"
-| VUntil: "(case right \<I> of \<infinity> \<Rightarrow> True 
+             (\<tau> \<sigma> i) \<ge> (\<tau> \<sigma> 0) + left I \<Longrightarrow> 
+             (\<And>k. k \<in> {j .. LTP_p \<sigma> i I} \<Longrightarrow> VIO \<sigma> v k \<psi>) \<Longrightarrow> VIO \<sigma> v i (MFOTL.Since \<phi> I \<psi>)"
+| SUntil: "j \<ge> i \<Longrightarrow> mem (\<delta> \<sigma> j i) I  \<Longrightarrow> SAT \<sigma> v j \<psi> \<Longrightarrow> (\<And>k. k \<in> {i ..< j} \<Longrightarrow> SAT \<sigma> v k \<phi>) \<Longrightarrow> 
+           SAT \<sigma> v i (MFOTL.Until \<phi> I \<psi>)"
+| VUntil: "(case right I of \<infinity> \<Rightarrow> True 
             | enat b \<Rightarrow> j \<le> LTP_f \<sigma> i b) \<Longrightarrow> 
-           j \<ge> i \<Longrightarrow> VIO \<sigma> v j \<phi> \<Longrightarrow> (\<And>k. k \<in> {ETP_f \<sigma> i \<I> .. j} \<Longrightarrow> VIO \<sigma> v k \<psi>) \<Longrightarrow> 
-           VIO \<sigma> v i (MFOTL.Until \<phi> \<I> \<psi>)"
-| VUntilInf: "(\<And>k. k \<in> (case right \<I> of \<infinity> \<Rightarrow> {ETP_f \<sigma> i \<I> ..} 
-                         | enat b \<Rightarrow> {ETP_f \<sigma> i \<I> .. LTP_f \<sigma> i b}) \<Longrightarrow> VIO \<sigma> v k \<psi>) \<Longrightarrow>
-              VIO \<sigma> v i (MFOTL.Until \<phi> \<I> \<psi>)"
+           j \<ge> i \<Longrightarrow> VIO \<sigma> v j \<phi> \<Longrightarrow> (\<And>k. k \<in> {ETP_f \<sigma> i I .. j} \<Longrightarrow> VIO \<sigma> v k \<psi>) \<Longrightarrow> 
+           VIO \<sigma> v i (MFOTL.Until \<phi> I \<psi>)"
+| VUntilInf: "(\<And>k. k \<in> (case right I of \<infinity> \<Rightarrow> {ETP_f \<sigma> i I ..} 
+                         | enat b \<Rightarrow> {ETP_f \<sigma> i I .. LTP_f \<sigma> i b}) \<Longrightarrow> VIO \<sigma> v k \<psi>) \<Longrightarrow>
+              VIO \<sigma> v i (MFOTL.Until \<phi> I \<psi>)"
 
 lemma soundness: "(SAT \<sigma> v i \<phi> \<longrightarrow> MFOTL.sat \<sigma> v i \<phi>) \<and> (VIO \<sigma> v i \<phi> \<longrightarrow> \<not> MFOTL.sat \<sigma> v i \<phi>)"
 proof (induct v i \<phi> rule: SAT_VIO.induct)
-  case (SPrev i \<I> v \<phi>)
+  case (SPrev i I v \<phi>)
   then show ?case sorry
 next
-  case (VPrev i v \<phi> \<I>)
+  case (VPrev i v \<phi> I)
   then show ?case sorry
 next
-  case (VPrevZ i v \<I> \<phi>)
+  case (VPrevZ i v I \<phi>)
   then show ?case sorry
 next
-  case (VPrevOutL i \<I> v \<phi>)
+  case (VPrevOutL i I v \<phi>)
   then show ?case sorry
 next
-  case (VPrevOutR i \<I> v \<phi>)
+  case (VPrevOutR i I v \<phi>)
   then show ?case sorry
 next
-  case (SNext i \<I> v \<phi>)
+  case (SNext i I v \<phi>)
   then show ?case sorry
 next
-  case (VNext v i \<phi> \<I>)
+  case (VNext v i \<phi> I)
   then show ?case sorry
 next
-  case (VNextOutL i \<I> v \<phi>)
+  case (VNextOutL i I v \<phi>)
   then show ?case sorry
 next
-  case (VNextOutR i \<I> v \<phi>)
+  case (VNextOutR i I v \<phi>)
   then show ?case sorry
 next
-  case (SOnce j i \<I> v \<phi>)
+  case (SOnce j i I v \<phi>)
   then show ?case sorry
 next
-  case (VOnceOut i \<I> v \<phi>)
+  case (VOnceOut i I v \<phi>)
   then show ?case sorry
 next
-  case (VOnce j \<I> i v \<phi>)
+  case (VOnce j I i v \<phi>)
   then show ?case sorry
 next
-  case (SEventually j i \<I> v \<phi>)
+  case (SEventually j i I v \<phi>)
   then show ?case sorry
 next
-  case (VEventually \<I> i v \<phi>)
+  case (VEventually I i v \<phi>)
   then show ?case sorry
 next
-  case (SHistorically j \<I> i v \<phi>)
+  case (SHistorically j I i v \<phi>)
   then show ?case sorry
 next
-  case (SHistoricallyOut i \<I> v \<phi>)
+  case (SHistoricallyOut i I v \<phi>)
   then show ?case sorry
 next
-  case (VHistorically j i \<I> v \<phi>)
+  case (VHistorically j i I v \<phi>)
   then show ?case sorry
 next
-  case (SAlways \<I> i v \<phi>)
+  case (SAlways I i v \<phi>)
   then show ?case sorry
 next
-  case (VAlways j i \<I> v \<phi>)
+  case (VAlways j i I v \<phi>)
   then show ?case sorry
 next
-  case (VSinceOut i \<I> v \<phi> \<psi>)
+  case (VSinceOut i I v \<phi> \<psi>)
   then show ?case sorry
 next
-  case (VSince \<I> i j v \<phi> \<psi>)
+  case (VSince I i j v \<phi> \<psi>)
   then show ?case sorry
 next
-  case (VSinceInf j \<I> i v \<psi> \<phi>)
+  case (VSinceInf j I i v \<psi> \<phi>)
   then show ?case sorry
 next
-  case (VUntil \<I> j i v \<phi> \<psi>)
+  case (VUntil I j i v \<phi> \<psi>)
   then show ?case sorry
 next
-  case (VUntilInf \<I> i v \<psi> \<phi>)
+  case (VUntilInf I i v \<psi> \<phi>)
   then show ?case sorry
 qed (auto simp: fun_upd_def)
 
