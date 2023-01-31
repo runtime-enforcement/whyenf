@@ -4,8 +4,6 @@ theory Monitor
 begin
 (*>*)
 
-consts future_reach :: "'a"
-
 lift_definition part_hd :: "('d, 'a) part \<Rightarrow> 'a" is "snd \<circ> hd" .
 
 lemma size_part_hd_estimation[termination_simp]: "size (part_hd part) < Suc (size_part (\<lambda>_. 0) size part)"
@@ -715,7 +713,7 @@ qed
 unbundle MFOTL_no_notation \<comment> \<open> disable notation \<close>
 
 definition AD where 
-  "AD \<phi> i = (\<Union> k \<le> future_reach \<sigma> \<phi> i. \<Union> (set ` snd ` \<Gamma> \<sigma> k))"
+  "AD \<phi> i = (\<Union> k \<le> i + the_enat (MFOTL.future_reach \<phi>). \<Union> (set ` snd ` \<Gamma> \<sigma> k))"
 
 lemma check_cong:
   assumes "(\<forall>x \<in> MFOTL.fv \<phi>. v1 x = v2 x \<or> v1 x \<notin> AD \<phi> i \<and> v2 x \<notin> AD \<phi> i)"
