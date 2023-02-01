@@ -1099,7 +1099,7 @@ qed
 
 definition "p_at = (\<lambda>p. case_sum s_at v_at p)"
 
-definition "p_check = (\<lambda>vs \<phi> p. case_sum (s_check_exec vs \<phi>) (v_check_exec vs \<phi>) p)"
+definition "p_check_exec = (\<lambda>vs \<phi> p. case_sum (s_check_exec vs \<phi>) (v_check_exec vs \<phi>) p)"
 
 definition valid :: "'d MFOTL.envset \<Rightarrow> nat \<Rightarrow> 'd MFOTL.formula \<Rightarrow> 'd proof \<Rightarrow> bool" where
   "valid vs i \<phi> p = 
@@ -1333,12 +1333,12 @@ definition do_until :: "nat \<Rightarrow> nat \<Rightarrow> ('a sproof + 'a vpro
 | ( _ , Inl sp2, True, Inr (VUntil _ _ _ )) \<Rightarrow> [Inl (SUntil [] sp2)])"
 
 context 
-  fixes \<sigma> :: "'d :: {default,linorder} MFOTL.trace" and
-  wqo :: "'d proof \<Rightarrow> 'd proof \<Rightarrow> bool"
+  fixes \<sigma> :: "'d :: {default, linorder} MFOTL.trace" and
+  cmp :: "'d proof \<Rightarrow> 'd proof \<Rightarrow> bool"
 begin
 
 definition optimal :: "'d MFOTL.envset \<Rightarrow> nat \<Rightarrow> 'd MFOTL.formula \<Rightarrow> 'd proof \<Rightarrow> bool" where
-  "optimal vs i \<phi> p = (valid \<sigma> vs i \<phi> p \<and> (\<forall>q. valid \<sigma> vs i \<phi> q \<longrightarrow> wqo p q))"
+  "optimal vs i \<phi> p = (valid \<sigma> vs i \<phi> p \<and> (\<forall>q. valid \<sigma> vs i \<phi> q \<longrightarrow> cmp p q))"
 
 fun match :: "'d MFOTL.trm list \<Rightarrow> 'd list \<Rightarrow> (MFOTL.name \<rightharpoonup> 'd) option" where
   "match [] [] = Some Map.empty"
@@ -1403,12 +1403,12 @@ function (sequential) opt :: "MFOTL.name list \<Rightarrow> nat \<Rightarrow> 'd
 | "opt vars i MFOTL.FF = Leaf (Inr (VFF i))"
 | "opt vars i (MFOTL.Pred r ts) = 
   (pdt_of i r ts vars (Option.these (match ts ` {d. (r, d) \<in> \<Gamma> \<sigma> i})))"
-| "opt vars i (MFOTL.Exists x \<phi>) = hide_pdt (vars @ [x]) (\<lambda>p. min_list_wrt wqo (do_exists x p)) (opt (vars @ [x]) i \<phi>)"
-| "opt vars i (MFOTL.Forall x \<phi>) = hide_pdt (vars @ [x]) (\<lambda>p. min_list_wrt wqo (do_forall x p)) (opt (vars @ [x]) i \<phi>)"
-| "opt vars i (MFOTL.Or \<phi> \<psi>) = apply_pdt vars (\<lambda>l r. min_list_wrt wqo (do_or l r)) (opt vars i \<phi>) (opt vars i \<psi>)"
-| "opt vars i (MFOTL.And \<phi> \<psi>) = apply_pdt vars (\<lambda>l r. min_list_wrt wqo (do_and l r)) (opt vars i \<phi>) (opt vars i \<psi>)"
-| "opt vars i (MFOTL.Imp \<phi> \<psi>) = apply_pdt vars (\<lambda>l r. min_list_wrt wqo (do_imp l r)) (opt vars i \<phi>) (opt vars i \<psi>)"
-| "opt vars i (MFOTL.Iff \<phi> \<psi>) = apply_pdt vars (\<lambda>l r. min_list_wrt wqo (do_iff l r)) (opt vars i \<phi>) (opt vars i \<psi>)"
+| "opt vars i (MFOTL.Exists x \<phi>) = hide_pdt (vars @ [x]) (\<lambda>p. min_list_wrt cmp (do_exists x p)) (opt (vars @ [x]) i \<phi>)"
+| "opt vars i (MFOTL.Forall x \<phi>) = hide_pdt (vars @ [x]) (\<lambda>p. min_list_wrt cmp (do_forall x p)) (opt (vars @ [x]) i \<phi>)"
+| "opt vars i (MFOTL.Or \<phi> \<psi>) = apply_pdt vars (\<lambda>l r. min_list_wrt cmp (do_or l r)) (opt vars i \<phi>) (opt vars i \<psi>)"
+| "opt vars i (MFOTL.And \<phi> \<psi>) = apply_pdt vars (\<lambda>l r. min_list_wrt cmp (do_and l r)) (opt vars i \<phi>) (opt vars i \<psi>)"
+| "opt vars i (MFOTL.Imp \<phi> \<psi>) = apply_pdt vars (\<lambda>l r. min_list_wrt cmp (do_imp l r)) (opt vars i \<phi>) (opt vars i \<psi>)"
+| "opt vars i (MFOTL.Iff \<phi> \<psi>) = apply_pdt vars (\<lambda>l r. min_list_wrt cmp (do_iff l r)) (opt vars i \<phi>) (opt vars i \<psi>)"
   by pat_completeness auto
 
 end
