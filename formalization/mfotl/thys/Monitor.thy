@@ -713,7 +713,7 @@ qed
 unbundle MFOTL_no_notation \<comment> \<open> disable notation \<close>
 
 definition AD where 
-  "AD \<phi> i = (\<Union> k \<le> i + the_enat (MFOTL.future_reach \<phi>). \<Union> (set ` snd ` \<Gamma> \<sigma> k))"
+  "AD \<phi> i = (\<Union> k < enat (i+1) + (MFOTL.future_reach \<phi>). \<Union> (set ` snd ` \<Gamma> \<sigma> (the_enat k)))"
 
 lemma check_cong:
   assumes "(\<forall>x \<in> MFOTL.fv \<phi>. v1 x = v2 x \<or> v1 x \<notin> AD \<phi> i \<and> v2 x \<notin> AD \<phi> i)"
@@ -1142,6 +1142,11 @@ definition proof_incr :: "'d proof \<Rightarrow> 'd proof" where
 definition min_list_wrt :: "('d proof \<Rightarrow> 'd proof \<Rightarrow> bool) \<Rightarrow> 'd proof list \<Rightarrow> 'd proof" where
   "min_list_wrt r xs = hd [x \<leftarrow> xs. \<forall>y \<in> set xs. r x y]"
 
+definition do_neg :: "'d proof \<Rightarrow> 'd proof list" where
+  "do_neg p = (case p of
+  Inl sp \<Rightarrow> [Inr (VNeg sp)]
+| Inr vp \<Rightarrow> [Inl (SNeg vp)])"
+
 definition do_or :: "'d proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof list" where
   "do_or p1 p2 = (case (p1, p2) of
   (Inl sp1, Inl sp2) \<Rightarrow> [Inl (SOrL sp1), Inl (SOrR sp2)]
@@ -1170,9 +1175,25 @@ definition do_iff :: "'d proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof lis
 | (Inr vp1, Inl sp2) \<Rightarrow> [Inr (VIffVS vp1 sp2)]
 | (Inr vp1, Inr vp2) \<Rightarrow> [Inl (SIffVV vp1 vp2)])"
 
-consts do_exists :: "'d proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof list"
+definition do_exists :: "MFOTL.name \<Rightarrow> ('d::{default,linorder}) proof + ('d, 'd proof) part \<Rightarrow> 'd proof list" where
+  "do_exists x p_part = (case p_part of
+  Inl p \<Rightarrow> (case p of
+    Inl sp \<Rightarrow> [Inl (SExists x default sp)]
+  | Inr vp \<Rightarrow> [Inr (VExists x (trivial_part vp))])
+| Inr part \<Rightarrow> (if (\<exists>x\<in>Vals part. isl x) then 
+                map (\<lambda>(D,p). map_sum (SExists x (Min D)) id p) (filter (\<lambda>(_, p). isl p) (subsvals part))
+              else
+                [Inr (VExists x (map_part projr part))]))"
 
-consts do_forall :: "'d proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof list"
+definition do_forall :: "MFOTL.name \<Rightarrow> ('d::{default,linorder}) proof + ('d, 'd proof) part \<Rightarrow> 'd proof list" where
+  "do_forall x p_part = (case p_part of
+  Inl p \<Rightarrow> (case p of
+    Inl sp \<Rightarrow> [Inl (SForall x (trivial_part sp))]
+  | Inr vp \<Rightarrow> [Inr (VForall x default vp)])
+| Inr part \<Rightarrow> (if (\<forall>x\<in>Vals part. isl x) then 
+                [Inl (SForall x (map_part projl part))]
+              else 
+                map (\<lambda>(D,p). map_sum id (VForall x (Min D)) p) (filter (\<lambda>(_, p). \<not>isl p) (subsvals part))))"
 
 definition do_prev :: "nat \<Rightarrow> \<I> \<Rightarrow> nat \<Rightarrow> 'd proof \<Rightarrow> 'd proof list" where
   "do_prev i I ts p = (case (p, ts < left I) of
@@ -1312,7 +1333,7 @@ definition do_until :: "nat \<Rightarrow> nat \<Rightarrow> ('a sproof + 'a vpro
 | ( _ , Inl sp2, True, Inr (VUntil _ _ _ )) \<Rightarrow> [Inl (SUntil [] sp2)])"
 
 context 
-  fixes \<sigma> :: "'d :: linorder MFOTL.trace" and
+  fixes \<sigma> :: "'d :: {default,linorder} MFOTL.trace" and
   wqo :: "'d proof \<Rightarrow> 'd proof \<Rightarrow> bool"
 begin
 
@@ -1338,18 +1359,52 @@ lift_definition tabulate :: "'d list \<Rightarrow> ('d \<Rightarrow> 'v) \<Right
 (* we compute values for each one of the variables in vars, put them in a list, *)
 (* and we create a partition with subsets considering each one of these values  *)
 (* and another subset considering the complement of the union of these values.  *)
-fun pdt_of :: "nat \<Rightarrow> MFOTL.name \<Rightarrow> 'd MFOTL.trm list  \<Rightarrow> MFOTL.name list \<Rightarrow> (MFOTL.name \<rightharpoonup> 'd) set \<Rightarrow> 'd expl" where
+fun pdt_of :: "nat \<Rightarrow> MFOTL.name \<Rightarrow> 'd MFOTL.trm list \<Rightarrow> MFOTL.name list \<Rightarrow> (MFOTL.name \<rightharpoonup> 'd) set \<Rightarrow> 'd expl" where
   "pdt_of i r ts [] V = (if V = {} then Leaf (Inr (VPred i r ts)) else Leaf (Inl (SPred i r ts)))"
 | "pdt_of i r ts (x # vars) V =
      (let ds = sorted_list_of_set (Option.these {v x | v. v \<in> V});
           part = tabulate ds (\<lambda>d. pdt_of i r ts vars ({v \<in> V. v x = Some d})) (pdt_of i r ts vars {})
      in Node x part)"
 
+value "pdt_of 0 p [MFOTL.Var ''x'', MFOTL.Var ''y''] [''x'', ''y''] {}"
+
+fun "apply_pdt" :: "MFOTL.name list \<Rightarrow> ('d proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof) \<Rightarrow> 'd expl \<Rightarrow> 'd expl \<Rightarrow> 'd expl" where
+  "apply_pdt vars f (Leaf pt1) (Leaf pt2) = Leaf (f pt1 pt2)"
+| "apply_pdt vars f (Leaf pt1) (Node x part2) = Node x (map_part (map_pdt (f pt1)) part2)"
+| "apply_pdt vars f (Node x part1) (Leaf pt2) = Node x (map_part (map_pdt (\<lambda>pt1. f pt1 pt2)) part1)"
+| "apply_pdt (z # vars) f (Node x part1) (Node y part2) =
+    (if x = z \<and> y = z then
+      Node z (merge_part (apply_pdt vars f) part1 part2)
+    else if x = z then
+      Node x (map_part (\<lambda>expl1. apply_pdt vars f expl1 (Node y part2)) part1)
+    else if y = z then
+      Node y (map_part (\<lambda>expl2. apply_pdt vars f (Node x part1) expl2) part2)
+    else
+      apply_pdt vars f (Node x part1) (Node y part2))"
+| "apply_pdt [] _ (Node _ _) (Node _ _) = undefined"
+
+fun "hide_pdt" :: "MFOTL.name list \<Rightarrow> ('d proof + ('d, 'd proof) part \<Rightarrow> 'd proof) \<Rightarrow> 'd expl \<Rightarrow> 'd expl" where
+  "hide_pdt vars f (Leaf pt) = Leaf (f (Inl pt))"
+| "hide_pdt [x] f (Node y part) = Leaf (f (Inr (map_part unleaf part)))"
+| "hide_pdt (x # xs) f (Node y part) = 
+  (if x = y then
+     Node y (map_part (hide_pdt xs f) part)
+   else
+     hide_pdt xs f (Node y part))"
+| "hide_pdt [] _ _ = undefined"
+
+inductive sat_vorder :: "MFOTL.name list \<Rightarrow> 'd expl \<Rightarrow> bool" where
+  "sat_vorder vars (Leaf _)"
+| "\<forall>expl \<in> Vals part1. sat_vorder vars expl \<Longrightarrow> sat_vorder (x # vars) (Node x part1)"
+| "sat_vorder vars (Node x part1) \<Longrightarrow> x \<noteq> z \<Longrightarrow> sat_vorder (z # vars) (Node x part1)"
+
 function (sequential) opt :: "MFOTL.name list \<Rightarrow> nat \<Rightarrow> 'd MFOTL.formula \<Rightarrow> 'd expl" where
   "opt vars i MFOTL.TT = Leaf (Inl (STT i))"
 | "opt vars i MFOTL.FF = Leaf (Inr (VFF i))"
 | "opt vars i (MFOTL.Pred r ts) = 
   (pdt_of i r ts vars (Option.these (match ts ` {d. (r, d) \<in> \<Gamma> \<sigma> i})))"
+| "opt vars i (MFOTL.Exists x \<phi>) = hide_pdt (vars @ [x]) (\<lambda>p. min_list_wrt wqo (do_exists x p)) (opt (vars @ [x]) i \<phi>)"
+| "opt vars i (MFOTL.Forall x \<phi>) = hide_pdt (vars @ [x]) (\<lambda>p. min_list_wrt wqo (do_forall x p)) (opt (vars @ [x]) i \<phi>)"
 | "opt vars i (MFOTL.Or \<phi> \<psi>) = apply_pdt vars (\<lambda>l r. min_list_wrt wqo (do_or l r)) (opt vars i \<phi>) (opt vars i \<psi>)"
 | "opt vars i (MFOTL.And \<phi> \<psi>) = apply_pdt vars (\<lambda>l r. min_list_wrt wqo (do_and l r)) (opt vars i \<phi>) (opt vars i \<psi>)"
 | "opt vars i (MFOTL.Imp \<phi> \<psi>) = apply_pdt vars (\<lambda>l r. min_list_wrt wqo (do_imp l r)) (opt vars i \<phi>) (opt vars i \<psi>)"
