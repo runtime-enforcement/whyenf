@@ -23,7 +23,7 @@ abbreviation "LTP_p \<sigma> i I \<equiv> min i (LTP \<sigma> ((\<tau> \<sigma> 
 abbreviation "ETP_f \<sigma> i I \<equiv> max i (ETP \<sigma> ((\<tau> \<sigma> i) + left I))"
 abbreviation "LTP_f \<sigma> i b \<equiv> LTP \<sigma> ((\<tau> \<sigma> i) + b)"
 
-lemma i_etp_tau: "i \<ge> ETP \<sigma> n \<longleftrightarrow> \<tau> \<sigma> i \<ge> n"
+lemma i_ETP_tau: "i \<ge> ETP \<sigma> n \<longleftrightarrow> \<tau> \<sigma> i \<ge> n"
 proof
   assume P: "i \<ge> ETP \<sigma> n"
   define j where j_def: "j \<equiv> ETP \<sigma> n"
@@ -37,7 +37,7 @@ next
     by (auto simp add: Least_le)
 qed
 
-lemma i_ltp_tau:
+lemma i_LTP_tau:
   assumes n_asm: "n \<ge> \<tau> \<sigma> 0"
   shows "(i \<le> LTP \<sigma> n \<longleftrightarrow> \<tau> \<sigma> i \<le> n)"
 proof
@@ -45,9 +45,12 @@ proof
   assume P: "i \<le> LTP \<sigma> n"
   from n_asm A_def have A_ne: "A \<noteq> {}" by auto
   from j_def have i_j: "\<tau> \<sigma> i \<le> \<tau> \<sigma> j" using P by auto
+  have fin_A: "finite A"
+    sorry
   from A_ne j_def have "\<tau> \<sigma> j \<le> n"
-    unfolding LTP_def using Max_in[of A] A_def
-    by (metis \<tau>_mono finite_nat_set_iff_bounded_le le_trans mem_Collect_eq nat_le_linear)
+    using Max_in[of A] A_def fin_A 
+    unfolding LTP_def 
+    by simp
   then show "\<tau> \<sigma> i \<le> n" using i_j by auto
 next
   define A and j where A_def: "A \<equiv> {i. \<tau> \<sigma> i \<le> n}" and j_def: "j \<equiv> LTP \<sigma> n"
@@ -61,14 +64,14 @@ next
     by auto
 qed
 
-lemma etp_delta: "i \<ge> ETP \<sigma> (\<tau> \<sigma> l + n) \<Longrightarrow> \<delta> \<sigma> i l \<ge> n"
+lemma ETP_delta: "i \<ge> ETP \<sigma> (\<tau> \<sigma> l + n) \<Longrightarrow> \<delta> \<sigma> i l \<ge> n"
 proof -
   assume P: "i \<ge> ETP \<sigma> (\<tau> \<sigma> l + n)"
-  then have "\<tau> \<sigma> i \<ge> \<tau> \<sigma> l + n" by (auto simp add: i_etp_tau)
+  then have "\<tau> \<sigma> i \<ge> \<tau> \<sigma> l + n" by (auto simp add: i_ETP_tau)
   then show ?thesis by auto
 qed
 
-lemma etp_ge: "ETP \<sigma> (\<tau> \<sigma> l + n + 1) > l"
+lemma ETP_ge: "ETP \<sigma> (\<tau> \<sigma> l + n + 1) > l"
 proof -
   define j where j_def: "j \<equiv> \<tau> \<sigma> l + n + 1"
   then have etp_j: "\<tau> \<sigma> (ETP \<sigma> j) \<ge> j" unfolding ETP_def
@@ -77,15 +80,15 @@ proof -
   then show ?thesis using j_def less_\<tau>D by blast
 qed
 
-lemma i_le_ltpi: "i \<le> LTP \<sigma> (\<tau> \<sigma> i)"
-  using \<tau>_mono i_ltp_tau[of \<sigma> "\<tau> \<sigma> i" i]
+lemma i_le_LTPi: "i \<le> LTP \<sigma> (\<tau> \<sigma> i)"
+  using \<tau>_mono i_LTP_tau[of \<sigma> "\<tau> \<sigma> i" i]
   by auto
 
-lemma i_le_ltpi_add: "i \<le> LTP \<sigma> (\<tau> \<sigma> i + n)"
-  using i_le_ltpi
-  by (simp add: add_increasing2 i_ltp_tau)
+lemma i_le_LTPi_add: "i \<le> LTP \<sigma> (\<tau> \<sigma> i + n)"
+  using i_le_LTPi
+  by (simp add: add_increasing2 i_LTP_tau)
 
-lemma i_le_ltpi_minus: "\<tau> \<sigma> 0 + n \<le> \<tau> \<sigma> i \<Longrightarrow> i > 0 \<Longrightarrow> n > 0 \<Longrightarrow>
+lemma i_le_LTPi_minus: "\<tau> \<sigma> 0 + n \<le> \<tau> \<sigma> i \<Longrightarrow> i > 0 \<Longrightarrow> n > 0 \<Longrightarrow>
   LTP \<sigma> (\<tau> \<sigma> i - n) < i"
   unfolding LTP_def
   apply (subst Max_less_iff)
@@ -102,7 +105,7 @@ lemma i_le_ltpi_minus: "\<tau> \<sigma> 0 + n \<le> \<tau> \<sigma> i \<Longrigh
   done
 
 lemma i_ge_etpi: "ETP \<sigma> (\<tau> \<sigma> i) \<le> i"
-  using i_etp_tau by auto
+  using i_ETP_tau by auto
 
 lemma enat_trans[simp]: "enat i \<le> enat j \<and> enat j \<le> enat k \<Longrightarrow> enat i \<le> enat k"
   by auto
