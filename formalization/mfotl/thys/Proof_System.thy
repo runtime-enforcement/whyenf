@@ -351,7 +351,7 @@ datatype (dead 'd) sproof = STT nat
 subsection \<open>Partitioned Decision Trees\<close>
 
 (* 'd: domain; 'pt: proof tree *)
-datatype ('d, 'pt) pdt = Leaf 'pt | Node MFOTL.name "('d, ('d, 'pt) pdt) part"
+datatype ('d, 'pt) pdt = Leaf (unleaf: 'pt) | Node MFOTL.name "('d, ('d, 'pt) pdt) part"
 
 type_synonym 'd "proof" = "'d sproof + 'd vproof"
 
@@ -491,26 +491,6 @@ qed simp
 
 lift_definition merge_part :: "('a \<Rightarrow> 'a \<Rightarrow> 'a) \<Rightarrow> ('d, 'a) part \<Rightarrow> ('d, 'a) part \<Rightarrow> ('d, 'a) part" is merge_part_raw
   by (rule wf_part_list_merge_part_raw)
-
-fun "apply_pdt" :: "MFOTL.name list \<Rightarrow> ('d proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof) \<Rightarrow> 'd expl \<Rightarrow> 'd expl \<Rightarrow> 'd expl" where
-  "apply_pdt vars f (Leaf pt1) (Leaf pt2) = Leaf (f pt1 pt2)"
-| "apply_pdt vars f (Leaf pt1) (Node x part2) = Node x (map_part (map_pdt (f pt1)) part2)"
-| "apply_pdt vars f (Node x part1) (Leaf pt2) = Node x (map_part (map_pdt (\<lambda>pt1. f pt1 pt2)) part1)"
-| "apply_pdt (z # vars) f (Node x part1) (Node y part2) =
-    (if x = z \<and> y = z then
-      Node z (merge_part (apply_pdt vars f) part1 part2)
-    else if x = z then
-      Node x (map_part (\<lambda>expl1. apply_pdt vars f expl1 (Node y part2)) part1)
-    else if y = z then
-      Node y (map_part (\<lambda>expl2. apply_pdt vars f (Node x part1) expl2) part2)
-    else
-      apply_pdt vars f (Node x part1) (Node y part2))"
-| "apply_pdt [] _ (Node _ _) (Node _ _) = undefined"
-
-inductive sat_vorder :: "MFOTL.name list \<Rightarrow> 'd expl \<Rightarrow> bool" where
-  "sat_vorder vars (Leaf _)"
-| "\<forall>expl \<in> Vals part1. sat_vorder vars expl \<Longrightarrow> sat_vorder (x # vars) (Node x part1)"
-| "sat_vorder vars (Node x part1) \<Longrightarrow> x \<noteq> z \<Longrightarrow> sat_vorder (z # vars) (Node x part1)"
 
 
 end
