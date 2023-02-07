@@ -630,9 +630,8 @@ function ETP_rec where
   by pat_completeness auto
 termination
   using ETP_aux
-  (* apply (relation "measure (\<lambda>(\<sigma>, t, i). Suc (ETP \<sigma> t) - i)")
-  apply (fastforce simp: ETP_def)+ *)
-  sorry
+  by (relation "measure (\<lambda>(\<sigma>, t, i). Suc (ETP \<sigma> t) - i)")
+    (fastforce simp: ETP_def)+
 
 lemma ETP_rec_sound: "ETP_rec \<sigma> t j = (LEAST i. i \<ge> j \<and> t \<le> \<tau> \<sigma> i)"
 proof (induction \<sigma> t j rule: ETP_rec.induct)
@@ -660,9 +659,7 @@ lemma LTP_aux:
   shows "i \<le> Max {i. \<tau> \<sigma> i \<le> t}"
 proof -
   have "finite {i. \<tau> \<sigma> i \<le> t}"
-    sorry
-    (* by (smt (verit, del_insts) \<tau>_mono finite_nat_set_iff_bounded_le i_LTP_tau le0 le_trans
-        mem_Collect_eq) *)
+    by (smt (verit, del_insts) \<tau>_mono finite_nat_set_iff_bounded_le i_LTP_tau le0 le_trans mem_Collect_eq) 
   moreover have "i \<in> {i. \<tau> \<sigma> i \<le> t}"
     using le_trans[OF \<tau>_mono[of i "Suc i" \<sigma>] assms]
     by auto
@@ -675,11 +672,10 @@ function LTP_rec where
   by pat_completeness auto
 termination
   using LTP_aux
-  sorry
-  (* by (relation "measure (\<lambda>(\<sigma>, t, i). Suc (LTP \<sigma> t) - i)") (fastforce simp: LTP_def)+ *)
+  by (relation "measure (\<lambda>(\<sigma>, t, i). Suc (LTP \<sigma> t) - i)") (fastforce simp: LTP_def)+
 
 lemma max_aux: "finite X \<Longrightarrow> Suc j \<in> X \<Longrightarrow> Max (insert (Suc j) (X - {j})) = Max (insert j X)"
-  sledgehammer
+  (* sledgehammer *)
   by (smt (verit) max.orderI Max.insert_remove Max_ge Max_insert empty_iff insert_Diff_single
       insert_absorb insert_iff max_def not_less_eq_eq)
 
@@ -687,9 +683,8 @@ lemma LTP_rec_sound: "LTP_rec \<sigma> t j = Max ({i. i \<ge> j \<and> (\<tau> \
 proof (induction \<sigma> t j rule: LTP_rec.induct)
   case (1 \<sigma> t j)
   have fin: "finite {i. j \<le> i \<and> \<tau> \<sigma> i \<le> t}"
-    (* by (smt (verit, del_insts) \<tau>_mono finite_nat_set_iff_bounded_le i_LTP_tau le0 le_trans
-        mem_Collect_eq) *)
-    sorry
+    by (smt (verit, del_insts) \<tau>_mono finite_nat_set_iff_bounded_le i_LTP_tau le0 le_trans
+        mem_Collect_eq)
   show ?case
   proof (cases "\<tau> \<sigma> (Suc j) \<le> t")
     case True
@@ -712,14 +707,47 @@ lemma LTP_code[code]: "LTP \<sigma> t = (if t < \<tau> \<sigma> 0
   using LTP_rec_sound[of \<sigma> t 0]
   by (auto simp: LTP_def insert_absorb simp del: LTP_rec.simps)
 
+code_deps LTP
 
-(* definition execute_trivial_opt where
- "execute_trivial_opt \<sigma> vs i \<phi> p = Monitor.opt \<sigma> (\<lambda> _. 1) vs i \<phi> p" *)
+instantiation enat :: ccompare begin
+definition ccompare_enat :: "enat comparator option" where
+  "ccompare_enat = Some (\<lambda>x y. if x = y then order.Eq else if x < y then order.Lt else order.Gt)"
 
-(* lift_definition mytrace :: "((MFOTL.name \<times> nat list) set \<times> nat) stream" is "({(''p'', [1::nat])}, 0::nat) ## s"
+instance by intro_classes
+    (auto simp: ccompare_enat_def split: if_splits intro!: comparator.intro)
+end
 
-term "mytrace 0"
+derive (eq) ceq enat
 
-value "Monitor.alg.opt (({(''p'', [1::nat])}, 0::nat) ## s) [''x''] 0 (MFOTL.Pred ''p'' [MFOTL.Var ''x''])" *)
+instantiation enat :: set_impl begin
+definition set_impl_enat :: "(enat, set_impl) phantom" where
+  "set_impl_enat = phantom set_RBT"
+
+instance ..
+end
+
+term p_pred
+term Monitor.opt
+
+term "(\<lambda>p1 p2. (p_pred (\<lambda> _. 1) p1) \<le> (p_pred (\<lambda> _. 1) p2))"
+
+definition execute_trivial_opt where
+ "execute_trivial_opt \<sigma> vs i \<phi> = Monitor.opt \<sigma> (\<lambda>p1 p2. (p_pred (\<lambda> _. 1) p1) < (p_pred (\<lambda> _. 1) p2)) vs i \<phi>"
+
+definition mytrace :: "nat MFOTL.trace" where 
+  "mytrace = trace_of_list [({(''p'', [1::nat])}, 0::nat)]"
+
+instantiation nat :: default begin
+
+definition default_nat :: "nat" where
+  "default_nat = 0"
+
+instance proof qed
+
+end
+
+term "(MFOTL.Pred ''p'' [MFOTL.Var ''x''])"
+
+(* value "execute_trivial_opt mytrace [''x''] (0::nat) (MFOTL.Pred ''p'' [MFOTL.Var ''x''] :: nat MFOTL.formula)" *)
 
 end
