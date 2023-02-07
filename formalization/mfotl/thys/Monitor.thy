@@ -1,6 +1,6 @@
 (*<*)
 theory Monitor
-  imports Proof_System "HOL-Library.Simps_Case_Conv" "Well_Quasi_Orders.Well_Quasi_Orders"
+  imports Proof_System "HOL-Library.Simps_Case_Conv" 
 begin
 (*>*)
 
@@ -1402,7 +1402,7 @@ function (sequential) opt :: "MFOTL.name list \<Rightarrow> nat \<Rightarrow> 'd
   "opt vars i MFOTL.TT = Leaf (Inl (STT i))"
 | "opt vars i MFOTL.FF = Leaf (Inr (VFF i))"
 | "opt vars i (MFOTL.Pred r ts) = 
-  (pdt_of i r ts vars (Option.these (match ts ` {d. (r, d) \<in> \<Gamma> \<sigma> i})))"
+  (pdt_of i r ts vars (Option.these (match ts ` snd ` {rd \<in> \<Gamma> \<sigma> i. fst rd = r })))"
 | "opt vars i (MFOTL.Exists x \<phi>) = hide_pdt (vars @ [x]) (\<lambda>p. min_list_wrt cmp (do_exists x p)) (opt (vars @ [x]) i \<phi>)"
 | "opt vars i (MFOTL.Forall x \<phi>) = hide_pdt (vars @ [x]) (\<lambda>p. min_list_wrt cmp (do_forall x p)) (opt (vars @ [x]) i \<phi>)"
 | "opt vars i (MFOTL.Or \<phi> \<psi>) = apply_pdt vars (\<lambda>l r. min_list_wrt cmp (do_or l r)) (opt vars i \<phi>) (opt vars i \<psi>)"
@@ -1410,13 +1410,9 @@ function (sequential) opt :: "MFOTL.name list \<Rightarrow> nat \<Rightarrow> 'd
 | "opt vars i (MFOTL.Imp \<phi> \<psi>) = apply_pdt vars (\<lambda>l r. min_list_wrt cmp (do_imp l r)) (opt vars i \<phi>) (opt vars i \<psi>)"
 | "opt vars i (MFOTL.Iff \<phi> \<psi>) = apply_pdt vars (\<lambda>l r. min_list_wrt cmp (do_iff l r)) (opt vars i \<phi>) (opt vars i \<psi>)"
   by pat_completeness auto
+termination
+  sorry
 
 end
-
-(* lift_definition mytrace :: "((MFOTL.name \<times> nat list) set \<times> nat) stream" is "({(''p'', [1::nat])}, 0::nat) ## s"
-
-term "mytrace 0"
-
-value "Monitor.alg.opt (({(''p'', [1::nat])}, 0::nat) ## s) [''x''] 0 (MFOTL.Pred ''p'' [MFOTL.Var ''x''])" *)
 
 end
