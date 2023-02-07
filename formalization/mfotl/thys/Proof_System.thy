@@ -1,6 +1,6 @@
 (*<*)
 theory Proof_System
-  imports MFOTL "HOL-Library.Disjoint_Sets"
+  imports MFOTL "HOL-Library.Disjoint_Sets" "Deriving.Comparator_Generator" "Containers.Collection_Order"
 begin
 (*>*)
 
@@ -10,10 +10,10 @@ section \<open>Proof System\<close>
 
 subsection \<open>Time-stamp-time-point Conversion\<close>
 
-definition ETP:: "'a MFOTL.trace \<Rightarrow> nat \<Rightarrow> nat"  where
+definition ETP:: "'a trace \<Rightarrow> nat \<Rightarrow> nat"  where
   "ETP \<sigma> ts = (LEAST i. \<tau> \<sigma> i \<ge> ts)"
 
-definition LTP:: "'a MFOTL.trace \<Rightarrow> nat \<Rightarrow> nat" where
+definition LTP:: "'a trace \<Rightarrow> nat \<Rightarrow> nat" where
   "LTP \<sigma> ts = Max {i. (\<tau> \<sigma> i) \<le> ts}"
 
 abbreviation "\<delta> \<sigma> i j \<equiv> (\<tau> \<sigma> i - \<tau> \<sigma> j)"
@@ -46,6 +46,10 @@ proof
   from n_asm A_def have A_ne: "A \<noteq> {}" by auto
   from j_def have i_j: "\<tau> \<sigma> i \<le> \<tau> \<sigma> j" using P by auto
   have fin_A: "finite A"
+    unfolding A_def
+    apply transfer
+    apply (simp only: le_eq_less_or_eq)
+    apply (simp only: Collect_disj_eq)
     sorry
   from A_ne j_def have "\<tau> \<sigma> j \<le> n"
     using Max_in[of A] A_def fin_A 
@@ -580,6 +584,274 @@ qed simp
 
 lift_definition merge_part :: "('a \<Rightarrow> 'a \<Rightarrow> 'a) \<Rightarrow> ('d, 'a) part \<Rightarrow> ('d, 'a) part \<Rightarrow> ('d, 'a) part" is merge_part_raw
   by (rule wf_part_list_merge_part_raw)
+
+
+(* context 
+  fixes compa :: "'a \<Rightarrow> 'b \<Rightarrow> order" 
+
+begin
+
+fun comparator_list' :: "'a list \<Rightarrow> 'b list \<Rightarrow> order" where
+  "comparator_list' [] [] = Eq"
+| "comparator_list' [] (y # ys) = Lt"
+| "comparator_list' (x # xs) [] = Gt"
+| "comparator_list' (x # xs) (y # ys) = (case compa x y of Eq \<Rightarrow> comparator_list' xs ys | Lt \<Rightarrow> Lt | Gt \<Rightarrow> Gt)"
+
+end
+
+
+instantiation sproof and vproof :: (ccompare) ccompare 
+
+begin
+
+term comparator_of
+
+primrec comparator_sproof :: "('a \<Rightarrow> 'b \<Rightarrow> order) \<Rightarrow> 'a sproof \<Rightarrow> 'b sproof \<Rightarrow> order" 
+  and comparator_vproof :: "('a \<Rightarrow> 'b \<Rightarrow> order) \<Rightarrow> 'a vproof \<Rightarrow> 'b vproof \<Rightarrow> order" where
+  "comparator_sproof compa (STT i) rhs =
+    (case rhs of
+      STT j \<Rightarrow> comparator_of i j
+    | _ \<Rightarrow> Lt)"
+| "comparator_sproof compa (SPred i r ts) rhs =
+    (case rhs of
+      STT _ \<Rightarrow> Gt
+    | SPred j r' ts' \<Rightarrow> undefined
+    | _ \<Rightarrow> Lt)"
+| "comparator_sproof compa (SNeg vp) rhs =
+    (case rhs of
+      STT _ \<Rightarrow> Gt
+    | SPred _ _ _ \<Rightarrow> Gt
+    | SNeg vp' \<Rightarrow> comparator_vproof compa vp vp'
+    | _ \<Rightarrow> Lt)"
+| "comparator_sproof compa (SOrL sp) rhs =
+    (case rhs of
+      STT _ \<Rightarrow> Gt
+    | SPred _ _ _ \<Rightarrow> Gt
+    | SNeg _ \<Rightarrow> Gt
+    | SOrL sp' \<Rightarrow> comparator_sproof compa sp sp'
+    | _ \<Rightarrow> Lt)"
+| "comparator_sproof compa (SOrR sp) rhs =
+    (case rhs of
+      STT _ \<Rightarrow> Gt
+    | SPred _ _ _ \<Rightarrow> Gt
+    | SNeg _ \<Rightarrow> Gt
+    | SOrL _ \<Rightarrow> Gt
+    | SOrR sp' \<Rightarrow> comparator_sproof compa sp sp'
+    | _ \<Rightarrow> Lt)"
+| "comparator_sproof compa (SAnd sp1 sp2) rhs =
+    (case rhs of
+      STT _ \<Rightarrow> Gt
+    | SPred _ _ _ \<Rightarrow> Gt
+    | SNeg _ \<Rightarrow> Gt
+    | SOrL _ \<Rightarrow> Gt
+    | SOrR _ \<Rightarrow> Gt
+    | SAnd sp1' sp2' \<Rightarrow> (case comparator_sproof compa sp1 sp1' of Eq \<Rightarrow> comparator_sproof compa sp2 sp2' | Lt \<Rightarrow> Lt | Gt \<Rightarrow> Gt)
+    | _ \<Rightarrow> Lt)"
+| "comparator_sproof compa (SImpL vp) rhs =
+    (case rhs of
+      STT _ \<Rightarrow> Gt
+    | SPred _ _ _ \<Rightarrow> Gt
+    | SNeg _ \<Rightarrow> Gt
+    | SOrL _ \<Rightarrow> Gt
+    | SOrR _ \<Rightarrow> Gt
+    | SAnd _ _ \<Rightarrow> Gt
+    | SImpL vp' \<Rightarrow> comparator_vproof compa vp vp'
+    | _ \<Rightarrow> Lt)"
+| "comparator_sproof compa (SImpR sp) rhs =
+    (case rhs of
+      STT _ \<Rightarrow> Gt
+    | SPred _ _ _ \<Rightarrow> Gt
+    | SNeg _ \<Rightarrow> Gt
+    | SOrL _ \<Rightarrow> Gt
+    | SOrR _ \<Rightarrow> Gt
+    | SAnd _ _ \<Rightarrow> Gt
+    | SImpL _ \<Rightarrow> Gt
+    | SImpR sp' \<Rightarrow> comparator_sproof compa sp sp'
+    | _ \<Rightarrow> Lt)"
+| "comparator_sproof compa (SIffSS sp1 sp2) rhs =
+    (case rhs of
+      STT _ \<Rightarrow> Gt
+    | SPred _ _ _ \<Rightarrow> Gt
+    | SNeg _ \<Rightarrow> Gt
+    | SOrL _ \<Rightarrow> Gt
+    | SOrR _ \<Rightarrow> Gt
+    | SAnd _ _ \<Rightarrow> Gt
+    | SImpL _ \<Rightarrow> Gt
+    | SImpR _ \<Rightarrow> Gt
+    | SIffSS sp1' sp2' \<Rightarrow> (case comparator_sproof compa sp1 sp1' of Eq \<Rightarrow> comparator_sproof compa sp2 sp2' | Lt \<Rightarrow> Lt | Gt \<Rightarrow> Gt)
+    | _ \<Rightarrow> Lt)"
+| "comparator_sproof compa (SIffVV vp1 vp2) rhs =
+    (case rhs of
+      STT _ \<Rightarrow> Gt
+    | SPred _ _ _ \<Rightarrow> Gt
+    | SNeg _ \<Rightarrow> Gt
+    | SOrL _ \<Rightarrow> Gt
+    | SOrR _ \<Rightarrow> Gt
+    | SAnd _ _ \<Rightarrow> Gt
+    | SImpL _ \<Rightarrow> Gt
+    | SImpR _ \<Rightarrow> Gt
+    | SIffSS _ _ \<Rightarrow> Gt
+    | SIffVV vp1' vp2' \<Rightarrow> (case comparator_vproof compa vp1 vp1' of Eq \<Rightarrow> comparator_vproof compa vp2 vp2' | Lt \<Rightarrow> Lt | Gt \<Rightarrow> Gt)
+    | _ \<Rightarrow> Lt)"
+| "comparator_sproof compa (SOnce i sp) rhs =
+    (case rhs of
+      STT _ \<Rightarrow> Gt
+    | SPred _ _ _ \<Rightarrow> Gt
+    | SNeg _ \<Rightarrow> Gt
+    | SOrL _ \<Rightarrow> Gt
+    | SOrR _ \<Rightarrow> Gt
+    | SAnd _ _ \<Rightarrow> Gt
+    | SImpL _ \<Rightarrow> Gt
+    | SImpR _ \<Rightarrow> Gt
+    | SIffSS _ _ \<Rightarrow> Gt
+    | SIffVV _ _ \<Rightarrow> Gt
+    | SOnce i' sp' \<Rightarrow> (case comparator_of i i' of Eq \<Rightarrow> comparator_sproof compa sp sp' | Lt \<Rightarrow> Lt | Gt \<Rightarrow> Gt)
+    | _ \<Rightarrow> Lt)"
+| "comparator_sproof compa (SEventually i sp) rhs =
+    (case rhs of
+      STT _ \<Rightarrow> Gt
+    | SPred _ _ _ \<Rightarrow> Gt
+    | SNeg _ \<Rightarrow> Gt
+    | SOrL _ \<Rightarrow> Gt
+    | SOrR _ \<Rightarrow> Gt
+    | SAnd _ _ \<Rightarrow> Gt
+    | SImpL _ \<Rightarrow> Gt
+    | SImpR _ \<Rightarrow> Gt
+    | SIffSS _ _ \<Rightarrow> Gt
+    | SIffVV _ _ \<Rightarrow> Gt
+    | SExists _ _ _ \<Rightarrow> Gt
+    | SForall _ _ \<Rightarrow> Gt
+    | SPrev _ \<Rightarrow> Gt
+    | SNext _ \<Rightarrow> Gt
+    | SOnce _ _ \<Rightarrow> Gt
+    | SEventually i' sp' \<Rightarrow> (case comparator_of i i' of Eq \<Rightarrow> comparator_sproof compa sp sp' | Lt \<Rightarrow> Lt | Gt \<Rightarrow> Gt)
+    | _ \<Rightarrow> Lt)"
+| "comparator_sproof compa (SHistorically i t sps) rhs =
+    (case rhs of
+      STT _ \<Rightarrow> Gt
+    | SPred _ _ _ \<Rightarrow> Gt
+    | SNeg _ \<Rightarrow> Gt
+    | SOrL _ \<Rightarrow> Gt
+    | SOrR _ \<Rightarrow> Gt
+    | SAnd _ _ \<Rightarrow> Gt
+    | SImpL _ \<Rightarrow> Gt
+    | SImpR _ \<Rightarrow> Gt
+    | SIffSS _ _ \<Rightarrow> Gt
+    | SIffVV _ _ \<Rightarrow> Gt
+    | SExists _ _ _ \<Rightarrow> Gt
+    | SForall _ _ \<Rightarrow> Gt
+    | SPrev _ \<Rightarrow> Gt
+    | SNext _ \<Rightarrow> Gt
+    | SOnce _ _ \<Rightarrow> Gt
+    | SEventually _ _ \<Rightarrow> Gt
+    | SHistorically i' t' sps' \<Rightarrow> (case comparator_of i i' of 
+                                   Eq \<Rightarrow> (case comparator_of t t' of Eq \<Rightarrow> comparator_list' (\<lambda>f x. f x) (map (comparator_sproof compa) sps) sps' | Lt \<Rightarrow> Lt | Gt \<Rightarrow> Gt)
+                                 | Lt \<Rightarrow> Lt | Gt \<Rightarrow> Gt)
+    | _ \<Rightarrow> Lt)"
+| "comparator_sproof compa (SHistoricallyOut i) rhs =
+    (case rhs of
+      STT _ \<Rightarrow> Gt
+    | SPred _ _ _ \<Rightarrow> Gt
+    | SNeg _ \<Rightarrow> Gt
+    | SOrL _ \<Rightarrow> Gt
+    | SOrR _ \<Rightarrow> Gt
+    | SAnd _ _ \<Rightarrow> Gt
+    | SImpL _ \<Rightarrow> Gt
+    | SImpR _ \<Rightarrow> Gt
+    | SIffSS _ _ \<Rightarrow> Gt
+    | SIffVV _ _ \<Rightarrow> Gt
+    | SExists _ _ _ \<Rightarrow> Gt
+    | SForall _ _ \<Rightarrow> Gt
+    | SPrev _ \<Rightarrow> Gt
+    | SNext _ \<Rightarrow> Gt
+    | SOnce _ _ \<Rightarrow> Gt
+    | SEventually _ _ \<Rightarrow> Gt
+    | SHistorically _ _ _ \<Rightarrow> Gt
+    | SHistoricallyOut i' \<Rightarrow> comparator_of i i'
+    | _ \<Rightarrow> Lt)"
+| "comparator_sproof compa (SAlways i t sps) rhs =
+    (case rhs of
+      STT _ \<Rightarrow> Gt
+    | SPred _ _ _ \<Rightarrow> Gt
+    | SNeg _ \<Rightarrow> Gt
+    | SOrL _ \<Rightarrow> Gt
+    | SOrR _ \<Rightarrow> Gt
+    | SAnd _ _ \<Rightarrow> Gt
+    | SImpL _ \<Rightarrow> Gt
+    | SImpR _ \<Rightarrow> Gt
+    | SIffSS _ _ \<Rightarrow> Gt
+    | SIffVV _ _ \<Rightarrow> Gt
+    | SExists _ _ _ \<Rightarrow> Gt
+    | SForall _ _ \<Rightarrow> Gt
+    | SPrev _ \<Rightarrow> Gt
+    | SNext _ \<Rightarrow> Gt
+    | SOnce _ _ \<Rightarrow> Gt
+    | SEventually _ _ \<Rightarrow> Gt
+    | SHistorically _ _ _ \<Rightarrow> Gt
+    | SHistoricallyOut _ \<Rightarrow> Gt
+    | SAlways i' t' sps' \<Rightarrow> (case comparator_of i i' of 
+                                        Eq \<Rightarrow> (case comparator_of t t' of Eq \<Rightarrow> comparator_list' (\<lambda>f x. f x) (map (comparator_sproof compa) sps) sps' | Lt \<Rightarrow> Lt | Gt \<Rightarrow> Gt)
+                                      | Lt \<Rightarrow> Lt | Gt \<Rightarrow> Gt)
+    | _ \<Rightarrow> Lt)"
+| "comparator_sproof compa (SSince sp2 sp1s) rhs =
+    (case rhs of
+      STT _ \<Rightarrow> Gt
+    | SPred _ _ _ \<Rightarrow> Gt
+    | SNeg _ \<Rightarrow> Gt
+    | SOrL _ \<Rightarrow> Gt
+    | SOrR _ \<Rightarrow> Gt
+    | SAnd _ _ \<Rightarrow> Gt
+    | SImpL _ \<Rightarrow> Gt
+    | SImpR _ \<Rightarrow> Gt
+    | SIffSS _ _ \<Rightarrow> Gt
+    | SIffVV _ _ \<Rightarrow> Gt
+    | SExists _ _ _ \<Rightarrow> Gt
+    | SForall _ _ \<Rightarrow> Gt
+    | SPrev _ \<Rightarrow> Gt
+    | SNext _ \<Rightarrow> Gt
+    | SOnce _ _ \<Rightarrow> Gt
+    | SEventually _ _ \<Rightarrow> Gt
+    | SHistorically _ _ _ \<Rightarrow> Gt
+    | SHistoricallyOut _ \<Rightarrow> Gt
+    | SAlways _ _ _ \<Rightarrow> Gt
+    | SSince sp2' sp1s' \<Rightarrow> (case comparator_sproof compa sp2 sp2' of 
+                             Eq \<Rightarrow> comparator_list' (\<lambda>f x. f x) (map (comparator_sproof compa) sp1s) sp1s'
+                           | Lt \<Rightarrow> Lt | Gt \<Rightarrow> Gt)
+    | _ \<Rightarrow> Lt)"
+| "comparator_sproof compa (SUntil sp1s sp2) rhs =
+    (case rhs of
+      STT _ \<Rightarrow> Gt
+    | SPred _ _ _ \<Rightarrow> Gt
+    | SNeg _ \<Rightarrow> Gt
+    | SOrL _ \<Rightarrow> Gt
+    | SOrR _ \<Rightarrow> Gt
+    | SAnd _ _ \<Rightarrow> Gt
+    | SImpL _ \<Rightarrow> Gt
+    | SImpR _ \<Rightarrow> Gt
+    | SIffSS _ _ \<Rightarrow> Gt
+    | SIffVV _ _ \<Rightarrow> Gt
+    | SExists _ _ _ \<Rightarrow> Gt
+    | SForall _ _ \<Rightarrow> Gt
+    | SPrev _ \<Rightarrow> Gt
+    | SNext _ \<Rightarrow> Gt
+    | SOnce _ _ \<Rightarrow> Gt
+    | SEventually _ _ \<Rightarrow> Gt
+    | SHistorically _ _ _ \<Rightarrow> Gt
+    | SHistoricallyOut _ \<Rightarrow> Gt
+    | SAlways _ _ _ \<Rightarrow> Gt
+    | SSince _ _ \<Rightarrow> Gt
+    | SUntil sp1s' sp2' \<Rightarrow> (case comparator_sproof compa sp2 sp2' of 
+                             Eq \<Rightarrow> comparator_list' (\<lambda>f x. f x) (map (comparator_sproof compa) sp1s) sp1s'
+                           | Lt \<Rightarrow> Lt | Gt \<Rightarrow> Gt))"
+| "comparator_vproof compa (VFF i) rhs =
+    (case rhs of
+      VFF j \<Rightarrow> comparator_of i j
+    | _ \<Rightarrow> Lt)"
+
+definition "ccompare_sproof = (case ID ccompare of None \<Rightarrow> None | Some comp_'a \<Rightarrow> Some (comparator_sproof comp_'a))"
+definition "ccompare_vproof = (case ID ccompare of None \<Rightarrow> None | Some comp_'a \<Rightarrow> Some (comparator_vproof comp_'a))"
+
+end *)
 
 
 end
