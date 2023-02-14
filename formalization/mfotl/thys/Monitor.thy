@@ -1270,11 +1270,11 @@ definition do_always :: "nat \<Rightarrow> nat \<Rightarrow> 'd proof \<Rightarr
   "do_always i a p p' = (case (p, a = 0, p') of
   (Inl _ , True,  Inr (VAlways _ vp')) \<Rightarrow> [Inr (VAlways i vp')]
 | (Inl sp, True,  Inl sp') \<Rightarrow> [(Inl sp') \<oplus> (Inl sp)]
-| (Inl _ , False, Inl (SAlways _ li sps')) \<Rightarrow> [Inl (SAlways i li sps')]
+| (Inl _ , False, Inl (SAlways _ hi sps')) \<Rightarrow> [Inl (SAlways i hi sps')]
 | (Inl _ , False, Inr (VAlways _ vp')) \<Rightarrow> [Inr (VAlways i vp')]
 | (Inr vp, True,  Inl _ ) \<Rightarrow> [Inr (VAlways i vp)]
 | (Inr vp, True,  Inr (VAlways _ vp')) \<Rightarrow> [Inr (VAlways i vp), Inr (VAlways i vp')]
-| (Inr _ , False, Inl (SAlways _ li sps')) \<Rightarrow> [Inl (SAlways i li sps')]
+| (Inr _ , False, Inl (SAlways _ hi sps')) \<Rightarrow> [Inl (SAlways i hi sps')]
 | (Inr _ , False, Inr (VAlways _ vp')) \<Rightarrow> [Inr (VAlways i vp')])"
 
 definition do_since_base :: "nat \<Rightarrow> nat \<Rightarrow> 'd proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof list" where
