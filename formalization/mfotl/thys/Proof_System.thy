@@ -583,7 +583,7 @@ proof(induct f part1 part2 arbitrary: X rule: merge_part_raw.induct)
 qed simp
 
 lift_definition merge_part :: "('a \<Rightarrow> 'a \<Rightarrow> 'a) \<Rightarrow> ('d, 'a) part \<Rightarrow> ('d, 'a) part \<Rightarrow> ('d, 'a) part" is merge_part_raw
-  by (rule wf_part_list_merge_part_raw)                                                                        
+  by (rule wf_part_list_merge_part_raw)               
 
 subsection \<open>Comparator\<close>
 
@@ -608,13 +608,13 @@ begin
 primrec comparator_sproof :: "('a \<Rightarrow> 'b \<Rightarrow> order) \<Rightarrow> 'a sproof \<Rightarrow> 'b sproof \<Rightarrow> order" 
   and comparator_vproof :: "('a \<Rightarrow> 'b \<Rightarrow> order) \<Rightarrow> 'a vproof \<Rightarrow> 'b vproof \<Rightarrow> order" where
   "comparator_sproof compa (STT i) rhs =
-    (case rhs of
+    (case rhs of       
       STT i' \<Rightarrow> comparator_of i i'
     | _ \<Rightarrow> Lt)"
 | "comparator_sproof compa (SPred i r ts) rhs =
     (case rhs of
       STT _ \<Rightarrow> Gt
-    | SPred i' r' ts' \<Rightarrow> comparator_of i i'
+    | SPred i' r' ts' \<Rightarrow> compare r r'
     | _ \<Rightarrow> Lt)"
 | "comparator_sproof compa (SNeg vp) rhs =
     (case rhs of
@@ -728,7 +728,7 @@ primrec comparator_sproof :: "('a \<Rightarrow> 'b \<Rightarrow> order) \<Righta
     | SIffSS _ _ \<Rightarrow> Gt
     | SIffVV _ _ \<Rightarrow> Gt
     | SExists _ _ _ \<Rightarrow> Gt
-    | SForall x' part' \<Rightarrow> undefined \<comment> \<open>comparator_list' (\<lambda>f x. f x) (map (comparator_sproof compa) (vals part)) (vals part')\<close>
+    | SForall x' part' \<Rightarrow> comparator_list' (\<lambda>f x. f x) (vals (map_part (comparator_sproof compa) part)) (vals part')
     | _ \<Rightarrow> Lt)"
 | "comparator_sproof compa (SPrev sp) rhs =
     (case rhs of
@@ -1516,6 +1516,22 @@ instance
    apply (force simp add: ccompare_sproof_def ccompare_vproof_def comparator_def
       eq_Eq_comparator_proof invert_order_comparator_proof intro: trans_comparator_proof[THEN trans_orderD(2)] split: option.splits)+
   done
+
+end
+
+instantiation part :: (ceq, ceq) ceq begin
+
+lift_definition ceq_part :: "(('a, 'b) part \<Rightarrow> ('a, 'b) part \<Rightarrow> bool) option" is ceq .
+
+instance sorry
+
+end
+
+instantiation part :: (type, type) equal begin
+
+lift_definition equal_part :: "('a, 'b) part \<Rightarrow> ('a, 'b) part \<Rightarrow> bool" is "(=)" .
+
+instance sorry
 
 end
 

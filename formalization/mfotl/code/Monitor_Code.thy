@@ -737,17 +737,27 @@ definition execute_trivial_opt where
 definition mytrace :: "nat MFOTL.trace" where 
   "mytrace = trace_of_list [({(''p'', [1::nat])}, 0::nat)]"
 
-instantiation nat :: default begin
-
-definition default_nat :: "nat" where
-  "default_nat = 0"
-
-instance proof qed
-
-end
-
 term "(MFOTL.Pred ''p'' [MFOTL.Var ''x''])"
 
-(* value "execute_trivial_opt mytrace [''x''] (0::nat) (MFOTL.Pred ''p'' [MFOTL.Var ''x''] :: nat MFOTL.formula)" *)
+thm vals.rep_eq
+
+code_thms merge_part
+
+find_theorems "map_part" "Rep_part"
+
+lemma map_part_code[code]: "Rep_part (map_part f xs) = map (map_prod id f) (Rep_part xs)"
+  sorry
+
+value mytrace
+
+definition foo where "foo = execute_trivial_opt mytrace [''x''] (0::nat) (MFOTL.Pred ''p'' [MFOTL.Var ''x''] :: nat MFOTL.formula)"
+
+value foo
+
+export_code foo in Eval module_name foo
+
+declare[[show_consts]]
+
+term foo
 
 end
