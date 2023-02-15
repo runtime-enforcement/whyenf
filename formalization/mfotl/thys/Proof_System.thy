@@ -583,8 +583,9 @@ proof(induct f part1 part2 arbitrary: X rule: merge_part_raw.induct)
 qed simp
 
 lift_definition merge_part :: "('a \<Rightarrow> 'a \<Rightarrow> 'a) \<Rightarrow> ('d, 'a) part \<Rightarrow> ('d, 'a) part \<Rightarrow> ('d, 'a) part" is merge_part_raw
-  by (rule wf_part_list_merge_part_raw)
+  by (rule wf_part_list_merge_part_raw)                                                                        
 
+subsection \<open>Comparator\<close>
 
 context 
   fixes compa :: "'a \<Rightarrow> 'b \<Rightarrow> order" 
