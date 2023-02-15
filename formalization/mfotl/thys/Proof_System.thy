@@ -1,6 +1,6 @@
 (*<*)
 theory Proof_System
-  imports MFOTL "HOL-Library.Disjoint_Sets" "Deriving.Comparator_Generator" "Containers.Collection_Order"
+  imports MFOTL "HOL-Library.Disjoint_Sets" "Deriving.Comparator_Generator" "Containers.Collection_Order" "Containers.Set_Impl"
 begin
 (*>*)
 
@@ -1517,5 +1517,10 @@ instance
   done
 
 end
+
+derive (eq) ceq sproof
+derive (rbt) set_impl sproof
+derive (eq) ceq vproof
+derive (rbt) set_impl vproof
 
 end
