@@ -192,6 +192,7 @@ fun s_check :: "'d MFOTL.env \<Rightarrow> 'd MFOTL.formula \<Rightarrow> 'd spr
     \<and> (\<forall>vp2 \<in> set vp2s. v_check v \<psi> vp2))
   | ( _ , _) \<Rightarrow> False)"
 
+
 declare s_check.simps[simp del] v_check.simps[simp del]
 simps_of_case s_check_simps[simp, code]: s_check.simps[unfolded prod.case] (splits: MFOTL.formula.split sproof.split)
 simps_of_case v_check_simps[simp, code]: v_check.simps[unfolded prod.case] (splits: MFOTL.formula.split vproof.split)
@@ -787,8 +788,6 @@ next
   case (2 v f p)
   then show ?case sorry
 qed
-
-setup_lifting type_definition_part
 
 lift_definition trivial_part :: "'pt \<Rightarrow> ('d, 'pt) part" is "\<lambda>pt. [(UNIV, pt)]"
   by (simp add: partition_on_space)
