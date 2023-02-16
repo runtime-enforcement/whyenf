@@ -1359,7 +1359,7 @@ lift_definition tabulate :: "'d list \<Rightarrow> ('d \<Rightarrow> 'v) \<Right
 (* and we create a partition with subsets considering each one of these values  *)
 (* and another subset considering the complement of the union of these values.  *)
 fun pdt_of :: "nat \<Rightarrow> MFOTL.name \<Rightarrow> 'd MFOTL.trm list \<Rightarrow> MFOTL.name list \<Rightarrow> (MFOTL.name \<rightharpoonup> 'd) set \<Rightarrow> 'd expl" where
-  "pdt_of i r ts [] V = (if V = {} then Leaf (Inr (VPred i r ts)) else Leaf (Inl (SPred i r ts)))"
+  "pdt_of i r ts [] V = (if Set.is_empty V then Leaf (Inr (VPred i r ts)) else Leaf (Inl (SPred i r ts)))"
 | "pdt_of i r ts (x # vars) V =
      (let ds = sorted_list_of_set (Option.these {v x | v. v \<in> V});
           part = tabulate ds (\<lambda>d. pdt_of i r ts vars ({v \<in> V. v x = Some d})) (pdt_of i r ts vars {})
@@ -1410,7 +1410,7 @@ function (sequential) opt :: "MFOTL.name list \<Rightarrow> nat \<Rightarrow> 'd
   "opt vars i MFOTL.TT = Leaf (Inl (STT i))"
 | "opt vars i MFOTL.FF = Leaf (Inr (VFF i))"
 | "opt vars i (MFOTL.Pred r ts) = 
-  (pdt_of i r ts vars (Option.these (match ts ` snd ` {rd \<in> \<Gamma> \<sigma> i. fst rd = r })))"
+  (pdt_of i r ts (filter (\<lambda>x. x \<in> MFOTL.fv (MFOTL.Pred r ts)) vars) (Option.these (match ts ` snd ` {rd \<in> \<Gamma> \<sigma> i. fst rd = r })))"
 | "opt vars i (MFOTL.Neg \<phi>) = apply_pdt1 vars (\<lambda>p. min_list_wrt cmp (do_neg p)) (opt vars i \<phi>)"
 | "opt vars i (MFOTL.Or \<phi> \<psi>) = apply_pdt2 vars (\<lambda>p1 p2. min_list_wrt cmp (do_or p1 p2)) (opt vars i \<phi>) (opt vars i \<psi>)"
 | "opt vars i (MFOTL.And \<phi> \<psi>) = apply_pdt2 vars (\<lambda>p1 p2. min_list_wrt cmp (do_and p1 p2)) (opt vars i \<phi>) (opt vars i \<psi>)"
