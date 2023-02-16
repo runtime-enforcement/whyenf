@@ -1,5 +1,6 @@
 theory Monitor_Code
   imports Explanator2.Monitor "HOL-Library.Code_Target_Nat" Containers.Containers
+    "HOL-Library.List_Lexorder"
 begin
 
 section \<open>Code\<close>
@@ -732,7 +733,7 @@ term Monitor.opt
 term "(\<lambda>p1 p2. (p_pred (\<lambda> _. 1) p1) \<le> (p_pred (\<lambda> _. 1) p2))"
 
 definition execute_trivial_opt where
- "execute_trivial_opt \<sigma> vs i \<phi> = Monitor.opt \<sigma> (\<lambda>p1 p2. (p_pred (\<lambda> _. 1) p1) < (p_pred (\<lambda> _. 1) p2)) vs i \<phi>"
+ "execute_trivial_opt \<sigma> vs i \<phi> = Monitor.opt \<sigma> (\<lambda>p1 p2. (p_pred (\<lambda> _. 1) p1) \<le> (p_pred (\<lambda> _. 1) p2)) vs i \<phi>"
 
 definition mytrace :: "nat MFOTL.trace" where 
   "mytrace = trace_of_list [({(''p'', [1::nat])}, 0::nat)]"
@@ -750,11 +751,46 @@ lemma map_part_code[code]: "Rep_part (map_part f xs) = map (map_prod id f) (Rep_
 
 value mytrace
 
+instantiation nat :: default begin
+definition default_nat :: nat where "default_nat = 0"
+instance proof qed
+end
+
+instantiation list :: (type) default begin
+definition default_list :: "'a list" where "default_list = []"
+instance proof qed
+end
+
 definition foo where "foo = execute_trivial_opt mytrace [''x''] (0::nat) (MFOTL.Pred ''p'' [MFOTL.Var ''x''] :: nat MFOTL.formula)"
+
+derive (no) ceq MFOTL.trm
+derive (no) ccompare MFOTL.trm
+derive (monad) set_impl MFOTL.trm
+derive (no) ceq MFOTL.formula
+derive (no) ccompare MFOTL.formula
+derive (monad) set_impl MFOTL.formula
 
 value foo
 
-export_code foo in Eval module_name foo
+definition mytrace2 :: "string MFOTL.trace" where 
+  "mytrace2 = trace_of_list [({(''p'', [''Dmitriy'', ''Traytel'']), (''p'', [''Jonathan'', ''Munive'']), (''q'', [''Munive''])}, 0::nat)
+                            ,({(''p'', [''Leonardo'', ''Lima'']), (''q'', [''Lima''])}, 0::nat)]"
+
+definition phi2 where
+  "phi2 = MFOTL.Exists ''last''
+    (MFOTL.And (MFOTL.Pred ''p'' [MFOTL.Var ''first'', MFOTL.Var ''last''])
+       (MFOTL.Pred ''q'' [MFOTL.Var ''last'']))"
+
+value "execute_trivial_opt mytrace2 [''first'', ''last''] 0 (MFOTL.Pred ''p'' [MFOTL.Var ''first'', MFOTL.Var ''last''])"
+value "execute_trivial_opt mytrace2 [''first'', ''last''] 0 (MFOTL.Pred ''q'' [MFOTL.Var ''last''])"
+value "execute_trivial_opt mytrace2 [''first'', ''last''] 1 (MFOTL.Pred ''p'' [MFOTL.Var ''first'', MFOTL.Var ''last''])"
+value "execute_trivial_opt mytrace2 [''first'', ''last''] 1 (MFOTL.Pred ''q'' [MFOTL.Var ''last''])"
+value "execute_trivial_opt mytrace2 [''first'', ''last''] 0 (MFOTL.And (MFOTL.Pred ''p'' [MFOTL.Var ''first'', MFOTL.Var ''last'']) (MFOTL.Pred ''q'' [MFOTL.Var ''last'']))"
+value "execute_trivial_opt mytrace2 [''first'', ''last''] 1 (MFOTL.And (MFOTL.Pred ''p'' [MFOTL.Var ''first'', MFOTL.Var ''last'']) (MFOTL.Pred ''q'' [MFOTL.Var ''last'']))"
+value "execute_trivial_opt mytrace2 [''first'', ''last''] 0 phi2"
+value "execute_trivial_opt mytrace2 [''first'', ''last''] 1 phi2"
+
+
 
 declare[[show_consts]]
 
