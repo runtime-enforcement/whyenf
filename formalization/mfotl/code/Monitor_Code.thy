@@ -773,13 +773,20 @@ derive (monad) set_impl MFOTL.formula
 value foo
 
 definition mytrace2 :: "string MFOTL.trace" where 
-  "mytrace2 = trace_of_list [({(''p'', [''Dmitriy'', ''Traytel'']), (''p'', [''Jonathan'', ''Munive'']), (''q'', [''Munive''])}, 0::nat)
-                            ,({(''p'', [''Leonardo'', ''Lima'']), (''q'', [''Lima''])}, 0::nat)]"
+  "mytrace2 = trace_of_list
+     [({(''p'', [''Dmitriy'', ''Traytel'']), (''p'', [''Jonathan'', ''Munive'']),
+        (''q'', [''Munive'']), (''q'', [''Lima''])}, 0::nat),
+      ({(''p'', [''Leonardo'', ''Lima'']), (''q'', [''Lima''])}, 0::nat)]"
 
 definition phi2 where
   "phi2 = MFOTL.Exists ''last''
     (MFOTL.And (MFOTL.Pred ''p'' [MFOTL.Var ''first'', MFOTL.Var ''last''])
        (MFOTL.Pred ''q'' [MFOTL.Var ''last'']))"
+
+definition phi3 where
+  "phi3 = MFOTL.Forall ''last'' (MFOTL.Imp (MFOTL.Pred ''q'' [MFOTL.Var ''last''])
+    (MFOTL.Exists ''first'' (MFOTL.Pred ''p'' [MFOTL.Var ''first'', MFOTL.Var ''last''])))"
+
 
 value "execute_trivial_opt mytrace2 [''first'', ''last''] 0 (MFOTL.Pred ''p'' [MFOTL.Var ''first'', MFOTL.Var ''last''])"
 value "execute_trivial_opt mytrace2 [''first'', ''last''] 0 (MFOTL.Pred ''q'' [MFOTL.Var ''last''])"
@@ -787,8 +794,10 @@ value "execute_trivial_opt mytrace2 [''first'', ''last''] 1 (MFOTL.Pred ''p'' [M
 value "execute_trivial_opt mytrace2 [''first'', ''last''] 1 (MFOTL.Pred ''q'' [MFOTL.Var ''last''])"
 value "execute_trivial_opt mytrace2 [''first'', ''last''] 0 (MFOTL.And (MFOTL.Pred ''p'' [MFOTL.Var ''first'', MFOTL.Var ''last'']) (MFOTL.Pred ''q'' [MFOTL.Var ''last'']))"
 value "execute_trivial_opt mytrace2 [''first'', ''last''] 1 (MFOTL.And (MFOTL.Pred ''p'' [MFOTL.Var ''first'', MFOTL.Var ''last'']) (MFOTL.Pred ''q'' [MFOTL.Var ''last'']))"
-value "execute_trivial_opt mytrace2 [''first'', ''last''] 0 phi2"
-value "execute_trivial_opt mytrace2 [''first'', ''last''] 1 phi2"
+value "execute_trivial_opt mytrace2 [''first''] 0 phi2"
+value "execute_trivial_opt mytrace2 [''first''] 1 phi2"
+value "execute_trivial_opt mytrace2 [] 0 phi3"
+value "execute_trivial_opt mytrace2 [] 1 phi3"
 
 
 
