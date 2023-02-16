@@ -389,6 +389,9 @@ lemma size_part_estimation'[termination_simp]: "x \<in> Vals xs \<Longrightarrow
 lemma size_part_pointwise[termination_simp]: "(\<And>x. x \<in> Vals xs \<Longrightarrow> f x \<le> g x) \<Longrightarrow> size_part h f xs \<le> size_part h g xs"
   by transfer (force simp: image_iff intro!: size_list_pointwise)
 
+lemma set_vals[simp]: "set (vals xs) = Vals xs"
+  by transfer simp
+
 subsection \<open>Proof Objects\<close>
 
 datatype (dead 'd) sproof = STT nat 
@@ -1519,22 +1522,16 @@ instance
 
 end
 
-instantiation part :: (ceq, ceq) ceq begin
-
-lift_definition ceq_part :: "(('a, 'b) part \<Rightarrow> ('a, 'b) part \<Rightarrow> bool) option" is ceq .
-
-instance sorry
-
-end
-
 instantiation part :: (type, type) equal begin
 
 lift_definition equal_part :: "('a, 'b) part \<Rightarrow> ('a, 'b) part \<Rightarrow> bool" is "(=)" .
 
-instance sorry
+instance proof qed (simp add: equal_part_def Rep_part_inject)
 
 end
 
+
+derive (eq) ceq part
 derive (eq) ceq sproof
 derive (rbt) set_impl sproof
 derive (eq) ceq vproof
