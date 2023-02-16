@@ -313,9 +313,8 @@ function (sequential) s_pred :: "'d sproof \<Rightarrow> nat"
 | "v_pred (VUntilInf _ _ vp2s) = (sum_proofs v_pred vp2s) + 1"
   by pat_completeness auto
 termination
-  apply(relation "measures [case_sum size size, case_sum (\<lambda>x. Suc 0) (\<lambda>x. 0), case_sum (\<lambda>x. 0) (\<lambda>x. Suc 0)]")
-  apply simp_all
-  sorry
+  by (relation "measure (case_sum size size)")
+    (auto simp add: termination_simp)
 
 definition p_pred :: "'d proof \<Rightarrow> nat" where
   "p_pred = case_sum s_pred v_pred"
@@ -747,7 +746,8 @@ code_thms merge_part
 find_theorems "map_part" "Rep_part"
 
 lemma map_part_code[code]: "Rep_part (map_part f xs) = map (map_prod id f) (Rep_part xs)"
-  sorry
+  using Rep_part[of xs]
+  by (auto simp: map_part_def intro!: Abs_part_inverse)
 
 value mytrace
 
