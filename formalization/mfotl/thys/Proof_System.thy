@@ -1509,14 +1509,287 @@ primrec comparator_sproof :: "('a \<Rightarrow> 'a \<Rightarrow> order) \<Righta
 definition "ccompare_sproof = (case ID ccompare of None \<Rightarrow> None | Some comp_'a \<Rightarrow> Some (comparator_sproof comp_'a))"
 definition "ccompare_vproof = (case ID ccompare of None \<Rightarrow> None | Some comp_'a \<Rightarrow> Some (comparator_vproof comp_'a))"
 
-(* lemma comparator_list'_map[simp]: "comparator_list' (\<lambda>f x. f x) (map f xs) ys = comparator_list f xs ys"
-  by (induct xs ys rule: comparator_list'.induct[where compa = f]) (auto split: order.splits) *)
+term "comparator_list' (map (f compa) xs) ys"
+
+find_theorems name:List.map
+
+thm comparator_list'.induct
+
+definition mycomp where
+  "mycomp x y = (if x < y then Lt else (if x > y then Gt else Eq))"
+
+value "comparator_list mycomp ([1]::nat list) [1]"
+
+value "comparator_list' (map mycomp ([1,2]::nat list)) [1]"
+
+lemma comparator_list'_map[simp]: "comparator_list' (map f xs) ys = comparator_list f xs ys"
+  sorry
+
+lemma comparator_list'_vals_map_part[simp]: "comparator_list' (vals (map_part f xs)) ys =  comparator_list f (vals xs) ys"
+  oops
+
+thm compare_Eq_is_eq
+thm compare_is_comparator_of
+
+lemma comparator_proof_Eq:
+  assumes "ID ccompare = Some compa"
+  shows "(comparator_sproof compa sp sp' = Eq) = (sp = sp')"
+    "(comparator_vproof compa vp vp' = Eq) = (vp = vp')"
+proof (induct sp and vp arbitrary: sp' and vp')
+  case (STT x)
+  then show ?case
+    by (simp add: comparator_of_def split: sproof.splits)
+next
+  case (SPred x1 x2 x3)
+  then show ?case
+    by (auto simp add: comparator_of_def comparator.eq_Eq_conv ID_ccompare' assms comparator_list comparator_trm 
+        split: sproof.splits order.splits)
+next
+  case (SNeg x)
+  then show ?case
+    by (simp add: comparator_of_def split: sproof.splits)
+next
+  case (SOrL x)
+  then show ?case
+    by (simp add: comparator_of_def split: sproof.splits)
+next
+  case (SOrR x)
+  then show ?case 
+    by (simp add: comparator_of_def split: sproof.splits)
+next
+  case (SAnd x1 x2)
+  then show ?case
+    apply (simp add: comparator_of_def split: sproof.splits order.splits)
+    apply force
+    done
+next
+  case (SImpL x)
+  then show ?case
+    by (simp add: comparator_of_def split: sproof.splits)
+next
+  case (SImpR x)
+  then show ?case
+    by (simp add: comparator_of_def split: sproof.splits)
+next
+  case (SIffSS x1 x2)
+  then show ?case 
+    apply (simp add: comparator_of_def split: sproof.splits order.splits)
+    apply force
+    done
+next
+  case (SIffVV x1 x2)
+  then show ?case
+    apply (simp add: comparator_of_def split: sproof.splits order.splits)
+    apply force
+    done
+next
+  case (SExists x1 x2 x3)
+  then show ?case 
+    apply (simp add: comparator_of_def split: sproof.splits order.splits)
+    apply (metis ID_code assms ccompare comparator.eq_Eq_conv compare_refl order.distinct(1) order.distinct(3))
+    done
+next
+  case (SForall x1 x2)
+  then show ?case 
+    apply (simp add: comparator_of_def split: sproof.splits order.splits if_splits)
+    sorry
+next
+  case (SPrev x)
+  then show ?case 
+    by (simp add: comparator_of_def split: sproof.splits)
+next
+  case (SNext x)
+  then show ?case
+    by (simp add: comparator_of_def split: sproof.splits)
+next
+  case (SOnce x1 x2)
+  then show ?case
+    by (simp add: comparator_of_def split: sproof.splits)
+next
+  case (SEventually x1 x2)
+  then show ?case 
+    by (simp add: comparator_of_def split: sproof.splits)
+next
+  case (SHistorically x1 x2 x3)
+  then show ?case
+    using comparator_list_pointwise(1)[unfolded peq_comp_def, of _ "comparator_sproof compa"]
+    by (simp add: comparator_of_def split: sproof.splits)
+next
+  case (SHistoricallyOut x)
+  then show ?case 
+    by (simp add: comparator_of_def split: sproof.splits)
+next
+  case (SAlways x1 x2 x3)
+  then show ?case
+    using comparator_list_pointwise(1)[unfolded peq_comp_def, of _ "comparator_sproof compa"]
+    by (simp add: comparator_of_def split: sproof.splits)
+next
+  case (SSince x1 x2)
+  then show ?case
+    using comparator_list_pointwise(1)[unfolded peq_comp_def, of _ "comparator_sproof compa"]
+    apply (simp add: comparator_of_def split: sproof.splits order.splits)
+    apply (metis order.distinct(1) order.distinct(3))
+    done
+next
+  case (SUntil x1 x2)
+  then show ?case
+    using comparator_list_pointwise(1)[unfolded peq_comp_def, of _ "comparator_sproof compa"]
+    apply (simp add: comparator_of_def split: sproof.splits order.splits)
+    apply (metis order.distinct(1) order.distinct(3))
+    done
+next
+  case (VFF x)
+  then show ?case
+    by (simp add: comparator_of_def split: vproof.splits)
+next
+  case (VPred x1 x2 x3)
+  then show ?case
+    by (auto simp add: comparator_of_def comparator.eq_Eq_conv ID_ccompare' assms comparator_list comparator_trm 
+        split: vproof.splits order.splits)
+next
+  case (VNeg x)
+  then show ?case
+    by (simp add: comparator_of_def split: vproof.splits)
+next
+  case (VOr x1 x2)
+  then show ?case
+    apply (simp add: comparator_of_def split: vproof.splits order.splits)
+    apply force
+    done
+next
+  case (VAndL x)
+  then show ?case
+    by (simp add: comparator_of_def split: vproof.splits)
+next
+  case (VAndR x)
+  then show ?case
+    by (simp add: comparator_of_def split: vproof.splits)
+next
+  case (VImp x1 x2)
+  then show ?case
+    apply (simp add: comparator_of_def split: vproof.splits order.splits)
+    apply force
+    done
+next
+  case (VIffSV x1 x2)
+  then show ?case 
+    apply (simp add: comparator_of_def split: vproof.splits order.splits)
+    apply force
+    done
+next
+  case (VIffVS x1 x2)
+  then show ?case 
+    apply (simp add: comparator_of_def split: vproof.splits order.splits)
+    apply force
+    done
+next
+  case (VExists x1 x2)
+  then show ?case sorry
+next
+  case (VForall x1 x2 x3)
+  then show ?case 
+    apply (simp add: comparator_of_def split: vproof.splits order.splits)
+    apply (metis ID_code assms ccompare comparator.eq_Eq_conv compare_refl order.distinct(1) order.distinct(3))
+    done
+next
+  case (VPrev x)
+  then show ?case 
+    by (simp add: comparator_of_def split: vproof.splits)
+next
+  case VPrevZ
+  then show ?case 
+    by (simp split: vproof.splits)
+next
+  case (VPrevOutL x)
+  then show ?case 
+    by (simp add: comparator_of_def split: vproof.splits)
+next
+  case (VPrevOutR x)
+  then show ?case
+    by (simp add: comparator_of_def split: vproof.splits)
+next
+  case (VNext x)
+  then show ?case
+    by (simp add: comparator_of_def split: vproof.splits)
+next
+  case (VNextOutL x)
+  then show ?case 
+    by (simp add: comparator_of_def split: vproof.splits)
+next
+  case (VNextOutR x)
+  then show ?case 
+    by (simp add: comparator_of_def split: vproof.splits)
+next
+  case (VOnceOut x)
+  then show ?case 
+    by (simp add: comparator_of_def split: vproof.splits)
+next
+  case (VOnce x1 x2 x3)
+  then show ?case 
+    using comparator_list_pointwise(1)[unfolded peq_comp_def, of _ "comparator_vproof compa"]
+    by (simp add: comparator_of_def split: vproof.splits)
+next
+  case (VEventually x1 x2 x3)
+  then show ?case 
+    using comparator_list_pointwise(1)[unfolded peq_comp_def, of _ "comparator_vproof compa"]
+    by (simp add: comparator_of_def split: vproof.splits)
+next
+  case (VHistorically x1 x2)
+  then show ?case 
+    by (simp add: comparator_of_def split: vproof.splits)
+next
+  case (VAlways x1 x2)
+  then show ?case 
+    by (simp add: comparator_of_def split: vproof.splits)
+next
+  case (VSinceOut x)
+  then show ?case 
+    by (simp add: comparator_of_def split: vproof.splits)
+next
+  case (VSince x1 x2 x3)
+  then show ?case 
+    using comparator_list_pointwise(1)[unfolded peq_comp_def, of _ "comparator_vproof compa"]
+    apply (simp add: comparator_of_def split: vproof.split order.splits)
+    apply (metis order.distinct(1) order.distinct(3))
+    done
+next
+  case (VSinceInf x1 x2 x3)
+  then show ?case 
+    using comparator_list_pointwise(1)[unfolded peq_comp_def, of _ "comparator_vproof compa"]
+    by (simp add: comparator_of_def split: vproof.split order.splits)
+next
+  case (VUntil x1 x2 x3)
+  then show ?case 
+    using comparator_list_pointwise(1)[unfolded peq_comp_def, of _ "comparator_vproof compa"]
+    apply (simp add: comparator_of_def split: vproof.split order.splits)
+    apply (metis order.distinct(1) order.distinct(3))
+    done
+next
+  case (VUntilInf x1 x2 x3)
+  then show ?case 
+    using comparator_list_pointwise(1)[unfolded peq_comp_def, of _ "comparator_vproof compa"]
+    by (simp add: comparator_of_def split: vproof.split order.splits)
+qed 
 
 lemma eq_Eq_comparator_proof:
   assumes "ID ccompare = Some compa"
   shows "comparator_sproof compa sp sp' = Eq \<longleftrightarrow> sp = sp'"
     "comparator_vproof compa vp vp' = Eq \<longleftrightarrow> vp = vp'"
    apply (induct sp and vp arbitrary: sp' and vp')
+                      apply (simp_all add: comparator_list_pointwise(1)[unfolded peq_comp_def, rule_format] comparator_of_def comparator_trm
+                                           comparator.eq_Eq_conv[OF ID_ccompare'[OF assms]] comparator.Lt_lt_conv[OF ID_ccompare'[OF assms]]
+                                           comparator.Gt_lt_conv[OF ID_ccompare'[OF assms]] split: sproof.splits vproof.splits order.splits if_splits)
+                  apply clarsimp
+                  apply (metis assms ccomp_comparator comparator.eq_Eq_conv comparator_list comparator_trm compare_refl option.sel option.simps(3) order.distinct(1) order.distinct(3))
+                 apply (metis order.distinct(1) order.distinct(3))+
+              apply (metis anti_sym assms ccomp_comparator compare_refl option.sel option.simps(3) order.distinct(1) order.distinct(3))
+             defer
+             apply (metis order.distinct(1) order.distinct(3))+
+           apply (metis assms ccomp_comparator comparator.eq_Eq_conv comparator_list comparator_trm compare_refl option.sel option.simps(3) order.distinct(1) order.distinct(3))
+          apply (metis order.distinct(1) order.distinct(3))+
+      defer
+      apply (metis anti_sym assms ccomp_comparator compare_refl option.sel option.simps(3) order.distinct(1) order.distinct(3))
+     apply (metis order.distinct(1) order.distinct(3))+
   sorry
 
 lemma trans_order_equal[simp]:
