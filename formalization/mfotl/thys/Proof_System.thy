@@ -738,7 +738,10 @@ primrec comparator_sproof :: "('a \<Rightarrow> 'a \<Rightarrow> order) \<Righta
     | SIffVV _ _ \<Rightarrow> Gt
     | SExists _ _ _ \<Rightarrow> Gt
     | SForall x' part' \<Rightarrow> (case compare x x' of 
-                            Eq \<Rightarrow> comparator_list' (vals (map_part (comparator_sproof compa) part)) (vals part')
+                            Eq \<Rightarrow> (case comparator_list' (vals (map_part (comparator_sproof compa) part)) (vals part') of
+                                    Eq \<Rightarrow> the ccompare_set_inst.ccompare_set (\<Union> (Subs part)) (\<Union> (Subs part'))
+                                  | Lt \<Rightarrow> Lt
+                                  | Gt \<Rightarrow> Gt) 
                           | Lt \<Rightarrow> Lt
                           | Gt \<Rightarrow> Gt)
     | _ \<Rightarrow> Lt)"
@@ -1518,24 +1521,38 @@ thm comparator_list'.induct
 definition mycomp where
   "mycomp x y = (if x < y then Lt else (if x > y then Gt else Eq))"
 
+term "comparator_list"
+
+find_consts " _ set \<Rightarrow> _ set \<Rightarrow> order"
+
+value "the ccompare_set_inst.ccompare_set {1,2} ({2}::nat set)"
+
 value "comparator_list mycomp ([1]::nat list) [1]"
 
 value "comparator_list' (map mycomp ([1,2]::nat list)) [1]"
 
-lemma comparator_list'_map[simp]: "comparator_list' (map f xs) ys = comparator_list f xs ys"
+find_theorems name:List.map_append
+
+lemma comparator_list'_map [simp]: "comparator_list' (map f xs) ys = comparator_list f xs ys"
+proof(induction xs arbitrary: f ys)
+  case Nil
+  then show ?case 
+    by (cases ys) (auto)
+next
+  case (Cons a xs)
+  show ?case 
+    using Cons
+    by (cases ys) (simp_all split: order.splits)
+qed
+
+lemma comparator_list'_vals_map_part [simp]: "comparator_list' (vals (map_part f xs)) ys = comparator_list f (vals xs) ys"
   sorry
-
-lemma comparator_list'_vals_map_part[simp]: "comparator_list' (vals (map_part f xs)) ys =  comparator_list f (vals xs) ys"
-  oops
-
-thm compare_Eq_is_eq
-thm compare_is_comparator_of
 
 lemma comparator_proof_Eq:
   assumes "ID ccompare = Some compa"
   shows "(comparator_sproof compa sp sp' = Eq) = (sp = sp')"
     "(comparator_vproof compa vp vp' = Eq) = (vp = vp')"
-proof (induct sp and vp arbitrary: sp' and vp')
+proof (induction sp and vp arbitrary: sp' and vp')
   case (STT x)
   then show ?case
     by (simp add: comparator_of_def split: sproof.splits)
@@ -1589,10 +1606,18 @@ next
     apply (metis ID_code assms ccompare comparator.eq_Eq_conv compare_refl order.distinct(1) order.distinct(3))
     done
 next
-  case (SForall x1 x2)
-  then show ?case 
-    apply (simp add: comparator_of_def split: sproof.splits order.splits if_splits)
+  case (SForall x part)
+  fix part'
+  have sp'_def: "sp' = SForall x part'"
     sorry
+  then have "subsp \<in> set_part part \<Longrightarrow> subsp' \<in> set_part part' \<Longrightarrow> (comparator_sproof compa subsp subsp' = Eq) = (subsp = subsp')"
+    using SForall
+    by simp
+  then have "(comparator_sproof compa (SForall x part) sp' = Eq) = (SForall x part = sp')"
+    using sp'_def 
+    apply (simp add: comparator_of_def split: sproof.splits order.splits)
+    sorry
+  then show ?case .
 next
   case (SPrev x)
   then show ?case 
