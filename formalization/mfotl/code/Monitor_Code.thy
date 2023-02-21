@@ -732,7 +732,7 @@ term Monitor.opt
 term "(\<lambda>p1 p2. (p_pred (\<lambda> _. 1) p1) \<le> (p_pred (\<lambda> _. 1) p2))"
 
 definition execute_trivial_opt where
- "execute_trivial_opt \<sigma> vs i \<phi> = Monitor.opt \<sigma> (\<lambda>p1 p2. (p_pred (\<lambda> _. 1) p1) \<le> (p_pred (\<lambda> _. 1) p2)) vs i \<phi>"
+ "execute_trivial_opt \<sigma> vars i \<phi> = Monitor.opt \<sigma> (\<lambda>p1 p2. (p_pred (\<lambda> _. 1) p1) \<le> (p_pred (\<lambda> _. 1) p2)) vars i \<phi>"
 
 definition mytrace :: "nat MFOTL.trace" where 
   "mytrace = trace_of_list [({(''p'', [1::nat])}, 0::nat)]"
@@ -764,7 +764,6 @@ end
 definition foo where "foo = execute_trivial_opt mytrace [''x''] (0::nat) (MFOTL.Pred ''p'' [MFOTL.Var ''x''] :: nat MFOTL.formula)"
 
 derive (no) ceq MFOTL.trm
-derive (no) ccompare MFOTL.trm
 derive (monad) set_impl MFOTL.trm
 derive (no) ceq MFOTL.formula
 derive (no) ccompare MFOTL.formula
