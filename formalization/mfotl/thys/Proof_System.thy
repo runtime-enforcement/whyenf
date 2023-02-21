@@ -348,9 +348,9 @@ lift_definition vals :: "('d, 'a) part \<Rightarrow> 'a list" is "map snd" .
 
 lift_definition Vals :: "('d, 'a) part \<Rightarrow> 'a set" is "set o map snd" .
 
-lift_definition SubsVals :: "('d, 'a) part \<Rightarrow> ('d set \<times> 'a) set" is "set o map (\<lambda>x. x)" .
+lift_definition SubsVals :: "('d, 'a) part \<Rightarrow> ('d set \<times> 'a) set" is "set" .
 
-lift_definition subsvals :: "('d, 'a) part \<Rightarrow> ('d set \<times> 'a) list" is "map (\<lambda>x. x)" .
+lift_definition subsvals :: "('d, 'a) part \<Rightarrow> ('d set \<times> 'a) list" is "id" .
 
 lift_definition size_part :: "('d \<Rightarrow> nat) \<Rightarrow> ('a \<Rightarrow> nat) \<Rightarrow> ('d, 'a) part \<Rightarrow> nat" is "\<lambda>f g. size_list (\<lambda>(x, y). sum f x + g y)" .
 
@@ -591,13 +591,22 @@ lift_definition merge_part :: "('a \<Rightarrow> 'a \<Rightarrow> 'a) \<Rightarr
 subsection \<open>Comparator\<close>
 
 (* This is needed because of primrec requirements *)
-fun comparator_list' :: "('a \<Rightarrow> order) list \<Rightarrow> 'a list \<Rightarrow> order" where
+context fixes compa :: "'a \<Rightarrow> 'b \<Rightarrow> order" begin
+
+fun comparator_list' :: "'a list \<Rightarrow> 'b list \<Rightarrow> order" where
   "comparator_list' [] [] = Eq"
-| "comparator_list' [] (x # xs) = Lt"
-| "comparator_list' (f # fs) [] = Gt"
-| "comparator_list' (f # fs) (x # xs) = (case f x of Eq \<Rightarrow> comparator_list' fs xs | Lt \<Rightarrow> Lt | Gt \<Rightarrow> Gt)"
+| "comparator_list' [] (y # ys) = Lt"
+| "comparator_list' (x # xs) [] = Gt"
+| "comparator_list' (x # xs) (y # ys) = (case compa x y of Eq \<Rightarrow> comparator_list' xs ys | Lt \<Rightarrow> Lt | Gt \<Rightarrow> Gt)"
+
+end
+
+definition comparator_set where
+  "comparator_set compa = comp_of_ords (ord.set_less_eq (le_of_comp compa)) (ord.set_less (le_of_comp compa))"
 
 derive ccompare MFOTL.trm
+
+term "subsvals (map_part ((comparator_sproof::('a \<Rightarrow> 'a \<Rightarrow> order) \<Rightarrow> 'a sproof \<Rightarrow> 'a sproof \<Rightarrow> order) compa) part)"
 
 instantiation sproof and vproof :: (ccompare) ccompare 
 begin
@@ -738,10 +747,11 @@ primrec comparator_sproof :: "('a \<Rightarrow> 'a \<Rightarrow> order) \<Righta
     | SIffVV _ _ \<Rightarrow> Gt
     | SExists _ _ _ \<Rightarrow> Gt
     | SForall x' part' \<Rightarrow> (case compare x x' of 
-                            Eq \<Rightarrow> (case comparator_list' (vals (map_part (comparator_sproof compa) part)) (vals part') of
-                                    Eq \<Rightarrow> the ccompare_set_inst.ccompare_set (\<Union> (Subs part)) (\<Union> (Subs part'))
-                                  | Lt \<Rightarrow> Lt
-                                  | Gt \<Rightarrow> Gt) 
+                            Eq \<Rightarrow> comparator_list' (\<lambda>(A,f) (B,x). case comparator_set compa A B of 
+                                                                   Eq \<Rightarrow> f x
+                                                                 | Lt \<Rightarrow> Lt
+                                                                 | Gt \<Rightarrow> Gt)
+                                 (subsvals (map_part (comparator_sproof compa) part)) (subsvals part')
                           | Lt \<Rightarrow> Lt
                           | Gt \<Rightarrow> Gt)
     | _ \<Rightarrow> Lt)"
@@ -841,7 +851,7 @@ primrec comparator_sproof :: "('a \<Rightarrow> 'a \<Rightarrow> order) \<Righta
     | SEventually _ _ \<Rightarrow> Gt
     | SHistorically i' li' sps' \<Rightarrow> (case comparator_of i i' of 
                                      Eq \<Rightarrow> (case comparator_of li li' of 
-                                             Eq \<Rightarrow> comparator_list' (map (comparator_sproof compa) sps) sps'
+                                             Eq \<Rightarrow> comparator_list' (\<lambda>f x. f x) (map (comparator_sproof compa) sps) sps'
                                            | Lt \<Rightarrow> Lt 
                                            | Gt \<Rightarrow> Gt)
                                    | Lt \<Rightarrow> Lt 
@@ -890,7 +900,7 @@ primrec comparator_sproof :: "('a \<Rightarrow> 'a \<Rightarrow> order) \<Righta
     | SHistoricallyOut _ \<Rightarrow> Gt
     | SAlways i' hi' sps' \<Rightarrow> (case comparator_of i i' of 
                                Eq \<Rightarrow> (case comparator_of hi hi' of 
-                                       Eq \<Rightarrow> comparator_list' (map (comparator_sproof compa) sps) sps'
+                                       Eq \<Rightarrow> comparator_list' (\<lambda>f x. f x) (map (comparator_sproof compa) sps) sps'
                                      | Lt \<Rightarrow> Lt 
                                      | Gt \<Rightarrow> Gt)
                              | Lt \<Rightarrow> Lt 
@@ -918,7 +928,7 @@ primrec comparator_sproof :: "('a \<Rightarrow> 'a \<Rightarrow> order) \<Righta
     | SHistoricallyOut _ \<Rightarrow> Gt
     | SAlways _ _ _ \<Rightarrow> Gt
     | SSince sp2' sp1s' \<Rightarrow> (case comparator_sproof compa sp2 sp2' of 
-                             Eq \<Rightarrow> comparator_list' (map (comparator_sproof compa) sp1s) sp1s'
+                             Eq \<Rightarrow> comparator_list' (\<lambda>f x. f x) (map (comparator_sproof compa) sp1s) sp1s'
                            | Lt \<Rightarrow> Lt 
                            | Gt \<Rightarrow> Gt)
     | _ \<Rightarrow> Lt)"
@@ -945,7 +955,7 @@ primrec comparator_sproof :: "('a \<Rightarrow> 'a \<Rightarrow> order) \<Righta
     | SAlways _ _ _ \<Rightarrow> Gt
     | SSince _ _ \<Rightarrow> Gt
     | SUntil sp1s' sp2' \<Rightarrow> (case comparator_sproof compa sp2 sp2' of 
-                             Eq \<Rightarrow> comparator_list' (map (comparator_sproof compa) sp1s) sp1s'
+                             Eq \<Rightarrow> comparator_list' (\<lambda>f x. f x) (map (comparator_sproof compa) sp1s) sp1s'
                            | Lt \<Rightarrow> Lt 
                            | Gt \<Rightarrow> Gt))"
 | "comparator_vproof compa (VFF i) rhs =
@@ -1050,7 +1060,7 @@ primrec comparator_sproof :: "('a \<Rightarrow> 'a \<Rightarrow> order) \<Righta
     | VIffSV _ _ \<Rightarrow> Gt
     | VIffVS _ _ \<Rightarrow> Gt
     | VExists x' part' \<Rightarrow> (case compare x x' of 
-                            Eq \<Rightarrow> comparator_list' (vals (map_part (comparator_vproof compa) part)) (vals part')
+                            Eq \<Rightarrow> comparator_list' undefined (vals (map_part (comparator_vproof compa) part)) (vals part')
                           | Lt \<Rightarrow> Lt
                           | Gt \<Rightarrow> Gt)
     | _ \<Rightarrow> Lt)"
@@ -1246,7 +1256,7 @@ primrec comparator_sproof :: "('a \<Rightarrow> 'a \<Rightarrow> order) \<Righta
     | VOnceOut _ \<Rightarrow> Gt
     | VOnce i' li' vps' \<Rightarrow> (case comparator_of i i' of 
                              Eq \<Rightarrow> (case comparator_of li li' of 
-                                     Eq \<Rightarrow> comparator_list' (map (comparator_vproof compa) vps) vps' 
+                                     Eq \<Rightarrow> comparator_list' (\<lambda>f x. f x) (map (comparator_vproof compa) vps) vps' 
                                    | Lt \<Rightarrow> Lt 
                                    | Gt \<Rightarrow> Gt)
                            | Lt \<Rightarrow> Lt 
@@ -1276,7 +1286,7 @@ primrec comparator_sproof :: "('a \<Rightarrow> 'a \<Rightarrow> order) \<Righta
     | VOnce _ _ _ \<Rightarrow> Gt
     | VEventually i' hi' vps' \<Rightarrow> (case comparator_of i i' of 
                                    Eq \<Rightarrow> (case comparator_of hi hi' of 
-                                           Eq \<Rightarrow> comparator_list' (map (comparator_vproof compa) vps) vps'
+                                           Eq \<Rightarrow> comparator_list' (\<lambda>f x. f x) (map (comparator_vproof compa) vps) vps'
                                          | Lt \<Rightarrow> Lt 
                                          | Gt \<Rightarrow> Gt)
                                  | Lt \<Rightarrow> Lt 
@@ -1394,7 +1404,7 @@ primrec comparator_sproof :: "('a \<Rightarrow> 'a \<Rightarrow> order) \<Righta
     | VSinceOut _ \<Rightarrow> Gt
     | VSince i' vp1' vp2s' \<Rightarrow> (case comparator_of i i' of 
                                 Eq \<Rightarrow> (case comparator_vproof compa vp1 vp1' of
-                                        Eq \<Rightarrow> comparator_list' (map (comparator_vproof compa) vp2s) vp2s'
+                                        Eq \<Rightarrow> comparator_list' (\<lambda>f x. f x) (map (comparator_vproof compa) vp2s) vp2s'
                                       | Lt \<Rightarrow> Lt 
                                       | Gt \<Rightarrow> Gt)
                               | Lt \<Rightarrow> Lt 
@@ -1429,7 +1439,7 @@ primrec comparator_sproof :: "('a \<Rightarrow> 'a \<Rightarrow> order) \<Righta
     | VSince _ _ _ \<Rightarrow> Gt
     | VSinceInf i' li' vp2s' \<Rightarrow> (case comparator_of i i' of 
                                   Eq \<Rightarrow> (case comparator_of li li' of 
-                                          Eq \<Rightarrow> comparator_list' (map (comparator_vproof compa) vp2s) vp2s'
+                                          Eq \<Rightarrow> comparator_list' (\<lambda>f x. f x) (map (comparator_vproof compa) vp2s) vp2s'
                                         | Lt \<Rightarrow> Lt 
                                         | Gt \<Rightarrow> Gt)
                                 | Lt \<Rightarrow> Lt 
@@ -1465,7 +1475,7 @@ primrec comparator_sproof :: "('a \<Rightarrow> 'a \<Rightarrow> order) \<Righta
     | VSinceInf _ _ _ \<Rightarrow> Gt
     | VUntil i' vp2s' vp1' \<Rightarrow> (case comparator_of i i' of 
                                 Eq \<Rightarrow> (case comparator_vproof compa vp1 vp1' of
-                                        Eq \<Rightarrow> comparator_list' (map (comparator_vproof compa) vp2s) vp2s'
+                                        Eq \<Rightarrow> comparator_list' (\<lambda>f x. f x) (map (comparator_vproof compa) vp2s) vp2s'
                                       | Lt \<Rightarrow> Lt 
                                       | Gt \<Rightarrow> Gt)
                               | Lt \<Rightarrow> Lt 
@@ -1502,7 +1512,7 @@ primrec comparator_sproof :: "('a \<Rightarrow> 'a \<Rightarrow> order) \<Righta
     | VUntil _ _ _ \<Rightarrow> Gt
     | VUntilInf i' hi' vp2s' \<Rightarrow> (case comparator_of i i' of 
                                   Eq \<Rightarrow> (case comparator_of hi hi' of 
-                                          Eq \<Rightarrow> comparator_list' (map (comparator_vproof compa) vp2s) vp2s'
+                                          Eq \<Rightarrow> comparator_list' (\<lambda>f x. f x) (map (comparator_vproof compa) vp2s) vp2s'
                                         | Lt \<Rightarrow> Lt 
                                         | Gt \<Rightarrow> Gt)
                                 | Lt \<Rightarrow> Lt 
@@ -1511,8 +1521,6 @@ primrec comparator_sproof :: "('a \<Rightarrow> 'a \<Rightarrow> order) \<Righta
 
 definition "ccompare_sproof = (case ID ccompare of None \<Rightarrow> None | Some comp_'a \<Rightarrow> Some (comparator_sproof comp_'a))"
 definition "ccompare_vproof = (case ID ccompare of None \<Rightarrow> None | Some comp_'a \<Rightarrow> Some (comparator_vproof comp_'a))"
-
-term "comparator_list' (map (f compa) xs) ys"
 
 find_theorems name:List.map
 
@@ -1523,30 +1531,30 @@ definition mycomp where
 
 term "comparator_list"
 
-find_consts " _ set \<Rightarrow> _ set \<Rightarrow> order"
+find_consts " _ \<Rightarrow> _ set \<Rightarrow> _ set \<Rightarrow> order"
+
+find_consts name: comparator_set
+
+term "ccompare"
 
 value "the ccompare_set_inst.ccompare_set {1,2} ({2}::nat set)"
 
 value "comparator_list mycomp ([1]::nat list) [1]"
 
-value "comparator_list' (map mycomp ([1,2]::nat list)) [1]"
-
 find_theorems name:List.map_append
 
-lemma comparator_list'_map [simp]: "comparator_list' (map f xs) ys = comparator_list f xs ys"
-proof(induction xs arbitrary: f ys)
-  case Nil
-  then show ?case 
-    by (cases ys) (auto)
-next
-  case (Cons a xs)
-  show ?case 
-    using Cons
-    by (cases ys) (simp_all split: order.splits)
-qed
+lemma comparator_list'_map[simp]: "comparator_list' (\<lambda>f x. f x) (map f xs) ys = comparator_list f xs ys"
+  by (induct xs ys rule: comparator_list'.induct[where compa = f]) (auto split: order.splits)
 
-lemma comparator_list'_vals_map_part [simp]: "comparator_list' (vals (map_part f xs)) ys = comparator_list f (vals xs) ys"
-  sorry
+
+
+lemma comparator_list'_map2[simp]: "comparator_list' (\<lambda>(A,f) (B,x). case comparator_set compa A B of Eq \<Rightarrow> f x | Lt \<Rightarrow> Lt | Gt \<Rightarrow> Gt) (map (map_prod id f) xs) ys = comparator_list (comparator_prod (comparator_set compa) f) xs ys"
+  by (induct xs ys rule: comparator_list'.induct[where compa = "(comparator_prod (comparator_set compa) f)"]) (auto split: order.splits)
+
+lemma comparator_list'_vals_map_part [simp]: "subsvals (map_part f part) = map (map_prod id f) (subsvals part)"
+  apply transfer
+  apply auto
+  done
 
 lemma eq_Eq_comparator_proof:
   assumes "ID ccompare = Some compa"
@@ -1607,7 +1615,7 @@ next
     done
 next
   case (SForall x part)
-  fix part'
+  (* fix part'
   have sp'_def: "sp' = SForall x part'"
     sorry
   then have "subsp \<in> set_part part \<Longrightarrow> subsp' \<in> set_part part' \<Longrightarrow> (comparator_sproof compa subsp subsp' = Eq) = (subsp = subsp')"
@@ -1616,8 +1624,13 @@ next
   then have "(comparator_sproof compa (SForall x part) sp' = Eq) = (SForall x part = sp')"
     using sp'_def 
     apply (simp add: comparator_of_def split: sproof.splits order.splits)
+    sorry *)
+  then show ?case
+    apply (simp add: comparator_of_def split: sproof.splits order.splits)
+    apply safe
+    thm comparator.eq_Eq_conv ccompare 
+    using comparator.eq_Eq_conv[OF ccompare[OF ]]
     sorry
-  then show ?case .
 next
   case (SPrev x)
   then show ?case 
