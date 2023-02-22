@@ -217,6 +217,11 @@ primrec positions :: "'a list \<Rightarrow> 'a \<Rightarrow> nat list"
   where "positions [] x = []" 
   | "positions (y#ys) x = (if x = y then 0 # (map Suc (positions ys x)) else map Suc (positions ys x))"
 
+lemma eq_positions_iff: "length xs = length ys 
+  \<Longrightarrow> positions xs x = positions ys y \<longleftrightarrow> (\<forall>n< length xs. xs ! n = x \<longleftrightarrow> ys ! n = y)"
+  apply (induct xs ys arbitrary: x y rule: list_induct2)
+  using less_Suc_eq_0_disj by auto
+
 lemma positions_eq_nil_iff: "positions xs x = [] \<longleftrightarrow> x \<notin> set xs"
   by (induct xs) simp_all
 
@@ -435,13 +440,14 @@ simps_of_case v_check_exec_simps[simp, code]: v_check_exec.simps[unfolded prod.c
 lemma check_soundness:
   "s_check v \<phi> sp \<Longrightarrow> SAT \<sigma> v (s_at sp) \<phi>"
   "v_check v \<phi> vp \<Longrightarrow> VIO \<sigma> v (v_at vp) \<phi>"
+
   oops
 
 unbundle MFOTL_notation \<comment> \<open> enable notation \<close>
 
-lemma mk_values_sound: "as \<in> mk_values (MFOTL.eval_trms_set vs ts) 
-  \<Longrightarrow> \<exists>v\<in>compatible_vals (fv (p \<dagger> ts)) vs. as = MFOTL.eval_trms v ts"
-proof (induct ts arbitrary: as vs)
+lemma mk_values_sound: "cs \<in> mk_values (MFOTL.eval_trms_set vs ts) 
+  \<Longrightarrow> \<exists>v\<in>compatible_vals (fv (p \<dagger> ts)) vs. cs = MFOTL.eval_trms v ts"
+proof (induct ts arbitrary: cs vs)
   let ?evals = MFOTL.eval_trms_set
     and ?eval = "MFOTL.eval_trm_set"
   case (Cons t ts)
@@ -463,16 +469,16 @@ proof (induct ts arbitrary: as vs)
       have key: "\<^bold>v x \<in> set (map fst ?Ts)"
         using True by (induct ts)
           (auto simp: MFOTL.eval_trms_set_def)
-      then obtain a as' 
-        where as_head: "as' ! (hd (positions (map fst ?Ts) (\<^bold>v x))) = a"
-          and as_tail: "as' \<in> mk_values (MFOTL.eval_trms_set vs ts)" 
-          and as_shape: "as = a # as'"
+      then obtain a as
+        where as_head: "as ! (hd (positions (map fst ?Ts) (\<^bold>v x))) = a"
+          and as_tail: "as \<in> mk_values (MFOTL.eval_trms_set vs ts)" 
+          and as_shape: "cs = a # as"
         using Cons(2) 
         by (clarsimp simp add: MFOTL.eval_trms_set_def Var image_iff)
       obtain v where v_hyps: "v \<in> compatible_vals (fv (p \<dagger> ts)) vs"
-        "as' = MFOTL.eval_trms v ts"
+        "as = MFOTL.eval_trms v ts"
         using Cons(1)[OF as_tail] by blast
-      hence as'_nth: "as' ! n = v x"
+      hence as'_nth: "as ! n = v x"
         using nth_n positions_length[OF n_in]
         by (simp add: MFOTL.eval_trms_def)
       have evals_neq_Nil: "?evals vs ts \<noteq> []"
@@ -480,7 +486,7 @@ proof (induct ts arbitrary: as vs)
       moreover have "positions (map fst (MFOTL.eval_trms_set vs ts)) (\<^bold>v x) \<noteq> []"
         using positions_eq_nil_iff[of "map fst ?Ts" "\<^bold>v x"] key
         by fastforce
-      ultimately have as_hyp: "a = as' ! n"
+      ultimately have as_hyp: "a = as ! n"
         using mk_values_nth_cong[OF key hd_in_set n_in' as_tail] as_head  by blast
       thus ?thesis
         using Var as_shape True v_hyps as'_nth
@@ -494,10 +500,11 @@ proof (induct ts arbitrary: as vs)
           (metis eq_fst_iff eval_trm_set.simps(1) eval_trm_set.simps(2) trm.exhaust)
       then show ?thesis 
         using Cons(2) Var False
+
         apply (clarsimp simp: MFOTL.eval_trms_set_def set_Cons_def 
           MFOTL.eval_trms_def compatible_vals_def split: )
-        subgoal for a as'
-          using Cons(1)[of as' vs] 
+        subgoal for a as
+          using Cons(1)[of as vs] 
           apply (clarsimp simp: MFOTL.eval_trms_set_def MFOTL.eval_trms_def compatible_vals_def)
           apply (rule_tac x="v(x := a)" in exI)
           apply clarsimp
@@ -517,11 +524,69 @@ proof (induct ts arbitrary: as vs)
           MFOTL.eval_trms_def compatible_def)
   qed
 qed (simp add: MFOTL.eval_trms_set_def MFOTL.eval_trms_def compatible_vals_def)
- 
-lemma mk_values_complete: "as = MFOTL.eval_trms v ts 
+
+lemma fst_eval_trm_set[simp]: 
+  "fst (MFOTL.eval_trm_set vs t) = t"
+  by (cases t; clarsimp)
+
+lemma map_fst_eval_trm_set [simp]:
+  "map (fst \<circ> MFOTL.eval_trm_set vs) ts = ts"
+  by (induct ts arbitrary: vs) auto
+
+lemma mk_values_complete: "cs = MFOTL.eval_trms v ts 
   \<Longrightarrow> v \<in> compatible_vals (fv (p \<dagger> ts)) vs
-  \<Longrightarrow> as \<in> mk_values (MFOTL.eval_trms_set vs ts)"
-  sorry
+  \<Longrightarrow> cs \<in> mk_values (MFOTL.eval_trms_set vs ts)"
+proof (induct ts arbitrary: v cs vs)
+  case (Cons t ts)
+  then obtain a as 
+    where a_def: "a = MFOTL.eval_trm v t" 
+      and as_def: "as = MFOTL.eval_trms v ts"
+      and cs_cons: "cs = a # as"
+    by (auto simp: MFOTL.eval_trms_def)
+  have compat_v_vs: "v \<in> compatible_vals (fv (p \<dagger> (ts))) vs" 
+    using Cons.prems
+    by (auto simp: compatible_vals_def)
+  hence mk_values_ts: "as \<in> mk_values (map (MFOTL.eval_trm_set vs) ts)"
+    using Cons.hyps[OF as_def] 
+    unfolding MFOTL.eval_trms_set_def by blast
+  show ?case
+  proof (cases "t")
+    case (Var x)
+    then show ?thesis
+    proof (cases "\<^bold>v x \<in> set ts")
+      case True
+      then obtain n 
+        where n_head: "n = hd (positions ts (\<^bold>v x))"
+          and n_in: "n \<in> set (positions ts (\<^bold>v x))"
+          and nth_n: "ts ! n = \<^bold>v x"
+        by (simp_all add: hd_positions_eq_fst_pos nth_fst_pos fst_pos_in_positions)
+      hence n_in': "n = hd (positions (map fst (MFOTL.eval_trms_set vs ts)) (\<^bold>v x))"
+        by (clarsimp simp: MFOTL.eval_trms_set_def)
+      moreover have "as ! n = a"
+        using a_def as_def nth_n Var n_in True positions_length
+        by (fastforce simp: MFOTL.eval_trms_def)
+      moreover have "\<^bold>v x \<in> set (map fst (MFOTL.eval_trms_set vs ts))"
+        using True by (induct ts)
+          (auto simp: MFOTL.eval_trms_set_def)
+      ultimately show ?thesis
+        using mk_values_ts cs_cons
+        by (clarsimp simp: MFOTL.eval_trms_set_def Var image_iff)
+    next
+      case False
+      then show ?thesis
+        using Var cs_cons mk_values_ts Cons.prems a_def
+        by (clarsimp simp: MFOTL.eval_trms_set_def image_iff 
+            set_Cons_def compatible_vals_def split: MFOTL.trm.splits)
+    qed
+  next
+    case (Const a)
+    then show ?thesis 
+      using cs_cons mk_values_ts Cons.prems a_def
+      by (clarsimp simp: MFOTL.eval_trms_set_def image_iff
+            set_Cons_def compatible_vals_def split: MFOTL.trm.splits)
+  qed
+qed (simp add: compatible_vals_def 
+    MFOTL.eval_trms_set_def MFOTL.eval_trms_def)
 
 lemma check_exec_check:
   assumes "compatible_vals (fv \<phi>) vs \<noteq> {}"
@@ -582,10 +647,14 @@ next
   case (Neg \<phi>)
   {
     case 1
-    then show ?case sorry
+    then show ?case
+      using Neg.hyps(2)
+      by (cases sp) auto
   next
     case 2
-    then show ?case sorry
+    then show ?case 
+      using Neg.hyps(1)
+      by (cases vp) auto
   }
 next
   case (Or \<phi>1 \<phi>2)
