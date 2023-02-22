@@ -192,43 +192,11 @@ inductive SAT and VIO :: "'a MFOTL.trace \<Rightarrow> 'a MFOTL.env \<Rightarrow
 
 lemma soundness: "(SAT \<sigma> v i \<phi> \<longrightarrow> MFOTL.sat \<sigma> v i \<phi>) \<and> (VIO \<sigma> v i \<phi> \<longrightarrow> \<not> MFOTL.sat \<sigma> v i \<phi>)"
 proof (induct v i \<phi> rule: SAT_VIO.induct)
-  case (SPrev i I v \<phi>)
-  then show ?case sorry
-next
-  case (VPrev i v \<phi> I)
-  then show ?case sorry
-next
-  case (VPrevZ i v I \<phi>)
-  then show ?case sorry
-next
-  case (VPrevOutL i I v \<phi>)
-  then show ?case sorry
-next
-  case (VPrevOutR i I v \<phi>)
-  then show ?case sorry
-next
-  case (SNext i I v \<phi>)
-  then show ?case sorry
-next
-  case (VNext v i \<phi> I)
-  then show ?case sorry
-next
-  case (VNextOutL i I v \<phi>)
-  then show ?case sorry
-next
-  case (VNextOutR i I v \<phi>)
-  then show ?case sorry
-next
-  case (SOnce j i I v \<phi>)
-  then show ?case sorry
 next
   case (VOnceOut i I v \<phi>)
   then show ?case sorry
 next
   case (VOnce j I i v \<phi>)
-  then show ?case sorry
-next
-  case (SEventually j i I v \<phi>)
   then show ?case sorry
 next
   case (VEventually I i v \<phi>)
@@ -240,13 +208,7 @@ next
   case (SHistoricallyOut i I v \<phi>)
   then show ?case sorry
 next
-  case (VHistorically j i I v \<phi>)
-  then show ?case sorry
-next
   case (SAlways I i v \<phi>)
-  then show ?case sorry
-next
-  case (VAlways j i I v \<phi>)
   then show ?case sorry
 next
   case (VSinceOut i I v \<phi> \<psi>)
@@ -263,7 +225,7 @@ next
 next
   case (VUntilInf I i v \<psi> \<phi>)
   then show ?case sorry
-qed (auto simp: fun_upd_def)
+qed (auto simp: fun_upd_def split: nat.splits)
 
 lemma completeness: "(MFOTL.sat \<sigma> v i \<phi> \<longrightarrow> SAT \<sigma> v i \<phi>) \<and> (\<not> MFOTL.sat \<sigma> v i \<phi> \<longrightarrow> VIO \<sigma> v i \<phi>)"
 proof (induct \<phi> arbitrary: i v)

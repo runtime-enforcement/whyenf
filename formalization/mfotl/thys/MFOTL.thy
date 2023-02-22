@@ -44,8 +44,15 @@ qualified primrec eval_trm_set :: "'a envset \<Rightarrow> 'a trm \<Rightarrow> 
   "eval_trm_set vs (MFOTL.Var x) = (Var x, vs x)"
 | "eval_trm_set vs (MFOTL.Const x) = (Const x, {x})"
 
-qualified definition eval_trms_set :: "'a envset \<Rightarrow> 'a trm list \<Rightarrow> ('a trm \<times> 'a set) list" where
-  "eval_trms_set vs ts = map (eval_trm_set vs) ts"
+qualified definition eval_trms_set :: "'a envset \<Rightarrow> 'a trm list \<Rightarrow> ('a trm \<times> 'a set) list" 
+  where "eval_trms_set vs ts = map (eval_trm_set vs) ts"
+
+lemma eval_trms_set_Nil: "eval_trms_set vs [] = []"
+  by (simp add: eval_trms_set_def)
+
+lemma eval_trms_set_Cons: 
+  "eval_trms_set vs (t # ts) = eval_trm_set vs t # (eval_trms_set vs ts)"
+  by (simp add: eval_trms_set_def)
 
 qualified datatype 'a formula = 
   TT
