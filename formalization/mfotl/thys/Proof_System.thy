@@ -11,10 +11,10 @@ section \<open>Proof System\<close>
 subsection \<open>Time-stamp-time-point Conversion\<close>
 
 definition ETP:: "'a trace \<Rightarrow> nat \<Rightarrow> nat"  where
-  "ETP \<sigma> ts = (LEAST i. \<tau> \<sigma> i \<ge> ts)"
+  "ETP \<sigma> t = (LEAST i. \<tau> \<sigma> i \<ge> t)"
 
 definition LTP:: "'a trace \<Rightarrow> nat \<Rightarrow> nat" where
-  "LTP \<sigma> ts = Max {i. (\<tau> \<sigma> i) \<le> ts}"
+  "LTP \<sigma> t = Max {i. (\<tau> \<sigma> i) \<le> t}"
 
 abbreviation "\<delta> \<sigma> i j \<equiv> (\<tau> \<sigma> i - \<tau> \<sigma> j)"
 
@@ -37,6 +37,17 @@ next
     by (auto simp add: Least_le)
 qed
 
+lemma tau_LTP_k: 
+  assumes "\<tau> \<sigma> 0 \<le> n" "LTP \<sigma> n < k"
+  shows "\<tau> \<sigma> k > n"
+proof -
+  have "finite {i. \<tau> \<sigma> i \<le> n}"
+    by (metis Suc_le_eq i_ETP_tau infinite_nat_iff_unbounded_le leD mem_Collect_eq)
+  then show ?thesis
+    using assms(2) Max.coboundedI linorder_not_less
+    unfolding LTP_def by auto
+qed
+
 lemma i_LTP_tau:
   assumes n_asm: "n \<ge> \<tau> \<sigma> 0"
   shows "(i \<le> LTP \<sigma> n \<longleftrightarrow> \<tau> \<sigma> i \<le> n)"
@@ -45,12 +56,16 @@ proof
   assume P: "i \<le> LTP \<sigma> n"
   from n_asm A_def have A_ne: "A \<noteq> {}" by auto
   from j_def have i_j: "\<tau> \<sigma> i \<le> \<tau> \<sigma> j" using P by auto
-  have fin_A: "finite A"
-    unfolding A_def
-    apply transfer
-    apply (simp only: le_eq_less_or_eq)
-    apply (simp only: Collect_disj_eq)
-    sorry
+  have not_in: "k \<notin> A" if "j < k" for k
+    using n_asm that tau_LTP_k leD
+    unfolding A_def j_def by blast
+  then have "A \<subseteq> {0..<Suc j}"
+    using assms not_less_eq
+    unfolding A_def j_def 
+    by fastforce
+  then have fin_A: "finite A"
+    using subset_eq_atLeast0_lessThan_finite[of A "Suc j"]
+    by simp
   from A_ne j_def have "\<tau> \<sigma> j \<le> n"
     using Max_in[of A] A_def fin_A 
     unfolding LTP_def 
@@ -59,9 +74,17 @@ proof
 next
   define A and j where A_def: "A \<equiv> {i. \<tau> \<sigma> i \<le> n}" and j_def: "j \<equiv> LTP \<sigma> n"
   assume Q: "\<tau> \<sigma> i \<le> n" 
-  then have "i \<in> A" using A_def by auto
-  moreover have "finite A"
-    sorry
+  have not_in: "k \<notin> A" if "j < k" for k
+    using n_asm that tau_LTP_k leD
+    unfolding A_def j_def by blast
+  then have "A \<subseteq> {0..<Suc j}"
+    using assms not_less_eq
+    unfolding A_def j_def 
+    by fastforce
+  then have fin_A: "finite A"
+    using subset_eq_atLeast0_lessThan_finite[of A "Suc j"]
+    by simp
+  moreover have "i \<in> A" using Q A_def by auto
   ultimately show "i \<le> LTP \<sigma> n" 
     using Max_ge[of A] A_def 
     unfolding LTP_def
