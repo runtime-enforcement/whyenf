@@ -215,9 +215,9 @@ lemma nth_fst_pos: "x \<in> set xs \<Longrightarrow> xs ! (the (fst_pos xs x)) =
 
 primrec positions :: "'a list \<Rightarrow> 'a \<Rightarrow> nat list"
   where "positions [] x = []" 
-  | "positions (y#ys) x = (if x = y then 0 # (map Suc (positions ys x)) else map Suc (positions ys x))"
+  | "positions (y#ys) x = (\<lambda>ns. if x = y then 0 # ns else ns) (map Suc (positions ys x))"
 
-lemma eq_positions_iff: "length xs = length ys 
+lemma eq_positions_iff: "length xs = length ys
   \<Longrightarrow> positions xs x = positions ys y \<longleftrightarrow> (\<forall>n< length xs. xs ! n = x \<longleftrightarrow> ys ! n = y)"
   apply (induct xs ys arbitrary: x y rule: list_induct2)
   using less_Suc_eq_0_disj by auto
@@ -261,9 +261,38 @@ definition "compatible X vs v \<longleftrightarrow> (\<forall>x\<in>X. v x \<in>
 
 definition "compatible_vals X vs = {v. \<forall>x \<in> X. v x \<in> vs x}"
 
-lemma compatible_iff_in_compatible_vals: 
+lemma compatible_alt: 
   "compatible X vs v \<longleftrightarrow> v \<in> compatible_vals X vs"
   by (auto simp: compatible_def compatible_vals_def)
+
+lemma compatible_empty_iff: "compatible {} vs v \<longleftrightarrow> True"
+  by (auto simp: compatible_def)
+
+lemma compatible_vals_empty_eq: "compatible_vals {} vs = UNIV"
+  by (auto simp: compatible_vals_def)
+
+lemma compatible_union_iff: 
+  "compatible (X \<union> Y) vs v \<longleftrightarrow> compatible X vs v \<and> compatible Y vs v"
+  by (auto simp: compatible_def)
+
+lemma compatible_vals_union_eq: 
+  "compatible_vals (X \<union> Y) vs = compatible_vals X vs \<inter> compatible_vals Y vs"
+  by (auto simp: compatible_vals_def)
+
+lemma compatible_antimono: 
+  "compatible X vs v \<Longrightarrow> Y \<subseteq> X \<Longrightarrow> compatible Y vs v"
+  by (auto simp: compatible_def)
+
+lemma compatible_vals_antimono: 
+  "Y \<subseteq> X \<Longrightarrow> compatible_vals X vs \<subseteq> compatible_vals Y vs"
+  by (auto simp: compatible_vals_def)
+
+lemma compatible_extensible: 
+  "(\<forall>x. vs x \<noteq> {}) \<Longrightarrow> compatible X vs v \<Longrightarrow> X \<subseteq> Y \<Longrightarrow> \<exists>v'. compatible Y vs v' \<and> (\<forall>x\<in>X. v x = v' x)" 
+  apply (rule_tac x="override_on v (\<lambda>x. SOME y. y \<in> vs x) (Y-X)" in exI)
+  using some_in_eq[of "vs _"] by (auto simp: override_on_def compatible_def)
+
+lemmas compatible_vals_extensible = compatible_extensible[unfolded compatible_alt]
 
 primrec mk_values :: "('b MFOTL.trm \<times> 'a set) list \<Rightarrow> 'a list set" 
   where "mk_values [] = {[]}" 
@@ -500,19 +529,15 @@ proof (induct ts arbitrary: cs vs)
           (metis eq_fst_iff eval_trm_set.simps(1) eval_trm_set.simps(2) trm.exhaust)
       then show ?thesis 
         using Cons(2) Var False
-
         apply (clarsimp simp: MFOTL.eval_trms_set_def set_Cons_def 
           MFOTL.eval_trms_def compatible_vals_def split: )
         subgoal for a as
           using Cons(1)[of as vs] 
           apply (clarsimp simp: MFOTL.eval_trms_set_def MFOTL.eval_trms_def compatible_vals_def)
-          apply (rule_tac x="v(x := a)" in exI)
-          apply clarsimp
-          apply (rule eval_trm_fv_cong)
-          apply clarsimp
+          apply (rule_tac x="v(x := a)" in exI, clarsimp)
+          apply (rule eval_trm_fv_cong, clarsimp)
           subgoal for v t'
-            by (rule trm.exhaust[of t'])
-              auto
+            by (auto intro: trm.exhaust[where y=t'])
           done
         done
     qed
@@ -588,8 +613,133 @@ proof (induct ts arbitrary: v cs vs)
 qed (simp add: compatible_vals_def 
     MFOTL.eval_trms_set_def MFOTL.eval_trms_def)
 
+definition AD :: "'d MFOTL.formula \<Rightarrow> nat \<Rightarrow> 'd set"
+  where "AD \<phi> i = (\<Union> k < enat (i+1) + (MFOTL.future_reach \<phi>). \<Union> (set ` snd ` \<Gamma> \<sigma> (the_enat k)))"
+
+
+lemma val_in_AD_iff:
+  "x \<in> fv \<phi> \<Longrightarrow> v x \<in> AD \<phi> i \<longleftrightarrow> (\<exists>p ts k. k < enat (i+1) + (MFOTL.future_reach \<phi>) \<and> (p, MFOTL.eval_trms v ts) \<in> \<Gamma> \<sigma> (the_enat k) \<and> x \<in> \<Union> (set (map fv\<^sub>t ts)))"
+apply (intro iffI; clarsimp)
+     apply (auto simp: AD_def)[1]
+     apply (rename_tac k' p' cs)
+     apply (rule_tac x=p' in exI)
+    apply (rule_tac x="map (\<lambda>c. if v x = c then (\<^bold>v x::'d MFOTL.trm) else \<^bold>c c) cs" in exI)
+    apply (rule_tac x=k' in exI)
+     apply (auto simp: MFOTL.eval_trms_def)[1]
+    subgoal for k' p' cs
+      apply (subgoal_tac "map (MFOTL.eval_trm v \<circ> (\<lambda>c. if v x = c then \<^bold>v x else \<^bold>c c)) cs = cs")
+       apply clarsimp
+      apply (thin_tac "(p', cs) \<in> \<Gamma> \<sigma> (the_enat k')")
+      apply (induct cs)
+       apply simp
+      apply simp
+      subgoal for a as
+        apply (cases "v x \<in> set as")
+         apply force
+      apply (erule disjE)
+      prefer 2 apply force
+        apply (simp add: comp_def)
+        by (simp add: map_idI)
+      done
+    apply (auto simp: AD_def)[1]
+    apply (rename_tac p' ts' k t')
+    apply (rule_tac x="k" in bexI; clarsimp?)
+    apply (rule_tac x="(p', MFOTL.eval_trms v ts')" in bexI; clarsimp simp: MFOTL.eval_trms_def image_iff)
+    subgoal for p' cs k t'
+      apply (cases t'; clarsimp)
+      by (rule_tac x="\<^bold>v x" in bexI; clarsimp?)
+    done
+
+lemma val_notin_AD_iff:
+  "x \<in> fv \<phi> \<Longrightarrow> v x \<notin> AD \<phi> i \<longleftrightarrow> (\<forall>p ts k. k < enat (i+1) + (MFOTL.future_reach \<phi>) \<longrightarrow> x \<in> \<Union> (set (map fv\<^sub>t ts)) \<longrightarrow> (p, MFOTL.eval_trms v ts) \<notin> \<Gamma> \<sigma> (the_enat k))"
+  using val_in_AD_iff
+  by blast
+
+lemma check_cong:
+  assumes "(\<forall>x \<in> MFOTL.fv \<phi>. v1 x = v2 x \<or> v1 x \<notin> AD \<phi> i \<and> v2 x \<notin> AD \<phi> i)"
+  shows "(s_at sp = i \<Longrightarrow> s_check v1 \<phi> sp \<longleftrightarrow> s_check v2 \<phi> sp)"
+    "(v_at vp = i \<Longrightarrow> v_check v1 \<phi> vp \<longleftrightarrow> v_check v2 \<phi> vp)"
+  using assms
+proof (induction v1 \<phi> sp and v1 \<phi> vp rule: s_check_v_check.induct)
+  case (1 v f p)
+  thm 1(1-23)[OF refl]
+  show ?case
+  proof (cases p)
+    case (SPred i P ts)
+    then show ?thesis
+      using 1(25)
+      apply (cases f; clarsimp simp:)
+      subgoal for P' ts'
+        using eval_trms_fv_cong[of ts' v v2]
+        using val_notin_AD_iff[THEN iffD1, rule_format, of _ "P' \<dagger> ts'", simplified]
+        apply auto
+        sorry
+      sorry
+  next
+    case (SNeg x3)
+    then show ?thesis sorry
+  next
+    case (SOrL x4)
+    then show ?thesis sorry
+  next
+    case (SOrR x5)
+    then show ?thesis sorry
+  next
+    case (SAnd x61 x62)
+    then show ?thesis sorry
+  next
+    case (SImpL x7)
+    then show ?thesis sorry
+  next
+    case (SImpR x8)
+    then show ?thesis sorry
+  next
+    case (SIffSS x91 x92)
+    then show ?thesis sorry
+  next
+    case (SIffVV x101 x102)
+    then show ?thesis sorry
+  next
+    case (SExists x111 x112 x113)
+    then show ?thesis sorry
+  next
+    case (SForall x121 x122)
+    then show ?thesis sorry
+  next
+    case (SPrev x13)
+    then show ?thesis sorry
+  next
+    case (SNext x14)
+    then show ?thesis sorry
+  next
+    case (SOnce x151 x152)
+    then show ?thesis sorry
+  next
+    case (SEventually x161 x162)
+    then show ?thesis sorry
+  next
+    case (SHistorically x171 x172 x173)
+    then show ?thesis sorry
+  next
+    case (SHistoricallyOut x18)
+    then show ?thesis sorry
+  next
+    case (SAlways x191 x192 x193)
+    then show ?thesis sorry
+  next
+    case (SSince x201 x202)
+    then show ?thesis sorry
+  next
+    case (SUntil x211 x212)
+    then show ?thesis sorry
+  qed (cases f; simp_all)
+next
+  case (2 v f p)
+  then show ?case sorry
+qed
+
 lemma check_exec_check:
-  assumes "compatible_vals (fv \<phi>) vs \<noteq> {}"
+  assumes "compatible_vals (fv \<phi>) vs \<noteq> {}" and "\<forall>x. vs x \<noteq> {}"
   shows "s_check_exec vs \<phi> sp \<longleftrightarrow> (\<forall>v \<in> compatible_vals (fv \<phi>) vs. s_check v \<phi> sp)" 
     and "v_check_exec vs \<phi> vp \<longleftrightarrow> (\<forall>v \<in> compatible_vals (fv \<phi>) vs. v_check v \<phi> vp)"
   using assms
@@ -599,11 +749,11 @@ proof (induct \<phi> arbitrary: vs sp vp)
     case 1
     then show ?case
       by (cases sp)
-        (auto simp: compatible_def)
+        auto
   next
     case 2
     then show ?case 
-      by (auto simp: compatible_def)
+      by auto
   }
 next
   case FF
@@ -611,12 +761,12 @@ next
     case 1
     then show ?case 
       by (cases sp)
-        (auto simp: compatible_def)
+        auto
   next
     case 2
     then show ?case 
       by (cases vp)
-        (auto simp: compatible_def)
+        auto
   }
 next
   case (Pred p ts)
@@ -660,7 +810,29 @@ next
   case (Or \<phi>1 \<phi>2)
   {
     case 1
-    then show ?case sorry
+    then obtain v where "v \<in> compatible_vals (fv \<phi>1 \<union> fv \<phi>2) vs"
+      by auto
+    have comp_fv: "compatible_vals (fv \<phi>1) vs \<noteq> {}"
+      "compatible_vals (fv \<phi>2) vs \<noteq> {}"
+      using 1 by (auto simp: compatible_vals_union_eq)
+    {fix v'
+      assume "v' \<in> compatible_vals (fv \<phi>1) vs"
+      thm check_cong(1)[of \<phi>1 v "override_on v v' (fv \<phi>2 - fv \<phi>1)"]
+      term override_on
+    }
+    show ?case
+      using 1
+      apply (cases sp; clarsimp simp: )
+       apply (auto simp: )
+         prefer 3 using Or compatible_vals_union_eq apply (blast, blast)
+      using Or(1)[OF comp_fv(1) 1(2)] 
+      using check_cong(1)[of \<phi>1 _ _ "s_at (SOrL _)", OF _ refl] 
+      using compatible_vals_extensible[OF 1(2) _ Un_upper1, of _ "fv \<phi>1" "fv \<phi>2"]
+      apply (metis (no_types, lifting) Monitor.check_cong(1)) 
+      using Or(3)[OF comp_fv(2) 1(2)] 
+      using check_cong(1)[of \<phi>2 _ _ "s_at (SOrL _)", OF _ refl] 
+      using compatible_vals_extensible[OF 1(2) _ Un_upper2, of _ "fv \<phi>2" "fv \<phi>1" ]
+      by (metis (no_types, lifting) Monitor.check_cong(1)) 
   next
     case 2
     then show ?case sorry
@@ -669,7 +841,10 @@ next
   case (And \<phi>1 \<phi>2)
   {
     case 1
-    then show ?case sorry
+    then show ?case
+      using 1 apply (cases sp; clarsimp simp: )
+      apply (auto)
+      sorry
   next
     case 2
     then show ?case sorry
@@ -787,81 +962,8 @@ qed
 
 unbundle MFOTL_no_notation \<comment> \<open> disable notation \<close>
 
-definition AD where 
-  "AD \<phi> i = (\<Union> k < enat (i+1) + (MFOTL.future_reach \<phi>). \<Union> (set ` snd ` \<Gamma> \<sigma> (the_enat k)))"
 
-lemma check_cong:
-  assumes "(\<forall>x \<in> MFOTL.fv \<phi>. v1 x = v2 x \<or> v1 x \<notin> AD \<phi> i \<and> v2 x \<notin> AD \<phi> i)"
-  shows "(s_at sp = i \<Longrightarrow> s_check v1 \<phi> sp \<longleftrightarrow> s_check v2 \<phi> sp)"
-    "(v_at vp = i \<Longrightarrow> v_check v1 \<phi> vp \<longleftrightarrow> v_check v2 \<phi> vp)"
-proof (induction v1 \<phi> sp and v1 \<phi> vp rule: s_check_v_check.induct)
-  case (1 v f p)
-  show ?case
-  proof (cases p)
-    case (SPred x21 x22 x23)
-    then show ?thesis sorry
-  next
-    case (SNeg x3)
-    then show ?thesis sorry
-  next
-    case (SOrL x4)
-    then show ?thesis sorry
-  next
-    case (SOrR x5)
-    then show ?thesis sorry
-  next
-    case (SAnd x61 x62)
-    then show ?thesis sorry
-  next
-    case (SImpL x7)
-    then show ?thesis sorry
-  next
-    case (SImpR x8)
-    then show ?thesis sorry
-  next
-    case (SIffSS x91 x92)
-    then show ?thesis sorry
-  next
-    case (SIffVV x101 x102)
-    then show ?thesis sorry
-  next
-    case (SExists x111 x112 x113)
-    then show ?thesis sorry
-  next
-    case (SForall x121 x122)
-    then show ?thesis sorry
-  next
-    case (SPrev x13)
-    then show ?thesis sorry
-  next
-    case (SNext x14)
-    then show ?thesis sorry
-  next
-    case (SOnce x151 x152)
-    then show ?thesis sorry
-  next
-    case (SEventually x161 x162)
-    then show ?thesis sorry
-  next
-    case (SHistorically x171 x172 x173)
-    then show ?thesis sorry
-  next
-    case (SHistoricallyOut x18)
-    then show ?thesis sorry
-  next
-    case (SAlways x191 x192 x193)
-    then show ?thesis sorry
-  next
-    case (SSince x201 x202)
-    then show ?thesis sorry
-  next
-    case (SUntil x211 x212)
-    then show ?thesis sorry
-  qed (cases f; simp_all)
-next
-  case (2 v f p)
-  then show ?case sorry
-qed
+
 
 lift_definition trivial_part :: "'pt \<Rightarrow> ('d, 'pt) part" is "\<lambda>pt. [(UNIV, pt)]"
   by (simp add: partition_on_space)
