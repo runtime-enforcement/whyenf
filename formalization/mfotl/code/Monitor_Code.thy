@@ -726,10 +726,27 @@ definition set_impl_enat :: "(enat, set_impl) phantom" where
 instance ..
 end
 
-term p_pred
-term Monitor.opt
+definition [code del]: "comparator_sproof' = comparator_sproof ccomp"
+definition [code del]: "comparator_vproof' = comparator_vproof ccomp"
+definition comparator_set' :: "'a :: ccompare set \<Rightarrow> 'a set \<Rightarrow> order" where [code del]: "comparator_set' = comparator_set ccomp"
 
-term "(\<lambda>p1 p2. (p_pred (\<lambda> _. 1) p1) \<le> (p_pred (\<lambda> _. 1) p2))"
+lemma comparator_set'_code[code]:
+  "(comparator_set' :: 'a :: ccompare set \<Rightarrow> 'a set \<Rightarrow> order) =
+   (case ID CCOMPARE('a) of None \<Rightarrow> Code.abort STR ''comparator_set: ccompare = None'' (\<lambda>_. comparator_set') | _ \<Rightarrow> ccomp)"
+  unfolding comparator_set'_def comparator_set_def cless_eq_set_def cless_set_def ccompare_set_def
+  by (auto simp: ID_Some split: option.splits)
+
+lemmas comparator_sproof'_code[code] =
+   comparator_sproof.simps[of ccomp, unfolded comparator_list'_map2 comparator_list'_map comparator_list'_vals_map_part,
+     folded comparator_sproof'_def comparator_vproof'_def comparator_set'_def]
+lemmas comparator_vproof'_code[code] =
+   comparator_vproof.simps[of ccomp, unfolded comparator_list'_map2 comparator_list'_map comparator_list'_vals_map_part,
+     folded comparator_sproof'_def comparator_vproof'_def comparator_set'_def]
+
+lemma ccompare_sproof_code[code]: "CCOMPARE('a::ccompare sproof) = (case ID CCOMPARE('a) of None \<Rightarrow> None | Some comp_'a \<Rightarrow> Some comparator_sproof')"
+  by (auto simp: ccompare_sproof_def comparator_sproof'_def split: option.splits)
+lemma ccompare_vproof_code[code]: "CCOMPARE('a::ccompare vproof) = (case ID CCOMPARE('a) of None \<Rightarrow> None | Some comp_'a \<Rightarrow> Some comparator_vproof')"
+  by (auto simp: ccompare_vproof_def comparator_vproof'_def split: option.splits)
 
 definition execute_trivial_opt where
  "execute_trivial_opt \<sigma> vars i \<phi> = Monitor.opt \<sigma> (\<lambda>p1 p2. (p_pred (\<lambda> _. 1) p1) \<le> (p_pred (\<lambda> _. 1) p2)) vars i \<phi>"
@@ -797,11 +814,5 @@ value "execute_trivial_opt mytrace2 [''first''] 0 phi2"
 value "execute_trivial_opt mytrace2 [''first''] 1 phi2"
 value "execute_trivial_opt mytrace2 [] 0 phi3"
 value "execute_trivial_opt mytrace2 [] 1 phi3"
-
-
-
-declare[[show_consts]]
-
-term foo
 
 end
