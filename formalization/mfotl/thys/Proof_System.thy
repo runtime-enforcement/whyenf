@@ -752,6 +752,9 @@ lemma size_part_estimation'[termination_simp]: "x \<in> Vals xs \<Longrightarrow
 lemma size_part_pointwise[termination_simp]: "(\<And>x. x \<in> Vals xs \<Longrightarrow> f x \<le> g x) \<Longrightarrow> size_part h f xs \<le> size_part h g xs"
   by transfer (force simp: image_iff intro!: size_list_pointwise)
 
+lemma Vals_code[code]: "Vals x = set (map snd (Rep_part x))"
+  by (force simp: Vals_def)
+
 lemma Vals_transfer[transfer_rule]: "rel_fun (pcr_part (=) (=)) (=) (set \<circ> map snd) Vals"
   by (force simp: Vals_def rel_fun_def pcr_part_def cr_part_def rel_set_eq prod.rel_eq list.rel_eq)
 
