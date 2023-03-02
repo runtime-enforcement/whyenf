@@ -199,8 +199,195 @@ fun s_check :: "'d MFOTL.env \<Rightarrow> 'd MFOTL.formula \<Rightarrow> 'd spr
 
 
 declare s_check.simps[simp del] v_check.simps[simp del]
-simps_of_case s_check_simps[simp, code]: s_check.simps[unfolded prod.case] (splits: MFOTL.formula.split sproof.split)
-simps_of_case v_check_simps[simp, code]: v_check.simps[unfolded prod.case] (splits: MFOTL.formula.split vproof.split)
+simps_of_case s_check_simps[simp]: s_check.simps[unfolded prod.case] (splits: MFOTL.formula.split sproof.split)
+simps_of_case v_check_simps[simp]: v_check.simps[unfolded prod.case] (splits: MFOTL.formula.split vproof.split)
+
+
+lemma "s_check v \<phi> sp \<Longrightarrow> SAT \<sigma> v (s_at sp) \<phi>"
+      "v_check v \<phi> vp \<Longrightarrow> VIO \<sigma> v (v_at vp) \<phi>"
+proof (induct \<phi> arbitrary: v sp vp)
+  case TT
+  {
+    case 1
+    then show ?case
+      by (cases sp) (auto intro: SAT_VIO.intros)
+  next
+    case 2
+    then show ?case
+      by (cases vp) (auto intro: SAT_VIO.intros)
+  }
+next
+  case FF
+  {
+    case 1
+    then show ?case
+      by (cases sp) (auto intro: SAT_VIO.intros)
+  next
+    case 2
+    then show ?case
+      by (cases vp) (auto intro: SAT_VIO.intros)
+  }
+next
+  case (Pred x1 x2)
+  {
+    case 1
+    then show ?case
+      by (cases sp) (auto intro: SAT_VIO.intros)
+  next
+    case 2
+    then show ?case
+      by (cases vp) (auto intro: SAT_VIO.intros)
+  }
+next
+  case (Neg \<phi>)
+  {
+    case 1
+    with Neg[of v] show ?case
+      by (cases sp) (auto intro: SAT_VIO.intros)
+  next
+    case 2
+    with Neg[of v] show ?case
+      by (cases vp) (auto intro: SAT_VIO.intros)
+  }
+next
+  case (Or \<phi>1 \<phi>2)
+  {
+    case 1
+    with Or[of v] show ?case
+      by (cases sp) (auto intro: SAT_VIO.intros)
+  next
+    case 2
+    with Or[of v] show ?case
+      by (cases vp) (auto 0 3 intro: SAT_VIO.intros dest: sym)
+  }
+next
+  case (And \<phi>1 \<phi>2)
+  {
+    case 1
+    with And[of v] show ?case
+      by (cases sp) (auto 0 3 intro: SAT_VIO.intros dest: sym)
+  next
+    case 2
+    with And[of v] show ?case
+      by (cases vp) (auto intro: SAT_VIO.intros)
+  }
+next
+  case (Imp \<phi>1 \<phi>2)
+  {
+    case 1
+    with Imp[of v] show ?case
+      by (cases sp) (auto intro: SAT_VIO.intros)
+  next
+    case 2
+    with Imp[of v] show ?case
+      by (cases vp) (auto 0 3 intro: SAT_VIO.intros dest: sym)
+  }
+next
+  case (Iff \<phi>1 \<phi>2)
+  {
+    case 1
+    with Iff[of v] show ?case
+      by (cases sp) (auto 0 3 intro: SAT_VIO.intros dest: sym)
+  next
+    case 2
+    with Iff[of v] show ?case
+      by (cases vp) (auto 0 3 intro: SAT_VIO.intros dest: sym)
+  }
+next
+  case (Exists x \<phi>)
+  {
+    case 1
+    with Exists[of "v(x := _)"] show ?case
+      by (cases sp) (auto intro: SAT_VIO.intros simp del: fun_upd_apply)
+  next
+    case 2
+    with Exists[of "v(x := _)"] show ?case
+      apply (cases vp)
+                          apply (auto intro!: SAT_VIO.intros simp del: fun_upd_apply)
+      sorry
+  }
+next
+  case (Forall x \<phi>)
+  {
+    case 1
+    then show ?case sorry
+  next
+    case 2
+    then show ?case sorry
+  }
+next
+  case (Prev I \<phi>)
+  {
+    case 1
+    then show ?case sorry
+  next
+    case 2
+    then show ?case sorry
+  }
+next
+  case (Next I \<phi>)
+  {
+    case 1
+    then show ?case sorry
+  next
+    case 2
+    then show ?case sorry
+  }
+next
+  case (Once I \<phi>)
+  {
+    case 1
+    then show ?case sorry
+  next
+    case 2
+    then show ?case sorry
+  }
+next
+  case (Historically I \<phi>)
+  {
+    case 1
+    then show ?case sorry
+  next
+    case 2
+    then show ?case sorry
+  }
+next
+  case (Eventually I \<phi>)
+  {
+    case 1
+    then show ?case sorry
+  next
+    case 2
+    then show ?case sorry
+  }
+next
+  case (Always I \<phi>)
+  {
+    case 1
+    then show ?case sorry
+  next
+    case 2
+    then show ?case sorry
+  }
+next
+  case (Since \<phi>1 I \<phi>2)
+  {
+    case 1
+    then show ?case sorry
+  next
+    case 2
+    then show ?case sorry
+  }
+next
+  case (Until \<phi>1 I \<phi>2)
+  {
+    case 1
+    then show ?case sorry
+  next
+    case 2
+    then show ?case sorry
+  }
+qed
 
 primrec fst_pos :: "'a list \<Rightarrow> 'a \<Rightarrow> nat option" 
   where "fst_pos [] x = None" 
@@ -1356,6 +1543,14 @@ next
   }
 qed
 
+lemma s_check_code[code]: "s_check v \<phi> sp = s_check_exec (\<lambda>x. {v x}) \<phi> sp"
+  by (subst check_exec_check)
+    (auto simp: compatible_vals_def elim: check_fv_cong[THEN iffD2, rotated])
+
+lemma v_check_code[code]: "v_check v \<phi> vp = v_check_exec (\<lambda>x. {v x}) \<phi> vp"
+  by (subst check_exec_check)
+    (auto simp: compatible_vals_def elim: check_fv_cong[THEN iffD2, rotated])
+
 lift_definition trivial_part :: "'pt \<Rightarrow> ('d, 'pt) part" is "\<lambda>pt. [(UNIV, pt)]"
   by (simp add: partition_on_space)
 
@@ -2086,5 +2281,5 @@ termination
   sorry
 
 end
-
+find_theorems "s_check" VIO
 end
