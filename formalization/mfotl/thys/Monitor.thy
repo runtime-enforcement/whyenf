@@ -658,7 +658,7 @@ lemma val_notin_AD_iff:
 lemma check_cong:
   assumes "(\<forall>x \<in> MFOTL.fv \<phi>. v1 x = v2 x \<or> v1 x \<notin> AD \<phi> i \<and> v2 x \<notin> AD \<phi> i)"
   shows "(s_at sp = i \<Longrightarrow> s_check v1 \<phi> sp \<longleftrightarrow> s_check v2 \<phi> sp)"
-    "(v_at vp = i \<Longrightarrow> v_check v1 \<phi> vp \<longleftrightarrow> v_check v2 \<phi> vp)"
+        "(v_at vp = i \<Longrightarrow> v_check v1 \<phi> vp \<longleftrightarrow> v_check v2 \<phi> vp)"
   using assms
 proof (induction v1 \<phi> sp and v1 \<phi> vp rule: s_check_v_check.induct)
   case (1 v f p)
@@ -1037,71 +1037,191 @@ next
   case (Or \<phi>1 \<phi>2)
   {
     case 1
-    then obtain v where "v \<in> compatible_vals (fv \<phi>1 \<union> fv \<phi>2) vs"
-      by auto
-    have comp_fv: "compatible_vals (fv \<phi>1) vs \<noteq> {}"
-      "compatible_vals (fv \<phi>2) vs \<noteq> {}"
-      using 1 by (auto simp: compatible_vals_union_eq)
-    {fix v'
-      assume "v' \<in> compatible_vals (fv \<phi>1) vs"
-      thm check_cong(1)[of \<phi>1 v "override_on v v' (fv \<phi>2 - fv \<phi>1)"]
-      term override_on
-    }
-    show ?case
-      using 1
-      apply (cases sp; clarsimp simp: )
-       apply (auto simp: )
-         prefer 3 using Or compatible_vals_union_eq apply (blast, blast)
-      using Or(1)[OF comp_fv(1) 1(2)] 
-      using check_cong(1)[of \<phi>1 _ _ "s_at (SOrL _)", OF _ refl] 
-      using compatible_vals_extensible[OF 1(2) _ Un_upper1, of _ "fv \<phi>1" "fv \<phi>2"]
-      apply (metis (no_types, lifting) Monitor.check_cong(1)) 
-      using Or(3)[OF comp_fv(2) 1(2)] 
-      using check_cong(1)[of \<phi>2 _ _ "s_at (SOrL _)", OF _ refl] 
-      using compatible_vals_extensible[OF 1(2) _ Un_upper2, of _ "fv \<phi>2" "fv \<phi>1" ]
-      by (metis (no_types, lifting) Monitor.check_cong(1)) 
+    then have comp_fv: "compatible_vals (fv \<phi>1) vs \<noteq> {}" "compatible_vals (fv \<phi>2) vs \<noteq> {}"
+      by (auto simp: compatible_vals_union_eq)
+    from 1(1) show ?case
+    proof (cases sp)
+      case (SOrL sp')
+      from check_fv_cong(1)[of \<phi>1 _ _ sp'] show ?thesis
+        unfolding SOrL s_check_exec_simps s_check_simps fv.simps Or(1)[OF comp_fv(1) 1(2), of sp']
+        by (metis (mono_tags, lifting) 1(2) IntE Un_upper1 compatible_vals_extensible compatible_vals_union_eq)
+    next
+      case (SOrR sp')
+      from check_fv_cong(1)[of \<phi>2 _ _ sp'] show ?thesis
+        unfolding SOrR s_check_exec_simps s_check_simps fv.simps Or(3)[OF comp_fv(2) 1(2), of sp']
+        by (metis (mono_tags, lifting) 1(2) IntE Un_upper2 compatible_vals_extensible compatible_vals_union_eq)
+    qed (auto simp: compatible_vals_union_eq)
   next
     case 2
-    then show ?case sorry
+    then have comp_fv: "compatible_vals (fv \<phi>1) vs \<noteq> {}" "compatible_vals (fv \<phi>2) vs \<noteq> {}"
+      by (auto simp: compatible_vals_union_eq)
+    from 2(1) show ?case
+    proof (cases vp)
+      case (VOr vp1 vp2)
+      from check_fv_cong(2)[of \<phi>1 _ _ vp1] check_fv_cong(2)[of \<phi>2 _ _ vp2] show ?thesis
+        unfolding VOr v_check_exec_simps v_check_simps fv.simps ball_conj_distrib
+           Or(2)[OF comp_fv(1) 2(2), of vp1]  Or(4)[OF comp_fv(2) 2(2), of vp2]
+        apply (intro conj_cong)
+        apply (metis (mono_tags, lifting) 2(2) IntE Un_upper1 compatible_vals_extensible compatible_vals_union_eq)
+        apply (metis (mono_tags, lifting) 2(2) IntE Un_upper2 compatible_vals_extensible compatible_vals_union_eq)
+        apply (metis 2(1) equals0I fv.simps(5))
+        done
+    qed (auto simp: compatible_vals_union_eq)
   }
 next
   case (And \<phi>1 \<phi>2)
   {
     case 1
-    then show ?case
-      using 1 apply (cases sp; clarsimp simp: )
-      apply (auto)
-      sorry
+    then have comp_fv: "compatible_vals (fv \<phi>1) vs \<noteq> {}" "compatible_vals (fv \<phi>2) vs \<noteq> {}"
+      by (auto simp: compatible_vals_union_eq)
+    from 1(1) show ?case
+    proof (cases sp)
+      case (SAnd sp1 sp2)
+      from check_fv_cong(1)[of \<phi>1 _ _ sp1] check_fv_cong(1)[of \<phi>2 _ _ sp2] show ?thesis
+        unfolding SAnd s_check_exec_simps s_check_simps fv.simps ball_conj_distrib
+           And(1)[OF comp_fv(1) 1(2), of sp1] And(3)[OF comp_fv(2) 1(2), of sp2]
+        apply (intro conj_cong)
+        apply (metis (mono_tags, lifting) 1(2) IntE Un_upper1 compatible_vals_extensible compatible_vals_union_eq)
+        apply (metis (mono_tags, lifting) 1(2) IntE Un_upper2 compatible_vals_extensible compatible_vals_union_eq)
+        apply (metis 1(1) equals0I fv.simps(6))
+        done
+    qed (auto simp: compatible_vals_union_eq)
   next
     case 2
-    then show ?case sorry
+    then have comp_fv: "compatible_vals (fv \<phi>1) vs \<noteq> {}" "compatible_vals (fv \<phi>2) vs \<noteq> {}"
+      by (auto simp: compatible_vals_union_eq)
+    from 2(1) show ?case
+    proof (cases vp)
+      case (VAndL vp')
+      from check_fv_cong(2)[of \<phi>1 _ _ vp'] show ?thesis
+        unfolding VAndL v_check_exec_simps v_check_simps fv.simps And(2)[OF comp_fv(1) 2(2), of vp']
+        by (metis (mono_tags, lifting) 2(2) IntE Un_upper1 compatible_vals_extensible compatible_vals_union_eq)
+    next
+      case (VAndR vp')
+      from check_fv_cong(2)[of \<phi>2 _ _ vp'] show ?thesis
+        unfolding VAndR v_check_exec_simps v_check_simps fv.simps And(4)[OF comp_fv(2) 2(2), of vp']
+        by (metis (mono_tags, lifting) 2(2) IntE Un_upper2 compatible_vals_extensible compatible_vals_union_eq)
+    qed (auto simp: compatible_vals_union_eq)
   }
 next
   case (Imp \<phi>1 \<phi>2)
   {
     case 1
-    then show ?case sorry
+    then have comp_fv: "compatible_vals (fv \<phi>1) vs \<noteq> {}" "compatible_vals (fv \<phi>2) vs \<noteq> {}"
+      by (auto simp: compatible_vals_union_eq)
+    from 1(1) show ?case
+    proof (cases sp)
+      case (SImpL vp')
+      from check_fv_cong(2)[of \<phi>1 _ _ vp'] show ?thesis
+        unfolding SImpL s_check_exec_simps s_check_simps fv.simps Imp(2)[OF comp_fv(1) 1(2), of vp']
+        by (metis (mono_tags, lifting) 1(2) IntE Un_upper1 compatible_vals_extensible compatible_vals_union_eq)
+    next
+      case (SImpR sp')
+      from check_fv_cong(1)[of \<phi>2 _ _ sp'] show ?thesis
+        unfolding SImpR s_check_exec_simps s_check_simps fv.simps Imp(3)[OF comp_fv(2) 1(2), of sp']
+        by (metis (mono_tags, lifting) 1(2) IntE Un_upper2 compatible_vals_extensible compatible_vals_union_eq)
+    qed (auto simp: compatible_vals_union_eq)
   next
     case 2
-    then show ?case sorry
+    then have comp_fv: "compatible_vals (fv \<phi>1) vs \<noteq> {}" "compatible_vals (fv \<phi>2) vs \<noteq> {}"
+      by (auto simp: compatible_vals_union_eq)
+    from 2(1) show ?case
+    proof (cases vp)
+      case (VImp sp1 vp2)
+      from check_fv_cong(1)[of \<phi>1 _ _ sp1] check_fv_cong(2)[of \<phi>2 _ _ vp2] show ?thesis
+        unfolding VImp v_check_exec_simps v_check_simps fv.simps ball_conj_distrib
+           Imp(1)[OF comp_fv(1) 2(2), of sp1] Imp(4)[OF comp_fv(2) 2(2), of vp2]
+        apply (intro conj_cong)
+        apply (metis (mono_tags, lifting) 2(2) IntE Un_upper1 compatible_vals_extensible compatible_vals_union_eq)
+        apply (metis (mono_tags, lifting) 2(2) IntE Un_upper2 compatible_vals_extensible compatible_vals_union_eq)
+        apply (metis 2(1) equals0I fv.simps(7))
+        done
+    qed (auto simp: compatible_vals_union_eq)
   }
 next
   case (Iff \<phi>1 \<phi>2)
   {
     case 1
-    then show ?case sorry
+    then have comp_fv: "compatible_vals (fv \<phi>1) vs \<noteq> {}" "compatible_vals (fv \<phi>2) vs \<noteq> {}"
+      by (auto simp: compatible_vals_union_eq)
+    from 1(1) show ?case
+    proof (cases sp)
+      case (SIffSS sp1 sp2)
+      from check_fv_cong(1)[of \<phi>1 _ _ sp1] check_fv_cong(1)[of \<phi>2 _ _ sp2] show ?thesis
+        unfolding SIffSS s_check_exec_simps s_check_simps fv.simps ball_conj_distrib
+           Iff(1)[OF comp_fv(1) 1(2), of sp1] Iff(3)[OF comp_fv(2) 1(2), of sp2]
+        apply (intro conj_cong)
+        apply (metis (mono_tags, lifting) 1(2) IntE Un_upper1 compatible_vals_extensible compatible_vals_union_eq)
+        apply (metis (mono_tags, lifting) 1(2) IntE Un_upper2 compatible_vals_extensible compatible_vals_union_eq)
+        apply (metis 1(1) equals0I fv.simps(8))
+        done
+    next
+      case (SIffVV vp1 vp2)
+      from check_fv_cong(2)[of \<phi>1 _ _ vp1] check_fv_cong(2)[of \<phi>2 _ _ vp2] show ?thesis
+        unfolding SIffVV s_check_exec_simps s_check_simps fv.simps ball_conj_distrib
+           Iff(2)[OF comp_fv(1) 1(2), of vp1] Iff(4)[OF comp_fv(2) 1(2), of vp2]
+        apply (intro conj_cong)
+        apply (metis (mono_tags, lifting) 1(2) IntE Un_upper1 compatible_vals_extensible compatible_vals_union_eq)
+        apply (metis (mono_tags, lifting) 1(2) IntE Un_upper2 compatible_vals_extensible compatible_vals_union_eq)
+        apply (metis 1(1) equals0I fv.simps(8))
+        done
+    qed (auto simp: compatible_vals_union_eq)
   next
     case 2
-    then show ?case sorry
+    then have comp_fv: "compatible_vals (fv \<phi>1) vs \<noteq> {}" "compatible_vals (fv \<phi>2) vs \<noteq> {}"
+      by (auto simp: compatible_vals_union_eq)
+    from 2(1) show ?case
+    proof (cases vp)
+      case (VIffSV sp1 vp2)
+      from check_fv_cong(1)[of \<phi>1 _ _ sp1] check_fv_cong(2)[of \<phi>2 _ _ vp2] show ?thesis
+        unfolding VIffSV v_check_exec_simps v_check_simps fv.simps ball_conj_distrib
+           Iff(1)[OF comp_fv(1) 2(2), of sp1] Iff(4)[OF comp_fv(2) 2(2), of vp2]
+        apply (intro conj_cong)
+        apply (metis (mono_tags, lifting) 2(2) IntE Un_upper1 compatible_vals_extensible compatible_vals_union_eq)
+        apply (metis (mono_tags, lifting) 2(2) IntE Un_upper2 compatible_vals_extensible compatible_vals_union_eq)
+        apply (metis 2(1) equals0I fv.simps(8))
+        done
+    next
+      case (VIffVS vp1 sp2)
+      from check_fv_cong(2)[of \<phi>1 _ _ vp1] check_fv_cong(1)[of \<phi>2 _ _ sp2] show ?thesis
+        unfolding VIffVS v_check_exec_simps v_check_simps fv.simps ball_conj_distrib
+           Iff(2)[OF comp_fv(1) 2(2), of vp1] Iff(3)[OF comp_fv(2) 2(2), of sp2]
+        apply (intro conj_cong)
+        apply (metis (mono_tags, lifting) 2(2) IntE Un_upper1 compatible_vals_extensible compatible_vals_union_eq)
+        apply (metis (mono_tags, lifting) 2(2) IntE Un_upper2 compatible_vals_extensible compatible_vals_union_eq)
+        apply (metis 2(1) equals0I fv.simps(8))
+        done
+    qed (auto simp: compatible_vals_union_eq)
   }
 next
-  case (Exists x1 \<phi>)
+  case (Exists x \<phi>)
   {
     case 1
-    then show ?case sorry
+    then have "(vs(x := Z)) y \<noteq> {}" if "Z \<noteq> {}" for Z y
+      using that by auto
+    with 1 have IH:
+    "s_check_exec (vs(x := {z})) \<phi> sp = (\<forall>v\<in>compatible_vals (fv \<phi>) (vs(x := {z})). s_check v \<phi> sp)"
+    for z sp
+      by (intro Exists;
+         auto simp: compatible_vals_fun_upd fun_upd_same
+            simp del: fun_upd_apply intro: fun_upd_in_compatible_vals)+
+    from 1(1) show ?case
+      by (cases sp) (auto simp: SubsVals_nonempty IH fun_upd_in_compatible_vals_notin compatible_vals_fun_upd)
   next
-    case 2
-    then show ?case sorry
+case 2
+    then have "(vs(x := Z)) y \<noteq> {}" if "Z \<noteq> {}" for Z y
+      using that by auto
+    with 2 have IH:
+    "Z \<noteq> {} \<Longrightarrow> v_check_exec (vs(x := Z)) \<phi> vp = (\<forall>v\<in>compatible_vals (fv \<phi>) (vs(x := Z)). v_check v \<phi> vp)"
+    for Z vp
+      by (intro Exists;
+         auto simp: compatible_vals_fun_upd fun_upd_same
+            simp del: fun_upd_apply intro: fun_upd_in_compatible_vals)+
+    show ?case
+      by (cases vp)
+        (auto simp: SubsVals_nonempty IH[OF SubsVals_nonempty]
+        fun_upd_in_compatible_vals fun_upd_in_compatible_vals_notin compatible_vals_fun_upd
+        ball_conj_distrib 2(1)[simplified] split: prod.splits if_splits | drule bspec, assumption)+
   }
 next
   case (Forall x \<phi>)
@@ -1134,7 +1254,7 @@ next
       by (cases vp) (auto simp: SubsVals_nonempty IH fun_upd_in_compatible_vals_notin compatible_vals_fun_upd)
   }
 next
-  case (Prev x1 \<phi>)
+  case (Prev I \<phi>)
   {
     case 1
     then show ?case sorry
@@ -1143,7 +1263,7 @@ next
     then show ?case sorry
   }
 next
-  case (Next x1 \<phi>)
+  case (Next I \<phi>)
   {
     case 1
     then show ?case sorry
