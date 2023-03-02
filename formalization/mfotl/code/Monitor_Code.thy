@@ -748,25 +748,9 @@ lemma ccompare_sproof_code[code]: "CCOMPARE('a::ccompare sproof) = (case ID CCOM
 lemma ccompare_vproof_code[code]: "CCOMPARE('a::ccompare vproof) = (case ID CCOMPARE('a) of None \<Rightarrow> None | Some comp_'a \<Rightarrow> Some comparator_vproof')"
   by (auto simp: ccompare_vproof_def comparator_vproof'_def split: option.splits)
 
-definition execute_trivial_opt where
- "execute_trivial_opt \<sigma> vars i \<phi> = Monitor.opt \<sigma> (\<lambda>p1 p2. (p_pred (\<lambda> _. 1) p1) \<le> (p_pred (\<lambda> _. 1) p2)) vars i \<phi>"
-
-definition mytrace :: "nat MFOTL.trace" where 
-  "mytrace = trace_of_list [({(''p'', [1::nat])}, 0::nat)]"
-
-term "(MFOTL.Pred ''p'' [MFOTL.Var ''x''])"
-
-thm vals.rep_eq
-
-code_thms merge_part
-
-find_theorems "map_part" "Rep_part"
-
 lemma map_part_code[code]: "Rep_part (map_part f xs) = map (map_prod id f) (Rep_part xs)"
   using Rep_part[of xs]
   by (auto simp: map_part_def intro!: Abs_part_inverse)
-
-value mytrace
 
 instantiation nat :: default begin
 definition default_nat :: nat where "default_nat = 0"
@@ -778,15 +762,19 @@ definition default_list :: "'a list" where "default_list = []"
 instance proof qed
 end
 
-definition foo where "foo = execute_trivial_opt mytrace [''x''] (0::nat) (MFOTL.Pred ''p'' [MFOTL.Var ''x''] :: nat MFOTL.formula)"
-
 derive (no) ceq MFOTL.trm
 derive (monad) set_impl MFOTL.trm
 derive (no) ceq MFOTL.formula
 derive (no) ccompare MFOTL.formula
 derive (monad) set_impl MFOTL.formula
 
-value foo
+definition execute_trivial_opt where
+ "execute_trivial_opt \<sigma> vars i \<phi> = Monitor.opt \<sigma> (\<lambda>p1 p2. (p_pred (\<lambda> _. 1) p1) \<le> (p_pred (\<lambda> _. 1) p2)) vars i \<phi>"
+
+definition mytrace :: "nat MFOTL.trace" where 
+  "mytrace = trace_of_list [({(''p'', [1::nat])}, 0::nat)]"
+
+value "execute_trivial_opt mytrace [''x''] (0::nat) (MFOTL.Pred ''p'' [MFOTL.Var ''x''] :: nat MFOTL.formula)"
 
 definition mytrace2 :: "string MFOTL.trace" where 
   "mytrace2 = trace_of_list
