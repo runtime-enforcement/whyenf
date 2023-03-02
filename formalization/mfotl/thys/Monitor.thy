@@ -130,7 +130,7 @@ fun s_check :: "'d MFOTL.env \<Rightarrow> 'd MFOTL.formula \<Rightarrow> 'd spr
 | "v_check v f p = (case (f, p) of
     (MFOTL.FF, VFF i) \<Rightarrow> True
   | (MFOTL.Pred r ts, VPred i pred ts') \<Rightarrow> 
-    (r = pred \<and> ts = ts' \<and> (r, map (MFOTL.eval_trm v) ts) \<notin> \<Gamma> \<sigma> i)
+    (r = pred \<and> ts = ts' \<and> (r, MFOTL.eval_trms v ts) \<notin> \<Gamma> \<sigma> i)
   | (MFOTL.Neg \<phi>, VNeg sp) \<Rightarrow> s_check v \<phi> sp
   | (MFOTL.Or \<phi> \<psi>, VOr vp1 vp2) \<Rightarrow> v_check v \<phi> vp1 \<and> v_check v \<psi> vp2 \<and> v_at vp1 = v_at vp2
   | (MFOTL.And \<phi> \<psi>, VAndL vp1) \<Rightarrow> v_check v \<phi> vp1
@@ -738,6 +738,233 @@ next
   then show ?case sorry
 qed
 
+lemma compatible_vals_fun_upd: "compatible_vals A (vs(x := X)) =
+  (if x \<in> A then {v \<in> compatible_vals (A - {x}) vs. v x \<in> X} else compatible_vals A vs)"
+  unfolding compatible_vals_def
+  by auto
+
+lemma fun_upd_in_compatible_vals: "v \<in> compatible_vals (A - {x}) vs \<Longrightarrow> v(x := t) \<in> compatible_vals (A - {x}) vs"
+  unfolding compatible_vals_def
+  by auto
+
+lemma fun_upd_in_compatible_vals_notin: "x \<notin> A \<Longrightarrow> v \<in> compatible_vals A vs \<Longrightarrow> v(x := t) \<in> compatible_vals A vs"
+  unfolding compatible_vals_def
+  by auto
+
+lemma check_fv_cong:
+  assumes "\<forall>x \<in> fv \<phi>. v x = v' x"
+  shows "s_check v \<phi> sp \<longleftrightarrow> s_check v' \<phi> sp" "v_check v \<phi> vp \<longleftrightarrow> v_check v' \<phi> vp"
+  using assms
+proof (induct \<phi> arbitrary: v v' sp vp)
+  case TT
+  {
+    case 1
+    then show ?case
+      by (cases sp) auto
+  next
+    case 2
+    then show ?case
+      by (cases vp) auto
+  }
+next
+  case FF
+  {
+    case 1
+    then show ?case
+      by (cases sp) auto
+  next
+    case 2
+    then show ?case 
+      by (cases vp) auto
+  }
+next
+  case (Pred p ts)
+  {
+    case 1
+    with Pred show ?case using eval_trms_fv_cong[of ts v v']
+      by (cases sp) auto
+  next
+    case 2
+    with Pred show ?case using eval_trms_fv_cong[of ts v v']
+      by (cases vp) auto
+  }
+next
+  case (Neg \<phi>)
+  {
+    case 1
+    with Neg[of v v'] show ?case
+      by (cases sp) auto
+  next
+    case 2
+    with Neg[of v v'] show ?case 
+      by (cases vp) auto
+  }
+next
+  case (Or \<phi>1 \<phi>2)
+  {
+    case 1
+    with Or[of v v'] show ?case
+      by (cases sp) auto
+  next
+    case 2
+    with Or[of v v'] show ?case
+      by (cases vp) auto
+  }
+next
+  case (And \<phi>1 \<phi>2)
+  {
+    case 1
+    with And[of v v'] show ?case
+      by (cases sp) auto
+  next
+    case 2
+    with And[of v v'] show ?case
+      by (cases vp) auto
+  }
+next
+  case (Imp \<phi>1 \<phi>2)
+  {
+    case 1
+    with Imp[of v v'] show ?case
+      by (cases sp) auto
+  next
+    case 2
+    with Imp[of v v'] show ?case
+      by (cases vp) auto
+  }
+next
+  case (Iff \<phi>1 \<phi>2)
+  {
+    case 1
+    with Iff[of v v'] show ?case
+      by (cases sp) auto
+  next
+    case 2
+    with Iff[of v v'] show ?case
+      by (cases vp) auto
+  }
+next
+  case (Exists x1 \<phi>)
+  {
+    case 1
+    with Exists[of "v(x1 := z)" "v'(x1 := z)" for z] show ?case
+      by (cases sp) (auto simp: fun_upd_def)
+  next
+    case 2
+    with Exists[of "v(x1 := z)" "v'(x1 := z)" for z] show ?case
+      by (cases vp) (auto simp: fun_upd_def)
+  }
+next
+  case (Forall x1 \<phi>)
+  {
+    case 1
+    with Forall[of "v(x1 := z)" "v'(x1 := z)" for z] show ?case
+      by (cases sp) (auto simp: fun_upd_def)
+  next
+    case 2
+    with Forall[of "v(x1 := z)" "v'(x1 := z)" for z] show ?case
+      by (cases vp) (auto simp: fun_upd_def)
+  }
+next
+  case (Prev x1 \<phi>)
+  {
+    case 1
+    with Prev[of v v'] show ?case
+      by (cases sp) auto
+  next
+    case 2
+    with Prev[of v v'] show ?case
+      by (cases vp) auto
+  }
+next
+  case (Next x1 \<phi>)
+  {
+    case 1
+    with Next[of v v'] show ?case
+      by (cases sp) auto
+  next
+    case 2
+    with Next[of v v'] show ?case
+      by (cases vp) auto
+  }
+next
+  case (Once x1 \<phi>)
+  {
+    case 1
+    with Once[of v v'] show ?case
+      by (cases sp) auto
+  next
+    case 2
+    with Once[of v v'] show ?case
+      by (cases vp) auto
+  }
+next
+  case (Historically x1 \<phi>)
+  {
+    case 1
+    with Historically[of v v'] show ?case
+      by (cases sp) auto
+  next
+    case 2
+    with Historically[of v v'] show ?case
+      by (cases vp) auto
+  }
+next
+  case (Eventually x1 \<phi>)
+  {
+    case 1
+    with Eventually[of v v'] show ?case
+      by (cases sp) auto
+  next
+    case 2
+    with Eventually[of v v'] show ?case
+      by (cases vp) auto
+  }
+next
+  case (Always x1 \<phi>)
+  {
+    case 1
+    with Always[of v v'] show ?case
+      by (cases sp) auto
+  next
+    case 2
+    with Always[of v v'] show ?case
+      by (cases vp) auto
+  }
+next
+  case (Since \<phi>1 x2 \<phi>2)
+  {
+    case 1
+    with Since[of v v'] show ?case
+      by (cases sp) auto
+  next
+    case 2
+    with Since[of v v'] show ?case
+      by (cases vp) auto
+  }
+next
+  case (Until \<phi>1 x2 \<phi>2)
+  {
+    case 1
+    with Until[of v v'] show ?case
+      by (cases sp) auto
+  next
+    case 2
+    with Until[of v v'] show ?case
+      by (cases vp) auto
+  }
+qed
+
+lemma s_check_fun_upd_notin[simp]:
+  "x \<notin> fv \<phi> \<Longrightarrow> s_check (v(x := t)) \<phi> sp = s_check v \<phi> sp"
+  by (rule check_fv_cong) auto
+lemma v_check_fun_upd_notin[simp]:
+  "x \<notin> fv \<phi> \<Longrightarrow> v_check (v(x := t)) \<phi> sp = v_check v \<phi> sp"
+  by (rule check_fv_cong) auto
+
+lemma SubsVals_nonempty: "(X, t) \<in> SubsVals part \<Longrightarrow> X \<noteq> {}"
+  by transfer (auto simp: partition_on_def image_iff)
+
 lemma check_exec_check:
   assumes "compatible_vals (fv \<phi>) vs \<noteq> {}" and "\<forall>x. vs x \<noteq> {}"
   shows "s_check_exec vs \<phi> sp \<longleftrightarrow> (\<forall>v \<in> compatible_vals (fv \<phi>) vs. s_check v \<phi> sp)" 
@@ -788,10 +1015,10 @@ next
            apply clarsimp
            apply clarsimp
          apply (elim conjE, clarsimp simp del: fv.simps)
-      apply (metis MFOTL.eval_trms_def MFOTL.eval_trms_set_def mk_values_complete)
+      apply (metis MFOTL.eval_trms_set_def mk_values_complete)
       using mk_values_sound apply blast
         using mk_values_sound apply blast
-        by (metis MFOTL.eval_trms_def MFOTL.eval_trms_set_def mk_values_sound)
+        by (metis MFOTL.eval_trms_set_def mk_values_sound)
   }
 next
   case (Neg \<phi>)
@@ -877,13 +1104,34 @@ next
     then show ?case sorry
   }
 next
-  case (Forall x1 \<phi>)
+  case (Forall x \<phi>)
   {
     case 1
-    then show ?case sorry
+    then have "(vs(x := Z)) y \<noteq> {}" if "Z \<noteq> {}" for Z y
+      using that by auto
+    with 1 have IH:
+    "Z \<noteq> {} \<Longrightarrow> s_check_exec (vs(x := Z)) \<phi> sp = (\<forall>v\<in>compatible_vals (fv \<phi>) (vs(x := Z)). s_check v \<phi> sp)"
+    for Z sp
+      by (intro Forall;
+         auto simp: compatible_vals_fun_upd fun_upd_same
+            simp del: fun_upd_apply intro: fun_upd_in_compatible_vals)+
+    show ?case
+      by (cases sp)
+        (auto simp: SubsVals_nonempty IH[OF SubsVals_nonempty]
+        fun_upd_in_compatible_vals fun_upd_in_compatible_vals_notin compatible_vals_fun_upd
+        ball_conj_distrib 1(1)[simplified] split: prod.splits if_splits | drule bspec, assumption)+
   next
     case 2
-    then show ?case sorry
+    then have "(vs(x := Z)) y \<noteq> {}" if "Z \<noteq> {}" for Z y
+      using that by auto
+    with 2 have IH:
+    "v_check_exec (vs(x := {z})) \<phi> vp = (\<forall>v\<in>compatible_vals (fv \<phi>) (vs(x := {z})). v_check v \<phi> vp)"
+    for z vp
+      by (intro Forall;
+         auto simp: compatible_vals_fun_upd fun_upd_same
+            simp del: fun_upd_apply intro: fun_upd_in_compatible_vals)+
+    from 2(1) show ?case
+      by (cases vp) (auto simp: SubsVals_nonempty IH fun_upd_in_compatible_vals_notin compatible_vals_fun_upd)
   }
 next
   case (Prev x1 \<phi>)
