@@ -4,13 +4,50 @@ theory Monitor
 begin
 (*>*)
 
+lemma Cons_eq_upt_conv: "x # xs = [m ..< n] \<longleftrightarrow> m < n \<and> x = m \<and> xs = [Suc m ..< n]"
+  by (induct n arbitrary: xs) (force simp: Cons_eq_append_conv)+
+
+lemma map_setE[elim_format]: "map f xs = ys \<Longrightarrow> y \<in> set ys \<Longrightarrow> \<exists>x\<in>set xs. f x = y"
+  by (induct xs arbitrary: ys) auto
+
 lift_definition part_hd :: "('d, 'a) part \<Rightarrow> 'a" is "snd \<circ> hd" .
+
+lift_definition lookup_part :: "('d, 'a) part \<Rightarrow> 'd \<Rightarrow> 'a" is "\<lambda>xs d. snd (the (find (\<lambda>(D, _). d \<in> D) xs))" .
 
 lemma part_hd_Vals[simp]: "part_hd part \<in> Vals part"
   apply transfer
   subgoal for xs
     by (cases xs) (auto simp: partition_on_def)
   done
+
+lemma lookup_part_Vals[simp]: "lookup_part part d \<in> Vals part"
+  apply transfer
+  subgoal for xs d
+    apply (cases "find (\<lambda>(D, _). d \<in> D) xs")
+     apply (auto simp: partition_on_def find_None_iff find_Some_iff image_iff)
+     apply (metis UNIV_I UN_iff prod.collapse)
+    apply (metis (no_types, lifting) find_Some_iff nth_mem option.sel prod.simps(2))
+    done
+  done
+
+lemma lookup_part_SubsVals: "\<exists>D. d \<in> D \<and> (D, lookup_part part d) \<in> SubsVals part"
+  apply transfer
+  subgoal for d xs
+    apply (cases "find (\<lambda>(D, _). d \<in> D) xs")
+     apply (auto simp: partition_on_def find_None_iff find_Some_iff image_iff)
+     apply (metis UNIV_I UN_iff prod.collapse)
+    apply (metis (mono_tags, lifting) find_Some_iff nth_mem option.sel prod.exhaust_sel prod.simps(2))
+    done
+  done
+
+lemma size_lookup_part_estimation[termination_simp]: "size (lookup_part part d) < Suc (size_part (\<lambda>_. 0) size part)"
+  unfolding less_Suc_eq_le
+  by (rule size_part_estimation'[OF _ order_refl]) simp
+
+lemma subsvals_part_estimation[termination_simp]: "(D, e) \<in> set (subsvals part) \<Longrightarrow> size e < Suc (size_part (\<lambda>_. 0) size part)"
+  unfolding less_Suc_eq_le
+  by (rule size_part_estimation'[OF _ order_refl], transfer)
+    (force simp: image_iff)
 
 lemma size_part_hd_estimation[termination_simp]: "size (part_hd part) < Suc (size_part (\<lambda>_. 0) size part)"
   unfolding less_Suc_eq_le
@@ -205,190 +242,423 @@ simps_of_case s_check_simps[simp]: s_check.simps[unfolded prod.case] (splits: MF
 simps_of_case v_check_simps[simp]: v_check.simps[unfolded prod.case] (splits: MFOTL.formula.split vproof.split)
 
 
-lemma "s_check v \<phi> sp \<Longrightarrow> SAT \<sigma> v (s_at sp) \<phi>"
-      "v_check v \<phi> vp \<Longrightarrow> VIO \<sigma> v (v_at vp) \<phi>"
-proof (induct \<phi> arbitrary: v sp vp)
-  case TT
-  {
-    case 1
-    then show ?case
-      by (cases sp) (auto intro: SAT_VIO.intros)
-  next
-    case 2
-    then show ?case
-      by (cases vp) (auto intro: SAT_VIO.intros)
-  }
+lemma check_sound:
+  "s_check v \<phi> sp \<Longrightarrow> SAT \<sigma> v (s_at sp) \<phi>"
+  "v_check v \<phi> vp \<Longrightarrow> VIO \<sigma> v (v_at vp) \<phi>"
+proof (induction sp and vp arbitrary: v \<phi> and v \<phi>)
+  case STT
+  then show ?case by (cases \<phi>) (auto intro: SAT_VIO.STT)
 next
-  case FF
-  {
-    case 1
-    then show ?case
-      by (cases sp) (auto intro: SAT_VIO.intros)
-  next
-    case 2
-    then show ?case
-      by (cases vp) (auto intro: SAT_VIO.intros)
-  }
+  case SPred
+  then show ?case by (cases \<phi>) (auto intro: SAT_VIO.SPred)
 next
-  case (Pred x1 x2)
-  {
-    case 1
-    then show ?case
-      by (cases sp) (auto intro: SAT_VIO.intros)
-  next
-    case 2
-    then show ?case
-      by (cases vp) (auto intro: SAT_VIO.intros)
-  }
+  case SNeg
+  then show ?case by (cases \<phi>) (auto intro: SAT_VIO.SNeg)
 next
-  case (Neg \<phi>)
-  {
-    case 1
-    with Neg[of v] show ?case
-      by (cases sp) (auto intro: SAT_VIO.intros)
-  next
-    case 2
-    with Neg[of v] show ?case
-      by (cases vp) (auto intro: SAT_VIO.intros)
-  }
+  case SAnd
+  then show ?case by (cases \<phi>) (auto intro: SAT_VIO.SAnd)
 next
-  case (Or \<phi>1 \<phi>2)
-  {
-    case 1
-    with Or[of v] show ?case
-      by (cases sp) (auto intro: SAT_VIO.intros)
-  next
-    case 2
-    with Or[of v] show ?case
-      by (cases vp) (auto 0 3 intro: SAT_VIO.intros dest: sym)
-  }
+  case SOrL
+  then show ?case by (cases \<phi>) (auto intro: SAT_VIO.SOrL)
 next
-  case (And \<phi>1 \<phi>2)
-  {
-    case 1
-    with And[of v] show ?case
-      by (cases sp) (auto 0 3 intro: SAT_VIO.intros dest: sym)
-  next
-    case 2
-    with And[of v] show ?case
-      by (cases vp) (auto intro: SAT_VIO.intros)
-  }
+  case SOrR
+  then show ?case by (cases \<phi>) (auto intro: SAT_VIO.SOrR)
 next
-  case (Imp \<phi>1 \<phi>2)
-  {
-    case 1
-    with Imp[of v] show ?case
-      by (cases sp) (auto intro: SAT_VIO.intros)
-  next
-    case 2
-    with Imp[of v] show ?case
-      by (cases vp) (auto 0 3 intro: SAT_VIO.intros dest: sym)
-  }
+  case SImpR
+  then show ?case by (cases \<phi>) (auto intro: SAT_VIO.SImpR)
 next
-  case (Iff \<phi>1 \<phi>2)
-  {
-    case 1
-    with Iff[of v] show ?case
-      by (cases sp) (auto 0 3 intro: SAT_VIO.intros dest: sym)
-  next
-    case 2
-    with Iff[of v] show ?case
-      by (cases vp) (auto 0 3 intro: SAT_VIO.intros dest: sym)
-  }
+  case SImpL
+  then show ?case by (cases \<phi>) (auto intro: SAT_VIO.SImpL)
 next
-  case (Exists x \<phi>)
-  {
-    case 1
-    with Exists[of "v(x := _)"] show ?case
-      by (cases sp) (auto intro: SAT_VIO.intros simp del: fun_upd_apply)
-  next
-    case 2
-    with Exists[of "v(x := _)"] show ?case
-      apply (cases vp)
-                          apply (auto intro!: SAT_VIO.intros simp del: fun_upd_apply)
-      sorry
-  }
+  case SIffSS
+  then show ?case by (cases \<phi>) (auto intro: SAT_VIO.SIffSS)
 next
-  case (Forall x \<phi>)
-  {
-    case 1
-    then show ?case sorry
-  next
-    case 2
-    then show ?case sorry
-  }
+  case SIffVV
+  then show ?case by (cases \<phi>) (auto intro: SAT_VIO.SIffVV)
 next
-  case (Prev I \<phi>)
-  {
-    case 1
-    then show ?case sorry
-  next
-    case 2
-    then show ?case sorry
-  }
+  case (SExists x z sp)
+  with SExists(1)[of "v(x := z)"] show ?case
+    by (cases \<phi>) (auto intro: SAT_VIO.SExists)
 next
-  case (Next I \<phi>)
-  {
-    case 1
-    then show ?case sorry
-  next
-    case 2
-    then show ?case sorry
-  }
+  case (SForall x part)
+  then show ?case
+  proof (cases \<phi>)
+      case (Forall y \<psi>)
+      show ?thesis unfolding Forall
+      proof (intro SAT_VIO.SForall allI)
+        fix z
+        let ?sp = "lookup_part part z"
+        from lookup_part_SubsVals[of z part] obtain D where "z \<in> D" "(D, ?sp) \<in> SubsVals part"
+          by blast
+        with SForall(2-) Forall have "s_check (v(y := z)) \<psi> ?sp" "s_at ?sp = s_at (SForall x part)"
+          by auto
+        then show "SAT \<sigma> (v(y := z)) (s_at (SForall x part)) \<psi>"
+          by (auto simp del: fun_upd_apply dest!: SForall(1)[rotated])
+      qed
+    qed auto
 next
-  case (Once I \<phi>)
-  {
-    case 1
-    then show ?case sorry
-  next
-    case 2
-    then show ?case sorry
-  }
+  case (SSince spsi sps)
+  then show ?case
+  proof (cases \<phi>)
+    case (Since \<phi> I \<psi>)
+    show ?thesis
+      using SSince
+      unfolding Since
+      apply (intro SAT_VIO.SSince[of "s_at spsi"])
+         apply (auto simp: Let_def le_Suc_eq Cons_eq_append_conv Cons_eq_upt_conv
+          split: if_splits list.splits)
+      subgoal for k z zs
+        apply (cases "k \<le> s_at z")
+         apply (fastforce simp: le_Suc_eq elim!: map_setE[of _ _ _ k])+
+        done
+      done
+  qed auto
 next
-  case (Historically I \<phi>)
-  {
-    case 1
-    then show ?case sorry
-  next
-    case 2
-    then show ?case sorry
-  }
+  case (SOnce i sp)
+  then show ?case
+  proof (cases \<phi>)
+    case (Once I \<phi>)
+    show ?thesis
+      using SOnce
+      unfolding Once
+      apply (intro SAT_VIO.SOnce[of "s_at sp"])
+        apply (auto simp: Let_def)
+      done
+  qed auto
 next
-  case (Eventually I \<phi>)
-  {
-    case 1
-    then show ?case sorry
-  next
-    case 2
-    then show ?case sorry
-  }
+  case (SEventually i sp)
+  then show ?case
+  proof (cases \<phi>)
+    case (Eventually I \<phi>)
+    show ?thesis
+      using SEventually
+      unfolding Eventually
+      apply (intro SAT_VIO.SEventually[of _ "s_at sp"])
+        apply (auto simp: Let_def)
+      done
+  qed auto
 next
-  case (Always I \<phi>)
-  {
-    case 1
-    then show ?case sorry
-  next
-    case 2
-    then show ?case sorry
-  }
+  case SHistoricallyOut
+  then show ?case by (cases \<phi>) (auto intro: SAT_VIO.SHistoricallyOut)
 next
-  case (Since \<phi>1 I \<phi>2)
-  {
-    case 1
-    then show ?case sorry
-  next
-    case 2
-    then show ?case sorry
-  }
+  case (SHistorically i li sps)
+  then show ?case
+  proof (cases \<phi>)
+    case (Historically I \<phi>)
+    {fix k
+      define j where j_def: "j \<equiv> case right I of \<infinity> \<Rightarrow> 0 | enat n \<Rightarrow> ETP \<sigma> (\<tau>  \<sigma> i - n)"
+      assume k_def: "k \<ge> j \<and> k \<le> i \<and> k \<le> LTP \<sigma> (\<tau> \<sigma> i - left I)"
+      from SHistorically Historically j_def have map: "set (map s_at sps) = set [j ..< Suc (LTP_p \<sigma> i I)]"
+        by (auto simp: Let_def)
+      then have kset: "k \<in> set ([j ..< Suc (LTP_p \<sigma> i I)])" using j_def k_def by auto
+      then obtain x where x: "x \<in> set sps"  "s_at x = k" using k_def map
+        apply auto
+         apply (metis imageE insertI1)
+        by (metis list.set_map imageE kset map)
+      then have "SAT \<sigma> v k \<phi>" using SHistorically unfolding Historically
+        by (auto simp: Let_def)
+    } note * = this
+    show ?thesis
+      using SHistorically
+      unfolding Historically
+      apply (auto simp: Let_def intro!: SAT_VIO.SHistorically)
+      using SHistorically.IH *  by (auto split: if_splits)
+  qed (auto intro: SAT_VIO.intros)
 next
-  case (Until \<phi>1 I \<phi>2)
-  {
-    case 1
-    then show ?case sorry
-  next
-    case 2
-    then show ?case sorry
-  }
+  case (SAlways i hi sps)
+  then show ?case
+  proof (cases \<phi>)
+    case (Always I \<phi>)
+    obtain n where n_def: "right I = enat n"
+      using SAlways
+      by (auto simp: Always split: enat.splits)
+    {fix k  
+      define j where j_def: "j \<equiv> LTP \<sigma> (\<tau> \<sigma> i + n)"
+      assume k_def: "k \<le> j \<and> k \<ge> i \<and> k \<ge> ETP \<sigma> (\<tau> \<sigma> i + left I)"
+      from SAlways Always j_def have map: "set (map s_at sps) = set [(ETP_f \<sigma> i I) ..< Suc j]"
+        by (auto simp: Let_def n_def)
+      then have kset: "k \<in> set ([(ETP_f \<sigma> i I) ..< Suc j])" using k_def j_def by auto
+      then obtain x where x: "x \<in> set sps" "s_at x = k" using k_def map
+        apply auto
+         apply (metis imageE insertI1)
+        by (metis set_map imageE kset map)
+      then have "SAT \<sigma> v k \<phi>" using SAlways unfolding Always
+        by (auto simp: Let_def n_def)
+    } note * = this
+    then show ?thesis
+      using SAlways
+      unfolding Always
+      by (auto simp: Let_def n_def intro: SAT_VIO.SAlways split: if_splits enat.splits)
+  qed(auto intro: SAT_VIO.intros)
+next
+  case (SUntil sps spsi)
+  then show ?case
+  proof (cases \<phi>)
+    case (Until \<phi> I \<psi>)
+    show ?thesis
+      using SUntil
+      unfolding Until
+      apply (intro SAT_VIO.SUntil[of _ "s_at spsi"])
+         apply (auto simp: Let_def le_Suc_eq Cons_eq_append_conv Cons_eq_upt_conv
+          split: if_splits list.splits)
+      subgoal for k z zs
+        apply (cases "k \<le> s_at z")
+         apply (fastforce simp: le_Suc_eq elim!: map_setE[of _ _ _ k])+
+        done
+      done
+  qed auto
+next
+  case (SNext sp)
+  then show ?case by (cases \<phi>) (auto simp add: Let_def SAT_VIO.SNext)
+next
+  case (SPrev sp)
+  then show ?case by (cases \<phi>) (auto simp add: Let_def SAT_VIO.SPrev)
+next
+  case VFF
+  then show ?case by (cases \<phi>) (auto intro: SAT_VIO.VFF)
+next
+  case VPred
+  then show ?case by (cases \<phi>) (auto intro: SAT_VIO.VPred)
+next
+  case VNeg
+  then show ?case by (cases \<phi>) (auto intro: SAT_VIO.VNeg)
+next
+  case VOr
+  then show ?case by (cases \<phi>) (auto intro: SAT_VIO.VOr)
+next
+  case VAndL
+  then show ?case by (cases \<phi>) (auto intro: SAT_VIO.VAndL)
+next
+  case VAndR
+  then show ?case by (cases \<phi>) (auto intro: SAT_VIO.VAndR)
+next
+  case VImp
+  then show ?case by (cases \<phi>) (auto intro: SAT_VIO.VImp)
+next
+  case VIffSV
+  then show ?case by (cases \<phi>) (auto intro: SAT_VIO.VIffSV)
+next
+  case VIffVS
+  then show ?case by (cases \<phi>) (auto intro: SAT_VIO.VIffVS)
+next
+  case (VExists x part)
+  then show ?case
+  proof (cases \<phi>)
+      case (Exists y \<psi>)
+      show ?thesis unfolding Exists
+      proof (intro SAT_VIO.VExists allI)
+        fix z
+        let ?vp = "lookup_part part z"
+        from lookup_part_SubsVals[of z part] obtain D where "z \<in> D" "(D, ?vp) \<in> SubsVals part"
+          by blast
+        with VExists(2-) Exists have "v_check (v(y := z)) \<psi> ?vp" "v_at ?vp = v_at (VExists x part)"
+          by auto
+        then show "VIO \<sigma> (v(y := z)) (v_at (VExists x part)) \<psi>"
+          by (auto simp del: fun_upd_apply dest!: VExists(1)[rotated])
+      qed
+    qed auto
+next
+  case (VForall x z vp)
+  with VForall(1)[of "v(x := z)"] show ?case
+    by (cases \<phi>) (auto intro: SAT_VIO.VForall)
+next
+  case VOnceOut
+  then show ?case by (cases \<phi>) (auto intro: SAT_VIO.VOnceOut)
+next
+  case (VOnce i li vps)
+  then show ?case
+  proof (cases \<phi>)
+    case (Once I \<phi>)
+    {fix k
+      define j where j_def: "j \<equiv> case right I of \<infinity> \<Rightarrow> 0 | enat n \<Rightarrow> ETP \<sigma> (\<tau> \<sigma> i - n)"
+      assume k_def: "k \<ge> j \<and> k \<le> i \<and> k \<le> LTP \<sigma> (\<tau> \<sigma> i - left I)"
+      from VOnce Once j_def have map: "set (map v_at vps) = set [j ..< Suc (LTP_p \<sigma> i I)]"
+        by (auto simp: Let_def)
+      then have kset: "k \<in> set ([j ..< Suc (LTP_p \<sigma> i I)])" using j_def k_def by auto
+      then obtain x where x: "x \<in> set vps"  "v_at x = k" using k_def map
+        apply auto
+         apply (metis imageE insertI1)
+        by (metis list.set_map imageE kset map)
+      then have "VIO \<sigma> v k \<phi>" using VOnce unfolding Once
+        by (auto simp: Let_def)
+    } note * = this
+    show ?thesis
+      using VOnce
+      unfolding Once
+      apply (auto simp: Let_def intro!: SAT_VIO.VOnce)
+      using VOnce.IH *  by (auto split: if_splits)
+  qed (auto intro: SAT_VIO.intros)
+next
+  case (VEventually i hi vps)
+  then show ?case
+  proof (cases \<phi>)
+    case (Eventually I \<phi>)
+    obtain n where n_def: "right I = enat n"
+      using VEventually
+      by (auto simp: Eventually split: enat.splits)
+    {fix k  
+      define j where j_def: "j \<equiv> LTP \<sigma> (\<tau> \<sigma> i + n)"
+      assume k_def: "k \<le> j \<and> k \<ge> i \<and> k \<ge> ETP \<sigma> (\<tau> \<sigma> i + left I)"
+      from VEventually Eventually j_def have map: "set (map v_at vps) = set [(ETP_f \<sigma> i I) ..< Suc j]"
+        by (auto simp: Let_def n_def)
+      then have kset: "k \<in> set ([(ETP_f \<sigma> i I) ..< Suc j])" using k_def j_def by auto
+      then obtain x where x: "x \<in> set vps" "v_at x = k" using k_def map
+        apply auto
+         apply (metis imageE insertI1)
+        by (metis set_map imageE kset map)
+      then have "VIO \<sigma> v k \<phi>" using VEventually unfolding Eventually
+        by (auto simp: Let_def n_def)
+    } note * = this
+    then show ?thesis
+      using VEventually
+      unfolding Eventually
+      by (auto simp: Let_def n_def intro: SAT_VIO.VEventually split: if_splits enat.splits)
+  qed(auto intro: SAT_VIO.intros)
+next
+  case (VHistorically i vp)
+  then show ?case
+  proof (cases \<phi>)
+    case (Historically I \<phi>)
+    show ?thesis
+      using VHistorically
+      unfolding Historically
+      apply (intro SAT_VIO.VHistorically[of "v_at vp"])
+        apply (auto simp: Let_def)
+      done
+  qed auto
+next
+  case (VAlways i vp)
+  then show ?case
+  proof (cases \<phi>)
+    case (Always I \<phi>)
+    show ?thesis
+      using VAlways
+      unfolding Always
+      apply (intro SAT_VIO.VAlways[of _ "v_at vp"])
+        apply (auto simp: Let_def)
+      done
+  qed auto
+next
+  case VNext
+  then show ?case by (cases \<phi>) (auto intro: SAT_VIO.VNext)
+next
+  case VNextOutR
+  then show ?case by (cases \<phi>) (auto intro: SAT_VIO.VNextOutR)
+next
+  case VNextOutL
+  then show ?case by (cases \<phi>) (auto intro: SAT_VIO.VNextOutL)
+next
+  case VPrev
+  then show ?case by (cases \<phi>) (auto intro: SAT_VIO.VPrev)
+next
+  case VPrevOutR
+  then show ?case by (cases \<phi>) (auto intro: SAT_VIO.VPrevOutR)
+next
+  case VPrevOutL
+  then show ?case by (cases \<phi>) (auto intro: SAT_VIO.VPrevOutL)
+next
+  case VPrevZ
+  then show ?case by (cases \<phi>) (auto intro: SAT_VIO.VPrevZ)
+next
+  case VSinceOut
+  then show ?case by (cases \<phi>) (auto intro: SAT_VIO.VSinceOut)
+next
+  case (VSince i vp vps)
+  then show ?case
+  proof (cases \<phi>)
+    case (Since \<phi> I \<psi>)
+    {fix k
+      assume k_def: "k \<ge> v_at vp \<and> k \<le> i \<and> k \<le> LTP \<sigma> (\<tau> \<sigma> i - left I)"
+      from VSince Since have map: "set (map v_at vps) = set ([(v_at vp) ..< Suc (LTP_p \<sigma> i I)])"
+        by (auto simp: Let_def)
+      then have kset: "k \<in> set ([(v_at vp) ..< Suc (LTP_p \<sigma> i I)])" using k_def by auto
+      then obtain x where x: "x \<in> set vps" "v_at x = k" using k_def map kset
+        apply auto
+         apply (metis imageE insertI1)
+        by (metis list.set_map imageE kset map)
+      then have "VIO \<sigma> v k \<psi>" using VSince unfolding Since
+        by (auto simp: Let_def)
+    } note * = this
+    show ?thesis
+      using VSince
+      unfolding Since
+      apply (auto simp: Let_def split: enat.splits if_splits
+          intro!: SAT_VIO.VSince[of _ i "v_at vp"])
+      using VSince.IH * by (auto split: if_splits)
+  qed (auto intro: SAT_VIO.intros)
+next
+  case (VUntil i vps vp)
+  then show ?case
+  proof (cases \<phi>)
+    case (Until \<phi> I \<psi>)
+    {fix k
+      assume k_def: "k \<le> v_at vp \<and> k \<ge> i \<and> k \<ge> ETP \<sigma> (\<tau> \<sigma> i + left I)"
+      from VUntil Until have map: "set (map v_at vps) = set [(ETP_f \<sigma> i I) ..< Suc (v_at vp)]"
+        by (auto simp: Let_def)
+      then have kset: "k \<in> set ([(ETP_f \<sigma> i I) ..< Suc (v_at vp)])" using k_def by auto
+      then obtain x where x: "x \<in> set vps" "v_at x = k" using k_def map kset
+        apply auto
+         apply (metis imageE insertI1)
+        by (metis list.set_map imageE kset map)
+      then have "VIO \<sigma> v k \<psi>" using VUntil unfolding Until
+        by (auto simp: Let_def)
+    } note * = this
+    then show ?thesis
+      using VUntil
+      unfolding Until
+      by (auto simp: Let_def split: enat.splits if_splits
+          intro!: SAT_VIO.VUntil)
+  qed(auto intro: SAT_VIO.intros)
+next
+  case (VSinceInf i li vps)
+  then show ?case
+  proof (cases \<phi>)
+    case (Since \<phi> I \<psi>)
+    {fix k
+      define j where j_def: "j \<equiv> case right I of \<infinity> \<Rightarrow> 0 | enat n \<Rightarrow> ETP \<sigma> (\<tau> \<sigma> i - n)"
+      assume k_def: "k \<ge> j \<and> k \<le> i \<and> k \<le> LTP \<sigma> (\<tau> \<sigma> i - left I)"
+      from VSinceInf Since j_def have map: "set (map v_at vps) = set [j ..< Suc (LTP_p \<sigma> i I)]"
+        by (auto simp: Let_def)
+      then have kset: "k \<in> set ([j ..< Suc (LTP_p \<sigma> i I)])" using j_def k_def by auto
+      then obtain x where x: "x \<in> set vps"  "v_at x = k" using k_def map
+        apply auto
+         apply (metis imageE insertI1)
+        by (metis list.set_map imageE kset map)
+      then have "VIO \<sigma> v k \<psi>" using VSinceInf unfolding Since
+        by (auto simp: Let_def)
+    } note * = this
+    show ?thesis
+      using VSinceInf
+      unfolding Since
+      apply (auto simp: Let_def intro!: SAT_VIO.VSinceInf)
+      using VSinceInf.IH *  by (auto split: if_splits)
+  qed (auto intro: SAT_VIO.intros)
+next
+  case (VUntilInf i hi vps)
+  then show ?case
+  proof (cases \<phi>)
+    case (Until \<phi> I \<psi>)
+    obtain n where n_def: "right I = enat n"
+      using VUntilInf
+      by (auto simp: Until split: enat.splits)
+    {fix k  
+      define j where j_def: "j \<equiv> LTP \<sigma> (\<tau> \<sigma> i + n)"
+      assume k_def: "k \<le> j \<and> k \<ge> i \<and> k \<ge> ETP \<sigma> (\<tau> \<sigma> i + left I)"
+      from VUntilInf Until j_def have map: "set (map v_at vps) = set [(ETP_f \<sigma> i I) ..< Suc j]"
+        by (auto simp: Let_def n_def)
+      then have kset: "k \<in> set ([(ETP_f \<sigma> i I) ..< Suc j])" using k_def j_def by auto
+      then obtain x where x: "x \<in> set vps" "v_at x = k" using k_def map
+        apply auto
+         apply (metis imageE insertI1)
+        by (metis list.set_map imageE kset map)
+      then have "VIO \<sigma> v k \<psi>" using VUntilInf unfolding Until
+        by (auto simp: Let_def n_def)
+    } note * = this
+    then show ?thesis
+      using VUntilInf
+      unfolding Until
+      by (auto simp: Let_def n_def intro: SAT_VIO.VUntilInf split: if_splits enat.splits)
+  qed(auto intro: SAT_VIO.intros)
 qed
 
 primrec fst_pos :: "'a list \<Rightarrow> 'a \<Rightarrow> nat option" 
@@ -2287,5 +2557,5 @@ termination
   sorry
 
 end
-find_theorems "s_check" VIO
+
 end
