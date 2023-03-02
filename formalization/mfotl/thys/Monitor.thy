@@ -90,7 +90,8 @@ fun s_check :: "'d MFOTL.env \<Rightarrow> 'd MFOTL.formula \<Rightarrow> 'd spr
   | (MFOTL.Iff \<phi> \<psi>, SIffSS sp1 sp2) \<Rightarrow> s_check v \<phi> sp1 \<and> s_check v \<psi> sp2 \<and> s_at sp1 = s_at sp2
   | (MFOTL.Iff \<phi> \<psi>, SIffVV vp1 vp2) \<Rightarrow> v_check v \<phi> vp1 \<and> v_check v \<psi> vp2 \<and> v_at vp1 = v_at vp2
   | (MFOTL.Exists x \<phi>, SExists y val sp) \<Rightarrow> (x = y \<and> s_check (v (x := val)) \<phi> sp)
-  | (MFOTL.Forall x \<phi>, SForall y sp_part) \<Rightarrow> (x = y \<and> (\<forall>(sub, sp) \<in> SubsVals sp_part. \<forall>z \<in> sub. s_check (v (x := z)) \<phi> sp))
+  | (MFOTL.Forall x \<phi>, SForall y sp_part) \<Rightarrow> (let i = s_at (part_hd sp_part)
+      in x = y \<and> (\<forall>(sub, sp) \<in> SubsVals sp_part. s_at sp = i \<and> (\<forall>z \<in> sub. s_check (v (x := z)) \<phi> sp)))
   | (MFOTL.Prev I \<phi>, SPrev sp) \<Rightarrow>
     (let j = s_at sp; i = s_at (SPrev sp) in 
     i = j+1 \<and> mem (\<Delta> \<sigma> i) I \<and> s_check v \<phi> sp)
@@ -138,7 +139,8 @@ fun s_check :: "'d MFOTL.env \<Rightarrow> 'd MFOTL.formula \<Rightarrow> 'd spr
   | (MFOTL.Imp \<phi> \<psi>, VImp sp1 vp2) \<Rightarrow> s_check v \<phi> sp1 \<and> v_check v \<psi> vp2 \<and> s_at sp1 = v_at vp2
   | (MFOTL.Iff \<phi> \<psi>, VIffSV sp1 vp2) \<Rightarrow> s_check v \<phi> sp1 \<and> v_check v \<psi> vp2 \<and> s_at sp1 = v_at vp2
   | (MFOTL.Iff \<phi> \<psi>, VIffVS vp1 sp2) \<Rightarrow> v_check v \<phi> vp1 \<and> s_check v \<psi> sp2 \<and> v_at vp1 = s_at sp2
-  | (MFOTL.Exists x \<phi>, VExists y vp_part) \<Rightarrow> (x = y \<and> (\<forall>(sub, vp) \<in> SubsVals vp_part. \<forall>z \<in> sub. v_check (v (x := z)) \<phi> vp))
+  | (MFOTL.Exists x \<phi>, VExists y vp_part) \<Rightarrow> (let i = v_at (part_hd vp_part)
+      in x = y \<and> (\<forall>(sub, vp) \<in> SubsVals vp_part. v_at vp = i \<and> (\<forall>z \<in> sub. v_check (v (x := z)) \<phi> vp)))
   | (MFOTL.Forall x \<phi>, VForall y val vp) \<Rightarrow> (x = y \<and> v_check (v (x := val)) \<phi> vp)
   | (MFOTL.Prev I \<phi>, VPrev vp) \<Rightarrow>
     (let j = v_at vp; i = v_at (VPrev vp) in
@@ -542,7 +544,8 @@ fun s_check_exec :: "'d MFOTL.envset \<Rightarrow> 'd MFOTL.formula \<Rightarrow
   | (MFOTL.Iff \<phi> \<psi>, SIffSS sp1 sp2) \<Rightarrow> s_check_exec vs \<phi> sp1 \<and> s_check_exec vs \<psi> sp2 \<and> s_at sp1 = s_at sp2
   | (MFOTL.Iff \<phi> \<psi>, SIffVV vp1 vp2) \<Rightarrow> v_check_exec vs \<phi> vp1 \<and> v_check_exec vs \<psi> vp2 \<and> v_at vp1 = v_at vp2
   | (MFOTL.Exists x \<phi>, SExists y val sp) \<Rightarrow> (x = y \<and> s_check_exec (vs (x := {val})) \<phi> sp)
-  | (MFOTL.Forall x \<phi>, SForall y sp_part) \<Rightarrow> (x = y \<and> (\<forall>(sub, sp) \<in> SubsVals sp_part. s_check_exec (vs (x := sub)) \<phi> sp))
+  | (MFOTL.Forall x \<phi>, SForall y sp_part) \<Rightarrow> (let i = s_at (part_hd sp_part)
+      in x = y \<and> (\<forall>(sub, sp) \<in> SubsVals sp_part. s_at sp = i \<and> s_check_exec (vs (x := sub)) \<phi> sp))
   | (MFOTL.Prev I \<phi>, SPrev sp) \<Rightarrow>
     (let j = s_at sp; i = s_at (SPrev sp) in 
     i = j+1 \<and> mem (\<Delta> \<sigma> i) I \<and> s_check_exec vs \<phi> sp)
@@ -590,7 +593,8 @@ fun s_check_exec :: "'d MFOTL.envset \<Rightarrow> 'd MFOTL.formula \<Rightarrow
   | (MFOTL.Imp \<phi> \<psi>, VImp sp1 vp2) \<Rightarrow> s_check_exec vs \<phi> sp1 \<and> v_check_exec vs \<psi> vp2 \<and> s_at sp1 = v_at vp2
   | (MFOTL.Iff \<phi> \<psi>, VIffSV sp1 vp2) \<Rightarrow> s_check_exec vs \<phi> sp1 \<and> v_check_exec vs \<psi> vp2 \<and> s_at sp1 = v_at vp2
   | (MFOTL.Iff \<phi> \<psi>, VIffVS vp1 sp2) \<Rightarrow> v_check_exec vs \<phi> vp1 \<and> s_check_exec vs \<psi> sp2 \<and> v_at vp1 = s_at sp2
-  | (MFOTL.Exists x \<phi>, VExists y vp_part) \<Rightarrow> (x = y \<and> (\<forall>(sub, vp) \<in> SubsVals vp_part. v_check_exec (vs (x := sub)) \<phi> vp))
+  | (MFOTL.Exists x \<phi>, VExists y vp_part) \<Rightarrow> (let i = v_at (part_hd vp_part)
+      in x = y \<and> (\<forall>(sub, vp) \<in> SubsVals vp_part. v_at vp = i \<and> v_check_exec (vs (x := sub)) \<phi> vp))
   | (MFOTL.Forall x \<phi>, VForall y val vp) \<Rightarrow> (x = y \<and> v_check_exec (vs (x := {val})) \<phi> vp)
   | (MFOTL.Prev I \<phi>, VPrev vp) \<Rightarrow>
     (let j = v_at vp; i = v_at (VPrev vp) in
@@ -1322,7 +1326,8 @@ case 2
       by (cases vp)
         (auto simp: SubsVals_nonempty IH[OF SubsVals_nonempty]
         fun_upd_in_compatible_vals fun_upd_in_compatible_vals_notin compatible_vals_fun_upd
-        ball_conj_distrib 2(1)[simplified] split: prod.splits if_splits | drule bspec, assumption)+
+        ball_conj_distrib 2(1)[simplified] split: prod.splits if_splits |
+        drule bspec, (assumption | rule 2(1)[simplified, folded ex_in_conv, THEN someI_ex]))+
   }
 next
   case (Forall x \<phi>)
@@ -1340,7 +1345,8 @@ next
       by (cases sp)
         (auto simp: SubsVals_nonempty IH[OF SubsVals_nonempty]
         fun_upd_in_compatible_vals fun_upd_in_compatible_vals_notin compatible_vals_fun_upd
-        ball_conj_distrib 1(1)[simplified] split: prod.splits if_splits | drule bspec, assumption)+
+        ball_conj_distrib 1(1)[simplified] split: prod.splits if_splits |
+        drule bspec, (assumption | rule 1(1)[simplified, folded ex_in_conv, THEN someI_ex]))+
   next
     case 2
     then have "(vs(x := Z)) y \<noteq> {}" if "Z \<noteq> {}" for Z y
@@ -1799,7 +1805,7 @@ next
         by blast
     }
     note IH_new = this
-    have obs: "\<exists>part. v_at (VExists x part) = i \<and> (\<forall>(sub, vp) \<in> SubsVals part. \<forall>z \<in> sub. v_check (v (x := z)) (formula.Neg \<alpha>) vp)  
+    have obs: "\<exists>part. v_at (VExists x part) = i \<and> (\<forall>(sub, vp) \<in> SubsVals part. v_at vp = i \<and> (\<forall>z \<in> sub. v_check (v (x := z)) (formula.Neg \<alpha>) vp))  
     \<Longrightarrow> \<exists>vp. v_at vp = i \<and> local.v_check v (formula.Exists x (formula.Neg \<alpha>)) vp"
       apply clarsimp
       subgoal for part by (auto intro!: exI[of _ "VExists x part"])

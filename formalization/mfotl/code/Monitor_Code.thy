@@ -835,7 +835,7 @@ fun check_all_aux where
 
 definition "check_all \<sigma> \<phi> e = check_all_aux \<sigma> (\<lambda>_. UNIV) \<phi> e"
 
-(*does not work yet*)
+(*does not work yet, probably due to the Pred case (needs a rewrite)*)
 value "check_one mytrace2 (\<lambda>_. default) phi3 (execute_trivial_opt mytrace2 [] 0 phi3)"
 value "check_all mytrace2 phi3 (execute_trivial_opt mytrace2 [] 0 phi3)"
 
