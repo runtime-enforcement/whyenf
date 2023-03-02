@@ -251,28 +251,28 @@ qed (auto simp: fun_upd_def split: nat.splits)
 
 lemma completeness: "(MFOTL.sat \<sigma> v i \<phi> \<longrightarrow> SAT \<sigma> v i \<phi>) \<and> (\<not> MFOTL.sat \<sigma> v i \<phi> \<longrightarrow> VIO \<sigma> v i \<phi>)"
 proof (induct \<phi> arbitrary: i v)
-  case (Prev x1 \<phi>)
+  case (Prev I \<phi>)
   then show ?case sorry
 next
-  case (Next x1 \<phi>)
+  case (Next I \<phi>)
   then show ?case sorry
 next
-  case (Once x1 \<phi>)
+  case (Once I \<phi>)
   then show ?case sorry
 next
-  case (Historically x1 \<phi>)
+  case (Historically I \<phi>)
   then show ?case sorry
 next
-  case (Eventually x1 \<phi>)
+  case (Eventually I \<phi>)
   then show ?case sorry
 next
-  case (Always x1 \<phi>)
+  case (Always I \<phi>)
   then show ?case sorry
 next
-  case (Since \<phi>1 x2 \<phi>2)
+  case (Since \<phi>1 I \<phi>2)
   then show ?case sorry
 next
-  case (Until \<phi>1 x2 \<phi>2)
+  case (Until \<phi>1 I \<phi>2)
   then show ?case sorry
 qed (auto intro: SAT_VIO.intros)
 
