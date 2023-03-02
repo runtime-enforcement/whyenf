@@ -215,7 +215,6 @@ inductive SAT and VIO :: "'a MFOTL.trace \<Rightarrow> 'a MFOTL.env \<Rightarrow
 
 lemma soundness: "(SAT \<sigma> v i \<phi> \<longrightarrow> MFOTL.sat \<sigma> v i \<phi>) \<and> (VIO \<sigma> v i \<phi> \<longrightarrow> \<not> MFOTL.sat \<sigma> v i \<phi>)"
 proof (induct v i \<phi> rule: SAT_VIO.induct)
-next
   case (VOnceOut i I v \<phi>)
   then show ?case sorry
 next
