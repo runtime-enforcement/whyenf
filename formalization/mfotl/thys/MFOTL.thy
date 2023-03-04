@@ -115,7 +115,7 @@ qualified fun future_bounded :: "'a formula \<Rightarrow> bool" where
 | "future_bounded (Exists _ \<phi>) = future_bounded \<phi>"
 | "future_bounded (Forall _ \<phi>) = future_bounded \<phi>"
 | "future_bounded (Prev I \<phi>) = future_bounded \<phi>"
-| "future_bounded (Next I \<phi>) = future_bounded \<phi>"
+| "future_bounded (Next I \<phi>) = (future_bounded \<phi> \<and> right I \<noteq> \<infinity>)"
 | "future_bounded (Once I \<phi>) = future_bounded \<phi>"
 | "future_bounded (Historically I \<phi>) = future_bounded \<phi>"
 | "future_bounded (Eventually I \<phi>) = (future_bounded \<phi> \<and> right I \<noteq> \<infinity>)"

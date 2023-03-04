@@ -6,6 +6,10 @@ begin
 
 lift_definition part_hd :: "('d, 'a) part \<Rightarrow> 'a" is "snd \<circ> hd" .
 
+lift_definition tabulate :: "'d list \<Rightarrow> ('d \<Rightarrow> 'v) \<Rightarrow> 'v \<Rightarrow> ('d, 'v) part" is
+  "\<lambda>ds f z. if distinct ds then if set ds = UNIV then map (\<lambda>d. ({d}, f d)) ds else (- set ds, z) # map (\<lambda>d. ({d}, f d)) ds else [(UNIV, z)]"
+  by (auto simp: o_def distinct_map inj_on_def partition_on_def disjoint_def)
+
 lemma part_hd_Vals[simp]: "part_hd part \<in> Vals part"
   apply transfer
   subgoal for xs
@@ -71,7 +75,7 @@ fun s_at :: "'d sproof \<Rightarrow> nat" and
 | "v_at (VUntil i _ _) = i"
 | "v_at (VUntilInf i _ _) = i"
 
-context fixes \<sigma> :: "'d MFOTL.trace"
+context fixes \<sigma> :: "'d :: {default, linorder} MFOTL.trace"
 
 begin
 
@@ -848,6 +852,106 @@ lemma fun_upd_in_compatible_vals: "v \<in> compatible_vals (A - {x}) vs \<Longri
 lemma fun_upd_in_compatible_vals_notin: "x \<notin> A \<Longrightarrow> v \<in> compatible_vals A vs \<Longrightarrow> v(x := t) \<in> compatible_vals A vs"
   unfolding compatible_vals_def
   by auto
+
+lemma finite_values': "finite (\<Gamma> \<sigma> i)"
+  sorry
+
+lemma finite_values: "finite (\<Union> (set ` snd ` \<Gamma> \<sigma> (the_enat k)))"
+  using finite_values' by simp
+
+lemma bounded_future_reach: 
+  assumes "MFOTL.future_bounded \<phi>"
+  shows "MFOTL.future_reach \<phi> \<noteq> \<infinity>"
+  using assms
+proof(induction \<phi>)
+  case (Next I \<phi>)
+  obtain b where b_def: "b = right I"
+    using assms by (atomize_elim, simp)
+  obtain fr where fr_def: "fr = MFOTL.future_reach \<phi>"
+    using assms by (atomize_elim, simp)
+  have notinf: "b \<noteq> \<infinity>" "fr \<noteq> \<infinity>" 
+    using Next unfolding b_def fr_def by auto
+  show ?case
+    apply clarsimp
+    apply (rule exI[of _ "(the_enat fr) + (the_enat b) + 1"])
+    using notinf eSuc_enat_iff plus_1_eSuc
+    unfolding b_def fr_def
+    apply auto
+    done
+next
+  case (Eventually I \<phi>)
+  obtain b where b_def: "b = right I"
+    using assms by (atomize_elim, simp)
+  obtain fr where fr_def: "fr = MFOTL.future_reach \<phi>"
+    using assms by (atomize_elim, simp)
+  have notinf: "b \<noteq> \<infinity>" "fr \<noteq> \<infinity>" 
+    using Eventually unfolding b_def fr_def by auto
+  show ?case
+    apply clarsimp
+    apply (rule exI[of _ "(the_enat fr) + (the_enat b) + 1"])
+    using notinf eSuc_enat_iff plus_1_eSuc
+    unfolding b_def fr_def
+    apply auto
+    done
+next
+  case (Always I \<phi>)
+  obtain b where b_def: "b = right I"
+    using assms by (atomize_elim, simp)
+  obtain fr where fr_def: "fr = MFOTL.future_reach \<phi>"
+    using assms by (atomize_elim, simp)
+  have notinf: "b \<noteq> \<infinity>" "fr \<noteq> \<infinity>" 
+    using Always unfolding b_def fr_def by auto
+  show ?case
+    apply clarsimp
+    apply (rule exI[of _ "(the_enat fr) + (the_enat b) + 1"])
+    using notinf eSuc_enat_iff plus_1_eSuc
+    unfolding b_def fr_def
+    apply auto
+    done
+next
+  case (Until \<phi>1 I \<phi>2)
+  obtain b where b_def: "b = right I"
+    using assms by (atomize_elim, simp)
+  obtain fr1 and fr2 where fr_def: "fr1 = MFOTL.future_reach \<phi>1" "fr2 = MFOTL.future_reach \<phi>2"
+    using assms by (atomize_elim, simp)
+  have notinf: "b \<noteq> \<infinity>" "fr1 \<noteq> \<infinity>" "fr2 \<noteq> \<infinity>" 
+    using Until unfolding b_def fr_def by auto
+  show ?case
+    apply clarsimp
+    apply (rule exI[of _ "(the_enat (max (MFOTL.future_reach \<phi>1) (MFOTL.future_reach \<phi>2))) + (the_enat b) + 1"])
+    using notinf eSuc_enat_iff plus_1_eSuc
+    unfolding b_def fr_def
+    apply auto
+    done
+qed auto
+
+lemma finite_tps: "MFOTL.future_bounded \<phi> \<Longrightarrow> finite (\<Union> k < enat (i+1) + MFOTL.future_reach \<phi>. {k})"
+  using bounded_future_reach[of \<phi>] finite_enat_bounded
+  by (clarsimp, meson lessThan_iff order.order_iff_strict)
+
+lemma finite_AD: "MFOTL.future_bounded \<phi> \<Longrightarrow> finite (AD \<phi> i)"
+  using finite_tps finite_values
+  by (auto simp add: AD_def)
+
+lemma AD_noteq_UNIV: "MFOTL.future_bounded \<phi> \<Longrightarrow> Monitor.AD \<sigma> \<phi> i \<noteq> UNIV"
+  using Monitor.finite_AD[of \<phi> \<sigma> i]
+  sorry
+
+lemma part_hd_tabulate: "MFOTL.future_bounded \<phi> \<Longrightarrow> v_at (part_hd (tabulate (sorted_list_of_set (AD \<phi> i)) f (f (SOME z. z \<notin> AD \<phi> i)))) = i"
+  apply transfer
+  apply clarsimp
+  subgoal for \<phi> \<sigma> i f
+  proof -
+    assume fb: "MFOTL.future_bounded \<phi>"
+    then have "set (sorted_list_of_set (Monitor.AD \<sigma> \<phi> i)) = Monitor.AD \<sigma> \<phi> i"
+      by (simp add: Monitor.finite_AD)
+    moreover have "Monitor.AD \<sigma> \<phi> i \<noteq> UNIV" 
+      by (simp add: Monitor.AD_noteq_UNIV fb)
+    ultimately show ?thesis
+      apply clarsimp
+      sorry
+  qed
+  done
 
 lemma check_fv_cong:
   assumes "\<forall>x \<in> fv \<phi>. v x = v' x"
@@ -1725,138 +1829,21 @@ next
       done
     done
 next
-  case (VExists v x i \<phi>')
-  then show ?case
-  proof (induction \<phi>')
-    case FF
-    obtain vp where vp_def: "vp = VExists x (trivial_part (VFF i))"
-      by (atomize_elim) simp
-    then have "v_at vp = i"
-      by simp
-    moreover have "v_check v (MFOTL.Exists x MFOTL.FF) vp"
-      using FF vp_def
-      by simp
-    ultimately show ?case 
-      using FF by auto
-  next
-    case (Pred r ts)
-    {
-      fix z
-      have v_check_Pred_VPred: "\<And>v' vp. v_check v' (MFOTL.Pred r ts) vp \<Longrightarrow> v_at vp = i \<Longrightarrow> vp = VPred (v_at vp) r ts"
-        by (elim v_check.elims; clarsimp) 
-          (auto split: vproof.splits)
-      obtain vp where IH_unfolded: "v_at vp = i" 
-        "VIO \<sigma> (v(x := z)) i (MFOTL.Pred r ts)" 
-        "v_check (v(x := z)) (MFOTL.Pred r ts) vp"
-        using Pred
-        by (auto simp: fun_upd_def)
-      hence "vp = VPred i r ts"
-        using v_check_Pred_VPred by simp
-      hence "v_at (VPred i r ts) = i"  
-        "v_check (v(x := z)) (MFOTL.Pred r ts) (VPred i r ts)"
-        using IH_unfolded
-        by simp_all
-    }
-    thus ?case
-      unfolding Pred
-      by (auto intro!: exI[of _ "VExists x (trivial_part (VPred i r ts))"])
-  next
-    case (Neg \<alpha>)
-    thm VExists[unfolded Neg, rule_format, simplified] Neg
-    {
-      fix z assume "MFOTL.future_bounded (MFOTL.Neg \<alpha>)"
-      (* obtain sp' :: "'d sproof" where sp'_def: "s_check v \<alpha> sp'" "s_at sp' = i"
-        using VExists Neg
-        apply (atomize_elim)
-        sorry *)
-      (* have v_check_Neg_VNeg: "\<And>v' vp. v_check v' (MFOTL.Neg \<alpha>) vp \<Longrightarrow> v_at vp = i \<Longrightarrow> vp = VNeg sp'"
-        apply (elim v_check.elims) 
-        apply clarsimp
-        apply (auto split: vproof.splits)
-        sorry *)
-      then obtain vp where IH_unfolded: "v_at vp = i" 
-        "VIO \<sigma> (v(x := z)) i (MFOTL.Neg \<alpha>)" 
-        "v_check (v(x := z)) (MFOTL.Neg \<alpha>) vp"
-        using Neg
-        (* by (auto simp: fun_upd_def) *)
-        sorry
-      then obtain sp' where "vp = VNeg sp'"
-        apply (elim v_check.elims)
-        apply clarsimp
-        apply (auto split: vproof.splits)
-        done
-      hence "v_at (VNeg sp') = i" 
-        "v_check (v(x := z)) (MFOTL.Neg \<alpha>) (VNeg sp')"
-        using IH_unfolded
-        by simp_all
-      hence "s_check (v(x := z)) \<alpha> sp'" "s_at sp' = i"
-        by auto
-      hence "\<exists>sp'. s_at sp' = i \<and> s_check (v(x := z)) \<alpha> sp'"
-        using IH_unfolded
-        by blast
-      hence "\<exists>vp. v_at vp = i \<and> v_check (v(x := z)) (MFOTL.Neg \<alpha>) vp"
-        using IH_unfolded
-        by blast
-    }
-    note IH_new = this
-    have obs: "\<exists>part. v_at (VExists x part) = i \<and> (\<forall>(sub, vp) \<in> SubsVals part. \<forall>z \<in> sub. v_check (v (x := z)) (formula.Neg \<alpha>) vp)  
-    \<Longrightarrow> \<exists>vp. v_at vp = i \<and> local.v_check v (formula.Exists x (formula.Neg \<alpha>)) vp"
-      apply clarsimp
-      subgoal for part by (auto intro!: exI[of _ "VExists x part"])
-      done
-    show ?case
-      using Neg
-      unfolding Neg
-      apply clarify
-      apply (rule obs)
-      using IH_new[of ]
-      apply (clarsimp split: prod.splits)
-      sorry
-  next
-    case (Or x61 x62)
-    then show ?case sorry
-  next
-    case (And x71 x72)
-    then show ?case sorry
-  next
-    case (Imp x81 x82)
-    then show ?case sorry
-  next
-    case (Iff x91 x92)
-    then show ?case sorry
-  next
-    case (Exists y \<alpha>)
-    then show ?case
-      using VExists
-      sorry
-  next
-    case (Forall x111 x112)
-    then show ?case sorry
-  next
-    case (Prev x121 x122)
-    then show ?case sorry
-  next
-    case (Next x131 x132)
-    then show ?case sorry
-  next
-    case (Once x141 x142)
-    then show ?case sorry
-  next
-    case (Historically x151 x152)
-    then show ?case sorry
-  next
-    case (Eventually x161 x162)
-    then show ?case sorry
-  next
-    case (Always x171 x172)
-    then show ?case sorry
-  next
-    case (Since x181 x182 x183)
-    then show ?case sorry
-  next
-    case (Until x191 x192 x193)
-    then show ?case sorry
-  qed simp
+  case (VExists v x i \<phi>)
+  then have fb: "MFOTL.future_bounded \<phi>"
+    sorry
+  obtain mypick where mypick_def: "v_at (mypick z) = i \<and> v_check (v(x:=z)) \<phi> (mypick z)" for z
+    apply (atomize_elim)
+    apply (rule choice)
+    using VExists fb apply (cases \<phi>, simp_all)
+    done 
+  define mypart where "mypart = tabulate (sorted_list_of_set (AD \<phi> i)) mypick (mypick (SOME z. z\<notin>(AD \<phi> i)))"
+  have v_at_myp: "v_at (VExists x mypart) = i"
+    using fb part_hd_tabulate[of \<phi> i mypick] 
+    by (simp add: mypart_def) 
+  have v_check_myp: "v_check v (MFOTL.Exists x \<phi>) (VExists x mypart)"
+    sorry
+  show ?case using v_at_myp v_check_myp by blast
 next
   case (SForall v x i \<phi>)
   then show ?case sorry
