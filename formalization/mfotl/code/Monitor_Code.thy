@@ -802,27 +802,6 @@ value "execute_trivial_opt mytrace2 [''first''] 0 phi2"
 value "execute_trivial_opt mytrace2 [''first''] 1 phi2"
 value "execute_trivial_opt mytrace2 [] 0 phi3"
 value "execute_trivial_opt mytrace2 [] 1 phi3"
-
-lift_definition lookup_part :: "('d, 'a) part \<Rightarrow> 'd \<Rightarrow> 'a" is "\<lambda>xs d. snd (the (find (\<lambda>(D, _). d \<in> D) xs))" .
-
-lemma lookup_part_Vals[simp]: "lookup_part part d \<in> Vals part"
-  apply transfer
-  subgoal for xs d
-    apply (cases "find (\<lambda>(D, _). d \<in> D) xs")
-     apply (auto simp: partition_on_def find_None_iff find_Some_iff image_iff)
-    apply (metis UNIV_I UN_iff prod.collapse)
-    apply (metis (no_types, lifting) find_Some_iff nth_mem option.sel prod.simps(2))
-    done
-  done
-
-lemma size_lookup_part_estimation[termination_simp]: "size (lookup_part part d) < Suc (size_part (\<lambda>_. 0) size part)"
-  unfolding less_Suc_eq_le
-  by (rule size_part_estimation'[OF _ order_refl]) simp
-
-lemma subsvals_part_estimation[termination_simp]: "(D, e) \<in> set (subsvals part) \<Longrightarrow> size e < Suc (size_part (\<lambda>_. 0) size part)"
-  unfolding less_Suc_eq_le
-  by (rule size_part_estimation'[OF _ order_refl], transfer)
-    (force simp: image_iff)
   
 
 fun check_one where
@@ -835,7 +814,7 @@ fun check_all_aux where
 
 definition "check_all \<sigma> \<phi> e = check_all_aux \<sigma> (\<lambda>_. UNIV) \<phi> e"
 
-(*does not work yet*)
+(*does not work yet, probably due to the Pred case (needs a rewrite via code equation)*)
 value "check_one mytrace2 (\<lambda>_. default) phi3 (execute_trivial_opt mytrace2 [] 0 phi3)"
 value "check_all mytrace2 phi3 (execute_trivial_opt mytrace2 [] 0 phi3)"
 
