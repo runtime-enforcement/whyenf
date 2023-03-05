@@ -206,6 +206,11 @@ lemma trace_rbt_of_list_sound: "sorted (map snd xs) \<Longrightarrow> i < length
 
 subsection \<open>Exported functions\<close>
 
+instantiation String.literal :: default begin
+definition default_string_literal :: String.literal where "default_string_literal = 0"
+instance proof qed
+end
+
 definition str_s_check :: "String.literal MFOTL.trace \<Rightarrow> (char list \<Rightarrow> String.literal set) \<Rightarrow> _ MFOTL.formula \<Rightarrow> _ sproof \<Rightarrow> bool"
   where "str_s_check = s_check_exec"
 
