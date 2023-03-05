@@ -1,6 +1,6 @@
 (*<*)
 theory MFOTL
-  imports MFOTL_Monitor.Interval MFOTL_Monitor.Trace 
+  imports MFOTL_Monitor.Interval Trace 
 begin
 (*>*)
 

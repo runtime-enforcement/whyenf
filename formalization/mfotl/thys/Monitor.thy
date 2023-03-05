@@ -1127,11 +1127,8 @@ lemma fun_upd_in_compatible_vals_notin: "x \<notin> A \<Longrightarrow> v \<in> 
   unfolding compatible_vals_def
   by auto
 
-lemma finite_values': "finite (\<Gamma> \<sigma> i)"
-  sorry
-
 lemma finite_values: "finite (\<Union> (set ` snd ` \<Gamma> \<sigma> (the_enat k)))"
-  using finite_values' by simp
+  by (transfer, auto simp add: sfinite_def)
 
 lemma bounded_future_reach: 
   assumes "MFOTL.future_bounded \<phi>"
