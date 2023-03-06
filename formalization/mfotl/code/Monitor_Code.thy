@@ -108,8 +108,10 @@ subsection \<open>Trace\<close>
 lemma extend_is_stream: 
   assumes "sorted (map snd list)"
   and "\<And>x. x \<in> set list \<Longrightarrow> snd x \<le> m"
+  and "\<And>x. x \<in> set list \<Longrightarrow> finite (fst x)"
   shows "ssorted (smap snd (list @- smap (\<lambda>n. ({}, n + m)) nats)) \<and>
-    sincreasing (smap snd (list @- smap (\<lambda>n. ({}, n + m)) nats))"
+    sincreasing (smap snd (list @- smap (\<lambda>n. ({}, n + m)) nats)) \<and>
+    sfstfinite (smap fst (list @- smap (\<lambda>n. ({}, n + m)) nats))"
 proof -
   have A: "\<forall>x\<in>set list. n \<le> snd x \<Longrightarrow> n \<le> m \<Longrightarrow>
     n \<le> (map snd list @- smap (\<lambda>x. x + m) nats) !! i" for n i 
@@ -142,6 +144,21 @@ proof -
       by (simp add: sincreasing_def) 
         (metis snth_Stream)
   qed
+  moreover have "sfstfinite (smap fst (list @- smap (\<lambda>n. ({}, n + m)) nats))"
+    using assms(3)
+  proof (induction list)
+    case Nil
+    then show ?case by (simp add: sfstfinite_def)
+  next
+    case (Cons a as)
+    then have fin: "finite (fst a)"
+      by simp
+    show ?case
+      using Cons 
+      apply (simp add: sfstfinite_def)
+      apply (metis fin not0_implies_Suc smap_simps(1) snth_Stream stream.sel(1) stream_smap_nats)
+      done
+  qed
   ultimately show ?thesis
     by simp
 qed
@@ -149,7 +166,8 @@ qed
 typedef 'a trace_rbt = "{(n, m, t) :: (nat \<times> nat \<times> (nat, 'a set \<times> nat) mapping) |
   n m t. Mapping.keys t = {..<n} \<and>
   sorted (map (snd \<circ> (the \<circ> Mapping.lookup t)) [0..<n]) \<and>
-  (case n of 0 \<Rightarrow> True | Suc n' \<Rightarrow> (case Mapping.lookup t n' of Some (X', t') \<Rightarrow> t' \<le> m | None \<Rightarrow> False))}"
+  (case n of 0 \<Rightarrow> True | Suc n' \<Rightarrow> (case Mapping.lookup t n' of Some (X', t') \<Rightarrow> t' \<le> m | None \<Rightarrow> False)) \<and> 
+  (case n of 0 \<Rightarrow> True | Suc n' \<Rightarrow> (case Mapping.lookup t n' of Some (X', t') \<Rightarrow> finite X' | None \<Rightarrow> False))}"
   by (rule exI[of _ "(0, 0, Mapping.empty)"]) auto
 
 setup_lifting type_definition_trace_rbt
@@ -158,11 +176,14 @@ lemma lookup_bulkload_Some: "i < length list \<Longrightarrow>
   Mapping.lookup (Mapping.bulkload list) i = Some (list ! i)"
   by transfer (auto simp: Map_To_Mapping.map_apply_def)
 
+definition "fstfinite s = (\<forall>i. finite (s ! i))"
+
 lift_definition trace_rbt_of_list :: "('a set \<times> nat) list \<Rightarrow> 'a trace_rbt" is
-  "\<lambda>xs. if sorted (map snd xs) then (if xs = [] then (0, 0, Mapping.empty)
+  "\<lambda>xs. if sorted (map snd xs) \<and> fstfinite (map fst xs) then (if xs = [] then (0, 0, Mapping.empty)
   else (length xs, snd (last xs), Mapping.bulkload xs))
   else (0, 0, Mapping.empty)"
-  by (auto simp: lookup_bulkload_Some sorted_iff_nth_Suc last_conv_nth split: option.splits nat.splits)
+  by (auto simp: lookup_bulkload_Some sorted_iff_nth_Suc last_conv_nth fstfinite_def split: option.splits nat.splits) 
+    (metis fst_conv lessI nth_map)
 
 lift_definition trace_rbt_nth :: "'a trace_rbt \<Rightarrow> nat \<Rightarrow> ('a set \<times> nat)" is
   "\<lambda>(n, m, t) i. if i < n then the (Mapping.lookup t i) else ({}, (i - n) + m)" .
@@ -176,16 +197,23 @@ lift_definition Trace_RBT :: "'a trace_rbt \<Rightarrow> 'a trace" is
     have props: "Mapping.keys t = {..<n}"
       "sorted (map (snd \<circ> (the \<circ> Mapping.lookup t)) [0..<n])"
       "(case n of 0 \<Rightarrow> True | Suc n' \<Rightarrow> (case Mapping.lookup t n' of Some (X', t') \<Rightarrow> t' \<le> m | None \<Rightarrow> False))"
+      "(case n of 0 \<Rightarrow> True | Suc n' \<Rightarrow> (case Mapping.lookup t n' of Some (X', t') \<Rightarrow> finite X' | None \<Rightarrow> False))"
       using prems
-      by (auto simp: prod_def)
+      by (auto simp add: prod_def)
     have aux: "x \<in> set (map (the \<circ> Mapping.lookup t) [0..<n]) \<Longrightarrow> snd x \<le> m" for x
       using props(2,3) less_Suc_eq_le
       by (fastforce simp: sorted_iff_nth_mono split: nat.splits option.splits)
+    have aux2: "x \<in> set (map (the \<circ> Mapping.lookup t) [0..<n]) \<Longrightarrow> finite (fst x)" for x
+      using props(4) 
+      apply (simp split: nat.splits option.splits)
+      apply clarsimp
+      sorry
     show ?thesis
       apply (simp add: prod_def del: smap_shift)
       apply (rule extend_is_stream[where ?m=m])
-      using props aux
-      by (auto simp: prod_def)
+      using props aux aux2
+        apply (auto simp: prod_def)
+      done
   qed
   done
 
