@@ -92,22 +92,22 @@ qed
 lemma sincreasing_stl: "sincreasing s \<Longrightarrow> sincreasing (stl s)" for s :: "'a :: semilattice_sup stream"
   by (auto 0 4 simp: gr0_conv_Suc intro!: sincreasingI dest: sincreasing_grD[of s 0])
 
-definition "sfinite s = (\<forall>i. finite (s !! i))"
+definition "sfstfinite s = (\<forall>i. finite (s !! i))"
 
-lemma sfiniteI: "(\<And>i. finite (s !! i)) \<Longrightarrow> sfinite s"
-  by (simp add: sfinite_def)
+lemma sfstfiniteI: "(\<And>i. finite (s !! i)) \<Longrightarrow> sfstfinite s"
+  by (simp add: sfstfinite_def)
 
-(* term "sfinite (siterate f n)"
+(* term "sfstfinite (siterate f n)"
 
-lemma sfinite_siterate_nat[simp]:
+lemma sfstfinite_siterate_nat[simp]:
 (*   fixes i :: nat
   assumes "(\<And>i. finite f i)" *)
   shows "sfinite (siterate f n)"
   sorry *)
 
-typedef 'a trace = "{s :: ('a set \<times> nat) stream. ssorted (smap snd s) \<and> sincreasing (smap snd s) \<and> sfinite (smap fst s)}"
+typedef 'a trace = "{s :: ('a set \<times> nat) stream. ssorted (smap snd s) \<and> sincreasing (smap snd s) \<and> sfstfinite (smap fst s)}"
   by (intro exI[of _ "smap (\<lambda>i. ({}, i)) nats"])
-    (auto simp: stream.map_comp stream.map_ident sfinite_def cong: stream.map_cong)
+    (auto simp: stream.map_comp stream.map_ident sfstfinite_def cong: stream.map_cong)
 
 setup_lifting type_definition_trace
 
@@ -297,7 +297,7 @@ proof (transfer, intro bexI CollectI conjI)
       by simp (metis Suc_pred add.commute diff_Suc_Suc length_greater_0_conv less_add_Suc1 less_diff_conv)
     then show "\<exists>i. x < smap snd ?\<sigma> !! i" ..
   qed
-  show "sfinite (smap fst ?\<sigma>)"
+  show "sfstfinite (smap fst ?\<sigma>)"
     sorry
 qed
 
