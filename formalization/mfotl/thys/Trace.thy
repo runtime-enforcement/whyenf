@@ -97,14 +97,6 @@ definition "sfstfinite s = (\<forall>i. finite (s !! i))"
 lemma sfstfiniteI: "(\<And>i. finite (s !! i)) \<Longrightarrow> sfstfinite s"
   by (simp add: sfstfinite_def)
 
-(* term "sfstfinite (siterate f n)"
-
-lemma sfstfinite_siterate_nat[simp]:
-(*   fixes i :: nat
-  assumes "(\<And>i. finite f i)" *)
-  shows "sfinite (siterate f n)"
-  sorry *)
-
 typedef 'a trace = "{s :: ('a set \<times> nat) stream. ssorted (smap snd s) \<and> sincreasing (smap snd s) \<and> sfstfinite (smap fst s)}"
   by (intro exI[of _ "smap (\<lambda>i. ({}, i)) nats"])
     (auto simp: stream.map_comp stream.map_ident sfstfinite_def cong: stream.map_cong)
@@ -135,27 +127,6 @@ lemma less_\<tau>D: "\<tau> \<sigma> i < \<tau> \<sigma> j \<Longrightarrow> i <
   by (meson \<tau>_mono less_le_not_le not_le_imp_less)
 
 abbreviation "\<Delta> s i \<equiv> \<tau> s i - \<tau> s (i - 1)"
-
-lift_definition map_\<Gamma> :: "('a set \<Rightarrow> 'b set) \<Rightarrow> 'a trace \<Rightarrow> 'b trace" is
-  "\<lambda>f s. smap (\<lambda>(x, i). (f x, i)) s"
-  apply (auto simp: stream.map_comp prod.case_eq_if cong: stream.map_cong)
-  sorry
-
-lemma \<Gamma>_map_\<Gamma>[simp]: "\<Gamma> (map_\<Gamma> f s) i = f (\<Gamma> s i)"
-  by transfer (simp add: prod.case_eq_if)
-
-lemma \<tau>_map_\<Gamma>[simp]: "\<tau> (map_\<Gamma> f s) i = \<tau> s i"
-  by transfer (simp add: prod.case_eq_if)
-
-lemma map_\<Gamma>_id[simp]: "map_\<Gamma> id s = s"
-  by transfer (simp add: stream.map_id)
-
-lemma map_\<Gamma>_comp: "map_\<Gamma> g (map_\<Gamma> f s) = map_\<Gamma> (g \<circ> f) s"
-  by transfer (simp add: stream.map_comp comp_def prod.case_eq_if case_prod_beta')
-
-lemma map_\<Gamma>_cong: "\<sigma>\<^sub>1 = \<sigma>\<^sub>2 \<Longrightarrow> (\<And>x. f\<^sub>1 x = f\<^sub>2 x) \<Longrightarrow> map_\<Gamma> f\<^sub>1 \<sigma>\<^sub>1 = map_\<Gamma> f\<^sub>2 \<sigma>\<^sub>2"
-  by transfer (auto intro!: stream.map_cong)
-
 
 subsection \<open>Finite trace prefixes\<close>
 
@@ -223,9 +194,6 @@ lemma prefix_of_pnil[simp]: "prefix_of pnil \<sigma>"
 lemma plen_pnil[simp]: "plen pnil = 0"
   by transfer auto
 
-lemma prefix_of_pmap_\<Gamma>[simp]: "prefix_of \<pi> \<sigma> \<Longrightarrow> prefix_of (pmap_\<Gamma> f \<pi>) (map_\<Gamma> f \<sigma>)"
-  by transfer auto
-
 lemma plen_mono: "\<pi> \<le> \<pi>' \<Longrightarrow> plen \<pi> \<le> plen \<pi>'"
   by transfer auto
 
@@ -277,28 +245,6 @@ proof transfer
       using assms ge by (metis min.absorb1 take_stake)
     ultimately show ?thesis by auto
   qed
-qed
-
-lemma ex_prefix_of: "\<exists>s. prefix_of p s"
-proof (transfer, intro bexI CollectI conjI)
-  fix p :: "('a set \<times> nat) list"
-  assume *: "sorted (map snd p)"
-  let ?\<sigma> = "p @- smap (Pair undefined) (fromN (snd (last p)))"
-  show "stake (length p) ?\<sigma> = p" by (simp add: stake_shift)
-  have le_last: "snd (p ! i) \<le> snd (last p)" if "i < length p" for i
-    using sorted_nth_mono[OF *, of i "length p - 1"] that
-    by (cases p) (auto simp: last_conv_nth nth_Cons')
-  with * show "ssorted (smap snd ?\<sigma>)"
-    by (force simp: ssorted_iff_mono sorted_iff_nth_mono shift_snth)
-  show "sincreasing (smap snd ?\<sigma>)"
-  proof (rule sincreasingI)
-    fix x
-    have "x < smap snd ?\<sigma> !! Suc (length p + x)"
-      by simp (metis Suc_pred add.commute diff_Suc_Suc length_greater_0_conv less_add_Suc1 less_diff_conv)
-    then show "\<exists>i. x < smap snd ?\<sigma> !! i" ..
-  qed
-  show "sfstfinite (smap fst ?\<sigma>)"
-    sorry
 qed
 
 lemma \<tau>_prefix_conv: "prefix_of p s \<Longrightarrow> prefix_of p s' \<Longrightarrow> i < plen p \<Longrightarrow> \<tau> s i = \<tau> s' i"
@@ -353,51 +299,6 @@ proof (rule sincreasingI)
     by simp
   then show "\<exists>i. x < (xs @- s) !! i" ..
 qed
-
-lift_definition replace_prefix :: "'a prefix \<Rightarrow> 'a trace \<Rightarrow> 'a trace" is
-   "\<lambda>\<pi> \<sigma>. if ssorted (smap snd (\<pi> @- sdrop (length \<pi>) \<sigma>)) then
-     \<pi> @- sdrop (length \<pi>) \<sigma> else smap (\<lambda>i. ({}, i)) nats"
-  apply (auto split: if_splits simp: stream.map_comp stream.map_ident sdrop_smap[symmetric]
-    simp del: sdrop_smap intro!: sincreasing_shift sincreasing_sdrop cong: stream.map_cong)
-  sorry
-
-lemma prefix_of_replace_prefix:
-  "prefix_of (pmap_\<Gamma> f \<pi>) \<sigma> \<Longrightarrow> prefix_of \<pi> (replace_prefix \<pi> \<sigma>)"
-proof (transfer; safe; goal_cases)
-  case (1 f \<pi> \<sigma>)
-  then show ?case
-    by (subst (asm) (2) stake_sdrop[symmetric, of _ "length \<pi>"])
-      (auto 0 3 simp: ssorted_shift split_beta o_def stake_shift sdrop_smap[symmetric]
-        ssorted_sdrop not_le simp del: sdrop_smap)
-qed
-
-lemma map_\<Gamma>_replace_prefix:
-  "\<forall>x. f (f x) = f x \<Longrightarrow> prefix_of (pmap_\<Gamma> f \<pi>) \<sigma> \<Longrightarrow> map_\<Gamma> f (replace_prefix \<pi> \<sigma>) = map_\<Gamma> f \<sigma>"
-proof (transfer; safe; goal_cases)
-  case (1 f \<pi> \<sigma>)
-  then show ?case
-    by (subst (asm) (2) stake_sdrop[symmetric, of \<sigma> "length \<pi>"],
-        subst (3) stake_sdrop[symmetric, of \<sigma> "length \<pi>"])
-      (auto simp: ssorted_shift split_beta o_def stake_shift sdrop_smap[symmetric] ssorted_sdrop
-        not_le simp del: sdrop_smap cong: map_cong)
-qed
-
-lemma prefix_of_pmap_\<Gamma>_D:
-  assumes "prefix_of (pmap_\<Gamma> f \<pi>) \<sigma>"
-  shows "\<exists>\<sigma>'. prefix_of \<pi> \<sigma>' \<and> prefix_of (pmap_\<Gamma> f \<pi>) (map_\<Gamma> f \<sigma>')"
-proof -
-  from assms(1) obtain \<sigma>' where 1: "prefix_of \<pi> \<sigma>'"
-    using ex_prefix_of by blast
-  then have "prefix_of (pmap_\<Gamma> f \<pi>) (map_\<Gamma> f \<sigma>')"
-    by transfer simp
-  with 1 show ?thesis by blast
-qed
-
-lemma prefix_of_map_\<Gamma>_D:
-  assumes "prefix_of \<pi>' (map_\<Gamma> f \<sigma>)"
-  shows "\<exists>\<pi>''. \<pi>' = pmap_\<Gamma> f \<pi>'' \<and> prefix_of \<pi>'' \<sigma>"
-  using assms
-  by transfer (auto intro!: exI[of _ "stake (length _) _"] elim: sym dest: sorted_stake)
 
 lift_definition pts :: "'a prefix \<Rightarrow> nat list" is "map snd" .
 
