@@ -803,12 +803,22 @@ lemma mk_values_nth_cong: "MFOTL.Var x \<in> set (map fst tXs)
     by clarsimp
   done
 
+definition "mk_values_subset p tXs X 
+  \<longleftrightarrow> (let (fintXs, inftXs) = partition (\<lambda>tX. finite (snd tX)) tXs in
+  if inftXs = [] then {p} \<times> mk_values tXs \<subseteq> X 
+  else let (coftXs, coinftXs) = partition (\<lambda>tX. finite (UNIV - (snd tX))) inftXs in
+    if coinftXs = [] then {p} \<times> mk_values tXs \<subseteq> X
+    else Code.abort STR ''subset on infinite subset'' (\<lambda>_. {p} \<times> mk_values tXs \<subseteq> X))"
+
+lemma mk_values_subset_iff: "mk_values_subset p tXs X \<longleftrightarrow> {p} \<times> mk_values tXs \<subseteq> X"
+  by (simp_all add: mk_values_subset_def)
+
 fun s_check_exec :: "'d MFOTL.envset \<Rightarrow> 'd MFOTL.formula \<Rightarrow> 'd sproof \<Rightarrow> bool"
   and v_check_exec :: "'d MFOTL.envset \<Rightarrow> 'd MFOTL.formula \<Rightarrow> 'd vproof \<Rightarrow> bool" where
   "s_check_exec vs f p = (case (f, p) of
     (MFOTL.TT, STT i) \<Rightarrow> True
   | (MFOTL.Pred r ts, SPred i s ts') \<Rightarrow> 
-    (r = s \<and> ts = ts' \<and> {r} \<times> mk_values (MFOTL.eval_trms_set vs ts) \<subseteq> \<Gamma> \<sigma> i)
+    (r = s \<and> ts = ts' \<and> mk_values_subset r (MFOTL.eval_trms_set vs ts) (\<Gamma> \<sigma> i))
   | (MFOTL.Neg \<phi>, SNeg vp) \<Rightarrow> v_check_exec vs \<phi> vp
   | (MFOTL.Or \<phi> \<psi>, SOrL sp1) \<Rightarrow> s_check_exec vs \<phi> sp1
   | (MFOTL.Or \<phi> \<psi>, SOrR sp2) \<Rightarrow> s_check_exec vs \<psi> sp2
@@ -1476,7 +1486,7 @@ next
   {
     case 1
     thus ?case
-      apply (cases sp; clarsimp simp: subset_eq simp del: fv.simps)
+      apply (cases sp; clarsimp simp: subset_eq mk_values_subset_iff simp del: fv.simps)
       apply (intro iffI conjI impI allI ballI)
            apply clarsimp
           apply clarsimp
