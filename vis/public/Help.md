@@ -48,7 +48,7 @@ Next, you have two columns: TS (time-stamps) and TP (time-points).
 Up until this column, the table solely represents the trace (from top to bottom).
 The following columns correspond to different subformulas of your MTL formula ϕ.
 
-The first column corresponds to ϕ itself, and at every time-point where it is possible to output a verdict, the Explanator2 shows a Boolean verdict for ϕ.
+The first column corresponds to ϕ itself, and at every time-point where it is possible to output a verdict, Explanator2 shows a Boolean verdict for ϕ.
 
 Moreover, in the table header only the main operator of a subformula is shown.
 To see the entire subformula, you can hover your cursor over a Boolean verdict:
@@ -59,12 +59,12 @@ In addition, you can inspect a Boolean verdict by clicking on it:
 
 <img alt="Verdict inspection" src="./assets/click.png" style="margin:0px 25px; max-width: 230px; height: auto;" />
 
-Whenever you click on a Boolean verdict, the Explanator2 shows and highlights the Boolean verdicts for subformulas that justify the verdict for the
+Whenever you click on a Boolean verdict, Explanator2 shows and highlights the Boolean verdicts for subformulas that justify the verdict for the
 overall formula according to the standard MTL semantics.
 Furthermore, it also highlights the time interval associated with the corresponding subformula.
 You may further inspect Boolean verdicts until you reach atomic propositions.
 
-Multiple Boolean verdicts can be explored simultaneously, so the Explanator2 additionally highlights the overall Boolean verdict
+Multiple Boolean verdicts can be explored simultaneously, so Explanator2 additionally highlights the overall Boolean verdict
 (i.e., the context) of the current inspection:
 
 <img alt="Verdict inspection" src="./assets/click_context.png" style="margin:0px 25px; max-width: 230px; height: auto;" />
