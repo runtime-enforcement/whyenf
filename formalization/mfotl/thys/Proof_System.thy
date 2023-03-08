@@ -23,6 +23,30 @@ abbreviation "LTP_p \<sigma> i I \<equiv> min i (LTP \<sigma> ((\<tau> \<sigma> 
 abbreviation "ETP_f \<sigma> i I \<equiv> max i (ETP \<sigma> ((\<tau> \<sigma> i) + left I))"
 abbreviation "LTP_f \<sigma> i b \<equiv> LTP \<sigma> ((\<tau> \<sigma> i) + b)"
 
+definition max_opt where
+  "max_opt a b = (case (a,b) of (Some x, Some y) \<Rightarrow> Some (max x y) | _ \<Rightarrow> None)"
+
+(* Latest Relevant Time-Point *)
+primrec LRTP :: "'a MFOTL.trace \<Rightarrow> 'a MFOTL.formula \<Rightarrow> nat \<Rightarrow> nat option" where
+  "LRTP \<sigma> (MFOTL.TT) i = Some i"
+| "LRTP \<sigma> (MFOTL.FF) i = Some i"
+| "LRTP \<sigma> (MFOTL.Pred _ _) i = Some i"
+| "LRTP \<sigma> (MFOTL.Neg \<phi>) i = LRTP \<sigma> \<phi> i"
+| "LRTP \<sigma> (MFOTL.Or \<phi> \<psi>) i = max_opt (LRTP \<sigma> \<phi> i) (LRTP \<sigma> \<psi> i)"
+| "LRTP \<sigma> (MFOTL.And \<phi> \<psi>) i = max_opt (LRTP \<sigma> \<phi> i) (LRTP \<sigma> \<psi> i)"
+| "LRTP \<sigma> (MFOTL.Imp \<phi> \<psi>) i = max_opt (LRTP \<sigma> \<phi> i) (LRTP \<sigma> \<psi> i)"
+| "LRTP \<sigma> (MFOTL.Iff \<phi> \<psi>) i = max_opt (LRTP \<sigma> \<phi> i) (LRTP \<sigma> \<psi> i)"
+| "LRTP \<sigma> (MFOTL.Exists _ \<phi>) i = LRTP \<sigma> \<phi> i"
+| "LRTP \<sigma> (MFOTL.Forall _ \<phi>) i = LRTP \<sigma> \<phi> i"
+| "LRTP \<sigma> (MFOTL.Prev I \<phi>) i = LRTP \<sigma> \<phi> (i-1)"
+| "LRTP \<sigma> (MFOTL.Next I \<phi>) i = LRTP \<sigma> \<phi> (i+1)"
+| "LRTP \<sigma> (MFOTL.Once I \<phi>) i = LRTP \<sigma> \<phi> (LTP_p \<sigma> i I)"
+| "LRTP \<sigma> (MFOTL.Historically I \<phi>) i = LRTP \<sigma> \<phi> (LTP_p \<sigma> i I)"
+| "LRTP \<sigma> (MFOTL.Eventually I \<phi>) i = (case right I of \<infinity> \<Rightarrow> None | enat b \<Rightarrow> LRTP \<sigma> \<phi> (LTP_f \<sigma> i b))"
+| "LRTP \<sigma> (MFOTL.Always I \<phi>) i = (case right I of \<infinity> \<Rightarrow> None | enat b \<Rightarrow> LRTP \<sigma> \<phi> (LTP_f \<sigma> i b))" 
+| "LRTP \<sigma> (MFOTL.Since \<phi> I \<psi>) i = max_opt (LRTP \<sigma> \<phi> i) (LRTP \<sigma> \<psi> (LTP_p \<sigma> i I))"
+| "LRTP \<sigma> (MFOTL.Until \<phi> I \<psi>) i = (case right I of \<infinity> \<Rightarrow> None | enat b \<Rightarrow> max_opt (LRTP \<sigma> \<phi> ((LTP_f \<sigma> i b)-1)) (LRTP \<sigma> \<psi> (LTP_f \<sigma> i b)))"
+
 lemma i_ETP_tau: "i \<ge> ETP \<sigma> n \<longleftrightarrow> \<tau> \<sigma> i \<ge> n"
 proof
   assume P: "i \<ge> ETP \<sigma> n"
@@ -137,7 +161,6 @@ lemma i_ge_etpi: "ETP \<sigma> (\<tau> \<sigma> i) \<le> i"
 lemma enat_trans[simp]: "enat i \<le> enat j \<and> enat j \<le> enat k \<Longrightarrow> enat i \<le> enat k"
   by auto
 
-(*sat lemmas*)
 lemma not_sat_SinceD:
   assumes unsat: "\<not> MFOTL.sat \<sigma> v i (MFOTL.Since \<phi> I \<psi>)" and
     witness: "\<exists>j \<le> i. mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I \<and> MFOTL.sat \<sigma> v j \<psi>"

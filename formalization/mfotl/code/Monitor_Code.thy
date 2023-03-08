@@ -227,10 +227,11 @@ lemma \<Gamma>_rbt_code[code]: "\<Gamma> (Trace_RBT t) i = fst (trace_rbt_nth t 
 lemma \<tau>_rbt_code[code]: "\<tau> (Trace_RBT t) i = snd (trace_rbt_nth t i)"
   by transfer (auto split: prod.splits)
                                        
-lemma trace_rbt_of_list_sound: "sorted (map snd xs) \<Longrightarrow> i < length xs \<Longrightarrow>
+lemma trace_rbt_of_list_sound: "sorted (map snd xs) \<and> fstfinite (map fst xs) \<Longrightarrow> i < length xs \<Longrightarrow>
   xs ! i = (\<Gamma> (trace_of_list xs) i, \<tau> (trace_of_list xs) i)"
   unfolding trace_of_list_def
   by transfer (auto simp: lookup_bulkload_Some)
+
 
 subsection \<open>Exported functions\<close>
 
