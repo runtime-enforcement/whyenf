@@ -1072,46 +1072,32 @@ proof (induct ts arbitrary: v cs vs)
 qed (simp add: compatible_vals_def 
     MFOTL.eval_trms_set_def MFOTL.eval_trms_def)
 
-definition AD :: "'d MFOTL.formula \<Rightarrow> nat \<Rightarrow> 'd set"
-  where "AD \<phi> i = (\<Union> k < enat (i+1) + (MFOTL.future_reach \<phi>). \<Union> (set ` snd ` \<Gamma> \<sigma> (the_enat k)))"
 
+definition AD :: "'d MFOTL.formula \<Rightarrow> nat \<Rightarrow> 'd set"
+  where "AD \<phi> i = (\<Union> k < the (LRTP \<sigma> \<phi> i). \<Union> (set ` snd ` \<Gamma> \<sigma> (the_enat k)))"
 
 lemma val_in_AD_iff:
-  "x \<in> fv \<phi> \<Longrightarrow> v x \<in> AD \<phi> i \<longleftrightarrow> (\<exists>p ts k. k < enat (i+1) + (MFOTL.future_reach \<phi>) \<and> (p, MFOTL.eval_trms v ts) \<in> \<Gamma> \<sigma> (the_enat k) \<and> x \<in> \<Union> (set (map fv\<^sub>t ts)))"
-apply (intro iffI; clarsimp)
-     apply (auto simp: AD_def)[1]
-     apply (rename_tac k' p' cs)
-     apply (rule_tac x=p' in exI)
-    apply (rule_tac x="map (\<lambda>c. if v x = c then (\<^bold>v x::'d MFOTL.trm) else \<^bold>c c) cs" in exI)
-    apply (rule_tac x=k' in exI)
-     apply (auto simp: MFOTL.eval_trms_def)[1]
-    subgoal for k' p' cs
-      apply (subgoal_tac "map (MFOTL.eval_trm v \<circ> (\<lambda>c. if v x = c then \<^bold>v x else \<^bold>c c)) cs = cs")
-       apply clarsimp
-      apply (thin_tac "(p', cs) \<in> \<Gamma> \<sigma> (the_enat k')")
-      apply (induct cs)
-       apply simp
-      apply simp
-      subgoal for a as
-        apply (cases "v x \<in> set as")
-         apply force
-      apply (erule disjE)
-      prefer 2 apply force
-        apply (simp add: comp_def)
-        by (simp add: map_idI)
-      done
-    apply (auto simp: AD_def)[1]
-    apply (rename_tac p' ts' k t')
-    apply (rule_tac x="k" in bexI; clarsimp?)
-    apply (rule_tac x="(p', MFOTL.eval_trms v ts')" in bexI; clarsimp simp: MFOTL.eval_trms_def image_iff)
-    subgoal for p' cs k t'
-      apply (cases t'; clarsimp)
-      by (rule_tac x="\<^bold>v x" in bexI; clarsimp?)
+  "x \<in> fv \<phi> \<Longrightarrow> v x \<in> AD \<phi> i \<longleftrightarrow> (\<exists>p ts k. k < the (LRTP \<sigma> \<phi> i) \<and> (p, MFOTL.eval_trms v ts) \<in> \<Gamma> \<sigma> (the_enat k) \<and> x \<in> \<Union> (set (map fv\<^sub>t ts)))"
+  apply (intro iffI; clarsimp)
+   apply (auto simp: AD_def)[1]
+   apply (rename_tac k' p' cs)
+   apply (rule_tac x=p' in exI)
+   apply (rule_tac x="map (\<lambda>c. if v x = c then (\<^bold>v x::'d MFOTL.trm) else \<^bold>c c) cs" in exI)
+   apply (rule_tac x=k' in exI)
+   apply (auto simp: MFOTL.eval_trms_def)[1]
+  subgoal for k' p' cs
+    apply (subgoal_tac "map (MFOTL.eval_trm v \<circ> (\<lambda>c. if v x = c then \<^bold>v x else \<^bold>c c)) cs = cs")
+     apply clarsimp
+    apply (simp add: map_idI)
     done
+  subgoal for p' cs k t'
+    apply (cases t'; clarsimp)
+    sorry
+  done
 
 lemma val_notin_AD_iff:
-  "x \<in> fv \<phi> \<Longrightarrow> v x \<notin> AD \<phi> i \<longleftrightarrow> (\<forall>p ts k. k < enat (i+1) + (MFOTL.future_reach \<phi>) \<longrightarrow> x \<in> \<Union> (set (map fv\<^sub>t ts)) \<longrightarrow> (p, MFOTL.eval_trms v ts) \<notin> \<Gamma> \<sigma> (the_enat k))"
-  using val_in_AD_iff
+  "x \<in> fv \<phi> \<Longrightarrow> v x \<notin> AD \<phi> i \<longleftrightarrow> (\<forall>p ts k. k < the (LRTP \<sigma> \<phi> i) \<longrightarrow> x \<in> \<Union> (set (map fv\<^sub>t ts)) \<longrightarrow> (p, MFOTL.eval_trms v ts) \<notin> \<Gamma> \<sigma> (the_enat k))"
+  using val_in_AD_iff 
   by blast
 
 lemma compatible_vals_fun_upd: "compatible_vals A (vs(x := X)) =
@@ -1130,15 +1116,19 @@ lemma fun_upd_in_compatible_vals_notin: "x \<notin> A \<Longrightarrow> v \<in> 
 lemma finite_values: "finite (\<Union> (set ` snd ` \<Gamma> \<sigma> (the_enat k)))"
   by (transfer, auto simp add: sfstfinite_def)
 
-lemma bounded_future_reach: 
+lemma bounded_future_LRTP: 
   assumes "MFOTL.future_bounded \<phi>"
-  shows "MFOTL.future_reach \<phi> \<noteq> \<infinity>"
+  shows "\<not> Option.is_none (LRTP \<sigma> \<phi> i)"
   using assms
-proof(induction \<phi>)
+  sorry
+(* proof(induction \<phi>)
   case (Next I \<phi>)
   obtain b where b_def: "b = right I"
     using assms by (atomize_elim, simp)
-  obtain fr where fr_def: "fr = MFOTL.future_reach \<phi>"
+  obtain j where j_def: "j = LRTP \<sigma> \<phi> i" for i
+    apply (atomize_elim)
+    
+
     using assms by (atomize_elim, simp)
   have notinf: "b \<noteq> \<infinity>" "fr \<noteq> \<infinity>" 
     using Next unfolding b_def fr_def by auto
@@ -1194,33 +1184,25 @@ next
     unfolding b_def fr_def
     apply auto
     done
-qed auto
+qed auto *)
 
-lemma finite_tps: "MFOTL.future_bounded \<phi> \<Longrightarrow> finite (\<Union> k < enat (i+1) + MFOTL.future_reach \<phi>. {k})"
-  using bounded_future_reach[of \<phi>] finite_enat_bounded
-  by (clarsimp, meson lessThan_iff order.order_iff_strict)
+lemma finite_tps: "MFOTL.future_bounded \<phi> \<Longrightarrow> finite (\<Union> k < the (LRTP \<sigma> \<phi> i). {k})"
+  using bounded_future_LRTP[of \<phi>] finite_enat_bounded 
+  by simp
 
 lemma finite_AD: "MFOTL.future_bounded \<phi> \<Longrightarrow> finite (AD \<phi> i)"
   using finite_tps finite_values
-  by (auto simp add: AD_def)
+  by (simp add: AD_def enat_def)
 
-lemma AD_noteq_UNIV: "MFOTL.future_bounded \<phi> \<Longrightarrow> Monitor.AD \<sigma> \<phi> i \<noteq> UNIV"
-  using Monitor.finite_AD[of \<phi> \<sigma> i]
-  sorry
-
-lemma part_hd_tabulate: "MFOTL.future_bounded \<phi> \<Longrightarrow> v_at (part_hd (tabulate (sorted_list_of_set (AD \<phi> i)) f (f (SOME z. z \<notin> AD \<phi> i)))) = i"
+lemma part_hd_tabulate:  "MFOTL.future_bounded \<phi> \<Longrightarrow> v_at (f z) = i \<Longrightarrow> v_at (part_hd (tabulate (sorted_list_of_set (AD \<phi> i)) f (f (SOME z. z \<notin> AD \<phi> i)))) = i"
   apply transfer
   apply clarsimp
-  subgoal for \<phi> \<sigma> i f
+  subgoal for \<phi> f z \<sigma>
   proof -
     assume fb: "MFOTL.future_bounded \<phi>"
-    then have "set (sorted_list_of_set (Monitor.AD \<sigma> \<phi> i)) = Monitor.AD \<sigma> \<phi> i"
+    then have eq: "set (sorted_list_of_set (Monitor.AD \<sigma> \<phi> i)) = Monitor.AD \<sigma> \<phi> i"
       by (simp add: Monitor.finite_AD)
-    moreover have "Monitor.AD \<sigma> \<phi> i \<noteq> UNIV" 
-      by (simp add: Monitor.AD_noteq_UNIV fb)
-    ultimately show ?thesis
-      apply clarsimp
-      sorry
+    show ?thesis sorry
   qed
   done
 
@@ -2110,10 +2092,11 @@ next
     apply (rule choice)
     using VExists fb apply (cases \<phi>, simp_all)
     done 
-  define mypart where "mypart = tabulate (sorted_list_of_set (AD \<phi> i)) mypick (mypick (SOME z. z\<notin>(AD \<phi> i)))"
+  define mypart where "mypart = tabulate (sorted_list_of_set (AD \<phi> i)) mypick (mypick (SOME z. z \<notin> (AD \<phi> i)))"
   have v_at_myp: "v_at (VExists x mypart) = i"
-    using fb part_hd_tabulate[of \<phi> i mypick] 
-    by (simp add: mypart_def) 
+    (* using fb part_hd_tabulate[of \<phi> i mypick]  *)
+    apply (simp add: mypart_def) 
+    sorry
   have v_check_myp: "v_check v (MFOTL.Exists x \<phi>) (VExists x mypart)"
     sorry
   show ?case using v_at_myp v_check_myp by blast
