@@ -1207,12 +1207,18 @@ lemma finite_AD: "MFOTL.future_bounded \<phi> \<Longrightarrow> finite (AD \<phi
 lemma part_hd_tabulate:  "MFOTL.future_bounded \<phi> \<Longrightarrow> v_at (f z) = i \<Longrightarrow> v_at (part_hd (tabulate (sorted_list_of_set (AD \<phi> i)) f (f (SOME z. z \<notin> AD \<phi> i)))) = i"
   apply transfer
   apply clarsimp
+  apply (rule conjI)
   subgoal for \<phi> f z \<sigma>
-  proof -
+    sorry
+  subgoal for \<phi> f z \<sigma>
+    proof -
     assume fb: "MFOTL.future_bounded \<phi>"
-    then have eq: "set (sorted_list_of_set (Monitor.AD \<sigma> \<phi> i)) = Monitor.AD \<sigma> \<phi> i"
+    then have eq: "set (sorted_list_of_set (Monitor.AD \<sigma> \<phi> (v_at (f z)))) = Monitor.AD \<sigma> \<phi> (v_at (f z))"
       by (simp add: Monitor.finite_AD)
-    show ?thesis sorry
+    show ?thesis 
+      apply (simp add: eq)
+      apply (rule impI)
+      sorry
   qed
   done
 
@@ -1931,6 +1937,12 @@ lemma SubsVals_trivial[simp]: "SubsVals (trivial_part pt) = {(UNIV, pt)}"
   unfolding SubsVals_def
   by (transfer) simp
 
+lemma 
+  assumes "VIO \<sigma> (v(x := z)) i \<phi>" 
+  shows "MFOTL.future_bounded \<phi> \<longrightarrow> (\<exists>vp. v_at vp = i \<and> local.v_check (v(x := z)) \<phi> vp) \<Longrightarrow> MFOTL.future_bounded \<phi>"
+  apply auto
+  oops
+
 lemma check_AD_cong:
   assumes "(\<forall>x \<in> MFOTL.fv \<phi>. v1 x = v2 x \<or> v1 x \<notin> AD \<phi> i \<and> v2 x \<notin> AD \<phi> i)"
   shows "(s_at sp = i \<Longrightarrow> s_check v1 \<phi> sp \<longleftrightarrow> s_check v2 \<phi> sp)"
@@ -2095,7 +2107,9 @@ next
     done
 next
   case (VExists v x i \<phi>)
-  then have fb: "MFOTL.future_bounded \<phi>"
+  from VExists have fb: "MFOTL.future_bounded \<phi>"
+    apply (rule allE[of _ z "MFOTL.future_bounded \<phi>"])
+    apply (erule conjE[OF _ _])
     sorry
   obtain mypick where mypick_def: "v_at (mypick z) = i \<and> v_check (v(x:=z)) \<phi> (mypick z)" for z
     apply (atomize_elim)
@@ -2103,12 +2117,13 @@ next
     using VExists fb apply (cases \<phi>, simp_all)
     done 
   define mypart where "mypart = tabulate (sorted_list_of_set (AD \<phi> i)) mypick (mypick (SOME z. z \<notin> (AD \<phi> i)))"
+  have mypick_at: "v_at (mypick (SOME z. z \<notin> local.AD \<phi> i)) = i"
+    by (simp add: mypick_def)
   have v_at_myp: "v_at (VExists x mypart) = i"
-    (* using fb part_hd_tabulate[of \<phi> i mypick]  *)
-    apply (simp add: mypart_def) 
-    sorry
+    using part_hd_tabulate[of \<phi> mypick "SOME z. z \<notin> local.AD \<phi> i" i, OF fb mypick_at]
+    by (simp add: mypart_def) 
   have v_check_myp: "v_check v (MFOTL.Exists x \<phi>) (VExists x mypart)"
-    sorry
+    sorry 
   show ?case using v_at_myp v_check_myp by blast
 next
   case (SForall v x i \<phi>)
