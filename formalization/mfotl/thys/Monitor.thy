@@ -1133,68 +1133,54 @@ lemma bounded_future_LRTP:
   sorry
 (* proof(induction \<phi>)
   case (Next I \<phi>)
-  obtain b where b_def: "b = right I"
+  (* obtain b where b_def: "b = right I"
     using assms by (atomize_elim, simp)
   obtain j where j_def: "j = LRTP \<sigma> \<phi> i" for i
     apply (atomize_elim)
-    
-
     using assms by (atomize_elim, simp)
   have notinf: "b \<noteq> \<infinity>" "fr \<noteq> \<infinity>" 
-    using Next unfolding b_def fr_def by auto
-  show ?case
-    apply clarsimp
+    using Next unfolding b_def fr_def by auto *)
+  show ?case sorry
+    (* apply clarsimp
     apply (rule exI[of _ "(the_enat fr) + (the_enat b) + 1"])
     using notinf eSuc_enat_iff plus_1_eSuc
     unfolding b_def fr_def
     apply auto
-    done
+    done *)
 next
   case (Eventually I \<phi>)
-  obtain b where b_def: "b = right I"
+  (* obtain b where b_def: "b = right I"
     using assms by (atomize_elim, simp)
   obtain fr where fr_def: "fr = MFOTL.future_reach \<phi>"
     using assms by (atomize_elim, simp)
   have notinf: "b \<noteq> \<infinity>" "fr \<noteq> \<infinity>" 
-    using Eventually unfolding b_def fr_def by auto
-  show ?case
-    apply clarsimp
+    using Eventually unfolding b_def fr_def by auto *)
+  show ?case sorry
+    (* apply clarsimp
     apply (rule exI[of _ "(the_enat fr) + (the_enat b) + 1"])
     using notinf eSuc_enat_iff plus_1_eSuc
     unfolding b_def fr_def
     apply auto
-    done
+    done *)
 next
   case (Always I \<phi>)
-  obtain b where b_def: "b = right I"
-    using assms by (atomize_elim, simp)
-  obtain fr where fr_def: "fr = MFOTL.future_reach \<phi>"
-    using assms by (atomize_elim, simp)
-  have notinf: "b \<noteq> \<infinity>" "fr \<noteq> \<infinity>" 
-    using Always unfolding b_def fr_def by auto
-  show ?case
-    apply clarsimp
-    apply (rule exI[of _ "(the_enat fr) + (the_enat b) + 1"])
-    using notinf eSuc_enat_iff plus_1_eSuc
-    unfolding b_def fr_def
-    apply auto
-    done
+  show ?case sorry
 next
   case (Until \<phi>1 I \<phi>2)
-  obtain b where b_def: "b = right I"
+  (* obtain b where b_def: "b = right I"
     using assms by (atomize_elim, simp)
   obtain fr1 and fr2 where fr_def: "fr1 = MFOTL.future_reach \<phi>1" "fr2 = MFOTL.future_reach \<phi>2"
     using assms by (atomize_elim, simp)
   have notinf: "b \<noteq> \<infinity>" "fr1 \<noteq> \<infinity>" "fr2 \<noteq> \<infinity>" 
-    using Until unfolding b_def fr_def by auto
-  show ?case
-    apply clarsimp
+    using Until unfolding b_def fr_def by auto *)
+  show ?case sorry
+    (* apply clarsimp
     apply (rule exI[of _ "(the_enat (max (MFOTL.future_reach \<phi>1) (MFOTL.future_reach \<phi>2))) + (the_enat b) + 1"])
     using notinf eSuc_enat_iff plus_1_eSuc
     unfolding b_def fr_def
     apply auto
-    done
-qed auto *)
+    done *)
+qed (auto simp add: max_opt_def Option.is_none_def) *)
 
 lemma finite_tps: "MFOTL.future_bounded \<phi> \<Longrightarrow> finite (\<Union> k < the (LRTP \<sigma> \<phi> i). {k})"
   using bounded_future_LRTP[of \<phi>] finite_enat_bounded 
@@ -1204,20 +1190,21 @@ lemma finite_AD: "MFOTL.future_bounded \<phi> \<Longrightarrow> finite (AD \<phi
   using finite_tps finite_values
   by (simp add: AD_def enat_def)
 
-lemma part_hd_tabulate:  "MFOTL.future_bounded \<phi> \<Longrightarrow> v_at (f z) = i \<Longrightarrow> v_at (part_hd (tabulate (sorted_list_of_set (AD \<phi> i)) f (f (SOME z. z \<notin> AD \<phi> i)))) = i"
+lemma part_hd_tabulate: 
+  assumes "MFOTL.future_bounded \<phi>"
+    and "v_at (f (SOME z. z \<notin> local.AD \<phi> i)) = i"
+  shows "v_at (part_hd (tabulate (sorted_list_of_set (AD \<phi> i)) f (f (SOME z. z \<notin> AD \<phi> i)))) = i"
+  using assms
   apply transfer
-  apply clarsimp
-  apply (rule conjI)
-  subgoal for \<phi> f z \<sigma>
-    sorry
-  subgoal for \<phi> f z \<sigma>
-    proof -
-    assume fb: "MFOTL.future_bounded \<phi>"
-    then have eq: "set (sorted_list_of_set (Monitor.AD \<sigma> \<phi> (v_at (f z)))) = Monitor.AD \<sigma> \<phi> (v_at (f z))"
+  apply simp
+  subgoal for \<phi> f \<sigma> i
+  proof -
+    assume "MFOTL.future_bounded \<phi>"
+    then have eq: "set (sorted_list_of_set (Monitor.AD \<sigma> \<phi> i)) = UNIV = (Monitor.AD \<sigma> \<phi> i = UNIV)"
       by (simp add: Monitor.finite_AD)
-    show ?thesis 
-      apply (simp add: eq)
+    show ?thesis
       apply (rule impI)
+      apply (simp only: eq)
       sorry
   qed
   done
