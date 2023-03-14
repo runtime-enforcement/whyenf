@@ -1126,62 +1126,6 @@ lemma fun_upd_in_compatible_vals_notin: "x \<notin> A \<Longrightarrow> v \<in> 
 lemma finite_values: "finite (\<Union> (set ` snd ` \<Gamma> \<sigma> (the_enat k)))"
   by (transfer, auto simp add: sfstfinite_def)
 
-lemma bounded_future_LRTP: 
-  assumes "MFOTL.future_bounded \<phi>"
-  shows "\<not> Option.is_none (LRTP \<sigma> \<phi> i)"
-  using assms
-  sorry
-(* proof(induction \<phi>)
-  case (Next I \<phi>)
-  (* obtain b where b_def: "b = right I"
-    using assms by (atomize_elim, simp)
-  obtain j where j_def: "j = LRTP \<sigma> \<phi> i" for i
-    apply (atomize_elim)
-    using assms by (atomize_elim, simp)
-  have notinf: "b \<noteq> \<infinity>" "fr \<noteq> \<infinity>" 
-    using Next unfolding b_def fr_def by auto *)
-  show ?case sorry
-    (* apply clarsimp
-    apply (rule exI[of _ "(the_enat fr) + (the_enat b) + 1"])
-    using notinf eSuc_enat_iff plus_1_eSuc
-    unfolding b_def fr_def
-    apply auto
-    done *)
-next
-  case (Eventually I \<phi>)
-  (* obtain b where b_def: "b = right I"
-    using assms by (atomize_elim, simp)
-  obtain fr where fr_def: "fr = MFOTL.future_reach \<phi>"
-    using assms by (atomize_elim, simp)
-  have notinf: "b \<noteq> \<infinity>" "fr \<noteq> \<infinity>" 
-    using Eventually unfolding b_def fr_def by auto *)
-  show ?case sorry
-    (* apply clarsimp
-    apply (rule exI[of _ "(the_enat fr) + (the_enat b) + 1"])
-    using notinf eSuc_enat_iff plus_1_eSuc
-    unfolding b_def fr_def
-    apply auto
-    done *)
-next
-  case (Always I \<phi>)
-  show ?case sorry
-next
-  case (Until \<phi>1 I \<phi>2)
-  (* obtain b where b_def: "b = right I"
-    using assms by (atomize_elim, simp)
-  obtain fr1 and fr2 where fr_def: "fr1 = MFOTL.future_reach \<phi>1" "fr2 = MFOTL.future_reach \<phi>2"
-    using assms by (atomize_elim, simp)
-  have notinf: "b \<noteq> \<infinity>" "fr1 \<noteq> \<infinity>" "fr2 \<noteq> \<infinity>" 
-    using Until unfolding b_def fr_def by auto *)
-  show ?case sorry
-    (* apply clarsimp
-    apply (rule exI[of _ "(the_enat (max (MFOTL.future_reach \<phi>1) (MFOTL.future_reach \<phi>2))) + (the_enat b) + 1"])
-    using notinf eSuc_enat_iff plus_1_eSuc
-    unfolding b_def fr_def
-    apply auto
-    done *)
-qed (auto simp add: max_opt_def Option.is_none_def) *)
-
 lemma finite_tps: "MFOTL.future_bounded \<phi> \<Longrightarrow> finite (\<Union> k < the (LRTP \<sigma> \<phi> i). {k})"
   using bounded_future_LRTP[of \<phi>] finite_enat_bounded 
   by simp
@@ -2034,55 +1978,153 @@ next
     done
 next
   case (SPred r v ts i)
-  then show ?case sorry
+  then show ?case 
+    apply simp
+    apply (rule exI[of _ "SPred i r ts"])
+    apply (simp add: fun_upd_def)
+    done
 next
   case (VPred r v ts i)
-  then show ?case sorry
+  then show ?case 
+    apply simp
+    apply (rule exI[of _ "VPred i r ts"])
+    apply (simp add: fun_upd_def)
+    done
 next
   case (SNeg v i \<phi>)
-  then show ?case sorry
+  then show ?case 
+    apply clarsimp
+    subgoal for vp
+      apply (rule exI[of _ "SNeg vp"])
+      apply (simp add: fun_upd_def)
+      done
+    done
 next
   case (VNeg v i \<phi>)
-  then show ?case sorry
+  then show ?case 
+    apply clarsimp
+    subgoal for sp
+      apply (rule exI[of _ "VNeg sp"])
+      apply (simp add: fun_upd_def)
+      done
+    done
 next
   case (SOrL v i \<phi> \<psi>)
-  then show ?case sorry
+  then show ?case 
+    apply clarsimp
+    subgoal for sp
+      apply (rule exI[of _ "SOrL sp"])
+      apply (simp add: fun_upd_def)
+      done
+    done
 next
   case (SOrR v i \<psi> \<phi>)
-  then show ?case sorry
+  then show ?case 
+    apply clarsimp
+    subgoal for sp
+      apply (rule exI[of _ "SOrR sp"])
+      apply (simp add: fun_upd_def)
+      done
+    done
 next
   case (VOr v i \<phi> \<psi>)
-  then show ?case sorry
+  then show ?case 
+    apply clarsimp
+    subgoal for vp1 vp2
+      apply (rule exI[of _ "VOr vp1 vp2"])
+      apply (simp add: fun_upd_def)
+      done
+    done
 next
   case (SAnd v i \<phi> \<psi>)
-  then show ?case sorry
+  then show ?case 
+    apply clarsimp
+    subgoal for sp1 sp2
+      apply (rule exI[of _ "SAnd sp1 sp2"])
+      apply (simp add: fun_upd_def)
+      done
+    done
 next
   case (VAndL v i \<phi> \<psi>)
-  then show ?case sorry
+  then show ?case 
+    apply clarsimp
+    subgoal for vp
+      apply (rule exI[of _ "VAndL vp"])
+      apply (simp add: fun_upd_def)
+      done
+    done
 next
   case (VAndR v i \<psi> \<phi>)
-  then show ?case sorry
+  then show ?case 
+    apply clarsimp
+    subgoal for vp
+      apply (rule exI[of _ "VAndR vp"])
+      apply (simp add: fun_upd_def)
+      done
+    done
 next
   case (SImpL v i \<phi> \<psi>)
-  then show ?case sorry
+  then show ?case 
+    apply clarsimp
+    subgoal for vp
+      apply (rule exI[of _ "SImpL vp"])
+      apply (simp add: fun_upd_def)
+      done
+    done
 next
   case (SImpR v i \<psi> \<phi>)
-  then show ?case sorry
+  then show ?case
+    apply clarsimp
+    subgoal for sp
+      apply (rule exI[of _ "SImpR sp"])
+      apply (simp add: fun_upd_def)
+      done
+    done
 next
   case (VImp v i \<phi> \<psi>)
-  then show ?case sorry
+  then show ?case
+    apply clarsimp
+    subgoal for sp vp
+      apply (rule exI[of _ "VImp sp vp"])
+      apply (simp add: fun_upd_def)
+      done
+    done
 next
   case (SIffSS v i \<phi> \<psi>)
-  then show ?case sorry
+  then show ?case 
+    apply clarsimp
+    subgoal for sp vp
+      apply (rule exI[of _ "SIffSS sp vp"])
+      apply (simp add: fun_upd_def)
+      done
+    done
 next
   case (SIffVV v i \<phi> \<psi>)
-  then show ?case sorry
+  then show ?case 
+    apply clarsimp
+    subgoal for vp1 vp2
+      apply (rule exI[of _ "SIffVV vp1 vp2"])
+      apply (simp add: fun_upd_def)
+      done
+    done
 next
   case (VIffSV v i \<phi> \<psi>)
-  then show ?case sorry
+  then show ?case 
+    apply clarsimp
+    subgoal for sp vp
+      apply (rule exI[of _ "VIffSV sp vp"])
+      apply (simp add: fun_upd_def)
+      done
+    done
 next
   case (VIffVS v i \<phi> \<psi>)
-  then show ?case sorry
+  then show ?case 
+    apply clarsimp
+    subgoal for vp sp
+      apply (rule exI[of _ "VIffVS vp sp"])
+      apply (simp add: fun_upd_def)
+      done
+    done
 next
   case (SExists v x i \<phi>)
   then show ?case
@@ -2107,7 +2149,7 @@ next
   have mypick_at: "v_at (mypick (SOME z. z \<notin> local.AD \<phi> i)) = i"
     by (simp add: mypick_def)
   have v_at_myp: "v_at (VExists x mypart) = i"
-    using part_hd_tabulate[of \<phi> mypick "SOME z. z \<notin> local.AD \<phi> i" i, OF fb mypick_at]
+    using part_hd_tabulate[of \<phi> mypick i, OF fb mypick_at]
     by (simp add: mypart_def) 
   have v_check_myp: "v_check v (MFOTL.Exists x \<phi>) (VExists x mypart)"
     sorry 
@@ -2117,46 +2159,112 @@ next
   then show ?case sorry
 next
   case (VForall v x i \<phi>)
-  then show ?case sorry
+  then show ?case 
+    apply clarsimp
+    subgoal for z vp
+      apply (rule exI[of _ "VForall x z vp"])
+      apply (simp add: fun_upd_def)
+      done
+    done
 next
   case (SPrev i I v \<phi>)
-  then show ?case sorry
+  then show ?case 
+    apply clarsimp
+    subgoal for sp
+      apply (rule exI[of _ "SPrev sp"])
+      apply (simp add: fun_upd_def)
+      done
+    done
 next
   case (VPrev i v \<phi> I)
-  then show ?case sorry
+  then show ?case 
+    apply clarsimp
+    subgoal for vp
+      apply (rule exI[of _ "VPrev vp"])
+      apply (simp add: fun_upd_def)
+      done
+    done
 next
   case (VPrevZ i v I \<phi>)
-  then show ?case sorry
+  then show ?case
+    apply clarsimp
+    apply (rule exI[of _ "VPrevZ"])
+    apply (simp add: fun_upd_def)
+    done
 next
   case (VPrevOutL i I v \<phi>)
-  then show ?case sorry
+  then show ?case
+    apply clarsimp
+    apply (rule exI[of _ "VPrevOutL i"])
+    apply (simp add: fun_upd_def)
+    done
 next
   case (VPrevOutR i I v \<phi>)
-  then show ?case sorry
+  then show ?case 
+    apply clarsimp
+    apply (rule exI[of _ "VPrevOutR i"])
+    apply (simp add: fun_upd_def)
+    done
 next
   case (SNext i I v \<phi>)
-  then show ?case sorry
+  then show ?case 
+    apply clarsimp
+    subgoal for sp
+      apply (rule exI[of _ "SNext sp"])
+      apply (simp add: fun_upd_def)
+      done
+    done
 next
   case (VNext v i \<phi> I)
-  then show ?case sorry
+  then show ?case 
+    apply clarsimp
+    subgoal for vp
+      apply (rule exI[of _ "VNext vp"])
+      apply (simp add: fun_upd_def)
+      done
+    done
 next
   case (VNextOutL i I v \<phi>)
-  then show ?case sorry
+  then show ?case 
+    apply clarsimp
+    apply (rule exI[of _ "VNextOutL i"])
+    apply (simp add: fun_upd_def)
+    done
 next
   case (VNextOutR i I v \<phi>)
-  then show ?case sorry
+  then show ?case 
+    apply clarsimp
+    apply (rule exI[of _ "VNextOutR i"])
+    apply (simp add: fun_upd_def)
+    done
 next
   case (SOnce j i I v \<phi>)
-  then show ?case sorry
+  then show ?case 
+    apply clarsimp
+    subgoal for sp
+      apply (rule exI[of _ "SOnce i sp"])
+      apply (simp add: fun_upd_def)
+      done
+    done
 next
   case (VOnceOut i I v \<phi>)
-  then show ?case sorry
+  then show ?case 
+    apply clarsimp
+    apply (rule exI[of _ "VOnceOut i"])
+    apply (simp add: fun_upd_def)
+    done
 next
   case (VOnce j I i v \<phi>)
   then show ?case sorry
 next
   case (SEventually j i I v \<phi>)
-  then show ?case sorry
+  then show ?case 
+    apply clarsimp
+    subgoal for j sp
+      apply (rule exI[of _ "SEventually i sp"])
+      apply (simp add: fun_upd_def)
+      done
+    done
 next
   case (VEventually I i v \<phi>)
   then show ?case sorry
@@ -2165,22 +2273,42 @@ next
   then show ?case sorry
 next
   case (SHistoricallyOut i I v \<phi>)
-  then show ?case sorry
+  then show ?case 
+    apply clarsimp
+    apply (rule exI[of _ "SHistoricallyOut i"])
+    apply (simp add: fun_upd_def)
+    done
 next
   case (VHistorically j i I v \<phi>)
-  then show ?case sorry
+  then show ?case 
+    apply clarsimp
+    subgoal for vp
+      apply (rule exI[of _ "VHistorically i vp"])
+      apply (simp add: fun_upd_def)
+      done
+    done
 next
   case (SAlways I i v \<phi>)
   then show ?case sorry
 next
   case (VAlways j i I v \<phi>)
-  then show ?case sorry
+  then show ?case 
+    apply clarsimp
+    subgoal for j vp
+      apply (rule exI[of _ "VAlways i vp"])
+      apply (simp add: fun_upd_def)
+      done
+    done
 next
   case (SSince j i I v \<psi> \<phi>)
   then show ?case sorry
 next
   case (VSinceOut i I v \<phi> \<psi>)
-  then show ?case sorry
+  then show ?case 
+    apply clarsimp
+    apply (rule exI[of _ "VSinceOut i"])
+    apply (simp add: fun_upd_def)
+    done
 next
   case (VSince I i j v \<phi> \<psi>)
   then show ?case sorry
