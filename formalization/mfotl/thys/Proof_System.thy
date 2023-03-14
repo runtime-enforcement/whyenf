@@ -27,7 +27,7 @@ definition max_opt where
   "max_opt a b = (case (a,b) of (Some x, Some y) \<Rightarrow> Some (max x y) | _ \<Rightarrow> None)"
 
 (* Latest Relevant Time-Point *)
-primrec LRTP :: "'a MFOTL.trace \<Rightarrow> 'a MFOTL.formula \<Rightarrow> nat \<Rightarrow> nat option" where
+fun LRTP :: "'a MFOTL.trace \<Rightarrow> 'a MFOTL.formula \<Rightarrow> nat \<Rightarrow> nat option" where
   "LRTP \<sigma> (MFOTL.TT) i = Some i"
 | "LRTP \<sigma> (MFOTL.FF) i = Some i"
 | "LRTP \<sigma> (MFOTL.Pred _ _) i = Some i"
@@ -46,6 +46,13 @@ primrec LRTP :: "'a MFOTL.trace \<Rightarrow> 'a MFOTL.formula \<Rightarrow> nat
 | "LRTP \<sigma> (MFOTL.Always I \<phi>) i = (case right I of \<infinity> \<Rightarrow> None | enat b \<Rightarrow> LRTP \<sigma> \<phi> (LTP_f \<sigma> i b))" 
 | "LRTP \<sigma> (MFOTL.Since \<phi> I \<psi>) i = max_opt (LRTP \<sigma> \<phi> i) (LRTP \<sigma> \<psi> (LTP_p \<sigma> i I))"
 | "LRTP \<sigma> (MFOTL.Until \<phi> I \<psi>) i = (case right I of \<infinity> \<Rightarrow> None | enat b \<Rightarrow> max_opt (LRTP \<sigma> \<phi> ((LTP_f \<sigma> i b)-1)) (LRTP \<sigma> \<psi> (LTP_f \<sigma> i b)))"
+
+lemma bounded_future_LRTP: 
+  assumes "MFOTL.future_bounded \<phi>"
+  shows "\<not> Option.is_none (LRTP \<sigma> \<phi> i)"
+  using assms
+  by (induction \<sigma> \<phi> i rule: LRTP.induct) 
+    (auto simp add: max_opt_def Option.is_none_def)
 
 lemma i_ETP_tau: "i \<ge> ETP \<sigma> n \<longleftrightarrow> \<tau> \<sigma> i \<ge> n"
 proof
