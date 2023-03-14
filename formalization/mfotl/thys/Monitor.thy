@@ -803,15 +803,182 @@ lemma mk_values_nth_cong: "MFOTL.Var x \<in> set (map fst tXs)
     by clarsimp
   done
 
+unbundle MFOTL_notation \<comment> \<open> enable notation \<close>
+
+text \<open> OBS: Even if there is an infinite set for @{term "\<^bold>v x"}, we can still get a 
+ finite @{term mk_values} because it only cares about the latest set in the list
+ for @{term "\<^bold>v ''x''"}. This is why the definition below has many cases. \<close>
+
+term "''P'' \<dagger> [\<^bold>c (0::nat), \<^bold>v ''x'', \<^bold>v ''y'']"
+value "mk_values [(\<^bold>c (0::nat), {0}), (\<^bold>v ''x'', Complement {0::nat, 1}), (\<^bold>v ''y'', {0::nat, 1}), (\<^bold>v ''x'', {0::nat, 1})]"
+
+unbundle MFOTL_no_notation \<comment> \<open> disable notation \<close>
+
 definition "mk_values_subset p tXs X 
   \<longleftrightarrow> (let (fintXs, inftXs) = partition (\<lambda>tX. finite (snd tX)) tXs in
   if inftXs = [] then {p} \<times> mk_values tXs \<subseteq> X 
-  else let (coftXs, coinftXs) = partition (\<lambda>tX. finite (UNIV - (snd tX))) inftXs in
-    if coinftXs = [] then {p} \<times> mk_values tXs \<subseteq> X
-    else Code.abort STR ''subset on infinite subset'' (\<lambda>_. {p} \<times> mk_values tXs \<subseteq> X))"
+  else let inf_dups = filter (\<lambda>tX. (fst tX) \<in> set (map fst fintXs)) inftXs in
+    if inf_dups = [] then (if finite X then False else Code.abort STR ''subset on infinite subset'' (\<lambda>_. {p} \<times> mk_values tXs \<subseteq> X))
+    else if list_all (\<lambda>tX. Max (set (positions tXs tX)) < Max (set (positions (map fst tXs) (fst tX)))) inf_dups
+      then {p} \<times> mk_values tXs \<subseteq> X 
+      else (if finite X then False else Code.abort STR ''subset on infinite subset'' (\<lambda>_. {p} \<times> mk_values tXs \<subseteq> X)))"
 
-lemma mk_values_subset_iff: "mk_values_subset p tXs X \<longleftrightarrow> {p} \<times> mk_values tXs \<subseteq> X"
-  by (simp_all add: mk_values_subset_def)
+lemma set_Cons_eq: "set_Cons X XS = (\<Union>xs\<in>XS. (\<lambda>x. x # xs) ` X)"
+  by (auto simp: set_Cons_def)
+
+lemma set_Cons_empty_iff: "set_Cons X XS = {} \<longleftrightarrow> (X = {} \<or> XS = {})"
+  by (auto simp: set_Cons_eq)
+
+(* (\<Longleftarrow>) if for all (t,X) \<in> set tXs the latest Y's such that (t,Y) \<in> set tXs satisfy that Y \<noteq> {} *)
+lemma mk_values_nemptyI: "\<forall>tX \<in> set tXs. snd tX \<noteq> {} \<Longrightarrow> mk_values tXs \<noteq> {}"
+  by (induct tXs)
+    (auto simp: Let_def set_Cons_eq split: prod.splits trm.splits)
+
+lemma infinite_set_ConsI: 
+  "XS \<noteq> {} \<Longrightarrow> infinite X \<Longrightarrow> infinite (set_Cons X XS)"
+  "X \<noteq> {} \<Longrightarrow> infinite XS \<Longrightarrow> infinite (set_Cons X XS)"
+proof(unfold set_Cons_eq)
+  assume "infinite X" and "XS \<noteq> {}"
+  then obtain xs where "xs \<in> XS"
+    by blast
+  hence "inj (\<lambda>x. x # xs)"
+    by (clarsimp simp: inj_on_def)
+  hence "infinite ((\<lambda>x. x # xs) ` X)"
+    using \<open>infinite X\<close> finite_imageD inj_on_def 
+    by blast
+  moreover have "((\<lambda>x. x # xs) ` X) \<subseteq> (\<Union>xs\<in>XS. (\<lambda>x. x # xs) ` X)"
+    using \<open>xs \<in> XS\<close> by auto
+  ultimately show "infinite (\<Union>xs\<in>XS. (\<lambda>x. x # xs) ` X)"
+    by (simp add: infinite_super)
+next
+  assume "infinite XS" and "X \<noteq> {}"
+  hence disjf: "disjoint_family_on (\<lambda>xs. (\<lambda>x. x # xs) ` X) XS"
+    by (auto simp: disjoint_family_on_def)
+  moreover have "x \<in> XS \<Longrightarrow> (\<lambda>xs. xs # x) ` X \<noteq> {}" for x
+    using \<open>X \<noteq> {}\<close> by auto
+  ultimately show "infinite (\<Union>xs\<in>XS. (\<lambda>x. x # xs) ` X)"
+    using infinite_disjoint_family_imp_infinite_UNION[OF \<open>infinite XS\<close> _ disjf]
+    by auto
+qed
+
+(* TODO: clean duplicated proofs *)
+lemma infinite_mk_values1: "\<forall>tX \<in> set tXs. snd tX \<noteq> {} \<Longrightarrow> tY \<in> set tXs 
+  \<Longrightarrow> \<forall>Y. (fst tY, Y) \<in> set tXs \<longrightarrow> infinite Y \<Longrightarrow> infinite (mk_values tXs)"
+proof (induct tXs arbitrary: tY)
+  case (Cons tX tXs)
+  show ?case
+  proof (cases "tY \<in> set tXs")
+    case True
+    then show ?thesis
+    proof (auto simp add: Let_def image_iff split: prod.splits trm.splits,
+      goal_cases var_in var_out const)
+      case (var_in X x Y)
+      hence "\<forall>Z. (fst (trm.Var x, Y), Z) \<in> set tXs \<longrightarrow> infinite Z"
+        and "\<forall>tX\<in>set tXs. snd tX \<noteq> {}"
+        by (metis (no_types, lifting) Cons.hyps Cons.prems(1) Cons.prems(3) 
+            finite_imageD inj_on_def list.inject list.set_intros(2))
+          (simp add: Cons.prems(1))
+      hence "infinite (mk_values tXs)"
+        using Cons.hyps[OF _ \<open>(trm.Var x, Y) \<in> set tXs\<close>]
+        by auto
+      moreover have "inj (\<lambda>xs. xs ! hd (positions (map fst tXs) (trm.Var x)) # xs)"
+        by (clarsimp simp: inj_on_def)
+      ultimately show ?case
+        using var_in(4) finite_imageD inj_on_subset by fastforce
+    next
+      case (var_out Y x)
+      hence "infinite Y"
+        using Cons.prems
+        by (simp add: Cons.hyps infinite_set_ConsI(2))
+      moreover have "mk_values tXs \<noteq> {}"
+        using Cons.prems 
+        by (auto intro!: mk_values_nemptyI)
+      then show ?case
+        using Cons var_out infinite_set_ConsI(1)[OF \<open>mk_values tXs \<noteq> {}\<close> \<open>infinite Y\<close>]
+        by auto
+    next
+      case (const Y c)
+      hence "infinite Y"
+        using Cons.prems
+        by (simp add: Cons.hyps infinite_set_ConsI(2))
+      moreover have "mk_values tXs \<noteq> {}"
+        using Cons.prems 
+        by (auto intro!: mk_values_nemptyI)
+      then show ?case
+        using Cons const infinite_set_ConsI(1)[OF \<open>mk_values tXs \<noteq> {}\<close> \<open>infinite Y\<close>]
+        by auto
+    qed
+  next
+    case False
+    then show ?thesis
+    proof (auto simp add: Let_def image_iff split: prod.splits trm.splits,
+      goal_cases var_in var_out const)
+      case (var_in X x Y)
+      hence "\<forall>Z. (fst (trm.Var x, Y), Z) \<in> set tXs \<longrightarrow> infinite Z"
+        and "\<forall>tX\<in>set tXs. snd tX \<noteq> {}"
+        using Cons.prems
+        by auto
+      hence "infinite (mk_values tXs)"
+        using Cons.hyps[OF _ \<open>(trm.Var x, Y) \<in> set tXs\<close>]
+        by auto
+      moreover have "inj (\<lambda>xs. xs ! hd (positions (map fst tXs) (trm.Var x)) # xs)"
+        by (clarsimp simp: inj_on_def)
+      ultimately show ?case
+        using var_in(4) finite_imageD inj_on_subset by fastforce
+    next
+      case (var_out Y x)
+      hence "infinite Y"
+        using Cons.prems False
+        by (simp add: Cons.hyps infinite_set_ConsI(2))
+      moreover have "mk_values tXs \<noteq> {}"
+        using Cons.prems 
+        by (auto intro!: mk_values_nemptyI)
+      then show ?case
+        using Cons var_out infinite_set_ConsI(1)[OF \<open>mk_values tXs \<noteq> {}\<close> \<open>infinite Y\<close>]
+        by auto
+    next
+      case (const Y c)
+      hence "infinite Y"
+        using Cons.prems
+        by (simp add: Cons.hyps infinite_set_ConsI(2))
+      moreover have "mk_values tXs \<noteq> {}"
+        using Cons.prems 
+        by (auto intro!: mk_values_nemptyI)
+      then show ?case
+        using Cons const infinite_set_ConsI(1)[OF \<open>mk_values tXs \<noteq> {}\<close> \<open>infinite Y\<close>]
+        by auto
+    qed
+  qed
+qed simp
+
+lemma mk_values_subset_iff: "\<forall>tX \<in> set tXs. snd tX \<noteq> {} 
+  \<Longrightarrow> mk_values_subset p tXs X \<longleftrightarrow> {p} \<times> mk_values tXs \<subseteq> X"
+proof (clarsimp simp: mk_values_subset_def image_iff Let_def comp_def, safe)
+  assume "\<forall>tX\<in>set tXs. snd tX \<noteq> {}" and "finite X" 
+    and filter1: "filter (\<lambda>x. infinite (snd x) \<and> (\<exists>b. (fst x, b) \<in> set tXs \<and> finite b)) tXs = []" 
+    and filter2: "filter (\<lambda>x. infinite (snd x)) tXs \<noteq> []"
+  then obtain tY where "tY \<in> set tXs" and "infinite (snd tY)"
+    by auto (metis (mono_tags, lifting) filter_False prod.collapse)
+  moreover have "\<forall>Y. (fst tY, Y) \<in> set tXs \<longrightarrow> infinite Y"
+    using filter1 calculation
+    by auto (metis (mono_tags, lifting) filter_empty_conv)
+  ultimately have "infinite (mk_values tXs)"
+    using infinite_mk_values1[OF \<open>\<forall>tX\<in>set tXs. snd tX \<noteq> {}\<close>] 
+    by auto
+  hence "infinite ({p} \<times> mk_values tXs)"
+    using finite_cartesian_productD2 by auto
+  thus "{p} \<times> mk_values tXs \<subseteq> X \<Longrightarrow> False"
+    using \<open>finite X\<close>
+    by (simp add: finite_subset)
+next
+  assume "\<forall>tX\<in>set tXs. snd tX \<noteq> {}" 
+    and "finite X" 
+    and ex_dupl_inf: "\<not> list_all (\<lambda>tX. Max (set (positions tXs tX)) < Max (set (positions (map fst tXs) (fst tX))))
+        (filter (\<lambda>x. infinite (snd x) \<and> (\<exists>b. (fst x, b) \<in> set tXs \<and> finite b)) tXs)" 
+    and filter: "filter (\<lambda>x. infinite (snd x)) tXs \<noteq> []"
+  thus "{p} \<times> mk_values tXs \<subseteq> X \<Longrightarrow> False"
+    sorry
+qed
 
 fun s_check_exec :: "'d MFOTL.envset \<Rightarrow> 'd MFOTL.formula \<Rightarrow> 'd sproof \<Rightarrow> bool"
   and v_check_exec :: "'d MFOTL.envset \<Rightarrow> 'd MFOTL.formula \<Rightarrow> 'd vproof \<Rightarrow> bool" where
@@ -1460,8 +1627,13 @@ next
   case (Pred p ts)
   {
     case 1
-    thus ?case
-      apply (cases sp; clarsimp simp: subset_eq mk_values_subset_iff simp del: fv.simps)
+    have obs: "\<forall>tX\<in>set (MFOTL.eval_trms_set vs ts). snd tX \<noteq> {}"
+      using \<open>\<forall>x. vs x \<noteq> {}\<close>
+      by (induct ts; clarsimp simp: MFOTL.eval_trms_set_def)
+        (rule_tac y=a in MFOTL.trm.exhaust; clarsimp)
+    show ?case
+      using 1
+      apply (cases sp; clarsimp simp: mk_values_subset_iff[OF obs] subset_eq  simp del: fv.simps)
       apply (intro iffI conjI impI allI ballI)
            apply clarsimp
           apply clarsimp
