@@ -1272,6 +1272,12 @@ lemma val_notin_AD_iff:
   using val_in_AD_iff 
   by blast
 
+lemma val_noteq_notin_AD:
+  assumes "x \<in> MFOTL.fv \<phi>"
+    and "v1 x \<noteq> v2 x"
+  shows "v1 x \<notin> AD \<phi> i \<and> v2 x \<notin> AD \<phi> i"
+  sorry
+
 lemma compatible_vals_fun_upd: "compatible_vals A (vs(x := X)) =
   (if x \<in> A then {v \<in> compatible_vals (A - {x}) vs. v x \<in> X} else compatible_vals A vs)"
   unfolding compatible_vals_def
@@ -2116,44 +2122,40 @@ lemma part_hd_tabulate: "distinct xs \<Longrightarrow> part_hd (tabulate xs f z)
 
 lemma v_at_tabulate:
   assumes "\<forall>z. v_at (mypick z) = i" 
-  shows "\<forall>(sub, vp) \<in> SubsVals (tabulate (sorted_list_of_set (AD \<phi> i)) mypick (mypick (SOME z. z \<notin> AD \<phi> i))). v_at vp = i"
+    and "mypart = tabulate (sorted_list_of_set (AD \<phi> i)) mypick (mypick (SOME z. z \<notin> AD \<phi> i))" 
+  shows "\<forall>(sub, vp) \<in> SubsVals mypart. v_at vp = i"
   using assms by (transfer, auto)
 
 lemma fv_AD: "\<forall>x \<in> MFOTL.fv \<phi>. v1 x = v2 x \<or> v1 x \<notin> AD \<phi> i \<and> v2 x \<notin> AD \<phi> i"
-  apply clarsimp
-  unfolding AD_def
-  subgoal for x
-    using val_in_AD_iff[of x \<phi> v1 i] val_in_AD_iff[of x \<phi> v2 i]
-    unfolding AD_def
-    apply clarsimp
-    sorry
-  sorry
+  using val_noteq_notin_AD by auto
 
 lemma v_check_tabulate:
   assumes "\<forall>z. v_at (mypick z) = i" 
     and "\<forall>z. v_check (v(x:=z)) \<phi> (mypick z)"
-  shows "\<forall>(sub, vp) \<in> SubsVals (tabulate (sorted_list_of_set (AD \<phi> i)) mypick (mypick (SOME z. z \<notin> AD \<phi> i))). \<forall>z \<in> sub. v_check (v(x := z)) \<phi> vp"
+    and "mypart = tabulate (sorted_list_of_set (AD \<phi> i)) mypick (mypick (SOME z. z \<notin> AD \<phi> i))"
+  shows "\<forall>(sub, vp) \<in> SubsVals mypart. \<forall>z \<in> sub. v_check (v(x := z)) \<phi> vp"
   using assms 
-  apply transfer
+  apply (transfer fixing: \<sigma>)
   apply clarsimp
-  subgoal for mypick i \<sigma> v x \<phi> z
+  subgoal for mypick i v x \<phi> z
   proof -
     assume v_at_assm: "\<forall>z. v_at (mypick z) = i" 
-      and v_check_assm: "\<forall>z. Monitor.v_check \<sigma> (v(x := z)) \<phi> (mypick z)"
+      and v_check_assm: "\<forall>z. v_check (v(x := z)) \<phi> (mypick z)"
     have v_at_mypick: "v_at (mypick (SOME z. z \<notin> local.AD \<phi> i)) = i"
       using v_at_assm by simp
     have v_check_mypick: "Monitor.v_check \<sigma> (v(x := SOME z. z \<notin> AD \<phi> i)) \<phi> (mypick (SOME z. z \<notin> AD \<phi> i))"
       using v_check_assm by simp
     show ?thesis
       using check_AD_cong(2)[of \<phi> "v(x := z)" "v(x := (SOME z. z \<notin> Monitor.AD \<sigma> \<phi> i))" i "mypick (SOME z. z \<notin> AD \<phi> i)", OF fv_AD v_at_mypick] v_check_mypick
-      sorry
+      by simp
   qed
   done
 
 lemma v_at_part_hd_tabulate: 
   assumes "MFOTL.future_bounded \<phi>"
     and "\<forall>z. v_at (f z) = i"
-  shows "v_at (part_hd (tabulate (sorted_list_of_set (AD \<phi> i)) f (f (SOME z. z \<notin> AD \<phi> i)))) = i"
+    and "mypart = tabulate (sorted_list_of_set (AD \<phi> i)) f (f (SOME z. z \<notin> AD \<phi> i))"
+  shows "v_at (part_hd mypart) = i"
   using assms by (simp add: part_hd_tabulate split: list.splits)
 
 lemma check_completeness:
@@ -2350,7 +2352,6 @@ next
       by (simp add: mypick_def)
     have mypick_v_check2: "\<forall>z. v_check (v(x := (SOME z. z \<notin> AD \<phi> i))) \<phi> (mypick (SOME z. z \<notin> AD \<phi> i))"
       by (simp add: mypick_def)
-
     have v_at_myp: "v_at (VExists x mypart) = i"
       using v_at_part_hd_tabulate[OF fb, of mypick i]
       by (simp add: mypart_def mypick_def) 
@@ -2358,9 +2359,9 @@ next
       apply (simp add: mypart_def v_at_part_hd_tabulate[OF fb mypick_at])
       apply clarify
       apply (rule conjI)
-      using v_at_tabulate[of mypick i \<phi>, OF mypick_at] apply fastforce
+      using v_at_tabulate[of mypick i _ \<phi>, OF mypick_at] apply fastforce
       using v_check_tabulate[OF mypick_at mypick_v_check] apply fastforce
-      done
+      done            
     show "\<exists>vp. v_at vp = i \<and> local.v_check v (formula.Exists x \<phi>) vp"
       using v_at_myp v_check_myp by blast
   qed
@@ -2845,7 +2846,7 @@ inductive sat_vorder :: "MFOTL.name list \<Rightarrow> 'd expl \<Rightarrow> boo
 function (sequential) opt :: "MFOTL.name list \<Rightarrow> nat \<Rightarrow> 'd MFOTL.formula \<Rightarrow> 'd expl" where
   "opt vars i MFOTL.TT = Leaf (Inl (STT i))"
 | "opt vars i MFOTL.FF = Leaf (Inr (VFF i))"
-| "opt vars i (MFOTL.Pred r ts) = 
+| "opt vars i (MFOTL.Pred r ts) =                                                     
   (pdt_of i r ts (filter (\<lambda>x. x \<in> MFOTL.fv (MFOTL.Pred r ts)) vars) (Option.these (match ts ` snd ` {rd \<in> \<Gamma> \<sigma> i. fst rd = r })))"
 | "opt vars i (MFOTL.Neg \<phi>) = apply_pdt1 vars (\<lambda>p. min_list_wrt cmp (do_neg p)) (opt vars i \<phi>)"
 | "opt vars i (MFOTL.Or \<phi> \<psi>) = apply_pdt2 vars (\<lambda>p1 p2. min_list_wrt cmp (do_or p1 p2)) (opt vars i \<phi>) (opt vars i \<psi>)"
