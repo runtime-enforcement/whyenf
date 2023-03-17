@@ -1244,39 +1244,47 @@ proof (induct ts arbitrary: v cs vs)
 qed (simp add: compatible_vals_def 
     MFOTL.eval_trms_set_def MFOTL.eval_trms_def)
 
+unbundle MFOTL_no_notation \<comment> \<open> disable notation \<close>
 
 definition AD :: "'d MFOTL.formula \<Rightarrow> nat \<Rightarrow> 'd set"
   where "AD \<phi> i = (\<Union> k < the (LRTP \<sigma> \<phi> i). \<Union> (set ` snd ` \<Gamma> \<sigma> (the_enat k)))"
 
 lemma val_in_AD_iff:
-  "x \<in> fv \<phi> \<Longrightarrow> v x \<in> AD \<phi> i \<longleftrightarrow> (\<exists>p ts k. k < the (LRTP \<sigma> \<phi> i) \<and> (p, MFOTL.eval_trms v ts) \<in> \<Gamma> \<sigma> (the_enat k) \<and> x \<in> \<Union> (set (map fv\<^sub>t ts)))"
+  "x \<in> MFOTL.fv \<phi> \<Longrightarrow> v x \<in> AD \<phi> i \<longleftrightarrow> (\<exists>r ts k. k < the (LRTP \<sigma> \<phi> i) \<and> (r, MFOTL.eval_trms v ts) \<in> \<Gamma> \<sigma> (the_enat k) \<and> x \<in> \<Union> (set (map MFOTL.fv_trm ts)))"
   apply (intro iffI; clarsimp)
-   apply (auto simp: AD_def)[1]
-   apply (rename_tac k' p' cs)
-   apply (rule_tac x=p' in exI)
-   apply (rule_tac x="map (\<lambda>c. if v x = c then (\<^bold>v x::'d MFOTL.trm) else \<^bold>c c) cs" in exI)
+  unfolding AD_def apply clarsimp
+   apply (rename_tac k' r' ds')
+   apply (rule_tac x=r' in exI)
+   apply (rule_tac x="map (\<lambda>d. if v x = d then (MFOTL.Var x::'d MFOTL.trm) else MFOTL.Const d) ds'" in exI)
    apply (rule_tac x=k' in exI)
-   apply (auto simp: MFOTL.eval_trms_def)[1]
-  subgoal for k' p' cs
-    apply (subgoal_tac "map (MFOTL.eval_trm v \<circ> (\<lambda>c. if v x = c then \<^bold>v x else \<^bold>c c)) cs = cs")
+  unfolding MFOTL.eval_trms_def apply clarsimp
+  subgoal for k' p' ds'
+    apply (subgoal_tac "map (MFOTL.eval_trm v \<circ> (\<lambda>d. if v x = d then MFOTL.Var x else MFOTL.Const d)) ds' = ds'")
      apply clarsimp
     apply (simp add: map_idI)
     done
-  subgoal for p' cs k t'
+  subgoal for p' ts' k' t'
     apply (cases t'; clarsimp)
-    sorry
+    apply (rule_tac x=k' in bexI)
+    apply (rule bexI[of _ "(p', MFOTL.eval_trms v ts')"])
+    apply (simp_all add: MFOTL.eval_trms_def)
+    using image_iff apply fastforce
+    done
   done
 
 lemma val_notin_AD_iff:
-  "x \<in> fv \<phi> \<Longrightarrow> v x \<notin> AD \<phi> i \<longleftrightarrow> (\<forall>p ts k. k < the (LRTP \<sigma> \<phi> i) \<longrightarrow> x \<in> \<Union> (set (map fv\<^sub>t ts)) \<longrightarrow> (p, MFOTL.eval_trms v ts) \<notin> \<Gamma> \<sigma> (the_enat k))"
-  using val_in_AD_iff 
-  by blast
-
-lemma val_noteq_notin_AD:
-  assumes "x \<in> MFOTL.fv \<phi>"
-    and "v1 x \<noteq> v2 x"
-  shows "v1 x \<notin> AD \<phi> i \<and> v2 x \<notin> AD \<phi> i"
+  "x \<in> MFOTL.fv \<phi> \<Longrightarrow> v x \<notin> AD \<phi> i \<longleftrightarrow> (\<forall>r ts k. k < the (LRTP \<sigma> \<phi> i) \<and> x \<in> \<Union> (set (map MFOTL.fv_trm ts)) \<longrightarrow> (r, MFOTL.eval_trms v ts) \<notin> \<Gamma> \<sigma> (the_enat k))"
+  using val_in_AD_iff by blast
+  
+lemma val_in_AD_eq:
+  "x \<in> MFOTL.fv \<phi> \<Longrightarrow> v1 x \<in> AD \<phi> i \<and> v2 x \<in> AD \<phi> i \<longleftrightarrow> v1 x = v2 x"
   sorry
+
+lemma val_notin_AD_noteq:
+  "x \<in> MFOTL.fv \<phi> \<Longrightarrow> v1 x \<notin> AD \<phi> i \<and> v2 x \<notin> AD \<phi> i \<longleftrightarrow> v1 x \<noteq> v2 x"
+  using val_in_AD_eq by blast
+
+unbundle MFOTL_notation \<comment> \<open> enable notation \<close>
 
 lemma compatible_vals_fun_upd: "compatible_vals A (vs(x := X)) =
   (if x \<in> A then {v \<in> compatible_vals (A - {x}) vs. v x \<in> X} else compatible_vals A vs)"
@@ -2038,10 +2046,10 @@ lemma check_AD_cong:
         "(v_at vp = i \<Longrightarrow> v_check v1 \<phi> vp \<longleftrightarrow> v_check v2 \<phi> vp)"
   using assms
 proof (induction v1 \<phi> sp and v1 \<phi> vp rule: s_check_v_check.induct)
-  case (1 v f p)
+  case (1 v f sp)
   thm 1(1-23)[OF refl]
   show ?case
-  proof (cases p)
+  proof (cases sp)
     case (SPred i P ts)
     then show ?thesis
       using 1(25)
@@ -2053,11 +2061,12 @@ proof (induction v1 \<phi> sp and v1 \<phi> vp rule: s_check_v_check.induct)
         sorry
       sorry
   next
-    case (SNeg x3)
-    then show ?thesis sorry
+    case (SNeg vp')
+    show ?thesis
+      using val_in_AD_eq check_fv_cong(1) by metis
   next
     case (SOrL x4)
-    then show ?thesis sorry
+    show ?thesis sorry
   next
     case (SOrR x5)
     then show ?thesis sorry
@@ -2111,8 +2120,93 @@ proof (induction v1 \<phi> sp and v1 \<phi> vp rule: s_check_v_check.induct)
     then show ?thesis sorry
   qed (cases f; simp_all)
 next
-  case (2 v f p)
-  then show ?case sorry
+  case (2 v f vp)
+  show ?case
+  proof (cases vp)
+    case (VFF x1)
+    then show ?thesis sorry
+  next
+    case (VPred x21 x22 x23)
+    then show ?thesis sorry
+  next
+    case (VNeg x3)
+    then show ?thesis sorry
+  next
+    case (VOr x41 x42)
+    then show ?thesis sorry
+  next
+    case (VAndL x5)
+    then show ?thesis sorry
+  next
+    case (VAndR x6)
+    then show ?thesis sorry
+  next
+    case (VImp x71 x72)
+    then show ?thesis sorry
+  next
+    case (VIffSV x81 x82)
+    then show ?thesis sorry
+  next
+    case (VIffVS x91 x92)
+    then show ?thesis sorry
+  next
+    case (VExists x101 x102)
+    then show ?thesis sorry
+  next
+    case (VForall x111 x112 x113)
+    then show ?thesis sorry
+  next
+    case (VPrev x12)
+    then show ?thesis sorry
+  next
+    case VPrevZ
+    then show ?thesis sorry
+  next
+    case (VPrevOutL x14)
+    then show ?thesis sorry
+  next
+    case (VPrevOutR x15)
+    then show ?thesis sorry
+  next
+    case (VNext x16)
+    then show ?thesis sorry
+  next
+    case (VNextOutL x17)
+    then show ?thesis sorry
+  next
+    case (VNextOutR x18)
+    then show ?thesis sorry
+  next
+    case (VOnceOut x19)
+    then show ?thesis sorry
+  next
+    case (VOnce x201 x202 x203)
+    then show ?thesis sorry
+  next
+    case (VEventually x211 x212 x213)
+    then show ?thesis sorry
+  next
+    case (VHistorically x221 x222)
+    then show ?thesis sorry
+  next
+    case (VAlways x231 x232)
+    then show ?thesis sorry
+  next
+    case (VSinceOut x24)
+    then show ?thesis sorry
+  next
+    case (VSince x251 x252 x253)
+    then show ?thesis sorry
+  next
+    case (VSinceInf x261 x262 x263)
+    then show ?thesis sorry
+  next
+    case (VUntil x271 x272 x273)
+    then show ?thesis sorry
+  next
+    case (VUntilInf x281 x282 x283)
+    then show ?thesis sorry
+  qed
 qed
 
 unbundle MFOTL_no_notation \<comment> \<open> disable notation \<close>
@@ -2127,7 +2221,7 @@ lemma v_at_tabulate:
   using assms by (transfer, auto)
 
 lemma fv_AD: "\<forall>x \<in> MFOTL.fv \<phi>. v1 x = v2 x \<or> v1 x \<notin> AD \<phi> i \<and> v2 x \<notin> AD \<phi> i"
-  using val_noteq_notin_AD by auto
+  using val_notin_AD_noteq by auto
 
 lemma v_check_tabulate:
   assumes "\<forall>z. v_at (mypick z) = i" 
