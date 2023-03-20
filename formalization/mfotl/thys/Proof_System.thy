@@ -47,12 +47,22 @@ fun LRTP :: "'a MFOTL.trace \<Rightarrow> 'a MFOTL.formula \<Rightarrow> nat \<R
 | "LRTP \<sigma> (MFOTL.Since \<phi> I \<psi>) i = max_opt (LRTP \<sigma> \<phi> i) (LRTP \<sigma> \<psi> (LTP_p \<sigma> i I))"
 | "LRTP \<sigma> (MFOTL.Until \<phi> I \<psi>) i = (case right I of \<infinity> \<Rightarrow> None | enat b \<Rightarrow> max_opt (LRTP \<sigma> \<phi> ((LTP_f \<sigma> i b)-1)) (LRTP \<sigma> \<psi> (LTP_f \<sigma> i b)))"
 
-lemma bounded_future_LRTP: 
+lemma fb_LRTP: 
   assumes "MFOTL.future_bounded \<phi>"
   shows "\<not> Option.is_none (LRTP \<sigma> \<phi> i)"
   using assms
   by (induction \<sigma> \<phi> i rule: LRTP.induct) 
     (auto simp add: max_opt_def Option.is_none_def)
+
+lemma not_none_fb_LRTP:
+  assumes "MFOTL.future_bounded \<phi>"
+  shows "(LRTP \<sigma> \<phi> i) \<noteq> None"
+  using assms fb_LRTP by (auto simp add: Option.is_none_def)
+
+lemma is_some_fb_LRTP:
+  assumes "MFOTL.future_bounded \<phi>"
+  shows "\<exists>j. (LRTP \<sigma> \<phi> i) = Some j"
+  using assms fb_LRTP by (auto simp add: Option.is_none_def)
 
 lemma i_ETP_tau: "i \<ge> ETP \<sigma> n \<longleftrightarrow> \<tau> \<sigma> i \<ge> n"
 proof
