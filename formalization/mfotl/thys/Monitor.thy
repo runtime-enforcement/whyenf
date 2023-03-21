@@ -1284,94 +1284,6 @@ lemma fv_formula_fv_trm:
 lemma eval_trm_val_eq: "MFOTL.eval_trm v x = MFOTL.eval_trm v' x \<Longrightarrow> (case x of MFOTL.Var x \<Rightarrow> v x = v' x | MFOTL.Const x \<Rightarrow> True)"
   by (simp split: trm.splits) auto
 
-lemma val_eq_in_AD: 
-  "MFOTL.future_bounded \<phi> \<Longrightarrow> x \<in> MFOTL.fv \<phi> \<Longrightarrow> v x = v' x \<Longrightarrow> \<exists>d \<in> \<Gamma> \<sigma> i. v x \<in> set (snd d) \<Longrightarrow> v x \<in> AD \<phi> i \<and> v' x \<in> AD \<phi> i"
-proof (induct \<phi> arbitrary: v v' i rule: formula.induct)
-  case TT
-  then show ?case sorry
-next
-  case FF
-  then show ?case sorry
-next
-  case (Pred r ts)
-  have fv_trm_val_eq: "\<forall>t\<in>set ts. \<forall>x\<in>MFOTL.fv_trm t. v x = v' x"
-    sorry
-  have "MFOTL.eval_trms v ts = MFOTL.eval_trms v' ts"
-    using eval_trms_fv_cong[OF fv_trm_val_eq] by simp
-  then show ?case
-    apply (auto simp add: AD_def MFOTL.eval_trms_def)
-    sorry
-next
-  case (Neg x)
-  then show ?case sorry
-next
-  case (Or x1 x2)
-  show ?case 
-    using Or(1,2)[of v v' i] Or.prems
-    apply (auto simp add: AD_def max_opt_def max_def not_none_fb_LRTP split: enat.splits option.splits)
-     apply (metis atMost_iff dual_order.trans snd_conv)
-    apply (metis atMost_iff dual_order.trans less_or_eq_imp_le not_le_imp_less snd_conv)
-    done
-next
-  case (And x1 x2)
-  then show ?case sorry
-next
-  case (Imp x1 x2)
-  then show ?case sorry
-next
-  case (Iff x1 x2)
-  then show ?case sorry
-next
-  case (Exists x \<phi>)
-  then show ?case 
-    by (simp add: AD_def)
-next
-  case (Forall x \<phi>)
-  then show ?case
-    by (simp add: AD_def)
-next
-  case (Prev x1 x2)
-  then show ?case sorry
-next
-  case (Next x1 x2)
-  then show ?case sorry
-next
-  case (Once x1 x2)
-  then show ?case sorry
-next
-  case (Historically x1 x2)
-  then show ?case sorry
-next
-  case (Eventually x1 x2)
-  then show ?case sorry
-next
-  case (Always x1 x2)
-  then show ?case sorry
-next
-  case (Since x1 x2 x3)
-  then show ?case sorry
-next
-  case (Until \<phi> I \<psi>)
-  show ?case 
-  proof -
-    have fb_phi: "MFOTL.future_bounded \<phi>"
-      using Until.prems(1) by simp
-    have fb_psi: "MFOTL.future_bounded \<psi>"
-      using Until.prems(1) by simp
-    have "right I \<noteq> \<infinity>"
-      using Until.prems(1) by simp
-    show ?thesis 
-      using Until(1)[OF fb_phi] Until(2)[OF fb_psi] Until.prems
-      sorry
-      (* apply (auto simp add: AD_def max_opt_def max_def fb_phi fb_psi not_none_fb_LRTP split: enat.splits option.splits)
-         apply (metis lessThan_iff option.sel order_less_le_trans)
-        apply (metis option.sel)
-       apply (metis option.sel)
-      apply (metis lessThan_iff nle_le option.sel order_less_le_trans)
-      done *)
-  qed
-qed
-
 unbundle MFOTL_notation \<comment> \<open> enable notation \<close>
 
 lemma compatible_vals_fun_upd: "compatible_vals A (vs(x := X)) =
@@ -1394,7 +1306,7 @@ lemma finite_tps: "MFOTL.future_bounded \<phi> \<Longrightarrow> finite (\<Union
   using fb_LRTP[of \<phi>] finite_enat_bounded 
   by simp
 
-lemma finite_AD: "MFOTL.future_bounded \<phi> \<Longrightarrow> finite (AD \<phi> i)"
+lemma finite_AD [simp]: "MFOTL.future_bounded \<phi> \<Longrightarrow> finite (AD \<phi> i)"
   using finite_tps finite_values
   by (simp add: AD_def enat_def)
 
@@ -2130,13 +2042,15 @@ lemma SubsVals_trivial[simp]: "SubsVals (trivial_part pt) = {(UNIV, pt)}"
 
 unbundle MFOTL_no_notation \<comment> \<open> disable notation \<close>
 
+thm s_check_v_check.induct
+
 lemma check_AD_cong:
   assumes "MFOTL.future_bounded \<phi>"
-    and "(\<forall>x \<in> MFOTL.fv \<phi>. (v x \<in> AD \<phi> i \<and> v x = v' x) \<or> (v x \<notin> AD \<phi> i \<and> v' x \<notin> AD \<phi> i))"
+    and "(\<forall>x \<in> MFOTL.fv \<phi>. v x = v' x \<or> (v x \<notin> AD \<phi> i \<and> v' x \<notin> AD \<phi> i))"
   shows "(s_at sp = i \<Longrightarrow> s_check v \<phi> sp \<longleftrightarrow> s_check v' \<phi> sp)"
         "(v_at vp = i \<Longrightarrow> v_check v \<phi> vp \<longleftrightarrow> v_check v' \<phi> vp)"
   using assms
-proof (induction v \<phi> sp and v \<phi> vp rule: s_check_v_check.induct)
+proof (induction v \<phi> sp and v \<phi> vp arbitrary: i v' rule: s_check_v_check.induct)
   case (1 v f sp)
   thm 1(1-23)[OF refl]
   show ?case
@@ -2297,14 +2211,44 @@ qed
 lemma part_hd_tabulate: "distinct xs \<Longrightarrow> part_hd (tabulate xs f z) = (case xs of [] \<Rightarrow> z | (x # _) \<Rightarrow> (if set xs = UNIV then f x else z))"
   by (transfer, auto split: list.splits)
 
+lemma s_at_tabulate:
+  assumes "\<forall>z. s_at (mypick z) = i" 
+    and "mypart = tabulate (sorted_list_of_set (AD \<phi> i)) mypick (mypick (SOME z. z \<notin> AD \<phi> i))" 
+  shows "\<forall>(sub, vp) \<in> SubsVals mypart. s_at vp = i"
+  using assms by (transfer, auto)
+
 lemma v_at_tabulate:
   assumes "\<forall>z. v_at (mypick z) = i" 
     and "mypart = tabulate (sorted_list_of_set (AD \<phi> i)) mypick (mypick (SOME z. z \<notin> AD \<phi> i))" 
   shows "\<forall>(sub, vp) \<in> SubsVals mypart. v_at vp = i"
   using assms by (transfer, auto)
 
-lemma fv_AD: "\<forall>x \<in> MFOTL.fv \<phi>. (v x \<in> AD \<phi> i \<and> v x = v' x) \<or> (v x \<notin> AD \<phi> i \<and> v' x \<notin> AD \<phi> i)"
-  sorry
+lemma s_check_tabulate:
+  assumes "MFOTL.future_bounded \<phi>"
+    and "\<forall>z. s_at (mypick z) = i" 
+    and "\<forall>z. s_check (v(x:=z)) \<phi> (mypick z)"
+    and "mypart = tabulate (sorted_list_of_set (AD \<phi> i)) mypick (mypick (SOME z. z \<notin> AD \<phi> i))"
+  shows "\<forall>(sub, vp) \<in> SubsVals mypart. \<forall>z \<in> sub. s_check (v(x := z)) \<phi> vp"
+  using assms 
+  apply (transfer fixing: \<sigma>)
+  apply clarsimp
+  subgoal for \<phi> mypick i v x z
+  proof -
+    assume s_at_assm: "\<forall>z. s_at (mypick z) = i" 
+      and s_check_assm: "\<forall>z. s_check (v(x := z)) \<phi> (mypick z)"
+      and fb_assm: "MFOTL.future_bounded \<phi>"
+      and z_notin_AD: "z \<notin> (AD \<phi> i)"
+    have s_at_mypick: "s_at (mypick (SOME z. z \<notin> local.AD \<phi> i)) = i"
+      using s_at_assm by simp
+    have s_check_mypick: "Monitor.s_check \<sigma> (v(x := SOME z. z \<notin> AD \<phi> i)) \<phi> (mypick (SOME z. z \<notin> AD \<phi> i))"
+      using s_check_assm by simp
+    show ?thesis
+      using z_notin_AD
+      apply (subst check_AD_cong(1)[of \<phi> "v(x := z)" "v(x := (SOME z. z \<notin> Monitor.AD \<sigma> \<phi> i))" i "mypick (SOME z. z \<notin> AD \<phi> i)", OF fb_assm _ s_at_mypick])
+       apply (auto simp add: someI[of "\<lambda>z. z \<notin> AD \<phi> i" z] s_check_mypick fb_assm split: if_splits)
+      done
+  qed
+  done
 
 lemma v_check_tabulate:
   assumes "MFOTL.future_bounded \<phi>"
@@ -2320,15 +2264,25 @@ lemma v_check_tabulate:
     assume v_at_assm: "\<forall>z. v_at (mypick z) = i" 
       and v_check_assm: "\<forall>z. v_check (v(x := z)) \<phi> (mypick z)"
       and fb_assm: "MFOTL.future_bounded \<phi>"
+      and z_notin_AD: "z \<notin> (AD \<phi> i)"
     have v_at_mypick: "v_at (mypick (SOME z. z \<notin> local.AD \<phi> i)) = i"
       using v_at_assm by simp
     have v_check_mypick: "Monitor.v_check \<sigma> (v(x := SOME z. z \<notin> AD \<phi> i)) \<phi> (mypick (SOME z. z \<notin> AD \<phi> i))"
       using v_check_assm by simp
     show ?thesis
-      using check_AD_cong(2)[of \<phi> "v(x := z)" i "v(x := (SOME z. z \<notin> Monitor.AD \<sigma> \<phi> i))" "mypick (SOME z. z \<notin> AD \<phi> i)", OF fb_assm fv_AD v_at_mypick] v_check_mypick
-      by simp
+      using z_notin_AD
+      apply (subst check_AD_cong(2)[of \<phi> "v(x := z)" "v(x := (SOME z. z \<notin> Monitor.AD \<sigma> \<phi> i))" i "mypick (SOME z. z \<notin> AD \<phi> i)", OF fb_assm _ v_at_mypick])
+       apply (auto simp add: someI[of "\<lambda>z. z \<notin> AD \<phi> i" z] v_check_mypick fb_assm split: if_splits)
+      done
   qed
   done
+
+lemma s_at_part_hd_tabulate: 
+  assumes "MFOTL.future_bounded \<phi>"
+    and "\<forall>z. s_at (f z) = i"
+    and "mypart = tabulate (sorted_list_of_set (AD \<phi> i)) f (f (SOME z. z \<notin> AD \<phi> i))"
+  shows "s_at (part_hd mypart) = i"
+  using assms by (simp add: part_hd_tabulate split: list.splits)
 
 lemma v_at_part_hd_tabulate: 
   assumes "MFOTL.future_bounded \<phi>"
@@ -2520,9 +2474,10 @@ next
     then have fb: "MFOTL.future_bounded \<phi>"
       by simp
     obtain mypick where mypick_def: "v_at (mypick z) = i \<and> v_check (v(x:=z)) \<phi> (mypick z)" for z
+      using VExists fb
       apply (atomize_elim)
       apply (rule choice)
-      using VExists fb apply (cases \<phi>, simp_all)
+      apply simp
       done 
     define mypart where "mypart = tabulate (sorted_list_of_set (AD \<phi> i)) mypick (mypick (SOME z. z \<notin> (AD \<phi> i)))"
     have mypick_at: "\<forall>z. v_at (mypick z) = i"
@@ -2541,12 +2496,42 @@ next
       using v_at_tabulate[of mypick i _ \<phi>, OF mypick_at] apply fastforce
       using v_check_tabulate[OF fb mypick_at mypick_v_check] apply fastforce
       done            
-    show "\<exists>vp. v_at vp = i \<and> local.v_check v (formula.Exists x \<phi>) vp"
+    show "\<exists>vp. v_at vp = i \<and> v_check v (MFOTL.Exists x \<phi>) vp"
       using v_at_myp v_check_myp by blast
   qed
 next
   case (SForall v x i \<phi>)
-  then show ?case sorry
+  show ?case 
+  proof
+    assume "MFOTL.future_bounded (MFOTL.Forall x \<phi>)"
+    then have fb: "MFOTL.future_bounded \<phi>"
+      by simp
+    obtain mypick where mypick_def: "s_at (mypick z) = i \<and> s_check (v(x:=z)) \<phi> (mypick z)" for z
+      using SForall fb 
+      apply (atomize_elim)
+      apply (rule choice)
+      apply simp
+      done 
+    define mypart where "mypart = tabulate (sorted_list_of_set (AD \<phi> i)) mypick (mypick (SOME z. z \<notin> (AD \<phi> i)))"
+    have mypick_at: "\<forall>z. s_at (mypick z) = i"
+      by (simp add: mypick_def)
+    have mypick_s_check: "\<forall>z. s_check (v(x:=z)) \<phi> (mypick z)" 
+      by (simp add: mypick_def)
+    have mypick_s_check2: "\<forall>z. s_check (v(x := (SOME z. z \<notin> AD \<phi> i))) \<phi> (mypick (SOME z. z \<notin> AD \<phi> i))"
+      by (simp add: mypick_def)
+    have s_at_myp: "s_at (SForall x mypart) = i"
+      using s_at_part_hd_tabulate[OF fb, of mypick i]
+      by (simp add: mypart_def mypick_def) 
+    have s_check_myp: "s_check v (MFOTL.Forall x \<phi>) (SForall x mypart)"
+      apply (simp add: mypart_def s_at_part_hd_tabulate[OF fb mypick_at])
+      apply clarify
+      apply (rule conjI)
+      using s_at_tabulate[of mypick i _ \<phi>, OF mypick_at] apply fastforce
+      using s_check_tabulate[OF fb mypick_at mypick_s_check] apply fastforce
+      done
+    show "\<exists>sp. s_at sp = i \<and> s_check v (MFOTL.Forall x \<phi>) sp"
+      using s_at_myp s_check_myp by blast
+  qed
 next
   case (VForall v x i \<phi>)
   then show ?case 
@@ -2645,7 +2630,26 @@ next
     done
 next
   case (VOnce j I i v \<phi>)
-  then show ?case sorry
+  show ?case 
+  proof
+    assume "MFOTL.future_bounded (MFOTL.Once I \<phi>)"
+    then have fb: "MFOTL.future_bounded \<phi>"
+      by simp
+    obtain mypick where mypick_def: "\<forall>k \<in> {j .. LTP_p \<sigma> i I}. v_at (mypick k) = k \<and> v_check v \<phi> (mypick k)"
+      using VOnce fb
+      apply (atomize_elim)
+      apply (rule bchoice)
+      apply simp
+      done
+    then obtain vps where vps_def: "map (v_at) vps = [j ..< Suc (LTP_p \<sigma> i I)] \<and> (\<forall>vp \<in> set vps. v_check v \<phi> vp)"
+      apply atomize_elim 
+      apply (auto intro!: trans[OF list.map_cong list.map_id] exI[of _ "map mypick ([j ..< Suc (LTP_p \<sigma> i I)])"])
+      done
+    then have "v_at (VOnce i j vps) = i \<and> v_check v (MFOTL.Once I \<phi>) (VOnce i j vps)"
+      using VOnce by auto
+    then show "\<exists>vp. v_at vp = i \<and> v_check v (MFOTL.Once I \<phi>) vp"
+      by blast
+  qed
 next
   case (SEventually j i I v \<phi>)
   then show ?case 
@@ -2657,10 +2661,51 @@ next
     done
 next
   case (VEventually I i v \<phi>)
-  then show ?case sorry
+  show ?case 
+  proof
+    assume fb_eventually: "MFOTL.future_bounded (MFOTL.Eventually I \<phi>)"
+    then have fb: "MFOTL.future_bounded \<phi>"
+      by simp
+    obtain b where b_def: "right I = enat b"
+      using fb_eventually by (atomize_elim, cases "right I") auto
+    define j where j_def: "j = LTP \<sigma> (\<tau> \<sigma> i + b)"
+    obtain mypick where mypick_def: "\<forall>k \<in> {ETP_f \<sigma> i I .. j}. v_at (mypick k) = k \<and> v_check v \<phi> (mypick k)"
+      using VEventually fb_eventually
+      apply (atomize_elim)
+      apply (rule bchoice)
+      apply (simp add: b_def j_def)
+      done
+    then obtain vps where vps_def: "map (v_at) vps = [ETP_f \<sigma> i I ..< Suc j] \<and> (\<forall>vp \<in> set vps. v_check v \<phi> vp)"
+      apply atomize_elim 
+      apply (auto intro!: trans[OF list.map_cong list.map_id] exI[of _ "map mypick ([ETP_f \<sigma> i I ..< Suc j])"])
+      done
+    then have "v_at (VEventually i j vps) = i \<and> v_check v (MFOTL.Eventually I \<phi>) (VEventually i j vps)"
+      using VEventually b_def j_def by simp
+    then show "\<exists>vp. v_at vp = i \<and> v_check v (MFOTL.Eventually I \<phi>) vp"
+      by blast
+  qed
 next
   case (SHistorically j I i v \<phi>)
-  then show ?case sorry
+  show ?case
+  proof
+    assume fb_historically: "MFOTL.future_bounded (MFOTL.Historically I \<phi>)"
+    then have fb: "MFOTL.future_bounded \<phi>"
+      by simp
+    obtain mypick where mypick_def: "\<forall>k \<in> {j .. LTP_p \<sigma> i I}. s_at (mypick k) = k \<and> s_check v \<phi> (mypick k)"
+      using SHistorically fb
+      apply (atomize_elim)
+      apply (rule bchoice)
+      apply simp
+      done
+    then obtain sps where sps_def: "map (s_at) sps = [j ..< Suc (LTP_p \<sigma> i I)] \<and> (\<forall>sp \<in> set sps. s_check v \<phi> sp)"
+      apply atomize_elim 
+      apply (auto intro!: trans[OF list.map_cong list.map_id] exI[of _ "map mypick ([j ..< Suc (LTP_p \<sigma> i I)])"])
+      done
+    then have "s_at (SHistorically i j sps) = i \<and> s_check v (MFOTL.Historically I \<phi>) (SHistorically i j sps)"
+      using SHistorically by auto
+    then show "\<exists>sp. s_at sp = i \<and> s_check v (MFOTL.Historically I \<phi>) sp"
+      by blast
+  qed
 next
   case (SHistoricallyOut i I v \<phi>)
   then show ?case 
@@ -2679,7 +2724,29 @@ next
     done
 next
   case (SAlways I i v \<phi>)
-  then show ?case sorry
+  show ?case 
+  proof
+    assume fb_always: "MFOTL.future_bounded (MFOTL.Always I \<phi>)"
+    then have fb: "MFOTL.future_bounded \<phi>"
+      by simp
+    obtain b where b_def: "right I = enat b"
+      using fb_always by (atomize_elim, cases "right I") auto
+    define j where j_def: "j = LTP \<sigma> (\<tau> \<sigma> i + b)"
+    obtain mypick where mypick_def: "\<forall>k \<in> {ETP_f \<sigma> i I .. j}. s_at (mypick k) = k \<and> s_check v \<phi> (mypick k)"
+      using SAlways fb_always
+      apply (atomize_elim)
+      apply (rule bchoice)
+      apply (simp add: b_def j_def)
+      done
+    then obtain sps where sps_def: "map (s_at) sps = [ETP_f \<sigma> i I ..< Suc j] \<and> (\<forall>sp \<in> set sps. s_check v \<phi> sp)"
+      apply atomize_elim 
+      apply (auto intro!: trans[OF list.map_cong list.map_id] exI[of _ "map mypick ([ETP_f \<sigma> i I ..< Suc j])"])
+      done
+    then have "s_at (SAlways i j sps) = i \<and> s_check v (MFOTL.Always I \<phi>) (SAlways i j sps)"
+      using SAlways b_def j_def by simp
+    then show "\<exists>sp. s_at sp = i \<and> s_check v (MFOTL.Always I \<phi>) sp"
+      by blast
+  qed
 next
   case (VAlways j i I v \<phi>)
   then show ?case 
@@ -2691,7 +2758,50 @@ next
     done
 next
   case (SSince j i I v \<psi> \<phi>)
-  then show ?case sorry
+  show ?case 
+  proof
+    assume fb_since: "MFOTL.future_bounded (MFOTL.Since \<phi> I \<psi>)"
+    then have fb: "MFOTL.future_bounded \<phi>" "MFOTL.future_bounded \<psi>"
+      by simp_all
+    obtain sp2 where sp2_def: "s_at sp2 = j \<and> s_check v \<psi> sp2" 
+      using SSince fb_since 
+      apply atomize_elim
+      apply auto
+      done
+    { 
+      assume "Suc j > i"
+      then have "s_at (SSince sp2 []) = i \<and> s_check v (MFOTL.Since \<phi> I \<psi>) (SSince sp2 [])"
+        using sp2_def SSince by auto
+      then have "\<exists>sp. s_at sp = i \<and> s_check v (MFOTL.Since \<phi> I \<psi>) sp" 
+        by blast
+    }
+    moreover
+    {
+      assume sucj_leq_i: "Suc j \<le> i"
+      obtain mypick where mypick_def: "\<forall>k \<in> {Suc j ..< Suc i}. s_at (mypick k) = k \<and> s_check v \<phi> (mypick k)"
+        using SSince fb_since
+        apply (atomize_elim)
+        apply (rule bchoice)
+        apply simp
+        done
+      then obtain sp1s where sp1s_def: "map (s_at) sp1s = [Suc j ..< Suc i] \<and> (\<forall>sp \<in> set sp1s. s_check v \<phi> sp)"
+        apply atomize_elim 
+        apply (auto intro!: trans[OF list.map_cong list.map_id] exI[of _ "map mypick ([Suc j ..< Suc i])"])
+        done
+      then have "sp1s \<noteq> []" 
+        using sucj_leq_i by auto
+      then have "s_at (SSince sp2 sp1s) = i \<and> s_check v (MFOTL.Since \<phi> I \<psi>) (SSince sp2 sp1s)"
+        using SSince sucj_leq_i fb
+        unfolding sp2_def sp1s_def
+        apply (clarsimp simp add: Let_def split: list.splits)
+        apply (smt (verit, best) Cons_eq_upt_conv last.simps last_map last_snoc list.set_intros(1) list.set_intros(2) list.simps(9) sp1s_def sp2_def upt_Suc)
+        done
+      then have "\<exists>sp. s_at sp = i \<and> s_check v (MFOTL.Since \<phi> I \<psi>) sp"
+        by blast
+    }
+    ultimately show "\<exists>sp. s_at sp = i \<and> s_check v (MFOTL.Since \<phi> I \<psi>) sp"
+      using not_less by blast
+  qed
 next
   case (VSinceOut i I v \<phi> \<psi>)
   then show ?case 
@@ -2701,19 +2811,140 @@ next
     done
 next
   case (VSince I i j v \<phi> \<psi>)
-  then show ?case sorry
+  show ?case 
+  proof
+    assume fb_since: "MFOTL.future_bounded (MFOTL.Since \<phi> I \<psi>)"
+    then have fb: "MFOTL.future_bounded \<phi>" "MFOTL.future_bounded \<psi>"
+      by simp_all
+    obtain vp1 where vp1_def: "v_at vp1 = j \<and> v_check v \<phi> vp1" 
+      using fb_since VSince by auto
+    obtain mypick where mypick_def: "\<forall>k \<in> {j .. LTP_p \<sigma> i I}. v_at (mypick k) = k \<and> v_check v \<psi> (mypick k)"
+      using VSince fb_since
+      apply (atomize_elim)
+      apply (rule bchoice)
+      apply simp
+      done
+    then obtain vp2s where vp2s_def: "map (v_at) vp2s = [j ..< Suc (LTP_p \<sigma> i I)] \<and> (\<forall>vp \<in> set vp2s. v_check v \<psi> vp)"
+      apply atomize_elim 
+      apply (auto intro!: trans[OF list.map_cong list.map_id] exI[of _ "map mypick ([j ..< Suc (LTP_p \<sigma> i I)])"])
+      done
+    then have "v_at (VSince i vp1 vp2s) = i \<and> v_check v (MFOTL.Since \<phi> I \<psi>) (VSince i vp1 vp2s)"
+      using vp1_def VSince by auto
+    then show "\<exists>vp. v_at vp = i \<and> v_check v (MFOTL.Since \<phi> I \<psi>) vp"
+      by blast
+  qed
 next
   case (VSinceInf j I i v \<psi> \<phi>)
-  then show ?case sorry
+  show ?case 
+  proof
+    assume fb_since: "MFOTL.future_bounded (MFOTL.Since \<phi> I \<psi>)"
+    then have fb: "MFOTL.future_bounded \<phi>" "MFOTL.future_bounded \<psi>"
+      by simp_all
+    obtain mypick where mypick_def: "\<forall>k \<in> {j .. LTP_p \<sigma> i I}. v_at (mypick k) = k \<and> v_check v \<psi> (mypick k)"
+      using VSinceInf fb_since
+      apply (atomize_elim)
+      apply (rule bchoice)
+      apply simp
+      done
+    then obtain vp2s where vp2s_def: "map (v_at) vp2s = [j ..< Suc (LTP_p \<sigma> i I)] \<and> (\<forall>vp \<in> set vp2s. v_check v \<psi> vp)"
+      apply atomize_elim 
+      apply (auto intro!: trans[OF list.map_cong list.map_id] exI[of _ "map mypick ([j ..< Suc (LTP_p \<sigma> i I)])"])
+      done
+    then have "v_at (VSinceInf i j vp2s) = i \<and> v_check v (MFOTL.Since \<phi> I \<psi>) (VSinceInf i j vp2s)"
+      using VSinceInf by auto
+    then show "\<exists>vp. v_at vp = i \<and> v_check v (MFOTL.Since \<phi> I \<psi>) vp"
+      by blast
+  qed
 next
   case (SUntil j i I v \<psi> \<phi>)
-  then show ?case sorry
+  show ?case
+  proof
+    assume fb_until: "MFOTL.future_bounded (MFOTL.Until \<phi> I \<psi>)"
+    then have fb: "MFOTL.future_bounded \<phi>" "MFOTL.future_bounded \<psi>"
+      by simp_all
+    obtain sp2 where sp2_def: "s_at sp2 = j \<and> s_check v \<psi> sp2" 
+      using fb SUntil by blast
+    {
+      assume "i \<ge> j"
+      then have "s_at (SUntil [] sp2) = i \<and> s_check v (MFOTL.Until \<phi> I \<psi>) (SUntil [] sp2)"
+        using sp2_def SUntil by auto
+      then have "\<exists>sp. s_at sp = i \<and> s_check v (MFOTL.Until \<phi> I \<psi>) sp" 
+        by blast
+    }
+    moreover
+    {
+      assume i_l_j: "i < j"
+      obtain mypick where mypick_def: "\<forall>k \<in> {i ..< j}. s_at (mypick k) = k \<and> s_check v \<phi> (mypick k)"
+        using SUntil fb_until
+        apply (atomize_elim)
+        apply (rule bchoice)
+        apply simp
+        done
+      then obtain sp1s where sp1s_def: "map (s_at) sp1s = [i ..< j] \<and> (\<forall>sp \<in> set sp1s. s_check v \<phi> sp)"
+        apply atomize_elim 
+        apply (auto intro!: trans[OF list.map_cong list.map_id] exI[of _ "map mypick ([i ..< j])"])
+        done
+      then have "s_at (SUntil sp1s sp2) = i \<and> s_check v (MFOTL.Until \<phi> I \<psi>) (SUntil sp1s sp2)"
+        using SUntil fb_until
+        unfolding sp2_def sp1s_def
+        apply (clarsimp simp add: Let_def split: list.splits)
+        apply (metis (no_types, lifting) Cons_eq_upt_conv i_l_j less_nat_zero_code list.map_disc_iff list.simps(9) sp2_def upt_eq_Nil_conv)
+        done
+      then have "\<exists>sp. s_at sp = i \<and> s_check v (MFOTL.Until \<phi> I \<psi>) sp"
+        by blast
+    }
+    ultimately show "\<exists>sp. s_at sp = i \<and> s_check v (MFOTL.Until \<phi> I \<psi>) sp"
+      using not_less by blast
+  qed
 next
   case (VUntil I j i v \<phi> \<psi>)
-  then show ?case sorry
+  show ?case
+  proof
+    assume fb_until: "MFOTL.future_bounded (MFOTL.Until \<phi> I \<psi>)"
+    then have fb: "MFOTL.future_bounded \<phi>" "MFOTL.future_bounded \<psi>"
+      by simp_all
+    obtain vp1 where vp1_def: "v_at vp1 = j \<and> v_check v \<phi> vp1" 
+      using VUntil fb_until by auto
+    obtain mypick where mypick_def: "\<forall>k \<in> {ETP_f \<sigma> i I .. j}. v_at (mypick k) = k \<and> v_check v \<psi> (mypick k)"
+      using VUntil fb_until
+      apply (atomize_elim)
+      apply (rule bchoice)
+      apply simp
+      done
+    then obtain vp2s where vp2s_def: "map (v_at) vp2s = [ETP_f \<sigma> i I ..< Suc j] \<and> (\<forall>vp \<in> set vp2s. v_check v \<psi> vp)"
+      apply atomize_elim 
+      apply (auto intro!: trans[OF list.map_cong list.map_id] exI[of _ "map mypick ([ETP_f \<sigma> i I ..< Suc j])"])
+      done
+    then have "v_at (VUntil i vp2s vp1) = i \<and> v_check v (MFOTL.Until \<phi> I \<psi>) (VUntil i vp2s vp1)"
+      using VUntil fb_until vp1_def by simp
+    then show "\<exists>vp. v_at vp = i \<and> v_check v (MFOTL.Until \<phi> I \<psi>) vp"
+      by blast
+  qed
 next
   case (VUntilInf I i v \<psi> \<phi>)
-  then show ?case sorry
+  show ?case
+  proof
+    assume fb_until: "MFOTL.future_bounded (MFOTL.Until \<phi> I \<psi>)"
+    then have fb: "MFOTL.future_bounded \<phi>" "MFOTL.future_bounded \<psi>"
+      by simp_all
+    obtain b where b_def: "right I = enat b"
+      using fb_until by (atomize_elim, cases "right I") auto
+    define j where j_def: "j = LTP \<sigma> (\<tau> \<sigma> i + b)"
+    obtain mypick where mypick_def: "\<forall>k \<in> {ETP_f \<sigma> i I .. j}. v_at (mypick k) = k \<and> v_check v \<psi> (mypick k)"
+      using VUntilInf fb_until
+      apply (atomize_elim)
+      apply (rule bchoice)
+      apply (simp add: b_def j_def)
+      done
+    then obtain vp2s where vp2s_def: "map (v_at) vp2s = [ETP_f \<sigma> i I ..< Suc j] \<and> (\<forall>vp \<in> set vp2s. v_check v \<psi> vp)"
+      apply atomize_elim 
+      apply (auto intro!: trans[OF list.map_cong list.map_id] exI[of _ "map mypick ([ETP_f \<sigma> i I ..< Suc j])"])
+      done
+    then have "v_at (VUntilInf i j vp2s) = i \<and> v_check v (MFOTL.Until \<phi> I \<psi>) (VUntilInf i j vp2s)"
+      using VUntilInf b_def j_def by simp
+    then show "\<exists>vp. v_at vp = i \<and> v_check v (MFOTL.Until \<phi> I \<psi>) vp"
+      by blast
+  qed
 qed
 
 definition "p_at = (\<lambda>p. case_sum s_at v_at p)"
@@ -3025,7 +3256,7 @@ inductive sat_vorder :: "MFOTL.name list \<Rightarrow> 'd expl \<Rightarrow> boo
 function (sequential) opt :: "MFOTL.name list \<Rightarrow> nat \<Rightarrow> 'd MFOTL.formula \<Rightarrow> 'd expl" where
   "opt vars i MFOTL.TT = Leaf (Inl (STT i))"
 | "opt vars i MFOTL.FF = Leaf (Inr (VFF i))"
-| "opt vars i (MFOTL.Pred r ts) =                                                     
+| "opt vars i (MFOTL.Pred r ts) = 
   (pdt_of i r ts (filter (\<lambda>x. x \<in> MFOTL.fv (MFOTL.Pred r ts)) vars) (Option.these (match ts ` snd ` {rd \<in> \<Gamma> \<sigma> i. fst rd = r })))"
 | "opt vars i (MFOTL.Neg \<phi>) = apply_pdt1 vars (\<lambda>p. min_list_wrt cmp (do_neg p)) (opt vars i \<phi>)"
 | "opt vars i (MFOTL.Or \<phi> \<psi>) = apply_pdt2 vars (\<lambda>p1 p2. min_list_wrt cmp (do_or p1 p2)) (opt vars i \<phi>) (opt vars i \<psi>)"
@@ -3046,7 +3277,18 @@ function (sequential) opt :: "MFOTL.name list \<Rightarrow> nat \<Rightarrow> 'd
                                                            (opt vars (i-1) (MFOTL.Once (subtract (\<Delta> \<sigma> i) I) \<phi>))
                                               else apply_pdt1 vars (\<lambda>p. min_list_wrt cmp (do_once_base i (left I) p)) expl'))))"
   by pat_completeness auto
-termination
+
+fun dist where
+  "dist i (MFOTL.Once _ _) = i"
+| "dist i (MFOTL.Historically _ _) = i"
+| "dist i (MFOTL.Eventually I _) = LTP \<sigma> (case right I of \<infinity> \<Rightarrow> 0 | enat b \<Rightarrow> (\<tau> \<sigma> i + b)) - i"
+| "dist i (MFOTL.Always I _) = LTP \<sigma> (case right I of \<infinity> \<Rightarrow> 0 | enat b \<Rightarrow> (\<tau> \<sigma> i + b)) - i"
+| "dist i (MFOTL.Since _ _ _) = i"
+| "dist i (MFOTL.Until _ I _) = LTP \<sigma> (case right I of \<infinity> \<Rightarrow> 0 | enat b \<Rightarrow> (\<tau> \<sigma> i + b)) - i"
+| "dist _ _ = undefined"
+
+termination opt
+  apply (relation "measures []")
   sorry
 
 end
