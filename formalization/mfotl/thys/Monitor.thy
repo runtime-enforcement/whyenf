@@ -2128,9 +2128,11 @@ lemma SubsVals_trivial[simp]: "SubsVals (trivial_part pt) = {(UNIV, pt)}"
   unfolding SubsVals_def
   by (transfer) simp
 
+unbundle MFOTL_no_notation \<comment> \<open> disable notation \<close>
+
 lemma check_AD_cong:
   assumes "MFOTL.future_bounded \<phi>"
-    and "(\<forall>x \<in> MFOTL.fv \<phi>. v x = v' x \<or> v x \<notin> AD \<phi> i \<and> v' x \<notin> AD \<phi> i)"
+    and "(\<forall>x \<in> MFOTL.fv \<phi>. (v x \<in> AD \<phi> i \<and> v x = v' x) \<or> (v x \<notin> AD \<phi> i \<and> v' x \<notin> AD \<phi> i))"
   shows "(s_at sp = i \<Longrightarrow> s_check v \<phi> sp \<longleftrightarrow> s_check v' \<phi> sp)"
         "(v_at vp = i \<Longrightarrow> v_check v \<phi> vp \<longleftrightarrow> v_check v' \<phi> vp)"
   using assms
@@ -2141,7 +2143,7 @@ proof (induction v \<phi> sp and v \<phi> vp rule: s_check_v_check.induct)
   proof (cases sp)
     case (SPred i r ts)
     then show ?thesis
-      using 1(25)
+      using 1(25) 
       apply (cases f; clarsimp)
       sorry
   next
@@ -2292,8 +2294,6 @@ next
   qed
 qed
 
-unbundle MFOTL_no_notation \<comment> \<open> disable notation \<close>
-
 lemma part_hd_tabulate: "distinct xs \<Longrightarrow> part_hd (tabulate xs f z) = (case xs of [] \<Rightarrow> z | (x # _) \<Rightarrow> (if set xs = UNIV then f x else z))"
   by (transfer, auto split: list.splits)
 
@@ -2303,7 +2303,7 @@ lemma v_at_tabulate:
   shows "\<forall>(sub, vp) \<in> SubsVals mypart. v_at vp = i"
   using assms by (transfer, auto)
 
-lemma fv_AD: "\<forall>x \<in> MFOTL.fv \<phi>. v x = v' x \<or> v x \<notin> AD \<phi> i \<and> v' x \<notin> AD \<phi> i"
+lemma fv_AD: "\<forall>x \<in> MFOTL.fv \<phi>. (v x \<in> AD \<phi> i \<and> v x = v' x) \<or> (v x \<notin> AD \<phi> i \<and> v' x \<notin> AD \<phi> i)"
   sorry
 
 lemma v_check_tabulate:
@@ -2325,7 +2325,7 @@ lemma v_check_tabulate:
     have v_check_mypick: "Monitor.v_check \<sigma> (v(x := SOME z. z \<notin> AD \<phi> i)) \<phi> (mypick (SOME z. z \<notin> AD \<phi> i))"
       using v_check_assm by simp
     show ?thesis
-      using check_AD_cong(2)[of \<phi> "v(x := z)" "v(x := (SOME z. z \<notin> Monitor.AD \<sigma> \<phi> i))" i "mypick (SOME z. z \<notin> AD \<phi> i)", OF fb_assm fv_AD v_at_mypick] v_check_mypick
+      using check_AD_cong(2)[of \<phi> "v(x := z)" i "v(x := (SOME z. z \<notin> Monitor.AD \<sigma> \<phi> i))" "mypick (SOME z. z \<notin> AD \<phi> i)", OF fb_assm fv_AD v_at_mypick] v_check_mypick
       by simp
   qed
   done
