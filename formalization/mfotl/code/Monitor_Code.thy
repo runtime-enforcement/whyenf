@@ -176,14 +176,14 @@ lemma lookup_bulkload_Some: "i < length list \<Longrightarrow>
   Mapping.lookup (Mapping.bulkload list) i = Some (list ! i)"
   by transfer (auto simp: Map_To_Mapping.map_apply_def)
 
-definition "fstfinite s = (\<forall>i. finite (s ! i))"
+definition "fstfinite xs = list_all finite xs"
 
 lift_definition trace_rbt_of_list :: "('a set \<times> nat) list \<Rightarrow> 'a trace_rbt" is
   "\<lambda>xs. if sorted (map snd xs) \<and> fstfinite (map fst xs) then (if xs = [] then (0, 0, Mapping.empty)
   else (length xs, snd (last xs), Mapping.bulkload xs))
   else (0, 0, Mapping.empty)"
   by (auto simp: lookup_bulkload_Some sorted_iff_nth_Suc last_conv_nth fstfinite_def split: option.splits nat.splits) 
-    (metis fst_conv lessI nth_map)
+    (metis fst_conv length_map lessI list_all_length nth_map)
 
 lift_definition trace_rbt_nth :: "'a trace_rbt \<Rightarrow> nat \<Rightarrow> ('a set \<times> nat)" is
   "\<lambda>(n, m, t) i. if i < n then the (Mapping.lookup t i) else ({}, (i - n) + m)" .
@@ -204,7 +204,7 @@ lift_definition Trace_RBT :: "'a trace_rbt \<Rightarrow> 'a trace" is
       using props(2,3) less_Suc_eq_le
       by (fastforce simp: sorted_iff_nth_mono split: nat.splits option.splits)
     have aux2: "x \<in> set (map (the \<circ> Mapping.lookup t) [0..<n]) \<Longrightarrow> finite (fst x)" for x
-      using props(4) 
+      using props(4)
       apply (simp split: nat.splits option.splits)
       apply clarsimp
       sorry
@@ -807,6 +807,8 @@ definition execute_trivial_opt where
 
 definition mytrace :: "nat MFOTL.trace" where 
   "mytrace = trace_of_list [({(''p'', [1::nat])}, 0::nat)]"
+
+print_codesetup
 
 value "execute_trivial_opt mytrace [''x''] (0::nat) (MFOTL.Pred ''p'' [MFOTL.Var ''x''] :: nat MFOTL.formula)"
 
