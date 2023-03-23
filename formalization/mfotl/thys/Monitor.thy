@@ -3162,8 +3162,7 @@ definition do_until_base :: "nat \<Rightarrow> nat \<Rightarrow> 'd proof \<Righ
 | (Inr vp1, _ , False) \<Rightarrow> [Inr (VUntil i [] vp1), Inr (VUntilInf i i [])]
 | (Inr vp1, Inr vp2, True) \<Rightarrow> [Inr (VUntil i [vp2] vp1), Inr (VUntilInf i i [vp2])])"
 
-definition do_until :: "nat \<Rightarrow> nat \<Rightarrow> ('a sproof + 'a vproof) \<Rightarrow> ('a sproof + 'a vproof)
-\<Rightarrow> ('a sproof + 'a vproof) \<Rightarrow> ('a sproof + 'a vproof) list" where
+definition do_until :: "nat \<Rightarrow> nat \<Rightarrow> 'd proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof list" where
   "do_until i a p1 p2 p' = (case (p1, p2, a = 0, p') of
   (Inl sp1, Inr _ , True, Inl (SUntil _ _ )) \<Rightarrow> [p' \<oplus> (Inl sp1)]
 | (Inl sp1, _ , False, Inl (SUntil _ _ )) \<Rightarrow> [p' \<oplus> (Inl sp1)]
@@ -3212,31 +3211,32 @@ fun pdt_of :: "nat \<Rightarrow> MFOTL.name \<Rightarrow> 'd MFOTL.trm list \<Ri
           part = tabulate ds (\<lambda>d. pdt_of i r ts vars ({v \<in> V. v x = Some d})) (pdt_of i r ts vars {})
      in Node x part)"
 
-(* value "pdt_of 0 p [MFOTL.Var ''x'', MFOTL.Var ''y''] [''x'', ''y''] {}" *)
-
-fun "apply_pdt2" :: "MFOTL.name list \<Rightarrow> ('d proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof) \<Rightarrow> 'd expl \<Rightarrow> 'd expl \<Rightarrow> 'd expl" where
-  "apply_pdt2 vars f (Leaf pt1) (Leaf pt2) = Leaf (f pt1 pt2)"
-| "apply_pdt2 vars f (Leaf pt1) (Node x part2) = Node x (map_part (map_pdt (f pt1)) part2)"
-| "apply_pdt2 vars f (Node x part1) (Leaf pt2) = Node x (map_part (map_pdt (\<lambda>pt1. f pt1 pt2)) part1)"
-| "apply_pdt2 (z # vars) f (Node x part1) (Node y part2) =
-    (if x = z \<and> y = z then
-      Node z (merge_part (apply_pdt2 vars f) part1 part2)
-    else if x = z then
-      Node x (map_part (\<lambda>expl1. apply_pdt2 vars f expl1 (Node y part2)) part1)
-    else if y = z then
-      Node y (map_part (\<lambda>expl2. apply_pdt2 vars f (Node x part1) expl2) part2)
-    else
-      apply_pdt2 vars f (Node x part1) (Node y part2))"
-| "apply_pdt2 [] _ (Node _ _) (Node _ _) = undefined"
-
 fun "apply_pdt1" :: "MFOTL.name list \<Rightarrow> ('d proof \<Rightarrow> 'd proof) \<Rightarrow> 'd expl \<Rightarrow> 'd expl" where
   "apply_pdt1 vars f (Leaf pt) = Leaf (f pt)"
 | "apply_pdt1 (z # vars) f (Node x part) =
-    (if x = z then
-      Node x (map_part (\<lambda>expl. apply_pdt1 vars f expl) part)
-    else
-      apply_pdt1 vars f (Node x part))"
+  (if x = z then
+     Node x (map_part (\<lambda>expl. apply_pdt1 vars f expl) part)
+   else
+     apply_pdt1 vars f (Node x part))"
 | "apply_pdt1 [] _ (Node _ _) = undefined"
+
+fun "apply_pdt2" :: "MFOTL.name list \<Rightarrow> ('d proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof) \<Rightarrow> 'd expl \<Rightarrow> 'd expl \<Rightarrow> 'd expl" where
+  "apply_pdt2 vars f (Leaf pt1) (Leaf pt2) = Leaf (f pt1 pt2)"
+| "apply_pdt2 vars f (Leaf pt1) (Node x part2) = Node x (map_part (apply_pdt1 vars (f pt1)) part2)"
+| "apply_pdt2 vars f (Node x part1) (Leaf pt2) = Node x (map_part (apply_pdt1 vars (\<lambda>pt1. f pt1 pt2)) part1)"
+| "apply_pdt2 (z # vars) f (Node x part1) (Node y part2) =
+    (if x = z \<and> y = z then
+       Node z (merge_part (apply_pdt2 vars f) part1 part2)
+     else if x = z then
+       Node x (map_part (\<lambda>expl1. apply_pdt2 vars f expl1 (Node y part2)) part1)
+     else if y = z then
+       Node y (map_part (\<lambda>expl2. apply_pdt2 vars f (Node x part1) expl2) part2)
+     else
+       apply_pdt2 vars f (Node x part1) (Node y part2))"
+| "apply_pdt2 [] _ (Node _ _) (Node _ _) = undefined"
+
+fun "apply_pdt3" :: "MFOTL.name list \<Rightarrow> ('d proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof) \<Rightarrow> 'd expl \<Rightarrow> 'd expl \<Rightarrow> 'd expl \<Rightarrow> 'd expl" where
+  "apply_pdt3 vars f (Leaf pt1) (Leaf pt2) (Leaf pt3) = Leaf (f pt1 pt2 pt3)"
 
 fun "hide_pdt" :: "MFOTL.name list \<Rightarrow> ('d proof + ('d, 'd proof) part \<Rightarrow> 'd proof) \<Rightarrow> 'd expl \<Rightarrow> 'd expl" where
   "hide_pdt vars f (Leaf pt) = Leaf (f (Inl pt))"
@@ -3253,29 +3253,71 @@ inductive sat_vorder :: "MFOTL.name list \<Rightarrow> 'd expl \<Rightarrow> boo
 | "\<forall>expl \<in> Vals part1. sat_vorder vars expl \<Longrightarrow> sat_vorder (x # vars) (Node x part1)"
 | "sat_vorder vars (Node x part1) \<Longrightarrow> x \<noteq> z \<Longrightarrow> sat_vorder (z # vars) (Node x part1)"
 
-function (sequential) opt :: "MFOTL.name list \<Rightarrow> nat \<Rightarrow> 'd MFOTL.formula \<Rightarrow> 'd expl" where
-  "opt vars i MFOTL.TT = Leaf (Inl (STT i))"
-| "opt vars i MFOTL.FF = Leaf (Inr (VFF i))"
-| "opt vars i (MFOTL.Pred r ts) = 
+function (sequential) eval :: "MFOTL.name list \<Rightarrow> nat \<Rightarrow> 'd MFOTL.formula \<Rightarrow> 'd expl" where
+  "eval vars i MFOTL.TT = Leaf (Inl (STT i))"
+| "eval vars i MFOTL.FF = Leaf (Inr (VFF i))"
+| "eval vars i (MFOTL.Pred r ts) = 
   (pdt_of i r ts (filter (\<lambda>x. x \<in> MFOTL.fv (MFOTL.Pred r ts)) vars) (Option.these (match ts ` snd ` {rd \<in> \<Gamma> \<sigma> i. fst rd = r })))"
-| "opt vars i (MFOTL.Neg \<phi>) = apply_pdt1 vars (\<lambda>p. min_list_wrt cmp (do_neg p)) (opt vars i \<phi>)"
-| "opt vars i (MFOTL.Or \<phi> \<psi>) = apply_pdt2 vars (\<lambda>p1 p2. min_list_wrt cmp (do_or p1 p2)) (opt vars i \<phi>) (opt vars i \<psi>)"
-| "opt vars i (MFOTL.And \<phi> \<psi>) = apply_pdt2 vars (\<lambda>p1 p2. min_list_wrt cmp (do_and p1 p2)) (opt vars i \<phi>) (opt vars i \<psi>)"
-| "opt vars i (MFOTL.Imp \<phi> \<psi>) = apply_pdt2 vars (\<lambda>p1 p2. min_list_wrt cmp (do_imp p1 p2)) (opt vars i \<phi>) (opt vars i \<psi>)"
-| "opt vars i (MFOTL.Iff \<phi> \<psi>) = apply_pdt2 vars (\<lambda>p1 p2. min_list_wrt cmp (do_iff p1 p2)) (opt vars i \<phi>) (opt vars i \<psi>)"
-| "opt vars i (MFOTL.Exists x \<phi>) = hide_pdt (vars @ [x]) (\<lambda>p. min_list_wrt cmp (do_exists x p)) (opt (vars @ [x]) i \<phi>)"
-| "opt vars i (MFOTL.Forall x \<phi>) = hide_pdt (vars @ [x]) (\<lambda>p. min_list_wrt cmp (do_forall x p)) (opt (vars @ [x]) i \<phi>)"
-| "opt vars i (MFOTL.Prev I \<phi>) = (if i = 0 then Leaf (Inr VPrevZ) 
-                                  else apply_pdt1 vars (\<lambda>p. min_list_wrt cmp (do_prev i I (\<Delta> \<sigma> i) p)) (opt vars (i-1) \<phi>))"
-| "opt vars i (MFOTL.Next I \<phi>) = apply_pdt1 vars (\<lambda>l. min_list_wrt cmp (do_next i I (\<Delta> \<sigma> (i+1)) l)) (opt vars (i+1) \<phi>)"
-| "opt vars i (MFOTL.Once I \<phi>) = (if \<tau> \<sigma> i < \<tau> \<sigma> 0 + left I then Leaf (Inr (VOnceOut i)) 
-                                  else (let expl' = opt vars i \<phi> in
-                                       (if i = 0 then 
-                                          apply_pdt1 vars (\<lambda>p. min_list_wrt cmp (do_once_base 0 0 p)) expl'
-                                        else (if right I \<ge> enat (\<Delta> \<sigma> i) then
-                                                apply_pdt2 vars (\<lambda>p p'. min_list_wrt cmp (do_once i (left I) p p')) expl'
-                                                           (opt vars (i-1) (MFOTL.Once (subtract (\<Delta> \<sigma> i) I) \<phi>))
-                                              else apply_pdt1 vars (\<lambda>p. min_list_wrt cmp (do_once_base i (left I) p)) expl'))))"
+| "eval vars i (MFOTL.Neg \<phi>) = apply_pdt1 vars (\<lambda>p. min_list_wrt cmp (do_neg p)) (eval vars i \<phi>)"
+| "eval vars i (MFOTL.Or \<phi> \<psi>) = apply_pdt2 vars (\<lambda>p1 p2. min_list_wrt cmp (do_or p1 p2)) (eval vars i \<phi>) (eval vars i \<psi>)"
+| "eval vars i (MFOTL.And \<phi> \<psi>) = apply_pdt2 vars (\<lambda>p1 p2. min_list_wrt cmp (do_and p1 p2)) (eval vars i \<phi>) (eval vars i \<psi>)"
+| "eval vars i (MFOTL.Imp \<phi> \<psi>) = apply_pdt2 vars (\<lambda>p1 p2. min_list_wrt cmp (do_imp p1 p2)) (eval vars i \<phi>) (eval vars i \<psi>)"
+| "eval vars i (MFOTL.Iff \<phi> \<psi>) = apply_pdt2 vars (\<lambda>p1 p2. min_list_wrt cmp (do_iff p1 p2)) (eval vars i \<phi>) (eval vars i \<psi>)"
+| "eval vars i (MFOTL.Exists x \<phi>) = hide_pdt (vars @ [x]) (\<lambda>p. min_list_wrt cmp (do_exists x p)) (eval (vars @ [x]) i \<phi>)"
+| "eval vars i (MFOTL.Forall x \<phi>) = hide_pdt (vars @ [x]) (\<lambda>p. min_list_wrt cmp (do_forall x p)) (eval (vars @ [x]) i \<phi>)"
+| "eval vars i (MFOTL.Prev I \<phi>) = (if i = 0 then Leaf (Inr VPrevZ) 
+                                   else apply_pdt1 vars (\<lambda>p. min_list_wrt cmp (do_prev i I (\<Delta> \<sigma> i) p)) (eval vars (i-1) \<phi>))"
+| "eval vars i (MFOTL.Next I \<phi>) = apply_pdt1 vars (\<lambda>l. min_list_wrt cmp (do_next i I (\<Delta> \<sigma> (i+1)) l)) (eval vars (i+1) \<phi>)"
+| "eval vars i (MFOTL.Once I \<phi>) = 
+  (if \<tau> \<sigma> i < \<tau> \<sigma> 0 + left I then Leaf (Inr (VOnceOut i)) 
+   else (let expl = eval vars i \<phi> in
+        (if i = 0 then 
+           apply_pdt1 vars (\<lambda>p. min_list_wrt cmp (do_once_base 0 0 p)) expl
+         else (if right I \<ge> enat (\<Delta> \<sigma> i) then
+                 apply_pdt2 vars (\<lambda>p p'. min_list_wrt cmp (do_once i (left I) p p')) expl
+                            (eval vars (i-1) (MFOTL.Once (subtract (\<Delta> \<sigma> i) I) \<phi>))
+               else apply_pdt1 vars (\<lambda>p. min_list_wrt cmp (do_once_base i (left I) p)) expl))))"
+| "eval vars i (MFOTL.Historically I \<phi>) = 
+  (if \<tau> \<sigma> i < \<tau> \<sigma> 0 + left I then Leaf (Inl (SHistoricallyOut i)) 
+   else (let expl = eval vars i \<phi> in
+        (if i = 0 then 
+           apply_pdt1 vars (\<lambda>p. min_list_wrt cmp (do_historically_base 0 0 p)) expl
+         else (if right I \<ge> enat (\<Delta> \<sigma> i) then
+                 apply_pdt2 vars (\<lambda>p p'. min_list_wrt cmp (do_historically i (left I) p p')) expl
+                            (eval vars (i-1) (MFOTL.Historically (subtract (\<Delta> \<sigma> i) I) \<phi>))
+               else apply_pdt1 vars (\<lambda>p. min_list_wrt cmp (do_historically_base i (left I) p)) expl))))"
+| "eval vars i (MFOTL.Eventually I \<phi>) = 
+  (let expl = eval vars i \<phi> in
+  (if right I = \<infinity> then undefined 
+   else (if right I \<ge> enat (\<Delta> \<sigma> (i+1)) then
+           apply_pdt2 vars (\<lambda>p p'. min_list_wrt cmp (do_eventually i (left I) p p')) expl
+                            (eval vars (i+1) (MFOTL.Eventually (subtract (\<Delta> \<sigma> (i+1)) I) \<phi>))
+         else apply_pdt1 vars (\<lambda>p. min_list_wrt cmp (do_eventually_base i (left I) p)) expl)))"
+| "eval vars i (MFOTL.Always I \<phi>) = 
+  (let expl = eval vars i \<phi> in
+  (if right I = \<infinity> then undefined 
+   else (if right I \<ge> enat (\<Delta> \<sigma> (i+1)) then
+           apply_pdt2 vars (\<lambda>p p'. min_list_wrt cmp (do_always i (left I) p p')) expl
+                            (eval vars (i+1) (MFOTL.Always (subtract (\<Delta> \<sigma> (i+1)) I) \<phi>))
+         else apply_pdt1 vars (\<lambda>p. min_list_wrt cmp (do_always_base i (left I) p)) expl)))"
+| "eval vars i (MFOTL.Since \<phi> I \<psi>) = 
+  (if \<tau> \<sigma> i < \<tau> \<sigma> 0 + left I then Leaf (Inr (VSinceOut i)) 
+   else (let expl1 = eval vars i \<phi> in
+         let expl2 = eval vars i \<psi> in
+         (if i = 0 then 
+            apply_pdt2 vars (\<lambda>p1 p2. min_list_wrt cmp (do_since_base 0 0 p1 p2)) expl1 expl2
+          else (if right I \<ge> enat (\<Delta> \<sigma> i) then
+                  apply_pdt3 vars (\<lambda>p1 p2 p'. min_list_wrt cmp (do_since i (left I) p1 p2 p')) expl1 expl2
+                             (eval vars (i-1) (MFOTL.Since \<phi> (subtract (\<Delta> \<sigma> i) I) \<psi>))
+                else apply_pdt2 vars (\<lambda>p1 p2. min_list_wrt cmp (do_since_base i (left I) p1 p2)) expl1 expl2))))"
+| "eval vars i (MFOTL.Until \<phi> I \<psi>) = 
+  (let expl1 = eval vars i \<phi> in
+   let expl2 = eval vars i \<psi> in
+   (if right I = \<infinity> then undefined 
+    else (if right I \<ge> enat (\<Delta> \<sigma> (i+1)) then
+            apply_pdt3 vars (\<lambda>p1 p2 p'. min_list_wrt cmp (do_until i (left I) p1 p2 p')) expl1 expl2
+                             (eval vars (i+1) (MFOTL.Until \<phi> (subtract (\<Delta> \<sigma> (i+1)) I) \<psi>))
+          else apply_pdt2 vars (\<lambda>p1 p2. min_list_wrt cmp (do_until_base i (left I) p1 p2)) expl1 expl2)))"
   by pat_completeness auto
 
 fun dist where
@@ -3287,8 +3329,8 @@ fun dist where
 | "dist i (MFOTL.Until _ I _) = LTP \<sigma> (case right I of \<infinity> \<Rightarrow> 0 | enat b \<Rightarrow> (\<tau> \<sigma> i + b)) - i"
 | "dist _ _ = undefined"
 
-termination opt
-  apply (relation "measures []")
+termination eval
+  apply (relation "measure size")
   sorry
 
 end
