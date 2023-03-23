@@ -3276,6 +3276,54 @@ fun "apply_pdt2" :: "MFOTL.name list \<Rightarrow> ('d proof \<Rightarrow> 'd pr
 
 fun "apply_pdt3" :: "MFOTL.name list \<Rightarrow> ('d proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof \<Rightarrow> 'd proof) \<Rightarrow> 'd expl \<Rightarrow> 'd expl \<Rightarrow> 'd expl \<Rightarrow> 'd expl" where
   "apply_pdt3 vars f (Leaf pt1) (Leaf pt2) (Leaf pt3) = Leaf (f pt1 pt2 pt3)"
+| "apply_pdt3 vars f (Leaf pt1) (Leaf pt2) (Node x part3) = Node x (map_part (apply_pdt2 vars (f pt1) (Leaf pt2)) part3)" 
+| "apply_pdt3 vars f (Leaf pt1) (Node x part2) (Leaf pt3) = Node x (map_part (apply_pdt2 vars (\<lambda>pt2. f pt1 pt2) (Leaf pt3)) part2)"
+| "apply_pdt3 vars f (Node x part1) (Leaf pt2) (Leaf pt3) = Node x (map_part (apply_pdt2 vars (\<lambda>pt1. f pt1 pt2) (Leaf pt3)) part1)"
+| "apply_pdt3 (w # vars) f (Leaf pt1) (Node y part2) (Node z part3) = 
+  (if y = w \<and> z = w then
+     Node w (merge_part (apply_pdt2 vars (f pt1)) part2 part3)
+   else if y = w then
+     Node y (map_part (\<lambda>expl2. apply_pdt2 vars (f pt1) expl2 (Node z part3)) part2)
+   else if z = w then
+     Node z (map_part (\<lambda>expl3. apply_pdt2 vars (f pt1) (Node y part2) expl3) part3)
+   else
+     apply_pdt3 vars f (Leaf pt1) (Node y part2) (Node z part3))"
+| "apply_pdt3 (w # vars) f (Node x part1) (Node y part2) (Leaf pt3) = 
+  (if x = w \<and> y = w then
+     Node w (merge_part (apply_pdt2 vars (\<lambda>pt1 pt2. f pt1 pt2 pt3)) part1 part2)
+   else if x = w then
+     Node x (map_part (\<lambda>expl1. apply_pdt2 vars (\<lambda>pt1 pt2. f pt1 pt2 pt3) expl1 (Node y part2)) part1)
+   else if y = w then
+     Node y (map_part (\<lambda>expl2. apply_pdt2 vars (\<lambda>pt1 pt2. f pt1 pt2 pt3) (Node x part1) expl2) part2)
+   else
+     apply_pdt3 vars f (Node x part1) (Node y part2) (Leaf pt3))"
+| "apply_pdt3 (w # vars) f (Node x part1) (Leaf pt2) (Node z part3) = 
+  (if x = w \<and> z = w then
+     Node w (merge_part (apply_pdt2 vars (\<lambda>pt1. f pt1 pt2)) part1 part3)
+   else if x = w then
+     Node x (map_part (\<lambda>expl1. apply_pdt2 vars (\<lambda>pt1. f pt1 pt2) expl1 (Node z part3)) part1)
+   else if z = w then
+     Node z (map_part (\<lambda>expl3. apply_pdt2 vars (\<lambda>pt1. f pt1 pt2) (Node x part1) expl3) part3)
+   else
+     apply_pdt3 vars f (Node x part1) (Leaf pt2) (Node z part3))"
+| "apply_pdt3 (w # vars) f (Node x part1) (Node y part2) (Node z part3) = 
+  (if x = w \<and> y = w \<and> z = w then
+     undefined
+   else if x = w \<and> y = w then
+     Node w (merge_part (apply_pdt3 vars (\<lambda>pt3 pt1 pt2. f pt1 pt2 pt3) (Node z part3)) part1 part2)
+   else if x = w \<and> z = w then
+     Node w (merge_part (apply_pdt3 vars (\<lambda>pt2 pt1 pt3. f pt1 pt2 pt3) (Node y part2)) part1 part3)
+   else if y = w \<and> z = w then
+     Node w (merge_part (apply_pdt3 vars (\<lambda>pt1. f pt1) (Node x part1)) part2 part3)
+   else if x = w then
+     Node x (map_part (\<lambda>expl1. apply_pdt3 vars f expl1 (Node y part2) (Node z part3)) part1)
+   else if y = w then
+     Node y (map_part (\<lambda>expl2. apply_pdt3 vars f (Node x part1) expl2 (Node z part3)) part2)
+   else if z = w then
+     Node z (map_part (\<lambda>expl3. apply_pdt3 vars f (Node x part1) (Node y part2) expl3) part3)
+   else 
+     apply_pdt3 vars f (Node x part1) (Node y part2) (Node z part3))"
+| "apply_pdt3 [] _ _ _ _ = undefined"
 
 fun "hide_pdt" :: "MFOTL.name list \<Rightarrow> ('d proof + ('d, 'd proof) part \<Rightarrow> 'd proof) \<Rightarrow> 'd expl \<Rightarrow> 'd expl" where
   "hide_pdt vars f (Leaf pt) = Leaf (f (Inl pt))"
