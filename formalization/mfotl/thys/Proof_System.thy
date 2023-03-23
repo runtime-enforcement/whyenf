@@ -866,12 +866,21 @@ fun vars_expl :: "'d expl \<Rightarrow> MFOTL.name set" where
   "vars_expl (Node x part) = {x} \<union> (\<Union>pdt \<in> Vals part. vars_expl pdt)"
 | "vars_expl (Leaf pt) = {}"
 
-fun merge_part2_raw :: "('a \<Rightarrow> 'a \<Rightarrow> 'a) \<Rightarrow> ('d set \<times> 'a) list \<Rightarrow> ('d set \<times> 'a) list \<Rightarrow> ('d set \<times> 'a) list" where
-  "merge_part2_raw f [] part2 = part2"  
+fun merge_part2_raw :: "('a \<Rightarrow> 'b \<Rightarrow> 'c) \<Rightarrow> ('d set \<times> 'a) list \<Rightarrow> ('d set \<times> 'b) list \<Rightarrow> ('d set \<times> 'c) list" where
+  "merge_part2_raw f [] part2 = []"  
 | "merge_part2_raw f ((P1, v1) # part1) part2 = 
     (let part12 = List.map_filter (\<lambda>(P2, v2). if P1 \<inter> P2 \<noteq> {} then Some(P1 \<inter> P2, f v1 v2) else None) part2 in
      let part2not1 = List.map_filter (\<lambda>(P2, v2). if P2 - P1 \<noteq> {} then Some(P2 - P1, v2) else None) part2 in
      part12 @ (merge_part2_raw f part1 part2not1))"
+
+fun merge_part3_raw :: "('a \<Rightarrow> 'b \<Rightarrow> 'c \<Rightarrow> 'e) \<Rightarrow> ('d set \<times> 'a) list \<Rightarrow> ('d set \<times> 'b) list \<Rightarrow> ('d set \<times> 'c) list \<Rightarrow> ('d set \<times> 'e) list" where
+  "merge_part3_raw f [] [] part3 = []" 
+| "merge_part3_raw f [] part2 [] = []" 
+| "merge_part3_raw f part1 [] [] = []"
+| "merge_part3_raw f [] part2 part3 = []"
+| "merge_part3_raw f part1 [] part3 = []"
+| "merge_part3_raw f part1 part2 [] = []"
+| "merge_part3_raw f part1 part2 part3 = merge_part2_raw (\<lambda>pt3 f'. f' pt3) part3 (merge_part2_raw f part1 part2)"
 
 lemma partition_on_empty_iff: 
   "partition_on X \<P> \<Longrightarrow> \<P> = {} \<longleftrightarrow> X = {}"
@@ -994,8 +1003,34 @@ proof(induct f part1 part2 arbitrary: X rule: merge_part2_raw.induct)
     by simp
 qed simp
 
+lemma wf_part_list_merge_part3_raw: 
+  "partition_on X (set (map fst part1)) \<and> distinct (map fst part1) 
+  \<Longrightarrow> partition_on X (set (map fst part2)) \<and> distinct (map fst part2) 
+  \<Longrightarrow> partition_on X (set (map fst part3)) \<and> distinct (map fst part3) 
+  \<Longrightarrow> partition_on X (set (map fst (merge_part3_raw f part1 part2 part3))) 
+    \<and> distinct (map fst (merge_part3_raw f part1 part2 part3))"
+proof(induct f part1 part2 part3 arbitrary: X rule: merge_part3_raw.induct)
+  case ("7_1" f v va vb vc vd ve)
+  then have "(merge_part3_raw f (v # va) (vb # vc) (vd # ve)) = 
+    merge_part2_raw (\<lambda>pt3 f'. f' pt3) (vd # ve) (merge_part2_raw f (v # va) (vb # vc))"
+    by simp
+  then show ?case sorry
+next
+  case ("7_2" f v va vd ve vb vc)
+  then show ?case sorry
+next
+  case ("7_3" f vb vc v va vd ve)
+  then show ?case sorry
+next
+  case ("7_4" f vd ve v va vb vc)
+  then show ?case sorry
+qed auto
+
 lift_definition merge_part2 :: "('a \<Rightarrow> 'a \<Rightarrow> 'a) \<Rightarrow> ('d, 'a) part \<Rightarrow> ('d, 'a) part \<Rightarrow> ('d, 'a) part" is merge_part2_raw
-  by (rule wf_part_list_merge_part2_raw)               
+  by (rule wf_part_list_merge_part2_raw)
+
+lift_definition merge_part3 :: "('a \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> 'a) \<Rightarrow> ('d, 'a) part \<Rightarrow> ('d, 'a) part \<Rightarrow> ('d, 'a) part \<Rightarrow> ('d, 'a) part" is merge_part3_raw
+  by (rule wf_part_list_merge_part3_raw)
 
 subsection \<open>Comparator\<close>
 
