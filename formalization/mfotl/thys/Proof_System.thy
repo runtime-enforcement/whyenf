@@ -866,12 +866,12 @@ fun vars_expl :: "'d expl \<Rightarrow> MFOTL.name set" where
   "vars_expl (Node x part) = {x} \<union> (\<Union>pdt \<in> Vals part. vars_expl pdt)"
 | "vars_expl (Leaf pt) = {}"
 
-fun merge_part_raw :: "('a \<Rightarrow> 'a \<Rightarrow> 'a) \<Rightarrow> ('d set \<times> 'a) list \<Rightarrow> ('d set \<times> 'a) list \<Rightarrow> ('d set \<times> 'a) list" where
-  "merge_part_raw f [] part2 = part2"  
-| "merge_part_raw f ((P1, v1) # part1) part2 = 
+fun merge_part2_raw :: "('a \<Rightarrow> 'a \<Rightarrow> 'a) \<Rightarrow> ('d set \<times> 'a) list \<Rightarrow> ('d set \<times> 'a) list \<Rightarrow> ('d set \<times> 'a) list" where
+  "merge_part2_raw f [] part2 = part2"  
+| "merge_part2_raw f ((P1, v1) # part1) part2 = 
     (let part12 = List.map_filter (\<lambda>(P2, v2). if P1 \<inter> P2 \<noteq> {} then Some(P1 \<inter> P2, f v1 v2) else None) part2 in
      let part2not1 = List.map_filter (\<lambda>(P2, v2). if P2 - P1 \<noteq> {} then Some(P2 - P1, v2) else None) part2 in
-     part12 @ (merge_part_raw f part1 part2not1))"
+     part12 @ (merge_part2_raw f part1 part2not1))"
 
 lemma partition_on_empty_iff: 
   "partition_on X \<P> \<Longrightarrow> \<P> = {} \<longleftrightarrow> X = {}"
@@ -960,12 +960,12 @@ lemma partition_on_append: "partition_on X (set xs) \<Longrightarrow> partition_
   by (auto simp: partition_on_def disjoint_def)
     (metis disjoint_iff)+
 
-lemma wf_part_list_merge_part_raw: 
+lemma wf_part_list_merge_part2_raw: 
   "partition_on X (set (map fst part1)) \<and> distinct (map fst part1) 
   \<Longrightarrow> partition_on X (set (map fst part2)) \<and> distinct (map fst part2) 
-  \<Longrightarrow> partition_on X (set (map fst (merge_part_raw f part1 part2))) 
-    \<and> distinct (map fst (merge_part_raw f part1 part2))"
-proof(induct f part1 part2 arbitrary: X rule: merge_part_raw.induct)
+  \<Longrightarrow> partition_on X (set (map fst (merge_part2_raw f part1 part2))) 
+    \<and> distinct (map fst (merge_part2_raw f part1 part2))"
+proof(induct f part1 part2 arbitrary: X rule: merge_part2_raw.induct)
   case (2 f P1 v1 part1 part2)
   let ?inP1 = "List.map_filter (\<lambda>(P2, v2). if P1 \<inter> P2 \<noteq> {} then Some (P1 \<inter> P2, f v1 v2) else None) part2"
     and ?notinP1 = "List.map_filter (\<lambda>(P2, v2). if P2 - P1 \<noteq> {} then Some (P2 - P1, v2) else None) part2"
@@ -979,13 +979,13 @@ proof(induct f part1 part2 arbitrary: X rule: merge_part_raw.induct)
     "distinct (map fst (?notinP1))"
     using wf_part_list_filter_minus[OF 2(2)[THEN conjunct1]] 
       "2.prems" by auto
-  ultimately have IH: "partition_on (X - P1) (set (map fst (merge_part_raw f part1 (?notinP1))))"
-    "distinct (map fst (merge_part_raw f part1 (?notinP1)))"
+  ultimately have IH: "partition_on (X - P1) (set (map fst (merge_part2_raw f part1 (?notinP1))))"
+    "distinct (map fst (merge_part2_raw f part1 (?notinP1)))"
     using "2.hyps"[OF refl refl] by auto
   moreover have wf_inP1: "partition_on P1 (set (map fst ?inP1))" "distinct (map fst ?inP1)"
     using wf_part_list_filter_inter[OF 2(2)[THEN conjunct1]]
       "2.prems" by auto
-  moreover have "(fst ` set ?inP1) \<inter> (fst ` set (merge_part_raw f part1 (?notinP1))) = {}"
+  moreover have "(fst ` set ?inP1) \<inter> (fst ` set (merge_part2_raw f part1 (?notinP1))) = {}"
     using IH(1)[THEN partition_onD1]
     by (intro set_eqI iffI; clarsimp simp: map_filter_def split: prod.splits if_splits)
       (smt (z3) Diff_disjoint Int_iff UN_iff disjoint_iff fst_conv)+
@@ -994,8 +994,8 @@ proof(induct f part1 part2 arbitrary: X rule: merge_part_raw.induct)
     by simp
 qed simp
 
-lift_definition merge_part :: "('a \<Rightarrow> 'a \<Rightarrow> 'a) \<Rightarrow> ('d, 'a) part \<Rightarrow> ('d, 'a) part \<Rightarrow> ('d, 'a) part" is merge_part_raw
-  by (rule wf_part_list_merge_part_raw)               
+lift_definition merge_part2 :: "('a \<Rightarrow> 'a \<Rightarrow> 'a) \<Rightarrow> ('d, 'a) part \<Rightarrow> ('d, 'a) part \<Rightarrow> ('d, 'a) part" is merge_part2_raw
+  by (rule wf_part_list_merge_part2_raw)               
 
 subsection \<open>Comparator\<close>
 
