@@ -2052,7 +2052,52 @@ lemma AD_simps[simp]:
   "AD (MFOTL.Forall x \<phi>) i = AD \<phi> i"
   "AD (MFOTL.Prev I \<phi>) i = AD \<phi> (i - 1)"
   "AD (MFOTL.Next I \<phi>) i = AD \<phi> (i + 1)"
+  "MFOTL.future_bounded (MFOTL.Eventually I \<phi>) \<Longrightarrow> AD (MFOTL.Eventually I \<phi>) i = AD \<phi> (LTP_f \<sigma> i (the_enat (right I)))"
+  "MFOTL.future_bounded (MFOTL.Always I \<phi>) \<Longrightarrow> AD (MFOTL.Always I \<phi>) i = AD \<phi> (LTP_f \<sigma> i (the_enat (right I)))"
+  "AD (MFOTL.Once I \<phi>) i = AD \<phi> (LTP_p_safe \<sigma> i I)"
+  "AD (MFOTL.Historically I \<phi>) i = AD \<phi> (LTP_p_safe \<sigma> i I)"
+  "MFOTL.future_bounded (MFOTL.Since \<phi> I \<psi>) \<Longrightarrow> AD (MFOTL.Since \<phi> I \<psi>) i = AD \<phi> i \<union> AD \<psi> (LTP_p_safe \<sigma> i I)"
+  "MFOTL.future_bounded (MFOTL.Until \<phi> I \<psi>) \<Longrightarrow> AD (MFOTL.Until \<phi> I \<psi>) i = AD \<phi> (LTP_f \<sigma> i (the_enat (right I)) - 1) \<union> AD \<psi> (LTP_f \<sigma> i (the_enat (right I)))"
   by (auto 0 3 simp: AD_def max_opt_def not_none_fb_LRTP le_max_iff_disj Bex_def split: option.splits)
+
+
+lemma LTP_p_mono: "i \<le> j \<Longrightarrow> LTP_p_safe \<sigma> i I \<le> LTP_p_safe \<sigma> j I"
+  unfolding LTP_p_safe_def
+  apply (auto simp: i_LTP_tau min_def split: if_splits)
+       apply (metis diff_diff_cancel diff_is_0_eq i_le_LTPi linorder_linear)
+      apply (metis diff_diff_cancel diff_is_0_eq i_le_LTPi linorder_linear)
+     apply (metis diff_diff_cancel diff_is_0_eq i_le_LTPi linorder_linear)
+    apply (metis \<tau>_mono diff_diff_cancel diff_is_0_eq' nat_le_linear)
+   apply (metis diff_diff_cancel diff_is_0_eq i_le_LTPi linorder_linear)
+  apply (metis \<tau>_mono diff_diff_cancel diff_is_0_eq' nat_le_linear)
+  done
+
+lemma LTP_f_mono: "i \<le> j \<Longrightarrow> LTP_f \<sigma> i b \<le> LTP_f \<sigma> j b"
+  apply (auto simp: LTP_def finite_nat_set_iff_bounded_le intro!: Max_mono elim: order_trans dest!: spec[of _ i])
+  by (metis i_le_LTPi_add le_iff_add)
+
+lemma LRTP_mono: "MFOTL.future_bounded \<phi> \<Longrightarrow> i \<le> j \<Longrightarrow> the (LRTP \<sigma> \<phi> i) \<le> the (LRTP \<sigma> \<phi> j)"
+  apply (induct \<phi> arbitrary: i j)
+                   apply (auto simp: max_opt_def not_none_fb_LRTP le_max_iff_disj LTP_f_mono diff_le_mono dest: LTP_p_mono LTP_f_mono split: option.splits)
+             apply force
+            apply force
+           apply force
+          apply force
+         apply force
+        apply force
+       apply force
+      apply force
+     apply force
+    apply (metis LTP_p_mono option.sel)
+   apply (metis Monitor.LTP_f_mono diff_le_mono option.sel)
+  apply (metis Monitor.LTP_f_mono option.sel)
+  done
+
+lemma AD_mono: "MFOTL.future_bounded \<phi> \<Longrightarrow> i \<le> j \<Longrightarrow> AD \<phi> i \<subseteq> AD \<phi> j"
+  by (auto 0 3 simp: AD_def Bex_def intro: LRTP_mono elim!: order_trans)
+
+lemma LTP_p_safe_le[simp]: "LTP_p_safe \<sigma> i I \<le> i"
+  by (auto simp: LTP_p_safe_def)
 
 lemma check_AD_cong:
   assumes "MFOTL.future_bounded \<phi>"
@@ -2136,19 +2181,57 @@ proof (induction v \<phi> sp and v \<phi> vp arbitrary: i v' and i v' rule: s_ch
       using IH(15)[of _ _ _ _ _ _ v'] 1(24-26)
       by (cases f) (auto simp add: fun_upd_def Let_def)
   next
-    case (SOnce i sp')
+    case (SOnce j sp')
+    then show ?thesis
+      using IH(16)[of _ _ _ sp' _ _ v', OF _ _ refl refl] 1(24-26)
+      apply (cases f)
+                       apply (auto simp add: fun_upd_def Let_def)
+      apply (drule meta_spec)+
+       apply (drule meta_mp, rule refl)+
+       apply (drule meta_mp) prefer 2
+        apply assumption
+       apply auto
+        apply (drule bspec, assumption)
+        apply auto
+        apply (drule AD_mono[THEN set_mp, rotated -1], assumption)
+         prefer 2
+         apply (erule (1) notE)
+      apply (metis LTP_p_safe_def diff_le_self i_le_LTPi le_antisym min_def)
+        apply (drule bspec, assumption)
+        apply auto
+        apply (drule AD_mono[THEN set_mp, rotated -1], assumption)
+         prefer 2
+         apply (erule (1) notE)
+      apply (metis LTP_p_safe_def diff_le_self i_le_LTPi le_antisym min_def)
+      apply (drule meta_spec)+
+       apply (drule meta_mp, rule refl)+
+       apply (drule meta_mp) prefer 2
+        apply assumption
+       apply auto
+        apply (drule bspec, assumption)
+        apply auto
+        apply (drule AD_mono[THEN set_mp, rotated -1], assumption)
+         prefer 2
+         apply (erule (1) notE)
+      apply (metis LTP_p_safe_def diff_le_self i_le_LTPi le_antisym min_def)
+        apply (drule bspec, assumption)
+        apply auto
+        apply (drule AD_mono[THEN set_mp, rotated -1], assumption)
+         prefer 2
+         apply (erule (1) notE)
+      apply (metis LTP_p_safe_def diff_le_self i_le_LTPi le_antisym min_def)
+      done
+  next
+    case (SEventually j sp')
     then show ?thesis sorry
   next
-    case (SEventually i sp')
+    case (SHistorically j k sps)
     then show ?thesis sorry
   next
-    case (SHistorically i j sps)
+    case (SHistoricallyOut j)
     then show ?thesis sorry
   next
-    case (SHistoricallyOut i)
-    then show ?thesis sorry
-  next
-    case (SAlways i j sps)
+    case (SAlways j k sps)
     then show ?thesis sorry
   next
     case (SSince sp' sps)
