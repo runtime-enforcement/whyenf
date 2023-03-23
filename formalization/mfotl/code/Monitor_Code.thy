@@ -804,11 +804,13 @@ derive (monad) set_impl MFOTL.formula
 definition execute_trivial_eval where
  "execute_trivial_eval \<sigma> vars i \<phi> = Monitor.eval \<sigma> (\<lambda>p1 p2. (p_pred (\<lambda> _. 1) p1) \<le> (p_pred (\<lambda> _. 1) p2)) vars i \<phi>"
 
+(* Example 1 *)
 definition mytrace :: "nat MFOTL.trace" where 
   "mytrace = trace_of_list [({(''p'', [1::nat])}, 0::nat)]"
 
 value "execute_trivial_eval mytrace [''x''] (0::nat) (MFOTL.Pred ''p'' [MFOTL.Var ''x''] :: nat MFOTL.formula)"
 
+(* Example 2 *)
 definition mytrace2 :: "string MFOTL.trace" where 
   "mytrace2 = trace_of_list
      [({(''p'', [''Dmitriy'', ''Traytel'']), (''p'', [''Jonathan'', ''Munive'']),
@@ -824,23 +826,31 @@ definition phi3 where
   "phi3 = MFOTL.Forall ''last'' (MFOTL.Imp (MFOTL.Pred ''q'' [MFOTL.Var ''last''])
     (MFOTL.Exists ''first'' (MFOTL.Pred ''p'' [MFOTL.Var ''first'', MFOTL.Var ''last''])))"
 
-definition phi4 where
-  "phi4 = MFOTL.Exists ''last'' (MFOTL.Pred ''q'' [MFOTL.Var ''last''])"
-
-
-value "execute_trivial_eval mytrace2 [] 0 phi4"
 (* value "execute_trivial_eval mytrace2 [''first'', ''last''] 0 (MFOTL.Pred ''p'' [MFOTL.Var ''first'', MFOTL.Var ''last''])"
 value "execute_trivial_eval mytrace2 [''first'', ''last''] 0 (MFOTL.Pred ''p'' [MFOTL.Var ''first'', MFOTL.Var ''last''])"
-value "execute_trivial_eval mytrace2 [''last''] 0 (MFOTL.Pred ''q'' [MFOTL.Var ''last''])" *)
-(* value "execute_trivial_eval mytrace2 [''first'', ''last''] 1 (MFOTL.Pred ''p'' [MFOTL.Var ''first'', MFOTL.Var ''last''])"
+value "execute_trivial_eval mytrace2 [''last''] 0 (MFOTL.Pred ''q'' [MFOTL.Var ''last''])" 
+value "execute_trivial_eval mytrace2 [''first'', ''last''] 1 (MFOTL.Pred ''p'' [MFOTL.Var ''first'', MFOTL.Var ''last''])"
 value "execute_trivial_eval mytrace2 [''first'', ''last''] 1 (MFOTL.Pred ''q'' [MFOTL.Var ''last''])"
 value "execute_trivial_eval mytrace2 [''first'', ''last''] 0 (MFOTL.And (MFOTL.Pred ''p'' [MFOTL.Var ''first'', MFOTL.Var ''last'']) (MFOTL.Pred ''q'' [MFOTL.Var ''last'']))"
-value "execute_trivial_eval mytrace2 [''first'', ''last''] 1 (MFOTL.And (MFOTL.Pred ''p'' [MFOTL.Var ''first'', MFOTL.Var ''last'']) (MFOTL.Pred ''q'' [MFOTL.Var ''last'']))" *)
-(* value "execute_trivial_eval mytrace2 [''first''] 0 phi2"
+value "execute_trivial_eval mytrace2 [''first'', ''last''] 1 (MFOTL.And (MFOTL.Pred ''p'' [MFOTL.Var ''first'', MFOTL.Var ''last'']) (MFOTL.Pred ''q'' [MFOTL.Var ''last'']))"
+value "execute_trivial_eval mytrace2 [''first''] 0 phi2"
 value "execute_trivial_eval mytrace2 [''first''] 1 phi2"
 value "execute_trivial_eval mytrace2 [] 0 phi3"
 value "execute_trivial_eval mytrace2 [] 1 phi3" *)
-  
+
+(* Example 3 *)
+definition mytrace3 :: "string MFOTL.trace" where 
+  "mytrace3 = trace_of_list
+     [({(''p'', [''10''])}, 0::nat),
+      ({(''q'', [''20''])}, 1::nat),
+      ({(''q'', [''20''])}, 2::nat)]"
+
+definition phi4 where
+  "phi4 = MFOTL.Since (MFOTL.Pred ''q'' [MFOTL.Var ''y'']) all (MFOTL.Exists ''x'' (MFOTL.Pred ''p'' [MFOTL.Var ''x'']))"
+
+value "execute_trivial_eval mytrace3 [''y''] 0 phi4"
+value "execute_trivial_eval mytrace3 [''y''] 1 phi4"
+value "execute_trivial_eval mytrace3 [''y''] 2 phi4"
 
 fun check_one where
   "check_one \<sigma> v \<phi> (Leaf p) = (case p of Inl sp \<Rightarrow> s_check \<sigma> v \<phi> sp | Inr vp \<Rightarrow> v_check \<sigma> v \<phi> vp)"
