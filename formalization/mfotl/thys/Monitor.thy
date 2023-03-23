@@ -3308,7 +3308,7 @@ fun "apply_pdt3" :: "MFOTL.name list \<Rightarrow> ('d proof \<Rightarrow> 'd pr
      apply_pdt3 vars f (Node x part1) (Leaf pt2) (Node z part3))"
 | "apply_pdt3 (w # vars) f (Node x part1) (Node y part2) (Node z part3) = 
   (if x = w \<and> y = w \<and> z = w then
-     undefined
+     Node z (merge_part3 (apply_pdt3 vars f) part1 part2 part3)
    else if x = w \<and> y = w then
      Node w (merge_part2 (apply_pdt3 vars (\<lambda>pt3 pt1 pt2. f pt1 pt2 pt3) (Node z part3)) part1 part2)
    else if x = w \<and> z = w then
