@@ -204,9 +204,8 @@ lift_definition Trace_RBT :: "'a trace_rbt \<Rightarrow> 'a trace" is
       using props(2,3) less_Suc_eq_le
       by (fastforce simp: sorted_iff_nth_mono split: nat.splits option.splits)
     have aux2: "x \<in> set (map (the \<circ> Mapping.lookup t) [0..<n]) \<Longrightarrow> finite (fst x)" for x
-      using props(4)
-      apply (simp split: nat.splits option.splits)
-      apply clarsimp
+      using props(1,4) 
+      apply (clarsimp split: nat.splits option.splits)
       sorry
     show ?thesis
       apply (simp add: prod_def del: smap_shift)
@@ -263,7 +262,7 @@ declare MFOTL.future_bounded.simps[code]
 begin
 
 lemma opt_code[code]: "optimal vs i \<phi> p = (if MFOTL.future_bounded \<phi> then
-  valid \<sigma> i \<phi> p \<and> cmp p (opt vars i \<phi>) else Code.abort (STR ''opt: formula is not future bounded'') (\<lambda>_. optimal i \<phi> p))"
+  valid \<sigma> i \<phi> p \<and> cmp p (eval vars i \<phi>) else Code.abort (STR ''opt: formula is not future bounded'') (\<lambda>_. optimal i \<phi> p))"
   using alg_optimal[of \<phi> i] trans_cmp
   by (auto simp: optimal_def transp_def)
 
@@ -802,15 +801,13 @@ derive (no) ceq MFOTL.formula
 derive (no) ccompare MFOTL.formula
 derive (monad) set_impl MFOTL.formula
 
-definition execute_trivial_opt where
- "execute_trivial_opt \<sigma> vars i \<phi> = Monitor.opt \<sigma> (\<lambda>p1 p2. (p_pred (\<lambda> _. 1) p1) \<le> (p_pred (\<lambda> _. 1) p2)) vars i \<phi>"
+definition execute_trivial_eval where
+ "execute_trivial_eval \<sigma> vars i \<phi> = Monitor.eval \<sigma> (\<lambda>p1 p2. (p_pred (\<lambda> _. 1) p1) \<le> (p_pred (\<lambda> _. 1) p2)) vars i \<phi>"
 
 definition mytrace :: "nat MFOTL.trace" where 
   "mytrace = trace_of_list [({(''p'', [1::nat])}, 0::nat)]"
 
-print_codesetup
-
-value "execute_trivial_opt mytrace [''x''] (0::nat) (MFOTL.Pred ''p'' [MFOTL.Var ''x''] :: nat MFOTL.formula)"
+value "execute_trivial_eval mytrace [''x''] (0::nat) (MFOTL.Pred ''p'' [MFOTL.Var ''x''] :: nat MFOTL.formula)"
 
 definition mytrace2 :: "string MFOTL.trace" where 
   "mytrace2 = trace_of_list
@@ -827,17 +824,22 @@ definition phi3 where
   "phi3 = MFOTL.Forall ''last'' (MFOTL.Imp (MFOTL.Pred ''q'' [MFOTL.Var ''last''])
     (MFOTL.Exists ''first'' (MFOTL.Pred ''p'' [MFOTL.Var ''first'', MFOTL.Var ''last''])))"
 
+definition phi4 where
+  "phi4 = MFOTL.Exists ''last'' (MFOTL.Pred ''q'' [MFOTL.Var ''last''])"
 
-value "execute_trivial_opt mytrace2 [''first'', ''last''] 0 (MFOTL.Pred ''p'' [MFOTL.Var ''first'', MFOTL.Var ''last''])"
-value "execute_trivial_opt mytrace2 [''first'', ''last''] 0 (MFOTL.Pred ''q'' [MFOTL.Var ''last''])"
-value "execute_trivial_opt mytrace2 [''first'', ''last''] 1 (MFOTL.Pred ''p'' [MFOTL.Var ''first'', MFOTL.Var ''last''])"
-value "execute_trivial_opt mytrace2 [''first'', ''last''] 1 (MFOTL.Pred ''q'' [MFOTL.Var ''last''])"
-value "execute_trivial_opt mytrace2 [''first'', ''last''] 0 (MFOTL.And (MFOTL.Pred ''p'' [MFOTL.Var ''first'', MFOTL.Var ''last'']) (MFOTL.Pred ''q'' [MFOTL.Var ''last'']))"
-value "execute_trivial_opt mytrace2 [''first'', ''last''] 1 (MFOTL.And (MFOTL.Pred ''p'' [MFOTL.Var ''first'', MFOTL.Var ''last'']) (MFOTL.Pred ''q'' [MFOTL.Var ''last'']))"
-value "execute_trivial_opt mytrace2 [''first''] 0 phi2"
-value "execute_trivial_opt mytrace2 [''first''] 1 phi2"
-value "execute_trivial_opt mytrace2 [] 0 phi3"
-value "execute_trivial_opt mytrace2 [] 1 phi3"
+
+value "execute_trivial_eval mytrace2 [] 0 phi4"
+(* value "execute_trivial_eval mytrace2 [''first'', ''last''] 0 (MFOTL.Pred ''p'' [MFOTL.Var ''first'', MFOTL.Var ''last''])"
+value "execute_trivial_eval mytrace2 [''first'', ''last''] 0 (MFOTL.Pred ''p'' [MFOTL.Var ''first'', MFOTL.Var ''last''])"
+value "execute_trivial_eval mytrace2 [''last''] 0 (MFOTL.Pred ''q'' [MFOTL.Var ''last''])" *)
+(* value "execute_trivial_eval mytrace2 [''first'', ''last''] 1 (MFOTL.Pred ''p'' [MFOTL.Var ''first'', MFOTL.Var ''last''])"
+value "execute_trivial_eval mytrace2 [''first'', ''last''] 1 (MFOTL.Pred ''q'' [MFOTL.Var ''last''])"
+value "execute_trivial_eval mytrace2 [''first'', ''last''] 0 (MFOTL.And (MFOTL.Pred ''p'' [MFOTL.Var ''first'', MFOTL.Var ''last'']) (MFOTL.Pred ''q'' [MFOTL.Var ''last'']))"
+value "execute_trivial_eval mytrace2 [''first'', ''last''] 1 (MFOTL.And (MFOTL.Pred ''p'' [MFOTL.Var ''first'', MFOTL.Var ''last'']) (MFOTL.Pred ''q'' [MFOTL.Var ''last'']))" *)
+(* value "execute_trivial_eval mytrace2 [''first''] 0 phi2"
+value "execute_trivial_eval mytrace2 [''first''] 1 phi2"
+value "execute_trivial_eval mytrace2 [] 0 phi3"
+value "execute_trivial_eval mytrace2 [] 1 phi3" *)
   
 
 fun check_one where
@@ -851,7 +853,7 @@ fun check_all_aux where
 definition "check_all \<sigma> \<phi> e = check_all_aux \<sigma> (\<lambda>_. UNIV) \<phi> e"
 
 (*does not work yet, probably due to the Pred case (needs a rewrite via code equation)*)
-value "check_one mytrace2 (\<lambda>_. default) phi3 (execute_trivial_opt mytrace2 [] 0 phi3)"
-value "check_all mytrace2 phi3 (execute_trivial_opt mytrace2 [] 0 phi3)"
+value "check_one mytrace2 (\<lambda>_. default) phi3 (execute_trivial_eval mytrace2 [] 0 phi3)"
+value "check_all mytrace2 phi3 (execute_trivial_eval mytrace2 [] 0 phi3)"
 
 end
