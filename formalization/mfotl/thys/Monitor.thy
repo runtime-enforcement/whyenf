@@ -2063,13 +2063,12 @@ lemma AD_simps[simp]:
 
 lemma LTP_p_mono: "i \<le> j \<Longrightarrow> LTP_p_safe \<sigma> i I \<le> LTP_p_safe \<sigma> j I"
   unfolding LTP_p_safe_def
-  apply (auto simp: i_LTP_tau min_def split: if_splits)
-       apply (metis diff_diff_cancel diff_is_0_eq i_le_LTPi linorder_linear)
-      apply (metis diff_diff_cancel diff_is_0_eq i_le_LTPi linorder_linear)
-     apply (metis diff_diff_cancel diff_is_0_eq i_le_LTPi linorder_linear)
+  apply (auto simp: i_LTP_tau min_def le_diff_conv split: if_splits)
+      apply (metis \<tau>_mono diff_diff_cancel diff_is_0_eq' nat_le_linear)
+     apply (metis \<tau>_mono diff_diff_cancel diff_is_0_eq' nat_le_linear)
     apply (metis \<tau>_mono diff_diff_cancel diff_is_0_eq' nat_le_linear)
-   apply (metis diff_diff_cancel diff_is_0_eq i_le_LTPi linorder_linear)
-  apply (metis \<tau>_mono diff_diff_cancel diff_is_0_eq' nat_le_linear)
+   apply (meson \<tau>_mono diff_le_mono order.trans i_LTP_tau order_refl)
+  apply (meson \<tau>_mono diff_le_mono order.trans i_LTP_tau order_refl)
   done
 
 lemma LTP_f_mono: "i \<le> j \<Longrightarrow> LTP_f \<sigma> i b \<le> LTP_f \<sigma> j b"
@@ -2183,53 +2182,59 @@ proof (induction v \<phi> sp and v \<phi> vp arbitrary: i v' and i v' rule: s_ch
   next
     case (SOnce j sp')
     then show ?thesis
-      using IH(16)[of _ _ _ sp' _ _ v', OF _ _ refl refl] 1(24-26)
-      apply (cases f)
-                       apply (auto simp add: fun_upd_def Let_def)
-      apply (drule meta_spec)+
-       apply (drule meta_mp, rule refl)+
-       apply (drule meta_mp) prefer 2
-        apply assumption
-       apply auto
-        apply (drule bspec, assumption)
-        apply auto
-        apply (drule AD_mono[THEN set_mp, rotated -1], assumption)
-         prefer 2
-         apply (erule (1) notE)
-      apply (metis LTP_p_safe_def diff_le_self i_le_LTPi le_antisym min_def)
-        apply (drule bspec, assumption)
-        apply auto
-        apply (drule AD_mono[THEN set_mp, rotated -1], assumption)
-         prefer 2
-         apply (erule (1) notE)
-      apply (metis LTP_p_safe_def diff_le_self i_le_LTPi le_antisym min_def)
-      apply (drule meta_spec)+
-       apply (drule meta_mp, rule refl)+
-       apply (drule meta_mp) prefer 2
-        apply assumption
-       apply auto
-        apply (drule bspec, assumption)
-        apply auto
-        apply (drule AD_mono[THEN set_mp, rotated -1], assumption)
-         prefer 2
-         apply (erule (1) notE)
-      apply (metis LTP_p_safe_def diff_le_self i_le_LTPi le_antisym min_def)
-        apply (drule bspec, assumption)
-        apply auto
-        apply (drule AD_mono[THEN set_mp, rotated -1], assumption)
-         prefer 2
-         apply (erule (1) notE)
-      apply (metis LTP_p_safe_def diff_le_self i_le_LTPi le_antisym min_def)
-      done
-  next
-    case (SEventually j sp')
-    then show ?thesis sorry
+    proof (cases f)
+      case (Once I \<phi>)
+      { fix k
+        assume k: "k \<le> i" "\<tau> \<sigma> i - left I \<ge> \<tau> \<sigma> k"
+        then have "\<tau> \<sigma> i - left I \<ge> \<tau> \<sigma> 0"
+          by (meson \<tau>_mono le0 order_trans)
+        with k have "k \<le> LTP_p_safe \<sigma> i I"
+          unfolding LTP_p_safe_def by (auto simp: i_LTP_tau)
+        with Once 1(25,26) have "\<forall>x\<in>MFOTL.fv \<phi>. v x = v' x \<or> v x \<notin> AD \<phi> k \<and> v' x \<notin> AD \<phi> k"
+          by (auto dest!: bspec dest: AD_mono[THEN set_mp, rotated -1])
+      }
+      with Once SOnce show ?thesis
+        using IH(16)[OF Once SOnce refl refl, of v'] 1(24,25,26)
+        by (auto simp: Let_def le_diff_conv2)
+    qed auto
   next
     case (SHistorically j k sps)
-    then show ?thesis sorry
+    then show ?thesis
+    proof (cases f)
+      case (Historically I \<phi>)
+      { fix sp :: "'d sproof"
+        define l where "l = s_at sp"
+        assume "sp \<in> set sps" "map s_at sps = [k ..< Suc (LTP_p \<sigma> i I)]" "\<tau> \<sigma> 0 + left I \<le> \<tau> \<sigma> i"
+        then have "l \<le> LTP_p_safe \<sigma> i I"
+          unfolding l_def LTP_p_safe_def
+          apply (auto simp: le_diff_conv2 in_set_conv_nth split: if_splits)
+          sorry
+        with Historically 1(25,26) have "\<forall>x\<in>MFOTL.fv \<phi>. v x = v' x \<or> v x \<notin> AD \<phi> l \<and> v' x \<notin> AD \<phi> l"
+          by (auto dest!: bspec dest: AD_mono[THEN set_mp, rotated -1])
+      }
+      with Historically SHistorically show ?thesis
+        using IH(17)[OF Historically SHistorically _ refl, of _ v'] 1(24,25)
+        by auto
+    qed auto
   next
     case (SHistoricallyOut j)
-    then show ?thesis sorry
+    then show ?thesis
+      by (cases f) auto
+  next
+    case (SEventually j sp')
+    then show ?thesis
+    proof (cases f)
+      case (Eventually I \<phi>)
+      from Eventually 1(25,26) have "\<forall>x\<in>MFOTL.fv \<phi>. v x = v' x \<or> v x \<notin> AD \<phi> k \<and> v' x \<notin> AD \<phi> k"
+        if "k \<le> LTP_f \<sigma> i (the_enat (right I))" for k
+        using that(1)
+        by (auto dest!: bspec dest: AD_mono[THEN set_mp, rotated -1])
+      with Eventually SEventually show ?thesis
+        using IH(18)[OF Eventually SEventually refl refl, of v'] 1(24,25)
+        apply (auto simp: Let_def le_diff_conv elim!: meta_mp)
+           apply (metis add.commute i_le_LTPi_add le_add_diff_inverse)+
+        done
+    qed auto
   next
     case (SAlways j k sps)
     then show ?thesis sorry
