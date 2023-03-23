@@ -1247,10 +1247,10 @@ qed (simp add: compatible_vals_def
 unbundle MFOTL_no_notation \<comment> \<open> disable notation \<close>
 
 definition AD :: "'d MFOTL.formula \<Rightarrow> nat \<Rightarrow> 'd set"
-  where "AD \<phi> i = (\<Union> k \<le> the (LRTP \<sigma> \<phi> i). \<Union> (set ` snd ` \<Gamma> \<sigma> (the_enat k)))"
+  where "AD \<phi> i = (\<Union> k \<le> the (LRTP \<sigma> \<phi> i). \<Union> (set ` snd ` \<Gamma> \<sigma> k))"
 
 lemma val_in_AD_iff:
-  "x \<in> MFOTL.fv \<phi> \<Longrightarrow> v x \<in> AD \<phi> i \<longleftrightarrow> (\<exists>r ts k. k \<le> the (LRTP \<sigma> \<phi> i) \<and> (r, MFOTL.eval_trms v ts) \<in> \<Gamma> \<sigma> (the_enat k) \<and> x \<in> \<Union> (set (map MFOTL.fv_trm ts)))"
+  "x \<in> MFOTL.fv \<phi> \<Longrightarrow> v x \<in> AD \<phi> i \<longleftrightarrow> (\<exists>r ts k. k \<le> the (LRTP \<sigma> \<phi> i) \<and> (r, MFOTL.eval_trms v ts) \<in> \<Gamma> \<sigma> k \<and> x \<in> \<Union> (set (map MFOTL.fv_trm ts)))"
   apply (intro iffI; clarsimp)
   unfolding AD_def apply clarsimp
    apply (rename_tac k' r' ds')
@@ -1273,7 +1273,7 @@ lemma val_in_AD_iff:
   done
 
 lemma val_notin_AD_iff:
-  "x \<in> MFOTL.fv \<phi> \<Longrightarrow> v x \<notin> AD \<phi> i \<longleftrightarrow> (\<forall>r ts k. k \<le> the (LRTP \<sigma> \<phi> i) \<and> x \<in> \<Union> (set (map MFOTL.fv_trm ts)) \<longrightarrow> (r, MFOTL.eval_trms v ts) \<notin> \<Gamma> \<sigma> (the_enat k))"
+  "x \<in> MFOTL.fv \<phi> \<Longrightarrow> v x \<notin> AD \<phi> i \<longleftrightarrow> (\<forall>r ts k. k \<le> the (LRTP \<sigma> \<phi> i) \<and> x \<in> \<Union> (set (map MFOTL.fv_trm ts)) \<longrightarrow> (r, MFOTL.eval_trms v ts) \<notin> \<Gamma> \<sigma> k)"
   using val_in_AD_iff by blast
 
 lemma fv_formula_fv_trm:
@@ -1299,7 +1299,7 @@ lemma fun_upd_in_compatible_vals_notin: "x \<notin> A \<Longrightarrow> v \<in> 
   unfolding compatible_vals_def
   by auto
 
-lemma finite_values: "finite (\<Union> (set ` snd ` \<Gamma> \<sigma> (the_enat k)))"
+lemma finite_values: "finite (\<Union> (set ` snd ` \<Gamma> \<sigma> k))"
   by (transfer, auto simp add: sfstfinite_def)
 
 lemma finite_tps: "MFOTL.future_bounded \<phi> \<Longrightarrow> finite (\<Union> k < the (LRTP \<sigma> \<phi> i). {k})"
@@ -2042,7 +2042,17 @@ lemma SubsVals_trivial[simp]: "SubsVals (trivial_part pt) = {(UNIV, pt)}"
 
 unbundle MFOTL_no_notation \<comment> \<open> disable notation \<close>
 
-thm s_check_v_check.induct
+lemma AD_simps[simp]:
+  "AD (MFOTL.Neg \<phi>) i = AD \<phi> i"
+  "MFOTL.future_bounded (MFOTL.Or \<phi> \<psi>) \<Longrightarrow> AD (MFOTL.Or \<phi> \<psi>) i = AD \<phi> i \<union> AD \<psi> i"
+  "MFOTL.future_bounded (MFOTL.And \<phi> \<psi>) \<Longrightarrow> AD (MFOTL.And \<phi> \<psi>) i = AD \<phi> i \<union> AD \<psi> i"
+  "MFOTL.future_bounded (MFOTL.Imp \<phi> \<psi>) \<Longrightarrow> AD (MFOTL.Imp \<phi> \<psi>) i = AD \<phi> i \<union> AD \<psi> i"
+  "MFOTL.future_bounded (MFOTL.Iff \<phi> \<psi>) \<Longrightarrow> AD (MFOTL.Iff \<phi> \<psi>) i = AD \<phi> i \<union> AD \<psi> i"
+  "AD (MFOTL.Exists x \<phi>) i = AD \<phi> i"
+  "AD (MFOTL.Forall x \<phi>) i = AD \<phi> i"
+  "AD (MFOTL.Prev I \<phi>) i = AD \<phi> (i - 1)"
+  "AD (MFOTL.Next I \<phi>) i = AD \<phi> (i + 1)"
+  by (auto 0 3 simp: AD_def max_opt_def not_none_fb_LRTP le_max_iff_disj Bex_def split: option.splits)
 
 lemma check_AD_cong:
   assumes "MFOTL.future_bounded \<phi>"
@@ -2050,72 +2060,101 @@ lemma check_AD_cong:
   shows "(s_at sp = i \<Longrightarrow> s_check v \<phi> sp \<longleftrightarrow> s_check v' \<phi> sp)"
         "(v_at vp = i \<Longrightarrow> v_check v \<phi> vp \<longleftrightarrow> v_check v' \<phi> vp)"
   using assms
-proof (induction v \<phi> sp and v \<phi> vp arbitrary: i v' rule: s_check_v_check.induct)
+proof (induction v \<phi> sp and v \<phi> vp arbitrary: i v' and i v' rule: s_check_v_check.induct)
   case (1 v f sp)
-  thm 1(1-23)[OF refl]
+  note IH = 1(1-23)[OF refl]
   show ?case
   proof (cases sp)
-    case (SPred i r ts)
+    case (SPred j r ts)
     then show ?thesis
-      using 1(25) 
-      apply (cases f; clarsimp)
-      sorry
+    proof (cases f)
+      case (Pred q us)
+      with SPred 1(24-26) show ?thesis
+        apply (auto simp: val_notin_AD_iff)
+         apply (subst MFOTL.eval_trms_fv_cong; force)
+        apply (subst MFOTL.eval_trms_fv_cong; force)
+        done
+    qed auto
   next
     case (SNeg vp')
-    show ?thesis sorry
+    then show ?thesis
+      using IH(1)[of _ _ _ v'] 1(24-26)
+      by (cases f) auto
   next
-    case (SOrL x4)
-    show ?thesis sorry
+    case (SOrL sp')
+    then show ?thesis
+      using IH(2)[of _ _ _ _ v'] 1(24-26)
+      by (cases f) auto
   next
-    case (SOrR x5)
+    case (SOrR sp')
+    then show ?thesis
+      using IH(3)[of _ _ _ _ v'] 1(24-26)
+      by (cases f) auto
+  next
+    case (SAnd sp1 sp2)
+    then show ?thesis
+      using IH(4,5)[of _ _ _ _ _ v'] 1(24-26)
+      by (cases f) (auto 7 0)+
+  next
+    case (SImpL vp')
+    then show ?thesis
+      using IH(6)[of _ _ _ _ v'] 1(24-26)
+      by (cases f) auto
+  next
+    case (SImpR sp')
+    then show ?thesis
+      using IH(7)[of _ _ _ _ v'] 1(24-26)
+      by (cases f) auto
+  next
+    case (SIffSS sp1 sp2)
+    then show ?thesis
+      using IH(8,9)[of _ _ _ _ _ v'] 1(24-26)
+      by (cases f) (auto 7 0)+
+  next
+    case (SIffVV vp1 vp2)
+    then show ?thesis
+      using IH(10,11)[of _ _ _ _ _ v'] 1(24-26)
+      by (cases f) (auto 7 0)+
+  next
+    case (SExists x z sp)
+    then show ?thesis
+      using IH(12)[of x _ x z sp i "v'(x := z)"] 1(24-26)
+      by (cases f) (auto simp add: fun_upd_def)
+  next
+    case (SForall x part)
+    then show ?thesis
+      using IH(13)[of x _ x part _ _ D _ z _ "v'(x := z)" for D z, OF _ _ _ _  refl _ refl] 1(24-26)
+      by (cases f) (auto simp add: fun_upd_def)
+  next
+    case (SPrev sp')
+    then show ?thesis
+      using IH(14)[of _ _ _ _ _ _ v'] 1(24-26)
+      by (cases f) (auto simp add: fun_upd_def)
+  next
+    case (SNext sp')
+    then show ?thesis
+      using IH(15)[of _ _ _ _ _ _ v'] 1(24-26)
+      by (cases f) (auto simp add: fun_upd_def Let_def)
+  next
+    case (SOnce i sp')
     then show ?thesis sorry
   next
-    case (SAnd x61 x62)
+    case (SEventually i sp')
     then show ?thesis sorry
   next
-    case (SImpL x7)
+    case (SHistorically i j sps)
     then show ?thesis sorry
   next
-    case (SImpR x8)
+    case (SHistoricallyOut i)
     then show ?thesis sorry
   next
-    case (SIffSS x91 x92)
+    case (SAlways i j sps)
     then show ?thesis sorry
   next
-    case (SIffVV x101 x102)
+    case (SSince sp' sps)
     then show ?thesis sorry
   next
-    case (SExists x111 x112 x113)
-    then show ?thesis sorry
-  next
-    case (SForall x121 x122)
-    then show ?thesis sorry
-  next
-    case (SPrev x13)
-    then show ?thesis sorry
-  next
-    case (SNext x14)
-    then show ?thesis sorry
-  next
-    case (SOnce x151 x152)
-    then show ?thesis sorry
-  next
-    case (SEventually x161 x162)
-    then show ?thesis sorry
-  next
-    case (SHistorically x171 x172 x173)
-    then show ?thesis sorry
-  next
-    case (SHistoricallyOut x18)
-    then show ?thesis sorry
-  next
-    case (SAlways x191 x192 x193)
-    then show ?thesis sorry
-  next
-    case (SSince x201 x202)
-    then show ?thesis sorry
-  next
-    case (SUntil x211 x212)
+    case (SUntil  sps sp')
     then show ?thesis sorry
   qed (cases f; simp_all)
 next
