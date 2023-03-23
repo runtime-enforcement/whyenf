@@ -235,7 +235,7 @@ lemma trace_rbt_of_list_sound: "sorted (map snd xs) \<and> fstfinite (map fst xs
 subsection \<open>Exported functions\<close>
 
 instantiation String.literal :: default begin
-definition default_string_literal :: String.literal where "default_string_literal = 0"
+definition default_literal :: String.literal where "default_literal = 0"
 instance proof qed
 end
 
@@ -803,6 +803,10 @@ derive (monad) set_impl MFOTL.formula
 
 definition execute_trivial_eval where
  "execute_trivial_eval \<sigma> vars i \<phi> = Monitor.eval \<sigma> (\<lambda>p1 p2. (p_pred (\<lambda> _. 1) p1) \<le> (p_pred (\<lambda> _. 1) p2)) vars i \<phi>"
+
+export_code trace_of_list str_s_at str_v_at str_s_check str_v_check
+  interval enat nat_of_integer integer_of_nat execute_trivial_eval is_valid
+  in OCaml module_name MFOTL_VerifiedExplanator2 file_prefix "MFOTL_checker"
 
 (* Example 1 *)
 definition mytrace :: "nat MFOTL.trace" where 
