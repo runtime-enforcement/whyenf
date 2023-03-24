@@ -1,6 +1,6 @@
 (*<*)
 theory Monitor
-  imports Proof_System "HOL-Library.Simps_Case_Conv" 
+  imports Proof_System "HOL-Library.Simps_Case_Conv"
 begin
 (*>*)
 
@@ -231,7 +231,7 @@ fun s_check :: "'d MFOTL.env \<Rightarrow> 'd MFOTL.formula \<Rightarrow> 'd spr
     \<and> (\<forall>vp2 \<in> set vp2s. v_check v \<psi> vp2))
   | (MFOTL.Until \<phi> I \<psi>, VUntil i vp2s vp1) \<Rightarrow>
     (let j = v_at vp1 in
-    (case right I of \<infinity> \<Rightarrow> True | enat b \<Rightarrow> j \<le> LTP_f \<sigma> i b) \<and> i \<le> j
+    (case right I of \<infinity> \<Rightarrow> True | enat b \<Rightarrow> j < LTP_f \<sigma> i b) \<and> i \<le> j
     \<and> map v_at vp2s = [ETP_f \<sigma> i I ..< j + 1] \<and> v_check v \<phi> vp1
     \<and> (\<forall>vp2 \<in> set vp2s. v_check v \<psi> vp2))
   | (MFOTL.Until \<phi> I \<psi>, VUntilInf i hi vp2s) \<Rightarrow>
@@ -1325,7 +1325,7 @@ fun s_check_exec :: "'d MFOTL.envset \<Rightarrow> 'd MFOTL.formula \<Rightarrow
     \<and> (\<forall>vp2 \<in> set vp2s. v_check_exec vs \<psi> vp2))
   | (MFOTL.Until \<phi> I \<psi>, VUntil i vp2s vp1) \<Rightarrow>
     (let j = v_at vp1 in
-    (case right I of \<infinity> \<Rightarrow> True | enat b \<Rightarrow> j \<le> LTP_f \<sigma> i b) \<and> i \<le> j
+    (case right I of \<infinity> \<Rightarrow> True | enat b \<Rightarrow> j < LTP_f \<sigma> i b) \<and> i \<le> j
     \<and> map v_at vp2s = [ETP_f \<sigma> i I ..< j + 1] \<and> v_check_exec vs \<phi> vp1
     \<and> (\<forall>vp2 \<in> set vp2s. v_check_exec vs \<psi> vp2))
   | (MFOTL.Until \<phi> I \<psi>, VUntilInf i hi vp2s) \<Rightarrow>
@@ -2198,14 +2198,14 @@ lemma check_AD_cong:
   using assms
 proof (induction v \<phi> sp and v \<phi> vp arbitrary: i v' and i v' rule: s_check_v_check.induct)
   case (1 v f sp)
-  note IH = 1(1-23)[OF refl]
+  note IH = 1(1-23)[OF refl] and hyps = 1(24-26)
   show ?case
   proof (cases sp)
     case (SPred j r ts)
     then show ?thesis
     proof (cases f)
       case (Pred q us)
-      with SPred 1(24-26) show ?thesis
+      with SPred hyps show ?thesis
         apply (auto simp: val_notin_AD_iff)
          apply (subst MFOTL.eval_trms_fv_cong; force)
         apply (subst MFOTL.eval_trms_fv_cong; force)
@@ -2214,63 +2214,63 @@ proof (induction v \<phi> sp and v \<phi> vp arbitrary: i v' and i v' rule: s_ch
   next
     case (SNeg vp')
     then show ?thesis
-      using IH(1)[of _ _ _ v'] 1(24-26)
+      using IH(1)[of _ _ _ v'] hyps
       by (cases f) auto
   next
     case (SOrL sp')
     then show ?thesis
-      using IH(2)[of _ _ _ _ v'] 1(24-26)
+      using IH(2)[of _ _ _ _ v'] hyps
       by (cases f) auto
   next
     case (SOrR sp')
     then show ?thesis
-      using IH(3)[of _ _ _ _ v'] 1(24-26)
+      using IH(3)[of _ _ _ _ v'] hyps
       by (cases f) auto
   next
     case (SAnd sp1 sp2)
     then show ?thesis
-      using IH(4,5)[of _ _ _ _ _ v'] 1(24-26)
+      using IH(4,5)[of _ _ _ _ _ v'] hyps
       by (cases f) (auto 7 0)+
   next
     case (SImpL vp')
     then show ?thesis
-      using IH(6)[of _ _ _ _ v'] 1(24-26)
+      using IH(6)[of _ _ _ _ v'] hyps
       by (cases f) auto
   next
     case (SImpR sp')
     then show ?thesis
-      using IH(7)[of _ _ _ _ v'] 1(24-26)
+      using IH(7)[of _ _ _ _ v'] hyps
       by (cases f) auto
   next
     case (SIffSS sp1 sp2)
     then show ?thesis
-      using IH(8,9)[of _ _ _ _ _ v'] 1(24-26)
+      using IH(8,9)[of _ _ _ _ _ v'] hyps
       by (cases f) (auto 7 0)+
   next
     case (SIffVV vp1 vp2)
     then show ?thesis
-      using IH(10,11)[of _ _ _ _ _ v'] 1(24-26)
+      using IH(10,11)[of _ _ _ _ _ v'] hyps
       by (cases f) (auto 7 0)+
   next
-    case (SExists x z sp)
+    case (SExists x z sp')
     then show ?thesis
-      using IH(12)[of x _ x z sp i "v'(x := z)"] 1(24-26)
+      using IH(12)[of x _ x z sp' i "v'(x := z)"] hyps
       by (cases f) (auto simp add: fun_upd_def)
   next
     case (SForall x part)
     then show ?thesis
-      using IH(13)[of x _ x part _ _ D _ z _ "v'(x := z)" for D z, OF _ _ _ _  refl _ refl] 1(24-26)
+      using IH(13)[of x _ x part _ _ D _ z _ "v'(x := z)" for D z, OF _ _ _ _  refl _ refl] hyps
       by (cases f) (auto simp add: fun_upd_def)
   next
     case (SPrev sp')
     then show ?thesis
-      using IH(14)[of _ _ _ _ _ _ v'] 1(24-26)
-      by (cases f) (auto simp add: fun_upd_def)
+      using IH(14)[of _ _ _ _ _ _ v'] hyps
+      by (cases f) auto
   next
     case (SNext sp')
     then show ?thesis
-      using IH(15)[of _ _ _ _ _ _ v'] 1(24-26)
-      by (cases f) (auto simp add: fun_upd_def Let_def)
+      using IH(15)[of _ _ _ _ _ _ v'] hyps
+      by (cases f) (auto simp add: Let_def)
   next
     case (SOnce j sp')
     then show ?thesis
@@ -2282,11 +2282,11 @@ proof (induction v \<phi> sp and v \<phi> vp arbitrary: i v' and i v' rule: s_ch
           by (meson \<tau>_mono le0 order_trans)
         with k have "k \<le> LTP_p_safe \<sigma> i I"
           unfolding LTP_p_safe_def by (auto simp: i_LTP_tau)
-        with Once 1(25,26) have "\<forall>x\<in>MFOTL.fv \<phi>. v x = v' x \<or> v x \<notin> AD \<phi> k \<and> v' x \<notin> AD \<phi> k"
+        with Once hyps(2,3) have "\<forall>x\<in>MFOTL.fv \<phi>. v x = v' x \<or> v x \<notin> AD \<phi> k \<and> v' x \<notin> AD \<phi> k"
           by (auto dest!: bspec dest: AD_mono[THEN set_mp, rotated -1])
       }
       with Once SOnce show ?thesis
-        using IH(16)[OF Once SOnce refl refl, of v'] 1(24,25,26)
+        using IH(16)[OF Once SOnce refl refl, of v'] hyps(1,2)
         by (auto simp: Let_def le_diff_conv2)
     qed auto
   next
@@ -2311,17 +2311,13 @@ proof (induction v \<phi> sp and v \<phi> vp arbitrary: i v' and i v' rule: s_ch
           by (auto simp: nth_append)
         ultimately have "l \<le> u"
           unfolding l_def by auto
-        with Historically 1(25,26) have "\<forall>x\<in>MFOTL.fv \<phi>. v x = v' x \<or> v x \<notin> AD \<phi> l \<and> v' x \<notin> AD \<phi> l"
+        with Historically hyps(2,3) have "\<forall>x\<in>MFOTL.fv \<phi>. v x = v' x \<or> v x \<notin> AD \<phi> l \<and> v' x \<notin> AD \<phi> l"
           by (auto simp: u_def dest!: bspec dest: AD_mono[THEN set_mp, rotated -1])
       }
       with Historically SHistorically show ?thesis
-        using IH(17)[OF Historically SHistorically _ refl, of _ v'] 1(24,25)
+        using IH(17)[OF Historically SHistorically _ refl, of _ v'] hyps(1,2)
         by auto
     qed auto
-  next
-    case (SHistoricallyOut j)
-    then show ?thesis
-      by (cases f) auto
   next
     case (SEventually j sp')
     then show ?thesis
@@ -2331,11 +2327,11 @@ proof (induction v \<phi> sp and v \<phi> vp arbitrary: i v' and i v' rule: s_ch
         assume "\<tau> \<sigma> k \<le> the_enat (right I) + \<tau> \<sigma> i"
         then have "k \<le> LTP_f \<sigma> i (the_enat (right I))"
           by (metis add.commute i_le_LTPi_add le_add_diff_inverse)
-        with Eventually 1(25,26) have "\<forall>x\<in>MFOTL.fv \<phi>. v x = v' x \<or> v x \<notin> AD \<phi> k \<and> v' x \<notin> AD \<phi> k"
+        with Eventually hyps(2,3) have "\<forall>x\<in>MFOTL.fv \<phi>. v x = v' x \<or> v x \<notin> AD \<phi> k \<and> v' x \<notin> AD \<phi> k"
           by (auto dest!: bspec dest: AD_mono[THEN set_mp, rotated -1])
       }
       with Eventually SEventually show ?thesis
-        using IH(18)[OF Eventually SEventually refl refl, of v'] 1(24,25)
+        using IH(18)[OF Eventually SEventually refl refl, of v'] hyps(1,2)
         by (auto simp: Let_def)
     qed auto
   next
@@ -2354,11 +2350,11 @@ proof (induction v \<phi> sp and v \<phi> vp arbitrary: i v' and i v' rule: s_ch
         with j eq have "l \<le> LTP_f \<sigma> i (the_enat (right I))"
           by (auto simp: l_def u_def dest!: arg_cong[where f="\<lambda>xs. nth xs j"]
             simp del: upt.simps split: if_splits)
-        with Always 1(25,26) have "\<forall>x\<in>MFOTL.fv \<phi>. v x = v' x \<or> v x \<notin> AD \<phi> l \<and> v' x \<notin> AD \<phi> l"
+        with Always hyps(2,3) have "\<forall>x\<in>MFOTL.fv \<phi>. v x = v' x \<or> v x \<notin> AD \<phi> l \<and> v' x \<notin> AD \<phi> l"
           by (auto dest!: bspec dest: AD_mono[THEN set_mp, rotated -1])
       }
       with Always SAlways show ?thesis
-        using IH(19)[OF Always SAlways _ refl, of _ v'] 1(24,25)
+        using IH(19)[OF Always SAlways _ refl, of _ v'] hyps(1,2)
         by auto
     qed auto
   next
@@ -2381,7 +2377,7 @@ proof (induction v \<phi> sp and v \<phi> vp arbitrary: i v' and i v' rule: s_ch
           by (auto simp: nth_append)
         ultimately have "l \<le> i"
           unfolding l_def by auto
-        with Since 1(25,26) have "\<forall>x\<in>MFOTL.fv \<phi>. v x = v' x \<or> v x \<notin> AD \<phi> l \<and> v' x \<notin> AD \<phi> l"
+        with Since hyps(2,3) have "\<forall>x\<in>MFOTL.fv \<phi>. v x = v' x \<or> v x \<notin> AD \<phi> l \<and> v' x \<notin> AD \<phi> l"
           by (auto simp: dest!: bspec dest: AD_mono[THEN set_mp, rotated -1])
       }
       moreover
@@ -2391,11 +2387,11 @@ proof (induction v \<phi> sp and v \<phi> vp arbitrary: i v' and i v' rule: s_ch
           by (meson \<tau>_mono le0 order_trans)
         with k have "k \<le> LTP_p_safe \<sigma> i I"
           unfolding LTP_p_safe_def by (auto simp: i_LTP_tau)
-        with Since 1(25,26) have "\<forall>x\<in>MFOTL.fv \<psi>. v x = v' x \<or> v x \<notin> AD \<psi> k \<and> v' x \<notin> AD \<psi> k"
+        with Since hyps(2,3) have "\<forall>x\<in>MFOTL.fv \<psi>. v x = v' x \<or> v x \<notin> AD \<psi> k \<and> v' x \<notin> AD \<psi> k"
           by (auto dest!: bspec dest: AD_mono[THEN set_mp, rotated -1])
       }
       ultimately show ?thesis
-        using Since SSince IH(20)[OF Since SSince refl refl refl, of v'] IH(21)[OF Since SSince refl refl _ refl, of _ v'] 1(24,25)
+        using Since SSince IH(20)[OF Since SSince refl refl refl, of v'] IH(21)[OF Since SSince refl refl _ refl, of _ v'] hyps(1,2)
         by (auto simp: Let_def le_diff_conv2 simp del: upt.simps)
     qed auto
   next
@@ -2422,7 +2418,7 @@ proof (induction v \<phi> sp and v \<phi> vp arbitrary: i v' and i v' rule: s_ch
           by (auto simp: nth_append)
         ultimately have "l \<le> LTP_f \<sigma> i (the_enat (right I)) - 1"
           unfolding l_def by auto
-        with Until 1(25,26) have "\<forall>x\<in>MFOTL.fv \<phi>. v x = v' x \<or> v x \<notin> AD \<phi> l \<and> v' x \<notin> AD \<phi> l"
+        with Until hyps(2,3) have "\<forall>x\<in>MFOTL.fv \<phi>. v x = v' x \<or> v x \<notin> AD \<phi> l \<and> v' x \<notin> AD \<phi> l"
           by (auto simp: dest!: bspec dest: AD_mono[THEN set_mp, rotated -1])
       }
       moreover
@@ -2430,102 +2426,290 @@ proof (induction v \<phi> sp and v \<phi> vp arbitrary: i v' and i v' rule: s_ch
         assume "\<tau> \<sigma> k \<le> the_enat (right I) + \<tau> \<sigma> i"
         then have "k \<le> LTP_f \<sigma> i (the_enat (right I))"
           by (metis add.commute i_le_LTPi_add le_add_diff_inverse)
-        with Until 1(25,26) have "\<forall>x\<in>MFOTL.fv \<psi>. v x = v' x \<or> v x \<notin> AD \<psi> k \<and> v' x \<notin> AD \<psi> k"
+        with Until hyps(2,3) have "\<forall>x\<in>MFOTL.fv \<psi>. v x = v' x \<or> v x \<notin> AD \<psi> k \<and> v' x \<notin> AD \<psi> k"
           by (auto dest!: bspec dest: AD_mono[THEN set_mp, rotated -1])
       }
       ultimately show ?thesis
-        using Until SUntil IH(22)[OF Until SUntil refl refl refl, of v'] IH(23)[OF Until SUntil refl refl _ refl, of _ v'] 1(24,25)
+        using Until SUntil IH(22)[OF Until SUntil refl refl refl, of v'] IH(23)[OF Until SUntil refl refl _ refl, of _ v'] hyps(1,2)
         by (auto simp: Let_def le_diff_conv2 simp del: upt.simps)
     qed auto
-  qed (cases f; simp_all)
+  qed (cases f; simp_all)+
 next
   case (2 v f vp)
+  note IH = 2(1-25)[OF refl] and hyps = 2(26-28)
   show ?case
   proof (cases vp)
-    case (VFF x1)
-    then show ?thesis sorry
+    case (VPred j r ts)
+    then show ?thesis
+    proof (cases f)
+      case (Pred q us)
+      with VPred hyps show ?thesis
+        apply (auto simp: val_notin_AD_iff)
+         apply (subst (asm) (3) MFOTL.eval_trms_fv_cong; force)
+        apply (subst (asm) (3) MFOTL.eval_trms_fv_cong; force)
+        done
+    qed auto
   next
-    case (VPred x21 x22 x23)
-    then show ?thesis sorry
+    case (VNeg sp')
+    then show ?thesis
+      using IH(1)[of _ _ _ v'] hyps
+      by (cases f) auto
   next
-    case (VNeg x3)
-    then show ?thesis sorry
+    case (VOr vp1 vp2)
+    then show ?thesis
+      using IH(2,3)[of _ _ _ _ _ v'] hyps
+      by (cases f) (auto 7 0)+
   next
-    case (VOr x41 x42)
-    then show ?thesis sorry
+    case (VAndL vp')
+    then show ?thesis
+      using IH(4)[of _ _ _ _ v'] hyps
+      by (cases f) auto
   next
-    case (VAndL x5)
-    then show ?thesis sorry
+    case (VAndR vp')
+    then show ?thesis
+      using IH(5)[of _ _ _ _ v'] hyps
+      by (cases f) auto
   next
-    case (VAndR x6)
-    then show ?thesis sorry
+    case (VImp sp1 vp2)
+    then show ?thesis
+      using IH(6,7)[of _ _ _ _ _ v'] hyps
+      by (cases f) (auto 7 0)+
   next
-    case (VImp x71 x72)
-    then show ?thesis sorry
+    case (VIffSV sp1 vp2)
+    then show ?thesis
+      using IH(8,9)[of _ _ _ _ _ v'] hyps
+      by (cases f) (auto 7 0)+
   next
-    case (VIffSV x81 x82)
-    then show ?thesis sorry
+    case (VIffVS vp1 sp2)
+    then show ?thesis
+      using IH(10,11)[of _ _ _ _ _ v'] hyps
+      by (cases f) (auto 7 0)+
   next
-    case (VIffVS x91 x92)
-    then show ?thesis sorry
+    case (VExists x part)
+    then show ?thesis
+      using IH(12)[of x _ x part _ _ D _ z _ "v'(x := z)" for D z, OF _ _ _ _  refl _ refl] hyps
+      by (cases f) (auto simp add: fun_upd_def)
   next
-    case (VExists x101 x102)
-    then show ?thesis sorry
+    case (VForall x z vp')
+    then show ?thesis
+      using IH(13)[of x _ x z vp' i "v'(x := z)"] hyps
+      by (cases f) (auto simp add: fun_upd_def)
   next
-    case (VForall x111 x112 x113)
-    then show ?thesis sorry
+    case (VPrev vp')
+    then show ?thesis
+      using IH(14)[of _ _ _ _ _ _ v'] hyps
+      by (cases f) auto
   next
-    case (VPrev x12)
-    then show ?thesis sorry
+    case (VNext vp')
+    then show ?thesis
+      using IH(15)[of _ _ _ _ _ _ v'] hyps
+      by (cases f) auto
   next
-    case VPrevZ
-    then show ?thesis sorry
+    case (VOnce j k vps)
+    then show ?thesis
+    proof (cases f)
+      case (Once I \<phi>)
+      { fix vp :: "'d vproof"
+        define l and u where "l = v_at vp" and "u = LTP_p \<sigma> i I"
+        assume *: "vp \<in> set vps" "\<tau> \<sigma> 0 + left I \<le> \<tau> \<sigma> i"
+        then have u_def: "u = LTP_p_safe \<sigma> i I"
+          by (auto simp: LTP_p_safe_def u_def)
+        from *(1) obtain j where j: "vp = vps ! j" "j < length vps"
+          unfolding in_set_conv_nth by auto
+        moreover
+        assume eq: "map v_at vps = [k ..< Suc u]"
+        then have len: "length vps = Suc u - k"
+          by (auto dest!: arg_cong[where f=length])
+        moreover
+        have "v_at (vps ! j) = k + j"
+          using arg_cong[where f="\<lambda>xs. nth xs j", OF eq] j len *(2)
+          by (auto simp: nth_append)
+        ultimately have "l \<le> u"
+          unfolding l_def by auto
+        with Once hyps(2,3) have "\<forall>x\<in>MFOTL.fv \<phi>. v x = v' x \<or> v x \<notin> AD \<phi> l \<and> v' x \<notin> AD \<phi> l"
+          by (auto simp: u_def dest!: bspec dest: AD_mono[THEN set_mp, rotated -1])
+      }
+      with Once VOnce show ?thesis
+        using IH(16)[OF Once VOnce _ refl, of _ v'] hyps(1,2)
+        by auto
+    qed auto
   next
-    case (VPrevOutL x14)
-    then show ?thesis sorry
+    case (VHistorically j vp')
+    then show ?thesis
+    proof (cases f)
+      case (Historically I \<phi>)
+      { fix k
+        assume k: "k \<le> i" "\<tau> \<sigma> i - left I \<ge> \<tau> \<sigma> k"
+        then have "\<tau> \<sigma> i - left I \<ge> \<tau> \<sigma> 0"
+          by (meson \<tau>_mono le0 order_trans)
+        with k have "k \<le> LTP_p_safe \<sigma> i I"
+          unfolding LTP_p_safe_def by (auto simp: i_LTP_tau)
+        with Historically hyps(2,3) have "\<forall>x\<in>MFOTL.fv \<phi>. v x = v' x \<or> v x \<notin> AD \<phi> k \<and> v' x \<notin> AD \<phi> k"
+          by (auto dest!: bspec dest: AD_mono[THEN set_mp, rotated -1])
+      }
+      with Historically VHistorically show ?thesis
+        using IH(17)[OF Historically VHistorically refl refl, of v'] hyps(1,2)
+        by (auto simp: Let_def le_diff_conv2)
+    qed auto
   next
-    case (VPrevOutR x15)
-    then show ?thesis sorry
+    case (VEventually j k vps)
+    then show ?thesis
+    proof (cases f)
+      case (Eventually I \<phi>)
+      { fix vp :: "'d vproof"
+        define l and u where "l = v_at vp" and "u = LTP_f \<sigma> i (the_enat (right I))"
+        assume *: "vp \<in> set vps"
+        then obtain j where j: "vp = vps ! j" "j < length vps"
+          unfolding in_set_conv_nth by auto
+        assume eq: "map v_at vps = [ETP_f \<sigma> i I ..< Suc u]"
+        then have "length vps = Suc u - ETP_f \<sigma> i I"
+          by (auto dest!: arg_cong[where f=length])
+        with j eq have "l \<le> LTP_f \<sigma> i (the_enat (right I))"
+          by (auto simp: l_def u_def dest!: arg_cong[where f="\<lambda>xs. nth xs j"]
+            simp del: upt.simps split: if_splits)
+        with Eventually hyps(2,3) have "\<forall>x\<in>MFOTL.fv \<phi>. v x = v' x \<or> v x \<notin> AD \<phi> l \<and> v' x \<notin> AD \<phi> l"
+          by (auto dest!: bspec dest: AD_mono[THEN set_mp, rotated -1])
+      }
+      with Eventually VEventually show ?thesis
+        using IH(18)[OF Eventually VEventually _ refl, of _ v'] hyps(1,2)
+        by auto
+    qed auto
   next
-    case (VNext x16)
-    then show ?thesis sorry
+    case (VAlways j vp')
+    then show ?thesis
+    proof (cases f)
+      case (Always I \<phi>)
+      { fix k
+        assume "\<tau> \<sigma> k \<le> the_enat (right I) + \<tau> \<sigma> i"
+        then have "k \<le> LTP_f \<sigma> i (the_enat (right I))"
+          by (metis add.commute i_le_LTPi_add le_add_diff_inverse)
+        with Always hyps(2,3) have "\<forall>x\<in>MFOTL.fv \<phi>. v x = v' x \<or> v x \<notin> AD \<phi> k \<and> v' x \<notin> AD \<phi> k"
+          by (auto dest!: bspec dest: AD_mono[THEN set_mp, rotated -1])
+      }
+      with Always VAlways show ?thesis
+        using IH(19)[OF Always VAlways refl refl, of v'] hyps(1,2)
+        by (auto simp: Let_def)
+    qed auto
   next
-    case (VNextOutL x17)
-    then show ?thesis sorry
+    case (VSince j vp' vps)
+    then show ?thesis
+    proof (cases f)
+      case (Since \<phi> I \<psi>)
+      { fix sp :: "'d vproof"
+        define l and u where "l = v_at sp" and "u = LTP_p \<sigma> i I"
+        assume *: "sp \<in> set vps" "\<tau> \<sigma> 0 + left I \<le> \<tau> \<sigma> i"
+        then have u_def: "u = LTP_p_safe \<sigma> i I"
+          by (auto simp: LTP_p_safe_def u_def)
+        from *(1) obtain j where j: "sp = vps ! j" "j < length vps"
+          unfolding in_set_conv_nth by auto
+        moreover
+        assume eq: "map v_at vps = [v_at vp'  ..< Suc u]"
+        then have len: "length vps = Suc u - v_at vp'"
+          by (auto dest!: arg_cong[where f=length])
+        moreover
+        have "v_at (vps ! j) = v_at vp' + j"
+          using arg_cong[where f="\<lambda>xs. nth xs j", OF eq] j len
+          by (auto simp: nth_append)
+        ultimately have "l \<le> u"
+          unfolding l_def by auto
+        with Since hyps(2,3) have "\<forall>x\<in>MFOTL.fv \<psi>. v x = v' x \<or> v x \<notin> AD \<psi> l \<and> v' x \<notin> AD \<psi> l"
+          by (auto simp: u_def dest!: bspec dest: AD_mono[THEN set_mp, rotated -1])
+      }
+      moreover
+      { fix k
+        assume k: "k \<le> i"
+        with Since hyps(2,3) have "\<forall>x\<in>MFOTL.fv \<phi>. v x = v' x \<or> v x \<notin> AD \<phi> k \<and> v' x \<notin> AD \<phi> k"
+          by (auto dest!: bspec dest: AD_mono[THEN set_mp, rotated -1])
+      }
+      ultimately show ?thesis
+        using Since VSince IH(20)[OF Since VSince refl refl, of v'] IH(21)[OF Since VSince refl _ refl, of _ v'] hyps(1,2)
+        by (auto simp: Let_def le_diff_conv2 simp del: upt.simps)
+    qed auto
   next
-    case (VNextOutR x18)
-    then show ?thesis sorry
+    case (VSinceInf j k vps)
+    then show ?thesis
+    proof (cases f)
+      case (Since \<phi> I \<psi>)
+      { fix vp :: "'d vproof"
+        define l and u where "l = v_at vp" and "u = LTP_p \<sigma> i I"
+        assume *: "vp \<in> set vps" "\<tau> \<sigma> 0 + left I \<le> \<tau> \<sigma> i"
+        then have u_def: "u = LTP_p_safe \<sigma> i I"
+          by (auto simp: LTP_p_safe_def u_def)
+        from *(1) obtain j where j: "vp = vps ! j" "j < length vps"
+          unfolding in_set_conv_nth by auto
+        moreover
+        assume eq: "map v_at vps = [k ..< Suc u]"
+        then have len: "length vps = Suc u - k"
+          by (auto dest!: arg_cong[where f=length])
+        moreover
+        have "v_at (vps ! j) = k + j"
+          using arg_cong[where f="\<lambda>xs. nth xs j", OF eq] j len *(2)
+          by (auto simp: nth_append)
+        ultimately have "l \<le> u"
+          unfolding l_def by auto
+        with Since hyps(2,3) have "\<forall>x\<in>MFOTL.fv \<psi>. v x = v' x \<or> v x \<notin> AD \<psi> l \<and> v' x \<notin> AD \<psi> l"
+          by (auto simp: u_def dest!: bspec dest: AD_mono[THEN set_mp, rotated -1])
+      }
+      with Since VSinceInf show ?thesis
+        using IH(22)[OF Since VSinceInf _ refl, of _ v'] hyps(1,2)
+        by auto
+    qed auto
   next
-    case (VOnceOut x19)
-    then show ?thesis sorry
+    case (VUntil j vps vp')
+    then show ?thesis
+    proof (cases f)
+      case (Until \<phi> I \<psi>)
+      { fix sp :: "'d vproof"
+        define l and u where "l = v_at sp" and "u = v_at vp'"
+        assume *: "sp \<in> set vps" "v_at vp' \<le> LTP_f \<sigma> i (the_enat (right I))"
+        from *(1) obtain j where j: "sp = vps ! j" "j < length vps"
+          unfolding in_set_conv_nth by auto
+        moreover
+        assume eq: "map v_at vps = [ETP_f \<sigma> i I ..< Suc u]"
+        then have "length vps = Suc u - ETP_f \<sigma> i I"
+          by (auto dest!: arg_cong[where f=length])
+        with j eq *(2) have "l \<le> LTP_f \<sigma> i (the_enat (right I))"
+          by (auto simp: l_def u_def dest!: arg_cong[where f="\<lambda>xs. nth xs j"]
+            simp del: upt.simps split: if_splits)
+        with Until hyps(2,3) have "\<forall>x\<in>MFOTL.fv \<psi>. v x = v' x \<or> v x \<notin> AD \<psi> l \<and> v' x \<notin> AD \<psi> l"
+          by (auto dest!: bspec dest: AD_mono[THEN set_mp, rotated -1])
+      }
+      moreover
+      { fix k
+        assume "k < LTP_f \<sigma> i (the_enat (right I))"
+        then have "k \<le> LTP_f \<sigma> i (the_enat (right I)) - 1"
+          by linarith
+        with Until hyps(2,3) have "\<forall>x\<in>MFOTL.fv \<phi>. v x = v' x \<or> v x \<notin> AD \<phi> k \<and> v' x \<notin> AD \<phi> k"
+          by (auto dest!: bspec dest: AD_mono[THEN set_mp, rotated -1])
+      }
+      ultimately show ?thesis
+        using Until VUntil IH(23)[OF Until VUntil refl refl, of v'] IH(24)[OF Until VUntil refl _ refl, of _ v'] hyps(1,2)
+        by (auto simp: Let_def le_diff_conv2 simp del: upt.simps)
+    qed auto
   next
-    case (VOnce x201 x202 x203)
-    then show ?thesis sorry
-  next
-    case (VEventually x211 x212 x213)
-    then show ?thesis sorry
-  next
-    case (VHistorically x221 x222)
-    then show ?thesis sorry
-  next
-    case (VAlways x231 x232)
-    then show ?thesis sorry
-  next
-    case (VSinceOut x24)
-    then show ?thesis sorry
-  next
-    case (VSince x251 x252 x253)
-    then show ?thesis sorry
-  next
-    case (VSinceInf x261 x262 x263)
-    then show ?thesis sorry
-  next
-    case (VUntil x271 x272 x273)
-    then show ?thesis sorry
-  next
-    case (VUntilInf x281 x282 x283)
-    then show ?thesis sorry
-  qed
+    case (VUntilInf j k vps)
+    then show ?thesis
+    proof (cases f)
+      case (Until \<phi> I \<psi>)
+      { fix vp :: "'d vproof"
+        define l and u where "l = v_at vp" and "u = LTP_f \<sigma> i (the_enat (right I))"
+        assume *: "vp \<in> set vps"
+        then obtain j where j: "vp = vps ! j" "j < length vps"
+          unfolding in_set_conv_nth by auto
+        assume eq: "map v_at vps = [ETP_f \<sigma> i I ..< Suc u]"
+        then have "length vps = Suc u - ETP_f \<sigma> i I"
+          by (auto dest!: arg_cong[where f=length])
+        with j eq have "l \<le> LTP_f \<sigma> i (the_enat (right I))"
+          by (auto simp: l_def u_def dest!: arg_cong[where f="\<lambda>xs. nth xs j"]
+            simp del: upt.simps split: if_splits)
+        with Until hyps(2,3) have "\<forall>x\<in>MFOTL.fv \<psi>. v x = v' x \<or> v x \<notin> AD \<psi> l \<and> v' x \<notin> AD \<psi> l"
+          by (auto dest!: bspec dest: AD_mono[THEN set_mp, rotated -1])
+      }
+      with Until VUntilInf show ?thesis
+        using IH(25)[OF Until VUntilInf _ refl, of _ v'] hyps(1,2)
+        by auto
+    qed auto
+  qed (cases f; simp_all)+
 qed
 
 lemma part_hd_tabulate: "distinct xs \<Longrightarrow> part_hd (tabulate xs f z) = (case xs of [] \<Rightarrow> z | (x # _) \<Rightarrow> (if set xs = UNIV then f x else z))"
