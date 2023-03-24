@@ -235,7 +235,7 @@ lemma min_not_in: "finite A \<Longrightarrow> A \<noteq> {} \<Longrightarrow> x 
 lemma not_sat_UntilD:
   assumes unsat: "\<not> (MFOTL.sat \<sigma> v i (MFOTL.Until \<phi> I \<psi>))"
     and witness: "\<exists>j \<ge> i. mem (\<delta> \<sigma> j i) I \<and> MFOTL.sat \<sigma> v j \<psi>"
-  shows "\<exists>j \<ge> i. (case right I of \<infinity> \<Rightarrow> True | enat n \<Rightarrow> j \<le> LTP \<sigma> (\<tau> \<sigma> i + n))
+  shows "\<exists>j \<ge> i. (case right I of \<infinity> \<Rightarrow> True | enat n \<Rightarrow> j < LTP \<sigma> (\<tau> \<sigma> i + n))
   \<and> \<not> (MFOTL.sat \<sigma> v j \<phi>) \<and> (\<forall>k \<in> {(max i (ETP \<sigma> (\<tau> \<sigma> i + left I))) .. j}.
    \<not> MFOTL.sat \<sigma> v k \<psi>)"
 proof -
@@ -348,7 +348,7 @@ inductive SAT and VIO :: "'a MFOTL.trace \<Rightarrow> 'a MFOTL.env \<Rightarrow
 | SUntil: "j \<ge> i \<Longrightarrow> mem (\<delta> \<sigma> j i) I  \<Longrightarrow> SAT \<sigma> v j \<psi> \<Longrightarrow> (\<And>k. k \<in> {i ..< j} \<Longrightarrow> SAT \<sigma> v k \<phi>) \<Longrightarrow> 
            SAT \<sigma> v i (MFOTL.Until \<phi> I \<psi>)"
 | VUntil: "(case right I of \<infinity> \<Rightarrow> True 
-            | enat b \<Rightarrow> j \<le> LTP_f \<sigma> i b) \<Longrightarrow> 
+            | enat b \<Rightarrow> j < LTP_f \<sigma> i b) \<Longrightarrow> 
            j \<ge> i \<Longrightarrow> VIO \<sigma> v j \<phi> \<Longrightarrow> (\<And>k. k \<in> {ETP_f \<sigma> i I .. j} \<Longrightarrow> VIO \<sigma> v k \<psi>) \<Longrightarrow> 
            VIO \<sigma> v i (MFOTL.Until \<phi> I \<psi>)"
 | VUntilInf: "(\<And>k. k \<in> (case right I of \<infinity> \<Rightarrow> {ETP_f \<sigma> i I ..} 
@@ -680,7 +680,7 @@ next
       and witness: "\<exists>j \<ge> i. mem (\<delta> \<sigma> j i) I \<and> MFOTL.sat \<sigma> v j \<psi>"
     from this Until not_sat_UntilD[of \<sigma> v i \<phi> I \<psi>] obtain j
       where j: "j \<ge> i" "(case right I of \<infinity> \<Rightarrow> True | enat n
-      \<Rightarrow> j \<le> LTP \<sigma> (\<tau> \<sigma> i + n))" "\<not> (MFOTL.sat \<sigma> v j \<phi>)"
+      \<Rightarrow> j < LTP \<sigma> (\<tau> \<sigma> i + n))" "\<not> (MFOTL.sat \<sigma> v j \<phi>)"
         "(\<forall>k \<in> {(max i (ETP \<sigma> (\<tau> \<sigma> i + left I))) .. j}. \<not> MFOTL.sat \<sigma> v k \<psi>)"
       by auto
     with Until have "VIO \<sigma> v i (MFOTL.Until \<phi> I \<psi>)"
