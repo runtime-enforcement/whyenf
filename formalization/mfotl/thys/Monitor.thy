@@ -2203,14 +2203,24 @@ proof (induction v \<phi> sp and v \<phi> vp arbitrary: i v' and i v' rule: s_ch
     proof (cases f)
       case (Historically I \<phi>)
       { fix sp :: "'d sproof"
-        define l where "l = s_at sp"
-        assume "sp \<in> set sps" "map s_at sps = [k ..< Suc (LTP_p \<sigma> i I)]" "\<tau> \<sigma> 0 + left I \<le> \<tau> \<sigma> i"
-        then have "l \<le> LTP_p_safe \<sigma> i I"
-          unfolding l_def LTP_p_safe_def
-          apply (auto simp: le_diff_conv2 in_set_conv_nth split: if_splits)
-          sorry
+        define l and u where "l = s_at sp" and "u = LTP_p \<sigma> i I"
+        assume *: "sp \<in> set sps" "\<tau> \<sigma> 0 + left I \<le> \<tau> \<sigma> i"
+        then have u_def: "u = LTP_p_safe \<sigma> i I"
+          by (auto simp: LTP_p_safe_def u_def)
+        from *(1) obtain j where j: "sp = sps ! j" "j < length sps"
+          unfolding in_set_conv_nth by auto
+        moreover
+        assume eq: "map s_at sps = [k ..< Suc u]"
+        then have len: "length sps = Suc u - k"
+          by (auto dest!: arg_cong[where f=length])
+        moreover
+        have "s_at (sps ! j) = k + j"
+          using arg_cong[where f="\<lambda>xs. nth xs j", OF eq] j len *(2)
+          by (auto simp: nth_append)
+        ultimately have "l \<le> u"
+          unfolding l_def by auto
         with Historically 1(25,26) have "\<forall>x\<in>MFOTL.fv \<phi>. v x = v' x \<or> v x \<notin> AD \<phi> l \<and> v' x \<notin> AD \<phi> l"
-          by (auto dest!: bspec dest: AD_mono[THEN set_mp, rotated -1])
+          by (auto simp: u_def dest!: bspec dest: AD_mono[THEN set_mp, rotated -1])
       }
       with Historically SHistorically show ?thesis
         using IH(17)[OF Historically SHistorically _ refl, of _ v'] 1(24,25)
@@ -2225,25 +2235,139 @@ proof (induction v \<phi> sp and v \<phi> vp arbitrary: i v' and i v' rule: s_ch
     then show ?thesis
     proof (cases f)
       case (Eventually I \<phi>)
-      from Eventually 1(25,26) have "\<forall>x\<in>MFOTL.fv \<phi>. v x = v' x \<or> v x \<notin> AD \<phi> k \<and> v' x \<notin> AD \<phi> k"
-        if "k \<le> LTP_f \<sigma> i (the_enat (right I))" for k
-        using that(1)
-        by (auto dest!: bspec dest: AD_mono[THEN set_mp, rotated -1])
+      { fix k
+        assume "\<tau> \<sigma> k \<le> the_enat (right I) + \<tau> \<sigma> i"
+        then have "k \<le> LTP_f \<sigma> i (the_enat (right I))"
+          by (metis add.commute i_le_LTPi_add le_add_diff_inverse)
+        with Eventually 1(25,26) have "\<forall>x\<in>MFOTL.fv \<phi>. v x = v' x \<or> v x \<notin> AD \<phi> k \<and> v' x \<notin> AD \<phi> k"
+          by (auto dest!: bspec dest: AD_mono[THEN set_mp, rotated -1])
+      }
       with Eventually SEventually show ?thesis
         using IH(18)[OF Eventually SEventually refl refl, of v'] 1(24,25)
-        apply (auto simp: Let_def le_diff_conv elim!: meta_mp)
-           apply (metis add.commute i_le_LTPi_add le_add_diff_inverse)+
-        done
+        by (auto simp: Let_def)
     qed auto
   next
     case (SAlways j k sps)
-    then show ?thesis sorry
+    then show ?thesis
+    proof (cases f)
+      case (Always I \<phi>)
+      { fix sp :: "'d sproof"
+        define l and u where "l = s_at sp" and "u = LTP_f \<sigma> i (the_enat (right I))"
+        assume *: "sp \<in> set sps"
+        then obtain j where j: "sp = sps ! j" "j < length sps"
+          unfolding in_set_conv_nth by auto
+        assume eq: "map s_at sps = [ETP_f \<sigma> i I ..< Suc u]"
+        then have "length sps = Suc u - ETP_f \<sigma> i I"
+          by (auto dest!: arg_cong[where f=length])
+        with j eq have "l \<le> LTP_f \<sigma> i (the_enat (right I))"
+          by (auto simp: l_def u_def dest!: arg_cong[where f="\<lambda>xs. nth xs j"]
+            simp del: upt.simps split: if_splits)
+        with Always 1(25,26) have "\<forall>x\<in>MFOTL.fv \<phi>. v x = v' x \<or> v x \<notin> AD \<phi> l \<and> v' x \<notin> AD \<phi> l"
+          by (auto dest!: bspec dest: AD_mono[THEN set_mp, rotated -1])
+      }
+      with Always SAlways show ?thesis
+        using IH(19)[OF Always SAlways _ refl, of _ v'] 1(24,25)
+        by auto
+    qed auto
   next
     case (SSince sp' sps)
-    then show ?thesis sorry
+    then show ?thesis
+    proof (cases f)
+      case (Since \<phi> I \<psi>)
+      { fix sp :: "'d sproof"
+        define l where "l = s_at sp"
+        assume *: "sp \<in> set sps"
+        from *(1) obtain j where j: "sp = sps ! j" "j < length sps"
+          unfolding in_set_conv_nth by auto
+        moreover
+        assume eq: "map s_at sps = [Suc (s_at sp')  ..< Suc i]"
+        then have len: "length sps = i - s_at sp'"
+          by (auto dest!: arg_cong[where f=length])
+        moreover
+        have "s_at (sps ! j) = Suc (s_at sp') + j"
+          using arg_cong[where f="\<lambda>xs. nth xs j", OF eq] j len
+          by (auto simp: nth_append)
+        ultimately have "l \<le> i"
+          unfolding l_def by auto
+        with Since 1(25,26) have "\<forall>x\<in>MFOTL.fv \<phi>. v x = v' x \<or> v x \<notin> AD \<phi> l \<and> v' x \<notin> AD \<phi> l"
+          by (auto simp: dest!: bspec dest: AD_mono[THEN set_mp, rotated -1])
+      }
+      moreover
+      { fix k
+        assume k: "k \<le> i" "\<tau> \<sigma> i - left I \<ge> \<tau> \<sigma> k"
+        then have "\<tau> \<sigma> i - left I \<ge> \<tau> \<sigma> 0"
+          by (meson \<tau>_mono le0 order_trans)
+        with k have "k \<le> LTP_p_safe \<sigma> i I"
+          unfolding LTP_p_safe_def by (auto simp: i_LTP_tau)
+        with Since 1(25,26) have "\<forall>x\<in>MFOTL.fv \<psi>. v x = v' x \<or> v x \<notin> AD \<psi> k \<and> v' x \<notin> AD \<psi> k"
+          by (auto dest!: bspec dest: AD_mono[THEN set_mp, rotated -1])
+      }
+      ultimately show ?thesis
+        using Since SSince IH(20)[OF Since SSince refl refl refl, of v'] IH(21)[OF Since SSince refl refl _ refl, of _ v'] 1(24,25)
+        by (auto simp: Let_def le_diff_conv2 simp del: upt.simps)
+    qed auto
   next
-    case (SUntil  sps sp')
-    then show ?thesis sorry
+    case (SUntil sps sp')
+    then show ?thesis
+    proof (cases f)
+      case (Until \<phi> I \<psi>)
+      { fix sp :: "'d sproof"
+        define l where "l = s_at sp"
+        assume *: "sp \<in> set sps"
+        from *(1) obtain j where j: "sp = sps ! j" "j < length sps"
+          unfolding in_set_conv_nth by auto
+        moreover
+        assume "s_at sp' \<le> LTP_f \<sigma> i (the_enat (right I))"
+        moreover
+        assume eq: "map s_at sps = [i ..< s_at sp']"
+        then have len: "length sps = s_at sp' - i"
+          by (auto dest!: arg_cong[where f=length])
+        moreover
+        have "s_at (sps ! j) = i + j"
+          using arg_cong[where f="\<lambda>xs. nth xs j", OF eq] j len
+          by (auto simp: nth_append)
+        ultimately have "l \<le> LTP_f \<sigma> i (the_enat (right I)) - 1"
+          unfolding l_def by auto
+        with Until 1(25,26) have "\<forall>x\<in>MFOTL.fv \<phi>. v x = v' x \<or> v x \<notin> AD \<phi> l \<and> v' x \<notin> AD \<phi> l"
+          by (auto simp: dest!: bspec dest: AD_mono[THEN set_mp, rotated -1])
+      }
+      moreover
+      { fix k
+        assume "\<tau> \<sigma> k \<le> the_enat (right I) + \<tau> \<sigma> i"
+        then have "k \<le> LTP_f \<sigma> i (the_enat (right I))"
+          by (metis add.commute i_le_LTPi_add le_add_diff_inverse)
+        with Until 1(25,26) have "\<forall>x\<in>MFOTL.fv \<psi>. v x = v' x \<or> v x \<notin> AD \<psi> k \<and> v' x \<notin> AD \<psi> k"
+          by (auto dest!: bspec dest: AD_mono[THEN set_mp, rotated -1])
+      }
+      ultimately show ?thesis
+        using Until SUntil IH(22)[OF Until SUntil refl refl refl, of v'] IH(23)[OF Until SUntil refl refl _ refl, of _ v'] 1(24,25)
+        apply (auto simp: Let_def le_diff_conv2 simp del: upt.simps)
+         apply (rotate_tac 5)
+        apply (drule meta_spec)
+         apply (drule meta_mp)
+          apply assumption
+        apply (erule meta_mp)
+        apply (drule meta_spec)
+         apply (drule meta_mp)
+          apply assumption
+         apply (erule meta_mp)
+        apply (erule thin_rl)
+        apply (erule thin_rl)
+        apply (erule thin_rl)
+        apply (erule thin_rl)
+        apply (erule thin_rl)
+         apply (erule thin_rl)
+        apply (rotate_tac 1)
+        apply (erule thin_rl)
+        apply (erule thin_rl)
+        apply (erule thin_rl)
+        apply (erule thin_rl)
+        apply (erule thin_rl)
+        apply (erule thin_rl)
+        apply (erule thin_rl)
+        apply (erule thin_rl)
+        apply (metis add.commute i_le_LTPi_add le_add_diff_inverse le_diff_conv)
+    qed auto
   qed (cases f; simp_all)
 next
   case (2 v f vp)
