@@ -2409,7 +2409,9 @@ proof (induction v \<phi> sp and v \<phi> vp arbitrary: i v' and i v' rule: s_ch
         from *(1) obtain j where j: "sp = sps ! j" "j < length sps"
           unfolding in_set_conv_nth by auto
         moreover
-        assume "s_at sp' \<le> LTP_f \<sigma> i (the_enat (right I))"
+        assume "\<delta> \<sigma> (s_at sp') i \<le> the_enat (right I)"
+        then have "s_at sp' \<le> LTP_f \<sigma> i (the_enat (right I))"
+          by (metis add.commute i_le_LTPi_add le_add_diff_inverse le_diff_conv)
         moreover
         assume eq: "map s_at sps = [i ..< s_at sp']"
         then have len: "length sps = s_at sp' - i"
@@ -2433,32 +2435,7 @@ proof (induction v \<phi> sp and v \<phi> vp arbitrary: i v' and i v' rule: s_ch
       }
       ultimately show ?thesis
         using Until SUntil IH(22)[OF Until SUntil refl refl refl, of v'] IH(23)[OF Until SUntil refl refl _ refl, of _ v'] 1(24,25)
-        apply (auto simp: Let_def le_diff_conv2 simp del: upt.simps)
-         apply (rotate_tac 5)
-        apply (drule meta_spec)
-         apply (drule meta_mp)
-          apply assumption
-        apply (erule meta_mp)
-        apply (drule meta_spec)
-         apply (drule meta_mp)
-          apply assumption
-         apply (erule meta_mp)
-        apply (erule thin_rl)
-        apply (erule thin_rl)
-        apply (erule thin_rl)
-        apply (erule thin_rl)
-        apply (erule thin_rl)
-         apply (erule thin_rl)
-        apply (rotate_tac 1)
-        apply (erule thin_rl)
-        apply (erule thin_rl)
-        apply (erule thin_rl)
-        apply (erule thin_rl)
-        apply (erule thin_rl)
-        apply (erule thin_rl)
-        apply (erule thin_rl)
-        apply (erule thin_rl)
-        apply (metis add.commute i_le_LTPi_add le_add_diff_inverse le_diff_conv)
+        by (auto simp: Let_def le_diff_conv2 simp del: upt.simps)
     qed auto
   qed (cases f; simp_all)
 next
