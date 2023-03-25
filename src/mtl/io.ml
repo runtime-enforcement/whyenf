@@ -7,7 +7,7 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
-open Mtl
+open Formula
 open Util
 open Expl
 open Interval
@@ -143,7 +143,7 @@ let parse_lines_from_string s =
                      | Some s -> Continue (s::acc))
 
 let json_table_columns f =
-  let aps_columns = Mtl.atoms f in
+  let aps_columns = Formula.atoms f in
   let subfs_columns = List.map (subfs_dfs f) op_to_string in
   let subfs = List.map (subfs_dfs f) formula_to_string in
   Printf.sprintf "{\n  \"apsColumns\": %s,\n  \"subfsColumns\": %s,\n  \"subformulas\": %s}\n"

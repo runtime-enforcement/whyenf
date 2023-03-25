@@ -8,7 +8,7 @@
 (*******************************************************************)
 
 open Io
-open Mtl
+open Formula
 open Expl
 open Util
 open Interval
