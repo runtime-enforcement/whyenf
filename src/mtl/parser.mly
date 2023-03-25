@@ -10,7 +10,7 @@
 
 %{
 open Interval
-open Mtl
+open Formula
 %}
 
 %token <string> ATOM
@@ -29,7 +29,7 @@ open Mtl
 %left CONJ
 %nonassoc NEG
 
-%type <Mtl.formula> formula
+%type <Formula.formula> formula
 %start formula
 
 %%

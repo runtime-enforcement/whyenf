@@ -7,7 +7,7 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
-open Mtl
+open Formula
 open Expl
 open Util
 open Interval
@@ -322,7 +322,7 @@ let atoms_to_json f sap tp =
 let expl_to_json f p =
   (* (Printf.printf "f = %s\n" (formula_to_string f));
    * (Printf.printf "p = %s\n" (expl_to_string p)); *)
-  let atoms = Mtl.atoms f in
+  let atoms = Formula.atoms f in
   let start_idx = List.length atoms in
   let (tbl, _) = update_expl_table [] start_idx f p in
   (* let tbl' = List.filter tbl ~f:(fun (cell, cells) -> (not (List.is_empty cells)) || (cell_col cell) = 0) in *)

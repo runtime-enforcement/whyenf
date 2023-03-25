@@ -9,8 +9,8 @@
 (*******************************************************************)
 
 open Interval
-open Mtl_parser
-open Mtl
+open Parser
+open Formula
 
 (* lexing/parsing errors *)
 open Lexing

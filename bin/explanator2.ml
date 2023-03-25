@@ -8,14 +8,14 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
-open Src.Util
-open Src.Expl
-open Src.Mtl
-open Src.Io
-open Src.Mtl_parser
-open Src.Mtl_lexer
-open Src.Monitor
-open Src.Checker.VerifiedExplanator2
+open Mtl.Util
+open Mtl.Expl
+open Mtl.Formula
+open Mtl.Io
+open Mtl.Parser
+open Mtl.Lexer
+open Mtl.Monitor
+open Mtl.Checker.VerifiedExplanator2
 
 module Explanator2 = struct
 
@@ -103,10 +103,10 @@ module Explanator2 = struct
       | ("-fmla" :: fmlafile :: args) ->
          (try
             let in_ch = open_in fmlafile in
-            fmla_ref := Some(Src.Mtl_parser.formula Src.Mtl_lexer.token (Lexing.from_channel in_ch));
+            fmla_ref := Some(Mtl.Parser.formula Mtl.Lexer.token (Lexing.from_channel in_ch));
             close_in in_ch
           with
-            _ -> fmla_ref := Some(Src.Mtl_parser.formula Src.Mtl_lexer.token (Lexing.from_string fmlafile)));
+            _ -> fmla_ref := Some(Mtl.Parser.formula Mtl.Lexer.token (Lexing.from_string fmlafile)));
          go args
       | ("-weights" :: wfile :: args) ->
          let in_ch = open_in wfile in
@@ -125,7 +125,7 @@ module Explanator2 = struct
       | ("-vis" :: fmlafile :: args) ->
          (* Quick sanity check (visualization related) *)
          let in_ch = open_in fmlafile in
-         fmla_ref := Some(Src.Mtl_parser.formula Src.Mtl_lexer.token (Lexing.from_channel in_ch));
+         fmla_ref := Some(Mtl.Parser.formula Mtl.Lexer.token (Lexing.from_channel in_ch));
          log_str_ref := "@0 q\n@1 p\n@2 r\n@3 q";
          measure_ref := "size";
          vis_ref := true;

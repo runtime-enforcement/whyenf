@@ -7,7 +7,7 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
-open Mtl
+open Formula
 open Expl
 open Util
 

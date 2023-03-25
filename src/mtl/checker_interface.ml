@@ -8,7 +8,7 @@
 (*******************************************************************)
 
 open Z
-open Mtl
+open Formula
 open Expl
 open Interval
 open Util

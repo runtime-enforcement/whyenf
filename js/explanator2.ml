@@ -8,13 +8,13 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
-open Src.Util
-open Src.Expl
-open Src.Mtl
-open Src.Io
-open Src.Mtl_parser
-open Src.Mtl_lexer
-open Src.Monitor
+open Mtl.Util
+open Mtl.Expl
+open Mtl.Formula
+open Mtl.Io
+open Mtl.Parser
+open Mtl.Lexer
+open Mtl.Monitor
 open Js_of_ocaml
 
 module Explanator2 = struct
@@ -27,14 +27,14 @@ module Explanator2 = struct
 
   let get_columns js_formula =
     let formula = (Js_of_ocaml.Js.to_string js_formula) in
-    let f = Src.Mtl_parser.formula Src.Mtl_lexer.token (Lexing.from_string formula) in
+    let f = Mtl.Parser.formula Mtl.Lexer.token (Lexing.from_string formula) in
     Js.string (json_table_columns f)
 
   let monitor_init js_log js_measure js_formula =
     let log = (Js_of_ocaml.Js.to_string js_log) in
     let measure = validate_measure (Js_of_ocaml.Js.to_string js_measure) in
     let formula = (Js_of_ocaml.Js.to_string js_formula) in
-    let formula_parsed = Src.Mtl_parser.formula Src.Mtl_lexer.token (Lexing.from_string formula) in
+    let formula_parsed = Mtl.Parser.formula Mtl.Lexer.token (Lexing.from_string formula) in
     let (obj_opt, s) = monitor_vis None log measure formula_parsed in
     (obj_opt, Js.string(s))
 
@@ -42,7 +42,7 @@ module Explanator2 = struct
     let log = (Js_of_ocaml.Js.to_string js_log) in
     let measure = validate_measure (Js_of_ocaml.Js.to_string js_measure) in
     let formula = (Js_of_ocaml.Js.to_string js_formula) in
-    let formula_parsed = Src.Mtl_parser.formula Src.Mtl_lexer.token (Lexing.from_string formula) in
+    let formula_parsed = Mtl.Parser.formula Mtl.Lexer.token (Lexing.from_string formula) in
     let (obj_opt', s) = monitor_vis obj_opt log measure formula_parsed in
     (obj_opt', Js.string(s))
 
