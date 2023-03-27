@@ -1,7 +1,41 @@
 theory Monitor_Code
-  imports Explanator2.Monitor "HOL-Library.Code_Target_Nat" Containers.Containers
-    "HOL-Library.List_Lexorder"
+  imports Explanator2.Monitor "HOL-Library.Code_Target_Nat"
+    "HOL-Library.List_Lexorder" "HOL-Library.AList_Mapping" Deriving.Derive
+    (*Containers.Containers*)
 begin
+
+class nonunit = assumes two: "\<exists>x y. x \<noteq> (y :: 'a)"
+begin
+
+lemma card_not_Suc0[simp]: "CARD ('a) \<noteq> Suc 0"
+  using two unfolding card_1_singleton_iff set_eq_iff
+  by auto (metis (full_types))
+
+end
+
+class infinite = assumes infinite: "infinite (UNIV :: 'a set)"
+begin
+
+lemma finite_coset: "finite (List.coset (xs :: 'a list)) = False"
+  using infinite
+  by auto
+
+subclass nonunit
+  by standard (metis (full_types) UNIV_eq_I finite.simps insert_iff infinite)
+
+end
+
+declare [[code drop: finite]]
+declare finite_set[THEN eqTrueI, code] finite_coset[code]
+
+instance nat :: infinite by standard auto
+instance list :: (nonunit) infinite by standard (auto simp: infinite_UNIV_listI)
+instance option :: (type) nonunit by standard auto
+instance prod :: (type, infinite) infinite by standard (auto simp: finite_prod infinite)
+instance char :: nonunit by (standard, rule exI[of _ "CHR ''a''"], rule exI[of _ "CHR ''b''"]) auto
+instance String.literal :: infinite by standard (simp add: infinite_literal)
+instance "fun" :: (infinite, nonunit) infinite apply standard
+  by (auto simp: finite_UNIV_fun infinite)
 
 section \<open>Code\<close>
 
@@ -167,14 +201,14 @@ typedef 'a trace_rbt = "{(n, m, t) :: (nat \<times> nat \<times> (nat, 'a set \<
   n m t. Mapping.keys t = {..<n} \<and>
   sorted (map (snd \<circ> (the \<circ> Mapping.lookup t)) [0..<n]) \<and>
   (case n of 0 \<Rightarrow> True | Suc n' \<Rightarrow> (case Mapping.lookup t n' of Some (X', t') \<Rightarrow> t' \<le> m | None \<Rightarrow> False)) \<and> 
-  (case n of 0 \<Rightarrow> True | Suc n' \<Rightarrow> (case Mapping.lookup t n' of Some (X', t') \<Rightarrow> finite X' | None \<Rightarrow> False))}"
+  (\<forall>n' < n. case Mapping.lookup t n' of Some (X', t') \<Rightarrow> finite X' | None \<Rightarrow> False)}"
   by (rule exI[of _ "(0, 0, Mapping.empty)"]) auto
 
 setup_lifting type_definition_trace_rbt
 
 lemma lookup_bulkload_Some: "i < length list \<Longrightarrow>
   Mapping.lookup (Mapping.bulkload list) i = Some (list ! i)"
-  by transfer (auto simp: Map_To_Mapping.map_apply_def)
+  by transfer auto
 
 definition "fstfinite xs = list_all finite xs"
 
@@ -182,8 +216,8 @@ lift_definition trace_rbt_of_list :: "('a set \<times> nat) list \<Rightarrow> '
   "\<lambda>xs. if sorted (map snd xs) \<and> fstfinite (map fst xs) then (if xs = [] then (0, 0, Mapping.empty)
   else (length xs, snd (last xs), Mapping.bulkload xs))
   else (0, 0, Mapping.empty)"
-  by (auto simp: lookup_bulkload_Some sorted_iff_nth_Suc last_conv_nth fstfinite_def split: option.splits nat.splits) 
-    (metis fst_conv length_map lessI list_all_length nth_map)
+  apply (auto simp: lookup_bulkload_Some sorted_iff_nth_Suc last_conv_nth fstfinite_def split: option.splits nat.splits)
+  by (metis (no_types, lifting) Ball_set nth_mem set_zip_leftD zip_map_fst_snd)
 
 lift_definition trace_rbt_nth :: "'a trace_rbt \<Rightarrow> nat \<Rightarrow> ('a set \<times> nat)" is
   "\<lambda>(n, m, t) i. if i < n then the (Mapping.lookup t i) else ({}, (i - n) + m)" .
@@ -197,16 +231,15 @@ lift_definition Trace_RBT :: "'a trace_rbt \<Rightarrow> 'a trace" is
     have props: "Mapping.keys t = {..<n}"
       "sorted (map (snd \<circ> (the \<circ> Mapping.lookup t)) [0..<n])"
       "(case n of 0 \<Rightarrow> True | Suc n' \<Rightarrow> (case Mapping.lookup t n' of Some (X', t') \<Rightarrow> t' \<le> m | None \<Rightarrow> False))"
-      "(case n of 0 \<Rightarrow> True | Suc n' \<Rightarrow> (case Mapping.lookup t n' of Some (X', t') \<Rightarrow> finite X' | None \<Rightarrow> False))"
+      "(\<forall>n' < n. case Mapping.lookup t n' of Some (X', t') \<Rightarrow> finite X' | None \<Rightarrow> False)"
       using prems
       by (auto simp add: prod_def)
     have aux: "x \<in> set (map (the \<circ> Mapping.lookup t) [0..<n]) \<Longrightarrow> snd x \<le> m" for x
       using props(2,3) less_Suc_eq_le
       by (fastforce simp: sorted_iff_nth_mono split: nat.splits option.splits)
     have aux2: "x \<in> set (map (the \<circ> Mapping.lookup t) [0..<n]) \<Longrightarrow> finite (fst x)" for x
-      using props(1,4) 
-      apply (clarsimp split: nat.splits option.splits)
-      sorry
+      using props(1,4)
+      by (auto split: nat.splits option.splits)
     show ?thesis
       apply (simp add: prod_def del: smap_shift)
       apply (rule extend_is_stream[where ?m=m])
@@ -643,7 +676,7 @@ lemma s_check_exec_Always_code[code]: "s_check_exec \<sigma> vs (MFOTL.Always I 
 lemma v_check_exec_Until_code[code]: "v_check_exec \<sigma> vs (MFOTL.Until \<phi> I \<psi>) vp = (case vp of
   VUntil i vp2s vp1 \<Rightarrow>
     let j = v_at vp1 in 
-    (case right I of \<infinity> \<Rightarrow> True | enat b \<Rightarrow> \<delta> \<sigma> j i \<le> b)
+    (case right I of \<infinity> \<Rightarrow> True | enat b \<Rightarrow> j < LTP_f \<sigma> i b)
     \<and> i \<le> j \<and> check_upt_ETP_f \<sigma> I i (map v_at vp2s) j
     \<and> v_check_exec \<sigma> vs \<phi> vp1 \<and> Ball (set vp2s) (v_check_exec \<sigma> vs \<psi>)
  | VUntilInf i hi vp2s \<Rightarrow>
@@ -742,45 +775,6 @@ lemma LTP_code[code]: "LTP \<sigma> t = (if t < \<tau> \<sigma> 0
 
 code_deps LTP
 
-instantiation enat :: ccompare begin
-definition ccompare_enat :: "enat comparator option" where
-  "ccompare_enat = Some (\<lambda>x y. if x = y then order.Eq else if x < y then order.Lt else order.Gt)"
-
-instance by intro_classes
-    (auto simp: ccompare_enat_def split: if_splits intro!: comparator.intro)
-end
-
-derive (eq) ceq enat
-
-instantiation enat :: set_impl begin
-definition set_impl_enat :: "(enat, set_impl) phantom" where
-  "set_impl_enat = phantom set_RBT"
-
-instance ..
-end
-
-definition [code del]: "comparator_sproof' = comparator_sproof ccomp"
-definition [code del]: "comparator_vproof' = comparator_vproof ccomp"
-definition comparator_set' :: "'a :: ccompare set \<Rightarrow> 'a set \<Rightarrow> order" where [code del]: "comparator_set' = comparator_set ccomp"
-
-lemma comparator_set'_code[code]:
-  "(comparator_set' :: 'a :: ccompare set \<Rightarrow> 'a set \<Rightarrow> order) =
-   (case ID CCOMPARE('a) of None \<Rightarrow> Code.abort STR ''comparator_set: ccompare = None'' (\<lambda>_. comparator_set') | _ \<Rightarrow> ccomp)"
-  unfolding comparator_set'_def comparator_set_def cless_eq_set_def cless_set_def ccompare_set_def
-  by (auto simp: ID_Some split: option.splits)
-
-lemmas comparator_sproof'_code[code] =
-   comparator_sproof.simps[of ccomp, unfolded comparator_list'_map2 comparator_list'_map comparator_list'_vals_map_part,
-     folded comparator_sproof'_def comparator_vproof'_def comparator_set'_def]
-lemmas comparator_vproof'_code[code] =
-   comparator_vproof.simps[of ccomp, unfolded comparator_list'_map2 comparator_list'_map comparator_list'_vals_map_part,
-     folded comparator_sproof'_def comparator_vproof'_def comparator_set'_def]
-
-lemma ccompare_sproof_code[code]: "CCOMPARE('a::ccompare sproof) = (case ID CCOMPARE('a) of None \<Rightarrow> None | Some comp_'a \<Rightarrow> Some comparator_sproof')"
-  by (auto simp: ccompare_sproof_def comparator_sproof'_def split: option.splits)
-lemma ccompare_vproof_code[code]: "CCOMPARE('a::ccompare vproof) = (case ID CCOMPARE('a) of None \<Rightarrow> None | Some comp_'a \<Rightarrow> Some comparator_vproof')"
-  by (auto simp: ccompare_vproof_def comparator_vproof'_def split: option.splits)
-
 lemma map_part_code[code]: "Rep_part (map_part f xs) = map (map_prod id f) (Rep_part xs)"
   using Rep_part[of xs]
   by (auto simp: map_part_def intro!: Abs_part_inverse)
@@ -795,11 +789,11 @@ definition default_list :: "'a list" where "default_list = []"
 instance proof qed
 end
 
-derive (no) ceq MFOTL.trm
-derive (monad) set_impl MFOTL.trm
-derive (no) ceq MFOTL.formula
-derive (no) ccompare MFOTL.formula
-derive (monad) set_impl MFOTL.formula
+lemma coset_subset_set_code[code]: "(List.coset (xs :: _ :: infinite list) \<subseteq> set ys) = False"
+  using finite_coset finite_subset by fastforce
+
+lemma is_empty_coset[code]: "Set.is_empty (List.coset (xs :: _ :: infinite list)) = False"
+  using coset_subset_set_code by (fastforce simp: Set.is_empty_def)
 
 definition execute_trivial_eval where
  "execute_trivial_eval \<sigma> vars i \<phi> = Monitor.eval \<sigma> (\<lambda>p1 p2. (p_pred (\<lambda> _. 1) p1) \<le> (p_pred (\<lambda> _. 1) p2)) vars i \<phi>"
@@ -830,7 +824,7 @@ definition phi3 where
   "phi3 = MFOTL.Forall ''last'' (MFOTL.Imp (MFOTL.Pred ''q'' [MFOTL.Var ''last''])
     (MFOTL.Exists ''first'' (MFOTL.Pred ''p'' [MFOTL.Var ''first'', MFOTL.Var ''last''])))"
 
-(* value "execute_trivial_eval mytrace2 [''first'', ''last''] 0 (MFOTL.Pred ''p'' [MFOTL.Var ''first'', MFOTL.Var ''last''])"
+value "execute_trivial_eval mytrace2 [''first'', ''last''] 0 (MFOTL.Pred ''p'' [MFOTL.Var ''first'', MFOTL.Var ''last''])"
 value "execute_trivial_eval mytrace2 [''first'', ''last''] 0 (MFOTL.Pred ''p'' [MFOTL.Var ''first'', MFOTL.Var ''last''])"
 value "execute_trivial_eval mytrace2 [''last''] 0 (MFOTL.Pred ''q'' [MFOTL.Var ''last''])" 
 value "execute_trivial_eval mytrace2 [''first'', ''last''] 1 (MFOTL.Pred ''p'' [MFOTL.Var ''first'', MFOTL.Var ''last''])"
@@ -840,7 +834,7 @@ value "execute_trivial_eval mytrace2 [''first'', ''last''] 1 (MFOTL.And (MFOTL.P
 value "execute_trivial_eval mytrace2 [''first''] 0 phi2"
 value "execute_trivial_eval mytrace2 [''first''] 1 phi2"
 value "execute_trivial_eval mytrace2 [] 0 phi3"
-value "execute_trivial_eval mytrace2 [] 1 phi3" *)
+value "execute_trivial_eval mytrace2 [] 1 phi3"
 
 (* Example 3 *)
 definition mytrace3 :: "string MFOTL.trace" where 
@@ -855,6 +849,8 @@ definition phi4 where
 value "execute_trivial_eval mytrace3 [''y''] 0 phi4"
 value "execute_trivial_eval mytrace3 [''y''] 1 phi4"
 value "execute_trivial_eval mytrace3 [''y''] 2 phi4"
+
+export_code Monitor.eval in OCaml module_name Explanator
 
 fun check_one where
   "check_one \<sigma> v \<phi> (Leaf p) = (case p of Inl sp \<Rightarrow> s_check \<sigma> v \<phi> sp | Inr vp \<Rightarrow> v_check \<sigma> v \<phi> vp)"
