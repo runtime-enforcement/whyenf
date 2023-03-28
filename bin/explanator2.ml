@@ -8,7 +8,7 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
-open Mtl.Util
+open Util.Misc
 open Mtl.Expl
 open Mtl.Formula
 open Mtl.Io

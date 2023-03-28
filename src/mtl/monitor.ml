@@ -10,8 +10,8 @@
 open Io
 open Formula
 open Expl
-open Util
-open Interval
+open Util.Misc
+open Util.Interval
 open Checker_interface
 
 module Deque = Core_kernel.Deque
@@ -1370,12 +1370,12 @@ let relevant_ap mf =
       else s::acc)
 
 let filter_ap sap mf_ap =
-  Util.SS.filter (fun s -> List.mem mf_ap s ~equal:(fun x y -> x = y)) sap
+  SS.filter (fun s -> List.mem mf_ap s ~equal:(fun x y -> x = y)) sap
 
 type state =
   { tp: timepoint
   ; mf: mformula
-  ; events: (Util.SS.t * timestamp) list
+  ; events: (SS.t * timestamp) list
   ; tp_ts: (timepoint, timestamp) Hashtbl.t
   }
 
@@ -1511,7 +1511,7 @@ let meval' ts tp sap mform le =
              (ts, d, MFF)
     | MP a ->
        let d = Deque.create () in
-       let _ = if Util.SS.mem a sap then Deque.enqueue_back d (S (SAtom (tp, a)))
+       let _ = if SS.mem a sap then Deque.enqueue_back d (S (SAtom (tp, a)))
                else Deque.enqueue_back d (V (VAtom (tp, a))) in
        (ts, d, MP a)
     | MNeg (mf) ->

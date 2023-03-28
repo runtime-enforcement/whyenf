@@ -8,10 +8,10 @@
 (*******************************************************************)
 
 open Formula
-open Util
 open Expl
 open Checker_interface
 open Checker.VerifiedExplanator2
+open Util.Misc
 
 module Or_error = Base.Or_error
 module Error = Base.Error

@@ -10,8 +10,8 @@
 open Z
 open Formula
 open Expl
-open Interval
-open Util
+open Util.Interval
+open Util.Misc
 open Checker.VerifiedExplanator2
 
 type checker_proof = CS of string sproof | CV of string vproof

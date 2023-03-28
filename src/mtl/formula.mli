@@ -8,7 +8,7 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
-open Interval
+open Util.Interval
 
 type formula =
   | TT

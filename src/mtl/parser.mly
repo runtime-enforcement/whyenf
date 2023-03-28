@@ -9,12 +9,12 @@
  *******************************************************************/
 
 %{
-open Interval
+open Util.Interval
 open Formula
 %}
 
 %token <string> ATOM
-%token <Interval.interval> INTERVAL
+%token <Util.Interval.interval> INTERVAL
 %token LOPEN ROPEN
 %token FALSE TRUE NEG CONJ DISJ IMP IFF EOF
 %token SINCE UNTIL RELEASE TRIGGER
