@@ -8,7 +8,7 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
-open Util
+open Util.Misc
 
 type sexpl =
   | STT of int

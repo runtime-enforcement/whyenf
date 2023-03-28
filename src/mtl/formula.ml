@@ -8,9 +8,9 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
-open Util
 open Expl
-open Interval
+open Util.Misc
+open Util.Interval
 
 module Deque = Core_kernel.Deque
 

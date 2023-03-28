@@ -8,7 +8,7 @@
 (*  Dmitriy Traytel (ETH Zürich)                                   *)
 (*******************************************************************)
 
-open Interval
+open Util.Interval
 open Parser
 open Formula
 

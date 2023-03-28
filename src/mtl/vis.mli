@@ -9,7 +9,7 @@
 
 open Formula
 open Expl
-open Util
+open Util.Misc
 
 val atoms_to_json: formula -> SS.t -> timepoint -> string
 val expl_to_json: formula -> expl -> string

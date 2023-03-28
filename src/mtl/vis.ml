@@ -9,8 +9,8 @@
 
 open Formula
 open Expl
-open Util
-open Interval
+open Util.Misc
+open Util.Interval
 
 module List = Base.List
 

@@ -8,7 +8,7 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
-open Util
+open Misc
 
 type uinterval = UI of int
 type binterval = BI of int * int

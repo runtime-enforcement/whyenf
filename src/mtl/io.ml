@@ -8,9 +8,9 @@
 (*******************************************************************)
 
 open Formula
-open Util
+open Util.Misc
 open Expl
-open Interval
+open Util.Interval
 open Vis
 open Checker.VerifiedExplanator2
 open Checker_interface

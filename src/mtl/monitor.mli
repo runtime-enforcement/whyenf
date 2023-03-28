@@ -9,8 +9,8 @@
 
 open Formula
 open Expl
-open Util
-open Interval
+open Util.Misc
+open Util.Interval
 open Checker.VerifiedExplanator2
 
 module Deque = Core_kernel.Deque
@@ -126,7 +126,7 @@ type mformula =
 type state =
   { tp: timepoint
   ; mf: mformula
-  ; events: (Util.SS.t * timestamp) list
+  ; events: (SS.t * timestamp) list
   ; tp_ts: (timepoint, timestamp) Hashtbl.t
   }
 
