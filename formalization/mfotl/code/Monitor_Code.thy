@@ -852,15 +852,190 @@ value "execute_trivial_eval mytrace3 [''y''] 2 phi4"
 
 export_code Monitor.eval in OCaml module_name Explanator
 
+definition "check \<sigma> v \<phi> p = (case p of Inl sp \<Rightarrow> s_check \<sigma> v \<phi> sp | Inr vp \<Rightarrow> v_check \<sigma> v \<phi> vp)"
+definition "check_exec \<sigma> vs \<phi> p = (case p of Inl sp \<Rightarrow> s_check_exec \<sigma> vs \<phi> sp | Inr vp \<Rightarrow> v_check_exec \<sigma> vs \<phi> vp)"
+
+
 fun check_one where
-  "check_one \<sigma> v \<phi> (Leaf p) = (case p of Inl sp \<Rightarrow> s_check \<sigma> v \<phi> sp | Inr vp \<Rightarrow> v_check \<sigma> v \<phi> vp)"
+  "check_one \<sigma> v \<phi> (Leaf p) = check \<sigma> v \<phi> p"
 | "check_one \<sigma> v \<phi> (Node x part) = check_one \<sigma> v \<phi> (lookup_part part (v x))"
 
 fun check_all_aux where
-  "check_all_aux \<sigma> vs \<phi> (Leaf p) = (case p of Inl sp \<Rightarrow> s_check_exec \<sigma> vs \<phi> sp | Inr vp \<Rightarrow> v_check_exec \<sigma> vs \<phi> vp)"
+  "check_all_aux \<sigma> vs \<phi> (Leaf p) = check_exec \<sigma> vs \<phi> p"
 | "check_all_aux \<sigma> vs \<phi> (Node x part) = (\<forall>(D, e) \<in> set (subsvals part). check_all_aux \<sigma> (vs(x := D)) \<phi> e)"
 
-definition "check_all \<sigma> \<phi> e = check_all_aux \<sigma> (\<lambda>_. UNIV) \<phi> e"
+lift_definition lookup :: "('d, 'a) part \<Rightarrow> 'd \<Rightarrow> ('d set \<times> 'a)" is "\<lambda>xs d. the (find (\<lambda>(D, _). d \<in> D) xs)" .
+
+lemma snd_lookup[simp]: "snd (lookup part d) = lookup_part part d"
+  by transfer auto
+
+lemma fst_lookup: "d \<in> fst (lookup part d)"
+  apply transfer
+  apply (auto simp: partition_on_def)
+  subgoal for d part
+    apply (subgoal_tac "\<exists>y. find (\<lambda>(D, _). d \<in> D) part = Some y")
+     apply (auto simp: find_Some_iff in_set_conv_nth split_beta)
+     apply (metis (mono_tags, lifting) find_Some_iff2 option.sel split_def)
+    apply (subst (asm) set_eq_iff)
+    apply (drule spec[of _ d])
+    apply (auto simp: in_set_conv_nth)
+    apply (intro exI conjI)
+       apply assumption
+      apply simp
+     apply (erule sym)
+    apply (auto simp: disjoint_def in_set_conv_nth Ball_def image_iff Bex_def)
+    apply (drule spec, drule mp, intro exI conjI, assumption, assumption)
+    apply (drule spec, drule mp, intro exI conjI, erule (1) order.strict_trans,
+        rule surjective_pairing)
+    apply auto
+    apply (metis (mono_tags, lifting) fst_eqD length_map nless_le nth_eq_iff_index_eq nth_map order.strict_trans1)
+    done
+  done
+
+lemma lookup_subsvals: "lookup part d \<in> set (subsvals part)"
+  apply transfer
+  apply (auto simp: partition_on_def)
+  subgoal for part d
+    apply (subgoal_tac "\<exists>y. find (\<lambda>(D, _). d \<in> D) part = Some y")
+    apply (auto simp: find_Some_iff in_set_conv_nth split_beta)
+  apply (metis (mono_tags, lifting) find_Some_iff2 option.sel split_def)
+    apply (subst (asm) set_eq_iff)
+    apply (drule spec[of _ d])
+    apply (auto simp: in_set_conv_nth)
+    apply (intro exI conjI)
+       apply assumption
+      apply simp
+     apply (erule sym)
+    apply (auto simp: disjoint_def in_set_conv_nth Ball_def image_iff Bex_def)
+    apply (drule spec, drule mp, intro exI conjI, assumption, assumption)
+    apply (drule spec, drule mp, intro exI conjI, erule (1) order.strict_trans,
+      rule surjective_pairing)
+    apply auto
+    apply (metis (mono_tags, lifting) fst_eqD length_map nless_le nth_eq_iff_index_eq nth_map order.strict_trans1)
+    done
+  done
+
+lemma sat_vorder_Node:
+ "distinct xs \<Longrightarrow> sat_vorder xs (Node x part) = (\<exists>ys zs. xs = ys @ x # zs \<and> (\<forall>e \<in> Vals part. sat_vorder zs e))"
+  apply safe
+  apply (rotate_tac -1)
+   apply (induct xs "Node x part" rule: sat_vorder.induct)
+    apply auto
+   apply (metis append_Cons)
+  subgoal for ys zs
+    apply (induct ys arbitrary: xs)
+     apply (auto intro: sat_vorder.intros)
+    done
+  done
+
+fun vars where
+  "vars (Leaf _) = {}"
+| "vars (Node x part) = {x} \<union> (\<Union>e \<in> Vals part. vars e)"
+
+fun distinct_paths where
+  "distinct_paths (Leaf _) = True"
+| "distinct_paths (Node x part) = (\<forall>e \<in> Vals part. x \<notin> vars e \<and> distinct_paths e)"
+
+lemma check_one_cong: "\<forall>x\<in>MFOTL.fv \<phi> \<union> vars e. v x = v' x \<Longrightarrow> check_one \<sigma> v \<phi> e = check_one \<sigma> v' \<phi> e"
+  apply (induct e arbitrary: v v')
+   apply (auto simp: check_def check_fv_cong split: sum.splits)
+  apply (metis (full_types) Set.set_insert UN_insert UnE UnI1 UnI2 lookup_part_Vals)
+  apply (metis (full_types) Set.set_insert UN_insert UnE UnI1 UnI2 lookup_part_Vals)
+  done
+
+lemma lookup_part_from_subvals: "(D, e) \<in> set (subsvals part) \<Longrightarrow> d \<in> D \<Longrightarrow> lookup_part part d = e"
+  apply transfer
+  subgoal for D e part d
+    apply (cases "find (\<lambda>(D, _). d \<in> D) part")
+     apply (auto simp: partition_on_def image_iff find_None_iff) []
+    apply simp
+    apply (auto simp: partition_on_def disjoint_def Ball_def Bex_def image_iff find_Some_iff in_set_conv_nth)
+    apply (metis IntI empty_iff eq_key_imp_eq_value nth_mem)
+    done
+  done
+
+lemma check_all_aux_check_one: "\<forall>x. vs x \<noteq> {} \<Longrightarrow> distinct_paths e \<Longrightarrow> (\<forall>x \<in> vars e. vs x = UNIV) \<Longrightarrow>
+  check_all_aux \<sigma> vs \<phi> e \<longleftrightarrow> (\<forall>v \<in> compatible_vals (MFOTL.fv \<phi>) vs. check_one \<sigma> v \<phi> e)"
+  apply (induct e arbitrary: vs)
+   apply (auto simp: check_exec_def check_def check_exec_check split_beta sat_vorder_Node
+      split: sum.splits if_splits)
+  subgoal for x part vs v
+    apply (drule bspec, rule lookup_subsvals)
+    apply simp
+    apply (drule meta_spec)+
+    apply (drule meta_mp)
+     defer
+    apply (drule meta_mp)
+      defer
+    apply (drule meta_mp)
+       defer
+      apply (drule iffD1)
+    apply assumption
+      apply (erule bspec)
+     apply (auto simp: compatible_vals_fun_upd) []
+      apply (erule compatible_vals_antimono[THEN set_mp, rotated])
+       apply blast
+    apply (auto simp: compatible_vals_def) []
+     apply (rule fst_lookup)
+    using fst_lookup[of "v x" part]
+    apply auto
+    apply force
+    done
+  subgoal for x part vs D e
+    apply (subgoal_tac "\<exists>d. d \<in> D")
+     prefer 2
+    subgoal
+      apply transfer
+      apply (auto simp: partition_on_def image_iff)
+      done
+    apply (erule exE)
+    subgoal for d
+      apply (drule meta_spec[of _ e])
+      apply (drule meta_spec[of _ "vs(x := D)"])
+      apply (drule meta_mp)
+      subgoal
+        apply transfer
+        apply (auto simp: image_iff)
+        apply force
+        done
+      apply (drule meta_mp)
+      apply auto []
+      apply (drule meta_mp)
+       apply auto []
+      using lookup_part_from_subvals apply fastforce
+      apply (metis UNIV_I lookup_part_Vals lookup_part_from_subvals)
+      apply (erule iffD2)
+      apply (rule ballI)
+      apply (auto simp add: compatible_vals_fun_upd split: if_splits)
+      subgoal for v
+        apply (drule bspec[of _ _ "v"])
+         apply (auto simp: compatible_vals_def) []
+        apply (subst (asm) lookup_part_from_subvals)
+        apply assumption
+        apply assumption
+        apply assumption
+        done
+      subgoal for v
+        apply (drule bspec[of _ _ "v(x := d)"])
+        apply (auto simp: compatible_vals_def) []
+        apply (subst (asm) lookup_part_from_subvals)
+          apply assumption
+         apply simp
+        apply (erule iffD1[OF check_one_cong, rotated -1])
+        apply (drule bspec[of _ _ e])
+         apply (metis lookup_part_Vals lookup_part_from_subvals)
+        apply auto
+        done
+      done
+    done
+  done
+
+definition "check_all \<sigma> \<phi> e = (distinct_paths e \<and> check_all_aux \<sigma> (\<lambda>_. UNIV) \<phi> e)"
+
+lemma check_all_check_one: "check_all \<sigma> \<phi> e = (distinct_paths e \<and> (\<forall>v. check_one \<sigma> v \<phi> e))"
+  unfolding check_all_def
+  by (rule conj_cong[OF refl], subst check_all_aux_check_one)
+    (auto simp: compatible_vals_def)
 
 (*does not work yet, probably due to the Pred case (needs a rewrite via code equation)*)
 value "check_one mytrace2 (\<lambda>_. default) phi3 (execute_trivial_eval mytrace2 [] 0 phi3)"
