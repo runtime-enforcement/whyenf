@@ -1030,7 +1030,8 @@ lemma check_all_aux_check_one: "\<forall>x. vs x \<noteq> {} \<Longrightarrow> d
     done
   done
 
-definition "check_all \<sigma> \<phi> e = (distinct_paths e \<and> check_all_aux \<sigma> (\<lambda>_. UNIV) \<phi> e)"
+definition check_all :: "(string \<times> 'd ::  {default,linorder} list) trace \<Rightarrow> 'd MFOTL.formula \<Rightarrow> ('d, 'd proof) pdt \<Rightarrow> bool" where
+  "check_all \<sigma> \<phi> e = (distinct_paths e \<and> check_all_aux \<sigma> (\<lambda>_. UNIV) \<phi> e)"
 
 lemma check_all_check_one: "check_all \<sigma> \<phi> e = (distinct_paths e \<and> (\<forall>v. check_one \<sigma> v \<phi> e))"
   unfolding check_all_def
