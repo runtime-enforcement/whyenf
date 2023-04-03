@@ -120,7 +120,6 @@ let interval_to_string = function
   | U (UI i) -> Printf.sprintf "[%d,∞)" i
   | B i -> Printf.sprintf "%a" (fun x -> binterval_to_string) i
 
-(* Intervals to String *)
 let lex_interval error l i j r =
   (match j with
     | "INFINITY" | "∞" ->
