@@ -12,10 +12,11 @@ open Base
 open Pred
 
 module Event : sig
-  type t = string * const list
+  type t = string * const list [@@deriving compare, sexp_of]
+  include Comparable.S with type t := t
 end
 
-type t = int * Event.t list
+type t = int * (Event.t, Event.comparator_witness) Set.t
 
 val db: string -> Event.t list -> t
 

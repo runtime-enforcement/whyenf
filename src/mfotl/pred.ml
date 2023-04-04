@@ -12,16 +12,16 @@ open Base
 
 exception Invalid_type of string
 
-type const = Int of int | Str of string | Float of float [@@deriving sexp_of]
+type const = Int of int | Str of string | Float of float [@@deriving compare, sexp_of, hash]
 
-type term = Var of string | Const of const [@@deriving sexp_of]
+type term = Var of string | Const of const [@@deriving compare, sexp_of, hash]
 
 module TConst = struct
-  type t = TInt | TStr | TFloat [@@deriving sexp_of]
+  type t = TInt | TStr | TFloat [@@deriving compare, sexp_of, hash]
 end
 
 module Sig = struct
-  type t = { arity: int; tconsts: TConst.t list } [@@deriving sexp_of]
+  type t = { arity: int; tconsts: TConst.t list } [@@deriving compare, sexp_of, hash]
 end
 
 let type_of_const c = match c with
