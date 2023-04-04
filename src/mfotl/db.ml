@@ -12,16 +12,20 @@ open Base
 open Pred
 
 module Event = struct
-  type t = string * const list
+  module T = struct
+    type t = string * const list [@@deriving compare, sexp_of]
+  end
+  include T
+  include Comparable.Make(T)
 end
 
-type t = int * Event.t list
+type t = int * (Event.t, Event.comparator_witness) Set.t
 
 let sig_table : (string, Pred.Sig.t) Hashtbl.t = Hashtbl.create (module String)
 
 (* TODO: Process signature file and populate this hashtable *)
 
-let db ts events = (int_of_string ts, events)
+let db ts events = (int_of_string ts, Set.of_list (module Event) events)
 
 let event name consts =
   let pred_sig = Hashtbl.find_exn sig_table name in

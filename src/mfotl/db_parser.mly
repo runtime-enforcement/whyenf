@@ -28,7 +28,7 @@ db:
 | AT DIGITS events EOF                   { db $2 $3 }
 
 events:
-| evts=separated_list (SEMICOLON, evt) { evts }
+| evts=separated_list (SEMICOLON, evt)   { evts }
 
 evt:
 | STRING LOPEN consts ROPEN              { event $1 $3 }
