@@ -1,9 +1,10 @@
 (ocamllex
- (modules lexer))
+ (modules db_lexer formula_lexer))
 
 (menhir
- (modules parser))
+ (modules db_parser formula_parser))
 
 (library
  (name mfotl)
- (libraries util core_kernel base zarith))
+ (libraries util core_kernel base zarith)
+ (preprocess (pps ppx_jane)))

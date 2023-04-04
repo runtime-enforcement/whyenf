@@ -11,24 +11,12 @@
 open Base
 open Pred
 
-module Event = struct
+module Event : sig
   type t = string * const list
 end
 
 type t = int * Event.t list
 
-let sig_table : (string, Pred.Sig.t) Hashtbl.t = Hashtbl.create (module String)
+val db: string -> Event.t list -> t
 
-(* TODO: Process signature file and populate this hashtable *)
-
-let db ts events = (int_of_string ts, events)
-
-let event name consts =
-  let pred_sig = Hashtbl.find_exn sig_table name in
-  if pred_sig.arity = List.length consts then
-    (name, List.map2_exn pred_sig.tconsts consts
-             (fun tc c -> match tc with
-                          | TInt -> Int (int_of_string c)
-                          | TStr -> Str c
-                          | TFloat -> Float (float_of_string c)))
-  else raise (Invalid_argument (Printf.sprintf "predicate %s has arity %d" name pred_sig.arity))
+val event: string -> string list -> Event.t
