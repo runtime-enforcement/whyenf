@@ -27,7 +27,7 @@ let uc = ['A'-'Z']
 let letter = uc | lc
 let digit = ['0'-'9']
 
-let string = (letter | digit | '_' | '[' | ']' | '/' | ':' | '-' | '.' | '!')+
+let string = (letter | digit | '_' | '[' | ']' | '/' | '-' | '.' | '!')+
 
 rule token = parse
   | newline                        { Lexing.new_line lexbuf; token lexbuf }
