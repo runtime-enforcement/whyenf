@@ -8,6 +8,8 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
+open Base
+
 type const = Int of int | Str of string | Float of float [@@deriving compare, sexp_of, hash]
 
 type term = Var of string | Const of const [@@deriving compare, sexp_of, hash]
@@ -17,5 +19,15 @@ module TConst : sig
 end
 
 module Sig : sig
-  type t = { arity: int; tconsts: TConst.t list } [@@deriving compare, sexp_of, hash]
+  (* tconsts: name of variable * tconst *)
+  type props = { arity: int; ntconsts: (string * TConst.t) list } [@@deriving compare, sexp_of, hash]
+
+  type t = string * props [@@deriving compare, sexp_of, hash]
+
+  val sig_table: (string, props) Hashtbl.t
+
+  val ntconst: string -> string -> (string * TConst.t)
+
+  val sig_pred: string -> (string * TConst.t) list -> unit
+
 end
