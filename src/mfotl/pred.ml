@@ -10,8 +10,6 @@
 
 open Base
 
-exception Invalid_type of string
-
 type const = Int of int | Str of string | Float of float [@@deriving compare, sexp_of, hash]
 
 type term = Var of string | Const of const [@@deriving compare, sexp_of, hash]
@@ -21,7 +19,24 @@ module TConst = struct
 end
 
 module Sig = struct
-  type t = { arity: int; tconsts: TConst.t list } [@@deriving compare, sexp_of, hash]
+  (* tconsts: name of variable * tconst *)
+  type props = { arity: int; ntconsts: (string * TConst.t) list } [@@deriving compare, sexp_of, hash]
+
+  type t = string * props [@@deriving compare, sexp_of, hash]
+
+  let sig_table : (string, props) Hashtbl.t = Hashtbl.create (module String)
+
+  let tconst_of_string s = match s with
+    | "int" -> TConst.TInt
+    | "string" -> TStr
+    | "float" -> TFloat
+    | t -> raise (Invalid_argument (Printf.sprintf "type " ^ t ^ " is not supported"))
+
+  let ntconst v_name st = (v_name, tconst_of_string st)
+
+  let sig_pred p_name ntconsts =
+    Hashtbl.add_exn sig_table p_name { arity = List.length ntconsts; ntconsts }
+
 end
 
 let type_of_const c = match c with
@@ -29,24 +44,5 @@ let type_of_const c = match c with
   | Str _ -> TStr
   | Float _ -> TFloat
 
-let tconst_of_string s = match s with
-  | "int" -> TConst.TInt
-  | "string" -> TStr
-  | "float" -> TFloat
-  | t -> raise (Invalid_type ("Invalid type " ^ t))
-
-let make_pred name terms =
-  (name, List.length terms, terms)
-
-(* let parse_tuple_sig name terms_str = *)
-(*   let terms_t = String.split_on_char ',' terms_str *)
-(*                 |> List.filter (fun s -> s <> "") *)
-(*                 |> List.map (fun s -> String.trim s) in *)
-(*   if terms_t = [] then *)
-(*     Hashtbl.add preds_sig name (0, []) *)
-(*   else *)
-(*     Hashtbl.add preds_sig name (List.length terms_t) *)
-(*       (List.map(fun s -> *)
-(*            let subs = String.split_on_char ':' sub in *)
-(*            if List.length subs = 2 || *)
-(*          ) terms_str) *)
+let make_pred p_name terms =
+  (p_name, List.length terms, terms)

@@ -21,17 +21,15 @@ end
 
 type t = int * (Event.t, Event.comparator_witness) Set.t
 
-let sig_table : (string, Pred.Sig.t) Hashtbl.t = Hashtbl.create (module String)
-
 (* TODO: Process signature file and populate this hashtable *)
 
 let db ts events = (int_of_string ts, Set.of_list (module Event) events)
 
 let event name consts =
-  let pred_sig = Hashtbl.find_exn sig_table name in
+  let pred_sig = Hashtbl.find_exn Pred.Sig.sig_table name in
   if pred_sig.arity = List.length consts then
-    (name, List.map2_exn pred_sig.tconsts consts
-             (fun tc c -> match tc with
+    (name, List.map2_exn pred_sig.ntconsts consts
+             (fun tc c -> match snd tc with
                           | TInt -> Int (int_of_string c)
                           | TStr -> Str c
                           | TFloat -> Float (float_of_string c)))
