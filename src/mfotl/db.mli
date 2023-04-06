@@ -12,7 +12,7 @@ open Base
 open Pred
 
 module Event : sig
-  type t = string * const list [@@deriving compare, sexp_of]
+  type t = string * Term.const list [@@deriving compare, sexp_of]
   include Comparable.S with type t := t
 end
 

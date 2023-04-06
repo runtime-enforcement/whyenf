@@ -13,7 +13,7 @@ open Pred
 
 module Event = struct
   module T = struct
-    type t = string * const list [@@deriving compare, sexp_of]
+    type t = string * Term.const list [@@deriving compare, sexp_of]
   end
   include T
   include Comparable.Make(T)
@@ -28,7 +28,7 @@ let event name consts =
   if pred_sig.arity = List.length consts then
     (name, List.map2_exn pred_sig.ntconsts consts
              (fun tc c -> match snd tc with
-                          | TInt -> Int (int_of_string c)
+                          | TInt -> Term.Int (int_of_string c)
                           | TStr -> Str c
                           | TFloat -> Float (float_of_string c)))
   else raise (Invalid_argument (Printf.sprintf "predicate %s has arity %d" name pred_sig.arity))

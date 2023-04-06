@@ -9,12 +9,11 @@
 (*******************************************************************)
 
 open Util.Interval
-open Pred
 
 type formula =
   | TT
   | FF
-  | Predicate of string * (term list)
+  | Predicate of string * (Pred.Term.t list)
   | Neg of formula
   | Conj of formula * formula
   | Disj of formula * formula
@@ -60,6 +59,6 @@ val subfs_bfs: formula list -> formula list
 val subfs_dfs: formula -> formula list
 val preds: formula -> formula list
 
-val f_to_string: (const -> string) -> formula -> string
-val op_to_string: (const -> string) -> formula -> string
-val f_to_json: (const -> string) -> formula -> string
+val f_to_string: formula -> string
+val op_to_string: formula -> string
+val f_to_json: formula -> string
