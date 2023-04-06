@@ -21,8 +21,6 @@ end
 
 type t = int * (Event.t, Event.comparator_witness) Set.t
 
-(* TODO: Process signature file and populate this hashtable *)
-
 let db ts events = (int_of_string ts, Set.of_list (module Event) events)
 
 let event name consts =
