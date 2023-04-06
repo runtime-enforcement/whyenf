@@ -14,9 +14,13 @@ type const = Int of int | Str of string | Float of float [@@deriving compare, se
 
 type term = Var of string | Const of const [@@deriving compare, sexp_of, hash]
 
+val term_equal: term -> term -> bool
+
 module TConst : sig
   type t = TInt | TStr | TFloat [@@deriving compare, sexp_of, hash]
 end
+
+val string_to_const: string -> TConst.t -> const
 
 module Sig : sig
   (* tconsts: name of variable * tconst *)
@@ -28,6 +32,6 @@ module Sig : sig
 
   val ntconst: string -> string -> (string * TConst.t)
 
-  val sig_pred: string -> (string * TConst.t) list -> unit
+  val sig_pred: string -> (string * TConst.t) list -> string * props
 
 end
