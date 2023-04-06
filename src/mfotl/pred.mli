@@ -10,28 +10,34 @@
 
 open Base
 
-type const = Int of int | Str of string | Float of float [@@deriving compare, sexp_of, hash]
+module Term : sig
 
-type term = Var of string | Const of const [@@deriving compare, sexp_of, hash]
+  type const = Int of int | Str of string | Float of float [@@deriving compare, sexp_of, hash]
 
-val term_equal: term -> term -> bool
+  type tconst = TInt | TStr | TFloat [@@deriving compare, sexp_of, hash]
 
-module TConst : sig
-  type t = TInt | TStr | TFloat [@@deriving compare, sexp_of, hash]
+  type t = Var of string | Const of const [@@deriving compare, sexp_of, hash]
+
+  val term_equal: t -> t -> bool
+
+  val string_to_const: string -> tconst -> const
+
+  val list_to_string: t list -> string
+
 end
 
-val string_to_const: string -> TConst.t -> const
-
 module Sig : sig
-  (* tconsts: name of variable * tconst *)
-  type props = { arity: int; ntconsts: (string * TConst.t) list } [@@deriving compare, sexp_of, hash]
+
+  type props = { arity: int; ntconsts: (string * Term.tconst) list } [@@deriving compare, sexp_of, hash]
 
   type t = string * props [@@deriving compare, sexp_of, hash]
 
   val sig_table: (string, props) Hashtbl.t
 
-  val ntconst: string -> string -> (string * TConst.t)
+  val ntconst: string -> string -> (string * Term.tconst)
 
-  val sig_pred: string -> (string * TConst.t) list -> string * props
+  val sig_pred: string -> (string * Term.tconst) list -> string * props
 
 end
+
+val make_terms: string -> string list -> Term.t list
