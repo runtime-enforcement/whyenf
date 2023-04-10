@@ -875,6 +875,16 @@ definition phi5 :: "string MFOTL.formula" where
 
 value "execute_trivial_eval mytrace4 [''a'', ''f''] 2 phi5"
 
+(* Example 5 *)
+definition mytrace5 :: "string MFOTL.trace" where 
+  "mytrace5 = trace_of_list
+     [({(''p'', [''10''])}, 0::nat)]"
+
+definition phi6 where
+  "phi6 = MFOTL.Exists ''x'' (MFOTL.Pred ''p'' [MFOTL.Var ''x''])"
+
+value "execute_trivial_eval mytrace5 [''x''] 0 phi6"
+
 export_code Monitor.eval in OCaml module_name Explanator
 
 definition "check \<sigma> v \<phi> p = (case p of Inl sp \<Rightarrow> s_check \<sigma> v \<phi> sp | Inr vp \<Rightarrow> v_check \<sigma> v \<phi> vp)"
