@@ -1073,7 +1073,6 @@ lemma check_all_check_one: "check_all \<sigma> \<phi> e = (distinct_paths e \<an
   by (rule conj_cong[OF refl], subst check_all_aux_check_one)
     (auto simp: compatible_vals_def)
 
-(*does not work yet, probably due to the Pred case (needs a rewrite via code equation)*)
 value "check_one mytrace2 (\<lambda>_. default) phi3 (execute_trivial_eval mytrace2 [] 0 phi3)"
 value "check_all mytrace2 phi3 (execute_trivial_eval mytrace2 [] 0 phi3)"
 
