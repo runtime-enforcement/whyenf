@@ -10,28 +10,14 @@
 
 open Base
 
-module Term : sig
+type tt = TInt | TStr | TFloat [@@deriving compare, sexp_of, hash]
 
-  type t = Var of string | Const of Domain.t [@@deriving compare, sexp_of, hash]
+type t = Int of int | Str of string | Float of float [@@deriving compare, sexp_of, hash]
 
-  val equal: t -> t -> bool
+val equal: t -> t -> bool
 
-  val list_to_string: t list -> string
+val tt_of_string: string -> tt
 
-end
+val string_to_t: string -> tt -> t
 
-module Sig : sig
-
-  type props = { arity: int; ntconsts: (string * Domain.tt) list } [@@deriving compare, sexp_of, hash]
-
-  type t = string * props [@@deriving compare, sexp_of, hash]
-
-  val sig_table: (string, props) Hashtbl.t
-
-  val n_tt: string -> string -> (string * Domain.tt)
-
-  val sig_pred: string -> (string * Domain.tt) list -> string * props
-
-end
-
-val make_terms: string -> string list -> Term.t list
+val to_string: t -> string

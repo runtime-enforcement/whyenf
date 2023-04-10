@@ -19,10 +19,10 @@
 %%
 
 sig_pred:
-| STRING LOPEN ntconsts ROPEN            { Pred.Sig.sig_pred $1 $3 }
+| STRING LOPEN n_tts ROPEN               { Pred.Sig.sig_pred $1 $3 }
 
-ntconsts:
-| ntcs=separated_list (COMMA, ntconst)   { ntcs }
+n_tts:
+| ntts=separated_list (COMMA, n_tt)      { ntts }
 
-ntconst:
-| STRING COLON STRING                    { Pred.Sig.ntconst $1 $3 }
+n_tt:
+| STRING COLON STRING                    { Pred.Sig.n_tt $1 $3 }
