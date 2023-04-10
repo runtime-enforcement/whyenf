@@ -850,6 +850,31 @@ value "execute_trivial_eval mytrace3 [''y''] 0 phi4"
 value "execute_trivial_eval mytrace3 [''y''] 1 phi4"
 value "execute_trivial_eval mytrace3 [''y''] 2 phi4"
 
+(* Example 4 *)
+definition mytrace4 :: "string MFOTL.trace" where 
+  "mytrace4 = trace_of_list
+     [({(''mgr_S'', [''Mallory'', ''Alice'']),
+        (''mgr_S'', [''Merlin'', ''Bob'']),
+        (''mgr_S'', [''Merlin'', ''Charlie''])}, 1307532861::nat),
+      ({(''approve'', [''Mallory'', ''152''])}, 1307532861),
+      ({(''approve'', [''Merlin'', ''163'']),
+        (''publish'', [''Alice'', ''160'']),
+        (''mgr_F'', [''Merlin'', ''Charlie''])}, 1307955600),
+      ({(''approve'', [''Merlin'', ''187'']),
+        (''publish'', [''Bob'', ''163'']),
+        (''publish'', [''Alice'', ''163'']),
+        (''publish'', [''Charlie'', ''163'']),
+        (''publish'', [''Charlie'', ''152''])}, 1308477599)]"
+
+definition phi5 :: "string MFOTL.formula" where
+  "phi5 = MFOTL.Imp (MFOTL.Pred ''publish'' [MFOTL.Var ''a'', MFOTL.Var ''f''])
+    (MFOTL.Once (init 604800) (MFOTL.Exists ''m'' (MFOTL.Since 
+      (MFOTL.Neg (MFOTL.Pred ''mgr_F'' [MFOTL.Var ''m'', MFOTL.Var ''a''])) all
+      (MFOTL.And (MFOTL.Pred ''mgr_S'' [MFOTL.Var ''m'', MFOTL.Var ''a''])
+                 (MFOTL.Pred ''approve'' [MFOTL.Var ''m'', MFOTL.Var ''f''])))))"
+
+value "execute_trivial_eval mytrace4 [''a'', ''f''] 2 phi5"
+
 export_code Monitor.eval in OCaml module_name Explanator
 
 definition "check \<sigma> v \<phi> p = (case p of Inl sp \<Rightarrow> s_check \<sigma> v \<phi> sp | Inr vp \<Rightarrow> v_check \<sigma> v \<phi> vp)"
