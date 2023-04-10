@@ -61,7 +61,7 @@ let release i f g = Neg (Until (i, Neg (f), Neg (g)))
 let equal x y = match x, y with
   | TT, TT
     | FF, FF -> true
-  | Predicate (r, trms), Predicate (r', trms') -> String.equal r r' && List.equal Term.term_equal trms trms'
+  | Predicate (r, trms), Predicate (r', trms') -> String.equal r r' && List.equal Term.equal trms trms'
   | Neg f, Neg f' -> f == f'
   | Conj (f, g), Conj (f', g')
     | Disj (f, g), Disj (f', g')
