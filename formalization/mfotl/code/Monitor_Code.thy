@@ -1,7 +1,41 @@
 theory Monitor_Code
-  imports Explanator2.Monitor "HOL-Library.Code_Target_Nat" Containers.Containers
-    "HOL-Library.List_Lexorder"
+  imports Explanator2.Monitor "HOL-Library.Code_Target_Nat"
+    "HOL-Library.List_Lexorder" "HOL-Library.AList_Mapping" Deriving.Derive
+    (*Containers.Containers*)
 begin
+
+class nonunit = assumes two: "\<exists>x y. x \<noteq> (y :: 'a)"
+begin
+
+lemma card_not_Suc0[simp]: "CARD ('a) \<noteq> Suc 0"
+  using two unfolding card_1_singleton_iff set_eq_iff
+  by auto (metis (full_types))
+
+end
+
+class infinite = assumes infinite: "infinite (UNIV :: 'a set)"
+begin
+
+lemma finite_coset: "finite (List.coset (xs :: 'a list)) = False"
+  using infinite
+  by auto
+
+subclass nonunit
+  by standard (metis (full_types) UNIV_eq_I finite.simps insert_iff infinite)
+
+end
+
+declare [[code drop: finite]]
+declare finite_set[THEN eqTrueI, code] finite_coset[code]
+
+instance nat :: infinite by standard auto
+instance list :: (nonunit) infinite by standard (auto simp: infinite_UNIV_listI)
+instance option :: (type) nonunit by standard auto
+instance prod :: (type, infinite) infinite by standard (auto simp: finite_prod infinite)
+instance char :: nonunit by (standard, rule exI[of _ "CHR ''a''"], rule exI[of _ "CHR ''b''"]) auto
+instance String.literal :: infinite by standard (simp add: infinite_literal)
+instance "fun" :: (infinite, nonunit) infinite apply standard
+  by (auto simp: finite_UNIV_fun infinite)
 
 section \<open>Code\<close>
 
@@ -167,14 +201,14 @@ typedef 'a trace_rbt = "{(n, m, t) :: (nat \<times> nat \<times> (nat, 'a set \<
   n m t. Mapping.keys t = {..<n} \<and>
   sorted (map (snd \<circ> (the \<circ> Mapping.lookup t)) [0..<n]) \<and>
   (case n of 0 \<Rightarrow> True | Suc n' \<Rightarrow> (case Mapping.lookup t n' of Some (X', t') \<Rightarrow> t' \<le> m | None \<Rightarrow> False)) \<and> 
-  (case n of 0 \<Rightarrow> True | Suc n' \<Rightarrow> (case Mapping.lookup t n' of Some (X', t') \<Rightarrow> finite X' | None \<Rightarrow> False))}"
+  (\<forall>n' < n. case Mapping.lookup t n' of Some (X', t') \<Rightarrow> finite X' | None \<Rightarrow> False)}"
   by (rule exI[of _ "(0, 0, Mapping.empty)"]) auto
 
 setup_lifting type_definition_trace_rbt
 
 lemma lookup_bulkload_Some: "i < length list \<Longrightarrow>
   Mapping.lookup (Mapping.bulkload list) i = Some (list ! i)"
-  by transfer (auto simp: Map_To_Mapping.map_apply_def)
+  by transfer auto
 
 definition "fstfinite xs = list_all finite xs"
 
@@ -182,8 +216,8 @@ lift_definition trace_rbt_of_list :: "('a set \<times> nat) list \<Rightarrow> '
   "\<lambda>xs. if sorted (map snd xs) \<and> fstfinite (map fst xs) then (if xs = [] then (0, 0, Mapping.empty)
   else (length xs, snd (last xs), Mapping.bulkload xs))
   else (0, 0, Mapping.empty)"
-  by (auto simp: lookup_bulkload_Some sorted_iff_nth_Suc last_conv_nth fstfinite_def split: option.splits nat.splits) 
-    (metis fst_conv length_map lessI list_all_length nth_map)
+  apply (auto simp: lookup_bulkload_Some sorted_iff_nth_Suc last_conv_nth fstfinite_def split: option.splits nat.splits)
+  by (metis (no_types, lifting) Ball_set nth_mem set_zip_leftD zip_map_fst_snd)
 
 lift_definition trace_rbt_nth :: "'a trace_rbt \<Rightarrow> nat \<Rightarrow> ('a set \<times> nat)" is
   "\<lambda>(n, m, t) i. if i < n then the (Mapping.lookup t i) else ({}, (i - n) + m)" .
@@ -197,16 +231,15 @@ lift_definition Trace_RBT :: "'a trace_rbt \<Rightarrow> 'a trace" is
     have props: "Mapping.keys t = {..<n}"
       "sorted (map (snd \<circ> (the \<circ> Mapping.lookup t)) [0..<n])"
       "(case n of 0 \<Rightarrow> True | Suc n' \<Rightarrow> (case Mapping.lookup t n' of Some (X', t') \<Rightarrow> t' \<le> m | None \<Rightarrow> False))"
-      "(case n of 0 \<Rightarrow> True | Suc n' \<Rightarrow> (case Mapping.lookup t n' of Some (X', t') \<Rightarrow> finite X' | None \<Rightarrow> False))"
+      "(\<forall>n' < n. case Mapping.lookup t n' of Some (X', t') \<Rightarrow> finite X' | None \<Rightarrow> False)"
       using prems
       by (auto simp add: prod_def)
     have aux: "x \<in> set (map (the \<circ> Mapping.lookup t) [0..<n]) \<Longrightarrow> snd x \<le> m" for x
       using props(2,3) less_Suc_eq_le
       by (fastforce simp: sorted_iff_nth_mono split: nat.splits option.splits)
     have aux2: "x \<in> set (map (the \<circ> Mapping.lookup t) [0..<n]) \<Longrightarrow> finite (fst x)" for x
-      using props(1,4) 
-      apply (clarsimp split: nat.splits option.splits)
-      sorry
+      using props(1,4)
+      by (auto split: nat.splits option.splits)
     show ?thesis
       apply (simp add: prod_def del: smap_shift)
       apply (rule extend_is_stream[where ?m=m])
@@ -643,7 +676,7 @@ lemma s_check_exec_Always_code[code]: "s_check_exec \<sigma> vs (MFOTL.Always I 
 lemma v_check_exec_Until_code[code]: "v_check_exec \<sigma> vs (MFOTL.Until \<phi> I \<psi>) vp = (case vp of
   VUntil i vp2s vp1 \<Rightarrow>
     let j = v_at vp1 in 
-    (case right I of \<infinity> \<Rightarrow> True | enat b \<Rightarrow> \<delta> \<sigma> j i \<le> b)
+    (case right I of \<infinity> \<Rightarrow> True | enat b \<Rightarrow> j < LTP_f \<sigma> i b)
     \<and> i \<le> j \<and> check_upt_ETP_f \<sigma> I i (map v_at vp2s) j
     \<and> v_check_exec \<sigma> vs \<phi> vp1 \<and> Ball (set vp2s) (v_check_exec \<sigma> vs \<psi>)
  | VUntilInf i hi vp2s \<Rightarrow>
@@ -742,45 +775,6 @@ lemma LTP_code[code]: "LTP \<sigma> t = (if t < \<tau> \<sigma> 0
 
 code_deps LTP
 
-instantiation enat :: ccompare begin
-definition ccompare_enat :: "enat comparator option" where
-  "ccompare_enat = Some (\<lambda>x y. if x = y then order.Eq else if x < y then order.Lt else order.Gt)"
-
-instance by intro_classes
-    (auto simp: ccompare_enat_def split: if_splits intro!: comparator.intro)
-end
-
-derive (eq) ceq enat
-
-instantiation enat :: set_impl begin
-definition set_impl_enat :: "(enat, set_impl) phantom" where
-  "set_impl_enat = phantom set_RBT"
-
-instance ..
-end
-
-definition [code del]: "comparator_sproof' = comparator_sproof ccomp"
-definition [code del]: "comparator_vproof' = comparator_vproof ccomp"
-definition comparator_set' :: "'a :: ccompare set \<Rightarrow> 'a set \<Rightarrow> order" where [code del]: "comparator_set' = comparator_set ccomp"
-
-lemma comparator_set'_code[code]:
-  "(comparator_set' :: 'a :: ccompare set \<Rightarrow> 'a set \<Rightarrow> order) =
-   (case ID CCOMPARE('a) of None \<Rightarrow> Code.abort STR ''comparator_set: ccompare = None'' (\<lambda>_. comparator_set') | _ \<Rightarrow> ccomp)"
-  unfolding comparator_set'_def comparator_set_def cless_eq_set_def cless_set_def ccompare_set_def
-  by (auto simp: ID_Some split: option.splits)
-
-lemmas comparator_sproof'_code[code] =
-   comparator_sproof.simps[of ccomp, unfolded comparator_list'_map2 comparator_list'_map comparator_list'_vals_map_part,
-     folded comparator_sproof'_def comparator_vproof'_def comparator_set'_def]
-lemmas comparator_vproof'_code[code] =
-   comparator_vproof.simps[of ccomp, unfolded comparator_list'_map2 comparator_list'_map comparator_list'_vals_map_part,
-     folded comparator_sproof'_def comparator_vproof'_def comparator_set'_def]
-
-lemma ccompare_sproof_code[code]: "CCOMPARE('a::ccompare sproof) = (case ID CCOMPARE('a) of None \<Rightarrow> None | Some comp_'a \<Rightarrow> Some comparator_sproof')"
-  by (auto simp: ccompare_sproof_def comparator_sproof'_def split: option.splits)
-lemma ccompare_vproof_code[code]: "CCOMPARE('a::ccompare vproof) = (case ID CCOMPARE('a) of None \<Rightarrow> None | Some comp_'a \<Rightarrow> Some comparator_vproof')"
-  by (auto simp: ccompare_vproof_def comparator_vproof'_def split: option.splits)
-
 lemma map_part_code[code]: "Rep_part (map_part f xs) = map (map_prod id f) (Rep_part xs)"
   using Rep_part[of xs]
   by (auto simp: map_part_def intro!: Abs_part_inverse)
@@ -795,11 +789,11 @@ definition default_list :: "'a list" where "default_list = []"
 instance proof qed
 end
 
-derive (no) ceq MFOTL.trm
-derive (monad) set_impl MFOTL.trm
-derive (no) ceq MFOTL.formula
-derive (no) ccompare MFOTL.formula
-derive (monad) set_impl MFOTL.formula
+lemma coset_subset_set_code[code]: "(List.coset (xs :: _ :: infinite list) \<subseteq> set ys) = False"
+  using finite_coset finite_subset by fastforce
+
+lemma is_empty_coset[code]: "Set.is_empty (List.coset (xs :: _ :: infinite list)) = False"
+  using coset_subset_set_code by (fastforce simp: Set.is_empty_def)
 
 definition execute_trivial_eval where
  "execute_trivial_eval \<sigma> vars i \<phi> = Monitor.eval \<sigma> (\<lambda>p1 p2. (p_pred (\<lambda> _. 1) p1) \<le> (p_pred (\<lambda> _. 1) p2)) vars i \<phi>"
@@ -830,7 +824,7 @@ definition phi3 where
   "phi3 = MFOTL.Forall ''last'' (MFOTL.Imp (MFOTL.Pred ''q'' [MFOTL.Var ''last''])
     (MFOTL.Exists ''first'' (MFOTL.Pred ''p'' [MFOTL.Var ''first'', MFOTL.Var ''last''])))"
 
-(* value "execute_trivial_eval mytrace2 [''first'', ''last''] 0 (MFOTL.Pred ''p'' [MFOTL.Var ''first'', MFOTL.Var ''last''])"
+value "execute_trivial_eval mytrace2 [''first'', ''last''] 0 (MFOTL.Pred ''p'' [MFOTL.Var ''first'', MFOTL.Var ''last''])"
 value "execute_trivial_eval mytrace2 [''first'', ''last''] 0 (MFOTL.Pred ''p'' [MFOTL.Var ''first'', MFOTL.Var ''last''])"
 value "execute_trivial_eval mytrace2 [''last''] 0 (MFOTL.Pred ''q'' [MFOTL.Var ''last''])" 
 value "execute_trivial_eval mytrace2 [''first'', ''last''] 1 (MFOTL.Pred ''p'' [MFOTL.Var ''first'', MFOTL.Var ''last''])"
@@ -840,7 +834,7 @@ value "execute_trivial_eval mytrace2 [''first'', ''last''] 1 (MFOTL.And (MFOTL.P
 value "execute_trivial_eval mytrace2 [''first''] 0 phi2"
 value "execute_trivial_eval mytrace2 [''first''] 1 phi2"
 value "execute_trivial_eval mytrace2 [] 0 phi3"
-value "execute_trivial_eval mytrace2 [] 1 phi3" *)
+value "execute_trivial_eval mytrace2 [] 1 phi3"
 
 (* Example 3 *)
 definition mytrace3 :: "string MFOTL.trace" where 
@@ -856,17 +850,229 @@ value "execute_trivial_eval mytrace3 [''y''] 0 phi4"
 value "execute_trivial_eval mytrace3 [''y''] 1 phi4"
 value "execute_trivial_eval mytrace3 [''y''] 2 phi4"
 
+(* Example 4 *)
+definition mytrace4 :: "string MFOTL.trace" where 
+  "mytrace4 = trace_of_list
+     [({(''mgr_S'', [''Mallory'', ''Alice'']),
+        (''mgr_S'', [''Merlin'', ''Bob'']),
+        (''mgr_S'', [''Merlin'', ''Charlie''])}, 1307532861::nat),
+      ({(''approve'', [''Mallory'', ''152''])}, 1307532861),
+      ({(''approve'', [''Merlin'', ''163'']),
+        (''publish'', [''Alice'', ''160'']),
+        (''mgr_F'', [''Merlin'', ''Charlie''])}, 1307955600),
+      ({(''approve'', [''Merlin'', ''187'']),
+        (''publish'', [''Bob'', ''163'']),
+        (''publish'', [''Alice'', ''163'']),
+        (''publish'', [''Charlie'', ''163'']),
+        (''publish'', [''Charlie'', ''152''])}, 1308477599)]"
+
+definition phi5 :: "string MFOTL.formula" where
+  "phi5 = MFOTL.Imp (MFOTL.Pred ''publish'' [MFOTL.Var ''a'', MFOTL.Var ''f''])
+    (MFOTL.Once (init 604800) (MFOTL.Exists ''m'' (MFOTL.Since 
+      (MFOTL.Neg (MFOTL.Pred ''mgr_F'' [MFOTL.Var ''m'', MFOTL.Var ''a''])) all
+      (MFOTL.And (MFOTL.Pred ''mgr_S'' [MFOTL.Var ''m'', MFOTL.Var ''a''])
+                 (MFOTL.Pred ''approve'' [MFOTL.Var ''m'', MFOTL.Var ''f''])))))"
+
+value "execute_trivial_eval mytrace4 [''a'', ''f''] 2 phi5"
+
+(* Example 5 *)
+definition mytrace5 :: "string MFOTL.trace" where 
+  "mytrace5 = trace_of_list
+     [({(''p'', [''10''])}, 0::nat)]"
+
+definition phi6 where
+  "phi6 = MFOTL.Exists ''x'' (MFOTL.Pred ''p'' [MFOTL.Var ''x''])"
+
+value "execute_trivial_eval mytrace5 [''x''] 0 phi6"
+
+export_code Monitor.eval in OCaml module_name Explanator
+
+definition "check \<sigma> v \<phi> p = (case p of Inl sp \<Rightarrow> s_check \<sigma> v \<phi> sp | Inr vp \<Rightarrow> v_check \<sigma> v \<phi> vp)"
+definition "check_exec \<sigma> vs \<phi> p = (case p of Inl sp \<Rightarrow> s_check_exec \<sigma> vs \<phi> sp | Inr vp \<Rightarrow> v_check_exec \<sigma> vs \<phi> vp)"
+
+
 fun check_one where
-  "check_one \<sigma> v \<phi> (Leaf p) = (case p of Inl sp \<Rightarrow> s_check \<sigma> v \<phi> sp | Inr vp \<Rightarrow> v_check \<sigma> v \<phi> vp)"
+  "check_one \<sigma> v \<phi> (Leaf p) = check \<sigma> v \<phi> p"
 | "check_one \<sigma> v \<phi> (Node x part) = check_one \<sigma> v \<phi> (lookup_part part (v x))"
 
 fun check_all_aux where
-  "check_all_aux \<sigma> vs \<phi> (Leaf p) = (case p of Inl sp \<Rightarrow> s_check_exec \<sigma> vs \<phi> sp | Inr vp \<Rightarrow> v_check_exec \<sigma> vs \<phi> vp)"
+  "check_all_aux \<sigma> vs \<phi> (Leaf p) = check_exec \<sigma> vs \<phi> p"
 | "check_all_aux \<sigma> vs \<phi> (Node x part) = (\<forall>(D, e) \<in> set (subsvals part). check_all_aux \<sigma> (vs(x := D)) \<phi> e)"
 
-definition "check_all \<sigma> \<phi> e = check_all_aux \<sigma> (\<lambda>_. UNIV) \<phi> e"
+lift_definition lookup :: "('d, 'a) part \<Rightarrow> 'd \<Rightarrow> ('d set \<times> 'a)" is "\<lambda>xs d. the (find (\<lambda>(D, _). d \<in> D) xs)" .
 
-(*does not work yet, probably due to the Pred case (needs a rewrite via code equation)*)
+lemma snd_lookup[simp]: "snd (lookup part d) = lookup_part part d"
+  by transfer auto
+
+lemma fst_lookup: "d \<in> fst (lookup part d)"
+  apply transfer
+  apply (auto simp: partition_on_def)
+  subgoal for d part
+    apply (subgoal_tac "\<exists>y. find (\<lambda>(D, _). d \<in> D) part = Some y")
+     apply (auto simp: find_Some_iff in_set_conv_nth split_beta)
+     apply (metis (mono_tags, lifting) find_Some_iff2 option.sel split_def)
+    apply (subst (asm) set_eq_iff)
+    apply (drule spec[of _ d])
+    apply (auto simp: in_set_conv_nth)
+    apply (intro exI conjI)
+       apply assumption
+      apply simp
+     apply (erule sym)
+    apply (auto simp: disjoint_def in_set_conv_nth Ball_def image_iff Bex_def)
+    apply (drule spec, drule mp, intro exI conjI, assumption, assumption)
+    apply (drule spec, drule mp, intro exI conjI, erule (1) order.strict_trans,
+        rule surjective_pairing)
+    apply auto
+    apply (metis (mono_tags, lifting) fst_eqD length_map nless_le nth_eq_iff_index_eq nth_map order.strict_trans1)
+    done
+  done
+
+lemma lookup_subsvals: "lookup part d \<in> set (subsvals part)"
+  apply transfer
+  apply (auto simp: partition_on_def)
+  subgoal for part d
+    apply (subgoal_tac "\<exists>y. find (\<lambda>(D, _). d \<in> D) part = Some y")
+    apply (auto simp: find_Some_iff in_set_conv_nth split_beta)
+  apply (metis (mono_tags, lifting) find_Some_iff2 option.sel split_def)
+    apply (subst (asm) set_eq_iff)
+    apply (drule spec[of _ d])
+    apply (auto simp: in_set_conv_nth)
+    apply (intro exI conjI)
+       apply assumption
+      apply simp
+     apply (erule sym)
+    apply (auto simp: disjoint_def in_set_conv_nth Ball_def image_iff Bex_def)
+    apply (drule spec, drule mp, intro exI conjI, assumption, assumption)
+    apply (drule spec, drule mp, intro exI conjI, erule (1) order.strict_trans,
+      rule surjective_pairing)
+    apply auto
+    apply (metis (mono_tags, lifting) fst_eqD length_map nless_le nth_eq_iff_index_eq nth_map order.strict_trans1)
+    done
+  done
+
+lemma sat_vorder_Node:
+ "distinct xs \<Longrightarrow> sat_vorder xs (Node x part) = (\<exists>ys zs. xs = ys @ x # zs \<and> (\<forall>e \<in> Vals part. sat_vorder zs e))"
+  apply safe
+  apply (rotate_tac -1)
+   apply (induct xs "Node x part" rule: sat_vorder.induct)
+    apply auto
+   apply (metis append_Cons)
+  subgoal for ys zs
+    apply (induct ys arbitrary: xs)
+     apply (auto intro: sat_vorder.intros)
+    done
+  done
+
+fun vars where
+  "vars (Leaf _) = {}"
+| "vars (Node x part) = {x} \<union> (\<Union>e \<in> Vals part. vars e)"
+
+fun distinct_paths where
+  "distinct_paths (Leaf _) = True"
+| "distinct_paths (Node x part) = (\<forall>e \<in> Vals part. x \<notin> vars e \<and> distinct_paths e)"
+
+lemma check_one_cong: "\<forall>x\<in>MFOTL.fv \<phi> \<union> vars e. v x = v' x \<Longrightarrow> check_one \<sigma> v \<phi> e = check_one \<sigma> v' \<phi> e"
+  apply (induct e arbitrary: v v')
+   apply (auto simp: check_def check_fv_cong split: sum.splits)
+  apply (metis (full_types) Set.set_insert UN_insert UnE UnI1 UnI2 lookup_part_Vals)
+  apply (metis (full_types) Set.set_insert UN_insert UnE UnI1 UnI2 lookup_part_Vals)
+  done
+
+lemma lookup_part_from_subvals: "(D, e) \<in> set (subsvals part) \<Longrightarrow> d \<in> D \<Longrightarrow> lookup_part part d = e"
+  apply transfer
+  subgoal for D e part d
+    apply (cases "find (\<lambda>(D, _). d \<in> D) part")
+     apply (auto simp: partition_on_def image_iff find_None_iff) []
+    apply simp
+    apply (auto simp: partition_on_def disjoint_def Ball_def Bex_def image_iff find_Some_iff in_set_conv_nth)
+    apply (metis IntI empty_iff eq_key_imp_eq_value nth_mem)
+    done
+  done
+
+lemma check_all_aux_check_one: "\<forall>x. vs x \<noteq> {} \<Longrightarrow> distinct_paths e \<Longrightarrow> (\<forall>x \<in> vars e. vs x = UNIV) \<Longrightarrow>
+  check_all_aux \<sigma> vs \<phi> e \<longleftrightarrow> (\<forall>v \<in> compatible_vals (MFOTL.fv \<phi>) vs. check_one \<sigma> v \<phi> e)"
+  apply (induct e arbitrary: vs)
+   apply (auto simp: check_exec_def check_def check_exec_check split_beta sat_vorder_Node
+      split: sum.splits if_splits)
+  subgoal for x part vs v
+    apply (drule bspec, rule lookup_subsvals)
+    apply simp
+    apply (drule meta_spec)+
+    apply (drule meta_mp)
+     defer
+    apply (drule meta_mp)
+      defer
+    apply (drule meta_mp)
+       defer
+      apply (drule iffD1)
+    apply assumption
+      apply (erule bspec)
+     apply (auto simp: compatible_vals_fun_upd) []
+      apply (erule compatible_vals_antimono[THEN set_mp, rotated])
+       apply blast
+    apply (auto simp: compatible_vals_def) []
+     apply (rule fst_lookup)
+    using fst_lookup[of "v x" part]
+    apply auto
+    apply force
+    done
+  subgoal for x part vs D e
+    apply (subgoal_tac "\<exists>d. d \<in> D")
+     prefer 2
+    subgoal
+      apply transfer
+      apply (auto simp: partition_on_def image_iff)
+      done
+    apply (erule exE)
+    subgoal for d
+      apply (drule meta_spec[of _ e])
+      apply (drule meta_spec[of _ "vs(x := D)"])
+      apply (drule meta_mp)
+      subgoal
+        apply transfer
+        apply (auto simp: image_iff)
+        apply force
+        done
+      apply (drule meta_mp)
+      apply auto []
+      apply (drule meta_mp)
+       apply auto []
+      using lookup_part_from_subvals apply fastforce
+      apply (metis UNIV_I lookup_part_Vals lookup_part_from_subvals)
+      apply (erule iffD2)
+      apply (rule ballI)
+      apply (auto simp add: compatible_vals_fun_upd split: if_splits)
+      subgoal for v
+        apply (drule bspec[of _ _ "v"])
+         apply (auto simp: compatible_vals_def) []
+        apply (subst (asm) lookup_part_from_subvals)
+        apply assumption
+        apply assumption
+        apply assumption
+        done
+      subgoal for v
+        apply (drule bspec[of _ _ "v(x := d)"])
+        apply (auto simp: compatible_vals_def) []
+        apply (subst (asm) lookup_part_from_subvals)
+          apply assumption
+         apply simp
+        apply (erule iffD1[OF check_one_cong, rotated -1])
+        apply (drule bspec[of _ _ e])
+         apply (metis lookup_part_Vals lookup_part_from_subvals)
+        apply auto
+        done
+      done
+    done
+  done
+
+definition check_all :: "(string \<times> 'd ::  {default,linorder} list) trace \<Rightarrow> 'd MFOTL.formula \<Rightarrow> ('d, 'd proof) pdt \<Rightarrow> bool" where
+  "check_all \<sigma> \<phi> e = (distinct_paths e \<and> check_all_aux \<sigma> (\<lambda>_. UNIV) \<phi> e)"
+
+lemma check_all_check_one: "check_all \<sigma> \<phi> e = (distinct_paths e \<and> (\<forall>v. check_one \<sigma> v \<phi> e))"
+  unfolding check_all_def
+  by (rule conj_cong[OF refl], subst check_all_aux_check_one)
+    (auto simp: compatible_vals_def)
+
 value "check_one mytrace2 (\<lambda>_. default) phi3 (execute_trivial_eval mytrace2 [] 0 phi3)"
 value "check_all mytrace2 phi3 (execute_trivial_eval mytrace2 [] 0 phi3)"
 
