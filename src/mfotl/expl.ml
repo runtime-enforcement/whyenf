@@ -11,17 +11,11 @@
 open Base
 open Pred
 
-type intset = (int, Int.comparator_witness) Set.t
+type dom = (Domain.t, Domain.comparator_witness) Set.t
 
-type strset = (string, String.comparator_witness) Set.t
+type 'a coset = Finite of 'a | Complement of 'a
 
-type floatset = (float, Float.comparator_witness) Set.t
-
-type domset = IntSet of intset | StrSet of strset | FloatSet of floatset
-
-type coset = Finite of domset | Complement of domset
-
-type 'a part = Abs_part of (coset * 'a) list
+type 'a part = Abs_part of (dom coset * 'a) list
 
 type sproof =
   | STT of int
