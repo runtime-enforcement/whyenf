@@ -11,11 +11,7 @@
 open Base
 open Pred
 
-type dom = (Domain.t, Domain.comparator_witness) Set.t
-
-type 'a coset = Finite of 'a | Complement of 'a
-
-type 'a part = Abs_part of (dom coset * 'a) list
+type 'a part = Abs_part of ((Domain.t, Domain.comparator_witness) Coset.t * 'a) list
 
 type sproof =
   | STT of int
@@ -74,3 +70,11 @@ type 'a pdt = Leaf of 'a | Node of string * ('a pdt) part
 type proof = S of sproof | V of vproof
 
 type expl = proof pdt
+
+(* let rec merge_part2 f part1 part2 = match part1, part2 with *)
+(*   | Abs_part [], Abs_part [] -> Abs_part [] *)
+(*   | Abs_part ((sub1, v1) :: part1), Abs_part part2 -> *)
+(*      (let part12 = List.filter_map part2 *)
+(*                      (fun (sub2, v2) -> *)
+(*                        (if not (Coset.is_empty (inf_set _D1 sub1 sub2)) *)
+(*                         then Some (inf_set _D1 p1 p2, f v1 v2) else None)) in *)
