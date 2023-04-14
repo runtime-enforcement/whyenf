@@ -71,10 +71,45 @@ type proof = S of sproof | V of vproof
 
 type expl = proof pdt
 
-(* let rec merge_part2 f part1 part2 = match part1, part2 with *)
-(*   | Abs_part [], Abs_part [] -> Abs_part [] *)
-(*   | Abs_part ((sub1, v1) :: part1), Abs_part part2 -> *)
-(*      (let part12 = List.filter_map part2 *)
-(*                      (fun (sub2, v2) -> *)
-(*                        (if not (Coset.is_empty (inf_set _D1 sub1 sub2)) *)
-(*                         then Some (inf_set _D1 p1 p2, f v1 v2) else None)) in *)
+let the_part = function
+  | Abs_part part -> part
+
+let map_part part f = match part with
+  | Abs_part part -> Abs_part (List.map part (fun (s, p) -> (s, f p)))
+
+let rec merge_part2 f part1 part2 = match part1, part2 with
+  | Abs_part [], Abs_part [] -> Abs_part []
+  | Abs_part ((sub1, v1) :: part1), Abs_part part2 ->
+     let part12 = List.filter_map part2
+                    (fun (sub2, v2) ->
+                      (if not (Coset.is_empty (Coset.inter sub1 sub2))
+                       then Some (Coset.inter sub1 sub2, f v1 v2) else None)) in
+     let part2not1 = List.filter_map part2
+                       (fun (sub2, v2) ->
+                         (if not (Coset.is_empty (Coset.diff sub2 sub1))
+                          then Some (Coset.diff sub2 sub1, v2) else None)) in
+     Abs_part (part12 @ (the_part (merge_part2 f (Abs_part part1) (Abs_part part2not1))))
+
+let rec apply_pdt1 vars f expl = match vars, expl with
+  | vars, Leaf pt -> Leaf (f pt)
+  | z :: vars, Node (x, part) ->
+     if String.equal x z then
+       Node (x, map_part part (apply_pdt1 vars f))
+     else apply_pdt1 vars f (Node (x, part))
+  | _ -> raise (Invalid_argument "variable list is empty")
+
+let rec apply_pdt2 vars f expl1 expl2 = match vars, expl1, expl2 with
+  | vars, Leaf pt1, Leaf pt2 -> Leaf (f pt1 pt2)
+  | vars, Leaf pt1, Node (x, part2) ->
+     Node (x, map_part part2 (apply_pdt1 vars (f pt1)))
+  | vars, Node (x, part1), Leaf pt2 ->
+     Node (x, map_part part1 (apply_pdt1 vars (fun pt1 -> f pt1 pt2)))
+  | z :: vars, Node (x, part1), Node (y, part2) ->
+     if String.equal x z && String.equal y z then
+       Node (z, merge_part2 (apply_pdt2 vars f) part1 part2)
+     else (if String.equal x z then
+             Node (x, map_part part1 (fun e1 -> apply_pdt2 vars f e1 (Node (y, part2))))
+           else (if String.equal y z then
+                   Node (y, map_part part2 (apply_pdt2 vars f (Node (x, part1))))
+                 else apply_pdt2 vars f (Node (x, part1)) (Node (y, part2))))
+  | _ -> raise (Invalid_argument "variable list is empty")
