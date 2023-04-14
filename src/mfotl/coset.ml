@@ -31,11 +31,3 @@ let diff cs1 cs2 = match cs1, cs2 with
   | Finite s1, Complement s2 -> Finite (Set.inter s1 s2)
   | Complement s1, Finite s2 -> Complement (Set.union s1 s2)
   | Complement s1, Complement s2 -> inter (Complement s1) (Finite s2)
-
-(* let mycoset1 = Finite (Set.of_list (module Int) [1;2;3]) *)
-(* let mycoset2 = Complement (Set.of_list (module Int) [3;4]) *)
-(* let mycoset3 = Complement (Set.of_list (module Int) [4;5]) *)
-
-(* let result = match diff mycoset2 mycoset3 with *)
-(*   | Finite s -> Set.to_list s *)
-(*   | Complement s -> (-222) :: (Set.to_list s) *)
