@@ -21,7 +21,7 @@ module Part = struct
 
   let map part f = Abs_part (List.map (the part) (fun (s, p) -> (s, f p)))
 
-  let fold_left part init f = List.fold_left (the part) ~init:init ~f:(fun acc (_, p) -> f acc p)
+  let fold_left_snd part init f = List.fold_left (the part) ~init:init ~f:(fun acc (_, p) -> f acc p)
 
   let rec merge2 f part1 part2 = match part1, part2 with
     | Abs_part [], Abs_part [] -> Abs_part []
@@ -35,6 +35,16 @@ module Part = struct
                            (if not (Coset.is_empty (Coset.diff sub2 sub1))
                             then Some (Coset.diff sub2 sub1, v2) else None)) in
        Abs_part (part12 @ (the (merge2 f (Abs_part part1) (Abs_part part2not1))))
+
+  let el_to_string indent f (sub, v) =
+    Printf.sprintf "%scoset = {%s}\n%s%s" indent (Coset.to_string sub) indent (f indent v)
+
+  let to_string indent f part = match the part with
+    | [] -> indent ^ "[]"
+    | [x] -> indent ^ Etc.eat "[" ((el_to_string indent f x) ^ "]")
+    | x :: xs ->
+       List.fold_left ~f:(fun s el -> Etc.eat (s ^ "\n" ^ indent ^ "; ") (el_to_string indent f el))
+         ~init:(indent ^ Etc.eat "[ " (el_to_string indent f x)) xs ^ " ]"
 
 end
 
@@ -59,7 +69,7 @@ module Proof = struct
     | SOnce of int * sp
     | SEventually of int * sp
     | SHistorically of int * int * sp Fdeque.t
-    | SHistoricallyOutL of int
+    | SHistoricallyOut of int
     | SAlways of int * int * sp Fdeque.t
     | SSince of sp * sp Fdeque.t
     | SUntil of sp * sp Fdeque.t
@@ -137,7 +147,7 @@ module Proof = struct
     | SOnce (tp, _) -> tp
     | SEventually (tp, _) -> tp
     | SHistorically (tp, _, _) -> tp
-    | SHistoricallyOutL tp -> tp
+    | SHistoricallyOut tp -> tp
     | SAlways (tp, _, _) -> tp
     | SSince (sp2, sp1s) -> if Fdeque.is_empty sp1s then s_at sp2
                             else s_at (Fdeque.peek_back_exn sp1s)
@@ -204,13 +214,13 @@ module Proof = struct
       | SIffSS (sp1, sp2) -> 1 + s sp1 + s sp2
       | SIffVV (vp1, vp2) -> 1 + v vp1 + v vp2
       | SExists (_, _, sp) -> 1 + s sp
-      | SForall (_, part) -> 1 + (Part.fold_left part 0 (fun a sp -> a + s sp))
+      | SForall (_, part) -> 1 + (Part.fold_left_snd part 0 (fun a sp -> a + s sp))
       | SPrev sp -> 1 + s sp
       | SNext sp -> 1 + s sp
       | SOnce (_, sp) -> 1 + s sp
       | SEventually (_, sp) -> 1 + s sp
       | SHistorically (_, _, sps) -> 1 + sum s sps
-      | SHistoricallyOutL _ -> 1
+      | SHistoricallyOut _ -> 1
       | SAlways (_, _, sps) -> 1 + sum s sps
       | SSince (sp2, sp1s) -> 1 + s sp2 + sum s sp1s
       | SUntil (sp2, sp1s) -> 1 + s sp2 + sum s sp1s
@@ -224,7 +234,7 @@ module Proof = struct
       | VImp (sp1, vp2) -> 1 + s sp1 + v vp2
       | VIffSV (sp1, vp2) -> 1 + s sp1 + v vp2
       | VIffVS (vp1, sp2) -> 1 + v vp1 + s sp2
-      | VExists (_, part) -> 1 + (Part.fold_left part 0 (fun a vp -> a + v vp))
+      | VExists (_, part) -> 1 + (Part.fold_left_snd part 0 (fun a vp -> a + v vp))
       | VForall (_, _, vp) -> 1 + v vp
       | VPrev vp -> 1 + v vp
       | VPrev0 -> 1
@@ -255,6 +265,84 @@ module Proof = struct
     let minsize_list = function
       | [] -> raise (Invalid_argument "minsize_list is not defined for empty lists")
       | x :: xs -> List.fold_left xs x minsize
+
+    let rec s_to_string indent p =
+      let indent' = "\t" ^ indent in
+      match p with
+      | STT i -> Printf.sprintf "%strue{%d}" indent i
+      | SPred (tp, r, trms) -> Printf.sprintf "%s%s{%d}{%s}" indent r tp (Pred.Term.list_to_string trms)
+      | SNeg vp -> Printf.sprintf "%sSNeg{%d}\n%s" indent (s_at p) (v_to_string indent' vp)
+      | SOrL sp1 -> Printf.sprintf "%sSOrL{%d}\n%s" indent (s_at p) (s_to_string indent' sp1)
+      | SOrR sp2 -> Printf.sprintf "%sSOrR{%d}\n%s" indent (s_at p) (s_to_string indent' sp2)
+      | SAnd (sp1, sp2) -> Printf.sprintf "%sSAnd{%d}\n%s\n%s" indent (s_at p)
+                             (s_to_string indent' sp1) (s_to_string indent' sp2)
+      | SImpL vp1 -> Printf.sprintf "%sSImpL{%d}\n%s" indent (s_at p) (v_to_string indent' vp1)
+      | SImpR sp2 -> Printf.sprintf "%sSImpR{%d}\n%s" indent (s_at p) (s_to_string indent' sp2)
+      | SIffSS (sp1, sp2) -> Printf.sprintf "%sSIffSS{%d}\n%s\n%s" indent (s_at p)
+                               (s_to_string indent' sp1) (s_to_string indent' sp2)
+      | SIffVV (vp1, vp2) -> Printf.sprintf "%sSIffVV{%d}\n%s\n%s" indent (s_at p)
+                               (v_to_string indent' vp1) (v_to_string indent' vp2)
+      | SExists (x, d, sp) -> Printf.sprintf "%sSExists{%d}{%s=%s}\n%s\n" indent (s_at p)
+                                x (Domain.to_string d) (s_to_string indent' sp)
+      | SForall (x, part) -> Printf.sprintf "%sSForall{%d}{%s}\n%s\n" indent (s_at (SForall (x, part)))
+                               x (Part.to_string indent' s_to_string part)
+      | SPrev sp -> Printf.sprintf "%sSPrev{%d}\n%s" indent (s_at p) (s_to_string indent' sp)
+      | SNext sp -> Printf.sprintf "%sSNext{%d}\n%s" indent (s_at p) (s_to_string indent' sp)
+      | SOnce (_, sp) -> Printf.sprintf "%sSOnce{%d}\n%s" indent (s_at p) (s_to_string indent' sp)
+      | SEventually (_, sp) -> Printf.sprintf "%sSEventually{%d}\n%s" indent (s_at p)
+                                 (s_to_string indent' sp)
+      | SHistorically (_, _, sps) -> Printf.sprintf "%sSHistorically{%d}\n%s" indent (s_at p)
+                                       (Fdeque.to_string indent' s_to_string sps)
+      | SHistoricallyOut i -> Printf.sprintf "%sSHistoricallyOut{%d}" indent' i
+      | SAlways (_, _, sps) -> Printf.sprintf "%sSAlways{%d}\n%s" indent (s_at p)
+                                 (Fdeque.to_string indent' s_to_string sps)
+      | SSince (sp2, sp1s) -> Printf.sprintf "%sSSince{%d}\n%s\n%s" indent (s_at p) (s_to_string indent' sp2)
+                                (Fdeque.to_string indent' s_to_string sp1s)
+      | SUntil (sp2, sp1s) -> Printf.sprintf "%sSUntil{%d}\n%s\n%s" indent (s_at p)
+                                (Fdeque.to_string indent' s_to_string sp1s) (s_to_string indent' sp2)
+    and v_to_string indent p =
+      let indent' = "\t" ^ indent in
+      match p with
+      | VFF i -> Printf.sprintf "%sfalse{%d}" indent i
+      | VPred (tp, r, trms) ->  Printf.sprintf "%s!%s{%d}{%s}" indent r tp (Pred.Term.list_to_string trms)
+      | VNeg sp -> Printf.sprintf "%sVNeg{%d}\n%s" indent (v_at p) (s_to_string indent' sp)
+      | VOr (vp1, vp2) -> Printf.sprintf "%sVOr{%d}\n%s\n%s" indent (v_at p) (v_to_string indent' vp1) (v_to_string indent' vp2)
+      | VAndL vp1 -> Printf.sprintf "%sVAndL{%d}\n%s" indent (v_at p) (v_to_string indent' vp1)
+      | VAndR vp2 -> Printf.sprintf "%sVAndR{%d}\n%s" indent (v_at p) (v_to_string indent' vp2)
+      | VImp (sp1, vp2) -> Printf.sprintf "%sVImp{%d}\n%s\n%s" indent (v_at p) (s_to_string indent' sp1) (v_to_string indent' vp2)
+      | VIffSV (sp1, vp2) -> Printf.sprintf "%sVIffSV{%d}\n%s\n%s" indent (v_at p) (s_to_string indent' sp1) (v_to_string indent' vp2)
+      | VIffVS (vp1, sp2) -> Printf.sprintf "%sVIffVS{%d}\n%s\n%s" indent (v_at p) (v_to_string indent' vp1) (s_to_string indent' sp2)
+      | VExists (x, part) -> Printf.sprintf "%sVExists{%d}{%s}\n%s\n" indent (v_at (VExists (x, part)))
+                               x (Part.to_string indent' v_to_string part)
+      | VForall (x, d, vp) -> Printf.sprintf "%sSExists{%d}{%s=%s}\n%s\n" indent (v_at p)
+                                x (Domain.to_string d) (v_to_string indent' vp)
+      | VPrev vp -> Printf.sprintf "%sVPrev{%d}\n%s" indent (v_at p) (v_to_string indent' vp)
+      | VPrev0 -> Printf.sprintf "%sVPrev0{0}" indent'
+      | VPrevOutL i -> Printf.sprintf "%sVPrevOutL{%d}" indent' i
+      | VPrevOutR i -> Printf.sprintf "%sVPrevOutR{%d}" indent' i
+      | VNext vp -> Printf.sprintf "%sVNext{%d}\n%s" indent (v_at p) (v_to_string indent' vp)
+      | VNextOutL i -> Printf.sprintf "%sVNextOutL{%d}" indent' i
+      | VNextOutR i -> Printf.sprintf "%sVNextOutR{%d}" indent' i
+      | VOnceOut i -> Printf.sprintf "%sVOnceOut{%d}" indent' i
+      | VOnce (_, _, vps) -> Printf.sprintf "%sVOnce{%d}\n%s" indent (v_at p)
+                               (Fdeque.to_string indent' v_to_string vps)
+      | VEventually (_, _, vps) -> Printf.sprintf "%sVEventually{%d}\n%s" indent (v_at p)
+                                     (Fdeque.to_string indent' v_to_string vps)
+      | VHistorically (_, vp) -> Printf.sprintf "%sVHistorically{%d}\n%s" indent (v_at p) (v_to_string indent' vp)
+      | VAlways (_, vp) -> Printf.sprintf "%sVAlways{%d}\n%s" indent (v_at p) (v_to_string indent' vp)
+      | VSinceOut i -> Printf.sprintf "%sVSinceOut{%d}" indent' i
+      | VSince (_, vp1, vp2s) -> Printf.sprintf "%sVSince{%d}\n%s\n%s" indent (v_at p) (v_to_string indent' vp1)
+                                   (Fdeque.to_string indent' v_to_string vp2s)
+      | VSinceInf (_, _, vp2s) -> Printf.sprintf "%sVSinceInf{%d}\n%s" indent (v_at p)
+                                    (Fdeque.to_string indent' v_to_string vp2s)
+      | VUntil (_, vp1, vp2s) -> Printf.sprintf "%sVUntil{%d}\n%s\n%s" indent (v_at p)
+                                   (Fdeque.to_string indent' v_to_string vp2s) (v_to_string indent' vp1)
+      | VUntilInf (_, _, vp2s) -> Printf.sprintf "%sVUntilInf{%d}\n%s" indent (v_at p)
+                                    (Fdeque.to_string indent' v_to_string vp2s)
+
+    let to_string = function
+      | S p -> s_to_string "" p
+      | V p -> v_to_string "" p
 
   end
 

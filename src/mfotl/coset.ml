@@ -31,3 +31,13 @@ let diff cs1 cs2 = match cs1, cs2 with
   | Finite s1, Complement s2 -> Finite (Set.inter s1 s2)
   | Complement s1, Finite s2 -> Complement (Set.union s1 s2)
   | Complement s1, Complement s2 -> inter (Complement s1) (Finite s2)
+
+let to_string cs =
+  let rec format s =
+    if Int.equal (Set.length s) 0 then ""
+    else (if Int.equal (Set.length s) 1 then Domain.to_string (Set.choose_exn s)
+          else (let min = Set.min_elt_exn s in
+                Printf.sprintf "%s, " (Domain.to_string min) ^ (format (Set.remove s min)))) in
+  match cs with
+  | Finite s -> Printf.sprintf "Finite {%s}" (format s)
+  | Complement s -> Printf.sprintf "Complement {%s}" (format s)
