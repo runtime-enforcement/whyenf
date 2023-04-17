@@ -25,3 +25,7 @@ val peek_back_exn: 'a t -> 'a
 val peek_front_exn: 'a t -> 'a
 
 val fold: 'a t -> init: 'b -> f:('b -> 'a -> 'b) -> 'b
+
+val length: 'a t -> int
+
+val to_string: string -> (string -> 'a -> string) -> 'a t -> string
