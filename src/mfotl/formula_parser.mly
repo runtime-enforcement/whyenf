@@ -15,6 +15,7 @@ open Formula
 %token LOPEN
 %token ROPEN
 %token COMMA
+%token DOT
 %token EOF
 
 %token <Interval.t> INTERVAL
@@ -23,8 +24,8 @@ open Formula
 %token FALSE
 %token TRUE
 %token NEG
-%token CONJ
-%token DISJ
+%token AND
+%token OR
 %token IMP
 %token IFF
 %token EXISTS
@@ -40,24 +41,14 @@ open Formula
 %token RELEASE
 %token TRIGGER
 
-
 %nonassoc INTERVAL
+%right SINCE UNTIL RELEASE TRIGGER
+%nonassoc PREV NEXT ONCE EVENTUALLY HISTORICALLY ALWAYS
+%nonassoc EXISTS FORALL
+%right IFF IMP
+%left OR
+%left AND
 %nonassoc NEG
-%nonassoc PREV
-%nonassoc NEXT
-%nonassoc ONCE
-%nonassoc EVENTUALLY
-%nonassoc HISTORICALLY
-%nonassoc ALWAYS
-%nonassoc SINCE
-%nonassoc UNTIL
-%nonassoc RELEASE
-%nonassoc TRIGGER
-
-%right IFF
-%right IMP
-%left DISJ
-%left CONJ
 
 %type <Formula.t> formula
 %start formula
@@ -72,8 +63,6 @@ e:
 | TRUE                                 { tt }
 | FALSE                                { ff }
 | NEG e                                { neg $2 }
-| EXISTS STRING e                      { exists $2 $3 }
-| FORALL STRING e                      { forall $2 $3 }
 | PREV INTERVAL e                      { prev $2 $3 }
 | PREV e                               { prev Interval.full $2 }
 | NEXT INTERVAL e                      { next $2 $3 }
@@ -86,8 +75,8 @@ e:
 | HISTORICALLY e                       { historically Interval.full $2 }
 | ALWAYS INTERVAL e                    { always $2 $3 }
 | ALWAYS e                             { always Interval.full $2 }
-| e CONJ e                             { conj $1 $3 }
-| e DISJ e                             { disj $1 $3 }
+| e AND e                              { conj $1 $3 }
+| e OR e                               { disj $1 $3 }
 | e IMP e                              { imp $1 $3 }
 | e IFF e                              { iff $1 $3 }
 | e SINCE INTERVAL e                   { since $3 $1 $4 }
@@ -98,6 +87,8 @@ e:
 | e TRIGGER e                          { trigger Interval.full $1 $3 }
 | e RELEASE INTERVAL e                 { release $3 $1 $4 }
 | e RELEASE e                          { release Interval.full $1 $3 }
+| EXISTS STRING DOT e %prec EXISTS     { exists $2 $4 }
+| FORALL STRING DOT e %prec FORALL     { forall $2 $4 }
 | STRING sterms                        { predicate $1 $2 }
 
 sterms:
