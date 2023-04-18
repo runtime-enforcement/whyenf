@@ -3,6 +3,7 @@
 
 (menhir
  (modules sig_parser db_parser formula_parser))
+ ;; debug (flags --explain --dump)
 
 (library
  (name mfotl)
