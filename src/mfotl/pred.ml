@@ -35,19 +35,19 @@ module Sig = struct
 
   type t = string * props [@@deriving compare, sexp_of, hash]
 
-  let sig_table : (string, props) Hashtbl.t = Hashtbl.create (module String)
+  let table : (string, props) Hashtbl.t = Hashtbl.create (module String)
 
   let n_tt v_name st = (v_name, Domain.tt_of_string st)
 
-  let sig_pred p_name ntconsts =
+  let make p_name ntconsts =
     let props = { arity = List.length ntconsts; ntconsts } in
-    let () = Hashtbl.add_exn sig_table p_name props in
+    let () = Hashtbl.add_exn table p_name props in
     (p_name, props)
 
 end
 
 let make_terms p_name strms =
-  let sig_pred = Hashtbl.find_exn Sig.sig_table p_name in
+  let sig_pred = Hashtbl.find_exn Sig.table p_name in
   if List.length strms = sig_pred.arity then
     List.map2_exn strms sig_pred.ntconsts
       (fun s ntc -> if String.equal s (fst ntc) then Term.Var s

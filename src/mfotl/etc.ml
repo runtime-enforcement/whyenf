@@ -11,3 +11,5 @@
 open Base
 
 let eat s t = s ^ (String.strip t)
+
+let paren h k x = if h>k then "("^^x^^")" else x
