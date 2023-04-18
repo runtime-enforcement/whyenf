@@ -26,7 +26,15 @@ let peek_front_exn d = Deque.peek_back_exn d
 
 let fold d = Deque.fold d
 
+let iter d = Deque.iter d
+
+let create () = Deque.create ()
+
 let length d = Deque.length d
+
+let dequeue_front_exn d = Deque.dequeue_front_exn d
+
+let dequeue_back_exn d = Deque.dequeue_back_exn d
 
 let to_string indent f d =
   if is_empty d then indent ^ "[]"
