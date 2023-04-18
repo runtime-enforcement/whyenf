@@ -46,8 +46,8 @@ and skip n = parse
   | newline                        { Lexing.new_line lexbuf; skip n lexbuf }
   | "*/"                           { if n=1 then token lexbuf else skip (n-1) lexbuf }
   | "/*"                           { skip (n+1) lexbuf }
-  | _                              { skip n lexbuf }
   | eof                            { lexing_error lexbuf "Unterminated comment" }
+  | _                              { skip n lexbuf }
 
 and skip_line = parse
   | newline                        { Lexing.new_line lexbuf; token lexbuf }

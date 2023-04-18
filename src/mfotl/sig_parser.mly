@@ -15,11 +15,11 @@
 %token COLON
 %token EOF
 
-%start <Pred.Sig.t> sig_pred
+%start <Pred.Sig.t> pred_sig
 %%
 
-sig_pred:
-| STRING LOPEN n_tts ROPEN               { Pred.Sig.sig_pred $1 $3 }
+pred_sig:
+| STRING LOPEN n_tts ROPEN EOF           { Pred.Sig.make $1 $3 }
 
 n_tts:
 | ntts=separated_list (COMMA, n_tt)      { ntts }
