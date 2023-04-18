@@ -36,11 +36,12 @@ let string = (letter | digit | '_' | '[' | ']' | '/' | '-' | '.' | '!')+
 rule token = parse
   | newline                                       { Lexing.new_line lexbuf; token lexbuf }
   | blank                                         { token lexbuf }
+  | '.'                                           { DOT }
   | "false" | "⊥"                                 { FALSE }
   | "true" | "⊤"                                  { TRUE }
   | '!' | "¬" | "NOT"                             { NEG }
-  | '&' | "∧" | "AND"                             { CONJ }
-  | '|' | "∨" | "OR"                              { DISJ }
+  | '&' | "∧" | "AND"                             { AND }
+  | '|' | "∨" | "OR"                              { OR }
   | "=>" | "->" | "→" | "IMPLIES"                 { IMP }
   | "<=>"  | "<->" | "↔" | "IFF"                  { IFF }
   | "∃"  | "EXISTS"                               { EXISTS }
