@@ -4,61 +4,61 @@
 (*           (see file LICENSE for more details)                   *)
 (*                                                                 *)
 (*  Copyright 2023:                                                *)
-(*  Dmitriy Traytel (ETH Zürich)                                   *)
+(*  Dmitriy Traytel (UCPH)                                         *)
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
-open Util.Interval
+open Pred
 
-type formula =
+type t =
   | TT
   | FF
-  | Predicate of string * (Pred.Term.t list)
-  | Neg of formula
-  | Conj of formula * formula
-  | Disj of formula * formula
-  | Imp of formula * formula
-  | Iff of formula * formula
-  | Exists of string * formula
-  | Forall of string * formula
-  | Prev of interval * formula
-  | Next of interval * formula
-  | Once of interval * formula
-  | Historically of interval * formula
-  | Eventually of interval * formula
-  | Always of interval * formula
-  | Since of interval * formula * formula
-  | Until of interval * formula * formula
+  | Predicate of string * Term.t list
+  | Neg of t
+  | And of t * t
+  | Or of t * t
+  | Imp of t * t
+  | Iff of t * t
+  | Exists of string * t
+  | Forall of string * t
+  | Prev of Interval.t * t
+  | Next of Interval.t * t
+  | Once of Interval.t * t
+  | Historically of Interval.t * t
+  | Eventually of Interval.t * t
+  | Always of Interval.t * t
+  | Since of Interval.t * t * t
+  | Until of Interval.t * t * t
 
-val tt: formula
-val ff: formula
-val predicate: string -> string list -> formula
-val neg: formula -> formula
-val conj: formula -> formula -> formula
-val disj: formula -> formula -> formula
-val imp: formula -> formula -> formula
-val iff: formula -> formula -> formula
-val exists: string -> formula -> formula
-val forall: string -> formula -> formula
-val prev: interval -> formula -> formula
-val next: interval -> formula -> formula
-val once: interval -> formula -> formula
-val historically: interval -> formula -> formula
-val eventually: interval -> formula -> formula
-val always: interval -> formula -> formula
-val since: interval -> formula -> formula -> formula
-val until: interval -> formula -> formula -> formula
-val trigger: interval -> formula -> formula -> formula
-val release: interval -> formula -> formula -> formula
+val tt: t
+val ff: t
+val predicate: string -> string list -> t
+val neg: t -> t
+val conj: t -> t -> t
+val disj: t -> t -> t
+val imp: t -> t -> t
+val iff: t -> t -> t
+val exists: string -> t -> t
+val forall: string -> t -> t
+val prev: Interval.t -> t -> t
+val next: Interval.t -> t -> t
+val once: Interval.t -> t -> t
+val historically: Interval.t -> t -> t
+val eventually: Interval.t -> t -> t
+val always: Interval.t -> t -> t
+val since: Interval.t -> t -> t -> t
+val until: Interval.t -> t -> t -> t
+val trigger: Interval.t -> t -> t -> t
+val release: Interval.t -> t -> t -> t
 
-val hp: formula -> int
-val hf: formula -> int
-val height: formula -> int
+val hp: t -> int
+val hf: t -> int
+val height: t -> int
 
-val subfs_bfs: formula list -> formula list
-val subfs_dfs: formula -> formula list
-val preds: formula -> formula list
+val subfs_bfs: t list -> t list
+val subfs_dfs: t -> t list
+val preds: t -> t list
 
-val f_to_string: formula -> string
-val op_to_string: formula -> string
-val f_to_json: formula -> string
+val op_to_string: t -> string
+val to_string: t -> string
+val to_json: t -> string

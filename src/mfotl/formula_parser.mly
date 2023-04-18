@@ -9,9 +9,7 @@
  *******************************************************************/
 
 %{
-open Util.Interval
 open Formula
-open Pred
 %}
 
 %token LOPEN
@@ -19,7 +17,7 @@ open Pred
 %token COMMA
 %token EOF
 
-%token <Util.Interval.interval> INTERVAL
+%token <Interval.t> INTERVAL
 %token <string> STRING
 
 %token FALSE
@@ -44,7 +42,6 @@ open Pred
 
 
 %nonassoc INTERVAL
-%nonassoc VAR
 %nonassoc NEG
 %nonassoc PREV
 %nonassoc NEXT
@@ -62,46 +59,46 @@ open Pred
 %left DISJ
 %left CONJ
 
-%type <Formula.formula> formula
+%type <Formula.t> formula
 %start formula
 
 %%
 
 formula:
-| e EOF                               { $1 }
+| e EOF                                { $1 }
 
 e:
 | LOPEN e ROPEN                        { $2 }
 | TRUE                                 { tt }
 | FALSE                                { ff }
-| STRING sterms                        { predicate $1 $2 }
 | NEG e                                { neg $2 }
+| EXISTS STRING e                      { exists $2 $3 }
+| FORALL STRING e                      { forall $2 $3 }
+| PREV INTERVAL e                      { prev $2 $3 }
+| PREV e                               { prev Interval.full $2 }
+| NEXT INTERVAL e                      { next $2 $3 }
+| NEXT e                               { next Interval.full $2 }
+| ONCE INTERVAL e                      { once $2 $3 }
+| ONCE e                               { once Interval.full $2 }
+| EVENTUALLY INTERVAL e                { eventually $2 $3 }
+| EVENTUALLY e                         { eventually Interval.full $2 }
+| HISTORICALLY INTERVAL e              { historically $2 $3 }
+| HISTORICALLY e                       { historically Interval.full $2 }
+| ALWAYS INTERVAL e                    { always $2 $3 }
+| ALWAYS e                             { always Interval.full $2 }
 | e CONJ e                             { conj $1 $3 }
 | e DISJ e                             { disj $1 $3 }
 | e IMP e                              { imp $1 $3 }
 | e IFF e                              { iff $1 $3 }
-| EXISTS STRING e                      { exists $2 $3 }
-| FORALL STRING e                      { forall $2 $3 }
 | e SINCE INTERVAL e                   { since $3 $1 $4 }
-| e SINCE e                            { since full $1 $3 }
-| e TRIGGER INTERVAL e                 { trigger $3 $1 $4 }
-| e TRIGGER e                          { trigger full $1 $3 }
+| e SINCE e                            { since Interval.full $1 $3 }
 | e UNTIL INTERVAL e                   { until $3 $1 $4 }
-| e UNTIL e                            { until full $1 $3 }
+| e UNTIL e                            { until Interval.full $1 $3 }
+| e TRIGGER INTERVAL e                 { trigger $3 $1 $4 }
+| e TRIGGER e                          { trigger Interval.full $1 $3 }
 | e RELEASE INTERVAL e                 { release $3 $1 $4 }
-| e RELEASE e                          { release full $1 $3 }
-| NEXT INTERVAL e                      { next $2 $3 }
-| NEXT e                               { next full $2 }
-| PREV INTERVAL e                      { prev $2 $3 }
-| PREV e                               { prev full $2 }
-| ONCE INTERVAL e                      { once $2 $3 }
-| ONCE e                               { once full $2 }
-| HISTORICALLY INTERVAL e              { historically $2 $3 }
-| HISTORICALLY e                       { historically full $2 }
-| EVENTUALLY INTERVAL e                { eventually $2 $3 }
-| EVENTUALLY e                         { eventually full $2 }
-| ALWAYS INTERVAL e                    { always $2 $3 }
-| ALWAYS e                             { always full $2 }
+| e RELEASE e                          { release Interval.full $1 $3 }
+| STRING sterms                        { predicate $1 $2 }
 
 sterms:
 | strms=separated_list (COMMA, STRING) { strms }

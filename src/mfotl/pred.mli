@@ -26,11 +26,11 @@ module Sig : sig
 
   type t = string * props [@@deriving compare, sexp_of, hash]
 
-  val sig_table: (string, props) Hashtbl.t
+  val table: (string, props) Hashtbl.t
 
   val n_tt: string -> string -> (string * Domain.tt)
 
-  val sig_pred: string -> (string * Domain.tt) list -> string * props
+  val make: string -> (string * Domain.tt) list -> string * props
 
 end
 

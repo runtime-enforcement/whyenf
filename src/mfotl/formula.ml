@@ -8,39 +8,35 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
-open Util.Misc
-open Util.Interval
-open Pred
 open Base
+open Pred
 
-module Deque = Core_kernel.Deque
-
-type formula =
+type t =
   | TT
   | FF
-  | Predicate of string * (Term.t list)
-  | Neg of formula
-  | Conj of formula * formula
-  | Disj of formula * formula
-  | Imp of formula * formula
-  | Iff of formula * formula
-  | Exists of string * formula
-  | Forall of string * formula
-  | Prev of interval * formula
-  | Next of interval * formula
-  | Once of interval * formula
-  | Historically of interval * formula
-  | Eventually of interval * formula
-  | Always of interval * formula
-  | Since of interval * formula * formula
-  | Until of interval * formula * formula
+  | Predicate of string * Term.t list
+  | Neg of t
+  | And of t * t
+  | Or of t * t
+  | Imp of t * t
+  | Iff of t * t
+  | Exists of string * t
+  | Forall of string * t
+  | Prev of Interval.t * t
+  | Next of Interval.t * t
+  | Once of Interval.t * t
+  | Historically of Interval.t * t
+  | Eventually of Interval.t * t
+  | Always of Interval.t * t
+  | Since of Interval.t * t * t
+  | Until of Interval.t * t * t
 
 let tt = TT
 let ff = FF
 let predicate p_name strms = Predicate (p_name, make_terms p_name strms)
 let neg f = Neg f
-let conj f g = Conj (f, g)
-let disj f g = Disj (f, g)
+let conj f g = And (f, g)
+let disj f g = Or (f, g)
 let imp f g = Imp (f, g)
 let iff f g = Iff (f, g)
 let exists x f = Exists (x, f)
@@ -63,8 +59,8 @@ let equal x y = match x, y with
     | FF, FF -> true
   | Predicate (r, trms), Predicate (r', trms') -> String.equal r r' && List.equal Term.equal trms trms'
   | Neg f, Neg f' -> f == f'
-  | Conj (f, g), Conj (f', g')
-    | Disj (f, g), Disj (f', g')
+  | And (f, g), And (f', g')
+    | Or (f, g), Or (f', g')
     | Imp (f, g), Imp (f', g')
     | Iff (f, g), Iff (f', g') -> f == f' && g == g'
   | Exists (x, f), Exists (x', f')
@@ -87,8 +83,8 @@ let rec hp x = match x with
   | Neg f
     | Exists (_, f)
     | Forall (_, f) -> hp f
-  | Conj (f1, f2)
-    | Disj (f1, f2)
+  | And (f1, f2)
+    | Or (f1, f2)
     | Imp (f1, f2)
     | Iff (f1, f2) -> max (hp f1) (hp f2)
   | Prev (_, f)
@@ -108,8 +104,8 @@ let rec hf x = match x with
   | Neg f
     | Exists (_, f)
     | Forall (_, f) -> hf f
-  | Conj (f1, f2)
-    | Disj (f1, f2)
+  | And (f1, f2)
+    | Or (f1, f2)
     | Imp (f1, f2)
     | Iff (f1, f2) -> max (hf f1) (hf f2)
   | Prev (_, f)
@@ -137,8 +133,8 @@ let immediate_subfs x =
     | Historically (_, f)
     | Eventually (_, f)
     | Always (_, f) -> [f]
-  | Conj (f, g)
-    | Disj (f, g)
+  | And (f, g)
+    | Or (f, g)
     | Imp (f, g)
     | Iff (f, g) -> [f; g]
   | Since (i, f, g)
@@ -152,8 +148,8 @@ let rec subfs_dfs x = match x with
   | FF -> [ff]
   | Predicate (r, trms) -> [Predicate (r, trms)]
   | Neg f -> [neg f] @ (subfs_dfs f)
-  | Conj (f, g) -> [conj f g] @ (subfs_dfs f) @ (subfs_dfs g)
-  | Disj (f, g) -> [disj f g] @ (subfs_dfs f) @ (subfs_dfs g)
+  | And (f, g) -> [conj f g] @ (subfs_dfs f) @ (subfs_dfs g)
+  | Or (f, g) -> [disj f g] @ (subfs_dfs f) @ (subfs_dfs g)
   | Imp (f, g) -> [imp f g] @ (subfs_dfs f) @ (subfs_dfs g)
   | Iff (f, g) -> [iff f g] @ (subfs_dfs f) @ (subfs_dfs g)
   | Exists (x, f) -> [exists x f] @ (subfs_dfs f)
@@ -173,7 +169,7 @@ let rec preds = function
   | Neg f | Next (_, f) | Prev (_, f)
     | Once (_, f) | Historically (_, f)
     | Eventually (_, f) | Always (_, f) -> preds f
-  | Conj (f1, f2) | Disj (f1, f2)
+  | And (f1, f2) | Or (f1, f2)
     | Imp (f1, f2) | Iff (f1, f2)
     | Until (_, f1, f2) | Since (_, f1, f2) -> let a1s = List.fold_left (preds f1) ~init:[]
                                                            ~f:(fun acc a -> if List.mem acc a equal then acc
@@ -184,50 +180,50 @@ let rec preds = function
                                                              else acc @ [a]) in
                                                List.append a1s a2s
 
-let rec f_to_string l f = match f with
-  | TT -> Printf.sprintf "⊤"
-  | FF -> Printf.sprintf "⊥"
-  | Predicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
-  | Neg f -> Printf.sprintf "¬%a" (fun x -> f_to_string 5) f
-  | Conj (f, g) -> Printf.sprintf (paren l 4 "%a ∧ %a") (fun x -> f_to_string 4) f (fun x -> f_to_string 4) g
-  | Disj (f, g) -> Printf.sprintf (paren l 3 "%a ∨ %a") (fun x -> f_to_string 3) f (fun x -> f_to_string 4) g
-  | Imp (f, g) -> Printf.sprintf (paren l 5 "%a → %a") (fun x -> f_to_string 5) f (fun x -> f_to_string 5) g
-  | Iff (f, g) -> Printf.sprintf (paren l 5 "%a ↔ %a") (fun x -> f_to_string 5) f (fun x -> f_to_string 5) g
-  | Exists (x, f) -> Printf.sprintf (paren l 5 "∃%s. %a") x (fun x -> f_to_string 5) f
-  | Forall (x, f) -> Printf.sprintf (paren l 5 "∀%s. %a") x (fun x -> f_to_string 5) f
-  | Prev (i, f) -> Printf.sprintf (paren l 5 "●%a %a") (fun x -> interval_to_string) i (fun x -> f_to_string 5) f
-  | Next (i, f) -> Printf.sprintf (paren l 5 "○%a %a") (fun x -> interval_to_string) i (fun x -> f_to_string 5) f
-  | Once (i, f) -> Printf.sprintf (paren l 5 "⧫%a %a") (fun x -> interval_to_string) i (fun x -> f_to_string 5) f
-  | Historically (i, f) -> Printf.sprintf (paren l 5 "■%a %a") (fun x -> interval_to_string) i (fun x -> f_to_string 5) f
-  | Eventually (i, f) -> Printf.sprintf (paren l 5 "◊%a %a") (fun x -> interval_to_string) i (fun x -> f_to_string 5) f
-  | Always (i, f) -> Printf.sprintf (paren l 5 "□%a %a") (fun x -> interval_to_string) i (fun x -> f_to_string 5) f
-  | Since (i, f, g) -> Printf.sprintf (paren l 0 "%a S%a %a") (fun x -> f_to_string 5) f
-                         (fun x -> interval_to_string) i (fun x -> f_to_string 5) g
-  | Until (i, f, g) -> Printf.sprintf (paren l 0 "%a U%a %a") (fun x -> f_to_string 5) f
-                         (fun x -> interval_to_string) i (fun x -> f_to_string 5) g
-let f_to_string = f_to_string 0
-
-let op_to_string f = match f with
+let op_to_string = function
   | TT -> Printf.sprintf "⊤"
   | FF -> Printf.sprintf "⊥"
   | Predicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
   | Neg _ -> Printf.sprintf "¬"
-  | Conj (_, _) -> Printf.sprintf "∧"
-  | Disj (_, _) -> Printf.sprintf "∨"
+  | And (_, _) -> Printf.sprintf "∧"
+  | Or (_, _) -> Printf.sprintf "∨"
   | Imp (_, _) -> Printf.sprintf "→"
   | Iff (_, _) -> Printf.sprintf "↔"
   | Exists (_, _) -> Printf.sprintf "∃"
   | Forall (_, _) -> Printf.sprintf "∀"
-  | Prev (i, _) -> Printf.sprintf "●%s" (interval_to_string i)
-  | Next (i, _) -> Printf.sprintf "○%s" (interval_to_string i)
-  | Once (i, f) -> Printf.sprintf "⧫%s" (interval_to_string i)
-  | Historically (i, f) -> Printf.sprintf "■%s" (interval_to_string i)
-  | Eventually (i, f) -> Printf.sprintf "◊%s" (interval_to_string i)
-  | Always (i, f) -> Printf.sprintf "□%s" (interval_to_string i)
-  | Since (i, _, _) -> Printf.sprintf "S%s" (interval_to_string i)
-  | Until (i, _, _) -> Printf.sprintf "U%s" (interval_to_string i)
+  | Prev (i, _) -> Printf.sprintf "●%s" (Interval.to_string i)
+  | Next (i, _) -> Printf.sprintf "○%s" (Interval.to_string i)
+  | Once (i, f) -> Printf.sprintf "⧫%s" (Interval.to_string i)
+  | Historically (i, f) -> Printf.sprintf "■%s" (Interval.to_string i)
+  | Eventually (i, f) -> Printf.sprintf "◊%s" (Interval.to_string i)
+  | Always (i, f) -> Printf.sprintf "□%s" (Interval.to_string i)
+  | Since (i, _, _) -> Printf.sprintf "S%s" (Interval.to_string i)
+  | Until (i, _, _) -> Printf.sprintf "U%s" (Interval.to_string i)
 
-let rec f_to_json indent pos f =
+let rec to_string_rec l = function
+  | TT -> Printf.sprintf "⊤"
+  | FF -> Printf.sprintf "⊥"
+  | Predicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
+  | Neg f -> Printf.sprintf "¬%a" (fun x -> to_string_rec 5) f
+  | And (f, g) -> Printf.sprintf (Etc.paren l 4 "%a ∧ %a") (fun x -> to_string_rec 4) f (fun x -> to_string_rec 4) g
+  | Or (f, g) -> Printf.sprintf (Etc.paren l 3 "%a ∨ %a") (fun x -> to_string_rec 3) f (fun x -> to_string_rec 4) g
+  | Imp (f, g) -> Printf.sprintf (Etc.paren l 5 "%a → %a") (fun x -> to_string_rec 5) f (fun x -> to_string_rec 5) g
+  | Iff (f, g) -> Printf.sprintf (Etc.paren l 5 "%a ↔ %a") (fun x -> to_string_rec 5) f (fun x -> to_string_rec 5) g
+  | Exists (x, f) -> Printf.sprintf (Etc.paren l 5 "∃%s. %a") x (fun x -> to_string_rec 5) f
+  | Forall (x, f) -> Printf.sprintf (Etc.paren l 5 "∀%s. %a") x (fun x -> to_string_rec 5) f
+  | Prev (i, f) -> Printf.sprintf (Etc.paren l 5 "●%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
+  | Next (i, f) -> Printf.sprintf (Etc.paren l 5 "○%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
+  | Once (i, f) -> Printf.sprintf (Etc.paren l 5 "⧫%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
+  | Historically (i, f) -> Printf.sprintf (Etc.paren l 5 "■%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
+  | Eventually (i, f) -> Printf.sprintf (Etc.paren l 5 "◊%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
+  | Always (i, f) -> Printf.sprintf (Etc.paren l 5 "□%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
+  | Since (i, f, g) -> Printf.sprintf (Etc.paren l 0 "%a S%a %a") (fun x -> to_string_rec 5) f
+                         (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) g
+  | Until (i, f, g) -> Printf.sprintf (Etc.paren l 0 "%a U%a %a") (fun x -> to_string_rec 5) f
+                         (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) g
+let to_string = to_string_rec 0
+
+let rec to_json_rec indent pos f =
   let indent' = "  " ^ indent in
   match f with
   | TT -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"TT\"\n%s}"
@@ -237,34 +233,34 @@ let rec f_to_json indent pos f =
   | Predicate (r, trms) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Predicate\",\n%s\"name\": \"%s\",\n%s\"terms\": \"%s\"\n%s}"
                              indent pos indent' indent' r indent' (Term.list_to_string trms) indent
   | Neg f -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Neg\",\n%s\n%s}"
-               indent pos indent' (f_to_json indent' "" f) indent
-  | Conj (f, g) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Conj\",\n%s,\n%s\n%s}"
-                     indent pos indent' (f_to_json indent' "l" f) (f_to_json indent' "r" g) indent
-  | Disj (f, g) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Disj\",\n%s,\n%s\n%s}"
-                     indent pos indent' (f_to_json indent' "l" f) (f_to_json indent' "r" g) indent
+               indent pos indent' (to_json_rec indent' "" f) indent
+  | And (f, g) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"And\",\n%s,\n%s\n%s}"
+                     indent pos indent' (to_json_rec indent' "l" f) (to_json_rec indent' "r" g) indent
+  | Or (f, g) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Or\",\n%s,\n%s\n%s}"
+                     indent pos indent' (to_json_rec indent' "l" f) (to_json_rec indent' "r" g) indent
   | Imp (f, g) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Imp\",\n%s,\n%s\n%s}"
-                    indent pos indent' (f_to_json indent' "l" f) (f_to_json indent' "r" g) indent
+                    indent pos indent' (to_json_rec indent' "l" f) (to_json_rec indent' "r" g) indent
   | Iff (f, g) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Iff\",\n%s,\n%s\n%s}"
-                    indent pos indent' (f_to_json indent' "l" f) (f_to_json indent' "r" g) indent
+                    indent pos indent' (to_json_rec indent' "l" f) (to_json_rec indent' "r" g) indent
   | Exists (x, g) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Exists\",\n%s\"variable\": \"%s\",\n%s\n%s}"
-                       indent pos indent' indent' x (f_to_json indent' "" f) indent
+                       indent pos indent' indent' x (to_json_rec indent' "" f) indent
   | Forall (x, g) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Forall\",\n%s\"variable\": \"%s\",\n%s\n%s}"
-                       indent pos indent' indent' x (f_to_json indent' "" f) indent
-  | Prev (i, f) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Prev\",\n%s\"interval\": \"%s\",\n%s\n%s}"
-                     indent pos indent' indent' (interval_to_string i) (f_to_json indent' "" f) indent
-  | Next (i, f) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Next\",\n%s\"interval\": \"%s\",\n%s\n%s}"
-                     indent pos indent' indent' (interval_to_string i) (f_to_json indent' "" f) indent
-  | Once (i, f) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Once\",\n%s\"interval\": \"%s\",\n%s\n%s}"
-                     indent pos indent' indent' (interval_to_string i) (f_to_json indent' "" f) indent
-  | Historically (i, f) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Historically\",\n%s\"interval\": \"%s\",\n%s\n%s}"
-                             indent pos indent' indent' (interval_to_string i) (f_to_json indent' "" f) indent
-  | Eventually (i, f) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Eventually\",\n%s\"interval\": \"%s\",\n%s\n%s}"
-                           indent pos indent' indent' (interval_to_string i) (f_to_json indent' "" f) indent
-  | Always (i, f) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Always\",\n%s\"interval\": \"%s\",\n%s\n%s}"
-                       indent pos indent' indent' (interval_to_string i) (f_to_json indent' "" f) indent
-  | Since (i, f, g) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Since\",\n%s\"interval\": \"%s\",\n%s,\n%s\n%s}"
-                         indent pos indent' indent' (interval_to_string i) (f_to_json indent' "l" f) (f_to_json indent' "r" g) indent
-  | Until (i, f, g) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Until\",\n%s\"interval\": \"%s\",\n%s,\n%s\n%s}"
-                         indent pos indent' indent' (interval_to_string i) (f_to_json indent' "l" f) (f_to_json indent' "r" g) indent
+                       indent pos indent' indent' x (to_json_rec indent' "" f) indent
+  | Prev (i, f) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Prev\",\n%s\"Interval.t\": \"%s\",\n%s\n%s}"
+                     indent pos indent' indent' (Interval.to_string i) (to_json_rec indent' "" f) indent
+  | Next (i, f) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Next\",\n%s\"Interval.t\": \"%s\",\n%s\n%s}"
+                     indent pos indent' indent' (Interval.to_string i) (to_json_rec indent' "" f) indent
+  | Once (i, f) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Once\",\n%s\"Interval.t\": \"%s\",\n%s\n%s}"
+                     indent pos indent' indent' (Interval.to_string i) (to_json_rec indent' "" f) indent
+  | Historically (i, f) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Historically\",\n%s\"Interval.t\": \"%s\",\n%s\n%s}"
+                             indent pos indent' indent' (Interval.to_string i) (to_json_rec indent' "" f) indent
+  | Eventually (i, f) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Eventually\",\n%s\"Interval.t\": \"%s\",\n%s\n%s}"
+                           indent pos indent' indent' (Interval.to_string i) (to_json_rec indent' "" f) indent
+  | Always (i, f) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Always\",\n%s\"Interval.t\": \"%s\",\n%s\n%s}"
+                       indent pos indent' indent' (Interval.to_string i) (to_json_rec indent' "" f) indent
+  | Since (i, f, g) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Since\",\n%s\"Interval.t\": \"%s\",\n%s,\n%s\n%s}"
+                         indent pos indent' indent' (Interval.to_string i) (to_json_rec indent' "l" f) (to_json_rec indent' "r" g) indent
+  | Until (i, f, g) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Until\",\n%s\"Interval.t\": \"%s\",\n%s,\n%s\n%s}"
+                         indent pos indent' indent' (Interval.to_string i) (to_json_rec indent' "l" f) (to_json_rec indent' "r" g) indent
   | _ -> ""
-let f_to_json = f_to_json "    " ""
+let to_json = to_json_rec "    " ""

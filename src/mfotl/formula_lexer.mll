@@ -5,11 +5,10 @@
 (*           (see file LICENSE for more details)                   *)
 (*                                                                 *)
 (*  Copyright 2023:                                                *)
-(*  Dmitriy Traytel (ETH Zürich)                                   *)
+(*  Dmitriy Traytel (UCPH)                                         *)
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
-open Util.Interval
 open Formula
 open Formula_parser
 open Lexing
@@ -19,8 +18,7 @@ exception Parsing_Error of position*position*string
 let parsing_error i j fmt = Format.kasprintf (fun s -> raise (Parsing_Error(i,j,s))) fmt
 let lexing_error lexbuf fmt = parsing_error (lexeme_start_p lexbuf) (lexeme_end_p lexbuf) fmt
 
-let make_interval lexbuf = lex_interval (fun () -> lexing_error lexbuf "Couldn't lex one of the intervals")
-(* let make_terms lexbuf = lex_terms (fun () -> lexing_error lexbuf "Couldn't lex the terms of one of the predicates") *)
+let make_interval lexbuf = Interval.lex (fun () -> lexing_error lexbuf "Couldn't lex one of the intervals")
 
 }
 
