@@ -23,7 +23,7 @@ type t = int * (Event.t, Event.comparator_witness) Set.t
 let db ts events = (int_of_string ts, Set.of_list (module Event) events)
 
 let event name consts =
-  let pred_sig = Hashtbl.find_exn Pred.Sig.sig_table name in
+  let pred_sig = Hashtbl.find_exn Pred.Sig.table name in
   if pred_sig.arity = List.length consts then
     (name, List.map2_exn pred_sig.ntconsts consts
              (fun tc c -> match snd tc with
