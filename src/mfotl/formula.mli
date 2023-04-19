@@ -24,8 +24,8 @@ type t =
   | Prev of Interval.t * t
   | Next of Interval.t * t
   | Once of Interval.t * t
-  | Historically of Interval.t * t
   | Eventually of Interval.t * t
+  | Historically of Interval.t * t
   | Always of Interval.t * t
   | Since of Interval.t * t * t
   | Until of Interval.t * t * t
@@ -43,8 +43,8 @@ val forall: string -> t -> t
 val prev: Interval.t -> t -> t
 val next: Interval.t -> t -> t
 val once: Interval.t -> t -> t
-val historically: Interval.t -> t -> t
 val eventually: Interval.t -> t -> t
+val historically: Interval.t -> t -> t
 val always: Interval.t -> t -> t
 val since: Interval.t -> t -> t -> t
 val until: Interval.t -> t -> t -> t

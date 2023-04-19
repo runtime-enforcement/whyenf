@@ -25,8 +25,8 @@ type t =
   | Prev of Interval.t * t
   | Next of Interval.t * t
   | Once of Interval.t * t
-  | Historically of Interval.t * t
   | Eventually of Interval.t * t
+  | Historically of Interval.t * t
   | Always of Interval.t * t
   | Since of Interval.t * t * t
   | Until of Interval.t * t * t
@@ -44,8 +44,8 @@ let forall x f = Forall (x, f)
 let prev i f = Prev (i, f)
 let next i f = Next (i, f)
 let once i f = Once (i, f)
-let historically i f = Historically (i, f)
 let eventually i f = Eventually (i, f)
+let historically i f = Historically (i, f)
 let always i f = Always (i, f)
 let since i f g = Since (i, f, g)
 let until i f g = Until (i, f, g)
@@ -68,8 +68,8 @@ let equal x y = match x, y with
   | Prev (i, f), Prev (i', f')
     | Next (i, f), Next (i', f')
     | Once (i, f), Once (i', f')
-    | Historically (i, f), Historically (i', f')
     | Eventually (i, f), Eventually (i', f')
+    | Historically (i, f), Historically (i', f')
     | Always (i, f), Always (i', f') -> i == i' && f == f'
   | Since (i, f, g), Since (i', f', g')
     | Until (i, f, g), Until (i', f', g') -> i == i' && f == f' && g == g'
@@ -130,8 +130,8 @@ let immediate_subfs x =
     | Prev (_, f)
     | Next (_, f)
     | Once (_, f)
-    | Historically (_, f)
     | Eventually (_, f)
+    | Historically (_, f)
     | Always (_, f) -> [f]
   | And (f, g)
     | Or (f, g)
@@ -157,8 +157,8 @@ let rec subfs_dfs x = match x with
   | Prev (i, f) -> [prev i f] @ (subfs_dfs f)
   | Next (i, f) -> [next i f] @ (subfs_dfs f)
   | Once (i, f) -> [once i f] @ (subfs_dfs f)
-  | Historically (i, f) -> [historically i f] @ (subfs_dfs f)
   | Eventually (i, f) -> [eventually i f] @ (subfs_dfs f)
+  | Historically (i, f) -> [historically i f] @ (subfs_dfs f)
   | Always (i, f) -> [always i f] @ (subfs_dfs f)
   | Since (i, f, g) -> [since i f g] @ (subfs_dfs f) @ (subfs_dfs g)
   | Until (i, f, g) -> [until i f g] @ (subfs_dfs f) @ (subfs_dfs g)
@@ -194,8 +194,8 @@ let op_to_string = function
   | Prev (i, _) -> Printf.sprintf "●%s" (Interval.to_string i)
   | Next (i, _) -> Printf.sprintf "○%s" (Interval.to_string i)
   | Once (i, f) -> Printf.sprintf "⧫%s" (Interval.to_string i)
-  | Historically (i, f) -> Printf.sprintf "■%s" (Interval.to_string i)
   | Eventually (i, f) -> Printf.sprintf "◊%s" (Interval.to_string i)
+  | Historically (i, f) -> Printf.sprintf "■%s" (Interval.to_string i)
   | Always (i, f) -> Printf.sprintf "□%s" (Interval.to_string i)
   | Since (i, _, _) -> Printf.sprintf "S%s" (Interval.to_string i)
   | Until (i, _, _) -> Printf.sprintf "U%s" (Interval.to_string i)
@@ -214,8 +214,8 @@ let rec to_string_rec l = function
   | Prev (i, f) -> Printf.sprintf (Etc.paren l 5 "●%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
   | Next (i, f) -> Printf.sprintf (Etc.paren l 5 "○%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
   | Once (i, f) -> Printf.sprintf (Etc.paren l 5 "⧫%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
-  | Historically (i, f) -> Printf.sprintf (Etc.paren l 5 "■%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
   | Eventually (i, f) -> Printf.sprintf (Etc.paren l 5 "◊%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
+  | Historically (i, f) -> Printf.sprintf (Etc.paren l 5 "■%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
   | Always (i, f) -> Printf.sprintf (Etc.paren l 5 "□%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
   | Since (i, f, g) -> Printf.sprintf (Etc.paren l 0 "%a S%a %a") (fun x -> to_string_rec 5) f
                          (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) g
@@ -235,9 +235,9 @@ let rec to_json_rec indent pos f =
   | Neg f -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Neg\",\n%s\n%s}"
                indent pos indent' (to_json_rec indent' "" f) indent
   | And (f, g) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"And\",\n%s,\n%s\n%s}"
-                     indent pos indent' (to_json_rec indent' "l" f) (to_json_rec indent' "r" g) indent
+                    indent pos indent' (to_json_rec indent' "l" f) (to_json_rec indent' "r" g) indent
   | Or (f, g) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Or\",\n%s,\n%s\n%s}"
-                     indent pos indent' (to_json_rec indent' "l" f) (to_json_rec indent' "r" g) indent
+                   indent pos indent' (to_json_rec indent' "l" f) (to_json_rec indent' "r" g) indent
   | Imp (f, g) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Imp\",\n%s,\n%s\n%s}"
                     indent pos indent' (to_json_rec indent' "l" f) (to_json_rec indent' "r" g) indent
   | Iff (f, g) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Iff\",\n%s,\n%s\n%s}"
@@ -252,10 +252,10 @@ let rec to_json_rec indent pos f =
                      indent pos indent' indent' (Interval.to_string i) (to_json_rec indent' "" f) indent
   | Once (i, f) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Once\",\n%s\"Interval.t\": \"%s\",\n%s\n%s}"
                      indent pos indent' indent' (Interval.to_string i) (to_json_rec indent' "" f) indent
-  | Historically (i, f) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Historically\",\n%s\"Interval.t\": \"%s\",\n%s\n%s}"
-                             indent pos indent' indent' (Interval.to_string i) (to_json_rec indent' "" f) indent
   | Eventually (i, f) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Eventually\",\n%s\"Interval.t\": \"%s\",\n%s\n%s}"
                            indent pos indent' indent' (Interval.to_string i) (to_json_rec indent' "" f) indent
+  | Historically (i, f) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Historically\",\n%s\"Interval.t\": \"%s\",\n%s\n%s}"
+                             indent pos indent' indent' (Interval.to_string i) (to_json_rec indent' "" f) indent
   | Always (i, f) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Always\",\n%s\"Interval.t\": \"%s\",\n%s\n%s}"
                        indent pos indent' indent' (Interval.to_string i) (to_json_rec indent' "" f) indent
   | Since (i, f, g) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Since\",\n%s\"Interval.t\": \"%s\",\n%s,\n%s\n%s}"
