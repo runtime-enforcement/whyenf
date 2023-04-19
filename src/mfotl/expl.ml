@@ -263,7 +263,7 @@ module Proof = struct
     let minsize x y = if p x <= p y then x else y
 
     let minsize_list = function
-      | [] -> raise (Invalid_argument "minsize_list is not defined for empty lists")
+      | [] -> raise (Invalid_argument "function not defined for empty lists")
       | x :: xs -> List.fold_left xs x minsize
 
     let rec s_to_string indent p =
