@@ -16,50 +16,38 @@ type timestamp = int
 
 module Buf2 = struct
 
-  type t = Expl.t Fdeque.t * Expl.t Fdeque.t
+  type t = (timestamp * Expl.t) list * (timestamp * Expl.t) list
 
-  let add p1s p2s (d1, d2) =
-    (Fdeque.fold p1s ~init:d1 ~f:(fun acc p1 -> Fdeque.enqueue_back acc p1),
-     Fdeque.fold p2s ~init:d2 ~f:(fun acc p2 -> Fdeque.enqueue_back acc p2))
+  let add xs ys (l1, l2) = (l1 @ xs, l2 @ ys)
 
-  let rec take f (p1s, p2s) =
-    match (Fdeque.is_empty p1s, Fdeque.is_empty p2s) with
-    | true, _ -> (Fdeque.create (), (p1s, p2s))
-    | _, true -> (Fdeque.create (), (p1s, p2s))
-    | false, false -> let p1 = Fdeque.dequeue_front_exn p1s in
-                      let p2 = Fdeque.dequeue_front_exn p2s in
-                      let (p3s, buf2') = take f (p1s, p2s) in
-                      (Fdeque.enqueue_front p3s (f p1 p2), buf2')
+  let rec take f = function
+    | [], ys -> ([], ([], ys))
+    | xs, [] -> ([], (xs, []))
+    | x::xs, y::ys -> let (zs, buf2') = take f (xs, ys) in
+                      ((f x y)::zs, buf2')
 
 end
 
 module Buft = struct
 
-  type t = Expl.t Fdeque.t * (timepoint * timestamp) Fdeque.t
+  type t = Expl.t list * (timepoint * timestamp) list
 
-  let rec take f z (ps, ts_tps) =
-    match (Fdeque.is_empty ps, Fdeque.is_empty ts_tps) with
-    | true, _ -> (z, ps, ts_tps)
-    | _, true -> (z, ps, ts_tps)
-    | false, false -> let p = Fdeque.dequeue_front_exn ps in
-                      let (ts, tp) = Fdeque.dequeue_front_exn ts_tps in
-                      take f (f p ts tp z) (ps, ts_tps)
+  let rec take f z = function
+    | [], ys -> (z, [], ys)
+    | xs, [] -> (z, xs, [])
+    | x::xs, (a,b)::ys -> take f (f x a b z) (xs, ys)
 
 end
 
 module Buf2t = struct
 
-  type t = Expl.t Fdeque.t * Expl.t Fdeque.t * (timepoint * timestamp) Fdeque.t
+  type t = Expl.t list * Expl.t list * (timepoint * timestamp) list
 
-  let rec take f z (p1s, p2s, ts_tps) =
-    match (Fdeque.is_empty p1s, Fdeque.is_empty p2s, Fdeque.is_empty ts_tps) with
-    | true, _, _ -> (z, (p1s, p2s, ts_tps))
-    | _, true, _ -> (z, (p1s, p2s, ts_tps))
-    | _, _, true -> (z, (p1s, p2s, ts_tps))
-    | false, false, false -> let p1 = Fdeque.dequeue_front_exn p1s in
-                             let p2 = Fdeque.dequeue_front_exn p2s in
-                             let (ts, tp) = Fdeque.dequeue_front_exn ts_tps in
-                             take f (f p1 p2 ts tp z) (p1s, p2s, ts_tps)
+  let rec take f w = function
+    | [], ys, zs -> (w, ([], ys, zs))
+    | xs, [], zs -> (w, (xs, [], zs))
+    | xs, ys, [] -> (w, (xs, ys, []))
+    | x::xs, y::ys, (a,b)::zs -> take f (f x y a b w) (xs, ys, zs)
 
 end
 
@@ -115,11 +103,11 @@ module MFormula = struct
     | MIff          of t * t * Buf2.t
     | MExists       of string * t
     | MForall       of string * t
-    | MPrev         of Interval.t * t * bool * Expl.t Fdeque.t * timestamp Fdeque.t
-    | MNext         of Interval.t * t * bool * timestamp Fdeque.t
-    | MOnce         of Interval.t * t * (timestamp * timepoint) Fdeque.t * Once.t
+    | MPrev         of Interval.t * t * bool * Expl.t list * timestamp list
+    | MNext         of Interval.t * t * bool * timestamp list
+    | MOnce         of Interval.t * t * (timestamp * timepoint) list * Once.t
     | MEventually   of Interval.t * t * Buft.t * Eventually.t
-    | MHistorically of Interval.t * t * (timestamp * timepoint) Fdeque.t * Historically.t
+    | MHistorically of Interval.t * t * (timestamp * timepoint) list * Historically.t
     | MAlways       of Interval.t * t * Buft.t * Always.t
     | MSince        of Interval.t * t * t * Buf2t.t * Since.t
     | MUntil        of Interval.t * t * t * Buf2t.t * Until.t
@@ -129,20 +117,20 @@ module MFormula = struct
     | Formula.FF -> MFF
     | Formula.Predicate (r, trms) -> MPredicate (r, trms)
     | Formula.Neg (f) -> MNeg (init f)
-    | Formula.And (f, g) -> MAnd (init f, init g, (Fdeque.create (), Fdeque.create ()))
-    | Formula.Or (f, g) -> MOr (init f, init g, (Fdeque.create (), Fdeque.create ()))
-    | Formula.Imp (f, g) -> MImp (init f, init g, (Fdeque.create (), Fdeque.create ()))
-    | Formula.Iff (f, g) -> MIff (init f, init g, (Fdeque.create (), Fdeque.create ()))
+    | Formula.And (f, g) -> MAnd (init f, init g, ([], []))
+    | Formula.Or (f, g) -> MOr (init f, init g, ([], []))
+    | Formula.Imp (f, g) -> MImp (init f, init g, ([], []))
+    | Formula.Iff (f, g) -> MIff (init f, init g, ([], []))
     | Formula.Exists (x, f) -> MExists (x, init f)
     | Formula.Forall (x, f) -> MForall (x, init f)
-    | Formula.Prev (i, f) -> MPrev (i, init f, true, (Fdeque.create ()), (Fdeque.create ()))
-    | Formula.Next (i, f) -> MNext (i, init f, true, (Fdeque.create ()))
-    | Formula.Once (i, f) -> MOnce (i, init f, Fdeque.create (), ())
-    | Formula.Eventually (i, f) -> MEventually (i, init f, (Fdeque.create (), Fdeque.create ()), ())
-    | Formula.Historically (i, f) -> MHistorically (i, init f, Fdeque.create (), ())
-    | Formula.Always (i, f) -> MAlways (i, init f, (Fdeque.create (), Fdeque.create ()), ())
-    | Formula.Since (i, f, g) -> MSince (i, init f, init g, (Fdeque.create (), Fdeque.create (), Fdeque.create ()), ())
-    | Formula.Until (i, f, g) -> MSince (i, init f, init g, (Fdeque.create (), Fdeque.create (), Fdeque.create ()), ())
+    | Formula.Prev (i, f) -> MPrev (i, init f, true, [], [])
+    | Formula.Next (i, f) -> MNext (i, init f, true, [])
+    | Formula.Once (i, f) -> MOnce (i, init f, [], ())
+    | Formula.Eventually (i, f) -> MEventually (i, init f, ([], []), ())
+    | Formula.Historically (i, f) -> MHistorically (i, init f, [], ())
+    | Formula.Always (i, f) -> MAlways (i, init f, ([], []), ())
+    | Formula.Since (i, f, g) -> MSince (i, init f, init g, ([], [], []), ())
+    | Formula.Until (i, f, g) -> MSince (i, init f, init g, ([], [], []), ())
 
   let rec to_string_rec l = function
     | MTT -> Printf.sprintf "⊤"
