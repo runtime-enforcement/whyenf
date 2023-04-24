@@ -21,6 +21,10 @@ const examples = [{
   name: 'respondbqr-past',
   formula: "(r ∧ (¬q) ∧ (⧫ q)) → (((s → (⧫[0,3] p)) ∧ (¬((¬ s) S[3, ∞] p))) S q)",
   trace: "@0 q\n@1 \n@2 p\n@3 \n@4 s\n@5 \n@6 p\n@7 s\n@8 \n@9 p\n@10 \n@11 \n@12 s\n@13 \n@14 p\n@15 \n@16 \n@17 s\n@18 \n@19 p\n@20 \n@21 \n@22 s\n@23 \n@24 p\n@25 s\n@26 \n@27 p\n@28 s\n@29 \n@30 r\n@31 q\n@32 \n@33 p\n@34 \n@35 \n@36 s\n@37 \n@38 p\n@39 s\n@40 \n@41 p\n@42 \n@43 s\n@44 \n@45 p\n@46 \n@47 \n@48 s\n@49 \n@50 p\n@51 s\n@52 \n@53 p\n@54 \n@55 s\n@56 \n@57 r\n@58 q\n@59 p\n@60 \n@61 \n@62 \n@63 \n@64 r"
+}, {
+  name: 'systemd-slices',
+  formula: "reachedTargetSliceUnits → (⧫[0,600] (createdSliceUser ∧ createdSliceSessionSlice)) ∧ ((⧫[600,∞] createdSliceGetty) ∧ (⧫[600,∞] createdSliceModprobe) ∧ (⧫[600,∞] createdSliceFsck))",
+  trace: "@3548334 \n@3578070 createdSliceGetty \n@3578293 createdSliceModprobe \n@3578449 createdSliceFsck \n@3578587 createdSliceUser createdSliceSessionSlice \n@3578635 \n@3578677 \n@3578762 \n@3578798 \n@3578824 \n@3578849 \n@3578871 \n@3578891 reachedTargetSliceUnits \n@3578913 \n@3578932"
 }];
 
 export default function ExampleSelect ({ setFormState }) {
@@ -67,6 +71,7 @@ export default function ExampleSelect ({ setFormState }) {
             <MenuItem value={"since-conjunction"}>Since (conjunction)</MenuItem>
             <MenuItem value={"recurbqr-past"}>Bounded Recurrence</MenuItem>
             <MenuItem value={"respondbqr-past"}>Bounded Response</MenuItem>
+            <MenuItem value={"systemd-slices"}>Systemd Slices</MenuItem>
           </Select>
         </FormControl>
       </div>
