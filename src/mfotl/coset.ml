@@ -14,6 +14,8 @@ type ('a, 'b) t = Finite of ('a, 'b) Set.t | Complement of ('a, 'b) Set.t
 
 let phys_equal = Stdlib.( == )
 
+let univ m = Complement (Set.empty m)
+
 let is_empty = function
   | Finite s -> Set.is_empty s
   | Complement s -> false

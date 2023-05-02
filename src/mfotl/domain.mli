@@ -16,6 +16,8 @@ type t = Int of int | Str of string | Float of float [@@deriving compare, sexp_o
 
 type comparator_witness
 
+val comparator : (t, comparator_witness) Comparator.t
+
 val equal: t -> t -> bool
 
 val tt_of_string: string -> tt
