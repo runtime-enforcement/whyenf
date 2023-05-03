@@ -10,10 +10,13 @@
 
 open Base
 
-
 module Part = struct
 
   type 'a t = Abs_part of ((Domain.t, Domain.comparator_witness) Coset.t * 'a) list
+
+  let random_empty_set = Set.empty (module String)
+
+  let trivial p = Abs_part ([(Coset.univ (module Domain), p)])
 
   let the = function Abs_part part -> part
 
@@ -264,7 +267,7 @@ module Proof = struct
 
     let minsize_list = function
       | [] -> raise (Invalid_argument "function not defined for empty lists")
-      | x :: xs -> List.fold_left xs x minsize
+      | x :: xs -> List.fold_left xs ~init:x ~f:minsize
 
     let rec s_to_string indent p =
       let indent' = "\t" ^ indent in
@@ -376,3 +379,5 @@ let rec apply2 vars f expl1 expl2 = match vars, expl1, expl2 with
                    Node (y, Part.map part2 (apply2 vars f (Node (x, part1))))
                  else apply2 vars f (Node (x, part1)) (Node (y, part2))))
   | _ -> raise (Invalid_argument "variable list is empty")
+
+let to_string e = ""
