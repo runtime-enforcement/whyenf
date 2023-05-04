@@ -78,4 +78,6 @@ type 'a pdt = Leaf of 'a | Node of string * ('a pdt) Part.t
 
 type t = Proof.t pdt
 
+val at: Proof.t pdt -> int
+
 val to_string: t -> string
