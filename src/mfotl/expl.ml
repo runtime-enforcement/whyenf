@@ -356,6 +356,10 @@ type 'a pdt = Leaf of 'a | Node of string * ('a pdt) Part.t
 
 type t = Proof.t pdt
 
+let rec at = function
+  | Leaf pt -> Proof.p_at pt
+  | Node (_, part) -> at (Part.hd part)
+
 let rec apply1 vars f expl = match vars, expl with
   | vars, Leaf pt -> Leaf (f pt)
   | z :: vars, Node (x, part) ->
