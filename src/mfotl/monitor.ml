@@ -8,15 +8,13 @@
 (*******************************************************************)
 
 open Base
+open Import
 open Pred
 open Expl.Proof
 
-type timepoint = int
-type timestamp = int
-
 module Buf2 = struct
 
-  type t = (timestamp * Expl.t) list * (timestamp * Expl.t) list
+  type t = Expl.Proof.t list * Expl.Proof.t list
 
   let add xs ys (l1, l2) = (l1 @ xs, l2 @ ys)
 
@@ -135,14 +133,14 @@ module MFormula = struct
   let rec to_string_rec l = function
     | MTT -> Printf.sprintf "⊤"
     | MFF -> Printf.sprintf "⊥"
-    | MPredicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
+    | MPredicate (r, trms) -> Printf.sprintf "%step(%step)" r (Term.list_to_string trms)
     | MNeg f -> Printf.sprintf "¬%a" (fun x -> to_string_rec 5) f
     | MAnd (f, g, _) -> Printf.sprintf (Etc.paren l 4 "%a ∧ %a") (fun x -> to_string_rec 4) f (fun x -> to_string_rec 4) g
     | MOr (f, g, _) -> Printf.sprintf (Etc.paren l 3 "%a ∨ %a") (fun x -> to_string_rec 3) f (fun x -> to_string_rec 4) g
     | MImp (f, g, _) -> Printf.sprintf (Etc.paren l 4 "%a → %a") (fun x -> to_string_rec 4) f (fun x -> to_string_rec 4) g
     | MIff (f, g, _) -> Printf.sprintf (Etc.paren l 4 "%a ↔ %a") (fun x -> to_string_rec 4) f (fun x -> to_string_rec 4) g
-    | MExists (x, f) -> Printf.sprintf (Etc.paren l 5 "∃%s. %a") x (fun x -> to_string_rec 5) f
-    | MForall (x, f) -> Printf.sprintf (Etc.paren l 5 "∀%s. %a") x (fun x -> to_string_rec 5) f
+    | MExists (x, f) -> Printf.sprintf (Etc.paren l 5 "∃%step. %a") x (fun x -> to_string_rec 5) f
+    | MForall (x, f) -> Printf.sprintf (Etc.paren l 5 "∀%step. %a") x (fun x -> to_string_rec 5) f
     | MPrev (i, f, _, _, _) -> Printf.sprintf (Etc.paren l 5 "●%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
     | MNext (i, f, _, _) -> Printf.sprintf (Etc.paren l 5 "○%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
     | MOnce (i, f, _, _) -> Printf.sprintf (Etc.paren l 5 "⧫%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
@@ -185,164 +183,159 @@ let do_iff p1 p2 = match p1, p2 with
   | V vp1, S sp2 -> V (VIffVS (vp1, sp2))
   | V vp1, V vp2 -> S (SIffVV (vp1, vp2))
 
-(* let rec meval ts tp db = function *)
-(*   | MTT -> ([(ts, S (STT tp))], MTT) *)
-(*   | MFF -> ([(ts, V (VFF tp))], MFF) *)
-(*   | MPredicate (r, trms) -> ([], MPredicate (r, trms)) *)
-(*      (\* let d = Deque.create () in *\) *)
-(*      (\* let _ = if SS.mem a sap then Deque.enqueue_back d (S (SAtom (tp, a))) *\) *)
-(*      (\*         else Deque.enqueue_back d (V (VAtom (tp, a))) in *\) *)
-(*      (\* (ts, d, MP a) *\) *)
-(*   | MNeg (mf) -> *)
-(*      let (ts_ps, mf') = meval ts tp db mf in *)
-(*      let ts_ps' = List.fold ts_ps ~init:[] ~f:(fun acc (ts, p) -> (ts, do_neg p) :: acc) in *)
-(*      (ts_ps', MNeg(mf')) *)
-(*   | MAnd (mf1, mf2, buf2) -> *)
-(*      let (ts_p1s, mf1') = meval ts tp db mf1 in *)
-(*      let (ts_p2s, mf2') = meval ts tp db mf2 in *)
-(*      let (ts_ps, buf2') = Buf2.take do_and (Buf2.add ts_p1s ts_p2s buf2) in *)
-(*      (ts, ps, MConj (mf1', mf2', buf')) *)
-(*   | MDisj (mf1, mf2, buf) -> *)
-(*        let op p1 p2 = do_disj p1 p2 le in *)
-(*        let (_, p1s, mf1') = meval tp ts sap mf1 in *)
-(*        let (_, p2s, mf2') = meval tp ts sap mf2 in *)
-(*        let (ps, buf') = mbuf2_take op (mbuf2_add p1s p2s buf) in *)
-(*        (ts, ps, MDisj (mf1', mf2', buf')) *)
-(*     | MImp (mf1, mf2, buf) -> *)
-(*        let op p1 p2 = do_imp p1 p2 le in *)
-(*        let (_, p1s, mf1') = meval tp ts sap mf1 in *)
-(*        let (_, p2s, mf2') = meval tp ts sap mf2 in *)
-(*        let (ps, buf') = mbuf2_take op (mbuf2_add p1s p2s buf) in *)
-(*        (ts, ps, MImp (mf1', mf2', buf')) *)
-(*     | MIff (mf1, mf2, buf) -> *)
-(*        let op p1 p2 = do_iff p1 p2 le in *)
-(*        let (_, p1s, mf1') = meval tp ts sap mf1 in *)
-(*        let (_, p2s, mf2') = meval tp ts sap mf2 in *)
-(*        let (ps, buf') = mbuf2_take op (mbuf2_add p1s p2s buf) in *)
-(*        (ts, ps, MIff (mf1', mf2', buf')) *)
-(*     | MPrev (interval, mf, first, buf, tss) -> *)
-(*        let (_, ps, mf') = meval tp ts sap mf in *)
-(*        let () = Deque.iter ps ~f:(fun p -> Deque.enqueue_back buf p) in *)
-(*        let () = Deque.enqueue_back tss ts in *)
-(*        let (ps', buf', tss') = Prev_Next.mprev_next Prev interval buf tss le in *)
-(*        (ts, (if first then (let () = Deque.enqueue_front ps' (V VPrev0) in ps') *)
-(*          else ps'), MPrev (interval, mf', false, buf', tss')) *)
-(*     | MNext (interval, mf, first, tss) -> *)
-(*        let (_, ps, mf') = meval tp ts sap mf in *)
-(*        let () = Deque.enqueue_back tss ts in *)
-(*        let first = if first && (Deque.length ps) > 0 then (let () = Deque.drop_front ps in false) else first in *)
-(*        let (ps', _, tss') = Prev_Next.mprev_next Next interval ps tss le in *)
-(*        (ts, ps', MNext (interval, mf', first, tss')) *)
-(*     | MOnce (interval, mf, ts_tps, moaux) -> *)
-(*        let (_, ps, mf') = meval tp ts sap mf in *)
-(*        let _ = Deque.enqueue_back ts_tps (ts, tp) in *)
-(*        let ((ps, moaux'), buf', ts_tps') = *)
-(*          mbuft_take *)
-(*            (fun p ts tp (ps, aux) -> *)
-(*              let (op, aux) = Once.update_once interval ts tp p aux le in *)
-(*              let () = Deque.enqueue_back ps op in *)
-(*              (ps, aux)) *)
-(*            (Deque.create (), moaux) ps ts_tps in *)
-(*        (ts, ps, MOnce (interval, mf', ts_tps', moaux')) *)
-(*     | MHistorically (interval, mf, ts_tps, mhaux) -> *)
-(*        let (_, ps, mf') = meval tp ts sap mf in *)
-(*        let _ = Deque.enqueue_back ts_tps (ts, tp) in *)
-(*        let ((ps, mhaux'), buf', ts_tps') = *)
-(*          mbuft_take *)
-(*            (fun p ts tp (ps, aux) -> *)
-(*              let (op, aux) = Historically.update_historically interval ts tp p aux le in *)
-(*              let () = Deque.enqueue_back ps op in *)
-(*              (ps, aux)) *)
-(*            (Deque.create (), mhaux) ps ts_tps in *)
-(*        (ts, ps, MHistorically (interval, mf', ts_tps', mhaux')) *)
-(*     | MEventually (interval, mf, buf, nts_ntps, meaux) -> *)
-(*        let (_, ps, mf') = meval tp ts sap mf in *)
-(*        let () = Deque.enqueue_back nts_ntps (ts, tp) in *)
-(*        let () = Deque.iter ps ~f:(fun p -> Deque.enqueue_back buf p) in *)
-(*        let (meaux', buf', nts_ntps') = *)
-(*          mbuft_take *)
-(*            (fun p ts tp aux -> Eventually.update_eventually interval ts tp p le aux) *)
-(*            meaux buf nts_ntps in *)
-(*        let (nts, ntp) = match Deque.peek_front nts_ntps' with *)
-(*          | None -> (ts, tp) *)
-(*          | Some(nts', ntp') -> (nts', ntp') in *)
-(*        let (ts', ps, meaux'') = Eventually.eval_eventually (Deque.create ()) interval nts ntp le meaux' in *)
-(*        (ts', ps, MEventually (interval, mf', buf', nts_ntps', meaux'')) *)
-(*     | MAlways (interval, mf, buf, nts_ntps, maaux) -> *)
-(*        (\* let () = Printf.printf "meval ts = %d; tp = %d\n" ts tp in *\) *)
-(*        let (_, ps, mf') = meval tp ts sap mf in *)
-(*        let () = Deque.enqueue_back nts_ntps (ts, tp) in *)
-(*        let () = Deque.iter ps ~f:(fun p -> Deque.enqueue_back buf p) in *)
-(*        let (maaux', buf', nts_ntps') = *)
-(*          mbuft_take *)
-(*            (fun p ts tp aux -> Always.update_always interval ts tp p le aux) *)
-(*            maaux buf nts_ntps in *)
-(*        let (nts, ntp) = match Deque.peek_front nts_ntps' with *)
-(*          | None -> (ts, tp) *)
-(*          | Some(nts', ntp') -> (nts', ntp') in *)
-(*        let (ts', ps, maaux'') = Always.eval_always (Deque.create ()) interval nts ntp le maaux' in *)
-(*        (ts', ps, MAlways (interval, mf', buf', nts_ntps', maaux'')) *)
-(*     | MSince (interval, mf1, mf2, buf, ts_tps, msaux) -> *)
-(*        let (_, p1s, mf1') = meval tp ts sap mf1 in *)
-(*        let (_, p2s, mf2') = meval tp ts sap mf2 in *)
-(*        let _ = Deque.enqueue_back ts_tps (ts, tp) in *)
-(*        let ((ps, msaux'), buf', tss_tps') = *)
-(*          mbuf2t_take *)
-(*            (fun p1 p2 ts tp (ps, aux) -> *)
-(*              let (op, aux) = Since.update_since interval ts tp p1 p2 aux le in *)
-(*              let () = Deque.enqueue_back ps op in *)
-(*              (ps, aux)) *)
-(*            (Deque.create (), msaux) (mbuf2_add p1s p2s buf) ts_tps in *)
-(*        (ts, ps, MSince (interval, mf1', mf2', buf', tss_tps', msaux')) *)
-(*     | MUntil (interval, mf1, mf2, buf, nts_ntps, muaux) -> *)
-(*        let (_, p1s, mf1') = meval tp ts sap mf1 in *)
-(*        let (_, p2s, mf2') = meval tp ts sap mf2 in *)
-(*        let () = Deque.enqueue_back nts_ntps (ts, tp) in *)
-(*        let (muaux', buf', nts_ntps') = *)
-(*          mbuf2t_take *)
-(*            (fun p1 p2 ts tp aux -> Until.update_until interval ts tp p1 p2 le aux) *)
-(*            muaux (mbuf2_add p1s p2s buf) nts_ntps in *)
-(*        let (nts, ntp) = match Deque.peek_front nts_ntps' with *)
-(*          | None -> (ts, tp) *)
-(*          | Some(nts', ntp') -> (nts', ntp') in *)
-(*        let (ts', ps, muaux'') = Until.eval_until (Deque.create ()) interval nts ntp le muaux in *)
-(*        (ts', ps, MUntil (interval, mf1', mf2', buf', nts_ntps', muaux'')) in *)
-(*   meval tp ts sap mform *)
+let rec meval ts tp db = function
+  | MTT -> ([S (STT tp)], MTT)
+  | MFF -> ([V (VFF tp)], MFF)
+  | MPredicate (r, trms) -> ([], MPredicate (r, trms))
+  (* let d = Deque.create () in *)
+  (* let _ = if SS.mem a sap then Deque.enqueue_back d (S (SAtom (tp, a))) *)
+  (*         else Deque.enqueue_back d (V (VAtom (tp, a))) in *)
+  (* (ts, d, MP a) *)
+  | MNeg (mf) ->
+     let (ps, mf') = meval ts tp db mf in
+     let ps' = List.fold ps ~init:[] ~f:(fun acc p -> do_neg p :: acc) in
+     (ps', MNeg(mf'))
+  | MAnd (mf1, mf2, buf2) ->
+     let (p1s, mf1') = meval ts tp db mf1 in
+     let (p2s, mf2') = meval ts tp db mf2 in
+     let (ps, buf2') = Buf2.take do_and (Buf2.add p1s p2s buf2) in
+     (List.concat ps, MAnd (mf1', mf2', buf2'))
+  | MOr (mf1, mf2, buf2) ->
+     let (p1s, mf1') = meval ts tp db mf1 in
+     let (p2s, mf2') = meval ts tp db mf2 in
+     let (ps, buf2') = Buf2.take do_or (Buf2.add p1s p2s buf2) in
+     (List.concat ps, MOr (mf1', mf2', buf2'))
+  | MImp (mf1, mf2, buf2) ->
+     let (p1s, mf1') = meval ts tp db mf1 in
+     let (p2s, mf2') = meval ts tp db mf2 in
+     let (ps, buf2') = Buf2.take do_imp (Buf2.add p1s p2s buf2) in
+     (List.concat ps, MImp (mf1', mf2', buf2'))
+  | MIff (mf1, mf2, buf2) ->
+     let (p1s, mf1') = meval ts tp db mf1 in
+     let (p2s, mf2') = meval ts tp db mf2 in
+     let (ps, buf2') = Buf2.take do_iff (Buf2.add p1s p2s buf2) in
+     (ps, MIff (mf1', mf2', buf2'))
+  (* | MPrev (interval, mf, first, buf, tss) -> *)
+  (*    let (ps, mf') = meval ts tp db mf in *)
+  (*    let () = Deque.iter ps ~f:(fun p -> Deque.enqueue_back buf p) in *)
+  (*    let () = Deque.enqueue_back tss ts in *)
+  (*    let (ps', buf', tss') = Prev_Next.mprev_next Prev interval buf tss le in *)
+  (*    (ts, (if first then (let () = Deque.enqueue_front ps' (V VPrev0) in ps') *)
 
-(* type state = *)
-(*   { tp: timepoint *)
-(*   ; mf: mformula *)
-(*   ; events: (SS.t * timestamp) list *)
-(*   ; tp_ts: (timepoint, timestamp) Hashtbl.t *)
-(*   } *)
+  (*          else ps'), MPrev (interval, mf', false, buf', tss')) *)
+  (* | MNext (interval, mf, first, tss) -> *)
+  (*    let (_, ps, mf') = meval tp ts sap mf in *)
+  (*    let () = Deque.enqueue_back tss ts in *)
+  (*    let first = if first && (Deque.length ps) > 0 then (let () = Deque.drop_front ps in false) else first in *)
+  (*    let (ps', _, tss') = Prev_Next.mprev_next Next interval ps tss le in *)
+  (*    (ts, ps', MNext (interval, mf', first, tss')) *)
+  (* | MOnce (interval, mf, ts_tps, moaux) -> *)
+  (*    let (_, ps, mf') = meval tp ts sap mf in *)
+  (*    let _ = Deque.enqueue_back ts_tps (ts, tp) in *)
+  (*    let ((ps, moaux'), buf', ts_tps') = *)
+  (*      mbuft_take *)
+  (*          (fun p ts tp (ps, aux) -> *)
+  (*            let (op, aux) = Once.update_once interval ts tp p aux le in *)
+  (*            let () = Deque.enqueue_back ps op in *)
+  (*            (ps, aux)) *)
+  (*          (Deque.create (), moaux) ps ts_tps in *)
+  (*      (ts, ps, MOnce (interval, mf', ts_tps', moaux')) *)
+  (*   | MHistorically (interval, mf, ts_tps, mhaux) -> *)
+  (*      let (_, ps, mf') = meval tp ts sap mf in *)
+  (*      let _ = Deque.enqueue_back ts_tps (ts, tp) in *)
+  (*      let ((ps, mhaux'), buf', ts_tps') = *)
+  (*        mbuft_take *)
+  (*          (fun p ts tp (ps, aux) -> *)
+  (*            let (op, aux) = Historically.update_historically interval ts tp p aux le in *)
+  (*            let () = Deque.enqueue_back ps op in *)
+  (*            (ps, aux)) *)
+  (*          (Deque.create (), mhaux) ps ts_tps in *)
+  (*      (ts, ps, MHistorically (interval, mf', ts_tps', mhaux')) *)
+  (*   | MEventually (interval, mf, buf, nts_ntps, meaux) -> *)
+  (*      let (_, ps, mf') = meval tp ts sap mf in *)
+  (*      let () = Deque.enqueue_back nts_ntps (ts, tp) in *)
+  (*      let () = Deque.iter ps ~f:(fun p -> Deque.enqueue_back buf p) in *)
+  (*      let (meaux', buf', nts_ntps') = *)
+  (*        mbuft_take *)
+  (*          (fun p ts tp aux -> Eventually.update_eventually interval ts tp p le aux) *)
+  (*          meaux buf nts_ntps in *)
+  (*      let (nts, ntp) = match Deque.peek_front nts_ntps' with *)
+  (*        | None -> (ts, tp) *)
+  (*        | Some(nts', ntp') -> (nts', ntp') in *)
+  (*      let (ts', ps, meaux'') = Eventually.eval_eventually (Deque.create ()) interval nts ntp le meaux' in *)
+  (*      (ts', ps, MEventually (interval, mf', buf', nts_ntps', meaux'')) *)
+  (*   | MAlways (interval, mf, buf, nts_ntps, maaux) -> *)
+  (*      (\* let () = Printf.printf "meval ts = %d; tp = %d\n" ts tp in *\) *)
+  (*      let (_, ps, mf') = meval tp ts sap mf in *)
+  (*      let () = Deque.enqueue_back nts_ntps (ts, tp) in *)
+  (*      let () = Deque.iter ps ~f:(fun p -> Deque.enqueue_back buf p) in *)
+  (*      let (maaux', buf', nts_ntps') = *)
+  (*        mbuft_take *)
+  (*          (fun p ts tp aux -> Always.update_always interval ts tp p le aux) *)
+  (*          maaux buf nts_ntps in *)
+  (*      let (nts, ntp) = match Deque.peek_front nts_ntps' with *)
+  (*        | None -> (ts, tp) *)
+  (*        | Some(nts', ntp') -> (nts', ntp') in *)
+  (*      let (ts', ps, maaux'') = Always.eval_always (Deque.create ()) interval nts ntp le maaux' in *)
+  (*      (ts', ps, MAlways (interval, mf', buf', nts_ntps', maaux'')) *)
+  (*   | MSince (interval, mf1, mf2, buf, ts_tps, msaux) -> *)
+  (*      let (_, p1s, mf1') = meval tp ts sap mf1 in *)
+  (*      let (_, p2s, mf2') = meval tp ts sap mf2 in *)
+  (*      let _ = Deque.enqueue_back ts_tps (ts, tp) in *)
+  (*      let ((ps, msaux'), buf', tss_tps') = *)
+  (*        mbuf2t_take *)
+  (*          (fun p1 p2 ts tp (ps, aux) -> *)
+  (*            let (op, aux) = Since.update_since interval ts tp p1 p2 aux le in *)
+  (*            let () = Deque.enqueue_back ps op in *)
+  (*            (ps, aux)) *)
+  (*          (Deque.create (), msaux) (mbuf2_add p1s p2s buf) ts_tps in *)
+  (*      (ts, ps, MSince (interval, mf1', mf2', buf', tss_tps', msaux')) *)
+  (*   | MUntil (interval, mf1, mf2, buf, nts_ntps, muaux) -> *)
+  (*      let (_, p1s, mf1') = meval tp ts sap mf1 in *)
+  (*      let (_, p2s, mf2') = meval tp ts sap mf2 in *)
+  (*      let () = Deque.enqueue_back nts_ntps (ts, tp) in *)
+  (*      let (muaux', buf', nts_ntps') = *)
+  (*        mbuf2t_take *)
+  (*          (fun p1 p2 ts tp aux -> Until.update_until interval ts tp p1 p2 le aux) *)
+  (*          muaux (mbuf2_add p1s p2s buf) nts_ntps in *)
+  (*      let (nts, ntp) = match Deque.peek_front nts_ntps' with *)
+  (*        | None -> (ts, tp) *)
+  (*        | Some(nts', ntp') -> (nts', ntp') in *)
+  (*      let (ts', ps, muaux'') = Until.eval_until (Deque.create ()) interval nts ntp le muaux in *)
+  (*      (ts', ps, MUntil (interval, mf1', mf2', buf', nts_ntps', muaux'')) *)
+  | _ -> failwith "not yet"
 
-(* let monitor_cli in_ch out_ch mode out_mode check le is_opt f = *)
-(*   let mf = init f in *)
-(*   let mf_ap = relevant_ap mf in *)
-(*   let st = { tp = 0 *)
-(*             ; mf = mf *)
-(*             ; events = [] *)
-(*             ; tp_ts = Hashtbl.create 0 *)
-(*             } in *)
-(*   (match out_mode with *)
-(*    | PLAIN | DEBUG -> preamble_stdout out_ch mode f *)
-(*    | JSON -> preamble_json out_ch f); *)
-(*   let s (st, in_ch) = *)
-(*     let ((sap, ts), in_ch) = input_event in_ch out_ch in *)
-(*     let sap_filtered = filter_ap sap mf_ap in *)
-(*     let events_updated = (sap_filtered, ts)::st.events in *)
-(*     let (ts', ps, mf_updated) = meval' ts st.tp sap_filtered st.mf le in *)
-(*     let lps = Deque.to_list ps in *)
-(*     let checker_ps = if check then Some (check_ps is_opt events_updated f lps) else None in *)
-(*     let () = output_ps out_ch mode out_mode ts' [] f lps checker_ps in *)
-(*     let st_updated = *)
-(*       { st with *)
-(*         tp = st.tp+1 *)
-(*       ; mf = mf_updated *)
-(*       ; events = events_updated *)
-(*       } in *)
-(*     (st_updated, in_ch) in *)
-(*   loop s (st, in_ch) *)
+type state =
+  { tp: timepoint
+  ; tss: timestamp list
+  ; mf: MFormula.t
+  ; events: (timestamp * Db.t) list }
+
+let monitor_cli in_ch out_ch mode out_mode check le is_opt f =
+  let mf = init f in
+  let st = { tp = 0
+           ; tss = []
+           ; mf = mf
+           ; events = [] } in
+  (match out_mode with
+   | PLAIN | DEBUG -> preamble_stdout out_ch mode f
+   | JSON -> preamble_json out_ch f);
+  let step (st, in_ch) =
+    let ((sap, ts), in_ch) = input_event in_ch out_ch in
+    let sap_filtered = filter_ap sap mf_ap in
+    let events_updated = (sap_filtered, ts)::st.events in
+    let (ts', ps, mf_updated) = meval' ts st.tp sap_filtered st.mf le in
+    let lps = Deque.to_list ps in
+    let checker_ps = if check then Some (check_ps is_opt events_updated f lps) else None in
+    let () = output_ps out_ch mode out_mode ts' [] f lps checker_ps in
+    let st_updated =
+      { st with
+        tp = st.tp+1
+      ; mf = mf_updated
+      ; events = events_updated
+      } in
+    (st_updated, in_ch) in
+  loop step (st, in_ch)
 
 (* let monitor_vis obj_opt log le f = *)
 (*   let events = parse_lines_from_string log in *)
@@ -357,7 +350,7 @@ let do_iff p1 p2 = match p1, p2 with
 (*   let mf_ap = relevant_ap mf in *)
 (*   match events with *)
 (*   | Ok es -> *)
-(*      (let ((m, s), o) = List.fold_map es ~init:(mf, st) ~f:(fun (mf', st') (sap, ts) -> *)
+(*      (let ((m, step), o) = List.fold_map es ~init:(mf, st) ~f:(fun (mf', st') (sap, ts) -> *)
 (*                             let last_ts = match Hashtbl.find_opt st.tp_ts (st'.tp-1) with *)
 (*                               | None -> ts *)
 (*                               | Some(ts') -> ts' in *)
@@ -379,7 +372,7 @@ let do_iff p1 p2 = match p1, p2 with
 (*       let atoms' = String.concat ",\n" (List.filter atoms (fun a -> not (String.equal a ""))) in *)
 (*       let ident = "    " in *)
 (*       let json = (Printf.sprintf "{\n") ^ *)
-(*                    (Printf.sprintf "%s\"expls\": [\n%s],\n" ident expls') ^ *)
-(*                      (Printf.sprintf "%s\"atoms\": [\n%s]\n}" ident atoms') in *)
-(*       (Some(m, s), json)) *)
+(*                    (Printf.sprintf "%step\"expls\": [\n%step],\n" ident expls') ^ *)
+(*                      (Printf.sprintf "%step\"atoms\": [\n%step]\n}" ident atoms') in *)
+(*       (Some(m, step), json)) *)
 (*   | Error err -> (None, json_error err) *)
