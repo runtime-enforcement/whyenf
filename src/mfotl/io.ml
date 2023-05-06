@@ -14,6 +14,13 @@ open Import
 
 module Stdin = struct
 
+  (* TODO: Improve error handling here *)
+  let parse_event inc =
+    Db_parser.db Db_lexer.token (Lexing.from_channel inc)
+
+  let parse_events inc =
+    parse_event inc
+
 end
 
 
