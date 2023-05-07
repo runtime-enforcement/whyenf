@@ -9,6 +9,7 @@
 (*******************************************************************)
 
 open Base
+open Stdio
 open Mfotl
 
 (* TODO: This module must be rewritten using the Command module from Core *)
@@ -17,8 +18,9 @@ module Explanator2 = struct
   let mode_ref = ref Io.Stdout.UNVERIFIED
   let measure_ref = ref ""
   let formula_ref = ref None
-  let trace_ref = ref Stdio.In_channel.stdin
-  let outc_ref = ref Stdio.Out_channel.stdout
+  let trace_ref = ref In_channel.stdin
+  let sig_ref = ref In_channel.stdin
+  let outc_ref = ref Out_channel.stdout
 
   let usage () =
     Caml.Format.eprintf
@@ -64,17 +66,21 @@ module Explanator2 = struct
             | _ -> measure_error ());
          process_args_rec args
       | ("-log" :: logf :: args) ->
-         trace_ref := open_in logf;
+         trace_ref := In_channel.create logf;
+         process_args_rec args
+      | ("-sig" :: sf :: args) ->
+         let ls = In_channel.read_lines sf in
+         List.iter ls (fun l -> let _ = Sig_parser.pred_sig Sig_lexer.token (Lexing.from_string l) in ());
          process_args_rec args
       | ("-formula" :: f :: args) ->
          (try
-            let inc = open_in f in
+            let inc = In_channel.create f in
             formula_ref := Some(Formula_parser.formula Formula_lexer.token (Lexing.from_channel inc));
-            close_in inc
+            In_channel.close inc
           with _ -> formula_ref := Some(Formula_parser.formula Formula_lexer.token (Lexing.from_string f)));
          process_args_rec args
       | ("-out" :: outf :: args) ->
-         outc_ref := open_out outf;
+         outc_ref := Out_channel.create outf;
          process_args_rec args
       | _ -> usage () in process_args_rec
 
@@ -83,7 +89,7 @@ module Explanator2 = struct
       process_args (List.tl_exn (Array.to_list Sys.argv));
       let formula = Option.value !formula_ref in ()
     with
-    | Invalid_argument _ -> Stdio.Out_channel.close !outc_ref; exit 1
-    | End_of_file -> Stdio.Out_channel.close !outc_ref; exit 0
+    | Invalid_argument _ -> Out_channel.close !outc_ref; exit 1
+    | End_of_file -> Out_channel.close !outc_ref; exit 0
 
 end
