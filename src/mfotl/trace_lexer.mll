@@ -9,13 +9,12 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
-open Sig_parser
-open Lexing
+open Import
 
-exception Parsing_Error of position*position*string
+let parsing_error i j fmt = Format.kasprintf (fun s -> raise (Parsing_error(i,j,s))) fmt
+let lexing_error lexbuf fmt = parsing_error (Lexing.lexeme_start_p lexbuf) (Lexing.lexeme_end_p lexbuf) fmt
 
-let parsing_error i j fmt = Format.kasprintf (fun s -> raise (Parsing_Error(i,j,s))) fmt
-let lexing_error lexbuf fmt = parsing_error (lexeme_start_p lexbuf) (lexeme_end_p lexbuf) fmt
+type token = AT | LPA | RPA | COM | SEP | EOF | STR of string
 
 }
 
@@ -27,29 +26,23 @@ let uc = ['A'-'Z']
 let letter = uc | lc
 let digit = ['0'-'9']
 
+let digits = ['0'-'9']+
 let string = (letter | digit | '_' | '[' | ']' | '/' | '-' | '.' | '!')+
 
 rule token = parse
   | newline                        { Lexing.new_line lexbuf; token lexbuf }
   | blank                          { token lexbuf }
-  | "("                            { LOPEN }
-  | ")"                            { ROPEN }
-  | ","                            { COMMA }
-  | ":"                            { COLON }
-  | "/*"                           { skip 1 lexbuf }
+  | "@"                            { AT }
+  | "("                            { LPA }
+  | ")"                            { RPA }
+  | ","                            { COM }
+  | ";"                            { SEP }
   | "#"                            { skip_line lexbuf }
+  | string as s                    { STR s }
   | eof                            { EOF }
-  | string as s                    { STRING s }
-  | _ as c                         { lexing_error lexbuf "Unexpected character: `%c'" c }
-
-and skip n = parse
-  | newline                        { Lexing.new_line lexbuf; skip n lexbuf }
-  | "*/"                           { if n=1 then token lexbuf else skip (n-1) lexbuf }
-  | "/*"                           { skip (n+1) lexbuf }
-  | eof                            { lexing_error lexbuf "Unterminated comment" }
-  | _                              { skip n lexbuf }
+  | _ as c                         { lexing_error lexbuf "unexpected character: `%c'" c }
 
 and skip_line = parse
-  | newline                        { Lexing.new_line lexbuf; token lexbuf }
+  | "\n" | "\r" | "\r\n"           { Lexing.new_line lexbuf; token lexbuf }
   | eof                            { EOF }
   | _                              { skip_line lexbuf }
