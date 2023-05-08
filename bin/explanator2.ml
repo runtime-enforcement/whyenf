@@ -69,8 +69,7 @@ module Explanator2 = struct
          trace_ref := In_channel.create logf;
          process_args_rec args
       | ("-sig" :: sf :: args) ->
-         let ls = In_channel.read_lines sf in
-         List.iter ls (fun l -> let _ = Sig_parser.pred_sig Sig_lexer.token (Lexing.from_string l) in ());
+         Sig_parser.parse sf;
          process_args_rec args
       | ("-formula" :: f :: args) ->
          (try
