@@ -69,7 +69,7 @@ module Explanator2 = struct
          trace_ref := In_channel.create logf;
          process_args_rec args
       | ("-sig" :: sf :: args) ->
-         Sig_parser.parse sf;
+         Other_parser.Sig.parse sf;
          process_args_rec args
       | ("-formula" :: f :: args) ->
          (try
