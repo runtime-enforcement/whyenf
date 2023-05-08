@@ -1,5 +1,5 @@
 (ocamllex
- (modules trace_lexer formula_lexer))
+ (modules other_lexer formula_lexer))
 
 (menhir
  (modules formula_parser))

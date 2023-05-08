@@ -8,4 +8,8 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
-val parse: string -> unit
+module Sig : sig
+
+  val parse: string -> unit
+
+end
