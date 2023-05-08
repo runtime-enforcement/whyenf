@@ -9,6 +9,7 @@
 (*******************************************************************)
 
 open Base
+open Stdio
 
 module Term = struct
 
@@ -39,10 +40,9 @@ module Sig = struct
 
   let n_tt v_name st = (v_name, Domain.tt_of_string st)
 
-  let make p_name ntconsts =
+  let add p_name ntconsts =
     let props = { arity = List.length ntconsts; ntconsts } in
-    let () = Hashtbl.add_exn table p_name props in
-    (p_name, props)
+    Hashtbl.add_exn table p_name props
 
 end
 

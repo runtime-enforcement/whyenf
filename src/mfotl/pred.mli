@@ -30,7 +30,7 @@ module Sig : sig
 
   val n_tt: string -> string -> (string * Domain.tt)
 
-  val make: string -> (string * Domain.tt) list -> string * props
+  val add: string -> (string * Domain.tt) list -> unit
 
 end
 

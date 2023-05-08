@@ -1,8 +1,8 @@
 (ocamllex
- (modules sig_lexer db_lexer formula_lexer))
+ (modules trace_lexer formula_lexer))
 
 (menhir
- (modules sig_parser db_parser formula_parser))
+ (modules formula_parser))
  ;; debug (flags --explain --dump)
 
 (library
