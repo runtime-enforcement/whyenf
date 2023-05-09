@@ -1,6 +1,6 @@
 (*<*)
 theory MFOTL
-  imports MFOTL_Monitor.Interval MFODL_Monitor_Optimized.Event_Data Trace 
+  imports MFOTL_Monitor.Interval Trace 
 begin
 (*>*)
 
@@ -11,27 +11,27 @@ context begin
 subsection \<open>Formulas and Satisfiability\<close>
 
 qualified type_synonym name = string
-qualified type_synonym event = "(name \<times> event_data list)"
-qualified type_synonym database = "event set"
-qualified type_synonym prefix = "(name \<times> event_data list) prefix"
-qualified type_synonym trace = "(name \<times> event_data list) trace"
-qualified type_synonym env = "name \<Rightarrow> event_data"
-qualified type_synonym envset = "name \<Rightarrow> event_data set"
+qualified type_synonym 'a event = "(name \<times> 'a list)"
+qualified type_synonym 'a database = "'a event set"
+qualified type_synonym 'a prefix = "(name \<times> 'a list) prefix"
+qualified type_synonym 'a trace = "(name \<times> 'a list) trace"
+qualified type_synonym 'a env = "name \<Rightarrow> 'a"
+qualified type_synonym 'a envset = "name \<Rightarrow> 'a set"
 
-qualified datatype trm = is_Var: Var name | is_Const: Const event_data
+qualified datatype 'a trm = is_Var: Var name | is_Const: Const 'a
 
-qualified primrec fv_trm :: "trm \<Rightarrow> string set" where
+qualified primrec fv_trm :: "'a trm \<Rightarrow> string set" where
   "fv_trm (Var x) = {x}"
 | "fv_trm (Const _) = {}"
 
-qualified primrec eval_trm :: "env \<Rightarrow> trm \<Rightarrow> event_data" where
+qualified primrec eval_trm :: "'a env \<Rightarrow> 'a trm \<Rightarrow> 'a" where
   "eval_trm v (Var x) = v x"
 | "eval_trm v (Const x) = x"
 
 lemma eval_trm_fv_cong: "\<forall>x\<in>fv_trm t. v x = v' x \<Longrightarrow> eval_trm v t = eval_trm v' t"
   by (induction t) simp_all
 
-qualified definition eval_trms :: "env \<Rightarrow> trm list \<Rightarrow> event_data list" where
+qualified definition eval_trms :: "'a env \<Rightarrow> 'a trm list \<Rightarrow> 'a list" where
   "eval_trms v ts = map (eval_trm v) ts"
 
 lemma eval_trms_fv_cong: 
@@ -40,11 +40,11 @@ lemma eval_trms_fv_cong:
   by (auto simp: eval_trms_def)
 
 (* vs :: "'a envset" is used whenever we define executable functions *)
-qualified primrec eval_trm_set :: "envset \<Rightarrow> trm \<Rightarrow> trm \<times> event_data set" where
+qualified primrec eval_trm_set :: "'a envset \<Rightarrow> 'a trm \<Rightarrow> 'a trm \<times> 'a set" where
   "eval_trm_set vs (MFOTL.Var x) = (Var x, vs x)"
 | "eval_trm_set vs (MFOTL.Const x) = (Const x, {x})"
 
-qualified definition eval_trms_set :: "envset \<Rightarrow> trm list \<Rightarrow> (trm \<times> event_data set) list" 
+qualified definition eval_trms_set :: "'a envset \<Rightarrow> 'a trm list \<Rightarrow> ('a trm \<times> 'a set) list" 
   where "eval_trms_set vs ts = map (eval_trm_set vs) ts"
 
 lemma eval_trms_set_Nil: "eval_trms_set vs [] = []"
@@ -54,27 +54,27 @@ lemma eval_trms_set_Cons:
   "eval_trms_set vs (t # ts) = eval_trm_set vs t # (eval_trms_set vs ts)"
   by (simp add: eval_trms_set_def)
 
-qualified datatype formula = 
+qualified datatype 'a formula = 
   TT
 | FF
-| Pred name "trm list" 
-| Neg "formula" 
-| Or "formula" "formula" 
-| And "formula" "formula"
-| Imp "formula" "formula"
-| Iff "formula" "formula"
-| Exists "name" "formula"
-| Forall "name" "formula"
-| Prev \<I> "formula" 
-| Next \<I> "formula"
-| Once \<I> "formula" 
-| Historically \<I> "formula"
-| Eventually \<I> "formula" 
-| Always \<I> "formula"
-| Since "formula" \<I> "formula" 
-| Until "formula" \<I> "formula"
+| Pred name "'a trm list" 
+| Neg "'a formula" 
+| Or "'a formula" "'a formula" 
+| And "'a formula" "'a formula"
+| Imp "'a formula" "'a formula"
+| Iff "'a formula" "'a formula"
+| Exists "name" "'a formula"
+| Forall "name" "'a formula"
+| Prev \<I> "'a formula" 
+| Next \<I> "'a formula"
+| Once \<I> "'a formula" 
+| Historically \<I> "'a formula"
+| Eventually \<I> "'a formula" 
+| Always \<I> "'a formula"
+| Since "'a formula" \<I> "'a formula" 
+| Until "'a formula" \<I> "'a formula"
 
-qualified primrec fv :: "formula \<Rightarrow> string set" where
+qualified primrec fv :: "'a formula \<Rightarrow> string set" where
   "fv (Pred r ts) = (\<Union>t\<in>set ts. fv_trm t)"
 | "fv (TT) = {}"
 | "fv (FF) = {}"
@@ -100,10 +100,10 @@ lemma finite_fv_trm[simp]: "finite (fv_trm t)"
 lemma finite_fv[simp]: "finite (fv \<phi>)"
   by (induction \<phi>) simp_all
 
-qualified definition nfv :: "formula \<Rightarrow> nat" where
+qualified definition nfv :: "'a formula \<Rightarrow> nat" where
   "nfv \<phi> = card (fv \<phi>)"
 
-qualified fun future_bounded :: "formula \<Rightarrow> bool" where
+qualified fun future_bounded :: "'a formula \<Rightarrow> bool" where
   "future_bounded (TT) = True"
 | "future_bounded (FF) = True"
 | "future_bounded (Pred _ _) = True"
@@ -123,7 +123,7 @@ qualified fun future_bounded :: "formula \<Rightarrow> bool" where
 | "future_bounded (Since \<phi> I \<psi>) = (future_bounded \<phi> \<and> future_bounded \<psi>)"
 | "future_bounded (Until \<phi> I \<psi>) = (future_bounded \<phi> \<and> future_bounded \<psi> \<and> right I \<noteq> \<infinity>)"
 
-qualified primrec sat :: "trace \<Rightarrow> env \<Rightarrow> nat \<Rightarrow> formula \<Rightarrow> bool" where
+qualified primrec sat :: "'a trace \<Rightarrow> 'a env \<Rightarrow> nat \<Rightarrow> 'a formula \<Rightarrow> bool" where
   "sat \<sigma> v i (TT) = True"
 | "sat \<sigma> v i (FF) = False"              
 | "sat \<sigma> v i (Pred r ts) = ((r, eval_trms v ts) \<in> \<Gamma> \<sigma> i)"
@@ -337,7 +337,7 @@ end
 
 unbundle MFOTL_notation \<comment> \<open> enable notation \<close>
 
-(* value "v\<lbrakk>\<^bold>c (0::nat)\<rbrakk> = 0" *)
+value "v\<lbrakk>\<^bold>c (0::nat)\<rbrakk> = 0"
 
 term "\<forall>\<^sub>F''x''. \<exists>\<^sub>F''y''. (P \<dagger> [\<^bold>c a, \<^bold>v ''x'']) \<and>\<^sub>F Q \<dagger> [\<^bold>v ''y''] \<longrightarrow>\<^sub>F \<phi> \<^bold>U I \<psi>"
 
