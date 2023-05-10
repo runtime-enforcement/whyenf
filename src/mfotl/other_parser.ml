@@ -51,6 +51,8 @@ module Parsebuf = struct
 
   let add_event evt pb = pb.db <- Db.add_event pb.db evt
 
+  let clear pb = pb
+
 end
 
 module Sig = struct
@@ -149,9 +151,7 @@ module Trace = struct
                                              parse_tuple ()
                                     | t -> raise (Failure ("expected '(' but found " ^ string_of_token t))))
                   | None -> raise (Failure ("predicate " ^ s ^ " was not specified")))
-      | AT -> Parsebuf.next pb;
-              parse_ts ()
-      | EOF -> pb.db
+      | AT | EOF -> pb
       | t -> raise (Failure ("expected a predicate or '@' but found " ^ string_of_token t))
     and parse_tuple () =
       match pb.token with
