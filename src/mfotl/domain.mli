@@ -25,3 +25,5 @@ val tt_of_string: string -> tt
 val string_to_t: string -> tt -> t
 
 val to_string: t -> string
+
+val list_to_string: t list -> string

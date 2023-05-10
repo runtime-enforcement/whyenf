@@ -12,11 +12,18 @@ open Base
 open Import
 
 module Event = struct
+
   module T = struct
+
     type t = string * Domain.t list [@@deriving compare, sexp_of]
+
+    let to_string (name, ds) = Printf.sprintf "%s(%s)" name (Domain.list_to_string ds)
+
   end
+
   include T
   include Comparable.Make(T)
+
 end
 
 type t = timestamp * timepoint * (Event.t, Event.comparator_witness) Set.t
@@ -34,3 +41,7 @@ let event name consts =
   else raise (Invalid_argument (Printf.sprintf "predicate %s has arity %d" name pred_sig.arity))
 
 let add_event (ts, tp, evts) evt = (ts, tp, Set.add evts evt)
+
+let to_string (ts, tp, evts) =
+  Printf.sprintf "TS: %d | TP: %d\n" ts tp ^
+    (List.fold evts ~init:"" ~f:(fun acc evt -> acc ^ Event.to_string evt ^ "\n"))
