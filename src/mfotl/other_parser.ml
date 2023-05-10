@@ -10,6 +10,7 @@
 
 open Base
 open Stdio
+open Import
 
 let string_of_token (t: Other_lexer.token) =
   match t with
@@ -23,11 +24,32 @@ let string_of_token (t: Other_lexer.token) =
 
 module Parsebuf = struct
 
-  type t = { lexbuf: Lexing.lexbuf; mutable token: Other_lexer.token; mutable predsig: (string * Pred.Sig.props) list }
+  type t = { lexbuf: Lexing.lexbuf
+           ; mutable token: Other_lexer.token
+           ; mutable pred_sig: Pred.Sig.t option
+           ; mutable db: Db.t }
 
-  let init lexbuf = { lexbuf = lexbuf; token = Other_lexer.token lexbuf; predsig = []  }
+  let init lexbuf = { lexbuf = lexbuf
+                    ; token = Other_lexer.token lexbuf
+                    ; pred_sig = None
+                    ; db = Db.db (-1) (-1) [] }
 
   let next pb = pb.token <- Other_lexer.token pb.lexbuf
+
+  let arity pb = (snd (Option.value_exn pb.pred_sig)).arity
+
+  let pred pb = fst (Option.value_exn pb.pred_sig)
+
+  let ts pb = match pb.db with
+    | t, _, _ -> t
+
+  let tp pb = match pb.db with
+    | _, t, _ -> t
+
+  let evts pb = match pb.db with
+    | _, _, es -> es
+
+  let add_event evt pb = pb.db <- Db.add_event pb.db evt
 
 end
 
@@ -98,76 +120,64 @@ end
 
 module Trace = struct
 
-  exception Stop_parser
-
   let tp = ref (-1)
   let next_tp () = tp := !tp + 1; !tp
 
-  (* TODO: This should return a Db.t *)
-  let parse lexbuf db_schema ctxt =
+  let parse_inc lexbuf =
     let pb = Parsebuf.init lexbuf in
     let rec parse_init () =
       match pb.token with
-      | EOF -> ()
       | AT -> Parsebuf.next pb; parse_ts ()
-      | t -> fail ("expected '@' but found " ^ string_of_token t)
+      | t -> raise (Failure ("expected '@' but found " ^ string_of_token t))
     and parse_ts () =
       match pb.token with
       | STR s -> let ts = try Some (Int.of_string s)
                           with _ -> None in
                  (match ts with
                   | Some ts -> Parsebuf.next pb;
+                               pb.db <- Db.db ts (next_tp ()) [];
                                parse_db ()
-                  | None -> fail ("expected a time-stamp but found " ^ s))
-      | t -> fail ("expected a time-stamp but found " ^ string_of_token t)
+                  | None -> raise (Failure ("expected a time-stamp but found " ^ s)))
+      | t -> raise (Failure ("expected a time-stamp but found " ^ string_of_token t))
     and parse_db () =
       match pb.token with
       | STR s -> (match Hashtbl.find Pred.Sig.table s with
-                  | Some props -> (pb.predsig <- [(s, props)];
+                  | Some props -> (pb.pred_sig <- Some(s, props);
                                    Parsebuf.next pb;
                                    (match pb.token with
                                     | LPA -> Parsebuf.next pb;
                                              parse_tuple ()
-                                    | t -> fail ("expected '(' but found " ^ string_of_token t)))
-                  | None -> fail ("predicate " ^ s ^ " was not specified"))
+                                    | t -> raise (Failure ("expected '(' but found " ^ string_of_token t))))
+                  | None -> raise (Failure ("predicate " ^ s ^ " was not specified")))
       | AT -> Parsebuf.next pb;
               parse_ts ()
-      | EOF -> C.end_tp ctxt
-      | t -> fail ("expected a predicate or '@' but found " ^ string_of_token t)
+      | EOF -> pb.db
+      | t -> raise (Failure ("expected a predicate or '@' but found " ^ string_of_token t))
     and parse_tuple () =
       match pb.token with
-      | RPA -> parse_tuple_cont []
+      | RPA -> parse_tuple_cont (Queue.create ())
       | STR s -> Parsebuf.next pb;
-                 parse_tuple_cont [s]
-      | t -> fail ("expected a tuple or ')' but found " ^ string_of_token t)
-    and parse_tuple_cont l =
+                 parse_tuple_cont (Queue.of_list [s])
+      | t -> raise (Failure ("expected a tuple or ')' but found " ^ string_of_token t))
+    and parse_tuple_cont q =
       match pb.token with
       | RPA -> Parsebuf.next pb;
-               C.tuple ctxt pb.pb_schema (List.rev l);
+               (if Int.equal (Queue.length q) (Parsebuf.arity pb) then
+                  let evt = Db.event (Parsebuf.pred pb) (Queue.to_list q) in
+                  Parsebuf.add_event evt pb
+                else raise (Failure (Printf.sprintf "expected a tuple of arity %d but found %d arguments"
+                                       (Parsebuf.arity pb) (Queue.length q))));
                (match pb.token with
                 | LPA -> Parsebuf.next pb; parse_tuple ()
                 | _ -> parse_db ())
       | COM -> Parsebuf.next pb;
                (match pb.token with
                 | STR s -> Parsebuf.next pb;
-                           parse_tuple_cont (s::l)
-                | t -> fail ("expected a tuple but found " ^ string_of_token t))
-      | t -> fail ("expected ',' or ')' but found " ^ string_of_token t)
-    and recover () =
-      Parsebuf.next pb;
-      match pb.token with
-      | AT -> Parsebuf.next pb; parse_ts ()
-      | EOF -> ()
-      | _ -> Parsebuf.next pb; recover ()
-    and fail msg =
-      C.parse_error ctxt pb.pb_lexbuf.Lexing.lex_start_p msg;
-      recover () in
-    try
-      parse_init ();
-      C.end_log ctxt;
-      true
-    with Stop_parser -> false
-
+                           Queue.enqueue q s;
+                           parse_tuple_cont q
+                | t -> raise (Failure ("expected a tuple but found " ^ string_of_token t)))
+      | t -> raise (Failure ("expected ',' or ')' but found " ^ string_of_token t)) in
+    parse_init ()
 
   let parse f_opt =
     let inc = match f_opt with
@@ -175,6 +185,6 @@ module Trace = struct
       | Some f -> In_channel.create f in
     let lexbuf = Lexing.from_channel inc in
     Lexing.set_filename lexbuf (Option.value_exn f_opt);
-    parse dbschema lexbuf ctxt
+    parse_inc lexbuf
 
 end

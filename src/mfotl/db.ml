@@ -19,9 +19,9 @@ module Event = struct
   include Comparable.Make(T)
 end
 
-type t = timepoint * timestamp * (Event.t, Event.comparator_witness) Set.t
+type t = timestamp * timepoint * (Event.t, Event.comparator_witness) Set.t
 
-let db tp ts events = (tp, Int.of_string ts, Set.of_list (module Event) events)
+let db ts tp evts = (ts, tp, Set.of_list (module Event) evts)
 
 let event name consts =
   let pred_sig = Hashtbl.find_exn Pred.Sig.table name in
@@ -32,3 +32,5 @@ let event name consts =
                           | TStr -> Str c
                           | TFloat -> Float (Float.of_string c)))
   else raise (Invalid_argument (Printf.sprintf "predicate %s has arity %d" name pred_sig.arity))
+
+let add_event (ts, tp, evts) evt = (ts, tp, Set.add evts evt)

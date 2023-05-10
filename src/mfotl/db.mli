@@ -19,6 +19,8 @@ end
 
 type t = timestamp * timepoint * (Event.t, Event.comparator_witness) Set.t
 
-val db: timepoint -> string -> Event.t list -> t
+val db: timestamp -> timepoint -> Event.t list -> t
 
 val event: string -> string list -> Event.t
+
+val add_event: t -> Event.t -> t
