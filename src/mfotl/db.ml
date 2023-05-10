@@ -9,6 +9,7 @@
 (*******************************************************************)
 
 open Base
+open Import
 
 module Event = struct
   module T = struct
@@ -18,16 +19,16 @@ module Event = struct
   include Comparable.Make(T)
 end
 
-type t = int * (Event.t, Event.comparator_witness) Set.t
+type t = timepoint * timestamp * (Event.t, Event.comparator_witness) Set.t
 
-let db ts events = (int_of_string ts, Set.of_list (module Event) events)
+let db tp ts events = (tp, Int.of_string ts, Set.of_list (module Event) events)
 
 let event name consts =
   let pred_sig = Hashtbl.find_exn Pred.Sig.table name in
   if pred_sig.arity = List.length consts then
     (name, List.map2_exn pred_sig.ntconsts consts
              (fun tc c -> match snd tc with
-                          | TInt -> Domain.Int (int_of_string c)
+                          | TInt -> Domain.Int (Int.of_string c)
                           | TStr -> Str c
-                          | TFloat -> Float (float_of_string c)))
+                          | TFloat -> Float (Float.of_string c)))
   else raise (Invalid_argument (Printf.sprintf "predicate %s has arity %d" name pred_sig.arity))
