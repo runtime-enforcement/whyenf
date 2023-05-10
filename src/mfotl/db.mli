@@ -10,14 +10,15 @@
 
 open Base
 open Pred
+open Import
 
 module Event : sig
   type t = string * Domain.t list [@@deriving compare, sexp_of]
   include Comparable.S with type t := t
 end
 
-type t = int * (Event.t, Event.comparator_witness) Set.t
+type t = timestamp * timepoint * (Event.t, Event.comparator_witness) Set.t
 
-val db: string -> Event.t list -> t
+val db: timepoint -> string -> Event.t list -> t
 
 val event: string -> string list -> Event.t
