@@ -179,12 +179,8 @@ module Trace = struct
       | t -> raise (Failure ("expected ',' or ')' but found " ^ string_of_token t)) in
     parse_init ()
 
-  let parse f_opt =
-    let inc = match f_opt with
-      | None ->  stdin
-      | Some f -> In_channel.create f in
+  let parse inc =
     let lexbuf = Lexing.from_channel inc in
-    Lexing.set_filename lexbuf (Option.value_exn f_opt);
     parse_inc lexbuf
 
 end
