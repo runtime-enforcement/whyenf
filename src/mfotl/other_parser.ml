@@ -101,12 +101,12 @@ module Sig = struct
                           | name :: ttype :: [] -> (name, Domain.tt_of_string ttype)
                           | _ -> raise (Failure ("unable to parse the variable signature string " ^ s)))
 
-  let rec parse_ntconsts (pb: Parsebuf.t) =
+  let rec parse_pred_sigs (pb: Parsebuf.t) =
     match pb.token with
     | EOF -> ()
     | STR s -> Parsebuf.next pb;
                Pred.Sig.add s (convert_types (parse_ntconst pb));
-               parse_ntconsts pb
+               parse_pred_sigs pb
     | t -> raise (Failure ("unexpected character: " ^ string_of_token t))
 
   let parse f =
@@ -114,7 +114,7 @@ module Sig = struct
     let lexbuf = Lexing.from_channel inc in
     let pb = Parsebuf.init lexbuf in
     let () = Lexing.set_filename lexbuf f in
-    try parse_ntconsts pb
+    try parse_pred_sigs pb
     with Failure s -> failwith ("error while parsing signature\n " ^ s)
 
 
