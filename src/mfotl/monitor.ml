@@ -305,37 +305,35 @@ let rec meval ts tp db = function
   (*      (ts', ps, MUntil (interval, mf1', mf2', buf', nts_ntps', muaux'')) *)
   | _ -> failwith "not yet"
 
-type state =
-  { tp: timepoint
-  ; tss: timestamp list
-  ; mf: MFormula.t
-  ; events: (timestamp * Db.t) list }
+module MState = struct
 
-let monitor_cli in_ch out_ch mode out_mode check le is_opt f =
+  type t = { tp: timepoint
+           ; tp_out: timepoint
+           ; mf: MFormula.t
+           ; dbs: (timestamp * timepoint * Db.t) Fdeque.t }
+
+  let init mf = { tp = -1
+                ; tp_out = -1
+                ; mf = mf
+                ; dbs = Fdeque.create () }
+
+end
+
+let mstep ts db (m: MState.t) =
+  let (expls, m') = meval ts m.tp db m.mf in
+  ((List.zip_exn (List.range m.tp (m.tp + List.length expls)) expls),
+   { m with tp = m.tp + 1
+          ; tp_out = m.tp_out + (List.length expls)
+          ; mf = m'
+          ; dbs = Fdeque.enqueue_back m.dbs db })
+
+let monitor mode measure f inc =
   let mf = init f in
-  let st = { tp = 0
-           ; tss = []
-           ; mf = mf
-           ; events = [] } in
-  (match out_mode with
-   | PLAIN | DEBUG -> preamble_stdout out_ch mode f
-   | JSON -> preamble_json out_ch f);
-  let step (st, in_ch) =
-    let ((sap, ts), in_ch) = input_event in_ch out_ch in
-    let sap_filtered = filter_ap sap mf_ap in
-    let events_updated = (sap_filtered, ts)::st.events in
-    let (ts', ps, mf_updated) = meval' ts st.tp sap_filtered st.mf le in
-    let lps = Deque.to_list ps in
-    let checker_ps = if check then Some (check_ps is_opt events_updated f lps) else None in
-    let () = output_ps out_ch mode out_mode ts' [] f lps checker_ps in
-    let st_updated =
-      { st with
-        tp = st.tp+1
-      ; mf = mf_updated
-      ; events = events_updated
-      } in
-    (st_updated, in_ch) in
-  loop step (st, in_ch)
+  let ms = MState.init mf in
+  match mode with
+  | Io.Stdout.UNVERIFIED -> ()
+  | Io.Stdout.VERIFIED -> ()
+  | Io.Stdout.DEBUG -> ()
 
 (* let monitor_vis obj_opt log le f = *)
 (*   let events = parse_lines_from_string log in *)
