@@ -33,6 +33,11 @@ module T = struct
     | Str _ -> TStr
     | Float _ -> TFloat
 
+  let tt_to_string = function
+    | TInt -> "int"
+    | TStr -> "string"
+    | TFloat -> "float"
+
   let string_to_t s tt = match tt with
     | TInt -> Int (int_of_string s)
     | TStr -> Str s
