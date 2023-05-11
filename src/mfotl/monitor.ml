@@ -327,7 +327,15 @@ let mstep ts db (m: MState.t) =
           ; mf = m'
           ; dbs = Fdeque.enqueue_back m.dbs db })
 
-let monitor mode measure f inc =
+let exec mode measure f inc =
+
+
+  let () = Pred.Sig.print_table () in
+  let () = Stdio.printf "%s\n" (Formula.to_string f) in
+  (* let pb = Other_parser.Trace.parse inc in *)
+  (* let () = Stdio.printf "%s\n" (Db.to_string pb.db) in *)
+
+
   let mf = init f in
   let ms = MState.init mf in
   match mode with
