@@ -44,4 +44,4 @@ let add_event (ts, tp, evts) evt = (ts, tp, Set.add evts evt)
 
 let to_string (ts, tp, evts) =
   Printf.sprintf "TS: %d | TP: %d\n" ts tp ^
-    (List.fold evts ~init:"" ~f:(fun acc evt -> acc ^ Event.to_string evt ^ "\n"))
+    (Set.fold evts ~init:"" ~f:(fun acc evt -> acc ^ Event.to_string evt ^ "\n"))
