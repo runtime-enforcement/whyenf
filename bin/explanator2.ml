@@ -86,7 +86,8 @@ module Explanator2 = struct
   let _ =
     try
       process_args (List.tl_exn (Array.to_list Sys.argv));
-      let formula = Option.value !formula_ref in ()
+      let formula = Option.value_exn !formula_ref in
+      Monitor.exec !mode_ref !measure_ref formula !trace_ref
     with
     | Invalid_argument _ -> Out_channel.close !outc_ref; exit 1
     | End_of_file -> Out_channel.close !outc_ref; exit 0
