@@ -22,6 +22,8 @@ val equal: t -> t -> bool
 
 val tt_of_string: string -> tt
 
+val tt_to_string: tt -> string
+
 val string_to_t: string -> tt -> t
 
 val to_string: t -> string

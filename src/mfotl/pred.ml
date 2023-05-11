@@ -44,6 +44,12 @@ module Sig = struct
     let props = { arity = List.length ntconsts; ntconsts } in
     Hashtbl.add_exn table p_name props
 
+  let print_table () =
+    Hashtbl.iteri table ~f:(fun ~key:n ~data:ps ->
+        Stdio.printf "%s(%s)\n" n
+          (List.fold ps.ntconsts ~init:"" ~f:(fun acc (var, tt) ->
+               var ^ ":" ^ (Domain.tt_to_string tt))))
+
 end
 
 let make_terms p_name strms =

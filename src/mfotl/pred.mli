@@ -32,6 +32,8 @@ module Sig : sig
 
   val add: string -> (string * Domain.tt) list -> unit
 
+  val print_table: unit -> unit
+
 end
 
 val make_terms: string -> string list -> Term.t list
