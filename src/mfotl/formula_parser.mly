@@ -12,14 +12,14 @@
 open Formula
 %}
 
-%token LOPEN
-%token ROPEN
+%token LPA
+%token RPA
 %token COMMA
 %token DOT
 %token EOF
 
 %token <Interval.t> INTERVAL
-%token <string> STRING
+%token <string> STR
 
 %token FALSE
 %token TRUE
@@ -59,7 +59,7 @@ formula:
 | e EOF                                { $1 }
 
 e:
-| LOPEN e ROPEN                        { $2 }
+| LPA e RPA                            { $2 }
 | TRUE                                 { tt }
 | FALSE                                { ff }
 | NEG e                                { neg $2 }
@@ -87,9 +87,9 @@ e:
 | e TRIGGER e                          { trigger Interval.full $1 $3 }
 | e RELEASE INTERVAL e                 { release $3 $1 $4 }
 | e RELEASE e                          { release Interval.full $1 $3 }
-| EXISTS STRING DOT e %prec EXISTS     { exists $2 $4 }
-| FORALL STRING DOT e %prec FORALL     { forall $2 $4 }
-| STRING sterms                        { predicate $1 $2 }
+| EXISTS STR DOT e %prec EXISTS        { exists $2 $4 }
+| FORALL STR DOT e %prec FORALL        { forall $2 $4 }
+| STR LPA sterms RPA                   { predicate $1 $3 }
 
 sterms:
-| strms=separated_list (COMMA, STRING) { strms }
+| strms=separated_list (COMMA, STR)    { strms }

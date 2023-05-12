@@ -35,6 +35,7 @@ let string = (letter | digit | '_' | '[' | ']' | '/' | '-' | '.' | '!')+
 rule token = parse
   | newline                                       { Lexing.new_line lexbuf; token lexbuf }
   | blank                                         { token lexbuf }
+  | ','                                           { COMMA }
   | '.'                                           { DOT }
   | "false" | "⊥"                                 { FALSE }
   | "true" | "⊤"                                  { TRUE }
