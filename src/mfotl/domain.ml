@@ -39,9 +39,11 @@ module T = struct
     | TFloat -> "float"
 
   let string_to_t s tt = match tt with
-    | TInt -> Int (int_of_string s)
+    | TInt -> (try Int (int_of_string s)
+               with Failure _ -> raise (Invalid_argument (Printf.sprintf "%s is not an int" s)))
     | TStr -> Str s
-    | TFloat -> Float (float_of_string s)
+    | TFloat -> (try Float (float_of_string s)
+                 with Failure _ -> raise (Invalid_argument (Printf.sprintf "%s is not a float" s)))
 
   let to_string = function
     | Int v -> string_of_int v
