@@ -47,8 +47,8 @@ module Sig = struct
   let print_table () =
     Hashtbl.iteri table ~f:(fun ~key:n ~data:ps ->
         Stdio.printf "%s(%s)\n" n
-          (List.fold ps.ntconsts ~init:"" ~f:(fun acc (var, tt) ->
-               var ^ ":" ^ (Domain.tt_to_string tt))))
+          (String.drop_prefix (List.fold ps.ntconsts ~init:"" ~f:(fun acc (var, tt) ->
+               acc ^ "," ^ var ^ ":" ^ (Domain.tt_to_string tt))) 1))
 
 end
 
