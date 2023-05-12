@@ -9,10 +9,7 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
-open Import
-
-let parsing_error i j fmt = Format.kasprintf (fun s -> raise (Parsing_error(i,j,s))) fmt
-let lexing_error lexbuf fmt = parsing_error (Lexing.lexeme_start_p lexbuf) (Lexing.lexeme_end_p lexbuf) fmt
+open Etc
 
 type token = AT | LPA | RPA | COM | SEP | EOF | STR of string
 

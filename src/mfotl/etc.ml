@@ -11,5 +11,8 @@
 open Base
 
 let eat s t = s ^ (String.strip t)
-
 let paren h k x = if h>k then "("^^x^^")" else x
+
+exception Parsing_error of Lexing.position*Lexing.position*string
+let parsing_error i j fmt = Format.kasprintf (fun s -> raise (Parsing_error(i,j,s))) fmt
+let lexing_error lexbuf fmt = parsing_error (Lexing.lexeme_start_p lexbuf) (Lexing.lexeme_end_p lexbuf) fmt
