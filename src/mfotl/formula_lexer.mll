@@ -17,7 +17,7 @@ exception Parsing_Error of Lexing.position*Lexing.position*string
 let parsing_error i j fmt = Format.kasprintf (fun s -> raise (Parsing_Error(i,j,s))) fmt
 let lexing_error lexbuf fmt = parsing_error (Lexing.lexeme_start_p lexbuf) (Lexing.lexeme_end_p lexbuf) fmt
 
-let make_interval lexbuf = Interval.lex (fun () -> lexing_error lexbuf "Couldn't lex one of the intervals")
+let make_interval lexbuf = Interval.lex (fun () -> lexing_error lexbuf "interval lexing did not succeed")
 
 }
 
@@ -45,34 +45,26 @@ rule token = parse
   | "<=>"  | "<->" | "↔" | "IFF"                  { IFF }
   | "∃"  | "EXISTS"                               { EXISTS }
   | "∀"  | "FORALL"                               { FORALL }
-  | "SINCE" | "S" | "U⁻"                          { SINCE }
+  | "SINCE" | "S"                                 { SINCE }
   | "UNTIL" |	"U"                               { UNTIL }
   | "RELEASE" | "R"                               { RELEASE }
-  | "TRIGGER" |	"T"	| "R⁻"                    { TRIGGER }
+  | "TRIGGER" |	"T"                               { TRIGGER }
   | "NEXT" | "X" | "○"                            { NEXT }
-  | "PREV" | "PREVIOUS" | "Y" | "X⁻" | "●"        { PREV }
+  | "PREV" | "PREVIOUS" | "Y" | "●"               { PREV }
   | "GLOBALLY" | "ALWAYS" | "G" | "□"             { ALWAYS }
   | "FINALLY" | "EVENTUALLY" | "F" | "◊"          { EVENTUALLY }
-  | "GLOBALLY_PAST" | "HISTORICALLY" | "G⁻" | "■" { HISTORICALLY }
-  | "FINALLY_PAST" | "ONCE" | "F⁻" | "⧫"          { ONCE }
-  | "("                                           { LOPEN }
-  | ")"                                           { ROPEN }
-  | string as s                                   { STRING s }
+  | "GLOBALLY_PAST" | "HISTORICALLY" | "■"        { HISTORICALLY }
+  | "FINALLY_PAST" | "ONCE" | "⧫"                 { ONCE }
+  | "("                                           { LPA }
+  | ")"                                           { RPA }
+  | string as s                                   { STR s }
   | (['(' '['] as l) blank* (digits as i) blank* "," blank* ((digits | "INFINITY" | "∞") as j) blank* ([')' ']'] as r)
                                                   { INTERVAL (make_interval lexbuf l i j r) }
-  | "/*"                                          { skip 1 lexbuf }
   | '#'                                           { skip_line lexbuf }
   | eof                                           { EOF }
-  | _ as c                                        { lexing_error lexbuf "Unexpected character: `%c'" c }
-
-and skip n = parse
-  | newline                                       { Lexing.new_line lexbuf; skip n lexbuf }
-  | "*/"                                          { if n=1 then token lexbuf else skip (n-1) lexbuf }
-  | "/*"                                          { skip (n+1) lexbuf }
-  | _                                             { skip n lexbuf }
-  | eof                                           { lexing_error lexbuf "Unterminated comment" }
+  | _ as c                                        { lexing_error lexbuf "unexpected character: `%c'" c }
 
 and skip_line = parse
-  | newline                                       { Lexing.new_line lexbuf; token lexbuf }
+  | "\n" | "\r" | "\r\n"                          { Lexing.new_line lexbuf; token lexbuf }
   | eof                                           { EOF }
   | _                                             { skip_line lexbuf }
