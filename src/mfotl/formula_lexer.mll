@@ -9,13 +9,9 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
+open Etc
 open Formula
 open Formula_parser
-
-exception Parsing_Error of Lexing.position*Lexing.position*string
-
-let parsing_error i j fmt = Format.kasprintf (fun s -> raise (Parsing_Error(i,j,s))) fmt
-let lexing_error lexbuf fmt = parsing_error (Lexing.lexeme_start_p lexbuf) (Lexing.lexeme_end_p lexbuf) fmt
 
 let make_interval lexbuf = Interval.lex (fun () -> lexing_error lexbuf "interval lexing did not succeed")
 

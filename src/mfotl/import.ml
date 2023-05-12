@@ -9,5 +9,3 @@
 
 type timepoint = int
 type timestamp = int
-
-exception Parsing_error of Lexing.position*Lexing.position*string
