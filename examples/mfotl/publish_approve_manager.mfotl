@@ -1,1 +1,1 @@
-publish(a,f) IMPLIES ONCE[0,7d] EXISTS m. (NOT mgr_F(m,a) SINCE[0,*] mgr_S(m,a)) AND approve(m,f)
+publish(a,r) IMPLIES ONCE[0,7d] EXISTS m. (NOT mgr_F(m,a) SINCE[0,*] mgr_S(m,a)) AND approve(m,r)
