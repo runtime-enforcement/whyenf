@@ -72,11 +72,16 @@ module Explanator2 = struct
          Other_parser.Sig.parse sf;
          process_args_rec args
       | ("-formula" :: f :: args) ->
-         (try
-            let inc = In_channel.create f in
-            formula_ref := Some(Formula_parser.formula Formula_lexer.token (Lexing.from_channel inc));
-            In_channel.close inc
-          with _ -> formula_ref := Some(Formula_parser.formula Formula_lexer.token (Lexing.from_string f)));
+         (* In_channel.with_file f ~f:(fun inc -> *)
+         (*     let lexbuf = Lexing.from_channel inc in *)
+         (*     formula_ref := Some(Formula_parser.formula Formula_lexer.token lexbuf)); *)
+         let inc = In_channel.create f in
+         let lexbuf = try Lexing.from_channel inc
+                      with _ -> raise (Failure (Printf.sprintf "could not open formula file %s" f)) in
+         (formula_ref := try Some(Formula_parser.formula Formula_lexer.token lexbuf)
+                         with Formula_parser.Error -> Stdio.printf "%s\n" (Etc.lexbuf_error_msg lexbuf); None);
+         In_channel.close inc;
+         Stdio.printf "%s\n" (Formula.to_string (Option.value_exn !formula_ref));
          process_args_rec args
       | ("-out" :: outf :: args) ->
          outc_ref := Out_channel.create outf;

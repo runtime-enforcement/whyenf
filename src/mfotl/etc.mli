@@ -14,3 +14,4 @@ val paren: int -> int -> ('b, 'c, 'd, 'e, 'f, 'g) format6 -> ('b, 'c, 'd, 'e, 'f
 exception Parsing_error of Lexing.position*Lexing.position*string
 val parsing_error: Lexing.position -> Lexing.position -> ('a, Format.formatter, unit, 'b) format4 -> 'a
 val lexing_error: Lexing.lexbuf -> ('a, Format.formatter, unit, 'b) format4 -> 'a
+val lexbuf_error_msg: Lexing.lexbuf -> string
