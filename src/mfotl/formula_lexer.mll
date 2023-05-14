@@ -7,13 +7,15 @@
 (*  Copyright 2023:                                                *)
 (*  Dmitriy Traytel (UCPH)                                         *)
 (*  Leonardo Lima (UCPH)                                           *)
-(*******************************************************************)
+  (*******************************************************************)
 
 open Etc
 open Formula
 open Formula_parser
 
 let make_interval lexbuf = Interval.lex (fun () -> lexing_error lexbuf "interval lexing did not succeed")
+
+let debug m = if !Etc.debug then Stdio.print_endline ("[debug] lexer: " ^ m) else ()
 
 }
 
@@ -31,37 +33,37 @@ let string = (letter | digit | '_' | '[' | ']' | '/' | '-' | '.' | '!')+
 rule token = parse
   | newline                                       { Lexing.new_line lexbuf; token lexbuf }
   | blank                                         { token lexbuf }
-  | ','                                           { COMMA }
-  | '.'                                           { DOT }
-  | "false" | "⊥"                                 { FALSE }
-  | "true" | "⊤"                                  { TRUE }
-  | '!' | "¬" | "NOT"                             { NEG }
-  | '&' | "∧" | "AND"                             { AND }
-  | '|' | "∨" | "OR"                              { OR }
-  | "=>" | "->" | "→" | "IMPLIES"                 { IMP }
-  | "<=>"  | "<->" | "↔" | "IFF"                  { IFF }
-  | "∃"  | "EXISTS"                               { EXISTS }
-  | "∀"  | "FORALL"                               { FORALL }
-  | "SINCE" | "S"                                 { SINCE }
-  | "UNTIL" |	"U"                               { UNTIL }
-  | "RELEASE" | "R"                               { RELEASE }
-  | "TRIGGER" |	"T"                               { TRIGGER }
-  | "NEXT" | "X" | "○"                            { NEXT }
-  | "PREV" | "PREVIOUS" | "Y" | "●"               { PREV }
-  | "GLOBALLY" | "ALWAYS" | "G" | "□"             { ALWAYS }
-  | "FINALLY" | "EVENTUALLY" | "F" | "◊"          { EVENTUALLY }
-  | "GLOBALLY_PAST" | "HISTORICALLY" | "■"        { HISTORICALLY }
-  | "FINALLY_PAST" | "ONCE" | "⧫"                 { ONCE }
-  | "("                                           { LPA }
-  | ")"                                           { RPA }
-  | string as s                                   { STR s }
+  | ','                                           { debug "COMMA"; COMMA }
+  | '.'                                           { debug "DOT"; DOT }
+  | "false" | "⊥"                                 { debug "FALSE"; FALSE }
+  | "true" | "⊤"                                  { debug "TRUE"; TRUE }
+  | '!' | "¬" | "NOT"                             { debug "NEG"; NEG }
+  | '&' | "∧" | "AND"                             { debug "AND"; AND }
+  | '|' | "∨" | "OR"                              { debug "OR"; OR }
+  | "=>" | "->" | "→" | "IMPLIES"                 { debug "IMP"; IMP }
+  | "<=>"  | "<->" | "↔" | "IFF"                  { debug "IFF"; IFF }
+  | "∃"  | "EXISTS"                               { debug "EXISTS"; EXISTS }
+  | "∀"  | "FORALL"                               { debug "FORALL"; FORALL }
+  | "SINCE" | "S"                                 { debug "SINCE"; SINCE }
+  | "UNTIL" |	"U"                               { debug "UNTIL"; UNTIL }
+  | "RELEASE" | "R"                               { debug "RELEASE"; RELEASE }
+  | "TRIGGER" |	"T"                               { debug "TRIGGER"; TRIGGER }
+  | "NEXT" | "X" | "○"                            { debug "NEXT"; NEXT }
+  | "PREV" | "PREVIOUS" | "Y" | "●"               { debug "PREV"; PREV }
+  | "GLOBALLY" | "ALWAYS" | "G" | "□"             { debug "ALWAYS"; ALWAYS }
+  | "FINALLY" | "EVENTUALLY" | "F" | "◊"          { debug "EVENTUALLY"; EVENTUALLY }
+  | "GLOBALLY_PAST" | "HISTORICALLY" | "■"        { debug "HISTORICALLY"; HISTORICALLY }
+  | "FINALLY_PAST" | "ONCE" | "⧫"                 { debug "ONCE"; ONCE }
+  | "("                                           { debug "LPA"; LPA }
+  | ")"                                           { debug "RPA"; RPA }
+  | string as s                                   { debug ("STR " ^ s); STR s }
   | (['(' '['] as l) blank* (digits as i) blank* "," blank* ((digits | "INFINITY" | "∞") as j) blank* ([')' ']'] as r)
-                                                  { INTERVAL (make_interval lexbuf l i j r) }
-  | '#'                                           { skip_line lexbuf }
-  | eof                                           { EOF }
+                                                  { debug "INTERVAL"; INTERVAL (make_interval lexbuf l i j r) }
+  | '#'                                           { debug "skip_line"; skip_line lexbuf }
+  | eof                                           { debug "EOF"; EOF }
   | _ as c                                        { lexing_error lexbuf "unexpected character: `%c'" c }
 
 and skip_line = parse
   | "\n" | "\r" | "\r\n"                          { Lexing.new_line lexbuf; token lexbuf }
-  | eof                                           { EOF }
+  | eof                                           { debug "EOF"; EOF }
   | _                                             { skip_line lexbuf }

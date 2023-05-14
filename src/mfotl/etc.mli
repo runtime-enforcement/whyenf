@@ -8,6 +8,8 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
+val debug: bool ref
+
 val eat: string -> string -> string
 val paren: int -> int -> ('b, 'c, 'd, 'e, 'f, 'g) format6 -> ('b, 'c, 'd, 'e, 'f, 'g) format6
 
