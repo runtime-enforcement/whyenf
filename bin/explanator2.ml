@@ -57,7 +57,7 @@ module Explanator2 = struct
            (match m with
             | "unverified" -> Io.Stdout.UNVERIFIED
             | "verified" -> Io.Stdout.VERIFIED
-            | "debug" -> Io.Stdout.DEBUG
+            | "debug" -> Etc.debug := true; Io.Stdout.DEBUG
             | _ -> mode_error ());
          process_args_rec args
       | ("-measure" :: m :: args) ->
