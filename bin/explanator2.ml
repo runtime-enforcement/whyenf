@@ -24,7 +24,7 @@ module Explanator2 = struct
 
   let usage () =
     Caml.Format.eprintf
-      "usage: ./explanator2.exe [-mode] [-measure] [-formula] [-log] [-out]
+      "usage: ./explanator2.exe [-mode] [-measure] [-sig] [-formula] [-log] [-out]
        arguments:
        \t -mode
        \t\t unverified         - (default)
@@ -32,6 +32,8 @@ module Explanator2 = struct
        \t -measure
        \t\t size               - optimize proof size (default)
        \t\t none               - pick any proof
+       \t -sig
+       \t\t <file>             - signature
        \t -formula
        \t\t <file> or <string> - MFOTL formula
        \t -log
