@@ -22,6 +22,8 @@ module Explanator2 = struct
   let sig_ref = ref In_channel.stdin
   let outc_ref = ref Out_channel.stdout
 
+  let n_args = ref 0
+
   let usage () =
     Caml.Format.eprintf
       "usage: ./explanator2.exe [-mode] [-measure] [-sig] [-formula] [-log] [-out]
@@ -71,24 +73,22 @@ module Explanator2 = struct
          trace_ref := In_channel.create logf;
          process_args_rec args
       | ("-sig" :: sf :: args) ->
+         n_args := !n_args + 1;
          Other_parser.Sig.parse sf;
          process_args_rec args
       | ("-formula" :: f :: args) ->
-         (* In_channel.with_file f ~f:(fun inc -> *)
-         (*     let lexbuf = Lexing.from_channel inc in *)
-         (*     formula_ref := Some(Formula_parser.formula Formula_lexer.token lexbuf)); *)
-         let inc = In_channel.create f in
-         let lexbuf = try Lexing.from_channel inc
-                      with _ -> raise (Failure (Printf.sprintf "could not open formula file %s" f)) in
-         (formula_ref := try Some(Formula_parser.formula Formula_lexer.token lexbuf)
-                         with Formula_parser.Error -> Stdio.printf "%s\n" (Etc.lexbuf_error_msg lexbuf); None);
-         In_channel.close inc;
-         Stdio.printf "%s\n" (Formula.to_string (Option.value_exn !formula_ref));
+         n_args := !n_args + 1;
+         In_channel.with_file f ~f:(fun inc ->
+             let lexbuf = Lexing.from_channel inc in
+             formula_ref := try Some(Formula_parser.formula Formula_lexer.token lexbuf)
+                            with Formula_parser.Error -> Stdio.printf "%s\n" (Etc.lexbuf_error_msg lexbuf); None);
          process_args_rec args
       | ("-out" :: outf :: args) ->
          outc_ref := Out_channel.create outf;
          process_args_rec args
-      | _ -> usage () in process_args_rec
+      | [] -> if !n_args >= 2 then () else usage ()
+      | _ -> usage () in
+    process_args_rec
 
   let _ =
     try
