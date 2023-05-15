@@ -15,7 +15,7 @@ open Formula_parser
 
 let make_interval lexbuf = Interval.lex (fun () -> lexing_error lexbuf "interval lexing did not succeed")
 
-let debug m = if !Etc.debug then Stdio.print_endline ("[debug] formula_lexer: " ^ m)
+let debug m = if !debug then Stdio.print_endline ("[debug] formula_lexer: " ^ m)
 
 }
 

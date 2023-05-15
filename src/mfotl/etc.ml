@@ -4,11 +4,13 @@
 (*           (see file LICENSE for more details)                   *)
 (*                                                                 *)
 (*  Copyright 2023:                                                *)
-(*  Dmitriy Traytel (UCPH)                                         *)
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
 open Base
+
+type timepoint = int
+type timestamp = int
 
 let debug = ref false
 
