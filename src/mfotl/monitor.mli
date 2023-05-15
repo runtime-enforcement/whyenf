@@ -7,4 +7,4 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
-val exec: Io.Out.mode -> string -> Formula.t -> in_channel -> unit
+val exec: Out.Plain.mode -> string -> Formula.t -> in_channel -> unit

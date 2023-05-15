@@ -9,9 +9,9 @@
 
 open Base
 open Stdio
-open Import
+open Etc
 
-module Stdout = struct
+module Plain = struct
 
   type mode = UNVERIFIED | VERIFIED | DEBUG
 
@@ -22,14 +22,15 @@ module Stdout = struct
     | Info of string
 
   let expl = function
-  | Explanation ((ts, tp), e) -> printf "%d:%d\nExplanation: \n%s\n" ts tp (Expl.to_string e)
-  | ExplanationCheck ((ts, tp), e, b) ->
-     printf "%d:%d\nExplanation: \n%s\n" ts tp (Expl.to_string e);
-     printf "\nChecker output: %B\n" b;
-  | ExplanationCheckDebug ((ts, tp), e, b, _, _) ->
-     printf "%d:%d\nExplanation: \n%s\n" ts tp (Expl.to_string e);
-     printf "\nChecker output: %B\n" b;
-  | Info s -> printf "\nInfo: %s\n" s
+    | Explanation ((ts, tp), e) ->
+       Stdio.printf "%d:%d\nExplanation: \n%s\n" ts tp (Expl.to_string e)
+    | ExplanationCheck ((ts, tp), e, b) ->
+       Stdio.printf "%d:%d\nExplanation: \n%s\n" ts tp (Expl.to_string e);
+       Stdio.printf "\nChecker output: %B\n" b;
+    | ExplanationCheckDebug ((ts, tp), e, b, _, _) ->
+       Stdio.printf "%d:%d\nExplanation: \n%s\n" ts tp (Expl.to_string e);
+       Stdio.printf "\nChecker output: %B\n" b;
+    | Info s -> Stdio.printf "\nInfo: %s\n" s
 
   let expls ts es checker_es_opt = function
     | UNVERIFIED -> List.iter es (fun e -> expl (Explanation ((ts, (Expl.at e)), e)))
