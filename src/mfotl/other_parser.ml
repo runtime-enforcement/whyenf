@@ -27,12 +27,14 @@ module Parsebuf = struct
   type t = { lexbuf: Lexing.lexbuf
            ; mutable token: Other_lexer.token
            ; mutable pred_sig: Pred.Sig.t option
+           ; mutable ts: int
            ; mutable db: Db.t }
 
   let init lexbuf = { lexbuf = lexbuf
                     ; token = Other_lexer.token lexbuf
                     ; pred_sig = None
-                    ; db = Db.db (-1) (-1) [] }
+                    ; ts = -1
+                    ; db = Db.create [] }
 
   let next pb = pb.token <- Other_lexer.token pb.lexbuf
 
@@ -41,16 +43,8 @@ module Parsebuf = struct
   let pred pb = fst (Option.value_exn pb.pred_sig)
 
   let clean pb = { pb with pred_sig = None
-                 ; db = Db.db (-1) (-1) [] }
-
-  let ts pb = match pb.db with
-    | t, _, _ -> t
-
-  let tp pb = match pb.db with
-    | _, t, _ -> t
-
-  let evts pb = match pb.db with
-    | _, _, es -> es
+                         ; ts = -1
+                         ; db = Db.create [] }
 
   let add_event evt pb = pb.db <- Db.add_event pb.db evt
 
@@ -125,9 +119,6 @@ end
 
 module Trace = struct
 
-  let tp = ref (-1)
-  let next_tp () = tp := !tp + 1; !tp
-
   let parse_aux (pb: Parsebuf.t) =
     let rec parse_init () =
       match pb.token with
@@ -139,7 +130,7 @@ module Trace = struct
                           with _ -> None in
                  (match ts with
                   | Some ts -> Parsebuf.next pb;
-                               pb.db <- Db.db ts (next_tp ()) [];
+                               pb.ts <- ts;
                                parse_db ()
                   | None -> raise (Failure ("expected a time-stamp but found " ^ s)))
       | t -> raise (Failure ("expected a time-stamp but found " ^ string_of_token t))

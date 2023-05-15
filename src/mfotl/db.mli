@@ -17,9 +17,9 @@ module Event : sig
   include Comparable.S with type t := t
 end
 
-type t = timestamp * timepoint * (Event.t, Event.comparator_witness) Set.t
+type t = (Event.t, Event.comparator_witness) Set.t
 
-val db: timestamp -> timepoint -> Event.t list -> t
+val create: Event.t list -> t
 
 val event: string -> string list -> Event.t
 
