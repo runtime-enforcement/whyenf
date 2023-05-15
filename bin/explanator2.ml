@@ -15,12 +15,10 @@ open Mfotl
 (* TODO: This module must be rewritten using the Command module from Core *)
 module Explanator2 = struct
 
-  let mode_ref = ref Io.Stdout.UNVERIFIED
+  let mode_ref = ref Io.Out.UNVERIFIED
   let measure_ref = ref ""
   let formula_ref = ref None
-  let trace_ref = ref In_channel.stdin
   let sig_ref = ref In_channel.stdin
-  let outc_ref = ref Out_channel.stdout
 
   let n_args = ref 0
 
@@ -57,9 +55,9 @@ module Explanator2 = struct
       | ("-mode" :: m :: args) ->
          mode_ref :=
            (match m with
-            | "unverified" -> Io.Stdout.UNVERIFIED
-            | "verified" -> Io.Stdout.VERIFIED
-            | "debug" -> Etc.debug := true; Io.Stdout.DEBUG
+            | "unverified" -> Io.Out.UNVERIFIED
+            | "verified" -> Io.Out.VERIFIED
+            | "debug" -> Etc.debug := true; Io.Out.DEBUG
             | _ -> mode_error ());
          process_args_rec args
       | ("-measure" :: m :: args) ->
@@ -70,7 +68,7 @@ module Explanator2 = struct
             | _ -> measure_error ());
          process_args_rec args
       | ("-log" :: logf :: args) ->
-         trace_ref := In_channel.create logf;
+         Etc.inc_ref := In_channel.create logf;
          process_args_rec args
       | ("-sig" :: sf :: args) ->
          n_args := !n_args + 1;
@@ -84,7 +82,7 @@ module Explanator2 = struct
                             with Formula_parser.Error -> Stdio.printf "%s\n" (Etc.lexbuf_error_msg lexbuf); None);
          process_args_rec args
       | ("-out" :: outf :: args) ->
-         outc_ref := Out_channel.create outf;
+         Etc.outc_ref := Out_channel.create outf;
          process_args_rec args
       | [] -> if !n_args >= 2 then () else usage ()
       | _ -> usage () in
