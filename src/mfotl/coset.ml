@@ -16,6 +16,15 @@ let phys_equal = Stdlib.( == )
 
 let univ m = Complement (Set.empty m)
 
+let equal cs1 cs2 = match cs1, cs2 with
+  | Finite s1, Finite s2 -> Set.equal s1 s2
+  | Complement s1, Complement s2 -> Set.equal s1 s2
+  | _, _ -> false
+
+let add cs el = match cs with
+  | Finite s -> Finite (Set.add s el)
+  | Complement s -> Complement (Set.remove s el)
+
 let is_empty = function
   | Finite s -> Set.is_empty s
   | Complement s -> false
