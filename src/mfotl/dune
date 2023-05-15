@@ -3,9 +3,10 @@
 
 (menhir
  (modules formula_parser))
- ;; debug (flags --explain --dump)
+ ;; debug (flags --explain --inspection --table --dump))
 
 (library
  (name mfotl)
  (libraries util core_kernel base zarith)
+ ;; debug menhirLib
  (preprocess (pps ppx_jane)))
