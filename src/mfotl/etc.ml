@@ -13,8 +13,8 @@ type timepoint = int
 type timestamp = int
 
 let debug = ref false
-let inc_ref = ref Stdio.In_channel.stdin
-let outc_ref = ref Stdio.Out_channel.stdout
+let inc_ref = ref In_channel.stdin
+let outc_ref = ref Out_channel.stdout
 
 let eat s t = s ^ (String.strip t)
 let paren h k x = if h>k then "("^^x^^")" else x
