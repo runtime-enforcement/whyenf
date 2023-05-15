@@ -307,35 +307,38 @@ let rec meval ts tp db = function
 
 module MState = struct
 
-  type t = { tp: timepoint
-           ; tp_out: timepoint
+  type t = { tp_out: timepoint
            ; mf: MFormula.t
-           ; dbs: (timestamp * timepoint * Db.t) Fdeque.t }
+           ; tstpdbs: (timestamp * timepoint * Db.t) Fdeque.t }
 
-  let init mf = { tp = -1
-                ; tp_out = -1
+  let init mf = { tp_out = -1
                 ; mf = mf
-                ; dbs = Fdeque.create () }
+                ; tstpdbs = Fdeque.create () }
 
 end
 
-let mstep ts db (m: MState.t) =
-  let (expls, m') = meval ts m.tp db m.mf in
-  ((List.zip_exn (List.range m.tp (m.tp + List.length expls)) expls),
-   { m with tp = m.tp + 1
-          ; tp_out = m.tp_out + (List.length expls)
-          ; mf = m'
-          ; dbs = Fdeque.enqueue_back m.dbs db })
+let tp = ref (-1)
+let next_tp () = tp := !tp + 1; !tp
+
+let mstep ts db (ms: MState.t) =
+  let tp = next_tp () in
+  let (expls, m') = meval ts tp db ms.mf in
+  ((List.zip_exn (List.range tp (tp + List.length expls)) expls),
+   { ms with
+     tp_out = ms.tp_out + (List.length expls)
+   ; mf = m'
+   ; tstpdbs = Fdeque.enqueue_back ms.tstpdbs (ts, tp, db) })
 
 let exec mode measure f inc =
+  let rec step pb_opt ms =
+    let (more, pb) = Other_parser.Trace.parse inc pb_opt in
+    let (tp_expls, ms') = mstep pb.ts pb.db ms in
+    let () = Stdio.printf "%s\n" (Db.to_string pb.db) in
+    if more then step (Some(pb)) ms' in
   let mf = init f in
   let ms = MState.init mf in
-  let rec loop pb_opt =
-    let (more, pb) = Other_parser.Trace.parse inc pb_opt in
-    let () = Stdio.printf "%s\n" (Db.to_string pb.db) in
-    if more then loop (Some(pb)) in
   match mode with
-  | Out.Plain.UNVERIFIED -> loop None
+  | Out.Plain.UNVERIFIED -> step None ms
   | Out.Plain.VERIFIED -> ()
   | Out.Plain.DEBUG -> ()
 

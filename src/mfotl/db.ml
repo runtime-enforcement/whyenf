@@ -26,9 +26,9 @@ module Event = struct
 
 end
 
-type t = timestamp * timepoint * (Event.t, Event.comparator_witness) Set.t
+type t = (Event.t, Event.comparator_witness) Set.t
 
-let db ts tp evts = (ts, tp, Set.of_list (module Event) evts)
+let create evtl = Set.of_list (module Event) evtl
 
 let event name consts =
   let pred_sig = Hashtbl.find_exn Pred.Sig.table name in
@@ -40,8 +40,7 @@ let event name consts =
                           | TFloat -> Float (Float.of_string c)))
   else raise (Invalid_argument (Printf.sprintf "predicate %s has arity %d" name pred_sig.arity))
 
-let add_event (ts, tp, evts) evt = (ts, tp, Set.add evts evt)
+let add_event db evt = Set.add db evt
 
-let to_string (ts, tp, evts) =
-  Printf.sprintf "TS: %d | TP: %d\n" ts tp ^
-    (Set.fold evts ~init:"" ~f:(fun acc evt -> acc ^ Event.to_string evt ^ "\n"))
+let to_string db =
+  Set.fold db ~init:"" ~f:(fun acc evt -> acc ^ Event.to_string evt ^ "\n")
