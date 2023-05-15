@@ -15,7 +15,7 @@ open Mfotl
 (* TODO: This module must be rewritten using the Command module from Core *)
 module Explanator2 = struct
 
-  let mode_ref = ref Io.Out.UNVERIFIED
+  let mode_ref = ref Out.Plain.UNVERIFIED
   let measure_ref = ref ""
   let formula_ref = ref None
   let sig_ref = ref In_channel.stdin
@@ -55,9 +55,9 @@ module Explanator2 = struct
       | ("-mode" :: m :: args) ->
          mode_ref :=
            (match m with
-            | "unverified" -> Io.Out.UNVERIFIED
-            | "verified" -> Io.Out.VERIFIED
-            | "debug" -> Etc.debug := true; Io.Out.DEBUG
+            | "unverified" -> Out.Plain.UNVERIFIED
+            | "verified" -> Out.Plain.VERIFIED
+            | "debug" -> Etc.debug := true; Out.Plain.DEBUG
             | _ -> mode_error ());
          process_args_rec args
       | ("-measure" :: m :: args) ->

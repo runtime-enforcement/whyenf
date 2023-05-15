@@ -335,9 +335,9 @@ let exec mode measure f inc =
     let () = Stdio.printf "%s\n" (Db.to_string pb.db) in
     if more then loop (Some(pb)) in
   match mode with
-  | Io.Out.UNVERIFIED -> loop None
-  | Io.Out.VERIFIED -> ()
-  | Io.Out.DEBUG -> ()
+  | Out.Plain.UNVERIFIED -> loop None
+  | Out.Plain.VERIFIED -> ()
+  | Out.Plain.DEBUG -> ()
 
 (* let monitor_vis obj_opt log le f = *)
 (*   let events = parse_lines_from_string log in *)
