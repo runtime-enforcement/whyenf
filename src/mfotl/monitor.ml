@@ -8,9 +8,9 @@
 (*******************************************************************)
 
 open Base
-open Import
-open Pred
+open Etc
 open Expl.Proof
+open Pred
 
 module Buf2 = struct
 
@@ -328,20 +328,16 @@ let mstep ts db (m: MState.t) =
           ; dbs = Fdeque.enqueue_back m.dbs db })
 
 let exec mode measure f inc =
-
-
-  let () = Pred.Sig.print_table () in
-  let () = Stdio.printf "%s\n" (Formula.to_string f) in
-  (* let pb = Other_parser.Trace.parse inc in *)
-  (* let () = Stdio.printf "%s\n" (Db.to_string pb.db) in *)
-
-
   let mf = init f in
   let ms = MState.init mf in
+  let rec loop pb_opt =
+    let (more, pb) = Other_parser.Trace.parse inc pb_opt in
+    let () = Stdio.printf "%s\n" (Db.to_string pb.db) in
+    if more then loop (Some(pb)) in
   match mode with
-  | Io.Stdout.UNVERIFIED -> ()
-  | Io.Stdout.VERIFIED -> ()
-  | Io.Stdout.DEBUG -> ()
+  | Io.Out.UNVERIFIED -> loop None
+  | Io.Out.VERIFIED -> ()
+  | Io.Out.DEBUG -> ()
 
 (* let monitor_vis obj_opt log le f = *)
 (*   let events = parse_lines_from_string log in *)

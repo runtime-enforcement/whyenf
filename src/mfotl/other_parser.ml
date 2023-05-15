@@ -40,6 +40,9 @@ module Parsebuf = struct
 
   let pred pb = fst (Option.value_exn pb.pred_sig)
 
+  let clean pb = { pb with pred_sig = None
+                 ; db = Db.db (-1) (-1) [] }
+
   let ts pb = match pb.db with
     | t, _, _ -> t
 
@@ -125,8 +128,7 @@ module Trace = struct
   let tp = ref (-1)
   let next_tp () = tp := !tp + 1; !tp
 
-  let parse_inc lexbuf =
-    let pb = Parsebuf.init lexbuf in
+  let parse_aux (pb: Parsebuf.t) =
     let rec parse_init () =
       match pb.token with
       | AT -> Parsebuf.next pb; parse_ts ()
@@ -151,7 +153,8 @@ module Trace = struct
                                              parse_tuple ()
                                     | t -> raise (Failure ("expected '(' but found " ^ string_of_token t))))
                   | None -> raise (Failure ("predicate " ^ s ^ " was not specified")))
-      | AT | EOF -> pb
+      | AT -> (true, pb)
+      | EOF -> (false, pb)
       | t -> raise (Failure ("expected a predicate or '@' but found " ^ string_of_token t))
     and parse_tuple () =
       match pb.token with
@@ -179,8 +182,10 @@ module Trace = struct
       | t -> raise (Failure ("expected ',' or ')' but found " ^ string_of_token t)) in
     parse_init ()
 
-  let parse inc =
-    let lexbuf = Lexing.from_channel inc in
-    parse_inc lexbuf
+  let parse inc pb_opt =
+    if Option.is_none pb_opt then
+      let lexbuf = Lexing.from_channel inc in
+      parse_aux (Parsebuf.init lexbuf)
+    else parse_aux (Parsebuf.clean (Option.value_exn pb_opt))
 
 end

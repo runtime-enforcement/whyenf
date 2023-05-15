@@ -27,6 +27,6 @@ end
 
 module Trace : sig
 
-  val parse: in_channel -> Parsebuf.t
+  val parse: in_channel -> Parsebuf.t option -> bool * Parsebuf.t
 
 end
