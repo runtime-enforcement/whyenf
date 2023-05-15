@@ -10,7 +10,7 @@
 
 open Base
 open Stdio
-open Import
+open Etc
 
 let string_of_token (t: Other_lexer.token) =
   match t with

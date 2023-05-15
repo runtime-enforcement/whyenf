@@ -9,9 +9,10 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
+open Etc
 open Formula
 
-let debug m = if !Etc.debug then Stdio.print_endline ("[debug] formula_parser: " ^ m)
+let debug m = if !debug then Stdio.print_endline ("[debug] formula_parser: " ^ m)
 
 %}
 

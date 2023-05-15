@@ -10,7 +10,7 @@
 
 open Base
 open Pred
-open Import
+open Etc
 
 module Event : sig
   type t = string * Domain.t list [@@deriving compare, sexp_of]
