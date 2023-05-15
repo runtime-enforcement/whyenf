@@ -7,7 +7,7 @@
 (*  Copyright 2023:                                                *)
 (*  Dmitriy Traytel (UCPH)                                         *)
 (*  Leonardo Lima (UCPH)                                           *)
-  (*******************************************************************)
+(*******************************************************************)
 
 open Etc
 open Formula
@@ -15,7 +15,7 @@ open Formula_parser
 
 let make_interval lexbuf = Interval.lex (fun () -> lexing_error lexbuf "interval lexing did not succeed")
 
-let debug m = if !Etc.debug then Stdio.print_endline ("[debug] lexer: " ^ m) else ()
+let debug m = if !Etc.debug then Stdio.print_endline ("[debug] formula_lexer: " ^ m)
 
 }
 
@@ -28,11 +28,12 @@ let letter = uc | lc
 let digit = ['0'-'9']
 
 let digits = ['0'-'9']+
-let string = (letter | digit | '_' | '[' | ']' | '/' | '-' | '.' | '!')+
+let string = (letter | digit | '_' | '/' | '-' | '!')+
 
 rule token = parse
   | newline                                       { Lexing.new_line lexbuf; token lexbuf }
   | blank                                         { token lexbuf }
+  | '#'                                           { debug "skip_line"; skip_line lexbuf }
   | ','                                           { debug "COMMA"; COMMA }
   | '.'                                           { debug "DOT"; DOT }
   | "false" | "⊥"                                 { debug "FALSE"; FALSE }
@@ -54,14 +55,13 @@ rule token = parse
   | "FINALLY" | "EVENTUALLY" | "F" | "◊"          { debug "EVENTUALLY"; EVENTUALLY }
   | "GLOBALLY_PAST" | "HISTORICALLY" | "■"        { debug "HISTORICALLY"; HISTORICALLY }
   | "FINALLY_PAST" | "ONCE" | "⧫"                 { debug "ONCE"; ONCE }
+  | (['(' '['] as l) blank* (digits as i) blank* ',' blank* ((digits | "INFINITY" | "∞") as j) blank* ([')' ']'] as r)
+                                                  { debug "INTERVAL"; INTERVAL (make_interval lexbuf l i j r) }
   | "("                                           { debug "LPA"; LPA }
   | ")"                                           { debug "RPA"; RPA }
   | string as s                                   { debug ("STR " ^ s); STR s }
-  | (['(' '['] as l) blank* (digits as i) blank* "," blank* ((digits | "INFINITY" | "∞") as j) blank* ([')' ']'] as r)
-                                                  { debug "INTERVAL"; INTERVAL (make_interval lexbuf l i j r) }
-  | '#'                                           { debug "skip_line"; skip_line lexbuf }
-  | eof                                           { debug "EOF"; EOF }
   | _ as c                                        { lexing_error lexbuf "unexpected character: `%c'" c }
+  | eof                                           { debug "EOF"; EOF }
 
 and skip_line = parse
   | "\n" | "\r" | "\r\n"                          { Lexing.new_line lexbuf; token lexbuf }
