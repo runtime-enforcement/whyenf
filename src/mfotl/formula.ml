@@ -55,8 +55,7 @@ let trigger i f g = Neg (Since (i, Neg (f), Neg (g)))
 let release i f g = Neg (Until (i, Neg (f), Neg (g)))
 
 let equal x y = match x, y with
-  | TT, TT
-    | FF, FF -> true
+  | TT, TT | FF, FF -> true
   | Predicate (r, trms), Predicate (r', trms') -> String.equal r r' && List.equal Term.equal trms trms'
   | Neg f, Neg f' -> f == f'
   | And (f, g), And (f', g')
@@ -75,8 +74,27 @@ let equal x y = match x, y with
     | Until (i, f, g), Until (i', f', g') -> i == i' && f == f' && g == g'
   | _ -> false
 
+let rec fv = function
+  | TT | FF -> []
+  | Predicate (x, trms) -> Pred.Term.fv_list trms
+  | Neg f
+    | Exists (_, f)
+    | Forall (_, f)
+    | Prev (_, f)
+    | Once (_, f)
+    | Historically (_, f)
+    | Eventually (_, f)
+    | Always (_, f)
+    | Next (_, f) -> fv f
+  | And (f1, f2)
+    | Or (f1, f2)
+    | Imp (f1, f2)
+    | Iff (f1, f2)
+    | Since (_, f1, f2)
+    | Until (_, f1, f2) -> fv f1 @ fv f2
+
 (* Past height *)
-let rec hp x = match x with
+let rec hp = function
   | TT
     | FF
     | Predicate _ -> 0
@@ -97,7 +115,7 @@ let rec hp x = match x with
   | Until (_, f1, f2) -> max (hp f1) (hp f2)
 
 (* Future height *)
-let rec hf x = match x with
+let rec hf = function
   | TT
     | FF
     | Predicate _ -> 0

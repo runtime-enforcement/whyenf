@@ -51,6 +51,8 @@ val until: Interval.t -> t -> t -> t
 val trigger: Interval.t -> t -> t -> t
 val release: Interval.t -> t -> t -> t
 
+val fv: t -> Pred.Term.t list
+
 val hp: t -> int
 val hf: t -> int
 val height: t -> int
