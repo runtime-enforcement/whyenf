@@ -239,7 +239,7 @@ let rec meval vars ts tp db = function
        Buf2.take
          (fun expl1 expl2 -> Expl.apply2 vars (fun p1 p2 -> min_list (do_or p1 p2)) expl1 expl2)
          (Buf2.add expls1 expls2 buf2) in
-     (f_expls, MAnd (mf1', mf2', buf2'))
+     (f_expls, MOr (mf1', mf2', buf2'))
   | MImp (mf1, mf2, buf2) ->
      let (expls1, mf1') = meval vars ts tp db mf1 in
      let (expls2, mf2') = meval vars ts tp db mf2 in
@@ -247,15 +247,15 @@ let rec meval vars ts tp db = function
        Buf2.take
          (fun expl1 expl2 -> Expl.apply2 vars (fun p1 p2 -> min_list (do_imp p1 p2)) expl1 expl2)
          (Buf2.add expls1 expls2 buf2) in
-     (f_expls, MAnd (mf1', mf2', buf2'))
+     (f_expls, MImp (mf1', mf2', buf2'))
   | MIff (mf1, mf2, buf2) ->
      let (expls1, mf1') = meval vars ts tp db mf1 in
      let (expls2, mf2') = meval vars ts tp db mf2 in
      let (f_expls, buf2') =
        Buf2.take
-         (fun expl1 expl2 -> Expl.apply2 vars (fun p1 p2 -> min_list (do_iff p1 p2)) expl1 expl2)
+         (fun expl1 expl2 -> Expl.apply2 vars (fun p1 p2 -> do_iff p1 p2) expl1 expl2)
          (Buf2.add expls1 expls2 buf2) in
-     (f_expls, MAnd (mf1', mf2', buf2'))
+     (f_expls, MIff (mf1', mf2', buf2'))
   (* | MPrev (interval, mf, first, buf, tss) -> *)
   (*    let (ps, mf') = meval ts tp db mf in *)
   (*    let () = Deque.iter ps ~f:(fun p -> Deque.enqueue_back buf p) in *)
