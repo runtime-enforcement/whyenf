@@ -9,6 +9,7 @@
 
 open Base
 open Etc
+open Expl
 open Expl.Proof
 open Pred
 
@@ -183,36 +184,62 @@ let do_iff p1 p2 = match p1, p2 with
   | V vp1, S sp2 -> V (VIffVS (vp1, sp2))
   | V vp1, V vp2 -> S (SIffVV (vp1, vp2))
 
-let rec meval ts tp db = function
-  | MTT -> ([S (STT tp)], MTT)
-  | MFF -> ([V (VFF tp)], MFF)
+let rec fun_upd f a b = (fun x -> (if String.equal x a then b else f x))
+
+let rec match_terms (trms: Term.t list) ds = match trms, ds with
+  | [], [] -> Some (fun _ -> None)
+  | Const x :: trms, d :: ds -> (if Domain.equal x d then match_terms trms ds else None)
+  | Var x :: trms, d :: ds ->
+     (match match_terms trms ds with
+        None -> None
+      | Some f -> (match f x with
+                   | None -> Some (fun_upd f x (Some d))
+                   | Some z -> (if Domain.equal d z then Some f else None)))
+  | _, _ -> None
+
+(* let rec pdt_of tp r trms vars v = match vars with *)
+(*   | [] -> (if Set.is_empty v then Expl.Leaf (V (VPred (tp, r, trms))) *)
+(*            else Leaf (S (SPred (tp, r, trms)))) *)
+(*   | x :: vars -> (let ds = Set.to_list (Set.filter (Set.map (fun v' -> v' x) v)) in *)
+(*                   let a = *)
+(*                     tabulate (_A2, _A3) ds *)
+(*                       (fun d -> *)
+(*                         pdt_of (_A1, _A2, _A3, _A4) i r ts vars *)
+(*                           (filter (fun va -> equal_option _A2 (va x) (Some d)) v)) *)
+(*                       (pdt_of (_A1, _A2, _A3, _A4) i r ts vars bot_set) *)
+(*                   in Node (x, a)) *)
+
+let rec meval vars ts tp db = function
+  | MTT -> ([Leaf (S (STT tp))], MTT)
+  | MFF -> ([Leaf (V (VFF tp))], MFF)
   | MPredicate (r, trms) -> ([], MPredicate (r, trms))
   (* let d = Deque.create () in *)
   (* let _ = if SS.mem a sap then Deque.enqueue_back d (S (SAtom (tp, a))) *)
   (*         else Deque.enqueue_back d (V (VAtom (tp, a))) in *)
   (* (ts, d, MP a) *)
   | MNeg (mf) ->
-     let (ps, mf') = meval ts tp db mf in
-     let ps' = List.fold ps ~init:[] ~f:(fun acc p -> do_neg p :: acc) in
-     (ps', MNeg(mf'))
+     let (expls, mf') = meval vars ts tp db mf in
+     let expls' = List.fold expls ~init:[]
+                    ~f:(fun acc expl -> (Expl.apply1 vars (fun p -> do_neg p) expl :: acc)) in
+     (expls', MNeg(mf'))
   | MAnd (mf1, mf2, buf2) ->
-     let (p1s, mf1') = meval ts tp db mf1 in
-     let (p2s, mf2') = meval ts tp db mf2 in
+     let (p1s, mf1') = meval vars ts tp db mf1 in
+     let (p2s, mf2') = meval vars ts tp db mf2 in
      let (ps, buf2') = Buf2.take do_and (Buf2.add p1s p2s buf2) in
      (List.concat ps, MAnd (mf1', mf2', buf2'))
   | MOr (mf1, mf2, buf2) ->
-     let (p1s, mf1') = meval ts tp db mf1 in
-     let (p2s, mf2') = meval ts tp db mf2 in
+     let (p1s, mf1') = meval vars ts tp db mf1 in
+     let (p2s, mf2') = meval vars ts tp db mf2 in
      let (ps, buf2') = Buf2.take do_or (Buf2.add p1s p2s buf2) in
      (List.concat ps, MOr (mf1', mf2', buf2'))
   | MImp (mf1, mf2, buf2) ->
-     let (p1s, mf1') = meval ts tp db mf1 in
-     let (p2s, mf2') = meval ts tp db mf2 in
+     let (p1s, mf1') = meval vars ts tp db mf1 in
+     let (p2s, mf2') = meval vars ts tp db mf2 in
      let (ps, buf2') = Buf2.take do_imp (Buf2.add p1s p2s buf2) in
      (List.concat ps, MImp (mf1', mf2', buf2'))
   | MIff (mf1, mf2, buf2) ->
-     let (p1s, mf1') = meval ts tp db mf1 in
-     let (p2s, mf2') = meval ts tp db mf2 in
+     let (p1s, mf1') = meval vars ts tp db mf1 in
+     let (p2s, mf2') = meval vars ts tp db mf2 in
      let (ps, buf2') = Buf2.take do_iff (Buf2.add p1s p2s buf2) in
      (ps, MIff (mf1', mf2', buf2'))
   (* | MPrev (interval, mf, first, buf, tss) -> *)
@@ -322,7 +349,7 @@ let next_tp () = tp := !tp + 1; !tp
 
 let mstep ts db (ms: MState.t) =
   let tp = next_tp () in
-  let (expls, m') = meval ts tp db ms.mf in
+  let (expls, m') = meval [] ts tp db ms.mf in
   ((List.zip_exn (List.range tp (tp + List.length expls)) expls),
    { ms with
      tp_out = ms.tp_out + (List.length expls)

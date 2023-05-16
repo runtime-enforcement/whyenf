@@ -72,6 +72,12 @@ module Proof : sig
 
   type t = S of sp | V of vp
 
+  module Size : sig
+
+    val minsize_list: t list -> t
+
+  end
+
 end
 
 type 'a pdt = Leaf of 'a | Node of string * ('a pdt) Part.t
@@ -79,5 +85,7 @@ type 'a pdt = Leaf of 'a | Node of string * ('a pdt) Part.t
 type t = Proof.t pdt
 
 val at: Proof.t pdt -> int
+
+val apply1: string list -> ('a -> 'b) -> 'a pdt -> 'b pdt
 
 val to_string: t -> string
