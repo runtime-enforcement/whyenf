@@ -76,6 +76,8 @@ module Proof : sig
 
     val minsize_list: t list -> t
 
+    val minsize: t -> t -> t
+
   end
 
 end
@@ -87,5 +89,7 @@ type t = Proof.t pdt
 val at: Proof.t pdt -> int
 
 val apply1: string list -> ('a -> 'b) -> 'a pdt -> 'b pdt
+
+val apply2: string list -> ('a -> 'b -> 'c) -> 'a pdt -> 'b pdt -> 'c pdt
 
 val to_string: t -> string

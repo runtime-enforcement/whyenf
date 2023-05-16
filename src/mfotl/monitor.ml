@@ -13,9 +13,12 @@ open Expl
 open Expl.Proof
 open Pred
 
+let min_list = Size.minsize_list
+let min_elt = Size.minsize
+
 module Buf2 = struct
 
-  type t = Expl.Proof.t list * Expl.Proof.t list
+  type t = Expl.t list * Expl.t list
 
   let add xs ys (l1, l2) = (l1 @ xs, l2 @ ys)
 
@@ -219,29 +222,40 @@ let rec meval vars ts tp db = function
   (* (ts, d, MP a) *)
   | MNeg (mf) ->
      let (expls, mf') = meval vars ts tp db mf in
-     let expls' = List.fold expls ~init:[]
-                    ~f:(fun acc expl -> (Expl.apply1 vars (fun p -> do_neg p) expl :: acc)) in
-     (expls', MNeg(mf'))
+     let f_expls = List.map expls ~f:(fun expl -> (Expl.apply1 vars (fun p -> do_neg p) expl)) in
+     (f_expls, MNeg(mf'))
   | MAnd (mf1, mf2, buf2) ->
-     let (p1s, mf1') = meval vars ts tp db mf1 in
-     let (p2s, mf2') = meval vars ts tp db mf2 in
-     let (ps, buf2') = Buf2.take do_and (Buf2.add p1s p2s buf2) in
-     (List.concat ps, MAnd (mf1', mf2', buf2'))
+     let (expls1, mf1') = meval vars ts tp db mf1 in
+     let (expls2, mf2') = meval vars ts tp db mf2 in
+     let (f_expls, buf2') =
+       Buf2.take
+         (fun expl1 expl2 -> Expl.apply2 vars (fun p1 p2 -> min_list (do_and p1 p2)) expl1 expl2)
+         (Buf2.add expls1 expls2 buf2) in
+     (f_expls, MAnd (mf1', mf2', buf2'))
   | MOr (mf1, mf2, buf2) ->
-     let (p1s, mf1') = meval vars ts tp db mf1 in
-     let (p2s, mf2') = meval vars ts tp db mf2 in
-     let (ps, buf2') = Buf2.take do_or (Buf2.add p1s p2s buf2) in
-     (List.concat ps, MOr (mf1', mf2', buf2'))
+     let (expls1, mf1') = meval vars ts tp db mf1 in
+     let (expls2, mf2') = meval vars ts tp db mf2 in
+     let (f_expls, buf2') =
+       Buf2.take
+         (fun expl1 expl2 -> Expl.apply2 vars (fun p1 p2 -> min_list (do_or p1 p2)) expl1 expl2)
+         (Buf2.add expls1 expls2 buf2) in
+     (f_expls, MAnd (mf1', mf2', buf2'))
   | MImp (mf1, mf2, buf2) ->
-     let (p1s, mf1') = meval vars ts tp db mf1 in
-     let (p2s, mf2') = meval vars ts tp db mf2 in
-     let (ps, buf2') = Buf2.take do_imp (Buf2.add p1s p2s buf2) in
-     (List.concat ps, MImp (mf1', mf2', buf2'))
+     let (expls1, mf1') = meval vars ts tp db mf1 in
+     let (expls2, mf2') = meval vars ts tp db mf2 in
+     let (f_expls, buf2') =
+       Buf2.take
+         (fun expl1 expl2 -> Expl.apply2 vars (fun p1 p2 -> min_list (do_imp p1 p2)) expl1 expl2)
+         (Buf2.add expls1 expls2 buf2) in
+     (f_expls, MAnd (mf1', mf2', buf2'))
   | MIff (mf1, mf2, buf2) ->
-     let (p1s, mf1') = meval vars ts tp db mf1 in
-     let (p2s, mf2') = meval vars ts tp db mf2 in
-     let (ps, buf2') = Buf2.take do_iff (Buf2.add p1s p2s buf2) in
-     (ps, MIff (mf1', mf2', buf2'))
+     let (expls1, mf1') = meval vars ts tp db mf1 in
+     let (expls2, mf2') = meval vars ts tp db mf2 in
+     let (f_expls, buf2') =
+       Buf2.take
+         (fun expl1 expl2 -> Expl.apply2 vars (fun p1 p2 -> min_list (do_iff p1 p2)) expl1 expl2)
+         (Buf2.add expls1 expls2 buf2) in
+     (f_expls, MAnd (mf1', mf2', buf2'))
   (* | MPrev (interval, mf, first, buf, tss) -> *)
   (*    let (ps, mf') = meval ts tp db mf in *)
   (*    let () = Deque.iter ps ~f:(fun p -> Deque.enqueue_back buf p) in *)
