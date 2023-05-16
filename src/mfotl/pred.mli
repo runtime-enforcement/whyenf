@@ -14,6 +14,12 @@ module Term : sig
 
   type t = Var of string | Const of Domain.t [@@deriving compare, sexp_of, hash]
 
+  type comparator_witness
+
+  val comparator : (t, comparator_witness) Comparator.t
+
+  val fv_list: t list -> t list
+
   val equal: t -> t -> bool
 
   val list_to_string: t list -> string

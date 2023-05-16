@@ -13,20 +13,32 @@ open Stdio
 
 module Term = struct
 
-  type t = Var of string | Const of Domain.t [@@deriving compare, sexp_of, hash]
+  module T = struct
 
-  let equal t t' = match t, t' with
-    | Var x, Var x' -> String.equal x x'
-    | Const d, Const d' -> Domain.equal d d'
-    | _ -> false
+    type t = Var of string | Const of Domain.t [@@deriving compare, sexp_of, hash]
 
-  let rec list_to_string trms =
-    match trms with
-    | [] -> ""
-    | (Var x) :: trms -> if List.is_empty trms then x
-                         else Printf.sprintf "%s, %s" x (list_to_string trms)
-    | (Const d) :: trms -> if List.is_empty trms then (Domain.to_string d)
-                           else Printf.sprintf "%s, %s" (Domain.to_string d) (list_to_string trms)
+    let rec fv_list = function
+      | [] -> []
+      | Const c :: trms -> fv_list trms
+      | Var x :: trms -> [Var x] @ fv_list trms
+
+    let equal t t' = match t, t' with
+      | Var x, Var x' -> String.equal x x'
+      | Const d, Const d' -> Domain.equal d d'
+      | _ -> false
+
+    let rec list_to_string trms =
+      match trms with
+      | [] -> ""
+      | (Var x) :: trms -> if List.is_empty trms then x
+                           else Printf.sprintf "%s, %s" x (list_to_string trms)
+      | (Const d) :: trms -> if List.is_empty trms then (Domain.to_string d)
+                             else Printf.sprintf "%s, %s" (Domain.to_string d) (list_to_string trms)
+
+  end
+
+  include T
+  include Comparator.Make(T)
 
 end
 
