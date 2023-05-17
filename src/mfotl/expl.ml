@@ -9,6 +9,7 @@
 (*******************************************************************)
 
 open Base
+open Pred
 
 module Part = struct
 
@@ -65,7 +66,7 @@ module Proof = struct
 
   type sp =
     | STT of int
-    | SPred of int * string * Pred.Term.t list
+    | SPred of int * string * Term.t list
     | SNeg of vp
     | SOrL of sp
     | SOrR of sp
@@ -87,7 +88,7 @@ module Proof = struct
     | SUntil of sp * sp Fdeque.t
   and vp =
     | VFF of int
-    | VPred of int * string * Pred.Term.t list
+    | VPred of int * string * Term.t list
     | VNeg of sp
     | VOr of vp * vp
     | VAndL of vp
@@ -282,7 +283,7 @@ module Proof = struct
       let indent' = "\t" ^ indent in
       match p with
       | STT i -> Printf.sprintf "%strue{%d}" indent i
-      | SPred (tp, r, trms) -> Printf.sprintf "%s%s{%d}{%s}" indent r tp (Pred.Term.list_to_string trms)
+      | SPred (tp, r, trms) -> Printf.sprintf "%s%s{%d}{%s}" indent r tp (Term.list_to_string trms)
       | SNeg vp -> Printf.sprintf "%sSNeg{%d}\n%s" indent (s_at p) (v_to_string indent' vp)
       | SOrL sp1 -> Printf.sprintf "%sSOrL{%d}\n%s" indent (s_at p) (s_to_string indent' sp1)
       | SOrR sp2 -> Printf.sprintf "%sSOrR{%d}\n%s" indent (s_at p) (s_to_string indent' sp2)
@@ -316,7 +317,7 @@ module Proof = struct
       let indent' = "\t" ^ indent in
       match p with
       | VFF i -> Printf.sprintf "%sfalse{%d}" indent i
-      | VPred (tp, r, trms) ->  Printf.sprintf "%s!%s{%d}{%s}" indent r tp (Pred.Term.list_to_string trms)
+      | VPred (tp, r, trms) ->  Printf.sprintf "%s!%s{%d}{%s}" indent r tp (Term.list_to_string trms)
       | VNeg sp -> Printf.sprintf "%sVNeg{%d}\n%s" indent (v_at p) (s_to_string indent' sp)
       | VOr (vp1, vp2) -> Printf.sprintf "%sVOr{%d}\n%s\n%s" indent (v_at p) (v_to_string indent' vp1) (v_to_string indent' vp2)
       | VAndL vp1 -> Printf.sprintf "%sVAndL{%d}\n%s" indent (v_at p) (v_to_string indent' vp1)
@@ -371,7 +372,7 @@ let rec at = function
 
 let rec apply1 vars f expl = match vars, expl with
   | vars, Leaf pt -> Leaf (f pt)
-  | z :: vars, Node (x, part) ->
+  | Term.Var z :: vars, Node (x, part) ->
      if String.equal x z then
        Node (x, Part.map part (apply1 vars f))
      else apply1 vars f (Node (x, part))
@@ -383,7 +384,7 @@ let rec apply2 vars f expl1 expl2 = match vars, expl1, expl2 with
      Node (x, Part.map part2 (apply1 vars (f pt1)))
   | vars, Node (x, part1), Leaf pt2 ->
      Node (x, Part.map part1 (apply1 vars (fun pt1 -> f pt1 pt2)))
-  | z :: vars, Node (x, part1), Node (y, part2) ->
+  | Term.Var z :: vars, Node (x, part1), Node (y, part2) ->
      if String.equal x z && String.equal y z then
        Node (z, Part.merge2 (apply2 vars f) part1 part2)
      else (if String.equal x z then
