@@ -187,39 +187,42 @@ let do_iff p1 p2 = match p1, p2 with
   | V vp1, S sp2 -> V (VIffVS (vp1, sp2))
   | V vp1, V vp2 -> S (SIffVV (vp1, vp2))
 
-let rec fun_upd f a b = (fun x -> (if String.equal x a then b else f x))
-
-let rec match_terms (trms: Term.t list) ds = match trms, ds with
-  | [], [] -> Some (fun _ -> None)
-  | Const x :: trms, d :: ds -> (if Domain.equal x d then match_terms trms ds else None)
-  | Var x :: trms, d :: ds ->
-     (match match_terms trms ds with
-        None -> None
-      | Some f -> (match f x with
-                   | None -> Some (fun_upd f x (Some d))
-                   | Some z -> (if Domain.equal d z then Some f else None)))
+let rec match_terms trms ds map =
+  match trms, ds with
+  | [], [] -> Some(map)
+  | Term.Const c :: trms, d :: ds -> if Domain.equal c d then match_terms trms ds map else None
+  | Var x :: trms, d :: ds -> (match match_terms trms ds map with
+                               | None -> None
+                               | Some(map') -> (match Map.find map' (Term.Var x) with
+                                                | None -> let map'' = Map.add_exn map' (Term.Var x) d in Some(map'')
+                                                | Some z -> (if Domain.equal d z then Some map' else None)))
   | _, _ -> None
 
-(* let rec pdt_of tp r trms vars v = match vars with *)
-(*   | [] -> (if Set.is_empty v then Expl.Leaf (V (VPred (tp, r, trms))) *)
-(*            else Leaf (S (SPred (tp, r, trms)))) *)
-(*   | x :: vars -> (let ds = Set.to_list (Set.filter (Set.map (fun v' -> v' x) v)) in *)
-(*                   let a = *)
-(*                     tabulate (_A2, _A3) ds *)
-(*                       (fun d -> *)
-(*                         pdt_of (_A1, _A2, _A3, _A4) i r ts vars *)
-(*                           (filter (fun va -> equal_option _A2 (va x) (Some d)) v)) *)
-(*                       (pdt_of (_A1, _A2, _A3, _A4) i r ts vars bot_set) *)
-(*                   in Node (x, a)) *)
+let rec pdt_of tp r trms vars maps = match vars with
+  | [] -> if List.is_empty maps then Leaf (V (VPred (tp, r, trms)))
+          else Leaf (S (SPred (tp, r, trms)))
+  | Term.Var x :: vars ->
+     let (fmaps, ds) = List.unzip (List.fold maps ~init:[]
+                                     ~f:(fun acc map -> match Map.find map (Term.Var x) with
+                                                        | None -> acc
+                                                        | Some(d) -> (map, d) :: acc)) in
+     let part = Part.tabulate ds (fun d -> pdt_of tp r trms vars fmaps) (pdt_of tp r trms vars []) in
+     Node (x, part)
 
-let rec meval vars ts tp db = function
+let rec meval vars ts tp (db: Db.t) = function
   | MTT -> ([Leaf (S (STT tp))], MTT)
   | MFF -> ([Leaf (V (VFF tp))], MFF)
-  | MPredicate (r, trms) -> ([], MPredicate (r, trms))
-  (* let d = Deque.create () in *)
-  (* let _ = if SS.mem a sap then Deque.enqueue_back d (S (SAtom (tp, a))) *)
-  (*         else Deque.enqueue_back d (V (VAtom (tp, a))) in *)
-  (* (ts, d, MP a) *)
+  | MPredicate (r, trms) ->
+     let db' = Set.filter db (fun evt -> String.equal r (fst(evt))) in
+     let maps = Set.fold db' ~init:[] ~f:(fun acc evt -> match_terms trms (snd evt) (Map.empty (module Term)) :: acc) in
+     let maps' = List.map (List.filter maps ~f:(fun map_opt -> match map_opt with
+                                                               | None -> false
+                                                               | Some(map) -> not (Map.is_empty map)))
+                   ~f:(fun map_opt -> Option.value_exn map_opt) in
+     let fv = Formula.fv (Predicate (r, trms)) in
+     let fv_vars = List.filter vars ~f:(fun var -> List.mem fv var ~equal:Pred.Term.equal) in
+     let expl = pdt_of tp r trms fv_vars maps' in
+     ([expl], MPredicate (r, trms))
   | MNeg (mf) ->
      let (expls, mf') = meval vars ts tp db mf in
      let f_expls = List.map expls ~f:(fun expl -> (Expl.apply1 vars (fun p -> do_neg p) expl)) in

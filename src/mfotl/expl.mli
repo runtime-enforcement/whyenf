@@ -9,10 +9,13 @@
 (*******************************************************************)
 
 open Base
+open Pred
 
 module Part : sig
 
   type 'a t = Abs_part of ((Domain.t, Domain.comparator_witness) Coset.t * 'a) list
+
+  val tabulate: Domain.t list -> (Domain.t -> 'a) -> 'a -> 'a t
 
 end
 
@@ -20,7 +23,7 @@ module Proof : sig
 
   type sp =
     | STT of int
-    | SPred of int * string * Pred.Term.t list
+    | SPred of int * string * Term.t list
     | SNeg of vp
     | SOrL of sp
     | SOrR of sp
@@ -42,7 +45,7 @@ module Proof : sig
     | SUntil of sp * sp Fdeque.t
   and vp =
     | VFF of int
-    | VPred of int * string * Pred.Term.t list
+    | VPred of int * string * Term.t list
     | VNeg of sp
     | VOr of vp * vp
     | VAndL of vp
@@ -88,8 +91,8 @@ type t = Proof.t pdt
 
 val at: Proof.t pdt -> int
 
-val apply1: string list -> ('a -> 'b) -> 'a pdt -> 'b pdt
+val apply1: Term.t list -> ('a -> 'b) -> 'a pdt -> 'b pdt
 
-val apply2: string list -> ('a -> 'b -> 'c) -> 'a pdt -> 'b pdt -> 'c pdt
+val apply2: Term.t list -> ('a -> 'b -> 'c) -> 'a pdt -> 'b pdt -> 'c pdt
 
 val to_string: t -> string
