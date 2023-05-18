@@ -49,6 +49,14 @@ module Part = struct
                             then Some (Coset.diff sub2 sub1, v2) else None)) in
        Abs_part (part12 @ (the (merge2 f (Abs_part part1) (Abs_part part2not1))))
 
+  (* TODO: Fix this function (also in the formalization) *)
+  let merge3 f part1 part2 part3 = match part1, part2, part3 with
+    | Abs_part [], Abs_part part2, Abs_part part3 -> Abs_part []
+    | Abs_part part1, Abs_part [], Abs_part part3 -> Abs_part []
+    | Abs_part part1, Abs_part part2 , Abs_part [] -> Abs_part []
+    | Abs_part part1, Abs_part part2, Abs_part part3 ->
+       merge2 (fun pt3 f' -> f' pt3) (Abs_part part3) (merge2 f (Abs_part part1) (Abs_part part2))
+
   let el_to_string indent f (sub, v) =
     Printf.sprintf "%scoset = {%s}\n%s%s" indent (Coset.to_string sub) indent (f indent v)
 
@@ -392,6 +400,58 @@ let rec apply2 vars f expl1 expl2 = match vars, expl1, expl2 with
            else (if Term.equal y z then
                    Node (y, Part.map part2 (apply2 vars f (Node (x, part1))))
                  else apply2 vars f (Node (x, part1)) (Node (y, part2))))
+  | _ -> raise (Invalid_argument "variable list is empty")
+
+let rec apply3 vars f expl1 expl2 expl3 = match vars, expl1, expl2, expl3 with
+  | _ , Leaf pt1, Leaf pt2, Leaf pt3 -> Leaf (f pt1 pt2 pt3)
+  | _ , Leaf pt1, Leaf pt2, Node (x, part3) ->
+     Node (x, Part.map part3 (apply2 vars (f pt1) (Leaf pt2)))
+  | _ , Leaf pt1, Node (x, part2), Leaf pt3 ->
+     Node (x, Part.map part2 (apply2 vars (fun pt2 -> f pt1 pt2) (Leaf pt3)))
+  | _ , Node (x, part1), Leaf pt2, Leaf pt3 ->
+     Node (x, Part.map part1 (apply2 vars (fun pt1 -> f pt1 pt2) (Leaf pt3)))
+  | w :: vars, Leaf pt1, Node (y, part2), Node (z, part3) ->
+     if Term.equal y w && Term.equal z w then
+       Node (w, Part.merge2 (apply2 vars (f pt1)) part2 part3)
+     else (if Term.equal y w then
+             Node (y, Part.map part2 (fun expl2 -> apply2 vars (f pt1) expl2 (Node (z, part3))))
+           else (if Term.equal z w then
+                   Node (z, Part.map part3 (fun expl3 -> apply2 vars (f pt1) (Node (y, part2)) expl3))
+                 else apply3 vars f (Leaf pt1) (Node (y, part2)) (Node(z, part3))))
+  | w :: vars, Node (x, part1), Node (y, part2), Leaf pt3 ->
+     if Term.equal x w && Term.equal y w then
+       Node (w, Part.merge2 (apply2 vars (fun pt1 pt2 -> f pt1 pt2 pt3)) part1 part2)
+     else (if Term.equal x w then
+             Node (x, Part.map part1 (fun expl1 -> apply2 vars (fun pt1 pt2 -> f pt1 pt2 pt3) expl1 (Node (y, part2))))
+           else (if Term.equal y w then
+                   Node (y, Part.map part2 (fun expl2 -> apply2 vars (fun pt1 pt2 -> f pt1 pt2 pt3) (Node (x, part1)) expl2))
+                 else apply3 vars f (Node (x, part1)) (Node (y, part2)) (Leaf pt3)))
+  | w :: vars, Node (x, part1), Leaf pt2, Node (z, part3) ->
+     if Term.equal x w && Term.equal z w then
+       Node (w, Part.merge2 (apply2 vars (fun pt1 -> f pt1 pt2)) part1 part3)
+     else (if Term.equal x w then
+             Node (x, Part.map part1 (fun expl1 -> apply2 vars (fun pt1 -> f pt1 pt2) expl1 (Node (z, part3))))
+           else (if Term.equal z w then
+                   Node (z, Part.map part3 (fun expl3 -> apply2 vars (fun pt1 -> f pt1 pt2) (Node (x, part1)) expl3))
+                 else apply3 vars f (Node (x, part1)) (Leaf pt2) (Node (z, part3))))
+  | w :: vars, Node (x, part1), Node (y, part2), Node (z, part3) ->
+     if Term.equal x w && Term.equal y w && Term.equal z w then
+       Node (z, Part.merge3 (apply3 vars f) part1 part2 part3)
+     else (if Term.equal x w && Term.equal y w then
+             Node (w, Part.merge2 (apply3 vars (fun pt3 pt1 pt2 -> f pt1 pt2 pt3) (Node (z, part3))) part1 part2)
+           else (if Term.equal x w && Term.equal z w then
+                   Node (w, Part.merge2 (apply3 vars (fun pt2 pt1 pt3 -> f pt1 pt2 pt3) (Node (y, part2))) part1 part3)
+                 else (if Term.equal y w && Term.equal z w then
+                         Node (w, Part.merge2 (apply3 vars (fun pt1 -> f pt1) (Node (x, part1))) part2 part3)
+                       else (if Term.equal x w then
+                               Node (x, Part.map part1 (fun expl1 -> apply3 vars f expl1 (Node (y, part2)) (Node (z, part3))))
+                             else (if Term.equal y w then
+                                     Node (y, Part.map part2
+                                                (fun expl2 -> apply3 vars f (Node (x, part1)) expl2 (Node (z, part3))))
+                                   else (if Term.equal z w then
+                                           Node (z, Part.map part3
+                                                      (fun expl3 -> apply3 vars f (Node (x, part1)) (Node (y, part2)) expl3))
+                                         else apply3 vars f (Node (x, part1)) (Node (y, part2)) (Node (z, part3))))))))
   | _ -> raise (Invalid_argument "variable list is empty")
 
 let rec to_string indent = function
