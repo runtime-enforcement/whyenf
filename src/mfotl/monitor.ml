@@ -201,9 +201,9 @@ let rec match_terms trms ds map =
 let rec pdt_of tp r trms vars maps = match vars with
   | [] -> if List.is_empty maps then Leaf (V (VPred (tp, r, trms)))
           else Leaf (S (SPred (tp, r, trms)))
-  | Term.Var x :: vars ->
+  | x :: vars ->
      let (fmaps, ds) = List.unzip (List.fold maps ~init:[]
-                                     ~f:(fun acc map -> match Map.find map (Term.Var x) with
+                                     ~f:(fun acc map -> match Map.find map x with
                                                         | None -> acc
                                                         | Some(d) -> (map, d) :: acc)) in
      let part = Part.tabulate ds (fun d -> pdt_of tp r trms vars fmaps) (pdt_of tp r trms vars []) in
@@ -395,43 +395,3 @@ let exec mode measure f inc =
   let mf = init f in
   let ms = MState.init mf in
   step None ms
-
-(* let monitor_vis obj_opt log le f = *)
-(*   let events = parse_lines_from_string log in *)
-(*   let (mf, st) = match obj_opt with *)
-(*     | None -> let mf = init f in *)
-(*               (mf, { tp = 0 *)
-(*                    ; mf = mf *)
-(*                    ; events = [] *)
-(*                    ; tp_ts = Hashtbl.create 100 *)
-(*               }) *)
-(*     | Some (mf', st') -> (mf', st') in *)
-(*   let mf_ap = relevant_ap mf in *)
-(*   match events with *)
-(*   | Ok es -> *)
-(*      (let ((m, step), o) = List.fold_map es ~init:(mf, st) ~f:(fun (mf', st') (sap, ts) -> *)
-(*                             let last_ts = match Hashtbl.find_opt st.tp_ts (st'.tp-1) with *)
-(*                               | None -> ts *)
-(*                               | Some(ts') -> ts' in *)
-(*                             if last_ts <= ts then *)
-(*                               (Hashtbl.add st.tp_ts st'.tp ts; *)
-(*                                let sap_filtered = filter_ap sap mf_ap in *)
-(*                                let (ts', ps, mf_updated) = meval' ts st'.tp sap_filtered mf' le in *)
-(*                                let cbs_opt = None in *)
-(*                                let expls = json_expls st.tp_ts f (Deque.to_list ps) cbs_opt in *)
-(*                                let atoms = json_atoms f sap_filtered st'.tp ts in *)
-(*                                let st_updated = { st with *)
-(*                                                   tp = st'.tp+1 *)
-(*                                                 ; mf = mf_updated } in *)
-(*                                ((mf_updated, st_updated), (expls, atoms))) *)
-(*                             else raise (INVALID_TIMESTAMP "Timestamp violates monotonicity constraint")) in *)
-(*       let expls = List.map o (fun (e, _) -> e) in *)
-(*       let expls' = String.concat ",\n" (List.filter expls (fun e -> not (String.equal e ""))) in *)
-(*       let atoms = List.map o (fun (_, a) -> a) in *)
-(*       let atoms' = String.concat ",\n" (List.filter atoms (fun a -> not (String.equal a ""))) in *)
-(*       let ident = "    " in *)
-(*       let json = (Printf.sprintf "{\n") ^ *)
-(*                    (Printf.sprintf "%step\"expls\": [\n%step],\n" ident expls') ^ *)
-(*                      (Printf.sprintf "%step\"atoms\": [\n%step]\n}" ident atoms') in *)
-(*       (Some(m, step), json)) *)
-(*   | Error err -> (None, json_error err) *)
