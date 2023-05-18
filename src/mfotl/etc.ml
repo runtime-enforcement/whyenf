@@ -25,3 +25,7 @@ let lexing_error lexbuf fmt = parsing_error (Lexing.lexeme_start_p lexbuf) (Lexi
 let lexbuf_error_msg (lexbuf: Lexing.lexbuf) =
   Printf.sprintf "a problem was found at line %d character %d"
     (lexbuf.lex_curr_p.pos_lnum) (lexbuf.lex_curr_p.pos_cnum - lexbuf.lex_curr_p.pos_bol)
+
+let rec queue_drop q n =
+  if Int.equal n 0 then q
+  else (let _ = Queue.dequeue_exn q in queue_drop q (n-1))
