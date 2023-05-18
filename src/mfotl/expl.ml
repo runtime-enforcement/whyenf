@@ -362,7 +362,7 @@ module Proof = struct
 end
 
 
-type 'a pdt = Leaf of 'a | Node of string * ('a pdt) Part.t
+type 'a pdt = Leaf of 'a | Node of Term.t * ('a pdt) Part.t
 
 type t = Proof.t pdt
 
@@ -371,25 +371,25 @@ let rec at = function
   | Node (_, part) -> at (Part.hd part)
 
 let rec apply1 vars f expl = match vars, expl with
-  | vars, Leaf pt -> Leaf (f pt)
-  | Term.Var z :: vars, Node (x, part) ->
-     if String.equal x z then
+  | _ , Leaf pt -> Leaf (f pt)
+  | z :: vars, Node (x, part) ->
+     if Term.equal x z then
        Node (x, Part.map part (apply1 vars f))
      else apply1 vars f (Node (x, part))
   | _ -> raise (Invalid_argument "variable list is empty")
 
 let rec apply2 vars f expl1 expl2 = match vars, expl1, expl2 with
-  | vars, Leaf pt1, Leaf pt2 -> Leaf (f pt1 pt2)
-  | vars, Leaf pt1, Node (x, part2) ->
+  | _ , Leaf pt1, Leaf pt2 -> Leaf (f pt1 pt2)
+  | _ , Leaf pt1, Node (x, part2) ->
      Node (x, Part.map part2 (apply1 vars (f pt1)))
-  | vars, Node (x, part1), Leaf pt2 ->
+  | _ , Node (x, part1), Leaf pt2 ->
      Node (x, Part.map part1 (apply1 vars (fun pt1 -> f pt1 pt2)))
-  | Term.Var z :: vars, Node (x, part1), Node (y, part2) ->
-     if String.equal x z && String.equal y z then
+  | z :: vars, Node (x, part1), Node (y, part2) ->
+     if Term.equal x z && Term.equal y z then
        Node (z, Part.merge2 (apply2 vars f) part1 part2)
-     else (if String.equal x z then
+     else (if Term.equal x z then
              Node (x, Part.map part1 (fun e1 -> apply2 vars f e1 (Node (y, part2))))
-           else (if String.equal y z then
+           else (if Term.equal y z then
                    Node (y, Part.map part2 (apply2 vars f (Node (x, part1))))
                  else apply2 vars f (Node (x, part1)) (Node (y, part2))))
   | _ -> raise (Invalid_argument "variable list is empty")

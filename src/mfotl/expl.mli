@@ -85,7 +85,7 @@ module Proof : sig
 
 end
 
-type 'a pdt = Leaf of 'a | Node of string * ('a pdt) Part.t
+type 'a pdt = Leaf of 'a | Node of Term.t * ('a pdt) Part.t
 
 type t = Proof.t pdt
 
