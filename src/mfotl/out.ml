@@ -23,21 +23,21 @@ module Plain = struct
 
   let expl = function
     | Explanation ((ts, tp), e) ->
-       Stdio.printf "%d:%d\nExplanation: \n%s\n" ts tp (Expl.to_string e)
+       Stdio.printf "%d:%d\nExplanation: \n%s\n" ts tp (Expl.to_string "" e)
     | ExplanationCheck ((ts, tp), e, b) ->
-       Stdio.printf "%d:%d\nExplanation: \n%s\n" ts tp (Expl.to_string e);
+       Stdio.printf "%d:%d\nExplanation: \n%s\n" ts tp (Expl.to_string "" e);
        Stdio.printf "\nChecker output: %B\n" b;
     | ExplanationCheckDebug ((ts, tp), e, b, _, _) ->
-       Stdio.printf "%d:%d\nExplanation: \n%s\n" ts tp (Expl.to_string e);
+       Stdio.printf "%d:%d\nExplanation: \n%s\n" ts tp (Expl.to_string "" e);
        Stdio.printf "\nChecker output: %B\n" b;
     | Info s -> Stdio.printf "\nInfo: %s\n" s
 
-  let expls ts es checker_es_opt = function
-    | UNVERIFIED -> List.iter es (fun e -> expl (Explanation ((ts, (Expl.at e)), e)))
-    | VERIFIED -> List.iter2_exn es (Option.value_exn checker_es_opt)
-                    (fun e (b, _, _) -> expl (ExplanationCheck ((ts, (Expl.at e)), e, b)))
-    | DEBUG -> List.iter2_exn es (Option.value_exn checker_es_opt)
-                 (fun e (b, checker_e, trace) -> expl (ExplanationCheckDebug ((ts, (Expl.at e)), e, b, (), ())))
+  let expls ts_tp_expls checker_es_opt = function
+    | UNVERIFIED -> List.iter ts_tp_expls (fun ((ts, tp), e) -> expl (Explanation ((ts, tp), e)))
+    | VERIFIED -> List.iter2_exn ts_tp_expls (Option.value_exn checker_es_opt)
+                    (fun ((ts, tp), e) (b, _, _) -> expl (ExplanationCheck ((ts, tp), e, b)))
+    | DEBUG -> List.iter2_exn ts_tp_expls (Option.value_exn checker_es_opt)
+                 (fun ((ts, tp), e) (b, checker_e, trace) -> expl (ExplanationCheckDebug ((ts, tp), e, b, (), ())))
 
 end
 
