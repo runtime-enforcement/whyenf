@@ -81,7 +81,15 @@ end
 
 module Since = struct
 
-  type t = unit
+  type t = { ts_zero: timestamp option
+           ; tstps_in: (timestamp * timepoint) Fdeque.t
+           ; tstps_out: (timestamp * timepoint) Fdeque.t
+           ; s_beta_alphas_in: (timestamp * Proof.t) Fdeque.t
+           ; s_beta_alphas_out: (timestamp * Proof.t) Fdeque.t
+           ; v_alpha_betas_in: (timestamp * Proof.t) Fdeque.t
+           ; v_alphas_out: (timestamp * Proof.t) Fdeque.t
+           ; v_betas_in: (timestamp * Proof.vp) Fdeque.t
+           ; v_alphas_betas_out: (timestamp * Proof.vp option * Proof.vp option) Fdeque.t }
 
 end
 
