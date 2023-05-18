@@ -37,3 +37,5 @@ val create: unit -> 'a t
 val dequeue_front_exn: 'a t -> 'a
 
 val dequeue_back_exn: 'a t -> 'a
+
+val to_list: 'a t -> 'a list

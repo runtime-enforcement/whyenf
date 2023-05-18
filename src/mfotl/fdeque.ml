@@ -37,6 +37,8 @@ let dequeue_front_exn d = Deque.dequeue_front_exn d
 
 let dequeue_back_exn d = Deque.dequeue_back_exn d
 
+let to_list d = Deque.to_list d
+
 let to_string indent f d =
   if is_empty d then indent ^ "[]"
   else
