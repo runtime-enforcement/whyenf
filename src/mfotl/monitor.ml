@@ -351,40 +351,50 @@ let rec meval vars ts tp (db: Db.t) = function
 
 module MState = struct
 
-  type t = { tp_out: timepoint
-           ; mf: MFormula.t
-           ; tstpdbs: (timestamp * timepoint * Db.t) Fdeque.t }
+  type t = { mf: MFormula.t
+           ; tp_out: timepoint
+           ; ts_waiting: timestamp Queue.t
+           ; tstpdbs: (timestamp * timepoint * Db.t) Queue.t }
 
-  let init mf = { tp_out = -1
-                ; mf = mf
-                ; tstpdbs = Fdeque.create () }
+  let init mf = { mf = mf
+                ; tp_out = -1
+                ; ts_waiting = Queue.create ()
+                ; tstpdbs = Queue.create () }
 
 end
 
 let tp = ref (-1)
 let next_tp () = tp := !tp + 1; !tp
 
-let mstep ts db (ms: MState.t) =
+let mstep mode ts db (ms: MState.t) =
   let tp = next_tp () in
-  let (expls, m') = meval [] ts tp db ms.mf in
-  ((List.zip_exn (List.range tp (tp + List.length expls)) expls),
+  let (expls, mf') = meval [] ts tp db ms.mf in
+  let () = Queue.enqueue ms.ts_waiting ts in
+  let tstps = List.zip_exn (List.range tp (tp + List.length expls)) (Queue.to_list ms.ts_waiting) in
+  let tstpdbs = match mode with
+    | Out.Plain.UNVERIFIED -> ms.tstpdbs
+    | _ -> Queue.enqueue ms.tstpdbs (ts, tp, db); ms.tstpdbs in
+  (List.zip_exn tstps expls,
    { ms with
-     tp_out = ms.tp_out + (List.length expls)
-   ; mf = m'
-   ; tstpdbs = Fdeque.enqueue_back ms.tstpdbs (ts, tp, db) })
+     mf = mf'
+   ; tp_out = ms.tp_out + (List.length expls)
+   ; ts_waiting = queue_drop ms.ts_waiting (List.length expls)
+   ; tstpdbs = tstpdbs })
 
 let exec mode measure f inc =
   let rec step pb_opt ms =
     let (more, pb) = Other_parser.Trace.parse inc pb_opt in
-    let (tp_expls, ms') = mstep pb.ts pb.db ms in
+    let (ts_tp_expls, ms') = mstep mode pb.ts pb.db ms in
     let () = Stdio.printf "%s\n" (Db.to_string pb.db) in
+    Out.Plain.expls ts_tp_expls None mode;
+    (match mode with
+     | Out.Plain.UNVERIFIED -> ()
+     | Out.Plain.VERIFIED -> ()
+     | Out.Plain.DEBUG -> ());
     if more then step (Some(pb)) ms' in
   let mf = init f in
   let ms = MState.init mf in
-  match mode with
-  | Out.Plain.UNVERIFIED -> step None ms
-  | Out.Plain.VERIFIED -> ()
-  | Out.Plain.DEBUG -> ()
+  step None ms
 
 (* let monitor_vis obj_opt log le f = *)
 (*   let events = parse_lines_from_string log in *)
