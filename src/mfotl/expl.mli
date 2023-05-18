@@ -95,4 +95,4 @@ val apply1: Term.t list -> ('a -> 'b) -> 'a pdt -> 'b pdt
 
 val apply2: Term.t list -> ('a -> 'b -> 'c) -> 'a pdt -> 'b pdt -> 'c pdt
 
-val to_string: t -> string
+val to_string: string -> t -> string
