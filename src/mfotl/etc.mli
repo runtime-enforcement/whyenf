@@ -21,3 +21,5 @@ exception Parsing_error of Lexing.position*Lexing.position*string
 val parsing_error: Lexing.position -> Lexing.position -> ('a, Format.formatter, unit, 'b) format4 -> 'a
 val lexing_error: Lexing.lexbuf -> ('a, Format.formatter, unit, 'b) format4 -> 'a
 val lexbuf_error_msg: Lexing.lexbuf -> string
+
+val queue_drop: 'a Base.Queue.t -> int -> 'a Base.Queue.t
