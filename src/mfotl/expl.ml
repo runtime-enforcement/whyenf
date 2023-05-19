@@ -357,13 +357,13 @@ module Proof = struct
       | S s_p -> s s_p
       | V v_p -> v v_p
 
-    let le = cmp p
+    let minp_bool = cmp p
 
-    let minsize x y = if p x <= p y then x else y
+    let minp x y = if p x <= p y then x else y
 
-    let minsize_list = function
+    let minp_list = function
       | [] -> raise (Invalid_argument "function not defined for empty lists")
-      | x :: xs -> List.fold_left xs ~init:x ~f:minsize
+      | x :: xs -> List.fold_left xs ~init:x ~f:minp
 
   end
 
