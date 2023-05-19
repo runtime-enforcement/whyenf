@@ -47,6 +47,8 @@ let set_exn d = Deque.set_exn d
 
 let create () = Deque.create ()
 
+let clear d = Deque.clear d
+
 let length d = Deque.length d
 
 let dequeue_front_exn d = Deque.dequeue_front_exn d
