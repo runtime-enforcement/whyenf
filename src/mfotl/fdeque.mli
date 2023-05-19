@@ -12,17 +12,27 @@ open Core_kernel
 
 type 'a t = 'a Deque.t
 
-val enqueue_front: 'a t -> 'a -> 'a t
+val fenqueue_front: 'a t -> 'a -> 'a t
 
-val enqueue_back: 'a t -> 'a -> 'a t
+val enqueue_front: 'a t -> 'a -> unit
 
-val drop_front: 'a t -> 'a t
+val fenqueue_back: 'a t -> 'a -> 'a t
+
+val enqueue_back: 'a t -> 'a -> unit
+
+val fdrop_front: 'a t -> 'a t
+
+val drop_front: 'a t -> unit
 
 val is_empty: 'a t -> bool
 
 val peek_back_exn: 'a t -> 'a
 
+val peek_back: 'a t -> 'a option
+
 val peek_front_exn: 'a t -> 'a
+
+val peek_front: 'a t -> 'a option
 
 val fold: 'a t -> init: 'b -> f:('b -> 'a -> 'b) -> 'b
 
@@ -45,5 +55,7 @@ val dequeue_front_exn: 'a t -> 'a
 val dequeue_front: 'a t -> 'a option
 
 val dequeue_back_exn: 'a t -> 'a
+
+val dequeue_back: 'a t -> 'a option
 
 val to_list: 'a t -> 'a list
