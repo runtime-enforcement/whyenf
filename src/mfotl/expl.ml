@@ -204,6 +204,10 @@ module Proof = struct
     | VUntil (tp, _, _) -> tp
     | VUntilInf (tp, _, _) -> tp
 
+  let p_at = function
+    | S s_p -> s_at s_p
+    | V v_p -> v_at v_p
+
   let s_ltp = function
     | SUntil (sp2, _) -> s_at sp2
     | _ -> raise (Invalid_argument "s_ltp is not defined for this sp")
@@ -212,10 +216,6 @@ module Proof = struct
     | VUntil (tp, _, vp2s) -> if Fdeque.is_empty vp2s then tp
                               else v_at (Fdeque.peek_front_exn vp2s)
     | _ -> raise (Invalid_argument "v_etp is not defined for this vp")
-
-  let p_at = function
-    | S s_p -> s_at s_p
-    | V v_p -> v_at v_p
 
   let cmp f p1 p2 = f p1 <= f p2
 
