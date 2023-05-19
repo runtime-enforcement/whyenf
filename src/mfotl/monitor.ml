@@ -10,11 +10,10 @@
 open Base
 open Etc
 open Expl
-open Expl.Proof
 open Pred
 
-let min_list = Size.minsize_list
-let min_elt = Size.minsize
+let min_list = Proof.Size.minsize_list
+let min_elt = Proof.Size.minsize
 
 module Buf2 = struct
 
@@ -91,6 +90,16 @@ module Since = struct
            ; v_betas_in: (timestamp * Proof.vp) Fdeque.t
            ; v_alphas_betas_out: (timestamp * Proof.vp option * Proof.vp option) Fdeque.t }
 
+  let init () = { ts_zero = None
+                ; tstps_in = Fdeque.create ()
+                ; tstps_out = Fdeque.create ()
+                ; s_beta_alphas_in = Fdeque.create ()
+                ; s_beta_alphas_out = Fdeque.create ()
+                ; v_alpha_betas_in = Fdeque.create ()
+                ; v_alphas_out = Fdeque.create ()
+                ; v_betas_in = Fdeque.create ()
+                ; v_alphas_betas_out = Fdeque.create () }
+
 end
 
 module Until = struct
@@ -139,8 +148,8 @@ module MFormula = struct
     | Formula.Eventually (i, f) -> MEventually (i, init f, ([], []), ())
     | Formula.Historically (i, f) -> MHistorically (i, init f, [], ())
     | Formula.Always (i, f) -> MAlways (i, init f, ([], []), ())
-    | Formula.Since (i, f, g) -> MSince (i, init f, init g, ([], [], []), ())
-    | Formula.Until (i, f, g) -> MSince (i, init f, init g, ([], [], []), ())
+    | Formula.Since (i, f, g) -> MSince (i, init f, init g, ([], [], []), Since.init ())
+    | Formula.Until (i, f, g) -> MUntil (i, init f, init g, ([], [], []), ())
 
   let rec to_string_rec l = function
     | MTT -> Printf.sprintf "⊤"
@@ -168,28 +177,28 @@ end
 include MFormula
 
 let do_neg = function
-  | S sp -> V (VNeg sp)
+  | Proof.S sp -> Proof.V (VNeg sp)
   | V vp -> S (SNeg vp)
 
-let do_and p1 p2 = match p1, p2 with
+let do_and (p1: Proof.t) (p2: Proof.t) : Proof.t list = match p1, p2 with
   | S sp1, S sp2 -> [S (SAnd (sp1, sp2))]
   | S _ , V vp2 -> [V (VAndR (vp2))]
   | V vp1, S _ -> [V (VAndL (vp1))]
   | V vp1, V vp2 -> [(V (VAndL (vp1))); (V (VAndR (vp2)))]
 
-let do_or p1 p2 = match p1, p2 with
+let do_or (p1: Proof.t) (p2: Proof.t) : Proof.t list = match p1, p2 with
   | S sp1, S sp2 -> [(S (SOrL (sp1))); (S (SOrR(sp2)))]
   | S sp1, V _ -> [S (SOrL (sp1))]
   | V _ , S sp2 -> [S (SOrR (sp2))]
   | V vp1, V vp2 -> [V (VOr (vp1, vp2))]
 
-let do_imp p1 p2 = match p1, p2 with
+let do_imp (p1: Proof.t) (p2: Proof.t) : Proof.t list = match p1, p2 with
   | S _, S sp2 -> [S (SImpR sp2)]
   | S sp1, V vp2 -> [V (VImp (sp1, vp2))]
   | V vp1, S sp2 -> [S (SImpL vp1); S (SImpR sp2)]
   | V vp1, V _ -> [S (SImpL vp1)]
 
-let do_iff p1 p2 = match p1, p2 with
+let do_iff (p1: Proof.t) (p2: Proof.t) : Proof.t = match p1, p2 with
   | S sp1, S sp2 -> S (SIffSS (sp1, sp2))
   | S sp1, V vp2 -> V (VIffSV (sp1, vp2))
   | V vp1, S sp2 -> V (VIffVS (vp1, sp2))
@@ -206,7 +215,7 @@ let rec match_terms trms ds map =
                                                 | Some z -> (if Domain.equal d z then Some map' else None)))
   | _, _ -> None
 
-let rec pdt_of tp r trms vars maps = match vars with
+let rec pdt_of tp r trms vars maps : Expl.t = match vars with
   | [] -> if List.is_empty maps then Leaf (V (VPred (tp, r, trms)))
           else Leaf (S (SPred (tp, r, trms)))
   | x :: vars ->
@@ -218,7 +227,7 @@ let rec pdt_of tp r trms vars maps = match vars with
      Node (x, part)
 
 let rec meval vars ts tp (db: Db.t) = function
-  | MTT -> ([Leaf (S (STT tp))], MTT)
+  | MTT -> ([Leaf (Proof.S (STT tp))], MTT)
   | MFF -> ([Leaf (V (VFF tp))], MFF)
   | MPredicate (r, trms) ->
      let db' = Set.filter db (fun evt -> String.equal r (fst(evt))) in
