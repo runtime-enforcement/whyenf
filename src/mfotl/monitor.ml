@@ -15,6 +15,38 @@ open Pred
 let min_list = Proof.Size.minsize_list
 let min_elt = Proof.Size.minsize
 
+let s_append_fdeque sp1 d =
+  Fdeque.iteri d ~f:(fun i (ts, ssp) ->
+      match ssp with
+      | Proof.S sp -> Fdeque.set_exn d i (ts, S (Proof.s_append sp sp1))
+      | V _ -> raise (Invalid_argument "found V proof in S deque")); d
+
+let v_append_fdeque vp2 d =
+  Fdeque.iteri d ~f:(fun i (ts, vvp) ->
+      match vvp with
+      | Proof.V vp -> Fdeque.set_exn d i (ts, V (Proof.v_append vp vp2))
+      | S _ -> raise (Invalid_argument "found S proof in V deque")); d
+
+let fst_lst_fdeque d =
+  Fdeque.fold' d ~init:[] ~f:(fun acc (ts, p) -> p :: acc) `back_to_front
+
+let remove_cond_front f d =
+  let rec remove_cond_front_rec f d = match Fdeque.dequeue_front d with
+    | None -> d
+    | Some(el') -> if (f el') then remove_cond_front_rec f d
+                   else Fdeque.enqueue_front d el' in
+  remove_cond_front_rec f d
+
+let remove_cond_front_ne f d =
+  let rec remove_cond_front_ne_rec f d =
+    if (Fdeque.length d) > 1 then
+      (match Fdeque.dequeue_front d with
+       | None -> d
+       | Some(el') -> if (f el') then remove_cond_front_ne_rec f d
+                      else Fdeque.enqueue_front d el')
+    else d in
+  remove_cond_front_ne_rec f d
+
 module Buf2 = struct
 
   type t = Expl.t list * Expl.t list
