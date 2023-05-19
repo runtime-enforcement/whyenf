@@ -34,7 +34,7 @@ let remove_cond_front f d =
   let rec remove_cond_front_rec f d = match Fdeque.dequeue_front d with
     | None -> d
     | Some(el') -> if (f el') then remove_cond_front_rec f d
-                   else Fdeque.enqueue_front d el' in
+                   else Fdeque.fenqueue_front d el' in
   remove_cond_front_rec f d
 
 let remove_cond_front_ne f d =
@@ -43,9 +43,110 @@ let remove_cond_front_ne f d =
       (match Fdeque.dequeue_front d with
        | None -> d
        | Some(el') -> if (f el') then remove_cond_front_ne_rec f d
-                      else Fdeque.enqueue_front d el')
+                      else Fdeque.fenqueue_front d el')
     else d in
   remove_cond_front_ne_rec f d
+
+let remove_cond_back f d =
+  let rec remove_cond_back_rec f d =
+    match Fdeque.dequeue_back d with
+    | None -> d
+    | Some(el') -> if (f el') then remove_cond_back_rec f d
+                   else Fdeque.fenqueue_back d el' in
+  remove_cond_back_rec f d
+
+let sorted_append new_in d cmp =
+  Fdeque.iter new_in ~f:(fun (ts, p) ->
+      let _ = remove_cond_back (fun (ts', p') -> cmp p p') d in
+      let _ = Fdeque.enqueue_back d (ts, p) in ()); d
+
+let sorted_enqueue (ts, p) d cmp =
+  let _ = remove_cond_back (fun (_, p') -> cmp p p') d in
+  let _ = Fdeque.enqueue_back d (ts, p) in d
+
+(* TODO: split_in_out and split_out_in should be rewritten as a single function *)
+(* split_in_out considers a closed interval [l, r] *)
+let split_in_out get_ts (l, r) d =
+  let new_in = Fdeque.create () in
+  let rec split_in_out_rec d =
+    match Fdeque.dequeue_front d with
+    | None -> d
+    | Some(el) -> let ts = get_ts el in
+                  if ts <= r then
+                    if ts >= l then
+                      let _ = Fdeque.enqueue_back new_in el in split_in_out_rec d
+                    else Fdeque.fenqueue_front d el
+                  else d in
+  (split_in_out_rec d, new_in)
+
+(* split_out_in considers an interval of the form [z, l) *)
+let split_out_in get_ts (z, l) d =
+  let new_out = Fdeque.create () in
+  let rec split_out_in_rec d =
+    match Fdeque.dequeue_front d with
+    | None -> d
+    | Some(el) -> let ts = get_ts el in
+                  if ts < l then
+                    if ts >= z then
+                      let _ = Fdeque.enqueue_back new_out el in split_out_in_rec d
+                    else Fdeque.fenqueue_front d el
+                  else d in
+  (split_out_in_rec d, new_out)
+
+let etp tstps_in tstps_out tp =
+  match Fdeque.peek_front tstps_in with
+  | None -> (match Fdeque.peek_front tstps_out with
+             | None -> tp
+             | Some (_, tp') -> tp')
+  | Some (_, tp') -> tp'
+
+let ready_tstps b nts tstps_out tstps_in =
+  let d = Fdeque.create () in
+  Fdeque.iter tstps_out ~f:(fun (ts, tp) ->
+      if ts + b < nts then Fdeque.enqueue_back d (ts, tp));
+  Fdeque.iter tstps_in ~f:(fun (ts, tp) ->
+      if ts + b < nts then Fdeque.enqueue_back d (ts, tp)); d
+
+let first_ts_tp tstps_out tstps_in =
+  match Fdeque.peek_front tstps_out with
+  | None -> (match Fdeque.peek_front tstps_in with
+             | None -> None
+             | Some(ts, tp) -> Some(ts, tp))
+  | Some(ts, tp) -> Some(ts, tp)
+
+let add_tstp_future a b nts ntp tstps_out tstps_in =
+  (* (ts, tp) update is performed differently if the queues are not empty *)
+  (if (not (Fdeque.is_empty tstps_out)) || (not (Fdeque.is_empty tstps_in)) then
+     let first_ts = match first_ts_tp tstps_out tstps_in with
+       | None -> raise (Failure "tstps deques are empty")
+       | Some(ts', _) -> ts' in
+     if nts < first_ts + a then Fdeque.enqueue_back tstps_out (nts, ntp)
+     else Fdeque.enqueue_back tstps_in (nts, ntp)
+   else
+     (if (nts >= a && nts <= b) || (a == 0) then
+        Fdeque.enqueue_back tstps_in (nts, ntp)
+      else Fdeque.enqueue_back tstps_out (nts, ntp)));
+  (tstps_out, tstps_in)
+
+let shift_tstps_future a first_ts ntp tstps_out tstps_in =
+  Fdeque.iter tstps_in ~f:(fun (ts', tp') ->
+      if (ts' < first_ts + a) && (tp' < ntp) then
+        Fdeque.enqueue_back tstps_out (ts', tp'));
+  let _ = remove_cond_front (fun (ts', tp') -> (ts' < first_ts) && (tp' < ntp)) tstps_out in
+  let _ = remove_cond_front (fun (ts', tp') -> (ts' < first_ts + a) && (tp' < ntp)) tstps_in in
+  (tstps_out, tstps_in)
+
+let shift_tstps_past (l, r) a ts tp tstps_in tstps_out =
+  if a = 0 then
+    (Fdeque.enqueue_back tstps_in (ts, tp);
+     (remove_cond_front (fun (ts', _) -> ts' < l) tstps_in, tstps_out))
+  else
+    (Fdeque.enqueue_back tstps_out (ts, tp);
+     Fdeque.iter tstps_out ~f:(fun (ts', tp') ->
+         if ts' <= r then Fdeque.enqueue_back tstps_in (ts', tp'));
+     let ts_tp_out = remove_cond_front (fun (ts', _) -> ts' <= r) tstps_out in
+     let ts_tp_in = remove_cond_front (fun (ts', _) -> ts' < l) tstps_in in
+     (ts_tp_in, ts_tp_out))
 
 module Buf2 = struct
 
