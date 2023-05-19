@@ -87,11 +87,15 @@ module Proof : sig
   val s_ltp: sp -> int
   val v_etp: vp -> int
 
+  val s_to_string: string -> sp -> string
+  val v_to_string: string -> vp -> string
+  val to_string: t -> string
+
   module Size : sig
 
-    val minsize_list: t list -> t
-
-    val minsize: t -> t -> t
+    val minp_bool: t -> t -> bool
+    val minp: t -> t -> t
+    val minp_list: t list -> t
 
   end
 
