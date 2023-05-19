@@ -13,6 +13,8 @@ open Etc
 
 type 'a t = 'a Deque.t
 
+exception Empty of string
+
 let fenqueue_front d e = Deque.enqueue_front d e; d
 
 let fenqueue_back d e = Deque.enqueue_back d e; d
@@ -24,6 +26,8 @@ let enqueue_back d e = Deque.enqueue_back d e
 let fdrop_front d = Deque.drop_front d; d
 
 let drop_front d = Deque.drop_front d
+
+let drop_back d = Deque.drop_back d
 
 let is_empty d = Deque.is_empty d
 
@@ -38,6 +42,8 @@ let peek_front d = Deque.peek_front d
 let fold d = Deque.fold d
 
 let fold' d = Deque.fold' d
+
+let foldi d = Deque.foldi d
 
 let iter d = Deque.iter d
 
@@ -58,6 +64,10 @@ let dequeue_front d = Deque.dequeue_front d
 let dequeue_back_exn d = Deque.dequeue_back_exn d
 
 let dequeue_back d = Deque.dequeue_back d
+
+let find d = Deque.find d
+
+let front_index_exn d = Deque.front_index_exn d
 
 let to_list d = Deque.to_list d
 
