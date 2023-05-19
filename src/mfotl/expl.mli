@@ -75,6 +75,18 @@ module Proof : sig
 
   type t = S of sp | V of vp
 
+  val s_append: sp -> sp -> sp
+  val v_append: vp -> vp -> vp
+  val s_drop: sp -> sp option
+  val v_drop: vp -> vp option
+
+  val s_at: sp -> int
+  val v_at: vp -> int
+  val p_at: t -> int
+
+  val s_ltp: sp -> int
+  val v_etp: vp -> int
+
   module Size : sig
 
     val minsize_list: t list -> t
