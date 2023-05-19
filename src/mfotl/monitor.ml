@@ -446,7 +446,195 @@ end
 
 module Until = struct
 
-  type t = unit
+  type t = { tstps_in: (timestamp * timepoint) Fdeque.t
+           ; tstps_out: (timestamp * timepoint) Fdeque.t
+           ; s_alphas_beta: ((timestamp * Proof.t) Fdeque.t) Fdeque.t
+           ; s_alphas_suffix: (timestamp * Proof.sp) Fdeque.t
+           ; v_betas_alpha: ((timestamp * Proof.t) Fdeque.t) Fdeque.t
+           ; v_alphas_out: (timestamp * Proof.t) Fdeque.t
+           ; v_alphas_in: (timestamp * Proof.t) Fdeque.t
+           ; v_betas_suffix_in: (timestamp * Proof.vp) Fdeque.t
+           ; optimal_proofs: (timestamp * Proof.t) Fdeque.t }
+
+  let init () = { tstps_in = Fdeque.create ()
+                ; tstps_out = Fdeque.create ()
+                ; s_alphas_beta = Fdeque.fenqueue_back (Fdeque.create ()) (Fdeque.create ())
+                ; s_alphas_suffix = Fdeque.create ()
+                ; v_betas_alpha = Fdeque.fenqueue_back (Fdeque.create ()) (Fdeque.create ())
+                ; v_alphas_out = Fdeque.create ()
+                ; v_alphas_in = Fdeque.create ()
+                ; v_betas_suffix_in = Fdeque.create ()
+                ; optimal_proofs = Fdeque.create () }
+
+  let to_string { tstps_in
+                ; tstps_out
+                ; s_alphas_beta
+                ; s_alphas_suffix
+                ; v_betas_alpha
+                ; v_alphas_out
+                ; v_alphas_in
+                ; v_betas_suffix_in
+                ; optimal_proofs } =
+    ("\n\nUntil state: " ^ (print_tstps None tstps_in tstps_out) ^
+       Fdeque.foldi s_alphas_beta ~init:"\ns_alphas_beta = \n" ~f:(fun i acc1 d ->
+           acc1 ^ Printf.sprintf "\n%d.\n" i ^
+             Fdeque.fold d ~init:"[" ~f:(fun acc2 (ts, p) ->
+                 acc2 ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string p) ^ "\n]\n") ^
+         Fdeque.fold s_alphas_suffix ~init:"\ns_alphas_suffix = "
+           ~f:(fun acc (ts, p) ->
+             acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.s_to_string "" p) ^
+           Fdeque.foldi v_betas_alpha ~init:"\nv_betas_alpha = \n"
+             ~f:(fun i acc1 d ->
+               acc1 ^ Printf.sprintf "\n%d.\n" i ^
+                 Fdeque.fold d ~init:"[" ~f:(fun acc2 (ts, p) ->
+                     acc2 ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string p) ^ "\n]\n") ^
+             Fdeque.fold v_alphas_out ~init:"\nv_alphas_out = "
+               ~f:(fun acc (ts, p) ->
+                 acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string p) ^
+               Fdeque.fold v_alphas_in ~init:"\nv_alphas_in = "
+                 ~f:(fun acc (ts, p) ->
+                   acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string p) ^
+                 Fdeque.fold v_betas_suffix_in ~init:"\nv_betas_suffix_in = "
+                   ~f:(fun acc (ts, p) ->
+                     acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.v_to_string "" p) ^
+                   Fdeque.fold optimal_proofs ~init:"\noptimal_proofs = "
+                     ~f:(fun acc (ts, p) ->
+                       acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string p))
+
+  let ts_of_tp tp tstp_in tstp_out =
+    match (Fdeque.find tstp_out ~f:(fun (ts', tp') -> tp = tp')) with
+    | None -> (match (Fdeque.find tstp_in ~f:(fun (ts', tp') -> tp = tp')) with
+               | None -> raise (Failure "ts not found")
+               | Some(ts, _) -> ts)
+    | Some(ts, _) -> ts
+
+  let step_sdrop_tp tp s_alphas_beta =
+    Fdeque.fold s_alphas_beta ~init:(Fdeque.create ())
+      ~f:(fun acc (ts, ssp) ->
+        match ssp with
+        | Proof.S sp -> if tp = (Proof.s_at sp) then
+                          (match Proof.s_drop sp with
+                           | None -> acc
+                           | Some(sp') -> Fdeque.fenqueue_back acc (ts, Proof.S sp'))
+                        else Fdeque.fenqueue_back acc (ts, ssp)
+        | V _ -> raise (Invalid_argument "found V proof in S deque"))
+
+  let step_vdrop_ts a first_ts v_betas_alpha tstps_in =
+    let rec vdrop_until vp =
+      let is_out = match Fdeque.find ~f:(fun (_, tp') -> (Proof.v_etp vp) = tp') tstps_in with
+        | None -> true
+        | Some(ts', _) -> ts' < (first_ts + a) in
+      if is_out then
+        (match Proof.v_drop vp with
+         | None -> None
+         | Some(vp') -> vdrop_until vp')
+      else Some(vp) in
+    Fdeque.fold v_betas_alpha ~init:(Fdeque.create ())
+      ~f:(fun acc (ts, vvp) ->
+        (match vvp with
+         | Proof.V vp -> (match vdrop_until vp with
+                          | None -> acc
+                          | Some (vp') -> Fdeque.fenqueue_back acc (ts, Proof.V vp'))
+         | S _ -> raise (Invalid_argument "found S proof in V deque")))
+
+  let remove_out_less2_lts lim d =
+    Fdeque.iteri d ~f:(fun i d' ->
+        Fdeque.set_exn d i
+          (Fdeque.fold d' ~init:(Fdeque.create ()) ~f:(fun acc (ts, p) ->
+               if ts >= lim then Fdeque.fenqueue_back acc (ts, p) else acc)));
+    remove_cond_front_ne (fun d' -> Fdeque.is_empty d') d
+
+  let add_subps a (ts, tp) (p1: Proof.t) (p2: Proof.t) muaux =
+    let first_ts = match first_ts_tp muaux.tstps_out muaux.tstps_in with
+      | None -> 0
+      | Some(ts', _) -> ts' in
+    match p1, p2 with
+    | S sp1, S sp2 ->
+       (* alphas_beta *)
+       (if ts >= first_ts + a then
+          let cur_alphas_beta = Fdeque.peek_back_exn muaux.s_alphas_beta in
+          let sp = Proof.S (SUntil (sp2, snd_fdeque muaux.s_alphas_suffix)) in
+          let cur_alphas_beta_sorted = sorted_enqueue (ts, sp) cur_alphas_beta in
+          Fdeque.drop_back muaux.s_alphas_beta;
+          Fdeque.enqueue_back muaux.s_alphas_beta cur_alphas_beta_sorted);
+       (* betas_alpha (add empty deque) *)
+       (if not (Fdeque.is_empty (Fdeque.peek_back_exn muaux.v_betas_alpha)) then
+          Fdeque.enqueue_back muaux.v_betas_alpha (Fdeque.create ()));
+       (* alphas_suffix *)
+       Fdeque.enqueue_back muaux.s_alphas_suffix (ts, sp1);
+       (* v_betas_in *)
+       (if ts >= (first_ts + a) then Fdeque.clear muaux.v_betas_suffix_in); muaux
+    | S sp1, V vp2 ->
+       (* alphas_suffix *)
+       Fdeque.enqueue_back muaux.s_alphas_suffix (ts, sp1);
+       (* v_betas_in *)
+       (if ts >= (first_ts + a) then Fdeque.enqueue_back muaux.v_betas_suffix_in (ts, vp2)); muaux
+    | V vp1, S sp2 ->
+       (* alphas_beta *)
+       (if ts >= first_ts + a then
+          let cur_alphas_beta = Fdeque.peek_back_exn muaux.s_alphas_beta in
+          let sp = Proof.S (SUntil (sp2, snd_fdeque muaux.s_alphas_suffix)) in
+          let cur_alphas_beta_sorted = sorted_enqueue (ts, sp) cur_alphas_beta in
+          Fdeque.drop_back muaux.s_alphas_beta;
+          Fdeque.enqueue_back muaux.s_alphas_beta cur_alphas_beta_sorted;
+          (* alphas_beta (append empty deque) *)
+          if not (Fdeque.is_empty (Fdeque.peek_back_exn muaux.s_alphas_beta)) then
+            Fdeque.enqueue_back muaux.s_alphas_beta (Fdeque.create ()));
+       (* betas_alpha (add empty deque) *)
+       (if not (Fdeque.is_empty (Fdeque.peek_back_exn muaux.v_betas_alpha)) then
+          Fdeque.enqueue_back muaux.v_betas_alpha (Fdeque.create ()));
+       (* alphas_suffix *)
+       Fdeque.clear muaux.s_alphas_suffix;
+       (* alphas_in *)
+       (if ts >= first_ts + a then Fdeque.enqueue_back muaux.v_alphas_in (ts, Proof.V vp1)
+        else (let _ = remove_cond_back (fun (_, p') -> minp_bool (Proof.V vp1) p') muaux.v_alphas_out in
+              Fdeque.enqueue_back muaux.v_alphas_out (ts, V vp1)));
+       (* v_betas_in *)
+       (if ts >= (first_ts + a) then Fdeque.clear muaux.v_betas_suffix_in); muaux
+    | V vp1, V vp2 ->
+       (* alphas_beta (add empty deque) *)
+       (if not (Fdeque.is_empty (Fdeque.peek_back_exn muaux.s_alphas_beta)) then
+          Fdeque.enqueue_back muaux.s_alphas_beta (Fdeque.create ()));
+       (* alphas_suffix *)
+       Fdeque.clear muaux.s_alphas_suffix;
+       (* v_betas_in *)
+       (if ts >= (first_ts + a) then Fdeque.enqueue_back muaux.v_betas_suffix_in (ts, vp2));
+       (* betas_alpha *)
+       (if ts >= (first_ts + a) then
+          (let cur_betas_alpha = Fdeque.peek_back_exn muaux.v_betas_alpha in
+           let vp = Proof.V (VUntil (tp, vp1, snd_fdeque muaux.v_betas_suffix_in)) in
+           let cur_betas_alpha_sorted = sorted_enqueue (ts, vp) cur_betas_alpha in
+           Fdeque.drop_back muaux.v_betas_alpha;
+           Fdeque.enqueue_back muaux.v_betas_alpha cur_betas_alpha_sorted));
+       (* alphas_in *)
+       (if ts >= (first_ts + a) then Fdeque.enqueue_back muaux.v_alphas_in (ts, V vp1)
+        else (let _ = remove_cond_back (fun (_, p') -> minp_bool (V vp1) p') muaux.v_alphas_out in
+              Fdeque.enqueue_back muaux.v_alphas_out (ts, V vp1))); muaux
+
+  let drop_tp tp muaux =
+    match Fdeque.peek_front muaux.s_alphas_beta with
+    | None -> raise (Fdeque.Empty "alphas_beta")
+    | Some(front_alphas_beta) ->
+       if not (Fdeque.is_empty front_alphas_beta) then
+         let front_index = Fdeque.front_index_exn muaux.s_alphas_beta in
+         Fdeque.set_exn muaux.s_alphas_beta front_index (step_sdrop_tp tp front_alphas_beta)
+
+  let drop_v_ts a ts muaux =
+    Fdeque.iteri muaux.v_betas_alpha ~f:(fun i d ->
+        Fdeque.set_exn muaux.v_betas_alpha i (step_vdrop_ts a ts d muaux.tstps_in))
+
+  let drop_v_single_ts cur_tp muaux =
+    let first_betas_alpha =
+      Fdeque.fold (Fdeque.peek_front_exn muaux.v_betas_alpha) ~init:(Fdeque.create ())
+        ~f:(fun acc (ts', vvp) -> (match vvp with
+                                   | V vp -> if Proof.v_etp vp <= cur_tp then
+                                               (match Proof.v_drop vp with
+                                                | None -> acc
+                                                | Some (vp') -> Fdeque.fenqueue_back acc (ts', Proof.V vp'))
+                                             else Fdeque.fenqueue_back acc (ts', Proof.V vp)
+                                   | S _ -> raise (Invalid_argument "found S proof in V deque"))) in
+    Fdeque.drop_front muaux.v_betas_alpha;
+    Fdeque.enqueue_front muaux.v_betas_alpha first_betas_alpha
 
 end
 
@@ -491,7 +679,7 @@ module MFormula = struct
     | Formula.Historically (i, f) -> MHistorically (i, init f, [], ())
     | Formula.Always (i, f) -> MAlways (i, init f, ([], []), ())
     | Formula.Since (i, f, g) -> MSince (i, init f, init g, ([], [], []), Since.init ())
-    | Formula.Until (i, f, g) -> MUntil (i, init f, init g, ([], [], []), ())
+    | Formula.Until (i, f, g) -> MUntil (i, init f, init g, ([], [], []), Until.init ())
 
   let rec to_string_rec l = function
     | MTT -> Printf.sprintf "⊤"
