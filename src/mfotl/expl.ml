@@ -127,27 +127,27 @@ module Proof = struct
   type t = S of sp | V of vp
 
   let s_append sp sp1 = match sp with
-    | SSince (sp2, sp1s) -> SSince (sp2, Fdeque.enqueue_back sp1s sp1)
-    | SUntil (sp2, sp1s) -> SUntil (sp2, Fdeque.enqueue_front sp1s sp1)
+    | SSince (sp2, sp1s) -> SSince (sp2, Fdeque.fenqueue_back sp1s sp1)
+    | SUntil (sp2, sp1s) -> SUntil (sp2, Fdeque.fenqueue_front sp1s sp1)
     | _ -> raise (Invalid_argument "sappend is not defined for this sp")
 
   let v_append vp vp2 = match vp with
-    | VSince (tp, vp1, vp2s) -> VSince (tp,  vp1, Fdeque.enqueue_back vp2s vp2)
-    | VSinceInf (tp, etp, vp2s) -> VSinceInf (tp, etp, Fdeque.enqueue_back vp2s vp2)
-    | VUntil (tp, vp1, vp2s) -> VUntil (tp, vp1, Fdeque.enqueue_front vp2s vp2)
-    | VUntilInf (tp, ltp, vp2s) -> VUntilInf (tp, ltp, Fdeque.enqueue_front vp2s vp2)
+    | VSince (tp, vp1, vp2s) -> VSince (tp,  vp1, Fdeque.fenqueue_back vp2s vp2)
+    | VSinceInf (tp, etp, vp2s) -> VSinceInf (tp, etp, Fdeque.fenqueue_back vp2s vp2)
+    | VUntil (tp, vp1, vp2s) -> VUntil (tp, vp1, Fdeque.fenqueue_front vp2s vp2)
+    | VUntilInf (tp, ltp, vp2s) -> VUntilInf (tp, ltp, Fdeque.fenqueue_front vp2s vp2)
     | _ -> raise (Invalid_argument "vappend is not defined for this vp")
 
   let s_drop = function
     | SUntil (sp2, sp1s) -> if Fdeque.is_empty sp1s then None
-                            else Some (SUntil (sp2, Fdeque.drop_front sp1s))
+                            else Some (SUntil (sp2, Fdeque.fdrop_front sp1s))
     | _ -> raise (Invalid_argument "sdrop is not defined for this sp")
 
   let v_drop = function
     | VUntil (tp, vp1, vp2s) -> if Fdeque.is_empty vp2s then None
-                                else Some (VUntil (tp, vp1, Fdeque.drop_front vp2s))
+                                else Some (VUntil (tp, vp1, Fdeque.fdrop_front vp2s))
     | VUntilInf (tp, ltp, vp2s) -> if Fdeque.is_empty vp2s then None
-                                   else Some (VUntilInf (tp, ltp, Fdeque.drop_front vp2s))
+                                   else Some (VUntilInf (tp, ltp, Fdeque.fdrop_front vp2s))
     | _ -> raise (Invalid_argument "vdrop is not defined for this vp")
 
   let rec s_at = function
