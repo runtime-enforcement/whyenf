@@ -37,7 +37,7 @@ module Part = struct
               else [(Coset.univ (module Domain), z)])
 
   let rec merge2 f part1 part2 = match part1, part2 with
-    | Abs_part [], Abs_part [] -> Abs_part []
+    | Abs_part [], Abs_part [] -> raise (Invalid_argument "one of the partitions is empty")
     | Abs_part ((sub1, v1) :: part1), Abs_part part2 ->
        let part12 = List.filter_map part2
                       (fun (sub2, v2) ->
@@ -51,9 +51,9 @@ module Part = struct
 
   (* TODO: Fix this function (also in the formalization) *)
   let merge3 f part1 part2 part3 = match part1, part2, part3 with
-    | Abs_part [], Abs_part part2, Abs_part part3 -> Abs_part []
-    | Abs_part part1, Abs_part [], Abs_part part3 -> Abs_part []
-    | Abs_part part1, Abs_part part2 , Abs_part [] -> Abs_part []
+    | Abs_part [], _ , _
+      | _ , Abs_part [], _
+      | _ , _ , Abs_part [] -> raise (Invalid_argument "one of the partitions is empty")
     | Abs_part part1, Abs_part part2, Abs_part part3 ->
        merge2 (fun pt3 f' -> f' pt3) (Abs_part part3) (merge2 f (Abs_part part1) (Abs_part part2))
 
