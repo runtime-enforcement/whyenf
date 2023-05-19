@@ -12,6 +12,8 @@ open Core_kernel
 
 type 'a t = 'a Deque.t
 
+exception Empty of string
+
 val fenqueue_front: 'a t -> 'a -> 'a t
 
 val enqueue_front: 'a t -> 'a -> unit
@@ -23,6 +25,8 @@ val enqueue_back: 'a t -> 'a -> unit
 val fdrop_front: 'a t -> 'a t
 
 val drop_front: 'a t -> unit
+
+val drop_back: 'a t -> unit
 
 val is_empty: 'a t -> bool
 
@@ -37,6 +41,8 @@ val peek_front: 'a t -> 'a option
 val fold: 'a t -> init: 'b -> f:('b -> 'a -> 'b) -> 'b
 
 val fold': 'a t -> [ `back_to_front | `front_to_back ] -> init:'b -> f:('b -> 'a -> 'b) -> 'b
+
+val foldi: 'a t -> init:'b -> f:(int -> 'b -> 'a -> 'b) -> 'b
 
 val iter: 'a t -> f:('a -> unit) -> unit
 
@@ -59,5 +65,9 @@ val dequeue_front: 'a t -> 'a option
 val dequeue_back_exn: 'a t -> 'a
 
 val dequeue_back: 'a t -> 'a option
+
+val find: 'a t -> f:('a -> bool) -> 'a option
+
+val front_index_exn: 'a t -> int
 
 val to_list: 'a t -> 'a list
