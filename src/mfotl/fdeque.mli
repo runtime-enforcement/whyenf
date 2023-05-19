@@ -26,7 +26,13 @@ val peek_front_exn: 'a t -> 'a
 
 val fold: 'a t -> init: 'b -> f:('b -> 'a -> 'b) -> 'b
 
+val fold': 'a t -> [ `back_to_front | `front_to_back ] -> init:'b -> f:('b -> 'a -> 'b) -> 'b
+
 val iter: 'a t -> f:('a -> unit) -> unit
+
+val iteri: 'a t -> f:(int -> 'a -> unit) -> unit
+
+val set_exn: 'a t -> int -> 'a -> unit
 
 val length: 'a t -> int
 
@@ -35,6 +41,8 @@ val to_string: string -> (string -> 'a -> string) -> 'a t -> string
 val create: unit -> 'a t
 
 val dequeue_front_exn: 'a t -> 'a
+
+val dequeue_front: 'a t -> 'a option
 
 val dequeue_back_exn: 'a t -> 'a
 

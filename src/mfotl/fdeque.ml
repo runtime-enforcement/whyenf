@@ -27,13 +27,21 @@ let peek_front_exn d = Deque.peek_back_exn d
 
 let fold d = Deque.fold d
 
+let fold' d = Deque.fold' d
+
 let iter d = Deque.iter d
+
+let iteri d = Deque.iteri d
+
+let set_exn d = Deque.set_exn d
 
 let create () = Deque.create ()
 
 let length d = Deque.length d
 
 let dequeue_front_exn d = Deque.dequeue_front_exn d
+
+let dequeue_front d = Deque.dequeue_front d
 
 let dequeue_back_exn d = Deque.dequeue_back_exn d
 
