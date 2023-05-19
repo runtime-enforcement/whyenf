@@ -50,6 +50,8 @@ val to_string: string -> (string -> 'a -> string) -> 'a t -> string
 
 val create: unit -> 'a t
 
+val clear: 'a t -> unit
+
 val dequeue_front_exn: 'a t -> 'a
 
 val dequeue_front: 'a t -> 'a option
