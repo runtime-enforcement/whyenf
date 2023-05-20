@@ -50,6 +50,15 @@ let right =
   let right_BI (BI (l, r)) = Some(r) in
   case right_BI right_UI
 
+let below_UI t (UI l) = t < l
+let below_BI t (BI (l, r)) = t < l
+let below t = case (below_BI t) (below_UI t)
+
+(* Check if t > interval *)
+let above_UI t (UI l) = false
+let above_BI t (BI (l, r)) = t > r
+let above t = case (above_BI t) (above_UI t)
+
 let to_string_BI = function
   | BI (i, j) -> Printf.sprintf "[%d,%d]" i j
 
