@@ -115,6 +115,11 @@ let first_ts_tp tstps_out tstps_in =
              | Some(ts, tp) -> Some(ts, tp))
   | Some(ts, tp) -> Some(ts, tp)
 
+let drop_first_ts_tp tstps_out tstps_in =
+  match Fdeque.peek_front tstps_out with
+  | None -> Fdeque.drop_front tstps_in
+  | Some _ -> Fdeque.drop_front tstps_out
+
 let add_tstp_future a b nts ntp tstps_out tstps_in =
   (* (ts, tp) update is performed differently if the queues are not empty *)
   (if (not (Fdeque.is_empty tstps_out)) || (not (Fdeque.is_empty tstps_in)) then
@@ -310,20 +315,316 @@ end
 
 module Eventually = struct
 
-  type t = unit
+  type t = { tstps_out: (timestamp * timepoint) Fdeque.t
+           ; tstps_in: (timestamp * timepoint) Fdeque.t
+           ; s_alphas_in: (timestamp * Proof.t) Fdeque.t
+           ; v_alphas_in: (timestamp * Proof.vp) Fdeque.t
+           ; optimal_proofs: (timestamp * Proof.t) Fdeque.t }
+
+  let init () = { tstps_out = Fdeque.create ()
+                ; tstps_in = Fdeque.create ()
+                ; s_alphas_in = Fdeque.create ()
+                ; v_alphas_in = Fdeque.create ()
+                ; optimal_proofs = Fdeque.create () }
+
+  let to_string { tstps_out
+                ; tstps_in
+                ; s_alphas_in
+                ; v_alphas_in
+                ; optimal_proofs } =
+    ("\n\nEventually state: " ^ (print_tstps None tstps_in tstps_out) ^
+       Fdeque.fold s_alphas_in ~init:"\ns_alphas_in = "
+         ~f:(fun acc (ts, p) ->
+           acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string p) ^
+         Fdeque.fold v_alphas_in ~init:"\nv_alphas_in = "
+           ~f:(fun acc (ts, p) ->
+             acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.v_to_string "" p) ^
+           Fdeque.fold optimal_proofs ~init:"\noptimal_proofs = "
+             ~f:(fun acc (ts, p) ->
+               acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string p))
+
+  let adjust a (nts, ntp) meaux =
+    drop_first_ts_tp meaux.tstps_out meaux.tstps_in;
+    let (first_ts, first_tp) = match first_ts_tp meaux.tstps_out meaux.tstps_in with
+      | None -> (nts, ntp)
+      | Some(ts', tp') -> (ts', tp') in
+    let s_alphas_in = remove_cond_front (fun (ts', p) ->
+                          ts' < first_ts + a || (Proof.p_at p < first_tp)) meaux.s_alphas_in in
+    let v_alphas_in = remove_cond_front (fun (ts', vp) ->
+                          ts' < first_ts + a || (Proof.v_at vp < first_tp)) meaux.v_alphas_in in
+    let (tstps_out, tstps_in) = shift_tstps_future a first_ts ntp meaux.tstps_out meaux.tstps_in in
+    { meaux with tstps_out; tstps_in; s_alphas_in; v_alphas_in }
+
+  let eval_step a (nts, ntp) ts tp meaux =
+    (if not (Fdeque.is_empty meaux.s_alphas_in) then
+       (match Fdeque.peek_front_exn meaux.s_alphas_in with
+        | (_, S sp) -> Fdeque.enqueue_back meaux.optimal_proofs
+                         (ts, S (SEventually (tp, Proof.unS(snd(Fdeque.peek_front_exn meaux.s_alphas_in)))))
+        | _ -> raise (Invalid_argument "found V proof in S deque"))
+     else
+       (let ltp = match Fdeque.peek_back meaux.v_alphas_in with
+          | None -> snd(Fdeque.peek_back_exn meaux.tstps_out)
+          | Some (_, vp2) -> Proof.v_at vp2 in
+        Fdeque.enqueue_back meaux.optimal_proofs (ts, V (VEventually (tp, ltp, snd_fdeque_caution meaux.v_alphas_in)))));
+     adjust a (nts, ntp) meaux
+
+  let shift (a, b) (nts, ntp) meaux =
+    let tstps = ready_tstps b nts meaux.tstps_out meaux.tstps_in in
+    Fdeque.fold tstps ~init:meaux ~f:(fun meaux' (ts, tp) -> eval_step a (nts, ntp) ts tp meaux')
+
+  let add_subps a (ts, tp) p1 meaux =
+    let first_ts = match first_ts_tp meaux.tstps_out meaux.tstps_in with
+      | None -> 0
+      | Some(ts', _) -> ts' in
+    match p1 with
+    | Proof.S sp1 -> if ts >= first_ts + a then
+                       let s_alphas_in = sorted_enqueue (ts, (S sp1)) meaux.s_alphas_in in
+                       { meaux with s_alphas_in }
+                     else meaux
+    | V vp1 -> if ts >= first_ts + a then
+                 (Fdeque.enqueue_back meaux.v_alphas_in (ts, vp1); meaux)
+               else meaux
+
+  let update i nts ntp p meaux =
+    let a = Interval.left i in
+    let b = match Interval.right i with
+      | None -> raise (Invalid_argument "Eventually interval is unbounded")
+      | Some(b') -> b' in
+    let meaux = shift (a, b) (nts, ntp) meaux in
+    let (tstps_out, tstps_in) = add_tstp_future a b nts ntp meaux.tstps_out meaux.tstps_in in
+    let meaux = { meaux with tstps_out; tstps_in } in
+    add_subps a (nts, ntp) p meaux
+
+  let rec eval d i nts ntp meaux =
+    let a = Interval.left i in
+    let b = match Interval.right i with
+      | None -> raise (Invalid_argument "Eventually interval is unbounded")
+      | Some(b') -> b' in
+    let meaux = shift (a, b) (nts, ntp) meaux in
+    match Fdeque.peek_back meaux.optimal_proofs with
+    | None -> (nts, d, meaux)
+    | Some(ts, _) -> if ts + b < nts then
+                       let (ts', op) = Fdeque.dequeue_back_exn meaux.optimal_proofs in
+                       let (_, ops, meaux) = eval d i nts ntp meaux in
+                       Fdeque.enqueue_back ops op;
+                       (ts', ops, meaux)
+                     else (ts, d, meaux)
 
 end
 
 
 module Historically = struct
 
-  type t = unit
+  type t = { ts_zero: timestamp option
+           ; tstps_in: (timestamp * timepoint) Fdeque.t
+           ; tstps_out: (timestamp * timepoint) Fdeque.t
+           ; s_alphas_in: (timestamp * Proof.sp) Fdeque.t
+           ; s_alphas_out: (timestamp * Proof.sp) Fdeque.t
+           ; v_alphas_in: (timestamp * Proof.t) Fdeque.t
+           ; v_alphas_out: (timestamp * Proof.t) Fdeque.t }
+
+  let init () = { ts_zero = None
+                ; tstps_in = Fdeque.create ()
+                ; tstps_out = Fdeque.create ()
+                ; s_alphas_in = Fdeque.create ()
+                ; s_alphas_out = Fdeque.create ()
+                ; v_alphas_in = Fdeque.create ()
+                ; v_alphas_out = Fdeque.create () }
+
+  let to_string { ts_zero
+                ; tstps_in
+                ; tstps_out
+                ; s_alphas_in
+                ; s_alphas_out
+                ; v_alphas_in
+                ; v_alphas_out } =
+    ("\n\nHistorically state: " ^ (print_tstps ts_zero tstps_in tstps_out) ^
+       Fdeque.fold s_alphas_in ~init:"\ns_alphas_in = "
+         ~f:(fun acc (ts, sp) ->
+           acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.s_to_string "" sp) ^
+         Fdeque.fold s_alphas_out ~init:"\ns_alphas_out = "
+           ~f:(fun acc (ts, sp) ->
+             acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.s_to_string "" sp) ^
+           Fdeque.fold v_alphas_in ~init:"\nv_alphas_in = "
+             ~f:(fun acc (ts, p) ->
+               acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string p) ^
+             Fdeque.fold v_alphas_in ~init:"\nv_alphas_out = "
+               ~f:(fun acc (ts, p) ->
+                 acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string p))
+
+  let update_s_alphas_in new_in_sat s_alphas_in =
+    Fdeque.iter new_in_sat (fun (ts, sp) ->
+        Fdeque.enqueue_back s_alphas_in (ts, sp));
+    s_alphas_in
+
+  let update_v_alphas_in new_in_vio v_alphas_in =
+    if (Fdeque.is_empty new_in_vio) then v_alphas_in
+    else sorted_append new_in_vio v_alphas_in
+
+  let add_subps ts p1 mhaux =
+    match p1 with
+    | Proof.S sp1 -> Fdeque.enqueue_back mhaux.s_alphas_out (ts, sp1); mhaux
+    | V vp1 -> Fdeque.enqueue_back mhaux.v_alphas_out (ts, (V vp1)); mhaux
+
+  let shift_sat (l, r) s_alphas_out s_alphas_in =
+    let s_alphas_out, new_in_sat = split_in_out (fun (ts, _) -> ts) (l, r) s_alphas_out in
+    let s_alphas_in = update_s_alphas_in new_in_sat s_alphas_in in
+    (s_alphas_out, s_alphas_in)
+
+  let shift_vio (l, r) v_alphas_out v_alphas_in =
+    let v_alphas_out, new_in_viol = split_in_out (fun (ts, _) -> ts) (l, r) v_alphas_out in
+    let v_alphas_in = update_v_alphas_in new_in_viol v_alphas_in in
+    (v_alphas_out, v_alphas_in)
+
+  let clean (l, r) mhaux =
+    let s_alphas_in = remove_cond_front (fun (ts, _) -> ts < l) mhaux.s_alphas_in in
+    let s_alphas_out = remove_cond_front (fun (ts, _) -> ts <= r) mhaux.s_alphas_out in
+    let v_alphas_in = remove_cond_front (fun (ts, _) -> ts < l) mhaux.v_alphas_in in
+    let v_alphas_out = remove_cond_front (fun (ts, _) -> ts <= r) mhaux.v_alphas_out in
+    { mhaux with s_alphas_in
+               ; s_alphas_out
+               ; v_alphas_in
+               ; v_alphas_out }
+
+  let shift (l, r) a ts tp mhaux =
+    let (tstps_in, tstps_out) = shift_tstps_past (l, r) a ts tp mhaux.tstps_in mhaux.tstps_out in
+    let (s_alphas_out, s_alphas_in) = shift_sat (l,r) mhaux.s_alphas_out mhaux.s_alphas_in in
+    let (v_alphas_out, v_alphas_in) = shift_vio (l,r) mhaux.v_alphas_out mhaux.v_alphas_in in
+    let mhaux = clean (l, r) mhaux in
+    { mhaux with tstps_in
+               ; tstps_out
+               ; s_alphas_out
+               ; s_alphas_in
+               ; v_alphas_out
+               ; v_alphas_in}
+
+  let eval tp mhaux =
+    if not (Fdeque.is_empty mhaux.v_alphas_in) then
+      Proof.V (VHistorically (tp, Proof.unV(snd(Fdeque.peek_front_exn mhaux.v_alphas_in))))
+    else
+      let etp = match Fdeque.is_empty mhaux.s_alphas_in with
+        | true -> etp mhaux.tstps_in mhaux.tstps_out tp
+        | false -> Proof.s_at (snd(Fdeque.peek_front_exn mhaux.s_alphas_in)) in
+      S (SHistorically (tp, etp, snd_fdeque_caution mhaux.s_alphas_in))
+
+  let update i ts tp p1 mhaux =
+    let a = Interval.left i in
+    let ts_zero = if Option.is_none mhaux.ts_zero then Some(ts) else mhaux.ts_zero in
+    let mhaux = { mhaux with ts_zero } in
+    let mhaux = add_subps ts p1 mhaux in
+    if ts < (Option.value_exn mhaux.ts_zero) + a then
+      (Fdeque.enqueue_back mhaux.tstps_out (ts, tp);
+       (Proof.S (SHistoricallyOut tp), mhaux))
+    else
+      let b = Interval.right i in
+      let l = if (Option.is_some b) then max 0 (ts - (Option.value_exn b))
+              else (Option.value_exn ts_zero) in
+      let r = ts - a in
+      let mhaux = shift (l, r) a ts tp mhaux in
+      (eval tp mhaux, mhaux)
 
 end
 
 module Always = struct
 
-  type t = unit
+  type t = { tstps_out: (timestamp * timepoint) Fdeque.t
+           ; tstps_in: (timestamp * timepoint) Fdeque.t
+           ; v_alphas_in: (timestamp * Proof.t) Fdeque.t
+           ; s_alphas_in: (timestamp * Proof.sp) Fdeque.t
+           ; optimal_proofs: (timestamp * Proof.t) Fdeque.t }
+
+  let init () = { tstps_out = Fdeque.create ()
+                ; tstps_in = Fdeque.create ()
+                ; v_alphas_in = Fdeque.create ()
+                ; s_alphas_in = Fdeque.create ()
+                ; optimal_proofs = Fdeque.create () }
+
+  let to_string { tstps_out
+                ; tstps_in
+                ; v_alphas_in
+                ; s_alphas_in
+                ; optimal_proofs } =
+    ("\n\nAlways state: " ^ (print_tstps None tstps_in tstps_out) ^
+       Fdeque.fold v_alphas_in ~init:"\nv_alphas_in = "
+         ~f:(fun acc (ts, p) ->
+           acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string p) ^
+         Fdeque.fold s_alphas_in ~init:"\ns_alphas_in = "
+           ~f:(fun acc (ts, sp) ->
+             acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.s_to_string "" sp) ^
+           Fdeque.fold optimal_proofs ~init:"\noptimal_proofs = "
+             ~f:(fun acc (ts, p) ->
+               acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string p))
+
+  let adjust a (nts, ntp) maaux =
+    drop_first_ts_tp maaux.tstps_out maaux.tstps_in;
+    let (first_ts, first_tp) = match first_ts_tp maaux.tstps_out maaux.tstps_in with
+      | None -> (nts, ntp)
+      | Some(ts', tp') -> (ts', tp') in
+    let v_alphas_in = remove_cond_front (fun (ts', p) ->
+                          (ts' < first_ts + a) || (Proof.p_at p < first_tp)) maaux.v_alphas_in in
+    let s_alphas_in = remove_cond_front (fun (ts', sp) ->
+                          ts' < first_ts + a || (Proof.s_at sp < first_tp)) maaux.s_alphas_in in
+    let (tstps_out, tstps_in) = shift_tstps_future a first_ts ntp maaux.tstps_out maaux.tstps_in in
+    { maaux with tstps_out
+               ; tstps_in
+               ; s_alphas_in
+               ; v_alphas_in }
+
+  let eval_step a (nts, ntp) ts tp maaux =
+    (if not (Fdeque.is_empty maaux.v_alphas_in) then
+       (match Fdeque.peek_front_exn maaux.v_alphas_in with
+        | (_, V vp) -> Fdeque.enqueue_back maaux.optimal_proofs
+                         (ts, V (VAlways (tp, Proof.unV(snd(Fdeque.peek_front_exn maaux.v_alphas_in)))))
+        | _ -> raise (Invalid_argument "found S proof in V deque"))
+     else
+       (let ltp = match Fdeque.peek_back maaux.s_alphas_in with
+          | None -> snd(Fdeque.peek_back_exn maaux.tstps_out)
+          | Some (_, sp) -> Proof.s_at sp in
+        Fdeque.enqueue_back maaux.optimal_proofs (ts, S (SAlways (tp, ltp, snd_fdeque_caution maaux.s_alphas_in)))));
+    adjust a (nts, ntp) maaux
+
+  let shift (a, b) (nts, ntp) maaux =
+    let tstps = ready_tstps b nts maaux.tstps_out maaux.tstps_in in
+    Fdeque.fold tstps ~init:maaux ~f:(fun maaux' (ts, tp) ->
+        eval_step a (nts, ntp) ts tp maaux')
+
+  let add_subps a (ts, tp) p1 maaux =
+    let first_ts = match first_ts_tp maaux.tstps_out maaux.tstps_in with
+      | None -> 0
+      | Some(ts', _) -> ts' in
+    match p1 with
+    | Proof.V vp1 -> if ts >= first_ts + a then
+                 let v_alphas_in = sorted_enqueue (ts, (V vp1)) maaux.v_alphas_in in
+                 { maaux with v_alphas_in }
+               else maaux
+    | S sp1 -> if ts >= (first_ts + a) then
+                 (Fdeque.enqueue_back maaux.s_alphas_in (ts, sp1); maaux)
+               else maaux
+
+  let update i nts ntp p maaux =
+    let a = Interval.left i in
+    let b = match Interval.right i with
+      | None -> raise (Invalid_argument "Always interval is unbounded")
+      | Some(b') -> b' in
+    let maaux = shift (a, b) (nts, ntp) maaux in
+    let (tstps_out, tstps_in) = add_tstp_future a b nts ntp maaux.tstps_out maaux.tstps_in in
+    let maaux = { maaux with tstps_out; tstps_in } in
+    add_subps a (nts, ntp) p maaux
+
+  let rec eval d i nts ntp maaux =
+    let a = Interval.left i in
+    let b = match Interval.right i with
+      | None -> raise (Invalid_argument "Always interval is unbounded")
+      | Some(b') -> b' in
+    let maaux = shift (a, b) (nts, ntp) maaux in
+    match Fdeque.peek_back maaux.optimal_proofs with
+    | None -> (nts, d, maaux)
+    | Some(ts, _) -> if ts + b < nts then
+                       let (ts', op) = Fdeque.dequeue_back_exn maaux.optimal_proofs in
+                       let (_, ops, maaux) = eval d i nts ntp maaux in
+                       Fdeque.enqueue_back ops op;
+                       (ts', ops, maaux)
+                     else (ts, d, maaux)
 
 end
 
@@ -740,11 +1041,6 @@ module Until = struct
     Fdeque.drop_front muaux.v_betas_alpha;
     Fdeque.enqueue_front muaux.v_betas_alpha first_betas_alpha
 
-  let drop_first_ts_tp tstps_out tstps_in =
-    match Fdeque.peek_front tstps_out with
-    | None -> Fdeque.drop_front tstps_in
-    | Some _ -> Fdeque.drop_front tstps_out
-
   let adjust a (nts, ntp) muaux =
     let eval_tp = match first_ts_tp muaux.tstps_out muaux.tstps_in with
       | None -> raise (Failure "tp not found")
@@ -931,9 +1227,9 @@ module MFormula = struct
     | Formula.Prev (i, f) -> MPrev (i, init f, true, [], [])
     | Formula.Next (i, f) -> MNext (i, init f, true, [])
     | Formula.Once (i, f) -> MOnce (i, init f, [], Once.init ())
-    | Formula.Eventually (i, f) -> MEventually (i, init f, ([], []), ())
-    | Formula.Historically (i, f) -> MHistorically (i, init f, [], ())
-    | Formula.Always (i, f) -> MAlways (i, init f, ([], []), ())
+    | Formula.Eventually (i, f) -> MEventually (i, init f, ([], []), Eventually.init ())
+    | Formula.Historically (i, f) -> MHistorically (i, init f, [], Historically.init ())
+    | Formula.Always (i, f) -> MAlways (i, init f, ([], []), Always.init ())
     | Formula.Since (i, f, g) -> MSince (i, init f, init g, ([], [], []), Since.init ())
     | Formula.Until (i, f, g) -> MUntil (i, init f, init g, ([], [], []), Until.init ())
 
