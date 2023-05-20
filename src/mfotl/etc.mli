@@ -22,4 +22,7 @@ val parsing_error: Lexing.position -> Lexing.position -> ('a, Format.formatter, 
 val lexing_error: Lexing.lexbuf -> ('a, Format.formatter, unit, 'b) format4 -> 'a
 val lexbuf_error_msg: Lexing.lexbuf -> string
 
+exception Empty_deque of string
+val deque_to_string: string -> (string -> 'a -> string) -> 'a Core_kernel.Deque.t -> string
+
 val queue_drop: 'a Base.Queue.t -> int -> 'a Base.Queue.t
