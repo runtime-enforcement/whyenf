@@ -126,6 +126,14 @@ module Proof = struct
 
   type t = S of sp | V of vp
 
+  let unS = function
+    | S sp -> sp
+    | _ -> raise (Invalid_argument "unS is not defined for V proofs")
+
+  let unV = function
+    | V vp -> vp
+    | _ -> raise (Invalid_argument "unV is not defined for S proofs")
+
   let s_append sp sp1 = match sp with
     | SSince (sp2, sp1s) -> SSince (sp2, Fdeque.fenqueue_back sp1s sp1)
     | SUntil (sp2, sp1s) -> SUntil (sp2, Fdeque.fenqueue_front sp1s sp1)
