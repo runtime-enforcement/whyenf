@@ -17,8 +17,6 @@ let minp_list = Proof.Size.minp_list
 let minp_bool = Proof.Size.minp_bool
 let minp = Proof.Size.minp
 
-exception Empty_deque of string
-
 let s_append_deque sp1 d =
   Deque.iteri d ~f:(fun i (ts, ssp) ->
       match ssp with
@@ -944,7 +942,7 @@ module Until = struct
 
   let drop_tp tp s_alphas_beta =
     match Deque.peek_front s_alphas_beta with
-    | None -> raise (Empty_deque "alphas_beta")
+    | None -> raise (Etc.Empty_deque "alphas_beta")
     | Some(front_alphas_beta) ->
        if not (Deque.is_empty front_alphas_beta) then
          let front_index = Deque.front_index_exn s_alphas_beta in
