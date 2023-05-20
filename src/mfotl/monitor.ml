@@ -28,7 +28,7 @@ let v_append_fdeque vp2 d =
       | Proof.V vp -> Fdeque.set_exn d i (ts, V (Proof.v_append vp vp2))
       | S _ -> raise (Invalid_argument "found S proof in V deque")); d
 
-let snd_fdeque d =
+let snd_fdeque_caution d =
   Fdeque.fold d ~init:(Fdeque.create ()) ~f:(fun acc (ts, p) -> Fdeque.fenqueue_back acc p)
 
 let remove_cond_front f d =
@@ -200,7 +200,111 @@ end
 
 module Once = struct
 
-  type t = unit
+  type t = { ts_zero: timestamp option
+           ; tstps_in: (timestamp * timepoint) Fdeque.t
+           ; tstps_out: (timestamp * timepoint) Fdeque.t
+           ; s_alphas_in: (timestamp * Proof.t) Fdeque.t
+           ; s_alphas_out: (timestamp * Proof.t) Fdeque.t
+           ; v_alphas_in: (timestamp * Proof.vp) Fdeque.t
+           ; v_alphas_out: (timestamp * Proof.vp) Fdeque.t }
+
+  let init () = { ts_zero = None
+                ; tstps_in = Fdeque.create ()
+                ; tstps_out = Fdeque.create ()
+                ; s_alphas_in = Fdeque.create ()
+                ; s_alphas_out = Fdeque.create ()
+                ; v_alphas_in = Fdeque.create ()
+                ; v_alphas_out = Fdeque.create () }
+
+  let moaux_to_string { ts_zero
+                      ; tstps_in
+                      ; tstps_out
+                      ; s_alphas_in
+                      ; s_alphas_out
+                      ; v_alphas_in
+                      ; v_alphas_out } =
+    ("\n\nOnce state: " ^ (print_tstps ts_zero tstps_in tstps_out) ^
+       Fdeque.fold s_alphas_in ~init:"\ns_alphas_in = "
+         ~f:(fun acc (ts, p) ->
+           acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string p) ^
+         Fdeque.fold s_alphas_out ~init:"\ns_alphas_out = "
+           ~f:(fun acc (ts, p) ->
+             acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string p) ^
+           Fdeque.fold v_alphas_in ~init:"\nv_alphas_in = "
+             ~f:(fun acc (ts, p) ->
+               acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.v_to_string "" p) ^
+             Fdeque.fold v_alphas_out ~init:"\nv_alphas_out = "
+               ~f:(fun acc (ts, p) ->
+                 acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.v_to_string "" p))
+
+  let update_s_alphas_in new_in_sat s_alphas_in =
+    if (Fdeque.is_empty new_in_sat) then s_alphas_in
+    else sorted_append new_in_sat s_alphas_in
+
+  let update_v_alphas_in new_in_vio v_alphas_in =
+    Fdeque.iter new_in_vio ~f:(fun (ts, vp) ->
+        Fdeque.enqueue_back v_alphas_in (ts, vp)); v_alphas_in
+
+  let add_subps ts p1 s_alphas_out v_alphas_out = match p1 with
+    | Proof.S sp1 -> Fdeque.enqueue_back s_alphas_out (ts, (Proof.S sp1))
+    | V vp1 -> Fdeque.enqueue_back v_alphas_out (ts, vp1)
+
+  let remove (l, r) moaux =
+    let s_alphas_in = remove_cond_front (fun (ts, _) -> ts < l) moaux.s_alphas_in in
+    let s_alphas_out = remove_cond_front (fun (ts, _) -> ts <= r) moaux.s_alphas_out in
+    let v_alphas_in = remove_cond_front (fun (ts, _) -> ts < l) moaux.v_alphas_in in
+    let v_alphas_out = remove_cond_front (fun (ts, _) -> ts <= r) moaux.v_alphas_out in
+    { moaux with s_alphas_in
+               ; s_alphas_out
+               ; v_alphas_in
+               ; v_alphas_out }
+
+  let shift_sat (l, r) s_alphas_out s_alphas_in =
+    let s_alphas_out, new_in_sat = split_in_out (fun (ts, _) -> ts) (l, r) s_alphas_out in
+    let s_alphas_in = update_s_alphas_in new_in_sat s_alphas_in in
+    (s_alphas_out, s_alphas_in)
+
+  let shift_vio (l, r) v_alphas_out v_alphas_in =
+    let v_alphas_out, new_in_vio = split_in_out (fun (ts, _) -> ts) (l, r) v_alphas_out in
+    let v_alphas_in = update_v_alphas_in new_in_vio v_alphas_in in
+    (v_alphas_out, v_alphas_in)
+
+  let shift (l, r) a ts tp moaux =
+    let (tstps_in, tstps_out) = shift_tstps_past (l, r) a ts tp moaux.tstps_in moaux.tstps_out in
+    let (s_alphas_out, s_alphas_in) = shift_sat (l,r) moaux.s_alphas_out moaux.s_alphas_in in
+    let (v_alphas_out, v_alphas_in) = shift_vio (l,r) moaux.v_alphas_out moaux.v_alphas_in in
+    let moaux = remove (l, r) moaux in
+    { moaux with tstps_in
+               ; tstps_out
+               ; s_alphas_out
+               ; s_alphas_in
+               ; v_alphas_out
+               ; v_alphas_in }
+
+  let eval tp moaux =
+    if not (Fdeque.is_empty moaux.s_alphas_in) then
+      [Proof.S (SOnce (tp, Proof.unS(snd(Fdeque.peek_front_exn moaux.s_alphas_in))))]
+    else
+      let etp = match Fdeque.is_empty moaux.v_alphas_in with
+        | true -> etp moaux.tstps_in moaux.tstps_out tp
+        | false -> Proof.v_at (snd(Fdeque.peek_front_exn moaux.v_alphas_in)) in
+      [Proof.V (VOnce (tp, etp, snd_fdeque_caution moaux.v_alphas_in))]
+
+  let update i ts tp p1 moaux =
+    let a = Interval.left i in
+    let ts_zero = if Option.is_none moaux.ts_zero then Some(ts) else moaux.ts_zero in
+    let moaux' = { moaux with ts_zero } in
+    let moaux'' = add_subps ts p1 moaux.s_alphas_out moaux.v_alphas_out in
+    if ts < (Option.value_exn moaux.ts_zero) + a then
+      (Fdeque.enqueue_back moaux.tstps_out (ts, tp);
+       ([Proof.V (VOnceOut tp)], moaux))
+    else
+      let b = Interval.right i in
+      let l = if (Option.is_some b) then max 0 (ts - (Option.value_exn b))
+              else (Option.value_exn ts_zero) in
+      let r = ts - a in
+      let moaux''' = shift (l, r) a ts tp moaux in
+      (eval tp moaux''', moaux''')
 
 end
 
@@ -421,7 +525,7 @@ module Since = struct
                   let etp = match Fdeque.is_empty msaux.v_betas_in with
                     | true -> etp msaux.tstps_in msaux.tstps_out tp
                     | false -> Proof.v_at (snd(Fdeque.peek_front_exn msaux.v_betas_in)) in
-                  let betas_suffix = snd_fdeque msaux.v_betas_in in
+                  let betas_suffix = snd_fdeque_caution msaux.v_betas_in in
                   [Proof.V (VSinceInf (tp, etp, betas_suffix))]
                 else [] in
       (cp1 @ cp2 @ cp3)
@@ -553,7 +657,7 @@ module Until = struct
        (* alphas_beta *)
        (if ts >= first_ts + a then
           let cur_alphas_beta = Fdeque.peek_back_exn muaux.s_alphas_beta in
-          let sp = Proof.S (SUntil (sp2, snd_fdeque muaux.s_alphas_suffix)) in
+          let sp = Proof.S (SUntil (sp2, snd_fdeque_caution muaux.s_alphas_suffix)) in
           let cur_alphas_beta_sorted = sorted_enqueue (ts, sp) cur_alphas_beta in
           Fdeque.drop_back muaux.s_alphas_beta;
           Fdeque.enqueue_back muaux.s_alphas_beta cur_alphas_beta_sorted);
@@ -573,7 +677,7 @@ module Until = struct
        (* alphas_beta *)
        (if ts >= first_ts + a then
           let cur_alphas_beta = Fdeque.peek_back_exn muaux.s_alphas_beta in
-          let sp = Proof.S (SUntil (sp2, snd_fdeque muaux.s_alphas_suffix)) in
+          let sp = Proof.S (SUntil (sp2, snd_fdeque_caution muaux.s_alphas_suffix)) in
           let cur_alphas_beta_sorted = sorted_enqueue (ts, sp) cur_alphas_beta in
           Fdeque.drop_back muaux.s_alphas_beta;
           Fdeque.enqueue_back muaux.s_alphas_beta cur_alphas_beta_sorted;
@@ -602,7 +706,7 @@ module Until = struct
        (* betas_alpha *)
        (if ts >= (first_ts + a) then
           (let cur_betas_alpha = Fdeque.peek_back_exn muaux.v_betas_alpha in
-           let vp = Proof.V (VUntil (tp, vp1, snd_fdeque muaux.v_betas_suffix_in)) in
+           let vp = Proof.V (VUntil (tp, vp1, snd_fdeque_caution muaux.v_betas_suffix_in)) in
            let cur_betas_alpha_sorted = sorted_enqueue (ts, vp) cur_betas_alpha in
            Fdeque.drop_back muaux.v_betas_alpha;
            Fdeque.enqueue_back muaux.v_betas_alpha cur_betas_alpha_sorted));
@@ -716,7 +820,7 @@ module Until = struct
                    let ltp = match Fdeque.peek_back muaux.v_betas_suffix_in with
                      | None -> snd(Fdeque.peek_back_exn muaux.tstps_out)
                      | Some(_, vp2) -> (Proof.v_at vp2) in
-                   [Proof.V (VUntilInf (tp, ltp, snd_fdeque muaux.v_betas_suffix_in))]
+                   [Proof.V (VUntilInf (tp, ltp, snd_fdeque_caution muaux.v_betas_suffix_in))]
                  else [] in
         let cps = c1 @ c2 @ c3 in
         if List.length cps > 0 then
@@ -826,7 +930,7 @@ module MFormula = struct
     | Formula.Forall (x, f) -> MForall (x, init f)
     | Formula.Prev (i, f) -> MPrev (i, init f, true, [], [])
     | Formula.Next (i, f) -> MNext (i, init f, true, [])
-    | Formula.Once (i, f) -> MOnce (i, init f, [], ())
+    | Formula.Once (i, f) -> MOnce (i, init f, [], Once.init ())
     | Formula.Eventually (i, f) -> MEventually (i, init f, ([], []), ())
     | Formula.Historically (i, f) -> MHistorically (i, init f, [], ())
     | Formula.Always (i, f) -> MAlways (i, init f, ([], []), ())
