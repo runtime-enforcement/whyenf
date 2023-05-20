@@ -75,6 +75,9 @@ module Proof : sig
 
   type t = S of sp | V of vp
 
+  val unS: t -> sp
+  val unV: t -> vp
+
   val s_append: sp -> sp -> sp
   val v_append: vp -> vp -> vp
   val s_drop: sp -> sp option
