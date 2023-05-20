@@ -27,5 +27,8 @@ val mem: int -> t -> bool
 val left: t -> int
 val right: t -> int option
 
+val below: int -> t -> bool
+val above: int -> t -> bool
+
 val to_string: t -> string
 val lex: (unit -> t) -> char -> string -> string -> char -> t
