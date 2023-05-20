@@ -9,6 +9,8 @@
 
 open Base
 
+module Deque = Core_kernel.Deque
+
 type timepoint = int
 type timestamp = int
 
@@ -25,6 +27,16 @@ let lexing_error lexbuf fmt = parsing_error (Lexing.lexeme_start_p lexbuf) (Lexi
 let lexbuf_error_msg (lexbuf: Lexing.lexbuf) =
   Printf.sprintf "a problem was found at line %d character %d"
     (lexbuf.lex_curr_p.pos_lnum) (lexbuf.lex_curr_p.pos_cnum - lexbuf.lex_curr_p.pos_bol)
+
+exception Empty_deque of string
+let deque_to_string indent f d =
+  if Deque.is_empty d then indent ^ "[]"
+  else
+    (if Int.equal (Deque.length d) 1 then
+       indent ^ eat "[" (f indent (Deque.peek_front_exn d) ^ "]")
+     else
+       Deque.fold ~f:(fun s el -> eat (s ^ "\n" ^ indent ^ "; ") (f indent el))
+         ~init:(indent ^ eat "[ " (f indent (Deque.peek_front_exn d))) (Deque.drop_front d; d) ^ " ]")
 
 let rec queue_drop q n =
   if Int.equal n 0 then q
