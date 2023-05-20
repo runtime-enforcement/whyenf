@@ -501,9 +501,9 @@ module Until = struct
                      ~f:(fun acc (ts, p) ->
                        acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string p))
 
-  let ts_of_tp tp tstp_in tstp_out =
-    match (Fdeque.find tstp_out ~f:(fun (ts', tp') -> tp = tp')) with
-    | None -> (match (Fdeque.find tstp_in ~f:(fun (ts', tp') -> tp = tp')) with
+  let ts_of_tp tp tstps_in tstps_out =
+    match (Fdeque.find tstps_out ~f:(fun (ts', tp') -> tp = tp')) with
+    | None -> (match (Fdeque.find tstps_in ~f:(fun (ts', tp') -> tp = tp')) with
                | None -> raise (Failure "ts not found")
                | Some(ts, _) -> ts)
     | Some(ts, _) -> ts
@@ -611,13 +611,13 @@ module Until = struct
         else (let _ = remove_cond_back (fun (_, p') -> minp_bool (V vp1) p') muaux.v_alphas_out in
               Fdeque.enqueue_back muaux.v_alphas_out (ts, V vp1))); muaux
 
-  let drop_tp tp muaux =
-    match Fdeque.peek_front muaux.s_alphas_beta with
+  let drop_tp tp s_alphas_beta =
+    match Fdeque.peek_front s_alphas_beta with
     | None -> raise (Fdeque.Empty "alphas_beta")
     | Some(front_alphas_beta) ->
        if not (Fdeque.is_empty front_alphas_beta) then
-         let front_index = Fdeque.front_index_exn muaux.s_alphas_beta in
-         Fdeque.set_exn muaux.s_alphas_beta front_index (step_sdrop_tp tp front_alphas_beta)
+         let front_index = Fdeque.front_index_exn s_alphas_beta in
+         Fdeque.set_exn s_alphas_beta front_index (step_sdrop_tp tp front_alphas_beta)
 
   let drop_v_ts a ts muaux =
     Fdeque.iteri muaux.v_betas_alpha ~f:(fun i d ->
@@ -636,8 +636,160 @@ module Until = struct
     Fdeque.drop_front muaux.v_betas_alpha;
     Fdeque.enqueue_front muaux.v_betas_alpha first_betas_alpha
 
+  let drop_first_ts_tp tstps_out tstps_in =
+    match Fdeque.peek_front tstps_out with
+    | None -> Fdeque.drop_front tstps_in
+    | Some _ -> Fdeque.drop_front tstps_out
+
+  let adjust a (nts, ntp) muaux =
+    let eval_tp = match first_ts_tp muaux.tstps_out muaux.tstps_in with
+      | None -> raise (Failure "tp not found")
+      | Some(_, tp') -> tp' in
+    drop_first_ts_tp muaux.tstps_out muaux.tstps_in;
+    let (first_ts, first_tp) = match first_ts_tp muaux.tstps_out muaux.tstps_in with
+      | None -> (nts, ntp)
+      | Some(ts', tp') -> (ts', tp') in
+    (* betas_alpha *)
+    Fdeque.iteri muaux.v_betas_alpha ~f:(fun i d ->
+        Fdeque.set_exn muaux.v_betas_alpha i
+          (remove_cond_front (fun (ts', p) -> (ts' < first_ts + a) || ((Proof.p_at p) < first_tp)) d));
+    (if a = 0 then drop_v_single_ts eval_tp muaux
+     else drop_v_ts a first_ts muaux);
+    let _ = remove_cond_front_ne (fun d' -> Fdeque.is_empty d') muaux.v_betas_alpha in
+    (* ts_tp_in and ts_tp_out *)
+    let (tstps_out, tstps_in) = shift_tstps_future a first_ts ntp muaux.tstps_out muaux.tstps_in in
+    let muaux = { muaux with tstps_out; tstps_in } in
+    (* alphas_beta *)
+    drop_tp eval_tp muaux.s_alphas_beta;
+    Fdeque.iteri muaux.s_alphas_beta ~f:(fun i d ->
+        Fdeque.set_exn muaux.s_alphas_beta i
+          (remove_cond_front (fun (ts', p) ->
+               match p with
+               | Proof.S sp -> (ts_of_tp (Proof.s_ltp sp) muaux.tstps_in muaux.tstps_out) < (first_ts + a)
+               | V _ -> raise (Invalid_argument "found V proof in S deque")) d));
+    let _ = remove_cond_front_ne (fun d' -> Fdeque.is_empty d') muaux.s_alphas_beta in
+    (* alphas_suffix *)
+    let _ = remove_cond_front (fun (_, sp) -> (Proof.s_at sp) < first_tp) muaux.s_alphas_suffix in
+    (* alphas_in and v_alphas_out *)
+    let _ = remove_cond_front (fun (_, p) -> (Proof.p_at p) < first_tp) muaux.v_alphas_out in
+    let v_alphas_in, new_out_alphas = split_out_in (fun (ts', _) -> ts') (first_ts, (first_ts + a)) muaux.v_alphas_in in
+    let v_alphas_out = sorted_append new_out_alphas muaux.v_alphas_out in
+    (* v_betas_in *)
+    let v_betas_suffix_in = remove_cond_front (fun (_, vp) ->
+                                match Fdeque.peek_front muaux.tstps_in with
+                                | None -> (match Fdeque.peek_back muaux.tstps_out with
+                                           | None -> (Proof.v_at vp) <= ntp
+                                           | Some(_, tp') -> (Proof.v_at vp) <= tp')
+                                | Some (_, tp') -> (Proof.v_at vp) < tp') muaux.v_betas_suffix_in in
+    { muaux with v_alphas_in; v_alphas_out; v_betas_suffix_in }
+
+  let eval_step a (nts, ntp) ts tp muaux =
+    let optimal_proofs_len = Fdeque.length muaux.optimal_proofs in
+    let cur_alphas_beta = Fdeque.peek_front_exn muaux.s_alphas_beta in
+    (if not (Fdeque.is_empty cur_alphas_beta) then
+       (match Fdeque.peek_front_exn cur_alphas_beta with
+        | (_, S sp) -> if tp = Proof.s_at sp then
+                         Fdeque.enqueue_back muaux.optimal_proofs (ts, S sp)
+        | _ -> raise (Invalid_argument "found V proof in S deque")));
+    (if Fdeque.length muaux.optimal_proofs = optimal_proofs_len then
+       (let c1 = if not (Fdeque.is_empty muaux.v_betas_alpha) then
+                   let cur_betas_alpha = Fdeque.peek_front_exn muaux.v_betas_alpha in
+                   (if not (Fdeque.is_empty cur_betas_alpha) then
+                      match Fdeque.peek_front_exn cur_betas_alpha with
+                      | (_, V VUntil(_, vp1, vp2s)) ->
+                         (match Fdeque.peek_front muaux.tstps_in with
+                          | None -> []
+                          | Some(_, first_tp_in) ->
+                             if Proof.v_etp (VUntil(tp, vp1, vp2s)) = first_tp_in then
+                               [Proof.V (VUntil(tp, vp1, vp2s))]
+                             else [])
+                      | _ -> raise (Invalid_argument "proof should be VUntil")
+                    else [])
+                 else [] in
+        let c2 = if not (Fdeque.is_empty muaux.v_alphas_out) then
+                   let vvp1 = snd(Fdeque.peek_front_exn muaux.v_alphas_out) in
+                   match vvp1 with
+                   | V vp1 -> [Proof.V (VUntil (tp, vp1, Fdeque.create ()))]
+                   | S _ -> raise (Invalid_argument "found S proof in V deque")
+                 else [] in
+        let c3 = if (Fdeque.length muaux.v_betas_suffix_in) = (Fdeque.length muaux.tstps_in) then
+                   let ltp = match Fdeque.peek_back muaux.v_betas_suffix_in with
+                     | None -> snd(Fdeque.peek_back_exn muaux.tstps_out)
+                     | Some(_, vp2) -> (Proof.v_at vp2) in
+                   [Proof.V (VUntilInf (tp, ltp, snd_fdeque muaux.v_betas_suffix_in))]
+                 else [] in
+        let cps = c1 @ c2 @ c3 in
+        if List.length cps > 0 then
+          Fdeque.enqueue_back muaux.optimal_proofs (ts, minp_list cps)));
+    adjust a (nts, ntp) muaux
+
+  let shift_muaux (a, b) (nts, ntp) muaux =
+    let tstps = ready_tstps b nts muaux.tstps_out muaux.tstps_in in
+    Fdeque.fold tstps ~init:muaux ~f:(fun muaux' (ts, tp) ->
+        eval_step a (nts, ntp) ts tp muaux')
+
+  let update i nts ntp p1 p2 muaux =
+    let a = Interval.left i in
+    let b = match Interval.right i with
+      | None -> raise (Invalid_argument "Until interval is unbounded")
+      | Some(b') -> b' in
+    let muaux' = shift_muaux (a, b) (nts, ntp) muaux in
+    let (tstps_out, tstps_in) = add_tstp_future a b nts ntp muaux'.tstps_out muaux'.tstps_in in
+    add_subps a (nts, ntp) p1 p2 { muaux' with tstps_out; tstps_in }
+
+  let rec eval d i nts ntp muaux =
+    let a = Interval.left i in
+    let b = match Interval.right i with
+      | None -> raise (Invalid_argument "Until interval is unbounded")
+      | Some(b') -> b' in
+    let muaux' = shift_muaux (a, b) (nts, ntp) muaux in
+    match Fdeque.peek_back muaux'.optimal_proofs with
+    | None -> (nts, d, muaux')
+    | Some(ts, _) -> if ts + b < nts then
+                       let (ts', op) = Fdeque.dequeue_back_exn muaux'.optimal_proofs in
+                       let (_, ops, muaux') = eval d i nts ntp muaux' in
+                       Fdeque.enqueue_back ops op; (ts', ops, muaux')
+                     else (ts, d, muaux')
+
 end
 
+module Prev_Next = struct
+
+  type operator = Prev | Next
+
+  let rec eval_aux op i buf tss =
+    let t = Fdeque.dequeue_front_exn tss in
+    let t' = Fdeque.peek_front_exn tss in
+    let p = Fdeque.dequeue_front_exn buf in
+    let (ps, buf', tss') = eval op i buf tss in
+    let c1 = (match p with
+              | Proof.S sp -> if Interval.mem (t' - t) i then
+                                (match op with
+                                 | Prev -> [Proof.S (SPrev sp)]
+                                 | Next -> [S (SNext sp)])
+                              else []
+              | V vp -> (match op with
+                         | Prev -> [V (VPrev vp)]
+                         | Next -> [V (VNext vp)])) in
+    let c2 = if Interval.below (t' - t) i then
+               (match op with
+                | Prev -> [Proof.V (VPrevOutL ((Proof.p_at p)+1))]
+                | Next -> [V (VNextOutL ((Proof.p_at p)-1))])
+             else [] in
+    let c3 = if (Interval.above (t' - t) i) then
+               (match op with
+                | Prev -> [Proof.V (VPrevOutR ((Proof.p_at p)+1))]
+                | Next -> [V (VNextOutR ((Proof.p_at p)-1))])
+             else [] in
+    Fdeque.enqueue_front ps (minp_list (c1 @ c2 @ c3)); (ps, buf', tss')
+  and eval op i buf tss =
+    match (Fdeque.is_empty buf, Fdeque.is_empty tss) with
+    | true, _ -> ((Fdeque.create ()), (Fdeque.create ()), tss)
+    | _, true -> ((Fdeque.create ()), buf, (Fdeque.create ()))
+    | false, false when ((Fdeque.length tss) = 1) -> ((Fdeque.create ()), buf, tss)
+    | false, false -> eval_aux op i buf tss
+
+end
 
 module MFormula = struct
 
