@@ -27,6 +27,10 @@ module Term = struct
       | Const d, Const d' -> Domain.equal d d'
       | _ -> false
 
+    let to_string = function
+      | Var x -> Printf.sprintf "Var %s" x
+      | Const d -> Printf.sprintf "Const %s" (Domain.to_string d)
+
     let rec list_to_string trms =
       match trms with
       | [] -> ""
@@ -65,8 +69,8 @@ module Sig = struct
 end
 
 let make_terms p_name strms =
-  let () = Stdio.printf "|sig_ht| = %d\n" (Hashtbl.length Sig.table) in
-  let () = Stdio.printf "p_name = %s\n" p_name in
+  (* let () = Stdio.printf "|sig_ht| = %d\n" (Hashtbl.length Sig.table) in *)
+  (* let () = Stdio.printf "p_name = %s\n" p_name in *)
   let sig_pred = Hashtbl.find_exn Sig.table p_name in
   if List.length strms = sig_pred.arity then
     List.map2_exn strms sig_pred.ntconsts

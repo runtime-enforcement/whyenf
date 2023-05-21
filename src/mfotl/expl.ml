@@ -465,5 +465,5 @@ let rec apply3 vars f expl1 expl2 expl3 = match vars, expl1, expl2, expl3 with
   | _ -> raise (Invalid_argument "variable list is empty")
 
 let rec to_string indent = function
-  | Leaf pt -> Proof.to_string pt
-  | Node (x, part) -> Part.to_string "" (to_string) part
+  | Leaf pt -> Printf.sprintf "%sLeaf (%s)\n" indent (Proof.to_string pt)
+  | Node (x, part) -> Printf.sprintf "%sNode (%s,\n%s)\n" indent (Term.to_string x) (Part.to_string "" (to_string) part)
