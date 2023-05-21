@@ -1398,7 +1398,7 @@ let exec mode measure f inc =
   let rec step pb_opt ms =
     let (more, pb) = Other_parser.Trace.parse inc pb_opt in
     let (ts_tp_expls, ms') = mstep mode pb.ts pb.db ms in
-    let () = Stdio.printf "%s\n" (Db.to_string pb.db) in
+    (* let () = Stdio.printf "%s\n" (Db.to_string pb.db) in *)
     Out.Plain.expls ts_tp_expls None mode;
     (match mode with
      | Out.Plain.UNVERIFIED -> ()
