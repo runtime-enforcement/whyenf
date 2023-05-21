@@ -1,6 +1,7 @@
 theory Monitor_Code
   imports Explanator2.Monitor "HOL-Library.Code_Target_Nat"
-    "HOL-Library.List_Lexorder" "HOL-Library.AList_Mapping" Deriving.Derive
+    "HOL-Library.List_Lexorder" "HOL-Library.AList_Mapping" 
+    Deriving.Derive Event_Data
     (*Containers.Containers*)
 begin
 
@@ -798,12 +799,6 @@ lemma is_empty_coset[code]: "Set.is_empty (List.coset (xs :: _ :: infinite list)
 definition execute_trivial_eval where
  "execute_trivial_eval \<sigma> vars i \<phi> = Monitor.eval \<sigma> (\<lambda>p1 p2. (p_pred (\<lambda> _. 1) p1) \<le> (p_pred (\<lambda> _. 1) p2)) vars i \<phi>"
 
-export_code trace_of_list str_s_at str_v_at str_s_check str_v_check
-  interval enat nat_of_integer integer_of_nat execute_trivial_eval is_valid
-  in OCaml module_name MFOTL_VerifiedExplanator2 file_prefix "MFOTL_checker"
-
-export_code Monitor.eval in OCaml module_name Explanator
-
 definition "check \<sigma> v \<phi> p = (case p of Inl sp \<Rightarrow> s_check \<sigma> v \<phi> sp | Inr vp \<Rightarrow> v_check \<sigma> v \<phi> vp)"
 definition "check_exec \<sigma> vs \<phi> p = (case p of Inl sp \<Rightarrow> s_check_exec \<sigma> vs \<phi> sp | Inr vp \<Rightarrow> v_check_exec \<sigma> vs \<phi> vp)"
 
@@ -985,9 +980,16 @@ lemma check_all_aux_check_one: "\<forall>x. vs x \<noteq> {} \<Longrightarrow> d
 definition check_all :: "(string \<times> 'd ::  {default,linorder} list) trace \<Rightarrow> 'd MFOTL.formula \<Rightarrow> ('d, 'd proof) pdt \<Rightarrow> bool" where
   "check_all \<sigma> \<phi> e = (distinct_paths e \<and> check_all_aux \<sigma> (\<lambda>_. UNIV) \<phi> e)"
 
+definition check_all_specialized :: "(string \<times> event_data list) trace \<Rightarrow> event_data MFOTL.formula \<Rightarrow> (event_data, event_data proof) pdt \<Rightarrow> bool" where
+  "check_all_specialized \<sigma> \<phi> e = check_all \<sigma> \<phi> e"
+
 lemma check_all_check_one: "check_all \<sigma> \<phi> e = (distinct_paths e \<and> (\<forall>v. check_one \<sigma> v \<phi> e))"
   unfolding check_all_def
   by (rule conj_cong[OF refl], subst check_all_aux_check_one)
     (auto simp: compatible_vals_def)
+
+export_code trace_of_list str_s_at str_v_at str_s_check str_v_check
+  interval enat nat_of_integer integer_of_nat check_all_specialized
+  in OCaml module_name MFOTL_Explanator2 file_prefix "MFOTL_checker"
 
 end
