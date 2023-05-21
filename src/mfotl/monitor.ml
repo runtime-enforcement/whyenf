@@ -1076,37 +1076,33 @@ module Prev_Next = struct
 
   type operator = Prev | Next
 
-  let rec eval_aux op i buf tss =
-    let t = Deque.dequeue_front_exn tss in
-    let t' = Deque.peek_front_exn tss in
-    let p = Deque.dequeue_front_exn buf in
-    let (ps, buf', tss') = eval op i buf tss in
-    let c1 = (match p with
-              | Proof.S sp -> if Interval.mem (t' - t) i then
-                                (match op with
-                                 | Prev -> [Proof.S (SPrev sp)]
-                                 | Next -> [S (SNext sp)])
-                              else []
-              | V vp -> (match op with
-                         | Prev -> [V (VPrev vp)]
-                         | Next -> [V (VNext vp)])) in
-    let c2 = if Interval.below (t' - t) i then
-               (match op with
-                | Prev -> [Proof.V (VPrevOutL ((Proof.p_at p)+1))]
-                | Next -> [V (VNextOutL ((Proof.p_at p)-1))])
-             else [] in
-    let c3 = if (Interval.above (t' - t) i) then
-               (match op with
-                | Prev -> [Proof.V (VPrevOutR ((Proof.p_at p)+1))]
-                | Next -> [V (VNextOutR ((Proof.p_at p)-1))])
-             else [] in
-    Deque.enqueue_front ps (minp_list (c1 @ c2 @ c3)); (ps, buf', tss')
-  and eval op i buf tss =
-    match (Deque.is_empty buf, Deque.is_empty tss) with
-    | true, _ -> ((Deque.create ()), (Deque.create ()), tss)
-    | _, true -> ((Deque.create ()), buf, (Deque.create ()))
-    | false, false when ((Deque.length tss) = 1) -> ((Deque.create ()), buf, tss)
-    | false, false -> eval_aux op i buf tss
+  let rec update_eval op i buf tss = match buf, tss with
+    | [], _ -> ([], [], tss)
+    | _ , [] -> ([], buf, [])
+    | _ , [ts] -> ([], buf, [ts])
+    | p :: ps, ts :: ts' :: tss ->
+       let (ps', buf', tss') = update_eval op i ps (ts' :: tss) in
+       let c1 = (match p with
+                 | Proof.S sp -> if Interval.mem (ts' - ts) i then
+                                   (match op with
+                                    | Prev -> [Proof.S (SPrev sp)]
+                                    | Next -> [S (SNext sp)])
+                                 else []
+                 | V vp -> (match op with
+                            | Prev -> [V (VPrev vp)]
+                            | Next -> [V (VNext vp)])) in
+       let c2 = if Interval.below (ts' - ts) i then
+                  (match op with
+                   | Prev -> [Proof.V (VPrevOutL ((Proof.p_at p)+1))]
+                   | Next -> [V (VNextOutL ((Proof.p_at p)-1))])
+                else [] in
+       let c3 = if (Interval.above (ts' - ts) i) then
+                  (match op with
+                   | Prev -> [Proof.V (VPrevOutR ((Proof.p_at p)+1))]
+                   | Next -> [V (VNextOutR ((Proof.p_at p)-1))])
+                else [] in
+       let p' =  (minp_list (c1 @ c2 @ c3)) in
+       (p' :: ps', buf', tss')
 
 end
 
@@ -1123,7 +1119,7 @@ module MFormula = struct
     | MIff          of t * t * Buf2.t
     | MExists       of string * t
     | MForall       of string * t
-    | MPrev         of Interval.t * t * bool * Expl.t list * timestamp list
+    | MPrev         of Interval.t * t * bool * Proof.t list * timestamp list
     | MNext         of Interval.t * t * bool * timestamp list
     | MOnce         of Interval.t * t * (timestamp * timepoint) list * Once.t
     | MEventually   of Interval.t * t * Buft.t * Eventually.t
@@ -1277,13 +1273,12 @@ let rec meval vars ts tp (db: Db.t) = function
          (fun expl1 expl2 -> Expl.apply2 vars (fun p1 p2 -> do_iff p1 p2) expl1 expl2)
          (Buf2.add expls1 expls2 buf2) in
      (f_expls, MIff (mf1', mf2', buf2'))
-  (* | MPrev (interval, mf, first, buf, tss) -> *)
-  (*    let (ps, mf') = meval ts tp db mf in *)
-  (*    let () = Deque.iter ps ~f:(fun p -> Deque.enqueue_back buf p) in *)
+  (* | MPrev (i, mf, first, buf, tss) -> *)
+  (*    let (expls, mf') = meval vars ts tp db mf in *)
+  (*    let buf' = List.fold expls ~init:buf ~f:(fun expl -> Deque.enqueue_back buf expl); *)
   (*    let () = Deque.enqueue_back tss ts in *)
-  (*    let (ps', buf', tss') = Prev_Next.mprev_next Prev interval buf tss le in *)
+  (*    let (ps', buf', tss') = Prev_Next.eval Prev interval buf tss le in *)
   (*    (ts, (if first then (let () = Deque.enqueue_front ps' (V VPrev0) in ps') *)
-
   (*          else ps'), MPrev (interval, mf', false, buf', tss')) *)
   (* | MNext (interval, mf, first, tss) -> *)
   (*    let (_, ps, mf') = meval tp ts sap mf in *)
