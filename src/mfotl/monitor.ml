@@ -1119,7 +1119,7 @@ module MFormula = struct
     | MIff          of t * t * Buf2.t
     | MExists       of string * t
     | MForall       of string * t
-    | MPrev         of Interval.t * t * bool * Proof.t list * timestamp list
+    | MPrev         of Interval.t * t * bool * Buft.t
     | MNext         of Interval.t * t * bool * timestamp list
     | MOnce         of Interval.t * t * (timestamp * timepoint) list * Once.t
     | MEventually   of Interval.t * t * Buft.t * Eventually.t
@@ -1139,7 +1139,7 @@ module MFormula = struct
     | Formula.Iff (f, g) -> MIff (init f, init g, ([], []))
     | Formula.Exists (x, f) -> MExists (x, init f)
     | Formula.Forall (x, f) -> MForall (x, init f)
-    | Formula.Prev (i, f) -> MPrev (i, init f, true, [], [])
+    | Formula.Prev (i, f) -> MPrev (i, init f, true, ([], []))
     | Formula.Next (i, f) -> MNext (i, init f, true, [])
     | Formula.Once (i, f) -> MOnce (i, init f, [], Once.init ())
     | Formula.Eventually (i, f) -> MEventually (i, init f, ([], []), Eventually.init ())
@@ -1159,7 +1159,7 @@ module MFormula = struct
     | MIff (f, g, _) -> Printf.sprintf (Etc.paren l 4 "%a ↔ %a") (fun x -> to_string_rec 4) f (fun x -> to_string_rec 4) g
     | MExists (x, f) -> Printf.sprintf (Etc.paren l 5 "∃%step. %a") x (fun x -> to_string_rec 5) f
     | MForall (x, f) -> Printf.sprintf (Etc.paren l 5 "∀%step. %a") x (fun x -> to_string_rec 5) f
-    | MPrev (i, f, _, _, _) -> Printf.sprintf (Etc.paren l 5 "●%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
+    | MPrev (i, f, _, _) -> Printf.sprintf (Etc.paren l 5 "●%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
     | MNext (i, f, _, _) -> Printf.sprintf (Etc.paren l 5 "○%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
     | MOnce (i, f, _, _) -> Printf.sprintf (Etc.paren l 5 "⧫%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
     | MEventually (i, f, _, _) -> Printf.sprintf (Etc.paren l 5 "◊%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
@@ -1273,7 +1273,7 @@ let rec meval vars ts tp (db: Db.t) = function
          (fun expl1 expl2 -> Expl.apply2 vars (fun p1 p2 -> do_iff p1 p2) expl1 expl2)
          (Buf2.add expls1 expls2 buf2) in
      (f_expls, MIff (mf1', mf2', buf2'))
-  (* | MPrev (i, mf, first, buf, tss) -> *)
+  (* | MPrev (i, mf, first, (buf, tss)) -> *)
   (*    let (expls, mf') = meval vars ts tp db mf in *)
   (*    let buf' = List.fold expls ~init:buf ~f:(fun expl -> Deque.enqueue_back buf expl); *)
   (*    let () = Deque.enqueue_back tss ts in *)
