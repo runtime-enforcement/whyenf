@@ -979,6 +979,8 @@ lemma check_all_aux_check_one: "\<forall>x. vs x \<noteq> {} \<Longrightarrow> d
 
 instance event_data :: infinite by standard (simp add: infinite_UNIV_event_data)
 
+instance event_data :: equal by standard
+
 definition check_all :: "(string \<times> 'd ::  {default,linorder} list) trace \<Rightarrow> 'd MFOTL.formula \<Rightarrow> ('d, 'd proof) pdt \<Rightarrow> bool" where
   "check_all \<sigma> \<phi> e = (distinct_paths e \<and> check_all_aux \<sigma> (\<lambda>_. UNIV) \<phi> e)"
 
