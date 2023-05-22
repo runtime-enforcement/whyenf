@@ -1076,12 +1076,12 @@ module Prev_Next = struct
 
   type operator = Prev | Next
 
-  let rec update_eval op i buf tss = match buf, tss with
-    | [], _ -> ([], [], tss)
-    | _ , [] -> ([], buf, [])
-    | _ , [ts] -> ([], buf, [ts])
+  let rec update_eval op i = function
+    | [], tss -> ([], [], tss)
+    | ps , [] -> ([], ps, [])
+    | ps , [ts] -> ([], ps, [ts])
     | p :: ps, ts :: ts' :: tss ->
-       let (ps', buf', tss') = update_eval op i ps (ts' :: tss) in
+       let (ps', buf', tss') = update_eval op i (ps, ts' :: tss) in
        let c1 = (match p with
                  | Proof.S sp -> if Interval.mem (ts' - ts) i then
                                    (match op with
@@ -1213,7 +1213,7 @@ let rec match_terms trms ds map =
   | _, _ -> None
 
 let print_maps maps =
-  Stdio.print_endline "> Map:";
+  (* Stdio.print_endline "> Map:"; *)
   List.iter maps ~f:(fun map -> Map.iteri map (fun ~key:k ~data:v ->
                                     Stdio.printf "%s -> %s\n" (Term.to_string k) (Domain.to_string v)))
 
@@ -1225,10 +1225,6 @@ let rec pdt_of tp r trms vars maps : Expl.t = match vars with
                                      ~f:(fun acc map -> match Map.find map x with
                                                         | None -> acc
                                                         | Some(d) -> (map, d) :: acc)) in
-     print_maps fmaps;
-     Stdio.printf "ds = [";
-     List.iter ds (fun d -> Stdio.printf "%s, " (Domain.to_string d));
-     Stdio.printf "]\n";
      let part = Part.tabulate ds (fun d -> pdt_of tp r trms vars fmaps) (pdt_of tp r trms vars []) in
      Node (x, part)
 
@@ -1236,33 +1232,15 @@ let rec meval vars ts tp (db: Db.t) = function
   | MTT -> ([Leaf (Proof.S (STT tp))], MTT)
   | MFF -> ([Leaf (V (VFF tp))], MFF)
   | MPredicate (r, trms) ->
-     Stdio.printf "--------------------------\n";
-     Stdio.printf "\nPredicate: %s\n" r;
-
      let db' = Set.filter db (fun evt -> String.equal r (fst(evt))) in
-
-     Stdio.printf "\nDB:\n%s\n" (Db.to_string db');
-
      let maps = Set.fold db' ~init:[] ~f:(fun acc evt -> match_terms trms (snd evt) (Map.empty (module Term)) :: acc) in
-
-     Stdio.printf "\n|maps| = %d\n" (List.length maps);
-
      let maps' = List.map (List.filter maps ~f:(fun map_opt -> match map_opt with
                                                                | None -> false
                                                                | Some(map) -> not (Map.is_empty map)))
                    ~f:(fun map_opt -> Option.value_exn map_opt) in
-
-     Stdio.printf "\n|maps'| = %d\n" (List.length maps');
-
      let fv = Set.elements (Formula.fv (Predicate (r, trms))) in
      let fv_vars = List.filter vars ~f:(fun var -> List.mem fv var ~equal:Pred.Term.equal) in
-
-     Stdio.printf "\n|fv_vars| = %d\n" (List.length fv_vars);
-
      let expl = pdt_of tp r trms fv_vars maps' in
-
-     Stdio.printf "\nexpl = %s\n" (Expl.to_string "" expl);
-
      ([expl], MPredicate (r, trms))
   | MNeg (mf) ->
      let (expls, mf') = meval vars ts tp db mf in
@@ -1301,12 +1279,14 @@ let rec meval vars ts tp (db: Db.t) = function
          (Buf2.add expls1 expls2 buf2) in
      (f_expls, MIff (mf1', mf2', buf2'))
   (* | MPrev (i, mf, first, (buf, tss)) -> *)
-  (*    let (expls, mf') = meval vars ts tp db mf in *)
-  (*    let buf' = List.fold expls ~init:buf ~f:(fun expl -> Deque.enqueue_back buf expl); *)
-  (*    let () = Deque.enqueue_back tss ts in *)
-  (*    let (ps', buf', tss') = Prev_Next.eval Prev interval buf tss le in *)
-  (*    (ts, (if first then (let () = Deque.enqueue_front ps' (V VPrev0) in ps') *)
-  (*          else ps'), MPrev (interval, mf', false, buf', tss')) *)
+     (* let (expls, mf') = meval vars ts tp db mf in *)
+
+
+     (* let buf' = List.fold expls ~init:buf ~f:(fun expl -> Deque.enqueue_back buf expl); *)
+     (* let () = Deque.enqueue_back tss ts in *)
+     (* let (ps', buf', tss') = Prev_Next.eval Prev interval buf tss le in *)
+     (* (ts, (if first then (let () = Deque.enqueue_front ps' (V VPrev0) in ps') *)
+     (*       else ps'), MPrev (interval, mf', false, buf', tss')) *)
   (* | MNext (interval, mf, first, tss) -> *)
   (*    let (_, ps, mf') = meval tp ts sap mf in *)
   (*    let () = Deque.enqueue_back tss ts in *)
