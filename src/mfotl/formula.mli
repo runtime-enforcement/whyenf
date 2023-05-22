@@ -19,8 +19,8 @@ type t =
   | Or of t * t
   | Imp of t * t
   | Iff of t * t
-  | Exists of string * t
-  | Forall of string * t
+  | Exists of Term.t * t
+  | Forall of Term.t * t
   | Prev of Interval.t * t
   | Next of Interval.t * t
   | Once of Interval.t * t
