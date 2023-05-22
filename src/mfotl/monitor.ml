@@ -1117,8 +1117,8 @@ module MFormula = struct
     | MOr           of t * t * Buf2.t
     | MImp          of t * t * Buf2.t
     | MIff          of t * t * Buf2.t
-    | MExists       of string * t
-    | MForall       of string * t
+    | MExists       of Term.t * t
+    | MForall       of Term.t * t
     | MPrev         of Interval.t * t * bool * Buft.t
     | MNext         of Interval.t * t * bool * timestamp list
     | MOnce         of Interval.t * t * (timestamp * timepoint) list * Once.t
@@ -1157,8 +1157,8 @@ module MFormula = struct
     | MOr (f, g, _) -> Printf.sprintf (Etc.paren l 3 "%a ∨ %a") (fun x -> to_string_rec 3) f (fun x -> to_string_rec 4) g
     | MImp (f, g, _) -> Printf.sprintf (Etc.paren l 4 "%a → %a") (fun x -> to_string_rec 4) f (fun x -> to_string_rec 4) g
     | MIff (f, g, _) -> Printf.sprintf (Etc.paren l 4 "%a ↔ %a") (fun x -> to_string_rec 4) f (fun x -> to_string_rec 4) g
-    | MExists (x, f) -> Printf.sprintf (Etc.paren l 5 "∃%step. %a") x (fun x -> to_string_rec 5) f
-    | MForall (x, f) -> Printf.sprintf (Etc.paren l 5 "∀%step. %a") x (fun x -> to_string_rec 5) f
+    | MExists (Var x, f) -> Printf.sprintf (Etc.paren l 5 "∃%step. %a") x (fun x -> to_string_rec 5) f
+    | MForall (Var x, f) -> Printf.sprintf (Etc.paren l 5 "∀%step. %a") x (fun x -> to_string_rec 5) f
     | MPrev (i, f, _, _) -> Printf.sprintf (Etc.paren l 5 "●%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
     | MNext (i, f, _, _) -> Printf.sprintf (Etc.paren l 5 "○%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
     | MOnce (i, f, _, _) -> Printf.sprintf (Etc.paren l 5 "⧫%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
@@ -1227,14 +1227,20 @@ let rec meval vars ts tp (db: Db.t) = function
   | MTT -> ([Leaf (Proof.S (STT tp))], MTT)
   | MFF -> ([Leaf (V (VFF tp))], MFF)
   | MPredicate (r, trms) ->
+     let () = Stdio.printf "--------------------------\n" in
+     let () = Stdio.printf "\nPredicate: %s\n" r in
      let db' = Set.filter db (fun evt -> String.equal r (fst(evt))) in
+     let () = Stdio.printf "\nDB:\n%s\n" (Db.to_string db') in
      let maps = Set.fold db' ~init:[] ~f:(fun acc evt -> match_terms trms (snd evt) (Map.empty (module Term)) :: acc) in
+     let () = Stdio.printf "\n|maps| = %d\n" (List.length maps) in
      let maps' = List.map (List.filter maps ~f:(fun map_opt -> match map_opt with
                                                                | None -> false
                                                                | Some(map) -> not (Map.is_empty map)))
                    ~f:(fun map_opt -> Option.value_exn map_opt) in
+     let () = Stdio.printf "\n|maps'| = %d\n" (List.length maps') in
      let fv = Formula.fv (Predicate (r, trms)) in
      let fv_vars = List.filter vars ~f:(fun var -> List.mem fv var ~equal:Pred.Term.equal) in
+     let () = Stdio.printf "\n|fv_vars| = %d\n" (List.length fv_vars) in
      let expl = pdt_of tp r trms fv_vars maps' in
      ([expl], MPredicate (r, trms))
   | MNeg (mf) ->
@@ -1379,10 +1385,10 @@ end
 let tp = ref (-1)
 let next_tp () = tp := !tp + 1; !tp
 
-let mstep mode ts db (ms: MState.t) =
+let mstep mode vars ts db (ms: MState.t) =
   let tp = next_tp () in
-  let (expls, mf') = meval [] ts tp db ms.mf in
-  let () = Queue.enqueue ms.ts_waiting ts in
+  let (expls, mf') = meval vars ts tp db ms.mf in
+  Queue.enqueue ms.ts_waiting ts;
   let tstps = List.zip_exn (List.range tp (tp + List.length expls)) (Queue.to_list ms.ts_waiting) in
   let tstpdbs = match mode with
     | Out.Plain.UNVERIFIED -> ms.tstpdbs
@@ -1397,7 +1403,7 @@ let mstep mode ts db (ms: MState.t) =
 let exec mode measure f inc =
   let rec step pb_opt ms =
     let (more, pb) = Other_parser.Trace.parse inc pb_opt in
-    let (ts_tp_expls, ms') = mstep mode pb.ts pb.db ms in
+    let (ts_tp_expls, ms') = mstep mode (Formula.fv f) pb.ts pb.db ms in
     (* let () = Stdio.printf "%s\n" (Db.to_string pb.db) in *)
     Out.Plain.expls ts_tp_expls None mode;
     (match mode with
