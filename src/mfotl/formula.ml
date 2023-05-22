@@ -20,8 +20,8 @@ type t =
   | Or of t * t
   | Imp of t * t
   | Iff of t * t
-  | Exists of string * t
-  | Forall of string * t
+  | Exists of Term.t * t
+  | Forall of Term.t * t
   | Prev of Interval.t * t
   | Next of Interval.t * t
   | Once of Interval.t * t
@@ -39,8 +39,8 @@ let conj f g = And (f, g)
 let disj f g = Or (f, g)
 let imp f g = Imp (f, g)
 let iff f g = Iff (f, g)
-let exists x f = Exists (x, f)
-let forall x f = Forall (x, f)
+let exists x f = Exists (Var x, f)
+let forall x f = Forall (Var x, f)
 let prev i f = Prev (i, f)
 let next i f = Next (i, f)
 let once i f = Once (i, f)
@@ -77,9 +77,9 @@ let equal x y = match x, y with
 let rec fv = function
   | TT | FF -> []
   | Predicate (x, trms) -> Pred.Term.fv_list trms
+  | Exists (x, f)
+    | Forall (x, f) -> List.filter (fv f) (fun y -> not (Term.equal x y))
   | Neg f
-    | Exists (_, f)
-    | Forall (_, f)
     | Prev (_, f)
     | Once (_, f)
     | Historically (_, f)
@@ -170,8 +170,8 @@ let rec subfs_dfs x = match x with
   | Or (f, g) -> [disj f g] @ (subfs_dfs f) @ (subfs_dfs g)
   | Imp (f, g) -> [imp f g] @ (subfs_dfs f) @ (subfs_dfs g)
   | Iff (f, g) -> [iff f g] @ (subfs_dfs f) @ (subfs_dfs g)
-  | Exists (x, f) -> [exists x f] @ (subfs_dfs f)
-  | Forall (x, f) -> [forall x f] @ (subfs_dfs f)
+  | Exists (Var x, f) -> [exists x f] @ (subfs_dfs f)
+  | Forall (Var x, f) -> [forall x f] @ (subfs_dfs f)
   | Prev (i, f) -> [prev i f] @ (subfs_dfs f)
   | Next (i, f) -> [next i f] @ (subfs_dfs f)
   | Once (i, f) -> [once i f] @ (subfs_dfs f)
@@ -227,8 +227,8 @@ let rec to_string_rec l = function
   | Or (f, g) -> Printf.sprintf (Etc.paren l 3 "%a ∨ %a") (fun x -> to_string_rec 3) f (fun x -> to_string_rec 4) g
   | Imp (f, g) -> Printf.sprintf (Etc.paren l 5 "%a → %a") (fun x -> to_string_rec 5) f (fun x -> to_string_rec 5) g
   | Iff (f, g) -> Printf.sprintf (Etc.paren l 5 "%a ↔ %a") (fun x -> to_string_rec 5) f (fun x -> to_string_rec 5) g
-  | Exists (x, f) -> Printf.sprintf (Etc.paren l 5 "∃%s. %a") x (fun x -> to_string_rec 5) f
-  | Forall (x, f) -> Printf.sprintf (Etc.paren l 5 "∀%s. %a") x (fun x -> to_string_rec 5) f
+  | Exists (Var x, f) -> Printf.sprintf (Etc.paren l 5 "∃%s. %a") x (fun x -> to_string_rec 5) f
+  | Forall (Var x, f) -> Printf.sprintf (Etc.paren l 5 "∀%s. %a") x (fun x -> to_string_rec 5) f
   | Prev (i, f) -> Printf.sprintf (Etc.paren l 5 "●%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
   | Next (i, f) -> Printf.sprintf (Etc.paren l 5 "○%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
   | Once (i, f) -> Printf.sprintf (Etc.paren l 5 "⧫%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
@@ -260,9 +260,9 @@ let rec to_json_rec indent pos f =
                     indent pos indent' (to_json_rec indent' "l" f) (to_json_rec indent' "r" g) indent
   | Iff (f, g) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Iff\",\n%s,\n%s\n%s}"
                     indent pos indent' (to_json_rec indent' "l" f) (to_json_rec indent' "r" g) indent
-  | Exists (x, g) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Exists\",\n%s\"variable\": \"%s\",\n%s\n%s}"
+  | Exists (Var x, g) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Exists\",\n%s\"variable\": \"%s\",\n%s\n%s}"
                        indent pos indent' indent' x (to_json_rec indent' "" f) indent
-  | Forall (x, g) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Forall\",\n%s\"variable\": \"%s\",\n%s\n%s}"
+  | Forall (Var x, g) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Forall\",\n%s\"variable\": \"%s\",\n%s\n%s}"
                        indent pos indent' indent' x (to_json_rec indent' "" f) indent
   | Prev (i, f) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Prev\",\n%s\"Interval.t\": \"%s\",\n%s\n%s}"
                      indent pos indent' indent' (Interval.to_string i) (to_json_rec indent' "" f) indent
