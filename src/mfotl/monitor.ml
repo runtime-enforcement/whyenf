@@ -1212,6 +1212,11 @@ let rec match_terms trms ds map =
                                                 | Some z -> (if Domain.equal d z then Some map' else None)))
   | _, _ -> None
 
+let print_maps maps =
+  Stdio.print_endline "> Map:";
+  List.iter maps ~f:(fun map -> Map.iteri map (fun ~key:k ~data:v ->
+                                    Stdio.printf "%s -> %s\n" (Term.to_string k) (Domain.to_string v)))
+
 let rec pdt_of tp r trms vars maps : Expl.t = match vars with
   | [] -> if List.is_empty maps then Leaf (V (VPred (tp, r, trms)))
           else Leaf (S (SPred (tp, r, trms)))
@@ -1220,6 +1225,10 @@ let rec pdt_of tp r trms vars maps : Expl.t = match vars with
                                      ~f:(fun acc map -> match Map.find map x with
                                                         | None -> acc
                                                         | Some(d) -> (map, d) :: acc)) in
+     print_maps fmaps;
+     Stdio.printf "ds = [";
+     List.iter ds (fun d -> Stdio.printf "%s, " (Domain.to_string d));
+     Stdio.printf "]\n";
      let part = Part.tabulate ds (fun d -> pdt_of tp r trms vars fmaps) (pdt_of tp r trms vars []) in
      Node (x, part)
 
