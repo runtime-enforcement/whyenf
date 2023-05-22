@@ -17,6 +17,10 @@ module Term = struct
 
     type t = Var of string | Const of Domain.t [@@deriving compare, sexp_of, hash]
 
+    let unvar = function
+      | Var x -> x
+      | Const _ -> raise (Invalid_argument "unvar is undefined for Consts")
+
     let rec fv_list = function
       | [] -> []
       | Const c :: trms -> fv_list trms
