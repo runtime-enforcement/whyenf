@@ -51,7 +51,6 @@ module Part = struct
                             then Some (Coset.diff sub2 sub1, v2) else None)) in
        Abs_part (part12 @ (the (merge2 f (Abs_part part1) (Abs_part part2not1))))
 
-  (* TODO: Fix this function (also in the formalization) *)
   let merge3 f part1 part2 part3 = match part1, part2, part3 with
     | Abs_part [], _ , _
       | _ , Abs_part [], _
@@ -59,7 +58,7 @@ module Part = struct
     | Abs_part part1, Abs_part part2, Abs_part part3 ->
        merge2 (fun pt3 f' -> f' pt3) (Abs_part part3) (merge2 f (Abs_part part1) (Abs_part part2))
 
-  let el_to_string indent f (sub, v) =
+  let rec el_to_string indent f (sub, v) =
     Printf.sprintf "%scoset = {%s}\n%s%s" indent (Coset.to_string sub) indent (f indent v)
 
   let to_string indent f part = match the part with
@@ -303,9 +302,9 @@ module Proof = struct
     | VUntilInf (_, _, vp2s) -> Printf.sprintf "%sVUntilInf{%d}\n%s" indent (v_at p)
                                   (Etc.deque_to_string indent' v_to_string vp2s)
 
-  let to_string = function
-    | S p -> s_to_string "" p
-    | V p -> v_to_string "" p
+  let to_string indent = function
+    | S p -> s_to_string indent p
+    | V p -> v_to_string indent p
 
   module Size = struct
 
@@ -398,10 +397,8 @@ let rec apply1 vars f expl = match vars, expl with
 
 let rec apply2 vars f expl1 expl2 = match vars, expl1, expl2 with
   | _ , Leaf pt1, Leaf pt2 -> Leaf (f pt1 pt2)
-  | _ , Leaf pt1, Node (x, part2) ->
-     Node (x, Part.map part2 (apply1 vars (f pt1)))
-  | _ , Node (x, part1), Leaf pt2 ->
-     Node (x, Part.map part1 (apply1 vars (fun pt1 -> f pt1 pt2)))
+  | _ , Leaf pt1, Node (x, part2) -> Node (x, Part.map part2 (apply1 vars (f pt1)))
+  | _ , Node (x, part1), Leaf pt2 -> Node (x, Part.map part1 (apply1 vars (fun pt1 -> f pt1 pt2)))
   | z :: vars, Node (x, part1), Node (y, part2) ->
      if Term.equal x z && Term.equal y z then
        Node (z, Part.merge2 (apply2 vars f) part1 part2)
@@ -465,5 +462,6 @@ let rec apply3 vars f expl1 expl2 expl3 = match vars, expl1, expl2, expl3 with
   | _ -> raise (Invalid_argument "variable list is empty")
 
 let rec to_string indent = function
-  | Leaf pt -> Printf.sprintf "%sLeaf (%s)\n" indent (Proof.to_string pt)
-  | Node (x, part) -> Printf.sprintf "%sNode (%s,\n%s)\n" indent (Term.to_string x) (Part.to_string "" (to_string) part)
+  | Leaf pt -> Printf.sprintf "%sLeaf (%s)\n%s" indent (Proof.to_string "" pt) indent
+  | Node (x, part) -> Printf.sprintf "%sNode (%s,\n%s)\n" indent (Term.to_string x)
+                        (Part.to_string "    " to_string part)
