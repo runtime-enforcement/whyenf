@@ -92,7 +92,7 @@ module Proof : sig
 
   val s_to_string: string -> sp -> string
   val v_to_string: string -> vp -> string
-  val to_string: t -> string
+  val to_string: string -> t -> string
 
   module Size : sig
 
