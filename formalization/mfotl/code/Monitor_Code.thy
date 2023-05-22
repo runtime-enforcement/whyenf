@@ -1,6 +1,7 @@
 theory Monitor_Code
   imports Explanator2.Monitor "HOL-Library.Code_Target_Nat"
-    "HOL-Library.List_Lexorder" "HOL-Library.AList_Mapping" Deriving.Derive
+    "HOL-Library.List_Lexorder" "HOL-Library.AList_Mapping" 
+    Deriving.Derive Event_Data
     (*Containers.Containers*)
 begin
 
@@ -798,95 +799,6 @@ lemma is_empty_coset[code]: "Set.is_empty (List.coset (xs :: _ :: infinite list)
 definition execute_trivial_eval where
  "execute_trivial_eval \<sigma> vars i \<phi> = Monitor.eval \<sigma> (\<lambda>p1 p2. (p_pred (\<lambda> _. 1) p1) \<le> (p_pred (\<lambda> _. 1) p2)) vars i \<phi>"
 
-export_code trace_of_list str_s_at str_v_at str_s_check str_v_check
-  interval enat nat_of_integer integer_of_nat execute_trivial_eval is_valid
-  in OCaml module_name MFOTL_VerifiedExplanator2 file_prefix "MFOTL_checker"
-
-(* Example 1 *)
-definition mytrace :: "nat MFOTL.trace" where 
-  "mytrace = trace_of_list [({(''p'', [1::nat])}, 0::nat)]"
-
-value "execute_trivial_eval mytrace [''x''] (0::nat) (MFOTL.Pred ''p'' [MFOTL.Var ''x''] :: nat MFOTL.formula)"
-
-(* Example 2 *)
-definition mytrace2 :: "string MFOTL.trace" where 
-  "mytrace2 = trace_of_list
-     [({(''p'', [''Dmitriy'', ''Traytel'']), (''p'', [''Jonathan'', ''Munive'']),
-        (''q'', [''Munive'']), (''q'', [''Lima''])}, 0::nat),
-      ({(''p'', [''Leonardo'', ''Lima'']), (''q'', [''Lima''])}, 0::nat)]"
-
-definition phi2 where
-  "phi2 = MFOTL.Exists ''last''
-    (MFOTL.And (MFOTL.Pred ''p'' [MFOTL.Var ''first'', MFOTL.Var ''last''])
-       (MFOTL.Pred ''q'' [MFOTL.Var ''last'']))"
-
-definition phi3 where
-  "phi3 = MFOTL.Forall ''last'' (MFOTL.Imp (MFOTL.Pred ''q'' [MFOTL.Var ''last''])
-    (MFOTL.Exists ''first'' (MFOTL.Pred ''p'' [MFOTL.Var ''first'', MFOTL.Var ''last''])))"
-
-value "execute_trivial_eval mytrace2 [''first'', ''last''] 0 (MFOTL.Pred ''p'' [MFOTL.Var ''first'', MFOTL.Var ''last''])"
-value "execute_trivial_eval mytrace2 [''first'', ''last''] 0 (MFOTL.Pred ''p'' [MFOTL.Var ''first'', MFOTL.Var ''last''])"
-value "execute_trivial_eval mytrace2 [''last''] 0 (MFOTL.Pred ''q'' [MFOTL.Var ''last''])" 
-value "execute_trivial_eval mytrace2 [''first'', ''last''] 1 (MFOTL.Pred ''p'' [MFOTL.Var ''first'', MFOTL.Var ''last''])"
-value "execute_trivial_eval mytrace2 [''first'', ''last''] 1 (MFOTL.Pred ''q'' [MFOTL.Var ''last''])"
-value "execute_trivial_eval mytrace2 [''first'', ''last''] 0 (MFOTL.And (MFOTL.Pred ''p'' [MFOTL.Var ''first'', MFOTL.Var ''last'']) (MFOTL.Pred ''q'' [MFOTL.Var ''last'']))"
-value "execute_trivial_eval mytrace2 [''first'', ''last''] 1 (MFOTL.And (MFOTL.Pred ''p'' [MFOTL.Var ''first'', MFOTL.Var ''last'']) (MFOTL.Pred ''q'' [MFOTL.Var ''last'']))"
-value "execute_trivial_eval mytrace2 [''first''] 0 phi2"
-value "execute_trivial_eval mytrace2 [''first''] 1 phi2"
-value "execute_trivial_eval mytrace2 [] 0 phi3"
-value "execute_trivial_eval mytrace2 [] 1 phi3"
-
-(* Example 3 *)
-definition mytrace3 :: "string MFOTL.trace" where 
-  "mytrace3 = trace_of_list
-     [({(''p'', [''10''])}, 0::nat),
-      ({(''q'', [''20''])}, 1::nat),
-      ({(''q'', [''20''])}, 2::nat)]"
-
-definition phi4 where
-  "phi4 = MFOTL.Since (MFOTL.Pred ''q'' [MFOTL.Var ''y'']) all (MFOTL.Exists ''x'' (MFOTL.Pred ''p'' [MFOTL.Var ''x'']))"
-
-value "execute_trivial_eval mytrace3 [''y''] 0 phi4"
-value "execute_trivial_eval mytrace3 [''y''] 1 phi4"
-value "execute_trivial_eval mytrace3 [''y''] 2 phi4"
-
-(* Example 4 *)
-definition mytrace4 :: "string MFOTL.trace" where 
-  "mytrace4 = trace_of_list
-     [({(''mgr_S'', [''Mallory'', ''Alice'']),
-        (''mgr_S'', [''Merlin'', ''Bob'']),
-        (''mgr_S'', [''Merlin'', ''Charlie''])}, 1307532861::nat),
-      ({(''approve'', [''Mallory'', ''152''])}, 1307532861),
-      ({(''approve'', [''Merlin'', ''163'']),
-        (''publish'', [''Alice'', ''160'']),
-        (''mgr_F'', [''Merlin'', ''Charlie''])}, 1307955600),
-      ({(''approve'', [''Merlin'', ''187'']),
-        (''publish'', [''Bob'', ''163'']),
-        (''publish'', [''Alice'', ''163'']),
-        (''publish'', [''Charlie'', ''163'']),
-        (''publish'', [''Charlie'', ''152''])}, 1308477599)]"
-
-definition phi5 :: "string MFOTL.formula" where
-  "phi5 = MFOTL.Imp (MFOTL.Pred ''publish'' [MFOTL.Var ''a'', MFOTL.Var ''f''])
-    (MFOTL.Once (init 604800) (MFOTL.Exists ''m'' (MFOTL.Since 
-      (MFOTL.Neg (MFOTL.Pred ''mgr_F'' [MFOTL.Var ''m'', MFOTL.Var ''a''])) all
-      (MFOTL.And (MFOTL.Pred ''mgr_S'' [MFOTL.Var ''m'', MFOTL.Var ''a''])
-                 (MFOTL.Pred ''approve'' [MFOTL.Var ''m'', MFOTL.Var ''f''])))))"
-
-value "execute_trivial_eval mytrace4 [''a'', ''f''] 2 phi5"
-
-(* Example 5 *)
-definition mytrace5 :: "string MFOTL.trace" where 
-  "mytrace5 = trace_of_list
-     [({(''p'', [''10''])}, 0::nat)]"
-
-definition phi6 where
-  "phi6 = MFOTL.Exists ''x'' (MFOTL.Pred ''p'' [MFOTL.Var ''x''])"
-
-value "execute_trivial_eval mytrace5 [''x''] 0 phi6"
-
-export_code Monitor.eval in OCaml module_name Explanator
-
 definition "check \<sigma> v \<phi> p = (case p of Inl sp \<Rightarrow> s_check \<sigma> v \<phi> sp | Inr vp \<Rightarrow> v_check \<sigma> v \<phi> vp)"
 definition "check_exec \<sigma> vs \<phi> p = (case p of Inl sp \<Rightarrow> s_check_exec \<sigma> vs \<phi> sp | Inr vp \<Rightarrow> v_check_exec \<sigma> vs \<phi> vp)"
 
@@ -1065,15 +977,23 @@ lemma check_all_aux_check_one: "\<forall>x. vs x \<noteq> {} \<Longrightarrow> d
     done
   done
 
+instance event_data :: infinite by standard (simp add: infinite_UNIV_event_data)
+
+instance event_data :: equal by standard
+
 definition check_all :: "(string \<times> 'd ::  {default,linorder} list) trace \<Rightarrow> 'd MFOTL.formula \<Rightarrow> ('d, 'd proof) pdt \<Rightarrow> bool" where
   "check_all \<sigma> \<phi> e = (distinct_paths e \<and> check_all_aux \<sigma> (\<lambda>_. UNIV) \<phi> e)"
+
+definition check_all_specialized :: "(string \<times> event_data list) trace \<Rightarrow> event_data MFOTL.formula \<Rightarrow> (event_data, event_data proof) pdt \<Rightarrow> bool" where
+  "check_all_specialized \<sigma> \<phi> e = check_all \<sigma> \<phi> e"
 
 lemma check_all_check_one: "check_all \<sigma> \<phi> e = (distinct_paths e \<and> (\<forall>v. check_one \<sigma> v \<phi> e))"
   unfolding check_all_def
   by (rule conj_cong[OF refl], subst check_all_aux_check_one)
     (auto simp: compatible_vals_def)
 
-value "check_one mytrace2 (\<lambda>_. default) phi3 (execute_trivial_eval mytrace2 [] 0 phi3)"
-value "check_all mytrace2 phi3 (execute_trivial_eval mytrace2 [] 0 phi3)"
+export_code trace_of_list str_s_at str_v_at str_s_check str_v_check
+  interval enat nat_of_integer integer_of_nat check_all_specialized
+  in OCaml module_name MFOTL_Explanator2 file_prefix "MFOTL_checker"
 
 end
