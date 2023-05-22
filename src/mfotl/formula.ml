@@ -75,10 +75,10 @@ let equal x y = match x, y with
   | _ -> false
 
 let rec fv = function
-  | TT | FF -> []
-  | Predicate (x, trms) -> Pred.Term.fv_list trms
+  | TT | FF -> Set.empty (module Pred.Term)
+  | Predicate (x, trms) -> Set.of_list (module Pred.Term) (Pred.Term.fv_list trms)
   | Exists (x, f)
-    | Forall (x, f) -> List.filter (fv f) (fun y -> not (Term.equal x y))
+    | Forall (x, f) -> Set.filter (fv f) ~f:(fun y -> not (Term.equal x y))
   | Neg f
     | Prev (_, f)
     | Once (_, f)
@@ -91,7 +91,7 @@ let rec fv = function
     | Imp (f1, f2)
     | Iff (f1, f2)
     | Since (_, f1, f2)
-    | Until (_, f1, f2) -> fv f1 @ fv f2
+    | Until (_, f1, f2) -> Set.union (fv f1) (fv f2)
 
 (* Past height *)
 let rec hp = function
