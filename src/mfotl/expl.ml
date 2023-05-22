@@ -33,7 +33,7 @@ module Part = struct
     let rec distinct = function
       | [] -> true
       | x :: xs -> not (List.mem xs x ~equal:Domain.equal) && distinct xs in
-    Abs_part (if not (distinct ds) then
+    Abs_part (if distinct ds then
                 (Complement (Set.of_list (module Domain) ds), z) ::
                   (List.map ~f:(fun d -> (Coset.Finite (Set.of_list (module Domain) [d]), f d)) ds)
               else [(Coset.univ (module Domain), z)])
