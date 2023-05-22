@@ -51,7 +51,7 @@ val until: Interval.t -> t -> t -> t
 val trigger: Interval.t -> t -> t -> t
 val release: Interval.t -> t -> t -> t
 
-val fv: t -> Pred.Term.t list
+val fv: t -> (Term.t, Term.comparator_witness) Base.Set.t
 
 val hp: t -> int
 val hf: t -> int
