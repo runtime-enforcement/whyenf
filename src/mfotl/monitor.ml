@@ -225,10 +225,10 @@ module Once = struct
     ("\n\nOnce state: " ^ (print_tstps ts_zero tstps_in tstps_out) ^
        Deque.fold s_alphas_in ~init:"\ns_alphas_in = "
          ~f:(fun acc (ts, p) ->
-           acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string p) ^
+           acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^
          Deque.fold s_alphas_out ~init:"\ns_alphas_out = "
            ~f:(fun acc (ts, p) ->
-             acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string p) ^
+             acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^
            Deque.fold v_alphas_in ~init:"\nv_alphas_in = "
              ~f:(fun acc (ts, p) ->
                acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.v_to_string "" p) ^
@@ -316,13 +316,13 @@ module Eventually = struct
     ("\n\nEventually state: " ^ (print_tstps None tstps_in tstps_out) ^
        Deque.fold s_alphas_in ~init:"\ns_alphas_in = "
          ~f:(fun acc (ts, p) ->
-           acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string p) ^
+           acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^
          Deque.fold v_alphas_in ~init:"\nv_alphas_in = "
            ~f:(fun acc (ts, p) ->
              acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.v_to_string "" p) ^
            Deque.fold optimal_proofs ~init:"\noptimal_proofs = "
              ~f:(fun acc (ts, p) ->
-               acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string p))
+               acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p))
 
   let adjust a (nts, ntp) meaux =
     drop_first_ts_tp meaux.tstps_out meaux.tstps_in;
@@ -421,10 +421,10 @@ module Historically = struct
              acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.s_to_string "" sp) ^
            Deque.fold v_alphas_in ~init:"\nv_alphas_in = "
              ~f:(fun acc (ts, p) ->
-               acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string p) ^
+               acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^
              Deque.fold v_alphas_in ~init:"\nv_alphas_out = "
                ~f:(fun acc (ts, p) ->
-                 acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string p))
+                 acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p))
 
   let update_s_alphas_in new_in_sat s_alphas_in =
     Deque.iter new_in_sat (fun (ts, sp) ->
@@ -506,13 +506,13 @@ module Always = struct
     ("\n\nAlways state: " ^ (print_tstps None tstps_in tstps_out) ^
        Deque.fold v_alphas_in ~init:"\nv_alphas_in = "
          ~f:(fun acc (ts, p) ->
-           acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string p) ^
+           acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^
          Deque.fold s_alphas_in ~init:"\ns_alphas_in = "
            ~f:(fun acc (ts, sp) ->
              acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.s_to_string "" sp) ^
            Deque.fold optimal_proofs ~init:"\noptimal_proofs = "
              ~f:(fun acc (ts, p) ->
-               acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string p))
+               acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p))
 
   let adjust a (nts, ntp) maaux =
     drop_first_ts_tp maaux.tstps_out maaux.tstps_in;
@@ -610,16 +610,16 @@ module Since = struct
     ("\n\nSince state: " ^ (print_tstps ts_zero tstps_in tstps_out) ^
        Deque.fold s_beta_alphas_in ~init:"\ns_beta_alphas_in = "
          ~f:(fun acc (ts, p) ->
-           acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string p) ^
+           acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^
          Deque.fold s_beta_alphas_out ~init:"\ns_beta_alphas_out = "
            ~f:(fun acc (ts, p) ->
-             acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string p) ^
+             acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^
            Deque.fold v_alpha_betas_in ~init:"\nv_alpha_betas_in = "
              ~f:(fun acc (ts, p) ->
-               acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string p) ^
+               acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^
              Deque.fold v_alphas_out ~init:"\nv_alphas_out = "
                ~f:(fun acc (ts, p) ->
-                 acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string p) ^
+                 acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^
                Deque.fold v_betas_in ~init:"\nv_betas_in = "
                  ~f:(fun acc (ts, p) ->
                    acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.v_to_string "" p) ^
@@ -816,7 +816,7 @@ module Until = struct
        Deque.foldi s_alphas_beta ~init:"\ns_alphas_beta = \n" ~f:(fun i acc1 d ->
            acc1 ^ Printf.sprintf "\n%d.\n" i ^
              Deque.fold d ~init:"[" ~f:(fun acc2 (ts, p) ->
-                 acc2 ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string p) ^ "\n]\n") ^
+                 acc2 ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^ "\n]\n") ^
          Deque.fold s_alphas_suffix ~init:"\ns_alphas_suffix = "
            ~f:(fun acc (ts, p) ->
              acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.s_to_string "" p) ^
@@ -824,19 +824,19 @@ module Until = struct
              ~f:(fun i acc1 d ->
                acc1 ^ Printf.sprintf "\n%d.\n" i ^
                  Deque.fold d ~init:"[" ~f:(fun acc2 (ts, p) ->
-                     acc2 ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string p) ^ "\n]\n") ^
+                     acc2 ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^ "\n]\n") ^
              Deque.fold v_alphas_out ~init:"\nv_alphas_out = "
                ~f:(fun acc (ts, p) ->
-                 acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string p) ^
+                 acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^
                Deque.fold v_alphas_in ~init:"\nv_alphas_in = "
                  ~f:(fun acc (ts, p) ->
-                   acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string p) ^
+                   acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^
                  Deque.fold v_betas_suffix_in ~init:"\nv_betas_suffix_in = "
                    ~f:(fun acc (ts, p) ->
                      acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.v_to_string "" p) ^
                    Deque.fold optimal_proofs ~init:"\noptimal_proofs = "
                      ~f:(fun acc (ts, p) ->
-                       acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string p))
+                       acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p))
 
   let ts_of_tp tp tstps_in tstps_out =
     match (Deque.find tstps_out ~f:(fun (ts', tp') -> tp = tp')) with
@@ -1227,21 +1227,33 @@ let rec meval vars ts tp (db: Db.t) = function
   | MTT -> ([Leaf (Proof.S (STT tp))], MTT)
   | MFF -> ([Leaf (V (VFF tp))], MFF)
   | MPredicate (r, trms) ->
-     let () = Stdio.printf "--------------------------\n" in
-     let () = Stdio.printf "\nPredicate: %s\n" r in
+     Stdio.printf "--------------------------\n";
+     Stdio.printf "\nPredicate: %s\n" r;
+
      let db' = Set.filter db (fun evt -> String.equal r (fst(evt))) in
-     let () = Stdio.printf "\nDB:\n%s\n" (Db.to_string db') in
+
+     Stdio.printf "\nDB:\n%s\n" (Db.to_string db');
+
      let maps = Set.fold db' ~init:[] ~f:(fun acc evt -> match_terms trms (snd evt) (Map.empty (module Term)) :: acc) in
-     let () = Stdio.printf "\n|maps| = %d\n" (List.length maps) in
+
+     Stdio.printf "\n|maps| = %d\n" (List.length maps);
+
      let maps' = List.map (List.filter maps ~f:(fun map_opt -> match map_opt with
                                                                | None -> false
                                                                | Some(map) -> not (Map.is_empty map)))
                    ~f:(fun map_opt -> Option.value_exn map_opt) in
-     let () = Stdio.printf "\n|maps'| = %d\n" (List.length maps') in
-     let fv = Formula.fv (Predicate (r, trms)) in
+
+     Stdio.printf "\n|maps'| = %d\n" (List.length maps');
+
+     let fv = Set.elements (Formula.fv (Predicate (r, trms))) in
      let fv_vars = List.filter vars ~f:(fun var -> List.mem fv var ~equal:Pred.Term.equal) in
-     let () = Stdio.printf "\n|fv_vars| = %d\n" (List.length fv_vars) in
+
+     Stdio.printf "\n|fv_vars| = %d\n" (List.length fv_vars);
+
      let expl = pdt_of tp r trms fv_vars maps' in
+
+     Stdio.printf "\nexpl = %s\n" (Expl.to_string "" expl);
+
      ([expl], MPredicate (r, trms))
   | MNeg (mf) ->
      let (expls, mf') = meval vars ts tp db mf in
@@ -1387,6 +1399,9 @@ let next_tp () = tp := !tp + 1; !tp
 
 let mstep mode vars ts db (ms: MState.t) =
   let tp = next_tp () in
+
+  let () = Stdio.printf "mstep tp = %d\n" tp in
+
   let (expls, mf') = meval vars ts tp db ms.mf in
   Queue.enqueue ms.ts_waiting ts;
   let tstps = List.zip_exn (List.range tp (tp + List.length expls)) (Queue.to_list ms.ts_waiting) in
@@ -1403,8 +1418,8 @@ let mstep mode vars ts db (ms: MState.t) =
 let exec mode measure f inc =
   let rec step pb_opt ms =
     let (more, pb) = Other_parser.Trace.parse inc pb_opt in
-    let (ts_tp_expls, ms') = mstep mode (Formula.fv f) pb.ts pb.db ms in
-    (* let () = Stdio.printf "%s\n" (Db.to_string pb.db) in *)
+    let (ts_tp_expls, ms') = mstep mode (Set.elements (Formula.fv f)) pb.ts pb.db ms in
+    let () = Stdio.printf "parsed DB: \n%s\n" (Db.to_string pb.db) in
     Out.Plain.expls ts_tp_expls None mode;
     (match mode with
      | Out.Plain.UNVERIFIED -> ()
