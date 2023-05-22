@@ -16,7 +16,9 @@ module Term : sig
 
   type comparator_witness
 
-  val comparator : (t, comparator_witness) Comparator.t
+  val unvar: t -> string
+
+  val comparator: (t, comparator_witness) Comparator.t
 
   val fv_list: t list -> t list
 
