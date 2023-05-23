@@ -1,7 +1,7 @@
 theory Monitor_Code
-  imports Explanator2.Monitor "HOL-Library.Code_Target_Nat"
+  imports Explanator2.Monitor "HOL-Library.Code_Target_Nat" "HOL.String"
     "HOL-Library.List_Lexorder" "HOL-Library.AList_Mapping" 
-    Deriving.Derive Event_Data
+    Deriving.Derive
     (*Containers.Containers*)
 begin
 
@@ -273,7 +273,7 @@ definition default_literal :: String.literal where "default_literal = 0"
 instance proof qed
 end
 
-definition str_s_check :: "String.literal MFOTL.trace \<Rightarrow> (char list \<Rightarrow> String.literal set) \<Rightarrow> _ MFOTL.formula \<Rightarrow> _ sproof \<Rightarrow> bool"
+(* definition str_s_check :: "String.literal MFOTL.trace \<Rightarrow> (char list \<Rightarrow> String.literal set) \<Rightarrow> _ MFOTL.formula \<Rightarrow> _ sproof \<Rightarrow> bool"
   where "str_s_check = s_check_exec"
 
 definition str_s_at :: "String.literal sproof \<Rightarrow> nat"
@@ -286,7 +286,7 @@ definition str_v_at :: "String.literal vproof \<Rightarrow> nat"
   where "str_v_at = v_at"
 
 definition is_valid :: "String.literal MFOTL.trace \<Rightarrow> (char list \<Rightarrow> String.literal set) \<Rightarrow> _ MFOTL.formula \<Rightarrow> (_ proof) \<Rightarrow> bool"
-  where "is_valid = p_check_exec"
+  where "is_valid = p_check_exec" *)
 
 declare MFOTL.future_bounded.simps[code]
 
@@ -324,7 +324,7 @@ lemma sum_proofs_app:
   by (auto simp: sum_proofs_def split: list.splits)
 
 context
-  fixes w :: "string \<Rightarrow> nat"
+  fixes w :: "MFOTL.name \<Rightarrow> nat"
 begin
 
 function (sequential) s_pred :: "'d sproof \<Rightarrow> nat" 
@@ -981,10 +981,10 @@ instance event_data :: infinite by standard (simp add: infinite_UNIV_event_data)
 
 instance event_data :: equal by standard
 
-definition check_all :: "(string \<times> 'd ::  {default,linorder} list) trace \<Rightarrow> 'd MFOTL.formula \<Rightarrow> ('d, 'd proof) pdt \<Rightarrow> bool" where
+definition check_all :: "(MFOTL.name \<times> 'd ::  {default,linorder} list) trace \<Rightarrow> 'd MFOTL.formula \<Rightarrow> ('d, 'd proof) pdt \<Rightarrow> bool" where
   "check_all \<sigma> \<phi> e = (distinct_paths e \<and> check_all_aux \<sigma> (\<lambda>_. UNIV) \<phi> e)"
 
-definition check_all_ed :: "(string \<times> event_data list) trace \<Rightarrow> event_data MFOTL.formula \<Rightarrow> (event_data, event_data proof) pdt \<Rightarrow> bool" where
+definition check_all_ed :: "(MFOTL.name \<times> event_data list) trace \<Rightarrow> event_data MFOTL.formula \<Rightarrow> (event_data, event_data proof) pdt \<Rightarrow> bool" where
   "check_all_ed \<sigma> \<phi> e = check_all \<sigma> \<phi> e"
 
 definition trace_of_list_ed :: "(event_data set \<times> nat) list \<Rightarrow> event_data trace" where
@@ -996,7 +996,7 @@ lemma check_all_check_one: "check_all \<sigma> \<phi> e = (distinct_paths e \<an
     (auto simp: compatible_vals_def)
 
 export_code check_all_ed trace_of_list_ed interval enat nat_of_integer integer_of_nat
-  STT MFOTL.TT Inl EInt MFOTL.Var Leaf 
+  STT MFOTL.TT Inl EInt MFOTL.Var Leaf
   in OCaml module_name MFOTL_Explanator2 file_prefix "MFOTL_checker"
 
 end

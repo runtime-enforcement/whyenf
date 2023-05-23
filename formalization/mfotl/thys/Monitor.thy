@@ -810,12 +810,12 @@ lemma mk_values_nth_cong: "MFOTL.Var x \<in> set (map fst tXs)
 
 unbundle MFOTL_notation \<comment> \<open> enable notation \<close>
 
-text \<open> OBS: Even if there is an infinite set for @{term "\<^bold>v x"}, we can still get a 
+(* text \<open> OBS: Even if there is an infinite set for @{term "\<^bold>v x"}, we can still get a 
  finite @{term mk_values} because it only cares about the latest set in the list
- for @{term "\<^bold>v ''x''"}. This is why the definition below has many cases. \<close>
+ for @{term "\<^bold>v ''x''"}. This is why the definition below has many cases. \<close> *)
 
-term "''P'' \<dagger> [\<^bold>c (0::nat), \<^bold>v ''x'', \<^bold>v ''y'']"
-value "mk_values [(\<^bold>c (0::nat), {0}), (\<^bold>v ''x'', Complement {0::nat, 1}), (\<^bold>v ''y'', {0::nat, 1}), (\<^bold>v ''x'', {0::nat, 1})]"
+(* term "''P'' \<dagger> [\<^bold>c (0::nat), \<^bold>v ''x'', \<^bold>v ''y'']"
+value "mk_values [(\<^bold>c (0::nat), {0}), (\<^bold>v ''x'', Complement {0::nat, 1}), (\<^bold>v ''y'', {0::nat, 1}), (\<^bold>v ''x'', {0::nat, 1})]" *)
 
 unbundle MFOTL_no_notation \<comment> \<open> disable notation \<close>
 
