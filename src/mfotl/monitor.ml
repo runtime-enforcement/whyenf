@@ -1119,14 +1119,14 @@ module MFormula = struct
     | MIff          of t * t * Buf2.t
     | MExists       of Term.t * t
     | MForall       of Term.t * t
-    | MPrev         of Interval.t * t * bool * Buft.t
+    | MPrev         of Interval.t * t * bool * Buft.t Expl.pdt
     | MNext         of Interval.t * t * bool * timestamp list
-    | MOnce         of Interval.t * t * (timestamp * timepoint) list * Once.t
-    | MEventually   of Interval.t * t * Buft.t * Eventually.t
-    | MHistorically of Interval.t * t * (timestamp * timepoint) list * Historically.t
-    | MAlways       of Interval.t * t * Buft.t * Always.t
-    | MSince        of Interval.t * t * t * Buf2t.t * Since.t
-    | MUntil        of Interval.t * t * t * Buf2t.t * Until.t
+    | MOnce         of Interval.t * t * (timestamp * timepoint) list * Once.t Expl.pdt
+    | MEventually   of Interval.t * t * Buft.t * Eventually.t Expl.pdt
+    | MHistorically of Interval.t * t * (timestamp * timepoint) list * Historically.t Expl.pdt
+    | MAlways       of Interval.t * t * Buft.t * Always.t Expl.pdt
+    | MSince        of Interval.t * t * t * Buf2t.t * Since.t Expl.pdt
+    | MUntil        of Interval.t * t * t * Buf2t.t * Until.t Expl.pdt
 
   let rec init = function
     | Formula.TT -> MTT
@@ -1139,14 +1139,14 @@ module MFormula = struct
     | Formula.Iff (f, g) -> MIff (init f, init g, ([], []))
     | Formula.Exists (x, f) -> MExists (x, init f)
     | Formula.Forall (x, f) -> MForall (x, init f)
-    | Formula.Prev (i, f) -> MPrev (i, init f, true, ([], []))
+    | Formula.Prev (i, f) -> MPrev (i, init f, true, Leaf ([], []))
     | Formula.Next (i, f) -> MNext (i, init f, true, [])
-    | Formula.Once (i, f) -> MOnce (i, init f, [], Once.init ())
-    | Formula.Eventually (i, f) -> MEventually (i, init f, ([], []), Eventually.init ())
-    | Formula.Historically (i, f) -> MHistorically (i, init f, [], Historically.init ())
-    | Formula.Always (i, f) -> MAlways (i, init f, ([], []), Always.init ())
-    | Formula.Since (i, f, g) -> MSince (i, init f, init g, ([], [], []), Since.init ())
-    | Formula.Until (i, f, g) -> MUntil (i, init f, init g, ([], [], []), Until.init ())
+    | Formula.Once (i, f) -> MOnce (i, init f, [], Leaf (Once.init ()))
+    | Formula.Eventually (i, f) -> MEventually (i, init f, ([], []), Leaf (Eventually.init ()))
+    | Formula.Historically (i, f) -> MHistorically (i, init f, [], Leaf (Historically.init ()))
+    | Formula.Always (i, f) -> MAlways (i, init f, ([], []), Leaf (Always.init ()))
+    | Formula.Since (i, f, g) -> MSince (i, init f, init g, ([], [], []), Leaf (Since.init ()))
+    | Formula.Until (i, f, g) -> MUntil (i, init f, init g, ([], [], []), Leaf (Until.init ()))
 
   let rec to_string_rec l = function
     | MTT -> Printf.sprintf "⊤"
@@ -1278,10 +1278,8 @@ let rec meval vars ts tp (db: Db.t) = function
          (fun expl1 expl2 -> Expl.apply2 vars (fun p1 p2 -> do_iff p1 p2) expl1 expl2)
          (Buf2.add expls1 expls2 buf2) in
      (f_expls, MIff (mf1', mf2', buf2'))
-  (* | MPrev (i, mf, first, (buf, tss)) -> *)
-     (* let (expls, mf') = meval vars ts tp db mf in *)
-
-
+  (* | MPrev (i, mf, first, buft_pdt) -> *)
+  (*    let (expls, mf') = meval vars ts tp db mf in *)
      (* let buf' = List.fold expls ~init:buf ~f:(fun expl -> Deque.enqueue_back buf expl); *)
      (* let () = Deque.enqueue_back tss ts in *)
      (* let (ps', buf', tss') = Prev_Next.eval Prev interval buf tss le in *)
