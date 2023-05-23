@@ -993,13 +993,22 @@ definition trace_of_list_ed :: "((MFOTL.name \<times> event_data list) set \<tim
 definition ed_set :: "(MFOTL.name \<times> event_data list) list \<Rightarrow> (MFOTL.name \<times> event_data list) set" where
   "ed_set = set"
 
+lift_definition abs_part :: "(event_data set \<times> 'a) list \<Rightarrow> (event_data, 'a) part" is
+  "\<lambda>xs.
+   let Ds = map fst xs in
+   if {} \<in> set Ds
+   \<or> (\<exists>D \<in> set Ds. \<exists>E \<in> set Ds. D \<noteq> E \<and> D \<inter> E \<noteq> {})
+   \<or> \<not> distinct Ds
+   \<or> (\<Union>D \<in> set Ds. D) \<noteq> UNIV then [(UNIV, undefined)] else xs"
+  by (auto simp: partition_on_def disjoint_def)
+
 lemma check_all_check_one: "check_all \<sigma> \<phi> e = (distinct_paths e \<and> (\<forall>v. check_one \<sigma> v \<phi> e))"
   unfolding check_all_def
   by (rule conj_cong[OF refl], subst check_all_aux_check_one)
     (auto simp: compatible_vals_def)
 
 export_code check_all_ed trace_of_list_ed interval enat nat_of_integer integer_of_nat
-  STT MFOTL.TT Inl EInt MFOTL.Var Leaf ed_set
+  STT MFOTL.TT Inl EInt MFOTL.Var Leaf ed_set abs_part
   in OCaml module_name MFOTL_Explanator2 file_prefix "MFOTL_checker"
 
 end
