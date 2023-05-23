@@ -116,4 +116,6 @@ val apply1: Term.t list -> ('a -> 'b) -> 'a pdt -> 'b pdt
 
 val apply2: Term.t list -> ('a -> 'b -> 'c) -> 'a pdt -> 'b pdt -> 'c pdt
 
+val apply3: Term.t list -> ('a -> 'b -> 'c -> 'd) -> 'a pdt -> 'b pdt -> 'c pdt -> 'd pdt
+
 val to_string: string -> t -> string
