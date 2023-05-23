@@ -1372,12 +1372,12 @@ module MState = struct
   type t = { mf: MFormula.t
            ; tp_out: timepoint
            ; ts_waiting: timestamp Queue.t
-           ; tstpdbs: (timestamp * timepoint * Db.t) Queue.t }
+           ; tsdbs: (timestamp * Db.t) Queue.t }
 
   let init mf = { mf = mf
                 ; tp_out = -1
                 ; ts_waiting = Queue.create ()
-                ; tstpdbs = Queue.create () }
+                ; tsdbs = Queue.create () }
 
 end
 
@@ -1392,15 +1392,15 @@ let mstep mode vars ts db (ms: MState.t) =
   let (expls, mf') = meval vars ts tp db ms.mf in
   Queue.enqueue ms.ts_waiting ts;
   let tstps = List.zip_exn (List.range tp (tp + List.length expls)) (Queue.to_list ms.ts_waiting) in
-  let tstpdbs = match mode with
-    | Out.Plain.UNVERIFIED -> ms.tstpdbs
-    | _ -> Queue.enqueue ms.tstpdbs (ts, tp, db); ms.tstpdbs in
+  let tsdbs = match mode with
+    | Out.Plain.UNVERIFIED -> ms.tsdbs
+    | _ -> Queue.enqueue ms.tsdbs (ts, db); ms.tsdbs in
   (List.zip_exn tstps expls,
    { ms with
      mf = mf'
    ; tp_out = ms.tp_out + (List.length expls)
    ; ts_waiting = queue_drop ms.ts_waiting (List.length expls)
-   ; tstpdbs = tstpdbs })
+   ; tsdbs = tsdbs })
 
 let exec mode measure f inc =
   let rec step pb_opt ms =
