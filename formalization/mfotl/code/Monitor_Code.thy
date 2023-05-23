@@ -984,16 +984,19 @@ instance event_data :: equal by standard
 definition check_all :: "(string \<times> 'd ::  {default,linorder} list) trace \<Rightarrow> 'd MFOTL.formula \<Rightarrow> ('d, 'd proof) pdt \<Rightarrow> bool" where
   "check_all \<sigma> \<phi> e = (distinct_paths e \<and> check_all_aux \<sigma> (\<lambda>_. UNIV) \<phi> e)"
 
-definition check_all_specialized :: "(string \<times> event_data list) trace \<Rightarrow> event_data MFOTL.formula \<Rightarrow> (event_data, event_data proof) pdt \<Rightarrow> bool" where
-  "check_all_specialized \<sigma> \<phi> e = check_all \<sigma> \<phi> e"
+definition check_all_ed :: "(string \<times> event_data list) trace \<Rightarrow> event_data MFOTL.formula \<Rightarrow> (event_data, event_data proof) pdt \<Rightarrow> bool" where
+  "check_all_ed \<sigma> \<phi> e = check_all \<sigma> \<phi> e"
+
+definition trace_of_list_ed :: "(event_data set \<times> nat) list \<Rightarrow> event_data trace" where
+  "trace_of_list_ed xs = trace_of_list xs"
 
 lemma check_all_check_one: "check_all \<sigma> \<phi> e = (distinct_paths e \<and> (\<forall>v. check_one \<sigma> v \<phi> e))"
   unfolding check_all_def
   by (rule conj_cong[OF refl], subst check_all_aux_check_one)
     (auto simp: compatible_vals_def)
 
-export_code trace_of_list str_s_at str_v_at str_s_check str_v_check
-  interval enat nat_of_integer integer_of_nat check_all_specialized
+export_code check_all_ed trace_of_list_ed interval enat nat_of_integer integer_of_nat
+  STT MFOTL.TT Inl EInt MFOTL.Var Leaf 
   in OCaml module_name MFOTL_Explanator2 file_prefix "MFOTL_checker"
 
 end
