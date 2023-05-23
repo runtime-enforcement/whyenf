@@ -987,10 +987,10 @@ definition check_all :: "(MFOTL.name \<times> 'd ::  {default,linorder} list) tr
 definition check_all_ed :: "(MFOTL.name \<times> event_data list) trace \<Rightarrow> event_data MFOTL.formula \<Rightarrow> (event_data, event_data proof) pdt \<Rightarrow> bool" where
   "check_all_ed \<sigma> \<phi> e = check_all \<sigma> \<phi> e"
 
-definition trace_of_list_ed :: "(event_data set \<times> nat) list \<Rightarrow> event_data trace" where
+definition trace_of_list_ed :: "((MFOTL.name \<times> event_data list) set \<times> nat) list \<Rightarrow> (MFOTL.name \<times> event_data list) trace" where
   "trace_of_list_ed xs = trace_of_list xs"
 
-definition ed_set :: "event_data list \<Rightarrow> event_data set" where
+definition ed_set :: "(MFOTL.name \<times> event_data list) list \<Rightarrow> (MFOTL.name \<times> event_data list) set" where
   "ed_set = set"
 
 lemma check_all_check_one: "check_all \<sigma> \<phi> e = (distinct_paths e \<and> (\<forall>v. check_one \<sigma> v \<phi> e))"
