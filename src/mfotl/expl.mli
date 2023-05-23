@@ -15,6 +15,8 @@ module Part : sig
 
   type 'a t = Abs_part of ((Domain.t, Domain.comparator_witness) Coset.t * 'a) list
 
+  val map: 'a t -> ('a -> 'b) -> 'b t
+
   val tabulate: Domain.t list -> (Domain.t -> 'a) -> 'a -> 'a t
 
 end
