@@ -84,8 +84,8 @@ module Proof = struct
     | SImpR of sp
     | SIffSS of sp * sp
     | SIffVV of vp * vp
-    | SExists of string * Domain.t * sp
-    | SForall of string * (sp Part.t)
+    | SExists of Term.t * Domain.t * sp
+    | SForall of Term.t * (sp Part.t)
     | SPrev of sp
     | SNext of sp
     | SOnce of int * sp
@@ -105,8 +105,8 @@ module Proof = struct
     | VImp of sp * vp
     | VIffSV of sp * vp
     | VIffVS of vp * sp
-    | VExists of string * (vp Part.t)
-    | VForall of string * Domain.t * vp
+    | VExists of Term.t * (vp Part.t)
+    | VForall of Term.t * Domain.t * vp
     | VPrev of vp
     | VPrev0
     | VPrevOutL of int
@@ -245,9 +245,9 @@ module Proof = struct
     | SIffVV (vp1, vp2) -> Printf.sprintf "%sSIffVV{%d}\n%s\n%s" indent (s_at p)
                              (v_to_string indent' vp1) (v_to_string indent' vp2)
     | SExists (x, d, sp) -> Printf.sprintf "%sSExists{%d}{%s=%s}\n%s\n" indent (s_at p)
-                              x (Domain.to_string d) (s_to_string indent' sp)
+                              (Term.to_string x) (Domain.to_string d) (s_to_string indent' sp)
     | SForall (x, part) -> Printf.sprintf "%sSForall{%d}{%s}\n%s\n" indent (s_at (SForall (x, part)))
-                             x (Part.to_string indent' s_to_string part)
+                             (Term.to_string x) (Part.to_string indent' s_to_string part)
     | SPrev sp -> Printf.sprintf "%sSPrev{%d}\n%s" indent (s_at p) (s_to_string indent' sp)
     | SNext sp -> Printf.sprintf "%sSNext{%d}\n%s" indent (s_at p) (s_to_string indent' sp)
     | SOnce (_, sp) -> Printf.sprintf "%sSOnce{%d}\n%s" indent (s_at p) (s_to_string indent' sp)
@@ -275,9 +275,9 @@ module Proof = struct
     | VIffSV (sp1, vp2) -> Printf.sprintf "%sVIffSV{%d}\n%s\n%s" indent (v_at p) (s_to_string indent' sp1) (v_to_string indent' vp2)
     | VIffVS (vp1, sp2) -> Printf.sprintf "%sVIffVS{%d}\n%s\n%s" indent (v_at p) (v_to_string indent' vp1) (s_to_string indent' sp2)
     | VExists (x, part) -> Printf.sprintf "%sVExists{%d}{%s}\n%s\n" indent (v_at (VExists (x, part)))
-                             x (Part.to_string indent' v_to_string part)
+                             (Term.to_string x) (Part.to_string indent' v_to_string part)
     | VForall (x, d, vp) -> Printf.sprintf "%sSExists{%d}{%s=%s}\n%s\n" indent (v_at p)
-                              x (Domain.to_string d) (v_to_string indent' vp)
+                              (Term.to_string x) (Domain.to_string d) (v_to_string indent' vp)
     | VPrev vp -> Printf.sprintf "%sVPrev{%d}\n%s" indent (v_at p) (v_to_string indent' vp)
     | VPrev0 -> Printf.sprintf "%sVPrev0{0}" indent'
     | VPrevOutL i -> Printf.sprintf "%sVPrevOutL{%d}" indent' i

@@ -34,8 +34,8 @@ module Proof : sig
     | SImpR of sp
     | SIffSS of sp * sp
     | SIffVV of vp * vp
-    | SExists of string * Domain.t * sp
-    | SForall of string * (sp Part.t)
+    | SExists of Term.t * Domain.t * sp
+    | SForall of Term.t * (sp Part.t)
     | SPrev of sp
     | SNext of sp
     | SOnce of int * sp
@@ -55,8 +55,8 @@ module Proof : sig
     | VImp of sp * vp
     | VIffSV of sp * vp
     | VIffVS of vp * sp
-    | VExists of string * (vp Part.t)
-    | VForall of string * Domain.t * vp
+    | VExists of Term.t * (vp Part.t)
+    | VForall of Term.t * Domain.t * vp
     | VPrev of vp
     | VPrev0
     | VPrevOutL of int
