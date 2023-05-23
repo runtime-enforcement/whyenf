@@ -990,13 +990,16 @@ definition check_all_ed :: "(MFOTL.name \<times> event_data list) trace \<Righta
 definition trace_of_list_ed :: "(event_data set \<times> nat) list \<Rightarrow> event_data trace" where
   "trace_of_list_ed xs = trace_of_list xs"
 
+definition ed_set :: "event_data list \<Rightarrow> event_data set" where
+  "ed_set = set"
+
 lemma check_all_check_one: "check_all \<sigma> \<phi> e = (distinct_paths e \<and> (\<forall>v. check_one \<sigma> v \<phi> e))"
   unfolding check_all_def
   by (rule conj_cong[OF refl], subst check_all_aux_check_one)
     (auto simp: compatible_vals_def)
 
 export_code check_all_ed trace_of_list_ed interval enat nat_of_integer integer_of_nat
-  STT MFOTL.TT Inl EInt MFOTL.Var Leaf
+  STT MFOTL.TT Inl EInt MFOTL.Var Leaf ed_set
   in OCaml module_name MFOTL_Explanator2 file_prefix "MFOTL_checker"
 
 end
