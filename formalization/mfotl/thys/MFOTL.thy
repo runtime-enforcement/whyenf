@@ -1,6 +1,6 @@
 (*<*)
 theory MFOTL
-  imports MFOTL_Monitor.Interval Trace 
+  imports MFOTL_Monitor.Interval Trace Event_Data
 begin
 (*>*)
 
@@ -10,7 +10,7 @@ context begin
 
 subsection \<open>Formulas and Satisfiability\<close>
 
-qualified type_synonym name = string
+qualified type_synonym name = string8
 qualified type_synonym 'a event = "(name \<times> 'a list)"
 qualified type_synonym 'a database = "'a event set"
 qualified type_synonym 'a prefix = "(name \<times> 'a list) prefix"
@@ -20,7 +20,7 @@ qualified type_synonym 'a envset = "name \<Rightarrow> 'a set"
 
 qualified datatype 'a trm = is_Var: Var name | is_Const: Const 'a
 
-qualified primrec fv_trm :: "'a trm \<Rightarrow> string set" where
+qualified primrec fv_trm :: "'a trm \<Rightarrow> name set" where
   "fv_trm (Var x) = {x}"
 | "fv_trm (Const _) = {}"
 
@@ -74,7 +74,7 @@ qualified datatype 'a formula =
 | Since "'a formula" \<I> "'a formula" 
 | Until "'a formula" \<I> "'a formula"
 
-qualified primrec fv :: "'a formula \<Rightarrow> string set" where
+qualified primrec fv :: "'a formula \<Rightarrow> name set" where
   "fv (Pred r ts) = (\<Union>t\<in>set ts. fv_trm t)"
 | "fv (TT) = {}"
 | "fv (FF) = {}"
@@ -337,7 +337,7 @@ end
 
 unbundle MFOTL_notation \<comment> \<open> enable notation \<close>
 
-value "v\<lbrakk>\<^bold>c (0::nat)\<rbrakk> = 0"
+(* value "v\<lbrakk>\<^bold>c (0::nat)\<rbrakk> = 0"
 
 term "\<forall>\<^sub>F''x''. \<exists>\<^sub>F''y''. (P \<dagger> [\<^bold>c a, \<^bold>v ''x'']) \<and>\<^sub>F Q \<dagger> [\<^bold>v ''y''] \<longrightarrow>\<^sub>F \<phi> \<^bold>U I \<psi>"
 
@@ -345,7 +345,7 @@ value "\<^bold>Y I (\<not>\<^sub>F (P \<dagger> [\<^bold>c a, \<^bold>v ''x'']) 
  = MFOTL.Since (MFOTL.Prev I (MFOTL.And (MFOTL.Neg (MFOTL.Pred P [\<^bold>c a, \<^bold>v ''x''])) (MFOTL.Pred Q [\<^bold>v y]))) 
   (point n) (MFOTL.Or (MFOTL.Next \<^bold>[2,3\<^bold>] (MFOTL.Pred P [\<^bold>c b, \<^bold>v ''x''])) (MFOTL.Pred Q [\<^bold>v ''y'']))"
 
-term "\<langle>\<sigma>, v, i\<rangle> \<Turnstile> \<^bold>Y I (\<not>\<^sub>F (P \<dagger> [\<^bold>c a, \<^bold>v ''x'']) \<and>\<^sub>F (Q \<dagger> [\<^bold>v y])) \<^bold>S (point n) ((\<^bold>X \<^bold>[2,3\<^bold>] (P \<dagger> [\<^bold>c b, \<^bold>v ''x''])) \<or>\<^sub>F Q \<dagger> [\<^bold>v ''y''])"
+term "\<langle>\<sigma>, v, i\<rangle> \<Turnstile> \<^bold>Y I (\<not>\<^sub>F (P \<dagger> [\<^bold>c a, \<^bold>v ''x'']) \<and>\<^sub>F (Q \<dagger> [\<^bold>v y])) \<^bold>S (point n) ((\<^bold>X \<^bold>[2,3\<^bold>] (P \<dagger> [\<^bold>c b, \<^bold>v ''x''])) \<or>\<^sub>F Q \<dagger> [\<^bold>v ''y''])" *)
 
 unbundle MFOTL_no_notation \<comment> \<open> disable notation \<close>
 
