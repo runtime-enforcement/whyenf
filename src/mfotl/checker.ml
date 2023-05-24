@@ -59,7 +59,7 @@ end;; (*struct Integer_Bit*)
 module MFOTL_Explanator2 : sig
   type nat
   val integer_of_nat : nat -> Z.t
-  type 'a set
+  type 'a set = Set of 'a list | Coset of 'a list
   type 'a trm = Var of string | Const of 'a
   type event_data = EInt of Z.t | EString of string
   type 'a trace
