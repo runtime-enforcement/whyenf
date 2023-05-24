@@ -7,14 +7,23 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
+open Base
 open Etc
-open Checker_interface
+open Checker.MFOTL_Explanator2
 
-module Plain : sig
+module Checker_trace : sig
 
-  type mode = UNVERIFIED | VERIFIED | DEBUG
-
-  val expls: ((timestamp * timepoint) * Expl.t) list -> (bool * Checker_pdt.t * Checker_trace.t) list option ->
-             mode -> unit
+  type t = (string * event_data list) trace
 
 end
+
+module Checker_pdt : sig
+
+  type t = (event_data, (event_data sproof, event_data vproof) sum) pdt
+
+  val to_string: string -> (event_data, (event_data sproof, event_data vproof) sum) Checker.MFOTL_Explanator2.pdt -> string
+
+end
+
+val check: (timestamp * (string * Domain.t list, 'a) Base.Set.t) list -> Formula.t -> Expl.Proof.t Expl.pdt list ->
+           (bool * (event_data, (event_data sproof, event_data vproof) sum) pdt * (string * event_data list) trace) list

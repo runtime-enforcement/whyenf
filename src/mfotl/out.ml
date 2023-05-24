@@ -10,6 +10,7 @@
 open Base
 open Stdio
 open Etc
+open Checker_interface
 
 module Plain = struct
 
@@ -18,7 +19,7 @@ module Plain = struct
   type t =
     | Explanation of (timestamp * timepoint) * Expl.t
     | ExplanationCheck of (timestamp * timepoint) * Expl.t * bool
-    | ExplanationCheckDebug of (timestamp * timepoint) * Expl.t * bool * unit * unit
+    | ExplanationCheckDebug of (timestamp * timepoint) * Expl.t * bool * Checker_pdt.t * Checker_trace.t
     | Info of string
 
   let expl = function
@@ -27,8 +28,9 @@ module Plain = struct
     | ExplanationCheck ((ts, tp), e, b) ->
        Stdio.printf "%d:%d\nExplanation: \n%s\n" ts tp (Expl.to_string "" e);
        Stdio.printf "\nChecker output: %B\n\n" b;
-    | ExplanationCheckDebug ((ts, tp), e, b, _, _) ->
+    | ExplanationCheckDebug ((ts, tp), e, b, c_e, _) ->
        Stdio.printf "%d:%d\nExplanation: \n%s\n" ts tp (Expl.to_string "" e);
+       Stdio.printf "\nChecker explanation:\n%s\n\n" (Checker_interface.Checker_pdt.to_string "" c_e);
        Stdio.printf "\nChecker output: %B\n\n" b;
     | Info s -> Stdio.printf "\nInfo: %s\n\n" s
 
@@ -37,7 +39,7 @@ module Plain = struct
     | VERIFIED -> List.iter2_exn ts_tp_expls (Option.value_exn checker_es_opt)
                     (fun ((ts, tp), e) (b, _, _) -> expl (ExplanationCheck ((ts, tp), e, b)))
     | DEBUG -> List.iter2_exn ts_tp_expls (Option.value_exn checker_es_opt)
-                 (fun ((ts, tp), e) (b, checker_e, trace) -> expl (ExplanationCheckDebug ((ts, tp), e, b, (), ())))
+                 (fun ((ts, tp), e) (b, checker_e, trace) -> expl (ExplanationCheckDebug ((ts, tp), e, b, checker_e, trace)))
 
 end
 
