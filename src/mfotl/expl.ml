@@ -15,11 +15,11 @@ module Deque = Core_kernel.Deque
 
 module Part = struct
 
-  type 'a t = ((Domain.t, Domain.comparator_witness) Coset.t * 'a) list
+  type 'a t = ((Domain.t, Domain.comparator_witness) Setc.t * 'a) list
 
   let random_empty_set = Set.empty (module String)
 
-  let trivial p = [(Coset.univ (module Domain), p)]
+  let trivial p = [(Setc.univ (module Domain), p)]
 
   let hd part = snd (List.hd_exn part)
 
@@ -32,21 +32,21 @@ module Part = struct
       | [] -> true
       | x :: xs -> not (List.mem xs x ~equal:Domain.equal) && distinct xs in
     (if distinct ds then
-       (Coset.Complement (Set.of_list (module Domain) ds), z) ::
-         (List.map ~f:(fun d -> (Coset.Finite (Set.of_list (module Domain) [d]), f d)) ds)
-     else [(Coset.univ (module Domain), z)])
+       (Setc.Complement (Set.of_list (module Domain) ds), z) ::
+         (List.map ~f:(fun d -> (Setc.Finite (Set.of_list (module Domain) [d]), f d)) ds)
+     else [(Setc.univ (module Domain), z)])
 
   let rec merge2 f part1 part2 = match part1, part2 with
     | [], _ -> []
     | (sub1, v1) :: part1, part2 ->
        let part12 = List.filter_map part2
                       (fun (sub2, v2) ->
-                        (if not (Coset.is_empty (Coset.inter sub1 sub2))
-                         then Some (Coset.inter sub1 sub2, f v1 v2) else None)) in
+                        (if not (Setc.is_empty (Setc.inter sub1 sub2))
+                         then Some (Setc.inter sub1 sub2, f v1 v2) else None)) in
        let part2not1 = List.filter_map part2
                          (fun (sub2, v2) ->
-                           (if not (Coset.is_empty (Coset.diff sub2 sub1))
-                            then Some (Coset.diff sub2 sub1, v2) else None)) in
+                           (if not (Setc.is_empty (Setc.diff sub2 sub1))
+                            then Some (Setc.diff sub2 sub1, v2) else None)) in
        part12 @ (merge2 f part1 part2not1)
 
   let merge3 f part1 part2 part3 = match part1, part2, part3 with
@@ -57,7 +57,7 @@ module Part = struct
        merge2 (fun pt3 f' -> f' pt3) part3 (merge2 f part1 part2)
 
   let rec el_to_string indent f (sub, v) =
-    Printf.sprintf "%scoset = {%s}\n%s%s" indent (Coset.to_string sub) indent (f indent v)
+    Printf.sprintf "%scoset = {%s}\n%s%s" indent (Setc.to_string sub) indent (f indent v)
 
   let to_string indent f = function
     | [] -> indent ^ "[]"
