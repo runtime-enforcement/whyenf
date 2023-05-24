@@ -11,9 +11,11 @@
 open Base
 open Pred
 
+module Deque = Core_kernel.Deque
+
 module Part : sig
 
-  type 'a t = Abs_part of ((Domain.t, Domain.comparator_witness) Coset.t * 'a) list
+  type 'a t = ((Domain.t, Domain.comparator_witness) Coset.t * 'a) list
 
   val map: 'a t -> ('a -> 'b) -> 'b t
 
@@ -40,11 +42,11 @@ module Proof : sig
     | SNext of sp
     | SOnce of int * sp
     | SEventually of int * sp
-    | SHistorically of int * int * sp Fdeque.t
+    | SHistorically of int * int * sp Deque.t
     | SHistoricallyOut of int
-    | SAlways of int * int * sp Fdeque.t
-    | SSince of sp * sp Fdeque.t
-    | SUntil of sp * sp Fdeque.t
+    | SAlways of int * int * sp Deque.t
+    | SSince of sp * sp Deque.t
+    | SUntil of sp * sp Deque.t
   and vp =
     | VFF of int
     | VPred of int * string * Term.t list
@@ -65,15 +67,15 @@ module Proof : sig
     | VNextOutL of int
     | VNextOutR of int
     | VOnceOut of int
-    | VOnce of int * int * vp Fdeque.t
-    | VEventually of int * int * vp Fdeque.t
+    | VOnce of int * int * vp Deque.t
+    | VEventually of int * int * vp Deque.t
     | VHistorically of int * vp
     | VAlways of int * vp
     | VSinceOut of int
-    | VSince of int * vp * vp Fdeque.t
-    | VSinceInf of int * int * vp Fdeque.t
-    | VUntil of int * vp * vp Fdeque.t
-    | VUntilInf of int * int * vp Fdeque.t
+    | VSince of int * vp * vp Deque.t
+    | VSinceInf of int * int * vp Deque.t
+    | VUntil of int * vp * vp Deque.t
+    | VUntilInf of int * int * vp Deque.t
 
   type t = S of sp | V of vp
 
