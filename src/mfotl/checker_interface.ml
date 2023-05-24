@@ -33,8 +33,8 @@ let convert_term (t: Pred.Term.t) = match t with
   | Var x -> Var x
 
 let convert_set = function
-  | Coset.Finite s -> Set (List.rev (Set.fold s ~init:[] ~f:(fun acc d -> (convert_d d) :: acc)))
-  | Coset.Complement s -> Coset (List.rev (Set.fold s ~init:[] ~f:(fun acc d -> (convert_d d) :: acc)))
+  | Setc.Finite s -> Set (List.rev (Set.fold s ~init:[] ~f:(fun acc d -> (convert_d d) :: acc)))
+  | Setc.Complement s -> Coset (List.rev (Set.fold s ~init:[] ~f:(fun acc d -> (convert_d d) :: acc)))
 
 let rec convert_pdt_part part =
   let part_lst = List.map part ~f:(fun (coset, pdt) ->

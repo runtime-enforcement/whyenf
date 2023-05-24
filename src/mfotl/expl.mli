@@ -15,7 +15,7 @@ module Deque = Core_kernel.Deque
 
 module Part : sig
 
-  type 'a t = ((Domain.t, Domain.comparator_witness) Coset.t * 'a) list
+  type 'a t = ((Domain.t, Domain.comparator_witness) Setc.t * 'a) list
 
   val map: 'a t -> ('a -> 'b) -> 'b t
 
