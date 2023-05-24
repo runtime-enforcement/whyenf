@@ -1405,13 +1405,12 @@ let mstep mode vars ts db (ms: MState.t) =
 let exec mode measure f inc =
   let rec step pb_opt ms =
     let (more, pb) = Other_parser.Trace.parse inc pb_opt in
-    let (ts_tp_expls, ms') = mstep mode (Set.elements (Formula.fv f)) pb.ts pb.db ms in
+    let (tstp_expls, ms') = mstep mode (Set.elements (Formula.fv f)) pb.ts pb.db ms in
     let () = Stdio.printf "parsed DB: \n%s\n" (Db.to_string pb.db) in
-    Out.Plain.expls ts_tp_expls None mode;
     (match mode with
-     | Out.Plain.UNVERIFIED -> ()
-     | Out.Plain.VERIFIED -> ()
-     | Out.Plain.DEBUG -> ());
+     | Out.Plain.UNVERIFIED -> Out.Plain.expls tstp_expls None mode
+     | _ -> let c = Checker_interface.check (Queue.to_list ms'.tsdbs) f (List.map tstp_expls ~f:snd) in
+            Out.Plain.expls tstp_expls (Some(c)) mode);
     if more then step (Some(pb)) ms' in
   let mf = init f in
   let ms = MState.init mf in
