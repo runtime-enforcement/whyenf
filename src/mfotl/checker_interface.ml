@@ -15,7 +15,7 @@ open Checker.MFOTL_Explanator2
 
 module Deque = Core_kernel.Deque
 
-type checker_proof = Inl of event_data sproof | Inr of event_data vproof
+type checker_proof = (event_data sproof, event_data vproof) sum
 type checker_trace = (string set * nat) list
 type trace_lst = (timestamp * (Db.Event.t, Db.Event.comparator_witness) Set.t) list
 
@@ -32,11 +32,27 @@ let convert_term (t: Pred.Term.t) = match t with
   | Const c -> Const (convert_d c)
   | Var x -> Var x
 
-let rec convert_part = function
-  | Leaf pt -> (match pt with
-                | Proof.S sp -> Inl (convert_sp sp)
-                | V vp -> Inr (convert_vp vp))
-  | Node (x, part) -> abs_part (convert_part)
+let convert_set = function
+  | Coset.Finite s -> Set (List.rev (Set.fold s ~init:[] ~f:(fun acc d -> (convert_d d) :: acc)))
+  | Coset.Complement s -> Coset (List.rev (Set.fold s ~init:[] ~f:(fun acc d -> (convert_d d) :: acc)))
+
+let rec convert_pdt_part part =
+  let part_lst = List.map part ~f:(fun (coset, pdt) ->
+                     (convert_set coset, convert_pdt pdt)) in
+  abs_part (part_lst)
+and convert_sp_part part =
+  let part_lst = List.map part ~f:(fun (coset, sp) ->
+                     (convert_set coset, convert_sp sp)) in
+  abs_part (part_lst)
+and convert_vp_part part =
+  let part_lst = List.map part ~f:(fun (coset, vp) ->
+                     (convert_set coset, convert_vp vp)) in
+  abs_part (part_lst)
+and convert_pdt = function
+  | Expl.Leaf pt -> (match pt with
+                     | Proof.S sp -> Leaf (Inl (convert_sp sp))
+                     | V vp -> Leaf (Inr (convert_vp vp)))
+  | Node (x, part) -> Node (Pred.Term.unvar x, convert_pdt_part part)
 and convert_sp (sp: Proof.sp) : (event_data sproof) = match sp with
   | STT tp -> STT (nat_of_int tp)
   | SPred (tp, s, trms) -> SPred (nat_of_int tp, s, List.map trms convert_term)
@@ -49,7 +65,7 @@ and convert_sp (sp: Proof.sp) : (event_data sproof) = match sp with
   | SIffSS (sp1, sp2) -> SIffSS (convert_sp sp1, convert_sp sp2)
   | SIffVV (vp1, vp2) -> SIffVV (convert_vp vp1, convert_vp vp2)
   | SExists (x, d, sp) -> SExists (Pred.Term.unvar x, convert_d d, convert_sp sp)
-  | SForall (x, Abs_part part) -> SForall (Pred.Term.unvar x, convert_part part)
+  | SForall (x, part) -> SForall (Pred.Term.unvar x, convert_sp_part part)
   | SPrev sp1 -> SPrev (convert_sp sp1)
   | SNext sp1 -> SNext (convert_sp sp1)
   | SOnce (tp, sp1) -> SOnce (nat_of_int tp, convert_sp sp1)
@@ -77,7 +93,7 @@ and convert_vp (vp: Proof.vp) : (event_data vproof) = match vp with
   | VImp (sp1, vp2) -> VImp (convert_sp sp1, convert_vp vp2)
   | VIffSV (sp1, vp2) -> VIffSV (convert_sp sp1, convert_vp vp2)
   | VIffVS (vp1, sp2) -> VIffVS (convert_vp vp1, convert_sp sp2)
-  | VExists (x, Abs_part part) -> VExists (Pred.Term.unvar x, convert_part part)
+  | VExists (x, part) -> VExists (Pred.Term.unvar x, convert_vp_part part)
   | VForall (x, d, vp) -> VForall (Pred.Term.unvar x, convert_d d, convert_vp vp)
   | VPrev vp1 -> VPrev (convert_vp vp1)
   | VPrev0 -> VPrevZ
@@ -115,7 +131,7 @@ let convert_p = function
 
 let rec convert_expl = function
   | Expl.Leaf pt -> Leaf (convert_p pt)
-  | Node (x, part) -> Node (Pred.Term.unvar x, convert_part part)
+  | Node (x, part) -> Node (Pred.Term.unvar x, convert_pdt_part part)
 
 let convert_interval = function
   | Interval.B bi -> (match bi with
