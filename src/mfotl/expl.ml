@@ -15,32 +15,30 @@ module Deque = Core_kernel.Deque
 
 module Part = struct
 
-  type 'a t = Abs_part of ((Domain.t, Domain.comparator_witness) Coset.t * 'a) list
+  type 'a t = ((Domain.t, Domain.comparator_witness) Coset.t * 'a) list
 
   let random_empty_set = Set.empty (module String)
 
-  let trivial p = Abs_part ([(Coset.univ (module Domain), p)])
+  let trivial p = [(Coset.univ (module Domain), p)]
 
-  let the = function Abs_part part -> part
+  let hd part = snd (List.hd_exn part)
 
-  let hd part = snd (List.hd_exn (the part))
+  let map part f = List.map part (fun (s, p) -> (s, f p))
 
-  let map part f = Abs_part (List.map (the part) (fun (s, p) -> (s, f p)))
-
-  let fold_left_snd part init f = List.fold_left (the part) ~init:init ~f:(fun acc (_, p) -> f acc p)
+  let fold_left_snd part init f = List.fold_left part ~init:init ~f:(fun acc (_, p) -> f acc p)
 
   let rec tabulate ds f z =
     let rec distinct = function
       | [] -> true
       | x :: xs -> not (List.mem xs x ~equal:Domain.equal) && distinct xs in
-    Abs_part (if distinct ds then
-                (Complement (Set.of_list (module Domain) ds), z) ::
-                  (List.map ~f:(fun d -> (Coset.Finite (Set.of_list (module Domain) [d]), f d)) ds)
-              else [(Coset.univ (module Domain), z)])
+    (if distinct ds then
+       (Coset.Complement (Set.of_list (module Domain) ds), z) ::
+         (List.map ~f:(fun d -> (Coset.Finite (Set.of_list (module Domain) [d]), f d)) ds)
+     else [(Coset.univ (module Domain), z)])
 
   let rec merge2 f part1 part2 = match part1, part2 with
-    | Abs_part [], _ -> Abs_part []
-    | Abs_part ((sub1, v1) :: part1), Abs_part part2 ->
+    | [], _ -> []
+    | (sub1, v1) :: part1, part2 ->
        let part12 = List.filter_map part2
                       (fun (sub2, v2) ->
                         (if not (Coset.is_empty (Coset.inter sub1 sub2))
@@ -49,19 +47,19 @@ module Part = struct
                          (fun (sub2, v2) ->
                            (if not (Coset.is_empty (Coset.diff sub2 sub1))
                             then Some (Coset.diff sub2 sub1, v2) else None)) in
-       Abs_part (part12 @ (the (merge2 f (Abs_part part1) (Abs_part part2not1))))
+       part12 @ (merge2 f part1 part2not1)
 
   let merge3 f part1 part2 part3 = match part1, part2, part3 with
-    | Abs_part [], _ , _
-      | _ , Abs_part [], _
-      | _ , _ , Abs_part [] -> raise (Invalid_argument "one of the partitions is empty")
-    | Abs_part part1, Abs_part part2, Abs_part part3 ->
-       merge2 (fun pt3 f' -> f' pt3) (Abs_part part3) (merge2 f (Abs_part part1) (Abs_part part2))
+    | [], _ , _
+      | _ , [], _
+      | _ , _ , [] -> raise (Invalid_argument "one of the partitions is empty")
+    | part1, part2, part3 ->
+       merge2 (fun pt3 f' -> f' pt3) part3 (merge2 f part1 part2)
 
   let rec el_to_string indent f (sub, v) =
     Printf.sprintf "%scoset = {%s}\n%s%s" indent (Coset.to_string sub) indent (f indent v)
 
-  let to_string indent f part = match the part with
+  let to_string indent f = function
     | [] -> indent ^ "[]"
     | [x] -> indent ^ Etc.eat "[" ((el_to_string indent f x) ^ "]")
     | x :: xs ->
