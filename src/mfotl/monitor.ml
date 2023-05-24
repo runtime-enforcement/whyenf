@@ -1386,12 +1386,9 @@ let next_tp () = tp := !tp + 1; !tp
 
 let mstep mode vars ts db (ms: MState.t) =
   let tp = next_tp () in
-
-  let () = Stdio.printf "mstep tp = %d\n" tp in
-
   let (expls, mf') = meval vars ts tp db ms.mf in
   Queue.enqueue ms.ts_waiting ts;
-  let tstps = List.zip_exn (List.range tp (tp + List.length expls)) (Queue.to_list ms.ts_waiting) in
+  let tstps = List.zip_exn (Queue.to_list ms.ts_waiting) (List.range tp (tp + List.length expls)) in
   let tsdbs = match mode with
     | Out.Plain.UNVERIFIED -> ms.tsdbs
     | _ -> Queue.enqueue ms.tsdbs (ts, db); ms.tsdbs in
@@ -1406,7 +1403,7 @@ let exec mode measure f inc =
   let rec step pb_opt ms =
     let (more, pb) = Other_parser.Trace.parse inc pb_opt in
     let (tstp_expls, ms') = mstep mode (Set.elements (Formula.fv f)) pb.ts pb.db ms in
-    let () = Stdio.printf "parsed DB: \n%s\n" (Db.to_string pb.db) in
+    (* Stdio.printf "parsed DB: \n%s\n" (Db.to_string pb.db); *)
     (match mode with
      | Out.Plain.UNVERIFIED -> Out.Plain.expls tstp_expls None mode
      | _ -> let c = Checker_interface.check (Queue.to_list ms'.tsdbs) f (List.map tstp_expls ~f:snd) in
