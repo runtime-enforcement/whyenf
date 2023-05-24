@@ -36,11 +36,7 @@ let convert_set = function
   | Setc.Finite s -> Set (List.rev (Set.fold s ~init:[] ~f:(fun acc d -> (convert_d d) :: acc)))
   | Setc.Complement s -> Coset (List.rev (Set.fold s ~init:[] ~f:(fun acc d -> (convert_d d) :: acc)))
 
-let rec convert_pdt_part part =
-  let part_lst = List.map part ~f:(fun (coset, pdt) ->
-                     (convert_set coset, convert_pdt pdt)) in
-  abs_part (part_lst)
-and convert_sp_part part =
+let rec convert_sp_part part =
   let part_lst = List.map part ~f:(fun (coset, sp) ->
                      (convert_set coset, convert_sp sp)) in
   abs_part (part_lst)
@@ -48,11 +44,6 @@ and convert_vp_part part =
   let part_lst = List.map part ~f:(fun (coset, vp) ->
                      (convert_set coset, convert_vp vp)) in
   abs_part (part_lst)
-and convert_pdt = function
-  | Expl.Leaf pt -> (match pt with
-                     | Proof.S sp -> Leaf (Inl (convert_sp sp))
-                     | V vp -> Leaf (Inr (convert_vp vp)))
-  | Node (x, part) -> Node (Pred.Term.unvar x, convert_pdt_part part)
 and convert_sp (sp: Proof.sp) : (event_data sproof) = match sp with
   | STT tp -> STT (nat_of_int tp)
   | SPred (tp, s, trms) -> SPred (nat_of_int tp, s, List.map trms convert_term)
@@ -124,6 +115,16 @@ and convert_vp (vp: Proof.vp) : (event_data vproof) = match vp with
   | VUntilInf (tp, ltp, vp2s) ->
      let vp2s' = List.rev(Deque.fold vp2s ~init:[] ~f:(fun acc vp2 -> (convert_vp vp2)::acc)) in
      VUntilInf (nat_of_int tp, nat_of_int ltp, vp2s')
+
+let rec convert_pdt_part part =
+  let part_lst = List.map part ~f:(fun (coset, pdt) ->
+                     (convert_set coset, convert_pdt pdt)) in
+  abs_part (part_lst)
+and convert_pdt = function
+  | Expl.Leaf pt -> (match pt with
+                     | Proof.S sp -> Leaf (Inl (convert_sp sp))
+                     | V vp -> Leaf (Inr (convert_vp vp)))
+  | Node (x, part) -> Node (Pred.Term.unvar x, convert_pdt_part part)
 
 let convert_p = function
   | Proof.S sp -> Inl (convert_sp sp)
