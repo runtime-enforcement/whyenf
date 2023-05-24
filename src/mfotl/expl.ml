@@ -57,7 +57,7 @@ module Part = struct
        merge2 (fun pt3 f' -> f' pt3) part3 (merge2 f part1 part2)
 
   let rec el_to_string indent f (sub, v) =
-    Printf.sprintf "%scoset = {%s}\n%s%s" indent (Setc.to_string sub) indent (f indent v)
+    Printf.sprintf "%ssetc = {%s}\n%s%s" indent (Setc.to_string sub) indent (f indent v)
 
   let to_string indent f = function
     | [] -> indent ^ "[]"

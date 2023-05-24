@@ -28,6 +28,13 @@ let lexbuf_error_msg (lexbuf: Lexing.lexbuf) =
   Printf.sprintf "a problem was found at line %d character %d"
     (lexbuf.lex_curr_p.pos_lnum) (lexbuf.lex_curr_p.pos_cnum - lexbuf.lex_curr_p.pos_bol)
 
+let list_to_string indent f = function
+  | [] -> indent ^ "[]"
+  | [x] -> indent ^ eat "[" (f indent x ^ "]")
+  | x :: xs ->
+     List.fold_left xs ~init:(indent ^ eat "[ " (f indent x))
+       ~f:(fun s el -> eat (s ^ "\n" ^ indent ^ "; ") (f indent el)) ^ " ]"
+
 exception Empty_deque of string
 let deque_to_string indent f d =
   if Deque.is_empty d then indent ^ "[]"
