@@ -984,19 +984,35 @@ instance event_data :: equal by standard
 definition check_all :: "(MFOTL.name \<times> 'd ::  {default,linorder} list) trace \<Rightarrow> 'd MFOTL.formula \<Rightarrow> ('d, 'd proof) pdt \<Rightarrow> bool" where
   "check_all \<sigma> \<phi> e = (distinct_paths e \<and> check_all_aux \<sigma> (\<lambda>_. UNIV) \<phi> e)"
 
-definition check_all_ed :: "(MFOTL.name \<times> event_data list) trace \<Rightarrow> event_data MFOTL.formula \<Rightarrow> (event_data, event_data proof) pdt \<Rightarrow> bool" where
-  "check_all_ed \<sigma> \<phi> e = check_all \<sigma> \<phi> e"
+definition check_all_specialized :: "(MFOTL.name \<times> event_data list) trace \<Rightarrow> event_data MFOTL.formula \<Rightarrow> (event_data, event_data proof) pdt \<Rightarrow> bool" where
+  "check_all_specialized \<sigma> \<phi> e = check_all \<sigma> \<phi> e"
 
-definition trace_of_list_ed :: "(event_data set \<times> nat) list \<Rightarrow> event_data trace" where
-  "trace_of_list_ed xs = trace_of_list xs"
+definition trace_of_list_specialized :: "((MFOTL.name \<times> event_data list) set \<times> nat) list \<Rightarrow> (MFOTL.name \<times> event_data list) trace" where
+  "trace_of_list_specialized xs = trace_of_list xs"
+
+definition specialized_set :: "(MFOTL.name \<times> event_data list) list \<Rightarrow> (MFOTL.name \<times> event_data list) set" where
+  "specialized_set = set"
+
+definition ed_set :: "event_data list \<Rightarrow> event_data set" where
+  "ed_set = set"
+
+lift_definition abs_part :: "(event_data set \<times> 'a) list \<Rightarrow> (event_data, 'a) part" is
+  "\<lambda>xs.
+   let Ds = map fst xs in
+   if {} \<in> set Ds
+   \<or> (\<exists>D \<in> set Ds. \<exists>E \<in> set Ds. D \<noteq> E \<and> D \<inter> E \<noteq> {})
+   \<or> \<not> distinct Ds
+   \<or> (\<Union>D \<in> set Ds. D) \<noteq> UNIV then [(UNIV, undefined)] else xs"
+  by (auto simp: partition_on_def disjoint_def)
 
 lemma check_all_check_one: "check_all \<sigma> \<phi> e = (distinct_paths e \<and> (\<forall>v. check_one \<sigma> v \<phi> e))"
   unfolding check_all_def
   by (rule conj_cong[OF refl], subst check_all_aux_check_one)
     (auto simp: compatible_vals_def)
 
-export_code check_all_ed trace_of_list_ed interval enat nat_of_integer integer_of_nat
-  STT MFOTL.TT Inl EInt MFOTL.Var Leaf
+export_code interval enat nat_of_integer integer_of_nat
+  STT MFOTL.TT Inl EInt MFOTL.Var Leaf set
+  check_all_specialized trace_of_list_specialized specialized_set ed_set abs_part
   in OCaml module_name MFOTL_Explanator2 file_prefix "MFOTL_checker"
 
 end
