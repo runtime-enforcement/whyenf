@@ -8,7 +8,7 @@ module Uint32 : sig
   val test_bit : int32 -> Z.t -> bool
 end = struct
 
-(* negative numbers have their highest bit set,
+(* negative numbers have their highest bit set, 
    so they are greater than positive ones *)
 let less x y =
   if Int32.compare x Int32.zero < 0 then
@@ -32,7 +32,7 @@ let shiftr x n = Int32.shift_right_logical x (Z.to_int n);;
 let shiftr_signed x n = Int32.shift_right x (Z.to_int n);;
 
 let test_bit x n =
-  Int32.compare
+  Int32.compare 
     (Int32.logand x (Int32.shift_left Int32.one (Z.to_int n)))
     Int32.zero
   <> 0;;
@@ -100,9 +100,13 @@ module MFOTL_Explanator2 : sig
     VSinceInf of nat * nat * 'a vproof list |
     VUntil of nat * 'a vproof list * 'a vproof |
     VUntilInf of nat * nat * 'a vproof list
+  val part_hd : ('a, 'b) part -> 'b
   val interval : nat -> enat -> i
   val ed_set : event_data list -> event_data set
+  val sub_nat : nat -> nat -> nat
+  val sum_nat : nat -> nat -> nat
   val abs_part : (event_data set * 'a) list -> (event_data, 'a) part
+  val subsvals : ('a, 'b) part -> ('a set * 'b) list
   val nat_of_integer : Z.t -> nat
   val specialized_set :
     (string * event_data list) list -> (string * event_data list) set
@@ -1693,6 +1697,10 @@ and v_check_exec (_A1, _A2, _A3, _A4)
     | sigma, vs, FF, VPred (xb, xa, x) -> false
     | sigma, vs, FF, VFF x -> true
     | sigma, vs, TT, p -> false;;
+
+let rec sub_nat m n = minus_nat m n;;
+
+let rec sum_nat m n = plus_nat m n;;
 
 let rec abs_part
   xa = Abs_part
