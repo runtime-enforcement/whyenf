@@ -166,9 +166,12 @@ module Checker_interface = struct
     specialized_set (Set.fold db ~init:[] ~f:(fun acc (name, ds) ->
                          (name, List.map ds ~f:convert_d)::acc))
 
+  let convert_trace_aux trace_lst =
+    List.fold_left trace_lst ~init:[] ~f:(fun acc (ts, db) ->
+        (convert_db db, nat_of_int ts)::acc)
+
   let convert_trace trace_lst =
-    trace_of_list_specialized (List.fold_left trace_lst ~init:[] ~f:(fun acc (ts, db) ->
-                                   (convert_db db, nat_of_int ts)::acc))
+    trace_of_list_specialized (convert_trace_aux trace_lst)
 
 end
 
@@ -177,6 +180,9 @@ module Checker_domain = struct
   let to_string = function
     | EString v -> v
     | EInt v -> Int.to_string (Z.to_int v)
+
+  let list_to_string ds =
+    String.drop_suffix (List.fold ds ~init:"" ~f:(fun acc d -> acc ^ (to_string d) ^ ", ")) 2
 
 end
 
@@ -361,7 +367,19 @@ end
 
 module Checker_trace = struct
 
-  type t = (string * event_data list) trace
+  type t = ((string * event_data list) set * nat) list
+
+  let evt_to_string (name, ds) =
+    Printf.sprintf "%s(%s)" name (Checker_domain.list_to_string ds)
+
+  let db_to_string db =
+    List.fold db ~init:"" ~f:(fun acc evt -> acc ^ evt_to_string evt ^ "\n")
+
+  let to_string trace_lst = List.fold trace_lst ~init:"" ~f:(fun acc (db, ts) ->
+                                Printf.sprintf "TS = %d:\n" (int_of_nat ts) ^
+                                  (match db with
+                                   | Set s -> db_to_string s
+                                   | Coset _ -> raise (Failure "set of dbs should not be converted to coset")) ^ "\n" ^ acc)
 
 end
 
@@ -378,7 +396,8 @@ end
 
 let check trace_lst f expls =
   let f' = Checker_interface.convert_f f in
+  let trace_lst' = Checker_interface.convert_trace_aux trace_lst in
   let trace' = Checker_interface.convert_trace trace_lst in
   List.rev(List.fold_left expls ~init:[] ~f:(fun acc expl ->
                let expl' = Checker_interface.convert_expl expl in
-               (check_all_specialized trace' f' expl', expl', trace')::acc))
+               (check_all_specialized trace' f' expl', expl', trace_lst')::acc))
