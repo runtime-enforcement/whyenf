@@ -1017,7 +1017,7 @@ lemma check_all_check_one: "check_all \<sigma> \<phi> e = (distinct_paths e \<an
     (auto simp: compatible_vals_def)
 
 export_code interval enat nat_of_integer integer_of_nat
-  STT MFOTL.TT Inl EInt MFOTL.Var Leaf set part_hd sum_nat sub_nat
+  STT MFOTL.TT Inl EInt MFOTL.Var Leaf set part_hd sum_nat sub_nat subsvals
   check_all_specialized trace_of_list_specialized specialized_set ed_set abs_part
   in OCaml module_name MFOTL_Explanator2 file_prefix "MFOTL_checker"
 
