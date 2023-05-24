@@ -23,14 +23,14 @@ module Plain = struct
 
   let expl = function
     | Explanation ((ts, tp), e) ->
-       Stdio.printf "%d:%d\nExplanation: \n%s\n" ts tp (Expl.to_string "" e)
+       Stdio.printf "%d:%d\nExplanation: \n%s\n\n" ts tp (Expl.to_string "" e)
     | ExplanationCheck ((ts, tp), e, b) ->
        Stdio.printf "%d:%d\nExplanation: \n%s\n" ts tp (Expl.to_string "" e);
-       Stdio.printf "\nChecker output: %B\n" b;
+       Stdio.printf "\nChecker output: %B\n\n" b;
     | ExplanationCheckDebug ((ts, tp), e, b, _, _) ->
        Stdio.printf "%d:%d\nExplanation: \n%s\n" ts tp (Expl.to_string "" e);
-       Stdio.printf "\nChecker output: %B\n" b;
-    | Info s -> Stdio.printf "\nInfo: %s\n" s
+       Stdio.printf "\nChecker output: %B\n\n" b;
+    | Info s -> Stdio.printf "\nInfo: %s\n\n" s
 
   let expls ts_tp_expls checker_es_opt = function
     | UNVERIFIED -> List.iter ts_tp_expls (fun ((ts, tp), e) -> expl (Explanation ((ts, tp), e)))
