@@ -370,13 +370,13 @@ module Checker_trace = struct
   type t = ((string * event_data list) set * nat) list
 
   let evt_to_string (name, ds) =
-    Printf.sprintf "%s(%s)" name (Checker_domain.list_to_string ds)
+    Printf.sprintf "[debug] %s(%s)" name (Checker_domain.list_to_string ds)
 
   let db_to_string db =
     List.fold db ~init:"" ~f:(fun acc evt -> acc ^ evt_to_string evt ^ "\n")
 
   let to_string trace_lst = List.fold trace_lst ~init:"" ~f:(fun acc (db, ts) ->
-                                Printf.sprintf "TS = %d:\n" (int_of_nat ts) ^
+                                Printf.sprintf "[debug] TS = %d:\n" (int_of_nat ts) ^
                                   (match db with
                                    | Set s -> db_to_string s
                                    | Coset _ -> raise (Failure "set of dbs should not be converted to coset")) ^ "\n" ^ acc)
@@ -388,8 +388,8 @@ module Checker_pdt = struct
   type t = (event_data, (event_data sproof, event_data vproof) sum) pdt
 
   let rec to_string indent = function
-    | Leaf pt -> Printf.sprintf "%sLeaf (%s)\n%s" indent (Checker_proof.to_string "" pt) indent
-    | Node (x, part) -> Printf.sprintf "%sNode (%s,\n%s)\n" indent x
+    | Leaf pt -> Printf.sprintf "%s Leaf (%s)\n%s" indent (Checker_proof.to_string "" pt) indent
+    | Node (x, part) -> Printf.sprintf "%s Node (%s,\n%s)\n" indent x
                           (Checker_part.to_string "    " to_string (subsvals part))
 
 end

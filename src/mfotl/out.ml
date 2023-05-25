@@ -30,9 +30,9 @@ module Plain = struct
        Stdio.printf "\nChecker output: %B\n\n" b;
     | ExplanationCheckDebug ((ts, tp), e, b, c_e, c_t) ->
        Stdio.printf "%d:%d\nExplanation: \n%s\n" ts tp (Expl.to_string "" e);
-       Stdio.printf "\nChecker explanation:\n%s\n\n" (Checker_interface.Checker_pdt.to_string "" c_e);
-       Stdio.printf "\nChecker trace:\n%s" (Checker_interface.Checker_trace.to_string c_t);
        Stdio.printf "\nChecker output: %B\n\n" b;
+       Stdio.printf "\n[debug] Checker explanation:\n%s\n\n" (Checker_interface.Checker_pdt.to_string "" c_e);
+       Stdio.printf "\n[debug] Checker trace:\n%s" (Checker_interface.Checker_trace.to_string c_t);
     | Info s -> Stdio.printf "\nInfo: %s\n\n" s
 
   let expls ts_tp_expls checker_es_opt = function
