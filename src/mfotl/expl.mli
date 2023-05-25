@@ -21,6 +21,10 @@ module Part : sig
 
   val tabulate: Domain.t list -> (Domain.t -> 'a) -> 'a -> 'a t
 
+  val split_prod: ('a * 'b) t -> 'a t * 'b t
+
+  val split_list: 'a list t -> 'a t list
+
 end
 
 module Proof : sig
