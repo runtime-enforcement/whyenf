@@ -56,6 +56,13 @@ module Part = struct
     | part1, part2, part3 ->
        merge2 (fun pt3 f' -> f' pt3) part3 (merge2 f part1 part2)
 
+  let split_prod part = (map part fst, map part snd)
+
+  let split_list part =
+    let subs = List.map part ~f:fst in
+    let vs = List.map part ~f:snd in
+    List.map (Etc.transpose vs) ~f:(List.zip_exn subs)
+
   let rec el_to_string indent f (sub, v) =
     Printf.sprintf "%ssetc = {%s}\n%s%s" indent (Setc.to_string sub) indent (f indent v)
 
