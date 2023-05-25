@@ -230,7 +230,7 @@ module Proof = struct
     let indent' = "\t" ^ indent in
     match p with
     | STT i -> Printf.sprintf "%strue{%d}" indent i
-    | SPred (tp, r, trms) -> Printf.sprintf "%s%s{%d}{%s}" indent r tp (Term.list_to_string trms)
+    | SPred (tp, r, trms) -> Printf.sprintf "%sSPred(%d, %s, %s)" indent tp r (Term.list_to_string trms)
     | SNeg vp -> Printf.sprintf "%sSNeg{%d}\n%s" indent (s_at p) (v_to_string indent' vp)
     | SOrL sp1 -> Printf.sprintf "%sSOrL{%d}\n%s" indent (s_at p) (s_to_string indent' sp1)
     | SOrR sp2 -> Printf.sprintf "%sSOrR{%d}\n%s" indent (s_at p) (s_to_string indent' sp2)
@@ -264,7 +264,7 @@ module Proof = struct
     let indent' = "\t" ^ indent in
     match p with
     | VFF i -> Printf.sprintf "%sfalse{%d}" indent i
-    | VPred (tp, r, trms) ->  Printf.sprintf "%s!%s{%d}{%s}" indent r tp (Term.list_to_string trms)
+    | VPred (tp, r, trms) -> Printf.sprintf "%sVPred(%d, %s, %s)" indent tp r (Term.list_to_string trms)
     | VNeg sp -> Printf.sprintf "%sVNeg{%d}\n%s" indent (v_at p) (s_to_string indent' sp)
     | VOr (vp1, vp2) -> Printf.sprintf "%sVOr{%d}\n%s\n%s" indent (v_at p) (v_to_string indent' vp1) (v_to_string indent' vp2)
     | VAndL vp1 -> Printf.sprintf "%sVAndL{%d}\n%s" indent (v_at p) (v_to_string indent' vp1)
