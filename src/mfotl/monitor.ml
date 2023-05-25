@@ -161,7 +161,7 @@ let print_tstps ts_zero tstps_in tstps_out =
 
 module Buf2 = struct
 
-  type t = Expl.t list * Expl.t list
+  type ('a, 'b) t = 'a list * 'b list
 
   let add xs ys (l1, l2) = (l1 @ xs, l2 @ ys)
 
@@ -175,7 +175,14 @@ end
 
 module Buft = struct
 
-  type t = Expl.t list * (timepoint * timestamp) list
+  type ('a, 'b) t = 'a list * 'b list
+
+  let rec another_take f = function
+    | [], ys  -> ([], ([], ys))
+    | xs, []  -> ([], (xs, []))
+    | xs, [y] -> ([], (xs, [y]))
+    | x::xs, y::y'::ys -> let (zs, buft') = another_take f (xs, y'::ys) in
+                          ((f x y y')::zs, buft')
 
   let rec take f z = function
     | [], ys -> (z, [], ys)
@@ -186,7 +193,7 @@ end
 
 module Buf2t = struct
 
-  type t = Expl.t list * Expl.t list * (timepoint * timestamp) list
+  type ('a, 'b, 'c) t = 'a list * 'b list * 'c list
 
   let rec take f w = function
     | [], ys, zs -> (w, ([], ys, zs))
@@ -1076,33 +1083,27 @@ module Prev_Next = struct
 
   type operator = Prev | Next
 
-  let rec update_eval op i = function
-    | [], tss -> ([], [], tss)
-    | ps , [] -> ([], ps, [])
-    | ps , [ts] -> ([], ps, [ts])
-    | p :: ps, ts :: ts' :: tss ->
-       let (ps', buf', tss') = update_eval op i (ps, ts' :: tss) in
-       let c1 = (match p with
-                 | Proof.S sp -> if Interval.mem (ts' - ts) i then
-                                   (match op with
-                                    | Prev -> [Proof.S (SPrev sp)]
-                                    | Next -> [S (SNext sp)])
-                                 else []
-                 | V vp -> (match op with
-                            | Prev -> [V (VPrev vp)]
-                            | Next -> [V (VNext vp)])) in
-       let c2 = if Interval.below (ts' - ts) i then
-                  (match op with
-                   | Prev -> [Proof.V (VPrevOutL ((Proof.p_at p)+1))]
-                   | Next -> [V (VNextOutL ((Proof.p_at p)-1))])
-                else [] in
-       let c3 = if (Interval.above (ts' - ts) i) then
-                  (match op with
-                   | Prev -> [Proof.V (VPrevOutR ((Proof.p_at p)+1))]
-                   | Next -> [V (VNextOutR ((Proof.p_at p)-1))])
-                else [] in
-       let p' =  (minp_list (c1 @ c2 @ c3)) in
-       (p' :: ps', buf', tss')
+  let update_eval op i p ts ts' =
+    let c1 = (match p with
+              | Proof.S sp -> if Interval.mem (ts' - ts) i then
+                                (match op with
+                                 | Prev -> [Proof.S (SPrev sp)]
+                                 | Next -> [S (SNext sp)])
+                              else []
+              | V vp -> (match op with
+                         | Prev -> [V (VPrev vp)]
+                         | Next -> [V (VNext vp)])) in
+    let c2 = if Interval.below (ts' - ts) i then
+               (match op with
+                | Prev -> [Proof.V (VPrevOutL ((Proof.p_at p)+1))]
+                | Next -> [V (VNextOutL ((Proof.p_at p)-1))])
+             else [] in
+    let c3 = if (Interval.above (ts' - ts) i) then
+               (match op with
+                | Prev -> [Proof.V (VPrevOutR ((Proof.p_at p)+1))]
+                | Next -> [V (VNextOutR ((Proof.p_at p)-1))])
+             else [] in
+    minp_list (c1 @ c2 @ c3)
 
 end
 
@@ -1113,20 +1114,20 @@ module MFormula = struct
     | MFF
     | MPredicate    of string * Term.t list
     | MNeg          of t
-    | MAnd          of t * t * Buf2.t
-    | MOr           of t * t * Buf2.t
-    | MImp          of t * t * Buf2.t
-    | MIff          of t * t * Buf2.t
+    | MAnd          of t * t * (Expl.t, Expl.t) Buf2.t
+    | MOr           of t * t * (Expl.t, Expl.t) Buf2.t
+    | MImp          of t * t * (Expl.t, Expl.t) Buf2.t
+    | MIff          of t * t * (Expl.t, Expl.t) Buf2.t
     | MExists       of Term.t * t
     | MForall       of Term.t * t
-    | MPrev         of Interval.t * t * bool * Buft.t Expl.pdt
+    | MPrev         of Interval.t * t * bool * (Expl.t, timestamp) Buft.t
     | MNext         of Interval.t * t * bool * timestamp list
     | MOnce         of Interval.t * t * (timestamp * timepoint) list * Once.t Expl.pdt
-    | MEventually   of Interval.t * t * Buft.t * Eventually.t Expl.pdt
+    | MEventually   of Interval.t * t * (Expl.t, timestamp * timepoint) Buft.t * Eventually.t Expl.pdt
     | MHistorically of Interval.t * t * (timestamp * timepoint) list * Historically.t Expl.pdt
-    | MAlways       of Interval.t * t * Buft.t * Always.t Expl.pdt
-    | MSince        of Interval.t * t * t * Buf2t.t * Since.t Expl.pdt
-    | MUntil        of Interval.t * t * t * Buf2t.t * Until.t Expl.pdt
+    | MAlways       of Interval.t * t * (Expl.t, timestamp * timepoint) Buft.t * Always.t Expl.pdt
+    | MSince        of Interval.t * t * t * (Expl.t, Expl.t, timestamp * timepoint) Buf2t.t * Since.t Expl.pdt
+    | MUntil        of Interval.t * t * t * (Expl.t, Expl.t, timestamp * timepoint) Buf2t.t * Until.t Expl.pdt
 
   let rec init = function
     | Formula.TT -> MTT
@@ -1139,7 +1140,7 @@ module MFormula = struct
     | Formula.Iff (f, g) -> MIff (init f, init g, ([], []))
     | Formula.Exists (x, f) -> MExists (x, init f)
     | Formula.Forall (x, f) -> MForall (x, init f)
-    | Formula.Prev (i, f) -> MPrev (i, init f, true, Leaf ([], []))
+    | Formula.Prev (i, f) -> MPrev (i, init f, true, ([], []))
     | Formula.Next (i, f) -> MNext (i, init f, true, [])
     | Formula.Once (i, f) -> MOnce (i, init f, [], Leaf (Once.init ()))
     | Formula.Eventually (i, f) -> MEventually (i, init f, ([], []), Leaf (Eventually.init ()))
@@ -1213,7 +1214,7 @@ let rec match_terms trms ds map =
   | _, _ -> None
 
 let print_maps maps =
-  (* Stdio.print_endline "> Map:"; *)
+  Stdio.print_endline "> Map:";
   List.iter maps ~f:(fun map -> Map.iteri map (fun ~key:k ~data:v ->
                                     Stdio.printf "%s -> %s\n" (Term.to_string k) (Domain.to_string v)))
 
@@ -1278,19 +1279,22 @@ let rec meval vars ts tp (db: Db.t) = function
          (fun expl1 expl2 -> Expl.apply2 vars (fun p1 p2 -> do_iff p1 p2) expl1 expl2)
          (Buf2.add expls1 expls2 buf2) in
      (f_expls, MIff (mf1', mf2', buf2'))
-  (* | MPrev (i, mf, first, buft_pdt) -> *)
-  (*    let (expls, mf') = meval vars ts tp db mf in *)
-     (* let buf' = List.fold expls ~init:buf ~f:(fun expl -> Deque.enqueue_back buf expl); *)
-     (* let () = Deque.enqueue_back tss ts in *)
-     (* let (ps', buf', tss') = Prev_Next.eval Prev interval buf tss le in *)
-     (* (ts, (if first then (let () = Deque.enqueue_front ps' (V VPrev0) in ps') *)
-     (*       else ps'), MPrev (interval, mf', false, buf', tss')) *)
-  (* | MNext (interval, mf, first, tss) -> *)
-  (*    let (_, ps, mf') = meval tp ts sap mf in *)
-  (*    let () = Deque.enqueue_back tss ts in *)
-  (*    let first = if first && (Deque.length ps) > 0 then (let () = Deque.drop_front ps in false) else first in *)
-  (*    let (ps', _, tss') = Prev_Next.mprev_next Next interval ps tss le in *)
-  (*    (ts, ps', MNext (interval, mf', first, tss')) *)
+  | MPrev (i, mf, first, (buf, tss)) ->
+     let (expls, mf') = meval vars ts tp db mf in
+     let (f_expls, (buf', tss')) =
+       Buft.another_take
+         (fun expl ts ts' -> Expl.apply1 vars (fun p -> Prev_Next.update_eval Prev i p ts ts') expl)
+         (buf @ expls, tss @ [ts]) in
+     ((if first then (Leaf (V VPrev0) :: f_expls) else f_expls), MPrev (i, mf', false, (buf', tss')))
+  | MNext (i, mf, first, tss) ->
+     let (expls, mf') = meval vars ts tp db mf in
+     let (expls', first) = if first && (List.length expls) > 0 then (List.tl_exn expls, false)
+                           else (expls, first) in
+     let (f_expls, (buf', tss')) =
+       Buft.another_take
+         (fun expl ts ts' -> Expl.apply1 vars (fun p -> Prev_Next.update_eval Next i p ts ts') expl)
+         (expls', tss @ [ts]) in
+     (f_expls, MNext (i, mf', first, tss'))
   (* | MOnce (interval, mf, ts_tps, moaux) -> *)
   (*    let (_, ps, mf') = meval tp ts sap mf in *)
   (*    let _ = Deque.enqueue_back ts_tps (ts, tp) in *)
