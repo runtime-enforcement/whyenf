@@ -27,5 +27,5 @@ module Checker_pdt : sig
 
 end
 
-val check: (timestamp * (string * Domain.t list, 'a) Base.Set.t) list -> Formula.t -> Expl.Proof.t Expl.pdt list ->
+val check: (timestamp * (string * Domain.t list, 'a) Base.Set.t) list -> Formula.t -> Expl.Proof.t Expl.Pdt.t list ->
            (bool * (event_data, (event_data sproof, event_data vproof) sum) pdt * Checker_trace.t) list
