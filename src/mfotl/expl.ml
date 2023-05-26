@@ -11,7 +11,7 @@
 open Base
 open Pred
 
-module Deque = Core_kernel.Deque
+module Fdeque = Core_kernel.Fdeque
 
 module Part = struct
 
@@ -95,11 +95,11 @@ module Proof = struct
     | SNext of sp
     | SOnce of int * sp
     | SEventually of int * sp
-    | SHistorically of int * int * sp Deque.t
+    | SHistorically of int * int * sp Fdeque.t
     | SHistoricallyOut of int
-    | SAlways of int * int * sp Deque.t
-    | SSince of sp * sp Deque.t
-    | SUntil of sp * sp Deque.t
+    | SAlways of int * int * sp Fdeque.t
+    | SSince of sp * sp Fdeque.t
+    | SUntil of sp * sp Fdeque.t
   and vp =
     | VFF of int
     | VPred of int * string * Term.t list
@@ -120,15 +120,15 @@ module Proof = struct
     | VNextOutL of int
     | VNextOutR of int
     | VOnceOut of int
-    | VOnce of int * int * vp Deque.t
-    | VEventually of int * int * vp Deque.t
+    | VOnce of int * int * vp Fdeque.t
+    | VEventually of int * int * vp Fdeque.t
     | VHistorically of int * vp
     | VAlways of int * vp
     | VSinceOut of int
-    | VSince of int * vp * vp Deque.t
-    | VSinceInf of int * int * vp Deque.t
-    | VUntil of int * vp * vp Deque.t
-    | VUntilInf of int * int * vp Deque.t
+    | VSince of int * vp * vp Fdeque.t
+    | VSinceInf of int * int * vp Fdeque.t
+    | VUntil of int * vp * vp Fdeque.t
+    | VUntilInf of int * int * vp Fdeque.t
 
   type t = S of sp | V of vp
 
@@ -141,27 +141,30 @@ module Proof = struct
     | _ -> raise (Invalid_argument "unV is not defined for S proofs")
 
   let s_append sp sp1 = match sp with
-    | SSince (sp2, sp1s) -> Deque.enqueue_back sp1s sp1; SSince (sp2, sp1s)
-    | SUntil (sp2, sp1s) -> Deque.enqueue_back sp1s sp1; SUntil (sp2, sp1s)
+    | SSince (sp2, sp1s) -> SSince (sp2, Fdeque.enqueue_back sp1s sp1)
+    | SUntil (sp2, sp1s) -> SUntil (sp2, Fdeque.enqueue_back sp1s sp1)
     | _ -> raise (Invalid_argument "sappend is not defined for this sp")
 
   let v_append vp vp2 = match vp with
-    | VSince (tp, vp1, vp2s) -> Deque.enqueue_back vp2s vp2; VSince (tp,  vp1, vp2s)
-    | VSinceInf (tp, etp, vp2s) -> Deque.enqueue_back vp2s vp2; VSinceInf (tp, etp, vp2s)
-    | VUntil (tp, vp1, vp2s) -> Deque.enqueue_back vp2s vp2; VUntil (tp, vp1, vp2s)
-    | VUntilInf (tp, ltp, vp2s) -> Deque.enqueue_back vp2s vp2; VUntilInf (tp, ltp, vp2s)
+    | VSince (tp, vp1, vp2s) -> VSince (tp,  vp1, Fdeque.enqueue_back vp2s vp2)
+    | VSinceInf (tp, etp, vp2s) -> VSinceInf (tp, etp, Fdeque.enqueue_back vp2s vp2)
+    | VUntil (tp, vp1, vp2s) -> VUntil (tp, vp1, Fdeque.enqueue_back vp2s vp2)
+    | VUntilInf (tp, ltp, vp2s) -> VUntilInf (tp, ltp, Fdeque.enqueue_back vp2s vp2)
     | _ -> raise (Invalid_argument "vappend is not defined for this vp")
 
   let s_drop = function
-    | SUntil (sp2, sp1s) -> if Deque.is_empty sp1s then None
-                            else (Deque.drop_front sp1s; Some (SUntil (sp2, sp1s)))
+    | SUntil (sp2, sp1s) -> (match Fdeque.drop_front sp1s with
+                             | None -> None
+                             | Some(sp1s') -> Some (SUntil (sp2, Fdeque.drop_front_exn sp1s')))
     | _ -> raise (Invalid_argument "sdrop is not defined for this sp")
 
   let v_drop = function
-    | VUntil (tp, vp1, vp2s) -> if Deque.is_empty vp2s then None
-                                else (Deque.drop_front vp2s; Some (VUntil (tp, vp1, vp2s)))
-    | VUntilInf (tp, ltp, vp2s) -> if Deque.is_empty vp2s then None
-                                   else (Deque.drop_front vp2s; Some (VUntilInf (tp, ltp, vp2s)))
+    | VUntil (tp, vp1, vp2s) -> (match Fdeque.drop_front vp2s with
+                                 | None -> None
+                                 | Some(vp2s') -> Some (VUntil (tp, vp1, vp2s')))
+    | VUntilInf (tp, ltp, vp2s) -> (match Fdeque.drop_front vp2s with
+                                    | None -> None
+                                    | Some(vp2s') -> Some (VUntilInf (tp, ltp, vp2s)))
     | _ -> raise (Invalid_argument "vdrop is not defined for this vp")
 
   let rec s_at = function
@@ -184,10 +187,10 @@ module Proof = struct
     | SHistorically (tp, _, _) -> tp
     | SHistoricallyOut tp -> tp
     | SAlways (tp, _, _) -> tp
-    | SSince (sp2, sp1s) -> if Deque.is_empty sp1s then s_at sp2
-                            else s_at (Deque.peek_back_exn sp1s)
-    | SUntil (sp2, sp1s) -> if Deque.is_empty sp1s then s_at sp2
-                            else s_at (Deque.peek_front_exn sp1s)
+    | SSince (sp2, sp1s) -> if Fdeque.is_empty sp1s then s_at sp2
+                            else s_at (Fdeque.peek_back_exn sp1s)
+    | SUntil (sp2, sp1s) -> if Fdeque.is_empty sp1s then s_at sp2
+                            else s_at (Fdeque.peek_front_exn sp1s)
   and v_at = function
     | VFF tp -> tp
     | VPred (tp, _, _) -> tp
@@ -227,8 +230,8 @@ module Proof = struct
     | _ -> raise (Invalid_argument "s_ltp is not defined for this sp")
 
   let v_etp = function
-    | VUntil (tp, _, vp2s) -> if Deque.is_empty vp2s then tp
-                              else v_at (Deque.peek_front_exn vp2s)
+    | VUntil (tp, _, vp2s) -> if Fdeque.is_empty vp2s then tp
+                              else v_at (Fdeque.peek_front_exn vp2s)
     | _ -> raise (Invalid_argument "v_etp is not defined for this vp")
 
   let cmp f p1 p2 = f p1 <= f p2
@@ -313,7 +316,7 @@ module Proof = struct
 
   module Size = struct
 
-    let sum f d = Deque.fold d ~init:0 ~f:(fun acc p -> acc + f p)
+    let sum f d = Fdeque.fold d ~init:0 ~f:(fun acc p -> acc + f p)
 
     let rec s = function
       | STT _ -> 1

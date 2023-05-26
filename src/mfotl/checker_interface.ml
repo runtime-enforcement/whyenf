@@ -13,7 +13,7 @@ open Expl
 open Formula
 open Checker.MFOTL_Explanator2
 
-module Deque = Core_kernel.Deque
+module Fdeque = Core_kernel.Fdeque
 
 let int_of_nat n = Z.to_int (integer_of_nat n)
 let nat_of_int i = nat_of_integer (Z.of_int i)
@@ -63,18 +63,18 @@ module Checker_interface = struct
     | SNext sp1 -> SNext (convert_sp sp1)
     | SOnce (tp, sp1) -> SOnce (nat_of_int tp, convert_sp sp1)
     | SHistorically (tp, etp, sp2s) ->
-       let sp2s' = List.rev(Deque.fold sp2s ~init:[] ~f:(fun acc sp2 -> (convert_sp sp2)::acc)) in
+       let sp2s' = List.rev(Fdeque.fold sp2s ~init:[] ~f:(fun acc sp2 -> (convert_sp sp2)::acc)) in
        SHistorically (nat_of_int tp, nat_of_int etp, sp2s')
     | SHistoricallyOut tp -> SHistoricallyOut (nat_of_int tp)
     | SEventually (tp, sp1) -> SEventually (nat_of_int tp, convert_sp sp1)
     | SAlways (tp, ltp, sp2s) ->
-       let sp2s' = List.rev(Deque.fold sp2s ~init:[] ~f:(fun acc sp2 -> (convert_sp sp2)::acc)) in
+       let sp2s' = List.rev(Fdeque.fold sp2s ~init:[] ~f:(fun acc sp2 -> (convert_sp sp2)::acc)) in
        SAlways (nat_of_int tp, nat_of_int ltp, sp2s')
     | SSince (sp2, sp1s) ->
-       let sp1s' = List.rev(Deque.fold sp1s ~init:[] ~f:(fun acc sp1 -> (convert_sp sp1)::acc)) in
+       let sp1s' = List.rev(Fdeque.fold sp1s ~init:[] ~f:(fun acc sp1 -> (convert_sp sp1)::acc)) in
        SSince (convert_sp sp2, sp1s')
     | SUntil (sp2, sp1s) ->
-       let sp1s' = List.rev(Deque.fold sp1s ~init:[] ~f:(fun acc sp1 -> (convert_sp sp1)::acc)) in
+       let sp1s' = List.rev(Fdeque.fold sp1s ~init:[] ~f:(fun acc sp1 -> (convert_sp sp1)::acc)) in
        SUntil (sp1s', convert_sp sp2)
   and convert_vp (vp: Proof.vp) : (event_data vproof) = match vp with
     | VFF tp -> VFF (nat_of_int tp)
@@ -97,25 +97,25 @@ module Checker_interface = struct
     | VNextOutR tp -> VNextOutR (nat_of_int tp)
     | VOnceOut tp -> VOnceOut (nat_of_int tp)
     | VOnce (tp, etp, vp1s) ->
-       let vp1s' = List.rev(Deque.fold vp1s ~init:[] ~f:(fun acc vp1 -> (convert_vp vp1)::acc)) in
+       let vp1s' = List.rev(Fdeque.fold vp1s ~init:[] ~f:(fun acc vp1 -> (convert_vp vp1)::acc)) in
        VOnce (nat_of_int tp, nat_of_int etp, vp1s')
     | VHistorically (tp, vp1) -> VHistorically (nat_of_int tp, convert_vp vp1)
     | VEventually (tp, ltp, vp1s) ->
-       let vp1s' = List.rev(Deque.fold vp1s ~init:[] ~f:(fun acc vp1 -> (convert_vp vp1)::acc)) in
+       let vp1s' = List.rev(Fdeque.fold vp1s ~init:[] ~f:(fun acc vp1 -> (convert_vp vp1)::acc)) in
        VEventually (nat_of_int tp, nat_of_int ltp, vp1s')
     | VAlways (tp, vp1) -> VAlways (nat_of_int tp, convert_vp vp1)
     | VSinceOut tp -> VSinceOut (nat_of_int tp)
     | VSince (tp, vp1, vp2s) ->
-       let vp2s' = List.rev(Deque.fold vp2s ~init:[] ~f:(fun acc vp2 -> (convert_vp vp2)::acc)) in
+       let vp2s' = List.rev(Fdeque.fold vp2s ~init:[] ~f:(fun acc vp2 -> (convert_vp vp2)::acc)) in
        VSince (nat_of_int tp, convert_vp vp1, vp2s')
     | VSinceInf (tp, etp, vp2s) ->
-       let vp2s' = List.rev(Deque.fold vp2s ~init:[] ~f:(fun acc vp2 -> (convert_vp vp2)::acc)) in
+       let vp2s' = List.rev(Fdeque.fold vp2s ~init:[] ~f:(fun acc vp2 -> (convert_vp vp2)::acc)) in
        VSinceInf (nat_of_int tp, nat_of_int etp, vp2s')
     | VUntil (tp, vp1, vp2s) ->
-       let vp2s' = List.rev(Deque.fold vp2s ~init:[] ~f:(fun acc vp2 -> (convert_vp vp2)::acc)) in
+       let vp2s' = List.rev(Fdeque.fold vp2s ~init:[] ~f:(fun acc vp2 -> (convert_vp vp2)::acc)) in
        VUntil (nat_of_int tp, vp2s', convert_vp vp1)
     | VUntilInf (tp, ltp, vp2s) ->
-       let vp2s' = List.rev(Deque.fold vp2s ~init:[] ~f:(fun acc vp2 -> (convert_vp vp2)::acc)) in
+       let vp2s' = List.rev(Fdeque.fold vp2s ~init:[] ~f:(fun acc vp2 -> (convert_vp vp2)::acc)) in
        VUntilInf (nat_of_int tp, nat_of_int ltp, vp2s')
 
   let rec convert_pdt_part part =

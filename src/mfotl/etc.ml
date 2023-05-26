@@ -9,7 +9,7 @@
 
 open Base
 
-module Deque = Core_kernel.Deque
+module Fdeque = Core_kernel.Fdeque
 
 type timepoint = int
 type timestamp = int
@@ -30,13 +30,13 @@ let lexbuf_error_msg (lexbuf: Lexing.lexbuf) =
 
 exception Empty_deque of string
 let deque_to_string indent f d =
-  if Deque.is_empty d then indent ^ "[]"
+  if Fdeque.is_empty d then indent ^ "[]"
   else
-    (if Int.equal (Deque.length d) 1 then
-       indent ^ eat "[" (f indent (Deque.peek_front_exn d) ^ "]")
+    (if Int.equal (Fdeque.length d) 1 then
+       indent ^ eat "[" (f indent (Fdeque.peek_front_exn d) ^ "]")
      else
-       Deque.fold ~f:(fun s el -> eat (s ^ "\n" ^ indent ^ "; ") (f indent el))
-         ~init:(indent ^ eat "[ " (f indent (Deque.peek_front_exn d))) (Deque.drop_front d; d) ^ " ]")
+       Fdeque.fold ~f:(fun s el -> eat (s ^ "\n" ^ indent ^ "; ") (f indent el))
+         ~init:(indent ^ eat "[ " (f indent (Fdeque.peek_front_exn d))) (Fdeque.drop_front_exn d) ^ " ]")
 
 let rec queue_drop q n =
   if Int.equal n 0 then q
