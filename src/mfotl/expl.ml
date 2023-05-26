@@ -383,88 +383,100 @@ module Proof = struct
 
 end
 
+module Pdt = struct
 
-type 'a pdt = Leaf of 'a | Node of Term.t * ('a pdt) Part.t
+  type 'a t = Leaf of 'a | Node of Term.t * ('a t) Part.t
 
-type t = Proof.t pdt
+  let rec apply1 vars f pdt = match vars, pdt with
+    | _ , Leaf l -> Leaf (f l)
+    | z :: vars, Node (x, part) ->
+       if Term.equal x z then
+         Node (x, Part.map part (apply1 vars f))
+       else apply1 vars f (Node (x, part))
+    | _ -> raise (Invalid_argument "variable list is empty")
+
+  let rec apply2 vars f pdt1 pdt2 = match vars, pdt1, pdt2 with
+    | _ , Leaf l1, Leaf l2 -> Leaf (f l1 l2)
+    | _ , Leaf l1, Node (x, part2) -> Node (x, Part.map part2 (apply1 vars (f l1)))
+    | _ , Node (x, part1), Leaf l2 -> Node (x, Part.map part1 (apply1 vars (fun l1 -> f l1 l2)))
+    | z :: vars, Node (x, part1), Node (y, part2) ->
+       if Term.equal x z && Term.equal y z then
+         Node (z, Part.merge2 (apply2 vars f) part1 part2)
+       else (if Term.equal x z then
+               Node (x, Part.map part1 (fun pdt1 -> apply2 vars f pdt1 (Node (y, part2))))
+             else (if Term.equal y z then
+                     Node (y, Part.map part2 (apply2 vars f (Node (x, part1))))
+                   else apply2 vars f (Node (x, part1)) (Node (y, part2))))
+    | _ -> raise (Invalid_argument "variable list is empty")
+
+  let rec apply3 vars f pdt1 pdt2 pdt3 = match vars, pdt1, pdt2, pdt3 with
+    | _ , Leaf l1, Leaf l2, Leaf l3 -> Leaf (f l1 l2 l3)
+    | _ , Leaf l1, Leaf l2, Node (x, part3) ->
+       Node (x, Part.map part3 (apply1 vars (fun l3 -> f l1 l2 l3)))
+    | _ , Leaf l1, Node (x, part2), Leaf l3 ->
+       Node (x, Part.map part2 (apply1 vars (fun l2 -> f l1 l2 l3)))
+    | _ , Node (x, part1), Leaf l2, Leaf l3 ->
+       Node (x, Part.map part1 (apply1 vars (fun l1 -> f l1 l2 l3)))
+    | w :: vars, Leaf l1, Node (y, part2), Node (z, part3) ->
+       if Term.equal y w && Term.equal z w then
+         Node (w, Part.merge2 (apply2 vars (f l1)) part2 part3)
+       else (if Term.equal y w then
+               Node (y, Part.map part2 (fun pdt2 -> apply2 vars (f l1) pdt2 (Node (z, part3))))
+             else (if Term.equal z w then
+                     Node (z, Part.map part3 (fun pdt3 -> apply2 vars (f l1) (Node (y, part2)) pdt3))
+                   else apply3 vars f (Leaf l1) (Node (y, part2)) (Node(z, part3))))
+    | w :: vars, Node (x, part1), Node (y, part2), Leaf l3 ->
+       if Term.equal x w && Term.equal y w then
+         Node (w, Part.merge2 (apply2 vars (fun l1 l2 -> f l1 l2 l3)) part1 part2)
+       else (if Term.equal x w then
+               Node (x, Part.map part1 (fun pdt1 -> apply2 vars (fun pt1 pt2 -> f pt1 pt2 l3) pdt1 (Node (y, part2))))
+             else (if Term.equal y w then
+                     Node (y, Part.map part2 (fun pdt2 -> apply2 vars (fun l1 l2 -> f l1 l2 l3) (Node (x, part1)) pdt2))
+                   else apply3 vars f (Node (x, part1)) (Node (y, part2)) (Leaf l3)))
+    | w :: vars, Node (x, part1), Leaf l2, Node (z, part3) ->
+       if Term.equal x w && Term.equal z w then
+         Node (w, Part.merge2 (apply2 vars (fun l1 -> f l1 l2)) part1 part3)
+       else (if Term.equal x w then
+               Node (x, Part.map part1 (fun pdt1 -> apply2 vars (fun l1 -> f l1 l2) pdt1 (Node (z, part3))))
+             else (if Term.equal z w then
+                     Node (z, Part.map part3 (fun pdt3 -> apply2 vars (fun l1 -> f l1 l2) (Node (x, part1)) pdt3))
+                   else apply3 vars f (Node (x, part1)) (Leaf l2) (Node (z, part3))))
+    | w :: vars, Node (x, part1), Node (y, part2), Node (z, part3) ->
+       if Term.equal x w && Term.equal y w && Term.equal z w then
+         Node (z, Part.merge3 (apply3 vars f) part1 part2 part3)
+       else (if Term.equal x w && Term.equal y w then
+               Node (w, Part.merge2 (fun pdt1 pdt2 -> apply3 vars f pdt1 pdt2 (Node (z, part3))) part1 part2)
+             else (if Term.equal x w && Term.equal z w then
+                     Node (w, Part.merge2 (fun pdt1 pdt3 -> apply3 vars f pdt1 (Node (y, part2)) pdt3) part1 part3)
+                   else (if Term.equal y w && Term.equal z w then
+                           Node (w, Part.merge2 (apply3 vars (fun l1 -> f l1) (Node (x, part1))) part2 part3)
+                         else (if Term.equal x w then
+                                 Node (x, Part.map part1 (fun pdt1 -> apply3 vars f pdt1 (Node (y, part2)) (Node (z, part3))))
+                               else (if Term.equal y w then
+                                       Node (y, Part.map part2 (fun pdt2 -> apply3 vars f (Node (x, part1)) pdt2 (Node (z, part3))))
+                                     else (if Term.equal z w then
+                                             Node (z, Part.map part3 (fun pdt3 -> apply3 vars f (Node (x, part1)) (Node (y, part2)) pdt3))
+                                           else apply3 vars f (Node (x, part1)) (Node (y, part2)) (Node (z, part3))))))))
+    | _ -> raise (Invalid_argument "variable list is empty")
+
+  let rec split_prod = function
+    | Leaf (l1, l2) -> (Leaf l1, Leaf l2)
+    | Node (x, part) -> let (part1, part2) = Part.split_prod (Part.map part split_prod) in
+                        (Node (x, part1), Node (x, part2))
+
+  let rec split_list = function
+    | Leaf l -> List.map l ~f:(fun el -> Leaf el)
+    | Node (x, part) -> List.map (Part.split_list (Part.map part split_list)) ~f:(fun el -> Node (x, el))
+
+end
+
+type t = Proof.t Pdt.t
 
 let rec at = function
-  | Leaf pt -> Proof.p_at pt
+  | Pdt.Leaf pt -> Proof.p_at pt
   | Node (_, part) -> at (Part.hd part)
 
-let rec apply1 vars f pdt = match vars, pdt with
-  | _ , Leaf l -> Leaf (f l)
-  | z :: vars, Node (x, part) ->
-     if Term.equal x z then
-       Node (x, Part.map part (apply1 vars f))
-     else apply1 vars f (Node (x, part))
-  | _ -> raise (Invalid_argument "variable list is empty")
-
-let rec apply2 vars f pdt1 pdt2 = match vars, pdt1, pdt2 with
-  | _ , Leaf l1, Leaf l2 -> Leaf (f l1 l2)
-  | _ , Leaf l1, Node (x, part2) -> Node (x, Part.map part2 (apply1 vars (f l1)))
-  | _ , Node (x, part1), Leaf l2 -> Node (x, Part.map part1 (apply1 vars (fun l1 -> f l1 l2)))
-  | z :: vars, Node (x, part1), Node (y, part2) ->
-     if Term.equal x z && Term.equal y z then
-       Node (z, Part.merge2 (apply2 vars f) part1 part2)
-     else (if Term.equal x z then
-             Node (x, Part.map part1 (fun pdt1 -> apply2 vars f pdt1 (Node (y, part2))))
-           else (if Term.equal y z then
-                   Node (y, Part.map part2 (apply2 vars f (Node (x, part1))))
-                 else apply2 vars f (Node (x, part1)) (Node (y, part2))))
-  | _ -> raise (Invalid_argument "variable list is empty")
-
-let rec apply3 vars f pdt1 pdt2 pdt3 = match vars, pdt1, pdt2, pdt3 with
-  | _ , Leaf l1, Leaf l2, Leaf l3 -> Leaf (f l1 l2 l3)
-  | _ , Leaf l1, Leaf l2, Node (x, part3) ->
-     Node (x, Part.map part3 (apply1 vars (fun l3 -> f l1 l2 l3)))
-  | _ , Leaf l1, Node (x, part2), Leaf l3 ->
-     Node (x, Part.map part2 (apply1 vars (fun l2 -> f l1 l2 l3)))
-  | _ , Node (x, part1), Leaf l2, Leaf l3 ->
-     Node (x, Part.map part1 (apply1 vars (fun l1 -> f l1 l2 l3)))
-  | w :: vars, Leaf l1, Node (y, part2), Node (z, part3) ->
-     if Term.equal y w && Term.equal z w then
-       Node (w, Part.merge2 (apply2 vars (f l1)) part2 part3)
-     else (if Term.equal y w then
-             Node (y, Part.map part2 (fun pdt2 -> apply2 vars (f l1) pdt2 (Node (z, part3))))
-           else (if Term.equal z w then
-                   Node (z, Part.map part3 (fun pdt3 -> apply2 vars (f l1) (Node (y, part2)) pdt3))
-                 else apply3 vars f (Leaf l1) (Node (y, part2)) (Node(z, part3))))
-  | w :: vars, Node (x, part1), Node (y, part2), Leaf l3 ->
-     if Term.equal x w && Term.equal y w then
-       Node (w, Part.merge2 (apply2 vars (fun l1 l2 -> f l1 l2 l3)) part1 part2)
-     else (if Term.equal x w then
-             Node (x, Part.map part1 (fun pdt1 -> apply2 vars (fun pt1 pt2 -> f pt1 pt2 l3) pdt1 (Node (y, part2))))
-           else (if Term.equal y w then
-                   Node (y, Part.map part2 (fun pdt2 -> apply2 vars (fun l1 l2 -> f l1 l2 l3) (Node (x, part1)) pdt2))
-                 else apply3 vars f (Node (x, part1)) (Node (y, part2)) (Leaf l3)))
-  | w :: vars, Node (x, part1), Leaf l2, Node (z, part3) ->
-     if Term.equal x w && Term.equal z w then
-       Node (w, Part.merge2 (apply2 vars (fun l1 -> f l1 l2)) part1 part3)
-     else (if Term.equal x w then
-             Node (x, Part.map part1 (fun pdt1 -> apply2 vars (fun l1 -> f l1 l2) pdt1 (Node (z, part3))))
-           else (if Term.equal z w then
-                   Node (z, Part.map part3 (fun pdt3 -> apply2 vars (fun l1 -> f l1 l2) (Node (x, part1)) pdt3))
-                 else apply3 vars f (Node (x, part1)) (Leaf l2) (Node (z, part3))))
-  | w :: vars, Node (x, part1), Node (y, part2), Node (z, part3) ->
-     if Term.equal x w && Term.equal y w && Term.equal z w then
-       Node (z, Part.merge3 (apply3 vars f) part1 part2 part3)
-     else (if Term.equal x w && Term.equal y w then
-             Node (w, Part.merge2 (fun pdt1 pdt2 -> apply3 vars f pdt1 pdt2 (Node (z, part3))) part1 part2)
-           else (if Term.equal x w && Term.equal z w then
-                   Node (w, Part.merge2 (fun pdt1 pdt3 -> apply3 vars f pdt1 (Node (y, part2)) pdt3) part1 part3)
-                 else (if Term.equal y w && Term.equal z w then
-                         Node (w, Part.merge2 (apply3 vars (fun l1 -> f l1) (Node (x, part1))) part2 part3)
-                       else (if Term.equal x w then
-                               Node (x, Part.map part1 (fun pdt1 -> apply3 vars f pdt1 (Node (y, part2)) (Node (z, part3))))
-                             else (if Term.equal y w then
-                                     Node (y, Part.map part2 (fun pdt2 -> apply3 vars f (Node (x, part1)) pdt2 (Node (z, part3))))
-                                   else (if Term.equal z w then
-                                           Node (z, Part.map part3 (fun pdt3 -> apply3 vars f (Node (x, part1)) (Node (y, part2)) pdt3))
-                                         else apply3 vars f (Node (x, part1)) (Node (y, part2)) (Node (z, part3))))))))
-  | _ -> raise (Invalid_argument "variable list is empty")
-
 let rec to_string indent = function
-  | Leaf pt -> Printf.sprintf "%sLeaf (%s)\n%s" indent (Proof.to_string "" pt) indent
+  | Pdt.Leaf pt -> Printf.sprintf "%sLeaf (%s)\n%s" indent (Proof.to_string "" pt) indent
   | Node (x, part) -> Printf.sprintf "%sNode (%s,\n%s)\n" indent (Term.to_string x)
                         (Part.to_string "    " to_string part)
