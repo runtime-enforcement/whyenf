@@ -24,12 +24,12 @@ module Plain = struct
 
   let expl = function
     | Explanation ((ts, tp), e) ->
-       Stdio.printf "%d:%d\nExplanation: \n%s\n\n" ts tp (Expl.to_string "" e)
+       Stdio.printf "%d:%d\nExplanation: \n%s\n\n" ts tp (Expl.to_string e)
     | ExplanationCheck ((ts, tp), e, b) ->
-       Stdio.printf "%d:%d\nExplanation: \n%s\n" ts tp (Expl.to_string "" e);
+       Stdio.printf "%d:%d\nExplanation: \n%s\n" ts tp (Expl.to_string e);
        Stdio.printf "\nChecker output: %B\n\n" b;
     | ExplanationCheckDebug ((ts, tp), e, b, c_e, c_t) ->
-       Stdio.printf "%d:%d\nExplanation: \n%s\n" ts tp (Expl.to_string "" e);
+       Stdio.printf "%d:%d\nExplanation: \n%s\n" ts tp (Expl.to_string e);
        Stdio.printf "\nChecker output: %B\n\n" b;
        Stdio.printf "\n[debug] Checker explanation:\n%s\n\n" (Checker_interface.Checker_pdt.to_string "" c_e);
        Stdio.printf "\n[debug] Checker trace:\n%s" (Checker_interface.Checker_trace.to_string c_t);

@@ -122,10 +122,12 @@ module Pdt : sig
 
   val split_list: 'a list t -> 'a t list
 
+  val to_string: ('a -> string) -> string -> 'a t -> string
+
 end
 
 type t = Proof.t Pdt.t
 
 val at: Proof.t Pdt.t -> int
 
-val to_string: string -> t -> string
+val to_string: t -> string

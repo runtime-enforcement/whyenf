@@ -468,6 +468,11 @@ module Pdt = struct
     | Leaf l -> List.map l ~f:(fun el -> Leaf el)
     | Node (x, part) -> List.map (Part.split_list (Part.map part split_list)) ~f:(fun el -> Node (x, el))
 
+  let rec to_string f indent = function
+    | Leaf pt -> Printf.sprintf "%sLeaf (%s)\n%s" indent (f pt) indent
+    | Node (x, part) -> Printf.sprintf "%sNode (%s,\n%s)\n" indent (Term.to_string x)
+                          (Part.to_string "    " (to_string f) part)
+
 end
 
 type t = Proof.t Pdt.t
@@ -476,7 +481,4 @@ let rec at = function
   | Pdt.Leaf pt -> Proof.p_at pt
   | Node (_, part) -> at (Part.hd part)
 
-let rec to_string indent = function
-  | Pdt.Leaf pt -> Printf.sprintf "%sLeaf (%s)\n%s" indent (Proof.to_string "" pt) indent
-  | Node (x, part) -> Printf.sprintf "%sNode (%s,\n%s)\n" indent (Term.to_string x)
-                        (Part.to_string "    " to_string part)
+let to_string expl = Pdt.to_string (Proof.to_string "") "" expl
