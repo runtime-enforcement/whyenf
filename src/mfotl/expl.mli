@@ -21,10 +21,6 @@ module Part : sig
 
   val tabulate: Domain.t list -> (Domain.t -> 'a) -> 'a -> 'a t
 
-  val split_prod: ('a * 'b) t -> 'a t * 'b t
-
-  val split_list: 'a list t -> 'a t list
-
 end
 
 module Proof : sig
@@ -112,16 +108,24 @@ module Proof : sig
 
 end
 
-type 'a pdt = Leaf of 'a | Node of Term.t * ('a pdt) Part.t
+module Pdt : sig
 
-type t = Proof.t pdt
+  type 'a t = Leaf of 'a | Node of Term.t * ('a t) Part.t
 
-val at: Proof.t pdt -> int
+  val apply1: Term.t list -> ('a -> 'b) -> 'a t -> 'b t
 
-val apply1: Term.t list -> ('a -> 'b) -> 'a pdt -> 'b pdt
+  val apply2: Term.t list -> ('a -> 'b -> 'c) -> 'a t -> 'b t -> 'c t
 
-val apply2: Term.t list -> ('a -> 'b -> 'c) -> 'a pdt -> 'b pdt -> 'c pdt
+  val apply3: Term.t list -> ('a -> 'b -> 'c -> 'd) -> 'a t -> 'b t -> 'c t -> 'd t
 
-val apply3: Term.t list -> ('a -> 'b -> 'c -> 'd) -> 'a pdt -> 'b pdt -> 'c pdt -> 'd pdt
+  val split_prod: ('a * 'b) t -> 'a t * 'b t
+
+  val split_list: 'a list t -> 'a t list
+
+end
+
+type t = Proof.t Pdt.t
+
+val at: Proof.t Pdt.t -> int
 
 val to_string: string -> t -> string
