@@ -33,12 +33,19 @@ let snd_deque d =
   Deque.fold d ~init:(Deque.create ()) ~f:(fun acc (ts, p) ->
       Deque.enqueue_back acc p; acc)
 
-let remove_cond_front f d =
-  let rec remove_cond_front_rec f d = match Deque.dequeue_front d with
-    | None -> ()
-    | Some(el') -> if (f el') then remove_cond_front_rec f d
-                   else Deque.enqueue_front d el' in
-  remove_cond_front_rec f d
+let remove_cond_front f deque =
+  let rec remove_cond_front_rec d = match Fdeque.dequeue_front d with
+    | None -> d
+    | Some(el', d') -> if (f el') then remove_cond_front_rec d'
+                       else Fdeque.enqueue_front d' el' in
+  remove_cond_front_rec deque
+
+let remove_cond_back f deque =
+  let rec remove_cond_back_rec d = match Fdeque.dequeue_back d with
+    | None -> d
+    | Some(el', d') -> if (f el') then remove_cond_back_rec d'
+                       else Fdeque.enqueue_back d' el' in
+  remove_cond_back_rec deque
 
 let remove_cond_front_ne f d =
   let rec remove_cond_front_ne_rec f d =
@@ -49,35 +56,29 @@ let remove_cond_front_ne f d =
                       else Deque.enqueue_front d el') in
   remove_cond_front_ne_rec f d
 
-let remove_cond_back f d =
-  let rec remove_cond_back_rec f d =
-    match Deque.dequeue_back d with
-    | None -> ()
-    | Some(el') -> if (f el') then remove_cond_back_rec f d
-                   else Deque.enqueue_back d el' in
-  remove_cond_back_rec f d
+let sorted_append new_in deque =
+  Fdeque.fold new_in ~init:deque ~f:(fun d (ts, p) ->
+      let d' = remove_cond_back (fun (_, p') -> minp_bool p p') d in
+      Fdeque.enqueue_back d' (ts, p))
 
-let sorted_append new_in d =
-  Deque.iter new_in ~f:(fun (ts, p) ->
-      remove_cond_back (fun (ts', p') -> minp_bool p p') d;
-      Deque.enqueue_back d (ts, p))
-
-let sorted_enqueue (ts, p) d =
-  remove_cond_back (fun (_, p') -> minp_bool p p') d;
-  Deque.enqueue_back d (ts, p)
+let sorted_enqueue (ts, p) deque =
+  let d' = remove_cond_back (fun (_, p') -> minp_bool p p') deque in
+  Fdeque.enqueue_back d' (ts, p)
 
 (* TODO: split_in_out and split_out_in should be rewritten as a single function *)
 (* split_in_out considers a closed interval [l, r] *)
-let split_in_out get_ts (l, r) d =
-  let new_in = Deque.create () in
-  let rec split_in_out_rec d =
-    match Deque.dequeue_front d with
-    | None -> ()
-    | Some(el) -> let ts = get_ts el in
-                  if ts <= r then
-                    (if ts >= l then (Deque.enqueue_back new_in el; split_in_out_rec d)
-                     else Deque.enqueue_front d el) in
-  new_in
+let split_in_out get_ts (l, r) deque =
+  let new_in = Fdeque.empty in
+  let rec split_in_out_rec d nd =
+    match Fdeque.dequeue_front d with
+    | None -> (d, nd)
+    | Some(el', d') -> let ts = get_ts el' in
+                       if ts <= r then
+                         (if ts >= l then
+                            split_in_out_rec d' (Fdeque.enqueue_back nd el')
+                          else (d, nd))
+                       else (d, nd) in
+  split_in_out_rec deque new_in
 
 (* split_out_in considers an interval of the form [z, l) *)
 let split_out_in get_ts (z, l) d =
@@ -89,11 +90,11 @@ let split_out_in get_ts (z, l) d =
                   if ts < l then
                     (if ts >= z then (Deque.enqueue_back new_out el; split_out_in_rec d)
                      else Deque.enqueue_front d el) in
-  new_out
+  split_out_in_rec d; new_out
 
 let etp tstps_in tstps_out tp =
-  match Deque.peek_front tstps_in with
-  | None -> (match Deque.peek_front tstps_out with
+  match Fdeque.peek_front tstps_in with
+  | None -> (match Fdeque.peek_front tstps_out with
              | None -> tp
              | Some (_, tp') -> tp')
   | Some (_, tp') -> tp'
@@ -130,32 +131,31 @@ let add_tstp_future a b nts ntp tstps_out tstps_in =
        Deque.enqueue_back tstps_in (nts, ntp)
      else Deque.enqueue_back tstps_out (nts, ntp))
 
-let shift_tstps_future a first_ts ntp tstps_out tstps_in =
-  Deque.iter tstps_in ~f:(fun (ts', tp') ->
-      if (ts' < first_ts + a) && (tp' < ntp) then
-        Deque.enqueue_back tstps_out (ts', tp'));
-  remove_cond_front (fun (ts', tp') -> (ts' < first_ts) && (tp' < ntp)) tstps_out;
-  remove_cond_front (fun (ts', tp') -> (ts' < first_ts + a) && (tp' < ntp)) tstps_in
+(* let shift_tstps_future a first_ts ntp tstps_out tstps_in = *)
+(*   Deque.iter tstps_in ~f:(fun (ts', tp') -> *)
+(*       if (ts' < first_ts + a) && (tp' < ntp) then *)
+(*         Deque.enqueue_back tstps_out (ts', tp')); *)
+(*   remove_cond_front (fun (ts', tp') -> (ts' < first_ts) && (tp' < ntp)) tstps_out; *)
+(*   remove_cond_front (fun (ts', tp') -> (ts' < first_ts + a) && (tp' < ntp)) tstps_in *)
 
 let shift_tstps_past (l, r) a ts tp tstps_in tstps_out =
   if a = 0 then
-    (Deque.enqueue_back tstps_in (ts, tp);
-     remove_cond_front (fun (ts', _) -> ts' < l) tstps_in)
+    (remove_cond_front (fun (ts', _) -> ts' < l) (Fdeque.enqueue_back tstps_in (ts, tp)), tstps_out)
   else
-    (Deque.enqueue_back tstps_out (ts, tp);
-     Deque.iter tstps_out ~f:(fun (ts', tp') ->
-         if ts' <= r then Deque.enqueue_back tstps_in (ts', tp'));
-     remove_cond_front (fun (ts', _) -> ts' <= r) tstps_out;
-     remove_cond_front (fun (ts', _) -> ts' < l) tstps_in)
+    (remove_cond_front (fun (ts', _) -> ts' < l)
+       (Fdeque.fold tstps_out ~init:tstps_in ~f:(fun tstps_in' (ts', tp') ->
+            if ts' <= r then Fdeque.enqueue_back tstps_in' (ts', tp')
+            else tstps_in')),
+     remove_cond_front (fun (ts', _) -> ts' <= r) tstps_out)
 
 let print_tstps ts_zero tstps_in tstps_out =
   (match ts_zero with
    | None -> ""
    | Some(ts) -> Printf.sprintf "\n\tts_zero = (%d)\n" ts) ^
-    Deque.fold tstps_in ~init:"\n\ttstps_in = ["
+    Fdeque.fold tstps_in ~init:"\n\ttstps_in = ["
       ~f:(fun acc (ts, tp) -> acc ^ (Printf.sprintf "(%d, %d);" ts tp)) ^
       (Printf.sprintf "]\n") ^
-        Deque.fold tstps_out ~init:"\n\ttstps_out = ["
+        Fdeque.fold tstps_out ~init:"\n\ttstps_out = ["
           ~f:(fun acc (ts, tp) -> acc ^ (Printf.sprintf "(%d, %d);" ts tp)) ^
           (Printf.sprintf "]\n")
 
@@ -207,20 +207,20 @@ end
 module Once = struct
 
   type t = { mutable ts_zero: timestamp option
-           ; tstps_in: (timestamp * timepoint) Deque.t
-           ; tstps_out: (timestamp * timepoint) Deque.t
-           ; s_alphas_in: (timestamp * Proof.t) Deque.t
-           ; s_alphas_out: (timestamp * Proof.t) Deque.t
-           ; v_alphas_in: (timestamp * Proof.vp) Deque.t
-           ; v_alphas_out: (timestamp * Proof.vp) Deque.t }
+           ; tstps_in: (timestamp * timepoint) Fdeque.t
+           ; tstps_out: (timestamp * timepoint) Fdeque.t
+           ; s_alphas_in: (timestamp * Proof.t) Fdeque.t
+           ; s_alphas_out: (timestamp * Proof.t) Fdeque.t
+           ; v_alphas_in: (timestamp * Proof.vp) Fdeque.t
+           ; v_alphas_out: (timestamp * Proof.vp) Fdeque.t }
 
   let init () = { ts_zero = None
-                ; tstps_in = Deque.create ()
-                ; tstps_out = Deque.create ()
-                ; s_alphas_in = Deque.create ()
-                ; s_alphas_out = Deque.create ()
-                ; v_alphas_in = Deque.create ()
-                ; v_alphas_out = Deque.create () }
+                ; tstps_in = Fdeque.empty
+                ; tstps_out = Fdeque.empty
+                ; s_alphas_in = Fdeque.empty
+                ; s_alphas_out = Fdeque.empty
+                ; v_alphas_in = Fdeque.empty
+                ; v_alphas_out = Fdeque.empty }
 
   let moaux_to_string { ts_zero
                       ; tstps_in
@@ -230,74 +230,82 @@ module Once = struct
                       ; v_alphas_in
                       ; v_alphas_out } =
     ("\n\nOnce state: " ^ (print_tstps ts_zero tstps_in tstps_out) ^
-       Deque.fold s_alphas_in ~init:"\ns_alphas_in = "
+       Fdeque.fold s_alphas_in ~init:"\ns_alphas_in = "
          ~f:(fun acc (ts, p) ->
            acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^
-         Deque.fold s_alphas_out ~init:"\ns_alphas_out = "
+         Fdeque.fold s_alphas_out ~init:"\ns_alphas_out = "
            ~f:(fun acc (ts, p) ->
              acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^
-           Deque.fold v_alphas_in ~init:"\nv_alphas_in = "
+           Fdeque.fold v_alphas_in ~init:"\nv_alphas_in = "
              ~f:(fun acc (ts, p) ->
                acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.v_to_string "" p) ^
-             Deque.fold v_alphas_out ~init:"\nv_alphas_out = "
+             Fdeque.fold v_alphas_out ~init:"\nv_alphas_out = "
                ~f:(fun acc (ts, p) ->
                  acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.v_to_string "" p))
 
   let update_s_alphas_in new_in_sat s_alphas_in =
-    if not (Deque.is_empty new_in_sat) then
+    if not (Fdeque.is_empty new_in_sat) then
       sorted_append new_in_sat s_alphas_in
+    else s_alphas_in
 
   let update_v_alphas_in new_in_vio v_alphas_in =
-    Deque.iter new_in_vio ~f:(fun (ts, vp) ->
-        Deque.enqueue_back v_alphas_in (ts, vp))
+    Fdeque.fold new_in_vio ~init:v_alphas_in ~f:(fun v_alphas_in' (ts, vp) ->
+        Fdeque.enqueue_back v_alphas_in' (ts, vp))
 
-  let add_subps ts p1 s_alphas_out v_alphas_out = match p1 with
-    | Proof.S sp1 -> Deque.enqueue_back s_alphas_out (ts, (Proof.S sp1))
-    | V vp1 -> Deque.enqueue_back v_alphas_out (ts, vp1)
+  let add_subps ts p1 moaux = match p1 with
+    | Proof.S sp1 -> { moaux with s_alphas_out = Fdeque.enqueue_back moaux.s_alphas_out (ts, (Proof.S sp1)) }
+    | V vp1 -> { moaux with v_alphas_out = Fdeque.enqueue_back moaux.v_alphas_out (ts, vp1) }
 
   let remove (l, r) moaux =
-    remove_cond_front (fun (ts, _) -> ts < l) moaux.s_alphas_in;
-    remove_cond_front (fun (ts, _) -> ts <= r) moaux.s_alphas_out;
-    remove_cond_front (fun (ts, _) -> ts < l) moaux.v_alphas_in;
-    remove_cond_front (fun (ts, _) -> ts <= r) moaux.v_alphas_out
+    { moaux with s_alphas_in = remove_cond_front (fun (ts, _) -> ts < l) moaux.s_alphas_in
+               ; s_alphas_out = remove_cond_front (fun (ts, _) -> ts <= r) moaux.s_alphas_out
+               ; v_alphas_in = remove_cond_front (fun (ts, _) -> ts < l) moaux.v_alphas_in
+               ; v_alphas_out = remove_cond_front (fun (ts, _) -> ts <= r) moaux.v_alphas_out }
 
   let shift_sat (l, r) s_alphas_out s_alphas_in =
-    let new_in_sat = split_in_out (fun (ts, _) -> ts) (l, r) s_alphas_out in
-    update_s_alphas_in new_in_sat s_alphas_in
+    let (s_alphas_out', new_in_sat) = split_in_out (fun (ts, _) -> ts) (l, r) s_alphas_out in
+    (s_alphas_out', update_s_alphas_in new_in_sat s_alphas_in)
 
   let shift_vio (l, r) v_alphas_out v_alphas_in =
-    let new_in_vio = split_in_out (fun (ts, _) -> ts) (l, r) v_alphas_out in
-    update_v_alphas_in new_in_vio v_alphas_in
+    let (v_alphas_out', new_in_vio) = split_in_out (fun (ts, _) -> ts) (l, r) v_alphas_out in
+    Stdio.printf "|v_alphas_out| = %d\n" (Fdeque.length v_alphas_out);
+    Stdio.printf "|new_in_vio| = %d\n" (Fdeque.length new_in_vio);
+    (v_alphas_out', update_v_alphas_in new_in_vio v_alphas_in)
 
   let shift (l, r) a ts tp moaux =
-    shift_tstps_past (l, r) a ts tp moaux.tstps_in moaux.tstps_out;
-    shift_sat (l,r) moaux.s_alphas_out moaux.s_alphas_in;
-    shift_vio (l,r) moaux.v_alphas_out moaux.v_alphas_in;
-    remove (l, r) moaux
+    let (tstps_in, tstps_out) = shift_tstps_past (l, r) a ts tp moaux.tstps_in moaux.tstps_out in
+    let (s_alphas_out, s_alphas_in) = shift_sat (l,r) moaux.s_alphas_out moaux.s_alphas_in in
+    let (v_alphas_out, v_alphas_in) = shift_vio (l,r) moaux.v_alphas_out moaux.v_alphas_in in
+    remove (l, r) { moaux with tstps_in
+                             ; tstps_out
+                             ; s_alphas_out
+                             ; s_alphas_in
+                             ; v_alphas_out
+                             ; v_alphas_in }
 
   let eval tp moaux =
-    if not (Deque.is_empty moaux.s_alphas_in) then
-      [Proof.S (SOnce (tp, Proof.unS(snd(Deque.peek_front_exn moaux.s_alphas_in))))]
+    if not (Fdeque.is_empty moaux.s_alphas_in) then
+      [Proof.S (SOnce (tp, Proof.unS(snd(Fdeque.peek_front_exn moaux.s_alphas_in))))]
     else
-      let etp = match Deque.is_empty moaux.v_alphas_in with
+      let etp = match Fdeque.is_empty moaux.v_alphas_in with
         | true -> etp moaux.tstps_in moaux.tstps_out tp
-        | false -> Proof.v_at (snd(Deque.peek_front_exn moaux.v_alphas_in)) in
-      [Proof.V (VOnce (tp, etp, snd_deque moaux.v_alphas_in))]
+        | false -> Proof.v_at (snd(Fdeque.peek_front_exn moaux.v_alphas_in)) in
+      [Proof.V (VOnce (tp, etp, Fdeque.map moaux.v_alphas_in ~f:snd))]
 
   let update i ts tp p1 moaux =
     let a = Interval.left i in
     (if Option.is_none moaux.ts_zero then moaux.ts_zero <- Some(ts));
-    add_subps ts p1 moaux.s_alphas_out moaux.v_alphas_out;
-    if ts < (Option.value_exn moaux.ts_zero) + a then
-      (Deque.enqueue_back moaux.tstps_out (ts, tp);
-       (moaux, [Proof.V (VOnceOut tp)]))
+    let moaux_subps = add_subps ts p1 moaux in
+    if ts < (Option.value_exn moaux_subps.ts_zero) + a then
+      ({ moaux_subps with tstps_out = Fdeque.enqueue_back moaux_subps.tstps_out (ts, tp) },
+       [Proof.V (VOnceOut tp)])
     else
       let b = Interval.right i in
       let l = if (Option.is_some b) then max 0 (ts - (Option.value_exn b))
-              else (Option.value_exn moaux.ts_zero) in
+              else (Option.value_exn moaux_subps.ts_zero) in
       let r = ts - a in
-      shift (l, r) a ts tp moaux;
-      (moaux, eval tp moaux)
+      let moaux_shift = shift (l, r) a ts tp moaux_subps in
+      (moaux_shift, eval tp moaux_shift)
 
 end
 
@@ -316,81 +324,81 @@ module Eventually = struct
                 ; v_alphas_in = Deque.create ()
                 ; optimal_proofs = Deque.create () }
 
-  let to_string { tstps_out
-                ; tstps_in
-                ; s_alphas_in
-                ; v_alphas_in
-                ; optimal_proofs } =
-    ("\n\nEventually state: " ^ (print_tstps None tstps_in tstps_out) ^
-       Deque.fold s_alphas_in ~init:"\ns_alphas_in = "
-         ~f:(fun acc (ts, p) ->
-           acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^
-         Deque.fold v_alphas_in ~init:"\nv_alphas_in = "
-           ~f:(fun acc (ts, p) ->
-             acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.v_to_string "" p) ^
-           Deque.fold optimal_proofs ~init:"\noptimal_proofs = "
-             ~f:(fun acc (ts, p) ->
-               acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p))
+  (* let to_string { tstps_out *)
+  (*               ; tstps_in *)
+  (*               ; s_alphas_in *)
+  (*               ; v_alphas_in *)
+  (*               ; optimal_proofs } = *)
+  (*   ("\n\nEventually state: " ^ (print_tstps None tstps_in tstps_out) ^ *)
+  (*      Deque.fold s_alphas_in ~init:"\ns_alphas_in = " *)
+  (*        ~f:(fun acc (ts, p) -> *)
+  (*          acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^ *)
+  (*        Deque.fold v_alphas_in ~init:"\nv_alphas_in = " *)
+  (*          ~f:(fun acc (ts, p) -> *)
+  (*            acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.v_to_string "" p) ^ *)
+  (*          Deque.fold optimal_proofs ~init:"\noptimal_proofs = " *)
+  (*            ~f:(fun acc (ts, p) -> *)
+  (*              acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p)) *)
 
-  let adjust a (nts, ntp) meaux =
-    drop_first_ts_tp meaux.tstps_out meaux.tstps_in;
-    let (first_ts, first_tp) = match first_ts_tp meaux.tstps_out meaux.tstps_in with
-      | None -> (nts, ntp)
-      | Some(ts', tp') -> (ts', tp') in
-    remove_cond_front (fun (ts', p) -> ts' < first_ts + a || (Proof.p_at p < first_tp)) meaux.s_alphas_in;
-    remove_cond_front (fun (ts', vp) -> ts' < first_ts + a || (Proof.v_at vp < first_tp)) meaux.v_alphas_in;
-    shift_tstps_future a first_ts ntp meaux.tstps_out meaux.tstps_in
+  (* let adjust a (nts, ntp) meaux = *)
+  (*   drop_first_ts_tp meaux.tstps_out meaux.tstps_in; *)
+  (*   let (first_ts, first_tp) = match first_ts_tp meaux.tstps_out meaux.tstps_in with *)
+  (*     | None -> (nts, ntp) *)
+  (*     | Some(ts', tp') -> (ts', tp') in *)
+  (*   remove_cond_front (fun (ts', p) -> ts' < first_ts + a || (Proof.p_at p < first_tp)) meaux.s_alphas_in; *)
+  (*   remove_cond_front (fun (ts', vp) -> ts' < first_ts + a || (Proof.v_at vp < first_tp)) meaux.v_alphas_in; *)
+  (*   shift_tstps_future a first_ts ntp meaux.tstps_out meaux.tstps_in *)
 
-  let eval_step a (nts, ntp) ts tp meaux =
-    (if not (Deque.is_empty meaux.s_alphas_in) then
-       (match Deque.peek_front_exn meaux.s_alphas_in with
-        | (_, S sp) -> Deque.enqueue_back meaux.optimal_proofs
-                         (ts, S (SEventually (tp, Proof.unS(snd(Deque.peek_front_exn meaux.s_alphas_in)))))
-        | _ -> raise (Invalid_argument "found V proof in S deque"))
-     else
-       (let ltp = match Deque.peek_back meaux.v_alphas_in with
-          | None -> snd(Deque.peek_back_exn meaux.tstps_out)
-          | Some (_, vp2) -> Proof.v_at vp2 in
-        Deque.enqueue_back meaux.optimal_proofs (ts, V (VEventually (tp, ltp, snd_deque meaux.v_alphas_in)))));
-    adjust a (nts, ntp) meaux
+  (* let eval_step a (nts, ntp) ts tp meaux = *)
+  (*   (if not (Deque.is_empty meaux.s_alphas_in) then *)
+  (*      (match Deque.peek_front_exn meaux.s_alphas_in with *)
+  (*       | (_, S sp) -> Deque.enqueue_back meaux.optimal_proofs *)
+  (*                        (ts, S (SEventually (tp, Proof.unS(snd(Deque.peek_front_exn meaux.s_alphas_in))))) *)
+  (*       | _ -> raise (Invalid_argument "found V proof in S deque")) *)
+  (*    else *)
+  (*      (let ltp = match Deque.peek_back meaux.v_alphas_in with *)
+  (*         | None -> snd(Deque.peek_back_exn meaux.tstps_out) *)
+  (*         | Some (_, vp2) -> Proof.v_at vp2 in *)
+  (*       Deque.enqueue_back meaux.optimal_proofs (ts, V (VEventually (tp, ltp, snd_deque meaux.v_alphas_in))))); *)
+  (*   adjust a (nts, ntp) meaux *)
 
-  let shift (a, b) (nts, ntp) meaux =
-    let tstps = ready_tstps b nts meaux.tstps_out meaux.tstps_in in
-    Deque.iter tstps ~f:(fun (ts, tp) -> eval_step a (nts, ntp) ts tp meaux)
+  (* let shift (a, b) (nts, ntp) meaux = *)
+  (*   let tstps = ready_tstps b nts meaux.tstps_out meaux.tstps_in in *)
+  (*   Deque.iter tstps ~f:(fun (ts, tp) -> eval_step a (nts, ntp) ts tp meaux) *)
 
-  let add_subp a (ts, tp) (p1: Proof.t) meaux =
-    let first_ts = match first_ts_tp meaux.tstps_out meaux.tstps_in with
-      | None -> 0
-      | Some(ts', _) -> ts' in
-    match p1 with
-    | S sp1 -> if ts >= first_ts + a then
-                 sorted_enqueue (ts, (S sp1)) meaux.s_alphas_in
-    | V vp1 -> if ts >= first_ts + a then
-                 Deque.enqueue_back meaux.v_alphas_in (ts, vp1)
+  (* let add_subp a (ts, tp) (p1: Proof.t) meaux = *)
+  (*   let first_ts = match first_ts_tp meaux.tstps_out meaux.tstps_in with *)
+  (*     | None -> 0 *)
+  (*     | Some(ts', _) -> ts' in *)
+  (*   match p1 with *)
+  (*   | S sp1 -> if ts >= first_ts + a then *)
+  (*                sorted_enqueue (ts, (S sp1)) meaux.s_alphas_in *)
+  (*   | V vp1 -> if ts >= first_ts + a then *)
+  (*                Deque.enqueue_back meaux.v_alphas_in (ts, vp1) *)
 
-  let update i nts ntp p meaux =
-    let a = Interval.left i in
-    let b = match Interval.right i with
-      | None -> raise (Invalid_argument "Eventually interval is unbounded")
-      | Some(b') -> b' in
-    shift (a, b) (nts, ntp) meaux;
-    add_tstp_future a b nts ntp meaux.tstps_out meaux.tstps_in;
-    add_subp a (nts, ntp) p meaux;
-    meaux
+  (* let update i nts ntp p meaux = *)
+  (*   let a = Interval.left i in *)
+  (*   let b = match Interval.right i with *)
+  (*     | None -> raise (Invalid_argument "Eventually interval is unbounded") *)
+  (*     | Some(b') -> b' in *)
+  (*   shift (a, b) (nts, ntp) meaux; *)
+  (*   add_tstp_future a b nts ntp meaux.tstps_out meaux.tstps_in; *)
+  (*   add_subp a (nts, ntp) p meaux; *)
+  (*   meaux *)
 
-  let rec eval i nts ntp (meaux, ops) =
-    let a = Interval.left i in
-    let b = match Interval.right i with
-      | None -> raise (Invalid_argument "Eventually interval is unbounded")
-      | Some(b') -> b' in
-    shift (a, b) (nts, ntp) meaux;
-    match Deque.peek_back meaux.optimal_proofs with
-    | None -> (meaux, ops)
-    | Some(ts, _) -> if ts + b < nts then
-                       let (ts', op) = Deque.dequeue_back_exn meaux.optimal_proofs in
-                       let (meaux', ops') = eval i nts ntp (meaux, ops) in
-                       (meaux', ops' @ [op])
-                     else (meaux, ops)
+  (* let rec eval i nts ntp (meaux, ops) = *)
+  (*   let a = Interval.left i in *)
+  (*   let b = match Interval.right i with *)
+  (*     | None -> raise (Invalid_argument "Eventually interval is unbounded") *)
+  (*     | Some(b') -> b' in *)
+  (*   shift (a, b) (nts, ntp) meaux; *)
+  (*   match Deque.peek_back meaux.optimal_proofs with *)
+  (*   | None -> (meaux, ops) *)
+  (*   | Some(ts, _) -> if ts + b < nts then *)
+  (*                      let (ts', op) = Deque.dequeue_back_exn meaux.optimal_proofs in *)
+  (*                      let (meaux', ops') = eval i nts ntp (meaux, ops) in *)
+  (*                      (meaux', ops' @ [op]) *)
+  (*                    else (meaux, ops) *)
 
 end
 
@@ -413,82 +421,82 @@ module Historically = struct
                 ; v_alphas_in = Deque.create ()
                 ; v_alphas_out = Deque.create () }
 
-  let to_string { ts_zero
-                ; tstps_in
-                ; tstps_out
-                ; s_alphas_in
-                ; s_alphas_out
-                ; v_alphas_in
-                ; v_alphas_out } =
-    ("\n\nHistorically state: " ^ (print_tstps ts_zero tstps_in tstps_out) ^
-       Deque.fold s_alphas_in ~init:"\ns_alphas_in = "
-         ~f:(fun acc (ts, sp) ->
-           acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.s_to_string "" sp) ^
-         Deque.fold s_alphas_out ~init:"\ns_alphas_out = "
-           ~f:(fun acc (ts, sp) ->
-             acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.s_to_string "" sp) ^
-           Deque.fold v_alphas_in ~init:"\nv_alphas_in = "
-             ~f:(fun acc (ts, p) ->
-               acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^
-             Deque.fold v_alphas_in ~init:"\nv_alphas_out = "
-               ~f:(fun acc (ts, p) ->
-                 acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p))
+  (* let to_string { ts_zero *)
+  (*               ; tstps_in *)
+  (*               ; tstps_out *)
+  (*               ; s_alphas_in *)
+  (*               ; s_alphas_out *)
+  (*               ; v_alphas_in *)
+  (*               ; v_alphas_out } = *)
+  (*   ("\n\nHistorically state: " ^ (print_tstps ts_zero tstps_in tstps_out) ^ *)
+  (*      Deque.fold s_alphas_in ~init:"\ns_alphas_in = " *)
+  (*        ~f:(fun acc (ts, sp) -> *)
+  (*          acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.s_to_string "" sp) ^ *)
+  (*        Deque.fold s_alphas_out ~init:"\ns_alphas_out = " *)
+  (*          ~f:(fun acc (ts, sp) -> *)
+  (*            acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.s_to_string "" sp) ^ *)
+  (*          Deque.fold v_alphas_in ~init:"\nv_alphas_in = " *)
+  (*            ~f:(fun acc (ts, p) -> *)
+  (*              acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^ *)
+  (*            Deque.fold v_alphas_in ~init:"\nv_alphas_out = " *)
+  (*              ~f:(fun acc (ts, p) -> *)
+  (*                acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p)) *)
 
-  let update_s_alphas_in new_in_sat s_alphas_in =
-    Deque.iter new_in_sat (fun (ts, sp) ->
-        Deque.enqueue_back s_alphas_in (ts, sp))
+  (* let update_s_alphas_in new_in_sat s_alphas_in = *)
+  (*   Deque.iter new_in_sat (fun (ts, sp) -> *)
+  (*       Deque.enqueue_back s_alphas_in (ts, sp)) *)
 
-  let update_v_alphas_in new_in_vio v_alphas_in =
-    if not (Deque.is_empty new_in_vio) then
-      sorted_append new_in_vio v_alphas_in
+  (* let update_v_alphas_in new_in_vio v_alphas_in = *)
+  (*   if not (Deque.is_empty new_in_vio) then *)
+  (*     sorted_append new_in_vio v_alphas_in *)
 
-  let add_subps ts (p1: Proof.t) mhaux = match p1 with
-    | S sp1 -> Deque.enqueue_back mhaux.s_alphas_out (ts, sp1)
-    | V vp1 -> Deque.enqueue_back mhaux.v_alphas_out (ts, (V vp1))
+  (* let add_subps ts (p1: Proof.t) mhaux = match p1 with *)
+  (*   | S sp1 -> Deque.enqueue_back mhaux.s_alphas_out (ts, sp1) *)
+  (*   | V vp1 -> Deque.enqueue_back mhaux.v_alphas_out (ts, (V vp1)) *)
 
-  let shift_sat (l, r) s_alphas_out s_alphas_in =
-    let new_in_sat = split_in_out (fun (ts, _) -> ts) (l, r) s_alphas_out in
-    update_s_alphas_in new_in_sat s_alphas_in
+  (* let shift_sat (l, r) s_alphas_out s_alphas_in = *)
+  (*   let new_in_sat = split_in_out (fun (ts, _) -> ts) (l, r) s_alphas_out in *)
+  (*   update_s_alphas_in new_in_sat s_alphas_in *)
 
-  let shift_vio (l, r) v_alphas_out v_alphas_in =
-    let new_in_viol = split_in_out (fun (ts, _) -> ts) (l, r) v_alphas_out in
-    update_v_alphas_in new_in_viol v_alphas_in
+  (* let shift_vio (l, r) v_alphas_out v_alphas_in = *)
+  (*   let new_in_viol = split_in_out (fun (ts, _) -> ts) (l, r) v_alphas_out in *)
+  (*   update_v_alphas_in new_in_viol v_alphas_in *)
 
-  let clean (l, r) mhaux =
-    remove_cond_front (fun (ts, _) -> ts < l) mhaux.s_alphas_in;
-    remove_cond_front (fun (ts, _) -> ts <= r) mhaux.s_alphas_out;
-    remove_cond_front (fun (ts, _) -> ts < l) mhaux.v_alphas_in;
-    remove_cond_front (fun (ts, _) -> ts <= r) mhaux.v_alphas_out
+  (* let clean (l, r) mhaux = *)
+  (*   remove_cond_front (fun (ts, _) -> ts < l) mhaux.s_alphas_in; *)
+  (*   remove_cond_front (fun (ts, _) -> ts <= r) mhaux.s_alphas_out; *)
+  (*   remove_cond_front (fun (ts, _) -> ts < l) mhaux.v_alphas_in; *)
+  (*   remove_cond_front (fun (ts, _) -> ts <= r) mhaux.v_alphas_out *)
 
-  let shift (l, r) a ts tp mhaux =
-    shift_tstps_past (l, r) a ts tp mhaux.tstps_in mhaux.tstps_out;
-    shift_sat (l,r) mhaux.s_alphas_out mhaux.s_alphas_in;
-    shift_vio (l,r) mhaux.v_alphas_out mhaux.v_alphas_in;
-    clean (l, r) mhaux
+  (* let shift (l, r) a ts tp mhaux = *)
+  (*   shift_tstps_past (l, r) a ts tp mhaux.tstps_in mhaux.tstps_out; *)
+  (*   shift_sat (l,r) mhaux.s_alphas_out mhaux.s_alphas_in; *)
+  (*   shift_vio (l,r) mhaux.v_alphas_out mhaux.v_alphas_in; *)
+  (*   clean (l, r) mhaux *)
 
-  let eval tp mhaux =
-    if not (Deque.is_empty mhaux.v_alphas_in) then
-      Proof.V (VHistorically (tp, Proof.unV(snd(Deque.peek_front_exn mhaux.v_alphas_in))))
-    else
-      let etp = match Deque.is_empty mhaux.s_alphas_in with
-        | true -> etp mhaux.tstps_in mhaux.tstps_out tp
-        | false -> Proof.s_at (snd(Deque.peek_front_exn mhaux.s_alphas_in)) in
-      S (SHistorically (tp, etp, snd_deque mhaux.s_alphas_in))
+  (* let eval tp mhaux = *)
+  (*   if not (Deque.is_empty mhaux.v_alphas_in) then *)
+  (*     Proof.V (VHistorically (tp, Proof.unV(snd(Deque.peek_front_exn mhaux.v_alphas_in)))) *)
+  (*   else *)
+  (*     let etp = match Deque.is_empty mhaux.s_alphas_in with *)
+  (*       | true -> etp mhaux.tstps_in mhaux.tstps_out tp *)
+  (*       | false -> Proof.s_at (snd(Deque.peek_front_exn mhaux.s_alphas_in)) in *)
+  (*     S (SHistorically (tp, etp, snd_deque mhaux.s_alphas_in)) *)
 
-  let update i ts tp p1 mhaux =
-    let a = Interval.left i in
-    (if Option.is_none mhaux.ts_zero then mhaux.ts_zero <- Some(ts));
-    add_subps ts p1 mhaux;
-    if ts < (Option.value_exn mhaux.ts_zero) + a then
-      (Deque.enqueue_back mhaux.tstps_out (ts, tp);
-       (Proof.S (SHistoricallyOut tp), mhaux))
-    else
-      let b = Interval.right i in
-      let l = if (Option.is_some b) then max 0 (ts - (Option.value_exn b))
-              else (Option.value_exn mhaux.ts_zero) in
-      let r = ts - a in
-      shift (l, r) a ts tp mhaux;
-      (eval tp mhaux, mhaux)
+  (* let update i ts tp p1 mhaux = *)
+  (*   let a = Interval.left i in *)
+  (*   (if Option.is_none mhaux.ts_zero then mhaux.ts_zero <- Some(ts)); *)
+  (*   add_subps ts p1 mhaux; *)
+  (*   if ts < (Option.value_exn mhaux.ts_zero) + a then *)
+  (*     (Deque.enqueue_back mhaux.tstps_out (ts, tp); *)
+  (*      (Proof.S (SHistoricallyOut tp), mhaux)) *)
+  (*   else *)
+  (*     let b = Interval.right i in *)
+  (*     let l = if (Option.is_some b) then max 0 (ts - (Option.value_exn b)) *)
+  (*             else (Option.value_exn mhaux.ts_zero) in *)
+  (*     let r = ts - a in *)
+  (*     shift (l, r) a ts tp mhaux; *)
+  (*     (eval tp mhaux, mhaux) *)
 
 end
 
@@ -506,81 +514,81 @@ module Always = struct
                 ; s_alphas_in = Deque.create ()
                 ; optimal_proofs = Deque.create () }
 
-  let to_string { tstps_out
-                ; tstps_in
-                ; v_alphas_in
-                ; s_alphas_in
-                ; optimal_proofs } =
-    ("\n\nAlways state: " ^ (print_tstps None tstps_in tstps_out) ^
-       Deque.fold v_alphas_in ~init:"\nv_alphas_in = "
-         ~f:(fun acc (ts, p) ->
-           acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^
-         Deque.fold s_alphas_in ~init:"\ns_alphas_in = "
-           ~f:(fun acc (ts, sp) ->
-             acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.s_to_string "" sp) ^
-           Deque.fold optimal_proofs ~init:"\noptimal_proofs = "
-             ~f:(fun acc (ts, p) ->
-               acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p))
+  (* let to_string { tstps_out *)
+  (*               ; tstps_in *)
+  (*               ; v_alphas_in *)
+  (*               ; s_alphas_in *)
+  (*               ; optimal_proofs } = *)
+  (*   ("\n\nAlways state: " ^ (print_tstps None tstps_in tstps_out) ^ *)
+  (*      Deque.fold v_alphas_in ~init:"\nv_alphas_in = " *)
+  (*        ~f:(fun acc (ts, p) -> *)
+  (*          acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^ *)
+  (*        Deque.fold s_alphas_in ~init:"\ns_alphas_in = " *)
+  (*          ~f:(fun acc (ts, sp) -> *)
+  (*            acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.s_to_string "" sp) ^ *)
+  (*          Deque.fold optimal_proofs ~init:"\noptimal_proofs = " *)
+  (*            ~f:(fun acc (ts, p) -> *)
+  (*              acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p)) *)
 
-  let adjust a (nts, ntp) maaux =
-    drop_first_ts_tp maaux.tstps_out maaux.tstps_in;
-    let (first_ts, first_tp) = match first_ts_tp maaux.tstps_out maaux.tstps_in with
-      | None -> (nts, ntp)
-      | Some(ts', tp') -> (ts', tp') in
-    remove_cond_front (fun (ts', p) -> ts' < first_ts + a || (Proof.p_at p < first_tp)) maaux.v_alphas_in;
-    remove_cond_front (fun (ts', sp) -> ts' < first_ts + a || (Proof.s_at sp < first_tp)) maaux.s_alphas_in;
-    shift_tstps_future a first_ts ntp maaux.tstps_out maaux.tstps_in
+  (* let adjust a (nts, ntp) maaux = *)
+  (*   drop_first_ts_tp maaux.tstps_out maaux.tstps_in; *)
+  (*   let (first_ts, first_tp) = match first_ts_tp maaux.tstps_out maaux.tstps_in with *)
+  (*     | None -> (nts, ntp) *)
+  (*     | Some(ts', tp') -> (ts', tp') in *)
+  (*   remove_cond_front (fun (ts', p) -> ts' < first_ts + a || (Proof.p_at p < first_tp)) maaux.v_alphas_in; *)
+  (*   remove_cond_front (fun (ts', sp) -> ts' < first_ts + a || (Proof.s_at sp < first_tp)) maaux.s_alphas_in; *)
+  (*   shift_tstps_future a first_ts ntp maaux.tstps_out maaux.tstps_in *)
 
-  let eval_step a (nts, ntp) ts tp maaux =
-    (if not (Deque.is_empty maaux.v_alphas_in) then
-       (match Deque.peek_front_exn maaux.v_alphas_in with
-        | (_, V vp) -> Deque.enqueue_back maaux.optimal_proofs
-                         (ts, V (VAlways (tp, Proof.unV(snd(Deque.peek_front_exn maaux.v_alphas_in)))))
-        | _ -> raise (Invalid_argument "found S proof in V deque"))
-     else
-       (let ltp = match Deque.peek_back maaux.s_alphas_in with
-          | None -> snd(Deque.peek_back_exn maaux.tstps_out)
-          | Some (_, sp) -> Proof.s_at sp in
-        Deque.enqueue_back maaux.optimal_proofs (ts, S (SAlways (tp, ltp, snd_deque maaux.s_alphas_in)))));
-    adjust a (nts, ntp) maaux
+  (* let eval_step a (nts, ntp) ts tp maaux = *)
+  (*   (if not (Deque.is_empty maaux.v_alphas_in) then *)
+  (*      (match Deque.peek_front_exn maaux.v_alphas_in with *)
+  (*       | (_, V vp) -> Deque.enqueue_back maaux.optimal_proofs *)
+  (*                        (ts, V (VAlways (tp, Proof.unV(snd(Deque.peek_front_exn maaux.v_alphas_in))))) *)
+  (*       | _ -> raise (Invalid_argument "found S proof in V deque")) *)
+  (*    else *)
+  (*      (let ltp = match Deque.peek_back maaux.s_alphas_in with *)
+  (*         | None -> snd(Deque.peek_back_exn maaux.tstps_out) *)
+  (*         | Some (_, sp) -> Proof.s_at sp in *)
+  (*       Deque.enqueue_back maaux.optimal_proofs (ts, S (SAlways (tp, ltp, snd_deque maaux.s_alphas_in))))); *)
+  (*   adjust a (nts, ntp) maaux *)
 
-  let shift (a, b) (nts, ntp) maaux =
-    let tstps = ready_tstps b nts maaux.tstps_out maaux.tstps_in in
-    Deque.iter tstps ~f:(fun (ts, tp) -> eval_step a (nts, ntp) ts tp maaux)
+  (* let shift (a, b) (nts, ntp) maaux = *)
+  (*   let tstps = ready_tstps b nts maaux.tstps_out maaux.tstps_in in *)
+  (*   Deque.iter tstps ~f:(fun (ts, tp) -> eval_step a (nts, ntp) ts tp maaux) *)
 
-  let add_subps a (ts, tp) (p1: Proof.t) maaux =
-    let first_ts = match first_ts_tp maaux.tstps_out maaux.tstps_in with
-      | None -> 0
-      | Some(ts', _) -> ts' in
-    match p1 with
-    | V vp1 -> if ts >= first_ts + a then
-                 sorted_enqueue (ts, (V vp1)) maaux.v_alphas_in
-    | S sp1 -> if ts >= (first_ts + a) then
-                 Deque.enqueue_back maaux.s_alphas_in (ts, sp1)
+  (* let add_subps a (ts, tp) (p1: Proof.t) maaux = *)
+  (*   let first_ts = match first_ts_tp maaux.tstps_out maaux.tstps_in with *)
+  (*     | None -> 0 *)
+  (*     | Some(ts', _) -> ts' in *)
+  (*   match p1 with *)
+  (*   | V vp1 -> if ts >= first_ts + a then *)
+  (*                sorted_enqueue (ts, (V vp1)) maaux.v_alphas_in *)
+  (*   | S sp1 -> if ts >= (first_ts + a) then *)
+  (*                Deque.enqueue_back maaux.s_alphas_in (ts, sp1) *)
 
-  let update i nts ntp p maaux =
-    let a = Interval.left i in
-    let b = match Interval.right i with
-      | None -> raise (Invalid_argument "Always interval is unbounded")
-      | Some(b') -> b' in
-    shift (a, b) (nts, ntp) maaux;
-    add_tstp_future a b nts ntp maaux.tstps_out maaux.tstps_in;
-    add_subps a (nts, ntp) p maaux
+  (* let update i nts ntp p maaux = *)
+  (*   let a = Interval.left i in *)
+  (*   let b = match Interval.right i with *)
+  (*     | None -> raise (Invalid_argument "Always interval is unbounded") *)
+  (*     | Some(b') -> b' in *)
+  (*   shift (a, b) (nts, ntp) maaux; *)
+  (*   add_tstp_future a b nts ntp maaux.tstps_out maaux.tstps_in; *)
+  (*   add_subps a (nts, ntp) p maaux *)
 
-  let rec eval d i nts ntp maaux =
-    let a = Interval.left i in
-    let b = match Interval.right i with
-      | None -> raise (Invalid_argument "Always interval is unbounded")
-      | Some(b') -> b' in
-    shift (a, b) (nts, ntp) maaux;
-    match Deque.peek_back maaux.optimal_proofs with
-    | None -> (nts, d, maaux)
-    | Some(ts, _) -> if ts + b < nts then
-                       let (ts', op) = Deque.dequeue_back_exn maaux.optimal_proofs in
-                       let (_, ops, maaux) = eval d i nts ntp maaux in
-                       Deque.enqueue_back ops op;
-                       (ts', ops, maaux)
-                     else (ts, d, maaux)
+  (* let rec eval d i nts ntp maaux = *)
+  (*   let a = Interval.left i in *)
+  (*   let b = match Interval.right i with *)
+  (*     | None -> raise (Invalid_argument "Always interval is unbounded") *)
+  (*     | Some(b') -> b' in *)
+  (*   shift (a, b) (nts, ntp) maaux; *)
+  (*   match Deque.peek_back maaux.optimal_proofs with *)
+  (*   | None -> (nts, d, maaux) *)
+  (*   | Some(ts, _) -> if ts + b < nts then *)
+  (*                      let (ts', op) = Deque.dequeue_back_exn maaux.optimal_proofs in *)
+  (*                      let (_, ops, maaux) = eval d i nts ntp maaux in *)
+  (*                      Deque.enqueue_back ops op; *)
+  (*                      (ts', ops, maaux) *)
+  (*                    else (ts, d, maaux) *)
 
 end
 
@@ -606,182 +614,182 @@ module Since = struct
                 ; v_betas_in = Deque.create ()
                 ; v_alphas_betas_out = Deque.create () }
 
-  let to_string { ts_zero
-                ; tstps_in
-                ; tstps_out
-                ; s_beta_alphas_in
-                ; s_beta_alphas_out
-                ; v_alpha_betas_in
-                ; v_alphas_out
-                ; v_betas_in
-                ; v_alphas_betas_out } =
-    ("\n\nSince state: " ^ (print_tstps ts_zero tstps_in tstps_out) ^
-       Deque.fold s_beta_alphas_in ~init:"\ns_beta_alphas_in = "
-         ~f:(fun acc (ts, p) ->
-           acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^
-         Deque.fold s_beta_alphas_out ~init:"\ns_beta_alphas_out = "
-           ~f:(fun acc (ts, p) ->
-             acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^
-           Deque.fold v_alpha_betas_in ~init:"\nv_alpha_betas_in = "
-             ~f:(fun acc (ts, p) ->
-               acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^
-             Deque.fold v_alphas_out ~init:"\nv_alphas_out = "
-               ~f:(fun acc (ts, p) ->
-                 acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^
-               Deque.fold v_betas_in ~init:"\nv_betas_in = "
-                 ~f:(fun acc (ts, p) ->
-                   acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.v_to_string "" p) ^
-                 Deque.fold v_alphas_betas_out ~init:"\nv_alphas_betas_out = "
-                   ~f:(fun acc (ts, p1_opt, p2_opt) ->
-                     match p1_opt, p2_opt with
-                     | None, None -> acc
-                     | Some(p1), None -> acc ^ (Printf.sprintf "\n(%d)\nalpha = " ts) ^ Proof.v_to_string "" p1
-                     | None, Some(p2) -> acc ^ (Printf.sprintf "\n(%d)\nbeta = " ts) ^ Proof.v_to_string "" p2
-                     | Some(p1), Some(p2) -> acc ^ (Printf.sprintf "\n(%d)\nalpha = " ts) ^ Proof.v_to_string "" p1 ^
-                                               (Printf.sprintf "\n(%d)\nbeta = " ts) ^ Proof.v_to_string "" p2))
+  (* let to_string { ts_zero *)
+  (*               ; tstps_in *)
+  (*               ; tstps_out *)
+  (*               ; s_beta_alphas_in *)
+  (*               ; s_beta_alphas_out *)
+  (*               ; v_alpha_betas_in *)
+  (*               ; v_alphas_out *)
+  (*               ; v_betas_in *)
+  (*               ; v_alphas_betas_out } = *)
+  (*   ("\n\nSince state: " ^ (print_tstps ts_zero tstps_in tstps_out) ^ *)
+  (*      Deque.fold s_beta_alphas_in ~init:"\ns_beta_alphas_in = " *)
+  (*        ~f:(fun acc (ts, p) -> *)
+  (*          acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^ *)
+  (*        Deque.fold s_beta_alphas_out ~init:"\ns_beta_alphas_out = " *)
+  (*          ~f:(fun acc (ts, p) -> *)
+  (*            acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^ *)
+  (*          Deque.fold v_alpha_betas_in ~init:"\nv_alpha_betas_in = " *)
+  (*            ~f:(fun acc (ts, p) -> *)
+  (*              acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^ *)
+  (*            Deque.fold v_alphas_out ~init:"\nv_alphas_out = " *)
+  (*              ~f:(fun acc (ts, p) -> *)
+  (*                acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^ *)
+  (*              Deque.fold v_betas_in ~init:"\nv_betas_in = " *)
+  (*                ~f:(fun acc (ts, p) -> *)
+  (*                  acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.v_to_string "" p) ^ *)
+  (*                Deque.fold v_alphas_betas_out ~init:"\nv_alphas_betas_out = " *)
+  (*                  ~f:(fun acc (ts, p1_opt, p2_opt) -> *)
+  (*                    match p1_opt, p2_opt with *)
+  (*                    | None, None -> acc *)
+  (*                    | Some(p1), None -> acc ^ (Printf.sprintf "\n(%d)\nalpha = " ts) ^ Proof.v_to_string "" p1 *)
+  (*                    | None, Some(p2) -> acc ^ (Printf.sprintf "\n(%d)\nbeta = " ts) ^ Proof.v_to_string "" p2 *)
+  (*                    | Some(p1), Some(p2) -> acc ^ (Printf.sprintf "\n(%d)\nalpha = " ts) ^ Proof.v_to_string "" p1 ^ *)
+  (*                                              (Printf.sprintf "\n(%d)\nbeta = " ts) ^ Proof.v_to_string "" p2)) *)
 
-  let add_v_alphas_out ts vvp' v_alphas_out =
-    remove_cond_back (fun (_, vvp) -> minp_bool vvp' vvp) v_alphas_out;
-    Deque.enqueue_back v_alphas_out (ts, vvp')
+  (* let add_v_alphas_out ts vvp' v_alphas_out = *)
+  (*   remove_cond_back (fun (_, vvp) -> minp_bool vvp' vvp) v_alphas_out; *)
+  (*   Deque.enqueue_back v_alphas_out (ts, vvp') *)
 
-  let update_s_beta_alphas_in new_in s_beta_alphas_in =
-    if not (Deque.is_empty new_in) then
-      sorted_append new_in s_beta_alphas_in
+  (* let update_s_beta_alphas_in new_in s_beta_alphas_in = *)
+  (*   if not (Deque.is_empty new_in) then *)
+  (*     sorted_append new_in s_beta_alphas_in *)
 
-  let update_v_betas_in new_in v_betas_in =
-    Deque.iter new_in ~f:(fun (ts, _, vp2_opt) ->
-        match vp2_opt with
-        | None -> Deque.clear v_betas_in
-        | Some(vp2) -> Deque.enqueue_back v_betas_in (ts, vp2))
+  (* let update_v_betas_in new_in v_betas_in = *)
+  (*   Deque.iter new_in ~f:(fun (ts, _, vp2_opt) -> *)
+  (*       match vp2_opt with *)
+  (*       | None -> Deque.clear v_betas_in *)
+  (*       | Some(vp2) -> Deque.enqueue_back v_betas_in (ts, vp2)) *)
 
-  let construct_vsinceps tp new_in =
-    Deque.fold new_in ~init:(Deque.create ())
-      ~f:(fun acc (ts, vp1_opt, vp2_opt) ->
-        match vp1_opt with
-        | None -> (match vp2_opt with
-                   | None -> Deque.clear acc; acc
-                   | Some(vp2) -> v_append_deque vp2 acc; acc)
-        | Some(vp1) -> (match vp2_opt with
-                        | None -> Deque.clear acc; acc
-                        | Some(vp2) -> v_append_deque vp2 acc;
-                                       let vp2s = Deque.create () in
-                                       Deque.enqueue_back vp2s vp2;
-                                       let vp = Proof.V (VSince (tp, vp1, vp2s)) in
-                                       Deque.enqueue_back acc (ts, vp); acc))
+  (* let construct_vsinceps tp new_in = *)
+  (*   Deque.fold new_in ~init:(Deque.create ()) *)
+  (*     ~f:(fun acc (ts, vp1_opt, vp2_opt) -> *)
+  (*       match vp1_opt with *)
+  (*       | None -> (match vp2_opt with *)
+  (*                  | None -> Deque.clear acc; acc *)
+  (*                  | Some(vp2) -> v_append_deque vp2 acc; acc) *)
+  (*       | Some(vp1) -> (match vp2_opt with *)
+  (*                       | None -> Deque.clear acc; acc *)
+  (*                       | Some(vp2) -> v_append_deque vp2 acc; *)
+  (*                                      let vp2s = Deque.create () in *)
+  (*                                      Deque.enqueue_back vp2s vp2; *)
+  (*                                      let vp = Proof.V (VSince (tp, vp1, vp2s)) in *)
+  (*                                      Deque.enqueue_back acc (ts, vp); acc)) *)
 
-  let add_new_ps_v_alpha_betas_in tp new_in v_alpha_betas_in =
-    let new_vps_in = construct_vsinceps tp new_in in
-    if not (Deque.is_empty new_vps_in) then
-      sorted_append new_vps_in v_alpha_betas_in
+  (* let add_new_ps_v_alpha_betas_in tp new_in v_alpha_betas_in = *)
+  (*   let new_vps_in = construct_vsinceps tp new_in in *)
+  (*   if not (Deque.is_empty new_vps_in) then *)
+  (*     sorted_append new_vps_in v_alpha_betas_in *)
 
-  let update_v_alpha_betas_in_tps tp v_alpha_betas_in =
-    Deque.iteri v_alpha_betas_in ~f:(fun i (ts, vvp) ->
-        match vvp with
-        | Proof.V (VSince (tp', vp1, vp2s)) -> Deque.set_exn v_alpha_betas_in i (ts, V (VSince (tp, vp1, vp2s)))
-        | _ -> raise (Invalid_argument "found S proof in V deque"))
+  (* let update_v_alpha_betas_in_tps tp v_alpha_betas_in = *)
+  (*   Deque.iteri v_alpha_betas_in ~f:(fun i (ts, vvp) -> *)
+  (*       match vvp with *)
+  (*       | Proof.V (VSince (tp', vp1, vp2s)) -> Deque.set_exn v_alpha_betas_in i (ts, V (VSince (tp, vp1, vp2s))) *)
+  (*       | _ -> raise (Invalid_argument "found S proof in V deque")) *)
 
-  let update_v_alpha_betas_in tp new_in v_alpha_betas_in =
-    Deque.iter new_in ~f:(fun (_, _, vp2_opt) ->
-        match vp2_opt with
-        | None -> Deque.clear v_alpha_betas_in
-        | Some(vp2) -> v_append_deque vp2 v_alpha_betas_in);
-    add_new_ps_v_alpha_betas_in tp new_in v_alpha_betas_in;
-    update_v_alpha_betas_in_tps tp v_alpha_betas_in
+  (* let update_v_alpha_betas_in tp new_in v_alpha_betas_in = *)
+  (*   Deque.iter new_in ~f:(fun (_, _, vp2_opt) -> *)
+  (*       match vp2_opt with *)
+  (*       | None -> Deque.clear v_alpha_betas_in *)
+  (*       | Some(vp2) -> v_append_deque vp2 v_alpha_betas_in); *)
+  (*   add_new_ps_v_alpha_betas_in tp new_in v_alpha_betas_in; *)
+  (*   update_v_alpha_betas_in_tps tp v_alpha_betas_in *)
 
-  let add_subps ts (p1: Proof.t) (p2: Proof.t) msaux =
-    match p1, p2 with
-    | S sp1, S sp2 ->
-       (* s_beta_alphas_in *)
-       s_append_deque sp1 msaux.s_beta_alphas_in;
-       (* s_beta_alphas_out *)
-       s_append_deque sp1 msaux.s_beta_alphas_out;
-       let sp = Proof.S (SSince (sp2, Deque.create ())) in
-       Deque.enqueue_back msaux.s_beta_alphas_out (ts, sp);
-       (* v_alphas_betas_out *)
-       Deque.enqueue_back msaux.v_alphas_betas_out (ts, None, None)
-    | S sp1, V vp2 ->
-       (* s_beta_alphas_in *)
-       s_append_deque sp1 msaux.s_beta_alphas_in;
-       s_append_deque sp1 msaux.s_beta_alphas_out;
-       (* v_alphas_betas_out *)
-       Deque.enqueue_back msaux.v_alphas_betas_out (ts, None, Some(vp2))
-    | V vp1, S sp2 ->
-       (* s_beta_alphas_in *)
-       Deque.clear msaux.s_beta_alphas_in;
-       (* s_beta_alphas_out *)
-       Deque.clear msaux.s_beta_alphas_out;
-       let sp = Proof.S (SSince (sp2, Deque.create ())) in
-       Deque.enqueue_back msaux.s_beta_alphas_out (ts, sp);
-       (* v_alphas_out *)
-       add_v_alphas_out ts (V vp1) msaux.v_alphas_out;
-       (* v_alphas_betas_out *)
-       Deque.enqueue_back msaux.v_alphas_betas_out (ts, Some(vp1), None)
-    | V vp1, V vp2 ->
-       (* s_beta_alphas_in *)
-       Deque.clear msaux.s_beta_alphas_in;
-       (* s_beta_alphas_out *)
-       Deque.clear msaux.s_beta_alphas_out;
-       (* v_alphas_out *)
-       add_v_alphas_out ts (V vp1) msaux.v_alphas_out;
-       (* v_alphas_betas_out *)
-       Deque.enqueue_back msaux.v_alphas_betas_out (ts, Some(vp1), Some(vp2))
+  (* let add_subps ts (p1: Proof.t) (p2: Proof.t) msaux = *)
+  (*   match p1, p2 with *)
+  (*   | S sp1, S sp2 -> *)
+  (*      (\* s_beta_alphas_in *\) *)
+  (*      s_append_deque sp1 msaux.s_beta_alphas_in; *)
+  (*      (\* s_beta_alphas_out *\) *)
+  (*      s_append_deque sp1 msaux.s_beta_alphas_out; *)
+  (*      let sp = Proof.S (SSince (sp2, Deque.create ())) in *)
+  (*      Deque.enqueue_back msaux.s_beta_alphas_out (ts, sp); *)
+  (*      (\* v_alphas_betas_out *\) *)
+  (*      Deque.enqueue_back msaux.v_alphas_betas_out (ts, None, None) *)
+  (*   | S sp1, V vp2 -> *)
+  (*      (\* s_beta_alphas_in *\) *)
+  (*      s_append_deque sp1 msaux.s_beta_alphas_in; *)
+  (*      s_append_deque sp1 msaux.s_beta_alphas_out; *)
+  (*      (\* v_alphas_betas_out *\) *)
+  (*      Deque.enqueue_back msaux.v_alphas_betas_out (ts, None, Some(vp2)) *)
+  (*   | V vp1, S sp2 -> *)
+  (*      (\* s_beta_alphas_in *\) *)
+  (*      Deque.clear msaux.s_beta_alphas_in; *)
+  (*      (\* s_beta_alphas_out *\) *)
+  (*      Deque.clear msaux.s_beta_alphas_out; *)
+  (*      let sp = Proof.S (SSince (sp2, Deque.create ())) in *)
+  (*      Deque.enqueue_back msaux.s_beta_alphas_out (ts, sp); *)
+  (*      (\* v_alphas_out *\) *)
+  (*      add_v_alphas_out ts (V vp1) msaux.v_alphas_out; *)
+  (*      (\* v_alphas_betas_out *\) *)
+  (*      Deque.enqueue_back msaux.v_alphas_betas_out (ts, Some(vp1), None) *)
+  (*   | V vp1, V vp2 -> *)
+  (*      (\* s_beta_alphas_in *\) *)
+  (*      Deque.clear msaux.s_beta_alphas_in; *)
+  (*      (\* s_beta_alphas_out *\) *)
+  (*      Deque.clear msaux.s_beta_alphas_out; *)
+  (*      (\* v_alphas_out *\) *)
+  (*      add_v_alphas_out ts (V vp1) msaux.v_alphas_out; *)
+  (*      (\* v_alphas_betas_out *\) *)
+  (*      Deque.enqueue_back msaux.v_alphas_betas_out (ts, Some(vp1), Some(vp2)) *)
 
-  let shift_sat (l, r) s_beta_alphas_out s_beta_alphas_in =
-    let new_in_sat = split_in_out (fun (ts, _) -> ts) (l, r) s_beta_alphas_out in
-    update_s_beta_alphas_in new_in_sat s_beta_alphas_in
+  (* let shift_sat (l, r) s_beta_alphas_out s_beta_alphas_in = *)
+  (*   let new_in_sat = split_in_out (fun (ts, _) -> ts) (l, r) s_beta_alphas_out in *)
+  (*   update_s_beta_alphas_in new_in_sat s_beta_alphas_in *)
 
-  let shift_vio (l, r) tp v_alphas_betas_out v_alpha_betas_in v_betas_in =
-    let new_in_vio = split_in_out (fun (ts, _, _) -> ts) (l, r) v_alphas_betas_out in
-    update_v_betas_in new_in_vio v_betas_in;
-    update_v_alpha_betas_in tp new_in_vio v_alpha_betas_in
+  (* let shift_vio (l, r) tp v_alphas_betas_out v_alpha_betas_in v_betas_in = *)
+  (*   let new_in_vio = split_in_out (fun (ts, _, _) -> ts) (l, r) v_alphas_betas_out in *)
+  (*   update_v_betas_in new_in_vio v_betas_in; *)
+  (*   update_v_alpha_betas_in tp new_in_vio v_alpha_betas_in *)
 
-  let clean (l, r) msaux =
-    remove_cond_front (fun (ts, _) -> ts < l) msaux.s_beta_alphas_in;
-    remove_cond_front (fun (ts, _) -> ts < l) msaux.v_alpha_betas_in;
-    remove_cond_front (fun (ts, _) -> ts <= r) msaux.v_alphas_out;
-    remove_cond_front (fun (ts, _) -> ts < l) msaux.v_betas_in
+  (* let clean (l, r) msaux = *)
+  (*   remove_cond_front (fun (ts, _) -> ts < l) msaux.s_beta_alphas_in; *)
+  (*   remove_cond_front (fun (ts, _) -> ts < l) msaux.v_alpha_betas_in; *)
+  (*   remove_cond_front (fun (ts, _) -> ts <= r) msaux.v_alphas_out; *)
+  (*   remove_cond_front (fun (ts, _) -> ts < l) msaux.v_betas_in *)
 
-  let shift (l, r) a ts tp msaux =
-    shift_tstps_past (l, r) a ts tp msaux.tstps_in msaux.tstps_out;
-    shift_sat (l,r) msaux.s_beta_alphas_out msaux.s_beta_alphas_in;
-    shift_vio (l,r) tp msaux.v_alphas_betas_out msaux.v_alpha_betas_in msaux.v_betas_in;
-    clean (l, r) msaux
+  (* let shift (l, r) a ts tp msaux = *)
+  (*   shift_tstps_past (l, r) a ts tp msaux.tstps_in msaux.tstps_out; *)
+  (*   shift_sat (l,r) msaux.s_beta_alphas_out msaux.s_beta_alphas_in; *)
+  (*   shift_vio (l,r) tp msaux.v_alphas_betas_out msaux.v_alpha_betas_in msaux.v_betas_in; *)
+  (*   clean (l, r) msaux *)
 
-  let eval tp msaux =
-    if not (Deque.is_empty msaux.s_beta_alphas_in) then
-      [snd(Deque.peek_front_exn msaux.s_beta_alphas_in)]
-    else
-      let cp1 = if not (Deque.is_empty msaux.v_alpha_betas_in) then
-                  [snd(Deque.peek_front_exn msaux.v_alpha_betas_in)]
-                else [] in
-      let cp2 = if not (Deque.is_empty msaux.v_alphas_out) then
-                  let vp_f2 = snd(Deque.peek_front_exn msaux.v_alphas_out) in
-                  match vp_f2 with
-                  | V f2 -> [Proof.V (VSince (tp, f2, Deque.create ()))]
-                  | S _ -> raise (Invalid_argument "found S proof in V deque")
-                else [] in
-      let cp3 = if Int.equal (Deque.length msaux.v_betas_in) (Deque.length msaux.tstps_in) then
-                  let etp = match Deque.is_empty msaux.v_betas_in with
-                    | true -> etp msaux.tstps_in msaux.tstps_out tp
-                    | false -> Proof.v_at (snd(Deque.peek_front_exn msaux.v_betas_in)) in
-                  [Proof.V (VSinceInf (tp, etp, snd_deque msaux.v_betas_in))]
-                else [] in
-      (cp1 @ cp2 @ cp3)
+  (* let eval tp msaux = *)
+  (*   if not (Deque.is_empty msaux.s_beta_alphas_in) then *)
+  (*     [snd(Deque.peek_front_exn msaux.s_beta_alphas_in)] *)
+  (*   else *)
+  (*     let cp1 = if not (Deque.is_empty msaux.v_alpha_betas_in) then *)
+  (*                 [snd(Deque.peek_front_exn msaux.v_alpha_betas_in)] *)
+  (*               else [] in *)
+  (*     let cp2 = if not (Deque.is_empty msaux.v_alphas_out) then *)
+  (*                 let vp_f2 = snd(Deque.peek_front_exn msaux.v_alphas_out) in *)
+  (*                 match vp_f2 with *)
+  (*                 | V f2 -> [Proof.V (VSince (tp, f2, Deque.create ()))] *)
+  (*                 | S _ -> raise (Invalid_argument "found S proof in V deque") *)
+  (*               else [] in *)
+  (*     let cp3 = if Int.equal (Deque.length msaux.v_betas_in) (Deque.length msaux.tstps_in) then *)
+  (*                 let etp = match Deque.is_empty msaux.v_betas_in with *)
+  (*                   | true -> etp msaux.tstps_in msaux.tstps_out tp *)
+  (*                   | false -> Proof.v_at (snd(Deque.peek_front_exn msaux.v_betas_in)) in *)
+  (*                 [Proof.V (VSinceInf (tp, etp, snd_deque msaux.v_betas_in))] *)
+  (*               else [] in *)
+  (*     (cp1 @ cp2 @ cp3) *)
 
-  let update i ts tp p1 p2 msaux =
-    let a = Interval.left i in
-    (if Option.is_none msaux.ts_zero then msaux.ts_zero <- Some(ts));
-    add_subps ts p1 p2 msaux;
-    if ts < (Option.value_exn msaux.ts_zero) + a then
-      (Deque.enqueue_back msaux.tstps_out (ts, tp);
-       ([Proof.V (VSinceOut tp)], msaux))
-    else
-      (let b = Interval.right i in
-       let l = if (Option.is_some b) then max 0 (ts - (Option.value_exn b))
-               else (Option.value_exn msaux.ts_zero) in
-       let r = ts - a in
-       shift (l, r) a ts tp msaux;
-       (eval tp msaux, msaux))
+  (* let update i ts tp p1 p2 msaux = *)
+  (*   let a = Interval.left i in *)
+  (*   (if Option.is_none msaux.ts_zero then msaux.ts_zero <- Some(ts)); *)
+  (*   add_subps ts p1 p2 msaux; *)
+  (*   if ts < (Option.value_exn msaux.ts_zero) + a then *)
+  (*     (Deque.enqueue_back msaux.tstps_out (ts, tp); *)
+  (*      ([Proof.V (VSinceOut tp)], msaux)) *)
+  (*   else *)
+  (*     (let b = Interval.right i in *)
+  (*      let l = if (Option.is_some b) then max 0 (ts - (Option.value_exn b)) *)
+  (*              else (Option.value_exn msaux.ts_zero) in *)
+  (*      let r = ts - a in *)
+  (*      shift (l, r) a ts tp msaux; *)
+  (*      (eval tp msaux, msaux)) *)
 
 end
 
@@ -811,272 +819,272 @@ module Until = struct
                 ; v_betas_suffix_in = Deque.create ()
                 ; optimal_proofs = Deque.create () }
 
-  let to_string { tstps_in
-                ; tstps_out
-                ; s_alphas_beta
-                ; s_alphas_suffix
-                ; v_betas_alpha
-                ; v_alphas_out
-                ; v_alphas_in
-                ; v_betas_suffix_in
-                ; optimal_proofs } =
-    ("\n\nUntil state: " ^ (print_tstps None tstps_in tstps_out) ^
-       Deque.foldi s_alphas_beta ~init:"\ns_alphas_beta = \n" ~f:(fun i acc1 d ->
-           acc1 ^ Printf.sprintf "\n%d.\n" i ^
-             Deque.fold d ~init:"[" ~f:(fun acc2 (ts, p) ->
-                 acc2 ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^ "\n]\n") ^
-         Deque.fold s_alphas_suffix ~init:"\ns_alphas_suffix = "
-           ~f:(fun acc (ts, p) ->
-             acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.s_to_string "" p) ^
-           Deque.foldi v_betas_alpha ~init:"\nv_betas_alpha = \n"
-             ~f:(fun i acc1 d ->
-               acc1 ^ Printf.sprintf "\n%d.\n" i ^
-                 Deque.fold d ~init:"[" ~f:(fun acc2 (ts, p) ->
-                     acc2 ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^ "\n]\n") ^
-             Deque.fold v_alphas_out ~init:"\nv_alphas_out = "
-               ~f:(fun acc (ts, p) ->
-                 acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^
-               Deque.fold v_alphas_in ~init:"\nv_alphas_in = "
-                 ~f:(fun acc (ts, p) ->
-                   acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^
-                 Deque.fold v_betas_suffix_in ~init:"\nv_betas_suffix_in = "
-                   ~f:(fun acc (ts, p) ->
-                     acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.v_to_string "" p) ^
-                   Deque.fold optimal_proofs ~init:"\noptimal_proofs = "
-                     ~f:(fun acc (ts, p) ->
-                       acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p))
+  (* let to_string { tstps_in *)
+  (*               ; tstps_out *)
+  (*               ; s_alphas_beta *)
+  (*               ; s_alphas_suffix *)
+  (*               ; v_betas_alpha *)
+  (*               ; v_alphas_out *)
+  (*               ; v_alphas_in *)
+  (*               ; v_betas_suffix_in *)
+  (*               ; optimal_proofs } = *)
+  (*   ("\n\nUntil state: " ^ (print_tstps None tstps_in tstps_out) ^ *)
+  (*      Deque.foldi s_alphas_beta ~init:"\ns_alphas_beta = \n" ~f:(fun i acc1 d -> *)
+  (*          acc1 ^ Printf.sprintf "\n%d.\n" i ^ *)
+  (*            Deque.fold d ~init:"[" ~f:(fun acc2 (ts, p) -> *)
+  (*                acc2 ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^ "\n]\n") ^ *)
+  (*        Deque.fold s_alphas_suffix ~init:"\ns_alphas_suffix = " *)
+  (*          ~f:(fun acc (ts, p) -> *)
+  (*            acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.s_to_string "" p) ^ *)
+  (*          Deque.foldi v_betas_alpha ~init:"\nv_betas_alpha = \n" *)
+  (*            ~f:(fun i acc1 d -> *)
+  (*              acc1 ^ Printf.sprintf "\n%d.\n" i ^ *)
+  (*                Deque.fold d ~init:"[" ~f:(fun acc2 (ts, p) -> *)
+  (*                    acc2 ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^ "\n]\n") ^ *)
+  (*            Deque.fold v_alphas_out ~init:"\nv_alphas_out = " *)
+  (*              ~f:(fun acc (ts, p) -> *)
+  (*                acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^ *)
+  (*              Deque.fold v_alphas_in ~init:"\nv_alphas_in = " *)
+  (*                ~f:(fun acc (ts, p) -> *)
+  (*                  acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^ *)
+  (*                Deque.fold v_betas_suffix_in ~init:"\nv_betas_suffix_in = " *)
+  (*                  ~f:(fun acc (ts, p) -> *)
+  (*                    acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.v_to_string "" p) ^ *)
+  (*                  Deque.fold optimal_proofs ~init:"\noptimal_proofs = " *)
+  (*                    ~f:(fun acc (ts, p) -> *)
+  (*                      acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p)) *)
 
-  let ts_of_tp tp tstps_in tstps_out =
-    match (Deque.find tstps_out ~f:(fun (ts', tp') -> tp = tp')) with
-    | None -> (match (Deque.find tstps_in ~f:(fun (ts', tp') -> tp = tp')) with
-               | None -> raise (Failure "ts not found")
-               | Some(ts, _) -> ts)
-    | Some(ts, _) -> ts
+  (* let ts_of_tp tp tstps_in tstps_out = *)
+  (*   match (Deque.find tstps_out ~f:(fun (ts', tp') -> tp = tp')) with *)
+  (*   | None -> (match (Deque.find tstps_in ~f:(fun (ts', tp') -> tp = tp')) with *)
+  (*              | None -> raise (Failure "ts not found") *)
+  (*              | Some(ts, _) -> ts) *)
+  (*   | Some(ts, _) -> ts *)
 
-  let step_sdrop_tp tp s_alphas_beta =
-    Deque.fold s_alphas_beta ~init:(Deque.create ())
-      ~f:(fun acc (ts, ssp) ->
-        match ssp with
-        | Proof.S sp -> if tp = (Proof.s_at sp) then
-                          (match Proof.s_drop sp with
-                           | None -> acc
-                           | Some(sp') -> Deque.enqueue_back acc (ts, Proof.S sp'); acc)
-                        else (Deque.enqueue_back acc (ts, ssp); acc)
-        | V _ -> raise (Invalid_argument "found V proof in S deque"))
+  (* let step_sdrop_tp tp s_alphas_beta = *)
+  (*   Deque.fold s_alphas_beta ~init:(Deque.create ()) *)
+  (*     ~f:(fun acc (ts, ssp) -> *)
+  (*       match ssp with *)
+  (*       | Proof.S sp -> if tp = (Proof.s_at sp) then *)
+  (*                         (match Proof.s_drop sp with *)
+  (*                          | None -> acc *)
+  (*                          | Some(sp') -> Deque.enqueue_back acc (ts, Proof.S sp'); acc) *)
+  (*                       else (Deque.enqueue_back acc (ts, ssp); acc) *)
+  (*       | V _ -> raise (Invalid_argument "found V proof in S deque")) *)
 
-  let step_vdrop_ts a first_ts v_betas_alpha tstps_in =
-    let rec vdrop_until vp =
-      let is_out = match Deque.find ~f:(fun (_, tp') -> (Proof.v_etp vp) = tp') tstps_in with
-        | None -> true
-        | Some(ts', _) -> ts' < (first_ts + a) in
-      if is_out then
-        (match Proof.v_drop vp with
-         | None -> None
-         | Some(vp') -> vdrop_until vp')
-      else Some(vp) in
-    Deque.fold v_betas_alpha ~init:(Deque.create ())
-      ~f:(fun acc (ts, vvp) ->
-        (match vvp with
-         | Proof.V vp -> (match vdrop_until vp with
-                          | None -> acc
-                          | Some (vp') -> Deque.enqueue_back acc (ts, Proof.V vp'); acc)
-         | S _ -> raise (Invalid_argument "found S proof in V deque")))
+  (* let step_vdrop_ts a first_ts v_betas_alpha tstps_in = *)
+  (*   let rec vdrop_until vp = *)
+  (*     let is_out = match Deque.find ~f:(fun (_, tp') -> (Proof.v_etp vp) = tp') tstps_in with *)
+  (*       | None -> true *)
+  (*       | Some(ts', _) -> ts' < (first_ts + a) in *)
+  (*     if is_out then *)
+  (*       (match Proof.v_drop vp with *)
+  (*        | None -> None *)
+  (*        | Some(vp') -> vdrop_until vp') *)
+  (*     else Some(vp) in *)
+  (*   Deque.fold v_betas_alpha ~init:(Deque.create ()) *)
+  (*     ~f:(fun acc (ts, vvp) -> *)
+  (*       (match vvp with *)
+  (*        | Proof.V vp -> (match vdrop_until vp with *)
+  (*                         | None -> acc *)
+  (*                         | Some (vp') -> Deque.enqueue_back acc (ts, Proof.V vp'); acc) *)
+  (*        | S _ -> raise (Invalid_argument "found S proof in V deque"))) *)
 
-  let remove_out_less2_lts lim d =
-    Deque.iteri d ~f:(fun i d' ->
-        Deque.set_exn d i
-          (Deque.fold d' ~init:(Deque.create ()) ~f:(fun acc (ts, p) ->
-               if ts >= lim then (Deque.enqueue_back acc (ts, p); acc)
-               else acc)));
-    remove_cond_front_ne (fun d' -> Deque.is_empty d') d
+  (* let remove_out_less2_lts lim d = *)
+  (*   Deque.iteri d ~f:(fun i d' -> *)
+  (*       Deque.set_exn d i *)
+  (*         (Deque.fold d' ~init:(Deque.create ()) ~f:(fun acc (ts, p) -> *)
+  (*              if ts >= lim then (Deque.enqueue_back acc (ts, p); acc) *)
+  (*              else acc))); *)
+  (*   remove_cond_front_ne (fun d' -> Deque.is_empty d') d *)
 
-  let add_subps a (ts, tp) (p1: Proof.t) (p2: Proof.t) muaux =
-    let first_ts = match first_ts_tp muaux.tstps_out muaux.tstps_in with
-      | None -> 0
-      | Some(ts', _) -> ts' in
-    match p1, p2 with
-    | S sp1, S sp2 ->
-       (* alphas_beta *)
-       (if ts >= first_ts + a then
-          let cur_alphas_beta = Deque.peek_back_exn muaux.s_alphas_beta in
-          let sp = Proof.S (SUntil (sp2, snd_deque muaux.s_alphas_suffix)) in
-          sorted_enqueue (ts, sp) cur_alphas_beta);
-       (* betas_alpha (add empty deque) *)
-       (if not (Deque.is_empty (Deque.peek_back_exn muaux.v_betas_alpha)) then
-          Deque.enqueue_back muaux.v_betas_alpha (Deque.create ()));
-       (* alphas_suffix *)
-       Deque.enqueue_back muaux.s_alphas_suffix (ts, sp1);
-       (* v_betas_in *)
-       (if ts >= (first_ts + a) then Deque.clear muaux.v_betas_suffix_in)
-    | S sp1, V vp2 ->
-       (* alphas_suffix *)
-       Deque.enqueue_back muaux.s_alphas_suffix (ts, sp1);
-       (* v_betas_in *)
-       (if ts >= (first_ts + a) then Deque.enqueue_back muaux.v_betas_suffix_in (ts, vp2))
-    | V vp1, S sp2 ->
-       (* alphas_beta *)
-       (if ts >= first_ts + a then
-          let cur_alphas_beta = Deque.peek_back_exn muaux.s_alphas_beta in
-          let sp = Proof.S (SUntil (sp2, snd_deque muaux.s_alphas_suffix)) in
-          sorted_enqueue (ts, sp) cur_alphas_beta);
-       (* betas_alpha (add empty deque) *)
-       (if not (Deque.is_empty (Deque.peek_back_exn muaux.v_betas_alpha)) then
-          Deque.enqueue_back muaux.v_betas_alpha (Deque.create ()));
-       (* alphas_suffix *)
-       Deque.clear muaux.s_alphas_suffix;
-       (* alphas_in *)
-       (if ts >= first_ts + a then Deque.enqueue_back muaux.v_alphas_in (ts, Proof.V vp1)
-        else (remove_cond_back (fun (_, p') -> minp_bool (Proof.V vp1) p') muaux.v_alphas_out;
-              Deque.enqueue_back muaux.v_alphas_out (ts, V vp1)));
-       (* v_betas_in *)
-       (if ts >= (first_ts + a) then Deque.clear muaux.v_betas_suffix_in)
-    | V vp1, V vp2 ->
-       (* alphas_beta (add empty deque) *)
-       (if not (Deque.is_empty (Deque.peek_back_exn muaux.s_alphas_beta)) then
-          Deque.enqueue_back muaux.s_alphas_beta (Deque.create ()));
-       (* alphas_suffix *)
-       Deque.clear muaux.s_alphas_suffix;
-       (* v_betas_in *)
-       (if ts >= (first_ts + a) then Deque.enqueue_back muaux.v_betas_suffix_in (ts, vp2));
-       (* betas_alpha *)
-       (if ts >= (first_ts + a) then
-          let cur_betas_alpha = Deque.peek_back_exn muaux.v_betas_alpha in
-          let vp = Proof.V (VUntil (tp, vp1, snd_deque muaux.v_betas_suffix_in)) in
-          sorted_enqueue (ts, vp) cur_betas_alpha);
-       (* alphas_in *)
-       (if ts >= (first_ts + a) then Deque.enqueue_back muaux.v_alphas_in (ts, V vp1)
-        else (remove_cond_back (fun (_, p') -> minp_bool (V vp1) p') muaux.v_alphas_out;
-              Deque.enqueue_back muaux.v_alphas_out (ts, V vp1)))
+  (* let add_subps a (ts, tp) (p1: Proof.t) (p2: Proof.t) muaux = *)
+  (*   let first_ts = match first_ts_tp muaux.tstps_out muaux.tstps_in with *)
+  (*     | None -> 0 *)
+  (*     | Some(ts', _) -> ts' in *)
+  (*   match p1, p2 with *)
+  (*   | S sp1, S sp2 -> *)
+  (*      (\* alphas_beta *\) *)
+  (*      (if ts >= first_ts + a then *)
+  (*         let cur_alphas_beta = Deque.peek_back_exn muaux.s_alphas_beta in *)
+  (*         let sp = Proof.S (SUntil (sp2, snd_deque muaux.s_alphas_suffix)) in *)
+  (*         sorted_enqueue (ts, sp) cur_alphas_beta); *)
+  (*      (\* betas_alpha (add empty deque) *\) *)
+  (*      (if not (Deque.is_empty (Deque.peek_back_exn muaux.v_betas_alpha)) then *)
+  (*         Deque.enqueue_back muaux.v_betas_alpha (Deque.create ())); *)
+  (*      (\* alphas_suffix *\) *)
+  (*      Deque.enqueue_back muaux.s_alphas_suffix (ts, sp1); *)
+  (*      (\* v_betas_in *\) *)
+  (*      (if ts >= (first_ts + a) then Deque.clear muaux.v_betas_suffix_in) *)
+  (*   | S sp1, V vp2 -> *)
+  (*      (\* alphas_suffix *\) *)
+  (*      Deque.enqueue_back muaux.s_alphas_suffix (ts, sp1); *)
+  (*      (\* v_betas_in *\) *)
+  (*      (if ts >= (first_ts + a) then Deque.enqueue_back muaux.v_betas_suffix_in (ts, vp2)) *)
+  (*   | V vp1, S sp2 -> *)
+  (*      (\* alphas_beta *\) *)
+  (*      (if ts >= first_ts + a then *)
+  (*         let cur_alphas_beta = Deque.peek_back_exn muaux.s_alphas_beta in *)
+  (*         let sp = Proof.S (SUntil (sp2, snd_deque muaux.s_alphas_suffix)) in *)
+  (*         sorted_enqueue (ts, sp) cur_alphas_beta); *)
+  (*      (\* betas_alpha (add empty deque) *\) *)
+  (*      (if not (Deque.is_empty (Deque.peek_back_exn muaux.v_betas_alpha)) then *)
+  (*         Deque.enqueue_back muaux.v_betas_alpha (Deque.create ())); *)
+  (*      (\* alphas_suffix *\) *)
+  (*      Deque.clear muaux.s_alphas_suffix; *)
+  (*      (\* alphas_in *\) *)
+  (*      (if ts >= first_ts + a then Deque.enqueue_back muaux.v_alphas_in (ts, Proof.V vp1) *)
+  (*       else (remove_cond_back (fun (_, p') -> minp_bool (Proof.V vp1) p') muaux.v_alphas_out; *)
+  (*             Deque.enqueue_back muaux.v_alphas_out (ts, V vp1))); *)
+  (*      (\* v_betas_in *\) *)
+  (*      (if ts >= (first_ts + a) then Deque.clear muaux.v_betas_suffix_in) *)
+  (*   | V vp1, V vp2 -> *)
+  (*      (\* alphas_beta (add empty deque) *\) *)
+  (*      (if not (Deque.is_empty (Deque.peek_back_exn muaux.s_alphas_beta)) then *)
+  (*         Deque.enqueue_back muaux.s_alphas_beta (Deque.create ())); *)
+  (*      (\* alphas_suffix *\) *)
+  (*      Deque.clear muaux.s_alphas_suffix; *)
+  (*      (\* v_betas_in *\) *)
+  (*      (if ts >= (first_ts + a) then Deque.enqueue_back muaux.v_betas_suffix_in (ts, vp2)); *)
+  (*      (\* betas_alpha *\) *)
+  (*      (if ts >= (first_ts + a) then *)
+  (*         let cur_betas_alpha = Deque.peek_back_exn muaux.v_betas_alpha in *)
+  (*         let vp = Proof.V (VUntil (tp, vp1, snd_deque muaux.v_betas_suffix_in)) in *)
+  (*         sorted_enqueue (ts, vp) cur_betas_alpha); *)
+  (*      (\* alphas_in *\) *)
+  (*      (if ts >= (first_ts + a) then Deque.enqueue_back muaux.v_alphas_in (ts, V vp1) *)
+  (*       else (remove_cond_back (fun (_, p') -> minp_bool (V vp1) p') muaux.v_alphas_out; *)
+  (*             Deque.enqueue_back muaux.v_alphas_out (ts, V vp1))) *)
 
-  let drop_tp tp s_alphas_beta =
-    match Deque.peek_front s_alphas_beta with
-    | None -> raise (Etc.Empty_deque "alphas_beta")
-    | Some(front_alphas_beta) ->
-       if not (Deque.is_empty front_alphas_beta) then
-         let front_index = Deque.front_index_exn s_alphas_beta in
-         Deque.set_exn s_alphas_beta front_index (step_sdrop_tp tp front_alphas_beta)
+  (* let drop_tp tp s_alphas_beta = *)
+  (*   match Deque.peek_front s_alphas_beta with *)
+  (*   | None -> raise (Etc.Empty_deque "alphas_beta") *)
+  (*   | Some(front_alphas_beta) -> *)
+  (*      if not (Deque.is_empty front_alphas_beta) then *)
+  (*        let front_index = Deque.front_index_exn s_alphas_beta in *)
+  (*        Deque.set_exn s_alphas_beta front_index (step_sdrop_tp tp front_alphas_beta) *)
 
-  let drop_v_ts a ts muaux =
-    Deque.iteri muaux.v_betas_alpha ~f:(fun i d ->
-        Deque.set_exn muaux.v_betas_alpha i (step_vdrop_ts a ts d muaux.tstps_in))
+  (* let drop_v_ts a ts muaux = *)
+  (*   Deque.iteri muaux.v_betas_alpha ~f:(fun i d -> *)
+  (*       Deque.set_exn muaux.v_betas_alpha i (step_vdrop_ts a ts d muaux.tstps_in)) *)
 
-  let drop_v_single_ts cur_tp muaux =
-    let first_betas_alpha =
-      Deque.fold (Deque.peek_front_exn muaux.v_betas_alpha) ~init:(Deque.create ())
-        ~f:(fun acc (ts', vvp) -> (match vvp with
-                                   | V vp -> if Proof.v_etp vp <= cur_tp then
-                                               (match Proof.v_drop vp with
-                                                | None -> acc
-                                                | Some (vp') -> Deque.enqueue_back acc (ts', Proof.V vp'); acc)
-                                             else (Deque.enqueue_back acc (ts', Proof.V vp); acc)
-                                   | S _ -> raise (Invalid_argument "found S proof in V deque"))) in
-    Deque.drop_front muaux.v_betas_alpha;
-    Deque.enqueue_front muaux.v_betas_alpha first_betas_alpha
+  (* let drop_v_single_ts cur_tp muaux = *)
+  (*   let first_betas_alpha = *)
+  (*     Deque.fold (Deque.peek_front_exn muaux.v_betas_alpha) ~init:(Deque.create ()) *)
+  (*       ~f:(fun acc (ts', vvp) -> (match vvp with *)
+  (*                                  | V vp -> if Proof.v_etp vp <= cur_tp then *)
+  (*                                              (match Proof.v_drop vp with *)
+  (*                                               | None -> acc *)
+  (*                                               | Some (vp') -> Deque.enqueue_back acc (ts', Proof.V vp'); acc) *)
+  (*                                            else (Deque.enqueue_back acc (ts', Proof.V vp); acc) *)
+  (*                                  | S _ -> raise (Invalid_argument "found S proof in V deque"))) in *)
+  (*   Deque.drop_front muaux.v_betas_alpha; *)
+  (*   Deque.enqueue_front muaux.v_betas_alpha first_betas_alpha *)
 
-  let adjust a (nts, ntp) muaux =
-    let eval_tp = match first_ts_tp muaux.tstps_out muaux.tstps_in with
-      | None -> raise (Failure "tp not found")
-      | Some(_, tp') -> tp' in
-    drop_first_ts_tp muaux.tstps_out muaux.tstps_in;
-    let (first_ts, first_tp) = match first_ts_tp muaux.tstps_out muaux.tstps_in with
-      | None -> (nts, ntp)
-      | Some(ts', tp') -> (ts', tp') in
-    (* betas_alpha *)
-    Deque.iter muaux.v_betas_alpha ~f:(fun d ->
-        remove_cond_front (fun (ts', p) -> (ts' < first_ts + a) || ((Proof.p_at p) < first_tp)) d);
-    (if a = 0 then drop_v_single_ts eval_tp muaux
-     else drop_v_ts a first_ts muaux);
-    remove_cond_front_ne (fun d' -> Deque.is_empty d') muaux.v_betas_alpha;
-    (* ts_tp_in and ts_tp_out *)
-    shift_tstps_future a first_ts ntp muaux.tstps_out muaux.tstps_in;
-    (* alphas_beta *)
-    drop_tp eval_tp muaux.s_alphas_beta;
-    Deque.iter muaux.s_alphas_beta ~f:(fun d ->
-        (remove_cond_front (fun (ts', p) ->
-             match p with
-             | Proof.S sp -> (ts_of_tp (Proof.s_ltp sp) muaux.tstps_in muaux.tstps_out) < (first_ts + a)
-             | V _ -> raise (Invalid_argument "found V proof in S deque")) d));
-    remove_cond_front_ne (fun d' -> Deque.is_empty d') muaux.s_alphas_beta;
-    (* alphas_suffix *)
-    remove_cond_front (fun (_, sp) -> (Proof.s_at sp) < first_tp) muaux.s_alphas_suffix;
-    (* alphas_in and v_alphas_out *)
-    remove_cond_front (fun (_, p) -> (Proof.p_at p) < first_tp) muaux.v_alphas_out;
-    let new_out_alphas = split_out_in (fun (ts', _) -> ts') (first_ts, (first_ts + a)) muaux.v_alphas_in in
-    sorted_append new_out_alphas muaux.v_alphas_out;
-    (* v_betas_in *)
-    remove_cond_front (fun (_, vp) ->
-        match Deque.peek_front muaux.tstps_in with
-        | None -> (match Deque.peek_back muaux.tstps_out with
-                   | None -> (Proof.v_at vp) <= ntp
-                   | Some(_, tp') -> (Proof.v_at vp) <= tp')
-        | Some (_, tp') -> (Proof.v_at vp) < tp') muaux.v_betas_suffix_in
+  (* let adjust a (nts, ntp) muaux = *)
+  (*   let eval_tp = match first_ts_tp muaux.tstps_out muaux.tstps_in with *)
+  (*     | None -> raise (Failure "tp not found") *)
+  (*     | Some(_, tp') -> tp' in *)
+  (*   drop_first_ts_tp muaux.tstps_out muaux.tstps_in; *)
+  (*   let (first_ts, first_tp) = match first_ts_tp muaux.tstps_out muaux.tstps_in with *)
+  (*     | None -> (nts, ntp) *)
+  (*     | Some(ts', tp') -> (ts', tp') in *)
+  (*   (\* betas_alpha *\) *)
+  (*   Deque.iter muaux.v_betas_alpha ~f:(fun d -> *)
+  (*       remove_cond_front (fun (ts', p) -> (ts' < first_ts + a) || ((Proof.p_at p) < first_tp)) d); *)
+  (*   (if a = 0 then drop_v_single_ts eval_tp muaux *)
+  (*    else drop_v_ts a first_ts muaux); *)
+  (*   remove_cond_front_ne (fun d' -> Deque.is_empty d') muaux.v_betas_alpha; *)
+  (*   (\* ts_tp_in and ts_tp_out *\) *)
+  (*   shift_tstps_future a first_ts ntp muaux.tstps_out muaux.tstps_in; *)
+  (*   (\* alphas_beta *\) *)
+  (*   drop_tp eval_tp muaux.s_alphas_beta; *)
+  (*   Deque.iter muaux.s_alphas_beta ~f:(fun d -> *)
+  (*       (remove_cond_front (fun (ts', p) -> *)
+  (*            match p with *)
+  (*            | Proof.S sp -> (ts_of_tp (Proof.s_ltp sp) muaux.tstps_in muaux.tstps_out) < (first_ts + a) *)
+  (*            | V _ -> raise (Invalid_argument "found V proof in S deque")) d)); *)
+  (*   remove_cond_front_ne (fun d' -> Deque.is_empty d') muaux.s_alphas_beta; *)
+  (*   (\* alphas_suffix *\) *)
+  (*   remove_cond_front (fun (_, sp) -> (Proof.s_at sp) < first_tp) muaux.s_alphas_suffix; *)
+  (*   (\* alphas_in and v_alphas_out *\) *)
+  (*   remove_cond_front (fun (_, p) -> (Proof.p_at p) < first_tp) muaux.v_alphas_out; *)
+  (*   let new_out_alphas = split_out_in (fun (ts', _) -> ts') (first_ts, (first_ts + a)) muaux.v_alphas_in in *)
+  (*   sorted_append new_out_alphas muaux.v_alphas_out; *)
+  (*   (\* v_betas_in *\) *)
+  (*   remove_cond_front (fun (_, vp) -> *)
+  (*       match Deque.peek_front muaux.tstps_in with *)
+  (*       | None -> (match Deque.peek_back muaux.tstps_out with *)
+  (*                  | None -> (Proof.v_at vp) <= ntp *)
+  (*                  | Some(_, tp') -> (Proof.v_at vp) <= tp') *)
+  (*       | Some (_, tp') -> (Proof.v_at vp) < tp') muaux.v_betas_suffix_in *)
 
-  let eval_step a (nts, ntp) ts tp muaux =
-    let optimal_proofs_len = Deque.length muaux.optimal_proofs in
-    let cur_alphas_beta = Deque.peek_front_exn muaux.s_alphas_beta in
-    (if not (Deque.is_empty cur_alphas_beta) then
-       (match Deque.peek_front_exn cur_alphas_beta with
-        | (_, S sp) -> if tp = Proof.s_at sp then
-                         Deque.enqueue_back muaux.optimal_proofs (ts, S sp)
-        | _ -> raise (Invalid_argument "found V proof in S deque")));
-    (if Deque.length muaux.optimal_proofs = optimal_proofs_len then
-       (let c1 = if not (Deque.is_empty muaux.v_betas_alpha) then
-                   let cur_betas_alpha = Deque.peek_front_exn muaux.v_betas_alpha in
-                   (if not (Deque.is_empty cur_betas_alpha) then
-                      match Deque.peek_front_exn cur_betas_alpha with
-                      | (_, V VUntil(_, vp1, vp2s)) ->
-                         (match Deque.peek_front muaux.tstps_in with
-                          | None -> []
-                          | Some(_, first_tp_in) ->
-                             if Proof.v_etp (VUntil(tp, vp1, vp2s)) = first_tp_in then
-                               [Proof.V (VUntil(tp, vp1, vp2s))]
-                             else [])
-                      | _ -> raise (Invalid_argument "proof should be VUntil")
-                    else [])
-                 else [] in
-        let c2 = if not (Deque.is_empty muaux.v_alphas_out) then
-                   let vvp1 = snd(Deque.peek_front_exn muaux.v_alphas_out) in
-                   match vvp1 with
-                   | V vp1 -> [Proof.V (VUntil (tp, vp1, Deque.create ()))]
-                   | S _ -> raise (Invalid_argument "found S proof in V deque")
-                 else [] in
-        let c3 = if (Deque.length muaux.v_betas_suffix_in) = (Deque.length muaux.tstps_in) then
-                   let ltp = match Deque.peek_back muaux.v_betas_suffix_in with
-                     | None -> snd(Deque.peek_back_exn muaux.tstps_out)
-                     | Some(_, vp2) -> (Proof.v_at vp2) in
-                   [Proof.V (VUntilInf (tp, ltp, snd_deque muaux.v_betas_suffix_in))]
-                 else [] in
-        let cps = c1 @ c2 @ c3 in
-        if List.length cps > 0 then
-          Deque.enqueue_back muaux.optimal_proofs (ts, minp_list cps)));
-    adjust a (nts, ntp) muaux
+  (* let eval_step a (nts, ntp) ts tp muaux = *)
+  (*   let optimal_proofs_len = Deque.length muaux.optimal_proofs in *)
+  (*   let cur_alphas_beta = Deque.peek_front_exn muaux.s_alphas_beta in *)
+  (*   (if not (Deque.is_empty cur_alphas_beta) then *)
+  (*      (match Deque.peek_front_exn cur_alphas_beta with *)
+  (*       | (_, S sp) -> if tp = Proof.s_at sp then *)
+  (*                        Deque.enqueue_back muaux.optimal_proofs (ts, S sp) *)
+  (*       | _ -> raise (Invalid_argument "found V proof in S deque"))); *)
+  (*   (if Deque.length muaux.optimal_proofs = optimal_proofs_len then *)
+  (*      (let c1 = if not (Deque.is_empty muaux.v_betas_alpha) then *)
+  (*                  let cur_betas_alpha = Deque.peek_front_exn muaux.v_betas_alpha in *)
+  (*                  (if not (Deque.is_empty cur_betas_alpha) then *)
+  (*                     match Deque.peek_front_exn cur_betas_alpha with *)
+  (*                     | (_, V VUntil(_, vp1, vp2s)) -> *)
+  (*                        (match Deque.peek_front muaux.tstps_in with *)
+  (*                         | None -> [] *)
+  (*                         | Some(_, first_tp_in) -> *)
+  (*                            if Proof.v_etp (VUntil(tp, vp1, vp2s)) = first_tp_in then *)
+  (*                              [Proof.V (VUntil(tp, vp1, vp2s))] *)
+  (*                            else []) *)
+  (*                     | _ -> raise (Invalid_argument "proof should be VUntil") *)
+  (*                   else []) *)
+  (*                else [] in *)
+  (*       let c2 = if not (Deque.is_empty muaux.v_alphas_out) then *)
+  (*                  let vvp1 = snd(Deque.peek_front_exn muaux.v_alphas_out) in *)
+  (*                  match vvp1 with *)
+  (*                  | V vp1 -> [Proof.V (VUntil (tp, vp1, Deque.create ()))] *)
+  (*                  | S _ -> raise (Invalid_argument "found S proof in V deque") *)
+  (*                else [] in *)
+  (*       let c3 = if (Deque.length muaux.v_betas_suffix_in) = (Deque.length muaux.tstps_in) then *)
+  (*                  let ltp = match Deque.peek_back muaux.v_betas_suffix_in with *)
+  (*                    | None -> snd(Deque.peek_back_exn muaux.tstps_out) *)
+  (*                    | Some(_, vp2) -> (Proof.v_at vp2) in *)
+  (*                  [Proof.V (VUntilInf (tp, ltp, snd_deque muaux.v_betas_suffix_in))] *)
+  (*                else [] in *)
+  (*       let cps = c1 @ c2 @ c3 in *)
+  (*       if List.length cps > 0 then *)
+  (*         Deque.enqueue_back muaux.optimal_proofs (ts, minp_list cps))); *)
+  (*   adjust a (nts, ntp) muaux *)
 
-  let shift_muaux (a, b) (nts, ntp) muaux =
-    let tstps = ready_tstps b nts muaux.tstps_out muaux.tstps_in in
-    Deque.iter tstps ~f:(fun (ts, tp) -> eval_step a (nts, ntp) ts tp muaux)
+  (* let shift_muaux (a, b) (nts, ntp) muaux = *)
+  (*   let tstps = ready_tstps b nts muaux.tstps_out muaux.tstps_in in *)
+  (*   Deque.iter tstps ~f:(fun (ts, tp) -> eval_step a (nts, ntp) ts tp muaux) *)
 
-  let update i nts ntp p1 p2 muaux =
-    let a = Interval.left i in
-    let b = match Interval.right i with
-      | None -> raise (Invalid_argument "Until interval is unbounded")
-      | Some(b') -> b' in
-    shift_muaux (a, b) (nts, ntp) muaux;
-    add_tstp_future a b nts ntp muaux.tstps_out muaux.tstps_in;
-    add_subps a (nts, ntp) p1 p2 muaux
+  (* let update i nts ntp p1 p2 muaux = *)
+  (*   let a = Interval.left i in *)
+  (*   let b = match Interval.right i with *)
+  (*     | None -> raise (Invalid_argument "Until interval is unbounded") *)
+  (*     | Some(b') -> b' in *)
+  (*   shift_muaux (a, b) (nts, ntp) muaux; *)
+  (*   add_tstp_future a b nts ntp muaux.tstps_out muaux.tstps_in; *)
+  (*   add_subps a (nts, ntp) p1 p2 muaux *)
 
-  let rec eval d i nts ntp muaux =
-    let a = Interval.left i in
-    let b = match Interval.right i with
-      | None -> raise (Invalid_argument "Until interval is unbounded")
-      | Some(b') -> b' in
-    shift_muaux (a, b) (nts, ntp) muaux;
-    match Deque.peek_back muaux.optimal_proofs with
-    | None -> (nts, d, muaux)
-    | Some(ts, _) -> if ts + b < nts then
-                       let (ts', op) = Deque.dequeue_back_exn muaux.optimal_proofs in
-                       let (_, ops, muaux) = eval d i nts ntp muaux in
-                       Deque.enqueue_back ops op; (ts', ops, muaux)
-                     else (ts, d, muaux)
+  (* let rec eval d i nts ntp muaux = *)
+  (*   let a = Interval.left i in *)
+  (*   let b = match Interval.right i with *)
+  (*     | None -> raise (Invalid_argument "Until interval is unbounded") *)
+  (*     | Some(b') -> b' in *)
+  (*   shift_muaux (a, b) (nts, ntp) muaux; *)
+  (*   match Deque.peek_back muaux.optimal_proofs with *)
+  (*   | None -> (nts, d, muaux) *)
+  (*   | Some(ts, _) -> if ts + b < nts then *)
+  (*                      let (ts', op) = Deque.dequeue_back_exn muaux.optimal_proofs in *)
+  (*                      let (_, ops, muaux) = eval d i nts ntp muaux in *)
+  (*                      Deque.enqueue_back ops op; (ts', ops, muaux) *)
+  (*                    else (ts, d, muaux) *)
 
 end
 
@@ -1301,24 +1309,25 @@ let rec meval vars ts tp (db: Db.t) = function
      let ((moaux_pdt', expls'), buf', tstps') =
        Buft.take
          (fun expl ts tp (aux_pdt, es) ->
-           let (aux_pdt', es') = Pdt.split_prod (Pdt.apply2 vars (fun p aux ->
-                                                     Once.update i ts tp p aux) expl aux_pdt) in
+           let (aux_pdt', es') = Pdt.split_prod
+                                   (Pdt.apply2 vars (fun p aux -> Once.update i ts tp p aux) expl aux_pdt) in
            (aux_pdt', Pdt.split_list es'))
          (moaux_pdt, []) (expls, (tstps @ [(ts,tp)])) in
+     Stdio.printf "%s\n" (Pdt.to_string (fun _ -> "") "" moaux_pdt');
      (expls', MOnce (i, mf', tstps', moaux_pdt'))
-  | MEventually (i, mf, (buf, ntstps), meaux_pdt) ->
-     let (expls, mf') = meval vars ts tp db mf in
-     let (meaux_pdt', buf', ntstps') =
-       Buft.take
-         (fun expl ts tp aux_pdt -> Pdt.apply2 vars (fun p aux -> Eventually.update i ts tp p aux) expl aux_pdt)
-         meaux_pdt (buf @ expls, (ntstps @ [(ts,tp)])) in
-     let (nts, ntp) = match ntstps' with
-       | [] -> (ts, tp)
-       | (nts', ntp') :: _ -> (nts', ntp') in
-     let (meaux_pdt', es') = Pdt.split_prod
-                               (Pdt.apply1 vars (fun aux -> Eventually.eval i nts ntp (aux, [])) meaux_pdt') in
-     let expls' = Pdt.split_list es' in
-     (expls', MEventually (i, mf', (buf', ntstps'), meaux_pdt'))
+  (* | MEventually (i, mf, (buf, ntstps), meaux_pdt) -> *)
+  (*    let (expls, mf') = meval vars ts tp db mf in *)
+  (*    let (meaux_pdt', buf', ntstps') = *)
+  (*      Buft.take *)
+  (*        (fun expl ts tp aux_pdt -> Pdt.apply2 vars (fun p aux -> Eventually.update i ts tp p aux) expl aux_pdt) *)
+  (*        meaux_pdt (buf @ expls, (ntstps @ [(ts,tp)])) in *)
+  (*    let (nts, ntp) = match ntstps' with *)
+  (*      | [] -> (ts, tp) *)
+  (*      | (nts', ntp') :: _ -> (nts', ntp') in *)
+  (*    let (meaux_pdt', es') = Pdt.split_prod *)
+  (*                              (Pdt.apply1 vars (fun aux -> Eventually.eval i nts ntp (aux, [])) meaux_pdt') in *)
+  (*    let expls' = Pdt.split_list es' in *)
+  (*    (expls', MEventually (i, mf', (buf', ntstps'), meaux_pdt')) *)
   (*   | MHistorically (interval, mf, ts_tps, mhaux) -> *)
   (*      let (_, ps, mf') = meval tp ts sap mf in *)
   (*      let _ = Deque.enqueue_back ts_tps (ts, tp) in *)
