@@ -290,14 +290,14 @@ module Once = struct
     add_subps ts p1 moaux.s_alphas_out moaux.v_alphas_out;
     if ts < (Option.value_exn moaux.ts_zero) + a then
       (Deque.enqueue_back moaux.tstps_out (ts, tp);
-       ([Proof.V (VOnceOut tp)], moaux))
+       (moaux, [Proof.V (VOnceOut tp)]))
     else
       let b = Interval.right i in
       let l = if (Option.is_some b) then max 0 (ts - (Option.value_exn b))
               else (Option.value_exn moaux.ts_zero) in
       let r = ts - a in
       shift (l, r) a ts tp moaux;
-      (eval tp moaux, moaux)
+      (moaux, eval tp moaux)
 
 end
 
@@ -1122,12 +1122,12 @@ module MFormula = struct
     | MForall       of Term.t * t
     | MPrev         of Interval.t * t * bool * (Expl.t, timestamp) Buft.t
     | MNext         of Interval.t * t * bool * timestamp list
-    | MOnce         of Interval.t * t * (timestamp * timepoint) list * Once.t Expl.pdt
-    | MEventually   of Interval.t * t * (Expl.t, timestamp * timepoint) Buft.t * Eventually.t Expl.pdt
-    | MHistorically of Interval.t * t * (timestamp * timepoint) list * Historically.t Expl.pdt
-    | MAlways       of Interval.t * t * (Expl.t, timestamp * timepoint) Buft.t * Always.t Expl.pdt
-    | MSince        of Interval.t * t * t * (Expl.t, Expl.t, timestamp * timepoint) Buf2t.t * Since.t Expl.pdt
-    | MUntil        of Interval.t * t * t * (Expl.t, Expl.t, timestamp * timepoint) Buf2t.t * Until.t Expl.pdt
+    | MOnce         of Interval.t * t * (timestamp * timepoint) list * Once.t Expl.Pdt.t
+    | MEventually   of Interval.t * t * (Expl.t, timestamp * timepoint) Buft.t * Eventually.t Expl.Pdt.t
+    | MHistorically of Interval.t * t * (timestamp * timepoint) list * Historically.t Expl.Pdt.t
+    | MAlways       of Interval.t * t * (Expl.t, timestamp * timepoint) Buft.t * Always.t Expl.Pdt.t
+    | MSince        of Interval.t * t * t * (Expl.t, Expl.t, timestamp * timepoint) Buf2t.t * Since.t Expl.Pdt.t
+    | MUntil        of Interval.t * t * t * (Expl.t, Expl.t, timestamp * timepoint) Buf2t.t * Until.t Expl.Pdt.t
 
   let rec init = function
     | Formula.TT -> MTT
@@ -1230,7 +1230,7 @@ let rec pdt_of tp r trms vars maps : Expl.t = match vars with
      Node (x, part)
 
 let rec meval vars ts tp (db: Db.t) = function
-  | MTT -> ([Leaf (Proof.S (STT tp))], MTT)
+  | MTT -> ([Pdt.Leaf (Proof.S (STT tp))], MTT)
   | MFF -> ([Leaf (V (VFF tp))], MFF)
   | MPredicate (r, trms) ->
      let db' = Set.filter db (fun evt -> String.equal r (fst(evt))) in
@@ -1245,14 +1245,14 @@ let rec meval vars ts tp (db: Db.t) = function
      ([expl], MPredicate (r, trms))
   | MNeg (mf) ->
      let (expls, mf') = meval vars ts tp db mf in
-     let f_expls = List.map expls ~f:(fun expl -> (Expl.apply1 vars (fun p -> do_neg p) expl)) in
+     let f_expls = List.map expls ~f:(fun expl -> (Pdt.apply1 vars (fun p -> do_neg p) expl)) in
      (f_expls, MNeg(mf'))
   | MAnd (mf1, mf2, buf2) ->
      let (expls1, mf1') = meval vars ts tp db mf1 in
      let (expls2, mf2') = meval vars ts tp db mf2 in
      let (f_expls, buf2') =
        Buf2.take
-         (fun expl1 expl2 -> Expl.apply2 vars (fun p1 p2 -> minp_list (do_and p1 p2)) expl1 expl2)
+         (fun expl1 expl2 -> Pdt.apply2 vars (fun p1 p2 -> minp_list (do_and p1 p2)) expl1 expl2)
          (Buf2.add expls1 expls2 buf2) in
      (f_expls, MAnd (mf1', mf2', buf2'))
   | MOr (mf1, mf2, buf2) ->
@@ -1260,7 +1260,7 @@ let rec meval vars ts tp (db: Db.t) = function
      let (expls2, mf2') = meval vars ts tp db mf2 in
      let (f_expls, buf2') =
        Buf2.take
-         (fun expl1 expl2 -> Expl.apply2 vars (fun p1 p2 -> minp_list (do_or p1 p2)) expl1 expl2)
+         (fun expl1 expl2 -> Pdt.apply2 vars (fun p1 p2 -> minp_list (do_or p1 p2)) expl1 expl2)
          (Buf2.add expls1 expls2 buf2) in
      (f_expls, MOr (mf1', mf2', buf2'))
   | MImp (mf1, mf2, buf2) ->
@@ -1268,7 +1268,7 @@ let rec meval vars ts tp (db: Db.t) = function
      let (expls2, mf2') = meval vars ts tp db mf2 in
      let (f_expls, buf2') =
        Buf2.take
-         (fun expl1 expl2 -> Expl.apply2 vars (fun p1 p2 -> minp_list (do_imp p1 p2)) expl1 expl2)
+         (fun expl1 expl2 -> Pdt.apply2 vars (fun p1 p2 -> minp_list (do_imp p1 p2)) expl1 expl2)
          (Buf2.add expls1 expls2 buf2) in
      (f_expls, MImp (mf1', mf2', buf2'))
   | MIff (mf1, mf2, buf2) ->
@@ -1276,14 +1276,14 @@ let rec meval vars ts tp (db: Db.t) = function
      let (expls2, mf2') = meval vars ts tp db mf2 in
      let (f_expls, buf2') =
        Buf2.take
-         (fun expl1 expl2 -> Expl.apply2 vars (fun p1 p2 -> do_iff p1 p2) expl1 expl2)
+         (fun expl1 expl2 -> Pdt.apply2 vars (fun p1 p2 -> do_iff p1 p2) expl1 expl2)
          (Buf2.add expls1 expls2 buf2) in
      (f_expls, MIff (mf1', mf2', buf2'))
   | MPrev (i, mf, first, (buf, tss)) ->
      let (expls, mf') = meval vars ts tp db mf in
      let (f_expls, (buf', tss')) =
        Buft.another_take
-         (fun expl ts ts' -> Expl.apply1 vars (fun p -> Prev_Next.update_eval Prev i p ts ts') expl)
+         (fun expl ts ts' -> Pdt.apply1 vars (fun p -> Prev_Next.update_eval Prev i p ts ts') expl)
          (buf @ expls, tss @ [ts]) in
      ((if first then (Leaf (V VPrev0) :: f_expls) else f_expls), MPrev (i, mf', false, (buf', tss')))
   | MNext (i, mf, first, tss) ->
@@ -1292,20 +1292,19 @@ let rec meval vars ts tp (db: Db.t) = function
                            else (expls, first) in
      let (f_expls, (buf', tss')) =
        Buft.another_take
-         (fun expl ts ts' -> Expl.apply1 vars (fun p -> Prev_Next.update_eval Next i p ts ts') expl)
+         (fun expl ts ts' -> Pdt.apply1 vars (fun p -> Prev_Next.update_eval Next i p ts ts') expl)
          (expls', tss @ [ts]) in
      (f_expls, MNext (i, mf', first, tss'))
-  (* | MOnce (interval, mf, ts_tps, moaux) -> *)
-  (*    let (_, ps, mf') = meval tp ts sap mf in *)
-  (*    let _ = Deque.enqueue_back ts_tps (ts, tp) in *)
-  (*    let ((ps, moaux'), buf', ts_tps') = *)
-  (*      mbuft_take *)
-  (*          (fun p ts tp (ps, aux) -> *)
-  (*            let (op, aux) = Once.update_once interval ts tp p aux le in *)
-  (*            let () = Deque.enqueue_back ps op in *)
-  (*            (ps, aux)) *)
-  (*          (Deque.create (), moaux) ps ts_tps in *)
-  (*      (ts, ps, MOnce (interval, mf', ts_tps', moaux')) *)
+  (* | MOnce (i, mf, tstps, moaux_pdt) -> *)
+  (*    let (expls, mf') = meval vars ts tp db mf in *)
+  (*    let (z, buf', tstps') = *)
+  (*      Buft.take *)
+  (*        (fun expl ts tp (expls', moaux_pdt') -> *)
+  (*          let (moaux_pdt, expls) = Pdt.split_prod *)
+  (*                                     (Pdt.apply2 vars (fun p moaux -> Once.update i ts tp p moaux) expl moaux_pdt') in *)
+  (*          (moaux_pdt, Pdt.split_list expls)) *)
+  (*        ([], moaux_pdt) (expls, (tstps @ [(ts,tp)])) in *)
+  (*      (expls, MOnce (i, mf', tstps', moaux_pdt')) *)
   (*   | MHistorically (interval, mf, ts_tps, mhaux) -> *)
   (*      let (_, ps, mf') = meval tp ts sap mf in *)
   (*      let _ = Deque.enqueue_back ts_tps (ts, tp) in *)

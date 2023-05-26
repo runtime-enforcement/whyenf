@@ -123,7 +123,7 @@ module Checker_interface = struct
                        (convert_set coset, convert_pdt pdt)) in
     abs_part (part_lst)
   and convert_pdt = function
-    | Expl.Leaf pt -> (match pt with
+    | Expl.Pdt.Leaf pt -> (match pt with
                        | Proof.S sp -> Leaf (Inl (convert_sp sp))
                        | V vp -> Leaf (Inr (convert_vp vp)))
     | Node (x, part) -> Node (Pred.Term.unvar x, convert_pdt_part part)
@@ -133,7 +133,7 @@ module Checker_interface = struct
     | V vp -> Inr (convert_vp vp)
 
   let rec convert_expl = function
-    | Expl.Leaf pt -> Leaf (convert_p pt)
+    | Expl.Pdt.Leaf pt -> Leaf (convert_p pt)
     | Node (x, part) -> Node (Pred.Term.unvar x, convert_pdt_part part)
 
   let convert_interval = function
