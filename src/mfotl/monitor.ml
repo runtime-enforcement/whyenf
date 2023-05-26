@@ -301,6 +301,7 @@ module Once = struct
 
 end
 
+
 module Eventually = struct
 
   type t = { tstps_out: (timestamp * timepoint) Deque.t
@@ -374,22 +375,22 @@ module Eventually = struct
       | Some(b') -> b' in
     shift (a, b) (nts, ntp) meaux;
     add_tstp_future a b nts ntp meaux.tstps_out meaux.tstps_in;
-    add_subp a (nts, ntp) p meaux
+    add_subp a (nts, ntp) p meaux;
+    meaux
 
-  let rec eval d i nts ntp meaux =
+  let rec eval i nts ntp (meaux, ops) =
     let a = Interval.left i in
     let b = match Interval.right i with
       | None -> raise (Invalid_argument "Eventually interval is unbounded")
       | Some(b') -> b' in
     shift (a, b) (nts, ntp) meaux;
     match Deque.peek_back meaux.optimal_proofs with
-    | None -> (nts, d, meaux)
+    | None -> (meaux, ops)
     | Some(ts, _) -> if ts + b < nts then
                        let (ts', op) = Deque.dequeue_back_exn meaux.optimal_proofs in
-                       let (_, ops, meaux) = eval d i nts ntp meaux in
-                       Deque.enqueue_back ops op;
-                       (ts', ops, meaux)
-                     else (ts, d, meaux)
+                       let (meaux', ops') = eval i nts ntp (meaux, ops) in
+                       (meaux', ops' @ [op])
+                     else (meaux, ops)
 
 end
 
@@ -1295,16 +1296,29 @@ let rec meval vars ts tp (db: Db.t) = function
          (fun expl ts ts' -> Pdt.apply1 vars (fun p -> Prev_Next.update_eval Next i p ts ts') expl)
          (expls', tss @ [ts]) in
      (f_expls, MNext (i, mf', first, tss'))
-  (* | MOnce (i, mf, tstps, moaux_pdt) -> *)
-  (*    let (expls, mf') = meval vars ts tp db mf in *)
-  (*    let (z, buf', tstps') = *)
-  (*      Buft.take *)
-  (*        (fun expl ts tp (expls', moaux_pdt') -> *)
-  (*          let (moaux_pdt, expls) = Pdt.split_prod *)
-  (*                                     (Pdt.apply2 vars (fun p moaux -> Once.update i ts tp p moaux) expl moaux_pdt') in *)
-  (*          (moaux_pdt, Pdt.split_list expls)) *)
-  (*        ([], moaux_pdt) (expls, (tstps @ [(ts,tp)])) in *)
-  (*      (expls, MOnce (i, mf', tstps', moaux_pdt')) *)
+  | MOnce (i, mf, tstps, moaux_pdt) ->
+     let (expls, mf') = meval vars ts tp db mf in
+     let ((moaux_pdt', expls'), buf', tstps') =
+       Buft.take
+         (fun expl ts tp (aux_pdt, es) ->
+           let (aux_pdt', es') = Pdt.split_prod (Pdt.apply2 vars (fun p aux ->
+                                                     Once.update i ts tp p aux) expl aux_pdt) in
+           (aux_pdt', Pdt.split_list es'))
+         (moaux_pdt, []) (expls, (tstps @ [(ts,tp)])) in
+     (expls', MOnce (i, mf', tstps', moaux_pdt'))
+  | MEventually (i, mf, (buf, ntstps), meaux_pdt) ->
+     let (expls, mf') = meval vars ts tp db mf in
+     let (meaux_pdt', buf', ntstps') =
+       Buft.take
+         (fun expl ts tp aux_pdt -> Pdt.apply2 vars (fun p aux -> Eventually.update i ts tp p aux) expl aux_pdt)
+         meaux_pdt (buf @ expls, (ntstps @ [(ts,tp)])) in
+     let (nts, ntp) = match ntstps' with
+       | [] -> (ts, tp)
+       | (nts', ntp') :: _ -> (nts', ntp') in
+     let (meaux_pdt', es') = Pdt.split_prod
+                               (Pdt.apply1 vars (fun aux -> Eventually.eval i nts ntp (aux, [])) meaux_pdt') in
+     let expls' = Pdt.split_list es' in
+     (expls', MEventually (i, mf', (buf', ntstps'), meaux_pdt'))
   (*   | MHistorically (interval, mf, ts_tps, mhaux) -> *)
   (*      let (_, ps, mf') = meval tp ts sap mf in *)
   (*      let _ = Deque.enqueue_back ts_tps (ts, tp) in *)
@@ -1316,19 +1330,6 @@ let rec meval vars ts tp (db: Db.t) = function
   (*            (ps, aux)) *)
   (*          (Deque.create (), mhaux) ps ts_tps in *)
   (*      (ts, ps, MHistorically (interval, mf', ts_tps', mhaux')) *)
-  (*   | MEventually (interval, mf, buf, nts_ntps, meaux) -> *)
-  (*      let (_, ps, mf') = meval tp ts sap mf in *)
-  (*      let () = Deque.enqueue_back nts_ntps (ts, tp) in *)
-  (*      let () = Deque.iter ps ~f:(fun p -> Deque.enqueue_back buf p) in *)
-  (*      let (meaux', buf', nts_ntps') = *)
-  (*        mbuft_take *)
-  (*          (fun p ts tp aux -> Eventually.update_eventually interval ts tp p le aux) *)
-  (*          meaux buf nts_ntps in *)
-  (*      let (nts, ntp) = match Deque.peek_front nts_ntps' with *)
-  (*        | None -> (ts, tp) *)
-  (*        | Some(nts', ntp') -> (nts', ntp') in *)
-  (*      let (ts', ps, meaux'') = Eventually.eval_eventually (Deque.create ()) interval nts ntp le meaux' in *)
-  (*      (ts', ps, MEventually (interval, mf', buf', nts_ntps', meaux'')) *)
   (*   | MAlways (interval, mf, buf, nts_ntps, maaux) -> *)
   (*      (\* let () = Printf.printf "meval ts = %d; tp = %d\n" ts tp in *\) *)
   (*      let (_, ps, mf') = meval tp ts sap mf in *)
