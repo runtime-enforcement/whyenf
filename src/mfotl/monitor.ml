@@ -18,20 +18,16 @@ let minp_bool = Proof.Size.minp_bool
 let minp = Proof.Size.minp
 
 let s_append_deque sp1 d =
-  Deque.iteri d ~f:(fun i (ts, ssp) ->
+  Fdeque.map d ~f:(fun (ts, ssp) ->
       match ssp with
-      | Proof.S sp -> Deque.set_exn d i (ts, S (Proof.s_append sp sp1))
+      | Proof.S sp -> (ts, Proof.S (Proof.s_append sp sp1))
       | V _ -> raise (Invalid_argument "found V proof in S deque"))
 
 let v_append_deque vp2 d =
-  Deque.iteri d ~f:(fun i (ts, vvp) ->
+  Fdeque.map d ~f:(fun (ts, vvp) ->
       match vvp with
-      | Proof.V vp -> Deque.set_exn d i (ts, V (Proof.v_append vp vp2))
+      | Proof.V vp -> (ts, Proof.V (Proof.v_append vp vp2))
       | S _ -> raise (Invalid_argument "found S proof in V deque"))
-
-let snd_deque d =
-  Deque.fold d ~init:(Deque.create ()) ~f:(fun acc (ts, p) ->
-      Deque.enqueue_back acc p; acc)
 
 let remove_cond_front f deque =
   let rec remove_cond_front_rec d = match Fdeque.dequeue_front d with
@@ -621,202 +617,193 @@ end
 
 module Since = struct
 
-  type t = { mutable ts_zero: timestamp option
-           ; tstps_in: (timestamp * timepoint) Deque.t
-           ; tstps_out: (timestamp * timepoint) Deque.t
-           ; s_beta_alphas_in: (timestamp * Proof.t) Deque.t
-           ; s_beta_alphas_out: (timestamp * Proof.t) Deque.t
-           ; v_alpha_betas_in: (timestamp * Proof.t) Deque.t
-           ; v_alphas_out: (timestamp * Proof.t) Deque.t
-           ; v_betas_in: (timestamp * Proof.vp) Deque.t
-           ; v_alphas_betas_out: (timestamp * Proof.vp option * Proof.vp option) Deque.t }
+  type t = { ts_zero: timestamp option
+           ; tstps_in: (timestamp * timepoint) Fdeque.t
+           ; tstps_out: (timestamp * timepoint) Fdeque.t
+           ; s_beta_alphas_in: (timestamp * Proof.t) Fdeque.t
+           ; s_beta_alphas_out: (timestamp * Proof.t) Fdeque.t
+           ; v_alpha_betas_in: (timestamp * Proof.t) Fdeque.t
+           ; v_alphas_out: (timestamp * Proof.t) Fdeque.t
+           ; v_betas_in: (timestamp * Proof.vp) Fdeque.t
+           ; v_alphas_betas_out: (timestamp * Proof.vp option * Proof.vp option) Fdeque.t }
 
   let init () = { ts_zero = None
-                ; tstps_in = Deque.create ()
-                ; tstps_out = Deque.create ()
-                ; s_beta_alphas_in = Deque.create ()
-                ; s_beta_alphas_out = Deque.create ()
-                ; v_alpha_betas_in = Deque.create ()
-                ; v_alphas_out = Deque.create ()
-                ; v_betas_in = Deque.create ()
-                ; v_alphas_betas_out = Deque.create () }
+                ; tstps_in = Fdeque.empty
+                ; tstps_out = Fdeque.empty
+                ; s_beta_alphas_in = Fdeque.empty
+                ; s_beta_alphas_out = Fdeque.empty
+                ; v_alpha_betas_in = Fdeque.empty
+                ; v_alphas_out = Fdeque.empty
+                ; v_betas_in = Fdeque.empty
+                ; v_alphas_betas_out = Fdeque.empty }
 
-  (* let to_string { ts_zero *)
-  (*               ; tstps_in *)
-  (*               ; tstps_out *)
-  (*               ; s_beta_alphas_in *)
-  (*               ; s_beta_alphas_out *)
-  (*               ; v_alpha_betas_in *)
-  (*               ; v_alphas_out *)
-  (*               ; v_betas_in *)
-  (*               ; v_alphas_betas_out } = *)
-  (*   ("\n\nSince state: " ^ (print_tstps ts_zero tstps_in tstps_out) ^ *)
-  (*      Deque.fold s_beta_alphas_in ~init:"\ns_beta_alphas_in = " *)
-  (*        ~f:(fun acc (ts, p) -> *)
-  (*          acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^ *)
-  (*        Deque.fold s_beta_alphas_out ~init:"\ns_beta_alphas_out = " *)
-  (*          ~f:(fun acc (ts, p) -> *)
-  (*            acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^ *)
-  (*          Deque.fold v_alpha_betas_in ~init:"\nv_alpha_betas_in = " *)
-  (*            ~f:(fun acc (ts, p) -> *)
-  (*              acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^ *)
-  (*            Deque.fold v_alphas_out ~init:"\nv_alphas_out = " *)
-  (*              ~f:(fun acc (ts, p) -> *)
-  (*                acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^ *)
-  (*              Deque.fold v_betas_in ~init:"\nv_betas_in = " *)
-  (*                ~f:(fun acc (ts, p) -> *)
-  (*                  acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.v_to_string "" p) ^ *)
-  (*                Deque.fold v_alphas_betas_out ~init:"\nv_alphas_betas_out = " *)
-  (*                  ~f:(fun acc (ts, p1_opt, p2_opt) -> *)
-  (*                    match p1_opt, p2_opt with *)
-  (*                    | None, None -> acc *)
-  (*                    | Some(p1), None -> acc ^ (Printf.sprintf "\n(%d)\nalpha = " ts) ^ Proof.v_to_string "" p1 *)
-  (*                    | None, Some(p2) -> acc ^ (Printf.sprintf "\n(%d)\nbeta = " ts) ^ Proof.v_to_string "" p2 *)
-  (*                    | Some(p1), Some(p2) -> acc ^ (Printf.sprintf "\n(%d)\nalpha = " ts) ^ Proof.v_to_string "" p1 ^ *)
-  (*                                              (Printf.sprintf "\n(%d)\nbeta = " ts) ^ Proof.v_to_string "" p2)) *)
+  let to_string { ts_zero
+                ; tstps_in
+                ; tstps_out
+                ; s_beta_alphas_in
+                ; s_beta_alphas_out
+                ; v_alpha_betas_in
+                ; v_alphas_out
+                ; v_betas_in
+                ; v_alphas_betas_out } =
+    ("\n\nSince state: " ^ (print_tstps ts_zero tstps_in tstps_out) ^
+       Fdeque.fold s_beta_alphas_in ~init:"\ns_beta_alphas_in = "
+         ~f:(fun acc (ts, p) ->
+           acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^
+         Fdeque.fold s_beta_alphas_out ~init:"\ns_beta_alphas_out = "
+           ~f:(fun acc (ts, p) ->
+             acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^
+           Fdeque.fold v_alpha_betas_in ~init:"\nv_alpha_betas_in = "
+             ~f:(fun acc (ts, p) ->
+               acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^
+             Fdeque.fold v_alphas_out ~init:"\nv_alphas_out = "
+               ~f:(fun acc (ts, p) ->
+                 acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^
+               Fdeque.fold v_betas_in ~init:"\nv_betas_in = "
+                 ~f:(fun acc (ts, p) ->
+                   acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.v_to_string "" p) ^
+                 Fdeque.fold v_alphas_betas_out ~init:"\nv_alphas_betas_out = "
+                   ~f:(fun acc (ts, p1_opt, p2_opt) ->
+                     match p1_opt, p2_opt with
+                     | None, None -> acc
+                     | Some(p1), None -> acc ^ (Printf.sprintf "\n(%d)\nalpha = " ts) ^ Proof.v_to_string "" p1
+                     | None, Some(p2) -> acc ^ (Printf.sprintf "\n(%d)\nbeta = " ts) ^ Proof.v_to_string "" p2
+                     | Some(p1), Some(p2) -> acc ^ (Printf.sprintf "\n(%d)\nalpha = " ts) ^ Proof.v_to_string "" p1 ^
+                                               (Printf.sprintf "\n(%d)\nbeta = " ts) ^ Proof.v_to_string "" p2))
 
-  (* let add_v_alphas_out ts vvp' v_alphas_out = *)
-  (*   remove_cond_back (fun (_, vvp) -> minp_bool vvp' vvp) v_alphas_out; *)
-  (*   Deque.enqueue_back v_alphas_out (ts, vvp') *)
+  let update_s_beta_alphas_in new_in s_beta_alphas_in =
+    if not (Fdeque.is_empty new_in) then
+      sorted_append new_in s_beta_alphas_in
+    else s_beta_alphas_in
 
-  (* let update_s_beta_alphas_in new_in s_beta_alphas_in = *)
-  (*   if not (Deque.is_empty new_in) then *)
-  (*     sorted_append new_in s_beta_alphas_in *)
+  let update_v_betas_in new_in v_betas_in =
+    Fdeque.fold new_in ~init:v_betas_in ~f:(fun v_betas_in' (ts, _, vp2_opt) ->
+        match vp2_opt with
+        | None -> Fdeque.empty
+        | Some(vp2) -> Fdeque.enqueue_back v_betas_in' (ts, vp2))
 
-  (* let update_v_betas_in new_in v_betas_in = *)
-  (*   Deque.iter new_in ~f:(fun (ts, _, vp2_opt) -> *)
-  (*       match vp2_opt with *)
-  (*       | None -> Deque.clear v_betas_in *)
-  (*       | Some(vp2) -> Deque.enqueue_back v_betas_in (ts, vp2)) *)
+  let construct_vsinceps tp new_in =
+    Fdeque.fold new_in ~init:Fdeque.empty
+      ~f:(fun acc (ts, vp1_opt, vp2_opt) ->
+        match vp1_opt with
+        | None -> (match vp2_opt with
+                   | None -> Fdeque.empty
+                   | Some(vp2) -> v_append_deque vp2 acc)
+        | Some(vp1) -> (match vp2_opt with
+                        | None -> Fdeque.empty
+                        | Some(vp2) -> let acc' = v_append_deque vp2 acc in
+                                       let vp2s = Fdeque.enqueue_back Fdeque.empty vp2 in
+                                       let vp = Proof.V (VSince (tp, vp1, vp2s)) in
+                                       Fdeque.enqueue_back acc' (ts, vp)))
 
-  (* let construct_vsinceps tp new_in = *)
-  (*   Deque.fold new_in ~init:(Deque.create ()) *)
-  (*     ~f:(fun acc (ts, vp1_opt, vp2_opt) -> *)
-  (*       match vp1_opt with *)
-  (*       | None -> (match vp2_opt with *)
-  (*                  | None -> Deque.clear acc; acc *)
-  (*                  | Some(vp2) -> v_append_deque vp2 acc; acc) *)
-  (*       | Some(vp1) -> (match vp2_opt with *)
-  (*                       | None -> Deque.clear acc; acc *)
-  (*                       | Some(vp2) -> v_append_deque vp2 acc; *)
-  (*                                      let vp2s = Deque.create () in *)
-  (*                                      Deque.enqueue_back vp2s vp2; *)
-  (*                                      let vp = Proof.V (VSince (tp, vp1, vp2s)) in *)
-  (*                                      Deque.enqueue_back acc (ts, vp); acc)) *)
+  let add_new_ps_v_alpha_betas_in tp new_in v_alpha_betas_in =
+    let new_vsinceps_in = construct_vsinceps tp new_in in
+    if not (Fdeque.is_empty new_vsinceps_in) then
+      sorted_append new_vsinceps_in v_alpha_betas_in
+    else v_alpha_betas_in
 
-  (* let add_new_ps_v_alpha_betas_in tp new_in v_alpha_betas_in = *)
-  (*   let new_vps_in = construct_vsinceps tp new_in in *)
-  (*   if not (Deque.is_empty new_vps_in) then *)
-  (*     sorted_append new_vps_in v_alpha_betas_in *)
+  let update_v_alpha_betas_in_tps tp v_alpha_betas_in =
+    Fdeque.map v_alpha_betas_in ~f:(fun (ts, vvp) ->
+        match vvp with
+        | Proof.V (VSince (_, vp1, vp2s)) -> (ts, Proof.V (VSince (tp, vp1, vp2s)))
+        | _ -> raise (Invalid_argument "found S proof in V deque"))
 
-  (* let update_v_alpha_betas_in_tps tp v_alpha_betas_in = *)
-  (*   Deque.iteri v_alpha_betas_in ~f:(fun i (ts, vvp) -> *)
-  (*       match vvp with *)
-  (*       | Proof.V (VSince (tp', vp1, vp2s)) -> Deque.set_exn v_alpha_betas_in i (ts, V (VSince (tp, vp1, vp2s))) *)
-  (*       | _ -> raise (Invalid_argument "found S proof in V deque")) *)
+  let update_v_alpha_betas_in tp new_in v_alpha_betas_in =
+    let v_alpha_betas_in_vapp = Fdeque.fold new_in ~init:v_alpha_betas_in ~f:(fun v_alpha_betas_in' (_, _, vp2_opt) ->
+                                    match vp2_opt with
+                                    | None -> v_alpha_betas_in'
+                                    | Some(vp2) -> v_append_deque vp2 v_alpha_betas_in') in
+    let v_alpha_betas_in' = add_new_ps_v_alpha_betas_in tp new_in v_alpha_betas_in_vapp in
+    update_v_alpha_betas_in_tps tp v_alpha_betas_in'
 
-  (* let update_v_alpha_betas_in tp new_in v_alpha_betas_in = *)
-  (*   Deque.iter new_in ~f:(fun (_, _, vp2_opt) -> *)
-  (*       match vp2_opt with *)
-  (*       | None -> Deque.clear v_alpha_betas_in *)
-  (*       | Some(vp2) -> v_append_deque vp2 v_alpha_betas_in); *)
-  (*   add_new_ps_v_alpha_betas_in tp new_in v_alpha_betas_in; *)
-  (*   update_v_alpha_betas_in_tps tp v_alpha_betas_in *)
+  let add_subps ts (p1: Proof.t) (p2: Proof.t) msaux =
+    match p1, p2 with
+    | S sp1, S sp2 ->
+       let s_beta_alphas_in = s_append_deque sp1 msaux.s_beta_alphas_in in
+       let s_beta_alphas_out = s_append_deque sp1 msaux.s_beta_alphas_out in
+       let s_beta_alphas_out' = Fdeque.enqueue_back s_beta_alphas_out (ts, Proof.S (SSince (sp2, Fdeque.empty))) in
+       let v_alphas_betas_out = Fdeque.enqueue_back msaux.v_alphas_betas_out (ts, None, None) in
+       { msaux with s_beta_alphas_in; s_beta_alphas_out = s_beta_alphas_out'; v_alphas_betas_out }
+    | S sp1, V vp2 ->
+       let s_beta_alphas_in = s_append_deque sp1 msaux.s_beta_alphas_in in
+       let s_beta_alphas_out = s_append_deque sp1 msaux.s_beta_alphas_out in
+       let v_alphas_betas_out = Fdeque.enqueue_back msaux.v_alphas_betas_out (ts, None, Some(vp2)) in
+       { msaux with s_beta_alphas_in; s_beta_alphas_out; v_alphas_betas_out }
+    | V vp1, S sp2 ->
+       let s_beta_alphas_out = Fdeque.enqueue_back Fdeque.empty (ts, Proof.S (SSince (sp2, Fdeque.empty))) in
+       let v_alphas_out = sorted_enqueue (ts, (V vp1)) msaux.v_alphas_out in
+       let v_alphas_betas_out = Fdeque.enqueue_back msaux.v_alphas_betas_out (ts, Some(vp1), None) in
+       { msaux with s_beta_alphas_in = Fdeque.empty; s_beta_alphas_out; v_alphas_out; v_alphas_betas_out }
+    | V vp1, V vp2 ->
+       let v_alphas_out = sorted_enqueue (ts, (V vp1)) msaux.v_alphas_out in
+       let v_alphas_betas_out = Fdeque.enqueue_back msaux.v_alphas_betas_out (ts, Some(vp1), Some(vp2)) in
+       { msaux with s_beta_alphas_in = Fdeque.empty; s_beta_alphas_out = Fdeque.empty; v_alphas_out; v_alphas_betas_out }
 
-  (* let add_subps ts (p1: Proof.t) (p2: Proof.t) msaux = *)
-  (*   match p1, p2 with *)
-  (*   | S sp1, S sp2 -> *)
-  (*      (\* s_beta_alphas_in *\) *)
-  (*      s_append_deque sp1 msaux.s_beta_alphas_in; *)
-  (*      (\* s_beta_alphas_out *\) *)
-  (*      s_append_deque sp1 msaux.s_beta_alphas_out; *)
-  (*      let sp = Proof.S (SSince (sp2, Deque.create ())) in *)
-  (*      Deque.enqueue_back msaux.s_beta_alphas_out (ts, sp); *)
-  (*      (\* v_alphas_betas_out *\) *)
-  (*      Deque.enqueue_back msaux.v_alphas_betas_out (ts, None, None) *)
-  (*   | S sp1, V vp2 -> *)
-  (*      (\* s_beta_alphas_in *\) *)
-  (*      s_append_deque sp1 msaux.s_beta_alphas_in; *)
-  (*      s_append_deque sp1 msaux.s_beta_alphas_out; *)
-  (*      (\* v_alphas_betas_out *\) *)
-  (*      Deque.enqueue_back msaux.v_alphas_betas_out (ts, None, Some(vp2)) *)
-  (*   | V vp1, S sp2 -> *)
-  (*      (\* s_beta_alphas_in *\) *)
-  (*      Deque.clear msaux.s_beta_alphas_in; *)
-  (*      (\* s_beta_alphas_out *\) *)
-  (*      Deque.clear msaux.s_beta_alphas_out; *)
-  (*      let sp = Proof.S (SSince (sp2, Deque.create ())) in *)
-  (*      Deque.enqueue_back msaux.s_beta_alphas_out (ts, sp); *)
-  (*      (\* v_alphas_out *\) *)
-  (*      add_v_alphas_out ts (V vp1) msaux.v_alphas_out; *)
-  (*      (\* v_alphas_betas_out *\) *)
-  (*      Deque.enqueue_back msaux.v_alphas_betas_out (ts, Some(vp1), None) *)
-  (*   | V vp1, V vp2 -> *)
-  (*      (\* s_beta_alphas_in *\) *)
-  (*      Deque.clear msaux.s_beta_alphas_in; *)
-  (*      (\* s_beta_alphas_out *\) *)
-  (*      Deque.clear msaux.s_beta_alphas_out; *)
-  (*      (\* v_alphas_out *\) *)
-  (*      add_v_alphas_out ts (V vp1) msaux.v_alphas_out; *)
-  (*      (\* v_alphas_betas_out *\) *)
-  (*      Deque.enqueue_back msaux.v_alphas_betas_out (ts, Some(vp1), Some(vp2)) *)
+  let shift_sat (l, r) s_beta_alphas_out s_beta_alphas_in =
+    let (s_beta_alphas_out', new_in_sat) = split_in_out (fun (ts, _) -> ts) (l, r) s_beta_alphas_out in
+    (s_beta_alphas_out', update_s_beta_alphas_in new_in_sat s_beta_alphas_in)
 
-  (* let shift_sat (l, r) s_beta_alphas_out s_beta_alphas_in = *)
-  (*   let new_in_sat = split_in_out (fun (ts, _) -> ts) (l, r) s_beta_alphas_out in *)
-  (*   update_s_beta_alphas_in new_in_sat s_beta_alphas_in *)
+  let shift_vio (l, r) tp v_alphas_betas_out v_alpha_betas_in v_betas_in =
+    let (v_alphas_betas_out', new_in_vio) = split_in_out (fun (ts, _, _) -> ts) (l, r) v_alphas_betas_out in
+    let v_betas_in = update_v_betas_in new_in_vio v_betas_in in
+    (v_alphas_betas_out', update_v_alpha_betas_in tp new_in_vio v_alpha_betas_in, v_betas_in)
 
-  (* let shift_vio (l, r) tp v_alphas_betas_out v_alpha_betas_in v_betas_in = *)
-  (*   let new_in_vio = split_in_out (fun (ts, _, _) -> ts) (l, r) v_alphas_betas_out in *)
-  (*   update_v_betas_in new_in_vio v_betas_in; *)
-  (*   update_v_alpha_betas_in tp new_in_vio v_alpha_betas_in *)
+  let clean (l, r) msaux =
+    { msaux with s_beta_alphas_in = remove_cond_front (fun (ts, _) -> ts < l) msaux.s_beta_alphas_in
+               ; v_alpha_betas_in = remove_cond_front (fun (ts, _) -> ts < l) msaux.v_alpha_betas_in
+               ; v_alphas_out = remove_cond_front (fun (ts, _) -> ts <= r) msaux.v_alphas_out
+               ; v_betas_in = remove_cond_front (fun (ts, _) -> ts < l) msaux.v_betas_in }
 
-  (* let clean (l, r) msaux = *)
-  (*   remove_cond_front (fun (ts, _) -> ts < l) msaux.s_beta_alphas_in; *)
-  (*   remove_cond_front (fun (ts, _) -> ts < l) msaux.v_alpha_betas_in; *)
-  (*   remove_cond_front (fun (ts, _) -> ts <= r) msaux.v_alphas_out; *)
-  (*   remove_cond_front (fun (ts, _) -> ts < l) msaux.v_betas_in *)
+  let shift (l, r) a ts tp msaux =
+    let (tstps_in, tstps_out) = shift_tstps_past (l, r) a ts tp msaux.tstps_in msaux.tstps_out in
+    let (s_beta_alphas_out, s_beta_alphas_in) = shift_sat (l,r) msaux.s_beta_alphas_out msaux.s_beta_alphas_in in
+    let (v_alphas_betas_out, v_alpha_betas_in, v_betas_in) =
+      shift_vio (l, r) tp msaux.v_alphas_betas_out msaux.v_alpha_betas_in msaux.v_betas_in in
+    { (clean (l, r) msaux) with tstps_in
+                              ; tstps_out
+                              ; s_beta_alphas_in
+                              ; s_beta_alphas_out
+                              ; v_alpha_betas_in
+                              ; v_betas_in
+                              ; v_alphas_betas_out }
 
-  (* let shift (l, r) a ts tp msaux = *)
-  (*   shift_tstps_past (l, r) a ts tp msaux.tstps_in msaux.tstps_out; *)
-  (*   shift_sat (l,r) msaux.s_beta_alphas_out msaux.s_beta_alphas_in; *)
-  (*   shift_vio (l,r) tp msaux.v_alphas_betas_out msaux.v_alpha_betas_in msaux.v_betas_in; *)
-  (*   clean (l, r) msaux *)
+  let eval tp msaux =
+    if not (Fdeque.is_empty msaux.s_beta_alphas_in) then
+      [snd(Fdeque.peek_front_exn msaux.s_beta_alphas_in)]
+    else
+      let cp1 = if not (Fdeque.is_empty msaux.v_alpha_betas_in) then
+                  [snd(Fdeque.peek_front_exn msaux.v_alpha_betas_in)]
+                else [] in
+      let cp2 = if not (Fdeque.is_empty msaux.v_alphas_out) then
+                  let vp_f2 = snd(Fdeque.peek_front_exn msaux.v_alphas_out) in
+                  match vp_f2 with
+                  | V f2 -> [Proof.V (VSince (tp, f2, Fdeque.empty))]
+                  | S _ -> raise (Invalid_argument "found S proof in V deque")
+                else [] in
+      let cp3 = if Int.equal (Fdeque.length msaux.v_betas_in) (Fdeque.length msaux.tstps_in) then
+                  let etp = match Fdeque.is_empty msaux.v_betas_in with
+                    | true -> etp msaux.tstps_in msaux.tstps_out tp
+                    | false -> Proof.v_at (snd(Fdeque.peek_front_exn msaux.v_betas_in)) in
+                  [Proof.V (VSinceInf (tp, etp, Fdeque.map msaux.v_betas_in ~f:snd))]
+                else [] in
+      (cp1 @ cp2 @ cp3)
 
-  (* let eval tp msaux = *)
-  (*   if not (Deque.is_empty msaux.s_beta_alphas_in) then *)
-  (*     [snd(Deque.peek_front_exn msaux.s_beta_alphas_in)] *)
-  (*   else *)
-  (*     let cp1 = if not (Deque.is_empty msaux.v_alpha_betas_in) then *)
-  (*                 [snd(Deque.peek_front_exn msaux.v_alpha_betas_in)] *)
-  (*               else [] in *)
-  (*     let cp2 = if not (Deque.is_empty msaux.v_alphas_out) then *)
-  (*                 let vp_f2 = snd(Deque.peek_front_exn msaux.v_alphas_out) in *)
-  (*                 match vp_f2 with *)
-  (*                 | V f2 -> [Proof.V (VSince (tp, f2, Deque.create ()))] *)
-  (*                 | S _ -> raise (Invalid_argument "found S proof in V deque") *)
-  (*               else [] in *)
-  (*     let cp3 = if Int.equal (Deque.length msaux.v_betas_in) (Deque.length msaux.tstps_in) then *)
-  (*                 let etp = match Deque.is_empty msaux.v_betas_in with *)
-  (*                   | true -> etp msaux.tstps_in msaux.tstps_out tp *)
-  (*                   | false -> Proof.v_at (snd(Deque.peek_front_exn msaux.v_betas_in)) in *)
-  (*                 [Proof.V (VSinceInf (tp, etp, snd_deque msaux.v_betas_in))] *)
-  (*               else [] in *)
-  (*     (cp1 @ cp2 @ cp3) *)
-
-  (* let update i ts tp p1 p2 msaux = *)
-  (*   let a = Interval.left i in *)
-  (*   (if Option.is_none msaux.ts_zero then msaux.ts_zero <- Some(ts)); *)
-  (*   add_subps ts p1 p2 msaux; *)
-  (*   if ts < (Option.value_exn msaux.ts_zero) + a then *)
-  (*     (Deque.enqueue_back msaux.tstps_out (ts, tp); *)
-  (*      ([Proof.V (VSinceOut tp)], msaux)) *)
-  (*   else *)
-  (*     (let b = Interval.right i in *)
-  (*      let l = if (Option.is_some b) then max 0 (ts - (Option.value_exn b)) *)
-  (*              else (Option.value_exn msaux.ts_zero) in *)
-  (*      let r = ts - a in *)
-  (*      shift (l, r) a ts tp msaux; *)
-  (*      (eval tp msaux, msaux)) *)
+  let update i ts tp p1 p2 msaux =
+    let a = Interval.left i in
+    let msaux_z = if Option.is_none msaux.ts_zero then
+                    { msaux with ts_zero = Some(ts) }
+                  else msaux in
+    let msaux_subps = add_subps ts p1 p2 msaux_z in
+    if ts < (Option.value_exn msaux_subps.ts_zero) + a then
+      ({ msaux_subps with tstps_out = Fdeque.enqueue_back msaux_subps.tstps_out (ts, tp) },
+       [Proof.V (VSinceOut tp)])
+    else
+      (let b = Interval.right i in
+       let l = if (Option.is_some b) then max 0 (ts - (Option.value_exn b))
+               else (Option.value_exn msaux_subps.ts_zero) in
+       let r = ts - a in
+       let msaux_shifted = shift (l, r) a ts tp msaux_subps in
+       (msaux_shifted, eval tp msaux_shifted))
 
 end
 
