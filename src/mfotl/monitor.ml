@@ -1411,7 +1411,8 @@ let mstep mode vars ts db (ms: MState.t) =
   let tp = next_tp () in
   let (expls, mf') = meval vars ts tp db ms.mf in
   Queue.enqueue ms.ts_waiting ts;
-  let tstps = List.zip_exn (Queue.to_list ms.ts_waiting) (List.range tp (tp + List.length expls)) in
+  let tstps = List.zip_exn (List.take (Queue.to_list ms.ts_waiting) (List.length expls))
+                (List.range tp (tp + List.length expls)) in
   let tsdbs = match mode with
     | Out.Plain.UNVERIFIED -> ms.tsdbs
     | _ -> Queue.enqueue ms.tsdbs (ts, db); ms.tsdbs in
