@@ -192,13 +192,15 @@ end
 
 module Buf2t = struct
 
-  type ('a, 'b, 'c) t = 'a list * 'b list * 'c list
+  type ('a, 'b, 'c) t = ('a list * 'b list) * 'c list
 
-  let rec take f w = function
-    | [], ys, zs -> (w, ([], ys, zs))
-    | xs, [], zs -> (w, (xs, [], zs))
-    | xs, ys, [] -> (w, (xs, ys, []))
-    | x::xs, y::ys, (a,b)::zs -> take f (f x y a b w) (xs, ys, zs)
+  let add xs ys (l1, l2) = (l1 @ xs, l2 @ ys)
+
+  let rec take f w (xs, ys) zs = match (xs, ys), zs with
+    | ([], ys), zs -> (w, (([], ys), zs))
+    | (xs, []), zs -> (w, ((xs, []), zs))
+    | (xs, ys), [] -> (w, ((xs, ys), []))
+    | (x::xs, y::ys), (a,b)::zs -> take f (f x y a b w) (xs, ys) zs
 
 end
 
@@ -1207,8 +1209,8 @@ module MFormula = struct
     | Formula.Eventually (i, f) -> MEventually (i, init f, ([], []), Leaf (Eventually.init ()))
     | Formula.Historically (i, f) -> MHistorically (i, init f, [], Leaf (Historically.init ()))
     | Formula.Always (i, f) -> MAlways (i, init f, ([], []), Leaf (Always.init ()))
-    | Formula.Since (i, f, g) -> MSince (i, init f, init g, ([], [], []), Leaf (Since.init ()))
-    | Formula.Until (i, f, g) -> MUntil (i, init f, init g, ([], [], []), Leaf (Until.init ()))
+    | Formula.Since (i, f, g) -> MSince (i, init f, init g, (([], []), []), Leaf (Since.init ()))
+    | Formula.Until (i, f, g) -> MUntil (i, init f, init g, (([], []), []), Leaf (Until.init ()))
 
   let rec to_string_rec l = function
     | MTT -> Printf.sprintf "⊤"
@@ -1361,11 +1363,10 @@ let rec meval vars ts tp (db: Db.t) = function
      let ((moaux_pdt', expls'), buf', tstps') =
        Buft.take
          (fun expl ts tp (aux_pdt, es) ->
-           let (aux_pdt', es') = Pdt.split_prod
-                                   (Pdt.apply2 vars (fun p aux -> Once.update i ts tp p aux) expl aux_pdt) in
+           let (aux_pdt', es') =
+             Pdt.split_prod (Pdt.apply2 vars (fun p aux -> Once.update i ts tp p aux) expl aux_pdt) in
            (aux_pdt', Pdt.split_list es'))
          (moaux_pdt, []) (expls, (tstps @ [(ts,tp)])) in
-     Stdio.printf "%s\n" (Pdt.to_string (fun _ -> "") "" moaux_pdt');
      (expls', MOnce (i, mf', tstps', moaux_pdt'))
   | MEventually (i, mf, (buf, ntstps), meaux_pdt) ->
      let (expls, mf') = meval vars ts tp db mf in
@@ -1376,47 +1377,45 @@ let rec meval vars ts tp (db: Db.t) = function
      let (nts, ntp) = match ntstps' with
        | [] -> (ts, tp)
        | (nts', ntp') :: _ -> (nts', ntp') in
-     let (meaux_pdt', es') = Pdt.split_prod
-                               (Pdt.apply1 vars (fun aux -> Eventually.eval i nts ntp (aux, [])) meaux_pdt') in
+     let (meaux_pdt', es') =
+       Pdt.split_prod (Pdt.apply1 vars (fun aux -> Eventually.eval i nts ntp (aux, [])) meaux_pdt') in
      let expls' = Pdt.split_list es' in
      (expls', MEventually (i, mf', (buf', ntstps'), meaux_pdt'))
-  (*   | MHistorically (interval, mf, ts_tps, mhaux) -> *)
-  (*      let (_, ps, mf') = meval tp ts sap mf in *)
-  (*      let _ = Deque.enqueue_back ts_tps (ts, tp) in *)
-  (*      let ((ps, mhaux'), buf', ts_tps') = *)
-  (*        mbuft_take *)
-  (*          (fun p ts tp (ps, aux) -> *)
-  (*            let (op, aux) = Historically.update_historically interval ts tp p aux le in *)
-  (*            let () = Deque.enqueue_back ps op in *)
-  (*            (ps, aux)) *)
-  (*          (Deque.create (), mhaux) ps ts_tps in *)
-  (*      (ts, ps, MHistorically (interval, mf', ts_tps', mhaux')) *)
-  (*   | MAlways (interval, mf, buf, nts_ntps, maaux) -> *)
-  (*      (\* let () = Printf.printf "meval ts = %d; tp = %d\n" ts tp in *\) *)
-  (*      let (_, ps, mf') = meval tp ts sap mf in *)
-  (*      let () = Deque.enqueue_back nts_ntps (ts, tp) in *)
-  (*      let () = Deque.iter ps ~f:(fun p -> Deque.enqueue_back buf p) in *)
-  (*      let (maaux', buf', nts_ntps') = *)
-  (*        mbuft_take *)
-  (*          (fun p ts tp aux -> Always.update_always interval ts tp p le aux) *)
-  (*          maaux buf nts_ntps in *)
-  (*      let (nts, ntp) = match Deque.peek_front nts_ntps' with *)
-  (*        | None -> (ts, tp) *)
-  (*        | Some(nts', ntp') -> (nts', ntp') in *)
-  (*      let (ts', ps, maaux'') = Always.eval_always (Deque.create ()) interval nts ntp le maaux' in *)
-  (*      (ts', ps, MAlways (interval, mf', buf', nts_ntps', maaux'')) *)
-  (*   | MSince (interval, mf1, mf2, buf, ts_tps, msaux) -> *)
-  (*      let (_, p1s, mf1') = meval tp ts sap mf1 in *)
-  (*      let (_, p2s, mf2') = meval tp ts sap mf2 in *)
-  (*      let _ = Deque.enqueue_back ts_tps (ts, tp) in *)
-  (*      let ((ps, msaux'), buf', tss_tps') = *)
-  (*        mbuf2t_take *)
-  (*          (fun p1 p2 ts tp (ps, aux) -> *)
-  (*            let (op, aux) = Since.update_since interval ts tp p1 p2 aux le in *)
-  (*            let () = Deque.enqueue_back ps op in *)
-  (*            (ps, aux)) *)
-  (*          (Deque.create (), msaux) (mbuf2_add p1s p2s buf) ts_tps in *)
-  (*      (ts, ps, MSince (interval, mf1', mf2', buf', tss_tps', msaux')) *)
+  | MHistorically (i, mf, tstps, mhaux_pdt) ->
+     let (expls, mf') = meval vars ts tp db mf in
+     let ((mhaux_pdt', expls'), buf', tstps') =
+       Buft.take
+         (fun expl ts tp (aux_pdt, es) ->
+           let (aux_pdt', es') =
+             Pdt.split_prod (Pdt.apply2 vars (fun p aux -> Historically.update i ts tp p aux) expl aux_pdt) in
+           (aux_pdt', Pdt.split_list es'))
+         (mhaux_pdt, []) (expls, (tstps @ [(ts,tp)])) in
+     (expls', MHistorically (i, mf', tstps', mhaux_pdt'))
+  | MAlways (i, mf, (buf, ntstps), maaux_pdt) ->
+     let (expls, mf') = meval vars ts tp db mf in
+     let (maaux_pdt', buf', ntstps') =
+       Buft.take
+         (fun expl ts tp aux_pdt -> Pdt.apply2 vars (fun p aux -> Always.update i ts tp p aux) expl aux_pdt)
+         maaux_pdt (buf @ expls, (ntstps @ [(ts,tp)])) in
+     let (nts, ntp) = match ntstps' with
+       | [] -> (ts, tp)
+       | (nts', ntp') :: _ -> (nts', ntp') in
+     let (maaux_pdt', es') =
+       Pdt.split_prod (Pdt.apply1 vars (fun aux -> Always.eval i nts ntp (aux, [])) maaux_pdt') in
+     let expls' = Pdt.split_list es' in
+     (expls', MAlways (i, mf', (buf', ntstps'), maaux_pdt'))
+  | MSince (i, mf1, mf2, (buf2, tstps), msaux_pdt) ->
+     let (expls1, mf1') = meval vars ts tp db mf1 in
+     let (expls2, mf2') = meval vars ts tp db mf2 in
+     let f = () in
+     let ((msaux_pdt', expls'), (buf2', tstps')) =
+       Buf2t.take
+         (fun expl1 expl2 ts tp (aux_pdt, es) ->
+           let (aux_pdt', es') =
+             Pdt.split_prod (Pdt.apply3 vars (fun p1 p2 aux -> Since.update i ts tp p1 p2 aux) expl1 expl2 aux_pdt) in
+           (aux_pdt', Pdt.split_list es'))
+         (msaux_pdt, []) (Buf2.add expls1 expls2 buf2) (tstps @ [(ts,tp)]) in
+     (expls', MSince (i, mf1', mf2', (buf2', tstps'), msaux_pdt'))
   (*   | MUntil (interval, mf1, mf2, buf, nts_ntps, muaux) -> *)
   (*      let (_, p1s, mf1') = meval tp ts sap mf1 in *)
   (*      let (_, p2s, mf2') = meval tp ts sap mf2 in *)
