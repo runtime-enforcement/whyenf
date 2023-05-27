@@ -206,7 +206,7 @@ end
 
 module Once = struct
 
-  type t = { mutable ts_zero: timestamp option
+  type t = { ts_zero: timestamp option
            ; tstps_in: (timestamp * timepoint) Fdeque.t
            ; tstps_out: (timestamp * timepoint) Fdeque.t
            ; s_alphas_in: (timestamp * Proof.t) Fdeque.t
@@ -294,8 +294,10 @@ module Once = struct
 
   let update i ts tp p1 moaux =
     let a = Interval.left i in
-    (if Option.is_none moaux.ts_zero then moaux.ts_zero <- Some(ts));
-    let moaux_subps = add_subps ts p1 moaux in
+    let moaux_z = if Option.is_none moaux.ts_zero then
+                    { moaux with ts_zero = Some(ts) }
+                  else moaux in
+    let moaux_subps = add_subps ts p1 moaux_z in
     if ts < (Option.value_exn moaux_subps.ts_zero) + a then
       ({ moaux_subps with tstps_out = Fdeque.enqueue_back moaux_subps.tstps_out (ts, tp) },
        [Proof.V (VOnceOut tp)])
