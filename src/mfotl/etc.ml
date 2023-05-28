@@ -49,10 +49,5 @@ let list_to_string indent f = function
      List.fold_left xs ~init:(indent ^ eat "[ " (f indent x))
        ~f:(fun s el -> eat (s ^ "\n" ^ indent ^ "; ") (f indent el)) ^ " ]"
 
-let rec transpose = function
-  | [] -> []
-  | [] :: xss -> transpose xss
-  | (x :: xs) :: xss -> (x :: List.map xss ~f:List.hd_exn) :: transpose (xs :: List.map xss ~f:List.tl_exn)
-
 let some_string () = (String.of_char (Random.ascii ())) ^ (String.of_char (Random.ascii ())) ^
                        (String.of_char (Random.ascii ())) ^ (String.of_char (Random.ascii ()))
