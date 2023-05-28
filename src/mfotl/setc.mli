@@ -18,5 +18,6 @@ val add: ('a, 'b) t -> 'a -> ('a, 'b) t
 val is_empty: ('a, 'b) t -> bool
 val inter: ('a, 'b) t -> ('a, 'b) t -> ('a, 'b) t
 val diff: ('a, 'b) t -> ('a, 'b) t -> ('a, 'b) t
+val some_elt: Domain.tt -> (Domain.t, 'a) t -> Domain.t
 
 val to_string: (Domain.t, 'a) t -> string

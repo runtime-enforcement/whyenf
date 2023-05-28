@@ -43,6 +43,23 @@ let diff cs1 cs2 = match cs1, cs2 with
   | Complement s1, Finite s2 -> Complement (Set.union s1 s2)
   | Complement s1, Complement s2 -> inter (Complement s1) (Finite s2)
 
+(* TODO: This should be rewritten more carefully *)
+let some_elt tt = function
+  | Finite s -> Set.min_elt_exn s
+  | Complement s -> (match tt with
+                     | Domain.TInt -> let elt = ref (Domain.Int (Random.int 100000)) in
+                                      (while Set.mem s !elt do
+                                         elt := Int (Random.int 100000)
+                                       done); !elt
+                     | TStr -> let elt = ref (Domain.Str (Etc.some_string ())) in
+                               (while Set.mem s !elt do
+                                  elt := Str (Etc.some_string ())
+                                done); !elt
+                     | TFloat -> let elt = ref (Domain.Float (Random.float 100000.0)) in
+                                 (while Set.mem s !elt do
+                                    elt := Float (Random.float 100000.0)
+                                  done); !elt)
+
 let to_string cs =
   let rec format s =
     if Int.equal (Set.length s) 0 then ""
