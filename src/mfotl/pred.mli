@@ -40,6 +40,10 @@ module Sig : sig
 
   val n_tt: string -> string -> (string * Domain.tt)
 
+  val term_tt: string -> Domain.tt
+
+  val term_default: string -> Domain.t
+
   val add: string -> (string * Domain.tt) list -> unit
 
   val print_table: unit -> unit
