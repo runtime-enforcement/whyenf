@@ -24,6 +24,8 @@ val tt_of_string: string -> tt
 
 val tt_to_string: tt -> string
 
+val tt_default: tt -> t
+
 val string_to_t: string -> tt -> t
 
 val to_string: t -> string

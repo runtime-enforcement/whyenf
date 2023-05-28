@@ -38,6 +38,11 @@ module T = struct
     | TStr -> "string"
     | TFloat -> "float"
 
+  let tt_default = function
+    | TInt -> Int 0
+    | TStr -> Str ""
+    | TFloat -> Float 0.0
+
   let string_to_t s tt = match tt with
     | TInt -> (try Int (int_of_string s)
                with Failure _ -> raise (Invalid_argument (Printf.sprintf "%s is not an int" s)))
