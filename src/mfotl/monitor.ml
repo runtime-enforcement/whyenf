@@ -791,7 +791,7 @@ module Since = struct
                     | false -> Proof.v_at (snd(Fdeque.peek_front_exn msaux.v_betas_in)) in
                   [Proof.V (VSinceInf (tp, etp, Fdeque.map msaux.v_betas_in ~f:snd))]
                 else [] in
-      (cp1 @ cp2 @ cp3)
+      [minp_list (cp1 @ cp2 @ cp3)]
 
   let update i ts tp p1 p2 msaux =
     let a = Interval.left i in
