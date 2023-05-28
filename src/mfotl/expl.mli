@@ -17,7 +17,15 @@ module Part : sig
 
   type 'a t = ((Domain.t, Domain.comparator_witness) Setc.t * 'a) list
 
+  val trivial: 'a -> 'a t
+
   val map: 'a t -> ('a -> 'b) -> 'b t
+
+  val filter: 'a t -> ('a -> bool) -> 'a t
+
+  val exists: 'a t -> ('a -> bool) -> bool
+
+  val for_all: 'a t -> ('a -> bool) -> bool
 
   val tabulate: Domain.t list -> (Domain.t -> 'a) -> 'a -> 'a t
 
@@ -81,6 +89,8 @@ module Proof : sig
 
   val unS: t -> sp
   val unV: t -> vp
+  val isS: t -> bool
+  val isV: t -> bool
 
   val s_append: sp -> sp -> sp
   val v_append: vp -> vp -> vp
@@ -121,6 +131,8 @@ module Pdt : sig
   val split_prod: ('a * 'b) t -> 'a t * 'b t
 
   val split_list: 'a list t -> 'a t list
+
+  val hide: Term.t list -> (('a, 'a Part.t) Either.t -> 'b) -> 'a t -> 'b t
 
   val to_string: ('a -> string) -> string -> 'a t -> string
 
