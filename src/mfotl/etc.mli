@@ -28,6 +28,5 @@ val deque_to_string: string -> (string -> 'a -> string) -> 'a Core_kernel.Fdeque
 val queue_drop: 'a Base.Queue.t -> int -> 'a Base.Queue.t
 
 val list_to_string: string -> (string -> 'a -> string) -> 'a list -> string
-val transpose: 'a list list -> 'a list list
 
 val some_string: unit -> string

@@ -69,7 +69,7 @@ module Part = struct
   let split_list part =
     let subs = List.map part ~f:fst in
     let vs = List.map part ~f:snd in
-    List.map (Etc.transpose vs) ~f:(List.zip_exn subs)
+    List.map (Option.value_exn (List.transpose vs)) ~f:(List.zip_exn subs)
 
   let rec el_to_string indent f (sub, v) =
     Printf.sprintf "%ssetc = {%s}\n%s%s" indent (Setc.to_string sub) indent (f indent v)
