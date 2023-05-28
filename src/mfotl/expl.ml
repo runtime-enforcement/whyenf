@@ -15,6 +15,8 @@ module Fdeque = Core_kernel.Fdeque
 
 module Part = struct
 
+  (* TODO: Remove concrete type from signature file                *)
+  (*       In order to do this, I must rewrite do_exists/do_forall *)
   type 'a t = ((Domain.t, Domain.comparator_witness) Setc.t * 'a) list
 
   let random_empty_set = Set.empty (module String)
@@ -23,7 +25,13 @@ module Part = struct
 
   let hd part = snd (List.hd_exn part)
 
-  let map part f = List.map part (fun (s, p) -> (s, f p))
+  let map part f = List.map part ~f:(fun (s, p) -> (s, f p))
+
+  let filter part f = List.filter part ~f:(fun (_, p) -> f p)
+
+  let exists part f = List.exists part ~f:(fun (_, p) -> f p)
+
+  let for_all part f = List.for_all part ~f:(fun (_, p) -> f p)
 
   let fold_left_snd part init f = List.fold_left part ~init:init ~f:(fun acc (_, p) -> f acc p)
 
@@ -130,6 +138,7 @@ module Proof = struct
     | VUntil of int * vp * vp Fdeque.t
     | VUntilInf of int * int * vp Fdeque.t
 
+  (* TODO: Rewrite this with Either *)
   type t = S of sp | V of vp
 
   let unS = function
@@ -139,6 +148,14 @@ module Proof = struct
   let unV = function
     | V vp -> vp
     | _ -> raise (Invalid_argument "unV is not defined for S proofs")
+
+  let isS = function
+    | S _ -> true
+    | V _ -> false
+
+  let isV = function
+    | S _ -> false
+    | V _ -> true
 
   let s_append sp sp1 = match sp with
     | SSince (sp2, sp1s) -> SSince (sp2, Fdeque.enqueue_back sp1s sp1)
@@ -475,6 +492,19 @@ module Pdt = struct
     | Leaf pt -> Printf.sprintf "%sLeaf (%s)\n%s" indent (f pt) indent
     | Node (x, part) -> Printf.sprintf "%sNode (%s,\n%s)\n" indent (Term.to_string x)
                           (Part.to_string "    " (to_string f) part)
+
+  let unleaf = function
+    | Leaf l -> l
+    | _ -> raise (Invalid_argument "function not defined for nodes")
+
+  let rec hide vars f pdt =
+    match vars, pdt with
+    |  _ , Leaf l -> Leaf (f (Either.First l))
+    | [x], Node (y, part) -> Leaf (f (Either.Second (Part.map part unleaf)))
+    | x :: vars, Node (y, part) -> if Term.equal x y then
+                                     Node (y, Part.map part (hide vars f))
+                                   else hide vars f (Node (y, part))
+    | _ -> raise (Invalid_argument "function not defined for other cases")
 
 end
 
