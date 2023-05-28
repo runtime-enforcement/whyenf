@@ -56,12 +56,19 @@ module Sig = struct
 
   type t = string * props [@@deriving compare, sexp_of, hash]
 
-  let table : (string, props) Hashtbl.t = Hashtbl.create (module String)
+  let table: (string, props) Hashtbl.t = Hashtbl.create (module String)
+
+  let table_tt: (string, Domain.tt) Hashtbl.t = Hashtbl.create (module String)
 
   let n_tt v_name st = (v_name, Domain.tt_of_string st)
 
+  let term_tt x = Hashtbl.find_exn table_tt x
+
+  let term_default x = Domain.tt_default (Hashtbl.find_exn table_tt x)
+
   let add p_name ntconsts =
     let props = { arity = List.length ntconsts; ntconsts } in
+    List.iter ntconsts ~f:(fun (name, tt) -> Hashtbl.add_exn table_tt name tt);
     Hashtbl.add_exn table p_name props
 
   let print_table () =
