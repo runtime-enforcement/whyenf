@@ -1407,7 +1407,6 @@ let rec meval vars ts tp (db: Db.t) = function
   | MSince (i, mf1, mf2, (buf2, tstps), msaux_pdt) ->
      let (expls1, mf1') = meval vars ts tp db mf1 in
      let (expls2, mf2') = meval vars ts tp db mf2 in
-     let f = () in
      let ((msaux_pdt', expls'), (buf2', tstps')) =
        Buf2t.take
          (fun expl1 expl2 ts tp (aux_pdt, es) ->
@@ -1416,19 +1415,21 @@ let rec meval vars ts tp (db: Db.t) = function
            (aux_pdt', Pdt.split_list es'))
          (msaux_pdt, []) (Buf2.add expls1 expls2 buf2) (tstps @ [(ts,tp)]) in
      (expls', MSince (i, mf1', mf2', (buf2', tstps'), msaux_pdt'))
-  (*   | MUntil (interval, mf1, mf2, buf, nts_ntps, muaux) -> *)
-  (*      let (_, p1s, mf1') = meval tp ts sap mf1 in *)
-  (*      let (_, p2s, mf2') = meval tp ts sap mf2 in *)
-  (*      let () = Deque.enqueue_back nts_ntps (ts, tp) in *)
-  (*      let (muaux', buf', nts_ntps') = *)
-  (*        mbuf2t_take *)
-  (*          (fun p1 p2 ts tp aux -> Until.update_until interval ts tp p1 p2 le aux) *)
-  (*          muaux (mbuf2_add p1s p2s buf) nts_ntps in *)
-  (*      let (nts, ntp) = match Deque.peek_front nts_ntps' with *)
-  (*        | None -> (ts, tp) *)
-  (*        | Some(nts', ntp') -> (nts', ntp') in *)
-  (*      let (ts', ps, muaux'') = Until.eval_until (Deque.create ()) interval nts ntp le muaux in *)
-  (*      (ts', ps, MUntil (interval, mf1', mf2', buf', nts_ntps', muaux'')) *)
+  | MUntil (i, mf1, mf2, (buf2, ntstps), muaux_pdt) ->
+     let (expls1, mf1') = meval vars ts tp db mf1 in
+     let (expls2, mf2') = meval vars ts tp db mf2 in
+     let (muaux_pdt', (buf2', ntstps')) =
+       Buf2t.take
+         (fun expl1 expl2 ts tp aux_pdt ->
+           Pdt.apply3 vars (fun p1 p2 aux -> Until.update i ts tp p1 p2 aux) expl1 expl2 aux_pdt)
+         muaux_pdt (Buf2.add expls1 expls2 buf2) (ntstps @ [(ts,tp)]) in
+     let (nts, ntp) = match ntstps' with
+       | [] -> (ts, tp)
+       | (nts', ntp') :: _ -> (nts', ntp') in
+     let (muaux_pdt', es') =
+       Pdt.split_prod (Pdt.apply1 vars (fun aux -> Until.eval i nts ntp (aux, [])) muaux_pdt') in
+     let expls' = Pdt.split_list es' in
+     (expls', MUntil (i, mf1', mf2', (buf2', ntstps'), muaux_pdt'))
   | _ -> failwith "not yet"
 
 module MState = struct
