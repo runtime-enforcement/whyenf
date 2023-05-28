@@ -1265,6 +1265,31 @@ let do_iff (p1: Proof.t) (p2: Proof.t) : Proof.t = match p1, p2 with
   | V vp1, S sp2 -> V (VIffVS (vp1, sp2))
   | V vp1, V vp2 -> S (SIffVV (vp1, vp2))
 
+let do_exists x = function
+  | First p -> (match p with
+                | Proof.S sp -> [Proof.S (SExists (x, (Sig.term_default (Term.unvar x)), sp))]
+                | V vp -> [Proof.V (VExists (x, Part.trivial vp))])
+  | Second part -> if Part.exists part Proof.isS then
+                     (let sats = Part.filter part (fun p -> Proof.isS p) in
+                      List.map sats ~f:(fun (s, p) ->
+                          match p with
+                          | S sp -> Proof.S (SExists (x, Setc.some_elt (Pred.Sig.term_tt (Term.unvar x)) s, sp))
+                          | V vp -> raise (Invalid_argument "found V proof in S list")))
+                   else [V (VExists (x, Part.map part Proof.unV))]
+
+let do_forall x = function
+  | First p -> (match p with
+                | Proof.S sp -> [Proof.S (SForall (x, Part.trivial sp))]
+                | V vp -> [Proof.V (VForall (x, (Sig.term_default (Term.unvar x)), vp))])
+  | Second part -> if Part.for_all part Proof.isS then
+                     [S (SForall (x, Part.map part Proof.unS))]
+                   else
+                     (let vios = Part.filter part (fun p -> Proof.isV p) in
+                      List.map vios ~f:(fun (s, p) ->
+                          match p with
+                          | S sp -> raise (Invalid_argument "found S proof in V list")
+                          | V vp -> Proof.V (VForall (x, Setc.some_elt (Pred.Sig.term_tt (Term.unvar x)) s, vp))))
+
 let rec match_terms trms ds map =
   match trms, ds with
   | [], [] -> Some(map)
@@ -1342,6 +1367,16 @@ let rec meval vars ts tp (db: Db.t) = function
          (fun expl1 expl2 -> Pdt.apply2 vars (fun p1 p2 -> do_iff p1 p2) expl1 expl2)
          (Buf2.add expls1 expls2 buf2) in
      (f_expls, MIff (mf1', mf2', buf2'))
+  | MExists (x, mf) ->
+     let (expls, mf') = meval (vars @ [x]) ts tp db mf in
+     let f_expls = List.map expls ~f:(fun expl ->
+                       Pdt.hide (vars @ [x]) (fun p -> minp_list (do_exists x p)) expl) in
+     (f_expls, MExists(x, mf'))
+  | MForall (x, mf) ->
+     let (expls, mf') = meval (vars @ [x]) ts tp db mf in
+     let f_expls = List.map expls ~f:(fun expl ->
+                       Pdt.hide (vars @ [x]) (fun p -> minp_list (do_forall x p)) expl) in
+     (f_expls, MForall(x, mf'))
   | MPrev (i, mf, first, (buf, tss)) ->
      let (expls, mf') = meval vars ts tp db mf in
      let (f_expls, (buf', tss')) =
