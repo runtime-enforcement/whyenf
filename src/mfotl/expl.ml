@@ -36,13 +36,8 @@ module Part = struct
   let fold_left_snd part init f = List.fold_left part ~init:init ~f:(fun acc (_, p) -> f acc p)
 
   let rec tabulate ds f z =
-    let rec distinct = function
-      | [] -> true
-      | x :: xs -> not (List.mem xs x ~equal:Domain.equal) && distinct xs in
-    (if distinct ds then
-       (Setc.Complement (Set.of_list (module Domain) ds), z) ::
-         (List.map ~f:(fun d -> (Setc.Finite (Set.of_list (module Domain) [d]), f d)) ds)
-     else [(Setc.univ (module Domain), z)])
+    (Setc.Complement ds, z) ::
+      (Set.fold ds ~init:[] ~f:(fun acc d -> (Setc.Finite (Set.of_list (module Domain) [d]), f d) :: acc))
 
   let rec merge2 f part1 part2 = match part1, part2 with
     | [], _ -> []

@@ -27,7 +27,7 @@ module Part : sig
 
   val for_all: 'a t -> ('a -> bool) -> bool
 
-  val tabulate: Domain.t list -> (Domain.t -> 'a) -> 'a -> 'a t
+  val tabulate: (Domain.t, Domain.comparator_witness) Set.t -> (Domain.t -> 'a) -> 'a -> 'a t
 
 end
 
