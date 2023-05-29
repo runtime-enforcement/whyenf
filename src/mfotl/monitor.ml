@@ -1310,22 +1310,18 @@ let rec pdt_of tp r trms vars maps : Expl.t = match vars with
   | [] -> if List.is_empty maps then Leaf (V (VPred (tp, r, trms)))
           else Leaf (S (SPred (tp, r, trms)))
   | x :: vars ->
-     Stdio.printf "[debug] START PDT_OF x = %s\n" (Term.to_string x);
      let ds = List.fold maps ~init:[]
                 ~f:(fun acc map -> match Map.find map x with
                                    | None -> acc
-                                   | Some(d) -> Stdio.printf "[debug] PDT_OF d = %s\n" (Domain.to_string d);
-                                                d :: acc) in
+                                   | Some(d) -> d :: acc) in
      let find_maps d = List.fold maps ~init:[]
                          ~f:(fun acc map -> match Map.find map x with
                                             | None -> acc
-                                            | Some(d') -> Stdio.printf "[debug] PDT_OF d = %s\n" (Domain.to_string d);
-                                                          if Domain.equal d d' then
+                                            | Some(d') -> if Domain.equal d d' then
                                                             map :: acc
                                                           else acc) in
      let part = Part.tabulate (Set.of_list (module Domain) ds)
                   (fun d -> pdt_of tp r trms vars (find_maps d)) (pdt_of tp r trms vars []) in
-     Stdio.printf "[debug] expl = %s\n" (Expl.to_string (Node (x, part)));
      Node (x, part)
 
 let rec meval vars ts tp (db: Db.t) = function
@@ -1338,18 +1334,13 @@ let rec meval vars ts tp (db: Db.t) = function
                                                                | None -> false
                                                                | Some(map) -> not (Map.is_empty map)))
                    ~f:(fun map_opt -> Option.value_exn map_opt) in
-     Stdio.printf "[debug] |maps'| = %d\n" (List.length maps);
-     List.iteri maps' ~f:(fun i map -> Stdio.printf "[debug] |map_%d| = %d\n" i (Map.length map));
      let fv = Set.elements (Formula.fv (Predicate (r, trms))) in
      let fv_vars = List.filter vars ~f:(fun var -> List.mem fv var ~equal:Pred.Term.equal) in
-     Stdio.printf "[debug] |fv_vars| = %d\n" (List.length fv_vars);
      let expl = pdt_of tp r trms fv_vars maps' in
-     Stdio.printf "[debug] PRED EXPL:\n%s\n" (Expl.to_string expl);
      ([expl], MPredicate (r, trms))
   | MNeg (mf) ->
      let (expls, mf') = meval vars ts tp db mf in
      let f_expls = List.map expls ~f:(fun expl -> (Pdt.apply1 vars (fun p -> do_neg p) expl)) in
-     List.iter f_expls ~f:(fun expl -> Stdio.printf "[debug] NEG EXPL:\n%s\n" (Expl.to_string expl));
      (f_expls, MNeg(mf'))
   | MAnd (mf1, mf2, buf2) ->
      let (expls1, mf1') = meval vars ts tp db mf1 in
@@ -1358,7 +1349,6 @@ let rec meval vars ts tp (db: Db.t) = function
        Buf2.take
          (fun expl1 expl2 -> Pdt.apply2 vars (fun p1 p2 -> minp_list (do_and p1 p2)) expl1 expl2)
          (Buf2.add expls1 expls2 buf2) in
-     List.iter f_expls ~f:(fun expl -> Stdio.printf "[debug] AND EXPL:\n%s\n" (Expl.to_string expl));
      (f_expls, MAnd (mf1', mf2', buf2'))
   | MOr (mf1, mf2, buf2) ->
      let (expls1, mf1') = meval vars ts tp db mf1 in
@@ -1375,7 +1365,6 @@ let rec meval vars ts tp (db: Db.t) = function
        Buf2.take
          (fun expl1 expl2 -> Pdt.apply2 vars (fun p1 p2 -> minp_list (do_imp p1 p2)) expl1 expl2)
          (Buf2.add expls1 expls2 buf2) in
-     List.iter f_expls ~f:(fun expl -> Stdio.printf "[debug] IMP EXPL:\n%s\n" (Expl.to_string expl));
      (f_expls, MImp (mf1', mf2', buf2'))
   | MIff (mf1, mf2, buf2) ->
      let (expls1, mf1') = meval vars ts tp db mf1 in
@@ -1389,7 +1378,6 @@ let rec meval vars ts tp (db: Db.t) = function
      let (expls, mf') = meval (vars @ [x]) ts tp db mf in
      let f_expls = List.map expls ~f:(fun expl ->
                        Pdt.hide (vars @ [x]) (fun p -> minp_list (do_exists x p)) expl) in
-     List.iter f_expls ~f:(fun expl -> Stdio.printf "[debug] EXISTS EXPL:\n%s\n" (Expl.to_string expl));
      (f_expls, MExists(x, mf'))
   | MForall (x, mf) ->
      let (expls, mf') = meval (vars @ [x]) ts tp db mf in
@@ -1421,7 +1409,6 @@ let rec meval vars ts tp (db: Db.t) = function
              Pdt.split_prod (Pdt.apply2 vars (fun p aux -> Once.update i ts tp p aux) expl aux_pdt) in
            (aux_pdt', Pdt.split_list es'))
          (moaux_pdt, []) (expls, (tstps @ [(ts,tp)])) in
-     List.iter expls' ~f:(fun expl -> Stdio.printf "[debug] ONCE EXPL:\n%s\n" (Expl.to_string expl));
      (expls', MOnce (i, mf', tstps', moaux_pdt'))
   | MEventually (i, mf, (buf, ntstps), meaux_pdt) ->
      let (expls, mf') = meval vars ts tp db mf in
@@ -1469,7 +1456,6 @@ let rec meval vars ts tp (db: Db.t) = function
              Pdt.split_prod (Pdt.apply3 vars (fun p1 p2 aux -> Since.update i ts tp p1 p2 aux) expl1 expl2 aux_pdt) in
            (aux_pdt', Pdt.split_list es'))
          (msaux_pdt, []) (Buf2.add expls1 expls2 buf2) (tstps @ [(ts,tp)]) in
-     List.iter expls' ~f:(fun expl -> Stdio.printf "[debug] SINCE EXPL:\n%s\n" (Expl.to_string expl));
      (expls', MSince (i, mf1', mf2', (buf2', tstps'), msaux_pdt'))
   | MUntil (i, mf1, mf2, (buf2, ntstps), muaux_pdt) ->
      let (expls1, mf1') = meval vars ts tp db mf1 in
@@ -1524,7 +1510,6 @@ let exec mode measure f inc =
   let rec step pb_opt ms =
     let (more, pb) = Other_parser.Trace.parse inc pb_opt in
     let (tstp_expls, ms') = mstep mode (Set.elements (Formula.fv f)) pb.ts pb.db ms in
-    Stdio.printf "parsed DB: \n%s\n" (Db.to_string pb.db);
     (match mode with
      | Out.Plain.UNVERIFIED -> Out.Plain.expls tstp_expls None mode
      | _ -> let c = Checker_interface.check (Queue.to_list ms'.tsdbs) f (List.map tstp_expls ~f:snd) in
