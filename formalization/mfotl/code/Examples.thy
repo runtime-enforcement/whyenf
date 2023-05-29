@@ -29,6 +29,38 @@ value "execute_trivial_eval mytrace [string8_string ''r''] (3::nat) phi1"
 value "let e = execute_trivial_eval mytrace [string8_string ''r''] (3::nat) phi1 in 
        check_all mytrace phi1 e"
 
+definition mytrace4 :: "event_data MFOTL.trace" where 
+  "mytrace4 = trace_of_list
+     [({(string8_string ''mgr_S'', [EString (string8_string ''Mallory''), EString (string8_string ''Alice'')]),
+        (string8_string ''mgr_S'', [EString (string8_string ''Merlin''), EString (string8_string ''Bob'')]),
+        (string8_string ''mgr_S'', [EString (string8_string ''Merlin''), EString (string8_string ''Charlie'')])}, 1307532861::nat),
+      ({(string8_string ''approve'', [EString (string8_string ''Mallory''), EString (string8_string ''152'')])}, 1307532861),
+      ({(string8_string ''approve'', [EString (string8_string ''Merlin''), EString (string8_string ''163'')]),
+        (string8_string ''publish'', [EString (string8_string ''Alice''), EString (string8_string ''160'')]),
+        (string8_string ''mgr_F'', [EString (string8_string ''Merlin''), EString (string8_string ''Charlie'')])}, 1307955600),
+      ({(string8_string ''approve'', [EString (string8_string ''Merlin''), EString (string8_string ''187'')]),
+        (string8_string ''publish'', [EString (string8_string ''Bob''), EString (string8_string ''163'')]),
+        (string8_string ''publish'', [EString (string8_string ''Alice''), EString (string8_string ''163'')]),
+        (string8_string ''publish'', [EString (string8_string ''Charlie''), EString (string8_string ''163'')]),
+        (string8_string ''publish'', [EString (string8_string ''Charlie''), EString (string8_string ''152'')])}, 1308477599)]"
+
+definition phi4 :: "event_data MFOTL.formula" where
+  "phi4 = MFOTL.Imp (MFOTL.Pred (string8_string ''publish'') [MFOTL.Var (string8_string ''a''), MFOTL.Var (string8_string ''r'')])
+    (MFOTL.Once (init 604800) (MFOTL.Exists (string8_string ''m'') (MFOTL.Since 
+      (MFOTL.Neg (MFOTL.Pred (string8_string ''mgr_F'') [MFOTL.Var (string8_string ''m''), MFOTL.Var (string8_string ''a'')])) all
+      (MFOTL.And (MFOTL.Pred (string8_string ''mgr_S'') [MFOTL.Var (string8_string ''m''), MFOTL.Var (string8_string ''a'')])
+                 (MFOTL.Pred (string8_string ''approve'') [MFOTL.Var (string8_string ''m''), MFOTL.Var (string8_string ''r'')])))))"
+
+value "execute_trivial_eval mytrace4 [string8_string ''a'', string8_string ''r''] 3 phi4"
+
+definition phi5 :: "event_data MFOTL.formula" where
+  "phi5 = MFOTL.Pred (string8_string ''publish'') [MFOTL.Var (string8_string ''a''), MFOTL.Var (string8_string ''r'')]"
+
+(* value "execute_trivial_eval mytrace4 [string8_string ''a'', string8_string ''r''] 3 phi5" *)
+
+(* value "let e = execute_trivial_eval mytrace4 [string8_string ''a'', string8_string ''f''] 0 phi4 in 
+       check_all mytrace4 phi4 e" *)
+
 (* Example 2 *)
 (* definition mytrace2 :: "string MFOTL.trace" where 
   "mytrace2 = trace_of_list
