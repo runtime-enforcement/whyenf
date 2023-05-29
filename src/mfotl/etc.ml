@@ -51,3 +51,9 @@ let list_to_string indent f = function
 
 let some_string () = (String.of_char (Random.ascii ())) ^ (String.of_char (Random.ascii ())) ^
                        (String.of_char (Random.ascii ())) ^ (String.of_char (Random.ascii ()))
+
+let list_to_json l =
+  match l with
+  | [] -> "[]"
+  | _ -> let els_str = String.concat ~sep:"" (List.map l ~f:(fun el -> "\"" ^ el ^ "\",")) in
+         "[" ^ (String.sub els_str 0 ((String.length els_str)-1)) ^ "]"

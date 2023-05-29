@@ -30,3 +30,5 @@ val queue_drop: 'a Base.Queue.t -> int -> 'a Base.Queue.t
 val list_to_string: string -> (string -> 'a -> string) -> 'a list -> string
 
 val some_string: unit -> string
+
+val list_to_json: string list -> string
