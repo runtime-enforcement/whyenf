@@ -137,8 +137,7 @@ let rec hf = function
 
 let height f = hp f + hf f
 
-let immediate_subfs x =
-  match x with
+let immediate_subfs = function
   | TT
     | FF
     | Predicate _ -> []
@@ -161,25 +160,23 @@ let immediate_subfs x =
 let rec subfs_bfs xs =
   xs @ (List.concat (List.map xs (fun x -> subfs_bfs (immediate_subfs x))))
 
-let rec subfs_dfs x = match x with
-  | TT -> [tt]
-  | FF -> [ff]
-  | Predicate (r, trms) -> [Predicate (r, trms)]
-  | Neg f -> [neg f] @ (subfs_dfs f)
-  | And (f, g) -> [conj f g] @ (subfs_dfs f) @ (subfs_dfs g)
-  | Or (f, g) -> [disj f g] @ (subfs_dfs f) @ (subfs_dfs g)
-  | Imp (f, g) -> [imp f g] @ (subfs_dfs f) @ (subfs_dfs g)
-  | Iff (f, g) -> [iff f g] @ (subfs_dfs f) @ (subfs_dfs g)
-  | Exists (Var x, f) -> [exists x f] @ (subfs_dfs f)
-  | Forall (Var x, f) -> [forall x f] @ (subfs_dfs f)
-  | Prev (i, f) -> [prev i f] @ (subfs_dfs f)
-  | Next (i, f) -> [next i f] @ (subfs_dfs f)
-  | Once (i, f) -> [once i f] @ (subfs_dfs f)
-  | Eventually (i, f) -> [eventually i f] @ (subfs_dfs f)
-  | Historically (i, f) -> [historically i f] @ (subfs_dfs f)
-  | Always (i, f) -> [always i f] @ (subfs_dfs f)
-  | Since (i, f, g) -> [since i f g] @ (subfs_dfs f) @ (subfs_dfs g)
-  | Until (i, f, g) -> [until i f g] @ (subfs_dfs f) @ (subfs_dfs g)
+let rec subfs_dfs h = match h with
+  | TT | FF | Predicate _ -> [h]
+  | Neg f -> [h] @ (subfs_dfs f)
+  | And (f, g) -> [h] @ (subfs_dfs f) @ (subfs_dfs g)
+  | Or (f, g) -> [h] @ (subfs_dfs f) @ (subfs_dfs g)
+  | Imp (f, g) -> [h] @ (subfs_dfs f) @ (subfs_dfs g)
+  | Iff (f, g) -> [h] @ (subfs_dfs f) @ (subfs_dfs g)
+  | Exists (_, f) -> [h] @ (subfs_dfs f)
+  | Forall (_, f) -> [h] @ (subfs_dfs f)
+  | Prev (_, f) -> [h] @ (subfs_dfs f)
+  | Next (_, f) -> [h] @ (subfs_dfs f)
+  | Once (_, f) -> [h] @ (subfs_dfs f)
+  | Eventually (_, f) -> [h] @ (subfs_dfs f)
+  | Historically (_, f) -> [h] @ (subfs_dfs f)
+  | Always (_, f) -> [h] @ (subfs_dfs f)
+  | Since (_, f, g) -> [h] @ (subfs_dfs f) @ (subfs_dfs g)
+  | Until (_, f, g) -> [h] @ (subfs_dfs f) @ (subfs_dfs g)
 
 let rec preds = function
   | TT | FF -> []
