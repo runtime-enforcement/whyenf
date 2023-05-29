@@ -66,9 +66,13 @@ module Sig = struct
 
   let term_default x = Domain.tt_default (Hashtbl.find_exn table_tt x)
 
+  (* TODO: Improve this checking *)
   let add p_name ntconsts =
     let props = { arity = List.length ntconsts; ntconsts } in
-    List.iter ntconsts ~f:(fun (name, tt) -> Hashtbl.add_exn table_tt name tt);
+    List.iter ntconsts ~f:(fun (name, tt) ->
+        match Hashtbl.add table_tt name tt with
+        | `Duplicate -> ()
+        | `Ok -> ());
     Hashtbl.add_exn table p_name props
 
   let print_table () =
