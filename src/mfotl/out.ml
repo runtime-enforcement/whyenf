@@ -44,56 +44,40 @@ module Plain = struct
 
 end
 
-(* module Json = struct *)
+module Json = struct
 
-(*   let trace_error = "Events are specified in the format: @1 a b" *)
+  let error err =
+    Printf.sprintf "ERROR: %s" (Error.to_string_hum err)
 
-(*   let parse_lines_from_string s = *)
-(*     let events = String.split_lines s in *)
-(*     List.fold_until events ~init:[] ~finish:(fun acc -> Ok (List.rev acc)) *)
-(*       ~f:(fun acc e -> match parse_trace_line e with *)
-(*                        | None -> Stop (Or_error.error_string trace_error) *)
-(*                        | Some s -> Continue (s::acc)) *)
+  let preamble outc f =
+    Stdio.printf outc "{\n  \"columns\": %s\n}\n" (Etc.list_to_json (List.map (Formula.subfs_dfs f) Formula.to_string))
 
-(*   let table_columns f = *)
-(*     let aps_columns = Formula.atoms f in *)
-(*     let subfs_columns = List.map (subfs_dfs f) op_to_string in *)
-(*     let subfs = List.map (subfs_dfs f) formula_to_string in *)
-(*     Printf.sprintf "{\n  \"apsColumns\": %s,\n  \"subfsColumns\": %s,\n  \"subformulas\": %s}\n" *)
-(*       (list_to_json aps_columns) (list_to_json subfs_columns) (list_to_json subfs) *)
+  let table_columns f =
+    let preds_columns = List.map (Formula.preds f) Formula.to_string in
+    let subfs_columns = List.map (Formula.subfs_dfs f) Formula.op_to_string in
+    let subfs = List.map (Formula.subfs_dfs f) Formula.to_string in
+    Printf.sprintf "{\n  \"apsColumns\": %s,\n  \"subfsColumns\": %s,\n  \"subformulas\": %s}\n"
+      (list_to_json preds_columns) (list_to_json subfs_columns) (list_to_json subfs)
 
-(*   let expls tp_ts f ps cbs_opt = *)
-(*     let ident = "    " in *)
-(*     let ident2 = "    " ^ ident in *)
-(*     match cbs_opt with *)
-(*     | None -> String.concat ~sep:",\n" (List.map ps ~f:(fun p -> *)
-(*                                             let tp = (p_at p) in *)
-(*                                             let ts = Hashtbl.find tp_ts tp in *)
-(*                                             Printf.sprintf "%s{\n" ident ^ *)
-(*                                               Printf.sprintf "%s\"ts\": %d,\n" ident2 ts ^ *)
-(*                                                 Printf.sprintf "%s\"tp\": %d,\n" ident2 tp ^ *)
-(*                                                   Printf.sprintf "%s\n" (expl_to_json f p) ^ *)
-(*                                                     Printf.sprintf "%s}" ident)) *)
-(*     | Some cbs -> String.concat ~sep:",\n" (List.map2_exn ps cbs ~f:(fun p cb -> *)
-(*                                                 let tp = (p_at p) in *)
-(*                                                 let ts = Hashtbl.find tp_ts tp in *)
-(*                                                 Printf.sprintf "%s{\n" ident ^ *)
-(*                                                   Printf.sprintf "%s\"ts\": %d,\n" ident2 ts ^ *)
-(*                                                     Printf.sprintf "%s\"tp\": %d,\n" ident2 tp ^ *)
-(*                                                       Printf.sprintf "%s\"checker\": \"%B\",\n" ident2 cb ^ *)
-(*                                                         Printf.sprintf "%s\n" (expl_to_json f p) ^ *)
-(*                                                           Printf.sprintf "%s}" ident)) *)
+  (* let expls tpts f es = *)
+  (*   let ident = "    " in *)
+  (*   let ident2 = "    " ^ ident in *)
+  (*   String.concat ~sep:",\n" (List.map es ~f:(fun e -> *)
+  (*                                 let tp = (Expl.at e) in *)
+  (*                                 let ts = Hashtbl.find_exn tpts tp in *)
+  (*                                 Printf.sprintf "%s{\n" ident ^ *)
+  (*                                   Printf.sprintf "%s\"ts\": %d,\n" ident2 ts ^ *)
+  (*                                     Printf.sprintf "%s\"tp\": %d,\n" ident2 tp ^ *)
+  (*                                       Printf.sprintf "%s\n" (expl_to_json f e) ^ *)
+  (*                                         Printf.sprintf "%s}" ident)) *)
 
-(*   let error err = *)
-(*     Printf.sprintf "ERROR: %s" (Error.to_string_hum err) *)
+  (* let preds f preds tp ts = *)
+  (*   let ident = "    " in *)
+  (*   let ident2 = "    " ^ ident in *)
+  (*   Printf.sprintf "%s{\n" ident ^ *)
+  (*     Printf.sprintf "%s\"ts\": %d,\n" ident2 ts ^ *)
+  (*       Printf.sprintf "%s\"tp\": %d,\n" ident2 tp ^ *)
+  (*         Printf.sprintf "%s\n" (atoms_to_json f sap tp) ^ *)
+  (*           Printf.sprintf "%s}" ident *)
 
-(*   let atoms f sap tp ts = *)
-(*     let ident = "    " in *)
-(*     let ident2 = "    " ^ ident in *)
-(*     Printf.sprintf "%s{\n" ident ^ *)
-(*       Printf.sprintf "%s\"ts\": %d,\n" ident2 ts ^ *)
-(*         Printf.sprintf "%s\"tp\": %d,\n" ident2 tp ^ *)
-(*           Printf.sprintf "%s\n" (atoms_to_json f sap tp) ^ *)
-(*             Printf.sprintf "%s}" ident *)
-
-(* end *)
+end
