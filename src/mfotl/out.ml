@@ -53,11 +53,14 @@ module Json = struct
     Stdio.printf outc "{\n  \"columns\": %s\n}\n" (Etc.list_to_json (List.map (Formula.subfs_dfs f) Formula.to_string))
 
   let table_columns f =
-    let preds_columns = List.map (Formula.preds f) Formula.to_string in
+    let sig_preds_columns = List.rev (Set.fold (Formula.pred_names f) ~init:[] ~f:(fun acc r ->
+                                          let r_props = Hashtbl.find_exn Pred.Sig.table r in
+                                          let var_names = fst (List.unzip r_props.ntconsts) in
+                                          (Printf.sprintf "%s(%s)" r (Etc.string_list_to_string var_names)) :: acc)) in
     let subfs_columns = List.map (Formula.subfs_dfs f) Formula.op_to_string in
     let subfs = List.map (Formula.subfs_dfs f) Formula.to_string in
     Printf.sprintf "{\n  \"apsColumns\": %s,\n  \"subfsColumns\": %s,\n  \"subformulas\": %s}\n"
-      (list_to_json preds_columns) (list_to_json subfs_columns) (list_to_json subfs)
+      (Etc.list_to_json sig_preds_columns) (Etc.list_to_json subfs_columns) (Etc.list_to_json subfs)
 
   (* let expls tpts f es = *)
   (*   let ident = "    " in *)
