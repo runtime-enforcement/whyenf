@@ -60,6 +60,14 @@ let some_elt tt = function
                                     elt := Float (Random.float 100000.0)
                                   done); !elt)
 
+let is_finite = function
+  | Finite _ -> true
+  | Complement _ -> false
+
+let to_list = function
+  | Finite s -> Set.to_list s
+  | Complement _ -> raise (Invalid_argument "to_list is not defined for complement sets")
+
 let to_string cs =
   let rec format s =
     if Int.equal (Set.length s) 0 then ""
