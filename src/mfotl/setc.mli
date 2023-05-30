@@ -19,5 +19,7 @@ val is_empty: ('a, 'b) t -> bool
 val inter: ('a, 'b) t -> ('a, 'b) t -> ('a, 'b) t
 val diff: ('a, 'b) t -> ('a, 'b) t -> ('a, 'b) t
 val some_elt: Domain.tt -> (Domain.t, 'a) t -> Domain.t
+val is_finite: ('a, 'b) t -> bool
 
+val to_list: ('a, 'b) t -> 'a list
 val to_string: (Domain.t, 'a) t -> string
