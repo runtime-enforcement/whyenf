@@ -1,0 +1,1 @@
+FORALL a. FORALL r. publish(a,r) IMPLIES ONCE[0,604800] EXISTS m. (NOT mgr_F(m,a) SINCE mgr_S(m,a)) AND approve(m,r)
