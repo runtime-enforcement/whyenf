@@ -27,13 +27,15 @@ module Part = struct
 
   let map part f = List.map part ~f:(fun (s, p) -> (s, f p))
 
+  let fold_left part init f = List.fold_left part ~init:init ~f:(fun acc (_, p) -> f acc p)
+
   let filter part f = List.filter part ~f:(fun (_, p) -> f p)
 
   let exists part f = List.exists part ~f:(fun (_, p) -> f p)
 
   let for_all part f = List.for_all part ~f:(fun (_, p) -> f p)
 
-  let fold_left_snd part init f = List.fold_left part ~init:init ~f:(fun acc (_, p) -> f acc p)
+  let values part = List.map part ~f:(fun (_, p) -> p)
 
   let rec tabulate ds f z =
     (Setc.Complement ds, z) ::
@@ -342,7 +344,7 @@ module Proof = struct
       | SIffSS (sp1, sp2) -> 1 + s sp1 + s sp2
       | SIffVV (vp1, vp2) -> 1 + v vp1 + v vp2
       | SExists (_, _, sp) -> 1 + s sp
-      | SForall (_, part) -> 1 + (Part.fold_left_snd part 0 (fun a sp -> a + s sp))
+      | SForall (_, part) -> 1 + (Part.fold_left part 0 (fun a sp -> a + s sp))
       | SPrev sp -> 1 + s sp
       | SNext sp -> 1 + s sp
       | SOnce (_, sp) -> 1 + s sp
@@ -362,7 +364,7 @@ module Proof = struct
       | VImp (sp1, vp2) -> 1 + s sp1 + v vp2
       | VIffSV (sp1, vp2) -> 1 + s sp1 + v vp2
       | VIffVS (vp1, sp2) -> 1 + v vp1 + s sp2
-      | VExists (_, part) -> 1 + (Part.fold_left_snd part 0 (fun a vp -> a + v vp))
+      | VExists (_, part) -> 1 + (Part.fold_left part 0 (fun a vp -> a + v vp))
       | VForall (_, _, vp) -> 1 + v vp
       | VPrev vp -> 1 + v vp
       | VPrev0 -> 1

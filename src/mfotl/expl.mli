@@ -21,11 +21,15 @@ module Part : sig
 
   val map: 'a t -> ('a -> 'b) -> 'b t
 
+  val fold_left: 'a t -> 'b -> ('b -> 'a -> 'b) -> 'b
+
   val filter: 'a t -> ('a -> bool) -> 'a t
 
   val exists: 'a t -> ('a -> bool) -> bool
 
   val for_all: 'a t -> ('a -> bool) -> bool
+
+  val values: 'a t -> 'a list
 
   val tabulate: (Domain.t, Domain.comparator_witness) Set.t -> (Domain.t -> 'a) -> 'a -> 'a t
 
