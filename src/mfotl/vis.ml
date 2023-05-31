@@ -18,11 +18,24 @@ module Preds = struct
 
   type cell = timepoint * int * Db.t
 
-  type row = (cell * (cell list)) list
+  type row = cell list
 
-  let preds_row tp db f =
+  let row tp db f : row =
     List.rev (List.foldi (Set.to_list (Formula.pred_names f)) ~init:[] ~f:(fun idx acc r ->
                   (tp, idx, Set.filter db ~f:(fun (r', _) -> String.equal r r')) :: acc))
+
+  let cell_to_json indent tp idx db =
+    (Printf.sprintf "%s{\n" indent) ^
+      (Printf.sprintf "%s\"tp\": %d,\n" (indent ^ (String.make 4 ' ')) tp) ^
+        (Printf.sprintf "%s\"col\": %d,\n" (indent ^ (String.make 4 ' ')) idx) ^
+          (Printf.sprintf "%s\"db\": %s,\n" (indent ^ (String.make 4 ' ')) (Db.to_string db)) ^
+            (Printf.sprintf "%s}\n" indent)
+
+  let to_json tp db f =
+    let preds_row = row tp db f in
+    (Printf.sprintf "%s\"preds\": [\n" (String.make 4 ' ')) ^
+      (String.concat ~sep:",\n" (List.map preds_row ~f:(fun (tp, idx, db) -> cell_to_json (String.make 4 ' ') tp idx db))) ^
+        (Printf.sprintf "]")
 
 end
 
