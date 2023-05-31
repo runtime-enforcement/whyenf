@@ -1478,12 +1478,14 @@ module MState = struct
   type t = { mf: MFormula.t
            ; tp_out: timepoint
            ; ts_waiting: timestamp Queue.t
-           ; tsdbs: (timestamp * Db.t) Queue.t }
+           ; tsdbs: (timestamp * Db.t) Queue.t
+           ; tpts: (timepoint, timestamp) Hashtbl.t }
 
   let init mf = { mf = mf
                 ; tp_out = -1
                 ; ts_waiting = Queue.create ()
-                ; tsdbs = Queue.create () }
+                ; tsdbs = Queue.create ()
+                ; tpts = Hashtbl.create (module Int) }
 
 end
 
@@ -1518,3 +1520,13 @@ let exec mode measure f inc =
   let mf = init f in
   let ms = MState.init mf in
   step None ms
+
+(* let exec_vis f inc = *)
+(*   let rec step pb_opt ms = *)
+(*     let (more, pb) = Other_parser.Trace.parse inc pb_opt in *)
+(*     let (tstp_expls, ms') = mstep (Set.elements (Formula.fv f)) pb.ts pb.db ms in *)
+(*     Out.Json. tstp_expls None mode *)
+(*     if more then step (Some(pb)) ms' in *)
+(*   let mf = init f in *)
+(*   let ms = MState.init mf in *)
+(*   step None ms *)
