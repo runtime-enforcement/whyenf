@@ -63,24 +63,20 @@ module Json = struct
       (Etc.list_to_json sig_preds_columns) (Etc.list_to_json subfs_columns) (Etc.list_to_json subfs)
 
   let expls tpts f es =
-    let ident = "    " in
-    let ident2 = "    " ^ ident in
     String.concat ~sep:",\n" (List.map es ~f:(fun e ->
                                   let tp = (Expl.at e) in
                                   let ts = Hashtbl.find_exn tpts tp in
-                                  Printf.sprintf "%s{\n" ident ^
-                                    Printf.sprintf "%s\"ts\": %d,\n" ident2 ts ^
-                                      Printf.sprintf "%s\"tp\": %d,\n" ident2 tp ^
+                                  Printf.sprintf "%s{\n" (String.make 4 ' ') ^
+                                    Printf.sprintf "%s\"ts\": %d,\n" (String.make 8 ' ') ts ^
+                                      Printf.sprintf "%s\"tp\": %d,\n" (String.make 8 ' ') tp ^
                                         Printf.sprintf "%s\n" (Vis.Expl.to_json f e) ^
-                                          Printf.sprintf "%s}" ident))
+                                          Printf.sprintf "%s}" (String.make 4 ' ')))
 
-  (* let preds f preds tp ts = *)
-  (*   let ident = "    " in *)
-  (*   let ident2 = "    " ^ ident in *)
-  (*   Printf.sprintf "%s{\n" ident ^ *)
-  (*     Printf.sprintf "%s\"ts\": %d,\n" ident2 ts ^ *)
-  (*       Printf.sprintf "%s\"tp\": %d,\n" ident2 tp ^ *)
-  (*         Printf.sprintf "%s\n" (atoms_to_json f sap tp) ^ *)
-  (*           Printf.sprintf "%s}" ident *)
+  let preds ts tp db f =
+    Printf.sprintf "%s{\n" (String.make 4 ' ') ^
+      Printf.sprintf "%s\"ts\": %d,\n" (String.make 8 ' ') ts ^
+        Printf.sprintf "%s\"tp\": %d,\n" (String.make 8 ' ') tp ^
+          Printf.sprintf "%s\n" (Vis.Preds.to_json tp db f) ^
+            Printf.sprintf "%s}" (String.make 4 ' ')
 
 end
