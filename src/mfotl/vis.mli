@@ -7,6 +7,12 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
+module Preds : sig
+
+  val to_json: Etc.timepoint -> Db.t -> Formula.t -> string
+
+end
+
 module Expl : sig
 
   val to_json: Formula.t -> Expl.t -> string
