@@ -22,4 +22,5 @@ val some_elt: Domain.tt -> (Domain.t, 'a) t -> Domain.t
 val is_finite: ('a, 'b) t -> bool
 
 val to_list: ('a, 'b) t -> 'a list
+val to_json: string -> (Domain.t, 'a) t -> string
 val to_string: (Domain.t, 'a) t -> string
