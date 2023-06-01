@@ -173,10 +173,14 @@ module Trace = struct
       | t -> raise (Failure ("expected ',' or ')' but found " ^ string_of_token t)) in
     parse_init ()
 
-  let parse inc pb_opt =
+  let parse_from_channel inc pb_opt =
     if Option.is_none pb_opt then
       let lexbuf = Lexing.from_channel inc in
       parse_aux (Parsebuf.init lexbuf)
     else parse_aux (Parsebuf.clean (Option.value_exn pb_opt))
+
+  let parse_from_string log =
+    let lexbuf = Lexing.from_string log in
+    parse_aux (Parsebuf.init lexbuf)
 
 end
