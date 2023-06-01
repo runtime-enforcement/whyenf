@@ -69,14 +69,13 @@ module Part = struct
     List.map (Option.value_exn (List.transpose vs)) ~f:(List.zip_exn subs)
 
   let rec el_to_string indent f (sub, v) =
-    Printf.sprintf "%ssetc = {%s}\n%s%s" indent (Setc.to_string sub) indent (f indent v)
+    Printf.sprintf "%ssetc = {%s}\n%s%s" indent (Setc.to_string sub) indent (f (indent ^ (String.make 4 ' ')) v)
 
   let to_string indent f = function
     | [] -> indent ^ "[]"
-    | [x] -> indent ^ Etc.eat "[" ((el_to_string indent f x) ^ "]")
-    | x :: xs ->
-       List.fold_left ~f:(fun s el -> Etc.eat (s ^ "\n" ^ indent ^ "; ") (el_to_string indent f el))
-         ~init:(indent ^ Etc.eat "[ " (el_to_string indent f x)) xs ^ " ]"
+    | [x] -> indent ^ "[" ^ (el_to_string indent f x) ^ "]"
+    | xs -> List.fold_left xs ~init:(indent ^ "[")
+              ~f:(fun s el -> s ^ (el_to_string indent f el) ^ ";\n") ^ " ]"
 
 end
 
@@ -486,9 +485,9 @@ module Pdt = struct
     | Node (x, part) -> List.map (Part.split_list (Part.map part split_list)) ~f:(fun el -> Node (x, el))
 
   let rec to_string f indent = function
-    | Leaf pt -> Printf.sprintf "%sLeaf (%s)\n%s" indent (f pt) indent
+    | Leaf pt -> Printf.sprintf "%sLeaf (%s)\n" indent (f pt)
     | Node (x, part) -> Printf.sprintf "%sNode (%s,\n%s)\n" indent (Term.to_string x)
-                          (Part.to_string "    " (to_string f) part)
+                          (Part.to_string (indent ^ (String.make 4 ' ')) (to_string f) part)
 
   let unleaf = function
     | Leaf l -> l
