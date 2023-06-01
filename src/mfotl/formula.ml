@@ -199,9 +199,10 @@ let pred_names f =
   let rec sig_preds_rec s = function
     | TT | FF -> s
     | Predicate (r, trms) -> Set.add s r
-    | Neg f | Next (_, f) | Prev (_, f)
-      | Once (_, f) | Historically (_, f)
-      | Eventually (_, f) | Always (_, f) -> sig_preds_rec s f
+    | Neg f | Exists (_, f) | Forall (_, f)
+      | Prev (_, f) | Next (_, f)
+      | Once (_, f) | Eventually (_, f)
+      | Historically (_, f) | Always (_, f) -> sig_preds_rec s f
     | And (f1, f2) | Or (f1, f2)
       | Imp (f1, f2) | Iff (f1, f2)
       | Until (_, f1, f2) | Since (_, f1, f2) -> Set.union (sig_preds_rec s f1) (sig_preds_rec s f2) in
