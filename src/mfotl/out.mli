@@ -7,14 +7,25 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
+open Base
 open Etc
 open Checker_interface
 
 module Plain : sig
 
-  type mode = UNVERIFIED | VERIFIED | DEBUG
+  type mode = UNVERIFIED | VERIFIED | DEBUG | DEBUGVIS
 
   val expls: ((timestamp * timepoint) * Expl.t) list -> (bool * Checker_pdt.t * Checker_trace.t) list option ->
              mode -> unit
+
+end
+
+module Json : sig
+
+  val table_columns: Formula.t -> string
+
+  val db: timestamp -> timepoint -> Db.t -> Formula.t -> string
+
+  val expls: (timepoint, timestamp) Hashtbl.t -> Formula.t -> Expl.t list -> string
 
 end

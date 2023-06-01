@@ -14,7 +14,7 @@ open Checker_interface
 
 module Plain = struct
 
-  type mode = UNVERIFIED | VERIFIED | DEBUG
+  type mode = UNVERIFIED | VERIFIED | DEBUG | DEBUGVIS
 
   type t =
     | Explanation of (timestamp * timepoint) * Expl.t
@@ -41,6 +41,7 @@ module Plain = struct
                     (fun ((ts, tp), e) (b, _, _) -> expl (ExplanationCheck ((ts, tp), e, b)))
     | DEBUG -> List.iter2_exn ts_tp_expls (Option.value_exn checker_es_opt)
                  (fun ((ts, tp), e) (b, checker_e, trace) -> expl (ExplanationCheckDebug ((ts, tp), e, b, checker_e, trace)))
+    | DEBUGVIS -> raise (Failure "this function is undefined for the mode debugvis")
 
 end
 
@@ -62,6 +63,13 @@ module Json = struct
     Printf.sprintf "{\n  \"apsColumns\": %s,\n  \"subfsColumns\": %s,\n  \"subformulas\": %s}\n"
       (Etc.list_to_json sig_preds_columns) (Etc.list_to_json subfs_columns) (Etc.list_to_json subfs)
 
+  let db ts tp db f =
+    Printf.sprintf "%s{\n" (String.make 4 ' ') ^
+      Printf.sprintf "%s\"ts\": %d,\n" (String.make 8 ' ') ts ^
+        Printf.sprintf "%s\"tp\": %d,\n" (String.make 8 ' ') tp ^
+          Printf.sprintf "%s\n" (Vis.Db.to_json tp db f) ^
+            Printf.sprintf "%s}" (String.make 4 ' ')
+
   let expls tpts f es =
     String.concat ~sep:",\n" (List.map es ~f:(fun e ->
                                   let tp = (Expl.at e) in
@@ -71,12 +79,5 @@ module Json = struct
                                       Printf.sprintf "%s\"tp\": %d,\n" (String.make 8 ' ') tp ^
                                         Printf.sprintf "%s\n" (Vis.Expl.to_json f e) ^
                                           Printf.sprintf "%s}" (String.make 4 ' ')))
-
-  let preds ts tp db f =
-    Printf.sprintf "%s{\n" (String.make 4 ' ') ^
-      Printf.sprintf "%s\"ts\": %d,\n" (String.make 8 ' ') ts ^
-        Printf.sprintf "%s\"tp\": %d,\n" (String.make 8 ' ') tp ^
-          Printf.sprintf "%s\n" (Vis.Preds.to_json tp db f) ^
-            Printf.sprintf "%s}" (String.make 4 ' ')
 
 end

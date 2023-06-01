@@ -19,6 +19,7 @@ module Explanator2 = struct
   let measure_ref = ref ""
   let formula_ref = ref None
   let sig_ref = ref In_channel.stdin
+  let logstr_ref = ref ""
 
   let n_args = ref 0
 
@@ -58,6 +59,7 @@ module Explanator2 = struct
             | "unverified" -> Out.Plain.UNVERIFIED
             | "verified" -> Out.Plain.VERIFIED
             | "debug" -> Etc.debug := true; Out.Plain.DEBUG
+            | "debugvis" -> Etc.debug := true; Out.Plain.DEBUGVIS
             | _ -> mode_error ());
          process_args_rec args
       | ("-measure" :: m :: args) ->
@@ -69,6 +71,9 @@ module Explanator2 = struct
          process_args_rec args
       | ("-log" :: logf :: args) ->
          Etc.inc_ref := In_channel.create logf;
+         process_args_rec args
+      | ("-logstr" :: logs :: args) ->
+         logstr_ref := logs;
          process_args_rec args
       | ("-sig" :: sf :: args) ->
          n_args := !n_args + 1;
@@ -92,7 +97,9 @@ module Explanator2 = struct
     try
       process_args (List.tl_exn (Array.to_list Sys.argv));
       let formula = Option.value_exn !formula_ref in
-      Monitor.exec !mode_ref !measure_ref formula !Etc.inc_ref
+      match !mode_ref with
+      | Out.Plain.DEBUGVIS -> let _ = Monitor.exec_vis None formula !logstr_ref in ()
+      | _ -> Monitor.exec !mode_ref !measure_ref formula !Etc.inc_ref
     with End_of_file -> Out_channel.close !Etc.outc_ref; exit 0
 
 end
