@@ -1510,10 +1510,11 @@ let mstep mode vars ts db (ms: MState.t) =
 
 let exec mode measure f inc =
   let rec step pb_opt ms =
-    let (more, pb) = Other_parser.Trace.parse inc pb_opt in
+    let (more, pb) = Other_parser.Trace.parse_from_channel inc pb_opt in
     let (tstp_expls, ms') = mstep mode (Set.elements (Formula.fv f)) pb.ts pb.db ms in
     (match mode with
      | Out.Plain.UNVERIFIED -> Out.Plain.expls tstp_expls None mode
+     | Out.Plain.DEBUGVIS -> raise (Failure "this function is undefined for the mode debugvis")
      | _ -> let c = Checker_interface.check (Queue.to_list ms'.tsdbs) f (List.map tstp_expls ~f:snd) in
             Out.Plain.expls tstp_expls (Some(c)) mode);
     if more then step (Some(pb)) ms' in
@@ -1521,12 +1522,31 @@ let exec mode measure f inc =
   let ms = MState.init mf in
   step None ms
 
-(* let exec_vis f inc = *)
-(*   let rec step pb_opt ms = *)
-(*     let (more, pb) = Other_parser.Trace.parse inc pb_opt in *)
-(*     let (tstp_expls, ms') = mstep (Set.elements (Formula.fv f)) pb.ts pb.db ms in *)
-(*     Out.Json. tstp_expls None mode *)
-(*     if more then step (Some(pb)) ms' in *)
-(*   let mf = init f in *)
-(*   let ms = MState.init mf in *)
-(*   step None ms *)
+let exec_vis (obj_opt: MState.t option) f log =
+  let step pb_opt (ms: MState.t) db =
+    Stdio.print_endline "step!";
+    try
+      let (_, pb) = Other_parser.Trace.parse_from_string db in
+      let last_ts = Hashtbl.fold ms.tpts ~init:0 ~f:(fun ~key:_ ~data:ts l_ts -> if ts > l_ts then ts else l_ts) in
+      if pb.ts >= last_ts then
+        let (tstps_expls, ms') = mstep Out.Plain.UNVERIFIED (Set.elements (Formula.fv f)) pb.ts pb.db ms in
+        List.iter tstps_expls (fun ((ts, tp), _) -> Hashtbl.add_exn ms.tpts tp ts);
+        let json_expls = Out.Json.expls ms.tpts f (List.map tstps_expls ~f:snd) in
+        let json_db = Out.Json.db pb.ts !tp pb.db f in
+        Stdio.printf "json_expls =\n%s\n" json_expls;
+        Stdio.printf "json_db =\n%s\n" json_db;
+        (None, (json_expls, json_db), ms')
+      else raise (Failure "trace is not monotonic")
+    with Failure msg -> (Some(msg), ("", ""), ms) in
+  let ms = match obj_opt with
+    | None -> let mf = init f in
+              MState.init mf
+    | Some (ms') -> tp := ms'.tp_out + (Queue.length ms'.ts_waiting); ms' in
+  let str_dbs = List.map (List.filter (String.split log ~on:'@') ~f:(fun s -> not (String.is_empty s)))
+                  ~f:(fun s -> "@" ^ s) in
+  Stdio.printf "|str_dbs| = %d\n" (List.length str_dbs);
+  let (fail_msg_opt, json, ms') = List.fold str_dbs ~init:(None, ("", ""), ms)
+                                    ~f:(fun (fail_msg_opt, pb_opt, ms') str_db -> step pb_opt ms' str_db) in
+  match fail_msg_opt with
+  | None -> (ms', json)
+  | Some (fail_msg) -> Stdio.print_endline fail_msg; (ms, json)

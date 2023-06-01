@@ -14,7 +14,7 @@ module Fdeque = Core_kernel.Fdeque
 
 type period = PAST | FUTURE
 
-module Preds = struct
+module Db = struct
 
   type cell = timepoint * int * Db.t
 
@@ -51,7 +51,7 @@ module Expl = struct
 
   type cell_row = (cell * (cell list)) list
 
-  type cell_expl = Leaf of bool * cell_row | Expl of string * (string list * cell_expl) list
+  type cell_expl = Leaf of bool * cell_row | Expl of string * (string * cell_expl) list
 
   let boolean = function
     | Boolean s -> s
@@ -342,7 +342,7 @@ module Expl = struct
   let rec expl_cell row idx (f: Formula.t) (expl: Expl.t) : cell_expl = match expl with
     | Expl.Pdt.Leaf pt -> Leaf (Expl.Proof.isS pt, (fst (ssubfs_cell_row row idx f pt)))
     | Node (x, part) -> Expl (Pred.Term.to_string x,
-                              List.map part (fun (s, e) -> (List.map (Setc.to_list s) ~f:Domain.to_string,
+                              List.map part (fun (s, e) -> (Setc.to_json "" s,
                                                             expl_cell row idx f e)))
 
   let inner_cells_to_json indent cells =
@@ -406,7 +406,7 @@ module Expl = struct
                 (Printf.sprintf "%s\"expl\":\n" (indent ^ (String.make 4 ' ')) ^
                    (Printf.sprintf "%s{\n" (indent ^ (String.make 4 ' '))) ^
                      (Printf.sprintf "%s\"var\": %s,\n" (indent ^ (String.make 8 ' ')) x) ^
-                       (Printf.sprintf "%s\"ds\": %s,\n" (indent ^ (String.make 8 ' ')) x) ^
+                       (Printf.sprintf "%s\"ds\": %s,\n" (indent ^ (String.make 8 ' ')) ds) ^
                          (e_cell_to_json (indent ^ (String.make 12 ' ')) e) ^
                            (Printf.sprintf "%s}\n" (indent ^ (String.make 4 ' '))) ^
                              (Printf.sprintf "%s}\n" indent))))
