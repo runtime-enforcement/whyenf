@@ -403,7 +403,7 @@ module Expl = struct
        String.concat ~sep:",\n"
          (List.map ces ~f:(fun (ds, e) ->
               (Printf.sprintf "%s{\n" indent) ^
-                (Printf.sprintf "%s\"expl\":\n" (indent ^ (String.make 4 ' ')) ^
+                (Printf.sprintf "%s\"node\":\n" (indent ^ (String.make 4 ' ')) ^
                    (Printf.sprintf "%s{\n" (indent ^ (String.make 4 ' '))) ^
                      (Printf.sprintf "%s\"var\": %s,\n" (indent ^ (String.make 8 ' ')) x) ^
                        (Printf.sprintf "%s\"ds\": %s,\n" (indent ^ (String.make 8 ' ')) ds) ^
@@ -414,6 +414,6 @@ module Expl = struct
 let to_json (f: Formula.t) (expl: Expl.t) =
   let start_idx = Set.length (Formula.pred_names f) in
   let c_e = expl_cell [] start_idx f expl in
-  e_cell_to_json "" c_e
+  e_cell_to_json (String.make 8 ' ') c_e
 
 end

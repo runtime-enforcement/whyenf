@@ -71,13 +71,17 @@ module Json = struct
             Printf.sprintf "%s}" (String.make 4 ' ')
 
   let expls tpts f es =
-    String.concat ~sep:",\n" (List.map es ~f:(fun e ->
-                                  let tp = (Expl.at e) in
-                                  let ts = Hashtbl.find_exn tpts tp in
-                                  Printf.sprintf "%s{\n" (String.make 4 ' ') ^
-                                    Printf.sprintf "%s\"ts\": %d,\n" (String.make 8 ' ') ts ^
-                                      Printf.sprintf "%s\"tp\": %d,\n" (String.make 8 ' ') tp ^
-                                        Printf.sprintf "%s\n" (Vis.Expl.to_json f e) ^
-                                          Printf.sprintf "%s}" (String.make 4 ' ')))
+    (Printf.sprintf "{\n") ^
+      (Printf.sprintf "%s\"expls\": [\n" (String.make 4 ' ')) ^
+        String.concat ~sep:",\n" (List.map es ~f:(fun e ->
+                                      let tp = (Expl.at e) in
+                                      let ts = Hashtbl.find_exn tpts tp in
+                                      Printf.sprintf "%s{\n" (String.make 4 ' ') ^
+                                        Printf.sprintf "%s\"ts\": %d,\n" (String.make 8 ' ') ts ^
+                                          Printf.sprintf "%s\"tp\": %d,\n" (String.make 8 ' ') tp ^
+                                            Printf.sprintf "%s\n" (Vis.Expl.to_json f e) ^
+                                              Printf.sprintf "%s}" (String.make 4 ' '))) ^
+          (Printf.sprintf "]}")
+
 
 end
