@@ -77,7 +77,7 @@ module Explanator2 = struct
          process_args_rec args
       | ("-sig" :: sf :: args) ->
          n_args := !n_args + 1;
-         Other_parser.Sig.parse sf;
+         Other_parser.Sig.parse_from_channel sf;
          process_args_rec args
       | ("-formula" :: f :: args) ->
          n_args := !n_args + 1;

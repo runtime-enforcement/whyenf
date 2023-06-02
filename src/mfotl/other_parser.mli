@@ -22,7 +22,9 @@ end
 
 module Sig : sig
 
-  val parse: string -> unit
+  val parse_from_channel: string -> unit
+
+  val parse_from_string: string -> unit
 
 end
 

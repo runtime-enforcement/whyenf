@@ -106,14 +106,19 @@ module Sig = struct
                parse_pred_sigs pb
     | t -> raise (Failure ("unexpected character: " ^ string_of_token t))
 
-  let parse f =
-    let inc = In_channel.create f in
+  let parse_from_channel fn =
+    let inc = In_channel.create fn in
     let lexbuf = Lexing.from_channel inc in
     let pb = Parsebuf.init lexbuf in
-    let () = Lexing.set_filename lexbuf f in
+    let () = Lexing.set_filename lexbuf fn in
     try parse_pred_sigs pb
     with Failure s -> failwith ("error while parsing signature\n " ^ s)
 
+  let parse_from_string ssig =
+    let lexbuf = Lexing.from_string ssig in
+    let pb = Parsebuf.init lexbuf in
+    try parse_pred_sigs pb
+    with Failure s -> failwith ("error while parsing signature\n " ^ s)
 
 end
 
