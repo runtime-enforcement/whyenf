@@ -28,8 +28,8 @@ module Db = struct
     (Printf.sprintf "%s{\n" indent) ^
       (Printf.sprintf "%s\"tp\": %d,\n" (indent ^ (String.make 4 ' ')) tp) ^
         (Printf.sprintf "%s\"col\": %d,\n" (indent ^ (String.make 4 ' ')) idx) ^
-          (Printf.sprintf "%s\"db\": %s,\n" (indent ^ (String.make 4 ' ')) (Db.to_string db)) ^
-            (Printf.sprintf "%s}\n" indent)
+          (Printf.sprintf "%s\"db\": %s\n" (indent ^ (String.make 4 ' ')) (Db.to_json db)) ^
+            (Printf.sprintf "%s}" indent)
 
   let to_json tp db f =
     let preds_row = row tp db f in
@@ -341,25 +341,24 @@ module Expl = struct
 
   let rec expl_cell row idx (f: Formula.t) (expl: Expl.t) : cell_expl = match expl with
     | Expl.Pdt.Leaf pt -> Leaf (Expl.Proof.isS pt, (fst (ssubfs_cell_row row idx f pt)))
-    | Node (x, part) -> Expl (Pred.Term.to_string x,
-                              List.map part (fun (s, e) -> (Setc.to_json "" s,
-                                                            expl_cell row idx f e)))
+    | Node (x, part) -> Expl (Pred.Term.unvar x,
+                              List.map part (fun (s, e) -> (Setc.to_json s, expl_cell row idx f e)))
 
   let inner_cells_to_json indent cells =
     if List.is_empty cells then " []"
     else ((Printf.sprintf " [\n") ^
             (String.concat ~sep:",\n"
                (List.map cells ~f:(fun (tp, col, _, kind) ->
-                    (Printf.sprintf "%s{\n" (indent ^ (String.make 12 ' '))) ^
-                      (Printf.sprintf "%s\"tp\": %d,\n" (indent ^ (String.make 16 ' ')) tp) ^
-                        (Printf.sprintf "%s\"col\": %d,\n" (indent ^ (String.make 16 ' ')) col) ^
-                          (Printf.sprintf "%s\"bool\": %s\n" (indent ^ (String.make 16 ' ')) (boolean kind)) ^
-                            (Printf.sprintf "%s}" (String.make 12 ' ')))))) ^ (Printf.sprintf "]\n")
+                    (Printf.sprintf "%s{\n" (indent ^ (String.make 4 ' '))) ^
+                      (Printf.sprintf "%s\"tp\": %d,\n" (indent ^ (String.make 8 ' ')) tp) ^
+                        (Printf.sprintf "%s\"col\": %d,\n" (indent ^ (String.make 8 ' ')) col) ^
+                          (Printf.sprintf "%s\"bool\": %s\n" (indent ^ (String.make 8 ' ')) (boolean kind)) ^
+                            (Printf.sprintf "%s}" (indent ^ (String.make 4 ' '))))))) ^ (Printf.sprintf "]\n")
 
   let cell_to_json indent (tp, col, ip_opt, kind) cells =
-    (Printf.sprintf "%s{\n" (indent ^ (String.make 8 ' '))) ^
-      (Printf.sprintf "%s\"tp\": %d,\n" (indent ^ (String.make 12 ' ')) tp) ^
-        (Printf.sprintf "%s\"col\": %d,\n" (indent ^ (String.make 12 ' ')) col) ^
+    (Printf.sprintf "%s{\n" indent) ^
+      (Printf.sprintf "%s\"tp\": %d,\n" (indent ^ (String.make 4 ' ')) tp) ^
+        (Printf.sprintf "%s\"col\": %d,\n" (indent ^ (String.make 4 ' ')) col) ^
           (if Option.is_none ip_opt then ""
            else (let (i, p) = Option.value_exn ip_opt in
                  Printf.sprintf "%s\"interval\": \"%s\",\n" (indent ^ (String.make 12 ' ')) (Interval.to_string i) ^
@@ -368,48 +367,51 @@ module Expl = struct
                     | FUTURE -> Printf.sprintf "%s\"period\": \"future\",\n" (indent ^ (String.make 12 ' '))))) ^
             (match kind with
              | Boolean b ->
-                (Printf.sprintf "%s\"kind\": boolean,\n" (indent ^ (String.make 12 ' '))) ^
-                  (Printf.sprintf "%s\"bool\": %s,\n" (indent ^ (String.make 12 ' ')) b) ^
-                    (Printf.sprintf "%s\"cells\":" (indent ^ (String.make 12 ' '))) ^
+                (Printf.sprintf "%s\"kind\": \"boolean\",\n" (indent ^ (String.make 4 ' '))) ^
+                  (Printf.sprintf "%s\"bool\": \"%s\",\n" (indent ^ (String.make 4 ' ')) b) ^
+                    (Printf.sprintf "%s\"cells\":" (indent ^ (String.make 4 ' '))) ^
                       (inner_cells_to_json indent cells)
              | Assignment a ->
-                (Printf.sprintf "%s\"kind\": assignment,\n" (indent ^ (String.make 12 ' '))) ^
-                  (Printf.sprintf "%s\"assignment\": %s,\n" (indent ^ (String.make 12 ' ')) a) ^
-                    (Printf.sprintf "%s\"cells\":" (indent ^ (String.make 12 ' '))) ^
+                (Printf.sprintf "%s\"kind\": \"assignment\",\n" (indent ^ (String.make 4 ' '))) ^
+                  (Printf.sprintf "%s\"assignment\": \"%s\",\n" (indent ^ (String.make 4 ' ')) a) ^
+                    (Printf.sprintf "%s\"cells\":" (indent ^ (String.make 4 ' '))) ^
                       (inner_cells_to_json indent cells)
              | Partition (x, dcells) ->
-                (Printf.sprintf "%s\"kind\": partition,\n" (indent ^ (String.make 12 ' '))) ^
-                  (Printf.sprintf "%s\"dcells\":" (indent ^ (String.make 12 ' '))) ^
+                (Printf.sprintf "%s\"kind\": \"partition\",\n" (indent ^ (String.make 4 ' '))) ^
+                  (Printf.sprintf "%s\"dcells\":" (indent ^ (String.make 4 ' '))) ^
                     (if List.is_empty dcells then " []"
                      else ((Printf.sprintf " [\n") ^
                              (String.concat ~sep:",\n"
                                 (List.map dcells ~f:(fun (ds, (tp', col', _, b')) ->
-                                     (Printf.sprintf "%s{\n" (indent ^ (String.make 12 ' '))) ^
-                                       (Printf.sprintf "%s\"tp\": %d,\n" (indent ^ (String.make 16 ' ')) tp') ^
-                                         (Printf.sprintf "%s\"col\": %d,\n" (indent ^ (String.make 16 ' ')) col') ^
-                                           (Printf.sprintf "%s\"values\": %s,\n" (indent ^ (String.make 16 ' '))
+                                     (Printf.sprintf "%s{\n" (indent ^ (String.make 8 ' '))) ^
+                                       (Printf.sprintf "%s\"tp\": %d,\n" (indent ^ (String.make 12 ' ')) tp') ^
+                                         (Printf.sprintf "%s\"col\": %d,\n" (indent ^ (String.make 12 ' ')) col') ^
+                                           (Printf.sprintf "%s\"values\": %s,\n" (indent ^ (String.make 12 ' '))
                                               (Etc.list_to_json ds)) ^
-                                             (Printf.sprintf "%s\"bool\": %s\n" (indent ^ (String.make 16 ' '))
+                                             (Printf.sprintf "%s\"bool\": \"%s\"\n" (indent ^ (String.make 12 ' '))
                                                 (boolean b')) ^
-                                               (Printf.sprintf "%s}" (indent ^ (String.make 12 ' '))))))) ^
-                            (Printf.sprintf "]\n"))) ^ (Printf.sprintf "\n%s}" (indent ^ (String.make 8 ' ')))
+                                               (Printf.sprintf "%s}" (indent ^ (String.make 8 ' '))))))) ^
+                            (Printf.sprintf "]\n"))) ^ (Printf.sprintf "\n%s}" indent)
 
   let rec e_cell_to_json indent = function
     | Leaf (b, c_row) ->
-       String.concat ~sep:",\n"
-         (List.map c_row ~f:(fun (c, cs) ->
-              cell_to_json (indent ^ (String.make 4 ' ')) c cs))
+       (Printf.sprintf "%s\"type\": \"leaf\",\n" (indent ^ (String.make 4 ' '))) ^
+         (Printf.sprintf "%s\"table\": [\n" (indent ^ (String.make 4 ' '))) ^
+           String.concat ~sep:",\n"
+             (List.map c_row ~f:(fun (c, cs) ->
+                  cell_to_json (indent ^ (String.make 4 ' ')) c cs)) ^
+             (Printf.sprintf "\n%s]\n" (indent ^ (String.make 4 ' ')))
     | Expl (x, ces) ->
-       String.concat ~sep:",\n"
-         (List.map ces ~f:(fun (ds, e) ->
-              (Printf.sprintf "%s{\n" indent) ^
-                (Printf.sprintf "%s\"node\":\n" (indent ^ (String.make 4 ' ')) ^
-                   (Printf.sprintf "%s{\n" (indent ^ (String.make 4 ' '))) ^
-                     (Printf.sprintf "%s\"var\": %s,\n" (indent ^ (String.make 8 ' ')) x) ^
-                       (Printf.sprintf "%s\"ds\": %s,\n" (indent ^ (String.make 8 ' ')) ds) ^
-                         (e_cell_to_json (indent ^ (String.make 12 ' ')) e) ^
-                           (Printf.sprintf "%s}\n" (indent ^ (String.make 4 ' '))) ^
-                             (Printf.sprintf "%s}\n" indent))))
+         (Printf.sprintf "%s\"type\": \"node\",\n" (indent ^ (String.make 4 ' '))) ^
+           (Printf.sprintf "%s\"var\": \"%s\",\n" (indent ^ (String.make 4 ' ')) x) ^
+             (Printf.sprintf "%s\"part\": [\n" (indent ^ (String.make 4 ' '))) ^
+               (String.concat ~sep:",\n"
+                  (List.map ces ~f:(fun (ds, e) ->
+                       Printf.sprintf "%s{\n" (indent ^ (String.make 4 ' ')) ^
+                         (Printf.sprintf "%s%s\n" (indent ^ (String.make 8 ' ')) ds) ^
+                           (e_cell_to_json (indent ^ (String.make 4 ' ')) e) ^
+                             Printf.sprintf "%s}" (indent ^ (String.make 4 ' '))))) ^
+                 (Printf.sprintf "]\n")
 
 let to_json (f: Formula.t) (expl: Expl.t) =
   let start_idx = Set.length (Formula.pred_names f) in

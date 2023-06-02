@@ -64,11 +64,11 @@ module Json = struct
       (Etc.list_to_json sig_preds_columns) (Etc.list_to_json subfs_columns) (Etc.list_to_json subfs)
 
   let db ts tp db f =
-    Printf.sprintf "%s{\n" (String.make 4 ' ') ^
-      Printf.sprintf "%s\"ts\": %d,\n" (String.make 8 ' ') ts ^
-        Printf.sprintf "%s\"tp\": %d,\n" (String.make 8 ' ') tp ^
+    Printf.sprintf "{\n" ^
+      Printf.sprintf "%s\"ts\": %d,\n" (String.make 4 ' ') ts ^
+        Printf.sprintf "%s\"tp\": %d,\n" (String.make 4 ' ') tp ^
           Printf.sprintf "%s\n" (Vis.Db.to_json tp db f) ^
-            Printf.sprintf "%s}" (String.make 4 ' ')
+            Printf.sprintf "}"
 
   let expls tpts f es =
     (Printf.sprintf "{\n") ^
@@ -79,8 +79,9 @@ module Json = struct
                                       Printf.sprintf "%s{\n" (String.make 4 ' ') ^
                                         Printf.sprintf "%s\"ts\": %d,\n" (String.make 8 ' ') ts ^
                                           Printf.sprintf "%s\"tp\": %d,\n" (String.make 8 ' ') tp ^
-                                            Printf.sprintf "%s\n" (Vis.Expl.to_json f e) ^
-                                              Printf.sprintf "%s}" (String.make 4 ' '))) ^
+                                            Printf.sprintf "%s\"expl\": {\n" (String.make 8 ' ') ^
+                                              Printf.sprintf "%s\n" (Vis.Expl.to_json f e) ^
+                                                Printf.sprintf "}%s}" (String.make 4 ' '))) ^
           (Printf.sprintf "]}")
 
 
