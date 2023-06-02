@@ -26,3 +26,5 @@ val event: string -> string list -> Event.t
 val add_event: t -> Event.t -> t
 
 val to_string: t -> string
+
+val to_json: t -> string

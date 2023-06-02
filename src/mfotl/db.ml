@@ -44,3 +44,6 @@ let add_event db evt = Set.add db evt
 
 let to_string db =
   Set.fold db ~init:"" ~f:(fun acc evt -> acc ^ Event.to_string evt ^ "\n")
+
+let to_json db =
+  Etc.list_to_json (Set.fold db ~init:[] ~f:(fun acc evt -> Event.to_string evt :: acc))
