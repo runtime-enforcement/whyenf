@@ -68,17 +68,11 @@ let to_list = function
   | Finite s -> Set.to_list s
   | Complement _ -> raise (Invalid_argument "to_list is not defined for complement sets")
 
-let to_json indent = function
-  | Finite s -> (Printf.sprintf "%s{\n" (indent ^ (String.make 4 ' '))) ^
-                  (Printf.sprintf "%s\"type\": \"finite\",\n" (indent ^ (String.make 8 ' '))) ^
-                    (Printf.sprintf "%s\"values\": %s,\n" (indent ^ (String.make 8 ' '))
-                       (Etc.list_to_json (List.map (Set.to_list s) ~f:Domain.to_string)) ^
-                       (Printf.sprintf "%s}\n" (indent ^ (String.make 4 ' '))))
-  | Complement s -> (Printf.sprintf "%s{\n" (indent ^ (String.make 4 ' '))) ^
-                      (Printf.sprintf "%s\"type\": \"complement\",\n" (indent ^ (String.make 8 ' '))) ^
-                        (Printf.sprintf "%s\"values\": %s,\n" (indent ^ (String.make 8 ' '))
-                           (Etc.list_to_json (List.map (Set.to_list s) ~f:Domain.to_string)) ^
-                           (Printf.sprintf "%s}\n" (indent ^ (String.make 4 ' '))))
+let to_json = function
+  | Finite s -> (Printf.sprintf "\"subset_type\": \"finite\", \"subset_values\": %s,"
+                   (Etc.list_to_json (List.map (Set.to_list s) ~f:Domain.to_string)))
+  | Complement s -> (Printf.sprintf "\"subset_type\": \"complement\", \"subset_values\": %s,"
+                       (Etc.list_to_json (List.map (Set.to_list s) ~f:Domain.to_string)))
 
 let to_string cs =
   let rec format s =
