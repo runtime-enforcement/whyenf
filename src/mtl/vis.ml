@@ -68,7 +68,7 @@ let rec update_expl_table tbl idx f p =
      ((cell, cells) :: tbl', idx')
   | Disj (f1, _), S (SDisjL sp1) ->
      let sp1_idx = idx+1 in
-     let (tbl', idx') = update_expl_table tbl sp1_idx f1 (S sp1) in
+     let (tbl', idx') = update_expl_table tbl (sp1_idx+1) f1 (S sp1) in
      let cell = (p_at p, idx, None, true) in
      let cells = [(s_at sp1, sp1_idx, None, true)] in
      ((cell, cells) :: tbl', idx')
@@ -188,7 +188,7 @@ let rec update_expl_table tbl idx f p =
      ((cell, cells) :: tbl'', idx'')
   | Conj (f1, _), V (VConjL vp1) ->
      let vp1_idx = idx+1 in
-     let (tbl', idx') = update_expl_table tbl vp1_idx f1 (V vp1) in
+     let (tbl', idx') = update_expl_table tbl (vp1_idx+1) f1 (V vp1) in
      let cell = (p_at p, idx, None, false) in
      let cells = [(v_at vp1, vp1_idx, None, false)] in
      ((cell, cells) :: tbl', idx')

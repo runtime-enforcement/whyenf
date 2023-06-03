@@ -1,9 +1,9 @@
 # About
 
-The Explanator2 is an online monitor that produces verdicts in the form of explanations for Metric Temporal Logic formulas on arbitrary traces.
-It is the successor of the <a style="color: #977b01;" href="https://bitbucket.org/traytel/explanator/src/master/" target="_blank">Explanator</a>.
+Explanator2 is an online monitor that produces verdicts in the form of explanations for Metric Temporal Logic formulas on arbitrary traces.
+It is the successor of <a style="color: #977b01;" href="https://bitbucket.org/traytel/explanator/src/master/" target="_blank">Explanator</a>.
 
-This work is described in our paper draft <a style="color: #977b01;" href="https://github.com/runtime-monitoring/explanator2/blob/main/doc/mtl/online-mtl-expl.pdf" target="_blank">Explainable Online Monitoring of Metric Temporal Logic</a>.
+This work is described in our paper accepted at TACAS 2023 <a style="color: #977b01;" href="https://www.excludedmiddle.net/papers/2023tacas.pdf" target="_blank">Explainable Online Monitoring of Metric Temporal Logic</a>.
 
 This web application was developed by <a style="color: #977b01;" href="https://www.excludedmiddle.net/" target="_blank">Leonardo Lima</a> and <a style="color: #977b01;" href="https://traytel.bitbucket.io/" target="_blank">Dmitriy Traytel</a>.
 
