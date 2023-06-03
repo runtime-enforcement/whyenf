@@ -56,8 +56,8 @@ function TimeGrid ({ explanations,
   };
 
   const apsWidth = apsColumns.reduce(
-    (acc, ap) => Math.max(acc, (10*(ap.length))),
-    60
+    (acc, ap) => Math.max(acc, (8*(ap.length))),
+    50
   );
 
   const apsGridColumns = apsColumns.slice(0).map((a, i) =>
@@ -76,7 +76,7 @@ function TimeGrid ({ explanations,
   const fixedGridColumns = [
     {
       field: 'tp',
-      headerName: 'TP',
+      headerName: <b>TP</b>,
       width: 60,
       sortable: false,
       headerAlign: 'center',
@@ -84,7 +84,7 @@ function TimeGrid ({ explanations,
       disableClickEventBubbling: true
     },
     { field: 'ts',
-      headerName: 'TS',
+      headerName: <b>TS</b>,
       width: 60,
       sortable: false,
       headerAlign: 'center',
@@ -94,7 +94,7 @@ function TimeGrid ({ explanations,
   ];
 
   const subfsWidth = subfsColumns.reduce(
-    (acc, ap) => Math.max(acc, (10*(ap.length))),
+    (acc, ap) => Math.max(acc, (8*(ap.length))),
     60
   );
 
