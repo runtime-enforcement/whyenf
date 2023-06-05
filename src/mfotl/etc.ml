@@ -20,6 +20,9 @@ let outc_ref = ref Stdio.Out_channel.stdout
 
 let eat s t = s ^ (String.strip t)
 let paren h k x = if h>k then "("^^x^^")" else x
+let is_digit = function
+  | '0' .. '9' -> true
+  | _ -> false
 
 exception Parsing_error of Lexing.position*Lexing.position*string
 let parsing_error i j fmt = Format.kasprintf (fun s -> raise (Parsing_error(i,j,s))) fmt

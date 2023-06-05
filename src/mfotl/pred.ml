@@ -87,6 +87,7 @@ let make_terms p_name strms =
   let sig_pred = Hashtbl.find_exn Sig.table p_name in
   if List.length strms = sig_pred.arity then
     List.map2_exn strms sig_pred.ntconsts
-      (fun s ntc -> if String.equal s (fst ntc) then Term.Var s
-                    else Const (Domain.string_to_t s (snd ntc)))
+      (fun s ntc -> if String.for_all s ~f:Etc.is_digit then
+                      Term.Const (Domain.string_to_t s (snd ntc))
+                    else Var s)
   else raise (Invalid_argument (Printf.sprintf "arity of %s is %d" p_name sig_pred.arity))
