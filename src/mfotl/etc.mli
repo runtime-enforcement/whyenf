@@ -16,6 +16,7 @@ val outc_ref: Stdio.Out_channel.t ref
 
 val eat: string -> string -> string
 val paren: int -> int -> ('b, 'c, 'd, 'e, 'f, 'g) format6 -> ('b, 'c, 'd, 'e, 'f, 'g) format6
+val is_digit: char -> bool
 
 exception Parsing_error of Lexing.position*Lexing.position*string
 val parsing_error: Lexing.position -> Lexing.position -> ('a, Format.formatter, unit, 'b) format4 -> 'a
