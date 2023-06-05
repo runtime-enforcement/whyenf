@@ -3,6 +3,7 @@ import Grid from '@mui/material/Grid';
 import Box from '@mui/material/Box';
 import Container from '@mui/material/Container';
 import TraceTextField from './components/TraceTextField';
+import SigTextField from './components/SigTextField';
 import AppendTraceTextField from './components/AppendTraceTextField';
 import FormulaTextField from './components/FormulaTextField';
 import TimeGrid from './components/TimeGrid';
@@ -17,7 +18,9 @@ import { computeSquares, translateError } from './util';
 
 function initMonitor(monitorState, action) {
   try {
-    const monitor = window.monitorInit(action.trace, action.measure, action.formula);
+    const monitor = window.monitorInit(action.trace.replace(/\n/g, " "),
+                                       action.sig.replace(/\n/g, " "), action.formula);
+    console.log(monitor);
     const jsooMonitorState = monitor[1];
     const explanations = (JSON.parse(monitor[2])).expls;
     const atoms = (JSON.parse(monitor[2])).atoms;
@@ -88,10 +91,16 @@ function formStateReducer(formState, action) {
       ...formState,
       trace: action.trace
     }
-  case 'setFormulaAndTrace':
+  case 'setSig':
+    return {
+      ...formState,
+      sig: action.sig
+    }
+  case 'setFormulaAndTraceAndSig':
     return {
       formula: action.formula,
-      trace: action.trace
+      trace: action.trace,
+      sig: action.sig
     }
   default:
     return formState;
@@ -155,7 +164,7 @@ export default function Monitor() {
   const measure = "size";
 
   const [appendTrace, setAppendTrace] = useState("");
-  const [formState, setFormState] = useReducer(formStateReducer, { formula: "", trace: "" });
+  const [formState, setFormState] = useReducer(formStateReducer, { formula: "", trace: "", sig: "" });
   const [monitorState, setMonitorState] = useReducer(monitorStateReducer,
                                               { explanations: [],
                                                 atoms: [],
@@ -177,6 +186,7 @@ export default function Monitor() {
     let action = { measure: measure,
                    formula: formState.formula,
                    trace: formState.trace,
+                   sig: formState.sig,
                    type: 'initTable'
                  };
 
@@ -261,8 +271,13 @@ export default function Monitor() {
 
             { !monitorState.fixParameters &&
               <Grid container item xs={24} sm={24} md={12} lg={12} xl={12} spacing={2}>
-                <Grid item xs={12} sm={12} md={4} lg={4} xl={4}>
-                  <TraceTextField trace={formState.trace} setFormState={setFormState} />
+                <Grid container item xs={12} sm={12} md={4} lg={4} xl={4} spacing={2}>
+                  <Grid item xs={12} sm={12} md={12} lg={12} xl={12}>
+                    <TraceTextField trace={formState.trace} setFormState={setFormState} />
+                  </Grid>
+                  <Grid item xs={12} sm={12} md={12} lg={12} xl={12}>
+                    <SigTextField sig={formState.sig} setFormState={setFormState} />
+                  </Grid>
                 </Grid>
                 <Grid item xs={12} sm={12} md={8} lg={8} xl={8}>
                   <TimeGrid explanations={monitorState.explanations}

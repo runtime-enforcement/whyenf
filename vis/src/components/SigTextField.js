@@ -2,25 +2,25 @@ import React, { useState, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import TextField from '@mui/material/TextField';
 
-export default function TraceTextField ({ trace, setFormState }) {
+export default function SigTextField ({ sig, setFormState }) {
 
-  const [localTrace, setLocalTrace] = useState("");
+  const [localSig, setLocalSig] = useState("");
   const [rows, setRows] = useState(10);
 
   const ref = React.createRef();
 
   const handleChange = (event) => {
-    setLocalTrace(event.target.value);
+    setLocalSig(event.target.value);
   };
 
   const handleBlur = (event) => {
-    setFormState({ type: 'setTrace', trace: localTrace });
+    setFormState({ type: 'setSig', trace: localSig });
   };
 
   useEffect(() => {
     setRows(ref.current.clientHeight/25.5);
-    setLocalTrace(trace);
-  }, [trace, setLocalTrace]);
+    setLocalSig(sig);
+  }, [sig, setLocalSig]);
 
   return (
     <Box
@@ -34,15 +34,15 @@ export default function TraceTextField ({ trace, setFormState }) {
     >
       <TextField
         id="outlined-multiline-static"
-        label="Trace"
+        label="Signature"
         required
         multiline
-        value={localTrace}
+        value={localSig}
         onChange={handleChange}
         onBlur={handleBlur}
         minRows={rows}
         maxRows={rows}
-        InputProps={{style: { minHeight: '40vh' }}}
+        InputProps={{style: { minHeight: '17.2vh' }}}
       />
     </Box>
   );
