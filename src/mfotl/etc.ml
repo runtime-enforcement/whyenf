@@ -65,3 +65,9 @@ let list_to_json l =
   | [] -> "[]"
   | _ -> let els_str = String.concat ~sep:"" (List.map l ~f:(fun el -> "\"" ^ el ^ "\",")) in
          "[" ^ (String.sub els_str 0 ((String.length els_str)-1)) ^ "]"
+
+let unquote s =
+    let len = String.length s in
+    if Char.equal s.[0] '\"' && Char.equal s.[len-1] '\"' then
+      String.sub s 1 (len-2)
+    else s
