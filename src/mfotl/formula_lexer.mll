@@ -29,6 +29,7 @@ let digit = ['0'-'9']
 
 let digits = ['0'-'9']+
 let string = (letter | digit | '_' | '/' | '-' | '!')+
+let quoted_string = '"' ([^ '"' '\\'] | '\\' _)* '"'
 
 rule token = parse
   | newline                                       { Lexing.new_line lexbuf; token lexbuf }
@@ -60,6 +61,7 @@ rule token = parse
   | "("                                           { debug "LPA"; LPA }
   | ")"                                           { debug "RPA"; RPA }
   | string as s                                   { debug ("STR " ^ s); STR s }
+  | quoted_string as qs                           { debug ("QSTR " ^ qs); QSTR qs }
   | _ as c                                        { lexing_error lexbuf "unexpected character: `%c'" c }
   | eof                                           { debug "EOF"; EOF }
 

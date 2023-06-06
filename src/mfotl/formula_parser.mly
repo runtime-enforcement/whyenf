@@ -24,6 +24,8 @@ let debug m = if !debug then Stdio.print_endline ("[debug] formula_parser: " ^ m
 
 %token <Interval.t> INTERVAL
 %token <string> STR
+%token <string> QSTR
+%token <int> INT
 
 %token FALSE
 %token TRUE
@@ -93,7 +95,15 @@ e:
 | e RELEASE e                          { debug "e RELEASE e"; release Interval.full $1 $3 }
 | EXISTS STR DOT e %prec EXISTS        { debug "EXISTS STR DOT e"; exists $2 $4 }
 | FORALL STR DOT e %prec FORALL        { debug "FORALL STR DOT e"; forall $2 $4 }
-| STR LPA sterms RPA                   { debug "STR LPA sterms RPA"; predicate $1 $3 }
+| STR LPA terms RPA                    { debug "STR LPA terms RPA"; predicate $1 $3 }
 
-sterms:
-| strms=separated_list (COMMA, STR)    { debug "strms"; strms }
+term:
+| const                                { debug "CONST"; $1 }
+| STR                                  { debug "VAR"; Pred.Term.Var $1 }
+
+const:
+| INT                                  { debug "INT"; Pred.Term.Const (Int $1) }
+| QSTR                                 { debug "QSTR"; Pred.Term.Const (Str (Etc.unquote $1)) }
+
+terms:
+| trms=separated_list (COMMA, term)    { debug "trms"; trms }

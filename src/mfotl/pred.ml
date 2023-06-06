@@ -83,11 +83,12 @@ module Sig = struct
 
 end
 
-let make_terms p_name strms =
+let check_terms p_name trms =
   let sig_pred = Hashtbl.find_exn Sig.table p_name in
-  if List.length strms = sig_pred.arity then
-    List.map2_exn strms sig_pred.ntconsts
-      (fun s ntc -> if String.for_all s ~f:Etc.is_digit then
-                      Term.Const (Domain.string_to_t s (snd ntc))
-                    else Var s)
+  if List.length trms = sig_pred.arity then
+    if (List.for_all2_exn trms sig_pred.ntconsts
+          (fun t ntc -> match t with
+                        | Term.Var x -> true
+                        | Const c -> Domain.tt_equal (Domain.tt_of_domain c) (snd ntc))) then trms
+    else raise (Invalid_argument (Printf.sprintf "type of terms of %s do not match the signature" p_name))
   else raise (Invalid_argument (Printf.sprintf "arity of %s is %d" p_name sig_pred.arity))
