@@ -33,7 +33,7 @@ type t =
 
 let tt = TT
 let ff = FF
-let predicate p_name strms = Predicate (p_name, make_terms p_name strms)
+let predicate p_name trms = Predicate (p_name, check_terms p_name trms)
 let neg f = Neg f
 let conj f g = And (f, g)
 let disj f g = Or (f, g)

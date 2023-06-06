@@ -50,4 +50,4 @@ module Sig : sig
 
 end
 
-val make_terms: string -> string list -> Term.t list
+val check_terms: string -> Term.t list -> Term.t list
