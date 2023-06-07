@@ -60,6 +60,7 @@ rule token = parse
                                                   { debug "INTERVAL"; INTERVAL (make_interval lexbuf l i j r) }
   | "("                                           { debug "LPA"; LPA }
   | ")"                                           { debug "RPA"; RPA }
+  | digits as d                                   { debug ("INT " ^ d); INT (Base.Int.of_string d) }
   | string as s                                   { debug ("STR " ^ s); STR s }
   | quoted_string as qs                           { debug ("QSTR " ^ qs); QSTR qs }
   | _ as c                                        { lexing_error lexbuf "unexpected character: `%c'" c }
