@@ -58,28 +58,14 @@ module Sig = struct
 
   let table: (string, props) Hashtbl.t = Hashtbl.create (module String)
 
-  let table_tt: (string, Domain.tt) Hashtbl.t = Hashtbl.create (module String)
-
-  let n_tt v_name st = (v_name, Domain.tt_of_string st)
-
-  let term_tt x = Hashtbl.find_exn table_tt x
-
-  let term_default x = Domain.tt_default (Hashtbl.find_exn table_tt x)
-
-  (* TODO: Improve this checking *)
   let add p_name ntconsts =
-    let props = { arity = List.length ntconsts; ntconsts } in
-    List.iter ntconsts ~f:(fun (name, tt) ->
-        match Hashtbl.add table_tt name tt with
-        | `Duplicate -> ()
-        | `Ok -> ());
-    Hashtbl.add_exn table p_name props
+    Hashtbl.add_exn table p_name { arity = List.length ntconsts; ntconsts }
 
   let print_table () =
     Hashtbl.iteri table ~f:(fun ~key:n ~data:ps ->
         Stdio.printf "%s(%s)\n" n
           (String.drop_prefix (List.fold ps.ntconsts ~init:"" ~f:(fun acc (var, tt) ->
-               acc ^ "," ^ var ^ ":" ^ (Domain.tt_to_string tt))) 1))
+                                   acc ^ "," ^ var ^ ":" ^ (Domain.tt_to_string tt))) 1))
 
 end
 
