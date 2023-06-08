@@ -20,16 +20,18 @@ function initMonitor(monitorState, action) {
   try {
     const monitor = window.monitorInit(action.trace.replace(/\n/g, " "),
                                        action.sig.replace(/\n/g, " "), action.formula);
-    console.log(monitor);
     const jsooMonitorState = monitor[1];
-    const explanations = (JSON.parse(monitor[2])).expls;
-    const atoms = (JSON.parse(monitor[2])).atoms;
+    const explObjs = (JSON.parse(monitor[2])).expls_table;
+    const dbsObjs = (JSON.parse(monitor[2])).dbs_table;
     const columns = JSON.parse(window.getColumns(action.formula));
-    const squares = computeSquares(explanations, atoms);
+    dbsObjs.nCols = columns.dbsColumns.length;
+    console.log(dbsObjs);
+    console.log(columns);
+    const squares = computeSquares(explObjs, dbsObjs);
 
-    return { explanations: explanations,
-             atoms: atoms,
-             apsColumns: columns.apsColumns,
+    return { explObjs: explObjs,
+             dbsObjs: dbsObjs,
+             dbsColumns: columns.dbsColumns,
              subfsColumns: columns.subfsColumns,
              subformulas: columns.subformulas,
              squares: squares,
@@ -55,14 +57,14 @@ function execMonitor(monitorState, action) {
                                          action.formula,
                                          action.jsooMonitorState);
     const jsooMonitorState = monitor[1];
-    const newExplanations = (JSON.parse(monitor[2])).expls;
-    const explanations = monitorState.explanations.concat(newExplanations);
-    const atoms = monitorState.atoms.concat((JSON.parse(monitor[2])).atoms);
-    const squares = computeSquares(explanations, atoms);
+    const newExplObjs = (JSON.parse(monitor[2])).expls;
+    const explObjs = monitorState.explObjs.concat(newExplObjs);
+    const dbsObjs = monitorState.dbsObjs.concat((JSON.parse(monitor[2])).dbs[0]);
+    const squares = computeSquares(explObjs, dbsObjs);
 
     return { ...monitorState,
-             explanations: explanations,
-             atoms: atoms,
+             explObjs: explObjs,
+             dbsObjs: dbsObjs,
              squares: squares,
              jsooMonitorState: jsooMonitorState,
              highlightedCells: [],
@@ -125,16 +127,16 @@ function monitorStateReducer(monitorState, action) {
   case 'resetTable':
     return {
       ...monitorState,
-      squares: computeSquares(monitorState.explanations, monitorState.atoms),
+      squares: computeSquares(monitorState.explObjs, monitorState.dbsObjs),
       selectedRows: [],
       highlightedCells: [],
       pathsMap: new Map(),
       fixParameters: true
     }
   case 'leaveMonitor':
-    return { explanations: [],
-             atoms: [],
-             apsColumns: [],
+    return { explObjs: [],
+             dbsObjs: {},
+             dbsColumns: [],
              subfsColumns: [],
              subformulas: [],
              squares: [],
@@ -166,9 +168,9 @@ export default function Monitor() {
   const [appendTrace, setAppendTrace] = useState("");
   const [formState, setFormState] = useReducer(formStateReducer, { formula: "", trace: "", sig: "" });
   const [monitorState, setMonitorState] = useReducer(monitorStateReducer,
-                                              { explanations: [],
-                                                atoms: [],
-                                                apsColumns: [],
+                                              { explObjs: [],
+                                                dbsObjs: [],
+                                                dbsColumns: [],
                                                 subfsColumns: [],
                                                 subformulas: [],
                                                 squares: [],
@@ -280,9 +282,9 @@ export default function Monitor() {
                   </Grid>
                 </Grid>
                 <Grid item xs={12} sm={12} md={8} lg={8} xl={8}>
-                  <TimeGrid explanations={monitorState.explanations}
-                            atoms={monitorState.atoms}
-                            apsColumns={monitorState.apsColumns}
+                  <TimeGrid explObjs={monitorState.explObjs}
+                            dbsObjs={monitorState.dbsObjs}
+                            dbsColumns={monitorState.dbsColumns}
                             subfsColumns={monitorState.subfsColumns}
                             subformulas={monitorState.subformulas}
                             squares={monitorState.squares}
@@ -296,9 +298,9 @@ export default function Monitor() {
             { monitorState.fixParameters &&
               <Grid container item xs={24} sm={24} md={12} lg={12} xl={12} spacing={2}>
                 <Grid item xs={24} sm={24} md={12} lg={12} xl={12}>
-                  <TimeGrid explanations={monitorState.explanations}
-                            atoms={monitorState.atoms}
-                            apsColumns={monitorState.apsColumns}
+                  <TimeGrid explObjs={monitorState.explObjs}
+                            dbsObjs={monitorState.dbsObjs}
+                            dbsColumns={monitorState.dbsColumns}
                             subfsColumns={monitorState.subfsColumns}
                             subformulas={monitorState.subformulas}
                             squares={monitorState.squares}
