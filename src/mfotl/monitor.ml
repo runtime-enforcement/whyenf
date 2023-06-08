@@ -1568,7 +1568,6 @@ let exec_vis (obj_opt: MState.t option) f log =
                                                         let (fail_msg_opt', (json_es', json_dbs'), m') = step m str_db in
                                                         (fail_msg_opt', (json_es @ json_es', json_dbs @ json_dbs'), m')) in
   let json = Out.Json.aggregate json_dbs json_expls in
-  Stdio.printf "%s\n" json;
   match fail_msg_opt with
   | None -> (ms', json)
   | Some (fail_msg) -> Stdio.print_endline fail_msg; (ms, json)
