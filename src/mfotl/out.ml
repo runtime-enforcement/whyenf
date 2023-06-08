@@ -83,10 +83,10 @@ module Json = struct
 
   let aggregate dbs es =
     Printf.sprintf "{\n" ^
-      Printf.sprintf "%s\"dbs\": [\n" (String.make 4 ' ') ^
+      Printf.sprintf "%s\"dbs_table\": [\n" (String.make 4 ' ') ^
         String.concat ~sep:",\n" dbs ^
           Printf.sprintf "],\n" ^
-            Printf.sprintf "%s\"expls\": [\n" (String.make 4 ' ') ^
+            Printf.sprintf "%s\"expls_table\": [\n" (String.make 4 ' ') ^
               String.concat ~sep:",\n" es ^
                 Printf.sprintf "]}"
 

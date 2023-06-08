@@ -33,7 +33,7 @@ module Dbs = struct
 
   let to_json tp db f =
     let preds_row = row tp db f in
-    (Printf.sprintf "%s\"dbs\": [\n" (String.make 8 ' ')) ^
+    (Printf.sprintf "%s\"dbs_row\": [\n" (String.make 8 ' ')) ^
       (String.concat ~sep:",\n" (List.map preds_row ~f:(fun (tp, idx, db) ->
                                      cell_to_json (String.make 8 ' ') tp idx db))) ^
         (Printf.sprintf "]")
