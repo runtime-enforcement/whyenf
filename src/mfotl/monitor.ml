@@ -1181,8 +1181,8 @@ module MFormula = struct
     | MOr           of t * t * (Expl.t, Expl.t) Buf2.t
     | MImp          of t * t * (Expl.t, Expl.t) Buf2.t
     | MIff          of t * t * (Expl.t, Expl.t) Buf2.t
-    | MExists       of Term.t * t
-    | MForall       of Term.t * t
+    | MExists       of Term.t * Domain.tt * t
+    | MForall       of Term.t * Domain.tt * t
     | MPrev         of Interval.t * t * bool * (Expl.t, timestamp) Buft.t
     | MNext         of Interval.t * t * bool * timestamp list
     | MOnce         of Interval.t * t * (timestamp * timepoint) list * Once.t Expl.Pdt.t
@@ -1191,6 +1191,28 @@ module MFormula = struct
     | MAlways       of Interval.t * t * (Expl.t, timestamp * timepoint) Buft.t * Always.t Expl.Pdt.t
     | MSince        of Interval.t * t * t * (Expl.t, Expl.t, timestamp * timepoint) Buf2t.t * Since.t Expl.Pdt.t
     | MUntil        of Interval.t * t * t * (Expl.t, Expl.t, timestamp * timepoint) Buf2t.t * Until.t Expl.Pdt.t
+
+  let rec var_tt x = function
+    | MTT | MFF -> []
+    | MPredicate (r, trms) -> (match (List.findi trms ~f:(fun i y -> Pred.Term.equal x y)) with
+                               | None -> []
+                               | Some (i, _) -> let props = Hashtbl.find_exn Pred.Sig.table r in
+                                                [snd (List.nth_exn props.ntconsts i)])
+    | MNeg f
+      | MExists (_, _, f)
+      | MForall (_, _, f)
+      | MPrev (_, f, _, _)
+      | MNext (_, f, _, _)
+      | MOnce (_, f, _, _)
+      | MEventually (_, f, _, _)
+      | MHistorically (_, f, _, _)
+      | MAlways (_, f, _, _) -> var_tt x f
+    | MAnd (f, g, _)
+      | MOr (f, g, _)
+      | MImp (f, g, _)
+      | MIff (f, g, _)
+      | MSince (_, f, g, _, _)
+      | MUntil (_, f, g, _, _) -> var_tt x f @ var_tt x g
 
   let rec init = function
     | Formula.TT -> MTT
@@ -1201,8 +1223,8 @@ module MFormula = struct
     | Formula.Or (f, g) -> MOr (init f, init g, ([], []))
     | Formula.Imp (f, g) -> MImp (init f, init g, ([], []))
     | Formula.Iff (f, g) -> MIff (init f, init g, ([], []))
-    | Formula.Exists (x, f) -> MExists (x, init f)
-    | Formula.Forall (x, f) -> MForall (x, init f)
+    | Formula.Exists (x, f) -> let mf = init f in MExists (x, List.hd_exn (var_tt x mf), mf)
+    | Formula.Forall (x, f) -> let mf = init f in MForall (x, List.hd_exn (var_tt x mf), init f)
     | Formula.Prev (i, f) -> MPrev (i, init f, true, ([], []))
     | Formula.Next (i, f) -> MNext (i, init f, true, [])
     | Formula.Once (i, f) -> MOnce (i, init f, [], Leaf (Once.init ()))
@@ -1221,8 +1243,8 @@ module MFormula = struct
     | MOr (f, g, _) -> Printf.sprintf (Etc.paren l 3 "%a ∨ %a") (fun x -> to_string_rec 3) f (fun x -> to_string_rec 4) g
     | MImp (f, g, _) -> Printf.sprintf (Etc.paren l 4 "%a → %a") (fun x -> to_string_rec 4) f (fun x -> to_string_rec 4) g
     | MIff (f, g, _) -> Printf.sprintf (Etc.paren l 4 "%a ↔ %a") (fun x -> to_string_rec 4) f (fun x -> to_string_rec 4) g
-    | MExists (Var x, f) -> Printf.sprintf (Etc.paren l 5 "∃%step. %a") x (fun x -> to_string_rec 5) f
-    | MForall (Var x, f) -> Printf.sprintf (Etc.paren l 5 "∀%step. %a") x (fun x -> to_string_rec 5) f
+    | MExists (x, _, f) -> Printf.sprintf (Etc.paren l 5 "∃%step. %a") (Term.unvar x) (fun x -> to_string_rec 5) f
+    | MForall (x, _, f) -> Printf.sprintf (Etc.paren l 5 "∀%step. %a") (Term.unvar x) (fun x -> to_string_rec 5) f
     | MPrev (i, f, _, _) -> Printf.sprintf (Etc.paren l 5 "●%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
     | MNext (i, f, _, _) -> Printf.sprintf (Etc.paren l 5 "○%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
     | MOnce (i, f, _, _) -> Printf.sprintf (Etc.paren l 5 "⧫%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
@@ -1265,22 +1287,22 @@ let do_iff (p1: Proof.t) (p2: Proof.t) : Proof.t = match p1, p2 with
   | V vp1, S sp2 -> V (VIffVS (vp1, sp2))
   | V vp1, V vp2 -> S (SIffVV (vp1, vp2))
 
-let do_exists x = function
+let do_exists x tc = function
   | First p -> (match p with
-                | Proof.S sp -> [Proof.S (SExists (x, (Sig.term_default (Term.unvar x)), sp))]
+                | Proof.S sp -> [Proof.S (SExists (x, Domain.tt_default tc, sp))]
                 | V vp -> [Proof.V (VExists (x, Part.trivial vp))])
   | Second part -> if Part.exists part Proof.isS then
                      (let sats = Part.filter part (fun p -> Proof.isS p) in
                       List.map sats ~f:(fun (s, p) ->
                           match p with
-                          | S sp -> Proof.S (SExists (x, Setc.some_elt (Pred.Sig.term_tt (Term.unvar x)) s, sp))
+                          | S sp -> Proof.S (SExists (x, Setc.some_elt tc s, sp))
                           | V vp -> raise (Invalid_argument "found V proof in S list")))
                    else [V (VExists (x, Part.map part Proof.unV))]
 
-let do_forall x = function
+let do_forall x tc = function
   | First p -> (match p with
                 | Proof.S sp -> [Proof.S (SForall (x, Part.trivial sp))]
-                | V vp -> [Proof.V (VForall (x, (Sig.term_default (Term.unvar x)), vp))])
+                | V vp -> [Proof.V (VForall (x, Domain.tt_default tc, vp))])
   | Second part -> if Part.for_all part Proof.isS then
                      [S (SForall (x, Part.map part Proof.unS))]
                    else
@@ -1288,7 +1310,7 @@ let do_forall x = function
                       List.map vios ~f:(fun (s, p) ->
                           match p with
                           | S sp -> raise (Invalid_argument "found S proof in V list")
-                          | V vp -> Proof.V (VForall (x, Setc.some_elt (Pred.Sig.term_tt (Term.unvar x)) s, vp))))
+                          | V vp -> Proof.V (VForall (x, Setc.some_elt tc s, vp))))
 
 let rec match_terms trms ds map =
   match trms, ds with
@@ -1374,16 +1396,16 @@ let rec meval vars ts tp (db: Db.t) = function
          (fun expl1 expl2 -> Pdt.apply2 vars (fun p1 p2 -> do_iff p1 p2) expl1 expl2)
          (Buf2.add expls1 expls2 buf2) in
      (f_expls, MIff (mf1', mf2', buf2'))
-  | MExists (x, mf) ->
+  | MExists (x, tc, mf) ->
      let (expls, mf') = meval (vars @ [x]) ts tp db mf in
      let f_expls = List.map expls ~f:(fun expl ->
-                       Pdt.hide (vars @ [x]) (fun p -> minp_list (do_exists x p)) expl) in
-     (f_expls, MExists(x, mf'))
-  | MForall (x, mf) ->
+                       Pdt.hide (vars @ [x]) (fun p -> minp_list (do_exists x tc p)) expl) in
+     (f_expls, MExists(x, tc, mf'))
+  | MForall (x, tc, mf) ->
      let (expls, mf') = meval (vars @ [x]) ts tp db mf in
      let f_expls = List.map expls ~f:(fun expl ->
-                       Pdt.hide (vars @ [x]) (fun p -> minp_list (do_forall x p)) expl) in
-     (f_expls, MForall(x, mf'))
+                       Pdt.hide (vars @ [x]) (fun p -> minp_list (do_forall x tc p)) expl) in
+     (f_expls, MForall(x, tc, mf'))
   | MPrev (i, mf, first, (buf, tss)) ->
      let (expls, mf') = meval vars ts tp db mf in
      let (f_expls, (buf', tss')) =

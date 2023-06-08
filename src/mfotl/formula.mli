@@ -32,7 +32,7 @@ type t =
 
 val tt: t
 val ff: t
-val predicate: string -> string list -> t
+val predicate: string -> Term.t list -> t
 val neg: t -> t
 val conj: t -> t -> t
 val disj: t -> t -> t

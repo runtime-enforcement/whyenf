@@ -33,7 +33,7 @@ type t =
 
 let tt = TT
 let ff = FF
-let predicate p_name strms = Predicate (p_name, make_terms p_name strms)
+let predicate p_name trms = Predicate (p_name, check_terms p_name trms)
 let neg f = Neg f
 let conj f g = And (f, g)
 let disj f g = Or (f, g)
@@ -181,7 +181,8 @@ let rec subfs_dfs h = match h with
 let rec preds = function
   | TT | FF -> []
   | Predicate (r, trms) -> [Predicate (r, trms)]
-  | Neg f | Next (_, f) | Prev (_, f)
+  | Neg f | Exists (_, f) | Forall (_, f)
+    | Next (_, f) | Prev (_, f)
     | Once (_, f) | Historically (_, f)
     | Eventually (_, f) | Always (_, f) -> preds f
   | And (f1, f2) | Or (f1, f2)
@@ -196,17 +197,17 @@ let rec preds = function
                                                List.append a1s a2s
 
 let pred_names f =
-  let rec sig_preds_rec s = function
+  let rec pred_names_rec s = function
     | TT | FF -> s
     | Predicate (r, trms) -> Set.add s r
     | Neg f | Exists (_, f) | Forall (_, f)
       | Prev (_, f) | Next (_, f)
       | Once (_, f) | Eventually (_, f)
-      | Historically (_, f) | Always (_, f) -> sig_preds_rec s f
+      | Historically (_, f) | Always (_, f) -> pred_names_rec s f
     | And (f1, f2) | Or (f1, f2)
       | Imp (f1, f2) | Iff (f1, f2)
-      | Until (_, f1, f2) | Since (_, f1, f2) -> Set.union (sig_preds_rec s f1) (sig_preds_rec s f2) in
-  sig_preds_rec (Set.empty (module String)) f
+      | Until (_, f1, f2) | Since (_, f1, f2) -> Set.union (pred_names_rec s f1) (pred_names_rec s f2) in
+  pred_names_rec (Set.empty (module String)) f
 
 let op_to_string = function
   | TT -> Printf.sprintf "⊤"

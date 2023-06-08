@@ -58,35 +58,23 @@ module Sig = struct
 
   let table: (string, props) Hashtbl.t = Hashtbl.create (module String)
 
-  let table_tt: (string, Domain.tt) Hashtbl.t = Hashtbl.create (module String)
-
-  let n_tt v_name st = (v_name, Domain.tt_of_string st)
-
-  let term_tt x = Hashtbl.find_exn table_tt x
-
-  let term_default x = Domain.tt_default (Hashtbl.find_exn table_tt x)
-
-  (* TODO: Improve this checking *)
   let add p_name ntconsts =
-    let props = { arity = List.length ntconsts; ntconsts } in
-    List.iter ntconsts ~f:(fun (name, tt) ->
-        match Hashtbl.add table_tt name tt with
-        | `Duplicate -> ()
-        | `Ok -> ());
-    Hashtbl.add_exn table p_name props
+    Hashtbl.add_exn table p_name { arity = List.length ntconsts; ntconsts }
 
   let print_table () =
     Hashtbl.iteri table ~f:(fun ~key:n ~data:ps ->
         Stdio.printf "%s(%s)\n" n
           (String.drop_prefix (List.fold ps.ntconsts ~init:"" ~f:(fun acc (var, tt) ->
-               acc ^ "," ^ var ^ ":" ^ (Domain.tt_to_string tt))) 1))
+                                   acc ^ "," ^ var ^ ":" ^ (Domain.tt_to_string tt))) 1))
 
 end
 
-let make_terms p_name strms =
+let check_terms p_name trms =
   let sig_pred = Hashtbl.find_exn Sig.table p_name in
-  if List.length strms = sig_pred.arity then
-    List.map2_exn strms sig_pred.ntconsts
-      (fun s ntc -> if String.equal s (fst ntc) then Term.Var s
-                    else Const (Domain.string_to_t s (snd ntc)))
+  if List.length trms = sig_pred.arity then
+    if (List.for_all2_exn trms sig_pred.ntconsts
+          (fun t ntc -> match t with
+                        | Term.Var x -> true
+                        | Const c -> Domain.tt_equal (Domain.tt_of_domain c) (snd ntc))) then trms
+    else raise (Invalid_argument (Printf.sprintf "type of terms of %s do not match the signature" p_name))
   else raise (Invalid_argument (Printf.sprintf "arity of %s is %d" p_name sig_pred.arity))

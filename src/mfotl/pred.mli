@@ -38,16 +38,10 @@ module Sig : sig
 
   val table: (string, props) Hashtbl.t
 
-  val n_tt: string -> string -> (string * Domain.tt)
-
-  val term_tt: string -> Domain.tt
-
-  val term_default: string -> Domain.t
-
   val add: string -> (string * Domain.tt) list -> unit
 
   val print_table: unit -> unit
 
 end
 
-val make_terms: string -> string list -> Term.t list
+val check_terms: string -> Term.t list -> Term.t list
