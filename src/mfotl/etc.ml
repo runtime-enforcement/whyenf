@@ -20,6 +20,9 @@ let outc_ref = ref Stdio.Out_channel.stdout
 
 let eat s t = s ^ (String.strip t)
 let paren h k x = if h>k then "("^^x^^")" else x
+let is_digit = function
+  | '0' .. '9' -> true
+  | _ -> false
 
 exception Parsing_error of Lexing.position*Lexing.position*string
 let parsing_error i j fmt = Format.kasprintf (fun s -> raise (Parsing_error(i,j,s))) fmt
@@ -62,3 +65,9 @@ let list_to_json l =
   | [] -> "[]"
   | _ -> let els_str = String.concat ~sep:"" (List.map l ~f:(fun el -> "\"" ^ el ^ "\",")) in
          "[" ^ (String.sub els_str 0 ((String.length els_str)-1)) ^ "]"
+
+let unquote s =
+    let len = String.length s in
+    if Char.equal s.[0] '\"' && Char.equal s.[len-1] '\"' then
+      String.sub s 1 (len-2)
+    else s

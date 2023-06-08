@@ -22,6 +22,12 @@ module T = struct
     | Float v, Float v' -> Float.equal v v'
     | _ -> false
 
+  let tt_equal tt tt' = match tt, tt' with
+    | TInt, TInt
+      | TStr, TStr
+      | TFloat, TFloat -> true
+    | _ -> false
+
   let tt_of_string = function
     | "int" -> TInt
     | "string" -> TStr
