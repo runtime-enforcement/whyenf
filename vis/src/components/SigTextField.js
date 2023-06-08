@@ -42,7 +42,7 @@ export default function SigTextField ({ sig, setFormState }) {
         onBlur={handleBlur}
         minRows={rows}
         maxRows={rows}
-        InputProps={{style: { minHeight: '17.2vh' }}}
+        InputProps={{style: { minHeight: '18.5vh', maxHeight: '18.5vh' }}}
       />
     </Box>
   );
