@@ -14,7 +14,7 @@ module Fdeque = Core_kernel.Fdeque
 
 type period = PAST | FUTURE
 
-module Db = struct
+module Dbs = struct
 
   type cell = timepoint * int * Db.t
 
@@ -33,8 +33,9 @@ module Db = struct
 
   let to_json tp db f =
     let preds_row = row tp db f in
-    (Printf.sprintf "%s\"preds\": [\n" (String.make 4 ' ')) ^
-      (String.concat ~sep:",\n" (List.map preds_row ~f:(fun (tp, idx, db) -> cell_to_json (String.make 4 ' ') tp idx db))) ^
+    (Printf.sprintf "%s\"dbs\": [\n" (String.make 8 ' ')) ^
+      (String.concat ~sep:",\n" (List.map preds_row ~f:(fun (tp, idx, db) ->
+                                     cell_to_json (String.make 8 ' ') tp idx db))) ^
         (Printf.sprintf "]")
 
 end

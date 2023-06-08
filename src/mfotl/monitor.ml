@@ -1545,8 +1545,7 @@ let exec mode measure f inc =
   step None ms
 
 let exec_vis (obj_opt: MState.t option) f log =
-  let step pb_opt (ms: MState.t) db =
-    Stdio.print_endline "step!";
+  let step (ms: MState.t) db =
     try
       let (_, pb) = Other_parser.Trace.parse_from_string db in
       let last_ts = Hashtbl.fold ms.tpts ~init:0 ~f:(fun ~key:_ ~data:ts l_ts -> if ts > l_ts then ts else l_ts) in
@@ -1555,20 +1554,21 @@ let exec_vis (obj_opt: MState.t option) f log =
         List.iter tstps_expls (fun ((ts, tp), _) -> Hashtbl.add_exn ms.tpts tp ts);
         let json_expls = Out.Json.expls ms.tpts f (List.map tstps_expls ~f:snd) in
         let json_db = Out.Json.db pb.ts !tp pb.db f in
-        Stdio.printf "json_expls =\n%s\n" json_expls;
-        Stdio.printf "json_db =\n%s\n" json_db;
-        (None, (json_expls, json_db), ms')
+        (None, (json_expls, [json_db]), ms')
       else raise (Failure "trace is not monotonic")
-    with Failure msg -> (Some(msg), ("", ""), ms) in
+    with Failure msg -> (Some(msg), ([], []), ms) in
   let ms = match obj_opt with
     | None -> let mf = init f in
               MState.init mf
     | Some (ms') -> tp := ms'.tp_out + (Queue.length ms'.ts_waiting); ms' in
   let str_dbs = List.map (List.filter (String.split log ~on:'@') ~f:(fun s -> not (String.is_empty s)))
                   ~f:(fun s -> "@" ^ s) in
-  Stdio.printf "|str_dbs| = %d\n" (List.length str_dbs);
-  let (fail_msg_opt, json, ms') = List.fold str_dbs ~init:(None, ("", ""), ms)
-                                    ~f:(fun (fail_msg_opt, pb_opt, ms') str_db -> step pb_opt ms' str_db) in
+  let (fail_msg_opt, (json_expls, json_dbs), ms') = List.fold str_dbs ~init:(None, ([], []), ms)
+                                                      ~f:(fun (fail_msg_opt, (json_es, json_dbs), m) str_db ->
+                                                        let (fail_msg_opt', (json_es', json_dbs'), m') = step m str_db in
+                                                        (fail_msg_opt', (json_es @ json_es', json_dbs @ json_dbs'), m')) in
+  let json = Out.Json.aggregate json_dbs json_expls in
+  Stdio.printf "%s\n" json;
   match fail_msg_opt with
   | None -> (ms', json)
   | Some (fail_msg) -> Stdio.print_endline fail_msg; (ms, json)

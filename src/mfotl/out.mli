@@ -26,6 +26,8 @@ module Json : sig
 
   val db: timestamp -> timepoint -> Db.t -> Formula.t -> string
 
-  val expls: (timepoint, timestamp) Hashtbl.t -> Formula.t -> Expl.t list -> string
+  val expls: (timepoint, timestamp) Hashtbl.t -> Formula.t -> Expl.t list -> string list
+
+  val aggregate: string list -> string list -> string
 
 end
