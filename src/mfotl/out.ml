@@ -60,29 +60,34 @@ module Json = struct
                                           (Printf.sprintf "%s(%s)" r (Etc.string_list_to_string var_names)) :: acc)) in
     let subfs_columns = List.map (Formula.subfs_dfs f) Formula.op_to_string in
     let subfs = List.map (Formula.subfs_dfs f) Formula.to_string in
-    Printf.sprintf "{\n  \"apsColumns\": %s,\n  \"subfsColumns\": %s,\n  \"subformulas\": %s}\n"
+    Printf.sprintf "{\n  \"dbsColumns\": %s,\n  \"subfsColumns\": %s,\n  \"subformulas\": %s}\n"
       (Etc.list_to_json sig_preds_columns) (Etc.list_to_json subfs_columns) (Etc.list_to_json subfs)
 
   let db ts tp db f =
-    Printf.sprintf "{\n" ^
-      Printf.sprintf "%s\"ts\": %d,\n" (String.make 4 ' ') ts ^
-        Printf.sprintf "%s\"tp\": %d,\n" (String.make 4 ' ') tp ^
-          Printf.sprintf "%s\n" (Vis.Db.to_json tp db f) ^
-            Printf.sprintf "}"
+    Printf.sprintf "%s{\n" (String.make 4 ' ') ^
+      Printf.sprintf "%s\"ts\": %d,\n" (String.make 8 ' ') ts ^
+        Printf.sprintf "%s\"tp\": %d,\n" (String.make 8 ' ') tp ^
+          Printf.sprintf "%s\n" (Vis.Dbs.to_json tp db f) ^
+            Printf.sprintf "%s}" (String.make 4 ' ')
 
   let expls tpts f es =
-    (Printf.sprintf "{\n") ^
-      (Printf.sprintf "%s\"expls\": [\n" (String.make 4 ' ')) ^
-        String.concat ~sep:",\n" (List.map es ~f:(fun e ->
-                                      let tp = (Expl.at e) in
-                                      let ts = Hashtbl.find_exn tpts tp in
-                                      Printf.sprintf "%s{\n" (String.make 4 ' ') ^
-                                        Printf.sprintf "%s\"ts\": %d,\n" (String.make 8 ' ') ts ^
-                                          Printf.sprintf "%s\"tp\": %d,\n" (String.make 8 ' ') tp ^
-                                            Printf.sprintf "%s\"expl\": {\n" (String.make 8 ' ') ^
-                                              Printf.sprintf "%s\n" (Vis.Expl.to_json f e) ^
-                                                Printf.sprintf "}%s}" (String.make 4 ' '))) ^
-          (Printf.sprintf "]}")
+    List.map es ~f:(fun e ->
+        let tp = (Expl.at e) in
+        let ts = Hashtbl.find_exn tpts tp in
+        Printf.sprintf "%s{\n" (String.make 4 ' ') ^
+          Printf.sprintf "%s\"ts\": %d,\n" (String.make 8 ' ') ts ^
+            Printf.sprintf "%s\"tp\": %d,\n" (String.make 8 ' ') tp ^
+              Printf.sprintf "%s\"expl\": {\n" (String.make 8 ' ') ^
+                Printf.sprintf "%s\n" (Vis.Expl.to_json f e) ^
+                  Printf.sprintf "}%s}" (String.make 4 ' '))
 
+  let aggregate dbs es =
+    Printf.sprintf "{\n" ^
+      Printf.sprintf "%s\"dbs\": [\n" (String.make 4 ' ') ^
+        String.concat ~sep:",\n" dbs ^
+          Printf.sprintf "],\n" ^
+            Printf.sprintf "%s\"expls\": [\n" (String.make 4 ' ') ^
+              String.concat ~sep:",\n" es ^
+                Printf.sprintf "]}"
 
 end

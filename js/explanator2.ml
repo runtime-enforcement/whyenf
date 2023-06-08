@@ -24,8 +24,8 @@ module Explanator2 = struct
     Other_parser.Sig.parse_from_string str_sig;
     let str_f = Js_of_ocaml.Js.to_string js_formula in
     let f = Formula_parser.formula Formula_lexer.token (Lexing.from_string str_f) in
-    let (obj_opt, (es, dbs)) = Monitor.exec_vis None f str_log in
-    (obj_opt, (Js.string(es), Js.string(dbs)))
+    let (obj_opt, json) = Monitor.exec_vis None f str_log in
+    (obj_opt, Js.string(json))
 
   let monitor_append js_log js_sig js_formula obj_opt =
     let str_log = Js_of_ocaml.Js.to_string js_log in
@@ -33,8 +33,8 @@ module Explanator2 = struct
     Other_parser.Sig.parse_from_string str_sig;
     let str_f = Js_of_ocaml.Js.to_string js_formula in
     let f = Formula_parser.formula Formula_lexer.token (Lexing.from_string str_f) in
-    let (obj_opt', (es, dbs)) = Monitor.exec_vis obj_opt f str_log in
-    (obj_opt', (Js.string(es), Js.string(dbs)))
+    let (obj_opt', json) = Monitor.exec_vis obj_opt f str_log in
+    (obj_opt', Js.string(json))
 
   let (_: unit) =
     Js.export_all
