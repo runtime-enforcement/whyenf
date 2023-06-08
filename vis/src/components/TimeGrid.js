@@ -27,9 +27,9 @@ function Cell(props) {
   }
 }
 
-function TimeGrid ({ explanations,
-                     atoms,
-                     apsColumns,
+function TimeGrid ({ explObjs,
+                     dbsObjs,
+                     dbsColumns,
                      subfsColumns,
                      subformulas,
                      squares,
@@ -45,8 +45,8 @@ function TimeGrid ({ explanations,
   const handlePopoverOpen = (event) => {
     const col = parseInt(event.currentTarget.dataset.field);
     const row = event.currentTarget.parentElement.dataset.id;
-    if (col >= apsColumns.length && squares[row][col] !== "" && squares[row][col] !== black) {
-      if (value !== subformulas[col - apsColumns.length]) setValue(subformulas[col - apsColumns.length]);
+    if (col >= dbsColumns.length && squares[row][col] !== "" && squares[row][col] !== black) {
+      if (value !== subformulas[col - dbsColumns.length]) setValue(subformulas[col - dbsColumns.length]);
       setAnchorEl(event.currentTarget);
     }
   };
@@ -55,12 +55,12 @@ function TimeGrid ({ explanations,
     setAnchorEl(null);
   };
 
-  const apsWidth = apsColumns.reduce(
+  const apsWidth = dbsColumns.reduce(
     (acc, ap) => Math.max(acc, (8*(ap.length))),
     50
   );
 
-  const apsGridColumns = apsColumns.slice(0).map((a, i) =>
+  const apsGridColumns = dbsColumns.slice(0).map((a, i) =>
     ({
       field: i.toString(),
       headerName: a,
@@ -100,19 +100,21 @@ function TimeGrid ({ explanations,
 
   const subfsGridColumns = subfsColumns.slice(0).map((f, i) =>
     ({
-      field: (i+apsColumns.length).toString(),
+      field: (i+dbsColumns.length).toString(),
       headerName: f,
       width: subfsWidth,
       sortable: false,
       renderHeader: () => f,
-      renderCell: (params) => { return <Cell value={squares[params.row.tp][i+apsColumns.length]}
+      renderCell: (params) => { return <Cell value={squares[params.row.tp][i+dbsColumns.length]}
                                              onClick={() => handleClick(params.row.ts, params.row.tp, params.colDef.field)} />; },
       headerAlign: 'center',
       align: 'center',
       disableClickEventBubbling: true
     }));
 
-  const rows = atoms.map(({ ts, tp }) =>
+  console.log(dbsObjs);
+
+  const rows = dbsObjs.map(({ ts, tp }) =>
     ({
       id: tp,
       tp: tp,
@@ -126,8 +128,8 @@ function TimeGrid ({ explanations,
     let clonePathsMap = new Map(pathsMap);
     let cell;
 
-    for (let i = 0; i < explanations.length; ++i) {
-      let c = explanations[i].table.find(c => c.tp === tp && c.col === colIndex);
+    for (let i = 0; i < explObjs.length; ++i) {
+      let c = explObjs[i].table.find(c => c.tp === tp && c.col === colIndex);
       if (c !== undefined) cell = c;
     }
 
@@ -144,8 +146,8 @@ function TimeGrid ({ explanations,
       }
 
       // Update interval highlighting
-      let lastTS = atoms[atoms.length - 1].ts;
-      let selRows = (cell.interval !== undefined) ? tpsIn(ts, tp, cell.interval, cell.period, lastTS, atoms) : [];
+      let lastTS = dbsObjs[dbsObjs.length - 1].ts;
+      let selRows = (cell.interval !== undefined) ? tpsIn(ts, tp, cell.interval, cell.period, lastTS, dbsObjs) : [];
 
       // Update (potentially multiple) open paths to be highlighted
       for (const [k, obj] of pathsMap) {
