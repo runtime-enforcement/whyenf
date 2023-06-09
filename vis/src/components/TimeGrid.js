@@ -27,15 +27,11 @@ function Cell(props) {
   }
 }
 
-function TimeGrid ({ explObjs,
-                     dbsObjs,
-                     dbsColumns,
-                     subfsColumns,
+function TimeGrid ({ columns,
+                     objs,
+                     tables,
+                     highlights,
                      subformulas,
-                     squares,
-                     selectedRows,
-                     highlightedCells,
-                     pathsMap,
                      setMonitorState }) {
 
   const [anchorEl, setAnchorEl] = useState(null);
@@ -45,29 +41,29 @@ function TimeGrid ({ explObjs,
   const handlePopoverOpen = (event) => {
     const col = parseInt(event.currentTarget.dataset.field);
     const row = event.currentTarget.parentElement.dataset.id;
-    if (col >= dbsColumns.length && squares[row][col] !== "" && squares[row][col] !== black) {
-      if (value !== subformulas[col - dbsColumns.length]) setValue(subformulas[col - dbsColumns.length]);
-      setAnchorEl(event.currentTarget);
-    }
+    // if (col >= columns.preds.length && squares[row][col] !== "" && squares[row][col] !== black) {
+    //   if (value !== subformulas[col - columns.preds.length]) setValue(subformulas[col - co.length]);
+    //   setAnchorEl(event.currentTarget);
+    // }
   };
 
   const handlePopoverClose = () => {
     setAnchorEl(null);
   };
 
-  const apsWidth = dbsColumns.reduce(
-    (acc, ap) => Math.max(acc, (8*(ap.length))),
-    50
+  const predsWidth = columns.preds.reduce ((acc, pred) =>
+    Math.max(acc, (8*(pred.length))), 50
   );
 
-  const apsGridColumns = dbsColumns.slice(0).map((a, i) =>
+  const predsGridColumns = columns.preds.slice(0).map((p, i) =>
     ({
       field: i.toString(),
-      headerName: a,
-      width: apsWidth,
+      headerName: p,
+      width: predsWidth,
       sortable: false,
-      renderHeader: () => a,
-      renderCell: (params) => <Cell value={squares[params.row.tp][i]} />,
+      renderHeader: () => p,
+      // renderCell: (params) => <Cell value={squares[params.row.tp][i]} />,
+      renderCell: (params) => <Cell value={""} />,
       headerAlign: 'center',
       align: 'center',
       disableClickEventBubbling: true
@@ -93,28 +89,26 @@ function TimeGrid ({ explObjs,
     }
   ];
 
-  const subfsWidth = subfsColumns.reduce(
-    (acc, ap) => Math.max(acc, (8*(ap.length))),
-    60
+  const subfsWidth = columns.subfs.reduce((acc, subf) =>
+    Math.max(acc, (8*(subf.length))), 60
   );
 
-  const subfsGridColumns = subfsColumns.slice(0).map((f, i) =>
+  const subfsGridColumns = columns.subfs.slice(0).map((f, i) =>
     ({
-      field: (i+dbsColumns.length).toString(),
+      field: (i+columns.preds.length).toString(),
       headerName: f,
       width: subfsWidth,
       sortable: false,
       renderHeader: () => f,
-      renderCell: (params) => { return <Cell value={squares[params.row.tp][i+dbsColumns.length]}
-                                             onClick={() => handleClick(params.row.ts, params.row.tp, params.colDef.field)} />; },
+      renderCell: (params) => { return <Cell value={""}
+                                             onClick={() => handleClick(params.row.ts, params.row.tp, params.colDef.field)}
+                                       />; },
       headerAlign: 'center',
       align: 'center',
       disableClickEventBubbling: true
     }));
 
-  console.log(dbsObjs);
-
-  const rows = dbsObjs.map(({ ts, tp }) =>
+  const rows = objs.dbs.map(({ ts, tp }) =>
     ({
       id: tp,
       tp: tp,
@@ -124,62 +118,62 @@ function TimeGrid ({ explObjs,
   const handleClick = (ts, tp, col) => {
     const colIndex = parseInt(col);
 
-    let cloneSquares = [...squares];
-    let clonePathsMap = new Map(pathsMap);
+    // let cloneSquares = [...squares];
+    let clonePathsMap = new Map(highlights.pathsMap);
     let cell;
 
-    for (let i = 0; i < explObjs.length; ++i) {
-      let c = explObjs[i].table.find(c => c.tp === tp && c.col === colIndex);
-      if (c !== undefined) cell = c;
-    }
+    // for (let i = 0; i < explObjs.length; ++i) {
+    //   let c = explObjs[i].table.find(c => c.tp === tp && c.col === colIndex);
+    //   if (c !== undefined) cell = c;
+    // }
 
-    if (cell !== undefined && squares[cell.tp][cell.col] !== black && cell.cells.length !== 0) {
-      // Update highlighted cells (i.e. the ones who appear after a click)
-      let highlightedCells = [];
-      let children = [];
+    // if (cell !== undefined && squares[cell.tp][cell.col] !== black && cell.cells.length !== 0) {
+    //   // Update highlighted cells (i.e. the ones who appear after a click)
+    //   let highlightedCells = [];
+    //   let children = [];
 
-      // Update cells (show hidden verdicts after a click)
-      for (let i = 0; i < cell.cells.length; ++i) {
-        cloneSquares[cell.cells[i].tp][cell.cells[i].col] = squareColor(cell.cells[i].bool);
-        highlightedCells.push({ tp: cell.cells[i].tp, col: cell.cells[i].col });
-        children.push({ tp: cell.cells[i].tp, col: cell.cells[i].col, isHighlighted: false });
-      }
+    //   // Update cells (show hidden verdicts after a click)
+    //   for (let i = 0; i < cell.cells.length; ++i) {
+    //     cloneSquares[cell.cells[i].tp][cell.cells[i].col] = squareColor(cell.cells[i].bool);
+    //     highlightedCells.push({ tp: cell.cells[i].tp, col: cell.cells[i].col });
+    //     children.push({ tp: cell.cells[i].tp, col: cell.cells[i].col, isHighlighted: false });
+    //   }
 
-      // Update interval highlighting
-      let lastTS = dbsObjs[dbsObjs.length - 1].ts;
-      let selRows = (cell.interval !== undefined) ? tpsIn(ts, tp, cell.interval, cell.period, lastTS, dbsObjs) : [];
+    //   // Update interval highlighting
+    //   let lastTS = dbsObjs[dbsObjs.length - 1].ts;
+    //   let selRows = (cell.interval !== undefined) ? tpsIn(ts, tp, cell.interval, cell.period, lastTS, dbsObjs) : [];
 
-      // Update (potentially multiple) open paths to be highlighted
-      for (const [k, obj] of pathsMap) {
-        if (obj.isHighlighted) clonePathsMap.set(k, {...obj, isHighlighted: false });
-      }
+    //   // Update (potentially multiple) open paths to be highlighted
+    //   for (const [k, obj] of pathsMap) {
+    //     if (obj.isHighlighted) clonePathsMap.set(k, {...obj, isHighlighted: false });
+    //   }
 
-      for (let i = 0; i < children.length; ++i) {
-        clonePathsMap.set(children[i].tp.toString() + children[i].col.toString(),
-                          { parent: tp.toString() + colIndex.toString(), isHighlighted: false,
-                            tp: children[i].tp, col: children[i].col });
-      }
+    //   for (let i = 0; i < children.length; ++i) {
+    //     clonePathsMap.set(children[i].tp.toString() + children[i].col.toString(),
+    //                       { parent: tp.toString() + colIndex.toString(), isHighlighted: false,
+    //                         tp: children[i].tp, col: children[i].col });
+    //   }
 
-      let cur = clonePathsMap.get(tp.toString() + colIndex.toString());
-      if (cur === undefined) clonePathsMap.set(tp.toString() + colIndex.toString(),
-                                               { parent: null, isHighlighted: true, tp: tp, col: colIndex });
-      else clonePathsMap.set(tp.toString() + colIndex.toString(), {...cur, isHighlighted: true });
+    //   let cur = clonePathsMap.get(tp.toString() + colIndex.toString());
+    //   if (cur === undefined) clonePathsMap.set(tp.toString() + colIndex.toString(),
+    //                                            { parent: null, isHighlighted: true, tp: tp, col: colIndex });
+    //   else clonePathsMap.set(tp.toString() + colIndex.toString(), {...cur, isHighlighted: true });
 
-      if (cur !== undefined) {
-        while (cur.parent !== null) {
-          cur = clonePathsMap.get(cur.parent);
-          clonePathsMap.set(cur, {...cur, isHighlighted: true });
-        }
-      }
+    //   if (cur !== undefined) {
+    //     while (cur.parent !== null) {
+    //       cur = clonePathsMap.get(cur.parent);
+    //       clonePathsMap.set(cur, {...cur, isHighlighted: true });
+    //     }
+    //   }
 
-      let action = { type: "updateTable",
-                     squares: cloneSquares,
-                     selectedRows: selRows,
-                     highlightedCells: highlightedCells,
-                     pathsMap: clonePathsMap,
-                   };
-      setMonitorState(action);
-    }
+    //   let action = { type: "updateTable",
+    //                  squares: cloneSquares,
+    //                  selectedRows: selRows,
+    //                  highlightedCells: highlightedCells,
+    //                  pathsMap: clonePathsMap,
+    //                };
+    //   setMonitorState(action);
+    // }
   };
 
   return (
@@ -206,20 +200,20 @@ function TimeGrid ({ explObjs,
          }}>
       <DataGrid
         rows={rows}
-        columns={apsGridColumns.concat(fixedGridColumns.concat(subfsGridColumns))}
+        columns={predsGridColumns.concat(fixedGridColumns.concat(subfsGridColumns))}
         getRowClassName={(params) => {
-          if (selectedRows.includes(params.row.tp)) return 'row--Highlighted';
+          if (highlights.selectedRows.includes(params.row.tp)) return 'row--Highlighted';
           else return 'row--Plain';
         }}
         getCellClassName={(params) => {
-          if (highlightedCells.length !== 0) {
-            for (let i = 0; i < highlightedCells.length; ++i) {
-              if (highlightedCells[i].tp === params.row.tp
-                  && highlightedCells[i].col === parseInt(params.colDef.field))
+          if (highlights.highlightedCells.length !== 0) {
+            for (let i = 0; i < highlights.highlightedCells.length; ++i) {
+              if (highlights.highlightedCells[i].tp === params.row.tp
+                  && highlights.highlightedCells[i].col === parseInt(params.colDef.field))
                 return 'cell--Highlighted';
             }
           }
-          for (const [k, obj] of pathsMap) {
+          for (const [k, obj] of highlights.pathsMap) {
             if (obj.isHighlighted && obj.tp === params.row.tp && obj.col === parseInt(params.colDef.field))
               return 'cell--PathHighlighted';
           }
