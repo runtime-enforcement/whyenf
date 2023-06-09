@@ -23,7 +23,15 @@ export function squareColorTest(bool) {
   return (bool ? yellow[500] : purple[500]);
 }
 
-export function computeSquares(explanations, dbsObjs, squares = []) {
+export function computeDbsTable(dbsObjs, squares = []) {
+  return [];
+}
+
+export function computeExplsTable(explsObjs, squares = []) {
+  return [];
+}
+
+export function computeSquares(dbsObjs, explsObjs, squares = []) {
 
   // let maxRow = Math.max(explanations.length, atoms.length);
   // let maxCol = computeMaxCol(explanations) + 1;

@@ -14,96 +14,79 @@ import ResetButton from './components/ResetButton';
 import ExampleSelect from './components/ExampleSelect';
 import PreambleCard from './components/PreambleCard';
 import AlertDialog from './components/AlertDialog';
-import { computeSquares, translateError } from './util';
+import { computeDbsTable, computeExplsTable, translateError } from './util';
 
 function initMonitor(monitorState, action) {
   try {
     const monitor = window.monitorInit(action.trace.replace(/\n/g, " "),
                                        action.sig.replace(/\n/g, " "), action.formula);
-    const jsooMonitorState = monitor[1];
-    const explObjs = (JSON.parse(monitor[2])).expls_table;
-    const dbsObjs = (JSON.parse(monitor[2])).dbs_table;
     const columns = JSON.parse(window.getColumns(action.formula));
-    dbsObjs.nCols = columns.dbsColumns.length;
-    console.log(dbsObjs);
-    console.log(columns);
-    const squares = computeSquares(explObjs, dbsObjs);
+    const dbsObjs = (JSON.parse(monitor[2])).dbs_objs;
+    const explsObjs = (JSON.parse(monitor[2])).expls_objs;
+    const jsooMonitorState = monitor[1];
+    dbsObjs.nCols = columns.predsColumns.length;
 
-    return { explObjs: explObjs,
-             dbsObjs: dbsObjs,
-             dbsColumns: columns.dbsColumns,
-             subfsColumns: columns.subfsColumns,
+    // const squares = computeSquares(explObjs, dbsObjs);
+
+    return { columns: { preds: columns.predsColumns, subfs: columns.subfsColumns },
+             objs: { dbs: dbsObjs, expls: explsObjs },
+             tables: { dbs: [], expls: [] },
+             highlights: { selectedRows: [], highlightedCells: [], pathsMap: new Map() },
              subformulas: columns.subformulas,
-             squares: squares,
              jsooMonitorState: jsooMonitorState,
-             selectedRows: [],
-             highlightedCells: [],
-             pathsMap: new Map(),
-             fixParameters: true
-           };
+             fixParameters: true };
   } catch (error) {
     console.log(error);
-    return {
-      ...monitorState,
-      dialog: translateError(error),
-    };
+    return { ...monitorState,
+             dialog: translateError(error) };
   }
 }
 
 function execMonitor(monitorState, action) {
   try {
-    const monitor = window.monitorAppend(action.appendTrace,
-                                         action.measure,
-                                         action.formula,
-                                         action.jsooMonitorState);
-    const jsooMonitorState = monitor[1];
-    const newExplObjs = (JSON.parse(monitor[2])).expls;
-    const explObjs = monitorState.explObjs.concat(newExplObjs);
-    const dbsObjs = monitorState.dbsObjs.concat((JSON.parse(monitor[2])).dbs[0]);
-    const squares = computeSquares(explObjs, dbsObjs);
+    // const monitor = window.monitorAppend(action.appendTrace,
+    //                                      action.measure,
+    //                                      action.formula,
+    //                                      action.jsooMonitorState);
+    // const jsooMonitorState = monitor[1];
+    // const newExplObjs = (JSON.parse(monitor[2])).expls;
+    // const explObjs = monitorState.explObjs.concat(newExplObjs);
+    // const dbsObjs = monitorState.dbsObjs.concat((JSON.parse(monitor[2])).dbs[0]);
+    // const squares = computeSquares(explObjs, dbsObjs);
 
-    return { ...monitorState,
-             explObjs: explObjs,
-             dbsObjs: dbsObjs,
-             squares: squares,
-             jsooMonitorState: jsooMonitorState,
-             highlightedCells: [],
-             pathsMap: new Map(),
-             selectedRows: [],
-             fixParameters: true
-           };
+    // return { ...monitorState,
+    //          explObjs: explObjs,
+    //          dbsObjs: dbsObjs,
+    //          squares: squares,
+    //          jsooMonitorState: jsooMonitorState,
+    //          highlightedCells: [],
+    //          pathsMap: new Map(),
+    //          selectedRows: [],
+    //          fixParameters: true
+    //        };
+    return monitorState;
   } catch (error) {
     console.log(error);
-    return {
-      ...monitorState,
-      dialog: translateError(error),
-    };
+    return { ...monitorState,
+             dialog: translateError(error) };
   }
 }
 
 function formStateReducer(formState, action) {
   switch (action.type) {
   case 'setFormula':
-    return {
-      ...formState,
-      formula: action.formula
-    }
+    return { ...formState,
+             formula: action.formula };
   case 'setTrace':
-    return {
-      ...formState,
-      trace: action.trace
-    }
+    return { ...formState,
+             trace: action.trace };
   case 'setSig':
-    return {
-      ...formState,
-      sig: action.sig
-    }
+    return { ...formState,
+             sig: action.sig };
   case 'setFormulaAndTraceAndSig':
-    return {
-      formula: action.formula,
-      trace: action.trace,
-      sig: action.sig
-    }
+    return { formula: action.formula,
+             trace: action.trace,
+             sig: action.sig };
   default:
     return formState;
   }
@@ -116,77 +99,57 @@ function monitorStateReducer(monitorState, action) {
   case 'appendTable':
     return execMonitor(monitorState, action);
   case 'updateTable':
-    return {
-      ...monitorState,
-      squares: action.squares,
-      selectedRows: action.selectedRows,
-      highlightedCells: action.highlightedCells,
-      pathsMap: action.pathsMap,
-      fixParameters: true
-    }
+    return { ...monitorState,
+             tables: { dbs: action.dbsTable, expls: action.explsTable },
+             highlights: { selectedRows: action.selectedRows,
+                           highlightedCells: action.highlightedCells,
+                           pathsMap: action.pathsMap },
+             fixParameters: true };
   case 'resetTable':
-    return {
-      ...monitorState,
-      squares: computeSquares(monitorState.explObjs, monitorState.dbsObjs),
-      selectedRows: [],
-      highlightedCells: [],
-      pathsMap: new Map(),
-      fixParameters: true
-    }
+    return { ...monitorState,
+             tables: { dbs: computeDbsTable(monitorState.objs.dbs), expls: computeExplsTable(monitorState.objs.expls) },
+             highlights: { selectedRows: [],
+                           highlightedCells: [],
+                           pathsMap: new Map() },
+             fixParameters: true };
   case 'leaveMonitor':
-    return { explObjs: [],
-             dbsObjs: {},
-             dbsColumns: [],
-             subfsColumns: [],
+    return { columns: { preds: [], subfs: [] },
+             objs: { dbs: [], expls: [] },
+             tables: { dbs: [], expls: [] },
+             highlights: { selectedRows: [], highlightedCells: [], pathsMap: new Map() },
              subformulas: [],
-             squares: [],
              jsooMonitorState: [],
-             selectedRows: [],
-             highlightedCells: [],
-             pathsMap: new Map(),
-             dialog: {},
-             fixParameters: false
-           }
+             fixParameters: false,
+             dialog: {} };
   case 'openDialog':
-    return {
-      ...monitorState,
-      dialog: { name: action.name, message: action.message }
-    }
+    return { ...monitorState,
+             dialog: { name: action.name, message: action.message } };
   case 'closeDialog':
-    return {
-      ...monitorState,
-      dialog: {},
-    }
+    return { ...monitorState,
+             dialog: {} };
   default:
     return monitorState;
   }
 }
 
 export default function Monitor() {
-  const measure = "size";
 
   const [appendTrace, setAppendTrace] = useState("");
   const [formState, setFormState] = useReducer(formStateReducer, { formula: "", trace: "", sig: "" });
   const [monitorState, setMonitorState] = useReducer(monitorStateReducer,
-                                              { explObjs: [],
-                                                dbsObjs: [],
-                                                dbsColumns: [],
-                                                subfsColumns: [],
-                                                subformulas: [],
-                                                squares: [],
-                                                jsooMonitorState: [],
-                                                selectedRows: [],
-                                                highlightedCells: [],
-                                                pathsMap: new Map(),
-                                                dialog: {},
-                                                fixParameters: false
-                                              });
+                                                     { columns: { preds: [], subfs: [] },
+                                                       objs: { dbs: [], expls: [] },
+                                                       tables: { dbs: [], expls: [] },
+                                                       highlights: { selectedRows: [], highlightedCells: [], pathsMap: new Map() },
+                                                       subformulas: [],
+                                                       jsooMonitorState: [],
+                                                       fixParameters: false,
+                                                       dialog: {} });
 
   const handleMonitor = (e) => {
     e.preventDefault();
 
-    let action = { measure: measure,
-                   formula: formState.formula,
+    let action = { formula: formState.formula,
                    trace: formState.trace,
                    sig: formState.sig,
                    type: 'initTable'
@@ -203,8 +166,7 @@ export default function Monitor() {
                                        name: 'Error',
                                        message: 'Your trace is empty. Please try again.'
                                      };
-    else action = { measure: measure,
-                    formula: formState.formula,
+    else action = { formula: formState.formula,
                     appendTrace: appendTrace,
                     jsooMonitorState: monitorState.jsooMonitorState,
                     type: 'appendTable'
@@ -282,12 +244,10 @@ export default function Monitor() {
                   </Grid>
                 </Grid>
                 <Grid item xs={12} sm={12} md={8} lg={8} xl={8}>
-                  <TimeGrid explObjs={monitorState.explObjs}
-                            dbsObjs={monitorState.dbsObjs}
-                            dbsColumns={monitorState.dbsColumns}
-                            subfsColumns={monitorState.subfsColumns}
+                  <TimeGrid columns={monitorState.columns}
+                            objs={monitorState.objs}
+                            tables={monitorState.tables}
                             subformulas={monitorState.subformulas}
-                            squares={monitorState.squares}
                             setMonitorState={setMonitorState}
                   />
                 </Grid>
@@ -298,21 +258,16 @@ export default function Monitor() {
             { monitorState.fixParameters &&
               <Grid container item xs={24} sm={24} md={12} lg={12} xl={12} spacing={2}>
                 <Grid item xs={24} sm={24} md={12} lg={12} xl={12}>
-                  <TimeGrid explObjs={monitorState.explObjs}
-                            dbsObjs={monitorState.dbsObjs}
-                            dbsColumns={monitorState.dbsColumns}
-                            subfsColumns={monitorState.subfsColumns}
+                  <TimeGrid columns={monitorState.columns}
+                            objs={monitorState.objs}
+                            tables={monitorState.tables}
+                            highlights={monitorState.highlights}
                             subformulas={monitorState.subformulas}
-                            squares={monitorState.squares}
-                            selectedRows={monitorState.selectedRows}
-                            highlightedCells={monitorState.highlightedCells}
-                            pathsMap={monitorState.pathsMap}
                             setMonitorState={setMonitorState}
                   />
                 </Grid>
               </Grid>
             }
-
           </Grid>
         </Box>
       </Container>
