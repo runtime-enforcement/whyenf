@@ -16,6 +16,17 @@ import PreambleCard from './components/PreambleCard';
 import AlertDialog from './components/AlertDialog';
 import { computeDbsTable, computeExplsTable, translateError } from './util';
 
+function initMonitorState () {
+  return { columns: { preds: [], subfs: [] },
+           objs: { dbs: [], expls: [] },
+           tables: { dbs: [], expls: [] },
+           highlights: { selectedRows: [], highlightedCells: [], pathsMap: new Map() },
+           subformulas: [],
+           jsooMonitorState: [],
+           fixParameters: false,
+           dialog: {} }
+}
+
 function initMonitor(monitorState, action) {
   try {
     const monitor = window.monitorInit(action.trace.replace(/\n/g, " "),
@@ -34,7 +45,8 @@ function initMonitor(monitorState, action) {
              highlights: { selectedRows: [], highlightedCells: [], pathsMap: new Map() },
              subformulas: columns.subformulas,
              jsooMonitorState: jsooMonitorState,
-             fixParameters: true };
+             fixParameters: true,
+             dialog: {} };
   } catch (error) {
     console.log(error);
     return { ...monitorState,
@@ -107,20 +119,14 @@ function monitorStateReducer(monitorState, action) {
              fixParameters: true };
   case 'resetTable':
     return { ...monitorState,
-             tables: { dbs: computeDbsTable(monitorState.objs.dbs), expls: computeExplsTable(monitorState.objs.expls) },
+             tables: { dbs: computeDbsTable(monitorState.objs.dbs),
+                       expls: computeExplsTable(monitorState.objs.expls) },
              highlights: { selectedRows: [],
                            highlightedCells: [],
                            pathsMap: new Map() },
              fixParameters: true };
   case 'leaveMonitor':
-    return { columns: { preds: [], subfs: [] },
-             objs: { dbs: [], expls: [] },
-             tables: { dbs: [], expls: [] },
-             highlights: { selectedRows: [], highlightedCells: [], pathsMap: new Map() },
-             subformulas: [],
-             jsooMonitorState: [],
-             fixParameters: false,
-             dialog: {} };
+    return initMonitorState ();
   case 'openDialog':
     return { ...monitorState,
              dialog: { name: action.name, message: action.message } };
@@ -137,14 +143,7 @@ export default function Monitor() {
   const [appendTrace, setAppendTrace] = useState("");
   const [formState, setFormState] = useReducer(formStateReducer, { formula: "", trace: "", sig: "" });
   const [monitorState, setMonitorState] = useReducer(monitorStateReducer,
-                                                     { columns: { preds: [], subfs: [] },
-                                                       objs: { dbs: [], expls: [] },
-                                                       tables: { dbs: [], expls: [] },
-                                                       highlights: { selectedRows: [], highlightedCells: [], pathsMap: new Map() },
-                                                       subformulas: [],
-                                                       jsooMonitorState: [],
-                                                       fixParameters: false,
-                                                       dialog: {} });
+                                                     initMonitorState ());
 
   const handleMonitor = (e) => {
     e.preventDefault();
