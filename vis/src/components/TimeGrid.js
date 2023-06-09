@@ -39,8 +39,8 @@ function TimeGrid ({ columns,
   const open = Boolean(anchorEl);
 
   const handlePopoverOpen = (event) => {
-    const col = parseInt(event.currentTarget.dataset.field);
-    const row = event.currentTarget.parentElement.dataset.id;
+    // const col = parseInt(event.currentTarget.dataset.field);
+    // const row = event.currentTarget.parentElement.dataset.id;
     // if (col >= columns.preds.length && squares[row][col] !== "" && squares[row][col] !== black) {
     //   if (value !== subformulas[col - columns.preds.length]) setValue(subformulas[col - co.length]);
     //   setAnchorEl(event.currentTarget);
@@ -63,7 +63,7 @@ function TimeGrid ({ columns,
       sortable: false,
       renderHeader: () => p,
       // renderCell: (params) => <Cell value={squares[params.row.tp][i]} />,
-      renderCell: (params) => <Cell value={""} />,
+      // renderCell: (params) => <Cell value={""} />,
       headerAlign: 'center',
       align: 'center',
       disableClickEventBubbling: true
@@ -100,9 +100,9 @@ function TimeGrid ({ columns,
       width: subfsWidth,
       sortable: false,
       renderHeader: () => f,
-      renderCell: (params) => { return <Cell value={""}
-                                             onClick={() => handleClick(params.row.ts, params.row.tp, params.colDef.field)}
-                                       />; },
+      // renderCell: (params) => { return <Cell value={""}
+      //                                        onClick={() => handleClick(params.row.ts, params.row.tp, params.colDef.field)}
+      //                                  />; },
       headerAlign: 'center',
       align: 'center',
       disableClickEventBubbling: true
@@ -115,66 +115,66 @@ function TimeGrid ({ columns,
       ts: ts
     }));
 
-  const handleClick = (ts, tp, col) => {
-    const colIndex = parseInt(col);
+  // const handleClick = (ts, tp, col) => {
+  //   const colIndex = parseInt(col);
 
-    // let cloneSquares = [...squares];
-    let clonePathsMap = new Map(highlights.pathsMap);
-    let cell;
+  //   let cloneSquares = [...squares];
+  //   let clonePathsMap = new Map(highlights.pathsMap);
+  //   let cell;
 
-    // for (let i = 0; i < explObjs.length; ++i) {
-    //   let c = explObjs[i].table.find(c => c.tp === tp && c.col === colIndex);
-    //   if (c !== undefined) cell = c;
-    // }
+  //   for (let i = 0; i < explObjs.length; ++i) {
+  //     let c = explObjs[i].table.find(c => c.tp === tp && c.col === colIndex);
+  //     if (c !== undefined) cell = c;
+  //   }
 
-    // if (cell !== undefined && squares[cell.tp][cell.col] !== black && cell.cells.length !== 0) {
-    //   // Update highlighted cells (i.e. the ones who appear after a click)
-    //   let highlightedCells = [];
-    //   let children = [];
+  //   if (cell !== undefined && squares[cell.tp][cell.col] !== black && cell.cells.length !== 0) {
+  //     Update highlighted cells (i.e. the ones who appear after a click)
+  //     let highlightedCells = [];
+  //     let children = [];
 
-    //   // Update cells (show hidden verdicts after a click)
-    //   for (let i = 0; i < cell.cells.length; ++i) {
-    //     cloneSquares[cell.cells[i].tp][cell.cells[i].col] = squareColor(cell.cells[i].bool);
-    //     highlightedCells.push({ tp: cell.cells[i].tp, col: cell.cells[i].col });
-    //     children.push({ tp: cell.cells[i].tp, col: cell.cells[i].col, isHighlighted: false });
-    //   }
+  //     Update cells (show hidden verdicts after a click)
+  //     for (let i = 0; i < cell.cells.length; ++i) {
+  //       cloneSquares[cell.cells[i].tp][cell.cells[i].col] = squareColor(cell.cells[i].bool);
+  //       highlightedCells.push({ tp: cell.cells[i].tp, col: cell.cells[i].col });
+  //       children.push({ tp: cell.cells[i].tp, col: cell.cells[i].col, isHighlighted: false });
+  //     }
 
-    //   // Update interval highlighting
-    //   let lastTS = dbsObjs[dbsObjs.length - 1].ts;
-    //   let selRows = (cell.interval !== undefined) ? tpsIn(ts, tp, cell.interval, cell.period, lastTS, dbsObjs) : [];
+  //     Update interval highlighting
+  //     let lastTS = dbsObjs[dbsObjs.length - 1].ts;
+  //     let selRows = (cell.interval !== undefined) ? tpsIn(ts, tp, cell.interval, cell.period, lastTS, dbsObjs) : [];
 
-    //   // Update (potentially multiple) open paths to be highlighted
-    //   for (const [k, obj] of pathsMap) {
-    //     if (obj.isHighlighted) clonePathsMap.set(k, {...obj, isHighlighted: false });
-    //   }
+  //     Update (potentially multiple) open paths to be highlighted
+  //     for (const [k, obj] of pathsMap) {
+  //       if (obj.isHighlighted) clonePathsMap.set(k, {...obj, isHighlighted: false });
+  //     }
 
-    //   for (let i = 0; i < children.length; ++i) {
-    //     clonePathsMap.set(children[i].tp.toString() + children[i].col.toString(),
-    //                       { parent: tp.toString() + colIndex.toString(), isHighlighted: false,
-    //                         tp: children[i].tp, col: children[i].col });
-    //   }
+  //     for (let i = 0; i < children.length; ++i) {
+  //       clonePathsMap.set(children[i].tp.toString() + children[i].col.toString(),
+  //                         { parent: tp.toString() + colIndex.toString(), isHighlighted: false,
+  //                           tp: children[i].tp, col: children[i].col });
+  //     }
 
-    //   let cur = clonePathsMap.get(tp.toString() + colIndex.toString());
-    //   if (cur === undefined) clonePathsMap.set(tp.toString() + colIndex.toString(),
-    //                                            { parent: null, isHighlighted: true, tp: tp, col: colIndex });
-    //   else clonePathsMap.set(tp.toString() + colIndex.toString(), {...cur, isHighlighted: true });
+  //     let cur = clonePathsMap.get(tp.toString() + colIndex.toString());
+  //     if (cur === undefined) clonePathsMap.set(tp.toString() + colIndex.toString(),
+  //                                              { parent: null, isHighlighted: true, tp: tp, col: colIndex });
+  //     else clonePathsMap.set(tp.toString() + colIndex.toString(), {...cur, isHighlighted: true });
 
-    //   if (cur !== undefined) {
-    //     while (cur.parent !== null) {
-    //       cur = clonePathsMap.get(cur.parent);
-    //       clonePathsMap.set(cur, {...cur, isHighlighted: true });
-    //     }
-    //   }
+  //     if (cur !== undefined) {
+  //       while (cur.parent !== null) {
+  //         cur = clonePathsMap.get(cur.parent);
+  //         clonePathsMap.set(cur, {...cur, isHighlighted: true });
+  //       }
+  //     }
 
-    //   let action = { type: "updateTable",
-    //                  squares: cloneSquares,
-    //                  selectedRows: selRows,
-    //                  highlightedCells: highlightedCells,
-    //                  pathsMap: clonePathsMap,
-    //                };
-    //   setMonitorState(action);
-    // }
-  };
+  //     let action = { type: "updateTable",
+  //                    squares: cloneSquares,
+  //                    selectedRows: selRows,
+  //                    highlightedCells: highlightedCells,
+  //                    pathsMap: clonePathsMap,
+  //                  };
+  //     setMonitorState(action);
+  //   }
+  // };
 
   return (
     <Box height="60vh"
