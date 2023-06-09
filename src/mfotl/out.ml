@@ -60,7 +60,7 @@ module Json = struct
                                           (Printf.sprintf "%s(%s)" r (Etc.string_list_to_string var_names)) :: acc)) in
     let subfs_columns = List.map (Formula.subfs_dfs f) Formula.op_to_string in
     let subfs = List.map (Formula.subfs_dfs f) Formula.to_string in
-    Printf.sprintf "{\n  \"dbsColumns\": %s,\n  \"subfsColumns\": %s,\n  \"subformulas\": %s}\n"
+    Printf.sprintf "{\n  \"predsColumns\": %s,\n  \"subfsColumns\": %s,\n  \"subformulas\": %s}\n"
       (Etc.list_to_json sig_preds_columns) (Etc.list_to_json subfs_columns) (Etc.list_to_json subfs)
 
   let db ts tp db f =
@@ -83,10 +83,10 @@ module Json = struct
 
   let aggregate dbs es =
     Printf.sprintf "{\n" ^
-      Printf.sprintf "%s\"dbs_table\": [\n" (String.make 4 ' ') ^
+      Printf.sprintf "%s\"dbs_objs\": [\n" (String.make 4 ' ') ^
         String.concat ~sep:",\n" dbs ^
           Printf.sprintf "],\n" ^
-            Printf.sprintf "%s\"expls_table\": [\n" (String.make 4 ' ') ^
+            Printf.sprintf "%s\"expls_objs\": [\n" (String.make 4 ' ') ^
               String.concat ~sep:",\n" es ^
                 Printf.sprintf "]}"
 
