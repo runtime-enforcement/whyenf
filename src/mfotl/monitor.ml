@@ -1498,12 +1498,14 @@ let rec meval vars ts tp (db: Db.t) = function
 module MState = struct
 
   type t = { mf: MFormula.t
+           ; tp_cur: timepoint
            ; tp_out: timepoint
            ; ts_waiting: timestamp Queue.t
            ; tsdbs: (timestamp * Db.t) Queue.t
            ; tpts: (timepoint, timestamp) Hashtbl.t }
 
   let init mf = { mf = mf
+                ; tp_cur = 0
                 ; tp_out = -1
                 ; ts_waiting = Queue.create ()
                 ; tsdbs = Queue.create ()
@@ -1511,21 +1513,18 @@ module MState = struct
 
 end
 
-let tp = ref (-1)
-let next_tp () = tp := !tp + 1; !tp
-
 let mstep mode vars ts db (ms: MState.t) =
-  let tp = next_tp () in
-  let (expls, mf') = meval vars ts tp db ms.mf in
+  let (expls, mf') = meval vars ts ms.tp_cur db ms.mf in
   Queue.enqueue ms.ts_waiting ts;
   let tstps = List.zip_exn (List.take (Queue.to_list ms.ts_waiting) (List.length expls))
-                (List.range tp (tp + List.length expls)) in
+                (List.range ms.tp_cur (ms.tp_cur + List.length expls)) in
   let tsdbs = match mode with
     | Out.Plain.UNVERIFIED -> ms.tsdbs
     | _ -> Queue.enqueue ms.tsdbs (ts, db); ms.tsdbs in
   (List.zip_exn tstps expls,
    { ms with
      mf = mf'
+   ; tp_cur = ms.tp_cur + 1
    ; tp_out = ms.tp_out + (List.length expls)
    ; ts_waiting = queue_drop ms.ts_waiting (List.length expls)
    ; tsdbs = tsdbs })
@@ -1536,7 +1535,7 @@ let exec mode measure f inc =
     let (tstp_expls, ms') = mstep mode (Set.elements (Formula.fv f)) pb.ts pb.db ms in
     (match mode with
      | Out.Plain.UNVERIFIED -> Out.Plain.expls tstp_expls None mode
-     | Out.Plain.DEBUGVIS -> raise (Failure "this function is undefined for the mode debugvis")
+     | Out.Plain.DEBUGVIS -> raise (Failure "function exec is undefined for the mode debugvis")
      | _ -> let c = Checker_interface.check (Queue.to_list ms'.tsdbs) f (List.map tstp_expls ~f:snd) in
             Out.Plain.expls tstp_expls (Some(c)) mode);
     if more then step (Some(pb)) ms' in
@@ -1553,14 +1552,14 @@ let exec_vis (obj_opt: MState.t option) f log =
         let (tstps_expls, ms') = mstep Out.Plain.UNVERIFIED (Set.elements (Formula.fv f)) pb.ts pb.db ms in
         List.iter tstps_expls (fun ((ts, tp), _) -> Hashtbl.add_exn ms.tpts tp ts);
         let json_expls = Out.Json.expls ms.tpts f (List.map tstps_expls ~f:snd) in
-        let json_db = Out.Json.db pb.ts !tp pb.db f in
+        let json_db = Out.Json.db pb.ts ms.tp_cur pb.db f in
         (None, (json_expls, [json_db]), ms')
       else raise (Failure "trace is not monotonic")
     with Failure msg -> (Some(msg), ([], []), ms) in
   let ms = match obj_opt with
     | None -> let mf = init f in
               MState.init mf
-    | Some (ms') -> tp := ms'.tp_out + (Queue.length ms'.ts_waiting); ms' in
+    | Some (ms') -> { ms' with tp_cur = ms'.tp_out + (Queue.length ms'.ts_waiting) + 1 } in
   let str_dbs = List.map (List.filter (String.split log ~on:'@') ~f:(fun s -> not (String.is_empty s)))
                   ~f:(fun s -> "@" ^ s) in
   let (fail_msg_opt, (json_expls, json_dbs), ms') = List.fold str_dbs ~init:(None, ([], []), ms)
