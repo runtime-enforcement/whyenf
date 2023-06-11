@@ -23,8 +23,23 @@ export function squareColorTest(bool) {
   return (bool ? yellow[500] : purple[500]);
 }
 
-export function computeDbsTable(dbsObjs, squares = []) {
-  return [];
+export function computeDbsTable(dbsObjs, cells = []) {
+
+  let maxRow = dbsObjs.length;
+  let maxCol = dbsObjs.nCols;
+
+  cells = (cells.length === 0) ? new Array(maxRow).fill(null).map(() => Array(maxCol).fill("")) : cells;
+
+  // Populate cells with dbs
+  for (let tp = 0; tp < maxRow; ++tp) {
+    let dbs = dbsObjs[tp].dbs_row;
+    for (let j = 0; j < maxCol; ++j) {
+      if (tp === dbs[j].tp) cells[tp][j] = dbs[j].db.join('\n');
+    }
+  }
+
+  return cells;
+
 }
 
 export function computeExplsTable(explsObjs, squares = []) {

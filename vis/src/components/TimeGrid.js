@@ -5,13 +5,28 @@ import Button from '@mui/material/Button';
 import CircleIcon from '@mui/icons-material/Circle';
 import CancelIcon from '@mui/icons-material/Cancel';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import StorageIcon from '@mui/icons-material/Storage';
 import Popover from '@mui/material/Popover';
 import Typography from '@mui/material/Typography';
 import { red, amber, lightGreen, indigo } from '@mui/material/colors';
 import { common } from '@mui/material/colors';
-import { black,
-         squareColor,
-         tpsIn } from '../util';
+import { black, squareColor, tpsIn } from '../util';
+
+function DbsCell(props) {
+  if (props.value.length === 0) {
+    return (
+      <Button>
+        <CancelIcon style={{ color: red[500] }} />
+      </Button>
+    );
+  } else {
+    return (
+      <Button>
+        <StorageIcon style={{ color: black }} />
+      </Button>
+    );
+  }
+}
 
 function Cell(props) {
   if (props.value === red[500] || props.value === lightGreen[500] || props.value === black) {
@@ -62,8 +77,7 @@ function TimeGrid ({ columns,
       width: predsWidth,
       sortable: false,
       renderHeader: () => p,
-      // renderCell: (params) => <Cell value={squares[params.row.tp][i]} />,
-      // renderCell: (params) => <Cell value={""} />,
+      renderCell: (params) => <DbsCell value={tables.dbs[params.row.tp][i]} />,
       headerAlign: 'center',
       align: 'center',
       disableClickEventBubbling: true

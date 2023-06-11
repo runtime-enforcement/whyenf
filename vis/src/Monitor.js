@@ -37,11 +37,9 @@ function initMonitor(monitorState, action) {
     const jsooMonitorState = monitor[1];
     dbsObjs.nCols = columns.predsColumns.length;
 
-    // const squares = computeSquares(explObjs, dbsObjs);
-
     return { columns: { preds: columns.predsColumns, subfs: columns.subfsColumns },
              objs: { dbs: dbsObjs, expls: explsObjs },
-             tables: { dbs: [], expls: [] },
+             tables: { dbs: computeDbsTable(dbsObjs), expls: [] },
              highlights: { selectedRows: [], highlightedCells: [], pathsMap: new Map() },
              subformulas: columns.subformulas,
              jsooMonitorState: jsooMonitorState,
