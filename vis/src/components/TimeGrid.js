@@ -52,7 +52,7 @@ function TimeGrid ({ columns,
   };
 
   const predsWidth = columns.preds.reduce ((acc, pred) =>
-    Math.max(acc, (8*(pred.length))), 50
+    Math.max(acc, (10*(pred.length))), 50
   );
 
   const predsGridColumns = columns.preds.slice(0).map((p, i) =>
@@ -69,11 +69,15 @@ function TimeGrid ({ columns,
       disableClickEventBubbling: true
     }));
 
-  const fixedGridColumns = [
+  const tsWidth = objs.dbs.reduce ((acc, { ts, tp }) =>
+    Math.max(acc, (10*(ts.toString().length))), 50
+  );
+
+  const tptsGridColumns = [
     {
       field: 'tp',
       headerName: <b>TP</b>,
-      width: 60,
+      width: 70,
       sortable: false,
       headerAlign: 'center',
       align: 'center',
@@ -81,7 +85,7 @@ function TimeGrid ({ columns,
     },
     { field: 'ts',
       headerName: <b>TS</b>,
-      width: 60,
+      width: tsWidth,
       sortable: false,
       headerAlign: 'center',
       align: 'center',
@@ -90,7 +94,7 @@ function TimeGrid ({ columns,
   ];
 
   const subfsWidth = columns.subfs.reduce((acc, subf) =>
-    Math.max(acc, (8*(subf.length))), 60
+    Math.max(acc, (9*(subf.length))), 60
   );
 
   const subfsGridColumns = columns.subfs.slice(0).map((f, i) =>
@@ -200,7 +204,7 @@ function TimeGrid ({ columns,
          }}>
       <DataGrid
         rows={rows}
-        columns={predsGridColumns.concat(fixedGridColumns.concat(subfsGridColumns))}
+        columns={predsGridColumns.concat(tptsGridColumns.concat(subfsGridColumns))}
         getRowClassName={(params) => {
           if (highlights.selectedRows.includes(params.row.tp)) return 'row--Highlighted';
           else return 'row--Plain';
