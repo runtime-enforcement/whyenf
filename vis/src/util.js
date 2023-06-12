@@ -23,7 +23,7 @@ export function computeDbsTable(dbsObjs, cells = []) {
 
 function mainColumn(explsObjs, cells = []) {
 
-  console.log(explsObjs);
+  // console.log(explsObjs);
 
   // let maxRow = dbsObjs.length;
   // let maxCol = dbsObjs.nCols;
@@ -34,7 +34,7 @@ function mainColumn(explsObjs, cells = []) {
 
 export function computeBooleanTable(explsObjs, cells = []) {
 
-  console.log(explsObjs);
+  // console.log(explsObjs);
 
   // let maxRow = dbsObjs.length;
   // let maxCol = dbsObjs.nCols;
