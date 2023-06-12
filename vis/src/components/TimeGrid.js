@@ -5,6 +5,7 @@ import Button from '@mui/material/Button';
 import CircleIcon from '@mui/icons-material/Circle';
 import CancelIcon from '@mui/icons-material/Cancel';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import DetailsIcon from '@mui/icons-material/Details';
 import StorageIcon from '@mui/icons-material/Storage';
 import Popover from '@mui/material/Popover';
 import Typography from '@mui/material/Typography';
@@ -54,13 +55,25 @@ function TimeGrid ({ columns,
   const open = Boolean(anchorEl);
 
   const handlePopoverOpen = (event) => {
-    // const col = parseInt(event.currentTarget.dataset.field);
-    // const row = event.currentTarget.parentElement.dataset.id;
+    const col = parseInt(event.currentTarget.dataset.field);
+    const row = event.currentTarget.parentElement.dataset.id;
+
+    // Preds
+    if (col < objs.dbs.nCols && tables.dbs[row][col].length !== 0) {
+      setValue(tables.dbs[row][col]);
+      setAnchorEl(event.currentTarget);
+    }
+
+
+
+
     // if (col >= columns.preds.length && squares[row][col] !== "" && squares[row][col] !== black) {
     //   if (value !== subformulas[col - columns.preds.length]) setValue(subformulas[col - co.length]);
     //   setAnchorEl(event.currentTarget);
     // }
   };
+
+  console.log(tables.dbs);
 
   const handlePopoverClose = () => {
     setAnchorEl(null);
