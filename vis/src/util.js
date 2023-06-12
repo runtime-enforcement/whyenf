@@ -1,27 +1,6 @@
-import { red, purple, yellow, lightGreen } from '@mui/material/colors';
+import { red, lightGreen } from '@mui/material/colors';
 
 export const black = "#000000";
-
-export function computeMaxCol(explanations) {
-  let maxCol = 0;
-
-  for (let tp = 0; tp < explanations.length; ++tp) {
-    let tbl = explanations[tp].table;
-    for (let j = 0; j < tbl.length; ++j) {
-      if (tbl[j].col > maxCol) maxCol = tbl[j].col;
-    }
-  }
-
-  return maxCol;
-}
-
-export function squareColor(bool) {
-  return (bool ? lightGreen[500] : red[500]);
-}
-
-export function squareColorTest(bool) {
-  return (bool ? yellow[500] : purple[500]);
-}
 
 export function computeDbsTable(dbsObjs, cells = []) {
 
@@ -42,8 +21,30 @@ export function computeDbsTable(dbsObjs, cells = []) {
 
 }
 
-export function computeExplsTable(explsObjs, squares = []) {
+function mainColumn(explsObjs, cells = []) {
+
+  console.log(explsObjs);
+
+  // let maxRow = dbsObjs.length;
+  // let maxCol = dbsObjs.nCols;
+
   return [];
+
+}
+
+export function computeBooleanTable(explsObjs, cells = []) {
+
+  console.log(explsObjs);
+
+  // let maxRow = dbsObjs.length;
+  // let maxCol = dbsObjs.nCols;
+
+  return [];
+
+}
+
+export function cellColor(bool) {
+  return (bool ? lightGreen[500] : red[500]);
 }
 
 export function computeSquares(dbsObjs, explsObjs, squares = []) {
