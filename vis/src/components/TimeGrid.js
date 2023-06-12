@@ -12,8 +12,9 @@ import Typography from '@mui/material/Typography';
 import { red, amber, lightGreen, indigo } from '@mui/material/colors';
 import { common } from '@mui/material/colors';
 import { black, squareColor, tpsIn } from '../util';
+import MainCell from './MainCell';
 
-function DbsCell(props) {
+function DbCell(props) {
   if (props.value.length === 0) {
     return (
       <Button>
@@ -29,19 +30,19 @@ function DbsCell(props) {
   }
 }
 
-function Cell(props) {
-  if (props.value === red[500] || props.value === lightGreen[500] || props.value === black) {
-    return (
-      <Button onClick={props.onClick}>
-        { props.value === black && <CircleIcon style={{ color: props.value }} /> }
-        { props.value === red[500] && <CancelIcon style={{ color: props.value }} /> }
-        { props.value === lightGreen[500] && <CheckCircleIcon style={{ color: props.value }} /> }
-      </Button>
-    );
-  } else {
-    return "";
-  }
-}
+// function Cell(props) {
+//   if (props.popoverValue === red[500] || props.popoverValue === lightGreen[500] || props.popoverValue === black) {
+//     return (
+//       <Button onClick={props.onClick}>
+//         { props.popoverValue === black && <CircleIcon style={{ color: props.popoverValue }} /> }
+//         { props.popoverValue === red[500] && <CancelIcon style={{ color: props.popoverValue }} /> }
+//         { props.popoverValue === lightGreen[500] && <CheckCircleIcon style={{ color: props.popoverValue }} /> }
+//       </Button>
+//     );
+//   } else {
+//     return "";
+//   }
+// }
 
 function TimeGrid ({ columns,
                      objs,
@@ -90,7 +91,7 @@ function TimeGrid ({ columns,
       width: predsWidth,
       sortable: false,
       renderHeader: () => p,
-      renderCell: (params) => <DbsCell value={tables.dbs[params.row.tp][i]} />,
+      renderCell: (params) => <DbCell value={tables.dbs[params.row.tp][i]} />,
       headerAlign: 'center',
       align: 'center',
       disableClickEventBubbling: true
@@ -131,9 +132,17 @@ function TimeGrid ({ columns,
       width: subfsWidth,
       sortable: false,
       renderHeader: () => f,
-      // renderCell: (params) => { return <Cell value={""}
-      //                                        onClick={() => handleClick(params.row.ts, params.row.tp, params.colDef.field)}
-      //                                  />; },
+      // renderCell: (params) => {
+      //   return <Cell value={""}
+      //                onClick={() => handleClick(params.row.ts, params.row.tp, params.colDef.field)}
+      //          />; },
+      renderCell: (params) => {
+        if (params.colDef.field === columns.preds.length.toString()) {
+          return <MainCell explsObjs={objs.expls}/>;
+        } else {
+          return "";
+        }
+      },
       headerAlign: 'center',
       align: 'center',
       disableClickEventBubbling: true

@@ -14,7 +14,7 @@ import ResetButton from './components/ResetButton';
 import ExampleSelect from './components/ExampleSelect';
 import PreambleCard from './components/PreambleCard';
 import AlertDialog from './components/AlertDialog';
-import { computeDbsTable, computeExplsTable, translateError } from './util';
+import { computeDbsTable, translateError } from './util';
 
 function initMonitorState () {
   return { columns: { preds: [], subfs: [] },
@@ -117,8 +117,7 @@ function monitorStateReducer(monitorState, action) {
              fixParameters: true };
   case 'resetTable':
     return { ...monitorState,
-             tables: { dbs: computeDbsTable(monitorState.objs.dbs),
-                       expls: computeExplsTable(monitorState.objs.expls) },
+             tables: { dbs: computeDbsTable(monitorState.objs.dbs) },
              highlights: { selectedRows: [],
                            highlightedCells: [],
                            pathsMap: new Map() },
