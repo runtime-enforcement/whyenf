@@ -74,7 +74,7 @@ function TimeGrid ({ columns,
     // }
   };
 
-  console.log(tables.dbs);
+  // console.log(tables.dbs);
 
   const handlePopoverClose = () => {
     setAnchorEl(null);
