@@ -54,27 +54,22 @@ function initMonitor(monitorState, action) {
 
 function execMonitor(monitorState, action) {
   try {
-    // const monitor = window.monitorAppend(action.appendTrace,
-    //                                      action.measure,
-    //                                      action.formula,
-    //                                      action.jsooMonitorState);
-    // const jsooMonitorState = monitor[1];
-    // const newExplObjs = (JSON.parse(monitor[2])).expls;
-    // const explObjs = monitorState.explObjs.concat(newExplObjs);
-    // const dbsObjs = monitorState.dbsObjs.concat((JSON.parse(monitor[2])).dbs[0]);
-    // const squares = computeSquares(explObjs, dbsObjs);
 
-    // return { ...monitorState,
-    //          explObjs: explObjs,
-    //          dbsObjs: dbsObjs,
-    //          squares: squares,
-    //          jsooMonitorState: jsooMonitorState,
-    //          highlightedCells: [],
-    //          pathsMap: new Map(),
-    //          selectedRows: [],
-    //          fixParameters: true
-    //        };
-    return monitorState;
+    const monitor = window.monitorAppend(action.trace.replace(/\n/g, " "),
+                                         action.formula, action.jsooMonitorState);
+    const columns = JSON.parse(window.getColumns(action.formula));
+    const dbsObjs = (JSON.parse(monitor[2])).dbs_objs;
+    const explsObjs = (JSON.parse(monitor[2])).expls_objs;
+    const jsooMonitorState = monitor[1];
+    dbsObjs.nCols = columns.predsColumns.length;
+
+    return { ...monitorState,
+             objs: { dbs: dbsObjs, expls: explsObjs },
+             tables: { dbs: computeDbsTable(dbsObjs), expls: [] },
+             highlights: { selectedRows: [], highlightedCells: [], pathsMap: new Map() },
+             jsooMonitorState: jsooMonitorState,
+             fixParameters: true,
+             dialog: {} };
   } catch (error) {
     console.log(error);
     return { ...monitorState,
