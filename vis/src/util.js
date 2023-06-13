@@ -2,6 +2,10 @@ import { red, lightGreen } from '@mui/material/colors';
 
 export const black = "#000000";
 
+export function cellColor(bool) {
+  return (bool ? lightGreen[500] : red[500]);
+}
+
 export function computeDbsTable(dbsObjs, cells = []) {
 
   let maxRow = dbsObjs.length;
@@ -21,23 +25,16 @@ export function computeDbsTable(dbsObjs, cells = []) {
 
 }
 
-function computeLeaf(leaf) {
-  return [];
-}
+export function computeBooleanTable(explTableObj, explsTable) {
 
-export function computeBooleanTable(explsObjs, cells = []) {
-
-  // console.log(explsObjs);
+  console.log(explTableObj);
+  console.log(explsTable);
 
   // let maxRow = dbsObjs.length;
   // let maxCol = dbsObjs.nCols;
 
   return [];
 
-}
-
-export function cellColor(bool) {
-  return (bool ? lightGreen[500] : red[500]);
 }
 
 export function computeSquares(dbsObjs, explsObjs, squares = []) {
