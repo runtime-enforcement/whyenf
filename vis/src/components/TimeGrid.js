@@ -56,8 +56,8 @@ function TimeGrid ({ columns,
   const open = Boolean(anchorEl);
 
   const handlePopoverOpen = (event) => {
-    const col = parseInt(event.currentTarget.dataset.field);
     const row = event.currentTarget.parentElement.dataset.id;
+    const col = parseInt(event.currentTarget.dataset.field);
 
     // Preds
     if (col < objs.dbs.nCols && tables.dbs[row][col].length !== 0) {
@@ -65,21 +65,17 @@ function TimeGrid ({ columns,
       setAnchorEl(event.currentTarget);
     }
 
-
-
-
-    // if (col >= columns.preds.length && squares[row][col] !== "" && squares[row][col] !== black) {
+    // if (col >= columns.preds.length && squares[row][col] !== "" && tables.expls[row][col] !== black) {
     //   if (value !== subformulas[col - columns.preds.length]) setValue(subformulas[col - co.length]);
     //   setAnchorEl(event.currentTarget);
     // }
   };
 
-  // console.log(tables.dbs);
-
   const handlePopoverClose = () => {
     setAnchorEl(null);
   };
 
+  // Preds columns
   const predsWidth = columns.preds.reduce ((acc, pred) =>
     Math.max(acc, (10*(pred.length))), 50
   );
@@ -97,6 +93,7 @@ function TimeGrid ({ columns,
       disableClickEventBubbling: true
     }));
 
+  // TP/TS columns
   const tsWidth = objs.dbs.reduce ((acc, { ts, tp }) =>
     Math.max(acc, (10*(ts.toString().length))), 50
   );
@@ -121,6 +118,23 @@ function TimeGrid ({ columns,
     }
   ];
 
+  // Values column
+  const valuesGridColumn = [
+    {
+      field: 'values',
+      headerName: <b>Values</b>,
+      width: 80,
+      sortable: false,
+      headerAlign: 'center',
+      align: 'center',
+      disableClickEventBubbling: true,
+      renderCell: (params) => {
+        return <MainCell expl={objs.expls[params.id].expl} explsTable={tables.expls} />;
+      }
+    }
+  ];
+
+  // Subfs columns
   const subfsWidth = columns.subfs.reduce((acc, subf) =>
     Math.max(acc, (9*(subf.length))), 60
   );
@@ -137,11 +151,7 @@ function TimeGrid ({ columns,
       //                onClick={() => handleClick(params.row.ts, params.row.tp, params.colDef.field)}
       //          />; },
       renderCell: (params) => {
-        if (params.colDef.field === columns.preds.length.toString()) {
-          return <MainCell expl={objs.expls[params.id].expl} />;
-        } else {
-          return "";
-        }
+        return "";
       },
       headerAlign: 'center',
       align: 'center',
@@ -240,7 +250,7 @@ function TimeGrid ({ columns,
          }}>
       <DataGrid
         rows={rows}
-        columns={predsGridColumns.concat(tptsGridColumns.concat(subfsGridColumns))}
+        columns={predsGridColumns.concat(tptsGridColumns.concat(valuesGridColumn.concat(subfsGridColumns)))}
         getRowClassName={(params) => {
           if (highlights.selectedRows.includes(params.row.tp)) return 'row--Highlighted';
           else return 'row--Plain';
