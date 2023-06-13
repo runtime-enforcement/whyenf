@@ -3,7 +3,7 @@ import ArrowRightIcon from '@mui/icons-material/ArrowRight';
 import MenuItem from '@mui/material/MenuItem';
 import { IconMenuItem, NestedMenuItem } from 'mui-nested-menu';
 
-function MenuInstance ({ expl, open, handleClose }) {
+function MenuInstance ({ expl, open, handleClose, handleClick }) {
 
   if (expl.type === "node") {
     return (
@@ -18,14 +18,14 @@ function MenuInstance ({ expl, open, handleClose }) {
                 <NestedMenuItem rightIcon={<ArrowRightIcon/>}
                                 label={ds}
                                 parentMenuOpen={open}>
-                  <MenuInstance expl={el} open={open} handleClose={handleClose}/>
+                  <MenuInstance expl={el} open={open} handleClose={handleClose} handleClick={handleClick}/>
                 </NestedMenuItem>
               </div>
             );
           } else {
             return (
               <div key={i}>
-                <MenuItem onClick={handleClose}>{ds}</MenuItem>
+                <MenuItem onClick={handleClick}>{ds}</MenuItem>
               </div>
             );
           }

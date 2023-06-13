@@ -3,27 +3,35 @@ import Button from '@mui/material/Button';
 import Menu from '@mui/material/Menu';
 import DetailsIcon from '@mui/icons-material/Details';
 import MenuInstance from './MenuInstance';
+import { computeBooleanTable } from '../util';
 
-function MainCell ({ expl }) {
+function MainCell ({ expl, explsTable }) {
+
+  // console.log(expl);
 
   // NestedMenuItem
   const [anchorEl, setAnchorEl] = useState(null);
   const open = Boolean(anchorEl);
 
-  const handleClick = (event) => setAnchorEl(event.currentTarget);
+  const handleFirstClick = (event) => setAnchorEl(event.currentTarget);
   const handleClose = () => setAnchorEl(null);
+  const handleClick = (event) => {
+    console.log(event);
+    let path = [event.target.innerText];
+  };
 
   if (expl.type === "leaf") {
+    const explsTableUpdated = computeBooleanTable(expl.table, explsTable);
     return "";
   } else {
     if (expl.type === "node") {
       return (
         <div>
-          <Button variant="contained" onClick={handleClick}>
+          <Button variant="contained" onClick={handleFirstClick}>
             <DetailsIcon />
           </Button>
           <Menu anchorEl={anchorEl} open={open} onClose={handleClose}>
-            <MenuInstance expl={expl} open={open} handleClose={handleClose}/>
+            <MenuInstance expl={expl} open={open} handleClose={handleClose} handleClick={handleClick}/>
           </Menu>
         </div>
       );
