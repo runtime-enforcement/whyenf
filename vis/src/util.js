@@ -21,15 +21,8 @@ export function computeDbsTable(dbsObjs, cells = []) {
 
 }
 
-function mainColumn(explsObjs, cells = []) {
-
-  // console.log(explsObjs);
-
-  // let maxRow = dbsObjs.length;
-  // let maxCol = dbsObjs.nCols;
-
+function computeLeaf(leaf) {
   return [];
-
 }
 
 export function computeBooleanTable(explsObjs, cells = []) {

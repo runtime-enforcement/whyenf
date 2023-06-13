@@ -1,13 +1,10 @@
 import React, { useState } from 'react';
 import Button from '@mui/material/Button';
-import DetailsIcon from '@mui/icons-material/Details';
-import ArrowRightIcon from '@mui/icons-material/ArrowRight';
-import MenuItem from '@mui/material/MenuItem';
 import Menu from '@mui/material/Menu';
-import { IconMenuItem, NestedMenuItem } from 'mui-nested-menu';
+import DetailsIcon from '@mui/icons-material/Details';
+import MenuInstance from './MenuInstance';
 
-
-function MainCell ({ explsObjs }) {
+function MainCell ({ expl }) {
 
   // NestedMenuItem
   const [anchorEl, setAnchorEl] = useState(null);
@@ -16,40 +13,24 @@ function MainCell ({ explsObjs }) {
   const handleClick = (event) => setAnchorEl(event.currentTarget);
   const handleClose = () => setAnchorEl(null);
 
-  return (
-    <div>
-      <Button
-        variant="contained"
-        onClick={handleClick}
-      >
-        <DetailsIcon />
-      </Button>
-      <Menu anchorEl={anchorEl} open={open} onClose={handleClose}>
-        <NestedMenuItem
-          rightIcon={<ArrowRightIcon/>}
-          label="Top Level"
-          parentMenuOpen={open}
-        >
-          <MenuItem onClick={handleClose}>Standard Menu Item!</MenuItem>
-          <IconMenuItem
-            onClick={handleClose}
-            label="Icon Menu Item"
-          />
-          <NestedMenuItem
-            rightIcon={<ArrowRightIcon />}
-            label="Go deeper!"
-            parentMenuOpen={open}
-          >
-            <MenuItem onClick={handleClose}>Standard Menu Item!</MenuItem>
-            <IconMenuItem
-              onClick={handleClose}
-              label="Icon Menu Item"
-            />
-          </NestedMenuItem>
-        </NestedMenuItem>
-      </Menu>
-    </div>
-  );
+  if (expl.type === "leaf") {
+    return "";
+  } else {
+    if (expl.type === "node") {
+      return (
+        <div>
+          <Button variant="contained" onClick={handleClick}>
+            <DetailsIcon />
+          </Button>
+          <Menu anchorEl={anchorEl} open={open} onClose={handleClose}>
+            <MenuInstance expl={expl} open={open} handleClose={handleClose}/>
+          </Menu>
+        </div>
+      );
+    } else {
+      return "";
+    }
+  }
 }
 
 export default MainCell;

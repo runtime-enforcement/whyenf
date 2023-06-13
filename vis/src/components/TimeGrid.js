@@ -138,7 +138,7 @@ function TimeGrid ({ columns,
       //          />; },
       renderCell: (params) => {
         if (params.colDef.field === columns.preds.length.toString()) {
-          return <MainCell explsObjs={objs.expls}/>;
+          return <MainCell expl={objs.expls[params.id].expl} />;
         } else {
           return "";
         }
