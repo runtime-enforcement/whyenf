@@ -218,8 +218,8 @@ let op_to_string = function
   | Or (_, _) -> Printf.sprintf "∨"
   | Imp (_, _) -> Printf.sprintf "→"
   | Iff (_, _) -> Printf.sprintf "↔"
-  | Exists (_, _) -> Printf.sprintf "∃"
-  | Forall (_, _) -> Printf.sprintf "∀"
+  | Exists (x, _) -> Printf.sprintf "∃ %s." (Term.unvar x)
+  | Forall (x, _) -> Printf.sprintf "∀ %s." (Term.unvar x)
   | Prev (i, _) -> Printf.sprintf "●%s" (Interval.to_string i)
   | Next (i, _) -> Printf.sprintf "○%s" (Interval.to_string i)
   | Once (i, f) -> Printf.sprintf "⧫%s" (Interval.to_string i)
