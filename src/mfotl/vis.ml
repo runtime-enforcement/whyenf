@@ -343,7 +343,7 @@ module Expl = struct
   let rec expl_cell row idx (f: Formula.t) (expl: Expl.t) : cell_expl = match expl with
     | Expl.Pdt.Leaf pt -> Leaf (Expl.Proof.isS pt, (fst (ssubfs_cell_row row idx f pt)))
     | Node (x, part) -> Expl (Pred.Term.unvar x,
-                              List.map part (fun (s, e) -> (Setc.to_json s, expl_cell row idx f e)))
+                              List.map (List.rev part) (fun (s, e) -> (Setc.to_json s, expl_cell row idx f e)))
 
   let inner_cells_to_json indent cells =
     if List.is_empty cells then " []"
@@ -407,11 +407,12 @@ module Expl = struct
            (Printf.sprintf "%s\"var\": \"%s\",\n" (indent ^ (String.make 4 ' ')) x) ^
              (Printf.sprintf "%s\"part\": [\n" (indent ^ (String.make 4 ' '))) ^
                (String.concat ~sep:",\n"
-                  (List.map ces ~f:(fun (ds, e) ->
+                  (List.mapi ces ~f:(fun i (ds, e) ->
                        Printf.sprintf "%s{\n" (indent ^ (String.make 4 ' ')) ^
-                         (Printf.sprintf "%s%s\n" (indent ^ (String.make 8 ' ')) ds) ^
-                           (e_cell_to_json (indent ^ (String.make 4 ' ')) e) ^
-                             Printf.sprintf "%s}" (indent ^ (String.make 4 ' '))))) ^
+                         (Printf.sprintf "%s\"key\": %d,\n" (indent ^ (String.make 8 ' ')) i) ^
+                           (Printf.sprintf "%s%s\n" (indent ^ (String.make 8 ' ')) ds) ^
+                             (e_cell_to_json (indent ^ (String.make 4 ' ')) e) ^
+                               Printf.sprintf "%s}" (indent ^ (String.make 4 ' '))))) ^
                  (Printf.sprintf "]\n")
 
 let to_json (f: Formula.t) (expl: Expl.t) =
