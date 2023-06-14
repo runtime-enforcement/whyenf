@@ -3,7 +3,7 @@ import Button from '@mui/material/Button';
 import Menu from '@mui/material/Menu';
 import DetailsIcon from '@mui/icons-material/Details';
 import MenuInstance from './MenuInstance';
-import { computeBooleanTable } from '../util';
+import { computeBooleanTable, collectValues } from '../util';
 
 function MainCell ({ expl, explsTable }) {
 
@@ -15,10 +15,7 @@ function MainCell ({ expl, explsTable }) {
 
   const handleFirstClick = (event) => setAnchorEl(event.currentTarget);
   const handleClose = () => setAnchorEl(null);
-  const handleClick = (event) => {
-    console.log(event);
-    let path = [event.target.innerText];
-  };
+  const handleClick = (event) => collectValues(event.target).push(event.target.innerText);
 
   if (expl.type === "leaf") {
     const explsTableUpdated = computeBooleanTable(expl.table, explsTable);

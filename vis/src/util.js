@@ -25,6 +25,20 @@ export function computeDbsTable(dbsObjs, cells = []) {
 
 }
 
+export function collectValues(el) {
+
+  let values = [];
+
+  while (el.parentNode) {
+    el = el.parentNode;
+    if (el.dataset !== undefined && el.dataset.value !== undefined && el.dataset.value.length > 0) {
+      values.push(el.dataset.value);
+    }
+  }
+
+  return values;
+}
+
 export function computeBooleanTable(explTableObj, explsTable) {
 
   console.log(explTableObj);
