@@ -57,6 +57,7 @@ lemma eval_trms_set_Cons:
 qualified datatype 'a formula = 
   TT
 | FF
+| Eq_Const name 'a
 | Pred name "'a trm list" 
 | Neg "'a formula" 
 | Or "'a formula" "'a formula" 
@@ -78,6 +79,7 @@ qualified primrec fv :: "'a formula \<Rightarrow> name set" where
   "fv (Pred r ts) = (\<Union>t\<in>set ts. fv_trm t)"
 | "fv (TT) = {}"
 | "fv (FF) = {}"
+| "fv (Eq_Const x c) = {x}"
 | "fv (Neg \<phi>) = fv \<phi>"
 | "fv (Or \<phi> \<psi>) = fv \<phi> \<union> fv \<psi>"
 | "fv (And \<phi> \<psi>) = fv \<phi> \<union> fv \<psi>"
@@ -94,10 +96,36 @@ qualified primrec fv :: "'a formula \<Rightarrow> name set" where
 | "fv (Since \<phi> I \<psi>) = fv \<phi> \<union> fv \<psi>"
 | "fv (Until \<phi> I \<psi>) = fv \<phi> \<union> fv \<psi>"
 
+qualified primrec "consts" :: "'a formula \<Rightarrow> 'a set" where
+  "consts (Pred r ts) = {}" \<comment> \<open>terms may also contain constants,
+     but these only filter out values from the trace and do not introduce
+     new values of interest (i.e., do not extend the active domain)\<close>
+| "consts (TT) = {}"
+| "consts (FF) = {}"
+| "consts (Eq_Const x c) = {c}"
+| "consts (Neg \<phi>) = consts \<phi>"
+| "consts (Or \<phi> \<psi>) = consts \<phi> \<union> consts \<psi>"
+| "consts (And \<phi> \<psi>) = consts \<phi> \<union> consts \<psi>"
+| "consts (Imp \<phi> \<psi>) = consts \<phi> \<union> consts \<psi>"
+| "consts (Iff \<phi> \<psi>) = consts \<phi> \<union> consts \<psi>"
+| "consts (Exists x \<phi>) = consts \<phi>"
+| "consts (Forall x \<phi>) = consts \<phi>"
+| "consts (Prev I \<phi>) = consts \<phi>"
+| "consts (Next I \<phi>) = consts \<phi>"
+| "consts (Once I \<phi>) = consts \<phi>"
+| "consts (Historically I \<phi>) = consts \<phi>"
+| "consts (Eventually I \<phi>) = consts \<phi>"
+| "consts (Always I \<phi>) = consts \<phi>"
+| "consts (Since \<phi> I \<psi>) = consts \<phi> \<union> consts \<psi>"
+| "consts (Until \<phi> I \<psi>) = consts \<phi> \<union> consts \<psi>"
+
 lemma finite_fv_trm[simp]: "finite (fv_trm t)"
   by (cases t) simp_all
 
 lemma finite_fv[simp]: "finite (fv \<phi>)"
+  by (induction \<phi>) simp_all
+
+lemma finite_consts[simp]: "finite (consts \<phi>)"
   by (induction \<phi>) simp_all
 
 qualified definition nfv :: "'a formula \<Rightarrow> nat" where
@@ -107,6 +135,7 @@ qualified fun future_bounded :: "'a formula \<Rightarrow> bool" where
   "future_bounded (TT) = True"
 | "future_bounded (FF) = True"
 | "future_bounded (Pred _ _) = True"
+| "future_bounded (Eq_Const _ _) = True"
 | "future_bounded (Neg \<phi>) = future_bounded \<phi>"
 | "future_bounded (Or \<phi> \<psi>) = (future_bounded \<phi> \<and> future_bounded \<psi>)"
 | "future_bounded (And \<phi> \<psi>) = (future_bounded \<phi> \<and> future_bounded \<psi>)"
@@ -125,8 +154,9 @@ qualified fun future_bounded :: "'a formula \<Rightarrow> bool" where
 
 qualified primrec sat :: "'a trace \<Rightarrow> 'a env \<Rightarrow> nat \<Rightarrow> 'a formula \<Rightarrow> bool" where
   "sat \<sigma> v i (TT) = True"
-| "sat \<sigma> v i (FF) = False"              
+| "sat \<sigma> v i (FF) = False"
 | "sat \<sigma> v i (Pred r ts) = ((r, eval_trms v ts) \<in> \<Gamma> \<sigma> i)"
+| "sat \<sigma> v i (Eq_Const x c) = (v x = c)"
 | "sat \<sigma> v i (Neg \<phi>) = (\<not> sat \<sigma> v i \<phi>)"
 | "sat \<sigma> v i (Or \<phi> \<psi>) = (sat \<sigma> v i \<phi> \<or> sat \<sigma> v i \<psi>)"
 | "sat \<sigma> v i (And \<phi> \<psi>) = (sat \<sigma> v i \<phi> \<and> sat \<sigma> v i \<psi>)"
@@ -157,7 +187,7 @@ next
   case (Forall t \<phi>)
   then show ?case unfolding sat.simps 
     by (intro iff_allI) (simp add: nth_Cons')
-qed (auto 10 0 simp: Let_def split: nat.splits intro!: iff_exI)
+qed (auto 10 0 simp: Let_def split: nat.splits intro!: iff_exI eval_trm_fv_cong)
 
 lemma sat_Until_rec: "sat \<sigma> v i (Until \<phi> I \<psi>) \<longleftrightarrow>
   mem 0 I \<and> sat \<sigma> v i \<psi> \<or>
@@ -244,7 +274,7 @@ lemma sat_Historically_Once: "sat \<sigma> v i (Historically I \<phi>) = sat \<s
 lemma sat_Historically_rec: "sat \<sigma> v i (Historically I \<phi>) \<longleftrightarrow>
   (mem 0 I \<longrightarrow> sat \<sigma> v i \<phi>) \<and> 
   (i > 0 \<longrightarrow> \<Delta> \<sigma> i \<le> right I \<longrightarrow> sat \<sigma> v (i - 1) (Historically (subtract (\<Delta> \<sigma> i) I) \<phi>))"
-  unfolding sat_Historically_Once sat.simps(4)
+  unfolding sat_Historically_Once sat.simps(5)
   by (subst sat_Once_rec) auto
 
 lemma sat_Eventually_Until: "sat \<sigma> v i (Eventually I \<phi>) = sat \<sigma> v i (Until TT I \<phi>)"
@@ -262,7 +292,7 @@ lemma sat_Always_Eventually: "sat \<sigma> v i (Always I \<phi>) = sat \<sigma> 
 lemma sat_Always_rec: "sat \<sigma> v i (Always I \<phi>) \<longleftrightarrow>
   (mem 0 I \<longrightarrow> sat \<sigma> v i \<phi>) \<and> 
   (\<Delta> \<sigma> (i + 1) \<le> right I \<longrightarrow> sat \<sigma> v (i + 1) (Always (subtract (\<Delta> \<sigma> (i + 1)) I) \<phi>))"
-  unfolding sat_Always_Eventually sat.simps(4)
+  unfolding sat_Always_Eventually sat.simps(5)
   by (subst sat_Eventually_rec) auto
 
 end (*context*)
@@ -278,6 +308,7 @@ text \<open> For subscripts type ``backslash'' followed by ``sub''  \<close>
 no_notation formula.TT ("\<top>")
      and formula.FF ("\<bottom>")
      and formula.Pred ("_ \<dagger> _" [85, 85] 85)
+     and formula.Eq_Const ("_ \<^bold>\<approx> _" [85, 85] 85)
      and formula.Neg ("\<not>\<^sub>F _" [82] 82)
      and formula.And (infixr "\<and>\<^sub>F" 80)
      and formula.Or (infixr "\<or>\<^sub>F" 80)
@@ -311,6 +342,7 @@ notation trm.Var ("\<^bold>v")
 notation formula.TT ("\<top>")
      and formula.FF ("\<bottom>")
      and formula.Pred ("_ \<dagger> _" [85, 85] 85)
+     and formula.Eq_Const ("_ \<^bold>\<approx> _" [85, 85] 85)
      and formula.Neg ("\<not>\<^sub>F _" [82] 82)
      and formula.And (infixr "\<and>\<^sub>F" 80)
      and formula.Or (infixr "\<or>\<^sub>F" 80)
