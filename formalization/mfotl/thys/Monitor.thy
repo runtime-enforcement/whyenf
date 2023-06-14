@@ -64,6 +64,7 @@ fun s_at :: "'d sproof \<Rightarrow> nat" and
   v_at :: "'d vproof \<Rightarrow> nat" where
   "s_at (STT i) = i"
 | "s_at (SPred i _ _) = i"
+| "s_at (SEq_Const i _ _) = i"
 | "s_at (SNeg vp) = v_at vp"
 | "s_at (SOrL sp1) = s_at sp1"
 | "s_at (SOrR sp2) = s_at sp2"
@@ -85,6 +86,7 @@ fun s_at :: "'d sproof \<Rightarrow> nat" and
 | "s_at (SUntil sp1s sp2) = (case sp1s of [] \<Rightarrow> s_at sp2 | sp1 # _ \<Rightarrow> s_at sp1)"
 | "v_at (VFF i) = i"
 | "v_at (VPred i _ _) = i"
+| "v_at (VEq_Const i _ _) = i"
 | "v_at (VNeg sp) = s_at sp"
 | "v_at (VOr vp1 _) = v_at vp1"
 | "v_at (VAndL vp1) = v_at vp1"
@@ -122,6 +124,8 @@ fun s_check :: "'d MFOTL.env \<Rightarrow> 'd MFOTL.formula \<Rightarrow> 'd spr
     (MFOTL.TT, STT i) \<Rightarrow> True
   | (MFOTL.Pred r ts, SPred i s ts') \<Rightarrow> 
     (r = s \<and> ts = ts' \<and> (r, MFOTL.eval_trms v ts) \<in> \<Gamma> \<sigma> i)
+  | (MFOTL.Eq_Const x c, SEq_Const i x' c') \<Rightarrow>
+    (c = c' \<and> x = x' \<and> v x = c)
   | (MFOTL.Neg \<phi>, SNeg vp) \<Rightarrow> v_check v \<phi> vp
   | (MFOTL.Or \<phi> \<psi>, SOrL sp1) \<Rightarrow> s_check v \<phi> sp1
   | (MFOTL.Or \<phi> \<psi>, SOrR sp2) \<Rightarrow> s_check v \<psi> sp2
@@ -173,6 +177,8 @@ fun s_check :: "'d MFOTL.env \<Rightarrow> 'd MFOTL.formula \<Rightarrow> 'd spr
     (MFOTL.FF, VFF i) \<Rightarrow> True
   | (MFOTL.Pred r ts, VPred i pred ts') \<Rightarrow> 
     (r = pred \<and> ts = ts' \<and> (r, MFOTL.eval_trms v ts) \<notin> \<Gamma> \<sigma> i)
+  | (MFOTL.Eq_Const x c, VEq_Const i x' c') \<Rightarrow>
+    (c = c' \<and> x = x' \<and> v x \<noteq> c)
   | (MFOTL.Neg \<phi>, VNeg sp) \<Rightarrow> s_check v \<phi> sp
   | (MFOTL.Or \<phi> \<psi>, VOr vp1 vp2) \<Rightarrow> v_check v \<phi> vp1 \<and> v_check v \<psi> vp2 \<and> v_at vp1 = v_at vp2
   | (MFOTL.And \<phi> \<psi>, VAndL vp1) \<Rightarrow> v_check v \<phi> vp1
@@ -255,6 +261,9 @@ proof (induction sp and vp arbitrary: v \<phi> and v \<phi>)
 next
   case SPred
   then show ?case by (cases \<phi>) (auto intro: SAT_VIO.SPred)
+next
+  case SEq_Const
+  then show ?case by (cases \<phi>) (auto intro: SAT_VIO.SEq_Const)
 next
   case SNeg
   then show ?case by (cases \<phi>) (auto intro: SAT_VIO.SNeg)
@@ -423,6 +432,9 @@ next
 next
   case VPred
   then show ?case by (cases \<phi>) (auto intro: SAT_VIO.VPred)
+next
+  case VEq_Const
+  then show ?case by (cases \<phi>) (auto intro: SAT_VIO.VEq_Const)
 next
   case VNeg
   then show ?case by (cases \<phi>) (auto intro: SAT_VIO.VNeg)
@@ -1293,6 +1305,8 @@ fun s_check_exec :: "'d MFOTL.envset \<Rightarrow> 'd MFOTL.formula \<Rightarrow
     (MFOTL.TT, STT i) \<Rightarrow> True
   | (MFOTL.Pred r ts, SPred i s ts') \<Rightarrow> 
     (r = s \<and> ts = ts' \<and> mk_values_subset r (MFOTL.eval_trms_set vs ts) (\<Gamma> \<sigma> i))
+  | (MFOTL.Eq_Const x c, SEq_Const i x' c') \<Rightarrow> 
+    (c = c' \<and> x = x' \<and> vs x = {c})
   | (MFOTL.Neg \<phi>, SNeg vp) \<Rightarrow> v_check_exec vs \<phi> vp
   | (MFOTL.Or \<phi> \<psi>, SOrL sp1) \<Rightarrow> s_check_exec vs \<phi> sp1
   | (MFOTL.Or \<phi> \<psi>, SOrR sp2) \<Rightarrow> s_check_exec vs \<psi> sp2
@@ -1344,6 +1358,8 @@ fun s_check_exec :: "'d MFOTL.envset \<Rightarrow> 'd MFOTL.formula \<Rightarrow
     (MFOTL.FF, VFF i) \<Rightarrow> True
   | (MFOTL.Pred r ts, VPred i pred ts') \<Rightarrow> 
     (r = pred \<and> ts = ts' \<and> mk_values_subset_Compl r vs ts i)
+  | (MFOTL.Eq_Const x c, VEq_Const i x' c') \<Rightarrow> 
+    (c = c' \<and> x = x' \<and> c \<notin> vs x)
   | (MFOTL.Neg \<phi>, VNeg sp) \<Rightarrow> s_check_exec vs \<phi> sp
   | (MFOTL.Or \<phi> \<psi>, VOr vp1 vp2) \<Rightarrow> v_check_exec vs \<phi> vp1 \<and> v_check_exec vs \<psi> vp2 \<and> v_at vp1 = v_at vp2
   | (MFOTL.And \<phi> \<psi>, VAndL vp1) \<Rightarrow> v_check_exec vs \<phi> vp1
@@ -1416,12 +1432,16 @@ simps_of_case s_check_exec_simps[simp, code]: s_check_exec.simps[unfolded prod.c
 simps_of_case v_check_exec_simps[simp, code]: v_check_exec.simps[unfolded prod.case] (splits: MFOTL.formula.split vproof.split)
 
 definition AD :: "'d MFOTL.formula \<Rightarrow> nat \<Rightarrow> 'd set"
-  where "AD \<phi> i = (\<Union> k \<le> the (LRTP \<sigma> \<phi> i). \<Union> (set ` snd ` \<Gamma> \<sigma> k))"
+  where "AD \<phi> i = MFOTL.consts \<phi> \<union> (\<Union> k \<le> the (LRTP \<sigma> \<phi> i). \<Union> (set ` snd ` \<Gamma> \<sigma> k))"
 
 lemma val_in_AD_iff:
-  "x \<in> MFOTL.fv \<phi> \<Longrightarrow> v x \<in> AD \<phi> i \<longleftrightarrow> (\<exists>r ts k. k \<le> the (LRTP \<sigma> \<phi> i) \<and> (r, MFOTL.eval_trms v ts) \<in> \<Gamma> \<sigma> k \<and> x \<in> \<Union> (set (map MFOTL.fv_trm ts)))"
-  apply (intro iffI; clarsimp)
-  unfolding AD_def apply clarsimp
+  "x \<in> MFOTL.fv \<phi> \<Longrightarrow> v x \<in> AD \<phi> i \<longleftrightarrow> v x \<in> MFOTL.consts \<phi> \<or>
+  (\<exists>r ts k. k \<le> the (LRTP \<sigma> \<phi> i) \<and> (r, MFOTL.eval_trms v ts) \<in> \<Gamma> \<sigma> k \<and> x \<in> \<Union> (set (map MFOTL.fv_trm ts)))"
+  apply (intro iffI)
+  unfolding AD_def Un_iff
+   apply (erule disj_mono[rule_format, rotated -1])
+    apply assumption
+   apply clarsimp
    apply (rename_tac k' r' ds')
    apply (rule_tac x=r' in exI)
    apply (rule_tac x="map (\<lambda>d. if v x = d then (MFOTL.Var x::'d MFOTL.trm) else MFOTL.Const d) ds'" in exI)
@@ -1432,6 +1452,9 @@ lemma val_in_AD_iff:
      apply clarsimp
     apply (simp add: map_idI)
     done
+   apply (erule disj_mono[rule_format, rotated -1])
+    apply assumption
+   apply clarsimp
   subgoal for p' ts' k' t'
     apply (cases t'; clarsimp)
     apply (rule_tac x=k' in bexI)
@@ -1442,7 +1465,8 @@ lemma val_in_AD_iff:
   done
 
 lemma val_notin_AD_iff:
-  "x \<in> MFOTL.fv \<phi> \<Longrightarrow> v x \<notin> AD \<phi> i \<longleftrightarrow> (\<forall>r ts k. k \<le> the (LRTP \<sigma> \<phi> i) \<and> x \<in> \<Union> (set (map MFOTL.fv_trm ts)) \<longrightarrow> (r, MFOTL.eval_trms v ts) \<notin> \<Gamma> \<sigma> k)"
+  "x \<in> MFOTL.fv \<phi> \<Longrightarrow> v x \<notin> AD \<phi> i \<longleftrightarrow> v x \<notin> MFOTL.consts \<phi> \<and>
+    (\<forall>r ts k. k \<le> the (LRTP \<sigma> \<phi> i) \<and> x \<in> \<Union> (set (map MFOTL.fv_trm ts)) \<longrightarrow> (r, MFOTL.eval_trms v ts) \<notin> \<Gamma> \<sigma> k)"
   using val_in_AD_iff by blast
 
 lemma fv_formula_fv_trm:
@@ -1524,6 +1548,16 @@ next
   next
     case 2
     with Pred show ?case using eval_trms_fv_cong[of ts v v']
+      by (cases vp) auto
+  }
+  case (Eq_Const x c)
+  {
+    case 1
+    then show ?case
+      by (cases sp) auto
+  next
+    case 2
+    then show ?case
       by (cases vp) auto
   }
 next
@@ -1768,6 +1802,17 @@ next
       using mk_values_sound apply blast
         using mk_values_sound apply blast
         by (metis MFOTL.eval_trms_set_def mk_values_sound)
+  }
+next
+  case (Eq_Const x c)
+  {
+    case 1
+    then show ?case
+      by (cases sp) (auto simp: compatible_vals_def)
+  next
+    case 2
+    then show ?case
+      by (cases vp) (auto simp: compatible_vals_def)
   }
 next
   case (Neg \<phi>)
@@ -2284,6 +2329,10 @@ proof (induction v \<phi> sp and v \<phi> vp arbitrary: i v' and i v' rule: s_ch
         done
     qed auto
   next
+    case (SEq_Const j r ts)
+    with hyps show ?thesis
+      by (cases f) (auto simp: val_notin_AD_iff)
+  next
     case (SNeg vp')
     then show ?thesis
       using IH(1)[of _ _ _ v'] hyps
@@ -2521,6 +2570,10 @@ next
         apply (subst (asm) (3) MFOTL.eval_trms_fv_cong; force)
         done
     qed auto
+  next
+    case (VEq_Const j r ts)
+    with hyps show ?thesis
+      by (cases f) (auto simp: val_notin_AD_iff)
   next
     case (VNeg sp')
     then show ?thesis
@@ -2897,6 +2950,20 @@ next
     apply simp
     apply (rule exI[of _ "VPred i r ts"])
     apply (simp add: fun_upd_def)
+    done
+next
+  case (SEq_Const v x c i)
+  then show ?case
+    apply simp
+    apply (rule exI[of _ "SEq_Const i x c"])
+    apply simp
+    done
+next
+  case (VEq_Const v x c i)
+  then show ?case
+    apply simp
+    apply (rule exI[of _ "VEq_Const i x c"])
+    apply simp
     done
 next
   case (SNeg v i \<phi>)

@@ -26,8 +26,9 @@ definition phi2 :: "event_data MFOTL.formula" where
 
 value "execute_trivial_eval mytrace [string8_string ''r''] (3::nat) phi1"
 
-value "let e = execute_trivial_eval mytrace [string8_string ''r''] (3::nat) phi1 in 
-       check_all mytrace phi1 e"
+definition "check_trivial_eval \<sigma> vs i \<phi> = (let e = execute_trivial_eval \<sigma> vs i \<phi> in check_all \<sigma> \<phi> e)"
+
+value "check_trivial_eval mytrace [string8_string ''r''] (3::nat) phi1"
 
 definition mytrace4 :: "event_data MFOTL.trace" where 
   "mytrace4 = trace_of_list
@@ -52,6 +53,19 @@ definition phi4 :: "event_data MFOTL.formula" where
                  (MFOTL.Pred (string8_string ''approve'') [MFOTL.Var (string8_string ''m''), MFOTL.Var (string8_string ''r'')])))))"
 
 value "execute_trivial_eval mytrace4 [string8_string ''a'', string8_string ''r''] 3 phi4"
+value "check_trivial_eval mytrace4 [string8_string ''a'', string8_string ''r''] 3 phi4"
+
+(*exemption for report id 163*)
+definition phi4' :: "event_data MFOTL.formula" where
+  "phi4' = MFOTL.Imp (MFOTL.Pred (string8_string ''publish'') [MFOTL.Var (string8_string ''a''), MFOTL.Var (string8_string ''r'')])
+    (MFOTL.Or (MFOTL.Eq_Const (string8_string ''r'') (EString (string8_string ''163''))) (MFOTL.Once (init 604800) (MFOTL.Exists (string8_string ''m'') (MFOTL.Since 
+      (MFOTL.Neg (MFOTL.Pred (string8_string ''mgr_F'') [MFOTL.Var (string8_string ''m''), MFOTL.Var (string8_string ''a'')])) all
+      (MFOTL.And (MFOTL.Pred (string8_string ''mgr_S'') [MFOTL.Var (string8_string ''m''), MFOTL.Var (string8_string ''a'')])
+                 (MFOTL.Pred (string8_string ''approve'') [MFOTL.Var (string8_string ''m''), MFOTL.Var (string8_string ''r'')]))))))"
+
+
+value "execute_trivial_eval mytrace4 [string8_string ''a'', string8_string ''r''] 3 phi4'"
+value "check_trivial_eval mytrace4 [string8_string ''a'', string8_string ''r''] 3 phi4'"
 
 definition phi5 :: "event_data MFOTL.formula" where
   "phi5 = MFOTL.Pred (string8_string ''publish'') [MFOTL.Var (string8_string ''a''), MFOTL.Var (string8_string ''r'')]"
