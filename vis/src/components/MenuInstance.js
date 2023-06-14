@@ -18,7 +18,9 @@ function MenuInstance ({ expl, open, handleClose, handleClick }) {
                 <NestedMenuItem rightIcon={<ArrowRightIcon/>}
                                 label={ds}
                                 parentMenuOpen={open}>
-                  <MenuInstance expl={el} open={open} handleClose={handleClose} handleClick={handleClick}/>
+                  <div data-value={ds}>
+                    <MenuInstance expl={el} open={open} handleClose={handleClose} handleClick={handleClick}/>
+                  </div>
                 </NestedMenuItem>
               </div>
             );
