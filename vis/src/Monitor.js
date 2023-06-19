@@ -14,12 +14,12 @@ import ResetButton from './components/ResetButton';
 import ExampleSelect from './components/ExampleSelect';
 import PreambleCard from './components/PreambleCard';
 import AlertDialog from './components/AlertDialog';
-import { computeDbsTable, initExplsTable, translateError } from './util';
+import { computeDbsTable, initRhsTable, translateError } from './util';
 
 function initMonitorState () {
   return { columns: { preds: [], subfs: [] },
            objs: { dbs: [], expls: [] },
-           tables: { dbs: [], expls: [] },
+           tables: { dbs: [], colors: [], cells: [] },
            highlights: { selectedRows: [], highlightedCells: [], pathsMap: new Map() },
            subformulas: [],
            jsooMonitorState: [],
@@ -39,7 +39,9 @@ function initMonitor(monitorState, action) {
 
     return { columns: { preds: columns.predsColumns, subfs: columns.subfsColumns },
              objs: { dbs: dbsObjs, expls: explsObjs },
-             tables: { dbs: computeDbsTable(dbsObjs), expls: initExplsTable(dbsObjs, columns.subfsColumns) },
+             tables: { dbs: computeDbsTable(dbsObjs),
+                       colors: initRhsTable(dbsObjs, columns.subfsColumns),
+                       cells: initRhsTable(dbsObjs, columns.subfsColumns) },
              highlights: { selectedRows: [], highlightedCells: [], pathsMap: new Map() },
              subformulas: columns.subformulas,
              jsooMonitorState: jsooMonitorState,
@@ -65,7 +67,9 @@ function execMonitor(monitorState, action) {
 
     return { ...monitorState,
              objs: { dbs: dbsObjs, expls: explsObjs },
-             tables: { dbs: computeDbsTable(dbsObjs), expls: [] },
+             tables: { dbs: computeDbsTable(dbsObjs),
+                       colors: initRhsTable(dbsObjs, columns.subfsColumns),
+                       cells: initRhsTable(dbsObjs, columns.subfsColumns) },
              highlights: { selectedRows: [], highlightedCells: [], pathsMap: new Map() },
              jsooMonitorState: jsooMonitorState,
              fixParameters: true,
@@ -103,20 +107,25 @@ function monitorStateReducer(monitorState, action) {
     return initMonitor(monitorState, action);
   case 'appendTable':
     return execMonitor(monitorState, action);
-  case 'updateExplsTable':
+  case 'updateColorsAndCellsTable':
     return { ...monitorState,
-             tables: { ...monitorState.tables, expls: action.explsTable }
+             tables: { dbs: monitorState.tables.dbs,
+                       colors: action.colorsTable,
+                       cells: action.cellsTable }
            };
   case 'updateTable':
     return { ...monitorState,
-             tables: { dbs: action.dbsTable, expls: action.explsTable },
+             tables: { ...monitorState.tables,
+                       colors: action.colorsTable },
              highlights: { selectedRows: action.selectedRows,
                            highlightedCells: action.highlightedCells,
                            pathsMap: action.pathsMap },
              fixParameters: true };
   case 'resetTable':
     return { ...monitorState,
-             tables: { dbs: computeDbsTable(monitorState.objs.dbs) },
+             tables: { dbs: computeDbsTable(monitorState.objs.dbs),
+                       colors: initRhsTable(monitorState.objs.dbs, monitorState.columns.subfsColumns),
+                       cells: initRhsTable(monitorState.objs.dbs, monitorState.columns.subfsColumns) },
              highlights: { selectedRows: [],
                            highlightedCells: [],
                            pathsMap: new Map() },

@@ -39,7 +39,7 @@ export function collectValues(el) {
   return values;
 }
 
-export function getExpl(explObj, path) {
+export function getCells(explObj, path) {
 
   if (path.length === 0) {
     return explObj;
@@ -54,23 +54,34 @@ export function getExpl(explObj, path) {
 
     path.shift();
 
-    return getExpl(subExplObj, path);
+    return getCells(subExplObj, path);
   }
 
 }
 
-export function initExplsTable(dbsObjs, subfsColumns) {
+export function updateCellsTable(selCellsObj, cellsTable) {
+
+  let cellsTableClone = [...cellsTable];
+
+  selCellsObj.table.forEach(cell =>
+    cellsTableClone[cell.tp][cell.col] = cell
+  );
+
+  return cellsTableClone;
+}
+
+export function initRhsTable(dbsObjs, subfsColumns) {
 
   let maxRow = dbsObjs.length;
   let maxCol = subfsColumns.length;
 
-  let explsTable = new Array(maxRow).fill(null).map(() => Array(maxCol).fill(""));
+  let table = new Array(maxRow).fill(null).map(() => Array(maxCol).fill(""));
 
-  return explsTable;
+  return table;
 
 }
 
-export function exposeBoolTable(explObj, maxRow, maxCol, explsTable = []) {
+export function exposeColorsTable(explObj, maxRow, maxCol, explsTable = []) {
 
   // Initialize empty matrix
   explsTable = (explsTable.length === 0) ? new Array(maxRow).fill(null).map(() => Array(maxCol).fill("")) : explsTable;
@@ -92,11 +103,6 @@ export function exposeBoolTable(explObj, maxRow, maxCol, explsTable = []) {
 
   return explsTable;
 
-}
-
-export function updateBoolTable(explObj, explsTable) {
-
-  return explsTable;
 }
 
 export function computeSquares(dbsObjs, explsObjs, squares = []) {
