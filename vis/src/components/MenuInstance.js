@@ -3,13 +3,13 @@ import ArrowRightIcon from '@mui/icons-material/ArrowRight';
 import MenuItem from '@mui/material/MenuItem';
 import { IconMenuItem, NestedMenuItem } from 'mui-nested-menu';
 
-function MenuInstance ({ expl, open, handleClose, handleClick }) {
+function MenuInstance ({ explObj, open, handleClose, handleClick }) {
 
-  if (expl.type === "node") {
+  if (explObj.type === "node") {
     return (
       <div>
-        <MenuItem disabled={true}>{expl.var}</MenuItem>
-        { expl?.part?.map((el, i) => {
+        <MenuItem disabled={true}>{explObj.var}</MenuItem>
+        { explObj?.part?.map((el, i) => {
           const ds = el.subset_type === "finite" ?
                 el.subset_values.join(', ') : '*';
           if (el.type === "node") {
@@ -19,7 +19,7 @@ function MenuInstance ({ expl, open, handleClose, handleClick }) {
                                 label={ds}
                                 parentMenuOpen={open}>
                   <div data-value={ds}>
-                    <MenuInstance expl={el} open={open} handleClose={handleClose} handleClick={handleClick}/>
+                    <MenuInstance explObj={el} open={open} handleClose={handleClose} handleClick={handleClick}/>
                   </div>
                 </NestedMenuItem>
               </div>
