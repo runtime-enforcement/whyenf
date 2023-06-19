@@ -416,8 +416,7 @@ module Expl = struct
                  (Printf.sprintf "]\n")
 
 let to_json (f: Formula.t) (expl: Expl.t) =
-  let start_idx = Set.length (Formula.pred_names f) in
-  let c_e = expl_cell [] start_idx f expl in
+  let c_e = expl_cell [] 0 f expl in
   e_cell_to_json (String.make 8 ' ') c_e
 
 end
