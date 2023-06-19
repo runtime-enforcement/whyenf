@@ -14,7 +14,7 @@ import ResetButton from './components/ResetButton';
 import ExampleSelect from './components/ExampleSelect';
 import PreambleCard from './components/PreambleCard';
 import AlertDialog from './components/AlertDialog';
-import { computeDbsTable, translateError } from './util';
+import { computeDbsTable, initExplsTable, translateError } from './util';
 
 function initMonitorState () {
   return { columns: { preds: [], subfs: [] },
@@ -39,7 +39,7 @@ function initMonitor(monitorState, action) {
 
     return { columns: { preds: columns.predsColumns, subfs: columns.subfsColumns },
              objs: { dbs: dbsObjs, expls: explsObjs },
-             tables: { dbs: computeDbsTable(dbsObjs), expls: [] },
+             tables: { dbs: computeDbsTable(dbsObjs), expls: initExplsTable(dbsObjs, columns.subfsColumns) },
              highlights: { selectedRows: [], highlightedCells: [], pathsMap: new Map() },
              subformulas: columns.subformulas,
              jsooMonitorState: jsooMonitorState,
@@ -103,6 +103,10 @@ function monitorStateReducer(monitorState, action) {
     return initMonitor(monitorState, action);
   case 'appendTable':
     return execMonitor(monitorState, action);
+  case 'updateExplsTable':
+    return { ...monitorState,
+             tables: { ...monitorState.tables, expls: action.explsTable }
+           };
   case 'updateTable':
     return { ...monitorState,
              tables: { dbs: action.dbsTable, expls: action.explsTable },

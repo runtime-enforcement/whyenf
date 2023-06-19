@@ -30,19 +30,19 @@ function DbCell(props) {
   }
 }
 
-// function Cell(props) {
-//   if (props.popoverValue === red[500] || props.popoverValue === lightGreen[500] || props.popoverValue === black) {
-//     return (
-//       <Button onClick={props.onClick}>
-//         { props.popoverValue === black && <CircleIcon style={{ color: props.popoverValue }} /> }
-//         { props.popoverValue === red[500] && <CancelIcon style={{ color: props.popoverValue }} /> }
-//         { props.popoverValue === lightGreen[500] && <CheckCircleIcon style={{ color: props.popoverValue }} /> }
-//       </Button>
-//     );
-//   } else {
-//     return "";
-//   }
-// }
+function BoolCell(props) {
+  if (props.value === red[500] || props.value === lightGreen[500] || props.value === black) {
+    return (
+      <Button onClick={props.onClick}>
+        { props.value === black && <CircleIcon style={{ color: props.value }} /> }
+        { props.value === red[500] && <CancelIcon style={{ color: props.value }} /> }
+        { props.value === lightGreen[500] && <CheckCircleIcon style={{ color: props.value }} /> }
+      </Button>
+    );
+  } else {
+    return "";
+  }
+}
 
 function TimeGrid ({ columns,
                      objs,
@@ -129,7 +129,9 @@ function TimeGrid ({ columns,
       align: 'center',
       disableClickEventBubbling: true,
       renderCell: (params) => {
-        return <MainCell expl={objs.expls[params.id].expl} explsTable={tables.expls} />;
+        return <MainCell explObj={objs.expls[params.id].expl}
+                         explsTable={tables.expls}
+                         setMonitorState={setMonitorState} />;
       }
     }
   ];
@@ -139,6 +141,8 @@ function TimeGrid ({ columns,
     Math.max(acc, (9*(subf.length))), 60
   );
 
+  // onClick={() => handleClick(params.row.ts, params.row.tp, params.colDef.field)}
+  console.log(tables.expls);
   const subfsGridColumns = columns.subfs.slice(0).map((f, i) =>
     ({
       field: (i+columns.preds.length).toString(),
@@ -146,12 +150,10 @@ function TimeGrid ({ columns,
       width: subfsWidth,
       sortable: false,
       renderHeader: () => f,
-      // renderCell: (params) => {
-      //   return <Cell value={""}
-      //                onClick={() => handleClick(params.row.ts, params.row.tp, params.colDef.field)}
-      //          />; },
       renderCell: (params) => {
-        return "";
+        return <BoolCell value={tables.expls[params.row.tp][i]}
+                     onClick={() => console.log("click")}
+               />;
       },
       headerAlign: 'center',
       align: 'center',

@@ -39,16 +39,64 @@ export function collectValues(el) {
   return values;
 }
 
-export function computeBooleanTable(explTableObj, explsTable) {
+export function getExpl(explObj, path) {
 
-  console.log(explTableObj);
-  console.log(explsTable);
+  if (path.length === 0) {
+    return explObj;
+  } else {
 
-  // let maxRow = dbsObjs.length;
-  // let maxCol = dbsObjs.nCols;
+    let subExplObj = explObj.part.find(expl => expl.subset_type === "finite" &&
+                                       expl.subset_values.some(val => val === path[0]));
 
-  return [];
+    if (subExplObj === undefined) {
+      subExplObj = explObj.part.find(expl => expl.subset_type === "complement");
+    }
 
+    path.shift();
+
+    return getExpl(subExplObj, path);
+  }
+
+}
+
+export function initExplsTable(dbsObjs, subfsColumns) {
+
+  let maxRow = dbsObjs.length;
+  let maxCol = subfsColumns.length;
+
+  let explsTable = new Array(maxRow).fill(null).map(() => Array(maxCol).fill(""));
+
+  return explsTable;
+
+}
+
+export function exposeBoolTable(explObj, maxRow, maxCol, explsTable = []) {
+
+  // Initialize empty matrix
+  explsTable = (explsTable.length === 0) ? new Array(maxRow).fill(null).map(() => Array(maxCol).fill("")) : explsTable;
+
+  // Expose boolean verdict in main subformula column
+  let tblIndex = explObj.table.findIndex(tbl => tbl.col === 0);
+  let tbl = explObj.table[tblIndex];
+  explsTable[tbl.tp][tbl.col] = tbl.bool ? cellColor(true) : cellColor(false);
+
+  // Expose (as a black cell) the boolean subproofs
+  for (let i = 0; i < explObj.table.length; ++i) {
+    let tbl = explObj.table[i];
+    for (let j = 0; j < tbl.cells.length; ++j) {
+      if (explsTable[tbl.cells[j].tp][tbl.cells[j].col] === "") {
+        explsTable[tbl.cells[j].tp][tbl.cells[j].col] = black;
+      }
+    }
+  }
+
+  return explsTable;
+
+}
+
+export function updateBoolTable(explObj, explsTable) {
+
+  return explsTable;
 }
 
 export function computeSquares(dbsObjs, explsObjs, squares = []) {
