@@ -3,9 +3,9 @@ import Button from '@mui/material/Button';
 import Menu from '@mui/material/Menu';
 import DetailsIcon from '@mui/icons-material/Details';
 import MenuInstance from './MenuInstance';
-import { collectValues, getExpl, exposeBoolTable, updateBoolTable } from '../util';
+import { collectValues, getCells, exposeColorsTable, updateCellsTable } from '../util';
 
-function MainCell ({ explObj, explsTable, setMonitorState }) {
+function MainCell ({ explObj, colorsTable, cellsTable, setMonitorState }) {
 
 
   // NestedMenuItem
@@ -16,20 +16,20 @@ function MainCell ({ explObj, explsTable, setMonitorState }) {
   const handleClose = () => setAnchorEl(null);
 
   const handleClick = (event) => {
+
     let path = collectValues(event.target);
     path.push(event.target.innerText);
+    let selCellsObj = getCells(explObj, path);
 
-    let selExplObj = getExpl(explObj, path);
-
-    let action = { type: "updateExplsTable",
-                   explsTable: exposeBoolTable(selExplObj, explsTable.length, explsTable[0].length, explsTable),
+    let action = { type: "updateColorsAndCellsTable",
+                   colorsTable: exposeColorsTable(selCellsObj, colorsTable.length, colorsTable[0].length, colorsTable),
+                   cellsTable: updateCellsTable(selCellsObj, cellsTable)
                  };
     setMonitorState(action);
   };
 
 
   if (explObj.type === "leaf") {
-    const explsTableUpdated = updateBoolTable(explObj.table, explsTable);
     return "";
   } else {
     if (explObj.type === "node") {

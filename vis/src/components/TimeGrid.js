@@ -11,7 +11,7 @@ import Popover from '@mui/material/Popover';
 import Typography from '@mui/material/Typography';
 import { red, amber, lightGreen, indigo } from '@mui/material/colors';
 import { common } from '@mui/material/colors';
-import { black, squareColor, tpsIn } from '../util';
+import { black, squareColor, cellColor, tpsIn } from '../util';
 import MainCell from './MainCell';
 
 function DbCell(props) {
@@ -67,8 +67,8 @@ function TimeGrid ({ columns,
 
     // Subformulas
     if (col >= columns.preds.length &&
-        tables.expls[row][col - columns.preds.length] !== "" &&
-        tables.expls[row][col - columns.preds.length] !== black) {
+        tables.colors[row][col - columns.preds.length] !== "" &&
+        tables.colors[row][col - columns.preds.length] !== black) {
       setValue(subformulas[col - columns.preds.length]);
       setAnchorEl(event.currentTarget);
     }
@@ -133,7 +133,8 @@ function TimeGrid ({ columns,
       disableClickEventBubbling: true,
       renderCell: (params) => {
         return <MainCell explObj={objs.expls[params.id].expl}
-                         explsTable={tables.expls}
+                         colorsTable={tables.colors}
+                         cellsTable={tables.cells}
                          setMonitorState={setMonitorState} />;
       }
     }
@@ -153,8 +154,8 @@ function TimeGrid ({ columns,
       sortable: false,
       renderHeader: () => f,
       renderCell: (params) => {
-        return <BoolCell value={tables.expls[params.row.tp][i]}
-                     onClick={() => console.log("click")}
+        return <BoolCell value={tables.colors[params.row.tp][i]}
+                         onClick={() => handleClick(params.row.ts, params.row.tp, params.colDef.field)}
                />;
       },
       headerAlign: 'center',
@@ -169,66 +170,72 @@ function TimeGrid ({ columns,
       ts: ts
     }));
 
-  // const handleClick = (ts, tp, col) => {
-  //   const colIndex = parseInt(col);
+  const handleClick = (ts, tp, col) => {
 
-  //   let cloneSquares = [...squares];
-  //   let clonePathsMap = new Map(highlights.pathsMap);
-  //   let cell;
+    const colIndex = parseInt(col);
 
-  //   for (let i = 0; i < explObjs.length; ++i) {
-  //     let c = explObjs[i].table.find(c => c.tp === tp && c.col === colIndex);
-  //     if (c !== undefined) cell = c;
-  //   }
+    let cloneColorsTable = [...tables.colors];
+    let clonePathsMap = new Map(highlights.pathsMap);
+    let cell = tables.cells[tp][colIndex - columns.preds.length];
 
-  //   if (cell !== undefined && squares[cell.tp][cell.col] !== black && cell.cells.length !== 0) {
-  //     Update highlighted cells (i.e. the ones who appear after a click)
-  //     let highlightedCells = [];
-  //     let children = [];
+    console.log(cell);
 
-  //     Update cells (show hidden verdicts after a click)
-  //     for (let i = 0; i < cell.cells.length; ++i) {
-  //       cloneSquares[cell.cells[i].tp][cell.cells[i].col] = squareColor(cell.cells[i].bool);
-  //       highlightedCells.push({ tp: cell.cells[i].tp, col: cell.cells[i].col });
-  //       children.push({ tp: cell.cells[i].tp, col: cell.cells[i].col, isHighlighted: false });
-  //     }
+    if (cell !== undefined && tables.colors[cell.tp][cell.col] !== black &&
+        cell.cells.length !== 0) {
 
-  //     Update interval highlighting
-  //     let lastTS = dbsObjs[dbsObjs.length - 1].ts;
-  //     let selRows = (cell.interval !== undefined) ? tpsIn(ts, tp, cell.interval, cell.period, lastTS, dbsObjs) : [];
+      // Update highlighted cells (i.e. the ones who appear after a click)
+      let highlightedCells = [];
+      let children = [];
 
-  //     Update (potentially multiple) open paths to be highlighted
-  //     for (const [k, obj] of pathsMap) {
-  //       if (obj.isHighlighted) clonePathsMap.set(k, {...obj, isHighlighted: false });
-  //     }
+      // Update cells (show hidden verdicts after a click)
+      for (let i = 0; i < cell.cells.length; ++i) {
+        cloneColorsTable[cell.cells[i].tp][cell.cells[i].col] = cellColor(cell.cells[i].bool);
+        highlightedCells.push({ tp: cell.cells[i].tp, col: cell.cells[i].col });
+        children.push({ tp: cell.cells[i].tp, col: cell.cells[i].col, isHighlighted: false });
+      }
 
-  //     for (let i = 0; i < children.length; ++i) {
-  //       clonePathsMap.set(children[i].tp.toString() + children[i].col.toString(),
-  //                         { parent: tp.toString() + colIndex.toString(), isHighlighted: false,
-  //                           tp: children[i].tp, col: children[i].col });
-  //     }
+      // Update interval highlighting
+      let lastTS = objs.dbs[objs.dbs.length - 1].ts;
+      let selRows = (cell.interval !== undefined) ? tpsIn(ts, tp, cell.interval, cell.period, lastTS, objs.dbs) : [];
 
-  //     let cur = clonePathsMap.get(tp.toString() + colIndex.toString());
-  //     if (cur === undefined) clonePathsMap.set(tp.toString() + colIndex.toString(),
-  //                                              { parent: null, isHighlighted: true, tp: tp, col: colIndex });
-  //     else clonePathsMap.set(tp.toString() + colIndex.toString(), {...cur, isHighlighted: true });
+      // Update (potentially multiple) open paths to be highlighted
+      // for (const [k, obj] of highlights.pathsMap) {
+      //   if (obj.isHighlighted) clonePathsMap.set(k, {...obj, isHighlighted: false });
+      // }
 
-  //     if (cur !== undefined) {
-  //       while (cur.parent !== null) {
-  //         cur = clonePathsMap.get(cur.parent);
-  //         clonePathsMap.set(cur, {...cur, isHighlighted: true });
-  //       }
-  //     }
+      // for (let i = 0; i < children.length; ++i) {
+      //   clonePathsMap.set(children[i].tp.toString() + children[i].col.toString(),
+      //                     { parent: tp.toString() + colIndex.toString(),
+      //                       isHighlighted: false,
+      //                       tp: children[i].tp, col: children[i].col });
+      // }
 
-  //     let action = { type: "updateTable",
-  //                    squares: cloneSquares,
-  //                    selectedRows: selRows,
-  //                    highlightedCells: highlightedCells,
-  //                    pathsMap: clonePathsMap,
-  //                  };
-  //     setMonitorState(action);
-  //   }
-  // };
+      // let cur = clonePathsMap.get(tp.toString() + colIndex.toString());
+      // if (cur === undefined) clonePathsMap.set(tp.toString() + colIndex.toString(),
+      //                                          { parent: null,
+      //                                            isHighlighted: true,
+      //                                            tp: tp,
+      //                                            col: colIndex });
+      // else clonePathsMap.set(tp.toString() + colIndex.toString(),
+      //                        {...cur,
+      //                         isHighlighted: true });
+
+      // if (cur !== undefined) {
+      //   while (cur.parent !== null) {
+      //     cur = clonePathsMap.get(cur.parent);
+      //     clonePathsMap.set(cur, {...cur, isHighlighted: true });
+      //   }
+      // }
+
+      let action = { type: "updateTable",
+                     colorsTable: cloneColorsTable,
+                     selectedRows: selRows,
+                     highlightedCells: highlightedCells,
+                     pathsMap: clonePathsMap,
+                   };
+      setMonitorState(action);
+    }
+  };
 
   return (
     <Box height="60vh"
