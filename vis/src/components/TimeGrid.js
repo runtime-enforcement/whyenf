@@ -65,10 +65,13 @@ function TimeGrid ({ columns,
       setAnchorEl(event.currentTarget);
     }
 
-    // if (col >= columns.preds.length && squares[row][col] !== "" && tables.expls[row][col] !== black) {
-    //   if (value !== subformulas[col - columns.preds.length]) setValue(subformulas[col - co.length]);
-    //   setAnchorEl(event.currentTarget);
-    // }
+    // Subformulas
+    if (col >= columns.preds.length &&
+        tables.expls[row][col - columns.preds.length] !== "" &&
+        tables.expls[row][col - columns.preds.length] !== black) {
+      setValue(subformulas[col - columns.preds.length]);
+      setAnchorEl(event.currentTarget);
+    }
   };
 
   const handlePopoverClose = () => {
@@ -142,7 +145,6 @@ function TimeGrid ({ columns,
   );
 
   // onClick={() => handleClick(params.row.ts, params.row.tp, params.colDef.field)}
-  console.log(tables.expls);
   const subfsGridColumns = columns.subfs.slice(0).map((f, i) =>
     ({
       field: (i+columns.preds.length).toString(),
