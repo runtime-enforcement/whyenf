@@ -51,8 +51,6 @@ function TimeGrid ({ columns,
                      subformulas,
                      setMonitorState }) {
 
-  console.log(highlights);
-
   const [anchorEl, setAnchorEl] = useState(null);
   const [value, setValue] = useState('');
   const open = Boolean(anchorEl);
@@ -213,11 +211,6 @@ function TimeGrid ({ columns,
 
       let cur = clonePathsMap.get(tp.toString() + colIndex.toString());
 
-      console.log(tp.toString() + colIndex.toString());
-      console.log(clonePathsMap);
-      console.log(cur);
-
-
       if (cur === undefined) {
         clonePathsMap.set(tp.toString() + colIndex.toString(),
                           { parent: null,
@@ -235,8 +228,6 @@ function TimeGrid ({ columns,
           clonePathsMap.set(cur, {...cur, isHighlighted: true });
         }
       }
-
-      console.log(clonePathsMap);
 
       let action = { type: "updateTable",
                      colorsTable: cloneColorsTable,
@@ -286,13 +277,13 @@ function TimeGrid ({ columns,
             }
           }
 
-          for (const [k, obj] of highlights.pathsMap) {
-            if (obj.isHighlighted && obj.tp === params.row.tp && obj.col === parseInt(params.colDef.field)) {
-              return 'cell--PathHighlighted';
-            } else {
-              return '';
-            }
+          let m = highlights.pathsMap.get(params.row.tp.toString() + params.colDef.field);
+          if (m !== undefined && m.isHighlighted) {
+            return 'cell--PathHighlighted';
           }
+
+          return '';
+
         }}
         componentsProps={{
           cell: {
