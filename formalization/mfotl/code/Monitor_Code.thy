@@ -46,6 +46,7 @@ primrec progress :: "'a trace \<Rightarrow> 'a MFOTL.formula \<Rightarrow> nat \
   "progress \<sigma> MFOTL.TT j = j"
 | "progress \<sigma> MFOTL.FF j = j"
 | "progress \<sigma> (MFOTL.Pred _ _) j = j"
+| "progress \<sigma> (MFOTL.Eq_Const _ _) j = j"
 | "progress \<sigma> (MFOTL.Neg \<phi>) j = progress \<sigma> \<phi> j"
 | "progress \<sigma> (MFOTL.Or \<phi> \<psi>) j = min (progress \<sigma> \<phi> j) (progress \<sigma> \<psi> j)"
 | "progress \<sigma> (MFOTL.And \<phi> \<psi>) j = min (progress \<sigma> \<phi> j) (progress \<sigma> \<psi> j)"
@@ -331,6 +332,7 @@ function (sequential) s_pred :: "'d sproof \<Rightarrow> nat"
   and v_pred :: "'d vproof \<Rightarrow> nat" where
   "s_pred (STT _) = 1"
 | "s_pred (SPred _ r _) = w r"
+| "s_pred (SEq_Const _ _ _) = 1"
 | "s_pred (SNeg vp) = (v_pred vp) + 1"
 | "s_pred (SOrL sp1) = (s_pred sp1) + 1"
 | "s_pred (SOrR sp2) = (s_pred sp2) + 1"
@@ -352,6 +354,7 @@ function (sequential) s_pred :: "'d sproof \<Rightarrow> nat"
 | "s_pred (SUntil sp1s sp2) = (sum_proofs s_pred (sp1s @ [sp2])) + 1"
 | "v_pred (VFF _ ) = 1"
 | "v_pred (VPred _ r _) = w r"
+| "v_pred (VEq_Const _ _ _) = 1"
 | "v_pred (VNeg sp) = (s_pred sp) + 1"
 | "v_pred (VOr vp1 vp2) = ((v_pred vp1) + (v_pred vp2)) + 1"
 | "v_pred (VAndL vp1) = (v_pred vp1) + 1"
@@ -624,7 +627,7 @@ lemma check_upt_lu_cong:
   shows "check_upt_ETP_f \<sigma> I i xs hi = check_upt_ETP_f \<sigma>' I i xs hi"
   using assms
   unfolding check_upt_ETP_f_def
-  apply (auto simp add: Let_def del: upt.simps split: list.splits nat.splits)
+  apply (auto simp add: Let_def split: list.splits nat.splits)
    apply (metis Suc_leD diff_is_0_eq' diff_le_self le_Suc_eq not_less_zero order_less_le_trans)
   apply (metis add_leD2 cancel_comm_monoid_add_class.diff_cancel diff_le_self leD le_Suc_eq plus_1_eq_Suc zero_less_Suc)
   done
