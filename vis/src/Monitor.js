@@ -124,8 +124,8 @@ function monitorStateReducer(monitorState, action) {
   case 'resetTable':
     return { ...monitorState,
              tables: { dbs: computeDbsTable(monitorState.objs.dbs),
-                       colors: initRhsTable(monitorState.objs.dbs, monitorState.columns.subfsColumns),
-                       cells: initRhsTable(monitorState.objs.dbs, monitorState.columns.subfsColumns) },
+                       colors: initRhsTable(monitorState.objs.dbs, monitorState.columns.subfs),
+                       cells: initRhsTable(monitorState.objs.dbs, monitorState.columns.subfs) },
              highlights: { selectedRows: [],
                            highlightedCells: [],
                            pathsMap: new Map() },
