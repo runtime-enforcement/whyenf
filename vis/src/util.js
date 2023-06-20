@@ -81,10 +81,10 @@ export function initRhsTable(dbsObjs, subfsColumns) {
 
 }
 
-export function exposeColorsTable(explObj, maxRow, maxCol, colorsTable = []) {
+export function exposeColorsTable(explObj, maxRow, maxCol) {
 
   // Initialize empty matrix
-  colorsTable = (colorsTable.length === 0) ? new Array(maxRow).fill(null).map(() => Array(maxCol).fill("")) : colorsTable;
+  let colorsTable = new Array(maxRow).fill(null).map(() => Array(maxCol).fill(""));
 
   // Expose boolean verdict in main subformula column
   let tblIndex = explObj.table.findIndex(tbl => tbl.col === 0);
