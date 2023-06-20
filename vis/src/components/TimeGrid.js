@@ -51,6 +51,8 @@ function TimeGrid ({ columns,
                      subformulas,
                      setMonitorState }) {
 
+  console.log(highlights);
+
   const [anchorEl, setAnchorEl] = useState(null);
   const [value, setValue] = useState('');
   const open = Boolean(anchorEl);
@@ -174,24 +176,21 @@ function TimeGrid ({ columns,
 
     const colIndex = parseInt(col);
 
-    let cloneColorsTable = [...tables.colors];
-    let clonePathsMap = new Map(highlights.pathsMap);
     let cell = tables.cells[tp][colIndex - columns.preds.length];
 
-    console.log(cell);
-
-    if (cell !== undefined && tables.colors[cell.tp][cell.col] !== black &&
-        cell.cells.length !== 0) {
+    if (cell !== undefined && tables.colors[cell.tp][cell.col] !== black) {
 
       // Update highlighted cells (i.e. the ones who appear after a click)
       let highlightedCells = [];
       let children = [];
 
       // Update cells (show hidden verdicts after a click)
+      let cloneColorsTable = [...tables.colors];
+
       for (let i = 0; i < cell.cells.length; ++i) {
         cloneColorsTable[cell.cells[i].tp][cell.cells[i].col] = cellColor(cell.cells[i].bool);
         highlightedCells.push({ tp: cell.cells[i].tp, col: cell.cells[i].col });
-        children.push({ tp: cell.cells[i].tp, col: cell.cells[i].col, isHighlighted: false });
+        children.push({ tp: cell.cells[i].tp, col: cell.cells[i].col + columns.preds.length, isHighlighted: false });
       }
 
       // Update interval highlighting
@@ -199,40 +198,51 @@ function TimeGrid ({ columns,
       let selRows = (cell.interval !== undefined) ? tpsIn(ts, tp, cell.interval, cell.period, lastTS, objs.dbs) : [];
 
       // Update (potentially multiple) open paths to be highlighted
-      // for (const [k, obj] of highlights.pathsMap) {
-      //   if (obj.isHighlighted) clonePathsMap.set(k, {...obj, isHighlighted: false });
-      // }
+      let clonePathsMap = new Map(highlights.pathsMap);
 
-      // for (let i = 0; i < children.length; ++i) {
-      //   clonePathsMap.set(children[i].tp.toString() + children[i].col.toString(),
-      //                     { parent: tp.toString() + colIndex.toString(),
-      //                       isHighlighted: false,
-      //                       tp: children[i].tp, col: children[i].col });
-      // }
+      for (const [k, obj] of clonePathsMap) {
+        if (obj.isHighlighted) clonePathsMap.set(k, {...obj, isHighlighted: false });
+      }
 
-      // let cur = clonePathsMap.get(tp.toString() + colIndex.toString());
-      // if (cur === undefined) clonePathsMap.set(tp.toString() + colIndex.toString(),
-      //                                          { parent: null,
-      //                                            isHighlighted: true,
-      //                                            tp: tp,
-      //                                            col: colIndex });
-      // else clonePathsMap.set(tp.toString() + colIndex.toString(),
-      //                        {...cur,
-      //                         isHighlighted: true });
+      for (let i = 0; i < children.length; ++i) {
+        clonePathsMap.set(children[i].tp.toString() + children[i].col.toString(),
+                          { parent: tp.toString() + colIndex.toString(),
+                            isHighlighted: false,
+                            tp: children[i].tp, col: children[i].col });
+      }
 
-      // if (cur !== undefined) {
-      //   while (cur.parent !== null) {
-      //     cur = clonePathsMap.get(cur.parent);
-      //     clonePathsMap.set(cur, {...cur, isHighlighted: true });
-      //   }
-      // }
+      let cur = clonePathsMap.get(tp.toString() + colIndex.toString());
+
+      console.log(tp.toString() + colIndex.toString());
+      console.log(clonePathsMap);
+      console.log(cur);
+
+
+      if (cur === undefined) {
+        clonePathsMap.set(tp.toString() + colIndex.toString(),
+                          { parent: null,
+                            isHighlighted: true,
+                            tp: tp,
+                            col: colIndex });
+      } else {
+        clonePathsMap.set(tp.toString() + colIndex.toString(),
+                          {...cur, isHighlighted: true });
+      }
+
+      if (cur !== undefined) {
+        while (cur.parent !== null) {
+          cur = clonePathsMap.get(cur.parent);
+          clonePathsMap.set(cur, {...cur, isHighlighted: true });
+        }
+      }
+
+      console.log(clonePathsMap);
 
       let action = { type: "updateTable",
                      colorsTable: cloneColorsTable,
                      selectedRows: selRows,
                      highlightedCells: highlightedCells,
-                     pathsMap: clonePathsMap,
-                   };
+                     pathsMap: clonePathsMap };
       setMonitorState(action);
     }
   };
@@ -267,16 +277,21 @@ function TimeGrid ({ columns,
           else return 'row--Plain';
         }}
         getCellClassName={(params) => {
+
           if (highlights.highlightedCells.length !== 0) {
             for (let i = 0; i < highlights.highlightedCells.length; ++i) {
               if (highlights.highlightedCells[i].tp === params.row.tp
-                  && highlights.highlightedCells[i].col === parseInt(params.colDef.field))
+                  && highlights.highlightedCells[i].col + columns.preds.length === parseInt(params.colDef.field))
                 return 'cell--Highlighted';
             }
           }
+
           for (const [k, obj] of highlights.pathsMap) {
-            if (obj.isHighlighted && obj.tp === params.row.tp && obj.col === parseInt(params.colDef.field))
+            if (obj.isHighlighted && obj.tp === params.row.tp && obj.col === parseInt(params.colDef.field)) {
               return 'cell--PathHighlighted';
+            } else {
+              return '';
+            }
           }
         }}
         componentsProps={{
