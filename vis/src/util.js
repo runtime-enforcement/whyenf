@@ -95,9 +95,7 @@ export function exposeColorsTable(explObj, maxRow, maxCol, colorsTable = []) {
   for (let i = 0; i < explObj.table.length; ++i) {
     let tbl = explObj.table[i];
     for (let j = 0; j < tbl.cells.length; ++j) {
-      if (colorsTable[tbl.cells[j].tp][tbl.cells[j].col] === "") {
-        colorsTable[tbl.cells[j].tp][tbl.cells[j].col] = black;
-      }
+      colorsTable[tbl.cells[j].tp][tbl.cells[j].col] = black;
     }
   }
 

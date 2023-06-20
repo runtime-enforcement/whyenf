@@ -111,8 +111,11 @@ function monitorStateReducer(monitorState, action) {
     return { ...monitorState,
              tables: { dbs: monitorState.tables.dbs,
                        colors: action.colorsTable,
-                       cells: action.cellsTable }
-           };
+                       cells: action.cellsTable },
+             highlights: { selectedRows: [],
+                           highlightedCells: [],
+                           pathsMap: new Map() },
+             fixParameters: true };
   case 'updateTable':
     return { ...monitorState,
              tables: { ...monitorState.tables,
