@@ -145,7 +145,6 @@ function TimeGrid ({ columns,
     Math.max(acc, (9*(subf.length))), 60
   );
 
-  // onClick={() => handleClick(params.row.ts, params.row.tp, params.colDef.field)}
   const subfsGridColumns = columns.subfs.slice(0).map((f, i) =>
     ({
       field: (i+columns.preds.length).toString(),
