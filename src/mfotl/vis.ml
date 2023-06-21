@@ -147,7 +147,7 @@ module Expl = struct
                                           let (row', i') = ssubfs_cell_row r sps_idx f' (S sp) in
                                           let cells = [(Expl.Proof.s_at sp, sps_idx, None, Boolean "true")] in
                                           ((row', max i i'), (Setc.to_json s, true, cells))) in
-       let part = Partition (Pred.Term.to_string x, part_tbl) in
+       let part = Partition (Pred.Term.unvar x, part_tbl) in
        let cell = (Expl.Proof.p_at p, idx, None, part) in
        ((cell, []) :: row', idx')
     | Prev (i, f'), S (SPrev sp)
@@ -256,7 +256,7 @@ module Expl = struct
                                           let (row', i') = ssubfs_cell_row r vps_idx f' (V vp) in
                                           let cells = [(Expl.Proof.v_at vp, vps_idx, None, Boolean "false")] in
                                           ((row', max i i'), (Setc.to_json s, false, cells))) in
-       let part = Partition (Pred.Term.to_string x, part_tbl) in
+       let part = Partition (Pred.Term.unvar x, part_tbl) in
        let cell = (Expl.Proof.p_at p, idx, None, part) in
        ((cell, []) :: row', idx')
     | Forall (_, f'), V (VForall (x, d, vp)) ->
@@ -372,17 +372,18 @@ module Expl = struct
                     (Printf.sprintf "%s\"cells\":" (indent ^ (String.make 4 ' '))) ^
                       (inner_cells_to_json indent cells)
              | Partition (x, part_tbl) ->
-                (Printf.sprintf "%s\"kind\": \"partition\",\n" (indent ^ (String.make 4 ' '))) ^
-                  (Printf.sprintf "%s\"part\": [\n" (indent ^ (String.make 4 ' '))) ^
-                    (String.concat ~sep:",\n"
-                       (List.map part_tbl ~f:(fun (sub, b, cells') ->
-                            Printf.sprintf "%s{\n" (indent ^ (String.make 4 ' ')) ^
-                              (Printf.sprintf "%s%s\n" (indent ^ (String.make 8 ' ')) sub) ^
-                                (Printf.sprintf "%s\"bool\": %B,\n" (indent ^ (String.make 12 ' ')) b) ^
-                                  (Printf.sprintf "%s\"cells\":" (indent ^ (String.make 12 ' '))) ^
-                                    (inner_cells_to_json indent cells') ^
-                                      (Printf.sprintf "%s}" (indent ^ (String.make 4 ' ')))))) ^
-                      (Printf.sprintf "]\n")) ^
+                (Printf.sprintf "%s\"var\": \"%s\",\n" (indent ^ (String.make 4 ' ')) x) ^
+                  (Printf.sprintf "%s\"kind\": \"partition\",\n" (indent ^ (String.make 4 ' '))) ^
+                    (Printf.sprintf "%s\"part\": [\n" (indent ^ (String.make 4 ' '))) ^
+                      (String.concat ~sep:",\n"
+                         (List.map (List.rev part_tbl) ~f:(fun (sub, b, cells') ->
+                              Printf.sprintf "%s{\n" (indent ^ (String.make 4 ' ')) ^
+                                (Printf.sprintf "%s%s\n" (indent ^ (String.make 8 ' ')) sub) ^
+                                  (Printf.sprintf "%s\"bool\": %B,\n" (indent ^ (String.make 12 ' ')) b) ^
+                                    (Printf.sprintf "%s\"cells\":" (indent ^ (String.make 12 ' '))) ^
+                                      (inner_cells_to_json indent cells') ^
+                                        (Printf.sprintf "%s}" (indent ^ (String.make 4 ' ')))))) ^
+                        (Printf.sprintf "]\n")) ^
               (Printf.sprintf "\n%s}" indent)
 
   let rec e_cell_to_json indent = function
