@@ -48,7 +48,7 @@ module Expl = struct
   and kind =
     Boolean of string
   | Assignment of string
-  | Partition of string * (string list * cell) list
+  | Partition of string * (string * bool * (cell list)) list
 
   type cell_row = (cell * (cell list)) list
 
@@ -143,16 +143,13 @@ module Expl = struct
        ((cell, cells) :: row', idx')
     | Forall (_, f'), S (SForall (x, part)) ->
        let sps_idx = idx+1 in
-       let part = Partition (Pred.Term.to_string x,
-                             List.map part ~f:(fun (s, sp) ->
-                                 let (row', idx') = ssubfs_cell_row row sps_idx f' (S sp) in
-                                 let ds = if Setc.is_finite s then
-                                            List.map (Setc.to_list s) ~f:Domain.to_string
-                                          else [] in
-                                 let cell = (Expl.Proof.s_at sp, idx', None, Boolean "true") in
-                                 (ds, cell))) in
+       let ((row', idx'), part_tbl) = List.fold_map part ~init:(row, sps_idx) ~f:(fun (r, i) (s, sp) ->
+                                          let (row', i') = ssubfs_cell_row r sps_idx f' (S sp) in
+                                          let cells = [(Expl.Proof.s_at sp, sps_idx, None, Boolean "true")] in
+                                          ((row', max i i'), (Setc.to_json s, true, cells))) in
+       let part = Partition (Pred.Term.to_string x, part_tbl) in
        let cell = (Expl.Proof.p_at p, idx, None, part) in
-       ((cell, []) :: row, idx)
+       ((cell, []) :: row, idx')
     | Prev (i, f'), S (SPrev sp)
       | Once (i, f'), S (SOnce (_, sp))
       | Next (i, f'), S (SNext sp)
@@ -255,16 +252,13 @@ module Expl = struct
        ((cell, cells) :: tbl'', idx'')
     | Exists (_, f'), V (VExists (x, part)) ->
        let vps_idx = idx+1 in
-       let part = Partition (Pred.Term.to_string x,
-                             List.map part ~f:(fun (s, vp) ->
-                                 let (row', idx') = ssubfs_cell_row row vps_idx f' (V vp) in
-                                 let ds = if Setc.is_finite s then
-                                            List.map (Setc.to_list s) ~f:Domain.to_string
-                                          else [] in
-                                 let cell = (Expl.Proof.v_at vp, idx', None, Boolean "false") in
-                                 (ds, cell))) in
+       let ((row', idx'), part_tbl) = List.fold_map part ~init:(row, vps_idx) ~f:(fun (r, i) (s, vp) ->
+                                          let (row', i') = ssubfs_cell_row r vps_idx f' (V vp) in
+                                          let cells = [(Expl.Proof.v_at vp, vps_idx, None, Boolean "false")] in
+                                          ((row', max i i'), (Setc.to_json s, false, cells))) in
+       let part = Partition (Pred.Term.to_string x, part_tbl) in
        let cell = (Expl.Proof.p_at p, idx, None, part) in
-       ((cell, []) :: row, idx)
+       ((cell, []) :: row, idx')
     | Forall (_, f'), V (VForall (x, d, vp)) ->
        let vp_idx = idx+1 in
        let (row', idx') = ssubfs_cell_row row vp_idx f' (V vp) in
@@ -377,22 +371,18 @@ module Expl = struct
                   (Printf.sprintf "%s\"assignment\": \"%s\",\n" (indent ^ (String.make 4 ' ')) a) ^
                     (Printf.sprintf "%s\"cells\":" (indent ^ (String.make 4 ' '))) ^
                       (inner_cells_to_json indent cells)
-             | Partition (x, dcells) ->
+             | Partition (x, part_tbl) ->
                 (Printf.sprintf "%s\"kind\": \"partition\",\n" (indent ^ (String.make 4 ' '))) ^
-                  (Printf.sprintf "%s\"dcells\":" (indent ^ (String.make 4 ' '))) ^
-                    (if List.is_empty dcells then " []"
-                     else ((Printf.sprintf " [\n") ^
-                             (String.concat ~sep:",\n"
-                                (List.map dcells ~f:(fun (ds, (tp', col', _, b')) ->
-                                     (Printf.sprintf "%s{\n" (indent ^ (String.make 8 ' '))) ^
-                                       (Printf.sprintf "%s\"tp\": %d,\n" (indent ^ (String.make 12 ' ')) tp') ^
-                                         (Printf.sprintf "%s\"col\": %d,\n" (indent ^ (String.make 12 ' ')) col') ^
-                                           (Printf.sprintf "%s\"values\": %s,\n" (indent ^ (String.make 12 ' '))
-                                              (Etc.list_to_json ds)) ^
-                                             (Printf.sprintf "%s\"bool\": \"%s\"\n" (indent ^ (String.make 12 ' '))
-                                                (boolean b')) ^
-                                               (Printf.sprintf "%s}" (indent ^ (String.make 8 ' '))))))) ^
-                            (Printf.sprintf "]\n"))) ^ (Printf.sprintf "\n%s}" indent)
+                  (Printf.sprintf "%s\"part\": [\n" (indent ^ (String.make 4 ' '))) ^
+                    (String.concat ~sep:",\n"
+                       (List.map part_tbl ~f:(fun (sub, b, cells) ->
+                            Printf.sprintf "%s{\n" (indent ^ (String.make 4 ' ')) ^
+                              (Printf.sprintf "%s%s\n" (indent ^ (String.make 8 ' ')) sub) ^
+                                (Printf.sprintf "%s\"bool\": %B,\n" (indent ^ (String.make 12 ' ')) b) ^
+                                  (Printf.sprintf "%s\"cells\":" (indent ^ (String.make 4 ' '))) ^
+                                    (inner_cells_to_json indent cells) ^
+                                      Printf.sprintf "%s}" (indent ^ (String.make 4 ' '))))) ^
+                      (Printf.sprintf "]\n"))
 
   let rec e_cell_to_json indent = function
     | Leaf (b, c_row) ->
@@ -407,12 +397,11 @@ module Expl = struct
            (Printf.sprintf "%s\"var\": \"%s\",\n" (indent ^ (String.make 4 ' ')) x) ^
              (Printf.sprintf "%s\"part\": [\n" (indent ^ (String.make 4 ' '))) ^
                (String.concat ~sep:",\n"
-                  (List.mapi ces ~f:(fun i (ds, e) ->
+                  (List.map ces ~f:(fun (sub, e) ->
                        Printf.sprintf "%s{\n" (indent ^ (String.make 4 ' ')) ^
-                         (Printf.sprintf "%s\"key\": %d,\n" (indent ^ (String.make 8 ' ')) i) ^
-                           (Printf.sprintf "%s%s\n" (indent ^ (String.make 8 ' ')) ds) ^
-                             (e_cell_to_json (indent ^ (String.make 4 ' ')) e) ^
-                               Printf.sprintf "%s}" (indent ^ (String.make 4 ' '))))) ^
+                         (Printf.sprintf "%s%s\n" (indent ^ (String.make 8 ' ')) sub) ^
+                           (e_cell_to_json (indent ^ (String.make 4 ' ')) e) ^
+                             Printf.sprintf "%s}" (indent ^ (String.make 4 ' '))))) ^
                  (Printf.sprintf "]\n")
 
 let to_json (f: Formula.t) (expl: Expl.t) =
