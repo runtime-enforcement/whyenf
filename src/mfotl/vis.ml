@@ -149,7 +149,7 @@ module Expl = struct
                                           ((row', max i i'), (Setc.to_json s, true, cells))) in
        let part = Partition (Pred.Term.to_string x, part_tbl) in
        let cell = (Expl.Proof.p_at p, idx, None, part) in
-       ((cell, []) :: row, idx')
+       ((cell, []) :: row', idx')
     | Prev (i, f'), S (SPrev sp)
       | Once (i, f'), S (SOnce (_, sp))
       | Next (i, f'), S (SNext sp)
@@ -258,7 +258,7 @@ module Expl = struct
                                           ((row', max i i'), (Setc.to_json s, false, cells))) in
        let part = Partition (Pred.Term.to_string x, part_tbl) in
        let cell = (Expl.Proof.p_at p, idx, None, part) in
-       ((cell, []) :: row, idx')
+       ((cell, []) :: row', idx')
     | Forall (_, f'), V (VForall (x, d, vp)) ->
        let vp_idx = idx+1 in
        let (row', idx') = ssubfs_cell_row row vp_idx f' (V vp) in
@@ -375,14 +375,15 @@ module Expl = struct
                 (Printf.sprintf "%s\"kind\": \"partition\",\n" (indent ^ (String.make 4 ' '))) ^
                   (Printf.sprintf "%s\"part\": [\n" (indent ^ (String.make 4 ' '))) ^
                     (String.concat ~sep:",\n"
-                       (List.map part_tbl ~f:(fun (sub, b, cells) ->
+                       (List.map part_tbl ~f:(fun (sub, b, cells') ->
                             Printf.sprintf "%s{\n" (indent ^ (String.make 4 ' ')) ^
                               (Printf.sprintf "%s%s\n" (indent ^ (String.make 8 ' ')) sub) ^
                                 (Printf.sprintf "%s\"bool\": %B,\n" (indent ^ (String.make 12 ' ')) b) ^
-                                  (Printf.sprintf "%s\"cells\":" (indent ^ (String.make 4 ' '))) ^
-                                    (inner_cells_to_json indent cells) ^
-                                      Printf.sprintf "%s}" (indent ^ (String.make 4 ' '))))) ^
-                      (Printf.sprintf "]\n"))
+                                  (Printf.sprintf "%s\"cells\":" (indent ^ (String.make 12 ' '))) ^
+                                    (inner_cells_to_json indent cells') ^
+                                      (Printf.sprintf "%s}" (indent ^ (String.make 4 ' ')))))) ^
+                      (Printf.sprintf "]\n")) ^
+              (Printf.sprintf "\n%s}" indent)
 
   let rec e_cell_to_json indent = function
     | Leaf (b, c_row) ->
