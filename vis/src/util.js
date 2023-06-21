@@ -59,11 +59,22 @@ export function getCells(explObj, path) {
 
 }
 
-export function updateCellsTable(selCellsObj, cellsTable) {
+export function updateCellsTableMain(selCellsObj, cellsTable) {
 
   let cellsTableClone = [...cellsTable];
 
   selCellsObj.table.forEach(cell =>
+    cellsTableClone[cell.tp][cell.col] = cell
+  );
+
+  return cellsTableClone;
+}
+
+export function updateCellsTableQuant(selCellsObj, cellsTable) {
+
+  let cellsTableClone = [...cellsTable];
+
+  selCellsObj.cells.forEach(cell =>
     cellsTableClone[cell.tp][cell.col] = cell
   );
 
@@ -81,7 +92,30 @@ export function initRhsTable(dbsObjs, subfsColumns) {
 
 }
 
-export function exposeColorsTable(explObj, maxRow, maxCol) {
+export function exposeColorsTableQuant(explObj, nextCol, maxRow, maxCol, colorsTable) {
+
+  // Initialize empty matrix
+  let colorsTableClone = structuredClone(colorsTable);
+
+  console.log(colorsTableClone);
+
+  // Expose boolean verdict in main subformula column
+  let tblIndex = explObj.cells.findIndex(tbl => tbl.col === nextCol);
+  let tbl = explObj.cells[tblIndex];
+  colorsTableClone[tbl.tp][tbl.col] = tbl.bool === "true" ? cellColor(true) : cellColor(false);
+
+  // // Expose (as a black cell) the boolean subproofs
+  for (let j = 0; j < explObj.cells.length; ++j) {
+    colorsTableClone[explObj.cells[j].tp][explObj.cells[j].col] = black;
+  }
+
+  console.log(colorsTableClone);
+
+  return colorsTableClone;
+
+}
+
+export function exposeColorsTableMain(explObj, maxRow, maxCol) {
 
   // Initialize empty matrix
   let colorsTable = new Array(maxRow).fill(null).map(() => Array(maxCol).fill(""));
@@ -94,8 +128,10 @@ export function exposeColorsTable(explObj, maxRow, maxCol) {
   // Expose (as a black cell) the boolean subproofs
   for (let i = 0; i < explObj.table.length; ++i) {
     let tbl = explObj.table[i];
-    for (let j = 0; j < tbl.cells.length; ++j) {
-      colorsTable[tbl.cells[j].tp][tbl.cells[j].col] = black;
+    if (tbl.kind === "boolean") {
+      for (let j = 0; j < tbl.cells.length; ++j) {
+        colorsTable[tbl.cells[j].tp][tbl.cells[j].col] = black;
+      }
     }
   }
 
