@@ -3,9 +3,14 @@ import Button from '@mui/material/Button';
 import Menu from '@mui/material/Menu';
 import DetailsIcon from '@mui/icons-material/Details';
 import MenuInstance from './MenuInstance';
-import { collectValues, getCells, exposeColorsTable, updateCellsTable } from '../util';
+import { collectValues,
+         getCells,
+         exposeColorsTableMain,
+         exposeColorsTableQuant,
+         updateCellsTableMain,
+         updateCellsTableQuant } from '../util';
 
-function MainCell ({ explObj, colorsTable, cellsTable, setMonitorState }) {
+function MainCell ({ explObj, colorsTable, cellsTable, nextCol, setMonitorState }) {
 
 
   // NestedMenuItem
@@ -17,22 +22,37 @@ function MainCell ({ explObj, colorsTable, cellsTable, setMonitorState }) {
 
   const handleClick = (event) => {
 
-    let path = collectValues(event.target);
-    path.push(event.target.innerText);
-    let selCellsObj = getCells(explObj, path);
+    if (explObj.type === "leaf" || explObj.type === "node") {
 
-    let action = { type: "updateColorsAndCellsTable",
-                   colorsTable: exposeColorsTable(selCellsObj, colorsTable.length, colorsTable[0].length, colorsTable),
-                   cellsTable: updateCellsTable(selCellsObj, cellsTable)
-                 };
-    setMonitorState(action);
+      let path = collectValues(event.target);
+      path.push(event.target.innerText);
+      let selCellsObj = getCells(explObj, path);
+
+      let action = { type: "updateColorsAndCellsTable",
+                     colorsTable: exposeColorsTableMain(selCellsObj, colorsTable.length, colorsTable[0].length),
+                     cellsTable: updateCellsTableMain(selCellsObj, cellsTable)
+                   };
+      setMonitorState(action);
+
+    } else {
+
+      if (explObj.kind === "partition") {
+        let selCellsObj = getCells(explObj, [event.target.innerText]);
+        let action = { type: "updateColorsAndCellsTable",
+                       colorsTable: exposeColorsTableQuant(selCellsObj, nextCol, colorsTable.length, colorsTable[0].length, colorsTable),
+                       cellsTable: updateCellsTableQuant(selCellsObj, cellsTable)
+                     };
+      }
+
+    }
+
   };
 
 
   if (explObj.type === "leaf") {
     return "";
   } else {
-    if (explObj.type === "node") {
+    if (explObj.type === "node" || explObj.kind === "partition") {
       return (
         <div>
           <Button variant="contained" onClick={handleFirstClick}>

@@ -68,7 +68,9 @@ function TimeGrid ({ columns,
     // Subformulas
     if (col >= columns.preds.length &&
         tables.colors[row][col - columns.preds.length] !== "" &&
-        tables.colors[row][col - columns.preds.length] !== black) {
+        tables.colors[row][col - columns.preds.length] !== black &&
+        columns.subfs[col - columns.preds.length].charAt(0) !== '∃' &&
+        columns.subfs[col - columns.preds.length].charAt(0) !== '∀') {
       setValue(subformulas[col - columns.preds.length]);
       setAnchorEl(event.currentTarget);
     }
@@ -135,6 +137,7 @@ function TimeGrid ({ columns,
         return <MainCell explObj={objs.expls[params.id].expl}
                          colorsTable={tables.colors}
                          cellsTable={tables.cells}
+                         nextCol={0}
                          setMonitorState={setMonitorState} />;
       }
     }
@@ -153,9 +156,22 @@ function TimeGrid ({ columns,
       sortable: false,
       renderHeader: () => f,
       renderCell: (params) => {
-        return <BoolCell value={tables.colors[params.row.tp][i]}
-                         onClick={() => handleClick(params.row.ts, params.row.tp, params.colDef.field)}
-               />;
+        if (f.charAt(0) === '∃' || f.charAt(0) === '∀') {
+          // console.log(tables.cells[params.row.tp][i]);
+          if (tables.colors[params.row.tp][i] !== '') {
+            return <MainCell explObj={tables.cells[params.row.tp][i]}
+                             colorsTable={tables.colors}
+                             cellsTable={tables.cells}
+                             nextCol={i+1}
+                             setMonitorState={setMonitorState} />;
+          } else {
+            return '';
+          }
+        } else {
+          return <BoolCell value={tables.colors[params.row.tp][i]}
+                           onClick={() => handleClick(params.row.ts, params.row.tp, params.colDef.field)}
+                 />;
+        }
       },
       headerAlign: 'center',
       align: 'center',
