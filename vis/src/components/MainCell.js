@@ -10,7 +10,7 @@ import { collectValues,
          updateCellsTableMain,
          updateCellsTableQuant } from '../util';
 
-function MainCell ({ explObj, colorsTable, cellsTable, nextCol, tp, setMonitorState }) {
+function MainCell ({ explObj, colorsTable, cellsTable, nextCol, setMonitorState }) {
 
   // NestedMenuItem
   const [anchorEl, setAnchorEl] = useState(null);
@@ -40,7 +40,7 @@ function MainCell ({ explObj, colorsTable, cellsTable, nextCol, tp, setMonitorSt
         let selCellsObj = getCells(explObj, [event.target.innerText]);
         let action = { type: "updateColorsAndCellsTable",
                        colorsTable: exposeColorsTableQuant(selCellsObj, nextCol, colorsTable),
-                       cellsTable: updateCellsTableQuant(selCellsObj, tp, curCol, cellsTable)
+                       cellsTable: updateCellsTableQuant(selCellsObj, curCol, cellsTable)
                      };
         setMonitorState(action);
       }

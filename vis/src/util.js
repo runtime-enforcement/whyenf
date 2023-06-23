@@ -70,12 +70,12 @@ export function updateCellsTableMain(selCellsObj, cellsTable) {
   return cellsTableClone;
 }
 
-export function updateCellsTableQuant(selCellsObj, tp, curCol, cellsTable) {
+export function updateCellsTableQuant(selCellsObj, curCol, cellsTable) {
 
   let cellsTableClone = [...cellsTable];
 
   selCellsObj.table
-    .filter(cell => tp !== cell.tp && curCol !== cell.col)
+    .filter(cell => cell.col !== curCol)
     .forEach(cell =>
       cellsTableClone[cell.tp][cell.col] = cell
     );
