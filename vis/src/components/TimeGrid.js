@@ -138,6 +138,7 @@ function TimeGrid ({ columns,
                          colorsTable={tables.colors}
                          cellsTable={tables.cells}
                          nextCol={0}
+                         tp={params.row.tp}
                          setMonitorState={setMonitorState} />;
       }
     }
@@ -157,15 +158,17 @@ function TimeGrid ({ columns,
       renderHeader: () => f,
       renderCell: (params) => {
         if (f.charAt(0) === '∃' || f.charAt(0) === '∀') {
-          // console.log(tables.cells[params.row.tp][i]);
-          if (tables.colors[params.row.tp][i] !== '') {
+          if (tables.colors[params.row.tp][i] === red[500] || tables.colors[params.row.tp][i] === lightGreen[500]) {
             return <MainCell explObj={tables.cells[params.row.tp][i]}
                              colorsTable={tables.colors}
                              cellsTable={tables.cells}
                              nextCol={i+1}
+                             tp={params.row.tp}
                              setMonitorState={setMonitorState} />;
           } else {
-            return '';
+            return <BoolCell value={tables.colors[params.row.tp][i]}
+                             onClick={() => handleClick(params.row.ts, params.row.tp, params.colDef.field)}
+                   />;
           }
         } else {
           return <BoolCell value={tables.colors[params.row.tp][i]}
@@ -190,8 +193,6 @@ function TimeGrid ({ columns,
     const colIndex = parseInt(col);
 
     let cell = tables.cells[tp][colIndex - columns.preds.length];
-
-    console.log(cell);
 
     if (cell !== undefined && tables.colors[cell.tp][cell.col] !== black) {
 

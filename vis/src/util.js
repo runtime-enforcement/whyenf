@@ -70,13 +70,15 @@ export function updateCellsTableMain(selCellsObj, cellsTable) {
   return cellsTableClone;
 }
 
-export function updateCellsTableQuant(selCellsObj, cellsTable) {
-
-  console.log(selCellsObj);
+export function updateCellsTableQuant(selCellsObj, tp, curCol, cellsTable) {
 
   let cellsTableClone = [...cellsTable];
 
-  // cellsTableClone[selCellsObj.cells[0].tp][selCellsObj.cells[0].col] =
+  selCellsObj.table
+    .filter(cell => tp !== cell.tp && curCol !== cell.col)
+    .forEach(cell =>
+      cellsTableClone[cell.tp][cell.col] = cell
+    );
 
   return cellsTableClone;
 }
@@ -97,22 +99,23 @@ export function exposeColorsTableQuant(explObj, nextCol, colorsTable) {
   let maxRow = colorsTable.length;
   let maxCol = colorsTable[0].length;
 
-  console.log(explObj);
-
   // Initialize empty matrix
   let colorsTableClone = structuredClone(colorsTable);
 
+  // Expose (as a black cell) the boolean subproofs
+  for (let i = 0; i < explObj.table.length; ++i) {
+    let tbl = explObj.table[i];
+    if (tbl.kind === "boolean") {
+      for (let j = 0; j < tbl.cells.length; ++j) {
+        colorsTableClone[tbl.cells[j].tp][tbl.cells[j].col] = black;
+      }
+    }
+  }
+
   // Expose boolean verdict in quantifier subformula column
-    let tblIndex = explObj.cells.findIndex(tbl => tbl.col === nextCol);
-  let tbl = explObj.cells[tblIndex];
+  let tblIndex = explObj.table.findIndex(tbl => tbl.col === nextCol);
+  let tbl = explObj.table[tblIndex];
   colorsTableClone[tbl.tp][tbl.col] = tbl.bool === "true" ? cellColor(true) : cellColor(false);
-
-  // // Expose (as a black cell) the boolean subproofs
-  // for (let j = 0; j < explObj.cells.length; ++j) {
-  //   colorsTableClone[explObj.cells[j].tp][explObj.cells[j].col] = black;
-  // }
-
-  console.log(colorsTableClone);
 
   return colorsTableClone;
 
@@ -123,11 +126,6 @@ export function exposeColorsTableMain(explObj, maxRow, maxCol) {
   // Initialize empty matrix
   let colorsTable = new Array(maxRow).fill(null).map(() => Array(maxCol).fill(""));
 
-  // Expose boolean verdict in main subformula column
-  let tblIndex = explObj.table.findIndex(tbl => tbl.col === 0);
-  let tbl = explObj.table[tblIndex];
-  colorsTable[tbl.tp][tbl.col] = tbl.bool === "true" ? cellColor(true) : cellColor(false);
-
   // Expose (as a black cell) the boolean subproofs
   for (let i = 0; i < explObj.table.length; ++i) {
     let tbl = explObj.table[i];
@@ -137,6 +135,11 @@ export function exposeColorsTableMain(explObj, maxRow, maxCol) {
       }
     }
   }
+
+  // Expose boolean verdict in main subformula column
+  let tblIndex = explObj.table.findIndex(tbl => tbl.col === 0);
+  let tbl = explObj.table[tblIndex];
+  colorsTable[tbl.tp][tbl.col] = tbl.bool === "true" ? cellColor(true) : cellColor(false);
 
   return colorsTable;
 

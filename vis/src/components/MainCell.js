@@ -10,8 +10,7 @@ import { collectValues,
          updateCellsTableMain,
          updateCellsTableQuant } from '../util';
 
-function MainCell ({ explObj, colorsTable, cellsTable, nextCol, setMonitorState }) {
-
+function MainCell ({ explObj, colorsTable, cellsTable, nextCol, tp, setMonitorState }) {
 
   // NestedMenuItem
   const [anchorEl, setAnchorEl] = useState(null);
@@ -37,10 +36,11 @@ function MainCell ({ explObj, colorsTable, cellsTable, nextCol, setMonitorState 
     } else {
 
       if (explObj.kind === "partition") {
+        let curCol = nextCol - 1;
         let selCellsObj = getCells(explObj, [event.target.innerText]);
         let action = { type: "updateColorsAndCellsTable",
                        colorsTable: exposeColorsTableQuant(selCellsObj, nextCol, colorsTable),
-                       cellsTable: updateCellsTableQuant(selCellsObj, cellsTable)
+                       cellsTable: updateCellsTableQuant(selCellsObj, tp, curCol, cellsTable)
                      };
         setMonitorState(action);
       }
