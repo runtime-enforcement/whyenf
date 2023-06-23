@@ -48,9 +48,9 @@ module Expl = struct
   and kind =
     Boolean of string
   | Assignment of string
-  | Partition of string * (string * bool * (cell list)) list
+  | Partition of string * (string * (cell * cell list) list) list
 
-  type cell_row = (cell * (cell list)) list
+  type cell_row = (cell * cell list) list
 
   type cell_expl = Leaf of bool * cell_row | Expl of string * (string * cell_expl) list
 
@@ -103,7 +103,8 @@ module Expl = struct
        let sp2_idx = idx'+1 in
        let (tbl'', idx'') = ssubfs_cell_row row' sp2_idx f2 (S sp2) in
        let cell = (Expl.Proof.p_at p, idx, None, Boolean "true") in
-       let cells = [(Expl.Proof.s_at sp1, sp1_idx, None, Boolean "true"); (Expl.Proof.s_at sp2, sp2_idx, None, Boolean "true")] in
+       let cells = [(Expl.Proof.s_at sp1, sp1_idx, None, Boolean "true");
+                    (Expl.Proof.s_at sp2, sp2_idx, None, Boolean "true")] in
        ((cell, cells) :: tbl'', idx'')
     | Imp (f1, f2), S (SImpL (vp1)) ->
        let vp1_idx = idx+1 in
@@ -143,13 +144,14 @@ module Expl = struct
        ((cell, cells) :: row', idx')
     | Forall (_, f'), S (SForall (x, part)) ->
        let sps_idx = idx+1 in
-       let ((row', idx'), part_tbl) = List.fold_map part ~init:(row, sps_idx) ~f:(fun (r, i) (s, sp) ->
-                                          let (row', i') = ssubfs_cell_row r sps_idx f' (S sp) in
-                                          let cells = [(Expl.Proof.s_at sp, sps_idx, None, Boolean "true")] in
-                                          ((row', max i i'), (Setc.to_json s, true, cells))) in
+       let (idx', part_tbl) = List.fold_map part ~init:sps_idx ~f:(fun i (s, sp) ->
+                                  let (row', i') = ssubfs_cell_row row sps_idx f' (S sp) in
+                                  let cell = (Expl.Proof.p_at p, idx, None, Boolean "true") in
+                                  let cells = [(Expl.Proof.s_at sp, sps_idx, None, Boolean "true")] in
+                                  (max i i', (Setc.to_json s, (cell, cells) :: row'))) in
        let part = Partition (Pred.Term.unvar x, part_tbl) in
        let cell = (Expl.Proof.p_at p, idx, None, part) in
-       ((cell, []) :: row', idx')
+       ((cell, []) :: row, idx')
     | Prev (i, f'), S (SPrev sp)
       | Once (i, f'), S (SOnce (_, sp))
       | Next (i, f'), S (SNext sp)
@@ -218,7 +220,8 @@ module Expl = struct
        let vp2_idx = idx'+1 in
        let (tbl'', idx'') = ssubfs_cell_row row' vp2_idx f2 (V vp2) in
        let cell = (Expl.Proof.p_at p, idx, None, Boolean "false") in
-       let cells = [(Expl.Proof.v_at vp1, vp1_idx, None, Boolean "false"); (Expl.Proof.v_at vp2, vp2_idx, None, Boolean "false")] in
+       let cells = [(Expl.Proof.v_at vp1, vp1_idx, None, Boolean "false");
+                    (Expl.Proof.v_at vp2, vp2_idx, None, Boolean "false")] in
        ((cell, cells) :: tbl'', idx'')
     | And (f1, _), V (VAndL vp1) ->
        let vp1_idx = idx+1 in
@@ -240,7 +243,8 @@ module Expl = struct
        let vp2_idx = idx'+1 in
        let (tbl'', idx'') = ssubfs_cell_row row' vp2_idx f2 (V vp2) in
        let cell = (Expl.Proof.p_at p, idx, None, Boolean "false") in
-       let cells = [(Expl.Proof.s_at sp1, sp1_idx, None, Boolean "true"); (Expl.Proof.v_at vp2, vp2_idx, None, Boolean "false")] in
+       let cells = [(Expl.Proof.s_at sp1, sp1_idx, None, Boolean "true");
+                    (Expl.Proof.v_at vp2, vp2_idx, None, Boolean "false")] in
        ((cell, cells) :: tbl'', idx'')
     | Iff (f1, f2), V (VIffVS (vp1, sp2)) ->
        let vp1_idx = idx+1 in
@@ -248,17 +252,19 @@ module Expl = struct
        let sp2_idx = idx'+1 in
        let (tbl'', idx'') = ssubfs_cell_row row' sp2_idx f2 (S sp2) in
        let cell = (Expl.Proof.p_at p, idx, None, Boolean "false") in
-       let cells = [(Expl.Proof.v_at vp1, vp1_idx, None, Boolean "false"); (Expl.Proof.s_at sp2, sp2_idx, None, Boolean "true")] in
+       let cells = [(Expl.Proof.v_at vp1, vp1_idx, None, Boolean "false");
+                    (Expl.Proof.s_at sp2, sp2_idx, None, Boolean "true")] in
        ((cell, cells) :: tbl'', idx'')
     | Exists (_, f'), V (VExists (x, part)) ->
        let vps_idx = idx+1 in
-       let ((row', idx'), part_tbl) = List.fold_map part ~init:(row, vps_idx) ~f:(fun (r, i) (s, vp) ->
-                                          let (row', i') = ssubfs_cell_row r vps_idx f' (V vp) in
-                                          let cells = [(Expl.Proof.v_at vp, vps_idx, None, Boolean "false")] in
-                                          ((row', max i i'), (Setc.to_json s, false, cells))) in
+       let (idx', part_tbl) = List.fold_map part ~init:vps_idx ~f:(fun i (s, vp) ->
+                                  let (row', i') = ssubfs_cell_row row vps_idx f' (V vp) in
+                                  let cell = (Expl.Proof.p_at p, idx, None, Boolean "false") in
+                                  let cells = [(Expl.Proof.v_at vp, vps_idx, None, Boolean "false")] in
+                                  (max i i', (Setc.to_json s, (cell, cells) :: row'))) in
        let part = Partition (Pred.Term.unvar x, part_tbl) in
        let cell = (Expl.Proof.p_at p, idx, None, part) in
-       ((cell, []) :: row', idx')
+       ((cell, []) :: row, idx')
     | Forall (_, f'), V (VForall (x, d, vp)) ->
        let vp_idx = idx+1 in
        let (row', idx') = ssubfs_cell_row row vp_idx f' (V vp) in
@@ -350,7 +356,7 @@ module Expl = struct
                           (Printf.sprintf "%s\"bool\": %s\n" (indent ^ (String.make 8 ' ')) (boolean kind)) ^
                             (Printf.sprintf "%s}" (indent ^ (String.make 4 ' '))))))) ^ (Printf.sprintf "]\n")
 
-  let cell_to_json indent (tp, col, ip_opt, kind) cells =
+  let rec cell_to_json indent (tp, col, ip_opt, kind) cells =
     (Printf.sprintf "%s{\n" indent) ^
       (Printf.sprintf "%s\"tp\": %d,\n" (indent ^ (String.make 4 ' ')) tp) ^
         (Printf.sprintf "%s\"col\": %d,\n" (indent ^ (String.make 4 ' ')) col) ^
@@ -376,12 +382,14 @@ module Expl = struct
                   (Printf.sprintf "%s\"kind\": \"partition\",\n" (indent ^ (String.make 4 ' '))) ^
                     (Printf.sprintf "%s\"part\": [\n" (indent ^ (String.make 4 ' '))) ^
                       (String.concat ~sep:",\n"
-                         (List.map (List.rev part_tbl) ~f:(fun (sub, b, cells') ->
+                         (List.map (List.rev part_tbl) ~f:(fun (sub, c_row) ->
                               Printf.sprintf "%s{\n" (indent ^ (String.make 4 ' ')) ^
                                 (Printf.sprintf "%s%s\n" (indent ^ (String.make 8 ' ')) sub) ^
-                                  (Printf.sprintf "%s\"bool\": %B,\n" (indent ^ (String.make 12 ' ')) b) ^
-                                    (Printf.sprintf "%s\"cells\":" (indent ^ (String.make 12 ' '))) ^
-                                      (inner_cells_to_json indent cells') ^
+                                  (Printf.sprintf "%s\"table\": [\n" (indent ^ (String.make 12 ' '))) ^
+                                    String.concat ~sep:",\n"
+                                      (List.map c_row ~f:(fun (c, cs) ->
+                                           cell_to_json (indent ^ (String.make 8 ' ')) c cs)) ^
+                                      (Printf.sprintf "\n%s]\n" (indent ^ (String.make 12 ' '))) ^
                                         (Printf.sprintf "%s}" (indent ^ (String.make 4 ' ')))))) ^
                         (Printf.sprintf "]\n")) ^
               (Printf.sprintf "\n%s}" indent)
