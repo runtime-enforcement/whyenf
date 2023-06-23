@@ -12,7 +12,7 @@ import Typography from '@mui/material/Typography';
 import { red, amber, lightGreen, indigo } from '@mui/material/colors';
 import { common } from '@mui/material/colors';
 import { black, squareColor, cellColor, tpsIn } from '../util';
-import MainCell from './MainCell';
+import MenuCell from './MenuCell';
 
 function DbCell(props) {
   if (props.value.length === 0) {
@@ -134,7 +134,7 @@ function TimeGrid ({ columns,
       align: 'center',
       disableClickEventBubbling: true,
       renderCell: (params) => {
-        return <MainCell explObj={objs.expls[params.id].expl}
+        return <MenuCell explObj={objs.expls[params.id].expl}
                          colorsTable={tables.colors}
                          cellsTable={tables.cells}
                          nextCol={0}
@@ -160,7 +160,7 @@ function TimeGrid ({ columns,
           if (tables.cells[params.row.tp][i].kind === "partition" &&
               (tables.colors[params.row.tp][i] === red[500]
                || tables.colors[params.row.tp][i] === lightGreen[500])) {
-            return <MainCell explObj={tables.cells[params.row.tp][i]}
+            return <MenuCell explObj={tables.cells[params.row.tp][i]}
                              colorsTable={tables.colors}
                              cellsTable={tables.cells}
                              nextCol={i+1}
