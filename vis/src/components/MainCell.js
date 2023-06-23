@@ -39,11 +39,11 @@ function MainCell ({ explObj, colorsTable, cellsTable, nextCol, setMonitorState 
       if (explObj.kind === "partition") {
         let selCellsObj = getCells(explObj, [event.target.innerText]);
         let action = { type: "updateColorsAndCellsTable",
-                       colorsTable: exposeColorsTableQuant(selCellsObj, nextCol, colorsTable.length, colorsTable[0].length, colorsTable),
+                       colorsTable: exposeColorsTableQuant(selCellsObj, nextCol, colorsTable),
                        cellsTable: updateCellsTableQuant(selCellsObj, cellsTable)
                      };
+        setMonitorState(action);
       }
-
     }
 
   };
