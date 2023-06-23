@@ -157,7 +157,9 @@ function TimeGrid ({ columns,
       renderHeader: () => f,
       renderCell: (params) => {
         if (f.charAt(0) === '∃' || f.charAt(0) === '∀') {
-          if (tables.colors[params.row.tp][i] === red[500] || tables.colors[params.row.tp][i] === lightGreen[500]) {
+          if (tables.cells[params.row.tp][i].kind === "partition" &&
+              (tables.colors[params.row.tp][i] === red[500]
+               || tables.colors[params.row.tp][i] === lightGreen[500])) {
             return <MainCell explObj={tables.cells[params.row.tp][i]}
                              colorsTable={tables.colors}
                              cellsTable={tables.cells}
