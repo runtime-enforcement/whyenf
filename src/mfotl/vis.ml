@@ -58,6 +58,14 @@ module Expl = struct
     | Boolean s -> s
     | _ -> raise (Invalid_argument "this function is not defined for assignment/partition kinds")
 
+  let string_of_kind = function
+    | Boolean _ -> "boolean"
+    | Assignment _ -> "assignment"
+    | Partition _ -> "partition"
+
+  let cell_kind = function
+    | (_, _, _, k) -> string_of_kind k
+
   let rec cell_idx idx = function
     | Formula.TT | FF | Predicate _ -> idx
     | Neg f' | Exists (_, f') | Forall (_, f')
@@ -125,7 +133,8 @@ module Expl = struct
        let sp2_idx = idx'+1 in
        let (tbl'', idx'') = ssubfs_cell_row row' sp2_idx f2 (S sp2) in
        let cell = (Expl.Proof.p_at p, idx, None, Boolean "true") in
-       let cells = [(Expl.Proof.s_at sp1, sp1_idx, None, Boolean "true"); (Expl.Proof.s_at sp2, sp2_idx, None, Boolean "true")] in
+       let cells = [(Expl.Proof.s_at sp1, sp1_idx, None, Boolean "true");
+                    (Expl.Proof.s_at sp2, sp2_idx, None, Boolean "true")] in
        ((cell, cells) :: tbl'', idx'')
     | Iff (f1, f2), S (SIffVV (vp1, vp2)) ->
        let vp1_idx = idx+1 in
@@ -133,7 +142,8 @@ module Expl = struct
        let vp2_idx = idx'+1 in
        let (tbl'', idx'') = ssubfs_cell_row row' vp2_idx f2 (V vp2) in
        let cell = (Expl.Proof.p_at p, idx, None, Boolean "true") in
-       let cells = [(Expl.Proof.v_at vp1, vp1_idx, None, Boolean "false"); (Expl.Proof.v_at vp2, vp2_idx, None, Boolean "false")] in
+       let cells = [(Expl.Proof.v_at vp1, vp1_idx, None, Boolean "false");
+                    (Expl.Proof.v_at vp2, vp2_idx, None, Boolean "false")] in
        ((cell, cells) :: tbl'', idx'')
     | Exists (_, f'), S (SExists (x, d, sp)) ->
        let sp_idx = idx+1 in
@@ -144,8 +154,9 @@ module Expl = struct
        ((cell, cells) :: row', idx')
     | Forall (_, f'), S (SForall (x, part)) ->
        let sps_idx = idx+1 in
+       let row' = List.filter row (fun (cell, _) -> not (String.equal (cell_kind cell) "partition")) in
        let (idx', part_tbl) = List.fold_map part ~init:sps_idx ~f:(fun i (s, sp) ->
-                                  let (row', i') = ssubfs_cell_row row sps_idx f' (S sp) in
+                                  let (row', i') = ssubfs_cell_row row' sps_idx f' (S sp) in
                                   let cell = (Expl.Proof.p_at p, idx, None, Boolean "true") in
                                   let cells = [(Expl.Proof.s_at sp, sps_idx, None, Boolean "true")] in
                                   (max i i', (Setc.to_json s, (cell, cells) :: row'))) in
@@ -200,7 +211,8 @@ module Expl = struct
                              | Until _ -> (Expl.Proof.p_at p, idx, Some(i, FUTURE), Boolean "true")
                              | _ -> raise (Invalid_argument "unexpected proof constructor") in
        let cells = (Expl.Proof.s_at sp2, sp2_idx, None, Boolean "true") ::
-                     (Fdeque.to_list (Fdeque.map sp1s ~f:(fun sp1 -> (Expl.Proof.s_at sp1, sp1_idx, None, Boolean "true")))) in
+                     (Fdeque.to_list (Fdeque.map sp1s ~f:(fun sp1 ->
+                                          (Expl.Proof.s_at sp1, sp1_idx, None, Boolean "true")))) in
        ((cell, cells) :: tbl'', idx'')
     | FF, V (VFF _) ->
        let cell = (Expl.Proof.p_at p, idx, None, Boolean "false") in
@@ -257,8 +269,9 @@ module Expl = struct
        ((cell, cells) :: tbl'', idx'')
     | Exists (_, f'), V (VExists (x, part)) ->
        let vps_idx = idx+1 in
+       let row' = List.filter row (fun (cell, _) -> not (String.equal (cell_kind cell) "partition")) in
        let (idx', part_tbl) = List.fold_map part ~init:vps_idx ~f:(fun i (s, vp) ->
-                                  let (row', i') = ssubfs_cell_row row vps_idx f' (V vp) in
+                                  let (row', i') = ssubfs_cell_row row' vps_idx f' (V vp) in
                                   let cell = (Expl.Proof.p_at p, idx, None, Boolean "false") in
                                   let cells = [(Expl.Proof.v_at vp, vps_idx, None, Boolean "false")] in
                                   (max i i', (Setc.to_json s, (cell, cells) :: row'))) in
@@ -315,7 +328,8 @@ module Expl = struct
                              | Until _ -> (Expl.Proof.p_at p, idx, Some(i, FUTURE), Boolean "false")
                              | _ -> raise (Invalid_argument "unexpected proof constructor") in
        let cells = (Expl.Proof.v_at vp1, vp1_idx, None, Boolean "false") ::
-                     (Fdeque.to_list (Fdeque.map vp2s ~f:(fun vp2 -> (Expl.Proof.v_at vp2, vp2_idx, None, Boolean "false")))) in
+                     (Fdeque.to_list (Fdeque.map vp2s ~f:(fun vp2 ->
+                                          (Expl.Proof.v_at vp2, vp2_idx, None, Boolean "false")))) in
        ((cell, cells) :: tbl'', idx'')
     | Since (i, f1, f2), V (VSinceInf (_, _, vp2s))
       | Until (i, f1, f2), V (VUntilInf (_, _, vp2s)) ->
