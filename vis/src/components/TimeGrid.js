@@ -191,6 +191,8 @@ function TimeGrid ({ columns,
 
     let cell = tables.cells[tp][colIndex - columns.preds.length];
 
+    console.log(cell);
+
     if (cell !== undefined && tables.colors[cell.tp][cell.col] !== black) {
 
       // Update highlighted cells (i.e. the ones who appear after a click)
