@@ -69,8 +69,8 @@ function TimeGrid ({ columns,
     if (col >= columns.preds.length &&
         tables.colors[row][col - columns.preds.length] !== "" &&
         tables.colors[row][col - columns.preds.length] !== black &&
-        columns.subfs[col - columns.preds.length].charAt(0) !== '∃' &&
-        columns.subfs[col - columns.preds.length].charAt(0) !== '∀') {
+        tables.cells[row][col - columns.preds.length].kind !== undefined &&
+        tables.cells[row][col - columns.preds.length].kind !== "partition") {
       setValue(subformulas[col - columns.preds.length]);
       setAnchorEl(event.currentTarget);
     }
