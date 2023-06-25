@@ -40,6 +40,8 @@ module Sig : sig
 
   val add: string -> (string * Domain.tt) list -> unit
 
+  val vars: string -> string list
+
   val print_table: unit -> unit
 
 end
