@@ -17,7 +17,7 @@ export function computeDbsTable(dbsObjs, cells = []) {
   for (let tp = 0; tp < maxRow; ++tp) {
     let dbs = dbsObjs[tp].dbs_row;
     for (let j = 0; j < maxCol; ++j) {
-      if (tp === dbs[j].tp) cells[tp][j] = dbs[j].db.join('\n');
+      if (tp === dbs[j].tp) cells[tp][j] = dbs[j].db;
     }
   }
 

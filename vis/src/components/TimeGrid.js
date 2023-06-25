@@ -13,6 +13,7 @@ import { red, amber, lightGreen, indigo } from '@mui/material/colors';
 import { common } from '@mui/material/colors';
 import { black, squareColor, cellColor, tpsIn } from '../util';
 import MenuCell from './MenuCell';
+import DbTable from './DbTable';
 
 function DbCell(props) {
   if (props.value.length === 0) {
@@ -52,7 +53,7 @@ function TimeGrid ({ columns,
                      setMonitorState }) {
 
   const [anchorEl, setAnchorEl] = useState(null);
-  const [value, setValue] = useState('');
+  const [anchorValue, setAnchorValue] = useState({});
   const open = Boolean(anchorEl);
 
   const handlePopoverOpen = (event) => {
@@ -61,7 +62,7 @@ function TimeGrid ({ columns,
 
     // Preds
     if (col < objs.dbs.nCols && tables.dbs[row][col].length !== 0) {
-      setValue(tables.dbs[row][col]);
+      setAnchorValue({ kind: "db", value: tables.dbs[row][col] });
       setAnchorEl(event.currentTarget);
     }
 
@@ -71,7 +72,7 @@ function TimeGrid ({ columns,
         tables.colors[row][col - columns.preds.length] !== black &&
         tables.cells[row][col - columns.preds.length].kind !== undefined &&
         tables.cells[row][col - columns.preds.length].kind !== "partition") {
-      setValue(subformulas[col - columns.preds.length]);
+      setAnchorValue({ kind: "subf", value: subformulas[col - columns.preds.length] });
       setAnchorEl(event.currentTarget);
     }
   };
@@ -92,6 +93,7 @@ function TimeGrid ({ columns,
       width: predsWidth,
       sortable: false,
       renderHeader: () => p,
+      // renderCell: (params) => <DbCell value={tables.dbs[params.row.tp][i]} />,
       renderCell: (params) => <DbCell value={tables.dbs[params.row.tp][i]} />,
       headerAlign: 'center',
       align: 'center',
@@ -332,7 +334,8 @@ function TimeGrid ({ columns,
         onClose={handlePopoverClose}
         disableRestoreFocus
       >
-        <Typography sx={{ p: 1 }}>{value}</Typography>
+        { anchorValue.kind === "db" && <DbTable db={anchorValue.value}/> }
+        { anchorValue.kind === "subf" && <Typography sx={{ p: 1 }}>{anchorValue.value}</Typography> }
       </Popover>
     </Box>
   );

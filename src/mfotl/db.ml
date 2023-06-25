@@ -19,6 +19,14 @@ module Event = struct
 
     let to_string (name, ds) = Printf.sprintf "%s(%s)" name (Domain.list_to_string ds)
 
+    let to_json (name, ds) =
+      String.concat ~sep:", "
+        (List.map2_exn (Pred.Sig.vars name) ds  ~f:(fun x d ->
+             Printf.sprintf "{ " ^
+               Printf.sprintf "\"var\": \"%s\", " x ^
+                 Printf.sprintf "\"value\": \"%s\" " (Domain.to_string d) ^
+                   Printf.sprintf "}"))
+
   end
 
   include T
@@ -46,4 +54,6 @@ let to_string db =
   Set.fold db ~init:"" ~f:(fun acc evt -> acc ^ Event.to_string evt ^ "\n")
 
 let to_json db =
-  Etc.list_to_json (Set.fold db ~init:[] ~f:(fun acc evt -> Event.to_string evt :: acc))
+  "[ " ^ (String.concat ~sep:", "
+            (List.rev(Set.fold db ~init:[] ~f:(fun acc evt ->
+                          Event.to_json evt :: acc)))) ^ "] "

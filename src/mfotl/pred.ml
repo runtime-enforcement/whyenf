@@ -61,6 +61,8 @@ module Sig = struct
   let add p_name ntconsts =
     Hashtbl.add_exn table p_name { arity = List.length ntconsts; ntconsts }
 
+  let vars name = List.map (Hashtbl.find_exn table name).ntconsts ~f:fst
+
   let print_table () =
     Hashtbl.iteri table ~f:(fun ~key:n ~data:ps ->
         Stdio.printf "%s(%s)\n" n
