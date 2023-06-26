@@ -14,7 +14,7 @@ function MenuInstance ({ explObj, open, handleClose, handleClick }) {
         <MenuItem disabled={true}>{explObj.var}</MenuItem>
         { explObj?.part?.map((el, i) => {
           const ds = el.subset_type === "finite" ?
-                el.subset_values.join(', ') : <SettingsEthernetIcon/>;
+                el.subset_values.join(', ') : (<span style={{fontWeight: 'bold'}}>Other</span>);
           if (el.type === "node" || el.kind === "partition") {
             return (
               <div key={i}>

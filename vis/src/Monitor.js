@@ -31,9 +31,10 @@ function initMonitor(monitorState, action) {
   try {
     const monitor = window.monitorInit(action.trace.replace(/\n/g, " "),
                                        action.sig.replace(/\n/g, " "), action.formula);
+
     const columns = JSON.parse(window.getColumns(action.formula));
     const dbsObjs = (JSON.parse(monitor[2])).dbs_objs;
-    const explsObjs = (JSON.parse(monitor[2])).expls_objs;
+    const explsObjs = (JSON.parse(monitor[2], (k, v) => v === "true" ? true : v === "false" ? false : v)).expls_objs;
     const jsooMonitorState = monitor[1];
     dbsObjs.nCols = columns.predsColumns.length;
 

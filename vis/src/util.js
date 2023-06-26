@@ -59,6 +59,36 @@ export function getCells(explObj, path) {
 
 }
 
+function computePolarity(pol1, pol2) {
+  if ((pol1 === "true" && pol2 === "true") ||
+      (pol1 === "" && pol2 === "true") ||
+      (pol1 === "true" && pol2 === "")) {
+    return "true";
+  } else {
+    if ((pol1 === "false" && pol2 === "false") ||
+        (pol1 === "" && pol2 === "false") ||
+        (pol1 === "false" && pol2 === "")) {
+      return "false"
+    } else {
+      return "both"
+    }
+  }
+}
+
+export function getPolarity(explObj, col, pol = "") {
+
+  if (explObj.type === "node" || explObj.kind === "partition") {
+    for (let i = 0; i < explObj.part.length; ++i) {
+      pol = computePolarity(pol, getPolarity(explObj.part[i], col, pol));
+    }
+    return pol;
+  } else {
+    let tbl = explObj.table.find(tbl => tbl.col === col);
+    return tbl.bool.toString();
+  }
+
+}
+
 export function updateCellsTableMain(selCellsObj, cellsTable) {
 
   let cellsTableClone = [...cellsTable];
@@ -115,7 +145,7 @@ export function exposeColorsTableQuant(explObj, nextCol, colorsTable) {
   // Expose boolean verdict in quantifier subformula column
   let tblIndex = explObj.table.findIndex(tbl => tbl.col === nextCol);
   let tbl = explObj.table[tblIndex];
-  colorsTableClone[tbl.tp][tbl.col] = tbl.bool === "true" ? cellColor(true) : cellColor(false);
+  colorsTableClone[tbl.tp][tbl.col] = tbl.bool ? cellColor(true) : cellColor(false);
 
   return colorsTableClone;
 
@@ -139,7 +169,7 @@ export function exposeColorsTableMain(explObj, maxRow, maxCol) {
   // Expose boolean verdict in main subformula column
   let tblIndex = explObj.table.findIndex(tbl => tbl.col === 0);
   let tbl = explObj.table[tblIndex];
-  colorsTable[tbl.tp][tbl.col] = tbl.bool === "true" ? cellColor(true) : cellColor(false);
+  colorsTable[tbl.tp][tbl.col] = tbl.bool ? cellColor(true) : cellColor(false);
 
   return colorsTable;
 

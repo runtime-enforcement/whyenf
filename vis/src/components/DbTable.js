@@ -39,7 +39,7 @@ export default function DenseTable( { db } ) {
             <TableRow>
               {vars.map((v, i) =>
                 <TableCell key={i} align="center">
-                  <span style={{fontWeight: 'bold', fontSize: '1.1rem'}}>
+                  <span style={{fontWeight: 'bold'}}>
                     {v}
                   </span>
                 </TableCell>
