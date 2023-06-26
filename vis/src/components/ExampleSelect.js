@@ -7,12 +7,12 @@ import InputLabel from '@mui/material/InputLabel';
 
 const examples = [{
   name: 'publish-approve',
-  formula: "publish(r) IMPLIES ONCE[0,604800] approve(r)",
+  formula: "publish(r) → ⧫[0,604800] approve(r)",
   sig: "publish(x:int)\napprove(x:int)",
   trace: "@1307532861 approve (152)\n@1307955600 approve (163) publish (160)\n@1308477599 approve (187) publish (163) (152)\n"
 }, {
   name: 'publish-approve-manager',
-  formula: "publish(a,f) IMPLIES (ONCE[0,604800] (EXISTS m. (NOT mgr_F(m,a) SINCE mgr_S(m,a)) AND approve(m,f)))",
+  formula: "publish(a,f) → (⧫[0,604800] (∃ m. (¬ mgr_F(m,a) S mgr_S(m,a)) ∧ approve(m,f)))",
   sig: "publish (a:string, f:int)\napprove (m:string, f:int)\nmgr_S (m:string, a:string)\nmgr_F (m:string, a:string)",
   trace: "@1307532861 mgr_S (Mallory, Alice) mgr_S (Merlin, Bob) mgr_S (Merlin, Charlie)\n@1307532861 approve (Mallory, 152)\n@1307955600 approve (Merlin, 163) publish (Alice, 160) mgr_F (Merlin, Charlie)\n@1308477599 approve (Merlin, 187) publish (Bob, 163) (Alice, 163) (Charlie, 163) (Charlie, 152)\n"
 }];
