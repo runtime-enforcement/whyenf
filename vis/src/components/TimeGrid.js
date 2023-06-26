@@ -139,7 +139,7 @@ function TimeGrid ({ columns,
         return <MenuCell explObj={objs.expls[params.id].expl}
                          colorsTable={tables.colors}
                          cellsTable={tables.cells}
-                         nextCol={0}
+                         curCol={0}
                          setMonitorState={setMonitorState} />;
       }
     }
@@ -165,7 +165,7 @@ function TimeGrid ({ columns,
             return <MenuCell explObj={tables.cells[params.row.tp][i]}
                              colorsTable={tables.colors}
                              cellsTable={tables.cells}
-                             nextCol={i+1}
+                             curCol={i}
                              setMonitorState={setMonitorState} />;
           } else {
             return <BoolCell value={tables.colors[params.row.tp][i]}
