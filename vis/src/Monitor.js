@@ -172,7 +172,7 @@ export default function Monitor() {
     let action;
     if (appendTrace === "") action = { type: 'openDialog',
                                        name: 'Error',
-                                       message: 'Your trace is empty. Please try again.'
+                                       message: 'The trace provided is empty. Please try again.'
                                      };
     else action = { formula: formState.formula,
                     appendTrace: appendTrace,
