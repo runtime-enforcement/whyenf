@@ -16,6 +16,11 @@ const examples = [{
   sig: "publish (a:string, f:int)\napprove (m:string, f:int)\nmgr_S (m:string, a:string)\nmgr_F (m:string, a:string)",
   trace: "@1307532861 mgr_S (Mallory, Alice) mgr_S (Merlin, Bob) mgr_S (Merlin, Charlie)\n@1307532861 approve (Mallory, 152)\n@1307955600 approve (Merlin, 163) publish (Alice, 160) mgr_F (Merlin, Charlie)\n@1308477599 approve (Merlin, 187) publish (Bob, 163) (Alice, 163) (Charlie, 163) (Charlie, 152)\n"
 }, {
+  name: 'closed-publish-approve-manager',
+  formula: "∀a. ∀f. publish(a,f) → (⧫[0,604800] (∃ m. (¬ mgr_F(m,a) S mgr_S(m,a)) ∧ approve(m,f)))",
+  sig: "publish (a:string, f:int)\napprove (m:string, f:int)\nmgr_S (m:string, a:string)\nmgr_F (m:string, a:string)",
+  trace: "@1307532861 mgr_S (Mallory, Alice) mgr_S (Merlin, Bob) mgr_S (Merlin, Charlie)\n@1307532861 approve (Mallory, 152)\n@1307955600 approve (Merlin, 163) publish (Alice, 160) mgr_F (Merlin, Charlie)\n@1308477599 approve (Merlin, 187) publish (Bob, 163) (Alice, 163) (Charlie, 163) (Charlie, 152)\n"
+}, {
   name: 'data-race',
   formula: "((ONCE (read(t1,x) OR write(t1,x))) AND (ONCE write(t2,x))) IMPLIES EXISTS l. ((NOT ONCE NOT ((read(t1,x) OR write(t1,x)) IMPLIES (NOT rel(t1,l) SINCE acq(t1,l)))) AND (NOT ONCE NOT ((read(t2,x) OR write(t2,x)) IMPLIES (NOT rel(t2,l) SINCE acq(t2,l)))))",
   sig: "acq(x:int,y:int)\nrel(x:int,y:int)\nread(x:int,y:int)\nwrite(x:int,y:int)\n",
@@ -65,6 +70,7 @@ export default function ExampleSelect ({ setFormState }) {
           >
             <MenuItem value={"publish-approve"}>publish-approve</MenuItem>
             <MenuItem value={"publish-approve-manager"}>publish-approve-manager</MenuItem>
+            <MenuItem value={"closed-publish-approve-manager"}>closed-publish-approve-manager</MenuItem>
             <MenuItem value={"data-race"}>data-race</MenuItem>
           </Select>
         </FormControl>
