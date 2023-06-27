@@ -175,7 +175,60 @@ export function exposeColorsTableMain(explObj, maxRow, maxCol) {
 
 }
 
-export function tpsIn(ts, tp, interval, period, lastTS, atoms) {
+export function updateHighlights(ts, tp, col, cell, objs, highlights, children) {
+
+  // Update cell highlighting
+  let highlightedCells = [];
+
+  for (let i = 0; i < cell.cells.length; ++i) {
+    highlightedCells.push({ tp: cell.cells[i].tp, col: cell.cells[i].col });
+  }
+
+  // Update interval highlighting
+  let lastTS = objs.dbs[objs.dbs.length - 1].ts;
+  let selRows = (cell.interval !== undefined) ? tpsIn(ts, tp, cell.interval, cell.period, lastTS, objs.dbs) : [];
+
+  // Update (potentially multiple) open paths to be highlighted
+  let clonePathsMap = new Map(highlights.pathsMap);
+
+  for (const [k, obj] of clonePathsMap) {
+    if (obj.isHighlighted) clonePathsMap.set(k, {...obj, isHighlighted: false });
+  }
+
+  for (let i = 0; i < children.length; ++i) {
+    clonePathsMap.set(children[i].tp.toString() + children[i].col.toString(),
+                      { parent: tp.toString() + col.toString(),
+                        isHighlighted: false,
+                        tp: children[i].tp, col: children[i].col });
+  }
+
+  let cur = clonePathsMap.get(tp.toString() + col.toString());
+
+  if (cur === undefined) {
+    clonePathsMap.set(tp.toString() + col.toString(),
+                      { parent: null,
+                        isHighlighted: true,
+                        tp: tp,
+                        col: col });
+  } else {
+    clonePathsMap.set(tp.toString() + col.toString(),
+                      {...cur, isHighlighted: true });
+  }
+
+  if (cur !== undefined) {
+    while (cur.parent !== null) {
+      cur = clonePathsMap.get(cur.parent);
+      clonePathsMap.set(cur, {...cur, isHighlighted: true });
+    }
+  }
+
+  return { selectedRows: selRows,
+           highlightedCells: highlightedCells,
+           clonePathsMap: clonePathsMap };
+
+}
+
+export function tpsIn(ts, tp, interval, period, lastTS, dbs) {
   const i = interval.split(',');
   const a = parseInt(i[0].slice(1));
   const bString = i[1].slice(0, i[1].length-1);
@@ -205,10 +258,10 @@ export function tpsIn(ts, tp, interval, period, lastTS, atoms) {
     }
   }
 
-  for (let i = 0; i < atoms.length; ++i) {
-    if (atoms[i].ts >= l && atoms[i].ts <= r
-        && ((period === "past" && atoms[i].tp <= tp)
-            || (period === "future" && atoms[i].tp >= tp))) {
+  for (let i = 0; i < dbs.length; ++i) {
+    if (dbs[i].ts >= l && dbs[i].ts <= r
+        && ((period === "past" && dbs[i].tp <= tp)
+            || (period === "future" && dbs[i].tp >= tp))) {
       idxs.push(i);
     }
   }

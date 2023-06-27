@@ -44,6 +44,7 @@ function MainCell ({ explObj, colorsTable, cellsTable, curCol, setMonitorState }
 
       if (explObj.kind === "partition") {
         let selCellsObj = getCells(explObj, [event.target.innerText]);
+        // console.log(selCellsObj);
         let action = { type: "updateColorsAndCellsTable",
                        colorsTable: exposeColorsTableQuant(selCellsObj, curCol + 1, colorsTable),
                        cellsTable: updateCellsTableQuant(selCellsObj, curCol, cellsTable)

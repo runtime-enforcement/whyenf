@@ -11,7 +11,7 @@ import Popover from '@mui/material/Popover';
 import Typography from '@mui/material/Typography';
 import { red, amber, lightGreen, indigo } from '@mui/material/colors';
 import { common } from '@mui/material/colors';
-import { black, squareColor, cellColor, tpsIn } from '../util';
+import { black, squareColor, cellColor, updateHighlights, tpsIn } from '../util';
 import MenuCell from './MenuCell';
 import DbTable from './DbTable';
 
@@ -199,7 +199,6 @@ function TimeGrid ({ columns,
     if (cell !== undefined && tables.colors[cell.tp][cell.col] !== black) {
 
       // Update highlighted cells (i.e. the ones who appear after a click)
-      let highlightedCells = [];
       let children = [];
 
       // Update cells (show hidden verdicts after a click)
@@ -207,53 +206,18 @@ function TimeGrid ({ columns,
 
       for (let i = 0; i < cell.cells.length; ++i) {
         cloneColorsTable[cell.cells[i].tp][cell.cells[i].col] = cellColor(cell.cells[i].bool);
-        highlightedCells.push({ tp: cell.cells[i].tp, col: cell.cells[i].col });
         children.push({ tp: cell.cells[i].tp, col: cell.cells[i].col + columns.preds.length, isHighlighted: false });
       }
 
-      // Update interval highlighting
-      let lastTS = objs.dbs[objs.dbs.length - 1].ts;
-      let selRows = (cell.interval !== undefined) ? tpsIn(ts, tp, cell.interval, cell.period, lastTS, objs.dbs) : [];
+      // console.log(cell);
 
-      // Update (potentially multiple) open paths to be highlighted
-      let clonePathsMap = new Map(highlights.pathsMap);
-
-      for (const [k, obj] of clonePathsMap) {
-        if (obj.isHighlighted) clonePathsMap.set(k, {...obj, isHighlighted: false });
-      }
-
-      for (let i = 0; i < children.length; ++i) {
-        clonePathsMap.set(children[i].tp.toString() + children[i].col.toString(),
-                          { parent: tp.toString() + colIndex.toString(),
-                            isHighlighted: false,
-                            tp: children[i].tp, col: children[i].col });
-      }
-
-      let cur = clonePathsMap.get(tp.toString() + colIndex.toString());
-
-      if (cur === undefined) {
-        clonePathsMap.set(tp.toString() + colIndex.toString(),
-                          { parent: null,
-                            isHighlighted: true,
-                            tp: tp,
-                            col: colIndex });
-      } else {
-        clonePathsMap.set(tp.toString() + colIndex.toString(),
-                          {...cur, isHighlighted: true });
-      }
-
-      if (cur !== undefined) {
-        while (cur.parent !== null) {
-          cur = clonePathsMap.get(cur.parent);
-          clonePathsMap.set(cur, {...cur, isHighlighted: true });
-        }
-      }
+      let newHighlights = updateHighlights(ts, tp, colIndex, cell, objs, highlights, children);
 
       let action = { type: "updateTable",
                      colorsTable: cloneColorsTable,
-                     selectedRows: selRows,
-                     highlightedCells: highlightedCells,
-                     pathsMap: clonePathsMap };
+                     selectedRows: newHighlights.selRows,
+                     highlightedCells: newHighlights.highlightedCells,
+                     pathsMap: newHighlights.clonePathsMap };
       setMonitorState(action);
     }
   };
@@ -284,7 +248,8 @@ function TimeGrid ({ columns,
         rows={rows}
         columns={predsGridColumns.concat(tptsGridColumns.concat(valuesGridColumn.concat(subfsGridColumns)))}
         getRowClassName={(params) => {
-          if (highlights.selectedRows.includes(params.row.tp)) return 'row--Highlighted';
+          if (highlights.selectedRows !== undefined &&
+              highlights.selectedRows.includes(params.row.tp)) return 'row--Highlighted';
           else return 'row--Plain';
         }}
         getCellClassName={(params) => {
