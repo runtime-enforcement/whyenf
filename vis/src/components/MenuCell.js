@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import Button from '@mui/material/Button';
+import IconButton from '@mui/material/IconButton';
 import Menu from '@mui/material/Menu';
 import DetailsIcon from '@mui/icons-material/Details';
 import CancelIcon from '@mui/icons-material/Cancel';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import DataObjectIcon from '@mui/icons-material/DataObject';
 import MenuInstance from './MenuInstance';
 import { red, amber, lightGreen, indigo } from '@mui/material/colors';
 import { common } from '@mui/material/colors';
@@ -28,35 +30,48 @@ function MainCell ({ explObj, colorsTable, cellsTable, curCol, setMonitorState }
 
   const handleClick = (event) => {
 
-    if (explObj.type === "leaf" || explObj.type === "node") {
+    if (explObj.type === "node") {
 
       let path = collectValues(event.target);
       path.push(event.target.innerText);
       let selCellsObj = getCells(explObj, path);
 
       let action = { type: "updateColorsAndCellsTable",
-                     colorsTable: exposeColorsTableMain(selCellsObj, colorsTable.length, colorsTable[0].length),
+                     colorsTable: exposeColorsTableMain(selCellsObj,
+                                                        colorsTable.length,
+                                                        colorsTable[0].length),
                      cellsTable: updateCellsTableMain(selCellsObj, cellsTable)
                    };
       setMonitorState(action);
 
     } else {
-
-      if (explObj.kind === "partition") {
-        let selCellsObj = getCells(explObj, [event.target.innerText]);
-        // console.log(selCellsObj);
+      if (explObj.type === "leaf") {
         let action = { type: "updateColorsAndCellsTable",
-                       colorsTable: exposeColorsTableQuant(selCellsObj, curCol + 1, colorsTable),
-                       cellsTable: updateCellsTableQuant(selCellsObj, curCol, cellsTable)
-                     };
+                       colorsTable: exposeColorsTableMain(explObj,
+                                                          colorsTable.length,
+                                                          colorsTable[0].length),
+                       cellsTable: updateCellsTableMain(explObj, cellsTable)
+                   };
         setMonitorState(action);
+      } else {
+        if (explObj.kind === "partition") {
+          let selCellsObj = getCells(explObj, [event.target.innerText]);
+          // console.log(selCellsObj);
+          let action = { type: "updateColorsAndCellsTable",
+                         colorsTable: exposeColorsTableQuant(selCellsObj, curCol + 1, colorsTable),
+                         cellsTable: updateCellsTableQuant(selCellsObj, curCol, cellsTable)
+                       };
+          setMonitorState(action);
+        }
       }
     }
 
   };
 
   if (explObj.type === "leaf") {
-    return "";
+    return <IconButton onClick={handleClick}>
+             <DataObjectIcon fontSize="small"/>
+           </IconButton>;
   } else {
     if (explObj.type === "node" || explObj.kind === "partition") {
       return (
