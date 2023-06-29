@@ -1237,14 +1237,14 @@ module MFormula = struct
   let rec to_string_rec l = function
     | MTT -> Printf.sprintf "⊤"
     | MFF -> Printf.sprintf "⊥"
-    | MPredicate (r, trms) -> Printf.sprintf "%step(%step)" r (Term.list_to_string trms)
+    | MPredicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
     | MNeg f -> Printf.sprintf "¬%a" (fun x -> to_string_rec 5) f
     | MAnd (f, g, _) -> Printf.sprintf (Etc.paren l 4 "%a ∧ %a") (fun x -> to_string_rec 4) f (fun x -> to_string_rec 4) g
     | MOr (f, g, _) -> Printf.sprintf (Etc.paren l 3 "%a ∨ %a") (fun x -> to_string_rec 3) f (fun x -> to_string_rec 4) g
     | MImp (f, g, _) -> Printf.sprintf (Etc.paren l 4 "%a → %a") (fun x -> to_string_rec 4) f (fun x -> to_string_rec 4) g
     | MIff (f, g, _) -> Printf.sprintf (Etc.paren l 4 "%a ↔ %a") (fun x -> to_string_rec 4) f (fun x -> to_string_rec 4) g
-    | MExists (x, _, f) -> Printf.sprintf (Etc.paren l 5 "∃%step. %a") (Term.unvar x) (fun x -> to_string_rec 5) f
-    | MForall (x, _, f) -> Printf.sprintf (Etc.paren l 5 "∀%step. %a") (Term.unvar x) (fun x -> to_string_rec 5) f
+    | MExists (x, _, f) -> Printf.sprintf (Etc.paren l 5 "∃%s. %a") (Term.unvar x) (fun x -> to_string_rec 5) f
+    | MForall (x, _, f) -> Printf.sprintf (Etc.paren l 5 "∀%s. %a") (Term.unvar x) (fun x -> to_string_rec 5) f
     | MPrev (i, f, _, _) -> Printf.sprintf (Etc.paren l 5 "●%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
     | MNext (i, f, _, _) -> Printf.sprintf (Etc.paren l 5 "○%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
     | MOnce (i, f, _, _) -> Printf.sprintf (Etc.paren l 5 "⧫%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
@@ -1510,6 +1510,25 @@ module MState = struct
                 ; ts_waiting = Queue.create ()
                 ; tsdbs = Queue.create ()
                 ; tpts = Hashtbl.create (module Int) }
+
+  let to_string { mf
+                ; tp_cur
+                ; tp_out
+                ; ts_waiting
+                ; tsdbs
+                ; tpts } =
+    "\nMState: \n\n" ^
+      Printf.sprintf "mf = %s\n" (MFormula.to_string mf) ^
+        Printf.sprintf "tp_cur = %d\n" tp_cur ^
+          Printf.sprintf "tp_out = %d\n" tp_out ^
+            "\nts_waiting = [" ^ (String.concat ~sep:", "
+                                    (Queue.to_list (Queue.map ts_waiting ~f:Int.to_string))) ^ "]\n" ^
+              "\ntsdbs = [" ^ (String.concat ~sep:", "
+                                 (Queue.to_list (Queue.map tsdbs ~f:(fun (ts, db) ->
+                                                     Printf.sprintf "(%d):\n %s\n" ts (Db.to_string db))))) ^ "]\n" ^
+                "\ntpts = [" ^ (String.concat ~sep:", "
+                                  (Hashtbl.fold tpts ~init:[] ~f:(fun ~key:tp ~data:ts acc ->
+                                       acc @ [Printf.sprintf "(%d, %d)" tp ts]))) ^ "]\n"
 
 end
 
