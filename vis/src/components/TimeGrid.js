@@ -5,13 +5,12 @@ import Button from '@mui/material/Button';
 import CircleIcon from '@mui/icons-material/Circle';
 import CancelIcon from '@mui/icons-material/Cancel';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import DetailsIcon from '@mui/icons-material/Details';
 import StorageIcon from '@mui/icons-material/Storage';
 import Popover from '@mui/material/Popover';
 import Typography from '@mui/material/Typography';
 import { red, amber, lightGreen, indigo } from '@mui/material/colors';
 import { common } from '@mui/material/colors';
-import { black, squareColor, cellColor, updateHighlights, tpsIn } from '../util';
+import { black, cellColor, updateHighlights } from '../util';
 import MenuCell from './MenuCell';
 import DbTable from './DbTable';
 
