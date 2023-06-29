@@ -506,13 +506,13 @@ module Historically = struct
                     { mhaux with ts_zero = Some(ts) }
                   else mhaux in
     let mhaux_subps = add_subps ts p1 mhaux_z in
-    if ts < (Option.value_exn mhaux.ts_zero) + a then
+    if ts < (Option.value_exn mhaux_subps.ts_zero) + a then
       ({ mhaux_subps with tstps_out = Fdeque.enqueue_back mhaux_subps.tstps_out (ts, tp) },
        [Proof.S (SHistoricallyOut tp)])
     else
       let b = Interval.right i in
       let l = if (Option.is_some b) then max 0 (ts - (Option.value_exn b))
-              else (Option.value_exn mhaux.ts_zero) in
+              else (Option.value_exn mhaux_subps.ts_zero) in
       let r = ts - a in
       let mhaux_shifted = shift (l, r) a ts tp mhaux_subps in
       (mhaux_shifted, eval tp mhaux_shifted)
