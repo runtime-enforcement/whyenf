@@ -6,10 +6,10 @@ export function cellColor(bool) {
   return (bool ? lightGreen[500] : red[500]);
 }
 
-export function computeDbsTable(dbsObjs, cells = []) {
+export function computeDbsTable(dbsObjs, nCols, cells = []) {
 
   let maxRow = dbsObjs.length;
-  let maxCol = dbsObjs.nCols;
+  let maxCol = nCols;
 
   cells = (cells.length === 0) ? new Array(maxRow).fill(null).map(() => Array(maxCol).fill("")) : cells;
 

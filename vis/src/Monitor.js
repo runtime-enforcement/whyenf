@@ -22,30 +22,25 @@ function initMonitorState () {
            tables: { dbs: [], colors: [], cells: [] },
            highlights: { selectedRows: [], highlightedCells: [], pathsMap: new Map() },
            subformulas: [],
-           jsooMonitorState: [],
            fixParameters: false,
            dialog: {} }
 }
 
 function initMonitor(monitorState, action) {
   try {
-    const monitor = window.monitorInit(action.trace.replace(/\n/g, " "),
+    const monitorOutput = window.monitorInit(action.trace.replace(/\n/g, " "),
                                        action.sig.replace(/\n/g, " "), action.formula);
-
     const columns = JSON.parse(window.getColumns(action.formula));
-    const dbsObjs = (JSON.parse(monitor[2])).dbs_objs;
-    const explsObjs = (JSON.parse(monitor[2], (k, v) => v === "true" ? true : v === "false" ? false : v)).expls_objs;
-    const jsooMonitorState = monitor[1];
-    dbsObjs.nCols = columns.predsColumns.length;
+    const dbsObjs = (JSON.parse(monitorOutput)).dbs_objs;
+    const explsObjs = (JSON.parse(monitorOutput, (k, v) => v === "true" ? true : v === "false" ? false : v)).expls_objs;
 
     return { columns: { preds: columns.predsColumns, subfs: columns.subfsColumns },
              objs: { dbs: dbsObjs, expls: explsObjs },
-             tables: { dbs: computeDbsTable(dbsObjs),
+             tables: { dbs: computeDbsTable(dbsObjs, columns.predsColumns.length),
                        colors: initRhsTable(dbsObjs, columns.subfsColumns),
                        cells: initRhsTable(dbsObjs, columns.subfsColumns) },
              highlights: { selectedRows: [], highlightedCells: [], pathsMap: new Map() },
              subformulas: columns.subformulas,
-             jsooMonitorState: jsooMonitorState,
              fixParameters: true,
              dialog: {} };
   } catch (error) {
@@ -58,21 +53,17 @@ function initMonitor(monitorState, action) {
 function execMonitor(monitorState, action) {
   try {
 
-    const monitor = window.monitorAppend(action.trace.replace(/\n/g, " "),
-                                         action.formula, action.jsooMonitorState);
+    const monitorOutput = window.monitorAppend(action.appendTrace.replace(/\n/g, " "), action.formula);
     const columns = JSON.parse(window.getColumns(action.formula));
-    const dbsObjs = (JSON.parse(monitor[2])).dbs_objs;
-    const explsObjs = (JSON.parse(monitor[2])).expls_objs;
-    const jsooMonitorState = monitor[1];
-    dbsObjs.nCols = columns.predsColumns.length;
+    const dbsObjs = monitorState.objs.dbs.concat((JSON.parse(monitorOutput)).dbs_objs);
+    const explsObjs = (JSON.parse(monitorOutput, (k, v) => v === "true" ? true : v === "false" ? false : v)).expls_objs;
 
     return { ...monitorState,
-             objs: { dbs: dbsObjs, expls: explsObjs },
-             tables: { dbs: computeDbsTable(dbsObjs),
+             objs: { dbs: dbsObjs, expls: monitorState.objs.expls.concat(explsObjs) },
+             tables: { dbs: computeDbsTable(dbsObjs, columns.predsColumns.length),
                        colors: initRhsTable(dbsObjs, columns.subfsColumns),
                        cells: initRhsTable(dbsObjs, columns.subfsColumns) },
              highlights: { selectedRows: [], highlightedCells: [], pathsMap: new Map() },
-             jsooMonitorState: jsooMonitorState,
              fixParameters: true,
              dialog: {} };
   } catch (error) {
@@ -110,7 +101,7 @@ function monitorStateReducer(monitorState, action) {
     return execMonitor(monitorState, action);
   case 'updateColorsAndCellsTable':
     return { ...monitorState,
-             tables: { dbs: monitorState.tables.dbs,
+             tables: { ... monitorState.tables,
                        colors: action.colorsTable,
                        cells: action.cellsTable },
              highlights: { selectedRows: [],
@@ -127,7 +118,7 @@ function monitorStateReducer(monitorState, action) {
              fixParameters: true };
   case 'resetTable':
     return { ...monitorState,
-             tables: { dbs: computeDbsTable(monitorState.objs.dbs),
+             tables: { ...monitorState.tables,
                        colors: initRhsTable(monitorState.objs.dbs, monitorState.columns.subfs),
                        cells: initRhsTable(monitorState.objs.dbs, monitorState.columns.subfs) },
              highlights: { selectedRows: [],
@@ -176,7 +167,6 @@ export default function Monitor() {
                                      };
     else action = { formula: formState.formula,
                     appendTrace: appendTrace,
-                    jsooMonitorState: monitorState.jsooMonitorState,
                     type: 'appendTable'
                   };
 
