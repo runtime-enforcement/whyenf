@@ -6,7 +6,7 @@
     IMPLIES
     EXISTS l.
     (
-      (NOT ONCE NOT ((read(t1,x) OR write(t1,x))
+      (HISTORICALLY ((read(t1,x) OR write(t1,x))
           IMPLIES (NOT rel(t1,l) SINCE acq(t1,l))))
       AND
       (NOT ONCE NOT ((read(t2,x) OR write(t2,x))
