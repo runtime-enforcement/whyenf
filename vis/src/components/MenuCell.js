@@ -2,16 +2,13 @@ import React, { useState } from 'react';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
 import Menu from '@mui/material/Menu';
-import DetailsIcon from '@mui/icons-material/Details';
 import CancelIcon from '@mui/icons-material/Cancel';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import DataObjectIcon from '@mui/icons-material/DataObject';
 import MenuInstance from './MenuInstance';
-import { red, amber, lightGreen, indigo } from '@mui/material/colors';
-import { common } from '@mui/material/colors';
-import { black,
-         collectValues,
+import { red, lightGreen } from '@mui/material/colors';
+import { collectValues,
          getCells,
          exposeColorsTableMain,
          exposeColorsTableQuant,

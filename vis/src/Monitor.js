@@ -101,7 +101,7 @@ function monitorStateReducer(monitorState, action) {
     return execMonitor(monitorState, action);
   case 'updateColorsAndCellsTable':
     return { ...monitorState,
-             tables: { ... monitorState.tables,
+             tables: { ...monitorState.tables,
                        colors: action.colorsTable,
                        cells: action.cellsTable },
              highlights: { selectedRows: [],

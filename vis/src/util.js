@@ -126,9 +126,6 @@ export function initRhsTable(dbsObjs, subfsColumns) {
 
 export function exposeColorsTableQuant(explObj, nextCol, colorsTable) {
 
-  let maxRow = colorsTable.length;
-  let maxCol = colorsTable[0].length;
-
   // Initialize empty matrix
   let colorsTableClone = structuredClone(colorsTable);
 
