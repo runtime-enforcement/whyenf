@@ -61,7 +61,8 @@ function TimeGrid ({ columns,
     const col = parseInt(event.currentTarget.dataset.field);
 
     // Preds
-    if (col < objs.dbs.nCols && tables.dbs[row][col].length !== 0) {
+    if (col < columns.preds.length &&
+        tables.dbs[row][col].length !== 0) {
       setAnchorValue({ kind: "db", value: tables.dbs[row][col] });
       setAnchorEl(event.currentTarget);
     }

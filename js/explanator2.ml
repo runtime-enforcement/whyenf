@@ -13,6 +13,8 @@ open Mfotl
 
 module Explanator2 = struct
 
+  let mstate = ref None
+
   let get_columns js_formula =
     let str_f = Js_of_ocaml.Js.to_string js_formula in
     let f = Formula_parser.formula Formula_lexer.token (Lexing.from_string str_f) in
@@ -25,15 +27,15 @@ module Explanator2 = struct
     Other_parser.Sig.parse_from_string str_sig;
     let str_f = Js_of_ocaml.Js.to_string js_formula in
     let f = Formula_parser.formula Formula_lexer.token (Lexing.from_string str_f) in
-    let (obj_opt, json) = Monitor.exec_vis None f str_log in
-    (obj_opt, Js.string(json))
+    let (ms, json) = Monitor.exec_vis None f str_log in
+    mstate := Some(ms); Js.string(json)
 
-  let monitor_append js_log js_formula obj_opt =
+  let monitor_append js_log js_formula =
     let str_log = Js_of_ocaml.Js.to_string js_log in
     let str_f = Js_of_ocaml.Js.to_string js_formula in
     let f = Formula_parser.formula Formula_lexer.token (Lexing.from_string str_f) in
-    let (obj_opt', json) = Monitor.exec_vis obj_opt f str_log in
-    (obj_opt', Js.string(json))
+    let (ms, json) = Monitor.exec_vis !mstate f str_log in
+    mstate := Some(ms); Js.string(json)
 
   let (_: unit) =
     Js.export_all
@@ -44,9 +46,8 @@ module Explanator2 = struct
                   (js_formula: Js.js_string Js.t) =
            monitor_init js_log js_sig js_formula
          method monitorAppend (js_log: Js.js_string Js.t)
-                  (js_formula: Js.js_string Js.t)
-                  (obj_opt: Monitor.MState.t option)=
-           monitor_append js_log js_formula obj_opt
+                  (js_formula: Js.js_string Js.t) =
+           monitor_append js_log js_formula
        end)
 
 end
