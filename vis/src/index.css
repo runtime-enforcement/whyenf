@@ -16,3 +16,8 @@ code {
 th, td {
     border: 1px solid rgba(224, 224, 224, 1);
 }
+
+.open-menu {
+    background-color: green;
+    font-weight: bold;
+}

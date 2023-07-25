@@ -1,7 +1,7 @@
 import React from 'react';
 import ArrowRightIcon from '@mui/icons-material/ArrowRight';
 import MenuItem from '@mui/material/MenuItem';
-import { NestedMenuItem } from 'mui-nested-menu';
+import HighNestedMenuItem from './HighNestedMenuItem';
 
 function MenuInstance ({ explObj, open, handleClose, handleClick }) {
 
@@ -16,13 +16,13 @@ function MenuInstance ({ explObj, open, handleClose, handleClick }) {
           if (el.type === "node" || el.kind === "partition") {
             return (
               <div key={i}>
-                <NestedMenuItem rightIcon={<ArrowRightIcon/>}
-                                label={ds}
-                                parentMenuOpen={open}>
+                <HighNestedMenuItem rightIcon={<ArrowRightIcon/>}
+                                    label={ds}
+                                    parentMenuOpen={open}>
                   <div data-value={ds}>
                     <MenuInstance explObj={el} open={open} handleClose={handleClose} handleClick={handleClick}/>
                   </div>
-                </NestedMenuItem>
+                </HighNestedMenuItem>
               </div>
             );
           } else {
