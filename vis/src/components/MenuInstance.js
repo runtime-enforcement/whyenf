@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import ArrowRightIcon from '@mui/icons-material/ArrowRight';
 import MenuItem from '@mui/material/MenuItem';
 import WrapperNestedMenuItem from './WrapperNestedMenuItem';
+import WrapperIconMenuItem from './WrapperIconMenuItem';
 
 function MenuInstance ({ explObj, open, curCol, handleClose, handleClick }) {
 
@@ -24,7 +25,11 @@ function MenuInstance ({ explObj, open, curCol, handleClose, handleClick }) {
                                        curCol={curCol}
                                        parentMenuOpen={open}>
                   <div data-value={ds}>
-                    <MenuInstance explObj={el} open={open} curCol={curCol} handleClose={handleClose} handleClick={handleClick}/>
+                    <MenuInstance explObj={el}
+                                  open={open}
+                                  curCol={curCol}
+                                  handleClose={handleClose}
+                                  handleClick={handleClick}/>
                   </div>
                 </WrapperNestedMenuItem>
               </div>
@@ -32,7 +37,10 @@ function MenuInstance ({ explObj, open, curCol, handleClose, handleClick }) {
           } else {
             return (
               <div key={i}>
-                <MenuItem onClick={handleClick}>{ds}</MenuItem>
+                <WrapperIconMenuItem label={ds}
+                                     explObj={el}
+                                     curCol={curCol}
+                                     handleClick={handleClick}/>
               </div>
             );
           }
