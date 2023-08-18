@@ -64,6 +64,8 @@ function MenuCell ({ explObj, colorsTable, cellsTable, curCol, setMonitorState }
       }
     }
 
+    setAnchorEl(null);
+
   };
 
   if (explObj.type === "leaf") {
