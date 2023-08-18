@@ -4,6 +4,7 @@ import IconButton from '@mui/material/IconButton';
 import Menu from '@mui/material/Menu';
 import CancelIcon from '@mui/icons-material/Cancel';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import Icon from '@mui/material/Icon';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import DataObjectIcon from '@mui/icons-material/DataObject';
 import MenuInstance from './MenuInstance';
@@ -16,7 +17,7 @@ import { collectValues,
          updateCellsTableQuant,
          getPolarity } from '../util';
 
-function MainCell ({ explObj, colorsTable, cellsTable, curCol, setMonitorState }) {
+function MenuCell ({ explObj, colorsTable, cellsTable, curCol, setMonitorState }) {
 
   // NestedMenuItem
   const [anchorEl, setAnchorEl] = useState(null);
@@ -79,6 +80,7 @@ function MainCell ({ explObj, colorsTable, cellsTable, curCol, setMonitorState }
                     onClick={handleFirstClick}
             >
               <CheckCircleIcon fontSize="small" style={{ color: lightGreen[500] }}/>
+              <Icon fontSize="small"/>
               <KeyboardArrowDownIcon fontSize="small" />
             </Button> : "" }
 
@@ -87,6 +89,7 @@ function MainCell ({ explObj, colorsTable, cellsTable, curCol, setMonitorState }
                     style={{ minWidth: "80px" }}
                     onClick={handleFirstClick}
             >
+              <Icon fontSize="small"/>
               <CancelIcon fontSize="small" style={{ color: red[500] }}/>
               <KeyboardArrowDownIcon fontSize="small" />
             </Button>
@@ -102,7 +105,7 @@ function MainCell ({ explObj, colorsTable, cellsTable, curCol, setMonitorState }
               <KeyboardArrowDownIcon fontSize="small" />
             </Button> : "" }
           <Menu anchorEl={anchorEl} open={open} onClose={handleClose}>
-            <MenuInstance explObj={explObj} open={open} handleClose={handleClose} handleClick={handleClick}/>
+            <MenuInstance explObj={explObj} open={open} curCol={curCol} handleClose={handleClose} handleClick={handleClick}/>
           </Menu>
         </div>
       );
@@ -112,4 +115,4 @@ function MainCell ({ explObj, colorsTable, cellsTable, curCol, setMonitorState }
   }
 }
 
-export default MainCell;
+export default MenuCell;

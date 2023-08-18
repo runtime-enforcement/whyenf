@@ -3,7 +3,7 @@ import ArrowRightIcon from '@mui/icons-material/ArrowRight';
 import MenuItem from '@mui/material/MenuItem';
 import WrapperNestedMenuItem from './WrapperNestedMenuItem';
 
-function MenuInstance ({ explObj, open, handleClose, handleClick }) {
+function MenuInstance ({ explObj, open, curCol, handleClose, handleClick }) {
 
   // undefined checks: quantifiers related
   if (explObj.type === "node" || explObj.kind === "partition") {
@@ -20,9 +20,11 @@ function MenuInstance ({ explObj, open, handleClose, handleClick }) {
               <div key={i}>
                 <WrapperNestedMenuItem rightIcon={<ArrowRightIcon/>}
                                        label={ds}
+                                       explObj={el}
+                                       curCol={curCol}
                                        parentMenuOpen={open}>
                   <div data-value={ds}>
-                    <MenuInstance explObj={el} open={open} handleClose={handleClose} handleClick={handleClick}/>
+                    <MenuInstance explObj={el} open={open} curCol={curCol} handleClose={handleClose} handleClick={handleClick}/>
                   </div>
                 </WrapperNestedMenuItem>
               </div>
