@@ -14,7 +14,7 @@ export default function SigTextField ({ sig, setFormState }) {
   };
 
   const handleBlur = (event) => {
-    setFormState({ type: 'setSig', trace: localSig });
+    setFormState({ type: 'setSig', sig: localSig });
   };
 
   useEffect(() => {
