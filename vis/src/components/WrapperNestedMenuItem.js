@@ -4,6 +4,7 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import Icon from '@mui/material/Icon';
 import { red, lightGreen } from '@mui/material/colors';
+import Box from '@mui/material/Box';
 import { getPolarity } from '../util';
 
 function WrapperNestedMenuItem ({ label, rightIcon, explObj, curCol, parentMenuOpen, children }) {
@@ -20,20 +21,20 @@ function WrapperNestedMenuItem ({ label, rightIcon, explObj, curCol, parentMenuO
 
   const leftIcon =
         (getPolarity(explObj, curCol) === "true") ?
-        <span>
+        <Box>
           <CheckCircleIcon fontSize="small" style={{ color: lightGreen[500] }}/>
           <Icon fontSize="small"/>
-        </span>
+        </Box>
         : (getPolarity(explObj, curCol) === "false" ?
-           <span>
+           <Box>
              <Icon fontSize="small"/>
              <CancelIcon fontSize="small" style={{ color: red[500] }}/>
-           </span>
+           </Box>
            : (getPolarity(explObj, curCol) === "both" ?
-              <span>
+              <Box>
                 <CheckCircleIcon fontSize="small" style={{ color: lightGreen[500] }}/>
                 <CancelIcon fontSize="small" style={{ color: red[500] }}/>
-              </span> : ""));
+              </Box> : ""));
 
   return (
     <div onMouseEnter={handleMouseEnter}

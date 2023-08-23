@@ -10,8 +10,14 @@ function MenuInstance ({ explObj, open, curCol, handleClose, handleClick }) {
   if (explObj.type === "node" || explObj.kind === "partition") {
     return (
       <div>
-        <MenuItem disabled={true}>
-          {explObj.var}
+        <MenuItem disabled={true}
+                  sx={{ justifyContent: 'center' }}
+                  style={{ color: "#FFFFFF",
+                           opacity: 1.0,
+                           background: "#000000"}}>
+          <span>
+            {explObj.var}
+          </span>
         </MenuItem>
         { explObj?.part?.map((el, i) => {
           const ds = el.subset_type === "finite" ?
