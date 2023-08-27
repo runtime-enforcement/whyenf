@@ -26,13 +26,11 @@ function MenuCell ({ explObj, colorsTable, cellsTable, curCol, setMonitorState }
   const handleFirstClick = (event) => setAnchorEl(event.currentTarget);
   const handleClose = () => setAnchorEl(null);
 
-  const handleClick = (event) => {
+  const handleClick = (event, domainValues) => {
 
     if (explObj.type === "node") {
 
-      let path = collectValues(event.target);
-      path.push(event.target.innerText);
-      let selCellsObj = getCells(explObj, path);
+      let selCellsObj = getCells(explObj, domainValues);
 
       let action = { type: "updateColorsAndCellsTable",
                      colorsTable: exposeColorsTableMain(selCellsObj,
@@ -53,8 +51,7 @@ function MenuCell ({ explObj, colorsTable, cellsTable, curCol, setMonitorState }
         setMonitorState(action);
       } else {
         if (explObj.kind === "partition") {
-          let selCellsObj = getCells(explObj, [event.target.innerText]);
-          // console.log(selCellsObj);
+          let selCellsObj = getCells(explObj, domainValues);
           let action = { type: "updateColorsAndCellsTable",
                          colorsTable: exposeColorsTableQuant(selCellsObj, curCol + 1, colorsTable),
                          cellsTable: updateCellsTableQuant(selCellsObj, curCol, cellsTable)
@@ -106,8 +103,15 @@ function MenuCell ({ explObj, colorsTable, cellsTable, curCol, setMonitorState }
               <CancelIcon fontSize="small" style={{ color: red[500] }}/>
               <KeyboardArrowDownIcon fontSize="small" />
             </Button> : "" }
-          <Menu anchorEl={anchorEl} open={open} onClose={handleClose}>
-            <MenuInstance explObj={explObj} open={open} curCol={curCol} handleClose={handleClose} handleClick={handleClick}/>
+          <Menu anchorEl={anchorEl}
+                open={open}
+                onClose={handleClose}>
+            <MenuInstance explObj={explObj}
+                          curCol={curCol}
+                          domainValues={[]}
+                          open={open}
+                          handleClose={handleClose}
+                          handleClick={handleClick}/>
           </Menu>
         </div>
       );

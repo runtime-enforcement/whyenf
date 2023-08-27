@@ -4,9 +4,8 @@ import MenuItem from '@mui/material/MenuItem';
 import WrapperNestedMenuItem from './WrapperNestedMenuItem';
 import WrapperIconMenuItem from './WrapperIconMenuItem';
 
-function MenuInstance ({ explObj, open, curCol, handleClose, handleClick }) {
+function MenuInstance ({ explObj, curCol, open, domainValues, handleClose, handleClick }) {
 
-  // undefined checks: quantifiers related
   if (explObj.type === "node" || explObj.kind === "partition") {
     return (
       <div>
@@ -20,32 +19,37 @@ function MenuInstance ({ explObj, open, curCol, handleClose, handleClick }) {
           </span>
         </MenuItem>
         { explObj?.part?.map((el, i) => {
-          const ds = el.subset_type === "finite" ?
+
+          const domainValue = el.subset_type === "finite" ?
                 el.subset_values.join(', ') : (<span style={{fontWeight: 'bold'}}>Other</span>);
+          const newDomainValues = [];
+          newDomainValues.push(...domainValues);
+          newDomainValues.push(domainValue);
+
           if (el.type === "node" || el.kind === "partition") {
             return (
               <div key={i}>
                 <WrapperNestedMenuItem rightIcon={<ArrowRightIcon/>}
-                                       label={ds}
+                                       label={domainValue}
                                        explObj={el}
                                        curCol={curCol}
                                        parentMenuOpen={open}>
-                  <div data-value={ds}>
-                    <MenuInstance explObj={el}
-                                  open={open}
-                                  curCol={curCol}
-                                  handleClose={handleClose}
-                                  handleClick={handleClick}/>
-                  </div>
+                  <MenuInstance explObj={el}
+                                curCol={curCol}
+                                open={open}
+                                domainValues={newDomainValues}
+                                handleClose={handleClose}
+                                handleClick={handleClick}/>
                 </WrapperNestedMenuItem>
               </div>
             );
           } else {
             return (
               <div key={i}>
-                <WrapperIconMenuItem label={ds}
+                <WrapperIconMenuItem label={domainValue}
                                      explObj={el}
                                      curCol={curCol}
+                                     domainValues={newDomainValues}
                                      handleClick={handleClick}/>
               </div>
             );

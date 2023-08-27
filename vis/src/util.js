@@ -25,20 +25,6 @@ export function computeDbsTable(dbsObjs, nCols, cells = []) {
 
 }
 
-export function collectValues(el) {
-
-  let values = [];
-
-  while (el.parentNode) {
-    el = el.parentNode;
-    if (el.dataset !== undefined && el.dataset.value !== undefined && el.dataset.value.length > 0) {
-      values.push(el.dataset.value);
-    }
-  }
-
-  return values;
-}
-
 export function getCells(explObj, path) {
 
   if (path.length === 0) {

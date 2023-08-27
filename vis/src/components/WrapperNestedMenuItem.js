@@ -11,7 +11,7 @@ function WrapperNestedMenuItem ({ label, rightIcon, explObj, curCol, parentMenuO
 
   const [menuSelected, setMenuSelected] = useState(false);
 
-  const handleMouseEnter = () => {
+  const handleMouseEnter = (event) => {
     setMenuSelected(true);
   };
 
@@ -44,7 +44,7 @@ function WrapperNestedMenuItem ({ label, rightIcon, explObj, curCol, parentMenuO
                       rightIcon={rightIcon}
                       label={label}
                       parentMenuOpen={parentMenuOpen}
-                      style={ menuSelected ? {background: "#fdd835"} : {}}>
+                      style={menuSelected ? {background: "#fdd835"} : {}}>
         {children}
       </NestedMenuItem>
     </div>
