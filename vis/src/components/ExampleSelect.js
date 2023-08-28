@@ -25,6 +25,11 @@ const examples = [{
   formula: "((ONCE (read(t1,x) OR write(t1,x))) AND (ONCE write(t2,x))) IMPLIES EXISTS l. ((NOT ONCE NOT ((read(t1,x) OR write(t1,x)) IMPLIES (NOT rel(t1,l) SINCE acq(t1,l)))) AND (NOT ONCE NOT ((read(t2,x) OR write(t2,x)) IMPLIES (NOT rel(t2,l) SINCE acq(t2,l)))))",
   sig: "acq(x:int,y:int)\nrel(x:int,y:int)\nread(x:int,y:int)\nwrite(x:int,y:int)\n",
   trace: "@0 acq(9,9)\n@1 read(9,3)\n@2 acq(13,19)\n@3 acq(15,3)\n@4 acq(18,15)\n@5 read(13,5)\n@6 write(15,4)\n@7 write(15,3)\n@8 acq(17,13)\n@9 write(15,9)\n@10 write(13,13)\n@11 acq(8,11)\n@12 write(18,4)\n@13 rel(9,9)\n@14 acq(10,10)\n@15 read(15,4)\n@16 write(15,9)\n@17 write(13,10)\n@18 acq(7,6)\n@19 acq(0,5)\n"
+}, {
+  name: 'enf-open-close',
+  formula: "(∃x. open(x) ∧ ⧫[0,5] close(x)) ∨ (∃y. ¬close(y) ∧ (¬close(y) S[5,∞) open(y)))",
+  sig: "open (x:int)\nclose (y:int)\n",
+  trace: "@0 open(1)\n@1 close(2)\n@5 open(2)\n"
 }];
 
 export default function ExampleSelect ({ setFormState }) {
@@ -72,6 +77,7 @@ export default function ExampleSelect ({ setFormState }) {
             <MenuItem value={"publish-approve-manager"}>publish-approve-manager</MenuItem>
             <MenuItem value={"closed-publish-approve-manager"}>closed-publish-approve-manager</MenuItem>
             <MenuItem value={"data-race"}>data-race</MenuItem>
+            <MenuItem value={"enf-open-close"}>enf-open-close</MenuItem>
           </Select>
         </FormControl>
       </div>
