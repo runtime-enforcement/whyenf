@@ -47,7 +47,7 @@ module Expl = struct
   type cell = timepoint * int * (Interval.t * period) option * kind
   and kind =
     Boolean of bool
-  | Assignment of string * string
+  | Assignment of string * string * bool
   | Partition of string * (string * (cell * cell list) list) list
 
   type cell_row = (cell * cell list) list
@@ -148,7 +148,7 @@ module Expl = struct
     | Exists (_, f'), S (SExists (x, d, sp)) ->
        let sp_idx = idx+1 in
        let (row', idx') = ssubfs_cell_row row sp_idx f' (S sp) in
-       let cell = (Expl.Proof.p_at p, idx, None, Assignment (Pred.Term.unvar x, Domain.to_string d)) in
+       let cell = (Expl.Proof.p_at p, idx, None, Assignment (Pred.Term.unvar x, Domain.to_string d, true)) in
        let cells = [(Expl.Proof.s_at sp, sp_idx, None, Boolean true)] in
        ((cell, cells) :: row', idx')
     | Forall (_, f'), S (SForall (x, part)) ->
@@ -280,7 +280,7 @@ module Expl = struct
     | Forall (_, f'), V (VForall (x, d, vp)) ->
        let vp_idx = idx+1 in
        let (row', idx') = ssubfs_cell_row row vp_idx f' (V vp) in
-       let cell = (Expl.Proof.p_at p, idx, None, Assignment (Pred.Term.unvar x, Domain.to_string d)) in
+       let cell = (Expl.Proof.p_at p, idx, None, Assignment (Pred.Term.unvar x, Domain.to_string d, false)) in
        let cells = [(Expl.Proof.v_at vp, vp_idx, None, Boolean false)] in
        ((cell, cells) :: row', idx')
     | Prev (i, f'), V (VPrev vp)
@@ -384,12 +384,13 @@ module Expl = struct
                   (Printf.sprintf "%s\"bool\": \"%b\",\n" (indent ^ (String.make 4 ' ')) b) ^
                     (Printf.sprintf "%s\"cells\":" (indent ^ (String.make 4 ' '))) ^
                       (inner_cells_to_json indent cells)
-             | Assignment (x, d) ->
+             | Assignment (x, d, b) ->
                 (Printf.sprintf "%s\"kind\": \"assignment\",\n" (indent ^ (String.make 4 ' '))) ^
                   (Printf.sprintf "%s\"var\": \"%s\",\n" (indent ^ (String.make 4 ' ')) x) ^
                     (Printf.sprintf "%s\"value\": \"%s\",\n" (indent ^ (String.make 4 ' ')) d) ^
-                      (Printf.sprintf "%s\"cells\":" (indent ^ (String.make 4 ' '))) ^
-                        (inner_cells_to_json indent cells)
+                      (Printf.sprintf "%s\"bool\": \"%b\",\n" (indent ^ (String.make 4 ' ')) b) ^
+                        (Printf.sprintf "%s\"cells\":" (indent ^ (String.make 4 ' '))) ^
+                          (inner_cells_to_json indent cells)
              | Partition (x, part_tbl) ->
                 (Printf.sprintf "%s\"var\": \"%s\",\n" (indent ^ (String.make 4 ' ')) x) ^
                   (Printf.sprintf "%s\"kind\": \"partition\",\n" (indent ^ (String.make 4 ' '))) ^
