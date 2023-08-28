@@ -158,7 +158,7 @@ export function exposeColorsTableMain(explObj, maxRow, maxCol) {
 
 }
 
-export function updateHighlights(ts, tp, col, cell, objs, highlights, children) {
+export function updateHighlights(ts, tp, col, cell, dbsObjs, highlights, children) {
 
   // Update cell highlighting
   let highlightedCells = [];
@@ -168,8 +168,8 @@ export function updateHighlights(ts, tp, col, cell, objs, highlights, children) 
   }
 
   // Update interval highlighting
-  let lastTS = objs.dbs[objs.dbs.length - 1].ts;
-  let selRows = (cell.interval !== undefined) ? tpsIn(ts, tp, cell.interval, cell.period, lastTS, objs.dbs) : [];
+  let lastTS = dbsObjs[dbsObjs.length - 1].ts;
+  let selRows = (cell.interval !== undefined) ? tpsIn(ts, tp, cell.interval, cell.period, lastTS, dbsObjs) : [];
 
   // Update (potentially multiple) open paths to be highlighted
   let clonePathsMap = new Map(highlights.pathsMap);

@@ -150,6 +150,8 @@ function TimeGrid ({ columns,
     Math.max(acc, (9*(subf.length))), 60
   );
 
+  // colGridIndex: index of the column in the grid
+  // i/curCol: index of the column in the subformulas part of the grid (i.e., after the TS column)
   const subfsGridColumns = columns.subfs.slice(0).map((f, i) =>
     ({
       field: (i+columns.preds.length).toString(),
@@ -165,16 +167,22 @@ function TimeGrid ({ columns,
             return <MenuCell explObj={tables.cells[params.row.tp][i]}
                              colorsTable={tables.colors}
                              cellsTable={tables.cells}
+                             ts={params.row.ts}
+                             tp={params.row.tp}
+                             colGridIndex={parseInt(params.colDef.field)}
                              curCol={i}
+                             predsLength={columns.preds.length}
+                             dbsObjs={objs.dbs}
+                             highlights={highlights}
                              setMonitorState={setMonitorState} />;
           } else {
             return <BoolCell value={tables.colors[params.row.tp][i]}
-                             onClick={() => handleClick(params.row.ts, params.row.tp, params.colDef.field)}
+                             onClick={() => handleClick(params.row.ts, params.row.tp, parseInt(params.colDef.field))}
                    />;
           }
         } else {
           return <BoolCell value={tables.colors[params.row.tp][i]}
-                           onClick={() => handleClick(params.row.ts, params.row.tp, params.colDef.field)}
+                           onClick={() => handleClick(params.row.ts, params.row.tp, parseInt(params.colDef.field))}
                  />;
         }
       },
@@ -190,11 +198,9 @@ function TimeGrid ({ columns,
       ts: ts
     }));
 
-  const handleClick = (ts, tp, col) => {
+  const handleClick = (ts, tp, colGridIndex) => {
 
-    const colIndex = parseInt(col);
-
-    let cell = tables.cells[tp][colIndex - columns.preds.length];
+    let cell = tables.cells[tp][colGridIndex - columns.preds.length];
 
     if (cell !== undefined && tables.colors[cell.tp][cell.col] !== black) {
 
@@ -209,9 +215,7 @@ function TimeGrid ({ columns,
         children.push({ tp: cell.cells[i].tp, col: cell.cells[i].col + columns.preds.length, isHighlighted: false });
       }
 
-      // console.log(cell);
-
-      let newHighlights = updateHighlights(ts, tp, colIndex, cell, objs, highlights, children);
+      let newHighlights = updateHighlights(ts, tp, colGridIndex, cell, objs.dbs, highlights, children);
 
       let action = { type: "updateTable",
                      colorsTable: cloneColorsTable,
