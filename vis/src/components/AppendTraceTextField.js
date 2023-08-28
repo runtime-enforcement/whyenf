@@ -31,7 +31,7 @@ export default function AppendTraceTextField ({ appendTrace, setAppendTrace }) {
         <TextField
           multiline
           id="outlined-required"
-          label="Trace"
+          label="New events"
           value={localTrace}
           onChange={handleChange}
           onBlur={handleBlur}
