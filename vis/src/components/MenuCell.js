@@ -15,9 +15,20 @@ import { collectValues,
          exposeColorsTableQuant,
          updateCellsTableMain,
          updateCellsTableQuant,
-         getPolarity } from '../util';
+         getPolarity,
+         updateHighlights } from '../util';
 
-function MenuCell ({ explObj, colorsTable, cellsTable, curCol, setMonitorState }) {
+function MenuCell ({ explObj,
+                     colorsTable,
+                     cellsTable,
+                     ts,
+                     tp,
+                     colGridIndex,
+                     curCol,
+                     predsLength,
+                     dbsObjs,
+                     highlights,
+                     setMonitorState }) {
 
   // NestedMenuItem
   const [anchorEl, setAnchorEl] = useState(null);
@@ -51,11 +62,38 @@ function MenuCell ({ explObj, colorsTable, cellsTable, curCol, setMonitorState }
         setMonitorState(action);
       } else {
         if (explObj.kind === "partition") {
-          let selCellsObj = getCells(explObj, domainValues);
-          let action = { type: "updateColorsAndCellsTable",
-                         colorsTable: exposeColorsTableQuant(selCellsObj, curCol + 1, colorsTable),
-                         cellsTable: updateCellsTableQuant(selCellsObj, curCol, cellsTable)
+
+          // Update path highlighting for the quantifiers case
+          let selPartObj = getCells(explObj, domainValues);
+
+          let cell = undefined;
+
+          if (selPartObj.table !== undefined) {
+
+            for (let i = 0; i < selPartObj.table.length; ++i) {
+              if (selPartObj.table[i].tp === tp && selPartObj.table[i].col === curCol) {
+                cell = selPartObj.table[i];
+              }
+            }
+
+          }
+
+          let children = [];
+
+          for (let i = 0; i < cell.cells.length; ++i) {
+            children.push({ tp: cell.cells[i].tp, col: cell.cells[i].col + predsLength, isHighlighted: false });
+          }
+
+          let newHighlights = updateHighlights(ts, tp, colGridIndex, cell, dbsObjs, highlights, children);
+
+          let action = { type: "updateColorsAndCellsTableAndHighlights",
+                         colorsTable: exposeColorsTableQuant(selPartObj, curCol + 1, colorsTable),
+                         cellsTable: updateCellsTableQuant(selPartObj, curCol, cellsTable),
+                         selectedRows: newHighlights.selectedRows,
+                         highlightedCells: newHighlights.highlightedCells,
+                         pathsMap: newHighlights.clonePathsMap
                        };
+
           setMonitorState(action);
         }
       }

@@ -108,6 +108,15 @@ function monitorStateReducer(monitorState, action) {
                            highlightedCells: [],
                            pathsMap: new Map() },
              fixParameters: true };
+  case 'updateColorsAndCellsTableAndHighlights':
+    return { ...monitorState,
+             tables: { ...monitorState.tables,
+                       colors: action.colorsTable,
+                       cells: action.cellsTable },
+             highlights: { selectedRows: action.selectedRows,
+                           highlightedCells: action.highlightedCells,
+                           pathsMap: action.pathsMap },
+             fixParameters: true }
   case 'updateTable':
     return { ...monitorState,
              tables: { ...monitorState.tables,
