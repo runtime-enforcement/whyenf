@@ -215,7 +215,7 @@ function TimeGrid ({ columns,
 
       let action = { type: "updateTable",
                      colorsTable: cloneColorsTable,
-                     selectedRows: newHighlights.selRows,
+                     selectedRows: newHighlights.selectedRows,
                      highlightedCells: newHighlights.highlightedCells,
                      pathsMap: newHighlights.clonePathsMap };
       setMonitorState(action);
