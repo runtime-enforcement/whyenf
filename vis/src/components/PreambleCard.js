@@ -9,11 +9,7 @@ const card = (
   <React.Fragment>
     <CardContent>
       <Typography variant="h6">
-        Welcome!
-      </Typography>
-      <Typography variant="body2">
-        This is a prototype application for the explainable online monitoring of Metric Temporal Logic formulas on arbitrary traces. <br />
-        For more details, click <Link to="/about" style={{ color: '#977b01' }}>here</Link>.
+        An online monitor of Metric First-Order Temporal Logic specifications on arbitrary traces.
       </Typography>
     </CardContent>
   </React.Fragment>
@@ -22,7 +18,7 @@ const card = (
 export default function PreambleCard() {
   return (
     <Box sx={{ mt: 11 }}>
-      <Card variant="outlined">{card}</Card>
+      <Card variant="outlined" style={{ border: "none", boxShadow: "none" }}>{card}</Card>
     </Box>
   );
 }
