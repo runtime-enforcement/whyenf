@@ -18,7 +18,7 @@ export default function SigTextField ({ sig, setFormState }) {
   };
 
   useEffect(() => {
-    setRows(ref.current.clientHeight/25.5);
+    setRows(ref.current.clientHeight/27.5);
     setLocalSig(sig);
   }, [sig, setLocalSig]);
 
@@ -42,7 +42,9 @@ export default function SigTextField ({ sig, setFormState }) {
         onBlur={handleBlur}
         minRows={rows}
         maxRows={rows}
-        InputProps={{style: { minHeight: '18.5vh', maxHeight: '18.5vh' }}}
+        InputProps={{style: { minHeight: '18vh',
+                              maxHeight: '18vh',
+                              fontSize: 14  } }}
       />
     </Box>
   );
