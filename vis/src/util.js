@@ -139,15 +139,18 @@ export function exposeColorsTableMain(explObj, maxRow, maxCol) {
   // Initialize empty matrix
   let colorsTable = new Array(maxRow).fill(null).map(() => Array(maxCol).fill(""));
 
-  let tblIndex = explObj.table.findIndex(tbl => tbl.col === 0);
-  let tbl = explObj.table[tblIndex];
-
   // Expose (as a black cell) the boolean subproofs
-  if (tbl.kind === "boolean") {
-    for (let j = 0; j < tbl.cells.length; ++j) {
-      colorsTable[tbl.cells[j].tp][tbl.cells[j].col] = black;
+  for (let i = 0; i < explObj.table.length; ++i) {
+    let tbl = explObj.table[i];
+    if (tbl.kind === "boolean") {
+      for (let j = 0; j < tbl.cells.length; ++j) {
+        colorsTable[tbl.cells[j].tp][tbl.cells[j].col] = black;
+      }
     }
   }
+
+  let tblIndex = explObj.table.findIndex(tbl => tbl.col === 0);
+  let tbl = explObj.table[tblIndex];
 
   // Expose boolean verdict in main subformula column
   colorsTable[tbl.tp][tbl.col] = tbl.bool ? cellColor(true) : cellColor(false);
