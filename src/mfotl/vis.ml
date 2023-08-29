@@ -94,7 +94,8 @@ module Expl = struct
        ((cell, cells) :: row', idx')
     | Or (f1, _), S (SOrL sp1) ->
        let sp1_idx = idx+1 in
-       let (row', idx') = ssubfs_cell_row row sp1_idx f1 (S sp1) in
+       let sp2_idx = (cell_idx sp1_idx f1)+1 in
+       let (row', idx') = ssubfs_cell_row row sp2_idx f1 (S sp1) in
        let cell = (Expl.Proof.p_at p, idx, None, Boolean true) in
        let cells = [(Expl.Proof.s_at sp1, sp1_idx, None, Boolean true)] in
        ((cell, cells) :: row', idx')
