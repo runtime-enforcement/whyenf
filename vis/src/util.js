@@ -115,12 +115,23 @@ export function exposeColorsTableQuant(explObj, nextCol, colorsTable) {
   // Initialize empty matrix
   let colorsTableClone = structuredClone(colorsTable);
 
+  // Clear (previous black cells) the boolean subproofs on the RHS of the quantifier column
+  for (let i = 0; i < colorsTableClone.length; ++i) {
+    for (let j = 0; j < colorsTableClone[i].length; ++j) {
+      if (j >= nextCol) {
+        colorsTableClone[i][j] = "";
+      }
+    }
+  }
+
   // Expose (as a black cell) the boolean subproofs
   for (let i = 0; i < explObj.table.length; ++i) {
     let tbl = explObj.table[i];
     if (tbl.kind === "boolean") {
       for (let j = 0; j < tbl.cells.length; ++j) {
-        colorsTableClone[tbl.cells[j].tp][tbl.cells[j].col] = black;
+        if (tbl.cells[j].col >= nextCol) {
+          colorsTableClone[tbl.cells[j].tp][tbl.cells[j].col] = black;
+        }
       }
     }
   }
