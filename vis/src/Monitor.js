@@ -14,6 +14,7 @@ import ResetButton from './components/ResetButton';
 import ExampleSelect from './components/ExampleSelect';
 import PreambleCard from './components/PreambleCard';
 import AlertDialog from './components/AlertDialog';
+import CheckmarkOptions from './components/CheckmarkOptions';
 import { computeDbsTable, initRhsTable, translateError } from './util';
 
 function initMonitorState () {
@@ -23,15 +24,16 @@ function initMonitorState () {
            highlights: { selectedRows: [], highlightedCells: [], pathsMap: new Map() },
            subformulas: [],
            fixParameters: false,
-           dialog: {} }
+           dialog: {},
+           options: new Set() }
 }
 
 function initMonitor(monitorState, action) {
   try {
     const monitorOutput = window.monitorInit(action.trace.replace(/\n/g, " "),
-                                       action.sig.replace(/\n/g, " "), action.formula);
+                                             action.sig.replace(/\n/g, " "), action.formula);
     const columns = JSON.parse(window.getColumns(action.formula));
-    const dbsObjs = (JSON.parse(monitorOutput)).dbs_objs;
+    const dbsObjs = (JSON.parse(monitorOutput)).dbs_objs
     const explsObjs = (JSON.parse(monitorOutput, (k, v) => v === "true" ? true : v === "false" ? false : v)).expls_objs;
 
     return { columns: { preds: columns.predsColumns, subfs: columns.subfsColumns },
@@ -42,7 +44,8 @@ function initMonitor(monitorState, action) {
              highlights: { selectedRows: [], highlightedCells: [], pathsMap: new Map() },
              subformulas: columns.subformulas,
              fixParameters: true,
-             dialog: {} };
+             dialog: {},
+             options: new Set() };
   } catch (error) {
     console.log(error);
     return { ...monitorState,
@@ -142,6 +145,9 @@ function monitorStateReducer(monitorState, action) {
   case 'closeDialog':
     return { ...monitorState,
              dialog: {} };
+  case 'updateOptions':
+    return { ...monitorState,
+             options: new Set(action.options) };
   default:
     return monitorState;
   }
@@ -233,12 +239,29 @@ export default function Monitor() {
               </Grid>
             }
 
-            <Grid item xs={12} sm={12} md={8} lg={8} xl={8}>
-              <FormulaTextField formula={formState.formula}
-                                setFormState={setFormState}
-                                fixParameters={monitorState.fixParameters}
-              />
-            </Grid>
+            { !monitorState.fixParameters &&
+              <Grid item xs={12} sm={12} md={8} lg={8} xl={8}>
+                <FormulaTextField formula={formState.formula}
+                                  setFormState={setFormState}
+                                  fixParameters={monitorState.fixParameters}
+                />
+              </Grid>
+            }
+
+            { monitorState.fixParameters &&
+              <Grid container item xs={12} sm={12} md={8} lg={8} xl={8} spacing={2}>
+                <Grid item xs={12} sm={12} md={8} lg={8} xl={8}>
+                  <FormulaTextField formula={formState.formula}
+                                    setFormState={setFormState}
+                                    fixParameters={monitorState.fixParameters}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={12} md={4} lg={4} xl={4}>
+                  <CheckmarkOptions selectedOptions={monitorState.options}
+                                    setMonitorState={setMonitorState} />
+                </Grid>
+              </Grid>
+            }
 
             { !monitorState.fixParameters &&
               <Grid container item xs={24} sm={24} md={12} lg={12} xl={12} spacing={2}>
