@@ -278,6 +278,7 @@ export default function Monitor() {
                             objs={monitorState.objs}
                             tables={monitorState.tables}
                             subformulas={monitorState.subformulas}
+                            selectedOptions={monitorState.options}
                             setMonitorState={setMonitorState}
                   />
                 </Grid>
@@ -293,6 +294,7 @@ export default function Monitor() {
                             tables={monitorState.tables}
                             highlights={monitorState.highlights}
                             subformulas={monitorState.subformulas}
+                            selectedOptions={monitorState.options}
                             setMonitorState={setMonitorState}
                   />
                 </Grid>
