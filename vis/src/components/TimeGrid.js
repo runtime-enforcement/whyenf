@@ -49,6 +49,7 @@ function TimeGrid ({ columns,
                      tables,
                      highlights,
                      subformulas,
+                     selectedOptions,
                      setMonitorState }) {
 
   const [anchorEl, setAnchorEl] = useState(null);
@@ -97,12 +98,15 @@ function TimeGrid ({ columns,
       renderCell: (params) => <DbCell value={tables.dbs[params.row.tp][i]} />,
       headerAlign: 'center',
       align: 'center',
-      disableClickEventBubbling: true
+      disableClickEventBubbling: true,
+      hide: !selectedOptions.has('Trace')
     }));
 
   // TP/TS columns
   const tsWidth = objs.dbs.reduce ((acc, { ts, tp }) =>
-    Math.max(acc, (10*(ts.toString().length))), 50
+    selectedOptions.has('Unix Timestamps') ?
+      Math.max(acc, (9*((new Date(ts).toLocaleString()).length)))
+      : Math.max(acc, (10*(ts.toString().length))), 50
   );
 
   const tptsGridColumns = [
@@ -195,7 +199,7 @@ function TimeGrid ({ columns,
     ({
       id: tp,
       tp: tp,
-      ts: ts
+      ts: selectedOptions.has('Unix Timestamps') ? new Date(ts).toLocaleString() : ts
     }));
 
   const handleClick = (ts, tp, colGridIndex) => {
