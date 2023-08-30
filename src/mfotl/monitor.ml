@@ -1498,8 +1498,8 @@ let rec meval vars ts tp (db: Db.t) = function
 module MState = struct
 
   type t = { mf: MFormula.t
-           ; tp_cur: timepoint
-           ; tp_out: timepoint
+           ; tp_cur: timepoint                        (* current time-point evaluated    *)
+           ; tp_out: timepoint                        (* last time-point that was output *)
            ; ts_waiting: timestamp Queue.t
            ; tsdbs: (timestamp * Db.t) Queue.t
            ; tpts: (timepoint, timestamp) Hashtbl.t }
@@ -1544,7 +1544,6 @@ let mstep mode vars ts db (ms: MState.t) =
    { ms with
      mf = mf'
    ; tp_cur = ms.tp_cur + 1
-   ; tp_out = ms.tp_out + (List.length expls)
    ; ts_waiting = queue_drop ms.ts_waiting (List.length expls)
    ; tsdbs = tsdbs })
 
@@ -1569,10 +1568,12 @@ let exec_vis (obj_opt: MState.t option) f log =
       let last_ts = Hashtbl.fold ms.tpts ~init:0 ~f:(fun ~key:_ ~data:ts l_ts -> if ts > l_ts then ts else l_ts) in
       if pb.ts >= last_ts then
         let (tstps_expls, ms') = mstep Out.Plain.UNVERIFIED (Set.elements (Formula.fv f)) pb.ts pb.db ms in
-        List.iter tstps_expls (fun ((ts, tp), _) -> Hashtbl.add_exn ms.tpts tp ts);
+        let tp_out' = List.fold tstps_expls ~init:ms'.tp_out
+                            ~f:(fun acc ((ts, tp), _) -> Hashtbl.add_exn ms.tpts (acc + 1) ts; acc + 1) in
         let json_expls = Out.Json.expls ms.tpts f (List.map tstps_expls ~f:snd) in
         let json_db = Out.Json.db pb.ts ms.tp_cur pb.db f in
-        (None, (json_expls, [json_db]), ms')
+        (None, (json_expls, [json_db]),
+         { ms' with tp_out = tp_out' })
       else raise (Failure "trace is not monotonic")
     with Failure msg -> (Some(msg), ([], []), ms) in
   let ms = match obj_opt with
