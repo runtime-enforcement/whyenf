@@ -66,16 +66,20 @@ module Part = struct
   let split_list part =
     let subs = List.map part ~f:fst in
     let vs = List.map part ~f:snd in
+    (* Stdio.printf "|subs| = %d; |vs| = %d\n" (List.length subs) (List.length vs); *)
+    (* List.iter subs (fun s -> Stdio.printf "s = %s\n" (Setc.to_string s)); *)
+    (* List.iter vs (fun l -> Stdio.printf "|l| = %d\n" (List.length l)); *)
     List.map (Option.value_exn (List.transpose vs)) ~f:(List.zip_exn subs)
 
-  let rec el_to_string indent f (sub, v) =
-    Printf.sprintf "%ssetc = {%s}\n%s%s" indent (Setc.to_string sub) indent (f (indent ^ (String.make 4 ' ')) v)
+  let rec el_to_string indent var f (sub, v) =
+    Printf.sprintf "%s%s ∈ %s\n\n%s" indent (Term.value_to_string var) (Setc.to_string sub)
+      (f (indent ^ (String.make 4 ' ')) v)
 
-  let to_string indent f = function
-    | [] -> indent ^ "[]"
-    | [x] -> indent ^ "[" ^ (el_to_string indent f x) ^ "]"
-    | xs -> List.fold_left xs ~init:(indent ^ "[")
-              ~f:(fun s el -> s ^ (el_to_string indent f el) ^ ";\n") ^ " ]"
+  let to_string indent var f = function
+    | [] -> indent ^ "❮ · ❯"
+    | [x] -> indent ^ "❮\n\n" ^ (el_to_string indent var f x) ^ "\n" ^ indent ^ "❯\n"
+    | xs -> List.fold_left xs ~init:(indent ^ "❮\n\n")
+              ~f:(fun s el -> s ^ (el_to_string indent var f el) ^ "\n") ^ indent ^ "❯\n"
 
 end
 
@@ -266,9 +270,9 @@ module Proof = struct
     | SIffVV (vp1, vp2) -> Printf.sprintf "%sSIffVV{%d}\n%s\n%s" indent (s_at p)
                              (v_to_string indent' vp1) (v_to_string indent' vp2)
     | SExists (x, d, sp) -> Printf.sprintf "%sSExists{%d}{%s=%s}\n%s\n" indent (s_at p)
-                              (Term.to_string x) (Domain.to_string d) (s_to_string indent' sp)
+                              (Term.value_to_string x) (Domain.to_string d) (s_to_string indent' sp)
     | SForall (x, part) -> Printf.sprintf "%sSForall{%d}{%s}\n%s\n" indent (s_at (SForall (x, part)))
-                             (Term.to_string x) (Part.to_string indent' s_to_string part)
+                             (Term.value_to_string x) (Part.to_string indent' x s_to_string part)
     | SPrev sp -> Printf.sprintf "%sSPrev{%d}\n%s" indent (s_at p) (s_to_string indent' sp)
     | SNext sp -> Printf.sprintf "%sSNext{%d}\n%s" indent (s_at p) (s_to_string indent' sp)
     | SOnce (_, sp) -> Printf.sprintf "%sSOnce{%d}\n%s" indent (s_at p) (s_to_string indent' sp)
@@ -296,9 +300,9 @@ module Proof = struct
     | VIffSV (sp1, vp2) -> Printf.sprintf "%sVIffSV{%d}\n%s\n%s" indent (v_at p) (s_to_string indent' sp1) (v_to_string indent' vp2)
     | VIffVS (vp1, sp2) -> Printf.sprintf "%sVIffVS{%d}\n%s\n%s" indent (v_at p) (v_to_string indent' vp1) (s_to_string indent' sp2)
     | VExists (x, part) -> Printf.sprintf "%sVExists{%d}{%s}\n%s\n" indent (v_at (VExists (x, part)))
-                             (Term.to_string x) (Part.to_string indent' v_to_string part)
+                             (Term.value_to_string x) (Part.to_string indent' x v_to_string part)
     | VForall (x, d, vp) -> Printf.sprintf "%sVForall{%d}{%s=%s}\n%s\n" indent (v_at p)
-                              (Term.to_string x) (Domain.to_string d) (v_to_string indent' vp)
+                              (Term.value_to_string x) (Domain.to_string d) (v_to_string indent' vp)
     | VPrev vp -> Printf.sprintf "%sVPrev{%d}\n%s" indent (v_at p) (v_to_string indent' vp)
     | VPrev0 -> Printf.sprintf "%sVPrev0{0}" indent'
     | VPrevOutL i -> Printf.sprintf "%sVPrevOutL{%d}" indent' i
@@ -485,9 +489,8 @@ module Pdt = struct
     | Node (x, part) -> List.map (Part.split_list (Part.map part split_list)) ~f:(fun el -> Node (x, el))
 
   let rec to_string f indent = function
-    | Leaf pt -> Printf.sprintf "%sLeaf (%s)\n" indent (f pt)
-    | Node (x, part) -> Printf.sprintf "%sNode (%s,\n%s)\n" indent (Term.to_string x)
-                          (Part.to_string (indent ^ (String.make 4 ' ')) (to_string f) part)
+    | Leaf pt -> Printf.sprintf "%s%s\n" indent (f pt)
+    | Node (x, part) -> (Part.to_string indent x (to_string f) part)
 
   let unleaf = function
     | Leaf l -> l
