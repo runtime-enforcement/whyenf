@@ -1490,8 +1490,17 @@ let rec meval vars ts tp (db: Db.t) = function
      let (nts, ntp) = match ntstps' with
        | [] -> (ts, tp)
        | (nts', ntp') :: _ -> (nts', ntp') in
+     (* Stdio.printf "ntp = %d\n" ntp; *)
      let (muaux_pdt', es') =
-       Pdt.split_prod (Pdt.apply1 vars (fun aux -> Until.eval i nts ntp (aux, [])) muaux_pdt') in
+       Pdt.split_prod (Pdt.apply1 vars (fun aux ->
+                           let (m, es) = Until.eval i nts ntp (aux, []) in
+                           (* Stdio.printf "-----------------\n"; *)
+                           (* Stdio.printf "%s\n" (Until.to_string m); *)
+                           (* List.iter es ~f:(fun e -> *)
+                             (*   Stdio.printf "%s\n\n" (Proof.to_string "" e) *)
+                             (* ); *)
+                           (m, es)
+                         ) muaux_pdt') in
      let expls' = Pdt.split_list es' in
      (expls', MUntil (i, mf1', mf2', (buf2', ntstps'), muaux_pdt'))
 
@@ -1533,6 +1542,7 @@ module MState = struct
 end
 
 let mstep mode vars ts db (ms: MState.t) =
+  (* Stdio.printf "mstep: ts = %d; tp = %d;\n" ts ms.tp_cur; *)
   let (expls, mf') = meval vars ts ms.tp_cur db ms.mf in
   Queue.enqueue ms.ts_waiting ts;
   let tstps = List.zip_exn (List.take (Queue.to_list ms.ts_waiting) (List.length expls))
@@ -1552,10 +1562,10 @@ let exec mode measure f inc =
     let (more, pb) = Other_parser.Trace.parse_from_channel inc pb_opt in
     let (tstp_expls, ms') = mstep mode (Set.elements (Formula.fv f)) pb.ts pb.db ms in
     (match mode with
-     | Out.Plain.UNVERIFIED -> Out.Plain.expls tstp_expls None mode
+     | Out.Plain.UNVERIFIED -> Out.Plain.expls pb.ts tstp_expls None mode
      | Out.Plain.DEBUGVIS -> raise (Failure "function exec is undefined for the mode debugvis")
      | _ -> let c = Checker_interface.check (Queue.to_list ms'.tsdbs) f (List.map tstp_expls ~f:snd) in
-            Out.Plain.expls tstp_expls (Some(c)) mode);
+            Out.Plain.expls pb.ts tstp_expls (Some(c)) mode);
     if more then step (Some(pb)) ms' in
   let mf = init f in
   let ms = MState.init mf in

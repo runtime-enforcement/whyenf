@@ -15,7 +15,7 @@ module Plain : sig
 
   type mode = UNVERIFIED | VERIFIED | DEBUG | DEBUGVIS
 
-  val expls: ((timestamp * timepoint) * Expl.t) list -> (bool * Checker_pdt.t * Checker_trace.t) list option ->
+  val expls: timepoint -> ((timestamp * timepoint) * Expl.t) list -> (bool * Checker_pdt.t * Checker_trace.t) list option ->
              mode -> unit
 
 end
