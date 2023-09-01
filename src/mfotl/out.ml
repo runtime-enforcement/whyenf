@@ -35,12 +35,12 @@ module Plain = struct
        Stdio.printf "\n[debug] Checker trace:\n%s" (Checker_interface.Checker_trace.to_string c_t);
     | Info s -> Stdio.printf "\nInfo: %s\n\n" s
 
-  let expls ts_tp_expls checker_es_opt = function
-    | UNVERIFIED -> List.iter ts_tp_expls (fun ((ts, tp), e) -> expl (Explanation ((ts, tp), e)))
-    | VERIFIED -> List.iter2_exn ts_tp_expls (Option.value_exn checker_es_opt)
-                    (fun ((ts, tp), e) (b, _, _) -> expl (ExplanationCheck ((ts, tp), e, b)))
-    | DEBUG -> List.iter2_exn ts_tp_expls (Option.value_exn checker_es_opt)
-                 (fun ((ts, tp), e) (b, checker_e, trace) -> expl (ExplanationCheckDebug ((ts, tp), e, b, checker_e, trace)))
+  let expls ts tstp_expls checker_es_opt = function
+    | UNVERIFIED -> List.iter tstp_expls (fun ((_, tp), e) -> expl (Explanation ((ts, tp), e)))
+    | VERIFIED -> List.iter2_exn tstp_expls (Option.value_exn checker_es_opt)
+                    (fun ((_, tp), e) (b, _, _) -> expl (ExplanationCheck ((ts, tp), e, b)))
+    | DEBUG -> List.iter2_exn tstp_expls (Option.value_exn checker_es_opt)
+                 (fun ((_, tp), e) (b, checker_e, trace) -> expl (ExplanationCheckDebug ((ts, tp), e, b, checker_e, trace)))
     | DEBUGVIS -> raise (Failure "this function is undefined for the mode debugvis")
 
 end
