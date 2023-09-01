@@ -35,6 +35,10 @@ module Term = struct
       | Var x -> Printf.sprintf "Var %s" x
       | Const d -> Printf.sprintf "Const %s" (Domain.to_string d)
 
+    let value_to_string = function
+      | Var x -> Printf.sprintf "%s" x
+      | Const d -> Printf.sprintf "%s" (Domain.to_string d)
+
     let rec list_to_string trms =
       match trms with
       | [] -> ""

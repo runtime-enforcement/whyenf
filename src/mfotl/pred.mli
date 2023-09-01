@@ -26,6 +26,8 @@ module Term : sig
 
   val to_string: t -> string
 
+  val value_to_string: t -> string
+
   val list_to_string: t list -> string
 
 end

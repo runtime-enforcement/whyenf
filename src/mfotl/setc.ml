@@ -81,5 +81,5 @@ let to_string cs =
           else (let min = Set.min_elt_exn s in
                 Printf.sprintf "%s, " (Domain.to_string min) ^ (format (Set.remove s min)))) in
   match cs with
-  | Finite s -> Printf.sprintf "Finite {%s}" (format s)
-  | Complement s -> Printf.sprintf "Complement {%s}" (format s)
+  | Finite s -> Printf.sprintf "{%s}" (format s)
+  | Complement s -> Printf.sprintf "Complement of {%s}" (format s)
