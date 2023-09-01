@@ -66,9 +66,6 @@ module Part = struct
   let split_list part =
     let subs = List.map part ~f:fst in
     let vs = List.map part ~f:snd in
-    (* Stdio.printf "|subs| = %d; |vs| = %d\n" (List.length subs) (List.length vs); *)
-    (* List.iter subs (fun s -> Stdio.printf "s = %s\n" (Setc.to_string s)); *)
-    (* List.iter vs (fun l -> Stdio.printf "|l| = %d\n" (List.length l)); *)
     List.map (Option.value_exn (List.transpose vs)) ~f:(List.zip_exn subs)
 
   let rec el_to_string indent var f (sub, v) =
@@ -172,7 +169,7 @@ module Proof = struct
   let s_drop = function
     | SUntil (sp2, sp1s) -> (match Fdeque.drop_front sp1s with
                              | None -> None
-                             | Some(sp1s') -> Some (SUntil (sp2, Fdeque.drop_front_exn sp1s')))
+                             | Some(sp1s') -> Some (SUntil (sp2, sp1s')))
     | _ -> raise (Invalid_argument "sdrop is not defined for this sp")
 
   let v_drop = function
