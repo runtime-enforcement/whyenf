@@ -29,48 +29,43 @@ definition max_opt where
 definition "LTP_p_safe \<sigma> i I = (if \<tau> \<sigma> i - left I \<ge> \<tau> \<sigma> 0 then LTP_p \<sigma> i I else 0)"
 
 (* Latest Relevant Time-Point *)
-fun LRTP :: "'a MFOTL.trace \<Rightarrow> (MFOTL.name \<times> nat \<rightharpoonup> nat \<Rightarrow> nat option) \<Rightarrow> 'a MFOTL.formula \<Rightarrow> nat \<Rightarrow> nat option" where
-  "LRTP \<sigma> P (MFOTL.TT) i = Some i"
-| "LRTP \<sigma> P (MFOTL.FF) i = Some i"
-| "LRTP \<sigma> P (MFOTL.Pred p ts) i = (case P (p, length ts) of
-      None \<Rightarrow> Some i
-    | Some lrtp \<Rightarrow> lrtp i)"
-| "LRTP \<sigma> P (MFOTL.Eq_Const _ _) i = Some i"
-| "LRTP \<sigma> P (MFOTL.Neg \<phi>) i = LRTP \<sigma> P \<phi> i"
-| "LRTP \<sigma> P (MFOTL.Or \<phi> \<psi>) i = max_opt (LRTP \<sigma> P \<phi> i) (LRTP \<sigma> P \<psi> i)"
-| "LRTP \<sigma> P (MFOTL.And \<phi> \<psi>) i = max_opt (LRTP \<sigma> P \<phi> i) (LRTP \<sigma> P \<psi> i)"
-| "LRTP \<sigma> P (MFOTL.Imp \<phi> \<psi>) i = max_opt (LRTP \<sigma> P \<phi> i) (LRTP \<sigma> P \<psi> i)"
-| "LRTP \<sigma> P (MFOTL.Iff \<phi> \<psi>) i = max_opt (LRTP \<sigma> P \<phi> i) (LRTP \<sigma> P \<psi> i)"
-| "LRTP \<sigma> P (MFOTL.Exists _ \<phi>) i = LRTP \<sigma> P \<phi> i"
-| "LRTP \<sigma> P (MFOTL.Forall _ \<phi>) i = LRTP \<sigma> P \<phi> i"
-| "LRTP \<sigma> P (MFOTL.Prev I \<phi>) i = LRTP \<sigma> P \<phi> (i-1)"
-| "LRTP \<sigma> P (MFOTL.Next I \<phi>) i = LRTP \<sigma> P \<phi> (i+1)"
-| "LRTP \<sigma> P (MFOTL.Once I \<phi>) i = LRTP \<sigma> P \<phi> (LTP_p_safe \<sigma> i I)"
-| "LRTP \<sigma> P (MFOTL.Historically I \<phi>) i = LRTP \<sigma> P \<phi> (LTP_p_safe \<sigma> i I)"
-| "LRTP \<sigma> P (MFOTL.Eventually I \<phi>) i = (case right I of \<infinity> \<Rightarrow> None | enat b \<Rightarrow> LRTP \<sigma> P \<phi> (LTP_f \<sigma> i b))"
-| "LRTP \<sigma> P (MFOTL.Always I \<phi>) i = (case right I of \<infinity> \<Rightarrow> None | enat b \<Rightarrow> LRTP \<sigma> P \<phi> (LTP_f \<sigma> i b))" 
-| "LRTP \<sigma> P (MFOTL.Since \<phi> I \<psi>) i = max_opt (LRTP \<sigma> P \<phi> i) (LRTP \<sigma> P \<psi> (LTP_p_safe \<sigma> i I))"
-| "LRTP \<sigma> P (MFOTL.Until \<phi> I \<psi>) i = (case right I of \<infinity> \<Rightarrow> None | enat b \<Rightarrow> max_opt (LRTP \<sigma> P \<phi> ((LTP_f \<sigma> i b)-1)) (LRTP \<sigma> P \<psi> (LTP_f \<sigma> i b)))"
-| "LRTP \<sigma> P (MFOTL.Let p xs \<phi> \<psi>) i = LRTP \<sigma> (P((p,length xs) \<mapsto> \<lambda>j. LRTP \<sigma> P \<phi> j)) \<psi> i"
+fun LRTP :: "'a MFOTL.trace \<Rightarrow> 'a MFOTL.formula \<Rightarrow> nat \<Rightarrow> nat option" where
+  "LRTP \<sigma> (MFOTL.TT) i = Some i"
+| "LRTP \<sigma> (MFOTL.FF) i = Some i"
+| "LRTP \<sigma> (MFOTL.Pred _ _) i = Some i"
+| "LRTP \<sigma> (MFOTL.Eq_Const _ _) i = Some i"
+| "LRTP \<sigma> (MFOTL.Neg \<phi>) i = LRTP \<sigma> \<phi> i"
+| "LRTP \<sigma> (MFOTL.Or \<phi> \<psi>) i = max_opt (LRTP \<sigma> \<phi> i) (LRTP \<sigma> \<psi> i)"
+| "LRTP \<sigma> (MFOTL.And \<phi> \<psi>) i = max_opt (LRTP \<sigma> \<phi> i) (LRTP \<sigma> \<psi> i)"
+| "LRTP \<sigma> (MFOTL.Imp \<phi> \<psi>) i = max_opt (LRTP \<sigma> \<phi> i) (LRTP \<sigma> \<psi> i)"
+| "LRTP \<sigma> (MFOTL.Iff \<phi> \<psi>) i = max_opt (LRTP \<sigma> \<phi> i) (LRTP \<sigma> \<psi> i)"
+| "LRTP \<sigma> (MFOTL.Exists _ \<phi>) i = LRTP \<sigma> \<phi> i"
+| "LRTP \<sigma> (MFOTL.Forall _ \<phi>) i = LRTP \<sigma> \<phi> i"
+| "LRTP \<sigma> (MFOTL.Prev I \<phi>) i = LRTP \<sigma> \<phi> (i-1)"
+| "LRTP \<sigma> (MFOTL.Next I \<phi>) i = LRTP \<sigma> \<phi> (i+1)"
+| "LRTP \<sigma> (MFOTL.Once I \<phi>) i = LRTP \<sigma> \<phi> (LTP_p_safe \<sigma> i I)"
+| "LRTP \<sigma> (MFOTL.Historically I \<phi>) i = LRTP \<sigma> \<phi> (LTP_p_safe \<sigma> i I)"
+| "LRTP \<sigma> (MFOTL.Eventually I \<phi>) i = (case right I of \<infinity> \<Rightarrow> None | enat b \<Rightarrow> LRTP \<sigma> \<phi> (LTP_f \<sigma> i b))"
+| "LRTP \<sigma> (MFOTL.Always I \<phi>) i = (case right I of \<infinity> \<Rightarrow> None | enat b \<Rightarrow> LRTP \<sigma> \<phi> (LTP_f \<sigma> i b))" 
+| "LRTP \<sigma> (MFOTL.Since \<phi> I \<psi>) i = max_opt (LRTP \<sigma> \<phi> i) (LRTP \<sigma> \<psi> (LTP_p_safe \<sigma> i I))"
+| "LRTP \<sigma> (MFOTL.Until \<phi> I \<psi>) i = (case right I of \<infinity> \<Rightarrow> None | enat b \<Rightarrow> max_opt (LRTP \<sigma> \<phi> ((LTP_f \<sigma> i b)-1)) (LRTP \<sigma> \<psi> (LTP_f \<sigma> i b)))"
 
 lemma fb_LRTP: 
-  assumes "MFOTL.future_bounded \<phi>" "\<And>pn. pn \<in> dom P \<Longrightarrow> \<forall>i. \<not> Option.is_none (the (P pn) i)"
-  shows "\<not> Option.is_none (LRTP \<sigma> P \<phi> i)"
+  assumes "MFOTL.future_bounded \<phi>"
+  shows "\<not> Option.is_none (LRTP \<sigma> \<phi> i)"
   using assms
-  apply (induction \<sigma> P \<phi> i rule: LRTP.induct) 
-  apply (auto simp add: max_opt_def Option.is_none_def domIff split: option.splits)
-   apply fastforce+
-  done
+  by (induction \<sigma> \<phi> i rule: LRTP.induct) 
+    (auto simp add: max_opt_def Option.is_none_def)
 
 lemma not_none_fb_LRTP:
-  assumes "MFOTL.future_bounded \<phi>" "\<And>pn. pn \<in> dom P \<Longrightarrow> \<forall>i. the (P pn) i \<noteq> None"
-  shows "(LRTP \<sigma> P \<phi> i) \<noteq> None"
-  using assms fb_LRTP[of \<phi> P \<sigma> i] by (auto simp add: Option.is_none_def)
+  assumes "MFOTL.future_bounded \<phi>"
+  shows "(LRTP \<sigma> \<phi> i) \<noteq> None"
+  using assms fb_LRTP by (auto simp add: Option.is_none_def)
 
 lemma is_some_fb_LRTP:
-  assumes "MFOTL.future_bounded \<phi>" "\<And>pn. pn \<in> dom P \<Longrightarrow> \<forall>i. \<exists>j. the (P pn) i = Some j"
-  shows "\<exists>j. (LRTP \<sigma> P \<phi> i) = Some j"
-  using assms fb_LRTP[of \<phi> P \<sigma> i] by (auto simp add: Option.is_none_def)
+  assumes "MFOTL.future_bounded \<phi>"
+  shows "\<exists>j. (LRTP \<sigma> \<phi> i) = Some j"
+  using assms fb_LRTP by (auto simp add: Option.is_none_def)
 
 lemma i_ETP_tau: "i \<ge> ETP \<sigma> n \<longleftrightarrow> \<tau> \<sigma> i \<ge> n"
 proof
@@ -187,14 +182,14 @@ lemma enat_trans[simp]: "enat i \<le> enat j \<and> enat j \<le> enat k \<Longri
   by auto
 
 lemma not_sat_SinceD:
-  assumes unsat: "\<not> MFOTL.sat \<sigma> V v i (MFOTL.Since \<phi> I \<psi>)" and
-    witness: "\<exists>j \<le> i. mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I \<and> MFOTL.sat \<sigma> V v j \<psi>"
-  shows "\<exists>j \<le> i. ETP \<sigma> (case right I of \<infinity> \<Rightarrow> 0 | enat n \<Rightarrow> \<tau> \<sigma> i - n) \<le> j \<and> \<not> MFOTL.sat \<sigma> V v j \<phi>
-  \<and> (\<forall>k \<in> {j .. (min i (LTP \<sigma> (\<tau> \<sigma> i - left I)))}. \<not> MFOTL.sat \<sigma> V v k \<psi>)"
+  assumes unsat: "\<not> MFOTL.sat \<sigma> v i (MFOTL.Since \<phi> I \<psi>)" and
+    witness: "\<exists>j \<le> i. mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I \<and> MFOTL.sat \<sigma> v j \<psi>"
+  shows "\<exists>j \<le> i. ETP \<sigma> (case right I of \<infinity> \<Rightarrow> 0 | enat n \<Rightarrow> \<tau> \<sigma> i - n) \<le> j \<and> \<not> MFOTL.sat \<sigma> v j \<phi>
+  \<and> (\<forall>k \<in> {j .. (min i (LTP \<sigma> (\<tau> \<sigma> i - left I)))}. \<not> MFOTL.sat \<sigma> v k \<psi>)"
 proof -
-  define A and j where A_def: "A \<equiv> {j. j \<le> i \<and> mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I \<and> MFOTL.sat \<sigma> V v j \<psi>}"
+  define A and j where A_def: "A \<equiv> {j. j \<le> i \<and> mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I \<and> MFOTL.sat \<sigma> v j \<psi>}"
     and j_def: "j \<equiv> Max A"
-  from witness have j: "j \<le> i" "MFOTL.sat \<sigma> V v j \<psi>" "mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I"
+  from witness have j: "j \<le> i" "MFOTL.sat \<sigma> v j \<psi>" "mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I"
     using Max_in[of A] unfolding j_def[symmetric] unfolding A_def
     by auto
   moreover
@@ -227,7 +222,7 @@ proof -
        apply (auto simp: le_diff_conv)
       by (meson \<tau>_mono add_mono_thms_linordered_semiring(2) le_trans less_imp_le)
 
-    with Max_ge[of A k] k have "\<not> MFOTL.sat \<sigma> V v k \<psi>"
+    with Max_ge[of A k] k have "\<not> MFOTL.sat \<sigma> v k \<psi>"
       unfolding j_def[symmetric] unfolding A_def
       by auto
   }
@@ -239,18 +234,18 @@ lemma min_not_in: "finite A \<Longrightarrow> A \<noteq> {} \<Longrightarrow> x 
   by auto
 
 lemma not_sat_UntilD:
-  assumes unsat: "\<not> (MFOTL.sat \<sigma> V v i (MFOTL.Until \<phi> I \<psi>))"
-    and witness: "\<exists>j \<ge> i. mem (\<delta> \<sigma> j i) I \<and> MFOTL.sat \<sigma> V v j \<psi>"
+  assumes unsat: "\<not> (MFOTL.sat \<sigma> v i (MFOTL.Until \<phi> I \<psi>))"
+    and witness: "\<exists>j \<ge> i. mem (\<delta> \<sigma> j i) I \<and> MFOTL.sat \<sigma> v j \<psi>"
   shows "\<exists>j \<ge> i. (case right I of \<infinity> \<Rightarrow> True | enat n \<Rightarrow> j < LTP \<sigma> (\<tau> \<sigma> i + n))
-  \<and> \<not> (MFOTL.sat \<sigma> V v j \<phi>) \<and> (\<forall>k \<in> {(max i (ETP \<sigma> (\<tau> \<sigma> i + left I))) .. j}.
-   \<not> MFOTL.sat \<sigma> V v k \<psi>)"
+  \<and> \<not> (MFOTL.sat \<sigma> v j \<phi>) \<and> (\<forall>k \<in> {(max i (ETP \<sigma> (\<tau> \<sigma> i + left I))) .. j}.
+   \<not> MFOTL.sat \<sigma> v k \<psi>)"
 proof -
   from \<tau>_mono have i0: "\<tau> \<sigma> 0 \<le> \<tau> \<sigma> i" by auto
-  from witness obtain jmax where jmax: "jmax \<ge> i" "MFOTL.sat \<sigma> V v jmax \<psi>"
+  from witness obtain jmax where jmax: "jmax \<ge> i" "MFOTL.sat \<sigma> v jmax \<psi>"
     "mem (\<delta> \<sigma> jmax i) I" by blast
   define A and j where A_def: "A \<equiv> {j. j \<ge> i \<and> j \<le> jmax
-  \<and> mem (\<delta> \<sigma> j i) I \<and> MFOTL.sat \<sigma> V v j \<psi>}" and j_def: "j \<equiv> Min A"
-  have j: "j \<ge> i" "MFOTL.sat \<sigma> V v j \<psi>" "mem (\<delta> \<sigma> j i) I"
+  \<and> mem (\<delta> \<sigma> j i) I \<and> MFOTL.sat \<sigma> v j \<psi>}" and j_def: "j \<equiv> Min A"
+  have j: "j \<ge> i" "MFOTL.sat \<sigma> v j \<psi>" "mem (\<delta> \<sigma> j i) I"
     using A_def j_def jmax Min_in[of A]
     unfolding j_def[symmetric] unfolding A_def
     by fastforce+
@@ -279,7 +274,7 @@ proof -
     with this mem_k ki Min_le[of A k] min_not_in[of A k] k_def have "k \<notin> A"
       unfolding j_def[symmetric] unfolding A_def unfolding ETP_def
       using finite_nat_set_iff_bounded_le kj by blast
-    with this mem_k k_def kjm have "\<not> MFOTL.sat \<sigma> V v k \<psi>"
+    with this mem_k k_def kjm have "\<not> MFOTL.sat \<sigma> v k \<psi>"
       by (simp add: A_def) }
   ultimately show ?thesis using unsat
     by (auto split: enat.splits dest!: spec[of _ j])
@@ -363,7 +358,7 @@ inductive SAT and VIO :: "'a MFOTL.trace \<Rightarrow> 'a MFOTL.env \<Rightarrow
                          | enat b \<Rightarrow> {ETP_f \<sigma> i I .. LTP_f \<sigma> i b}) \<Longrightarrow> VIO \<sigma> v k \<psi>) \<Longrightarrow>
               VIO \<sigma> v i (MFOTL.Until \<phi> I \<psi>)"
 
-lemma soundness_raw: "(SAT \<sigma> v i \<phi> \<longrightarrow> MFOTL.sat \<sigma> V v i \<phi>) \<and> (VIO \<sigma> v i \<phi> \<longrightarrow> \<not> MFOTL.sat \<sigma> V v i \<phi>)"
+lemma soundness_raw: "(SAT \<sigma> v i \<phi> \<longrightarrow> MFOTL.sat \<sigma> v i \<phi>) \<and> (VIO \<sigma> v i \<phi> \<longrightarrow> \<not> MFOTL.sat \<sigma> v i \<phi>)"
 proof (induct v i \<phi> rule: SAT_VIO.induct)
   case (VOnceOut i I v \<phi>)
   { fix j
@@ -378,7 +373,7 @@ proof (induct v i \<phi> rule: SAT_VIO.induct)
 next
   case (VOnce j I i v \<phi>)
   { fix k
-    assume k_def: "MFOTL.sat \<sigma> V v k \<phi> \<and> mem (\<delta> \<sigma> i k) I \<and> k \<le> i"
+    assume k_def: "MFOTL.sat \<sigma> v k \<phi> \<and> mem (\<delta> \<sigma> i k) I \<and> k \<le> i"
     then have k_tau: "\<tau> \<sigma> k \<le> \<tau> \<sigma> i - left I"
       using diff_le_mono2 by fastforce
     then have k_ltp: "k \<le> LTP \<sigma> (\<tau> \<sigma> i - left I)"
@@ -401,7 +396,7 @@ next
     define j where "j = LTP \<sigma> ((\<tau> \<sigma> i) + n)"
     then have j_i: "i \<le> j"
       by (auto simp add: i_LTP_tau trans_le_add1 j_def)
-    assume k_def: "MFOTL.sat \<sigma> V v k \<phi> \<and> mem (\<delta> \<sigma> k i) I \<and> i \<le> k"
+    assume k_def: "MFOTL.sat \<sigma> v k \<phi> \<and> mem (\<delta> \<sigma> k i) I \<and> i \<le> k"
     then have "\<tau> \<sigma> k \<ge> \<tau> \<sigma> i + left I"
       using le_diff_conv2 by auto
     then have k_etp: "k \<ge> ETP \<sigma> (\<tau> \<sigma> i + left I)"
@@ -429,7 +424,7 @@ next
 next
   case (SHistorically j I i v \<phi>)
   { fix k
-    assume k_def: "\<not> MFOTL.sat \<sigma> V v k \<phi> \<and> mem (\<delta> \<sigma> i k) I \<and> k \<le> i"
+    assume k_def: "\<not> MFOTL.sat \<sigma> v k \<phi> \<and> mem (\<delta> \<sigma> i k) I \<and> k \<le> i"
     then have k_tau: "\<tau> \<sigma> k \<le> \<tau> \<sigma> i - left I"
       using diff_le_mono2 by fastforce
     then have k_ltp: "k \<le> LTP \<sigma> (\<tau> \<sigma> i - left I)"
@@ -462,7 +457,7 @@ next
     define j where "j = LTP \<sigma> ((\<tau> \<sigma> i) + n)"
     from SAlways have j_i: "i \<le> j"
       by (auto simp add: i_LTP_tau trans_le_add1 j_def)
-    assume k_def: "\<not> MFOTL.sat \<sigma> V v k \<phi> \<and> mem (\<delta> \<sigma> k i) I \<and> i \<le> k"
+    assume k_def: "\<not> MFOTL.sat \<sigma> v k \<phi> \<and> mem (\<delta> \<sigma> k i) I \<and> i \<le> k"
     then have "\<tau> \<sigma> k \<ge> \<tau> \<sigma> i + left I"
       using le_diff_conv2 by auto
     then have k_etp: "k \<ge> ETP \<sigma> (\<tau> \<sigma> i + left I)"
@@ -501,21 +496,21 @@ next
 next
   case (VSince I i j v \<phi> \<psi>)
   { fix k
-    assume k_def: "MFOTL.sat \<sigma> V v k \<psi> \<and> mem (\<delta> \<sigma> i k) I \<and> k \<le> i"
+    assume k_def: "MFOTL.sat \<sigma> v k \<psi> \<and> mem (\<delta> \<sigma> i k) I \<and> k \<le> i"
     then have "\<tau> \<sigma> k \<le> \<tau> \<sigma> i - left I" using diff_le_mono2 by fastforce
     then have k_ltp: "k \<le> LTP \<sigma> (\<tau> \<sigma> i - left I)"
       using VSince i_LTP_tau add_le_imp_le_diff
       by blast
     then have "k < j" using k_def VSince apply simp
       by (meson diff_is_0_eq not_gr_zero zero_less_diff)
-    then have "j \<in> {k <.. i} \<and> \<not> MFOTL.sat \<sigma> V v j \<phi>" using VSince
+    then have "j \<in> {k <.. i} \<and> \<not> MFOTL.sat \<sigma> v j \<phi>" using VSince
       by auto }
   then show ?case using VSince
     by force
 next
   case (VSinceInf j I i v \<psi> \<phi>)
   { fix k
-    assume k_def: "MFOTL.sat \<sigma> V v k \<psi> \<and> mem (\<delta> \<sigma> i k) I \<and> k \<le> i"
+    assume k_def: "MFOTL.sat \<sigma> v k \<psi> \<and> mem (\<delta> \<sigma> i k) I \<and> k \<le> i"
     then have k_tau: "\<tau> \<sigma> k \<le> \<tau> \<sigma> i - left I"
       using diff_le_mono2 by fastforce
     then have k_ltp: "k \<le> LTP \<sigma> (\<tau> \<sigma> i - left I)"
@@ -532,7 +527,7 @@ next
 next
   case (VUntil I j i v \<phi> \<psi>)
   { fix k
-    assume k_def: "MFOTL.sat \<sigma> V v k \<psi> \<and> mem (\<delta> \<sigma> k i) I \<and> i \<le> k"
+    assume k_def: "MFOTL.sat \<sigma> v k \<psi> \<and> mem (\<delta> \<sigma> k i) I \<and> i \<le> k"
     then have "\<tau> \<sigma> k \<ge> \<tau> \<sigma> i + left I"
       using le_diff_conv2 by auto
     then have k_etp: "k \<ge> ETP \<sigma> (\<tau> \<sigma> i + left I)"
@@ -552,7 +547,7 @@ next
     define j where "j = LTP \<sigma> ((\<tau> \<sigma> i) + n)"
     from VUntilInf have j_i: "i \<le> j"
       by (auto simp add: i_LTP_tau trans_le_add1 j_def)
-    assume k_def: "MFOTL.sat \<sigma> V v k \<psi> \<and> mem (\<delta> \<sigma> k i) I \<and> i \<le> k"
+    assume k_def: "MFOTL.sat \<sigma> v k \<psi> \<and> mem (\<delta> \<sigma> k i) I \<and> i \<le> k"
     then have "\<tau> \<sigma> k \<ge> \<tau> \<sigma> i + left I"
       using le_diff_conv2 by auto
     then have k_etp: "k \<ge> ETP \<sigma> (\<tau> \<sigma> i + left I)"
@@ -579,18 +574,18 @@ next
       using VUntilInf
       by (auto simp: infinity i_ETP_tau le_diff_conv2)
   qed
-qed (auto simp: fun_upd_def split: nat.splits option.splits)
+qed (auto simp: fun_upd_def split: nat.splits)
 
 lemmas soundness = soundness_raw[THEN conjunct1, THEN mp] soundness_raw[THEN conjunct2, THEN mp]
 
-lemma completeness_raw: "(MFOTL.sat \<sigma> V v i \<phi> \<longrightarrow> SAT \<sigma> v i \<phi>) \<and> (\<not> MFOTL.sat \<sigma> V v i \<phi> \<longrightarrow> VIO \<sigma> v i \<phi>)"
+lemma completeness_raw: "(MFOTL.sat \<sigma> v i \<phi> \<longrightarrow> SAT \<sigma> v i \<phi>) \<and> (\<not> MFOTL.sat \<sigma> v i \<phi> \<longrightarrow> VIO \<sigma> v i \<phi>)"
 proof (induct \<phi> arbitrary: v i)
   case (Prev I \<phi>)
   show ?case using Prev
     by (auto intro: SAT_VIO.SPrev SAT_VIO.VPrev SAT_VIO.VPrevOutL SAT_VIO.VPrevOutR SAT_VIO.VPrevZ split: nat.splits)
 next
   case (Once I \<phi>)
-  { assume "MFOTL.sat \<sigma> V v i (MFOTL.Once I \<phi>)"
+  { assume "MFOTL.sat \<sigma> v i (MFOTL.Once I \<phi>)"
     with Once have "SAT \<sigma> v i (MFOTL.Once I \<phi>)"
       by (auto intro: SAT_VIO.SOnce) }
   moreover
@@ -598,7 +593,7 @@ next
     with Once have "VIO \<sigma> v i (MFOTL.Once I \<phi>)"
       by (auto intro: SAT_VIO.VOnceOut) }
   moreover
-  { assume unsat: "\<not> MFOTL.sat \<sigma> V v i (MFOTL.Once I \<phi>)"
+  { assume unsat: "\<not> MFOTL.sat \<sigma> v i (MFOTL.Once I \<phi>)"
       and i_ge: "\<tau> \<sigma> 0 + left I \<le> \<tau> \<sigma> i"
     with Once have "VIO \<sigma> v i (MFOTL.Once I \<phi>)"
       by (auto intro!: SAT_VIO.VOnce simp: i_LTP_tau i_ETP_tau
@@ -608,14 +603,14 @@ next
 next
   case (Historically I \<phi>)
   from \<tau>_mono have i0: "\<tau> \<sigma> 0 \<le> \<tau> \<sigma> i" by auto
-  { assume sat: "MFOTL.sat \<sigma> V v i (MFOTL.Historically I \<phi>)"
+  { assume sat: "MFOTL.sat \<sigma> v i (MFOTL.Historically I \<phi>)"
       and i_ge: "\<tau> \<sigma> i \<ge> \<tau> \<sigma> 0 + left I"
     with Historically have "SAT \<sigma> v i (MFOTL.Historically I \<phi>)"
       using le_diff_conv
       by (auto intro!: SAT_VIO.SHistorically simp: i_LTP_tau i_ETP_tau
           split: enat.splits) }
   moreover
-  { assume "\<not> MFOTL.sat \<sigma> V v i (MFOTL.Historically I \<phi>)"
+  { assume "\<not> MFOTL.sat \<sigma> v i (MFOTL.Historically I \<phi>)"
     with Historically have "VIO \<sigma> v i (MFOTL.Historically I \<phi>)"
       by (auto intro: SAT_VIO.VHistorically) }
   moreover
@@ -627,11 +622,11 @@ next
 next
   case (Eventually I \<phi>)
   from \<tau>_mono have i0: "\<tau> \<sigma> 0 \<le> \<tau> \<sigma> i" by auto
-  { assume "MFOTL.sat \<sigma> V v i (MFOTL.Eventually I \<phi>)"
+  { assume "MFOTL.sat \<sigma> v i (MFOTL.Eventually I \<phi>)"
     with Eventually have "SAT \<sigma> v i (MFOTL.Eventually I \<phi>)"
       by (auto intro: SAT_VIO.SEventually) }
   moreover
-  { assume unsat: "\<not> MFOTL.sat \<sigma> V v i (MFOTL.Eventually I \<phi>)"
+  { assume unsat: "\<not> MFOTL.sat \<sigma> v i (MFOTL.Eventually I \<phi>)"
     with Eventually have "VIO \<sigma> v i (MFOTL.Eventually I \<phi>)"
       by (auto intro!: SAT_VIO.VEventually simp: add_increasing2 i0 i_LTP_tau i_ETP_tau
           split: enat.splits) }
@@ -639,17 +634,17 @@ next
 next
   case (Always I \<phi>)
     from \<tau>_mono have i0: "\<tau> \<sigma> 0 \<le> \<tau> \<sigma> i" by auto
-  { assume "\<not> MFOTL.sat \<sigma> V v i (MFOTL.Always I \<phi>)"
+  { assume "\<not> MFOTL.sat \<sigma> v i (MFOTL.Always I \<phi>)"
     with Always have "VIO \<sigma> v i (MFOTL.Always I \<phi>)"
       by (auto intro: SAT_VIO.VAlways) }
   moreover
-  { assume sat: "MFOTL.sat \<sigma> V v i (MFOTL.Always I \<phi>)"
+  { assume sat: "MFOTL.sat \<sigma> v i (MFOTL.Always I \<phi>)"
     with Always have "SAT \<sigma> v i (MFOTL.Always I \<phi>)"
       by (auto intro!: SAT_VIO.SAlways simp: add_increasing2 i0 i_LTP_tau i_ETP_tau le_diff_conv split: enat.splits)}
   ultimately show ?case by auto
 next
   case (Since \<phi> I \<psi>)
-  { assume "MFOTL.sat \<sigma> V v i (MFOTL.Since \<phi> I \<psi>)"
+  { assume "MFOTL.sat \<sigma> v i (MFOTL.Since \<phi> I \<psi>)"
     with Since have "SAT \<sigma> v i (MFOTL.Since \<phi> I \<psi>)"
       by (auto intro: SAT_VIO.SSince) }
   moreover
@@ -657,21 +652,21 @@ next
     with Since have "VIO \<sigma> v i (MFOTL.Since \<phi> I \<psi>)"
       by (auto intro: SAT_VIO.VSinceOut) }
   moreover
-  { assume unsat: "\<not> MFOTL.sat \<sigma> V v i (MFOTL.Since \<phi> I \<psi>)"
-      and nw: "\<forall>j\<le>i. \<not> mem (\<delta> \<sigma> i j) I \<or> \<not> MFOTL.sat \<sigma> V v j \<psi>"
+  { assume unsat: "\<not> MFOTL.sat \<sigma> v i (MFOTL.Since \<phi> I \<psi>)"
+      and nw: "\<forall>j\<le>i. \<not> mem (\<delta> \<sigma> i j) I \<or> \<not> MFOTL.sat \<sigma> v j \<psi>"
       and i_ge: "\<tau> \<sigma> 0 + left I \<le> \<tau> \<sigma> i"
     with Since have "VIO \<sigma> v i (MFOTL.Since \<phi> I \<psi>)"
       by (auto intro!: SAT_VIO.VSinceInf simp: i_LTP_tau i_ETP_tau
           split: enat.splits)}
   moreover
-  { assume unsat: "\<not> MFOTL.sat \<sigma> V v i (MFOTL.Since \<phi> I \<psi>)"
-      and jw: "\<exists>j\<le>i. mem (\<delta> \<sigma> i j) I \<and> MFOTL.sat \<sigma> V v j \<psi>"
+  { assume unsat: "\<not> MFOTL.sat \<sigma> v i (MFOTL.Since \<phi> I \<psi>)"
+      and jw: "\<exists>j\<le>i. mem (\<delta> \<sigma> i j) I \<and> MFOTL.sat \<sigma> v j \<psi>"
       and i_ge: "\<tau> \<sigma> 0 + left I \<le> \<tau> \<sigma> i"
     from unsat jw not_sat_SinceD[of \<sigma> v i \<phi> I \<psi>]
     obtain j where j: "j \<le> i"
       "case right I of \<infinity> \<Rightarrow> True | enat n \<Rightarrow> ETP \<sigma> (\<tau> \<sigma> i - n) \<le> j"
-      "\<not> MFOTL.sat \<sigma> V v j \<phi>" "(\<forall>k \<in> {j .. (min i (LTP \<sigma> (\<tau> \<sigma> i - left I)))}.
-      \<not> MFOTL.sat \<sigma> V v k \<psi>)" by (auto split: enat.splits)
+      "\<not> MFOTL.sat \<sigma> v j \<phi>" "(\<forall>k \<in> {j .. (min i (LTP \<sigma> (\<tau> \<sigma> i - left I)))}.
+      \<not> MFOTL.sat \<sigma> v k \<psi>)" by (auto split: enat.splits)
     with Since have "VIO \<sigma> v i (MFOTL.Since \<phi> I \<psi>)"
       using i_ge unsat jw
       by (auto intro!: SAT_VIO.VSince) }
@@ -680,23 +675,23 @@ next
 next
   case (Until \<phi> I \<psi>)
   from \<tau>_mono have i0: "\<tau> \<sigma> 0 \<le> \<tau> \<sigma> i" by auto
-  { assume "MFOTL.sat \<sigma> V v i (MFOTL.Until \<phi> I \<psi>)"
+  { assume "MFOTL.sat \<sigma> v i (MFOTL.Until \<phi> I \<psi>)"
     with Until have "SAT \<sigma> v i (MFOTL.Until \<phi> I \<psi>)"
       by (auto intro: SAT_VIO.SUntil) }
   moreover
-  { assume unsat: "\<not> MFOTL.sat \<sigma> V v i (MFOTL.Until \<phi> I \<psi>)"
-      and witness: "\<exists>j \<ge> i. mem (\<delta> \<sigma> j i) I \<and> MFOTL.sat \<sigma> V v j \<psi>"
+  { assume unsat: "\<not> MFOTL.sat \<sigma> v i (MFOTL.Until \<phi> I \<psi>)"
+      and witness: "\<exists>j \<ge> i. mem (\<delta> \<sigma> j i) I \<and> MFOTL.sat \<sigma> v j \<psi>"
     from this Until not_sat_UntilD[of \<sigma> v i \<phi> I \<psi>] obtain j
       where j: "j \<ge> i" "(case right I of \<infinity> \<Rightarrow> True | enat n
-      \<Rightarrow> j < LTP \<sigma> (\<tau> \<sigma> i + n))" "\<not> (MFOTL.sat \<sigma> V v j \<phi>)"
-        "(\<forall>k \<in> {(max i (ETP \<sigma> (\<tau> \<sigma> i + left I))) .. j}. \<not> MFOTL.sat \<sigma> V v k \<psi>)"
+      \<Rightarrow> j < LTP \<sigma> (\<tau> \<sigma> i + n))" "\<not> (MFOTL.sat \<sigma> v j \<phi>)"
+        "(\<forall>k \<in> {(max i (ETP \<sigma> (\<tau> \<sigma> i + left I))) .. j}. \<not> MFOTL.sat \<sigma> v k \<psi>)"
       by auto
     with Until have "VIO \<sigma> v i (MFOTL.Until \<phi> I \<psi>)"
       using unsat witness 
       by (auto intro!: SAT_VIO.VUntil) }
   moreover
-  { assume unsat: "\<not> MFOTL.sat \<sigma> V v i (MFOTL.Until \<phi> I \<psi>)"
-      and no_witness: "\<forall>j \<ge> i. \<not> mem (\<delta> \<sigma> j i) I \<or> \<not> MFOTL.sat \<sigma> V v j \<psi>"
+  { assume unsat: "\<not> MFOTL.sat \<sigma> v i (MFOTL.Until \<phi> I \<psi>)"
+      and no_witness: "\<forall>j \<ge> i. \<not> mem (\<delta> \<sigma> j i) I \<or> \<not> MFOTL.sat \<sigma> v j \<psi>"
     with Until have "VIO \<sigma> v i (MFOTL.Until \<phi> I \<psi>)"
       by (auto intro!: SAT_VIO.VUntilInf simp: add_increasing2 i0 i_LTP_tau i_ETP_tau
           split: enat.splits)

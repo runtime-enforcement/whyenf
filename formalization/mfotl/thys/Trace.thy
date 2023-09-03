@@ -92,14 +92,14 @@ qed
 lemma sincreasing_stl: "sincreasing s \<Longrightarrow> sincreasing (stl s)" for s :: "'a :: semilattice_sup stream"
   by (auto 0 4 simp: gr0_conv_Suc intro!: sincreasingI dest: sincreasing_grD[of s 0])
 
-definition "sfinite s = (\<forall>i. finite (s !! i))"
+definition "sfstfinite s = (\<forall>i. finite (s !! i))"
 
-lemma sfiniteI: "(\<And>i. finite (s !! i)) \<Longrightarrow> sfinite s"
-  by (simp add: sfinite_def)
+lemma sfstfiniteI: "(\<And>i. finite (s !! i)) \<Longrightarrow> sfstfinite s"
+  by (simp add: sfstfinite_def)
 
-typedef 'a trace = "{s :: ('a set \<times> nat) stream. ssorted (smap snd s) \<and> sincreasing (smap snd s) \<and> sfinite (smap fst s)}"
+typedef 'a trace = "{s :: ('a set \<times> nat) stream. ssorted (smap snd s) \<and> sincreasing (smap snd s) \<and> sfstfinite (smap fst s)}"
   by (intro exI[of _ "smap (\<lambda>i. ({}, i)) nats"])
-    (auto simp: stream.map_comp stream.map_ident sfinite_def cong: stream.map_cong)
+    (auto simp: stream.map_comp stream.map_ident sfstfinite_def cong: stream.map_cong)
 
 setup_lifting type_definition_trace
 
