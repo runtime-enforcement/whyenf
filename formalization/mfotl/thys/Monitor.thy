@@ -1493,7 +1493,7 @@ lemma fun_upd_in_compatible_vals_notin: "x \<notin> A \<Longrightarrow> v \<in> 
   by auto
 
 lemma finite_values: "finite (\<Union> (set ` snd ` \<Gamma> \<sigma> k))"
-  by (transfer, auto simp add: sfinite_def)
+  by (transfer, auto simp add: sfstfinite_def)
 
 lemma finite_tps: "MFOTL.future_bounded \<phi> \<Longrightarrow> finite (\<Union> k < the (LRTP \<sigma> \<phi> i). {k})"
   using fb_LRTP[of \<phi>] finite_enat_bounded 
@@ -3949,8 +3949,6 @@ function (sequential) eval :: "MFOTL.name list \<Rightarrow> nat \<Rightarrow> '
 | "eval vars i MFOTL.FF = Leaf (Inr (VFF i))"
 | "eval vars i (MFOTL.Pred r ts) = 
   (pdt_of i r ts (filter (\<lambda>x. x \<in> MFOTL.fv (MFOTL.Pred r ts)) vars) (Option.these (match ts ` snd ` {rd \<in> \<Gamma> \<sigma> i. fst rd = r })))"
-| "eval vars i (MFOTL.Eq_Const x c) =
-     Node x (tabulate [c] (\<lambda>c. Leaf (Inl (SEq_Const i x c))) (Leaf (Inr (VEq_Const i x c))))"
 | "eval vars i (MFOTL.Neg \<phi>) = apply_pdt1 vars (\<lambda>p. min_list_wrt cmp (do_neg p)) (eval vars i \<phi>)"
 | "eval vars i (MFOTL.Or \<phi> \<psi>) = apply_pdt2 vars (\<lambda>p1 p2. min_list_wrt cmp (do_or p1 p2)) (eval vars i \<phi>) (eval vars i \<psi>)"
 | "eval vars i (MFOTL.And \<phi> \<psi>) = apply_pdt2 vars (\<lambda>p1 p2. min_list_wrt cmp (do_and p1 p2)) (eval vars i \<phi>) (eval vars i \<psi>)"

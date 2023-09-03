@@ -74,7 +74,6 @@ qualified datatype 'a formula =
 | Always \<I> "'a formula"
 | Since "'a formula" \<I> "'a formula" 
 | Until "'a formula" \<I> "'a formula"
-| Let name "name list" "'a formula" "'a formula"
 
 qualified primrec fv :: "'a formula \<Rightarrow> name set" where
   "fv (Pred r ts) = (\<Union>t\<in>set ts. fv_trm t)"
@@ -96,7 +95,6 @@ qualified primrec fv :: "'a formula \<Rightarrow> name set" where
 | "fv (Always I \<phi>) = fv \<phi>"
 | "fv (Since \<phi> I \<psi>) = fv \<phi> \<union> fv \<psi>"
 | "fv (Until \<phi> I \<psi>) = fv \<phi> \<union> fv \<psi>"
-| "fv (Let p xs \<phi> \<psi>) = fv \<psi>"
 
 qualified primrec "consts" :: "'a formula \<Rightarrow> 'a set" where
   "consts (Pred r ts) = {}" \<comment> \<open>terms may also contain constants,
@@ -120,7 +118,6 @@ qualified primrec "consts" :: "'a formula \<Rightarrow> 'a set" where
 | "consts (Always I \<phi>) = consts \<phi>"
 | "consts (Since \<phi> I \<psi>) = consts \<phi> \<union> consts \<psi>"
 | "consts (Until \<phi> I \<psi>) = consts \<phi> \<union> consts \<psi>"
-| "consts (Let p xs \<phi> \<psi>) = consts \<phi> \<union> consts \<psi>"
 
 lemma finite_fv_trm[simp]: "finite (fv_trm t)"
   by (cases t) simp_all
@@ -154,36 +151,30 @@ qualified fun future_bounded :: "'a formula \<Rightarrow> bool" where
 | "future_bounded (Always I \<phi>) = (future_bounded \<phi> \<and> right I \<noteq> \<infinity>)"
 | "future_bounded (Since \<phi> I \<psi>) = (future_bounded \<phi> \<and> future_bounded \<psi>)"
 | "future_bounded (Until \<phi> I \<psi>) = (future_bounded \<phi> \<and> future_bounded \<psi> \<and> right I \<noteq> \<infinity>)"
-| "future_bounded (Let p xs \<phi> \<psi>) = (future_bounded \<phi> \<and> future_bounded \<psi>)"
 
-qualified primrec sat :: "'a trace \<Rightarrow> (name \<times> nat \<rightharpoonup> nat \<Rightarrow> 'a list set) \<Rightarrow> 'a env \<Rightarrow> nat \<Rightarrow> 'a formula \<Rightarrow> bool" where
-  "sat \<sigma> V v i (TT) = True"
-| "sat \<sigma> V v i (FF) = False"
-| "sat \<sigma> V v i (Pred r ts) = 
-    (case V (r, length ts) of
-      None \<Rightarrow> (r, eval_trms v ts) \<in> \<Gamma> \<sigma> i
-    | Some X \<Rightarrow> eval_trms v ts \<in> X i)"
-| "sat \<sigma> V v i (Eq_Const x c) = (v x = c)"
-| "sat \<sigma> V v i (Neg \<phi>) = (\<not> sat \<sigma> V v i \<phi>)"
-| "sat \<sigma> V v i (Or \<phi> \<psi>) = (sat \<sigma> V v i \<phi> \<or> sat \<sigma> V v i \<psi>)"
-| "sat \<sigma> V v i (And \<phi> \<psi>) = (sat \<sigma> V v i \<phi> \<and> sat \<sigma> V v i \<psi>)"
-| "sat \<sigma> V v i (Imp \<phi> \<psi>) = (sat \<sigma> V v i \<phi> \<longrightarrow> sat \<sigma> V v i \<psi>)"
-| "sat \<sigma> V v i (Iff \<phi> \<psi>) = (sat \<sigma> V v i \<phi> \<longleftrightarrow> sat \<sigma> V v i \<psi>)"
-| "sat \<sigma> V v i (Exists x \<phi>) = (\<exists>z. sat \<sigma> V (v (x := z)) i \<phi>)"
-| "sat \<sigma> V v i (Forall x \<phi>) = (\<forall>z. sat \<sigma> V (v (x := z)) i \<phi>)" 
-| "sat \<sigma> V v i (Prev I \<phi>) = (case i of 0 \<Rightarrow> False | Suc j \<Rightarrow> mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I \<and> sat \<sigma> V v j \<phi>)"
-| "sat \<sigma> V v i (Next I \<phi>) = (mem (\<tau> \<sigma> (Suc i) - \<tau> \<sigma> i) I \<and> sat \<sigma> V v (Suc i) \<phi>)"
-| "sat \<sigma> V v i (Once I \<phi>) = (\<exists>j\<le>i. mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I \<and> sat \<sigma> V v j \<phi>)"
-| "sat \<sigma> V v i (Historically I \<phi>) = (\<forall>j\<le>i. mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I \<longrightarrow> sat \<sigma> V v j \<phi>)"
-| "sat \<sigma> V v i (Eventually I \<phi>) = (\<exists>j\<ge>i. mem (\<tau> \<sigma> j - \<tau> \<sigma> i) I \<and> sat \<sigma> V v j \<phi>)"
-| "sat \<sigma> V v i (Always I \<phi>) = (\<forall>j\<ge>i. mem (\<tau> \<sigma> j - \<tau> \<sigma> i) I \<longrightarrow> sat \<sigma> V v j \<phi>)"
-| "sat \<sigma> V v i (Since \<phi> I \<psi>) = (\<exists>j\<le>i. mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I \<and> sat \<sigma> V v j \<psi> \<and> (\<forall>k \<in> {j <.. i}. sat \<sigma> V v k \<phi>))"
-| "sat \<sigma> V v i (Until \<phi> I \<psi>) = (\<exists>j\<ge>i. mem (\<tau> \<sigma> j - \<tau> \<sigma> i) I \<and> sat \<sigma> V v j \<psi> \<and> (\<forall>k \<in> {i ..< j}. sat \<sigma> V v k \<phi>))"
-| "sat \<sigma> V v i (Let p xs \<phi> \<psi>) = 
-     (let n = length xs in sat \<sigma> (V((p,n) \<mapsto> \<lambda>j. {map w xs | w. sat \<sigma> V w j \<phi>})) v i \<psi>)"
+qualified primrec sat :: "'a trace \<Rightarrow> 'a env \<Rightarrow> nat \<Rightarrow> 'a formula \<Rightarrow> bool" where
+  "sat \<sigma> v i (TT) = True"
+| "sat \<sigma> v i (FF) = False"
+| "sat \<sigma> v i (Pred r ts) = ((r, eval_trms v ts) \<in> \<Gamma> \<sigma> i)"
+| "sat \<sigma> v i (Eq_Const x c) = (v x = c)"
+| "sat \<sigma> v i (Neg \<phi>) = (\<not> sat \<sigma> v i \<phi>)"
+| "sat \<sigma> v i (Or \<phi> \<psi>) = (sat \<sigma> v i \<phi> \<or> sat \<sigma> v i \<psi>)"
+| "sat \<sigma> v i (And \<phi> \<psi>) = (sat \<sigma> v i \<phi> \<and> sat \<sigma> v i \<psi>)"
+| "sat \<sigma> v i (Imp \<phi> \<psi>) = (sat \<sigma> v i \<phi> \<longrightarrow> sat \<sigma> v i \<psi>)"
+| "sat \<sigma> v i (Iff \<phi> \<psi>) = (sat \<sigma> v i \<phi> \<longleftrightarrow> sat \<sigma> v i \<psi>)"
+| "sat \<sigma> v i (Exists x \<phi>) = (\<exists>z. sat \<sigma> (v (x := z)) i \<phi>)"
+| "sat \<sigma> v i (Forall x \<phi>) = (\<forall>z. sat \<sigma> (v (x := z)) i \<phi>)" 
+| "sat \<sigma> v i (Prev I \<phi>) = (case i of 0 \<Rightarrow> False | Suc j \<Rightarrow> mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I \<and> sat \<sigma> v j \<phi>)"
+| "sat \<sigma> v i (Next I \<phi>) = (mem (\<tau> \<sigma> (Suc i) - \<tau> \<sigma> i) I \<and> sat \<sigma> v (Suc i) \<phi>)"
+| "sat \<sigma> v i (Once I \<phi>) = (\<exists>j\<le>i. mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I \<and> sat \<sigma> v j \<phi>)"
+| "sat \<sigma> v i (Historically I \<phi>) = (\<forall>j\<le>i. mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I \<longrightarrow> sat \<sigma> v j \<phi>)"
+| "sat \<sigma> v i (Eventually I \<phi>) = (\<exists>j\<ge>i. mem (\<tau> \<sigma> j - \<tau> \<sigma> i) I \<and> sat \<sigma> v j \<phi>)"
+| "sat \<sigma> v i (Always I \<phi>) = (\<forall>j\<ge>i. mem (\<tau> \<sigma> j - \<tau> \<sigma> i) I \<longrightarrow> sat \<sigma> v j \<phi>)"
+| "sat \<sigma> v i (Since \<phi> I \<psi>) = (\<exists>j\<le>i. mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I \<and> sat \<sigma> v j \<psi> \<and> (\<forall>k \<in> {j <.. i}. sat \<sigma> v k \<phi>))"
+| "sat \<sigma> v i (Until \<phi> I \<psi>) = (\<exists>j\<ge>i. mem (\<tau> \<sigma> j - \<tau> \<sigma> i) I \<and> sat \<sigma> v j \<psi> \<and> (\<forall>k \<in> {i ..< j}. sat \<sigma> v k \<phi>))"
 
-lemma sat_fv_cong: "\<forall>x\<in>fv \<phi>. v x = v' x \<Longrightarrow> sat \<sigma> V v i \<phi> = sat \<sigma> V v' i \<phi>"
-proof (induct \<phi> arbitrary: V v v' i rule: formula.induct)
+lemma sat_fv_cong: "\<forall>x\<in>fv \<phi>. v x = v' x \<Longrightarrow> sat \<sigma> v i \<phi> = sat \<sigma> v' i \<phi>"
+proof (induct \<phi> arbitrary: v v' i rule: formula.induct)
   case (Pred n ts)
   thus ?case
     by (simp cong: map_cong eval_trms_fv_cong[rule_format, OF Pred[simplified, rule_format]] 
@@ -198,42 +189,42 @@ next
     by (intro iff_allI) (simp add: nth_Cons')
 qed (auto 10 0 simp: Let_def split: nat.splits intro!: iff_exI eval_trm_fv_cong)
 
-lemma sat_Until_rec: "sat \<sigma> V v i (Until \<phi> I \<psi>) \<longleftrightarrow>
-  mem 0 I \<and> sat \<sigma> V v i \<psi> \<or>
-  (\<Delta> \<sigma> (i + 1) \<le> right I \<and> sat \<sigma> V v i \<phi> \<and> sat \<sigma> V v (i + 1) (Until \<phi> (subtract (\<Delta> \<sigma> (i + 1)) I) \<psi>))"
+lemma sat_Until_rec: "sat \<sigma> v i (Until \<phi> I \<psi>) \<longleftrightarrow>
+  mem 0 I \<and> sat \<sigma> v i \<psi> \<or>
+  (\<Delta> \<sigma> (i + 1) \<le> right I \<and> sat \<sigma> v i \<phi> \<and> sat \<sigma> v (i + 1) (Until \<phi> (subtract (\<Delta> \<sigma> (i + 1)) I) \<psi>))"
   (is "?L \<longleftrightarrow> ?R")
 proof (rule iffI; (elim disjE conjE)?)
   assume ?L
-  then obtain j where j: "i \<le> j" "mem (\<tau> \<sigma> j - \<tau> \<sigma> i) I" "sat \<sigma> V v j \<psi>" "\<forall>k \<in> {i ..< j}. sat \<sigma> V v k \<phi>"
+  then obtain j where j: "i \<le> j" "mem (\<tau> \<sigma> j - \<tau> \<sigma> i) I" "sat \<sigma> v j \<psi>" "\<forall>k \<in> {i ..< j}. sat \<sigma> v k \<phi>"
     by auto
   then show ?R
   proof (cases "i = j")
     case False
     with j(1,2) have "\<Delta> \<sigma> (i + 1) \<le> right I"
       by (auto elim: order_trans[rotated] simp: diff_le_mono)
-    moreover from False j(1,4) have "sat \<sigma> V v i \<phi>" by auto
-    moreover from False j have "sat \<sigma> V v (i + 1) (Until \<phi> (subtract (\<Delta> \<sigma> (i + 1)) I) \<psi>)"
+    moreover from False j(1,4) have "sat \<sigma> v i \<phi>" by auto
+    moreover from False j have "sat \<sigma> v (i + 1) (Until \<phi> (subtract (\<Delta> \<sigma> (i + 1)) I) \<psi>)"
       by (cases "right I") (auto simp: le_diff_conv le_diff_conv2 intro!: exI[of _ j])
     ultimately show ?thesis by blast
   qed simp
 next
-  assume \<Delta>: "\<Delta> \<sigma> (i + 1) \<le> right I" and now: "sat \<sigma> V v i \<phi>" and
-   "next": "sat \<sigma> V v (i + 1) (Until \<phi> (subtract (\<Delta> \<sigma> (i + 1)) I) \<psi>)"
+  assume \<Delta>: "\<Delta> \<sigma> (i + 1) \<le> right I" and now: "sat \<sigma> v i \<phi>" and
+   "next": "sat \<sigma> v (i + 1) (Until \<phi> (subtract (\<Delta> \<sigma> (i + 1)) I) \<psi>)"
   from "next" obtain j where j: "i + 1 \<le> j" "mem (\<tau> \<sigma> j - \<tau> \<sigma> (i + 1)) ((subtract (\<Delta> \<sigma> (i + 1)) I))"
-      "sat \<sigma> V v j \<psi>" "\<forall>k \<in> {i + 1 ..< j}. sat \<sigma> V v k \<phi>"
+      "sat \<sigma> v j \<psi>" "\<forall>k \<in> {i + 1 ..< j}. sat \<sigma> v k \<phi>"
     by auto
   from \<Delta> j(1,2) have "mem (\<tau> \<sigma> j - \<tau> \<sigma> i) I"
     by (cases "right I") (auto simp: le_diff_conv2)
   with now j(1,3,4) show ?L by (auto simp: le_eq_less_or_eq[of i] intro!: exI[of _ j])
 qed auto
 
-lemma sat_Since_rec: "sat \<sigma> V v i (Since \<phi> I \<psi>) \<longleftrightarrow>
-  mem 0 I \<and> sat \<sigma> V v i \<psi> \<or>
-  (i > 0 \<and> \<Delta> \<sigma> i \<le> right I \<and> sat \<sigma> V v i \<phi> \<and> sat \<sigma> V v (i - 1) (Since \<phi> (subtract (\<Delta> \<sigma> i) I) \<psi>))"
+lemma sat_Since_rec: "sat \<sigma> v i (Since \<phi> I \<psi>) \<longleftrightarrow>
+  mem 0 I \<and> sat \<sigma> v i \<psi> \<or>
+  (i > 0 \<and> \<Delta> \<sigma> i \<le> right I \<and> sat \<sigma> v i \<phi> \<and> sat \<sigma> v (i - 1) (Since \<phi> (subtract (\<Delta> \<sigma> i) I) \<psi>))"
   (is "?L \<longleftrightarrow> ?R")
 proof (rule iffI; (elim disjE conjE)?)
   assume ?L
-  then obtain j where j: "j \<le> i" "mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I" "sat \<sigma> V v j \<psi>" "\<forall>k \<in> {j <.. i}. sat \<sigma> V v k \<phi>"
+  then obtain j where j: "j \<le> i" "mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I" "sat \<sigma> v j \<psi>" "\<forall>k \<in> {j <.. i}. sat \<sigma> v k \<phi>"
     by auto
   then show ?R
   proof (cases "i = j")
@@ -242,65 +233,65 @@ proof (rule iffI; (elim disjE conjE)?)
       by (cases i) auto
     with j(1,2) False have "\<Delta> \<sigma> i \<le> right I"
       by (auto elim: order_trans[rotated] simp: diff_le_mono2 le_Suc_eq)
-    moreover from False j(1,4) have "sat \<sigma> V v i \<phi>" by auto
-    moreover from False j have "sat \<sigma> V v (i - 1) (Since \<phi> (subtract (\<Delta> \<sigma> i) I) \<psi>)"
+    moreover from False j(1,4) have "sat \<sigma> v i \<phi>" by auto
+    moreover from False j have "sat \<sigma> v (i - 1) (Since \<phi> (subtract (\<Delta> \<sigma> i) I) \<psi>)"
       by (cases "right I") (auto simp: le_diff_conv le_diff_conv2 intro!: exI[of _ j])
     ultimately show ?thesis by auto
   qed simp
 next
-  assume i: "0 < i" and \<Delta>: "\<Delta> \<sigma> i \<le> right I" and now: "sat \<sigma> V v i \<phi>" and
-   "prev": "sat \<sigma> V v (i - 1) (Since \<phi> (subtract (\<Delta> \<sigma> i) I) \<psi>)"
+  assume i: "0 < i" and \<Delta>: "\<Delta> \<sigma> i \<le> right I" and now: "sat \<sigma> v i \<phi>" and
+   "prev": "sat \<sigma> v (i - 1) (Since \<phi> (subtract (\<Delta> \<sigma> i) I) \<psi>)"
   from "prev" obtain j where j: "j \<le> i - 1" "mem (\<tau> \<sigma> (i - 1) - \<tau> \<sigma> j) ((subtract (\<Delta> \<sigma> i) I))"
-      "sat \<sigma> V v j \<psi>" "\<forall>k \<in> {j <.. i - 1}. sat \<sigma> V v k \<phi>"
+      "sat \<sigma> v j \<psi>" "\<forall>k \<in> {j <.. i - 1}. sat \<sigma> v k \<phi>"
     by auto
   from \<Delta> i j(1,2) have "mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I"
     by (cases "right I") (auto simp: le_diff_conv2)
   with now i j(1,3,4) show ?L by (auto simp: le_Suc_eq gr0_conv_Suc intro!: exI[of _ j])
 qed auto
 
-lemma sat_Since_0: "sat \<sigma> V v 0 (Since \<phi> I \<psi>) \<longleftrightarrow> mem 0 I \<and> sat \<sigma> V v 0 \<psi>"
+lemma sat_Since_0: "sat \<sigma> v 0 (Since \<phi> I \<psi>) \<longleftrightarrow> mem 0 I \<and> sat \<sigma> v 0 \<psi>"
   by auto
 
-lemma sat_Since_point: "sat \<sigma> V v i (Since \<phi> I \<psi>) \<Longrightarrow>
-    (\<And>j. j \<le> i \<Longrightarrow> mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I \<Longrightarrow> sat \<sigma> V v i (Since \<phi> (point (\<tau> \<sigma> i - \<tau> \<sigma> j)) \<psi>) \<Longrightarrow> Q) \<Longrightarrow> Q"
+lemma sat_Since_point: "sat \<sigma> v i (Since \<phi> I \<psi>) \<Longrightarrow>
+    (\<And>j. j \<le> i \<Longrightarrow> mem (\<tau> \<sigma> i - \<tau> \<sigma> j) I \<Longrightarrow> sat \<sigma> v i (Since \<phi> (point (\<tau> \<sigma> i - \<tau> \<sigma> j)) \<psi>) \<Longrightarrow> P) \<Longrightarrow> P"
   by (auto intro: diff_le_self)
 
-lemma sat_Since_pointD: "sat \<sigma> V v i (Since \<phi> (point t) \<psi>) \<Longrightarrow> mem t I \<Longrightarrow> sat \<sigma> V v i (Since \<phi> I \<psi>)"
+lemma sat_Since_pointD: "sat \<sigma> v i (Since \<phi> (point t) \<psi>) \<Longrightarrow> mem t I \<Longrightarrow> sat \<sigma> v i (Since \<phi> I \<psi>)"
   by auto
 
-lemma sat_Once_Since: "sat \<sigma> V v i (Once I \<phi>) = sat \<sigma> V v i (Since TT I \<phi>)"
+lemma sat_Once_Since: "sat \<sigma> v i (Once I \<phi>) = sat \<sigma> v i (Since TT I \<phi>)"
   by auto
 
-lemma sat_Once_rec: "sat \<sigma> V v i (Once I \<phi>) \<longleftrightarrow>
-  mem 0 I \<and> sat \<sigma> V v i \<phi> \<or> 
-  (i > 0 \<and> \<Delta> \<sigma> i \<le> right I \<and> sat \<sigma> V v (i - 1) (Once (subtract (\<Delta> \<sigma> i) I) \<phi>))"
+lemma sat_Once_rec: "sat \<sigma> v i (Once I \<phi>) \<longleftrightarrow>
+  mem 0 I \<and> sat \<sigma> v i \<phi> \<or> 
+  (i > 0 \<and> \<Delta> \<sigma> i \<le> right I \<and> sat \<sigma> v (i - 1) (Once (subtract (\<Delta> \<sigma> i) I) \<phi>))"
   unfolding sat_Once_Since
   by (subst sat_Since_rec) auto
 
-lemma sat_Historically_Once: "sat \<sigma> V v i (Historically I \<phi>) = sat \<sigma> V v i (Neg (Once I (Neg \<phi>)))"
+lemma sat_Historically_Once: "sat \<sigma> v i (Historically I \<phi>) = sat \<sigma> v i (Neg (Once I (Neg \<phi>)))"
   by auto
 
-lemma sat_Historically_rec: "sat \<sigma> V v i (Historically I \<phi>) \<longleftrightarrow>
-  (mem 0 I \<longrightarrow> sat \<sigma> V v i \<phi>) \<and> 
-  (i > 0 \<longrightarrow> \<Delta> \<sigma> i \<le> right I \<longrightarrow> sat \<sigma> V v (i - 1) (Historically (subtract (\<Delta> \<sigma> i) I) \<phi>))"
+lemma sat_Historically_rec: "sat \<sigma> v i (Historically I \<phi>) \<longleftrightarrow>
+  (mem 0 I \<longrightarrow> sat \<sigma> v i \<phi>) \<and> 
+  (i > 0 \<longrightarrow> \<Delta> \<sigma> i \<le> right I \<longrightarrow> sat \<sigma> v (i - 1) (Historically (subtract (\<Delta> \<sigma> i) I) \<phi>))"
   unfolding sat_Historically_Once sat.simps(5)
   by (subst sat_Once_rec) auto
 
-lemma sat_Eventually_Until: "sat \<sigma> V v i (Eventually I \<phi>) = sat \<sigma> V v i (Until TT I \<phi>)"
+lemma sat_Eventually_Until: "sat \<sigma> v i (Eventually I \<phi>) = sat \<sigma> v i (Until TT I \<phi>)"
   by auto
 
-lemma sat_Eventually_rec: "sat \<sigma> V v i (Eventually I \<phi>) \<longleftrightarrow>
-  mem 0 I \<and> sat \<sigma> V v i \<phi> \<or> 
-  (\<Delta> \<sigma> (i + 1) \<le> right I \<and> sat \<sigma> V v (i + 1) (Eventually (subtract (\<Delta> \<sigma> (i + 1)) I) \<phi>))"
+lemma sat_Eventually_rec: "sat \<sigma> v i (Eventually I \<phi>) \<longleftrightarrow>
+  mem 0 I \<and> sat \<sigma> v i \<phi> \<or> 
+  (\<Delta> \<sigma> (i + 1) \<le> right I \<and> sat \<sigma> v (i + 1) (Eventually (subtract (\<Delta> \<sigma> (i + 1)) I) \<phi>))"
   unfolding sat_Eventually_Until
   by (subst sat_Until_rec) auto
 
-lemma sat_Always_Eventually: "sat \<sigma> V v i (Always I \<phi>) = sat \<sigma> V v i (Neg (Eventually I (Neg \<phi>)))"
+lemma sat_Always_Eventually: "sat \<sigma> v i (Always I \<phi>) = sat \<sigma> v i (Neg (Eventually I (Neg \<phi>)))"
   by auto
 
-lemma sat_Always_rec: "sat \<sigma> V v i (Always I \<phi>) \<longleftrightarrow>
-  (mem 0 I \<longrightarrow> sat \<sigma> V v i \<phi>) \<and> 
-  (\<Delta> \<sigma> (i + 1) \<le> right I \<longrightarrow> sat \<sigma> V v (i + 1) (Always (subtract (\<Delta> \<sigma> (i + 1)) I) \<phi>))"
+lemma sat_Always_rec: "sat \<sigma> v i (Always I \<phi>) \<longleftrightarrow>
+  (mem 0 I \<longrightarrow> sat \<sigma> v i \<phi>) \<and> 
+  (\<Delta> \<sigma> (i + 1) \<le> right I \<longrightarrow> sat \<sigma> v (i + 1) (Always (subtract (\<Delta> \<sigma> (i + 1)) I) \<phi>))"
   unfolding sat_Always_Eventually sat.simps(5)
   by (subst sat_Eventually_rec) auto
 
@@ -333,7 +324,6 @@ no_notation formula.TT ("\<top>")
      and formula.Eventually ("\<^bold>G _ _" [55, 65] 65)
      and formula.Since ("_ \<^bold>S _ _" [60,55,60] 60)
      and formula.Until ("_ \<^bold>U _ _" [60,55,60] 60)
-     and formula.Let ("LET _'(_'):=_ IN _" [60,55,55,60] 60)
 
 no_notation MFOTL.fv_trm ("fv\<^sub>t")
      and MFOTL.fv ("fv")
@@ -368,7 +358,6 @@ notation formula.TT ("\<top>")
      and formula.Eventually ("\<^bold>G _ _" [55, 65] 65)
      and formula.Since ("_ \<^bold>S _ _" [60,55,60] 60)
      and formula.Until ("_ \<^bold>U _ _" [60,55,60] 60)
-     and formula.Let ("LET _ \<dagger> _ :=_ IN _" [60,55,55,60] 60)
 
 notation MFOTL.fv_trm ("fv\<^sub>t")
      and MFOTL.fv ("fv")
