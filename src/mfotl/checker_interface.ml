@@ -25,26 +25,42 @@ module Checker_interface = struct
   type trace = (string set * nat) list
   type trace_lst = (timestamp * (Db.Event.t, Db.Event.comparator_witness) Set.t) list
 
-  let convert_d (d: Domain.t) = match d with
+  let to_event_data (d: Domain.t) = match d with
     | Int v -> EInt (Z.of_int v)
     | Str v -> EString v
     | _ -> raise (Invalid_argument "type not supported yet")
 
+  let of_event_data (ed: event_data) = match ed with
+    | EInt v -> Domain.Int (Z.to_int v)
+    | EString v -> Str v
+    | _ -> raise (Invalid_argument "type not supported yet")
+
   let convert_term (t: Pred.Term.t) = match t with
-    | Const c -> Const (convert_d c)
+    | Const c -> Const (to_event_data c)
     | Var x -> Var x
 
-  let convert_set = function
-    | Setc.Finite s -> Set (List.rev (Set.fold s ~init:[] ~f:(fun acc d -> (convert_d d) :: acc)))
-    | Setc.Complement s -> Coset (List.rev (Set.fold s ~init:[] ~f:(fun acc d -> (convert_d d) :: acc)))
+  (* fset: formalized sets (from Isabelle) *)
+  let to_fset = function
+    | Setc.Finite s -> Set (List.rev (Set.fold s ~init:[] ~f:(fun acc d -> (to_event_data d) :: acc)))
+    | Setc.Complement s -> Coset (List.rev (Set.fold s ~init:[] ~f:(fun acc d -> (to_event_data d) :: acc)))
+
+  let of_fset = function
+    | Set s -> Setc.Finite (Set.of_list (module Domain)
+                              (List.rev (List.fold s ~init:[] ~f:(fun acc ed -> (of_event_data ed) :: acc))))
+    | Coset cs -> Setc.Complement (Set.of_list (module Domain)
+                                     (List.rev (List.fold cs ~init:[] ~f:(fun acc ed -> (of_event_data ed) :: acc))))
+
+  let of_poly_set = function
+    | Set s -> List.rev (List.fold s ~init:[] ~f:(fun acc l -> l :: acc))
+    | Coset cs -> List.rev (List.fold cs ~init:[] ~f:(fun acc l -> l :: acc))
 
   let rec convert_sp_part part =
     let part_lst = List.map part ~f:(fun (coset, sp) ->
-                       (convert_set coset, convert_sp sp)) in
+                       (to_fset coset, convert_sp sp)) in
     abs_part (part_lst)
   and convert_vp_part part =
     let part_lst = List.map part ~f:(fun (coset, vp) ->
-                       (convert_set coset, convert_vp vp)) in
+                       (to_fset coset, convert_vp vp)) in
     abs_part (part_lst)
   and convert_sp (sp: Proof.sp) : (event_data sproof) = match sp with
     | STT tp -> STT (nat_of_int tp)
@@ -57,7 +73,7 @@ module Checker_interface = struct
     | SImpR sp2 -> SImpR (convert_sp sp2)
     | SIffSS (sp1, sp2) -> SIffSS (convert_sp sp1, convert_sp sp2)
     | SIffVV (vp1, vp2) -> SIffVV (convert_vp vp1, convert_vp vp2)
-    | SExists (x, d, sp) -> SExists (Pred.Term.unvar x, convert_d d, convert_sp sp)
+    | SExists (x, d, sp) -> SExists (Pred.Term.unvar x, to_event_data d, convert_sp sp)
     | SForall (x, part) -> SForall (Pred.Term.unvar x, convert_sp_part part)
     | SPrev sp1 -> SPrev (convert_sp sp1)
     | SNext sp1 -> SNext (convert_sp sp1)
@@ -87,7 +103,7 @@ module Checker_interface = struct
     | VIffSV (sp1, vp2) -> VIffSV (convert_sp sp1, convert_vp vp2)
     | VIffVS (vp1, sp2) -> VIffVS (convert_vp vp1, convert_sp sp2)
     | VExists (x, part) -> VExists (Pred.Term.unvar x, convert_vp_part part)
-    | VForall (x, d, vp) -> VForall (Pred.Term.unvar x, convert_d d, convert_vp vp)
+    | VForall (x, d, vp) -> VForall (Pred.Term.unvar x, to_event_data d, convert_vp vp)
     | VPrev vp1 -> VPrev (convert_vp vp1)
     | VPrev0 -> VPrevZ
     | VPrevOutL tp -> VPrevOutL (nat_of_int tp)
@@ -120,7 +136,7 @@ module Checker_interface = struct
 
   let rec convert_pdt_part part =
     let part_lst = List.map part ~f:(fun (coset, pdt) ->
-                       (convert_set coset, convert_pdt pdt)) in
+                       (to_fset coset, convert_pdt pdt)) in
     abs_part (part_lst)
   and convert_pdt = function
     | Expl.Pdt.Leaf pt -> (match pt with
@@ -164,7 +180,7 @@ module Checker_interface = struct
 
   let convert_db db =
     specialized_set (Set.fold db ~init:[] ~f:(fun acc (name, ds) ->
-                         (name, List.map ds ~f:convert_d)::acc))
+                         (name, List.map ds ~f:to_event_data)::acc))
 
   let convert_trace_aux trace_lst =
     List.rev(List.fold_left trace_lst ~init:[] ~f:(fun acc (ts, db) ->
@@ -401,3 +417,18 @@ let check trace_lst f expls =
   List.fold_left expls ~init:[] ~f:(fun acc expl ->
       let expl' = Checker_interface.convert_expl expl in
       (check_all_specialized trace' f' expl', expl', trace_lst')::acc)
+
+let false_paths trace_lst f expls =
+  let f' = Checker_interface.convert_f f in
+  let trace_lst' = Checker_interface.convert_trace_aux trace_lst in
+  let trace' = Checker_interface.convert_trace trace_lst in
+  List.fold_left expls ~init:[] ~f:(fun acc expl ->
+      let expl' = Checker_interface.convert_expl expl in
+      let paths = collect_paths_specialized trace' f' expl' in
+      match paths with
+      | None -> None::acc
+      | Some ps -> (* (match ps with *)
+                   (*  | Set s -> Stdio.printf "|s| = %d\n" (List.length s); *)
+                   (*  | Coset s -> Stdio.printf "|s| = %d\n" (List.length s)); *)
+                   Some(List.map (Checker_interface.of_poly_set ps) ~f:(fun l ->
+                            List.map l (fun l' -> Checker_interface.of_fset l')))::acc)
