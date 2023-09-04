@@ -989,7 +989,7 @@ definition check_all :: "(MFOTL.name \<times> 'd ::  {default,linorder} list) tr
   "check_all \<sigma> \<phi> e = (distinct_paths e \<and> check_all_aux \<sigma> (\<lambda>_. UNIV) \<phi> e)"
 
 definition collect_paths :: "(MFOTL.name \<times> 'd ::  {default,linorder} list) trace \<Rightarrow> 'd MFOTL.formula \<Rightarrow> ('d, 'd proof) pdt \<Rightarrow> 'd set list set option" where
-  "collect_paths \<sigma> \<phi> e = (if distinct_paths e then None else Some (collect_paths_aux {} \<sigma> (\<lambda>_. UNIV) \<phi> e))"
+  "collect_paths \<sigma> \<phi> e = (if (distinct_paths e \<and> check_all_aux \<sigma> (\<lambda>_. UNIV) \<phi> e) then None else Some (collect_paths_aux {} \<sigma> (\<lambda>_. UNIV) \<phi> e))"
 
 definition check_all_specialized :: "(MFOTL.name \<times> event_data list) trace \<Rightarrow> event_data MFOTL.formula \<Rightarrow> (event_data, event_data proof) pdt \<Rightarrow> bool" where
   "check_all_specialized = check_all"
