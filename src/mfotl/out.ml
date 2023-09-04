@@ -20,6 +20,7 @@ module Plain = struct
     | Explanation of (timestamp * timepoint) * Expl.t
     | ExplanationCheck of (timestamp * timepoint) * Expl.t * bool
     | ExplanationCheckDebug of (timestamp * timepoint) * Expl.t * bool * Checker_pdt.t * Checker_trace.t
+                               * (Domain.t, Domain.comparator_witness) Setc.t list list option
     | Info of string
 
   let expl = function
@@ -28,19 +29,29 @@ module Plain = struct
     | ExplanationCheck ((ts, tp), e, b) ->
        Stdio.printf "%d:%d\nExplanation: \n%s\n" ts tp (Expl.to_string e);
        Stdio.printf "\nChecker output: %B\n\n" b;
-    | ExplanationCheckDebug ((ts, tp), e, b, c_e, c_t) ->
+    | ExplanationCheckDebug ((ts, tp), e, b, c_e, c_t, path_opt) ->
        Stdio.printf "%d:%d\nExplanation: \n%s\n" ts tp (Expl.to_string e);
        Stdio.printf "\nChecker output: %B\n\n" b;
        Stdio.printf "\n[debug] Checker explanation:\n%s\n\n" (Checker_interface.Checker_pdt.to_string "" c_e);
        Stdio.printf "\n[debug] Checker trace:\n%s" (Checker_interface.Checker_trace.to_string c_t);
+       (match path_opt with
+        | None -> ()
+        | Some(l1) ->
+           Stdio.printf "|l1| = %d\n" (List.length l1);
+           Stdio.printf "\n[debug] Checker false path: %s\n"
+             (Etc.list_to_string "" (fun _ l2 -> Etc.list_to_string ""
+                                                   (fun _ s -> Setc.to_string s) l2) l1)
+        );
     | Info s -> Stdio.printf "\nInfo: %s\n\n" s
 
-  let expls ts tstp_expls checker_es_opt = function
+  let expls ts tstp_expls checker_es_opt paths_opt = function
     | UNVERIFIED -> List.iter tstp_expls (fun ((_, tp), e) -> expl (Explanation ((ts, tp), e)))
     | VERIFIED -> List.iter2_exn tstp_expls (Option.value_exn checker_es_opt)
                     (fun ((_, tp), e) (b, _, _) -> expl (ExplanationCheck ((ts, tp), e, b)))
-    | DEBUG -> List.iter2_exn tstp_expls (Option.value_exn checker_es_opt)
-                 (fun ((_, tp), e) (b, checker_e, trace) -> expl (ExplanationCheckDebug ((ts, tp), e, b, checker_e, trace)))
+    | DEBUG -> List.iter2_exn (List.zip_exn tstp_expls (Option.value_exn checker_es_opt))
+                 (Option.value_exn paths_opt)
+                 ~f:(fun (((_, tp), e), (b, checker_e, trace)) path_opt ->
+                   expl (ExplanationCheckDebug ((ts, tp), e, b, checker_e, trace, path_opt)))
     | DEBUGVIS -> raise (Failure "this function is undefined for the mode debugvis")
 
 end
