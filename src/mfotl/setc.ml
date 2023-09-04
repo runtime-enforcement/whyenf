@@ -14,6 +14,10 @@ type ('a, 'b) t = Finite of ('a, 'b) Set.t | Complement of ('a, 'b) Set.t
 
 let phys_equal = Stdlib.( == )
 
+let length = function
+  | Finite s -> Set.length s
+  | Complement s -> Set.length s
+
 let univ m = Complement (Set.empty m)
 
 let equal cs1 cs2 = match cs1, cs2 with
