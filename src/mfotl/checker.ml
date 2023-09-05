@@ -1859,7 +1859,7 @@ let rec fstfinite _A xs = list_all (finite _A) xs;;
 let rec collect_paths_aux (_A1, _A2, _A3, _A4)
   ds sigma vs phi x4 = match ds, sigma, vs, phi, x4 with
     ds, sigma, vs, phi, Leaf p ->
-      (if check_exec (_A1, _A2, _A3, _A4) sigma vs phi p then ds
+      (if check_exec (_A1, _A2, _A3, _A4) sigma vs phi p then bot_set
         else image rev ds)
     | ds, sigma, vs, phi, Node (x, part) ->
         sup_seta (equal_list (equal_set (_A2, _A3)))
@@ -1875,7 +1875,8 @@ let rec collect_paths (_A1, _A2, _A3, _A4)
     (if distinct_paths e &&
           check_all_aux (_A1, _A2, _A3, _A4) sigma (fun _ -> top_set) phi e
       then None
-      else Some (collect_paths_aux (_A1, _A2, _A3, _A4) bot_set sigma
+      else Some (collect_paths_aux (_A1, _A2, _A3, _A4)
+                  (insert (equal_list (equal_set (_A2, _A3))) [] bot_set) sigma
                   (fun _ -> top_set) phi e));;
 
 let rec trace_rbt_of_list _A
