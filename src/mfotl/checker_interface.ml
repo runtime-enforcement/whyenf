@@ -427,8 +427,5 @@ let false_paths trace_lst f expls =
       let paths = collect_paths_specialized trace' f' expl' in
       match paths with
       | None -> None::acc
-      | Some ps -> (* (match ps with *)
-                   (*  | Set s -> Stdio.printf "|s| = %d\n" (List.length s); *)
-                   (*  | Coset s -> Stdio.printf "|s| = %d\n" (List.length s)); *)
-                   Some(List.map (Checker_interface.of_poly_set ps) ~f:(fun l ->
+      | Some ps -> Some(List.map (Checker_interface.of_poly_set ps) ~f:(fun l ->
                             List.map l (fun l' -> Checker_interface.of_fset l')))::acc)
