@@ -972,7 +972,7 @@ module Until = struct
                                else muaux.v_betas_suffix_in in
        let v_betas_alpha = if ts >= first_ts + a then
                              (let cur_v_betas_alpha = Fdeque.peek_back_exn muaux.v_betas_alpha in
-                              let vvp = Proof.V (VUntil (tp, vp1, Fdeque.map muaux.v_betas_suffix_in ~f:snd)) in
+                              let vvp = Proof.V (VUntil (tp, vp1, Fdeque.map v_betas_suffix_in ~f:snd)) in
                               let cur_v_betas_alpha_add = sorted_enqueue (ts, vvp) cur_v_betas_alpha in
                               Fdeque.enqueue_back (Fdeque.drop_back_exn muaux.v_betas_alpha)
                                 cur_v_betas_alpha_add)
@@ -1025,13 +1025,32 @@ module Until = struct
       | None -> (nts, ntp)
       | Some(ts', tp') -> (ts', tp') in
     (* v_betas_alpha *)
+    (* Stdio.printf "nts = %d; ntp = %d; eval_tp = %d\n" nts ntp eval_tp; *)
     let v_betas_alpha_step1 = Fdeque.map v_betas_alpha ~f:(fun d ->
                                   remove_cond_front (fun (ts', p) ->
                                       (ts' < first_ts + a) || ((Proof.p_at p) < first_tp)) d) in
+    (* Stdio.printf "%s" *)
+    (*   (Fdeque.fold v_betas_alpha_step1 ~init:"\nv_betas_alpha_step1 = \n" *)
+    (*      ~f:(fun acc1 d -> *)
+    (*        acc1 ^ "\n" ^ *)
+    (*          Fdeque.fold d ~init:"[" ~f:(fun acc2 (ts, p) -> *)
+    (*              acc2 ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^ "\n]\n")); *)
     let v_betas_alpha_step2 = if a = 0 then
                                 drop_v_single_ts eval_tp v_betas_alpha_step1
                               else drop_v_ts a first_ts v_betas_alpha_step1 tstps_in' in
+    (* Stdio.printf "%s" *)
+    (*   (Fdeque.fold v_betas_alpha_step2 ~init:"\nv_betas_alpha_step2 = \n" *)
+    (*      ~f:(fun acc1 d -> *)
+    (*        acc1 ^ "\n" ^ *)
+    (*          Fdeque.fold d ~init:"[" ~f:(fun acc2 (ts, p) -> *)
+    (*              acc2 ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^ "\n]\n")); *)
     let v_betas_alpha_step3 = remove_cond_front_ne (fun d' -> Fdeque.is_empty d') v_betas_alpha_step2 in
+    (* Stdio.printf "%s" *)
+    (*   (Fdeque.fold v_betas_alpha_step3 ~init:"\nv_betas_alpha_step3 = \n" *)
+    (*      ~f:(fun acc1 d -> *)
+    (*        acc1 ^ "\n" ^ *)
+    (*          Fdeque.fold d ~init:"[" ~f:(fun acc2 (ts, p) -> *)
+    (*              acc2 ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^ "\n]\n")); *)
     (* tstp_out and tstp_in *)
     let (tstps_out'', tstps_in'') = shift_tstps_future a first_ts ntp tstps_out' tstps_in' in
     (* s_alphas_beta *)
@@ -1118,6 +1137,7 @@ module Until = struct
         eval_step a (nts, ntp) ts tp muaux')
 
   let update i nts ntp p1 p2 muaux =
+    (* Stdio.printf "nts = %d; ntp = %d\n" nts ntp; *)
     let a = Interval.left i in
     let b = match Interval.right i with
       | None -> raise (Invalid_argument "Until interval is unbounded")
@@ -1324,7 +1344,7 @@ let rec match_terms trms ds map =
   | _, _ -> None
 
 let print_maps maps =
-  Stdio.print_endline "> Map:";
+  (* Stdio.print_endline "> Map:"; *)
   List.iter maps ~f:(fun map -> Map.iteri map (fun ~key:k ~data:v ->
                                     Stdio.printf "%s -> %s\n" (Term.to_string k) (Domain.to_string v)))
 
@@ -1490,15 +1510,14 @@ let rec meval vars ts tp (db: Db.t) = function
      let (nts, ntp) = match ntstps' with
        | [] -> (ts, tp)
        | (nts', ntp') :: _ -> (nts', ntp') in
-     (* Stdio.printf "ntp = %d\n" ntp; *)
      let (muaux_pdt', es') =
        Pdt.split_prod (Pdt.apply1 vars (fun aux ->
                            let (m, es) = Until.eval i nts ntp (aux, []) in
                            (* Stdio.printf "-----------------\n"; *)
                            (* Stdio.printf "%s\n" (Until.to_string m); *)
                            (* List.iter es ~f:(fun e -> *)
-                             (*   Stdio.printf "%s\n\n" (Proof.to_string "" e) *)
-                             (* ); *)
+                           (*     Stdio.printf "%s\n\n" (Proof.to_string "" e) *)
+                           (*   ); *)
                            (m, es)
                          ) muaux_pdt') in
      let expls' = Pdt.split_list es' in
@@ -1562,10 +1581,15 @@ let exec mode measure f inc =
     let (more, pb) = Other_parser.Trace.parse_from_channel inc pb_opt in
     let (tstp_expls, ms') = mstep mode (Set.elements (Formula.fv f)) pb.ts pb.db ms in
     (match mode with
-     | Out.Plain.UNVERIFIED -> Out.Plain.expls pb.ts tstp_expls None mode
+     | Out.Plain.UNVERIFIED -> Out.Plain.expls pb.ts tstp_expls None None mode
      | Out.Plain.DEBUGVIS -> raise (Failure "function exec is undefined for the mode debugvis")
-     | _ -> let c = Checker_interface.check (Queue.to_list ms'.tsdbs) f (List.map tstp_expls ~f:snd) in
-            Out.Plain.expls pb.ts tstp_expls (Some(c)) mode);
+     | Out.Plain.VERIFIED ->
+        let c = Checker_interface.check (Queue.to_list ms'.tsdbs) f (List.map tstp_expls ~f:snd) in
+        Out.Plain.expls pb.ts tstp_expls (Some(c)) None mode
+     | Out.Plain.DEBUG ->
+        let c = Checker_interface.check (Queue.to_list ms'.tsdbs) f (List.map tstp_expls ~f:snd) in
+        let paths = Checker_interface.false_paths (Queue.to_list ms'.tsdbs) f (List.map tstp_expls ~f:snd) in
+        Out.Plain.expls pb.ts tstp_expls (Some(c)) (Some(paths)) mode);
     if more then step (Some(pb)) ms' in
   let mf = init f in
   let ms = MState.init mf in
