@@ -140,11 +140,15 @@ function TimeGrid ({ columns,
       align: 'center',
       disableClickEventBubbling: true,
       renderCell: (params) => {
-        return <MenuCell explObj={objs.expls[params.id].expl}
-                         colorsTable={tables.colors}
-                         cellsTable={tables.cells}
-                         curCol={0}
-                         setMonitorState={setMonitorState} />;
+        if (objs.expls[params.id] !== undefined) {
+          return <MenuCell explObj={objs.expls[params.id].expl}
+                           colorsTable={tables.colors}
+                           cellsTable={tables.cells}
+                           curCol={0}
+                           setMonitorState={setMonitorState} />;
+        } else {
+          return "";
+        }
       }
     }
   ];
