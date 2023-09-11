@@ -16,7 +16,8 @@ import { collectValues,
          updateCellsTableMain,
          updateCellsTableQuant,
          getPolarity,
-         updateHighlights } from '../util';
+         updateHighlights,
+         getHeaderHighlights } from '../util';
 
 function MenuCell ({ explObj,
                      colorsTable,
@@ -28,7 +29,8 @@ function MenuCell ({ explObj,
                      predsLength,
                      dbsObjs,
                      highlights,
-                     setMonitorState }) {
+                     setMonitorState,
+                     subfsScopes }) {
 
   // NestedMenuItem
   const [anchorEl, setAnchorEl] = useState(null);
@@ -42,6 +44,8 @@ function MenuCell ({ explObj,
     if (explObj.type === "node") {
 
       let selCellsObj = getCells(explObj, domainValues);
+
+      console.log(selCellsObj);
 
       let action = { type: "updateColorsAndCellsTable",
                      colorsTable: exposeColorsTableMain(selCellsObj,
@@ -86,12 +90,18 @@ function MenuCell ({ explObj,
 
           let newHighlights = updateHighlights(ts, tp, colGridIndex, cell, dbsObjs, highlights, children);
 
+          // Update header highlights
+          let newSubfsHeaderHighlights = getHeaderHighlights(curCol,
+                                                             subfsScopes,
+                                                             colorsTable.length);
+
           let action = { type: "updateColorsAndCellsTableAndHighlights",
                          colorsTable: exposeColorsTableQuant(selPartObj, curCol + 1, colorsTable),
                          cellsTable: updateCellsTableQuant(selPartObj, curCol, cellsTable),
                          selectedRows: newHighlights.selectedRows,
                          highlightedCells: newHighlights.highlightedCells,
-                         pathsMap: newHighlights.clonePathsMap
+                         pathsMap: newHighlights.clonePathsMap,
+                         subfsHeader: newSubfsHeaderHighlights
                        };
 
           setMonitorState(action);

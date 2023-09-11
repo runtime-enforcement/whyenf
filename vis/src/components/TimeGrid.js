@@ -10,7 +10,7 @@ import Popover from '@mui/material/Popover';
 import Typography from '@mui/material/Typography';
 import { red, amber, lightGreen, indigo } from '@mui/material/colors';
 import { common } from '@mui/material/colors';
-import { black, cellColor, updateHighlights } from '../util';
+import { black, cellColor, updateHighlights, getHeaderHighlights } from '../util';
 import MenuCell from './MenuCell';
 import DbTable from './DbTable';
 
@@ -164,6 +164,17 @@ function TimeGrid ({ columns,
     ({
       field: (i+columns.preds.length).toString(),
       headerName: f,
+      headerClassName: () => {
+        if (highlights.subfsHeader[i] === "cellHighlight") {
+          return "columnHeader--Highlighted";
+        } else {
+          if (highlights.subfsHeader[i] === "pathHighlight") {
+            return "columnHeader--PathHighlighted";
+          } else {
+            return "";
+          }
+        }
+      },
       width: subfsWidth,
       sortable: false,
       renderHeader: () => f,
@@ -182,7 +193,8 @@ function TimeGrid ({ columns,
                              predsLength={columns.preds.length}
                              dbsObjs={objs.dbs}
                              highlights={highlights}
-                             setMonitorState={setMonitorState} />;
+                             setMonitorState={setMonitorState}
+                             subfsScopes={columns.subfsScopes} />;
           } else {
             return <BoolCell value={tables.colors[params.row.tp][i]}
                              onClick={() => handleClick(params.row.ts, params.row.tp, parseInt(params.colDef.field))}
@@ -225,11 +237,19 @@ function TimeGrid ({ columns,
 
       let newHighlights = updateHighlights(ts, tp, colGridIndex, cell, objs.dbs, highlights, children);
 
+      // Update header highlights
+      let newSubfsHeaderHighlights = getHeaderHighlights(colGridIndex - columns.preds.length,
+                                                         columns.subfsScopes,
+                                                         subfsGridColumns.length);
+
+      // Update state
       let action = { type: "updateTable",
                      colorsTable: cloneColorsTable,
                      selectedRows: newHighlights.selectedRows,
                      highlightedCells: newHighlights.highlightedCells,
-                     pathsMap: newHighlights.clonePathsMap };
+                     pathsMap: newHighlights.clonePathsMap,
+                     subfsHeader: newSubfsHeaderHighlights };
+
       setMonitorState(action);
     }
   };
@@ -237,6 +257,12 @@ function TimeGrid ({ columns,
   return (
     <Box height="60vh"
          sx={{
+           '& .columnHeader--Highlighted': {
+             backgroundColor: amber[300],
+           },
+           '& .columnHeader--PathHighlighted': {
+             backgroundColor: indigo[100],
+           },
            '& .cell--Highlighted': {
              backgroundColor: amber[300],
            },

@@ -18,7 +18,7 @@ import CheckmarkOptions from './components/CheckmarkOptions';
 import { computeDbsTable, initRhsTable, translateError } from './util';
 
 function initMonitorState () {
-  return { columns: { preds: [], subfs: [] },
+  return { columns: { preds: [], subfs: [], subfsScopes: [] },
            objs: { dbs: [], expls: [] },
            tables: { dbs: [], colors: [], cells: [] },
            highlights: { selectedRows: [], highlightedCells: [], pathsMap: new Map() },
@@ -36,12 +36,15 @@ function initMonitor(monitorState, action) {
     const dbsObjs = (JSON.parse(monitorOutput)).dbs_objs
     const explsObjs = (JSON.parse(monitorOutput, (k, v) => v === "true" ? true : v === "false" ? false : v)).expls_objs;
 
-    return { columns: { preds: columns.predsColumns, subfs: columns.subfsColumns },
+    return { columns: { preds: columns.predsColumns, subfs: columns.subfsColumns, subfsScopes: columns.subfsScopes },
              objs: { dbs: dbsObjs, expls: explsObjs },
              tables: { dbs: computeDbsTable(dbsObjs, columns.predsColumns.length),
                        colors: initRhsTable(dbsObjs, columns.subfsColumns),
                        cells: initRhsTable(dbsObjs, columns.subfsColumns) },
-             highlights: { selectedRows: [], highlightedCells: [], pathsMap: new Map() },
+             highlights: { selectedRows: [],
+                           highlightedCells: [],
+                           pathsMap: new Map(),
+                           subfsHeader: [] },
              subformulas: columns.subformulas,
              fixParameters: true,
              dialog: {},
@@ -66,7 +69,10 @@ function execMonitor(monitorState, action) {
              tables: { dbs: computeDbsTable(dbsObjs, columns.predsColumns.length),
                        colors: initRhsTable(dbsObjs, columns.subfsColumns),
                        cells: initRhsTable(dbsObjs, columns.subfsColumns) },
-             highlights: { selectedRows: [], highlightedCells: [], pathsMap: new Map() },
+             highlights: { selectedRows: [],
+                           highlightedCells: [],
+                           pathsMap: new Map(),
+                           subfsHeader: [] },
              fixParameters: true,
              dialog: {} };
   } catch (error) {
@@ -109,7 +115,8 @@ function monitorStateReducer(monitorState, action) {
                        cells: action.cellsTable },
              highlights: { selectedRows: [],
                            highlightedCells: [],
-                           pathsMap: new Map() },
+                           pathsMap: new Map(),
+                           subfsHeader: [] },
              fixParameters: true };
   case 'updateColorsAndCellsTableAndHighlights':
     return { ...monitorState,
@@ -118,7 +125,8 @@ function monitorStateReducer(monitorState, action) {
                        cells: action.cellsTable },
              highlights: { selectedRows: action.selectedRows,
                            highlightedCells: action.highlightedCells,
-                           pathsMap: action.pathsMap },
+                           pathsMap: action.pathsMap,
+                           subfsHeader: action.subfsHeader },
              fixParameters: true }
   case 'updateTable':
     return { ...monitorState,
@@ -126,16 +134,22 @@ function monitorStateReducer(monitorState, action) {
                        colors: action.colorsTable },
              highlights: { selectedRows: action.selectedRows,
                            highlightedCells: action.highlightedCells,
-                           pathsMap: action.pathsMap },
+                           pathsMap: action.pathsMap,
+                           subfsHeader: action.subfsHeader },
              fixParameters: true };
   case 'resetTable':
     return { ...monitorState,
              tables: { ...monitorState.tables,
-                       colors: initRhsTable(monitorState.objs.dbs, monitorState.columns.subfs),
-                       cells: initRhsTable(monitorState.objs.dbs, monitorState.columns.subfs) },
+                       colors: initRhsTable(monitorState.objs.dbs,
+                                            monitorState.columns.subfs,
+                                            monitorState.columns.subfsScopes),
+                       cells: initRhsTable(monitorState.objs.dbs,
+                                           monitorState.columns.subfs,
+                                           monitorState.columns.subfsScopes) },
              highlights: { selectedRows: [],
                            highlightedCells: [],
-                           pathsMap: new Map() },
+                           pathsMap: new Map(),
+                           subfsHeader: [] },
              fixParameters: true };
   case 'leaveMonitor':
     return initMonitorState ();
