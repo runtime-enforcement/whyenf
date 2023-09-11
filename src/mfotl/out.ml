@@ -61,9 +61,6 @@ module Json = struct
   let error err =
     Printf.sprintf "ERROR: %s" (Error.to_string_hum err)
 
-  let preamble outc f =
-    Stdio.printf outc "{\n  \"columns\": %s\n}\n" (Etc.list_to_json (List.map (Formula.subfs_dfs f) Formula.to_string))
-
   let table_columns f =
     let sig_preds_columns = List.rev (Set.fold (Formula.pred_names f) ~init:[] ~f:(fun acc r ->
                                           let r_props = Hashtbl.find_exn Pred.Sig.table r in
