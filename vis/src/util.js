@@ -264,6 +264,21 @@ export function tpsIn(ts, tp, interval, period, lastTS, dbs) {
   return idxs;
 }
 
+export function getHeaderHighlights(curCol, subfsScopes, subfsGridColumnsLength) {
+
+  let headerHighlights = new Array(subfsGridColumnsLength).fill('');
+
+  let curScope = subfsScopes.find((e) => e.col === curCol);
+
+  headerHighlights[curCol] = "pathHighlight";
+
+  for (const col of curScope.cols) {
+    headerHighlights[col] = "cellHighlight";
+  }
+
+  return headerHighlights;
+}
+
 export function translateError(error) {
 
   let message;
