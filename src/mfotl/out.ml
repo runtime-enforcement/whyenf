@@ -36,11 +36,9 @@ module Plain = struct
        Stdio.printf "\n[debug] Checker trace:\n%s" (Checker_interface.Checker_trace.to_string c_t);
        (match path_opt with
         | None -> ()
-        | Some(l1) ->
-           Stdio.printf "|l1| = %d\n" (List.length l1);
-           Stdio.printf "\n[debug] Checker false path: %s\n"
-             (Etc.list_to_string "" (fun _ l2 -> Etc.list_to_string ""
-                                                   (fun _ s -> Setc.to_string s) l2) l1)
+        | Some(l1) -> Stdio.printf "\n[debug] Checker false path: %s\n"
+                        (Etc.list_to_string "" (fun _ l2 -> Etc.list_to_string ""
+                                                              (fun _ s -> Setc.to_string s) l2) l1)
         );
     | Info s -> Stdio.printf "\nInfo: %s\n\n" s
 
@@ -67,9 +65,15 @@ module Json = struct
                                           let var_names = fst (List.unzip r_props.ntconsts) in
                                           (Printf.sprintf "%s(%s)" r (Etc.string_list_to_string var_names)) :: acc)) in
     let subfs_columns = List.map (Formula.subfs_dfs f) Formula.op_to_string in
+    let subfs_scope = List.map (Formula.subfs_scope f 0) ~f:(fun (i, js) ->
+                          Printf.sprintf "{\"col\": %d, \"cols\": %s}" i (Etc.int_list_to_json js)) in
     let subfs = List.map (Formula.subfs_dfs f) Formula.to_string in
-    Printf.sprintf "{\n  \"predsColumns\": %s,\n  \"subfsColumns\": %s,\n  \"subformulas\": %s}\n"
-      (Etc.list_to_json sig_preds_columns) (Etc.list_to_json subfs_columns) (Etc.list_to_json subfs)
+    Printf.sprintf "{\n  \"predsColumns\": %s,\n
+                         \"subfsColumns\": %s,\n
+                         \"subfsScopes\": [%s],\n
+                         \"subformulas\": %s }\n"
+      (Etc.string_list_to_json sig_preds_columns) (Etc.string_list_to_json subfs_columns)
+      (Etc.string_list_to_string subfs_scope) (Etc.string_list_to_json subfs)
 
   let db ts tp db f =
     Printf.sprintf "%s{\n" (String.make 4 ' ') ^

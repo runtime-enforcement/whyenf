@@ -34,6 +34,8 @@ val string_list_to_string: string list -> string
 
 val some_string: unit -> string
 
-val list_to_json: string list -> string
+val string_list_to_json: string list -> string
+
+val int_list_to_json: int list -> string
 
 val unquote: string -> string

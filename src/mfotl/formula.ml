@@ -178,6 +178,31 @@ let rec subfs_dfs h = match h with
   | Since (_, f, g) -> [h] @ (subfs_dfs f) @ (subfs_dfs g)
   | Until (_, f, g) -> [h] @ (subfs_dfs f) @ (subfs_dfs g)
 
+let subfs_scope h i =
+  let rec subfs_scope_rec h i =
+    match h with
+    | TT | FF | Predicate _ -> (i, [(i, [])])
+    | Neg f
+      | Exists (_, f)
+      | Forall (_, f)
+      | Prev (_, f)
+      | Next (_, f)
+      | Once (_, f)
+      | Eventually (_, f)
+      | Historically (_, f)
+      | Always (_, f) -> let (i', subfs_f) = subfs_scope_rec f (i+1) in
+                         (i', [(i, List.map subfs_f ~f:fst)] @ subfs_f)
+    | And (f, g)
+      | Or (f, g)
+      | Imp (f, g)
+      | Iff (f, g)
+      | Since (_, f, g)
+      | Until (_, f, g) ->  let (i', subfs_f) = subfs_scope_rec f (i+1) in
+                            let (i'', subfs_g) = subfs_scope_rec g (i'+1) in
+                            (i'', [(i, (List.map subfs_f ~f:fst) @ (List.map subfs_g ~f:fst))]
+                                  @ subfs_f @ subfs_g) in
+  snd (subfs_scope_rec h i)
+
 let rec preds = function
   | TT | FF -> []
   | Predicate (r, trms) -> [Predicate (r, trms)]
