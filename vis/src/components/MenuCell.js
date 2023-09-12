@@ -45,8 +45,6 @@ function MenuCell ({ explObj,
 
       let selCellsObj = getCells(explObj, domainValues);
 
-      console.log(selCellsObj);
-
       let action = { type: "updateColorsAndCellsTable",
                      colorsTable: exposeColorsTableMain(selCellsObj,
                                                         colorsTable.length,
