@@ -110,15 +110,17 @@ export function initRhsTable(dbsObjs, subfsColumns) {
 
 }
 
-export function exposeColorsTableQuant(explObj, nextCol, colorsTable) {
+export function exposeColorsTableQuant(explObj, nextCol, subfsScopes, colorsTable) {
 
   // Initialize empty matrix
   let colorsTableClone = structuredClone(colorsTable);
 
+  let curScope = subfsScopes.find((e) => e.col === (nextCol - 1));
+
   // Clear (previous black cells) the boolean subproofs on the RHS of the quantifier column
   for (let i = 0; i < colorsTableClone.length; ++i) {
     for (let j = 0; j < colorsTableClone[i].length; ++j) {
-      if (j >= nextCol) {
+      if (curScope.cols.includes(j)) {
         colorsTableClone[i][j] = "";
       }
     }
@@ -129,7 +131,7 @@ export function exposeColorsTableQuant(explObj, nextCol, colorsTable) {
     let tbl = explObj.table[i];
     if (tbl.kind === "boolean") {
       for (let j = 0; j < tbl.cells.length; ++j) {
-        if (tbl.cells[j].col >= nextCol) {
+        if (curScope.cols.includes(tbl.cells[j].col)) {
           colorsTableClone[tbl.cells[j].tp][tbl.cells[j].col] = black;
         }
       }
