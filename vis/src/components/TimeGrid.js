@@ -8,7 +8,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import StorageIcon from '@mui/icons-material/Storage';
 import Popover from '@mui/material/Popover';
 import Typography from '@mui/material/Typography';
-import { red, amber, lightGreen, indigo } from '@mui/material/colors';
+import { red, amber, lightGreen, indigo, blueGrey } from '@mui/material/colors';
 import { common } from '@mui/material/colors';
 import { black, cellColor, updateHighlights, getHeaderHighlights } from '../util';
 import MenuCell from './MenuCell';
@@ -258,10 +258,10 @@ function TimeGrid ({ columns,
     <Box height="60vh"
          sx={{
            '& .columnHeader--Highlighted': {
-             backgroundColor: amber[300],
+             backgroundColor: blueGrey[300],
            },
            '& .columnHeader--PathHighlighted': {
-             backgroundColor: indigo[100],
+             backgroundColor: blueGrey[100],
            },
            '& .cell--Highlighted': {
              backgroundColor: amber[300],

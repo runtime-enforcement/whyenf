@@ -96,7 +96,7 @@ function MenuCell ({ explObj,
                                                              colorsTable.length);
 
           let action = { type: "updateColorsAndCellsTableAndHighlights",
-                         colorsTable: exposeColorsTableQuant(selPartObj, curCol + 1, colorsTable),
+                         colorsTable: exposeColorsTableQuant(selPartObj, curCol + 1, subfsScopes, colorsTable),
                          cellsTable: updateCellsTableQuant(selPartObj, curCol, cellsTable),
                          selectedRows: newHighlights.selectedRows,
                          highlightedCells: newHighlights.highlightedCells,
