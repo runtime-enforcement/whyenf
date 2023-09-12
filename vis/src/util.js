@@ -70,7 +70,17 @@ export function getPolarity(explObj, col, pol = "") {
     return pol;
   } else {
     let tbl = explObj.table.find(tbl => tbl.col === col);
-    return tbl.bool.toString();
+
+    if (tbl.kind === "partition") {
+
+      for (let i = 0; i < tbl.part.length; ++i) {
+        pol = computePolarity(pol, getPolarity(tbl.part[i], col, pol));
+      }
+      return pol;
+
+    } else {
+      return tbl.bool.toString();
+    }
   }
 
 }
