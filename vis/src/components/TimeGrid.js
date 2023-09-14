@@ -215,7 +215,7 @@ function TimeGrid ({ columns,
     ({
       id: tp,
       tp: tp,
-      ts: selectedOptions.has('Unix Timestamps') ? new Date(ts).toLocaleString() : ts
+      ts: selectedOptions.has('Unix Timestamps') ? new Date(ts*1000).toLocaleString() : ts
     }));
 
   const handleClick = (ts, tp, colGridIndex) => {
