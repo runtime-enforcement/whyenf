@@ -121,9 +121,23 @@ function MenuCell ({ explObj,
   };
 
   if (explObj.type === "leaf") {
-    return <IconButton onClick={handleClick}>
-             <DataObjectIcon fontSize="small"/>
-           </IconButton>;
+    return (
+      <div>
+        { getPolarity(explObj, curCol) === "true" ?
+          <IconButton style={{ minWidth: "80px" }}
+                      onClick={handleClick}>
+            <CheckCircleIcon fontSize="small" style={{ color: lightGreen[500] }}/>
+            <Icon fontSize="small"/>
+          </IconButton> : "" }
+
+        { getPolarity(explObj, curCol) === "false" ?
+          <IconButton style={{ minWidth: "80px" }}
+                      onClick={handleClick}>
+            <Icon fontSize="small"/>
+            <CancelIcon fontSize="small" style={{ color: red[500] }}/>
+          </IconButton> : "" }
+      </div>
+    );
   } else {
     if (explObj.type === "node" || explObj.kind === "partition") {
       return (
