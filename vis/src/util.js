@@ -165,7 +165,7 @@ export function exposeColorsTableMain(explObj, maxRow, maxCol) {
   // Expose (as a black cell) the boolean subproofs
   for (let i = 0; i < explObj.table.length; ++i) {
     let tbl = explObj.table[i];
-    if (tbl.kind === "boolean") {
+    if (tbl.kind === "boolean" || tbl.kind === "assignment") {
       for (let j = 0; j < tbl.cells.length; ++j) {
         colorsTable[tbl.cells[j].tp][tbl.cells[j].col] = black;
       }
