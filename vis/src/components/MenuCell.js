@@ -17,7 +17,8 @@ import { collectValues,
          updateCellsTableQuant,
          getPolarity,
          updateHighlights,
-         getHeaderHighlights } from '../util';
+         getHeaderHighlights,
+         getVariables } from '../util';
 
 function MenuCell ({ explObj,
                      colorsTable,
@@ -43,7 +44,15 @@ function MenuCell ({ explObj,
 
     if (explObj.type === "node") {
 
-      let selCellsObj = getCells(explObj, domainValues);
+      let domainValuesAux = [...domainValues];
+
+      let selCellsObj = getCells(explObj, domainValuesAux);
+
+      domainValuesAux = [...domainValues];
+
+      let variables = getVariables(explObj, domainValuesAux);
+
+      console.log(variables);
 
       let action = { type: "updateColorsAndCellsTable",
                      colorsTable: exposeColorsTableMain(selCellsObj,

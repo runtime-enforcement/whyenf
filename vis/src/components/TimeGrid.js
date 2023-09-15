@@ -8,7 +8,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import StorageIcon from '@mui/icons-material/Storage';
 import Popover from '@mui/material/Popover';
 import Typography from '@mui/material/Typography';
-import { red, amber, lightGreen, indigo, blueGrey } from '@mui/material/colors';
+import { red, amber, lightGreen, indigo, blueGrey, teal, yellow, deepOrange } from '@mui/material/colors';
 import { common } from '@mui/material/colors';
 import { black, cellColor, updateHighlights, getHeaderHighlights } from '../util';
 import MenuCell from './MenuCell';
@@ -165,13 +165,17 @@ function TimeGrid ({ columns,
       field: (i+columns.preds.length).toString(),
       headerName: f,
       headerClassName: () => {
-        if (highlights.subfsHeader[i] === "cellHighlight") {
-          return "columnHeader--Highlighted";
+        if (highlights.subfsHeader[i] === "curHighlight") {
+          return "columnHeader--CurHighlighted";
         } else {
-          if (highlights.subfsHeader[i] === "pathHighlight") {
-            return "columnHeader--PathHighlighted";
+          if (highlights.subfsHeader[i] === "leftHighlight") {
+            return "columnHeader--LeftHighlighted";
           } else {
-            return "";
+            if (highlights.subfsHeader[i] === "rightHighlight") {
+              return "columnHeader--RightHighlighted";
+            } else {
+              return "";
+            }
           }
         }
       },
@@ -257,11 +261,14 @@ function TimeGrid ({ columns,
   return (
     <Box height="60vh"
          sx={{
-           '& .columnHeader--Highlighted': {
-             backgroundColor: blueGrey[300],
-           },
-           '& .columnHeader--PathHighlighted': {
+           '& .columnHeader--CurHighlighted': {
              backgroundColor: blueGrey[100],
+           },
+           '& .columnHeader--LeftHighlighted': {
+             backgroundColor: deepOrange[100],
+           },
+           '& .columnHeader--RightHighlighted': {
+             backgroundColor: teal[100],
            },
            '& .cell--Highlighted': {
              backgroundColor: amber[300],

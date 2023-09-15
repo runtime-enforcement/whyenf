@@ -108,6 +108,17 @@ function monitorStateReducer(monitorState, action) {
     return initMonitor(monitorState, action);
   case 'appendTable':
     return execMonitor(monitorState, action);
+  case 'updateColorsAndCellsTableAndColumns':
+    return { ...monitorState,
+             columns: {...monitorState.columns, subfs: action.subfsColumns },
+             tables: { ...monitorState.tables,
+                       colors: action.colorsTable,
+                       cells: action.cellsTable },
+             highlights: { selectedRows: [],
+                           highlightedCells: [],
+                           pathsMap: new Map(),
+                           subfsHeader: [] },
+             fixParameters: true };
   case 'updateColorsAndCellsTable':
     return { ...monitorState,
              tables: { ...monitorState.tables,
