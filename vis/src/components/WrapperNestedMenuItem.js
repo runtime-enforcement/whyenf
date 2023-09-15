@@ -21,17 +21,17 @@ function WrapperNestedMenuItem ({ label, rightIcon, explObj, curCol, parentMenuO
 
   const leftIcon =
         (getPolarity(explObj, curCol) === "true") ?
-        <Box>
+        <Box sx={{ maxHeight: 20 }}>
           <CheckCircleIcon fontSize="small" style={{ color: lightGreen[500] }}/>
           <Icon fontSize="small"/>
         </Box>
         : (getPolarity(explObj, curCol) === "false" ?
-           <Box>
+           <Box sx={{ maxHeight: 20 }}>
              <Icon fontSize="small"/>
              <CancelIcon fontSize="small" style={{ color: red[500] }}/>
            </Box>
            : (getPolarity(explObj, curCol) === "both" ?
-              <Box>
+              <Box sx={{ maxHeight: 20 }}>
                 <CheckCircleIcon fontSize="small" style={{ color: lightGreen[500] }}/>
                 <CancelIcon fontSize="small" style={{ color: red[500] }}/>
               </Box> : ""));
