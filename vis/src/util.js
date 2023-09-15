@@ -45,6 +45,30 @@ export function getCells(explObj, path) {
 
 }
 
+export function getVariables(explObj, path, vars = []) {
+
+  if (explObj.var !== undefined) {
+    vars.push(explObj.var);
+  }
+
+  if (path.length === 0) {
+    return vars;
+  } else {
+
+    let subExplObj = explObj.part.find(expl => expl.subset_type === "finite" &&
+                                       expl.subset_values.some(val => val === path[0]));
+
+    if (subExplObj === undefined) {
+      subExplObj = explObj.part.find(expl => expl.subset_type === "complement");
+    }
+
+    path.shift();
+
+    return getVariables(subExplObj, path, vars);
+  }
+
+}
+
 function computePolarity(pol1, pol2) {
   if ((pol1 === "true" && pol2 === "true") ||
       (pol1 === "" && pol2 === "true") ||
@@ -130,7 +154,7 @@ export function exposeColorsTableQuant(explObj, nextCol, subfsScopes, colorsTabl
   // Clear (previous black cells) the boolean subproofs on the RHS of the quantifier column
   for (let i = 0; i < colorsTableClone.length; ++i) {
     for (let j = 0; j < colorsTableClone[i].length; ++j) {
-      if (curScope.cols.includes(j)) {
+      if (curScope.leftCols.includes(j) || curScope.rightCols.includes(j)) {
         colorsTableClone[i][j] = "";
       }
     }
@@ -141,7 +165,7 @@ export function exposeColorsTableQuant(explObj, nextCol, subfsScopes, colorsTabl
     let tbl = explObj.table[i];
     if (tbl.kind === "boolean") {
       for (let j = 0; j < tbl.cells.length; ++j) {
-        if (curScope.cols.includes(tbl.cells[j].col)) {
+        if (curScope.leftCols.includes(tbl.cells[j].col) || curScope.rightCols.includes(tbl.cells[j].col)) {
           colorsTableClone[tbl.cells[j].tp][tbl.cells[j].col] = black;
         }
       }
@@ -282,10 +306,14 @@ export function getHeaderHighlights(curCol, subfsScopes, subfsGridColumnsLength)
 
   let curScope = subfsScopes.find((e) => e.col === curCol);
 
-  headerHighlights[curCol] = "pathHighlight";
+  headerHighlights[curCol] = "curHighlight";
 
-  for (const col of curScope.cols) {
-    headerHighlights[col] = "cellHighlight";
+  for (const col of curScope.leftCols) {
+    headerHighlights[col] = "leftHighlight";
+  }
+
+  for (const col of curScope.rightCols) {
+    headerHighlights[col] = "rightHighlight";
   }
 
   return headerHighlights;

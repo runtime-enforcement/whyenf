@@ -65,13 +65,13 @@ module Json = struct
                                           let var_names = fst (List.unzip r_props.ntconsts) in
                                           (Printf.sprintf "%s(%s)" r (Etc.string_list_to_string var_names)) :: acc)) in
     let subfs_columns = List.map (Formula.subfs_dfs f) Formula.op_to_string in
-    let subfs_scope = List.map (Formula.subfs_scope f 0) ~f:(fun (i, js) ->
-                          Printf.sprintf "{\"col\": %d, \"cols\": %s}" i (Etc.int_list_to_json js)) in
+    let subfs_scope = List.map (Formula.subfs_scope f 0) ~f:(fun (i, (js, ks)) ->
+                          Printf.sprintf "{\"col\": %d, \"leftCols\": %s, \"rightCols\": %s}" i (Etc.int_list_to_json js) (Etc.int_list_to_json ks)) in
     let subfs = List.map (Formula.subfs_dfs f) Formula.to_string in
     Printf.sprintf "{\n  \"predsColumns\": %s,\n
-                         \"subfsColumns\": %s,\n
-                         \"subfsScopes\": [%s],\n
-                         \"subformulas\": %s }\n"
+                    \"subfsColumns\": %s,\n
+                    \"subfsScopes\": [%s],\n
+                    \"subformulas\": %s }\n"
       (Etc.string_list_to_json sig_preds_columns) (Etc.string_list_to_json subfs_columns)
       (Etc.string_list_to_string subfs_scope) (Etc.string_list_to_json subfs)
 

@@ -181,7 +181,7 @@ let rec subfs_dfs h = match h with
 let subfs_scope h i =
   let rec subfs_scope_rec h i =
     match h with
-    | TT | FF | Predicate _ -> (i, [(i, [])])
+    | TT | FF | Predicate _ -> (i, [(i, ([], []))])
     | Neg f
       | Exists (_, f)
       | Forall (_, f)
@@ -191,7 +191,7 @@ let subfs_scope h i =
       | Eventually (_, f)
       | Historically (_, f)
       | Always (_, f) -> let (i', subfs_f) = subfs_scope_rec f (i+1) in
-                         (i', [(i, List.map subfs_f ~f:fst)] @ subfs_f)
+                         (i', [(i, (List.map subfs_f ~f:fst, []))] @ subfs_f)
     | And (f, g)
       | Or (f, g)
       | Imp (f, g)
@@ -199,7 +199,7 @@ let subfs_scope h i =
       | Since (_, f, g)
       | Until (_, f, g) ->  let (i', subfs_f) = subfs_scope_rec f (i+1) in
                             let (i'', subfs_g) = subfs_scope_rec g (i'+1) in
-                            (i'', [(i, (List.map subfs_f ~f:fst) @ (List.map subfs_g ~f:fst))]
+                            (i'', [(i, ((List.map subfs_f ~f:fst), (List.map subfs_g ~f:fst)))]
                                   @ subfs_f @ subfs_g) in
   snd (subfs_scope_rec h i)
 
@@ -275,6 +275,7 @@ let rec to_string_rec l = function
                          (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) g
   | Until (i, f, g) -> Printf.sprintf (Etc.paren l 0 "%a U%a %a") (fun x -> to_string_rec 5) f
                          (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) g
+  | _ -> ""
 let to_string = to_string_rec 0
 
 let rec to_json_rec indent pos f =
