@@ -3,7 +3,7 @@ import { NestedMenuItem } from 'mui-nested-menu';
 import CancelIcon from '@mui/icons-material/Cancel';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import Icon from '@mui/material/Icon';
-import { red, lightGreen } from '@mui/material/colors';
+import { red, lightGreen, grey } from '@mui/material/colors';
 import Box from '@mui/material/Box';
 import { getPolarity } from '../util';
 
@@ -44,7 +44,7 @@ function WrapperNestedMenuItem ({ label, rightIcon, explObj, curCol, parentMenuO
                       rightIcon={rightIcon}
                       label={label}
                       parentMenuOpen={parentMenuOpen}
-                      style={menuSelected ? {background: "#fdd835"} : {}}>
+                      style={menuSelected ? {background: grey[200]} : {}}>
         {children}
       </NestedMenuItem>
     </div>

@@ -4,7 +4,7 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import Icon from '@mui/material/Icon';
 import Box from '@mui/material/Box';
-import { red, lightGreen } from '@mui/material/colors';
+import { red, lightGreen, grey } from '@mui/material/colors';
 import { getPolarity } from '../util';
 
 function WrapperIconMenuItem ({ label, rightIcon, explObj, curCol, domainValues, handleClick }) {
@@ -42,7 +42,7 @@ function WrapperIconMenuItem ({ label, rightIcon, explObj, curCol, domainValues,
       <IconMenuItem leftIcon={leftIcon}
                     rightIcon={rightIcon}
                     label={label}
-                    style={ menuSelected ? {background: "#fdd835"} : {} }
+                    style={ menuSelected ? {background: grey[200]} : {} }
                     onClick={(event) => { handleClick(event, domainValues); }}>
       </IconMenuItem>
     </div>

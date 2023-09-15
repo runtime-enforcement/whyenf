@@ -8,7 +8,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import StorageIcon from '@mui/icons-material/Storage';
 import Popover from '@mui/material/Popover';
 import Typography from '@mui/material/Typography';
-import { red, amber, lightGreen, indigo, blueGrey, teal, yellow, deepOrange } from '@mui/material/colors';
+import { red, amber, lightGreen, indigo, blueGrey, teal, yellow, deepOrange, grey } from '@mui/material/colors';
 import { common } from '@mui/material/colors';
 import { black, cellColor, updateHighlights, getHeaderHighlights } from '../util';
 import MenuCell from './MenuCell';
@@ -239,12 +239,14 @@ function TimeGrid ({ columns,
         children.push({ tp: cell.cells[i].tp, col: cell.cells[i].col + columns.preds.length, isHighlighted: false });
       }
 
-      let newHighlights = updateHighlights(ts, tp, colGridIndex, cell, objs.dbs, highlights, children);
-
       // Update header highlights
       let newSubfsHeaderHighlights = getHeaderHighlights(colGridIndex - columns.preds.length,
                                                          columns.subfsScopes,
                                                          subfsGridColumns.length);
+
+      // Update other highlights
+      let newHighlights = updateHighlights(ts, tp, colGridIndex, cell, objs.dbs, highlights,
+                                           newSubfsHeaderHighlights, children);
 
       // Update state
       let action = { type: "updateTable",
@@ -265,16 +267,19 @@ function TimeGrid ({ columns,
              backgroundColor: blueGrey[100],
            },
            '& .columnHeader--LeftHighlighted': {
-             backgroundColor: deepOrange[100],
+             backgroundColor: amber[300],
            },
            '& .columnHeader--RightHighlighted': {
              backgroundColor: teal[100],
            },
-           '& .cell--Highlighted': {
+           '& .cell--LeftHighlighted': {
              backgroundColor: amber[300],
            },
+           '& .cell--RightHighlighted': {
+             backgroundColor: teal[100],
+           },
            '& .cell--PathHighlighted': {
-             backgroundColor: indigo[100],
+             backgroundColor: blueGrey[100],
            },
            '& .row--Highlighted': {
              bgcolor: amber[50],
@@ -301,9 +306,18 @@ function TimeGrid ({ columns,
 
           if (highlights.highlightedCells.length !== 0) {
             for (let i = 0; i < highlights.highlightedCells.length; ++i) {
-              if (highlights.highlightedCells[i].tp === params.row.tp
-                  && highlights.highlightedCells[i].col + columns.preds.length === parseInt(params.colDef.field))
-                return 'cell--Highlighted';
+              if (highlights.highlightedCells[i].tp === params.row.tp &&
+                  highlights.highlightedCells[i].col + columns.preds.length === parseInt(params.colDef.field)) {
+                if (highlights.highlightedCells[i].type === "leftHighlight") {
+                  return 'cell--LeftHighlighted';
+                } else {
+                  if (highlights.highlightedCells[i].type === "rightHighlight") {
+                    return 'cell--RightHighlighted';
+                  } else {
+                    return '';
+                  }
+                }
+              }
             }
           }
 
