@@ -52,8 +52,6 @@ function MenuCell ({ explObj,
 
       let variables = getVariables(explObj, domainValuesAux);
 
-      console.log(variables);
-
       let action = { type: "updateColorsAndCellsTable",
                      colorsTable: exposeColorsTableMain(selCellsObj,
                                                         colorsTable.length,
@@ -95,12 +93,13 @@ function MenuCell ({ explObj,
             children.push({ tp: cell.cells[i].tp, col: cell.cells[i].col + predsLength, isHighlighted: false });
           }
 
-          let newHighlights = updateHighlights(ts, tp, colGridIndex, cell, dbsObjs, highlights, children);
-
           // Update header highlights
           let newSubfsHeaderHighlights = getHeaderHighlights(curCol,
                                                              subfsScopes,
                                                              colorsTable.length);
+
+          let newHighlights = updateHighlights(ts, tp, colGridIndex, cell, dbsObjs, highlights,
+                                               newSubfsHeaderHighlights, children);
 
           let action = { type: "updateColorsAndCellsTableAndHighlights",
                          colorsTable: exposeColorsTableQuant(selPartObj, curCol + 1, subfsScopes, colorsTable),

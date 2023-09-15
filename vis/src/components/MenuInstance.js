@@ -1,23 +1,27 @@
 import React, { useState } from 'react';
+import Typography from '@mui/material/Typography';
+import Box from '@mui/material/Box';
 import ArrowRightIcon from '@mui/icons-material/ArrowRight';
 import MenuItem from '@mui/material/MenuItem';
 import WrapperNestedMenuItem from './WrapperNestedMenuItem';
 import WrapperIconMenuItem from './WrapperIconMenuItem';
+import { grey } from '@mui/material/colors';
 
 function MenuInstance ({ explObj, curCol, open, domainValues, handleClose, handleClick }) {
 
   if (explObj.type === "node" || explObj.kind === "partition") {
     return (
       <div>
-        <MenuItem disabled={true}
-                  sx={{ justifyContent: 'center' }}
-                  style={{ color: "#FFFFFF",
-                           opacity: 1.0,
-                           background: "#000000"}}>
-          <span>
-            {explObj.var}
-          </span>
-        </MenuItem>
+        <Box sx={{ ml: 1, mr: 1, mb: 1, borderRadius: '9px' }}
+             style={{ color: "#FFFFFF",
+                      opacity: 1.0,
+                      background: "#000000" }}>
+          <MenuItem disabled={true}
+                    sx={{ justifyContent: 'center' }}
+                    style={{ opacity: 1.0 }}>
+            <Typography variant="h6">{explObj.var}</Typography>
+          </MenuItem>
+        </Box>
         { explObj?.part?.map((el, i) => {
 
           const domainValue = el.subset_type === "finite" ?

@@ -206,13 +206,15 @@ export function exposeColorsTableMain(explObj, maxRow, maxCol) {
 
 }
 
-export function updateHighlights(ts, tp, col, cell, dbsObjs, highlights, children) {
+export function updateHighlights(ts, tp, col, cell, dbsObjs, highlights, newSubfsHeaderHighlights, children) {
 
   // Update cell highlighting
   let highlightedCells = [];
 
   for (let i = 0; i < cell.cells.length; ++i) {
-    highlightedCells.push({ tp: cell.cells[i].tp, col: cell.cells[i].col });
+    highlightedCells.push({ tp: cell.cells[i].tp,
+                            col: cell.cells[i].col,
+                            type: newSubfsHeaderHighlights[cell.cells[i].col] });
   }
 
   // Update interval highlighting
