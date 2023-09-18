@@ -56,6 +56,20 @@ value "execute_trivial_eval mytrace4 [string8_string ''a'', string8_string ''r''
 definition phi5 :: "event_data MFOTL.formula" where
   "phi5 = MFOTL.Pred (string8_string ''publish'') [MFOTL.Var (string8_string ''a''), MFOTL.Var (string8_string ''r'')]"
 
+definition mytrace6 :: "event_data MFOTL.trace" where 
+  "mytrace6 = trace_of_list [({}, 1::nat),
+                            ({(string8_string ''p'', [EInt 3])}, 2::nat),
+                            ({}, 3::nat),
+                            ({}, 4::nat)]"
+
+definition phi7 :: "event_data MFOTL.formula" where
+  "phi7 = MFOTL.Forall (string8_string ''x'') 
+          (MFOTL.Imp
+            (MFOTL.Neg (MFOTL.Pred (string8_string ''c'') [MFOTL.Var (string8_string ''x'')]))
+            (MFOTL.Pred (string8_string ''d'') [MFOTL.Var (string8_string ''x'')]))"
+
+(* value "execute_trivial_eval mytrace6 [string8_string ''x''] 1 phi7" *)
+
 (* value "execute_trivial_eval mytrace4 [string8_string ''a'', string8_string ''r''] 3 phi5" *)
 
 (* value "let e = execute_trivial_eval mytrace4 [string8_string ''a'', string8_string ''f''] 0 phi4 in 
