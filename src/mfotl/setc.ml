@@ -78,12 +78,16 @@ let to_json = function
   | Complement s -> (Printf.sprintf "\"subset_type\": \"complement\", \"subset_values\": %s,"
                        (Etc.string_list_to_json (List.map (Set.to_list s) ~f:Domain.to_string)))
 
-let to_string cs =
-  let rec format s =
-    if Int.equal (Set.length s) 0 then ""
-    else (if Int.equal (Set.length s) 1 then Domain.to_string (Set.choose_exn s)
-          else (let min = Set.min_elt_exn s in
-                Printf.sprintf "%s, " (Domain.to_string min) ^ (format (Set.remove s min)))) in
-  match cs with
+let rec format s =
+  if Int.equal (Set.length s) 0 then ""
+  else (if Int.equal (Set.length s) 1 then Domain.to_string (Set.choose_exn s)
+        else (let min = Set.min_elt_exn s in
+              Printf.sprintf "%s, " (Domain.to_string min) ^ (format (Set.remove s min))))
+
+let to_string = function
   | Finite s -> Printf.sprintf "{%s}" (format s)
   | Complement s -> Printf.sprintf "Complement of {%s}" (format s)
+
+let to_latex = function
+  | Finite s -> Printf.sprintf "\\{%s\\}" (format s)
+  | Complement s -> Printf.sprintf "\\{%s\\}^\\cp" (format s)
