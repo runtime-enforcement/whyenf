@@ -25,3 +25,4 @@ val is_finite: ('a, 'b) t -> bool
 val to_list: ('a, 'b) t -> 'a list
 val to_json: (Domain.t, 'a) t -> string
 val to_string: (Domain.t, 'a) t -> string
+val to_latex: (Domain.t, 'a) t -> string

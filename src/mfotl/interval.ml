@@ -66,6 +66,10 @@ let to_string = function
   | U (UI i) -> Printf.sprintf "[%d,∞)" i
   | B i -> Printf.sprintf "%a" (fun x -> to_string_BI) i
 
+let to_latex = function
+  | U (UI i) -> Printf.sprintf "[%d,\\infty)" i
+  | B i -> Printf.sprintf "%a" (fun x -> to_string_BI) i
+
 let lex error l i j r =
   (match j with
     | "INFINITY" | "∞" ->
