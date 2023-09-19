@@ -13,10 +13,12 @@ open Checker_interface
 
 module Plain : sig
 
-  type mode = UNVERIFIED | VERIFIED | DEBUG | DEBUGVIS
+  type mode = UNVERIFIED | VERIFIED | LATEX | DEBUG | DEBUGVIS
 
-  val expls: timepoint -> ((timestamp * timepoint) * Expl.t) list -> (bool * Checker_pdt.t * Checker_trace.t) list option ->
-             ((Domain.t, Domain.comparator_witness) Setc.t list list option list) option -> mode -> unit
+  val expls: timepoint -> ((timestamp * timepoint) * Expl.t) list ->
+             (bool * Checker_pdt.t * Checker_trace.t) list option ->
+             ((Domain.t, Domain.comparator_witness) Setc.t list list option list) option ->
+             Formula.t option -> mode -> unit
 
 end
 

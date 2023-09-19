@@ -58,6 +58,7 @@ module Explanator2 = struct
            (match m with
             | "unverified" -> Out.Plain.UNVERIFIED
             | "verified" -> Out.Plain.VERIFIED
+            | "latex" -> Out.Plain.LATEX
             | "debug" -> Etc.debug := true; Out.Plain.DEBUG
             | "debugvis" -> Etc.debug := true; Out.Plain.DEBUGVIS
             | _ -> mode_error ());
