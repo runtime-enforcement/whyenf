@@ -338,8 +338,9 @@ module Proof = struct
     | STT tp, TT  ->
        Printf.sprintf "\\infer[\\top]{%s, %d \\pvd true}{}\n" (val_changes_to_latex v) tp
     | SPred (tp, r, trms), Predicate (_, _) ->
-       Printf.sprintf "\\infer[\\Spred]{%s, %d \\pvd %s\\,[%s])}{(%s,[%s]) \\in\\Gamma_{%d}}\n"
-         (val_changes_to_latex v) tp r (Term.list_to_string trms) r (Term.list_to_string trms) tp
+       Printf.sprintf "\\infer[\\Spred]{%s, %d \\pvd %s\\,(%s)}{(%s,[%s]) \\in\\Gamma_{%d}}\n"
+         (val_changes_to_latex v) tp (Etc.escape_underscores r) (Term.list_to_string trms)
+         (Etc.escape_underscores r) (Term.list_to_string trms) tp
     | SNeg vp, Neg f ->
        Printf.sprintf "\\infer[\\Sneg]{%s, %d \\pvd %s}\n%s{%s}\n"
          (val_changes_to_latex v) (s_at p) (Formula.to_latex h) indent (v_to_latex indent' v idx vp f)
@@ -421,8 +422,9 @@ module Proof = struct
     | VFF tp, FF ->
        Printf.sprintf "\\infer[\\bot]{%s, %d \\nvd false}{}\n" (val_changes_to_latex v) tp
     | VPred (tp, r, trms), Predicate (_, _) ->
-       Printf.sprintf "\\infer[\\Vpred]{%s, %d \\nvd %s\\,[%s])}{(%s,[%s]) \\notin\\Gamma_{%d}}\n"
-         (val_changes_to_latex v) tp r (Term.list_to_string trms) r (Term.list_to_string trms) tp
+       Printf.sprintf "\\infer[\\Vpred]{%s, %d \\nvd %s\\,(%s)}{(%s,[%s]) \\notin\\Gamma_{%d}}\n"
+         (val_changes_to_latex v) tp (Etc.escape_underscores r) (Term.list_to_string trms)
+         (Etc.escape_underscores r) (Term.list_to_string trms) tp
     | VNeg sp, Neg f ->
        Printf.sprintf "\\infer[\\Vneg]{%s, %d \\nvd %s}\n%s{%s}\n"
          (val_changes_to_latex v) (v_at p) (Formula.to_latex h) indent (s_to_latex indent' v idx sp f)
