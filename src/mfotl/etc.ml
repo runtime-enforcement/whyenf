@@ -77,3 +77,6 @@ let unquote s =
     if Char.equal s.[0] '\"' && Char.equal s.[len-1] '\"' then
       String.sub s 1 (len-2)
     else s
+
+let escape_underscores s =
+  String.fold s ~init:"" ~f:(fun acc c -> if Char.equal c '_' then acc ^ "\\_" else acc ^ (Char.to_string c))

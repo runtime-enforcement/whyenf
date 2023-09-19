@@ -39,3 +39,5 @@ val string_list_to_json: string list -> string
 val int_list_to_json: int list -> string
 
 val unquote: string -> string
+
+val escape_underscores: string -> string
