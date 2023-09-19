@@ -331,15 +331,15 @@ let rec to_latex_rec l = function
   | Iff (f, g) -> Printf.sprintf (Etc.paren l 5 "%a \\leftrightarrow %a") (fun x -> to_latex_rec 5) f (fun x -> to_latex_rec 5) g
   | Exists (Var x, f) -> Printf.sprintf (Etc.paren l 5 "\\exists %s. %a") x (fun x -> to_latex_rec 5) f
   | Forall (Var x, f) -> Printf.sprintf (Etc.paren l 5 "\\forall %s. %a") x (fun x -> to_latex_rec 5) f
-  | Prev (i, f) -> Printf.sprintf (Etc.paren l 5 "\\Prev_{%a} %a") (fun x -> Interval.to_string) i (fun x -> to_latex_rec 5) f
-  | Next (i, f) -> Printf.sprintf (Etc.paren l 5 "\\Next_{%a} %a") (fun x -> Interval.to_string) i (fun x -> to_latex_rec 5) f
-  | Once (i, f) -> Printf.sprintf (Etc.paren l 5 "\\Once_{%a} %a") (fun x -> Interval.to_string) i (fun x -> to_latex_rec 5) f
-  | Eventually (i, f) -> Printf.sprintf (Etc.paren l 5 "\\Eventually_{%a} %a") (fun x -> Interval.to_string) i (fun x -> to_latex_rec 5) f
-  | Historically (i, f) -> Printf.sprintf (Etc.paren l 5 "\\Historically_{%a} %a") (fun x -> Interval.to_string) i (fun x -> to_latex_rec 5) f
-  | Always (i, f) -> Printf.sprintf (Etc.paren l 5 "\\Always_{%a} %a") (fun x -> Interval.to_latex) i (fun x -> to_latex_rec 5) f
-  | Since (i, f, g) -> Printf.sprintf (Etc.paren l 0 "%a \\Since_{%a} %a") (fun x -> to_latex_rec 5) f
+  | Prev (i, f) -> Printf.sprintf (Etc.paren l 5 "\\Prev{%a} %a") (fun x -> Interval.to_string) i (fun x -> to_latex_rec 5) f
+  | Next (i, f) -> Printf.sprintf (Etc.paren l 5 "\\Next{%a} %a") (fun x -> Interval.to_string) i (fun x -> to_latex_rec 5) f
+  | Once (i, f) -> Printf.sprintf (Etc.paren l 5 "\\Once{%a} %a") (fun x -> Interval.to_string) i (fun x -> to_latex_rec 5) f
+  | Eventually (i, f) -> Printf.sprintf (Etc.paren l 5 "\\Eventually{%a} %a") (fun x -> Interval.to_string) i (fun x -> to_latex_rec 5) f
+  | Historically (i, f) -> Printf.sprintf (Etc.paren l 5 "\\Historically{%a} %a") (fun x -> Interval.to_string) i (fun x -> to_latex_rec 5) f
+  | Always (i, f) -> Printf.sprintf (Etc.paren l 5 "\\Always{%a} %a") (fun x -> Interval.to_latex) i (fun x -> to_latex_rec 5) f
+  | Since (i, f, g) -> Printf.sprintf (Etc.paren l 0 "%a \\Since{%a} %a") (fun x -> to_latex_rec 5) f
                          (fun x -> Interval.to_string) i (fun x -> to_latex_rec 5) g
-  | Until (i, f, g) -> Printf.sprintf (Etc.paren l 0 "%a \\Until_{%a} %a") (fun x -> to_latex_rec 5) f
+  | Until (i, f, g) -> Printf.sprintf (Etc.paren l 0 "%a \\Until{%a} %a") (fun x -> to_latex_rec 5) f
                          (fun x -> Interval.to_string) i (fun x -> to_latex_rec 5) g
   | _ -> ""
 let to_latex = to_latex_rec 0

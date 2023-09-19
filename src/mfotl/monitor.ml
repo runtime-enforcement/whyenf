@@ -1581,15 +1581,16 @@ let exec mode measure f inc =
     let (more, pb) = Other_parser.Trace.parse_from_channel inc pb_opt in
     let (tstp_expls, ms') = mstep mode (Set.elements (Formula.fv f)) pb.ts pb.db ms in
     (match mode with
-     | Out.Plain.UNVERIFIED -> Out.Plain.expls pb.ts tstp_expls None None mode
+     | Out.Plain.UNVERIFIED -> Out.Plain.expls pb.ts tstp_expls None None None mode
+     | Out.Plain.LATEX -> Out.Plain.expls pb.ts tstp_expls None None (Some(f)) mode
      | Out.Plain.DEBUGVIS -> raise (Failure "function exec is undefined for the mode debugvis")
      | Out.Plain.VERIFIED ->
         let c = Checker_interface.check (Queue.to_list ms'.tsdbs) f (List.map tstp_expls ~f:snd) in
-        Out.Plain.expls pb.ts tstp_expls (Some(c)) None mode
+        Out.Plain.expls pb.ts tstp_expls (Some(c)) None None mode
      | Out.Plain.DEBUG ->
         let c = Checker_interface.check (Queue.to_list ms'.tsdbs) f (List.map tstp_expls ~f:snd) in
         let paths = Checker_interface.false_paths (Queue.to_list ms'.tsdbs) f (List.map tstp_expls ~f:snd) in
-        Out.Plain.expls pb.ts tstp_expls (Some(c)) (Some(paths)) mode);
+        Out.Plain.expls pb.ts tstp_expls (Some(c)) (Some(paths)) None mode);
     if more then step (Some(pb)) ms' in
   let mf = init f in
   let ms = MState.init mf in
