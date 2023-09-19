@@ -1,1 +1,1 @@
-publish(a,f) IMPLIES (ONCE[0,604800] (EXISTS m. (NOT mgr_F(m,a) SINCE mgr_S(m,a)) AND approve(m,f)))
+publish(a,f) → (⧫[0,7] (∃ m. (¬ mgr_F(m,a) S mgr_S(m,a)) ∧ approve(m,f)))
