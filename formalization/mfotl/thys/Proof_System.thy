@@ -33,6 +33,7 @@ fun LRTP :: "'a MFOTL.trace \<Rightarrow> 'a MFOTL.formula \<Rightarrow> nat \<R
   "LRTP \<sigma> (MFOTL.TT) i = Some i"
 | "LRTP \<sigma> (MFOTL.FF) i = Some i"
 | "LRTP \<sigma> (MFOTL.Pred _ _) i = Some i"
+| "LRTP \<sigma> (MFOTL.Eq_Const _ _) i = Some i"
 | "LRTP \<sigma> (MFOTL.Neg \<phi>) i = LRTP \<sigma> \<phi> i"
 | "LRTP \<sigma> (MFOTL.Or \<phi> \<psi>) i = max_opt (LRTP \<sigma> \<phi> i) (LRTP \<sigma> \<psi> i)"
 | "LRTP \<sigma> (MFOTL.And \<phi> \<psi>) i = max_opt (LRTP \<sigma> \<phi> i) (LRTP \<sigma> \<psi> i)"
@@ -286,6 +287,8 @@ inductive SAT and VIO :: "'a MFOTL.trace \<Rightarrow> 'a MFOTL.env \<Rightarrow
 | VFF: "VIO \<sigma> v i MFOTL.FF"
 | SPred: "(r, MFOTL.eval_trms v ts) \<in> \<Gamma> \<sigma> i \<Longrightarrow> SAT \<sigma> v i (MFOTL.Pred r ts)"
 | VPred: "(r, MFOTL.eval_trms v ts) \<notin> \<Gamma> \<sigma> i \<Longrightarrow> VIO \<sigma> v i (MFOTL.Pred r ts)"
+| SEq_Const: "v x = c \<Longrightarrow> SAT \<sigma> v i (MFOTL.Eq_Const x c)"
+| VEq_Const: "v x \<noteq> c \<Longrightarrow> VIO \<sigma> v i (MFOTL.Eq_Const x c)"
 | SNeg: "VIO \<sigma> v i \<phi> \<Longrightarrow> SAT \<sigma> v i (MFOTL.Neg \<phi>)"
 | VNeg: "SAT \<sigma> v i \<phi> \<Longrightarrow> VIO \<sigma> v i (MFOTL.Neg \<phi>)"
 | SOrL: "SAT \<sigma> v i \<phi> \<Longrightarrow> SAT \<sigma> v i (MFOTL.Or \<phi> \<psi>)"
@@ -806,7 +809,8 @@ lemma set_vals[simp]: "set (vals xs) = Vals xs"
 subsection \<open>Proof Objects\<close>
 
 datatype (dead 'd) sproof = STT nat 
-  | SPred nat MFOTL.name "'d MFOTL.trm list" 
+  | SPred nat MFOTL.name "'d MFOTL.trm list"
+  | SEq_Const nat MFOTL.name 'd
   | SNeg "'d vproof" 
   | SOrL "'d sproof" 
   | SOrR "'d sproof" 
@@ -827,7 +831,8 @@ datatype (dead 'd) sproof = STT nat
   | SSince "'d sproof" "'d sproof list" 
   | SUntil "'d sproof list" "'d sproof" 
   and 'd vproof = VFF nat 
-  | VPred nat MFOTL.name "'d MFOTL.trm list" 
+  | VPred nat MFOTL.name "'d MFOTL.trm list"
+  | VEq_Const nat MFOTL.name 'd
   | VNeg "'d sproof" 
   | VOr "'d vproof" "'d vproof"
   | VAndL "'d vproof" 

@@ -811,6 +811,10 @@ fun check_all_aux where
   "check_all_aux \<sigma> vs \<phi> (Leaf p) = check_exec \<sigma> vs \<phi> p"
 | "check_all_aux \<sigma> vs \<phi> (Node x part) = (\<forall>(D, e) \<in> set (subsvals part). check_all_aux \<sigma> (vs(x := D)) \<phi> e)"
 
+fun collect_paths_aux where
+  "collect_paths_aux DS \<sigma> vs \<phi> (Leaf p) = (if check_exec \<sigma> vs \<phi> p then {} else rev ` DS)"
+| "collect_paths_aux DS \<sigma> vs \<phi> (Node x part) = (\<Union>(D, e) \<in> set (subsvals part). collect_paths_aux (Cons D ` DS) \<sigma> (vs(x := D)) \<phi> e)"
+
 lift_definition lookup :: "('d, 'a) part \<Rightarrow> 'd \<Rightarrow> ('d set \<times> 'a)" is "\<lambda>xs d. the (find (\<lambda>(D, _). d \<in> D) xs)" .
 
 lemma snd_lookup[simp]: "snd (lookup part d) = lookup_part part d"
@@ -984,8 +988,14 @@ instance event_data :: equal by standard
 definition check_all :: "(MFOTL.name \<times> 'd ::  {default,linorder} list) trace \<Rightarrow> 'd MFOTL.formula \<Rightarrow> ('d, 'd proof) pdt \<Rightarrow> bool" where
   "check_all \<sigma> \<phi> e = (distinct_paths e \<and> check_all_aux \<sigma> (\<lambda>_. UNIV) \<phi> e)"
 
+definition collect_paths :: "(MFOTL.name \<times> 'd ::  {default,linorder} list) trace \<Rightarrow> 'd MFOTL.formula \<Rightarrow> ('d, 'd proof) pdt \<Rightarrow> 'd set list set option" where
+  "collect_paths \<sigma> \<phi> e = (if (distinct_paths e \<and> check_all_aux \<sigma> (\<lambda>_. UNIV) \<phi> e) then None else Some (collect_paths_aux {[]} \<sigma> (\<lambda>_. UNIV) \<phi> e))"
+
 definition check_all_specialized :: "(MFOTL.name \<times> event_data list) trace \<Rightarrow> event_data MFOTL.formula \<Rightarrow> (event_data, event_data proof) pdt \<Rightarrow> bool" where
-  "check_all_specialized \<sigma> \<phi> e = check_all \<sigma> \<phi> e"
+  "check_all_specialized = check_all"
+
+definition collect_paths_specialized :: "(MFOTL.name \<times> event_data list) trace \<Rightarrow> event_data MFOTL.formula \<Rightarrow> (event_data, event_data proof) pdt \<Rightarrow> event_data set list set option" where
+  "collect_paths_specialized = collect_paths"
 
 definition trace_of_list_specialized :: "((MFOTL.name \<times> event_data list) set \<times> nat) list \<Rightarrow> (MFOTL.name \<times> event_data list) trace" where
   "trace_of_list_specialized xs = trace_of_list xs"
@@ -1018,7 +1028,8 @@ lemma check_all_check_one: "check_all \<sigma> \<phi> e = (distinct_paths e \<an
 
 export_code interval enat nat_of_integer integer_of_nat
   STT MFOTL.TT Inl EInt MFOTL.Var Leaf set part_hd sum_nat sub_nat subsvals
-  check_all_specialized trace_of_list_specialized specialized_set ed_set abs_part
+  check_all_specialized trace_of_list_specialized specialized_set ed_set abs_part 
+  collect_paths_specialized
   in OCaml module_name MFOTL_Explanator2 file_prefix "MFOTL_checker"
 
 end
