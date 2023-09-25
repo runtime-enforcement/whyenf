@@ -1,22 +1,34 @@
 (*******************************************************************)
-(*     This is part of Explanator2, it is distributed under the    *)
+(*     This is part of WhyMon, and it is distributed under the     *)
 (*     terms of the GNU Lesser General Public License version 3    *)
 (*           (see file LICENSE for more details)                   *)
 (*                                                                 *)
-(*  Copyright 2021:                                                *)
+(*  Copyright 2023:                                                *)
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
-open Mtl
-open Expl
-open Util
-open Checker.VerifiedExplanator2
+open Base
+open Etc
+open Checker.Whymon
 
-type checker_proof = CS of string sproof | CV of string vproof
-type checker_trace = (string set * nat) list
-type trace_t = (SS.t * int) list
+module Checker_trace : sig
 
-val s_of_proof: checker_proof -> string
-val s_of_trace: trace_t -> string
-val check_ps: (string trace -> nat -> string mtl -> (string sproof, string vproof) sum -> bool) ->
-        (Util.SS.t * int) list -> formula -> expl list -> (bool * checker_proof * trace_t) list
+  type t = ((string * event_data list) set * nat) list
+
+  val to_string: t -> string
+
+end
+
+module Checker_pdt : sig
+
+  type t = (event_data, (event_data sproof, event_data vproof) sum) pdt
+
+  val to_string: string -> t -> string
+
+end
+
+val check: (timestamp * (string * Domain.t list, 'a) Base.Set.t) list -> Formula.t -> Expl.Proof.t Expl.Pdt.t list ->
+           (bool * (event_data, (event_data sproof, event_data vproof) sum) pdt * Checker_trace.t) list
+
+val false_paths: (timestamp * (string * Domain.t list, 'a) Base.Set.t) list -> Formula.t -> Expl.Proof.t Expl.Pdt.t list ->
+                 (Domain.t, Domain.comparator_witness) Setc.t list list option list

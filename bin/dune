@@ -1,5 +1,5 @@
 (executable
- (public_name explanator2)
- (name explanator2)
- (libraries src)
+ (public_name whymon)
+ (name whymon)
+ (libraries monitor_lib)
  (promote (until-clean)))

@@ -1,12 +1,13 @@
 (ocamllex
- (modules mtl_lexer))
+ (modules other_lexer formula_lexer))
 
 (menhir
- (modules mtl_parser))
+ (modules formula_parser))
+ ;; debug (flags --explain --inspection --table --dump))
 
 (library
- (name src)
+ (name monitor_lib)
  (libraries core_kernel base zarith landmarks)
- (preprocess (pps landmarks-ppx --auto))
+ (preprocess (pps ppx_jane landmarks-ppx --auto))
  (instrumentation (backend landmarks))
 )

@@ -1,527 +1,718 @@
 (*******************************************************************)
-(*     This is part of Explanator2, it is distributed under the    *)
+(*     This is part of WhyMon, and it is distributed under the     *)
 (*     terms of the GNU Lesser General Public License version 3    *)
 (*           (see file LICENSE for more details)                   *)
 (*                                                                 *)
-(*  Copyright 2021:                                                *)
+(*  Copyright 2023:                                                *)
 (*  Dmitriy Traytel (UCPH)                                         *)
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
-open Util
+open Base
+open Pred
 
-type sexpl =
-  | STT of int
-  | SAtom of int * string
-  | SNeg of vexpl
-  | SDisjL of sexpl
-  | SDisjR of sexpl
-  | SConj of sexpl * sexpl
-  | SImplL of vexpl
-  | SImplR of sexpl
-  | SIffSS of sexpl * sexpl
-  | SIffVV of vexpl * vexpl
-  | SPrev of sexpl
-  | SNext of sexpl
-  | SOnce of int * sexpl
-  | SHistorically of int * int * sexpl list
-  | SHistoricallyOutL of int
-  | SEventually of int * sexpl
-  | SAlways of int * int * sexpl list
-  | SSince of sexpl * sexpl list
-  | SUntil of sexpl * sexpl list
-and vexpl =
-  | VFF of int
-  | VAtom of int * string
-  | VNeg of sexpl
-  | VDisj of vexpl * vexpl
-  | VConjL of vexpl
-  | VConjR of vexpl
-  | VImpl of sexpl * vexpl
-  | VIffSV of sexpl * vexpl
-  | VIffVS of vexpl * sexpl
-  | VPrev0
-  | VPrevOutL of int
-  | VPrevOutR of int
-  | VPrev of vexpl
-  | VNextOutL of int
-  | VNextOutR of int
-  | VNext of vexpl
-  | VOnceOutL of int
-  | VOnce of int * int * vexpl list
-  | VHistorically of int * vexpl
-  | VEventually of int * int * vexpl list
-  | VAlways of int * vexpl
-  | VSince of int * vexpl * vexpl list
-  | VSinceInf of int * int * vexpl list
-  | VSinceOutL of int
-  | VUntil of int * vexpl * vexpl list
-  | VUntilInf of int * int * vexpl list
+module Fdeque = Core_kernel.Fdeque
 
-type expl = S of sexpl | V of vexpl
+module Part = struct
 
-exception VEXPL
-exception SEXPL
+  (* TODO: Remove concrete type from signature file                *)
+  (*       In order to do this, I must rewrite do_exists/do_forall *)
+  type 'a t = ((Domain.t, Domain.comparator_witness) Setc.t * 'a) list
 
-let unS = function S p -> p | _ -> raise VEXPL
-let unV = function V p -> p | _ -> raise SEXPL
+  let random_empty_set = Set.empty (module String)
 
-let expl_to_bool = function
-  | S _ -> true
-  | V _ -> false
+  let trivial p = [(Setc.univ (module Domain), p)]
 
-let sappend sp sp1 = match sp with
-  | SSince (sp2, sp1s) -> SSince (sp2, List.append sp1s [sp1])
-  | SUntil (sp2, sp1s) -> SUntil (sp2, sp1 :: sp1s)
-  | _ -> failwith "Bad arguments for sappend"
+  let hd part = snd (List.hd_exn part)
 
-let vappend vp vp2 = match vp with
-  | VSince (tp, vp1, vp2s) -> VSince (tp,  vp1, List.append vp2s [vp2])
-  | VSinceInf (tp, etp, vp2s) -> VSinceInf (tp, etp, List.append vp2s [vp2])
-  | VUntil (tp, vp1, vp2s) -> VUntil (tp, vp1, vp2 :: vp2s)
-  | VUntilInf (tp, ltp, vp2s) -> VUntilInf (tp, ltp, vp2 :: vp2s)
-  | _ -> failwith "Bad arguments for vappend"
+  let map part f = List.map part ~f:(fun (s, p) -> (s, f p))
 
-let sdrop sp = match sp with
-  | SUntil (_, []) -> None
-  | SUntil (sp2, sp1s) -> Some (SUntil (sp2, drop_front sp1s))
-  | _ -> failwith "Bad arguments for sdrop"
+  let fold_left part init f = List.fold_left part ~init:init ~f:(fun acc (_, p) -> f acc p)
 
-let vdrop vp = match vp with
-  | VUntil (_, _, _::[]) -> None
-  | VUntil (tp, vp1, vp2s) -> Some (VUntil (tp, vp1, drop_front vp2s))
-  | VUntilInf (_, _, []) -> None
-  | VUntilInf (tp, ltp, vp2s) -> Some (VUntilInf (tp, ltp, drop_front vp2s))
-  | _ -> failwith "Bad arguments for vdrop"
+  let filter part f = List.filter part ~f:(fun (_, p) -> f p)
 
-let rec s_at = function
-  | STT i -> i
-  | SAtom (i, _) -> i
-  | SNeg vphi -> v_at vphi
-  | SDisjL sphi -> s_at sphi
-  | SDisjR spsi -> s_at spsi
-  | SConj (sphi, _) -> s_at sphi
-  | SImplL vphi -> v_at vphi
-  | SImplR spsi -> s_at spsi
-  | SIffSS (sphi, _) -> s_at sphi
-  | SIffVV (vphi, _) -> v_at vphi
-  | SPrev sphi -> s_at sphi + 1
-  | SNext sphi -> s_at sphi - 1
-  | SOnce (i, _) -> i
-  | SHistorically (i, _, _) -> i
-  | SHistoricallyOutL i -> i
-  | SEventually (i, _) -> i
-  | SAlways (i, _, _) -> i
-  | SSince (spsi, sphis) -> (match sphis with
-      | [] -> s_at spsi
-      | _ -> s_at (last sphis))
-  | SUntil (spsi, sphis) -> (match sphis with
-      | [] -> s_at spsi
-      | x :: _ -> s_at x)
-and v_at = function
-  | VFF i -> i
-  | VAtom (i, _) -> i
-  | VNeg sphi -> s_at sphi
-  | VDisj (vphi, _) -> v_at vphi
-  | VConjL vphi -> v_at vphi
-  | VConjR vpsi -> v_at vpsi
-  | VImpl (sphi, _) -> s_at sphi
-  | VIffSV (sphi, _) -> s_at sphi
-  | VIffVS (vphi, _) -> v_at vphi
-  | VPrev0 -> 0
-  | VPrevOutL i -> i
-  | VPrevOutR i -> i
-  | VPrev vphi -> v_at vphi + 1
-  | VNextOutL i -> i
-  | VNextOutR i -> i
-  | VNext vphi -> v_at vphi - 1
-  | VOnceOutL i -> i
-  | VOnce (i, _, _) -> i
-  | VHistorically (i, _) -> i
-  | VEventually (i, _, _) -> i
-  | VAlways (i, _) -> i
-  | VSince (i, _, _) -> i
-  | VSinceInf (i, _, _) -> i
-  | VSinceOutL i -> i
-  | VUntil (i, _, _) -> i
-  | VUntilInf (i, _, _) -> i
+  let exists part f = List.exists part ~f:(fun (_, p) -> f p)
 
-let s_ltp sp = match sp with
-  | SUntil (sp2, _) -> s_at sp2
-  | _ -> failwith "Bad arguments for s_ltp"
+  let for_all part f = List.for_all part ~f:(fun (_, p) -> f p)
 
-let v_etp vp = match vp with
-  | VUntil (i, _, []) -> i
-  | VUntil (_, _, vp2::_) -> v_at vp2
-  | _ -> failwith "Bad arguments for v_etp"
+  let values part = List.map part ~f:(fun (_, p) -> p)
 
-let p_at = function
-| S s_p -> s_at s_p
-| V v_p -> v_at v_p
+  let rec tabulate ds f z =
+    (Setc.Complement ds, z) ::
+      (Set.fold ds ~init:[] ~f:(fun acc d -> (Setc.Finite (Set.of_list (module Domain) [d]), f d) :: acc))
 
-(***********************************
- *                                 *
- * Measure: size                   *
- *                                 *
- ***********************************)
-let rec s_size = function
-  | STT _ -> 1
-  | SAtom (_, _) -> 1
-  | SNeg vphi -> 1 + v_size vphi
-  | SDisjL sphi -> 1 + s_size sphi
-  | SDisjR spsi -> 1 + s_size spsi
-  | SConj (sphi, spsi) -> 1 + s_size sphi + s_size spsi
-  | SImplL vphi -> 1 + v_size vphi
-  | SImplR spsi -> 1 + s_size spsi
-  | SIffSS (sphi, spsi) -> 1 + s_size sphi + s_size spsi
-  | SIffVV (vphi, vpsi) -> 1 + v_size vphi + v_size vpsi
-  | SPrev sphi -> 1 + s_size sphi
-  | SNext sphi -> 1 + s_size sphi
-  | SOnce (_, sphi) -> 1 + s_size sphi
-  | SHistorically (_, _, sphis) -> 1 + sum s_size sphis
-  | SHistoricallyOutL _ -> 1
-  | SEventually (_, sphi) -> 1 + s_size sphi
-  | SAlways (_, _, sphis) -> 1 + sum s_size sphis
-  | SSince (spsi, sphis) -> 1 + s_size spsi + sum s_size sphis
-  | SUntil (spsi, sphis) -> 1 + s_size spsi + sum s_size sphis
-and v_size = function
-  | VFF _ -> 1
-  | VAtom (_, _) -> 1
-  | VNeg sphi -> 1 + s_size sphi
-  | VDisj (vphi, vpsi) -> 1 + v_size vphi + v_size vpsi
-  | VConjL vphi -> 1 + v_size vphi
-  | VConjR vpsi -> 1 + v_size vpsi
-  | VImpl (sphi, vpsi) -> 1 + s_size sphi + v_size vpsi
-  | VIffSV (sphi, vpsi) -> 1 + s_size sphi + v_size vpsi
-  | VIffVS (vphi, spsi) -> 1 + v_size vphi + s_size spsi
-  | VPrev0 -> 1
-  | VPrevOutL _ -> 1
-  | VPrevOutR _ -> 1
-  | VPrev vphi -> 1 + v_size vphi
-  | VNextOutL _ -> 1
-  | VNextOutR _ -> 1
-  | VNext vphi -> 1 + v_size vphi
-  | VOnceOutL _ -> 1
-  | VOnce (_, _, vphis) -> 1 + sum v_size vphis
-  | VHistorically (_, vphi) -> 1 + v_size vphi
-  | VEventually (_, _, vphis) -> 1 + sum v_size vphis
-  | VAlways (_, vphi) -> 1 + v_size vphi
-  | VSince (_, vphi, vpsis) -> 1 + v_size vphi + sum v_size vpsis
-  | VSinceInf (_, _, vpsis) -> 1 + sum v_size vpsis
-  | VSinceOutL _ -> 1
-  | VUntil (_, vphi, vpsis) -> 1 + v_size vphi + sum v_size vpsis
-  | VUntilInf (_, _, vpsis) -> 1 + sum v_size vpsis
+  let rec merge2 f part1 part2 = match part1, part2 with
+    | [], _ -> []
+    | (sub1, v1) :: part1, part2 ->
+       let part12 = List.filter_map part2
+                      (fun (sub2, v2) ->
+                        (if not (Setc.is_empty (Setc.inter sub1 sub2))
+                         then Some (Setc.inter sub1 sub2, f v1 v2) else None)) in
+       let part2not1 = List.filter_map part2
+                         (fun (sub2, v2) ->
+                           (if not (Setc.is_empty (Setc.diff sub2 sub1))
+                            then Some (Setc.diff sub2 sub1, v2) else None)) in
+       part12 @ (merge2 f part1 part2not1)
 
-let size = function
-  | S s_p -> s_size s_p
-  | V v_p -> v_size v_p
+  let merge3 f part1 part2 part3 = match part1, part2, part3 with
+    | [], _ , _
+      | _ , [], _
+      | _ , _ , [] -> raise (Invalid_argument "one of the partitions is empty")
+    | part1, part2, part3 ->
+       merge2 (fun pt3 f' -> f' pt3) part3 (merge2 f part1 part2)
 
-let size_le = mk_le size
+  let split_prod part = (map part fst, map part snd)
 
-let minsize a b = if size a <= size b then a else b
-let minsize_list = function
-  | [] -> failwith "empty list for minsize_list"
-  | x::xs -> List.fold_left minsize x xs
+  let split_list part =
+    let subs = List.map part ~f:fst in
+    let vs = List.map part ~f:snd in
+    List.map (Option.value_exn (List.transpose vs)) ~f:(List.zip_exn subs)
 
-(***********************************
- *                                 *
- * Measure: wsize                   *
- *                                 *
- ***********************************)
-let rec s_wsize ws = function
-  | STT _ -> 1
-  | SAtom (_, s) -> (match Hashtbl.find_opt ws s with
-                     | None -> 1
-                     | Some(w) -> w)
-  | SNeg vphi -> 1 + v_wsize ws vphi
-  | SDisjL sphi -> 1 + s_wsize ws sphi
-  | SDisjR spsi -> 1 + s_wsize ws spsi
-  | SConj (sphi, spsi) -> 1 + (s_wsize ws sphi) + (s_wsize ws spsi)
-  | SImplL vphi -> 1 + v_wsize ws vphi
-  | SImplR spsi -> 1 + s_wsize ws spsi
-  | SIffSS (sphi, spsi) -> 1 + (s_wsize ws sphi) + (s_wsize ws spsi)
-  | SIffVV (vphi, vpsi) -> 1 + (v_wsize ws vphi) + (v_wsize ws vpsi)
-  | SPrev sphi -> 1 + s_wsize ws sphi
-  | SNext sphi -> 1 + s_wsize ws sphi
-  | SOnce (_, sphi) -> 1 + s_wsize ws sphi
-  | SHistorically (_, _, sphis) -> 1 + (sum (s_wsize ws) sphis)
-  | SHistoricallyOutL _ -> 1
-  | SEventually (_, sphi) -> 1 + s_wsize ws sphi
-  | SAlways (_, _, sphis) -> 1 + (sum (s_wsize ws) sphis)
-  | SSince (spsi, sphis) -> 1 + (s_wsize ws spsi) + (sum (s_wsize ws) sphis)
-  | SUntil (spsi, sphis) -> 1 + (s_wsize ws spsi) + (sum (s_wsize ws) sphis)
-and v_wsize ws = function
-  | VFF _ -> 1
-  | VAtom (_, s) -> (match Hashtbl.find_opt ws s with
-                     | None -> 1
-                     | Some(w) -> w)
-  | VNeg sphi -> 1 + s_wsize ws sphi
-  | VDisj (vphi, vpsi) -> 1 + v_wsize ws vphi + v_wsize ws vpsi
-  | VConjL vphi -> 1 + v_wsize ws vphi
-  | VConjR vpsi -> 1 + v_wsize ws vpsi
-  | VImpl (sphi, vpsi) -> 1 + (s_wsize ws sphi) + (v_wsize ws vpsi)
-  | VIffSV (sphi, vpsi) -> 1 + (s_wsize ws sphi) + (v_wsize ws vpsi)
-  | VIffVS (vphi, spsi) -> 1 + (v_wsize ws vphi) + (s_wsize ws spsi)
-  | VPrev0 -> 1
-  | VPrevOutL _ -> 1
-  | VPrevOutR _ -> 1
-  | VPrev vphi -> 1 + v_wsize ws vphi
-  | VNextOutL _ -> 1
-  | VNextOutR _ -> 1
-  | VNext vphi -> 1 + v_wsize ws vphi
-  | VOnceOutL _ -> 1
-  | VOnce (_, _, vphis) -> 1 + (sum (v_wsize ws) vphis)
-  | VHistorically (_, vphi) -> 1 + v_wsize ws vphi
-  | VEventually (_, _, vphis) -> 1 + (sum (v_wsize ws) vphis)
-  | VAlways (_, vphi) -> 1 + v_wsize ws vphi
-  | VSince (_, vphi, vpsis) -> 1 + v_wsize ws vphi + (sum (v_wsize ws) vpsis)
-  | VSinceInf (_, _, vphis) -> 1 + (sum (v_wsize ws) vphis)
-  | VSinceOutL _ -> 1
-  | VUntil (_, vphi, vpsis) -> 1 + v_wsize ws vphi + (sum (v_wsize ws) vpsis)
-  | VUntilInf (_, _, vpsis) -> 1 + (sum (v_wsize ws) vpsis)
+  let rec el_to_string indent var f (sub, v) =
+    Printf.sprintf "%s%s ∈ %s\n\n%s" indent (Term.value_to_string var) (Setc.to_string sub)
+      (f (indent ^ (String.make 4 ' ')) v)
 
-let wsize ws = function
-  | S sp -> s_wsize ws sp
-  | V vp -> v_wsize ws vp
+  let to_string indent var f = function
+    | [] -> indent ^ "❮ · ❯"
+    | [x] -> indent ^ "❮\n\n" ^ (el_to_string indent var f x) ^ "\n" ^ indent ^ "❯\n"
+    | xs -> List.fold_left xs ~init:(indent ^ "❮\n\n")
+              ~f:(fun s el -> s ^ (el_to_string indent var f el) ^ "\n") ^ indent ^ "❯\n"
 
-let wsize_le ws = mk_le (wsize ws)
+end
 
-(***********************************
- *                                 *
- * Measure: width                  *
- *                                 *
- ***********************************)
-let rec s_high = function
-  | STT i -> i
-  | SAtom (i, _) -> i
-  | SNeg vphi -> v_high vphi
-  | SDisjL sphi -> s_high sphi
-  | SDisjR spsi -> s_high spsi
-  | SConj (sphi, spsi) -> max (s_high sphi) (s_high spsi)
-  | SImplL vphi -> v_high vphi
-  | SImplR spsi -> s_high spsi
-  | SIffSS (sphi, spsi) -> max (s_high sphi) (s_high spsi)
-  | SIffVV (vphi, vpsi) -> max (v_high vphi) (v_high vpsi)
-  | SPrev sphi -> s_high sphi
-  | SNext sphi -> s_high sphi
-  | SOnce (_, sphi) -> s_high sphi
-  | SHistorically (_, _, sphis) -> max_list (List.map s_high sphis)
-  | SHistoricallyOutL i -> i
-  | SEventually (_, sphi) -> s_high sphi
-  | SAlways (_, _, sphis) -> max_list (List.map s_high sphis)
-  | SSince (spsi, sphis) -> max (s_high spsi) (max_list (List.map s_high sphis))
-  | SUntil (spsi, sphis) -> max (s_high spsi) (max_list (List.map s_high sphis))
-and v_high p = match p with
-  | VFF i -> i
-  | VAtom (i, _) -> i
-  | VNeg sphi -> s_high sphi
-  | VDisj (vphi, vpsi) -> max (v_high vphi) (v_high vpsi)
-  | VConjL vphi -> v_high vphi
-  | VConjR vpsi -> v_high vpsi
-  | VImpl (sphi, vpsi) -> max (s_high sphi) (v_high vpsi)
-  | VIffSV (sphi, vpsi) -> max (s_high sphi) (v_high vpsi)
-  | VIffVS (vphi, spsi) -> max (v_high vphi) (s_high spsi)
-  | VPrev0 -> 0
-  | VPrevOutL i -> i
-  | VPrevOutR i -> i
-  | VPrev vphi -> max (v_at (VPrev vphi)) (v_high vphi)
-  | VNextOutL i -> i
-  | VNextOutR i -> i
-  | VNext vphi -> max (v_at (VNext vphi)) (v_high vphi)
-  (* TODO: Check if we should consider i here *)
-  | VOnceOutL i -> i
-  | VOnce (_, _, vphis) -> max_list (List.map v_high vphis)
-  | VHistorically (_, vphi) -> v_high vphi
-  | VEventually (_, _, vphis) -> max_list (List.map v_high vphis)
-  | VAlways (_, vphi) -> v_high vphi
-  | VSince (_, vphi, vpsis) -> max (v_high vphi) (max_list (List.map v_high vpsis))
-  | VSinceInf (_, _, vphis) -> max_list (List.map v_high vphis)
-  | VSinceOutL i -> i
-  | VUntil (_, vphi, vpsis) -> max (v_high vphi) (max_list (List.map v_high vpsis))
-  | VUntilInf (_, _, vpsis) -> max_list (List.map v_high vpsis)
 
-let rec s_low = function
-  | STT i -> i
-  | SAtom (i, _) -> i
-  | SNeg vphi -> v_low vphi
-  | SDisjL sphi -> s_low sphi
-  | SDisjR spsi -> s_low spsi
-  | SConj (sphi, spsi) -> min (s_low sphi) (s_low spsi)
-  | SImplL vphi -> v_low vphi
-  | SImplR spsi -> s_low spsi
-  | SIffSS (sphi, spsi) -> min (s_low sphi) (s_low spsi)
-  | SIffVV (vphi, vpsi) -> min (v_low vphi) (v_low vpsi)
-  | SPrev sphi -> s_low sphi
-  | SNext sphi -> s_low sphi
-  | SOnce (_, sphi) -> s_low sphi
-  | SHistorically (_, _, sphis) -> min_list (List.map s_low sphis)
-  | SHistoricallyOutL i -> i
-  | SEventually (_, sphi) -> s_low sphi
-  | SAlways (_, _, sphis) -> min_list (List.map s_low sphis)
-  | SSince (spsi, sphis) -> min (s_low spsi) (min_list (List.map s_low sphis))
-  | SUntil (spsi, sphis) -> min (s_low spsi) (min_list (List.map s_low sphis))
-and v_low p = match p with
-  | VFF i -> i
-  | VAtom (i, _) -> i
-  | VNeg sphi -> s_low sphi
-  | VDisj (vphi, vpsi) -> min (v_low vphi) (v_low vpsi)
-  | VConjL vphi -> v_low vphi
-  | VConjR vpsi -> v_low vpsi
-  | VImpl (sphi, vpsi) -> min (s_low sphi) (v_low vpsi)
-  | VIffSV (sphi, vpsi) -> min (s_low sphi) (v_low vpsi)
-  | VIffVS (vphi, spsi) -> min (v_low vphi) (s_low spsi)
-  | VPrev0 -> 0
-  | VPrevOutL i -> i
-  | VPrevOutR i -> i
-  | VPrev vphi -> min (v_at (VPrev vphi)) (v_low vphi)
-  | VNextOutL i -> i
-  | VNextOutR i -> i
-  | VNext vphi -> min (v_at (VNext vphi)) (v_low vphi)
-  | VOnceOutL i -> i
-  | VOnce (_, _, vphis) -> min_list (List.map v_low vphis)
-  | VHistorically (_, vphi) -> v_low vphi
-  | VEventually (_, _, vphis) -> min_list (List.map v_low vphis)
-  | VAlways (_, vphi) -> v_low vphi
-  (* TODO: Check if we should consider i here *)
-  | VSince (_, vphi, vpsis) -> min (v_low vphi) (min_list (List.map v_low vpsis))
-  | VSinceInf (_, _, vphis) -> min_list (List.map v_low vphis)
-  | VSinceOutL i -> i
-  | VUntil (_, vphi, vpsis) -> min (v_low vphi) (min_list (List.map v_low vpsis))
-  | VUntilInf (_, _, vpsis) -> min_list (List.map v_low vpsis)
+module Proof = struct
 
-let high p = match p with
-  | S s_p -> s_high s_p
-  | V v_p -> v_high v_p
+  type sp =
+    | STT of int
+    | SPred of int * string * Term.t list
+    | SNeg of vp
+    | SOrL of sp
+    | SOrR of sp
+    | SAnd of sp * sp
+    | SImpL of vp
+    | SImpR of sp
+    | SIffSS of sp * sp
+    | SIffVV of vp * vp
+    | SExists of Term.t * Domain.t * sp
+    | SForall of Term.t * (sp Part.t)
+    | SPrev of sp
+    | SNext of sp
+    | SOnce of int * sp
+    | SEventually of int * sp
+    | SHistorically of int * int * sp Fdeque.t
+    | SHistoricallyOut of int
+    | SAlways of int * int * sp Fdeque.t
+    | SSince of sp * sp Fdeque.t
+    | SUntil of sp * sp Fdeque.t
+  and vp =
+    | VFF of int
+    | VPred of int * string * Term.t list
+    | VNeg of sp
+    | VOr of vp * vp
+    | VAndL of vp
+    | VAndR of vp
+    | VImp of sp * vp
+    | VIffSV of sp * vp
+    | VIffVS of vp * sp
+    | VExists of Term.t * (vp Part.t)
+    | VForall of Term.t * Domain.t * vp
+    | VPrev of vp
+    | VPrev0
+    | VPrevOutL of int
+    | VPrevOutR of int
+    | VNext of vp
+    | VNextOutL of int
+    | VNextOutR of int
+    | VOnceOut of int
+    | VOnce of int * int * vp Fdeque.t
+    | VEventually of int * int * vp Fdeque.t
+    | VHistorically of int * vp
+    | VAlways of int * vp
+    | VSinceOut of int
+    | VSince of int * vp * vp Fdeque.t
+    | VSinceInf of int * int * vp Fdeque.t
+    | VUntil of int * vp * vp Fdeque.t
+    | VUntilInf of int * int * vp Fdeque.t
 
-let low p = match p with
-  | S s_p -> s_low s_p
-  | V v_p -> v_low v_p
+  (* TODO: Rewrite this with Either *)
+  type t = S of sp | V of vp
 
-(* let width p = high p - low p *)
+  let unS = function
+    | S sp -> sp
+    | _ -> raise (Invalid_argument "unS is not defined for V proofs")
 
-let high_le = mk_le high
-let low_le = mk_le (fun p -> - low p)
+  let unV = function
+    | V vp -> vp
+    | _ -> raise (Invalid_argument "unV is not defined for S proofs")
 
-(***********************************
- *                                 *
- * Measure: pred                   *
- *                                 *
- ***********************************)
-let rec s_pred = function
-  | STT _ -> 0
-  | SAtom (_, _) -> 1
-  | SNeg sphi -> v_pred sphi
-  | SDisjL sphi -> s_pred sphi
-  | SDisjR spsi -> s_pred spsi
-  | SConj (sphi, spsi) -> s_pred sphi + s_pred spsi
-  | SImplL vphi -> v_pred vphi
-  | SImplR spsi -> s_pred spsi
-  | SIffSS (sphi, spsi) -> s_pred sphi + s_pred spsi
-  | SIffVV (vphi, vpsi) -> v_pred vphi + v_pred vpsi
-  | SPrev sphi -> s_pred sphi
-  | SNext sphi -> s_pred sphi
-  | SOnce (_, sphi) -> s_pred sphi
-  | SHistorically (_, _, sphis) -> sum s_pred sphis
-  | SHistoricallyOutL _ -> 0
-  | SEventually (_, sphi) -> s_pred sphi
-  | SAlways (_, _, sphis) -> sum s_pred sphis
-  | SSince (spsi, sphis) -> s_pred spsi + sum s_pred sphis
-  | SUntil (spsi, sphis) -> s_pred spsi + sum s_pred sphis
-and v_pred = function
-  | VFF _ -> 0
-  | VAtom (_, _) -> 1
-  | VNeg sphi -> s_pred sphi
-  | VDisj (vphi, vpsi) -> v_pred vphi + v_pred vpsi
-  | VConjL vphi -> v_pred vphi
-  | VConjR vpsi -> v_pred vpsi
-  | VImpl (sphi, vpsi) -> s_pred sphi + v_pred vpsi
-  | VIffSV (sphi, vpsi) -> s_pred sphi + v_pred vpsi
-  | VIffVS (vphi, spsi) -> v_pred vphi + s_pred spsi
-  | VPrev0 -> 0
-  | VPrevOutL _ -> 0
-  | VPrevOutR _ -> 0
-  | VPrev vphi -> v_pred vphi
-  | VNextOutL _ -> 0
-  | VNextOutR _ -> 0
-  | VNext vphi -> v_pred vphi
-  | VOnceOutL _ -> 0
-  | VOnce (_, _, vphis) -> sum v_pred vphis
-  | VHistorically (_, vphi) -> v_pred vphi
-  | VEventually (_, _, vphis) -> sum v_pred vphis
-  | VAlways (_, vphi) -> v_pred vphi
-  | VSince (_, vphi, vpsis) -> v_pred vphi + sum v_pred vpsis
-  | VSinceInf (_, _, vphis) -> sum v_pred vphis
-  | VSinceOutL _ -> 0
-  | VUntil (_, vphi, vpsis) -> v_pred vphi + sum v_pred vpsis
-  | VUntilInf (_, _, vpsis) -> sum v_pred vpsis
+  let isS = function
+    | S _ -> true
+    | V _ -> false
 
-let predicates = function
-  | S s_p -> s_pred s_p
-  | V v_p -> v_pred v_p
+  let isV = function
+    | S _ -> false
+    | V _ -> true
 
-let predicates_le = mk_le predicates
+  let s_append sp sp1 = match sp with
+    | SSince (sp2, sp1s) -> SSince (sp2, Fdeque.enqueue_back sp1s sp1)
+    | SUntil (sp2, sp1s) -> SUntil (sp2, Fdeque.enqueue_back sp1s sp1)
+    | _ -> raise (Invalid_argument "sappend is not defined for this sp")
 
-(* Printing functions *)
-let rec s_to_string indent p =
-  let indent' = "\t" ^ indent in
-  match p with
-  | STT i -> Printf.sprintf "%strue{%d}" indent i
-  | SAtom (i, a) -> Printf.sprintf "%s%s{%d}" indent a i
-  | SNeg vphi -> Printf.sprintf "%sSNeg{%d}\n%s" indent (s_at p) (v_to_string indent' vphi)
-  | SDisjL sphi -> Printf.sprintf "%sSDisjL{%d}\n%s" indent (s_at p) (s_to_string indent' sphi)
-  | SDisjR spsi -> Printf.sprintf "%sSDisjR{%d}\n%s" indent (s_at p) (s_to_string indent' spsi)
-  | SConj (sphi, spsi) -> Printf.sprintf "%sSConj{%d}\n%s\n%s" indent (s_at p) (s_to_string indent' sphi) (s_to_string indent' spsi)
-  | SImplL vphi -> Printf.sprintf "%sSImplL{%d}\n%s" indent (s_at p) (v_to_string indent' vphi)
-  | SImplR spsi -> Printf.sprintf "%sSImplR{%d}\n%s" indent (s_at p) (s_to_string indent' spsi)
-  | SIffSS (sphi, spsi) -> Printf.sprintf "%sSIffSS{%d}\n%s\n%s" indent (s_at p) (s_to_string indent' sphi) (s_to_string indent' spsi)
-  | SIffVV (vphi, vpsi) -> Printf.sprintf "%sSIffVV{%d}\n%s\n%s" indent (s_at p) (v_to_string indent' vphi) (v_to_string indent' vpsi)
-  | SPrev sphi -> Printf.sprintf "%sSPrev{%d}\n%s" indent (s_at p) (s_to_string indent' sphi)
-  | SNext sphi -> Printf.sprintf "%sSNext{%d}\n%s" indent (s_at p) (s_to_string indent' sphi)
-  | SOnce (_, sphi) -> Printf.sprintf "%sSOnce{%d}\n%s" indent (s_at p) (s_to_string indent' sphi)
-  | SHistorically (_, _, sphis) -> Printf.sprintf "%sSHistorically{%d}\n%s" indent (s_at p) (list_to_string indent' s_to_string sphis)
-  | SHistoricallyOutL i -> Printf.sprintf "%sSHistoricallyOutL{%d}" indent' i
-  | SEventually (_, sphi) -> Printf.sprintf "%sSEventually{%d}\n%s" indent (s_at p) (s_to_string indent' sphi)
-  | SAlways (_, _, sphis) -> Printf.sprintf "%sSAlways{%d}\n%s" indent (s_at p) (list_to_string indent' s_to_string sphis)
-  | SSince (spsi, sphis) ->
-      Printf.sprintf "%sSSince{%d}\n%s\n%s" indent (s_at p) (s_to_string indent' spsi) (list_to_string indent' s_to_string sphis)
-  | SUntil (spsi, sphis) ->
-      Printf.sprintf "%sSUntil{%d}\n%s\n%s" indent (s_at p) (list_to_string indent' s_to_string sphis) (s_to_string indent' spsi)
-and v_to_string indent p =
-  let indent' = "\t" ^ indent in
-  match p with
-  | VFF i -> Printf.sprintf "%sfalse{%d}" indent i
-  | VAtom (i, a) -> Printf.sprintf "%s!%s{%d}" indent a i
-  | VNeg sphi -> Printf.sprintf "%sVNeg{%d}\n%s" indent (v_at p) (s_to_string indent' sphi)
-  | VDisj (vphi, vpsi) -> Printf.sprintf "%sVDisj{%d}\n%s\n%s" indent (v_at p) (v_to_string indent' vphi) (v_to_string indent' vpsi)
-  | VConjL vphi -> Printf.sprintf "%sVConjL{%d}\n%s" indent (v_at p) (v_to_string indent' vphi)
-  | VConjR vpsi -> Printf.sprintf "%sVConjR{%d}\n%s" indent (v_at p) (v_to_string indent' vpsi)
-  | VImpl (sphi, vpsi) -> Printf.sprintf "%sVImpl{%d}\n%s\n%s" indent (v_at p) (s_to_string indent' sphi) (v_to_string indent' vpsi)
-  | VIffSV (sphi, vpsi) -> Printf.sprintf "%sVIffSV{%d}\n%s\n%s" indent (v_at p) (s_to_string indent' sphi) (v_to_string indent' vpsi)
-  | VIffVS (vphi, spsi) -> Printf.sprintf "%sVIffVS{%d}\n%s\n%s" indent (v_at p) (v_to_string indent' vphi) (s_to_string indent' spsi)
-  | VPrev0 -> Printf.sprintf "%sVPrev0{0}" indent'
-  | VPrevOutL i -> Printf.sprintf "%sVPrevOutL{%d}" indent' i
-  | VPrevOutR i -> Printf.sprintf "%sVPrevOutR{%d}" indent' i
-  | VPrev vphi -> Printf.sprintf "%sVPrev{%d}\n%s" indent (v_at p) (v_to_string indent' vphi)
-  | VNextOutL i -> Printf.sprintf "%sVNextOutL{%d}" indent' i
-  | VNextOutR i -> Printf.sprintf "%sVNextOutR{%d}" indent' i
-  | VNext vphi -> Printf.sprintf "%sVNext{%d}\n%s" indent (v_at p) (v_to_string indent' vphi)
-  | VOnceOutL i -> Printf.sprintf "%sVOnceOutL{%d}" indent' i
-  | VOnce (_, _, vphis) ->
-     Printf.sprintf "%sVOnce{%d}\n%s" indent (v_at p) (list_to_string indent' v_to_string vphis)
-  | VHistorically (_, vphi) -> Printf.sprintf "%sVHistorically{%d}\n%s" indent (v_at p) (v_to_string indent' vphi)
-  | VEventually (_, _, vphis) ->
-     Printf.sprintf "%sVEventually{%d}\n%s" indent (v_at p) (list_to_string indent' v_to_string vphis)
-  | VAlways (_, vphi) -> Printf.sprintf "%sVAlways{%d}\n%s" indent (v_at p) (v_to_string indent' vphi)
-  | VSince (_, vphi, vpsis) ->
-     Printf.sprintf "%sVSince{%d}\n%s\n%s" indent (v_at p) (v_to_string indent' vphi) (list_to_string indent' v_to_string vpsis)
-  | VSinceInf (_, _, vphis) ->
-     Printf.sprintf "%sVSinceInf{%d}\n%s" indent (v_at p) (list_to_string indent' v_to_string vphis)
-  | VSinceOutL i -> Printf.sprintf "%sVSinceOutL{%d}" indent' i
-  | VUntil (_, vphi, vpsis) ->
-      Printf.sprintf "%sVUntil{%d}\n%s\n%s" indent (v_at p) (list_to_string indent' v_to_string vpsis) (v_to_string indent' vphi)
-  | VUntilInf (_, _, vpsis) ->
-     Printf.sprintf "%sVUntilInf{%d}\n%s" indent (v_at p) (list_to_string indent' v_to_string vpsis)
+  let v_append vp vp2 = match vp with
+    | VSince (tp, vp1, vp2s) -> VSince (tp,  vp1, Fdeque.enqueue_back vp2s vp2)
+    | VSinceInf (tp, etp, vp2s) -> VSinceInf (tp, etp, Fdeque.enqueue_back vp2s vp2)
+    | VUntil (tp, vp1, vp2s) -> VUntil (tp, vp1, Fdeque.enqueue_back vp2s vp2)
+    | VUntilInf (tp, ltp, vp2s) -> VUntilInf (tp, ltp, Fdeque.enqueue_back vp2s vp2)
+    | _ -> raise (Invalid_argument "vappend is not defined for this vp")
 
-let expl_to_string = function
-  | S p -> s_to_string "" p
-  | V p -> v_to_string "" p
+  let s_drop = function
+    | SUntil (sp2, sp1s) -> (match Fdeque.drop_front sp1s with
+                             | None -> None
+                             | Some(sp1s') -> Some (SUntil (sp2, sp1s')))
+    | _ -> raise (Invalid_argument "sdrop is not defined for this sp")
+
+  let v_drop = function
+    | VUntil (tp, vp1, vp2s) -> (match Fdeque.drop_front vp2s with
+                                 | None -> None
+                                 | Some(vp2s') -> Some (VUntil (tp, vp1, vp2s')))
+    | VUntilInf (tp, ltp, vp2s) -> (match Fdeque.drop_front vp2s with
+                                    | None -> None
+                                    | Some(vp2s') -> Some (VUntilInf (tp, ltp, vp2s)))
+    | _ -> raise (Invalid_argument "vdrop is not defined for this vp")
+
+  let rec s_at = function
+    | STT tp -> tp
+    | SPred (tp, _, _) -> tp
+    | SNeg vp -> v_at vp
+    | SOrL sp1 -> s_at sp1
+    | SOrR sp2 -> s_at sp2
+    | SAnd (sp1, _) -> s_at sp1
+    | SImpL vp1 -> v_at vp1
+    | SImpR sp2 -> s_at sp2
+    | SIffSS (sp1, _) -> s_at sp1
+    | SIffVV (vp1, _) -> v_at vp1
+    | SExists (_, _, sp) -> s_at sp
+    | SForall (_, part) -> s_at (Part.hd part)
+    | SPrev sp -> s_at sp + 1
+    | SNext sp -> s_at sp - 1
+    | SOnce (tp, _) -> tp
+    | SEventually (tp, _) -> tp
+    | SHistorically (tp, _, _) -> tp
+    | SHistoricallyOut tp -> tp
+    | SAlways (tp, _, _) -> tp
+    | SSince (sp2, sp1s) -> if Fdeque.is_empty sp1s then s_at sp2
+                            else s_at (Fdeque.peek_back_exn sp1s)
+    | SUntil (sp2, sp1s) -> if Fdeque.is_empty sp1s then s_at sp2
+                            else s_at (Fdeque.peek_front_exn sp1s)
+  and v_at = function
+    | VFF tp -> tp
+    | VPred (tp, _, _) -> tp
+    | VNeg sp -> s_at sp
+    | VOr (vp1, _) -> v_at vp1
+    | VAndL vp1 -> v_at vp1
+    | VAndR vp2 -> v_at vp2
+    | VImp (sp1, _) -> s_at sp1
+    | VIffSV (sp1, _) -> s_at sp1
+    | VIffVS (vp1, _) -> v_at vp1
+    | VExists (_, part) -> v_at (Part.hd part)
+    | VForall (_, _, vp) -> v_at vp
+    | VPrev vp -> v_at vp + 1
+    | VPrev0 -> 0
+    | VPrevOutL tp -> tp
+    | VPrevOutR tp -> tp
+    | VNext vp -> v_at vp - 1
+    | VNextOutL tp -> tp
+    | VNextOutR tp -> tp
+    | VOnceOut tp -> tp
+    | VOnce (tp, _, _) -> tp
+    | VEventually (tp, _, _) -> tp
+    | VHistorically (tp, _) -> tp
+    | VAlways (tp, _) -> tp
+    | VSinceOut tp -> tp
+    | VSince (tp, _, _) -> tp
+    | VSinceInf (tp, _, _) -> tp
+    | VUntil (tp, _, _) -> tp
+    | VUntilInf (tp, _, _) -> tp
+
+  let p_at = function
+    | S s_p -> s_at s_p
+    | V v_p -> v_at v_p
+
+  let s_ltp = function
+    | SUntil (sp2, _) -> s_at sp2
+    | _ -> raise (Invalid_argument "s_ltp is not defined for this sp")
+
+  let v_etp = function
+    | VUntil (tp, _, vp2s) -> if Fdeque.is_empty vp2s then tp
+                              else v_at (Fdeque.peek_front_exn vp2s)
+    | _ -> raise (Invalid_argument "v_etp is not defined for this vp")
+
+  let cmp f p1 p2 = f p1 <= f p2
+
+  let rec s_to_string indent p =
+    let indent' = "\t" ^ indent in
+    match p with
+    | STT i -> Printf.sprintf "%strue{%d}" indent i
+    | SPred (tp, r, trms) -> Printf.sprintf "%sSPred(%d, %s, %s)" indent tp r (Term.list_to_string trms)
+    | SNeg vp -> Printf.sprintf "%sSNeg{%d}\n%s" indent (s_at p) (v_to_string indent' vp)
+    | SOrL sp1 -> Printf.sprintf "%sSOrL{%d}\n%s" indent (s_at p) (s_to_string indent' sp1)
+    | SOrR sp2 -> Printf.sprintf "%sSOrR{%d}\n%s" indent (s_at p) (s_to_string indent' sp2)
+    | SAnd (sp1, sp2) -> Printf.sprintf "%sSAnd{%d}\n%s\n%s" indent (s_at p)
+                           (s_to_string indent' sp1) (s_to_string indent' sp2)
+    | SImpL vp1 -> Printf.sprintf "%sSImpL{%d}\n%s" indent (s_at p) (v_to_string indent' vp1)
+    | SImpR sp2 -> Printf.sprintf "%sSImpR{%d}\n%s" indent (s_at p) (s_to_string indent' sp2)
+    | SIffSS (sp1, sp2) -> Printf.sprintf "%sSIffSS{%d}\n%s\n%s" indent (s_at p)
+                             (s_to_string indent' sp1) (s_to_string indent' sp2)
+    | SIffVV (vp1, vp2) -> Printf.sprintf "%sSIffVV{%d}\n%s\n%s" indent (s_at p)
+                             (v_to_string indent' vp1) (v_to_string indent' vp2)
+    | SExists (x, d, sp) -> Printf.sprintf "%sSExists{%d}{%s=%s}\n%s\n" indent (s_at p)
+                              (Term.value_to_string x) (Domain.to_string d) (s_to_string indent' sp)
+    | SForall (x, part) -> Printf.sprintf "%sSForall{%d}{%s}\n%s\n" indent (s_at (SForall (x, part)))
+                             (Term.value_to_string x) (Part.to_string indent' x s_to_string part)
+    | SPrev sp -> Printf.sprintf "%sSPrev{%d}\n%s" indent (s_at p) (s_to_string indent' sp)
+    | SNext sp -> Printf.sprintf "%sSNext{%d}\n%s" indent (s_at p) (s_to_string indent' sp)
+    | SOnce (_, sp) -> Printf.sprintf "%sSOnce{%d}\n%s" indent (s_at p) (s_to_string indent' sp)
+    | SEventually (_, sp) -> Printf.sprintf "%sSEventually{%d}\n%s" indent (s_at p)
+                               (s_to_string indent' sp)
+    | SHistorically (_, _, sps) -> Printf.sprintf "%sSHistorically{%d}\n%s" indent (s_at p)
+                                     (Etc.deque_to_string indent' s_to_string sps)
+    | SHistoricallyOut i -> Printf.sprintf "%sSHistoricallyOut{%d}" indent' i
+    | SAlways (_, _, sps) -> Printf.sprintf "%sSAlways{%d}\n%s" indent (s_at p)
+                               (Etc.deque_to_string indent' s_to_string sps)
+    | SSince (sp2, sp1s) -> Printf.sprintf "%sSSince{%d}\n%s\n%s" indent (s_at p) (s_to_string indent' sp2)
+                              (Etc.deque_to_string indent' s_to_string sp1s)
+    | SUntil (sp2, sp1s) -> Printf.sprintf "%sSUntil{%d}\n%s\n%s" indent (s_at p)
+                              (Etc.deque_to_string indent' s_to_string sp1s) (s_to_string indent' sp2)
+  and v_to_string indent p =
+    let indent' = "\t" ^ indent in
+    match p with
+    | VFF i -> Printf.sprintf "%sfalse{%d}" indent i
+    | VPred (tp, r, trms) -> Printf.sprintf "%sVPred(%d, %s, %s)" indent tp r (Term.list_to_string trms)
+    | VNeg sp -> Printf.sprintf "%sVNeg{%d}\n%s" indent (v_at p) (s_to_string indent' sp)
+    | VOr (vp1, vp2) -> Printf.sprintf "%sVOr{%d}\n%s\n%s" indent (v_at p) (v_to_string indent' vp1) (v_to_string indent' vp2)
+    | VAndL vp1 -> Printf.sprintf "%sVAndL{%d}\n%s" indent (v_at p) (v_to_string indent' vp1)
+    | VAndR vp2 -> Printf.sprintf "%sVAndR{%d}\n%s" indent (v_at p) (v_to_string indent' vp2)
+    | VImp (sp1, vp2) -> Printf.sprintf "%sVImp{%d}\n%s\n%s" indent (v_at p) (s_to_string indent' sp1) (v_to_string indent' vp2)
+    | VIffSV (sp1, vp2) -> Printf.sprintf "%sVIffSV{%d}\n%s\n%s" indent (v_at p) (s_to_string indent' sp1) (v_to_string indent' vp2)
+    | VIffVS (vp1, sp2) -> Printf.sprintf "%sVIffVS{%d}\n%s\n%s" indent (v_at p) (v_to_string indent' vp1) (s_to_string indent' sp2)
+    | VExists (x, part) -> Printf.sprintf "%sVExists{%d}{%s}\n%s\n" indent (v_at (VExists (x, part)))
+                             (Term.value_to_string x) (Part.to_string indent' x v_to_string part)
+    | VForall (x, d, vp) -> Printf.sprintf "%sVForall{%d}{%s=%s}\n%s\n" indent (v_at p)
+                              (Term.value_to_string x) (Domain.to_string d) (v_to_string indent' vp)
+    | VPrev vp -> Printf.sprintf "%sVPrev{%d}\n%s" indent (v_at p) (v_to_string indent' vp)
+    | VPrev0 -> Printf.sprintf "%sVPrev0{0}" indent'
+    | VPrevOutL i -> Printf.sprintf "%sVPrevOutL{%d}" indent' i
+    | VPrevOutR i -> Printf.sprintf "%sVPrevOutR{%d}" indent' i
+    | VNext vp -> Printf.sprintf "%sVNext{%d}\n%s" indent (v_at p) (v_to_string indent' vp)
+    | VNextOutL i -> Printf.sprintf "%sVNextOutL{%d}" indent' i
+    | VNextOutR i -> Printf.sprintf "%sVNextOutR{%d}" indent' i
+    | VOnceOut i -> Printf.sprintf "%sVOnceOut{%d}" indent' i
+    | VOnce (_, _, vps) -> Printf.sprintf "%sVOnce{%d}\n%s" indent (v_at p)
+                             (Etc.deque_to_string indent' v_to_string vps)
+    | VEventually (_, _, vps) -> Printf.sprintf "%sVEventually{%d}\n%s" indent (v_at p)
+                                   (Etc.deque_to_string indent' v_to_string vps)
+    | VHistorically (_, vp) -> Printf.sprintf "%sVHistorically{%d}\n%s" indent (v_at p) (v_to_string indent' vp)
+    | VAlways (_, vp) -> Printf.sprintf "%sVAlways{%d}\n%s" indent (v_at p) (v_to_string indent' vp)
+    | VSinceOut i -> Printf.sprintf "%sVSinceOut{%d}" indent' i
+    | VSince (_, vp1, vp2s) -> Printf.sprintf "%sVSince{%d}\n%s\n%s" indent (v_at p) (v_to_string indent' vp1)
+                                 (Etc.deque_to_string indent' v_to_string vp2s)
+    | VSinceInf (_, _, vp2s) -> Printf.sprintf "%sVSinceInf{%d}\n%s" indent (v_at p)
+                                  (Etc.deque_to_string indent' v_to_string vp2s)
+    | VUntil (_, vp1, vp2s) -> Printf.sprintf "%sVUntil{%d}\n%s\n%s" indent (v_at p)
+                                 (Etc.deque_to_string indent' v_to_string vp2s) (v_to_string indent' vp1)
+    | VUntilInf (_, _, vp2s) -> Printf.sprintf "%sVUntilInf{%d}\n%s" indent (v_at p)
+                                  (Etc.deque_to_string indent' v_to_string vp2s)
+
+  let to_string indent = function
+    | S p -> s_to_string indent p
+    | V p -> v_to_string indent p
+
+  let val_changes_to_latex v =
+    if List.is_empty v then "v"
+    else "v[" ^ Etc.string_list_to_string (List.map v ~f:(fun (x, d) -> Printf.sprintf "%s \\mapsto %s" x d)) ^ "]"
+
+  let rec s_to_latex indent v idx p (h: Formula.t) =
+    let indent' = "\t" ^ indent in
+    match p, h with
+    | STT tp, TT  ->
+       Printf.sprintf "\\infer[\\top]{%s, %d \\pvd true}{}\n" (val_changes_to_latex v) tp
+    | SPred (tp, r, trms), Predicate (_, _) ->
+       Printf.sprintf "\\infer[\\Spred]{%s, %d \\pvd %s\\,(%s)}{(%s,[%s]) \\in\\Gamma_{%d}}\n"
+         (val_changes_to_latex v) tp (Etc.escape_underscores r) (Term.list_to_string trms)
+         (Etc.escape_underscores r) (Term.list_to_string trms) tp
+    | SNeg vp, Neg f ->
+       Printf.sprintf "\\infer[\\Sneg]{%s, %d \\pvd %s}\n%s{%s}\n"
+         (val_changes_to_latex v) (s_at p) (Formula.to_latex h) indent (v_to_latex indent' v idx vp f)
+    | SOrL sp1, Or (f, g) ->
+       Printf.sprintf "\\infer[\\Sdisjl]{%s, %d \\pvd %s}\n%s{%s}\n"
+         (val_changes_to_latex v) (s_at p) (Formula.to_latex h) indent (s_to_latex indent' v idx sp1 f)
+    | SOrR sp2, Or (f, g) ->
+       Printf.sprintf "\\infer[\\Sdisjr]{%s, %d \\pvd %s}\n%s{%s}\n"
+         (val_changes_to_latex v) (s_at p) (Formula.to_latex h) indent (s_to_latex indent' v idx sp2 g)
+    | SAnd (sp1, sp2), And (f, g) ->
+       Printf.sprintf "\\infer[\\Sconj]{%s, %d \\pvd %s}\n%s{{%s} & {%s}}\n"
+         (val_changes_to_latex v) (s_at p) (Formula.to_latex h)
+         indent (s_to_latex indent' v idx sp1 f) (s_to_latex indent' v idx sp2 g)
+    | SImpL vp1, Imp (f, g) ->
+       Printf.sprintf "\\infer[\\SimpL]{%s, %d \\pvd %s}\n%s{%s}\n"
+         (val_changes_to_latex v) (s_at p) (Formula.to_latex h) indent (v_to_latex indent' v idx vp1 f)
+    | SImpR sp2, Imp (f, g) ->
+       Printf.sprintf "\\infer[\\SimpR]{%s, %d \\pvd %s}\n%s{%s}\n"
+         (val_changes_to_latex v) (s_at p) (Formula.to_latex h) indent (s_to_latex indent' v idx sp2 g)
+    | SIffSS (sp1, sp2), Iff (f, g) ->
+       Printf.sprintf "\\infer[\\SiffSS]{%s, %d \\pvd %s}\n%s{{%s} & {%s}}\n"
+         (val_changes_to_latex v) (s_at p) (Formula.to_latex h)
+         indent (s_to_latex indent' v idx sp1 f) (s_to_latex indent' v idx sp2 g)
+    | SIffVV (vp1, vp2), Iff (f, g) ->
+       Printf.sprintf "\\infer[\\SiffVV]{%s, %d \\pvd %s}\n%s{{%s} & {%s}}\n"
+         (val_changes_to_latex v) (s_at p) (Formula.to_latex h)
+         indent (v_to_latex indent' v idx vp1 f) (v_to_latex indent' v idx vp2 g)
+    | SExists (x, d, sp), Exists (Var y, f) ->
+       let v' = v @ [(Term.value_to_string x, Domain.to_string d)] in
+       Printf.sprintf "\\infer[\\Sexists]{%s, %d \\pvd %s}\n%s{%s}\n"
+         (val_changes_to_latex v) (s_at p) (Formula.to_latex h) indent (s_to_latex indent' v' idx sp f)
+    | SForall (x, part), Forall (_, f) ->
+       Printf.sprintf "\\infer[\\Sforall]{%s, %d \\pvd %s}\n%s{%s}\n"
+         (val_changes_to_latex v) (s_at p) (Formula.to_latex h) indent
+         (String.concat ~sep:"&" (List.map part ~f:(fun (sub, sp) ->
+                                      let idx' = idx + 1 in
+                                      let v' = v @ [(Term.value_to_string x, "d_" ^ (Int.to_string idx') ^ " \\in " ^ (Setc.to_latex sub))] in
+                                      "{" ^ (s_to_latex indent' v' idx' sp f) ^ "}")))
+    | SPrev sp, Prev (i, f) ->
+       Printf.sprintf "\\infer[\\Sprev{}]{%s, %d \\pvd %s}\n%s{%s}\n"
+         (val_changes_to_latex v) (s_at p) (Formula.to_latex h) indent (s_to_latex indent' v idx sp f)
+    | SNext sp, Next (i, f) ->
+       Printf.sprintf "\\infer[\\Snext{}]{%s, %d \\pvd %s}\n%s{%s}\n"
+         (val_changes_to_latex v) (s_at p) (Formula.to_latex h) indent (s_to_latex indent' v idx sp f)
+    | SOnce (tp, sp), Once (i, f) ->
+       Printf.sprintf "\\infer[\\Sonce{}]{%s, %d \\pvd %s}\n%s{{%d \\leq %d} & {\\tau_%d - \\tau_%d \\in %s} & {%s}}\n"
+         (val_changes_to_latex v) tp (Formula.to_latex h) indent
+         (s_at sp) tp tp (s_at sp) (Interval.to_latex i) (s_to_latex indent' v idx sp f)
+    | SEventually (tp, sp), Eventually (i, f) ->
+       Printf.sprintf "\\infer[\\Seventually{}]{%s, %d \\pvd %s}\n%s{{%d \\geq %d} & {\\tau_%d - \\tau_%d \\in %s} & {%s}}\n"
+         (val_changes_to_latex v) (s_at p) (Formula.to_latex h) indent
+         (s_at sp) tp (s_at sp) tp (Interval.to_latex i) (s_to_latex indent' v idx sp f)
+    | SHistorically (tp, _, sps), Historically (i, f) ->
+       Printf.sprintf "\\infer[\\Shistorically{}]{%s, %d \\pvd %s}\n%s{{\\tau_%d - \\tau_0 \\geq %d} & %s}\n"
+         (val_changes_to_latex v) (s_at p) (Formula.to_latex h) indent tp (Interval.left i)
+         (String.concat ~sep:"&" (Fdeque.to_list (Fdeque.map sps ~f:(fun sp -> "{" ^ (s_to_latex indent' v idx sp f) ^ "}"))))
+    | SHistoricallyOut _, Historically (i, f) ->
+       Printf.sprintf "\\infer[\\ShistoricallyL{}]{%s, %d \\pvd %s}\n%s{\\tau_%d - \\tau_0 < %d}\n"
+         (val_changes_to_latex v) (s_at p) (Formula.to_latex h) indent (s_at p) (Interval.left i)
+    | SAlways (_, _, sps), Always (i, f) ->
+       Printf.sprintf "\\infer[\\Salways{}]{%s, %d \\pvd %s}\n%s{%s}\n"
+         (val_changes_to_latex v) (s_at p) (Formula.to_latex h) indent
+         (String.concat ~sep:"&" (Fdeque.to_list (Fdeque.map sps ~f:(fun sp -> "{" ^ (s_to_latex indent' v idx sp f) ^ "}"))))
+    | SSince (sp2, sp1s), Since (i, f, g) ->
+       Printf.sprintf "\\infer[\\Ssince{}]{%s, %d \\pvd %s}\n%s{{%d \\leq %d} & {\\tau_%d - \\tau_%d \\in %s} & {%s} & %s}\n"
+         (val_changes_to_latex v) (s_at p) (Formula.to_latex h) indent
+         (s_at sp2) (s_at p) (s_at p) (s_at sp2) (Interval.to_latex i) (s_to_latex indent' v idx sp2 g)
+         (String.concat ~sep:"&" (Fdeque.to_list (Fdeque.map sp1s ~f:(fun sp -> "{" ^ (s_to_latex indent' v idx sp f) ^ "}"))))
+    | SUntil (sp2, sp1s), Until (i, f, g) ->
+       Printf.sprintf "\\infer[\\Suntil{}]{%s, %d \\pvd %s}\n%s{{%d \\leq %d} & {\\tau_%d - \\tau_%d \\in %s} & %s & {%s}}\n"
+         (val_changes_to_latex v) (s_at p) (Formula.to_latex h) indent
+         (s_at p) (s_at sp2) (s_at sp2) (s_at p) (Interval.to_latex i)
+         (String.concat ~sep:"&" (Fdeque.to_list (Fdeque.map sp1s ~f:(fun sp -> "{" ^ (s_to_latex indent' v idx sp f) ^ "}"))))
+         (s_to_latex indent' v idx sp2 g)
+    | _ -> ""
+  and v_to_latex indent v idx p (h: Formula.t) =
+    let indent' = "\t" ^ indent in
+    match p, h with
+    | VFF tp, FF ->
+       Printf.sprintf "\\infer[\\bot]{%s, %d \\nvd false}{}\n" (val_changes_to_latex v) tp
+    | VPred (tp, r, trms), Predicate (_, _) ->
+       Printf.sprintf "\\infer[\\Vpred]{%s, %d \\nvd %s\\,(%s)}{(%s,[%s]) \\notin\\Gamma_{%d}}\n"
+         (val_changes_to_latex v) tp (Etc.escape_underscores r) (Term.list_to_string trms)
+         (Etc.escape_underscores r) (Term.list_to_string trms) tp
+    | VNeg sp, Neg f ->
+       Printf.sprintf "\\infer[\\Vneg]{%s, %d \\nvd %s}\n%s{%s}\n"
+         (val_changes_to_latex v) (v_at p) (Formula.to_latex h) indent (s_to_latex indent' v idx sp f)
+    | VOr (vp1, vp2), Or (f, g) ->
+       Printf.sprintf "\\infer[\\Vdisj]{%s, %d \\nvd %s}\n%s{{%s} & {%s}}\n"
+         (val_changes_to_latex v) (v_at p) (Formula.to_latex h)
+         indent (v_to_latex indent' v idx vp1 f) (v_to_latex indent' v idx vp2 g)
+    | VAndL vp1, And (f, _) ->
+       Printf.sprintf "\\infer[\\Vconjl]{%s, %d \\nvd %s}\n%s{%s}\n"
+         (val_changes_to_latex v) (v_at p) (Formula.to_latex h) indent (v_to_latex indent' v idx vp1 f)
+    | VAndR vp2, And (_, g) ->
+       Printf.sprintf "\\infer[\\Vconjr]{%s, %d \\nvd %s}\n%s{%s}\n"
+         (val_changes_to_latex v) (v_at p) (Formula.to_latex h) indent (v_to_latex indent' v idx vp2 g)
+    | VImp (sp1, vp2), Imp (f, g) ->
+       Printf.sprintf "\\infer[\\Vimp]{%s, %d \\nvd %s}\n%s{{%s} & {%s}}\n"
+         (val_changes_to_latex v) (v_at p) (Formula.to_latex h)
+         indent (s_to_latex indent' v idx sp1 f) (v_to_latex indent' v idx vp2 g)
+    | VIffSV (sp1, vp2), Iff (f, g) ->
+       Printf.sprintf "\\infer[\\ViffSV]{%s, %d \\nvd %s}\n%s{{%s} & {%s}}\n"
+         (val_changes_to_latex v) (v_at p) (Formula.to_latex h)
+         indent (s_to_latex indent' v idx sp1 f) (v_to_latex indent' v idx vp2 g)
+    | VIffVS (vp1, sp2), Iff (f, g) ->
+       Printf.sprintf "\\infer[\\ViffSV]{%s, %d \\nvd %s}\n%s{{%s} & {%s}}\n"
+         (val_changes_to_latex v) (v_at p) (Formula.to_latex h)
+         indent (v_to_latex indent' v idx vp1 f) (s_to_latex indent' v idx sp2 g)
+    | VExists (x, part), Exists (_, f) ->
+       Printf.sprintf "\\infer[\\Vexists]{%s, %d \\nvd %s}\n%s{%s}\n"
+         (val_changes_to_latex v) (v_at p) (Formula.to_latex h) indent
+         (String.concat ~sep:"&" (List.map part ~f:(fun (sub, vp) ->
+                                      let idx' = idx + 1 in
+                                      let v' = v @ [(Term.value_to_string x, "d_" ^ (Int.to_string idx') ^ " \\in " ^ (Setc.to_latex sub))] in
+                                      "{" ^ (v_to_latex indent' v' idx' vp f) ^ "}")))
+    | VForall (x, d, vp), Forall (_, f) ->
+       let v' = v @ [(Term.value_to_string x, Domain.to_string d)] in
+       Printf.sprintf "\\infer[\\Vforall]{%s, %d \\nvd %s}\n%s{%s}\n"
+         (val_changes_to_latex v) (v_at p) (Formula.to_latex h) indent (v_to_latex indent' v' idx vp f)
+    | VPrev vp, Prev (i, f) ->
+       Printf.sprintf "\\infer[\\Vprev{}]{%s, %d \\nvd %s}\n%s{{%d > 0} & {%s}}\n"
+         (val_changes_to_latex v) (v_at p) (Formula.to_latex h) indent (v_at p) (v_to_latex indent' v idx vp f)
+    | VPrev0, Prev (i, f) ->
+       Printf.sprintf "\\infer[\\Vprevz]{%s, %d \\nvd %s}{}\n" (val_changes_to_latex v) (v_at p) (Formula.to_latex h)
+    | VPrevOutL tp, Prev (i, f) ->
+       Printf.sprintf "\\infer[\\Vprevl]{%s, %d \\nvd %s}\n%s{{%d > 0} & {\\tau_%d - \\tau_%d < %d}}\n"
+         (val_changes_to_latex v) (v_at p) (Formula.to_latex h) indent (v_at p) (v_at p) ((v_at p)-1) (Interval.left i)
+    | VPrevOutR tp, Prev (i, f) ->
+       Printf.sprintf "\\infer[\\Vprevr]{%s, %d \\nvd %s}\n%s{{%d > 0} & {\\tau_%d - \\tau_%d > %d}}\n"
+         (val_changes_to_latex v) (v_at p) (Formula.to_latex h) indent (v_at p) (v_at p) ((v_at p)-1) (Option.value_exn (Interval.right i))
+    | VNext vp, Next (i, f) ->
+       Printf.sprintf "\\infer[\\Vnext{}]{%s, %d \\nvd %s}\n%s{%s}\n"
+         (val_changes_to_latex v) (v_at p) (Formula.to_latex h) indent (v_to_latex indent' v idx vp f)
+    | VNextOutL tp, Next (i, f) ->
+       Printf.sprintf "\\infer[\\Vnextl]{%s, %d \\nvd %s}{\\tau_%d - \\tau_%d < %d}\n"
+         (val_changes_to_latex v) (v_at p) (Formula.to_latex h) ((v_at p)+1) (v_at p) (Interval.left i)
+    | VNextOutR tp, Next (i, f) ->
+       Printf.sprintf "\\infer[\\Vnextr]{%s, %d \\nvd %s}{\\tau_%d - \\tau_%d > %d}\n"
+         (val_changes_to_latex v) (v_at p) (Formula.to_latex h) ((v_at p)+1) (v_at p) (Option.value_exn (Interval.right i))
+    | VOnceOut tp, Once (i, f) ->
+       Printf.sprintf "\\infer[\\Voncel{}]{%s, %d \\nvd %s}\n%s{\\tau_%d - \\tau_0 < %d}\n"
+         (val_changes_to_latex v) (v_at p) (Formula.to_latex h) indent (v_at p) (Interval.left i)
+    | VOnce (_, _, vps), Once (i, f) ->
+       Printf.sprintf "\\infer[\\Vonce{}]{%s, %d \\nvd %s}\n%s{{\\tau_%d - \\tau_0 \\geq %d} & %s}\n"
+         (val_changes_to_latex v) (v_at p) (Formula.to_latex h) indent (v_at p) (Interval.left i)
+         (String.concat ~sep:"&" (Fdeque.to_list (Fdeque.map vps ~f:(fun vp -> "{" ^ (v_to_latex indent' v idx vp f) ^ "}"))))
+    | VEventually (_, _, vps), Eventually (i, f) ->
+       Printf.sprintf "\\infer[\\Veventually{}]{%s, %d \\nvd %s}\n%s{%s}\n"
+         (val_changes_to_latex v) (v_at p) (Formula.to_latex h) indent
+         (String.concat ~sep:"&" (Fdeque.to_list (Fdeque.map vps ~f:(fun vp -> "{" ^ (v_to_latex indent' v idx vp f) ^ "}"))))
+    | VHistorically (tp, vp), Historically (i, f) ->
+       Printf.sprintf "\\infer[\\Vhistorically{}]{%s, %d \\nvd %s}\n%s{{%d \\leq %d} & {\\tau_%d - \\tau_%d \\in %s} & {%s}}\n"
+         (val_changes_to_latex v) (v_at p) (Formula.to_latex h) indent
+         (v_at vp) tp tp (v_at vp) (Interval.to_latex i) (v_to_latex indent' v idx vp f)
+    | VAlways (tp, vp), Always (i, f) ->
+       Printf.sprintf "\\infer[\\Valways{}]{%s, %d \\nvd %s}\n%s{{%d \\geq %d} & {\\tau_%d - \\tau_%d \\in %s} & {%s}}\n"
+         (val_changes_to_latex v) (v_at p) (Formula.to_latex h) indent
+         (v_at vp) tp (v_at vp) tp (Interval.to_latex i) (v_to_latex indent' v idx vp f)
+    | VSinceOut tp, Since (i, f, g) ->
+       Printf.sprintf "\\infer[\\Vsincel{}]{%s, %d \\nvd %s}\n%s{\\tau_%d - \\tau_0 < %d}\n"
+         (val_changes_to_latex v) (v_at p) (Formula.to_latex h) indent (v_at p) (Interval.left i)
+    | VSince (tp, vp1, vp2s), Since (i, f, g) ->
+       Printf.sprintf "\\infer[\\Vsince{}]{%s, %d \\nvd %s}\n%s{{%d \\leq %d} & {\\tau_%d - \\tau_0 \\geq %d} & {%s} & %s}\n"
+         (val_changes_to_latex v) (v_at p) (Formula.to_latex h) indent
+         (v_at vp1) tp tp (Interval.left i) (v_to_latex indent' v idx vp1 f)
+         (String.concat ~sep:"&" (Fdeque.to_list (Fdeque.map vp2s ~f:(fun vp -> "{" ^ (v_to_latex indent' v idx vp g) ^ "}"))))
+    | VSinceInf (tp, _, vp2s), Since (i, f, g) ->
+       Printf.sprintf "\\infer[\\Vsinceinf{}]{%s, %d \\nvd %s}\n%s{{\\tau_%d - \\tau_0 \\geq %d} & %s}\n"
+         (val_changes_to_latex v) (v_at p) (Formula.to_latex h) indent tp (Interval.left i)
+         (String.concat ~sep:"&" (Fdeque.to_list (Fdeque.map vp2s ~f:(fun vp -> "{" ^ (v_to_latex indent' v idx vp g) ^ "}"))))
+    | VUntil (tp, vp1, vp2s), Until (i, f, g) ->
+       Printf.sprintf "\\infer[\\Vuntil{}]{%s, %d \\nvd %s}\n%s{{%d \\leq %d} & %s & {%s}}\n"
+         (val_changes_to_latex v) (v_at p) (Formula.to_latex h) indent tp (v_at vp1)
+         (String.concat ~sep:"&" (Fdeque.to_list (Fdeque.map vp2s ~f:(fun vp -> "{" ^ (v_to_latex indent' v idx vp g) ^ "}"))))
+         (v_to_latex indent' v idx vp1 f)
+    | VUntilInf (_, _, vp2s), Until (i, f, g) ->
+       Printf.sprintf "\\infer[\\Vuntil{}]{%s, %d \\nvd %s}\n%s{%s}\n"
+         (val_changes_to_latex v) (v_at p) (Formula.to_latex h) indent
+         (String.concat ~sep:"&" (Fdeque.to_list (Fdeque.map vp2s ~f:(fun vp -> "{" ^ (v_to_latex indent' v idx vp g) ^ "}"))))
+    | _ -> ""
+
+  let to_latex indent fmla = function
+    | S p -> s_to_latex indent [] 0 p fmla
+    | V p -> v_to_latex indent [] 0 p fmla
+
+  module Size = struct
+
+    let sum f d = Fdeque.fold d ~init:0 ~f:(fun acc p -> acc + f p)
+
+    let rec s = function
+      | STT _ -> 1
+      | SPred _ -> 1
+      | SNeg vp -> 1 + v vp
+      | SOrL sp1 -> 1 + s sp1
+      | SOrR sp2 -> 1 + s sp2
+      | SAnd (sp1, sp2) -> 1 + s sp1 + s sp2
+      | SImpL vp1 -> 1 + v vp1
+      | SImpR sp2 -> 1 + s sp2
+      | SIffSS (sp1, sp2) -> 1 + s sp1 + s sp2
+      | SIffVV (vp1, vp2) -> 1 + v vp1 + v vp2
+      | SExists (_, _, sp) -> 1 + s sp
+      | SForall (_, part) -> 1 + (Part.fold_left part 0 (fun a sp -> a + s sp))
+      | SPrev sp -> 1 + s sp
+      | SNext sp -> 1 + s sp
+      | SOnce (_, sp) -> 1 + s sp
+      | SEventually (_, sp) -> 1 + s sp
+      | SHistorically (_, _, sps) -> 1 + sum s sps
+      | SHistoricallyOut _ -> 1
+      | SAlways (_, _, sps) -> 1 + sum s sps
+      | SSince (sp2, sp1s) -> 1 + s sp2 + sum s sp1s
+      | SUntil (sp2, sp1s) -> 1 + s sp2 + sum s sp1s
+    and v = function
+      | VFF _ -> 1
+      | VPred _ -> 1
+      | VNeg sp -> 1 + s sp
+      | VOr (vp1, vp2) -> 1 + v vp1 + v vp2
+      | VAndL vp1 -> 1 + v vp1
+      | VAndR vp2 -> 1 + v vp2
+      | VImp (sp1, vp2) -> 1 + s sp1 + v vp2
+      | VIffSV (sp1, vp2) -> 1 + s sp1 + v vp2
+      | VIffVS (vp1, sp2) -> 1 + v vp1 + s sp2
+      | VExists (_, part) -> 1 + (Part.fold_left part 0 (fun a vp -> a + v vp))
+      | VForall (_, _, vp) -> 1 + v vp
+      | VPrev vp -> 1 + v vp
+      | VPrev0 -> 1
+      | VPrevOutL _ -> 1
+      | VPrevOutR _ -> 1
+      | VNext vp -> 1 + v vp
+      | VNextOutL _ -> 1
+      | VNextOutR _ -> 1
+      | VOnceOut _ -> 1
+      | VOnce (_, _, vp1s) -> 1 + sum v vp1s
+      | VEventually (_, _, vp1s) -> 1 + sum v vp1s
+      | VHistorically (_, vp1) -> 1 + v vp1
+      | VAlways (_, vp1) -> 1 + v vp1
+      | VSinceOut _ -> 1
+      | VSince (_, vp1, vp2s) -> 1 + v vp1 + sum v vp2s
+      | VSinceInf (_, _, vp2s) -> 1 + sum v vp2s
+      | VUntil (_, vp1, vp2s) -> 1 + v vp1 + sum v vp2s
+      | VUntilInf (_, _, vp2s) -> 1 + sum v vp2s
+
+    let p = function
+      | S s_p -> s s_p
+      | V v_p -> v v_p
+
+    let minp_bool = cmp p
+
+    let minp x y = if p x <= p y then x else y
+
+    let minp_list = function
+      | [] -> raise (Invalid_argument "function not defined for empty lists")
+      | x :: xs -> List.fold_left xs ~init:x ~f:minp
+
+  end
+
+end
+
+module Pdt = struct
+
+  type 'a t = Leaf of 'a | Node of Term.t * ('a t) Part.t
+
+  let rec apply1 vars f pdt = match vars, pdt with
+    | _ , Leaf l -> Leaf (f l)
+    | z :: vars, Node (x, part) ->
+       if Term.equal x z then
+         Node (x, Part.map part (apply1 vars f))
+       else apply1 vars f (Node (x, part))
+    | _ -> raise (Invalid_argument "variable list is empty")
+
+  let rec apply2 vars f pdt1 pdt2 = match vars, pdt1, pdt2 with
+    | _ , Leaf l1, Leaf l2 -> Leaf (f l1 l2)
+    | _ , Leaf l1, Node (x, part2) -> Node (x, Part.map part2 (apply1 vars (f l1)))
+    | _ , Node (x, part1), Leaf l2 -> Node (x, Part.map part1 (apply1 vars (fun l1 -> f l1 l2)))
+    | z :: vars, Node (x, part1), Node (y, part2) ->
+       if Term.equal x z && Term.equal y z then
+         Node (z, Part.merge2 (apply2 vars f) part1 part2)
+       else (if Term.equal x z then
+               Node (x, Part.map part1 (fun pdt1 -> apply2 vars f pdt1 (Node (y, part2))))
+             else (if Term.equal y z then
+                     Node (y, Part.map part2 (apply2 vars f (Node (x, part1))))
+                   else apply2 vars f (Node (x, part1)) (Node (y, part2))))
+    | _ -> raise (Invalid_argument "variable list is empty")
+
+  let rec apply3 vars f pdt1 pdt2 pdt3 = match vars, pdt1, pdt2, pdt3 with
+    | _ , Leaf l1, Leaf l2, Leaf l3 -> Leaf (f l1 l2 l3)
+    | _ , Leaf l1, Leaf l2, Node (x, part3) ->
+       Node (x, Part.map part3 (apply1 vars (fun l3 -> f l1 l2 l3)))
+    | _ , Leaf l1, Node (x, part2), Leaf l3 ->
+       Node (x, Part.map part2 (apply1 vars (fun l2 -> f l1 l2 l3)))
+    | _ , Node (x, part1), Leaf l2, Leaf l3 ->
+       Node (x, Part.map part1 (apply1 vars (fun l1 -> f l1 l2 l3)))
+    | w :: vars, Leaf l1, Node (y, part2), Node (z, part3) ->
+       if Term.equal y w && Term.equal z w then
+         Node (w, Part.merge2 (apply2 vars (f l1)) part2 part3)
+       else (if Term.equal y w then
+               Node (y, Part.map part2 (fun pdt2 -> apply2 vars (f l1) pdt2 (Node (z, part3))))
+             else (if Term.equal z w then
+                     Node (z, Part.map part3 (fun pdt3 -> apply2 vars (f l1) (Node (y, part2)) pdt3))
+                   else apply3 vars f (Leaf l1) (Node (y, part2)) (Node(z, part3))))
+    | w :: vars, Node (x, part1), Node (y, part2), Leaf l3 ->
+       if Term.equal x w && Term.equal y w then
+         Node (w, Part.merge2 (apply2 vars (fun l1 l2 -> f l1 l2 l3)) part1 part2)
+       else (if Term.equal x w then
+               Node (x, Part.map part1 (fun pdt1 -> apply2 vars (fun pt1 pt2 -> f pt1 pt2 l3) pdt1 (Node (y, part2))))
+             else (if Term.equal y w then
+                     Node (y, Part.map part2 (fun pdt2 -> apply2 vars (fun l1 l2 -> f l1 l2 l3) (Node (x, part1)) pdt2))
+                   else apply3 vars f (Node (x, part1)) (Node (y, part2)) (Leaf l3)))
+    | w :: vars, Node (x, part1), Leaf l2, Node (z, part3) ->
+       if Term.equal x w && Term.equal z w then
+         Node (w, Part.merge2 (apply2 vars (fun l1 -> f l1 l2)) part1 part3)
+       else (if Term.equal x w then
+               Node (x, Part.map part1 (fun pdt1 -> apply2 vars (fun l1 -> f l1 l2) pdt1 (Node (z, part3))))
+             else (if Term.equal z w then
+                     Node (z, Part.map part3 (fun pdt3 -> apply2 vars (fun l1 -> f l1 l2) (Node (x, part1)) pdt3))
+                   else apply3 vars f (Node (x, part1)) (Leaf l2) (Node (z, part3))))
+    | w :: vars, Node (x, part1), Node (y, part2), Node (z, part3) ->
+       if Term.equal x w && Term.equal y w && Term.equal z w then
+         Node (z, Part.merge3 (apply3 vars f) part1 part2 part3)
+       else (if Term.equal x w && Term.equal y w then
+               Node (w, Part.merge2 (fun pdt1 pdt2 -> apply3 vars f pdt1 pdt2 (Node (z, part3))) part1 part2)
+             else (if Term.equal x w && Term.equal z w then
+                     Node (w, Part.merge2 (fun pdt1 pdt3 -> apply3 vars f pdt1 (Node (y, part2)) pdt3) part1 part3)
+                   else (if Term.equal y w && Term.equal z w then
+                           Node (w, Part.merge2 (apply3 vars (fun l1 -> f l1) (Node (x, part1))) part2 part3)
+                         else (if Term.equal x w then
+                                 Node (x, Part.map part1 (fun pdt1 -> apply3 vars f pdt1 (Node (y, part2)) (Node (z, part3))))
+                               else (if Term.equal y w then
+                                       Node (y, Part.map part2 (fun pdt2 -> apply3 vars f (Node (x, part1)) pdt2 (Node (z, part3))))
+                                     else (if Term.equal z w then
+                                             Node (z, Part.map part3 (fun pdt3 -> apply3 vars f (Node (x, part1)) (Node (y, part2)) pdt3))
+                                           else apply3 vars f (Node (x, part1)) (Node (y, part2)) (Node (z, part3))))))))
+    | _ -> raise (Invalid_argument "variable list is empty")
+
+  let rec split_prod = function
+    | Leaf (l1, l2) -> (Leaf l1, Leaf l2)
+    | Node (x, part) -> let (part1, part2) = Part.split_prod (Part.map part split_prod) in
+                        (Node (x, part1), Node (x, part2))
+
+  let rec split_list = function
+    | Leaf l -> List.map l ~f:(fun el -> Leaf el)
+    | Node (x, part) -> List.map (Part.split_list (Part.map part split_list)) ~f:(fun el -> Node (x, el))
+
+  let rec to_string f indent = function
+    | Leaf pt -> Printf.sprintf "%s%s\n" indent (f pt)
+    | Node (x, part) -> (Part.to_string indent x (to_string f) part)
+
+  let rec to_latex f indent = function
+    | Leaf pt -> Printf.sprintf "%s%s\n" indent (f pt)
+    | Node (x, part) -> (Part.to_string indent x (to_latex f) part)
+
+  let unleaf = function
+    | Leaf l -> l
+    | _ -> raise (Invalid_argument "function not defined for nodes")
+
+  let rec hide vars f pdt =
+    match vars, pdt with
+    |  _ , Leaf l -> Leaf (f (Either.First l))
+    | [x], Node (y, part) -> Leaf (f (Either.Second (Part.map part unleaf)))
+    | x :: vars, Node (y, part) -> if Term.equal x y then
+                                     Node (y, Part.map part (hide vars f))
+                                   else hide vars f (Node (y, part))
+    | _ -> raise (Invalid_argument "function not defined for other cases")
+
+end
+
+type t = Proof.t Pdt.t
+
+let rec at = function
+  | Pdt.Leaf pt -> Proof.p_at pt
+  | Node (_, part) -> at (Part.hd part)
+
+let to_string expl = Pdt.to_string (Proof.to_string "") "" expl
+
+let to_latex fmla expl = Pdt.to_latex (Proof.to_latex "" fmla) "" expl

@@ -1,262 +1,431 @@
 (*******************************************************************)
-(*     This is part of Explanator2, it is distributed under the    *)
+(*     This is part of WhyMon, and it is distributed under the     *)
 (*     terms of the GNU Lesser General Public License version 3    *)
 (*           (see file LICENSE for more details)                   *)
 (*                                                                 *)
-(*  Copyright 2021:                                                *)
+(*  Copyright 2023:                                                *)
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
-open Z
-open Mtl
+open Base
+open Etc
 open Expl
-open Interval
-open Util
-open Checker.VerifiedExplanator2
+open Formula
+open Checker.Whymon
 
-type checker_proof = CS of string sproof | CV of string vproof
-type checker_trace = (string set * nat) list
-type trace_t = (SS.t * int) list
+module Fdeque = Core_kernel.Fdeque
 
-let rec convert_sp sp =
-  match sp with
-  | SAtom (tp, s) -> let tp_nat = nat_of_integer (of_int tp) in
-                     SAtm (s, tp_nat)
-  | STT tp -> let tp_nat = nat_of_integer (of_int tp) in
-              STT tp_nat
-  | SNeg vp1 -> SNeg (convert_vp vp1)
-  | SDisjL sp1 -> SDisjL (convert_sp sp1)
-  | SDisjR sp2 -> SDisjR (convert_sp sp2)
-  | SConj (sp1, sp2) -> SConj (convert_sp sp1, convert_sp sp2)
-  | SImplL vp1 -> SImplL (convert_vp vp1)
-  | SImplR sp2 -> SImplR (convert_sp sp2)
-  | SIffSS (sp1, sp2) -> SIff_ss (convert_sp sp1, convert_sp sp2)
-  | SIffVV (vp1, vp2) -> SIff_vv (convert_vp vp1, convert_vp vp2)
-  | SPrev sp1 -> SPrev (convert_sp sp1)
-  | SNext sp1 -> SNext (convert_sp sp1)
-  | SOnce (tp, sp1) -> let tp_nat = nat_of_integer (of_int tp) in
-                       SOnce (tp_nat, convert_sp sp1)
-  | SHistorically (tp, etp, sp2s) -> let tp_nat = nat_of_integer (of_int tp) in
-                                     let etp_nat = nat_of_integer (of_int etp) in
-                                     let sp2s' = List.rev(List.fold_left (fun acc sp2 ->
-                                                              (convert_sp sp2)::acc) [] sp2s) in
-                                     SHistorically (tp_nat, etp_nat, sp2s')
-  | SHistoricallyOutL tp -> let tp_nat = nat_of_integer (of_int tp) in
-                            SHistorically_le tp_nat
-  | SEventually (tp, sp1) -> let tp_nat = nat_of_integer (of_int tp) in
-                             SEventually (tp_nat, convert_sp sp1)
-  | SAlways (tp, ltp, sp2s) -> let tp_nat = nat_of_integer (of_int tp) in
-                               let ltp_nat = nat_of_integer (of_int ltp) in
-                               let sp2s' = List.rev(List.fold_left (fun acc sp2 ->
-                                                        (convert_sp sp2)::acc) [] sp2s) in
-                               SAlways (tp_nat, ltp_nat, sp2s')
-  | SSince (sp2, sp1s) -> let sp1s' = List.rev(List.fold_left (fun acc sp1 ->
-                                                   (convert_sp sp1)::acc) [] sp1s) in
-                          SSince (convert_sp sp2, sp1s')
-  | SUntil (sp2, sp1s) -> let sp1s' = List.rev(List.fold_left (fun acc sp1 ->
-                                                   (convert_sp sp1)::acc) [] sp1s) in
-                          SUntil (sp1s', convert_sp sp2)
-and convert_vp vp =
-  match vp with
-  | VAtom (tp, s) -> let tp_nat = nat_of_integer (of_int tp) in
-                     VAtm (s, tp_nat)
-  | VFF tp -> let tp_nat = nat_of_integer (of_int tp) in
-              VFF tp_nat
-  | VNeg sp1 -> VNeg (convert_sp sp1)
-  | VDisj (vp1, vp2) -> VDisj (convert_vp vp1, convert_vp vp2)
-  | VConjL vp1 -> VConjL (convert_vp vp1)
-  | VConjR vp2 -> VConjR (convert_vp vp2)
-  | VImpl (sp1, vp2) -> VImpl (convert_sp sp1, convert_vp vp2)
-  | VIffSV (sp1, vp2) -> VIff_sv (convert_sp sp1, convert_vp vp2)
-  | VIffVS (vp1, sp2) -> VIff_vs (convert_vp vp1, convert_sp sp2)
-  | VPrev vp1 -> VPrev (convert_vp vp1)
-  | VPrevOutL tp -> let tp_nat = nat_of_integer (of_int tp) in
-                    VPrev_le tp_nat
-  | VPrevOutR tp -> let tp_nat = nat_of_integer (of_int tp) in
-                    VPrev_ge tp_nat
-  | VPrev0 -> VPrev_zero
-  | VNext p1 -> VNext (convert_vp p1)
-  | VNextOutL tp -> let tp_nat = nat_of_integer (of_int tp) in
-                    VNext_le tp_nat
-  | VNextOutR tp -> let tp_nat = nat_of_integer (of_int tp) in
-                    VNext_ge tp_nat
-  | VOnceOutL tp -> let tp_nat = nat_of_integer (of_int tp) in
-                    VOnce_le tp_nat
-  | VOnce (tp, etp, vp1s) -> let tp_nat = nat_of_integer (of_int tp) in
-                             let etp_nat = nat_of_integer (of_int etp) in
-                             let vp1s' = List.rev(List.fold_left (fun acc vp1 ->
-                                                      (convert_vp vp1)::acc) [] vp1s) in
-                             VOnce (tp_nat, etp_nat, vp1s')
-  | VHistorically (tp, vp1) -> let tp_nat = nat_of_integer (of_int tp) in
-                               VHistorically (tp_nat, convert_vp vp1)
-  | VEventually (tp, ltp, vp1s) -> let tp_nat = nat_of_integer (of_int tp) in
-                                   let ltp_nat = nat_of_integer (of_int ltp) in
-                                   let vp1s' = List.rev(List.fold_left (fun acc vp1 ->
-                                                            (convert_vp vp1)::acc) [] vp1s) in
-                                   VEventually (tp_nat, ltp_nat, vp1s')
-  | VAlways (tp, vp1) -> let tp_nat = nat_of_integer (of_int tp) in
-                         VAlways (tp_nat, convert_vp vp1)
-  | VSince (tp, vp1, vp2s) -> let tp_nat = nat_of_integer (of_int tp) in
-                              let vp2s' = List.rev(List.fold_left (fun acc vp2 ->
-                                                       (convert_vp vp2)::acc) [] vp2s) in
-                              VSince (tp_nat, convert_vp vp1, vp2s')
-  | VUntil (tp, vp1, vp2s) -> let tp_nat = nat_of_integer (of_int tp) in
-                              let vp2s' = List.rev(List.fold_left (fun acc vp2 ->
-                                                       (convert_vp vp2)::acc) [] vp2s) in
-                              VUntil (tp_nat, vp2s', convert_vp vp1)
-  | VSinceInf (tp, etp, vp2s) -> let tp_nat = nat_of_integer (of_int tp) in
-                                 let etp_nat = nat_of_integer (of_int etp) in
-                                 let vp2s' = List.rev(List.fold_left (fun acc vp2 ->
-                                                          (convert_vp vp2)::acc) [] vp2s) in
-                                 VSince_never (tp_nat, etp_nat, vp2s')
-  | VUntilInf (tp, ltp, vp2s) -> let tp_nat = nat_of_integer (of_int tp) in
-                                 let ltp_nat = nat_of_integer (of_int ltp) in
-                                 let vp2s' = List.rev(List.fold_left (fun acc vp2 ->
-                                                          (convert_vp vp2)::acc) [] vp2s) in
-                                 VUntil_never (tp_nat, ltp_nat, vp2s')
-  | VSinceOutL tp -> let tp_nat = nat_of_integer (of_int tp) in
-                     VSince_le tp_nat
+let int_of_nat n = Z.to_int (integer_of_nat n)
+let nat_of_int i = nat_of_integer (Z.of_int i)
+let enat_of_integer i = Enat (nat_of_integer i)
 
-let convert_p = function
-  | S sp -> CS (convert_sp sp)
-  | V vp -> CV (convert_vp vp)
+module Checker_interface = struct
 
-let convert_interval i =
-  match i with
-  | B bi ->
-     (match bi with
-      | BI (l, r) -> let l_nat = nat_of_integer (of_int l) in
-                     let r_nat = nat_of_integer (of_int r) in
-                     let e_nat = Enat r_nat in
-                     interval l_nat e_nat)
-  | U ui ->
-     (match ui with
-      | UI l -> let l_nat = nat_of_integer (of_int l) in
-                interval l_nat Infinity_enat)
+  type proof = (event_data sproof, event_data vproof) sum
+  type trace = (string set * nat) list
+  type trace_lst = (timestamp * (Db.Event.t, Db.Event.comparator_witness) Set.t) list
 
-let rec convert_f f =
-  match f with
-  | P (x) -> Atom (x)
-  | TT -> TT
-  | FF -> FF
-  | Neg (f) -> Neg (convert_f f)
-  | Conj (f, g) -> Conj (convert_f f, convert_f g)
-  | Disj (f, g) -> Disj (convert_f f, convert_f g)
-  | Imp (f, g) -> Impl (convert_f f, convert_f g)
-  | Iff (f, g) -> Iff (convert_f f, convert_f g)
-  | Once (i, f) -> let i' = convert_interval i in
-                   Once (i', convert_f f)
-  | Historically (i, f) -> let i' = convert_interval i in
-                           Historically (i', convert_f f)
-  | Eventually (i, f) -> let i' = convert_interval i in
-                         Eventually (i', convert_f f)
-  | Always (i, f) -> let i' = convert_interval i in
-                     Always (i', convert_f f)
-  | Prev (i, f) -> let i' = convert_interval i in
-                   Prev (i', convert_f f)
-  | Next (i, f) -> let i' = convert_interval i in
-                   Next (i', convert_f f)
-  | Since (i, f, g) -> let i' = convert_interval i in
-                       Since (convert_f f, i', convert_f g)
-  | Until (i, f, g) -> let i' = convert_interval i in
-                       Until (convert_f f, i', convert_f g)
+  let to_event_data (d: Domain.t) = match d with
+    | Int v -> EInt (Z.of_int v)
+    | Str v -> EString v
+    | _ -> raise (Invalid_argument "type not supported yet")
 
-let convert_event sap ts =
-  let ts_nat = nat_of_integer (of_int ts) in
-  let sap_lst = SS.elements sap in
-  let set_check = strset sap_lst in
-  (set_check, ts_nat)
+  let of_event_data (ed: event_data) = match ed with
+    | EInt v -> Domain.Int (Z.to_int v)
+    | EString v -> Str v
+    | _ -> raise (Invalid_argument "type not supported yet")
 
-let convert_trace trace =
-  List.fold_left
-    (fun acc (sap, ts) ->
-      (convert_event sap ts)::acc) [] trace
+  let convert_term (t: Pred.Term.t) = match t with
+    | Const c -> Const (to_event_data c)
+    | Var x -> Var x
 
-let check_ps is_opt trace f ps =
-  let checker_f = convert_f f in
-  let trace_converted = convert_trace trace in
-  let checker_trace = trace_of_list trace_converted in
-  List.rev(List.fold_left (fun acc p ->
-               let checker_p = convert_p p in
-               let checker_p_sum = match checker_p with
-                 | CS checker_sp -> Inl checker_sp
-                 | CV checker_vp -> Inr checker_vp in
-               let tp_nat = nat_of_integer (of_int (p_at p)) in
-               let b = is_opt checker_trace tp_nat checker_f checker_p_sum in
-               (b, checker_p, trace)::acc) [] ps)
+  (* fset: formalized sets (from Isabelle) *)
+  let to_fset = function
+    | Setc.Finite s -> Set (List.rev (Set.fold s ~init:[] ~f:(fun acc d -> (to_event_data d) :: acc)))
+    | Setc.Complement s -> Coset (List.rev (Set.fold s ~init:[] ~f:(fun acc d -> (to_event_data d) :: acc)))
 
-let s_of_sum s_of_left s_of_right = function
-  | Inl x -> "Inl (" ^ s_of_left x ^ ")"
-  | Inr y -> "Inr (" ^ s_of_right y ^ ")"
+  let of_fset = function
+    | Set s -> Setc.Finite (Set.of_list (module Domain)
+                              (List.rev (List.fold s ~init:[] ~f:(fun acc ed -> (of_event_data ed) :: acc))))
+    | Coset cs -> Setc.Complement (Set.of_list (module Domain)
+                                     (List.rev (List.fold cs ~init:[] ~f:(fun acc ed -> (of_event_data ed) :: acc))))
 
-let s_of_nat n = Z.to_string (integer_of_nat n)
+  let of_poly_set = function
+    | Set s -> List.rev (List.fold s ~init:[] ~f:(fun acc l -> l :: acc))
+    | Coset cs -> List.rev (List.fold cs ~init:[] ~f:(fun acc l -> l :: acc))
 
-let s_of_list s_of xs = "[" ^ String.concat ", " (List.map s_of xs) ^ "]"
+  let rec convert_sp_part part =
+    let part_lst = List.map part ~f:(fun (coset, sp) ->
+                       (to_fset coset, convert_sp sp)) in
+    abs_part (part_lst)
+  and convert_vp_part part =
+    let part_lst = List.map part ~f:(fun (coset, vp) ->
+                       (to_fset coset, convert_vp vp)) in
+    abs_part (part_lst)
+  and convert_sp (sp: Proof.sp) : (event_data sproof) = match sp with
+    | STT tp -> STT (nat_of_int tp)
+    | SPred (tp, s, trms) -> SPred (nat_of_int tp, s, List.map trms convert_term)
+    | SNeg vp1 -> SNeg (convert_vp vp1)
+    | SOrL sp1 -> SOrL (convert_sp sp1)
+    | SOrR sp2 -> SOrR (convert_sp sp2)
+    | SAnd (sp1, sp2) -> SAnd (convert_sp sp1, convert_sp sp2)
+    | SImpL vp1 -> SImpL (convert_vp vp1)
+    | SImpR sp2 -> SImpR (convert_sp sp2)
+    | SIffSS (sp1, sp2) -> SIffSS (convert_sp sp1, convert_sp sp2)
+    | SIffVV (vp1, vp2) -> SIffVV (convert_vp vp1, convert_vp vp2)
+    | SExists (x, d, sp) -> SExists (Pred.Term.unvar x, to_event_data d, convert_sp sp)
+    | SForall (x, part) -> SForall (Pred.Term.unvar x, convert_sp_part part)
+    | SPrev sp1 -> SPrev (convert_sp sp1)
+    | SNext sp1 -> SNext (convert_sp sp1)
+    | SOnce (tp, sp1) -> SOnce (nat_of_int tp, convert_sp sp1)
+    | SHistorically (tp, etp, sp2s) ->
+       let sp2s' = List.rev(Fdeque.fold sp2s ~init:[] ~f:(fun acc sp2 -> (convert_sp sp2)::acc)) in
+       SHistorically (nat_of_int tp, nat_of_int etp, sp2s')
+    | SHistoricallyOut tp -> SHistoricallyOut (nat_of_int tp)
+    | SEventually (tp, sp1) -> SEventually (nat_of_int tp, convert_sp sp1)
+    | SAlways (tp, ltp, sp2s) ->
+       let sp2s' = List.rev(Fdeque.fold sp2s ~init:[] ~f:(fun acc sp2 -> (convert_sp sp2)::acc)) in
+       SAlways (nat_of_int tp, nat_of_int ltp, sp2s')
+    | SSince (sp2, sp1s) ->
+       let sp1s' = List.rev(Fdeque.fold sp1s ~init:[] ~f:(fun acc sp1 -> (convert_sp sp1)::acc)) in
+       SSince (convert_sp sp2, sp1s')
+    | SUntil (sp2, sp1s) ->
+       let sp1s' = List.rev(Fdeque.fold sp1s ~init:[] ~f:(fun acc sp1 -> (convert_sp sp1)::acc)) in
+       SUntil (sp1s', convert_sp sp2)
+  and convert_vp (vp: Proof.vp) : (event_data vproof) = match vp with
+    | VFF tp -> VFF (nat_of_int tp)
+    | VPred (tp, s, trms) -> VPred (nat_of_int tp, s, List.map trms convert_term)
+    | VNeg sp1 -> VNeg (convert_sp sp1)
+    | VOr (vp1, vp2) -> VOr (convert_vp vp1, convert_vp vp2)
+    | VAndL vp1 -> VAndL (convert_vp vp1)
+    | VAndR vp2 -> VAndR (convert_vp vp2)
+    | VImp (sp1, vp2) -> VImp (convert_sp sp1, convert_vp vp2)
+    | VIffSV (sp1, vp2) -> VIffSV (convert_sp sp1, convert_vp vp2)
+    | VIffVS (vp1, sp2) -> VIffVS (convert_vp vp1, convert_sp sp2)
+    | VExists (x, part) -> VExists (Pred.Term.unvar x, convert_vp_part part)
+    | VForall (x, d, vp) -> VForall (Pred.Term.unvar x, to_event_data d, convert_vp vp)
+    | VPrev vp1 -> VPrev (convert_vp vp1)
+    | VPrev0 -> VPrevZ
+    | VPrevOutL tp -> VPrevOutL (nat_of_int tp)
+    | VPrevOutR tp -> VPrevOutR (nat_of_int tp)
+    | VNext vp -> VNext (convert_vp vp)
+    | VNextOutL tp -> VNextOutL (nat_of_int tp)
+    | VNextOutR tp -> VNextOutR (nat_of_int tp)
+    | VOnceOut tp -> VOnceOut (nat_of_int tp)
+    | VOnce (tp, etp, vp1s) ->
+       let vp1s' = List.rev(Fdeque.fold vp1s ~init:[] ~f:(fun acc vp1 -> (convert_vp vp1)::acc)) in
+       VOnce (nat_of_int tp, nat_of_int etp, vp1s')
+    | VHistorically (tp, vp1) -> VHistorically (nat_of_int tp, convert_vp vp1)
+    | VEventually (tp, ltp, vp1s) ->
+       let vp1s' = List.rev(Fdeque.fold vp1s ~init:[] ~f:(fun acc vp1 -> (convert_vp vp1)::acc)) in
+       VEventually (nat_of_int tp, nat_of_int ltp, vp1s')
+    | VAlways (tp, vp1) -> VAlways (nat_of_int tp, convert_vp vp1)
+    | VSinceOut tp -> VSinceOut (nat_of_int tp)
+    | VSince (tp, vp1, vp2s) ->
+       let vp2s' = List.rev(Fdeque.fold vp2s ~init:[] ~f:(fun acc vp2 -> (convert_vp vp2)::acc)) in
+       VSince (nat_of_int tp, convert_vp vp1, vp2s')
+    | VSinceInf (tp, etp, vp2s) ->
+       let vp2s' = List.rev(Fdeque.fold vp2s ~init:[] ~f:(fun acc vp2 -> (convert_vp vp2)::acc)) in
+       VSinceInf (nat_of_int tp, nat_of_int etp, vp2s')
+    | VUntil (tp, vp1, vp2s) ->
+       let vp2s' = List.rev(Fdeque.fold vp2s ~init:[] ~f:(fun acc vp2 -> (convert_vp vp2)::acc)) in
+       VUntil (nat_of_int tp, vp2s', convert_vp vp1)
+    | VUntilInf (tp, ltp, vp2s) ->
+       let vp2s' = List.rev(Fdeque.fold vp2s ~init:[] ~f:(fun acc vp2 -> (convert_vp vp2)::acc)) in
+       VUntilInf (nat_of_int tp, nat_of_int ltp, vp2s')
 
-let s_of_set sap = "[" ^ String.concat ", " (List.rev(SS.fold (fun s acc -> s::acc) sap [])) ^ "]"
+  let rec convert_pdt_part part =
+    let part_lst = List.map part ~f:(fun (coset, pdt) ->
+                       (to_fset coset, convert_pdt pdt)) in
+    abs_part (part_lst)
+  and convert_pdt = function
+    | Expl.Pdt.Leaf pt -> (match pt with
+                       | Proof.S sp -> Leaf (Inl (convert_sp sp))
+                       | V vp -> Leaf (Inr (convert_vp vp)))
+    | Node (x, part) -> Node (Pred.Term.unvar x, convert_pdt_part part)
 
-let s_of_trace trace =
-  String.concat "\n"
-    (List.rev (List.map (fun (sap, ts) ->
-         let s_of_sap = s_of_set sap in
-         ("(" ^ (string_of_int ts) ^ ", " ^ s_of_sap ^ ")")) trace))
+  let convert_p = function
+    | Proof.S sp -> Inl (convert_sp sp)
+    | V vp -> Inr (convert_vp vp)
 
-let rec s_of_sproof = function
-  | STT tp -> "STT " ^ s_of_nat tp
-  | SAtm (s, tp) -> "SAtm (" ^ s ^ ", " ^ s_of_nat tp ^ ")"
-  | SNeg vp1 -> "SNeg (" ^ s_of_vproof vp1 ^ ")"
-  | SDisjL sp1 -> "SDisjL (" ^ s_of_sproof sp1 ^ ")"
-  | SDisjR sp2 -> "SDisjR (" ^ s_of_sproof sp2 ^ ")"
-  | SConj (sp1, sp2) -> "SConj (" ^ s_of_sproof sp1 ^ ", " ^ s_of_sproof sp2 ^ ")"
-  | SImplL vp1 -> "SImplL (" ^ s_of_vproof vp1 ^ ")"
-  | SImplR sp2 -> "SImplR (" ^ s_of_sproof sp2 ^ ")"
-  | SIff_ss (sp1, sp2) -> "SIff_ss (" ^ s_of_sproof sp1 ^ ", " ^ s_of_sproof sp2 ^ ")"
-  | SIff_vv (vp1, vp2) -> "SIff_vv (" ^ s_of_vproof vp1 ^ ", " ^ s_of_vproof vp2 ^ ")"
-  | SPrev sp1 -> "SPrev (" ^ s_of_sproof sp1 ^ ")"
-  | SNext sp1 -> "SNext (" ^ s_of_sproof sp1 ^ ")"
-  | SOnce (tp, sp1) -> "SOnce (" ^ s_of_nat tp ^ ", " ^ s_of_sproof sp1 ^ ")"
-  | SHistorically (tp, etp, sp2s) -> "SHistorically (" ^ s_of_nat tp ^ ", " ^ s_of_nat etp ^ ", "
-                                     ^ s_of_list s_of_sproof sp2s ^ ")"
-  | SHistorically_le tp -> "SHistorically_le " ^ s_of_nat tp
-  | SEventually (tp, sp1) -> "SEventually (" ^ s_of_nat tp ^ ", " ^ s_of_sproof sp1 ^ ")"
-  | SAlways (tp, ltp, sp2s) -> "SAlways (" ^ s_of_nat tp ^ ", " ^ s_of_nat ltp ^ ", "
-                               ^ s_of_list s_of_sproof sp2s ^ ")"
-  | SSince (sp2, sp1s) -> "SSince (" ^ s_of_sproof sp2 ^ ", " ^ s_of_list s_of_sproof sp1s ^ ")"
-  | SUntil (sp1s, sp2) -> "SUntil (" ^ s_of_list s_of_sproof sp1s ^ ", " ^ s_of_sproof sp2 ^ ")"
-and s_of_vproof = function
-  | VFF tp -> "VFF " ^ s_of_nat tp
-  | VAtm (s, tp) -> "VAtm (" ^ s ^ ", " ^ s_of_nat tp ^ ")"
-  | VNeg sp1 -> "VNeg (" ^ s_of_sproof sp1 ^ ")"
-  | VDisj (vp1, vp2) -> "VDisj (" ^ s_of_vproof vp1 ^ ", " ^ s_of_vproof vp2 ^ ")"
-  | VConjL vp1 -> "VConjL (" ^ s_of_vproof vp1 ^ ")"
-  | VConjR vp2 -> "VConjR (" ^ s_of_vproof vp2 ^ ")"
-  | VImpl (sp1, vp2) -> "VImpl (" ^ s_of_sproof sp1 ^ ", " ^ s_of_vproof vp2 ^ ")"
-  | VIff_sv (sp1, vp2) -> "VIff_sv (" ^ s_of_sproof sp1 ^ ", " ^ s_of_vproof vp2 ^ ")"
-  | VIff_vs (vp1, sp2) -> "VIff_vs (" ^ s_of_vproof vp1 ^ ", " ^ s_of_sproof sp2 ^ ")"
-  | VPrev vp1 -> "VPrev (" ^ s_of_vproof vp1 ^ ")"
-  | VPrev_ge tp -> "VPrev_ge " ^ s_of_nat tp
-  | VPrev_le tp -> "VPrev_le " ^ s_of_nat tp
-  | VPrev_zero -> "VPrev_zero"
-  | VNext vp1 -> "VNext (" ^ s_of_vproof vp1 ^ ")"
-  | VNext_ge tp -> "VNext_ge " ^ s_of_nat tp
-  | VNext_le tp -> "VNext_le " ^ s_of_nat tp
-  | VOnce_le tp -> "VOnce_le " ^ s_of_nat tp
-  | VOnce (tp, etp, vp1s) -> "VOnce (" ^ s_of_nat tp ^ ", " ^ s_of_nat etp ^ ", "
-                             ^ s_of_list s_of_vproof vp1s ^ ")"
-  | VHistorically (tp, vp1) -> "VHistorically (" ^ s_of_nat tp ^ ", " ^ s_of_vproof vp1 ^ ")"
-  | VEventually (tp, ltp, vp1s) -> "VEventually (" ^ s_of_nat tp ^ ", " ^ s_of_nat ltp ^ ", "
-                                   ^ s_of_list s_of_vproof vp1s ^ ")"
-  | VAlways (tp, vp1) -> "VAlways (" ^ s_of_nat tp ^ ", " ^ s_of_vproof vp1 ^ ")"
-  | VSince (tp, vp1, vp2s) -> "VSince (" ^ s_of_nat tp ^ ", " ^ s_of_vproof vp1 ^ ", " ^ s_of_list s_of_vproof vp2s ^ ")"
-  | VUntil (tp, vp2s, vp1) -> "VUntil (" ^ s_of_nat tp ^ ", " ^ s_of_list s_of_vproof vp2s ^ ", " ^ s_of_vproof vp1 ^ ")"
-  | VSince_never (tp, etp, vp2s) -> "VSince_never (" ^ s_of_nat tp ^ ", " ^ s_of_nat etp ^ ", "
-                                    ^ s_of_list s_of_vproof vp2s ^ ")"
-  | VUntil_never (tp, ltp, vp2s) -> "VUntil_never (" ^ s_of_nat tp ^ ", " ^ s_of_nat ltp ^ ", "
-                                    ^ s_of_list s_of_vproof vp2s ^ ")"
-  | VSince_le tp -> "VSince_le " ^ s_of_nat tp
+  let rec convert_expl = function
+    | Expl.Pdt.Leaf pt -> Leaf (convert_p pt)
+    | Node (x, part) -> Node (Pred.Term.unvar x, convert_pdt_part part)
 
-let s_of_proof = function
-  | CS sp -> s_of_sproof sp
-  | CV vp -> s_of_vproof vp
+  let convert_interval = function
+    | Interval.B bi -> (match bi with
+                        | BI (l, r) -> interval (nat_of_int l) (Enat (nat_of_int r)))
+    | U ui -> (match ui with
+               | UI l -> interval (nat_of_int l) Infinity_enat)
 
-let of_int n = nat_of_integer (Z.of_int n)
+  let rec convert_f = function
+    | Formula.TT -> TT
+    | FF -> FF
+    | Predicate (x, trms) -> Pred (x, List.map trms ~f:convert_term)
+    | Neg (f) -> Neg (convert_f f)
+    | Or (f, g) -> Or (convert_f f, convert_f g)
+    | And (f, g) -> And (convert_f f, convert_f g)
+    | Imp (f, g) -> Imp (convert_f f, convert_f g)
+    | Iff (f, g) -> Iff (convert_f f, convert_f g)
+    | Exists (x, f) -> Exists (Pred.Term.unvar x, convert_f f)
+    | Forall (x, f) -> Forall (Pred.Term.unvar x, convert_f f)
+    | Prev (i, f) -> Prev (convert_interval i, convert_f f)
+    | Next (i, f) -> Next (convert_interval i, convert_f f)
+    | Once (i, f) -> Once (convert_interval i, convert_f f)
+    | Eventually (i, f) -> Eventually (convert_interval i, convert_f f)
+    | Historically (i, f) -> Historically (convert_interval i, convert_f f)
+    | Always (i, f) -> Always (convert_interval i, convert_f f)
+    | Since (i, f, g) -> Since (convert_f f, convert_interval i, convert_f g)
+    | Until (i, f, g) -> Until (convert_f f, convert_interval i, convert_f g)
+
+  let convert_db db =
+    specialized_set (Set.fold db ~init:[] ~f:(fun acc (name, ds) ->
+                         (name, List.map ds ~f:to_event_data)::acc))
+
+  let convert_trace_aux trace_lst =
+    List.rev(List.fold_left trace_lst ~init:[] ~f:(fun acc (ts, db) ->
+                 (convert_db db, nat_of_int ts)::acc))
+
+  let convert_trace trace_lst =
+    trace_of_list_specialized (convert_trace_aux trace_lst)
+
+end
+
+module Checker_domain = struct
+
+  let to_string = function
+    | EString v -> v
+    | EInt v -> Int.to_string (Z.to_int v)
+
+  let list_to_string ds =
+    String.drop_suffix (List.fold ds ~init:"" ~f:(fun acc d -> acc ^ (to_string d) ^ ", ")) 2
+
+end
+
+module Checker_term = struct
+
+  let to_string = function
+    | Var x -> Printf.sprintf "Var %s" x
+    | Const d -> Printf.sprintf "Const %s" (Checker_domain.to_string d)
+
+  let rec list_to_string trms =
+    match trms with
+    | [] -> ""
+    | (Var x) :: trms -> if List.is_empty trms then x
+                         else Printf.sprintf "%s, %s" x (list_to_string trms)
+    | (Const d) :: trms -> if List.is_empty trms then (Checker_domain.to_string d)
+                           else Printf.sprintf "%s, %s" (Checker_domain.to_string d) (list_to_string trms)
+
+end
+
+module Checker_set = struct
+
+  let to_string cs =
+    let rec format = function
+      | [] -> ""
+      | [x] -> Checker_domain.to_string x
+      | x :: xs -> Printf.sprintf "%s, " (Checker_domain.to_string x) ^ (format xs) in
+    match cs with
+    | Set s -> Printf.sprintf "Set {%s}" (format s)
+    | Coset s -> Printf.sprintf "Coset {%s}" (format s)
+
+end
+
+module Checker_part = struct
+
+  let rec el_to_string indent f (sub, v) =
+    Printf.sprintf "%sset = {%s}\n%s%s" indent (Checker_set.to_string sub) indent (f indent v)
+
+  let to_string indent f = function
+    | [] -> indent ^ "[]"
+    | [x] -> indent ^ Etc.eat "[" ((el_to_string indent f x) ^ "]")
+    | x :: xs ->
+       List.fold_left ~f:(fun s el -> Etc.eat (s ^ "\n" ^ indent ^ "; ") (el_to_string indent f el))
+         ~init:(indent ^ Etc.eat "[ " (el_to_string indent f x)) xs ^ " ]"
+
+end
+
+module Checker_proof = struct
+
+  let rec sp_at = function
+    | STT tp -> tp
+    | SPred (tp, _, _) -> tp
+    | SNeg vp -> vp_at vp
+    | SOrL sp1 -> sp_at sp1
+    | SOrR sp2 -> sp_at sp2
+    | SAnd (sp1, _) -> sp_at sp1
+    | SImpL vp1 -> vp_at vp1
+    | SImpR sp2 -> sp_at sp2
+    | SIffSS (sp1, _) -> sp_at sp1
+    | SIffVV (vp1, _) -> vp_at vp1
+    | SExists (_, _, sp) -> sp_at sp
+    | SForall (_, part) -> sp_at (part_hd part)
+    | SPrev sp -> sum_nat (sp_at sp) (nat_of_int 1)
+    | SNext sp -> sub_nat (sp_at sp) (nat_of_int 1)
+    | SOnce (tp, _) -> tp
+    | SEventually (tp, _) -> tp
+    | SHistorically (tp, _, _) -> tp
+    | SHistoricallyOut tp -> tp
+    | SAlways (tp, _, _) -> tp
+    | SSince (sp2, sp1s) -> if List.is_empty sp1s then sp_at sp2
+                            else sp_at (List.last_exn sp1s)
+    | SUntil (sp1s, sp2) -> if List.is_empty sp1s then sp_at sp2
+                            else sp_at (List.hd_exn sp1s)
+  and vp_at = function
+    | VFF tp -> tp
+    | VPred (tp, _, _) -> tp
+    | VNeg sp -> sp_at sp
+    | VOr (vp1, _) -> vp_at vp1
+    | VAndL vp1 -> vp_at vp1
+    | VAndR vp2 -> vp_at vp2
+    | VImp (sp1, _) -> sp_at sp1
+    | VIffSV (sp1, _) -> sp_at sp1
+    | VIffVS (vp1, _) -> vp_at vp1
+    | VExists (_, part) -> vp_at (part_hd part)
+    | VForall (_, _, vp) -> vp_at vp
+    | VPrev vp -> sum_nat (vp_at vp) (nat_of_int 1)
+    | VPrevZ -> (nat_of_int 0)
+    | VPrevOutL tp -> tp
+    | VPrevOutR tp -> tp
+    | VNext vp -> sub_nat (vp_at vp) (nat_of_int 1)
+    | VNextOutL tp -> tp
+    | VNextOutR tp -> tp
+    | VOnceOut tp -> tp
+    | VOnce (tp, _, _) -> tp
+    | VEventually (tp, _, _) -> tp
+    | VHistorically (tp, _) -> tp
+    | VAlways (tp, _) -> tp
+    | VSinceOut tp -> tp
+    | VSince (tp, _, _) -> tp
+    | VSinceInf (tp, _, _) -> tp
+    | VUntil (tp, _, _) -> tp
+    | VUntilInf (tp, _, _) -> tp
+
+  let rec sp_to_string indent p =
+    let indent' = "\t" ^ indent in
+    match p with
+    | STT tp -> Printf.sprintf "%strue{%d}" indent (int_of_nat tp)
+    | SPred (tp, r, trms) -> Printf.sprintf "%sSPred(%d, %s, %s)" indent (int_of_nat tp) r (Checker_term.list_to_string trms)
+    | SNeg vp -> Printf.sprintf "%sSNeg{%d}\n%s" indent (int_of_nat (sp_at p)) (vp_to_string indent' vp)
+    | SOrL sp1 -> Printf.sprintf "%sSOrL{%d}\n%s" indent (int_of_nat (sp_at p)) (sp_to_string indent' sp1)
+    | SOrR sp2 -> Printf.sprintf "%sSOrR{%d}\n%s" indent (int_of_nat (sp_at p)) (sp_to_string indent' sp2)
+    | SAnd (sp1, sp2) -> Printf.sprintf "%sSAnd{%d}\n%s\n%s" indent (int_of_nat (sp_at p))
+                           (sp_to_string indent' sp1) (sp_to_string indent' sp2)
+    | SImpL vp1 -> Printf.sprintf "%sSImpL{%d}\n%s" indent (int_of_nat (sp_at p)) (vp_to_string indent' vp1)
+    | SImpR sp2 -> Printf.sprintf "%sSImpR{%d}\n%s" indent (int_of_nat (sp_at p)) (sp_to_string indent' sp2)
+    | SIffSS (sp1, sp2) -> Printf.sprintf "%sSIffSS{%d}\n%s\n%s" indent (int_of_nat (sp_at p))
+                             (sp_to_string indent' sp1) (sp_to_string indent' sp2)
+    | SIffVV (vp1, vp2) -> Printf.sprintf "%sSIffVV{%d}\n%s\n%s" indent (int_of_nat (sp_at p))
+                             (vp_to_string indent' vp1) (vp_to_string indent' vp2)
+    | SExists (x, d, sp) -> Printf.sprintf "%sSExists{%d}{%s=%s}\n%s\n" indent (int_of_nat (sp_at p))
+                              x (Checker_domain.to_string d) (sp_to_string indent' sp)
+    | SForall (x, part) -> Printf.sprintf "%sSForall{%d}{%s}\n%s\n" indent (int_of_nat (sp_at (part_hd part)))
+                             x (Checker_part.to_string indent' sp_to_string (subsvals part))
+    | SPrev sp -> Printf.sprintf "%sSPrev{%d}\n%s" indent (int_of_nat (sp_at p)) (sp_to_string indent' sp)
+    | SNext sp -> Printf.sprintf "%sSNext{%d}\n%s" indent (int_of_nat (sp_at p)) (sp_to_string indent' sp)
+    | SOnce (_, sp) -> Printf.sprintf "%sSOnce{%d}\n%s" indent (int_of_nat (sp_at p)) (sp_to_string indent' sp)
+    | SEventually (_, sp) -> Printf.sprintf "%sSEventually{%d}\n%s" indent (int_of_nat (sp_at p))
+                               (sp_to_string indent' sp)
+    | SHistorically (_, _, sps) -> Printf.sprintf "%sSHistorically{%d}\n%s" indent (int_of_nat (sp_at p))
+                                     (Etc.list_to_string indent' sp_to_string sps)
+    | SHistoricallyOut tp -> Printf.sprintf "%sSHistoricallyOut{%d}" indent' (int_of_nat tp)
+    | SAlways (_, _, sps) -> Printf.sprintf "%sSAlways{%d}\n%s" indent (int_of_nat (sp_at p))
+                               (Etc.list_to_string indent' sp_to_string sps)
+    | SSince (sp2, sp1s) -> Printf.sprintf "%sSSince{%d}\n%s\n%s" indent (int_of_nat (sp_at p)) (sp_to_string indent' sp2)
+                              (Etc.list_to_string indent' sp_to_string sp1s)
+    | SUntil (sp1s, sp2) -> Printf.sprintf "%sSUntil{%d}\n%s\n%s" indent (int_of_nat (sp_at p))
+                              (Etc.list_to_string indent' sp_to_string sp1s) (sp_to_string indent' sp2)
+  and vp_to_string indent p =
+    let indent' = "\t" ^ indent in
+    match p with
+    | VFF tp -> Printf.sprintf "%sfalse{%d}" indent (int_of_nat tp)
+    | VPred (tp, r, trms) -> Printf.sprintf "%sVPred(%d, %s, %s)" indent (int_of_nat tp) r (Checker_term.list_to_string trms)
+    | VNeg sp -> Printf.sprintf "%sVNeg{%d}\n%s" indent (int_of_nat (vp_at p)) (sp_to_string indent' sp)
+    | VOr (vp1, vp2) -> Printf.sprintf "%sVOr{%d}\n%s\n%s" indent (int_of_nat (vp_at p)) (vp_to_string indent' vp1) (vp_to_string indent' vp2)
+    | VAndL vp1 -> Printf.sprintf "%sVAndL{%d}\n%s" indent (int_of_nat (vp_at p)) (vp_to_string indent' vp1)
+    | VAndR vp2 -> Printf.sprintf "%sVAndR{%d}\n%s" indent (int_of_nat (vp_at p)) (vp_to_string indent' vp2)
+    | VImp (sp1, vp2) -> Printf.sprintf "%sVImp{%d}\n%s\n%s" indent (int_of_nat (vp_at p)) (sp_to_string indent' sp1) (vp_to_string indent' vp2)
+    | VIffSV (sp1, vp2) -> Printf.sprintf "%sVIffSV{%d}\n%s\n%s" indent (int_of_nat (vp_at p)) (sp_to_string indent' sp1) (vp_to_string indent' vp2)
+    | VIffVS (vp1, sp2) -> Printf.sprintf "%sVIffVS{%d}\n%s\n%s" indent (int_of_nat (vp_at p)) (vp_to_string indent' vp1) (sp_to_string indent' sp2)
+    | VExists (x, part) -> Printf.sprintf "%sVExists{%d}{%s}\n%s\n" indent (int_of_nat (vp_at (part_hd part)))
+                             x (Checker_part.to_string indent' vp_to_string (subsvals part))
+    | VForall (x, d, vp) -> Printf.sprintf "%sSExists{%d}{%s=%s}\n%s\n" indent (int_of_nat (vp_at p))
+                              x (Checker_domain.to_string d) (vp_to_string indent' vp)
+    | VPrev vp -> Printf.sprintf "%sVPrev{%d}\n%s" indent (int_of_nat (vp_at p)) (vp_to_string indent' vp)
+    | VPrevZ -> Printf.sprintf "%sVPrevZ{0}" indent'
+    | VPrevOutL tp -> Printf.sprintf "%sVPrevOutL{%d}" indent' (int_of_nat tp)
+    | VPrevOutR tp -> Printf.sprintf "%sVPrevOutR{%d}" indent' (int_of_nat tp)
+    | VNext vp -> Printf.sprintf "%sVNext{%d}\n%s" indent (int_of_nat (vp_at p)) (vp_to_string indent' vp)
+    | VNextOutL tp -> Printf.sprintf "%sVNextOutL{%d}" indent' (int_of_nat tp)
+    | VNextOutR tp -> Printf.sprintf "%sVNextOutR{%d}" indent' (int_of_nat tp)
+    | VOnceOut tp -> Printf.sprintf "%sVOnceOut{%d}" indent' (int_of_nat tp)
+    | VOnce (_, _, vps) -> Printf.sprintf "%sVOnce{%d}\n%s" indent (int_of_nat (vp_at p))
+                             (Etc.list_to_string indent' vp_to_string vps)
+    | VEventually (_, _, vps) -> Printf.sprintf "%sVEventually{%d}\n%s" indent (int_of_nat (vp_at p))
+                                   (Etc.list_to_string indent' vp_to_string vps)
+    | VHistorically (_, vp) -> Printf.sprintf "%sVHistorically{%d}\n%s" indent (int_of_nat (vp_at p)) (vp_to_string indent' vp)
+    | VAlways (_, vp) -> Printf.sprintf "%sVAlways{%d}\n%s" indent (int_of_nat (vp_at p)) (vp_to_string indent' vp)
+    | VSinceOut tp -> Printf.sprintf "%sVSinceOut{%d}" indent' (int_of_nat tp)
+    | VSince (_, vp1, vp2s) -> Printf.sprintf "%sVSince{%d}\n%s\n%s" indent (int_of_nat (vp_at p)) (vp_to_string indent' vp1)
+                                 (Etc.list_to_string indent' vp_to_string vp2s)
+    | VSinceInf (_, _, vp2s) -> Printf.sprintf "%sVSinceInf{%d}\n%s" indent (int_of_nat (vp_at p))
+                                  (Etc.list_to_string indent' vp_to_string vp2s)
+    | VUntil (_, vp2s, vp1) -> Printf.sprintf "%sVUntil{%d}\n%s\n%s" indent (int_of_nat (vp_at p))
+                                 (Etc.list_to_string indent' vp_to_string vp2s) (vp_to_string indent' vp1)
+    | VUntilInf (_, _, vp2s) -> Printf.sprintf "%sVUntilInf{%d}\n%s" indent (int_of_nat (vp_at p))
+                                  (Etc.list_to_string indent' vp_to_string vp2s)
+
+  let to_string indent = function
+    | Inl p -> sp_to_string indent p
+    | Inr p -> vp_to_string indent p
+
+end
+
+module Checker_trace = struct
+
+  type t = ((string * event_data list) set * nat) list
+
+  let evt_to_string (name, ds) =
+    Printf.sprintf "[debug] %s(%s)" name (Checker_domain.list_to_string ds)
+
+  let db_to_string db =
+    List.fold db ~init:"" ~f:(fun acc evt -> acc ^ evt_to_string evt ^ "\n")
+
+  let to_string trace_lst = List.fold_left trace_lst ~init:"" ~f:(fun acc (db, ts) ->
+                                acc ^ Printf.sprintf "[debug] TS = %d:\n" (int_of_nat ts) ^
+                                  (match db with
+                                   | Set s -> db_to_string s
+                                   | Coset _ -> raise (Failure "set of dbs should not be converted to coset")) ^ "\n")
+
+end
+
+module Checker_pdt = struct
+
+  type t = (event_data, (event_data sproof, event_data vproof) sum) pdt
+
+  let rec to_string indent = function
+    | Leaf pt -> Printf.sprintf "%s Leaf (%s)\n%s" indent (Checker_proof.to_string "" pt) indent
+    | Node (x, part) -> Printf.sprintf "%s Node (%s,\n%s)\n" indent x
+                          (Checker_part.to_string "    " to_string (subsvals part))
+
+end
+
+let check trace_lst f expls =
+  let f' = Checker_interface.convert_f f in
+  let trace_lst' = Checker_interface.convert_trace_aux trace_lst in
+  let trace' = Checker_interface.convert_trace trace_lst in
+  List.fold_left expls ~init:[] ~f:(fun acc expl ->
+      let expl' = Checker_interface.convert_expl expl in
+      (check_all_specialized trace' f' expl', expl', trace_lst')::acc)
+
+let false_paths trace_lst f expls =
+  let f' = Checker_interface.convert_f f in
+  let trace_lst' = Checker_interface.convert_trace_aux trace_lst in
+  let trace' = Checker_interface.convert_trace trace_lst in
+  List.fold_left expls ~init:[] ~f:(fun acc expl ->
+      let expl' = Checker_interface.convert_expl expl in
+      let paths = collect_paths_specialized trace' f' expl' in
+      match paths with
+      | None -> None::acc
+      | Some ps -> Some(List.map (Checker_interface.of_poly_set ps) ~f:(fun l ->
+                            List.map l (fun l' -> Checker_interface.of_fset l')))::acc)

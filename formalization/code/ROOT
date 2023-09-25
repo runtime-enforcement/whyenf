@@ -1,7 +1,7 @@
 chapter AFP
 
-session Explanator_Code (AFP) = Explanator +
+session Whymon_Code (AFP) = Whymon +
   theories
-    MTL_Code
+    Monitor_Code
   export_files (in ".") [2]
-    "Explanator_Code.MTL_Code:code/**"
+    "Whymon_Code.Monitor_Code:code/**"

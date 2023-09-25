@@ -6,28 +6,31 @@ Alternatively, you can write your own Metric Temporal Logic specification and tr
 
 ### Metric Temporal Logic
 ```
-{f} ::=   true
-        | false
-        | {ATOM}
-        | NOT {f}
-        | {f} AND {f}
-        | {f} OR  {f}
-        | {f} IFF {f}
-        | {f} IMPLIES {f}
-        | PREV{i} {f}
-        | NEXT{i} {f}
-        | ONCE{i} {f}
-        | EVENTUALLY{i} {f}
-        | HISTORICALLY{i} {f}
-        | ALWAYS{i} {f}
-        | {f} SINCE{i} {f}
-        | {f} UNTIL{i} {f}
-        | {f} TRIGGER{i} {f}
-        | {f} RELEASE{i} {f}
+{f} ::=   {ATOM}
+        | true                (⊤)
+        | false               (⊥)
+        | NOT {f}             (¬)
+        | {f} AND {f}         (∧)
+        | {f} OR  {f}         (∨)
+        | {f} IFF {f}         (↔)
+        | {f} IMPLIES {f}     (→)
+        | PREV{i} {f}         (●)
+        | NEXT{i} {f}         (○)
+        | ONCE{i} {f}         (⧫)
+        | EVENTUALLY{i} {f}   (◊)
+        | HISTORICALLY{i} {f} (■)
+        | ALWAYS{i} {f}       (□)
+        | {f} SINCE{i} {f}    (S)
+        | {f} UNTIL{i} {f}    (U)
+        | {f} TRIGGER{i} {f}  (T)
+        | {f} RELEASE{i} {f}  (R)
 
 {i}  ::= [{NAT}, {UPPERBOUND}]
-{UPPERBOUND} ::= {NAT} | INFINITY
+{UPPERBOUND} ::=   {NAT}
+                 | INFINITY   (∞)
 ```
+
+Note that this tool also supports the equivalent Unicode characters (on the right).
 
 ### Trace
 ```
@@ -45,7 +48,7 @@ Next, you have two columns: TS (time-stamps) and TP (time-points).
 Up until this column, the table solely represents the trace (from top to bottom).
 The following columns correspond to different subformulas of your MTL formula ϕ.
 
-The first column corresponds to ϕ itself, and at every time-point where it is possible to output a verdict, the Explanator2 shows a Boolean verdict for ϕ.
+The first column corresponds to ϕ itself, and at every time-point where it is possible to output a verdict, Explanator2 shows a Boolean verdict for ϕ.
 
 Moreover, in the table header only the main operator of a subformula is shown.
 To see the entire subformula, you can hover your cursor over a Boolean verdict:
@@ -56,10 +59,15 @@ In addition, you can inspect a Boolean verdict by clicking on it:
 
 <img alt="Verdict inspection" src="./assets/click.png" style="margin:0px 25px; max-width: 230px; height: auto;" />
 
-Whenever you click on a Boolean verdict, the Explanator2 shows and highlights the Boolean verdicts for subformulas that justify the verdict for the
+Whenever you click on a Boolean verdict, Explanator2 shows and highlights the Boolean verdicts for subformulas that justify the verdict for the
 overall formula according to the standard MTL semantics.
 Furthermore, it also highlights the time interval associated with the corresponding subformula.
 You may further inspect Boolean verdicts until you reach atomic propositions.
+
+Multiple Boolean verdicts can be explored simultaneously, so Explanator2 additionally highlights the overall Boolean verdict
+(i.e., the context) of the current inspection:
+
+<img alt="Verdict inspection" src="./assets/click_context.png" style="margin:0px 25px; max-width: 230px; height: auto;" />
 
 In the monitoring state, three different buttons are displayed:
 
