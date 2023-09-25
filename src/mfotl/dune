@@ -7,6 +7,6 @@
 
 (library
  (name mfotl)
- (libraries util core_kernel base zarith)
+ (libraries core_kernel base zarith)
  ;; debug menhirLib
  (preprocess (pps ppx_jane)))

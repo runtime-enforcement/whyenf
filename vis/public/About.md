@@ -1,17 +1,13 @@
 # About
 
-Explanator2 is an online monitor that produces verdicts in the form of explanations for Metric Temporal Logic formulas on arbitrary traces.
-It is the successor of <a style="color: #977b01;" href="https://bitbucket.org/traytel/explanator/src/master/" target="_blank">Explanator</a>.
+WhyMon is an online monitor that produces verdicts in the form of explanations for Metric First-Order Temporal Logic formulas.
+It is built on top of <a style="color: #977b01;" href="https://github.com/runtime-monitoring/explanator2" target="_blank">Explanator2</a>.
 
-This work is described in our paper accepted at TACAS 2023 <a style="color: #977b01;" href="https://www.excludedmiddle.net/papers/2023tacas.pdf" target="_blank">Explainable Online Monitoring of Metric Temporal Logic</a>.
+WhyMon is developed by <a style="color: #977b01;" href="https://www.excludedmiddle.net/" target="_blank">Leonardo Lima</a>, <a style="color: #977b01;" href="https://jjhym.com.mx/" target="_blank">Jonathan Huerta y Munive</a> and <a style="color: #977b01;" href="https://traytel.bitbucket.io/" target="_blank">Dmitriy Traytel</a>.
 
-This web application was developed by <a style="color: #977b01;" href="https://www.excludedmiddle.net/" target="_blank">Leonardo Lima</a> and <a style="color: #977b01;" href="https://traytel.bitbucket.io/" target="_blank">Dmitriy Traytel</a>.
+The source code of the project is available <a style="color: #977b01;" href="https://github.com/runtime-monitoring/whymon" target="_blank">here</a>.
 
-Andrei Herasimau, Martin Raszyk, and Simon Yuan contributed to the design and implementation of the underlying algorithms.
-
-The source code of the project is available <a style="color: #977b01;" href="https://github.com/runtime-monitoring/explanator2" target="_blank">here</a>.
-
-We welcome suggestions! Please let us know what do you think <a style="color: #977b01;" href="https://github.com/runtime-monitoring/explanator2/issues" target="_blank">here</a>.
+We welcome suggestions! Please let us know what do you think <a style="color: #977b01;" href="https://github.com/runtime-monitoring/whymon/issues" target="_blank">here</a>.
 
 
 <p style="margin: 4 auto; display: block; float: right; max-width: 280px">

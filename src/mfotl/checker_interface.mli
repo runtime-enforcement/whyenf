@@ -9,7 +9,7 @@
 
 open Base
 open Etc
-open Checker.MFOTL_Explanator2
+open Checker.Whymon
 
 module Checker_trace : sig
 
