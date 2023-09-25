@@ -9,7 +9,7 @@
 (*******************************************************************)
 
 open Js_of_ocaml
-open Mfotl
+open Monitor_lib
 
 module Whymon = struct
 
