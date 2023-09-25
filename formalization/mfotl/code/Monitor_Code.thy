@@ -1,5 +1,5 @@
 theory Monitor_Code
-  imports Explanator2.Monitor "HOL-Library.Code_Target_Nat" "HOL.String"
+  imports Whymon.Monitor "HOL-Library.Code_Target_Nat" "HOL.String"
     "HOL-Library.List_Lexorder" "HOL-Library.AList_Mapping" 
     Deriving.Derive
     (*Containers.Containers*)
@@ -1030,6 +1030,6 @@ export_code interval enat nat_of_integer integer_of_nat
   STT MFOTL.TT Inl EInt MFOTL.Var Leaf set part_hd sum_nat sub_nat subsvals
   check_all_specialized trace_of_list_specialized specialized_set ed_set abs_part 
   collect_paths_specialized
-  in OCaml module_name MFOTL_Explanator2 file_prefix "MFOTL_checker"
+  in OCaml module_name Whymon file_prefix "checker"
 
 end

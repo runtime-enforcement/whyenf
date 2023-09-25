@@ -1,6 +1,6 @@
 chapter AFP
 
-session Explanator2 (AFP) = "Containers" +
+session Whymon (AFP) = "Containers" +
   theories
     MFOTL
     Proof_System
