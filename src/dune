@@ -9,5 +9,5 @@
  (name monitor_lib)
  (libraries core_kernel base zarith landmarks)
  (preprocess (pps ppx_jane landmarks-ppx --auto))
- (instrumentation (backend landmarks))
+ (instrumentation (backend landmarks --auto))
 )
