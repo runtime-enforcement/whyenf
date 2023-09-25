@@ -10,7 +10,7 @@
 
 open Base
 open Stdio
-open Mfotl
+open Monitor_lib
 
 (* TODO: This module must be rewritten using the Command module from Core *)
 module Whymon = struct

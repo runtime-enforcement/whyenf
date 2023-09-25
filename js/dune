@@ -1,6 +1,6 @@
 (executable
  (name whymon)
  (modes js)
- (libraries mfotl js_of_ocaml zarith_stubs_js)
+ (libraries monitor_lib js_of_ocaml zarith_stubs_js)
  (promote (until-clean))
  (preprocess (pps ppx_jane js_of_ocaml-ppx)))
