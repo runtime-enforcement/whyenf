@@ -135,7 +135,6 @@ module Proof = struct
     | VUntil of int * vp * vp Fdeque.t
     | VUntilInf of int * int * vp Fdeque.t
 
-  (* TODO: Rewrite this with Either *)
   type t = S of sp | V of vp
 
   let unS = function
