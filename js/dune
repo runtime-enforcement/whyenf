@@ -1,5 +1,5 @@
 (executable
- (name explanator2)
+ (name whymon)
  (modes js)
  (libraries util mtl mfotl js_of_ocaml zarith_stubs_js)
  (promote (until-clean))

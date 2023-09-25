@@ -13,7 +13,7 @@ open Stdio
 open Mfotl
 
 (* TODO: This module must be rewritten using the Command module from Core *)
-module Explanator2 = struct
+module Whymon = struct
 
   let mode_ref = ref Out.Plain.UNVERIFIED
   let measure_ref = ref ""
@@ -25,7 +25,7 @@ module Explanator2 = struct
 
   let usage () =
     Caml.Format.eprintf
-      "usage: ./explanator2.exe [-mode] [-measure] [-sig] [-formula] [-log] [-out]
+      "usage: ./whymon.exe [-mode] [-measure] [-sig] [-formula] [-log] [-out]
        arguments:
        \t -mode
        \t\t unverified         - (default)

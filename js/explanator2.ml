@@ -1,5 +1,5 @@
 (*******************************************************************)
-(*     This is part of Explanator2, it is distributed under the    *)
+(*     This is part of WhyMon, and it is distributed under the     *)
 (*     terms of the GNU Lesser General Public License version 3    *)
 (*           (see file LICENSE for more details)                   *)
 (*                                                                 *)
@@ -11,7 +11,7 @@
 open Js_of_ocaml
 open Mfotl
 
-module Explanator2 = struct
+module Whymon = struct
 
   let mstate = ref None
 
