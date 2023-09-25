@@ -1,5 +1,5 @@
 (executable
  (public_name whymon)
  (name whymon)
- (libraries mtl mfotl util)
+ (libraries mfotl)
  (promote (until-clean)))
