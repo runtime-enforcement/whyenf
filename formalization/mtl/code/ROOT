@@ -1,7 +1,0 @@
-chapter AFP
-
-session Explanator_Code (AFP) = Explanator +
-  theories
-    MTL_Code
-  export_files (in ".") [2]
-    "Explanator_Code.MTL_Code:code/**"

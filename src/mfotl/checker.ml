@@ -56,7 +56,7 @@ let shiftr x n = Z.shift_right x (Z.to_int n);;
 
 end;; (*struct Integer_Bit*)
 
-module MFOTL_Explanator2 : sig
+module Whymon : sig
   type nat
   val integer_of_nat : nat -> Z.t
   type 'a set = Set of 'a list | Coset of 'a list
@@ -66,8 +66,7 @@ module MFOTL_Explanator2 : sig
   type ('a, 'b) sum = Inl of 'a | Inr of 'b
   type enat = Enat of nat | Infinity_enat
   type i
-  type 'a formula = TT | FF | Eq_Const of string * 'a |
-    Pred of string * 'a trm list | Neg of 'a formula |
+  type 'a formula = TT | FF | Pred of string * 'a trm list | Neg of 'a formula |
     Or of 'a formula * 'a formula | And of 'a formula * 'a formula |
     Imp of 'a formula * 'a formula | Iff of 'a formula * 'a formula |
     Exists of string * 'a formula | Forall of string * 'a formula |
@@ -78,20 +77,20 @@ module MFOTL_Explanator2 : sig
   type ('b, 'a) part
   type ('a, 'b) pdt = Leaf of 'b | Node of string * ('a, ('a, 'b) pdt) part
   type 'a sproof = STT of nat | SPred of nat * string * 'a trm list |
-    SEq_Const of nat * string * 'a | SNeg of 'a vproof | SOrL of 'a sproof |
-    SOrR of 'a sproof | SAnd of 'a sproof * 'a sproof | SImpL of 'a vproof |
-    SImpR of 'a sproof | SIffSS of 'a sproof * 'a sproof |
-    SIffVV of 'a vproof * 'a vproof | SExists of string * 'a * 'a sproof |
+    SNeg of 'a vproof | SOrL of 'a sproof | SOrR of 'a sproof |
+    SAnd of 'a sproof * 'a sproof | SImpL of 'a vproof | SImpR of 'a sproof |
+    SIffSS of 'a sproof * 'a sproof | SIffVV of 'a vproof * 'a vproof |
+    SExists of string * 'a * 'a sproof |
     SForall of string * ('a, 'a sproof) part | SPrev of 'a sproof |
     SNext of 'a sproof | SOnce of nat * 'a sproof |
     SEventually of nat * 'a sproof | SHistorically of nat * nat * 'a sproof list
     | SHistoricallyOut of nat | SAlways of nat * nat * 'a sproof list |
     SSince of 'a sproof * 'a sproof list | SUntil of 'a sproof list * 'a sproof
   and 'a vproof = VFF of nat | VPred of nat * string * 'a trm list |
-    VEq_Const of nat * string * 'a | VNeg of 'a sproof |
-    VOr of 'a vproof * 'a vproof | VAndL of 'a vproof | VAndR of 'a vproof |
-    VImp of 'a sproof * 'a vproof | VIffSV of 'a sproof * 'a vproof |
-    VIffVS of 'a vproof * 'a sproof | VExists of string * ('a, 'a vproof) part |
+    VNeg of 'a sproof | VOr of 'a vproof * 'a vproof | VAndL of 'a vproof |
+    VAndR of 'a vproof | VImp of 'a sproof * 'a vproof |
+    VIffSV of 'a sproof * 'a vproof | VIffVS of 'a vproof * 'a sproof |
+    VExists of string * ('a, 'a vproof) part |
     VForall of string * 'a * 'a vproof | VPrev of 'a vproof | VPrevZ |
     VPrevOutL of nat | VPrevOutR of nat | VNext of 'a vproof | VNextOutL of nat
     | VNextOutR of nat | VOnceOut of nat | VOnce of nat * nat * 'a vproof list |
@@ -115,11 +114,6 @@ module MFOTL_Explanator2 : sig
     (string * event_data list) trace ->
       event_data formula ->
         (event_data, (event_data sproof, event_data vproof) sum) pdt -> bool
-  val collect_paths_specialized :
-    (string * event_data list) trace ->
-      event_data formula ->
-        (event_data, (event_data sproof, event_data vproof) sum) pdt ->
-          (event_data set list) set option
   val trace_of_list_specialized :
     ((string * event_data list) set * nat) list ->
       (string * event_data list) trace
@@ -281,8 +275,7 @@ type enat = Enat of nat | Infinity_enat;;
 
 type i = Abs_I of (nat * enat);;
 
-type 'a formula = TT | FF | Eq_Const of string * 'a |
-  Pred of string * 'a trm list | Neg of 'a formula |
+type 'a formula = TT | FF | Pred of string * 'a trm list | Neg of 'a formula |
   Or of 'a formula * 'a formula | And of 'a formula * 'a formula |
   Imp of 'a formula * 'a formula | Iff of 'a formula * 'a formula |
   Exists of string * 'a formula | Forall of string * 'a formula |
@@ -296,23 +289,22 @@ type ('b, 'a) part = Abs_part of ('b set * 'a) list;;
 type ('a, 'b) pdt = Leaf of 'b | Node of string * ('a, ('a, 'b) pdt) part;;
 
 type 'a sproof = STT of nat | SPred of nat * string * 'a trm list |
-  SEq_Const of nat * string * 'a | SNeg of 'a vproof | SOrL of 'a sproof |
-  SOrR of 'a sproof | SAnd of 'a sproof * 'a sproof | SImpL of 'a vproof |
-  SImpR of 'a sproof | SIffSS of 'a sproof * 'a sproof |
-  SIffVV of 'a vproof * 'a vproof | SExists of string * 'a * 'a sproof |
-  SForall of string * ('a, 'a sproof) part | SPrev of 'a sproof |
-  SNext of 'a sproof | SOnce of nat * 'a sproof | SEventually of nat * 'a sproof
-  | SHistorically of nat * nat * 'a sproof list | SHistoricallyOut of nat |
-  SAlways of nat * nat * 'a sproof list | SSince of 'a sproof * 'a sproof list |
-  SUntil of 'a sproof list * 'a sproof
+  SNeg of 'a vproof | SOrL of 'a sproof | SOrR of 'a sproof |
+  SAnd of 'a sproof * 'a sproof | SImpL of 'a vproof | SImpR of 'a sproof |
+  SIffSS of 'a sproof * 'a sproof | SIffVV of 'a vproof * 'a vproof |
+  SExists of string * 'a * 'a sproof | SForall of string * ('a, 'a sproof) part
+  | SPrev of 'a sproof | SNext of 'a sproof | SOnce of nat * 'a sproof |
+  SEventually of nat * 'a sproof | SHistorically of nat * nat * 'a sproof list |
+  SHistoricallyOut of nat | SAlways of nat * nat * 'a sproof list |
+  SSince of 'a sproof * 'a sproof list | SUntil of 'a sproof list * 'a sproof
 and 'a vproof = VFF of nat | VPred of nat * string * 'a trm list |
-  VEq_Const of nat * string * 'a | VNeg of 'a sproof |
-  VOr of 'a vproof * 'a vproof | VAndL of 'a vproof | VAndR of 'a vproof |
-  VImp of 'a sproof * 'a vproof | VIffSV of 'a sproof * 'a vproof |
-  VIffVS of 'a vproof * 'a sproof | VExists of string * ('a, 'a vproof) part |
-  VForall of string * 'a * 'a vproof | VPrev of 'a vproof | VPrevZ |
-  VPrevOutL of nat | VPrevOutR of nat | VNext of 'a vproof | VNextOutL of nat |
-  VNextOutR of nat | VOnceOut of nat | VOnce of nat * nat * 'a vproof list |
+  VNeg of 'a sproof | VOr of 'a vproof * 'a vproof | VAndL of 'a vproof |
+  VAndR of 'a vproof | VImp of 'a sproof * 'a vproof |
+  VIffSV of 'a sproof * 'a vproof | VIffVS of 'a vproof * 'a sproof |
+  VExists of string * ('a, 'a vproof) part | VForall of string * 'a * 'a vproof
+  | VPrev of 'a vproof | VPrevZ | VPrevOutL of nat | VPrevOutR of nat |
+  VNext of 'a vproof | VNextOutL of nat | VNextOutR of nat | VOnceOut of nat |
+  VOnce of nat * nat * 'a vproof list |
   VEventually of nat * nat * 'a vproof list | VHistorically of nat * 'a vproof |
   VAlways of nat * 'a vproof | VSinceOut of nat |
   VSince of nat * 'a vproof * 'a vproof list |
@@ -338,14 +330,12 @@ let rec nth
   (x :: xs) n =
     (if equal_nata n zero_nat then x else nth xs (minus_nat n one_nat));;
 
-let rec fold f x1 s = match f, x1, s with f, x :: xs, s -> fold f xs (f x s)
-               | f, [], s -> s;;
-
-let rec rev xs = fold (fun a b -> a :: b) xs [];;
-
 let rec upt i j = (if less_nat i j then i :: upt (suc i) j else []);;
 
 let rec ball (Set xs) p = list_all p xs;;
+
+let rec fold f x1 s = match f, x1, s with f, x :: xs, s -> fold f xs (f x s)
+               | f, [], s -> s;;
 
 let rec null = function [] -> true
                | x :: xs -> false;;
@@ -400,40 +390,38 @@ let rec part_hd xa = snd (hd (rep_part xa));;
 let rec s_at
   = function STT i -> i
     | SPred (i, uu, uv) -> i
-    | SEq_Const (i, uw, ux) -> i
     | SNeg vp -> v_at vp
     | SOrL sp1 -> s_at sp1
     | SOrR sp2 -> s_at sp2
-    | SAnd (sp1, uy) -> s_at sp1
+    | SAnd (sp1, uw) -> s_at sp1
     | SImpL vp1 -> v_at vp1
     | SImpR sp2 -> s_at sp2
-    | SIffSS (sp1, uz) -> s_at sp1
-    | SIffVV (vp1, va) -> v_at vp1
-    | SExists (vb, vc, sp) -> s_at sp
-    | SForall (vd, part) -> s_at (part_hd part)
+    | SIffSS (sp1, ux) -> s_at sp1
+    | SIffVV (vp1, uy) -> v_at vp1
+    | SExists (uz, va, sp) -> s_at sp
+    | SForall (vb, part) -> s_at (part_hd part)
     | SPrev sp -> plus_nat (s_at sp) one_nat
     | SNext sp -> minus_nat (s_at sp) one_nat
-    | SOnce (i, ve) -> i
-    | SEventually (i, vf) -> i
-    | SHistorically (i, vg, vh) -> i
+    | SOnce (i, vc) -> i
+    | SEventually (i, vd) -> i
+    | SHistorically (i, ve, vf) -> i
     | SHistoricallyOut i -> i
-    | SAlways (i, vi, vj) -> i
+    | SAlways (i, vg, vh) -> i
     | SSince (sp2, sp1s) ->
         (match sp1s with [] -> s_at sp2 | _ :: _ -> s_at (last sp1s))
     | SUntil (sp1s, sp2) ->
         (match sp1s with [] -> s_at sp2 | sp1 :: _ -> s_at sp1)
 and v_at = function VFF i -> i
-           | VPred (i, vk, vl) -> i
-           | VEq_Const (i, vm, vn) -> i
+           | VPred (i, vi, vj) -> i
            | VNeg sp -> s_at sp
-           | VOr (vp1, vo) -> v_at vp1
+           | VOr (vp1, vk) -> v_at vp1
            | VAndL vp1 -> v_at vp1
            | VAndR vp2 -> v_at vp2
-           | VImp (sp1, vq) -> s_at sp1
-           | VIffSV (sp1, vr) -> s_at sp1
-           | VIffVS (vp1, vs) -> v_at vp1
-           | VExists (vt, part) -> v_at (part_hd part)
-           | VForall (vu, vv, vp1) -> v_at vp1
+           | VImp (sp1, vl) -> s_at sp1
+           | VIffSV (sp1, vm) -> s_at sp1
+           | VIffVS (vp1, vn) -> v_at vp1
+           | VExists (vo, part) -> v_at (part_hd part)
+           | VForall (vq, vr, vp1) -> v_at vp1
            | VPrev vp -> plus_nat (v_at vp) one_nat
            | VPrevZ -> zero_nat
            | VPrevOutL i -> i
@@ -442,15 +430,15 @@ and v_at = function VFF i -> i
            | VNextOutL i -> i
            | VNextOutR i -> i
            | VOnceOut i -> i
-           | VOnce (i, vw, vx) -> i
-           | VEventually (i, vy, vz) -> i
-           | VHistorically (i, wa) -> i
-           | VAlways (i, wb) -> i
+           | VOnce (i, vs, vt) -> i
+           | VEventually (i, vu, vv) -> i
+           | VHistorically (i, vw) -> i
+           | VAlways (i, vx) -> i
            | VSinceOut i -> i
-           | VSince (i, wc, wd) -> i
-           | VSinceInf (i, we, wf) -> i
-           | VUntil (i, wg, wh) -> i
-           | VUntilInf (i, wi, wj) -> i;;
+           | VSince (i, vy, vz) -> i
+           | VSinceInf (i, wa, wb) -> i
+           | VUntil (i, wc, wd) -> i
+           | VUntilInf (i, we, wf) -> i;;
 
 let rec rep_trace_rbt (Abs_trace_rbt x) = x;;
 
@@ -724,14 +712,13 @@ let rec mk_values_subset_Compl (_A1, _A2, _A3)
 let rec s_check_exec (_A1, _A2, _A3, _A4)
   sigma vs x2 sp = match sigma, vs, x2, sp with
     sigma, vs, Always (i, phi), sp ->
-      (match sp with STT _ -> false | SPred (_, _, _) -> false
-        | SEq_Const (_, _, _) -> false | SNeg _ -> false | SOrL _ -> false
-        | SOrR _ -> false | SAnd (_, _) -> false | SImpL _ -> false
-        | SImpR _ -> false | SIffSS (_, _) -> false | SIffVV (_, _) -> false
-        | SExists (_, _, _) -> false | SForall (_, _) -> false
-        | SPrev _ -> false | SNext _ -> false | SOnce (_, _) -> false
-        | SEventually (_, _) -> false | SHistorically (_, _, _) -> false
-        | SHistoricallyOut _ -> false
+      (match sp with STT _ -> false | SPred (_, _, _) -> false | SNeg _ -> false
+        | SOrL _ -> false | SOrR _ -> false | SAnd (_, _) -> false
+        | SImpL _ -> false | SImpR _ -> false | SIffSS (_, _) -> false
+        | SIffVV (_, _) -> false | SExists (_, _, _) -> false
+        | SForall (_, _) -> false | SPrev _ -> false | SNext _ -> false
+        | SOnce (_, _) -> false | SEventually (_, _) -> false
+        | SHistorically (_, _, _) -> false | SHistoricallyOut _ -> false
         | SAlways (ia, hi, sps) ->
           (match right i
             with Enat b ->
@@ -743,9 +730,9 @@ let rec s_check_exec (_A1, _A2, _A3, _A4)
         | SSince (_, _) -> false | SUntil (_, _) -> false)
     | sigma, vs, Historically (i, phi), vp ->
         (match vp with STT _ -> false | SPred (_, _, _) -> false
-          | SEq_Const (_, _, _) -> false | SNeg _ -> false | SOrL _ -> false
-          | SOrR _ -> false | SAnd (_, _) -> false | SImpL _ -> false
-          | SImpR _ -> false | SIffSS (_, _) -> false | SIffVV (_, _) -> false
+          | SNeg _ -> false | SOrL _ -> false | SOrR _ -> false
+          | SAnd (_, _) -> false | SImpL _ -> false | SImpR _ -> false
+          | SIffSS (_, _) -> false | SIffVV (_, _) -> false
           | SExists (_, _, _) -> false | SForall (_, _) -> false
           | SPrev _ -> false | SNext _ -> false | SOnce (_, _) -> false
           | SEventually (_, _) -> false
@@ -796,7 +783,6 @@ let rec s_check_exec (_A1, _A2, _A3, _A4)
     | sigma, vs, Until (xa, xaa, xb), SOrR x -> false
     | sigma, vs, Until (xa, xaa, xb), SOrL x -> false
     | sigma, vs, Until (xa, xaa, xb), SNeg x -> false
-    | sigma, vs, Until (xc, xaa, xba), SEq_Const (xb, xa, x) -> false
     | sigma, vs, Until (xc, xaa, xba), SPred (xb, xa, x) -> false
     | sigma, vs, Until (xa, xaa, xb), STT x -> false
     | sigma, vs, Since (xb, xaa, xba), SUntil (xa, x) -> false
@@ -828,7 +814,6 @@ let rec s_check_exec (_A1, _A2, _A3, _A4)
     | sigma, vs, Since (xa, xaa, xb), SOrR x -> false
     | sigma, vs, Since (xa, xaa, xb), SOrL x -> false
     | sigma, vs, Since (xa, xaa, xb), SNeg x -> false
-    | sigma, vs, Since (xc, xaa, xba), SEq_Const (xb, xa, x) -> false
     | sigma, vs, Since (xc, xaa, xba), SPred (xb, xa, x) -> false
     | sigma, vs, Since (xa, xaa, xb), STT x -> false
     | sigma, vs, Eventually (xb, xaa), SUntil (xa, x) -> false
@@ -856,7 +841,6 @@ let rec s_check_exec (_A1, _A2, _A3, _A4)
     | sigma, vs, Eventually (xa, xaa), SOrR x -> false
     | sigma, vs, Eventually (xa, xaa), SOrL x -> false
     | sigma, vs, Eventually (xa, xaa), SNeg x -> false
-    | sigma, vs, Eventually (xc, xaa), SEq_Const (xb, xa, x) -> false
     | sigma, vs, Eventually (xc, xaa), SPred (xb, xa, x) -> false
     | sigma, vs, Eventually (xa, xaa), STT x -> false
     | sigma, vs, Once (xb, xaa), SUntil (xa, x) -> false
@@ -884,7 +868,6 @@ let rec s_check_exec (_A1, _A2, _A3, _A4)
     | sigma, vs, Once (xa, xaa), SOrR x -> false
     | sigma, vs, Once (xa, xaa), SOrL x -> false
     | sigma, vs, Once (xa, xaa), SNeg x -> false
-    | sigma, vs, Once (xc, xaa), SEq_Const (xb, xa, x) -> false
     | sigma, vs, Once (xc, xaa), SPred (xb, xa, x) -> false
     | sigma, vs, Once (xa, xaa), STT x -> false
     | sigma, vs, Next (xb, xaa), SUntil (xa, x) -> false
@@ -916,7 +899,6 @@ let rec s_check_exec (_A1, _A2, _A3, _A4)
     | sigma, vs, Next (xa, xaa), SOrR x -> false
     | sigma, vs, Next (xa, xaa), SOrL x -> false
     | sigma, vs, Next (xa, xaa), SNeg x -> false
-    | sigma, vs, Next (xc, xaa), SEq_Const (xb, xa, x) -> false
     | sigma, vs, Next (xc, xaa), SPred (xb, xa, x) -> false
     | sigma, vs, Next (xa, xaa), STT x -> false
     | sigma, vs, Prev (xb, xaa), SUntil (xa, x) -> false
@@ -948,7 +930,6 @@ let rec s_check_exec (_A1, _A2, _A3, _A4)
     | sigma, vs, Prev (xa, xaa), SOrR x -> false
     | sigma, vs, Prev (xa, xaa), SOrL x -> false
     | sigma, vs, Prev (xa, xaa), SNeg x -> false
-    | sigma, vs, Prev (xc, xaa), SEq_Const (xb, xa, x) -> false
     | sigma, vs, Prev (xc, xaa), SPred (xb, xa, x) -> false
     | sigma, vs, Prev (xa, xaa), STT x -> false
     | sigma, vs, Forall (xb, xaa), SUntil (xa, x) -> false
@@ -977,7 +958,6 @@ let rec s_check_exec (_A1, _A2, _A3, _A4)
     | sigma, vs, Forall (xa, xaa), SOrR x -> false
     | sigma, vs, Forall (xa, xaa), SOrL x -> false
     | sigma, vs, Forall (xa, xaa), SNeg x -> false
-    | sigma, vs, Forall (xc, xaa), SEq_Const (xb, xa, x) -> false
     | sigma, vs, Forall (xc, xaa), SPred (xb, xa, x) -> false
     | sigma, vs, Forall (xa, xaa), STT x -> false
     | sigma, vs, Exists (xb, xaa), SUntil (xa, x) -> false
@@ -1002,7 +982,6 @@ let rec s_check_exec (_A1, _A2, _A3, _A4)
     | sigma, vs, Exists (xa, xaa), SOrR x -> false
     | sigma, vs, Exists (xa, xaa), SOrL x -> false
     | sigma, vs, Exists (xa, xaa), SNeg x -> false
-    | sigma, vs, Exists (xc, xaa), SEq_Const (xb, xa, x) -> false
     | sigma, vs, Exists (xc, xaa), SPred (xb, xa, x) -> false
     | sigma, vs, Exists (xa, xaa), STT x -> false
     | sigma, vs, Iff (xb, xaa), SUntil (xa, x) -> false
@@ -1030,7 +1009,6 @@ let rec s_check_exec (_A1, _A2, _A3, _A4)
     | sigma, vs, Iff (xa, xaa), SOrR x -> false
     | sigma, vs, Iff (xa, xaa), SOrL x -> false
     | sigma, vs, Iff (xa, xaa), SNeg x -> false
-    | sigma, vs, Iff (xc, xaa), SEq_Const (xb, xa, x) -> false
     | sigma, vs, Iff (xc, xaa), SPred (xb, xa, x) -> false
     | sigma, vs, Iff (xa, xaa), STT x -> false
     | sigma, vs, Imp (xb, xaa), SUntil (xa, x) -> false
@@ -1054,7 +1032,6 @@ let rec s_check_exec (_A1, _A2, _A3, _A4)
     | sigma, vs, Imp (xa, xaa), SOrR x -> false
     | sigma, vs, Imp (xa, xaa), SOrL x -> false
     | sigma, vs, Imp (xa, xaa), SNeg x -> false
-    | sigma, vs, Imp (xc, xaa), SEq_Const (xb, xa, x) -> false
     | sigma, vs, Imp (xc, xaa), SPred (xb, xa, x) -> false
     | sigma, vs, Imp (xa, xaa), STT x -> false
     | sigma, vs, And (xb, xaa), SUntil (xa, x) -> false
@@ -1079,7 +1056,6 @@ let rec s_check_exec (_A1, _A2, _A3, _A4)
     | sigma, vs, And (xa, xaa), SOrR x -> false
     | sigma, vs, And (xa, xaa), SOrL x -> false
     | sigma, vs, And (xa, xaa), SNeg x -> false
-    | sigma, vs, And (xc, xaa), SEq_Const (xb, xa, x) -> false
     | sigma, vs, And (xc, xaa), SPred (xb, xa, x) -> false
     | sigma, vs, And (xa, xaa), STT x -> false
     | sigma, vs, Or (xb, xaa), SUntil (xa, x) -> false
@@ -1103,7 +1079,6 @@ let rec s_check_exec (_A1, _A2, _A3, _A4)
     | sigma, vs, Or (xa, xaa), SOrL x ->
         s_check_exec (_A1, _A2, _A3, _A4) sigma vs xa x
     | sigma, vs, Or (xa, xaa), SNeg x -> false
-    | sigma, vs, Or (xc, xaa), SEq_Const (xb, xa, x) -> false
     | sigma, vs, Or (xc, xaa), SPred (xb, xa, x) -> false
     | sigma, vs, Or (xa, xaa), STT x -> false
     | sigma, vs, Neg xb, SUntil (xa, x) -> false
@@ -1126,7 +1101,6 @@ let rec s_check_exec (_A1, _A2, _A3, _A4)
     | sigma, vs, Neg xa, SOrL x -> false
     | sigma, vs, Neg xa, SNeg x ->
         v_check_exec (_A1, _A2, _A3, _A4) sigma vs xa x
-    | sigma, vs, Neg xc, SEq_Const (xb, xa, x) -> false
     | sigma, vs, Neg xc, SPred (xb, xa, x) -> false
     | sigma, vs, Neg xa, STT x -> false
     | sigma, vs, Pred (xb, xaa), SUntil (xa, x) -> false
@@ -1148,38 +1122,12 @@ let rec s_check_exec (_A1, _A2, _A3, _A4)
     | sigma, vs, Pred (xa, xaa), SOrR x -> false
     | sigma, vs, Pred (xa, xaa), SOrL x -> false
     | sigma, vs, Pred (xa, xaa), SNeg x -> false
-    | sigma, vs, Pred (xc, xaa), SEq_Const (xb, xa, x) -> false
     | sigma, vs, Pred (xc, xaa), SPred (xb, xa, x) ->
         Stdlib.(=) xc xa &&
           (equal_lista (equal_trm _A2) xaa x &&
             mk_values_subset equal_string8 _A2 (_A2, _A3) xc
               (eval_trms_set _A2 vs xaa) (gamma sigma xb))
     | sigma, vs, Pred (xa, xaa), STT x -> false
-    | sigma, vs, Eq_Const (xb, xaa), SUntil (xa, x) -> false
-    | sigma, vs, Eq_Const (xb, xaa), SSince (xa, x) -> false
-    | sigma, vs, Eq_Const (xc, xaa), SAlways (xb, xa, x) -> false
-    | sigma, vs, Eq_Const (xa, xaa), SHistoricallyOut x -> false
-    | sigma, vs, Eq_Const (xc, xaa), SHistorically (xb, xa, x) -> false
-    | sigma, vs, Eq_Const (xb, xaa), SEventually (xa, x) -> false
-    | sigma, vs, Eq_Const (xb, xaa), SOnce (xa, x) -> false
-    | sigma, vs, Eq_Const (xa, xaa), SNext x -> false
-    | sigma, vs, Eq_Const (xa, xaa), SPrev x -> false
-    | sigma, vs, Eq_Const (xb, xaa), SForall (xa, x) -> false
-    | sigma, vs, Eq_Const (xc, xaa), SExists (xb, xa, x) -> false
-    | sigma, vs, Eq_Const (xb, xaa), SIffVV (xa, x) -> false
-    | sigma, vs, Eq_Const (xb, xaa), SIffSS (xa, x) -> false
-    | sigma, vs, Eq_Const (xa, xaa), SImpR x -> false
-    | sigma, vs, Eq_Const (xa, xaa), SImpL x -> false
-    | sigma, vs, Eq_Const (xb, xaa), SAnd (xa, x) -> false
-    | sigma, vs, Eq_Const (xa, xaa), SOrR x -> false
-    | sigma, vs, Eq_Const (xa, xaa), SOrL x -> false
-    | sigma, vs, Eq_Const (xa, xaa), SNeg x -> false
-    | sigma, vs, Eq_Const (xc, xaa), SEq_Const (xb, xa, x) ->
-        eq _A2 xaa x &&
-          (Stdlib.(=) xc xa &&
-            set_eq (_A2, _A3) (vs xc) (insert _A2 xaa bot_set))
-    | sigma, vs, Eq_Const (xc, xaa), SPred (xb, xa, x) -> false
-    | sigma, vs, Eq_Const (xa, xaa), STT x -> false
     | sigma, vs, FF, p -> false
     | sigma, vs, TT, SUntil (xa, x) -> false
     | sigma, vs, TT, SSince (xa, x) -> false
@@ -1200,16 +1148,14 @@ let rec s_check_exec (_A1, _A2, _A3, _A4)
     | sigma, vs, TT, SOrR x -> false
     | sigma, vs, TT, SOrL x -> false
     | sigma, vs, TT, SNeg x -> false
-    | sigma, vs, TT, SEq_Const (xb, xa, x) -> false
     | sigma, vs, TT, SPred (xb, xa, x) -> false
     | sigma, vs, TT, STT x -> true
 and v_check_exec (_A1, _A2, _A3, _A4)
   sigma vs x2 vp = match sigma, vs, x2, vp with
     sigma, vs, Until (phi, i, psi), vp ->
-      (match vp with VFF _ -> false | VPred (_, _, _) -> false
-        | VEq_Const (_, _, _) -> false | VNeg _ -> false | VOr (_, _) -> false
-        | VAndL _ -> false | VAndR _ -> false | VImp (_, _) -> false
-        | VIffSV (_, _) -> false | VIffVS (_, _) -> false
+      (match vp with VFF _ -> false | VPred (_, _, _) -> false | VNeg _ -> false
+        | VOr (_, _) -> false | VAndL _ -> false | VAndR _ -> false
+        | VImp (_, _) -> false | VIffSV (_, _) -> false | VIffVS (_, _) -> false
         | VExists (_, _) -> false | VForall (_, _, _) -> false
         | VPrev _ -> false | VPrevZ -> false | VPrevOutL _ -> false
         | VPrevOutR _ -> false | VNext _ -> false | VNextOutL _ -> false
@@ -1237,13 +1183,12 @@ and v_check_exec (_A1, _A2, _A3, _A4)
               list_all (v_check_exec (_A1, _A2, _A3, _A4) sigma vs psi) vp2s))
     | sigma, vs, Eventually (i, phi), vp ->
         (match vp with VFF _ -> false | VPred (_, _, _) -> false
-          | VEq_Const (_, _, _) -> false | VNeg _ -> false | VOr (_, _) -> false
-          | VAndL _ -> false | VAndR _ -> false | VImp (_, _) -> false
-          | VIffSV (_, _) -> false | VIffVS (_, _) -> false
-          | VExists (_, _) -> false | VForall (_, _, _) -> false
-          | VPrev _ -> false | VPrevZ -> false | VPrevOutL _ -> false
-          | VPrevOutR _ -> false | VNext _ -> false | VNextOutL _ -> false
-          | VNextOutR _ -> false | VOnceOut _ -> false
+          | VNeg _ -> false | VOr (_, _) -> false | VAndL _ -> false
+          | VAndR _ -> false | VImp (_, _) -> false | VIffSV (_, _) -> false
+          | VIffVS (_, _) -> false | VExists (_, _) -> false
+          | VForall (_, _, _) -> false | VPrev _ -> false | VPrevZ -> false
+          | VPrevOutL _ -> false | VPrevOutR _ -> false | VNext _ -> false
+          | VNextOutL _ -> false | VNextOutR _ -> false | VOnceOut _ -> false
           | VOnce (_, _, _) -> false
           | VEventually (ia, hi, vps) ->
             (match right i
@@ -1259,13 +1204,12 @@ and v_check_exec (_A1, _A2, _A3, _A4)
           | VUntilInf (_, _, _) -> false)
     | sigma, vs, Since (phi, i, psi), vp ->
         (match vp with VFF _ -> false | VPred (_, _, _) -> false
-          | VEq_Const (_, _, _) -> false | VNeg _ -> false | VOr (_, _) -> false
-          | VAndL _ -> false | VAndR _ -> false | VImp (_, _) -> false
-          | VIffSV (_, _) -> false | VIffVS (_, _) -> false
-          | VExists (_, _) -> false | VForall (_, _, _) -> false
-          | VPrev _ -> false | VPrevZ -> false | VPrevOutL _ -> false
-          | VPrevOutR _ -> false | VNext _ -> false | VNextOutL _ -> false
-          | VNextOutR _ -> false | VOnceOut _ -> false
+          | VNeg _ -> false | VOr (_, _) -> false | VAndL _ -> false
+          | VAndR _ -> false | VImp (_, _) -> false | VIffSV (_, _) -> false
+          | VIffVS (_, _) -> false | VExists (_, _) -> false
+          | VForall (_, _, _) -> false | VPrev _ -> false | VPrevZ -> false
+          | VPrevOutL _ -> false | VPrevOutR _ -> false | VNext _ -> false
+          | VNextOutL _ -> false | VNextOutR _ -> false | VOnceOut _ -> false
           | VOnce (_, _, _) -> false | VEventually (_, _, _) -> false
           | VHistorically (_, _) -> false | VAlways (_, _) -> false
           | VSinceOut ia ->
@@ -1301,13 +1245,12 @@ and v_check_exec (_A1, _A2, _A3, _A4)
           | VUntil (_, _, _) -> false | VUntilInf (_, _, _) -> false)
     | sigma, vs, Once (i, phi), vp ->
         (match vp with VFF _ -> false | VPred (_, _, _) -> false
-          | VEq_Const (_, _, _) -> false | VNeg _ -> false | VOr (_, _) -> false
-          | VAndL _ -> false | VAndR _ -> false | VImp (_, _) -> false
-          | VIffSV (_, _) -> false | VIffVS (_, _) -> false
-          | VExists (_, _) -> false | VForall (_, _, _) -> false
-          | VPrev _ -> false | VPrevZ -> false | VPrevOutL _ -> false
-          | VPrevOutR _ -> false | VNext _ -> false | VNextOutL _ -> false
-          | VNextOutR _ -> false
+          | VNeg _ -> false | VOr (_, _) -> false | VAndL _ -> false
+          | VAndR _ -> false | VImp (_, _) -> false | VIffSV (_, _) -> false
+          | VIffVS (_, _) -> false | VExists (_, _) -> false
+          | VForall (_, _, _) -> false | VPrev _ -> false | VPrevZ -> false
+          | VPrevOutL _ -> false | VPrevOutR _ -> false | VNext _ -> false
+          | VNextOutL _ -> false | VNextOutR _ -> false
           | VOnceOut ia ->
             less_nat (tau sigma ia) (plus_nat (tau sigma zero_nat) (left i))
           | VOnce (ia, li, vps) ->
@@ -1360,7 +1303,6 @@ and v_check_exec (_A1, _A2, _A3, _A4)
     | sigma, vs, Always (xa, xaa), VAndL x -> false
     | sigma, vs, Always (xb, xaa), VOr (xa, x) -> false
     | sigma, vs, Always (xa, xaa), VNeg x -> false
-    | sigma, vs, Always (xc, xaa), VEq_Const (xb, xa, x) -> false
     | sigma, vs, Always (xc, xaa), VPred (xb, xa, x) -> false
     | sigma, vs, Always (xa, xaa), VFF x -> false
     | sigma, vs, Historically (xc, xaa), VUntilInf (xb, xa, x) -> false
@@ -1395,7 +1337,6 @@ and v_check_exec (_A1, _A2, _A3, _A4)
     | sigma, vs, Historically (xa, xaa), VAndL x -> false
     | sigma, vs, Historically (xb, xaa), VOr (xa, x) -> false
     | sigma, vs, Historically (xa, xaa), VNeg x -> false
-    | sigma, vs, Historically (xc, xaa), VEq_Const (xb, xa, x) -> false
     | sigma, vs, Historically (xc, xaa), VPred (xb, xa, x) -> false
     | sigma, vs, Historically (xa, xaa), VFF x -> false
     | sigma, vs, Next (xc, xaa), VUntilInf (xb, xa, x) -> false
@@ -1435,7 +1376,6 @@ and v_check_exec (_A1, _A2, _A3, _A4)
     | sigma, vs, Next (xa, xaa), VAndL x -> false
     | sigma, vs, Next (xb, xaa), VOr (xa, x) -> false
     | sigma, vs, Next (xa, xaa), VNeg x -> false
-    | sigma, vs, Next (xc, xaa), VEq_Const (xb, xa, x) -> false
     | sigma, vs, Next (xc, xaa), VPred (xb, xa, x) -> false
     | sigma, vs, Next (xa, xaa), VFF x -> false
     | sigma, vs, Prev (xc, xaa), VUntilInf (xb, xa, x) -> false
@@ -1474,7 +1414,6 @@ and v_check_exec (_A1, _A2, _A3, _A4)
     | sigma, vs, Prev (xa, xaa), VAndL x -> false
     | sigma, vs, Prev (xb, xaa), VOr (xa, x) -> false
     | sigma, vs, Prev (xa, xaa), VNeg x -> false
-    | sigma, vs, Prev (xc, xaa), VEq_Const (xb, xa, x) -> false
     | sigma, vs, Prev (xc, xaa), VPred (xb, xa, x) -> false
     | sigma, vs, Prev (xa, xaa), VFF x -> false
     | sigma, vs, Forall (xc, xaa), VUntilInf (xb, xa, x) -> false
@@ -1506,7 +1445,6 @@ and v_check_exec (_A1, _A2, _A3, _A4)
     | sigma, vs, Forall (xa, xaa), VAndL x -> false
     | sigma, vs, Forall (xb, xaa), VOr (xa, x) -> false
     | sigma, vs, Forall (xa, xaa), VNeg x -> false
-    | sigma, vs, Forall (xc, xaa), VEq_Const (xb, xa, x) -> false
     | sigma, vs, Forall (xc, xaa), VPred (xb, xa, x) -> false
     | sigma, vs, Forall (xa, xaa), VFF x -> false
     | sigma, vs, Exists (xc, xaa), VUntilInf (xb, xa, x) -> false
@@ -1542,7 +1480,6 @@ and v_check_exec (_A1, _A2, _A3, _A4)
     | sigma, vs, Exists (xa, xaa), VAndL x -> false
     | sigma, vs, Exists (xb, xaa), VOr (xa, x) -> false
     | sigma, vs, Exists (xa, xaa), VNeg x -> false
-    | sigma, vs, Exists (xc, xaa), VEq_Const (xb, xa, x) -> false
     | sigma, vs, Exists (xc, xaa), VPred (xb, xa, x) -> false
     | sigma, vs, Exists (xa, xaa), VFF x -> false
     | sigma, vs, Iff (xc, xaa), VUntilInf (xb, xa, x) -> false
@@ -1577,7 +1514,6 @@ and v_check_exec (_A1, _A2, _A3, _A4)
     | sigma, vs, Iff (xa, xaa), VAndL x -> false
     | sigma, vs, Iff (xb, xaa), VOr (xa, x) -> false
     | sigma, vs, Iff (xa, xaa), VNeg x -> false
-    | sigma, vs, Iff (xc, xaa), VEq_Const (xb, xa, x) -> false
     | sigma, vs, Iff (xc, xaa), VPred (xb, xa, x) -> false
     | sigma, vs, Iff (xa, xaa), VFF x -> false
     | sigma, vs, Imp (xc, xaa), VUntilInf (xb, xa, x) -> false
@@ -1609,7 +1545,6 @@ and v_check_exec (_A1, _A2, _A3, _A4)
     | sigma, vs, Imp (xa, xaa), VAndL x -> false
     | sigma, vs, Imp (xb, xaa), VOr (xa, x) -> false
     | sigma, vs, Imp (xa, xaa), VNeg x -> false
-    | sigma, vs, Imp (xc, xaa), VEq_Const (xb, xa, x) -> false
     | sigma, vs, Imp (xc, xaa), VPred (xb, xa, x) -> false
     | sigma, vs, Imp (xa, xaa), VFF x -> false
     | sigma, vs, And (xc, xaa), VUntilInf (xb, xa, x) -> false
@@ -1640,7 +1575,6 @@ and v_check_exec (_A1, _A2, _A3, _A4)
         v_check_exec (_A1, _A2, _A3, _A4) sigma vs xa x
     | sigma, vs, And (xb, xaa), VOr (xa, x) -> false
     | sigma, vs, And (xa, xaa), VNeg x -> false
-    | sigma, vs, And (xc, xaa), VEq_Const (xb, xa, x) -> false
     | sigma, vs, And (xc, xaa), VPred (xb, xa, x) -> false
     | sigma, vs, And (xa, xaa), VFF x -> false
     | sigma, vs, Or (xc, xaa), VUntilInf (xb, xa, x) -> false
@@ -1672,7 +1606,6 @@ and v_check_exec (_A1, _A2, _A3, _A4)
           (v_check_exec (_A1, _A2, _A3, _A4) sigma vs xaa x &&
             equal_nata (v_at xa) (v_at x))
     | sigma, vs, Or (xa, xaa), VNeg x -> false
-    | sigma, vs, Or (xc, xaa), VEq_Const (xb, xa, x) -> false
     | sigma, vs, Or (xc, xaa), VPred (xb, xa, x) -> false
     | sigma, vs, Or (xa, xaa), VFF x -> false
     | sigma, vs, Neg xc, VUntilInf (xb, xa, x) -> false
@@ -1702,7 +1635,6 @@ and v_check_exec (_A1, _A2, _A3, _A4)
     | sigma, vs, Neg xb, VOr (xa, x) -> false
     | sigma, vs, Neg xa, VNeg x ->
         s_check_exec (_A1, _A2, _A3, _A4) sigma vs xa x
-    | sigma, vs, Neg xc, VEq_Const (xb, xa, x) -> false
     | sigma, vs, Neg xc, VPred (xb, xa, x) -> false
     | sigma, vs, Neg xa, VFF x -> false
     | sigma, vs, Pred (xc, xaa), VUntilInf (xb, xa, x) -> false
@@ -1731,42 +1663,11 @@ and v_check_exec (_A1, _A2, _A3, _A4)
     | sigma, vs, Pred (xa, xaa), VAndL x -> false
     | sigma, vs, Pred (xb, xaa), VOr (xa, x) -> false
     | sigma, vs, Pred (xa, xaa), VNeg x -> false
-    | sigma, vs, Pred (xc, xaa), VEq_Const (xb, xa, x) -> false
     | sigma, vs, Pred (xc, xaa), VPred (xb, xa, x) ->
         Stdlib.(=) xc xa &&
           (equal_lista (equal_trm _A2) xaa x &&
             mk_values_subset_Compl (_A1, _A2, _A4) sigma xc vs xaa xb)
     | sigma, vs, Pred (xa, xaa), VFF x -> false
-    | sigma, vs, Eq_Const (xc, xaa), VUntilInf (xb, xa, x) -> false
-    | sigma, vs, Eq_Const (xc, xaa), VUntil (xb, xa, x) -> false
-    | sigma, vs, Eq_Const (xc, xaa), VSinceInf (xb, xa, x) -> false
-    | sigma, vs, Eq_Const (xc, xaa), VSince (xb, xa, x) -> false
-    | sigma, vs, Eq_Const (xa, xaa), VSinceOut x -> false
-    | sigma, vs, Eq_Const (xb, xaa), VAlways (xa, x) -> false
-    | sigma, vs, Eq_Const (xb, xaa), VHistorically (xa, x) -> false
-    | sigma, vs, Eq_Const (xc, xaa), VEventually (xb, xa, x) -> false
-    | sigma, vs, Eq_Const (xc, xaa), VOnce (xb, xa, x) -> false
-    | sigma, vs, Eq_Const (xa, xaa), VOnceOut x -> false
-    | sigma, vs, Eq_Const (xa, xaa), VNextOutR x -> false
-    | sigma, vs, Eq_Const (xa, xaa), VNextOutL x -> false
-    | sigma, vs, Eq_Const (xa, xaa), VNext x -> false
-    | sigma, vs, Eq_Const (xa, xaa), VPrevOutR x -> false
-    | sigma, vs, Eq_Const (xa, xaa), VPrevOutL x -> false
-    | sigma, vs, Eq_Const (x, xa), VPrevZ -> false
-    | sigma, vs, Eq_Const (xa, xaa), VPrev x -> false
-    | sigma, vs, Eq_Const (xc, xaa), VForall (xb, xa, x) -> false
-    | sigma, vs, Eq_Const (xb, xaa), VExists (xa, x) -> false
-    | sigma, vs, Eq_Const (xb, xaa), VIffVS (xa, x) -> false
-    | sigma, vs, Eq_Const (xb, xaa), VIffSV (xa, x) -> false
-    | sigma, vs, Eq_Const (xb, xaa), VImp (xa, x) -> false
-    | sigma, vs, Eq_Const (xa, xaa), VAndR x -> false
-    | sigma, vs, Eq_Const (xa, xaa), VAndL x -> false
-    | sigma, vs, Eq_Const (xb, xaa), VOr (xa, x) -> false
-    | sigma, vs, Eq_Const (xa, xaa), VNeg x -> false
-    | sigma, vs, Eq_Const (xc, xaa), VEq_Const (xb, xa, x) ->
-        eq _A2 xaa x && (Stdlib.(=) xc xa && not (member _A2 xaa (vs xc)))
-    | sigma, vs, Eq_Const (xc, xaa), VPred (xb, xa, x) -> false
-    | sigma, vs, Eq_Const (xa, xaa), VFF x -> false
     | sigma, vs, FF, VUntilInf (xb, xa, x) -> false
     | sigma, vs, FF, VUntil (xb, xa, x) -> false
     | sigma, vs, FF, VSinceInf (xb, xa, x) -> false
@@ -1793,7 +1694,6 @@ and v_check_exec (_A1, _A2, _A3, _A4)
     | sigma, vs, FF, VAndL x -> false
     | sigma, vs, FF, VOr (xa, x) -> false
     | sigma, vs, FF, VNeg x -> false
-    | sigma, vs, FF, VEq_Const (xb, xa, x) -> false
     | sigma, vs, FF, VPred (xb, xa, x) -> false
     | sigma, vs, FF, VFF x -> true
     | sigma, vs, TT, p -> false;;
@@ -1856,29 +1756,6 @@ let rec check_all (_A1, _A2, _A3, _A4)
 
 let rec fstfinite _A xs = list_all (finite _A) xs;;
 
-let rec collect_paths_aux (_A1, _A2, _A3, _A4)
-  ds sigma vs phi x4 = match ds, sigma, vs, phi, x4 with
-    ds, sigma, vs, phi, Leaf p ->
-      (if check_exec (_A1, _A2, _A3, _A4) sigma vs phi p then bot_set
-        else image rev ds)
-    | ds, sigma, vs, phi, Node (x, part) ->
-        sup_seta (equal_list (equal_set (_A2, _A3)))
-          (image
-            (fun (d, a) ->
-              collect_paths_aux (_A1, _A2, _A3, _A4)
-                (image (fun aa -> d :: aa) ds) sigma
-                (fun_upd equal_string8 vs x d) phi a)
-            (Set (subsvals part)));;
-
-let rec collect_paths (_A1, _A2, _A3, _A4)
-  sigma phi e =
-    (if distinct_paths e &&
-          check_all_aux (_A1, _A2, _A3, _A4) sigma (fun _ -> top_set) phi e
-      then None
-      else Some (collect_paths_aux (_A1, _A2, _A3, _A4)
-                  (insert (equal_list (equal_set (_A2, _A3))) [] bot_set) sigma
-                  (fun _ -> top_set) phi e));;
-
 let rec trace_rbt_of_list _A
   xa = Abs_trace_rbt
          (if sorted_wrt less_eq_nat (map snd xa) && fstfinite _A (map fst xa)
@@ -1893,18 +1770,13 @@ let rec nat_of_integer k = Nat (max ord_integer Z.zero k);;
 let rec specialized_set x = Set x;;
 
 let rec check_all_specialized
-  x = check_all
-        (default_event_data, equal_event_data, infinite_event_data,
-          linorder_event_data)
-        x;;
-
-let rec collect_paths_specialized
-  x = collect_paths
-        (default_event_data, equal_event_data, infinite_event_data,
-          linorder_event_data)
-        x;;
+  sigma phi e =
+    check_all
+      (default_event_data, equal_event_data, infinite_event_data,
+        linorder_event_data)
+      sigma phi e;;
 
 let rec trace_of_list_specialized
   xs = trace_of_list (infinite_prod (infinite_list nonunit_event_data)) xs;;
 
-end;; (*struct MFOTL_Explanator2*)
+end;; (*struct Whymon*)

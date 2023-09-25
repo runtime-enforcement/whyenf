@@ -11,7 +11,7 @@ open Base
 open Etc
 open Expl
 open Formula
-open Checker.MFOTL_Explanator2
+open Checker.Whymon
 
 module Fdeque = Core_kernel.Fdeque
 

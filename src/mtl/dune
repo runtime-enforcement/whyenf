@@ -1,9 +1,0 @@
-(ocamllex
- (modules lexer))
-
-(menhir
- (modules parser))
-
-(library
- (name mtl)
- (libraries util core_kernel base zarith))
