@@ -17,7 +17,7 @@ export default function NavBar() {
             <Link to="/" style={{ textDecoration: 'none' }}>
               <Button color="secondary">
                 <Typography variant="h6" component="div">
-                  Explanator2
+                  WhyMon
                 </Typography>
               </Button>
             </Link>

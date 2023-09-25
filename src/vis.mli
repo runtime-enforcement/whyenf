@@ -1,15 +1,20 @@
 (*******************************************************************)
-(*     This is part of Explanator2, it is distributed under the    *)
+(*     This is part of WhyMon, and it is distributed under the     *)
 (*     terms of the GNU Lesser General Public License version 3    *)
 (*           (see file LICENSE for more details)                   *)
 (*                                                                 *)
-(*  Copyright 2022:                                                *)
+(*  Copyright 2023:                                                *)
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
-open Mtl
-open Expl
-open Util
+module Dbs : sig
 
-val atoms_to_json: formula -> SS.t -> timepoint -> string
-val expl_to_json: formula -> expl -> string
+  val to_json: Etc.timepoint -> Db.t -> Formula.t -> string
+
+end
+
+module Expl : sig
+
+  val to_json: Formula.t -> Expl.t -> string
+
+end

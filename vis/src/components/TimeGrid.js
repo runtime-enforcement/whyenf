@@ -1,21 +1,36 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Box from '@mui/material/Box';
 import { DataGrid } from '@mui/x-data-grid';
 import Button from '@mui/material/Button';
 import CircleIcon from '@mui/icons-material/Circle';
 import CancelIcon from '@mui/icons-material/Cancel';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import StorageIcon from '@mui/icons-material/Storage';
 import Popover from '@mui/material/Popover';
 import Typography from '@mui/material/Typography';
-import { red, amber, lightGreen, indigo } from '@mui/material/colors';
+import { red, amber, lightGreen, indigo, blueGrey, teal, yellow, deepOrange, grey } from '@mui/material/colors';
 import { common } from '@mui/material/colors';
-import { black,
-         squareColor,
-         tpsIn,
-         computeMaxCol,
-         computeHighlightedPathCells } from '../util';
+import { black, cellColor, updateHighlights, getHeaderHighlights } from '../util';
+import MenuCell from './MenuCell';
+import DbTable from './DbTable';
 
-function Cell(props) {
+function DbCell(props) {
+  if (props.value.length === 0) {
+    return (
+      <Button>
+        <CancelIcon style={{ color: red[500] }} />
+      </Button>
+    );
+  } else {
+    return (
+      <Button>
+        <StorageIcon style={{ color: black }} />
+      </Button>
+    );
+  }
+}
+
+function BoolCell(props) {
   if (props.value === red[500] || props.value === lightGreen[500] || props.value === black) {
     return (
       <Button onClick={props.onClick}>
@@ -29,27 +44,36 @@ function Cell(props) {
   }
 }
 
-function TimeGrid ({ explanations,
-                     atoms,
-                     apsColumns,
-                     subfsColumns,
+function TimeGrid ({ columns,
+                     objs,
+                     tables,
+                     highlights,
                      subformulas,
-                     squares,
-                     selectedRows,
-                     highlightedCells,
-                     highlightedPaths,
+                     selectedOptions,
                      setMonitorState }) {
 
   const [anchorEl, setAnchorEl] = useState(null);
-  const [value, setValue] = useState('');
-  const [highlightedPathCells, setHighlightedPathCells] = useState([]);
+  const [anchorValue, setAnchorValue] = useState({});
   const open = Boolean(anchorEl);
 
   const handlePopoverOpen = (event) => {
-    const col = parseInt(event.currentTarget.dataset.field);
     const row = event.currentTarget.parentElement.dataset.id;
-    if (col >= apsColumns.length && squares[row][col] !== "" && squares[row][col] !== black) {
-      if (value !== subformulas[col - apsColumns.length]) setValue(subformulas[col - apsColumns.length]);
+    const col = parseInt(event.currentTarget.dataset.field);
+
+    // Preds
+    if (col < columns.preds.length &&
+        tables.dbs[row][col].length !== 0) {
+      setAnchorValue({ kind: "db", value: tables.dbs[row][col] });
+      setAnchorEl(event.currentTarget);
+    }
+
+    // Subformulas
+    if (col >= columns.preds.length &&
+        tables.colors[row][col - columns.preds.length] !== "" &&
+        tables.colors[row][col - columns.preds.length] !== black &&
+        tables.cells[row][col - columns.preds.length].kind !== undefined &&
+        tables.cells[row][col - columns.preds.length].kind !== "partition") {
+      setAnchorValue({ kind: "subf", value: subformulas[col - columns.preds.length] });
       setAnchorEl(event.currentTarget);
     }
   };
@@ -58,37 +82,46 @@ function TimeGrid ({ explanations,
     setAnchorEl(null);
   };
 
-  const apsWidth = apsColumns.reduce(
-    (acc, ap) => Math.max(acc, (10*(ap.length))),
-    60
+  // Preds columns
+  const predsWidth = columns.preds.reduce ((acc, pred) =>
+    Math.max(acc, (10*(pred.length))), 50
   );
 
-  const apsGridColumns = apsColumns.slice(0).map((a, i) =>
+  const predsGridColumns = columns.preds.slice(0).map((p, i) =>
     ({
       field: i.toString(),
-      headerName: a,
-      width: apsWidth,
+      headerName: p,
+      width: predsWidth,
       sortable: false,
-      renderHeader: () => a,
-      renderCell: (params) => <Cell value={squares[params.row.tp][i]} />,
+      renderHeader: () => p,
+      // renderCell: (params) => <DbCell value={tables.dbs[params.row.tp][i]} />,
+      renderCell: (params) => <DbCell value={tables.dbs[params.row.tp][i]} />,
       headerAlign: 'center',
       align: 'center',
-      disableClickEventBubbling: true
+      disableClickEventBubbling: true,
+      hide: !selectedOptions.has('Trace')
     }));
 
-  const fixedGridColumns = [
+  // TP/TS columns
+  const tsWidth = objs.dbs.reduce ((acc, { ts, tp }) =>
+    selectedOptions.has('Unix Timestamps') ?
+      Math.max(acc, (9*((new Date(ts).toLocaleString()).length)))
+      : Math.max(acc, (10*(ts.toString().length))), 50
+  );
+
+  const tptsGridColumns = [
     {
       field: 'tp',
-      headerName: 'TP',
-      width: 60,
+      headerName: <b>TP</b>,
+      width: 70,
       sortable: false,
       headerAlign: 'center',
       align: 'center',
       disableClickEventBubbling: true
     },
     { field: 'ts',
-      headerName: 'TS',
-      width: 60,
+      headerName: <b>TS</b>,
+      width: tsWidth,
       sortable: false,
       headerAlign: 'center',
       align: 'center',
@@ -96,109 +129,157 @@ function TimeGrid ({ explanations,
     }
   ];
 
-  const subfsWidth = subfsColumns.reduce(
-    (acc, ap) => Math.max(acc, (10*(ap.length))),
-    60
+  // Values column
+  const valuesGridColumn = [
+    {
+      field: 'values',
+      headerName: <b>Values</b>,
+      width: 80,
+      sortable: false,
+      headerAlign: 'center',
+      align: 'center',
+      disableClickEventBubbling: true,
+      renderCell: (params) => {
+        if (objs.expls[params.id] !== undefined) {
+          return <MenuCell explObj={objs.expls[params.id].expl}
+                           colorsTable={tables.colors}
+                           cellsTable={tables.cells}
+                           curCol={0}
+                           setMonitorState={setMonitorState} />;
+        } else {
+          return "";
+        }
+      }
+    }
+  ];
+
+  // Subfs columns
+  const subfsWidth = columns.subfs.reduce((acc, subf) =>
+    Math.max(acc, (9*(subf.length))), 60
   );
 
-  const subfsGridColumns = subfsColumns.slice(0).map((f, i) =>
+  // colGridIndex: index of the column in the grid
+  // i/curCol: index of the column in the subformulas part of the grid (i.e., after the TS column)
+  const subfsGridColumns = columns.subfs.slice(0).map((f, i) =>
     ({
-      field: (i+apsColumns.length).toString(),
+      field: (i+columns.preds.length).toString(),
       headerName: f,
+      headerClassName: () => {
+        if (highlights.subfsHeader[i] === "curHighlight") {
+          return "columnHeader--CurHighlighted";
+        } else {
+          if (highlights.subfsHeader[i] === "leftHighlight") {
+            return "columnHeader--LeftHighlighted";
+          } else {
+            if (highlights.subfsHeader[i] === "rightHighlight") {
+              return "columnHeader--RightHighlighted";
+            } else {
+              return "";
+            }
+          }
+        }
+      },
       width: subfsWidth,
       sortable: false,
       renderHeader: () => f,
-      renderCell: (params) => { return <Cell value={squares[params.row.tp][i+apsColumns.length]}
-                                             onClick={() => handleClick(params.row.ts, params.row.tp, params.colDef.field)} />; },
+      renderCell: (params) => {
+        if (f.charAt(0) === '∃' || f.charAt(0) === '∀') {
+          if (tables.cells[params.row.tp][i].kind === "partition" &&
+              (tables.colors[params.row.tp][i] === red[500]
+               || tables.colors[params.row.tp][i] === lightGreen[500])) {
+            return <MenuCell explObj={tables.cells[params.row.tp][i]}
+                             colorsTable={tables.colors}
+                             cellsTable={tables.cells}
+                             ts={params.row.ts}
+                             tp={params.row.tp}
+                             colGridIndex={parseInt(params.colDef.field)}
+                             curCol={i}
+                             predsLength={columns.preds.length}
+                             dbsObjs={objs.dbs}
+                             highlights={highlights}
+                             setMonitorState={setMonitorState}
+                             subfsScopes={columns.subfsScopes} />;
+          } else {
+            return <BoolCell value={tables.colors[params.row.tp][i]}
+                             onClick={() => handleClick(params.row.ts, params.row.tp, parseInt(params.colDef.field))}
+                   />;
+          }
+        } else {
+          return <BoolCell value={tables.colors[params.row.tp][i]}
+                           onClick={() => handleClick(params.row.ts, params.row.tp, parseInt(params.colDef.field))}
+                 />;
+        }
+      },
       headerAlign: 'center',
       align: 'center',
       disableClickEventBubbling: true
     }));
 
-  const rows = atoms.map(({ ts, tp }) =>
+  const rows = objs.dbs.map(({ ts, tp }) =>
     ({
       id: tp,
       tp: tp,
-      ts: ts
+      ts: selectedOptions.has('Unix Timestamps') ? new Date(ts*1000).toLocaleString() : ts
     }));
 
-  const handleClick = (ts, tp, col) => {
-    const colIndex = parseInt(col);
-    const mainColumnIndex = apsColumns.length;
+  const handleClick = (ts, tp, colGridIndex) => {
 
-    let cloneSquares = [...squares];
-    let cloneHighlightedPaths = [...highlightedPaths];
-    let cell;
+    let cell = tables.cells[tp][colGridIndex - columns.preds.length];
 
-    for (let i = 0; i < explanations.length; ++i) {
-      let c = explanations[i].table.find(c => c.tp === tp && c.col === colIndex);
-      if (c !== undefined) cell = c;
-    }
+    if (cell !== undefined && tables.colors[cell.tp][cell.col] !== black) {
 
-    if (cell !== undefined && squares[cell.tp][cell.col] !== black && cell.cells.length !== 0) {
       // Update highlighted cells (i.e. the ones who appear after a click)
-      let maxRow = Math.max(explanations.length, atoms.length);
-      let maxCol = computeMaxCol(explanations) + 1;
-      let highlightedCells = [...Array(maxRow)].map(x=>Array(maxCol).fill(false));
       let children = [];
 
       // Update cells (show hidden verdicts after a click)
+      let cloneColorsTable = [...tables.colors];
+
       for (let i = 0; i < cell.cells.length; ++i) {
-        cloneSquares[cell.cells[i].tp][cell.cells[i].col] = squareColor(cell.cells[i].bool);
-        highlightedCells[cell.cells[i].tp][cell.cells[i].col] = true;
-        children.push({ tp: cell.cells[i].tp, col: cell.cells[i].col, isHighlighted: false });
+        cloneColorsTable[cell.cells[i].tp][cell.cells[i].col] = cellColor(cell.cells[i].bool);
+        children.push({ tp: cell.cells[i].tp, col: cell.cells[i].col + columns.preds.length, isHighlighted: false });
       }
 
-      // Update interval highlighting
-      let lastTS = atoms[atoms.length - 1].ts;
-      let selRows = (cell.interval !== undefined) ? tpsIn(ts, tp, cell.interval, cell.period, lastTS, atoms) : [];
+      // Update header highlights
+      let newSubfsHeaderHighlights = getHeaderHighlights(colGridIndex - columns.preds.length,
+                                                         columns.subfsScopes,
+                                                         subfsGridColumns.length);
 
-      // Update (potentially multiple) open paths to be highlighted
-      for (let i = 0; i < cloneHighlightedPaths.length; ++i) {
-        for (let j = 0; j < cloneHighlightedPaths[i].children.length; ++j) {
-          cloneHighlightedPaths[i].children[j] = {...cloneHighlightedPaths[i].children[j], isHighlighted: false };
-        }
-        cloneHighlightedPaths[i] = {...cloneHighlightedPaths[i], isHighlighted: false };
-      }
+      // Update other highlights
+      let newHighlights = updateHighlights(ts, tp, colGridIndex, cell, objs.dbs, highlights,
+                                           newSubfsHeaderHighlights, children);
 
-      if (colIndex === mainColumnIndex) {
-        const i = cloneHighlightedPaths.findIndex(c => c.tp === tp && c.col === colIndex);
-        if (i === -1) cloneHighlightedPaths.push({ tp: tp, col: colIndex, isHighlighted: true, children: children });
-        else cloneHighlightedPaths[i] = {...cloneHighlightedPaths[i], isHighlighted: true };
-      } else {
-        for (let i = 0; i < cloneHighlightedPaths.length; ++i) {
-          const k = cloneHighlightedPaths[i].children.findIndex(c => c.tp === tp && c.col === colIndex);
-          if (k !== -1) {
-            cloneHighlightedPaths[i] = {...cloneHighlightedPaths[i], isHighlighted: true, children: cloneHighlightedPaths[i].children.concat(children) };
-            for (let j = 0; j <= k; ++j) {
-              cloneHighlightedPaths[i].children[j] = {...cloneHighlightedPaths[i].children[j], isHighlighted: true };
-            }
-          }
-        }
-      }
-
+      // Update state
       let action = { type: "updateTable",
-                     squares: cloneSquares,
-                     selectedRows: selRows,
-                     highlightedCells: highlightedCells,
-                     highlightedPaths: cloneHighlightedPaths,
-                   };
+                     colorsTable: cloneColorsTable,
+                     selectedRows: newHighlights.selectedRows,
+                     highlightedCells: newHighlights.highlightedCells,
+                     pathsMap: newHighlights.clonePathsMap,
+                     subfsHeader: newSubfsHeaderHighlights };
+
       setMonitorState(action);
     }
   };
 
-  useEffect(() => {
-    setHighlightedPathCells(computeHighlightedPathCells(highlightedPaths));
-  }, [setHighlightedPathCells, highlightedPaths]);
-
   return (
     <Box height="60vh"
          sx={{
-           '& .cell--Highlighted': {
+           '& .columnHeader--CurHighlighted': {
+             backgroundColor: blueGrey[100],
+           },
+           '& .columnHeader--LeftHighlighted': {
              backgroundColor: amber[300],
            },
+           '& .columnHeader--RightHighlighted': {
+             backgroundColor: teal[100],
+           },
+           '& .cell--LeftHighlighted': {
+             backgroundColor: amber[300],
+           },
+           '& .cell--RightHighlighted': {
+             backgroundColor: teal[100],
+           },
            '& .cell--PathHighlighted': {
-             backgroundColor: indigo[100],
+             backgroundColor: blueGrey[100],
            },
            '& .row--Highlighted': {
              bgcolor: amber[50],
@@ -215,22 +296,38 @@ function TimeGrid ({ explanations,
          }}>
       <DataGrid
         rows={rows}
-        columns={apsGridColumns.concat(fixedGridColumns.concat(subfsGridColumns))}
+        columns={predsGridColumns.concat(tptsGridColumns.concat(valuesGridColumn.concat(subfsGridColumns)))}
         getRowClassName={(params) => {
-          if (selectedRows.includes(params.row.tp)) return 'row--Highlighted';
+          if (highlights.selectedRows !== undefined &&
+              highlights.selectedRows.includes(params.row.tp)) return 'row--Highlighted';
           else return 'row--Plain';
         }}
         getCellClassName={(params) => {
-          if (highlightedCells.length !== 0
-              && highlightedCells[params.row.tp][parseInt(params.colDef.field)])
-            return 'cell--Highlighted';
-          if (highlightedPathCells.length !== 0) {
-            for (let i = 0; i < highlightedPathCells.length; ++i) {
-              if (highlightedPathCells[i].tp === params.row.tp
-                  && highlightedPathCells[i].col === parseInt(params.colDef.field))
-                return 'cell--PathHighlighted';
+
+          if (highlights.highlightedCells.length !== 0) {
+            for (let i = 0; i < highlights.highlightedCells.length; ++i) {
+              if (highlights.highlightedCells[i].tp === params.row.tp &&
+                  highlights.highlightedCells[i].col + columns.preds.length === parseInt(params.colDef.field)) {
+                if (highlights.highlightedCells[i].type === "leftHighlight") {
+                  return 'cell--LeftHighlighted';
+                } else {
+                  if (highlights.highlightedCells[i].type === "rightHighlight") {
+                    return 'cell--RightHighlighted';
+                  } else {
+                    return '';
+                  }
+                }
+              }
             }
           }
+
+          let m = highlights.pathsMap.get(params.row.tp.toString() + params.colDef.field);
+          if (m !== undefined && m.isHighlighted) {
+            return 'cell--PathHighlighted';
+          }
+
+          return '';
+
         }}
         componentsProps={{
           cell: {
@@ -261,7 +358,8 @@ function TimeGrid ({ explanations,
         onClose={handlePopoverClose}
         disableRestoreFocus
       >
-        <Typography sx={{ p: 1 }}>{value}</Typography>
+        { anchorValue.kind === "db" && <DbTable db={anchorValue.value}/> }
+        { anchorValue.kind === "subf" && <Typography sx={{ p: 1 }}>{anchorValue.value}</Typography> }
       </Popover>
     </Box>
   );

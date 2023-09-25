@@ -1,0 +1,1 @@
+publish(r) IMPLIES ONCE[0,604800] approve(r)

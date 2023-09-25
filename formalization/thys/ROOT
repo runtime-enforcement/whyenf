@@ -1,10 +1,7 @@
 chapter AFP
 
-session Explanator (AFP) = Containers +
-  sessions
-    Well_Quasi_Orders
+session Whymon (AFP) = "Containers" +
   theories
-    Interval
-    LTL_Explanations
-    MTL
-    Trace
+    MFOTL
+    Proof_System
+    Monitor
