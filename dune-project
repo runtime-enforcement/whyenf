@@ -1,11 +1,11 @@
 (lang dune 3.0)
 
-(name explanator2)
+(name whymon)
 
 (generate_opam_files true)
 
 (source
- (github runtime-monitoring/explanator2))
+ (github runtime-monitoring/whymon))
 
 (authors "Leonardo Lima")
 
@@ -18,8 +18,8 @@
 (using menhir 2.0)
 
 (package
- (name explanator2)
- (synopsis "Explanator2 is a tool for online monitoring satisfaction and violation explanations of MTL (Metric Temporal Logic) formulas on arbitrary words")
+ (name whymon)
+ (synopsis "")
  (description "")
  (depends
   (ocaml (>= 4.11))
