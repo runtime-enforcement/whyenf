@@ -62,7 +62,6 @@ let sorted_enqueue (ts, p) deque =
   let d' = remove_cond_back (fun (_, p') -> minp_bool p p') deque in
   Fdeque.enqueue_back d' (ts, p)
 
-(* TODO: split_in_out and split_out_in should be rewritten as a single function *)
 (* split_in_out considers a closed interval [l, r] *)
 let split_in_out get_ts (l, r) deque =
   let new_in = Fdeque.empty in
