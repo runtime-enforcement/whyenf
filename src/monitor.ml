@@ -140,11 +140,12 @@ let shift_tstps_past (l, r) a ts tp tstps_in tstps_out =
   if a = 0 then
     (remove_cond_front (fun (ts', _) -> ts' < l) (Fdeque.enqueue_back tstps_in (ts, tp)), tstps_out)
   else
+    let tstps_out' = Fdeque.enqueue_back tstps_out (ts, tp) in
     (remove_cond_front (fun (ts', _) -> ts' < l)
-       (Fdeque.fold tstps_out ~init:tstps_in ~f:(fun tstps_in' (ts', tp') ->
+       (Fdeque.fold tstps_out' ~init:tstps_in ~f:(fun tstps_in' (ts', tp') ->
             if ts' <= r then Fdeque.enqueue_back tstps_in' (ts', tp')
             else tstps_in')),
-     remove_cond_front (fun (ts', _) -> ts' <= r) tstps_out)
+     remove_cond_front (fun (ts', _) -> ts' <= r) tstps_out')
 
 let print_tstps ts_zero tstps_in tstps_out =
   (match ts_zero with
@@ -1494,7 +1495,11 @@ let rec meval vars ts tp (db: Db.t) = function
        Buf2t.take
          (fun expl1 expl2 ts tp (aux_pdt, es) ->
            let (aux_pdt', es') =
-             Pdt.split_prod (Pdt.apply3 vars (fun p1 p2 aux -> Since.update i ts tp p1 p2 aux) expl1 expl2 aux_pdt) in
+             Pdt.split_prod (Pdt.apply3 vars (fun p1 p2 aux ->
+                                 let (m, es) = Since.update i ts tp p1 p2 aux in
+                                 (* Stdio.printf "-----------------\n"; *)
+                                 (* Stdio.printf "%s\n" (Since.to_string m); *)
+                                 (m, es)) expl1 expl2 aux_pdt) in
            (aux_pdt', Pdt.split_list es'))
          (msaux_pdt, []) (Buf2.add expls1 expls2 buf2) (tstps @ [(ts,tp)]) in
      (expls', MSince (i, mf1', mf2', (buf2', tstps'), msaux_pdt'))
