@@ -45,30 +45,6 @@ export function getCells(explObj, path) {
 
 }
 
-export function getVariables(explObj, path, vars = []) {
-
-  if (explObj.var !== undefined) {
-    vars.push(explObj.var);
-  }
-
-  if (path.length === 0) {
-    return vars;
-  } else {
-
-    let subExplObj = explObj.part.find(expl => expl.subset_type === "finite" &&
-                                       expl.subset_values.some(val => val === path[0]));
-
-    if (subExplObj === undefined) {
-      subExplObj = explObj.part.find(expl => expl.subset_type === "complement");
-    }
-
-    path.shift();
-
-    return getVariables(subExplObj, path, vars);
-  }
-
-}
-
 function computePolarity(pol1, pol2) {
   if ((pol1 === "true" && pol2 === "true") ||
       (pol1 === "" && pol2 === "true") ||
@@ -131,6 +107,48 @@ export function updateCellsTableQuant(selCellsObj, curCol, cellsTable) {
     );
 
   return cellsTableClone;
+}
+
+export function updateHovers(variableNames, domainValues, curCol, subfsScopes, hoversTable) {
+
+  let hoversTableClone = [...hoversTable];
+
+  let curScope = subfsScopes.find((e) => e.col === curCol);
+
+  for (let i = 0; i < hoversTable.length; ++i) {
+    for (let j = 0; j < hoversTable[i].length; ++j) {
+      if (curScope.leftCols.includes(j) || curScope.rightCols.includes(j)) {
+
+        let columns = hoversTableClone[i][j].columns;
+        let values = hoversTableClone[i][j].values;
+
+        if (columns.includes(variableNames[0])) {
+          columns.pop();
+          values.pop();
+        }
+
+        hoversTableClone[i][j] = { columns: columns.concat(variableNames),
+                                   values: values.concat(domainValues) };
+      }
+    }
+  }
+
+  return hoversTableClone;
+
+}
+
+export function initHovers(variableNames, domainValues, hoversTable) {
+
+  let hoversTableClone = [...hoversTable];
+
+  for (let i = 0; i < hoversTable.length; ++i) {
+    for (let j = 0; j < hoversTable[i].length; ++j) {
+      hoversTableClone[i][j] = { columns: variableNames, values: domainValues };
+    }
+  }
+
+  return hoversTableClone;
+
 }
 
 export function initRhsTable(dbsObjs, subfsColumns) {

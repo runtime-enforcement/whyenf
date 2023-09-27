@@ -7,9 +7,14 @@ import WrapperNestedMenuItem from './WrapperNestedMenuItem';
 import WrapperIconMenuItem from './WrapperIconMenuItem';
 import { grey } from '@mui/material/colors';
 
-function MenuInstance ({ explObj, curCol, open, domainValues, handleClose, handleClick }) {
+function MenuInstance ({ explObj, curCol, open, domainValues, variableNames, handleClose, handleClick }) {
 
   if (explObj.type === "node" || explObj.kind === "partition") {
+    const newVariableNames = [];
+
+    newVariableNames.push(...variableNames);
+    newVariableNames.push(explObj.var);
+
     return (
       <div>
         <Box sx={{ ml: 1, mr: 1, mb: 1, borderRadius: '9px' }}
@@ -42,6 +47,7 @@ function MenuInstance ({ explObj, curCol, open, domainValues, handleClose, handl
                                 curCol={curCol}
                                 open={open}
                                 domainValues={newDomainValues}
+                                variableNames={newVariableNames}
                                 handleClose={handleClose}
                                 handleClick={handleClick}/>
                 </WrapperNestedMenuItem>
@@ -54,6 +60,7 @@ function MenuInstance ({ explObj, curCol, open, domainValues, handleClose, handl
                                      explObj={el}
                                      curCol={curCol}
                                      domainValues={newDomainValues}
+                                     variableNames={newVariableNames}
                                      handleClick={handleClick}/>
               </div>
             );
