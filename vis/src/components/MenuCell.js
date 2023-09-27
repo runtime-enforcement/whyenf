@@ -18,11 +18,13 @@ import { collectValues,
          getPolarity,
          updateHighlights,
          getHeaderHighlights,
-         getVariables } from '../util';
+         initHovers,
+         updateHovers } from '../util';
 
 function MenuCell ({ explObj,
                      colorsTable,
                      cellsTable,
+                     hoversTable,
                      ts,
                      tp,
                      colGridIndex,
@@ -40,23 +42,18 @@ function MenuCell ({ explObj,
   const handleFirstClick = (event) => setAnchorEl(event.currentTarget);
   const handleClose = () => setAnchorEl(null);
 
-  const handleClick = (event, domainValues) => {
+  const handleClick = (event, domainValues, variableNames) => {
 
     if (explObj.type === "node") {
 
-      let domainValuesAux = [...domainValues];
-
-      let selCellsObj = getCells(explObj, domainValuesAux);
-
-      domainValuesAux = [...domainValues];
-
-      let variables = getVariables(explObj, domainValuesAux);
+      let selCellsObj = getCells(explObj, [...domainValues]);
 
       let action = { type: "updateColorsAndCellsTable",
                      colorsTable: exposeColorsTableMain(selCellsObj,
                                                         colorsTable.length,
                                                         colorsTable[0].length),
-                     cellsTable: updateCellsTableMain(selCellsObj, cellsTable)
+                     cellsTable: updateCellsTableMain(selCellsObj, cellsTable),
+                     hoversTable: initHovers(variableNames, domainValues, hoversTable)
                    };
       setMonitorState(action);
 
@@ -73,7 +70,7 @@ function MenuCell ({ explObj,
         if (explObj.kind === "partition") {
 
           // Update path highlighting for the quantifiers case
-          let selPartObj = getCells(explObj, domainValues);
+          let selPartObj = getCells(explObj, [...domainValues]);
 
           let cell = undefined;
 
@@ -104,6 +101,7 @@ function MenuCell ({ explObj,
           let action = { type: "updateColorsAndCellsTableAndHighlights",
                          colorsTable: exposeColorsTableQuant(selPartObj, curCol + 1, subfsScopes, colorsTable),
                          cellsTable: updateCellsTableQuant(selPartObj, curCol, cellsTable),
+                         hoversTable: updateHovers(variableNames, domainValues, curCol, subfsScopes, hoversTable),
                          selectedRows: newHighlights.selectedRows,
                          highlightedCells: newHighlights.highlightedCells,
                          pathsMap: newHighlights.clonePathsMap,
@@ -177,6 +175,7 @@ function MenuCell ({ explObj,
             <MenuInstance explObj={explObj}
                           curCol={curCol}
                           domainValues={[]}
+                          variableNames={[]}
                           open={open}
                           handleClose={handleClose}
                           handleClick={handleClick}/>

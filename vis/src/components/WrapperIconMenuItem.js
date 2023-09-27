@@ -7,7 +7,7 @@ import Box from '@mui/material/Box';
 import { red, lightGreen, grey } from '@mui/material/colors';
 import { getPolarity } from '../util';
 
-function WrapperIconMenuItem ({ label, rightIcon, explObj, curCol, domainValues, handleClick }) {
+function WrapperIconMenuItem ({ label, rightIcon, explObj, curCol, domainValues, variableNames, handleClick }) {
 
   const [menuSelected, setMenuSelected] = useState(false);
 
@@ -43,7 +43,7 @@ function WrapperIconMenuItem ({ label, rightIcon, explObj, curCol, domainValues,
                     rightIcon={rightIcon}
                     label={label}
                     style={ menuSelected ? {background: grey[200]} : {} }
-                    onClick={(event) => { handleClick(event, domainValues); }}>
+                    onClick={(event) => { handleClick(event, domainValues, variableNames); }}>
       </IconMenuItem>
     </div>
   );
