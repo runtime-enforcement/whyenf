@@ -52,6 +52,7 @@ val trigger: Interval.t -> t -> t -> t
 val release: Interval.t -> t -> t -> t
 
 val fv: t -> (Term.t, Term.comparator_witness) Base.Set.t
+val check_bindings: t -> bool
 
 val hp: t -> int
 val hf: t -> int

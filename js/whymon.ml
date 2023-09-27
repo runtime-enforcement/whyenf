@@ -27,8 +27,10 @@ module Whymon = struct
     Other_parser.Sig.parse_from_string str_sig;
     let str_f = Js_of_ocaml.Js.to_string js_formula in
     let f = Formula_parser.formula Formula_lexer.token (Lexing.from_string str_f) in
-    let (ms, json) = Monitor.exec_vis None f str_log in
-    mstate := Some(ms); Js.string(json)
+    if (Formula.check_bindings f) then
+      (let (ms, json) = Monitor.exec_vis None f str_log in
+       mstate := Some(ms); Js.string(json))
+    else raise (Invalid_argument "formula is invalid: check its quantifier bindings")
 
   let monitor_append js_log js_formula =
     let str_log = Js_of_ocaml.Js.to_string js_log in
