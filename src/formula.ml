@@ -93,6 +93,30 @@ let rec fv = function
     | Since (_, f1, f2)
     | Until (_, f1, f2) -> Set.union (fv f1) (fv f2)
 
+let check_bindings f =
+  let fv_f = fv f in
+  let rec check_bindings_rec bound_vars = function
+    | TT | FF -> (bound_vars, true)
+    | Predicate _ -> (bound_vars, true)
+    | Exists (x, f)
+      | Forall (x, f) -> ((Set.add bound_vars x), (not (Set.mem fv_f x)) && (not (Set.mem bound_vars x)))
+    | Neg f
+      | Prev (_, f)
+      | Once (_, f)
+      | Historically (_, f)
+      | Eventually (_, f)
+      | Always (_, f)
+      | Next (_, f) -> check_bindings_rec bound_vars f
+    | And (f1, f2)
+      | Or (f1, f2)
+      | Imp (f1, f2)
+      | Iff (f1, f2)
+      | Since (_, f1, f2)
+      | Until (_, f1, f2) -> let (bound_vars1, b1) = check_bindings_rec bound_vars f1 in
+                             let (bound_vars2, b2) = check_bindings_rec (Set.union bound_vars1 bound_vars) f2 in
+                             (bound_vars2, b1 && b2) in
+  snd (check_bindings_rec (Set.empty (module Pred.Term)) f)
+
 (* Past height *)
 let rec hp = function
   | TT
