@@ -123,12 +123,15 @@ export function updateHovers(variableNames, domainValues, curCol, subfsScopes, h
         let values = hoversTableClone[i][j].values;
 
         if (columns.includes(variableNames[0])) {
-          columns.pop();
-          values.pop();
-        }
 
-        hoversTableClone[i][j] = { columns: columns.concat(variableNames),
-                                   values: values.concat(domainValues) };
+          let columnIdx = columns.findIndex((c) => c === variableNames[0]);
+          values[columnIdx] = domainValues[0];
+          hoversTableClone[i][j] = { columns: columns, values: values };
+
+        } else {
+          hoversTableClone[i][j] = { columns: columns.concat(variableNames),
+                                     values: values.concat(domainValues) };
+        }
       }
     }
   }
@@ -137,7 +140,7 @@ export function updateHovers(variableNames, domainValues, curCol, subfsScopes, h
 
 }
 
-export function initHovers(variableNames, domainValues, hoversTable) {
+export function startHovers(variableNames, domainValues, hoversTable) {
 
   let hoversTableClone = [...hoversTable];
 
@@ -157,6 +160,17 @@ export function initRhsTable(dbsObjs, subfsColumns) {
   let maxCol = subfsColumns.length;
 
   let table = new Array(maxRow).fill(null).map(() => Array(maxCol).fill(""));
+
+  return table;
+
+}
+
+export function initHovers(dbsObjs, subfsColumns) {
+
+  let maxRow = dbsObjs.length;
+  let maxCol = subfsColumns.length;
+
+  let table = new Array(maxRow).fill(null).map(() => Array(maxCol).fill({ columns: [], values: [] }));
 
   return table;
 

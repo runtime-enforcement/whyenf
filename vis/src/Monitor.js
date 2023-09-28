@@ -15,7 +15,7 @@ import ExampleSelect from './components/ExampleSelect';
 import PreambleCard from './components/PreambleCard';
 import AlertDialog from './components/AlertDialog';
 import CheckmarkOptions from './components/CheckmarkOptions';
-import { computeDbsTable, initRhsTable, translateError } from './util';
+import { computeDbsTable, initRhsTable, initHovers, translateError } from './util';
 
 function initMonitorState () {
   return { columns: { preds: [], subfs: [], subfsScopes: [] },
@@ -41,7 +41,7 @@ function initMonitor(monitorState, action) {
              tables: { dbs: computeDbsTable(dbsObjs, columns.predsColumns.length),
                        colors: initRhsTable(dbsObjs, columns.subfsColumns),
                        cells: initRhsTable(dbsObjs, columns.subfsColumns),
-                       hovers: initRhsTable(dbsObjs, columns.subfsColumns) },
+                       hovers: initHovers(dbsObjs, columns.subfsColumns) },
              highlights: { selectedRows: [],
                            highlightedCells: [],
                            pathsMap: new Map(),
@@ -70,7 +70,7 @@ function execMonitor(monitorState, action) {
              tables: { dbs: computeDbsTable(dbsObjs, columns.predsColumns.length),
                        colors: initRhsTable(dbsObjs, columns.subfsColumns),
                        cells: initRhsTable(dbsObjs, columns.subfsColumns),
-                       hovers: initRhsTable(dbsObjs, columns.subfsColumns) },
+                       hovers: initHovers(dbsObjs, columns.subfsColumns) },
              highlights: { selectedRows: [],
                            highlightedCells: [],
                            pathsMap: new Map(),
