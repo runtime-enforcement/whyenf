@@ -18,7 +18,7 @@ import { collectValues,
          getPolarity,
          updateHighlights,
          getHeaderHighlights,
-         initHovers,
+         startHovers,
          updateHovers } from '../util';
 
 function MenuCell ({ explObj,
@@ -53,7 +53,7 @@ function MenuCell ({ explObj,
                                                         colorsTable.length,
                                                         colorsTable[0].length),
                      cellsTable: updateCellsTableMain(selCellsObj, cellsTable),
-                     hoversTable: initHovers(variableNames, domainValues, hoversTable)
+                     hoversTable: startHovers(variableNames, domainValues, hoversTable)
                    };
       setMonitorState(action);
 
@@ -63,7 +63,8 @@ function MenuCell ({ explObj,
                        colorsTable: exposeColorsTableMain(explObj,
                                                           colorsTable.length,
                                                           colorsTable[0].length),
-                       cellsTable: updateCellsTableMain(explObj, cellsTable)
+                       cellsTable: updateCellsTableMain(explObj, cellsTable),
+                       hoversTable: hoversTable
                    };
         setMonitorState(action);
       } else {

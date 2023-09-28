@@ -10,7 +10,7 @@ import Popover from '@mui/material/Popover';
 import Typography from '@mui/material/Typography';
 import { red, amber, lightGreen, indigo, blueGrey, teal, yellow, deepOrange, grey } from '@mui/material/colors';
 import { common } from '@mui/material/colors';
-import { black, cellColor, updateHighlights, getHeaderHighlights } from '../util';
+import { black, cellColor, updateHighlights, getHeaderHighlights, updateHovers } from '../util';
 import MenuCell from './MenuCell';
 import DbTable from './DbTable';
 import HoverTable from './HoverTable';
@@ -254,12 +254,25 @@ function TimeGrid ({ columns,
                                            newSubfsHeaderHighlights, children);
 
       // Update state
-      let action = { type: "updateTable",
-                     colorsTable: cloneColorsTable,
-                     selectedRows: newHighlights.selectedRows,
-                     highlightedCells: newHighlights.highlightedCells,
-                     pathsMap: newHighlights.clonePathsMap,
-                     subfsHeader: newSubfsHeaderHighlights };
+      let action;
+
+      if (cell.kind === "assignment") {
+        action = { type: "updateTable",
+                   colorsTable: cloneColorsTable,
+                   selectedRows: newHighlights.selectedRows,
+                   highlightedCells: newHighlights.highlightedCells,
+                   pathsMap: newHighlights.clonePathsMap,
+                   subfsHeader: newSubfsHeaderHighlights,
+                   hoversTable: updateHovers([cell.var], [cell.value], colGridIndex - columns.preds.length, columns.subfsScopes, tables.hovers)
+                 };
+      } else {
+        action = { type: "updateTable",
+                   colorsTable: cloneColorsTable,
+                   selectedRows: newHighlights.selectedRows,
+                   highlightedCells: newHighlights.highlightedCells,
+                   pathsMap: newHighlights.clonePathsMap,
+                   subfsHeader: newSubfsHeaderHighlights };
+      }
 
       setMonitorState(action);
     }
