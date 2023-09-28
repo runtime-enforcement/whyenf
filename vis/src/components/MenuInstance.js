@@ -29,8 +29,12 @@ function MenuInstance ({ explObj, curCol, open, domainValues, variableNames, han
         </Box>
         { explObj?.part?.map((el, i) => {
 
-          const domainValue = el.subset_type === "finite" ?
+          const domainValueLabel = el.subset_type === "finite" ?
                 el.subset_values.join(', ') : (<span style={{fontWeight: 'bold'}}>Other</span>);
+          let domainValue = el.subset_type === "finite" ?
+              el.subset_values.join(', ') : "∁ {".concat(el.subset_values.join(', ')).concat("}");
+          if (el.subset_values.length === 0) domainValue = "𝔻";
+
           const newDomainValues = [];
           newDomainValues.push(...domainValues);
           newDomainValues.push(domainValue);
@@ -39,7 +43,7 @@ function MenuInstance ({ explObj, curCol, open, domainValues, variableNames, han
             return (
               <div key={i}>
                 <WrapperNestedMenuItem rightIcon={<ArrowRightIcon/>}
-                                       label={domainValue}
+                                       label={domainValueLabel}
                                        explObj={el}
                                        curCol={curCol}
                                        parentMenuOpen={open}>
@@ -56,7 +60,7 @@ function MenuInstance ({ explObj, curCol, open, domainValues, variableNames, han
           } else {
             return (
               <div key={i}>
-                <WrapperIconMenuItem label={domainValue}
+                <WrapperIconMenuItem label={domainValueLabel}
                                      explObj={el}
                                      curCol={curCol}
                                      domainValues={newDomainValues}

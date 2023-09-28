@@ -6,7 +6,7 @@ import MenuItem from '@mui/material/MenuItem';
 import InputLabel from '@mui/material/InputLabel';
 
 const examples = [{
-  name: 'publish-approve',
+  name: 'publish-approve-unix-ts',
   formula: "publish(r) → ⧫[0,604800] approve(r)",
   sig: "publish(x:int)\napprove(x:int)",
   trace: "@1307532861 approve (152)\n@1307955600 approve (163) publish (160)\n@1308477599 approve (187) publish (163) (152)\n"
@@ -73,7 +73,7 @@ export default function ExampleSelect ({ setFormState }) {
             onChange={handleChange}
             onClose={handleClose}
           >
-            {/* <MenuItem value={"publish-approve"}>publish-approve</MenuItem> */}
+            <MenuItem value={"publish-approve-unix-ts"}>publish-approve-unix-ts</MenuItem>
             <MenuItem value={"publish-approve-manager"}>publish-approve-manager</MenuItem>
             <MenuItem value={"publish-approve-manager-unix-ts"}>publish-approve-manager-unix-ts</MenuItem>
             <MenuItem value={"closed-publish-approve-manager"}>closed-publish-approve-manager</MenuItem>
