@@ -6,11 +6,9 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import Icon from '@mui/material/Icon';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
-import DataObjectIcon from '@mui/icons-material/DataObject';
 import MenuInstance from './MenuInstance';
 import { red, lightGreen } from '@mui/material/colors';
-import { collectValues,
-         getCells,
+import { getCells,
          exposeColorsTableMain,
          exposeColorsTableQuant,
          updateCellsTableMain,
