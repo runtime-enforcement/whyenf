@@ -48,7 +48,7 @@ let remove_cond_front_ne f deque =
     if (Fdeque.length d) > 1 then
       (match Fdeque.dequeue_front d with
        | None -> d
-       | Some(el', d') -> if (f el') then remove_cond_front_ne_rec d
+       | Some(el', d') -> if (f el') then remove_cond_front_ne_rec d'
                           else Fdeque.enqueue_front d' el')
     else d in
   remove_cond_front_ne_rec deque
@@ -1025,7 +1025,6 @@ module Until = struct
       | None -> (nts, ntp)
       | Some(ts', tp') -> (ts', tp') in
     (* v_betas_alpha *)
-    (* Stdio.printf "nts = %d; ntp = %d; eval_tp = %d\n" nts ntp eval_tp; *)
     let v_betas_alpha_step1 = Fdeque.map v_betas_alpha ~f:(fun d ->
                                   remove_cond_front (fun (ts', p) ->
                                       (ts' < first_ts + a) || ((Proof.p_at p) < first_tp)) d) in
@@ -1137,7 +1136,6 @@ module Until = struct
         eval_step a (nts, ntp) ts tp muaux')
 
   let update i nts ntp p1 p2 muaux =
-    (* Stdio.printf "nts = %d; ntp = %d\n" nts ntp; *)
     let a = Interval.left i in
     let b = match Interval.right i with
       | None -> raise (Invalid_argument "Until interval is unbounded")
@@ -1565,7 +1563,6 @@ module MState = struct
 end
 
 let mstep mode vars ts db (ms: MState.t) =
-  (* Stdio.printf "mstep: ts = %d; tp = %d;\n" ts ms.tp_cur; *)
   let (expls, mf') = meval vars ts ms.tp_cur db ms.mf in
   Queue.enqueue ms.ts_waiting ts;
   let tstps = List.zip_exn (List.take (Queue.to_list ms.ts_waiting) (List.length expls))
