@@ -41,7 +41,7 @@ module Term = struct
 
     let rec list_to_string trms =
       match trms with
-      | [] -> ""
+      | [] -> "[]"
       | (Var x) :: trms -> if List.is_empty trms then x
                            else Printf.sprintf "%s, %s" x (list_to_string trms)
       | (Const d) :: trms -> if List.is_empty trms then (Domain.to_string d)
