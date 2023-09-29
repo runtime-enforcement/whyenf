@@ -57,8 +57,10 @@ let rec string_list_to_string = function
   | x :: xs -> if List.is_empty xs then x
                else Printf.sprintf "%s, %s" x (string_list_to_string xs)
 
-let some_string () = (String.of_char (Random.ascii ())) ^ (String.of_char (Random.ascii ())) ^
-                       (String.of_char (Random.ascii ())) ^ (String.of_char (Random.ascii ()))
+let some_string () = (String.of_char (Char.of_int_exn (Random.int_incl 97 122))) ^
+                       (String.of_char (Char.of_int_exn (Random.int_incl 97 122))) ^
+                         (String.of_char (Char.of_int_exn (Random.int_incl 97 122))) ^
+                           (String.of_char (Char.of_int_exn (Random.int_incl 97 122)))
 
 let string_list_to_json l =
   match l with
