@@ -19,8 +19,8 @@ type t =
   | Or of t * t
   | Imp of t * t
   | Iff of t * t
-  | Exists of Term.t * t
-  | Forall of Term.t * t
+  | Exists of string * t
+  | Forall of string * t
   | Prev of Interval.t * t
   | Next of Interval.t * t
   | Once of Interval.t * t
@@ -51,7 +51,7 @@ val until: Interval.t -> t -> t -> t
 val trigger: Interval.t -> t -> t -> t
 val release: Interval.t -> t -> t -> t
 
-val fv: t -> (Term.t, Term.comparator_witness) Base.Set.t
+val fv: t -> (String.t, Base.String.comparator_witness) Base.Set.t
 val check_bindings: t -> bool
 
 val hp: t -> int

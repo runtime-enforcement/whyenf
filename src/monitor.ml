@@ -1199,8 +1199,8 @@ module MFormula = struct
     | MOr           of t * t * (Expl.t, Expl.t) Buf2.t
     | MImp          of t * t * (Expl.t, Expl.t) Buf2.t
     | MIff          of t * t * (Expl.t, Expl.t) Buf2.t
-    | MExists       of Term.t * Domain.tt * t
-    | MForall       of Term.t * Domain.tt * t
+    | MExists       of string * Domain.tt * t
+    | MForall       of string * Domain.tt * t
     | MPrev         of Interval.t * t * bool * (Expl.t, timestamp) Buft.t
     | MNext         of Interval.t * t * bool * timestamp list
     | MOnce         of Interval.t * t * (timestamp * timepoint) list * Once.t Expl.Pdt.t
@@ -1212,7 +1212,7 @@ module MFormula = struct
 
   let rec var_tt x = function
     | MTT | MFF -> []
-    | MPredicate (r, trms) -> (match (List.findi trms ~f:(fun i y -> Pred.Term.equal x y)) with
+    | MPredicate (r, trms) -> (match (List.findi trms ~f:(fun i y -> Pred.Term.equal (Var x) y)) with
                                | None -> []
                                | Some (i, _) -> let props = Hashtbl.find_exn Pred.Sig.table r in
                                                 [snd (List.nth_exn props.ntconsts i)])
@@ -1261,8 +1261,8 @@ module MFormula = struct
     | MOr (f, g, _) -> Printf.sprintf (Etc.paren l 3 "%a ∨ %a") (fun x -> to_string_rec 3) f (fun x -> to_string_rec 4) g
     | MImp (f, g, _) -> Printf.sprintf (Etc.paren l 4 "%a → %a") (fun x -> to_string_rec 4) f (fun x -> to_string_rec 4) g
     | MIff (f, g, _) -> Printf.sprintf (Etc.paren l 4 "%a ↔ %a") (fun x -> to_string_rec 4) f (fun x -> to_string_rec 4) g
-    | MExists (x, _, f) -> Printf.sprintf (Etc.paren l 5 "∃%s. %a") (Term.unvar x) (fun x -> to_string_rec 5) f
-    | MForall (x, _, f) -> Printf.sprintf (Etc.paren l 5 "∀%s. %a") (Term.unvar x) (fun x -> to_string_rec 5) f
+    | MExists (x, _, f) -> Printf.sprintf (Etc.paren l 5 "∃%s. %a") x (fun x -> to_string_rec 5) f
+    | MForall (x, _, f) -> Printf.sprintf (Etc.paren l 5 "∀%s. %a") x (fun x -> to_string_rec 5) f
     | MPrev (i, f, _, _) -> Printf.sprintf (Etc.paren l 5 "●%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
     | MNext (i, f, _, _) -> Printf.sprintf (Etc.paren l 5 "○%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
     | MOnce (i, f, _, _) -> Printf.sprintf (Etc.paren l 5 "⧫%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
@@ -1335,10 +1335,10 @@ let rec match_terms trms ds map =
   | [], [] -> Some(map)
   | Term.Const c :: trms, d :: ds -> if Domain.equal c d then match_terms trms ds map else None
   | Var x :: trms, d :: ds -> (match match_terms trms ds map with
-                               | None -> None
-                               | Some(map') -> (match Map.find map' (Term.Var x) with
-                                                | None -> let map'' = Map.add_exn map' (Term.Var x) d in Some(map'')
-                                                | Some z -> (if Domain.equal d z then Some map' else None)))
+                           | None -> None
+                           | Some(map') -> (match Map.find map' x with
+                                            | None -> let map'' = Map.add_exn map' x d in Some(map'')
+                                            | Some z -> (if Domain.equal d z then Some map' else None)))
   | _, _ -> None
 
 let print_maps maps =
@@ -1346,7 +1346,7 @@ let print_maps maps =
   List.iter maps ~f:(fun map -> Map.iteri map (fun ~key:k ~data:v ->
                                     Stdio.printf "%s -> %s\n" (Term.to_string k) (Domain.to_string v)))
 
-let rec pdt_of tp r trms vars maps : Expl.t = match vars with
+let rec pdt_of tp r trms (vars: string list) maps : Expl.t = match vars with
   | [] -> if List.is_empty maps then Leaf (V (VPred (tp, r, trms)))
           else Leaf (S (SPred (tp, r, trms)))
   | x :: vars ->
@@ -1374,13 +1374,13 @@ let rec meval vars ts tp (db: Db.t) = function
                    else Leaf (S (SPred (tp, r, trms))) in
         ([expl], MPredicate (r, trms)))
      else
-       let maps = Set.fold db' ~init:[] ~f:(fun acc evt -> match_terms trms (snd evt) (Map.empty (module Term)) :: acc) in
+       let maps = Set.fold db' ~init:[] ~f:(fun acc evt -> match_terms trms (snd evt) (Map.empty (module String)) :: acc) in
        let maps' = List.map (List.filter maps ~f:(fun map_opt -> match map_opt with
                                                                  | None -> false
                                                                  | Some(map) -> not (Map.is_empty map)))
                      ~f:(fun map_opt -> Option.value_exn map_opt) in
        let fv = Set.elements (Formula.fv (Predicate (r, trms))) in
-       let fv_vars = List.filter vars ~f:(fun var -> List.mem fv var ~equal:Pred.Term.equal) in
+       let fv_vars = List.filter vars ~f:(fun var -> List.mem fv var ~equal:String.equal) in
        let expl = pdt_of tp r trms fv_vars maps' in
        ([expl], MPredicate (r, trms))
   | MNeg (mf) ->
