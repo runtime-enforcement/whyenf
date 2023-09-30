@@ -46,10 +46,10 @@ module Plain = struct
     | Info s -> Stdio.printf "\nInfo: %s\n\n" s
 
   let expls ts tstp_expls checker_es_opt paths_opt f_opt = function
-    | UNVERIFIED -> List.iter tstp_expls (fun ((_, tp), e) -> expl (Explanation ((ts, tp), e)))
+    | UNVERIFIED -> List.iter tstp_expls ~f:(fun ((_, tp), e) -> expl (Explanation ((ts, tp), e)))
     | VERIFIED -> List.iter2_exn tstp_expls (Option.value_exn checker_es_opt)
-                    (fun ((_, tp), e) (b, _, _) -> expl (ExplanationCheck ((ts, tp), e, b)))
-    | LATEX -> List.iter tstp_expls (fun ((_, tp), e) ->
+                    ~f:(fun ((_, tp), e) (b, _, _) -> expl (ExplanationCheck ((ts, tp), e, b)))
+    | LATEX -> List.iter tstp_expls ~f:(fun ((_, tp), e) ->
                    expl (ExplanationLatex ((ts, tp), e, Option.value_exn f_opt)))
     | DEBUG -> List.iter2_exn (List.zip_exn tstp_expls (Option.value_exn checker_es_opt))
                  (Option.value_exn paths_opt)
@@ -69,10 +69,10 @@ module Json = struct
                                           let r_props = Hashtbl.find_exn Pred.Sig.table r in
                                           let var_names = fst (List.unzip r_props.ntconsts) in
                                           (Printf.sprintf "%s(%s)" r (Etc.string_list_to_string var_names)) :: acc)) in
-    let subfs_columns = List.map (Formula.subfs_dfs f) Formula.op_to_string in
+    let subfs_columns = List.map (Formula.subfs_dfs f) ~f:Formula.op_to_string in
     let subfs_scope = List.map (Formula.subfs_scope f 0) ~f:(fun (i, (js, ks)) ->
                           Printf.sprintf "{\"col\": %d, \"leftCols\": %s, \"rightCols\": %s}" i (Etc.int_list_to_json js) (Etc.int_list_to_json ks)) in
-    let subfs = List.map (Formula.subfs_dfs f) Formula.to_string in
+    let subfs = List.map (Formula.subfs_dfs f) ~f:Formula.to_string in
     Printf.sprintf "{\n  \"predsColumns\": %s,\n
                     \"subfsColumns\": %s,\n
                     \"subfsScopes\": [%s],\n

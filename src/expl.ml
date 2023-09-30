@@ -11,7 +11,7 @@
 open Base
 open Pred
 
-module Fdeque = Core_kernel.Fdeque
+module Fdeque = Core.Fdeque
 
 module Part = struct
 
@@ -45,11 +45,11 @@ module Part = struct
     | [], _ -> []
     | (sub1, v1) :: part1, part2 ->
        let part12 = List.filter_map part2
-                      (fun (sub2, v2) ->
+                      ~f:(fun (sub2, v2) ->
                         (if not (Setc.is_empty (Setc.inter sub1 sub2))
                          then Some (Setc.inter sub1 sub2, f v1 v2) else None)) in
        let part2not1 = List.filter_map part2
-                         (fun (sub2, v2) ->
+                         ~f:(fun (sub2, v2) ->
                            (if not (Setc.is_empty (Setc.diff sub2 sub1))
                             then Some (Setc.diff sub2 sub1, v2) else None)) in
        part12 @ (merge2 f part1 part2not1)
@@ -85,6 +85,7 @@ module Proof = struct
 
   type sp =
     | STT of int
+    | SEqConst of int * string * Domain.t
     | SPred of int * string * Term.t list
     | SNeg of vp
     | SOrL of sp
@@ -107,6 +108,7 @@ module Proof = struct
     | SUntil of sp * sp Fdeque.t
   and vp =
     | VFF of int
+    | VEqConst of int * string * Domain.t
     | VPred of int * string * Term.t list
     | VNeg of sp
     | VOr of vp * vp
@@ -182,6 +184,7 @@ module Proof = struct
 
   let rec s_at = function
     | STT tp -> tp
+    | SEqConst (tp, _, _) -> tp
     | SPred (tp, _, _) -> tp
     | SNeg vp -> v_at vp
     | SOrL sp1 -> s_at sp1
@@ -206,6 +209,7 @@ module Proof = struct
                             else s_at (Fdeque.peek_front_exn sp1s)
   and v_at = function
     | VFF tp -> tp
+    | VEqConst (tp, _, _) -> tp
     | VPred (tp, _, _) -> tp
     | VNeg sp -> s_at sp
     | VOr (vp1, _) -> v_at vp1
@@ -253,6 +257,7 @@ module Proof = struct
     let indent' = "\t" ^ indent in
     match p with
     | STT i -> Printf.sprintf "%strue{%d}" indent i
+    | SEqConst (tp, x, c) -> Printf.sprintf "%sSEqConst(%d, %s, %s)" indent tp x (Domain.to_string c)
     | SPred (tp, r, trms) -> Printf.sprintf "%sSPred(%d, %s, %s)" indent tp r (Term.list_to_string trms)
     | SNeg vp -> Printf.sprintf "%sSNeg{%d}\n%s" indent (s_at p) (v_to_string indent' vp)
     | SOrL sp1 -> Printf.sprintf "%sSOrL{%d}\n%s" indent (s_at p) (s_to_string indent' sp1)
@@ -287,6 +292,7 @@ module Proof = struct
     let indent' = "\t" ^ indent in
     match p with
     | VFF i -> Printf.sprintf "%sfalse{%d}" indent i
+    | VEqConst (tp, x, c) -> Printf.sprintf "%sVEqConst(%d, %s, %s)" indent tp x (Domain.to_string c)
     | VPred (tp, r, trms) -> Printf.sprintf "%sVPred(%d, %s, %s)" indent tp r (Term.list_to_string trms)
     | VNeg sp -> Printf.sprintf "%sVNeg{%d}\n%s" indent (v_at p) (s_to_string indent' sp)
     | VOr (vp1, vp2) -> Printf.sprintf "%sVOr{%d}\n%s\n%s" indent (v_at p) (v_to_string indent' vp1) (v_to_string indent' vp2)
@@ -336,6 +342,10 @@ module Proof = struct
     match p, h with
     | STT tp, TT  ->
        Printf.sprintf "\\infer[\\top]{%s, %d \\pvd true}{}\n" (val_changes_to_latex v) tp
+    | SEqConst (tp, x, c), EqConst (_, _) ->
+       Printf.sprintf "\\infer[\\Seqconst]{%s, %d \\pvd %s \\approx %s}{%s \\approx %s}\n"
+         (val_changes_to_latex v) tp (Etc.escape_underscores x) (Domain.to_string c)
+         (Etc.escape_underscores x) (Domain.to_string c)
     | SPred (tp, r, trms), Predicate (_, _) ->
        Printf.sprintf "\\infer[\\Spred]{%s, %d \\pvd %s\\,(%s)}{(%s,[%s]) \\in\\Gamma_{%d}}\n"
          (val_changes_to_latex v) tp (Etc.escape_underscores r) (Term.list_to_string trms)
@@ -420,6 +430,10 @@ module Proof = struct
     match p, h with
     | VFF tp, FF ->
        Printf.sprintf "\\infer[\\bot]{%s, %d \\nvd false}{}\n" (val_changes_to_latex v) tp
+    | VEqConst (tp, x, c), EqConst (_, _) ->
+       Printf.sprintf "\\infer[\\Veqconst]{%s, %d \\nvd %s \\approx %s}{%s \\not\\approx %s}\n"
+         (val_changes_to_latex v) tp (Etc.escape_underscores x) (Domain.to_string c)
+         (Etc.escape_underscores x) (Domain.to_string c)
     | VPred (tp, r, trms), Predicate (_, _) ->
        Printf.sprintf "\\infer[\\Vpred]{%s, %d \\nvd %s\\,(%s)}{(%s,[%s]) \\notin\\Gamma_{%d}}\n"
          (val_changes_to_latex v) tp (Etc.escape_underscores r) (Term.list_to_string trms)
@@ -532,6 +546,7 @@ module Proof = struct
 
     let rec s = function
       | STT _ -> 1
+      | SEqConst _ -> 1
       | SPred _ -> 1
       | SNeg vp -> 1 + v vp
       | SOrL sp1 -> 1 + s sp1
@@ -554,6 +569,7 @@ module Proof = struct
       | SUntil (sp2, sp1s) -> 1 + s sp2 + sum s sp1s
     and v = function
       | VFF _ -> 1
+      | VEqConst _ -> 1
       | VPred _ -> 1
       | VNeg sp -> 1 + s sp
       | VOr (vp1, vp2) -> 1 + v vp1 + v vp2

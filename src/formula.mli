@@ -13,6 +13,7 @@ open Pred
 type t =
   | TT
   | FF
+  | EqConst of string * Domain.t
   | Predicate of string * Term.t list
   | Neg of t
   | And of t * t
@@ -32,6 +33,7 @@ type t =
 
 val tt: t
 val ff: t
+val eqconst: string -> Domain.t -> t
 val predicate: string -> Term.t list -> t
 val neg: t -> t
 val conj: t -> t -> t

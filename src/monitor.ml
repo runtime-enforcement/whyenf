@@ -7,8 +7,7 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
-open Base
-open Core_kernel
+open Core
 open Etc
 open Expl
 open Pred
@@ -124,7 +123,7 @@ let add_tstp_future a b nts ntp tstps_out tstps_in =
     if nts < first_ts + a then (Fdeque.enqueue_back tstps_out (nts, ntp), tstps_in)
     else (tstps_out, Fdeque.enqueue_back tstps_in (nts, ntp))
   else
-    (if nts >= a && nts <= b || a == 0 then
+    (if nts >= a && nts <= b || Int.equal a 0 then
        (tstps_out, Fdeque.enqueue_back tstps_in (nts, ntp))
      else (Fdeque.enqueue_back tstps_out (nts, ntp), tstps_in))
 
@@ -1067,7 +1066,7 @@ module Until = struct
     let v_alphas_out_step1 = remove_cond_front (fun (_, p) -> (Proof.p_at p) < first_tp) v_alphas_out in
     let (new_out_v_alphas, v_alphas_in') = split_out_in (fun (ts', _) -> ts')
                                              (first_ts, (first_ts + a)) v_alphas_in in
-    let v_alphas_out' = sorted_append new_out_v_alphas v_alphas_out in
+    let v_alphas_out' = sorted_append new_out_v_alphas v_alphas_out_step1 in
     (* v_betas_in *)
     let v_betas_suffix_in' = remove_cond_front (fun (_, vp) ->
                                  match Fdeque.peek_front tstps_in'' with
@@ -1086,7 +1085,6 @@ module Until = struct
     ; optimal_proofs }
 
   let eval_step a (nts, ntp) ts tp muaux =
-    let optimal_proofs_initial_length = Fdeque.length muaux.optimal_proofs in
     let cur_alphas_beta = Fdeque.peek_front_exn muaux.s_alphas_beta in
     let optimal_proofs_step1 = if not (Fdeque.is_empty cur_alphas_beta) then
                                  (match Fdeque.peek_front_exn cur_alphas_beta with
@@ -1193,6 +1191,7 @@ module MFormula = struct
   type t =
     | MTT
     | MFF
+    | MEqConst      of string * Domain.t
     | MPredicate    of string * Term.t list
     | MNeg          of t
     | MAnd          of t * t * (Expl.t, Expl.t) Buf2.t
@@ -1212,6 +1211,7 @@ module MFormula = struct
 
   let rec var_tt x = function
     | MTT | MFF -> []
+    | MEqConst _ -> []
     | MPredicate (r, trms) -> (match (List.findi trms ~f:(fun i y -> Pred.Term.equal (Var x) y)) with
                                | None -> []
                                | Some (i, _) -> let props = Hashtbl.find_exn Pred.Sig.table r in
@@ -1235,6 +1235,7 @@ module MFormula = struct
   let rec init = function
     | Formula.TT -> MTT
     | Formula.FF -> MFF
+    | Formula.EqConst (x, c) -> MEqConst (x, c)
     | Formula.Predicate (r, trms) -> MPredicate (r, trms)
     | Formula.Neg (f) -> MNeg (init f)
     | Formula.And (f, g) -> MAnd (init f, init g, ([], []))
@@ -1242,7 +1243,7 @@ module MFormula = struct
     | Formula.Imp (f, g) -> MImp (init f, init g, ([], []))
     | Formula.Iff (f, g) -> MIff (init f, init g, ([], []))
     | Formula.Exists (x, f) -> let mf = init f in MExists (x, List.hd_exn (var_tt x mf), mf)
-    | Formula.Forall (x, f) -> let mf = init f in MForall (x, List.hd_exn (var_tt x mf), init f)
+    | Formula.Forall (x, f) -> let mf = init f in MForall (x, List.hd_exn (var_tt x mf), mf)
     | Formula.Prev (i, f) -> MPrev (i, init f, true, ([], []))
     | Formula.Next (i, f) -> MNext (i, init f, true, [])
     | Formula.Once (i, f) -> MOnce (i, init f, [], Leaf (Once.init ()))
@@ -1255,6 +1256,7 @@ module MFormula = struct
   let rec to_string_rec l = function
     | MTT -> Printf.sprintf "⊤"
     | MFF -> Printf.sprintf "⊥"
+    | MEqConst (x, c) -> Printf.sprintf "%s ≈ %s" x (Domain.to_string c)
     | MPredicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
     | MNeg f -> Printf.sprintf "¬%a" (fun x -> to_string_rec 5) f
     | MAnd (f, g, _) -> Printf.sprintf (Etc.paren l 4 "%a ∧ %a") (fun x -> to_string_rec 4) f (fun x -> to_string_rec 4) g
@@ -1335,15 +1337,15 @@ let rec match_terms trms ds map =
   | [], [] -> Some(map)
   | Term.Const c :: trms, d :: ds -> if Domain.equal c d then match_terms trms ds map else None
   | Var x :: trms, d :: ds -> (match match_terms trms ds map with
-                           | None -> None
-                           | Some(map') -> (match Map.find map' x with
-                                            | None -> let map'' = Map.add_exn map' x d in Some(map'')
-                                            | Some z -> (if Domain.equal d z then Some map' else None)))
+                               | None -> None
+                               | Some(map') -> (match Map.find map' x with
+                                                | None -> let map'' = Map.add_exn map' ~key:x ~data:d in Some(map'')
+                                                | Some z -> (if Domain.equal d z then Some map' else None)))
   | _, _ -> None
 
 let print_maps maps =
   Stdio.print_endline "> Map:";
-  List.iter maps ~f:(fun map -> Map.iteri map (fun ~key:k ~data:v ->
+  List.iter maps ~f:(fun map -> Map.iteri map ~f:(fun ~key:k ~data:v ->
                                     Stdio.printf "%s -> %s\n" (Term.to_string k) (Domain.to_string v)))
 
 let rec pdt_of tp r trms (vars: string list) maps : Expl.t = match vars with
@@ -1368,7 +1370,7 @@ let rec meval vars ts tp (db: Db.t) = function
   | MTT -> ([Pdt.Leaf (Proof.S (STT tp))], MTT)
   | MFF -> ([Leaf (V (VFF tp))], MFF)
   | MPredicate (r, trms) ->
-     let db' = Set.filter db (fun evt -> String.equal r (fst(evt))) in
+     let db' = Set.filter db ~f:(fun evt -> String.equal r (fst(evt))) in
      if List.is_empty trms then
        (let expl = if Set.is_empty db' then Pdt.Leaf (Proof.V (VPred (tp, r, trms)))
                    else Leaf (S (SPred (tp, r, trms))) in
@@ -1529,6 +1531,7 @@ let rec meval vars ts tp (db: Db.t) = function
                          ) muaux_pdt') in
      let expls' = Pdt.split_list es' in
      (expls', MUntil (i, mf1', mf2', (buf2', ntstps'), muaux_pdt'))
+  | _ -> failwith "not implemented yet"
 
 module MState = struct
 
@@ -1610,7 +1613,7 @@ let exec_vis (obj_opt: MState.t option) f log =
       if pb.ts >= last_ts then
         let (tstps_expls, ms') = mstep Out.Plain.UNVERIFIED (Set.elements (Formula.fv f)) pb.ts pb.db ms in
         let tp_out' = List.fold tstps_expls ~init:ms'.tp_out
-                            ~f:(fun acc ((ts, tp), _) -> Hashtbl.add_exn ms.tpts (acc + 1) ts; acc + 1) in
+                            ~f:(fun acc ((ts, tp), _) -> Hashtbl.add_exn ms.tpts ~key:(acc + 1) ~data:ts; acc + 1) in
         let json_expls = Out.Json.expls ms.tpts f (List.map tstps_expls ~f:snd) in
         let json_db = Out.Json.db pb.ts ms.tp_cur pb.db f in
         (None, (json_expls, [json_db]),
