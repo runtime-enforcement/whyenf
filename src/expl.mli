@@ -11,7 +11,7 @@
 open Base
 open Pred
 
-module Fdeque = Core_kernel.Fdeque
+module Fdeque = Core.Fdeque
 
 module Part : sig
 
@@ -39,6 +39,7 @@ module Proof : sig
 
   type sp =
     | STT of int
+    | SEqConst of int * string * Domain.t
     | SPred of int * string * Term.t list
     | SNeg of vp
     | SOrL of sp
@@ -61,6 +62,7 @@ module Proof : sig
     | SUntil of sp * sp Fdeque.t
   and vp =
     | VFF of int
+    | VEqConst of int * string * Domain.t
     | VPred of int * string * Term.t list
     | VNeg of sp
     | VOr of vp * vp

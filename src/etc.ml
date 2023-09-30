@@ -9,7 +9,7 @@
 
 open Base
 
-module Fdeque = Core_kernel.Fdeque
+module Fdeque = Core.Fdeque
 
 type timepoint = int
 type timestamp = int
@@ -25,7 +25,7 @@ let is_digit = function
   | _ -> false
 
 exception Parsing_error of Lexing.position*Lexing.position*string
-let parsing_error i j fmt = Format.kasprintf (fun s -> raise (Parsing_error(i,j,s))) fmt
+let parsing_error i j fmt = Caml.Format.kasprintf (fun s -> raise (Parsing_error(i,j,s))) fmt
 let lexing_error lexbuf fmt = parsing_error (Lexing.lexeme_start_p lexbuf) (Lexing.lexeme_end_p lexbuf) fmt
 let lexbuf_error_msg (lexbuf: Lexing.lexbuf) =
   Printf.sprintf "a problem was found at line %d character %d"
@@ -66,18 +66,18 @@ let string_list_to_json l =
   match l with
   | [] -> "[]"
   | _ -> let els_str = String.concat ~sep:"" (List.map l ~f:(fun el -> "\"" ^ el ^ "\",")) in
-         "[" ^ (String.sub els_str 0 ((String.length els_str)-1)) ^ "]"
+         "[" ^ (String.sub els_str ~pos:0 ~len:((String.length els_str)-1)) ^ "]"
 
 let int_list_to_json l =
   match l with
   | [] -> "[]"
   | _ -> let els_str = String.concat ~sep:"" (List.map l ~f:(fun el -> (Int.to_string el) ^ ",")) in
-         "[" ^ (String.sub els_str 0 ((String.length els_str)-1)) ^ "]"
+         "[" ^ (String.sub els_str ~pos:0 ~len:((String.length els_str)-1)) ^ "]"
 
 let unquote s =
     let len = String.length s in
     if Char.equal s.[0] '\"' && Char.equal s.[len-1] '\"' then
-      String.sub s 1 (len-2)
+      String.sub s ~pos:1 ~len:(len-2)
     else s
 
 let escape_underscores s =

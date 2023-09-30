@@ -13,7 +13,7 @@ open Expl
 open Formula
 open Checker.Whymon
 
-module Fdeque = Core_kernel.Fdeque
+module Fdeque = Core.Fdeque
 
 let int_of_nat n = Z.to_int (integer_of_nat n)
 let nat_of_int i = nat_of_integer (Z.of_int i)
@@ -33,7 +33,6 @@ module Checker_interface = struct
   let of_event_data (ed: event_data) = match ed with
     | EInt v -> Domain.Int (Z.to_int v)
     | EString v -> Str v
-    | _ -> raise (Invalid_argument "type not supported yet")
 
   let convert_term (t: Pred.Term.t) = match t with
     | Const c -> Const (to_event_data c)
@@ -64,7 +63,8 @@ module Checker_interface = struct
     abs_part (part_lst)
   and convert_sp (sp: Proof.sp) : (event_data sproof) = match sp with
     | STT tp -> STT (nat_of_int tp)
-    | SPred (tp, s, trms) -> SPred (nat_of_int tp, s, List.map trms convert_term)
+    | SEqConst (tp, x, c) -> SEq_Const (nat_of_int tp, x, to_event_data c)
+    | SPred (tp, s, trms) -> SPred (nat_of_int tp, s, List.map trms ~f:convert_term)
     | SNeg vp1 -> SNeg (convert_vp vp1)
     | SOrL sp1 -> SOrL (convert_sp sp1)
     | SOrR sp2 -> SOrR (convert_sp sp2)
@@ -94,7 +94,8 @@ module Checker_interface = struct
        SUntil (sp1s', convert_sp sp2)
   and convert_vp (vp: Proof.vp) : (event_data vproof) = match vp with
     | VFF tp -> VFF (nat_of_int tp)
-    | VPred (tp, s, trms) -> VPred (nat_of_int tp, s, List.map trms convert_term)
+    | VEqConst (tp, x, c) -> VEq_Const (nat_of_int tp, x, to_event_data c)
+    | VPred (tp, s, trms) -> VPred (nat_of_int tp, s, List.map trms ~f:convert_term)
     | VNeg sp1 -> VNeg (convert_sp sp1)
     | VOr (vp1, vp2) -> VOr (convert_vp vp1, convert_vp vp2)
     | VAndL vp1 -> VAndL (convert_vp vp1)
@@ -161,6 +162,7 @@ module Checker_interface = struct
   let rec convert_f = function
     | Formula.TT -> TT
     | FF -> FF
+    | EqConst (x, c) -> Eq_Const (x, to_event_data c)
     | Predicate (x, trms) -> Pred (x, List.map trms ~f:convert_term)
     | Neg (f) -> Neg (convert_f f)
     | Or (f, g) -> Or (convert_f f, convert_f g)
@@ -249,6 +251,7 @@ module Checker_proof = struct
 
   let rec sp_at = function
     | STT tp -> tp
+    | SEq_Const (tp, _, _) -> tp
     | SPred (tp, _, _) -> tp
     | SNeg vp -> vp_at vp
     | SOrL sp1 -> sp_at sp1
@@ -273,6 +276,7 @@ module Checker_proof = struct
                             else sp_at (List.hd_exn sp1s)
   and vp_at = function
     | VFF tp -> tp
+    | VEq_Const (tp, _, _) -> tp
     | VPred (tp, _, _) -> tp
     | VNeg sp -> sp_at sp
     | VOr (vp1, _) -> vp_at vp1
@@ -305,6 +309,7 @@ module Checker_proof = struct
     let indent' = "\t" ^ indent in
     match p with
     | STT tp -> Printf.sprintf "%strue{%d}" indent (int_of_nat tp)
+    | SEq_Const (tp, x, c) -> Printf.sprintf "%sSEq_Const(%d, %s, %s)" indent (int_of_nat tp) x (Checker_domain.to_string c)
     | SPred (tp, r, trms) -> Printf.sprintf "%sSPred(%d, %s, %s)" indent (int_of_nat tp) r (Checker_term.list_to_string trms)
     | SNeg vp -> Printf.sprintf "%sSNeg{%d}\n%s" indent (int_of_nat (sp_at p)) (vp_to_string indent' vp)
     | SOrL sp1 -> Printf.sprintf "%sSOrL{%d}\n%s" indent (int_of_nat (sp_at p)) (sp_to_string indent' sp1)
@@ -339,6 +344,7 @@ module Checker_proof = struct
     let indent' = "\t" ^ indent in
     match p with
     | VFF tp -> Printf.sprintf "%sfalse{%d}" indent (int_of_nat tp)
+    | VEq_Const (tp, x, c) -> Printf.sprintf "%sVEq_Const(%d, %s, %s)" indent (int_of_nat tp) x (Checker_domain.to_string c)
     | VPred (tp, r, trms) -> Printf.sprintf "%sVPred(%d, %s, %s)" indent (int_of_nat tp) r (Checker_term.list_to_string trms)
     | VNeg sp -> Printf.sprintf "%sVNeg{%d}\n%s" indent (int_of_nat (vp_at p)) (sp_to_string indent' sp)
     | VOr (vp1, vp2) -> Printf.sprintf "%sVOr{%d}\n%s\n%s" indent (int_of_nat (vp_at p)) (vp_to_string indent' vp1) (vp_to_string indent' vp2)
@@ -420,7 +426,6 @@ let check trace_lst f expls =
 
 let false_paths trace_lst f expls =
   let f' = Checker_interface.convert_f f in
-  let trace_lst' = Checker_interface.convert_trace_aux trace_lst in
   let trace' = Checker_interface.convert_trace trace_lst in
   List.fold_left expls ~init:[] ~f:(fun acc expl ->
       let expl' = Checker_interface.convert_expl expl in
@@ -428,4 +433,4 @@ let false_paths trace_lst f expls =
       match paths with
       | None -> None::acc
       | Some ps -> Some(List.map (Checker_interface.of_poly_set ps) ~f:(fun l ->
-                            List.map l (fun l' -> Checker_interface.of_fset l')))::acc)
+                            List.map l ~f:(fun l' -> Checker_interface.of_fset l')))::acc)
