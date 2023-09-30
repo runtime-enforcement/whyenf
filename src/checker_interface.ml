@@ -73,8 +73,8 @@ module Checker_interface = struct
     | SImpR sp2 -> SImpR (convert_sp sp2)
     | SIffSS (sp1, sp2) -> SIffSS (convert_sp sp1, convert_sp sp2)
     | SIffVV (vp1, vp2) -> SIffVV (convert_vp vp1, convert_vp vp2)
-    | SExists (x, d, sp) -> SExists (Pred.Term.unvar x, to_event_data d, convert_sp sp)
-    | SForall (x, part) -> SForall (Pred.Term.unvar x, convert_sp_part part)
+    | SExists (x, d, sp) -> SExists (x, to_event_data d, convert_sp sp)
+    | SForall (x, part) -> SForall (x, convert_sp_part part)
     | SPrev sp1 -> SPrev (convert_sp sp1)
     | SNext sp1 -> SNext (convert_sp sp1)
     | SOnce (tp, sp1) -> SOnce (nat_of_int tp, convert_sp sp1)
@@ -102,8 +102,8 @@ module Checker_interface = struct
     | VImp (sp1, vp2) -> VImp (convert_sp sp1, convert_vp vp2)
     | VIffSV (sp1, vp2) -> VIffSV (convert_sp sp1, convert_vp vp2)
     | VIffVS (vp1, sp2) -> VIffVS (convert_vp vp1, convert_sp sp2)
-    | VExists (x, part) -> VExists (Pred.Term.unvar x, convert_vp_part part)
-    | VForall (x, d, vp) -> VForall (Pred.Term.unvar x, to_event_data d, convert_vp vp)
+    | VExists (x, part) -> VExists (x, convert_vp_part part)
+    | VForall (x, d, vp) -> VForall (x, to_event_data d, convert_vp vp)
     | VPrev vp1 -> VPrev (convert_vp vp1)
     | VPrev0 -> VPrevZ
     | VPrevOutL tp -> VPrevOutL (nat_of_int tp)
@@ -142,7 +142,7 @@ module Checker_interface = struct
     | Expl.Pdt.Leaf pt -> (match pt with
                        | Proof.S sp -> Leaf (Inl (convert_sp sp))
                        | V vp -> Leaf (Inr (convert_vp vp)))
-    | Node (x, part) -> Node (Pred.Term.unvar x, convert_pdt_part part)
+    | Node (x, part) -> Node (x, convert_pdt_part part)
 
   let convert_p = function
     | Proof.S sp -> Inl (convert_sp sp)
@@ -150,7 +150,7 @@ module Checker_interface = struct
 
   let rec convert_expl = function
     | Expl.Pdt.Leaf pt -> Leaf (convert_p pt)
-    | Node (x, part) -> Node (Pred.Term.unvar x, convert_pdt_part part)
+    | Node (x, part) -> Node (x, convert_pdt_part part)
 
   let convert_interval = function
     | Interval.B bi -> (match bi with
@@ -167,8 +167,8 @@ module Checker_interface = struct
     | And (f, g) -> And (convert_f f, convert_f g)
     | Imp (f, g) -> Imp (convert_f f, convert_f g)
     | Iff (f, g) -> Iff (convert_f f, convert_f g)
-    | Exists (x, f) -> Exists (Pred.Term.unvar x, convert_f f)
-    | Forall (x, f) -> Forall (Pred.Term.unvar x, convert_f f)
+    | Exists (x, f) -> Exists (x, convert_f f)
+    | Forall (x, f) -> Forall (x, convert_f f)
     | Prev (i, f) -> Prev (convert_interval i, convert_f f)
     | Next (i, f) -> Next (convert_interval i, convert_f f)
     | Once (i, f) -> Once (convert_interval i, convert_f f)

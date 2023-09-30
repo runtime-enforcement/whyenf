@@ -20,7 +20,7 @@ module Term : sig
 
   val comparator: (t, comparator_witness) Comparator.t
 
-  val fv_list: t list -> t list
+  val fv_list: t list -> string list
 
   val equal: t -> t -> bool
 

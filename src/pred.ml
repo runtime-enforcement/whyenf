@@ -24,7 +24,7 @@ module Term = struct
     let rec fv_list = function
       | [] -> []
       | Const c :: trms -> fv_list trms
-      | Var x :: trms -> [Var x] @ fv_list trms
+      | Var x :: trms -> x :: fv_list trms
 
     let equal t t' = match t, t' with
       | Var x, Var x' -> String.equal x x'

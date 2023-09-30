@@ -48,8 +48,8 @@ module Proof : sig
     | SImpR of sp
     | SIffSS of sp * sp
     | SIffVV of vp * vp
-    | SExists of Term.t * Domain.t * sp
-    | SForall of Term.t * (sp Part.t)
+    | SExists of string * Domain.t * sp
+    | SForall of string * (sp Part.t)
     | SPrev of sp
     | SNext of sp
     | SOnce of int * sp
@@ -69,8 +69,8 @@ module Proof : sig
     | VImp of sp * vp
     | VIffSV of sp * vp
     | VIffVS of vp * sp
-    | VExists of Term.t * (vp Part.t)
-    | VForall of Term.t * Domain.t * vp
+    | VExists of string * (vp Part.t)
+    | VForall of string * Domain.t * vp
     | VPrev of vp
     | VPrev0
     | VPrevOutL of int
@@ -124,19 +124,19 @@ end
 
 module Pdt : sig
 
-  type 'a t = Leaf of 'a | Node of Term.t * ('a t) Part.t
+  type 'a t = Leaf of 'a | Node of string * ('a t) Part.t
 
-  val apply1: Term.t list -> ('a -> 'b) -> 'a t -> 'b t
+  val apply1: string list -> ('a -> 'b) -> 'a t -> 'b t
 
-  val apply2: Term.t list -> ('a -> 'b -> 'c) -> 'a t -> 'b t -> 'c t
+  val apply2: string list -> ('a -> 'b -> 'c) -> 'a t -> 'b t -> 'c t
 
-  val apply3: Term.t list -> ('a -> 'b -> 'c -> 'd) -> 'a t -> 'b t -> 'c t -> 'd t
+  val apply3: string list -> ('a -> 'b -> 'c -> 'd) -> 'a t -> 'b t -> 'c t -> 'd t
 
   val split_prod: ('a * 'b) t -> 'a t * 'b t
 
   val split_list: 'a list t -> 'a t list
 
-  val hide: Term.t list -> (('a, 'a Part.t) Either.t -> 'b) -> 'a t -> 'b t
+  val hide: string list -> (('a, 'a Part.t) Either.t -> 'b) -> 'a t -> 'b t
 
   val to_string: ('a -> string) -> string -> 'a t -> string
 
