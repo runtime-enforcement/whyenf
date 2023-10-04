@@ -7,6 +7,8 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
+open Core
+
 type timepoint = int
 type timestamp = int
 
@@ -41,3 +43,5 @@ val int_list_to_json: int list -> string
 val unquote: string -> string
 
 val escape_underscores: string -> string
+
+val fdeque_for_all2_exn: 'a Fdeque.t -> 'b Fdeque.t -> f:('a -> 'b -> bool) -> bool

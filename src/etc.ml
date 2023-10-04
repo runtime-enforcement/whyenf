@@ -82,3 +82,9 @@ let unquote s =
 
 let escape_underscores s =
   String.fold s ~init:"" ~f:(fun acc c -> if Char.equal c '_' then acc ^ "\\_" else acc ^ (Char.to_string c))
+
+let rec fdeque_for_all2_exn d1 d2 ~f:((f : _ -> _ -> _)) =
+  match Fdeque.dequeue_front d1, Fdeque.dequeue_front d2 with
+  | None, None -> true
+  | Some(a1, d1), Some(a2, d2) -> f a1 a2 && fdeque_for_all2_exn d1 d2 ~f
+  | _, _ -> raise (Invalid_argument (Printf.sprintf "length mismatch in fdeque_for_all2_exn: %d <> %d" (Fdeque.length d1) (Fdeque.length d2)))
