@@ -34,7 +34,7 @@ type t =
 
 let tt = TT
 let ff = FF
-let eqconst x c = EqConst (x, c)
+let eqconst x d = EqConst (x, d)
 let predicate p_name trms = Predicate (p_name, check_terms p_name trms)
 let neg f = Neg f
 let conj f g = And (f, g)

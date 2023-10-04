@@ -24,7 +24,8 @@ let letter = uc | lc
 let digit = ['0'-'9']
 
 let digits = ['0'-'9']+
-let string = (letter | digit | '_' | '[' | ']' | '/' | '-' | '.' | '!' | ':')+
+let string = (letter | digit | '_' | '[' | ']' | '/' | '-' | '.' | '!' | ':' | '"')+
+let quoted_string = ([^ '"' '\\'] | '\\' _)*
 
 rule token = parse
   | newline                        { Lexing.new_line lexbuf; token lexbuf }
@@ -36,6 +37,7 @@ rule token = parse
   | ";"                            { SEP }
   | "#"                            { skip_line lexbuf }
   | string as s                    { STR s }
+  | '"' (quoted_string as s) '"'   { STR s }
   | eof                            { EOF }
   | _ as c                         { lexing_error lexbuf "unexpected character: `%c'" c }
 

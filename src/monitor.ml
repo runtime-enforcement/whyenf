@@ -1375,6 +1375,12 @@ let rec pdt_of tp r trms (vars: string list) maps : Expl.t = match vars with
 let rec meval vars ts tp (db: Db.t) = function
   | MTT -> ([Pdt.Leaf (Proof.S (STT tp))], MTT)
   | MFF -> ([Leaf (V (VFF tp))], MFF)
+  | MEqConst (x, d) ->
+     let l1 = Pdt.Leaf (Proof.S (SEqConst (tp, x, d))) in
+     let l2 = Pdt.Leaf (Proof.V (VEqConst (tp, x, d))) in
+     let expl = Pdt.Node (x, [(Setc.Finite (Set.of_list (module Domain) [d]), l1);
+                              (Setc.Complement (Set.of_list (module Domain) [d]), l2)]) in
+     ([expl], MEqConst (x, d))
   | MPredicate (r, trms) ->
      let db' = Set.filter db ~f:(fun evt -> String.equal r (fst(evt))) in
      if List.is_empty trms then
@@ -1543,7 +1549,6 @@ let rec meval vars ts tp (db: Db.t) = function
      let expls' = Pdt.split_list es' in
      let expls'' = List.map expls' ~f:(Pdt.dedup Proof.equal) in
      (expls'', MUntil (i, mf1', mf2', (buf2', ntstps'), muaux_pdt'))
-  | _ -> failwith "not implemented yet"
 
 module MState = struct
 
