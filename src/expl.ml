@@ -17,7 +17,9 @@ module Part = struct
 
   (* TODO: Remove concrete type from signature file                *)
   (*       In order to do this, I must rewrite do_exists/do_forall *)
-  type 'a t = ((Domain.t, Domain.comparator_witness) Setc.t * 'a) list
+  type sub = (Domain.t, Domain.comparator_witness) Setc.t
+
+  type 'a t = (sub * 'a) list
 
   let random_empty_set = Set.empty (module String)
 
@@ -26,6 +28,8 @@ module Part = struct
   let hd part = snd (List.hd_exn part)
 
   let map part f = List.map part ~f:(fun (s, p) -> (s, f p))
+
+  let map2 part f = List.map part ~f:(fun (s, p) -> f (s, p))
 
   let fold_left part init f = List.fold_left part ~init:init ~f:(fun acc (_, p) -> f acc p)
 
@@ -77,6 +81,36 @@ module Part = struct
     | [x] -> indent ^ "❮\n\n" ^ (el_to_string indent var f x) ^ "\n" ^ indent ^ "❯\n"
     | xs -> List.fold_left xs ~init:(indent ^ "❮\n\n")
               ~f:(fun s el -> s ^ (el_to_string indent var f el) ^ "\n") ^ indent ^ "❯\n"
+
+  (* dedup related *)
+  let dedup eq part =
+    let rec aux acc (s,v) =
+      match acc with
+      | [] -> [(s,v)]
+      | (t,u) :: acc -> if eq u v then (Setc.union s t, u) :: acc
+                        else (t,u) :: aux acc (s,v) in
+    let rec dedup_rec part acc =
+      match part with
+      | [] -> acc
+      | (s,v) :: part -> let acc' = aux acc (s,v) in
+                         dedup_rec part acc' in
+    dedup_rec part []
+
+  let map_dedup eq part f = dedup eq (map part f)
+
+  let map2_dedup eq part f = dedup eq (map2 part f)
+
+  let tabulate_dedup eq ds f z = dedup eq (tabulate ds f z)
+
+  let merge2_dedup eq f part1 part2 = dedup eq (merge2 f part1 part2)
+
+  let merge3_dedup eq f part1 part2 part3 = dedup eq (merge3 f part1 part2 part3)
+
+  let split_prod_dedup eq part =
+    let part1, part2 = split_prod part in
+    (dedup eq part1, dedup eq part2)
+
+  let split_list_dedup eq part = List.map (split_list part) ~f:(dedup eq)
 
 end
 
@@ -138,6 +172,90 @@ module Proof = struct
     | VUntilInf of int * int * vp Fdeque.t
 
   type t = S of sp | V of vp
+
+  let rec s_equal x y = match x, y with
+    | STT tp, STT tp' -> Int.equal tp tp'
+    | SEqConst (tp, x, c), SEqConst (tp', x', c') -> Int.equal tp tp' && String.equal x x' && Domain.equal c c'
+    | SPred (tp, r, terms), SPred (tp', r', terms') -> Int.equal tp tp' && String.equal r r' &&
+                                                         Int.equal (List.length terms) (List.length terms') &&
+                                                           List.for_all2_exn terms terms' ~f:(fun t1 t2 -> Term.equal t1 t2)
+    | SNeg vp, SNeg vp'
+      | SImpL vp, SImpL vp' -> v_equal vp vp'
+    | SImpR sp, SImpR sp'
+      | SOrL sp, SOrL sp'
+      | SOrR sp, SOrR sp'
+      | SPrev sp, SPrev sp'
+      | SNext sp, SNext sp' -> s_equal sp sp'
+    | SAnd (sp1, sp2), SAnd (sp1', sp2')
+      | SIffSS (sp1, sp2), SIffSS (sp1', sp2') -> s_equal sp1 sp1' && s_equal sp2 sp2'
+    | SIffVV (vp1, vp2), SIffVV (vp1', vp2') -> v_equal vp1 vp1' && v_equal vp2 vp2'
+    | SExists (x, d, sp), SExists (x', d', sp') -> String.equal x x' && Domain.equal d d' && s_equal sp sp'
+    | SForall (x, part), SForall (x', part') -> String.equal x x' && List.for_all2_exn part part' ~f:(fun (s, p) (s', p') ->
+                                                                         Setc.equal s s' && s_equal p p')
+    | SOnce (tp, sp), SOnce (tp', sp')
+      | SEventually (tp, sp), SEventually (tp', sp') -> Int.equal tp tp' && s_equal sp sp'
+    | SHistoricallyOut tp, SHistoricallyOut tp' -> Int.equal tp tp'
+    | SHistorically (tp, ltp, sps), SHistorically (tp', li', sps') -> Int.equal tp tp' && Int.equal ltp li' &&
+                                                                        Int.equal (Fdeque.length sps) (Fdeque.length sps') &&
+                                                                          Etc.fdeque_for_all2_exn sps sps' ~f:(fun sp sp' -> s_equal sp sp')
+    | SAlways (tp, htp, sps), SAlways (tp', hi', sps') -> Int.equal tp tp' && Int.equal htp hi' &&
+                                                            Int.equal (Fdeque.length sps) (Fdeque.length sps') &&
+                                                              Etc.fdeque_for_all2_exn sps sps' ~f:(fun sp sp' -> s_equal sp sp')
+    | SSince (sp2, sp1s), SSince (sp2', sp1s')
+      | SUntil (sp2, sp1s), SUntil (sp2', sp1s') -> s_equal sp2 sp2' && Int.equal (Fdeque.length sp1s) (Fdeque.length sp1s') &&
+                                                      Etc.fdeque_for_all2_exn sp1s sp1s' ~f:(fun sp1 sp1' -> s_equal sp1 sp1')
+    | _ -> false
+  and v_equal x y = match x, y with
+    | VFF tp, VFF tp' -> Int.equal tp tp'
+    | VEqConst (tp, x, c), VEqConst (tp', x', c') -> Int.equal tp tp' && String.equal x x' && Domain.equal c c'
+    | VPred (tp, r, terms), VPred (tp', r', terms') -> Int.equal tp tp' && String.equal r r' &&
+                                                         Int.equal (List.length terms) (List.length terms') &&
+                                                           List.for_all2_exn terms terms' ~f:(fun t1 t2 -> Term.equal t1 t2)
+    | VNeg sp, VNeg sp' -> phys_equal sp sp'
+    | VAndL vp, VAndL vp'
+      | VAndR vp, VAndR vp'
+      | VPrev vp, VPrev vp'
+      | VNext vp, VNext vp' -> v_equal vp vp'
+    | VOr (vp1, vp2), VOr (vp1', vp2') -> v_equal vp1 vp1' && v_equal vp2 vp2'
+    | VImp (sp1, vp2), VImp (sp1', vp2')
+      | VIffSV (sp1, vp2), VIffSV (sp1', vp2') -> s_equal sp1 sp1' && v_equal vp2 vp2'
+    | VIffVS (vp1, sp2), VIffVS (vp1', sp2') -> v_equal vp1 vp1' && s_equal sp2 sp2'
+    | VExists (x, part), VExists (x', part') -> String.equal x x' && List.for_all2_exn part part' ~f:(fun (s, p) (s', p') ->
+                                                                         Setc.equal s s' && v_equal p p')
+    | VForall (x, d, vp), VForall (x', d', vp') -> String.equal x x' && Domain.equal d d' && v_equal vp vp'
+    | VPrev0, VPrev0 -> true
+    | VPrevOutL tp, VPrevOutL tp'
+      | VPrevOutR tp, VPrevOutR tp'
+      | VNextOutL tp, VNextOutL tp'
+      | VNextOutR tp, VNextOutR tp'
+      | VOnceOut tp, VOnceOut tp'
+      | VSinceOut tp, VSinceOut tp' -> Int.equal tp tp'
+    | VOnce (tp, ltp, vps), VOnce (tp', li', vps') -> Int.equal tp tp' && Int.equal ltp li' &&
+                                                        Int.equal (Fdeque.length vps) (Fdeque.length vps') &&
+                                                          Etc.fdeque_for_all2_exn vps vps' ~f:(fun vp vp' -> v_equal vp vp')
+    | VEventually (tp, htp, vps), VEventually (tp', hi', vps') -> Int.equal tp tp' && Int.equal htp hi' &&
+                                                                    Int.equal (Fdeque.length vps) (Fdeque.length vps') &&
+                                                                      Etc.fdeque_for_all2_exn vps vps' ~f:(fun vp vp' -> v_equal vp vp')
+    | VHistorically (tp, vp), VHistorically (tp', vp')
+      | VAlways (tp, vp), VAlways (tp', vp') -> Int.equal tp tp'
+    | VSince (tp, vp1, vp2s), VSince (tp', vp1', vp2s')
+      | VUntil (tp, vp1, vp2s), VUntil (tp', vp1', vp2s') -> Int.equal tp tp' && v_equal vp1 vp1' &&
+                                                               Int.equal (Fdeque.length vp2s) (Fdeque.length vp2s') &&
+                                                                 Etc.fdeque_for_all2_exn vp2s vp2s' ~f:(fun vp2 vp2' -> v_equal vp2 vp2')
+    | VSinceInf (tp, ltp, vp2s), VSinceInf (tp', li', vp2s') -> Int.equal tp tp' && Int.equal ltp li' &&
+                                                                  Int.equal (Fdeque.length vp2s) (Fdeque.length vp2s') &&
+                                                                    Etc.fdeque_for_all2_exn vp2s vp2s' ~f:(fun vp2 vp2' -> v_equal vp2 vp2')
+
+    | VUntilInf (tp, htp, vp2s), VUntilInf (tp', hi', vp2s') -> Int.equal tp tp' && Int.equal htp hi' &&
+                                                                  Int.equal (Fdeque.length vp2s) (Fdeque.length vp2s') &&
+                                                                    Etc.fdeque_for_all2_exn vp2s vp2s' ~f:(fun vp2 vp2' -> v_equal vp2 vp2')
+    | _ -> false
+
+
+  let equal x y = match x, y with
+    | S sp, S sp' -> s_equal sp sp'
+    | V vp, V vp' -> v_equal vp vp'
+    | _ -> false
 
   let unS = function
     | S sp -> sp
@@ -719,6 +837,43 @@ module Pdt = struct
                                      Node (y, Part.map part (hide vars f))
                                    else hide vars f (Node (y, part))
     | _ -> raise (Invalid_argument "function not defined for other cases")
+
+  (* dedup related *)
+  let is_leaf = function
+    | Leaf _ -> true
+    | Node _ -> false
+
+  let rec is_above_leaf = function
+    | Leaf l -> false
+    | Node (x, part) -> is_leaf (Part.hd part)
+
+  let fix_eq eq pdt1 pdt2 =
+    match pdt1, pdt2 with
+    | Leaf l1, Leaf l2 -> eq l1 l2
+    | _ -> false
+
+  let rec dedup eq = function
+    | Leaf l -> Leaf l
+    | Node (x, part) -> if is_above_leaf (Node (x, part)) then
+                          Node (x, Part.dedup (fix_eq eq) part)
+                        else Node (x, (Part.map part (dedup eq)))
+
+  let apply1_dedup eq vars f pdt = dedup eq (apply1 vars f pdt)
+
+  let apply2_dedup eq vars f pdt1 pdt2 = dedup eq (apply2 vars f pdt1 pdt2)
+
+  let apply3_dedup eq vars f pdt1 pdt2 pdt3 = dedup eq (apply3 vars f pdt1 pdt2 pdt3)
+
+  let rec split_prod_dedup eq = function
+    | Leaf (l1, l2) -> (Leaf l1, Leaf l2)
+    | Node (x, part) -> let (part1, part2) = Part.split_prod_dedup (fix_eq eq) (Part.map part (split_prod_dedup eq)) in
+                        (Node (x, part1), Node (x, part2))
+
+  let rec split_list_dedup eq = function
+    | Leaf l -> List.map l ~f:(fun el -> Leaf el)
+    | Node (x, part) -> List.map (Part.split_list (Part.map part (split_list_dedup eq))) ~f:(fun el -> Node (x, el))
+
+  let hide_dedup eq vars f pdt = dedup eq (hide vars f pdt)
 
 end
 

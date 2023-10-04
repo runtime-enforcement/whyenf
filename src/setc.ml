@@ -41,6 +41,14 @@ let inter cs1 cs2 =
         | Complement s1, Finite s2 -> Finite (Set.diff s2 s1)
         | Complement s1, Complement s2 -> Complement (Set.union s1 s2))
 
+let union cs1 cs2 =
+  if phys_equal cs1 cs2 then cs1
+  else (match cs1, cs2 with
+        | Finite s1, Finite s2 -> Finite (Set.union s1 s2)
+        | Finite s1, Complement s2 -> Complement (Set.diff s2 s1)
+        | Complement s1, Finite s2 -> Complement (Set.diff s1 s2)
+        | Complement s1, Complement s2 -> Complement (Set.inter s1 s2))
+
 let diff cs1 cs2 = match cs1, cs2 with
   | Finite s1, Finite s2 -> Finite (Set.diff s1 s2)
   | Finite s1, Complement s2 -> Finite (Set.inter s1 s2)

@@ -15,23 +15,24 @@ module Fdeque = Core.Fdeque
 
 module Part : sig
 
-  type 'a t = ((Domain.t, Domain.comparator_witness) Setc.t * 'a) list
+  type sub = (Domain.t, Domain.comparator_witness) Setc.t
+
+  type 'a t = (sub * 'a) list
 
   val trivial: 'a -> 'a t
-
   val map: 'a t -> ('a -> 'b) -> 'b t
-
+  val map2: 'a t -> (sub * 'a -> sub * 'a) -> 'a t
   val fold_left: 'a t -> 'b -> ('b -> 'a -> 'b) -> 'b
-
   val filter: 'a t -> ('a -> bool) -> 'a t
-
   val exists: 'a t -> ('a -> bool) -> bool
-
   val for_all: 'a t -> ('a -> bool) -> bool
-
   val values: 'a t -> 'a list
-
   val tabulate: (Domain.t, Domain.comparator_witness) Set.t -> (Domain.t -> 'a) -> 'a -> 'a t
+
+  val dedup: ('a -> 'a -> bool) -> 'a t -> 'a t
+  val map_dedup: ('a -> 'a -> bool) -> 'd t -> ('d -> 'a) -> 'a t
+  val map2_dedup: ('a -> 'a -> bool) -> 'a t -> (sub * 'a -> sub * 'a) -> 'a t
+  val tabulate_dedup: ('a -> 'a -> bool) -> (Domain.t, Domain.comparator_witness) Set.t -> (Domain.t -> 'a) -> 'a -> 'a t
 
 end
 
@@ -93,6 +94,10 @@ module Proof : sig
 
   type t = S of sp | V of vp
 
+  val s_equal: sp -> sp -> bool
+  val v_equal: vp -> vp -> bool
+  val equal: t -> t -> bool
+
   val unS: t -> sp
   val unV: t -> vp
   val isS: t -> bool
@@ -129,18 +134,21 @@ module Pdt : sig
   type 'a t = Leaf of 'a | Node of string * ('a t) Part.t
 
   val apply1: string list -> ('a -> 'b) -> 'a t -> 'b t
-
   val apply2: string list -> ('a -> 'b -> 'c) -> 'a t -> 'b t -> 'c t
-
   val apply3: string list -> ('a -> 'b -> 'c -> 'd) -> 'a t -> 'b t -> 'c t -> 'd t
-
   val split_prod: ('a * 'b) t -> 'a t * 'b t
-
   val split_list: 'a list t -> 'a t list
-
   val hide: string list -> (('a, 'a Part.t) Either.t -> 'b) -> 'a t -> 'b t
-
   val to_string: ('a -> string) -> string -> 'a t -> string
+
+  val fix_eq: ('a -> 'a -> bool) -> 'a t -> 'a t -> bool
+  val dedup: ('a -> 'a -> bool) -> 'a t -> 'a t
+  val apply1_dedup: ('a -> 'a -> bool) -> string list -> ('b -> 'a) -> 'b t -> 'a t
+  val apply2_dedup: ('a -> 'a -> bool) -> string list -> ('b -> 'c -> 'a) -> 'b t -> 'c t -> 'a t
+  val apply3_dedup: ('a -> 'a -> bool) -> string list -> ('b -> 'c -> 'd -> 'a) -> 'b t -> 'c t -> 'd t -> 'a t
+  val split_prod_dedup: ('a -> 'a -> bool) -> ('a * 'a) t -> 'a t * 'a t
+  val split_list_dedup: ('a -> 'a -> bool) -> 'a list t -> 'a t list
+  val hide_dedup: ('a -> 'a -> bool) -> string list -> (('b, 'b Part.t) Either.t -> 'a) -> 'b t -> 'a t
 
 end
 
