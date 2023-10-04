@@ -12,6 +12,8 @@ type ut = UI of int
 type bt = BI of int * int
 type t = B of bt | U of ut
 
+val equal: t -> t -> bool
+
 val lclosed_UI: int -> t
 val lopen_UI: int -> t
 

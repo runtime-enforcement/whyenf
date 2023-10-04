@@ -29,6 +29,7 @@ let debug m = if !debug then Stdio.print_endline ("[debug] formula_parser: " ^ m
 
 %token FALSE
 %token TRUE
+%token EQCONST
 %token NEG
 %token AND
 %token OR
@@ -49,7 +50,7 @@ let debug m = if !debug then Stdio.print_endline ("[debug] formula_parser: " ^ m
 
 %nonassoc INTERVAL
 %right SINCE UNTIL RELEASE TRIGGER
-%nonassoc PREV NEXT ONCE EVENTUALLY HISTORICALLY ALWAYS
+%nonassoc PREV NEXT ONCE HISTORICALLY
 %nonassoc EXISTS FORALL
 %right IFF IMP
 %left OR
@@ -68,6 +69,7 @@ e:
 | LPA e RPA                            { debug "( e )"; $2 }
 | TRUE                                 { debug "TRUE"; tt }
 | FALSE                                { debug "FALSE"; ff }
+| STR EQCONST const                    { debug "EQCONST"; eqconst $1 (Pred.Term.unconst $3)}
 | NEG e                                { debug "NEG e"; neg $2 }
 | PREV INTERVAL e                      { debug "PREV INTERVAL e"; prev $2 $3 }
 | PREV e                               { debug "PREV e"; prev Interval.full $2 }
@@ -76,11 +78,9 @@ e:
 | ONCE INTERVAL e                      { debug "ONCE INTERVAL e"; once $2 $3 }
 | ONCE e                               { debug "ONCE e"; once Interval.full $2 }
 | EVENTUALLY INTERVAL e                { debug "EVENTUALLY INTERVAL e"; eventually $2 $3 }
-| EVENTUALLY e                         { debug "EVENTUALLY e"; eventually Interval.full $2 }
 | HISTORICALLY INTERVAL e              { debug "HISTORICALLY INTERVAL e"; historically $2 $3 }
 | HISTORICALLY e                       { debug "HISTORICALLY e"; historically Interval.full $2 }
 | ALWAYS INTERVAL e                    { debug "ALWAYS INTERVAL e"; always $2 $3 }
-| ALWAYS e                             { debug "ALWAYS e"; always Interval.full $2 }
 | e AND e                              { debug "e AND e"; conj $1 $3 }
 | e OR e                               { debug "e OR e"; disj $1 $3 }
 | e IMP e                              { debug "e IMP e"; imp $1 $3 }
@@ -88,7 +88,6 @@ e:
 | e SINCE INTERVAL e                   { debug "e SINCE INTERVAL e"; since $3 $1 $4 }
 | e SINCE e                            { debug "e SINCE e"; since Interval.full $1 $3 }
 | e UNTIL INTERVAL e                   { debug "e UNTIL INTERVAL e"; until $3 $1 $4 }
-| e UNTIL e                            { debug "e UNTIL e"; until Interval.full $1 $3 }
 | e TRIGGER INTERVAL e                 { debug "e TRIGGER INTERVAL e"; trigger $3 $1 $4 }
 | e TRIGGER e                          { debug "e TRIGGER e"; trigger Interval.full $1 $3 }
 | e RELEASE INTERVAL e                 { debug "e RELEASE INTERVAL e"; release $3 $1 $4 }

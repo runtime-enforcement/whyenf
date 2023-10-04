@@ -18,6 +18,11 @@ type bt = BI of int * int
 
 type t = B of bt | U of ut
 
+let equal i i' = match i, i' with
+  | B (BI (a, b)), B (BI (a', b')) -> Int.equal a a' && Int.equal b b'
+  | U (UI a), U (UI a') -> Int.equal a a'
+  | _ -> false
+
 let lclosed_UI i = U (UI i)
 let lopen_UI i = U (UI (i + 1))
 
@@ -74,13 +79,13 @@ let lex error l i j r =
   (match j with
     | "INFINITY" | "∞" ->
       (match l with
-      | '[' -> lclosed_UI (int_of_string i)
-      | '(' -> lopen_UI (int_of_string i)
+      | '[' -> lclosed_UI (Int.of_string i)
+      | '(' -> lopen_UI (Int.of_string i)
       | _ -> error ())
     | _ ->
       (match l, r with
-      | '[',']' -> lclosed_rclosed_BI (int_of_string i) (int_of_string j)
-      | '(',']' -> lopen_rclosed_BI (int_of_string i) (int_of_string j)
-      | '[',')' -> lclosed_ropen_BI (int_of_string i) (int_of_string j)
-      | '(',')' -> lopen_ropen_BI (int_of_string i) (int_of_string j)
+      | '[',']' -> lclosed_rclosed_BI (Int.of_string i) (Int.of_string j)
+      | '(',']' -> lopen_rclosed_BI (Int.of_string i) (Int.of_string j)
+      | '[',')' -> lclosed_ropen_BI (Int.of_string i) (Int.of_string j)
+      | '(',')' -> lopen_ropen_BI (Int.of_string i) (Int.of_string j)
       | _ -> error ()))

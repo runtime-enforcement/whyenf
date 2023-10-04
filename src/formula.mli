@@ -13,14 +13,15 @@ open Pred
 type t =
   | TT
   | FF
+  | EqConst of string * Domain.t
   | Predicate of string * Term.t list
   | Neg of t
   | And of t * t
   | Or of t * t
   | Imp of t * t
   | Iff of t * t
-  | Exists of Term.t * t
-  | Forall of Term.t * t
+  | Exists of string * t
+  | Forall of string * t
   | Prev of Interval.t * t
   | Next of Interval.t * t
   | Once of Interval.t * t
@@ -32,6 +33,7 @@ type t =
 
 val tt: t
 val ff: t
+val eqconst: string -> Domain.t -> t
 val predicate: string -> Term.t list -> t
 val neg: t -> t
 val conj: t -> t -> t
@@ -51,7 +53,8 @@ val until: Interval.t -> t -> t -> t
 val trigger: Interval.t -> t -> t -> t
 val release: Interval.t -> t -> t -> t
 
-val fv: t -> (Term.t, Term.comparator_witness) Base.Set.t
+val fv: t -> (String.t, Base.String.comparator_witness) Base.Set.t
+val check_bindings: t -> bool
 
 val hp: t -> int
 val hf: t -> int

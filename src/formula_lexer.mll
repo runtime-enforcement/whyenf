@@ -39,6 +39,7 @@ rule token = parse
   | '.'                                           { debug "DOT"; DOT }
   | "false" | "⊥"                                 { debug "FALSE"; FALSE }
   | "true" | "⊤"                                  { debug "TRUE"; TRUE }
+  | "="                                           { debug "EQCONST"; EQCONST }
   | '!' | "¬" | "NOT"                             { debug "NEG"; NEG }
   | '&' | "∧" | "AND"                             { debug "AND"; AND }
   | '|' | "∨" | "OR"                              { debug "OR"; OR }

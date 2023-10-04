@@ -21,10 +21,14 @@ module Term = struct
       | Var x -> x
       | Const _ -> raise (Invalid_argument "unvar is undefined for Consts")
 
+    let unconst = function
+      | Var _ -> raise (Invalid_argument "unconst is undefined for Vars")
+      | Const c -> c
+
     let rec fv_list = function
       | [] -> []
       | Const c :: trms -> fv_list trms
-      | Var x :: trms -> [Var x] @ fv_list trms
+      | Var x :: trms -> x :: fv_list trms
 
     let equal t t' = match t, t' with
       | Var x, Var x' -> String.equal x x'
@@ -41,7 +45,7 @@ module Term = struct
 
     let rec list_to_string trms =
       match trms with
-      | [] -> ""
+      | [] -> "[]"
       | (Var x) :: trms -> if List.is_empty trms then x
                            else Printf.sprintf "%s, %s" x (list_to_string trms)
       | (Const d) :: trms -> if List.is_empty trms then (Domain.to_string d)
@@ -63,7 +67,7 @@ module Sig = struct
   let table: (string, props) Hashtbl.t = Hashtbl.create (module String)
 
   let add p_name ntconsts =
-    Hashtbl.add_exn table p_name { arity = List.length ntconsts; ntconsts }
+    Hashtbl.add_exn table ~key:p_name ~data:{ arity = List.length ntconsts; ntconsts }
 
   let vars name = List.map (Hashtbl.find_exn table name).ntconsts ~f:fst
 
@@ -79,8 +83,8 @@ let check_terms p_name trms =
   let sig_pred = Hashtbl.find_exn Sig.table p_name in
   if List.length trms = sig_pred.arity then
     if (List.for_all2_exn trms sig_pred.ntconsts
-          (fun t ntc -> match t with
-                        | Term.Var x -> true
-                        | Const c -> Domain.tt_equal (Domain.tt_of_domain c) (snd ntc))) then trms
+          ~f:(fun t ntc -> match t with
+                           | Term.Var x -> true
+                           | Const c -> Domain.tt_equal (Domain.tt_of_domain c) (snd ntc))) then trms
     else raise (Invalid_argument (Printf.sprintf "type of terms of %s do not match the signature" p_name))
   else raise (Invalid_argument (Printf.sprintf "arity of %s is %d" p_name sig_pred.arity))

@@ -10,7 +10,7 @@
 open Base
 open Etc
 
-module Fdeque = Core_kernel.Fdeque
+module Fdeque = Core.Fdeque
 
 type period = PAST | FUTURE
 
@@ -67,7 +67,7 @@ module Expl = struct
     | (_, _, _, k) -> string_of_kind k
 
   let rec cell_idx idx = function
-    | Formula.TT | FF | Predicate _ -> idx
+    | Formula.TT | FF | EqConst _ | Predicate _ -> idx
     | Neg f' | Exists (_, f') | Forall (_, f')
       | Prev (_, f') | Next (_, f')
       | Once (_, f') | Eventually (_, f')
@@ -88,6 +88,10 @@ module Expl = struct
        let cell = (Expl.Proof.p_at p, idx, None, Boolean true) in
        let idx = if skip then idx+1 else idx in
        ((cell, []) :: row, idx)
+    | EqConst _, S (SEqConst _) ->
+       let cell = (Expl.Proof.p_at p, idx, None, Boolean true) in
+       let idx = if skip then idx+1 else idx in
+       ((cell, []) :: row, idx)
     | Predicate _, S (SPred _) ->
        let cell = (Expl.Proof.p_at p, idx, None, Boolean true) in
        let idx = if skip then idx+1 else idx in
@@ -101,7 +105,6 @@ module Expl = struct
        ((cell, cells) :: row', idx')
     | Or (f1, _), S (SOrL sp1) ->
        let sp1_idx = idx+1 in
-       let sp2_idx = (cell_idx sp1_idx f1)+1 in
        let (row', idx') = ssubfs_cell_row row sp1_idx true f1 (S sp1) in
        let cell = (Expl.Proof.p_at p, idx, None, Boolean true) in
        let cells = [(Expl.Proof.s_at sp1, sp1_idx, None, Boolean true)] in
@@ -163,20 +166,20 @@ module Expl = struct
     | Exists (_, f'), S (SExists (x, d, sp)) ->
        let sp_idx = idx+1 in
        let (row', idx') = ssubfs_cell_row row sp_idx false f' (S sp) in
-       let cell = (Expl.Proof.p_at p, idx, None, Assignment (Pred.Term.unvar x, Domain.to_string d, true)) in
+       let cell = (Expl.Proof.p_at p, idx, None, Assignment (x, Domain.to_string d, true)) in
        let cells = [(Expl.Proof.s_at sp, sp_idx, None, Boolean true)] in
        let idx' = if skip then idx'+1 else idx' in
        ((cell, cells) :: row', idx')
     | Forall (_, f'), S (SForall (x, part)) ->
        let sps_idx = idx+1 in
-       let row' = List.filter row (fun (cell, _) -> not (String.equal (cell_kind cell) "partition")) in
+       let row' = List.filter row ~f:(fun (cell, _) -> not (String.equal (cell_kind cell) "partition")) in
        let (idx', part_tbl) = List.fold_map part ~init:sps_idx ~f:(fun i (s, sp) ->
                                   let (row', i') = ssubfs_cell_row row' sps_idx false f' (S sp) in
                                   let cell = (Expl.Proof.p_at p, idx, None, Boolean true) in
                                   let cells = [(Expl.Proof.s_at sp, sps_idx, None, Boolean true)] in
                                   let i' = if skip then i'+1 else i' in
                                   (max i i', (Setc.to_json s, (cell, cells) :: row'))) in
-       let part = Partition (Pred.Term.unvar x, part_tbl) in
+       let part = Partition (x, part_tbl) in
        let cell = (Expl.Proof.p_at p, idx, None, part) in
        ((cell, []) :: row, idx')
     | Prev (i, f'), S (SPrev sp)
@@ -238,6 +241,10 @@ module Expl = struct
        let cell = (Expl.Proof.p_at p, idx, None, Boolean false) in
        let idx = if skip then idx+1 else idx in
        ((cell, []) :: row, idx)
+    | EqConst _, V (VEqConst _) ->
+       let cell = (Expl.Proof.p_at p, idx, None, Boolean false) in
+       let idx = if skip then idx+1 else idx in
+       ((cell, []) :: row, idx)
     | Predicate _, V (VPred _) ->
        let cell = (Expl.Proof.p_at p, idx, None, Boolean false) in
        let idx = if skip then idx+1 else idx in
@@ -296,20 +303,20 @@ module Expl = struct
        ((cell, cells) :: tbl'', idx'')
     | Exists (_, f'), V (VExists (x, part)) ->
        let vps_idx = idx+1 in
-       let row' = List.filter row (fun (cell, _) -> not (String.equal (cell_kind cell) "partition")) in
+       let row' = List.filter row ~f:(fun (cell, _) -> not (String.equal (cell_kind cell) "partition")) in
        let (idx', part_tbl) = List.fold_map part ~init:vps_idx ~f:(fun i (s, vp) ->
                                   let (row', i') = ssubfs_cell_row row' vps_idx false f' (V vp) in
                                   let cell = (Expl.Proof.p_at p, idx, None, Boolean false) in
                                   let cells = [(Expl.Proof.v_at vp, vps_idx, None, Boolean false)] in
                                   let i' = if skip then i'+1 else i' in
                                   (max i i', (Setc.to_json s, (cell, cells) :: row'))) in
-       let part = Partition (Pred.Term.unvar x, part_tbl) in
+       let part = Partition (x, part_tbl) in
        let cell = (Expl.Proof.p_at p, idx, None, part) in
        ((cell, []) :: row, idx')
     | Forall (_, f'), V (VForall (x, d, vp)) ->
        let vp_idx = idx+1 in
        let (row', idx') = ssubfs_cell_row row vp_idx false f' (V vp) in
-       let cell = (Expl.Proof.p_at p, idx, None, Assignment (Pred.Term.unvar x, Domain.to_string d, false)) in
+       let cell = (Expl.Proof.p_at p, idx, None, Assignment (x, Domain.to_string d, false)) in
        let cells = [(Expl.Proof.v_at vp, vp_idx, None, Boolean false)] in
        let idx' = if skip then idx'+1 else idx' in
        ((cell, cells) :: row', idx')
@@ -390,8 +397,7 @@ module Expl = struct
 
   let rec expl_cell row idx (f: Formula.t) (expl: Expl.t) : cell_expl = match expl with
     | Expl.Pdt.Leaf pt -> Leaf (Expl.Proof.isS pt, (fst (ssubfs_cell_row row idx false f pt)))
-    | Node (x, part) -> Expl (Pred.Term.unvar x,
-                              List.map (List.rev part) (fun (s, e) -> (Setc.to_json s, expl_cell row idx f e)))
+    | Node (x, part) -> Expl (x, List.map (List.rev part) ~f:(fun (s, e) -> (Setc.to_json s, expl_cell row idx f e)))
 
   let inner_cells_to_json indent cells =
     if List.is_empty cells then " []"

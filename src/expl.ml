@@ -11,7 +11,7 @@
 open Base
 open Pred
 
-module Fdeque = Core_kernel.Fdeque
+module Fdeque = Core.Fdeque
 
 module Part = struct
 
@@ -45,11 +45,11 @@ module Part = struct
     | [], _ -> []
     | (sub1, v1) :: part1, part2 ->
        let part12 = List.filter_map part2
-                      (fun (sub2, v2) ->
+                      ~f:(fun (sub2, v2) ->
                         (if not (Setc.is_empty (Setc.inter sub1 sub2))
                          then Some (Setc.inter sub1 sub2, f v1 v2) else None)) in
        let part2not1 = List.filter_map part2
-                         (fun (sub2, v2) ->
+                         ~f:(fun (sub2, v2) ->
                            (if not (Setc.is_empty (Setc.diff sub2 sub1))
                             then Some (Setc.diff sub2 sub1, v2) else None)) in
        part12 @ (merge2 f part1 part2not1)
@@ -85,6 +85,7 @@ module Proof = struct
 
   type sp =
     | STT of int
+    | SEqConst of int * string * Domain.t
     | SPred of int * string * Term.t list
     | SNeg of vp
     | SOrL of sp
@@ -94,8 +95,8 @@ module Proof = struct
     | SImpR of sp
     | SIffSS of sp * sp
     | SIffVV of vp * vp
-    | SExists of Term.t * Domain.t * sp
-    | SForall of Term.t * (sp Part.t)
+    | SExists of string * Domain.t * sp
+    | SForall of string * (sp Part.t)
     | SPrev of sp
     | SNext of sp
     | SOnce of int * sp
@@ -107,6 +108,7 @@ module Proof = struct
     | SUntil of sp * sp Fdeque.t
   and vp =
     | VFF of int
+    | VEqConst of int * string * Domain.t
     | VPred of int * string * Term.t list
     | VNeg of sp
     | VOr of vp * vp
@@ -115,8 +117,8 @@ module Proof = struct
     | VImp of sp * vp
     | VIffSV of sp * vp
     | VIffVS of vp * sp
-    | VExists of Term.t * (vp Part.t)
-    | VForall of Term.t * Domain.t * vp
+    | VExists of string * (vp Part.t)
+    | VForall of string * Domain.t * vp
     | VPrev of vp
     | VPrev0
     | VPrevOutL of int
@@ -135,7 +137,6 @@ module Proof = struct
     | VUntil of int * vp * vp Fdeque.t
     | VUntilInf of int * int * vp Fdeque.t
 
-  (* TODO: Rewrite this with Either *)
   type t = S of sp | V of vp
 
   let unS = function
@@ -183,6 +184,7 @@ module Proof = struct
 
   let rec s_at = function
     | STT tp -> tp
+    | SEqConst (tp, _, _) -> tp
     | SPred (tp, _, _) -> tp
     | SNeg vp -> v_at vp
     | SOrL sp1 -> s_at sp1
@@ -207,6 +209,7 @@ module Proof = struct
                             else s_at (Fdeque.peek_front_exn sp1s)
   and v_at = function
     | VFF tp -> tp
+    | VEqConst (tp, _, _) -> tp
     | VPred (tp, _, _) -> tp
     | VNeg sp -> s_at sp
     | VOr (vp1, _) -> v_at vp1
@@ -254,6 +257,7 @@ module Proof = struct
     let indent' = "\t" ^ indent in
     match p with
     | STT i -> Printf.sprintf "%strue{%d}" indent i
+    | SEqConst (tp, x, c) -> Printf.sprintf "%sSEqConst(%d, %s, %s)" indent tp x (Domain.to_string c)
     | SPred (tp, r, trms) -> Printf.sprintf "%sSPred(%d, %s, %s)" indent tp r (Term.list_to_string trms)
     | SNeg vp -> Printf.sprintf "%sSNeg{%d}\n%s" indent (s_at p) (v_to_string indent' vp)
     | SOrL sp1 -> Printf.sprintf "%sSOrL{%d}\n%s" indent (s_at p) (s_to_string indent' sp1)
@@ -267,9 +271,9 @@ module Proof = struct
     | SIffVV (vp1, vp2) -> Printf.sprintf "%sSIffVV{%d}\n%s\n%s" indent (s_at p)
                              (v_to_string indent' vp1) (v_to_string indent' vp2)
     | SExists (x, d, sp) -> Printf.sprintf "%sSExists{%d}{%s=%s}\n%s\n" indent (s_at p)
-                              (Term.value_to_string x) (Domain.to_string d) (s_to_string indent' sp)
+                              x (Domain.to_string d) (s_to_string indent' sp)
     | SForall (x, part) -> Printf.sprintf "%sSForall{%d}{%s}\n%s\n" indent (s_at (SForall (x, part)))
-                             (Term.value_to_string x) (Part.to_string indent' x s_to_string part)
+                             x (Part.to_string indent' (Var x) s_to_string part)
     | SPrev sp -> Printf.sprintf "%sSPrev{%d}\n%s" indent (s_at p) (s_to_string indent' sp)
     | SNext sp -> Printf.sprintf "%sSNext{%d}\n%s" indent (s_at p) (s_to_string indent' sp)
     | SOnce (_, sp) -> Printf.sprintf "%sSOnce{%d}\n%s" indent (s_at p) (s_to_string indent' sp)
@@ -288,6 +292,7 @@ module Proof = struct
     let indent' = "\t" ^ indent in
     match p with
     | VFF i -> Printf.sprintf "%sfalse{%d}" indent i
+    | VEqConst (tp, x, c) -> Printf.sprintf "%sVEqConst(%d, %s, %s)" indent tp x (Domain.to_string c)
     | VPred (tp, r, trms) -> Printf.sprintf "%sVPred(%d, %s, %s)" indent tp r (Term.list_to_string trms)
     | VNeg sp -> Printf.sprintf "%sVNeg{%d}\n%s" indent (v_at p) (s_to_string indent' sp)
     | VOr (vp1, vp2) -> Printf.sprintf "%sVOr{%d}\n%s\n%s" indent (v_at p) (v_to_string indent' vp1) (v_to_string indent' vp2)
@@ -297,9 +302,9 @@ module Proof = struct
     | VIffSV (sp1, vp2) -> Printf.sprintf "%sVIffSV{%d}\n%s\n%s" indent (v_at p) (s_to_string indent' sp1) (v_to_string indent' vp2)
     | VIffVS (vp1, sp2) -> Printf.sprintf "%sVIffVS{%d}\n%s\n%s" indent (v_at p) (v_to_string indent' vp1) (s_to_string indent' sp2)
     | VExists (x, part) -> Printf.sprintf "%sVExists{%d}{%s}\n%s\n" indent (v_at (VExists (x, part)))
-                             (Term.value_to_string x) (Part.to_string indent' x v_to_string part)
+                             x (Part.to_string indent' (Var x) v_to_string part)
     | VForall (x, d, vp) -> Printf.sprintf "%sVForall{%d}{%s=%s}\n%s\n" indent (v_at p)
-                              (Term.value_to_string x) (Domain.to_string d) (v_to_string indent' vp)
+                              x (Domain.to_string d) (v_to_string indent' vp)
     | VPrev vp -> Printf.sprintf "%sVPrev{%d}\n%s" indent (v_at p) (v_to_string indent' vp)
     | VPrev0 -> Printf.sprintf "%sVPrev0{0}" indent'
     | VPrevOutL i -> Printf.sprintf "%sVPrevOutL{%d}" indent' i
@@ -337,6 +342,10 @@ module Proof = struct
     match p, h with
     | STT tp, TT  ->
        Printf.sprintf "\\infer[\\top]{%s, %d \\pvd true}{}\n" (val_changes_to_latex v) tp
+    | SEqConst (tp, x, c), EqConst (_, _) ->
+       Printf.sprintf "\\infer[\\Seqconst]{%s, %d \\pvd %s \\approx %s}{%s \\approx %s}\n"
+         (val_changes_to_latex v) tp (Etc.escape_underscores x) (Domain.to_string c)
+         (Etc.escape_underscores x) (Domain.to_string c)
     | SPred (tp, r, trms), Predicate (_, _) ->
        Printf.sprintf "\\infer[\\Spred]{%s, %d \\pvd %s\\,(%s)}{(%s,[%s]) \\in\\Gamma_{%d}}\n"
          (val_changes_to_latex v) tp (Etc.escape_underscores r) (Term.list_to_string trms)
@@ -368,8 +377,8 @@ module Proof = struct
        Printf.sprintf "\\infer[\\SiffVV]{%s, %d \\pvd %s}\n%s{{%s} & {%s}}\n"
          (val_changes_to_latex v) (s_at p) (Formula.to_latex h)
          indent (v_to_latex indent' v idx vp1 f) (v_to_latex indent' v idx vp2 g)
-    | SExists (x, d, sp), Exists (Var y, f) ->
-       let v' = v @ [(Term.value_to_string x, Domain.to_string d)] in
+    | SExists (x, d, sp), Exists (_, f) ->
+       let v' = v @ [(x, Domain.to_string d)] in
        Printf.sprintf "\\infer[\\Sexists]{%s, %d \\pvd %s}\n%s{%s}\n"
          (val_changes_to_latex v) (s_at p) (Formula.to_latex h) indent (s_to_latex indent' v' idx sp f)
     | SForall (x, part), Forall (_, f) ->
@@ -377,7 +386,7 @@ module Proof = struct
          (val_changes_to_latex v) (s_at p) (Formula.to_latex h) indent
          (String.concat ~sep:"&" (List.map part ~f:(fun (sub, sp) ->
                                       let idx' = idx + 1 in
-                                      let v' = v @ [(Term.value_to_string x, "d_" ^ (Int.to_string idx') ^ " \\in " ^ (Setc.to_latex sub))] in
+                                      let v' = v @ [(x, "d_" ^ (Int.to_string idx') ^ " \\in " ^ (Setc.to_latex sub))] in
                                       "{" ^ (s_to_latex indent' v' idx' sp f) ^ "}")))
     | SPrev sp, Prev (i, f) ->
        Printf.sprintf "\\infer[\\Sprev{}]{%s, %d \\pvd %s}\n%s{%s}\n"
@@ -421,6 +430,10 @@ module Proof = struct
     match p, h with
     | VFF tp, FF ->
        Printf.sprintf "\\infer[\\bot]{%s, %d \\nvd false}{}\n" (val_changes_to_latex v) tp
+    | VEqConst (tp, x, c), EqConst (_, _) ->
+       Printf.sprintf "\\infer[\\Veqconst]{%s, %d \\nvd %s \\approx %s}{%s \\not\\approx %s}\n"
+         (val_changes_to_latex v) tp (Etc.escape_underscores x) (Domain.to_string c)
+         (Etc.escape_underscores x) (Domain.to_string c)
     | VPred (tp, r, trms), Predicate (_, _) ->
        Printf.sprintf "\\infer[\\Vpred]{%s, %d \\nvd %s\\,(%s)}{(%s,[%s]) \\notin\\Gamma_{%d}}\n"
          (val_changes_to_latex v) tp (Etc.escape_underscores r) (Term.list_to_string trms)
@@ -455,10 +468,10 @@ module Proof = struct
          (val_changes_to_latex v) (v_at p) (Formula.to_latex h) indent
          (String.concat ~sep:"&" (List.map part ~f:(fun (sub, vp) ->
                                       let idx' = idx + 1 in
-                                      let v' = v @ [(Term.value_to_string x, "d_" ^ (Int.to_string idx') ^ " \\in " ^ (Setc.to_latex sub))] in
+                                      let v' = v @ [(x, "d_" ^ (Int.to_string idx') ^ " \\in " ^ (Setc.to_latex sub))] in
                                       "{" ^ (v_to_latex indent' v' idx' vp f) ^ "}")))
     | VForall (x, d, vp), Forall (_, f) ->
-       let v' = v @ [(Term.value_to_string x, Domain.to_string d)] in
+       let v' = v @ [(x, Domain.to_string d)] in
        Printf.sprintf "\\infer[\\Vforall]{%s, %d \\nvd %s}\n%s{%s}\n"
          (val_changes_to_latex v) (v_at p) (Formula.to_latex h) indent (v_to_latex indent' v' idx vp f)
     | VPrev vp, Prev (i, f) ->
@@ -533,6 +546,7 @@ module Proof = struct
 
     let rec s = function
       | STT _ -> 1
+      | SEqConst _ -> 1
       | SPred _ -> 1
       | SNeg vp -> 1 + v vp
       | SOrL sp1 -> 1 + s sp1
@@ -555,6 +569,7 @@ module Proof = struct
       | SUntil (sp2, sp1s) -> 1 + s sp2 + sum s sp1s
     and v = function
       | VFF _ -> 1
+      | VEqConst _ -> 1
       | VPred _ -> 1
       | VNeg sp -> 1 + s sp
       | VOr (vp1, vp2) -> 1 + v vp1 + v vp2
@@ -601,12 +616,12 @@ end
 
 module Pdt = struct
 
-  type 'a t = Leaf of 'a | Node of Term.t * ('a t) Part.t
+  type 'a t = Leaf of 'a | Node of string * ('a t) Part.t
 
   let rec apply1 vars f pdt = match vars, pdt with
     | _ , Leaf l -> Leaf (f l)
     | z :: vars, Node (x, part) ->
-       if Term.equal x z then
+       if String.equal x z then
          Node (x, Part.map part (apply1 vars f))
        else apply1 vars f (Node (x, part))
     | _ -> raise (Invalid_argument "variable list is empty")
@@ -616,11 +631,11 @@ module Pdt = struct
     | _ , Leaf l1, Node (x, part2) -> Node (x, Part.map part2 (apply1 vars (f l1)))
     | _ , Node (x, part1), Leaf l2 -> Node (x, Part.map part1 (apply1 vars (fun l1 -> f l1 l2)))
     | z :: vars, Node (x, part1), Node (y, part2) ->
-       if Term.equal x z && Term.equal y z then
+       if String.equal x z && String.equal y z then
          Node (z, Part.merge2 (apply2 vars f) part1 part2)
-       else (if Term.equal x z then
+       else (if String.equal x z then
                Node (x, Part.map part1 (fun pdt1 -> apply2 vars f pdt1 (Node (y, part2))))
-             else (if Term.equal y z then
+             else (if String.equal y z then
                      Node (y, Part.map part2 (apply2 vars f (Node (x, part1))))
                    else apply2 vars f (Node (x, part1)) (Node (y, part2))))
     | _ -> raise (Invalid_argument "variable list is empty")
@@ -634,43 +649,43 @@ module Pdt = struct
     | _ , Node (x, part1), Leaf l2, Leaf l3 ->
        Node (x, Part.map part1 (apply1 vars (fun l1 -> f l1 l2 l3)))
     | w :: vars, Leaf l1, Node (y, part2), Node (z, part3) ->
-       if Term.equal y w && Term.equal z w then
+       if String.equal y w && String.equal z w then
          Node (w, Part.merge2 (apply2 vars (f l1)) part2 part3)
-       else (if Term.equal y w then
+       else (if String.equal y w then
                Node (y, Part.map part2 (fun pdt2 -> apply2 vars (f l1) pdt2 (Node (z, part3))))
-             else (if Term.equal z w then
+             else (if String.equal z w then
                      Node (z, Part.map part3 (fun pdt3 -> apply2 vars (f l1) (Node (y, part2)) pdt3))
                    else apply3 vars f (Leaf l1) (Node (y, part2)) (Node(z, part3))))
     | w :: vars, Node (x, part1), Node (y, part2), Leaf l3 ->
-       if Term.equal x w && Term.equal y w then
+       if String.equal x w && String.equal y w then
          Node (w, Part.merge2 (apply2 vars (fun l1 l2 -> f l1 l2 l3)) part1 part2)
-       else (if Term.equal x w then
+       else (if String.equal x w then
                Node (x, Part.map part1 (fun pdt1 -> apply2 vars (fun pt1 pt2 -> f pt1 pt2 l3) pdt1 (Node (y, part2))))
-             else (if Term.equal y w then
+             else (if String.equal y w then
                      Node (y, Part.map part2 (fun pdt2 -> apply2 vars (fun l1 l2 -> f l1 l2 l3) (Node (x, part1)) pdt2))
                    else apply3 vars f (Node (x, part1)) (Node (y, part2)) (Leaf l3)))
     | w :: vars, Node (x, part1), Leaf l2, Node (z, part3) ->
-       if Term.equal x w && Term.equal z w then
+       if String.equal x w && String.equal z w then
          Node (w, Part.merge2 (apply2 vars (fun l1 -> f l1 l2)) part1 part3)
-       else (if Term.equal x w then
+       else (if String.equal x w then
                Node (x, Part.map part1 (fun pdt1 -> apply2 vars (fun l1 -> f l1 l2) pdt1 (Node (z, part3))))
-             else (if Term.equal z w then
+             else (if String.equal z w then
                      Node (z, Part.map part3 (fun pdt3 -> apply2 vars (fun l1 -> f l1 l2) (Node (x, part1)) pdt3))
                    else apply3 vars f (Node (x, part1)) (Leaf l2) (Node (z, part3))))
     | w :: vars, Node (x, part1), Node (y, part2), Node (z, part3) ->
-       if Term.equal x w && Term.equal y w && Term.equal z w then
+       if String.equal x w && String.equal y w && String.equal z w then
          Node (z, Part.merge3 (apply3 vars f) part1 part2 part3)
-       else (if Term.equal x w && Term.equal y w then
+       else (if String.equal x w && String.equal y w then
                Node (w, Part.merge2 (fun pdt1 pdt2 -> apply3 vars f pdt1 pdt2 (Node (z, part3))) part1 part2)
-             else (if Term.equal x w && Term.equal z w then
+             else (if String.equal x w && String.equal z w then
                      Node (w, Part.merge2 (fun pdt1 pdt3 -> apply3 vars f pdt1 (Node (y, part2)) pdt3) part1 part3)
-                   else (if Term.equal y w && Term.equal z w then
+                   else (if String.equal y w && String.equal z w then
                            Node (w, Part.merge2 (apply3 vars (fun l1 -> f l1) (Node (x, part1))) part2 part3)
-                         else (if Term.equal x w then
+                         else (if String.equal x w then
                                  Node (x, Part.map part1 (fun pdt1 -> apply3 vars f pdt1 (Node (y, part2)) (Node (z, part3))))
-                               else (if Term.equal y w then
+                               else (if String.equal y w then
                                        Node (y, Part.map part2 (fun pdt2 -> apply3 vars f (Node (x, part1)) pdt2 (Node (z, part3))))
-                                     else (if Term.equal z w then
+                                     else (if String.equal z w then
                                              Node (z, Part.map part3 (fun pdt3 -> apply3 vars f (Node (x, part1)) (Node (y, part2)) pdt3))
                                            else apply3 vars f (Node (x, part1)) (Node (y, part2)) (Node (z, part3))))))))
     | _ -> raise (Invalid_argument "variable list is empty")
@@ -686,11 +701,11 @@ module Pdt = struct
 
   let rec to_string f indent = function
     | Leaf pt -> Printf.sprintf "%s%s\n" indent (f pt)
-    | Node (x, part) -> (Part.to_string indent x (to_string f) part)
+    | Node (x, part) -> (Part.to_string indent (Var x) (to_string f) part)
 
   let rec to_latex f indent = function
     | Leaf pt -> Printf.sprintf "%s%s\n" indent (f pt)
-    | Node (x, part) -> (Part.to_string indent x (to_latex f) part)
+    | Node (x, part) -> (Part.to_string indent (Var x) (to_latex f) part)
 
   let unleaf = function
     | Leaf l -> l
@@ -700,7 +715,7 @@ module Pdt = struct
     match vars, pdt with
     |  _ , Leaf l -> Leaf (f (Either.First l))
     | [x], Node (y, part) -> Leaf (f (Either.Second (Part.map part unleaf)))
-    | x :: vars, Node (y, part) -> if Term.equal x y then
+    | x :: vars, Node (y, part) -> if String.equal x y then
                                      Node (y, Part.map part (hide vars f))
                                    else hide vars f (Node (y, part))
     | _ -> raise (Invalid_argument "function not defined for other cases")

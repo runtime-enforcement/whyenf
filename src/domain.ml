@@ -50,16 +50,16 @@ module T = struct
     | TFloat -> Float 0.0
 
   let string_to_t s tt = match tt with
-    | TInt -> (try Int (int_of_string s)
+    | TInt -> (try Int (Int.of_string s)
                with Failure _ -> raise (Invalid_argument (Printf.sprintf "%s is not an int" s)))
     | TStr -> Str s
-    | TFloat -> (try Float (float_of_string s)
+    | TFloat -> (try Float (Float.of_string s)
                  with Failure _ -> raise (Invalid_argument (Printf.sprintf "%s is not a float" s)))
 
   let to_string = function
-    | Int v -> string_of_int v
+    | Int v -> Int.to_string v
     | Str v -> v
-    | Float v -> string_of_float v
+    | Float v -> Float.to_string v
 
   let list_to_string ds =
     String.drop_suffix (List.fold ds ~init:"" ~f:(fun acc d -> acc ^ (to_string d) ^ ", ")) 2
