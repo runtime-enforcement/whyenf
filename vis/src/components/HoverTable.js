@@ -7,17 +7,7 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
 
-export default function DbTable( { db } ) {
-
-  const vars = [...new Set(db.map(a => a.var))];
-
-  const allValues = db.map(a => a.value);
-  const maxCol = vars.length;
-  const values = [];
-
-  for (let i = 0; i < allValues.length; i += maxCol) {
-    values.push(allValues.slice(i, i + maxCol));
-  }
+export default function HoverTable({ table, subf }) {
 
   return (
     <div className="muiTable">
@@ -25,25 +15,31 @@ export default function DbTable( { db } ) {
         <Table size="small" aria-label="a dense table">
           <TableHead>
             <TableRow>
-              {vars.map((v, i) =>
+              {table.columns.map((v, i) =>
                 <TableCell key={i} align="center">
                   <span style={{fontWeight: 'bold'}}>
                     {v}
                   </span>
                 </TableCell>
               )}
+              <TableCell key={table.columns.length + 1} align="center">
+                <span style={{fontWeight: 'bold'}}>
+                  Formula
+                </span>
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {values.map((row, i) => (
-              <TableRow key={i}>
-                { row.map((v, j) =>
-                  <TableCell key={j}>
-                    {v}
-                  </TableCell>
-                )}
-              </TableRow>
-            ))}
+            <TableRow>
+              {table.values.map((v, i) =>
+                <TableCell key={i}>
+                  {v}
+                </TableCell>
+              )}
+              <TableCell key={table.values.length + 1}>
+                {subf}
+              </TableCell>
+            </TableRow>
           </TableBody>
         </Table>
       </TableContainer>

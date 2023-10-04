@@ -93,10 +93,10 @@ module Sig = struct
     | t -> raise (Failure ("expected a string or ')' but found " ^ string_of_token t))
 
   let convert_types sl =
-    List.map sl (fun s -> match String.split s ':' with
-                          | [] -> raise (Failure ("unable to parse the variable signature string " ^ s))
-                          | name :: ttype :: [] -> (name, Domain.tt_of_string ttype)
-                          | _ -> raise (Failure ("unable to parse the variable signature string " ^ s)))
+    List.map sl ~f:(fun s -> match String.split s ~on:':' with
+                             | [] -> raise (Failure ("unable to parse the variable signature string " ^ s))
+                             | name :: ttype :: [] -> (name, Domain.tt_of_string ttype)
+                             | _ -> raise (Failure ("unable to parse the variable signature string " ^ s)))
 
   let rec parse_pred_sigs (pb: Parsebuf.t) =
     match pb.token with

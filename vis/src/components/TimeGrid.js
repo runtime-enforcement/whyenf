@@ -7,12 +7,12 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import StorageIcon from '@mui/icons-material/Storage';
 import Popover from '@mui/material/Popover';
-import Typography from '@mui/material/Typography';
-import { red, amber, lightGreen, indigo, blueGrey, teal, yellow, deepOrange, grey } from '@mui/material/colors';
+import { red, amber, lightGreen, blueGrey, teal } from '@mui/material/colors';
 import { common } from '@mui/material/colors';
-import { black, cellColor, updateHighlights, getHeaderHighlights } from '../util';
+import { black, cellColor, updateHighlights, getHeaderHighlights, updateHovers } from '../util';
 import MenuCell from './MenuCell';
 import DbTable from './DbTable';
+import HoverTable from './HoverTable';
 
 function DbCell(props) {
   if (props.value.length === 0) {
@@ -73,7 +73,9 @@ function TimeGrid ({ columns,
         tables.colors[row][col - columns.preds.length] !== black &&
         tables.cells[row][col - columns.preds.length].kind !== undefined &&
         tables.cells[row][col - columns.preds.length].kind !== "partition") {
-      setAnchorValue({ kind: "subf", value: subformulas[col - columns.preds.length] });
+      setAnchorValue({ kind: "subf",
+                       table: tables.hovers[row][col - columns.preds.length],
+                       subf: subformulas[col - columns.preds.length] });
       setAnchorEl(event.currentTarget);
     }
   };
@@ -144,6 +146,7 @@ function TimeGrid ({ columns,
           return <MenuCell explObj={objs.expls[params.id].expl}
                            colorsTable={tables.colors}
                            cellsTable={tables.cells}
+                           hoversTable={tables.hovers}
                            curCol={0}
                            setMonitorState={setMonitorState} />;
         } else {
@@ -190,6 +193,7 @@ function TimeGrid ({ columns,
             return <MenuCell explObj={tables.cells[params.row.tp][i]}
                              colorsTable={tables.colors}
                              cellsTable={tables.cells}
+                             hoversTable={tables.hovers}
                              ts={params.row.ts}
                              tp={params.row.tp}
                              colGridIndex={parseInt(params.colDef.field)}
@@ -249,12 +253,25 @@ function TimeGrid ({ columns,
                                            newSubfsHeaderHighlights, children);
 
       // Update state
-      let action = { type: "updateTable",
-                     colorsTable: cloneColorsTable,
-                     selectedRows: newHighlights.selectedRows,
-                     highlightedCells: newHighlights.highlightedCells,
-                     pathsMap: newHighlights.clonePathsMap,
-                     subfsHeader: newSubfsHeaderHighlights };
+      let action;
+
+      if (cell.kind === "assignment") {
+        action = { type: "updateTable",
+                   colorsTable: cloneColorsTable,
+                   selectedRows: newHighlights.selectedRows,
+                   highlightedCells: newHighlights.highlightedCells,
+                   pathsMap: newHighlights.clonePathsMap,
+                   subfsHeader: newSubfsHeaderHighlights,
+                   hoversTable: updateHovers([cell.var], [cell.value], colGridIndex - columns.preds.length, columns.subfsScopes, tables.hovers)
+                 };
+      } else {
+        action = { type: "updateTable",
+                   colorsTable: cloneColorsTable,
+                   selectedRows: newHighlights.selectedRows,
+                   highlightedCells: newHighlights.highlightedCells,
+                   pathsMap: newHighlights.clonePathsMap,
+                   subfsHeader: newSubfsHeaderHighlights };
+      }
 
       setMonitorState(action);
     }
@@ -359,7 +376,7 @@ function TimeGrid ({ columns,
         disableRestoreFocus
       >
         { anchorValue.kind === "db" && <DbTable db={anchorValue.value}/> }
-        { anchorValue.kind === "subf" && <Typography sx={{ p: 1 }}>{anchorValue.value}</Typography> }
+        { anchorValue.kind === "subf" && <HoverTable table={anchorValue.table} subf={anchorValue.subf}/> }
       </Popover>
     </Box>
   );

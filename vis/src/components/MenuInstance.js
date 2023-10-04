@@ -1,15 +1,19 @@
-import React, { useState } from 'react';
+import React from 'react';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 import ArrowRightIcon from '@mui/icons-material/ArrowRight';
 import MenuItem from '@mui/material/MenuItem';
 import WrapperNestedMenuItem from './WrapperNestedMenuItem';
 import WrapperIconMenuItem from './WrapperIconMenuItem';
-import { grey } from '@mui/material/colors';
 
-function MenuInstance ({ explObj, curCol, open, domainValues, handleClose, handleClick }) {
+function MenuInstance ({ explObj, curCol, open, domainValues, variableNames, handleClose, handleClick }) {
 
   if (explObj.type === "node" || explObj.kind === "partition") {
+    const newVariableNames = [];
+
+    newVariableNames.push(...variableNames);
+    newVariableNames.push(explObj.var);
+
     return (
       <div>
         <Box sx={{ ml: 1, mr: 1, mb: 1, borderRadius: '9px' }}
@@ -24,8 +28,12 @@ function MenuInstance ({ explObj, curCol, open, domainValues, handleClose, handl
         </Box>
         { explObj?.part?.map((el, i) => {
 
-          const domainValue = el.subset_type === "finite" ?
+          const domainValueLabel = el.subset_type === "finite" ?
                 el.subset_values.join(', ') : (<span style={{fontWeight: 'bold'}}>Other</span>);
+          let domainValue = el.subset_type === "finite" ?
+              el.subset_values.join(', ') : "∁ {".concat(el.subset_values.join(', ')).concat("}");
+          if (el.subset_values.length === 0) domainValue = "𝔻";
+
           const newDomainValues = [];
           newDomainValues.push(...domainValues);
           newDomainValues.push(domainValue);
@@ -34,7 +42,7 @@ function MenuInstance ({ explObj, curCol, open, domainValues, handleClose, handl
             return (
               <div key={i}>
                 <WrapperNestedMenuItem rightIcon={<ArrowRightIcon/>}
-                                       label={domainValue}
+                                       label={domainValueLabel}
                                        explObj={el}
                                        curCol={curCol}
                                        parentMenuOpen={open}>
@@ -42,6 +50,7 @@ function MenuInstance ({ explObj, curCol, open, domainValues, handleClose, handl
                                 curCol={curCol}
                                 open={open}
                                 domainValues={newDomainValues}
+                                variableNames={newVariableNames}
                                 handleClose={handleClose}
                                 handleClick={handleClick}/>
                 </WrapperNestedMenuItem>
@@ -50,10 +59,11 @@ function MenuInstance ({ explObj, curCol, open, domainValues, handleClose, handl
           } else {
             return (
               <div key={i}>
-                <WrapperIconMenuItem label={domainValue}
+                <WrapperIconMenuItem label={domainValueLabel}
                                      explObj={el}
                                      curCol={curCol}
                                      domainValues={newDomainValues}
+                                     variableNames={newVariableNames}
                                      handleClick={handleClick}/>
               </div>
             );

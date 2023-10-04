@@ -30,7 +30,7 @@ end
 
 module Trace : sig
 
-  val parse_from_channel: in_channel -> Parsebuf.t option -> bool * Parsebuf.t
+  val parse_from_channel: Stdio.In_channel.t -> Parsebuf.t option -> bool * Parsebuf.t
 
   val parse_from_string: string -> bool * Parsebuf.t
 
