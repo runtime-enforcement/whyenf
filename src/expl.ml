@@ -15,8 +15,6 @@ module Fdeque = Core.Fdeque
 
 module Part = struct
 
-  (* TODO: Remove concrete type from signature file                *)
-  (*       In order to do this, I must rewrite do_exists/do_forall *)
   type sub = (Domain.t, Domain.comparator_witness) Setc.t
 
   type 'a t = (sub * 'a) list
@@ -26,6 +24,8 @@ module Part = struct
   let trivial p = [(Setc.univ (module Domain), p)]
 
   let hd part = snd (List.hd_exn part)
+
+  let length part = List.length part
 
   let map part f = List.map part ~f:(fun (s, p) -> (s, f p))
 
@@ -190,8 +190,9 @@ module Proof = struct
       | SIffSS (sp1, sp2), SIffSS (sp1', sp2') -> s_equal sp1 sp1' && s_equal sp2 sp2'
     | SIffVV (vp1, vp2), SIffVV (vp1', vp2') -> v_equal vp1 vp1' && v_equal vp2 vp2'
     | SExists (x, d, sp), SExists (x', d', sp') -> String.equal x x' && Domain.equal d d' && s_equal sp sp'
-    | SForall (x, part), SForall (x', part') -> String.equal x x' && List.for_all2_exn part part' ~f:(fun (s, p) (s', p') ->
-                                                                         Setc.equal s s' && s_equal p p')
+    | SForall (x, part), SForall (x', part') -> String.equal x x' && Int.equal (Part.length part) (Part.length part') &&
+                                                  List.for_all2_exn part part' ~f:(fun (s, p) (s', p') ->
+                                                      Setc.equal s s' && s_equal p p')
     | SOnce (tp, sp), SOnce (tp', sp')
       | SEventually (tp, sp), SEventually (tp', sp') -> Int.equal tp tp' && s_equal sp sp'
     | SHistoricallyOut tp, SHistoricallyOut tp' -> Int.equal tp tp'
@@ -220,8 +221,9 @@ module Proof = struct
     | VImp (sp1, vp2), VImp (sp1', vp2')
       | VIffSV (sp1, vp2), VIffSV (sp1', vp2') -> s_equal sp1 sp1' && v_equal vp2 vp2'
     | VIffVS (vp1, sp2), VIffVS (vp1', sp2') -> v_equal vp1 vp1' && s_equal sp2 sp2'
-    | VExists (x, part), VExists (x', part') -> String.equal x x' && List.for_all2_exn part part' ~f:(fun (s, p) (s', p') ->
-                                                                         Setc.equal s s' && v_equal p p')
+    | VExists (x, part), VExists (x', part') -> String.equal x x' && Int.equal (Part.length part) (Part.length part') &&
+                                                  List.for_all2_exn part part' ~f:(fun (s, p) (s', p') ->
+                                                      Setc.equal s s' && v_equal p p')
     | VForall (x, d, vp), VForall (x', d', vp') -> String.equal x x' && Domain.equal d d' && v_equal vp vp'
     | VPrev0, VPrev0 -> true
     | VPrevOutL tp, VPrevOutL tp'
