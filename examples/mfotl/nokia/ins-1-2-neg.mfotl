@@ -1,0 +1,1 @@
+(insert(x,"db1",y,data) AND NOT data = "[unknown]") AND (NOT (EVENTUALLY[0,108000) (EXISTS u, v. (insert(u,"db2",v,data) OR delete(u,"db1",v,data)))))
