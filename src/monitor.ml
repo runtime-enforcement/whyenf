@@ -1378,8 +1378,8 @@ let rec meval vars ts tp (db: Db.t) = function
   | MEqConst (x, d) ->
      let l1 = Pdt.Leaf (Proof.S (SEqConst (tp, x, d))) in
      let l2 = Pdt.Leaf (Proof.V (VEqConst (tp, x, d))) in
-     let expl = Pdt.Node (x, [(Setc.Finite (Set.of_list (module Domain) [d]), l1);
-                              (Setc.Complement (Set.of_list (module Domain) [d]), l2)]) in
+     let expl = Pdt.Node (x, [(Setc.Complement (Set.of_list (module Domain) [d]), l2);
+                              (Setc.Finite (Set.of_list (module Domain) [d]), l1)]) in
      ([expl], MEqConst (x, d))
   | MPredicate (r, trms) ->
      let db' = Set.filter db ~f:(fun evt -> String.equal r (fst(evt))) in
