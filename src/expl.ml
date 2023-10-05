@@ -211,7 +211,7 @@ module Proof = struct
     | VPred (tp, r, terms), VPred (tp', r', terms') -> Int.equal tp tp' && String.equal r r' &&
                                                          Int.equal (List.length terms) (List.length terms') &&
                                                            List.for_all2_exn terms terms' ~f:(fun t1 t2 -> Term.equal t1 t2)
-    | VNeg sp, VNeg sp' -> phys_equal sp sp'
+    | VNeg sp, VNeg sp' -> s_equal sp sp'
     | VAndL vp, VAndL vp'
       | VAndR vp, VAndR vp'
       | VPrev vp, VPrev vp'
