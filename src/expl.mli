@@ -20,6 +20,7 @@ module Part : sig
   type 'a t = (sub * 'a) list
 
   val trivial: 'a -> 'a t
+  val length: 'a t -> int
   val map: 'a t -> ('a -> 'b) -> 'b t
   val map2: 'a t -> (sub * 'a -> sub * 'a) -> 'a t
   val fold_left: 'a t -> 'b -> ('b -> 'a -> 'b) -> 'b
