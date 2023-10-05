@@ -1,0 +1,1 @@
+insert(user, "db2", x, y) IMPLIES user = "script"
