@@ -1307,34 +1307,36 @@ let do_iff (p1: Proof.t) (p2: Proof.t) : Proof.t = match p1, p2 with
   | V vp1, S sp2 -> V (VIffVS (vp1, sp2))
   | V vp1, V vp2 -> S (SIffVV (vp1, vp2))
 
-let do_exists x tc = function
-  | First p -> (match p with
-                | Proof.S sp -> [Proof.S (SExists (x, Domain.tt_default tc, sp))]
-                | V vp -> [Proof.V (VExists (x, Part.trivial vp))])
-  | Second part -> if Part.exists part Proof.isS then
-                     (let sats = Part.filter part (fun p -> Proof.isS p) in
-                      (Part.values (Part.map2_dedup Proof.equal sats (fun (s, p) ->
-                                        match p with
-                                        | S sp -> (let witness = Setc.some_elt tc s in
-                                                   (Setc.Finite (Set.of_list (module Domain) [witness]),
-                                                    Proof.S (Proof.SExists (x, Setc.some_elt tc s, sp))))
-                                        | V vp -> raise (Invalid_argument "found V proof in S list")))))
-                   else [V (Proof.VExists (x, Part.map_dedup Proof.v_equal part Proof.unV))]
+let do_exists_leaf x tc = function
+  | Proof.S sp -> [Proof.S (SExists (x, Domain.tt_default tc, sp))]
+  | V vp -> [Proof.V (VExists (x, Part.trivial vp))]
 
-let do_forall x tc = function
-  | First p -> (match p with
-                | Proof.S sp -> [Proof.S (SForall (x, Part.trivial sp))]
-                | V vp -> [Proof.V (VForall (x, Domain.tt_default tc, vp))])
-  | Second part -> if Part.for_all part Proof.isS then
-                     [S (SForall (x, Part.map part Proof.unS))]
-                   else
-                     (let vios = Part.filter part (fun p -> Proof.isV p) in
-                      (Part.values (Part.map2_dedup Proof.equal vios (fun (s, p) ->
-                                        match p with
-                                        | S sp -> raise (Invalid_argument "found S proof in V list")
-                                        | V vp -> (let witness = Setc.some_elt tc s in
-                                                   (Setc.Finite (Set.of_list (module Domain) [witness]),
-                                                    Proof.V (Proof.VForall (x, Setc.some_elt tc s, vp))))))))
+let do_exists_node x tc part =
+  if Part.exists part Proof.isS then
+    (let sats = Part.filter part (fun p -> Proof.isS p) in
+     (Part.values (Part.map2_dedup Proof.equal sats (fun (s, p) ->
+                       match p with
+                       | S sp -> (let witness = Setc.some_elt tc s in
+                                  (Setc.Finite (Set.of_list (module Domain) [witness]),
+                                   Proof.S (Proof.SExists (x, Setc.some_elt tc s, sp))))
+                       | V vp -> raise (Invalid_argument "found V proof in S list")))))
+  else [V (Proof.VExists (x, Part.map_dedup Proof.v_equal part Proof.unV))]
+
+let do_forall_leaf x tc = function
+  | Proof.S sp -> [Proof.S (SForall (x, Part.trivial sp))]
+  | V vp -> [Proof.V (VForall (x, Domain.tt_default tc, vp))]
+
+let do_forall_node x tc part =
+  if Part.for_all part Proof.isS then
+    [Proof.S (SForall (x, Part.map part Proof.unS))]
+  else
+    (let vios = Part.filter part (fun p -> Proof.isV p) in
+     (Part.values (Part.map2_dedup Proof.equal vios (fun (s, p) ->
+                       match p with
+                       | S sp -> raise (Invalid_argument "found S proof in V list")
+                       | V vp -> (let witness = Setc.some_elt tc s in
+                                  (Setc.Finite (Set.of_list (module Domain) [witness]),
+                                   Proof.V (Proof.VForall (x, Setc.some_elt tc s, vp))))))))
 
 let rec match_terms trms ds map =
   match trms, ds with
@@ -1434,12 +1436,14 @@ let rec meval vars ts tp (db: Db.t) = function
   | MExists (x, tc, mf) ->
      let (expls, mf') = meval (vars @ [x]) ts tp db mf in
      let f_expls = List.map expls ~f:(fun expl ->
-                       Pdt.hide_dedup Proof.equal (vars @ [x]) (fun p -> minp_list (do_exists x tc p)) expl) in
+                       Pdt.hide_dedup Proof.equal (vars @ [x]) (fun p -> minp_list (do_exists_leaf x tc p))
+                         (fun p -> minp_list (do_exists_node x tc p)) expl) in
      (f_expls, MExists(x, tc, mf'))
   | MForall (x, tc, mf) ->
      let (expls, mf') = meval (vars @ [x]) ts tp db mf in
      let f_expls = List.map expls ~f:(fun expl ->
-                       Pdt.hide_dedup Proof.equal (vars @ [x]) (fun p -> minp_list (do_forall x tc p)) expl) in
+                       Pdt.hide_dedup Proof.equal (vars @ [x]) (fun p -> minp_list (do_forall_leaf x tc p))
+                         (fun p -> minp_list (do_forall_node x tc p)) expl) in
      (f_expls, MForall(x, tc, mf'))
   | MPrev (i, mf, first, (buf, tss)) ->
      let (expls, mf') = meval vars ts tp db mf in

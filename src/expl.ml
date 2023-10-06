@@ -831,12 +831,12 @@ module Pdt = struct
     | Leaf l -> l
     | _ -> raise (Invalid_argument "function not defined for nodes")
 
-  let rec hide vars f pdt = match vars, pdt with
-    |  _ , Leaf l -> Leaf (f (Either.First l))
-    | [x], Node (y, part) -> Leaf (f (Either.Second (Part.map part unleaf)))
+  let rec hide vars f_leaf f_node pdt = match vars, pdt with
+    |  _ , Leaf l -> Leaf (f_leaf l)
+    | [x], Node (y, part) -> Leaf (f_node (Part.map part unleaf))
     | x :: vars, Node (y, part) -> if String.equal x y then
-                                     Node (y, Part.map part (hide vars f))
-                                   else hide vars f (Node (y, part))
+                                     Node (y, Part.map part (hide vars f_leaf f_node))
+                                   else hide vars f_leaf f_node (Node (y, part))
     | _ -> raise (Invalid_argument "function not defined for other cases")
 
   (* dedup related *)
@@ -882,12 +882,12 @@ module Pdt = struct
     | Leaf l -> List.map l ~f:(fun el -> Leaf el)
     | Node (x, part) -> List.map (Part.split_list_dedup (pdt_eq eq) (Part.map part (split_list_dedup eq))) ~f:(fun el -> Node (x, el))
 
-  let rec hide_dedup eq vars f pdt = match vars, pdt with
-    |  _ , Leaf l -> Leaf (f (Either.First l))
-    | [x], Node (y, part) -> Leaf (f (Either.Second (Part.map part unleaf)))
+  let rec hide_dedup eq vars f_leaf f_node pdt = match vars, pdt with
+    |  _ , Leaf l -> Leaf (f_leaf l)
+    | [x], Node (y, part) -> Leaf (f_node (Part.map part unleaf))
     | x :: vars, Node (y, part) -> if String.equal x y then
-                                     Node (y, Part.map_dedup (pdt_eq eq) part (hide_dedup eq vars f))
-                                   else hide_dedup eq vars f (Node (y, part))
+                                     Node (y, Part.map_dedup (pdt_eq eq) part (hide_dedup eq vars f_leaf f_node))
+                                   else hide_dedup eq vars f_leaf f_node (Node (y, part))
     | _ -> raise (Invalid_argument "function not defined for other cases")
 
 end
