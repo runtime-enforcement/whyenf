@@ -7,8 +7,6 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
-[@@@landmark "auto"]
-
 open Core
 open Etc
 open Expl
@@ -1368,7 +1366,7 @@ let rec pdt_of tp r trms (vars: string list) maps : Expl.t = match vars with
                                             | Some(d') -> if Domain.equal d d' then
                                                             map :: acc
                                                           else acc) in
-     let part = Part.tabulate_dedup (Pdt.fix_eq Proof.equal) (Set.of_list (module Domain) ds)
+     let part = Part.tabulate_dedup (Pdt.pdt_eq Proof.equal) (Set.of_list (module Domain) ds)
                   (fun d -> pdt_of tp r trms vars (find_maps d)) (pdt_of tp r trms vars []) in
      Node (x, part)
 

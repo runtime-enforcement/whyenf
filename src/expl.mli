@@ -142,11 +142,10 @@ module Pdt : sig
   val hide: string list -> (('a, 'a Part.t) Either.t -> 'b) -> 'a t -> 'b t
   val to_string: ('a -> string) -> string -> 'a t -> string
 
-  val fix_eq: ('a -> 'a -> bool) -> 'a t -> 'a t -> bool
+  val pdt_eq: ('a -> 'a -> bool) -> 'a t -> 'a t -> bool
   val dedup: ('a -> 'a -> bool) -> 'a t -> 'a t
   val apply1_dedup: ('a -> 'a -> bool) -> string list -> ('b -> 'a) -> 'b t -> 'a t
   val apply2_dedup: ('a -> 'a -> bool) -> string list -> ('b -> 'c -> 'a) -> 'b t -> 'c t -> 'a t
-  val apply3_dedup: ('a -> 'a -> bool) -> string list -> ('b -> 'c -> 'd -> 'a) -> 'b t -> 'c t -> 'd t -> 'a t
   val split_prod_dedup: ('a -> 'a -> bool) -> ('a * 'a) t -> 'a t * 'a t
   val split_list_dedup: ('a -> 'a -> bool) -> 'a list t -> 'a t list
   val hide_dedup: ('a -> 'a -> bool) -> string list -> (('b, 'b Part.t) Either.t -> 'a) -> 'b t -> 'a t
