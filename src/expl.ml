@@ -660,6 +660,10 @@ module Proof = struct
     | S p -> s_to_latex indent [] 0 p fmla
     | V p -> v_to_latex indent [] 0 p fmla
 
+  let to_bool indent = function
+    | S _ -> "true\n"
+    | V _ -> "false\n"
+
   module Size = struct
 
     let sum f d = Fdeque.fold d ~init:0 ~f:(fun acc p -> acc + f p)
@@ -827,6 +831,10 @@ module Pdt = struct
     | Leaf pt -> Printf.sprintf "%s%s\n" indent (f pt)
     | Node (x, part) -> (Part.to_string indent (Var x) (to_latex f) part)
 
+  let rec to_light_string f indent = function
+    | Leaf pt -> Printf.sprintf "%s%s\n" indent (f pt)
+    | Node (x, part) -> (Part.to_string indent (Var x) (to_light_string f) part)
+
   let unleaf = function
     | Leaf l -> l
     | _ -> raise (Invalid_argument "function not defined for nodes")
@@ -901,3 +909,5 @@ let rec at = function
 let to_string expl = Pdt.to_string (Proof.to_string "") "" expl
 
 let to_latex fmla expl = Pdt.to_latex (Proof.to_latex "" fmla) "" expl
+
+let to_light_string expl = Pdt.to_light_string (Proof.to_bool "") "" expl

@@ -1599,6 +1599,7 @@ let exec mode measure f inc =
     (match mode with
      | Out.Plain.UNVERIFIED -> Out.Plain.expls pb.ts tstp_expls None None None mode
      | Out.Plain.LATEX -> Out.Plain.expls pb.ts tstp_expls None None (Some(f)) mode
+     | Out.Plain.LIGHT -> Out.Plain.expls pb.ts tstp_expls None None None mode
      | Out.Plain.DEBUGVIS -> raise (Failure "function exec is undefined for the mode debugvis")
      | Out.Plain.VERIFIED ->
         let c = Checker_interface.check (Queue.to_list ms'.tsdbs) f (List.map tstp_expls ~f:snd) in
