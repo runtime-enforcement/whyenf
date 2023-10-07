@@ -142,13 +142,13 @@ module Pdt : sig
   val hide: string list -> ('a -> 'b) -> ('a Part.t -> 'b) -> 'a t -> 'b t
   val to_string: ('a -> string) -> string -> 'a t -> string
 
-  val pdt_eq: ('a -> 'a -> bool) -> 'a t -> 'a t -> bool
-  val dedup: ('a -> 'a -> bool) -> 'a t -> 'a t
-  val apply1_dedup: ('a -> 'a -> bool) -> string list -> ('b -> 'a) -> 'b t -> 'a t
-  val apply2_dedup: ('a -> 'a -> bool) -> string list -> ('b -> 'c -> 'a) -> 'b t -> 'c t -> 'a t
-  val split_prod_dedup: ('a -> 'a -> bool) -> ('a * 'a) t -> 'a t * 'a t
-  val split_list_dedup: ('a -> 'a -> bool) -> 'a list t -> 'a t list
-  val hide_dedup: ('a -> 'a -> bool) -> string list -> ('b -> 'a) -> ('b Part.t -> 'a) -> 'b t -> 'a t
+  val eq: ('a -> 'a -> bool) -> 'a t -> 'a t -> bool
+  val reduce: ('a -> 'a -> bool) -> 'a t -> 'a t
+  val apply1_reduce: ('a -> 'a -> bool) -> string list -> ('b -> 'a) -> 'b t -> 'a t
+  val apply2_reduce: ('a -> 'a -> bool) -> string list -> ('b -> 'c -> 'a) -> 'b t -> 'c t -> 'a t
+  val split_prod_reduce: ('a -> 'a -> bool) -> ('a * 'a) t -> 'a t * 'a t
+  val split_list_reduce: ('a -> 'a -> bool) -> 'a list t -> 'a t list
+  val hide_reduce: ('a -> 'a -> bool) -> string list -> ('b -> 'a) -> ('b Part.t -> 'a) -> 'b t -> 'a t
 
 end
 
