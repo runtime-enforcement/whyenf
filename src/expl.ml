@@ -463,7 +463,7 @@ module Proof = struct
     | STT tp, TT  ->
        Printf.sprintf "\\infer[\\top]{%s, %d \\pvd true}{}\n" (val_changes_to_latex v) tp
     | SEqConst (tp, x, c), EqConst (_, _) ->
-       Printf.sprintf "\\infer[\\Seqconst]{%s, %d \\pvd %s \\approx %s}{%s \\approx %s}\n"
+       Printf.sprintf "\\infer[\\Seqconst]{%s, %d \\pvd %s = %s}{%s \\approx %s}\n"
          (val_changes_to_latex v) tp (Etc.escape_underscores x) (Domain.to_string c)
          (Etc.escape_underscores x) (Domain.to_string c)
     | SPred (tp, r, trms), Predicate (_, _) ->
@@ -551,7 +551,7 @@ module Proof = struct
     | VFF tp, FF ->
        Printf.sprintf "\\infer[\\bot]{%s, %d \\nvd false}{}\n" (val_changes_to_latex v) tp
     | VEqConst (tp, x, c), EqConst (_, _) ->
-       Printf.sprintf "\\infer[\\Veqconst]{%s, %d \\nvd %s \\approx %s}{%s \\not\\approx %s}\n"
+       Printf.sprintf "\\infer[\\Veqconst]{%s, %d \\nvd %s = %s}{%s \\not\\approx %s}\n"
          (val_changes_to_latex v) tp (Etc.escape_underscores x) (Domain.to_string c)
          (Etc.escape_underscores x) (Domain.to_string c)
     | VPred (tp, r, trms), Predicate (_, _) ->

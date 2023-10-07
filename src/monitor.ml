@@ -1256,7 +1256,7 @@ module MFormula = struct
   let rec to_string_rec l = function
     | MTT -> Printf.sprintf "⊤"
     | MFF -> Printf.sprintf "⊥"
-    | MEqConst (x, c) -> Printf.sprintf "%s ≈ %s" x (Domain.to_string c)
+    | MEqConst (x, c) -> Printf.sprintf "%s = %s" x (Domain.to_string c)
     | MPredicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
     | MNeg f -> Printf.sprintf "¬%a" (fun x -> to_string_rec 5) f
     | MAnd (f, g, _) -> Printf.sprintf (Etc.paren l 4 "%a ∧ %a") (fun x -> to_string_rec 4) f (fun x -> to_string_rec 4) g

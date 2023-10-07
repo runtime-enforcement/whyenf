@@ -269,7 +269,7 @@ let pred_names f =
 let op_to_string = function
   | TT -> Printf.sprintf "⊤"
   | FF -> Printf.sprintf "⊥"
-  | EqConst (x, c) -> Printf.sprintf "≈"
+  | EqConst (x, c) -> Printf.sprintf "="
   | Predicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
   | Neg _ -> Printf.sprintf "¬"
   | And (_, _) -> Printf.sprintf "∧"
@@ -290,7 +290,7 @@ let op_to_string = function
 let rec to_string_rec l = function
   | TT -> Printf.sprintf "⊤"
   | FF -> Printf.sprintf "⊥"
-  | EqConst (x, c) -> Printf.sprintf "%s ≈ %s" x (Domain.to_string c)
+  | EqConst (x, c) -> Printf.sprintf "%s = %s" x (Domain.to_string c)
   | Predicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
   | Neg f -> Printf.sprintf "¬%a" (fun x -> to_string_rec 5) f
   | And (f, g) -> Printf.sprintf (Etc.paren l 4 "%a ∧ %a") (fun x -> to_string_rec 4) f (fun x -> to_string_rec 4) g
@@ -357,7 +357,7 @@ let to_json = to_json_rec "    " ""
 let rec to_latex_rec l = function
   | TT -> Printf.sprintf "\\top"
   | FF -> Printf.sprintf "\\bot"
-  | EqConst (x, c) -> Printf.sprintf "%s \\approx %s" (Etc.escape_underscores x) (Domain.to_string c)
+  | EqConst (x, c) -> Printf.sprintf "%s = %s" (Etc.escape_underscores x) (Domain.to_string c)
   | Predicate (r, trms) -> Printf.sprintf "%s\\,(%s)" (Etc.escape_underscores r) (Term.list_to_string trms)
   | Neg f -> Printf.sprintf "\\neg %a" (fun x -> to_latex_rec 5) f
   | And (f, g) -> Printf.sprintf (Etc.paren l 4 "%a \\land %a") (fun x -> to_latex_rec 4) f (fun x -> to_latex_rec 4) g
