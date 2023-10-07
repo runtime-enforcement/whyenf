@@ -1368,7 +1368,7 @@ let rec pdt_of tp r trms (vars: string list) maps : Expl.t = match vars with
                                             | Some(d') -> if Domain.equal d d' then
                                                             map :: acc
                                                           else acc) in
-     let part = Part.tabulate_dedup (Pdt.pdt_eq Proof.equal) (Set.of_list (module Domain) ds)
+     let part = Part.tabulate_dedup (Pdt.eq Proof.equal) (Set.of_list (module Domain) ds)
                   (fun d -> pdt_of tp r trms vars (find_maps d)) (pdt_of tp r trms vars []) in
      Node (x, part)
 
@@ -1399,14 +1399,14 @@ let rec meval vars ts tp (db: Db.t) = function
        ([expl], MPredicate (r, trms))
   | MNeg (mf) ->
      let (expls, mf') = meval vars ts tp db mf in
-     let f_expls = List.map expls ~f:(fun expl -> (Pdt.apply1_dedup Proof.equal vars (fun p -> do_neg p) expl)) in
+     let f_expls = List.map expls ~f:(fun expl -> (Pdt.apply1_reduce Proof.equal vars (fun p -> do_neg p) expl)) in
      (f_expls, MNeg(mf'))
   | MAnd (mf1, mf2, buf2) ->
      let (expls1, mf1') = meval vars ts tp db mf1 in
      let (expls2, mf2') = meval vars ts tp db mf2 in
      let (f_expls, buf2') =
        Buf2.take
-         (fun expl1 expl2 -> Pdt.apply2_dedup Proof.equal vars (fun p1 p2 -> minp_list (do_and p1 p2)) expl1 expl2)
+         (fun expl1 expl2 -> Pdt.apply2_reduce Proof.equal vars (fun p1 p2 -> minp_list (do_and p1 p2)) expl1 expl2)
          (Buf2.add expls1 expls2 buf2) in
      (f_expls, MAnd (mf1', mf2', buf2'))
   | MOr (mf1, mf2, buf2) ->
@@ -1414,7 +1414,7 @@ let rec meval vars ts tp (db: Db.t) = function
      let (expls2, mf2') = meval vars ts tp db mf2 in
      let (f_expls, buf2') =
        Buf2.take
-         (fun expl1 expl2 -> Pdt.apply2_dedup Proof.equal vars (fun p1 p2 -> minp_list (do_or p1 p2)) expl1 expl2)
+         (fun expl1 expl2 -> Pdt.apply2_reduce Proof.equal vars (fun p1 p2 -> minp_list (do_or p1 p2)) expl1 expl2)
          (Buf2.add expls1 expls2 buf2) in
      (f_expls, MOr (mf1', mf2', buf2'))
   | MImp (mf1, mf2, buf2) ->
@@ -1422,7 +1422,7 @@ let rec meval vars ts tp (db: Db.t) = function
      let (expls2, mf2') = meval vars ts tp db mf2 in
      let (f_expls, buf2') =
        Buf2.take
-         (fun expl1 expl2 -> Pdt.apply2_dedup Proof.equal vars (fun p1 p2 -> minp_list (do_imp p1 p2)) expl1 expl2)
+         (fun expl1 expl2 -> Pdt.apply2_reduce Proof.equal vars (fun p1 p2 -> minp_list (do_imp p1 p2)) expl1 expl2)
          (Buf2.add expls1 expls2 buf2) in
      (f_expls, MImp (mf1', mf2', buf2'))
   | MIff (mf1, mf2, buf2) ->
@@ -1430,26 +1430,26 @@ let rec meval vars ts tp (db: Db.t) = function
      let (expls2, mf2') = meval vars ts tp db mf2 in
      let (f_expls, buf2') =
        Buf2.take
-         (fun expl1 expl2 -> Pdt.apply2_dedup Proof.equal vars (fun p1 p2 -> do_iff p1 p2) expl1 expl2)
+         (fun expl1 expl2 -> Pdt.apply2_reduce Proof.equal vars (fun p1 p2 -> do_iff p1 p2) expl1 expl2)
          (Buf2.add expls1 expls2 buf2) in
      (f_expls, MIff (mf1', mf2', buf2'))
   | MExists (x, tc, mf) ->
      let (expls, mf') = meval (vars @ [x]) ts tp db mf in
      let f_expls = List.map expls ~f:(fun expl ->
-                       Pdt.hide_dedup Proof.equal (vars @ [x]) (fun p -> minp_list (do_exists_leaf x tc p))
+                       Pdt.hide_reduce Proof.equal (vars @ [x]) (fun p -> minp_list (do_exists_leaf x tc p))
                          (fun p -> minp_list (do_exists_node x tc p)) expl) in
      (f_expls, MExists(x, tc, mf'))
   | MForall (x, tc, mf) ->
      let (expls, mf') = meval (vars @ [x]) ts tp db mf in
      let f_expls = List.map expls ~f:(fun expl ->
-                       Pdt.hide_dedup Proof.equal (vars @ [x]) (fun p -> minp_list (do_forall_leaf x tc p))
+                       Pdt.hide_reduce Proof.equal (vars @ [x]) (fun p -> minp_list (do_forall_leaf x tc p))
                          (fun p -> minp_list (do_forall_node x tc p)) expl) in
      (f_expls, MForall(x, tc, mf'))
   | MPrev (i, mf, first, (buf, tss)) ->
      let (expls, mf') = meval vars ts tp db mf in
      let (f_expls, (buf', tss')) =
        Buft.another_take
-         (fun expl ts ts' -> Pdt.apply1_dedup Proof.equal vars (fun p -> Prev_Next.update_eval Prev i p ts ts') expl)
+         (fun expl ts ts' -> Pdt.apply1_reduce Proof.equal vars (fun p -> Prev_Next.update_eval Prev i p ts ts') expl)
          (buf @ expls, tss @ [ts]) in
      ((if first then (Leaf (V VPrev0) :: f_expls) else f_expls), MPrev (i, mf', false, (buf', tss')))
   | MNext (i, mf, first, tss) ->
@@ -1458,7 +1458,7 @@ let rec meval vars ts tp (db: Db.t) = function
                            else (expls, first) in
      let (f_expls, (buf', tss')) =
        Buft.another_take
-         (fun expl ts ts' -> Pdt.apply1_dedup Proof.equal vars (fun p -> Prev_Next.update_eval Next i p ts ts') expl)
+         (fun expl ts ts' -> Pdt.apply1_reduce Proof.equal vars (fun p -> Prev_Next.update_eval Next i p ts ts') expl)
          (expls', tss @ [ts]) in
      (f_expls, MNext (i, mf', first, tss'))
   | MOnce (i, mf, tstps, moaux_pdt) ->
@@ -1470,7 +1470,7 @@ let rec meval vars ts tp (db: Db.t) = function
              Pdt.split_prod (Pdt.apply2 vars (fun p aux -> Once.update i ts tp p aux) expl aux_pdt) in
            (aux_pdt', Pdt.split_list es'))
          (moaux_pdt, []) (expls, (tstps @ [(ts,tp)])) in
-     let expls'' = List.map expls' ~f:(Pdt.dedup Proof.equal) in
+     let expls'' = List.map expls' ~f:(Pdt.reduce Proof.equal) in
      (expls'', MOnce (i, mf', tstps', moaux_pdt'))
   | MEventually (i, mf, (buf, ntstps), meaux_pdt) ->
      let (expls, mf') = meval vars ts tp db mf in
@@ -1484,7 +1484,7 @@ let rec meval vars ts tp (db: Db.t) = function
      let (meaux_pdt', es') =
        Pdt.split_prod (Pdt.apply1 vars (fun aux -> Eventually.eval i nts ntp (aux, [])) meaux_pdt') in
      let expls' = Pdt.split_list es' in
-     let expls'' = List.map expls' ~f:(Pdt.dedup Proof.equal) in
+     let expls'' = List.map expls' ~f:(Pdt.reduce Proof.equal) in
      (expls'', MEventually (i, mf', (buf', ntstps'), meaux_pdt'))
   | MHistorically (i, mf, tstps, mhaux_pdt) ->
      let (expls, mf') = meval vars ts tp db mf in
@@ -1495,7 +1495,7 @@ let rec meval vars ts tp (db: Db.t) = function
              Pdt.split_prod (Pdt.apply2 vars (fun p aux -> Historically.update i ts tp p aux) expl aux_pdt) in
            (aux_pdt', Pdt.split_list es'))
          (mhaux_pdt, []) (expls, (tstps @ [(ts,tp)])) in
-     let expls'' = List.map expls' ~f:(Pdt.dedup Proof.equal) in
+     let expls'' = List.map expls' ~f:(Pdt.reduce Proof.equal) in
      (expls'', MHistorically (i, mf', tstps', mhaux_pdt'))
   | MAlways (i, mf, (buf, ntstps), maaux_pdt) ->
      let (expls, mf') = meval vars ts tp db mf in
@@ -1509,7 +1509,7 @@ let rec meval vars ts tp (db: Db.t) = function
      let (maaux_pdt', es') =
        Pdt.split_prod (Pdt.apply1 vars (fun aux -> Always.eval i nts ntp (aux, [])) maaux_pdt') in
      let expls' = Pdt.split_list es' in
-     let expls'' = List.map expls' ~f:(Pdt.dedup Proof.equal) in
+     let expls'' = List.map expls' ~f:(Pdt.reduce Proof.equal) in
      (expls'', MAlways (i, mf', (buf', ntstps'), maaux_pdt'))
   | MSince (i, mf1, mf2, (buf2, tstps), msaux_pdt) ->
      let (expls1, mf1') = meval vars ts tp db mf1 in
@@ -1521,7 +1521,7 @@ let rec meval vars ts tp (db: Db.t) = function
              Pdt.split_prod (Pdt.apply3 vars (fun p1 p2 aux -> Since.update i ts tp p1 p2 aux) expl1 expl2 aux_pdt) in
            (aux_pdt', Pdt.split_list es'))
          (msaux_pdt, []) (Buf2.add expls1 expls2 buf2) (tstps @ [(ts,tp)]) in
-     let expls'' = List.map expls' ~f:(Pdt.dedup Proof.equal) in
+     let expls'' = List.map expls' ~f:(Pdt.reduce Proof.equal) in
      (expls'', MSince (i, mf1', mf2', (buf2', tstps'), msaux_pdt'))
   | MUntil (i, mf1, mf2, (buf2, ntstps), muaux_pdt) ->
      let (expls1, mf1') = meval vars ts tp db mf1 in
@@ -1537,7 +1537,7 @@ let rec meval vars ts tp (db: Db.t) = function
      let (muaux_pdt', es') =
        Pdt.split_prod (Pdt.apply1 vars (fun aux -> Until.eval i nts ntp (aux, [])) muaux_pdt') in
      let expls' = Pdt.split_list es' in
-     let expls'' = List.map expls' ~f:(Pdt.dedup Proof.equal) in
+     let expls'' = List.map expls' ~f:(Pdt.reduce Proof.equal) in
      (expls'', MUntil (i, mf1', mf2', (buf2', ntstps'), muaux_pdt'))
 
 module MState = struct
