@@ -13,7 +13,7 @@ open Checker_interface
 
 module Plain : sig
 
-  type mode = UNVERIFIED | VERIFIED | LATEX | DEBUG | DEBUGVIS
+  type mode = UNVERIFIED | VERIFIED | LATEX | LIGHT | DEBUG | DEBUGVIS
 
   val expls: timepoint -> ((timestamp * timepoint) * Expl.t) list ->
              (bool * Checker_pdt.t * Checker_trace.t) list option ->

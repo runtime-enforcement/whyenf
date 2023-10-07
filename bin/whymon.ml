@@ -59,6 +59,7 @@ module Whymon = struct
             | "unverified" -> Out.Plain.UNVERIFIED
             | "verified" -> Out.Plain.VERIFIED
             | "latex" -> Out.Plain.LATEX
+            | "light" -> Out.Plain.LIGHT
             | "debug" -> Etc.debug := true; Out.Plain.DEBUG
             | "debugvis" -> Etc.debug := true; Out.Plain.DEBUGVIS
             | _ -> mode_error ());

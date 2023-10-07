@@ -157,5 +157,5 @@ type t = Proof.t Pdt.t
 val at: Proof.t Pdt.t -> int
 
 val to_string: t -> string
-
 val to_latex: Formula.t -> t -> string
+val to_light_string: t -> string
