@@ -57,7 +57,7 @@ rule token = parse
   | "FINALLY" | "EVENTUALLY" | "F" | "◊"          { debug "EVENTUALLY"; EVENTUALLY }
   | "GLOBALLY_PAST" | "HISTORICALLY" | "■"        { debug "HISTORICALLY"; HISTORICALLY }
   | "FINALLY_PAST" | "ONCE" | "⧫"                 { debug "ONCE"; ONCE }
-  | (['(' '['] as l) blank* (digits as i) blank* ',' blank* ((digits | "INFINITY" | "∞") as j) blank* ([')' ']'] as r)
+  | (['(' '['] as l) blank* (digits as i) blank* ',' blank* ((digits | "INFINITY" | "∞" | "*") as j) blank* ([')' ']'] as r)
                                                   { debug "INTERVAL"; INTERVAL (make_interval lexbuf l i j r) }
   | "("                                           { debug "LPA"; LPA }
   | ")"                                           { debug "RPA"; RPA }
