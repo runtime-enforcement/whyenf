@@ -28,15 +28,43 @@ function MenuInstance ({ explObj, curCol, open, domainValues, variableNames, han
         </Box>
         { explObj?.part?.map((el, i) => {
 
-          const domainValueLabel = el.subset_type === "finite" ?
-                el.subset_values.join(', ') : (<span style={{fontWeight: 'bold'}}>Other</span>);
-          let domainValue = el.subset_type === "finite" ?
+          let domainValueLabel;
+          let toolTipData;
+
+          if (el.subset_type === "finite") {
+
+            let fullString = el.subset_values.join(', ');
+
+            if (fullString.length > 27) {
+              toolTipData = el.subset_values.join(', ');
+              let commaPosition = fullString.search(",");
+              if (commaPosition < 12) {
+                let commaPositionEnd = fullString.split("").reduce((acc, c) => c + acc, "").search(",");
+                domainValueLabel = fullString.slice(0,commaPosition) + ', ..., ' +
+                  fullString.slice(fullString.length-commaPositionEnd,fullString.length);
+              } else {
+                domainValueLabel = fullString.slice(0,12) + '...' +
+                  fullString.slice(fullString.length-12,fullString.length);
+              }
+            } else {
+              domainValueLabel = fullString;
+            }
+
+          } else {
+            if (i === 0) {
+              domainValueLabel = (<span style={{fontWeight: 'bold'}}>Any</span>);
+            } else {
+              domainValueLabel = (<span style={{fontWeight: 'bold'}}>Other</span>);
+            }
+          }
+
+          let domainValueTable = el.subset_type === "finite" ?
               el.subset_values.join(', ') : "∁ {".concat(el.subset_values.join(', ')).concat("}");
-          if (el.subset_values.length === 0) domainValue = "𝔻";
+          if (el.subset_values.length === 0) domainValueTable = "𝔻";
 
           const newDomainValues = [];
           newDomainValues.push(...domainValues);
-          newDomainValues.push(domainValue);
+          newDomainValues.push(domainValueTable);
 
           if (el.type === "node" || el.kind === "partition") {
             return (
