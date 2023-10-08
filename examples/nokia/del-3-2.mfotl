@@ -1,0 +1,2 @@
+NOT (NOT delete(x, "db3", y, data) OR data = "[unknown]") IMPLIES
+    ONCE[0,60) (EXISTS u. EXISTS v. delete(u, "db2", v, data))

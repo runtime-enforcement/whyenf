@@ -1,0 +1,3 @@
+NOT (NOT script_start(script) OR script = "script1") IMPLIES
+    EVENTUALLY[0,30) (EXISTS x, y, z.
+        script_svn(script, "svn-latest", x, y, z))

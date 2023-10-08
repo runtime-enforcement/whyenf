@@ -1,1 +1,0 @@
-publish -> (●[0,3600] approve) ∨ (⧫[0,3600] approve) ∧ ●(¬ publish S approve)
