@@ -1,0 +1,6 @@
+NOT (NOT select("script",b,c,d) AND
+ NOT insert("script",b,c,d) AND
+ NOT delete("script",b,c,d) AND
+ NOT update("script",b,c,d)) IMPLIES
+    (((NOT script_end("script1")) SINCE[0,*] script_start("script1")) OR
+     script_end("script1"))

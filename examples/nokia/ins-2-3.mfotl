@@ -1,0 +1,2 @@
+NOT (NOT insert(x, "db2", y, data) OR data = "[unknown]") IMPLIES
+    EVENTUALLY[0,60) (EXISTS u, v. insert(u, "db3", v, data))

@@ -1,4 +1,0 @@
-NOT (NOT insert(x, "db1", y, data) OR data = "[unknown]") IMPLIES
-    EVENTUALLY[0,108000)
-    (EXISTS u. EXISTS v. (insert(u, "db2", v, data)
-                     OR delete(u, "db1", v, data)))
