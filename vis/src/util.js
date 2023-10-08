@@ -357,42 +357,50 @@ export function translateError(error) {
 
   let message;
 
-  if (error.message === undefined && error[1].c !== undefined) {
-    message = error[1].c;
+  if (error[1] !== undefined && (typeof error[1] === "string" || error[1] instanceof String)) {
+    message = error[1];
   } else {
-    if (error.message === undefined && error[1][1].c !== undefined) {
-      message = error[1][1].c;
+    if (error[2] !== undefined && (typeof error[2] === "string" || error[2] instanceof String)) {
+      message = error[2];
     } else {
-      if (error.message !== undefined && error.message.includes("Unexpected token")) {
-        message = error.message;
+      if (error[1][1] !== undefined && error[1][1] === "Invalid_argument") {
+        message = error[2];
       }
     }
   }
 
-  if (error.message === undefined) {
-    switch (message) {
-    case "Src.Mtl_parser.MenhirBasics.Error":
-        return { name: "Error",
-                 message: "Formula could not be parsed.\n\nPlease make sure the syntax is correct."
-               };
-    case "Src.Monitor.UNBOUNDED_FUTURE":
-      return { name: "Error",
-               message: "Your formula has an unbounded UNTIL.\n\nPlease make sure all UNTIL instances are bounded."
-             };
-    case "Src.Monitor.INVALID_TIMESTAMP":
-      return { name: "Error",
-               message: "Your time-stamps are not monotonically increasing.\n\nPlease rectify your trace and try again."
-             };
-    default:
-      return;
-    }
-  } else {
-    if (error.message !== undefined && error.message.includes("Unexpected token")) {
-      return { name: "Error",
-               message: "Trace could not be parsed.\n\nPlease make sure the syntax is correct."
-             };
-    }
+  switch (message) {
+  case "Monitor_lib.Formula_parser.MenhirBasics.Error":
+    return { name: "Error",
+             message: "Formula could not be parsed.\n\nPlease make sure the syntax of your formula is correct."
+           };
+  case "unbounded future operator: eventually":
+    return { name: "Error",
+             message: "Your formula has an unbounded Eventually.\n\nPlease make sure all Eventually instances are bounded."
+           };
+  case "unbounded future operator: always":
+    return { name: "Error",
+             message: "Your formula has an unbounded Always.\n\nPlease make sure all Always instances are bounded."
+           };
+  case "unbounded future operator: until":
+    return { name: "Error",
+             message: "Your formula has an unbounded Until.\n\nPlease make sure all Until instances are bounded."
+           };
+  // case "Src.Monitor.INVALID_TIMESTAMP":
+  //   return { name: "Error",
+  //            message: "Your time-stamps are not monotonically increasing.\n\nPlease rectify your trace and try again."
+  //          };
+  default:
+    return { name: "Error",
+             message: "Invalid input: " + message + ".\n\nPlease make the necessary corrections and try again."
+           };
   }
+
+  // if (error.message !== undefined && error.message.includes("Unexpected token")) {
+  //   return { name: "Error",
+  //            message: "Trace could not be parsed.\n\nPlease make sure the syntax is correct."
+  //          };
+  // }
 
   return { name: "Error",
            message: "Something bad happened.\n\nPlease re-check your formula/trace and try again."
