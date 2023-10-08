@@ -902,6 +902,12 @@ end
 
 type t = Proof.t Pdt.t
 
+let rec is_violated = function
+  | Pdt.Leaf l -> (match l with
+                   | Proof.S _ -> false
+                   | V _ -> true)
+  | Node (x, part) -> Part.exists part is_violated
+
 let rec at = function
   | Pdt.Leaf pt -> Proof.p_at pt
   | Node (_, part) -> at (Part.hd part)
