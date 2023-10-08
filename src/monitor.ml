@@ -123,8 +123,7 @@ let add_tstp_future a b nts ntp tstps_out tstps_in =
     if nts < first_ts + a then (Fdeque.enqueue_back tstps_out (nts, ntp), tstps_in)
     else (tstps_out, Fdeque.enqueue_back tstps_in (nts, ntp))
   else
-    (if nts >= a && nts <= b || Int.equal a 0 then
-       (tstps_out, Fdeque.enqueue_back tstps_in (nts, ntp))
+    (if Int.equal a 0 then (tstps_out, Fdeque.enqueue_back tstps_in (nts, ntp))
      else (Fdeque.enqueue_back tstps_out (nts, ntp), tstps_in))
 
 let shift_tstps_future a first_ts ntp tstps_out tstps_in =
