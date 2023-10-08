@@ -81,15 +81,15 @@ let to_latex = function
 
 let lex error l i j r =
   (match j with
-    | "INFINITY" | "∞" ->
+   | "INFINITY" | "∞" | "*" ->
       (match l with
-      | '[' -> lclosed_UI (Int.of_string i)
-      | '(' -> lopen_UI (Int.of_string i)
-      | _ -> error ())
-    | _ ->
+       | '[' -> lclosed_UI (Int.of_string i)
+       | '(' -> lopen_UI (Int.of_string i)
+       | _ -> error ())
+   | _ ->
       (match l, r with
-      | '[',']' -> lclosed_rclosed_BI (Int.of_string i) (Int.of_string j)
-      | '(',']' -> lopen_rclosed_BI (Int.of_string i) (Int.of_string j)
-      | '[',')' -> lclosed_ropen_BI (Int.of_string i) (Int.of_string j)
-      | '(',')' -> lopen_ropen_BI (Int.of_string i) (Int.of_string j)
-      | _ -> error ()))
+       | '[',']' -> lclosed_rclosed_BI (Int.of_string i) (Int.of_string j)
+       | '(',']' -> lopen_rclosed_BI (Int.of_string i) (Int.of_string j)
+       | '[',')' -> lclosed_ropen_BI (Int.of_string i) (Int.of_string j)
+       | '(',')' -> lopen_ropen_BI (Int.of_string i) (Int.of_string j)
+       | _ -> error ()))
