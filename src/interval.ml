@@ -38,6 +38,10 @@ let case f1 f2 = function
   | B i -> f1 i
   | U i -> f2 i
 
+let is_bounded_exn op = function
+  | B _ -> ()
+  | U _ -> raise (Invalid_argument (Printf.sprintf "unbounded future operator: %s" op))
+
 let map f1 f2 = case (fun i -> B (f1 i)) (fun i -> U (f2 i))
 
 let mem t =

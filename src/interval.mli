@@ -24,6 +24,8 @@ val lclosed_rclosed_BI: int -> int -> t
 
 val full: t
 
+val is_bounded_exn: string -> t -> unit
+
 val mem: int -> t -> bool
 
 val left: t -> int
