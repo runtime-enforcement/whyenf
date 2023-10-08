@@ -146,7 +146,7 @@ let shift_tstps_past (l, r) a ts tp tstps_in tstps_out =
             else tstps_in')),
      remove_cond_front (fun (ts', _) -> ts' <= r) tstps_out')
 
-let print_tstps ts_zero tstps_in tstps_out =
+let tstps_to_string ts_zero tstps_in tstps_out =
   (match ts_zero with
    | None -> ""
    | Some(ts) -> Printf.sprintf "\n\tts_zero = (%d)\n" ts) ^
@@ -229,7 +229,7 @@ module Once = struct
                       ; s_alphas_out
                       ; v_alphas_in
                       ; v_alphas_out } =
-    ("\n\nOnce state: " ^ (print_tstps ts_zero tstps_in tstps_out) ^
+    ("\n\nOnce state: " ^ (tstps_to_string ts_zero tstps_in tstps_out) ^
        Fdeque.fold s_alphas_in ~init:"\ns_alphas_in = "
          ~f:(fun acc (ts, p) ->
            acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^
@@ -329,7 +329,7 @@ module Eventually = struct
                 ; s_alphas_in
                 ; v_alphas_in
                 ; optimal_proofs } =
-    ("\n\nEventually state: " ^ (print_tstps None tstps_in tstps_out) ^
+    ("\n\nEventually state: " ^ (tstps_to_string None tstps_in tstps_out) ^
        Fdeque.fold s_alphas_in ~init:"\ns_alphas_in = "
          ~f:(fun acc (ts, p) ->
            acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^
@@ -438,7 +438,7 @@ module Historically = struct
                 ; s_alphas_out
                 ; v_alphas_in
                 ; v_alphas_out } =
-    ("\n\nHistorically state: " ^ (print_tstps ts_zero tstps_in tstps_out) ^
+    ("\n\nHistorically state: " ^ (tstps_to_string ts_zero tstps_in tstps_out) ^
        Fdeque.fold s_alphas_in ~init:"\ns_alphas_in = "
          ~f:(fun acc (ts, sp) ->
            acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.s_to_string "" sp) ^
@@ -537,7 +537,7 @@ module Always = struct
                 ; v_alphas_in
                 ; s_alphas_in
                 ; optimal_proofs } =
-    ("\n\nAlways state: " ^ (print_tstps None tstps_in tstps_out) ^
+    ("\n\nAlways state: " ^ (tstps_to_string None tstps_in tstps_out) ^
        Fdeque.fold v_alphas_in ~init:"\nv_alphas_in = "
          ~f:(fun acc (ts, p) ->
            acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^
@@ -650,7 +650,7 @@ module Since = struct
                 ; v_alphas_out
                 ; v_betas_in
                 ; v_alphas_betas_out } =
-    ("\n\nSince state: " ^ (print_tstps ts_zero tstps_in tstps_out) ^
+    ("\n\nSince state: " ^ (tstps_to_string ts_zero tstps_in tstps_out) ^
        Fdeque.fold s_beta_alphas_in ~init:"\ns_beta_alphas_in = "
          ~f:(fun acc (ts, p) ->
            acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^
@@ -842,7 +842,7 @@ module Until = struct
                 ; v_alphas_in
                 ; v_betas_suffix_in
                 ; optimal_proofs } =
-    ("\n\nUntil state: " ^ (print_tstps None tstps_in tstps_out) ^
+    ("\n\nUntil state: " ^ (tstps_to_string None tstps_in tstps_out) ^
        Fdeque.fold s_alphas_beta ~init:"\ns_alphas_beta = \n"
          ~f:(fun acc1 d ->
            acc1 ^ "\n" ^
