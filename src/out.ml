@@ -54,7 +54,7 @@ module Plain = struct
                     ~f:(fun ((_, tp), e) (b, _, _) -> expl (ExplanationCheck ((ts, tp), e, b)))
     | LATEX -> List.iter tstp_expls ~f:(fun ((_, tp), e) ->
                    expl (ExplanationLatex ((ts, tp), e, Option.value_exn f_opt)))
-    | LIGHT -> List.iter tstp_expls ~f:(fun ((_, tp), e) -> expl (ExplanationLight ((ts, tp), e)))
+    | LIGHT -> List.iter tstp_expls ~f:(fun ((_, tp), e) -> if Expl.is_violated e then expl (ExplanationLight ((ts, tp), e)))
     | DEBUG -> List.iter2_exn (List.zip_exn tstp_expls (Option.value_exn checker_es_opt))
                  (Option.value_exn paths_opt)
                  ~f:(fun (((_, tp), e), (b, checker_e, trace)) path_opt ->

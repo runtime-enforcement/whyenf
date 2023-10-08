@@ -154,7 +154,8 @@ end
 
 type t = Proof.t Pdt.t
 
-val at: Proof.t Pdt.t -> int
+val is_violated: t -> bool
+val at: t -> int
 
 val to_string: t -> string
 val to_latex: Formula.t -> t -> string
