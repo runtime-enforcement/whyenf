@@ -1,0 +1,1 @@
+(((⧫ (read(t1,x) ∨ write(t1,x))) ∧ (⧫ write(t2,x))) → ∃l. ((■ ((read(t1,x) ∨ write(t1,x)) → (¬ rel(t1,l) S acq(t1,l)))) ∧ (■ ((read(t2,x) ∨ write(t2,x)) → (¬ rel(t2,l) S acq(t2,l))))))
