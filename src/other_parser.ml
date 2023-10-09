@@ -152,7 +152,7 @@ module Trace = struct
                   | None -> raise (Failure ("predicate " ^ s ^ " was not specified")))
       | AT -> (true, pb)
       | EOF -> (false, pb)
-      | SEP -> Parsebuf.next pb; parse_init ()
+      | SEP -> Parsebuf.next pb; (true, pb)
       | t -> raise (Failure ("expected a predicate or '@' but found " ^ string_of_token t))
     and parse_tuple () =
       match pb.token with
