@@ -54,7 +54,7 @@ export default function ExampleSelect ({ setFormState }) {
             {/* <MenuItem value={"publish-approve-manager-unix-ts"}>publish-approve-manager-unix-ts</MenuItem> */}
             <MenuItem value={"closed-publish-approve-manager"}>closed-publish-approve-manager</MenuItem>
             <MenuItem value={"data-race"}>data-race</MenuItem>
-            <MenuItem value={"nokia-insert"}>nokia-insert</MenuItem>
+            <MenuItem value={"nokia-del-2-3"}>nokia-del-2-3</MenuItem>
           </Select>
         </FormControl>
       </div>
