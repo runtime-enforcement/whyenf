@@ -18,3 +18,4 @@ test/tmp/gen_fmla_full
 *.txt
 *.DS_Store
 *.~undo-tree~
+examples/all/nokia/all.log
