@@ -1,0 +1,2 @@
+(delete(x, "db3", y, data) ∧ ¬(data = "[unknown]")) →
+  (⧫[0,60) (∃u. ∃v. delete(u, "db2", v, data)))

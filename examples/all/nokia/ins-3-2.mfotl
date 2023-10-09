@@ -1,0 +1,2 @@
+(insert(x, "db3", y, data) ∧ ¬(data = "[unknown]")) →
+  (⧫[0,60) (∃u. ∃v. insert(u, "db2", v, data)))
