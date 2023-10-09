@@ -86,7 +86,7 @@ function TimeGrid ({ columns,
 
   // Preds columns
   const predsWidth = columns.preds.reduce ((acc, pred) =>
-    Math.max(acc, (10*(pred.length))), 50
+    Math.max(acc, (8*(pred.length))), 50
   );
 
   const predsGridColumns = columns.preds.slice(0).map((p, i) =>
