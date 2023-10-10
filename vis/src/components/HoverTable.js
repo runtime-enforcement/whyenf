@@ -6,6 +6,7 @@ import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
+import Box from '@mui/material/Box';
 
 export default function HoverTable({ table, subf }) {
 
@@ -13,7 +14,11 @@ export default function HoverTable({ table, subf }) {
     <div className="muiTable">
       <TableContainer component={Paper}>
         <Table size="small" aria-label="a dense table">
-          <TableHead>
+          <TableHead sx={{ width: 100,
+                           maxWidth: 100,
+                           overflow: "hidden",
+                           textOverflow: "ellipsis",
+                           borderStyle: "border-box" }}>
             <TableRow>
               {table.columns.map((v, i) =>
                 <TableCell key={i} align="center">
@@ -22,10 +27,12 @@ export default function HoverTable({ table, subf }) {
                   </span>
                 </TableCell>
               )}
-              <TableCell key={table.columns.length + 1} align="center">
-                <span style={{fontWeight: 'bold'}}>
-                  Formula
-                </span>
+              <TableCell key={table.columns.length + 1}
+                         align="center">
+
+                  <span style={{fontWeight: 'bold'}}>
+                    Formula
+                  </span>
               </TableCell>
             </TableRow>
           </TableHead>
@@ -36,9 +43,11 @@ export default function HoverTable({ table, subf }) {
                   {v}
                 </TableCell>
               )}
-              <TableCell key={table.values.length + 1}>
-                {subf}
-              </TableCell>
+              <Box maxWidth={(theme) => theme.breakpoints.values.sm}>
+                <TableCell key={table.values.length + 1}>
+                  {subf}
+                </TableCell>
+              </Box>
             </TableRow>
           </TableBody>
         </Table>
