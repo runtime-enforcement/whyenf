@@ -29,14 +29,12 @@ function MenuInstance ({ explObj, curCol, open, domainValues, variableNames, han
         { explObj?.part?.map((el, i) => {
 
           let domainValueLabel;
-          let toolTipData;
 
           if (el.subset_type === "finite") {
 
             let fullString = el.subset_values.join(', ');
 
             if (fullString.length > 27) {
-              toolTipData = el.subset_values.join(', ');
               let commaPosition = fullString.search(",");
               if (commaPosition < 12) {
                 let commaPositionEnd = fullString.split("").reduce((acc, c) => c + acc, "").search(",");

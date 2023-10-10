@@ -401,8 +401,4 @@ export function translateError(error) {
   //            message: "Trace could not be parsed.\n\nPlease make sure the syntax is correct."
   //          };
   // }
-
-  return { name: "Error",
-           message: "Something bad happened.\n\nPlease re-check your formula/trace and try again."
-         };
 }
