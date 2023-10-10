@@ -59,7 +59,7 @@ function MenuInstance ({ explObj, curCol, open, domainValues, variableNames, han
           }
 
           let domainValueTable = el.subset_type === "finite" ?
-              el.subset_values.join(', ') : "∁ {".concat(el.subset_values.join(', ')).concat("}");
+              el.subset_values.join(', ') : "𝔻 ∖ ".concat(el.subset_values.join(', '));
           if (el.subset_values.length === 0) domainValueTable = "𝔻";
 
           const newDomainValues = [];
