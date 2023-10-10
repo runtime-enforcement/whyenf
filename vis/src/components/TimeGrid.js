@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import { DataGrid } from '@mui/x-data-grid';
 import Button from '@mui/material/Button';
@@ -158,7 +158,7 @@ function TimeGrid ({ columns,
 
   // Subfs columns
   const subfsWidth = columns.subfs.reduce((acc, subf) =>
-    Math.max(acc, (9*(subf.length))), 60
+    Math.max(acc, (7.3*(subf.length))), 60
   );
 
   // colGridIndex: index of the column in the grid
@@ -202,17 +202,12 @@ function TimeGrid ({ columns,
                              dbsObjs={objs.dbs}
                              highlights={highlights}
                              setMonitorState={setMonitorState}
-                             subfsScopes={columns.subfsScopes} />;
-          } else {
-            return <BoolCell value={tables.colors[params.row.tp][i]}
-                             onClick={() => handleClick(params.row.ts, params.row.tp, parseInt(params.colDef.field))}
-                   />;
+                             subfsScopes={columns.subfsScopes}/>;
           }
-        } else {
-          return <BoolCell value={tables.colors[params.row.tp][i]}
-                           onClick={() => handleClick(params.row.ts, params.row.tp, parseInt(params.colDef.field))}
-                 />;
         }
+        return <BoolCell value={tables.colors[params.row.tp][i]}
+                         onClick={() => handleClick(params.row.ts, params.row.tp, parseInt(params.colDef.field))}
+               />;
       },
       headerAlign: 'center',
       align: 'center',
@@ -349,7 +344,7 @@ function TimeGrid ({ columns,
         componentsProps={{
           cell: {
             onMouseEnter: handlePopoverOpen,
-            onMouseLeave: handlePopoverClose,
+            onMouseLeave: handlePopoverClose
           },
         }}
         pageSize={100}
