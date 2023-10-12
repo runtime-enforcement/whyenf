@@ -422,7 +422,7 @@ let check trace_lst f expls =
   let trace' = Checker_interface.convert_trace trace_lst in
   List.fold_left expls ~init:[] ~f:(fun acc expl ->
       let expl' = Checker_interface.convert_expl expl in
-      (check_all_specialized trace' f' expl', expl', trace_lst')::acc)
+      (check trace' f' expl', expl', trace_lst')::acc)
 
 let false_paths trace_lst f expls =
   let f' = Checker_interface.convert_f f in
