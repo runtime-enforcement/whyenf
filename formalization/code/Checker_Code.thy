@@ -799,19 +799,19 @@ lemma coset_subset_set_code[code]: "(List.coset (xs :: _ :: infinite list) \<sub
 lemma is_empty_coset[code]: "Set.is_empty (List.coset (xs :: _ :: infinite list)) = False"
   using coset_subset_set_code by (fastforce simp: Set.is_empty_def)
 
-definition "check \<sigma> v \<phi> p = (case p of Inl sp \<Rightarrow> s_check \<sigma> v \<phi> sp | Inr vp \<Rightarrow> v_check \<sigma> v \<phi> vp)"
-definition "check_exec \<sigma> vs \<phi> p = (case p of Inl sp \<Rightarrow> s_check_exec \<sigma> vs \<phi> sp | Inr vp \<Rightarrow> v_check_exec \<sigma> vs \<phi> vp)"
+definition "check_p \<sigma> v \<phi> p = (case p of Inl sp \<Rightarrow> s_check \<sigma> v \<phi> sp | Inr vp \<Rightarrow> v_check \<sigma> v \<phi> vp)"
+definition "check_exec_p \<sigma> vs \<phi> p = (case p of Inl sp \<Rightarrow> s_check_exec \<sigma> vs \<phi> sp | Inr vp \<Rightarrow> v_check_exec \<sigma> vs \<phi> vp)"
 
 fun check_one where
-  "check_one \<sigma> v \<phi> (Leaf p) = check \<sigma> v \<phi> p"
+  "check_one \<sigma> v \<phi> (Leaf p) = check_p \<sigma> v \<phi> p"
 | "check_one \<sigma> v \<phi> (Node x part) = check_one \<sigma> v \<phi> (lookup_part part (v x))"
 
 fun check_all_aux where
-  "check_all_aux \<sigma> vs \<phi> (Leaf p) = check_exec \<sigma> vs \<phi> p"
+  "check_all_aux \<sigma> vs \<phi> (Leaf p) = check_exec_p \<sigma> vs \<phi> p"
 | "check_all_aux \<sigma> vs \<phi> (Node x part) = (\<forall>(D, e) \<in> set (subsvals part). check_all_aux \<sigma> (vs(x := D)) \<phi> e)"
 
 fun collect_paths_aux where
-  "collect_paths_aux DS \<sigma> vs \<phi> (Leaf p) = (if check_exec \<sigma> vs \<phi> p then {} else rev ` DS)"
+  "collect_paths_aux DS \<sigma> vs \<phi> (Leaf p) = (if check_exec_p \<sigma> vs \<phi> p then {} else rev ` DS)"
 | "collect_paths_aux DS \<sigma> vs \<phi> (Node x part) = (\<Union>(D, e) \<in> set (subsvals part). collect_paths_aux (Cons D ` DS) \<sigma> (vs(x := D)) \<phi> e)"
 
 lift_definition lookup :: "('d, 'a) part \<Rightarrow> 'd \<Rightarrow> ('d set \<times> 'a)" is "\<lambda>xs d. the (find (\<lambda>(D, _). d \<in> D) xs)" .
@@ -888,7 +888,7 @@ fun distinct_paths where
 
 lemma check_one_cong: "\<forall>x\<in>Formula.fv \<phi> \<union> vars e. v x = v' x \<Longrightarrow> check_one \<sigma> v \<phi> e = check_one \<sigma> v' \<phi> e"
   apply (induct e arbitrary: v v')
-   apply (auto simp: check_def check_fv_cong split: sum.splits)
+   apply (auto simp: check_p_def check_fv_cong split: sum.splits)
   apply (metis (full_types) Set.set_insert UN_insert UnE UnI1 UnI2 lookup_part_Vals)
   apply (metis (full_types) Set.set_insert UN_insert UnE UnI1 UnI2 lookup_part_Vals)
   done
@@ -907,7 +907,7 @@ lemma lookup_part_from_subvals: "(D, e) \<in> set (subsvals part) \<Longrightarr
 lemma check_all_aux_check_one: "\<forall>x. vs x \<noteq> {} \<Longrightarrow> distinct_paths e \<Longrightarrow> (\<forall>x \<in> vars e. vs x = UNIV) \<Longrightarrow>
   check_all_aux \<sigma> vs \<phi> e \<longleftrightarrow> (\<forall>v \<in> compatible_vals (Formula.fv \<phi>) vs. check_one \<sigma> v \<phi> e)"
   apply (induct e arbitrary: vs)
-   apply (auto simp: check_exec_def check_def check_exec_check split_beta sat_vorder_Node
+   apply (auto simp: check_exec_p_def check_p_def check_exec_check split_beta sat_vorder_Node
       split: sum.splits if_splits)
   subgoal for x part vs v
     apply (drule bspec, rule lookup_subsvals)
@@ -984,14 +984,14 @@ instance event_data :: infinite by standard (simp add: infinite_UNIV_event_data)
 
 instance event_data :: equal by standard
 
-definition check_all :: "(Formula.name \<times> 'd ::  {default,linorder} list) trace \<Rightarrow> 'd Formula.formula \<Rightarrow> ('d, 'd proof) pdt \<Rightarrow> bool" where
-  "check_all \<sigma> \<phi> e = (distinct_paths e \<and> check_all_aux \<sigma> (\<lambda>_. UNIV) \<phi> e)"
+definition check_all_generic :: "(Formula.name \<times> 'd ::  {default,linorder} list) trace \<Rightarrow> 'd Formula.formula \<Rightarrow> ('d, 'd proof) pdt \<Rightarrow> bool" where
+  "check_all_generic \<sigma> \<phi> e = (distinct_paths e \<and> check_all_aux \<sigma> (\<lambda>_. UNIV) \<phi> e)"
 
 definition collect_paths :: "(Formula.name \<times> 'd ::  {default,linorder} list) trace \<Rightarrow> 'd Formula.formula \<Rightarrow> ('d, 'd proof) pdt \<Rightarrow> 'd set list set option" where
   "collect_paths \<sigma> \<phi> e = (if (distinct_paths e \<and> check_all_aux \<sigma> (\<lambda>_. UNIV) \<phi> e) then None else Some (collect_paths_aux {[]} \<sigma> (\<lambda>_. UNIV) \<phi> e))"
 
-definition check_all_specialized :: "(Formula.name \<times> event_data list) trace \<Rightarrow> event_data Formula.formula \<Rightarrow> (event_data, event_data proof) pdt \<Rightarrow> bool" where
-  "check_all_specialized = check_all"
+definition check :: "(Formula.name \<times> event_data list) trace \<Rightarrow> event_data Formula.formula \<Rightarrow> (event_data, event_data proof) pdt \<Rightarrow> bool" where
+  "check = check_all_generic"
 
 definition collect_paths_specialized :: "(Formula.name \<times> event_data list) trace \<Rightarrow> event_data Formula.formula \<Rightarrow> (event_data, event_data proof) pdt \<Rightarrow> event_data set list set option" where
   "collect_paths_specialized = collect_paths"
@@ -1020,14 +1020,14 @@ lift_definition abs_part :: "(event_data set \<times> 'a) list \<Rightarrow> (ev
    \<or> (\<Union>D \<in> set Ds. D) \<noteq> UNIV then [(UNIV, undefined)] else xs"
   by (auto simp: partition_on_def disjoint_def)
 
-lemma check_all_check_one: "check_all \<sigma> \<phi> e = (distinct_paths e \<and> (\<forall>v. check_one \<sigma> v \<phi> e))"
-  unfolding check_all_def
+lemma check_all_check_one: "check_all_generic \<sigma> \<phi> e = (distinct_paths e \<and> (\<forall>v. check_one \<sigma> v \<phi> e))"
+  unfolding check_all_generic_def
   by (rule conj_cong[OF refl], subst check_all_aux_check_one)
     (auto simp: compatible_vals_def)
 
 export_code interval enat nat_of_integer integer_of_nat
   STT Formula.TT Inl EInt Formula.Var Leaf set part_hd sum_nat sub_nat subsvals
-  check_all_specialized trace_of_list_specialized specialized_set ed_set abs_part 
+  check trace_of_list_specialized specialized_set ed_set abs_part 
   collect_paths_specialized
   in OCaml module_name Whymon file_prefix "checker"
 
