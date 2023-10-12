@@ -1,5 +1,5 @@
 (*<*)
-theory MFOTL
+theory Formula
   imports MFOTL_Monitor.Interval Trace Event_Data
 begin
 (*>*)
@@ -41,8 +41,8 @@ lemma eval_trms_fv_cong:
 
 (* vs :: "'a envset" is used whenever we define executable functions *)
 qualified primrec eval_trm_set :: "'a envset \<Rightarrow> 'a trm \<Rightarrow> 'a trm \<times> 'a set" where
-  "eval_trm_set vs (MFOTL.Var x) = (Var x, vs x)"
-| "eval_trm_set vs (MFOTL.Const x) = (Const x, {x})"
+  "eval_trm_set vs (Formula.Var x) = (Var x, vs x)"
+| "eval_trm_set vs (Formula.Const x) = (Const x, {x})"
 
 qualified definition eval_trms_set :: "'a envset \<Rightarrow> 'a trm list \<Rightarrow> ('a trm \<times> 'a set) list" 
   where "eval_trms_set vs ts = map (eval_trm_set vs) ts"
@@ -325,10 +325,10 @@ no_notation formula.TT ("\<top>")
      and formula.Since ("_ \<^bold>S _ _" [60,55,60] 60)
      and formula.Until ("_ \<^bold>U _ _" [60,55,60] 60)
 
-no_notation MFOTL.fv_trm ("fv\<^sub>t")
-     and MFOTL.fv ("fv")
-     and MFOTL.eval_trm ("_\<lbrakk>_\<rbrakk>" [51,89] 89)
-     and MFOTL.sat ("\<langle>_, _, _\<rangle> \<Turnstile> _" [56, 56, 56, 56] 55)
+no_notation Formula.fv_trm ("fv\<^sub>t")
+     and Formula.fv ("fv")
+     and Formula.eval_trm ("_\<lbrakk>_\<rbrakk>" [51,89] 89)
+     and Formula.sat ("\<langle>_, _, _\<rangle> \<Turnstile> _" [56, 56, 56, 56] 55)
      and Interval.interval ("\<^bold>[_,_\<^bold>]")
 
 end
@@ -359,28 +359,13 @@ notation formula.TT ("\<top>")
      and formula.Since ("_ \<^bold>S _ _" [60,55,60] 60)
      and formula.Until ("_ \<^bold>U _ _" [60,55,60] 60)
 
-notation MFOTL.fv_trm ("fv\<^sub>t")
-     and MFOTL.fv ("fv")
-     and MFOTL.eval_trm ("_\<lbrakk>_\<rbrakk>" [51,89] 89)
-     and MFOTL.sat ("\<langle>_, _, _\<rangle> \<Turnstile> _" [56, 56, 56, 56] 55)
+notation Formula.fv_trm ("fv\<^sub>t")
+     and Formula.fv ("fv")
+     and Formula.eval_trm ("_\<lbrakk>_\<rbrakk>" [51,89] 89)
+     and Formula.sat ("\<langle>_, _, _\<rangle> \<Turnstile> _" [56, 56, 56, 56] 55)
      and Interval.interval ("\<^bold>[_,_\<^bold>]")
 
 end
-
-unbundle MFOTL_notation \<comment> \<open> enable notation \<close>
-
-(* value "v\<lbrakk>\<^bold>c (0::nat)\<rbrakk> = 0"
-
-term "\<forall>\<^sub>F''x''. \<exists>\<^sub>F''y''. (P \<dagger> [\<^bold>c a, \<^bold>v ''x'']) \<and>\<^sub>F Q \<dagger> [\<^bold>v ''y''] \<longrightarrow>\<^sub>F \<phi> \<^bold>U I \<psi>"
-
-value "\<^bold>Y I (\<not>\<^sub>F (P \<dagger> [\<^bold>c a, \<^bold>v ''x'']) \<and>\<^sub>F (Q \<dagger> [\<^bold>v y])) \<^bold>S (point n) ((\<^bold>X \<^bold>[2,3\<^bold>] (P \<dagger> [\<^bold>c b, \<^bold>v ''x''])) \<or>\<^sub>F Q \<dagger> [\<^bold>v ''y''])
- = MFOTL.Since (MFOTL.Prev I (MFOTL.And (MFOTL.Neg (MFOTL.Pred P [\<^bold>c a, \<^bold>v ''x''])) (MFOTL.Pred Q [\<^bold>v y]))) 
-  (point n) (MFOTL.Or (MFOTL.Next \<^bold>[2,3\<^bold>] (MFOTL.Pred P [\<^bold>c b, \<^bold>v ''x''])) (MFOTL.Pred Q [\<^bold>v ''y'']))"
-
-term "\<langle>\<sigma>, v, i\<rangle> \<Turnstile> \<^bold>Y I (\<not>\<^sub>F (P \<dagger> [\<^bold>c a, \<^bold>v ''x'']) \<and>\<^sub>F (Q \<dagger> [\<^bold>v y])) \<^bold>S (point n) ((\<^bold>X \<^bold>[2,3\<^bold>] (P \<dagger> [\<^bold>c b, \<^bold>v ''x''])) \<or>\<^sub>F Q \<dagger> [\<^bold>v ''y''])" *)
-
-unbundle MFOTL_no_notation \<comment> \<open> disable notation \<close>
-
 
 (*<*)
 end

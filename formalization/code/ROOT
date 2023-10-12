@@ -2,6 +2,6 @@ chapter AFP
 
 session Whymon_Code (AFP) = Whymon +
   theories
-    Monitor_Code
+    Checker_Code
   export_files (in ".") [2]
-    "Whymon_Code.Monitor_Code:code/**"
+    "Whymon_Code.Checker_Code:code/**"
