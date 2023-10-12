@@ -101,8 +101,8 @@ module Whymon : sig
     VSinceInf of nat * nat * 'a vproof list |
     VUntil of nat * 'a vproof list * 'a vproof |
     VUntilInf of nat * nat * 'a vproof list
-  val part_hd : ('a, 'b) part -> 'b
   val interval : nat -> enat -> i
+  val part_hd : ('a, 'b) part -> 'b
   val ed_set : event_data list -> event_data set
   val sub_nat : nat -> nat -> nat
   val sum_nat : nat -> nat -> nat
@@ -178,8 +178,8 @@ type 'a infinite = {nonunit_infinite : 'a nonunit};;
 
 let rec less_eq_set (_A1, _A2)
   a b = match a, b with Coset xs, Set ys -> false
-    | a, Coset ys -> list_all (fun y -> not (member _A1 y a)) ys
-    | Set xs, b -> list_all (fun x -> member _A1 x b) xs;;
+    | a, Coset ys -> list_all (fun y -> not (member _A2 y a)) ys
+    | Set xs, b -> list_all (fun x -> member _A2 x b) xs;;
 
 let rec equal_seta (_A1, _A2)
   a b = less_eq_set (_A1, _A2) a b && less_eq_set (_A1, _A2) b a;;
@@ -391,67 +391,6 @@ let rec hd (x21 :: x22) = x21;;
 let rec list_ex p x1 = match p, x1 with p, [] -> false
                   | p, x :: xs -> p x || list_ex p xs;;
 
-let rec rep_part (Abs_part x) = x;;
-
-let rec snd (x1, x2) = x2;;
-
-let rec part_hd xa = snd (hd (rep_part xa));;
-
-let rec s_at
-  = function STT i -> i
-    | SPred (i, uu, uv) -> i
-    | SEq_Const (i, uw, ux) -> i
-    | SNeg vp -> v_at vp
-    | SOrL sp1 -> s_at sp1
-    | SOrR sp2 -> s_at sp2
-    | SAnd (sp1, uy) -> s_at sp1
-    | SImpL vp1 -> v_at vp1
-    | SImpR sp2 -> s_at sp2
-    | SIffSS (sp1, uz) -> s_at sp1
-    | SIffVV (vp1, va) -> v_at vp1
-    | SExists (vb, vc, sp) -> s_at sp
-    | SForall (vd, part) -> s_at (part_hd part)
-    | SPrev sp -> plus_nat (s_at sp) one_nat
-    | SNext sp -> minus_nat (s_at sp) one_nat
-    | SOnce (i, ve) -> i
-    | SEventually (i, vf) -> i
-    | SHistorically (i, vg, vh) -> i
-    | SHistoricallyOut i -> i
-    | SAlways (i, vi, vj) -> i
-    | SSince (sp2, sp1s) ->
-        (match sp1s with [] -> s_at sp2 | _ :: _ -> s_at (last sp1s))
-    | SUntil (sp1s, sp2) ->
-        (match sp1s with [] -> s_at sp2 | sp1 :: _ -> s_at sp1)
-and v_at = function VFF i -> i
-           | VPred (i, vk, vl) -> i
-           | VEq_Const (i, vm, vn) -> i
-           | VNeg sp -> s_at sp
-           | VOr (vp1, vo) -> v_at vp1
-           | VAndL vp1 -> v_at vp1
-           | VAndR vp2 -> v_at vp2
-           | VImp (sp1, vq) -> s_at sp1
-           | VIffSV (sp1, vr) -> s_at sp1
-           | VIffVS (vp1, vs) -> v_at vp1
-           | VExists (vt, part) -> v_at (part_hd part)
-           | VForall (vu, vv, vp1) -> v_at vp1
-           | VPrev vp -> plus_nat (v_at vp) one_nat
-           | VPrevZ -> zero_nat
-           | VPrevOutL i -> i
-           | VPrevOutR i -> i
-           | VNext vp -> minus_nat (v_at vp) one_nat
-           | VNextOutL i -> i
-           | VNextOutR i -> i
-           | VOnceOut i -> i
-           | VOnce (i, vw, vx) -> i
-           | VEventually (i, vy, vz) -> i
-           | VHistorically (i, wa) -> i
-           | VAlways (i, wb) -> i
-           | VSinceOut i -> i
-           | VSince (i, wc, wd) -> i
-           | VSinceInf (i, we, wf) -> i
-           | VUntil (i, wg, wh) -> i
-           | VUntilInf (i, wi, wj) -> i;;
-
 let rec rep_trace_rbt (Abs_trace_rbt x) = x;;
 
 let bot_set : 'a set = Set [];;
@@ -465,6 +404,8 @@ let rec trace_rbt_nth
          (fun i ->
            (if less_nat i n then the (lookup equal_nat t i)
              else (bot_set, plus_nat (minus_nat i n) m))));;
+
+let rec snd (x1, x2) = x2;;
 
 let rec tau (Trace_RBT t) i = snd (trace_rbt_nth t i);;
 
@@ -529,17 +470,6 @@ let rec ltp
       then failwith "LTP: undefined" (fun _ -> ltp sigma t)
       else lTP_rec sigma t zero_nat);;
 
-let rec finite _A = function Coset xs -> false
-                    | Set xs -> true;;
-
-let rec less_eq_enat q x1 = match q, x1 with Infinity_enat, Enat n -> false
-                       | q, Infinity_enat -> true
-                       | Enat m, Enat n -> less_eq_nat m n;;
-
-let rec interval
-  l r = Abs_I (if less_eq_enat (Enat l) r then (l, r)
-                else rep_I (failwith "undefined"));;
-
 let rec positions _A
   xa0 x = match xa0, x with [], x -> []
     | y :: ys, x ->
@@ -567,6 +497,8 @@ let rec sup_set _A
 
 let rec sup_seta _A (Set xs) = fold (sup_set _A) xs bot_set;;
 
+let rec rep_part (Abs_part x) = x;;
+
 let rec vals x = Set (map snd (rep_part x));;
 
 let rec vars
@@ -575,15 +507,75 @@ let rec vars
         sup_set equal_string8 (insert equal_string8 x bot_set)
           (sup_seta equal_string8 (image vars (vals part)));;
 
-let rec eval_trm_set _A vs x1 = match vs, x1 with vs, Var x -> (Var x, vs x)
-                          | vs, Const x -> (Const x, insert _A x bot_set);;
+let rec finite _A = function Coset xs -> false
+                    | Set xs -> true;;
 
-let rec eval_trms_set _A vs ts = map (eval_trm_set _A vs) ts;;
+let rec less_eq_enat q x1 = match q, x1 with Infinity_enat, Enat n -> false
+                       | q, Infinity_enat -> true
+                       | Enat m, Enat n -> less_eq_nat m n;;
+
+let rec interval
+  l r = Abs_I (if less_eq_enat (Enat l) r then (l, r)
+                else rep_I (failwith "undefined"));;
+
+let rec part_hd xa = snd (hd (rep_part xa));;
+
+let rec s_at
+  = function STT i -> i
+    | SPred (i, uu, uv) -> i
+    | SEq_Const (i, uw, ux) -> i
+    | SNeg vp -> v_at vp
+    | SOrL sp1 -> s_at sp1
+    | SOrR sp2 -> s_at sp2
+    | SAnd (sp1, uy) -> s_at sp1
+    | SImpL vp1 -> v_at vp1
+    | SImpR sp2 -> s_at sp2
+    | SIffSS (sp1, uz) -> s_at sp1
+    | SIffVV (vp1, va) -> v_at vp1
+    | SExists (vb, vc, sp) -> s_at sp
+    | SForall (vd, part) -> s_at (part_hd part)
+    | SPrev sp -> plus_nat (s_at sp) one_nat
+    | SNext sp -> minus_nat (s_at sp) one_nat
+    | SOnce (i, ve) -> i
+    | SEventually (i, vf) -> i
+    | SHistorically (i, vg, vh) -> i
+    | SHistoricallyOut i -> i
+    | SAlways (i, vi, vj) -> i
+    | SSince (sp2, sp1s) ->
+        (match sp1s with [] -> s_at sp2 | _ :: _ -> s_at (last sp1s))
+    | SUntil (sp1s, sp2) ->
+        (match sp1s with [] -> s_at sp2 | sp1 :: _ -> s_at sp1)
+and v_at = function VFF i -> i
+           | VPred (i, vk, vl) -> i
+           | VEq_Const (i, vm, vn) -> i
+           | VNeg sp -> s_at sp
+           | VOr (vp1, vo) -> v_at vp1
+           | VAndL vp1 -> v_at vp1
+           | VAndR vp2 -> v_at vp2
+           | VImp (sp1, vq) -> s_at sp1
+           | VIffSV (sp1, vr) -> s_at sp1
+           | VIffVS (vp1, vs) -> v_at vp1
+           | VExists (vt, part) -> v_at (part_hd part)
+           | VForall (vu, vv, vp1) -> v_at vp1
+           | VPrev vp -> plus_nat (v_at vp) one_nat
+           | VPrevZ -> zero_nat
+           | VPrevOutL i -> i
+           | VPrevOutR i -> i
+           | VNext vp -> minus_nat (v_at vp) one_nat
+           | VNextOutL i -> i
+           | VNextOutR i -> i
+           | VOnceOut i -> i
+           | VOnce (i, vw, vx) -> i
+           | VEventually (i, vy, vz) -> i
+           | VHistorically (i, wa) -> i
+           | VAlways (i, wb) -> i
+           | VSinceOut i -> i
+           | VSince (i, wc, wd) -> i
+           | VSinceInf (i, we, wf) -> i
+           | VUntil (i, wg, wh) -> i
+           | VUntilInf (i, wi, wj) -> i;;
 
 let rec ed_set x = Set x;;
-
-let rec set_eq (_A1, _A2)
-  a b = less_eq_set (_A1, _A2) a b && less_eq_set (_A1, _A2) b a;;
 
 let rec equal_option _A x0 x1 = match x0, x1 with None, Some x2 -> false
                           | Some x2, None -> false
@@ -654,12 +646,12 @@ let rec maxa _A
 
 let rec mk_values_subset _A _B (_C1, _C2)
   p tXs x =
-    (let (fintXs, inftXs) = partition (fun tX -> finite _C2 (snd tX)) tXs in
+    (let (fintXs, inftXs) = partition (fun tX -> finite _C1 (snd tX)) tXs in
       (if null inftXs
         then less_eq_set
-               ((equal_prod _A (equal_list _C1)),
-                 (infinite_prod (infinite_list _C2.nonunit_infinite)))
-               (product (insert _A p bot_set) (mk_values _B _C1 tXs)) x
+               ((infinite_prod (infinite_list _C1.nonunit_infinite)),
+                 (equal_prod _A (equal_list _C2)))
+               (product (insert _A p bot_set) (mk_values _B _C2 tXs)) x
         else (let inf_dups =
                 filter
                   (fun tX -> membera (equal_trm _B) (map fst fintXs) (fst tX))
@@ -667,17 +659,17 @@ let rec mk_values_subset _A _B (_C1, _C2)
                 in
                (if null inf_dups
                  then (if finite
-                            (infinite_prod (infinite_list _C2.nonunit_infinite))
+                            (infinite_prod (infinite_list _C1.nonunit_infinite))
                             x
                         then false
                         else failwith "subset on infinite subset"
                                (fun _ ->
                                  less_eq_set
-                                   ((equal_prod _A (equal_list _C1)),
-                                     (infinite_prod
-                                       (infinite_list _C2.nonunit_infinite)))
+                                   ((infinite_prod
+                                      (infinite_list _C1.nonunit_infinite)),
+                                     (equal_prod _A (equal_list _C2)))
                                    (product (insert _A p bot_set)
-                                     (mk_values _B _C1 tXs))
+                                     (mk_values _B _C2 tXs))
                                    x))
                  else (if list_all
                             (fun tX ->
@@ -690,25 +682,33 @@ let rec mk_values_subset _A _B (_C1, _C2)
  (fst tX)))))
                             inf_dups
                         then less_eq_set
-                               ((equal_prod _A (equal_list _C1)),
-                                 (infinite_prod
-                                   (infinite_list _C2.nonunit_infinite)))
+                               ((infinite_prod
+                                  (infinite_list _C1.nonunit_infinite)),
+                                 (equal_prod _A (equal_list _C2)))
                                (product (insert _A p bot_set)
-                                 (mk_values _B _C1 tXs))
+                                 (mk_values _B _C2 tXs))
                                x
                         else (if finite
                                    (infinite_prod
-                                     (infinite_list _C2.nonunit_infinite))
+                                     (infinite_list _C1.nonunit_infinite))
                                    x
                                then false
                                else failwith "subset on infinite subset"
                                       (fun _ ->
 less_eq_set
-  ((equal_prod _A (equal_list _C1)),
-    (infinite_prod (infinite_list _C2.nonunit_infinite)))
-  (product (insert _A p bot_set) (mk_values _B _C1 tXs)) x)))))));;
+  ((infinite_prod (infinite_list _C1.nonunit_infinite)),
+    (equal_prod _A (equal_list _C2)))
+  (product (insert _A p bot_set) (mk_values _B _C2 tXs)) x)))))));;
 
 let rec subsVals xa = Set (rep_part xa);;
+
+let rec eval_trm_set _A vs x1 = match vs, x1 with vs, Var x -> (Var x, vs x)
+                          | vs, Const x -> (Const x, insert _A x bot_set);;
+
+let rec eval_trms_set _A vs ts = map (eval_trm_set _A vs) ts;;
+
+let rec set_eq (_A1, _A2)
+  a b = less_eq_set (_A1, _A2) a b && less_eq_set (_A1, _A2) b a;;
 
 let rec less_enat x0 q = match x0, q with Infinity_enat, q -> false
                     | Enat m, Infinity_enat -> true
@@ -993,7 +993,7 @@ let rec s_check_exec (_A1, _A2, _A3, _A4)
     | sigma, vs, Exists (xc, xaa), SExists (xb, xa, x) ->
         Stdlib.(=) xc xb &&
           s_check_exec (_A1, _A2, _A3, _A4) sigma
-            (fun_upd equal_string8 vs xc (insert _A2 xa bot_set)) xaa x
+            (fun_upd equal_string8 vs xc (insert _A3 xa bot_set)) xaa x
     | sigma, vs, Exists (xb, xaa), SIffVV (xa, x) -> false
     | sigma, vs, Exists (xb, xaa), SIffSS (xa, x) -> false
     | sigma, vs, Exists (xa, xaa), SImpR x -> false
@@ -1151,9 +1151,9 @@ let rec s_check_exec (_A1, _A2, _A3, _A4)
     | sigma, vs, Pred (xc, xaa), SEq_Const (xb, xa, x) -> false
     | sigma, vs, Pred (xc, xaa), SPred (xb, xa, x) ->
         Stdlib.(=) xc xa &&
-          (equal_lista (equal_trm _A2) xaa x &&
-            mk_values_subset equal_string8 _A2 (_A2, _A3) xc
-              (eval_trms_set _A2 vs xaa) (gamma sigma xb))
+          (equal_lista (equal_trm _A3) xaa x &&
+            mk_values_subset equal_string8 _A3 (_A1, _A3) xc
+              (eval_trms_set _A3 vs xaa) (gamma sigma xb))
     | sigma, vs, Pred (xa, xaa), STT x -> false
     | sigma, vs, Eq_Const (xb, xaa), SUntil (xa, x) -> false
     | sigma, vs, Eq_Const (xb, xaa), SSince (xa, x) -> false
@@ -1175,9 +1175,9 @@ let rec s_check_exec (_A1, _A2, _A3, _A4)
     | sigma, vs, Eq_Const (xa, xaa), SOrL x -> false
     | sigma, vs, Eq_Const (xa, xaa), SNeg x -> false
     | sigma, vs, Eq_Const (xc, xaa), SEq_Const (xb, xa, x) ->
-        eq _A2 xaa x &&
+        eq _A3 xaa x &&
           (Stdlib.(=) xc xa &&
-            set_eq (_A2, _A3) (vs xc) (insert _A2 xaa bot_set))
+            set_eq (_A1, _A3) (vs xc) (insert _A3 xaa bot_set))
     | sigma, vs, Eq_Const (xc, xaa), SPred (xb, xa, x) -> false
     | sigma, vs, Eq_Const (xa, xaa), STT x -> false
     | sigma, vs, FF, p -> false
@@ -1497,7 +1497,7 @@ and v_check_exec (_A1, _A2, _A3, _A4)
     | sigma, vs, Forall (xc, xaa), VForall (xb, xa, x) ->
         Stdlib.(=) xc xb &&
           v_check_exec (_A1, _A2, _A3, _A4) sigma
-            (fun_upd equal_string8 vs xc (insert _A2 xa bot_set)) xaa x
+            (fun_upd equal_string8 vs xc (insert _A3 xa bot_set)) xaa x
     | sigma, vs, Forall (xb, xaa), VExists (xa, x) -> false
     | sigma, vs, Forall (xb, xaa), VIffVS (xa, x) -> false
     | sigma, vs, Forall (xb, xaa), VIffSV (xa, x) -> false
@@ -1734,8 +1734,8 @@ and v_check_exec (_A1, _A2, _A3, _A4)
     | sigma, vs, Pred (xc, xaa), VEq_Const (xb, xa, x) -> false
     | sigma, vs, Pred (xc, xaa), VPred (xb, xa, x) ->
         Stdlib.(=) xc xa &&
-          (equal_lista (equal_trm _A2) xaa x &&
-            mk_values_subset_Compl (_A1, _A2, _A4) sigma xc vs xaa xb)
+          (equal_lista (equal_trm _A3) xaa x &&
+            mk_values_subset_Compl (_A2, _A3, _A4) sigma xc vs xaa xb)
     | sigma, vs, Pred (xa, xaa), VFF x -> false
     | sigma, vs, Eq_Const (xc, xaa), VUntilInf (xb, xa, x) -> false
     | sigma, vs, Eq_Const (xc, xaa), VUntil (xb, xa, x) -> false
@@ -1764,7 +1764,7 @@ and v_check_exec (_A1, _A2, _A3, _A4)
     | sigma, vs, Eq_Const (xb, xaa), VOr (xa, x) -> false
     | sigma, vs, Eq_Const (xa, xaa), VNeg x -> false
     | sigma, vs, Eq_Const (xc, xaa), VEq_Const (xb, xa, x) ->
-        eq _A2 xaa x && (Stdlib.(=) xc xa && not (member _A2 xaa (vs xc)))
+        eq _A3 xaa x && (Stdlib.(=) xc xa && not (member _A3 xaa (vs xc)))
     | sigma, vs, Eq_Const (xc, xaa), VPred (xb, xa, x) -> false
     | sigma, vs, Eq_Const (xa, xaa), VFF x -> false
     | sigma, vs, FF, VUntilInf (xb, xa, x) -> false
@@ -1805,22 +1805,22 @@ let rec sum_nat m n = plus_nat m n;;
 let rec abs_part
   xa = Abs_part
          (let ds = map fst xa in
-           (if membera (equal_set (equal_event_data, infinite_event_data)) ds
+           (if membera (equal_set (infinite_event_data, equal_event_data)) ds
                  bot_set ||
                  (list_ex
                     (fun d ->
                       list_ex
                         (fun e ->
-                          not (set_eq (equal_event_data, infinite_event_data) d
+                          not (set_eq (infinite_event_data, equal_event_data) d
                                 e) &&
-                            not (set_eq (equal_event_data, infinite_event_data)
+                            not (set_eq (infinite_event_data, equal_event_data)
                                   (inf_set equal_event_data d e) bot_set))
                         ds)
                     ds ||
                    (not (distinct
-                          (equal_set (equal_event_data, infinite_event_data))
+                          (equal_set (infinite_event_data, equal_event_data))
                           ds) ||
-                     not (set_eq (equal_event_data, infinite_event_data)
+                     not (set_eq (infinite_event_data, equal_event_data)
                            (sup_seta equal_event_data
                              (image (fun d -> d) (Set ds)))
                            top_set)))
@@ -1862,7 +1862,7 @@ let rec collect_paths_aux (_A1, _A2, _A3, _A4)
       (if check_exec (_A1, _A2, _A3, _A4) sigma vs phi p then bot_set
         else image rev ds)
     | ds, sigma, vs, phi, Node (x, part) ->
-        sup_seta (equal_list (equal_set (_A2, _A3)))
+        sup_seta (equal_list (equal_set (_A1, _A3)))
           (image
             (fun (d, a) ->
               collect_paths_aux (_A1, _A2, _A3, _A4)
@@ -1876,7 +1876,7 @@ let rec collect_paths (_A1, _A2, _A3, _A4)
           check_all_aux (_A1, _A2, _A3, _A4) sigma (fun _ -> top_set) phi e
       then None
       else Some (collect_paths_aux (_A1, _A2, _A3, _A4)
-                  (insert (equal_list (equal_set (_A2, _A3))) [] bot_set) sigma
+                  (insert (equal_list (equal_set (_A1, _A3))) [] bot_set) sigma
                   (fun _ -> top_set) phi e));;
 
 let rec trace_rbt_of_list _A
@@ -1894,13 +1894,13 @@ let rec specialized_set x = Set x;;
 
 let rec check_all_specialized
   x = check_all
-        (default_event_data, equal_event_data, infinite_event_data,
+        (infinite_event_data, default_event_data, equal_event_data,
           linorder_event_data)
         x;;
 
 let rec collect_paths_specialized
   x = collect_paths
-        (default_event_data, equal_event_data, infinite_event_data,
+        (infinite_event_data, default_event_data, equal_event_data,
           linorder_event_data)
         x;;
 
