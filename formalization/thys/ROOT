@@ -1,7 +1,9 @@
 chapter AFP
 
 session Whymon (AFP) = "Containers" +
+  sessions
+    MFOTL_Monitor
   theories
-    MFOTL
+    Formula
     Proof_System
-    Monitor
+    Checker

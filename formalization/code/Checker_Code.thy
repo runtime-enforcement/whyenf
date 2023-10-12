@@ -1,5 +1,5 @@
-theory Monitor_Code
-  imports Whymon.Monitor "HOL-Library.Code_Target_Nat" "HOL.String"
+theory Checker_Code
+  imports Whymon.Checker "HOL-Library.Code_Target_Nat" "HOL.String"
     "HOL-Library.List_Lexorder" "HOL-Library.AList_Mapping" 
     Deriving.Derive
     (*Containers.Containers*)
@@ -42,27 +42,28 @@ section \<open>Code\<close>
 
 subsection \<open>Progress\<close>
 
-primrec progress :: "'a trace \<Rightarrow> 'a MFOTL.formula \<Rightarrow> nat \<Rightarrow> nat" where
-  "progress \<sigma> MFOTL.TT j = j"
-| "progress \<sigma> MFOTL.FF j = j"
-| "progress \<sigma> (MFOTL.Pred _ _) j = j"
-| "progress \<sigma> (MFOTL.Neg \<phi>) j = progress \<sigma> \<phi> j"
-| "progress \<sigma> (MFOTL.Or \<phi> \<psi>) j = min (progress \<sigma> \<phi> j) (progress \<sigma> \<psi> j)"
-| "progress \<sigma> (MFOTL.And \<phi> \<psi>) j = min (progress \<sigma> \<phi> j) (progress \<sigma> \<psi> j)"
-| "progress \<sigma> (MFOTL.Imp \<phi> \<psi>) j = min (progress \<sigma> \<phi> j) (progress \<sigma> \<psi> j)"
-| "progress \<sigma> (MFOTL.Iff \<phi> \<psi>) j = min (progress \<sigma> \<phi> j) (progress \<sigma> \<psi> j)"
-| "progress \<sigma> (MFOTL.Exists _ \<phi>) j = progress \<sigma> \<phi> j"
-| "progress \<sigma> (MFOTL.Forall _ \<phi>) j = progress \<sigma> \<phi> j"
-| "progress \<sigma> (MFOTL.Prev I \<phi>) j = (if j = 0 then 0 else min (Suc (progress \<sigma> \<phi> j)) j)"
-| "progress \<sigma> (MFOTL.Next I \<phi>) j = progress \<sigma> \<phi> j - 1"
-| "progress \<sigma> (MFOTL.Once I \<phi>) j = progress \<sigma> \<phi> j"
-| "progress \<sigma> (MFOTL.Historically I \<phi>) j = progress \<sigma> \<phi> j"
-| "progress \<sigma> (MFOTL.Eventually I \<phi>) j =
+primrec progress :: "'a trace \<Rightarrow> 'a Formula.formula \<Rightarrow> nat \<Rightarrow> nat" where
+  "progress \<sigma> Formula.TT j = j"
+| "progress \<sigma> Formula.FF j = j"
+| "progress \<sigma> (Formula.Eq_Const _ _) j = j"
+| "progress \<sigma> (Formula.Pred _ _) j = j"
+| "progress \<sigma> (Formula.Neg \<phi>) j = progress \<sigma> \<phi> j"
+| "progress \<sigma> (Formula.Or \<phi> \<psi>) j = min (progress \<sigma> \<phi> j) (progress \<sigma> \<psi> j)"
+| "progress \<sigma> (Formula.And \<phi> \<psi>) j = min (progress \<sigma> \<phi> j) (progress \<sigma> \<psi> j)"
+| "progress \<sigma> (Formula.Imp \<phi> \<psi>) j = min (progress \<sigma> \<phi> j) (progress \<sigma> \<psi> j)"
+| "progress \<sigma> (Formula.Iff \<phi> \<psi>) j = min (progress \<sigma> \<phi> j) (progress \<sigma> \<psi> j)"
+| "progress \<sigma> (Formula.Exists _ \<phi>) j = progress \<sigma> \<phi> j"
+| "progress \<sigma> (Formula.Forall _ \<phi>) j = progress \<sigma> \<phi> j"
+| "progress \<sigma> (Formula.Prev I \<phi>) j = (if j = 0 then 0 else min (Suc (progress \<sigma> \<phi> j)) j)"
+| "progress \<sigma> (Formula.Next I \<phi>) j = progress \<sigma> \<phi> j - 1"
+| "progress \<sigma> (Formula.Once I \<phi>) j = progress \<sigma> \<phi> j"
+| "progress \<sigma> (Formula.Historically I \<phi>) j = progress \<sigma> \<phi> j"
+| "progress \<sigma> (Formula.Eventually I \<phi>) j =
     Inf {i. \<forall>k. k < j \<and> k \<le> (progress \<sigma> \<phi> j) \<longrightarrow> (\<tau> \<sigma> k - \<tau> \<sigma> i) \<le> right I}"
-| "progress \<sigma> (MFOTL.Always I \<phi>) j =
+| "progress \<sigma> (Formula.Always I \<phi>) j =
     Inf {i. \<forall>k. k < j \<and> k \<le> (progress \<sigma> \<phi> j) \<longrightarrow> (\<tau> \<sigma> k - \<tau> \<sigma> i) \<le> right I}"
-| "progress \<sigma> (MFOTL.Since \<phi> I \<psi>) j = min (progress \<sigma> \<phi> j) (progress \<sigma> \<psi> j)"
-| "progress \<sigma> (MFOTL.Until \<phi> I \<psi>) j =
+| "progress \<sigma> (Formula.Since \<phi> I \<psi>) j = min (progress \<sigma> \<phi> j) (progress \<sigma> \<psi> j)"
+| "progress \<sigma> (Formula.Until \<phi> I \<psi>) j =
     Inf {i. \<forall>k. k < j \<and> k \<le> min (progress \<sigma> \<phi> j) (progress \<sigma> \<psi> j) \<longrightarrow> (\<tau> \<sigma> k - \<tau> \<sigma> i) \<le> right I}"
 
 lemma Inf_Min:
@@ -73,7 +74,7 @@ lemma Inf_Min:
   by (auto simp: Set.filter_def intro: cInf_lower intro!: antisym[OF _ Min_le])
     (metis Inf_nat_def1 empty_iff mem_Collect_eq)
 
-lemma progress_Eventually_code: "progress \<sigma> (MFOTL.Eventually I \<phi>) j =
+lemma progress_Eventually_code: "progress \<sigma> (Formula.Eventually I \<phi>) j =
   (let m = min j (Suc (progress \<sigma> \<phi> j)) - 1 in Min (Set.filter (\<lambda>i. enat (\<delta> \<sigma> m i) \<le> right I) {..j}))"
 proof -
   define P where "P \<equiv> (\<lambda>i. \<forall>k. k < j \<and> k \<le> (progress \<sigma> \<phi> j) \<longrightarrow> enat (\<delta> \<sigma> k i) \<le> right I)"
@@ -94,7 +95,7 @@ proof -
     by (fastforce simp: P_def intro: arg_cong[where ?f=Min])
 qed
 
-lemma progress_Always_code: "progress \<sigma> (MFOTL.Always I \<phi>) j =
+lemma progress_Always_code: "progress \<sigma> (Formula.Always I \<phi>) j =
   (let m = min j (Suc (progress \<sigma> \<phi> j)) - 1 in Min (Set.filter (\<lambda>i. enat (\<delta> \<sigma> m i) \<le> right I) {..j}))"
 proof -
   define P where "P \<equiv> (\<lambda>i. \<forall>k. k < j \<and> k \<le> (progress \<sigma> \<phi> j) \<longrightarrow> enat (\<delta> \<sigma> k i) \<le> right I)"
@@ -115,7 +116,7 @@ proof -
     by (fastforce simp: P_def intro: arg_cong[where ?f=Min])
 qed
 
-lemma progress_Until_code: "progress \<sigma> (MFOTL.Until \<phi> I \<psi>) j =
+lemma progress_Until_code: "progress \<sigma> (Formula.Until \<phi> I \<psi>) j =
   (let m = min j (Suc (min (progress \<sigma> \<phi> j) (progress \<sigma> \<psi> j))) - 1 in Min (Set.filter (\<lambda>i. enat (\<delta> \<sigma> m i) \<le> right I) {..j}))"
 proof -
   define P where "P \<equiv> (\<lambda>i. \<forall>k. k < j \<and> k \<le> min (progress \<sigma> \<phi> j) (progress \<sigma> \<psi> j) \<longrightarrow> enat (\<delta> \<sigma> k i) \<le> right I)"
@@ -273,29 +274,29 @@ definition default_literal :: String.literal where "default_literal = 0"
 instance proof qed
 end
 
-(* definition str_s_check :: "String.literal MFOTL.trace \<Rightarrow> (char list \<Rightarrow> String.literal set) \<Rightarrow> _ MFOTL.formula \<Rightarrow> _ sproof \<Rightarrow> bool"
+(* definition str_s_check :: "String.literal Formula.trace \<Rightarrow> (char list \<Rightarrow> String.literal set) \<Rightarrow> _ Formula.formula \<Rightarrow> _ sproof \<Rightarrow> bool"
   where "str_s_check = s_check_exec"
 
 definition str_s_at :: "String.literal sproof \<Rightarrow> nat"
   where "str_s_at = s_at"
 
-definition str_v_check :: "String.literal MFOTL.trace \<Rightarrow> (char list \<Rightarrow> String.literal set) \<Rightarrow> _ MFOTL.formula \<Rightarrow> _ vproof \<Rightarrow> bool"
+definition str_v_check :: "String.literal Formula.trace \<Rightarrow> (char list \<Rightarrow> String.literal set) \<Rightarrow> _ Formula.formula \<Rightarrow> _ vproof \<Rightarrow> bool"
   where "str_v_check = v_check_exec"
 
 definition str_v_at :: "String.literal vproof \<Rightarrow> nat"
   where "str_v_at = v_at"
 
-definition is_valid :: "String.literal MFOTL.trace \<Rightarrow> (char list \<Rightarrow> String.literal set) \<Rightarrow> _ MFOTL.formula \<Rightarrow> (_ proof) \<Rightarrow> bool"
+definition is_valid :: "String.literal Formula.trace \<Rightarrow> (char list \<Rightarrow> String.literal set) \<Rightarrow> _ Formula.formula \<Rightarrow> (_ proof) \<Rightarrow> bool"
   where "is_valid = p_check_exec" *)
 
-declare MFOTL.future_bounded.simps[code]
+declare Formula.future_bounded.simps[code]
 
 (* context 
-  fixes \<sigma> :: "'d :: linorder MFOTL.trace" and
+  fixes \<sigma> :: "'d :: linorder Formula.trace" and
   cmp :: "'d proof \<Rightarrow> 'd proof \<Rightarrow> bool"
 begin
 
-lemma opt_code[code]: "optimal vs i \<phi> p = (if MFOTL.future_bounded \<phi> then
+lemma opt_code[code]: "optimal vs i \<phi> p = (if Formula.future_bounded \<phi> then
   valid \<sigma> i \<phi> p \<and> cmp p (eval vars i \<phi>) else Code.abort (STR ''opt: formula is not future bounded'') (\<lambda>_. optimal i \<phi> p))"
   using alg_optimal[of \<phi> i] trans_cmp
   by (auto simp: optimal_def transp_def)
@@ -324,12 +325,13 @@ lemma sum_proofs_app:
   by (auto simp: sum_proofs_def split: list.splits)
 
 context
-  fixes w :: "MFOTL.name \<Rightarrow> nat"
+  fixes w :: "Formula.name \<Rightarrow> nat"
 begin
 
 function (sequential) s_pred :: "'d sproof \<Rightarrow> nat" 
   and v_pred :: "'d vproof \<Rightarrow> nat" where
   "s_pred (STT _) = 1"
+| "s_pred (SEq_Const _ _ _) = 1"
 | "s_pred (SPred _ r _) = w r"
 | "s_pred (SNeg vp) = (v_pred vp) + 1"
 | "s_pred (SOrL sp1) = (s_pred sp1) + 1"
@@ -351,6 +353,7 @@ function (sequential) s_pred :: "'d sproof \<Rightarrow> nat"
 | "s_pred (SSince sp2 sp1s) = (sum_proofs s_pred (sp2 # sp1s)) + 1"
 | "s_pred (SUntil sp1s sp2) = (sum_proofs s_pred (sp1s @ [sp2])) + 1"
 | "v_pred (VFF _ ) = 1"
+| "v_pred (VEq_Const _ _ _) = 1"
 | "v_pred (VPred _ r _) = w r"
 | "v_pred (VNeg sp) = (s_pred sp) + 1"
 | "v_pred (VOr vp1 vp2) = ((v_pred vp1) + (v_pred vp2)) + 1"
@@ -553,7 +556,7 @@ proof -
     by simp
 qed
 
-lemma v_check_exec_Once_code[code]: "v_check_exec \<sigma> vs (MFOTL.Once I \<phi>) vp = (case vp of
+lemma v_check_exec_Once_code[code]: "v_check_exec \<sigma> vs (Formula.Once I \<phi>) vp = (case vp of
   VOnce i li vps \<Rightarrow>
     (case right I of \<infinity> \<Rightarrow> li = 0 | enat b \<Rightarrow> ((li = 0 \<or> b < \<delta> \<sigma> i (li - 1)) \<and> \<delta> \<sigma> i li \<le> b)) 
     \<and> \<tau> \<sigma> 0 + left I \<le> \<tau> \<sigma> i
@@ -562,7 +565,7 @@ lemma v_check_exec_Once_code[code]: "v_check_exec \<sigma> vs (MFOTL.Once I \<ph
   | _ \<Rightarrow> False)"
   by (auto simp: Let_def check_upt_LTP_p_eq ETP_minus_le_iff ETP_minus_eq_iff split: vproof.splits enat.splits simp del: upt_Suc)
 
-lemma s_check_exec_Historically_code[code]: "s_check_exec \<sigma> vs (MFOTL.Historically I \<phi>) vp = (case vp of
+lemma s_check_exec_Historically_code[code]: "s_check_exec \<sigma> vs (Formula.Historically I \<phi>) vp = (case vp of
   SHistorically i li vps \<Rightarrow>
     (case right I of \<infinity> \<Rightarrow> li = 0 | enat b \<Rightarrow> ((li = 0 \<or> b < \<delta> \<sigma> i (li - 1)) \<and> \<delta> \<sigma> i li \<le> b))
     \<and> \<tau> \<sigma> 0 + left I \<le> \<tau> \<sigma> i
@@ -571,7 +574,7 @@ lemma s_check_exec_Historically_code[code]: "s_check_exec \<sigma> vs (MFOTL.His
   | _ \<Rightarrow> False)"
   by (auto simp: Let_def check_upt_LTP_p_eq ETP_minus_le_iff ETP_minus_eq_iff split: sproof.splits enat.splits simp del: upt_Suc)
 
-lemma v_check_exec_Since_code[code]: "v_check_exec \<sigma> vs (MFOTL.Since \<phi> I \<psi>) vp = (case vp of
+lemma v_check_exec_Since_code[code]: "v_check_exec \<sigma> vs (Formula.Since \<phi> I \<psi>) vp = (case vp of
   VSince i vp1 vp2s \<Rightarrow>
     let j = v_at vp1 in
     (case right I of \<infinity> \<Rightarrow> True | enat b \<Rightarrow> \<delta> \<sigma> i j \<le> b) \<and> j \<le> i
@@ -658,7 +661,7 @@ proof -
     unfolding check_upt_ETP_f_def .
 qed
 
-lemma v_check_exec_Eventually_code[code]: "v_check_exec \<sigma> vs (MFOTL.Eventually I \<phi>) vp = (case vp of
+lemma v_check_exec_Eventually_code[code]: "v_check_exec \<sigma> vs (Formula.Eventually I \<phi>) vp = (case vp of
   VEventually i hi vps \<Rightarrow>
     (case right I of \<infinity> \<Rightarrow> False | enat b \<Rightarrow> (\<delta> \<sigma> hi i \<le> b \<and> b < \<delta> \<sigma> (Suc hi) i)) \<and>
      check_upt_ETP_f \<sigma> I i (map v_at vps) hi \<and> Ball (set vps) (v_check_exec \<sigma> vs \<phi>)
@@ -666,7 +669,7 @@ lemma v_check_exec_Eventually_code[code]: "v_check_exec \<sigma> vs (MFOTL.Event
   by (auto simp: Let_def LTP_plus_ge_iff LTP_plus_eq_iff check_upt_ETP_f_eq simp del: upt_Suc
       split: vproof.splits enat.splits)
 
-lemma s_check_exec_Always_code[code]: "s_check_exec \<sigma> vs (MFOTL.Always I \<phi>) sp = (case sp of
+lemma s_check_exec_Always_code[code]: "s_check_exec \<sigma> vs (Formula.Always I \<phi>) sp = (case sp of
   SAlways i hi sps \<Rightarrow>
     (case right I of \<infinity> \<Rightarrow> False | enat b \<Rightarrow> (\<delta> \<sigma> hi i \<le> b \<and> b < \<delta> \<sigma> (Suc hi) i)) 
     \<and> check_upt_ETP_f \<sigma> I i (map s_at sps) hi \<and> Ball (set sps) (s_check_exec \<sigma> vs \<phi>)
@@ -674,7 +677,7 @@ lemma s_check_exec_Always_code[code]: "s_check_exec \<sigma> vs (MFOTL.Always I 
   by (auto simp: Let_def LTP_plus_ge_iff LTP_plus_eq_iff check_upt_ETP_f_eq simp del: upt_Suc
       split: sproof.splits enat.splits)
 
-lemma v_check_exec_Until_code[code]: "v_check_exec \<sigma> vs (MFOTL.Until \<phi> I \<psi>) vp = (case vp of
+lemma v_check_exec_Until_code[code]: "v_check_exec \<sigma> vs (Formula.Until \<phi> I \<psi>) vp = (case vp of
   VUntil i vp2s vp1 \<Rightarrow>
     let j = v_at vp1 in 
     (case right I of \<infinity> \<Rightarrow> True | enat b \<Rightarrow> j < LTP_f \<sigma> i b)
@@ -796,12 +799,8 @@ lemma coset_subset_set_code[code]: "(List.coset (xs :: _ :: infinite list) \<sub
 lemma is_empty_coset[code]: "Set.is_empty (List.coset (xs :: _ :: infinite list)) = False"
   using coset_subset_set_code by (fastforce simp: Set.is_empty_def)
 
-definition execute_trivial_eval where
- "execute_trivial_eval \<sigma> vars i \<phi> = Monitor.eval \<sigma> (\<lambda>p1 p2. (p_pred (\<lambda> _. 1) p1) \<le> (p_pred (\<lambda> _. 1) p2)) vars i \<phi>"
-
 definition "check \<sigma> v \<phi> p = (case p of Inl sp \<Rightarrow> s_check \<sigma> v \<phi> sp | Inr vp \<Rightarrow> v_check \<sigma> v \<phi> vp)"
 definition "check_exec \<sigma> vs \<phi> p = (case p of Inl sp \<Rightarrow> s_check_exec \<sigma> vs \<phi> sp | Inr vp \<Rightarrow> v_check_exec \<sigma> vs \<phi> vp)"
-
 
 fun check_one where
   "check_one \<sigma> v \<phi> (Leaf p) = check \<sigma> v \<phi> p"
@@ -887,7 +886,7 @@ fun distinct_paths where
   "distinct_paths (Leaf _) = True"
 | "distinct_paths (Node x part) = (\<forall>e \<in> Vals part. x \<notin> vars e \<and> distinct_paths e)"
 
-lemma check_one_cong: "\<forall>x\<in>MFOTL.fv \<phi> \<union> vars e. v x = v' x \<Longrightarrow> check_one \<sigma> v \<phi> e = check_one \<sigma> v' \<phi> e"
+lemma check_one_cong: "\<forall>x\<in>Formula.fv \<phi> \<union> vars e. v x = v' x \<Longrightarrow> check_one \<sigma> v \<phi> e = check_one \<sigma> v' \<phi> e"
   apply (induct e arbitrary: v v')
    apply (auto simp: check_def check_fv_cong split: sum.splits)
   apply (metis (full_types) Set.set_insert UN_insert UnE UnI1 UnI2 lookup_part_Vals)
@@ -906,7 +905,7 @@ lemma lookup_part_from_subvals: "(D, e) \<in> set (subsvals part) \<Longrightarr
   done
 
 lemma check_all_aux_check_one: "\<forall>x. vs x \<noteq> {} \<Longrightarrow> distinct_paths e \<Longrightarrow> (\<forall>x \<in> vars e. vs x = UNIV) \<Longrightarrow>
-  check_all_aux \<sigma> vs \<phi> e \<longleftrightarrow> (\<forall>v \<in> compatible_vals (MFOTL.fv \<phi>) vs. check_one \<sigma> v \<phi> e)"
+  check_all_aux \<sigma> vs \<phi> e \<longleftrightarrow> (\<forall>v \<in> compatible_vals (Formula.fv \<phi>) vs. check_one \<sigma> v \<phi> e)"
   apply (induct e arbitrary: vs)
    apply (auto simp: check_exec_def check_def check_exec_check split_beta sat_vorder_Node
       split: sum.splits if_splits)
@@ -985,22 +984,22 @@ instance event_data :: infinite by standard (simp add: infinite_UNIV_event_data)
 
 instance event_data :: equal by standard
 
-definition check_all :: "(MFOTL.name \<times> 'd ::  {default,linorder} list) trace \<Rightarrow> 'd MFOTL.formula \<Rightarrow> ('d, 'd proof) pdt \<Rightarrow> bool" where
+definition check_all :: "(Formula.name \<times> 'd ::  {default,linorder} list) trace \<Rightarrow> 'd Formula.formula \<Rightarrow> ('d, 'd proof) pdt \<Rightarrow> bool" where
   "check_all \<sigma> \<phi> e = (distinct_paths e \<and> check_all_aux \<sigma> (\<lambda>_. UNIV) \<phi> e)"
 
-definition collect_paths :: "(MFOTL.name \<times> 'd ::  {default,linorder} list) trace \<Rightarrow> 'd MFOTL.formula \<Rightarrow> ('d, 'd proof) pdt \<Rightarrow> 'd set list set option" where
+definition collect_paths :: "(Formula.name \<times> 'd ::  {default,linorder} list) trace \<Rightarrow> 'd Formula.formula \<Rightarrow> ('d, 'd proof) pdt \<Rightarrow> 'd set list set option" where
   "collect_paths \<sigma> \<phi> e = (if (distinct_paths e \<and> check_all_aux \<sigma> (\<lambda>_. UNIV) \<phi> e) then None else Some (collect_paths_aux {[]} \<sigma> (\<lambda>_. UNIV) \<phi> e))"
 
-definition check_all_specialized :: "(MFOTL.name \<times> event_data list) trace \<Rightarrow> event_data MFOTL.formula \<Rightarrow> (event_data, event_data proof) pdt \<Rightarrow> bool" where
+definition check_all_specialized :: "(Formula.name \<times> event_data list) trace \<Rightarrow> event_data Formula.formula \<Rightarrow> (event_data, event_data proof) pdt \<Rightarrow> bool" where
   "check_all_specialized = check_all"
 
-definition collect_paths_specialized :: "(MFOTL.name \<times> event_data list) trace \<Rightarrow> event_data MFOTL.formula \<Rightarrow> (event_data, event_data proof) pdt \<Rightarrow> event_data set list set option" where
+definition collect_paths_specialized :: "(Formula.name \<times> event_data list) trace \<Rightarrow> event_data Formula.formula \<Rightarrow> (event_data, event_data proof) pdt \<Rightarrow> event_data set list set option" where
   "collect_paths_specialized = collect_paths"
 
-definition trace_of_list_specialized :: "((MFOTL.name \<times> event_data list) set \<times> nat) list \<Rightarrow> (MFOTL.name \<times> event_data list) trace" where
+definition trace_of_list_specialized :: "((Formula.name \<times> event_data list) set \<times> nat) list \<Rightarrow> (Formula.name \<times> event_data list) trace" where
   "trace_of_list_specialized xs = trace_of_list xs"
 
-definition specialized_set :: "(MFOTL.name \<times> event_data list) list \<Rightarrow> (MFOTL.name \<times> event_data list) set" where
+definition specialized_set :: "(Formula.name \<times> event_data list) list \<Rightarrow> (Formula.name \<times> event_data list) set" where
   "specialized_set = set"
 
 definition ed_set :: "event_data list \<Rightarrow> event_data set" where
@@ -1027,7 +1026,7 @@ lemma check_all_check_one: "check_all \<sigma> \<phi> e = (distinct_paths e \<an
     (auto simp: compatible_vals_def)
 
 export_code interval enat nat_of_integer integer_of_nat
-  STT MFOTL.TT Inl EInt MFOTL.Var Leaf set part_hd sum_nat sub_nat subsvals
+  STT Formula.TT Inl EInt Formula.Var Leaf set part_hd sum_nat sub_nat subsvals
   check_all_specialized trace_of_list_specialized specialized_set ed_set abs_part 
   collect_paths_specialized
   in OCaml module_name Whymon file_prefix "checker"
