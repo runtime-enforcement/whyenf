@@ -8,7 +8,7 @@ const card = (
   <React.Fragment>
     <CardContent>
       <Typography variant="h6">
-        Placeholder text.
+        A monitoring tool for metric first-order temporal logic formulas with explanations as verdicts.
       </Typography>
     </CardContent>
   </React.Fragment>
