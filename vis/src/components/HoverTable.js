@@ -43,7 +43,7 @@ export default function HoverTable({ table, subf }) {
                   {v}
                 </TableCell>
               )}
-              <Box maxWidth={(theme) => theme.breakpoints.values.sm}>
+              <Box /* maxWidth={(theme) => theme.breakpoints.values.sm} */>
                 <TableCell key={table.values.length + 1}>
                   {subf}
                 </TableCell>
