@@ -158,7 +158,7 @@ function TimeGrid ({ columns,
 
   // Subfs columns
   const subfsWidth = columns.subfs.reduce((acc, subf) =>
-    Math.max(acc, (7.3*(subf.length))), 60
+    Math.max(acc, (8*(subf.length))), 60
   );
 
   // colGridIndex: index of the column in the grid
