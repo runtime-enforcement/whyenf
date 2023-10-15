@@ -1,18 +1,12 @@
-# Explanator2: Judgment Day
-
-The Explanator2 is an online monitor that produces verdicts in the form of explanations for Metric Temporal Logic formulas on arbitrary traces.
-
-It is the successor of the [Explanator](https://bitbucket.org/traytel/explanator/src/master/), a previous work by [Bhargav Bhatt](https://bhargavbh.github.io/) and [Dmitriy Traytel](https://www21.in.tum.de/~traytel/).
+# WhyMon: explanations as verdicts
 
 ## Getting Started
 
-These are the basic steps to take if you want to run the project on your local machine.
+To execute the project on your local machine, follow the instructions below.
 
 ### Prerequisites
 
-The Explanator2 depends on a recent (>= 4.04.0) version of the OCaml compiler.
-
-We recommend that you install the OCaml compiler and necessary libraries with [OPAM](https://opam.ocaml.org/doc/Install.html), the OCaml package manager.
+We recommend that you install a recent verion of the OCaml compiler (>= 4.11) and necessary dependencies with [opam](https://opam.ocaml.org/doc/Install.html).
 
 In particular, if you are a Debian/Ubuntu user
 
@@ -36,28 +30,22 @@ should be enough.
 
 ### Running
 
-You can compile the code with
+From the root folder, you can compile the code with
 
 ```
 $ dune build
 ```
 
-to obtain the executable **explanator2.exe** inside the folder [bin](bin/). Moreover,
+to obtain the executable **whymon.exe** inside the folder [bin](bin/). Moreover,
 
 ```
-$ ./bin/explanator2.exe --help
+$ ./bin/whymon.exe --help
 ```
 
-will print the usage statement. For instance, you can run one of our predefined examples:
+will print the usage statement. For instance, you can run one of our predefined examples with our output checker:
 
 ```
-$ ./bin/explanator2.exe -fmla examples/paper/ex1.mtl -log examples/paper/ex1.log -O size -check
-```
-
-Alternatively, you can assign different weights to the atomic propositions:
-
-```
-./bin/explanator2.exe -fmla examples/paper/ex1.mtl -log examples/paper/ex1.log -O size -weights examples/paper/ex1.ws -check
+$ ./bin/whymon.exe -mode verified -sig examples/paper/publish_approve_manager.sig -formula examples/paper/publish_approve_manager.mfotl -log examples/paper/publish_approve_manager.log
 ```
 
 You can remove the binary and clean the working directory with
@@ -68,9 +56,9 @@ $ dune clean
 
 ### Formalization
 
-File [src/checker.ml](src/checker.ml) corresponds to the code extracted from the Isabelle formalization.
+The file [src/checker.ml](src/checker.ml) corresponds to the code extracted from the Isabelle formalization.
 
-Alternatively, you can extract the code on your local machine using the command:
+You can also extract this code on your local machine using the command
 
 ```
 $ isabelle build -vd thys -eD code
@@ -80,41 +68,65 @@ from inside the [formalization](formalization/) folder.
 
 ### Syntax
 
-#### Metric Temporal Logic
+### Metric First-Order Temporal Logic
 ```
-{f} ::=   true
-        | false
-        | {ATOM}
-        | NOT {f}
-        | {f} AND {f}
-        | {f} OR  {f}
-        | {f} IFF {f}
-        | {f} IMPLIES {f}
-        | PREV{i} {f}
-        | NEXT{i} {f}
-        | ONCE{i} {f}
-        | EVENTUALLY{i} {f}
-        | HISTORICALLY{i} {f}
-        | ALWAYS{i} {f}
-        | {f} SINCE{i} {f}
-        | {f} UNTIL{i} {f}
-        | {f} TRIGGER{i} {f}
-        | {f} RELEASE{i} {f}
+{PRED} ::= string
 
-{i}  ::= [{NAT}, {UPPERBOUND}]
-{UPPERBOUND} ::= {NAT} | INFINITY
+{VAR} ::= string
+
+{VARS} ::=   {VAR}
+           | {VAR}, {VARS}
+
+{CONST} ::= quoted string
+
+{I}  ::= [{NAT}, {UPPERBOUND}]
+
+{UPPERBOUND} ::=   {NAT}
+                 | INFINITY   (∞)
+
+{f} ::=   {PRED}({VARS})
+        | true                  (⊤)
+        | false                 (⊥)
+        | {VAR} EQCONST {CONST} (=)
+        | NOT {f}               (¬)
+        | {f} AND {f}           (∧)
+        | {f} OR  {f}           (∨)
+        | {f} IMPLIES {f}       (→)
+        | {f} IFF {f}           (↔)
+        | EXISTS {VAR}. {f}     (∃)
+        | FORALL {VAR}. {f}     {∀}
+        | PREV{I} {f}           (●)
+        | NEXT{I} {f}           (○)
+        | ONCE{I} {f}           (⧫)
+        | EVENTUALLY{I} {f}     (◊)
+        | HISTORICALLY{I} {f}   (■)
+        | ALWAYS{I} {f}         (□)
+        | {f} SINCE{I} {f}      (S)
+        | {f} UNTIL{I} {f}      (U)
+        | {f} TRIGGER{I} {f}    (T)
+        | {f} RELEASE{I} {f}    (R)
 ```
 
-#### Trace
+Note that this tool also supports the equivalent Unicode characters (on the right).
+
+### Signature
 ```
-{TRACE} :=   @{NAT} {ATOM}*
-           | @{NAT} {ATOM}* \n {TRACE}
+{TYPE} ::= string | int
+
+{VARTYPES} ::=   {VAR}:{TYPE}
+               | {VAR}:{TYPE}, {VARTYPES}
+
+{SIG} ::=   {PRED}({VARTYPES})
+          | {PRED}({VARTYPES}) \n {SIG}
 ```
 
-#### Weights
+### Trace
 ```
-{WEIGHTS} :=   {ATOM}: {NAT}
-             | {ATOM}: {NAT} \n {WEIGHTS}
+{VALUES} ::=   string
+             | string, {VALUES}
+
+{TRACE} :=   @{NAT} {PREDICATE}(VALUES)*
+           | @{NAT} {PREDICATE}()* \n {TRACE}
 ```
 
 ## License
