@@ -1518,9 +1518,7 @@ let rec meval vars ts tp (db: Db.t) = function
        Buf2t.take
          (fun expl1 expl2 ts tp (aux_pdt, es) ->
            let (aux_pdt', es') =
-             Pdt.split_prod (Pdt.apply3 vars (fun p1 p2 aux ->
-                                 let (ms, es) = Since.update i ts tp p1 p2 aux in
-                                 Stdio.printf "--------------\n%s\n" (Since.to_string ms); (ms, es)) expl1 expl2 aux_pdt) in
+             Pdt.split_prod (Pdt.apply3 vars (fun p1 p2 aux -> Since.update i ts tp p1 p2 aux) expl1 expl2 aux_pdt) in
            (aux_pdt', Pdt.split_list es'))
          (msaux_pdt, []) (Buf2.add expls1 expls2 buf2) (tstps @ [(ts,tp)]) in
      let expls'' = List.map expls' ~f:(Pdt.reduce Proof.equal) in
