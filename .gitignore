@@ -1,7 +1,7 @@
 *#*#
 *.bc*
 *~
-visualization/node_modules/
+vis/node_modules/
 _build/
 test/tmp/*.csv
 test/tmp/*.log
