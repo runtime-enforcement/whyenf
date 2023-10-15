@@ -86,7 +86,8 @@ module Whymon = struct
          In_channel.with_file f ~f:(fun inc ->
              let lexbuf = Lexing.from_channel inc in
              formula_ref := try Some(Formula_parser.formula Formula_lexer.token lexbuf)
-                            with Formula_parser.Error -> Stdio.printf "%s\n" (Etc.lexbuf_error_msg lexbuf); None);
+                            with Formula_parser.Error -> Stdio.printf "%s\n" (Etc.lexbuf_error_msg lexbuf);
+                                                         Stdlib.flush_all (); None);
          process_args_rec args
       | ("-out" :: outf :: args) ->
          Etc.outc_ref := Out_channel.create outf;
