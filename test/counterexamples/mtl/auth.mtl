@@ -1,1 +1,0 @@
-NOT(auth AND ((NOT reset) SINCE[0,600] (error AND (PREV ((NOT reset) AND (NOT auth)) SINCE error))))
