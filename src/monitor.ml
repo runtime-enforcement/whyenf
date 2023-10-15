@@ -762,13 +762,14 @@ module Since = struct
     let (s_beta_alphas_out, s_beta_alphas_in) = shift_sat (l,r) msaux.s_beta_alphas_out msaux.s_beta_alphas_in in
     let (v_alphas_betas_out, v_alpha_betas_in, v_betas_in) =
       shift_vio (l, r) tp msaux.v_alphas_betas_out msaux.v_alpha_betas_in msaux.v_betas_in in
-    { (clean (l, r) msaux) with tstps_in
-                              ; tstps_out
-                              ; s_beta_alphas_in
-                              ; s_beta_alphas_out
-                              ; v_alpha_betas_in
-                              ; v_betas_in
-                              ; v_alphas_betas_out }
+    clean (l, r) ({ msaux with
+                    tstps_in
+                  ; tstps_out
+                  ; s_beta_alphas_in
+                  ; s_beta_alphas_out
+                  ; v_alpha_betas_in
+                  ; v_betas_in
+                  ; v_alphas_betas_out })
 
   let eval tp msaux =
     if not (Fdeque.is_empty msaux.s_beta_alphas_in) then
@@ -1517,7 +1518,9 @@ let rec meval vars ts tp (db: Db.t) = function
        Buf2t.take
          (fun expl1 expl2 ts tp (aux_pdt, es) ->
            let (aux_pdt', es') =
-             Pdt.split_prod (Pdt.apply3 vars (fun p1 p2 aux -> Since.update i ts tp p1 p2 aux) expl1 expl2 aux_pdt) in
+             Pdt.split_prod (Pdt.apply3 vars (fun p1 p2 aux ->
+                                 let (ms, es) = Since.update i ts tp p1 p2 aux in
+                                 Stdio.printf "--------------\n%s\n" (Since.to_string ms); (ms, es)) expl1 expl2 aux_pdt) in
            (aux_pdt', Pdt.split_list es'))
          (msaux_pdt, []) (Buf2.add expls1 expls2 buf2) (tstps @ [(ts,tp)]) in
      let expls'' = List.map expls' ~f:(Pdt.reduce Proof.equal) in
