@@ -17,19 +17,16 @@
 
 # Input parameters:
 N_SEEDS=$1
-MEASURE=$2
 
 # Flags:
-CHECK_FLAG=$3
-WEIGHT_FLAG=$4
-OPERATORS=$5
+CHECK_FLAG=$2
 
 usage () {
-    printf "usage: run_tests.sh [n_seeds] [measure] [check or no-check] [weight or no-weight] [mtl or extended-mtl]\n"
+    printf "usage: run_tests.sh [n_seeds] [verified or unverified]\n"
     exit 1
 }
 
-if ! [[ "${N_SEEDS}" =~ ^[0-9]+$ ]] || [[ "${MEASURE}" != "size" ]] || ! [ "$#" -eq 5 ]
+if ! [[ "${N_SEEDS}" =~ ^[0-9]+$ ]] || ! [ "$#" -eq 2 ]
 then
     usage
 fi
@@ -49,36 +46,24 @@ for i in "${SIZES[@]}"; do
     for j in "${SCALES[@]}"; do
         for k in "${ERS[@]}"; do
             for l in "${DELTAS[@]}"; do
-                if [[ "${CHECK_FLAG}" == "check" ]]
+                if [[ "${CHECK_FLAG}" == "verified" ]]
                 then
                     printf "<@> Running ${N_SEEDS} verified tests with parameters\n"
                     printf "<@> { size = $i | scale = $j | er = $k | delta = $l }\n"
 
-                    if [[ "${WEIGHT_FLAG}" == "weight" ]]
-                    then
-                        printf "<@> Loading random weights... Done.\n"
-                        time parallel ./test_seed.sh check weight simp $i $j $k $l "${MEASURE}" "${OPERATORS}" ::: "${SEEDS}"
-                    else
-                        time parallel ./test_seed.sh check no-weight simp $i $j $k $l "${MEASURE}" "${OPERATORS}" ::: "${SEEDS}"
-                    fi
+                    time parallel ./test_seed.sh verified $i $j $k $l ::: "${SEEDS}"
 
-                    ./clean.sh
+                    # ./clean.sh
                     printf "\n"
                 else
-                    if [[ "${CHECK_FLAG}" == "no-check" ]]
+                    if [[ "${CHECK_FLAG}" == "unverified" ]]
                     then
                         printf "<@> Running ${N_SEEDS} tests with parameters\n"
                         printf "<@> { size = $i | scale = $j | er = $k | delta = $l }\n"
 
-                        if [[ "${WEIGHT_FLAG}" == "weight" ]]
-                        then
-                            printf "<@> Loading random weights... Done.\n"
-                            time parallel ./test_seed.sh no-check weight simp $i $j $k $l "${MEASURE}" "${OPERATORS}" ::: "${SEEDS}"
-                        else
-                            time parallel ./test_seed.sh no-check no-weight simp $i $j $k $l "${MEASURE}" "${OPERATORS}" ::: "${SEEDS}"
-                        fi
+                        time parallel ./test_seed.sh unverified $i $j $k $l ::: "${SEEDS}"
 
-                        ./clean.sh
+                        # ./clean.sh
                         printf "\n"
                     else
                         usage
