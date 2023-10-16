@@ -71,7 +71,7 @@ let split_in_out get_ts (l, r) deque =
                        if ts <= r then
                          (if ts >= l then
                             split_in_out_rec d' (Fdeque.enqueue_back nd el')
-                          else (Fdeque.enqueue_front d el', nd))
+                          else split_in_out_rec d' nd)
                        else (d, nd) in
   split_in_out_rec deque new_in
 
@@ -85,7 +85,7 @@ let split_out_in get_ts (z, l) deque =
                        if ts < l then
                          (if ts >= z then
                             split_out_in_rec d' (Fdeque.enqueue_back nd el')
-                          else (nd, Fdeque.enqueue_front d el'))
+                          else split_out_in_rec d' nd)
                        else (nd, d) in
   split_out_in_rec deque new_out
 
@@ -1467,7 +1467,13 @@ let rec meval vars ts tp (db: Db.t) = function
        Buft.take
          (fun expl ts tp (aux_pdt, es) ->
            let (aux_pdt', es') =
-             Pdt.split_prod (Pdt.apply2 vars (fun p aux -> Once.update i ts tp p aux) expl aux_pdt) in
+             Pdt.split_prod (Pdt.apply2 vars (fun p aux -> let (m, es) = Once.update i ts tp p aux in
+                                                           (* Stdio.printf "-----------------\n"; *)
+                                                           (* Stdio.printf "%s\n" (Once.to_string m); *)
+                                                           (* List.iter es ~f:(fun e -> *)
+                                                           (*     Stdio.printf "Proof: %s\n\n" (Proof.to_string "" e) *)
+                                                           (*   ); *)
+                                                           (m, es)) expl aux_pdt) in
            (aux_pdt', es @ (Pdt.split_list es')))
          (moaux_pdt, []) (expls, (tstps @ [(ts,tp)])) in
      let expls'' = List.map expls' ~f:(Pdt.reduce Proof.equal) in
