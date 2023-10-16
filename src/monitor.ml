@@ -714,7 +714,7 @@ module Since = struct
   let update_v_alpha_betas_in tp new_in v_alpha_betas_in =
     let v_alpha_betas_in_vapp = Fdeque.fold new_in ~init:v_alpha_betas_in ~f:(fun v_alpha_betas_in' (_, _, vp2_opt) ->
                                     match vp2_opt with
-                                    | None -> v_alpha_betas_in'
+                                    | None -> Fdeque.empty
                                     | Some(vp2) -> v_append_deque vp2 v_alpha_betas_in') in
     let v_alpha_betas_in' = add_new_ps_v_alpha_betas_in tp new_in v_alpha_betas_in_vapp in
     update_v_alpha_betas_in_tps tp v_alpha_betas_in'
@@ -1518,7 +1518,13 @@ let rec meval vars ts tp (db: Db.t) = function
        Buf2t.take
          (fun expl1 expl2 ts tp (aux_pdt, es) ->
            let (aux_pdt', es') =
-             Pdt.split_prod (Pdt.apply3 vars (fun p1 p2 aux -> Since.update i ts tp p1 p2 aux) expl1 expl2 aux_pdt) in
+             Pdt.split_prod (Pdt.apply3 vars (fun p1 p2 aux -> let (m, es) = Since.update i ts tp p1 p2 aux in
+                                                               (* Stdio.printf "-----------------\n"; *)
+                                                               (* Stdio.printf "%s\n" (Since.to_string m); *)
+                                                               (* List.iter es ~f:(fun e -> *)
+                                                               (*     Stdio.printf "Proof: %s\n\n" (Proof.to_string "" e) *)
+                                                               (*   ); *)
+                                                               (m, es)) expl1 expl2 aux_pdt) in
            (aux_pdt', es @ (Pdt.split_list es')))
          (msaux_pdt, []) (Buf2.add expls1 expls2 buf2) (tstps @ [(ts,tp)]) in
      let expls'' = List.map expls' ~f:(Pdt.reduce Proof.equal) in
