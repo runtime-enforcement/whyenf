@@ -29,7 +29,6 @@ export default function HoverTable({ table, subf }) {
               )}
               <TableCell key={table.columns.length + 1}
                          align="center">
-
                   <span style={{fontWeight: 'bold'}}>
                     Formula
                   </span>
@@ -43,11 +42,11 @@ export default function HoverTable({ table, subf }) {
                   {v}
                 </TableCell>
               )}
-              <Box /* maxWidth={(theme) => theme.breakpoints.values.sm} */>
-                <TableCell key={table.values.length + 1}>
-                  {subf}
-                </TableCell>
-              </Box>
+              {/* <Box /\* maxWidth={(theme) => theme.breakpoints.values.sm} *\/> */}
+              <TableCell key={table.values.length + 1} align="center">
+                {subf}
+              </TableCell>
+              {/* </Box> */}
             </TableRow>
           </TableBody>
         </Table>
