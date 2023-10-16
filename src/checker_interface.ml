@@ -420,17 +420,17 @@ let check trace_lst f expls =
   let f' = Checker_interface.convert_f f in
   let trace_lst' = Checker_interface.convert_trace_aux trace_lst in
   let trace' = Checker_interface.convert_trace trace_lst in
-  List.fold_left expls ~init:[] ~f:(fun acc expl ->
-      let expl' = Checker_interface.convert_expl expl in
-      (check trace' f' expl', expl', trace_lst')::acc)
+  List.rev(List.fold_left expls ~init:[] ~f:(fun acc expl ->
+               let expl' = Checker_interface.convert_expl expl in
+               (check trace' f' expl', expl', trace_lst')::acc))
 
 let false_paths trace_lst f expls =
   let f' = Checker_interface.convert_f f in
   let trace' = Checker_interface.convert_trace trace_lst in
-  List.fold_left expls ~init:[] ~f:(fun acc expl ->
-      let expl' = Checker_interface.convert_expl expl in
-      let paths = collect_paths_specialized trace' f' expl' in
-      match paths with
-      | None -> None::acc
-      | Some ps -> Some(List.map (Checker_interface.of_poly_set ps) ~f:(fun l ->
-                            List.map l ~f:(fun l' -> Checker_interface.of_fset l')))::acc)
+  List.rev(List.fold_left expls ~init:[] ~f:(fun acc expl ->
+               let expl' = Checker_interface.convert_expl expl in
+               let paths = collect_paths_specialized trace' f' expl' in
+               match paths with
+               | None -> None::acc
+               | Some ps -> Some(List.map (Checker_interface.of_poly_set ps) ~f:(fun l ->
+                                     List.map l ~f:(fun l' -> Checker_interface.of_fset l')))::acc))
