@@ -1027,28 +1027,10 @@ module Until = struct
     let v_betas_alpha_step1 = Fdeque.map v_betas_alpha ~f:(fun d ->
                                   remove_cond_front (fun (ts', p) ->
                                       (ts' < first_ts + a) || ((Proof.p_at p) < first_tp)) d) in
-    (* Stdio.printf "%s" *)
-    (*   (Fdeque.fold v_betas_alpha_step1 ~init:"\nv_betas_alpha_step1 = \n" *)
-    (*      ~f:(fun acc1 d -> *)
-    (*        acc1 ^ "\n" ^ *)
-    (*          Fdeque.fold d ~init:"[" ~f:(fun acc2 (ts, p) -> *)
-    (*              acc2 ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^ "\n]\n")); *)
     let v_betas_alpha_step2 = if a = 0 then
                                 drop_v_single_ts eval_tp v_betas_alpha_step1
                               else drop_v_ts a first_ts v_betas_alpha_step1 tstps_in' in
-    (* Stdio.printf "%s" *)
-    (*   (Fdeque.fold v_betas_alpha_step2 ~init:"\nv_betas_alpha_step2 = \n" *)
-    (*      ~f:(fun acc1 d -> *)
-    (*        acc1 ^ "\n" ^ *)
-    (*          Fdeque.fold d ~init:"[" ~f:(fun acc2 (ts, p) -> *)
-    (*              acc2 ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^ "\n]\n")); *)
     let v_betas_alpha_step3 = remove_cond_front_ne (fun d' -> Fdeque.is_empty d') v_betas_alpha_step2 in
-    (* Stdio.printf "%s" *)
-    (*   (Fdeque.fold v_betas_alpha_step3 ~init:"\nv_betas_alpha_step3 = \n" *)
-    (*      ~f:(fun acc1 d -> *)
-    (*        acc1 ^ "\n" ^ *)
-    (*          Fdeque.fold d ~init:"[" ~f:(fun acc2 (ts, p) -> *)
-    (*              acc2 ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^ "\n]\n")); *)
     (* tstp_out and tstp_in *)
     let (tstps_out'', tstps_in'') = shift_tstps_future a first_ts ntp tstps_out' tstps_in' in
     (* s_alphas_beta *)
@@ -1467,13 +1449,7 @@ let rec meval vars ts tp (db: Db.t) = function
        Buft.take
          (fun expl ts tp (aux_pdt, es) ->
            let (aux_pdt', es') =
-             Pdt.split_prod (Pdt.apply2 vars (fun p aux -> let (m, es) = Once.update i ts tp p aux in
-                                                           (* Stdio.printf "-----------------\n"; *)
-                                                           (* Stdio.printf "%s\n" (Once.to_string m); *)
-                                                           (* List.iter es ~f:(fun e -> *)
-                                                           (*     Stdio.printf "Proof: %s\n\n" (Proof.to_string "" e) *)
-                                                           (*   ); *)
-                                                           (m, es)) expl aux_pdt) in
+             Pdt.split_prod (Pdt.apply2 vars (fun p aux -> Once.update i ts tp p aux) expl aux_pdt) in
            (aux_pdt', es @ (Pdt.split_list es')))
          (moaux_pdt, []) (expls, (tstps @ [(ts,tp)])) in
      let expls'' = List.map expls' ~f:(Pdt.reduce Proof.equal) in
@@ -1524,13 +1500,7 @@ let rec meval vars ts tp (db: Db.t) = function
        Buf2t.take
          (fun expl1 expl2 ts tp (aux_pdt, es) ->
            let (aux_pdt', es') =
-             Pdt.split_prod (Pdt.apply3 vars (fun p1 p2 aux -> let (m, es) = Since.update i ts tp p1 p2 aux in
-                                                               (* Stdio.printf "-----------------\n"; *)
-                                                               (* Stdio.printf "%s\n" (Since.to_string m); *)
-                                                               (* List.iter es ~f:(fun e -> *)
-                                                               (*     Stdio.printf "Proof: %s\n\n" (Proof.to_string "" e) *)
-                                                               (*   ); *)
-                                                               (m, es)) expl1 expl2 aux_pdt) in
+             Pdt.split_prod (Pdt.apply3 vars (fun p1 p2 aux -> Since.update i ts tp p1 p2 aux) expl1 expl2 aux_pdt) in
            (aux_pdt', es @ (Pdt.split_list es')))
          (msaux_pdt, []) (Buf2.add expls1 expls2 buf2) (tstps @ [(ts,tp)]) in
      let expls'' = List.map expls' ~f:(Pdt.reduce Proof.equal) in
@@ -1547,13 +1517,7 @@ let rec meval vars ts tp (db: Db.t) = function
        | [] -> (ts, tp)
        | (nts', ntp') :: _ -> (nts', ntp') in
      let (muaux_pdt', es') =
-       Pdt.split_prod (Pdt.apply1 vars (fun aux -> let (m, es) = Until.eval i nts ntp (aux, []) in
-                                                   (* Stdio.printf "-----------------\n"; *)
-                                                   (* Stdio.printf "%s\n" (Until.to_string m); *)
-                                                   (* List.iter es ~f:(fun e -> *)
-                                                   (*     Stdio.printf "%s\n\n" (Proof.to_string "" e) *)
-                                                   (*   ); *)
-                                                   (m, es)) muaux_pdt') in
+       Pdt.split_prod (Pdt.apply1 vars (fun aux -> Until.eval i nts ntp (aux, [])) muaux_pdt') in
      let expls' = Pdt.split_list es' in
      let expls'' = List.map expls' ~f:(Pdt.reduce Proof.equal) in
      (expls'', MUntil (i, mf1', mf2', (buf2', ntstps'), muaux_pdt'))
@@ -1596,11 +1560,8 @@ module MState = struct
 end
 
 let mstep mode vars ts db (ms: MState.t) =
-  (* Stdio.printf "mstep ts = %d\n" ts; *)
   let (expls, mf') = meval vars ts ms.tp_cur db ms.mf in
   Queue.enqueue ms.ts_waiting ts;
-  (* Stdio.printf "ts_waiting = %s\n" (Etc.string_list_to_string (List.map (Queue.to_list ms.ts_waiting) ~f:(Int.to_string))); *)
-  (* Stdio.printf "|expls| = %d\n" (List.length expls); *)
   let tstps = List.zip_exn (List.take (Queue.to_list ms.ts_waiting) (List.length expls))
                 (List.range ms.tp_cur (ms.tp_cur + List.length expls)) in
   let tsdbs = match mode with
