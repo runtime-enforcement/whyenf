@@ -2,5 +2,5 @@
  (name whymon)
  (modes js)
  (libraries monitor_lib js_of_ocaml zarith_stubs_js)
- (promote (until-clean))
+ (promote (until-clean) (into ../vis/public))
  (preprocess (pps ppx_jane js_of_ocaml-ppx)))
