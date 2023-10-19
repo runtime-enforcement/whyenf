@@ -33,7 +33,7 @@ export default function FormulaTextField ({ formula, setFormState, fixParameters
   };
 
   const handleBlur = (event) => {
-    setKeyboardOpen(false, setFormState({ type: 'setFormula', formula: localFormula }));
+    setFormState({ type: 'setFormula', formula: localFormula });
   };
 
   useEffect(() => {
@@ -57,7 +57,6 @@ export default function FormulaTextField ({ formula, setFormState, fixParameters
           value={localFormula}
           onChange={handleChange}
           onBlur={handleBlur}
-          onFocus={openKeyboard}
           disabled={fixParameters}
         />
         <div className={`keyboardContainer ${!isKeyboardOpen ? "hidden" : ""}`}>
