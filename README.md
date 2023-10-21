@@ -58,13 +58,17 @@ $ dune clean
 
 The file [src/checker.ml](src/checker.ml) corresponds to the code extracted from the Isabelle formalization.
 
-You can also extract this code on your local machine using the command
+You can also extract this code on your local machine.
+
+The formalization is compatible with [Isabelle 2022](https://isabelle.in.tum.de/website-Isabelle2022/), and depends on the corresponding [Archive of Formal Proofs (AFP) version](https://foss.heptapod.net/isa-afp/afp-devel/-/tree/Isabelle2022).
+
+After setting up the AFP locally (by following [these](https://www.isa-afp.org/help/) instructions), you can run
 
 ```
 $ isabelle build -vd thys -eD code
 ```
 
-from inside the [formalization](formalization/) folder.
+from inside the [formalization](formalization/) folder to produce the file `formalization/code/checker.ocaml`.
 
 ### Syntax
 
