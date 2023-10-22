@@ -25,7 +25,7 @@ and then
 ```
 $ opam switch 4.13.1
 $ eval $(opam config env)
-$ opam install dune core_kernel base zarith menhir js_of_ocaml js_of_ocaml-ppx.5.4.0 zarith_stubs_js
+$ opam install dune core_kernel base zarith menhir js_of_ocaml js_of_ocaml-ppx zarith_stubs_js
 ```
 
 should be enough.
