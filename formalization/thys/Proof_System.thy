@@ -412,9 +412,9 @@ next
   proof (cases "right I")
     case (enat n)
     show ?thesis
-      using VEventually aux
-      apply (simp add: i_ETP_tau le_diff_conv2 enat add_le_imp_le_diff)
-      by (metis \<tau>_mono le_add_diff_inverse nat_add_left_cancel_le)
+      using VEventually[unfolded enat, simplified] aux
+      by (simp add: i_ETP_tau enat)
+        (metis \<tau>_mono le_add_diff_inverse nat_add_left_cancel_le)
   next
     case infinity
     show ?thesis
@@ -475,9 +475,9 @@ next
   proof (cases "right I")
     case (enat n)
     show ?thesis
-      using SAlways aux
-      apply (simp add: i_ETP_tau le_diff_conv2 enat)
-      by (metis Groups.ab_semigroup_add_class.add.commute add_le_imp_le_diff)
+      using SAlways[unfolded enat, simplified] aux
+      by (simp add: i_ETP_tau le_diff_conv2 enat)
+        (metis Groups.ab_semigroup_add_class.add.commute add_le_imp_le_diff)
   next
     case infinity
     show ?thesis
@@ -565,9 +565,9 @@ next
   proof (cases "right I")
     case (enat n)
     show ?thesis
-      using VUntilInf aux
-      apply (simp add: i_ETP_tau le_diff_conv2 enat add_le_imp_le_diff)
-      by (metis \<tau>_mono le_add_diff_inverse nat_add_left_cancel_le)
+      using VUntilInf[unfolded enat, simplified] aux
+      by (simp add: i_ETP_tau enat)
+        (metis \<tau>_mono le_add_diff_inverse nat_add_left_cancel_le)
   next
     case infinity
     show ?thesis
