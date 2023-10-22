@@ -20,7 +20,7 @@ or if you are an Arch Linux user
 # pacman -S opam
 ```
 
-and then
+proceeded by
 
 ```
 $ opam switch 4.13.1
