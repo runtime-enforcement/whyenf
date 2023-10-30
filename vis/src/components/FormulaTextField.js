@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, createRef } from 'react';
 import ReactDOM from "react-dom";
 import Box from '@mui/material/Box';
 import TextField from '@mui/material/TextField';
@@ -11,16 +11,10 @@ import "../keyboard.css";
 export default function FormulaTextField ({ formula, setFormState, fixParameters }) {
 
   const [localFormula, setLocalFormula] = useState("");
-  const [isKeyboardOpen, setKeyboardOpen] = useState(false);
+  const [rows, setRows] = useState(12);
+
   const keyboard = useRef();
-
-  const openKeyboard = () => {
-    setKeyboardOpen(true);
-  };
-
-  const closeKeyboard = () => {
-    setKeyboardOpen(false);
-  };
+  const ref = createRef();
 
   const onChange = input => {
     setLocalFormula(input);
@@ -37,6 +31,7 @@ export default function FormulaTextField ({ formula, setFormState, fixParameters
   };
 
   useEffect(() => {
+    setRows(ref.current.clientHeight/27);
     setLocalFormula(formula);
   }, [formula, setLocalFormula]);
 
@@ -48,18 +43,25 @@ export default function FormulaTextField ({ formula, setFormState, fixParameters
       }}
       noValidate
       autoComplete="off"
+      ref={ref}
     >
       <div>
         <TextField
           required
+          multiline
           id="outlined-required"
           label="Formula"
           value={localFormula}
           onChange={handleChange}
           onBlur={handleBlur}
           disabled={fixParameters}
+          minRows={rows}
+          maxRows={rows}
+          InputProps={{style: { minHeight: '35vh',
+                                maxHeight: '35vh',
+                                fontSize: 14  } }}
         />
-        <div className={`keyboardContainer ${!isKeyboardOpen ? "hidden" : ""}`}>
+        <div className={`keyboardContainer ${fixParameters ? "hidden" : ""}`}>
           <Keyboard
             keyboardRef={r => (keyboard.current = r)}
             layoutName={"default"}

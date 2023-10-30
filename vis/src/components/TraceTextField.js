@@ -18,7 +18,7 @@ export default function TraceTextField ({ trace, setFormState }) {
   };
 
   useEffect(() => {
-    setRows(ref.current.clientHeight/22.5);
+    setRows(ref.current.clientHeight/21.5);
     setLocalTrace(trace);
   }, [trace, setLocalTrace]);
 
@@ -42,7 +42,7 @@ export default function TraceTextField ({ trace, setFormState }) {
         onBlur={handleBlur}
         minRows={rows}
         maxRows={rows}
-        InputProps={{ style: { minHeight: '40vh',
+        InputProps={{ style: { minHeight: '74vh',
                                fontSize: 14 } }}
       />
     </Box>

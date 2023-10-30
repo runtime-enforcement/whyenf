@@ -1,18 +1,18 @@
 import React from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import MonitorIcon from '@mui/icons-material/Monitor';
+import QuestionMarkIcon from '@mui/icons-material/QuestionMark';
 
-export default function MonitorButton ({ handleMonitor }) {
+export default function HelpButton ({ handleMonitor }) {
   return (
     <Button
       variant="contained"
-      endIcon={<MonitorIcon color="inherit"/>}
       size="large"
+      color="secondary"
       sx={{ width: '100%', height: '100%' }}
       onClick={handleMonitor}
     >
-      Run
+      <QuestionMarkIcon/>
     </Button>
   );
 }

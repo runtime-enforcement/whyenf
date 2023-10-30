@@ -5,7 +5,7 @@ import TextField from '@mui/material/TextField';
 export default function SigTextField ({ sig, setFormState }) {
 
   const [localSig, setLocalSig] = useState("");
-  const [rows, setRows] = useState(10);
+  const [rows, setRows] = useState(12);
 
   const ref = React.createRef();
 
@@ -18,7 +18,7 @@ export default function SigTextField ({ sig, setFormState }) {
   };
 
   useEffect(() => {
-    setRows(ref.current.clientHeight/27.5);
+    setRows(ref.current.clientHeight/23.5);
     setLocalSig(sig);
   }, [sig, setLocalSig]);
 
@@ -42,8 +42,8 @@ export default function SigTextField ({ sig, setFormState }) {
         onBlur={handleBlur}
         minRows={rows}
         maxRows={rows}
-        InputProps={{style: { minHeight: '18vh',
-                              maxHeight: '18vh',
+        InputProps={{style: { minHeight: '30vh',
+                              maxHeight: '30vh',
                               fontSize: 14  } }}
       />
     </Box>

@@ -8,6 +8,7 @@ import AppendTraceTextField from './components/AppendTraceTextField';
 import FormulaTextField from './components/FormulaTextField';
 import TimeGrid from './components/TimeGrid';
 import MonitorButton from './components/MonitorButton';
+import HelpButton from './components/HelpButton';
 import AppendButton from './components/AppendButton';
 import LeaveButton from './components/LeaveButton';
 import ResetButton from './components/ResetButton';
@@ -15,6 +16,7 @@ import ExampleSelect from './components/ExampleSelect';
 import PreambleCard from './components/PreambleCard';
 import AlertDialog from './components/AlertDialog';
 import CheckmarkOptions from './components/CheckmarkOptions';
+import SyntaxCheckBar from './components/SyntaxCheckBar';
 import { computeDbsTable, initRhsTable, initHovers, translateError } from './util';
 
 function initMonitorState () {
@@ -234,23 +236,49 @@ export default function Monitor() {
   };
 
   return (
-    <Box style={{ height: '100vh', margin: 0, padding: 0 }}>
+    <Box style={{ height: '80vh', margin: 0, padding: 0 }}>
+
       { (monitorState.dialog !== undefined && (Object.keys(monitorState.dialog).length !== 0)) &&
         <AlertDialog open={true} dialog={monitorState.dialog} setMonitorState={setMonitorState} />
       }
+
       <Container maxWidth={false}>
-        <Box sx={{ mb: 12 }}>
-          <Grid container spacing={2}>
-            <Grid item xs={12} sm={12} md={12} lg={12} xl={12}>
-              <PreambleCard />
-            </Grid>
+        <Box sx={{ mb: 12, mt: 12 }}>
+          <Grid container spacing={3}>
+
             { !monitorState.fixParameters &&
-              <Grid container item xs={12} sm={12} md={4} lg={4} xl={4} spacing={2}>
-                <Grid item xs={12} sm={12} md={6} lg={6} xl={6}>
-                  <ExampleSelect setFormState={setFormState} />
+              <Grid container item spacing={3}>
+                <Grid container item spacing={2} xs={12} sm={12} md={6} lg={6} xl={6}>
+                  <Grid item xs={12} sm={12} md={6} lg={6} xl={6}>
+                    <ExampleSelect setFormState={setFormState} />
+                  </Grid>
+                  <Grid item xs={12} sm={12} md={4} lg={4} xl={4}>
+                    <MonitorButton handleMonitor={handleMonitor} />
+                  </Grid>
+                  <Grid item xs={12} sm={12} md={2} lg={2} xl={2}>
+                    <HelpButton handleMonitor={handleMonitor} />
+                  </Grid>
                 </Grid>
                 <Grid item xs={12} sm={12} md={6} lg={6} xl={6}>
-                  <MonitorButton handleMonitor={handleMonitor} />
+                  <SyntaxCheckBar/>
+                </Grid>
+              </Grid>
+            }
+
+            { !monitorState.fixParameters &&
+              <Grid container item xs={24} sm={24} md={12} lg={12} xl={12} spacing={3}>
+                <Grid container item xs={12} sm={12} md={6} lg={6} xl={6} spacing={3}>
+                  <Grid item xs={12} sm={12} md={12} lg={12} xl={12}>
+                    <SigTextField sig={formState.sig} setFormState={setFormState} />
+                  </Grid>
+                  <Grid item xs={12} sm={12} md={12} lg={12} xl={12}>
+                    <FormulaTextField formula={formState.formula}
+                                      setFormState={setFormState}
+                                      fixParameters={monitorState.fixParameters}/>
+                  </Grid>
+                </Grid>
+                <Grid item xs={12} sm={12} md={6} lg={6} xl={6}>
+                  <TraceTextField trace={formState.trace} setFormState={setFormState} />
                 </Grid>
               </Grid>
             }
@@ -272,15 +300,6 @@ export default function Monitor() {
               </Grid>
             }
 
-            { !monitorState.fixParameters &&
-              <Grid item xs={12} sm={12} md={8} lg={8} xl={8}>
-                <FormulaTextField formula={formState.formula}
-                                  setFormState={setFormState}
-                                  fixParameters={monitorState.fixParameters}
-                />
-              </Grid>
-            }
-
             { monitorState.fixParameters &&
               <Grid container item xs={12} sm={12} md={8} lg={8} xl={8} spacing={2}>
                 <Grid item xs={12} sm={12} md={8} lg={8} xl={8}>
@@ -292,28 +311,6 @@ export default function Monitor() {
                 <Grid item xs={12} sm={12} md={4} lg={4} xl={4}>
                   <CheckmarkOptions selectedOptions={monitorState.options}
                                     setMonitorState={setMonitorState} />
-                </Grid>
-              </Grid>
-            }
-
-            { !monitorState.fixParameters &&
-              <Grid container item xs={24} sm={24} md={12} lg={12} xl={12} spacing={2}>
-                <Grid container item xs={12} sm={12} md={4} lg={4} xl={4} spacing={2}>
-                  <Grid item xs={12} sm={12} md={12} lg={12} xl={12}>
-                    <TraceTextField trace={formState.trace} setFormState={setFormState} />
-                  </Grid>
-                  <Grid item xs={12} sm={12} md={12} lg={12} xl={12}>
-                    <SigTextField sig={formState.sig} setFormState={setFormState} />
-                  </Grid>
-                </Grid>
-                <Grid item xs={12} sm={12} md={8} lg={8} xl={8}>
-                  <TimeGrid columns={monitorState.columns}
-                            objs={monitorState.objs}
-                            tables={monitorState.tables}
-                            subformulas={monitorState.subformulas}
-                            selectedOptions={monitorState.options}
-                            setMonitorState={setMonitorState}
-                  />
                 </Grid>
               </Grid>
             }
