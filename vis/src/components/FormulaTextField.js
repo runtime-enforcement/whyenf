@@ -16,8 +16,8 @@ export default function FormulaTextField ({ formula, setFormState, fixParameters
   const keyboard = useRef();
   const ref = createRef();
 
-  const onChange = input => {
-    setLocalFormula(input);
+  const handleKeyboardChange = input => {
+    setLocalFormula(input, setFormState({ type: 'setFormula', formula: input }));
   };
 
   const handleChange = (event) => {
@@ -32,6 +32,7 @@ export default function FormulaTextField ({ formula, setFormState, fixParameters
 
   useEffect(() => {
     setRows(ref.current.clientHeight/27);
+    keyboard.current.setInput(formula);
     setLocalFormula(formula);
   }, [formula, setLocalFormula]);
 
@@ -59,13 +60,15 @@ export default function FormulaTextField ({ formula, setFormState, fixParameters
           maxRows={rows}
           InputProps={{style: { minHeight: '35vh',
                                 maxHeight: '35vh',
-                                fontSize: 14  } }}
+                                fontSize: 14
+                              }
+                      }}
         />
         <div className={`keyboardContainer ${fixParameters ? "hidden" : ""}`}>
           <Keyboard
-            keyboardRef={r => (keyboard.current = r)}
+            keyboardRef={r => (keyboard.current = r) }
             layoutName={"default"}
-            onChange={onChange}
+            onChange={handleKeyboardChange}
             layout={{
               default: ["⊤ ⊥ = ¬ ∧ ∨ → ↔ ∃ ∀ ● ○ ⧫ ◊ ■ □"]
             }}
