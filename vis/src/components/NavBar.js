@@ -4,8 +4,9 @@ import Box from '@mui/material/Box';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
-import HelpIcon from '@mui/icons-material/Help';
+import OfflineBoltIcon from '@mui/icons-material/OfflineBolt';
 import InfoIcon from '@mui/icons-material/Info';
+import BugReportIcon from '@mui/icons-material/BugReport';
 import { Link } from 'react-router-dom';
 
 export default function NavBar() {
@@ -23,16 +24,23 @@ export default function NavBar() {
             </Link>
           </Typography>
           <Link to="/help" style={{ textDecoration: 'none' }}>
-            <Button color="secondary" startIcon={<HelpIcon />}>
+            <Button color="secondary" startIcon={<OfflineBoltIcon />}>
               <Typography variant="button" component="div" >
-                help
+                Quickstart
               </Typography>
             </Button>
           </Link>
+          <a href="https://github.com/runtime-monitoring/whymon/issues" target='_blank' style={{ textDecoration: 'none' }}>
+            <Button color="secondary" startIcon={<BugReportIcon />}>
+              <Typography variant="button" component="div" >
+                Report a bug
+              </Typography>
+            </Button>
+          </a>
           <Link to="/about" style={{ textDecoration: 'none' }}>
             <Button color="secondary" startIcon={<InfoIcon />}>
               <Typography variant="button" component="div">
-              about
+              About
               </Typography>
             </Button>
           </Link>
