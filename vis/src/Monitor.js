@@ -95,14 +95,16 @@ function formStateReducer(formState, action) {
   switch (action.type) {
   case 'setSig':
     newCheckedInputs = { ...formState.checkedInputs,
-                         0: window.checkSignature(action.sig) };
+                         0: window.checkSignature(action.sig),
+                         1: formState.checkedInputs[1] ? window.checkSignature(action.sig) : false
+                       };
     return { ...formState,
              sig: action.sig,
              checkedInputs: newCheckedInputs
            };
   case 'setFormula':
     newCheckedInputs = { ...formState.checkedInputs,
-                         1: window.checkFormula(action.formula) };
+                         1: formState.checkedInputs[0] ? window.checkFormula(action.formula) : false };
     return { ...formState,
              formula: action.formula,
              checkedInputs: newCheckedInputs
@@ -214,7 +216,8 @@ function monitorStateReducer(monitorState, action) {
 export default function Monitor() {
 
   const [appendTrace, setAppendTrace] = useState("");
-  const [formState, setFormState] = useReducer(formStateReducer, { formula: "", trace: "", sig: "", checkedInputs: {} });
+  const [formState, setFormState] = useReducer(formStateReducer, { formula: "", trace: "", sig: "",
+                                                                   checkedInputs: {0: false, 1: false, 2: false} });
   const [monitorState, setMonitorState] = useReducer(monitorStateReducer, initMonitorState ());
 
   const handleMonitor = (e) => {
