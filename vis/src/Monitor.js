@@ -27,7 +27,8 @@ function initMonitorState () {
            subformulas: [],
            fixParameters: false,
            dialog: {},
-           options: new Set() }
+           options: new Set()
+         }
 }
 
 function initMonitor(monitorState, action) {
@@ -79,6 +80,7 @@ function execMonitor(monitorState, action) {
                            subfsHeader: [] },
              fixParameters: true,
              dialog: {} };
+
   } catch (error) {
     console.log(error);
     return { ...monitorState,
@@ -87,20 +89,41 @@ function execMonitor(monitorState, action) {
 }
 
 function formStateReducer(formState, action) {
+
+  let newCheckedInputs;
+
   switch (action.type) {
-  case 'setFormula':
-    return { ...formState,
-             formula: action.formula };
-  case 'setTrace':
-    return { ...formState,
-             trace: action.trace };
   case 'setSig':
+    newCheckedInputs = { ...formState.checkedInputs,
+                         0: window.checkSignature(action.sig) };
     return { ...formState,
-             sig: action.sig };
+             sig: action.sig,
+             checkedInputs: newCheckedInputs
+           };
+  case 'setFormula':
+    newCheckedInputs = { ...formState.checkedInputs,
+                         1: window.checkFormula(action.formula) };
+    return { ...formState,
+             formula: action.formula,
+             checkedInputs: newCheckedInputs
+           };
+  case 'setTrace':
+    newCheckedInputs = { ...formState.checkedInputs,
+                         2: window.checkLog(action.trace) };
+    return { ...formState,
+             trace: action.trace,
+             checkedInputs: newCheckedInputs
+           };
   case 'setFormulaAndTraceAndSig':
+    newCheckedInputs = { 0: window.checkSignature(action.sig),
+                         1: window.checkFormula(action.formula),
+                         2: window.checkLog(action.trace)
+                       };
     return { formula: action.formula,
              trace: action.trace,
-             sig: action.sig };
+             sig: action.sig,
+             checkedInputs: newCheckedInputs
+           };
   default:
     return formState;
   }
@@ -191,9 +214,8 @@ function monitorStateReducer(monitorState, action) {
 export default function Monitor() {
 
   const [appendTrace, setAppendTrace] = useState("");
-  const [formState, setFormState] = useReducer(formStateReducer, { formula: "", trace: "", sig: "" });
-  const [monitorState, setMonitorState] = useReducer(monitorStateReducer,
-                                                     initMonitorState ());
+  const [formState, setFormState] = useReducer(formStateReducer, { formula: "", trace: "", sig: "", checkedInputs: {} });
+  const [monitorState, setMonitorState] = useReducer(monitorStateReducer, initMonitorState ());
 
   const handleMonitor = (e) => {
     e.preventDefault();
@@ -209,17 +231,18 @@ export default function Monitor() {
 
   const handleAppend = (e) => {
     e.preventDefault();
-
     let action;
-    if (appendTrace === "") action = { type: 'openDialog',
-                                       name: 'Error',
-                                       message: 'The trace provided is empty. Please try again.'
-                                     };
-    else action = { formula: formState.formula,
-                    appendTrace: appendTrace,
-                    type: 'appendTable'
-                  };
-
+    if (appendTrace === "") {
+      action = { type: 'openDialog',
+                 name: 'Error',
+                 message: 'The trace provided is empty. Please try again.'
+               };
+    } else {
+      action = { formula: formState.formula,
+                 appendTrace: appendTrace,
+                 type: 'appendTable'
+               };
+    }
     setMonitorState(action);
   };
 
@@ -260,7 +283,7 @@ export default function Monitor() {
                   </Grid>
                 </Grid>
                 <Grid item xs={12} sm={12} md={6} lg={6} xl={6}>
-                  <SyntaxCheckBar/>
+                  <SyntaxCheckBar checkedInputs={formState.checkedInputs} />
                 </Grid>
               </Grid>
             }
