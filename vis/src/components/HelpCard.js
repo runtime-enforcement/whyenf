@@ -86,16 +86,16 @@ export default function HelpCard({ setIsHelpCardVisible }) {
             </Tabs>
           </Box>
           <CustomTabPanel value={value} index={0}>
-            <ReactMarkdown rehypePlugins={[rehypeRaw]} children={commonSyntax} />
+            <ReactMarkdown className="syntaxTab" rehypePlugins={[rehypeRaw]} children={commonSyntax} />
           </CustomTabPanel>
           <CustomTabPanel value={value} index={1}>
-            <ReactMarkdown rehypePlugins={[rehypeRaw]} children={sigSyntax} />
+            <ReactMarkdown className="syntaxTab" rehypePlugins={[rehypeRaw]} children={sigSyntax} />
           </CustomTabPanel>
           <CustomTabPanel value={value} index={2}>
-            <ReactMarkdown rehypePlugins={[rehypeRaw]} children={formulaSyntax} />
+            <ReactMarkdown className="syntaxTab" rehypePlugins={[rehypeRaw]} children={formulaSyntax} />
           </CustomTabPanel>
           <CustomTabPanel value={value} index={3}>
-            <ReactMarkdown rehypePlugins={[rehypeRaw]} children={traceSyntax} />
+            <ReactMarkdown className="syntaxTab" rehypePlugins={[rehypeRaw]} children={traceSyntax} />
           </CustomTabPanel>
         </Box>
         <Box textAlign='center'>
