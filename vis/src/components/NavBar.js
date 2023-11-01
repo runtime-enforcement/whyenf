@@ -23,7 +23,7 @@ export default function NavBar() {
               </Button>
             </Link>
           </Typography>
-          <Link to="/help" style={{ textDecoration: 'none' }}>
+          <Link to="/quickstart" style={{ textDecoration: 'none' }}>
             <Button color="secondary" startIcon={<OfflineBoltIcon />}>
               <Typography variant="button" component="div" >
                 Quickstart
