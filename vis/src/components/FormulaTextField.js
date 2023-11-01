@@ -70,7 +70,7 @@ export default function FormulaTextField ({ formula, setFormState, fixParameters
             layoutName={"default"}
             onChange={handleKeyboardChange}
             layout={{
-              default: ["⊤ ⊥ = ¬ ∧ ∨ → ↔ ∃ ∀ ● ○ ⧫ ◊ ■ □"]
+              default: ["⊤ ⊥ = ¬ ∧ ∨ → ↔ ∃ ∀ ● ○ ⧫ ◊ ■ □ ∞"]
             }}
           />
         </div>
