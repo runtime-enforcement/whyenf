@@ -15,3 +15,9 @@ code {
 th, td {
     border: 1px solid rgba(224, 224, 224, 1);
 }
+
+.draggable {
+    cursor: grab;
+    z-index: 2 !important;
+    position: absolute;
+}
