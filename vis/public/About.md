@@ -1,9 +1,10 @@
 # About
 
 WhyMon is an online monitor that produces verdicts in the form of explanations for Metric First-Order Temporal Logic formulas.
-It is built on top of <a style="color: #977b01;" href="https://github.com/runtime-monitoring/explanator2" target="_blank">Explanator2</a>.
 
-WhyMon is developed by <a style="color: #977b01;" href="https://www.excludedmiddle.net/" target="_blank">Leonardo Lima</a>, <a style="color: #977b01;" href="https://jjhym.com.mx/" target="_blank">Jonathan Huerta y Munive</a> and <a style="color: #977b01;" href="https://traytel.bitbucket.io/" target="_blank">Dmitriy Traytel</a>.
+It is the successor of <a style="color: #977b01;" href="https://github.com/runtime-monitoring/explanator2" target="_blank">Explanator2</a>.
+
+WhyMon is developed by <a style="color: #977b01;" href="https://nameless.computer/" target="_blank">Leonardo Lima</a>, <a style="color: #977b01;" href="https://jjhym.com.mx/" target="_blank">Jonathan Huerta y Munive</a> and <a style="color: #977b01;" href="https://traytel.bitbucket.io/" target="_blank">Dmitriy Traytel</a>.
 
 The source code of the project is available <a style="color: #977b01;" href="https://github.com/runtime-monitoring/whymon" target="_blank">here</a>.
 
