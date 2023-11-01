@@ -16,6 +16,8 @@ export default function FormulaTextField ({ formula, setFormState, fixParameters
   const keyboard = useRef();
   const ref = createRef();
 
+  const height = fixParameters ? '20vh' : '35vh';
+
   const handleKeyboardChange = input => {
     setLocalFormula(input, setFormState({ type: 'setFormula', formula: input }));
   };
@@ -31,7 +33,8 @@ export default function FormulaTextField ({ formula, setFormState, fixParameters
   };
 
   useEffect(() => {
-    setRows(ref.current.clientHeight/27);
+    const proportionRatio = fixParameters ? 23 : 27;
+    setRows(ref.current.clientHeight/proportionRatio);
     keyboard.current.setInput(formula);
     setLocalFormula(formula);
   }, [formula, setLocalFormula]);
@@ -58,8 +61,8 @@ export default function FormulaTextField ({ formula, setFormState, fixParameters
           disabled={fixParameters}
           minRows={rows}
           maxRows={rows}
-          InputProps={{style: { minHeight: '35vh',
-                                maxHeight: '35vh',
+          InputProps={{style: { minHeight: height,
+                                maxHeight: height,
                                 fontSize: 14
                               }
                       }}
