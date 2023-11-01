@@ -21,3 +21,7 @@ th, td {
     z-index: 2 !important;
     position: absolute;
 }
+
+.syntaxTab {
+    font-size: 13px;
+}
