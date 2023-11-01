@@ -1,5 +1,5 @@
 ```
-{f} ::=   {PRED}({VARS})
+{f} ::=   {PRED}({VARORCONSTS})
         | true                  (⊤)
         | false                 (⊥)
         | {VAR} EQCONST {CONST} (=)
@@ -21,5 +21,3 @@
         | {f} TRIGGER{I} {f}    (T)
         | {f} RELEASE{I} {f}    (R)
 ```
-
-Note that this tool also supports the equivalent Unicode characters (on the right).
