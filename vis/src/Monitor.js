@@ -275,7 +275,7 @@ export default function Monitor() {
 
       { isHelpCardVisible &&
         <Draggable nodeRef={nodeRef}
-                   defaultPosition={{x: 550, y: 100}}>
+                   positionOffset={{ x: '100%', y: '15%' }}>
           <div className="draggable" ref={nodeRef}>
             <HelpCard setIsHelpCardVisible={setIsHelpCardVisible}/>
           </div>
