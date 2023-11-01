@@ -1,7 +1,8 @@
-import React, { useState, useReducer } from "react";
+import React, { useState, useReducer, useRef } from "react";
 import Grid from '@mui/material/Grid';
 import Box from '@mui/material/Box';
 import Container from '@mui/material/Container';
+import Draggable from 'react-draggable';
 import TraceTextField from './components/TraceTextField';
 import SigTextField from './components/SigTextField';
 import AppendTraceTextField from './components/AppendTraceTextField';
@@ -17,6 +18,7 @@ import PreambleCard from './components/PreambleCard';
 import AlertDialog from './components/AlertDialog';
 import CheckmarkOptions from './components/CheckmarkOptions';
 import SyntaxCheckBar from './components/SyntaxCheckBar';
+import HelpCard from './components/HelpCard';
 import { computeDbsTable, initRhsTable, initHovers, translateError } from './util';
 
 function initMonitorState () {
@@ -219,6 +221,9 @@ export default function Monitor() {
   const [formState, setFormState] = useReducer(formStateReducer, { formula: "", trace: "", sig: "",
                                                                    checkedInputs: {0: false, 1: false, 2: false} });
   const [monitorState, setMonitorState] = useReducer(monitorStateReducer, initMonitorState ());
+  const [isHelpCardVisible, setIsHelpCardVisible] = useState(false);
+  const nodeRef = useRef(null);
+
 
   const handleMonitor = (e) => {
     e.preventDefault();
@@ -268,6 +273,15 @@ export default function Monitor() {
         <AlertDialog open={true} dialog={monitorState.dialog} setMonitorState={setMonitorState} />
       }
 
+      { isHelpCardVisible &&
+        <Draggable nodeRef={nodeRef}
+                   defaultPosition={{x: 550, y: 100}}>
+          <div className="draggable" ref={nodeRef}>
+            <HelpCard setIsHelpCardVisible={setIsHelpCardVisible}/>
+          </div>
+        </Draggable>
+      }
+
       <Container maxWidth={false}>
         <Box sx={{ mb: 12, mt: 12 }}>
           <Grid container spacing={3}>
@@ -282,7 +296,8 @@ export default function Monitor() {
                     <MonitorButton handleMonitor={handleMonitor} />
                   </Grid>
                   <Grid item xs={12} sm={12} md={2} lg={2} xl={2}>
-                    <HelpButton handleMonitor={handleMonitor} />
+                    <HelpButton isHelpCardVisible={isHelpCardVisible}
+                                setIsHelpCardVisible={setIsHelpCardVisible} />
                   </Grid>
                 </Grid>
                 <Grid item xs={12} sm={12} md={6} lg={6} xl={6}>
