@@ -16,7 +16,7 @@ export default function FormulaTextField ({ formula, setFormState, fixParameters
   const keyboard = useRef();
   const ref = createRef();
 
-  const height = fixParameters ? '20vh' : '35vh';
+  const height = fixParameters ? '16vh' : '35vh';
 
   const handleKeyboardChange = input => {
     setLocalFormula(input, setFormState({ type: 'setFormula', formula: input }));
@@ -33,7 +33,7 @@ export default function FormulaTextField ({ formula, setFormState, fixParameters
   };
 
   useEffect(() => {
-    const proportionRatio = fixParameters ? 23 : 27;
+    const proportionRatio = fixParameters ? 25 : 27;
     setRows(ref.current.clientHeight/proportionRatio);
     keyboard.current.setInput(formula);
     setLocalFormula(formula);
