@@ -325,34 +325,35 @@ export default function Monitor() {
             }
 
             { monitorState.fixParameters &&
-              <Grid container item xs={12} sm={12} md={4} lg={4} xl={4} spacing={2}>
-                <Grid item xs={12} sm={12} md={6} lg={6} xl={6}>
-                  <AppendTraceTextField appendTrace={appendTrace} setAppendTrace={setAppendTrace} />
-                </Grid>
-                <Grid item xs={12} sm={12} md={2} lg={2} xl={2}>
+              <Grid item xs={12} sm={12} md={5} lg={5} xl={5}>
+                <AppendTraceTextField appendTrace={appendTrace} setAppendTrace={setAppendTrace} />
+              </Grid>
+            }
+
+            { monitorState.fixParameters &&
+              <Grid container item xs={12} sm={12} md={2} lg={2} xl={2} spacing={2}>
+                <Grid item xs={12} sm={12} md={4} lg={4} xl={4}>
                   <AppendButton handleAppend={handleAppend} />
                 </Grid>
-                <Grid item xs={12} sm={12} md={2} lg={2} xl={2}>
+                <Grid item xs={12} sm={12} md={4} lg={4} xl={4}>
                   <ResetButton handleReset={handleReset} />
                 </Grid>
-                <Grid item xs={12} sm={12} md={2} lg={2} xl={2}>
+                <Grid item xs={12} sm={12} md={4} lg={4} xl={4}>
                   <LeaveButton handleLeave={handleLeave} />
+                </Grid>
+                <Grid item xs={12} sm={12} md={12} lg={12} xl={12}>
+                  <CheckmarkOptions selectedOptions={monitorState.options}
+                                    setMonitorState={setMonitorState} />
                 </Grid>
               </Grid>
             }
 
             { monitorState.fixParameters &&
-              <Grid container item xs={12} sm={12} md={8} lg={8} xl={8} spacing={2}>
-                <Grid item xs={12} sm={12} md={8} lg={8} xl={8}>
-                  <FormulaTextField formula={formState.formula}
-                                    setFormState={setFormState}
-                                    fixParameters={monitorState.fixParameters}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={12} md={4} lg={4} xl={4}>
-                  <CheckmarkOptions selectedOptions={monitorState.options}
-                                    setMonitorState={setMonitorState} />
-                </Grid>
+              <Grid item xs={12} sm={12} md={5} lg={5} xl={5}>
+                <FormulaTextField formula={formState.formula}
+                                  setFormState={setFormState}
+                                  fixParameters={monitorState.fixParameters}
+                />
               </Grid>
             }
 
