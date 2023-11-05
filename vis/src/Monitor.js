@@ -118,6 +118,11 @@ function formStateReducer(formState, action) {
              trace: action.trace,
              checkedInputs: newCheckedInputs
            };
+
+  case 'setAppendTrace':
+    return { ...formState,
+             appendTrace: action.appendTrace
+           };
   case 'setFormulaAndTraceAndSig':
     newCheckedInputs = { 0: window.checkSignature(action.sig),
                          1: window.checkFormula(action.formula),
@@ -217,8 +222,7 @@ function monitorStateReducer(monitorState, action) {
 
 export default function Monitor() {
 
-  const [appendTrace, setAppendTrace] = useState("");
-  const [formState, setFormState] = useReducer(formStateReducer, { formula: "", trace: "", sig: "",
+  const [formState, setFormState] = useReducer(formStateReducer, { formula: "", trace: "", sig: "", appendTrace: "",
                                                                    checkedInputs: {0: false, 1: false, 2: false} });
   const [monitorState, setMonitorState] = useReducer(monitorStateReducer, initMonitorState ());
   const [isHelpCardVisible, setIsHelpCardVisible] = useState(false);
@@ -240,14 +244,14 @@ export default function Monitor() {
   const handleAppend = (e) => {
     e.preventDefault();
     let action;
-    if (appendTrace === "") {
+    if (formState.appendTrace === "") {
       action = { type: 'openDialog',
                  name: 'Error',
-                 message: 'The trace provided is empty. Please try again.'
+                 message: 'The trace provided is empty. Please include an event and try again.'
                };
     } else {
       action = { formula: formState.formula,
-                 appendTrace: appendTrace,
+                 appendTrace: formState.appendTrace,
                  type: 'appendTable'
                };
     }
@@ -264,6 +268,7 @@ export default function Monitor() {
     e.preventDefault();
     let action = { type: 'leaveMonitor' };
     setMonitorState(action);
+    setFormState({ type: 'setAppendTrace', appendTrace: "" });
   };
 
   return (
@@ -326,7 +331,7 @@ export default function Monitor() {
 
             { monitorState.fixParameters &&
               <Grid item xs={12} sm={12} md={5} lg={5} xl={5}>
-                <AppendTraceTextField appendTrace={appendTrace} setAppendTrace={setAppendTrace} />
+                <AppendTraceTextField appendTrace={formState.appendTrace} setFormState={setFormState} />
               </Grid>
             }
 
@@ -356,7 +361,6 @@ export default function Monitor() {
                 />
               </Grid>
             }
-
 
             { monitorState.fixParameters &&
               <Grid container item xs={24} sm={24} md={12} lg={12} xl={12} spacing={2}>
