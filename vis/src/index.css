@@ -27,3 +27,28 @@ th, td {
 .syntaxTab {
     font-size: 13px;
 }
+
+/* Ace related */
+
+.editorBox {
+    border: 1px solid #999;
+    border-radius: 5px;
+}
+
+.editor {
+    margin-top: 8px;
+    margin-bottom: 8px;
+    margin-left: 6px;
+    width: 97.6%;
+    height: 100%;
+    position: relative;
+    outline: none;
+}
+
+.ace_scroller.ace_scroll-left:after {
+    box-shadow: none !important;
+}
+
+.ace_placeholder {
+    font-size: 18px;
+}
