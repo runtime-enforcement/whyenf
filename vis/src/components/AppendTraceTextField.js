@@ -1,53 +1,52 @@
 import React, { useState, useEffect, createRef } from 'react';
 import Box from '@mui/material/Box';
-import TextField from '@mui/material/TextField';
+import AceEditor from "react-ace";
+import "ace-builds/src-noconflict/mode-java";
+import "ace-builds/src-noconflict/theme-tomorrow";
+import "ace-builds/src-noconflict/ext-language_tools";
 
 export default function AppendTraceTextField ({ appendTrace, setAppendTrace }) {
   const [localTrace, setLocalTrace] = useState("");
-  const [rows, setRows] = useState(12);
 
-  const ref = createRef();
+  const editorHeight = (window.innerHeight - 704).toString() + "px";
 
   const handleChange = (event) => {
-    setLocalTrace(event.target.value);
+    setAppendTrace(event);
   };
 
-  const handleBlur = (event) => {
-    setAppendTrace(event.target.value);
+  const initEditor = () => {
+    return (
+      <AceEditor
+        mode="java"
+        theme="tomorrow"
+        name="sig"
+        placeholder="New events"
+        onChange={handleChange}
+        width="100%"
+        height={editorHeight}
+        fontSize={14}
+        showPrintMargin={false}
+        showGutter={false}
+        highlightActiveLine={false}
+        value={appendTrace}
+        setOptions={{
+          enableBasicAutocompletion: false,
+          enableLiveAutocompletion: false,
+          enableSnippets: false,
+          showLineNumbers: false,
+          tabSize: 2,
+        }}/>
+    );
   };
-
-  useEffect(() => {
-    setRows(ref.current.clientHeight/25);
-    setAppendTrace(localTrace);
-  }, [appendTrace, localTrace, setAppendTrace]);
 
   return (
-    <Box
-      component="form"
-      sx={{
-        '& .MuiTextField-root': { width: '100%' },
-      }}
-      noValidate
-      autoComplete="off"
-      ref={ref}
-    >
-      <div>
-        <TextField
-          multiline
-          id="outlined-required"
-          label="New events"
-          value={localTrace}
-          onChange={handleChange}
-          onBlur={handleBlur}
-          minRows={rows}
-          maxRows={rows}
-          InputProps={{style: { minHeight: '16vh',
-                                maxHeight: '16vh',
-                                fontSize: 14
-                              }
-                      }}
-        />
-      </div>
-    </Box>
+    <div>
+      <Box sx={{ width: '100%', height: '100%' }}
+           className="editorBox">
+        <div className="editor">
+          { initEditor() }
+        </div>
+      </Box>
+    </div>
   );
 }

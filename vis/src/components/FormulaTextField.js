@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef, createRef } from 'react';
 import ReactDOM from "react-dom";
 import Box from '@mui/material/Box';
-import TextField from '@mui/material/TextField';
-import Grid from '@mui/material/Grid';
-import Container from '@mui/material/Container';
+import Typography from '@mui/material/Typography';
+import AceEditor from "react-ace";
+import "ace-builds/src-noconflict/mode-java";
+import "ace-builds/src-noconflict/theme-tomorrow";
+import "ace-builds/src-noconflict/ext-language_tools";
 import Keyboard from "react-simple-keyboard";
 import "react-simple-keyboard/build/css/index.css";
 import "../keyboard.css";
@@ -11,73 +13,70 @@ import "../keyboard.css";
 export default function FormulaTextField ({ formula, setFormState, fixParameters }) {
 
   const [localFormula, setLocalFormula] = useState("");
-  const [rows, setRows] = useState(12);
+
+  const editorHeight = fixParameters ? (window.innerHeight - 704).toString() + "px"
+        : (window.innerHeight - 545).toString() + "px";
 
   const keyboard = useRef();
-  const ref = createRef();
-
-  const height = fixParameters ? '16vh' : '35vh';
 
   const handleKeyboardChange = input => {
-    setLocalFormula(input, setFormState({ type: 'setFormula', formula: input }));
+    setFormState({ type: 'setFormula', formula: input });
   };
 
   const handleChange = (event) => {
-    const input = event.target.value;
-    setLocalFormula(input);
+    const input = event;
+    setFormState({ type: 'setFormula', formula: input });
     keyboard.current.setInput(input);
   };
 
-  const handleBlur = (event) => {
-    setFormState({ type: 'setFormula', formula: localFormula });
+  const initEditor = () => {
+    return (
+      <AceEditor
+        mode="java"
+        theme="tomorrow"
+        name="formula"
+        onChange={handleChange}
+        width="100%"
+        height={editorHeight}
+        fontSize={14}
+        showPrintMargin={false}
+        showGutter={false}
+        highlightActiveLine={false}
+        value={formula}
+        readOnly={fixParameters}
+        setOptions={{
+          enableBasicAutocompletion: false,
+          enableLiveAutocompletion: false,
+          enableSnippets: false,
+          showLineNumbers: false,
+          tabSize: 2,
+        }}/>
+    );
   };
 
   useEffect(() => {
-    const proportionRatio = fixParameters ? 25 : 27;
-    setRows(ref.current.clientHeight/proportionRatio);
     keyboard.current.setInput(formula);
-    setLocalFormula(formula);
-  }, [formula, setLocalFormula]);
+  }, [formula]);
 
   return (
-    <Box
-      component="form"
-      sx={{
-        '& .MuiTextField-root': { width: '100%' },
-      }}
-      noValidate
-      autoComplete="off"
-      ref={ref}
-    >
-      <div>
-        <TextField
-          required
-          multiline
-          id="outlined-required"
-          label="Formula"
-          value={localFormula}
-          onChange={handleChange}
-          onBlur={handleBlur}
-          disabled={fixParameters}
-          minRows={rows}
-          maxRows={rows}
-          InputProps={{style: { minHeight: height,
-                                maxHeight: height,
-                                fontSize: 14
-                              }
-                      }}
-        />
-        <div className={`keyboardContainer ${fixParameters ? "hidden" : ""}`}>
-          <Keyboard
-            keyboardRef={r => (keyboard.current = r) }
-            layoutName={"default"}
-            onChange={handleKeyboardChange}
-            layout={{
-              default: ["⊤ ⊥ = ¬ ∧ ∨ → ↔ ∃ ∀ ● ○ ⧫ ◊ ■ □ ∞"]
-            }}
-          />
+    <div>
+      { !fixParameters && <Typography variant="h6" position="left">Formula</Typography> }
+      <Box sx={{ width: '100%', height: '100%' }}
+           className="editorBox">
+        <div className="editor">
+          { initEditor() }
         </div>
+      </Box>
+      <div className={`keyboardContainer ${fixParameters ? "hidden" : ""}`}>
+        <Keyboard
+          keyboardRef={r => (keyboard.current = r) }
+          layoutName={"default"}
+          onChange={handleKeyboardChange}
+          layout={{
+            default: ["∞ ⊤ ⊥ = ¬ ∧ ∨ → ↔ ∃ ∀ ● ○ ⧫ ◊ ■ □ S U"]
+          }}
+        />
       </div>
-    </Box>
+    </div>
   );
 }
