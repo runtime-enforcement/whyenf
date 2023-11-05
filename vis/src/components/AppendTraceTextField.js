@@ -5,13 +5,13 @@ import "ace-builds/src-noconflict/mode-java";
 import "ace-builds/src-noconflict/theme-tomorrow";
 import "ace-builds/src-noconflict/ext-language_tools";
 
-export default function AppendTraceTextField ({ appendTrace, setAppendTrace }) {
+export default function AppendTraceTextField ({ appendTrace, setFormState }) {
   const [localTrace, setLocalTrace] = useState("");
 
   const editorHeight = (window.innerHeight - 704).toString() + "px";
 
   const handleChange = (event) => {
-    setAppendTrace(event);
+    setFormState({ type: 'setAppendTrace', appendTrace: event });
   };
 
   const initEditor = () => {
