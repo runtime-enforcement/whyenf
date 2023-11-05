@@ -1,51 +1,54 @@
 import React, { useState, useEffect } from 'react';
 import Box from '@mui/material/Box';
-import TextField from '@mui/material/TextField';
+import Typography from '@mui/material/Typography';
+import AceEditor from "react-ace";
+import "ace-builds/src-noconflict/mode-java";
+import "ace-builds/src-noconflict/theme-tomorrow";
+import "ace-builds/src-noconflict/ext-language_tools";
 
 export default function SigTextField ({ sig, setFormState }) {
 
-  const [localSig, setLocalSig] = useState("");
-  const [rows, setRows] = useState(12);
+  const [localSig, setLocalSig] = useState(sig);
 
-  const ref = React.createRef();
+  const editorHeight = (window.innerHeight - 625).toString() + "px";
 
   const handleChange = (event) => {
-    setLocalSig(event.target.value);
+    setFormState({ type: 'setSig', sig: event });
   };
 
-  const handleBlur = (event) => {
-    setFormState({ type: 'setSig', sig: localSig });
+  const initEditor = () => {
+    return (
+      <AceEditor
+        mode="java"
+        theme="tomorrow"
+        name="sig"
+        onChange={handleChange}
+        width="100%"
+        height={editorHeight}
+        fontSize={14}
+        showPrintMargin={false}
+        showGutter={false}
+        highlightActiveLine={false}
+        value={sig}
+        setOptions={{
+          enableBasicAutocompletion: false,
+          enableLiveAutocompletion: false,
+          enableSnippets: false,
+          showLineNumbers: false,
+          tabSize: 2,
+        }}/>
+    );
   };
-
-  useEffect(() => {
-    setRows(ref.current.clientHeight/23.5);
-    setLocalSig(sig);
-  }, [sig, setLocalSig]);
 
   return (
-    <Box
-      component="form"
-      sx={{
-        '& .MuiTextField-root': { width: '100%' },
-      }}
-      noValidate
-      autoComplete="off"
-      ref={ref}
-    >
-      <TextField
-        id="outlined-multiline-static"
-        label="Signature"
-        required
-        multiline
-        value={localSig}
-        onChange={handleChange}
-        onBlur={handleBlur}
-        minRows={rows}
-        maxRows={rows}
-        InputProps={{style: { minHeight: '30vh',
-                              maxHeight: '30vh',
-                              fontSize: 14  } }}
-      />
-    </Box>
+    <div>
+      <Typography variant="h6" position="left">Signature</Typography>
+      <Box sx={{ width: '100%', height: '100%' }}
+           className="editorBox">
+        <div className="editor">
+          { initEditor() }
+        </div>
+      </Box>
+    </div>
   );
 }

@@ -284,7 +284,7 @@ export default function Monitor() {
 
       <Container maxWidth={false}>
         <Box sx={{ mb: 12, mt: 12 }}>
-          <Grid container spacing={3}>
+          <Grid container spacing={1}>
 
             { !monitorState.fixParameters &&
               <Grid container item spacing={3}>
@@ -308,7 +308,7 @@ export default function Monitor() {
 
             { !monitorState.fixParameters &&
               <Grid container item xs={24} sm={24} md={12} lg={12} xl={12} spacing={3}>
-                <Grid container item xs={12} sm={12} md={6} lg={6} xl={6} spacing={3}>
+                <Grid container item xs={12} sm={12} md={6} lg={6} xl={6} spacing={1}>
                   <Grid item xs={12} sm={12} md={12} lg={12} xl={12}>
                     <SigTextField sig={formState.sig} setFormState={setFormState} />
                   </Grid>
