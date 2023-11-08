@@ -98,7 +98,7 @@ function formStateReducer(formState, action) {
   case 'setSig':
     newCheckedInputs = { ...formState.checkedInputs,
                          0: window.checkSignature(action.sig),
-                         1: formState.checkedInputs[1] ? window.checkSignature(action.sig) : false
+                         1: window.checkFormula(formState.formula)
                        };
     return { ...formState,
              sig: action.sig,
@@ -106,14 +106,16 @@ function formStateReducer(formState, action) {
            };
   case 'setFormula':
     newCheckedInputs = { ...formState.checkedInputs,
-                         1: formState.checkedInputs[0] ? window.checkFormula(action.formula) : false };
+                         1: window.checkFormula(action.formula)
+                       };
     return { ...formState,
              formula: action.formula,
              checkedInputs: newCheckedInputs
            };
   case 'setTrace':
     newCheckedInputs = { ...formState.checkedInputs,
-                         2: window.checkLog(action.trace) };
+                         2: window.checkLog(action.trace)
+                       };
     return { ...formState,
              trace: action.trace,
              checkedInputs: newCheckedInputs
