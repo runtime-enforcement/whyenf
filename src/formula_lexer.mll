@@ -40,23 +40,23 @@ rule token = parse
   | "false" | "⊥"                                 { debug "FALSE"; FALSE }
   | "true" | "⊤"                                  { debug "TRUE"; TRUE }
   | "="                                           { debug "EQCONST"; EQCONST }
-  | '!' | "¬" | "NOT"                             { debug "NEG"; NEG }
-  | '&' | "∧" | "AND"                             { debug "AND"; AND }
-  | '|' | "∨" | "OR"                              { debug "OR"; OR }
-  | "=>" | "->" | "→" | "IMPLIES"                 { debug "IMP"; IMP }
-  | "<=>"  | "<->" | "↔" | "IFF"                  { debug "IFF"; IFF }
+  | "¬" | "NOT"                                   { debug "NEG"; NEG }
+  | "∧" | "AND"                                   { debug "AND"; AND }
+  | "∨" | "OR"                                    { debug "OR"; OR }
+  | "→" | "IMPLIES"                               { debug "IMP"; IMP }
+  | "↔" | "IFF"                                   { debug "IFF"; IFF }
   | "∃"  | "EXISTS"                               { debug "EXISTS"; EXISTS }
   | "∀"  | "FORALL"                               { debug "FORALL"; FORALL }
   | "SINCE" | "S"                                 { debug "SINCE"; SINCE }
-  | "UNTIL" |	"U"                               { debug "UNTIL"; UNTIL }
+  | "UNTIL" | "U"                                 { debug "UNTIL"; UNTIL }
   | "RELEASE" | "R"                               { debug "RELEASE"; RELEASE }
   | "TRIGGER" |	"T"                               { debug "TRIGGER"; TRIGGER }
   | "NEXT" | "X" | "○"                            { debug "NEXT"; NEXT }
   | "PREV" | "PREVIOUS" | "Y" | "●"               { debug "PREV"; PREV }
   | "GLOBALLY" | "ALWAYS" | "G" | "□"             { debug "ALWAYS"; ALWAYS }
-  | "FINALLY" | "EVENTUALLY" | "F" | "◊"          { debug "EVENTUALLY"; EVENTUALLY }
+  | "EVENTUALLY" | "F" | "◊"                      { debug "EVENTUALLY"; EVENTUALLY }
   | "GLOBALLY_PAST" | "HISTORICALLY" | "■"        { debug "HISTORICALLY"; HISTORICALLY }
-  | "FINALLY_PAST" | "ONCE" | "⧫"                 { debug "ONCE"; ONCE }
+  | "ONCE" | "⧫"                                  { debug "ONCE"; ONCE }
   | (['(' '['] as l) blank* (digits as i) blank* ',' blank* ((digits | "INFINITY" | "∞" | "*") as j) blank* ([')' ']'] as r)
                                                   { debug "INTERVAL"; INTERVAL (make_interval lexbuf l i j r) }
   | "("                                           { debug "LPA"; LPA }
