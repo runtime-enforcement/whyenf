@@ -10,7 +10,8 @@ export default function SigTextField ({ sig, setFormState }) {
 
   const [localSig, setLocalSig] = useState(sig);
 
-  const editorHeight = (window.innerHeight - 625).toString() + "px";
+  const traceEditorHeight = window.innerHeight - 245;
+  const editorHeight = ((traceEditorHeight / 2) - 80).toString() + "px";
 
   const handleChange = (event) => {
     setFormState({ type: 'setSig', sig: event });
