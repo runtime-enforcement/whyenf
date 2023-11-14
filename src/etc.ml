@@ -88,3 +88,5 @@ let rec fdeque_for_all2_exn d1 d2 ~f:((f : _ -> _ -> _)) =
   | None, None -> true
   | Some(a1, d1), Some(a2, d2) -> f a1 a2 && fdeque_for_all2_exn d1 d2 ~f
   | _, _ -> raise (Invalid_argument (Printf.sprintf "length mismatch in fdeque_for_all2_exn: %d <> %d" (Fdeque.length d1) (Fdeque.length d2)))
+
+let rec spaces n = if n < 0 then "" else " " ^ spaces (n-1)

@@ -15,16 +15,16 @@ module Event = struct
 
   module T = struct
 
-    type t = string * Domain.t list [@@deriving compare, sexp_of]
+    type t = string * Dom.t list [@@deriving compare, sexp_of]
 
-    let to_string (name, ds) = Printf.sprintf "%s(%s)" name (Domain.list_to_string ds)
+    let to_string (name, ds) = Printf.sprintf "%s(%s)" name (Dom.list_to_string ds)
 
     let to_json (name, ds) =
       String.concat ~sep:", "
         (List.map2_exn (Pred.Sig.vars name) ds  ~f:(fun x d ->
              Printf.sprintf "{ " ^
                Printf.sprintf "\"var\": \"%s\", " x ^
-                 Printf.sprintf "\"value\": \"%s\" " (Domain.to_string d) ^
+                 Printf.sprintf "\"value\": \"%s\" " (Dom.to_string d) ^
                    Printf.sprintf "}"))
 
   end
@@ -43,7 +43,7 @@ let event name consts =
   if pred_sig.arity = List.length consts then
     (name, List.map2_exn pred_sig.ntconsts consts
              ~f:(fun tc c -> match snd tc with
-                             | TInt -> Domain.Int (Int.of_string c)
+                             | TInt -> Dom.Int (Int.of_string c)
                              | TStr -> Str c
                              | TFloat -> Float (Float.of_string c)))
   else raise (Invalid_argument (Printf.sprintf "predicate %s has arity %d" name pred_sig.arity))

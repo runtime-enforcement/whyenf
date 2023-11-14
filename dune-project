@@ -28,7 +28,8 @@
   (base (>= v0.14))
   (menhir (>= 20220210))
   (zarith (>= 1.11))
-  (zarith_stubs_js (>= v0.14.1)))
+  (zarith_stubs_js (>= v0.14.1))
+  (z3 (>= 4.12.2)))
  (tags
   (topics "to describe" your project)))
 

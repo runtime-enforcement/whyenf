@@ -12,13 +12,13 @@ open Base
 
 module Term : sig
 
-  type t = Var of string | Const of Domain.t [@@deriving compare, sexp_of, hash]
+  type t = Var of string | Const of Dom.t [@@deriving compare, sexp_of, hash]
 
   type comparator_witness
 
   val unvar: t -> string
 
-  val unconst: t -> Domain.t
+  val unconst: t -> Dom.t
 
   val comparator: (t, comparator_witness) Comparator.t
 
@@ -34,17 +34,41 @@ module Term : sig
 
 end
 
+module EnfType : sig
+
+  type t = Cau | Sup | CauSup | Obs [@@deriving compare, sexp_of, hash]
+
+  val to_int : t -> int
+
+  val to_string : t -> string
+  
+  val meet : t -> t -> t
+
+  val join : t -> t -> t
+
+  val leq : t -> t -> bool
+
+  val geq : t -> t -> bool
+
+  val specialize : t -> t -> t option
+
+end
+
 module Sig : sig
 
-  type props = { arity: int; ntconsts: (string * Domain.tt) list } [@@deriving compare, sexp_of, hash]
+  type props = { arity: int; ntconsts: (string * Dom.tt) list; enftype: EnfType.t } [@@deriving compare, sexp_of, hash]
 
   type t = string * props [@@deriving compare, sexp_of, hash]
 
   val table: (string, props) Hashtbl.t
 
-  val add: string -> (string * Domain.tt) list -> unit
+  val add: string -> (string * Dom.tt) list -> EnfType.t -> unit
+
+  val update_enftype: string -> EnfType.t -> unit
 
   val vars: string -> string list
+
+  val enftype: string -> EnfType.t
 
   val print_table: unit -> unit
 

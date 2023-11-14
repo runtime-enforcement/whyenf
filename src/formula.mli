@@ -10,16 +10,18 @@
 
 open Pred
 
+type side = N | L | R | LR
+
 type t =
   | TT
   | FF
-  | EqConst of string * Domain.t
+  | EqConst of string * Dom.t
   | Predicate of string * Term.t list
   | Neg of t
-  | And of t * t
-  | Or of t * t
-  | Imp of t * t
-  | Iff of t * t
+  | And of side * t * t
+  | Or of side * t * t
+  | Imp of side * t * t
+  | Iff of side * side * t * t
   | Exists of string * t
   | Forall of string * t
   | Prev of Interval.t * t
@@ -28,18 +30,18 @@ type t =
   | Eventually of Interval.t * t
   | Historically of Interval.t * t
   | Always of Interval.t * t
-  | Since of Interval.t * t * t
-  | Until of Interval.t * t * t
+  | Since of side * Interval.t * t * t
+  | Until of side * Interval.t * t * t
 
 val tt: t
 val ff: t
-val eqconst: string -> Domain.t -> t
+val eqconst: string -> Dom.t -> t
 val predicate: string -> Term.t list -> t
 val neg: t -> t
-val conj: t -> t -> t
-val disj: t -> t -> t
-val imp: t -> t -> t
-val iff: t -> t -> t
+val conj: side -> t -> t -> t
+val disj: side -> t -> t -> t
+val imp: side -> t -> t -> t
+val iff: side -> side -> t -> t -> t
 val exists: string -> t -> t
 val forall: string -> t -> t
 val prev: Interval.t -> t -> t
@@ -48,10 +50,10 @@ val once: Interval.t -> t -> t
 val eventually: Interval.t -> t -> t
 val historically: Interval.t -> t -> t
 val always: Interval.t -> t -> t
-val since: Interval.t -> t -> t -> t
-val until: Interval.t -> t -> t -> t
-val trigger: Interval.t -> t -> t -> t
-val release: Interval.t -> t -> t -> t
+val since: side -> Interval.t -> t -> t -> t
+val until: side -> Interval.t -> t -> t -> t
+val trigger: side -> Interval.t -> t -> t -> t
+val release: side -> Interval.t -> t -> t -> t
 
 val fv: t -> (String.t, Base.String.comparator_witness) Base.Set.t
 val check_bindings: t -> bool
@@ -70,3 +72,7 @@ val op_to_string: t -> string
 val to_string: t -> string
 val to_json: t -> string
 val to_latex: t -> string
+
+val string_of_side: side -> string
+val string_of_sides: side * side -> string
+val side_of_string: string -> side

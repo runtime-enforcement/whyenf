@@ -1173,15 +1173,15 @@ module MFormula = struct
   type t =
     | MTT
     | MFF
-    | MEqConst      of string * Domain.t
+    | MEqConst      of string * Dom.t
     | MPredicate    of string * Term.t list
     | MNeg          of t
     | MAnd          of t * t * (Expl.t, Expl.t) Buf2.t
     | MOr           of t * t * (Expl.t, Expl.t) Buf2.t
     | MImp          of t * t * (Expl.t, Expl.t) Buf2.t
     | MIff          of t * t * (Expl.t, Expl.t) Buf2.t
-    | MExists       of string * Domain.tt * t
-    | MForall       of string * Domain.tt * t
+    | MExists       of string * Dom.tt * t
+    | MForall       of string * Dom.tt * t
     | MPrev         of Interval.t * t * bool * (Expl.t, timestamp) Buft.t
     | MNext         of Interval.t * t * bool * timestamp list
     | MOnce         of Interval.t * t * (timestamp * timepoint) list * Once.t Expl.Pdt.t
@@ -1220,10 +1220,10 @@ module MFormula = struct
     | Formula.EqConst (x, c) -> MEqConst (x, c)
     | Formula.Predicate (r, trms) -> MPredicate (r, trms)
     | Formula.Neg (f) -> MNeg (init f)
-    | Formula.And (f, g) -> MAnd (init f, init g, ([], []))
-    | Formula.Or (f, g) -> MOr (init f, init g, ([], []))
-    | Formula.Imp (f, g) -> MImp (init f, init g, ([], []))
-    | Formula.Iff (f, g) -> MIff (init f, init g, ([], []))
+    | Formula.And (_, f, g) -> MAnd (init f, init g, ([], []))
+    | Formula.Or (_, f, g) -> MOr (init f, init g, ([], []))
+    | Formula.Imp (_, f, g) -> MImp (init f, init g, ([], []))
+    | Formula.Iff (_, _, f, g) -> MIff (init f, init g, ([], []))
     | Formula.Exists (x, f) -> let mf = init f in MExists (x, List.hd_exn (var_tt x mf), mf)
     | Formula.Forall (x, f) -> let mf = init f in MForall (x, List.hd_exn (var_tt x mf), mf)
     | Formula.Prev (i, f) -> MPrev (i, init f, true, ([], []))
@@ -1232,13 +1232,13 @@ module MFormula = struct
     | Formula.Eventually (i, f) -> MEventually (i, init f, ([], []), Leaf (Eventually.init ()))
     | Formula.Historically (i, f) -> MHistorically (i, init f, [], Leaf (Historically.init ()))
     | Formula.Always (i, f) -> MAlways (i, init f, ([], []), Leaf (Always.init ()))
-    | Formula.Since (i, f, g) -> MSince (i, init f, init g, (([], []), []), Leaf (Since.init ()))
-    | Formula.Until (i, f, g) -> MUntil (i, init f, init g, (([], []), []), Leaf (Until.init ()))
+    | Formula.Since (_, i, f, g) -> MSince (i, init f, init g, (([], []), []), Leaf (Since.init ()))
+    | Formula.Until (_, i, f, g) -> MUntil (i, init f, init g, (([], []), []), Leaf (Until.init ()))
 
   let rec to_string_rec l = function
     | MTT -> Printf.sprintf "⊤"
     | MFF -> Printf.sprintf "⊥"
-    | MEqConst (x, c) -> Printf.sprintf "%s = %s" x (Domain.to_string c)
+    | MEqConst (x, c) -> Printf.sprintf "%s = %s" x (Dom.to_string c)
     | MPredicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
     | MNeg f -> Printf.sprintf "¬%a" (fun x -> to_string_rec 5) f
     | MAnd (f, g, _) -> Printf.sprintf (Etc.paren l 4 "%a ∧ %a") (fun x -> to_string_rec 4) f (fun x -> to_string_rec 4) g
@@ -1290,7 +1290,7 @@ let do_iff (p1: Proof.t) (p2: Proof.t) : Proof.t = match p1, p2 with
   | V vp1, V vp2 -> S (SIffVV (vp1, vp2))
 
 let do_exists_leaf x tc = function
-  | Proof.S sp -> [Proof.S (SExists (x, Domain.tt_default tc, sp))]
+  | Proof.S sp -> [Proof.S (SExists (x, Dom.tt_default tc, sp))]
   | V vp -> [Proof.V (VExists (x, Part.trivial vp))]
 
 let do_exists_node x tc part =
@@ -1299,14 +1299,14 @@ let do_exists_node x tc part =
      (Part.values (Part.map2_dedup Proof.equal sats (fun (s, p) ->
                        match p with
                        | S sp -> (let witness = Setc.some_elt tc s in
-                                  (Setc.Finite (Set.of_list (module Domain) [witness]),
+                                  (Setc.Finite (Set.of_list (module Dom) [witness]),
                                    Proof.S (Proof.SExists (x, Setc.some_elt tc s, sp))))
                        | V vp -> raise (Invalid_argument "found V proof in S list")))))
   else [V (Proof.VExists (x, Part.map_dedup Proof.v_equal part Proof.unV))]
 
 let do_forall_leaf x tc = function
   | Proof.S sp -> [Proof.S (SForall (x, Part.trivial sp))]
-  | V vp -> [Proof.V (VForall (x, Domain.tt_default tc, vp))]
+  | V vp -> [Proof.V (VForall (x, Dom.tt_default tc, vp))]
 
 let do_forall_node x tc part =
   if Part.for_all part Proof.isS then
@@ -1317,24 +1317,24 @@ let do_forall_node x tc part =
                        match p with
                        | S sp -> raise (Invalid_argument "found S proof in V list")
                        | V vp -> (let witness = Setc.some_elt tc s in
-                                  (Setc.Finite (Set.of_list (module Domain) [witness]),
+                                  (Setc.Finite (Set.of_list (module Dom) [witness]),
                                    Proof.V (Proof.VForall (x, Setc.some_elt tc s, vp))))))))
 
 let rec match_terms trms ds map =
   match trms, ds with
   | [], [] -> Some(map)
-  | Term.Const c :: trms, d :: ds -> if Domain.equal c d then match_terms trms ds map else None
+  | Term.Const c :: trms, d :: ds -> if Dom.equal c d then match_terms trms ds map else None
   | Var x :: trms, d :: ds -> (match match_terms trms ds map with
                                | None -> None
                                | Some(map') -> (match Map.find map' x with
                                                 | None -> let map'' = Map.add_exn map' ~key:x ~data:d in Some(map'')
-                                                | Some z -> (if Domain.equal d z then Some map' else None)))
+                                                | Some z -> (if Dom.equal d z then Some map' else None)))
   | _, _ -> None
 
 let print_maps maps =
   Stdio.print_endline "> Map:";
   List.iter maps ~f:(fun map -> Map.iteri map ~f:(fun ~key:k ~data:v ->
-                                    Stdio.printf "%s -> %s\n" (Term.to_string k) (Domain.to_string v)))
+                                    Stdio.printf "%s -> %s\n" (Term.to_string k) (Dom.to_string v)))
 
 let rec pdt_of tp r trms (vars: string list) maps : Expl.t = match vars with
   | [] -> if List.is_empty maps then Leaf (V (VPred (tp, r, trms)))
@@ -1347,10 +1347,10 @@ let rec pdt_of tp r trms (vars: string list) maps : Expl.t = match vars with
      let find_maps d = List.fold maps ~init:[]
                          ~f:(fun acc map -> match Map.find map x with
                                             | None -> acc
-                                            | Some(d') -> if Domain.equal d d' then
+                                            | Some(d') -> if Dom.equal d d' then
                                                             map :: acc
                                                           else acc) in
-     let part = Part.tabulate_dedup (Pdt.eq Proof.equal) (Set.of_list (module Domain) ds)
+     let part = Part.tabulate_dedup (Pdt.eq Proof.equal) (Set.of_list (module Dom) ds)
                   (fun d -> pdt_of tp r trms vars (find_maps d)) (pdt_of tp r trms vars []) in
      Node (x, part)
 
@@ -1360,8 +1360,8 @@ let rec meval vars ts tp (db: Db.t) = function
   | MEqConst (x, d) ->
      let l1 = Pdt.Leaf (Proof.S (SEqConst (tp, x, d))) in
      let l2 = Pdt.Leaf (Proof.V (VEqConst (tp, x, d))) in
-     let expl = Pdt.Node (x, [(Setc.Complement (Set.of_list (module Domain) [d]), l2);
-                              (Setc.Finite (Set.of_list (module Domain) [d]), l1)]) in
+     let expl = Pdt.Node (x, [(Setc.Complement (Set.of_list (module Dom) [d]), l2);
+                              (Setc.Finite (Set.of_list (module Dom) [d]), l1)]) in
      ([expl], MEqConst (x, d))
   | MPredicate (r, trms) ->
      let db' = Set.filter db ~f:(fun evt -> String.equal r (fst(evt))) in

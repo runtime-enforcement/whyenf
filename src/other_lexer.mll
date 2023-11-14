@@ -11,7 +11,7 @@
 
 open Etc
 
-type token = AT | LPA | RPA | COM | SEP | EOF | STR of string
+type token = AT | LPA | RPA | COM | SEP | EOF | PLS | MNS | STR of string
 
 }
 
@@ -36,6 +36,8 @@ rule token = parse
   | ","                            { COM }
   | ";"                            { SEP }
   | "#"                            { skip_line lexbuf }
+  | "+"                            { PLS }
+  | "-"                            { MNS }
   | string as s                    { STR s }
   | '"' (quoted_string as s) '"'   { STR s }
   | eof                            { EOF }

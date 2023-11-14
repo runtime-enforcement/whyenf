@@ -60,6 +60,7 @@ module Whymon = struct
             | "verified" -> Out.Plain.VERIFIED
             | "latex" -> Out.Plain.LATEX
             | "light" -> Out.Plain.LIGHT
+            | "enforce" -> Out.Plain.ENFORCE
             | "debug" -> Etc.debug := true; Out.Plain.DEBUG
             | "debugvis" -> Etc.debug := true; Out.Plain.DEBUGVIS
             | _ -> mode_error ());
@@ -102,6 +103,7 @@ module Whymon = struct
       let formula = Option.value_exn !formula_ref in
       match !mode_ref with
       | Out.Plain.DEBUGVIS -> let _ = Monitor.exec_vis None formula !logstr_ref in ()
+      | Out.Plain.ENFORCE -> let _ = Enforcer.exec formula in ()
       | _ -> Monitor.exec !mode_ref !measure_ref formula !Etc.inc_ref
     with End_of_file -> Out_channel.close !Etc.outc_ref; exit 0
 
