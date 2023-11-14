@@ -72,10 +72,10 @@ module Expl = struct
       | Prev (_, f') | Next (_, f')
       | Once (_, f') | Eventually (_, f')
       | Historically (_, f') | Always (_, f') -> cell_idx (idx+1) f'
-    | And (f1, f2) | Or (f1, f2)
-      | Imp (f1, f2) | Iff (f1, f2)
-      | Since (_, f1, f2) | Until (_, f1, f2) -> let idx' = cell_idx (idx+1) f1 in
-                                                 cell_idx (idx'+1) f2
+    | And (_, f1, f2) | Or (_, f1, f2)
+      | Imp (_, f1, f2) | Iff (_, _, f1, f2)
+      | Since (_, _, f1, f2) | Until (_, _, f1, f2) -> let idx' = cell_idx (idx+1) f1 in
+                                                       cell_idx (idx'+1) f2
 
   (* Table conversion for strict subformulas                                 *)
   (*                                                                         *)
@@ -99,7 +99,7 @@ module Expl = struct
        let cell = (Expl.Proof.p_at p, idx, None, Boolean true) in
        let cells = [(Expl.Proof.v_at vp, vp_idx, None, Boolean false)] in
        ((cell, cells) :: row', idx')
-    | Or (f1, f2), S (SOrL sp1) ->
+    | Or (_, f1, f2), S (SOrL sp1) ->
        let sp1_idx = idx+1 in
        let (row', idx') = ssubfs_cell_row row sp1_idx f1 (S sp1) in
        let cell = (Expl.Proof.p_at p, idx, None, Boolean true) in
@@ -107,14 +107,14 @@ module Expl = struct
        let skip = (cell_idx 0 f2)+1 in
        let idx' = idx'+skip in
        ((cell, cells) :: row', idx')
-    | Or (f1, f2), S (SOrR sp2) ->
+    | Or (_, f1, f2), S (SOrR sp2) ->
        let sp1_idx = idx+1 in
        let sp2_idx = (cell_idx sp1_idx f1)+1 in
        let (row', idx') = ssubfs_cell_row row sp2_idx f2 (S sp2) in
        let cell = (Expl.Proof.p_at p, idx, None, Boolean true) in
        let cells = [(Expl.Proof.s_at sp2, sp2_idx, None, Boolean true)] in
        ((cell, cells) :: row', idx')
-    | And (f1, f2), S (SAnd (sp1, sp2)) ->
+    | And (_, f1, f2), S (SAnd (sp1, sp2)) ->
        let sp1_idx = idx+1 in
        let (row', idx') = ssubfs_cell_row row sp1_idx f1 (S sp1) in
        let sp2_idx = idx'+1 in
@@ -123,7 +123,7 @@ module Expl = struct
        let cells = [(Expl.Proof.s_at sp1, sp1_idx, None, Boolean true);
                     (Expl.Proof.s_at sp2, sp2_idx, None, Boolean true)] in
        ((cell, cells) :: tbl'', idx'')
-    | Imp (f1, f2), S (SImpL (vp1)) ->
+    | Imp (_, f1, f2), S (SImpL (vp1)) ->
        let vp1_idx = idx+1 in
        let (row', idx') = ssubfs_cell_row row vp1_idx f1 (V vp1) in
        let cell = (Expl.Proof.p_at p, idx, None, Boolean true) in
@@ -131,14 +131,14 @@ module Expl = struct
        let skip = (cell_idx 0 f2)+1 in
        let idx' = idx'+skip in
        ((cell, cells) :: row', idx')
-    | Imp (f1, f2), S (SImpR (sp2)) ->
+    | Imp (_, f1, f2), S (SImpR (sp2)) ->
        let sp1_idx = idx+1 in
        let sp2_idx = (cell_idx sp1_idx f1)+1 in
        let (row', idx') = ssubfs_cell_row row sp2_idx f2 (S sp2) in
        let cell = (Expl.Proof.p_at p, idx, None, Boolean true) in
        let cells = [(Expl.Proof.s_at sp2, sp2_idx, None, Boolean true)] in
        ((cell, cells) :: row', idx')
-    | Iff (f1, f2), S (SIffSS (sp1, sp2)) ->
+    | Iff (_, _, f1, f2), S (SIffSS (sp1, sp2)) ->
        let sp1_idx = idx+1 in
        let (row', idx') = ssubfs_cell_row row sp1_idx f1 (S sp1) in
        let sp2_idx = idx'+1 in
@@ -147,7 +147,7 @@ module Expl = struct
        let cells = [(Expl.Proof.s_at sp1, sp1_idx, None, Boolean true);
                     (Expl.Proof.s_at sp2, sp2_idx, None, Boolean true)] in
        ((cell, cells) :: tbl'', idx'')
-    | Iff (f1, f2), S (SIffVV (vp1, vp2)) ->
+    | Iff (_, _, f1, f2), S (SIffVV (vp1, vp2)) ->
        let vp1_idx = idx+1 in
        let (row', idx') = ssubfs_cell_row row vp1_idx f1 (V vp1) in
        let vp2_idx = idx'+1 in
@@ -159,7 +159,7 @@ module Expl = struct
     | Exists (_, f'), S (SExists (x, d, sp)) ->
        let sp_idx = idx+1 in
        let (row', idx') = ssubfs_cell_row row sp_idx f' (S sp) in
-       let cell = (Expl.Proof.p_at p, idx, None, Assignment (x, Domain.to_string d, true)) in
+       let cell = (Expl.Proof.p_at p, idx, None, Assignment (x, Dom.to_string d, true)) in
        let cells = [(Expl.Proof.s_at sp, sp_idx, None, Boolean true)] in
        ((cell, cells) :: row', idx')
     | Forall (_, f'), S (SForall (x, part)) ->
@@ -196,8 +196,8 @@ module Expl = struct
                              | _ -> raise (Invalid_argument "unexpected proof constructor") in
        let cells = Fdeque.to_list (Fdeque.map sps ~f:(fun sp -> (Expl.Proof.s_at sp, sps_idx, None, Boolean true))) in
        ((cell, cells) :: row', idx')
-    | Since (i, f1, f2), S (SSince (sp2, sp1s))
-      | Until (i, f1, f2), S (SUntil (sp2, sp1s)) when Fdeque.is_empty sp1s ->
+    | Since (_, i, f1, f2), S (SSince (sp2, sp1s))
+      | Until (_, i, f1, f2), S (SUntil (sp2, sp1s)) when Fdeque.is_empty sp1s ->
        let sp1_idx = idx+1 in
        (* Recursive calls *)
        let sp2_idx = (cell_idx sp1_idx f1)+1 in
@@ -208,8 +208,8 @@ module Expl = struct
                              | _ -> raise (Invalid_argument "unexpected proof constructor") in
        let cells = [(Expl.Proof.s_at sp2, sp2_idx, None, Boolean true)] in
        ((cell, cells) :: row', idx')
-    | Since (i, f1, f2), S (SSince (sp2, sp1s))
-      | Until (i, f1, f2), S (SUntil (sp2, sp1s)) ->
+    | Since (_, i, f1, f2), S (SSince (sp2, sp1s))
+      | Until (_, i, f1, f2), S (SUntil (sp2, sp1s)) ->
        let sp1_idx = idx+1 in
        (* Recursive calls *)
        let (row', idx') = Fdeque.fold sp1s ~init:(row, sp1_idx)
@@ -239,7 +239,7 @@ module Expl = struct
        let cell = (Expl.Proof.p_at p, idx, None, Boolean false) in
        let cells = [(Expl.Proof.s_at sp, sp_idx, None, Boolean true)] in
        ((cell, cells) :: row', idx')
-    | Or (f1, f2), V (VOr (vp1, vp2)) ->
+    | Or (_, f1, f2), V (VOr (vp1, vp2)) ->
        let vp1_idx = idx+1 in
        let (row', idx') = ssubfs_cell_row row vp1_idx f1 (V vp1) in
        let vp2_idx = idx'+1 in
@@ -248,7 +248,7 @@ module Expl = struct
        let cells = [(Expl.Proof.v_at vp1, vp1_idx, None, Boolean false);
                     (Expl.Proof.v_at vp2, vp2_idx, None, Boolean false)] in
        ((cell, cells) :: tbl'', idx'')
-    | And (f1, f2), V (VAndL vp1) ->
+    | And (_, f1, f2), V (VAndL vp1) ->
        let vp1_idx = idx+1 in
        let (row', idx') = ssubfs_cell_row row vp1_idx f1 (V vp1) in
        let cell = (Expl.Proof.p_at p, idx, None, Boolean false) in
@@ -256,15 +256,15 @@ module Expl = struct
        let skip = (cell_idx 0 f2)+1 in
        let idx' = idx'+skip in
        ((cell, cells) :: row', idx')
-    | And (f1, f2), V (VAndR vp2) ->
+    | And (_, f1, f2), V (VAndR vp2) ->
        let vp1_idx = idx+1 in
        let vp2_idx = (cell_idx vp1_idx f1)+1 in
        let (row', idx') = ssubfs_cell_row row vp2_idx f2 (V vp2) in
        let cell = (Expl.Proof.p_at p, idx, None, Boolean false) in
        let cells = [(Expl.Proof.v_at vp2, vp2_idx, None, Boolean false)] in
        ((cell, cells) :: row', idx')
-    | Imp (f1, f2), V (VImp (sp1, vp2))
-      | Iff (f1, f2), V (VIffSV (sp1, vp2)) ->
+    | Imp (_, f1, f2), V (VImp (sp1, vp2))
+      | Iff (_, _, f1, f2), V (VIffSV (sp1, vp2)) ->
        let sp1_idx = idx+1 in
        let (row', idx') = ssubfs_cell_row row sp1_idx f1 (S sp1) in
        let vp2_idx = idx'+1 in
@@ -273,7 +273,7 @@ module Expl = struct
        let cells = [(Expl.Proof.s_at sp1, sp1_idx, None, Boolean true);
                     (Expl.Proof.v_at vp2, vp2_idx, None, Boolean false)] in
        ((cell, cells) :: tbl'', idx'')
-    | Iff (f1, f2), V (VIffVS (vp1, sp2)) ->
+    | Iff (_, _, f1, f2), V (VIffVS (vp1, sp2)) ->
        let vp1_idx = idx+1 in
        let (row', idx') = ssubfs_cell_row row vp1_idx f1 (V vp1) in
        let sp2_idx = idx'+1 in
@@ -296,7 +296,7 @@ module Expl = struct
     | Forall (_, f'), V (VForall (x, d, vp)) ->
        let vp_idx = idx+1 in
        let (row', idx') = ssubfs_cell_row row vp_idx f' (V vp) in
-       let cell = (Expl.Proof.p_at p, idx, None, Assignment (x, Domain.to_string d, false)) in
+       let cell = (Expl.Proof.p_at p, idx, None, Assignment (x, Dom.to_string d, false)) in
        let cells = [(Expl.Proof.v_at vp, vp_idx, None, Boolean false)] in
        ((cell, cells) :: row', idx')
     | Prev (i, f'), V (VPrev vp)
@@ -322,8 +322,8 @@ module Expl = struct
                              | _ -> raise (Invalid_argument "unexpected proof constructor") in
        let cells = Fdeque.to_list (Fdeque.map vps ~f:(fun vp -> (Expl.Proof.v_at vp, vps_idx, None, Boolean false))) in
        ((cell, cells) :: row', idx')
-    | Since (i, f1, _), V (VSince (_, vp1, vp2s))
-      | Until (i, f1, _), V (VUntil (_, vp1, vp2s)) when Fdeque.is_empty vp2s ->
+    | Since (_, i, f1, _), V (VSince (_, vp1, vp2s))
+      | Until (_, i, f1, _), V (VUntil (_, vp1, vp2s)) when Fdeque.is_empty vp2s ->
        let vp1_idx = idx+1 in
        let (row', idx') = ssubfs_cell_row row vp1_idx f1 (V vp1) in
        let cell = match f with Since _ -> (Expl.Proof.p_at p, idx, Some(i, PAST), Boolean false)
@@ -331,8 +331,8 @@ module Expl = struct
                              | _ -> raise (Invalid_argument "unexpected proof constructor") in
        let cells = [(Expl.Proof.v_at vp1, vp1_idx, None, Boolean false)] in
        ((cell, cells) :: row', idx')
-    | Since (i, f1, f2), V (VSince (_, vp1, vp2s))
-      | Until (i, f1, f2), V (VUntil (_, vp1, vp2s)) ->
+    | Since (_, i, f1, f2), V (VSince (_, vp1, vp2s))
+      | Until (_, i, f1, f2), V (VUntil (_, vp1, vp2s)) ->
        let vp1_idx = idx+1 in
        let (row', idx') = ssubfs_cell_row row vp1_idx f1 (V vp1) in
        let vp2_idx = idx'+1 in
@@ -345,8 +345,8 @@ module Expl = struct
                      (Fdeque.to_list (Fdeque.map vp2s ~f:(fun vp2 ->
                                           (Expl.Proof.v_at vp2, vp2_idx, None, Boolean false)))) in
        ((cell, cells) :: tbl'', idx'')
-    | Since (i, f1, f2), V (VSinceInf (_, _, vp2s))
-      | Until (i, f1, f2), V (VUntilInf (_, _, vp2s)) ->
+    | Since (_, i, f1, f2), V (VSinceInf (_, _, vp2s))
+      | Until (_, i, f1, f2), V (VUntilInf (_, _, vp2s)) ->
        let vp1_idx = idx+1 in
        let vp2_idx = (cell_idx vp1_idx f1)+1 in
        let (row', idx') = Fdeque.fold vp2s ~init:(row, vp2_idx)
@@ -363,7 +363,7 @@ module Expl = struct
       | Prev (_, _), V (VPrevOutR _)
       | Next (_, _), V (VNextOutL _)
       | Next (_, _), V (VNextOutR _)
-      | Since (_, _, _), V (VSinceOut _) ->
+      | Since (_, _, _, _), V (VSinceOut _) ->
        let cell = (Expl.Proof.p_at p, idx, None, Boolean false) in
        ((cell, []) :: row, idx)
     | _ -> raise (Invalid_argument "invalid formula/proof pair")

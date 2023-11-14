@@ -95,14 +95,32 @@ module Sig = struct
   let convert_types sl =
     List.map sl ~f:(fun s -> match String.split s ~on:':' with
                              | [] -> raise (Failure ("unable to parse the variable signature string " ^ s))
-                             | name :: ttype :: [] -> (name, Domain.tt_of_string ttype)
+                             | name :: ttype :: [] -> (name, Dom.tt_of_string ttype)
                              | _ -> raise (Failure ("unable to parse the variable signature string " ^ s)))
 
+  let parse_enftype (pb: Parsebuf.t) =
+    match pb.token with
+    | PLS -> begin Parsebuf.next pb;
+                   match pb.token with
+                   | MNS -> Parsebuf.next pb;
+                            Pred.EnfType.CauSup
+                   | _   -> Pred.EnfType.Cau
+             end
+    | MNS -> begin Parsebuf.next pb;
+        match pb.token with
+        | PLS -> Parsebuf.next pb;
+                 Pred.EnfType.CauSup
+        | _   -> Pred.EnfType.Sup
+             end
+    | _ -> Pred.EnfType.Obs
+    
   let rec parse_pred_sigs (pb: Parsebuf.t) =
     match pb.token with
     | EOF -> ()
     | STR s -> Parsebuf.next pb;
-               Pred.Sig.add s (convert_types (parse_ntconst pb));
+               let ntconsts = convert_types (parse_ntconst pb) in
+               let enftype  = parse_enftype pb in
+               Pred.Sig.add s ntconsts enftype;
                parse_pred_sigs pb
     | t -> raise (Failure ("unexpected character: " ^ string_of_token t))
 

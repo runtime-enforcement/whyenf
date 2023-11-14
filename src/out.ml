@@ -14,7 +14,7 @@ open Checker_interface
 
 module Plain = struct
 
-  type mode = UNVERIFIED | VERIFIED | LATEX | LIGHT | DEBUG | DEBUGVIS
+  type mode = UNVERIFIED | VERIFIED | LATEX | LIGHT | ENFORCE | DEBUG | DEBUGVIS
 
   type t =
     | Explanation of (timestamp * timepoint) * Expl.t
@@ -22,7 +22,7 @@ module Plain = struct
     | ExplanationLatex of (timestamp * timepoint) * Expl.t * Formula.t
     | ExplanationLight of (timestamp * timepoint) * Expl.t
     | ExplanationCheckDebug of (timestamp * timepoint) * Expl.t * bool * Checker_pdt.t * Checker_trace.t
-                               * (Domain.t, Domain.comparator_witness) Setc.t list list option
+                               * (Dom.t, Dom.comparator_witness) Setc.t list list option
     | Info of string
 
   let expl = function

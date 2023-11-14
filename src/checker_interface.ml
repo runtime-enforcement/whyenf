@@ -25,13 +25,13 @@ module Checker_interface = struct
   type trace = (string set * nat) list
   type trace_lst = (timestamp * (Db.Event.t, Db.Event.comparator_witness) Set.t) list
 
-  let to_event_data (d: Domain.t) = match d with
+  let to_event_data (d: Dom.t) = match d with
     | Int v -> EInt (Z.of_int v)
     | Str v -> EString v
     | _ -> raise (Invalid_argument "type not supported yet")
 
   let of_event_data (ed: event_data) = match ed with
-    | EInt v -> Domain.Int (Z.to_int v)
+    | EInt v -> Dom.Int (Z.to_int v)
     | EString v -> Str v
 
   let convert_term (t: Pred.Term.t) = match t with
@@ -44,9 +44,9 @@ module Checker_interface = struct
     | Setc.Complement s -> Coset (List.rev (Set.fold s ~init:[] ~f:(fun acc d -> (to_event_data d) :: acc)))
 
   let of_fset = function
-    | Set s -> Setc.Finite (Set.of_list (module Domain)
+    | Set s -> Setc.Finite (Set.of_list (module Dom)
                               (List.rev (List.fold s ~init:[] ~f:(fun acc ed -> (of_event_data ed) :: acc))))
-    | Coset cs -> Setc.Complement (Set.of_list (module Domain)
+    | Coset cs -> Setc.Complement (Set.of_list (module Dom)
                                      (List.rev (List.fold cs ~init:[] ~f:(fun acc ed -> (of_event_data ed) :: acc))))
 
   let of_poly_set = function
@@ -165,10 +165,10 @@ module Checker_interface = struct
     | EqConst (x, c) -> Eq_Const (x, to_event_data c)
     | Predicate (x, trms) -> Pred (x, List.map trms ~f:convert_term)
     | Neg (f) -> Neg (convert_f f)
-    | Or (f, g) -> Or (convert_f f, convert_f g)
-    | And (f, g) -> And (convert_f f, convert_f g)
-    | Imp (f, g) -> Imp (convert_f f, convert_f g)
-    | Iff (f, g) -> Iff (convert_f f, convert_f g)
+    | Or (s, f, g) -> Or (convert_f f, convert_f g)
+    | And (s, f, g) -> And (convert_f f, convert_f g)
+    | Imp (s, f, g) -> Imp (convert_f f, convert_f g)
+    | Iff (s, t, f, g) -> Iff (convert_f f, convert_f g)
     | Exists (x, f) -> Exists (x, convert_f f)
     | Forall (x, f) -> Forall (x, convert_f f)
     | Prev (i, f) -> Prev (convert_interval i, convert_f f)
@@ -177,8 +177,8 @@ module Checker_interface = struct
     | Eventually (i, f) -> Eventually (convert_interval i, convert_f f)
     | Historically (i, f) -> Historically (convert_interval i, convert_f f)
     | Always (i, f) -> Always (convert_interval i, convert_f f)
-    | Since (i, f, g) -> Since (convert_f f, convert_interval i, convert_f g)
-    | Until (i, f, g) -> Until (convert_f f, convert_interval i, convert_f g)
+    | Since (s, i, f, g) -> Since (convert_f f, convert_interval i, convert_f g)
+    | Until (s, i, f, g) -> Until (convert_f f, convert_interval i, convert_f g)
 
   let convert_db db =
     specialized_set (Set.fold db ~init:[] ~f:(fun acc (name, ds) ->

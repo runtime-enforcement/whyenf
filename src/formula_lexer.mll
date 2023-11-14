@@ -28,7 +28,7 @@ let letter = uc | lc
 let digit = ['0'-'9']
 
 let digits = ['0'-'9']+
-let string = (letter | digit | '_' | '/' | '-' | '!')+
+let string = (letter | digit | '_' | '-' | '!')+
 let quoted_string = '"' ([^ '"' '\\'] | '\\' _)* '"'
 
 rule token = parse
@@ -37,14 +37,15 @@ rule token = parse
   | '#'                                           { debug "skip_line"; skip_line lexbuf }
   | ','                                           { debug "COMMA"; COMMA }
   | '.'                                           { debug "DOT"; DOT }
+  | '/'                                           { debug "SLA"; SLA }
   | "false" | "⊥"                                 { debug "FALSE"; FALSE }
   | "true" | "⊤"                                  { debug "TRUE"; TRUE }
   | "="                                           { debug "EQCONST"; EQCONST }
   | '!' | "¬" | "NOT"                             { debug "NEG"; NEG }
   | '&' | "∧" | "AND"                             { debug "AND"; AND }
   | '|' | "∨" | "OR"                              { debug "OR"; OR }
-  | "=>" | "->" | "→" | "IMPLIES"                 { debug "IMP"; IMP }
-  | "<=>"  | "<->" | "↔" | "IFF"                  { debug "IFF"; IFF }
+  | "=>" | "->" | "→" | "IMPLIES"                { debug "IMP"; IMP }
+  | "<=>"  | "<->" | "↔" | "IFF"                 { debug "IFF"; IFF }
   | "∃"  | "EXISTS"                               { debug "EXISTS"; EXISTS }
   | "∀"  | "FORALL"                               { debug "FORALL"; FORALL }
   | "SINCE" | "S"                                 { debug "SINCE"; SINCE }

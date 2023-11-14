@@ -59,15 +59,15 @@ let diff cs1 cs2 = match cs1, cs2 with
 let some_elt tt = function
   | Finite s -> Set.min_elt_exn s
   | Complement s -> (match tt with
-                     | Domain.TInt -> let elt = ref (Domain.Int (Random.int 100000)) in
+                     | Dom.TInt -> let elt = ref (Dom.Int (Random.int 100000)) in
                                       (while Set.mem s !elt do
                                          elt := Int (Random.int 100000)
                                        done); !elt
-                     | TStr -> let elt = ref (Domain.Str (Etc.some_string ())) in
+                     | TStr -> let elt = ref (Dom.Str (Etc.some_string ())) in
                                (while Set.mem s !elt do
                                   elt := Str (Etc.some_string ())
                                 done); !elt
-                     | TFloat -> let elt = ref (Domain.Float (Random.float 100000.0)) in
+                     | TFloat -> let elt = ref (Dom.Float (Random.float 100000.0)) in
                                  (while Set.mem s !elt do
                                     elt := Float (Random.float 100000.0)
                                   done); !elt)
@@ -82,15 +82,15 @@ let to_list = function
 
 let to_json = function
   | Finite s -> (Printf.sprintf "\"subset_type\": \"finite\", \"subset_values\": %s,"
-                   (Etc.string_list_to_json (List.map (Set.to_list s) ~f:Domain.to_string)))
+                   (Etc.string_list_to_json (List.map (Set.to_list s) ~f:Dom.to_string)))
   | Complement s -> (Printf.sprintf "\"subset_type\": \"complement\", \"subset_values\": %s,"
-                       (Etc.string_list_to_json (List.map (Set.to_list s) ~f:Domain.to_string)))
+                       (Etc.string_list_to_json (List.map (Set.to_list s) ~f:Dom.to_string)))
 
 let rec format s =
   if Int.equal (Set.length s) 0 then ""
-  else (if Int.equal (Set.length s) 1 then Domain.to_string (Set.choose_exn s)
+  else (if Int.equal (Set.length s) 1 then Dom.to_string (Set.choose_exn s)
         else (let min = Set.min_elt_exn s in
-              Printf.sprintf "%s, " (Domain.to_string min) ^ (format (Set.remove s min))))
+              Printf.sprintf "%s, " (Dom.to_string min) ^ (format (Set.remove s min))))
 
 let to_string = function
   | Finite s -> Printf.sprintf "{%s}" (format s)

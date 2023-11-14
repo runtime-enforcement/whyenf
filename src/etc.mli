@@ -45,3 +45,5 @@ val unquote: string -> string
 val escape_underscores: string -> string
 
 val fdeque_for_all2_exn: 'a Fdeque.t -> 'b Fdeque.t -> f:('a -> 'b -> bool) -> bool
+
+val spaces: int -> string

@@ -13,7 +13,7 @@ open Pred
 open Etc
 
 module Event : sig
-  type t = string * Domain.t list [@@deriving compare, sexp_of]
+  type t = string * Dom.t list [@@deriving compare, sexp_of]
   include Comparable.S with type t := t
 end
 

@@ -15,7 +15,7 @@ module Fdeque = Core.Fdeque
 
 module Part : sig
 
-  type sub = (Domain.t, Domain.comparator_witness) Setc.t
+  type sub = (Dom.t, Dom.comparator_witness) Setc.t
 
   type 'a t = (sub * 'a) list
 
@@ -28,12 +28,12 @@ module Part : sig
   val exists: 'a t -> ('a -> bool) -> bool
   val for_all: 'a t -> ('a -> bool) -> bool
   val values: 'a t -> 'a list
-  val tabulate: (Domain.t, Domain.comparator_witness) Set.t -> (Domain.t -> 'a) -> 'a -> 'a t
+  val tabulate: (Dom.t, Dom.comparator_witness) Set.t -> (Dom.t -> 'a) -> 'a -> 'a t
 
   val dedup: ('a -> 'a -> bool) -> 'a t -> 'a t
   val map_dedup: ('a -> 'a -> bool) -> 'd t -> ('d -> 'a) -> 'a t
   val map2_dedup: ('a -> 'a -> bool) -> 'a t -> (sub * 'a -> sub * 'a) -> 'a t
-  val tabulate_dedup: ('a -> 'a -> bool) -> (Domain.t, Domain.comparator_witness) Set.t -> (Domain.t -> 'a) -> 'a -> 'a t
+  val tabulate_dedup: ('a -> 'a -> bool) -> (Dom.t, Dom.comparator_witness) Set.t -> (Dom.t -> 'a) -> 'a -> 'a t
 
 end
 
@@ -41,7 +41,7 @@ module Proof : sig
 
   type sp =
     | STT of int
-    | SEqConst of int * string * Domain.t
+    | SEqConst of int * string * Dom.t
     | SPred of int * string * Term.t list
     | SNeg of vp
     | SOrL of sp
@@ -51,7 +51,7 @@ module Proof : sig
     | SImpR of sp
     | SIffSS of sp * sp
     | SIffVV of vp * vp
-    | SExists of string * Domain.t * sp
+    | SExists of string * Dom.t * sp
     | SForall of string * (sp Part.t)
     | SPrev of sp
     | SNext of sp
@@ -64,7 +64,7 @@ module Proof : sig
     | SUntil of sp * sp Fdeque.t
   and vp =
     | VFF of int
-    | VEqConst of int * string * Domain.t
+    | VEqConst of int * string * Dom.t
     | VPred of int * string * Term.t list
     | VNeg of sp
     | VOr of vp * vp
@@ -74,7 +74,7 @@ module Proof : sig
     | VIffSV of sp * vp
     | VIffVS of vp * sp
     | VExists of string * (vp Part.t)
-    | VForall of string * Domain.t * vp
+    | VForall of string * Dom.t * vp
     | VPrev of vp
     | VPrev0
     | VPrevOutL of int
