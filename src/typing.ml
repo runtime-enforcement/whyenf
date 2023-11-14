@@ -115,12 +115,14 @@ module Constraints = struct
     | CConj (c, d) -> List.filter_map (cartesian (solve c) (solve d)) ~f:try_merge
     | CDisj (c, d) -> (solve c) @ (solve d)
 
-  let rec to_string = function
-    | CTT -> "true"
-    | CFF -> "false"
-    | CEq (s, t) -> "(" ^ s ^ " :: " ^ EnfType.to_string t ^ ")"
-    | CConj (c, d) -> "(" ^ to_string c ^ " ∧ " ^ to_string d ^ ")"
-    | CDisj (c, d) -> "(" ^ to_string c ^ " ∨ " ^ to_string d ^ ")"
+  let rec to_string_rec l = function
+    | CTT -> Printf.sprintf "⊤"
+    | CFF -> Printf.sprintf "⊥"
+    | CEq (s, t) -> Printf.sprintf "t(%s) = %s" s (EnfType.to_string t)
+    | CConj (c, d) -> Printf.sprintf (Etc.paren l 4 "%a ∧ %a") (fun x -> to_string_rec 4) c (fun x -> to_string_rec 4) d
+    | CDisj (c, d) -> Printf.sprintf (Etc.paren l 3 "%a ∨ %a") (fun x -> to_string_rec 3) c (fun x -> to_string_rec 4) d
+
+  let to_string = to_string_rec 0
 
 end
 
@@ -337,20 +339,22 @@ let do_type f =
      begin
        match Constraints.solve c with
        | sol::_ ->
-          Map.iteri sol ~f:(fun ~key ~data -> Pred.Sig.update_enftype key data);
-          match convert Cau f with
-            Some f' -> Stdio.print_endline ("The formula\n "
-                                            ^ Formula.to_string f
-                                            ^ "\nis enforceable and types to\n "
-                                            ^ Tformula.to_string f');
-                       f'
-          | None    -> failwith "formula cannot be converted"
-          | _ -> Stdio.print_endline ("The formula\n "
-                                      ^ Formula.to_string f
-                                      ^ "\nis not enforceable because the constraint\n "
-                                      ^ Constraints.to_string c
-                                      ^ "\n has no solution");
-                 failwith "formula is not enforceable"
+          begin
+            Map.iteri sol ~f:(fun ~key ~data -> Pred.Sig.update_enftype key data);
+            match convert Cau f with
+              Some f' -> Stdio.print_endline ("The formula\n "
+                                              ^ Formula.to_string f
+                                              ^ "\nis enforceable and types to\n "
+                                              ^ Tformula.to_string f');
+                         f'
+            | None    -> failwith "formula cannot be converted"
+          end
+       | _ -> Stdio.print_endline ("The formula\n "
+                                   ^ Formula.to_string f
+                                   ^ "\nis not enforceable because the constraint\n "
+                                   ^ Constraints.to_string c
+                                   ^ "\nhas no solution");
+              failwith "formula is not enforceable"
      end
   | Impossible e ->
      Stdio.print_endline ("The formula\n "
