@@ -46,6 +46,7 @@ export default function FormulaTextField ({ formula, setFormState, fixParameters
         highlightActiveLine={false}
         value={formula}
         readOnly={fixParameters}
+        highlightIndentGuides={false}
         setOptions={{
           enableBasicAutocompletion: false,
           enableLiveAutocompletion: false,
