@@ -13,6 +13,7 @@ import HelpButton from './components/HelpButton';
 import AppendButton from './components/AppendButton';
 import LeaveButton from './components/LeaveButton';
 import ResetButton from './components/ResetButton';
+import UndoButton from './components/UndoButton';
 import ExampleSelect from './components/ExampleSelect';
 import PreambleCard from './components/PreambleCard';
 import AlertDialog from './components/AlertDialog';
@@ -332,20 +333,23 @@ export default function Monitor() {
             }
 
             { monitorState.fixParameters &&
-              <Grid item xs={12} sm={12} md={5} lg={5} xl={5}>
+              <Grid item xs={12} sm={12} md={4.5} lg={4.5} xl={4.5}>
                 <AppendTraceTextField appendTrace={formState.appendTrace} setFormState={setFormState} />
               </Grid>
             }
 
             { monitorState.fixParameters &&
-              <Grid container item xs={12} sm={12} md={2} lg={2} xl={2} spacing={2}>
-                <Grid item xs={12} sm={12} md={4} lg={4} xl={4}>
+              <Grid container item xs={12} sm={12} md={3} lg={3} xl={3} spacing={2}>
+                <Grid item xs={12} sm={12} md={3} lg={3} xl={3}>
                   <AppendButton handleAppend={handleAppend} />
                 </Grid>
-                <Grid item xs={12} sm={12} md={4} lg={4} xl={4}>
+                <Grid item xs={12} sm={12} md={3} lg={3} xl={3}>
+                  <UndoButton handleUndo={handleLeave} />
+                </Grid>
+                <Grid item xs={12} sm={12} md={3} lg={3} xl={3}>
                   <ResetButton handleReset={handleReset} />
                 </Grid>
-                <Grid item xs={12} sm={12} md={4} lg={4} xl={4}>
+                <Grid item xs={12} sm={12} md={3} lg={3} xl={3}>
                   <LeaveButton handleLeave={handleLeave} />
                 </Grid>
                 <Grid item xs={12} sm={12} md={12} lg={12} xl={12}>
@@ -356,7 +360,7 @@ export default function Monitor() {
             }
 
             { monitorState.fixParameters &&
-              <Grid item xs={12} sm={12} md={5} lg={5} xl={5}>
+              <Grid item xs={12} sm={12} md={4.5} lg={4.5} xl={4.5}>
                 <FormulaTextField formula={formState.formula}
                                   setFormState={setFormState}
                                   fixParameters={monitorState.fixParameters}
@@ -365,17 +369,15 @@ export default function Monitor() {
             }
 
             { monitorState.fixParameters &&
-              <Grid container item xs={24} sm={24} md={12} lg={12} xl={12} spacing={2}>
-                <Grid item xs={24} sm={24} md={12} lg={12} xl={12}>
-                  <TimeGrid columns={monitorState.columns}
-                            objs={monitorState.objs}
-                            tables={monitorState.tables}
-                            highlights={monitorState.highlights}
-                            subformulas={monitorState.subformulas}
-                            selectedOptions={monitorState.options}
-                            setMonitorState={setMonitorState}
-                  />
-                </Grid>
+              <Grid item xs={24} sm={24} md={12} lg={12} xl={12}>
+                <TimeGrid columns={monitorState.columns}
+                          objs={monitorState.objs}
+                          tables={monitorState.tables}
+                          highlights={monitorState.highlights}
+                          subformulas={monitorState.subformulas}
+                          selectedOptions={monitorState.options}
+                          setMonitorState={setMonitorState}
+                />
               </Grid>
             }
           </Grid>

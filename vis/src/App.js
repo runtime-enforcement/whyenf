@@ -18,6 +18,7 @@ const theme = createTheme({
     },
     warning: {
       main: '#f5871f',
+      light: '#FFCE81',
     },
   },
 });

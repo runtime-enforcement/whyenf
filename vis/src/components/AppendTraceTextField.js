@@ -8,7 +8,7 @@ import "ace-builds/src-noconflict/ext-language_tools";
 export default function AppendTraceTextField ({ appendTrace, setFormState }) {
   const [localTrace, setLocalTrace] = useState("");
 
-  const editorHeight = (window.innerHeight - 704).toString() + "px";
+  const editorHeight = "113px";
 
   const handleChange = (event) => {
     setFormState({ type: 'setAppendTrace', appendTrace: event });

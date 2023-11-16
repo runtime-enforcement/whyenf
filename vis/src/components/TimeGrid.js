@@ -56,6 +56,8 @@ function TimeGrid ({ columns,
   const [anchorValue, setAnchorValue] = useState({});
   const open = Boolean(anchorEl);
 
+  const height = (window.innerHeight - 270).toString() + "px";
+
   const handlePopoverOpen = (event) => {
     const row = event.currentTarget.parentElement.dataset.id;
     const col = parseInt(event.currentTarget.dataset.field);
@@ -273,19 +275,19 @@ function TimeGrid ({ columns,
   };
 
   return (
-    <Box height="60vh"
+    <Box height={height}
          sx={{
            '& .columnHeader--CurHighlighted': {
              backgroundColor: blueGrey[100],
            },
            '& .columnHeader--LeftHighlighted': {
-             backgroundColor: amber[300],
+             backgroundColor: amber[200],
            },
            '& .columnHeader--RightHighlighted': {
              backgroundColor: teal[100],
            },
            '& .cell--LeftHighlighted': {
-             backgroundColor: amber[300],
+             backgroundColor: amber[200],
            },
            '& .cell--RightHighlighted': {
              backgroundColor: teal[100],
