@@ -13,8 +13,9 @@
                   | {VAR}, {VARORCONSTS}
                   | {CONST}, {VARORCONSTS}
 
-{I}  ::= [{NAT}, {UPPERBOUND}]
-
 {UPPERBOUND} ::=   {NAT}
                  | INFINITY (∞)
+
+{I}  ::=   [{NAT}, {NAT}]
+         | [{NAT}, {UPPERBOUND})
 ```
