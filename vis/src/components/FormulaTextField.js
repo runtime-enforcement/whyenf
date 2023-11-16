@@ -16,7 +16,7 @@ export default function FormulaTextField ({ formula, setFormState, fixParameters
   const [localFormula, setLocalFormula] = useState("");
 
   const traceEditorHeight = window.innerHeight - 245;
-  const editorHeight = fixParameters ? (window.innerHeight - 704).toString() + "px"
+  const editorHeight = fixParameters ? "113px"
         : ((traceEditorHeight / 2) - 30).toString() + "px";
 
   const keyboard = useRef();
