@@ -16,7 +16,7 @@ function MenuInstance ({ explObj, curCol, open, domainValues, variableNames, han
 
     return (
       <div>
-        <Box sx={{ ml: 1, mr: 1, mb: 1, borderRadius: '9px' }}
+        <Box sx={{ ml: 1, mr: 1, mb: 1, borderRadius: '8px' }}
              style={{ color: "#FFFFFF",
                       opacity: 1.0,
                       background: "#000000" }}>

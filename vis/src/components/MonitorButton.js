@@ -6,6 +6,7 @@ import MonitorIcon from '@mui/icons-material/Monitor';
 export default function MonitorButton ({ handleMonitor }) {
   return (
     <Button
+      color="secondary"
       variant="contained"
       endIcon={<MonitorIcon color="inherit"/>}
       size="large"
