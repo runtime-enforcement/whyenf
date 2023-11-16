@@ -2,6 +2,8 @@ import React, { useState, useReducer, useRef } from "react";
 import Grid from '@mui/material/Grid';
 import Box from '@mui/material/Box';
 import Container from '@mui/material/Container';
+import { styled } from '@mui/material/styles';
+import Tooltip, { tooltipClasses } from '@mui/material/Tooltip';
 import Draggable from 'react-draggable';
 import TraceTextField from './components/TraceTextField';
 import SigTextField from './components/SigTextField';
@@ -223,6 +225,18 @@ function monitorStateReducer(monitorState, action) {
   }
 }
 
+const BootstrapTooltip = styled(({ className, ...props }) => (
+  <Tooltip {...props} arrow classes={{ popper: className }} />
+))(({ theme }) => ({
+  [`& .${tooltipClasses.arrow}`]: {
+    color: theme.palette.common.black,
+  },
+  [`& .${tooltipClasses.tooltip}`]: {
+    backgroundColor: theme.palette.common.black,
+  },
+}));
+
+
 export default function Monitor() {
 
   const [formState, setFormState] = useReducer(formStateReducer, { formula: "", trace: "", sig: "", appendTrace: "",
@@ -275,7 +289,7 @@ export default function Monitor() {
   };
 
   return (
-    <Box style={{ height: '80vh', margin: 0, padding: 0 }}>
+    <Box style={{ margin: 0, padding: 0 }}>
 
       { (monitorState.dialog !== undefined && (Object.keys(monitorState.dialog).length !== 0)) &&
         <AlertDialog open={true} dialog={monitorState.dialog} setMonitorState={setMonitorState} />
@@ -341,16 +355,16 @@ export default function Monitor() {
             { monitorState.fixParameters &&
               <Grid container item xs={12} sm={12} md={3} lg={3} xl={3} spacing={2}>
                 <Grid item xs={12} sm={12} md={3} lg={3} xl={3}>
-                  <AppendButton handleAppend={handleAppend} />
+                  <AppendButton handleAppend={handleAppend} BootstrapTooltip={BootstrapTooltip} />
                 </Grid>
                 <Grid item xs={12} sm={12} md={3} lg={3} xl={3}>
-                  <UndoButton handleUndo={handleLeave} />
+                  <UndoButton handleUndo={handleLeave} BootstrapTooltip={BootstrapTooltip} />
                 </Grid>
                 <Grid item xs={12} sm={12} md={3} lg={3} xl={3}>
-                  <ResetButton handleReset={handleReset} />
+                  <ResetButton handleReset={handleReset} BootstrapTooltip={BootstrapTooltip} />
                 </Grid>
                 <Grid item xs={12} sm={12} md={3} lg={3} xl={3}>
-                  <LeaveButton handleLeave={handleLeave} />
+                  <LeaveButton handleLeave={handleLeave} BootstrapTooltip={BootstrapTooltip} />
                 </Grid>
                 <Grid item xs={12} sm={12} md={12} lg={12} xl={12}>
                   <CheckmarkOptions selectedOptions={monitorState.options}
