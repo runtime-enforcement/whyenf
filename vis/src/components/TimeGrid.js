@@ -160,7 +160,7 @@ function TimeGrid ({ columns,
 
   // Subfs columns
   const subfsWidth = columns.subfs.reduce((acc, subf) =>
-    Math.max(acc, (8*(subf.length)) + 9*(subf.split("[").length - 1)), 60
+    Math.max(acc, (10*(subf.length)) + 9*(subf.split("[").length - 1)), 60
   );
 
   // colGridIndex: index of the column in the grid
@@ -171,15 +171,15 @@ function TimeGrid ({ columns,
       headerName: f,
       headerClassName: () => {
         if (highlights.subfsHeader[i] === "curHighlight") {
-          return "columnHeader--CurHighlighted";
+          return "columnHeader--CurHighlighted editorFont";
         } else {
           if (highlights.subfsHeader[i] === "leftHighlight") {
-            return "columnHeader--LeftHighlighted";
+            return "columnHeader--LeftHighlighted editorFont";
           } else {
             if (highlights.subfsHeader[i] === "rightHighlight") {
-              return "columnHeader--RightHighlighted";
+              return "columnHeader--RightHighlighted editorFont";
             } else {
-              return "";
+              return "editorFont";
             }
           }
         }
