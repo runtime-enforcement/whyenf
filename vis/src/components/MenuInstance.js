@@ -5,6 +5,7 @@ import ArrowRightIcon from '@mui/icons-material/ArrowRight';
 import MenuItem from '@mui/material/MenuItem';
 import WrapperNestedMenuItem from './WrapperNestedMenuItem';
 import WrapperIconMenuItem from './WrapperIconMenuItem';
+import { teal } from '@mui/material/colors';
 
 function MenuInstance ({ explObj, curCol, open, domainValues, variableNames, handleClose, handleClick }) {
 
@@ -19,11 +20,11 @@ function MenuInstance ({ explObj, curCol, open, domainValues, variableNames, han
         <Box sx={{ ml: 1, mr: 1, mb: 1, borderRadius: '8px' }}
              style={{ color: "#000000",
                       opacity: 1.0,
-                      background: "#3e999f" }}>
+                      background: teal[100] }}>
           <MenuItem disabled={true}
                     sx={{ justifyContent: 'center' }}
                     style={{ opacity: 1.0 }}>
-            <Typography variant="h6">{explObj.var}</Typography>
+            <span className="variableFontSize editorFont">{explObj.var}</span>
           </MenuItem>
         </Box>
         { explObj?.part?.map((el, i) => {
