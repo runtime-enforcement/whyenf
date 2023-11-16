@@ -17,7 +17,6 @@ import LeaveButton from './components/LeaveButton';
 import ResetButton from './components/ResetButton';
 import UndoButton from './components/UndoButton';
 import ExampleSelect from './components/ExampleSelect';
-import PreambleCard from './components/PreambleCard';
 import AlertDialog from './components/AlertDialog';
 import CheckmarkOptions from './components/CheckmarkOptions';
 import SyntaxCheckBar from './components/SyntaxCheckBar';
