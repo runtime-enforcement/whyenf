@@ -4,6 +4,7 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import AceEditor from "react-ace";
 import "ace-builds/src-noconflict/mode-java";
+import "ace-builds/src-noconflict/mode-mfotl_formula";
 import "ace-builds/src-noconflict/theme-tomorrow";
 import "ace-builds/src-noconflict/ext-language_tools";
 import Keyboard from "react-simple-keyboard";
@@ -33,7 +34,7 @@ export default function FormulaTextField ({ formula, setFormState, fixParameters
   const initEditor = () => {
     return (
       <AceEditor
-        mode="java"
+        mode="mfotl_formula"
         theme="tomorrow"
         name="formula"
         onChange={handleChange}
