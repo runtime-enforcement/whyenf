@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import AceEditor from "react-ace";
@@ -7,8 +7,6 @@ import "ace-builds/src-noconflict/theme-tomorrow";
 import "ace-builds/src-noconflict/ext-language_tools";
 
 export default function SigTextField ({ sig, setFormState }) {
-
-  const [localSig, setLocalSig] = useState(sig);
 
   const traceEditorHeight = window.innerHeight - 245;
   const editorHeight = ((traceEditorHeight / 2) - 80).toString() + "px";

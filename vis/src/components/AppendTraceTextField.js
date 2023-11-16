@@ -1,4 +1,4 @@
-import React, { useState, useEffect, createRef } from 'react';
+import React from 'react';
 import Box from '@mui/material/Box';
 import AceEditor from "react-ace";
 import "ace-builds/src-noconflict/mode-java";
@@ -6,7 +6,6 @@ import "ace-builds/src-noconflict/theme-tomorrow";
 import "ace-builds/src-noconflict/ext-language_tools";
 
 export default function AppendTraceTextField ({ appendTrace, setFormState }) {
-  const [localTrace, setLocalTrace] = useState("");
 
   const editorHeight = "113px";
 

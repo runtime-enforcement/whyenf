@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useRef, createRef } from 'react';
-import ReactDOM from "react-dom";
+import React, { useEffect, useRef } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import AceEditor from "react-ace";
@@ -12,8 +11,6 @@ import "react-simple-keyboard/build/css/index.css";
 import "../keyboard.css";
 
 export default function FormulaTextField ({ formula, setFormState, fixParameters }) {
-
-  const [localFormula, setLocalFormula] = useState("");
 
   const traceEditorHeight = window.innerHeight - 245;
   const editorHeight = fixParameters ? "113px"

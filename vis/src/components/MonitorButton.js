@@ -1,5 +1,4 @@
 import React from 'react';
-import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import MonitorIcon from '@mui/icons-material/Monitor';
 import { black } from '../util';
