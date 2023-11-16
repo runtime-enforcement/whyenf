@@ -9,12 +9,15 @@ import About from './About';
 
 const theme = createTheme({
   palette: {
-    type: 'light',
+    mode: 'light',
     primary: {
       main: '#222222',
     },
     secondary: {
-      main: '#fdd835',
+      main: '#3e999f',
+    },
+    warning: {
+      main: '#f5871f',
     },
   },
 });

@@ -72,7 +72,7 @@ export default function HelpCard({ setIsHelpCardVisible }) {
   }, []);
 
   return (
-    <Card style={{backgroundColor: "#fdd835"}} sx={{ width: '100%', height: '100%' }}>
+    <Card style={{backgroundColor: "#F5871F"}} sx={{ width: '100%', height: '100%' }}>
       <CardContent>
         <Typography align="center" variant="h5">Syntax</Typography>
         <Divider variant="fullWidth"/>
