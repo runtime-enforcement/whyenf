@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import AceEditor from "react-ace";
-import "ace-builds/src-noconflict/mode-java";
+import "ace-builds/src-noconflict/mode-mfotl_trace";
 import "ace-builds/src-noconflict/theme-tomorrow";
 import "ace-builds/src-noconflict/ext-language_tools";
 
@@ -19,7 +19,7 @@ export default function TraceTextField ({ trace, setFormState }) {
   const initEditor = () => {
     return (
       <AceEditor
-        mode="java"
+        mode="mfotl_trace"
         theme="tomorrow"
         name="trace"
         onChange={handleChange}
