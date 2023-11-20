@@ -7,6 +7,6 @@
 
 (library
  (name monitor_lib)
- (libraries core_kernel base zarith z3)
+ (libraries core_kernel base zarith)
  ;; debug menhirLib
  (preprocess (pps ppx_jane)))
