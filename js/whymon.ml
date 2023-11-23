@@ -37,10 +37,12 @@ module Whymon = struct
   let check_log js_log =
     let check_step last_ts_opt db =
       try
-        let (_, pb) = Other_parser.Trace.parse_from_string db in
-        if (Option.is_none last_ts_opt) || pb.ts >= (Option.value_exn last_ts_opt) then
-          (Some(pb.ts), true)
-        else (None, false)
+        (match Other_parser.Trace.parse_from_string db with
+         | None -> (None, false)
+         | Some (_, pb) ->
+            if (Option.is_none last_ts_opt) || pb.ts >= (Option.value_exn last_ts_opt) then
+              (Some(pb.ts), true)
+            else (None, false))
       with _ -> (None, false) in
     let str_log = Js_of_ocaml.Js.to_string js_log in
     if String.is_empty str_log then Js_of_ocaml__Js.bool false
