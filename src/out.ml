@@ -21,6 +21,7 @@ module Plain = struct
     | ExplanationCheck of (timestamp * timepoint) * Expl.t * bool
     | ExplanationLatex of (timestamp * timepoint) * Expl.t * Formula.t
     | ExplanationLight of (timestamp * timepoint) * Expl.t
+    | ExplanationEnforce of (timestamp * timepoint) * Expl.t
     | ExplanationCheckDebug of (timestamp * timepoint) * Expl.t * bool * Checker_pdt.t * Checker_trace.t
                                * (Dom.t, Dom.comparator_witness) Setc.t list list option
     | Info of string
@@ -35,6 +36,7 @@ module Plain = struct
        Stdio.printf "%d:%d\nExplanation: \n%s\n\n" ts tp (Expl.to_latex f e)
     | ExplanationLight ((ts, tp), e) ->
        Stdio.printf "%d:%d\nExplanation: \n%s\n\n" ts tp (Expl.to_light_string e)
+    | ExplanationEnforce ((ts, tp), e) -> ()
     | ExplanationCheckDebug ((ts, tp), e, b, c_e, c_t, path_opt) ->
        Stdio.printf "%d:%d\nExplanation: \n%s\n" ts tp (Expl.to_string e);
        Stdio.printf "\nChecker output: %B\n\n" b;
@@ -55,6 +57,7 @@ module Plain = struct
     | LATEX -> List.iter tstp_expls ~f:(fun ((_, tp), e) ->
                    expl (ExplanationLatex ((ts, tp), e, Option.value_exn f_opt)))
     | LIGHT -> List.iter tstp_expls ~f:(fun ((_, tp), e) -> if Expl.is_violated e then expl (ExplanationLight ((ts, tp), e)))
+    | ENFORCE -> ()
     | DEBUG -> List.iter2_exn (List.zip_exn tstp_expls (Option.value_exn checker_es_opt))
                  (Option.value_exn paths_opt)
                  ~f:(fun (((_, tp), e), (b, checker_e, trace)) path_opt ->
