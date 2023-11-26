@@ -11,6 +11,8 @@ module MFormula : sig
 
   type t
 
+  val to_string: t -> string
+
 end
 
 module MState : sig
