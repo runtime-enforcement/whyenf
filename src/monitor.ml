@@ -1565,8 +1565,9 @@ let mstep mode vars ts db (ms: MState.t) =
   let tstps = List.zip_exn (List.take (Queue.to_list ms.ts_waiting) (List.length expls))
                 (List.range ms.tp_cur (ms.tp_cur + List.length expls)) in
   let tsdbs = match mode with
-    | Out.Plain.UNVERIFIED -> ms.tsdbs
-    | _ -> Queue.enqueue ms.tsdbs (ts, db); ms.tsdbs in
+    | Out.Plain.VERIFIED
+      | Out.Plain.DEBUG -> Queue.enqueue ms.tsdbs (ts, db); ms.tsdbs
+    | _ -> ms.tsdbs in
   (List.zip_exn tstps expls,
    { ms with
      mf = mf'
