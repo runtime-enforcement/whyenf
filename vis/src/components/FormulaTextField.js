@@ -72,6 +72,8 @@ export default function FormulaTextField ({ formula, setFormState, fixParameters
           keyboardRef={r => (keyboard.current = r) }
           layoutName={"default"}
           onChange={handleKeyboardChange}
+          preventMouseDownDefault={true}
+          disableCaretPositioning={true}
           layout={{
             default: ["∞ ⊤ ⊥ = ¬ ∧ ∨ → ↔ ∃ ∀ ● ○ ⧫ ◊ ■ □ S U"]
           }}
