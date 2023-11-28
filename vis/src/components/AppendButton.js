@@ -6,7 +6,7 @@ import { black } from '../util';
 
 export default function AppendButton ({ handleAppend, BootstrapTooltip }) {
   return (
-    <BootstrapTooltip title="Append new events">
+    <BootstrapTooltip title="Add new events">
       <Button
         color="secondary"
         variant="contained"
