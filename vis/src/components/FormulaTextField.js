@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import AceEditor from "react-ace";
@@ -11,6 +11,8 @@ import "react-simple-keyboard/build/css/index.css";
 import "../keyboard.css";
 
 export default function FormulaTextField ({ formula, setFormState, fixParameters }) {
+
+  const [isFocused, setIsFocused] = useState(false);
 
   const traceEditorHeight = window.innerHeight - 245;
   const editorHeight = fixParameters ? "113px"
@@ -28,6 +30,14 @@ export default function FormulaTextField ({ formula, setFormState, fixParameters
     keyboard.current.setInput(input);
   };
 
+  const handleFocus = () => {
+    setIsFocused(true);
+  };
+
+  const handleBlur = () => {
+    setIsFocused(false);
+  };
+
   const initEditor = () => {
     return (
       <AceEditor
@@ -35,6 +45,8 @@ export default function FormulaTextField ({ formula, setFormState, fixParameters
         theme="tomorrow"
         name="formula"
         onChange={handleChange}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
         width="100%"
         height={editorHeight}
         fontSize={14}
@@ -62,7 +74,7 @@ export default function FormulaTextField ({ formula, setFormState, fixParameters
     <div>
       { !fixParameters && <Typography variant="h6" position="left">Formula</Typography> }
       <Box sx={{ width: '100%', height: '100%' }}
-           className="editorBox">
+           className={(isFocused && !fixParameters) ? "focusedEditorBox" : "editorBox"}>
         <div className="editor">
           { initEditor() }
         </div>

@@ -43,6 +43,11 @@ th, td {
     border-radius: 5px;
 }
 
+.focusedEditorBox {
+    border: 1px solid #000000;
+    border-radius: 5px;
+}
+
 .editor {
     margin-top: 8px;
     margin-bottom: 8px;
@@ -71,3 +76,8 @@ th, td {
 .ace_editor:not(.ace_focus) ace_cursor-layer {
     display: none;
 }
+
+/* Hide parenthesis highlighting all the time */
+/* .ace_editor .ace_marker-layer .ace_bracket { */
+/*     display: none */
+/* } */

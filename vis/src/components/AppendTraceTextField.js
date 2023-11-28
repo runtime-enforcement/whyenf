@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Box from '@mui/material/Box';
 import AceEditor from "react-ace";
 import "ace-builds/src-noconflict/mode-java";
@@ -7,10 +7,20 @@ import "ace-builds/src-noconflict/ext-language_tools";
 
 export default function AppendTraceTextField ({ appendTrace, setFormState }) {
 
+  const [isFocused, setIsFocused] = useState(false);
+
   const editorHeight = "113px";
 
   const handleChange = (event) => {
     setFormState({ type: 'setAppendTrace', appendTrace: event });
+  };
+
+  const handleFocus = () => {
+    setIsFocused(true);
+  };
+
+  const handleBlur = () => {
+    setIsFocused(false);
   };
 
   const initEditor = () => {
@@ -21,6 +31,8 @@ export default function AppendTraceTextField ({ appendTrace, setFormState }) {
         name="sig"
         placeholder="New events"
         onChange={handleChange}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
         width="100%"
         height={editorHeight}
         fontSize={14}
@@ -41,7 +53,7 @@ export default function AppendTraceTextField ({ appendTrace, setFormState }) {
   return (
     <div>
       <Box sx={{ width: '100%', height: '100%' }}
-           className="editorBox">
+           className={isFocused ? "focusedEditorBox" : "editorBox"}>
         <div className="editor">
           { initEditor() }
         </div>
