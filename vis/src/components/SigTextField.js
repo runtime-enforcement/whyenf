@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import AceEditor from "react-ace";
@@ -8,20 +8,35 @@ import "ace-builds/src-noconflict/ext-language_tools";
 
 export default function SigTextField ({ sig, setFormState }) {
 
+  const [isFocused, setIsFocused] = useState(false);
+
   const traceEditorHeight = window.innerHeight - 245;
   const editorHeight = ((traceEditorHeight / 2) - 80).toString() + "px";
+
+  const aceEditor = useRef();
 
   const handleChange = (event) => {
     setFormState({ type: 'setSig', sig: event });
   };
 
+  const handleFocus = () => {
+    setIsFocused(true);
+  };
+
+  const handleBlur = () => {
+    setIsFocused(false);
+  };
+
   const initEditor = () => {
     return (
       <AceEditor
+        ref={aceEditor}
         mode="mfotl_signature"
         theme="tomorrow"
         name="sig"
         onChange={handleChange}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
         width="100%"
         height={editorHeight}
         fontSize={14}
@@ -43,7 +58,7 @@ export default function SigTextField ({ sig, setFormState }) {
     <div>
       <Typography variant="h6" position="left">Signature</Typography>
       <Box sx={{ width: '100%', height: '100%' }}
-           className="editorBox">
+           className={isFocused ? "focusedEditorBox" : "editorBox"}>
         <div className="editor">
           { initEditor() }
         </div>
