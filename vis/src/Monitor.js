@@ -288,7 +288,7 @@ export default function Monitor() {
   };
 
   return (
-    <Box style={{ margin: 0, padding: 0 }}>
+    <Box>
 
       { (monitorState.dialog !== undefined && (Object.keys(monitorState.dialog).length !== 0)) &&
         <AlertDialog open={true} dialog={monitorState.dialog} setMonitorState={setMonitorState} />
@@ -304,7 +304,7 @@ export default function Monitor() {
       }
 
       <Container maxWidth={false}>
-        <Box sx={{ mb: 12, mt: 12 }}>
+        <Box sx={{ mt: 12 }}>
           <Grid container spacing={1}>
 
             { !monitorState.fixParameters &&
@@ -328,7 +328,7 @@ export default function Monitor() {
             }
 
             { !monitorState.fixParameters &&
-              <Grid container item xs={24} sm={24} md={12} lg={12} xl={12} spacing={3}>
+              <Grid container item xs={12} sm={12} md={12} lg={12} xl={12} spacing={3}>
                 <Grid container item xs={12} sm={12} md={6} lg={6} xl={6} spacing={1}>
                   <Grid item xs={12} sm={12} md={12} lg={12} xl={12}>
                     <SigTextField sig={formState.sig} setFormState={setFormState} />
@@ -346,51 +346,44 @@ export default function Monitor() {
             }
 
             { monitorState.fixParameters &&
-              <Grid item xs={12} sm={12} md={4.5} lg={4.5} xl={4.5}>
-                <AppendTraceTextField appendTrace={formState.appendTrace} setFormState={setFormState} />
-              </Grid>
-            }
-
-            { monitorState.fixParameters &&
-              <Grid container item xs={12} sm={12} md={3} lg={3} xl={3} spacing={2}>
-                <Grid item xs={12} sm={12} md={3} lg={3} xl={3}>
-                  <AppendButton handleAppend={handleAppend} BootstrapTooltip={BootstrapTooltip} />
+              <Grid container item xs={12} sm={12} md={12} lg={12} xl={12} spacing={2}>
+                <Grid item xs={12} sm={12} md={4.5} lg={4.5} xl={4.5}>
+                  <AppendTraceTextField appendTrace={formState.appendTrace} setFormState={setFormState} />
                 </Grid>
-                <Grid item xs={12} sm={12} md={3} lg={3} xl={3}>
-                  <UndoButton handleUndo={handleLeave} BootstrapTooltip={BootstrapTooltip} />
+                <Grid container item xs={12} sm={12} md={3} lg={3} xl={3} spacing={2}>
+                  <Grid item xs={12} sm={12} md={3} lg={3} xl={3}>
+                    <AppendButton handleAppend={handleAppend} BootstrapTooltip={BootstrapTooltip} />
+                  </Grid>
+                  <Grid item xs={12} sm={12} md={3} lg={3} xl={3}>
+                    <UndoButton handleUndo={handleLeave} BootstrapTooltip={BootstrapTooltip} />
+                  </Grid>
+                  <Grid item xs={12} sm={12} md={3} lg={3} xl={3}>
+                    <ResetButton handleReset={handleReset} BootstrapTooltip={BootstrapTooltip} />
+                  </Grid>
+                  <Grid item xs={12} sm={12} md={3} lg={3} xl={3}>
+                    <LeaveButton handleLeave={handleLeave} BootstrapTooltip={BootstrapTooltip} />
+                  </Grid>
+                  <Grid item xs={12} sm={12} md={12} lg={12} xl={12}>
+                    <CheckmarkOptions selectedOptions={monitorState.options}
+                                      setMonitorState={setMonitorState} />
+                  </Grid>
                 </Grid>
-                <Grid item xs={12} sm={12} md={3} lg={3} xl={3}>
-                  <ResetButton handleReset={handleReset} BootstrapTooltip={BootstrapTooltip} />
+                <Grid item xs={12} sm={12} md={4.5} lg={4.5} xl={4.5}>
+                  <FormulaTextField formula={formState.formula}
+                                    setFormState={setFormState}
+                                    fixParameters={monitorState.fixParameters}
+                  />
                 </Grid>
-                <Grid item xs={12} sm={12} md={3} lg={3} xl={3}>
-                  <LeaveButton handleLeave={handleLeave} BootstrapTooltip={BootstrapTooltip} />
+                <Grid item xs={24} sm={24} md={12} lg={12} xl={12}>
+                  <TimeGrid columns={monitorState.columns}
+                            objs={monitorState.objs}
+                            tables={monitorState.tables}
+                            highlights={monitorState.highlights}
+                            subformulas={monitorState.subformulas}
+                            selectedOptions={monitorState.options}
+                            setMonitorState={setMonitorState}
+                  />
                 </Grid>
-                <Grid item xs={12} sm={12} md={12} lg={12} xl={12}>
-                  <CheckmarkOptions selectedOptions={monitorState.options}
-                                    setMonitorState={setMonitorState} />
-                </Grid>
-              </Grid>
-            }
-
-            { monitorState.fixParameters &&
-              <Grid item xs={12} sm={12} md={4.5} lg={4.5} xl={4.5}>
-                <FormulaTextField formula={formState.formula}
-                                  setFormState={setFormState}
-                                  fixParameters={monitorState.fixParameters}
-                />
-              </Grid>
-            }
-
-            { monitorState.fixParameters &&
-              <Grid item xs={24} sm={24} md={12} lg={12} xl={12}>
-                <TimeGrid columns={monitorState.columns}
-                          objs={monitorState.objs}
-                          tables={monitorState.tables}
-                          highlights={monitorState.highlights}
-                          subformulas={monitorState.subformulas}
-                          selectedOptions={monitorState.options}
-                          setMonitorState={setMonitorState}
-                />
               </Grid>
             }
           </Grid>
