@@ -225,13 +225,21 @@ function monitorStateReducer(monitorState, action) {
 }
 
 const BootstrapTooltip = styled(({ className, ...props }) => (
-  <Tooltip {...props} arrow classes={{ popper: className }} />
+  <Tooltip {...props}
+           classes={{ popper: className }}
+  PopperProps={{ modifiers: [{ name: "offset",
+                               options: {
+                                 offset: [0, -5],
+                               },
+                             },
+                            ],
+               }} />
 ))(({ theme }) => ({
   [`& .${tooltipClasses.arrow}`]: {
-    color: theme.palette.common.black,
+    color: theme.palette.common.grey,
   },
   [`& .${tooltipClasses.tooltip}`]: {
-    backgroundColor: theme.palette.common.black,
+    backgroundColor: theme.palette.common.grey,
   },
 }));
 
@@ -304,7 +312,7 @@ export default function Monitor() {
       }
 
       <Container maxWidth={false}>
-        <Box sx={{ mt: 12 }}>
+        <Box sx={{ mt: 12.5 }}>
           <Grid container spacing={1}>
 
             { !monitorState.fixParameters &&

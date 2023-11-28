@@ -2,11 +2,14 @@ import React from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import ClearIcon from '@mui/icons-material/Clear';
+import Zoom from '@mui/material/Zoom';
 import { black } from '../util';
 
 export default function LeaveButton ({ handleLeave, BootstrapTooltip }) {
   return (
-    <BootstrapTooltip title="Exit">
+    <BootstrapTooltip title="Exit"
+                      placement="top"
+                      TransitionComponent={Zoom}>
       <Button
         variant="contained"
         size="large"
