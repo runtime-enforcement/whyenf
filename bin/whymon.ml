@@ -16,7 +16,7 @@ open Monitor_lib
 module Whymon = struct
 
   let mode_ref = ref Out.Plain.UNVERIFIED
-  let measure_ref = ref ""
+  let measure_ref = ref "size"
   let formula_ref = ref None
   let sig_ref = ref In_channel.stdin
   let logstr_ref = ref ""
@@ -68,8 +68,8 @@ module Whymon = struct
       | ("-measure" :: m :: args) ->
          measure_ref :=
            (match m with
-            | "size" -> m
-            | "none" -> m
+            | "size"
+              | "none" -> m
             | _ -> measure_error ());
          process_args_rec args
       | ("-log" :: logf :: args) ->
@@ -103,7 +103,7 @@ module Whymon = struct
       let formula = Option.value_exn !formula_ref in
       match !mode_ref with
       | Out.Plain.DEBUGVIS -> let _ = Monitor.exec_vis None formula !logstr_ref in ()
-      | Out.Plain.ENFORCE -> let _ = Enforcer.exec formula in ()
+      | Out.Plain.ENFORCE -> let _ = Enforcer.exec !measure_ref formula !Etc.inc_ref in ()
       | _ -> Monitor.exec !mode_ref !measure_ref formula !Etc.inc_ref
     with End_of_file -> Out_channel.close !Etc.outc_ref; exit 0
 
