@@ -1,51 +1,68 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import Box from '@mui/material/Box';
-import TextField from '@mui/material/TextField';
+import Typography from '@mui/material/Typography';
+import AceEditor from "react-ace";
+import "ace-builds/src-noconflict/mode-mfotl_signature";
+import "ace-builds/src-noconflict/theme-tomorrow";
+import "ace-builds/src-noconflict/ext-language_tools";
 
 export default function SigTextField ({ sig, setFormState }) {
 
-  const [localSig, setLocalSig] = useState("");
-  const [rows, setRows] = useState(10);
+  const [isFocused, setIsFocused] = useState(false);
 
-  const ref = React.createRef();
+  const traceEditorHeight = window.innerHeight - 245;
+  const editorHeight = ((traceEditorHeight / 2) - 80).toString() + "px";
+
+  const aceEditor = useRef();
 
   const handleChange = (event) => {
-    setLocalSig(event.target.value);
+    setFormState({ type: 'setSig', sig: event });
   };
 
-  const handleBlur = (event) => {
-    setFormState({ type: 'setSig', sig: localSig });
+  const handleFocus = () => {
+    setIsFocused(true);
   };
 
-  useEffect(() => {
-    setRows(ref.current.clientHeight/27.5);
-    setLocalSig(sig);
-  }, [sig, setLocalSig]);
+  const handleBlur = () => {
+    setIsFocused(false);
+  };
+
+  const initEditor = () => {
+    return (
+      <AceEditor
+        ref={aceEditor}
+        mode="mfotl_signature"
+        theme="tomorrow"
+        name="sig"
+        onChange={handleChange}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+        width="100%"
+        height={editorHeight}
+        fontSize={14}
+        showPrintMargin={false}
+        showGutter={false}
+        highlightActiveLine={false}
+        value={sig}
+        setOptions={{
+          enableBasicAutocompletion: false,
+          enableLiveAutocompletion: false,
+          enableSnippets: false,
+          showLineNumbers: false,
+          tabSize: 2,
+        }}/>
+    );
+  };
 
   return (
-    <Box
-      component="form"
-      sx={{
-        '& .MuiTextField-root': { width: '100%' },
-      }}
-      noValidate
-      autoComplete="off"
-      ref={ref}
-    >
-      <TextField
-        id="outlined-multiline-static"
-        label="Signature"
-        required
-        multiline
-        value={localSig}
-        onChange={handleChange}
-        onBlur={handleBlur}
-        minRows={rows}
-        maxRows={rows}
-        InputProps={{style: { minHeight: '18vh',
-                              maxHeight: '18vh',
-                              fontSize: 14  } }}
-      />
-    </Box>
+    <div>
+      <Typography variant="h6" position="left">Signature</Typography>
+      <Box sx={{ width: '100%', height: '100%' }}
+           className={isFocused ? "focusedEditorBox" : "editorBox"}>
+        <div className="editor">
+          { initEditor() }
+        </div>
+      </Box>
+    </div>
   );
 }

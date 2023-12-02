@@ -4,17 +4,21 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import NavBar from './components/NavBar';
 import Monitor from './Monitor';
-import Help from './Help';
+import Quickstart from './Quickstart';
 import About from './About';
 
 const theme = createTheme({
   palette: {
-    type: 'light',
+    mode: 'light',
     primary: {
       main: '#222222',
     },
     secondary: {
-      main: '#fdd835',
+      main: '#3e999f',
+    },
+    warning: {
+      main: '#f5871f',
+      light: '#FFCE81',
     },
   },
 });
@@ -27,7 +31,7 @@ function App() {
           <NavBar />
           <Routes>
             <Route path="/" element={<Monitor />} />
-            <Route path="/help" element={<Help />} />
+            <Route path="/quickstart" element={<Quickstart />} />
             <Route path="/about" element={<About />} />
           </Routes>
         </BrowserRouter>

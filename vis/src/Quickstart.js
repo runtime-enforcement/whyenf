@@ -10,7 +10,7 @@ export default function Help() {
   const [content, setContent] = useState("");
 
   useEffect(() => {
-    fetch("Help.md")
+    fetch("Quickstart.md")
       .then((res) => res.text())
       .then((text) => setContent(text));
   }, []);
