@@ -146,7 +146,7 @@ module Trace = struct
     let rec parse_init () =
       match pb.token with
       | AT -> Parsebuf.next pb; parse_ts ()
-      | EOF -> (false, pb)
+      | EOF -> None
       | t -> raise (Failure ("expected '@' but found " ^ string_of_token t))
     and parse_ts () =
       match pb.token with
@@ -168,9 +168,9 @@ module Trace = struct
                                              parse_tuple ()
                                     | t -> raise (Failure ("expected '(' but found " ^ string_of_token t))))
                   | None -> raise (Failure ("predicate " ^ s ^ " was not specified")))
-      | AT -> (true, pb)
-      | EOF -> (false, pb)
-      | SEP -> Parsebuf.next pb; (true, pb)
+      | AT -> Some (true, pb)
+      | EOF -> Some (false, pb)
+      | SEP -> Parsebuf.next pb; Some (true, pb)
       | t -> raise (Failure ("expected a predicate or '@' but found " ^ string_of_token t))
     and parse_tuple () =
       match pb.token with

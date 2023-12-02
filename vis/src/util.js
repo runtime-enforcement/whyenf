@@ -355,6 +355,8 @@ export function getHeaderHighlights(curCol, subfsScopes, subfsGridColumnsLength)
 
 export function translateError(error) {
 
+  console.log(error);
+
   let message;
 
   if (error[1] !== undefined && (typeof error[1] === "string" || error[1] instanceof String)) {
@@ -365,6 +367,10 @@ export function translateError(error) {
     } else {
       if (error[1][1] !== undefined && error[1][1] === "Invalid_argument") {
         message = error[2];
+      } else {
+        if (error !== undefined && error === "trace is not monotonic") {
+          message = error;
+        }
       }
     }
   }
@@ -386,6 +392,9 @@ export function translateError(error) {
     return { name: "Error",
              message: "Your formula has an unbounded Until.\n\nPlease make sure all Until instances are bounded."
            };
+  case "trace is not monotonic":
+    return { name: "Error",
+             message: "Your event(s) will make the trace non-monotonic.\n\nPlease make the necessary changes." };
   // case "Src.Monitor.INVALID_TIMESTAMP":
   //   return { name: "Error",
   //            message: "Your time-stamps are not monotonically increasing.\n\nPlease rectify your trace and try again."

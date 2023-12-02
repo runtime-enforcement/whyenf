@@ -1,25 +1,24 @@
 import React from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import ClearIcon from '@mui/icons-material/Clear';
+import UndoIcon from '@mui/icons-material/Undo';
 import Zoom from '@mui/material/Zoom';
 import { black } from '../util';
 
-export default function LeaveButton ({ handleLeave, BootstrapTooltip }) {
+export default function UndoButton ({ handleUndo, BootstrapTooltip }) {
   return (
-    <BootstrapTooltip title="Exit"
+    <BootstrapTooltip title="Undo (not implemented yet)"
                       placement="top"
                       TransitionComponent={Zoom}>
       <Button
         variant="contained"
         size="large"
-        color="error"
         sx={{ width: '100%' }}
-        style={{ color: black }}
-        onClick={handleLeave}
+        style={{ color: black, backgroundColor: '#FFCE81' }}
+        /* onClick={handleUndo} */
       >
         <Box pt={1}>
-          <ClearIcon color={black} />
+          <UndoIcon color={black} />
         </Box>
       </Button>
     </BootstrapTooltip>

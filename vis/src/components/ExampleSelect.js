@@ -28,13 +28,13 @@ export default function ExampleSelect ({ setFormState }) {
     if (result !== undefined) {
       setFormState({ type: 'setFormulaAndTraceAndSig', formula: result.formula, trace: result.trace, sig: result.sig });
     }
-  }, [example, setFormState, examples]);
+  }, [example, setFormState]);
 
   return (
     <Box
       component="form"
       sx={{
-        '& .MuiTextField-root': { width: '100%' },
+        '& .MuiTextField-root': { width: '100%', height: '100%' },
       }}
       noValidate
       autoComplete="off"
@@ -50,11 +50,11 @@ export default function ExampleSelect ({ setFormState }) {
             onClose={handleClose}
           >
             {/* <MenuItem value={"publish-approve-unix-ts"}>publish-approve-unix-ts</MenuItem> */}
-            <MenuItem value={"publish-approve-manager"}>publish-approve-manager</MenuItem>
+            <MenuItem value={"publish-approve-manager"}>Publish/Approve</MenuItem>
             {/* <MenuItem value={"publish-approve-manager-unix-ts"}>publish-approve-manager-unix-ts</MenuItem> */}
-            <MenuItem value={"closed-publish-approve-manager"}>closed-publish-approve-manager</MenuItem>
-            <MenuItem value={"data-race"}>data-race</MenuItem>
-            <MenuItem value={"nokia-del-2-3"}>nokia-del-2-3</MenuItem>
+            <MenuItem value={"closed-publish-approve-manager"}>Closed Publish/Approve</MenuItem>
+            <MenuItem value={"data-race"}>Data Race</MenuItem>
+            <MenuItem value={"nokia-del-2-3"}>Database Deletion Propagation</MenuItem>
           </Select>
         </FormControl>
       </div>

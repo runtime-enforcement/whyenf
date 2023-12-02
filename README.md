@@ -12,18 +12,20 @@ In particular, if you are a Debian/Ubuntu user
 
 ```
 # apt-get install opam
-$ opam switch 4.13.1
-$ eval $(opam config env)
-$ opam install dune core_kernel base zarith menhir
 ```
 
 or if you are an Arch Linux user
 
 ```
 # pacman -S opam
+```
+
+and then
+
+```
 $ opam switch 4.13.1
 $ eval $(opam config env)
-$ opam install dune core_kernel base zarith menhir
+$ opam install dune core_kernel base zarith menhir js_of_ocaml js_of_ocaml-ppx zarith_stubs_js
 ```
 
 should be enough.

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Box from '@mui/material/Box';
 import { DataGrid } from '@mui/x-data-grid';
 import Button from '@mui/material/Button';
@@ -55,6 +55,8 @@ function TimeGrid ({ columns,
   const [anchorEl, setAnchorEl] = useState(null);
   const [anchorValue, setAnchorValue] = useState({});
   const open = Boolean(anchorEl);
+
+  const height = (window.innerHeight - 270).toString() + "px";
 
   const handlePopoverOpen = (event) => {
     const row = event.currentTarget.parentElement.dataset.id;
@@ -158,7 +160,7 @@ function TimeGrid ({ columns,
 
   // Subfs columns
   const subfsWidth = columns.subfs.reduce((acc, subf) =>
-    Math.max(acc, (8*(subf.length)) + 9*(subf.split("[").length - 1)), 60
+    Math.max(acc, (10.5*(subf.length)) + 9*(subf.split("[").length - 1)), 60
   );
 
   // colGridIndex: index of the column in the grid
@@ -169,15 +171,15 @@ function TimeGrid ({ columns,
       headerName: f,
       headerClassName: () => {
         if (highlights.subfsHeader[i] === "curHighlight") {
-          return "columnHeader--CurHighlighted";
+          return "columnHeader--CurHighlighted editorFont";
         } else {
           if (highlights.subfsHeader[i] === "leftHighlight") {
-            return "columnHeader--LeftHighlighted";
+            return "columnHeader--LeftHighlighted editorFont";
           } else {
             if (highlights.subfsHeader[i] === "rightHighlight") {
-              return "columnHeader--RightHighlighted";
+              return "columnHeader--RightHighlighted editorFont";
             } else {
-              return "";
+              return "editorFont";
             }
           }
         }
@@ -273,19 +275,19 @@ function TimeGrid ({ columns,
   };
 
   return (
-    <Box height="60vh"
+    <Box height={height}
          sx={{
            '& .columnHeader--CurHighlighted': {
              backgroundColor: blueGrey[100],
            },
            '& .columnHeader--LeftHighlighted': {
-             backgroundColor: amber[300],
+             backgroundColor: amber[200],
            },
            '& .columnHeader--RightHighlighted': {
              backgroundColor: teal[100],
            },
            '& .cell--LeftHighlighted': {
-             backgroundColor: amber[300],
+             backgroundColor: amber[200],
            },
            '& .cell--RightHighlighted': {
              backgroundColor: teal[100],

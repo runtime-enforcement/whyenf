@@ -1,42 +1,63 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Box from '@mui/material/Box';
-import TextField from '@mui/material/TextField';
+import AceEditor from "react-ace";
+import "ace-builds/src-noconflict/mode-mfotl_trace";
+import "ace-builds/src-noconflict/theme-tomorrow";
+import "ace-builds/src-noconflict/ext-language_tools";
 
-export default function AppendTraceTextField ({ appendTrace, setAppendTrace }) {
+export default function AppendTraceTextField ({ appendTrace, setFormState }) {
 
-  const [localTrace, setLocalTrace] = useState("");
+  const [isFocused, setIsFocused] = useState(false);
+
+  const editorHeight = "113px";
 
   const handleChange = (event) => {
-    setLocalTrace(event.target.value);
+    setFormState({ type: 'setAppendTrace', appendTrace: event });
   };
 
-  const handleBlur = (event) => {
-    setAppendTrace(event.target.value);
+  const handleFocus = () => {
+    setIsFocused(true);
   };
 
-  useEffect(() => {
-    setAppendTrace(localTrace);
-  }, [appendTrace, localTrace, setAppendTrace]);
+  const handleBlur = () => {
+    setIsFocused(false);
+  };
+
+  const initEditor = () => {
+    return (
+      <AceEditor
+        mode="mfotl_trace"
+        theme="tomorrow"
+        name="sig"
+        placeholder="New events"
+        onChange={handleChange}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+        width="100%"
+        height={editorHeight}
+        fontSize={14}
+        showPrintMargin={false}
+        showGutter={false}
+        highlightActiveLine={false}
+        value={appendTrace}
+        setOptions={{
+          enableBasicAutocompletion: false,
+          enableLiveAutocompletion: false,
+          enableSnippets: false,
+          showLineNumbers: false,
+          tabSize: 2,
+        }}/>
+    );
+  };
 
   return (
-    <Box
-      component="form"
-      sx={{
-        '& .MuiTextField-root': { width: '100%' },
-      }}
-      noValidate
-      autoComplete="off"
-    >
-      <div>
-        <TextField
-          multiline
-          id="outlined-required"
-          label="New events"
-          value={localTrace}
-          onChange={handleChange}
-          onBlur={handleBlur}
-        />
-      </div>
-    </Box>
+    <div>
+      <Box sx={{ width: '100%', height: '100%' }}
+           className={isFocused ? "focusedEditorBox" : "editorBox"}>
+        <div className="editor">
+          { initEditor() }
+        </div>
+      </Box>
+    </div>
   );
 }
