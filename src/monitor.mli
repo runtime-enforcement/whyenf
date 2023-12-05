@@ -21,6 +21,8 @@ module MState : sig
 
 end
 
+val match_terms: Pred.Term.t list -> Dom.t list -> (string, Dom.t, 'a) Base.Map.t -> (string, Dom.t, 'a) Base.Map.t option
+
 val exec: Out.Plain.mode -> string -> Formula.t -> in_channel -> unit
 
 val exec_vis: MState.t option -> Formula.t -> string -> (MState.t * string)
