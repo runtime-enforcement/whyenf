@@ -94,21 +94,25 @@ end
 
 module Sig = struct
 
-  type props = { arity: int; ntconsts: (string * Dom.tt) list; enftype: EnfType.t } [@@deriving compare, sexp_of, hash]
+  type props = { arity: int; ntconsts: (string * Dom.tt) list; enftype: EnfType.t; rank: int } [@@deriving compare, sexp_of, hash]
 
   type t = string * props [@@deriving compare, sexp_of, hash]
 
   let table: (string, props) Hashtbl.t = Hashtbl.create (module String)
 
-  let add p_name ntconsts enftype =
-    Hashtbl.add_exn table ~key:p_name ~data:{ arity = List.length ntconsts; ntconsts; enftype }
+  let add p_name ntconsts enftype rank =
+    Hashtbl.add_exn table ~key:p_name ~data:{ arity = List.length ntconsts; ntconsts; enftype; rank }
+
+  let update_enftype name enftype =
+    Hashtbl.update table name ~f:(fun (Some x) -> { x with enftype })
 
   let vars name = List.map (Hashtbl.find_exn table name).ntconsts ~f:fst
 
+  let tconsts name = List.map (Hashtbl.find_exn table name).ntconsts ~f:snd
+
   let enftype name = (Hashtbl.find_exn table name).enftype
-  
-  let update_enftype name enftype =
-    Hashtbl.update table name ~f:(fun (Some x) -> { x with enftype })
+
+  let rank name = (Hashtbl.find_exn table name).rank
 
   let print_table () =
     Hashtbl.iteri table ~f:(fun ~key:n ~data:ps ->

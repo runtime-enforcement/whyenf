@@ -41,7 +41,7 @@ module EnfType : sig
   val to_int : t -> int
 
   val to_string : t -> string
-  
+
   val meet : t -> t -> t
 
   val join : t -> t -> t
@@ -56,19 +56,23 @@ end
 
 module Sig : sig
 
-  type props = { arity: int; ntconsts: (string * Dom.tt) list; enftype: EnfType.t } [@@deriving compare, sexp_of, hash]
+  type props = { arity: int; ntconsts: (string * Dom.tt) list; enftype: EnfType.t; rank: int } [@@deriving compare, sexp_of, hash]
 
   type t = string * props [@@deriving compare, sexp_of, hash]
 
   val table: (string, props) Hashtbl.t
 
-  val add: string -> (string * Dom.tt) list -> EnfType.t -> unit
+  val add: string -> (string * Dom.tt) list -> EnfType.t -> int -> unit
 
   val update_enftype: string -> EnfType.t -> unit
 
   val vars: string -> string list
 
+  val tconsts: string -> Dom.tt list
+
   val enftype: string -> EnfType.t
+
+  val rank: string -> int
 
   val print_table: unit -> unit
 

@@ -17,6 +17,12 @@ module Event = struct
 
     type t = string * Dom.t list [@@deriving compare, sexp_of]
 
+    let equal (name1, ds1) (name2, ds2) =
+      String.equal name1 name2 &&
+        (match (List.for_all2 ds1 ds2 ~f:(fun d1 d2 -> Dom.equal d1 d2)) with
+         | Ok b -> b
+         | Unequal_lengths -> false)
+
     let to_string (name, ds) = Printf.sprintf "%s(%s)" name (Dom.list_to_string ds)
 
     let to_json (name, ds) =
