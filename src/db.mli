@@ -14,6 +14,9 @@ open Etc
 
 module Event : sig
   type t = string * Dom.t list [@@deriving compare, sexp_of]
+
+  val equal: t -> t -> bool
+
   include Comparable.S with type t := t
 end
 

@@ -113,15 +113,15 @@ module Sig = struct
         | _   -> Pred.EnfType.Sup
              end
     | _ -> Pred.EnfType.Obs
-    
-  let rec parse_pred_sigs (pb: Parsebuf.t) =
+
+  let rec parse_pred_sigs (pb: Parsebuf.t) rank =
     match pb.token with
     | EOF -> ()
     | STR s -> Parsebuf.next pb;
                let ntconsts = convert_types (parse_ntconst pb) in
                let enftype  = parse_enftype pb in
-               Pred.Sig.add s ntconsts enftype;
-               parse_pred_sigs pb
+               Pred.Sig.add s ntconsts enftype rank;
+               parse_pred_sigs pb (rank+1)
     | t -> raise (Failure ("unexpected character: " ^ string_of_token t))
 
   let parse_from_channel fn =
@@ -129,13 +129,13 @@ module Sig = struct
     let lexbuf = Lexing.from_channel inc in
     let pb = Parsebuf.init lexbuf in
     let () = Lexing.set_filename lexbuf fn in
-    try parse_pred_sigs pb
+    try parse_pred_sigs pb 0
     with Failure s -> failwith ("error while parsing signature\n " ^ s)
 
   let parse_from_string ssig =
     let lexbuf = Lexing.from_string ssig in
     let pb = Parsebuf.init lexbuf in
-    try parse_pred_sigs pb
+    try parse_pred_sigs pb 0
     with Failure s -> failwith ("error while parsing signature\n " ^ s)
 
 end

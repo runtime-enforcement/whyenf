@@ -42,6 +42,14 @@ let is_bounded_exn op = function
   | B _ -> ()
   | U _ -> raise (Invalid_argument (Printf.sprintf "unbounded future operator: %s" op))
 
+let sub i t = match i with
+  | B (BI (a, b)) -> B (BI (a, b - t))
+  | U _ -> raise (Invalid_argument (Printf.sprintf "unbounded future operator"))
+
+let boundaries = function
+  | B (BI (a, b)) -> (a, b)
+  | U _ -> raise (Invalid_argument (Printf.sprintf "unbounded future operator"))
+
 let map f1 f2 = case (fun i -> B (f1 i)) (fun i -> U (f2 i))
 
 let mem t =
