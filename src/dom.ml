@@ -14,7 +14,7 @@ module T = struct
 
   type tt = TInt | TStr | TFloat [@@deriving compare, sexp_of, hash]
 
-  type t = Int of int | Str of string | Float of float [@@deriving compare, sexp_of, hash]
+  type t = Int of Int.t | Str of String.t | Float of Float.t [@@deriving compare, sexp_of, hash]
 
   let equal d d' = match d, d' with
     | Int v, Int v' -> Int.equal v v'

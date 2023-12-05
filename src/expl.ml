@@ -497,11 +497,11 @@ module Proof = struct
        Printf.sprintf "\\infer[\\SiffVV]{%s, %d \\pvd %s}\n%s{{%s} & {%s}}\n"
          (val_changes_to_latex v) (s_at p) (Formula.to_latex h)
          indent (v_to_latex indent' v idx vp1 f) (v_to_latex indent' v idx vp2 g)
-    | SExists (x, d, sp), Exists (_, f) ->
+    | SExists (x, d, sp), Exists (_, _, f) ->
        let v' = v @ [(x, Dom.to_string d)] in
        Printf.sprintf "\\infer[\\Sexists]{%s, %d \\pvd %s}\n%s{%s}\n"
          (val_changes_to_latex v) (s_at p) (Formula.to_latex h) indent (s_to_latex indent' v' idx sp f)
-    | SForall (x, part), Forall (_, f) ->
+    | SForall (x, part), Forall (_, _, f) ->
        Printf.sprintf "\\infer[\\Sforall]{%s, %d \\pvd %s}\n%s{%s}\n"
          (val_changes_to_latex v) (s_at p) (Formula.to_latex h) indent
          (String.concat ~sep:"&" (List.map part ~f:(fun (sub, sp) ->
@@ -583,14 +583,14 @@ module Proof = struct
        Printf.sprintf "\\infer[\\ViffSV]{%s, %d \\nvd %s}\n%s{{%s} & {%s}}\n"
          (val_changes_to_latex v) (v_at p) (Formula.to_latex h)
          indent (v_to_latex indent' v idx vp1 f) (s_to_latex indent' v idx sp2 g)
-    | VExists (x, part), Exists (_, f) ->
+    | VExists (x, part), Exists (_, _, f) ->
        Printf.sprintf "\\infer[\\Vexists]{%s, %d \\nvd %s}\n%s{%s}\n"
          (val_changes_to_latex v) (v_at p) (Formula.to_latex h) indent
          (String.concat ~sep:"&" (List.map part ~f:(fun (sub, vp) ->
                                       let idx' = idx + 1 in
                                       let v' = v @ [(x, "d_" ^ (Int.to_string idx') ^ " \\in " ^ (Setc.to_latex sub))] in
                                       "{" ^ (v_to_latex indent' v' idx' vp f) ^ "}")))
-    | VForall (x, d, vp), Forall (_, f) ->
+    | VForall (x, d, vp), Forall (_, _, f) ->
        let v' = v @ [(x, Dom.to_string d)] in
        Printf.sprintf "\\infer[\\Vforall]{%s, %d \\nvd %s}\n%s{%s}\n"
          (val_changes_to_latex v) (v_at p) (Formula.to_latex h) indent (v_to_latex indent' v' idx vp f)

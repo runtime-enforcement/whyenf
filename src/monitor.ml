@@ -1191,29 +1191,6 @@ module MFormula = struct
     | MSince        of Interval.t * t * t * (Expl.t, Expl.t, timestamp * timepoint) Buf2t.t * Since.t Expl.Pdt.t
     | MUntil        of Interval.t * t * t * (Expl.t, Expl.t, timestamp * timepoint) Buf2t.t * Until.t Expl.Pdt.t
 
-  let rec var_tt x = function
-    | MTT | MFF -> []
-    | MEqConst _ -> []
-    | MPredicate (r, trms) -> (match (List.findi trms ~f:(fun i y -> Pred.Term.equal (Var x) y)) with
-                               | None -> []
-                               | Some (i, _) -> let props = Hashtbl.find_exn Pred.Sig.table r in
-                                                [snd (List.nth_exn props.ntconsts i)])
-    | MNeg f
-      | MExists (_, _, f)
-      | MForall (_, _, f)
-      | MPrev (_, f, _, _)
-      | MNext (_, f, _, _)
-      | MOnce (_, f, _, _)
-      | MEventually (_, f, _, _)
-      | MHistorically (_, f, _, _)
-      | MAlways (_, f, _, _) -> var_tt x f
-    | MAnd (f, g, _)
-      | MOr (f, g, _)
-      | MImp (f, g, _)
-      | MIff (f, g, _)
-      | MSince (_, f, g, _, _)
-      | MUntil (_, f, g, _, _) -> var_tt x f @ var_tt x g
-
   let rec init = function
     | Formula.TT -> MTT
     | Formula.FF -> MFF
@@ -1224,8 +1201,8 @@ module MFormula = struct
     | Formula.Or (_, f, g) -> MOr (init f, init g, ([], []))
     | Formula.Imp (_, f, g) -> MImp (init f, init g, ([], []))
     | Formula.Iff (_, _, f, g) -> MIff (init f, init g, ([], []))
-    | Formula.Exists (x, f) -> let mf = init f in MExists (x, List.hd_exn (var_tt x mf), mf)
-    | Formula.Forall (x, f) -> let mf = init f in MForall (x, List.hd_exn (var_tt x mf), mf)
+    | Formula.Exists (x, tt, f) -> let mf = init f in MExists (x, tt, mf)
+    | Formula.Forall (x, tt, f) -> let mf = init f in MForall (x, tt, mf)
     | Formula.Prev (i, f) -> MPrev (i, init f, true, ([], []))
     | Formula.Next (i, f) -> MNext (i, init f, true, [])
     | Formula.Once (i, f) -> MOnce (i, init f, [], Leaf (Once.init ()))

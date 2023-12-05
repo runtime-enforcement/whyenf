@@ -22,8 +22,8 @@ type t =
   | Or of side * t * t
   | Imp of side * t * t
   | Iff of side * side * t * t
-  | Exists of string * t
-  | Forall of string * t
+  | Exists of string * Dom.tt * t
+  | Forall of string * Dom.tt * t
   | Prev of Interval.t * t
   | Next of Interval.t * t
   | Once of Interval.t * t

@@ -17,7 +17,7 @@ let rec is_past_guarded x p = function
                                || is_past_guarded x p f && is_past_guarded x (not p) g
   | Iff (_, _, f, g) -> (is_past_guarded x (not p) f || is_past_guarded x p g)
                         && (is_past_guarded x p f || is_past_guarded x (not p) g)
-  | Exists (y, f) | Forall (y, f) -> x != y && is_past_guarded x p f
+  | Exists (y, _, f) | Forall (y, _, f) -> x != y && is_past_guarded x p f
   | Prev (_, f) -> p && is_past_guarded x p f
   | Once (_, f) | Eventually (_, f) when p -> is_past_guarded x p f
   | Once (i, f) | Eventually (i, f) -> Interval.mem 0 i && is_past_guarded x p f
@@ -79,7 +79,7 @@ module Constraints = struct
   let tt = CTT
   let ff = CFF
   let eq s t = CEq (s, t)
-  
+
   let conj c d = match c, d with
     | Possible CTT, _ -> d
     | _, Possible CTT -> c
@@ -99,7 +99,7 @@ module Constraints = struct
     | h::t -> (List.map a ~f:(fun x -> (x,h))) @ cartesian a t
 
   exception CannotMerge
-  
+
   let merge_aux ~key = function
     | `Left t | `Right t -> Some t
     | `Both (t, u) -> if t == u then Some t else raise CannotMerge
@@ -107,7 +107,7 @@ module Constraints = struct
   let try_merge (a, b) =
     try Some (Map.merge a b ~f:merge_aux)
     with CannotMerge -> None
-  
+
   let rec solve = function
     | CTT -> [Map.empty (module String)]
     | CFF -> []
@@ -160,7 +160,7 @@ let rec types t f =
       | Iff (R, R, f, g) -> conj (types Cau g) (types Sup g)
       | Iff (_, _, f, g) -> conj (disj (types Sup f) (types Cau g))
                               (disj (types Cau f) (types Sup g))
-      | Exists (_, f) -> types Cau f
+      | Exists (_, _, f) -> types Cau f
       | Next (i, f) when i == Interval.full -> types Cau f
       | Next (i, f) -> error "○ with non-[0,∞) interval is never Cau"
       | Once (i, g) | Since (_, i, _, g) when Interval.mem 0 i -> types Cau g
@@ -175,7 +175,7 @@ let rec types t f =
   | Sup -> begin
       match f with
       | FF -> Possible CTT
-      | Predicate (e, _) -> types_predicate Sup e 
+      | Predicate (e, _) -> types_predicate Sup e
       | Neg f -> types Cau f
       | And (L, f, g) -> types Sup f
       | And (R, f, g) -> types Sup g
@@ -186,8 +186,8 @@ let rec types t f =
       | Iff (R, _, f, g) -> conj (types Sup f) (types Cau g)
       | Iff (_, _, f, g) -> disj (conj (types Cau f) (types Sup g))
                               (conj (types Sup f) (types Cau g))
-      | Exists (x, f) when is_past_guarded x true f -> types Sup f
-      | Exists (x, f) ->  error ("for suppressability " ^ x ^ " must be past-guarded")
+      | Exists (x, _, f) when is_past_guarded x true f -> types Sup f
+      | Exists (x, _, f) ->  error ("for suppressability " ^ x ^ " must be past-guarded")
       | Next (_, f) -> types Sup f
       | Historically (i, f) when Interval.mem 0 i -> types Sup f
       | Historically (i, f) -> error "■[a,b) with a > 0 is never Sup"
@@ -207,7 +207,7 @@ let rec types t f =
 
 let rec convert enftype form : Tformula.t option =
   (*Stdio.print_endline (Formula.to_string form);*)
-  let f = 
+  let f =
     match enftype with
       Cau -> begin
         match form with
@@ -242,7 +242,7 @@ let rec convert enftype form : Tformula.t option =
         | Iff (R, L, f, g) -> (convert Cau g) >>= (fun g' -> (convert Cau f)
                                                              >>= (fun f' -> Some (Tformula.TIff (R, L, f', g'))))
         | Iff (R, R, f, g) -> (convert Cau g) >>= (fun g' -> Some (Tformula.TIff (R, R, Tformula.of_formula f, g')))
-        | Iff (_, _, f, g) -> 
+        | Iff (_, _, f, g) ->
            begin
              match convert Sup f with
              | Some f' ->
@@ -259,7 +259,7 @@ let rec convert enftype form : Tformula.t option =
                  | None    -> (convert Sup g)
                               >>= (fun g' -> Some (Tformula.TIff (R, R, Tformula.of_formula f, g'))))
            end
-        | Exists (x, f) -> (convert Cau f) >>= (fun f' -> Some (Tformula.TExists (x, f')))
+        | Exists (x, _, f) -> (convert Cau f) >>= (fun f' -> Some (Tformula.TExists (x, f')))
         | Next (i, f) when i == Interval.full ->
            (convert Cau f) >>= (fun f' -> Some (Tformula.TNext (i, f')))
         | Once (i, f) when Interval.mem 0 i ->
@@ -280,7 +280,7 @@ let rec convert enftype form : Tformula.t option =
         | Neg f -> (convert Cau f) >>= (fun f' -> Some (Tformula.TNeg f'))
         | And (L, f, g) -> (convert Sup f) >>= (fun f' -> Some (Tformula.TAnd (L, f', Tformula.of_formula g)))
         | And (R, f, g) -> (convert Sup g) >>= (fun g' -> Some (Tformula.TAnd (L, Tformula.of_formula f, g')))
-        | And (_, f, g) -> 
+        | And (_, f, g) ->
            begin
              match convert Sup f with
              | Some f' -> Some (Tformula.TAnd (L, f', Tformula.of_formula g))
@@ -303,7 +303,7 @@ let rec convert enftype form : Tformula.t option =
                        | Some f', Some g' -> Some (Tformula.TIff(R, L, f', g'))
                        | _, _ -> None
            end
-        | Exists (x, f) when is_past_guarded x true f ->
+        | Exists (x, _, f) when is_past_guarded x true f ->
            (convert Sup f) >>= (fun f' -> Some (Tformula.TExists (x, Tformula.of_formula f)))
         | Next (i, f) -> (convert Sup f) >>= (fun f' -> Some (Tformula.TNext (i, f')))
         | Historically (i, f) when Interval.mem 0 i ->
