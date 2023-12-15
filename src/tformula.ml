@@ -75,6 +75,6 @@ and to_string_rec l form =
   if form.enftype == EnfType.Obs then
     Printf.sprintf "%a" (fun x -> to_string_core_rec 5) form.f
   else
-    Printf.sprintf "%a : %s" (fun x -> to_string_core_rec 5) form.f (EnfType.to_string form.enftype)
+    Printf.sprintf (Etc.paren l 0 "%a : %s") (fun x -> to_string_core_rec 5) form.f (EnfType.to_string form.enftype)
 
 let to_string = to_string_rec 0

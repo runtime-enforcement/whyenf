@@ -207,6 +207,7 @@ let rec types t f =
 
 let rec convert enftype form : Tformula.t option =
   (*Stdio.print_endline (Formula.to_string form);*)
+  let default_L s = if s == R then R else L in
   let f =
     match enftype with
       Cau -> begin
@@ -214,10 +215,10 @@ let rec convert enftype form : Tformula.t option =
         | TT -> Some (Tformula.TTT)
         | Predicate (e, t) when Pred.Sig.enftype e == Cau -> Some (Tformula.TPredicate (e, t))
         | Neg f -> (convert Sup f) >>= (fun f' -> Some (Tformula.TNeg f'))
-        | And (_, f, g) ->
+        | And (s, f, g) ->
            (convert Cau f)
            >>= (fun f' -> (convert Cau g)
-                          >>= (fun g' -> Some (Tformula.TAnd (LR, f', g'))))
+                          >>= (fun g' -> Some (Tformula.TAnd (default_L s, f', g'))))
         | Or (L, f, g) -> (convert Cau f) >>= (fun f' -> Some (Tformula.TOr(L, f', Tformula.of_formula g)))
         | Or (R, f, g) -> (convert Cau g) >>= (fun g' -> Some (Tformula.TOr(R, Tformula.of_formula f, g')))
         | Or (_, f, g) ->
@@ -287,10 +288,10 @@ let rec convert enftype form : Tformula.t option =
              | None    -> (convert Sup g)
                           >>= (fun g' -> Some (Tformula.TAnd (R, Tformula.of_formula f, g')))
            end
-        | Or (_, f, g) -> (convert Sup f) >>= (fun f' -> (convert Sup g)
-                                                         >>= (fun g' -> Some (Tformula.TOr (LR, f', g'))))
-        | Imp (_, f, g) -> (convert Cau f) >>= (fun f' -> (convert Sup g)
-                                                          >>= (fun g' -> Some (Tformula.TImp (LR, f', g'))))
+        | Or (s, f, g) -> (convert Sup f) >>= (fun f' -> (convert Sup g)
+                                                         >>= (fun g' -> Some (Tformula.TOr (default_L s, f', g'))))
+        | Imp (s, f, g) -> (convert Cau f) >>= (fun f' -> (convert Sup g)
+                                                          >>= (fun g' -> Some (Tformula.TImp (default_L s, f', g'))))
         | Iff (L, _, f, g) -> (convert Cau f) >>= (fun f' -> (convert Sup g)
                                                              >>= (fun g' -> Some (Tformula.TIff (L, N, f', g'))))
         | Iff (R, _, f, g) -> (convert Sup f) >>= (fun f' -> (convert Cau g)

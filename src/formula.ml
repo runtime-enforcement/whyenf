@@ -334,13 +334,13 @@ let op_to_string = function
 
 let string_of_side = function
   | N  -> ""
-  | L  -> "/L/"
-  | R  -> "/R/"
-  | LR -> "/LR/"
+  | L  -> ":L"
+  | R  -> ":R"
+  | LR -> ":LR"
 
 let string_of_sides =
   let aux = function N  -> "N" | L  -> "L" | R  -> "R" | LR -> "LR"
-  in function (N, N) -> "" | (a, b) -> "/" ^ aux a ^ "," ^ aux b ^ "/"
+  in function (N, N) -> "" | (a, b) -> ":" ^ aux a ^ "," ^ aux b
 
 let side_of_string = function
   | "L"  -> L
