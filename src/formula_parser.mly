@@ -20,7 +20,7 @@ let debug m = if !debug then Stdio.print_endline ("[debug] formula_parser: " ^ m
 %token RPA
 %token COMMA
 %token DOT
-%token SLA
+%token COL
 %token EOF
 
 %token <Interval.t> INTERVAL
@@ -113,10 +113,10 @@ e:
 | STR LPA terms RPA                    { debug "STR LPA terms RPA"; predicate $1 $3 }
 
 side:
-| SLA STR SLA                          { debug "SLA STR SLA"; side_of_string $2 }
+| COL STR                              { debug "COL STR"; side_of_string $2 }
 
 sides:
-| SLA STR COMMA STR SLA                { debug "SLA STR COMMA STR SLA"; (side_of_string $2, side_of_string $4) }
+| COL STR COMMA STR                    { debug "COL STR COMMA STR"; (side_of_string $2, side_of_string $4) }
 
 term:
 | const                                { debug "CONST"; $1 }

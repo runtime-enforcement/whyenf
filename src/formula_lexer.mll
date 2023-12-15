@@ -37,7 +37,7 @@ rule token = parse
   | '#'                                           { debug "skip_line"; skip_line lexbuf }
   | ','                                           { debug "COMMA"; COMMA }
   | '.'                                           { debug "DOT"; DOT }
-  | '/'                                           { debug "SLA"; SLA }
+  | ':'                                           { debug "COL"; COL }
   | "false" | "⊥"                                 { debug "FALSE"; FALSE }
   | "true" | "⊤"                                  { debug "TRUE"; TRUE }
   | "="                                           { debug "EQCONST"; EQCONST }
