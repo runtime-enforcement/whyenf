@@ -11,7 +11,33 @@
 open Base
 open Pred
 
-type side = N | L | R | LR
+module Side = struct
+
+  type t = N | L | R | LR
+
+  let equal s s' = match s, s' with
+    | N, N
+      | L, L
+      | R, R
+      | LR, LR -> true
+    | _ -> false
+
+  let string_of = function
+    | N  -> ""
+    | L  -> ":L"
+    | R  -> ":R"
+    | LR -> ":LR"
+
+  let string_of2 =
+    let aux = function N  -> "N" | L  -> "L" | R  -> "R" | LR -> "LR"
+    in function (N, N) -> "" | (a, b) -> ":" ^ aux a ^ "," ^ aux b
+
+  let of_string = function
+    | "L"  -> L
+    | "R"  -> R
+    | "LR" -> LR
+
+end
 
 type t =
   | TT
@@ -19,10 +45,10 @@ type t =
   | EqConst of string * Dom.t
   | Predicate of string * Term.t list
   | Neg of t
-  | And of side * t * t
-  | Or of side * t * t
-  | Imp of side * t * t
-  | Iff of side * side * t * t
+  | And of Side.t * t * t
+  | Or of Side.t * t * t
+  | Imp of Side.t * t * t
+  | Iff of Side.t * Side.t * t * t
   | Exists of string * Dom.tt * t
   | Forall of string * Dom.tt * t
   | Prev of Interval.t * t
@@ -31,8 +57,8 @@ type t =
   | Eventually of Interval.t * t
   | Historically of Interval.t * t
   | Always of Interval.t * t
-  | Since of side * Interval.t * t * t
-  | Until of side * Interval.t * t * t
+  | Since of Side.t * Interval.t * t * t
+  | Until of Side.t * Interval.t * t * t
 
 let rec var_tt x = function
   | TT | FF -> []
@@ -88,8 +114,8 @@ let equal x y = match x, y with
   | Neg f, Neg f' -> phys_equal f f'
   | And (s, f, g), And (s', f', g')
     | Or (s, f, g), Or (s', f', g')
-    | Imp (s, f, g), Imp (s', f', g') -> s == s' && phys_equal f f' && phys_equal g g'
-  | Iff (s, t, f, g), Iff (s', t', f', g') -> s == s' && t == t' && phys_equal f f' && phys_equal g g'
+    | Imp (s, f, g), Imp (s', f', g') -> Side.equal s s' && phys_equal f f' && phys_equal g g'
+  | Iff (s, t, f, g), Iff (s', t', f', g') -> Side.equal s s' && Side.equal t t' && phys_equal f f' && phys_equal g g'
   | Exists (x, tt, f), Exists (x', tt', f')
     | Forall (x, tt, f), Forall (x', tt', f') -> String.equal x x' && Dom.tt_equal tt tt' && phys_equal f f'
   | Prev (i, f), Prev (i', f')
@@ -99,7 +125,7 @@ let equal x y = match x, y with
     | Historically (i, f), Historically (i', f')
     | Always (i, f), Always (i', f') -> Interval.equal i i' && phys_equal f f'
   | Since (s, i, f, g), Since (s', i', f', g')
-    | Until (s, i, f, g), Until (s', i', f', g') -> s == s' && Interval.equal i i' && phys_equal f f' && phys_equal g g'
+    | Until (s, i, f, g), Until (s', i', f', g') -> Side.equal s s' && Interval.equal i i' && phys_equal f f' && phys_equal g g'
   | _ -> false
 
 let rec fv = function
@@ -332,20 +358,7 @@ let op_to_string = function
   | Since (_, i, _, _) -> Printf.sprintf "S%s" (Interval.to_string i)
   | Until (_, i, _, _) -> Printf.sprintf "U%s" (Interval.to_string i)
 
-let string_of_side = function
-  | N  -> ""
-  | L  -> ":L"
-  | R  -> ":R"
-  | LR -> ":LR"
 
-let string_of_sides =
-  let aux = function N  -> "N" | L  -> "L" | R  -> "R" | LR -> "LR"
-  in function (N, N) -> "" | (a, b) -> ":" ^ aux a ^ "," ^ aux b
-
-let side_of_string = function
-  | "L"  -> L
-  | "R"  -> R
-  | "LR" -> LR
 
 let rec to_string_rec l = function
   | TT -> Printf.sprintf "⊤"
@@ -353,10 +366,10 @@ let rec to_string_rec l = function
   | EqConst (x, c) -> Printf.sprintf "%s = %s" x (Dom.to_string c)
   | Predicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
   | Neg f -> Printf.sprintf "¬%a" (fun x -> to_string_rec 5) f
-  | And (s, f, g) -> Printf.sprintf (Etc.paren l 4 "%a ∧%a %a") (fun x -> to_string_rec 4) f (fun x -> string_of_side) s (fun x -> to_string_rec 4) g
-  | Or (s, f, g) -> Printf.sprintf (Etc.paren l 3 "%a ∨%a %a") (fun x -> to_string_rec 3) f (fun x -> string_of_side) s (fun x -> to_string_rec 4) g
-  | Imp (s, f, g) -> Printf.sprintf (Etc.paren l 5 "%a →%a %a") (fun x -> to_string_rec 5) f (fun x -> string_of_side) s (fun x -> to_string_rec 5) g
-  | Iff (s, t, f, g) -> Printf.sprintf (Etc.paren l 5 "%a ↔%a %a") (fun x -> to_string_rec 5) f (fun x -> string_of_sides) (s, t) (fun x -> to_string_rec 5) g
+  | And (s, f, g) -> Printf.sprintf (Etc.paren l 4 "%a ∧%a %a") (fun x -> to_string_rec 4) f (fun x -> Side.string_of) s (fun x -> to_string_rec 4) g
+  | Or (s, f, g) -> Printf.sprintf (Etc.paren l 3 "%a ∨%a %a") (fun x -> to_string_rec 3) f (fun x -> Side.string_of) s (fun x -> to_string_rec 4) g
+  | Imp (s, f, g) -> Printf.sprintf (Etc.paren l 5 "%a →%a %a") (fun x -> to_string_rec 5) f (fun x -> Side.string_of) s (fun x -> to_string_rec 5) g
+  | Iff (s, t, f, g) -> Printf.sprintf (Etc.paren l 5 "%a ↔%a %a") (fun x -> to_string_rec 5) f (fun x -> Side.string_of2) (s, t) (fun x -> to_string_rec 5) g
   | Exists (x, _, f) -> Printf.sprintf (Etc.paren l 5 "∃%s. %a") x (fun x -> to_string_rec 5) f
   | Forall (x, _, f) -> Printf.sprintf (Etc.paren l 5 "∀%s. %a") x (fun x -> to_string_rec 5) f
   | Prev (i, f) -> Printf.sprintf (Etc.paren l 5 "●%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
@@ -366,9 +379,9 @@ let rec to_string_rec l = function
   | Historically (i, f) -> Printf.sprintf (Etc.paren l 5 "■%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
   | Always (i, f) -> Printf.sprintf (Etc.paren l 5 "□%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
   | Since (s, i, f, g) -> Printf.sprintf (Etc.paren l 0 "%a S%a%a %a") (fun x -> to_string_rec 5) f
-                          (fun x -> Interval.to_string) i (fun x -> string_of_side) s (fun x -> to_string_rec 5) g
+                          (fun x -> Interval.to_string) i (fun x -> Side.string_of) s (fun x -> to_string_rec 5) g
   | Until (s, i, f, g) -> Printf.sprintf (Etc.paren l 0 "%a U%a%a %a") (fun x -> to_string_rec 5) f
-                         (fun x -> Interval.to_string) i (fun x -> string_of_side) s (fun x -> to_string_rec 5) g
+                         (fun x -> Interval.to_string) i (fun x -> Side.string_of) s (fun x -> to_string_rec 5) g
 let to_string = to_string_rec 0
 
 let rec to_json_rec indent pos f =
