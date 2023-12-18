@@ -1576,11 +1576,12 @@ let mstep mode vars ts db (ms: MState.t) =
    ; tsdbs = tsdbs })
 
 let exec mode measure f inc =
+  let vars = Set.elements (Formula.fv f) in
   let rec step pb_opt ms =
     match Other_parser.Trace.parse_from_channel inc pb_opt with
     | None -> ()
     | Some (more, pb) ->
-       (let (tstp_expls, ms') = mstep mode (Set.elements (Formula.fv f)) pb.ts pb.db ms in
+       (let (tstp_expls, ms') = mstep mode vars pb.ts pb.db ms in
         (match mode with
          | Out.Plain.UNVERIFIED -> Out.Plain.expls tstp_expls None None None mode
          | Out.Plain.LATEX -> Out.Plain.expls tstp_expls None None (Some(f)) mode
@@ -1599,6 +1600,7 @@ let exec mode measure f inc =
   step None ms
 
 let exec_vis (obj_opt: MState.t option) f log =
+  let vars = Set.elements (Formula.fv f) in
   let step (ms: MState.t) db =
     try
       (match Other_parser.Trace.parse_from_string db with
@@ -1606,7 +1608,7 @@ let exec_vis (obj_opt: MState.t option) f log =
        | Some (_, pb) ->
           (let last_ts = Hashtbl.fold ms.tpts ~init:0 ~f:(fun ~key:_ ~data:ts l_ts -> if ts > l_ts then ts else l_ts) in
            if pb.ts >= last_ts then
-             let (tstps_expls, ms') = mstep Out.Plain.UNVERIFIED (Set.elements (Formula.fv f)) pb.ts pb.db ms in
+             let (tstps_expls, ms') = mstep Out.Plain.UNVERIFIED vars pb.ts pb.db ms in
              let tp_out' = List.fold tstps_expls ~init:ms'.tp_out
                              ~f:(fun acc ((ts, tp), _) -> Hashtbl.add_exn ms.tpts ~key:(acc + 1) ~data:ts; acc + 1) in
              let json_expls = Out.Json.expls ms.tpts f (List.map tstps_expls ~f:snd) in
