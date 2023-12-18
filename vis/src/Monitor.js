@@ -100,7 +100,8 @@ function formStateReducer(formState, action) {
   case 'setSig':
     newCheckedInputs = { ...formState.checkedInputs,
                          0: window.checkSignature(action.sig),
-                         1: window.checkFormula(formState.formula)
+                         1: window.checkFormula(formState.formula),
+                         2: window.checkLog(formState.trace)
                        };
     return { ...formState,
              sig: action.sig,
@@ -108,7 +109,8 @@ function formStateReducer(formState, action) {
            };
   case 'setFormula':
     newCheckedInputs = { ...formState.checkedInputs,
-                         1: window.checkFormula(action.formula)
+                         1: window.checkFormula(action.formula),
+                         2: window.checkLog(formState.trace)
                        };
     return { ...formState,
              formula: action.formula,

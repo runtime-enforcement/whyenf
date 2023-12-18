@@ -135,6 +135,8 @@ Note that this tool also supports the equivalent Unicode characters (on the righ
            | @{NAT} {PREDICATE}()* \n {TRACE}
 ```
 
+where `0 <= {NAT} <= 2147483647`.
+
 ## License
 
 This project is licensed under the GNU Lesser GPL-3.0 license - see [LICENSE](LICENSE) for details.
