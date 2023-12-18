@@ -110,6 +110,8 @@ e:
 | e RELEASE e                          { debug "e RELEASE e"; (*raise (Invalid_argument "unbounded future operator: release")*) release N Interval.full $1 $3 }
 | EXISTS STR DOT e %prec EXISTS        { debug "EXISTS STR DOT e"; exists $2 $4 }
 | FORALL STR DOT e %prec FORALL        { debug "FORALL STR DOT e"; forall $2 $4 }
+| EXISTS vars DOT e %prec EXISTS       { debug "EXISTS STR DOT e"; List.fold_right exists (List.tl $2) (exists (List.hd $2) $4) }
+| FORALL vars DOT e %prec FORALL       { debug "FORALL STR DOT e"; List.fold_right forall (List.tl $2) (forall (List.hd $2) $4) }
 | STR LPA terms RPA                    { debug "STR LPA terms RPA"; predicate $1 $3 }
 
 side:
@@ -128,3 +130,6 @@ const:
 
 terms:
 | trms=separated_list (COMMA, term)    { debug "trms"; trms }
+
+vars:
+| vrs=separated_nonempty_list (COMMA, STR) { debug "vrs"; vrs }
