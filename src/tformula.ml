@@ -9,10 +9,10 @@ type core_t =
   | TEqConst of string * Dom.t
   | TPredicate of string * Term.t list
   | TNeg of t
-  | TAnd of side * t * t
-  | TOr of side * t * t
-  | TImp of side * t * t
-  | TIff of side * side * t * t
+  | TAnd of Side.t * t * t
+  | TOr of Side.t * t * t
+  | TImp of Side.t * t * t
+  | TIff of Side.t * Side.t * t * t
   | TExists of string * t
   | TForall of string * t
   | TPrev of Interval.t * t
@@ -21,8 +21,8 @@ type core_t =
   | TEventually of Interval.t * t
   | THistorically of Interval.t * t
   | TAlways of Interval.t * t
-  | TSince of side * Interval.t * t * t
-  | TUntil of side * Interval.t * t * t
+  | TSince of Side.t * Interval.t * t * t
+  | TUntil of Side.t * Interval.t * t * t
 
 and t = { f: core_t; enftype: EnfType.t }
 
@@ -55,10 +55,10 @@ let rec to_string_core_rec l = function
   | TEqConst (x, c) -> Printf.sprintf "%s = %s" x (Dom.to_string c)
   | TPredicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
   | TNeg f -> Printf.sprintf "¬%a" (fun x -> to_string_rec 5) f
-  | TAnd (s, f, g) -> Printf.sprintf (Etc.paren l 4 "%a ∧%a %a") (fun x -> to_string_rec 4) f (fun x -> string_of_side) s (fun x -> to_string_rec 4) g
-  | TOr (s, f, g) -> Printf.sprintf (Etc.paren l 3 "%a ∨%a %a") (fun x -> to_string_rec 3) f (fun x -> string_of_side) s (fun x -> to_string_rec 4) g
-  | TImp (s, f, g) -> Printf.sprintf (Etc.paren l 5 "%a →%a %a") (fun x -> to_string_rec 5) f (fun x -> string_of_side) s (fun x -> to_string_rec 5) g
-  | TIff (s, t, f, g) -> Printf.sprintf (Etc.paren l 5 "%a ↔%a %a") (fun x -> to_string_rec 5) f (fun x -> string_of_sides) (s, t) (fun x -> to_string_rec 5) g
+  | TAnd (s, f, g) -> Printf.sprintf (Etc.paren l 4 "%a ∧%a %a") (fun x -> to_string_rec 4) f (fun x -> Side.string_of) s (fun x -> to_string_rec 4) g
+  | TOr (s, f, g) -> Printf.sprintf (Etc.paren l 3 "%a ∨%a %a") (fun x -> to_string_rec 3) f (fun x -> Side.string_of) s (fun x -> to_string_rec 4) g
+  | TImp (s, f, g) -> Printf.sprintf (Etc.paren l 5 "%a →%a %a") (fun x -> to_string_rec 5) f (fun x -> Side.string_of) s (fun x -> to_string_rec 5) g
+  | TIff (s, t, f, g) -> Printf.sprintf (Etc.paren l 5 "%a ↔%a %a") (fun x -> to_string_rec 5) f (fun x -> Side.string_of2) (s, t) (fun x -> to_string_rec 5) g
   | TExists (x, f) -> Printf.sprintf (Etc.paren l 5 "∃%s. %a") x (fun x -> to_string_rec 5) f
   | TForall (x, f) -> Printf.sprintf (Etc.paren l 5 "∀%s. %a") x (fun x -> to_string_rec 5) f
   | TPrev (i, f) -> Printf.sprintf (Etc.paren l 5 "●%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
@@ -68,9 +68,9 @@ let rec to_string_core_rec l = function
   | THistorically (i, f) -> Printf.sprintf (Etc.paren l 5 "■%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
   | TAlways (i, f) -> Printf.sprintf (Etc.paren l 5 "□%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
   | TSince (s, i, f, g) -> Printf.sprintf (Etc.paren l 0 "%a S%a%a %a") (fun x -> to_string_rec 5) f
-                         (fun x -> Interval.to_string) i (fun x -> string_of_side) s (fun x -> to_string_rec 5) g
+                         (fun x -> Interval.to_string) i (fun x -> Side.string_of) s (fun x -> to_string_rec 5) g
   | TUntil (s, i, f, g) -> Printf.sprintf (Etc.paren l 0 "%a U%a%a %a") (fun x -> to_string_rec 5) f
-                         (fun x -> Interval.to_string) i (fun x -> string_of_side) s (fun x -> to_string_rec 5) g
+                         (fun x -> Interval.to_string) i (fun x -> Side.string_of) s (fun x -> to_string_rec 5) g
 and to_string_rec l form =
   if form.enftype == EnfType.Obs then
     Printf.sprintf "%a" (fun x -> to_string_core_rec 5) form.f

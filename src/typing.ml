@@ -207,7 +207,7 @@ let rec types t f =
 
 let rec convert enftype form : Tformula.t option =
   (*Stdio.print_endline (Formula.to_string form);*)
-  let default_L s = if s == R then R else L in
+  let default_L (s: Side.t) = if Side.equal s R then Side.R else L in
   let f =
     match enftype with
       Cau -> begin

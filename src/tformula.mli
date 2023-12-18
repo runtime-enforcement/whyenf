@@ -9,10 +9,10 @@ type core_t =
   | TEqConst of string * Dom.t
   | TPredicate of string * Term.t list
   | TNeg of t
-  | TAnd of side * t * t
-  | TOr of side * t * t
-  | TImp of side * t * t
-  | TIff of side * side * t * t
+  | TAnd of Side.t * t * t
+  | TOr of Side.t * t * t
+  | TImp of Side.t * t * t
+  | TIff of Side.t * Side.t * t * t
   | TExists of string * t
   | TForall of string * t
   | TPrev of Interval.t * t
@@ -21,8 +21,8 @@ type core_t =
   | TEventually of Interval.t * t
   | THistorically of Interval.t * t
   | TAlways of Interval.t * t
-  | TSince of side * Interval.t * t * t
-  | TUntil of side * Interval.t * t * t
+  | TSince of Side.t * Interval.t * t * t
+  | TUntil of Side.t * Interval.t * t * t
 
 and t = { f: core_t; enftype: EnfType.t }
 

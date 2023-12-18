@@ -113,10 +113,10 @@ e:
 | STR LPA terms RPA                    { debug "STR LPA terms RPA"; predicate $1 $3 }
 
 side:
-| COL STR                              { debug "COL STR"; side_of_string $2 }
+| COL STR                              { debug "COL STR"; Side.of_string $2 }
 
 sides:
-| COL STR COMMA STR                    { debug "COL STR COMMA STR"; (side_of_string $2, side_of_string $4) }
+| COL STR COMMA STR                    { debug "COL STR COMMA STR"; (Side.of_string $2, Side.of_string $4) }
 
 term:
 | const                                { debug "CONST"; $1 }
