@@ -1510,7 +1510,7 @@ module MState = struct
 
   let init mf = { mf = mf
                 ; tp_cur = 0
-                ; tp_out = -1
+                ; tp_out = 0
                 ; ts_waiting = Queue.create ()
                 ; tsdbs = Queue.create ()
                 ; tpts = Hashtbl.create (module Int) }
@@ -1540,7 +1540,7 @@ let mstep mode vars ts db (ms: MState.t) =
   let (expls, mf') = meval vars ts ms.tp_cur db ms.mf in
   Queue.enqueue ms.ts_waiting ts;
   let tstps = List.zip_exn (List.take (Queue.to_list ms.ts_waiting) (List.length expls))
-                (List.range ms.tp_cur (ms.tp_cur + List.length expls)) in
+                (List.range ms.tp_out (ms.tp_out + List.length expls)) in
   let tsdbs = match mode with
     | Out.Plain.VERIFIED
       | Out.Plain.DEBUG -> Queue.enqueue ms.tsdbs (ts, db); ms.tsdbs
@@ -1549,6 +1549,7 @@ let mstep mode vars ts db (ms: MState.t) =
    { ms with
      mf = mf'
    ; tp_cur = ms.tp_cur + 1
+   ; tp_out = ms.tp_out + (List.length expls)
    ; ts_waiting = queue_drop ms.ts_waiting (List.length expls)
    ; tsdbs = tsdbs })
 
@@ -1559,17 +1560,17 @@ let exec mode measure f inc =
     | Some (more, pb) ->
        (let (tstp_expls, ms') = mstep mode (Set.elements (Formula.fv f)) pb.ts pb.db ms in
         (match mode with
-         | Out.Plain.UNVERIFIED -> Out.Plain.expls pb.ts tstp_expls None None None mode
-         | Out.Plain.LATEX -> Out.Plain.expls pb.ts tstp_expls None None (Some(f)) mode
-         | Out.Plain.LIGHT -> Out.Plain.expls pb.ts tstp_expls None None None mode
+         | Out.Plain.UNVERIFIED -> Out.Plain.expls tstp_expls None None None mode
+         | Out.Plain.LATEX -> Out.Plain.expls tstp_expls None None (Some(f)) mode
+         | Out.Plain.LIGHT -> Out.Plain.expls tstp_expls None None None mode
          | Out.Plain.DEBUGVIS -> raise (Failure "function exec is undefined for the mode debugvis")
          | Out.Plain.VERIFIED ->
             let c = Checker_interface.check (Queue.to_list ms'.tsdbs) f (List.map tstp_expls ~f:snd) in
-            Out.Plain.expls pb.ts tstp_expls (Some(c)) None None mode
+            Out.Plain.expls tstp_expls (Some(c)) None None mode
          | Out.Plain.DEBUG ->
             let c = Checker_interface.check (Queue.to_list ms'.tsdbs) f (List.map tstp_expls ~f:snd) in
             let paths = Checker_interface.false_paths (Queue.to_list ms'.tsdbs) f (List.map tstp_expls ~f:snd) in
-            Out.Plain.expls pb.ts tstp_expls (Some(c)) (Some(paths)) None mode);
+            Out.Plain.expls tstp_expls (Some(c)) (Some(paths)) None mode);
         if more then step (Some(pb)) ms') in
   let mf = init f in
   let ms = MState.init mf in
