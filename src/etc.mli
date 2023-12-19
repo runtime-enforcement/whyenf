@@ -38,6 +38,8 @@ val some_string: unit -> string
 
 val string_list_to_json: string list -> string
 
+val dom_map_to_string: (string, Dom.t, String.comparator_witness) Map.t -> string
+
 val int_list_to_json: int list -> string
 
 val unquote: string -> string

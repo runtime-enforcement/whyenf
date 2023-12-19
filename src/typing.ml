@@ -348,18 +348,18 @@ let do_type f =
                                               ^ "\nis enforceable and types to\n "
                                               ^ Tformula.to_string f');
                          f'
-            | None    -> failwith "formula cannot be converted"
+            | None    -> raise (Invalid_argument (Printf.sprintf "formula %s cannot be converted" (Formula.to_string f)))
           end
        | _ -> Stdio.print_endline ("The formula\n "
                                    ^ Formula.to_string f
                                    ^ "\nis not enforceable because the constraint\n "
                                    ^ Constraints.to_string c
                                    ^ "\nhas no solution");
-              failwith "formula is not enforceable"
+              raise (Invalid_argument (Printf.sprintf "formula %s is not enforceable" (Formula.to_string f)))
      end
   | Impossible e ->
      Stdio.print_endline ("The formula\n "
                           ^ Formula.to_string f
                           ^ "\nis not enforceable because\n "
                           ^ Errors.to_string e);
-     failwith "formula is not enforceable"
+     raise (Invalid_argument (Printf.sprintf "formula %s is not enforceable" (Formula.to_string f)))
