@@ -1515,6 +1515,10 @@ module MState = struct
                 ; tsdbs = Queue.create ()
                 ; tpts = Hashtbl.create (module Int) }
 
+  let tp_cur ms = ms.tp_cur
+
+  let tsdbs ms = ms.tsdbs
+
   let to_string { mf
                 ; tp_cur
                 ; tp_out
@@ -1543,7 +1547,8 @@ let mstep mode vars ts db (ms: MState.t) =
                 (List.range ms.tp_out (ms.tp_out + List.length expls)) in
   let tsdbs = match mode with
     | Out.Plain.VERIFIED
-      | Out.Plain.DEBUG -> Queue.enqueue ms.tsdbs (ts, db); ms.tsdbs
+      | Out.Plain.DEBUG
+      | Out.Plain.ENFORCE -> Queue.enqueue ms.tsdbs (ts, db); ms.tsdbs
     | _ -> ms.tsdbs in
   (List.zip_exn tstps expls,
    { ms with

@@ -57,6 +57,10 @@ let rec string_list_to_string = function
   | x :: xs -> if List.is_empty xs then x
                else Printf.sprintf "%s, %s" x (string_list_to_string xs)
 
+let dom_map_to_string m =
+  string_list_to_string
+    (List.map (Map.to_alist m) ~f:(fun (x, d) -> Printf.sprintf "%s -> %s" x (Dom.to_string d)))
+
 let some_string () = (String.of_char (Char.of_int_exn (Random.int_incl 97 122))) ^
                        (String.of_char (Char.of_int_exn (Random.int_incl 97 122))) ^
                          (String.of_char (Char.of_int_exn (Random.int_incl 97 122))) ^
