@@ -260,7 +260,7 @@ let rec convert enftype form : Tformula.t option =
                  | None    -> (convert Sup g)
                               >>= (fun g' -> Some (Tformula.TIff (R, R, Tformula.of_formula f, g'))))
            end
-        | Exists (x, _, f) -> (convert Cau f) >>= (fun f' -> Some (Tformula.TExists (x, f')))
+        | Exists (x, tt, f) -> (convert Cau f) >>= (fun f' -> Some (Tformula.TExists (x, tt, f')))
         | Next (i, f) when i == Interval.full ->
            (convert Cau f) >>= (fun f' -> Some (Tformula.TNext (i, f')))
         | Once (i, f) when Interval.mem 0 i ->
@@ -304,8 +304,8 @@ let rec convert enftype form : Tformula.t option =
                        | Some f', Some g' -> Some (Tformula.TIff(R, L, f', g'))
                        | _, _ -> None
            end
-        | Exists (x, _, f) when is_past_guarded x true f ->
-           (convert Sup f) >>= (fun f' -> Some (Tformula.TExists (x, Tformula.of_formula f)))
+        | Exists (x, tt, f) when is_past_guarded x true f ->
+           (convert Sup f) >>= (fun f' -> Some (Tformula.TExists (x, tt, Tformula.of_formula f)))
         | Next (i, f) -> (convert Sup f) >>= (fun f' -> Some (Tformula.TNext (i, f')))
         | Historically (i, f) when Interval.mem 0 i ->
            (convert Sup f) >>= (fun f' -> Some (Tformula.THistorically (i, f')))

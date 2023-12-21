@@ -9,10 +9,17 @@
 
 open Etc
 
-type take_formula = timestamp -> Formula.t
 type polarity = POS | NEG
-type kind = NextCau | NextSup | UntilCau | UntilSup | Other
 
-type t = kind * take_formula * Expl.Proof.valuation * polarity
+type kind =
+  | FFormula of Tformula.t                       (* fun _ -> f *)
+  | FInterval of int * Interval.t * Tformula.t   (* fun t -> if mem t i then f else Formula.TT *)
+  | FUntil of int * Formula.Side.t * Interval.t * Tformula.t * Tformula.t
+                                                 (* fun t -> Until (s, sub2 i (t-t0), f1, f2) *)
+  | FAlways of int * Interval.t * Tformula.t     (* fun t -> Always (sub2 i (t-t0), f1) *)
+  | FEventually of int * Interval.t * Tformula.t (* fun t -> Eventually (sub2 i (t-t0), f1) *)
 
+type t = kind * Expl.Proof.valuation * polarity
+
+val eval: t -> int -> Tformula.t
 val to_string: t -> string

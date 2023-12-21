@@ -13,8 +13,8 @@ type core_t =
   | TOr of Side.t * t * t
   | TImp of Side.t * t * t
   | TIff of Side.t * Side.t * t * t
-  | TExists of string * t
-  | TForall of string * t
+  | TExists of string * Dom.tt * t
+  | TForall of string * Dom.tt * t
   | TPrev of Interval.t * t
   | TNext of Interval.t * t
   | TOnce of Interval.t * t
@@ -25,6 +25,15 @@ type core_t =
   | TUntil of Side.t * Interval.t * t * t
 
 and t = { f: core_t; enftype: EnfType.t }
+
+val ttrue  : t
+val tfalse : t
+
+val neg : t -> EnfType.t -> t
+val conj : Side.t -> t -> t -> EnfType.t -> t
+
+val rank : t -> int
+val op_to_string : t -> string
 
 val of_formula : Formula.t -> t
 val to_string : t -> string

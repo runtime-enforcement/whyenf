@@ -46,6 +46,10 @@ let sub i t = match i with
   | B (BI (a, b)) -> B (BI (a, b - t))
   | U _ -> raise (Invalid_argument (Printf.sprintf "unbounded future operator"))
 
+let sub2 i t = match i with
+  | B (BI (a, b)) -> B (BI (max 0 (a - t), max 0 (b - t)))
+  | U (UI a) -> U (UI (max 0 (a - t)))
+
 let boundaries = function
   | B (BI (a, b)) -> (a, b)
   | U _ -> raise (Invalid_argument (Printf.sprintf "unbounded future operator"))
