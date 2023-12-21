@@ -62,6 +62,12 @@ module EnfType = struct
 
   type t = Cau | Sup | CauSup | Obs [@@deriving compare, sexp_of, hash]
 
+  let neg = function
+    | Cau    -> Sup
+    | Sup    -> Cau
+    | CauSup -> CauSup
+    | Obs    -> Obs
+      
   let to_int = function
     | Cau    -> 1
     | Sup    -> 2

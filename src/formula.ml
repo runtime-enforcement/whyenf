@@ -1,7 +1,7 @@
 (*******************************************************************)
 (*     This is part of WhyMon, and it is distributed under the     *)
-(*     terms of the GNU Lesser General Public License version 3    *)
 (*           (see file LICENSE for more details)                   *)
+(*     terms of the GNU Lesser General Public License version 3    *)
 (*                                                                 *)
 (*  Copyright 2023:                                                *)
 (*  Dmitriy Traytel (UCPH)                                         *)
@@ -22,13 +22,13 @@ module Side = struct
       | LR, LR -> true
     | _ -> false
 
-  let string_of = function
+  let to_string = function
     | N  -> ""
     | L  -> ":L"
     | R  -> ":R"
     | LR -> ":LR"
 
-  let string_of2 =
+  let to_string2 =
     let aux = function N  -> "N" | L  -> "L" | R  -> "R" | LR -> "LR"
     in function (N, N) -> "" | (a, b) -> ":" ^ aux a ^ "," ^ aux b
 
@@ -370,10 +370,10 @@ let rec to_string_rec l = function
   | EqConst (x, c) -> Printf.sprintf "%s = %s" x (Dom.to_string c)
   | Predicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
   | Neg f -> Printf.sprintf "¬%a" (fun x -> to_string_rec 5) f
-  | And (s, f, g) -> Printf.sprintf (Etc.paren l 4 "%a ∧%a %a") (fun x -> to_string_rec 4) f (fun x -> Side.string_of) s (fun x -> to_string_rec 4) g
-  | Or (s, f, g) -> Printf.sprintf (Etc.paren l 3 "%a ∨%a %a") (fun x -> to_string_rec 3) f (fun x -> Side.string_of) s (fun x -> to_string_rec 4) g
-  | Imp (s, f, g) -> Printf.sprintf (Etc.paren l 5 "%a →%a %a") (fun x -> to_string_rec 5) f (fun x -> Side.string_of) s (fun x -> to_string_rec 5) g
-  | Iff (s, t, f, g) -> Printf.sprintf (Etc.paren l 5 "%a ↔%a %a") (fun x -> to_string_rec 5) f (fun x -> Side.string_of2) (s, t) (fun x -> to_string_rec 5) g
+  | And (s, f, g) -> Printf.sprintf (Etc.paren l 4 "%a ∧%a %a") (fun x -> to_string_rec 4) f (fun x -> Side.to_string) s (fun x -> to_string_rec 4) g
+  | Or (s, f, g) -> Printf.sprintf (Etc.paren l 3 "%a ∨%a %a") (fun x -> to_string_rec 3) f (fun x -> Side.to_string) s (fun x -> to_string_rec 4) g
+  | Imp (s, f, g) -> Printf.sprintf (Etc.paren l 5 "%a →%a %a") (fun x -> to_string_rec 5) f (fun x -> Side.to_string) s (fun x -> to_string_rec 5) g
+  | Iff (s, t, f, g) -> Printf.sprintf (Etc.paren l 5 "%a ↔%a %a") (fun x -> to_string_rec 5) f (fun x -> Side.to_string2) (s, t) (fun x -> to_string_rec 5) g
   | Exists (x, _, f) -> Printf.sprintf (Etc.paren l 5 "∃%s. %a") x (fun x -> to_string_rec 5) f
   | Forall (x, _, f) -> Printf.sprintf (Etc.paren l 5 "∀%s. %a") x (fun x -> to_string_rec 5) f
   | Prev (i, f) -> Printf.sprintf (Etc.paren l 5 "●%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
@@ -383,9 +383,9 @@ let rec to_string_rec l = function
   | Historically (i, f) -> Printf.sprintf (Etc.paren l 5 "■%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
   | Always (i, f) -> Printf.sprintf (Etc.paren l 5 "□%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
   | Since (s, i, f, g) -> Printf.sprintf (Etc.paren l 0 "%a S%a%a %a") (fun x -> to_string_rec 5) f
-                          (fun x -> Interval.to_string) i (fun x -> Side.string_of) s (fun x -> to_string_rec 5) g
+                          (fun x -> Interval.to_string) i (fun x -> Side.to_string) s (fun x -> to_string_rec 5) g
   | Until (s, i, f, g) -> Printf.sprintf (Etc.paren l 0 "%a U%a%a %a") (fun x -> to_string_rec 5) f
-                         (fun x -> Interval.to_string) i (fun x -> Side.string_of) s (fun x -> to_string_rec 5) g
+                         (fun x -> Interval.to_string) i (fun x -> Side.to_string) s (fun x -> to_string_rec 5) g
 let to_string = to_string_rec 0
 
 let rec to_json_rec indent pos f =

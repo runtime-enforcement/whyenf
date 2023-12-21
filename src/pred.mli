@@ -38,6 +38,8 @@ module EnfType : sig
 
   type t = Cau | Sup | CauSup | Obs [@@deriving compare, sexp_of, hash]
 
+  val neg : t -> t
+
   val to_int : t -> int
 
   val to_string : t -> string
