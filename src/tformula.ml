@@ -55,6 +55,36 @@ let tfalse = { f = TFF; enftype = Sup }
 let neg f enftype = { f = TNeg f; enftype }
 let conj side f g enftype = { f = TAnd (side, f, g); enftype }
 
+let rec apply_valuation_core v =
+  let r = apply_valuation v in
+  let apply_valuation_term v = function
+    | Term.Var x when Map.mem v x -> Term.Const (Map.find_exn v x)
+    | Var x -> Var x
+    | Const d -> Const d in
+  function
+  | TTT -> TTT
+  | TFF -> TFF
+  | TEqConst (x, d) when Map.find v x == Some d -> TTT
+  | TEqConst (x, d) when Map.mem v x -> TFF
+  | TEqConst (x, d) -> TEqConst (x, d)
+  | TPredicate (e, t) -> TPredicate (e, List.map t (apply_valuation_term v))
+  | TNeg f -> TNeg (r f)
+  | TAnd (s, f, g) -> TAnd (s, r f, r g)
+  | TOr (s, f, g) -> TOr (s, r f, r g)
+  | TImp (s, f, g) -> TImp (s, r f, r g)
+  | TIff (s, t, f, g) -> TIff (s, t, r f, r g)
+  | TExists (x, tt, f) -> TExists (x, tt, r f)
+  | TForall (x, tt, f) -> TForall (x, tt, r f)
+  | TPrev (i, f) -> TPrev (i, r f)
+  | TNext (i, f) -> TNext (i, r f)
+  | TOnce (i, f) -> TOnce (i, r f)
+  | TEventually (i, f) -> TEventually (i, r f)
+  | THistorically (i, f) -> THistorically (i, r f)
+  | TAlways (i, f) -> TAlways (i, r f)
+  | TSince (s, i, f, g) -> TSince (s, i, r f, r g)
+  | TUntil (s, i, f, g) -> TUntil (s, i, r f, r g)
+and apply_valuation v f = { f with f = apply_valuation_core v f.f }
+
 let rec rank_core = function
   | TTT | TFF -> 0
   | TEqConst _ -> 0

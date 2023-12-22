@@ -27,7 +27,7 @@ type kind =
 
 type t = kind * Expl.Proof.valuation * polarity
 
-let eval_kind k ts' p = match k with
+let eval_kind ts' k p = match k with
   | FFormula f -> f
   | FInterval (ts, i, f) ->
      if Interval.mem (ts' - ts) i then
@@ -53,7 +53,11 @@ let eval_kind k ts' p = match k with
      else
        tfalse
 
-let eval (k, _, p) t = eval_kind k t p
+let eval ts (k, v, p) =
+  let f = apply_valuation v (eval_kind ts k p) in
+  match p with
+  | POS -> f
+  | NEG -> Tformula.neg f Cau
 
 let polarity_to_string = function
   | POS -> "+"

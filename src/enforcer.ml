@@ -113,9 +113,11 @@ and enfvio (f: Tformula.t) ts tp v fobligs tsdbs = match f.f with
   | _ -> raise (Invalid_argument ("function enfvio is not defined for " ^ Tformula.op_to_string f))
 
 let enf ts tp fobligs tsdbs =
-  (* let f = List.fold fobligs ~init:Formula.TT *)
-  (*           ~f:(fun (_, fn, *)
-  enfsat Tformula.ttrue ts tp (Map.empty (module String)) [] tsdbs
+  let obligs = List.map fobligs (Fobligation.eval ts) in
+  let f = match obligs with
+    | [] -> Tformula.ttrue
+    | init::t -> List.fold_left t ~init ~f:(fun f g -> Tformula.conj LR f g Cau) in
+  enfsat f ts tp (Map.empty (module String)) [] tsdbs
 
 let estep vars ts db (ms: MState.t) fobligs =
   let (cau, sup, fobligs) = enf ts (MState.tp_cur ms) fobligs (MState.tsdbs ms) in

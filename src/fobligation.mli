@@ -21,5 +21,5 @@ type kind =
 
 type t = kind * Expl.Proof.valuation * polarity
 
-val eval: t -> int -> Tformula.t
+val eval: int -> t -> Tformula.t
 val to_string: t -> string
