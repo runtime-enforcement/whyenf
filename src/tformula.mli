@@ -31,6 +31,7 @@ val tfalse : t
 
 val neg : t -> EnfType.t -> t
 val conj : Side.t -> t -> t -> EnfType.t -> t
+val apply_valuation : Expl.Proof.valuation -> t -> t
 
 val rank : t -> int
 val op_to_string : t -> string
