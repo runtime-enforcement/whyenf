@@ -14,7 +14,7 @@ open Etc
 open Monitor
 open Fobligation
 
-let append (sup1, cau1, coms1) (sup2, cau2, coms2) =
+let (@@) (sup1, cau1, coms1) (sup2, cau2, coms2) =
   (sup1 @ sup2, cau1 @ cau2, coms1 @ coms2)
 
 let fixpoint fn fobligs tsdbs =
@@ -44,10 +44,19 @@ let enfsat_and f1 f2 v fobligs tsdbs =
 let enfsat_forall f v fobligs tsdbs =
   ([], [], [])
 
+let enfvio_or f1 f2 v fobligs tsdbs =
+  ([], [], [])
+
+let enfvio_imp f1 f2 v fobligs tsdbs =
+  ([], [], [])
+
 let enfvio_exists f v fobligs tsdbs =
   ([], [], [])
 
 let enfvio_until f1 f2 v fobligs tsdbs =
+  ([], [], [])
+
+let enfvio_eventually f v fobligs tsdbs =
   ([], [], [])
 
 let rec enfsat (f: Tformula.t) ts tp v fobligs tsdbs = match f.f with
@@ -58,23 +67,31 @@ let rec enfsat (f: Tformula.t) ts tp v fobligs tsdbs = match f.f with
                                          | Const c -> c))], [])
   | TNeg f -> enfvio f ts tp v fobligs tsdbs
   | TAnd (_, f1, f2) -> fixpoint (enfsat_and f1 f2 v) fobligs tsdbs
-  | TOr (_, f1, f2) -> ([], [], [])
-  | TImp (_, f1, f2) -> ([], [], [])
-  | TIff (_, _, f1, f2) -> ([], [], [])
+  | TOr (L, f1, f2) -> enfsat f1 ts tp v fobligs tsdbs
+  | TOr (R, f1, f2) -> enfsat f2 ts tp v fobligs tsdbs
+  | TImp (L, f1, f2) -> enfvio f1 ts tp v fobligs tsdbs
+  | TImp (R, f1, f2) -> enfsat f2 ts tp v fobligs tsdbs
+  | TIff (side1, side2, f1, f2) ->
+     fixpoint (enfsat_and
+                 (Tformula.TImp (side1, f1, f2))
+                 (Tformula.TImp (side2, f2, f1)) v) fobligs tsdbs
   | TExists (x, tt, f) -> enfsat f ts tp (Map.add_exn v ~key:x ~data:(Dom.tt_default tt)) fobligs tsdbs
   | TForall (x, tt, f) -> fixpoint (enfsat_forall f v) fobligs tsdbs
   | TNext (i, f) -> ([], [], [(FFormula f, v, POS)])
-  | TOnce (i, f) -> ([], [], [])
-  | TEventually (i, f) -> ([], [], [])
-  | THistorically (i, f) -> ([], [], [])
-  | TAlways (i, f) -> ([], [], [])
+  | TEventually (i, f) ->
+     let (a, b) = Interval.boundaries i in
+     if Int.equal a 0 && Int.equal b 0 then
+       enfsat f ts tp v fobligs tsdbs
+     else
+       ([], [], [(FEventually (ts, i, f), v, POS)]) 
+  | TAlways (i, f) -> (enfsat f ts tp v fobligs tsdbs) @@ ([], [], [(FAlways (ts, i, f), v, POS)])
   | TSince (_, _, f1, f2) -> enfsat f2 ts tp v fobligs tsdbs
   | TUntil (side, i, f1, f2) ->
      let (a, b) = Interval.boundaries i in
      if Int.equal a 0 && Int.equal b 0 then
        enfsat f2 ts tp v fobligs tsdbs
      else
-       append (enfsat f1 ts tp v fobligs tsdbs) ([], [], [(FUntil (ts, side, i, f1, f2), v, POS)])
+       (enfsat f1 ts tp v fobligs tsdbs) @@ ([], [], [(FUntil (ts, side, i, f1, f2), v, POS)])
   | _ -> raise (Invalid_argument ("function enfsat is not defined for " ^ Tformula.op_to_string f))
 and enfvio (f: Tformula.t) ts tp v fobligs tsdbs = match f.f with
   | TFF -> ([], [], [])
@@ -88,16 +105,20 @@ and enfvio (f: Tformula.t) ts tp v fobligs tsdbs = match f.f with
   | TAnd (LR, f1, f2) -> if Tformula.rank f1 < Tformula.rank f2 then
                            enfvio f1 ts tp v fobligs tsdbs
                          else enfvio f2 ts tp v fobligs tsdbs
-  | TOr (_, f1, f2) -> ([], [], [])
-  | TImp (_, f1, f2) -> ([], [], [])
-  | TIff (_, _, f1, f2) -> ([], [], [])
+  | TOr (_, f1, f2) -> fixpoint (enfvio_or f1 f2 v) fobligs tsdbs
+  | TImp (_, f1, f2) -> fixpoint (enfvio_imp f1 f2 v) fobligs tsdbs
+  | TIff (L, _, f1, f2) -> fixpoint (enfvio_imp f1 f2 v) fobligs tsdbs
+  | TIff (R, _, f1, f2) -> fixpoint (enfvio_imp f2 f1 v) fobligs tsdbs
   | TExists (x, tt, f) -> fixpoint (enfvio_exists f v) fobligs tsdbs
   | TForall (x, tt, f) -> enfvio f ts tp (Map.add_exn v ~key:x ~data:(Dom.tt_default tt)) fobligs tsdbs
   | TNext (i, f) -> ([], [], [(FInterval (ts, i, f), v, NEG)])
-  | TOnce (i, f) -> ([], [], [])
-  | TEventually (i, f) -> ([], [], [])
-  | THistorically (i, f) -> ([], [], [])
-  | TAlways (i, f) -> ([], [], [])
+  | TEventually (i, f) -> fixpoint (enfvio_eventually f v) fobligs tsdbs
+  | TAlways (i, f) ->
+     let (a, b) = Interval.boundaries i in
+     if Int.equal a 0 && Int.equal b 0 then
+       enfvio f ts tp v fobligs tsdbs
+     else
+       ([], [], [(FAlways (ts, i, f), v, NEG)]) 
   | TSince (L, _, f1, _) -> enfvio f1 ts tp v fobligs tsdbs
   | TSince (R, i, f1, f2) -> let f' = Tformula.neg (Tformula.conj R f1 f Cau) in
                              fixpoint (enfsat_and f' (Tformula.neg f2) v) fobligs tsdbs
