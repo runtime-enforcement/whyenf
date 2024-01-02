@@ -12,11 +12,50 @@ open Etc
 
 module MFormula : sig
 
-  type t
+  type binop_info
+  type prev_info
+  type tp_info
+  type buf_info
+  type once_info
+  type eventually_info
+  type historically_info
+  type always_info
+  type buf2_info
+  type since_info
+  type until_info
 
-  val to_string: t -> string
+  val empty_binop_info: binop_info
+  
+  type t =
+    | MTT
+    | MFF
+    | MEqConst      of string * Dom.t
+    | MPredicate    of string * Pred.Term.t list
+    | MNeg          of t
+    | MAnd          of Formula.Side.t * t * t * binop_info
+    | MOr           of Formula.Side.t * t * t * binop_info
+    | MImp          of Formula.Side.t * t * t * binop_info
+    | MIff          of Formula.Side.t * Formula.Side.t * t * t * binop_info
+    | MExists       of string * Dom.tt * t
+    | MForall       of string * Dom.tt * t
+    | MPrev         of Interval.t * t * bool * prev_info
+    | MNext         of Interval.t * t * bool * timestamp list
+    | MOnce         of Interval.t * t * tp_info * once_info
+    | MEventually   of Interval.t * t * buf_info * eventually_info
+    | MHistorically of Interval.t * t * tp_info * historically_info
+    | MAlways       of Interval.t * t * buf_info * always_info
+    | MSince        of Formula.Side.t * Interval.t * t * t * buf2_info * since_info
+    | MUntil        of Formula.Side.t * Interval.t * t * t * buf2_info * until_info
 
   val init: Formula.t -> t
+
+  val apply_valuation : Expl.Proof.valuation -> t -> t
+
+  val fv: t -> (String.t, Base.String.comparator_witness) Base.Set.t
+  val rank: t -> int
+
+  val to_string: t -> string
+  val op_to_string: t -> string
 
 end
 
