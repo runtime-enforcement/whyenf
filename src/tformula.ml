@@ -55,6 +55,26 @@ let tfalse = { f = TFF; enftype = Sup }
 let neg f enftype = { f = TNeg f; enftype }
 let conj side f g enftype = { f = TAnd (side, f, g); enftype }
 
+let rec fv f = match f.f with
+  | TTT | TFF -> Set.empty (module String)
+  | TEqConst (x, c) -> Set.of_list (module String) [x]
+  | TPredicate (x, trms) -> Set.of_list (module String) (Pred.Term.fv_list trms)
+  | TExists (x, _, f)
+    | TForall (x, _, f) -> Set.filter (fv f) ~f:(fun y -> not (String.equal x y))
+  | TNeg f
+    | TPrev (_, f)
+    | TOnce (_, f)
+    | THistorically (_, f)
+    | TEventually (_, f)
+    | TAlways (_, f)
+    | TNext (_, f) -> fv f
+  | TAnd (_, f1, f2)
+    | TOr (_, f1, f2)
+    | TImp (_, f1, f2)
+    | TIff (_, _, f1, f2)
+    | TSince (_, _, f1, f2)
+    | TUntil (_, _, f1, f2) -> Set.union (fv f1) (fv f2)
+
 let rec apply_valuation_core v =
   let r = apply_valuation v in
   let apply_valuation_term v = function

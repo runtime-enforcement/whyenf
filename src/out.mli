@@ -20,7 +20,7 @@ module Plain : sig
              ((Dom.t, Dom.comparator_witness) Setc.t list list option list) option ->
              Formula.t option -> mode -> unit
 
-  val enf_expls: timestamp -> timepoint -> Expl.t list -> Db.Event.t list -> Db.Event.t list -> Fobligation.t list -> unit
+  val enf_expls: timestamp -> timepoint -> Expl.t list -> Db.Event.t list * Db.Event.t list * Fobligation.t list -> unit
 
 end
 

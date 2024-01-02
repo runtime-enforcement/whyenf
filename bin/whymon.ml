@@ -103,7 +103,7 @@ module Whymon = struct
       let formula = Option.value_exn !formula_ref in
       match !mode_ref with
       | Out.Plain.DEBUGVIS -> let _ = Monitor.exec_vis None formula !logstr_ref in ()
-      | Out.Plain.ENFORCE -> let _ = Enforcer.exec !measure_ref formula !Etc.inc_ref in ()
+      | Out.Plain.ENFORCE -> let _ = Enforcer.exec formula !Etc.inc_ref in ()
       | _ -> Monitor.exec !mode_ref !measure_ref formula !Etc.inc_ref
     with End_of_file -> Out_channel.close !Etc.outc_ref; exit 0
 
