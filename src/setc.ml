@@ -18,6 +18,7 @@ let length = function
   | Finite s -> Set.length s
   | Complement s -> Set.length s
 
+let empty m = Finite (Set.empty m)
 let univ m = Complement (Set.empty m)
 
 let equal cs1 cs2 = match cs1, cs2 with
@@ -32,6 +33,10 @@ let add cs el = match cs with
 let is_empty = function
   | Finite s -> Set.is_empty s
   | Complement s -> false
+
+let mem cs el = match cs with
+  | Finite s -> Set.mem s el
+  | Complement s -> not (Set.mem s el)
 
 let inter cs1 cs2 =
   if phys_equal cs1 cs2 then cs1

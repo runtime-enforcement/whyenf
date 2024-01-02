@@ -159,6 +159,8 @@ module Pdt : sig
   val split_prod_reduce: ('a -> 'a -> bool) -> ('a * 'a) t -> 'a t * 'a t
   val split_list_reduce: ('a -> 'a -> bool) -> 'a list t -> 'a t list
   val hide_reduce: ('a -> 'a -> bool) -> string list -> ('b -> 'a) -> ('b Part.t -> 'a) -> 'b t -> 'a t
+  val specialize: Proof.valuation -> 'a t -> 'a
+  val collect: ('a -> bool) -> Proof.valuation -> string -> 'a t -> (Dom.t, Dom.comparator_witness) Setc.t
 
 end
 

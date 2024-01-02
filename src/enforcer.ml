@@ -79,7 +79,7 @@ module EState = struct
         es
     in loop Triple.empty es
 
-  let sat v f es = (* TODO: take v into account *)
+  let expl v f es = 
     let vars = Set.elements (MFormula.fv f) in
     let (tstp_expls, ms') = mstep Out.Plain.ENFORCE vars es.ts es.db es.ms in
     match tstp_expls with
@@ -87,13 +87,26 @@ module EState = struct
     | ((ts, tp), _)::_ when (ts <> es.ts) || (tp <> es.tp) ->
        failwith ("Invalid tstp in proof: " ^ string_of_int ts ^ " <> " ^ string_of_int es.ts
                  ^ " or " ^ string_of_int tp ^ " <> " ^ string_of_int es.tp)
-    | (_, p)::_ -> not (Expl.is_violated p)
+    | (_, p)::_ -> p
+       
+  let sat v f es =
+    let p = expl v f es in
+    Expl.Proof.isS (Expl.Pdt.specialize v p)
 
   let vio v f es =
     sat v (MNeg f) es
 
-  let all_not_sat v x f es = []
-  let all_not_vio v x f es = []
+  let all_not_sat v x f es =
+    let p = expl v f es in
+    match Expl.Pdt.collect Expl.Proof.isV v x p with
+    | Setc.Finite s -> Set.elements s
+    | _ -> failwith ("Infinite set of candidates for " ^ x ^ " in " ^ (MFormula.to_string f))
+  
+  let all_not_vio v x f es =
+    let p = expl v f es in
+    match Expl.Pdt.collect Expl.Proof.isS v x p with
+    | Setc.Finite s -> Set.elements s
+    | _ -> failwith ("Infinite set of candidates for " ^ x ^ " in " ^ (MFormula.to_string f))
 
   let lr test1 test2 enf1 enf2 f1 f2 v es =
     let es =
@@ -264,4 +277,4 @@ let exec f inc =
   step None (EState.init ms mf) 0
 
        (* TODO: other execution mode with automatic timestamps *)
-       (* TODO: sat, etc.; additional proof rules; update state in eval *)
+       (* TODO: additional proof rules; update state in eval *)
