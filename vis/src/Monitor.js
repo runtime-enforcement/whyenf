@@ -361,16 +361,16 @@ export default function Monitor() {
                   <AppendTraceTextField appendTrace={formState.appendTrace} setFormState={setFormState} />
                 </Grid>
                 <Grid container item xs={12} sm={12} md={3} lg={3} xl={3} spacing={2}>
-                  <Grid item xs={12} sm={12} md={3} lg={3} xl={3}>
+                  <Grid item xs={12} sm={12} md={4} lg={4} xl={4}>
                     <AppendButton handleAppend={handleAppend} BootstrapTooltip={BootstrapTooltip} />
                   </Grid>
-                  <Grid item xs={12} sm={12} md={3} lg={3} xl={3}>
-                    <UndoButton handleUndo={handleLeave} BootstrapTooltip={BootstrapTooltip} />
-                  </Grid>
-                  <Grid item xs={12} sm={12} md={3} lg={3} xl={3}>
+                  {/*<Grid item xs={12} sm={12} md={3} lg={3} xl={3}>
+                     <UndoButton handleUndo={handleLeave} BootstrapTooltip={BootstrapTooltip} />
+                     </Grid>*/}
+                  <Grid item xs={12} sm={12} md={4} lg={4} xl={4}>
                     <ResetButton handleReset={handleReset} BootstrapTooltip={BootstrapTooltip} />
                   </Grid>
-                  <Grid item xs={12} sm={12} md={3} lg={3} xl={3}>
+                  <Grid item xs={12} sm={12} md={4} lg={4} xl={4}>
                     <LeaveButton handleLeave={handleLeave} BootstrapTooltip={BootstrapTooltip} />
                   </Grid>
                   <Grid item xs={12} sm={12} md={12} lg={12} xl={12}>

@@ -171,15 +171,15 @@ function TimeGrid ({ columns,
       headerName: f,
       headerClassName: () => {
         if (highlights.subfsHeader[i] === "curHighlight") {
-          return "columnHeader--CurHighlighted editorFont";
+          return "columnHeader--CurHighlighted";
         } else {
           if (highlights.subfsHeader[i] === "leftHighlight") {
-            return "columnHeader--LeftHighlighted editorFont";
+            return "columnHeader--LeftHighlighted";
           } else {
             if (highlights.subfsHeader[i] === "rightHighlight") {
-              return "columnHeader--RightHighlighted editorFont";
+              return "columnHeader--RightHighlighted";
             } else {
-              return "editorFont";
+              return "";
             }
           }
         }

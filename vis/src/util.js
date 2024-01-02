@@ -31,8 +31,10 @@ export function getCells(explObj, path) {
     return explObj;
   } else {
 
+    let values = path[0].replace(/\s/g, "").split(',');
+
     let subExplObj = explObj.part.find(expl => expl.subset_type === "finite" &&
-                                       expl.subset_values.some(val => val === path[0]));
+                                       expl.subset_values.toString() === values.toString());
 
     if (subExplObj === undefined) {
       subExplObj = explObj.part.find(expl => expl.subset_type === "complement");
