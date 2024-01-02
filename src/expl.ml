@@ -41,6 +41,8 @@ module Part = struct
 
   let values part = List.map part ~f:(fun (_, p) -> p)
 
+  let find part x = snd (List.find_exn part ~f:(fun (s, p) -> Setc.mem s x))
+
   let rec tabulate ds f z =
     (Setc.Complement ds, z) ::
       (Set.fold ds ~init:[] ~f:(fun acc d -> (Setc.Finite (Set.of_list (module Dom) [d]), f d) :: acc))
@@ -929,6 +931,18 @@ module Pdt = struct
                                      Node (y, Part.map_dedup (eq p_eq) part (hide_reduce p_eq vars f_leaf f_node))
                                    else hide_reduce p_eq vars f_leaf f_node (Node (y, part))
     | _ -> raise (Invalid_argument "function not defined for other cases")
+
+  let rec specialize v = function
+    | Leaf l -> l
+    | Node (x, part) -> specialize v (Part.find part (Map.find_exn v x))
+
+  let rec collect f v x = function
+    | Leaf l when f l -> Setc.univ (module Dom)
+    | Leaf l -> Setc.empty (module Dom)
+    | Node (x', part) when x == x' ->
+       Part.fold_left (Part.map2 part (fun (s, p) -> (s, s))) (Setc.empty (module Dom)) Setc.union
+    | Node (x', part) ->
+       collect f v x (Part.find part (Map.find_exn v x'))
 
 end
 
