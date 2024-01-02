@@ -30,12 +30,9 @@ val ttrue  : t
 val tfalse : t
 
 val neg : t -> EnfType.t -> t
-val fv : t -> (String.t, Base.String.comparator_witness) Base.Set.t
+(*val fv : t -> (String.t, Base.String.comparator_witness) Base.Set.t*)
 val conj : Side.t -> t -> t -> EnfType.t -> t
-val apply_valuation : Expl.Proof.valuation -> t -> t
-
-val rank : t -> int
-val op_to_string : t -> string
 
 val of_formula : Formula.t -> t
+val to_formula : t -> Formula.t
 val to_string : t -> string
