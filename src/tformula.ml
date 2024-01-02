@@ -49,82 +49,32 @@ let rec core_of_formula = function
 
 and of_formula f = { f = core_of_formula f; enftype = EnfType.Obs }
 
+let rec to_formula f = match f.f with
+  | TTT -> TT
+  | TFF -> FF
+  | TEqConst (x, v) -> EqConst (x, v)
+  | TPredicate (e, t) -> Predicate (e, t)
+  | TNeg f -> Neg (to_formula f)
+  | TAnd (s, f, g) -> And (s, to_formula f, to_formula g)
+  | TOr (s, f, g) -> Or (s, to_formula f, to_formula g)
+  | TImp (s, f, g) -> Imp (s, to_formula f, to_formula g)
+  | TIff (s, t, f, g) -> Iff (s, t, to_formula f, to_formula g)
+  | TExists (x, tt, f) -> Exists (x, tt, to_formula f)
+  | TForall (x, tt, f) -> Forall (x, tt, to_formula f)
+  | TPrev (i, f) -> Prev (i, to_formula f)
+  | TNext (i, f) -> Next (i, to_formula f)
+  | TOnce (i, f) -> Once (i, to_formula f)
+  | TEventually (i, f) -> Eventually (i, to_formula f)
+  | THistorically (i, f) -> Historically (i, to_formula f)
+  | TAlways (i, f) -> Always (i, to_formula f)
+  | TSince (s, i, f, g) -> Since (s, i, to_formula f, to_formula g)
+  | TUntil (s, i, f, g) -> Until (s, i, to_formula f, to_formula g)
+
 let ttrue  = { f = TTT; enftype = Cau }
 let tfalse = { f = TFF; enftype = Sup }
 
 let neg f enftype = { f = TNeg f; enftype }
 let conj side f g enftype = { f = TAnd (side, f, g); enftype }
-
-let rec fv f = match f.f with
-  | TTT | TFF -> Set.empty (module String)
-  | TEqConst (x, c) -> Set.of_list (module String) [x]
-  | TPredicate (x, trms) -> Set.of_list (module String) (Pred.Term.fv_list trms)
-  | TExists (x, _, f)
-    | TForall (x, _, f) -> Set.filter (fv f) ~f:(fun y -> not (String.equal x y))
-  | TNeg f
-    | TPrev (_, f)
-    | TOnce (_, f)
-    | THistorically (_, f)
-    | TEventually (_, f)
-    | TAlways (_, f)
-    | TNext (_, f) -> fv f
-  | TAnd (_, f1, f2)
-    | TOr (_, f1, f2)
-    | TImp (_, f1, f2)
-    | TIff (_, _, f1, f2)
-    | TSince (_, _, f1, f2)
-    | TUntil (_, _, f1, f2) -> Set.union (fv f1) (fv f2)
-
-let rec apply_valuation_core v =
-  let r = apply_valuation v in
-  let apply_valuation_term v = function
-    | Term.Var x when Map.mem v x -> Term.Const (Map.find_exn v x)
-    | Var x -> Var x
-    | Const d -> Const d in
-  function
-  | TTT -> TTT
-  | TFF -> TFF
-  | TEqConst (x, d) when Map.find v x == Some d -> TTT
-  | TEqConst (x, d) when Map.mem v x -> TFF
-  | TEqConst (x, d) -> TEqConst (x, d)
-  | TPredicate (e, t) -> TPredicate (e, List.map t (apply_valuation_term v))
-  | TNeg f -> TNeg (r f)
-  | TAnd (s, f, g) -> TAnd (s, r f, r g)
-  | TOr (s, f, g) -> TOr (s, r f, r g)
-  | TImp (s, f, g) -> TImp (s, r f, r g)
-  | TIff (s, t, f, g) -> TIff (s, t, r f, r g)
-  | TExists (x, tt, f) -> TExists (x, tt, r f)
-  | TForall (x, tt, f) -> TForall (x, tt, r f)
-  | TPrev (i, f) -> TPrev (i, r f)
-  | TNext (i, f) -> TNext (i, r f)
-  | TOnce (i, f) -> TOnce (i, r f)
-  | TEventually (i, f) -> TEventually (i, r f)
-  | THistorically (i, f) -> THistorically (i, r f)
-  | TAlways (i, f) -> TAlways (i, r f)
-  | TSince (s, i, f, g) -> TSince (s, i, r f, r g)
-  | TUntil (s, i, f, g) -> TUntil (s, i, r f, r g)
-and apply_valuation v f = { f with f = apply_valuation_core v f.f }
-
-let rec rank_core = function
-  | TTT | TFF -> 0
-  | TEqConst _ -> 0
-  | TPredicate (r, _) -> Pred.Sig.rank r
-  | TNeg f
-    | TExists (_, _, f)
-    | TForall (_, _, f)
-    | TPrev (_, f)
-    | TNext (_, f)
-    | TOnce (_, f)
-    | TEventually (_, f)
-    | THistorically (_, f)
-    | TAlways (_, f) -> rank f
-  | TAnd (_, f, g)
-    | TOr (_, f, g)
-    | TImp (_, f, g)
-    | TIff (_, _, f, g)
-    | TSince (_, _, f, g)
-    | TUntil (_, _, f, g) -> rank f + rank g
-and rank f = rank_core f.f
 
 let rec op_to_string_core = function
   | TTT -> Printf.sprintf "⊤"

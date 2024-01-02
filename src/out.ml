@@ -63,14 +63,14 @@ module Plain = struct
                    expl (ExplanationCheckDebug ((ts, tp), e, b, checker_e, trace, path_opt)))
     | _ -> raise (Failure "this function is undefined for this mode")
 
-  let enf_expls ts tp expls (cau, sup, coms) =
+  (*let enf_expls ts tp expls (cau, sup, coms) =
     Stdio.printf "%d:%d\n" ts tp;
     Stdio.printf "Cau: %s\n" (Etc.string_list_to_string (List.map cau ~f:Db.Event.to_string));
     Stdio.printf "Sup: %s\n" (Etc.string_list_to_string (List.map sup ~f:Db.Event.to_string));
     Stdio.printf "Future obligations:\n";
     List.iter coms ~f:(fun com -> Stdio.printf "%s\n" (Fobligation.to_string com));
     Stdio.printf "\n";
-    List.iter expls ~f:(fun e -> Stdio.printf "Explanation: \n%s\n\n" (Expl.to_string e))
+    List.iter expls ~f:(fun e -> Stdio.printf "Explanation: \n%s\n\n" (Expl.to_string e))*)
 
 end
 
