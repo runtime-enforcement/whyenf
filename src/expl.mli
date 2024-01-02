@@ -41,7 +41,7 @@ module Proof : sig
 
   type valuation = (string, Dom.t, String.comparator_witness) Map.t
 
-  type sp =
+    type sp =
     | STT of int
     | SEqConst of int * string * Dom.t
     | SPred of int * string * Term.t list
@@ -57,17 +57,17 @@ module Proof : sig
     | SForall of string * (sp Part.t)
     | SPrev of sp
     | SNext of sp
-    | SNextAssm of int * Interval.t * Formula.t * valuation
+    | SNextAssm of int * Interval.t * Formula.t
     | SOnce of int * sp
     | SEventually of int * sp
-    (* | SEventuallyAssm *)
+    | SEventuallyAssm of int * Interval.t * Formula.t
     | SHistorically of int * int * sp Fdeque.t
     | SHistoricallyOut of int
     | SAlways of int * int * sp Fdeque.t
-    (* | SAlwaysAssm *)
+    | SAlwaysAssm of sp * int * Interval.t * Formula.t
     | SSince of sp * sp Fdeque.t
     | SUntil of sp * sp Fdeque.t
-    | SUntilAssm of int * int * Interval.t * Formula.t * Formula.t * valuation
+    | SUntilAssm of sp * int * int * Interval.t * Formula.t * Formula.t
   and vp =
     | VFF of int
     | VEqConst of int * string * Dom.t
@@ -88,20 +88,18 @@ module Proof : sig
     | VNext of vp
     | VNextOutL of int
     | VNextOutR of int
-    | VNextAssm of int * int * Interval.t * Formula.t * valuation
+    | VNextAssm of int * int * Interval.t * Formula.t
     | VOnceOut of int
     | VOnce of int * int * vp Fdeque.t
     | VEventually of int * int * vp Fdeque.t
-    (* | VEventuallyAssm *)
     | VHistorically of int * vp
     | VAlways of int * vp
-    (* | VAlwaysAssm *)
     | VSinceOut of int
     | VSince of int * vp * vp Fdeque.t
     | VSinceInf of int * int * vp Fdeque.t
     | VUntil of int * vp * vp Fdeque.t
     | VUntilInf of int * int * vp Fdeque.t
-    | VUntilAssm of int * int * Interval.t * Formula.t * Formula.t * valuation
+    | VUntilAssm of vp option * int * int * Interval.t * Formula.t * Formula.t
 
   type t = S of sp | V of vp
 

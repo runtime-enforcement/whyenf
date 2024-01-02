@@ -13,11 +13,11 @@ open Stdio
 open Etc
 open Monitor
 open MFormula
-open Fobligation
+open FObligation
 
 module Triple = struct
 
-  type t = Db.t * Db.t * Fobligation.t list
+  type t = Db.t * Db.t * FObligation.t list
 
   let join (sup1, cau1, fobligs1) (sup2, cau2, fobligs2) =
     (Set.union sup1 sup2, Set.union cau1 cau2, fobligs1 @ fobligs2)
@@ -49,7 +49,7 @@ module EState = struct
            ; ts: timepoint
            ; db: Db.t
            ; r : Triple.t
-           ; fobligs: Fobligation.t list }
+           ; fobligs: FObligation.t list }
 
   let init ms mf = { ms; tp = 0; ts = 0; db = Db.create []; r = Triple.empty;
                      fobligs = [(FFormula mf, Base.Map.empty (module Base.String), POS)] }
@@ -79,9 +79,12 @@ module EState = struct
         es
     in loop Triple.empty es
 
+  let mstep_state vars es =
+    mstep Out.Plain.ENFORCE vars es.ts es.db es.ms es.fobligs
+
   let expl v f es = 
     let vars = Set.elements (MFormula.fv f) in
-    let (tstp_expls, ms') = mstep Out.Plain.ENFORCE vars es.ts es.db es.ms in
+    let (tstp_expls, ms') = mstep_state vars es in
     match tstp_expls with
     | []   -> failwith ("Monitor did not return a verdict on " ^ (MFormula.to_string f))
     | ((ts, tp), _)::_ when (ts <> es.ts) || (tp <> es.tp) ->
@@ -249,7 +252,7 @@ module EState = struct
 end
 
 let goal es ts =
-  let obligs = List.map EState.(es.fobligs) (Fobligation.eval ts) in
+  let obligs = List.map EState.(es.fobligs) (FObligation.eval ts) in
   match obligs with
   | [] -> MFormula.MTT
   | init::rest -> List.fold_left rest ~init ~f:(fun f g -> MAnd (LR, f, g, empty_binop_info))
@@ -267,7 +270,7 @@ let exec f inc =
                      else
                        EState.{ es with db = Db.create []; tp = es.tp + 1; ts = ts + 1 })
                     es in
-         let (tstp_expls, ms') = mstep Out.Plain.ENFORCE vars es.ts es.db es.ms in
+         let (tstp_expls, ms') = EState.mstep_state vars es in
          Out.Plain.expls tstp_expls None None None Out.Plain.ENFORCE;
          if more then step (Some(pb)) es ts in
   let tf = try Typing.do_type f with Invalid_argument s -> failwith s in

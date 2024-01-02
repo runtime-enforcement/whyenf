@@ -137,17 +137,17 @@ module Proof = struct
     | SForall of string * (sp Part.t)
     | SPrev of sp
     | SNext of sp
-    | SNextAssm of int * Interval.t * Formula.t * valuation
+    | SNextAssm of int * Interval.t * Formula.t
     | SOnce of int * sp
     | SEventually of int * sp
-    (* | SEventuallyAssm *)
+    | SEventuallyAssm of int * Interval.t * Formula.t
     | SHistorically of int * int * sp Fdeque.t
     | SHistoricallyOut of int
     | SAlways of int * int * sp Fdeque.t
-    (* | SAlwaysAssm *)
+    | SAlwaysAssm of sp * int * Interval.t * Formula.t
     | SSince of sp * sp Fdeque.t
     | SUntil of sp * sp Fdeque.t
-    | SUntilAssm of int * int * Interval.t * Formula.t * Formula.t * valuation
+    | SUntilAssm of sp * int * int * Interval.t * Formula.t * Formula.t
   and vp =
     | VFF of int
     | VEqConst of int * string * Dom.t
@@ -168,20 +168,18 @@ module Proof = struct
     | VNext of vp
     | VNextOutL of int
     | VNextOutR of int
-    | VNextAssm of int * int * Interval.t * Formula.t * valuation
+    | VNextAssm of int * int * Interval.t * Formula.t
     | VOnceOut of int
     | VOnce of int * int * vp Fdeque.t
     | VEventually of int * int * vp Fdeque.t
-    (* | VEventuallyAssm *)
     | VHistorically of int * vp
     | VAlways of int * vp
-    (* | VAlwaysAssm *)
     | VSinceOut of int
     | VSince of int * vp * vp Fdeque.t
     | VSinceInf of int * int * vp Fdeque.t
     | VUntil of int * vp * vp Fdeque.t
     | VUntilInf of int * int * vp Fdeque.t
-    | VUntilAssm of int * int * Interval.t * Formula.t * Formula.t * valuation
+    | VUntilAssm of vp option * int * int * Interval.t * Formula.t * Formula.t
 
   type t = S of sp | V of vp
 
@@ -198,8 +196,8 @@ module Proof = struct
       | SOrR sp, SOrR sp'
       | SPrev sp, SPrev sp'
       | SNext sp, SNext sp' -> s_equal sp sp'
-    | SNextAssm (tp, i, f, v), SNextAssm (tp', i', f', v') -> Int.equal tp tp' && Interval.equal i i' &&
-                                                                Formula.equal f f' && Map.equal Dom.equal v v'
+    | SNextAssm (tp, i, f), SNextAssm (tp', i', f') -> Int.equal tp tp' && Interval.equal i i' &&
+                                                         Formula.equal f f'
     | SAnd (sp1, sp2), SAnd (sp1', sp2')
       | SIffSS (sp1, sp2), SIffSS (sp1', sp2') -> s_equal sp1 sp1' && s_equal sp2 sp2'
     | SIffVV (vp1, vp2), SIffVV (vp1', vp2') -> v_equal vp1 vp1' && v_equal vp2 vp2'
@@ -219,9 +217,9 @@ module Proof = struct
     | SSince (sp2, sp1s), SSince (sp2', sp1s')
       | SUntil (sp2, sp1s), SUntil (sp2', sp1s') -> s_equal sp2 sp2' && Int.equal (Fdeque.length sp1s) (Fdeque.length sp1s') &&
                                                       Etc.fdeque_for_all2_exn sp1s sp1s' ~f:(fun sp1 sp1' -> s_equal sp1 sp1')
-    | SUntilAssm (tp, ts, i, f, g, v), SUntilAssm (tp', ts', i', f', g', v') -> Int.equal tp tp' && Int.equal ts ts' &&
-                                                                                  Interval.equal i i' && Formula.equal g g' &&
-                                                                                    Formula.equal f f' && Map.equal Dom.equal v v'
+    | SUntilAssm (sp, tp, ts, i, f, g), SUntilAssm (sp', tp', ts', i', f', g') -> s_equal sp sp' && Int.equal tp tp' && Int.equal ts ts' &&
+                                                                                    Interval.equal i i' && Formula.equal g g' &&
+                                                                                      Formula.equal f f'
     | _ -> false
   and v_equal x y = match x, y with
     | VFF tp, VFF tp' -> Int.equal tp tp'
@@ -249,8 +247,8 @@ module Proof = struct
       | VNextOutR tp, VNextOutR tp'
       | VOnceOut tp, VOnceOut tp'
       | VSinceOut tp, VSinceOut tp' -> Int.equal tp tp'
-    | VNextAssm (tp, ts, i, f, v), VNextAssm (tp', ts', i', f', v') -> Int.equal tp tp' && Int.equal ts ts' &&
-                                                                         Interval.equal i i' && Formula.equal f f' && Map.equal Dom.equal v v'
+    | VNextAssm (tp, ts, i, f), VNextAssm (tp', ts', i', f') -> Int.equal tp tp' && Int.equal ts ts' &&
+                                                                         Interval.equal i i' && Formula.equal f f'
     | VOnce (tp, ltp, vps), VOnce (tp', li', vps') -> Int.equal tp tp' && Int.equal ltp li' &&
                                                         Int.equal (Fdeque.length vps) (Fdeque.length vps') &&
                                                           Etc.fdeque_for_all2_exn vps vps' ~f:(fun vp vp' -> v_equal vp vp')
@@ -270,9 +268,12 @@ module Proof = struct
     | VUntilInf (tp, htp, vp2s), VUntilInf (tp', hi', vp2s') -> Int.equal tp tp' && Int.equal htp hi' &&
                                                                   Int.equal (Fdeque.length vp2s) (Fdeque.length vp2s') &&
                                                                     Etc.fdeque_for_all2_exn vp2s vp2s' ~f:(fun vp2 vp2' -> v_equal vp2 vp2')
-    | VUntilAssm (tp, ts, i, f, g, v), VUntilAssm (tp', ts', i', f', g', v') -> Int.equal tp tp' && Int.equal ts ts' &&
-                                                                                  Interval.equal i i' && Formula.equal g g' &&
-                                                                                    Formula.equal f f' && Map.equal Dom.equal v v'
+    | VUntilAssm (None, tp, ts, i, f, g), VUntilAssm (None, tp', ts', i', f', g') -> Int.equal tp tp' && Int.equal ts ts' &&
+                                                                                       Interval.equal i i' && Formula.equal g g' &&
+                                                                                         Formula.equal f f'
+    | VUntilAssm (Some vp, tp, ts, i, f, g), VUntilAssm (Some vp', tp', ts', i', f', g') -> v_equal vp vp' && Int.equal tp tp' && Int.equal ts ts' &&
+                                                                                              Interval.equal i i' && Formula.equal g g' &&
+                                                                                                Formula.equal f f'
     | _ -> false
 
 
@@ -340,17 +341,19 @@ module Proof = struct
     | SForall (_, part) -> s_at (Part.hd part)
     | SPrev sp -> s_at sp + 1
     | SNext sp -> s_at sp - 1
-    | SNextAssm (tp, _, _, _) -> tp
+    | SNextAssm (tp, _, _) -> tp
     | SOnce (tp, _) -> tp
     | SEventually (tp, _) -> tp
+    | SEventuallyAssm (tp, _, _) -> tp  
     | SHistorically (tp, _, _) -> tp
     | SHistoricallyOut tp -> tp
     | SAlways (tp, _, _) -> tp
+    | SAlwaysAssm (sp, tp, _, _) -> tp
     | SSince (sp2, sp1s) -> if Fdeque.is_empty sp1s then s_at sp2
                             else s_at (Fdeque.peek_back_exn sp1s)
     | SUntil (sp2, sp1s) -> if Fdeque.is_empty sp1s then s_at sp2
                             else s_at (Fdeque.peek_front_exn sp1s)
-    | SUntilAssm (tp, _, _, _, _, _) -> tp
+    | SUntilAssm (sp, tp, _, _, _, _) -> tp
   and v_at = function
     | VFF tp -> tp
     | VEqConst (tp, _, _) -> tp
@@ -371,7 +374,7 @@ module Proof = struct
     | VNext vp -> v_at vp - 1
     | VNextOutL tp -> tp
     | VNextOutR tp -> tp
-    | VNextAssm (tp, _, _, _, _) -> tp
+    | VNextAssm (tp, _, _, _) -> tp
     | VOnceOut tp -> tp
     | VOnce (tp, _, _) -> tp
     | VEventually (tp, _, _) -> tp
@@ -382,7 +385,7 @@ module Proof = struct
     | VSinceInf (tp, _, _) -> tp
     | VUntil (tp, _, _) -> tp
     | VUntilInf (tp, _, _) -> tp
-    | VUntilAssm (tp, _, _, _, _, _) -> tp
+    | VUntilAssm (_, tp, _, _, _, _) -> tp
 
   let p_at = function
     | S s_p -> s_at s_p
@@ -422,20 +425,24 @@ module Proof = struct
                              x (Part.to_string indent' (Var x) s_to_string part)
     | SPrev sp -> Printf.sprintf "%sSPrev{%d}\n%s" indent (s_at p) (s_to_string indent' sp)
     | SNext sp -> Printf.sprintf "%sSNext{%d}\n%s" indent (s_at p) (s_to_string indent' sp)
-    | SNextAssm (tp, _, _, _) -> Printf.sprintf "%sSNextAssm{%d}\n" indent tp
+    | SNextAssm (tp, _, _) -> Printf.sprintf "%sSNextAssm{%d}\n" indent tp
     | SOnce (_, sp) -> Printf.sprintf "%sSOnce{%d}\n%s" indent (s_at p) (s_to_string indent' sp)
     | SEventually (_, sp) -> Printf.sprintf "%sSEventually{%d}\n%s" indent (s_at p)
                                (s_to_string indent' sp)
+    | SEventuallyAssm (tp, _, _) -> Printf.sprintf "%sSEventuallyAssm{%d}\n" indent tp
     | SHistorically (_, _, sps) -> Printf.sprintf "%sSHistorically{%d}\n%s" indent (s_at p)
                                      (Etc.deque_to_string indent' s_to_string sps)
     | SHistoricallyOut i -> Printf.sprintf "%sSHistoricallyOut{%d}" indent' i
     | SAlways (_, _, sps) -> Printf.sprintf "%sSAlways{%d}\n%s" indent (s_at p)
                                (Etc.deque_to_string indent' s_to_string sps)
+    | SAlwaysAssm (sp, tp, _, _) -> Printf.sprintf "%sSAlwaysAssm{%d}\n%s" indent tp
+                                     (s_to_string indent' sp)
     | SSince (sp2, sp1s) -> Printf.sprintf "%sSSince{%d}\n%s\n%s" indent (s_at p) (s_to_string indent' sp2)
                               (Etc.deque_to_string indent' s_to_string sp1s)
     | SUntil (sp2, sp1s) -> Printf.sprintf "%sSUntil{%d}\n%s\n%s" indent (s_at p)
                               (Etc.deque_to_string indent' s_to_string sp1s) (s_to_string indent' sp2)
-    | SUntilAssm (tp, _, _, _, _, _) -> Printf.sprintf "%sSUntilAssm{%d}\n" indent tp
+    | SUntilAssm (sp, tp, _, _, _, _) -> Printf.sprintf "%sSUntilAssm{%d}\n%s" indent tp
+                                           (s_to_string indent' sp)
   and v_to_string indent p =
     let indent' = "\t" ^ indent in
     match p with
@@ -460,7 +467,7 @@ module Proof = struct
     | VNext vp -> Printf.sprintf "%sVNext{%d}\n%s" indent (v_at p) (v_to_string indent' vp)
     | VNextOutL i -> Printf.sprintf "%sVNextOutL{%d}" indent' i
     | VNextOutR i -> Printf.sprintf "%sVNextOutR{%d}" indent' i
-    | VNextAssm (tp, _, _, _, _) -> Printf.sprintf "%sVNextAssm{%d}\n" indent tp
+    | VNextAssm (tp, _, _, _) -> Printf.sprintf "%sVNextAssm{%d}\n" indent tp
     | VOnceOut i -> Printf.sprintf "%sVOnceOut{%d}" indent' i
     | VOnce (_, _, vps) -> Printf.sprintf "%sVOnce{%d}\n%s" indent (v_at p)
                              (Etc.deque_to_string indent' v_to_string vps)
@@ -477,7 +484,9 @@ module Proof = struct
                                  (Etc.deque_to_string indent' v_to_string vp2s) (v_to_string indent' vp1)
     | VUntilInf (_, _, vp2s) -> Printf.sprintf "%sVUntilInf{%d}\n%s" indent (v_at p)
                                   (Etc.deque_to_string indent' v_to_string vp2s)
-    | VUntilAssm (tp, _, _, _, _, _) -> Printf.sprintf "%sVUntilAssm{%d}\n" indent tp
+    | VUntilAssm (None, tp, _, _, _, _) -> Printf.sprintf "%sVUntilAssm{%d}\n" indent tp
+    | VUntilAssm (Some vp, tp, _, _, _, _) -> Printf.sprintf "%sVUntilAssm{%d}\n%s" indent tp
+                                                (v_to_string indent' vp)
 
   let to_string indent = function
     | S p -> s_to_string indent p
