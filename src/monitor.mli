@@ -5,6 +5,7 @@
 (*                                                                 *)
 (*  Copyright 2023:                                                *)
 (*  Leonardo Lima (UCPH)                                           *)
+(*  François Hublet (ETH Zurich)                                   *)
 (*******************************************************************)
 
 open Base
@@ -59,6 +60,30 @@ module MFormula : sig
 
 end
 
+module FObligation : sig
+
+  open MFormula
+  
+  type polarity = POS | NEG
+
+  type kind =
+    | FFormula of MFormula.t                       (* fun _ -> f *)
+    | FInterval of int * Interval.t * MFormula.t   (* fun t -> if mem t i then f else Formula.TT *)
+    | FUntil of int * Formula.Side.t * Interval.t * MFormula.t * MFormula.t * buf2_info * until_info
+                                                   (* fun t -> Until (s, sub2 i (t-t0), f1, f2) *)
+    | FAlways of int * Interval.t * MFormula.t * buf_info * always_info
+                                                   (* fun t -> Always (sub2 i (t-t0), f1) *)
+    | FEventually of int * Interval.t * MFormula.t * buf_info * eventually_info
+                                                   (* fun t -> Eventually (sub2 i (t-t0), f1) *)
+
+  type t = kind * Expl.Proof.valuation * polarity
+
+  val eval: int -> t -> MFormula.t
+  val to_string: t -> string
+
+end
+
+
 module MState : sig
 
   type t
@@ -71,7 +96,7 @@ module MState : sig
 
 end
 
-val mstep: Out.Plain.mode -> string list -> timestamp -> Db.t -> MState.t ->
+val mstep: Out.Plain.mode -> string list -> timestamp -> Db.t -> MState.t -> FObligation.t list ->
            ((timestamp * timepoint) * Expl.Proof.t Expl.Pdt.t) list * MState.t
 
 val exec: Out.Plain.mode -> string -> Formula.t -> in_channel -> unit
