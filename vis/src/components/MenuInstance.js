@@ -45,17 +45,17 @@ function MenuInstance ({ explObj, curCol, open, domainValues, variableNames, han
                   fullString.slice(fullString.length-12,fullString.length);
               }
             } else {
-              domainValueLabel = (<span className="editorFont">{fullString}</span>);
+              domainValueLabel = (<span className="">{fullString}</span>);
             }
 
           } else {
             if (i === 0) {
-              domainValueLabel = (<span className="editorFont"
+              domainValueLabel = (<span className=""
                                         style={{fontWeight: 'bold'}}>
                                     Any
                                   </span>);
             } else {
-              domainValueLabel = (<span className="editorFont"
+              domainValueLabel = (<span className=""
                                         style={{fontWeight: 'bold'}}>
                                     Other
                                   </span>);
