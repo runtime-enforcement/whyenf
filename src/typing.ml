@@ -206,7 +206,6 @@ let rec types t f =
   | CauSup -> Impossible (EFormula (None, f, t))
 
 let rec convert enftype form : Tformula.t option =
-  (*Stdio.print_endline (Formula.to_string form);*)
   let default_L (s: Side.t) = if Side.equal s R then Side.R else L in
   let f =
     match enftype with
@@ -280,7 +279,7 @@ let rec convert enftype form : Tformula.t option =
         | Predicate (e, t) when Pred.Sig.enftype e == Sup -> Some (Tformula.TPredicate (e, t))
         | Neg f -> (convert Cau f) >>= (fun f' -> Some (Tformula.TNeg f'))
         | And (L, f, g) -> (convert Sup f) >>= (fun f' -> Some (Tformula.TAnd (L, f', Tformula.of_formula g)))
-        | And (R, f, g) -> (convert Sup g) >>= (fun g' -> Some (Tformula.TAnd (L, Tformula.of_formula f, g')))
+        | And (R, f, g) -> (convert Sup g) >>= (fun g' -> Some (Tformula.TAnd (R, Tformula.of_formula f, g')))
         | And (_, f, g) ->
            begin
              match convert Sup f with
@@ -305,7 +304,7 @@ let rec convert enftype form : Tformula.t option =
                        | _, _ -> None
            end
         | Exists (x, tt, f) when is_past_guarded x true f ->
-           (convert Sup f) >>= (fun f' -> Some (Tformula.TExists (x, tt, Tformula.of_formula f)))
+           (convert Sup f) >>= (fun f' -> Some (Tformula.TExists (x, tt, f')))
         | Next (i, f) -> (convert Sup f) >>= (fun f' -> Some (Tformula.TNext (i, f')))
         | Historically (i, f) when Interval.mem 0 i ->
            (convert Sup f) >>= (fun f' -> Some (Tformula.THistorically (i, f')))
@@ -313,8 +312,8 @@ let rec convert enftype form : Tformula.t option =
            (convert Sup f) >>= (fun f' -> Some (Tformula.TSince (L, i, f', Tformula.of_formula g)))
         | Since (_, i, f, g) -> (convert Sup f) >>= (fun f' -> (convert Sup g)
                                                                >>= (fun g' -> Some (Tformula.TSince (LR, i, f', g'))))
-        | Eventually (i, f) -> (convert Cau f) >>= (fun f' -> Some (Tformula.TEventually (i, f')))
-        | Always (B b, f) -> (convert Cau f) >>= (fun f' -> Some (Tformula.TAlways (B b, f')))
+        | Eventually (i, f) -> (convert Sup f) >>= (fun f' -> Some (Tformula.TEventually (i, f')))
+        | Always (B b, f) -> (convert Sup f) >>= (fun f' -> Some (Tformula.TAlways (B b, f')))
         | Until (L, i, f, g) when not (Interval.mem 0 i) ->
            (convert Sup f) >>= (fun f' -> Some (Tformula.TUntil (L, i, f', Tformula.of_formula g)))
         | Until (R, i, f, g) when not (Interval.mem 0 i) ->
@@ -332,7 +331,9 @@ let rec convert enftype form : Tformula.t option =
       end
     | Obs -> Some (Tformula.of_formula form).f
     | CauSup -> assert false
-  in match f with Some f -> Some Tformula.{ f; enftype } | None -> None
+  in
+  (*Stdio.print_string (EnfType.to_string enftype ^ " " ^ Formula.to_string form ^ " -> ");*)
+  match f with Some f -> Some Tformula.{ f; enftype } | None -> None
 
 let do_type f =
   match types Cau f with

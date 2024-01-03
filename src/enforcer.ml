@@ -279,5 +279,6 @@ let exec f inc =
   let ms = Monitor.MState.init mf in
   step None (EState.init ms mf) 0
 
-       (* TODO: other execution mode with automatic timestamps *)
+       (* (NOT REALLY) TODO: other execution mode with automatic timestamps *)
+
        (* TODO: additional proof rules; update state in eval *)
