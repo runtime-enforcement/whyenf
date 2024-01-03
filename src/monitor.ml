@@ -1683,7 +1683,7 @@ module MState = struct
 
   let init mf = { mf = mf
                 ; tp_cur = 0
-                ; tp_out = 0
+                ; tp_out = -1
                 ; ts_waiting = Queue.create ()
                 ; tsdbs = Queue.create ()
                 ; tpts = Hashtbl.create (module Int) }
@@ -1717,7 +1717,7 @@ let mstep mode vars ts db (ms: MState.t) (fobligs: FObligation.t list) =
   let (expls, mf') = meval vars ts ms.tp_cur db fobligs ms.mf in
   Queue.enqueue ms.ts_waiting ts;
   let tstps = List.zip_exn (List.take (Queue.to_list ms.ts_waiting) (List.length expls))
-                (List.range ms.tp_out (ms.tp_out + List.length expls)) in
+                (List.range ms.tp_cur (ms.tp_cur + List.length expls)) in
   let tsdbs = match mode with
     | Out.Plain.VERIFIED
       | Out.Plain.DEBUG
@@ -1727,7 +1727,6 @@ let mstep mode vars ts db (ms: MState.t) (fobligs: FObligation.t list) =
    { ms with
      mf = mf'
    ; tp_cur = ms.tp_cur + 1
-   ; tp_out = ms.tp_out + (List.length expls)
    ; ts_waiting = queue_drop ms.ts_waiting (List.length expls)
    ; tsdbs = tsdbs })
 
@@ -1769,8 +1768,7 @@ let exec_vis (obj_opt: MState.t option) f log =
                              ~f:(fun acc ((ts, tp), _) -> Hashtbl.add_exn ms.tpts ~key:(acc + 1) ~data:ts; acc + 1) in
              let json_expls = Out.Json.expls ms.tpts f (List.map tstps_expls ~f:snd) in
              let json_db = Out.Json.db pb.ts ms.tp_cur pb.db f in
-             Some (None, (json_expls, [json_db]),
-                   { ms' with tp_out = tp_out' })
+             Some (None, (json_expls, [json_db]), { ms' with tp_out = tp_out' })
            else raise (Failure "trace is not monotonic")))
     with Failure msg -> Some (Some(msg), ([], []), ms) in
   let ms = match obj_opt with

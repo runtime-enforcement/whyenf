@@ -8,7 +8,7 @@ module Uint32 : sig
   val test_bit : int32 -> Z.t -> bool
 end = struct
 
-(* negative numbers have their highest bit set,
+(* negative numbers have their highest bit set, 
    so they are greater than positive ones *)
 let less x y =
   if Int32.compare x Int32.zero < 0 then
@@ -32,7 +32,7 @@ let shiftr x n = Int32.shift_right_logical x (Z.to_int n);;
 let shiftr_signed x n = Int32.shift_right x (Z.to_int n);;
 
 let test_bit x n =
-  Int32.compare
+  Int32.compare 
     (Int32.logand x (Int32.shift_left Int32.one (Z.to_int n)))
     Int32.zero
   <> 0;;
