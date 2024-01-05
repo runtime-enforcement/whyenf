@@ -1184,7 +1184,7 @@ module MFormula = struct
   type until_info         = Until.t Expl.Pdt.t
 
   let empty_binop_info = ([], [])
-  
+
   type t =
     | MTT
     | MFF
@@ -1227,35 +1227,35 @@ module MFormula = struct
     | Formula.Since (s, i, f, g) -> MSince (s, i, init f, init g, (([], []), []), Leaf (Since.init ()))
     | Formula.Until (s, i, f, g) -> MUntil (s, i, init f, init g, (([], []), []), Leaf (Until.init ()))
 
-  let rec apply_valuation v =
-    let r = apply_valuation v in
-    let apply_valuation_term v = function
-      | Term.Var x when Map.mem v x -> Term.Const (Map.find_exn v x)
-      | Var x -> Var x
-      | Const d -> Const d in
-    function
-    | MTT -> MTT
-    | MFF -> MFF
-    | MEqConst (x, d) when Map.find v x == Some d -> MTT
-    | MEqConst (x, d) when Map.mem v x -> MFF
-    | MEqConst (x, d) -> MEqConst (x, d)
-    | MPredicate (e, t) -> MPredicate (e, List.map t (apply_valuation_term v))
-    | MNeg f -> MNeg (r f)
-    | MAnd (s, f, g, bi) -> MAnd (s, r f, r g, bi)
-    | MOr (s, f, g, bi) -> MOr (s, r f, r g, bi)
-    | MImp (s, f, g, bi) -> MImp (s, r f, r g, bi)
-    | MIff (s, t, f, g, bi) -> MIff (s, t, r f, r g, bi)
-    | MExists (x, tt, f) -> MExists (x, tt, r f)
-    | MForall (x, tt, f) -> MForall (x, tt, r f)
-    | MPrev (i, f, b, pi) -> MPrev (i, r f, b, pi)
-    | MNext (i, f, b, si) -> MNext (i, r f, b, si)
-    | MOnce (i, f, ti, oi) -> MOnce (i, r f, ti, oi)
-    | MEventually (i, f, bi, oi) -> MEventually (i, r f, bi, oi)
-    | MHistorically (i, f, ti, oi) -> MHistorically (i, r f, ti, oi)
-    | MAlways (i, f, bi, ai) -> MAlways (i, r f, bi, ai)
-    | MSince (s, i, f, g, bi, si) -> MSince (s, i, r f, r g, bi, si)
-    | MUntil (s, i, f, g, bi, ui) -> MUntil (s, i, r f, r g, bi, ui)
-  
+  (* let rec apply_valuation v = *)
+  (*   let r = apply_valuation v in *)
+  (*   let apply_valuation_term v = function *)
+  (*     | Term.Var x when Map.mem v x -> Term.Const (Map.find_exn v x) *)
+  (*     | Var x -> Var x *)
+  (*     | Const d -> Const d in *)
+  (*   function *)
+  (*   | MTT -> MTT *)
+  (*   | MFF -> MFF *)
+  (*   | MEqConst (x, d) when Map.find v x == Some d -> MTT *)
+  (*   | MEqConst (x, d) when Map.mem v x -> MFF *)
+  (*   | MEqConst (x, d) -> MEqConst (x, d) *)
+  (*   | MPredicate (e, t) -> MPredicate (e, List.map t (apply_valuation_term v)) *)
+  (*   | MNeg f -> MNeg (r f) *)
+  (*   | MAnd (s, f, g, bi) -> MAnd (s, r f, r g, bi) *)
+  (*   | MOr (s, f, g, bi) -> MOr (s, r f, r g, bi) *)
+  (*   | MImp (s, f, g, bi) -> MImp (s, r f, r g, bi) *)
+  (*   | MIff (s, t, f, g, bi) -> MIff (s, t, r f, r g, bi) *)
+  (*   | MExists (x, tt, f) -> MExists (x, tt, r f) *)
+  (*   | MForall (x, tt, f) -> MForall (x, tt, r f) *)
+  (*   | MPrev (i, f, b, pi) -> MPrev (i, r f, b, pi) *)
+  (*   | MNext (i, f, b, si) -> MNext (i, r f, b, si) *)
+  (*   | MOnce (i, f, ti, oi) -> MOnce (i, r f, ti, oi) *)
+  (*   | MEventually (i, f, bi, oi) -> MEventually (i, r f, bi, oi) *)
+  (*   | MHistorically (i, f, ti, oi) -> MHistorically (i, r f, ti, oi) *)
+  (*   | MAlways (i, f, bi, ai) -> MAlways (i, r f, bi, ai) *)
+  (*   | MSince (s, i, f, g, bi, si) -> MSince (s, i, r f, r g, bi, si) *)
+  (*   | MUntil (s, i, f, g, bi, ui) -> MUntil (s, i, r f, r g, bi, ui) *)
+
   let rec fv = function
     | MTT | MFF -> Set.empty (module String)
     | MEqConst (x, c) -> Set.of_list (module String) [x]
@@ -1345,7 +1345,7 @@ end
 module FObligation = struct
 
   include MFormula
-  
+
   type take_formula = timestamp -> MFormula.t
   type polarity = POS | NEG
 
@@ -1357,6 +1357,10 @@ module FObligation = struct
     | FEventually of int * Interval.t * MFormula.t * buf_info * eventually_info
 
   type t = kind * Expl.Proof.valuation * polarity
+
+  let equal fob1 fob2 = match fob1, fob2 with
+    (* TODO: Implement *)
+    | _ -> false
 
   let eval_kind ts' k p = match k with
     | FFormula f -> f
@@ -1384,12 +1388,12 @@ module FObligation = struct
        else
          MFF
 
-  let eval ts (k, v, p) =
-    (* TODO: adapt states *)
-    let f = apply_valuation v (eval_kind ts k p) in
-    match p with
-    | POS -> f
-    | NEG -> MNeg f 
+  (* let eval ts (k, v, p) = *)
+  (*   (\* TODO: adapt states *\) *)
+  (*   let f = apply_valuation v (eval_kind ts k p) in *)
+  (*   match p with *)
+  (*   | POS -> f *)
+  (*   | NEG -> MNeg f *)
 
   let polarity_to_string = function
     | POS -> "+"
@@ -1618,7 +1622,7 @@ let rec meval vars ts tp (db: Db.t) (fobligs: FObligation.t list) = function
      let expls' = Pdt.split_list es' in
      let expls'' = List.map expls' ~f:(Pdt.reduce Proof.equal) in
      (expls'', MEventually (i, mf', (buf', ntstps'), meaux_pdt'))
-  | MHistorically (i, mf, tstps, mhaux_pdt) -> 
+  | MHistorically (i, mf, tstps, mhaux_pdt) ->
      let (expls, mf') = meval vars ts tp db fobligs mf in
      let ((mhaux_pdt', expls'), buf', tstps') =
        Buft.take
