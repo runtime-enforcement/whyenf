@@ -44,7 +44,7 @@ module Errors = struct
      | ECast (e, t', t) -> e
                            ^ " has type "
                            ^ EnfType.to_string t'
-                           ^ " ⊀ "
+                           ^ " which is not a supertype of "
                            ^ EnfType.to_string t
      | EFormula (None, f, t) ->  Formula.to_string f
                                  ^ " cannot be "
