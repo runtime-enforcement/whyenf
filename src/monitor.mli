@@ -26,7 +26,7 @@ module MFormula : sig
   type until_info
 
   val empty_binop_info: binop_info
-  
+
   type t =
     | MTT
     | MFF
@@ -50,7 +50,7 @@ module MFormula : sig
 
   val init: Formula.t -> t
 
-  val apply_valuation : Expl.Proof.valuation -> t -> t
+  (* val apply_valuation : Expl.Proof.valuation -> t -> t *)
 
   val fv: t -> (String.t, Base.String.comparator_witness) Base.Set.t
   val rank: t -> int
@@ -63,7 +63,7 @@ end
 module FObligation : sig
 
   open MFormula
-  
+
   type polarity = POS | NEG
 
   type kind =
@@ -78,7 +78,8 @@ module FObligation : sig
 
   type t = kind * Expl.Proof.valuation * polarity
 
-  val eval: int -> t -> MFormula.t
+  val equal: t -> t -> bool
+  (* val eval: int -> t -> MFormula.t *)
   val to_string: t -> string
 
 end
