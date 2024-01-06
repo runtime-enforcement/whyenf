@@ -278,4 +278,10 @@ let exec f inc =
 
        (* (NOT REALLY) TODO: other execution mode with automatic timestamps *)
 
-       (* TODO: additional proof rules; update state in eval *)
+       (* TODO: additional proof rules; 
+           update state in *eval*, passing the es from the previous step; 
+           change to Pdt; 
+           correct the mistake with the ms called with the wrong mf in sat;
+           add TP;
+           update the loop;
+           add one enforcement strategy *)
