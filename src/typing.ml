@@ -162,13 +162,15 @@ let rec types t f =
                               (disj (types Cau f) (types Sup g))
       | Exists (_, _, f) -> types Cau f
       | Next (i, f) when i == Interval.full -> types Cau f
-      | Next (i, f) -> error "○ with non-[0,∞) interval is never Cau"
+      | Next _ -> error "○ with non-[0,∞) interval is never Cau"
       | Once (i, g) | Since (_, i, _, g) when Interval.mem 0 i -> types Cau g
-      | Once (i, g) | Since (_, i, _, g) ->
-         error "⧫[a,b) or S[a,b) with a > 0 is never Cau"
+      | Once _ | Since _ -> error "⧫[a,b) or S[a,b) with a > 0 is never Cau"
       | Eventually (B _, f) | Always (_, f) -> types Cau f
       | Eventually (_, _) -> error "◊ with unbounded interval is never Cau"
+      | Until (LR, B _, f, g) -> conj (types Cau f) (types Cau g)
+      | Until (_, B b, f, g) when Interval.mem 0 (B b) -> types Cau g
       | Until (_, B _, f, g) -> conj (types Cau f) (types Cau g)
+      | Until _ -> error "U with unbounded interval is never Cau"
       | Prev _ -> error "● is never Cau"
       | _ -> Impossible (EFormula (None, f, t))
     end
@@ -187,14 +189,14 @@ let rec types t f =
       | Iff (_, _, f, g) -> disj (conj (types Cau f) (types Sup g))
                               (conj (types Sup f) (types Cau g))
       | Exists (x, _, f) when is_past_guarded x true f -> types Sup f
-      | Exists (x, _, f) -> error ("for suppressability " ^ x ^ " must be past-guarded")
+      | Exists (x, _, _) -> error ("for suppressability " ^ x ^ " must be past-guarded")
       | Next (_, f) -> types Sup f
       | Historically (i, f) when Interval.mem 0 i -> types Sup f
-      | Historically (i, f) -> error "■[a,b) with a > 0 is never Sup"
+      | Historically _ -> error "■[a,b) with a > 0 is never Sup"
       | Since (_, i, f, _) when not (Interval.mem 0 i) -> types Sup f
       | Since (_, i, f, g) -> conj (types Sup f) (types Sup g)
       | Eventually (_, f) | Always (B _, f) -> types Sup f
-      | Always (_, _) -> error "□ with unbounded interval is never Sup"
+      | Always _ -> error "□ with unbounded interval is never Sup"
       | Until (L, i, f, g) when not (Interval.mem 0 i) -> types Sup f
       | Until (R, i, f, g) when not (Interval.mem 0 i) -> types Sup g
       | Until (_, i, f, g) when not (Interval.mem 0 i) -> disj (types Sup f) (types Sup g)
@@ -268,9 +270,13 @@ let rec convert enftype form : Tformula.t option =
            (convert Cau g) >>= (fun g' -> Some (Tformula.TSince (R, i, Tformula.of_formula f, g')))
         | Eventually (B b, f) -> (convert Cau f) >>= (fun f' -> Some (Tformula.TEventually (B b, f')))
         | Always (i, f) -> (convert Cau f) >>= (fun f' -> Some (Tformula.TAlways (i, f')))
-        | Until (_, B b, f, g) ->
+        | Until (LR, B b, f, g) ->
            (convert Cau f) >>= (fun f' -> (convert Cau g)
                                           >>= (fun g' -> Some (Tformula.TUntil (LR, B b, f', g'))))
+        | Until (_, B b, f, g) when Interval.mem 0 (B b) ->
+           (convert Cau g) >>= (fun g' -> Some (Tformula.TUntil (LR, B b, Tformula.of_formula f, g')))
+        | Until (L, B b, f, g) ->
+           (convert Cau g) >>= (fun g' -> Some (Tformula.TUntil (LR, B b, Tformula.of_formula f, g')))
         | _ -> None
       end
     | Sup -> begin

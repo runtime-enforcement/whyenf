@@ -97,7 +97,6 @@ module EState = struct
     | (_, expl)::_ -> (expl, ms'.mf)
 
   let sat v mf es =
-    (* TODO: use mf' *)
     let (expl, mf') = exec_monitor v mf es in
     Expl.Proof.isS (Expl.Pdt.specialize v expl)
 
@@ -105,14 +104,12 @@ module EState = struct
     sat v (MNeg mf) es
 
   let all_not_sat v x mf es =
-    (* TODO: use mf' *)
     let (expl, mf') = exec_monitor v mf es in
     match Expl.Pdt.collect Expl.Proof.isV v x expl with
     | Setc.Finite s -> Set.elements s
     | _ -> failwith ("Infinite set of candidates for " ^ x ^ " in " ^ (MFormula.to_string mf))
 
   let all_not_vio v x mf es =
-    (* TODO: use mf' *)
     let (expl, mf') = exec_monitor v mf es in
     match Expl.Pdt.collect Expl.Proof.isS v x expl with
     | Setc.Finite s -> Set.elements s
@@ -253,35 +250,72 @@ module EState = struct
     | _ -> raise (Invalid_argument ("function enfvio is not defined for "
                                     ^ MFormula.op_to_string mf))
 
-  let enf mf es ts =
+  let enf mf es =
     enfsat mf (Map.empty (module String)) { es with r = Triple.empty; fobligs = [] }
 
 end
 
-let goal es ts tp =
-  (* TODO: Here pass es to eval and use the db and r to update the state of the new mfs *)
-  let obligs = List.map EState.(es.fobligs) (FObligation.eval ts tp) in
+type order = ReOrd of Db.t * Db.t | PrOrd of Db.t | NoOrd
+
+let goal (es: EState.t) =
+  let obligs = List.map es.fobligs
+                 (FObligation.eval
+                    (fun vars ts db ms -> (snd (mstep Out.Plain.ENFORCE vars ts db ms [])).mf)
+                    es.ms es.db es.ts es.tp) in
   match obligs with
   | [] -> MFormula.MTT
   | init::rest -> List.fold_left rest ~init ~f:(fun mf mg -> MAnd (LR, mf, mg, empty_binop_info))
 
+let _tp : Db.Event.t = ("~tp", [])
+
 let exec f inc =
-  let rec step pb_opt es ts =
+  let reactive_step new_db es =
+    let mf = goal es in
+    let vars = Set.elements (MFormula.fv mf) in
+    let es = { es with ms = { es.ms with tp_cur = es.tp;
+                                         tp_out = es.tp - 1;
+                                         ts_waiting = Queue.of_list [es.ts]; };
+                       r  = (Db.create [_tp], Db.create [], []);
+                       db = Db.add_event new_db _tp } in
+
+    let es = EState.enf mf es in
+    let (tstp_expls, ms') = EState.mstep_state vars es in
+    Out.Plain.expls tstp_expls None None None Out.Plain.ENFORCE;
+    ReOrd (Triple.cau es.r, Triple.sup es.r), es
+  in
+  let proactive_step es =
+    let mf = goal es in
+    let vars = Set.elements (MFormula.fv mf) in
+    let es' = { es with ms = { es.ms with tp_cur = es.tp;
+                                          tp_out = es.tp - 1;
+                                          ts_waiting = Queue.of_list [es.ts] };
+                        r  = (Db.create [], Db.create [], []);
+                        db = Db.create []} in
+    Hashtbl.update es.ms.tpts es.tp (fun _ -> es.ts);
+    let es' = EState.enf mf es' in
+    let (tstp_expls, ms') = EState.mstep_state vars es' in
+    Out.Plain.expls tstp_expls None None None Out.Plain.ENFORCE;
+    if Db.mem (Triple.cau es'.r) _tp then
+      PrOrd (Triple.cau es'.r), es'
+    else
+      NoOrd, es
+  in
+  let rec process_db (pb: Other_parser.Parsebuf.t) (es: EState.t) =
+    if pb.ts == es.ts then
+      match reactive_step pb.db es with
+      | ReOrd (c, s), es -> { es with tp = es.tp + 1 }
+      | _ -> assert false
+    else
+      match proactive_step es with
+      | PrOrd c, es -> process_db pb { es with tp = es.tp + 1; ts = es.ts + 1 }
+      | NoOrd, es -> process_db pb { es with ts = es.ts + 1 }
+  in
+  let rec step pb_opt es =
     match Other_parser.Trace.parse_from_channel inc pb_opt with
     | None -> ()
     | Some (more, pb) ->
-       let mf = goal es ts es.EState.tp in
-       let vars = Set.elements (MFormula.fv mf) in
-       let es = { es with EState.ms = { es.EState.ms with ts_waiting = Queue.of_list [ts] } } in
-       let es = EState.enf mf
-                  (if Int.equal pb.ts ts then
-                     EState.{ es with db = pb.db; tp = es.tp + 1; ts }
-                   else
-                     EState.{ es with db = Db.create []; tp = es.tp + 1; ts = ts + 1 })
-                  es in
-       let (tstp_expls, ms') = EState.mstep_state vars es in
-       Out.Plain.expls tstp_expls None None None Out.Plain.ENFORCE;
-       if more then step (Some(pb)) es ts in
+       let es = process_db pb es in
+       if more then step (Some(pb)) es in
   let tf = try Typing.do_type f with Invalid_argument s -> failwith s in
   let transparent =
     try Typing.is_transparent tf
@@ -289,12 +323,8 @@ let exec f inc =
   let f = Tformula.to_formula tf in
   let mf = Monitor.MFormula.init f in
   let ms = Monitor.MState.init mf in
-  step None (EState.init ms mf) 0
+  step None (EState.init ms mf)
 
        (* (NOT-SO-URGENT) TODO: other execution mode with automatic timestamps; change to Pdt  *)
 
-       (* TODO: additional proof rules for Until, Eventually, Always;
-           update state in *eval*, passing the es from the previous step;
-           add TP;
-           update the loop;
-           add one enforcement strategy *)
+       (* TODO: additional proof rules for Until, Eventually, Always*)
