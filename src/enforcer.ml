@@ -88,7 +88,8 @@ module EState = struct
 
   let exec_monitor v mf es =
     let vars = Set.elements (MFormula.fv mf) in
-    let (tstp_expls, _) = mstep_state vars es in
+    (* use ms'*)
+    let (tstp_expls, ms') = mstep_state vars es in
     match tstp_expls with
     | []   -> failwith ("Monitor did not return a verdict on " ^ (MFormula.to_string mf))
     | ((ts, tp), _)::_ when not (Int.equal ts es.ts) || not (Int.equal tp es.tp) ->
@@ -154,23 +155,23 @@ module EState = struct
                                              | Const c -> c)) in
        add_cau new_cau es
     | MNeg mf -> enfvio mf v es
-    | MAnd (L, mf1, mf2, bi) -> fixpoint (enfsat_and mf1 mf2 v) es
-    | MAnd (R, mf1, mf2, bi) -> fixpoint (enfsat_and mf2 mf1 v) es
-    | MAnd (LR, mf1, mf2, bi) -> if MFormula.rank mf1 < MFormula.rank mf2 then
-                                   fixpoint (enfsat_and mf1 mf2 v) es
-                                 else
-                                   fixpoint (enfsat_and mf2 mf1 v) es
-    | MOr (L, mf1, mf2, bi) -> enfsat mf1 v es
-    | MOr (R, mf1, mf2, bi) -> enfsat mf2 v es
-    | MImp (L, mf1, mf2, bi) -> enfvio mf1 v es
-    | MImp (R, mf1, mf2, bi) -> enfsat mf2 v es
+    | MAnd (L, mf1, mf2, _) -> fixpoint (enfsat_and mf1 mf2 v) es
+    | MAnd (R, mf1, mf2, _) -> fixpoint (enfsat_and mf2 mf1 v) es
+    | MAnd (LR, mf1, mf2, _) -> if MFormula.rank mf1 < MFormula.rank mf2 then
+                                  fixpoint (enfsat_and mf1 mf2 v) es
+                                else
+                                  fixpoint (enfsat_and mf2 mf1 v) es
+    | MOr (L, mf1, mf2, _) -> enfsat mf1 v es
+    | MOr (R, mf1, mf2, _) -> enfsat mf2 v es
+    | MImp (L, mf1, mf2, _) -> enfvio mf1 v es
+    | MImp (R, mf1, mf2, _) -> enfsat mf2 v es
     | MIff (side1, side2, mf1, mf2, bi) ->
        fixpoint (enfsat_and
                    (MImp (side1, mf1, mf2, empty_binop_info))
                    (MImp (side1, mf2, mf1, empty_binop_info)) v) es
     | MExists (x, tt, mf) -> enfsat mf (Map.add_exn v ~key:x ~data:(Dom.tt_default tt)) es
     | MForall (x, tt, mf) -> fixpoint (enfsat_forall x mf v) es
-    | MNext (i, mf, bi, ni) -> add_foblig (FFormula mf, v, POS) es
+    | MNext (i, mf, bi, _) -> add_foblig (FFormula mf, v, POS) es
     | MEventually (i, mf, bi, ei) ->
        let (a, b) = Interval.boundaries i in
        if Int.equal a 0 && Int.equal b 0 then
@@ -178,7 +179,7 @@ module EState = struct
        else
          add_foblig (FEventually (es.ts, i, mf, bi, ei), v, POS) es
     | MAlways (i, mf, bi, ai) -> add_foblig (FAlways (es.ts, i, mf, bi, ai), v, POS) (enfsat mf v es)
-    | MSince (_, _, mf1, mf2, bi, si) -> enfsat mf2 v es
+    | MSince (_, _, mf1, mf2, _, _) -> enfsat mf2 v es
     | MUntil (side, i, mf1, mf2, bi, ui) ->
        let (a, b) = Interval.boundaries i in
        if Int.equal a 0 && Int.equal b 0 then
@@ -195,26 +196,26 @@ module EState = struct
                                                    | Const c -> c)) in
        add_sup new_sup es
     | MNeg mf -> enfsat mf v es
-    | MAnd (L, mf1, _, bi) -> enfvio mf1 v es
-    | MAnd (R, _, mf2, bi) -> enfvio mf2 v es
-    | MAnd (LR, mf1, mf2, bi) -> if MFormula.rank mf1 < MFormula.rank mf2 then
-                                 enfvio mf1 v es
+    | MAnd (L, mf1, _, _) -> enfvio mf1 v es
+    | MAnd (R, _, mf2, _) -> enfvio mf2 v es
+    | MAnd (LR, mf1, mf2, _) -> if MFormula.rank mf1 < MFormula.rank mf2 then
+                                  enfvio mf1 v es
+                                else
+                                  enfvio mf2 v es
+    | MOr (L, mf1, mf2, _) -> fixpoint (enfvio_or mf1 mf2 v) es
+    | MOr (R, mf1, mf2, _) -> fixpoint (enfvio_or mf2 mf1 v) es
+    | MOr (LR, mf1, mf2, _) -> if MFormula.rank mf1 < MFormula.rank mf2 then
+                                 fixpoint (enfvio_or mf1 mf2 v) es
                                else
-                                 enfvio mf2 v es
-    | MOr (L, mf1, mf2, bi) -> fixpoint (enfvio_or mf1 mf2 v) es
-    | MOr (R, mf1, mf2, bi) -> fixpoint (enfvio_or mf2 mf1 v) es
-    | MOr (LR, mf1, mf2, bi) -> if MFormula.rank mf1 < MFormula.rank mf2 then
-                                fixpoint (enfvio_or mf1 mf2 v) es
-                              else
-                            fixpoint (enfvio_or mf2 mf1 v) es
-    | MImp (L, mf1, mf2, bi) -> fixpoint (enfvio_imp mf1 mf2 v) es
-    | MImp (R, mf1, mf2, bi) -> fixpoint (enfvio_imp mf2 mf1 v) es
-    | MImp (LR, mf1, mf2, bi) -> if MFormula.rank mf1 < MFormula.rank mf2 then
-                                 fixpoint (enfvio_imp mf1 mf2 v) es
-                               else
-                                 fixpoint (enfvio_imp mf2 mf1 v) es
-    | MIff (L, _, mf1, mf2, bi) -> fixpoint (enfvio_imp mf1 mf2 v) es
-    | MIff (R, _, mf1, mf2, bi) -> fixpoint (enfvio_imp mf2 mf1 v) es
+                                 fixpoint (enfvio_or mf2 mf1 v) es
+    | MImp (L, mf1, mf2, _) -> fixpoint (enfvio_imp mf1 mf2 v) es
+    | MImp (R, mf1, mf2, _) -> fixpoint (enfvio_imp mf2 mf1 v) es
+    | MImp (LR, mf1, mf2, _) -> if MFormula.rank mf1 < MFormula.rank mf2 then
+                                  fixpoint (enfvio_imp mf1 mf2 v) es
+                                else
+                                  fixpoint (enfvio_imp mf2 mf1 v) es
+    | MIff (L, _, mf1, mf2, _) -> fixpoint (enfvio_imp mf1 mf2 v) es
+    | MIff (R, _, mf1, mf2, _) -> fixpoint (enfvio_imp mf2 mf1 v) es
     | MExists (x, tt, mf) -> fixpoint (enfvio_exists x mf v) es
     | MForall (x, tt, mf) -> enfvio mf (Map.add_exn v ~key:x ~data:(Dom.tt_default tt)) es
     | MNext (i, mf, b, ti) -> add_foblig (FInterval (es.ts, i, mf), v, NEG) es
@@ -225,21 +226,21 @@ module EState = struct
          enfvio mf v es
        else
          add_foblig (FAlways (es.ts, i, mf, bi, ai), v, NEG) es
-    | MSince (L, _, mf1, _, bi, si) -> enfvio mf1 v es
-    | MSince (R, i, mf1, mf2, bi, si) ->
+    | MSince (L, _, mf1, _, _, _) -> enfvio mf1 v es
+    | MSince (R, i, mf1, mf2, _, _) ->
        let f' = MNeg (MAnd (R, mf1, mf, empty_binop_info)) in
        fixpoint (enfsat_and f' (MNeg mf2) v) es
-    | MSince (LR, i, mf1, mf2, bi, si) -> if MFormula.rank mf1 < MFormula.rank mf2 then
+    | MSince (LR, i, mf1, mf2, _, _) -> if MFormula.rank mf1 < MFormula.rank mf2 then
                                           enfvio mf1 v es
                                         else
                                           let f' = MNeg (MAnd (LR, mf1, mf, empty_binop_info)) in
                                           fixpoint (enfsat_and f' (MNeg mf2) v) es
-    | MUntil (L, _, mf1, _, bi, ui) -> enfvio mf1 v es
+    | MUntil (L, _, mf1, _, _, _) -> enfvio mf1 v es
     | MUntil (R, i, mf1, mf2, bi, ui) -> fixpoint (enfvio_until i mf1 mf2 bi ui v) es
     | MUntil (LR, i, mf1, mf2, bi, ui) -> if MFormula.rank mf1 < MFormula.rank mf2 then
-                                         enfvio mf1 v es
-                                       else
-                                         fixpoint (enfvio_until i mf1 mf2 bi ui v) es
+                                            enfvio mf1 v es
+                                          else
+                                            fixpoint (enfvio_until i mf1 mf2 bi ui v) es
     | _ -> raise (Invalid_argument ("function enfvio is not defined for "
                                     ^ MFormula.op_to_string mf))
 
@@ -248,8 +249,8 @@ module EState = struct
 
 end
 
-let goal es ts =
-  let obligs = [] (* List.map EState.(es.fobligs) (FObligation.eval ts) *) in
+let goal es ts tp =
+  let obligs = List.map EState.(es.fobligs) (FObligation.eval ts tp) in
   match obligs with
   | [] -> MFormula.MTT
   | init::rest -> List.fold_left rest ~init ~f:(fun mf mg -> MAnd (LR, mf, mg, empty_binop_info))
@@ -259,17 +260,17 @@ let exec f inc =
     match Other_parser.Trace.parse_from_channel inc pb_opt with
     | None -> ()
     | Some (more, pb) ->
-         let mf = goal es ts in
-         let vars = Set.elements (MFormula.fv mf) in
-         let es = EState.enf mf
-                    (if Int.equal pb.ts ts then
-                       EState.{ es with db = pb.db; tp = es.tp + 1; ts }
-                     else
-                       EState.{ es with db = Db.create []; tp = es.tp + 1; ts = ts + 1 })
-                    es in
-         let (tstp_expls, ms') = EState.mstep_state vars es in
-         Out.Plain.expls tstp_expls None None None Out.Plain.ENFORCE;
-         if more then step (Some(pb)) es ts in
+       let mf = goal es ts es.EState.tp in
+       let vars = Set.elements (MFormula.fv mf) in
+       let es = EState.enf mf
+                  (if Int.equal pb.ts ts then
+                     EState.{ es with db = pb.db; tp = es.tp + 1; ts }
+                   else
+                     EState.{ es with db = Db.create []; tp = es.tp + 1; ts = ts + 1 })
+                  es in
+       let (tstp_expls, ms') = EState.mstep_state vars es in
+       Out.Plain.expls tstp_expls None None None Out.Plain.ENFORCE;
+       if more then step (Some(pb)) es ts in
   let tf = try Typing.do_type f with Invalid_argument s -> failwith s in
   let f = Tformula.to_formula tf in
   let mf = Monitor.MFormula.init f in
@@ -278,9 +279,9 @@ let exec f inc =
 
        (* (NOT REALLY) TODO: other execution mode with automatic timestamps *)
 
-       (* TODO: additional proof rules; 
-           update state in *eval*, passing the es from the previous step; 
-           change to Pdt; 
+       (* TODO: additional proof rules;
+           update state in *eval*, passing the es from the previous step;
+           change to Pdt;
            correct the mistake with the ms called with the wrong mf in sat;
            add TP;
            update the loop;

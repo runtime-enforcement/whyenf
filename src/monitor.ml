@@ -1174,12 +1174,12 @@ module MFormula = struct
   type prev_info          = (Expl.t, timestamp) Buft.t
   type next_info          = timestamp list
   type tp_info            = (timestamp * timepoint) list
-  type buf_info           = (Expl.t, timestamp * timepoint) Buft.t
+  type buft_info          = (Expl.t, timestamp * timepoint) Buft.t
   type once_info          = Once.t Expl.Pdt.t
   type eventually_info    = Eventually.t Expl.Pdt.t
   type historically_info  = Historically.t Expl.Pdt.t
   type always_info        = Always.t Expl.Pdt.t
-  type buf2_info          = (Expl.t, Expl.t, timestamp * timepoint) Buf2t.t
+  type buf2t_info         = (Expl.t, Expl.t, timestamp * timepoint) Buf2t.t
   type since_info         = Since.t Expl.Pdt.t
   type until_info         = Until.t Expl.Pdt.t
 
@@ -1200,11 +1200,11 @@ module MFormula = struct
     | MPrev         of Interval.t * t * bool * prev_info
     | MNext         of Interval.t * t * bool * next_info
     | MOnce         of Interval.t * t * tp_info * once_info
-    | MEventually   of Interval.t * t * buf_info * eventually_info
+    | MEventually   of Interval.t * t * buft_info * eventually_info
     | MHistorically of Interval.t * t * tp_info * historically_info
-    | MAlways       of Interval.t * t * buf_info * always_info
-    | MSince        of Formula.Side.t * Interval.t * t * t * buf2_info * since_info
-    | MUntil        of Formula.Side.t * Interval.t * t * t * buf2_info * until_info
+    | MAlways       of Interval.t * t * buft_info * always_info
+    | MSince        of Formula.Side.t * Interval.t * t * t * buf2t_info * since_info
+    | MUntil        of Formula.Side.t * Interval.t * t * t * buf2t_info * until_info
 
   let rec init = function
     | Formula.TT -> MTT
@@ -1227,34 +1227,34 @@ module MFormula = struct
     | Formula.Since (s, i, f, g) -> MSince (s, i, init f, init g, (([], []), []), Leaf (Since.init ()))
     | Formula.Until (s, i, f, g) -> MUntil (s, i, init f, init g, (([], []), []), Leaf (Until.init ()))
 
-  (* let rec apply_valuation v = *)
-  (*   let r = apply_valuation v in *)
-  (*   let apply_valuation_term v = function *)
-  (*     | Term.Var x when Map.mem v x -> Term.Const (Map.find_exn v x) *)
-  (*     | Var x -> Var x *)
-  (*     | Const d -> Const d in *)
-  (*   function *)
-  (*   | MTT -> MTT *)
-  (*   | MFF -> MFF *)
-  (*   | MEqConst (x, d) when Map.find v x == Some d -> MTT *)
-  (*   | MEqConst (x, d) when Map.mem v x -> MFF *)
-  (*   | MEqConst (x, d) -> MEqConst (x, d) *)
-  (*   | MPredicate (e, t) -> MPredicate (e, List.map t (apply_valuation_term v)) *)
-  (*   | MNeg f -> MNeg (r f) *)
-  (*   | MAnd (s, f, g, bi) -> MAnd (s, r f, r g, bi) *)
-  (*   | MOr (s, f, g, bi) -> MOr (s, r f, r g, bi) *)
-  (*   | MImp (s, f, g, bi) -> MImp (s, r f, r g, bi) *)
-  (*   | MIff (s, t, f, g, bi) -> MIff (s, t, r f, r g, bi) *)
-  (*   | MExists (x, tt, f) -> MExists (x, tt, r f) *)
-  (*   | MForall (x, tt, f) -> MForall (x, tt, r f) *)
-  (*   | MPrev (i, f, b, pi) -> MPrev (i, r f, b, pi) *)
-  (*   | MNext (i, f, b, si) -> MNext (i, r f, b, si) *)
-  (*   | MOnce (i, f, ti, oi) -> MOnce (i, r f, ti, oi) *)
-  (*   | MEventually (i, f, bi, oi) -> MEventually (i, r f, bi, oi) *)
-  (*   | MHistorically (i, f, ti, oi) -> MHistorically (i, r f, ti, oi) *)
-  (*   | MAlways (i, f, bi, ai) -> MAlways (i, r f, bi, ai) *)
-  (*   | MSince (s, i, f, g, bi, si) -> MSince (s, i, r f, r g, bi, si) *)
-  (*   | MUntil (s, i, f, g, bi, ui) -> MUntil (s, i, r f, r g, bi, ui) *)
+  let rec apply_valuation v =
+    let r = apply_valuation v in
+    let apply_valuation_term v = function
+      | Term.Var x when Map.mem v x -> Term.Const (Map.find_exn v x)
+      | Var x -> Var x
+      | Const d -> Const d in
+    function
+    | MTT -> MTT
+    | MFF -> MFF
+    | MEqConst (x, d) when Map.find v x == Some d -> MTT
+    | MEqConst (x, d) when Map.mem v x -> MFF
+    | MEqConst (x, d) -> MEqConst (x, d)
+    | MPredicate (e, t) -> MPredicate (e, List.map t (apply_valuation_term v))
+    | MNeg f -> MNeg (r f)
+    | MAnd (s, f, g, bi) -> MAnd (s, r f, r g, bi)
+    | MOr (s, f, g, bi) -> MOr (s, r f, r g, bi)
+    | MImp (s, f, g, bi) -> MImp (s, r f, r g, bi)
+    | MIff (s, t, f, g, bi) -> MIff (s, t, r f, r g, bi)
+    | MExists (x, tt, f) -> MExists (x, tt, r f)
+    | MForall (x, tt, f) -> MForall (x, tt, r f)
+    | MPrev (i, f, b, pi) -> MPrev (i, r f, b, pi)
+    | MNext (i, f, b, si) -> MNext (i, r f, b, si)
+    | MOnce (i, f, ti, oi) -> MOnce (i, r f, ti, oi)
+    | MEventually (i, f, bi, oi) -> MEventually (i, r f, bi, oi)
+    | MHistorically (i, f, ti, oi) -> MHistorically (i, r f, ti, oi)
+    | MAlways (i, f, bi, ai) -> MAlways (i, r f, bi, ai)
+    | MSince (s, i, f, g, bi, si) -> MSince (s, i, r f, r g, bi, si)
+    | MUntil (s, i, f, g, bi, ui) -> MUntil (s, i, r f, r g, bi, ui)
 
   let rec fv = function
     | MTT | MFF -> Set.empty (module String)
@@ -1352,9 +1352,9 @@ module FObligation = struct
   type kind =
     | FFormula of MFormula.t
     | FInterval of int * Interval.t * MFormula.t
-    | FUntil of int * Formula.Side.t * Interval.t * MFormula.t * MFormula.t * buf2_info * until_info
-    | FAlways of int * Interval.t * MFormula.t * buf_info * always_info
-    | FEventually of int * Interval.t * MFormula.t * buf_info * eventually_info
+    | FUntil of int * Formula.Side.t * Interval.t * MFormula.t * MFormula.t * buf2t_info * until_info
+    | FAlways of int * Interval.t * MFormula.t * buft_info * always_info
+    | FEventually of int * Interval.t * MFormula.t * buft_info * eventually_info
 
   type t = kind * Expl.Proof.valuation * polarity
 
@@ -1362,7 +1362,7 @@ module FObligation = struct
     (* TODO: Implement *)
     | _ -> false
 
-  let eval_kind ts' k p = match k with
+  let eval_kind ts' tp k p = match k with
     | FFormula f -> f
     | FInterval (ts, i, f) ->
        if Interval.mem (ts' - ts) i then
@@ -1371,7 +1371,7 @@ module FObligation = struct
          MTT
     | FUntil (ts, side, i, f, g, bi, ui) ->
        if not (Interval.above (ts' - ts) i) then
-         (* TODO: adapt bi and ui *)
+         let ui = Until.adjust (Interval.left i) (ts', tp) ui in
          MUntil (side, Interval.sub2 i (ts' - ts), f, g, bi, ui)
        else
          MFF
@@ -1388,12 +1388,12 @@ module FObligation = struct
        else
          MFF
 
-  (* let eval ts (k, v, p) = *)
-  (*   (\* TODO: adapt states *\) *)
-  (*   let f = apply_valuation v (eval_kind ts k p) in *)
-  (*   match p with *)
-  (*   | POS -> f *)
-  (*   | NEG -> MNeg f *)
+  let eval ts tp (k, v, p) =
+    (* TODO: adapt states *)
+    let f = apply_valuation v (eval_kind ts tp k p) in
+    match p with
+    | POS -> f
+    | NEG -> MNeg f
 
   let polarity_to_string = function
     | POS -> "+"
