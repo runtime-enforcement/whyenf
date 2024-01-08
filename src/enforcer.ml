@@ -259,6 +259,7 @@ module EState = struct
 end
 
 let goal es ts tp =
+  (* TODO: Here pass es to eval and use the db and r to update the state of the new mfs *)
   let obligs = List.map EState.(es.fobligs) (FObligation.eval ts tp) in
   match obligs with
   | [] -> MFormula.MTT
@@ -290,12 +291,10 @@ let exec f inc =
   let ms = Monitor.MState.init mf in
   step None (EState.init ms mf) 0
 
-       (* (NOT REALLY) TODO: other execution mode with automatic timestamps *)
+       (* (NOT-SO-URGENT) TODO: other execution mode with automatic timestamps; change to Pdt  *)
 
-       (* TODO: additional proof rules;
+       (* TODO: additional proof rules for Until, Eventually, Always;
            update state in *eval*, passing the es from the previous step;
-           change to Pdt;
-           correct the mistake with the ms called with the wrong mf in sat;
            add TP;
            update the loop;
            add one enforcement strategy *)
