@@ -32,6 +32,8 @@ let lopen_rclosed_BI i j = B (nonempty_BI (i + 1) j)
 let lclosed_ropen_BI i j = B (nonempty_BI i (j - 1))
 let lclosed_rclosed_BI i j = B (nonempty_BI i j)
 
+let singleton i = lclosed_rclosed_BI i i
+
 let full = U (UI 0)
 
 let case f1 f2 = function
@@ -70,6 +72,12 @@ let right =
   let right_UI (UI l) = None in
   let right_BI (BI (l, r)) = Some(r) in
   case right_BI right_UI
+
+let lub i i' =
+  let l = min (left i) (left i') in
+  match right i, right i' with
+  | Some r, Some r' -> lclosed_rclosed_BI l (max r r')
+  | _ -> lclosed_UI l
 
 let below_UI t (UI l) = t < l
 let below_BI t (BI (l, r)) = t < l

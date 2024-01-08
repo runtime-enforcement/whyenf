@@ -21,6 +21,7 @@ val lopen_ropen_BI: int -> int -> t
 val lopen_rclosed_BI: int -> int -> t
 val lclosed_ropen_BI: int -> int -> t
 val lclosed_rclosed_BI: int -> int -> t
+val singleton: int -> t
 
 val full: t
 
@@ -34,6 +35,8 @@ val mem: int -> t -> bool
 
 val left: t -> int
 val right: t -> int option
+
+val lub: t -> t -> t
 
 val below: int -> t -> bool
 val above: int -> t -> bool

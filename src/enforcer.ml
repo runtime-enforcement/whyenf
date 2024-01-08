@@ -283,6 +283,9 @@ let exec f inc =
        Out.Plain.expls tstp_expls None None None Out.Plain.ENFORCE;
        if more then step (Some(pb)) es ts in
   let tf = try Typing.do_type f with Invalid_argument s -> failwith s in
+  let transparent =
+    try Typing.is_transparent tf
+    with Invalid_argument s -> print_endline s; false in
   let f = Tformula.to_formula tf in
   let mf = Monitor.MFormula.init f in
   let ms = Monitor.MState.init mf in
