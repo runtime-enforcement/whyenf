@@ -187,7 +187,7 @@ let rec types t f =
       | Iff (_, _, f, g) -> disj (conj (types Cau f) (types Sup g))
                               (conj (types Sup f) (types Cau g))
       | Exists (x, _, f) when is_past_guarded x true f -> types Sup f
-      | Exists (x, _, f) ->  error ("for suppressability " ^ x ^ " must be past-guarded")
+      | Exists (x, _, f) -> error ("for suppressability " ^ x ^ " must be past-guarded")
       | Next (_, f) -> types Sup f
       | Historically (i, f) when Interval.mem 0 i -> types Sup f
       | Historically (i, f) -> error "■[a,b) with a > 0 is never Sup"
@@ -364,3 +364,99 @@ let do_type f =
                           ^ "\nis not enforceable because\n "
                           ^ Errors.to_string e);
      raise (Invalid_argument (Printf.sprintf "formula %s is not enforceable" (Formula.to_string f)))
+
+let rec relative_interval (f: Tformula.t) = match f.f with
+  | TTT | TFF | TEqConst (_, _) | TPredicate (_, _) -> Zinterval.singleton 0
+  | TNeg f | TExists (_, _, f) | TForall (_, _, f) -> relative_interval f
+  | TAnd (_, f1, f2) | TOr (_, f1, f2) | TImp (_, f1, f2) | TIff (_, _, f1, f2)
+    -> Zinterval.lub (relative_interval f1) (relative_interval f2)
+  | TPrev (i, f) | TOnce (i, f) | THistorically (i, f)
+    -> Zinterval.lub (Zinterval.to_zero (Zinterval.inv (Zinterval.of_interval i)))
+         (Zinterval.sum (Zinterval.of_interval i) (relative_interval f))
+  | TNext (i, f) | TEventually (i, f) | TAlways (i, f)
+    -> Zinterval.lub (Zinterval.to_zero (Zinterval.of_interval i))
+         (Zinterval.sum (Zinterval.of_interval i) (relative_interval f))
+  | TSince (_, i, f1, f2) ->
+     let i' = Zinterval.inv (Zinterval.of_interval i) in
+     (Zinterval.lub (Zinterval.sum (Zinterval.to_zero i') (relative_interval f1))
+        (Zinterval.sum i' (relative_interval f2)))
+  | TUntil (_, i, f1, f2) ->
+     let i' = Zinterval.of_interval i in
+     (Zinterval.lub (Zinterval.sum (Zinterval.to_zero i') (relative_interval f1))
+        (Zinterval.sum i' (relative_interval f2)))
+
+let strict f = 
+  let rec _strict itv fut (f: Tformula.t) =
+    ((Zinterval.mem 0 itv) && fut)
+    || (match f.f with
+        | TEqConst (_, _) | TPredicate _ -> false
+        | TNeg f | TExists (_, _, f) | TForall (_, _, f) -> _strict itv fut f
+        | TAnd (_, f1, f2) | TOr (_, f1, f2) | TImp (_, f1, f2) | TIff (_, _, f1, f2)
+          -> (_strict itv fut f1) || (_strict itv fut f2)
+        | TPrev (i, f) | TOnce (i, f) | THistorically (i, f)
+          -> _strict (Zinterval.sum (Zinterval.inv (Zinterval.of_interval i)) itv) fut f
+        | TNext (i, f) | TEventually (i, f) | TAlways (i, f)
+          -> _strict (Zinterval.sum (Zinterval.of_interval i) itv) true f
+        | TSince (_, i, f1, f2)
+          -> (_strict (Zinterval.sum (Zinterval.inv (Zinterval.of_interval i)) itv) fut f1)
+             || (_strict (Zinterval.sum (Zinterval.inv (Zinterval.of_interval i)) itv) fut f2)
+        | TUntil (_, i, f1, f2)
+          -> (_strict (Zinterval.sum (Zinterval.inv (Zinterval.of_interval i)) itv) true f1)
+             || (_strict (Zinterval.sum (Zinterval.inv (Zinterval.of_interval i)) itv) true f2))
+  in not (_strict (Zinterval.singleton 0) false f)
+  
+let relative_past f =
+  Zinterval.is_nonpositive (relative_interval f)               
+                
+let strictly_relative_past f =
+  (relative_past f) && (strict f)
+
+let is_transparent (f: Tformula.t) =
+  let rec aux (f: Tformula.t) = 
+    match f.enftype with
+    | Cau -> begin
+        match f.f with
+        | TTT | TPredicate (_, _) -> true
+        | TNeg f | TExists (_, _, f) | TForall (_, _, f)
+          | TNext (_, f) | TEventually (_, f) | TAlways (_, f) -> aux f
+        | TOr (L, f, g) | TImp (L, f, g) | TIff (L, L, f, g)
+          -> aux f && strictly_relative_past g
+        | TOr (R, f, g) | TImp (R, f, g) | TIff (R, R, f, g)
+          -> aux g && strictly_relative_past f
+        | TAnd (_, f, g) | TIff (_, _, f, g)
+          -> aux f && aux g
+        | TNext (_, f) | TOnce (_, f) | TEventually (_, f) | THistorically (_, f) | TAlways (_, f)
+          -> aux f
+        | TSince (_, _, f, g) -> aux f && strictly_relative_past g
+        | TUntil (R, _, f, g) -> aux f && strictly_relative_past g
+        | TUntil (LR, _, f, g) -> aux f && aux g
+        | _ -> false
+      end
+    | Sup -> begin
+        match f.f with
+        | TFF | TPredicate (_, _) -> true
+        | TNeg f | TExists (_, _, f) | TForall (_, _, f)
+          | TNext (_, f) | TEventually (_, f) | TAlways (_, f) -> aux f
+        | TAnd (L, f, g) | TIff (L, L, f, g)
+          -> aux f && strictly_relative_past g
+        | TAnd (R, f, g) | TIff (R, R, f, g)
+          -> aux g && strictly_relative_past f
+        | TOr (_, f, g) | TIff (_, _, f, g)
+          -> aux f && aux g
+        | TNext (_, f) | TOnce (_, f) | TEventually (_, f) | THistorically (_, f) | TAlways (_, f)
+          -> aux f
+        | TSince (L, _, f, g) -> aux f && strictly_relative_past g
+        | TSince (R, _, f, g) -> aux f && aux g
+        | TUntil (R, _, f, g) -> aux f && strictly_relative_past g
+        | TUntil (_, _, f, g) -> aux g && strictly_relative_past f
+        | _ -> false
+      end
+  in
+  if aux f then
+    true
+  else
+    raise (Invalid_argument (Printf.sprintf "Warning: this formula cannot be transparently enforced because of the subformula\n %s" (Tformula.to_string f)))
+
+  
+    
+  
