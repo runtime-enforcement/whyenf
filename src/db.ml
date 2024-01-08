@@ -44,6 +44,8 @@ type t = (Event.t, Event.comparator_witness) Set.t
 
 let create evtl = Set.of_list (module Event) evtl
 
+let mem = Set.mem 
+
 let event name consts =
   let pred_sig = Hashtbl.find_exn Pred.Sig.table name in
   if pred_sig.arity = List.length consts then

@@ -26,6 +26,8 @@ type t = (Event.t, Event.comparator_witness) Set.t
 
 val create: Event.t list -> t
 
+val mem: t -> Event.t -> bool
+
 val event: string -> string list -> Event.t
 
 val add_event: t -> Event.t -> t

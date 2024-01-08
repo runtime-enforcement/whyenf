@@ -1449,19 +1449,25 @@ module FObligation = struct
          MFF
     | FAlways (ts, i, mf, ai) ->
        if not (Interval.above (ts' - ts) i) then
-         let ui = Expl.Pdt.replace_leaf v (Always.adjust (Interval.left i) (ts', tp) (Expl.Pdt.specialize v ai)) ai in
+         let ai = Expl.Pdt.replace_leaf v (Always.adjust (Interval.left i) (ts', tp) (Expl.Pdt.specialize v ai)) ai in
          MAlways (Interval.sub2 i (ts' - ts), mf, ([], []), ai)
        else
          MTT
     | FEventually (ts, i, mf, ei) ->
        if not (Interval.above (ts' - ts) i) then
-         let ui = Expl.Pdt.replace_leaf v (Eventually.adjust (Interval.left i) (ts', tp) (Expl.Pdt.specialize v ei)) ei in
+         let ei = Expl.Pdt.replace_leaf v (Eventually.adjust (Interval.left i) (ts', tp) (Expl.Pdt.specialize v ei)) ei in
          MEventually (Interval.sub2 i (ts' - ts), mf, ([], []), ei)
        else
          MFF
 
-  let eval ts tp (k, v, pol) =
+  (*  (*mstep mode vars pb.ts pb.db ms []*)
+  (* TODO: Here pass es to eval and use the db and r to update the state of the new mfs *)
+  let obligs = List.map es.fobligs (FObligation.eval (mstep Out.Plain.ENFORCE) es.ms es.db es.ts es.tp) in+)*)
+
+  let eval update_f ms db ts tp (k, v, pol) =
     let mf = apply_valuation v (eval_kind ts tp k v) in
+    let vars = Set.elements (MFormula.fv mf) in
+    let mf = update_f vars ts db ms in
     match pol with
     | POS -> mf
     | NEG -> MNeg mf
@@ -1816,8 +1822,7 @@ let mstep mode vars ts db (ms: MState.t) (fobligs: FObligation.t list) =
                 (List.range ms.tp_cur (ms.tp_cur + List.length expls)) in
   let tsdbs = match mode with
     | Out.Plain.VERIFIED
-      | Out.Plain.DEBUG
-      | Out.Plain.ENFORCE -> Queue.enqueue ms.tsdbs (ts, db); ms.tsdbs
+      | Out.Plain.DEBUG -> Queue.enqueue ms.tsdbs (ts, db); ms.tsdbs
     | _ -> ms.tsdbs in
   (List.zip_exn tstps expls,
    { ms with

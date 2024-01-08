@@ -76,7 +76,8 @@ module FObligation : sig
   type t = kind * Expl.Proof.valuation * polarity
 
   val equal: t -> t -> bool
-  val eval: int -> int -> t -> MFormula.t
+  val eval: (string list -> int -> Db.t -> 'a -> MFormula.t)
+            -> 'a -> Db.t -> int -> int -> t -> MFormula.t
   val to_string: t -> string
 
 end
