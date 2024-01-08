@@ -57,7 +57,7 @@ module Proof : sig
     | SForall of string * (sp Part.t)
     | SPrev of sp
     | SNext of sp
-    | SNextAssm of int * Interval.t
+    | SNextAssm of int
     | SOnce of int * sp
     | SEventually of int * sp
     | SEventuallyAssm of int * Interval.t

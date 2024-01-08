@@ -1143,7 +1143,8 @@ module Until = struct
       | Some(b') -> b' in
     let muaux_shifted = shift (a, b) (nts, ntp) muaux in
     let (tstps_out, tstps_in) = add_tstp_future a b nts ntp muaux_shifted.tstps_out muaux_shifted.tstps_in in
-    add_subps a (nts, ntp) p1 p2 { muaux_shifted with tstps_out; tstps_in }
+    let muaux_shifted = { muaux_shifted with tstps_out; tstps_in } in
+    add_subps a (nts, ntp) p1 p2 muaux_shifted
 
   let rec eval i nts ntp (muaux, ops) =
     let a = Interval.left i in
@@ -1406,7 +1407,7 @@ module FObligation = struct
 
   type t = kind * Expl.Proof.valuation * polarity
 
-  (* Note: equal does not consider (until,always,eventually)_info *)
+  (* Note: kind_equal does not consider (until,always,eventually)_info *)
   let kind_equal k1 k2 = match k1, k2 with
     | FFormula mf, FFormula mf' -> MFormula.equal mf mf'
     | FInterval (ts, i, mf), FInterval (ts', i', mf')
@@ -1417,13 +1418,21 @@ module FObligation = struct
                                                                            Interval.equal i i' && MFormula.equal mf mf' &&
                                                                              MFormula.equal mg mg'
 
-  let polarity_equal p1 p2 = match p1, p2 with
+  let polarity_equal pol1 pol2 = match pol1, pol2 with
     | POS, POS -> true
     | NEG, NEG -> true
     | _ -> false
 
-  let equal (k, v, p) (k', v', p') =
-    kind_equal k k' && Map.equal Dom.equal v v' && polarity_equal p p'
+  let equal (k, v, pol) (k', v', pol') =
+    kind_equal k k' && Map.equal Dom.equal v v' && polarity_equal pol pol'
+
+  let corresp_proof tp p_opt = function
+    | FFormula _ -> Expl.Proof.S (Expl.Proof.SNextAssm tp)
+    | FInterval (_, i, _) -> Expl.Proof.V (Expl.Proof.VNextAssm (tp, i))
+    | FUntil (_, _, i, _, _, _) -> match Option.value_exn p_opt with
+                                   | Expl.Proof.S sp1 -> Expl.Proof.S (Expl.Proof.SUntilAssm (tp, sp1, i))
+                                   | V vp2 -> Expl.Proof.V (Expl.Proof.VUntilAssm (tp, vp2, i))
+    | _ -> failwith "not yet"
 
   let eval_kind ts' tp k v = match k with
     | FFormula mf -> mf
@@ -1451,9 +1460,9 @@ module FObligation = struct
        else
          MFF
 
-  let eval ts tp (k, v, p) =
+  let eval ts tp (k, v, pol) =
     let mf = apply_valuation v (eval_kind ts tp k v) in
-    match p with
+    match pol with
     | POS -> mf
     | NEG -> MNeg mf
 
@@ -1655,9 +1664,19 @@ let rec meval vars ts tp (db: Db.t) (fobligs: FObligation.t list) = function
      let (expls, mf') = meval vars ts tp db fobligs mf in
      let (expls', first) = if first && (List.length expls) > 0 then (List.tl_exn expls, false)
                            else (expls, first) in
+     let assm = List.find_map fobligs ~f:(fun (k, v, pol) -> match k with
+                                                             | FFormula mf' ->
+                                                                if MFormula.equal mf mf' then
+                                                                  Some(FObligation.corresp_proof tp None k)
+                                                                else
+                                                                  None
+                                                             | FInterval (_, _, mf') ->
+                                                                if MFormula.equal mf mf' then
+                                                                  Some(FObligation.corresp_proof tp None k)
+                                                                else None) in
      let (f_expls, (buf', tss')) =
        Buft.another_take
-         (fun expl ts ts' -> Pdt.apply1_reduce Proof.equal vars (fun p -> Prev_Next.update_eval Next i p ts ts' None) expl)
+         (fun expl ts ts' -> Pdt.apply1_reduce Proof.equal vars (fun p -> Prev_Next.update_eval Next i p ts ts' assm) expl)
          (expls', tss @ [ts]) in
      (f_expls, MNext (i, mf', first, tss'))
   | MOnce (i, mf, tstps, moaux_pdt) ->
@@ -1722,9 +1741,19 @@ let rec meval vars ts tp (db: Db.t) (fobligs: FObligation.t list) = function
          (msaux_pdt, []) (Buf2.add expls1 expls2 buf2) (tstps @ [(ts,tp)]) in
      let expls'' = List.map expls' ~f:(Pdt.reduce Proof.equal) in
      (expls'', MSince (s, i, mf1', mf2', (buf2', tstps'), msaux_pdt'))
-  | MUntil (s, i, mf1, mf2, (buf2, ntstps), muaux_pdt) -> (*TODO: fobligs*)
+  | MUntil (s, i, mf1, mf2, (buf2, ntstps), muaux_pdt) ->
      let (expls1, mf1') = meval vars ts tp db fobligs mf1 in
      let (expls2, mf2') = meval vars ts tp db fobligs mf2 in
+     (* let assm = List.find_map fobligs ~f:(fun (k, v, pol) -> *)
+     (*                match k with *)
+     (*                | FUntil (_, _, i, mf1', mf2', _) -> *)
+     (*                   if MFormula.equal mf1 mf1' && *)
+     (*                        MFormula.equal mf2 mf2' then *)
+     (*                     (match pol with *)
+     (*                      | POS -> Some(FObligation.corresp_proof tp (Some(S sp1)) k) *)
+     (*                      | NEG -> Some(FObligation.corresp_proof tp (Some(V vp2)) k)) *)
+     (*                   else *)
+     (*                     None) in *)
      let (muaux_pdt', (buf2', ntstps')) =
        Buf2t.take
          (fun expl1 expl2 ts tp aux_pdt ->

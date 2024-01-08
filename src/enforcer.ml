@@ -22,7 +22,6 @@ module Triple = struct
   let join (sup1, cau1, fobligs1) (sup2, cau2, fobligs2) =
     (Set.union sup1 sup2, Set.union cau1 cau2, fobligs1 @ fobligs2)
 
-  (* TODO: Optimize this (checking equality of future obligations can be very expensive) *)
   let equal (sup1, cau1, fobligs1) (sup2, cau2, fobligs2) =
     Set.equal sup1 sup2 && Set.equal cau1 cau2 && (List.equal FObligation.equal fobligs1 fobligs2)
 
