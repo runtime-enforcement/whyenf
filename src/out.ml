@@ -51,7 +51,8 @@ module Plain = struct
     | Info s -> Stdio.printf "\nInfo: %s\n\n" s
 
   let expls tstp_expls checker_es_opt paths_opt f_opt = function
-    | UNVERIFIED -> List.iter tstp_expls ~f:(fun ((ts, tp), e) -> expl (Explanation ((ts, tp), e)))
+    | UNVERIFIED | ENFORCE
+      -> List.iter tstp_expls ~f:(fun ((ts, tp), e) -> expl (Explanation ((ts, tp), e)))
     | VERIFIED -> List.iter2_exn tstp_expls (Option.value_exn checker_es_opt)
                     ~f:(fun ((ts, tp), e) (b, _, _) -> expl (ExplanationCheck ((ts, tp), e, b)))
     | LATEX -> List.iter tstp_expls ~f:(fun ((ts, tp), e) ->
