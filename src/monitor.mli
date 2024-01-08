@@ -69,12 +69,9 @@ module FObligation : sig
   type kind =
     | FFormula of MFormula.t                       (* fun _ -> f *)
     | FInterval of int * Interval.t * MFormula.t   (* fun t -> if mem t i then f else Formula.TT *)
-    | FUntil of int * Formula.Side.t * Interval.t * MFormula.t * MFormula.t * buf2t_info * until_info
-                                                   (* fun t -> Until (s, sub2 i (t-t0), f1, f2) *)
-    | FAlways of int * Interval.t * MFormula.t * buft_info * always_info
-                                                   (* fun t -> Always (sub2 i (t-t0), f1) *)
-    | FEventually of int * Interval.t * MFormula.t * buft_info * eventually_info
-                                                   (* fun t -> Eventually (sub2 i (t-t0), f1) *)
+    | FUntil of int * Formula.Side.t * Interval.t * MFormula.t * MFormula.t * until_info (* fun t -> Until (s, sub2 i (t-t0), f1, f2) *)
+    | FAlways of int * Interval.t * MFormula.t * always_info (* fun t -> Always (sub2 i (t-t0), f1) *)
+    | FEventually of int * Interval.t * MFormula.t * eventually_info (* fun t -> Eventually (sub2 i (t-t0), f1) *)
 
   type t = kind * Expl.Proof.valuation * polarity
 
@@ -87,7 +84,12 @@ end
 
 module MState : sig
 
-  type t
+  type t = { mf: MFormula.t
+           ; tp_cur: timepoint
+           ; tp_out: timepoint
+           ; ts_waiting: timestamp Queue.t
+           ; tsdbs: (timestamp * Db.t) Queue.t
+           ; tpts: (timepoint, timestamp) Hashtbl.t }
 
   val tp_cur: t -> timepoint
 

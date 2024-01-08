@@ -168,6 +168,12 @@ module Buf2 = struct
     | x::xs, y::ys -> let (zs, buf2') = take f (xs, ys) in
                       ((f x y)::zs, buf2')
 
+  let rec pdt_equal b1 b2 = match b1, b2 with
+    | ([], []), ([], []) -> true
+    | (x1::x1s, y1::y1s), (x2::x2s, y2::y2s) ->
+       Int.equal (List.length x1s) (List.length x2s) && Int.equal (List.length y1s) (List.length y2s) &&
+         Expl.Pdt.eq Proof.equal x1 x2 && Expl.Pdt.eq Proof.equal y1 y2
+
 end
 
 module Buft = struct
@@ -186,6 +192,13 @@ module Buft = struct
     | xs, [] -> (z, xs, [])
     | x::xs, (a,b)::ys -> take f (f x a b z) (xs, ys)
 
+  let rec pdt_equal b1 b2 = match b1, b2 with
+    | ([], []), ([], []) -> true
+    | (x1::x1s, (y11, y12)::y1s), (x2::x2s, (y21, y22)::y2s) ->
+       Int.equal (List.length x1s) (List.length x2s) && Int.equal (List.length y1s) (List.length y2s) &&
+         Expl.Pdt.eq Proof.equal x1 x2 && Int.equal y11 y21 && Int.equal y12 y22 &&
+           pdt_equal (x1s, y1s) (x2s, y2s)
+
 end
 
 module Buf2t = struct
@@ -199,6 +212,14 @@ module Buf2t = struct
     | (xs, []), zs -> (w, ((xs, []), zs))
     | (xs, ys), [] -> (w, ((xs, ys), []))
     | (x::xs, y::ys), (a,b)::zs -> take f (f x y a b w) (xs, ys) zs
+
+  let rec pdt_equal b1 b2 = match b1, b2 with
+    | (([], []), []), (([], []), []) -> true
+    | ((x1::x1s, y1::y1s), (z11, z12)::z1s), ((x2::x2s, y2::y2s), (z21, z22)::z2s) ->
+       Int.equal (List.length x1s) (List.length x2s) && Int.equal (List.length y1s) (List.length y2s) &&
+         Int.equal (List.length z1s) (List.length z2s) && Expl.Pdt.eq Proof.equal x1 x2 &&
+           Expl.Pdt.eq Proof.equal y2 y2 && Int.equal z11 z21 && Int.equal z12 z22 &&
+             pdt_equal ((x1s, y1s), z1s) ((x2s, y2s), z2s)
 
 end
 
@@ -1144,27 +1165,29 @@ module Prev_Next = struct
 
   type operator = Prev | Next
 
-  let update_eval op i p ts ts' =
-    let c1 = (match p with
-              | Proof.S sp -> if Interval.mem (ts' - ts) i then
-                                (match op with
-                                 | Prev -> [Proof.S (SPrev sp)]
-                                 | Next -> [S (SNext sp)])
-                              else []
-              | V vp -> (match op with
-                         | Prev -> [V (VPrev vp)]
-                         | Next -> [V (VNext vp)])) in
-    let c2 = if Interval.below (ts' - ts) i then
-               (match op with
-                | Prev -> [Proof.V (VPrevOutL ((Proof.p_at p)+1))]
-                | Next -> [V (VNextOutL ((Proof.p_at p)-1))])
-             else [] in
-    let c3 = if (Interval.above (ts' - ts) i) then
-               (match op with
-                | Prev -> [Proof.V (VPrevOutR ((Proof.p_at p)+1))]
-                | Next -> [V (VNextOutR ((Proof.p_at p)-1))])
-             else [] in
-    minp_list (c1 @ c2 @ c3)
+  let update_eval op i p ts ts' assm_opt =
+    match assm_opt with
+    | Some assm -> assm
+    | None -> (let c1 = (match p with
+                         | Proof.S sp -> if Interval.mem (ts' - ts) i then
+                                           (match op with
+                                            | Prev -> [Proof.S (SPrev sp)]
+                                            | Next -> [S (SNext sp)])
+                                         else []
+                         | V vp -> (match op with
+                                    | Prev -> [V (VPrev vp)]
+                                    | Next -> [V (VNext vp)])) in
+               let c2 = if Interval.below (ts' - ts) i then
+                          (match op with
+                           | Prev -> [Proof.V (VPrevOutL ((Proof.p_at p)+1))]
+                           | Next -> [V (VNextOutL ((Proof.p_at p)-1))])
+                        else [] in
+               let c3 = if (Interval.above (ts' - ts) i) then
+                          (match op with
+                           | Prev -> [Proof.V (VPrevOutR ((Proof.p_at p)+1))]
+                           | Next -> [V (VNextOutR ((Proof.p_at p)-1))])
+                        else [] in
+               minp_list (c1 @ c2 @ c3))
 
 end
 
@@ -1226,6 +1249,30 @@ module MFormula = struct
     | Formula.Always (i, f) -> MAlways (i, init f, ([], []), Leaf (Always.init ()))
     | Formula.Since (s, i, f, g) -> MSince (s, i, init f, init g, (([], []), []), Leaf (Since.init ()))
     | Formula.Until (s, i, f, g) -> MUntil (s, i, init f, init g, (([], []), []), Leaf (Until.init ()))
+
+  let rec equal mf1 mf2 = match mf1, mf2 with
+    | MTT, MTT
+      | MFF, MFF -> true
+    | MEqConst (x, c), MEqConst (x', c') -> String.equal x x' && Dom.equal c c'
+    | MPredicate (r, trms), MPredicate (r', trms') -> String.equal r r' &&
+                                                        List.for_all2_exn trms trms' ~f:Term.equal
+    | MNeg mf, MNeg mf' -> equal mf mf'
+    | MPrev (i, mf, _, _), MPrev (i', mf', _, _)
+      | MNext (i, mf, _, _), MNext (i', mf', _, _)
+      | MOnce (i, mf, _, _), MOnce (i', mf', _, _)
+      | MEventually (i, mf, _, _), MEventually (i', mf', _, _)
+      | MHistorically (i, mf, _, _), MHistorically (i', mf', _, _)
+      | MAlways (i, mf, _, _), MAlways (i', mf', _, _) -> Interval.equal i i' && equal mf mf'
+    | MExists (x, tt, mf), MExists (x', tt', mf')
+      | MForall (x, tt, mf), MForall (x', tt', mf') -> String.equal x x' && Dom.tt_equal tt tt' && equal mf mf'
+    | MAnd (s, mf, mg, _), MAnd (s', mf', mg', _)
+      | MOr (s, mf, mg, _), MOr (s', mf', mg', _)
+      | MImp (s, mf, mg, _), MImp (s', mf', mg', _) -> Formula.Side.equal s s' && equal mf mf' && equal mg mg'
+    | MIff (s, t, mf, mg, _), MIff (s', t', mf', mg', _) -> Formula.Side.equal s s' && Formula.Side.equal t t' &&
+                                                              equal mf mf' && equal mg mg'
+    | MSince (s, i, mf, mg, _, _), MSince (s', i', mf', mg', _, _)
+      | MUntil (s, i, mf, mg, _, _), MUntil (s', i', mf', mg', _, _) -> Formula.Side.equal s s' && Interval.equal i i' &&
+                                                                          equal mf mf' && equal mg mg'
 
   let rec apply_valuation v =
     let r = apply_valuation v in
@@ -1314,8 +1361,10 @@ module MFormula = struct
     | MEventually (i, f, _, _) -> Printf.sprintf (Etc.paren l 5 "◊%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
     | MHistorically (i, f, _, _) -> Printf.sprintf (Etc.paren l 5 "■%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
     | MAlways (i, f, _, _) -> Printf.sprintf (Etc.paren l 5 "□%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
-    | MSince (_, i, f, g, _, _) -> Printf.sprintf (Etc.paren l 0 "%a S%a %a") (fun x -> to_string_rec 5) f (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) g
-    | MUntil (_, i, f, g, _, _) -> Printf.sprintf (Etc.paren l 0 "%a U%a %a") (fun x -> to_string_rec 5) f (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) g
+    | MSince (_, i, f, g, _, _) -> Printf.sprintf (Etc.paren l 0 "%a S%a %a") (fun x -> to_string_rec 5) f
+                                     (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) g
+    | MUntil (_, i, f, g, _, _) -> Printf.sprintf (Etc.paren l 0 "%a U%a %a") (fun x -> to_string_rec 5) f
+                                     (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) g
   let to_string = to_string_rec 0
 
   let rec op_to_string = function
@@ -1346,54 +1395,67 @@ module FObligation = struct
 
   include MFormula
 
-  type take_formula = timestamp -> MFormula.t
   type polarity = POS | NEG
 
   type kind =
     | FFormula of MFormula.t
     | FInterval of int * Interval.t * MFormula.t
-    | FUntil of int * Formula.Side.t * Interval.t * MFormula.t * MFormula.t * buf2t_info * until_info
-    | FAlways of int * Interval.t * MFormula.t * buft_info * always_info
-    | FEventually of int * Interval.t * MFormula.t * buft_info * eventually_info
+    | FUntil of int * Formula.Side.t * Interval.t * MFormula.t * MFormula.t * until_info
+    | FAlways of int * Interval.t * MFormula.t * always_info
+    | FEventually of int * Interval.t * MFormula.t * eventually_info
 
   type t = kind * Expl.Proof.valuation * polarity
 
-  let equal fob1 fob2 = match fob1, fob2 with
-    (* TODO: Implement *)
+  (* Note: equal does not consider (until,always,eventually)_info *)
+  let kind_equal k1 k2 = match k1, k2 with
+    | FFormula mf, FFormula mf' -> MFormula.equal mf mf'
+    | FInterval (ts, i, mf), FInterval (ts', i', mf')
+      | FAlways (ts, i, mf, _), FAlways (ts', i', mf', _)
+      | FEventually (ts, i, mf, _), FEventually (ts', i', mf', _) -> Int.equal ts ts' && Interval.equal i i' &&
+                                                                       MFormula.equal mf mf'
+    | FUntil (ts, s, i, mf, mg, _), FUntil (ts', s', i', mf', mg', _) -> Int.equal ts ts' && Formula.Side.equal s s' &&
+                                                                           Interval.equal i i' && MFormula.equal mf mf' &&
+                                                                             MFormula.equal mg mg'
+
+  let polarity_equal p1 p2 = match p1, p2 with
+    | POS, POS -> true
+    | NEG, NEG -> true
     | _ -> false
 
-  let eval_kind ts' tp k p = match k with
-    | FFormula f -> f
-    | FInterval (ts, i, f) ->
+  let equal (k, v, p) (k', v', p') =
+    kind_equal k k' && Map.equal Dom.equal v v' && polarity_equal p p'
+
+  let eval_kind ts' tp k v = match k with
+    | FFormula mf -> mf
+    | FInterval (ts, i, mf) ->
        if Interval.mem (ts' - ts) i then
-         f
+         mf
        else
          MTT
-    | FUntil (ts, side, i, f, g, bi, ui) ->
+    | FUntil (ts, side, i, mf, mg, ui) ->
        if not (Interval.above (ts' - ts) i) then
-         let ui = Until.adjust (Interval.left i) (ts', tp) ui in
-         MUntil (side, Interval.sub2 i (ts' - ts), f, g, bi, ui)
+         let ui = Expl.Pdt.replace_leaf v (Until.adjust (Interval.left i) (ts', tp) (Expl.Pdt.specialize v ui)) ui in
+         MUntil (side, Interval.sub2 i (ts' - ts), mf, mg, (([], []), []), ui)
        else
          MFF
-    | FAlways (ts, i, f, bi, ai) ->
+    | FAlways (ts, i, mf, ai) ->
        if not (Interval.above (ts' - ts) i) then
-         (* TODO: adapt bi and ai *)
-         MAlways (Interval.sub2 i (ts' - ts), f, bi, ai)
+         let ui = Expl.Pdt.replace_leaf v (Always.adjust (Interval.left i) (ts', tp) (Expl.Pdt.specialize v ai)) ai in
+         MAlways (Interval.sub2 i (ts' - ts), mf, ([], []), ai)
        else
          MTT
-    | FEventually (ts, i, f, bi, ei) ->
+    | FEventually (ts, i, mf, ei) ->
        if not (Interval.above (ts' - ts) i) then
-         (* TODO: adapt bi and ei *)
-         MEventually (Interval.sub2 i (ts' - ts), f, bi, ei)
+         let ui = Expl.Pdt.replace_leaf v (Eventually.adjust (Interval.left i) (ts', tp) (Expl.Pdt.specialize v ei)) ei in
+         MEventually (Interval.sub2 i (ts' - ts), mf, ([], []), ei)
        else
          MFF
 
   let eval ts tp (k, v, p) =
-    (* TODO: adapt states *)
-    let f = apply_valuation v (eval_kind ts tp k p) in
+    let mf = apply_valuation v (eval_kind ts tp k v) in
     match p with
-    | POS -> f
-    | NEG -> MNeg f
+    | POS -> mf
+    | NEG -> MNeg mf
 
   let polarity_to_string = function
     | POS -> "+"
@@ -1401,10 +1463,11 @@ module FObligation = struct
 
   let rec kind_to_string = function
     | FFormula f -> Printf.sprintf "Fformula(%s)" (to_string f)
-    | FInterval (t, i, f) -> Printf.sprintf "FInterval(%d, %s, %s)" t (Interval.to_string i) (to_string f)
-    | FUntil (t, s, i, f, g, _, _) -> Printf.sprintf "FUntil(%d, %s, %s, %s, %s)" t (Formula.Side.to_string s) (Interval.to_string i) (to_string f) (to_string g)
-    | FAlways (t, i, f, _, _) -> Printf.sprintf "FAlways(%d, %s, %s)" t (Interval.to_string i) (to_string f)
-    | FEventually (t, i, f, _, _) -> Printf.sprintf "FEventually(%d, %s, %s)" t (Interval.to_string i) (to_string f)
+    | FInterval (ts, i, mf) -> Printf.sprintf "FInterval(%d, %s, %s)" ts (Interval.to_string i) (to_string mf)
+    | FUntil (ts, s, i, mf, mg, _) -> Printf.sprintf "FUntil(%d, %s, %s, %s, %s)" ts (Formula.Side.to_string s)
+                                       (Interval.to_string i) (to_string mf) (to_string mg)
+    | FAlways (ts, i, mf, _) -> Printf.sprintf "FAlways(%d, %s, %s)" ts (Interval.to_string i) (to_string mf)
+    | FEventually (ts, i, mf, _) -> Printf.sprintf "FEventually(%d, %s, %s)" ts (Interval.to_string i) (to_string mf)
 
   let to_string ((kind, valuation, pol) : t) =
     Printf.sprintf "Kind: %s\n" (kind_to_string kind) ^
@@ -1585,16 +1648,16 @@ let rec meval vars ts tp (db: Db.t) (fobligs: FObligation.t list) = function
      let (expls, mf') = meval vars ts tp db fobligs mf in
      let (f_expls, (buf', tss')) =
        Buft.another_take
-         (fun expl ts ts' -> Pdt.apply1_reduce Proof.equal vars (fun p -> Prev_Next.update_eval Prev i p ts ts') expl)
+         (fun expl ts ts' -> Pdt.apply1_reduce Proof.equal vars (fun p -> Prev_Next.update_eval Prev i p ts ts' None) expl)
          (buf @ expls, tss @ [ts]) in
      ((if first then (Leaf (V VPrev0) :: f_expls) else f_expls), MPrev (i, mf', false, (buf', tss')))
-  | MNext (i, mf, first, tss) -> (*TODO: fobligs*)
+  | MNext (i, mf, first, tss) ->
      let (expls, mf') = meval vars ts tp db fobligs mf in
      let (expls', first) = if first && (List.length expls) > 0 then (List.tl_exn expls, false)
                            else (expls, first) in
      let (f_expls, (buf', tss')) =
        Buft.another_take
-         (fun expl ts ts' -> Pdt.apply1_reduce Proof.equal vars (fun p -> Prev_Next.update_eval Next i p ts ts') expl)
+         (fun expl ts ts' -> Pdt.apply1_reduce Proof.equal vars (fun p -> Prev_Next.update_eval Next i p ts ts' None) expl)
          (expls', tss @ [ts]) in
      (f_expls, MNext (i, mf', first, tss'))
   | MOnce (i, mf, tstps, moaux_pdt) ->
