@@ -16,12 +16,12 @@ module MFormula : sig
   type binop_info
   type prev_info
   type tp_info
-  type buf_info
+  type buft_info
   type once_info
   type eventually_info
   type historically_info
   type always_info
-  type buf2_info
+  type buf2t_info
   type since_info
   type until_info
 
@@ -42,15 +42,15 @@ module MFormula : sig
     | MPrev         of Interval.t * t * bool * prev_info
     | MNext         of Interval.t * t * bool * timestamp list
     | MOnce         of Interval.t * t * tp_info * once_info
-    | MEventually   of Interval.t * t * buf_info * eventually_info
+    | MEventually   of Interval.t * t * buft_info * eventually_info
     | MHistorically of Interval.t * t * tp_info * historically_info
-    | MAlways       of Interval.t * t * buf_info * always_info
-    | MSince        of Formula.Side.t * Interval.t * t * t * buf2_info * since_info
-    | MUntil        of Formula.Side.t * Interval.t * t * t * buf2_info * until_info
+    | MAlways       of Interval.t * t * buft_info * always_info
+    | MSince        of Formula.Side.t * Interval.t * t * t * buf2t_info * since_info
+    | MUntil        of Formula.Side.t * Interval.t * t * t * buf2t_info * until_info
 
   val init: Formula.t -> t
 
-  (* val apply_valuation : Expl.Proof.valuation -> t -> t *)
+  val apply_valuation : Expl.Proof.valuation -> t -> t
 
   val fv: t -> (String.t, Base.String.comparator_witness) Base.Set.t
   val rank: t -> int
@@ -69,17 +69,17 @@ module FObligation : sig
   type kind =
     | FFormula of MFormula.t                       (* fun _ -> f *)
     | FInterval of int * Interval.t * MFormula.t   (* fun t -> if mem t i then f else Formula.TT *)
-    | FUntil of int * Formula.Side.t * Interval.t * MFormula.t * MFormula.t * buf2_info * until_info
+    | FUntil of int * Formula.Side.t * Interval.t * MFormula.t * MFormula.t * buf2t_info * until_info
                                                    (* fun t -> Until (s, sub2 i (t-t0), f1, f2) *)
-    | FAlways of int * Interval.t * MFormula.t * buf_info * always_info
+    | FAlways of int * Interval.t * MFormula.t * buft_info * always_info
                                                    (* fun t -> Always (sub2 i (t-t0), f1) *)
-    | FEventually of int * Interval.t * MFormula.t * buf_info * eventually_info
+    | FEventually of int * Interval.t * MFormula.t * buft_info * eventually_info
                                                    (* fun t -> Eventually (sub2 i (t-t0), f1) *)
 
   type t = kind * Expl.Proof.valuation * polarity
 
   val equal: t -> t -> bool
-  (* val eval: int -> t -> MFormula.t *)
+  val eval: int -> int -> t -> MFormula.t
   val to_string: t -> string
 
 end
