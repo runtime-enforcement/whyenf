@@ -41,7 +41,7 @@ module Proof : sig
 
   type valuation = (string, Dom.t, String.comparator_witness) Map.t
 
-    type sp =
+  type sp =
     | STT of int
     | SEqConst of int * string * Dom.t
     | SPred of int * string * Term.t list
@@ -57,17 +57,17 @@ module Proof : sig
     | SForall of string * (sp Part.t)
     | SPrev of sp
     | SNext of sp
-    | SNextAssm of int * Interval.t * Formula.t
+    | SNextAssm of int * Interval.t
     | SOnce of int * sp
     | SEventually of int * sp
-    | SEventuallyAssm of int * Interval.t * Formula.t
+    | SEventuallyAssm of int * Interval.t
     | SHistorically of int * int * sp Fdeque.t
     | SHistoricallyOut of int
     | SAlways of int * int * sp Fdeque.t
-    | SAlwaysAssm of sp * int * Interval.t * Formula.t
+    | SAlwaysAssm of int * sp * Interval.t
     | SSince of sp * sp Fdeque.t
     | SUntil of sp * sp Fdeque.t
-    | SUntilAssm of sp * int * int * Interval.t * Formula.t * Formula.t
+    | SUntilAssm of int * sp * Interval.t
   and vp =
     | VFF of int
     | VEqConst of int * string * Dom.t
@@ -88,7 +88,7 @@ module Proof : sig
     | VNext of vp
     | VNextOutL of int
     | VNextOutR of int
-    | VNextAssm of int * int * Interval.t * Formula.t
+    | VNextAssm of int * Interval.t
     | VOnceOut of int
     | VOnce of int * int * vp Fdeque.t
     | VEventually of int * int * vp Fdeque.t
@@ -99,7 +99,7 @@ module Proof : sig
     | VSinceInf of int * int * vp Fdeque.t
     | VUntil of int * vp * vp Fdeque.t
     | VUntilInf of int * int * vp Fdeque.t
-    | VUntilAssm of vp option * int * int * Interval.t * Formula.t * Formula.t
+    | VUntilAssm of int * vp * Interval.t
 
   type t = S of sp | V of vp
 
@@ -157,6 +157,8 @@ module Pdt : sig
   val split_prod_reduce: ('a -> 'a -> bool) -> ('a * 'a) t -> 'a t * 'a t
   val split_list_reduce: ('a -> 'a -> bool) -> 'a list t -> 'a t list
   val hide_reduce: ('a -> 'a -> bool) -> string list -> ('b -> 'a) -> ('b Part.t -> 'a) -> 'b t -> 'a t
+
+  val replace_leaf: Proof.valuation -> 'a -> 'a t -> 'a t
   val specialize: Proof.valuation -> 'a t -> 'a
   val collect: ('a -> bool) -> Proof.valuation -> string -> 'a t -> (Dom.t, Dom.comparator_witness) Setc.t
 
