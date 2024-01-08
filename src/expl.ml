@@ -137,7 +137,7 @@ module Proof = struct
     | SForall of string * (sp Part.t)
     | SPrev of sp
     | SNext of sp
-    | SNextAssm of int * Interval.t
+    | SNextAssm of int
     | SOnce of int * sp
     | SEventually of int * sp
     | SEventuallyAssm of int * Interval.t
@@ -196,7 +196,7 @@ module Proof = struct
       | SOrR sp, SOrR sp'
       | SPrev sp, SPrev sp'
       | SNext sp, SNext sp' -> s_equal sp sp'
-    | SNextAssm (tp, i), SNextAssm (tp', i') -> Int.equal tp tp' && Interval.equal i i'
+    | SNextAssm tp, SNextAssm tp' -> Int.equal tp tp'
     | SAnd (sp1, sp2), SAnd (sp1', sp2')
       | SIffSS (sp1, sp2), SIffSS (sp1', sp2') -> s_equal sp1 sp1' && s_equal sp2 sp2'
     | SIffVV (vp1, vp2), SIffVV (vp1', vp2') -> v_equal vp1 vp1' && v_equal vp2 vp2'
@@ -332,7 +332,7 @@ module Proof = struct
     | SForall (_, part) -> s_at (Part.hd part)
     | SPrev sp -> s_at sp + 1
     | SNext sp -> s_at sp - 1
-    | SNextAssm (tp, _) -> tp
+    | SNextAssm tp -> tp
     | SOnce (tp, _) -> tp
     | SEventually (tp, _) -> tp
     | SEventuallyAssm (tp, _) -> tp
@@ -416,7 +416,7 @@ module Proof = struct
                              x (Part.to_string indent' (Var x) s_to_string part)
     | SPrev sp -> Printf.sprintf "%sSPrev{%d}\n%s" indent (s_at p) (s_to_string indent' sp)
     | SNext sp -> Printf.sprintf "%sSNext{%d}\n%s" indent (s_at p) (s_to_string indent' sp)
-    | SNextAssm (tp, _) -> Printf.sprintf "%sSNextAssm{%d}\n" indent tp
+    | SNextAssm tp -> Printf.sprintf "%sSNextAssm{%d}\n" indent tp
     | SOnce (_, sp) -> Printf.sprintf "%sSOnce{%d}\n%s" indent (s_at p) (s_to_string indent' sp)
     | SEventually (_, sp) -> Printf.sprintf "%sSEventually{%d}\n%s" indent (s_at p)
                                (s_to_string indent' sp)
