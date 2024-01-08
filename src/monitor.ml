@@ -1275,13 +1275,13 @@ module MFormula = struct
       | MUntil (s, i, mf, mg, _, _), MUntil (s', i', mf', mg', _, _) -> Formula.Side.equal s s' && Interval.equal i i' &&
                                                                           equal mf mf' && equal mg mg'
 
-  let rec apply_valuation v =
+  let rec apply_valuation v f =
     let r = apply_valuation v in
     let apply_valuation_term v = function
       | Term.Var x when Map.mem v x -> Term.Const (Map.find_exn v x)
       | Var x -> Var x
       | Const d -> Const d in
-    function
+    match f with
     | MTT -> MTT
     | MFF -> MFF
     | MEqConst (x, d) when Map.find v x == Some d -> MTT
