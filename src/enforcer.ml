@@ -109,8 +109,8 @@ module EState = struct
     in loop Triple.empty es
 
   let mstep_state vars es =
-    let db = Set.filter es.db ~f:(fun (name, _) -> not (String.equal name "~tp")) in
-    mstep Out.Plain.ENFORCE vars es.ts db es.ms es.fobligs
+    (* let db = Set.filter es.db ~f:(fun (name, _) -> not (String.equal name "~tp")) in *)
+    mstep Out.Plain.ENFORCE vars es.ts es.db es.ms es.fobligs
 
   let exec_monitor v mf es =
     let vars = Set.elements (MFormula.fv mf) in
