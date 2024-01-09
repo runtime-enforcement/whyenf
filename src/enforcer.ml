@@ -22,6 +22,7 @@ module Triple = struct
   let join (sup1, cau1, fobligs1) (sup2, cau2, fobligs2) =
     (Set.union sup1 sup2, Set.union cau1 cau2, fobligs1 @ fobligs2)
 
+  (* list equality might not be enough here *)
   let equal (sup1, cau1, fobligs1) (sup2, cau2, fobligs2) =
     Set.equal sup1 sup2 && Set.equal cau1 cau2 && (List.equal FObligation.equal fobligs1 fobligs2)
 
@@ -40,6 +41,14 @@ module Triple = struct
   let to_lists (sup, cau, fobligs) =
     (Set.to_list sup, Set.to_list cau, fobligs)
 
+  let to_string indent (sup, cau, fobligs) =
+    "\nTriple:\n" ^
+      Printf.sprintf "\n%ssup = %s" indent (Db.to_string sup) ^
+        Printf.sprintf "\n%scau = %s" indent (Db.to_string cau) ^
+          Printf.sprintf "\n%sfobligs = [" indent ^ (String.concat ~sep:", "
+                                                       (List.map fobligs ~f:(fun foblig ->
+                                                            Printf.sprintf "%s" (FObligation.to_string foblig)))) ^ "]\n"
+
 end
 
 module EState = struct
@@ -50,6 +59,22 @@ module EState = struct
            ; db: Db.t
            ; r : Triple.t
            ; fobligs: FObligation.t list }
+
+  let to_string { ms
+                ; tp
+                ; ts
+                ; db
+                ; r
+                ; fobligs } =
+    "\n<> EState <> \n" ^
+      Printf.sprintf "ts = %d\n" ts ^
+        Printf.sprintf "tp = %d\n" tp ^
+          Printf.sprintf "db = %s\n" (Db.to_string db) ^
+            "fobligs = [" ^ (String.concat ~sep:", "
+                               (List.map fobligs ~f:(fun foblig ->
+                                    Printf.sprintf "%s" (FObligation.to_string foblig)))) ^ "]\n" ^
+              Printf.sprintf "%s" (MState.to_string "  " ms) ^
+                (Triple.to_string "  " r)
 
   let init ms mf = { ms;
                      tp = 0;
@@ -67,7 +92,7 @@ module EState = struct
     update (Set.singleton (module Db.Event) sup, Set.empty (module Db.Event), []) es
 
   let add_cau cau es =
-    update (Set.singleton (module Db.Event) cau, Set.empty (module Db.Event), []) es
+    update (Set.empty (module Db.Event), Set.singleton (module Db.Event) cau, []) es
 
   let add_foblig foblig es =
     { es with fobligs = foblig::es.fobligs }
@@ -84,7 +109,8 @@ module EState = struct
     in loop Triple.empty es
 
   let mstep_state vars es =
-    mstep Out.Plain.ENFORCE vars es.ts es.db es.ms es.fobligs
+    let db = Set.filter es.db ~f:(fun (name, _) -> not (String.equal name "~tp")) in
+    mstep Out.Plain.ENFORCE vars es.ts db es.ms es.fobligs
 
   let exec_monitor v mf es =
     let vars = Set.elements (MFormula.fv mf) in
@@ -157,8 +183,8 @@ module EState = struct
     | MTT -> es
     | MPredicate (r, trms) ->
        let new_cau = (r, List.map trms (fun trm -> match trm with
-                                             | Var x -> Map.find_exn v x
-                                             | Const c -> c)) in
+                                                   | Var x -> Map.find_exn v x
+                                                   | Const c -> c)) in
        add_cau new_cau es
     | MNeg mf -> enfvio mf v es
     | MAnd (L, mf1, mf2, _) -> fixpoint (enfsat_and mf1 mf2 v) es
@@ -177,7 +203,7 @@ module EState = struct
                    (MImp (side1, mf2, mf1, empty_binop_info)) v) es
     | MExists (x, tt, mf) -> enfsat mf (Map.add_exn v ~key:x ~data:(Dom.tt_default tt)) es
     | MForall (x, tt, mf) -> fixpoint (enfsat_forall x mf v) es
-    | MNext (i, mf, bi, _) -> add_foblig (FFormula mf, v, POS) es
+    | MNext (i, mf, bi, _) -> add_foblig (FInterval (es.ts, i, mf), v, POS) es
     | MEventually (i, mf, bi, ei) ->
        let (a, b) = Interval.boundaries i in
        if Int.equal a 0 && Int.equal b 0 then
@@ -251,6 +277,7 @@ module EState = struct
                                     ^ MFormula.op_to_string mf))
 
   let enf mf es =
+    (* Stdio.printf "Goal:\n%s\n" (MFormula.to_string mf); *)
     enfsat mf (Map.empty (module String)) { es with r = Triple.empty; fobligs = [] }
 
 end
@@ -259,41 +286,46 @@ type order = ReOrd of Db.t * Db.t | PrOrd of Db.t | NoOrd
 
 let goal (es: EState.t) =
   let obligs = List.map es.fobligs
-                 (FObligation.eval
-                    (fun vars ts db ms -> (snd (mstep Out.Plain.ENFORCE vars ts db ms [])).mf)
-                    es.ms es.db es.ts es.tp) in
+                 ~f:(FObligation.eval
+                       (fun vars ts db mf -> (snd (mstep Out.Plain.ENFORCE vars ts db
+                                                     { es.ms with mf } [])).mf)
+                       es.db es.ts es.tp) in
   match obligs with
   | [] -> MFormula.MTT
   | init::rest -> List.fold_left rest ~init ~f:(fun mf mg -> MAnd (LR, mf, mg, empty_binop_info))
 
 let _tp : Db.Event.t = ("~tp", [])
 
+(* (NOT-SO-URGENT) TODO: other execution mode with automatic timestamps; change to Pdt *)
+(* TODO: additional proof rules for Until, Eventually, Always *)
 let exec f inc =
   let reactive_step new_db es =
     let mf = goal es in
     let vars = Set.elements (MFormula.fv mf) in
     let es = { es with ms = { es.ms with tp_cur = es.tp;
-                                         tp_out = es.tp - 1;
                                          ts_waiting = Queue.of_list [es.ts]; };
                        r  = (Db.create [_tp], Db.create [], []);
                        db = Db.add_event new_db _tp } in
-
     let es = EState.enf mf es in
     let (tstp_expls, ms') = EState.mstep_state vars es in
+    Stdio.printf "|tstp_expls| = %d\n" (List.length tstp_expls);
     Out.Plain.expls tstp_expls None None None Out.Plain.ENFORCE;
     ReOrd (Triple.cau es.r, Triple.sup es.r), es
   in
   let proactive_step es =
+    (* Stdio.printf "GoalBefore: \n"; *)
+    (* Stdio.printf "%s" (EState.to_string es); *)
     let mf = goal es in
+    (* Stdio.printf "GoalAfter: \n"; *)
+    (* Stdio.printf "%s" (MFormula.to_string mf); *)
     let vars = Set.elements (MFormula.fv mf) in
     let es' = { es with ms = { es.ms with tp_cur = es.tp;
-                                          tp_out = es.tp - 1;
                                           ts_waiting = Queue.of_list [es.ts] };
                         r  = (Db.create [], Db.create [], []);
                         db = Db.create []} in
-    Hashtbl.update es.ms.tpts es.tp (fun _ -> es.ts);
     let es' = EState.enf mf es' in
-    let (tstp_expls, ms') = EState.mstep_state vars es' in
+    let (tstp_expls, ms') = EState.mstep_state vars es in
+    (* Stdio.printf "|tstp_expls| = %d\n" (List.length tstp_expls); *)
     Out.Plain.expls tstp_expls None None None Out.Plain.ENFORCE;
     if Db.mem (Triple.cau es'.r) _tp then
       PrOrd (Triple.cau es'.r), es'
@@ -301,20 +333,28 @@ let exec f inc =
       NoOrd, es
   in
   let rec process_db (pb: Other_parser.Parsebuf.t) (es: EState.t) =
-    if pb.ts == es.ts then
+    if Int.equal pb.ts es.ts then
       match reactive_step pb.db es with
       | ReOrd (c, s), es -> { es with tp = es.tp + 1 }
       | _ -> assert false
     else
       match proactive_step es with
       | PrOrd c, es -> process_db pb { es with tp = es.tp + 1; ts = es.ts + 1 }
-      | NoOrd, es -> process_db pb { es with ts = es.ts + 1 }
+      | NoOrd, es   -> process_db pb { es with ts = es.ts + 1 }
   in
   let rec step pb_opt es =
     match Other_parser.Trace.parse_from_channel inc pb_opt with
     | None -> ()
     | Some (more, pb) ->
+       Stdio.printf "------------\n";
+       Stdio.printf "Before: \n";
+       Stdio.printf "%s" (EState.to_string es);
+       Stdlib.flush_all ();
        let es = process_db pb es in
+       Stdio.printf "------------\n";
+       Stdio.printf "After: \n";
+       Stdio.printf "%s" (EState.to_string es);
+       Stdlib.flush_all ();
        if more then step (Some(pb)) es in
   let tf = try Typing.do_type f with Invalid_argument s -> failwith s in
   let transparent =
@@ -323,8 +363,5 @@ let exec f inc =
   let f = Tformula.to_formula tf in
   let mf = Monitor.MFormula.init f in
   let ms = Monitor.MState.init mf in
-  step None (EState.init ms mf)
-
-       (* (NOT-SO-URGENT) TODO: other execution mode with automatic timestamps; change to Pdt  *)
-
-       (* TODO: additional proof rules for Until, Eventually, Always*)
+  let es = EState.init ms mf in
+  step None es

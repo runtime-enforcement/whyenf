@@ -76,8 +76,8 @@ module FObligation : sig
   type t = kind * Expl.Proof.valuation * polarity
 
   val equal: t -> t -> bool
-  val eval: (string list -> int -> Db.t -> 'a -> MFormula.t)
-            -> 'a -> Db.t -> int -> int -> t -> MFormula.t
+  val eval: (string list -> int -> Db.t -> MFormula.t -> MFormula.t)
+            -> Db.t -> int -> int -> t -> MFormula.t
   val to_string: t -> string
 
 end
@@ -97,6 +97,8 @@ module MState : sig
   val tsdbs: t -> (timestamp * Db.t) Queue.t
 
   val init: MFormula.t -> t
+
+  val to_string: string -> t -> string
 
 end
 

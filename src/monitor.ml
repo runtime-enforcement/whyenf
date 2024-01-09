@@ -1434,6 +1434,7 @@ module FObligation = struct
                                    | V vp2 -> Expl.Proof.V (Expl.Proof.VUntilAssm (tp, vp2, i))
     | _ -> failwith "not yet"
 
+  (* TODO: Update this considering Fig. 5 from the paper *)
   let eval_kind ts' tp k v = match k with
     | FFormula mf -> mf
     | FInterval (ts, i, mf) ->
@@ -1460,14 +1461,10 @@ module FObligation = struct
        else
          MFF
 
-  (*  (*mstep mode vars pb.ts pb.db ms []*)
-  (* TODO: Here pass es to eval and use the db and r to update the state of the new mfs *)
-  let obligs = List.map es.fobligs (FObligation.eval (mstep Out.Plain.ENFORCE) es.ms es.db es.ts es.tp) in+)*)
-
-  let eval update_f ms db ts tp (k, v, pol) =
+  let eval update_f db ts tp (k, v, pol) =
     let mf = apply_valuation v (eval_kind ts tp k v) in
     let vars = Set.elements (MFormula.fv mf) in
-    let mf = update_f vars ts db ms in
+    let mf = update_f vars ts db mf in
     match pol with
     | POS -> mf
     | NEG -> MNeg mf
@@ -1477,7 +1474,7 @@ module FObligation = struct
     | NEG -> "-"
 
   let rec kind_to_string = function
-    | FFormula f -> Printf.sprintf "Fformula(%s)" (to_string f)
+    | FFormula f -> Printf.sprintf "FFormula(%s)" (to_string f)
     | FInterval (ts, i, mf) -> Printf.sprintf "FInterval(%d, %s, %s)" ts (Interval.to_string i) (to_string mf)
     | FUntil (ts, s, i, mf, mg, _) -> Printf.sprintf "FUntil(%d, %s, %s, %s, %s)" ts (Formula.Side.to_string s)
                                        (Interval.to_string i) (to_string mf) (to_string mg)
@@ -1485,9 +1482,9 @@ module FObligation = struct
     | FEventually (ts, i, mf, _) -> Printf.sprintf "FEventually(%d, %s, %s)" ts (Interval.to_string i) (to_string mf)
 
   let to_string ((kind, valuation, pol) : t) =
-    Printf.sprintf "Kind: %s\n" (kind_to_string kind) ^
-      Printf.sprintf "Valuation: %s\n" (Etc.dom_map_to_string valuation) ^
-        Printf.sprintf "Polarity: %s\n" (polarity_to_string pol)
+    Printf.sprintf "Kind: %s; " (kind_to_string kind) ^
+      Printf.sprintf "Valuation: %s; " (Etc.dom_map_to_string valuation) ^
+        Printf.sprintf "Polarity: %s" (polarity_to_string pol)
 
 end
 
@@ -1794,24 +1791,26 @@ module MState = struct
 
   let tsdbs ms = ms.tsdbs
 
-  let to_string { mf
-                ; tp_cur
-                ; tp_out
-                ; ts_waiting
-                ; tsdbs
-                ; tpts } =
+  let to_string indent { mf
+                       ; tp_cur
+                       ; tp_out
+                       ; ts_waiting
+                       ; tsdbs
+                       ; tpts } =
     "\nMState: \n\n" ^
-      Printf.sprintf "mf = %s\n" (MFormula.to_string mf) ^
-        Printf.sprintf "tp_cur = %d\n" tp_cur ^
-          Printf.sprintf "tp_out = %d\n" tp_out ^
-            "\nts_waiting = [" ^ (String.concat ~sep:", "
-                                    (Queue.to_list (Queue.map ts_waiting ~f:Int.to_string))) ^ "]\n" ^
-              "\ntsdbs = [" ^ (String.concat ~sep:", "
-                                 (Queue.to_list (Queue.map tsdbs ~f:(fun (ts, db) ->
-                                                     Printf.sprintf "(%d):\n %s\n" ts (Db.to_string db))))) ^ "]\n" ^
-                "\ntpts = [" ^ (String.concat ~sep:", "
-                                  (Hashtbl.fold tpts ~init:[] ~f:(fun ~key:tp ~data:ts acc ->
-                                       acc @ [Printf.sprintf "(%d, %d)" tp ts]))) ^ "]\n"
+      Printf.sprintf "%smf = %s\n" indent (MFormula.to_string mf) ^
+        Printf.sprintf "%stp_cur = %d\n" indent tp_cur ^
+          Printf.sprintf "%stp_out = %d\n" indent tp_out ^
+            Printf.sprintf "\n%sts_waiting = [" indent ^ (String.concat ~sep:", "
+                                                            (Queue.to_list
+                                                               (Queue.map ts_waiting ~f:Int.to_string))) ^ "]\n" ^
+              Printf.sprintf "\n%stsdbs = [" indent ^ (String.concat ~sep:", "
+                                                         (Queue.to_list (Queue.map tsdbs ~f:(fun (ts, db) ->
+                                                                             Printf.sprintf "(%d):\n %s\n" ts
+                                                                               (Db.to_string db))))) ^ "]\n" ^
+                Printf.sprintf "\n%stpts = [" indent ^ (String.concat ~sep:", "
+                                                          (Hashtbl.fold tpts ~init:[] ~f:(fun ~key:tp ~data:ts acc ->
+                                                               acc @ [Printf.sprintf "(%d, %d)" tp ts]))) ^ "]\n"
 
 end
 
