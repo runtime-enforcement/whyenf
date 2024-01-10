@@ -60,7 +60,7 @@ module Proof : sig
     | SNextAssm of int
     | SOnce of int * sp
     | SEventually of int * sp
-    | SEventuallyAssm of int * Interval.t
+    | SEventuallyAssm of int * sp * Interval.t
     | SHistorically of int * int * sp Fdeque.t
     | SHistoricallyOut of int
     | SAlways of int * int * sp Fdeque.t
@@ -92,8 +92,10 @@ module Proof : sig
     | VOnceOut of int
     | VOnce of int * int * vp Fdeque.t
     | VEventually of int * int * vp Fdeque.t
+    | VEventuallyAssm of int * vp * Interval.t
     | VHistorically of int * vp
     | VAlways of int * vp
+    | VAlwaysAssm of int * vp * Interval.t
     | VSinceOut of int
     | VSince of int * vp * vp Fdeque.t
     | VSinceInf of int * int * vp Fdeque.t
