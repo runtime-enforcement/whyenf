@@ -729,9 +729,11 @@ module Proof = struct
       | SNextAssm _ -> 1
       | SOnce (_, sp) -> 1 + s sp
       | SEventually (_, sp) -> 1 + s sp
+      | SEventuallyAssm _ -> 1
       | SHistorically (_, _, sps) -> 1 + sum s sps
       | SHistoricallyOut _ -> 1
       | SAlways (_, _, sps) -> 1 + sum s sps
+      | SAlwaysAssm _ -> 1
       | SSince (sp2, sp1s) -> 1 + s sp2 + sum s sp1s
       | SUntil (sp2, sp1s) -> 1 + s sp2 + sum s sp1s
       | SUntilAssm _ -> 1
@@ -759,8 +761,10 @@ module Proof = struct
       | VOnceOut _ -> 1
       | VOnce (_, _, vp1s) -> 1 + sum v vp1s
       | VEventually (_, _, vp1s) -> 1 + sum v vp1s
+      | VEventuallyAssm _ -> 1
       | VHistorically (_, vp1) -> 1 + v vp1
       | VAlways (_, vp1) -> 1 + v vp1
+      | VAlwaysAssm _ -> 1
       | VSinceOut _ -> 1
       | VSince (_, vp1, vp2s) -> 1 + v vp1 + sum v vp2s
       | VSinceInf (_, _, vp2s) -> 1 + sum v vp2s
