@@ -1429,7 +1429,12 @@ module FObligation = struct
     | FUntil (_, _, i, _, _, _) -> (match Option.value_exn p_opt with
                                     | Expl.Proof.S sp1 -> Expl.Proof.S (Expl.Proof.SUntilAssm (tp, sp1, i))
                                     | V vp2 -> Expl.Proof.V (Expl.Proof.VUntilAssm (tp, vp2, i)))
-    | _ -> failwith "not yet" (* TODO: other cases *)
+    | FEventually (_, i, _, _) -> (match Option.value_exn p_opt with
+                                   | Expl.Proof.S sp -> Expl.Proof.S (Expl.Proof.SEventuallyAssm (tp, sp, i))
+                                   | V vp -> Expl.Proof.V (Expl.Proof.VEventuallyAssm (tp, vp, i)))
+    | FAlways (_, i, _, _) -> (match Option.value_exn p_opt with
+                               | Expl.Proof.S sp -> Expl.Proof.S (Expl.Proof.SAlwaysAssm (tp, sp, i))
+                               | V vp -> Expl.Proof.V (Expl.Proof.VAlwaysAssm (tp, vp, i)))
 
   let eval_kind ts' tp k v = match k with
     | FFormula mf -> mf
@@ -1722,7 +1727,9 @@ let rec meval vars ts tp (db: Db.t) (fobligs: FObligation.t list) = function
                            match k with
                            | FAlways (_, i', mf', _) ->
                               if MFormula.equal mf mf' && Interval.equal i i' then
-                                let expl = Expl.Pdt.replace_leaf v (FObligation.corresp_proof tp None k)
+                                let expl = Expl.Pdt.replace_leaf v
+                                             (FObligation.corresp_proof tp
+                                                (Some(Pdt.specialize v (List.hd_exn expls))) k)
                                              (List.hd_exn expls'') in
                                 Some([expl])
                               else
@@ -1758,7 +1765,9 @@ let rec meval vars ts tp (db: Db.t) (fobligs: FObligation.t list) = function
                            match k with
                            | FEventually (_, i', mf', _) ->
                               if MFormula.equal mf mf' && Interval.equal i i' then
-                                let expl = Expl.Pdt.replace_leaf v (FObligation.corresp_proof tp None k)
+                                let expl = Expl.Pdt.replace_leaf v
+                                             (FObligation.corresp_proof tp
+                                                (Some(Pdt.specialize v (List.hd_exn expls))) k)
                                              (List.hd_exn expls'') in
                                 Some([expl])
                               else
@@ -1797,7 +1806,10 @@ let rec meval vars ts tp (db: Db.t) (fobligs: FObligation.t list) = function
                            match k with
                            | FUntil (_, _, i, mf1', mf2', _) ->
                               if MFormula.equal mf1 mf1' && MFormula.equal mf2 mf2' then
-                                let expl = Expl.Pdt.replace_leaf v (FObligation.corresp_proof tp None k)
+                                let p_opt = match pol with
+                                  | POS -> Some(Pdt.specialize v (List.hd_exn expls1))
+                                  | NEG -> Some(Pdt.specialize v (List.hd_exn expls2)) in
+                                let expl = Expl.Pdt.replace_leaf v (FObligation.corresp_proof tp p_opt k)
                                              (List.hd_exn expls'') in
                                 Some([expl])
                               else
