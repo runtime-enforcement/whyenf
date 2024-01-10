@@ -140,7 +140,7 @@ module Proof = struct
     | SNextAssm of int
     | SOnce of int * sp
     | SEventually of int * sp
-    | SEventuallyAssm of int * Interval.t
+    | SEventuallyAssm of int * sp * Interval.t
     | SHistorically of int * int * sp Fdeque.t
     | SHistoricallyOut of int
     | SAlways of int * int * sp Fdeque.t
@@ -172,8 +172,10 @@ module Proof = struct
     | VOnceOut of int
     | VOnce of int * int * vp Fdeque.t
     | VEventually of int * int * vp Fdeque.t
+    | VEventuallyAssm of int * vp * Interval.t
     | VHistorically of int * vp
     | VAlways of int * vp
+    | VAlwaysAssm of int * vp * Interval.t
     | VSinceOut of int
     | VSince of int * vp * vp Fdeque.t
     | VSinceInf of int * int * vp Fdeque.t
@@ -206,6 +208,7 @@ module Proof = struct
                                                       Setc.equal s s' && s_equal p p')
     | SOnce (tp, sp), SOnce (tp', sp')
       | SEventually (tp, sp), SEventually (tp', sp') -> Int.equal tp tp' && s_equal sp sp'
+    | SEventuallyAssm (tp, sp, i), SEventuallyAssm (tp', sp', i') -> Int.equal tp tp' && s_equal sp sp' && Interval.equal i i'
     | SHistoricallyOut tp, SHistoricallyOut tp' -> Int.equal tp tp'
     | SHistorically (tp, ltp, sps), SHistorically (tp', li', sps') -> Int.equal tp tp' && Int.equal ltp li' &&
                                                                         Int.equal (Fdeque.length sps) (Fdeque.length sps') &&
@@ -213,6 +216,7 @@ module Proof = struct
     | SAlways (tp, htp, sps), SAlways (tp', hi', sps') -> Int.equal tp tp' && Int.equal htp hi' &&
                                                             Int.equal (Fdeque.length sps) (Fdeque.length sps') &&
                                                               Etc.fdeque_for_all2_exn sps sps' ~f:(fun sp sp' -> s_equal sp sp')
+    | SAlwaysAssm (tp, sp, i), SAlwaysAssm (tp', sp', i') -> Int.equal tp tp' && s_equal sp sp' && Interval.equal i i'
     | SSince (sp2, sp1s), SSince (sp2', sp1s')
       | SUntil (sp2, sp1s), SUntil (sp2', sp1s') -> s_equal sp2 sp2' && Int.equal (Fdeque.length sp1s) (Fdeque.length sp1s') &&
                                                       Etc.fdeque_for_all2_exn sp1s sp1s' ~f:(fun sp1 sp1' -> s_equal sp1 sp1')
@@ -251,8 +255,10 @@ module Proof = struct
     | VEventually (tp, htp, vps), VEventually (tp', hi', vps') -> Int.equal tp tp' && Int.equal htp hi' &&
                                                                     Int.equal (Fdeque.length vps) (Fdeque.length vps') &&
                                                                       Etc.fdeque_for_all2_exn vps vps' ~f:(fun vp vp' -> v_equal vp vp')
+    | VEventuallyAssm (tp, vp, i), VEventuallyAssm (tp', vp', i') -> Int.equal tp tp' && v_equal vp vp' && Interval.equal i i'
     | VHistorically (tp, vp), VHistorically (tp', vp')
       | VAlways (tp, vp), VAlways (tp', vp') -> Int.equal tp tp'
+    | VAlwaysAssm (tp, vp, i), VAlwaysAssm (tp', vp', i') -> Int.equal tp tp' && v_equal vp vp' && Interval.equal i i'
     | VSince (tp, vp1, vp2s), VSince (tp', vp1', vp2s')
       | VUntil (tp, vp1, vp2s), VUntil (tp', vp1', vp2s') -> Int.equal tp tp' && v_equal vp1 vp1' &&
                                                                Int.equal (Fdeque.length vp2s) (Fdeque.length vp2s') &&
@@ -335,7 +341,7 @@ module Proof = struct
     | SNextAssm tp -> tp
     | SOnce (tp, _) -> tp
     | SEventually (tp, _) -> tp
-    | SEventuallyAssm (tp, _) -> tp
+    | SEventuallyAssm (tp, _, _) -> tp
     | SHistorically (tp, _, _) -> tp
     | SHistoricallyOut tp -> tp
     | SAlways (tp, _, _) -> tp
@@ -369,8 +375,10 @@ module Proof = struct
     | VOnceOut tp -> tp
     | VOnce (tp, _, _) -> tp
     | VEventually (tp, _, _) -> tp
+    | VEventuallyAssm (tp, _, _) -> tp
     | VHistorically (tp, _) -> tp
     | VAlways (tp, _) -> tp
+    | VAlwaysAssm (tp, _, _) -> tp
     | VSinceOut tp -> tp
     | VSince (tp, _, _) -> tp
     | VSinceInf (tp, _, _) -> tp
@@ -420,20 +428,21 @@ module Proof = struct
     | SOnce (_, sp) -> Printf.sprintf "%sSOnce{%d}\n%s" indent (s_at p) (s_to_string indent' sp)
     | SEventually (_, sp) -> Printf.sprintf "%sSEventually{%d}\n%s" indent (s_at p)
                                (s_to_string indent' sp)
-    | SEventuallyAssm (tp, _) -> Printf.sprintf "%sSEventuallyAssm{%d}\n" indent tp
+    | SEventuallyAssm (tp, sp, i) -> Printf.sprintf "%sSEventuallyAssm{%d}{%s}\n%s" indent tp
+                                       (s_to_string indent' sp) (Interval.to_string i)
     | SHistorically (_, _, sps) -> Printf.sprintf "%sSHistorically{%d}\n%s" indent (s_at p)
                                      (Etc.deque_to_string indent' s_to_string sps)
     | SHistoricallyOut i -> Printf.sprintf "%sSHistoricallyOut{%d}" indent' i
     | SAlways (_, _, sps) -> Printf.sprintf "%sSAlways{%d}\n%s" indent (s_at p)
                                (Etc.deque_to_string indent' s_to_string sps)
-    | SAlwaysAssm (tp, sp, _) -> Printf.sprintf "%sSAlwaysAssm{%d}\n%s" indent tp
-                                   (s_to_string indent' sp)
+    | SAlwaysAssm (tp, sp, i) -> Printf.sprintf "%sSAlwaysAssm{%d}{%s}\n%s" indent tp
+                                   (s_to_string indent' sp) (Interval.to_string i)
     | SSince (sp2, sp1s) -> Printf.sprintf "%sSSince{%d}\n%s\n%s" indent (s_at p) (s_to_string indent' sp2)
                               (Etc.deque_to_string indent' s_to_string sp1s)
     | SUntil (sp2, sp1s) -> Printf.sprintf "%sSUntil{%d}\n%s\n%s" indent (s_at p)
                               (Etc.deque_to_string indent' s_to_string sp1s) (s_to_string indent' sp2)
-    | SUntilAssm (tp, sp, _) -> Printf.sprintf "%sSUntilAssm{%d}\n%s" indent tp
-                                  (s_to_string indent' sp)
+    | SUntilAssm (tp, sp, i) -> Printf.sprintf "%sSUntilAssm{%d}{%s}\n%s" indent tp
+                                  (s_to_string indent' sp) (Interval.to_string i)
   and v_to_string indent p =
     let indent' = "\t" ^ indent in
     match p with
@@ -453,19 +462,23 @@ module Proof = struct
                               x (Dom.to_string d) (v_to_string indent' vp)
     | VPrev vp -> Printf.sprintf "%sVPrev{%d}\n%s" indent (v_at p) (v_to_string indent' vp)
     | VPrev0 -> Printf.sprintf "%sVPrev0{0}" indent'
-    | VPrevOutL i -> Printf.sprintf "%sVPrevOutL{%d}" indent' i
-    | VPrevOutR i -> Printf.sprintf "%sVPrevOutR{%d}" indent' i
+    | VPrevOutL tp -> Printf.sprintf "%sVPrevOutL{%d}" indent' tp
+    | VPrevOutR tp -> Printf.sprintf "%sVPrevOutR{%d}" indent' tp
     | VNext vp -> Printf.sprintf "%sVNext{%d}\n%s" indent (v_at p) (v_to_string indent' vp)
+    | VNextAssm (tp, i) -> Printf.sprintf "%sVNextAssm{%d}{%s}" indent' tp (Interval.to_string i)
     | VNextOutL i -> Printf.sprintf "%sVNextOutL{%d}" indent' i
     | VNextOutR i -> Printf.sprintf "%sVNextOutR{%d}" indent' i
-    | VNextAssm (tp, _) -> Printf.sprintf "%sVNextAssm{%d}\n" indent tp
     | VOnceOut i -> Printf.sprintf "%sVOnceOut{%d}" indent' i
     | VOnce (_, _, vps) -> Printf.sprintf "%sVOnce{%d}\n%s" indent (v_at p)
                              (Etc.deque_to_string indent' v_to_string vps)
     | VEventually (_, _, vps) -> Printf.sprintf "%sVEventually{%d}\n%s" indent (v_at p)
                                    (Etc.deque_to_string indent' v_to_string vps)
+    | VEventuallyAssm (tp, vp, i) -> Printf.sprintf "%sVEventuallyAssm{%d}{%s}\n%s" indent' tp
+                                       (Interval.to_string i) (v_to_string indent' vp)
     | VHistorically (_, vp) -> Printf.sprintf "%sVHistorically{%d}\n%s" indent (v_at p) (v_to_string indent' vp)
     | VAlways (_, vp) -> Printf.sprintf "%sVAlways{%d}\n%s" indent (v_at p) (v_to_string indent' vp)
+    | VAlwaysAssm (tp, vp, i) -> Printf.sprintf "%sVAlwaysAssm{%d}{%s}\n%s" indent' tp
+                                   (Interval.to_string i) (v_to_string indent' vp)
     | VSinceOut i -> Printf.sprintf "%sVSinceOut{%d}" indent' i
     | VSince (_, vp1, vp2s) -> Printf.sprintf "%sVSince{%d}\n%s\n%s" indent (v_at p) (v_to_string indent' vp1)
                                  (Etc.deque_to_string indent' v_to_string vp2s)
@@ -475,9 +488,8 @@ module Proof = struct
                                  (Etc.deque_to_string indent' v_to_string vp2s) (v_to_string indent' vp1)
     | VUntilInf (_, _, vp2s) -> Printf.sprintf "%sVUntilInf{%d}\n%s" indent (v_at p)
                                   (Etc.deque_to_string indent' v_to_string vp2s)
-    | VUntilAssm (tp, _, _) -> Printf.sprintf "%sVUntilAssm{%d}\n" indent tp
-    | VUntilAssm (tp, vp, _) -> Printf.sprintf "%sVUntilAssm{%d}\n%s" indent tp
-                                  (v_to_string indent' vp)
+    | VUntilAssm (tp, vp, i) -> Printf.sprintf "%sVUntilAssm{%d}{%s}\n%s" indent tp
+                                  (Interval.to_string i) (v_to_string indent' vp)
 
   let to_string indent = function
     | S p -> s_to_string indent p
