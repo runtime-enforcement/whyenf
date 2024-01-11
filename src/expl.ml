@@ -991,7 +991,8 @@ let rec is_satisfied = function
 let rec get_violation v = function
   | Pdt.Leaf l -> (v, l)
   | Node (x, part) -> let (s, p) = Part.find2 part is_satisfied in
-                      get_violation (Map.add_exn ~key:x ~data:_) p
+                      let elt = Setc.some_elt (Dom.tt_of_domain (Setc.min_elt_exn s)) s in
+                      get_violation (Map.add_exn ~key:x ~data:elt) p
 
 let rec at = function
   | Pdt.Leaf pt -> Proof.p_at pt
