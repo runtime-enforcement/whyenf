@@ -98,14 +98,20 @@ module EnfType = struct
 
 end
 
+let tp_event_name = "~tp"
+
 module Sig = struct
 
   type props = { arity: int; ntconsts: (string * Dom.tt) list; enftype: EnfType.t; rank: int } [@@deriving compare, sexp_of, hash]
 
   type t = string * props [@@deriving compare, sexp_of, hash]
 
-  let table: (string, props) Hashtbl.t = Hashtbl.create (module String)
-
+  let table: (string, props) Hashtbl.t =
+    let table = Hashtbl.create (module String) in
+    Hashtbl.add_exn table ~key:tp_event_name
+      ~data:{ arity = 0; ntconsts = []; enftype = Cau; rank = 0 };
+    table
+  
   let add p_name ntconsts enftype rank =
     Hashtbl.add_exn table ~key:p_name ~data:{ arity = List.length ntconsts; ntconsts; enftype; rank }
 
