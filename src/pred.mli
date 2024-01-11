@@ -56,6 +56,8 @@ module EnfType : sig
 
 end
 
+val tp_event_name: string
+
 module Sig : sig
 
   type props = { arity: int; ntconsts: (string * Dom.tt) list; enftype: EnfType.t; rank: int } [@@deriving compare, sexp_of, hash]

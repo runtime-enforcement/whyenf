@@ -50,7 +50,7 @@ module MFormula : sig
 
   val init: Formula.t -> t
 
-  val apply_valuation : Expl.Proof.valuation -> t -> t
+  val apply_valuation : Etc.valuation -> t -> t
 
   val fv: t -> (String.t, Base.String.comparator_witness) Base.Set.t
   val rank: t -> int
@@ -73,7 +73,7 @@ module FObligation : sig
     | FAlways of int * Interval.t * MFormula.t * always_info (* fun t -> Always (sub2 i (t-t0), f1) *)
     | FEventually of int * Interval.t * MFormula.t * eventually_info (* fun t -> Eventually (sub2 i (t-t0), f1) *)
 
-  type t = kind * Expl.Proof.valuation * polarity
+  type t = kind * Etc.valuation * polarity
 
   val equal: t -> t -> bool
   val eval: (string list -> int -> Db.t -> MFormula.t -> MFormula.t)

@@ -38,13 +38,16 @@ module Event = struct
   include T
   include Comparable.Make(T)
 
+  let _tp = (Pred.tp_event_name, [])
+
 end
 
 type t = (Event.t, Event.comparator_witness) Set.t
 
 let create evtl = Set.of_list (module Event) evtl
 
-let mem = Set.mem 
+let mem = Set.mem
+let is_empty = Set.is_empty
 
 let event name consts =
   let pred_sig = Hashtbl.find_exn Pred.Sig.table name in
@@ -59,7 +62,7 @@ let event name consts =
 let add_event db evt = Set.add db evt
 
 let to_string db =
-  Set.fold db ~init:"" ~f:(fun acc evt -> acc ^ Event.to_string evt ^ "\n")
+  Etc.string_list_to_string (List.map ~f:Event.to_string (Set.elements db))
 
 let to_json db =
   "[ " ^ (String.concat ~sep:", "

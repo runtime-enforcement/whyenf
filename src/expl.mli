@@ -39,8 +39,6 @@ end
 
 module Proof : sig
 
-  type valuation = (string, Dom.t, String.comparator_witness) Map.t
-
   type sp =
     | STT of int
     | SEqConst of int * string * Dom.t
@@ -164,9 +162,9 @@ module Pdt : sig
   val split_list_reduce: ('a -> 'a -> bool) -> 'a list t -> 'a t list
   val hide_reduce: ('a -> 'a -> bool) -> string list -> ('b -> 'a) -> ('b Part.t -> 'a) -> 'b t -> 'a t
 
-  val replace_leaf: Proof.valuation -> 'a -> 'a t -> 'a t
-  val specialize: Proof.valuation -> 'a t -> 'a
-  val collect: ('a -> bool) -> Proof.valuation -> string -> 'a t -> (Dom.t, Dom.comparator_witness) Setc.t
+  val replace_leaf: Etc.valuation -> 'a -> 'a t -> 'a t
+  val specialize: Etc.valuation -> 'a t -> 'a
+  val collect: ('a -> bool) -> Etc.valuation -> string -> 'a t -> (Dom.t, Dom.comparator_witness) Setc.t
 
 end
 

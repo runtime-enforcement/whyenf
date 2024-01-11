@@ -121,8 +121,6 @@ end
 
 module Proof = struct
 
-  type valuation = (string, Dom.t, String.comparator_witness) Map.t
-
   type sp =
     | STT of int
     | SEqConst of int * string * Dom.t
@@ -989,7 +987,7 @@ module Pdt = struct
   let rec collect f v x = function
     | Leaf l when f l -> Setc.univ (module Dom)
     | Leaf l -> Setc.empty (module Dom)
-    | Node (x', part) when x == x' ->
+    | Node (x', part) when String.equal x x' ->
        Part.fold_left (Part.map2 part (fun (s, p) -> (s, s))) (Setc.empty (module Dom)) Setc.union
     | Node (x', part) ->
        collect f v x (Part.find part (Map.find_exn v x'))

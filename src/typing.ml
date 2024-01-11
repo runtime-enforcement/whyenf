@@ -28,6 +28,7 @@ let rec is_past_guarded x p = function
   | Until (_, i, f, g) when p -> not (Interval.mem 0 i) && is_past_guarded x p f
                                  || is_past_guarded x p f && is_past_guarded x p g
   | Since (_, i, f, g) | Until (_, i, f, g) -> Interval.mem 0 i && is_past_guarded x p g
+  | _ -> false
 
 module Errors = struct
 
@@ -161,6 +162,8 @@ let rec types t f =
       | Iff (_, _, f, g) -> conj (disj (types Sup f) (types Cau g))
                               (disj (types Cau f) (types Sup g))
       | Exists (_, _, f) -> types Cau f
+      | Forall (x, _, f) when is_past_guarded x false f -> types Cau f
+      | Forall (x, _, f) -> error ("for causability " ^ x ^ " must be past-guarded")
       | Next (i, f) when i == Interval.full -> types Cau f
       | Next _ -> error "○ with non-[0,∞) interval is never Cau"
       | Once (i, g) | Since (_, i, _, g) when Interval.mem 0 i -> types Cau g
@@ -190,6 +193,7 @@ let rec types t f =
                               (conj (types Sup f) (types Cau g))
       | Exists (x, _, f) when is_past_guarded x true f -> types Sup f
       | Exists (x, _, _) -> error ("for suppressability " ^ x ^ " must be past-guarded")
+      | Forall (_, _, f) -> types Sup f
       | Next (_, f) -> types Sup f
       | Historically (i, f) when Interval.mem 0 i -> types Sup f
       | Historically _ -> error "■[a,b) with a > 0 is never Sup"
@@ -257,6 +261,7 @@ let rec convert enftype form : Tformula.t option =
                  | None    -> (convert Sup g) >>| (fun g' -> Tformula.TIff (R, R, Tformula.of_formula f, g')))
            end
         | Exists (x, tt, f) -> (convert Cau f) >>| (fun f' -> Tformula.TExists (x, tt, f'))
+        | Forall (x, tt, f) when is_past_guarded x false f -> (convert Cau f) >>| (fun f' -> Tformula.TForall (x, tt, f'))
         | Next (i, f) when i == Interval.full ->
            (convert Cau f) >>| (fun f' -> Tformula.TNext (i, f'))
         | Once (i, f) when Interval.mem 0 i ->
@@ -304,6 +309,7 @@ let rec convert enftype form : Tformula.t option =
            end
         | Exists (x, tt, f) when is_past_guarded x true f ->
            (convert Sup f) >>| (fun f' -> Tformula.TExists (x, tt, f'))
+        | Forall (x, tt, f) ->  (convert Sup f) >>| (fun f' -> Tformula.TForall (x, tt, f'))
         | Next (i, f) -> (convert Sup f) >>= (fun f' -> Some (Tformula.TNext (i, f')))
         | Historically (i, f) when Interval.mem 0 i ->
            (convert Sup f) >>| (fun f' -> Tformula.THistorically (i, f'))
