@@ -14,7 +14,7 @@ type ('a, 'b) t = Finite of ('a, 'b) Set.t | Complement of ('a, 'b) Set.t
 
 let phys_equal = Stdlib.( == )
 
-let min_elt_exn = Set.min_elt_exn
+(*let min_elt_exn = Set.min_elt_exn*)
 
 let length = function
   | Finite s -> Set.length s

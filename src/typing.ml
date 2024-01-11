@@ -215,35 +215,32 @@ let rec convert enftype form : Tformula.t option =
         match form with
         | TT -> Some (Tformula.TTT)
         | Predicate (e, t) when Pred.Sig.enftype e == Cau -> Some (Tformula.TPredicate (e, t))
-        | Neg f -> (convert Sup f) >>= (fun f' -> Some (Tformula.TNeg f'))
+        | Neg f -> (convert Sup f) >>| (fun f' -> Tformula.TNeg f')
         | And (s, f, g) ->
            (convert Cau f)
-           >>= (fun f' -> (convert Cau g)
-                          >>= (fun g' -> Some (Tformula.TAnd (default_L s, f', g'))))
-        | Or (L, f, g) -> (convert Cau f) >>= (fun f' -> Some (Tformula.TOr(L, f', Tformula.of_formula g)))
-        | Or (R, f, g) -> (convert Cau g) >>= (fun g' -> Some (Tformula.TOr(R, Tformula.of_formula f, g')))
+           >>= (fun f' -> (convert Cau g) >>| (fun g' -> Tformula.TAnd (default_L s, f', g')))
+        | Or (L, f, g) -> (convert Cau f) >>| (fun f' -> Tformula.TOr(L, f', Tformula.of_formula g))
+        | Or (R, f, g) -> (convert Cau g) >>| (fun g' -> Tformula.TOr(R, Tformula.of_formula f, g'))
         | Or (_, f, g) ->
            begin
              match convert Cau f with
              | Some f' -> Some (Tformula.TOr (L, f', Tformula.of_formula g))
-             | None    -> (convert Cau g)
-                          >>= (fun g' -> Some (Tformula.TOr (R, Tformula.of_formula f, g')))
+             | None    -> (convert Cau g) >>| (fun g' -> Tformula.TOr (R, Tformula.of_formula f, g'))
            end
-        | Imp (L, f, g) -> (convert Sup f) >>= (fun f' -> Some (Tformula.TImp(L, f', Tformula.of_formula g)))
-        | Imp (R, f, g) -> (convert Cau g) >>= (fun g' -> Some (Tformula.TImp(R, Tformula.of_formula f, g')))
+        | Imp (L, f, g) -> (convert Sup f) >>| (fun f' -> Tformula.TImp(L, f', Tformula.of_formula g))
+        | Imp (R, f, g) -> (convert Cau g) >>| (fun g' -> Tformula.TImp(R, Tformula.of_formula f, g'))
         | Imp (_, f, g) ->
            begin
              match convert Sup f with
              | Some f' -> Some (Tformula.TImp (L, f', Tformula.of_formula g))
-             | None    -> (convert Cau g)
-                          >>= (fun g' -> Some (Tformula.TImp (R, Tformula.of_formula f, g')))
+             | None    -> (convert Cau g) >>| (fun g' -> Tformula.TImp (R, Tformula.of_formula f, g'))
            end
-        | Iff (L, L, f, g) -> (convert Sup f) >>= (fun f' -> Some (Tformula.TIff (L, L, f', Tformula.of_formula g)))
+        | Iff (L, L, f, g) -> (convert Sup f) >>| (fun f' -> Tformula.TIff (L, L, f', Tformula.of_formula g))
         | Iff (L, R, f, g) -> (convert Sup f) >>= (fun f' -> (convert Sup g)
-                                                             >>= (fun g' -> Some (Tformula.TIff (L, R, f', g'))))
+                                                             >>| (fun g' -> Tformula.TIff (L, R, f', g')))
         | Iff (R, L, f, g) -> (convert Cau g) >>= (fun g' -> (convert Cau f)
-                                                             >>= (fun f' -> Some (Tformula.TIff (R, L, f', g'))))
-        | Iff (R, R, f, g) -> (convert Cau g) >>= (fun g' -> Some (Tformula.TIff (R, R, Tformula.of_formula f, g')))
+                                                             >>| (fun f' -> Tformula.TIff (R, L, f', g')))
+        | Iff (R, R, f, g) -> (convert Cau g) >>| (fun g' -> Tformula.TIff (R, R, Tformula.of_formula f, g'))
         | Iff (_, _, f, g) ->
            begin
              match convert Sup f with
@@ -251,56 +248,52 @@ let rec convert enftype form : Tformula.t option =
                 begin
                   match convert Cau f with
                   | Some f' -> Some (Tformula.TIff (L, L, f', Tformula.of_formula g))
-                  | None    -> (convert Sup g)
-                               >>= (fun g' -> Some (Tformula.TIff (L, R, f', g')))
+                  | None    -> (convert Sup g) >>| (fun g' -> Tformula.TIff (L, R, f', g'))
                 end
              | None -> (convert Cau g)
                        >>= (fun g' ->
                  match convert Cau f with
                  | Some f' -> Some (Tformula.TIff (R, L, f', g'))
-                 | None    -> (convert Sup g)
-                              >>= (fun g' -> Some (Tformula.TIff (R, R, Tformula.of_formula f, g'))))
+                 | None    -> (convert Sup g) >>| (fun g' -> Tformula.TIff (R, R, Tformula.of_formula f, g')))
            end
-        | Exists (x, tt, f) -> (convert Cau f) >>= (fun f' -> Some (Tformula.TExists (x, tt, f')))
+        | Exists (x, tt, f) -> (convert Cau f) >>| (fun f' -> Tformula.TExists (x, tt, f'))
         | Next (i, f) when i == Interval.full ->
-           (convert Cau f) >>= (fun f' -> Some (Tformula.TNext (i, f')))
+           (convert Cau f) >>| (fun f' -> Tformula.TNext (i, f'))
         | Once (i, f) when Interval.mem 0 i ->
-           (convert Cau f) >>= (fun f' -> Some (Tformula.TOnce (i, f')))
+           (convert Cau f) >>| (fun f' -> Tformula.TOnce (i, f'))
         | Since (_, i, f, g) when Interval.mem 0 i ->
-           (convert Cau g) >>= (fun g' -> Some (Tformula.TSince (R, i, Tformula.of_formula f, g')))
-        | Eventually (B b, f) -> (convert Cau f) >>= (fun f' -> Some (Tformula.TEventually (B b, f')))
-        | Always (i, f) -> (convert Cau f) >>= (fun f' -> Some (Tformula.TAlways (i, f')))
+           (convert Cau g) >>| (fun g' -> Tformula.TSince (R, i, Tformula.of_formula f, g'))
+        | Eventually (B b, f) -> (convert Cau f) >>| (fun f' -> Tformula.TEventually (B b, f'))
+        | Always (i, f) -> (convert Cau f) >>| (fun f' -> Tformula.TAlways (i, f'))
         | Until (LR, B b, f, g) ->
-           (convert Cau f) >>= (fun f' -> (convert Cau g)
-                                          >>= (fun g' -> Some (Tformula.TUntil (LR, B b, f', g'))))
+           (convert Cau f) >>= (fun f' -> (convert Cau g) >>| (fun g' -> Tformula.TUntil (LR, B b, f', g')))
         | Until (_, B b, f, g) when Interval.mem 0 (B b) ->
-           (convert Cau g) >>= (fun g' -> Some (Tformula.TUntil (LR, B b, Tformula.of_formula f, g')))
+           (convert Cau g) >>| (fun g' -> Tformula.TUntil (LR, B b, Tformula.of_formula f, g'))
         | Until (L, B b, f, g) ->
-           (convert Cau g) >>= (fun g' -> Some (Tformula.TUntil (LR, B b, Tformula.of_formula f, g')))
+           (convert Cau g) >>| (fun g' -> Tformula.TUntil (LR, B b, Tformula.of_formula f, g'))
         | _ -> None
       end
     | Sup -> begin
         match form with
         | FF -> Some (Tformula.TFF)
         | Predicate (e, t) when Pred.Sig.enftype e == Sup -> Some (Tformula.TPredicate (e, t))
-        | Neg f -> (convert Cau f) >>= (fun f' -> Some (Tformula.TNeg f'))
-        | And (L, f, g) -> (convert Sup f) >>= (fun f' -> Some (Tformula.TAnd (L, f', Tformula.of_formula g)))
-        | And (R, f, g) -> (convert Sup g) >>= (fun g' -> Some (Tformula.TAnd (R, Tformula.of_formula f, g')))
+        | Neg f -> (convert Cau f) >>| (fun f' -> Tformula.TNeg f')
+        | And (L, f, g) -> (convert Sup f) >>| (fun f' -> Tformula.TAnd (L, f', Tformula.of_formula g))
+        | And (R, f, g) -> (convert Sup g) >>| (fun g' -> Tformula.TAnd (R, Tformula.of_formula f, g'))
         | And (_, f, g) ->
            begin
              match convert Sup f with
              | Some f' -> Some (Tformula.TAnd (L, f', Tformula.of_formula g))
-             | None    -> (convert Sup g)
-                          >>= (fun g' -> Some (Tformula.TAnd (R, Tformula.of_formula f, g')))
+             | None    -> (convert Sup g) >>| (fun g' -> Tformula.TAnd (R, Tformula.of_formula f, g'))
            end
         | Or (s, f, g) -> (convert Sup f) >>= (fun f' -> (convert Sup g)
-                                                         >>= (fun g' -> Some (Tformula.TOr (default_L s, f', g'))))
+                                                         >>| (fun g' -> Tformula.TOr (default_L s, f', g')))
         | Imp (s, f, g) -> (convert Cau f) >>= (fun f' -> (convert Sup g)
-                                                          >>= (fun g' -> Some (Tformula.TImp (default_L s, f', g'))))
+                                                          >>| (fun g' -> Tformula.TImp (default_L s, f', g')))
         | Iff (L, _, f, g) -> (convert Cau f) >>= (fun f' -> (convert Sup g)
-                                                             >>= (fun g' -> Some (Tformula.TIff (L, N, f', g'))))
+                                                             >>| (fun g' -> Tformula.TIff (L, N, f', g')))
         | Iff (R, _, f, g) -> (convert Sup f) >>= (fun f' -> (convert Cau g)
-                                                             >>= (fun g' -> Some (Tformula.TIff (R, N, f', g'))))
+                                                             >>| (fun g' -> Tformula.TIff (R, N, f', g')))
         | Iff (_, _, f, g) ->
            begin
              match convert Cau f, convert Sup g with
@@ -310,29 +303,27 @@ let rec convert enftype form : Tformula.t option =
                        | _, _ -> None
            end
         | Exists (x, tt, f) when is_past_guarded x true f ->
-           (convert Sup f) >>= (fun f' -> Some (Tformula.TExists (x, tt, f')))
+           (convert Sup f) >>| (fun f' -> Tformula.TExists (x, tt, f'))
         | Next (i, f) -> (convert Sup f) >>= (fun f' -> Some (Tformula.TNext (i, f')))
         | Historically (i, f) when Interval.mem 0 i ->
-           (convert Sup f) >>= (fun f' -> Some (Tformula.THistorically (i, f')))
+           (convert Sup f) >>| (fun f' -> Tformula.THistorically (i, f'))
         | Since (_, i, f, g) when not (Interval.mem 0 i) ->
-           (convert Sup f) >>= (fun f' -> Some (Tformula.TSince (L, i, f', Tformula.of_formula g)))
+           (convert Sup f) >>| (fun f' -> Tformula.TSince (L, i, f', Tformula.of_formula g))
         | Since (_, i, f, g) -> (convert Sup f) >>= (fun f' -> (convert Sup g)
-                                                               >>= (fun g' -> Some (Tformula.TSince (LR, i, f', g'))))
-        | Eventually (i, f) -> (convert Sup f) >>= (fun f' -> Some (Tformula.TEventually (i, f')))
-        | Always (B b, f) -> (convert Sup f) >>= (fun f' -> Some (Tformula.TAlways (B b, f')))
+                                                               >>| (fun g' -> Tformula.TSince (LR, i, f', g')))
+        | Eventually (i, f) -> (convert Sup f) >>| (fun f' -> Tformula.TEventually (i, f'))
+        | Always (B b, f) -> (convert Sup f) >>| (fun f' -> Tformula.TAlways (B b, f'))
         | Until (L, i, f, g) when not (Interval.mem 0 i) ->
-           (convert Sup f) >>= (fun f' -> Some (Tformula.TUntil (L, i, f', Tformula.of_formula g)))
+           (convert Sup f) >>| (fun f' -> Tformula.TUntil (L, i, f', Tformula.of_formula g))
         | Until (R, i, f, g) when not (Interval.mem 0 i) ->
-           (convert Sup g) >>= (fun g' -> Some (Tformula.TUntil (R, i, Tformula.of_formula f, g')))
+           (convert Sup g) >>| (fun g' -> Tformula.TUntil (R, i, Tformula.of_formula f, g'))
         | Until (_, i, f, g) when not (Interval.mem 0 i) ->
            begin
              match convert Sup f with
              | Some f' -> Some (Tformula.TUntil (L, i, f', Tformula.of_formula g))
-             | None -> (convert Sup g)
-                       >>= (fun g' -> Some (Tformula.TUntil (R, i, Tformula.of_formula f, g')))
+             | None -> (convert Sup g) >>| (fun g' -> Tformula.TUntil (R, i, Tformula.of_formula f, g'))
            end
-        | Until (_, i, f, g) -> (convert Sup g)
-                                >>= (fun g' -> Some (Tformula.TUntil (R, i, Tformula.of_formula f, g')))
+        | Until (_, i, f, g) -> (convert Sup g) >>| (fun g' -> Tformula.TUntil (R, i, Tformula.of_formula f, g'))
         | _ -> None
       end
     | Obs -> Some (Tformula.of_formula form).f

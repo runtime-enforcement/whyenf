@@ -33,6 +33,7 @@ let lclosed_ropen_BI i j = B (nonempty_BI i (j - 1))
 let lclosed_rclosed_BI i j = B (nonempty_BI i j)
 
 let singleton i = lclosed_rclosed_BI i i
+let is_zero i = i == singleton 0
 
 let full = U (UI 0)
 
