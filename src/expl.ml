@@ -43,6 +43,8 @@ module Part = struct
 
   let find part x = snd (List.find_exn part ~f:(fun (s, p) -> Setc.mem s x))
 
+  let find2 part f = List.find_exn part ~f:(fun (s, p) -> f p)
+
   let rec tabulate ds f z =
     (Setc.Complement ds, z) ::
       (Set.fold ds ~init:[] ~f:(fun acc d -> (Setc.Finite (Set.of_list (module Dom) [d]), f d) :: acc))
@@ -148,6 +150,7 @@ module Proof = struct
     | SSince of sp * sp Fdeque.t
     | SUntil of sp * sp Fdeque.t
     | SUntilAssm of int * sp * Interval.t
+    | SUntilRight of sp
   and vp =
     | VFF of int
     | VEqConst of int * string * Dom.t
@@ -182,6 +185,7 @@ module Proof = struct
     | VUntil of int * vp * vp Fdeque.t
     | VUntilInf of int * int * vp Fdeque.t
     | VUntilAssm of int * vp * Interval.t
+    | VUntilLeft of vp
 
   type t = S of sp | V of vp
 
@@ -977,6 +981,17 @@ let rec is_violated = function
                    | Proof.S _ -> false
                    | V _ -> true)
   | Node (x, part) -> Part.exists part is_violated
+
+let rec is_satisfied = function
+  | Pdt.Leaf l -> (match l with
+                   | Proof.S _ -> true
+                   | V _ -> false)
+  | Node (x, part) -> Part.exists part is_satisfied
+
+let rec get_violation v = function
+  | Pdt.Leaf l -> (v, l)
+  | Node (x, part) -> let (s, p) = Part.find2 part is_satisfied in
+                      get_violation (Map.add_exn ~key:x ~data:_) p
 
 let rec at = function
   | Pdt.Leaf pt -> Proof.p_at pt

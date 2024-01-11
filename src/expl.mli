@@ -68,6 +68,7 @@ module Proof : sig
     | SSince of sp * sp Fdeque.t
     | SUntil of sp * sp Fdeque.t
     | SUntilAssm of int * sp * Interval.t
+    | SUntilRight of sp
   and vp =
     | VFF of int
     | VEqConst of int * string * Dom.t
@@ -102,6 +103,7 @@ module Proof : sig
     | VUntil of int * vp * vp Fdeque.t
     | VUntilInf of int * int * vp Fdeque.t
     | VUntilAssm of int * vp * Interval.t
+    | VUntilLeft of vp
 
   type t = S of sp | V of vp
 
@@ -169,6 +171,7 @@ end
 type t = Proof.t Pdt.t
 
 val is_violated: t -> bool
+val is_satisfied: t -> bool
 val at: t -> int
 
 val to_string: t -> string
