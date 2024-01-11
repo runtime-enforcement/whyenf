@@ -114,32 +114,36 @@ module EState = struct
 
   let exec_monitor v mf es =
     let vars = Set.elements (MFormula.fv mf) in
-    let (tstp_expls, ms') = mstep_state vars { es with ms = { es.ms with mf } } in
-    match tstp_expls with
-    | []   -> failwith ("Monitor did not return a verdict on " ^ (MFormula.to_string mf))
-    | ((ts, tp), _)::_ when not (Int.equal ts es.ts) || not (Int.equal tp es.tp) ->
-       failwith ("Invalid tstp in proof: " ^ Int.to_string ts ^ " <> " ^ Int.to_string es.ts
-                 ^ " or " ^ Int.to_string tp ^ " <> " ^ Int.to_string es.tp)
-    | (_, expl)::_ -> (expl, ms'.mf)
+    let (_, expl_opt, ms') = mstep_state vars { es with ms = { es.ms with mf } } in
+    match expl_opt with
+    | None -> None (*failwith ("Monitor did not return a verdict on " ^ (MFormula.to_string mf))*)
+    | Some expl -> Some (expl, ms'.mf)
 
   let sat v mf es =
-    let (expl, mf') = exec_monitor v mf es in
-    Expl.Proof.isS (Expl.Pdt.specialize v expl)
+    match exec_monitor v mf es with
+    | Some (expl, mf') -> Expl.Proof.isS (Expl.Pdt.specialize v expl)
+    | _ -> false
 
   let vio v mf es =
     sat v (MNeg mf) es
 
   let all_not_sat v x mf es =
-    let (expl, mf') = exec_monitor v mf es in
-    match Expl.Pdt.collect Expl.Proof.isV v x expl with
-    | Setc.Finite s -> Set.elements s
-    | _ -> failwith ("Infinite set of candidates for " ^ x ^ " in " ^ (MFormula.to_string mf))
+    match exec_monitor v mf es with
+    | Some (expl, mf') -> begin
+       match Expl.Pdt.collect Expl.Proof.isV v x expl with
+       | Setc.Finite s -> Set.elements s
+       | _ -> failwith ("Infinite set of candidates for " ^ x ^ " in " ^ (MFormula.to_string mf))
+      end
+    | _ -> []
 
   let all_not_vio v x mf es =
-    let (expl, mf') = exec_monitor v mf es in
-    match Expl.Pdt.collect Expl.Proof.isS v x expl with
-    | Setc.Finite s -> Set.elements s
-    | _ -> failwith ("Infinite set of candidates for " ^ x ^ " in " ^ (MFormula.to_string mf))
+    match exec_monitor v mf es with
+    | Some (expl, mf') -> begin
+       match Expl.Pdt.collect Expl.Proof.isS v x expl with
+       | Setc.Finite s -> Set.elements s
+       | _ -> failwith ("Infinite set of candidates for " ^ x ^ " in " ^ (MFormula.to_string mf))
+      end
+    | _ -> []
 
   let lr test1 test2 enf1 enf2 mf1 mf2 v es =
     let es =
@@ -287,8 +291,9 @@ type order = ReOrd of Db.t * Db.t | PrOrd of Db.t | NoOrd
 let goal (es: EState.t) =
   let obligs = List.map es.fobligs
                  ~f:(FObligation.eval
-                       (fun vars ts db mf -> (snd (mstep Out.Plain.ENFORCE vars ts db
-                                                     { es.ms with mf } [])).mf)
+                       (fun vars ts db mf ->
+                         match (mstep Out.Plain.ENFORCE vars ts db { es.ms with mf } [])
+                         with (_, _, ms) -> ms.mf)
                        es.db es.ts es.tp) in
   match obligs with
   | [] -> MFormula.MTT
@@ -307,9 +312,9 @@ let exec f inc =
                        r  = (Db.create [_tp], Db.create [], []);
                        db = Db.add_event new_db _tp } in
     let es = EState.enf mf es in
-    let (tstp_expls, ms') = EState.mstep_state vars es in
-    Stdio.printf "|tstp_expls| = %d\n" (List.length tstp_expls);
-    Out.Plain.expls tstp_expls None None None Out.Plain.ENFORCE;
+    let (_, expl_opt, ms') = EState.mstep_state vars es in
+    match expl_opt with
+    | Some expl -> Out.Plain.expls [((es.ts, es.tp), expl)] None None None Out.Plain.ENFORCE;
     ReOrd (Triple.cau es.r, Triple.sup es.r), es
   in
   let proactive_step es =
@@ -324,9 +329,10 @@ let exec f inc =
                         r  = (Db.create [], Db.create [], []);
                         db = Db.create []} in
     let es' = EState.enf mf es' in
-    let (tstp_expls, ms') = EState.mstep_state vars es in
+    let (_, expl_opt, ms') = EState.mstep_state vars es in
+    match expl_opt with
+    | Some expl -> Out.Plain.expls [((es.ts, es.tp), expl)] None None None Out.Plain.ENFORCE;
     (* Stdio.printf "|tstp_expls| = %d\n" (List.length tstp_expls); *)
-    Out.Plain.expls tstp_expls None None None Out.Plain.ENFORCE;
     if Db.mem (Triple.cau es'.r) _tp then
       PrOrd (Triple.cau es'.r), es'
     else

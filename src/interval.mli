@@ -22,6 +22,7 @@ val lopen_rclosed_BI: int -> int -> t
 val lclosed_ropen_BI: int -> int -> t
 val lclosed_rclosed_BI: int -> int -> t
 val singleton: int -> t
+val is_zero: t -> bool
 
 val full: t
 

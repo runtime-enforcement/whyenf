@@ -103,7 +103,7 @@ module MState : sig
 end
 
 val mstep: Out.Plain.mode -> string list -> timestamp -> Db.t -> MState.t -> FObligation.t list ->
-           ((timestamp * timepoint) * Expl.Proof.t Expl.Pdt.t) list * MState.t
+           ((timestamp * timepoint) * Expl.Proof.t Expl.Pdt.t) list * (Expl.Proof.t Expl.Pdt.t option) * MState.t
 
 val exec: Out.Plain.mode -> string -> Formula.t -> in_channel -> unit
 

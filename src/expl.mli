@@ -60,7 +60,8 @@ module Proof : sig
     | SNextAssm of int
     | SOnce of int * sp
     | SEventually of int * sp
-    | SEventuallyAssm of int * sp * Interval.t
+    | SEventuallyAssm of int * Interval.t
+    | SEventuallyNow of sp * Interval.t
     | SHistorically of int * int * sp Fdeque.t
     | SHistoricallyOut of int
     | SAlways of int * int * sp Fdeque.t
@@ -68,7 +69,7 @@ module Proof : sig
     | SSince of sp * sp Fdeque.t
     | SUntil of sp * sp Fdeque.t
     | SUntilAssm of int * sp * Interval.t
-    | SUntilRight of sp
+    | SUntilNow of sp * Interval.t
   and vp =
     | VFF of int
     | VEqConst of int * string * Dom.t
@@ -97,13 +98,14 @@ module Proof : sig
     | VHistorically of int * vp
     | VAlways of int * vp
     | VAlwaysAssm of int * vp * Interval.t
+    | VAlwaysNow of vp * Interval.t
     | VSinceOut of int
     | VSince of int * vp * vp Fdeque.t
     | VSinceInf of int * int * vp Fdeque.t
     | VUntil of int * vp * vp Fdeque.t
     | VUntilInf of int * int * vp Fdeque.t
     | VUntilAssm of int * vp * Interval.t
-    | VUntilLeft of vp
+    | VUntilNow of vp * Interval.t
 
   type t = S of sp | V of vp
 
