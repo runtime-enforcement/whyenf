@@ -11,6 +11,7 @@ open Core
 open Etc
 open Expl
 open Pred
+open Option
 
 let minp_list = Proof.Size.minp_list
 let minp_bool = Proof.Size.minp_bool
@@ -1139,7 +1140,7 @@ module Until = struct
   let update i nts ntp p1 p2 muaux =
     let a = Interval.left i in
     let b = match Interval.right i with
-      | None -> raise (Invalid_argument "Until interval is unbounded")
+      | None -> max_int
       | Some(b') -> b' in
     let muaux_shifted = shift (a, b) (nts, ntp) muaux in
     let (tstps_out, tstps_in) = add_tstp_future a b nts ntp muaux_shifted.tstps_out muaux_shifted.tstps_in in
@@ -1147,17 +1148,16 @@ module Until = struct
 
   let rec eval i nts ntp (muaux, ops) =
     let a = Interval.left i in
-    let b = match Interval.right i with
-      | None -> raise (Invalid_argument "Until interval is unbounded")
-      | Some(b') -> b' in
-    let muaux_shifted = shift (a, b) (nts, ntp) muaux in
-    match Fdeque.peek_back muaux.optimal_proofs with
+    match Interval.right i with
     | None -> (muaux, ops)
-    | Some(ts, _) -> if ts + b < nts then
-                       let ((_, op), optimal_proofs) = Fdeque.dequeue_back_exn muaux_shifted.optimal_proofs in
-                       let (muaux', ops') = eval i nts ntp ({ muaux_shifted with optimal_proofs }, ops) in
-                       (muaux', ops' @ [op])
-                     else (muaux, ops)
+    | Some(b) -> let muaux_shifted = shift (a, b) (nts, ntp) muaux in
+                 (match Fdeque.peek_back muaux.optimal_proofs with
+                  | None -> (muaux, ops)
+                  | Some(ts, _) -> if ts + b < nts then
+                                     let ((_, op), optimal_proofs) = Fdeque.dequeue_back_exn muaux_shifted.optimal_proofs in
+                                     let (muaux', ops') = eval i nts ntp ({ muaux_shifted with optimal_proofs }, ops) in
+                                     (muaux', ops' @ [op])
+                                   else (muaux, ops))
 
 end
 
@@ -1592,20 +1592,22 @@ let rec pdt_of tp r trms (vars: string list) maps : Expl.t = match vars with
      Node (x, part)
 
 let rec meval vars ts tp (db: Db.t) (fobligs: FObligation.t list) = function
-  | MTT -> ([Pdt.Leaf (Proof.S (STT tp))], MTT)
-  | MFF -> ([Leaf (V (VFF tp))], MFF)
+  | MTT -> let expl = Pdt.Leaf (Proof.S (STT tp)) in
+           ([expl], Some(expl), MTT)
+  | MFF -> let expl = Pdt.Leaf (Proof.V (VFF tp)) in
+           ([expl], Some(expl), MFF)
   | MEqConst (x, d) ->
      let l1 = Pdt.Leaf (Proof.S (SEqConst (tp, x, d))) in
      let l2 = Pdt.Leaf (Proof.V (VEqConst (tp, x, d))) in
      let expl = Pdt.Node (x, [(Setc.Complement (Set.of_list (module Dom) [d]), l2);
                               (Setc.Finite (Set.of_list (module Dom) [d]), l1)]) in
-     ([expl], MEqConst (x, d))
+     ([expl], Some(expl), MEqConst (x, d))
   | MPredicate (r, trms) ->
      let db' = Set.filter db ~f:(fun evt -> String.equal r (fst(evt))) in
      if List.is_empty trms then
        (let expl = if Set.is_empty db' then Pdt.Leaf (Proof.V (VPred (tp, r, trms)))
                    else Leaf (S (SPred (tp, r, trms))) in
-        ([expl], MPredicate (r, trms)))
+        ([expl], Some(expl), MPredicate (r, trms)))
      else
        let maps = Set.fold db' ~init:[] ~f:(fun acc evt -> match_terms trms (snd evt) (Map.empty (module String)) :: acc) in
        let maps' = List.map (List.filter maps ~f:(fun map_opt -> match map_opt with
@@ -1615,64 +1617,64 @@ let rec meval vars ts tp (db: Db.t) (fobligs: FObligation.t list) = function
        let fv = Set.elements (Formula.fv (Predicate (r, trms))) in
        let fv_vars = List.filter vars ~f:(fun var -> List.mem fv var ~equal:String.equal) in
        let expl = pdt_of tp r trms fv_vars maps' in
-       ([expl], MPredicate (r, trms))
+       ([expl], Some(expl), MPredicate (r, trms))
   | MNeg (mf) ->
-     let (expls, mf') = meval vars ts tp db fobligs mf in
-     let f_expls = List.map expls ~f:(fun expl -> (Pdt.apply1_reduce Proof.equal vars (fun p -> do_neg p) expl)) in
-     (f_expls, MNeg(mf'))
+     let (expls, expl_opt, mf') = meval vars ts tp db fobligs mf in
+     let f = Pdt.apply1_reduce Proof.equal vars (fun p -> do_neg p) in
+     let f_expls = List.map expls ~f in
+     (f_expls, expl_opt >>| f, MNeg mf')
   | MAnd (s, mf1, mf2, buf2) ->
-     let (expls1, mf1') = meval vars ts tp db fobligs mf1 in
-     let (expls2, mf2') = meval vars ts tp db fobligs mf2 in
+     let (expls1, expl_opt1, mf1') = meval vars ts tp db fobligs mf1 in
+     let (expls2, expl_opt2, mf2') = meval vars ts tp db fobligs mf2 in
+     let f = Pdt.apply2_reduce Proof.equal vars (fun p1 p2 -> minp_list (do_and p1 p2)) in
      let (f_expls, buf2') =
-       Buf2.take
-         (fun expl1 expl2 -> Pdt.apply2_reduce Proof.equal vars (fun p1 p2 -> minp_list (do_and p1 p2)) expl1 expl2)
-         (Buf2.add expls1 expls2 buf2) in
-     (f_expls, MAnd (s, mf1', mf2', buf2'))
+       Buf2.take f (Buf2.add expls1 expls2 buf2) in
+     (f_expls, None, MAnd (s, mf1', mf2', buf2'))
   | MOr (s, mf1, mf2, buf2) ->
-     let (expls1, mf1') = meval vars ts tp db fobligs mf1 in
-     let (expls2, mf2') = meval vars ts tp db fobligs mf2 in
+     let (expls1, _, mf1') = meval vars ts tp db fobligs mf1 in
+     let (expls2, _, mf2') = meval vars ts tp db fobligs mf2 in
      let (f_expls, buf2') =
        Buf2.take
          (fun expl1 expl2 -> Pdt.apply2_reduce Proof.equal vars (fun p1 p2 -> minp_list (do_or p1 p2)) expl1 expl2)
          (Buf2.add expls1 expls2 buf2) in
-     (f_expls, MOr (s, mf1', mf2', buf2'))
+     (f_expls, None, MOr (s, mf1', mf2', buf2'))
   | MImp (s, mf1, mf2, buf2) ->
-     let (expls1, mf1') = meval vars ts tp db fobligs mf1 in
-     let (expls2, mf2') = meval vars ts tp db fobligs mf2 in
+     let (expls1, _, mf1') = meval vars ts tp db fobligs mf1 in
+     let (expls2, _, mf2') = meval vars ts tp db fobligs mf2 in
      let (f_expls, buf2') =
        Buf2.take
          (fun expl1 expl2 -> Pdt.apply2_reduce Proof.equal vars (fun p1 p2 -> minp_list (do_imp p1 p2)) expl1 expl2)
          (Buf2.add expls1 expls2 buf2) in
-     (f_expls, MImp (s, mf1', mf2', buf2'))
+     (f_expls, None, MImp (s, mf1', mf2', buf2'))
   | MIff (s, t, mf1, mf2, buf2) ->
-     let (expls1, mf1') = meval vars ts tp db fobligs mf1 in
-     let (expls2, mf2') = meval vars ts tp db fobligs mf2 in
+     let (expls1, _, mf1') = meval vars ts tp db fobligs mf1 in
+     let (expls2, _, mf2') = meval vars ts tp db fobligs mf2 in
      let (f_expls, buf2') =
        Buf2.take
          (fun expl1 expl2 -> Pdt.apply2_reduce Proof.equal vars (fun p1 p2 -> do_iff p1 p2) expl1 expl2)
          (Buf2.add expls1 expls2 buf2) in
-     (f_expls, MIff (s, t, mf1', mf2', buf2'))
+     (f_expls, None, MIff (s, t, mf1', mf2', buf2'))
   | MExists (x, tc, mf) ->
-     let (expls, mf') = meval (vars @ [x]) ts tp db fobligs mf in
+     let (expls, _, mf') = meval (vars @ [x]) ts tp db fobligs mf in
      let f_expls = List.map expls ~f:(fun expl ->
                        Pdt.hide_reduce Proof.equal (vars @ [x]) (fun p -> minp_list (do_exists_leaf x tc p))
                          (fun p -> minp_list (do_exists_node x tc p)) expl) in
-     (f_expls, MExists(x, tc, mf'))
+     (f_expls, None, MExists(x, tc, mf'))
   | MForall (x, tc, mf) ->
-     let (expls, mf') = meval (vars @ [x]) ts tp db fobligs mf in
+     let (expls, _, mf') = meval (vars @ [x]) ts tp db fobligs mf in
      let f_expls = List.map expls ~f:(fun expl ->
                        Pdt.hide_reduce Proof.equal (vars @ [x]) (fun p -> minp_list (do_forall_leaf x tc p))
                          (fun p -> minp_list (do_forall_node x tc p)) expl) in
-     (f_expls, MForall(x, tc, mf'))
+     (f_expls, None, MForall(x, tc, mf'))
   | MPrev (i, mf, first, (buf, tss)) ->
-     let (expls, mf') = meval vars ts tp db fobligs mf in
+     let (expls, _, mf') = meval vars ts tp db fobligs mf in
      let (f_expls, (buf', tss')) =
        Buft.another_take
          (fun expl ts ts' -> Pdt.apply1_reduce Proof.equal vars (fun p -> Prev_Next.update_eval Prev i p ts ts') expl)
          (buf @ expls, tss @ [ts]) in
-     ((if first then (Leaf (V VPrev0) :: f_expls) else f_expls), MPrev (i, mf', false, (buf', tss')))
+     ((if first then (Leaf (V VPrev0) :: f_expls) else f_expls), None,  MPrev (i, mf', false, (buf', tss')))
   | MNext (i, mf, first, tss) ->
-     let (expls, mf') = meval vars ts tp db fobligs mf in
+     let (expls, _, mf') = meval vars ts tp db fobligs mf in
      let (expls', first) = if first && (List.length expls) > 0 then (List.tl_exn expls, false)
                            else (expls, first) in
      let (f_expls, (buf', tss')) =
@@ -1698,9 +1700,9 @@ let rec meval vars ts tp (db: Db.t) (fobligs: FObligation.t list) = function
                                 None
                            | _ -> None)
                    with _ -> f_expls in
-     (f_expls, MNext (i, mf', first, tss'))
+     (f_expls, None, MNext (i, mf', first, tss'))
   | MOnce (i, mf, tstps, moaux_pdt) ->
-     let (expls, mf') = meval vars ts tp db fobligs mf in
+     let (expls, _, mf') = meval vars ts tp db fobligs mf in
      let ((moaux_pdt', expls'), buf', tstps') =
        Buft.take
          (fun expl ts tp (aux_pdt, es) ->
@@ -1709,9 +1711,9 @@ let rec meval vars ts tp (db: Db.t) (fobligs: FObligation.t list) = function
            (aux_pdt', es @ (Pdt.split_list es')))
          (moaux_pdt, []) (expls, (tstps @ [(ts,tp)])) in
      let expls'' = List.map expls' ~f:(Pdt.reduce Proof.equal) in
-     (expls'', MOnce (i, mf', tstps', moaux_pdt'))
+     (expls'', None, MOnce (i, mf', tstps', moaux_pdt'))
   | MEventually (i, mf, (buf, ntstps), meaux_pdt) ->
-     let (expls, mf') = meval vars ts tp db fobligs mf in
+     let (expls, _, mf') = meval vars ts tp db fobligs mf in
      let (meaux_pdt', buf', ntstps') =
        Buft.take
          (fun expl ts tp aux_pdt -> Pdt.apply2 vars (fun p aux -> Eventually.update i ts tp p aux) expl aux_pdt)
@@ -1736,9 +1738,9 @@ let rec meval vars ts tp (db: Db.t) (fobligs: FObligation.t list) = function
                                 None
                            | _ -> None)
                    with _ -> expls'' in
-     (expls'', MEventually (i, mf', (buf', ntstps'), meaux_pdt'))
+     (expls'', None, MEventually (i, mf', (buf', ntstps'), meaux_pdt'))
   | MHistorically (i, mf, tstps, mhaux_pdt) ->
-     let (expls, mf') = meval vars ts tp db fobligs mf in
+     let (expls, _, mf') = meval vars ts tp db fobligs mf in
      let ((mhaux_pdt', expls'), buf', tstps') =
        Buft.take
          (fun expl ts tp (aux_pdt, es) ->
@@ -1747,9 +1749,9 @@ let rec meval vars ts tp (db: Db.t) (fobligs: FObligation.t list) = function
            (aux_pdt', es @ (Pdt.split_list es')))
          (mhaux_pdt, []) (expls, (tstps @ [(ts,tp)])) in
      let expls'' = List.map expls' ~f:(Pdt.reduce Proof.equal) in
-     (expls'', MHistorically (i, mf', tstps', mhaux_pdt'))
+     (expls'', None, MHistorically (i, mf', tstps', mhaux_pdt'))
   | MAlways (i, mf, (buf, ntstps), maaux_pdt) ->
-     let (expls, mf') = meval vars ts tp db fobligs mf in
+     let (expls, _, mf') = meval vars ts tp db fobligs mf in
      let (maaux_pdt', buf', ntstps') =
        Buft.take
          (fun expl ts tp aux_pdt -> Pdt.apply2 vars (fun p aux -> Always.update i ts tp p aux) expl aux_pdt)
@@ -1774,10 +1776,10 @@ let rec meval vars ts tp (db: Db.t) (fobligs: FObligation.t list) = function
                                 None
                            | _ -> None)
                    with _ -> expls'' in
-     (expls'', MAlways (i, mf', (buf', ntstps'), maaux_pdt'))
+     (expls'', None, MAlways (i, mf', (buf', ntstps'), maaux_pdt'))
   | MSince (s, i, mf1, mf2, (buf2, tstps), msaux_pdt) ->
-     let (expls1, mf1') = meval vars ts tp db fobligs mf1 in
-     let (expls2, mf2') = meval vars ts tp db fobligs mf2 in
+     let (expls1, _, mf1') = meval vars ts tp db fobligs mf1 in
+     let (expls2, _, mf2') = meval vars ts tp db fobligs mf2 in
      let ((msaux_pdt', expls'), (buf2', tstps')) =
        Buf2t.take
          (fun expl1 expl2 ts tp (aux_pdt, es) ->
@@ -1786,10 +1788,10 @@ let rec meval vars ts tp (db: Db.t) (fobligs: FObligation.t list) = function
            (aux_pdt', es @ (Pdt.split_list es')))
          (msaux_pdt, []) (Buf2.add expls1 expls2 buf2) (tstps @ [(ts,tp)]) in
      let expls'' = List.map expls' ~f:(Pdt.reduce Proof.equal) in
-     (expls'', MSince (s, i, mf1', mf2', (buf2', tstps'), msaux_pdt'))
+     (expls'', None, MSince (s, i, mf1', mf2', (buf2', tstps'), msaux_pdt'))
   | MUntil (s, i, mf1, mf2, (buf2, ntstps), muaux_pdt) ->
-     let (expls1, mf1') = meval vars ts tp db fobligs mf1 in
-     let (expls2, mf2') = meval vars ts tp db fobligs mf2 in
+     let (expls1, expl1_opt, mf1') = meval vars ts tp db fobligs mf1 in
+     let (expls2, expl2_opt, mf2') = meval vars ts tp db fobligs mf2 in
      let (muaux_pdt', (buf2', ntstps')) =
        Buf2t.take
          (fun expl1 expl2 ts tp aux_pdt ->
@@ -1802,21 +1804,27 @@ let rec meval vars ts tp (db: Db.t) (fobligs: FObligation.t list) = function
        Pdt.split_prod (Pdt.apply1 vars (fun aux -> Until.eval i nts ntp (aux, [])) muaux_pdt') in
      let expls' = Pdt.split_list es' in
      let expls'' = List.map expls' ~f:(Pdt.reduce Proof.equal) in
-     let expls'' = try List.find_map_exn fobligs ~f:(fun (k, v, pol) ->
-                           match k with
-                           | FUntil (_, _, i, mf1', mf2', _) ->
-                              if MFormula.equal mf1 mf1' && MFormula.equal mf2 mf2' then
-                                let p_opt = match pol with
-                                  | POS -> Some(Pdt.specialize v (List.hd_exn expls1))
-                                  | NEG -> Some(Pdt.specialize v (List.hd_exn expls2)) in
-                                let expl = Expl.Pdt.replace_leaf v (FObligation.corresp_proof tp p_opt k)
-                                             (List.hd_exn expls'') in
-                                Some([expl])
-                              else
-                                None
-                           | _ -> None)
-                   with _ -> expls'' in
-     (expls'', MUntil (s, i, mf1', mf2', (buf2', ntstps'), muaux_pdt'))
+     let expl_opt = try List.find_map_exn fobligs ~f:(fun (k, v, pol) ->
+                            match k with
+                            | FUntil (_, _, i, mf1', mf2', _) ->
+                               if MFormula.equal mf1 mf1' && MFormula.equal mf2 mf2' then
+                                 let p_opt = match pol with
+                                   | POS -> Some(Pdt.specialize v (List.hd_exn expls1)) (* Should this be expl1_opt? *)
+                                   | NEG -> Some(Pdt.specialize v (List.hd_exn expls2)) in
+                                 let expl = Expl.Pdt.replace_leaf v (FObligation.corresp_proof tp p_opt k)
+                                              (List.hd_exn expls'') in
+                                 Some(expl)
+                               else
+                                 None
+                            | _ -> None)
+                    with _ -> (match expl1_opt, expl2_opt with
+                               (* Sorry! I will get back to this tomorrow. *)
+                               | Some(expl1), _ when Interval.mem 0 i && Expl.is_violated expl1 ->
+                                  let (v, vp) = Expl.get_violation expl1 in
+                                  Some(Expl.Pdt.replace_leaf v (VUntilLeft (tp, (V vp))) expl1)
+                               | _  -> failwith "not yet") in
+
+     (expls'', None, MUntil (s, i, mf1', mf2', (buf2', ntstps'), muaux_pdt'))
 
 module MState = struct
 
