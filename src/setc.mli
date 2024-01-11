@@ -12,6 +12,7 @@ open Base
 
 type ('a, 'b) t = Finite of ('a, 'b) Set.t | Complement of ('a, 'b) Set.t
 
+val min_elt_exn: ('a, 'b) t -> 'a
 val length: ('a, 'b) t -> int
 val empty: ('a, 'b) Comparator.Module.t -> ('a, 'b) t
 val univ: ('a, 'b) Comparator.Module.t -> ('a, 'b) t
