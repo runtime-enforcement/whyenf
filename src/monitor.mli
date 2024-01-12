@@ -69,9 +69,9 @@ module FObligation : sig
   type kind =
     | FFormula of MFormula.t                       (* fun _ -> f *)
     | FInterval of int * Interval.t * MFormula.t   (* fun t -> if mem t i then f else Formula.TT *)
-    | FUntil of int * Formula.Side.t * Interval.t * MFormula.t * MFormula.t * until_info (* fun t -> Until (s, sub2 i (t-t0), f1, f2) *)
-    | FAlways of int * Interval.t * MFormula.t * always_info (* fun t -> Always (sub2 i (t-t0), f1) *)
-    | FEventually of int * Interval.t * MFormula.t * eventually_info (* fun t -> Eventually (sub2 i (t-t0), f1) *)
+    | FUntil of int * Formula.Side.t * Interval.t * MFormula.t * MFormula.t (* fun t -> Until (s, sub2 i (t-t0), f1, f2) *)
+    | FAlways of int * Interval.t * MFormula.t     (* fun t -> Always (sub2 i (t-t0), f1) *)
+    | FEventually of int * Interval.t * MFormula.t (* fun t -> Eventually (sub2 i (t-t0), f1) *)
 
   type t = kind * Etc.valuation * polarity
 

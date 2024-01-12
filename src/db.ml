@@ -48,6 +48,7 @@ let create evtl = Set.of_list (module Event) evtl
 
 let mem = Set.mem
 let is_empty = Set.is_empty
+let remove = Set.remove
 
 let event name consts =
   let pred_sig = Hashtbl.find_exn Pred.Sig.table name in

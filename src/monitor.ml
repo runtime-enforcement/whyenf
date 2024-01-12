@@ -1273,6 +1273,7 @@ module MFormula = struct
     | MSince (s, i, mf, mg, _, _), MSince (s', i', mf', mg', _, _)
       | MUntil (s, i, mf, mg, _, _), MUntil (s', i', mf', mg', _, _) -> Formula.Side.equal s s' && Interval.equal i i' &&
                                                                           equal mf mf' && equal mg mg'
+    | _ -> false
 
   let rec apply_valuation v f =
     let r = apply_valuation v in
@@ -1402,22 +1403,22 @@ module FObligation = struct
   type kind =
     | FFormula of MFormula.t
     | FInterval of int * Interval.t * MFormula.t
-    | FUntil of int * Formula.Side.t * Interval.t * MFormula.t * MFormula.t * until_info
-    | FAlways of int * Interval.t * MFormula.t * always_info
-    | FEventually of int * Interval.t * MFormula.t * eventually_info
+    | FUntil of int * Formula.Side.t * Interval.t * MFormula.t * MFormula.t 
+    | FAlways of int * Interval.t * MFormula.t
+    | FEventually of int * Interval.t * MFormula.t
 
   type t = kind * Etc.valuation * polarity
 
-  (* Note: kind_equal does not consider (until,always,eventually)_info *)
   let kind_equal k1 k2 = match k1, k2 with
     | FFormula mf, FFormula mf' -> MFormula.equal mf mf'
     | FInterval (ts, i, mf), FInterval (ts', i', mf')
-      | FAlways (ts, i, mf, _), FAlways (ts', i', mf', _)
-      | FEventually (ts, i, mf, _), FEventually (ts', i', mf', _) -> Int.equal ts ts' && Interval.equal i i' &&
-                                                                       MFormula.equal mf mf'
-    | FUntil (ts, s, i, mf, mg, _), FUntil (ts', s', i', mf', mg', _) -> Int.equal ts ts' && Formula.Side.equal s s' &&
-                                                                           Interval.equal i i' && MFormula.equal mf mf' &&
-                                                                             MFormula.equal mg mg'
+      | FAlways (ts, i, mf), FAlways (ts', i', mf')
+      | FEventually (ts, i, mf), FEventually (ts', i', mf') -> Int.equal ts ts' && Interval.equal i i' &&
+                                                                 MFormula.equal mf mf'
+    | FUntil (ts, s, i, mf, mg), FUntil (ts', s', i', mf', mg') -> Int.equal ts ts' && Formula.Side.equal s s' &&
+                                                                     Interval.equal i i' && MFormula.equal mf mf' &&
+                                                                       MFormula.equal mg mg'
+    | _ -> false
 
   let polarity_equal pol1 pol2 = match pol1, pol2 with
     | POS, POS -> true
@@ -1432,15 +1433,15 @@ module FObligation = struct
     | FInterval (_, i, _) -> (match Option.value_exn p_opt with
                               | Expl.Proof.S _ -> Expl.Proof.V (Expl.Proof.VNextAssm (tp, i))
                               | V _ -> Expl.Proof.S (Expl.Proof.SNextAssm tp))
-    | FUntil (_, _, i, _, _, _) -> (match Option.value_exn p_opt with
-                                    | Expl.Proof.S sp1 -> Expl.Proof.S (Expl.Proof.SUntilAssm (tp, sp1, i))
-                                    | V vp2 -> Expl.Proof.V (Expl.Proof.VUntilAssm (tp, vp2, i)))
-    | FEventually (_, i, _, _) -> (match p_opt with
-                                   | Some Expl.Proof.V vp -> Expl.Proof.V (Expl.Proof.VEventuallyAssm (tp, vp, i))
-                                   | _ -> Expl.Proof.S (Expl.Proof.SEventuallyAssm (tp, i)))
-    | FAlways (_, i, _, _) -> (match Option.value_exn p_opt with
-                               | Expl.Proof.S sp -> Expl.Proof.S (Expl.Proof.SAlwaysAssm (tp, sp, i))
-                               | V vp -> Expl.Proof.V (Expl.Proof.VAlwaysAssm (tp, vp, i)))
+    | FUntil (_, _, i, _, _) -> (match Option.value_exn p_opt with
+                                 | Expl.Proof.S sp1 -> Expl.Proof.S (Expl.Proof.SUntilAssm (tp, sp1, i))
+                                 | V vp2 -> Expl.Proof.V (Expl.Proof.VUntilAssm (tp, vp2, i)))
+    | FEventually (_, i, _) -> (match p_opt with
+                                | Some Expl.Proof.V vp -> Expl.Proof.V (Expl.Proof.VEventuallyAssm (tp, vp, i))
+                                | _ -> Expl.Proof.S (Expl.Proof.SEventuallyAssm (tp, i)))
+    | FAlways (_, i, _) -> (match Option.value_exn p_opt with
+                            | Expl.Proof.S sp -> Expl.Proof.S (Expl.Proof.SAlwaysAssm (tp, sp, i))
+                            | V vp -> Expl.Proof.V (Expl.Proof.VAlwaysAssm (tp, vp, i)))
 
   let eval_kind ts' tp k v = match k with
     | FFormula mf -> mf
@@ -1448,30 +1449,38 @@ module FObligation = struct
        if Interval.mem (ts' - ts) i then
          (* Note: what side should we include here? *)
          MUntil (R, Interval.sub2 i (ts' - ts), MNeg (_tp),
-                 MAnd (LR, MPredicate ("~tp", []), mf, empty_binop_info), (([], []), []), Leaf (Until.init ()))
+                 MAnd (LR, MFormula._tp, mf, empty_binop_info), (([], []), []), Leaf (Until.init ()))
        else
          MTT
-    | FUntil (ts, side, i, mf1, mf2, ui) ->
+    | FUntil (ts, side, i, mf1, mf2) ->
        if not (Interval.above (ts' - ts) i) then
-         let ui = Expl.Pdt.replace_leaf v (Until.adjust (Interval.left i) (ts', tp) (Expl.Pdt.specialize v ui)) ui in
-         MUntil (side, Interval.sub2 i (ts' - ts), MImp (LR, _tp, mf1, empty_binop_info),
-                 MAnd (LR, _tp, mf2, empty_binop_info), (([], []), []), ui)
+         let mf1' = match mf1 with
+           | MImp (R, _tp, mf1, _) -> mf1
+           | _ -> mf1 in
+         let mf2' = match mf2 with
+           | MAnd (LR, _tp, mf2, _) -> mf2
+           | _ -> mf2 in
+         MUntil (side, Interval.sub2 i (ts' - ts),
+                 (if MFormula.equal mf1' (MNeg _tp) then MNeg _tp else MImp (R, _tp, mf1', empty_binop_info)),
+                 MAnd (LR, _tp, mf2', empty_binop_info), (([], []), []), Leaf (Until.init ()))
        else
          MFF
     (* Note: we cannot reuse the state ai in MUntil *)
-    | FAlways (ts, i, mf, ai) ->
+    | FAlways (ts, i, mf) ->
        if not (Interval.above (ts' - ts) i) then
-         let ai = Expl.Pdt.replace_leaf v (Always.adjust (Interval.left i) (ts', tp) (Expl.Pdt.specialize v ai)) ai in
-         MUntil (R, Interval.sub2 i (ts' - ts), MImp (LR, _tp, mf, empty_binop_info),
-                 MAnd (LR, _tp, mf, empty_binop_info), (([], []), []), Leaf (Until.init ()))
+         let mf' = match mf with
+           | MImp (R, _tp, mf, _) -> mf
+           | _ -> mf in
+         MAlways (Interval.sub2 i (ts' - ts), MImp (R, _tp, mf', empty_binop_info), ([], []), Leaf (Always.init ()))
        else
          MTT
     (* Note: we cannot reuse the state ei in MUntil *)
-    | FEventually (ts, i, mf, ei) ->
+    | FEventually (ts, i, mf) ->
        if not (Interval.above (ts' - ts) i) then
-         let ei = Expl.Pdt.replace_leaf v (Eventually.adjust (Interval.left i) (ts', tp) (Expl.Pdt.specialize v ei)) ei in
-         MUntil (R, Interval.sub2 i (ts' - ts), MAnd (LR, _tp, mf, empty_binop_info),
-                 MAnd (LR, _tp, mf, empty_binop_info), (([], []), []), Leaf (Until.init ()))
+         let mf' = match mf with
+           | MAnd (LR, _tp, mf, _) -> mf
+           | _ -> mf in
+         MEventually (Interval.sub2 i (ts' - ts), MAnd (LR, _tp, mf', empty_binop_info), ([], []), Leaf (Eventually.init ()))
        else
          MFF
 
@@ -1490,10 +1499,10 @@ module FObligation = struct
   let rec kind_to_string = function
     | FFormula f -> Printf.sprintf "FFormula(%s)" (to_string f)
     | FInterval (ts, i, mf) -> Printf.sprintf "FInterval(%d, %s, %s)" ts (Interval.to_string i) (to_string mf)
-    | FUntil (ts, s, i, mf, mg, _) -> Printf.sprintf "FUntil(%d, %s, %s, %s, %s)" ts (Formula.Side.to_string s)
+    | FUntil (ts, s, i, mf, mg) -> Printf.sprintf "FUntil(%d, %s, %s, %s, %s)" ts (Formula.Side.to_string s)
                                        (Interval.to_string i) (to_string mf) (to_string mg)
-    | FAlways (ts, i, mf, _) -> Printf.sprintf "FAlways(%d, %s, %s)" ts (Interval.to_string i) (to_string mf)
-    | FEventually (ts, i, mf, _) -> Printf.sprintf "FEventually(%d, %s, %s)" ts (Interval.to_string i) (to_string mf)
+    | FAlways (ts, i, mf) -> Printf.sprintf "FAlways(%d, %s, %s)" ts (Interval.to_string i) (to_string mf)
+    | FEventually (ts, i, mf) -> Printf.sprintf "FEventually(%d, %s, %s)" ts (Interval.to_string i) (to_string mf)
 
   let to_string ((kind, valuation, pol) : t) =
     Printf.sprintf "Kind: %s; " (kind_to_string kind) ^
@@ -1599,8 +1608,11 @@ let rec pdt_of tp r trms (vars: string list) maps : Expl.t = match vars with
 
 
 
-let rec meval vars ts tp (db: Db.t) ?pol:(pol=FObligation.POS) (fobligs: FObligation.t list) =
-  function
+let rec meval vars ts tp (db: Db.t) ?pol:(pol=FObligation.POS) (fobligs: FObligation.t list) = function
+    (*fun f ->
+  print_endline (MFormula.to_string f ^ " pol=" ^ FObligation.polarity_to_string pol ^ " db=[" ^ (Db.to_string db) ^ "] fobligs=[" ^ Etc.string_list_to_string (List.map fobligs ~f:FObligation.to_string)
+                 ^ "]");
+  match f with*)
   | MTT -> let expl = Pdt.Leaf (Proof.S (STT tp)) in
            ([expl], Some expl, MTT)
   | MFF -> let expl = Pdt.Leaf (Proof.V (VFF tp)) in
@@ -1685,8 +1697,7 @@ let rec meval vars ts tp (db: Db.t) ?pol:(pol=FObligation.POS) (fobligs: FObliga
      let f = Pdt.hide_reduce Proof.equal (vars @ [x]) (fun p -> minp_list (do_exists_leaf x tc p))
                (fun p -> minp_list (do_exists_node x tc p)) in
      let f_expls = List.map expls ~f in
-     print_string "MExists\n";
-     ignore (Option.map expl_opt ~f:(fun x -> print_string (Expl.to_string x)));
+     (*ignore (Option.map expl_opt ~f:(fun x -> print_string (Expl.to_string x)));*)
      (f_expls, expl_opt >>| f, MExists(x, tc, mf'))
   | MForall (x, tc, mf) ->
      let (expls, expl_opt, mf') = meval (vars @ [x]) ts tp db ~pol fobligs mf in
@@ -1754,7 +1765,7 @@ let rec meval vars ts tp (db: Db.t) ?pol:(pol=FObligation.POS) (fobligs: FObliga
        | _ when not (Interval.is_zero i) && pol == NEG -> begin
            try List.find_map_exn fobligs ~f:(fun (k, v, pol') ->
                    match k with
-                   | FEventually (_, i', mf', _) ->
+                   | FEventually (_, i', mf') ->
                       if MFormula.equal mf mf' && Interval.equal i i' && pol == pol' then
                         let p_opt = match expl_opt_neg with
                           | Some expl_neg when Interval.mem 0 i
@@ -1800,7 +1811,7 @@ let rec meval vars ts tp (db: Db.t) ?pol:(pol=FObligation.POS) (fobligs: FObliga
        | _ when not (Interval.is_zero i) && pol == POS -> begin
            try List.find_map_exn fobligs ~f:(fun (k, v, pol') ->
                    match k with
-                   | FEventually (_, i', mf', _) ->
+                   | FEventually (_, i', mf') ->
                       if MFormula.equal mf mf' && Interval.equal i i' && pol == pol' then
                         let p_opt = match expl_opt_pos with
                           | Some expl_pos when Interval.mem 0 i
@@ -1853,7 +1864,7 @@ let rec meval vars ts tp (db: Db.t) ?pol:(pol=FObligation.POS) (fobligs: FObliga
        | _, _ -> begin
            try List.find_map_exn fobligs ~f:(fun (k, v, pol') ->
                    match k with
-                   | FUntil (_, _, i', mf1', mf2', _) ->
+                   | FUntil (_, _, i', mf1', mf2') ->
                       if MFormula.equal mf1 mf1' && MFormula.equal mf2 mf2' && Interval.equal i i' && pol == pol' then
                         let p_opt = match pol, expl1_opt_pos, expl2_opt_neg with
                           | NEG, _, Some expl2_neg when Interval.mem 0 i ->
