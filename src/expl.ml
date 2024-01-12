@@ -988,7 +988,7 @@ module Pdt = struct
     | Leaf l when f l -> Setc.univ (module Dom)
     | Leaf l -> Setc.empty (module Dom)
     | Node (x', part) when String.equal x x' ->
-       Part.fold_left (Part.map2 part (fun (s, p) -> (s, s))) (Setc.empty (module Dom)) Setc.union
+       List.fold_left (Part.map2 part (fun (s, p) -> Setc.inter s (collect f v x p))) ~init:(Setc.empty (module Dom)) ~f:Setc.union
     | Node (x', part) ->
        collect f v x (Part.find part (Map.find_exn v x'))
 

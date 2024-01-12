@@ -30,6 +30,7 @@ val create: Event.t list -> t
 
 val mem: t -> Event.t -> bool
 val is_empty: t -> bool
+val remove: t -> Event.t -> t
 
 val event: string -> string list -> Event.t
 
