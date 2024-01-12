@@ -59,6 +59,9 @@ let rec string_list_to_string = function
 
 type valuation = (string, Dom.t, String.comparator_witness) Map.t
 
+let compare_valuation = Map.compare_direct Dom.compare
+let empty_valuation: valuation = Map.empty (module String)
+
 let dom_map_to_string m =
   string_list_to_string
     (List.map (Map.to_alist m) ~f:(fun (x, d) -> Printf.sprintf "%s -> %s" x (Dom.to_string d)))
@@ -98,3 +101,46 @@ let rec fdeque_for_all2_exn d1 d2 ~f:((f : _ -> _ -> _)) =
   | _, _ -> raise (Invalid_argument (Printf.sprintf "length mismatch in fdeque_for_all2_exn: %d <> %d" (Fdeque.length d1) (Fdeque.length d2)))
 
 let rec spaces n = if n < 0 then "" else " " ^ spaces (n-1)
+
+let lexicographic2 compare1 compare2 =
+  fun (a, b) (a', b') ->
+  if compare1 a a' < 0 then -1
+  else if compare1 a a' > 0 then 1
+  else compare2 b b'
+
+let lexicographic3 compare1 compare2 compare3 =
+  fun (a, b, c) (a', b', c') ->
+  if compare1 a a' < 0 then -1
+  else if compare1 a a' > 0 then 1
+  else if compare2 b b' < 0 then -1
+  else if compare2 b b' > 0 then 1
+  else compare3 c c'
+
+let lexicographic4 compare1 compare2 compare3 compare4 =
+  fun (a, b, c, d) (a', b', c', d') ->
+  if compare1 a a' < 0 then -1
+  else if compare1 a a' > 0 then 1
+  else if compare2 b b' < 0 then -1
+  else if compare2 b b' > 0 then 1
+  else if compare3 c c' < 0 then -1
+  else if compare3 c c' > 0 then 1
+  else compare4 d d'
+
+let lexicographic5 compare1 compare2 compare3 compare4 compare5 =
+  fun (a, b, c, d, e) (a', b', c', d', e') ->
+  if compare1 a a' < 0 then -1
+  else if compare1 a a' > 0 then 1
+  else if compare2 b b' < 0 then -1
+  else if compare2 b b' > 0 then 1
+  else if compare3 c c' < 0 then -1
+  else if compare3 c c' > 0 then 1
+  else if compare4 d d' < 0 then -1
+  else if compare4 d d' > 0 then 1
+  else compare5 e e'
+
+(* For debugging only *)
+let _print s f x =
+  Stdio.printf "%s:\n%s\n" s (f x);
+  Stdlib.flush_all ();
+  x
+

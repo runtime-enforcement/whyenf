@@ -13,7 +13,7 @@ open Pred
 
 module Side = struct
 
-  type t = N | L | R | LR
+  type t = N | L | R | LR [@@deriving compare, sexp_of, hash]
 
   let equal s s' = match s, s' with
     | N, N
@@ -58,7 +58,7 @@ type t =
   | Historically of Interval.t * t
   | Always of Interval.t * t
   | Since of Side.t * Interval.t * t * t
-  | Until of Side.t * Interval.t * t * t
+  | Until of Side.t * Interval.t * t * t [@@deriving compare, sexp_of, hash]
 
 let rec var_tt x = function
   | TT | FF -> []

@@ -11,12 +11,12 @@
 open Base
 
 (* Unbounded [i,+∞) *)
-type ut = UI of int
+type ut = UI of int [@@deriving compare, sexp_of, hash]
 
 (* Bounded [i,j] *)
-type bt = BI of int * int
+type bt = BI of int * int [@@deriving compare, sexp_of, hash]
 
-type t = B of bt | U of ut
+type t = B of bt | U of ut [@@deriving compare, sexp_of, hash]
 
 let equal i i' = match i, i' with
   | B (BI (a, b)), B (BI (a', b')) -> Int.equal a a' && Int.equal b b'
