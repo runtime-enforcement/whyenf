@@ -13,37 +13,30 @@ open Stdio
 open Etc
 open Monitor
 open MFormula
-open FObligation
 
 module Triple = struct
-
-  type t = Db.t * Db.t * FObligation.t list
-
+  
+  type t = Db.t * Db.t * FObligations.t
+    
   let join (sup1, cau1, fobligs1) (sup2, cau2, fobligs2) =
-    (Set.union sup1 sup2, Set.union cau1 cau2, fobligs1 @ fobligs2)
+    (Set.union sup1 sup2, Set.union cau1 cau2, Set.union fobligs1 fobligs2)
 
   (* list equality might not be enough here *)
   let equal (sup1, cau1, fobligs1) (sup2, cau2, fobligs2) =
-    Set.equal sup1 sup2 && Set.equal cau1 cau2 && (List.equal FObligation.equal fobligs1 fobligs2)
+    Set.equal sup1 sup2 && Set.equal cau1 cau2 && Set.equal fobligs1 fobligs2
 
   let sup (sup, _, _) = sup
   let cau (_, cau, _) = cau
   let fobligs (_, _, fobligs) = fobligs
 
-  let empty = (Set.empty (module Db.Event), Set.empty (module Db.Event), [])
+  let empty = (Set.empty (module Db.Event), Set.empty (module Db.Event), Set.empty (module FObligation))
   let empty2 fobligs = (Set.empty (module Db.Event), Set.empty (module Db.Event), fobligs)
 
-  let is_empty (sup, cau, fobligs) = Set.is_empty sup && Set.is_empty cau && List.is_empty fobligs
+  let is_empty (sup, cau, fobligs) = Set.is_empty sup && Set.is_empty cau && Set.is_empty fobligs
 
   let update_db db (sup, cau, _) = Set.union (Set.diff db sup) cau
-  let update_fobligs fobligs (_, _, fobligs') =
-    let f fobligs' foblig =
-      if List.mem fobligs' foblig ~equal:FObligation.equal then
-        fobligs'
-      else
-        foblig::fobligs'
-    in
-    List.fold_left fobligs' ~init:fobligs ~f
+  
+  let update_fobligs fobligs (_, _, fobligs') = Set.union fobligs fobligs'
 
   let to_lists (sup, cau, fobligs) =
     (Set.to_list sup, Set.to_list cau, fobligs)
@@ -52,9 +45,7 @@ module Triple = struct
     "\nTriple:\n" ^
       Printf.sprintf "\n%ssup = %s" indent (Db.to_string sup) ^
         Printf.sprintf "\n%scau = %s" indent (Db.to_string cau) ^
-          Printf.sprintf "\n%sfobligs = [" indent ^ (String.concat ~sep:", "
-                                                       (List.map fobligs ~f:(fun foblig ->
-                                                            Printf.sprintf "%s" (FObligation.to_string foblig)))) ^ "]\n"
+          Printf.sprintf "\n%sfobligs = %s" indent (FObligations.to_string fobligs) ^ "]\n"
 
 end
 
@@ -65,7 +56,7 @@ module EState = struct
            ; ts: timepoint
            ; db: Db.t
            ; r : Triple.t
-           ; fobligs: FObligation.t list
+           ; fobligs: FObligations.t
            ; nick: bool
            }
 
@@ -79,9 +70,7 @@ module EState = struct
       Printf.sprintf "ts = %d\n" ts ^
         Printf.sprintf "tp = %d\n" tp ^
           Printf.sprintf "db = %s\n" (Db.to_string db) ^
-            "fobligs = [" ^ (String.concat ~sep:", "
-                               (List.map fobligs ~f:(fun foblig ->
-                                    Printf.sprintf "%s" (FObligation.to_string foblig)))) ^ "]\n" ^
+            Printf.sprintf "fobligs = %s\n" (FObligations.to_string fobligs) ^
               Printf.sprintf "%s" (MState.to_string "  " ms) ^
                 (Triple.to_string "  " r)
 
@@ -90,7 +79,8 @@ module EState = struct
                      ts = 0;
                      db = Db.create [];
                      r = Triple.empty;
-                     fobligs = [(FFormula mf, Base.Map.empty (module Base.String), POS)];
+                     fobligs = Set.singleton (module FObligation)
+                                 (FFormula mf, Base.Map.empty (module Base.String), POS);
                      nick = false }
 
   let update r es =
@@ -99,16 +89,19 @@ module EState = struct
               r       = Triple.join es.r r }
 
   let add_sup sup es =
-    update (Set.singleton (module Db.Event) sup, Set.empty (module Db.Event), []) es
+    update (Set.singleton (module Db.Event) sup,
+            Set.empty (module Db.Event),
+            Set.empty (module FObligation)) es
 
   let add_cau cau es =
-    update (Set.empty (module Db.Event), Set.singleton (module Db.Event) cau, []) es
+    update (Set.empty (module Db.Event),
+            Set.singleton (module Db.Event) cau,
+            Set.empty (module FObligation)) es
 
   let add_foblig foblig es =
-    if List.mem es.fobligs foblig ~equal:FObligation.equal then
-      es
-    else
-      { es with fobligs = foblig::es.fobligs }
+    update (Set.empty (module Db.Event),
+            Set.empty (module Db.Event),
+            Set.singleton (module FObligation) foblig) es
 
   let combine es' es = update es'.r es
 
@@ -174,7 +167,9 @@ module EState = struct
   
   and enfsat_forall x mf v es =
     let enfs d = enfsat mf (Base.Map.update v x ~f:(fun _ -> d)) es in
-    List.fold_left (List.map (all_not_sat v x mf es) ~f:enfs) ~init:es ~f:combine
+    (*print_endline (Etc.string_list_to_string (List.map ~f:to_string (List.map (all_not_sat v x mf es) ~f:enfs)));
+    print_endline (to_string (    List.fold_left (List.map (all_not_sat v x mf es) ~f:enfs) ~init:es ~f:combine ));*)
+    List.fold_left (List.map (all_not_sat v x mf es) ~f:enfs) ~init:es ~f:combine 
 
   and enfvio_or mf1 =
     lr vio vio enfvio enfvio mf1
@@ -228,7 +223,8 @@ module EState = struct
          enfsat mf v es
        else
          add_foblig (FEventually (es.ts, i, mf), v, POS) es
-    | MAlways (i, mf, bi, ai) -> add_foblig (FAlways (es.ts, i, mf), v, POS) (enfsat mf v es)
+    | MAlways (i, mf, bi, ai) ->
+       add_foblig (FAlways (es.ts, i, mf), v, POS) (enfsat mf v es)
     | MSince (_, _, mf1, mf2, _, _) -> enfsat mf2 v es
     | MUntil (R, i, mf1, mf2, bi, ui) ->
        if Interval.equal i (Interval.singleton 0) && es.nick then
@@ -303,7 +299,7 @@ module EState = struct
                                     ^ MFormula.op_to_string mf))
 
   let enf mf es =
-    let es = { es with r = Triple.empty; fobligs = [] } in
+    let es = { es with r = Triple.empty; fobligs = FObligations.empty } in
     let v = Map.empty (module String) in
     if not (sat v mf es) then
       enfsat mf (Map.empty (module String)) es
@@ -331,12 +327,12 @@ end
 open Order
 
 let goal (es: EState.t) =
-  let obligs = List.map es.fobligs
+  let obligs = List.map (Set.elements es.fobligs)
                  ~f:(FObligation.eval
-                       (fun vars ts db mf -> (*    mstep Out.Plain.ENFORCE vars es.ts es.db es.ms es.fobligs*)
-                         match (mstep Out.Plain.ENFORCE vars ts db { es.ms with mf } [])
+                       (fun vars ts db fobligs mf -> (*    mstep Out.Plain.ENFORCE vars es.ts es.db es.ms es.fobligs*)
+                         match (mstep Out.Plain.ENFORCE vars ts db { es.ms with mf } fobligs)
                          with (_, _, ms) -> ms.mf)
-                       es.db es.ts es.tp) in
+                       es.db es.fobligs es.ts es.tp) in
   match obligs with
   | [] -> MFormula.MTT
   | init::rest -> List.fold_left rest ~init ~f:(fun mf mg -> MAnd (LR, mf, mg, empty_binop_info))
@@ -345,15 +341,13 @@ let goal (es: EState.t) =
 (* TODO: additional proof rules for Until, Eventually, Always *)
 let exec f inc =
   let reactive_step new_db es =
-    Stdlib.flush_all ();
     let mf = goal es in
-    Stdlib.flush_all ();
     let vars = Set.elements (MFormula.fv mf) in
     let es = { es with ms      = { es.ms with tp_cur = es.tp;
                                               ts_waiting = Queue.of_list [es.ts]; };
-                       r       = (Db.create [Db.Event._tp], Db.create [], []);
+                       r       = (Db.create [Db.Event._tp], Db.create [], FObligations.empty);
                        db      = Db.add_event new_db Db.Event._tp;
-                       fobligs = [];
+                       fobligs = FObligations.empty;
                        nick    = false } in
     let es = EState.enf mf es in
     ReOrd (Triple.cau es.r, Triple.sup es.r), es
@@ -365,9 +359,9 @@ let exec f inc =
     let vars = Set.elements (MFormula.fv mf) in
     let es' = { es with ms      = { es.ms with tp_cur = es.tp;
                                                ts_waiting = Queue.of_list [es.ts] };
-                        r       = (Db.create [], Db.create [], []);
+                        r       = (Db.create [], Db.create [], FObligations.empty);
                         db      = Db.create [];
-                        fobligs = [];
+                        fobligs = FObligations.empty;
                         nick    = true } in
     let es' = EState.enf mf es' in
     if Db.mem (Triple.cau es'.r) Db.Event._tp then
@@ -409,3 +403,5 @@ let exec f inc =
   let ms = Monitor.MState.init mf in
   let es = EState.init ms mf in
   step None es
+
+       (*TODO: Sets of future obligations*)

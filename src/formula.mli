@@ -12,7 +12,7 @@ open Pred
 
 module Side : sig
 
-  type t = N | L | R | LR
+  type t = N | L | R | LR [@@deriving compare, sexp_of, hash]
 
   val equal: t -> t -> bool
 
@@ -41,7 +41,7 @@ type t =
   | Historically of Interval.t * t
   | Always of Interval.t * t
   | Since of Side.t * Interval.t * t * t
-  | Until of Side.t * Interval.t * t * t
+  | Until of Side.t * Interval.t * t * t [@@deriving compare, sexp_of, hash]
 
 val tt: t
 val ff: t

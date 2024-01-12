@@ -17,7 +17,7 @@ module Part = struct
 
   type sub = (Dom.t, Dom.comparator_witness) Setc.t
 
-  type 'a t = (sub * 'a) list
+  type 'a t = (sub * 'a) list 
 
   let random_empty_set = Set.empty (module String)
 
@@ -988,7 +988,8 @@ module Pdt = struct
     | Leaf l when f l -> Setc.univ (module Dom)
     | Leaf l -> Setc.empty (module Dom)
     | Node (x', part) when String.equal x x' ->
-       List.fold_left (Part.map2 part (fun (s, p) -> Setc.inter s (collect f v x p))) ~init:(Setc.empty (module Dom)) ~f:Setc.union
+       List.fold_left (Part.map2 part (fun (s, p) -> Setc.inter s (collect f v x p)))
+         ~init:(Setc.empty (module Dom)) ~f:Setc.union
     | Node (x', part) ->
        collect f v x (Part.find part (Map.find_exn v x'))
 

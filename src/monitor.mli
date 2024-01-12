@@ -54,6 +54,7 @@ module MFormula : sig
 
   val fv: t -> (String.t, Base.String.comparator_witness) Base.Set.t
   val rank: t -> int
+  val rank_: t -> int
 
   val to_string: t -> string
   val op_to_string: t -> string
@@ -76,10 +77,21 @@ module FObligation : sig
   type t = kind * Etc.valuation * polarity
 
   val equal: t -> t -> bool
-  val eval: (string list -> int -> Db.t -> MFormula.t -> MFormula.t)
-            -> Db.t -> int -> int -> t -> MFormula.t
+  val eval: (string list -> int -> Db.t -> 'a -> MFormula.t -> MFormula.t)
+            -> Db.t -> 'a -> int -> int -> t -> MFormula.t
   val to_string: t -> string
 
+  include Comparable.S with type t := t
+
+end
+
+module FObligations : sig
+
+  type t = (FObligation.t, FObligation.comparator_witness) Set.t
+
+  val to_string: t -> string
+  val empty: t
+  
 end
 
 
@@ -102,7 +114,7 @@ module MState : sig
 
 end
 
-val mstep: Out.Plain.mode -> string list -> timestamp -> Db.t -> MState.t -> FObligation.t list ->
+val mstep: Out.Plain.mode -> string list -> timestamp -> Db.t -> MState.t -> FObligations.t ->
            ((timestamp * timepoint) * Expl.Proof.t Expl.Pdt.t) list * (Expl.Proof.t Expl.Pdt.t option) * MState.t
 
 val exec: Out.Plain.mode -> string -> Formula.t -> in_channel -> unit

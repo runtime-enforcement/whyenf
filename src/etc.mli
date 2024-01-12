@@ -40,6 +40,9 @@ val string_list_to_json: string list -> string
 
 type valuation = (string, Dom.t, String.comparator_witness) Map.t
 
+val compare_valuation: valuation -> valuation -> int
+val empty_valuation: valuation
+
 val dom_map_to_string: (string, Dom.t, String.comparator_witness) Map.t -> string
 val valuation_to_string: (string, Dom.t, String.comparator_witness) Map.t -> string
 
@@ -52,3 +55,12 @@ val escape_underscores: string -> string
 val fdeque_for_all2_exn: 'a Fdeque.t -> 'b Fdeque.t -> f:('a -> 'b -> bool) -> bool
 
 val spaces: int -> string
+
+val lexicographic2: ('a -> 'a -> int) -> ('b -> 'b -> int) -> ('a * 'b) -> ('a * 'b) -> int
+val lexicographic3: ('a -> 'a -> int) -> ('b -> 'b -> int) -> ('c -> 'c -> int) -> ('a * 'b * 'c) -> ('a * 'b * 'c) -> int
+val lexicographic4: ('a -> 'a -> int) -> ('b -> 'b -> int) -> ('c -> 'c -> int) -> ('d -> 'd -> int) -> ('a * 'b * 'c * 'd) -> ('a * 'b * 'c * 'd) -> int
+val lexicographic5: ('a -> 'a -> int) -> ('b -> 'b -> int) -> ('c -> 'c -> int) -> ('d -> 'd -> int) -> ('e -> 'e -> int) -> ('a * 'b * 'c * 'd * 'e) -> ('a * 'b * 'c * 'd * 'e) -> int
+
+
+(* For debugging only *)
+val _print: string -> ('a -> string) -> 'a -> 'a

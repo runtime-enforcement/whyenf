@@ -8,9 +8,9 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
-type ut = UI of int
-type bt = BI of int * int
-type t = B of bt | U of ut
+type ut = UI of int [@@deriving compare, sexp_of, hash]
+type bt = BI of int * int [@@deriving compare, sexp_of, hash]
+type t = B of bt | U of ut [@@deriving compare, sexp_of, hash]
 
 val equal: t -> t -> bool
 
