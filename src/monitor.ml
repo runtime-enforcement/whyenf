@@ -1816,7 +1816,13 @@ let rec meval vars ts tp (db: Db.t) ?pol:(pol=FObligation.POS) (fobligs: FObliga
          (moaux_pdt, []) (expls, (tstps @ [(ts,tp)])) in
      let f = Pdt.reduce Proof.equal in
      let expls'' = List.map expls' ~f in
-     (expls'', expl_opt >>| f, MOnce (i, mf', tstps', moaux_pdt'))
+     let expl_opt = match List.last expls'' with
+       | Some expl -> if Expl.at expl == tp then
+                        Some expl
+                      else expl_opt >>| f
+       | _ -> expl_opt >>| f
+     in
+     (expls'', expl_opt, MOnce (i, mf', tstps', moaux_pdt'))
   | MEventually (i, mf, (buf, ntstps), meaux_pdt) ->
      let (expls, expl_opt_pos, mf') = meval vars ts tp db ~pol fobligs mf in
      let (_, expl_opt_neg, _) = meval vars ts tp db ~pol:(FObligation.neg pol) fobligs mf in
@@ -1861,7 +1867,13 @@ let rec meval vars ts tp (db: Db.t) ?pol:(pol=FObligation.POS) (fobligs: FObliga
          (mhaux_pdt, []) (expls, (tstps @ [(ts,tp)])) in
      let f = Pdt.reduce Proof.equal in
      let expls'' = List.map expls' ~f in
-     (expls'', expl_opt >>| f, MHistorically (i, mf', tstps', mhaux_pdt'))
+     let expl_opt = match List.last expls'' with
+       | Some expl -> if Expl.at expl == tp then
+                        Some expl
+                      else expl_opt >>| f
+       | _ -> expl_opt >>| f
+     in
+     (expls'', expl_opt, MHistorically (i, mf', tstps', mhaux_pdt'))
   | MAlways (i, mf, (buf, ntstps), maaux_pdt) ->
      let (expls, expl_opt_pos, mf') = meval vars ts tp db ~pol fobligs mf in
      let (_, expl_opt_neg, _) = meval vars ts tp db ~pol:(FObligation.neg pol) fobligs mf in
@@ -1908,8 +1920,14 @@ let rec meval vars ts tp (db: Db.t) ?pol:(pol=FObligation.POS) (fobligs: FObliga
          (msaux_pdt, []) (Buf2.add expls1 expls2 buf2) (tstps @ [(ts,tp)]) in
      let f = Pdt.reduce Proof.equal in
      let expls'' = List.map expls' ~f in
-     let expl_opt = if List.length tstps' == 0 then (Some (f (List.last_exn expls'))) else None in
-     (expls'', None, MSince (s, i, mf1', mf2', (buf2', tstps'), msaux_pdt'))
+     (*TODO: missing the special cases for approximation*)
+     let expl_opt = match List.last expls'' with
+       | Some expl -> if Expl.at expl == tp then
+                        Some expl
+                      else None
+       | _ -> None
+     in
+     (expls'', expl_opt, MSince (s, i, mf1', mf2', (buf2', tstps'), msaux_pdt'))
   | MUntil (s, i, mf1, mf2, (buf2, ntstps), muaux_pdt) ->
      let (expls1, expl1_opt_pos, mf1') = meval vars ts tp db ~pol fobligs mf1 in
      let (_, expl1_opt_neg, _) = meval vars ts tp db ~pol:(FObligation.neg pol) fobligs mf1 in
@@ -1998,19 +2016,27 @@ end
 
 let mstep mode vars ts db (ms: MState.t) (fobligs: FObligations.t) =
   let (expls, expl_opt, mf') = meval vars ts ms.tp_cur db fobligs ms.mf in
-  Queue.enqueue ms.ts_waiting ts;
-  let tstps = List.zip_exn (List.take (Queue.to_list ms.ts_waiting) (List.length expls))
-                (List.range ms.tp_cur (ms.tp_cur + List.length expls)) in
-  let tsdbs = match mode with
+  let tstps =
+    match mode with
+    | Out.Plain.ENFORCE -> if expls == [] then [] else [(ms.tp_cur, ts)]
+    | _ -> Queue.enqueue ms.ts_waiting ts;
+           List.zip_exn (List.take (Queue.to_list ms.ts_waiting) (List.length expls))
+             (List.range ms.tp_cur (ms.tp_cur + List.length expls)) in
+  let tsdbs =
+    match mode with
     | Out.Plain.VERIFIED
       | Out.Plain.DEBUG -> Queue.enqueue ms.tsdbs (ts, db); ms.tsdbs
     | _ -> ms.tsdbs in
+  let ts_waiting =
+    match mode with
+    | Out.Plain.ENFORCE -> ms.ts_waiting
+    | _ -> queue_drop ms.ts_waiting (List.length expls) in
   (List.zip_exn tstps expls,
    expl_opt,
    { ms with
      mf = mf'
    ; tp_cur = ms.tp_cur + 1
-   ; ts_waiting = queue_drop ms.ts_waiting (List.length expls)
+   ; ts_waiting
    ; tsdbs = tsdbs })
 
 let exec mode measure f inc =
