@@ -343,8 +343,7 @@ let exec f inc =
   let reactive_step new_db es =
     let mf = goal es in
     let vars = Set.elements (MFormula.fv mf) in
-    let es = { es with ms      = { es.ms with tp_cur = es.tp;
-                                              ts_waiting = Queue.of_list [es.ts]; };
+    let es = { es with ms      = { es.ms with tp_cur = es.tp };
                        r       = (Db.create [Db.Event._tp], Db.create [], FObligations.empty);
                        db      = Db.add_event new_db Db.Event._tp;
                        fobligs = FObligations.empty;
@@ -353,12 +352,13 @@ let exec f inc =
     ReOrd (Triple.cau es.r, Triple.sup es.r), es
   in
   let proactive_step es =
-    Stdlib.flush_all ();
+    (*Stdio.printf "------------\n";
+    Stdio.printf "After: \n";
+    Stdio.printf "%s" (EState.to_string es);
+    Stdlib.flush_all ();*)
     let mf = goal es in
-    Stdlib.flush_all ();
     let vars = Set.elements (MFormula.fv mf) in
-    let es' = { es with ms      = { es.ms with tp_cur = es.tp;
-                                               ts_waiting = Queue.of_list [es.ts] };
+    let es' = { es with ms      = { es.ms with tp_cur = es.tp };
                         r       = (Db.create [], Db.create [], FObligations.empty);
                         db      = Db.create [];
                         fobligs = FObligations.empty;
