@@ -321,26 +321,6 @@ let pred_names f =
       | Until (_, _, f1, f2) | Since (_, _, f1, f2) -> Set.union (pred_names_rec s f1) (pred_names_rec s f2) in
   pred_names_rec (Set.empty (module String)) f
 
-let rec rank = function
-  | TT | FF -> 0
-  | EqConst _ -> 0
-  | Predicate (r, _) -> Pred.Sig.rank r
-  | Neg f
-    | Exists (_, _, f)
-    | Forall (_, _, f)
-    | Prev (_, f)
-    | Next (_, f)
-    | Once (_, f)
-    | Eventually (_, f)
-    | Historically (_, f)
-    | Always (_, f) -> rank f
-  | And (_, f, g)
-    | Or (_, f, g)
-    | Imp (_, f, g)
-    | Iff (_, _, f, g)
-    | Since (_, _, f, g)
-    | Until (_, _, f, g) -> rank f + rank g
-
 let op_to_string = function
   | TT -> Printf.sprintf "⊤"
   | FF -> Printf.sprintf "⊥"
@@ -361,8 +341,6 @@ let op_to_string = function
   | Always (i, f) -> Printf.sprintf "□%s" (Interval.to_string i)
   | Since (_, i, _, _) -> Printf.sprintf "S%s" (Interval.to_string i)
   | Until (_, i, _, _) -> Printf.sprintf "U%s" (Interval.to_string i)
-
-
 
 let rec to_string_rec l = function
   | TT -> Printf.sprintf "⊤"
