@@ -15,13 +15,12 @@ open Monitor
 open MFormula
 
 module Triple = struct
-  
+
   type t = Db.t * Db.t * FObligations.t
-    
+
   let join (sup1, cau1, fobligs1) (sup2, cau2, fobligs2) =
     (Set.union sup1 sup2, Set.union cau1 cau2, Set.union fobligs1 fobligs2)
 
-  (* list equality might not be enough here *)
   let equal (sup1, cau1, fobligs1) (sup2, cau2, fobligs2) =
     Set.equal sup1 sup2 && Set.equal cau1 cau2 && Set.equal fobligs1 fobligs2
 
@@ -35,7 +34,7 @@ module Triple = struct
   let is_empty (sup, cau, fobligs) = Set.is_empty sup && Set.is_empty cau && Set.is_empty fobligs
 
   let update_db db (sup, cau, _) = Set.union (Set.diff db sup) cau
-  
+
   let update_fobligs fobligs (_, _, fobligs') = Set.union fobligs fobligs'
 
   let to_lists (sup, cau, fobligs) =
@@ -115,7 +114,6 @@ module EState = struct
     in loop Triple.empty es
 
   let mstep_state vars es =
-    (* let db = Set.filter es.db ~f:(fun (name, _) -> not (String.equal name "~tp")) in *)
     mstep Out.Plain.ENFORCE vars es.ts es.db es.ms es.fobligs
 
   let exec_monitor v mf es =
@@ -136,6 +134,7 @@ module EState = struct
   let all_not_sat v x mf es =
     match exec_monitor v mf es with
     | Some (expl, mf') -> begin
+        Stdio.printf "%s\n" (Expl.to_string expl);
         match Expl.Pdt.collect Expl.Proof.isV v x expl with
         | Setc.Finite s -> Set.elements s
         | _ -> failwith ("Infinite set of candidates for " ^ x ^ " in " ^ (MFormula.to_string mf))
@@ -164,12 +163,12 @@ module EState = struct
 
   let rec enfsat_and mf1 =
     lr sat sat enfsat enfsat mf1
-  
+
   and enfsat_forall x mf v es =
-    let enfs d = enfsat mf (Base.Map.update v x ~f:(fun _ -> d)) es in
-    (*print_endline (Etc.string_list_to_string (List.map ~f:to_string (List.map (all_not_sat v x mf es) ~f:enfs)));
-    print_endline (to_string (    List.fold_left (List.map (all_not_sat v x mf es) ~f:enfs) ~init:es ~f:combine ));*)
-    List.fold_left (List.map (all_not_sat v x mf es) ~f:enfs) ~init:es ~f:combine 
+    let enfs d = enfsat mf (Map.update v x ~f:(fun _ -> d)) es in
+    (* print_endline (Etc.string_list_to_string (List.map ~f:to_string (List.map (all_not_sat v x mf es) ~f:enfs))); *)
+    (* print_endline (to_string (List.fold_left (List.map (all_not_sat v x mf es) ~f:enfs) ~init:es ~f:combine )); *)
+    List.fold_left (List.map (all_not_sat v x mf es) ~f:enfs) ~init:es ~f:combine
 
   and enfvio_or mf1 =
     lr vio vio enfvio enfvio mf1
@@ -191,8 +190,11 @@ module EState = struct
     let es = add_foblig (FEventually (es.ts, i, mf), v, NEG) es in
     enfvio mf v es
 
+  (* TODO: Remove choices from enfsat/enfvio *)
   and enfsat (mf: MFormula.t) v es =
-    (*Stdio.printf "Enfsat(mf=%s, v=%s, db=%s)\n" (MFormula.to_string mf) (Etc.valuation_to_string v) (Db.to_string es.db);*)
+    Stdio.printf "enfsat(mf=%s, op=%s, side=%s, v=%s, db=%s)\n" (MFormula.to_string mf)
+      (MFormula.op_to_string mf) (MFormula.side_to_string mf) (Etc.valuation_to_string v) (Db.to_string es.db);
+    Stdlib.flush_all ();
     match mf with
     | MTT -> es
     | MPredicate (r, trms) ->
@@ -241,7 +243,9 @@ module EState = struct
     | _ -> raise (Invalid_argument ("function enfsat is not defined for "
                                      ^ MFormula.op_to_string mf))
   and enfvio (mf: MFormula.t) v es =
-    (*Stdio.printf "Enfvio(%s, %s)\n" (MFormula.to_string mf) (Etc.valuation_to_string v);*)
+    Stdio.printf "enfvio(mf=%s, op=%s, side=%s, v=%s, db=%s)\n" (MFormula.to_string mf)
+      (MFormula.op_to_string mf) (MFormula.side_to_string mf) (Etc.valuation_to_string v) (Db.to_string es.db);
+    Stdlib.flush_all ();
     match mf with
     | MFF -> es
     | MPredicate (r, trms) ->
@@ -309,7 +313,7 @@ module EState = struct
 end
 
 module Order = struct
-  
+
   type t = ReOrd of Db.t * Db.t | PrOrd of Db.t | NoOrd
 
   let print ts = function
@@ -324,12 +328,11 @@ module Order = struct
     | NoOrd -> Stdio.printf "[Enforcer] @%d nothing to do proactively.\n" ts
 end
 
-open Order
-
 let goal (es: EState.t) =
   let obligs = List.map (Set.elements es.fobligs)
                  ~f:(FObligation.eval
-                       (fun vars ts db fobligs mf -> (*    mstep Out.Plain.ENFORCE vars es.ts es.db es.ms es.fobligs*)
+                       (fun vars ts db fobligs mf ->
+                         (* mstep Out.Plain.ENFORCE vars es.ts es.db es.ms es.fobligs*)
                          match (mstep Out.Plain.ENFORCE vars ts db { es.ms with mf } fobligs)
                          with (_, _, ms) -> ms.mf)
                        es.db es.fobligs es.ts es.tp) in
@@ -338,7 +341,6 @@ let goal (es: EState.t) =
   | init::rest -> List.fold_left rest ~init ~f:(fun mf mg -> MAnd (LR, mf, mg, empty_binop_info))
 
 (* (NOT-SO-URGENT) TODO: other execution mode with automatic timestamps; change to Pdt *)
-(* TODO: additional proof rules for Until, Eventually, Always *)
 let exec f inc =
   let reactive_step new_db es =
     let mf = goal es in
@@ -349,7 +351,7 @@ let exec f inc =
                        fobligs = FObligations.empty;
                        nick    = false } in
     let es = EState.enf mf es in
-    ReOrd (Triple.cau es.r, Triple.sup es.r), es
+    Order.ReOrd (Triple.cau es.r, Triple.sup es.r), es
   in
   let proactive_step es =
     (*Stdio.printf "------------\n";
@@ -365,9 +367,9 @@ let exec f inc =
                         nick    = true } in
     let es' = EState.enf mf es' in
     if Db.mem (Triple.cau es'.r) Db.Event._tp then
-      PrOrd (Db.remove (Triple.cau es'.r) Db.Event._tp), es'
+      Order.PrOrd (Db.remove (Triple.cau es'.r) Db.Event._tp), es'
     else
-      NoOrd, es
+      Order.NoOrd, es
   in
   let rec process_db (pb: Other_parser.Parsebuf.t) (es: EState.t) =
     if Int.equal pb.ts es.ts then
@@ -377,22 +379,22 @@ let exec f inc =
       match proactive_step es with
       | PrOrd c as o, es -> Order.print es.ts o;
                             process_db pb { es with tp = es.tp + 1; ts = es.ts + 1 }
-      | NoOrd as o, es   -> Order.print es.ts o;
+      | NoOrd   as o, es -> Order.print es.ts o;
                             process_db pb { es with ts = es.ts + 1 }
   in
   let rec step pb_opt es =
     match Other_parser.Trace.parse_from_channel inc pb_opt with
     | None -> ()
     | Some (more, pb) ->
-       (*Stdio.printf "------------\n";
-       Stdio.printf "Before: \n";
-       Stdio.printf "%s" (EState.to_string es);
-       Stdlib.flush_all ();*)
+       (* Stdio.printf "------------\n"; *)
+       (* Stdio.printf "Before: \n"; *)
+       (* Stdio.printf "%s" (EState.to_string es); *)
+       (* Stdlib.flush_all (); *)
        let es = process_db pb es in
-       (*Stdio.printf "------------\n";
-       Stdio.printf "After: \n";
-       Stdio.printf "%s" (EState.to_string es);
-       Stdlib.flush_all ();*)
+       (* Stdio.printf "------------\n"; *)
+       (* Stdio.printf "After: \n"; *)
+       (* Stdio.printf "%s" (EState.to_string es); *)
+       (* Stdlib.flush_all (); *)
        if more then step (Some(pb)) es in
   let tf = try Typing.do_type f with Invalid_argument s -> failwith s in
   let transparent =
@@ -403,5 +405,3 @@ let exec f inc =
   let ms = Monitor.MState.init mf in
   let es = EState.init ms mf in
   step None es
-
-       (*TODO: Sets of future obligations*)
