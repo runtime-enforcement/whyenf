@@ -1,0 +1,1 @@
+□ (∀f. ((∃u. (¬erase(f) S[10,∞] allow(u,f))) ∧ ¬(∃u. ⧫[0,10] read(u,f))) → ◊[10,20] erase(f))
