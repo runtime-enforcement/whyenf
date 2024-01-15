@@ -1547,7 +1547,8 @@ module FObligation = struct
            let mf' = match mf with
              | MImp (_, _tp, mf, _) -> mf
              | _ -> mf in
-           MAlways (Interval.sub2 i (ts' - ts), MImp (R, _tp, mf', empty_binop_info), ([], []), Leaf (Always.init ()))
+           MAlways (Interval.sub2 i (ts' - ts), MImp (R, _tp, mf', empty_binop_info), ([], []),
+                    Leaf (Always.init ()))
          else
            MTT
       (* Note: we cannot reuse the state ei in MUntil *)
@@ -1556,7 +1557,8 @@ module FObligation = struct
            let mf' = match mf with
              | MAnd (_, _tp, mf, _) -> mf
              | _ -> mf in
-           MEventually (Interval.sub2 i (ts' - ts), MAnd (LR, _tp, mf', empty_binop_info), ([], []), Leaf (Eventually.init ()))
+           MEventually (Interval.sub2 i (ts' - ts), MAnd (L, _tp, mf', empty_binop_info), ([], []),
+                        Leaf (Eventually.init ()))
          else
            MFF
 
