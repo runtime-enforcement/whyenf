@@ -1581,7 +1581,7 @@ module FObligations = struct
     Etc.string_list_to_string (List.map ~f:FObligation.to_string (Set.elements fobligations))
 
   let empty = Set.empty (module FObligation)
-    
+
 end
 
 include MFormula
