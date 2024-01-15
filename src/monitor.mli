@@ -18,12 +18,17 @@ module MFormula : sig
   type tp_info
   type buft_info
   type once_info
-  type eventually_info
+  type next_info'
+  type next_info = next_info' * int
+  type eventually_info'
+  type eventually_info = eventually_info' * int
   type historically_info
-  type always_info
+  type always_info'
+  type always_info = always_info' * int
   type buf2t_info
   type since_info
-  type until_info
+  type until_info'
+  type until_info = until_info' * int
 
   val empty_binop_info: binop_info
 
@@ -40,7 +45,7 @@ module MFormula : sig
     | MExists       of string * Dom.tt * t
     | MForall       of string * Dom.tt * t
     | MPrev         of Interval.t * t * bool * prev_info
-    | MNext         of Interval.t * t * bool * timestamp list
+    | MNext         of Interval.t * t * bool * next_info
     | MOnce         of Interval.t * t * tp_info * once_info
     | MEventually   of Interval.t * t * buft_info * eventually_info
     | MHistorically of Interval.t * t * tp_info * historically_info
@@ -69,11 +74,11 @@ module FObligation : sig
   type polarity = POS | NEG
 
   type kind =
-    | FFormula of MFormula.t                       (* fun _ -> f *)
-    | FInterval of int * Interval.t * MFormula.t   (* fun t -> if mem t i then f else Formula.TT *)
-    | FUntil of int * Formula.Side.t * Interval.t * MFormula.t * MFormula.t (* fun t -> Until (s, sub2 i (t-t0), f1, f2) *)
-    | FAlways of int * Interval.t * MFormula.t     (* fun t -> Always (sub2 i (t-t0), f1) *)
-    | FEventually of int * Interval.t * MFormula.t (* fun t -> Eventually (sub2 i (t-t0), f1) *)
+    | FFormula of MFormula.t * int                       (* fun _ -> f *)
+    | FInterval of int * Interval.t * MFormula.t * int   (* fun t -> if mem t i then f else Formula.TT *)
+    | FUntil of int * Formula.Side.t * Interval.t * MFormula.t * MFormula.t * int (* fun t -> Until (s, sub2 i (t-t0), f1, f2) *)
+    | FAlways of int * Interval.t * MFormula.t * int     (* fun t -> Always (sub2 i (t-t0), f1) *)
+    | FEventually of int * Interval.t * MFormula.t * int (* fun t -> Eventually (sub2 i (t-t0), f1) *)
 
   type t = kind * Etc.valuation * polarity
 
@@ -92,6 +97,7 @@ module FObligations : sig
 
   val to_string: t -> string
   val empty: t
+  val accepts_empty: t -> bool
 
 end
 

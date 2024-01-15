@@ -2,80 +2,93 @@ import pandas as pd
 import numpy as np
 import time
 
-RAW = "raw.csv"
+RAW = "originallog.csv"
 OUTPUT = "arfelt.log"
 
 df = pd.read_csv(RAW, sep=";")
 log = []
 
+def date(s):
+    try:
+        return time.mktime(time.strptime(s[:-4], '%Y-%m-%d %H:%M:%S'))
+    except Exception:
+        return np.nan
+    
 def ts(s):
     try:
         return time.mktime(time.strptime(s[:-4], '%Y-%m-%d %H:%M:%S')) // 86400
     except Exception:
         return np.nan
 
-ts0 = ts(df.iloc[0]["Date"])
-
-df["Date"] = df["Date"].apply(ts)
+df["Days"] = df["Date"].apply(ts)
+df["Date"] = df["Date"].apply(date)
 df = df[~df["Date"].isna()]
 df = df.sort_values(by="Date")
-df["Date"] -= ts0
-df["Date"] = df["Date"].astype(int)
+df["Days"] = df["Days"].astype(int)
 
 print(set(df["Title"]))
 
-"""{
-'Change phase to Complete', 
-'Change phase to Abort', 
-'Change Phase to End Report', 
-'Change phase to Board meeting', 
-'Change phase to Abandon', 
-'Change phase to Review',
-'Change phase to Preparation',
-'Change Phase to Payout', 
+"""{nan,  ,  , , , , , , , , , , , , , , , ,, , 'Execute pre-decision', 'Round Ends', 'Undo payment', 'Første udbetaling', 'ansøger godtgør relevans af ansøgningen', 'Godkendelse - videre til bestyrelsen', 'Round approved', 'Godkend ansøgning', 'Register Decision'}"""
 
-'Reject', 
-'Review',                                     *use*
-'Account number changed', 
-'Applicant justifies relevance',
-'First payment', 
+df.to_csv("intermediate.csv")
+
+"""{
+'Change phase to Complete',
+'Change phase to Forberedelse',
+'Change phase to Board meeting',
+'Change Phase to Bortfaldet',
+'Change phase to review',
+'Change Phase to End Report',
+'Change phase to Abort',
+'Change Phase to Payout'
+
+'Indledende afvisning',
+'Udfoer bortfald',                            *ds_deletion_request*
+'Review',                                     *use(APPL)*
+'Pre-behandl ansøgning',                      *use(APPL)*
 'Payment completed',                          *delete*
-'Set to Pre-approved', 
-'Fill out application',                       *ds_consent*
-'Execute pre-decision', 
-'Lawyer Review',                              *use*
-'Inform applicant of approval',
-'Register Decision',
-'Screen application',                         *use*
+'Modtag slut rapport',
+'Afvis ansøgning',
+'Informer ansøger om at best ser på sagen',
+'ansøger informeret ',                        *delete*
 'Architect Review',                           *use*
-'Screening reject',
-'Round ends',
+'Fill out Application',
+'Godkend ændret kontonummer',                 *use(ACCOUNT)*
+'Lawyer Review',                              *use(APPL)*
+'Informer ansøger om bevilling',
+'Set to Pre-approved',
+'Account number changed',                     *use(ACCOUNT)*
+'Execute pre-decision',
+'Round Ends', 
+'Undo payment',                               *use(ACCOUNT)*
+'Første udbetaling',                          *use(ACCOUNT)*
+'ansøger godtgør relevans af ansøgningen',
+'Godkendelse - videre til bestyrelsen',       *ds_consent*
 'Round approved', 
-'Approved - to board',
-'Applicant informed',                         *delete*
-'Execute abandon',                            *ds_deletion_request*
-'Inform application of board review',
-'Receive end report', 
-'Approve'                                     *legal_grounds*
+'Godkend ansøgning',                          *legal_grounds*
+'Register Decision',                       
 }"""
 
 for _, row in df.iterrows():
-    now = row["Date"]
+    now = row["Days"]
     id = row["ID"]
-    if row["Title"] == "Fill out application":
+    if row["Title"] == "Godkendelse - videre til bestyrelsen":
         line = f"@{now} ds_consent(\"{id}\", \"APPL\")"
     elif row["Title"] == "Payment completed":
         line = f"@{now} delete(\"APPL\",\"{id}\",\"{id}\") delete(\"ACCOUNT\",\"{id}\",\"{id}\")"
-    elif row["Title"] == "Approve":
+    elif row["Title"] == "Godkend ansøgning":
         line = f"@{now} legal_grounds(\"{id}\",\"ACCOUNT\")"
-    elif row["Title"] == "Execute abandon":
+    elif row["Title"] == "Udfoer bortfald":
         line = f"@{now} ds_deletion_request(\"APPL\",\"{id}\",\"{id}\")"
-    elif row["Title"] == "Application informed":
+    elif row["Title"] == "ansøger informeret ":
         line = f"@{now} delete(\"APPL\",\"{id}\",\"{id}\")"
-    elif row["Title"] in ["Review", "Lawyer Review", "Architect Review", "Screen application"]:
+    elif row["Title"] in ["Review", "Lawyer Review", "Architect Review", "Pre-behandl ansøgning"]:
         line = f"@{now} use(\"APPL\",\"{id}\",\"{id}\")"
+    elif row["Title"] in ["Godkent ændret kontonummer", "Account number changed", "Undo payment",
+                          "Første udbetaling"]:
+        line = f"@{now} use(\"ACCOUNT\",\"{id}\",\"{id}\")"
     else:
-        pass
+        continue
     log.append(line)
 
 with open(OUTPUT, 'w') as f:
