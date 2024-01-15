@@ -63,7 +63,7 @@ module Proof : sig
     | SHistorically of int * int * sp Fdeque.t
     | SHistoricallyOut of int
     | SAlways of int * int * sp Fdeque.t
-    | SAlwaysAssm of int * sp * Interval.t
+    | SAlwaysAssm of int * sp option * Interval.t
     | SSince of sp * sp Fdeque.t
     | SUntil of sp * sp Fdeque.t
     | SUntilAssm of int * sp * Interval.t
@@ -92,10 +92,10 @@ module Proof : sig
     | VOnceOut of int
     | VOnce of int * int * vp Fdeque.t
     | VEventually of int * int * vp Fdeque.t
-    | VEventuallyAssm of int * vp * Interval.t
+    | VEventuallyAssm of int * vp option * Interval.t
     | VHistorically of int * vp
     | VAlways of int * vp
-    | VAlwaysAssm of int * vp * Interval.t
+    | VAlwaysAssm of int * Interval.t
     | VAlwaysNow of vp * Interval.t
     | VSinceOut of int
     | VSince of int * vp * vp Fdeque.t
@@ -158,6 +158,7 @@ module Pdt : sig
   val reduce: ('a -> 'a -> bool) -> 'a t -> 'a t
   val apply1_reduce: ('a -> 'a -> bool) -> string list -> ('b -> 'a) -> 'b t -> 'a t
   val apply2_reduce: ('a -> 'a -> bool) -> string list -> ('b -> 'c -> 'a) -> 'b t -> 'c t -> 'a t
+  val apply3_reduce: ('a -> 'a -> bool) -> string list -> ('b -> 'c -> 'd -> 'a) -> 'b t -> 'c t -> 'd t -> 'a t
   val split_prod_reduce: ('a -> 'a -> bool) -> ('a * 'a) t -> 'a t * 'a t
   val split_list_reduce: ('a -> 'a -> bool) -> 'a list t -> 'a t list
   val hide_reduce: ('a -> 'a -> bool) -> string list -> ('b -> 'a) -> ('b Part.t -> 'a) -> 'b t -> 'a t
@@ -165,6 +166,7 @@ module Pdt : sig
   val replace_leaf: Etc.valuation -> 'a -> 'a t -> 'a t
   val specialize: Etc.valuation -> 'a t -> 'a
   val collect: ('a -> bool) -> Etc.valuation -> string -> 'a t -> (Dom.t, Dom.comparator_witness) Setc.t
+  val from_valuation: string list -> Etc.valuation -> 'b -> 'b -> 'b t
 
 end
 

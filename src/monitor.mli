@@ -54,7 +54,6 @@ module MFormula : sig
     | MUntil        of Formula.Side.t * Interval.t * t * t * buf2t_info * until_info
 
   val init: Formula.t -> t
-
   val rank: t -> int
 
   val apply_valuation : Etc.valuation -> t -> t
@@ -83,8 +82,7 @@ module FObligation : sig
   type t = kind * Etc.valuation * polarity
 
   val equal: t -> t -> bool
-  val eval: (string list -> int -> Db.t -> 'a -> MFormula.t -> MFormula.t)
-            -> Db.t -> 'a -> int -> int -> t -> MFormula.t
+  val eval: int -> int ->  (MFormula.t -> MFormula.t) -> t -> MFormula.t
   val to_string: t -> string
 
   include Comparable.S with type t := t
@@ -121,8 +119,8 @@ module MState : sig
 
 end
 
-val mstep: Out.Plain.mode -> string list -> timestamp -> Db.t -> MState.t -> FObligations.t ->
-           ((timestamp * timepoint) * Expl.Proof.t Expl.Pdt.t) list * (Expl.Proof.t Expl.Pdt.t option) * MState.t
+val mstep: Out.Plain.mode -> string list -> timestamp -> Db.t -> bool -> MState.t -> FObligations.t ->
+           ((timestamp * timepoint) * Expl.Proof.t Expl.Pdt.t) list * Expl.Proof.t Expl.Pdt.t * MState.t
 
 val exec: Out.Plain.mode -> string -> Formula.t -> in_channel -> unit
 
