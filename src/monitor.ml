@@ -1241,20 +1241,16 @@ module MFormula = struct
 
   type binop_info         = (Expl.t, Expl.t) Buf2.t
   type prev_info          = (Expl.t, timestamp) Buft.t
-  type next_info'         = timestamp list
-  type next_info          = next_info' * int
+  type next_info          = timestamp list
   type tp_info            = (timestamp * timepoint) list
   type buft_info          = (Expl.t, timestamp * timepoint) Buft.t
   type once_info          = Once.t Expl.Pdt.t
-  type eventually_info'   = Eventually.t Expl.Pdt.t
-  type eventually_info    = eventually_info' * int
+  type eventually_info    = Eventually.t Expl.Pdt.t
   type historically_info  = Historically.t Expl.Pdt.t
-  type always_info'       = Always.t Expl.Pdt.t
-  type always_info        = always_info' * int
+  type always_info        = Always.t Expl.Pdt.t
   type buf2t_info         = (Expl.t, Expl.t, timestamp * timepoint) Buf2t.t
   type since_info         = Since.t Expl.Pdt.t
-  type until_info'        = Until.t Expl.Pdt.t
-  type until_info         = until_info' * int
+  type until_info         = Until.t Expl.Pdt.t
 
   let empty_binop_info = ([], [])
 
@@ -1272,13 +1268,16 @@ module MFormula = struct
     | MForall       of string * Dom.tt * t
     | MPrev         of Interval.t * t * bool * prev_info
     | MNext         of Interval.t * t * bool * next_info
+    | MENext        of Interval.t * t * int
     | MOnce         of Interval.t * t * tp_info * once_info
     | MEventually   of Interval.t * t * buft_info * eventually_info
+    | MEEventually  of Interval.t * t * int
     | MHistorically of Interval.t * t * tp_info * historically_info
     | MAlways       of Interval.t * t * buft_info * always_info
+    | MEAlways      of Interval.t * t * int
     | MSince        of Formula.Side.t * Interval.t * t * t * buf2t_info * since_info
-    | MUntil        of Formula.Side.t * Interval.t * t * t * buf2t_info * until_info
-  
+    | MUntil        of Interval.t * t * t * buf2t_info * until_info
+    | MEUntil       of Formula.Side.t * Interval.t * t * t * int
 
   let _tp = MPredicate (Pred.tp_event_name, [])
 
@@ -1298,55 +1297,69 @@ module MFormula = struct
     | MForall (x, tt, f) -> Formula.Forall (x, tt, to_formula f)
     | MPrev (i, f, b, pi) -> Formula.Prev (i, to_formula f)
     | MNext (i, f, b, si) -> Formula.Next (i, to_formula f)
+    | MENext (i, f, h) -> Formula.Next (i, to_formula f)
     | MOnce (i, f, ti, oi) -> Formula.Once (i, to_formula f)
     | MEventually (i, f, bi, oi) -> Formula.Eventually (i, to_formula f)
+    | MEEventually (i, f, h) -> Formula.Eventually (i, to_formula f)
     | MHistorically (i, f, ti, oi) -> Formula.Historically (i, to_formula f)
     | MAlways (i, f, bi, ai) -> Formula.Always (i, to_formula f)
+    | MEAlways (i, f, h) -> Formula.Always (i, to_formula f)
     | MSince (s, i, f, g, bi, si) -> Formula.Since (s, i, to_formula f, to_formula g)
-    | MUntil (s, i, f, g, bi, ui) -> Formula.Until (s, i, to_formula f, to_formula g)
+    | MUntil (i, f, g, bi, ui) -> Formula.Until (N, i, to_formula f, to_formula g)
+    | MEUntil (s, i, f, g, h) -> Formula.Until (s, i, to_formula f, to_formula g)
 
-  let init f =
-    let rec aux h = function
-    | Formula.TT -> h, MTT
-    | Formula.FF -> h, MFF
-    | Formula.EqConst (x, c) -> h, MEqConst (x, c)
-    | Formula.Predicate (r, trms) -> h, MPredicate (r, trms)
-    | Formula.Neg (f) -> let h, mf = aux h f in h, MNeg mf
-    | Formula.And (s, f, g) -> let h, mf = aux h f in
-                               let h, mg = aux h g in
-                               h, MAnd (s, mf, mg, ([], []))
-    | Formula.Or (s, f, g) -> let h, mf = aux h f in
-                              let h, mg = aux h g in
-                              h, MOr (s, mf, mg, ([], []))
-    | Formula.Imp (s, f, g) -> let h, mf = aux h f in
-                               let h, mg = aux h g in
-                               h, MImp (s, mf, mg, ([], []))
-    | Formula.Iff (s, t, f, g) -> let h, mf = aux h f in
-                                  let h, mg = aux h g in
-                                  h, MIff (s, t, mf, mg, ([], []))
-    | Formula.Exists (x, tt, f) -> let h, mf = aux h f in
-                                   h, MExists (x, tt, mf)
-    | Formula.Forall (x, tt, f) -> let h, mf = aux h f in
-                                   h, MForall (x, tt, mf)
-    | Formula.Prev (i, f) -> let h, mf = aux h f in
-                             h, MPrev (i, mf, true, ([], []))
-    | Formula.Next (i, f) -> let h, mf = aux h f in
-                             h+1, MNext (i, mf, true, ([], h))
-    | Formula.Once (i, f) -> let h, mf = aux h f in
-                             h, MOnce (i, mf, [], Leaf (Once.init ()))
-    | Formula.Eventually (i, f) -> let h, mf = aux h f in
-                                   h+1, MEventually (i, mf, ([], []), (Leaf (Eventually.init ()), h))
-    | Formula.Historically (i, f) -> let h, mf = aux h f in
-                                     h, MHistorically (i, mf, [], Leaf (Historically.init ()))
-    | Formula.Always (i, f) -> let h, mf = aux h f in
-                               h+1, MAlways (i, mf, ([], []), (Leaf (Always.init ()), h))
-    | Formula.Since (s, i, f, g) -> let h, mf = aux h f in
-                                    let h, mg = aux h g in
-                                    h, MSince (s, i, mf, mg, (([], []), []), Leaf (Since.init ()))
-    | Formula.Until (s, i, f, g) -> let h, mf = aux h f in
-                                    let h, mg = aux h g in
-                                    h+1, MUntil (s, i, mf, mg, (([], []), []), (Leaf (Until.init ()), h))
-  in snd (aux 0 f)
+  let init (tf: Tformula.t) =
+    let rec aux h (tf: Tformula.t) = match tf.f with
+    | Tformula.TTT -> h, MTT
+    | TFF -> h, MFF
+    | TEqConst (x, c) -> h, MEqConst (x, c)
+    | TPredicate (r, trms) -> h, MPredicate (r, trms)
+    | TNeg f -> let h, mf = aux h f in h, MNeg mf
+    | TAnd (s, f, g) ->
+       let h, mf = aux h f in
+       let h, mg = aux h g in
+       h, MAnd (s, mf, mg, ([], []))
+    | TOr (s, f, g) ->
+       let h, mf = aux h f in
+       let h, mg = aux h g in
+       h, MOr (s, mf, mg, ([], []))
+    | TImp (s, f, g) ->
+       let h, mf = aux h f in
+       let h, mg = aux h g in
+       h, MImp (s, mf, mg, ([], []))
+    | TIff (s, t, f, g) ->
+       let h, mf = aux h f in
+       let h, mg = aux h g in
+       h, MIff (s, t, mf, mg, ([], []))
+    | TExists (x, tt, f) -> let h, mf = aux h f in h, MExists (x, tt, mf)
+    | TForall (x, tt, f) -> let h, mf = aux h f in h, MForall (x, tt, mf)
+    | TPrev (i, f) -> let h, mf = aux h f in h, MPrev (i, mf, true, ([], []))
+    | TNext (i, f) when tf.enftype == EnfType.Obs ->
+       let h, mf = aux h f in h, MNext (i, mf, true, [])
+    | TNext (i, f) -> let h, mf = aux h f in h+1, MENext (i, mf, h)
+    | TOnce (i, f) -> let h, mf = aux h f in h, MOnce (i, mf, [], Leaf (Once.init ()))
+    | TEventually (i, f) when tf.enftype == EnfType.Obs ->
+       let h, mf = aux h f in h, MEventually (i, mf, ([], []), Leaf (Eventually.init ()))
+    | TEventually (i, f) ->
+       let h, mf = aux h f in h+1, MEEventually (i, mf, h)
+    | THistorically (i, f) ->
+       let h, mf = aux h f in h, MHistorically (i, mf, [], Leaf (Historically.init ()))
+    | TAlways (i, f) when tf.enftype == EnfType.Obs ->
+       let h, mf = aux h f in h, MAlways (i, mf, ([], []), Leaf (Always.init ()))
+    | TAlways (i, f) -> let h, mf = aux h f in h+1, MEAlways (i, mf, h)
+    | TSince (s, i, f, g) ->
+       let h, mf = aux h f in
+       let h, mg = aux h g in
+       h, MSince (s, i, mf, mg, (([], []), []), Leaf (Since.init ()))
+    | TUntil (s, i, f, g) when tf.enftype == EnfType.Obs ->
+       let h, mf = aux h f in
+       let h, mg = aux h g in
+       h, MUntil (i, mf, mg, (([], []), []), Leaf (Until.init ()))
+    | TUntil (s, i, f, g) ->
+       let h, mf = aux h f in
+       let h, mg = aux h g in
+       h+1, MEUntil (s, i, mf, mg, h)
+  in snd (aux 0 tf)
 
   let rec equal mf1 mf2 = match mf1, mf2 with
     | MTT, MTT
@@ -1357,10 +1370,13 @@ module MFormula = struct
     | MNeg mf, MNeg mf' -> equal mf mf'
     | MPrev (i, mf, _, _), MPrev (i', mf', _, _)
       | MNext (i, mf, _, _), MNext (i', mf', _, _)
+      | MENext (i, mf, _), MENext (i', mf', _)
       | MOnce (i, mf, _, _), MOnce (i', mf', _, _)
       | MEventually (i, mf, _, _), MEventually (i', mf', _, _)
+      | MEEventually (i, mf, _), MEEventually (i', mf', _)
       | MHistorically (i, mf, _, _), MHistorically (i', mf', _, _)
-      | MAlways (i, mf, _, _), MAlways (i', mf', _, _) -> Interval.equal i i' && equal mf mf'
+      | MAlways (i, mf, _, _), MAlways (i', mf', _, _)
+      | MEAlways (i, mf, _), MEAlways (i', mf', _) -> Interval.equal i i' && equal mf mf'
     | MExists (x, tt, mf), MExists (x', tt', mf')
       | MForall (x, tt, mf), MForall (x', tt', mf') -> String.equal x x' && Dom.tt_equal tt tt' && equal mf mf'
     | MAnd (s, mf, mg, _), MAnd (s', mf', mg', _)
@@ -1369,9 +1385,10 @@ module MFormula = struct
     | MIff (s, t, mf, mg, _), MIff (s', t', mf', mg', _) -> Formula.Side.equal s s' && Formula.Side.equal t t' &&
                                                               equal mf mf' && equal mg mg'
     | MSince (s, i, mf, mg, _, _), MSince (s', i', mf', mg', _, _)
-      | MUntil (s, i, mf, mg, _, _), MUntil (s', i', mf', mg', _, _) -> Formula.Side.equal s s' && Interval.equal i i' &&
-                                                                          equal mf mf' && equal mg mg'
-    | _ -> false
+      | MEUntil (s, i, mf, mg, _), MEUntil (s', i', mf', mg', _) -> Formula.Side.equal s s' && Interval.equal i i' &&
+                                                                      equal mf mf' && equal mg mg'
+    | MUntil (i, mf, mg, _, _), MUntil (i', mf', mg', _, _) -> Interval.equal i i' && equal mf mf' && equal mg mg'
+    | _ -> false 
 
   let rec rank = function
     | MTT | MFF -> 0
@@ -1382,16 +1399,20 @@ module MFormula = struct
       | MForall (_, _, f)
       | MPrev (_, f, _, _)
       | MNext (_, f, _, _)
+      | MENext (_, f, _)
       | MOnce (_, f, _, _)
       | MEventually (_, f, _, _)
+      | MEEventually (_, f, _)
       | MHistorically (_, f, _, _)
-      | MAlways (_, f, _, _) -> rank f
+      | MAlways (_, f, _, _)
+      | MEAlways (_, f, _) -> rank f
     | MAnd (_, f, g, _)
       | MOr (_, f, g, _)
       | MImp (_, f, g, _)
       | MIff (_, _, f, g, _)
       | MSince (_, _, f, g, _, _)
-      | MUntil (_, _, f, g, _, _) -> rank f + rank g
+      | MUntil (_, f, g, _, _)
+      | MEUntil (_, _, f, g, _) -> rank f + rank g
 
   let rec apply_valuation v f =
     let r = apply_valuation v in
@@ -1415,12 +1436,16 @@ module MFormula = struct
     | MForall (x, tt, f) -> MForall (x, tt, r f)
     | MPrev (i, f, b, pi) -> MPrev (i, r f, b, pi)
     | MNext (i, f, b, si) -> MNext (i, r f, b, si)
+    | MENext (i, f, h) -> MENext (i, r f, h)
     | MOnce (i, f, ti, oi) -> MOnce (i, r f, ti, oi)
     | MEventually (i, f, bi, oi) -> MEventually (i, r f, bi, oi)
+    | MEEventually (i, f, h) -> MEEventually (i, r f, h)
     | MHistorically (i, f, ti, oi) -> MHistorically (i, r f, ti, oi)
     | MAlways (i, f, bi, ai) -> MAlways (i, r f, bi, ai)
+    | MEAlways (i, f, h) -> MEAlways (i, r f, h)
     | MSince (s, i, f, g, bi, si) -> MSince (s, i, r f, r g, bi, si)
-    | MUntil (s, i, f, g, bi, ui) -> MUntil (s, i, r f, r g, bi, ui)
+    | MUntil (i, f, g, bi, ui) -> MUntil (i, r f, r g, bi, ui)
+    | MEUntil (s, i, f, g, h) -> MEUntil (s, i, r f, r g, h)
 
   let rec fv = function
     | MTT | MFF -> Set.empty (module String)
@@ -1433,14 +1458,18 @@ module MFormula = struct
       | MOnce (_, f, _, _)
       | MHistorically (_, f, _, _)
       | MEventually (_, f, _, _)
+      | MEEventually (_, f, _)
       | MAlways (_, f, _, _)
-      | MNext (_, f, _, _) -> fv f
+      | MEAlways (_, f, _)
+      | MNext (_, f, _, _)
+      | MENext (_, f, _) -> fv f
     | MAnd (_, f1, f2, _)
       | MOr (_, f1, f2, _)
       | MImp (_, f1, f2, _)
       | MIff (_, _, f1, f2, _)
       | MSince (_, _, f1, f2, _, _)
-      | MUntil (_, _, f1, f2, _, _) -> Set.union (fv f1) (fv f2)
+      | MUntil (_, f1, f2, _, _)
+      | MEUntil (_, _, f1, f2, _) -> Set.union (fv f1) (fv f2)
 
   let rec to_string_rec l = function
     | MTT -> Printf.sprintf "⊤"
@@ -1456,14 +1485,19 @@ module MFormula = struct
     | MForall (x, _, f) -> Printf.sprintf (Etc.paren l 5 "∀%s. %a") x (fun x -> to_string_rec 5) f
     | MPrev (i, f, _, _) -> Printf.sprintf (Etc.paren l 5 "●%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
     | MNext (i, f, _, _) -> Printf.sprintf (Etc.paren l 5 "○%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
+    | MENext (i, f, _) -> Printf.sprintf (Etc.paren l 5 "○*%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
     | MOnce (i, f, _, _) -> Printf.sprintf (Etc.paren l 5 "⧫%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
     | MEventually (i, f, _, _) -> Printf.sprintf (Etc.paren l 5 "◊%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
+    | MEEventually (i, f, _) -> Printf.sprintf (Etc.paren l 5 "◊*%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
     | MHistorically (i, f, _, _) -> Printf.sprintf (Etc.paren l 5 "■%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
     | MAlways (i, f, _, _) -> Printf.sprintf (Etc.paren l 5 "□%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
+    | MEAlways (i, f, _) -> Printf.sprintf (Etc.paren l 5 "□*%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
     | MSince (_, i, f, g, _, _) -> Printf.sprintf (Etc.paren l 0 "%a S%a %a") (fun x -> to_string_rec 5) f
                                      (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) g
-    | MUntil (_, i, f, g, _, _) -> Printf.sprintf (Etc.paren l 0 "%a U%a %a") (fun x -> to_string_rec 5) f
-                                     (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) g
+    | MUntil (i, f, g, _, _) -> Printf.sprintf (Etc.paren l 0 "%a U%a %a") (fun x -> to_string_rec 5) f
+                                  (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) g
+    | MEUntil (s, i, f, g, _) -> Printf.sprintf (Etc.paren l 0 "%a U*%a %a") (fun x -> to_string_rec 5) f
+                                (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) g
   let to_string = to_string_rec 0
 
   let rec op_to_string = function
@@ -1480,12 +1514,16 @@ module MFormula = struct
     | MForall (x, _, _) -> Printf.sprintf "∀ %s." x
     | MPrev (i, _, _, _) -> Printf.sprintf "●%s" (Interval.to_string i)
     | MNext (i, _, _, _) -> Printf.sprintf "○%s" (Interval.to_string i)
+    | MENext (i, _, _) -> Printf.sprintf "○*%s" (Interval.to_string i)
     | MOnce (i, f, _, _) -> Printf.sprintf "⧫%s" (Interval.to_string i)
     | MEventually (i, f, _, _) -> Printf.sprintf "◊%s" (Interval.to_string i)
+    | MEEventually (i, f, _) -> Printf.sprintf "◊*%s" (Interval.to_string i)
     | MHistorically (i, f, _, _) -> Printf.sprintf "■%s" (Interval.to_string i)
     | MAlways (i, f, _, _) -> Printf.sprintf "□%s" (Interval.to_string i)
+    | MEAlways (i, f, _) -> Printf.sprintf "□*%s" (Interval.to_string i)
     | MSince (_, i, _, _, _, _) -> Printf.sprintf "S%s" (Interval.to_string i)
-    | MUntil (_, i, _, _, _, _) -> Printf.sprintf "U%s" (Interval.to_string i)
+    | MUntil (i, _, _, _, _) -> Printf.sprintf "U%s" (Interval.to_string i)
+    | MEUntil (_, i, _, _, _) -> Printf.sprintf "U*%s" (Interval.to_string i)
 
 
   let side_to_string = function
@@ -1502,12 +1540,16 @@ module MFormula = struct
     | MForall (_, _, _) -> Printf.sprintf "N"
     | MPrev (_, _, _, _) -> Printf.sprintf "N"
     | MNext (_, _, _, _) -> Printf.sprintf "N"
+    | MENext (_, _, _) -> Printf.sprintf "N"
     | MOnce (_, _, _, _) -> Printf.sprintf "N"
     | MEventually (_, _, _, _) -> Printf.sprintf "N"
+    | MEEventually (_, _, _) -> Printf.sprintf "N"
     | MHistorically (_, _, _, _) -> Printf.sprintf "N"
     | MAlways (_, _, _, _) -> Printf.sprintf "N"
+    | MEAlways (_, _, _) -> Printf.sprintf "N"
     | MSince (s, _, _, _, _, _) -> Printf.sprintf "%s" (Formula.Side.to_string s)
-    | MUntil (s, _, _, _, _, _) -> Printf.sprintf "%s" (Formula.Side.to_string s)
+    | MUntil (_, _, _, _, _) -> Printf.sprintf "N"
+    | MEUntil (s, _, _, _, _) -> Printf.sprintf "%s" (Formula.Side.to_string s)
 
 end
 
@@ -1589,8 +1631,7 @@ module FObligation = struct
       | FFormula (mf, _) -> mf
       | FInterval (ts, i, mf, h) ->
          if Interval.mem (ts' - ts) i then
-           MUntil (R, Interval.sub2 i (ts' - ts), MNeg (_tp),
-                   MAnd (L, MFormula._tp, f mf, empty_binop_info), (([], []), []), (Leaf (Until.init ()), h))
+           MEUntil (R, Interval.sub2 i (ts' - ts), MNeg (_tp), MAnd (L, MFormula._tp, f mf, empty_binop_info), h)
          else
            MTT
       | FUntil (ts, side, i, mf1, mf2, h) ->
@@ -1601,9 +1642,9 @@ module FObligation = struct
            let mf2' = match mf2 with
              | MAnd (_, _tp, mf2, _) -> mf2
              | _ -> mf2 in
-           MUntil (side, Interval.sub2 i (ts' - ts),
+           MEUntil (side, Interval.sub2 i (ts' - ts), 
                    (if MFormula.equal mf1' (MNeg _tp) then MNeg _tp else MImp (R, _tp, f mf1', empty_binop_info)),
-                   MAnd (L, _tp, f mf2', empty_binop_info), (([], []), []), (Leaf (Until.init ()), h))
+                   MAnd (L, _tp, f mf2', empty_binop_info), h)
          else
            MFF
       | FAlways (ts, i, mf, h) ->
@@ -1611,8 +1652,7 @@ module FObligation = struct
            let mf' = match mf with
              | MImp (_, _tp, mf, _) -> mf
              | _ -> mf in
-           MAlways (Interval.sub2 i (ts' - ts), MImp (R, _tp, f mf', empty_binop_info), ([], []),
-                    (Leaf (Always.init ()), h))
+           MEAlways (Interval.sub2 i (ts' - ts), MImp (R, _tp, f mf', empty_binop_info), h)
          else
            MTT
       | FEventually (ts, i, mf, h) ->
@@ -1620,8 +1660,7 @@ module FObligation = struct
            let mf' = match mf with
              | MAnd (_, _tp, mf, _) -> mf
              | _ -> mf in
-           MEventually (Interval.sub2 i (ts' - ts), MAnd (L, _tp, f mf', empty_binop_info), ([], []),
-                        (Leaf (Eventually.init ()), h))
+           MEEventually (Interval.sub2 i (ts' - ts), MAnd (L, _tp, f mf', empty_binop_info), h)
          else
            MFF
 
@@ -1836,35 +1875,43 @@ let approx_historically vars expls aexpl i tp pol =
      Pdt.apply1_reduce Proof.equal vars (Historically.do_historically_base tp (Interval.left i)) aexpl
   | _, _ -> approx_false tp pol
     
-let approx_eventually vars aexpl (fobligs: FObligations.t) i h mf tp pol = 
+let approx_eventually vars aexpl (fobligs: FObligations.t) i h_opt tp pol = 
   let aexpl_new = aexpl in
-  let relevant_fobligs =
-    Set.elements (Set.filter fobligs ~f:(fun (k, v, pol') ->
-                      match k with
-                      | FEventually (_, _, _, h') -> h = h' && FObligation.polarity_equal pol pol'
-                      | _ -> false)) in
-  let f (k, v, _) =
-    let p = FObligation.corresp_proof tp pol None k in
-    let p' = proof_false tp pol in
-    Pdt.from_valuation vars v p p' in
-  let expls = List.map relevant_fobligs ~f in
+  let expls = match h_opt with
+    | None -> []
+    | Some h -> begin
+       let relevant_fobligs =
+         Set.elements (Set.filter fobligs ~f:(fun (k, v, pol') ->
+                           match k with
+                           | FEventually (_, _, _, h') -> h = h' && FObligation.polarity_equal pol pol'
+                           | _ -> false)) in
+       let f (k, v, _) =
+         let p = FObligation.corresp_proof tp pol None k in
+         let p' = proof_false tp pol in
+         Pdt.from_valuation vars v p p' in
+       List.map relevant_fobligs ~f
+      end in
   let aexpl_next = do_ors vars tp expls in
   Pdt.apply2_reduce Proof.equal vars
     (fun p1 p2 -> Eventually.do_eventually_base tp i (pol == POS) p1 p2)
     aexpl_new aexpl_next
 
-let approx_always vars aexpl (fobligs: FObligations.t) i h tp pol = 
+let approx_always vars aexpl (fobligs: FObligations.t) i h_opt tp pol = 
   let aexpl_new = aexpl in
-  let relevant_fobligs =
-    Set.elements (Set.filter fobligs ~f:(fun (k, v, pol') ->
-                      match k with
-                      | FAlways (_, _, _, h') -> h = h' && FObligation.polarity_equal pol pol'
-                      | _ -> false)) in
-  let f (k, v, _) =
-    let p = FObligation.corresp_proof tp pol None k in
-    let p' = proof_false tp pol in
-    Pdt.from_valuation vars v p p' in
-  let expls = List.map relevant_fobligs ~f in
+  let expls = match h_opt with
+    | None -> []
+    | Some h -> begin
+        let relevant_fobligs =
+          Set.elements (Set.filter fobligs ~f:(fun (k, v, pol') ->
+                            match k with
+                            | FAlways (_, _, _, h') -> h = h' && FObligation.polarity_equal pol pol'
+                            | _ -> false)) in
+        let f (k, v, _) =
+          let p = FObligation.corresp_proof tp pol None k in
+          let p' = proof_false tp pol in
+          Pdt.from_valuation vars v p p' in
+        List.map relevant_fobligs ~f
+      end in
   let aexpl_next = do_ors vars tp expls in
   Pdt.apply2_reduce Proof.equal vars
     (fun p1 p2 -> Always.do_always_base tp i (pol == POS) p1 p2)
@@ -1876,19 +1923,23 @@ let approx_since vars expls aexpl1 aexpl2 i tp pol =
   | _ -> Pdt.apply2_reduce Proof.equal vars
            (Since.do_since_base tp (Interval.left i) (pol == FObligation.POS)) aexpl1 aexpl2
 
-let approx_until vars expls aexpl1 aexpl2 (fobligs: FObligations.t) i h tp pol =
+let approx_until vars aexpl1 aexpl2 (fobligs: FObligations.t) i h_opt tp pol =
   let aexpl_new1 = aexpl1 in
   let aexpl_new2 = aexpl2 in
-  let relevant_fobligs =
-    Set.elements (Set.filter fobligs ~f:(fun (k, v, pol') ->
-                      match k with
-                      | FUntil (_, s, _, _, _, h') -> h = h' && FObligation.polarity_equal pol pol'
-                      | _ -> false)) in
-  let f (k, v, _) =
-    let p = FObligation.corresp_proof tp pol None k in
-    let p' = proof_false tp pol in
-    Pdt.from_valuation vars v p p' in
-  let expls = List.map relevant_fobligs ~f in
+  let expls = match h_opt with
+    | None -> []
+    | Some h -> begin
+        let relevant_fobligs =
+          Set.elements (Set.filter fobligs ~f:(fun (k, v, pol') ->
+                            match k with
+                            | FUntil (_, s, _, _, _, h') -> h = h' && FObligation.polarity_equal pol pol'
+                            | _ -> false)) in
+        let f (k, v, _) =
+          let p = FObligation.corresp_proof tp pol None k in
+          let p' = proof_false tp pol in
+          Pdt.from_valuation vars v p p' in
+        List.map relevant_fobligs ~f
+      end in
   let aexpl_next = do_ors vars tp expls in
   Pdt.apply3_reduce Proof.equal vars
     (fun p1 p2 p3 -> Until.do_until_base tp i (pol == POS) p1 p2 p3)
@@ -1991,7 +2042,7 @@ let rec meval vars ts tp (db: Db.t) ~pol (fobligs: FObligations.t) mformula =
          (buf @ expls, tss @ [ts]) in
      let aexpl = else_any (approx_default f_expls) tp pol in
      ((if first then (Leaf (V VPrev0) :: f_expls) else f_expls), aexpl, MPrev (i, mf', false, (buf', tss')))
-  | MNext (i, mf, first, (tss, h)) ->
+  | MNext (i, mf, first, tss) ->
      let (expls, _, mf') = meval vars ts tp db ~pol fobligs mf in
      let (expls', first) = if first && (List.length expls) > 0 then (List.tl_exn expls, false)
                            else (expls, first) in
@@ -2000,8 +2051,10 @@ let rec meval vars ts tp (db: Db.t) ~pol (fobligs: FObligations.t) mformula =
          (fun expl ts ts' -> Pdt.apply1_reduce Proof.equal vars
                                (fun p -> Prev_Next.update_eval Next i p ts ts') expl)
          (expls', tss @ [ts]) in
+     (f_expls, else_any approx_false tp pol, MNext (i, mf', first, tss'))
+  | MENext (i, mf, h) ->
      let aexpl = else_any (approx_next vars fobligs i h mformula) tp pol in
-     (f_expls, aexpl, MNext (i, mf', first, (tss', h)))
+     ([aexpl], aexpl, MENext (i, mf, h))
   | MOnce (i, mf, tstps, moaux_pdt) ->
      let (expls, aexpl, mf') = meval vars ts tp db ~pol fobligs mf in
      let ((moaux_pdt', expls'), buf', tstps') =
@@ -2014,7 +2067,7 @@ let rec meval vars ts tp (db: Db.t) ~pol (fobligs: FObligations.t) mformula =
      let expls'' = List.map expls' ~f:(Pdt.reduce Proof.equal) in
      let aexpl = else_any (approx_once vars expls'' aexpl i) tp pol in
      (expls'', aexpl, MOnce (i, mf', tstps', moaux_pdt'))
-  | MEventually (i, mf, (buf, ntstps), (meaux_pdt, h)) ->
+  | MEventually (i, mf, (buf, ntstps), meaux_pdt) ->
      let (expls, aexpl, mf') = meval vars ts tp db ~pol fobligs mf in
      let (meaux_pdt', buf', ntstps') =
        Buft.take
@@ -2027,8 +2080,12 @@ let rec meval vars ts tp (db: Db.t) ~pol (fobligs: FObligations.t) mformula =
        Pdt.split_prod (Pdt.apply1 vars (fun aux -> Eventually.eval i nts ntp (aux, [])) meaux_pdt') in
      let expls' = Pdt.split_list es' in
      let expls'' = List.map expls' ~f:(Pdt.reduce Proof.equal) in
-     let aexpl = else_any (approx_eventually vars aexpl fobligs i h mformula) tp pol in
-     (expls'', aexpl, MEventually (i, mf', (buf', ntstps'), (meaux_pdt', h)))
+     let aexpl = else_any (approx_eventually vars aexpl fobligs i None) tp pol in
+     (expls'', aexpl, MEventually (i, mf', (buf', ntstps'), meaux_pdt'))
+  | MEEventually (i, mf, h) ->
+     let (expls, aexpl, mf') = meval vars ts tp db ~pol fobligs mf in
+     let aexpl = else_any (approx_eventually vars aexpl fobligs i (Some h)) tp pol in
+     ([aexpl], aexpl, MEEventually (i, mf, h))
   | MHistorically (i, mf, tstps, mhaux_pdt) ->
      let (expls, aexpl, mf') = meval vars ts tp db ~pol fobligs mf in
      let ((mhaux_pdt', expls'), buf', tstps') =
@@ -2042,7 +2099,7 @@ let rec meval vars ts tp (db: Db.t) ~pol (fobligs: FObligations.t) mformula =
      let expls'' = List.map expls' ~f:(Pdt.reduce Proof.equal) in
      let aexpl = else_any (approx_historically vars expls'' aexpl i) tp pol in
      (expls'', aexpl, MHistorically (i, mf', tstps', mhaux_pdt'))
-  | MAlways (i, mf, (buf, ntstps), (maaux_pdt, h)) ->
+  | MAlways (i, mf, (buf, ntstps), maaux_pdt) ->
      let (expls, aexpl, mf') = meval vars ts tp db ~pol fobligs mf in
      let (maaux_pdt', buf', ntstps') =
        Buft.take
@@ -2055,8 +2112,12 @@ let rec meval vars ts tp (db: Db.t) ~pol (fobligs: FObligations.t) mformula =
        Pdt.split_prod (Pdt.apply1 vars (fun aux -> Always.eval i nts ntp (aux, [])) maaux_pdt') in
      let expls' = Pdt.split_list es' in
      let expls'' = List.map expls' ~f:(Pdt.reduce Proof.equal) in
-     let aexpl = else_any (approx_always vars aexpl fobligs i h) tp pol in
-     (expls'', aexpl, MAlways (i, mf', (buf', ntstps'), (maaux_pdt', h)))
+     let aexpl = else_any (approx_always vars aexpl fobligs i None) tp pol in
+     (expls'', aexpl, MAlways (i, mf', (buf', ntstps'), maaux_pdt'))
+  | MEAlways (i, mf, h) ->
+     let (expls, aexpl, mf') = meval vars ts tp db ~pol fobligs mf in
+     let aexpl = else_any (approx_always vars aexpl fobligs i (Some h)) tp pol in
+     ([aexpl], aexpl, MEAlways (i, mf, h))
   | MSince (s, i, mf1, mf2, (buf2, tstps), msaux_pdt) ->
      let (expls1, aexpl1, mf1') = meval vars ts tp db ~pol fobligs mf1 in
      let (expls2, aexpl2, mf2') = meval vars ts tp db ~pol fobligs mf2 in
@@ -2071,7 +2132,7 @@ let rec meval vars ts tp (db: Db.t) ~pol (fobligs: FObligations.t) mformula =
      let expls'' = List.map expls' ~f:(Pdt.reduce Proof.equal) in
      let aexpl = else_any (approx_since vars expls'' aexpl1 aexpl2 i) tp pol in
      (expls'', aexpl, MSince (s, i, mf1', mf2', (buf2', tstps'), msaux_pdt'))
-  | MUntil (s, i, mf1, mf2, (buf2, ntstps), (muaux_pdt, h)) ->
+  | MUntil (i, mf1, mf2, (buf2, ntstps), muaux_pdt) ->
      let (expls1, aexpl1, mf1') = meval vars ts tp db ~pol fobligs mf1 in
      let (expls2, aexpl2, mf2') = meval vars ts tp db ~pol fobligs mf2 in
      let (muaux_pdt', (buf2', ntstps')) =
@@ -2086,8 +2147,13 @@ let rec meval vars ts tp (db: Db.t) ~pol (fobligs: FObligations.t) mformula =
        Pdt.split_prod (Pdt.apply1 vars (fun aux -> Until.eval i nts ntp (aux, [])) muaux_pdt') in
      let expls' = Pdt.split_list es' in
      let expls'' = List.map expls' ~f:(Pdt.reduce Proof.equal) in
-     let aexpl = else_any (approx_until vars expls'' aexpl1 aexpl2 fobligs i h) tp pol in
-     (expls'', aexpl, MUntil (s, i, mf1', mf2', (buf2', ntstps'), (muaux_pdt', h)))
+     let aexpl = else_any (approx_until vars aexpl1 aexpl2 fobligs i None) tp pol in
+     (expls'', aexpl, MUntil (i, mf1', mf2', (buf2', ntstps'), muaux_pdt'))
+  | MEUntil (s, i, mf1, mf2, h) ->
+     let (expls1, aexpl1, mf1') = meval vars ts tp db ~pol fobligs mf1 in
+     let (expls2, aexpl2, mf2') = meval vars ts tp db ~pol fobligs mf2 in
+     let aexpl = else_any (approx_until vars aexpl1 aexpl2 fobligs i (Some h)) tp pol in
+     ([aexpl], aexpl, MEUntil (s, i, mf1, mf2, h))
 
 module MState = struct
 
@@ -2178,7 +2244,7 @@ let exec mode measure f inc =
             let paths = Checker_interface.false_paths (Queue.to_list ms'.tsdbs) f (List.map tstp_expls ~f:snd) in
             Out.Plain.expls tstp_expls (Some(c)) (Some(paths)) None mode);
         if more then step (Some(pb)) ms') in
-  let mf = init f in
+  let mf = init (Tformula.of_formula f) in
   let ms = MState.init mf in
   step None ms
 
@@ -2200,7 +2266,7 @@ let exec_vis (obj_opt: MState.t option) f log =
            else raise (Failure "trace is not monotonic")))
     with Failure msg -> Some (Some(msg), ([], []), ms) in
   let ms = match obj_opt with
-    | None -> let mf = init f in
+    | None -> let mf = init (Tformula.of_formula f) in
               MState.init mf
     | Some (ms') -> { ms' with tp_cur = ms'.tp_out + (Queue.length ms'.ts_waiting) + 1 } in
   let str_dbs = List.map (List.filter (String.split log ~on:'@') ~f:(fun s -> not (String.is_empty s)))

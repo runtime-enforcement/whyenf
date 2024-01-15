@@ -57,6 +57,7 @@ module EState = struct
            ; r : Triple.t
            ; fobligs: FObligations.t
            ; nick: bool
+           ; vars: string list
            }
 
   let to_string { ms
@@ -80,7 +81,8 @@ module EState = struct
                      r = Triple.empty;
                      fobligs = Set.singleton (module FObligation)
                                  (FFormula (mf, -1), Base.Map.empty (module Base.String), POS);
-                     nick = false }
+                     nick = false;
+                     vars = Set.elements (MFormula.fv mf) }
 
   let update r es =
     { es with db      = Triple.update_db es.db r;
@@ -119,6 +121,7 @@ module EState = struct
   let exec_monitor v mf es =
     let vars = Set.elements (MFormula.fv mf) in
     let (_, aexpl, _) = mstep_state vars { es with ms = { es.ms with mf } } in
+    print_endline (Expl.to_string aexpl);
     aexpl
 
   let sat v mf es =
@@ -178,9 +181,9 @@ module EState = struct
     enfvio mf v es
 
   and enfsat (mf: MFormula.t) v es =
-    (*Stdio.printf "enfsat(mf=%s, op=%s, side=%s, v=%s, db=%s)\n" (MFormula.to_string mf)
+    Stdio.printf "enfsat(mf=%s, op=%s, side=%s, v=%s, db=%s)\n" (MFormula.to_string mf)
       (MFormula.op_to_string mf) (MFormula.side_to_string mf) (Etc.valuation_to_string v) (Db.to_string es.db);
-      Stdlib.flush_all ();*)
+      Stdlib.flush_all ();
     match mf with
     | MTT -> es
     | MPredicate (r, trms) ->
@@ -201,23 +204,23 @@ module EState = struct
                    (MImp (side1, mf2, mf1, empty_binop_info)) v) es
     | MExists (x, tt, mf) -> enfsat mf (Map.add_exn v ~key:x ~data:(Dom.tt_default tt)) es
     | MForall (x, tt, mf) -> fixpoint (enfsat_forall x mf v) es
-    | MNext (i, mf, bi, (_, h)) -> add_foblig (FInterval (es.ts, i, mf, h), v, POS) es
-    | MEventually (i, mf, bi, (ei, h)) ->
+    | MENext (i, mf, h) -> add_foblig (FInterval (es.ts, i, mf, h), v, POS) es
+    | MEEventually (i, mf, h) ->
        if Interval.equal i (Interval.singleton 0) && es.nick then
          enfsat mf v es
        else
          add_foblig (FEventually (es.ts, i, mf, h), v, POS) es
-    | MAlways (i, mf, bi, (ai, h)) ->
+    | MEAlways (i, mf, h) ->
        add_foblig (FAlways (es.ts, i, mf, h), v, POS) (enfsat mf v es)
     | MSince (_, _, mf1, mf2, _, _) -> enfsat mf2 v es
-    | MUntil (R, i, mf1, mf2, bi, (ui, h)) ->
+    | MEUntil (R, i, mf1, mf2, h) ->
        if Interval.equal i (Interval.singleton 0) && es.nick then
          add_cau Db.Event._tp (enfsat mf2 v es)
        else if not (sat v mf1 es) then
          enfsat mf2 v es
        else
          add_foblig (FUntil (es.ts, LR, i, mf1, mf2, h), v, POS) (enfsat mf1 v es)
-    | MUntil (LR, i, mf1, mf2, bi, (ui, h)) ->
+    | MEUntil (LR, i, mf1, mf2, h) ->
        if Interval.equal i (Interval.singleton 0) && es.nick then
          add_cau Db.Event._tp (enfsat mf2 v es)
        else
@@ -227,9 +230,9 @@ module EState = struct
     | _ -> raise (Invalid_argument ("function enfsat is not defined for "
                                      ^ MFormula.op_to_string mf))
   and enfvio (mf: MFormula.t) v es =
-    (*Stdio.printf "enfvio(mf=%s, op=%s, side=%s, v=%s, db=%s)\n" (MFormula.to_string mf)
+    Stdio.printf "enfvio(mf=%s, op=%s, side=%s, v=%s, db=%s)\n" (MFormula.to_string mf)
       (MFormula.op_to_string mf) (MFormula.side_to_string mf) (Etc.valuation_to_string v) (Db.to_string es.db);
-      Stdlib.flush_all ();*)
+      Stdlib.flush_all ();
     match mf with
     | MFF -> es
     | MPredicate (r, trms) ->
@@ -248,9 +251,9 @@ module EState = struct
     | MIff (R, _, mf1, mf2, _) -> fixpoint (enfvio_imp mf2 mf1 v) es
     | MExists (x, tt, mf) -> fixpoint (enfvio_exists x mf v) es
     | MForall (x, tt, mf) -> enfvio mf (Map.add_exn v ~key:x ~data:(Dom.tt_default tt)) es
-    | MNext (i, mf, b, (ti, h)) -> add_foblig (FInterval (es.ts, i, mf, h), v, NEG) es
-    | MEventually (i, mf, bi, (ei, h)) -> enfvio_eventually i h mf v es
-    | MAlways (i, mf, bi, (ai, h)) ->
+    | MENext (i, mf, h) -> add_foblig (FInterval (es.ts, i, mf, h), v, NEG) es
+    | MEEventually (i, mf, h) -> enfvio_eventually i h mf v es
+    | MEAlways (i, mf, h) ->
        if Interval.equal i (Interval.singleton 0) && es.nick then
          enfvio mf v es
        else
@@ -260,13 +263,13 @@ module EState = struct
        let f' = MNeg (MAnd (R, mf1, mf, empty_binop_info)) in
        fixpoint (enfsat_and f' (MNeg mf2) v) es
 
-    | MUntil (L, _, mf1, _, _, _) -> enfvio mf1 v es
-    | MUntil (R, i, mf1, mf2, bi, (ui, h)) -> fixpoint (enfvio_until i h mf1 mf2 v) es
+    | MEUntil (L, _, mf1, _, _) -> enfvio mf1 v es
+    | MEUntil (R, i, mf1, mf2, h) -> fixpoint (enfvio_until i h mf1 mf2 v) es
     | MAnd (LR, _, _, _)
       | MOr (LR, _, _, _)
       | MImp (LR, _, _, _)
       | MSince (LR, _, _, _, _, _)
-      | MUntil (LR, _, _, _, _, _) ->
+      | MEUntil (LR, _, _, _, _) ->
        raise (Invalid_argument ("side for " ^ MFormula.op_to_string mf ^ " was not fixed"))
     | _ -> raise (Invalid_argument ("function enfvio is not defined for "
                                     ^ MFormula.op_to_string mf))
@@ -311,6 +314,7 @@ let goal (es: EState.t) =
 let exec f inc =
   let reactive_step new_db es =
     let mf = goal es in
+    print_endline (MFormula.to_string mf);
     let vars = Set.elements (MFormula.fv mf) in
     let es = { es with ms      = { es.ms with tp_cur = es.tp };
                        r       = (Db.create [Db.Event._tp], Db.create [], FObligations.empty);
@@ -373,7 +377,7 @@ let exec f inc =
     try Typing.is_transparent tf
     with Invalid_argument s -> print_endline s; false in
   let f = Tformula.to_formula tf in
-  let mf = Monitor.MFormula.init f in
+  let mf = Monitor.MFormula.init tf in
   let ms = Monitor.MState.init mf in
   let es = EState.init ms mf in
   step true None es
@@ -381,12 +385,13 @@ let exec f inc =
 (*
 3: ok, right number of violations
 4: slow
-5: problem
+5: wrong behavior, should cause inform
 6: ok
-7: slow
-7_2, 7_3: ok → wrong number of violations?
+7: ok, but 3 found instead of 8
+7_2: slow
+7_3: ok
 8: ok
-9: problem
+9: ok
 
 
  *)
