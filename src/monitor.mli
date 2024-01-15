@@ -50,14 +50,15 @@ module MFormula : sig
 
   val init: Formula.t -> t
 
+  val rank: t -> int
+
   val apply_valuation : Etc.valuation -> t -> t
 
   val fv: t -> (String.t, Base.String.comparator_witness) Base.Set.t
-  val rank: t -> int
-  val rank_: t -> int
 
   val to_string: t -> string
   val op_to_string: t -> string
+  val side_to_string: t -> string
 
 end
 
@@ -91,7 +92,7 @@ module FObligations : sig
 
   val to_string: t -> string
   val empty: t
-  
+
 end
 
 

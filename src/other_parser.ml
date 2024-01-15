@@ -114,14 +114,21 @@ module Sig = struct
              end
     | _ -> Pred.EnfType.Obs
 
-  let rec parse_pred_sigs (pb: Parsebuf.t) rank =
+  let rec parse_pred_sigs (pb: Parsebuf.t) rank_ref =
     match pb.token with
     | EOF -> ()
     | STR s -> Parsebuf.next pb;
                let ntconsts = convert_types (parse_ntconst pb) in
                let enftype  = parse_enftype pb in
+               let rank = match enftype with
+                 | Pred.EnfType.Obs -> 0
+                 | _ -> rank_ref in
+               let next_rank_ref = if Int.equal rank 0 then
+                                     rank_ref + 1
+                                   else
+                                     rank_ref in
                Pred.Sig.add s ntconsts enftype rank;
-               parse_pred_sigs pb (rank+1)
+               parse_pred_sigs pb (next_rank_ref)
     | t -> raise (Failure ("unexpected character: " ^ string_of_token t))
 
   let parse_from_channel fn =
