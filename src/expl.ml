@@ -145,7 +145,7 @@ module Proof = struct
     | SHistorically of int * int * sp Fdeque.t
     | SHistoricallyOut of int
     | SAlways of int * int * sp Fdeque.t
-    | SAlwaysAssm of int * sp * Interval.t
+    | SAlwaysAssm of int * sp option * Interval.t
     | SSince of sp * sp Fdeque.t
     | SUntil of sp * sp Fdeque.t
     | SUntilAssm of int * sp * Interval.t
@@ -174,10 +174,10 @@ module Proof = struct
     | VOnceOut of int
     | VOnce of int * int * vp Fdeque.t
     | VEventually of int * int * vp Fdeque.t
-    | VEventuallyAssm of int * vp * Interval.t
+    | VEventuallyAssm of int * vp option * Interval.t
     | VHistorically of int * vp
     | VAlways of int * vp
-    | VAlwaysAssm of int * vp * Interval.t
+    | VAlwaysAssm of int * Interval.t
     | VAlwaysNow of vp * Interval.t
     | VSinceOut of int
     | VSince of int * vp * vp Fdeque.t
@@ -221,7 +221,8 @@ module Proof = struct
     | SAlways (tp, htp, sps), SAlways (tp', hi', sps') -> Int.equal tp tp' && Int.equal htp hi' &&
                                                             Int.equal (Fdeque.length sps) (Fdeque.length sps') &&
                                                               Etc.fdeque_for_all2_exn sps sps' ~f:(fun sp sp' -> s_equal sp sp')
-    | SAlwaysAssm (tp, sp, i), SAlwaysAssm (tp', sp', i') -> Int.equal tp tp' && s_equal sp sp' && Interval.equal i i'
+    | SAlwaysAssm (tp, Some sp, i), SAlwaysAssm (tp', Some sp', i') -> Int.equal tp tp' && s_equal sp sp' && Interval.equal i i'
+    | SAlwaysAssm (tp, None, i), SAlwaysAssm (tp', None, i') -> Int.equal tp tp' && Interval.equal i i'
     | SSince (sp2, sp1s), SSince (sp2', sp1s')
       | SUntil (sp2, sp1s), SUntil (sp2', sp1s') -> s_equal sp2 sp2' && Int.equal (Fdeque.length sp1s) (Fdeque.length sp1s') &&
                                                       Etc.fdeque_for_all2_exn sp1s sp1s' ~f:(fun sp1 sp1' -> s_equal sp1 sp1')
@@ -261,10 +262,11 @@ module Proof = struct
     | VEventually (tp, htp, vps), VEventually (tp', hi', vps') -> Int.equal tp tp' && Int.equal htp hi' &&
                                                                     Int.equal (Fdeque.length vps) (Fdeque.length vps') &&
                                                                       Etc.fdeque_for_all2_exn vps vps' ~f:(fun vp vp' -> v_equal vp vp')
-    | VEventuallyAssm (tp, vp, i), VEventuallyAssm (tp', vp', i') -> Int.equal tp tp' && v_equal vp vp' && Interval.equal i i'
+    | VEventuallyAssm (tp, Some vp, i), VEventuallyAssm (tp', Some vp', i') -> Int.equal tp tp' && v_equal vp vp' && Interval.equal i i'
+    | VEventuallyAssm (tp, None, i), VEventuallyAssm (tp', None, i') -> Int.equal tp tp' && Interval.equal i i'
     | VHistorically (tp, vp), VHistorically (tp', vp')
       | VAlways (tp, vp), VAlways (tp', vp') -> Int.equal tp tp'
-    | VAlwaysAssm (tp, vp, i), VAlwaysAssm (tp', vp', i') -> Int.equal tp tp' && v_equal vp vp' && Interval.equal i i'
+    | VAlwaysAssm (tp, i), VAlwaysAssm (tp', i') -> Int.equal tp tp' && Interval.equal i i'
     | VAlwaysNow (vp, i), VAlwaysNow (vp', i') -> v_equal vp vp' && Interval.equal i i'
     | VSince (tp, vp1, vp2s), VSince (tp', vp1', vp2s')
       | VUntil (tp, vp1, vp2s), VUntil (tp', vp1', vp2s') -> Int.equal tp tp' && v_equal vp1 vp1' &&
@@ -388,7 +390,7 @@ module Proof = struct
     | VEventuallyAssm (tp, _, _) -> tp
     | VHistorically (tp, _) -> tp
     | VAlways (tp, _) -> tp
-    | VAlwaysAssm (tp, _, _) -> tp
+    | VAlwaysAssm (tp, _) -> tp
     | VAlwaysNow (vp, _) -> v_at vp
     | VSinceOut tp -> tp
     | VSince (tp, _, _) -> tp
@@ -449,8 +451,10 @@ module Proof = struct
     | SHistoricallyOut i -> Printf.sprintf "%sSHistoricallyOut{%d}" indent' i
     | SAlways (_, _, sps) -> Printf.sprintf "%sSAlways{%d}\n%s" indent (s_at p)
                                (Etc.deque_to_string indent' s_to_string sps)
-    | SAlwaysAssm (tp, sp, i) -> Printf.sprintf "%sSAlwaysAssm{%d}{%s}\n%s" indent tp
-                                   (s_to_string indent' sp) (Interval.to_string i)
+    | SAlwaysAssm (tp, Some sp, i) -> Printf.sprintf "%sSAlwaysAssm{%d}{%s}\n%s" indent tp
+                                        (s_to_string indent' sp) (Interval.to_string i)
+    | SAlwaysAssm (tp, None, i) -> Printf.sprintf "%sSAlwaysAssm{%d}\n%s" indent tp
+                                     (Interval.to_string i)
     | SSince (sp2, sp1s) -> Printf.sprintf "%sSSince{%d}\n%s\n%s" indent (s_at p) (s_to_string indent' sp2)
                               (Etc.deque_to_string indent' s_to_string sp1s)
     | SUntil (sp2, sp1s) -> Printf.sprintf "%sSUntil{%d}\n%s\n%s" indent (s_at p)
@@ -489,12 +493,14 @@ module Proof = struct
                              (Etc.deque_to_string indent' v_to_string vps)
     | VEventually (_, _, vps) -> Printf.sprintf "%sVEventually{%d}\n%s" indent (v_at p)
                                    (Etc.deque_to_string indent' v_to_string vps)
-    | VEventuallyAssm (tp, vp, i) -> Printf.sprintf "%sVEventuallyAssm{%d}{%s}\n%s" indent' tp
-                                       (Interval.to_string i) (v_to_string indent' vp)
+    | VEventuallyAssm (tp, Some vp, i) -> Printf.sprintf "%sVEventuallyAssm{%d}{%s}\n%s" indent' tp
+                                            (Interval.to_string i) (v_to_string indent' vp)
+    | VEventuallyAssm (tp, None, i) -> Printf.sprintf "%sVEventuallyAssm{%d}\n%s" indent' tp
+                                       (Interval.to_string i)
     | VHistorically (_, vp) -> Printf.sprintf "%sVHistorically{%d}\n%s" indent (v_at p) (v_to_string indent' vp)
     | VAlways (_, vp) -> Printf.sprintf "%sVAlways{%d}\n%s" indent (v_at p) (v_to_string indent' vp)
-    | VAlwaysAssm (tp, vp, i) -> Printf.sprintf "%sVAlwaysAssm{%d}{%s}\n%s" indent' tp
-                                   (Interval.to_string i) (v_to_string indent' vp)
+    | VAlwaysAssm (tp, i) -> Printf.sprintf "%sVAlwaysAssm{%d}\n%s" indent' tp
+                               (Interval.to_string i)
     | VAlwaysNow (vp, i) -> Printf.sprintf "%sVAlwaysNow\n%s\n%s" indent
                               (Interval.to_string i) (v_to_string indent' vp)
     | VSinceOut i -> Printf.sprintf "%sVSinceOut{%d}" indent' i
@@ -955,6 +961,11 @@ module Pdt = struct
                    else apply2_reduce p_eq vars f (Node (x, part1)) (Node (y, part2))))
     | _ -> raise (Invalid_argument "variable list is empty")
 
+  let apply3_reduce p_eq vars f pdt1 pdt2 pdt3 =
+    let p_eq2 (a, b) (a', b') = a == a' && b == b' in
+    let pdt12 = apply2_reduce p_eq2 vars (fun a b -> (a, b)) pdt1 pdt2 in
+    apply2_reduce p_eq vars (fun (a, b) c -> f a b c) pdt12 pdt3
+
   let rec split_prod_reduce p_eq = function
     | Leaf (l1, l2) -> (Leaf l1, Leaf l2)
     | Node (x, part) -> let (part1, part2) = Part.split_prod_dedup (eq p_eq) (Part.map part (split_prod_reduce p_eq)) in
@@ -992,6 +1003,15 @@ module Pdt = struct
          ~init:(Setc.empty (module Dom)) ~f:Setc.union
     | Node (x', part) ->
        collect f v x (Part.find part (Map.find_exn v x'))
+
+  let rec from_valuation vars v p p' =
+    match vars with
+    | [] -> Leaf p
+    | var::vars when not (Map.mem v var) -> from_valuation vars v p p'
+    | var::vars -> let d = Map.find_exn v var in
+                   let rest = from_valuation vars v p p' in
+                   let part = Part.tabulate (Set.singleton (module Dom) d) (fun _ -> rest) (Leaf p') in
+                   Node (var, part)
 
 end
 

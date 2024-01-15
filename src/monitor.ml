@@ -328,6 +328,12 @@ module Once = struct
       let moaux_shifted = shift (l, r) a ts tp moaux_subps in
       (moaux_shifted, eval tp moaux_shifted)
 
+  (* Only used for approximation (enforcement related) *)
+  let do_once_base tp a (p: Proof.t) =
+    match p, Int.equal a 0 with
+    | S sp, true -> Expl.Proof.S (SOnce (tp, sp))
+    | _ -> Expl.Proof.V (VFF tp)
+  
 end
 
 
@@ -431,6 +437,15 @@ module Eventually = struct
                             (meaux', ops' @ [op])
                           else (meaux, ops)
 
+  let do_eventually_base tp i is_pos (p_next: Proof.t) (p_now: Proof.t) =
+    match p_next, p_now, Interval.left i, is_pos with
+    | _  , S sp_now, 0, true  -> Expl.Proof.S (SEventuallyNow (sp_now, i))
+    | S _, _       , a, true when not (Int.equal a 0) -> Expl.Proof.S (SEventuallyAssm (tp, i))
+    | _  , _       , _, true  -> Expl.Proof.V (VFF tp)
+    | V _, V vp_now, 0, false -> Expl.Proof.V (VEventuallyAssm (tp, Some vp_now, i))
+    | V _, _       , a, false when not (Int.equal a 0) -> Expl.Proof.V (VEventuallyAssm (tp, None, i))
+    | _  , _       , _, false -> Expl.Proof.S (STT tp)
+       
 end
 
 
@@ -537,6 +552,12 @@ module Historically = struct
       let mhaux_shifted = shift (l, r) a ts tp mhaux_subps in
       (mhaux_shifted, eval tp mhaux_shifted)
 
+  (* Only used for approximation (enforcement related) *)
+  let do_historically_base tp a (p: Proof.t) =
+    match p, Int.equal a 0 with
+    | V vp, true -> Expl.Proof.V (VHistorically (tp, vp))
+    | _ -> Expl.Proof.S (STT tp)
+
 end
 
 module Always = struct
@@ -638,6 +659,15 @@ module Always = struct
                             (maaux', ops' @ [op])
                           else (maaux, ops)
 
+  let do_always_base tp i is_pos (p_next: Proof.t) (p_now: Proof.t) =
+    match p_next, p_now, Interval.left i, is_pos with
+    | _  , V vp_now, 0, false -> Expl.Proof.V (VAlwaysNow (vp_now, i))
+    | V _, _       , a, false when not (Int.equal a 0) -> Expl.Proof.V (VAlwaysAssm (tp, i))
+    | _  , _       , _, false -> Expl.Proof.S (STT tp)
+    | S _, S sp_now, 0, true  -> Expl.Proof.S (SAlwaysAssm (tp, Some sp_now, i))
+    | S _, _       , a, true when not (Int.equal a 0) -> Expl.Proof.S (SAlwaysAssm (tp, None, i))
+    | _  , _       , _, true  -> Expl.Proof.V (VFF tp)
+  
 end
 
 module Since = struct
@@ -832,15 +862,12 @@ module Since = struct
        (msaux_shifted, eval tp msaux_shifted))
 
   (* Only used for approximation (enforcement related) *)
-  let do_since_base tp a (p1: Proof.t) (p2: Proof.t) =
-    match p1, p2, Int.equal a 0 with
-    | _    , S sp2, true  -> Expl.Proof.S (SSince (sp2, Fdeque.empty))
-    | S sp1, _    , false -> V (VSinceInf (tp, tp, Fdeque.empty))
-    | S _  , V vp2, true  -> V (VSinceInf (tp, tp, Fdeque.of_list [vp2]))
-    | V vp1, _    , false -> minp (V (VSince (tp, vp1, Fdeque.empty)))
-                               (V (VSinceInf (tp, tp, Fdeque.empty)))
-    | V vp1, V vp2, true  -> minp (V (VSince (tp, vp1, Fdeque.of_list [vp2])))
-                               (V (VSinceInf (tp, tp, Fdeque.of_list [vp2])))
+  let do_since_base tp a pol (p1: Proof.t) (p2: Proof.t) =
+    match p1, p2, pol with
+    | _    , S sp2, true when Int.equal a 0 -> Expl.Proof.S (SSince (sp2, Fdeque.empty))
+    | _    , _    , true -> Expl.Proof.V (VFF tp)
+    | V vp1, _    , false when not (Int.equal a 0) -> Expl.Proof.V (VSince (tp, vp1, Fdeque.empty))
+    | _    , _    , false -> Expl.Proof.S (STT tp)
 
 end
 
@@ -1170,6 +1197,16 @@ module Until = struct
                                      (muaux', ops' @ [op])
                                    else (muaux, ops))
 
+  (* Only used for approximation (enforcement related) *)
+  let do_until_base tp i pol (p_new1: Proof.t) (p_new2: Proof.t) (p_next: Proof.t) =
+    match p_new1, p_new2, p_next, pol with
+    | _    , S sp2, _  , true when Interval.mem 0 i -> Expl.Proof.S (SUntilNow (sp2, i))
+    | S sp1, _    , S _, true -> Expl.Proof.S (SUntilAssm (tp, sp1, i))
+    | _    , _    , _  , true -> Expl.Proof.V (VFF tp)
+    | V vp1, _    , V _, false -> Expl.Proof.V (VUntilAssm (tp, vp1, i))
+    | _    , V vp2, _  , false when Interval.mem 0 i -> Expl.Proof.V (VUntilNow (vp2, i))
+    | _    , _    , _  , false -> Expl.Proof.S (STT tp)
+
 end
 
 module Prev_Next = struct
@@ -1241,6 +1278,7 @@ module MFormula = struct
     | MAlways       of Interval.t * t * buft_info * always_info
     | MSince        of Formula.Side.t * Interval.t * t * t * buf2t_info * since_info
     | MUntil        of Formula.Side.t * Interval.t * t * t * buf2t_info * until_info
+  
 
   let _tp = MPredicate (Pred.tp_event_name, [])
 
@@ -1536,27 +1574,23 @@ module FObligation = struct
       kind_equal k k' && Map.equal Dom.equal v v' && polarity_equal pol pol'
 
 
-    let corresp_proof tp p_opt = function
+    let corresp_proof tp pol p_opt = function
       | FFormula _ -> Expl.Proof.S (Expl.Proof.SNextAssm tp)
-      | FInterval (_, i, _, _) -> (match Option.value_exn p_opt with
-                                   | Expl.Proof.S _ -> Expl.Proof.V (Expl.Proof.VNextAssm (tp, i))
-                                   | V _ -> Expl.Proof.S (Expl.Proof.SNextAssm tp))
-      | FUntil (_, _, i, _, _, _) -> (match Option.value_exn p_opt with
-                                      | Expl.Proof.S sp1 -> Expl.Proof.S (Expl.Proof.SUntilAssm (tp, sp1, i))
-                                      | V vp2 -> Expl.Proof.V (Expl.Proof.VUntilAssm (tp, vp2, i)))
-      | FEventually (_, i, _, _) -> (match p_opt with
-                                     | Some Expl.Proof.V vp -> Expl.Proof.V (Expl.Proof.VEventuallyAssm (tp, vp, i))
-                                     | _ -> Expl.Proof.S (Expl.Proof.SEventuallyAssm (tp, i)))
-      | FAlways (_, i, _, _) -> (match Option.value_exn p_opt with
-                                 | Expl.Proof.S sp -> Expl.Proof.S (Expl.Proof.SAlwaysAssm (tp, sp, i))
-                                 | V vp -> Expl.Proof.V (Expl.Proof.VAlwaysAssm (tp, vp, i)))
+      | FInterval (_, i, _, _) when pol == POS -> Expl.Proof.S (Expl.Proof.SNextAssm tp)
+      | FInterval (_, i, _, _) when pol == NEG -> Expl.Proof.V (Expl.Proof.VNextAssm (tp, i))
+      | FUntil (_, _, i, _, _, _) when pol == POS -> Expl.Proof.S (Expl.Proof.STT tp)
+      | FUntil (_, _, i, _, _, _) when pol == NEG -> Expl.Proof.V (Expl.Proof.VFF tp)
+      | FEventually (_, i, _, _) when pol == POS -> Expl.Proof.S (Expl.Proof.STT tp)
+      | FEventually (_, i, _, _) when pol == NEG -> Expl.Proof.V (Expl.Proof.VFF tp)
+      | FAlways (_, i, _, _) when pol == POS -> Expl.Proof.S (Expl.Proof.STT tp)
+      | FAlways (_, i, _, _) when pol == NEG -> Expl.Proof.V (Expl.Proof.VFF tp)
 
-    let eval_kind ts' tp k v = match k with
+    let eval_kind ts' tp k v f = match k with
       | FFormula (mf, _) -> mf
       | FInterval (ts, i, mf, h) ->
          if Interval.mem (ts' - ts) i then
            MUntil (R, Interval.sub2 i (ts' - ts), MNeg (_tp),
-                   MAnd (L, MFormula._tp, mf, empty_binop_info), (([], []), []), (Leaf (Until.init ()), h))
+                   MAnd (L, MFormula._tp, f mf, empty_binop_info), (([], []), []), (Leaf (Until.init ()), h))
          else
            MTT
       | FUntil (ts, side, i, mf1, mf2, h) ->
@@ -1568,8 +1602,8 @@ module FObligation = struct
              | MAnd (_, _tp, mf2, _) -> mf2
              | _ -> mf2 in
            MUntil (side, Interval.sub2 i (ts' - ts),
-                   (if MFormula.equal mf1' (MNeg _tp) then MNeg _tp else MImp (R, _tp, mf1', empty_binop_info)),
-                   MAnd (L, _tp, mf2', empty_binop_info), (([], []), []), (Leaf (Until.init ()), h))
+                   (if MFormula.equal mf1' (MNeg _tp) then MNeg _tp else MImp (R, _tp, f mf1', empty_binop_info)),
+                   MAnd (L, _tp, f mf2', empty_binop_info), (([], []), []), (Leaf (Until.init ()), h))
          else
            MFF
       | FAlways (ts, i, mf, h) ->
@@ -1577,7 +1611,7 @@ module FObligation = struct
            let mf' = match mf with
              | MImp (_, _tp, mf, _) -> mf
              | _ -> mf in
-           MAlways (Interval.sub2 i (ts' - ts), MImp (R, _tp, mf', empty_binop_info), ([], []),
+           MAlways (Interval.sub2 i (ts' - ts), MImp (R, _tp, f mf', empty_binop_info), ([], []),
                     (Leaf (Always.init ()), h))
          else
            MTT
@@ -1586,15 +1620,13 @@ module FObligation = struct
            let mf' = match mf with
              | MAnd (_, _tp, mf, _) -> mf
              | _ -> mf in
-           MEventually (Interval.sub2 i (ts' - ts), MAnd (L, _tp, mf', empty_binop_info), ([], []),
+           MEventually (Interval.sub2 i (ts' - ts), MAnd (L, _tp, f mf', empty_binop_info), ([], []),
                         (Leaf (Eventually.init ()), h))
          else
            MFF
 
-    let eval update_f db fobligs ts tp (k, v, pol) =
-      let mf = apply_valuation v (eval_kind ts tp k v) in
-      let vars = Set.elements (MFormula.fv mf) in
-      let mf = update_f vars ts db fobligs mf in
+    let eval ts tp f (k, v, pol) =
+      let mf = apply_valuation v (eval_kind ts tp k v f) in
       match pol with
       | POS -> mf
       | NEG -> MNeg mf
@@ -1740,172 +1772,155 @@ let rec pdt_of tp r trms (vars: string list) maps : Expl.t = match vars with
                   (fun d -> pdt_of tp r trms vars (find_maps d)) (pdt_of tp r trms vars []) in
      Node (x, part)
 
+let proof_false tp = function
+  | FObligation.POS -> Proof.V (VFF tp)
+  | NEG -> S (STT tp)
+ 
+let approx_false tp pol = Expl.Pdt.Leaf (proof_false tp pol)
+
+let approx_default expls tp pol =
+  match List.last expls with
+  | Some expl when Expl.at expl == tp -> expl
+  | _ -> approx_false tp pol
+
 let approx_quant aexpl pol vars tp x tc mf = match mf with
-  | MExists _ -> let f = Pdt.hide_reduce Proof.equal (vars @ [x])
-                           (fun p -> minp_list (do_exists_leaf x tc p))
-                           (fun p -> minp_list (do_exists_node x tc p)) in
-                 aexpl >>| f
-  | MForall _ -> let f = Pdt.hide_reduce Proof.equal (vars @ [x])
-                           (fun p -> minp_list (do_forall_leaf x tc p))
-                           (fun p -> minp_list (do_forall_node x tc p)) in
-                 aexpl >>| f
+  | MExists _ -> Pdt.hide_reduce Proof.equal (vars @ [x])
+                   (fun p -> minp_list (do_exists_leaf x tc p))
+                   (fun p -> minp_list (do_exists_node x tc p)) aexpl
+  | MForall _ -> Pdt.hide_reduce Proof.equal (vars @ [x])
+                   (fun p -> minp_list (do_forall_leaf x tc p))
+                   (fun p -> minp_list (do_forall_node x tc p)) aexpl
   | _ -> raise (Invalid_argument ("function is not defined for " ^ MFormula.op_to_string mf))
 
 let approx_expl1 aexpl vars tp mf = match mf with
-  | MNeg _ -> let f = Pdt.apply1_reduce Proof.equal vars (fun p -> do_neg p) in
-              aexpl >>| f
+  | MNeg _ -> Pdt.apply1_reduce Proof.equal vars (fun p -> do_neg p) aexpl
   | _ -> raise (Invalid_argument ("function is not defined for " ^ MFormula.op_to_string mf))
 
-let approx_expl2 aexpl1 aexpl2 pol vars tp mf = match mf with
-  | MAnd _ -> (let pol_neg = FObligation.polarity_equal pol FObligation.NEG in
-               let f = Pdt.apply2_reduce Proof.equal vars (fun p1 p2 -> minp_list (do_and p1 p2)) in
-               match aexpl1, aexpl2 with
-               | Some expl1, Some expl2     -> Some (f expl1 expl2)
-               | Some expl1, _ when pol_neg -> Some (f expl1 (Leaf (S (STT tp))))
-               | _, Some expl2 when pol_neg -> Some (f (Leaf (S (STT tp))) expl2)
-               | _, _ -> None)
-  | MOr _ -> (let pol_pos = FObligation.polarity_equal pol FObligation.POS in
-              let f = Pdt.apply2_reduce Proof.equal vars (fun p1 p2 -> minp_list (do_or p1 p2)) in
-              match aexpl1, aexpl2 with
-              | Some expl1, Some expl2     -> Some (f expl1 expl2)
-              | Some expl1, _ when pol_pos -> Some (f expl1 (Leaf (V (VFF tp))))
-              | _, Some expl2 when pol_pos -> Some (f (Leaf (V (VFF tp))) expl2)
-              | _, _ -> None)
-  | MImp _ -> (let pol_pos = FObligation.polarity_equal pol FObligation.POS in
-               let pol_neg = FObligation.polarity_equal pol FObligation.NEG in
-               let f = Pdt.apply2_reduce Proof.equal vars (fun p1 p2 -> minp_list (do_imp p1 p2)) in
-               match aexpl1, aexpl2 with
-               | Some expl1, Some expl2     -> Some (f expl1 expl2)
-               | Some expl1, _ when pol_neg -> Some (f expl1 (Leaf (V (VFF tp))))
-               | _, Some expl2 when pol_pos -> Some (f (Leaf (V (VFF tp))) expl2)
-               | _, _ -> None)
-  | MIff _ -> (let pol_neg = FObligation.polarity_equal pol FObligation.NEG in
-               let f = Pdt.apply2_reduce Proof.equal vars (fun p1 p2 -> do_iff p1 p2) in
-               match aexpl1, aexpl2 with
-               | Some expl1, Some expl2     -> Some (f expl1 expl2)
-               | Some expl1, _ when pol_neg -> Some (f expl1 (Leaf (V (VFF tp))))
-               | _, Some expl2 when pol_neg -> Some (f (Leaf (V (VFF tp))) expl2)
-               | _, _ -> None)
+let approx_expl2 aexpl1 aexpl2 vars tp mf =
+  match mf with
+  | MAnd _ -> Pdt.apply2_reduce Proof.equal vars (fun p1 p2 -> minp_list (do_and p1 p2)) aexpl1 aexpl2
+  | MOr _ -> Pdt.apply2_reduce Proof.equal vars (fun p1 p2 -> minp_list (do_or p1 p2)) aexpl1 aexpl2
+  | MImp _ -> Pdt.apply2_reduce Proof.equal vars (fun p1 p2 -> minp_list (do_imp p1 p2)) aexpl1 aexpl2
+  | MIff _ -> Pdt.apply2_reduce Proof.equal vars (fun p1 p2 -> do_iff p1 p2) aexpl1 aexpl2
   | _ -> raise (Invalid_argument ("function is not defined for " ^ MFormula.op_to_string mf))
 
-let approx_next tp pol (fobligs: FObligations.t) i mf =
-  Set.find_map fobligs ~f:(fun (k, v, pol') ->
-      match k with
-      | FInterval (_, i', mf', _) ->
-         if MFormula.equal mf mf' && Interval.equal i i' &&
-              FObligation.polarity_equal pol pol' then
-           let p = match pol with
-             | POS -> Expl.Proof.S (Expl.Proof.STT tp)
-             | NEG -> Expl.Proof.V (Expl.Proof.VFF tp) in
-           Some (Pdt.Leaf (FObligation.corresp_proof tp (Some p) k))
-         else None
-      | _ -> None)
+let rec do_ors vars tp = function
+  | [] -> Pdt.Leaf (Proof.V (VFF tp))
+  | [p] -> p
+  | p::ps -> Pdt.apply2_reduce Proof.equal vars (fun p1 p2 -> minp_list (do_or p1 p2)) p (do_ors vars tp ps)
 
-let approx_once_historically tp aexpl = function
-  | Some expl -> if Int.equal (Expl.at expl) tp then
-                   Some expl
-                 else aexpl >>| (Pdt.reduce Proof.equal)
-  | _ -> aexpl >>| (Pdt.reduce Proof.equal)
+let approx_next vars (fobligs: FObligations.t) i h mf tp pol =
+  let relevant_fobligs =
+    Set.elements (Set.filter fobligs ~f:(fun (k, v, pol') ->
+                      match k with
+                      | FInterval (_, _, _, h') -> h = h' && FObligation.polarity_equal pol pol'
+                      | _ -> false)) in
+  let f (k, v, _) =
+    let p = FObligation.corresp_proof tp pol None k in
+    let p' = proof_false tp pol in
+    Pdt.from_valuation vars v p p' in
+  let expls = List.map relevant_fobligs ~f in
+  do_ors vars tp expls
 
-let approx_eventually tp pol (fobligs: FObligations.t) mf i aexpl_pos aexpl_neg =
-  match aexpl_pos with
-  | Some expl_pos when Interval.mem 0 i && FObligation.polarity_equal pol POS -> Some expl_pos
-  | _ when not (Interval.is_zero i) && FObligation.polarity_equal pol NEG ->
-     (Set.find_map fobligs ~f:(fun (k, v, pol') ->
-          match k with
-          | FEventually (_, i', mf', _) ->
-             if MFormula.equal mf mf' && Interval.equal i i' &&
-                  FObligation.polarity_equal pol pol' then
-               let p_opt = match aexpl_neg with
-                 | Some expl_neg when Interval.mem 0 i -> let p = Pdt.specialize v expl_neg in
-                                                          if Proof.isV p then Some p else None
-                 | _ -> Some (Expl.Proof.V (Expl.Proof.VFF tp)) in
-               Some (Pdt.Leaf (FObligation.corresp_proof tp p_opt k))
-             else None
-          | _ -> None))
-  | _ -> None
+let approx_once vars expls aexpl i tp pol =
+  match List.last expls, pol with
+  | Some expl, _ when Expl.at expl == tp -> expl
+  | _, FObligation.POS ->
+     Pdt.apply1_reduce Proof.equal vars (Once.do_once_base tp (Interval.left i)) aexpl
+  | _, _ -> approx_false tp pol
 
-let approx_always tp pol (fobligs: FObligations.t) mf i h aexpl_pos aexpl_neg =
-  match aexpl_neg with
-  | Some expl_neg when Interval.mem 0 i && FObligation.polarity_equal pol NEG -> Some expl_neg
-  | _ when not (Interval.is_zero i) && FObligation.polarity_equal pol POS ->
-     (Set.find_map fobligs ~f:(fun (k, v, pol') ->
-          match k with
-          | FEventually (_, i', mf', h') ->
-             if h = h' && Interval.equal i i' && pol == pol' then
-               let p_opt = match aexpl_pos with
-                 | Some expl_pos when Interval.mem 0 i -> let p = Pdt.specialize v expl_pos in
-                                                          if Proof.isS p then Some p else None
-                 | _ -> Some (Expl.Proof.S (Expl.Proof.STT tp)) in
-               Some (Pdt.Leaf (FObligation.corresp_proof tp p_opt k))
-             else
-               None
-          | _ -> None))
-  | _ -> None
+let approx_historically vars expls aexpl i tp pol =
+  match List.last expls, pol with
+  | Some expl, _ when Expl.at expl == tp -> expl
+  | _, FObligation.NEG ->
+     Pdt.apply1_reduce Proof.equal vars (Historically.do_historically_base tp (Interval.left i)) aexpl
+  | _, _ -> approx_false tp pol
+    
+let approx_eventually vars aexpl (fobligs: FObligations.t) i h mf tp pol = 
+  let aexpl_new = aexpl in
+  let relevant_fobligs =
+    Set.elements (Set.filter fobligs ~f:(fun (k, v, pol') ->
+                      match k with
+                      | FEventually (_, _, _, h') -> h = h' && FObligation.polarity_equal pol pol'
+                      | _ -> false)) in
+  let f (k, v, _) =
+    let p = FObligation.corresp_proof tp pol None k in
+    let p' = proof_false tp pol in
+    Pdt.from_valuation vars v p p' in
+  let expls = List.map relevant_fobligs ~f in
+  let aexpl_next = do_ors vars tp expls in
+  Pdt.apply2_reduce Proof.equal vars
+    (fun p1 p2 -> Eventually.do_eventually_base tp i (pol == POS) p1 p2)
+    aexpl_new aexpl_next
 
-let approx_since tp pol vars a mf1 mf2 i aexpl1_neg aexpl2_pos expl_opt =
-  try let expl = Option.value_exn expl_opt in
-      assert (Int.equal (Expl.at expl) tp);
-      Some expl
-  with _ -> let f = Pdt.apply2_reduce Proof.equal vars (fun p1 p2 -> Since.do_since_base tp a p1 p2) in
-            match aexpl1_neg, aexpl2_pos with
-            | Some expl1_neg, Some expl2_pos ->
-               Some (f expl1_neg expl2_pos)
-            | _, Some expl2_pos when Interval.mem 0 i && FObligation.polarity_equal pol POS ->
-               Some (f (Leaf (V (VFF tp))) expl2_pos)
-            | Some expl1_neg, _ when not (Interval.mem 0 i) && FObligation.polarity_equal pol NEG ->
-               Some (f expl1_neg (Leaf (S (STT tp))))
+let approx_always vars aexpl (fobligs: FObligations.t) i h tp pol = 
+  let aexpl_new = aexpl in
+  let relevant_fobligs =
+    Set.elements (Set.filter fobligs ~f:(fun (k, v, pol') ->
+                      match k with
+                      | FAlways (_, _, _, h') -> h = h' && FObligation.polarity_equal pol pol'
+                      | _ -> false)) in
+  let f (k, v, _) =
+    let p = FObligation.corresp_proof tp pol None k in
+    let p' = proof_false tp pol in
+    Pdt.from_valuation vars v p p' in
+  let expls = List.map relevant_fobligs ~f in
+  let aexpl_next = do_ors vars tp expls in
+  Pdt.apply2_reduce Proof.equal vars
+    (fun p1 p2 -> Always.do_always_base tp i (pol == POS) p1 p2)
+    aexpl_new aexpl_next
 
+let approx_since vars expls aexpl1 aexpl2 i tp pol =
+  match List.last expls, pol with
+  | Some expl, _ when Expl.at expl == tp -> expl
+  | _ -> Pdt.apply2_reduce Proof.equal vars
+           (Since.do_since_base tp (Interval.left i) (pol == FObligation.POS)) aexpl1 aexpl2
 
-let approx_until tp pol (fobligs: FObligations.t) mf1 mf2 i aexpl1_pos aexpl1_neg aexpl2_pos aexpl2_neg =
-  match aexpl1_neg, aexpl2_pos with
-  | _, Some expl2_pos when Interval.mem 0 i && FObligation.polarity_equal pol POS ->
-     Some expl2_pos
-  | Some expl1_neg, _ when not (Interval.mem 0 i) && FObligation.polarity_equal pol NEG ->
-     Some expl1_neg
-  | _, _ -> (Set.find_map fobligs ~f:(fun (k, v, pol') ->
-                 match k with
-                 | FUntil (_, _, i', mf1', mf2', _) ->
-                    if MFormula.equal mf1 mf1' && MFormula.equal mf2 mf2' &&
-                         Interval.equal i i' && FObligation.polarity_equal pol pol' then
-                      let p_opt = match pol, aexpl1_pos, aexpl2_neg with
-                        | NEG, _, Some expl2_neg when Interval.mem 0 i ->
-                           let p = Pdt.specialize v expl2_neg in
-                           if Proof.isV p then Some p else None
-                        | NEG, _, _ -> Some (Expl.Proof.V (Expl.Proof.VFF tp))
-                        | POS, Some expl1_pos, _ when not (Interval.is_zero i) ->
-                           let p = Pdt.specialize v expl1_pos in
-                           if Proof.isS p then Some p else None
-                        | POS, _, _ -> None
-                      in
-                      Some (Pdt.Leaf (FObligation.corresp_proof tp p_opt k))
-                    else None
-                 | _ -> None))
-  | _ -> None
+let approx_until vars expls aexpl1 aexpl2 (fobligs: FObligations.t) i h tp pol =
+  let aexpl_new1 = aexpl1 in
+  let aexpl_new2 = aexpl2 in
+  let relevant_fobligs =
+    Set.elements (Set.filter fobligs ~f:(fun (k, v, pol') ->
+                      match k with
+                      | FUntil (_, s, _, _, _, h') -> h = h' && FObligation.polarity_equal pol pol'
+                      | _ -> false)) in
+  let f (k, v, _) =
+    let p = FObligation.corresp_proof tp pol None k in
+    let p' = proof_false tp pol in
+    Pdt.from_valuation vars v p p' in
+  let expls = List.map relevant_fobligs ~f in
+  let aexpl_next = do_ors vars tp expls in
+  Pdt.apply3_reduce Proof.equal vars
+    (fun p1 p2 p3 -> Until.do_until_base tp i (pol == POS) p1 p2 p3)
+    aexpl_new1 aexpl_new2 aexpl_next
 
-let rec meval vars ts tp (db: Db.t) ?pol:(pol=FObligation.POS) (fobligs: FObligations.t) mformula =
+let else_any f tp = function
+  | Some pol -> f tp pol
+  | None -> Pdt.Leaf (Expl.Proof.S (Proof.STT tp))
+
+let rec meval vars ts tp (db: Db.t) ~pol (fobligs: FObligations.t) mformula =
   (* fun f -> *)
-   print_endline (MFormula.to_string mformula ^ " pol=" ^ FObligation.polarity_to_string pol 
+  (*print_endline (MFormula.to_string mformula (*^ " pol=" ^ FObligation.polarity_to_string pol *)
                   ^ " db=[" ^ (Db.to_string db) ^ "] fobligs=[" ^ 
                     Etc.string_list_to_string (List.map (Set.elements fobligs) ~f:FObligation.to_string) 
-                    ^ "]\n\n");
+                    ^ "]\n\n");*)
   match mformula with
   | MTT -> let expl = Pdt.Leaf (Proof.S (STT tp)) in
-           ([expl], Some expl, MTT)
+           ([expl], expl, MTT)
   | MFF -> let expl = Pdt.Leaf (Proof.V (VFF tp)) in
-           ([expl], Some expl, MFF)
+           ([expl], expl, MFF)
   | MEqConst (x, d) ->
      let l1 = Pdt.Leaf (Proof.S (SEqConst (tp, x, d))) in
      let l2 = Pdt.Leaf (Proof.V (VEqConst (tp, x, d))) in
      let expl = Pdt.Node (x, [(Setc.Complement (Set.of_list (module Dom) [d]), l2);
                               (Setc.Finite (Set.of_list (module Dom) [d]), l1)]) in
-     ([expl], Some expl, MEqConst (x, d))
+     ([expl], expl, MEqConst (x, d))
   | MPredicate (r, trms) ->
      let db' = Set.filter db ~f:(fun evt -> String.equal r (fst(evt))) in
      if List.is_empty trms then
        (let expl = if Set.is_empty db' then Pdt.Leaf (Proof.V (VPred (tp, r, trms)))
                    else Leaf (S (SPred (tp, r, trms))) in
-        ([expl], Some(expl), MPredicate (r, trms)))
+        ([expl], expl, MPredicate (r, trms)))
      else
        let maps = Set.fold db' ~init:[] ~f:(fun acc evt -> match_terms trms (snd evt)
                                                              (Map.empty (module String)) :: acc) in
@@ -1916,19 +1931,19 @@ let rec meval vars ts tp (db: Db.t) ?pol:(pol=FObligation.POS) (fobligs: FObliga
        let fv = Set.elements (Formula.fv (Predicate (r, trms))) in
        let fv_vars = List.filter vars ~f:(fun var -> List.mem fv var ~equal:String.equal) in
        let expl = pdt_of tp r trms fv_vars maps' in
-       ([expl], Some(expl), MPredicate (r, trms))
+       ([expl], expl, MPredicate (r, trms))
   | MNeg (mf) ->
-     let (expls, aexpl, mf') = meval vars ts tp db fobligs ~pol:(FObligation.neg pol) mf in
+     let (expls, aexpl, mf') = meval vars ts tp db fobligs ~pol:(pol >>| FObligation.neg) mf in
      let f_expls = List.map expls ~f:(Pdt.apply1_reduce Proof.equal vars (fun p -> do_neg p)) in
-     let aexpl = approx_expl1 aexpl vars tp mformula in
-     (f_expls, aexpl, MNeg mf')
+     let f_aexpl = approx_expl1 aexpl vars tp mformula in
+     (f_expls, f_aexpl, MNeg mf')
   | MAnd (s, mf1, mf2, buf2) ->
      let (expls1, aexpl1, mf1') = meval vars ts tp db ~pol fobligs mf1 in
      let (expls2, aexpl2, mf2') = meval vars ts tp db ~pol fobligs mf2 in
      let (f_expls, buf2') = Buf2.take
                               (Pdt.apply2_reduce Proof.equal vars (fun p1 p2 -> minp_list (do_and p1 p2)))
                               (Buf2.add expls1 expls2 buf2) in
-     let aexpl = approx_expl2 aexpl1 aexpl2 pol vars tp mformula in
+     let aexpl = approx_expl2 aexpl1 aexpl2 vars tp mformula in
      (f_expls, aexpl, MAnd (s, mf1', mf2', buf2'))
   | MOr (s, mf1, mf2, buf2) ->
      let (expls1, aexpl1, mf1') = meval vars ts tp db ~pol fobligs mf1 in
@@ -1936,22 +1951,23 @@ let rec meval vars ts tp (db: Db.t) ?pol:(pol=FObligation.POS) (fobligs: FObliga
      let (f_expls, buf2') = Buf2.take
                               (Pdt.apply2_reduce Proof.equal vars (fun p1 p2 -> minp_list (do_or p1 p2)))
                               (Buf2.add expls1 expls2 buf2) in
-     let aexpl = approx_expl2 aexpl1 aexpl2 pol vars tp mformula in
+     let aexpl = approx_expl2 aexpl1 aexpl2 vars tp mformula in
      (f_expls, aexpl, MOr (s, mf1', mf2', buf2'))
   | MImp (s, mf1, mf2, buf2) ->
      (* Note: still not sure about this polarity change *)
-     let (expls1, aexpl1, mf1') = meval vars ts tp db ~pol:(FObligation.neg pol) fobligs mf1 in
+     let (expls1, aexpl1, mf1') = meval vars ts tp db ~pol:(pol >>| FObligation.neg) fobligs mf1 in
      let (expls2, aexpl2, mf2') = meval vars ts tp db ~pol fobligs mf2 in
      let f = Pdt.apply2_reduce Proof.equal vars (fun p1 p2 -> minp_list (do_imp p1 p2)) in
      let (f_expls, buf2') = Buf2.take f (Buf2.add expls1 expls2 buf2) in
-     let aexpl = approx_expl2 aexpl1 aexpl2 pol vars tp mformula in
+     let aexpl = approx_expl2 aexpl1 aexpl2 vars tp mformula in
      (f_expls, aexpl, MImp (s, mf1', mf2', buf2'))
   | MIff (s, t, mf1, mf2, buf2) ->
      let (expls1, _, mf1') = meval vars ts tp db ~pol fobligs mf1 in
      let (expls2, _, mf2') = meval vars ts tp db ~pol fobligs mf2 in
      let f = Pdt.apply2_reduce Proof.equal vars (fun p1 p2 -> do_iff p1 p2) in
      let (f_expls, buf2') = Buf2.take f (Buf2.add expls1 expls2 buf2) in
-     (f_expls, None, MIff (s, t, mf1', mf2', buf2'))
+     let aexpl = else_any (approx_default f_expls) tp pol in
+     (f_expls, aexpl, MIff (s, t, mf1', mf2', buf2'))
   | MExists (x, tc, mf) ->
      let (expls, aexpl, mf') = meval (vars @ [x]) ts tp db ~pol fobligs mf in
      let f_expls = List.map expls ~f:(Pdt.hide_reduce Proof.equal (vars @ [x])
@@ -1973,9 +1989,7 @@ let rec meval vars ts tp (db: Db.t) ?pol:(pol=FObligation.POS) (fobligs: FObliga
          (fun expl ts ts' -> Pdt.apply1_reduce Proof.equal vars
                                (fun p -> Prev_Next.update_eval Prev i p ts ts') expl)
          (buf @ expls, tss @ [ts]) in
-     let aexpl = if Int.equal (List.length tss') 1 then
-                   Some (List.last_exn f_expls)
-                 else None in
+     let aexpl = else_any (approx_default f_expls) tp pol in
      ((if first then (Leaf (V VPrev0) :: f_expls) else f_expls), aexpl, MPrev (i, mf', false, (buf', tss')))
   | MNext (i, mf, first, (tss, h)) ->
      let (expls, _, mf') = meval vars ts tp db ~pol fobligs mf in
@@ -1986,7 +2000,7 @@ let rec meval vars ts tp (db: Db.t) ?pol:(pol=FObligation.POS) (fobligs: FObliga
          (fun expl ts ts' -> Pdt.apply1_reduce Proof.equal vars
                                (fun p -> Prev_Next.update_eval Next i p ts ts') expl)
          (expls', tss @ [ts]) in
-     let aexpl = approx_next tp pol fobligs i mformula in
+     let aexpl = else_any (approx_next vars fobligs i h mformula) tp pol in
      (f_expls, aexpl, MNext (i, mf', first, (tss', h)))
   | MOnce (i, mf, tstps, moaux_pdt) ->
      let (expls, aexpl, mf') = meval vars ts tp db ~pol fobligs mf in
@@ -1998,11 +2012,10 @@ let rec meval vars ts tp (db: Db.t) ?pol:(pol=FObligation.POS) (fobligs: FObliga
            (aux_pdt', es @ (Pdt.split_list es')))
          (moaux_pdt, []) (expls, (tstps @ [(ts,tp)])) in
      let expls'' = List.map expls' ~f:(Pdt.reduce Proof.equal) in
-     let aexpl = approx_once_historically tp aexpl (List.last expls'') in
+     let aexpl = else_any (approx_once vars expls'' aexpl i) tp pol in
      (expls'', aexpl, MOnce (i, mf', tstps', moaux_pdt'))
   | MEventually (i, mf, (buf, ntstps), (meaux_pdt, h)) ->
-     let (expls, aexpl_pos, mf') = meval vars ts tp db ~pol fobligs mf in
-     let (_, aexpl_neg, _) = meval vars ts tp db ~pol:(FObligation.neg pol) fobligs mf in
+     let (expls, aexpl, mf') = meval vars ts tp db ~pol fobligs mf in
      let (meaux_pdt', buf', ntstps') =
        Buft.take
          (fun expl ts tp aux_pdt -> Pdt.apply2 vars (fun p aux -> Eventually.update i ts tp p aux) expl aux_pdt)
@@ -2014,7 +2027,7 @@ let rec meval vars ts tp (db: Db.t) ?pol:(pol=FObligation.POS) (fobligs: FObliga
        Pdt.split_prod (Pdt.apply1 vars (fun aux -> Eventually.eval i nts ntp (aux, [])) meaux_pdt') in
      let expls' = Pdt.split_list es' in
      let expls'' = List.map expls' ~f:(Pdt.reduce Proof.equal) in
-     let aexpl = approx_eventually tp pol fobligs mformula i aexpl_pos aexpl_neg in
+     let aexpl = else_any (approx_eventually vars aexpl fobligs i h mformula) tp pol in
      (expls'', aexpl, MEventually (i, mf', (buf', ntstps'), (meaux_pdt', h)))
   | MHistorically (i, mf, tstps, mhaux_pdt) ->
      let (expls, aexpl, mf') = meval vars ts tp db ~pol fobligs mf in
@@ -2027,11 +2040,10 @@ let rec meval vars ts tp (db: Db.t) ?pol:(pol=FObligation.POS) (fobligs: FObliga
            (aux_pdt', es @ (Pdt.split_list es')))
          (mhaux_pdt, []) (expls, (tstps @ [(ts,tp)])) in
      let expls'' = List.map expls' ~f:(Pdt.reduce Proof.equal) in
-     let aexpl = approx_once_historically tp aexpl (List.last expls'') in
+     let aexpl = else_any (approx_historically vars expls'' aexpl i) tp pol in
      (expls'', aexpl, MHistorically (i, mf', tstps', mhaux_pdt'))
   | MAlways (i, mf, (buf, ntstps), (maaux_pdt, h)) ->
-     let (expls, aexpl_pos, mf') = meval vars ts tp db ~pol fobligs mf in
-     let (_, aexpl_neg, _) = meval vars ts tp db ~pol:(FObligation.neg pol) fobligs mf in
+     let (expls, aexpl, mf') = meval vars ts tp db ~pol fobligs mf in
      let (maaux_pdt', buf', ntstps') =
        Buft.take
          (fun expl ts tp aux_pdt -> Pdt.apply2 vars (fun p aux -> Always.update i ts tp p aux) expl aux_pdt)
@@ -2043,10 +2055,10 @@ let rec meval vars ts tp (db: Db.t) ?pol:(pol=FObligation.POS) (fobligs: FObliga
        Pdt.split_prod (Pdt.apply1 vars (fun aux -> Always.eval i nts ntp (aux, [])) maaux_pdt') in
      let expls' = Pdt.split_list es' in
      let expls'' = List.map expls' ~f:(Pdt.reduce Proof.equal) in
-     let aexpl = approx_always tp pol fobligs mformula i h aexpl_pos aexpl_neg in
+     let aexpl = else_any (approx_always vars aexpl fobligs i h) tp pol in
      (expls'', aexpl, MAlways (i, mf', (buf', ntstps'), (maaux_pdt', h)))
   | MSince (s, i, mf1, mf2, (buf2, tstps), msaux_pdt) ->
-     let (expls1, aexpl1, mf1') = meval vars ts tp db ~pol:(FObligation.neg pol) fobligs mf1 in
+     let (expls1, aexpl1, mf1') = meval vars ts tp db ~pol fobligs mf1 in
      let (expls2, aexpl2, mf2') = meval vars ts tp db ~pol fobligs mf2 in
      let ((msaux_pdt', expls'), (buf2', tstps')) =
        Buf2t.take
@@ -2057,13 +2069,11 @@ let rec meval vars ts tp (db: Db.t) ?pol:(pol=FObligation.POS) (fobligs: FObliga
            (aux_pdt', es @ (Pdt.split_list es')))
          (msaux_pdt, []) (Buf2.add expls1 expls2 buf2) (tstps @ [(ts,tp)]) in
      let expls'' = List.map expls' ~f:(Pdt.reduce Proof.equal) in
-     let aexpl = approx_since tp pol vars (Interval.left i) aexpl1 aexpl2 (List.last expls'') in
+     let aexpl = else_any (approx_since vars expls'' aexpl1 aexpl2 i) tp pol in
      (expls'', aexpl, MSince (s, i, mf1', mf2', (buf2', tstps'), msaux_pdt'))
   | MUntil (s, i, mf1, mf2, (buf2, ntstps), (muaux_pdt, h)) ->
-     let (expls1, aexpl1_pos, mf1') = meval vars ts tp db ~pol fobligs mf1 in
-     let (_, aexpl1_neg, _) = meval vars ts tp db ~pol:(FObligation.neg pol) fobligs mf1 in
-     let (expls2, aexpl2_pos, mf2') = meval vars ts tp db ~pol fobligs mf2 in
-     let (_, aexpl2_neg, _) = meval vars ts tp db ~pol:(FObligation.neg pol) fobligs mf2 in
+     let (expls1, aexpl1, mf1') = meval vars ts tp db ~pol fobligs mf1 in
+     let (expls2, aexpl2, mf2') = meval vars ts tp db ~pol fobligs mf2 in
      let (muaux_pdt', (buf2', ntstps')) =
        Buf2t.take
          (fun expl1 expl2 ts tp aux_pdt ->
@@ -2076,7 +2086,7 @@ let rec meval vars ts tp (db: Db.t) ?pol:(pol=FObligation.POS) (fobligs: FObliga
        Pdt.split_prod (Pdt.apply1 vars (fun aux -> Until.eval i nts ntp (aux, [])) muaux_pdt') in
      let expls' = Pdt.split_list es' in
      let expls'' = List.map expls' ~f:(Pdt.reduce Proof.equal) in
-     let aexpl = approx_until tp pol fobligs mf1 mf2 i aexpl1_pos aexpl1_neg aexpl2_pos aexpl2_neg in
+     let aexpl = else_any (approx_until vars expls'' aexpl1 aexpl2 fobligs i h) tp pol in
      (expls'', aexpl, MUntil (s, i, mf1', mf2', (buf2', ntstps'), (muaux_pdt', h)))
 
 module MState = struct
@@ -2122,14 +2132,15 @@ module MState = struct
 
 end
 
-let mstep mode vars ts db (ms: MState.t) (fobligs: FObligations.t) =
-  let (expls, expl_opt, mf') = meval vars ts ms.tp_cur db fobligs ms.mf in
-  let tstps =
+let mstep mode vars ts db approx (ms: MState.t) (fobligs: FObligations.t) =
+  let pol_opt = if approx then Some FObligation.POS else None in
+  let (expls, aexpl, mf') = meval vars ts ms.tp_cur db pol_opt fobligs ms.mf in
+  let expls, tstps =
     match mode with
-    | Out.Plain.ENFORCE -> if expls == [] then [] else [(ms.tp_cur, ts)]
+    | Out.Plain.ENFORCE -> [aexpl], [(ms.tp_cur, ts)]
     | _ -> Queue.enqueue ms.ts_waiting ts;
-           List.zip_exn (List.take (Queue.to_list ms.ts_waiting) (List.length expls))
-             (List.range ms.tp_cur (ms.tp_cur + List.length expls)) in
+           expls, List.zip_exn (List.take (Queue.to_list ms.ts_waiting) (List.length expls))
+                    (List.range ms.tp_cur (ms.tp_cur + List.length expls)) in
   let tsdbs =
     match mode with
     | Out.Plain.VERIFIED
@@ -2140,7 +2151,7 @@ let mstep mode vars ts db (ms: MState.t) (fobligs: FObligations.t) =
     | Out.Plain.ENFORCE -> ms.ts_waiting
     | _ -> queue_drop ms.ts_waiting (List.length expls) in
   (List.zip_exn tstps expls,
-   expl_opt,
+   aexpl,
    { ms with
      mf = mf'
    ; tp_cur = ms.tp_cur + 1
@@ -2153,7 +2164,7 @@ let exec mode measure f inc =
     match Other_parser.Trace.parse_from_channel inc pb_opt with
     | None -> ()
     | Some (more, pb) ->
-       (let (tstp_expls, _, ms') = mstep mode vars pb.ts pb.db ms FObligations.empty in
+       (let (tstp_expls, _, ms') = mstep mode vars pb.ts pb.db false ms FObligations.empty in
         (match mode with
          | Out.Plain.UNVERIFIED -> Out.Plain.expls tstp_expls None None None mode
          | Out.Plain.LATEX -> Out.Plain.expls tstp_expls None None (Some(f)) mode
@@ -2180,7 +2191,7 @@ let exec_vis (obj_opt: MState.t option) f log =
        | Some (_, pb) ->
           (let last_ts = Hashtbl.fold ms.tpts ~init:0 ~f:(fun ~key:_ ~data:ts l_ts -> if ts > l_ts then ts else l_ts) in
            if pb.ts >= last_ts then
-             let (tstps_expls, _, ms') = mstep Out.Plain.UNVERIFIED vars pb.ts pb.db ms FObligations.empty in
+             let (tstps_expls, _, ms') = mstep Out.Plain.UNVERIFIED vars pb.ts pb.db false ms FObligations.empty in
              let tp_out' = List.fold tstps_expls ~init:ms'.tp_out
                              ~f:(fun acc ((ts, tp), _) -> Hashtbl.add_exn ms.tpts ~key:(acc + 1) ~data:ts; acc + 1) in
              let json_expls = Out.Json.expls ms.tpts f (List.map tstps_expls ~f:snd) in
