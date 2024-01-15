@@ -3,14 +3,14 @@ import numpy as np
 import time
 
 RAW = "raw.csv"
-OUTPUT = "case_study.log"
+OUTPUT = "arfelt.log"
 
 df = pd.read_csv(RAW, sep=";")
 log = []
 
 def ts(s):
     try:
-        return time.mktime(time.strptime(s[:-4], '%Y-%m-%d %H:%M:%S'))
+        return time.mktime(time.strptime(s[:-4], '%Y-%m-%d %H:%M:%S')) // 86400
     except Exception:
         return np.nan
 

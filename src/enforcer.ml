@@ -369,31 +369,34 @@ let exec f inc =
     else
       NoOrd, es
   in
-  let rec process_db (pb: Other_parser.Parsebuf.t) (es: EState.t) =
-    if Int.equal pb.ts es.ts then
-      match reactive_step pb.db es with
+  let rec process_db ts db (es: EState.t) =
+    if Int.equal ts (-1) && Set.is_empty es.fobligs then
+      es
+    else if Int.equal ts es.ts then
+      match reactive_step db es with
       | ReOrd (c, s) as o, es -> Order.print es.ts o; { es with tp = es.tp + 1 }
     else
       match proactive_step es with
       | PrOrd c as o, es -> Order.print es.ts o;
-                            process_db pb { es with tp = es.tp + 1; ts = es.ts + 1 }
+                            process_db ts db { es with tp = es.tp + 1; ts = es.ts + 1 }
       | NoOrd as o, es   -> Order.print es.ts o;
-                            process_db pb { es with ts = es.ts + 1 }
+                            process_db ts db { es with ts = es.ts + 1 }
   in
-  let rec step pb_opt es =
+  let rec step first pb_opt (es: EState.t) =
     match Other_parser.Trace.parse_from_channel inc pb_opt with
-    | None -> ()
+    | None -> ignore (process_db (-1) (Db.create []) es)
     | Some (more, pb) ->
        (*Stdio.printf "------------\n";
        Stdio.printf "Before: \n";
        Stdio.printf "%s" (EState.to_string es);
        Stdlib.flush_all ();*)
-       let es = process_db pb es in
+       let es = if first then { es with ts = pb.ts } else es in
+       let es = process_db pb.ts pb.db es in
        (*Stdio.printf "------------\n";
        Stdio.printf "After: \n";
        Stdio.printf "%s" (EState.to_string es);
        Stdlib.flush_all ();*)
-       if more then step (Some(pb)) es in
+       if more then step false (Some(pb)) es in
   let tf = try Typing.do_type f with Invalid_argument s -> failwith s in
   let transparent =
     try Typing.is_transparent tf
@@ -402,6 +405,6 @@ let exec f inc =
   let mf = Monitor.MFormula.init f in
   let ms = Monitor.MState.init mf in
   let es = EState.init ms mf in
-  step None es
+  step true None es
 
-       (*TODO: Sets of future obligations*)
+
