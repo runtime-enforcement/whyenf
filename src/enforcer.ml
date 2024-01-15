@@ -190,7 +190,6 @@ module EState = struct
     let es = add_foblig (FEventually (es.ts, i, mf, h), v, NEG) es in
     enfvio mf v es
 
-  (* TODO: Remove choices from enfsat/enfvio *)
   and enfsat (mf: MFormula.t) v es =
     Stdio.printf "enfsat(mf=%s, op=%s, side=%s, v=%s, db=%s)\n" (MFormula.to_string mf)
       (MFormula.op_to_string mf) (MFormula.side_to_string mf) (Etc.valuation_to_string v) (Db.to_string es.db);
