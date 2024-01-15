@@ -205,10 +205,6 @@ module EState = struct
     | MNeg mf -> enfvio mf v es
     | MAnd (L, mf1, mf2, _) -> fixpoint (enfsat_and mf1 mf2 v) es
     | MAnd (R, mf1, mf2, _) -> fixpoint (enfsat_and mf2 mf1 v) es
-    | MAnd (LR, mf1, mf2, _) -> if MFormula.rank mf1 < MFormula.rank mf2 then
-                                  fixpoint (enfsat_and mf1 mf2 v) es
-                                else
-                                  fixpoint (enfsat_and mf2 mf1 v) es
     | MOr (L, mf1, mf2, _) -> enfsat mf1 v es
     | MOr (R, mf1, mf2, _) -> enfsat mf2 v es
     | MImp (L, mf1, mf2, _) -> enfvio mf1 v es
@@ -240,6 +236,8 @@ module EState = struct
          add_cau Db.Event._tp (enfsat mf2 v es)
        else
          add_foblig (FUntil (es.ts, LR, i, mf1, mf2), v, POS) (enfsat mf1 v es)
+    | MAnd (LR, _, _, _) -> raise (Invalid_argument ("side for " ^
+                                                       MFormula.op_to_string mf ^ " was not fixed"))
     | _ -> raise (Invalid_argument ("function enfsat is not defined for "
                                      ^ MFormula.op_to_string mf))
   and enfvio (mf: MFormula.t) v es =
@@ -256,22 +254,10 @@ module EState = struct
     | MNeg mf -> enfsat mf v es
     | MAnd (L, mf1, _, _) -> enfvio mf1 v es
     | MAnd (R, _, mf2, _) -> enfvio mf2 v es
-    | MAnd (LR, mf1, mf2, _) -> if MFormula.rank mf1 < MFormula.rank mf2 then
-                                  enfvio mf1 v es
-                                else
-                                  enfvio mf2 v es
     | MOr (L, mf1, mf2, _) -> fixpoint (enfvio_or mf1 mf2 v) es
     | MOr (R, mf1, mf2, _) -> fixpoint (enfvio_or mf2 mf1 v) es
-    | MOr (LR, mf1, mf2, _) -> if MFormula.rank mf1 < MFormula.rank mf2 then
-                                 fixpoint (enfvio_or mf1 mf2 v) es
-                               else
-                                 fixpoint (enfvio_or mf2 mf1 v) es
     | MImp (L, mf1, mf2, _) -> fixpoint (enfvio_imp mf1 mf2 v) es
     | MImp (R, mf1, mf2, _) -> fixpoint (enfvio_imp mf2 mf1 v) es
-    | MImp (LR, mf1, mf2, _) -> if MFormula.rank mf1 < MFormula.rank mf2 then
-                                  fixpoint (enfvio_imp mf1 mf2 v) es
-                                else
-                                  fixpoint (enfvio_imp mf2 mf1 v) es
     | MIff (L, _, mf1, mf2, _) -> fixpoint (enfvio_imp mf1 mf2 v) es
     | MIff (R, _, mf1, mf2, _) -> fixpoint (enfvio_imp mf2 mf1 v) es
     | MExists (x, tt, mf) -> fixpoint (enfvio_exists x mf v) es
@@ -287,18 +273,15 @@ module EState = struct
     | MSince (R, i, mf1, mf2, _, _) ->
        let f' = MNeg (MAnd (R, mf1, mf, empty_binop_info)) in
        fixpoint (enfsat_and f' (MNeg mf2) v) es
-    | MSince (LR, i, mf1, mf2, _, _) -> if MFormula.rank mf1 < MFormula.rank mf2 then
-                                          let f' = MNeg (MAnd (LR, mf1, mf, empty_binop_info)) in
-                                          fixpoint (enfsat_and f' (MNeg mf2) v) es
-                                        else
-                                          let f' = MNeg (MAnd (LR, mf1, mf, empty_binop_info)) in
-                                          fixpoint (enfsat_and (MNeg mf2) f' v) es
+
     | MUntil (L, _, mf1, _, _, _) -> enfvio mf1 v es
     | MUntil (R, i, mf1, mf2, bi, ui) -> fixpoint (enfvio_until i mf1 mf2 v) es
-    | MUntil (LR, i, mf1, mf2, bi, ui) -> if MFormula.rank mf1 < MFormula.rank mf2 then
-                                            fixpoint (enfvio_until i mf1 mf2 v) es
-                                          else
-                                            fixpoint (enfvio_until i mf2 mf1 v) es
+    | MAnd (LR, _, _, _)
+      | MOr (LR, _, _, _)
+      | MImp (LR, _, _, _)
+      | MSince (LR, _, _, _, _, _)
+      | MUntil (LR, _, _, _, _, _) ->
+       raise (Invalid_argument ("side for " ^ MFormula.op_to_string mf ^ " was not fixed"))
     | _ -> raise (Invalid_argument ("function enfvio is not defined for "
                                     ^ MFormula.op_to_string mf))
 
