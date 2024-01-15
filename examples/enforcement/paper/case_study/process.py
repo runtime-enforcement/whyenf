@@ -73,7 +73,7 @@ for _, row in df.iterrows():
     now = row["Days"]
     id = row["ID"]
     if row["Title"] == "Godkendelse - videre til bestyrelsen":
-        line = f"@{now} ds_consent(\"{id}\", \"APPL\")"
+        line = f"@{now} ds_consent(\"{id}\", \"APPL\") collect(\"APPL\", \"{id}\", \"{id}\")" 
     elif row["Title"] == "Payment completed":
         line = f"@{now} delete(\"APPL\",\"{id}\",\"{id}\") delete(\"ACCOUNT\",\"{id}\",\"{id}\")"
     elif row["Title"] == "Godkend ansøgning":

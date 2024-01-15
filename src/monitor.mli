@@ -18,17 +18,13 @@ module MFormula : sig
   type tp_info
   type buft_info
   type once_info
-  type next_info'
-  type next_info = next_info' * int
-  type eventually_info'
-  type eventually_info = eventually_info' * int
+  type next_info
+  type eventually_info
   type historically_info
-  type always_info'
-  type always_info = always_info' * int
+  type always_info
   type buf2t_info
   type since_info
-  type until_info'
-  type until_info = until_info' * int
+  type until_info
 
   val empty_binop_info: binop_info
 
@@ -46,14 +42,18 @@ module MFormula : sig
     | MForall       of string * Dom.tt * t
     | MPrev         of Interval.t * t * bool * prev_info
     | MNext         of Interval.t * t * bool * next_info
+    | MENext        of Interval.t * t * int
     | MOnce         of Interval.t * t * tp_info * once_info
     | MEventually   of Interval.t * t * buft_info * eventually_info
+    | MEEventually  of Interval.t * t * int
     | MHistorically of Interval.t * t * tp_info * historically_info
     | MAlways       of Interval.t * t * buft_info * always_info
+    | MEAlways      of Interval.t * t * int
     | MSince        of Formula.Side.t * Interval.t * t * t * buf2t_info * since_info
-    | MUntil        of Formula.Side.t * Interval.t * t * t * buf2t_info * until_info
+    | MUntil        of Interval.t * t * t * buf2t_info * until_info
+    | MEUntil       of Formula.Side.t * Interval.t * t * t * int
 
-  val init: Formula.t -> t
+  val init: Tformula.t -> t
   val rank: t -> int
 
   val apply_valuation : Etc.valuation -> t -> t
