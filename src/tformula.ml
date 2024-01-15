@@ -1,6 +1,5 @@
 open Base
 open Pred
-
 open Formula
 
 type core_t =
@@ -49,16 +48,42 @@ let rec core_of_formula = function
 
 and of_formula f = { f = core_of_formula f; enftype = EnfType.Obs }
 
+let rec rank = function
+  | TTT | TFF -> 0
+  | TEqConst _ -> 0
+  | TPredicate (r, _) -> Pred.Sig.rank r
+  | TNeg f
+    | TExists (_, _, f)
+    | TForall (_, _, f)
+    | TPrev (_, f)
+    | TNext (_, f)
+    | TOnce (_, f)
+    | TEventually (_, f)
+    | THistorically (_, f)
+    | TAlways (_, f) -> rank f.f
+  | TAnd (_, f, g)
+    | TOr (_, f, g)
+    | TImp (_, f, g)
+    | TIff (_, _, f, g)
+    | TSince (_, _, f, g)
+    | TUntil (_, _, f, g) -> rank f.f + rank g.f
+
+let fix_side s f g =
+  match s with
+  | Side.LR -> if rank f < rank g then Side.L
+               else Side.R
+  | _ -> s
+
 let rec to_formula f = match f.f with
   | TTT -> TT
   | TFF -> FF
   | TEqConst (x, v) -> EqConst (x, v)
   | TPredicate (e, t) -> Predicate (e, t)
   | TNeg f -> Neg (to_formula f)
-  | TAnd (s, f, g) -> And (s, to_formula f, to_formula g)
-  | TOr (s, f, g) -> Or (s, to_formula f, to_formula g)
-  | TImp (s, f, g) -> Imp (s, to_formula f, to_formula g)
-  | TIff (s, t, f, g) -> Iff (s, t, to_formula f, to_formula g)
+  | TAnd (s, f, g) -> And (fix_side s f.f g.f, to_formula f, to_formula g)
+  | TOr (s, f, g) -> Or (fix_side s f.f g.f, to_formula f, to_formula g)
+  | TImp (s, f, g) -> Imp (fix_side s f.f g.f, to_formula f, to_formula g)
+  | TIff (s, t, f, g) -> Iff (fix_side s f.f g.f, fix_side t f.f g.f, to_formula f, to_formula g)
   | TExists (x, tt, f) -> Exists (x, tt, to_formula f)
   | TForall (x, tt, f) -> Forall (x, tt, to_formula f)
   | TPrev (i, f) -> Prev (i, to_formula f)
@@ -67,7 +92,7 @@ let rec to_formula f = match f.f with
   | TEventually (i, f) -> Eventually (i, to_formula f)
   | THistorically (i, f) -> Historically (i, to_formula f)
   | TAlways (i, f) -> Always (i, to_formula f)
-  | TSince (s, i, f, g) -> Since (s, i, to_formula f, to_formula g)
+  | TSince (s, i, f, g) -> Since (fix_side s f.f g.f, i, to_formula f, to_formula g)
   | TUntil (s, i, f, g) -> Until (s, i, to_formula f, to_formula g)
 
 let ttrue  = { f = TTT; enftype = Cau }
