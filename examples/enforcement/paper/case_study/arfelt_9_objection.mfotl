@@ -1,1 +1,1 @@
-use(data, dataid, dsid) → (¬ ds_object(dsid, data) S legal_grounds(dsid, data))
+□ (∀data. ∀dataid. ∀dsid. use(data, dataid, dsid) → ((¬ ds_object(dsid, data)) S legal_grounds(dsid, data)))

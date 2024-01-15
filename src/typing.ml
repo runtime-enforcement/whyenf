@@ -339,6 +339,8 @@ let rec convert enftype form : Tformula.t option =
   match f with Some f -> Some Tformula.{ f; enftype } | None -> None
 
 let do_type f =
+  if not (Set.is_empty (Formula.fv f)) then
+    ignore (raise (Invalid_argument (Printf.sprintf "formula %s is not closed" (Formula.to_string f))));
   match types Cau f with
   | Possible c ->
      begin
