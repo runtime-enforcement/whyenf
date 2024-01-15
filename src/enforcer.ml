@@ -275,15 +275,11 @@ module EState = struct
 
     | MUntil (L, _, mf1, _, _, _) -> enfvio mf1 v es
     | MUntil (R, i, mf1, mf2, bi, ui) -> fixpoint (enfvio_until i mf1 mf2 v) es
-    | MUntil (LR, i, mf1, mf2, bi, ui) ->
-       if Interval.equal i (Interval.singleton 0) && es.nick then
-         add_cau Db.Event._tp (enfsat mf2 v es)
-       else
-         add_foblig (FUntil (es.ts, LR, i, mf1, mf2), v, POS) (enfsat mf1 v es)
     | MAnd (LR, _, _, _)
       | MOr (LR, _, _, _)
       | MImp (LR, _, _, _)
-      | MSince (LR, _, _, _, _, _) ->
+      | MSince (LR, _, _, _, _, _)
+      | MUntil (LR, _, _, _, _, _) ->
        raise (Invalid_argument ("side for " ^ MFormula.op_to_string mf ^ " was not fixed"))
     | _ -> raise (Invalid_argument ("function enfvio is not defined for "
                                     ^ MFormula.op_to_string mf))
