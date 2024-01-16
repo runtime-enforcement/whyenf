@@ -82,7 +82,7 @@ module FObligation : sig
   type t = kind * Etc.valuation * polarity
 
   val equal: t -> t -> bool
-  val eval: int -> int ->  (MFormula.t -> MFormula.t) -> t -> MFormula.t
+  val eval: int -> int -> t -> MFormula.t
   val to_string: t -> string
 
   include Comparable.S with type t := t
