@@ -1637,11 +1637,11 @@ module FObligation = struct
       | FAlways (_, i, _, _) when pol == POS -> Expl.Proof.S (Expl.Proof.STT tp)
       | FAlways (_, i, _, _) when pol == NEG -> Expl.Proof.V (Expl.Proof.VFF tp)
 
-    let eval_kind ts' tp k v f = match k with
+    let eval_kind ts' tp k v = match k with
       | FFormula (mf, _) -> mf
       | FInterval (ts, i, mf, h) ->
          if Interval.mem (ts' - ts) i then
-           MEUntil (R, Interval.sub2 i (ts' - ts), MNeg (_tp), MAnd (L, MFormula._tp, f mf, empty_binop_info), h)
+           MEUntil (R, Interval.sub2 i (ts' - ts), MNeg (_tp), MAnd (L, MFormula._tp, mf, empty_binop_info), h)
          else
            MTT
       | FUntil (ts, side, i, mf1, mf2, h) ->
@@ -1653,8 +1653,8 @@ module FObligation = struct
              | MAnd (_, _tp, mf2, _) -> mf2
              | _ -> mf2 in
            MEUntil (side, Interval.sub2 i (ts' - ts), 
-                   (if MFormula.equal mf1' (MNeg _tp) then MNeg _tp else MImp (R, _tp, f mf1', empty_binop_info)),
-                   MAnd (L, _tp, f mf2', empty_binop_info), h)
+                   (if MFormula.equal mf1' (MNeg _tp) then MNeg _tp else MImp (R, _tp, mf1', empty_binop_info)),
+                   MAnd (L, _tp, mf2', empty_binop_info), h)
          else
            MFF
       | FAlways (ts, i, mf, h) ->
@@ -1662,7 +1662,7 @@ module FObligation = struct
            let mf' = match mf with
              | MImp (_, _tp, mf, _) -> mf
              | _ -> mf in
-           MEAlways (Interval.sub2 i (ts' - ts), MImp (R, _tp, f mf', empty_binop_info), h)
+           MEAlways (Interval.sub2 i (ts' - ts), MImp (R, _tp, mf', empty_binop_info), h)
          else
            MTT
       | FEventually (ts, i, mf, h) ->
@@ -1670,12 +1670,12 @@ module FObligation = struct
            let mf' = match mf with
              | MAnd (_, _tp, mf, _) -> mf
              | _ -> mf in
-           MEEventually (Interval.sub2 i (ts' - ts), MAnd (L, _tp, f mf', empty_binop_info), h)
+           MEEventually (Interval.sub2 i (ts' - ts), MAnd (L, _tp, mf', empty_binop_info), h)
          else
            MFF
 
-    let eval ts tp f (k, v, pol) =
-      let mf = apply_valuation v (eval_kind ts tp k v f) in
+    let eval ts tp (k, v, pol) =
+      let mf = apply_valuation v (eval_kind ts tp k v) in
       match pol with
       | POS -> mf
       | NEG -> MNeg mf

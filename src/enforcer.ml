@@ -301,8 +301,7 @@ module Order = struct
 end
 
 let goal (es: EState.t) =
-  let obligs = List.map (Set.elements es.fobligs)
-                 ~f:(FObligation.eval es.ts es.tp (fun mf -> mf)) in
+  let obligs = List.map (Set.elements es.fobligs) ~f:(FObligation.eval es.ts es.tp) in
   let mf = match obligs with
   | [] -> MFormula.MTT
   | init::rest -> List.fold_left rest ~init ~f:(fun mf mg -> MAnd (L, mf, mg, empty_binop_info)) in
@@ -386,7 +385,7 @@ let exec f inc =
 (*
 3: ok, right number of violations
 4: slow
-5: breaks
+5: ok
 6: ok
 7: ok, but 3 found instead of 8
 7_2: slow
