@@ -181,9 +181,9 @@ module EState = struct
     enfvio mf v es
 
   and enfsat (mf: MFormula.t) v es =
-    (* Stdio.printf "enfsat(mf=%s, op=%s, side=%s, v=%s, db=%s)\n" (MFormula.to_string mf) *)
-      (* (MFormula.op_to_string mf) (MFormula.side_to_string mf) (Etc.valuation_to_string v) (Db.to_string es.db); *)
-      Stdlib.flush_all ();
+    (*Stdio.printf "enfsat(mf=%s, op=%s, side=%s, v=%s, db=%s)\n" (MFormula.to_string mf)
+      (MFormula.op_to_string mf) (MFormula.side_to_string mf) (Etc.valuation_to_string v) (Db.to_string es.db);
+      Stdlib.flush_all ();*)
     match mf with
     | MTT -> es
     | MPredicate (r, trms) ->
@@ -230,9 +230,9 @@ module EState = struct
     | _ -> raise (Invalid_argument ("function enfsat is not defined for "
                                      ^ MFormula.op_to_string mf))
   and enfvio (mf: MFormula.t) v es =
-    (* Stdio.printf "enfvio(mf=%s, op=%s, side=%s, v=%s, db=%s)\n" (MFormula.to_string mf) *)
-    (*   (MFormula.op_to_string mf) (MFormula.side_to_string mf) (Etc.valuation_to_string v) (Db.to_string es.db); *)
-    (*   Stdlib.flush_all (); *)
+    (*Stdio.printf "enfvio(mf=%s, op=%s, side=%s, v=%s, db=%s)\n" (MFormula.to_string mf)
+      (MFormula.op_to_string mf) (MFormula.side_to_string mf) (Etc.valuation_to_string v) (Db.to_string es.db);
+      Stdlib.flush_all ();*)
     match mf with
     | MFF -> es
     | MPredicate (r, trms) ->
@@ -308,7 +308,7 @@ let goal (es: EState.t) =
   let vars = Set.elements (MFormula.fv mf) in
   match (mstep Out.Plain.ENFORCE vars es.ts es.db false { es.ms with mf } es.fobligs)
   with (_, _, ms) -> (*Stdio.printf "b\n"; Stdlib.flush_all (); *)ms.mf
-
+  
 
 (* (NOT-SO-URGENT) TODO: other execution mode with automatic timestamps; Pdts everywhere *)
 let exec f inc =
@@ -395,3 +395,5 @@ let exec f inc =
 
 
  *)
+
+
