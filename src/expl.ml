@@ -995,6 +995,11 @@ module Pdt = struct
     | Leaf l -> l
     | Node (x, part) -> specialize v (Part.find part (Map.find_exn v x))
 
+  let rec specialize_partial v = function
+    | Leaf l -> Leaf l 
+    | Node (x, part) when Map.mem v x -> specialize_partial v (Part.find part (Map.find_exn v x))
+    | Node (x, part) -> Node (x, Part.map part (specialize_partial v))
+
   let rec collect f v x = function
     | Leaf l when f l -> Setc.univ (module Dom)
     | Leaf l -> Setc.empty (module Dom)

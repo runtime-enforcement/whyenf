@@ -165,6 +165,7 @@ module Pdt : sig
 
   val replace_leaf: Etc.valuation -> 'a -> 'a t -> 'a t
   val specialize: Etc.valuation -> 'a t -> 'a
+  val specialize_partial: Etc.valuation -> 'a t -> 'a t
   val collect: ('a -> bool) -> Etc.valuation -> string -> 'a t -> (Dom.t, Dom.comparator_witness) Setc.t
   val from_valuation: string list -> Etc.valuation -> 'b -> 'b -> 'b t
 

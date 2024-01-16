@@ -118,25 +118,25 @@ module EState = struct
   let mstep_state vars es =
     mstep Out.Plain.ENFORCE vars es.ts es.db true es.ms es.fobligs
 
-  let exec_monitor v mf es =
+  let exec_monitor mf es =
     let vars = Set.elements (MFormula.fv mf) in
     let (_, aexpl, _) = mstep_state vars { es with ms = { es.ms with mf } } in
-    print_endline (Expl.to_string aexpl);
+    (*print_endline (Expl.to_string aexpl);*)
     aexpl
 
   let sat v mf es =
-    Expl.Proof.isS (Expl.Pdt.specialize v (exec_monitor v mf es))
+    Expl.Proof.isS (Expl.Pdt.specialize v (exec_monitor mf es))
 
   let vio v mf es =
     sat v (MNeg mf) es
 
   let all_not_sat v x mf es =
-    match Expl.Pdt.collect Expl.Proof.isV v x (exec_monitor v mf es) with
+    match Expl.Pdt.collect Expl.Proof.isV v x (exec_monitor mf es) with
     | Setc.Finite s -> Set.elements s
     | _ -> failwith ("Infinite set of candidates for " ^ x ^ " in " ^ MFormula.to_string mf)
 
   let all_not_vio v x mf es =
-    match Expl.Pdt.collect Expl.Proof.isS v x (exec_monitor v (MNeg mf) es) with
+    match Expl.Pdt.collect Expl.Proof.isS v x (exec_monitor (MNeg mf) es) with
     | Setc.Finite s -> Set.elements s
     | _ -> failwith ("Infinite set of candidates for " ^ x ^ " in " ^ MFormula.to_string mf)
 
@@ -181,9 +181,9 @@ module EState = struct
     enfvio mf v es
 
   and enfsat (mf: MFormula.t) v es =
-    Stdio.printf "enfsat(mf=%s, op=%s, side=%s, v=%s, db=%s)\n" (MFormula.to_string mf)
+    (*Stdio.printf "enfsat(mf=%s, op=%s, side=%s, v=%s, db=%s)\n" (MFormula.to_string mf)
       (MFormula.op_to_string mf) (MFormula.side_to_string mf) (Etc.valuation_to_string v) (Db.to_string es.db);
-      Stdlib.flush_all ();
+      Stdlib.flush_all ();*)
     match mf with
     | MTT -> es
     | MPredicate (r, trms) ->
@@ -230,9 +230,9 @@ module EState = struct
     | _ -> raise (Invalid_argument ("function enfsat is not defined for "
                                      ^ MFormula.op_to_string mf))
   and enfvio (mf: MFormula.t) v es =
-    Stdio.printf "enfvio(mf=%s, op=%s, side=%s, v=%s, db=%s)\n" (MFormula.to_string mf)
+    (*Stdio.printf "enfvio(mf=%s, op=%s, side=%s, v=%s, db=%s)\n" (MFormula.to_string mf)
       (MFormula.op_to_string mf) (MFormula.side_to_string mf) (Etc.valuation_to_string v) (Db.to_string es.db);
-      Stdlib.flush_all ();
+      Stdlib.flush_all ();*)
     match mf with
     | MFF -> es
     | MPredicate (r, trms) ->
@@ -302,19 +302,20 @@ end
 
 let goal (es: EState.t) =
   let obligs = List.map (Set.elements es.fobligs)
-                 ~f:(FObligation.eval es.ts es.tp (fun mf ->
-                         let vars = Set.elements (MFormula.fv mf) in
-                         match (mstep Out.Plain.ENFORCE vars es.ts es.db false { es.ms with mf } es.fobligs)
-                         with (_, _, ms) -> (*Stdio.printf "b\n"; Stdlib.flush_all (); *)ms.mf)) in
-  match obligs with
+                 ~f:(FObligation.eval es.ts es.tp (fun mf -> mf)) in
+  let mf = match obligs with
   | [] -> MFormula.MTT
-  | init::rest -> List.fold_left rest ~init ~f:(fun mf mg -> MAnd (L, mf, mg, empty_binop_info))
+  | init::rest -> List.fold_left rest ~init ~f:(fun mf mg -> MAnd (L, mf, mg, empty_binop_info)) in
+  let vars = Set.elements (MFormula.fv mf) in
+  match (mstep Out.Plain.ENFORCE vars es.ts es.db false { es.ms with mf } es.fobligs)
+  with (_, _, ms) -> (*Stdio.printf "b\n"; Stdlib.flush_all (); *)ms.mf
+  
 
 (* (NOT-SO-URGENT) TODO: other execution mode with automatic timestamps; Pdts everywhere *)
 let exec f inc =
   let reactive_step new_db es =
     let mf = goal es in
-    print_endline (MFormula.to_string mf);
+    (*print_endline (MFormula.to_string mf);*)
     let vars = Set.elements (MFormula.fv mf) in
     let es = { es with ms      = { es.ms with tp_cur = es.tp };
                        r       = (Db.create [Db.Event._tp], Db.create [], FObligations.empty);
@@ -339,10 +340,10 @@ let exec f inc =
       Order.NoOrd, es
   in
   let rec process_db ts db (es: EState.t) =
-    Stdio.printf "------------\n";
+    (*Stdio.printf "------------\n";
     Stdio.printf "Before: \n";
     Stdio.printf "%s" (EState.to_string es);
-    Stdlib.flush_all ();
+    Stdlib.flush_all ();*)
     if Int.equal ts (-1) && FObligations.accepts_empty es.fobligs then
       es
     else if Int.equal ts es.ts then
@@ -385,7 +386,7 @@ let exec f inc =
 (*
 3: ok, right number of violations
 4: slow
-5: wrong behavior, should cause inform
+5: breaks
 6: ok
 7: ok, but 3 found instead of 8
 7_2: slow
