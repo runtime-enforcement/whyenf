@@ -13,9 +13,12 @@ open Expl
 open Pred
 open Option
 
-let minp_list = Proof.Size.minp_list
-let minp_bool = Proof.Size.minp_bool
-let minp = Proof.Size.minp
+(* let minp_list = Proof.Size.minp_list *)
+(* let minp_bool = Proof.Size.minp_bool *)
+(* let minp = Proof.Size.minp *)
+let minp_list = List.hd_exn
+let minp_bool = fun p1 p2 -> true
+let minp = fun p1 p2 -> p1
 
 let s_append_deque sp1 d =
   Fdeque.map d ~f:(fun (ts, ssp) ->
@@ -442,7 +445,7 @@ module Eventually = struct
       | Some(ts', _) -> ts' in
     match p1 with
     | S sp1 -> if ts >= first_ts + a then
-                 { meaux with s_alphas_in = sorted_enqueue (ts, (S sp1)) meaux.s_alphas_in }
+                 { meaux with s_alphas_in = sorted_enqueue (ts, (Expl.Proof.S sp1)) meaux.s_alphas_in }
                else meaux
     | V vp1 -> if ts >= first_ts + a then
                  { meaux with v_alphas_in = Fdeque.enqueue_back meaux.v_alphas_in (ts, vp1) }
@@ -664,7 +667,7 @@ module Always = struct
       | Some(ts', _) -> ts' in
     match p1 with
     | V vp1 -> if ts >= first_ts + a then
-                 { maaux with v_alphas_in = sorted_enqueue (ts, (V vp1)) maaux.v_alphas_in }
+                 { maaux with v_alphas_in = sorted_enqueue (ts, (Proof.V vp1)) maaux.v_alphas_in }
                else maaux
     | S sp1 -> if ts >= (first_ts + a) then
                  { maaux with s_alphas_in = Fdeque.enqueue_back maaux.s_alphas_in (ts, sp1) }
@@ -820,11 +823,11 @@ module Since = struct
        { msaux with s_beta_alphas_in; s_beta_alphas_out; v_alphas_betas_out }
     | V vp1, S sp2 ->
        let s_beta_alphas_out = Fdeque.enqueue_back Fdeque.empty (ts, Proof.S (SSince (sp2, Fdeque.empty))) in
-       let v_alphas_out = sorted_enqueue (ts, (V vp1)) msaux.v_alphas_out in
+       let v_alphas_out = sorted_enqueue (ts, (Proof.V vp1)) msaux.v_alphas_out in
        let v_alphas_betas_out = Fdeque.enqueue_back msaux.v_alphas_betas_out (ts, Some(vp1), None) in
        { msaux with s_beta_alphas_in = Fdeque.empty; s_beta_alphas_out; v_alphas_out; v_alphas_betas_out }
     | V vp1, V vp2 ->
-       let v_alphas_out = sorted_enqueue (ts, (V vp1)) msaux.v_alphas_out in
+       let v_alphas_out = sorted_enqueue (ts, (Proof.V vp1)) msaux.v_alphas_out in
        let v_alphas_betas_out = Fdeque.enqueue_back msaux.v_alphas_betas_out (ts, Some(vp1), Some(vp2)) in
        { msaux with s_beta_alphas_in = Fdeque.empty; s_beta_alphas_out = Fdeque.empty; v_alphas_out; v_alphas_betas_out }
 
@@ -891,7 +894,7 @@ module Since = struct
        { msaux with s_beta_alphas_in; s_beta_alphas_out }
     | V vp1, S sp2 ->
        let s_beta_alphas_out = Fdeque.enqueue_back Fdeque.empty (ts, Proof.S (SSince (sp2, Fdeque.empty))) in
-       let v_alphas_out = sorted_enqueue (ts, (V vp1)) msaux.v_alphas_out in
+       let v_alphas_out = sorted_enqueue (ts, (Proof.V vp1)) msaux.v_alphas_out in
        { msaux with s_beta_alphas_in = Fdeque.empty; s_beta_alphas_out; v_alphas_out }
     | V vp1, V vp2 ->
        { msaux with s_beta_alphas_in = Fdeque.empty; s_beta_alphas_out = Fdeque.empty }
@@ -1094,7 +1097,7 @@ module Until = struct
        let (v_alphas_in, v_alphas_out) = if ts >= first_ts + a then
                                            (Fdeque.enqueue_back muaux.v_alphas_in (ts, Proof.V vp1),
                                             muaux.v_alphas_out)
-                                         else (muaux.v_alphas_in, sorted_enqueue (ts, V vp1) muaux.v_alphas_out) in
+                                         else (muaux.v_alphas_in, sorted_enqueue (ts, Proof.V vp1) muaux.v_alphas_out) in
        let v_betas_suffix_in = if ts >= first_ts + a then Fdeque.empty
                                else muaux.v_betas_suffix_in in
        { muaux with s_alphas_beta; v_betas_alpha; s_alphas_suffix; v_alphas_in; v_alphas_out; v_betas_suffix_in }
@@ -1116,7 +1119,7 @@ module Until = struct
        let (v_alphas_in, v_alphas_out) = if ts >= first_ts + a then
                                            (Fdeque.enqueue_back muaux.v_alphas_in (ts, Proof.V vp1),
                                             muaux.v_alphas_out)
-                                         else (muaux.v_alphas_in, sorted_enqueue (ts, V vp1) muaux.v_alphas_out) in
+                                         else (muaux.v_alphas_in, sorted_enqueue (ts, Proof.V vp1) muaux.v_alphas_out) in
        { muaux with s_alphas_beta; s_alphas_suffix; v_betas_suffix_in; v_betas_alpha; v_alphas_in; v_alphas_out }
 
   let drop_tp tp s_alphas_beta =
