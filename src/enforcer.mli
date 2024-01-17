@@ -8,4 +8,4 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
-val exec: Formula.t -> in_channel -> unit
+val exec: Formula.t -> in_channel -> int -> unit

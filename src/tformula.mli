@@ -18,11 +18,11 @@ type core_t =
   | TPrev of Interval.t * t
   | TNext of Interval.t * t
   | TOnce of Interval.t * t
-  | TEventually of Interval.t * t
+  | TEventually of Interval.t * bool * t
   | THistorically of Interval.t * t
-  | TAlways of Interval.t * t
+  | TAlways of Interval.t * bool * t
   | TSince of Side.t * Interval.t * t * t
-  | TUntil of Side.t * Interval.t * t * t
+  | TUntil of Side.t * Interval.t * bool * t * t
 
 and t = { f: core_t; enftype: EnfType.t }
 

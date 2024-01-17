@@ -27,6 +27,7 @@ val is_zero: t -> bool
 val full: t
 
 val is_bounded_exn: string -> t -> unit
+val is_bounded: t -> bool
 
 val sub: t -> int -> t
 val sub2: t -> int -> t

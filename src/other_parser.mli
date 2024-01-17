@@ -10,6 +10,20 @@
 
 open Base
 
+module Stats : sig
+
+  type t = { mutable ev_done: int
+           ; mutable tp_done: int
+           ; mutable ev_cau: int
+           ; mutable ev_sup: int
+           ; mutable tp_ins: int
+           }
+
+  val add_cau : int -> ?ins:bool -> t -> unit
+  val add_sup : int -> t -> unit
+
+end
+
 module Parsebuf : sig
 
   type t = { lexbuf: Lexing.lexbuf
@@ -17,8 +31,8 @@ module Parsebuf : sig
            ; mutable pred_sig: Pred.Sig.t option
            ; mutable ts: int
            ; mutable db: Db.t
-           ; mutable tp_done: int
-           ; mutable ev_done: int }
+           ; stats: Stats.t
+           }
 
 end
 

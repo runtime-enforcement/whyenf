@@ -311,7 +311,7 @@ let goal (es: EState.t) =
   
 
 (* (NOT-SO-URGENT) TODO: other execution mode with automatic timestamps; Pdts everywhere *)
-let exec f inc =
+let exec f inc b =
   let reactive_step new_db es =
     let mf = goal es in
     (*print_endline (MFormula.to_string mf);*)
@@ -347,10 +347,14 @@ let exec f inc =
       es
     else if Int.equal pb.ts es.ts then
       match reactive_step pb.db es with
-      | ReOrd (c, s) as o, es -> Order.print es.ts o; { es with tp = es.tp + 1 }
+      | ReOrd (c, s) as o, es -> Other_parser.Stats.add_cau (Db.size c) pb.stats;
+                                 Other_parser.Stats.add_sup (Db.size s) pb.stats;
+                                 Order.print es.ts o;
+                                 { es with tp = es.tp + 1 }
     else
       match proactive_step es with
-      | PrOrd c as o, es -> Order.print es.ts o;
+      | PrOrd c as o, es -> Other_parser.Stats.add_cau ~ins:true (Db.size c) pb.stats;
+                            Order.print es.ts o;
                             process_db pb { es with tp = es.tp + 1; ts = es.ts + 1 }
       | NoOrd as o, es   -> Order.print es.ts o;
                             process_db pb { es with ts = es.ts + 1 }
@@ -375,7 +379,7 @@ let exec f inc =
        Stdio.printf "%s" (EState.to_string es);
        Stdlib.flush_all ();*)
        if more then step false (Some(pb)) es else conclude pb in
-  let tf = try Typing.do_type f with Invalid_argument s -> failwith s in
+  let tf = try Typing.do_type f b with Invalid_argument s -> failwith s in
   let transparent =
     try Typing.is_transparent tf
     with Invalid_argument s -> print_endline s; false in

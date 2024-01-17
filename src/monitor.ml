@@ -1408,24 +1408,24 @@ module MFormula = struct
        let h, mf = aux h f in h, MNext (i, mf, true, [])
     | TNext (i, f) -> let h, mf = aux h f in h+1, MENext (i, mf, h)
     | TOnce (i, f) -> let h, mf = aux h f in h, MOnce (i, mf, [], (Leaf (Once.init ()), Leaf (EOnce.init ())))
-    | TEventually (i, f) when tf.enftype == EnfType.Obs ->
+    | TEventually (i, _, f) when tf.enftype == EnfType.Obs ->
        let h, mf = aux h f in h, MEventually (i, mf, ([], []), Leaf (Eventually.init ()))
-    | TEventually (i, f) ->
+    | TEventually (i, _, f) ->
        let h, mf = aux h f in h+1, MEEventually (i, mf, h)
     | THistorically (i, f) ->
        let h, mf = aux h f in h, MHistorically (i, mf, [], Leaf (Historically.init ()))
-    | TAlways (i, f) when tf.enftype == EnfType.Obs ->
+    | TAlways (i, _, f) when tf.enftype == EnfType.Obs ->
        let h, mf = aux h f in h, MAlways (i, mf, ([], []), Leaf (Always.init ()))
-    | TAlways (i, f) -> let h, mf = aux h f in h+1, MEAlways (i, mf, h)
+    | TAlways (i, _, f) -> let h, mf = aux h f in h+1, MEAlways (i, mf, h)
     | TSince (s, i, f, g) ->
        let h, mf = aux h f in
        let h, mg = aux h g in
        h, MSince (s, i, mf, mg, (([], []), []), Leaf (Since.init ()))
-    | TUntil (s, i, f, g) when tf.enftype == EnfType.Obs ->
+    | TUntil (s, i, _, f, g) when tf.enftype == EnfType.Obs ->
        let h, mf = aux h f in
        let h, mg = aux h g in
        h, MUntil (i, mf, mg, (([], []), []), Leaf (Until.init ()))
-    | TUntil (s, i, f, g) ->
+    | TUntil (s, i, _, f, g) ->
        let h, mf = aux h f in
        let h, mg = aux h g in
        h+1, MEUntil (s, i, mf, mg, h)

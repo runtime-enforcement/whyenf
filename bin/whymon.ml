@@ -20,12 +20,13 @@ module Whymon = struct
   let formula_ref = ref None
   let sig_ref = ref In_channel.stdin
   let logstr_ref = ref ""
+  let b_ref = ref 0
 
   let n_args = ref 0
 
   let usage () =
     Caml.Format.eprintf
-      "usage: ./whymon.exe [-mode] [-measure] [-sig] [-formula] [-log] [-out]
+      "usage: ./whymon.exe [-mode] [-measure] [-sig] [-formula] [-log] [-out] [-b]
        arguments:
        \t -mode
        \t\t unverified         - (default)
@@ -40,7 +41,8 @@ module Whymon = struct
        \t -log
        \t\t <file>             - specify log file as trace (default: stdin)
        \t -out
-       \t\t <file>             - output file (default: stdout)\n%!";
+       \t\t <file>             - output file (default: stdout)
+       \t -b int               - default bound for future operators (default: 0)\n%!";
     exit 0
 
   let mode_error () =
@@ -50,6 +52,10 @@ module Whymon = struct
   let measure_error () =
     Caml.Format.eprintf "measures: size and none\n%!";
     raise (Invalid_argument "undefined measure")
+
+  let bound_error () =
+    Caml.Format.eprintf "b: any integer\n%!";
+    raise (Invalid_argument "invalid default bound")
 
   let process_args =
     let rec process_args_rec = function
@@ -93,6 +99,11 @@ module Whymon = struct
       | ("-out" :: outf :: args) ->
          Etc.outc_ref := Out_channel.create outf;
          process_args_rec args
+      | ("-b" :: bound :: args) ->
+         (match int_of_string_opt bound with
+          | None -> bound_error ()
+          | Some b -> b_ref := b);
+         process_args_rec args
       | [] -> if !n_args >= 2 then () else usage ()
       | _ -> usage () in
     process_args_rec
@@ -103,7 +114,7 @@ module Whymon = struct
       let formula = Option.value_exn !formula_ref in
       match !mode_ref with
       | Out.Plain.DEBUGVIS -> let _ = Monitor.exec_vis None formula !logstr_ref in ()
-      | Out.Plain.ENFORCE -> let _ = Enforcer.exec formula !Etc.inc_ref in ()
+      | Out.Plain.ENFORCE -> let _ = Enforcer.exec formula !Etc.inc_ref !b_ref in ()
       | _ -> Monitor.exec !mode_ref !measure_ref formula !Etc.inc_ref
     with End_of_file -> Out_channel.close !Etc.outc_ref; exit 0
 

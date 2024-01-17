@@ -23,6 +23,48 @@ let string_of_token (t: Other_lexer.token) =
   | EOF -> "<EOF>"
 
 
+module Stats = struct
+
+  type t = { mutable ev_done: int
+           ; mutable tp_done: int
+           ; mutable ev_cau: int
+           ; mutable ev_sup: int
+           ; mutable tp_ins: int
+           }
+
+  let init () = { ev_done = 0
+                ; tp_done = 0
+                ; ev_cau = 0
+                ; ev_sup = 0
+                ; tp_ins = 0
+                }
+
+  let reset stats =
+    stats.ev_done <- 0;
+    stats.tp_done <- 0;
+    stats.ev_cau <- 0;
+    stats.ev_sup <- 0;
+    stats.tp_ins <- 0
+
+  let inc_ev stats =
+    stats.ev_done <- stats.ev_done + 1
+
+  let inc_tp stats =
+    stats.tp_done <- stats.tp_done + 1
+
+  let add_cau i ?(ins=false) stats =
+    stats.ev_cau <- stats.ev_cau + i;
+    if ins then stats.tp_ins <- stats.tp_ins + 1
+
+  let add_sup i stats =
+    stats.ev_sup <- stats.ev_sup + i
+
+  let to_string stats =
+    Printf.sprintf "%d %d %d %d %d"
+      stats.ev_done stats.tp_done stats.ev_cau stats.ev_sup stats.tp_ins
+
+end
+
 module Parsebuf = struct
 
   type t = { lexbuf: Lexing.lexbuf
@@ -30,9 +72,7 @@ module Parsebuf = struct
            ; mutable pred_sig: Pred.Sig.t option
            ; mutable ts: int
            ; mutable db: Db.t
-           ; mutable ev_done: int
-           ; mutable ev_cau: int
-           ; mutable ev_sup: int
+           ; stats: Stats.t
            }
 
   let init lexbuf = { lexbuf = lexbuf
@@ -40,18 +80,12 @@ module Parsebuf = struct
                     ; pred_sig = None
                     ; ts = -1
                     ; db = Db.create []
-                    ; ev_done = 0
-                    ; tp_done = 0
-                    ; ev_cau = 0
-                    ; ev_sup = 0 
-                    ; tp_ins = 0 }
+                    ; stats = Stats.init ()
+                    }
 
   let next pb = pb.token <- Other_lexer.token pb.lexbuf
 
-  let reset_stats pb =
-    pb.ev_done <- 0;
-    pb.ev_cau <- 0;
-    pb.ev_sup <- 0
+  let reset_stats pb = Stats.reset pb.stats
 
   let arity pb = (snd (Option.value_exn pb.pred_sig)).arity
 
@@ -63,12 +97,15 @@ module Parsebuf = struct
 
   let add_event evt pb =
     pb.db <- Db.add_event pb.db evt;
-    pb.ev_done <- pb.ev_done + 1
+    Stats.inc_ev pb.stats
+
+  let count_tp pb =
+    Stats.inc_tp pb.stats
 
   let clear pb = pb
 
   let print_stats comment pb = 
-    Stdio.printf ">%s %d %d %d %d <\n" comment pb.ev_done pb.ev_cau pb.ev_sup
+    Stdio.printf ">%s %s %d <\n" comment (Stats.to_string pb.stats)
       (int_of_float (1000. *. Unix.gettimeofday ()));
     reset_stats pb
 
@@ -196,6 +233,7 @@ module Trace = struct
                   | None -> raise (Failure ("expected a time-stamp but found " ^ s)))
       | t -> raise (Failure ("expected a time-stamp but found " ^ string_of_token t))
     and parse_db () =
+      Parsebuf.count_tp pb;
       match pb.token with
       | STR s -> (match Hashtbl.find Pred.Sig.table s with
                   | Some props -> (pb.pred_sig <- Some(s, props);
