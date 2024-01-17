@@ -230,6 +230,37 @@ module Buf2t = struct
 
 end
 
+module EOnce = struct
+
+  type t = { ts_s: timestamp option
+           ; alphas: (timestamp * Proof.t) Fdeque.t }
+
+  let init () = { ts_s = None
+                ; alphas = Fdeque.empty }
+
+  let to_string { ts_s; alphas } =
+    "\n\nEOnce state: " ^
+      "\nts_s = " ^ (Int.to_string (Option.value ts_s ~default:(-1))) ^
+        Fdeque.fold alphas ~init:"\nalphas = " ~f:(fun acc (ts, p) ->
+            acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p)
+
+  let update i ts tp (p: Proof.t) emoaux =
+    let a = Interval.left i in
+    let r = ts - a in
+    let b = Interval.right i in
+    let l = if (Option.is_some b) then max 0 (ts - (Option.value_exn b)) else 0 in
+    let l = match emoaux.ts_s with
+      | None -> l
+      | Some (ts_s) -> max ts_s l in
+    let alphas = Fdeque.enqueue_back emoaux.alphas (ts, p) in
+    let alphas_in = remove_cond_back (fun (ts', p') -> ts' > r)
+                      (remove_cond_front (fun (ts', p') -> Proof.isV p || ts' < l) alphas) in
+    let ts_s = Fdeque.find_map ~f:(fun (ts', p') -> if Proof.isS p' then Some(ts') else None) alphas_in in
+    if Fdeque.is_empty alphas_in then ({ emoaux with alphas; ts_s }, [Expl.Proof.V (VFF tp)])
+    else ({ emoaux with alphas; ts_s }, [Expl.Proof.S (STT tp)])
+
+end
+
 
 module Once = struct
 
@@ -297,13 +328,10 @@ module Once = struct
     let (v_alphas_out', new_in_vio) = split_in_out (fun (ts, _) -> ts) (l, r) v_alphas_out in
     (v_alphas_out', update_v_alphas_in new_in_vio v_alphas_in)
 
-  let shift (l, r) a ts tp moaux mode =
+  let shift (l, r) a ts tp moaux =
     let (tstps_in, tstps_out) = shift_tstps_past (l, r) a ts tp moaux.tstps_in moaux.tstps_out in
     let (s_alphas_out, s_alphas_in) = shift_sat (l,r) moaux.s_alphas_out moaux.s_alphas_in in
-    let (v_alphas_out, v_alphas_in) =
-      (match mode with
-       | Out.Plain.ENFORCE -> (Fdeque.empty, Fdeque.empty)
-       | _ -> shift_vio (l,r) moaux.v_alphas_out moaux.v_alphas_in) in
+    let (v_alphas_out, v_alphas_in) = shift_vio (l,r) moaux.v_alphas_out moaux.v_alphas_in in
     clean (l, r) { moaux with tstps_in
                             ; tstps_out
                             ; s_alphas_out
@@ -311,18 +339,16 @@ module Once = struct
                             ; v_alphas_out
                             ; v_alphas_in }
 
-  let eval tp moaux mode =
+  let eval tp moaux =
     if not (Fdeque.is_empty moaux.s_alphas_in) then
       [Proof.S (SOnce (tp, Proof.unS(snd(Fdeque.peek_front_exn moaux.s_alphas_in))))]
     else
-      (match mode with
-       | Out.Plain.ENFORCE -> [Proof.V (VFF tp)]
-       | _ -> let etp = match Fdeque.is_empty moaux.v_alphas_in with
-                | true -> etp moaux.tstps_in moaux.tstps_out tp
-                | false -> Proof.v_at (snd(Fdeque.peek_front_exn moaux.v_alphas_in)) in
-              [Proof.V (VOnce (tp, etp, Fdeque.map moaux.v_alphas_in ~f:snd))])
+      let etp = match Fdeque.is_empty moaux.v_alphas_in with
+        | true -> etp moaux.tstps_in moaux.tstps_out tp
+        | false -> Proof.v_at (snd(Fdeque.peek_front_exn moaux.v_alphas_in)) in
+      [Proof.V (VOnce (tp, etp, Fdeque.map moaux.v_alphas_in ~f:snd))]
 
-  let update i ts tp p1 moaux mode =
+  let update i ts tp p1 moaux =
     let a = Interval.left i in
     let moaux_z = if Option.is_none moaux.ts_zero then
                     { moaux with ts_zero = Some(ts) }
@@ -336,8 +362,8 @@ module Once = struct
       let l = if (Option.is_some b) then max 0 (ts - (Option.value_exn b))
               else (Option.value_exn moaux_subps.ts_zero) in
       let r = ts - a in
-      let moaux_shifted = shift (l, r) a ts tp moaux_subps mode in
-      (moaux_shifted, eval tp moaux_shifted mode)
+      let moaux_shifted = shift (l, r) a ts tp moaux_subps in
+      (moaux_shifted, eval tp moaux_shifted)
 
   (* Only used for approximation (enforcement related) *)
   let do_once_base tp a (p: Proof.t) =
@@ -681,6 +707,39 @@ module Always = struct
 
 end
 
+module ESince = struct
+
+  (* type t = { ts_zero: timestamp option *)
+  (*          ; s_alphas: (timestamp * Proof.sp) Fdeque.t *)
+  (*          ; s_betas_in: (timestamp * Proof.sp) Fdeque.t } *)
+
+  (* let init () = { ts_zero = None *)
+  (*               ; s_alphas = Fdeque.empty *)
+  (*               ; s_betas_in = Fdeque.empty } *)
+
+  (* let to_string { ts_s; alphas } = *)
+  (*   "\n\nEOnce state: " ^ *)
+  (*     "\nts_s = " ^ (Int.to_string (Option.value ts_s ~default:(-1))) ^ *)
+  (*       Fdeque.fold alphas ~init:"\nalphas = " ~f:(fun acc (ts, p) -> *)
+  (*           acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) *)
+
+  (* let update i ts tp (p: Proof.t) emoaux = *)
+  (*   let a = Interval.left i in *)
+  (*   let r = ts - a in *)
+  (*   let b = Interval.right i in *)
+  (*   let l = if (Option.is_some b) then max 0 (ts - (Option.value_exn b)) else 0 in *)
+  (*   let l = match emoaux.ts_s with *)
+  (*     | None -> l *)
+  (*     | Some (ts_s) -> max ts_s l in *)
+  (*   let alphas = Fdeque.enqueue_back emoaux.alphas (ts, p) in *)
+  (*   let alphas_in = remove_cond_back (fun (ts', p') -> ts' > r) *)
+  (*                     (remove_cond_front (fun (ts', p') -> Proof.isV p || ts' < l) alphas) in *)
+  (*   let ts_s = Fdeque.find_map ~f:(fun (ts', p') -> if Proof.isS p' then Some(ts') else None) alphas_in in *)
+  (*   if Fdeque.is_empty alphas_in then ({ emoaux with alphas; ts_s }, [Expl.Proof.V (VFF tp)]) *)
+  (*   else ({ emoaux with alphas; ts_s }, [Expl.Proof.S (STT tp)]) *)
+
+end
+
 module Since = struct
 
   type t = { ts_zero: timestamp option
@@ -820,13 +879,11 @@ module Since = struct
                ; v_alphas_out = remove_cond_front (fun (ts, _) -> ts <= r) msaux.v_alphas_out
                ; v_betas_in = remove_cond_front (fun (ts, _) -> ts < l) msaux.v_betas_in }
 
-  let shift (l, r) a ts tp msaux mode =
+  let shift (l, r) a ts tp msaux =
     let (tstps_in, tstps_out) = shift_tstps_past (l, r) a ts tp msaux.tstps_in msaux.tstps_out in
     let (s_beta_alphas_out, s_beta_alphas_in) = shift_sat (l,r) msaux.s_beta_alphas_out msaux.s_beta_alphas_in in
     let (v_alphas_betas_out, v_alpha_betas_in, v_betas_in) =
-      (match mode with
-       | Out.Plain.ENFORCE -> (Fdeque.empty, Fdeque.empty, Fdeque.empty)
-       | _ -> shift_vio (l, r) tp msaux.v_alphas_betas_out msaux.v_alpha_betas_in msaux.v_betas_in) in
+      shift_vio (l, r) tp msaux.v_alphas_betas_out msaux.v_alpha_betas_in msaux.v_betas_in in
     clean (l, r) ({ msaux with
                     tstps_in
                   ; tstps_out
@@ -836,30 +893,28 @@ module Since = struct
                   ; v_betas_in
                   ; v_alphas_betas_out })
 
-  let eval tp msaux mode =
+  let eval tp msaux =
     if not (Fdeque.is_empty msaux.s_beta_alphas_in) then
       [snd(Fdeque.peek_front_exn msaux.s_beta_alphas_in)]
     else
-      (match mode with
-       | Out.Plain.ENFORCE -> [Proof.V (VFF tp)]
-       | _ -> let cp1 = if not (Fdeque.is_empty msaux.v_alpha_betas_in) then
-                          [snd(Fdeque.peek_front_exn msaux.v_alpha_betas_in)]
-                        else [] in
-              let cp2 = if not (Fdeque.is_empty msaux.v_alphas_out) then
-                          let vp_f2 = snd(Fdeque.peek_front_exn msaux.v_alphas_out) in
-                          match vp_f2 with
-                          | V f2 -> [Proof.V (VSince (tp, f2, Fdeque.empty))]
-                          | S _ -> raise (Invalid_argument "found S proof in V deque")
-                        else [] in
-              let cp3 = if Int.equal (Fdeque.length msaux.v_betas_in) (Fdeque.length msaux.tstps_in) then
-                          let etp = match Fdeque.is_empty msaux.v_betas_in with
-                            | true -> etp msaux.tstps_in msaux.tstps_out tp
-                            | false -> Proof.v_at (snd(Fdeque.peek_front_exn msaux.v_betas_in)) in
-                          [Proof.V (VSinceInf (tp, etp, Fdeque.map msaux.v_betas_in ~f:snd))]
-                        else [] in
-              [minp_list (cp1 @ cp2 @ cp3)])
+      let cp1 = if not (Fdeque.is_empty msaux.v_alpha_betas_in) then
+                  [snd(Fdeque.peek_front_exn msaux.v_alpha_betas_in)]
+                else [] in
+      let cp2 = if not (Fdeque.is_empty msaux.v_alphas_out) then
+                  let vp_f2 = snd(Fdeque.peek_front_exn msaux.v_alphas_out) in
+                  match vp_f2 with
+                  | V f2 -> [Proof.V (VSince (tp, f2, Fdeque.empty))]
+                  | S _ -> raise (Invalid_argument "found S proof in V deque")
+                else [] in
+      let cp3 = if Int.equal (Fdeque.length msaux.v_betas_in) (Fdeque.length msaux.tstps_in) then
+                  let etp = match Fdeque.is_empty msaux.v_betas_in with
+                    | true -> etp msaux.tstps_in msaux.tstps_out tp
+                    | false -> Proof.v_at (snd(Fdeque.peek_front_exn msaux.v_betas_in)) in
+                  [Proof.V (VSinceInf (tp, etp, Fdeque.map msaux.v_betas_in ~f:snd))]
+                else [] in
+      [minp_list (cp1 @ cp2 @ cp3)]
 
-  let update i ts tp p1 p2 msaux mode =
+  let update i ts tp p1 p2 msaux =
     let a = Interval.left i in
     let msaux_z = if Option.is_none msaux.ts_zero then
                     { msaux with ts_zero = Some(ts) }
@@ -873,8 +928,8 @@ module Since = struct
        let l = if (Option.is_some b) then max 0 (ts - (Option.value_exn b))
                else (Option.value_exn msaux_subps.ts_zero) in
        let r = ts - a in
-       let msaux_shifted = shift (l, r) a ts tp msaux_subps mode in
-       (msaux_shifted, eval tp msaux_shifted mode))
+       let msaux_shifted = shift (l, r) a ts tp msaux_subps in
+       (msaux_shifted, eval tp msaux_shifted))
 
   (* Only used for approximation (enforcement related) *)
   let do_since_base tp a pol (p1: Proof.t) (p2: Proof.t) =
@@ -1259,7 +1314,7 @@ module MFormula = struct
   type next_info          = timestamp list
   type tp_info            = (timestamp * timepoint) list
   type buft_info          = (Expl.t, timestamp * timepoint) Buft.t
-  type once_info          = Once.t Expl.Pdt.t
+  type once_info          = (Once.t Expl.Pdt.t) * (EOnce.t Expl.Pdt.t)
   type eventually_info    = Eventually.t Expl.Pdt.t
   type historically_info  = Historically.t Expl.Pdt.t
   type always_info        = Always.t Expl.Pdt.t
@@ -1352,7 +1407,7 @@ module MFormula = struct
     | TNext (i, f) when tf.enftype == EnfType.Obs ->
        let h, mf = aux h f in h, MNext (i, mf, true, [])
     | TNext (i, f) -> let h, mf = aux h f in h+1, MENext (i, mf, h)
-    | TOnce (i, f) -> let h, mf = aux h f in h, MOnce (i, mf, [], Leaf (Once.init ()))
+    | TOnce (i, f) -> let h, mf = aux h f in h, MOnce (i, mf, [], (Leaf (Once.init ()), Leaf (EOnce.init ())))
     | TEventually (i, f) when tf.enftype == EnfType.Obs ->
        let h, mf = aux h f in h, MEventually (i, mf, ([], []), Leaf (Eventually.init ()))
     | TEventually (i, f) ->
@@ -1456,7 +1511,7 @@ module MFormula = struct
     | MPrev (i, f, b, pi) -> MPrev (i, r f, b, av_buft pi)
     | MNext (i, f, b, si) -> MNext (i, r f, b, si)
     | MENext (i, f, h) -> MENext (i, r f, h)
-    | MOnce (i, f, ti, oi) -> MOnce (i, r f, ti, av_pdt oi)
+    | MOnce (i, f, ti, (oi, eoi)) -> MOnce (i, r f, ti, (av_pdt oi, av_pdt eoi))
     | MEventually (i, f, bi, oi) -> MEventually (i, r f, av_buft bi, av_pdt oi)
     | MEEventually (i, f, h) -> MEEventually (i, r f, h)
     | MHistorically (i, f, ti, oi) -> MHistorically (i, r f, ti, av_pdt oi)
@@ -2077,18 +2132,31 @@ let rec meval vars ts tp (db: Db.t) ~pol (fobligs: FObligations.t) mformula mode
      let (_, _, mf') = meval vars ts tp db ~pol fobligs mf mode in
      let aexpl = else_any (approx_next vars fobligs i h mformula) tp pol in
      ([aexpl], aexpl, MENext (i, mf', h))
-  | MOnce (i, mf, tstps, moaux_pdt) ->
+  | MOnce (i, mf, tstps, (moaux_pdt, emoaux_pdt)) ->
      let (expls, aexpl, mf') = meval vars ts tp db ~pol fobligs mf mode in
-     let ((moaux_pdt', expls'), buf', tstps') =
-       Buft.take
-         (fun expl ts tp (aux_pdt, es) ->
-           let (aux_pdt', es') =
-             Pdt.split_prod (Pdt.apply2 vars (fun p aux -> Once.update i ts tp p aux mode) expl aux_pdt) in
-           (aux_pdt', es @ (Pdt.split_list es')))
-         (moaux_pdt, []) (expls, (tstps @ [(ts,tp)])) in
-     let expls'' = List.map expls' ~f:(Pdt.reduce Proof.equal) in
-     let aexpl = else_any (approx_once vars expls'' aexpl i) tp pol in
-     (expls'', aexpl, MOnce (i, mf', tstps', moaux_pdt'))
+     (match mode with
+      | Out.Plain.ENFORCE ->
+         (let ((emoaux_pdt', expls'), buf', tstps') =
+            Buft.take
+              (fun expl ts tp (aux_pdt, es) ->
+                let (aux_pdt', es') =
+                  Pdt.split_prod (Pdt.apply2 vars (fun p aux -> EOnce.update i ts tp p aux) expl aux_pdt) in
+                (aux_pdt', es @ (Pdt.split_list es')))
+              (emoaux_pdt, []) (expls, (tstps @ [(ts,tp)])) in
+          let expls'' = List.map expls' ~f:(Pdt.reduce Proof.equal) in
+          let aexpl = else_any (approx_once vars expls'' aexpl i) tp pol in
+          (expls'', aexpl, MOnce (i, mf', tstps', (moaux_pdt, emoaux_pdt'))))
+      | _ ->
+         (let ((moaux_pdt', expls'), buf', tstps') =
+            Buft.take
+              (fun expl ts tp (aux_pdt, es) ->
+                let (aux_pdt', es') =
+                  Pdt.split_prod (Pdt.apply2 vars (fun p aux -> Once.update i ts tp p aux) expl aux_pdt) in
+                (aux_pdt', es @ (Pdt.split_list es')))
+              (moaux_pdt, []) (expls, (tstps @ [(ts,tp)])) in
+          let expls'' = List.map expls' ~f:(Pdt.reduce Proof.equal) in
+          let aexpl = else_any (approx_once vars expls'' aexpl i) tp pol in
+          (expls'', aexpl, MOnce (i, mf', tstps', (moaux_pdt', emoaux_pdt)))))
   | MEventually (i, mf, (buf, ntstps), meaux_pdt) ->
      let (expls, aexpl, mf') = meval vars ts tp db ~pol fobligs mf mode in
      let (meaux_pdt', buf', ntstps') =
@@ -2148,7 +2216,7 @@ let rec meval vars ts tp (db: Db.t) ~pol (fobligs: FObligations.t) mformula mode
          (fun expl1 expl2 ts tp (aux_pdt, es) ->
            let (aux_pdt', es') =
              Pdt.split_prod (Pdt.apply3 vars
-                               (fun p1 p2 aux -> Since.update i ts tp p1 p2 aux mode) expl1 expl2 aux_pdt) in
+                               (fun p1 p2 aux -> Since.update i ts tp p1 p2 aux) expl1 expl2 aux_pdt) in
            (aux_pdt', es @ (Pdt.split_list es')))
          (msaux_pdt, []) (Buf2.add expls1 expls2 buf2) (tstps @ [(ts,tp)]) in
      let expls'' = List.map expls' ~f:(Pdt.reduce Proof.equal) in
