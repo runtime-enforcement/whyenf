@@ -39,28 +39,34 @@ module Errors = struct
     | EDisj of error * error
 
   let rec to_string ?(n=0) e =
-    let sp = Etc.spaces (4*n) in
+    let sp = Etc.spaces (2*n) in
     let lb = "\n" ^ sp in
     (match e with
-     | ECast (e, t', t) -> e
-                           ^ " has type "
-                           ^ EnfType.to_string t'
-                           ^ " which is not a supertype of "
+     | ECast (e, t', t) -> "make "
+                           ^ e
+                           ^ " "
                            ^ EnfType.to_string t
-     | EFormula (None, f, t) ->  Formula.to_string f
-                                 ^ " cannot be "
-                                 ^ EnfType.to_string t
-     | EFormula (Some s, f, t) ->  Formula.to_string f
-                                   ^ " cannot be "
-                                   ^ EnfType.to_string t
-                                   ^ " (" ^ s ^ ")"
-     | EConj (f, g) -> "either" ^ lb ^ "|" ^ lb ^ "--> "
+                           ^ " (currently, it has type "
+                           ^ EnfType.to_string t'
+                           ^ ")"
+     | EFormula (None, f, t) -> "make"
+                                ^ Formula.to_string f
+                                ^ " "
+                                ^ EnfType.to_string t
+                                ^ ", but this is impossible"
+     | EFormula (Some s, f, t) -> "make"
+                                ^ Formula.to_string f
+                                ^ " "
+                                ^ EnfType.to_string t
+                                ^ ", but this is impossible"
+                                ^ " (" ^ s ^ ")"
+     | EConj (f, g) -> "both" ^ lb ^ "* "
                        ^ to_string ~n:(n+1) f
-                       ^ lb ^ "|" ^ lb ^ "or" ^ lb ^ "|" ^ lb ^ "--> "
+                       ^ lb ^ "and" ^ lb ^ "* "
                        ^ to_string ~n:(n+1) g
-     | EDisj (f, g) -> "both" ^ lb ^ "|" ^ lb ^ "--> "
+     | EDisj (f, g) -> "either" ^ lb ^ "* "
                        ^ to_string ~n:(n+1) f
-                       ^ lb ^ "|" ^ lb ^ "and" ^ lb ^ "|" ^ lb ^ "--> "
+                       ^ lb ^ "or" ^ lb ^ "* "
                        ^ to_string ~n:(n+1) g
     )
 
@@ -168,12 +174,10 @@ let rec types t f =
       | Next _ -> error "○ with non-[0,∞) interval is never Cau"
       | Once (i, g) | Since (_, i, _, g) when Interval.mem 0 i -> types Cau g
       | Once _ | Since _ -> error "⧫[a,b) or S[a,b) with a > 0 is never Cau"
-      | Eventually (B _, f) | Always (_, f) -> types Cau f
-      | Eventually (_, _) -> error "◊ with unbounded interval is never Cau"
+      | Eventually (_, f) | Always (_, f) -> types Cau f
       | Until (LR, B _, f, g) -> conj (types Cau f) (types Cau g)
-      | Until (_, B b, f, g) when Interval.mem 0 (B b) -> types Cau g
-      | Until (_, B _, f, g) -> conj (types Cau f) (types Cau g)
-      | Until _ -> error "U with unbounded interval is never Cau"
+      | Until (_, i, f, g) when Interval.mem 0 i -> types Cau g
+      | Until (_, _, f, g) -> conj (types Cau f) (types Cau g)
       | Prev _ -> error "● is never Cau"
       | _ -> Impossible (EFormula (None, f, t))
     end
@@ -199,8 +203,7 @@ let rec types t f =
       | Historically _ -> error "■[a,b) with a > 0 is never Sup"
       | Since (_, i, f, _) when not (Interval.mem 0 i) -> types Sup f
       | Since (_, i, f, g) -> conj (types Sup f) (types Sup g)
-      | Eventually (_, f) | Always (B _, f) -> types Sup f
-      | Always _ -> error "□ with unbounded interval is never Sup"
+      | Eventually (_, f) | Always (_, f) -> types Sup f
       | Until (L, i, f, g) when not (Interval.mem 0 i) -> types Sup f
       | Until (R, i, f, g) when not (Interval.mem 0 i) -> types Sup g
       | Until (_, i, f, g) when not (Interval.mem 0 i) -> disj (types Sup f) (types Sup g)
@@ -211,8 +214,12 @@ let rec types t f =
   | Obs -> Possible CTT
   | CauSup -> Impossible (EFormula (None, f, t))
 
-let rec convert enftype form : Tformula.t option =
+let rec convert b enftype form : Tformula.t option =
+  let convert = convert b in
   let default_L (s: Side.t) = if Side.equal s R then Side.R else L in
+  let set_b = function
+    | Interval.U (UI a) -> Interval.B (BI (a, b))
+    | B _ as i -> i in
   let f =
     match enftype with
       Cau -> begin
@@ -268,14 +275,14 @@ let rec convert enftype form : Tformula.t option =
            (convert Cau f) >>| (fun f' -> Tformula.TOnce (i, f'))
         | Since (_, i, f, g) when Interval.mem 0 i ->
            (convert Cau g) >>| (fun g' -> Tformula.TSince (R, i, Tformula.of_formula f, g'))
-        | Eventually (B b, f) -> (convert Cau f) >>| (fun f' -> Tformula.TEventually (B b, f'))
-        | Always (i, f) -> (convert Cau f) >>| (fun f' -> Tformula.TAlways (i, f'))
-        | Until (LR, B b, f, g) ->
-           (convert Cau f) >>= (fun f' -> (convert Cau g) >>| (fun g' -> Tformula.TUntil (LR, B b, f', g')))
-        | Until (_, B b, f, g) when Interval.mem 0 (B b) ->
-           (convert Cau g) >>| (fun g' -> Tformula.TUntil (LR, B b, Tformula.of_formula f, g'))
-        | Until (L, B b, f, g) ->
-           (convert Cau g) >>| (fun g' -> Tformula.TUntil (LR, B b, Tformula.of_formula f, g'))
+        | Eventually (i, f) -> (convert Cau f) >>| (fun f' -> Tformula.TEventually (set_b i, Interval.is_bounded i, f'))
+        | Always (i, f) -> (convert Cau f) >>| (fun f' -> Tformula.TAlways (i, true, f'))
+        | Until (LR, i, f, g) ->
+           (convert Cau f) >>= (fun f' -> (convert Cau g) >>| (fun g' -> Tformula.TUntil (LR, set_b i, Interval.is_bounded i, f', g')))
+        | Until (_, i, f, g) when Interval.mem 0 i ->
+           (convert Cau g) >>| (fun g' -> Tformula.TUntil (LR, set_b i, Interval.is_bounded i, Tformula.of_formula f, g'))
+        | Until (L, i, f, g) ->
+           (convert Cau g) >>| (fun g' -> Tformula.TUntil (LR, set_b i, Interval.is_bounded i, Tformula.of_formula f, g'))
         | _ -> None
       end
     | Sup -> begin
@@ -317,19 +324,19 @@ let rec convert enftype form : Tformula.t option =
            (convert Sup f) >>| (fun f' -> Tformula.TSince (L, i, f', Tformula.of_formula g))
         | Since (_, i, f, g) -> (convert Sup f) >>= (fun f' -> (convert Sup g)
                                                                >>| (fun g' -> Tformula.TSince (LR, i, f', g')))
-        | Eventually (i, f) -> (convert Sup f) >>| (fun f' -> Tformula.TEventually (i, f'))
-        | Always (B b, f) -> (convert Sup f) >>| (fun f' -> Tformula.TAlways (B b, f'))
+        | Eventually (i, f) -> (convert Sup f) >>| (fun f' -> Tformula.TEventually (i, true, f'))
+        | Always (i, f) -> (convert Sup f) >>| (fun f' -> Tformula.TAlways (set_b i, Interval.is_bounded i, f'))
         | Until (L, i, f, g) when not (Interval.mem 0 i) ->
-           (convert Sup f) >>| (fun f' -> Tformula.TUntil (L, i, f', Tformula.of_formula g))
+           (convert Sup f) >>| (fun f' -> Tformula.TUntil (L, i, true, f', Tformula.of_formula g))
         | Until (R, i, f, g) when not (Interval.mem 0 i) ->
-           (convert Sup g) >>| (fun g' -> Tformula.TUntil (R, i, Tformula.of_formula f, g'))
+           (convert Sup g) >>| (fun g' -> Tformula.TUntil (R, i, true, Tformula.of_formula f, g'))
         | Until (_, i, f, g) when not (Interval.mem 0 i) ->
            begin
              match convert Sup f with
-             | Some f' -> Some (Tformula.TUntil (L, i, f', Tformula.of_formula g))
-             | None -> (convert Sup g) >>| (fun g' -> Tformula.TUntil (R, i, Tformula.of_formula f, g'))
+             | Some f' -> Some (Tformula.TUntil (L, i, true, f', Tformula.of_formula g))
+             | None -> (convert Sup g) >>| (fun g' -> Tformula.TUntil (R, i, true, Tformula.of_formula f, g'))
            end
-        | Until (_, i, f, g) -> (convert Sup g) >>| (fun g' -> Tformula.TUntil (R, i, Tformula.of_formula f, g'))
+        | Until (_, i, f, g) -> (convert Sup g) >>| (fun g' -> Tformula.TUntil (R, i, true, Tformula.of_formula f, g'))
         | _ -> None
       end
     | Obs -> Some (Tformula.of_formula form).f
@@ -338,7 +345,7 @@ let rec convert enftype form : Tformula.t option =
   (*Stdio.print_string (EnfType.to_string enftype ^ " " ^ Formula.to_string form ^ " -> ");*)
   match f with Some f -> Some Tformula.{ f; enftype } | None -> None
 
-let do_type f =
+let do_type f b =
   if not (Set.is_empty (Formula.fv f)) then
     ignore (raise (Invalid_argument (Printf.sprintf "formula %s is not closed" (Formula.to_string f))));
   match types Cau f with
@@ -348,7 +355,7 @@ let do_type f =
        | sol::_ ->
           begin
             Map.iteri sol ~f:(fun ~key ~data -> Pred.Sig.update_enftype key data);
-            match convert Cau f with
+            match convert b Cau f with
               Some f' -> Stdio.print_endline ("The formula\n "
                                               ^ Formula.to_string f
                                               ^ "\nis enforceable and types to\n "
@@ -366,29 +373,31 @@ let do_type f =
   | Impossible e ->
      Stdio.print_endline ("The formula\n "
                           ^ Formula.to_string f
-                          ^ "\nis not enforceable because\n "
+                          ^ "\nis not enforceable. To make it enforceable, you would need to\n "
                           ^ Errors.to_string e);
      raise (Invalid_argument (Printf.sprintf "formula %s is not enforceable" (Formula.to_string f)))
 
-let rec relative_interval (f: Tformula.t) = match f.f with
+let rec relative_interval (f: Tformula.t) =
+  match f.f with
   | TTT | TFF | TEqConst (_, _) | TPredicate (_, _) -> Zinterval.singleton 0
   | TNeg f | TExists (_, _, f) | TForall (_, _, f) -> relative_interval f
   | TAnd (_, f1, f2) | TOr (_, f1, f2) | TImp (_, f1, f2) | TIff (_, _, f1, f2)
     -> Zinterval.lub (relative_interval f1) (relative_interval f2)
   | TPrev (i, f) | TOnce (i, f) | THistorically (i, f)
-    -> Zinterval.lub (Zinterval.to_zero (Zinterval.inv (Zinterval.of_interval i)))
-         (Zinterval.sum (Zinterval.of_interval i) (relative_interval f))
-  | TNext (i, f) | TEventually (i, f) | TAlways (i, f)
-    -> Zinterval.lub (Zinterval.to_zero (Zinterval.of_interval i))
-         (Zinterval.sum (Zinterval.of_interval i) (relative_interval f))
+    -> let i' = Zinterval.inv (Zinterval.of_interval i) in
+       Zinterval.lub (Zinterval.to_zero i') (Zinterval.sum i' (relative_interval f))
+  | TNext (i, f) | TEventually (i, _, f) | TAlways (i, _, f)
+    -> let i = Zinterval.of_interval i in
+       Zinterval.lub (Zinterval.to_zero i) (Zinterval.sum i (relative_interval f))
   | TSince (_, i, f1, f2) ->
      let i' = Zinterval.inv (Zinterval.of_interval i) in
      (Zinterval.lub (Zinterval.sum (Zinterval.to_zero i') (relative_interval f1))
         (Zinterval.sum i' (relative_interval f2)))
-  | TUntil (_, i, f1, f2) ->
+  | TUntil (_, i, _, f1, f2) ->
      let i' = Zinterval.of_interval i in
      (Zinterval.lub (Zinterval.sum (Zinterval.to_zero i') (relative_interval f1))
         (Zinterval.sum i' (relative_interval f2)))
+
 
 let strict f = 
   let rec _strict itv fut (f: Tformula.t) =
@@ -400,12 +409,12 @@ let strict f =
           -> (_strict itv fut f1) || (_strict itv fut f2)
         | TPrev (i, f) | TOnce (i, f) | THistorically (i, f)
           -> _strict (Zinterval.sum (Zinterval.inv (Zinterval.of_interval i)) itv) fut f
-        | TNext (i, f) | TEventually (i, f) | TAlways (i, f)
+        | TNext (i, f) | TEventually (i, _, f) | TAlways (i, _, f)
           -> _strict (Zinterval.sum (Zinterval.of_interval i) itv) true f
         | TSince (_, i, f1, f2)
           -> (_strict (Zinterval.sum (Zinterval.inv (Zinterval.of_interval i)) itv) fut f1)
              || (_strict (Zinterval.sum (Zinterval.inv (Zinterval.of_interval i)) itv) fut f2)
-        | TUntil (_, i, f1, f2)
+        | TUntil (_, i, _, f1, f2)
           -> (_strict (Zinterval.sum (Zinterval.inv (Zinterval.of_interval i)) itv) true f1)
              || (_strict (Zinterval.sum (Zinterval.inv (Zinterval.of_interval i)) itv) true f2))
   in not (_strict (Zinterval.singleton 0) false f)
@@ -417,50 +426,51 @@ let strictly_relative_past f =
   (relative_past f) && (strict f)
 
 let is_transparent (f: Tformula.t) =
-  let rec aux (f: Tformula.t) = 
+  let rec aux (f: Tformula.t) =
     match f.enftype with
     | Cau -> begin
         match f.f with
         | TTT | TPredicate (_, _) -> true
         | TNeg f | TExists (_, _, f) | TForall (_, _, f)
-          | TNext (_, f) | TEventually (_, f) | TAlways (_, f) -> aux f
+          | TOnce (_, f) | TNext (_, f) | THistorically (_, f)
+           | TAlways (_, _, f) -> aux f
+        | TEventually (_, b, f) -> b && aux f
         | TOr (L, f, g) | TImp (L, f, g) | TIff (L, L, f, g)
-          -> aux f && strictly_relative_past g
+          -> print_endline (string_of_bool (strictly_relative_past g));
+             aux f && strictly_relative_past g
         | TOr (R, f, g) | TImp (R, f, g) | TIff (R, R, f, g)
           -> aux g && strictly_relative_past f
         | TAnd (_, f, g) | TIff (_, _, f, g)
           -> aux f && aux g
-        | TNext (_, f) | TOnce (_, f) | TEventually (_, f) | THistorically (_, f) | TAlways (_, f)
-          -> aux f
         | TSince (_, _, f, g) -> aux f && strictly_relative_past g
-        | TUntil (R, _, f, g) -> aux f && strictly_relative_past g
-        | TUntil (LR, _, f, g) -> aux f && aux g
+        | TUntil (R, _, b, f, g) -> b && aux f && strictly_relative_past g
+        | TUntil (LR, _, b, f, g) -> b && aux f && aux g
         | _ -> false
       end
     | Sup -> begin
         match f.f with
         | TFF | TPredicate (_, _) -> true
         | TNeg f | TExists (_, _, f) | TForall (_, _, f)
-          | TNext (_, f) | TEventually (_, f) | TAlways (_, f) -> aux f
+          | TOnce (_, f) | TNext (_, f) | THistorically (_, f)
+          | TEventually (_, _, f) -> aux f
+        | TAlways (_, b, f) -> b && aux f
         | TAnd (L, f, g) | TIff (L, L, f, g)
           -> aux f && strictly_relative_past g
         | TAnd (R, f, g) | TIff (R, R, f, g)
           -> aux g && strictly_relative_past f
         | TOr (_, f, g) | TIff (_, _, f, g)
           -> aux f && aux g
-        | TNext (_, f) | TOnce (_, f) | TEventually (_, f) | THistorically (_, f) | TAlways (_, f)
-          -> aux f
         | TSince (L, _, f, g) -> aux f && strictly_relative_past g
         | TSince (R, _, f, g) -> aux f && aux g
-        | TUntil (R, _, f, g) -> aux f && strictly_relative_past g
-        | TUntil (_, _, f, g) -> aux g && strictly_relative_past f
+        | TUntil (R, _, _, f, g) -> aux f && strictly_relative_past g
+        | TUntil (_, _, _, f, g) -> aux g && strictly_relative_past f
         | _ -> false
       end
   in
   if aux f then
     true
   else
-    raise (Invalid_argument (Printf.sprintf "Warning: this formula cannot be transparently enforced because of the subformula\n %s" (Tformula.to_string f)))
+    raise (Invalid_argument (Printf.sprintf "Warning: this formula cannot be transparently enforced"))
 
   
     

@@ -17,11 +17,11 @@ type core_t =
   | TPrev of Interval.t * t
   | TNext of Interval.t * t
   | TOnce of Interval.t * t
-  | TEventually of Interval.t * t
+  | TEventually of Interval.t * bool * t
   | THistorically of Interval.t * t
-  | TAlways of Interval.t * t
+  | TAlways of Interval.t * bool * t
   | TSince of Side.t * Interval.t * t * t
-  | TUntil of Side.t * Interval.t * t * t
+  | TUntil of Side.t * Interval.t * bool * t * t
 
 and t = { f: core_t; enftype: EnfType.t }
 
@@ -40,11 +40,11 @@ let rec core_of_formula = function
   | Prev (i, f) -> TPrev (i, of_formula f)
   | Next (i, f) -> TNext (i, of_formula f)
   | Once (i, f) -> TOnce (i, of_formula f)
-  | Eventually (i, f) -> TEventually (i, of_formula f)
+  | Eventually (i, f) -> TEventually (i, true, of_formula f)
   | Historically (i, f) -> THistorically (i, of_formula f)
-  | Always (i, f) -> TAlways (i, of_formula f)
+  | Always (i, f) -> TAlways (i, true, of_formula f)
   | Since (s, i, f, g) -> TSince (s, i, of_formula f, of_formula g)
-  | Until (s, i, f, g) -> TUntil (s, i, of_formula f, of_formula g)
+  | Until (s, i, f, g) -> TUntil (s, i, true, of_formula f, of_formula g)
 
 and of_formula f = { f = core_of_formula f; enftype = EnfType.Obs }
 
@@ -58,15 +58,15 @@ let rec rank = function
     | TPrev (_, f)
     | TNext (_, f)
     | TOnce (_, f)
-    | TEventually (_, f)
+    | TEventually (_, _, f)
     | THistorically (_, f)
-    | TAlways (_, f) -> rank f.f
+    | TAlways (_, _, f) -> rank f.f
   | TAnd (_, f, g)
     | TOr (_, f, g)
     | TImp (_, f, g)
     | TIff (_, _, f, g)
     | TSince (_, _, f, g)
-    | TUntil (_, _, f, g) -> rank f.f + rank g.f
+    | TUntil (_, _, _, f, g) -> rank f.f + rank g.f
 
 let fix_side s f g =
   match s with
@@ -89,11 +89,11 @@ let rec to_formula f = match f.f with
   | TPrev (i, f) -> Prev (i, to_formula f)
   | TNext (i, f) -> Next (i, to_formula f)
   | TOnce (i, f) -> Once (i, to_formula f)
-  | TEventually (i, f) -> Eventually (i, to_formula f)
+  | TEventually (i, _, f) -> Eventually (i, to_formula f)
   | THistorically (i, f) -> Historically (i, to_formula f)
-  | TAlways (i, f) -> Always (i, to_formula f)
+  | TAlways (i, _, f) -> Always (i, to_formula f)
   | TSince (s, i, f, g) -> Since (fix_side s f.f g.f, i, to_formula f, to_formula g)
-  | TUntil (s, i, f, g) -> Until (s, i, to_formula f, to_formula g)
+  | TUntil (s, i, _, f, g) -> Until (s, i, to_formula f, to_formula g)
 
 let ttrue  = { f = TTT; enftype = Cau }
 let tfalse = { f = TFF; enftype = Sup }
@@ -116,11 +116,11 @@ let rec op_to_string_core = function
   | TPrev (i, _) -> Printf.sprintf "●%s" (Interval.to_string i)
   | TNext (i, _) -> Printf.sprintf "○%s" (Interval.to_string i)
   | TOnce (i, f) -> Printf.sprintf "⧫%s" (Interval.to_string i)
-  | TEventually (i, f) -> Printf.sprintf "◊%s" (Interval.to_string i)
+  | TEventually (i, _, f) -> Printf.sprintf "◊%s" (Interval.to_string i)
   | THistorically (i, f) -> Printf.sprintf "■%s" (Interval.to_string i)
-  | TAlways (i, f) -> Printf.sprintf "□%s" (Interval.to_string i)
+  | TAlways (i, _, f) -> Printf.sprintf "□%s" (Interval.to_string i)
   | TSince (_, i, _, _) -> Printf.sprintf "S%s" (Interval.to_string i)
-  | TUntil (_, i, _, _) -> Printf.sprintf "U%s" (Interval.to_string i)
+  | TUntil (_, i, _,  _, _) -> Printf.sprintf "U%s" (Interval.to_string i)
 and op_to_string f = op_to_string_core f.f
 
 
@@ -139,12 +139,12 @@ let rec to_string_core_rec l = function
   | TPrev (i, f) -> Printf.sprintf (Etc.paren l 5 "●%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
   | TNext (i, f) -> Printf.sprintf (Etc.paren l 5 "○%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
   | TOnce (i, f) -> Printf.sprintf (Etc.paren l 5 "⧫%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
-  | TEventually (i, f) -> Printf.sprintf (Etc.paren l 5 "◊%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
+  | TEventually (i, _, f) -> Printf.sprintf (Etc.paren l 5 "◊%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
   | THistorically (i, f) -> Printf.sprintf (Etc.paren l 5 "■%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
-  | TAlways (i, f) -> Printf.sprintf (Etc.paren l 5 "□%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
+  | TAlways (i, _, f) -> Printf.sprintf (Etc.paren l 5 "□%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
   | TSince (s, i, f, g) -> Printf.sprintf (Etc.paren l 0 "%a S%a%a %a") (fun x -> to_string_rec 5) f
                          (fun x -> Interval.to_string) i (fun x -> Side.to_string) s (fun x -> to_string_rec 5) g
-  | TUntil (s, i, f, g) -> Printf.sprintf (Etc.paren l 0 "%a U%a%a %a") (fun x -> to_string_rec 5) f
+  | TUntil (s, i, _, f, g) -> Printf.sprintf (Etc.paren l 0 "%a U%a%a %a") (fun x -> to_string_rec 5) f
                              (fun x -> Interval.to_string) i (fun x -> Side.to_string) s (fun x -> to_string_rec 5) g
 and to_string_rec l form =
   if form.enftype == EnfType.Obs then

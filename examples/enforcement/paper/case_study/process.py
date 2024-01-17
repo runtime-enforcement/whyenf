@@ -51,10 +51,10 @@ df.to_csv("intermediate.csv")
 'Afvis ansøgning',
 'Informer ansøger om at best ser på sagen',
 'ansøger informeret ',                        *delete*
-'Architect Review',                           *use*
+'Architect Review',                           *use* *share_with(ARCHITECT)*
 'Fill out Application',
 'Godkend ændret kontonummer',                 *use(ACCOUNT)*
-'Lawyer Review',                              *use(APPL)*
+'Lawyer Review',                              *use(APPL)* *share_with(LAWYER)*
 'Informer ansøger om bevilling',
 'Set to Pre-approved',
 'Account number changed',                     *use(ACCOUNT)*
@@ -69,24 +69,44 @@ df.to_csv("intermediate.csv")
 'Register Decision',                       
 }"""
 
+consent, collect, delete, legal_grounds, deletion_request, use, share_with, revoke = \
+    0, 0, 0, 0, 0, 0, 0, 0
+
 for _, row in df.iterrows():
     now = row["Days"]
     id = row["ID"]
     if row["Title"] == "Godkendelse - videre til bestyrelsen":
-        line = f"@{now} ds_consent(\"{id}\", \"APPL\") collect(\"APPL\", \"{id}\", \"{id}\")" 
+        line = f"@{now} ds_consent(\"{id}\", \"APPL\") collect(\"APPL\", \"{id}\", \"{id}\")"
+        consent += 1
+        collect += 1
     elif row["Title"] == "Payment completed":
         line = f"@{now} delete(\"APPL\",\"{id}\",\"{id}\") delete(\"ACCOUNT\",\"{id}\",\"{id}\")"
+        delete += 2
     elif row["Title"] == "Godkend ansøgning":
         line = f"@{now} legal_grounds(\"{id}\",\"ACCOUNT\")"
+        legal_grounds += 1
     elif row["Title"] == "Udfoer bortfald":
-        line = f"@{now} ds_deletion_request(\"APPL\",\"{id}\",\"{id}\")"
+        line = f"@{now} ds_deletion_request(\"APPL\",\"{id}\",\"{id}\") revoke(\"APPL\",\"{id}\",\"{id}\")"
+        deletion_request += 1
+        revoke += 1
     elif row["Title"] == "ansøger informeret ":
         line = f"@{now} delete(\"APPL\",\"{id}\",\"{id}\")"
-    elif row["Title"] in ["Review", "Lawyer Review", "Architect Review", "Pre-behandl ansøgning"]:
+        delete += 1
+    elif row["Title"] in ["Review", "Pre-behandl ansøgning"]:
         line = f"@{now} use(\"APPL\",\"{id}\",\"{id}\")"
+        use += 1
+    elif row["Title"] == "Lawyer Review":
+        line = f"@{now} use(\"APPL\",\"{id}\",\"{id}\") share_with(\"LAWYER\",\"{id}\")"
+        use += 1
+        share_with += 1
+    elif row["Title"] == "Architect Review":
+        line = f"@{now} use(\"APPL\",\"{id}\",\"{id}\") share_with(\"ARCHITECT\",\"{id}\")"
+        use += 1
+        share_with += 1
     elif row["Title"] in ["Godkent ændret kontonummer", "Account number changed", "Undo payment",
                           "Første udbetaling"]:
         line = f"@{now} use(\"ACCOUNT\",\"{id}\",\"{id}\")"
+        use += 1
     else:
         continue
     log.append(line)
@@ -94,3 +114,6 @@ for _, row in df.iterrows():
 with open(OUTPUT, 'w') as f:
     for line in log:
         f.write(line + "\n")
+
+print(len(log), consent + collect + delete + legal_grounds + deletion_request + use + share_with + revoke,
+      consent, collect, delete, legal_grounds, deletion_request, use, share_with, revoke)

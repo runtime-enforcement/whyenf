@@ -41,6 +41,10 @@ let case f1 f2 = function
   | B i -> f1 i
   | U i -> f2 i
 
+let is_bounded = function
+  | B _ -> true
+  | U _ -> false
+
 let is_bounded_exn op = function
   | B _ -> ()
   | U _ -> raise (Invalid_argument (Printf.sprintf "unbounded future operator: %s" op))
