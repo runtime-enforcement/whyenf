@@ -22,21 +22,36 @@ let string_of_token (t: Other_lexer.token) =
   | STR s -> "\"" ^ String.escaped s ^ "\""
   | EOF -> "<EOF>"
 
+
 module Parsebuf = struct
 
   type t = { lexbuf: Lexing.lexbuf
            ; mutable token: Other_lexer.token
            ; mutable pred_sig: Pred.Sig.t option
            ; mutable ts: int
-           ; mutable db: Db.t }
+           ; mutable db: Db.t
+           ; mutable ev_done: int
+           ; mutable ev_cau: int
+           ; mutable ev_sup: int
+           }
 
   let init lexbuf = { lexbuf = lexbuf
                     ; token = Other_lexer.token lexbuf
                     ; pred_sig = None
                     ; ts = -1
-                    ; db = Db.create [] }
+                    ; db = Db.create []
+                    ; ev_done = 0
+                    ; tp_done = 0
+                    ; ev_cau = 0
+                    ; ev_sup = 0 
+                    ; tp_ins = 0 }
 
   let next pb = pb.token <- Other_lexer.token pb.lexbuf
+
+  let reset_stats pb =
+    pb.ev_done <- 0;
+    pb.ev_cau <- 0;
+    pb.ev_sup <- 0
 
   let arity pb = (snd (Option.value_exn pb.pred_sig)).arity
 
@@ -46,9 +61,16 @@ module Parsebuf = struct
                          ; ts = -1
                          ; db = Db.create [] }
 
-  let add_event evt pb = pb.db <- Db.add_event pb.db evt
+  let add_event evt pb =
+    pb.db <- Db.add_event pb.db evt;
+    pb.ev_done <- pb.ev_done + 1
 
   let clear pb = pb
+
+  let print_stats comment pb = 
+    Stdio.printf ">%s %d %d %d %d <\n" comment pb.ev_done pb.ev_cau pb.ev_sup
+      (int_of_float (1000. *. Unix.gettimeofday ()));
+    reset_stats pb
 
 end
 
@@ -154,7 +176,15 @@ module Trace = struct
       match pb.token with
       | AT -> Parsebuf.next pb; parse_ts ()
       | EOF -> None
+      | LAN -> Parsebuf.next pb;
+               Parsebuf.print_stats (parse_comment "") pb;
+               parse_init ()
       | t -> raise (Failure ("expected '@' but found " ^ string_of_token t))
+    and parse_comment acc =
+      match pb.token with
+      | RAN -> Parsebuf.next pb; acc
+      | STR s -> Parsebuf.next pb; parse_comment (acc ^ " " ^ s)
+      | _   -> Parsebuf.next pb; parse_comment acc
     and parse_ts () =
       match pb.token with
       | STR s -> let ts = try Some (Int.of_string s)

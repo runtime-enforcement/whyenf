@@ -338,40 +338,43 @@ let exec f inc =
     else
       Order.NoOrd, es
   in
-  let rec process_db ts db (es: EState.t) =
+  let rec process_db (pb: Other_parser.Parsebuf.t) (es: EState.t) =
     (*Stdio.printf "------------\n";
     Stdio.printf "Before: \n";
     Stdio.printf "%s" (EState.to_string es);
     Stdlib.flush_all ();*)
-    if Int.equal ts (-1) && FObligations.accepts_empty es.fobligs then
+    if Int.equal pb.ts (-1) && FObligations.accepts_empty es.fobligs then
       es
-    else if Int.equal ts es.ts then
-      match reactive_step db es with
+    else if Int.equal pb.ts es.ts then
+      match reactive_step pb.db es with
       | ReOrd (c, s) as o, es -> Order.print es.ts o; { es with tp = es.tp + 1 }
     else
       match proactive_step es with
       | PrOrd c as o, es -> Order.print es.ts o;
-                            process_db ts db { es with tp = es.tp + 1; ts = es.ts + 1 }
+                            process_db pb { es with tp = es.tp + 1; ts = es.ts + 1 }
       | NoOrd as o, es   -> Order.print es.ts o;
-                            process_db ts db { es with ts = es.ts + 1 }
+                            process_db pb { es with ts = es.ts + 1 }
   in
   let rec step first pb_opt (es: EState.t) =
-    let conclude () = let _ = process_db (-1) (Db.create []) es in () in
+    let conclude (pb: Other_parser.Parsebuf.t) =
+      let _ = process_db { pb with ts = -1; db = Db.create [] } es
+      in ()
+    in
     match Other_parser.Trace.parse_from_channel inc pb_opt with
-    | None -> conclude ()
+    | None -> ()
     | Some (more, pb) ->
        (*Stdio.printf "------------\n";
        Stdio.printf "Before: \n";
        Stdio.printf "%s" (EState.to_string es);
        Stdlib.flush_all ();*)
        let es = if first then { es with ts = pb.ts } else es in
-       let es = process_db pb.ts pb.db es in
+       let es = process_db pb es in
        Stdlib.flush_all();
        (*Stdio.printf "------------\n";
        Stdio.printf "After: \n";
        Stdio.printf "%s" (EState.to_string es);
        Stdlib.flush_all ();*)
-       if more then step false (Some(pb)) es else conclude () in
+       if more then step false (Some(pb)) es else conclude pb in
   let tf = try Typing.do_type f with Invalid_argument s -> failwith s in
   let transparent =
     try Typing.is_transparent tf
