@@ -86,7 +86,7 @@ for _, row in df.iterrows():
         line = f"@{now} legal_grounds(\"{id}\",\"ACCOUNT\")"
         legal_grounds += 1
     elif row["Title"] == "Udfoer bortfald":
-        line = f"@{now} ds_deletion_request(\"APPL\",\"{id}\",\"{id}\") revoke(\"APPL\",\"{id}\",\"{id}\")"
+        line = f"@{now} ds_deletion_request(\"APPL\",\"{id}\",\"{id}\") ds_revoke(\"APPL\",\"{id}\",\"{id}\")"
         deletion_request += 1
         revoke += 1
     elif row["Title"] == "ansøger informeret ":
