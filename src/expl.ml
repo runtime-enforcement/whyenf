@@ -17,7 +17,7 @@ module Part = struct
 
   type sub = (Dom.t, Dom.comparator_witness) Setc.t
 
-  type 'a t = (sub * 'a) list 
+  type 'a t = (sub * 'a) list
 
   let random_empty_set = Set.empty (module String)
 
@@ -934,6 +934,7 @@ module Pdt = struct
     | Node (x, part), Node (x', part') -> String.equal x x' && Int.equal (Part.length part) (Part.length part') &&
                                             List.for_all2_exn part part' ~f:(fun (s, v) (s', v') ->
                                                 Setc.equal s s' && eq p_eq v v')
+    | _ -> false
 
   let rec reduce p_eq = function
     | Leaf l -> Leaf l
@@ -996,7 +997,7 @@ module Pdt = struct
     | Node (x, part) -> specialize v (Part.find part (Map.find_exn v x))
 
   let rec specialize_partial v = function
-    | Leaf l -> Leaf l 
+    | Leaf l -> Leaf l
     | Node (x, part) when Map.mem v x -> specialize_partial v (Part.find part (Map.find_exn v x))
     | Node (x, part) -> Node (x, Part.map part (specialize_partial v))
 
