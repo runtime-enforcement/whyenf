@@ -99,6 +99,7 @@ module EnfType = struct
 end
 
 let tp_event_name = "~tp"
+let tick_event_name = "~tick"
 
 module Sig = struct
 
@@ -110,6 +111,8 @@ module Sig = struct
     let table = Hashtbl.create (module String) in
     Hashtbl.add_exn table ~key:tp_event_name
       ~data:{ arity = 0; ntconsts = []; enftype = Cau; rank = 0 };
+    Hashtbl.add_exn table ~key:tick_event_name
+      ~data:{ arity = 0; ntconsts = []; enftype = Obs; rank = 0 };
     table
   
   let add p_name ntconsts enftype rank =
