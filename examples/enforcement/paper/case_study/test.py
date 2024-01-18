@@ -11,9 +11,16 @@ import matplotlib.pyplot as plt
 plt.rcParams["font.family"] = "serif"
 plt.rcParams["font.serif"] = "Times New Roman"
 
-WHYMON = ('docker run -i -v `pwd`:/work infsec/benchmark replayer -a {} -i monpoly -f monpoly arfelt.log -t {} | '
-          '../../../../bin/whymon.exe -sig arfelt.sig '
-          '-formula {}')
+MONPOLY = False
+
+if not MONPOLY:
+    COMMAND = ('docker run -i -v `pwd`:/work infsec/benchmark replayer -a {} -i monpoly -f monpoly arfelt.log -t {} -s 2 | '
+               '../../../../bin/whymon.exe -mode enforce -sig arfelt.sig '
+               '-formula {}')
+else:
+    COMMAND = ('docker run -i -v `pwd`:/work infsec/benchmark replayer -a {} -i monpoly -f monpoly arfelt.log -t {} | '
+           '~/Tools/monpoly_dev/monpoly/monpoly -enforce -sig arfelt.sig '
+           '-formula {}  -ignore_parse_errors ')
 
 COLUMNS = ["time", "input_time_epoch", "ev", "tp", "cau", "sup", "ins", "output_time_epoch"]
 
@@ -50,7 +57,7 @@ def summary(df, step, a):
             "real_time_acc": 1000 * 24*3600 / df["latency"].max()}
 
 def run_whymon(formula, step, a):
-    command = WHYMON.format(a / (24*3600), step, formula)
+    command = COMMAND.format(a / (24*3600), step, formula)
     print(command)
     p = Popen([command], stdout=PIPE, stderr=PIPE, shell=True)
     output, err = p.communicate()
@@ -75,6 +82,7 @@ def plot(desc, step, a, df, fn):
     ax2.plot(df["time"], df["ev"] * 1000 / step, 'b-', label='log(event rate)', linewidth=0.5)
     #ax2.set_ylabel('log(event/s)', color='b')
     ax2.set_yscale('log')
+    #ax.set_yscale('log')
     ax2.tick_params(axis='y', labelcolor='b')
     ax.set_title(f"“{desc}” policy, acceleration = {a:.0f} (1 second = {a / (24*3600):.0f} days)")
     ax.legend(loc=(0.6, 0.47))
@@ -86,25 +94,33 @@ def plot(desc, step, a, df, fn):
 
 
 if __name__ == '__main__':
-    FORMULAE = {
-        "Access": "arfelt_6_access",
-        "Erasure": "arfelt_7_erasure",
-        "Lawfulness": "arfelt_3_lawfulness",
-        "Limitation": "arfelt_2_limitation",
-        "Information": "arfelt_5_information",
-        "Share": "arfelt_7_erasure_3",
-        "Consent": "arfelt_4_consent",
-    }
+    if not MONPOLY:
+        FORMULAE = {
+            "Lawfulness": "arfelt_3_lawfulness",
+            "Access": "arfelt_6_access",
+            "Erasure": "arfelt_7_erasure",
+            "Limitation": "arfelt_2_limitation",
+            "Information": "arfelt_5_information",
+            "Share": "arfelt_7_erasure_3",
+            "Consent": "arfelt_4_consent",
+        }
+    else:
+        FORMULAE = {
+            "Lawfulness": "arfelt_3_lawfulness",
+        }
     series = []
     STEP = 10
     OUT = "out"
-    ACCELERATIONS = [0]#[0.25, 0.5e6, 0.75e6, 1e6]#1e3, 1e4, 1e5, 1e6]#[1.25e5, 2.5e5, 0.5e6, 1e6, 2e6, 4e6][::-1]
+    ACCELERATIONS = [1e4]#[0.25, 0.5e6, 0.75e6, 1e6]#1e3, 1e4, 1e5, 1e6]#[1.25e5, 2.5e5, 0.5e6, 1e6, 2e6, 4e6][::-1]
     N = 1
     for desc, formula in FORMULAE.items():
 
         for a in ACCELERATIONS:
             for _ in range(N):
-                df = run_whymon(formula + ".mfotl", STEP, a)
+                if MONPOLY:
+                    df = run_whymon(formula + ".monpoly", STEP, a)
+                else:
+                    df = run_whymon(formula + ".mfotl", STEP, a)
                 df.to_csv(os.path.join(OUT, f"{formula}_{a}.csv"), index=False)
                 summ = summary(df, STEP, a)
                 summ["formula"] = desc
