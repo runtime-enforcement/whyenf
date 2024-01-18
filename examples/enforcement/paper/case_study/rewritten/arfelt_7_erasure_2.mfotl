@@ -1,0 +1,1 @@
+∀data. ∀dataid. ∀dsid. use(data, dataid, dsid) → ¬⧫ delete(data, dataid, dsid)

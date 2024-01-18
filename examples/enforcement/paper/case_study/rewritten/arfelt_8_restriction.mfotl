@@ -1,0 +1,1 @@
+□ (∀data. ∀dataid. ∀dsid. use(data, dataid, dsid) → ¬((¬ ds_repeal(data, dataid, dsid)) S ds_restrict(data, dataid, dsid)))
