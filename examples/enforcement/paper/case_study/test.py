@@ -11,18 +11,24 @@ import matplotlib.pyplot as plt
 plt.rcParams["font.family"] = "serif"
 plt.rcParams["font.serif"] = "Times New Roman"
 
-MONPOLY = False
+MONPOLY = True
+ENFORCE = True
 
 if not MONPOLY:
-    COMMAND = ('docker run -i -v `pwd`:/work infsec/benchmark replayer -a {} -i monpoly -f monpoly arfelt.log -t {} -s 2 | '
-               '../../../../bin/whymon.exe -mode enforce -sig arfelt.sig '
-               '-formula {}')
+    if ENFORCE:
+        COMMAND = ('docker run -i -v `pwd`:/work infsec/benchmark replayer -a {} -i monpoly -f monpoly arfelt.log -t {}  | '
+                   '../../../../bin/whymon.exe -mode enforce -sig arfelt.sig '
+                   '-formula {}')
+    else:
+        COMMAND = ('docker run -i -v `pwd`:/work infsec/benchmark replayer -a {} -i monpoly -f monpoly arfelt.log -t {} | '
+                   '../../../../bin/whymon.exe -mode light -sig arfelt.sig '
+                   '-formula rewritten/{}')
 else:
     COMMAND = ('docker run -i -v `pwd`:/work infsec/benchmark replayer -a {} -i monpoly -f monpoly arfelt.log -t {} | '
            '~/Tools/monpoly_dev/monpoly/monpoly -enforce -sig arfelt.sig '
-           '-formula {}  -ignore_parse_errors ')
+           '-formula enfpoly/{}  -ignore_parse_errors ')
 
-COLUMNS = ["time", "input_time_epoch", "ev", "tp", "cau", "sup", "ins", "output_time_epoch"]
+COLUMNS = ["time", "input_time_epoch", "skipped_time", "ev", "tp", "cau", "sup", "ins", "output_time_epoch"]
 
 TEMP = "temp.txt"
 
@@ -36,7 +42,7 @@ def analyze(lines, step):
     df.columns = COLUMNS
     for column in COLUMNS:
         df[column] = df[column].astype(int)
-    df["latency"] = df["output_time_epoch"] - df["input_time_epoch"]
+    df["latency"] = df["output_time_epoch"] + df["skipped_time"] - df["input_time_epoch"]
     df["time"] *= step
     df.drop(columns=["input_time_epoch", "output_time_epoch"], inplace=True)
     df = df.iloc[:-1]
@@ -111,16 +117,13 @@ if __name__ == '__main__':
     series = []
     STEP = 10
     OUT = "out"
-    ACCELERATIONS = [1e4]#[0.25, 0.5e6, 0.75e6, 1e6]#1e3, 1e4, 1e5, 1e6]#[1.25e5, 2.5e5, 0.5e6, 1e6, 2e6, 4e6][::-1]
+    ACCELERATIONS = [1e6]#[0.25, 0.5e6, 0.75e6, 1e6]#1e3, 1e4, 1e5, 1e6]#[1.25e5, 2.5e5, 0.5e6, 1e6, 2e6, 4e6][::-1]
     N = 1
     for desc, formula in FORMULAE.items():
 
         for a in ACCELERATIONS:
             for _ in range(N):
-                if MONPOLY:
-                    df = run_whymon(formula + ".monpoly", STEP, a)
-                else:
-                    df = run_whymon(formula + ".mfotl", STEP, a)
+                df = run_whymon(formula + ".mfotl", STEP, a)
                 df.to_csv(os.path.join(OUT, f"{formula}_{a}.csv"), index=False)
                 summ = summary(df, STEP, a)
                 summ["formula"] = desc
