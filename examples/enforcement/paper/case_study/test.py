@@ -12,7 +12,7 @@ plt.rcParams["font.family"] = "serif"
 plt.rcParams["font.serif"] = "Times New Roman"
 
 WHYMON = ('docker run -i -v `pwd`:/work infsec/benchmark replayer -a {} -i monpoly -f monpoly arfelt.log -t {} | '
-          '../../../../bin/whymon.exe -mode enforce -sig arfelt.sig '
+          '../../../../bin/whymon.exe -sig arfelt.sig '
           '-formula {}')
 
 COLUMNS = ["time", "input_time_epoch", "ev", "tp", "cau", "sup", "ins", "output_time_epoch"]
