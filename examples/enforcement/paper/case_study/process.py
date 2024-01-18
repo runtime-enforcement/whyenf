@@ -3,7 +3,13 @@ import numpy as np
 import time
 
 RAW = "originallog.csv"
-OUTPUT = "arfelt.log"
+
+CONDENSED = True
+
+if CONDENSED:
+    OUTPUT = "condensed.log"
+else:
+    OUTPUT = "arfelt.log"
 
 df = pd.read_csv(RAW, sep=";")
 log = []
@@ -72,43 +78,51 @@ df.to_csv("intermediate.csv")
 consent, collect, delete, legal_grounds, deletion_request, use, share_with, revoke = \
     0, 0, 0, 0, 0, 0, 0, 0
 
-for _, row in df.iterrows():
-    now = row["Days"]
+last, now = -2, -1
+for i, row in df.iterrows():
     id = row["ID"]
     if row["Title"] == "Godkendelse - videre til bestyrelsen":
-        line = f"@{now} ds_consent(\"{id}\", \"APPL\") collect(\"APPL\", \"{id}\", \"{id}\")"
+        line = f"ds_consent(\"{id}\", \"APPL\") collect(\"APPL\", \"{id}\", \"{id}\")"
         consent += 1
         collect += 1
     elif row["Title"] == "Payment completed":
-        line = f"@{now} delete(\"APPL\",\"{id}\",\"{id}\") delete(\"ACCOUNT\",\"{id}\",\"{id}\")"
+        line = f"delete(\"APPL\",\"{id}\",\"{id}\") delete(\"ACCOUNT\",\"{id}\",\"{id}\")"
         delete += 2
     elif row["Title"] == "Godkend ansøgning":
-        line = f"@{now} legal_grounds(\"{id}\",\"ACCOUNT\")"
+        line = f"legal_grounds(\"{id}\",\"ACCOUNT\")"
         legal_grounds += 1
     elif row["Title"] == "Udfoer bortfald":
-        line = f"@{now} ds_deletion_request(\"APPL\",\"{id}\",\"{id}\") ds_revoke(\"{id}\",\"APPL\")"
+        line = f"ds_deletion_request(\"APPL\",\"{id}\",\"{id}\") ds_revoke(\"{id}\",\"APPL\")"
         deletion_request += 1
         revoke += 1
     elif row["Title"] == "ansøger informeret ":
-        line = f"@{now} delete(\"APPL\",\"{id}\",\"{id}\")"
+        line = f"delete(\"APPL\",\"{id}\",\"{id}\")"
         delete += 1
     elif row["Title"] in ["Review", "Pre-behandl ansøgning"]:
-        line = f"@{now} use(\"APPL\",\"{id}\",\"{id}\")"
+        line = f"use(\"APPL\",\"{id}\",\"{id}\")"
         use += 1
     elif row["Title"] == "Lawyer Review":
-        line = f"@{now} use(\"APPL\",\"{id}\",\"{id}\") share_with(\"LAWYER\",\"{id}\")"
+        line = f"use(\"APPL\",\"{id}\",\"{id}\") share_with(\"LAWYER\",\"{id}\")"
         use += 1
         share_with += 1
     elif row["Title"] == "Architect Review":
-        line = f"@{now} use(\"APPL\",\"{id}\",\"{id}\") share_with(\"ARCHITECT\",\"{id}\")"
+        line = f"use(\"APPL\",\"{id}\",\"{id}\") share_with(\"ARCHITECT\",\"{id}\")"
         use += 1
         share_with += 1
     elif row["Title"] in ["Godkent ændret kontonummer", "Account number changed", "Undo payment",
                           "Første udbetaling"]:
-        line = f"@{now} use(\"ACCOUNT\",\"{id}\",\"{id}\")"
+        line = f"use(\"ACCOUNT\",\"{id}\",\"{id}\")"
         use += 1
     else:
         continue
+    now_x = row["Days"]
+    if CONDENSED:
+        if now_x > last:
+            now += 1
+    else:
+        now = now_x    
+    last = row["Days"]
+    line = f"@{now} " + line
     log.append(line)
 
 with open(OUTPUT, 'w') as f:
