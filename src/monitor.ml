@@ -347,17 +347,11 @@ module Once = struct
        [Proof.V (VOnceOut tp)])
     else
       let b = Interval.right i in
-      let r = ts - a in
       let l = if (Option.is_some b) then max 0 (ts - (Option.value_exn b))
               else (Option.value_exn moaux_subps.ts_zero) in
+      let r = ts - a in
       match mode with
       | Out.Plain.ENFORCE ->
-         let l = if (Option.is_some b) then
-                   let s_ts = Fdeque.find moaux_subps.s_alphas_in ~f:(fun (ts, p) -> Proof.isS p) in
-                   (match s_ts with
-                    | None -> r
-                    | Some(ts, _) -> ts)
-                 else l in
          let moaux_shifted = shift_enforce (l, r) a ts tp moaux_subps in
          let ps = eval_enforce tp moaux_shifted in
          (moaux_shifted, ps)
@@ -923,17 +917,11 @@ module Since = struct
        [Proof.V (VSinceOut tp)])
     else
       (let b = Interval.right i in
-       let r = ts - a in
        let l = if (Option.is_some b) then max 0 (ts - (Option.value_exn b))
                else (Option.value_exn msaux_subps.ts_zero) in
+       let r = ts - a in
        match mode with
        | Out.Plain.ENFORCE ->
-          let l = if (Option.is_some b) then
-                    let s_ts = Fdeque.find msaux_subps.s_beta_alphas_in ~f:(fun (ts, p) -> Proof.isS p) in
-                    (match s_ts with
-                     | None -> r
-                     | Some(ts, _) -> ts)
-                  else l in
           let msaux_shifted = shift_enforce (l, r) a ts tp msaux_subps in
           let ps = eval_enforce tp msaux_shifted in
           (msaux_shifted, ps)
