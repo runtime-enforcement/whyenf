@@ -41,6 +41,7 @@ rule token = parse
   | "+"                            { PLS }
   | "-"                            { MNS }
   | string as s                    { STR s }
+  | "~tick"                        { STR "~tick" }
   | '"' (quoted_string as s) '"'   { STR s }
   | eof                            { EOF }
   | _ as c                         { lexing_error lexbuf "unexpected character: `%c'" c }

@@ -2,7 +2,9 @@ open Base
 open Formula
 open Pred
 
-let rec is_past_guarded x p = function
+let rec is_past_guarded x p f =
+  let r =
+  match f with
   | TT | FF -> false
   | EqConst (y, _) -> p && (x == y)
   | Predicate (_, ts) -> List.exists ~f:(Term.equal (Term.Var x)) ts
@@ -29,6 +31,7 @@ let rec is_past_guarded x p = function
                                  || is_past_guarded x p f && is_past_guarded x p g
   | Since (_, i, f, g) | Until (_, i, f, g) -> Interval.mem 0 i && is_past_guarded x p g
   | _ -> false
+  in r
 
 module Errors = struct
 
@@ -294,7 +297,7 @@ let rec convert b enftype form : Tformula.t option =
         | And (R, f, g) -> (convert Sup g) >>| (fun g' -> Tformula.TAnd (R, Tformula.of_formula f, g'))
         | And (_, f, g) ->
            begin
-             match convert Sup f with
+              match convert Sup f with
              | Some f' -> Some (Tformula.TAnd (L, f', Tformula.of_formula g))
              | None    -> (convert Sup g) >>| (fun g' -> Tformula.TAnd (R, Tformula.of_formula f, g'))
            end

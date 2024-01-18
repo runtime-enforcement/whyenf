@@ -12,7 +12,7 @@ plt.rcParams["font.family"] = "serif"
 plt.rcParams["font.serif"] = "Times New Roman"
 
 WHYMON = ('docker run -i -v `pwd`:/work infsec/benchmark replayer -a {} -i monpoly -f monpoly arfelt.log -t {} | '
-          '../../../../bin/whymon.exe -mode enforce -sig arfelt.sig '
+          '../../../../bin/whymon.exe -sig arfelt.sig '
           '-formula {}')
 
 COLUMNS = ["time", "input_time_epoch", "ev", "tp", "cau", "sup", "ins", "output_time_epoch"]
@@ -98,7 +98,7 @@ if __name__ == '__main__':
     series = []
     STEP = 10
     OUT = "out"
-    ACCELERATIONS = 0#[0.25, 0.5e6, 0.75e6, 1e6]#1e3, 1e4, 1e5, 1e6]#[1.25e5, 2.5e5, 0.5e6, 1e6, 2e6, 4e6][::-1]
+    ACCELERATIONS = [0]#[0.25, 0.5e6, 0.75e6, 1e6]#1e3, 1e4, 1e5, 1e6]#[1.25e5, 2.5e5, 0.5e6, 1e6, 2e6, 4e6][::-1]
     N = 1
     for desc, formula in FORMULAE.items():
 
