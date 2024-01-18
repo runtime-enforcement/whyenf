@@ -99,7 +99,7 @@ module EnfType = struct
 end
 
 let tp_event_name = "~tp"
-let tick_event_name = "~tick"
+let tick_event_name = "tick"
 
 module Sig = struct
 

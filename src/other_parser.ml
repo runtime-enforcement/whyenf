@@ -97,7 +97,8 @@ module Parsebuf = struct
 
   let add_event evt pb =
     pb.db <- Db.add_event pb.db evt;
-    Stats.inc_ev pb.stats
+    if not (Db.Event.equal evt Db.Event._tick) then
+      Stats.inc_ev pb.stats
 
   let count_tp pb =
     Stats.inc_tp pb.stats
