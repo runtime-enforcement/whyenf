@@ -345,19 +345,24 @@ let exec f inc b =
     Stdlib.flush_all ();*)
     if Int.equal pb.ts (-1) && FObligations.accepts_empty es.fobligs then
       es
-    else if Int.equal pb.ts es.ts then
+    else if not (Int.equal pb.ts es.ts) then
+      match proactive_step { es with db = Db.create [] } with
+      | PrOrd c as o, es' -> Other_parser.Stats.add_cau ~ins:true (Db.size c) pb.stats;
+                             Order.print es.ts o;
+                             process_db pb { es' with tp = es.tp + 1;
+                                                      ts = es.ts + 1;
+                                                      db = es.db }
+      | NoOrd as o, es'   -> Order.print es.ts o;
+                             process_db pb { es' with ts = es.ts + 1;
+                                                      db = es.db }
+    else if not (Db.is_tick pb.db) then
       match reactive_step pb.db es with
       | ReOrd (c, s) as o, es -> Other_parser.Stats.add_cau (Db.size c) pb.stats;
                                  Other_parser.Stats.add_sup (Db.size s) pb.stats;
                                  Order.print es.ts o;
                                  { es with tp = es.tp + 1 }
     else
-      match proactive_step es with
-      | PrOrd c as o, es -> Other_parser.Stats.add_cau ~ins:true (Db.size c) pb.stats;
-                            Order.print es.ts o;
-                            process_db pb { es with tp = es.tp + 1; ts = es.ts + 1 }
-      | NoOrd as o, es   -> Order.print es.ts o;
-                            process_db pb { es with ts = es.ts + 1 }
+      es
   in
   let rec step first pb_opt (es: EState.t) =
     let conclude (pb: Other_parser.Parsebuf.t) =

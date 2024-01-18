@@ -39,6 +39,7 @@ module Event = struct
   include Comparable.Make(T)
 
   let _tp = (Pred.tp_event_name, [])
+  let _tick = (Pred.tick_event_name, [])
 
 end
 
@@ -63,10 +64,15 @@ let event name consts =
 
 let add_event db evt = Set.add db evt
 
+let is_tick db =
+  mem db Event._tick && size db == 1
+
 let to_string db =
   Etc.string_list_to_string (List.map ~f:Event.to_string (Set.elements db))
+
 
 let to_json db =
   "[ " ^ (String.concat ~sep:", "
             (List.rev(Set.fold db ~init:[] ~f:(fun acc evt ->
                           Event.to_json evt :: acc)))) ^ "] "
+

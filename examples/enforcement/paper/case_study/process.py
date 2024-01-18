@@ -4,7 +4,7 @@ import time
 
 RAW = "originallog.csv"
 
-CONDENSED = True
+CONDENSED = False
 
 if CONDENSED:
     OUTPUT = "condensed.log"
@@ -120,6 +120,9 @@ for i, row in df.iterrows():
         if now_x > last:
             now += 1
     else:
+        if last >= 0 and now_x > last + 1:
+            for i in range(last + 1, now_x):
+                log.append(f"@{i} ~tick()")
         now = now_x    
     last = row["Days"]
     line = f"@{now} " + line

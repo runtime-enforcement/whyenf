@@ -22,6 +22,7 @@ module Event : sig
   include Comparable.S with type t := t
 
   val _tp: t
+  val _tick: t
 end
 
 type t = (Event.t, Event.comparator_witness) Set.t
@@ -36,6 +37,7 @@ val size: t -> int
 val event: string -> string list -> Event.t
 
 val add_event: t -> Event.t -> t
+val is_tick: t -> bool
 
 val to_string: t -> string
 

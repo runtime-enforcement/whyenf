@@ -57,6 +57,7 @@ module EnfType : sig
 end
 
 val tp_event_name: string
+val tick_event_name: string
 
 module Sig : sig
 
