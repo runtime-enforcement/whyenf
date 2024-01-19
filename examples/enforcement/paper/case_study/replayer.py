@@ -20,6 +20,8 @@ def feeder(log, acc, p, q, queuing, lock):
         p.stdin.write(f"> LATENCY {tp} {ts} <\n")
         p.stdin.flush()
         data.append(f"f,{tp},{ts},{t}")
+    while queuing.value > 1:
+        pass
     with lock:
         queuing.value = 0
     q.put(data)
@@ -49,7 +51,7 @@ def replay(log, command, acc=1000):
     queuing = manager.Value('queuing', 1)
     q = Queue()
     lock = Lock()
-    sleep(1)
+    sleep(2)
     f = Process(target=feeder, args=(log, acc, p, q, queuing, lock))
     r = Process(target=reader, args=(p, q, queuing, lock))
     f.start()
@@ -59,4 +61,4 @@ def replay(log, command, acc=1000):
     return pd.read_csv(StringIO("type,tp,ts,computer_time,n_ev,n_tp,cau,sup,ins,done_time\n" + "\n".join(data1 + data2)))
 
     
-#print(replay("special.log", "../../../../bin/whymon.exe -mode light -sig arfelt.sig -formula rewritten/arfelt_6_access.mfotl", acc=1000))
+#print(replay("special.log", "../../../../bin/whymon.exe -mode enforce -sig arfelt.sig -formula formulae_whyenf/arfelt_7_erasure_3.mfotl", acc=500000))
