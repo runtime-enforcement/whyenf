@@ -14,9 +14,9 @@ plt.rcParams["font.family"] = "serif"
 plt.rcParams["font.serif"] = "Times New Roman"
 plt.rcParams["text.usetex"] = True
 
-OPTION = "WhyMon"
+OPTION = "Enfpoly"
 
-if OPTION == "Monpoly":
+if OPTION == "Enfpoly":
     COMMAND = '~/Tools/monpoly_dev/monpoly/monpoly -enforce -sig arfelt.sig -formula formulae_enfpoly/{}  -ignore_parse_errors '
 elif OPTION == "WhyEnf":
     COMMAND = '../../../../bin/whymon.exe -mode enforce -sig arfelt.sig -formula formulae_whyenf/{}'
@@ -95,7 +95,7 @@ def plot(desc, step, a, df, fn):
 
 
 if __name__ == '__main__':
-    if OPTION != "Monpoly":
+    if OPTION != "Enfpoly":
         FORMULAE = {
             "Access": "arfelt_6_access",
             "Lawfulness": "arfelt_3_lawfulness",
@@ -107,11 +107,12 @@ if __name__ == '__main__':
         }
     else:
         FORMULAE = {
+            "Consent": "arfelt_4_consent",
             "Lawfulness": "arfelt_3_lawfulness",
         }
     series = []
     STEP = 100
-    if OPTION == "Monpoly":
+    if OPTION == "Enfpoly":
         OUT = "out_monpoly"
     elif OPTION == "WhyEnf":
         OUT = "out_whyenf"
