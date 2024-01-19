@@ -107,8 +107,7 @@ if __name__ == '__main__':
             "Erasure": "arfelt_7_erasure",
             "Limitation": "arfelt_2_limitation",
             "Information": "arfelt_5_information",
-            "Share": "arfelt_7_erasure_3",
-            "Consent": "arfelt_4_consent",
+            #"Share": "arfelt_7_erasure_3",
         }
     else:
         FORMULAE = {
