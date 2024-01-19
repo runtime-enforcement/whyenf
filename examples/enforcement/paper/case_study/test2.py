@@ -13,7 +13,7 @@ from replayer import replay
 plt.rcParams["font.family"] = "serif"
 plt.rcParams["font.serif"] = "Times New Roman"
 
-MONPOLY = False
+MONPOLY = True
 ENFORCE = True
 
 if not MONPOLY:
@@ -43,7 +43,7 @@ def summary(df, step, a):
 
 def run_whymon(formula, step, a):
     command = COMMAND.format(formula)
-
+    print(command)
     df = replay("special.log", command, acc=a)
     series = []
     df = df.set_index(["type", "tp"])
@@ -66,7 +66,7 @@ def run_whymon(formula, step, a):
 
 def plot(desc, step, a, df, fn):
     fig, ax = plt.subplots(1, 1, figsize=(7.5, 3))
-    real_time = (df["time"].max()-df["time"].min()) / a * 1000
+    real_time = (1000*24*3600) / a
     df["time"] /= 1000
     ax.plot(df["time"], df["latency"], 'k-', label='latency (ms)', linewidth=0.5)
     ax.plot([min(df["time"]), max(df["time"])], [real_time, real_time], 'k:', label="real-time latency (ms)", linewidth=0.5)
@@ -98,8 +98,8 @@ def plot(desc, step, a, df, fn):
 if __name__ == '__main__':
     if not MONPOLY:
         FORMULAE = {
-            "Access": "arfelt_6_access",
             "Lawfulness": "arfelt_3_lawfulness",
+            "Access": "arfelt_6_access",
             "Erasure": "arfelt_7_erasure",
             "Limitation": "arfelt_2_limitation",
             "Information": "arfelt_5_information",
@@ -113,52 +113,60 @@ if __name__ == '__main__':
     series = []
     STEP = 100
     OUT = "out"
-    ACCELERATIONS = [5e4, 1e5, 5e5, 1e6, 5e6, 1e7]#[0.25, 0.5e6, 0.75e6, 1e6]#1e3, 1e4, 1e5, 1e6]#[1.25e5, 2.5e5, 0.5e6, 1e6, 2e6, 4e6][::-1]
+    ACCELERATIONS = [5e4, 1e5, 5e5, 1e6, 5e6, 1e7, 5e7]#[0.25, 0.5e6, 0.75e6, 1e6]#1e3, 1e4, 1e5, 1e6]#[1.25e5, 2.5e5, 0.5e6, 1e6, 2e6, 4e6][::-1]
     N = 1
-    for desc, formula in FORMULAE.items():
+    ONLY_GRAPH = False
 
-        for a in ACCELERATIONS:
-            for _ in range(N):
-                df = run_whymon(formula + ".mfotl", STEP, a)
-                df.to_csv(os.path.join(OUT, f"{formula}_{a}.csv"), index=False)
-                summ = summary(df, STEP, a)
-                summ["formula"] = desc
-                #a = summ["real_time_acc"]
-                plot(desc, STEP, a, df, os.path.join(OUT, f"{formula}_{a}.png"))
-                series.append(summ)
-                print(summ)
+    if not ONLY_GRAPH:
+    
+        for desc, formula in FORMULAE.items():
+
+            for a in ACCELERATIONS:
+                for _ in range(N):
+                    df = run_whymon(formula + ".mfotl", STEP, a)
+                    df.to_csv(os.path.join(OUT, f"{formula}_{a}.csv"), index=False)
+                    summ = summary(df, STEP, a)
+                    summ["formula"] = desc
+                    #a = summ["real_time_acc"]
+                    plot(desc, STEP, a, df, os.path.join(OUT, f"{formula}_{a}.png"))
+                    series.append(summ)
+                    print(summ)
             
-    summary = pd.DataFrame(series)
-    summary.to_csv(os.path.join(OUT, "summary.csv"), index=None)
+        summary = pd.DataFrame(series)
+        summary.to_csv(os.path.join(OUT, "summary.csv"), index=None)
 
-    summary = summary[["formula", "a", "d1", "avg_ev", "max_latency"]]
+    summary = pd.read_csv(os.path.join(OUT, "summary.csv"))
 
-    fig, ax = plt.subplots(1, 1, figsize=(7.5, 3))
+    summary = summary[["formula", "a", "avg_ev", "max_latency"]]
+    summary["d1"] = (1000*24*3600) / summary["a"]
+
+    fig, ax2 = plt.subplots(1, 1, figsize=(7.5, 4))
+    ax = ax2.twinx()
     
     d1 = summary[["a", "d1"]].groupby("a").mean()
     ax.plot(d1.index, d1["d1"], "k-", label="1/a", linewidth=0.5)
             
     for desc in FORMULAE:
         s = summary[summary["formula"] == desc][["a", "max_latency"]].groupby("a").mean()
-        ax.plot(s.index, s["max_latency"], label=desc, linewidth=0.5)
+        ax.plot(s.index, s["max_latency"], label=desc, linewidth=1)
 
-    ax2 = ax.twinx()
+
 
     print(summary)
     
     ae = summary[["a", "avg_ev"]].groupby("a").mean()
     ax2.plot(ae.index, ae["avg_ev"], "k:", label="avg event rate", linewidth=0.5)
 
-    ax.set_xlabel("acceleration a")
+    ax2.set_xlabel("acceleration a")
     ax.set_ylabel("max latency (ms)")
     ax2.set_ylabel("events/s")
 
-    ax.legend(loc='upper left')
-    ax2.legend(loc='upper right')
-    ax.set_xscale('log')
+    ax.legend(loc='upper right')
+    ax2.legend(loc='upper left')
+    ax2.set_xscale('log')
     ax.set_yscale('log')    
     ax2.set_yscale('log')
-    fig.tight_layout()
-    fig.savefig(os.path.join(OUT, "graph.png"), dpi=1000)
+    #fig.tight_layout()
+    fig.savefig(os.path.join(OUT, "graph.png"), dpi=300)
         
     

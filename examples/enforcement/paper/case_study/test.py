@@ -11,16 +11,16 @@ import matplotlib.pyplot as plt
 plt.rcParams["font.family"] = "serif"
 plt.rcParams["font.serif"] = "Times New Roman"
 
-MONPOLY = True
-ENFORCE = True
+MONPOLY = False
+ENFORCE = False
 
 if not MONPOLY:
     if ENFORCE:
-        COMMAND = ('docker run -i -v `pwd`:/work infsec/benchmark replayer -a {} -i monpoly -f monpoly arfelt.log -t {}  | '
+        COMMAND = ('docker run -i -v `pwd`:/work infsec/benchmark replayer -a {} -i monpoly -f monpoly arfelt.log -t {} -s 4  | '
                    '../../../../bin/whymon.exe -mode enforce -sig arfelt.sig '
                    '-formula {}')
     else:
-        COMMAND = ('docker run -i -v `pwd`:/work infsec/benchmark replayer -a {} -i monpoly -f monpoly arfelt.log -t {} | '
+        COMMAND = ('docker run -i -v `pwd`:/work infsec/benchmark replayer -a {} -i monpoly -f monpoly arfelt.log -t {} -s 2 | '
                    '../../../../bin/whymon.exe -mode light -sig arfelt.sig '
                    '-formula rewritten/{}')
 else:
@@ -42,8 +42,8 @@ def analyze(lines, step):
     df.columns = COLUMNS
     for column in COLUMNS:
         df[column] = df[column].astype(int)
-    df["latency"] = df["output_time_epoch"] + df["skipped_time"] - df["input_time_epoch"]
-    df["time"] *= step
+    df["latency"] = df["output_time_epoch"] - df["input_time_epoch"]
+    df["time"] = df["input_time_epoch"] + df["skipped_time"] - df["input_time_epoch"].min() #= step
     df.drop(columns=["input_time_epoch", "output_time_epoch"], inplace=True)
     df = df.iloc[:-1]
     return df
@@ -115,9 +115,9 @@ if __name__ == '__main__':
             "Lawfulness": "arfelt_3_lawfulness",
         }
     series = []
-    STEP = 10
+    STEP = 100
     OUT = "out"
-    ACCELERATIONS = [1e6]#[0.25, 0.5e6, 0.75e6, 1e6]#1e3, 1e4, 1e5, 1e6]#[1.25e5, 2.5e5, 0.5e6, 1e6, 2e6, 4e6][::-1]
+    ACCELERATIONS = [1e3, 5e3, 1e4, 5e4, 1e5, 5e5, 1e6]#[0.25, 0.5e6, 0.75e6, 1e6]#1e3, 1e4, 1e5, 1e6]#[1.25e5, 2.5e5, 0.5e6, 1e6, 2e6, 4e6][::-1]
     N = 1
     for desc, formula in FORMULAE.items():
 
@@ -127,7 +127,7 @@ if __name__ == '__main__':
                 df.to_csv(os.path.join(OUT, f"{formula}_{a}.csv"), index=False)
                 summ = summary(df, STEP, a)
                 summ["formula"] = desc
-                a = summ["real_time_acc"]
+                #a = summ["real_time_acc"]
                 plot(desc, STEP, a, df, os.path.join(OUT, f"{formula}_{a}.png"))
                 series.append(summ)
                 print(summ)
@@ -160,9 +160,10 @@ if __name__ == '__main__':
     ax.set_ylabel("max latency (ms)")
     ax2.set_ylabel("events/s")
 
-    ax.legend(loc='upper left')
-    ax2.legend(loc='upper right')
-    ax.set_yscale('log')
+    ax.legend(loc='upper right')
+    ax2.legend(loc='upper left')
+    ax.set_xscale('log')
+    ax.set_yscale('log')    
     ax2.set_yscale('log')
     fig.tight_layout()
     fig.savefig(os.path.join(OUT, "graph.png"), dpi=1000)

@@ -4,10 +4,10 @@ import time
 
 RAW = "originallog.csv"
 
-CONDENSED = False
+SPECIAL = True
 
-if CONDENSED:
-    OUTPUT = "condensed.log"
+if SPECIAL:
+    OUTPUT = "special.log"
 else:
     OUTPUT = "arfelt.log"
 
@@ -27,7 +27,7 @@ def ts(s):
         return np.nan
 
 df["Days"] = df["Date"].apply(ts)
-df["Date"] = df["Date"].apply(date)
+df["Date"] = df["Date"].apply(date).astype(int)
 df = df[~df["Date"].isna()]
 df = df.sort_values(by="Date")
 df["Days"] = df["Days"].astype(int)
@@ -116,16 +116,19 @@ for i, row in df.iterrows():
     else:
         continue
     now_x = row["Days"]
-    if CONDENSED:
-        if now_x > last:
-            now += 1
-    else:
-        if last >= 0 and now_x > last + 1:
-            for i in range(last + 1, now_x):
-                log.append(f"@{i} tick()")
-        now = now_x    
+    d = row["Date"]
+    if last >= 0 and now_x > last + 1:
+        for i in range(last + 1, now_x):
+            if SPECIAL:
+                log.append(f"{(i+1)*86400}|@{i} tick();")
+            else:
+                log.append(f"@{i} tick();")
+    now = now_x    
     last = row["Days"]
-    line = f"@{now} " + line
+    if not SPECIAL:
+        line = f"@{now} " + line + ";"
+    else:
+        line = f"{d}|@{now} " + line + ";"
     log.append(line)
 
 with open(OUTPUT, 'w') as f:
