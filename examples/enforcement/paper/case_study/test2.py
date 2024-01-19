@@ -43,7 +43,7 @@ def summary(df, step, a):
 def run_whymon(formula, step, a):
     command = COMMAND.format(formula)
     print(command)
-    df = replay("special.log", command, acc=a)
+    df = replay("special.log", 4240, command, acc=a)
     series = []
     df = df.set_index(["type", "tp"])
     for (t, tp) in df.index:
@@ -64,7 +64,7 @@ def run_whymon(formula, step, a):
     return pd.DataFrame(series).sort_values(by="time")
 
 def plot(desc, step, a, df, fn):
-    fig, ax = plt.subplots(1, 1, figsize=(7.5, 3))
+    fig, ax = plt.subplots(1, 1, figsize=(7.5, 2.5))
     real_time = (1000*24*3600) / a
     df["time"] /= 1000
     ax.plot(df["time"], df["latency"], 'k-', label='latency (ms)', linewidth=0.5)
@@ -97,13 +97,13 @@ def plot(desc, step, a, df, fn):
 if __name__ == '__main__':
     if OPTION != "Enfpoly":
         FORMULAE = {
-            "Consent": "arfelt_4_consent",
-            "Information": "arfelt_5_information",
             "Share": "arfelt_7_erasure_3",
+            "Consent": "arfelt_4_consent",
             "Lawfulness": "arfelt_3_lawfulness",
+            "Information": "arfelt_5_information",
             "Limitation": "arfelt_2_limitation",
             "Erasure": "arfelt_7_erasure",
-            "Access": "arfelt_6_access",
+            #"Access": "arfelt_6_access",
         }
     else:
         FORMULAE = {
@@ -118,7 +118,7 @@ if __name__ == '__main__':
         OUT = "out_whyenf"
     elif OPTION == "WhyMon" :
         OUT = "out_whymon"
-    ACCELERATIONS = [5e4, 1e5, 5e5, 1e6, 5e6, 1e7, 5e7]#[0.25, 0.5e6, 0.75e6, 1e6]#1e3, 1e4, 1e5, 1e6]#[1.25e5, 2.5e5, 0.5e6, 1e6, 2e6, 4e6][::-1]
+    ACCELERATIONS = [5e4, 1e5, 5e5, 1e6, 5e6, 1e7, 5e7][::-1]
     N = 1
     ONLY_GRAPH = True
 
@@ -154,7 +154,6 @@ if __name__ == '__main__':
     for desc in FORMULAE:
         s = summary[summary["formula"] == desc][["a", "max_latency"]].groupby("a").mean()
         ax.plot(s.index, s["max_latency"], label=f'“{desc}”', linewidth=1.5)
-
 
 
     print(summary)
