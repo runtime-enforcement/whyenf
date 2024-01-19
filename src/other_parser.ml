@@ -108,6 +108,7 @@ module Parsebuf = struct
   let print_stats comment pb = 
     Stdio.printf ">%s %s %d <\n" comment (Stats.to_string pb.stats)
       (int_of_float (1000. *. Unix.gettimeofday ()));
+    Stdlib.flush_all();
     reset_stats pb
 
 end
@@ -212,6 +213,7 @@ module Trace = struct
   let parse_aux (pb: Parsebuf.t) =
     let rec parse_init () =
       match pb.token with
+      | SEP | RAN -> Parsebuf.next pb; parse_init ()
       | AT -> Parsebuf.next pb; parse_ts ()
       | EOF -> None
       | LAN -> Parsebuf.next pb;
@@ -220,7 +222,7 @@ module Trace = struct
       | t -> raise (Failure ("expected '@' but found " ^ string_of_token t))
     and parse_comment acc =
       match pb.token with
-      | RAN -> Parsebuf.next pb; acc
+      | RAN -> acc
       | STR s -> Parsebuf.next pb; parse_comment (acc ^ " " ^ s)
       | _   -> Parsebuf.next pb; parse_comment acc
     and parse_ts () =
@@ -246,7 +248,7 @@ module Trace = struct
                   | None -> raise (Failure ("predicate " ^ s ^ " was not specified")))
       | AT -> Some (true, pb)
       | EOF -> Some (false, pb)
-      | SEP -> Parsebuf.next pb; Some (true, pb)
+      | SEP -> Some (true, pb)
       | t -> raise (Failure ("expected a predicate or '@' but found " ^ string_of_token t))
     and parse_tuple () =
       match pb.token with
