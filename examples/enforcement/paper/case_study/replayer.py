@@ -33,7 +33,6 @@ def reader(p, q, queuing, lock):
         line = p.stdout.readline()
         if not line:
             break
-        print(line)
         if line.startswith(PREFIX):
             with lock:
                 queuing.value -= 1
@@ -60,4 +59,4 @@ def replay(log, command, acc=1000):
     return pd.read_csv(StringIO("type,tp,ts,computer_time,n_ev,n_tp,cau,sup,ins,done_time\n" + "\n".join(data1 + data2)))
 
     
-print(replay("special.log", "../../../../bin/whymon.exe -mode light -sig arfelt.sig -formula rewritten/arfelt_6_access.mfotl", acc=1000))
+#print(replay("special.log", "../../../../bin/whymon.exe -mode light -sig arfelt.sig -formula rewritten/arfelt_6_access.mfotl", acc=1000))

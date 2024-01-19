@@ -12,18 +12,17 @@ from replayer import replay
 
 plt.rcParams["font.family"] = "serif"
 plt.rcParams["font.serif"] = "Times New Roman"
+plt.rcParams["text.usetex"] = True
 
-MONPOLY = True
-ENFORCE = True
+OPTION = "WhyMon"
 
-if not MONPOLY:
-    if ENFORCE:
-        COMMAND = '../../../../bin/whymon.exe -mode enforce -sig arfelt.sig -formula {}'
-    else:
-        COMMAND = '../../../../bin/whymon.exe -mode light -sig arfelt.sig -formula rewritten/{}'
-else:
-    COMMAND = '~/Tools/monpoly_dev/monpoly/monpoly -enforce -sig arfelt.sig -formula enfpoly/{}  -ignore_parse_errors '
-
+if OPTION == "Monpoly":
+    COMMAND = '~/Tools/monpoly_dev/monpoly/monpoly -enforce -sig arfelt.sig -formula formulae_enfpoly/{}  -ignore_parse_errors '
+elif OPTION == "WhyEnf":
+    COMMAND = '../../../../bin/whymon.exe -mode enforce -sig arfelt.sig -formula formulae_whyenf/{}'
+elif OPTION == "WhyMon":
+    COMMAND = '../../../../bin/whymon.exe -mode light -sig arfelt.sig -formula formulae_whymon/{}'
+  
 
 TEMP = "temp.txt"
 
@@ -69,8 +68,8 @@ def plot(desc, step, a, df, fn):
     real_time = (1000*24*3600) / a
     df["time"] /= 1000
     ax.plot(df["time"], df["latency"], 'k-', label='latency (ms)', linewidth=0.5)
-    ax.plot([min(df["time"]), max(df["time"])], [real_time, real_time], 'k:', label="real-time latency (ms)", linewidth=0.5)
-    ax.plot([min(df["time"]), max(df["time"])], [max(df["latency"]), max(df["latency"])], 'k--', label="max latency (ms)", linewidth=0.5)
+    ax.plot([min(df["time"]), max(df["time"])], [real_time, real_time], 'k:', label="real-time latency $\delta_1(a)$ (ms)", linewidth=0.5)
+    ax.plot([min(df["time"]), max(df["time"])], [max(df["latency"]), max(df["latency"])], 'k--', label="max latency $\ell(a)$ (ms)", linewidth=0.5)
     df_cau = df[df["cau"] > 0]
     ax.plot(df_cau["time"], df_cau["cau"], 'go', label='caused events', markersize=2)
     df_sup = df[df["sup"] > 0]
@@ -86,8 +85,8 @@ def plot(desc, step, a, df, fn):
     #ax2.set_yscale('log')
     #ax.set_yscale('log')
     #ax2.tick_params(axis='y', labelcolor='b')
-    ax.set_title(f"“{desc}” policy, acceleration = {a:.0f} (1 second = {a / (24*3600):.0f} days)")
-    ax.legend(loc=(0.6, 0.47))
+    ax.set_title(f"“{desc}” policy, acceleration $a$ = {a:.0f} (1 second = {a / (24*3600):.0f} days)")
+    ax.legend(loc=('upper left'))
     #ax2.legend(loc='upper left', labelcolor='b')
     fig.tight_layout()
     fig.savefig(fn, dpi=1000)
@@ -96,10 +95,10 @@ def plot(desc, step, a, df, fn):
 
 
 if __name__ == '__main__':
-    if not MONPOLY:
+    if OPTION != "Monpoly":
         FORMULAE = {
-            "Lawfulness": "arfelt_3_lawfulness",
             "Access": "arfelt_6_access",
+            "Lawfulness": "arfelt_3_lawfulness",
             "Erasure": "arfelt_7_erasure",
             "Limitation": "arfelt_2_limitation",
             "Information": "arfelt_5_information",
@@ -112,7 +111,12 @@ if __name__ == '__main__':
         }
     series = []
     STEP = 100
-    OUT = "out"
+    if OPTION == "Monpoly":
+        OUT = "out_monpoly"
+    elif OPTION == "WhyEnf":
+        OUT = "out_whyenf"
+    elif OPTION == "WhyMon" :
+        OUT = "out_whymon"
     ACCELERATIONS = [5e4, 1e5, 5e5, 1e6, 5e6, 1e7, 5e7]#[0.25, 0.5e6, 0.75e6, 1e6]#1e3, 1e4, 1e5, 1e6]#[1.25e5, 2.5e5, 0.5e6, 1e6, 2e6, 4e6][::-1]
     N = 1
     ONLY_GRAPH = False
@@ -157,8 +161,8 @@ if __name__ == '__main__':
     ae = summary[["a", "avg_ev"]].groupby("a").mean()
     ax2.plot(ae.index, ae["avg_ev"], "k:", label="avg event rate", linewidth=0.5)
 
-    ax2.set_xlabel("acceleration a")
-    ax.set_ylabel("max latency (ms)")
+    ax2.set_xlabel("acceleration $a$")
+    ax.set_ylabel("max latency $\ell(a)$ (ms)")
     ax2.set_ylabel("events/s")
 
     ax.legend(loc='upper right')
