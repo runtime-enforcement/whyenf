@@ -9,12 +9,15 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from replayer import replay
+from generator import random_trace
 
 plt.rcParams["font.family"] = "serif"
 plt.rcParams["font.serif"] = "Times New Roman"
 plt.rcParams["text.usetex"] = True
 
-OPTION = "WhyEnf"
+OPTION = "WhyMon"
+SYNTHETIC = False
+SYNTHETIC_N, SYNTHETIC_K = 1000, 10
 
 if OPTION == "Enfpoly":
     COMMAND = '~/Tools/monpoly_dev/monpoly/monpoly -enforce -sig arfelt.sig -formula formulae_enfpoly/{}  -ignore_parse_errors '
@@ -38,12 +41,21 @@ def summary(df, step, a):
             "ins": df["ins"].sum(),
             "avg_ev": df["n_ev"].sum() / (df["time"].max()-df["time"].min()) * 1000,
             "avg_latency": df["latency"].mean(),
+            "avg_time": df["out_time"].diff().mean(),
+            "max_time": df["out_time"].diff().max(),
             "max_latency": df["latency"].max()}
 
 def run_whymon(formula, step, a):
     command = COMMAND.format(formula)
     print(command)
-    df = replay("special.log", 4240, command, acc=a)
+    if SYNTHETIC:
+        random_trace(SYNTHETIC_N, SYNTHETIC_K, "synthetic.log")
+        log_fn = "synthetic.log"
+        max_tp = SYNTHETIC_N - 1
+    else:
+        log_fn = "special.log"
+        max_tp = 4240
+    df = replay(log_fn, max_tp, command, acc=a)
     series = []
     df = df.set_index(["type", "tp"])
     for (t, tp) in df.index:
@@ -60,16 +72,20 @@ def run_whymon(formula, step, a):
                            'sup': the_r['sup'],
                            'ins': the_r['ins'],
                            'time': the_f['ts'],
-                           'latency': the_r['computer_time'] - the_f['computer_time']})
+                           'latency': the_r['computer_time'] - the_f['computer_time'],
+                           'out_time': the_r['computer_time']})
     return pd.DataFrame(series).sort_values(by="time")
 
 def plot(desc, step, a, df, fn):
     fig, ax = plt.subplots(1, 1, figsize=(7.5, 2.5))
-    real_time = (1000*24*3600) / a
+    if SYNTHETIC:
+        real_time = 1000 / a
+    else:
+        real_time = (1000*24*3600) / a
     df["time"] /= 1000
     ax.plot(df["time"], df["latency"], 'k-', label='latency (ms)', linewidth=0.5)
     ax.plot([min(df["time"]), max(df["time"])], [real_time, real_time], 'k:', label="real-time latency $\delta_1(a)$ (ms)", linewidth=0.5)
-    ax.plot([min(df["time"]), max(df["time"])], [max(df["latency"]), max(df["latency"])], 'k--', label="max latency $\ell(a)$ (ms)", linewidth=0.5)
+    ax.plot([min(df["time"]), max(df["time"])], [max(df["latency"]), max(df["latency"])], 'k--', label="max latency $max_{\ell}(a)$ (ms)", linewidth=0.5)
     df_ev = df[df["n_ev"] > 0]
     ax.plot(df_ev["time"], df_ev["n_ev"], 'b|', label='trace events', markersize=2)
     df_cau = df[df["cau"] > 0]
@@ -85,7 +101,10 @@ def plot(desc, step, a, df, fn):
     #ax2.set_yscale('log')
     #ax.set_yscale('log')
     #ax2.tick_params(axis='y', labelcolor='b')
-    ax.set_title(f"“{desc}” policy, acceleration $a$ = {a:.0f} (1 second = {a / (24*3600):.0f} days)")
+    if SYNTHETIC:
+        ax.set_title(f"“{desc}” policy, acceleration $a$ = {a:.0f}")
+    else:
+        ax.set_title(f"“{desc}” policy, acceleration $a$ = {a:.0f} (1 second = {a / (24*3600):.0f} days)")
     ax.legend(loc=('upper left'))
     #ax2.legend(loc='upper left', labelcolor='b')
     fig.tight_layout()
@@ -95,17 +114,19 @@ def plot(desc, step, a, df, fn):
 
 
 if __name__ == '__main__':
-    if OPTION != "Enfpoly":
-        FORMULAE = {
-            "Share": "arfelt_7_erasure_3",
-            "Consent": "arfelt_4_consent",
-            "Lawfulness": "arfelt_3_lawfulness",
-            "Information": "arfelt_5_information",
-            "Limitation": "arfelt_2_limitation",
-            "Erasure": "arfelt_7_erasure",
-            #"Access": "arfelt_6_access",
-        }
-    else:
+    FORMULAE1 = {
+        "Sharing": "arfelt_7_erasure_3",
+        "Consent": "arfelt_4_consent",
+        "Information": "arfelt_5_information",
+        "Lawfulness": "arfelt_3_lawfulness",
+        "Limitation": "arfelt_2_limitation",
+        "Deletion": "arfelt_7_erasure",
+    }
+    if OPTION == "WhyEnf":
+        FORMULAE = FORMULAE1
+    elif OPTION == "WhyMon":
+        FORMULAE = { k: v for (k, v) in FORMULAE1.items() if k not in ["Sharing", "Limitation"] }
+    elif OPTION == "Enfpoly":
         FORMULAE = {
             "Consent": "arfelt_4_consent",
             "Lawfulness": "arfelt_3_lawfulness",
@@ -113,14 +134,21 @@ if __name__ == '__main__':
     series = []
     STEP = 100
     if OPTION == "Enfpoly":
-        OUT = "out_monpoly"
+        OUT = "out_enfpoly"
     elif OPTION == "WhyEnf":
         OUT = "out_whyenf"
     elif OPTION == "WhyMon" :
         OUT = "out_whymon"
-    ACCELERATIONS = [5e4, 1e5, 5e5, 1e6, 5e6, 1e7, 5e7][::-1]
+    ACCELERATIONS = [1e4, 5e4, 1e5, 5e5, 1e6, 5e6, 1e7, 5e7][::-1]
     N = 1
-    ONLY_GRAPH = True
+    ONLY_GRAPH = False
+
+    if SYNTHETIC:
+        summary_fn = f"summary_{SYNTHETIC_N}_{SYNTHETIC_K}.csv"
+        graph_fn = f"graph_{SYNTHETIC_N}_{SYNTHETIC_K}.png"
+    else:
+        summary_fn = "summary.csv"
+        graph_fn = "graph.png"
 
     if not ONLY_GRAPH:
     
@@ -129,21 +157,30 @@ if __name__ == '__main__':
             for a in ACCELERATIONS:
                 for _ in range(N):
                     df = run_whymon(formula + ".mfotl", STEP, a)
-                    df.to_csv(os.path.join(OUT, f"{formula}_{a}.csv"), index=False)
+                    if SYNTHETIC:
+                        csv_fn = f"{formula}_{a}_{SYNTHETIC_N}_{SYNTHETIC_K}.csv"
+                        png_fn = f"{formula}_{a}_{SYNTHETIC_N}_{SYNTHETIC_K}.png"
+                    else:
+                        csv_fn = f"{formula}_{a}.csv"
+                        png_fn = f"{formula}_{a}.png"
+                    df.to_csv(os.path.join(OUT, csv_fn), index=False)
                     summ = summary(df, STEP, a)
                     summ["formula"] = desc
                     #a = summ["real_time_acc"]
-                    plot(desc, STEP, a, df, os.path.join(OUT, f"{formula}_{a}.png"))
+                    plot(desc, STEP, a, df, os.path.join(OUT, png_fn))
                     series.append(summ)
                     print(summ)
             
         summary = pd.DataFrame(series)
-        summary.to_csv(os.path.join(OUT, "summary.csv"), index=None)
+        summary.to_csv(os.path.join(OUT, summary_fn), index=None)
 
-    summary = pd.read_csv(os.path.join(OUT, "summary.csv"))
+    summary = pd.read_csv(os.path.join(OUT, summary_fn))
 
-    summary = summary[["formula", "a", "avg_ev", "max_latency"]]
-    summary["d1"] = (1000*24*3600) / summary["a"]
+    summary = summary[["formula", "a", "avg_ev", "avg_latency", "max_latency", "avg_time", "max_time"]]
+    if SYNTHETIC:
+        summary["d1"] = 1000 / summary["a"]
+    else:        
+        summary["d1"] = (1000*24*3600) / summary["a"]
 
     fig, ax2 = plt.subplots(1, 1, figsize=(7.5, 3))
     ax = ax2.twinx()
@@ -151,7 +188,7 @@ if __name__ == '__main__':
     d1 = summary[["a", "d1"]].groupby("a").mean()
     ax.plot(d1.index, d1["d1"], "k--", label="$\delta_1(a)=1/a$", linewidth=1.5)
             
-    for desc in FORMULAE:
+    for desc in FORMULAE1:
         s = summary[summary["formula"] == desc][["a", "max_latency"]].groupby("a").mean()
         ax.plot(s.index, s["max_latency"], label=f'“{desc}”', linewidth=1.5)
 
@@ -162,15 +199,24 @@ if __name__ == '__main__':
     ax2.plot(ae.index, ae["avg_ev"], "k:", label="avg. event rate", linewidth=0.5)
 
     ax2.set_xlabel("acceleration $a$")
-    ax.set_ylabel("max latency $\ell(a)$ (ms)")
+    ax.set_ylabel("max latency $max_{\ell}(a)$ (ms)")
     ax2.set_ylabel("events/s")
 
-    ax.legend(loc='upper right')
-    ax2.legend(loc='upper left')
+    if OPTION == "WhyEnf":
+        ax.legend(loc='upper right')
+        ax2.legend(loc='upper left')
     ax2.set_xscale('log')
-    ax.set_yscale('log')    
+    ax.set_yscale('log')     
     ax2.set_yscale('log')
     fig.tight_layout()
-    fig.savefig(os.path.join(OUT, "graph.png"), dpi=300)
+    fig.savefig(os.path.join(OUT, graph_fn), dpi=300)
         
     
+
+# TODO:
+
+# Generate random traces, adapt pipeline
+# Re-run experiments
+# Update papers and add individual runs to the appendix
+# Update "\checkmark" and "time out" to be more explicit
+# Add the example to the appendix
