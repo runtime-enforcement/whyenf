@@ -15,8 +15,8 @@ plt.rcParams["font.family"] = "serif"
 plt.rcParams["font.serif"] = "Times New Roman"
 plt.rcParams["text.usetex"] = True
 
-OPTION = "WhyMon"
-SYNTHETIC = False
+OPTION = "WhyEnf"
+SYNTHETIC = True
 SYNTHETIC_N, SYNTHETIC_K = 1000, 10
 
 if OPTION == "Enfpoly":

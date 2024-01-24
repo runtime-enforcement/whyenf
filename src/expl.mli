@@ -37,111 +37,6 @@ module Part : sig
 
 end
 
-module Proof : sig
-
-  type sp =
-    | STT of int
-    | SEqConst of int * string * Dom.t
-    | SPred of int * string * Term.t list
-    | SNeg of vp
-    | SOrL of sp
-    | SOrR of sp
-    | SAnd of sp * sp
-    | SImpL of vp
-    | SImpR of sp
-    | SIffSS of sp * sp
-    | SIffVV of vp * vp
-    | SExists of string * Dom.t * sp
-    | SForall of string * (sp Part.t)
-    | SPrev of sp
-    | SNext of sp
-    | SNextAssm of int
-    | SOnce of int * sp
-    | SEventually of int * sp
-    | SEventuallyAssm of int * Interval.t
-    | SEventuallyNow of sp * Interval.t
-    | SHistorically of int * int * sp Fdeque.t
-    | SHistoricallyOut of int
-    | SAlways of int * int * sp Fdeque.t
-    | SAlwaysAssm of int * sp option * Interval.t
-    | SSince of sp * sp Fdeque.t
-    | SUntil of sp * sp Fdeque.t
-    | SUntilAssm of int * sp * Interval.t
-    | SUntilNow of sp * Interval.t
-  and vp =
-    | VFF of int
-    | VEqConst of int * string * Dom.t
-    | VPred of int * string * Term.t list
-    | VNeg of sp
-    | VOr of vp * vp
-    | VAndL of vp
-    | VAndR of vp
-    | VImp of sp * vp
-    | VIffSV of sp * vp
-    | VIffVS of vp * sp
-    | VExists of string * (vp Part.t)
-    | VForall of string * Dom.t * vp
-    | VPrev of vp
-    | VPrev0
-    | VPrevOutL of int
-    | VPrevOutR of int
-    | VNext of vp
-    | VNextOutL of int
-    | VNextOutR of int
-    | VNextAssm of int * Interval.t
-    | VOnceOut of int
-    | VOnce of int * int * vp Fdeque.t
-    | VEventually of int * int * vp Fdeque.t
-    | VEventuallyAssm of int * vp option * Interval.t
-    | VHistorically of int * vp
-    | VAlways of int * vp
-    | VAlwaysAssm of int * Interval.t
-    | VAlwaysNow of vp * Interval.t
-    | VSinceOut of int
-    | VSince of int * vp * vp Fdeque.t
-    | VSinceInf of int * int * vp Fdeque.t
-    | VUntil of int * vp * vp Fdeque.t
-    | VUntilInf of int * int * vp Fdeque.t
-    | VUntilAssm of int * vp * Interval.t
-    | VUntilNow of vp * Interval.t
-
-  type t = S of sp | V of vp
-
-  val s_equal: sp -> sp -> bool
-  val v_equal: vp -> vp -> bool
-  val equal: t -> t -> bool
-
-  val unS: t -> sp
-  val unV: t -> vp
-  val isS: t -> bool
-  val isV: t -> bool
-
-  val s_append: sp -> sp -> sp
-  val v_append: vp -> vp -> vp
-  val s_drop: sp -> sp option
-  val v_drop: vp -> vp option
-
-  val s_at: sp -> int
-  val v_at: vp -> int
-  val p_at: t -> int
-
-  val s_ltp: sp -> int
-  val v_etp: vp -> int
-
-  val s_to_string: string -> sp -> string
-  val v_to_string: string -> vp -> string
-  val to_string: string -> t -> string
-
-  module Size : sig
-
-    val minp_bool: t -> t -> bool
-    val minp: t -> t -> t
-    val minp_list: t list -> t
-
-  end
-
-end
-
 module Pdt : sig
 
   type 'a t = Leaf of 'a | Node of string * ('a t) Part.t
@@ -171,12 +66,200 @@ module Pdt : sig
 
 end
 
-type t = Proof.t Pdt.t
 
-val is_violated: t -> bool
-val is_satisfied: t -> bool
-val at: t -> int
+module type ProofT = sig
 
-val to_string: t -> string
-val to_latex: Formula.t -> t -> string
-val to_light_string: t -> string
+  type sp
+  type vp
+
+  type t = S of sp | V of vp
+
+  val s_equal: sp -> sp -> bool
+  val v_equal: vp -> vp -> bool
+  val equal: t -> t -> bool
+
+  val unS: t -> sp
+  val unV: t -> vp
+  val isS: t -> bool
+  val isV: t -> bool
+
+  val s_append: sp -> sp -> sp
+  val v_append: vp -> vp -> vp
+  val s_drop: sp -> sp option
+  val v_drop: vp -> vp option
+
+  val s_at: sp -> int
+  val v_at: vp -> int
+  val p_at: t -> int
+
+  val s_ltp: sp -> int
+  val v_etp: vp -> int
+
+  val s_to_string: string -> sp -> string
+  val v_to_string: string -> vp -> string
+  val to_string: string -> t -> string
+  val to_latex: string -> Formula.t -> t -> string
+  val to_bool: t -> string
+
+  val make_stt: int -> sp
+  val make_seqconst: int -> string -> Dom.t -> sp
+  val make_spred: int -> string -> Term.t list -> sp
+  val make_sneg: vp -> sp
+  val make_sorl: sp -> sp
+  val make_sorr: sp -> sp
+  val make_sand: sp -> sp -> sp
+  val make_simpl: vp -> sp
+  val make_simpr: sp -> sp
+  val make_siffss: sp -> sp -> sp
+  val make_siffvv: vp -> vp -> sp
+  val make_sexists: string -> Dom.t -> sp -> sp
+  val make_sforall: string -> sp Part.t -> sp
+  val make_sprev: sp -> sp
+  val make_snext: sp -> sp
+  val make_snextassm: int -> sp
+  val make_sonce: int -> sp -> sp
+  val make_seventually: int -> sp -> sp
+  val make_seventuallyassm: int -> Interval.t -> sp
+  val make_seventuallynow: sp -> Interval.t -> sp
+  val make_shistorically: int -> int -> sp Fdeque.t -> sp
+  val make_shistoricallyout: int -> sp
+  val make_salways: int -> int -> sp Fdeque.t -> sp
+  val make_salwaysassm: int -> sp option -> Interval.t -> sp
+  val make_ssince: sp -> sp Fdeque.t -> sp
+  val make_suntil: sp -> sp Fdeque.t -> sp
+  val make_suntilassm: int -> sp -> Interval.t -> sp
+  val make_suntilnow: sp -> Interval.t -> sp
+
+  val make_vff: int -> vp
+  val make_veqconst: int -> string -> Dom.t -> vp
+  val make_vpred: int -> string -> Term.t list -> vp
+  val make_vneg: sp -> vp
+  val make_vor: vp -> vp -> vp
+  val make_vandl: vp -> vp
+  val make_vandr: vp -> vp
+  val make_vimp: sp -> vp -> vp
+  val make_viffsv: sp -> vp -> vp
+  val make_viffvs: vp -> sp -> vp
+  val make_vexists: string -> vp Part.t -> vp
+  val make_vforall: string -> Dom.t -> vp -> vp
+  val make_vprev: vp -> vp
+  val make_vprev0: vp
+  val make_vprevoutl: int -> vp
+  val make_vprevoutr: int -> vp
+  val make_vnext: vp -> vp
+  val make_vnextoutl: int -> vp
+  val make_vnextoutr: int -> vp
+  val make_vnextassm: int -> Interval.t -> vp
+  val make_vonceout: int -> vp
+  val make_vonce: int -> int -> vp Fdeque.t -> vp
+  val make_veventually: int -> int -> vp Fdeque.t -> vp
+  val make_veventuallyassm: int -> vp option -> Interval.t -> vp
+  val make_vhistorically: int -> vp -> vp
+  val make_valways: int -> vp -> vp
+  val make_valwaysassm: int -> Interval.t -> vp
+  val make_valwaysnow: vp -> Interval.t -> vp
+  val make_vsinceout: int -> vp
+  val make_vsince: int -> vp -> vp Fdeque.t -> vp
+  val make_vsinceinf: int -> int -> vp Fdeque.t -> vp
+  val make_vuntil: int -> vp -> vp Fdeque.t -> vp
+  val make_vuntilinf: int -> int -> vp Fdeque.t -> vp
+  val make_vuntilassm: int -> vp -> Interval.t -> vp
+  val make_vuntilnow: vp -> Interval.t -> vp
+
+  val decompose_vsince: vp -> (vp * vp Fdeque.t) option
+  val decompose_vuntil: vp -> (vp * vp Fdeque.t) option
+
+  module Size : sig
+
+    val minp_bool: t -> t -> bool
+    val minp: t -> t -> t
+    val minp_list: t list -> t
+
+  end
+
+end
+
+type t_sp =
+  | STT of int
+  | SEqConst of int * string * Dom.t
+  | SPred of int * string * Term.t list
+  | SNeg of t_vp
+  | SOrL of t_sp
+  | SOrR of t_sp
+  | SAnd of t_sp * t_sp
+  | SImpL of t_vp
+  | SImpR of t_sp
+  | SIffSS of t_sp * t_sp
+  | SIffVV of t_vp * t_vp
+  | SExists of string * Dom.t * t_sp
+  | SForall of string * (t_sp Part.t)
+  | SPrev of t_sp
+  | SNext of t_sp
+  | SNextAssm of int
+  | SOnce of int * t_sp
+  | SEventually of int * t_sp
+  | SEventuallyAssm of int * Interval.t
+  | SEventuallyNow of t_sp * Interval.t
+  | SHistorically of int * int * t_sp Fdeque.t
+  | SHistoricallyOut of int
+  | SAlways of int * int * t_sp Fdeque.t
+  | SAlwaysAssm of int * t_sp option * Interval.t
+  | SSince of t_sp * t_sp Fdeque.t
+  | SUntil of t_sp * t_sp Fdeque.t
+  | SUntilAssm of int * t_sp * Interval.t
+  | SUntilNow of t_sp * Interval.t
+and t_vp =
+  | VFF of int
+  | VEqConst of int * string * Dom.t
+  | VPred of int * string * Term.t list
+  | VNeg of t_sp
+  | VOr of t_vp * t_vp
+  | VAndL of t_vp
+  | VAndR of t_vp
+  | VImp of t_sp * t_vp
+  | VIffSV of t_sp * t_vp
+  | VIffVS of t_vp * t_sp
+  | VExists of string * (t_vp Part.t)
+  | VForall of string * Dom.t * t_vp
+  | VPrev of t_vp
+  | VPrev0
+  | VPrevOutL of int
+  | VPrevOutR of int
+  | VNext of t_vp
+  | VNextOutL of int
+  | VNextOutR of int
+  | VNextAssm of int * Interval.t
+  | VOnceOut of int
+  | VOnce of int * int * t_vp Fdeque.t
+  | VEventually of int * int * t_vp Fdeque.t
+  | VEventuallyAssm of int * t_vp option * Interval.t
+  | VHistorically of int * t_vp
+  | VAlways of int * t_vp
+  | VAlwaysAssm of int * Interval.t
+  | VAlwaysNow of t_vp * Interval.t
+  | VSinceOut of int
+  | VSince of int * t_vp * t_vp Fdeque.t
+  | VSinceInf of int * int * t_vp Fdeque.t
+  | VUntil of int * t_vp * t_vp Fdeque.t
+  | VUntilInf of int * int * t_vp Fdeque.t
+  | VUntilAssm of int * t_vp * Interval.t
+  | VUntilNow of t_vp * Interval.t
+
+module Proof : ProofT with type sp = t_sp and type vp = t_vp
+
+module LightProof : ProofT with type sp = int and type vp = int
+
+module Make (P : ProofT) : sig
+
+  module Proof : ProofT with type sp = P.sp and type vp = P.vp and type t = P.t
+  type t = P.t Pdt.t
+
+  val is_violated: t -> bool
+  val is_satisfied: t -> bool
+  val at: t -> int
+
+  val to_string: t -> string
+  val to_latex: Formula.t -> t -> string
+  val to_light_string: t -> string
+
+end

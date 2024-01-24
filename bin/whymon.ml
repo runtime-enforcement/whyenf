@@ -15,12 +15,13 @@ open Monitor_lib
 (* TODO: This module must be rewritten using the Command module from Core *)
 module Whymon = struct
 
-  let mode_ref = ref Out.Plain.UNVERIFIED
+  let mode_ref = ref Out.UNVERIFIED
   let measure_ref = ref "size"
   let formula_ref = ref None
   let sig_ref = ref In_channel.stdin
   let logstr_ref = ref ""
   let b_ref = ref 0
+  let light = ref false
 
   let n_args = ref 0
 
@@ -42,7 +43,8 @@ module Whymon = struct
        \t\t <file>             - specify log file as trace (default: stdin)
        \t -out
        \t\t <file>             - output file (default: stdout)
-       \t -b int               - default bound for future operators (default: 0)\n%!";
+       \t -b int               - default bound for future operators (default: 0)
+       \t -l                   - use light option (without explanations)\n%!";
     exit 0
 
   let mode_error () =
@@ -62,13 +64,13 @@ module Whymon = struct
       | ("-mode" :: m :: args) ->
          mode_ref :=
            (match m with
-            | "unverified" -> Out.Plain.UNVERIFIED
-            | "verified" -> Out.Plain.VERIFIED
-            | "latex" -> Out.Plain.LATEX
-            | "light" -> Out.Plain.LIGHT
-            | "enforce" -> Out.Plain.ENFORCE
-            | "debug" -> Etc.debug := true; Out.Plain.DEBUG
-            | "debugvis" -> Etc.debug := true; Out.Plain.DEBUGVIS
+            | "unverified" -> Out.UNVERIFIED
+            | "verified" -> Out.VERIFIED
+            | "latex" -> Out.LATEX
+            | "light" -> Out.LIGHT
+            | "enforce" -> Out.ENFORCE
+            | "debug" -> Etc.debug := true; Out.DEBUG
+            | "debugvis" -> Etc.debug := true; Out.DEBUGVIS
             | _ -> mode_error ());
          process_args_rec args
       | ("-measure" :: m :: args) ->
@@ -104,6 +106,9 @@ module Whymon = struct
           | None -> bound_error ()
           | Some b -> b_ref := b);
          process_args_rec args
+      | ("-l" :: args) ->
+         light := true;
+         process_args_rec args
       | [] -> if !n_args >= 2 then () else usage ()
       | _ -> usage () in
     process_args_rec
@@ -112,9 +117,15 @@ module Whymon = struct
     try
       process_args (List.tl_exn (Array.to_list Sys.argv));
       let formula = Option.value_exn !formula_ref in
+      let (module CI: Checker_interface.Checker_interfaceT) =
+        if !light then (module Checker_interface.LightChecker_interface)
+        else (module Checker_interface.Checker_interface)
+      in
+      let module Monitor = Monitor.Make (CI) in
+      let module Enforcer = Enforcer.Make (CI) in
       match !mode_ref with
-      | Out.Plain.DEBUGVIS -> let _ = Monitor.exec_vis None formula !logstr_ref in ()
-      | Out.Plain.ENFORCE -> let _ = Enforcer.exec formula !Etc.inc_ref !b_ref in ()
+      | Out.DEBUGVIS -> let _ = Monitor.exec_vis None formula !logstr_ref in ()
+      | Out.ENFORCE -> let _ = Enforcer.exec formula !Etc.inc_ref !b_ref in ()
       | _ -> Monitor.exec !mode_ref !measure_ref formula !Etc.inc_ref
     with End_of_file -> Out_channel.close !Etc.outc_ref; exit 0
 

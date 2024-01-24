@@ -12,6 +12,8 @@ open Etc
 
 module Fdeque = Core.Fdeque
 
+module E = Expl
+
 type period = PAST | FUTURE
 
 module Dbs = struct
@@ -43,7 +45,6 @@ end
 module Expl = struct
 
   (* TODO: Rename types and functions in this module *)
-
   type cell = timepoint * int * (Interval.t * period) option * kind
   and kind =
     Boolean of bool
@@ -368,7 +369,7 @@ module Expl = struct
        ((cell, []) :: row, idx)
     | _ -> raise (Invalid_argument "invalid formula/proof pair")
 
-  let rec expl_cell row idx (f: Formula.t) (expl: Expl.t) : cell_expl = match expl with
+  let rec expl_cell row idx (f: Formula.t) (expl: Expl.Proof.t Expl.Pdt.t) : cell_expl = match expl with
     | Expl.Pdt.Leaf pt -> Leaf (Expl.Proof.isS pt, (fst (ssubfs_cell_row row idx f pt)))
     | Node (x, part) -> Expl (x, List.map (List.rev part) ~f:(fun (s, e) -> (Setc.to_json s, expl_cell row idx f e)))
 
@@ -443,8 +444,14 @@ module Expl = struct
                              Printf.sprintf "%s}" (indent ^ (String.make 4 ' '))))) ^
                  (Printf.sprintf "]\n")
 
-let to_json (f: Formula.t) (expl: Expl.t) =
+let to_json (f: Formula.t) (expl: Expl.Proof.t Expl.Pdt.t) =
   let c_e = expl_cell [] 0 f expl in
   e_cell_to_json (String.make 8 ' ') c_e
+
+end
+
+module LightExpl = struct
+
+  let to_json _ _ = ""
 
 end
