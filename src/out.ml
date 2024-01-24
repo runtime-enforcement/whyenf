@@ -12,9 +12,11 @@ open Stdio
 open Etc
 open Checker_interface
 
-module Plain = struct
+type mode = UNVERIFIED | VERIFIED | LATEX | LIGHT | ENFORCE | DEBUG | DEBUGVIS
 
-  type mode = UNVERIFIED | VERIFIED | LATEX | LIGHT | ENFORCE | DEBUG | DEBUGVIS
+module Plain (CI: Checker_interfaceT) = struct
+
+  open CI
 
   type t =
     | Explanation of (timestamp * timepoint) * Expl.t
@@ -41,7 +43,7 @@ module Plain = struct
        Stdio.printf "%d:%d\nExplanation: \n%s\n" ts tp (Expl.to_string e);
        Stdio.printf "\nChecker output: %B\n\n" b;
        Stdio.printf "\n[debug] Checker explanation:\n%s\n\n" (Checker_interface.Checker_pdt.to_string "" c_e);
-       Stdio.printf "\n[debug] Checker trace:\n%s" (Checker_interface.Checker_trace.to_string c_t);
+       Stdio.printf "\n[debug] Checker trace:\n%s" (Checker_trace.to_string c_t);
        (match path_opt with
         | None -> ()
         | Some(l1) -> Stdio.printf "\n[debug] Checker false path: %s\n"
@@ -75,7 +77,7 @@ module Plain = struct
 
 end
 
-module Json = struct
+module Json (CI: Checker_interfaceT) = struct
 
   let error err =
     Printf.sprintf "ERROR: %s" (Error.to_string_hum err)
@@ -105,13 +107,13 @@ module Json = struct
 
   let expls tpts f es =
     List.map es ~f:(fun e ->
-        let tp = (Expl.at e) in
+        let tp = (CI.Expl.at e) in
         let ts = Hashtbl.find_exn tpts tp in
         Printf.sprintf "%s{\n" (String.make 4 ' ') ^
           Printf.sprintf "%s\"ts\": %d,\n" (String.make 8 ' ') ts ^
             Printf.sprintf "%s\"tp\": %d,\n" (String.make 8 ' ') tp ^
               Printf.sprintf "%s\"expl\": {\n" (String.make 8 ' ') ^
-                Printf.sprintf "%s\n" (Vis.Expl.to_json f e) ^
+                Printf.sprintf "%s\n" (CI.Vis.to_json f e) ^
                   Printf.sprintf "}%s}" (String.make 4 ' '))
 
   let aggregate dbs es =

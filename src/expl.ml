@@ -119,74 +119,393 @@ module Part = struct
 end
 
 
-module Proof = struct
 
-  type sp =
-    | STT of int
-    | SEqConst of int * string * Dom.t
-    | SPred of int * string * Term.t list
-    | SNeg of vp
-    | SOrL of sp
-    | SOrR of sp
-    | SAnd of sp * sp
-    | SImpL of vp
-    | SImpR of sp
-    | SIffSS of sp * sp
-    | SIffVV of vp * vp
-    | SExists of string * Dom.t * sp
-    | SForall of string * (sp Part.t)
-    | SPrev of sp
-    | SNext of sp
-    | SNextAssm of int
-    | SOnce of int * sp
-    | SEventually of int * sp
-    | SEventuallyAssm of int * Interval.t
-    | SEventuallyNow of sp * Interval.t
-    | SHistorically of int * int * sp Fdeque.t
-    | SHistoricallyOut of int
-    | SAlways of int * int * sp Fdeque.t
-    | SAlwaysAssm of int * sp option * Interval.t
-    | SSince of sp * sp Fdeque.t
-    | SUntil of sp * sp Fdeque.t
-    | SUntilAssm of int * sp * Interval.t
-    | SUntilNow of sp * Interval.t
-  and vp =
-    | VFF of int
-    | VEqConst of int * string * Dom.t
-    | VPred of int * string * Term.t list
-    | VNeg of sp
-    | VOr of vp * vp
-    | VAndL of vp
-    | VAndR of vp
-    | VImp of sp * vp
-    | VIffSV of sp * vp
-    | VIffVS of vp * sp
-    | VExists of string * (vp Part.t)
-    | VForall of string * Dom.t * vp
-    | VPrev of vp
-    | VPrev0
-    | VPrevOutL of int
-    | VPrevOutR of int
-    | VNext of vp
-    | VNextOutL of int
-    | VNextOutR of int
-    | VNextAssm of int * Interval.t
-    | VOnceOut of int
-    | VOnce of int * int * vp Fdeque.t
-    | VEventually of int * int * vp Fdeque.t
-    | VEventuallyAssm of int * vp option * Interval.t
-    | VHistorically of int * vp
-    | VAlways of int * vp
-    | VAlwaysAssm of int * Interval.t
-    | VAlwaysNow of vp * Interval.t
-    | VSinceOut of int
-    | VSince of int * vp * vp Fdeque.t
-    | VSinceInf of int * int * vp Fdeque.t
-    | VUntil of int * vp * vp Fdeque.t
-    | VUntilInf of int * int * vp Fdeque.t
-    | VUntilAssm of int * vp * Interval.t
-    | VUntilNow of vp * Interval.t
+module Pdt = struct
 
+  type 'a t = Leaf of 'a | Node of string * ('a t) Part.t
+
+  let rec apply1 vars f pdt = match vars, pdt with
+    | _ , Leaf l -> Leaf (f l)
+    | z :: vars, Node (x, part) ->
+       if String.equal x z then
+         Node (x, Part.map part (apply1 vars f))
+       else apply1 vars f (Node (x, part))
+    | _ -> raise (Invalid_argument "variable list is empty")
+
+  let rec apply2 vars f pdt1 pdt2 = match vars, pdt1, pdt2 with
+    | _ , Leaf l1, Leaf l2 -> Leaf (f l1 l2)
+    | _ , Leaf l1, Node (x, part2) -> Node (x, Part.map part2 (apply1 vars (f l1)))
+    | _ , Node (x, part1), Leaf l2 -> Node (x, Part.map part1 (apply1 vars (fun l1 -> f l1 l2)))
+    | z :: vars, Node (x, part1), Node (y, part2) ->
+       if String.equal x z && String.equal y z then
+         Node (z, Part.merge2 (apply2 vars f) part1 part2)
+       else (if String.equal x z then
+               Node (x, Part.map part1 (fun pdt1 -> apply2 vars f pdt1 (Node (y, part2))))
+             else (if String.equal y z then
+                     Node (y, Part.map part2 (apply2 vars f (Node (x, part1))))
+                   else apply2 vars f (Node (x, part1)) (Node (y, part2))))
+    | _ -> raise (Invalid_argument "variable list is empty")
+
+  let rec apply3 vars f pdt1 pdt2 pdt3 = match vars, pdt1, pdt2, pdt3 with
+    | _ , Leaf l1, Leaf l2, Leaf l3 -> Leaf (f l1 l2 l3)
+    | _ , Leaf l1, Leaf l2, Node (x, part3) ->
+       Node (x, Part.map part3 (apply1 vars (fun l3 -> f l1 l2 l3)))
+    | _ , Leaf l1, Node (x, part2), Leaf l3 ->
+       Node (x, Part.map part2 (apply1 vars (fun l2 -> f l1 l2 l3)))
+    | _ , Node (x, part1), Leaf l2, Leaf l3 ->
+       Node (x, Part.map part1 (apply1 vars (fun l1 -> f l1 l2 l3)))
+    | w :: vars, Leaf l1, Node (y, part2), Node (z, part3) ->
+       if String.equal y w && String.equal z w then
+         Node (w, Part.merge2 (apply2 vars (f l1)) part2 part3)
+       else (if String.equal y w then
+               Node (y, Part.map part2 (fun pdt2 -> apply2 vars (f l1) pdt2 (Node (z, part3))))
+             else (if String.equal z w then
+                     Node (z, Part.map part3 (fun pdt3 -> apply2 vars (f l1) (Node (y, part2)) pdt3))
+                   else apply3 vars f (Leaf l1) (Node (y, part2)) (Node(z, part3))))
+    | w :: vars, Node (x, part1), Node (y, part2), Leaf l3 ->
+       if String.equal x w && String.equal y w then
+         Node (w, Part.merge2 (apply2 vars (fun l1 l2 -> f l1 l2 l3)) part1 part2)
+       else (if String.equal x w then
+               Node (x, Part.map part1 (fun pdt1 -> apply2 vars (fun pt1 pt2 -> f pt1 pt2 l3) pdt1 (Node (y, part2))))
+             else (if String.equal y w then
+                     Node (y, Part.map part2 (fun pdt2 -> apply2 vars (fun l1 l2 -> f l1 l2 l3) (Node (x, part1)) pdt2))
+                   else apply3 vars f (Node (x, part1)) (Node (y, part2)) (Leaf l3)))
+    | w :: vars, Node (x, part1), Leaf l2, Node (z, part3) ->
+       if String.equal x w && String.equal z w then
+         Node (w, Part.merge2 (apply2 vars (fun l1 -> f l1 l2)) part1 part3)
+       else (if String.equal x w then
+               Node (x, Part.map part1 (fun pdt1 -> apply2 vars (fun l1 -> f l1 l2) pdt1 (Node (z, part3))))
+             else (if String.equal z w then
+                     Node (z, Part.map part3 (fun pdt3 -> apply2 vars (fun l1 -> f l1 l2) (Node (x, part1)) pdt3))
+                   else apply3 vars f (Node (x, part1)) (Leaf l2) (Node (z, part3))))
+    | w :: vars, Node (x, part1), Node (y, part2), Node (z, part3) ->
+       if String.equal x w && String.equal y w && String.equal z w then
+         Node (z, Part.merge3 (apply3 vars f) part1 part2 part3)
+       else (if String.equal x w && String.equal y w then
+               Node (w, Part.merge2 (fun pdt1 pdt2 -> apply3 vars f pdt1 pdt2 (Node (z, part3))) part1 part2)
+             else (if String.equal x w && String.equal z w then
+                     Node (w, Part.merge2 (fun pdt1 pdt3 -> apply3 vars f pdt1 (Node (y, part2)) pdt3) part1 part3)
+                   else (if String.equal y w && String.equal z w then
+                           Node (w, Part.merge2 (apply3 vars (fun l1 -> f l1) (Node (x, part1))) part2 part3)
+                         else (if String.equal x w then
+                                 Node (x, Part.map part1 (fun pdt1 -> apply3 vars f pdt1 (Node (y, part2)) (Node (z, part3))))
+                               else (if String.equal y w then
+                                       Node (y, Part.map part2 (fun pdt2 -> apply3 vars f (Node (x, part1)) pdt2 (Node (z, part3))))
+                                     else (if String.equal z w then
+                                             Node (z, Part.map part3 (fun pdt3 -> apply3 vars f (Node (x, part1)) (Node (y, part2)) pdt3))
+                                           else apply3 vars f (Node (x, part1)) (Node (y, part2)) (Node (z, part3))))))))
+    | _ -> raise (Invalid_argument "variable list is empty")
+
+  let rec split_prod = function
+    | Leaf (l1, l2) -> (Leaf l1, Leaf l2)
+    | Node (x, part) -> let (part1, part2) = Part.split_prod (Part.map part split_prod) in
+                        (Node (x, part1), Node (x, part2))
+
+  let rec split_list = function
+    | Leaf l -> List.map l ~f:(fun el -> Leaf el)
+    | Node (x, part) -> List.map (Part.split_list (Part.map part split_list)) ~f:(fun el -> Node (x, el))
+
+  let rec to_string f indent = function
+    | Leaf pt -> Printf.sprintf "%s%s\n" indent (f pt)
+    | Node (x, part) -> (Part.to_string indent (Var x) (to_string f) part)
+
+  let rec to_latex f indent = function
+    | Leaf pt -> Printf.sprintf "%s%s\n" indent (f pt)
+    | Node (x, part) -> (Part.to_string indent (Var x) (to_latex f) part)
+
+  let rec to_light_string f indent = function
+    | Leaf pt -> Printf.sprintf "%s%s\n" indent (f pt)
+    | Node (x, part) -> (Part.to_string indent (Var x) (to_light_string f) part)
+
+  let unleaf = function
+    | Leaf l -> l
+    | _ -> raise (Invalid_argument "function not defined for nodes")
+
+  let rec hide vars f_leaf f_node pdt = match vars, pdt with
+    |  _ , Leaf l -> Leaf (f_leaf l)
+    | [x], Node (y, part) -> Leaf (f_node (Part.map part unleaf))
+    | x :: vars, Node (y, part) -> if String.equal x y then
+                                     Node (y, Part.map part (hide vars f_leaf f_node))
+                                   else hide vars f_leaf f_node (Node (y, part))
+    | _ -> raise (Invalid_argument "function not defined for other cases")
+
+  (* reduce related *)
+  let rec eq p_eq pdt1 pdt2 =
+    match pdt1, pdt2 with
+    | Leaf l1, Leaf l2 -> p_eq l1 l2
+    | Node (x, part), Node (x', part') -> String.equal x x' && Int.equal (Part.length part) (Part.length part') &&
+                                            List.for_all2_exn part part' ~f:(fun (s, v) (s', v') ->
+                                                Setc.equal s s' && eq p_eq v v')
+    | _ -> false
+
+  let rec reduce p_eq = function
+    | Leaf l -> Leaf l
+    | Node (x, part) -> Node (x, Part.dedup (eq p_eq) (Part.map part (reduce p_eq)))
+
+  let rec apply1_reduce p_eq vars f pdt = match vars, pdt with
+    | _ , Leaf l -> Leaf (f l)
+    | z :: vars, Node (x, part) ->
+       if String.equal x z then
+         Node (x, Part.map_dedup (eq p_eq) part (apply1_reduce p_eq vars f))
+       else apply1_reduce p_eq vars f (Node (x, part))
+    | _ -> raise (Invalid_argument "variable list is empty")
+
+  let rec apply2_reduce p_eq vars f pdt1 pdt2 = match vars, pdt1, pdt2 with
+    | _ , Leaf l1, Leaf l2 -> Leaf (f l1 l2)
+    | _ , Leaf l1, Node (x, part2) -> Node (x, Part.map_dedup (eq p_eq) part2 (apply1_reduce p_eq vars (f l1)))
+    | _ , Node (x, part1), Leaf l2 -> Node (x, Part.map_dedup (eq p_eq) part1 (apply1_reduce p_eq vars (fun l1 -> f l1 l2)))
+    | z :: vars, Node (x, part1), Node (y, part2) ->
+       if String.equal x z && String.equal y z then
+         Node (z, Part.merge2_dedup (eq p_eq) (apply2_reduce p_eq vars f) part1 part2)
+       else (if String.equal x z then
+               Node (x, Part.map_dedup (eq p_eq) part1 (fun pdt1 -> apply2_reduce p_eq vars f pdt1 (Node (y, part2))))
+             else (if String.equal y z then
+                     Node (y, Part.map_dedup (eq p_eq) part2 (apply2_reduce p_eq vars f (Node (x, part1))))
+                   else apply2_reduce p_eq vars f (Node (x, part1)) (Node (y, part2))))
+    | _ -> raise (Invalid_argument "variable list is empty")
+
+  let apply3_reduce p_eq vars f pdt1 pdt2 pdt3 =
+    let p_eq2 (a, b) (a', b') = a == a' && b == b' in
+    let pdt12 = apply2_reduce p_eq2 vars (fun a b -> (a, b)) pdt1 pdt2 in
+    apply2_reduce p_eq vars (fun (a, b) c -> f a b c) pdt12 pdt3
+
+  let rec split_prod_reduce p_eq = function
+    | Leaf (l1, l2) -> (Leaf l1, Leaf l2)
+    | Node (x, part) -> let (part1, part2) = Part.split_prod_dedup (eq p_eq) (Part.map part (split_prod_reduce p_eq)) in
+                        (Node (x, part1), Node (x, part2))
+
+  let rec split_list_reduce p_eq = function
+    | Leaf l -> List.map l ~f:(fun el -> Leaf el)
+    | Node (x, part) -> List.map (Part.split_list_dedup (eq p_eq) (Part.map part (split_list_reduce p_eq))) ~f:(fun el -> Node (x, el))
+
+  let rec hide_reduce p_eq vars f_leaf f_node pdt = match vars, pdt with
+    |  _ , Leaf l -> Leaf (f_leaf l)
+    | [x], Node (y, part) -> Leaf (f_node (Part.map part unleaf))
+    | x :: vars, Node (y, part) -> if String.equal x y then
+                                     Node (y, Part.map_dedup (eq p_eq) part (hide_reduce p_eq vars f_leaf f_node))
+                                   else hide_reduce p_eq vars f_leaf f_node (Node (y, part))
+    | _ -> raise (Invalid_argument "function not defined for other cases")
+
+  let rec replace_leaf v l = function
+    | Leaf _ -> Leaf l
+    | Node (x, part) -> Node (x, Part.map2 part (fun (s, expl) ->
+                                     if Setc.mem s (Map.find_exn v x) then
+                                       (s, replace_leaf v l expl)
+                                     else
+                                       (s, expl)))
+
+  let rec specialize v = function
+    | Leaf l -> l
+    | Node (x, part) -> specialize v (Part.find part (Map.find_exn v x))
+
+  let rec specialize_partial v = function
+    | Leaf l -> Leaf l
+    | Node (x, part) when Map.mem v x -> specialize_partial v (Part.find part (Map.find_exn v x))
+    | Node (x, part) -> Node (x, Part.map part (specialize_partial v))
+
+  let rec collect f v x = function
+    | Leaf l when f l -> Setc.univ (module Dom)
+    | Leaf l -> Setc.empty (module Dom)
+    | Node (x', part) when String.equal x x' ->
+       List.fold_left (Part.map2 part (fun (s, p) -> Setc.inter s (collect f v x p)))
+         ~init:(Setc.empty (module Dom)) ~f:Setc.union
+    | Node (x', part) ->
+       collect f v x (Part.find part (Map.find_exn v x'))
+
+  let rec from_valuation vars v p p' =
+    match vars with
+    | [] -> Leaf p
+    | var::vars when not (Map.mem v var) -> from_valuation vars v p p'
+    | var::vars -> let d = Map.find_exn v var in
+                   let rest = from_valuation vars v p p' in
+                   let part = Part.tabulate (Set.singleton (module Dom) d) (fun _ -> rest) (Leaf p') in
+                   Node (var, part)
+
+end
+
+module type ProofT = sig
+
+  type sp
+  type vp
+
+  type t = S of sp | V of vp
+
+  val s_equal: sp -> sp -> bool
+  val v_equal: vp -> vp -> bool
+  val equal: t -> t -> bool
+
+  val unS: t -> sp
+  val unV: t -> vp
+  val isS: t -> bool
+  val isV: t -> bool
+
+  val s_append: sp -> sp -> sp
+  val v_append: vp -> vp -> vp
+  val s_drop: sp -> sp option
+  val v_drop: vp -> vp option
+
+  val s_at: sp -> int
+  val v_at: vp -> int
+  val p_at: t -> int
+
+  val s_ltp: sp -> int
+  val v_etp: vp -> int
+
+  val s_to_string: string -> sp -> string
+  val v_to_string: string -> vp -> string
+  val to_string: string -> t -> string
+  val to_latex: string -> Formula.t -> t -> string
+  val to_bool: t -> string
+
+  val make_stt: int -> sp
+  val make_seqconst: int -> string -> Dom.t -> sp
+  val make_spred: int -> string -> Term.t list -> sp
+  val make_sneg: vp -> sp
+  val make_sorl: sp -> sp
+  val make_sorr: sp -> sp
+  val make_sand: sp -> sp -> sp
+  val make_simpl: vp -> sp
+  val make_simpr: sp -> sp
+  val make_siffss: sp -> sp -> sp
+  val make_siffvv: vp -> vp -> sp
+  val make_sexists: string -> Dom.t -> sp -> sp
+  val make_sforall: string -> sp Part.t -> sp
+  val make_sprev: sp -> sp
+  val make_snext: sp -> sp
+  val make_snextassm: int -> sp
+  val make_sonce: int -> sp -> sp
+  val make_seventually: int -> sp -> sp
+  val make_seventuallyassm: int -> Interval.t -> sp
+  val make_seventuallynow: sp -> Interval.t -> sp
+  val make_shistorically: int -> int -> sp Fdeque.t -> sp
+  val make_shistoricallyout: int -> sp
+  val make_salways: int -> int -> sp Fdeque.t -> sp
+  val make_salwaysassm: int -> sp option -> Interval.t -> sp
+  val make_ssince: sp -> sp Fdeque.t -> sp
+  val make_suntil: sp -> sp Fdeque.t -> sp
+  val make_suntilassm: int -> sp -> Interval.t -> sp
+  val make_suntilnow: sp -> Interval.t -> sp
+
+  val make_vff: int -> vp
+  val make_veqconst: int -> string -> Dom.t -> vp
+  val make_vpred: int -> string -> Term.t list -> vp
+  val make_vneg: sp -> vp
+  val make_vor: vp -> vp -> vp
+  val make_vandl: vp -> vp
+  val make_vandr: vp -> vp
+  val make_vimp: sp -> vp -> vp
+  val make_viffsv: sp -> vp -> vp
+  val make_viffvs: vp -> sp -> vp
+  val make_vexists: string -> vp Part.t -> vp
+  val make_vforall: string -> Dom.t -> vp -> vp
+  val make_vprev: vp -> vp
+  val make_vprev0: vp
+  val make_vprevoutl: int -> vp
+  val make_vprevoutr: int -> vp
+  val make_vnext: vp -> vp
+  val make_vnextoutl: int -> vp
+  val make_vnextoutr: int -> vp
+  val make_vnextassm: int -> Interval.t -> vp
+  val make_vonceout: int -> vp
+  val make_vonce: int -> int -> vp Fdeque.t -> vp
+  val make_veventually: int -> int -> vp Fdeque.t -> vp
+  val make_veventuallyassm: int -> vp option -> Interval.t -> vp
+  val make_vhistorically: int -> vp -> vp
+  val make_valways: int -> vp -> vp
+  val make_valwaysassm: int -> Interval.t -> vp
+  val make_valwaysnow: vp -> Interval.t -> vp
+  val make_vsinceout: int -> vp
+  val make_vsince: int -> vp -> vp Fdeque.t -> vp
+  val make_vsinceinf: int -> int -> vp Fdeque.t -> vp
+  val make_vuntil: int -> vp -> vp Fdeque.t -> vp
+  val make_vuntilinf: int -> int -> vp Fdeque.t -> vp
+  val make_vuntilassm: int -> vp -> Interval.t -> vp
+  val make_vuntilnow: vp -> Interval.t -> vp
+
+  val decompose_vsince: vp -> (vp * vp Fdeque.t) option
+  val decompose_vuntil: vp -> (vp * vp Fdeque.t) option
+  
+  module Size : sig
+
+    val minp_bool: t -> t -> bool
+    val minp: t -> t -> t
+    val minp_list: t list -> t
+
+  end
+
+end
+
+type t_sp =
+  | STT of int
+  | SEqConst of int * string * Dom.t
+  | SPred of int * string * Term.t list
+  | SNeg of t_vp
+  | SOrL of t_sp
+  | SOrR of t_sp
+  | SAnd of t_sp * t_sp
+  | SImpL of t_vp
+  | SImpR of t_sp
+  | SIffSS of t_sp * t_sp
+  | SIffVV of t_vp * t_vp
+  | SExists of string * Dom.t * t_sp
+  | SForall of string * (t_sp Part.t)
+  | SPrev of t_sp
+  | SNext of t_sp
+  | SNextAssm of int
+  | SOnce of int * t_sp
+  | SEventually of int * t_sp
+  | SEventuallyAssm of int * Interval.t
+  | SEventuallyNow of t_sp * Interval.t
+  | SHistorically of int * int * t_sp Fdeque.t
+  | SHistoricallyOut of int
+  | SAlways of int * int * t_sp Fdeque.t
+  | SAlwaysAssm of int * t_sp option * Interval.t
+  | SSince of t_sp * t_sp Fdeque.t
+  | SUntil of t_sp * t_sp Fdeque.t
+  | SUntilAssm of int * t_sp * Interval.t
+  | SUntilNow of t_sp * Interval.t
+and t_vp =
+  | VFF of int
+  | VEqConst of int * string * Dom.t
+  | VPred of int * string * Term.t list
+  | VNeg of t_sp
+  | VOr of t_vp * t_vp
+  | VAndL of t_vp
+  | VAndR of t_vp
+  | VImp of t_sp * t_vp
+  | VIffSV of t_sp * t_vp
+  | VIffVS of t_vp * t_sp
+  | VExists of string * (t_vp Part.t)
+  | VForall of string * Dom.t * t_vp
+  | VPrev of t_vp
+  | VPrev0
+  | VPrevOutL of int
+  | VPrevOutR of int
+  | VNext of t_vp
+  | VNextOutL of int
+  | VNextOutR of int
+  | VNextAssm of int * Interval.t
+  | VOnceOut of int
+  | VOnce of int * int * t_vp Fdeque.t
+  | VEventually of int * int * t_vp Fdeque.t
+  | VEventuallyAssm of int * t_vp option * Interval.t
+  | VHistorically of int * t_vp
+  | VAlways of int * t_vp
+  | VAlwaysAssm of int * Interval.t
+  | VAlwaysNow of t_vp * Interval.t
+  | VSinceOut of int
+  | VSince of int * t_vp * t_vp Fdeque.t
+  | VSinceInf of int * int * t_vp Fdeque.t
+  | VUntil of int * t_vp * t_vp Fdeque.t
+  | VUntilInf of int * int * t_vp Fdeque.t
+  | VUntilAssm of int * t_vp * Interval.t
+  | VUntilNow of t_vp * Interval.t
+
+module Proof : ProofT with type sp = t_sp and type vp = t_vp = struct
+
+  type sp = t_sp
+  type vp = t_vp
+  
   type t = S of sp | V of vp
 
   let rec s_equal x y = match x, y with
@@ -728,9 +1047,82 @@ module Proof = struct
     | S p -> s_to_latex indent [] 0 p fmla
     | V p -> v_to_latex indent [] 0 p fmla
 
-  let to_bool indent = function
+  let to_bool = function
     | S _ -> "true\n"
     | V _ -> "false\n"
+
+  let make_stt tp = STT tp
+  let make_seqconst tp x c = SEqConst (tp, x, c)
+  let make_spred tp r terms = SPred (tp, r, terms)
+  let make_sneg vp = SNeg vp
+  let make_sorl sp = SOrL sp
+  let make_sorr sp = SOrR sp
+  let make_sand sp1 sp2 = SAnd (sp1, sp2)
+  let make_simpl vp = SImpL vp
+  let make_simpr sp = SImpR sp
+  let make_siffss sp1 sp2 = SIffSS (sp1, sp2)
+  let make_siffvv vp1 vp2 = SIffVV (vp1, vp2)
+  let make_sexists x d sp = SExists (x, d, sp)
+  let make_sforall x sps = SForall (x, sps)
+  let make_sprev sp = SPrev sp
+  let make_snext sp = SNext sp
+  let make_snextassm tp = SNextAssm tp
+  let make_sonce tp sp = SOnce (tp, sp)
+  let make_seventually tp sp = SEventually (tp, sp)
+  let make_seventuallyassm tp i = SEventuallyAssm (tp, i)
+  let make_seventuallynow sp i = SEventuallyNow (sp, i)
+  let make_shistorically tp ltp sps = SHistorically (tp, ltp, sps)
+  let make_shistoricallyout tp = SHistoricallyOut tp
+  let make_salways tp ltp sps = SAlways (tp, ltp, sps)
+  let make_salwaysassm tp sp_opt i = SAlwaysAssm (tp, sp_opt, i)
+  let make_ssince sp sps = SSince (sp, sps)
+  let make_suntil sp sps = SUntil (sp, sps)
+  let make_suntilassm tp sp i = SUntilAssm (tp, sp, i)
+  let make_suntilnow sp i = SUntilNow (sp, i)
+
+  let make_vff tp = VFF tp
+  let make_veqconst tp x c = VEqConst (tp, x, c)
+  let make_vpred tp r terms = VPred (tp, r, terms)
+  let make_vneg sp = VNeg sp
+  let make_vor vp1 vp2 = VOr (vp1, vp2)
+  let make_vandl vp = VAndL vp
+  let make_vandr vp = VAndR vp
+  let make_vimp sp vp = VImp (sp, vp)
+  let make_viffsv sp vp = VIffSV (sp, vp)
+  let make_viffvs vp sp = VIffVS (vp, sp)
+  let make_vexists x vps = VExists (x, vps)
+  let make_vforall x d vp = VForall (x, d, vp)
+  let make_vprev vp = VPrev vp
+  let make_vprev0 = VPrev0
+  let make_vprevoutl tp = VPrevOutL tp
+  let make_vprevoutr tp = VPrevOutR tp
+  let make_vnext vp = VNext vp
+  let make_vnextoutl tp = VNextOutL tp
+  let make_vnextoutr tp = VNextOutR tp
+  let make_vnextassm tp i = VNextAssm (tp, i)
+  let make_vonceout tp = VOnceOut tp
+  let make_vonce tp ltp vps = VOnce (tp, ltp, vps)
+  let make_veventually tp ltp vps = VEventually (tp, ltp, vps)
+  let make_veventuallyassm tp vp_opt i = VEventuallyAssm (tp, vp_opt, i)
+  let make_vhistorically tp vp = VHistorically (tp, vp)
+  let make_valways tp vp = VAlways (tp, vp)
+  let make_valwaysassm tp i = VAlwaysAssm (tp, i)
+  let make_valwaysnow vp i = VAlwaysNow (vp, i)
+  let make_vsinceout tp = VSinceOut tp
+  let make_vsince tp vp vps = VSince (tp, vp, vps)
+  let make_vsinceinf tp ltp vps = VSinceInf (tp, ltp, vps)
+  let make_vuntil tp vp vps = VUntil (tp, vp, vps)
+  let make_vuntilinf tp ltp vps = VUntilInf  (tp, ltp, vps)
+  let make_vuntilassm tp vp i = VUntilAssm (tp, vp, i)
+  let make_vuntilnow vp i = VUntilNow (vp, i)
+
+  let decompose_vsince = function
+    | VSince (_, vp1, vp2s) -> Some (vp1, vp2s)
+    | _ -> None
+
+  let decompose_vuntil = function
+    | VUntil (_, vp1, vp2s) -> Some (vp1, vp2s)
+    | _ -> None
 
   module Size = struct
 
@@ -818,235 +1210,193 @@ module Proof = struct
 
 end
 
-module Pdt = struct
+module LightProof : ProofT with type sp = int and type vp = int = struct
 
-  type 'a t = Leaf of 'a | Node of string * ('a t) Part.t
+  type sp = int
+  type vp = int
+  
+  type t = S of sp | V of vp
 
-  let rec apply1 vars f pdt = match vars, pdt with
-    | _ , Leaf l -> Leaf (f l)
-    | z :: vars, Node (x, part) ->
-       if String.equal x z then
-         Node (x, Part.map part (apply1 vars f))
-       else apply1 vars f (Node (x, part))
-    | _ -> raise (Invalid_argument "variable list is empty")
-
-  let rec apply2 vars f pdt1 pdt2 = match vars, pdt1, pdt2 with
-    | _ , Leaf l1, Leaf l2 -> Leaf (f l1 l2)
-    | _ , Leaf l1, Node (x, part2) -> Node (x, Part.map part2 (apply1 vars (f l1)))
-    | _ , Node (x, part1), Leaf l2 -> Node (x, Part.map part1 (apply1 vars (fun l1 -> f l1 l2)))
-    | z :: vars, Node (x, part1), Node (y, part2) ->
-       if String.equal x z && String.equal y z then
-         Node (z, Part.merge2 (apply2 vars f) part1 part2)
-       else (if String.equal x z then
-               Node (x, Part.map part1 (fun pdt1 -> apply2 vars f pdt1 (Node (y, part2))))
-             else (if String.equal y z then
-                     Node (y, Part.map part2 (apply2 vars f (Node (x, part1))))
-                   else apply2 vars f (Node (x, part1)) (Node (y, part2))))
-    | _ -> raise (Invalid_argument "variable list is empty")
-
-  let rec apply3 vars f pdt1 pdt2 pdt3 = match vars, pdt1, pdt2, pdt3 with
-    | _ , Leaf l1, Leaf l2, Leaf l3 -> Leaf (f l1 l2 l3)
-    | _ , Leaf l1, Leaf l2, Node (x, part3) ->
-       Node (x, Part.map part3 (apply1 vars (fun l3 -> f l1 l2 l3)))
-    | _ , Leaf l1, Node (x, part2), Leaf l3 ->
-       Node (x, Part.map part2 (apply1 vars (fun l2 -> f l1 l2 l3)))
-    | _ , Node (x, part1), Leaf l2, Leaf l3 ->
-       Node (x, Part.map part1 (apply1 vars (fun l1 -> f l1 l2 l3)))
-    | w :: vars, Leaf l1, Node (y, part2), Node (z, part3) ->
-       if String.equal y w && String.equal z w then
-         Node (w, Part.merge2 (apply2 vars (f l1)) part2 part3)
-       else (if String.equal y w then
-               Node (y, Part.map part2 (fun pdt2 -> apply2 vars (f l1) pdt2 (Node (z, part3))))
-             else (if String.equal z w then
-                     Node (z, Part.map part3 (fun pdt3 -> apply2 vars (f l1) (Node (y, part2)) pdt3))
-                   else apply3 vars f (Leaf l1) (Node (y, part2)) (Node(z, part3))))
-    | w :: vars, Node (x, part1), Node (y, part2), Leaf l3 ->
-       if String.equal x w && String.equal y w then
-         Node (w, Part.merge2 (apply2 vars (fun l1 l2 -> f l1 l2 l3)) part1 part2)
-       else (if String.equal x w then
-               Node (x, Part.map part1 (fun pdt1 -> apply2 vars (fun pt1 pt2 -> f pt1 pt2 l3) pdt1 (Node (y, part2))))
-             else (if String.equal y w then
-                     Node (y, Part.map part2 (fun pdt2 -> apply2 vars (fun l1 l2 -> f l1 l2 l3) (Node (x, part1)) pdt2))
-                   else apply3 vars f (Node (x, part1)) (Node (y, part2)) (Leaf l3)))
-    | w :: vars, Node (x, part1), Leaf l2, Node (z, part3) ->
-       if String.equal x w && String.equal z w then
-         Node (w, Part.merge2 (apply2 vars (fun l1 -> f l1 l2)) part1 part3)
-       else (if String.equal x w then
-               Node (x, Part.map part1 (fun pdt1 -> apply2 vars (fun l1 -> f l1 l2) pdt1 (Node (z, part3))))
-             else (if String.equal z w then
-                     Node (z, Part.map part3 (fun pdt3 -> apply2 vars (fun l1 -> f l1 l2) (Node (x, part1)) pdt3))
-                   else apply3 vars f (Node (x, part1)) (Leaf l2) (Node (z, part3))))
-    | w :: vars, Node (x, part1), Node (y, part2), Node (z, part3) ->
-       if String.equal x w && String.equal y w && String.equal z w then
-         Node (z, Part.merge3 (apply3 vars f) part1 part2 part3)
-       else (if String.equal x w && String.equal y w then
-               Node (w, Part.merge2 (fun pdt1 pdt2 -> apply3 vars f pdt1 pdt2 (Node (z, part3))) part1 part2)
-             else (if String.equal x w && String.equal z w then
-                     Node (w, Part.merge2 (fun pdt1 pdt3 -> apply3 vars f pdt1 (Node (y, part2)) pdt3) part1 part3)
-                   else (if String.equal y w && String.equal z w then
-                           Node (w, Part.merge2 (apply3 vars (fun l1 -> f l1) (Node (x, part1))) part2 part3)
-                         else (if String.equal x w then
-                                 Node (x, Part.map part1 (fun pdt1 -> apply3 vars f pdt1 (Node (y, part2)) (Node (z, part3))))
-                               else (if String.equal y w then
-                                       Node (y, Part.map part2 (fun pdt2 -> apply3 vars f (Node (x, part1)) pdt2 (Node (z, part3))))
-                                     else (if String.equal z w then
-                                             Node (z, Part.map part3 (fun pdt3 -> apply3 vars f (Node (x, part1)) (Node (y, part2)) pdt3))
-                                           else apply3 vars f (Node (x, part1)) (Node (y, part2)) (Node (z, part3))))))))
-    | _ -> raise (Invalid_argument "variable list is empty")
-
-  let rec split_prod = function
-    | Leaf (l1, l2) -> (Leaf l1, Leaf l2)
-    | Node (x, part) -> let (part1, part2) = Part.split_prod (Part.map part split_prod) in
-                        (Node (x, part1), Node (x, part2))
-
-  let rec split_list = function
-    | Leaf l -> List.map l ~f:(fun el -> Leaf el)
-    | Node (x, part) -> List.map (Part.split_list (Part.map part split_list)) ~f:(fun el -> Node (x, el))
-
-  let rec to_string f indent = function
-    | Leaf pt -> Printf.sprintf "%s%s\n" indent (f pt)
-    | Node (x, part) -> (Part.to_string indent (Var x) (to_string f) part)
-
-  let rec to_latex f indent = function
-    | Leaf pt -> Printf.sprintf "%s%s\n" indent (f pt)
-    | Node (x, part) -> (Part.to_string indent (Var x) (to_latex f) part)
-
-  let rec to_light_string f indent = function
-    | Leaf pt -> Printf.sprintf "%s%s\n" indent (f pt)
-    | Node (x, part) -> (Part.to_string indent (Var x) (to_light_string f) part)
-
-  let unleaf = function
-    | Leaf l -> l
-    | _ -> raise (Invalid_argument "function not defined for nodes")
-
-  let rec hide vars f_leaf f_node pdt = match vars, pdt with
-    |  _ , Leaf l -> Leaf (f_leaf l)
-    | [x], Node (y, part) -> Leaf (f_node (Part.map part unleaf))
-    | x :: vars, Node (y, part) -> if String.equal x y then
-                                     Node (y, Part.map part (hide vars f_leaf f_node))
-                                   else hide vars f_leaf f_node (Node (y, part))
-    | _ -> raise (Invalid_argument "function not defined for other cases")
-
-  (* reduce related *)
-  let rec eq p_eq pdt1 pdt2 =
-    match pdt1, pdt2 with
-    | Leaf l1, Leaf l2 -> p_eq l1 l2
-    | Node (x, part), Node (x', part') -> String.equal x x' && Int.equal (Part.length part) (Part.length part') &&
-                                            List.for_all2_exn part part' ~f:(fun (s, v) (s', v') ->
-                                                Setc.equal s s' && eq p_eq v v')
+  let rec s_equal x y = true
+  let rec v_equal x y = true
+ 
+  let equal x y = match x, y with
+    | S sp1, S sp2 -> sp1 == sp2
+    | V vp1, V vp2 -> vp1 == vp2
     | _ -> false
 
-  let rec reduce p_eq = function
-    | Leaf l -> Leaf l
-    | Node (x, part) -> Node (x, Part.dedup (eq p_eq) (Part.map part (reduce p_eq)))
+  let unS = function
+    | S tp -> tp
+    | _ -> raise (Invalid_argument "unS is not defined for V proofs")
 
-  let rec apply1_reduce p_eq vars f pdt = match vars, pdt with
-    | _ , Leaf l -> Leaf (f l)
-    | z :: vars, Node (x, part) ->
-       if String.equal x z then
-         Node (x, Part.map_dedup (eq p_eq) part (apply1_reduce p_eq vars f))
-       else apply1_reduce p_eq vars f (Node (x, part))
-    | _ -> raise (Invalid_argument "variable list is empty")
+  let unV = function
+    | V tp -> tp
+    | _ -> raise (Invalid_argument "unV is not defined for S proofs")
 
-  let rec apply2_reduce p_eq vars f pdt1 pdt2 = match vars, pdt1, pdt2 with
-    | _ , Leaf l1, Leaf l2 -> Leaf (f l1 l2)
-    | _ , Leaf l1, Node (x, part2) -> Node (x, Part.map_dedup (eq p_eq) part2 (apply1_reduce p_eq vars (f l1)))
-    | _ , Node (x, part1), Leaf l2 -> Node (x, Part.map_dedup (eq p_eq) part1 (apply1_reduce p_eq vars (fun l1 -> f l1 l2)))
-    | z :: vars, Node (x, part1), Node (y, part2) ->
-       if String.equal x z && String.equal y z then
-         Node (z, Part.merge2_dedup (eq p_eq) (apply2_reduce p_eq vars f) part1 part2)
-       else (if String.equal x z then
-               Node (x, Part.map_dedup (eq p_eq) part1 (fun pdt1 -> apply2_reduce p_eq vars f pdt1 (Node (y, part2))))
-             else (if String.equal y z then
-                     Node (y, Part.map_dedup (eq p_eq) part2 (apply2_reduce p_eq vars f (Node (x, part1))))
-                   else apply2_reduce p_eq vars f (Node (x, part1)) (Node (y, part2))))
-    | _ -> raise (Invalid_argument "variable list is empty")
+  let isS = function
+    | S _ -> true
+    | V _ -> false
 
-  let apply3_reduce p_eq vars f pdt1 pdt2 pdt3 =
-    let p_eq2 (a, b) (a', b') = a == a' && b == b' in
-    let pdt12 = apply2_reduce p_eq2 vars (fun a b -> (a, b)) pdt1 pdt2 in
-    apply2_reduce p_eq vars (fun (a, b) c -> f a b c) pdt12 pdt3
+  let isV = function
+    | S _ -> false
+    | V _ -> true
 
-  let rec split_prod_reduce p_eq = function
-    | Leaf (l1, l2) -> (Leaf l1, Leaf l2)
-    | Node (x, part) -> let (part1, part2) = Part.split_prod_dedup (eq p_eq) (Part.map part (split_prod_reduce p_eq)) in
-                        (Node (x, part1), Node (x, part2))
+  let s_append sp sp1 = sp
 
-  let rec split_list_reduce p_eq = function
-    | Leaf l -> List.map l ~f:(fun el -> Leaf el)
-    | Node (x, part) -> List.map (Part.split_list_dedup (eq p_eq) (Part.map part (split_list_reduce p_eq))) ~f:(fun el -> Node (x, el))
+  let v_append vp vp2 = vp
 
-  let rec hide_reduce p_eq vars f_leaf f_node pdt = match vars, pdt with
-    |  _ , Leaf l -> Leaf (f_leaf l)
-    | [x], Node (y, part) -> Leaf (f_node (Part.map part unleaf))
-    | x :: vars, Node (y, part) -> if String.equal x y then
-                                     Node (y, Part.map_dedup (eq p_eq) part (hide_reduce p_eq vars f_leaf f_node))
-                                   else hide_reduce p_eq vars f_leaf f_node (Node (y, part))
-    | _ -> raise (Invalid_argument "function not defined for other cases")
+  let s_drop _ = None
 
-  let rec replace_leaf v l = function
-    | Leaf _ -> Leaf l
-    | Node (x, part) -> Node (x, Part.map2 part (fun (s, expl) ->
-                                     if Setc.mem s (Map.find_exn v x) then
-                                       (s, replace_leaf v l expl)
-                                     else
-                                       (s, expl)))
+  let v_drop _ = None
 
-  let rec specialize v = function
-    | Leaf l -> l
-    | Node (x, part) -> specialize v (Part.find part (Map.find_exn v x))
+  let s_at sp = sp
+  let v_at vp = vp
 
-  let rec specialize_partial v = function
-    | Leaf l -> Leaf l
-    | Node (x, part) when Map.mem v x -> specialize_partial v (Part.find part (Map.find_exn v x))
-    | Node (x, part) -> Node (x, Part.map part (specialize_partial v))
+  let p_at = function
+    | S sp -> s_at sp
+    | V vp -> v_at vp
 
-  let rec collect f v x = function
-    | Leaf l when f l -> Setc.univ (module Dom)
-    | Leaf l -> Setc.empty (module Dom)
-    | Node (x', part) when String.equal x x' ->
-       List.fold_left (Part.map2 part (fun (s, p) -> Setc.inter s (collect f v x p)))
-         ~init:(Setc.empty (module Dom)) ~f:Setc.union
-    | Node (x', part) ->
-       collect f v x (Part.find part (Map.find_exn v x'))
+  let s_ltp _ = 0
 
-  let rec from_valuation vars v p p' =
-    match vars with
-    | [] -> Leaf p
-    | var::vars when not (Map.mem v var) -> from_valuation vars v p p'
-    | var::vars -> let d = Map.find_exn v var in
-                   let rest = from_valuation vars v p p' in
-                   let part = Part.tabulate (Set.singleton (module Dom) d) (fun _ -> rest) (Leaf p') in
-                   Node (var, part)
+  let v_etp _ = 0
+
+  let cmp f p1 p2 = f p1 <= f p2
+
+  let s_to_string indent sp =
+    Printf.sprintf "%strue{%d}" indent sp
+
+  let v_to_string indent vp =
+    Printf.sprintf "%sfalse{%d}" indent vp
+
+  let to_string indent = function
+    | S sp -> s_to_string indent sp
+    | V vp -> v_to_string indent vp
+
+  let val_changes_to_latex v =
+    if List.is_empty v then "v"
+    else "v[" ^ Etc.string_list_to_string (List.map v ~f:(fun (x, d) -> Printf.sprintf "%s \\mapsto %s" x d)) ^ "]"
+
+  let s_to_latex _ _ _ _ _ = ""
+  let v_to_latex _ _ _ _ _ = ""
+
+  let to_latex _ _ _ = ""
+
+  let to_bool = function 
+    | S _ -> "true\n"
+    | V _ -> "false\n"
+
+  let make_stt tp = tp
+  let make_seqconst tp x c = tp
+  let make_spred tp r terms = tp
+  let make_sneg vp = vp
+  let make_sorl sp = sp
+  let make_sorr sp = sp
+  let make_sand sp1 sp2 = sp1
+  let make_simpl vp = vp
+  let make_simpr sp = sp
+  let make_siffss sp1 sp2 = sp1
+  let make_siffvv vp1 vp2 = vp1
+  let make_sexists x d sp = sp
+  let make_sforall x sps = Part.hd sps
+  let make_sprev sp = sp + 1
+  let make_snext sp = sp - 1
+  let make_snextassm tp = tp 
+  let make_sonce tp sp = tp
+  let make_seventually tp sp = tp
+  let make_seventuallyassm tp i = tp
+  let make_seventuallynow sp i = sp
+  let make_shistorically tp ltp sps = tp
+  let make_shistoricallyout tp = tp
+  let make_salways tp ltp sps = tp
+  let make_salwaysassm tp sp_opt i = tp
+  let make_ssince sp sps = sp
+  let make_suntil sp sps = sp
+  let make_suntilassm tp sp i = tp
+  let make_suntilnow sp i = sp
+
+  let make_vff tp = tp
+  let make_veqconst tp x c = tp
+  let make_vpred tp r terms = tp
+  let make_vneg sp = sp
+  let make_vor vp1 vp2 = vp1
+  let make_vandl vp = vp
+  let make_vandr vp = vp
+  let make_vimp sp vp = sp
+  let make_viffsv sp vp = sp
+  let make_viffvs vp sp = vp
+  let make_vexists x vps = Part.hd vps
+  let make_vforall x d vp = vp
+  let make_vprev vp = vp + 1
+  let make_vprev0 = 0
+  let make_vprevoutl tp = tp
+  let make_vprevoutr tp = tp
+  let make_vnext vp = vp - 1
+  let make_vnextoutl tp = tp
+  let make_vnextoutr tp = tp
+  let make_vnextassm tp i = tp
+  let make_vonceout tp = tp
+  let make_vonce tp ltp vps = tp
+  let make_veventually tp ltp vps = tp
+  let make_veventuallyassm tp vp_opt i = tp
+  let make_vhistorically tp vp = tp
+  let make_valways tp vp = tp
+  let make_valwaysassm tp i = tp
+  let make_valwaysnow vp i = vp
+  let make_vsinceout tp = tp
+  let make_vsince tp vp vps = tp
+  let make_vsinceinf tp ltp vps = tp
+  let make_vuntil tp vp vps = tp
+  let make_vuntilinf tp ltp vps = tp
+  let make_vuntilassm tp vp i = tp
+  let make_vuntilnow vp i = vp
+
+  let decompose_vsince vp = Some (vp, Fdeque.of_list [])
+
+  let decompose_vuntil vp = Some (vp, Fdeque.of_list [])
+
+  module Size = struct
+
+    let minp_bool _ _ = true
+    let minp x y = x
+    let minp_list = function
+      | [] -> raise (Invalid_argument "function not defined for empty lists")
+      | x :: xs -> x
+
+  end
 
 end
 
-type t = Proof.t Pdt.t
+module Make (P: ProofT) = struct
 
-let rec is_violated = function
-  | Pdt.Leaf l -> (match l with
-                   | Proof.S _ -> false
-                   | V _ -> true)
-  | Node (x, part) -> Part.exists part is_violated
+  module Proof = P
+  type t = Proof.t Pdt.t
 
-let rec is_satisfied = function
-  | Pdt.Leaf l -> (match l with
-                   | Proof.S _ -> true
-                   | V _ -> false)
-  | Node (x, part) -> Part.exists part is_satisfied
+  let rec is_violated = function
+    | Pdt.Leaf l -> (match l with
+                     | Proof.S _ -> false
+                     | V _ -> true)
+    | Node (x, part) -> Part.exists part is_violated
 
-(*let rec get_violation v = function
-  | Pdt.Leaf l -> (v, l)
-  | Node (x, part) -> let (s, p) = Part.find2 part is_violated in
-                      let elt = Setc.some_elt (Dom.tt_of_domain (Setc.min_elt_exn s)) s in
-                      get_violation (Map.add_exn ~key:x ~data:elt) p*)
+  let rec is_satisfied = function
+    | Pdt.Leaf l -> (match l with
+                     | Proof.S _ -> true
+                     | V _ -> false)
+    | Node (x, part) -> Part.exists part is_satisfied
 
-let rec at = function
-  | Pdt.Leaf pt -> Proof.p_at pt
-  | Node (_, part) -> at (Part.hd part)
+  (*let rec get_violation v = function
+    | Pdt.Leaf l -> (v, l)
+    | Node (x, part) -> let (s, p) = Part.find2 part is_violated in
+    let elt = Setc.some_elt (Dom.tt_of_domain (Setc.min_elt_exn s)) s in
+    get_violation (Map.add_exn ~key:x ~data:elt) p*)
 
-let to_string expl = Pdt.to_string (Proof.to_string "") "" expl
+  let rec at = function
+    | Pdt.Leaf pt -> Proof.p_at pt
+    | Node (_, part) -> at (Part.hd part)
 
-let to_latex fmla expl = Pdt.to_latex (Proof.to_latex "" fmla) "" expl
+  let to_string expl = Pdt.to_string (Proof.to_string "") "" expl
 
-let to_light_string expl = Pdt.to_light_string (Proof.to_bool "") "" expl
+  let to_latex fmla expl = Pdt.to_latex (Proof.to_latex "" fmla) "" expl
+
+  let to_light_string expl = Pdt.to_light_string Proof.to_bool "" expl
+
+end

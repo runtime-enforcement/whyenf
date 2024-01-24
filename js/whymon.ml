@@ -14,6 +14,9 @@ open Monitor_lib
 
 module Whymon = struct
 
+  module Json = Out.Json (Checker_interface.Checker_interface)
+  module Monitor = Monitor.Make (Checker_interface.Checker_interface)
+
   let mstate = ref None
 
   let check_sig js_sig =
@@ -57,7 +60,7 @@ module Whymon = struct
   let get_columns js_formula =
     let str_f = Js_of_ocaml.Js.to_string js_formula in
     let f = Formula_parser.formula Formula_lexer.token (Lexing.from_string str_f) in
-    Js.string (Out.Json.table_columns f)
+    Js.string (Json.table_columns f)
 
   let monitor_init js_log js_sig js_formula =
     let str_log = Js_of_ocaml.Js.to_string js_log in
