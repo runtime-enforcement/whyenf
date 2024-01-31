@@ -116,6 +116,7 @@ e:
 
 side:
 | COL STR                              { debug "COL STR"; Side.of_string $2 }
+| COL RELEASE                          { debug "COL RELEASE"; Side.of_string "R" }
 
 sides:
 | COL STR COMMA STR                    { debug "COL STR COMMA STR"; (Side.of_string $2, Side.of_string $4) }

@@ -16,15 +16,15 @@ plt.rcParams["font.serif"] = "Times New Roman"
 plt.rcParams["text.usetex"] = True
 
 OPTION = "WhyEnf"
-SYNTHETIC = True
+SYNTHETIC = False
 SYNTHETIC_N, SYNTHETIC_K = 1000, 10
 
 if OPTION == "Enfpoly":
     COMMAND = '~/Tools/monpoly_dev/monpoly/monpoly -enforce -sig arfelt.sig -formula formulae_enfpoly/{}  -ignore_parse_errors '
 elif OPTION == "WhyEnf":
-    COMMAND = '../../../../bin/whymon.exe -mode enforce -sig arfelt.sig -formula formulae_whyenf/{}'
+    COMMAND = '../../../../bin/whymon.exe -mode enforce -sig arfelt.sig -formula formulae_whyenf/{} -l'
 elif OPTION == "WhyMon":
-    COMMAND = '../../../../bin/whymon.exe -mode light -sig arfelt.sig -formula formulae_whymon/{}'
+    COMMAND = '../../../../bin/whymon.exe -mode light -sig arfelt.sig -formula formulae_whymon/{} -l'
   
 
 TEMP = "temp.txt"
@@ -74,7 +74,7 @@ def run_whymon(formula, step, a):
                            'time': the_f['ts'],
                            'latency': the_r['computer_time'] - the_f['computer_time'],
                            'out_time': the_r['computer_time']})
-    return pd.DataFrame(series).sort_values(by="time")
+    return pd.DataFrame(series).sort_values(by="tp")
 
 def plot(desc, step, a, df, fn):
     fig, ax = plt.subplots(1, 1, figsize=(7.5, 2.5))
@@ -84,8 +84,8 @@ def plot(desc, step, a, df, fn):
         real_time = (1000*24*3600) / a
     df["time"] /= 1000
     ax.plot(df["time"], df["latency"], 'k-', label='latency (ms)', linewidth=0.5)
-    ax.plot([min(df["time"]), max(df["time"])], [real_time, real_time], 'k:', label="real-time latency $\delta_1(a)$ (ms)", linewidth=0.5)
-    ax.plot([min(df["time"]), max(df["time"])], [max(df["latency"]), max(df["latency"])], 'k--', label="max latency $max_{\ell}(a)$ (ms)", linewidth=0.5)
+    ax.plot([min(df["time"]), max(df["time"])], [real_time, real_time], 'k:', label="real-time latency $1/a$ (ms)", linewidth=0.5)
+    ax.plot([min(df["time"]), max(df["time"])], [max(df["latency"]), max(df["latency"])], 'k--', label="max latency $\mathsf{max}_{\ell}(a)$ (ms)", linewidth=0.5)
     df_ev = df[df["n_ev"] > 0]
     ax.plot(df_ev["time"], df_ev["n_ev"], 'b|', label='trace events', markersize=2)
     df_cau = df[df["cau"] > 0]
@@ -115,17 +115,17 @@ def plot(desc, step, a, df, fn):
 
 if __name__ == '__main__':
     FORMULAE1 = {
-        "Sharing": "arfelt_7_erasure_3",
         "Consent": "arfelt_4_consent",
-        "Information": "arfelt_5_information",
+        "Sharing": "arfelt_7_erasure_3",
         "Lawfulness": "arfelt_3_lawfulness",
+        "Information": "arfelt_5_information",
         "Limitation": "arfelt_2_limitation",
         "Deletion": "arfelt_7_erasure",
     }
     if OPTION == "WhyEnf":
         FORMULAE = FORMULAE1
     elif OPTION == "WhyMon":
-        FORMULAE = { k: v for (k, v) in FORMULAE1.items() if k not in ["Sharing", "Limitation"] }
+        FORMULAE = { k: v for (k, v) in FORMULAE1.items() if k not in ["Limitation"] }
     elif OPTION == "Enfpoly":
         FORMULAE = {
             "Consent": "arfelt_4_consent",
@@ -139,9 +139,9 @@ if __name__ == '__main__':
         OUT = "out_whyenf"
     elif OPTION == "WhyMon" :
         OUT = "out_whymon"
-    ACCELERATIONS = [1e4, 5e4, 1e5, 5e5, 1e6, 5e6, 1e7, 5e7][::-1]
+    ACCELERATIONS = [1e5, 2e5, 4e5, 8e5, 1.6e6, 3.2e6, 6.4e6, 1.28e7, 2.56e7, 5.12e7]
     N = 1
-    ONLY_GRAPH = False
+    ONLY_GRAPH = True
 
     if SYNTHETIC:
         summary_fn = f"summary_{SYNTHETIC_N}_{SYNTHETIC_K}.csv"
@@ -186,7 +186,7 @@ if __name__ == '__main__':
     ax = ax2.twinx()
     
     d1 = summary[["a", "d1"]].groupby("a").mean()
-    ax.plot(d1.index, d1["d1"], "k--", label="$\delta_1(a)=1/a$", linewidth=1.5)
+    ax.plot(d1.index, d1["d1"], "k--", label="$1/a$", linewidth=1.5)
             
     for desc in FORMULAE1:
         s = summary[summary["formula"] == desc][["a", "max_latency"]].groupby("a").mean()
@@ -199,11 +199,12 @@ if __name__ == '__main__':
     ax2.plot(ae.index, ae["avg_ev"], "k:", label="avg. event rate", linewidth=0.5)
 
     ax2.set_xlabel("acceleration $a$")
-    ax.set_ylabel("max latency $max_{\ell}(a)$ (ms)")
+    ax.set_ylabel("max latency $\mathsf{max}_{\ell}(a)$ (ms)")
     ax2.set_ylabel("events/s")
 
     if OPTION == "WhyEnf":
-        ax.legend(loc='upper right')
+        ax.legend(bbox_to_anchor=(0, 1.02, 1, 0.2), loc="lower left",
+                  mode="expand", borderaxespad=0, ncol=4)
         ax2.legend(loc='upper left')
     ax2.set_xscale('log')
     ax.set_yscale('log')     
@@ -213,10 +214,3 @@ if __name__ == '__main__':
         
     
 
-# TODO:
-
-# Generate random traces, adapt pipeline
-# Re-run experiments
-# Update papers and add individual runs to the appendix
-# Update "\checkmark" and "time out" to be more explicit
-# Add the example to the appendix

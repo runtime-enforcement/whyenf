@@ -1,7 +1,7 @@
 from subprocess import Popen, PIPE
 import pandas as pd
 from time import time, sleep
-from multiprocessing import Process, Manager, Lock, Queue
+from multiprocessing import Process, Manager, Lock, Queue, TimeoutError
 from io import StringIO
 
 def feeder(log, acc, p, q, queuing, lock):
@@ -53,8 +53,11 @@ def replay(log, last_tp, command, acc=1000, to=400, nto=3):
     r = Process(target=reader, args=(p, q, queuing, lock, last_tp))
     f.start()
     r.start()
-    data1 = list(q.get())
-    data2 = list(q.get())
+    try:
+        data1 = list(q.get(timeout=600))
+        data2 = list(q.get(timeout=600))
+    except:
+        return None
     return pd.read_csv(StringIO("type,tp,ts,computer_time,n_ev,n_tp,cau,sup,ins,done_time\n" + "\n".join(data1 + data2)))
 
     
