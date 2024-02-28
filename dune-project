@@ -9,7 +9,8 @@
 
 (authors
  "François Hublet <fhublet@ethz.ch>"
- "Leonardo Lima <hi@nameless.computer>")
+ "Leonardo Lima <hi@nameless.computer>"
+ "Dmitriy Traytel <traytel@di.ku.dk>")
 
 (maintainers
  "François Hublet <fhublet@ethz.ch>"
