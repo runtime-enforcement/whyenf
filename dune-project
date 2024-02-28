@@ -1,15 +1,19 @@
 (lang dune 3.0)
 
-(name whymon)
+(name whyenf)
 
 (generate_opam_files true)
 
 (source
- (github runtime-monitoring/whymon))
+ (github runtime-enforcement/whyenf))
 
-(authors "Leonardo Lima")
+(authors
+ "François Hublet <fhublet@ethz.ch>"
+ "Leonardo Lima <hi@nameless.computer>")
 
-(maintainers "Leonardo Lima")
+(maintainers
+ "François Hublet <fhublet@ethz.ch>"
+ "Leonardo Lima <hi@nameless.computer>")
 
 (license LICENSE)
 
@@ -18,7 +22,7 @@
 (using menhir 2.0)
 
 (package
- (name whymon)
+ (name whyenf)
  (synopsis "")
  (description "")
  (depends
@@ -30,6 +34,6 @@
   (zarith (>= 1.11))
   (zarith_stubs_js (>= v0.14.1)))
  (tags
-  (topics "to describe" your project)))
+  (proactive runtime enforcement)))
 
 ; See the complete stanza docs at https://dune.readthedocs.io/en/stable/dune-files.html#dune-project
