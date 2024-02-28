@@ -1,5 +1,5 @@
 (executable
- (public_name whymon)
- (name whymon)
+ (public_name whyenf)
+ (name whyenf)
  (libraries monitor_lib)
  (promote (until-clean)))
