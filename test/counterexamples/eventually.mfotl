@@ -1,1 +1,0 @@
-(□[0,2] process1(x)) ∨ (□[2,4] process2(x)) ∨ (□[4,6] process3(x))
