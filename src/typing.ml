@@ -1,3 +1,12 @@
+(*******************************************************************)
+(*     This is part of WhyEnf, and it is distributed under the     *)
+(*     terms of the GNU Lesser General Public License version 3    *)
+(*           (see file LICENSE for more details)                   *)
+(*                                                                 *)
+(*  Copyright 2024:                                                *)
+(*  François Hublet (ETH Zurich)                                   *)
+(*******************************************************************)
+
 open Base
 open Formula
 open Pred
@@ -402,7 +411,7 @@ let rec relative_interval (f: Tformula.t) =
         (Zinterval.sum i' (relative_interval f2)))
 
 
-let strict f = 
+let strict f =
   let rec _strict itv fut (f: Tformula.t) =
     ((Zinterval.mem 0 itv) && fut)
     || (match f.f with
@@ -421,10 +430,10 @@ let strict f =
           -> (_strict (Zinterval.sum (Zinterval.inv (Zinterval.of_interval i)) itv) true f1)
              || (_strict (Zinterval.sum (Zinterval.inv (Zinterval.of_interval i)) itv) true f2))
   in not (_strict (Zinterval.singleton 0) false f)
-  
+
 let relative_past f =
-  Zinterval.is_nonpositive (relative_interval f)               
-                
+  Zinterval.is_nonpositive (relative_interval f)
+
 let strictly_relative_past f =
   (relative_past f) && (strict f)
 
@@ -474,7 +483,3 @@ let is_transparent (f: Tformula.t) =
     true
   else
     raise (Invalid_argument (Printf.sprintf "Warning: this formula cannot be transparently enforced"))
-
-  
-    
-  
