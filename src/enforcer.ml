@@ -1,5 +1,5 @@
 (*******************************************************************)
-(*     This is part of WhyMon, and it is distributed under the     *)
+(*     This is part of WhyEnf, and it is distributed under the     *)
 (*     terms of the GNU Lesser General Public License version 3    *)
 (*           (see file LICENSE for more details)                   *)
 (*                                                                 *)
@@ -13,7 +13,7 @@ open Stdio
 open Etc
 
 module type EnforcerT = sig
-  
+
   val exec: Formula.t -> in_channel -> int -> unit
 
 end
@@ -320,7 +320,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
     let vars = Set.elements (MFormula.fv mf) in
     match (mstep Out.ENFORCE vars es.ts es.db false { es.ms with mf } es.fobligs)
     with (_, _, ms) -> (*Stdio.printf "b\n"; Stdlib.flush_all (); *)ms.mf
-  
+
 
   (* (NOT-SO-URGENT) TODO: other execution mode with automatic timestamps; Pdts everywhere *)
   let exec f inc b =
@@ -407,4 +407,3 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
     step true None es
 
 end
-

@@ -6,6 +6,7 @@
 (*  Copyright 2023:                                                *)
 (*  Dmitriy Traytel (UCPH)                                         *)
 (*  Leonardo Lima (UCPH)                                           *)
+(*  François Hublet (ETH Zurich)                                   *)
 (*******************************************************************)
 
 open Interval
