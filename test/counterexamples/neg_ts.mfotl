@@ -1,1 +1,0 @@
-EXISTS y1. ONCE[0,*) (P0(x2,x1,y1) AND (NOT P1(y1,x1,x2)))

@@ -1,7 +1,0 @@
-chapter AFP
-
-session Whymon_Code (AFP) = Whymon +
-  theories
-    Checker_Code
-  export_files (in ".") [2]
-    "Whymon_Code.Checker_Code:code/**"

@@ -1,1 +1,0 @@
-publish(a,f) → (◊[0,604800] (∃ m. (¬ mgr_F(m,a) S mgr_S(m,a)) ∧ approve(m,f)))

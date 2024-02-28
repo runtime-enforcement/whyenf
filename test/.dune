@@ -1,3 +1,0 @@
-(rule
- (alias  runtest)
- (action (run ./run_tests.sh 10 size no-check)))

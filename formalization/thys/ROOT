@@ -1,9 +1,0 @@
-chapter AFP
-
-session Whymon (AFP) = "Containers" +
-  sessions
-    MFOTL_Monitor
-  theories
-    Formula
-    Proof_System
-    Checker
