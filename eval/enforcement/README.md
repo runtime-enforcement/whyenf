@@ -13,15 +13,15 @@ The configuration used for our experiments was as follows:
   * OS: Ubuntu 20.04.6
   * Python 3.8.10
 
-Follow the instructions in the [https://github.com/runtime-enforcement/whyenf](main README file) at the root of this repository to install WhyEnf.
+Follow the instructions in the [main README file](https://github.com/runtime-enforcement/whyenf) at the root of this repository to install WhyEnf.
 
 Then open a terminal at the root of the repository and execute
 
 ```
-$ cd eval/enforcement
-$ virtualenv env
-$ source env/bin/activate
-$ pip3 install -r requirements.txt
+cd eval/enforcement
+virtualenv env
+source env/bin/activate
+pip3 install -r requirements.txt
 ```
 
 ## Step 1 (optional). Preprocessing the log from Debois & Slaats (2015).
@@ -29,7 +29,7 @@ $ pip3 install -r requirements.txt
 You can run 
 
 ```
-$ python3 preprocess.py
+python3 preprocess.py
 ```
 
 to preprocess the raw log published by Debois & Slaats (2015) as specified by Arfelt et al. (2019) into the format used for our experiments.
@@ -47,7 +47,7 @@ Note that we provide that the two preprocessed logs are already provided at the 
 You can type
 
 ```
-$ ../../bin/whyenf.exe -sig examples/arfelt_et_al_2019.sig -formula examples/formulae_whyenf/{formula}.mfotl -log examples/arfelt_et_al_2019.log
+../../bin/whyenf.exe -sig examples/arfelt_et_al_2019.sig -formula examples/formulae_whyenf/{formula}.mfotl -log examples/arfelt_et_al_2019.log
 ```
 
 where `{formula}` is any of `minimization`, `limitation`, `lawfulness`, `consent`, `information`, `deletion`, or `sharing`, to see the type checking decisions and run the enforcer on the corresponding formula and log.
