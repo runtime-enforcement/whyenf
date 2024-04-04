@@ -2,14 +2,18 @@ import pandas as pd
 import numpy as np
 import time
 
-RAW = "originallog.csv"
+### Set options here
 
 SPECIAL = True
 
+### End options
+
+RAW = "example/originallog.csv"
+
 if SPECIAL:
-    OUTPUT = "special.log"
+    OUTPUT = "example/special.log"
 else:
-    OUTPUT = "arfelt.log"
+    OUTPUT = "example/arfelt.log"
 
 df = pd.read_csv(RAW, sep=";")
 log = []

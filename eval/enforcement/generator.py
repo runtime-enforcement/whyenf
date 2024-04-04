@@ -40,7 +40,6 @@ def random_trace(n, k, fn):
     with open(fn, 'w') as f:
         for tp in range(n):
             f.write(f"{tp*1000}|@{tp} {random_tp(k)};\n")
-                    
 
 if __name__ == '__main__':
     random_trace(1000, 5, 'synthetic.log')

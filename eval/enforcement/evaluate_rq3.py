@@ -15,8 +15,8 @@ plt.rcParams["font.family"] = "serif"
 plt.rcParams["font.serif"] = "Times New Roman"
 plt.rcParams["text.usetex"] = True
 
-OPTION = "WhyEnf"
-SYNTHETIC = False
+OPTION = "WhyMon"
+SYNTHETIC = True
 SYNTHETIC_N, SYNTHETIC_K = 1000, 10
 
 if OPTION == "Enfpoly":
@@ -33,29 +33,22 @@ PREFIX = "> LATENCY "
 SUFFIX = " <"
 
 def summary(df, step, a):
-    return {"a": a,
-            "n_ev": df["n_ev"].sum(),
-            "n_tp": df["n_tp"].sum(),
-            "cau": df["cau"].sum(),
-            "sup": df["sup"].sum(),
-            "ins": df["ins"].sum(),
-            "avg_ev": df["n_ev"].sum() / (df["time"].max()-df["time"].min()) * 1000,
-            "avg_latency": df["latency"].mean(),
-            "avg_time": df["out_time"].diff().mean(),
-            "max_time": df["out_time"].diff().max(),
-            "max_latency": df["latency"].max()}
+    return {"avg_time": df["out_time"].diff().mean(),
+            "max_time": df["out_time"].diff().max()}
 
-def run_whymon(formula, step, a):
+def run_whymon(formula, step, a, n, k):
     command = COMMAND.format(formula)
     print(command)
     if SYNTHETIC:
-        random_trace(SYNTHETIC_N, SYNTHETIC_K, "synthetic.log")
+        random_trace(n, k, "synthetic.log")
         log_fn = "synthetic.log"
-        max_tp = SYNTHETIC_N - 1
+        max_tp = n - 1
     else:
         log_fn = "special.log"
         max_tp = 4240
     df = replay(log_fn, max_tp, command, acc=a)
+    if df is None:
+        return None
     series = []
     df = df.set_index(["type", "tp"])
     for (t, tp) in df.index:
@@ -139,9 +132,9 @@ if __name__ == '__main__':
         OUT = "out_whyenf"
     elif OPTION == "WhyMon" :
         OUT = "out_whymon"
-    ACCELERATIONS = [1e5, 2e5, 4e5, 8e5, 1.6e6, 3.2e6, 6.4e6, 1.28e7, 2.56e7, 5.12e7]
+    a = 1e6
     N = 1
-    ONLY_GRAPH = True
+    ONLY_GRAPH = False
 
     if SYNTHETIC:
         summary_fn = f"summary_{SYNTHETIC_N}_{SYNTHETIC_K}.csv"
@@ -154,63 +147,70 @@ if __name__ == '__main__':
     
         for desc, formula in FORMULAE.items():
 
-            for a in ACCELERATIONS:
-                for _ in range(N):
-                    df = run_whymon(formula + ".mfotl", STEP, a)
+#            pairs = [(SYNTHETIC_K, n) for n in [100, 400, 1600, 6400, 25600]] + \
+#    [(k, SYNTHETIC_N) for k in [1, 4, 16, 64, 256]]
+    
+            pairs = [(SYNTHETIC_K, n) for n in [25600]]
+            
+            for (k, n) in pairs:
+                for i in range(N):
+                    df = run_whymon(formula + ".mfotl", STEP, a, n, k)
+                    if df is None:
+                        print('timed out')
+                        continue
                     if SYNTHETIC:
-                        csv_fn = f"{formula}_{a}_{SYNTHETIC_N}_{SYNTHETIC_K}.csv"
-                        png_fn = f"{formula}_{a}_{SYNTHETIC_N}_{SYNTHETIC_K}.png"
+                        csv_fn = f"{formula}_{a}_{n}_{k}.csv"
+                        png_fn = f"{formula}_{a}_{n}_{k}.png"
                     else:
                         csv_fn = f"{formula}_{a}.csv"
                         png_fn = f"{formula}_{a}.png"
                     df.to_csv(os.path.join(OUT, csv_fn), index=False)
                     summ = summary(df, STEP, a)
                     summ["formula"] = desc
+                    summ["k"] = k
+                    summ["n"] = n
                     #a = summ["real_time_acc"]
                     plot(desc, STEP, a, df, os.path.join(OUT, png_fn))
                     series.append(summ)
                     print(summ)
             
         summary = pd.DataFrame(series)
-        summary.to_csv(os.path.join(OUT, summary_fn), index=None)
+        #summary.to_csv(os.path.join(OUT, summary_fn), index=None)
 
     summary = pd.read_csv(os.path.join(OUT, summary_fn))
 
-    summary = summary[["formula", "a", "avg_ev", "avg_latency", "max_latency", "avg_time", "max_time"]]
-    if SYNTHETIC:
-        summary["d1"] = 1000 / summary["a"]
-    else:        
-        summary["d1"] = (1000*24*3600) / summary["a"]
+    summary = summary[["formula", "k", "n", "avg_time", "max_time"]]
 
-    fig, ax2 = plt.subplots(1, 1, figsize=(7.5, 3))
-    ax = ax2.twinx()
-    
-    d1 = summary[["a", "d1"]].groupby("a").mean()
-    ax.plot(d1.index, d1["d1"], "k--", label="$1/a$", linewidth=1.5)
-            
+    fig_k, ax_k = plt.subplots(1, 1, figsize=(7.5, 3))
+    fig_n, ax_n = plt.subplots(1, 1, figsize=(7.5, 3))
+                
     for desc in FORMULAE1:
-        s = summary[summary["formula"] == desc][["a", "max_latency"]].groupby("a").mean()
-        ax.plot(s.index, s["max_latency"], label=f'“{desc}”', linewidth=1.5)
+        s_max = summary[(summary["formula"] == desc) & (summary["n"] == SYNTHETIC_N)][["k", "max_time"]].groupby("k").mean()
+        s_avg = summary[(summary["formula"] == desc) & (summary["n"] == SYNTHETIC_N)][["k", "avg_time"]].groupby("k").mean()
+        #ax_k.plot(s_max.index, s_max["max_time"], label=f'“{desc}” ($\mathsf{{max}}_t$)', linewidth=1.5)
+        ax_k.plot(s_avg.index, s_avg["avg_time"], label=f'“{desc}” ($\mathsf{{avg}}_t$)', linewidth=1.5)
 
+    for desc in FORMULAE1:
+        s_max = summary[(summary["formula"] == desc) & (summary["k"] == SYNTHETIC_K)][["n", "max_time"]].groupby("n").mean()
+        s_avg = summary[(summary["formula"] == desc) & (summary["k"] == SYNTHETIC_K)][["n", "avg_time"]].groupby("n").mean()
+        #ax_n.plot(s_max.index, s_max["max_time"], label=f'“{desc}” ($\mathsf{{max}}_t$)', linewidth=1.5)
+        ax_n.plot(s_avg.index, s_avg["avg_time"], label=f'“{desc}” ($\mathsf{{avg}}_t$)', linewidth=1.5)
 
-    print(summary)
-    
-    ae = summary[["a", "avg_ev"]].groupby("a").mean()
-    ax2.plot(ae.index, ae["avg_ev"], "k:", label="avg. event rate", linewidth=0.5)
+    ax_k.set_xlabel("$k$")
+    ax_n.set_xlabel("$n$")
+    ax_k.set_ylabel("Processing time (ms)")
+    ax_n.set_ylabel("Processing time (ms)")
+    ax_k.set_xscale("log")
+    ax_n.set_xscale("log")
+    ax_k.set_yscale("log")
+    ax_n.set_yscale("log")
+    ax_k.legend(loc='upper left')
+    ax_n.legend(loc='upper left')
 
-    ax2.set_xlabel("acceleration $a$")
-    ax.set_ylabel("max latency $\mathsf{max}_{\ell}(a)$ (ms)")
-    ax2.set_ylabel("events/s")
-
-    if OPTION == "WhyEnf":
-        ax.legend(bbox_to_anchor=(0, 1.02, 1, 0.2), loc="lower left",
-                  mode="expand", borderaxespad=0, ncol=4)
-        ax2.legend(loc='upper left')
-    ax2.set_xscale('log')
-    ax.set_yscale('log')     
-    ax2.set_yscale('log')
-    fig.tight_layout()
-    fig.savefig(os.path.join(OUT, graph_fn), dpi=300)
+    fig_k.tight_layout()
+    fig_n.tight_layout()
+    fig_k.savefig(os.path.join(OUT, "k_" + graph_fn), dpi=300)
+    fig_n.savefig(os.path.join(OUT, "n_" + graph_fn), dpi=300)
         
     
 
