@@ -1,0 +1,1 @@
+∀data. ∀dataid. ∀dsid. collect(data, dataid, dsid) → ◊[0,0] delete(data, dataid, dsid)
