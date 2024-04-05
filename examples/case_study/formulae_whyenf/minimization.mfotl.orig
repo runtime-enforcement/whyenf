@@ -1,0 +1,1 @@
+□ (∀data. ∀dataid. ∀dsid. collect(data, dataid, dsid) → ◊ use(data, dataid, dsid))

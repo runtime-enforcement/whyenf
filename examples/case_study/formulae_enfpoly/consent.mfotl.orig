@@ -1,0 +1,1 @@
+use(data, dataid, dsid) AND (NOT (ONCE legal_grounds(dsid, data))) AND (NOT ((NOT ds_revoke(dsid, data)) SINCE ds_consent(dsid, data)))
