@@ -19,7 +19,7 @@ plt.rcParams["text.usetex"] = True
 
 OPTION     = "WhyEnf"
 
-ENFPOLY    = '~/Tools/monpoly_dev/monpoly/monpoly'
+ENFPOLY    = '' # insert path to ENFPOLY here
 
 ONLY_GRAPH = False
 
@@ -49,11 +49,11 @@ if OPTION == "Enfpoly":
     FORMULAE = FORMULAE_ENFPOLY
     OUT      = "out_enfpoly"
 elif OPTION == "WhyEnf":
-    COMMAND  = '../../bin/whymon.exe -mode enforce -sig {} -formula examples/formulae_whyenf/{} -l'
+    COMMAND  = '../../bin/whyenf.exe -mode enforce -sig {} -formula examples/formulae_whyenf/{} -l'
     FORMULAE = FORMULAE_WHYENF
     OUT      = "out_whyenf"
 elif OPTION == "WhyMon":
-    COMMAND  = '../../bin/whymon.exe -mode light -sig {} -formula examples/formulae_whymon/{} -l'
+    COMMAND  = '../../bin/whyenf.exe -mode light -sig {} -formula examples/formulae_whymon/{} -l'
     FORMULAE = { k: v for (k, v) in FORMULAE_WHYENF.items() if k not in ["Limitation"] }
     OUT      = "out_whymon"
 
