@@ -12,30 +12,58 @@ from replayer import replay
 from generator import random_trace
 
 plt.rcParams["font.family"] = "serif"
-plt.rcParams["font.serif"] = "Times New Roman"
+plt.rcParams["font.serif"]  = "Times New Roman"
 plt.rcParams["text.usetex"] = True
 
 ### Set options here
 
-OPTION = "WhyEnf"
+OPTION     = "WhyEnf"
 
-SYNTHETIC = False
+ENFPOLY    = '~/Tools/monpoly_dev/monpoly/monpoly'
 
-ENFPOLY = '~/Tools/monpoly_dev/monpoly/monpoly'
+ONLY_GRAPH = False
 
 ### End options
 
-SYNTHETIC_N, SYNTHETIC_K = 1000, 10
+### Constants
+
+FORMULAE_ENFPOLY = {
+    "Consent":    "consent",
+    "Lawfulness": "lawfulness",
+}
+
+FORMULAE_WHYENF = {
+    "Consent":     "consent",
+    "Sharing":     "sharing",
+    "Lawfulness":  "lawfulness",
+    "Information": "information",
+    "Limitation":  "limitation",
+    "Deletion":    "deletion",
+}
+
+SIG = "examples/arfelt_et_al_2019.sig"
+LOG = "examples/arfelt_et_al_2019_repeatable.log"
 
 if OPTION == "Enfpoly":
-    COMMAND = ENFPOLY + ' -enforce -sig examples/arfelt.sig -formula examples/formulae_enfpoly/{}  -ignore_parse_errors '
+    COMMAND  = ENFPOLY + ' -enforce -sig {} -formula examples/formulae_enfpoly/{} -ignore_parse_errors '
+    FORMULAE = FORMULAE_ENFPOLY
+    OUT      = "out_enfpoly"
 elif OPTION == "WhyEnf":
-    COMMAND = '../../../../bin/whymon.exe -mode enforce -sig examples/arfelt.sig -formula examples/formulae_whyenf/{} -l'
+    COMMAND  = '../../bin/whymon.exe -mode enforce -sig {} -formula examples/formulae_whyenf/{} -l'
+    FORMULAE = FORMULAE_WHYENF
+    OUT      = "out_whyenf"
 elif OPTION == "WhyMon":
-    COMMAND = '../../../../bin/whymon.exe -mode light -sig examples/arfelt.sig -formula examples/formulae_whymon/{} -l'
+    COMMAND  = '../../bin/whymon.exe -mode light -sig {} -formula examples/formulae_whymon/{} -l'
+    FORMULAE = { k: v for (k, v) in FORMULAE_WHYENF.items() if k not in ["Limitation"] }
+    OUT      = "out_whymon"
+
+SUMMARY = "summary.csv"
+GRAPH   = "graph.png"
   
-PREFIX = "> LATENCY "
-SUFFIX = " <"
+PREFIX  = "> LATENCY "
+SUFFIX  = " <"
+
+### End constants
 
 def summary(df, step, a):
     return {"a": a,
@@ -51,15 +79,9 @@ def summary(df, step, a):
             "max_latency": df["latency"].max()}
 
 def run_whymon(formula, step, a):
-    command = COMMAND.format(formula)
-    if SYNTHETIC:
-        random_trace(SYNTHETIC_N, SYNTHETIC_K, "examples/synthetic.log")
-        log_fn = "examples/synthetic.log"
-        max_tp = SYNTHETIC_N - 1
-    else:
-        log_fn = "examples/special.log"
-        max_tp = 4240
-    df = replay(log_fn, max_tp, command, acc=a)
+    command = COMMAND.format(SIG, formula)
+    max_tp = 4240
+    df = replay(LOG, max_tp, command, acc=a)
     series = []
     df = df.set_index(["type", "tp"])
     for (t, tp) in df.index:
@@ -82,10 +104,7 @@ def run_whymon(formula, step, a):
 
 def plot(desc, step, a, df, fn):
     fig, ax = plt.subplots(1, 1, figsize=(7.5, 2.5))
-    if SYNTHETIC:
-        real_time = 1000 / a
-    else:
-        real_time = (1000*24*3600) / a
+    real_time = (1000*24*3600) / a
     df["time"] /= 1000
     ax.plot(df["time"], df["latency"], 'k-', label='latency (ms)', linewidth=0.5)
     ax.plot([min(df["time"]), max(df["time"])], [real_time, real_time], 'k:', label="real-time latency $1/a$ (ms)", linewidth=0.5)
@@ -97,64 +116,32 @@ def plot(desc, step, a, df, fn):
     df_sup = df[df["sup"] > 0]
     ax.plot(df_sup["time"], df_sup["sup"], 'r^', label='suppressed events', markersize=2)
     ax.set_xlabel("time elapsed (s)")
-    if SYNTHETIC:
-        ax.set_title(f"“{desc}” policy, acceleration $a$ = {a:.0f}")
-    else:
-        ax.set_title(f"“{desc}” policy, acceleration $a$ = {a:.0f} (1 second = {a / (24*3600):.0f} days)")
+    ax.set_title(f"“{desc}” policy, acceleration $a$ = {a:.0f} (1 second = {a / (24*3600):.0f} days)")
     ax.legend(loc=('upper left'))
     fig.tight_layout()
     fig.savefig(fn, dpi=1000)
+    plt.close()
 
 if __name__ == '__main__':
-    FORMULAE1 = {
-        "Consent": "arfelt_4_consent",
-        "Sharing": "arfelt_7_erasure_3",
-        "Lawfulness": "arfelt_3_lawfulness",
-        "Information": "arfelt_5_information",
-        "Limitation": "arfelt_2_limitation",
-        "Deletion": "arfelt_7_erasure",
-    }
-    if OPTION == "WhyEnf":
-        FORMULAE = FORMULAE1
-    elif OPTION == "WhyMon":
-        FORMULAE = { k: v for (k, v) in FORMULAE1.items() if k not in ["Limitation"] }
-    elif OPTION == "Enfpoly":
-        FORMULAE = {
-            "Consent": "arfelt_4_consent",
-            "Lawfulness": "arfelt_3_lawfulness",
-        }
-    series = []
-    STEP = 100
-    if OPTION == "Enfpoly":
-        OUT = "out_enfpoly"
-    elif OPTION == "WhyEnf":
-        OUT = "out_whyenf"
-    elif OPTION == "WhyMon" :
-        OUT = "out_whymon"
+    
+    series        = []
+    STEP          = 100
     ACCELERATIONS = [1e5, 2e5, 4e5, 8e5, 1.6e6, 3.2e6, 6.4e6, 1.28e7, 2.56e7, 5.12e7]
-    N = 1
-    ONLY_GRAPH = True
+    N             = 1
 
-    if SYNTHETIC:
-        summary_fn = f"summary_{SYNTHETIC_N}_{SYNTHETIC_K}.csv"
-        graph_fn = f"graph_{SYNTHETIC_N}_{SYNTHETIC_K}.png"
-    else:
-        summary_fn = "summary.csv"
-        graph_fn = "graph.png"
+    print(f"Running evaluation for RQ2-3 on logs from Arfelt et al. (2019), OPTION = {OPTION}")
 
     if not ONLY_GRAPH:
     
         for desc, formula in FORMULAE.items():
 
-            for a in ACCELERATIONS:
-                for _ in range(N):
+             for a in ACCELERATIONS:
+
+                for it in range(N):
+                    print(f"OPTION = {OPTION}, formula = {desc}, a = {a}, it = {it+1}")
                     df = run_whymon(formula + ".mfotl", STEP, a)
-                    if SYNTHETIC:
-                        csv_fn = f"{formula}_{a}_{SYNTHETIC_N}_{SYNTHETIC_K}.csv"
-                        png_fn = f"{formula}_{a}_{SYNTHETIC_N}_{SYNTHETIC_K}.png"
-                    else:
-                        csv_fn = f"{formula}_{a}.csv"
-                        png_fn = f"{formula}_{a}.png"
+                    csv_fn = f"{formula}_{a}.csv"
+                    png_fn = f"{formula}_{a}.png"
                     df.to_csv(os.path.join(OUT, csv_fn), index=False)
                     summ = summary(df, STEP, a)
                     summ["formula"] = desc
@@ -163,15 +150,12 @@ if __name__ == '__main__':
                     print(summ)
             
         summary = pd.DataFrame(series)
-        summary.to_csv(os.path.join(OUT, summary_fn), index=None)
+        summary.to_csv(os.path.join(OUT, SUMMARY), index=None)
 
-    summary = pd.read_csv(os.path.join(OUT, summary_fn))
+    summary = pd.read_csv(os.path.join(OUT, SUMMARY))
 
     summary = summary[["formula", "a", "avg_ev", "avg_latency", "max_latency", "avg_time", "max_time"]]
-    if SYNTHETIC:
-        summary["d1"] = 1000 / summary["a"]
-    else:        
-        summary["d1"] = (1000*24*3600) / summary["a"]
+    summary["d1"] = (1000*24*3600) / summary["a"]
 
     fig, ax2 = plt.subplots(1, 1, figsize=(7.5, 3))
     ax = ax2.twinx()
@@ -179,7 +163,7 @@ if __name__ == '__main__':
     d1 = summary[["a", "d1"]].groupby("a").mean()
     ax.plot(d1.index, d1["d1"], "k--", label="$1/a$", linewidth=1.5)
             
-    for desc in FORMULAE1:
+    for desc in FORMULAE_WHYENF:
         s = summary[summary["formula"] == desc][["a", "max_latency"]].groupby("a").mean()
         ax.plot(s.index, s["max_latency"], label=f'“{desc}”', linewidth=1.5)
 
@@ -193,14 +177,16 @@ if __name__ == '__main__':
     ax2.set_ylabel("events/s")
 
     if OPTION == "WhyEnf":
-        ax.legend(bbox_to_anchor=(0, 1.02, 1, 0.2), loc="lower left",
-                  mode="expand", borderaxespad=0, ncol=4)
+        ax.legend(loc='upper right')
         ax2.legend(loc='upper left')
+        
     ax2.set_xscale('log')
     ax.set_yscale('log')     
     ax2.set_yscale('log')
     fig.tight_layout()
-    fig.savefig(os.path.join(OUT, graph_fn), dpi=300)
+    fig.savefig(os.path.join(OUT, GRAPH), dpi=300)
+
+    plt.close()
         
     
 

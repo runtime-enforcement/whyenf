@@ -15,37 +15,64 @@ plt.rcParams["font.family"] = "serif"
 plt.rcParams["font.serif"] = "Times New Roman"
 plt.rcParams["text.usetex"] = True
 
-OPTION = "WhyMon"
-SYNTHETIC = True
-SYNTHETIC_N, SYNTHETIC_K = 1000, 10
+### Set options here
+
+OPTION     = "WhyMon"
+
+ENFPOLY    = '~/Tools/monpoly_dev/monpoly/monpoly'
+
+ONLY_GRAPH = False
+
+### End options
+
+### Constants
+
+FORMULAE_ENFPOLY = {
+    "Consent":    "consent",
+    "Lawfulness": "lawfulness",
+}
+
+FORMULAE_WHYENF = {
+    "Consent":     "consent",
+    "Sharing":     "sharing",
+    "Lawfulness":  "lawfulness",
+    "Information": "information",
+    "Limitation":  "limitation",
+    "Deletion":    "deletion",
+}
+
+SIG = "examples/arfelt_et_al_2019.sig"
+LOG = "examples/arfelt_et_al_2019_repeatable.log"
 
 if OPTION == "Enfpoly":
-    COMMAND = '~/Tools/monpoly_dev/monpoly/monpoly -enforce -sig arfelt.sig -formula formulae_enfpoly/{}  -ignore_parse_errors '
+    COMMAND  = ENFPOLY + ' -enforce -sig {} -formula examples/formulae_enfpoly/{} -ignore_parse_errors '
+    FORMULAE = FORMULAE_ENFPOLY
+    OUT      = "out_enfpoly"
 elif OPTION == "WhyEnf":
-    COMMAND = '../../../../bin/whymon.exe -mode enforce -sig arfelt.sig -formula formulae_whyenf/{} -l'
+    COMMAND  = '../../bin/whymon.exe -mode enforce -sig {} -formula examples/formulae_whyenf/{} -l'
+    FORMULAE = FORMULAE_WHYENF
+    OUT      = "out_whyenf"
 elif OPTION == "WhyMon":
-    COMMAND = '../../../../bin/whymon.exe -mode light -sig arfelt.sig -formula formulae_whymon/{} -l'
-  
+    COMMAND  = '../../bin/whymon.exe -mode light -sig {} -formula examples/formulae_whymon/{} -l'
+    FORMULAE = { k: v for (k, v) in FORMULAE_WHYENF.items() if k not in ["Limitation"] }
+    OUT      = "out_whymon"  
 
 TEMP = "temp.txt"
 
 PREFIX = "> LATENCY "
 SUFFIX = " <"
 
+### End constants
+
 def summary(df, step, a):
     return {"avg_time": df["out_time"].diff().mean(),
             "max_time": df["out_time"].diff().max()}
 
 def run_whymon(formula, step, a, n, k):
-    command = COMMAND.format(formula)
-    print(command)
-    if SYNTHETIC:
-        random_trace(n, k, "synthetic.log")
-        log_fn = "synthetic.log"
-        max_tp = n - 1
-    else:
-        log_fn = "special.log"
-        max_tp = 4240
+    command = COMMAND.format(SIG, formula)
+    random_trace(n, k, "synthetic.log")
+    log_fn = "synthetic.log"
+    max_tp = n - 1
     df = replay(log_fn, max_tp, command, acc=a)
     if df is None:
         return None
@@ -71,10 +98,7 @@ def run_whymon(formula, step, a, n, k):
 
 def plot(desc, step, a, df, fn):
     fig, ax = plt.subplots(1, 1, figsize=(7.5, 2.5))
-    if SYNTHETIC:
-        real_time = 1000 / a
-    else:
-        real_time = (1000*24*3600) / a
+    real_time = 1000 / a
     df["time"] /= 1000
     ax.plot(df["time"], df["latency"], 'k-', label='latency (ms)', linewidth=0.5)
     ax.plot([min(df["time"]), max(df["time"])], [real_time, real_time], 'k:', label="real-time latency $1/a$ (ms)", linewidth=0.5)
@@ -86,50 +110,23 @@ def plot(desc, step, a, df, fn):
     df_sup = df[df["sup"] > 0]
     ax.plot(df_sup["time"], df_sup["sup"], 'r^', label='suppressed events', markersize=2)
     ax.set_xlabel("time elapsed (s)")
-    if SYNTHETIC:
-        ax.set_title(f"“{desc}” policy, acceleration $a$ = {a:.0f}")
-    else:
-        ax.set_title(f"“{desc}” policy, acceleration $a$ = {a:.0f} (1 second = {a / (24*3600):.0f} days)")
+    ax.set_title(f"“{desc}” policy, acceleration $a$ = {a:.0f}")
     ax.legend(loc=('upper left'))
     fig.tight_layout()
     fig.savefig(fn, dpi=1000)
+    plt.close()
 
 if __name__ == '__main__':
-    FORMULAE1 = {
-        "Consent": "arfelt_4_consent",
-        "Sharing": "arfelt_7_erasure_3",
-        "Lawfulness": "arfelt_3_lawfulness",
-        "Information": "arfelt_5_information",
-        "Limitation": "arfelt_2_limitation",
-        "Deletion": "arfelt_7_erasure",
-    }
-    if OPTION == "WhyEnf":
-        FORMULAE = FORMULAE1
-    elif OPTION == "WhyMon":
-        FORMULAE = { k: v for (k, v) in FORMULAE1.items() if k not in ["Limitation"] }
-    elif OPTION == "Enfpoly":
-        FORMULAE = {
-            "Consent": "arfelt_4_consent",
-            "Lawfulness": "arfelt_3_lawfulness",
-        }
-    series = []
-    STEP = 100
-    if OPTION == "Enfpoly":
-        OUT = "out_enfpoly"
-    elif OPTION == "WhyEnf":
-        OUT = "out_whyenf"
-    elif OPTION == "WhyMon" :
-        OUT = "out_whymon"
-    a = 1e6
-    N = 1
-    ONLY_GRAPH = False
+    
+    series                   = []
+    STEP                     = 100
+    a                        = 1e6
+    N                        = 1
+    SYNTHETIC_N, SYNTHETIC_K = 1000, 10
+    summary_fn               = f"summary_{SYNTHETIC_N}_{SYNTHETIC_K}.csv"
+    graph_fn                 = f"graph_{SYNTHETIC_N}_{SYNTHETIC_K}.png"
 
-    if SYNTHETIC:
-        summary_fn = f"summary_{SYNTHETIC_N}_{SYNTHETIC_K}.csv"
-        graph_fn = f"graph_{SYNTHETIC_N}_{SYNTHETIC_K}.png"
-    else:
-        summary_fn = "summary.csv"
-        graph_fn = "graph.png"
+    print(f"Running evaluation for RQ3 on synthetic logs, OPTION = {OPTION}")
 
     if not ONLY_GRAPH:
     
@@ -139,17 +136,16 @@ if __name__ == '__main__':
                 [(k, SYNTHETIC_N) for k in [1, 4, 16, 64, 256]]
     
             for (k, n) in pairs:
-                for i in range(N):
+                
+                for it in range(N):
+                    
+                    print(f"OPTION = {OPTION}, formula = {desc}, a = {a}, n = {n}, k = {k}, it = {it+1}")
                     df = run_whymon(formula + ".mfotl", STEP, a, n, k)
                     if df is None:
                         print('timed out')
                         continue
-                    if SYNTHETIC:
-                        csv_fn = f"{formula}_{a}_{n}_{k}.csv"
-                        png_fn = f"{formula}_{a}_{n}_{k}.png"
-                    else:
-                        csv_fn = f"{formula}_{a}.csv"
-                        png_fn = f"{formula}_{a}.png"
+                    csv_fn = f"{formula}_{a}_{n}_{k}.csv"
+                    png_fn = f"{formula}_{a}_{n}_{k}.png"
                     df.to_csv(os.path.join(OUT, csv_fn), index=False)
                     summ = summary(df, STEP, a)
                     summ["formula"] = desc
@@ -168,12 +164,12 @@ if __name__ == '__main__':
     fig_k, ax_k = plt.subplots(1, 1, figsize=(7.5, 3))
     fig_n, ax_n = plt.subplots(1, 1, figsize=(7.5, 3))
                 
-    for desc in FORMULAE1:
+    for desc in FORMULAE_WHYENF:
         s_max = summary[(summary["formula"] == desc) & (summary["n"] == SYNTHETIC_N)][["k", "max_time"]].groupby("k").mean()
         s_avg = summary[(summary["formula"] == desc) & (summary["n"] == SYNTHETIC_N)][["k", "avg_time"]].groupby("k").mean()
         ax_k.plot(s_avg.index, s_avg["avg_time"], label=f'“{desc}” ($\mathsf{{avg}}_t$)', linewidth=1.5)
 
-    for desc in FORMULAE1:
+    for desc in FORMULAE_WHYENF:
         s_max = summary[(summary["formula"] == desc) & (summary["k"] == SYNTHETIC_K)][["n", "max_time"]].groupby("n").mean()
         s_avg = summary[(summary["formula"] == desc) & (summary["k"] == SYNTHETIC_K)][["n", "avg_time"]].groupby("n").mean()
         ax_n.plot(s_avg.index, s_avg["avg_time"], label=f'“{desc}” ($\mathsf{{avg}}_t$)', linewidth=1.5)
@@ -193,6 +189,7 @@ if __name__ == '__main__':
     fig_n.tight_layout()
     fig_k.savefig(os.path.join(OUT, "k_" + graph_fn), dpi=300)
     fig_n.savefig(os.path.join(OUT, "n_" + graph_fn), dpi=300)
+    plt.close()
         
     
 
