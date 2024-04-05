@@ -1,2 +1,0 @@
-(select("script1",b,c,d) ∨ insert("script1",b,c,d) ∨ delete("script1",b,c,d) ∨ update("script1",b,c,d)) →
-  ((script_end("script1") S script_start("script1")) ∨ script_end("script1"))
