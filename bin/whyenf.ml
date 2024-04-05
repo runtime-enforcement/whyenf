@@ -14,7 +14,7 @@ open Stdio
 open Monitor_lib
 
 (* TODO: This module must be rewritten using the Command module from Core *)
-module Whymon = struct
+module Whyenf = struct
 
   let formula_ref = ref None
   let sig_ref = ref In_channel.stdin
