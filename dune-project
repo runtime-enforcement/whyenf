@@ -9,11 +9,14 @@
 
 (authors
  "François Hublet <fhublet@ethz.ch>"
- "Leonardo Lima <hi@nameless.computer>")
+ "Leonardo Lima <leonardo@di.ku.dk>"
+ "David Basin <basin@inf.ethz.ch>"
+ "Srđan Krstić <srdan.krstic@inf.ethz.ch>"
+ "Dmitriy Traytel <traytel@di.ku.dk>")
 
 (maintainers
  "François Hublet <fhublet@ethz.ch>"
- "Leonardo Lima <hi@nameless.computer>")
+ "Leonardo Lima <leonardo@di.ku.dk>")
 
 (license LICENSE)
 
