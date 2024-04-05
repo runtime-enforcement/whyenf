@@ -68,9 +68,16 @@ Indicative duration: 1-3 hours.
 
 You can run 
 ```
-python3 evaluate_rq2.py
+python3 evaluate_rq2.py option [-e ENFPOLY_PATH] [-g] [-s]
 ```
 to run the performance measurements for RQ2-3 described in Section 7 and Appendix D and generate the corresponding graphs. 
+
+The options are as follows:
+
+  * **Required**: `option` (possible values are `Enfpoly`, `WhyEnf`, and `WhyMon`) to select the tool to use as a backend;
+  * `-e` to provide the path to the `Enfpoly` executable (required iff `OPTION = Enfpoly`);
+  * `-g` to only regenerate the graphs and tables without performing new experiments;
+  * `-s` to only run a smoke test without performing the full experiments.
 
 This script uses the replayer script in `replayer.py`.
 
@@ -79,11 +86,7 @@ The experiments will use the following files:
   * The logs and signature file, as before;
   * The formulae in `examples/formulae_{tool}/`, where `{tool}` is one of `enfpoly`, `whyenf`, or `whymon`. The formulae in each of these folders adhere to the input grammar of the corresponding tool.
 
-In `evaluate_rq2.py`, you can set the following options:
-
-  * `OPTION` (with values `Enfpoly`, `WhyEnf`, and `WhyMon`) to select the tool for which to measure performance;
-  * `ENFPOLY` to provide the path to the `Enfpoly` executable (required with `OPTION = Enfpoly`);
-  * `ONLY_GRAPH` (with values `True` and `False`, default `False`) to only recompute the graphs and tables without performing new experiments.
+In `evaluate_rq2.py`, 
   
 For installing Enfpoly, see instructions at [Enfpoly's repository](https://bitbucket.org/jshs/monpoly/src/enfpoly/).
 
@@ -103,9 +106,9 @@ Indicative duration: 1-3 hours.
 
 You can run 
 ```
-python3 evaluate_rq3.py
+python3 evaluate_rq3.py option [-e ENFPOLY_PATH] [-g] [-s]
 ```
-to run the performance measurements described in Section 7.
+to run the performance measurements described in Section 7. The options are as in Step 3.
 
 This script uses the replayer script in `replayer.py` and the trace generator in `generator.py`.
 
@@ -114,8 +117,6 @@ The experiments will use the following files:
   * A synthetic log that will be saved into `examples/synthetic.log`;
   * The signature file, as before;
   * The formulae in the `examples/formulae_{tool}/` folders.
-
-In `evaluate_rq3.py`, you can set the same options as in `evaluate_rq2.py`.
 
 After running the script, you will find:
 

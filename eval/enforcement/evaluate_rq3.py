@@ -2,6 +2,8 @@ from subprocess import Popen, PIPE, DEVNULL, STDOUT
 from io import StringIO
 import os.path
 
+import argparse
+
 from time import sleep, time
 from math import log10
 
@@ -14,16 +16,6 @@ from generator import random_trace
 plt.rcParams["font.family"] = "serif"
 plt.rcParams["font.serif"] = "Times New Roman"
 plt.rcParams["text.usetex"] = True
-
-### Set options here
-
-OPTION     = "WhyMon"
-
-ENFPOLY    = '' # insert path to ENFPOLY here
-
-ONLY_GRAPH = False
-
-### End options
 
 ### Constants
 
@@ -43,19 +35,6 @@ FORMULAE_WHYENF = {
 
 SIG = "examples/arfelt_et_al_2019.sig"
 LOG = "examples/arfelt_et_al_2019_repeatable.log"
-
-if OPTION == "Enfpoly":
-    COMMAND  = ENFPOLY + ' -enforce -sig {} -formula examples/formulae_enfpoly/{} -ignore_parse_errors '
-    FORMULAE = FORMULAE_ENFPOLY
-    OUT      = "out_enfpoly"
-elif OPTION == "WhyEnf":
-    COMMAND  = '../../bin/whyenf.exe -mode enforce -sig {} -formula examples/formulae_whyenf/{} -l'
-    FORMULAE = FORMULAE_WHYENF
-    OUT      = "out_whyenf"
-elif OPTION == "WhyMon":
-    COMMAND  = '../../bin/whyenf.exe -mode light -sig {} -formula examples/formulae_whymon/{} -l'
-    FORMULAE = { k: v for (k, v) in FORMULAE_WHYENF.items() if k not in ["Limitation"] }
-    OUT      = "out_whymon"  
 
 TEMP = "temp.txt"
 
@@ -117,6 +96,31 @@ def plot(desc, step, a, df, fn):
     plt.close()
 
 if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("option", help="Backend to test (Enfpoly, WhyEnf, or WhyMon)")
+    parser.add_argument("-e", "--enfpoly-path", help="Path to Enfpoly (for option Enfpoly)")
+    parser.add_argument("-g", "--only-graph", action='store_true', help="Only generate the graph (do not run experiments)")
+    parser.add_argument("-s", "--smoke-test", action='store_true', help="Only run smoke test (do not run experiments)")
+    args = parser.parse_args()
+
+    OPTION = args.option
+    ENFPOLY = args.enfpoly_path
+    ONLY_GRAPH = args.only_graph
+    SMOKE_TEST = args.smoke_test
+
+    if OPTION == "Enfpoly":
+        COMMAND  = ENFPOLY + ' -enforce -sig {} -formula examples/formulae_enfpoly/{} -ignore_parse_errors '
+        FORMULAE = FORMULAE_ENFPOLY
+        OUT      = "out_enfpoly"
+    elif OPTION == "WhyEnf":
+        COMMAND  = '../../bin/whyenf.exe -mode enforce -sig {} -formula examples/formulae_whyenf/{} -l'
+        FORMULAE = FORMULAE_WHYENF
+        OUT      = "out_whyenf"
+    elif OPTION == "WhyMon":
+        COMMAND  = '../../bin/whyenf.exe -mode light -sig {} -formula examples/formulae_whymon/{} -l'
+        FORMULAE = { k: v for (k, v) in FORMULAE_WHYENF.items() if k not in ["Limitation"] }
+        OUT      = "out_whymon" 
     
     series                   = []
     STEP                     = 100
@@ -126,14 +130,17 @@ if __name__ == '__main__':
     summary_fn               = f"summary_{SYNTHETIC_N}_{SYNTHETIC_K}.csv"
     graph_fn                 = f"graph_{SYNTHETIC_N}_{SYNTHETIC_K}.png"
 
-    print(f"Running evaluation for RQ3 on synthetic logs, OPTION = {OPTION}")
+    print(f"Running evaluation for RQ3 on synthetic logs, OPTION = {OPTION}, SMOKE_TEST = {SMOKE_TEST}")
 
     if not ONLY_GRAPH:
     
         for desc, formula in FORMULAE.items():
 
-            pairs = [(SYNTHETIC_K, n) for n in [100, 400, 1600, 6400, 25600]] + \
-                [(k, SYNTHETIC_N) for k in [1, 4, 16, 64, 256]]
+            if SMOKE_TEST:
+                pairs = [(SYNTHETIC_K, SYNTHETIC_N)]
+            else:
+                pairs = [(SYNTHETIC_K, n) for n in [100, 400, 1600, 6400, 25600]] + \
+                    [(k, SYNTHETIC_N) for k in [1, 4, 16, 64, 256]]
     
             for (k, n) in pairs:
                 
