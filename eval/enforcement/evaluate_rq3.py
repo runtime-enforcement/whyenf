@@ -85,26 +85,14 @@ def plot(desc, step, a, df, fn):
     ax.plot(df_cau["time"], df_cau["cau"], 'go', label='caused events', markersize=2)
     df_sup = df[df["sup"] > 0]
     ax.plot(df_sup["time"], df_sup["sup"], 'r^', label='suppressed events', markersize=2)
-    #ax.set_ylabel('ms/event')
     ax.set_xlabel("time elapsed (s)")
-    #ax.set_ylim([0, 17])
-    #ax2 = ax.twinx()
-    #ax2.plot(df["time"], df["n_ev"] * 1000 / step, 'b-', label='log(event rate)', linewidth=0.5)
-    #ax2.set_ylabel('log(event/s)', color='b')
-    #ax2.set_yscale('log')
-    #ax.set_yscale('log')
-    #ax2.tick_params(axis='y', labelcolor='b')
     if SYNTHETIC:
         ax.set_title(f"“{desc}” policy, acceleration $a$ = {a:.0f}")
     else:
         ax.set_title(f"“{desc}” policy, acceleration $a$ = {a:.0f} (1 second = {a / (24*3600):.0f} days)")
     ax.legend(loc=('upper left'))
-    #ax2.legend(loc='upper left', labelcolor='b')
     fig.tight_layout()
     fig.savefig(fn, dpi=1000)
-
-# number of caused and suppressed events
-
 
 if __name__ == '__main__':
     FORMULAE1 = {
@@ -147,11 +135,9 @@ if __name__ == '__main__':
     
         for desc, formula in FORMULAE.items():
 
-#            pairs = [(SYNTHETIC_K, n) for n in [100, 400, 1600, 6400, 25600]] + \
-#    [(k, SYNTHETIC_N) for k in [1, 4, 16, 64, 256]]
+            pairs = [(SYNTHETIC_K, n) for n in [100, 400, 1600, 6400, 25600]] + \
+                [(k, SYNTHETIC_N) for k in [1, 4, 16, 64, 256]]
     
-            pairs = [(SYNTHETIC_K, n) for n in [25600]]
-            
             for (k, n) in pairs:
                 for i in range(N):
                     df = run_whymon(formula + ".mfotl", STEP, a, n, k)
@@ -169,13 +155,11 @@ if __name__ == '__main__':
                     summ["formula"] = desc
                     summ["k"] = k
                     summ["n"] = n
-                    #a = summ["real_time_acc"]
                     plot(desc, STEP, a, df, os.path.join(OUT, png_fn))
                     series.append(summ)
                     print(summ)
             
         summary = pd.DataFrame(series)
-        #summary.to_csv(os.path.join(OUT, summary_fn), index=None)
 
     summary = pd.read_csv(os.path.join(OUT, summary_fn))
 
@@ -187,13 +171,11 @@ if __name__ == '__main__':
     for desc in FORMULAE1:
         s_max = summary[(summary["formula"] == desc) & (summary["n"] == SYNTHETIC_N)][["k", "max_time"]].groupby("k").mean()
         s_avg = summary[(summary["formula"] == desc) & (summary["n"] == SYNTHETIC_N)][["k", "avg_time"]].groupby("k").mean()
-        #ax_k.plot(s_max.index, s_max["max_time"], label=f'“{desc}” ($\mathsf{{max}}_t$)', linewidth=1.5)
         ax_k.plot(s_avg.index, s_avg["avg_time"], label=f'“{desc}” ($\mathsf{{avg}}_t$)', linewidth=1.5)
 
     for desc in FORMULAE1:
         s_max = summary[(summary["formula"] == desc) & (summary["k"] == SYNTHETIC_K)][["n", "max_time"]].groupby("n").mean()
         s_avg = summary[(summary["formula"] == desc) & (summary["k"] == SYNTHETIC_K)][["n", "avg_time"]].groupby("n").mean()
-        #ax_n.plot(s_max.index, s_max["max_time"], label=f'“{desc}” ($\mathsf{{max}}_t$)', linewidth=1.5)
         ax_n.plot(s_avg.index, s_avg["avg_time"], label=f'“{desc}” ($\mathsf{{avg}}_t$)', linewidth=1.5)
 
     ax_k.set_xlabel("$k$")
