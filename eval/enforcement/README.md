@@ -26,6 +26,8 @@ pip3 install -r requirements.txt
 
 ## Step 1 (optional). Preprocessing the log from Debois & Slaats (2015).
 
+Indicative duration: < 1 minute.
+
 You can run 
 
 ```
@@ -44,6 +46,8 @@ Note that we provide that the two preprocessed logs are already provided at the 
 
 ## Step 2. Reproducing the type checking decisions for RQ1.
 
+Indicative duration: < 1 minute.
+
 You can type
 
 ```
@@ -59,6 +63,8 @@ This experiment will use the following files:
   * The formulae in `examples/formulae_whyenf/`.
 
 ## Step 3. Reproducing the measurements with the log from Debois & Slaats (2015) for RQ2-3
+
+Indicative duration: 1-3 hours.
 
 You can run 
 ```
@@ -76,7 +82,8 @@ The experiments will use the following files:
 In `evaluate_rq2.py`, you can set the following options:
 
   * `OPTION` (with values `Enfpoly`, `WhyEnf`, and `WhyMon`) to select the tool for which to measure performance;
-  * `ENFPOLY` to provide the path to the `Enfpoly` executable (required with `OPTION = Enfpoly`).
+  * `ENFPOLY` to provide the path to the `Enfpoly` executable (required with `OPTION = Enfpoly`);
+  * `ONLY_GRAPH` (with values `True` and `False`, default `False`) to only recompute the graphs and tables without performing new experiments.
   
 For installing Enfpoly, see instructions at [Enfpoly's repository](https://bitbucket.org/jshs/monpoly/src/enfpoly/).
 
@@ -92,9 +99,11 @@ Note that for every experiment performed, the time profile is plotted to `out_{t
   
 ## Step 4. Reproducing the measurements with synthetic traces for RQ3.
 
+Indicative duration: 1-3 hours.
+
 You can run 
 ```
-python3 evaluate.py
+python3 evaluate_rq3.py
 ```
 to run the performance measurements described in Section 7.
 

@@ -3,6 +3,7 @@ import pandas as pd
 from time import time, sleep
 from multiprocessing import Process, Manager, Lock, Queue, TimeoutError
 from io import StringIO
+from tqdm import tqdm
 
 def feeder(log, acc, p, q, queuing, lock):
     df = pd.read_csv(log, header=None, names=["ts", "line"], sep="|")
@@ -28,10 +29,12 @@ SUFFIX = " <"
 def reader(p, q, queuing, lock, last_tp):
     data = []
     tp = -1
+    bar = tqdm(total=last_tp+1)
     while tp != last_tp:
         line = p.stdout.readline()
         if not line:
             break
+        bar.update(n=tp+1-bar.n)
         if line.startswith(PREFIX):
             with lock:
                 queuing.value -= 1
@@ -40,6 +43,7 @@ def reader(p, q, queuing, lock, last_tp):
             others = ",".join(rest[2:])
             t = int(1000*time())
             data.append(f"r,{tp},{ts},{t},{others}")
+    bar.update(n=1)
     q.put(data)
 
 def replay(log, last_tp, command, acc=1000, to=400, nto=3):
@@ -60,5 +64,3 @@ def replay(log, last_tp, command, acc=1000, to=400, nto=3):
         return None
     return pd.read_csv(StringIO("type,tp,ts,computer_time,n_ev,n_tp,cau,sup,ins,done_time\n" + "\n".join(data1 + data2)))
 
-    
-#print(replay("special.log", 4240, "../../../../bin/whymon.exe -mode light -sig arfelt.sig -formula formulae_whyenf/arfelt_7_erasure_3.mfotl", acc=500000))

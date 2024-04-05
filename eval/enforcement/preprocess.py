@@ -8,12 +8,12 @@ SPECIAL = True
 
 ### End options
 
-RAW = "example/originallog.csv"
+RAW = "examples/debois_slaats_2015.csv"
 
 if SPECIAL:
-    OUTPUT = "example/special.log"
+    OUTPUT = "examples/arfelt_et_al_2019_repeatable.log"
 else:
-    OUTPUT = "example/arfelt.log"
+    OUTPUT = "examples/arfelt_et_al_2019.log"
 
 df = pd.read_csv(RAW, sep=";")
 log = []
