@@ -35,7 +35,8 @@ module Whyenf = struct
        \t\t <file>             - specify log file as trace (default: stdin)
        \t -out
        \t\t <file>             - output file (default: stdout)
-       \t -b int               - default bound for future operators (default: 0)\n%!";
+       \t -b
+       \t\t int                - default bound for future operators (default: 0)\n%!";
     exit 0
 
   let mode_error () =
