@@ -1,14 +1,8 @@
-# Introduction
-
-In this document "our paper" refers to:
-
-Hublet, F., Lima, L., Basin, D., Krstić, S., & Traytel, D.
-(2024). Proactive Real Time First-Order Enforcement. *CAV'24*.
-
 # Structure
 
 The overall structure of this artifact is presented below.
 
+```
 .
 ├── monpoly
 └── whyenf
@@ -23,10 +17,11 @@ The overall structure of this artifact is presented below.
     │       ├── formulae_whyenf
     │       └── formulae_whymon
     └── src
+```
 
 We omitted the details (files and folders) that are not relevant.
-For instance, in our paper we evaluate WhyEnf's performance and
-compare it to EnfPoly's (MonPoly's enforcement mode), but we
+For instance, in our paper, we evaluated WhyEnf's performance and
+compared it to EnfPoly's (MonPoly's enforcement mode), but we
 will not include a description of EnfPoly's structure here.
 
 # Content
@@ -54,18 +49,36 @@ This folder contains WhyEnf's source code.
 
 ## Smoke Test Instructions
 
+Follow the instructions in this section to make sure that you
+are able to execute WhyEnf, EnfPoly and all evaluation scripts.
+
 ### Examples
 
+#### Lawfulness
+
+To enforce the formula PHI_
+
 ```
-$ ./bin/whyenf.exe -mode enforce \
-                   -sig examples/paper/publish_approve_manager.sig  \
-                   -formula examples/paper/publish_approve_manager.mfotl \
-                   -log examples/paper/publish_approve_manager.log
+$ ./bin/whyenf.exe -sig examples/case_study/arfelt_et_al_2019.sig \
+                   -formula examples/case_study/formulae_whyenf/lawfulness.mfotl \
+                   -log examples/sigma1.log
 ```
 
-`deletion.mfotl`
+where the enforcer does not need to perform any actions (i.e.,
+it does not cause nor supress any events).
+Specifically, for the time-points specified in the trace, the
+enforcer outputs `[Enforcer] @10 OK.` and `[Enforcer] @50 OK.`.
+For all other time-points, the enforcer does not act
+proactively, i.e., for all time-points `TP` between 11 and 49,
+the output corresponds to `[Enforcer] @TP nothing to do proactively.`
 
-`lawfulness.mfotl`
+#### Deletion
+
+```
+$ ./bin/whyenf.exe -sig examples/case_study/arfelt_et_al_2019.sig \
+                   -formula examples/case_study/formulae_whyenf/deletion.mfotl \
+                   -log examples/sigma2.log
+```
 
 ### Minor Evaluation
 
