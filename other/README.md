@@ -6,8 +6,7 @@ The overall structure of this artifact is presented below.
 .
 ├── Dockerfile
 ├── monpoly
-│   └── bin
-│       └── monpoly.exe
+│   └── monpoly
 ├── whymon
 │   └── bin
 │       └── whymon.exe
