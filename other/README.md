@@ -72,13 +72,13 @@ Indicative duration: 5 minutes.
 From within the extracted `whyenf-artifact` folder, run
 
 ```
-$ docker build -t whyenf:artifact .
+docker build -t whyenf:artifact .
 ```
 
 to build WhyEnf's image. Next, run
 
 ```
-# docker run -it whyenf:artifact
+docker run -it whyenf:artifact
 ```
 
 to access the container.
@@ -93,9 +93,9 @@ are able to execute WhyEnf, EnfPoly and all evaluation scripts.
 To enforce the formula ϕ_law considering the trace σ_1 with WhyEnf, run
 
 ```
-$ ./whyenf/bin/whyenf.exe -sig ./whyenf/examples/running_example/arfelt_et_al_2019.sig \
-                          -formula ./whyenf/examples/running_example/lawfulness.mfotl \
-                          -log ./whyenf/examples/running_example/sigma1.log
+./whyenf/bin/whyenf.exe -sig ./whyenf/examples/running_example/arfelt_et_al_2019.sig \
+                        -formula ./whyenf/examples/running_example/lawfulness.mfotl \
+                        -log ./whyenf/examples/running_example/sigma1.log
 ```
 
 from WhyEnf's root folder.
@@ -112,9 +112,9 @@ the output corresponds to `[Enforcer] @TP nothing to do proactively.`
 To enforce the formula ϕ_del considering the trace σ_2, run
 
 ```
-$ ./whyenf/bin/whyenf.exe -sig ./whyenf/examples/running_example/arfelt_et_al_2019.sig \
-                          -formula ./whyenf/examples/running_example/deletion.mfotl \
-                          -log ./whyenf/examples/running_example/sigma2.log
+./whyenf/bin/whyenf.exe -sig ./whyenf/examples/running_example/arfelt_et_al_2019.sig \
+                        -formula ./whyenf/examples/running_example/deletion.mfotl \
+                        -log ./whyenf/examples/running_example/sigma2.log
 ```
 Here, the enforcer causes `Delete(2, 1, 1)` proactively at time-point 40
 to satisfy the policy (deletion should follow within 30 days after any request)
