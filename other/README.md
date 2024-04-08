@@ -105,72 +105,52 @@ $ ./bin/whyenf.exe -sig examples/case_study/arfelt_et_al_2019.sig \
 
 ### Minor Evaluation
 
-# Replication Instructions
+# Replication instructions
 
-This section describes how to reproduce the empirical
-evaluation presented in Section 6 and Appendix D of our paper.
+This document describes how to reproduce the empirical evaluation presented in Section 6 and Appendix D of
 
-## Resource Requirements
+Hublet, F., Lima, L., Basin, D., Krstić, S., & Traytel, D. (2024). Proactive Real Time First-Order Enforcement. *CAV'24*.
 
-The configuration used for our experiments was the following:
+## Step 0. Requirements.
+
+The configuration used for our experiments was as follows:
 
   * Processor: Intel i5-1135G7, 2.4 GHz
   * RAM: 32 GB
   * OS: Ubuntu 20.04.6
   * Python 3.8.10
 
-## Instructions
-
-First, open a terminal at the root of the repository and execute
-
-```
-cd eval/enforcement
-virtualenv env
-source env/bin/activate
-```
-
-### (Optional) Step 1. Preprocessing the log from Debois & Slaats (2015)
+## Step 1 (optional). Preprocessing the log from Debois & Slaats (2015).
 
 Indicative duration: < 1 minute.
 
-You can run
+You can run 
 
 ```
 python3 preprocess.py
 ```
 
-to preprocess the raw log published by Debois & Slaats (2015) as
-specified by Arfelt et al. (2019) into the format used for our
-experiments.
+to preprocess the raw log published by Debois & Slaats (2015) as specified by Arfelt et al. (2019) into the format used for our experiments.
 
 The original csv file can be found at `examples/debois_slaats_2015.csv`.
 
-If you set the constant `REPEATABLE` in `process.py` to `False`, this
-preprocesses the raw log for direct feeding into an enforcer.
-The preprocessed file is written to `examples/arfelt_et_al_2019.log`.
+If you set the constant `REPEATABLE` in `process.py` to `False`, this preprocesses the raw log for direct feeding into an enforcer. The preprocessed file is written to `examples/arfelt_et_al_2019.log`.
 
-If you set the constant `REPEATABLE` in `process.py` to `True`, this
-preprocesses the raw log for usage by our repeater script (see below).
-The preprocessed file is written to `examples/arfelt_et_al_2019_repeatable.log`.
+If you set the constant `REPEATABLE` in `process.py` to `True`, this preprocesses the raw log for usage by our repeater script (see below). The preprocessed file is written to `examples/arfelt_et_al_2019_repeatable.log`.
 
-Note that we provide that the two preprocessed logs are already provided
-at the desired location in the repository.
+Note that we provide that the two preprocessed logs are already provided at the desired location in the repository.
 
-### Step 2. Reproducing the type checking decisions for RQ1.
+## Step 2. Reproducing the type checking decisions for RQ1.
 
 Indicative duration: < 1 minute.
 
 You can type
 
 ```
-../../bin/whyenf.exe -sig examples/arfelt_et_al_2019.sig \
-                     -formula examples/formulae_whyenf/{formula}.mfotl \
-                     -log examples/arfelt_et_al_2019.log
+../../bin/whyenf.exe -sig examples/arfelt_et_al_2019.sig -formula examples/formulae_whyenf/{formula}.mfotl -log examples/arfelt_et_al_2019.log
 ```
 
-where `{formula}` is any of `minimization`, `limitation`, `lawfulness`,
-`consent`, `information`, `deletion`, or `sharing` to see the type checking
-decisions and run the enforcer on the corresponding formula and log.
+where `{formula}` is any of `minimization`, `limitation`, `lawfulness`, `consent`, `information`, `deletion`, or `sharing`, to see the type checking decisions and run the enforcer on the corresponding formula and log.
 
 This experiment will use the following files:
 
@@ -178,18 +158,15 @@ This experiment will use the following files:
   * The signature file in `examples/arfelt_et_al_2019.sig`;
   * The formulae in `examples/formulae_whyenf/`.
 
-### Step 3. Reproducing the measurements with the log from Debois & Slaats (2015) for RQ2-3
+## Step 3. Reproducing the measurements with the log from Debois & Slaats (2015) for RQ2-3
 
 Indicative duration: 1-3 hours.
 
-You can run
-
+You can run 
 ```
 python3 evaluate_rq2.py option [-e EXECUTABLE_PATH] [-g] [-s]
 ```
-
-to run the performance measurements for RQ2-3 described in Section 7 and
-Appendix D and generate the corresponding graphs.
+to run the performance measurements for RQ2-3 described in Section 7 and Appendix D and generate the corresponding graphs. 
 
 The options are as follows:
 
@@ -205,8 +182,8 @@ The experiments will use the following files:
   * The logs and signature file, as before;
   * The formulae in `examples/formulae_{tool}/`, where `{tool}` is one of `enfpoly`, `whyenf`, or `whymon`. The formulae in each of these folders adhere to the input grammar of the corresponding tool.
 
-In `evaluate_rq2.py`,
-
+In `evaluate_rq2.py`, 
+  
 After running the script, you will find:
 
   * Figure 8 (Sec. 7) at `out_whyenf/summary.png` (after running with `OPTION = WhyEnf`);
@@ -214,23 +191,20 @@ After running the script, you will find:
   * Figure 13 (App. D) at `out_whymon/summary.png` (after running with `OPTION = WhyMon`);
   * Figure 14 (App. D) at `out_enfpoly/summary.png` (after running with `OPTION = Enfpoly`);
   * Figure 15 (App. D) at `out_whyenf/consent_400000.png`, `out_whyenf/information_1600000.png`, and `out_whyenf/sharing_1600000` (after running with `OPTION = WhyEnf`).
-
-Note that for every experiment performed, the time profile is plotted
-to `out_{tool}/{formula}_{acceleration}.png`.
-
-### Step 4. Reproducing the measurements with synthetic traces for RQ3
+  
+Note that for every experiment performed, the time profile is plotted to `out_{tool}/{formula}_{acceleration}.png`.
+  
+## Step 4. Reproducing the measurements with synthetic traces for RQ3.
 
 Indicative duration: 1-3 hours.
 
-You can run
+You can run 
 ```
 python3 evaluate_rq3.py option [-e EXECUTABLE_PATH] [-g] [-s]
 ```
-to run the performance measurements described in Section 7.
-The options are as in Step 3.
+to run the performance measurements described in Section 7. The options are as in Step 3.
 
-This script uses the replayer script in `replayer.py` and the trace
-generator in `generator.py`.
+This script uses the replayer script in `replayer.py` and the trace generator in `generator.py`.
 
 The experiments will use the following files:
 
@@ -242,7 +216,4 @@ After running the script, you will find:
 
   * Figure 10 (Sec. 7) printed on standard input (after running with all three options).
 
-Note that for every experiment performed, the time profile is plotted to
-`out_{tool}/{formula}_{n}_{k}.png` where $n$ and $k$ are as in the paper.
-
-## Correctness
+Note that for every experiment performed, the time profile is plotted to `out_{tool}/{formula}_{n}_{k}.png` where $n$ and $k$ are as in the paper.
