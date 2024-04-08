@@ -351,10 +351,11 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
         Order.NoOrd, es
     in
     let rec process_db (pb: Other_parser.Parsebuf.t) (es: EState.t) =
-      (*Stdio.printf "------------\n";
-        Stdio.printf "Before: \n";
-        Stdio.printf "%s" (EState.to_string es);
-        Stdlib.flush_all ();*)
+      (*Stdio.printf "%d %d %d" pb.ts es.ts es.tp;
+      Stdio.printf "------------\n";
+      Stdio.printf "Before: \n";
+      Stdio.printf "%s" (EState.to_string es);
+      Stdlib.flush_all ();*)
       if Int.equal pb.ts (-1) && FObligations.accepts_empty es.fobligs then
         es
       else if not (Int.equal pb.ts es.ts) then
