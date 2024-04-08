@@ -99,26 +99,26 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument("option", help="Backend to test (Enfpoly, WhyEnf, or WhyMon)")
-    parser.add_argument("-e", "--enfpoly-path", help="Path to Enfpoly (for option Enfpoly)")
+    parser.add_argument("-e", "--executable-path", help="Path to Enfpoly or WhyMon (for options Enfpoly and WhyMon)")
     parser.add_argument("-g", "--only-graph", action='store_true', help="Only generate the graph (do not run experiments)")
     parser.add_argument("-s", "--smoke-test", action='store_true', help="Only run smoke test (do not run experiments)")
     args = parser.parse_args()
 
     OPTION = args.option
-    ENFPOLY = args.enfpoly_path
+    EXE = args.executable_path
     ONLY_GRAPH = args.only_graph
     SMOKE_TEST = args.smoke_test
 
     if OPTION == "Enfpoly":
-        COMMAND  = ENFPOLY + ' -enforce -sig {} -formula examples/formulae_enfpoly/{} -ignore_parse_errors '
+        COMMAND  = EXE + ' -enforce -sig {} -formula examples/formulae_enfpoly/{} -ignore_parse_errors '
         FORMULAE = FORMULAE_ENFPOLY
         OUT      = "out_enfpoly"
     elif OPTION == "WhyEnf":
-        COMMAND  = '../../bin/whyenf.exe -mode enforce -sig {} -formula examples/formulae_whyenf/{} -l'
+        COMMAND  = '../../bin/whyenf.exe -sig {} -formula examples/formulae_whyenf/{}'
         FORMULAE = FORMULAE_WHYENF
         OUT      = "out_whyenf"
     elif OPTION == "WhyMon":
-        COMMAND  = '../../bin/whyenf.exe -mode light -sig {} -formula examples/formulae_whymon/{} -l'
+        COMMAND  = EXE + ' -mode light -sig {} -formula examples/formulae_whymon/{}'
         FORMULAE = { k: v for (k, v) in FORMULAE_WHYENF.items() if k not in ["Limitation"] }
         OUT      = "out_whymon" 
     
