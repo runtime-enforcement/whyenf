@@ -105,7 +105,10 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     OPTION = args.option
-    EXE = args.executable_path
+    if OPTION == "Enfpoly":
+        EXE = args.executable_path or '../../../monpoly/monpoly'
+    else:
+        EXE = args.executable_path or '../../../whymon/bin/whymon.exe'
     ONLY_GRAPH = args.only_graph
     SMOKE_TEST = args.smoke_test
 
