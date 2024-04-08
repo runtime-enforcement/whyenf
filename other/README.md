@@ -67,14 +67,12 @@ to build WhyEnf's image. Next, run
 
 to access the container.
 
-## Smoke Test Instructions
+# Smoke Test Instructions
 
 Follow the instructions in this section to make sure that you
 are able to execute WhyEnf, EnfPoly and all evaluation scripts.
 
-### Examples
-
-#### Lawfulness
+## Lawfulness
 
 To enforce the formula ϕ_law considering the trace σ_1, run
 
@@ -92,7 +90,7 @@ For all other time-points, the enforcer does not act
 proactively, i.e., for all time-points `TP` between 11 and 49,
 the output corresponds to `[Enforcer] @TP nothing to do proactively.`
 
-#### Deletion
+## Deletion
 
 To enforce the formula ϕ_del considering the trace σ_2, run
 
@@ -101,8 +99,6 @@ $ ./whyenf/bin/whyenf.exe -sig examples/case_study/arfelt_et_al_2019.sig \
                           -formula examples/case_study/formulae_whyenf/deletion.mfotl \
                           -log examples/sigma2.log
 ```
-
-### Minor Evaluation
 
 # Replication instructions
 
@@ -220,3 +216,23 @@ After running the script, you will find:
   * Figure 10 (Sec. 7) printed on standard input (after running with all three options).
 
 Note that for every experiment performed, the time profile is plotted to `out_{tool}/{formula}_{n}_{k}.png` where $n$ and $k$ are as in the paper.
+
+# Testing
+
+The correctness of WhyEnf has been tested through a combination of the following:
+ 
+  * Comparison of WhyEnf's output to the output of Enfpoly (Hublet et al., 2022) on their common fragment.
+  * Running of traces modified by WhyEnf through other monitors, especially WhyMon (Lima et al., 2024) and Monpoly (Basin et al., 2017).
+  * Comparison of the output of WhyEnf to the findings reported in Arfelt et al. (2019).
+  * Manual inspection on a set of elementary formulae and traces.
+
+## References
+
+Arfelt, Emma, David Basin, and Søren Debois (2019). "Monitoring the GDPR." *ESORICS'19*.
+
+Basin, David A., Felix Klaedtke, and Eugen Zalinescu (2017). "The MonPoly Monitoring Tool." *RV-CuBES'17*.
+
+Hublet, François, David Basin, and Srđan Krstić (2022). "Real-time policy enforcement with metric first-order temporal logic." *ESORICS'22*.
+
+Lima, Leonardo, Jonathan Julián Huerta y Munive, and Dmitriy Traytel (2024). "Explainable Online Monitoring of Metric First-Order Temporal Logic." *TACAS'24*.
+
