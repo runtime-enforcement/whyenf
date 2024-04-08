@@ -1,7 +1,7 @@
 # Structure
 
 The overall structure of this artifact is presented below.
-Note that the `monpoly` and `whymon` folders will only be available after building 
+Note that the `monpoly` and `whymon` folders will only be available after building
 the docker contrainer (see "Getting started" below).
 
 ```
@@ -86,7 +86,8 @@ to access the container.
 # Smoke Test Instructions
 
 Follow the instructions in this section to make sure that you
-are able to execute WhyEnf, EnfPoly and all evaluation scripts.
+are able to execute WhyEnf and execute all scripts necessary
+to replicate our results.
 
 ## Lawfulness
 
@@ -98,7 +99,6 @@ To enforce the formula ϕ_law considering the trace σ_1 with WhyEnf, run
                         -log ./whyenf/examples/running_example/sigma1.log
 ```
 
-from WhyEnf's root folder.
 Here, the enforcer does not need to perform any actions (i.e.,
 it does not cause nor supress any events).
 Specifically, for the time-points specified in the trace, the
@@ -120,7 +120,11 @@ Here, the enforcer causes `Delete(2, 1, 1)` proactively at time-point 40
 to satisfy the policy (deletion should follow within 30 days after any request)
 given that a deletion request has been logged at time-point 10.
 
-from WhyEnf's root folder.
+## Scripts
+
+Please go through our replication instructions, and whenever appropriate,
+run the commands with the flag `-s` to make sure that you can execute
+all of the scripts included in this artifact.
 
 # Replication instructions
 
