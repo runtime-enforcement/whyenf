@@ -29,10 +29,19 @@ the docker contrainer (see "Getting started" below).
 
 We omitted the details (files and folders) that are not relevant.
 For instance, in our paper, we evaluated WhyEnf's performance and
-compared it to EnfPoly's (MonPoly's enforcement mode), but we
-will not include a description of EnfPoly's structure here.
+compared it to EnfPoly's (MonPoly's enforcement mode) and WhyMon's,
+but we will not include a description of EnfPoly's or WhyMon's
+structure here.
 
 # Content
+
+## `monpoly/monpoly`
+
+This file corresponds to EnfPoly's executable.
+
+## `whymon/bin/whymon.exe`
+
+This file corresponds to WhyMon's executable.
 
 ## `whyenf/bin/whyenf.ml`
 
@@ -82,7 +91,7 @@ are able to execute WhyEnf, EnfPoly and all evaluation scripts.
 
 ## Lawfulness
 
-To enforce the formula ϕ_law considering the trace σ_1, run
+To enforce the formula ϕ_law considering the trace σ_1 with WhyEnf, run
 
 ```
 $ ./whyenf/bin/whyenf.exe -sig ./whyenf/examples/running_example/arfelt_et_al_2019.sig \
@@ -90,6 +99,7 @@ $ ./whyenf/bin/whyenf.exe -sig ./whyenf/examples/running_example/arfelt_et_al_20
                           -log ./whyenf/examples/running_example/sigma1.log
 ```
 
+from WhyEnf's root folder.
 Here, the enforcer does not need to perform any actions (i.e.,
 it does not cause nor supress any events).
 Specifically, for the time-points specified in the trace, the
@@ -97,7 +107,7 @@ enforcer outputs `[Enforcer] @10 OK.` and `[Enforcer] @50 OK.`.
 For all other time-points, the enforcer does not act
 proactively, i.e., for all time-points `TP` between 11 and 49,
 the output corresponds to `[Enforcer] @TP nothing to do proactively.`
-*
+
 ## Deletion
 
 To enforce the formula ϕ_del considering the trace σ_2, run
@@ -110,6 +120,8 @@ $ ./whyenf/bin/whyenf.exe -sig ./whyenf/examples/running_example/arfelt_et_al_20
 Here, the enforcer causes `Delete(2, 1, 1)` proactively at time-point 40
 to satisfy the policy (deletion should follow within 30 days after any request)
 given that a deletion request has been logged at time-point 10.
+
+from WhyEnf's root folder.
 
 # Replication instructions
 
@@ -231,7 +243,7 @@ Note that for every experiment performed, the time profile is plotted to `out_{t
 # Testing
 
 The correctness of WhyEnf has been tested through a combination of the following:
- 
+
   * Comparison of WhyEnf's output to the output of Enfpoly (Hublet et al., 2022) on their common fragment.
   * Running of traces modified by WhyEnf through other monitors, especially WhyMon (Lima et al., 2024) and Monpoly (Basin et al., 2017).
   * Comparison of the output of WhyEnf to the findings reported in Arfelt et al. (2019).
@@ -248,4 +260,3 @@ Debois, Søren, and Tijs Slaats (2015). "The analysis of a real life declarative
 Hublet, François, David Basin, and Srđan Krstić (2022). "Real-time policy enforcement with metric first-order temporal logic." *ESORICS'22*.
 
 Lima, Leonardo, Jonathan Julián Huerta y Munive, and Dmitriy Traytel (2024). "Explainable Online Monitoring of Metric First-Order Temporal Logic." *TACAS'24*.
-
