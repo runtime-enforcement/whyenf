@@ -172,7 +172,7 @@ Indicative duration: < 1 minute.
 You can type
 
 ```
-../../bin/whyenf.exe -sig examples/case_study/arfelt_et_al_2019.sig -formula examples/case_study/formulae_whyenf/{formula}.mfotl
+../../bin/whyenf.exe -sig examples/arfelt_et_al_2019.sig -formula examples/formulae_whyenf/{formula}.mfotl
 ```
 
 where `{formula}` is any of `minimization`, `limitation`, `lawfulness`, `consent`, `information`, `deletion`, or `sharing`, to see the type checking decisions and run the enforcer on the corresponding formula and log. See the paper (Section 6, RQ1) for details about the typing decisions.
@@ -180,8 +180,8 @@ where `{formula}` is any of `minimization`, `limitation`, `lawfulness`, `consent
 This experiment will use the following files:
 
   * The logs generated in the previous step;
-  * The signature file in `examples/case_study/arfelt_et_al_2019.sig`;
-  * The formulae in `examples/case_study/formulae_whyenf/`.
+  * The signature file in `examples/arfelt_et_al_2019.sig`;
+  * The formulae in `examples/formulae_whyenf/`.
 
 ## Step 3. Reproducing the measurements with the log from Debois & Slaats (2015) for RQ2-3
 

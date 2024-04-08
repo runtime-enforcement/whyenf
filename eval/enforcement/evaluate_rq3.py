@@ -14,7 +14,7 @@ from replayer import replay
 from generator import random_trace
 
 plt.rcParams["font.family"] = "serif"
-plt.rcParams["font.serif"] = "Times New Roman"
+#plt.rcParams["font.serif"] = "Times New Roman"
 #plt.rcParams["text.usetex"] = True
 
 ### Constants
@@ -166,6 +166,7 @@ if __name__ == '__main__':
                     print(summ)
             
         summary = pd.DataFrame(series)
+        summary.to_csv(os.path.join(OUT, summary_fn))
 
     summary = pd.read_csv(os.path.join(OUT, summary_fn))
 
@@ -203,3 +204,4 @@ if __name__ == '__main__':
         
     
 
+    
