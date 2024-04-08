@@ -6,9 +6,15 @@ The overall structure of this artifact is presented below.
 .
 ├── Dockerfile
 ├── monpoly
+│   └── bin
+│       └── monpoly.exe
+├── whymon
+│   └── bin
+│       └── whymon.exe
 └── whyenf
     ├── LICENSE
     ├── bin
+    │   ├── whyenf.exe
     │   └── whyenf.ml
     ├── eval
     │   └── enforcement

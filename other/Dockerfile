@@ -36,8 +36,9 @@ RUN chmod 755 /home/me
 RUN chown -R me:me *
 USER me
 
-# Build EnfPoly/WhyEnf
+# Build EnfPoly/WhyMon/WhyEnf
 RUN eval `opam config env`; cd /home/me/monpoly; dune build --release
+RUN eval `opam config env`; cd /home/me/whymon; dune build
 RUN eval `opam config env`; cd /home/me/whyenf; dune build
 
 USER root
