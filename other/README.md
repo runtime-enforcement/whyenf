@@ -1,7 +1,7 @@
 # Structure
 
 The overall structure of this artifact is presented below.
-Note that the `monpoly` and `whymon` folders will only be available after building 
+Note that the `monpoly` and `whymon` folders will only be available after building
 the docker contrainer (see "Getting started" below).
 
 ```
@@ -86,7 +86,7 @@ to access the container.
 # Smoke Test Instructions
 
 Follow the instructions in this section to make sure that you
-are able to execute WhyEnf, EnfPoly and all evaluation scripts.
+are able to execute WhyEnf.
 
 ## Lawfulness
 
