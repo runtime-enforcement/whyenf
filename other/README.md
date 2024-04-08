@@ -27,11 +27,10 @@ the docker contrainer (see "Getting started" below).
     └── src
 ```
 
-We omitted the details (files and folders) that are not relevant.
-For instance, in our paper, we evaluated WhyEnf's performance and
-compared it to EnfPoly's (MonPoly's enforcement mode) and WhyMon's,
-but we will not include a description of EnfPoly's or WhyMon's
-structure here.
+Note that this overview omits details (files and folders) that are not relevant to our paper.
+For instance, we evaluate WhyEnf's performance by
+comparing it to EnfPoly (Hublet et al., 2022) and WhyMon (Lima et al., 2024),
+but do not include a description of EnfPoly's or WhyMon's code base here.
 
 # Content
 
