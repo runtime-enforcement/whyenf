@@ -377,7 +377,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
         es
     in
     let rec step first pb_opt (es: EState.t) =
-      let conclude (pb: Other_parser.Parsebuf.t) =
+      let conclude (pb: Other_parser.Parsebuf.t) es =
         let _ = process_db { pb with ts = -1; db = Db.create [] } es
         in ()
       in
@@ -395,7 +395,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
            Stdio.printf "After: \n";
            Stdio.printf "%s" (EState.to_string es);
            Stdlib.flush_all ();*)
-         if more then step false (Some(pb)) es else conclude pb in
+         if more then step false (Some(pb)) es else conclude pb es in
     let tf = try Typing.do_type f b with Invalid_argument s -> failwith s in
     let transparent =
       try Typing.is_transparent tf
