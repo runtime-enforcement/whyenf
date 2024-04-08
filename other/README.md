@@ -1,6 +1,8 @@
 # Structure
 
 The overall structure of this artifact is presented below.
+Note that the `monpoly` and `whymon` folders will only be available after building 
+the docker contrainer (see "Getting started" below).
 
 ```
 .
@@ -43,15 +45,21 @@ as described in our paper.
 
 ## `whyenf/examples/case_study`
 
-This folder contains all signatures, logs and formulae used in
-WhyEnf's evaluation and in our running example (examples 1, 2,
-3 and 5).
+This folder contains the signature, logs and formulae used in
+WhyEnf's evaluation.
+
+## `whyenf/examples/running_examples`
+
+This folder contains the signature, logs and formulae used in our running example
+(examples 1, 2, 3 and 5).
 
 ## `whyenf/src`
 
 This folder contains WhyEnf's source code.
 
 # Getting started
+
+Indicative duration: 5 minutes.
 
 From within the extracted `whyenf-artifact` folder, run
 
@@ -77,9 +85,9 @@ are able to execute WhyEnf, EnfPoly and all evaluation scripts.
 To enforce the formula ϕ_law considering the trace σ_1, run
 
 ```
-$ ./whyenf/bin/whyenf.exe -sig examples/case_study/arfelt_et_al_2019.sig \
-                          -formula examples/case_study/formulae_whyenf/lawfulness.mfotl \
-                          -log examples/sigma1.log
+$ ./whyenf/bin/whyenf.exe -sig examples/running_example/arfelt_et_al_2019.sig \
+                          -formula examples/running_example/lawfulness.mfotl \
+                          -log examples/running_example/sigma1.log
 ```
 
 Here, the enforcer does not need to perform any actions (i.e.,
@@ -89,15 +97,15 @@ enforcer outputs `[Enforcer] @10 OK.` and `[Enforcer] @50 OK.`.
 For all other time-points, the enforcer does not act
 proactively, i.e., for all time-points `TP` between 11 and 49,
 the output corresponds to `[Enforcer] @TP nothing to do proactively.`
-
+*
 ## Deletion
 
 To enforce the formula ϕ_del considering the trace σ_2, run
 
 ```
-$ ./whyenf/bin/whyenf.exe -sig examples/case_study/arfelt_et_al_2019.sig \
-                          -formula examples/case_study/formulae_whyenf/deletion.mfotl \
-                          -log examples/sigma2.log
+$ ./whyenf/bin/whyenf.exe -sig examples/running_example/arfelt_et_al_2019.sig \
+                          -formula examples/running_example/deletion.mfotl \
+                          -log examples/running_example/sigma2.log
 ```
 
 # Replication instructions
