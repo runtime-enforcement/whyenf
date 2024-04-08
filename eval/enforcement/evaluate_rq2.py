@@ -124,7 +124,7 @@ if __name__ == '__main__':
         FORMULAE = FORMULAE_WHYENF
         OUT      = "out_whyenf"
     elif OPTION == "WhyMon":
-        COMMAND  = EXE + ' -mode light -sig {} -formula examples/formulae_whymon/{} -l'
+        COMMAND  = EXE + ' -mode light -sig {} -formula examples/formulae_whymon/{}'
         FORMULAE = { k: v for (k, v) in FORMULAE_WHYENF.items() if k not in ["Limitation"] }
         OUT      = "out_whymon" 
     
