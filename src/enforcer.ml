@@ -351,10 +351,11 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
         Order.NoOrd, es
     in
     let rec process_db (pb: Other_parser.Parsebuf.t) (es: EState.t) =
-      (*Stdio.printf "------------\n";
-        Stdio.printf "Before: \n";
-        Stdio.printf "%s" (EState.to_string es);
-        Stdlib.flush_all ();*)
+      (*Stdio.printf "%d %d %d" pb.ts es.ts es.tp;
+      Stdio.printf "------------\n";
+      Stdio.printf "Before: \n";
+      Stdio.printf "%s" (EState.to_string es);
+      Stdlib.flush_all ();*)
       if Int.equal pb.ts (-1) && FObligations.accepts_empty es.fobligs then
         es
       else if not (Int.equal pb.ts es.ts) then
@@ -377,7 +378,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
         es
     in
     let rec step first pb_opt (es: EState.t) =
-      let conclude (pb: Other_parser.Parsebuf.t) =
+      let conclude (pb: Other_parser.Parsebuf.t) es =
         let _ = process_db { pb with ts = -1; db = Db.create [] } es
         in ()
       in
@@ -395,7 +396,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
            Stdio.printf "After: \n";
            Stdio.printf "%s" (EState.to_string es);
            Stdlib.flush_all ();*)
-         if more then step false (Some(pb)) es else conclude pb in
+         if more then step false (Some(pb)) es else conclude pb es in
     let tf = try Typing.do_type f b with Invalid_argument s -> failwith s in
     let transparent =
       try Typing.is_transparent tf

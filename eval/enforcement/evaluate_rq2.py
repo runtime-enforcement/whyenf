@@ -36,19 +36,6 @@ FORMULAE_WHYENF = {
 SIG = "examples/arfelt_et_al_2019.sig"
 LOG = "examples/arfelt_et_al_2019_repeatable.log"
 
-if OPTION == "Enfpoly":
-    COMMAND  = ENFPOLY + ' -enforce -sig {} -formula examples/formulae_enfpoly/{} -ignore_parse_errors '
-    FORMULAE = FORMULAE_ENFPOLY
-    OUT      = "out_enfpoly"
-elif OPTION == "WhyEnf":
-    COMMAND  = '../../bin/whyenf.exe -mode enforce -sig {} -formula examples/formulae_whyenf/{} -l'
-    FORMULAE = FORMULAE_WHYENF
-    OUT      = "out_whyenf"
-elif OPTION == "WhyMon":
-    COMMAND  = '../../bin/whyenf.exe -mode light -sig {} -formula examples/formulae_whymon/{} -l'
-    FORMULAE = { k: v for (k, v) in FORMULAE_WHYENF.items() if k not in ["Limitation"] }
-    OUT      = "out_whymon"
-
 SUMMARY = "summary.csv"
 GRAPH   = "graph.png"
   
