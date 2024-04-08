@@ -86,7 +86,8 @@ to access the container.
 # Smoke Test Instructions
 
 Follow the instructions in this section to make sure that you
-are able to execute WhyEnf.
+are able to execute WhyEnf and execute all scripts necessary
+to replicate our results.
 
 ## Lawfulness
 
@@ -121,6 +122,12 @@ to satisfy the policy (deletion should follow within 30 days after any request)
 given that a deletion request has been logged at time-point 10.
 
 from WhyEnf's root folder.
+
+## Scripts
+
+Please go through our replication instructions, and whenever appropriate,
+run the commands with the flag `-s` to make sure that you can execute
+all of the scripts included in this artifact.
 
 # Replication instructions
 
