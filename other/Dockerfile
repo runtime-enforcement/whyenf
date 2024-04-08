@@ -25,10 +25,6 @@ RUN opam install -y dune core_kernel base zarith menhir js_of_ocaml js_of_ocaml-
 ENV WDIR /home/me
 WORKDIR ${WDIR}
 
-# Copy EnfPoly and WhyEnf
-COPY . .
-RUN rm Dockerfile
-
 # Permissions
 ADD . ${WDIR}
 USER root
@@ -38,9 +34,9 @@ USER me
 
 # Build EnfPoly/WhyMon/WhyEnf
 
+RUN eval `opam config env`; git clone https://github.com/runtime-enforcement/whyenf.git; cd /home/me/whyenf; git switch artifact; dune build --release
 RUN eval `opam config env`; git clone https://bitbucket.org/jshs/monpoly.git; cd /home/me/monpoly; git switch enfpoly; dune build --release
 RUN eval `opam config env`; git clone https://github.com/runtime-monitoring/whymon.git; cd /home/me/whymon; git switch whyenf; git checkout e44aee7bb86df2abfef3aa07482f59de22f7a06b; dune build --release
-RUN eval `opam config env`; cd /home/me/whyenf; dune build --releaes
 
 USER root
 RUN echo "su - me" >> /root/.bashrc
