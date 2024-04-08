@@ -2,7 +2,7 @@ FROM ubuntu:22.04
 
 RUN apt-get update
 RUN apt-get upgrade -y
-RUN DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y opam libgmp-dev m4 python3-pip locales nano
+RUN DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y opam libgmp-dev m4 python3-pip locales nano git
 
 RUN adduser --disabled-password --gecos "" me
 RUN locale-gen en_US.UTF-8 &&\
@@ -37,9 +37,11 @@ RUN chown -R me:me *
 USER me
 
 # Build EnfPoly/WhyMon/WhyEnf
-RUN eval `opam config env`; git clone https://bitbucket.org/jshs/monpoly.git; git switch enfpoly; cd /home/me/monpoly; dune build --release
-RUN eval `opam config env`; git clone https://github.com/runtime-monitoring/whymon.git; git switch whyenf; git checkout e44aee7bb86df2abfef3aa07482f59de22f7a06b; cd /home/me/whymon; dune build
-RUN eval `opam config env`; cd /home/me/whyenf; dune build
+RUN eval `opam config env`
+RUN git clone https://bitbucket.org/jshs/monpoly.git
+RUN cd /home/me/monpoly; git branch enfpoly; dune build --release
+RUN git clone https://github.com/runtime-monitoring/whymon.git
+RUN cd /home/me/whymon; git branch whyenf; git checkout e44aee7bb86df2abfef3aa07482f59de22f7a06b; dune build --release
 
 USER root
 RUN echo "su - me" >> /root/.bashrc
