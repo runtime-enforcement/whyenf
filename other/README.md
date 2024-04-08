@@ -123,7 +123,7 @@ The configuration used for our experiments was as follows:
 
 Indicative duration: < 1 minute.
 
-You can run 
+You can run
 
 ```
 python3 preprocess.py
@@ -161,11 +161,11 @@ This experiment will use the following files:
 
 Indicative duration: 1-3 hours.
 
-You can run 
+You can run
 ```
 python3 evaluate_rq2.py option [-e EXECUTABLE_PATH] [-g] [-s]
 ```
-to run the performance measurements for RQ2-3 described in Section 7 and Appendix D and generate the corresponding graphs. 
+to run the performance measurements for RQ2-3 described in Section 7 and Appendix D and generate the corresponding graphs.
 
 The options are as follows:
 
@@ -181,8 +181,8 @@ The experiments will use the following files:
   * The logs and signature file, as before;
   * The formulae in `examples/formulae_{tool}/`, where `{tool}` is one of `enfpoly`, `whyenf`, or `whymon`. The formulae in each of these folders adhere to the input grammar of the corresponding tool.
 
-In `evaluate_rq2.py`, 
-  
+In `evaluate_rq2.py`,
+
 After running the script, you will find:
 
   * Figure 8 (Sec. 7) at `out_whyenf/summary.png` (after running with `OPTION = WhyEnf`);
@@ -190,14 +190,14 @@ After running the script, you will find:
   * Figure 13 (App. D) at `out_whymon/summary.png` (after running with `OPTION = WhyMon`);
   * Figure 14 (App. D) at `out_enfpoly/summary.png` (after running with `OPTION = Enfpoly`);
   * Figure 15 (App. D) at `out_whyenf/consent_400000.png`, `out_whyenf/information_1600000.png`, and `out_whyenf/sharing_1600000` (after running with `OPTION = WhyEnf`).
-  
+
 Note that for every experiment performed, the time profile is plotted to `out_{tool}/{formula}_{acceleration}.png`.
-  
+
 ## Step 4. Reproducing the measurements with synthetic traces for RQ3.
 
 Indicative duration: 1-3 hours.
 
-You can run 
+You can run
 ```
 python3 evaluate_rq3.py option [-e EXECUTABLE_PATH] [-g] [-s]
 ```
