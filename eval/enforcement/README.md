@@ -68,14 +68,14 @@ Indicative duration: 1-3 hours.
 
 You can run 
 ```
-python3 evaluate_rq2.py option [-e ENFPOLY_PATH] [-g] [-s]
+python3 evaluate_rq2.py option [-e EXECUTABLE_PATH] [-g] [-s]
 ```
 to run the performance measurements for RQ2-3 described in Section 7 and Appendix D and generate the corresponding graphs. 
 
 The options are as follows:
 
   * **Required**: `option` (possible values are `Enfpoly`, `WhyEnf`, and `WhyMon`) to select the tool to use as a backend;
-  * `-e` to provide the path to the `Enfpoly` executable (required iff `OPTION = Enfpoly`);
+  * `-e` to provide the path to the `Enfpoly` or `WhyMon` executable (required iff `OPTION = Enfpoly` or `WhyMon`);
   * `-g` to only regenerate the graphs and tables without performing new experiments;
   * `-s` to only run a smoke test without performing the full experiments.
 
@@ -89,6 +89,8 @@ The experiments will use the following files:
 In `evaluate_rq2.py`, 
   
 For installing Enfpoly, see instructions at [Enfpoly's repository](https://bitbucket.org/jshs/monpoly/src/enfpoly/).
+
+For installing WhyMon, see instructions at [WhyMon's repository](https://github.com/runtime-monitoring/whymon/tree/whyenf).
 
 After running the script, you will find:
 
@@ -106,7 +108,7 @@ Indicative duration: 1-3 hours.
 
 You can run 
 ```
-python3 evaluate_rq3.py option [-e ENFPOLY_PATH] [-g] [-s]
+python3 evaluate_rq3.py option [-e EXECUTABLE_PATH] [-g] [-s]
 ```
 to run the performance measurements described in Section 7. The options are as in Step 3.
 
