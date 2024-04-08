@@ -105,7 +105,7 @@ This document describes how to reproduce the empirical evaluation presented in S
 
 Hublet, F., Lima, L., Basin, D., Krstić, S., & Traytel, D. (2024). Proactive Real Time First-Order Enforcement. *CAV'24*.
 
-## Step 0. Requirements and preparation.
+## Step 0. Requirements.
 
 The configuration used for our experiments was as follows:
 
@@ -113,17 +113,6 @@ The configuration used for our experiments was as follows:
   * RAM: 32 GB
   * OS: Ubuntu 20.04.6
   * Python 3.8.10
-
-Follow the instructions in the [main README file](https://github.com/runtime-enforcement/whyenf) at the root of this repository to install WhyEnf.
-
-Then open a terminal at the root of the repository and execute
-
-```
-cd eval/enforcement
-virtualenv env
-source env/bin/activate
-pip3 install -r requirements.txt
-```
 
 ## Step 1 (optional). Preprocessing the log from Debois & Slaats (2015).
 
@@ -189,10 +178,6 @@ The experiments will use the following files:
 
 In `evaluate_rq2.py`, 
   
-For installing Enfpoly, see instructions at [Enfpoly's repository](https://bitbucket.org/jshs/monpoly/src/enfpoly/).
-
-For installing WhyMon, see instructions at [WhyMon's repository](https://github.com/runtime-monitoring/whymon/tree/e44aee7bb86df2abfef3aa07482f59de22f7a06b). **Important**: check out commit `e44aee7b` before compiling.
-
 After running the script, you will find:
 
   * Figure 8 (Sec. 7) at `out_whyenf/summary.png` (after running with `OPTION = WhyEnf`);
