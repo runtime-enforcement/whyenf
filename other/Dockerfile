@@ -37,8 +37,8 @@ RUN chown -R me:me *
 USER me
 
 # Build EnfPoly/WhyMon/WhyEnf
-RUN eval `opam config env`; cd /home/me/monpoly; dune build --release
-RUN eval `opam config env`; cd /home/me/whymon; dune build
+RUN eval `opam config env`; git clone https://bitbucket.org/jshs/monpoly.git; git switch enfpoly; cd /home/me/monpoly; dune build --release
+RUN eval `opam config env`; git clone https://bitbucket.org/jshs/monpoly.git; git switch enfpoly; git checkout e44aee7bb86df2abfef3aa07482f59de22f7a06b; cd /home/me/whymon; dune build
 RUN eval `opam config env`; cd /home/me/whyenf; dune build
 
 USER root
