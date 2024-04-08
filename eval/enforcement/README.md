@@ -90,7 +90,7 @@ In `evaluate_rq2.py`,
   
 For installing Enfpoly, see instructions at [Enfpoly's repository](https://bitbucket.org/jshs/monpoly/src/enfpoly/).
 
-For installing WhyMon, see instructions at [WhyMon's repository](https://github.com/runtime-monitoring/whymon/tree/whyenf).
+For installing WhyMon, see instructions at [WhyMon's repository](https://github.com/runtime-monitoring/whymon/tree/e44aee7bb86df2abfef3aa07482f59de22f7a06b). **Important**: check out commit `e44aee7b` before compiling.
 
 After running the script, you will find:
 
