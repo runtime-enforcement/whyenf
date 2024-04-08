@@ -120,7 +120,7 @@ if __name__ == '__main__':
         FORMULAE = FORMULAE_ENFPOLY
         OUT      = "out_enfpoly"
     elif OPTION == "WhyEnf":
-        COMMAND  = '../../bin/whyenf.exe -sig {} -formula examples/formulae_whyenf/{} -l'
+        COMMAND  = '../../bin/whyenf.exe -sig {} -formula examples/formulae_whyenf/{}'
         FORMULAE = FORMULAE_WHYENF
         OUT      = "out_whyenf"
     elif OPTION == "WhyMon":
