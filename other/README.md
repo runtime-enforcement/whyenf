@@ -85,9 +85,9 @@ are able to execute WhyEnf, EnfPoly and all evaluation scripts.
 To enforce the formula ϕ_law considering the trace σ_1, run
 
 ```
-$ ./whyenf/bin/whyenf.exe -sig examples/running_example/arfelt_et_al_2019.sig \
-                          -formula examples/running_example/lawfulness.mfotl \
-                          -log examples/running_example/sigma1.log
+$ ./whyenf/bin/whyenf.exe -sig ./whyenf/examples/running_example/arfelt_et_al_2019.sig \
+                          -formula ./whyenf/examples/running_example/lawfulness.mfotl \
+                          -log ./whyenf/examples/running_example/sigma1.log
 ```
 
 Here, the enforcer does not need to perform any actions (i.e.,
@@ -103,10 +103,13 @@ the output corresponds to `[Enforcer] @TP nothing to do proactively.`
 To enforce the formula ϕ_del considering the trace σ_2, run
 
 ```
-$ ./whyenf/bin/whyenf.exe -sig examples/running_example/arfelt_et_al_2019.sig \
-                          -formula examples/running_example/deletion.mfotl \
-                          -log examples/running_example/sigma2.log
+$ ./whyenf/bin/whyenf.exe -sig ./whyenf/examples/running_example/arfelt_et_al_2019.sig \
+                          -formula ./whyenf/examples/running_example/deletion.mfotl \
+                          -log ./whyenf/examples/running_example/sigma2.log
 ```
+Here, the enforcer causes `Delete(2, 1, 1)` proactively at time-point 40
+to satisfy the policy (deletion should follow within 30 days after any request)
+given that a deletion request has been logged at time-point 10.
 
 # Replication instructions
 
@@ -141,9 +144,9 @@ to preprocess the raw log published by Debois & Slaats (2015) as specified by Ar
 
 The original csv file can be found at `examples/debois_slaats_2015.csv`.
 
-If you set the constant `REPEATABLE` in `process.py` to `False`, this preprocesses the raw log for direct feeding into an enforcer. The preprocessed file is written to `examples/arfelt_et_al_2019.log`.
+If you set the constant `REPEATABLE` in `preprocess.py` to `False`, this preprocesses the raw log for direct feeding into an enforcer. The preprocessed file is written to `examples/arfelt_et_al_2019.log`.
 
-If you set the constant `REPEATABLE` in `process.py` to `True`, this preprocesses the raw log for usage by our repeater script (see below). The preprocessed file is written to `examples/arfelt_et_al_2019_repeatable.log`.
+If you set the constant `REPEATABLE` in `preprocess.py` to `True`, this preprocesses the raw log for usage by our repeater script (see below). The preprocessed file is written to `examples/arfelt_et_al_2019_repeatable.log`.
 
 Note that we provide that the two preprocessed logs are already provided at the desired location in the repository.
 
@@ -154,16 +157,16 @@ Indicative duration: < 1 minute.
 You can type
 
 ```
-../../bin/whyenf.exe -sig examples/arfelt_et_al_2019.sig -formula examples/formulae_whyenf/{formula}.mfotl -log examples/arfelt_et_al_2019.log
+../../bin/whyenf.exe -sig examples/case_study/arfelt_et_al_2019.sig -formula examples/case_study/formulae_whyenf/{formula}.mfotl
 ```
 
-where `{formula}` is any of `minimization`, `limitation`, `lawfulness`, `consent`, `information`, `deletion`, or `sharing`, to see the type checking decisions and run the enforcer on the corresponding formula and log.
+where `{formula}` is any of `minimization`, `limitation`, `lawfulness`, `consent`, `information`, `deletion`, or `sharing`, to see the type checking decisions and run the enforcer on the corresponding formula and log. See the paper (Section 6, RQ1) for details about the typing decisions.
 
 This experiment will use the following files:
 
   * The logs generated in the previous step;
-  * The signature file in `examples/arfelt_et_al_2019.sig`;
-  * The formulae in `examples/formulae_whyenf/`.
+  * The signature file in `examples/case_study/arfelt_et_al_2019.sig`;
+  * The formulae in `examples/case_study/formulae_whyenf/`.
 
 ## Step 3. Reproducing the measurements with the log from Debois & Slaats (2015) for RQ2-3
 
@@ -178,7 +181,7 @@ to run the performance measurements for RQ2-3 described in Section 7 and Appendi
 The options are as follows:
 
   * **Required**: `option` (possible values are `Enfpoly`, `WhyEnf`, and `WhyMon`) to select the tool to use as a backend;
-  * `-e` to provide the path to the `Enfpoly` or `WhyMon` executable (required iff `OPTION = Enfpoly` or `WhyMon`);
+  * `-e` to provide the path to the `Enfpoly` or `WhyMon` executable explicitly (default: `monpoly/monpoly` or `whymon/bin/whymon.exe` depending on the selected option);
   * `-g` to only regenerate the graphs and tables without performing new experiments;
   * `-s` to only run a smoke test without performing the full experiments.
 

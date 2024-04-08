@@ -4,13 +4,13 @@ import time
 
 ### Set options here
 
-SPECIAL = True
+REPEATABLE = True
 
 ### End options
 
 RAW = "examples/debois_slaats_2015.csv"
 
-if SPECIAL:
+if REPEATABLE:
     OUTPUT = "examples/arfelt_et_al_2019_repeatable.log"
 else:
     OUTPUT = "examples/arfelt_et_al_2019.log"
@@ -36,7 +36,7 @@ df = df[~df["Date"].isna()]
 df = df.sort_values(by="Date")
 df["Days"] = df["Days"].astype(int)
 
-print(set(df["Title"]))
+#print(set(df["Title"]))
 
 """{nan,  ,  , , , , , , , , , , , , , , , ,, , 'Execute pre-decision', 'Round Ends', 'Undo payment', 'Første udbetaling', 'ansøger godtgør relevans af ansøgningen', 'Godkendelse - videre til bestyrelsen', 'Round approved', 'Godkend ansøgning', 'Register Decision'}"""
 
@@ -123,13 +123,13 @@ for i, row in df.iterrows():
     d = row["Date"]
     if last >= 0 and now_x > last + 1:
         for i in range(last + 1, now_x):
-            if SPECIAL:
+            if REPEATABLE:
                 log.append(f"{(i+1)*86400}|@{i} tick();")
             else:
                 log.append(f"@{i} tick();")
     now = now_x    
     last = row["Days"]
-    if not SPECIAL:
+    if not REPEATABLE:
         line = f"@{now} " + line + ";"
     else:
         line = f"{d}|@{now} " + line + ";"
@@ -139,5 +139,5 @@ with open(OUTPUT, 'w') as f:
     for line in log:
         f.write(line + "\n")
 
-print(len(log), consent + collect + delete + legal_grounds + deletion_request + use + share_with + revoke,
-      consent, collect, delete, legal_grounds, deletion_request, use, share_with, revoke)
+#print(len(log), consent + collect + delete + legal_grounds + deletion_request + use + share_with + revoke,
+#      consent, collect, delete, legal_grounds, deletion_request, use, share_with, revoke)

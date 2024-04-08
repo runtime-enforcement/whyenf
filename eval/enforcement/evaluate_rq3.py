@@ -15,7 +15,7 @@ from generator import random_trace
 
 plt.rcParams["font.family"] = "serif"
 plt.rcParams["font.serif"] = "Times New Roman"
-plt.rcParams["text.usetex"] = True
+#plt.rcParams["text.usetex"] = True
 
 ### Constants
 
