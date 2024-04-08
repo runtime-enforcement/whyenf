@@ -232,6 +232,8 @@ Arfelt, Emma, David Basin, and Søren Debois (2019). "Monitoring the GDPR." *ESO
 
 Basin, David A., Felix Klaedtke, and Eugen Zalinescu (2017). "The MonPoly Monitoring Tool." *RV-CuBES'17*.
 
+Debois, Søren, and Tijs Slaats (2015). "The analysis of a real life declarative process." *SSCI'15*.
+
 Hublet, François, David Basin, and Srđan Krstić (2022). "Real-time policy enforcement with metric first-order temporal logic." *ESORICS'22*.
 
 Lima, Leonardo, Jonathan Julián Huerta y Munive, and Dmitriy Traytel (2024). "Explainable Online Monitoring of Metric First-Order Temporal Logic." *TACAS'24*.
