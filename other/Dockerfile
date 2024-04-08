@@ -38,7 +38,7 @@ USER me
 
 # Build EnfPoly/WhyMon/WhyEnf
 
-RUN eval `opam config env`; cd /home/me/whyenf; dune build --releaes
+RUN eval `opam config env`; cd /home/me/whyenf; dune build --release
 RUN eval `opam config env`; git clone https://bitbucket.org/jshs/monpoly.git; cd /home/me/monpoly; git switch enfpoly; dune build --release
 RUN eval `opam config env`; git clone https://github.com/runtime-monitoring/whymon.git; cd /home/me/whymon; git switch whyenf; git checkout e44aee7bb86df2abfef3aa07482f59de22f7a06b; dune build --release
 

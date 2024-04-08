@@ -79,9 +79,9 @@ are able to execute WhyEnf, EnfPoly and all evaluation scripts.
 To enforce the formula ϕ_law considering the trace σ_1, run
 
 ```
-$ ./bin/whyenf.exe -sig examples/case_study/arfelt_et_al_2019.sig \
-                   -formula examples/case_study/formulae_whyenf/lawfulness.mfotl \
-                   -log examples/sigma1.log
+$ ./whyenf/bin/whyenf.exe -sig examples/case_study/arfelt_et_al_2019.sig \
+                          -formula examples/case_study/formulae_whyenf/lawfulness.mfotl \
+                          -log examples/sigma1.log
 ```
 
 Here, the enforcer does not need to perform any actions (i.e.,
@@ -97,9 +97,9 @@ the output corresponds to `[Enforcer] @TP nothing to do proactively.`
 To enforce the formula ϕ_del considering the trace σ_2, run
 
 ```
-$ ./bin/whyenf.exe -sig examples/case_study/arfelt_et_al_2019.sig \
-                   -formula examples/case_study/formulae_whyenf/deletion.mfotl \
-                   -log examples/sigma2.log
+$ ./whyenf/bin/whyenf.exe -sig examples/case_study/arfelt_et_al_2019.sig \
+                          -formula examples/case_study/formulae_whyenf/deletion.mfotl \
+                          -log examples/sigma2.log
 ```
 
 ### Minor Evaluation
@@ -110,14 +110,18 @@ This document describes how to reproduce the empirical evaluation presented in S
 
 Hublet, F., Lima, L., Basin, D., Krstić, S., & Traytel, D. (2024). Proactive Real Time First-Order Enforcement. *CAV'24*.
 
-## Step 0. Requirements.
+## Step 0. Requirements and preparation.
 
 The configuration used for our experiments was as follows:
 
   * Processor: Intel i5-1135G7, 2.4 GHz
   * RAM: 32 GB
   * OS: Ubuntu 20.04.6
-  * Python 3.8.10
+
+Descend to the evaluation folder with
+```
+cd ./whyenf/eval/enforcement
+```
 
 ## Step 1 (optional). Preprocessing the log from Debois & Slaats (2015).
 
