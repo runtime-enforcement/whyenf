@@ -98,33 +98,33 @@ def plot(desc, step, a, df, fn):
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("option", help="Backend to test (Enfpoly, WhyEnf, or WhyMon)")
-    parser.add_argument("-e", "--executable-path", help="Path to Enfpoly or WhyMon (for options Enfpoly and WhyMon)")
+    parser.add_argument("option", help="Backend to test (enfpoly, whyenf, or whymon)")
+    parser.add_argument("-e", "--executable-path", help="Path to enfpoly or whymon (for options enfpoly and whymon)")
     parser.add_argument("-g", "--only-graph", action='store_true', help="Only generate the graph (do not run experiments)")
     parser.add_argument("-s", "--smoke-test", action='store_true', help="Only run smoke test (do not run experiments)")
     args = parser.parse_args()
 
     OPTION = args.option
-    if OPTION == "Enfpoly":
+    if OPTION == "enfpoly":
         EXE = args.executable_path or '../../../monpoly/monpoly'
     else:
         EXE = args.executable_path or '../../../whymon/bin/whymon.exe'
     ONLY_GRAPH = args.only_graph
     SMOKE_TEST = args.smoke_test
 
-    if OPTION == "Enfpoly":
+    if OPTION == "enfpoly":
         COMMAND  = EXE + ' -enforce -sig {} -formula examples/formulae_enfpoly/{} -ignore_parse_errors '
         FORMULAE = FORMULAE_ENFPOLY
         OUT      = "out_enfpoly"
-    elif OPTION == "WhyEnf":
+    elif OPTION == "whyenf":
         COMMAND  = '../../bin/whyenf.exe -sig {} -formula examples/formulae_whyenf/{}'
         FORMULAE = FORMULAE_WHYENF
         OUT      = "out_whyenf"
-    elif OPTION == "WhyMon":
+    elif OPTION == "whymon":
         COMMAND  = EXE + ' -mode light -sig {} -formula examples/formulae_whymon/{}'
         FORMULAE = { k: v for (k, v) in FORMULAE_WHYENF.items() if k not in ["Limitation"] }
-        OUT      = "out_whymon" 
-    
+        OUT      = "out_whymon"
+
     series                   = []
     STEP                     = 100
     a                        = 1e6
@@ -136,7 +136,7 @@ if __name__ == '__main__':
     print(f"Running evaluation for RQ3 on synthetic logs, OPTION = {OPTION}, SMOKE_TEST = {SMOKE_TEST}")
 
     if not ONLY_GRAPH:
-    
+
         for desc, formula in FORMULAE.items():
 
             if SMOKE_TEST:
@@ -144,11 +144,11 @@ if __name__ == '__main__':
             else:
                 pairs = [(SYNTHETIC_K, n) for n in [100, 400, 1600, 6400, 25600]] + \
                     [(k, SYNTHETIC_N) for k in [1, 4, 16, 64, 256]]
-    
+
             for (k, n) in pairs:
-                
+
                 for it in range(N):
-                    
+
                     print(f"OPTION = {OPTION}, formula = {desc}, a = {a}, n = {n}, k = {k}, it = {it+1}")
                     df = run_whymon(formula + ".mfotl", STEP, a, n, k)
                     if df is None:
@@ -164,7 +164,7 @@ if __name__ == '__main__':
                     plot(desc, STEP, a, df, os.path.join(OUT, png_fn))
                     series.append(summ)
                     print(summ)
-            
+
         summary = pd.DataFrame(series)
         summary.to_csv(os.path.join(OUT, summary_fn))
 
@@ -174,7 +174,7 @@ if __name__ == '__main__':
 
     fig_k, ax_k = plt.subplots(1, 1, figsize=(7.5, 3))
     fig_n, ax_n = plt.subplots(1, 1, figsize=(7.5, 3))
-                
+
     for desc in FORMULAE_WHYENF:
         s_max = summary[(summary["formula"] == desc) & (summary["n"] == SYNTHETIC_N)][["k", "max_time"]].groupby("k").mean()
         s_avg = summary[(summary["formula"] == desc) & (summary["n"] == SYNTHETIC_N)][["k", "avg_time"]].groupby("k").mean()
@@ -201,7 +201,3 @@ if __name__ == '__main__':
     fig_k.savefig(os.path.join(OUT, "k_" + graph_fn), dpi=300)
     fig_n.savefig(os.path.join(OUT, "n_" + graph_fn), dpi=300)
     plt.close()
-        
-    
-
-    
