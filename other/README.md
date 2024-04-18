@@ -2,7 +2,7 @@
 
 The overall structure of this artifact is presented below.
 Note that the `monpoly` and `whymon` folders will only be available after building
-the docker contrainer (see "Getting started" below).
+the docker container (see "Getting started" below).
 
 ```
 .
@@ -30,7 +30,7 @@ the docker contrainer (see "Getting started" below).
 Note that this overview omits details (files and folders) that are not relevant to our paper.
 For instance, we evaluate WhyEnf's performance by
 comparing it to EnfPoly (Hublet et al., 2022) and WhyMon (Lima et al., 2024),
-but do not include a description of EnfPoly's or WhyMon's code base here.
+but do not include a description of EnfPoly's or WhyMon's codebase here.
 
 # Content
 
@@ -53,13 +53,13 @@ as described in our paper.
 
 ## `whyenf/examples/case_study`
 
-This folder contains the signature, logs and formulae used in
+This folder contains the signature, traces and formulae used in
 WhyEnf's evaluation.
 
 ## `whyenf/examples/running_examples`
 
-This folder contains the signature, logs and formulae used in our running example
-(examples 1, 2, 3 and 5).
+This folder contains the signature, traces and formulae used in 
+our running example (examples 1, 2, 3 and 5).
 
 ## `whyenf/src`
 
@@ -75,7 +75,10 @@ From within the extracted `whyenf-artifact` folder, run
 docker build -t whyenf:artifact .
 ```
 
-to build WhyEnf's image. Next, run
+to build WhyEnf's image, which takes a considerable amount of 
+time.
+
+Next, run
 
 ```
 docker run -it whyenf:artifact
@@ -91,7 +94,8 @@ to replicate our results.
 
 ## Lawfulness
 
-To enforce the formula ϕ_law considering the trace σ_1 with WhyEnf, run
+To enforce the formula ϕ_law considering the trace σ_1 (from page 3
+of our paper) with WhyEnf, run
 
 ```
 ./whyenf/bin/whyenf.exe -sig ./whyenf/examples/running_example/arfelt_et_al_2019.sig \
@@ -109,16 +113,25 @@ the output corresponds to `[Enforcer] @TP nothing to do proactively.`
 
 ## Deletion
 
-To enforce the formula ϕ_del considering the trace σ_2, run
+To enforce the formula ϕ_del considering the trace σ_2 (from page 3
+of our paper), run
 
 ```
 ./whyenf/bin/whyenf.exe -sig ./whyenf/examples/running_example/arfelt_et_al_2019.sig \
                         -formula ./whyenf/examples/running_example/deletion.mfotl \
                         -log ./whyenf/examples/running_example/sigma2.log
 ```
-Here, the enforcer causes `Delete(2, 1, 1)` proactively at time-point 40
+
+Here, the enforcer causes `delete(2, 1, 1)` proactively at time-point 40
 to satisfy the policy (deletion should follow within 30 days after any request)
-given that a deletion request has been logged at time-point 10.
+given that a deletion request has been logged at time-point 10:
+
+```
+[Enforcer] @40 proactively commands:
+Cause:
+delete(2, 1, 1)
+OK.
+```
 
 ## Scripts
 
@@ -131,6 +144,8 @@ all of the scripts included in this artifact.
 This document describes how to reproduce the empirical evaluation presented in Section 6 and Appendix D of
 
 Hublet, F., Lima, L., Basin, D., Krstić, S., & Traytel, D. (2024). Proactive Real Time First-Order Enforcement. *CAV'24*.
+
+Here, we will refer to traces as logs.
 
 ## Step 0. Requirements and preparation.
 
@@ -149,7 +164,9 @@ cd ./whyenf/eval/enforcement
 
 Indicative duration: < 1 minute.
 
-You can run
+Note that we provide that the two preprocessed logs are already provided at the desired location in the repository.
+
+However, you can run
 
 ```
 python3 preprocess.py
@@ -157,15 +174,13 @@ python3 preprocess.py
 
 to preprocess the raw log published by Debois & Slaats (2015) as specified by Arfelt et al. (2019) into the format used for our experiments.
 
-The original csv file can be found at `examples/debois_slaats_2015.csv`.
+The original `.csv` file can be found at `examples/debois_slaats_2015.csv`.
 
 If you set the constant `REPEATABLE` in `preprocess.py` to `False`, this preprocesses the raw log for direct feeding into an enforcer. The preprocessed file is written to `examples/arfelt_et_al_2019.log`.
 
 If you set the constant `REPEATABLE` in `preprocess.py` to `True`, this preprocesses the raw log for usage by our repeater script (see below). The preprocessed file is written to `examples/arfelt_et_al_2019_repeatable.log`.
 
-Note that we provide that the two preprocessed logs are already provided at the desired location in the repository.
-
-## Step 2. Reproducing the type checking decisions for RQ1.
+## Step 2. Reproducing the type checking decisions for **RQ1**.
 
 Indicative duration: < 1 minute.
 
@@ -175,7 +190,9 @@ You can type
 ../../bin/whyenf.exe -sig examples/arfelt_et_al_2019.sig -formula examples/formulae_whyenf/{formula}.mfotl
 ```
 
-where `{formula}` is any of `minimization`, `limitation`, `lawfulness`, `consent`, `information`, `deletion`, or `sharing`, to see the type checking decisions and run the enforcer on the corresponding formula and log. See the paper (Section 6, RQ1) for details about the typing decisions.
+where `{formula}` is any of `minimization`, `limitation`, `lawfulness`, `consent`, `information`, `deletion`, or `sharing`, to see the type checking decisions and run the enforcer on the corresponding formula and log. See the paper (Section 6, RQ1) for details about the typing decisions. After executing the type checker for a given formula, WhyEnf expects events from 
+the standard input, but you can finish its execution with `Ctrl+C`. Lastly, note that WhyEnf
+raises an exception whenever a formula is not enforceable. 
 
 This experiment will use the following files:
 
@@ -183,20 +200,19 @@ This experiment will use the following files:
   * The signature file in `examples/arfelt_et_al_2019.sig`;
   * The formulae in `examples/formulae_whyenf/`.
 
-## Step 3. Reproducing the measurements with the log from Debois & Slaats (2015) for RQ2-3
+## Step 3. Reproducing the measurements with the log from Debois & Slaats (2015) for **RQ2-3**
 
 Indicative duration: 1-3 hours.
 
 You can run
 ```
-python3 evaluate_rq2.py option [-e EXECUTABLE_PATH] [-g] [-s]
+python3 evaluate_rq2.py tool [-g] [-s]
 ```
 to run the performance measurements for RQ2-3 described in Section 7 and Appendix D and generate the corresponding graphs.
 
-The options are as follows:
+The arguments are as follows:
 
-  * **Required**: `option` (possible values are `Enfpoly`, `WhyEnf`, and `WhyMon`) to select the tool to use as a backend;
-  * `-e` to provide the path to the `Enfpoly` or `WhyMon` executable explicitly (default: `monpoly/monpoly` or `whymon/bin/whymon.exe` depending on the selected option);
+  * **Required**: `tool` (possible values are `enfpoly`, `whyenf`, and `whymon`) to select the tool to use as a backend;
   * `-g` to only regenerate the graphs and tables without performing new experiments;
   * `-s` to only run a smoke test without performing the full experiments.
 
@@ -211,25 +227,31 @@ In `evaluate_rq2.py`,
 
 After running the script, you will find:
 
-  * Figure 8 (Sec. 7) at `out_whyenf/summary.png` (after running with `OPTION = WhyEnf`);
-  * Figure 9 (Sec. 7) printed on standard input (after running with all three options);
-  * Figure 13 (App. D) at `out_whymon/summary.png` (after running with `OPTION = WhyMon`);
-  * Figure 14 (App. D) at `out_enfpoly/summary.png` (after running with `OPTION = Enfpoly`);
-  * Figure 15 (App. D) at `out_whyenf/consent_400000.png`, `out_whyenf/information_1600000.png`, and `out_whyenf/sharing_1600000` (after running with `OPTION = WhyEnf`).
+  * Figure 8 (Sec. 7) at `out_whyenf/summary.png` (after running with `tool = whyenf`);
+  * Figure 9 (Sec. 7) printed on standard input (after running with all three tools);
+  * Figure 13 (App. D) at `out_whymon/summary.png` (after running with `tool = whymon`);
+  * Figure 14 (App. D) at `out_enfpoly/summary.png` (after running with `tool = enfpoly`);
+  * Figure 15 (App. D) at `out_whyenf/consent_400000.png`, `out_whyenf/information_1600000.png`, and `out_whyenf/sharing_1600000` (after running with `tool = whyenf`).
 
 Note that for every experiment performed, the time profile is plotted to `out_{tool}/{formula}_{acceleration}.png`.
 
-## Step 4. Reproducing the measurements with synthetic traces for RQ3.
+## Step 4. Reproducing the measurements with synthetic logs for **RQ3**.
 
 Indicative duration: 1-3 hours.
 
 You can run
 ```
-python3 evaluate_rq3.py option [-e EXECUTABLE_PATH] [-g] [-s]
+python3 evaluate_rq3.py tool [-g] [-s]
 ```
-to run the performance measurements described in Section 7. The options are as in Step 3.
+to run the performance measurements described in Section 7. 
 
-This script uses the replayer script in `replayer.py` and the trace generator in `generator.py`.
+The arguments are the same as for `evaluate_rq2.py`:
+
+  * **Required**: `tool` (possible values are `enfpoly`, `whyenf`, and `whymon`) to select the tool to use as a backend;
+  * `-g` to only regenerate the graphs and tables without performing new experiments;
+  * `-s` to only run a smoke test without performing the full experiments.
+
+This script uses the replayer script in `replayer.py` and the log generator in `generator.py`.
 
 The experiments will use the following files:
 
@@ -239,7 +261,7 @@ The experiments will use the following files:
 
 After running the script, you will find:
 
-  * Figure 10 (Sec. 7) printed on standard input (after running with all three options).
+  * Figure 10 (Sec. 7) printed on standard input (after running with all three tools).
 
 Note that for every experiment performed, the time profile is plotted to `out_{tool}/{formula}_{n}_{k}.png` where $n$ and $k$ are as in the paper.
 
@@ -248,7 +270,7 @@ Note that for every experiment performed, the time profile is plotted to `out_{t
 The correctness of WhyEnf has been tested through a combination of the following:
 
   * Comparison of WhyEnf's output to the output of Enfpoly (Hublet et al., 2022) on their common fragment.
-  * Running of traces modified by WhyEnf through other monitors, especially WhyMon (Lima et al., 2024) and Monpoly (Basin et al., 2017).
+  * Running of traces modified by WhyEnf through other monitors, especially WhyMon (Lima et al., 2024) and MonPoly (Basin et al., 2017).
   * Comparison of the output of WhyEnf to the findings reported in Arfelt et al. (2019).
   * Manual inspection on a set of elementary formulae and traces.
 
