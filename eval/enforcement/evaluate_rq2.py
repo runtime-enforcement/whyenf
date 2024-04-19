@@ -38,7 +38,7 @@ LOG = "examples/arfelt_et_al_2019_repeatable.log"
 
 SUMMARY = "summary.csv"
 GRAPH   = "graph.png"
-  
+
 PREFIX  = "> LATENCY "
 SUFFIX  = " <"
 
@@ -104,33 +104,33 @@ def plot(desc, step, a, df, fn):
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("option", help="Backend to test (Enfpoly, WhyEnf, or WhyMon)")
-    parser.add_argument("-e", "--executable-path", help="Path to Enfpoly or WhyMon (for options Enfpoly and WhyMon)")
+    parser.add_argument("option", help="Backend to test (enfpoly, whyenf, or whymon)")
+    parser.add_argument("-e", "--executable-path", help="Path to enfpoly or whymon (for options enfpoly and whymon)")
     parser.add_argument("-g", "--only-graph", action='store_true', help="Only generate the graph (do not run experiments)")
     parser.add_argument("-s", "--smoke-test", action='store_true', help="Only run smoke test (do not run experiments)")
     args = parser.parse_args()
 
     OPTION = args.option
-    if OPTION == "Enfpoly":
+    if OPTION == "enfpoly":
         EXE = args.executable_path or '../../../monpoly/monpoly'
     else:
         EXE = args.executable_path or '../../../whymon/bin/whymon.exe'
     ONLY_GRAPH = args.only_graph
     SMOKE_TEST = args.smoke_test
 
-    if OPTION == "Enfpoly":
+    if OPTION == "enfpoly":
         COMMAND  = EXE + ' -enforce -sig {} -formula examples/formulae_enfpoly/{} -ignore_parse_errors '
         FORMULAE = FORMULAE_ENFPOLY
         OUT      = "out_enfpoly"
-    elif OPTION == "WhyEnf":
+    elif OPTION == "whyenf":
         COMMAND  = '../../bin/whyenf.exe -sig {} -formula examples/formulae_whyenf/{}'
         FORMULAE = FORMULAE_WHYENF
         OUT      = "out_whyenf"
-    elif OPTION == "WhyMon":
+    elif OPTION == "whymon":
         COMMAND  = EXE + ' -mode light -sig {} -formula examples/formulae_whymon/{}'
         FORMULAE = { k: v for (k, v) in FORMULAE_WHYENF.items() if k not in ["Limitation"] }
-        OUT      = "out_whymon" 
-    
+        OUT      = "out_whymon"
+
     series        = []
     STEP          = 100
     if SMOKE_TEST:
@@ -142,7 +142,7 @@ if __name__ == '__main__':
     print(f"Running evaluation for RQ2-3 on logs from Arfelt et al. (2019), OPTION = {OPTION}, SMOKE_TEST = {SMOKE_TEST}")
 
     if not ONLY_GRAPH:
-    
+
         for desc, formula in FORMULAE.items():
 
              for a in ACCELERATIONS:
@@ -158,7 +158,7 @@ if __name__ == '__main__':
                     plot(desc, STEP, a, df, os.path.join(OUT, png_fn))
                     series.append(summ)
                     print(summ)
-            
+
         summary = pd.DataFrame(series)
         summary.to_csv(os.path.join(OUT, SUMMARY), index=None)
 
@@ -169,16 +169,16 @@ if __name__ == '__main__':
 
     fig, ax2 = plt.subplots(1, 1, figsize=(7.5, 3))
     ax = ax2.twinx()
-    
+
     d1 = summary[["a", "d1"]].groupby("a").mean()
     ax.plot(d1.index, d1["d1"], "k--", label="$1/a$", linewidth=1.5)
-            
+
     for desc in FORMULAE_WHYENF:
         s = summary[summary["formula"] == desc][["a", "max_latency"]].groupby("a").mean()
         ax.plot(s.index, s["max_latency"], label=f'“{desc}”', linewidth=1.5)
 
     print(summary)
-    
+
     ae = summary[["a", "avg_ev"]].groupby("a").mean()
     ax2.plot(ae.index, ae["avg_ev"], "k:", label="avg. event rate", linewidth=0.5)
 
@@ -186,17 +186,14 @@ if __name__ == '__main__':
     ax.set_ylabel("max latency $\mathsf{max}_{\ell}(a)$ (ms)")
     ax2.set_ylabel("events/s")
 
-    if OPTION == "WhyEnf":
+    if OPTION == "whyenf":
         ax.legend(loc='upper right')
         ax2.legend(loc='upper left')
-        
+
     ax2.set_xscale('log')
-    ax.set_yscale('log')     
+    ax.set_yscale('log')
     ax2.set_yscale('log')
     fig.tight_layout()
     fig.savefig(os.path.join(OUT, GRAPH), dpi=300)
 
     plt.close()
-        
-    
-
