@@ -46,7 +46,7 @@ def reader(p, q, queuing, lock, last_tp):
     bar.update(n=1)
     q.put(data)
 
-def replay(log, last_tp, command, acc=1000, to=400, nto=3):
+def replay(log, last_tp, command, acc=1000, to=36000, nto=3):
     p = Popen(command, stdin=PIPE, stdout=PIPE, text=True, shell=True)
     manager = Manager()
     queuing = manager.Value('queuing', 0)
@@ -58,8 +58,8 @@ def replay(log, last_tp, command, acc=1000, to=400, nto=3):
     f.start()
     r.start()
     try:
-        data1 = list(q.get(timeout=7200))
-        data2 = list(q.get(timeout=7200))
+        data1 = list(q.get(timeout=to))
+        data2 = list(q.get(timeout=to))
     except:
         return None
     return pd.read_csv(StringIO("type,tp,ts,computer_time,n_ev,n_tp,cau,sup,ins,done_time\n" + "\n".join(data1 + data2)))
