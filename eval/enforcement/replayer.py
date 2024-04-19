@@ -58,8 +58,8 @@ def replay(log, last_tp, command, acc=1000, to=400, nto=3):
     f.start()
     r.start()
     try:
-        data1 = list(q.get(timeout=600))
-        data2 = list(q.get(timeout=600))
+        data1 = list(q.get(timeout=7200))
+        data2 = list(q.get(timeout=7200))
     except:
         return None
     return pd.read_csv(StringIO("type,tp,ts,computer_time,n_ev,n_tp,cau,sup,ins,done_time\n" + "\n".join(data1 + data2)))
