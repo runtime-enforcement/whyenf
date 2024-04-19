@@ -46,7 +46,7 @@ def reader(p, q, queuing, lock, last_tp):
     bar.update(n=1)
     q.put(data)
 
-def replay(log, last_tp, command, acc=1000, to=36000, nto=3):
+def replay(log, last_tp, command, acc=1000, to=3600, nto=3):
     p = Popen(command, stdin=PIPE, stdout=PIPE, text=True, shell=True)
     manager = Manager()
     queuing = manager.Value('queuing', 0)
