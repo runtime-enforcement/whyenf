@@ -85,7 +85,7 @@ module Json (CI: Checker_interfaceT) = struct
   let table_columns f =
     let sig_preds_columns = List.rev (Set.fold (Formula.pred_names f) ~init:[] ~f:(fun acc r ->
                                           let r_props = Hashtbl.find_exn Pred.Sig.table r in
-                                          let var_names = fst (List.unzip r_props.ntconsts) in
+                                          let var_names = fst (List.unzip (Pred.Sig.arg_tts r_props)) in
                                           (Printf.sprintf "%s(%s)" r (Etc.string_list_to_string var_names)) :: acc)) in
     let subfs_columns = List.map (Formula.subfs_dfs f) ~f:Formula.op_to_string in
     let subfs_scope = List.map (Formula.subfs_scope f 0) ~f:(fun (i, (js, ks)) ->

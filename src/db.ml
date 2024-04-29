@@ -27,7 +27,7 @@ module Event = struct
 
     let to_json (name, ds) =
       String.concat ~sep:", "
-        (List.map2_exn (Pred.Sig.vars name) ds  ~f:(fun x d ->
+        (List.map2_exn (Pred.Sig.vars_of_pred name) ds  ~f:(fun x d ->
              Printf.sprintf "{ " ^
                Printf.sprintf "\"var\": \"%s\", " x ^
                  Printf.sprintf "\"value\": \"%s\" " (Dom.to_string d) ^
@@ -54,13 +54,13 @@ let size = Set.length
 
 let event name consts =
   let pred_sig = Hashtbl.find_exn Pred.Sig.table name in
-  if pred_sig.arity = List.length consts then
-    (name, List.map2_exn pred_sig.ntconsts consts
+  if Pred.Sig.arity pred_sig = List.length consts then
+    (name, List.map2_exn (Pred.Sig.arg_tts pred_sig) consts
              ~f:(fun tc c -> match snd tc with
                              | TInt -> Dom.Int (Int.of_string c)
                              | TStr -> Str c
                              | TFloat -> Float (Float.of_string c)))
-  else raise (Invalid_argument (Printf.sprintf "predicate %s has arity %d" name pred_sig.arity))
+  else raise (Invalid_argument (Printf.sprintf "predicate %s has arity %d" name (Pred.Sig.arity pred_sig)))
 
 let add_event db evt = Set.add db evt
 

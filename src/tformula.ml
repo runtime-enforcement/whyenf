@@ -11,6 +11,7 @@ open Base
 open Pred
 open Formula
 
+
 type core_t =
   | TTT
   | TFF
@@ -60,7 +61,7 @@ and of_formula f = { f = core_of_formula f; enftype = EnfType.Obs }
 let rec rank = function
   | TTT | TFF -> 0
   | TEqConst _ -> 0
-  | TPredicate (r, _) -> Pred.Sig.rank r
+  | TPredicate (r, _) -> Pred.Sig.rank_of_pred r
   | TNeg f
     | TExists (_, _, f)
     | TForall (_, _, f)

@@ -11,7 +11,7 @@
 
 open Etc
 
-type token = AT | LPA | RPA | LAN | RAN | COM | SEP | EOF | PLS | MNS | STR of string
+type token = AT | FUN | LPA | RPA | LAN | RAN | COM | SEP | COL | EOF | PLS | MNS | STR of string
 
 }
 
@@ -31,6 +31,7 @@ rule token = parse
   | newline                        { Lexing.new_line lexbuf; token lexbuf }
   | blank                          { token lexbuf }
   | "@"                            { AT }
+  | "fun"                          { FUN }
   | "("                            { LPA }
   | ")"                            { RPA }
   | ">"                            { LAN }
@@ -38,6 +39,7 @@ rule token = parse
   | ","                            { COM }
   | ";"                            { SEP }
   | "#"                            { skip_line lexbuf }
+  | ":"                            { COL }
   | "+"                            { PLS }
   | "-"                            { MNS }
   | string as s                    { STR s }

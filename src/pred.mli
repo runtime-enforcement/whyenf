@@ -12,7 +12,7 @@ open Base
 
 module Term : sig
 
-  type t = Var of string | Const of Dom.t [@@deriving compare, sexp_of, hash]
+  type t = Var of string | Const of Dom.t | App of string * t list [@@deriving compare, sexp_of, hash]
 
   type comparator_witness
 
@@ -61,26 +61,45 @@ val tick_event_name: string
 
 module Sig : sig
 
-  type props = { arity: int; ntconsts: (string * Dom.tt) list; enftype: EnfType.t; rank: int } [@@deriving compare, sexp_of, hash]
+  type pred = { arity: int;
+                arg_tts: (string * Dom.tt) list;
+                enftype: EnfType.t;
+                rank: int } [@@deriving compare, sexp_of, hash]
 
-  type t = string * props [@@deriving compare, sexp_of, hash]
+  type func = { arity: int;
+                arg_tts: (string * Dom.tt) list;
+                ret_tt: Dom.tt } [@@deriving compare, sexp_of, hash]
 
-  val table: (string, props) Hashtbl.t
+  type ty = Pred of pred | Func of func [@@deriving compare, sexp_of, hash]
+                                  
+  type t = string * ty [@@deriving compare, sexp_of, hash]
 
-  val add: string -> (string * Dom.tt) list -> EnfType.t -> int -> unit
+  val table: (string, ty) Hashtbl.t
+
+  val add_pred: string -> (string * Dom.tt) list -> EnfType.t -> int -> unit
+
+  val add_func: string -> (string * Dom.tt) list -> Dom.tt -> unit
 
   val update_enftype: string -> EnfType.t -> unit
 
-  val vars: string -> string list
+  val vars_of_pred: string -> string list
 
-  val tconsts: string -> Dom.tt list
+  val arg_tts_of_pred: string -> Dom.tt list
 
-  val enftype: string -> EnfType.t
+  val enftype_of_pred: string -> EnfType.t
 
-  val rank: string -> int
+  val rank_of_pred: string -> int
 
   val print_table: unit -> unit
 
+  val arity: ty -> int
+  
+  val arg_tts: ty -> (string * Dom.tt) list
+
 end
 
-val check_terms: string -> Term.t list -> Term.t list
+val check_const: (string, Dom.tt, 'a) Map.t -> Dom.t -> Dom.tt -> (string, Dom.tt, 'a) Map.t
+val check_var: (string, Dom.tt, 'a) Map.t -> string -> Dom.tt -> (string, Dom.tt, 'a) Map.t
+val check_app: (string, Dom.tt, 'a) Map.t -> string -> Dom.tt -> (string, Dom.tt, 'a) Map.t
+
+val check_terms: (string, Dom.tt, 'a) Map.t -> string -> Term.t list ->  (string, Dom.tt, 'a) Map.t
