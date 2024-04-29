@@ -16,7 +16,7 @@ let rec is_past_guarded x p f =
   match f with
   | TT | FF -> false
   | EqConst (y, _) -> p && (x == y)
-  | Predicate (_, ts) -> List.exists ~f:(Term.equal (Term.Var x)) ts
+  | Predicate (_, ts) when p -> List.exists ~f:(Term.equal (Term.Var x)) ts
   | Neg f -> is_past_guarded x (not p) f
   | And (_, f, g) when p -> is_past_guarded x p f || is_past_guarded x p g
   | And (_, f, g) -> is_past_guarded x p f && is_past_guarded x p g
@@ -152,7 +152,7 @@ open Option
 (* todo: ensure that there is no shadowing *)
 
 let types_predicate t e =
-  let t' = Pred.Sig.enftype e in
+  let t' = Pred.Sig.enftype_of_pred e in
   match t', t with
   | _, _ when t == t' -> Possible CTT
   | CauSup, _         -> Possible (eq e t)
@@ -237,7 +237,7 @@ let rec convert b enftype form : Tformula.t option =
       Cau -> begin
         match form with
         | TT -> Some (Tformula.TTT)
-        | Predicate (e, t) when Pred.Sig.enftype e == Cau -> Some (Tformula.TPredicate (e, t))
+        | Predicate (e, t) when Pred.Sig.enftype_of_pred e == Cau -> Some (Tformula.TPredicate (e, t))
         | Neg f -> (convert Sup f) >>| (fun f' -> Tformula.TNeg f')
         | And (s, f, g) ->
            (convert Cau f)
@@ -300,7 +300,7 @@ let rec convert b enftype form : Tformula.t option =
     | Sup -> begin
         match form with
         | FF -> Some (Tformula.TFF)
-        | Predicate (e, t) when Pred.Sig.enftype e == Sup -> Some (Tformula.TPredicate (e, t))
+        | Predicate (e, t) when Pred.Sig.enftype_of_pred e == Sup -> Some (Tformula.TPredicate (e, t))
         | Neg f -> (convert Cau f) >>| (fun f' -> Tformula.TNeg f')
         | And (L, f, g) -> (convert Sup f) >>| (fun f' -> Tformula.TAnd (L, f', Tformula.of_formula g))
         | And (R, f, g) -> (convert Sup g) >>| (fun g' -> Tformula.TAnd (R, Tformula.of_formula f, g'))
@@ -358,6 +358,7 @@ let rec convert b enftype form : Tformula.t option =
   match f with Some f -> Some Tformula.{ f; enftype } | None -> None
 
 let do_type f b =
+  Formula.check_types f;
   if not (Set.is_empty (Formula.fv f)) then
     ignore (raise (Invalid_argument (Printf.sprintf "formula %s is not closed" (Formula.to_string f))));
   match types Cau f with

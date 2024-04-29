@@ -124,6 +124,7 @@ sides:
 term:
 | const                                { debug "CONST"; $1 }
 | STR                                  { debug "VAR"; Pred.Term.Var $1 }
+| STR LPA terms RPA                    { debug "APP"; Pred.Term.App ($1, $3) }
 
 const:
 | INT                                  { debug "INT"; Pred.Term.Const (Int $1) }

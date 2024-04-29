@@ -1598,7 +1598,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
     let rec rank = function
       | MTT | MFF -> 0
       | MEqConst _ -> 0
-      | MPredicate (r, _) -> Pred.Sig.rank r
+      | MPredicate (r, _) -> Pred.Sig.rank_of_pred r
       | MNeg f
         | MExists (_, _, f)
         | MForall (_, _, f)

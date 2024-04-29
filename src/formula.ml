@@ -66,7 +66,7 @@ let rec var_tt x = function
   | Predicate (r, trms) -> (match (List.findi trms ~f:(fun i y -> Pred.Term.equal (Var x) y)) with
                             | None -> []
                             | Some (i, _) -> let props = Hashtbl.find_exn Pred.Sig.table r in
-                                             [snd (List.nth_exn props.ntconsts i)])
+                                             [snd (List.nth_exn (Pred.Sig.arg_tts props) i)])
   | Neg f
     | Exists (_, _, f)
     | Forall (_, _, f)
@@ -86,7 +86,7 @@ let rec var_tt x = function
 let tt = TT
 let ff = FF
 let eqconst x d = EqConst (x, d)
-let predicate p_name trms = Predicate (p_name, check_terms p_name trms)
+let predicate p_name trms = Predicate (p_name, trms)
 let neg f = Neg f
 let conj s f g = And (s, f, g)
 let disj s f g = Or (s, f, g)
@@ -432,3 +432,30 @@ let rec to_latex_rec l = function
   | Until (_, i, f, g) -> Printf.sprintf (Etc.paren l 0 "%a \\Until{%a} %a") (fun x -> to_latex_rec 5) f
                          (fun x -> Interval.to_latex) i (fun x -> to_latex_rec 5) g
 let to_latex = to_latex_rec 0
+
+let check_types f =
+  let rec check types = function
+  | TT -> types
+  | FF -> types
+  | EqConst (x, c) -> check_var types x (Dom.tt_of_domain c)
+  | Predicate (r, trms) -> check_terms types r trms
+  | Neg f
+    | Prev (_, f) 
+    | Next (_, f)
+    | Once (_, f)
+    | Eventually (_, f)
+    | Historically (_, f)
+    | Always (_, f) -> check types f
+  | And (_, f, g) 
+    | Or (_, f, g)
+    | Imp (_, f, g)
+    | Iff (_, _, f, g)
+    | Since (_, _, f, g)
+    | Until (_, _, f, g)
+    -> check (check types f) g
+  | Exists (x, tt, f)
+    | Forall (x, tt, f) ->
+     let types = Map.update types x ~f:(fun _ -> tt) in
+     check types f
+  in ignore (check (Map.empty (module String)) f)
+

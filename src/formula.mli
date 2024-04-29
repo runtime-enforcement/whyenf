@@ -84,3 +84,5 @@ val op_to_string: t -> string
 val to_string: t -> string
 val to_json: t -> string
 val to_latex: t -> string
+
+val check_types: t -> unit

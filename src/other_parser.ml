@@ -19,6 +19,7 @@ let string_of_token (t: Other_lexer.token) =
   | RPA -> "')'"
   | COM -> "','"
   | SEP -> "';'"
+  | COL -> "':'"
   | STR s -> "\"" ^ String.escaped s ^ "\""
   | EOF -> "<EOF>"
 
@@ -87,7 +88,7 @@ module Parsebuf = struct
 
   let reset_stats pb = Stats.reset pb.stats
 
-  let arity pb = (snd (Option.value_exn pb.pred_sig)).arity
+  let arity pb = (Pred.Sig.arity (snd (Option.value_exn pb.pred_sig)))
 
   let pred pb = fst (Option.value_exn pb.pred_sig)
 
@@ -122,7 +123,9 @@ module Sig = struct
       | RPA, RPA
       | COM, COM
       | SEP, SEP
-      | EOF, EOF -> true
+      | EOF, EOF
+      | FUN, FUN
+      | COL, COL -> true
     | STR s1, STR s2 -> String.equal s1 s2
     | _ -> false
 
@@ -136,22 +139,29 @@ module Sig = struct
     try Int.of_string s
     with Failure _ -> raise (Failure ("expected an integer but found \"" ^ String.escaped s ^ "\""))
 
-  let parse_ntconst (pb: Parsebuf.t) =
-    let expect (pb: Parsebuf.t) t =
-      if token_equal pb.token t then Parsebuf.next pb
-      else raise (Failure ("expected " ^ string_of_token t ^ " but found " ^ string_of_token pb.token)) in
-    let rec parse_ntconst_rec l =
+  let expect_token (pb: Parsebuf.t) t =
+    if token_equal pb.token t then Parsebuf.next pb
+    else raise (Failure ("expected " ^ string_of_token t ^ " but found " ^ string_of_token pb.token))
+
+  let parse_arg_tts (pb: Parsebuf.t) =
+    let rec parse_arg_tts_rec l =
       match pb.token with
       | COM -> Parsebuf.next pb;
                let s = parse_string pb in
-               parse_ntconst_rec (s::l)
+               parse_arg_tts_rec (s::l)
       | RPA -> Parsebuf.next pb; List.rev l
       | t -> raise (Failure ("expected ',' or ')' but found " ^ string_of_token t)) in
-    expect pb LPA;
+    expect_token pb LPA;
     match pb.token with
     | RPA -> Parsebuf.next pb; []
-    | STR s -> Parsebuf.next pb; parse_ntconst_rec [s]
+    | STR s -> Parsebuf.next pb; parse_arg_tts_rec [s]
     | t -> raise (Failure ("expected a string or ')' but found " ^ string_of_token t))
+
+  let parse_ret_tt (pb: Parsebuf.t) =
+    expect_token pb COL;
+    match pb.token with
+    | STR s -> Parsebuf.next pb; s
+    | t -> raise (Failure ("expected a string but found " ^ string_of_token t))
 
   let convert_types sl =
     List.map sl ~f:(fun s -> match String.split s ~on:':' with
@@ -178,18 +188,30 @@ module Sig = struct
   let rec parse_pred_sigs (pb: Parsebuf.t) rank_ref =
     match pb.token with
     | EOF -> ()
-    | STR s -> Parsebuf.next pb;
-               let ntconsts = convert_types (parse_ntconst pb) in
-               let enftype  = parse_enftype pb in
-               let rank = match enftype with
-                 | Pred.EnfType.Obs -> 0
-                 | _ -> rank_ref in
-               let next_rank_ref = if Int.equal rank 0 then
-                                     rank_ref + 1
-                                   else
-                                     rank_ref in
-               Pred.Sig.add s ntconsts enftype rank;
-               parse_pred_sigs pb (next_rank_ref)
+    | FUN -> begin
+        Parsebuf.next pb;
+        match pb.token with
+         | STR s -> Parsebuf.next pb;
+                    let arg_tts = convert_types (parse_arg_tts pb) in
+                    let ret_tt = Dom.tt_of_string (parse_ret_tt pb) in
+                    Pred.Sig.add_func s arg_tts ret_tt;
+                    parse_pred_sigs pb rank_ref
+         | t -> raise (Failure ("unexpected character: " ^ string_of_token t))
+      end
+    | STR s -> begin
+        Parsebuf.next pb;
+        let arg_tts = convert_types (parse_arg_tts pb) in
+        let enftype  = parse_enftype pb in
+        let rank = match enftype with
+          | Pred.EnfType.Obs -> 0
+          | _ -> rank_ref in
+        let next_rank_ref = if Int.equal rank 0 then
+                              rank_ref + 1
+                            else
+                              rank_ref in
+        Pred.Sig.add_pred s arg_tts enftype rank;
+        parse_pred_sigs pb (next_rank_ref)
+      end
     | t -> raise (Failure ("unexpected character: " ^ string_of_token t))
 
   let parse_from_channel fn =
