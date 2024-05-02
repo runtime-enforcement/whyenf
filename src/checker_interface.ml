@@ -181,7 +181,7 @@ module Checker_interface = struct
     abs_part (part_lst)
   and convert_sp (sp: Expl.Proof.sp) : (event_data sproof) = match sp with
     | E.STT tp -> STT (nat_of_int tp)
-    | SEqConst (tp, x, c) -> SEq_Const (nat_of_int tp, x, to_event_data c)
+    | SEqConst (tp, Var x, c) -> SEq_Const (nat_of_int tp, x, to_event_data c)
     | SPred (tp, s, trms) -> SPred (nat_of_int tp, s, List.map trms ~f:convert_term)
     | SNeg vp1 -> SNeg (convert_vp vp1)
     | SOrL sp1 -> SOrL (convert_sp sp1)
@@ -212,7 +212,7 @@ module Checker_interface = struct
        SUntil (sp1s', convert_sp sp2)
   and convert_vp (vp: Expl.Proof.vp) : (event_data vproof) = match vp with
     | E.VFF tp -> VFF (nat_of_int tp)
-    | VEqConst (tp, x, c) -> VEq_Const (nat_of_int tp, x, to_event_data c)
+    | VEqConst (tp, Var x, c) -> VEq_Const (nat_of_int tp, x, to_event_data c)
     | VPred (tp, s, trms) -> VPred (nat_of_int tp, s, List.map trms ~f:convert_term)
     | VNeg sp1 -> VNeg (convert_sp sp1)
     | VOr (vp1, vp2) -> VOr (convert_vp vp1, convert_vp vp2)
@@ -261,7 +261,7 @@ module Checker_interface = struct
     | E.Pdt.Leaf pt -> (match pt with
                       | Expl.Proof.S sp -> Leaf (Inl (convert_sp sp))
                       | V vp -> Leaf (Inr (convert_vp vp)))
-    | Node (x, part) -> Node (x, convert_pdt_part part)
+    | Node (Var x, part) -> Node (x, convert_pdt_part part)
 
   let convert_p = function
     | Expl.Proof.S sp -> Inl (convert_sp sp)
@@ -269,7 +269,7 @@ module Checker_interface = struct
 
   let rec convert_expl = function
     | E.Pdt.Leaf pt -> Leaf (convert_p pt)
-    | Node (x, part) -> Node (x, convert_pdt_part part)
+    | Node (Var x, part) -> Node (x, convert_pdt_part part)
 
   let convert_interval = function
     | Interval.B bi -> (match bi with
@@ -280,7 +280,7 @@ module Checker_interface = struct
   let rec convert_f = function
     | Formula.TT -> TT
     | FF -> FF
-    | EqConst (x, c) -> Eq_Const (x, to_event_data c)
+    | EqConst (Var x, c) -> Eq_Const (x, to_event_data c)
     | Predicate (x, trms) -> Pred (x, List.map trms ~f:convert_term)
     | Neg (f) -> Neg (convert_f f)
     | Or (s, f, g) -> Or (convert_f f, convert_f g)

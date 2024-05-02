@@ -15,7 +15,7 @@ open Formula
 type core_t =
   | TTT
   | TFF
-  | TEqConst of string * Dom.t
+  | TEqConst of Term.t * Dom.t
   | TPredicate of string * Term.t list
   | TNeg of t
   | TAnd of Side.t * t * t

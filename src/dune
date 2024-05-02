@@ -7,6 +7,6 @@
 
 (library
  (name monitor_lib)
- (libraries core_kernel base zarith unix)
+ (libraries core_kernel base zarith unix pyml)
  ;; debug menhirLib
  (preprocess (pps ppx_jane)))

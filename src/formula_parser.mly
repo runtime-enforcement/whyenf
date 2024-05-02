@@ -70,7 +70,7 @@ e:
 | LPA e RPA                            { debug "( e )"; $2 }
 | TRUE                                 { debug "TRUE"; tt }
 | FALSE                                { debug "FALSE"; ff }
-| STR EQCONST const                    { debug "EQCONST"; eqconst $1 (Pred.Term.unconst $3)}
+| term EQCONST const                   { debug "EQCONST"; eqconst $1 (Pred.Term.unconst $3)}
 | NEG e                                { debug "NEG e"; neg $2 }
 | PREV INTERVAL e                      { debug "PREV INTERVAL e"; prev $2 $3 }
 | PREV e                               { debug "PREV e"; prev Interval.full $2 }

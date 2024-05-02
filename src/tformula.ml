@@ -15,7 +15,7 @@ open Formula
 type core_t =
   | TTT
   | TFF
-  | TEqConst of string * Dom.t
+  | TEqConst of Term.t * Dom.t
   | TPredicate of string * Term.t list
   | TNeg of t
   | TAnd of Side.t * t * t
@@ -137,7 +137,7 @@ and op_to_string f = op_to_string_core f.f
 let rec to_string_core_rec l = function
   | TTT -> Printf.sprintf "⊤"
   | TFF -> Printf.sprintf "⊥"
-  | TEqConst (x, c) -> Printf.sprintf "%s = %s" x (Dom.to_string c)
+  | TEqConst (trm, c) -> Printf.sprintf "%s = %s" (Term.to_string trm) (Dom.to_string c)
   | TPredicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
   | TNeg f -> Printf.sprintf "¬%a" (fun x -> to_string_rec 5) f
   | TAnd (s, f, g) -> Printf.sprintf (Etc.paren l 4 "%a ∧%a %a") (fun x -> to_string_rec 4) f (fun x -> Side.to_string) s (fun x -> to_string_rec 4) g

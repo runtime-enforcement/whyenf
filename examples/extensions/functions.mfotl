@@ -1,1 +1,1 @@
-ALWAYS (FORALL x. A(x, x) IMPLIES B(add(x, x)))
+ALWAYS (FORALL x. A(x,x) IMPLIES B(add(foo(41), add(x, x))))

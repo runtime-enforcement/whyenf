@@ -39,30 +39,30 @@ end
 
 module Pdt : sig
 
-  type 'a t = Leaf of 'a | Node of string * ('a t) Part.t
+  type 'a t = Leaf of 'a | Node of Term.t * ('a t) Part.t
 
-  val apply1: string list -> ('a -> 'b) -> 'a t -> 'b t
-  val apply2: string list -> ('a -> 'b -> 'c) -> 'a t -> 'b t -> 'c t
-  val apply3: string list -> ('a -> 'b -> 'c -> 'd) -> 'a t -> 'b t -> 'c t -> 'd t
+  val apply1: Term.t list -> ('a -> 'b) -> 'a t -> 'b t
+  val apply2: Term.t list -> ('a -> 'b -> 'c) -> 'a t -> 'b t -> 'c t
+  val apply3: Term.t list -> ('a -> 'b -> 'c -> 'd) -> 'a t -> 'b t -> 'c t -> 'd t
   val split_prod: ('a * 'b) t -> 'a t * 'b t
   val split_list: 'a list t -> 'a t list
-  val hide: string list -> ('a -> 'b) -> ('a Part.t -> 'b) -> 'a t -> 'b t
+  val hide: Term.t list -> ('a -> 'b) -> ('a Part.t -> 'b) -> 'a t -> 'b t
   val to_string: ('a -> string) -> string -> 'a t -> string
 
   val eq: ('a -> 'a -> bool) -> 'a t -> 'a t -> bool
   val reduce: ('a -> 'a -> bool) -> 'a t -> 'a t
-  val apply1_reduce: ('a -> 'a -> bool) -> string list -> ('b -> 'a) -> 'b t -> 'a t
-  val apply2_reduce: ('a -> 'a -> bool) -> string list -> ('b -> 'c -> 'a) -> 'b t -> 'c t -> 'a t
-  val apply3_reduce: ('a -> 'a -> bool) -> string list -> ('b -> 'c -> 'd -> 'a) -> 'b t -> 'c t -> 'd t -> 'a t
+  val apply1_reduce: ('a -> 'a -> bool) -> Term.t list -> ('b -> 'a) -> 'b t -> 'a t
+  val apply2_reduce: ('a -> 'a -> bool) -> Term.t list -> ('b -> 'c -> 'a) -> 'b t -> 'c t -> 'a t
+  val apply3_reduce: ('a -> 'a -> bool) -> Term.t list -> ('b -> 'c -> 'd -> 'a) -> 'b t -> 'c t -> 'd t -> 'a t
   val split_prod_reduce: ('a -> 'a -> bool) -> ('a * 'a) t -> 'a t * 'a t
   val split_list_reduce: ('a -> 'a -> bool) -> 'a list t -> 'a t list
-  val hide_reduce: ('a -> 'a -> bool) -> string list -> ('b -> 'a) -> ('b Part.t -> 'a) -> 'b t -> 'a t
+  val hide_reduce: ('a -> 'a -> bool) -> Term.t list -> ('b -> 'a) -> ('b Part.t -> 'a) -> 'b t -> 'a t
 
-  val replace_leaf: Etc.valuation -> 'a -> 'a t -> 'a t
+  (*val replace_leaf: Etc.valuation -> 'a -> 'a t -> 'a t*)
   val specialize: Etc.valuation -> 'a t -> 'a
   val specialize_partial: Etc.valuation -> 'a t -> 'a t
   val collect: ('a -> bool) -> Etc.valuation -> string -> 'a t -> (Dom.t, Dom.comparator_witness) Setc.t
-  val from_valuation: string list -> Etc.valuation -> 'b -> 'b -> 'b t
+  val from_valuation: Term.t list -> Etc.valuation -> 'b -> 'b -> 'b t
 
 end
 
@@ -102,7 +102,7 @@ module type ProofT = sig
   val to_bool: t -> string
 
   val make_stt: int -> sp
-  val make_seqconst: int -> string -> Dom.t -> sp
+  val make_seqconst: int -> Term.t -> Dom.t -> sp
   val make_spred: int -> string -> Term.t list -> sp
   val make_sneg: vp -> sp
   val make_sorl: sp -> sp
@@ -131,7 +131,7 @@ module type ProofT = sig
   val make_suntilnow: sp -> Interval.t -> sp
 
   val make_vff: int -> vp
-  val make_veqconst: int -> string -> Dom.t -> vp
+  val make_veqconst: int -> Term.t -> Dom.t -> vp
   val make_vpred: int -> string -> Term.t list -> vp
   val make_vneg: sp -> vp
   val make_vor: vp -> vp -> vp
@@ -181,7 +181,7 @@ end
 
 type t_sp =
   | STT of int
-  | SEqConst of int * string * Dom.t
+  | SEqConst of int * Term.t * Dom.t
   | SPred of int * string * Term.t list
   | SNeg of t_vp
   | SOrL of t_sp
@@ -210,7 +210,7 @@ type t_sp =
   | SUntilNow of t_sp * Interval.t
 and t_vp =
   | VFF of int
-  | VEqConst of int * string * Dom.t
+  | VEqConst of int * Term.t * Dom.t
   | VPred of int * string * Term.t list
   | VNeg of t_sp
   | VOr of t_vp * t_vp

@@ -42,7 +42,7 @@ end
 type t =
   | TT
   | FF
-  | EqConst of string * Dom.t
+  | EqConst of Term.t * Dom.t
   | Predicate of string * Term.t list
   | Neg of t
   | And of Side.t * t * t
@@ -63,10 +63,10 @@ type t =
 let rec var_tt x = function
   | TT | FF -> []
   | EqConst _ -> []
-  | Predicate (r, trms) -> (match (List.findi trms ~f:(fun i y -> Pred.Term.equal (Var x) y)) with
-                            | None -> []
-                            | Some (i, _) -> let props = Hashtbl.find_exn Pred.Sig.table r in
-                                             [snd (List.nth_exn (Pred.Sig.arg_tts props) i)])
+  | Predicate (r, trms) ->
+     (match Sig.var_tt_of_terms x (Sig.arg_tts_of_pred r) trms with
+      | None -> []
+      | Some tt -> [tt])
   | Neg f
     | Exists (_, _, f)
     | Forall (_, _, f)
@@ -113,7 +113,7 @@ let release s i f g = Neg (Until (s, i, Neg f, Neg g))
 
 let equal x y = match x, y with
   | TT, TT | FF, FF -> true
-  | EqConst (x, c), EqConst (x', c') -> String.equal x x'
+  | EqConst (x, c), EqConst (x', c') -> Term.equal x x'
   | Predicate (r, trms), Predicate (r', trms') -> String.equal r r' && List.equal Term.equal trms trms'
   | Neg f, Neg f' -> phys_equal f f'
   | And (s, f, g), And (s', f', g')
@@ -134,7 +134,8 @@ let equal x y = match x, y with
 
 let rec fv = function
   | TT | FF -> Set.empty (module String)
-  | EqConst (x, c) -> Set.of_list (module String) [x]
+  | EqConst (Var x, c) -> Set.of_list (module String) [x]
+  | EqConst _ -> Set.empty (module String)
   | Predicate (x, trms) -> Set.of_list (module String) (Pred.Term.fv_list trms)
   | Exists (x, _, f)
     | Forall (x, _, f) -> Set.filter (fv f) ~f:(fun y -> not (String.equal x y))
@@ -151,6 +152,28 @@ let rec fv = function
     | Iff (_, _, f1, f2)
     | Since (_, _, f1, f2)
     | Until (_, _, f1, f2) -> Set.union (fv f1) (fv f2)
+
+let rec terms = function
+  | TT | FF -> Set.empty (module Term)
+  | EqConst (trm, c) -> Set.singleton (module Term) trm
+  | Predicate (x, trms) -> Set.of_list (module Term) trms
+  | Exists (x, _, f)
+    | Forall (x, _, f) ->
+     Set.filter (terms f)
+       ~f:(fun y -> not (List.mem (Pred.Term.fv_list [y]) x ~equal:String.equal))
+  | Neg f
+    | Prev (_, f)
+    | Once (_, f)
+    | Historically (_, f)
+    | Eventually (_, f)
+    | Always (_, f)
+    | Next (_, f) -> terms f
+  | And (_, f1, f2)
+    | Or (_, f1, f2)
+    | Imp (_, f1, f2)
+    | Iff (_, _, f1, f2)
+    | Since (_, _, f1, f2)
+    | Until (_, _, f1, f2) -> Set.union (terms f1) (terms f2)
 
 let check_bindings f =
   let fv_f = fv f in
@@ -345,7 +368,7 @@ let op_to_string = function
 let rec to_string_rec l = function
   | TT -> Printf.sprintf "⊤"
   | FF -> Printf.sprintf "⊥"
-  | EqConst (x, c) -> Printf.sprintf "%s = %s" x (Dom.to_string c)
+  | EqConst (trm, c) -> Printf.sprintf "%s = %s" (Term.to_string trm) (Dom.to_string c)
   | Predicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
   | Neg f -> Printf.sprintf "¬%a" (fun x -> to_string_rec 5) f
   | And (s, f, g) -> Printf.sprintf (Etc.paren l 4 "%a ∧%a %a") (fun x -> to_string_rec 4) f (fun x -> Side.to_string) s (fun x -> to_string_rec 4) g
@@ -373,8 +396,8 @@ let rec to_json_rec indent pos f =
             indent pos indent' indent
   | FF -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"FF\"\n%s}"
             indent pos indent' indent
-  | EqConst (x, c) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"EqConst\",\n%s\"variable\": \"%s\",\n%s\"constant\": \"%s\"\n%s}"
-                        indent pos indent' indent' x indent' (Dom.to_string c) indent
+  | EqConst (trm, c) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"EqConst\",\n%s\"variable\": \"%s\",\n%s\"constant\": \"%s\"\n%s}"
+                        indent pos indent' indent' (Term.to_string trm) indent' (Dom.to_string c) indent
   | Predicate (r, trms) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Predicate\",\n%s\"name\": \"%s\",\n%s\"terms\": \"%s\"\n%s}"
                              indent pos indent' indent' r indent' (Term.list_to_string trms) indent
   | Neg f -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Neg\",\n%s\n%s}"
@@ -412,7 +435,7 @@ let to_json = to_json_rec "    " ""
 let rec to_latex_rec l = function
   | TT -> Printf.sprintf "\\top"
   | FF -> Printf.sprintf "\\bot"
-  | EqConst (x, c) -> Printf.sprintf "%s = %s" (Etc.escape_underscores x) (Dom.to_string c)
+  | EqConst (trm, c) -> Printf.sprintf "%s = %s" (Etc.escape_underscores (Term.to_string trm)) (Dom.to_string c)
   | Predicate (r, trms) -> Printf.sprintf "%s\\,(%s)" (Etc.escape_underscores r) (Term.list_to_string trms)
   | Neg f -> Printf.sprintf "\\neg %a" (fun x -> to_latex_rec 5) f
   | And (_, f, g) -> Printf.sprintf (Etc.paren l 4 "%a \\land %a") (fun x -> to_latex_rec 4) f (fun x -> to_latex_rec 4) g
@@ -437,7 +460,7 @@ let check_types f =
   let rec check types = function
   | TT -> types
   | FF -> types
-  | EqConst (x, c) -> check_var types x (Dom.tt_of_domain c)
+  | EqConst (trm, c) -> check_term types (Dom.tt_of_domain c) trm
   | Predicate (r, trms) -> check_terms types r trms
   | Neg f
     | Prev (_, f) 

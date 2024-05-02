@@ -25,12 +25,14 @@ module Whyenf = struct
 
   let usage () =
     Caml.Format.eprintf
-      "usage: ./whyenf.exe [-sig] [-formula] [-log] [-out] [-b]
+      "usage: ./whyenf.exe [-sig] [-formula] [-func] [-log] [-out] [-b]
        arguments:
        \t -sig
        \t\t <file>             - signature
        \t -formula
        \t\t <file> or <string> - MFOTL formula
+       \t -func
+       \t\t <file>             - Python file containing function definitions
        \t -log
        \t\t <file>             - specify log file as trace (default: stdin)
        \t -out
@@ -70,6 +72,9 @@ module Whyenf = struct
                             with Formula_parser.Error -> Stdio.printf "%s\n" (Etc.lexbuf_error_msg lexbuf);
                                                          Stdlib.flush_all (); None);
          process_args_rec args
+      | ("-func":: f :: args) ->
+         n_args := !n_args + 1;
+         Funcs.Python.load f
       | ("-out" :: outf :: args) ->
          Etc.outc_ref := Out_channel.create outf;
          process_args_rec args

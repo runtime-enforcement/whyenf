@@ -32,9 +32,15 @@ let add cs el = match cs with
   | Finite s -> Finite (Set.add s el)
   | Complement s -> Complement (Set.remove s el)
 
+let singleton m c = Finite (Set.singleton m c)
+
 let is_empty = function
   | Finite s -> Set.is_empty s
   | Complement s -> false
+
+let is_univ = function
+  | Finite s -> false
+  | Complement s -> Set.is_empty s
 
 let mem cs el = match cs with
   | Finite s -> Set.mem s el
@@ -55,6 +61,9 @@ let union cs1 cs2 =
         | Finite s1, Complement s2 -> Complement (Set.diff s2 s1)
         | Complement s1, Finite s2 -> Complement (Set.diff s1 s2)
         | Complement s1, Complement s2 -> Complement (Set.inter s1 s2))
+
+let union_list m css =
+  List.fold css ~init:(empty m) ~f:union
 
 let diff cs1 cs2 = match cs1, cs2 with
   | Finite s1, Finite s2 -> Finite (Set.diff s1 s2)

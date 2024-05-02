@@ -105,6 +105,7 @@ end
 let tp_event_name = "~tp"
 let tick_event_name = "tick"
 
+
 module Sig = struct
 
   type pred = { arity: int;
@@ -117,21 +118,12 @@ module Sig = struct
     Printf.sprintf "%s(%s)" name
       (String.drop_prefix (List.fold pred.arg_tts ~init:"" ~f) 1)
 
-  type func = { arity: int;
-                arg_tts: (string * Dom.tt) list;
-                ret_tt: Dom.tt } [@@deriving compare, sexp_of, hash]
-
-  let string_of_func name func =
-    let f acc (var, tt) = acc ^ "," ^ var ^ ":" ^ (Dom.tt_to_string tt) in
-    Printf.sprintf "%s(%s) : %s" name
-      (String.drop_prefix (List.fold func.arg_tts ~init:"" ~f) 1)
-      (Dom.tt_to_string func.ret_tt)
   
-  type ty = Pred of pred | Func of func [@@deriving compare, sexp_of, hash]
+  type ty = Pred of pred | Func of Funcs.t (*[@@deriving compare, sexp_of, hash]*)
   
   let string_of_ty name = function
     | Pred pred -> string_of_pred name pred
-    | Func func -> string_of_func name func
+    | Func func -> Funcs.to_string name func
 
   let arity = function
     | Pred pred -> pred.arity
@@ -149,10 +141,13 @@ module Sig = struct
     | Func func -> func
     | Pred pred -> raise (Invalid_argument "unfunc is undefined for Preds")
 
-  type t = string * ty [@@deriving compare, sexp_of, hash]
+  type elt = string * ty (*[@@deriving compare, sexp_of, hash]*)
 
-  let table: (string, ty) Hashtbl.t =
-    let table = Hashtbl.create (module String) in
+  type t = (string, ty) Hashtbl.t
+
+  let table: t =
+    let table = Hashtbl.of_alist_exn (module String)
+                  (List.map Funcs.builtins ~f:(fun (k,v) -> (k, Func v))) in
     Hashtbl.add_exn table ~key:tp_event_name
       ~data:(Pred { arity = 0; arg_tts = []; enftype = Cau; rank = 0 });
     Hashtbl.add_exn table ~key:tick_event_name
@@ -162,8 +157,8 @@ module Sig = struct
   let add_pred p_name arg_tts enftype rank =
     Hashtbl.add_exn table ~key:p_name ~data:(Pred { arity = List.length arg_tts; arg_tts; enftype; rank })
 
-  let add_func f_name arg_tts ret_tt =
-    Hashtbl.add_exn table ~key:f_name ~data:(Func { arity = List.length arg_tts; arg_tts; ret_tt })
+  let add_func f_name arg_tts ret_tt kind =
+    Hashtbl.add_exn table ~key:f_name ~data:(Func { arity = List.length arg_tts; arg_tts; ret_tt; kind })
 
   let update_enftype name enftype =
     Hashtbl.update table name ~f:(fun (Some (Pred x)) -> Pred { x with enftype })
@@ -172,14 +167,44 @@ module Sig = struct
 
   let arg_tts_of_pred name = List.map (unpred (Hashtbl.find_exn table name)).arg_tts ~f:snd
 
+  let arg_tts_of_func name = List.map (unfunc (Hashtbl.find_exn table name)).arg_tts ~f:snd
+
   let ret_tt_of_func name = (unfunc (Hashtbl.find_exn table name)).ret_tt
 
   let enftype_of_pred name = (unpred (Hashtbl.find_exn table name)).enftype
 
   let rank_of_pred name = (unpred (Hashtbl.find_exn table name)).rank
 
+  let func ff ds =
+    let the_func = unfunc (Hashtbl.find_exn table ff) in
+    match the_func.kind with
+    | Builtin f -> f ds
+    | External -> Funcs.Python.call ff ds the_func.ret_tt
+
   let print_table () =
     Hashtbl.iteri table ~f:(fun ~key:n ~data:ps -> Stdio.printf "%s\n" (string_of_ty n ps))
+  
+  let rec eval (v: Etc.valuation) = function
+    | Term.Var x ->
+       (match Map.find v x with
+        | Some d -> Term.Const d
+        | None -> Var x)
+    | Const c -> Const c
+    | App (ff, trms) ->
+       let trms = List.map trms ~f:(eval v) in
+       let f = function Term.Const d -> Some d | _ -> None in
+       match Option.all (List.map trms ~f) with
+       | Some ds -> Const (func ff ds)
+       | None -> App (ff, trms)
+
+  let rec var_tt_of_term x tt = function
+    | Term.Var x' when String.equal x x' -> Some tt
+    | Var x' -> None
+    | App (f, trms) -> var_tt_of_terms x (arg_tts_of_func f) trms
+    | Const c -> None
+  and var_tt_of_terms x tts trms =
+    List.find_map (List.zip_exn tts trms)
+      ~f:(fun (tt, trm) -> var_tt_of_term x tt trm)
 
 end
 
@@ -212,15 +237,17 @@ let check_app types f tt =
                  (Dom.tt_to_string (Sig.ret_tt_of_func f))
                  (Dom.tt_to_string tt)))
 
-let rec check_terms types p_name trms =
+let rec check_term types tt trm =
+  match trm with
+  | Term.Var x -> check_var types x tt
+  | Const c -> check_const types c tt
+  | App (f, trms) -> check_app (check_terms types f trms) f tt
+
+and check_terms types p_name trms =
   let sig_pred = Hashtbl.find_exn Sig.table p_name in
   if List.length trms = Sig.arity sig_pred then
     List.fold2_exn trms (Sig.arg_tts sig_pred) ~init:types 
-      ~f:(fun types t ntc ->
-        let tt' = snd ntc in
-        match t with
-        | Term.Var x -> check_var types x tt'
-        | Const c -> check_const types c tt'
-        | App (f, trms) -> check_app (check_terms types f trms) f tt'
-      )
-  else raise (Invalid_argument (Printf.sprintf "arity of %s is %d" p_name (Sig.arity sig_pred)))
+      ~f:(fun types trm ntc -> check_term types (snd ntc) trm)
+  else raise (Invalid_argument (
+                  Printf.sprintf "arity of %s is %d" p_name (Sig.arity sig_pred)))
+
