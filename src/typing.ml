@@ -15,7 +15,7 @@ let rec is_past_guarded x p f =
   let r =
   match f with
   | TT | FF -> false
-  | EqConst (y, _) -> p && (x == y)
+  | EqConst (y, _) -> p && (Term.Var x == y)
   | Predicate (_, ts) when p -> List.exists ~f:(Term.equal (Term.Var x)) ts
   | Neg f -> is_past_guarded x (not p) f
   | And (_, f, g) when p -> is_past_guarded x p f || is_past_guarded x p g
@@ -61,12 +61,12 @@ module Errors = struct
                            ^ " (currently, it has type "
                            ^ EnfType.to_string t'
                            ^ ")"
-     | EFormula (None, f, t) -> "make"
+     | EFormula (None, f, t) -> "make "
                                 ^ Formula.to_string f
                                 ^ " "
                                 ^ EnfType.to_string t
                                 ^ ", but this is impossible"
-     | EFormula (Some s, f, t) -> "make"
+     | EFormula (Some s, f, t) -> "make "
                                 ^ Formula.to_string f
                                 ^ " "
                                 ^ EnfType.to_string t

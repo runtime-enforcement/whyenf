@@ -1,5 +1,5 @@
 (executable
  (public_name whyenf)
  (name whyenf)
- (libraries monitor_lib)
+ (libraries monitor_lib pyml)
  (promote (until-clean)))

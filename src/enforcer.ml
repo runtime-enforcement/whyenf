@@ -131,7 +131,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       mstep Out.ENFORCE vars es.ts es.db true es.ms es.fobligs
 
     let exec_monitor mf es =
-      let vars = Set.elements (MFormula.fv mf) in
+      let vars = Set.elements (MFormula.terms mf) in
       let (_, aexpl, _) = mstep_state vars { es with ms = { es.ms with mf } } in
       (*print_endline (Expl.to_string aexpl);*)
       aexpl
@@ -143,6 +143,9 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       sat v (MNeg mf) es
 
     let all_not_sat v x mf es =
+      (*print_endline "all_not_sat.begin";
+      print_endline (Etc.valuation_to_string v);
+      print_endline (Monitor.CI.Expl.to_string (exec_monitor mf es));*)
       match Expl.Pdt.collect CI.Expl.Proof.isV v x (exec_monitor mf es) with
       | Setc.Finite s -> Set.elements s
       | _ -> failwith ("Infinite set of candidates for " ^ x ^ " in " ^ MFormula.to_string mf)
@@ -199,9 +202,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       match mf with
       | MTT -> es
       | MPredicate (r, trms) ->
-         let new_cau = (r, List.map trms (fun trm -> match trm with
-                                                     | Var x -> Map.find_exn v x
-                                                     | Const c -> c)) in
+         let new_cau = (r, List.map trms (fun trm -> Pred.Term.unconst (Pred.Sig.eval v trm))) in
          add_cau new_cau es
       | MNeg mf -> enfvio mf v es
       | MAnd (L, mf1, mf2, _) -> fixpoint (enfsat_and mf1 mf2 v) es
@@ -317,7 +318,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
     let mf = match obligs with
       | [] -> MFormula.MTT
       | init::rest -> List.fold_left rest ~init ~f:(fun mf mg -> MAnd (L, mf, mg, empty_binop_info)) in
-    let vars = Set.elements (MFormula.fv mf) in
+    let vars = Set.elements (MFormula.terms mf) in
     match (mstep Out.ENFORCE vars es.ts es.db false { es.ms with mf } es.fobligs)
     with (_, _, ms) -> (*Stdio.printf "b\n"; Stdlib.flush_all (); *)ms.mf
 

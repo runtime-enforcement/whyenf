@@ -25,7 +25,7 @@ end
 type t =
   | TT
   | FF
-  | EqConst of string * Dom.t
+  | EqConst of Term.t * Dom.t
   | Predicate of string * Term.t list
   | Neg of t
   | And of Side.t * t * t
@@ -45,7 +45,7 @@ type t =
 
 val tt: t
 val ff: t
-val eqconst: string -> Dom.t -> t
+val eqconst: Term.t -> Dom.t -> t
 val predicate: string -> Term.t list -> t
 val neg: t -> t
 val conj: Side.t -> t -> t -> t
@@ -66,6 +66,7 @@ val trigger: Side.t -> Interval.t -> t -> t -> t
 val release: Side.t -> Interval.t -> t -> t -> t
 
 val fv: t -> (String.t, Base.String.comparator_witness) Base.Set.t
+val terms: t -> (Term.t, Term.comparator_witness) Base.Set.t
 val check_bindings: t -> bool
 
 val equal: t -> t -> bool

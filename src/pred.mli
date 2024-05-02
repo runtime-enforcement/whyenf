@@ -66,19 +66,17 @@ module Sig : sig
                 enftype: EnfType.t;
                 rank: int } [@@deriving compare, sexp_of, hash]
 
-  type func = { arity: int;
-                arg_tts: (string * Dom.tt) list;
-                ret_tt: Dom.tt } [@@deriving compare, sexp_of, hash]
-
-  type ty = Pred of pred | Func of func [@@deriving compare, sexp_of, hash]
+  type ty = Pred of pred | Func of Funcs.t (*[@@deriving compare, sexp_of, hash]*)
                                   
-  type t = string * ty [@@deriving compare, sexp_of, hash]
+  type elt = string * ty (* [@@deriving compare, sexp_of, hash]*)
 
-  val table: (string, ty) Hashtbl.t
+  type t = (string, ty) Hashtbl.t
+
+  val table: t
 
   val add_pred: string -> (string * Dom.tt) list -> EnfType.t -> int -> unit
 
-  val add_func: string -> (string * Dom.tt) list -> Dom.tt -> unit
+  val add_func: string -> (string * Dom.tt) list -> Dom.tt -> Funcs.kind -> unit
 
   val update_enftype: string -> EnfType.t -> unit
 
@@ -96,10 +94,16 @@ module Sig : sig
   
   val arg_tts: ty -> (string * Dom.tt) list
 
+  val eval: Etc.valuation -> Term.t -> Term.t
+
+  val var_tt_of_term: string -> Dom.tt -> Term.t -> Dom.tt option
+  val var_tt_of_terms: string -> Dom.tt list -> Term.t list -> Dom.tt option
+  
 end
 
 val check_const: (string, Dom.tt, 'a) Map.t -> Dom.t -> Dom.tt -> (string, Dom.tt, 'a) Map.t
 val check_var: (string, Dom.tt, 'a) Map.t -> string -> Dom.tt -> (string, Dom.tt, 'a) Map.t
 val check_app: (string, Dom.tt, 'a) Map.t -> string -> Dom.tt -> (string, Dom.tt, 'a) Map.t
 
+val check_term: (string, Dom.tt, 'a) Map.t -> Dom.tt -> Term.t -> (string, Dom.tt, 'a) Map.t
 val check_terms: (string, Dom.tt, 'a) Map.t -> string -> Term.t list ->  (string, Dom.tt, 'a) Map.t

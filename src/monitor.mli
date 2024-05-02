@@ -35,7 +35,7 @@ module type MonitorT = sig
     type t =
       | MTT
       | MFF
-      | MEqConst      of string * Dom.t
+      | MEqConst      of Pred.Term.t * Dom.t
       | MPredicate    of string * Pred.Term.t list
       | MNeg          of t
       | MAnd          of Formula.Side.t * t * t * binop_info
@@ -63,6 +63,7 @@ module type MonitorT = sig
     val apply_valuation : Etc.valuation -> t -> t
 
     val fv: t -> (String.t, Base.String.comparator_witness) Base.Set.t
+    val terms: t -> (Pred.Term.t, Pred.Term.comparator_witness) Base.Set.t
 
     val to_string: t -> string
     val op_to_string: t -> string
@@ -123,7 +124,7 @@ module type MonitorT = sig
 
   end
 
-  val mstep: Out.mode -> string list -> timestamp -> Db.t -> bool -> MState.t -> FObligations.t ->
+  val mstep: Out.mode -> Pred.Term.t list -> timestamp -> Db.t -> bool -> MState.t -> FObligations.t ->
              ((timestamp * timepoint) * CI.Expl.t) list * CI.Expl.t * MState.t
 
   val exec: Out.mode -> string -> Formula.t -> in_channel -> unit

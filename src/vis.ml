@@ -371,7 +371,7 @@ module Expl = struct
 
   let rec expl_cell row idx (f: Formula.t) (expl: Expl.Proof.t Expl.Pdt.t) : cell_expl = match expl with
     | Expl.Pdt.Leaf pt -> Leaf (Expl.Proof.isS pt, (fst (ssubfs_cell_row row idx f pt)))
-    | Node (x, part) -> Expl (x, List.map (List.rev part) ~f:(fun (s, e) -> (Setc.to_json s, expl_cell row idx f e)))
+    | Node (Var x, part) -> Expl (x, List.map (List.rev part) ~f:(fun (s, e) -> (Setc.to_json s, expl_cell row idx f e)))
 
   let inner_cells_to_json indent cells =
     if List.is_empty cells then " []"

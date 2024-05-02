@@ -1,3 +1,3 @@
 A(x:int, y:int)
 B(x:int)+
-fun add(x:int, y:int) : int
+fun foo(x:int) : int

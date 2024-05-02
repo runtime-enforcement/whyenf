@@ -38,7 +38,7 @@ module type MonitorT = sig
     type t =
       | MTT
       | MFF
-      | MEqConst      of string * Dom.t
+      | MEqConst      of Pred.Term.t * Dom.t
       | MPredicate    of string * Pred.Term.t list
       | MNeg          of t
       | MAnd          of Formula.Side.t * t * t * binop_info
@@ -66,6 +66,8 @@ module type MonitorT = sig
     val apply_valuation : Etc.valuation -> t -> t
 
     val fv: t -> (String.t, Base.String.comparator_witness) Base.Set.t
+    val terms: t -> (Term.t, Term.comparator_witness) Base.Set.t
+
 
     val to_string: t -> string
     val op_to_string: t -> string
@@ -126,7 +128,7 @@ module type MonitorT = sig
 
   end
 
-  val mstep: Out.mode -> string list -> timestamp -> Db.t -> bool -> MState.t -> FObligations.t ->
+  val mstep: Out.mode -> Term.t list -> timestamp -> Db.t -> bool -> MState.t -> FObligations.t ->
              ((timestamp * timepoint) * CI.Expl.t) list * CI.Expl.t * MState.t
 
   val exec: Out.mode -> string -> Formula.t -> in_channel -> unit
@@ -1462,7 +1464,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
     type t =
       | MTT
       | MFF
-      | MEqConst      of string * Dom.t
+      | MEqConst      of Term.t * Dom.t
       | MPredicate    of string * Term.t list
       | MNeg          of t
       | MAnd          of Formula.Side.t * t * t * binop_info
@@ -1569,7 +1571,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
     let rec equal mf1 mf2 = match mf1, mf2 with
       | MTT, MTT
         | MFF, MFF -> true
-      | MEqConst (x, c), MEqConst (x', c') -> String.equal x x' && Dom.equal c c'
+      | MEqConst (trm, c), MEqConst (trm', c') -> Term.equal trm trm' && Dom.equal c c'
       | MPredicate (r, trms), MPredicate (r', trms') -> String.equal r r' &&
                                                           List.for_all2_exn trms trms' ~f:Term.equal
       | MNeg mf, MNeg mf' -> equal mf mf'
@@ -1619,12 +1621,9 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
         | MUntil (_, f, g, _, _)
         | MEUntil (_, _, f, g, _) -> rank f + rank g
 
-    let rec apply_valuation v f =
+    let rec apply_valuation (v: Etc.valuation) f =
       let r = apply_valuation v in
-      let av_term v = function
-        | Term.Var x when Map.mem v x -> Term.Const (Map.find_exn v x)
-        | Var x -> Var x
-        | Const d -> Const d in
+      let av_term = Sig.eval in
       let av_buf2 b = Buf2.map (Pdt.specialize_partial v) (Pdt.specialize_partial v) b in
       let av_buft b = Buft.map (Pdt.specialize_partial v) (fun t -> t) b in
       let av_buf2t b = Buf2t.map (Pdt.specialize_partial v) (Pdt.specialize_partial v) (fun t -> t) b in
@@ -1632,9 +1631,11 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       match f with
       | MTT -> MTT
       | MFF -> MFF
-      | MEqConst (x, d) when Map.find v x == Some d -> MTT
-      | MEqConst (x, d) when Map.mem v x -> MFF
-      | MEqConst (x, d) -> MEqConst (x, d)
+      | MEqConst (trm, d) ->
+         (match Sig.eval v trm with
+          | Const d' when Dom.equal d d' -> MTT
+          | Const d' -> MFF
+          | trm -> MEqConst (trm, d))
       | MPredicate (e, t) -> MPredicate (e, List.map t (av_term v))
       | MNeg f -> MNeg (r f)
       | MAnd (s, f, g, bi) -> MAnd (s, r f, r g, av_buf2 bi)
@@ -1658,7 +1659,8 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
 
     let rec fv = function
       | MTT | MFF -> Set.empty (module String)
-      | MEqConst (x, c) -> Set.of_list (module String) [x]
+      | MEqConst (Var x, c) -> Set.of_list (module String) [x]
+      | MEqConst _ -> Set.empty (module String)
       | MPredicate (x, trms) -> Set.of_list (module String) (Pred.Term.fv_list trms)
       | MExists (x, _, f)
         | MForall (x, _, f) -> Set.filter (fv f) ~f:(fun y -> not (String.equal x y))
@@ -1680,10 +1682,37 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
         | MUntil (_, f1, f2, _, _)
         | MEUntil (_, _, f1, f2, _) -> Set.union (fv f1) (fv f2)
 
+    let rec terms = function
+      | MTT | MFF -> Set.empty (module Term)
+      | MEqConst (trm, c) -> Set.singleton (module Term) trm
+      | MPredicate (x, trms) -> Set.of_list (module Term) trms
+      | MExists (x, _, f)
+        | MForall (x, _, f) ->
+         Set.filter (terms f)
+           ~f:(fun y -> not (List.mem (Pred.Term.fv_list [y]) x ~equal:String.equal))
+      | MNeg f
+        | MPrev (_, f, _, _)
+        | MOnce (_, f, _, _)
+        | MHistorically (_, f, _, _)
+        | MEventually (_, f, _, _)
+        | MEEventually (_, f, _)
+        | MAlways (_, f, _, _)
+        | MEAlways (_, f, _)
+        | MNext (_, f, _, _)
+        | MENext (_, f, _) -> terms f
+      | MAnd (_, f1, f2, _)
+        | MOr (_, f1, f2, _)
+        | MImp (_, f1, f2, _)
+        | MIff (_, _, f1, f2, _)
+        | MSince (_, _, f1, f2, _, _)
+        | MUntil (_, f1, f2, _, _)
+        | MEUntil (_, _, f1, f2, _) -> Set.union (terms f1) (terms f2)
+
+
     let rec to_string_rec l = function
       | MTT -> Printf.sprintf "⊤"
       | MFF -> Printf.sprintf "⊥"
-      | MEqConst (x, c) -> Printf.sprintf "%s = %s" x (Dom.to_string c)
+      | MEqConst (trm, c) -> Printf.sprintf "%s = %s" (Term.to_string trm) (Dom.to_string c)
       | MPredicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
       | MNeg f -> Printf.sprintf "¬%a" (fun x -> to_string_rec 5) f
       | MAnd (_, f, g, _) -> Printf.sprintf (Etc.paren l 4 "%a ∧ %a") (fun x -> to_string_rec 4) f (fun x -> to_string_rec 4) g
@@ -1990,19 +2019,25 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
     match trms, ds with
     | [], [] -> Some(map)
     | Term.Const c :: trms, d :: ds -> if Dom.equal c d then match_terms trms ds map else None
-    | Var x :: trms, d :: ds -> (match match_terms trms ds map with
-                                 | None -> None
-                                 | Some(map') -> (match Map.find map' x with
-                                                  | None -> let map'' = Map.add_exn map' ~key:x ~data:d in Some(map'')
-                                                  | Some z -> (if Dom.equal d z then Some map' else None)))
-    | _, _ -> None
+    | Var x :: trms, d :: ds ->
+       (match match_terms trms ds map with
+        | None -> None
+        | Some map' ->
+           (match Map.find map' (Term.Var x) with
+            | None -> let map'' = Map.add_exn map' ~key:(Term.Var x) ~data:d in Some map''
+            | Some z -> (if Dom.equal d z then Some map' else None)))
+    | App (f, trms') :: trms, d :: ds ->
+       (match match_terms trms ds map with
+        | None -> None
+        | Some map' -> Some (Map.add_exn map' ~key:(Term.App (f, trms')) ~data:d))
+    | _, _ -> assert false                       
 
   let print_maps maps =
     Stdio.print_endline "> Map:";
     List.iter maps ~f:(fun map -> Map.iteri map ~f:(fun ~key:k ~data:v ->
                                       Stdio.printf "%s -> %s\n" (Term.to_string k) (Dom.to_string v)))
 
-  let rec pdt_of tp r trms (vars: string list) maps : Expl.t = match vars with
+  let rec pdt_of tp r trms (vars: Term.t list) maps : Expl.t = match vars with
     | [] -> if List.is_empty maps then Leaf (V (Proof.make_vpred tp r trms))
             else Leaf (S (Proof.make_spred tp r trms))
     | x :: vars ->
@@ -2032,10 +2067,10 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
     | _ -> approx_false tp pol
 
   let approx_quant aexpl pol vars tp x tc mf = match mf with
-    | MExists _ -> Pdt.hide_reduce Proof.equal (vars @ [x])
+    | MExists _ -> Pdt.hide_reduce Proof.equal (vars @ [Term.Var x])
                      (fun p -> minp_list (do_exists_leaf x tc p))
                      (fun p -> minp_list (do_exists_node x tc p)) aexpl
-    | MForall _ -> Pdt.hide_reduce Proof.equal (vars @ [x])
+    | MForall _ -> Pdt.hide_reduce Proof.equal (vars @ [Term.Var x])
                      (fun p -> minp_list (do_forall_leaf x tc p))
                      (fun p -> minp_list (do_forall_node x tc p)) aexpl
     | _ -> raise (Invalid_argument ("function is not defined for " ^ MFormula.op_to_string mf))
@@ -2097,7 +2132,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
           let f (k, v, _) =
             let p = FObligation.corresp_proof tp pol None k in
             let p' = proof_false tp pol in
-            Pdt.from_valuation vars v p p' in
+            Pdt.from_valuation  vars v p p' in
           List.map relevant_fobligs ~f
         end in
     let aexpl_next = do_ors vars tp expls in
@@ -2158,7 +2193,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
     | Some pol -> f tp pol
     | None -> Pdt.Leaf (Proof.S (Proof.make_stt tp))
 
-  let meval vars ts tp (db: Db.t) ~pol (fobligs: FObligations.t) mformula mode =
+  let meval (vars: Term.t list) ts tp (db: Db.t) ~pol (fobligs: FObligations.t) mformula mode =
     let rec meval_rec vars ts tp (db: Db.t) ~pol (fobligs: FObligations.t) mformula =
       (* fun f -> *)
       (*print_endline (MFormula.to_string mformula (*^ " pol=" ^ FObligation.polarity_to_string pol *)
@@ -2170,12 +2205,12 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
                ([expl], expl, MTT)
       | MFF -> let expl = Pdt.Leaf (Proof.V (Proof.make_vff tp)) in
                ([expl], expl, MFF)
-      | MEqConst (x, d) ->
-         let l1 = Pdt.Leaf (Proof.S (Proof.make_seqconst tp x d)) in
-         let l2 = Pdt.Leaf (Proof.V (Proof.make_veqconst tp x d)) in
-         let expl = Pdt.Node (x, [(Setc.Complement (Set.of_list (module Dom) [d]), l2);
-                                  (Setc.Finite (Set.of_list (module Dom) [d]), l1)]) in
-         ([expl], expl, MEqConst (x, d))
+      | MEqConst (trm, d) ->
+         let l1 = Pdt.Leaf (Proof.S (Proof.make_seqconst tp trm d)) in
+         let l2 = Pdt.Leaf (Proof.V (Proof.make_veqconst tp trm d)) in
+         let expl = Pdt.Node (trm, [(Setc.Complement (Set.of_list (module Dom) [d]), l2);
+                                    (Setc.Finite (Set.of_list (module Dom) [d]), l1)]) in
+         ([expl], expl, MEqConst (trm, d))
       | MPredicate (r, trms) ->
          let db' = Set.filter db ~f:(fun evt -> String.equal r (fst(evt))) in
          if List.is_empty trms then
@@ -2184,14 +2219,16 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
             ([expl], expl, MPredicate (r, trms)))
          else
            let maps = Set.fold db' ~init:[] ~f:(fun acc evt -> match_terms trms (snd evt)
-                                                                 (Map.empty (module String)) :: acc) in
+                                                                 (Map.empty (module Term)) :: acc) in
            let maps' = List.map (List.filter maps ~f:(fun map_opt -> match map_opt with
                                                                      | None -> false
                                                                      | Some(map) -> not (Map.is_empty map)))
                          ~f:(fun map_opt -> Option.value_exn map_opt) in
-           let fv = Set.elements (Formula.fv (Predicate (r, trms))) in
-           let fv_vars = List.filter vars ~f:(fun var -> List.mem fv var ~equal:String.equal) in
+           let fv = Set.elements (Formula.terms (Predicate (r, trms))) in
+           let fv_vars = List.filter vars ~f:(fun var -> List.mem fv var ~equal:Term.equal) in
            let expl = pdt_of tp r trms fv_vars maps' in
+           (*print_endline ("MPredicate " ^ r);
+           print_endline (CI.Expl.to_string expl);*)
            ([expl], expl, MPredicate (r, trms))
       | MNeg (mf) ->
          let (expls, aexpl, mf') = meval_rec vars ts tp db fobligs ~pol:(pol >>| FObligation.neg) mf in
@@ -2205,8 +2242,6 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
                                   (Pdt.apply2_reduce Proof.equal vars (fun p1 p2 -> minp_list (do_and p1 p2)))
                                   (Buf2.add expls1 expls2 buf2) in
          let aexpl = approx_expl2 aexpl1 aexpl2 vars tp mformula in
-         (*print_endline (MFormula.to_string mf1 ^ " && " ^ MFormula.to_string mf2);
-           print_endline ("MAnd " ^ Expl.to_string aexpl1 ^ "+" ^ Expl.to_string aexpl2 ^ "->" ^ Expl.to_string aexpl);*)
          (f_expls, aexpl, MAnd (s, mf1', mf2', buf2'))
       | MOr (s, mf1, mf2, buf2) ->
          let (expls1, aexpl1, mf1') = meval_rec vars ts tp db ~pol fobligs mf1 in
@@ -2232,15 +2267,15 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
          let aexpl = else_any (approx_default f_expls) tp pol in
          (f_expls, aexpl, MIff (s, t, mf1', mf2', buf2'))
       | MExists (x, tc, mf) ->
-         let (expls, aexpl, mf') = meval_rec (vars @ [x]) ts tp db ~pol fobligs mf in
-         let f_expls = List.map expls ~f:(Pdt.hide_reduce Proof.equal (vars @ [x])
+         let (expls, aexpl, mf') = meval_rec (vars @ [Var x]) ts tp db ~pol fobligs mf in
+         let f_expls = List.map expls ~f:(Pdt.hide_reduce Proof.equal (vars @ [Var x])
                                             (fun p -> minp_list (do_exists_leaf x tc p))
                                             (fun p -> minp_list (do_exists_node x tc p))) in
          let aexpl = approx_quant aexpl pol vars tp x tc mformula in
          (f_expls, aexpl, MExists(x, tc, mf'))
       | MForall (x, tc, mf) ->
-         let (expls, aexpl, mf') = meval_rec (vars @ [x]) ts tp db ~pol fobligs mf in
-         let f_expls = List.map expls ~f:(Pdt.hide_reduce Proof.equal (vars @ [x])
+         let (expls, aexpl, mf') = meval_rec (vars @ [Var x]) ts tp db ~pol fobligs mf in
+         let f_expls = List.map expls ~f:(Pdt.hide_reduce Proof.equal (vars @ [Var x])
                                             (fun p -> minp_list (do_forall_leaf x tc p))
                                             (fun p -> minp_list (do_forall_node x tc p))) in
          let aexpl = approx_quant aexpl pol vars tp x tc mformula in
@@ -2280,10 +2315,6 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
              (moaux_pdt, []) (expls, (tstps @ [(ts,tp)])) in
          let expls'' = List.map expls' ~f:(Pdt.reduce Proof.equal) in
          let aexpl = else_any (approx_once vars expls'' aexpl i) tp pol in
-         (*print_endline "expls''";
-         List.iter ~f:(fun expl -> print_endline (CI.Expl.to_string expl)) expls'';
-         print_endline "aexpl";
-         print_endline (CI.Expl.to_string aexpl);*)
          (expls'', aexpl, MOnce (i, mf', tstps', moaux_pdt'))
       | MEventually (i, mf, (buf, ntstps), meaux_pdt) ->
          let (expls, aexpl, mf') = meval_rec vars ts tp db ~pol fobligs mf in
@@ -2344,7 +2375,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
              (fun expl1 expl2 ts tp (aux_pdt, es) ->
                let (aux_pdt', es') =
                  Pdt.split_prod (Pdt.apply3 vars
-                                   (fun p1 p2 aux -> (* Stdio.printf "%s\n" (Since.to_string aux); *)
+                                   (fun p1 p2 aux ->
                                      Since.update i ts tp p1 p2 aux mode) expl1 expl2 aux_pdt) in
                (aux_pdt', es @ (Pdt.split_list es')))
              (msaux_pdt, []) (Buf2.add expls1 expls2 buf2) (tstps @ [(ts,tp)]) in
@@ -2418,9 +2449,9 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
 
   end
 
-  let mstep mode vars ts db approx (ms: MState.t) (fobligs: FObligations.t) =
+  let mstep mode (trms: Term.t list) ts db approx (ms: MState.t) (fobligs: FObligations.t) =
     let pol_opt = if approx then Some FObligation.POS else None in
-    let (expls, aexpl, mf') = meval vars ts ms.tp_cur db pol_opt fobligs ms.mf mode in
+    let (expls, aexpl, mf') = meval trms ts ms.tp_cur db pol_opt fobligs ms.mf mode in
     let expls, tstps =
       match mode with
       | Out.ENFORCE -> [aexpl], [(ms.tp_cur, ts)]
@@ -2445,12 +2476,12 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
      ; tsdbs = tsdbs })
 
   let exec mode measure f inc =
-    let vars = Set.elements (Formula.fv f) in
+    let trms = Set.elements (Formula.terms f) in
     let rec step pb_opt ms =
       match Other_parser.Trace.parse_from_channel inc pb_opt with
       | None -> ()
       | Some (more, pb) ->
-         (let (tstp_expls, _, ms') = mstep mode vars pb.ts pb.db false ms FObligations.empty in
+         (let (tstp_expls, _, ms') = mstep mode trms pb.ts pb.db false ms FObligations.empty in
           (match mode with
            | Out.UNVERIFIED -> Plain.expls tstp_expls None None None mode
            | Out.LATEX -> Plain.expls tstp_expls None None (Some(f)) mode
@@ -2469,7 +2500,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
     step None ms
 
   let exec_vis (obj_opt: MState.t option) f log =
-    let vars = Set.elements (Formula.fv f) in
+    let trms = Set.elements (Formula.terms f) in
     let step (ms: MState.t) db =
       try
         (match Other_parser.Trace.parse_from_string db with
@@ -2477,7 +2508,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
          | Some (_, pb) ->
             (let last_ts = Hashtbl.fold ms.tpts ~init:0 ~f:(fun ~key:_ ~data:ts l_ts -> if ts > l_ts then ts else l_ts) in
              if pb.ts >= last_ts then
-               let (tstps_expls, _, ms') = mstep Out.UNVERIFIED vars pb.ts pb.db false ms FObligations.empty in
+               let (tstps_expls, _, ms') = mstep Out.UNVERIFIED trms pb.ts pb.db false ms FObligations.empty in
                let tp_out' = List.fold tstps_expls ~init:ms'.tp_out
                                ~f:(fun acc ((ts, tp), _) -> Hashtbl.add_exn ms.tpts ~key:(acc + 1) ~data:ts; acc + 1) in
                let json_expls = Json.expls ms.tpts f (List.map tstps_expls ~f:snd) in

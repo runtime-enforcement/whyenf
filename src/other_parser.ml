@@ -70,7 +70,7 @@ module Parsebuf = struct
 
   type t = { lexbuf: Lexing.lexbuf
            ; mutable token: Other_lexer.token
-           ; mutable pred_sig: Pred.Sig.t option
+           ; mutable pred_sig: Pred.Sig.elt option
            ; mutable ts: int
            ; mutable db: Db.t
            ; stats: Stats.t
@@ -194,7 +194,7 @@ module Sig = struct
          | STR s -> Parsebuf.next pb;
                     let arg_tts = convert_types (parse_arg_tts pb) in
                     let ret_tt = Dom.tt_of_string (parse_ret_tt pb) in
-                    Pred.Sig.add_func s arg_tts ret_tt;
+                    Pred.Sig.add_func s arg_tts ret_tt External;
                     parse_pred_sigs pb rank_ref
          | t -> raise (Failure ("unexpected character: " ^ string_of_token t))
       end
