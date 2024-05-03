@@ -3,6 +3,8 @@ module Python : sig
   val load: string -> unit
 
   val call: string -> Dom.t list -> Dom.tt -> Dom.t
+
+  val retrieve_db: string -> Dom.tt list -> Dom.t list list
   
 end
 

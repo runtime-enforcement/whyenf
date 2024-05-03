@@ -42,3 +42,6 @@ val is_tick: t -> bool
 val to_string: t -> string
 
 val to_json: t -> string
+
+val retrieve_external: string -> t
+val retrieve_builtin: int -> int -> string -> t

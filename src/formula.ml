@@ -136,7 +136,9 @@ let rec fv = function
   | TT | FF -> Set.empty (module String)
   | EqConst (Var x, c) -> Set.of_list (module String) [x]
   | EqConst _ -> Set.empty (module String)
-  | Predicate (x, trms) -> Set.of_list (module String) (Pred.Term.fv_list trms)
+  | Predicate (x, trms) when not (Sig.equal_pred_kind (Sig.kind_of_pred x) (Sig.Predicate)) ->
+     Set.of_list (module String) (Pred.Term.fv_list trms)
+  | Predicate _ -> Set.empty (module String)
   | Exists (x, _, f)
     | Forall (x, _, f) -> Set.filter (fv f) ~f:(fun y -> not (String.equal x y))
   | Neg f
@@ -368,7 +370,7 @@ let op_to_string = function
 let rec to_string_rec l = function
   | TT -> Printf.sprintf "⊤"
   | FF -> Printf.sprintf "⊥"
-  | EqConst (trm, c) -> Printf.sprintf "%s = %s" (Term.to_string trm) (Dom.to_string c)
+  | EqConst (trm, c) -> Printf.sprintf "%s = %s" (Term.value_to_string trm) (Dom.to_string c)
   | Predicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
   | Neg f -> Printf.sprintf "¬%a" (fun x -> to_string_rec 5) f
   | And (s, f, g) -> Printf.sprintf (Etc.paren l 4 "%a ∧%a %a") (fun x -> to_string_rec 4) f (fun x -> Side.to_string) s (fun x -> to_string_rec 4) g

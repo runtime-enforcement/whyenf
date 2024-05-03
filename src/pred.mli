@@ -61,10 +61,13 @@ val tick_event_name: string
 
 module Sig : sig
 
+  type pred_kind = Trace | Predicate | External | Builtin [@@deriving compare, sexp_of, hash, equal]
+
   type pred = { arity: int;
                 arg_tts: (string * Dom.tt) list;
                 enftype: EnfType.t;
-                rank: int } [@@deriving compare, sexp_of, hash]
+                rank: int;
+                kind: pred_kind } [@@deriving compare, sexp_of, hash]
 
   type ty = Pred of pred | Func of Funcs.t (*[@@deriving compare, sexp_of, hash]*)
                                   
@@ -74,19 +77,17 @@ module Sig : sig
 
   val table: t
 
-  val add_pred: string -> (string * Dom.tt) list -> EnfType.t -> int -> unit
+  val add_pred: string -> (string * Dom.tt) list -> EnfType.t -> int -> pred_kind -> unit
 
   val add_func: string -> (string * Dom.tt) list -> Dom.tt -> Funcs.kind -> unit
 
   val update_enftype: string -> EnfType.t -> unit
 
   val vars_of_pred: string -> string list
-
   val arg_tts_of_pred: string -> Dom.tt list
-
   val enftype_of_pred: string -> EnfType.t
-
   val rank_of_pred: string -> int
+  val kind_of_pred: string -> pred_kind
 
   val print_table: unit -> unit
 

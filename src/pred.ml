@@ -102,16 +102,21 @@ module EnfType = struct
 
 end
 
-let tp_event_name = "~tp"
+let tilde_tp_event_name = "~tp"
 let tick_event_name = "tick"
+let tp_event_name = "tp"
+let ts_event_name = "ts"
 
 
 module Sig = struct
 
+  type pred_kind = Trace | Predicate | External | Builtin [@@deriving compare, sexp_of, hash, equal]
+    
   type pred = { arity: int;
                 arg_tts: (string * Dom.tt) list;
                 enftype: EnfType.t;
-                rank: int } [@@deriving compare, sexp_of, hash]
+                rank: int;
+                kind: pred_kind } [@@deriving compare, sexp_of, hash]
 
   let string_of_pred name pred =
     let f acc (var, tt) = acc ^ "," ^ var ^ ":" ^ (Dom.tt_to_string tt) in
@@ -148,14 +153,21 @@ module Sig = struct
   let table: t =
     let table = Hashtbl.of_alist_exn (module String)
                   (List.map Funcs.builtins ~f:(fun (k,v) -> (k, Func v))) in
-    Hashtbl.add_exn table ~key:tp_event_name
-      ~data:(Pred { arity = 0; arg_tts = []; enftype = Cau; rank = 0 });
+    Hashtbl.add_exn table ~key:tilde_tp_event_name
+      ~data:(Pred { arity = 0; arg_tts = []; enftype = Cau; rank = 0; kind = Trace });
     Hashtbl.add_exn table ~key:tick_event_name
-      ~data:(Pred { arity = 0; arg_tts = []; enftype = Obs; rank = 0 });
+      ~data:(Pred { arity = 0; arg_tts = []; enftype = Obs; rank = 0; kind = Trace });
+    Hashtbl.add_exn table ~key:tp_event_name
+      ~data:(Pred { arity = 1; arg_tts = [("i", TInt)]; enftype = Obs; rank = 0; kind = Builtin });
+    Hashtbl.add_exn table ~key:ts_event_name
+      ~data:(Pred { arity = 1; arg_tts = [("t", TInt)]; enftype = Obs; rank = 0; kind = Builtin });
     table
   
-  let add_pred p_name arg_tts enftype rank =
-    Hashtbl.add_exn table ~key:p_name ~data:(Pred { arity = List.length arg_tts; arg_tts; enftype; rank })
+  let add_pred p_name arg_tts enftype rank kind =
+    if equal_pred_kind kind Predicate then
+      Hashtbl.add_exn table ~key:p_name ~data:(Func { arity = List.length arg_tts; arg_tts; ret_tt = TInt; kind = External })
+    else
+      Hashtbl.add_exn table ~key:p_name ~data:(Pred { arity = List.length arg_tts; arg_tts; enftype; rank; kind })
 
   let add_func f_name arg_tts ret_tt kind =
     Hashtbl.add_exn table ~key:f_name ~data:(Func { arity = List.length arg_tts; arg_tts; ret_tt; kind })
@@ -174,6 +186,8 @@ module Sig = struct
   let enftype_of_pred name = (unpred (Hashtbl.find_exn table name)).enftype
 
   let rank_of_pred name = (unpred (Hashtbl.find_exn table name)).rank
+
+  let kind_of_pred name = (unpred (Hashtbl.find_exn table name)).kind
 
   let func ff ds =
     let the_func = unfunc (Hashtbl.find_exn table ff) in

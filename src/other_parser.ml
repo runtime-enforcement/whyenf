@@ -198,6 +198,16 @@ module Sig = struct
                     parse_pred_sigs pb rank_ref
          | t -> raise (Failure ("unexpected character: " ^ string_of_token t))
       end
+    | PRD | EXT as tok -> begin
+        Parsebuf.next pb;
+        match pb.token with
+         | STR s -> Parsebuf.next pb;
+                    let arg_tts = convert_types (parse_arg_tts pb) in
+                    Pred.Sig.add_pred s arg_tts Pred.EnfType.Obs 0
+                      (match tok with PRD -> Predicate | EXT -> External);
+                    parse_pred_sigs pb rank_ref
+         | t -> raise (Failure ("unexpected character: " ^ string_of_token t))
+      end
     | STR s -> begin
         Parsebuf.next pb;
         let arg_tts = convert_types (parse_arg_tts pb) in
@@ -209,7 +219,7 @@ module Sig = struct
                               rank_ref + 1
                             else
                               rank_ref in
-        Pred.Sig.add_pred s arg_tts enftype rank;
+        Pred.Sig.add_pred s arg_tts enftype rank Trace;
         parse_pred_sigs pb (next_rank_ref)
       end
     | t -> raise (Failure ("unexpected character: " ^ string_of_token t))

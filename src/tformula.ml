@@ -39,7 +39,9 @@ let rec core_of_formula = function
   | TT -> TTT
   | FF -> TFF
   | EqConst (x, v) -> TEqConst (x, v)
-  | Predicate (e, t) -> TPredicate (e, t)
+  | Predicate (e, t) when not (Sig.equal_pred_kind (Sig.kind_of_pred e) Sig.Predicate) ->
+     TPredicate (e, t)
+  | Predicate (e, t) -> TEqConst (Term.App (e, t), Dom.Int 1)
   | Neg f -> TNeg (of_formula f)
   | And (s, f, g) -> TAnd (s, of_formula f, of_formula g)
   | Or (s, f, g) -> TOr (s, of_formula f, of_formula g)
@@ -137,7 +139,7 @@ and op_to_string f = op_to_string_core f.f
 let rec to_string_core_rec l = function
   | TTT -> Printf.sprintf "⊤"
   | TFF -> Printf.sprintf "⊥"
-  | TEqConst (trm, c) -> Printf.sprintf "%s = %s" (Term.to_string trm) (Dom.to_string c)
+  | TEqConst (trm, c) -> Printf.sprintf "%s = %s" (Term.value_to_string trm) (Dom.to_string c)
   | TPredicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
   | TNeg f -> Printf.sprintf "¬%a" (fun x -> to_string_rec 5) f
   | TAnd (s, f, g) -> Printf.sprintf (Etc.paren l 4 "%a ∧%a %a") (fun x -> to_string_rec 4) f (fun x -> Side.to_string) s (fun x -> to_string_rec 4) g
