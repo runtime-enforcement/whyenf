@@ -76,3 +76,13 @@ let to_json db =
             (List.rev(Set.fold db ~init:[] ~f:(fun acc evt ->
                           Event.to_json evt :: acc)))) ^ "] "
 
+let retrieve_external name =
+  let tts = Pred.Sig.arg_tts_of_pred name in
+  let dom_list_list = Funcs.Python.retrieve_db name tts in
+  let events: Event.t list = List.map dom_list_list (fun dom_list -> (name, dom_list)) in
+  create events
+
+let retrieve_builtin ts tp = function
+  | "tp" -> create [("tp", [Int tp])]
+  | "ts" -> create [("ts", [Int ts])]
+

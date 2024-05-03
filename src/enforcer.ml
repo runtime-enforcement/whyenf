@@ -201,7 +201,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
         Stdlib.flush_all ();*)
       match mf with
       | MTT -> es
-      | MPredicate (r, trms) ->
+      | MPredicate (r, trms) when Pred.Sig.equal_pred_kind (Pred.Sig.kind_of_pred r) Pred.Sig.Trace ->
          let new_cau = (r, List.map trms (fun trm -> Pred.Term.unconst (Pred.Sig.eval v trm))) in
          add_cau new_cau es
       | MNeg mf -> enfvio mf v es
@@ -248,7 +248,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
         Stdlib.flush_all ();*)
       match mf with
       | MFF -> es
-      | MPredicate (r, trms) ->
+      | MPredicate (r, trms) when Pred.Sig.equal_pred_kind (Pred.Sig.kind_of_pred r) Pred.Sig.Trace ->
          let new_sup = (r, List.map trms (fun trm -> match trm with
                                                      | Var x -> Map.find_exn v x
                                                      | Const c -> c)) in

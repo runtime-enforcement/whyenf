@@ -2210,9 +2210,13 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
          let l2 = Pdt.Leaf (Proof.V (Proof.make_veqconst tp trm d)) in
          let expl = Pdt.Node (trm, [(Setc.Complement (Set.of_list (module Dom) [d]), l2);
                                     (Setc.Finite (Set.of_list (module Dom) [d]), l1)]) in
+         (*print_endline (Pdt.to_string (Expl.Proof.to_string "") "" expl);*)
          ([expl], expl, MEqConst (trm, d))
-      | MPredicate (r, trms) ->
-         let db' = Set.filter db ~f:(fun evt -> String.equal r (fst(evt))) in
+      | MPredicate (r, trms) when not (Sig.equal_pred_kind (Sig.kind_of_pred r) Sig.Predicate) ->
+         let db' = match Sig.kind_of_pred r with
+           | Trace -> Set.filter db ~f:(fun evt -> String.equal r (fst(evt)))
+           | External -> Db.retrieve_external r
+           | Builtin -> Db.retrieve_builtin ts tp r in
          if List.is_empty trms then
            (let expl = if Set.is_empty db' then Pdt.Leaf (Proof.V (Proof.make_vpred tp r trms))
                        else Leaf (S (Proof.make_spred tp r trms)) in
@@ -2227,8 +2231,6 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
            let fv = Set.elements (Formula.terms (Predicate (r, trms))) in
            let fv_vars = List.filter vars ~f:(fun var -> List.mem fv var ~equal:Term.equal) in
            let expl = pdt_of tp r trms fv_vars maps' in
-           (*print_endline ("MPredicate " ^ r);
-           print_endline (CI.Expl.to_string expl);*)
            ([expl], expl, MPredicate (r, trms))
       | MNeg (mf) ->
          let (expls, aexpl, mf') = meval_rec vars ts tp db fobligs ~pol:(pol >>| FObligation.neg) mf in
@@ -2255,6 +2257,12 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
          (* Note: still not sure about this polarity change *)
          let (expls1, aexpl1, mf1') = meval_rec vars ts tp db ~pol:(pol >>| FObligation.neg) fobligs mf1 in
          let (expls2, aexpl2, mf2') = meval_rec vars ts tp db ~pol fobligs mf2 in
+         (*print_endline "MImp expls1:";
+         List.iter expls1 ~f:(fun expl -> print_endline (Pdt.to_string (Expl.Proof.to_string "") "" expl));
+         print_endline "MImp expls2:";
+         List.iter expls2 ~f:(fun expl -> print_endline (Pdt.to_string (Expl.Proof.to_string "") "" expl));
+         print_endline "MImp vars:";
+         List.iter vars ~f:(fun trm -> print_endline (Term.to_string trm));*)
          let f = Pdt.apply2_reduce Proof.equal vars (fun p1 p2 -> minp_list (do_imp p1 p2)) in
          let (f_expls, buf2') = Buf2.take f (Buf2.add expls1 expls2 buf2) in
          let aexpl = approx_expl2 aexpl1 aexpl2 vars tp mformula in
