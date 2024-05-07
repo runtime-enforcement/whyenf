@@ -51,6 +51,13 @@ let to_string name func =
     (String.drop_prefix (List.fold func.arg_tts ~init:"" ~f) 1)
     (Dom.tt_to_string func.ret_tt)
 
+let eq [x;y]  = Dom.Int (if x == y then 1 else 0)
+let neq [x;y] = Dom.Int (if x != y then 1 else 0)
+let lt [x;y] = Dom.Int (if x < y then 1 else 0)
+let leq [x;y] = Dom.Int (if x <= y then 1 else 0)
+let gt [x;y] = Dom.Int (if x > y then 1 else 0)
+let geq [x;y] = Dom.Int (if x >= y then 1 else 0)
+  
 let builtins =
   [
     ("eq",
@@ -58,14 +65,46 @@ let builtins =
        arity   = 2;
        arg_tts = [("x", Dom.TInt); ("y", Dom.TInt)];
        ret_tt  = Dom.TInt;
-       kind    = Builtin (fun [x;y] -> match x, y with Dom.Int i, Dom.Int j -> Int (if i == j then 1 else 0))
+       kind    = Builtin eq
     });
     ("neq",
      {
        arity   = 2;
        arg_tts = [("x", Dom.TInt); ("y", Dom.TInt)];
        ret_tt  = Dom.TInt;
-       kind    = Builtin (fun [x;y] -> match x, y with Dom.Int i, Dom.Int j -> Int (if i != j then 1 else 0))
+       kind    = Builtin neq
+    });
+    ("lt",
+     {
+       arity   = 2;
+       arg_tts = [("x", Dom.TInt); ("y", Dom.TInt)];
+       ret_tt  = Dom.TInt;
+       kind    = Builtin (fun [x;y] -> match x, y with Dom.Int i, Dom.Int j ->
+                                         Int (if i < j then 1 else 0))
+    });
+    ("leq",
+     {
+       arity   = 2;
+       arg_tts = [("x", Dom.TInt); ("y", Dom.TInt)];
+       ret_tt  = Dom.TInt;
+       kind    = Builtin (fun [x;y] -> match x, y with Dom.Int i, Dom.Int j ->
+                                         Int (if i <= j then 1 else 0))
+    });
+    ("gt",
+     {
+       arity   = 2;
+       arg_tts = [("x", Dom.TInt); ("y", Dom.TInt)];
+       ret_tt  = Dom.TInt;
+       kind    = Builtin (fun [x;y] -> match x, y with Dom.Int i, Dom.Int j ->
+                                         Int (if i > j then 1 else 0))
+    });
+    ("geq",
+     {
+       arity   = 2;
+       arg_tts = [("x", Dom.TInt); ("y", Dom.TInt)];
+       ret_tt  = Dom.TInt;
+       kind    = Builtin (fun [x;y] -> match x, y with Dom.Int i, Dom.Int j ->
+                                         Int (if i >= j then 1 else 0))
     });
     ("add",
      {
@@ -107,14 +146,46 @@ let builtins =
        arity   = 2;
        arg_tts = [("x", Dom.TFloat); ("y", Dom.TFloat)];
        ret_tt  = Dom.TInt;
-       kind    = Builtin (fun [x;y] -> match x, y with Dom.Float i, Dom.Float j -> Int (if i == j then 1 else 0))
+       kind    = Builtin eq
     });
     ("fneq",
      {
        arity   = 2;
        arg_tts = [("x", Dom.TFloat); ("y", Dom.TFloat)];
        ret_tt  = Dom.TInt;
-       kind    = Builtin (fun [x;y] -> match x, y with Dom.Float i, Dom.Float j -> Int (if i != j then 1 else 0))
+       kind    = Builtin neq
+    });
+    ("flt",
+     {
+       arity   = 2;
+       arg_tts = [("x", Dom.TFloat); ("y", Dom.TFloat)];
+       ret_tt  = Dom.TInt;
+       kind    = Builtin (fun [x;y] -> match x, y with Dom.Float i, Dom.Float j ->
+                                         Int (if Float.(i < j) then 1 else 0))
+    });
+    ("fleq",
+     {
+       arity   = 2;
+       arg_tts = [("x", Dom.TFloat); ("y", Dom.TFloat)];
+       ret_tt  = Dom.TInt;
+       kind    = Builtin (fun [x;y] -> match x, y with Dom.Float i, Dom.Float j ->
+                                         Int (if Float.(i <= j) then 1 else 0))
+    });
+    ("fgt",
+     {
+       arity   = 2;
+       arg_tts = [("x", Dom.TFloat); ("y", Dom.TFloat)];
+       ret_tt  = Dom.TInt;
+       kind    = Builtin (fun [x;y] -> match x, y with Dom.Float i, Dom.Float j ->
+                                         Int (if Float.(i > j) then 1 else 0))
+    });
+    ("fgeq",
+     {
+       arity   = 2;
+       arg_tts = [("x", Dom.TFloat); ("y", Dom.TFloat)];
+       ret_tt  = Dom.TInt;
+       kind    = Builtin (fun [x;y] -> match x, y with Dom.Float i, Dom.Float j ->
+                                         Int (if Float.(i >= j) then 1 else 0))
     });
     ("fadd",
      {
@@ -156,14 +227,14 @@ let builtins =
        arity   = 2;
        arg_tts = [("x", Dom.TStr); ("y", Dom.TStr)];
        ret_tt  = Dom.TInt;
-       kind    = Builtin (fun [x;y] -> match x, y with Dom.Str i, Dom.Str j -> Int (if i == j then 1 else 0))
+       kind    = Builtin eq
     });
     ("sneq",
      {
        arity   = 2;
        arg_tts = [("x", Dom.TStr); ("y", Dom.TStr)];
        ret_tt  = Dom.TInt;
-       kind    = Builtin (fun [x;y] -> match x, y with Dom.Str i, Dom.Str j -> Int (if i != j then 1 else 0))
+       kind    = Builtin neq
     });
     ("conc",
      {

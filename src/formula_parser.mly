@@ -31,6 +31,7 @@ let debug m = if !debug then Stdio.print_endline ("[debug] formula_parser: " ^ m
 %token FALSE
 %token TRUE
 %token EQCONST
+%token LT GT
 %token NEG
 %token AND
 %token OR
@@ -48,6 +49,13 @@ let debug m = if !debug then Stdio.print_endline ("[debug] formula_parser: " ^ m
 %token UNTIL
 %token RELEASE
 %token TRIGGER
+
+%token ADD SUB MUL DIV CONC
+
+
+%left ADD SUB
+%left MUL DIV
+%left CONC
 
 %nonassoc INTERVAL
 %right SINCE UNTIL RELEASE TRIGGER
@@ -122,9 +130,32 @@ sides:
 | COL STR COMMA STR                    { debug "COL STR COMMA STR"; (Side.of_string $2, Side.of_string $4) }
 
 term:
-| const                                { debug "CONST"; $1 }
-| STR                                  { debug "VAR"; Pred.Term.Var $1 }
-| STR LPA terms RPA                    { debug "APP"; Pred.Term.App ($1, $3) }
+| LPA term RPA             { debug "LPA term RPA"; $2 }
+| const                    { debug "const"; $1 }
+| STR                      { debug "STR"; Pred.Term.Var $1 }
+| STR LPA terms RPA        { debug "STR LPA terms RPA"; Pred.Term.App ($1, $3) }
+| term ADD term            { debug "term ADD term"; Pred.Term.App ("add", [$1; $3]) }
+| term SUB term            { debug "term SUB term"; Pred.Term.App ("sub", [$1; $3]) }
+| term MUL term            { debug "term MUL term"; Pred.Term.App ("mul", [$1; $3]) }
+| term DIV term            { debug "term DIV term"; Pred.Term.App ("div", [$1; $3]) }
+| term EQCONST EQCONST term { debug "term EQ EQ term"; Pred.Term.App ("eq", [$1; $4]) }
+| term LT GT term          { debug "term LT GT term"; Pred.Term.App ("neq", [$1; $4]) }
+| term LT term             { debug "term LT term"; Pred.Term.App ("lt", [$1; $3]) }
+| term LT EQCONST term     { debug "term LT EQCONST term"; Pred.Term.App ("leq", [$1; $4]) }
+| term GT term             { debug "term GT term"; Pred.Term.App ("gt", [$1; $3]) }
+| term GT EQCONST term     { debug "term GT EQCONST term"; Pred.Term.App ("geq", [$1; $4]) }
+| term ADD DOT term        { debug "term ADD DOT term"; Pred.Term.App ("fadd", [$1; $4]) }
+| term SUB DOT term        { debug "term SUB DOT term"; Pred.Term.App ("fsub", [$1; $4]) }
+| term MUL DOT term        { debug "term MUL DOT term"; Pred.Term.App ("fmul", [$1; $4]) }
+| term MUL MUL term        { debug "term MUL MUL term"; Pred.Term.App ("pow", [$1; $4]) }
+| term DIV DOT term        { debug "term DIV DOT term"; Pred.Term.App ("fdiv", [$1; $4]) }
+| term EQCONST EQCONST DOT term { debug "term EQ EQ DOT term"; Pred.Term.App ("feq", [$1; $5]) }
+| term LT GT DOT term      { debug "term LT GT DOT term"; Pred.Term.App ("fneq", [$1; $5]) }
+| term LT DOT term         { debug "term LT DOT term"; Pred.Term.App ("flt", [$1; $4]) }
+| term LT EQCONST DOT term { debug "term LT EQCONST DOT term"; Pred.Term.App ("fleq", [$1; $5]) }
+| term GT DOT term         { debug "term GT DOT term"; Pred.Term.App ("fgt", [$1; $4]) }
+| term GT EQCONST DOT term { debug "term GT EQCONST DOT term"; Pred.Term.App ("fgeq", [$1; $5]) }
+| term CONC term           { debug "term CONC term"; Pred.Term.App ("conc", [$1; $3]) }
 
 const:
 | INT                                  { debug "INT"; Pred.Term.Const (Int $1) }
