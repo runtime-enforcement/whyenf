@@ -1,1 +1,1 @@
-ALWAYS (FORALL x. (A(x,x) AND D(x) AND ts(3)) IMPLIES B(add(foo(x), add(x, x))))
+ALWAYS (FORALL x. (A(x,x=2) AND D(x) AND ts(3)) IMPLIES B(add(foo(x), add(x, x))))

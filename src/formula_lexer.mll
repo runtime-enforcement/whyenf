@@ -38,9 +38,16 @@ rule token = parse
   | ','                                           { debug "COMMA"; COMMA }
   | '.'                                           { debug "DOT"; DOT }
   | ':'                                           { debug "COL"; COL }
+  | '+'                                           { debug "ADD"; ADD }
+  | '-'                                           { debug "SUB"; SUB }
+  | '*'                                           { debug "MUL"; MUL }
+  | '/'                                           { debug "DIV"; DIV }
+  | '^'                                           { debug "CONC"; CONC }
   | "false" | "⊥"                                 { debug "FALSE"; FALSE }
   | "true" | "⊤"                                  { debug "TRUE"; TRUE }
   | "="                                           { debug "EQCONST"; EQCONST }
+  | "<"                                           { debug "LT"; EQCONST }
+  | ">"                                           { debug "GT"; EQCONST }
   | "¬" | "NOT"                                   { debug "NEG"; NEG }
   | "∧" | "AND"                                   { debug "AND"; AND }
   | "∨" | "OR"                                    { debug "OR"; OR }

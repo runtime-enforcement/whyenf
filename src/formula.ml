@@ -158,7 +158,8 @@ let rec fv = function
 let rec terms = function
   | TT | FF -> Set.empty (module Term)
   | EqConst (trm, c) -> Set.singleton (module Term) trm
-  | Predicate (x, trms) -> Set.of_list (module Term) trms
+  | Predicate (x, trms) -> Set.filter (Set.of_list (module Term) trms)
+                             ~f:(function Const _ -> false | _ -> true)
   | Exists (x, _, f)
     | Forall (x, _, f) ->
      Set.filter (terms f)
