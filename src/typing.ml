@@ -416,7 +416,7 @@ let strict f =
   let rec _strict itv fut (f: Tformula.t) =
     ((Zinterval.mem 0 itv) && fut)
     || (match f.f with
-        | TEqConst (_, _) | TPredicate _ -> false
+        | TTT | TFF | TEqConst (_, _) | TPredicate _ -> false
         | TNeg f | TExists (_, _, f) | TForall (_, _, f) -> _strict itv fut f
         | TAnd (_, f1, f2) | TOr (_, f1, f2) | TImp (_, f1, f2) | TIff (_, _, f1, f2)
           -> (_strict itv fut f1) || (_strict itv fut f2)
