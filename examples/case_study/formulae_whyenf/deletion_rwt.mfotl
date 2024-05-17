@@ -1,1 +1,1 @@
-□ ¬(∃data. ∃dataid. ∃dsid. ds_deletion_request(data, dataid, dsid) ∧ ¬(⊤ U[0,30] delete(data, dataid, dsid)))
+¬(⊤ U (∃data. ∃dataid. ∃dsid. ds_deletion_request(data, dataid, dsid) ∧ ¬(⊤ U[0,30] delete(data, dataid, dsid))))
