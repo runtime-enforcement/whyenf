@@ -441,7 +441,7 @@ let strictly_relative_past f =
 
 let is_transparent (f: Tformula.t) =
   let rec aux (f: Tformula.t) =
-    (*print_endline (Tformula.to_string f);*)
+    print_endline (Tformula.to_string f);
     match f.enftype with
     | Cau -> begin
         match f.f with
@@ -477,8 +477,8 @@ let is_transparent (f: Tformula.t) =
           -> aux f && aux g
         | TSince (L, _, f, g) -> aux f && strictly_relative_past g
         | TSince (R, _, f, g) -> aux f && aux g
-        | TUntil (R, _, _, f, g) -> aux f && strictly_relative_past g
-        | TUntil (_, _, _, f, g) -> aux g && strictly_relative_past f
+        | TUntil (R, _, _, f, g) -> aux g && strictly_relative_past f
+        | TUntil (_, _, _, f, g) -> aux f && strictly_relative_past g
         | _ -> false
       end
   in
