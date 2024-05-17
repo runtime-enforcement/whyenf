@@ -292,7 +292,7 @@ let rec convert b enftype form : Tformula.t option =
         | Until (LR, i, f, g) ->
            (convert Cau f) >>= (fun f' -> (convert Cau g) >>| (fun g' -> Tformula.TUntil (LR, set_b i, Interval.is_bounded i, f', g')))
         | Until (_, i, f, g) when Interval.mem 0 i ->
-           (convert Cau g) >>| (fun g' -> Tformula.TUntil (LR, set_b i, Interval.is_bounded i, Tformula.of_formula f, g'))
+           (convert Cau g) >>| (fun g' -> Tformula.TUntil (R, set_b i, Interval.is_bounded i, Tformula.of_formula f, g'))
         | Until (L, i, f, g) ->
            (convert Cau g) >>| (fun g' -> Tformula.TUntil (LR, set_b i, Interval.is_bounded i, Tformula.of_formula f, g'))
         | _ -> None
@@ -354,8 +354,9 @@ let rec convert b enftype form : Tformula.t option =
     | Obs -> Some (Tformula.of_formula form).f
     | CauSup -> assert false
   in
-  (*Stdio.print_string (EnfType.to_string enftype ^ " " ^ Formula.to_string form ^ " -> ");*)
-  match f with Some f -> Some Tformula.{ f; enftype } | None -> None
+  let r = (match f with Some f -> Some Tformula.{ f; enftype } | None -> None) in
+  (*Stdio.print_string (EnfType.to_string enftype ^ " " ^ Formula.to_string form ^ " -> " ^ (match r with Some r -> Tformula.to_string r | None -> "") ^ "\n");*)
+  r
 
 let do_type f b =
   Formula.check_types f;
@@ -440,6 +441,7 @@ let strictly_relative_past f =
 
 let is_transparent (f: Tformula.t) =
   let rec aux (f: Tformula.t) =
+    (*print_endline (Tformula.to_string f);*)
     match f.enftype with
     | Cau -> begin
         match f.f with
@@ -456,7 +458,7 @@ let is_transparent (f: Tformula.t) =
         | TAnd (_, f, g) | TIff (_, _, f, g)
           -> aux f && aux g
         | TSince (_, _, f, g) -> aux f && strictly_relative_past g
-        | TUntil (R, _, b, f, g) -> b && aux f && strictly_relative_past g
+        | TUntil (R, _, b, f, g) -> b && aux g && strictly_relative_past f
         | TUntil (LR, _, b, f, g) -> b && aux f && aux g
         | _ -> false
       end
