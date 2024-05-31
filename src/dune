@@ -2,11 +2,10 @@
  (modules other_lexer formula_lexer))
 
 (menhir
- (modules formula_parser))
- ;; debug (flags --explain --inspection --table --dump))
+ (modules formula_parser)
+ (explain true))
 
 (library
  (name monitor_lib)
  (libraries core_kernel base zarith unix pyml)
- ;; debug menhirLib
  (preprocess (pps ppx_jane)))

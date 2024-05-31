@@ -144,3 +144,8 @@ let _print s f x =
   Stdlib.flush_all ();
   x
 
+let rec reorder equal l = function
+  | [] -> []
+  | h::t when not (List.mem l h ~equal) -> reorder equal l t
+  | h::t -> h :: (reorder equal (List.filter l (fun x -> not (equal x h))) t)
+  

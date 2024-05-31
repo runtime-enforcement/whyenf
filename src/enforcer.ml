@@ -14,7 +14,7 @@ open Etc
 
 module type EnforcerT = sig
 
-  val exec: Formula.t -> in_channel -> int -> unit
+  val exec: Formula.t -> in_channel -> Time.t -> unit
 
 end
 
@@ -69,7 +69,6 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
              ; r : Triple.t
              ; fobligs: FObligations.t
              ; nick: bool
-             ; vars: string list
              }
 
     let to_string { ms
@@ -93,8 +92,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
                        r = Triple.empty;
                        fobligs = Set.singleton (module FObligation)
                                    (FFormula (mf, -1), Base.Map.empty (module Base.String), POS);
-                       nick = false;
-                       vars = Set.elements (MFormula.fv mf) }
+                       nick = false; }
 
     let update r es =
       { es with db      = Triple.update_db es.db r;
@@ -141,7 +139,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
 
     let vio v mf es =
       sat v (MNeg mf) es
-
+    
     let all_not_sat v x mf es =
       (*print_endline "all_not_sat.begin";
       print_endline (Etc.valuation_to_string v);
@@ -186,13 +184,13 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       List.fold_left (List.map (all_not_vio v x mf es) ~f:enfs) ~init:es ~f:combine
 
     and enfvio_until i h mf1 mf2 =
-      let test1 = if Interval.mem 0 i then vio else (fun _ _ _ -> true) in
-      let enf2 mf2 v es = add_foblig (FUntil (es.ts, LR, i, mf1, mf2, h), v, NEG) es in
+      let test1 = if Interval.has_zero i then vio else (fun _ _ _ -> true) in
+      let enf2 mf2 v es = add_foblig (FUntil (Time.of_timestamp es.ts, LR, i, mf1, mf2, h), v, NEG) es in
       lr test1 sat enfvio enf2 mf1 mf2
 
     and enfvio_eventually i h mf v es =
-      let test1 = if Interval.mem 0 i then vio else (fun _ _ _ -> true) in
-      let es = add_foblig (FEventually (es.ts, i, mf, h), v, NEG) es in
+      let test1 = if Interval.has_zero i then vio else (fun _ _ _ -> true) in
+      let es = add_foblig (FEventually (Time.of_timestamp es.ts, i, mf, h), v, NEG) es in
       enfvio mf v es
 
     and enfsat (mf: MFormula.t) v es =
@@ -217,27 +215,27 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
                      (MImp (side1, mf2, mf1, empty_binop_info)) v) es
       | MExists (x, tt, mf) -> enfsat mf (Map.add_exn v ~key:x ~data:(Dom.tt_default tt)) es
       | MForall (x, tt, mf) -> fixpoint (enfsat_forall x mf v) es
-      | MENext (i, mf, h) -> add_foblig (FInterval (es.ts, i, mf, h), v, POS) es
+      | MENext (i, mf, h) -> add_foblig (FInterval (Time.of_timestamp es.ts, i, mf, h), v, POS) es
       | MEEventually (i, mf, h) ->
-         if Interval.equal i (Interval.singleton 0) && es.nick then
+         if Interval.is_zero i && es.nick then
            enfsat mf v es
          else
-           add_foblig (FEventually (es.ts, i, mf, h), v, POS) es
+           add_foblig (FEventually (Time.of_timestamp es.ts, i, mf, h), v, POS) es
       | MEAlways (i, mf, h) ->
-         add_foblig (FAlways (es.ts, i, mf, h), v, POS) (enfsat mf v es)
+         add_foblig (FAlways (Time.of_timestamp es.ts, i, mf, h), v, POS) (enfsat mf v es)
       | MSince (_, _, mf1, mf2, _, _) -> enfsat mf2 v es
       | MEUntil (R, i, mf1, mf2, h) ->
-         if Interval.equal i (Interval.singleton 0) && es.nick then
+         if Interval.is_zero i && es.nick then
            add_cau Db.Event._tp (enfsat mf2 v es)
          else if not (sat v mf1 es) then
            enfsat mf2 v es
          else
-           add_foblig (FUntil (es.ts, LR, i, mf1, mf2, h), v, POS) (enfsat mf1 v es)
+           add_foblig (FUntil (Time.of_timestamp es.ts, LR, i, mf1, mf2, h), v, POS) (enfsat mf1 v es)
       | MEUntil (LR, i, mf1, mf2, h) ->
-         if Interval.equal i (Interval.singleton 0) && es.nick then
+         if Interval.is_zero i && es.nick then
            add_cau Db.Event._tp (enfsat mf2 v es)
          else
-           add_foblig (FUntil (es.ts, LR, i, mf1, mf2, h), v, POS) (enfsat mf1 v es)
+           add_foblig (FUntil (Time.of_timestamp es.ts, LR, i, mf1, mf2, h), v, POS) (enfsat mf1 v es)
       | MAnd (LR, _, _, _) -> raise (Invalid_argument ("side for " ^
                                                          MFormula.op_to_string mf ^ " was not fixed"))
       | _ -> raise (Invalid_argument ("function enfsat is not defined for "
@@ -264,13 +262,13 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       | MIff (R, _, mf1, mf2, _) -> fixpoint (enfvio_imp mf2 mf1 v) es
       | MExists (x, tt, mf) -> fixpoint (enfvio_exists x mf v) es
       | MForall (x, tt, mf) -> enfvio mf (Map.add_exn v ~key:x ~data:(Dom.tt_default tt)) es
-      | MENext (i, mf, h) -> add_foblig (FInterval (es.ts, i, mf, h), v, NEG) es
+      | MENext (i, mf, h) -> add_foblig (FInterval (Time.of_timestamp es.ts, i, mf, h), v, NEG) es
       | MEEventually (i, mf, h) -> enfvio_eventually i h mf v es
       | MEAlways (i, mf, h) ->
-         if Interval.equal i (Interval.singleton 0) && es.nick then
+         if Interval.is_zero i && es.nick then
            enfvio mf v es
          else
-           add_foblig (FAlways (es.ts, i, mf, h), v, NEG) es
+           add_foblig (FAlways (Time.of_timestamp es.ts, i, mf, h), v, NEG) es
       | MSince (L, _, mf1, _, _, _) -> enfvio mf1 v es
       | MSince (R, i, mf1, mf2, _, _) ->
          let f' = MNeg (MAnd (R, mf1, mf, empty_binop_info)) in
@@ -314,18 +312,23 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
   end
 
   let goal (es: EState.t) =
-    let obligs = List.map (Set.elements es.fobligs) ~f:(FObligation.eval es.ts es.tp) in
+    let obligs = List.map (Set.elements es.fobligs) ~f:(FObligation.eval (Time.of_timestamp es.ts) es.tp) in
     let mf = match obligs with
       | [] -> MFormula.MTT
       | init::rest -> List.fold_left rest ~init ~f:(fun mf mg -> MAnd (L, mf, mg, empty_binop_info)) in
     let vars = Set.elements (MFormula.terms mf) in
-    match (mstep Out.ENFORCE vars es.ts es.db false { es.ms with mf } es.fobligs)
+    match (mstep Out.ENFORCE vars es.ts es.db true { es.ms with mf } es.fobligs)
     with (_, _, ms) -> (*Stdio.printf "b\n"; Stdlib.flush_all (); *)ms.mf
 
 
   (* (NOT-SO-URGENT) TODO: other execution mode with automatic timestamps; Pdts everywhere *)
   let exec f inc b =
     let reactive_step new_db es =
+      (*print_endline "reactive_step";
+      print_endline "new_db=";
+      print_endline (Db.to_string new_db);
+      print_endline "es.db=";
+      print_endline (Db.to_string EState.(es.db));*)
       let mf = goal es in
       (*print_endline (MFormula.to_string mf);*)
       let vars = Set.elements (MFormula.fv mf) in
@@ -334,10 +337,12 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
                          db      = Db.add_event new_db Db.Event._tp;
                          fobligs = FObligations.empty;
                          nick    = false } in
+      (*print_endline "ready ot call enf";*)
       let es = EState.enf mf es in
       Order.ReOrd (Triple.cau es.r, Triple.sup es.r), es
     in
     let proactive_step es =
+      (*print_endline "proactive_step";*)
       let mf = goal es in
       let vars = Set.elements (MFormula.fv mf) in
       let es' = { es with ms      = { es.ms with tp_cur = es.tp };
@@ -379,6 +384,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
         es
     in
     let rec step first pb_opt (es: EState.t) =
+      (*print_endline "step";*)
       let conclude (pb: Other_parser.Parsebuf.t) es =
         let _ = process_db { pb with ts = -1; db = Db.create [] } es
         in ()
@@ -403,7 +409,8 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       try Typing.is_transparent tf
       with Invalid_argument s -> print_endline s; false in
     let f = Tformula.to_formula tf in
-    let mf = Monitor.MFormula.init tf in
+    let trms = Set.elements (Formula.terms f) in
+    let mf = Monitor.MFormula.init trms tf in
     let ms = Monitor.MState.init mf in
     let es = EState.init ms mf in
     step true None es

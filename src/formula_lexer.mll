@@ -36,6 +36,7 @@ rule token = parse
   | blank                                         { token lexbuf }
   | '#'                                           { debug "skip_line"; skip_line lexbuf }
   | ','                                           { debug "COMMA"; COMMA }
+  | ';'                                           { debug "SEMICOLON"; SEMICOLON }
   | '.'                                           { debug "DOT"; DOT }
   | ':'                                           { debug "COL"; COL }
   | '+'                                           { debug "ADD"; ADD }
@@ -45,9 +46,9 @@ rule token = parse
   | '^'                                           { debug "CONC"; CONC }
   | "false" | "⊥"                                 { debug "FALSE"; FALSE }
   | "true" | "⊤"                                  { debug "TRUE"; TRUE }
-  | "="                                           { debug "EQCONST"; EQCONST }
-  | "<"                                           { debug "LT"; EQCONST }
-  | ">"                                           { debug "GT"; EQCONST }
+  | '='                                           { debug "EQCONST"; EQCONST }
+  | '<'                                           { debug "LT"; EQCONST }
+  | '>'                                           { debug "GT"; EQCONST }
   | "¬" | "NOT"                                   { debug "NEG"; NEG }
   | "∧" | "AND"                                   { debug "AND"; AND }
   | "∨" | "OR"                                    { debug "OR"; OR }
@@ -65,10 +66,18 @@ rule token = parse
   | "EVENTUALLY" | "F" | "◊"                      { debug "EVENTUALLY"; EVENTUALLY }
   | "GLOBALLY_PAST" | "HISTORICALLY" | "■"        { debug "HISTORICALLY"; HISTORICALLY }
   | "ONCE" | "⧫"                                  { debug "ONCE"; ONCE }
-  | (['(' '['] as l) blank* (digits as i) blank* ',' blank* ((digits | "INFINITY" | "∞" | "*") as j) blank* ([')' ']'] as r)
-                                                  { debug "INTERVAL"; INTERVAL (make_interval lexbuf l i j r) }
+  | "SUM"                                         { debug "SUM"; SUM }
+  | "AVG"                                         { debug "AVG"; AVG }
+  | "MED"                                         { debug "MED"; MED }
+  | "CNT"                                         { debug "CNT"; CNT }
+  | "MIN"                                         { debug "MIN"; MIN }
+  | "MAX"                                         { debug "MAX"; MAX }
+  | (['(' '['] as l) blank* (digits as i) blank* (string? as u) blank* ',' blank* ((digits | "INFINITY" | "∞" | "*") as j) blank* (string? as v) blank* ([')' ']'] as r)
+                                                  { debug "INTERVAL"; INTERVAL (make_interval lexbuf l i u j v r) }
   | "("                                           { debug "LPA"; LPA }
   | ")"                                           { debug "RPA"; RPA }
+  | "{"                                           { debug "LBR"; LPA }
+  | "}"                                           { debug "RBR"; RPA }
   | digits as d                                   { debug ("INT " ^ d); INT (Base.Int.of_string d) }
   | string as s                                   { debug ("STR " ^ s); STR s }
   | quoted_string as qs                           { debug ("QSTR " ^ qs); QSTR qs }

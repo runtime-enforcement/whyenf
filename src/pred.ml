@@ -17,6 +17,10 @@ module Term = struct
 
     type t = Var of string | Const of Dom.t | App of string * t list [@@deriving compare, sexp_of, hash]
 
+    let var x = Var x
+    let const d = Const d
+    let app f trms = App (f, trms)
+
     let unvar = function
       | Var x -> x
       | Const _ -> raise (Invalid_argument "unvar is undefined for Consts")
@@ -54,6 +58,13 @@ module Term = struct
       | App (f, ts) -> Printf.sprintf "%s(%s)" f (String.concat ~sep:", " (List.map ts ~f:value_to_string))
 
     let rec list_to_string trms = String.concat ~sep:", " (List.map trms ~f:value_to_string)
+
+    let filter_vars = List.filter_map ~f:(function Var x -> Some x | _ -> None)
+
+    let rec reorder l = function
+      | [] -> l
+      | h::t when not (List.mem l (Var h) ~equal) -> reorder l t
+      | h::t -> (Var h) :: (reorder (List.filter l (fun x -> not (equal x (Var h)))) t)
 
   end
 
@@ -219,6 +230,11 @@ module Sig = struct
   and var_tt_of_terms x tts trms =
     List.find_map (List.zip_exn tts trms)
       ~f:(fun (tt, trm) -> var_tt_of_term x tt trm)
+
+  let rec var_tt_of_term_exn vt = function
+    | Term.Var x -> Map.find_exn vt x
+    | Const d -> Dom.tt_of_domain d
+    | App (f, _) -> ret_tt_of_func f
 
 end
 

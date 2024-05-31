@@ -273,9 +273,9 @@ module Checker_interface = struct
 
   let convert_interval = function
     | Interval.B bi -> (match bi with
-                        | BI (l, r) -> interval (nat_of_int l) (Enat (nat_of_int r)))
+                        | BI (l, r) -> interval (nat_of_int (Time.to_int l)) (Enat (nat_of_int (Time.to_int r))))
     | U ui -> (match ui with
-               | UI l -> interval (nat_of_int l) Infinity_enat)
+               | UI l -> interval (nat_of_int (Time.to_int l)) Infinity_enat)
 
   let rec convert_f = function
     | Formula.TT -> TT
@@ -287,8 +287,8 @@ module Checker_interface = struct
     | And (s, f, g) -> And (convert_f f, convert_f g)
     | Imp (s, f, g) -> Imp (convert_f f, convert_f g)
     | Iff (s, t, f, g) -> Iff (convert_f f, convert_f g)
-    | Exists (x, _, f) -> Exists (x, convert_f f)
-    | Forall (x, _, f) -> Forall (x, convert_f f)
+    | Exists (x, f) -> Exists (x, convert_f f)
+    | Forall (x, f) -> Forall (x, convert_f f)
     | Prev (i, f) -> Prev (convert_interval i, convert_f f)
     | Next (i, f) -> Next (convert_interval i, convert_f f)
     | Once (i, f) -> Once (convert_interval i, convert_f f)

@@ -1,3 +1,4 @@
+
 (*******************************************************************)
 (*     This is part of WhyMon, and it is distributed under the     *)
 (*     terms of the GNU Lesser General Public License version 3    *)
@@ -7,7 +8,7 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
-open Core
+(*open Core*)
 open Base
 open Etc
 open Expl
@@ -38,8 +39,9 @@ module type MonitorT = sig
     type t =
       | MTT
       | MFF
-      | MEqConst      of Pred.Term.t * Dom.t
-      | MPredicate    of string * Pred.Term.t list
+      | MEqConst      of Term.t * Dom.t
+      | MPredicate    of string * Term.t list
+      | MAgg          of string * Aggregation.op * Aggregation.op_fun * Term.t list * Term.t * string list * t
       | MNeg          of t
       | MAnd          of Formula.Side.t * t * t * binop_info
       | MOr           of Formula.Side.t * t * t * binop_info
@@ -60,7 +62,7 @@ module type MonitorT = sig
       | MUntil        of Interval.t * t * t * buf2t_info * until_info
       | MEUntil       of Formula.Side.t * Interval.t * t * t * int
 
-    val init: Tformula.t -> t
+    val init: Pred.Term.t list -> Tformula.t -> t
     val rank: t -> int
 
     val apply_valuation : Etc.valuation -> t -> t
@@ -83,15 +85,15 @@ module type MonitorT = sig
 
     type kind =
       | FFormula of MFormula.t * int                       (* fun _ -> f *)
-      | FInterval of int * Interval.t * MFormula.t * int   (* fun t -> if mem t i then f else Formula.TT *)
-      | FUntil of int * Formula.Side.t * Interval.t * MFormula.t * MFormula.t * int (* fun t -> Until (s, sub2 i (t-t0), f1, f2) *)
-      | FAlways of int * Interval.t * MFormula.t * int     (* fun t -> Always (sub2 i (t-t0), f1) *)
-      | FEventually of int * Interval.t * MFormula.t * int (* fun t -> Eventually (sub2 i (t-t0), f1) *)
+      | FInterval of Time.t * Interval.t * MFormula.t * int   (* fun t -> if mem t i then f else Formula.TT *)
+      | FUntil of Time.t * Formula.Side.t * Interval.t * MFormula.t * MFormula.t * int (* fun t -> Until (s, sub2 i (t-t0), f1, f2) *)
+      | FAlways of Time.t * Interval.t * MFormula.t * int     (* fun t -> Always (sub2 i (t-t0), f1) *)
+      | FEventually of Time.t * Interval.t * MFormula.t * int (* fun t -> Eventually (sub2 i (t-t0), f1) *)
 
     type t = kind * Etc.valuation * polarity
 
     val equal: t -> t -> bool
-    val eval: int -> int -> t -> MFormula.t
+    val eval: Time.t -> int -> t -> MFormula.t
     val to_string: t -> string
 
     include Comparable.S with type t := t
@@ -206,8 +208,8 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       match Fdeque.dequeue_front d with
       | None -> (d, nd)
       | Some(el', d') -> let ts = get_ts el' in
-                         if ts <= r then
-                           (if ts >= l then
+                         if Time.(ts <= r) then
+                           (if Time.(l <= ts) then
                               split_in_out_rec d' (Fdeque.enqueue_back nd el')
                             else split_in_out_rec d' nd)
                          else (d, nd) in
@@ -220,8 +222,8 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       match Fdeque.dequeue_front d with
       | None -> (nd, d)
       | Some(el', d') -> let ts = get_ts el' in
-                         if ts < l then
-                           (if ts >= z then
+                         if Time.(ts < l) then
+                           (if Time.(z <= ts) then
                               split_out_in_rec d' (Fdeque.enqueue_back nd el')
                             else split_out_in_rec d' nd)
                          else (nd, d) in
@@ -236,9 +238,9 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
 
   let ready_tstps b nts tstps_out tstps_in =
     let tstps' = Fdeque.fold tstps_out ~init:Fdeque.empty ~f:(fun tstps (ts, tp) ->
-                     if ts + b < nts then Fdeque.enqueue_back tstps (ts, tp) else tstps) in
+                     if Time.(ts + b < nts) then Fdeque.enqueue_back tstps (ts, tp) else tstps) in
     Fdeque.fold tstps_in ~init:tstps' ~f:(fun tstps (ts, tp) ->
-        if ts + b < nts then Fdeque.enqueue_back tstps (ts, tp) else tstps)
+        if Time.(ts + b < nts) then Fdeque.enqueue_back tstps (ts, tp) else tstps)
 
   let first_ts_tp tstps_out tstps_in =
     match Fdeque.peek_front tstps_out with
@@ -258,40 +260,40 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       let first_ts = match first_ts_tp tstps_out tstps_in with
         | None -> raise (Failure "tstps deques are empty")
         | Some(ts', _) -> ts' in
-      if nts < first_ts + a then (Fdeque.enqueue_back tstps_out (nts, ntp), tstps_in)
+      if Time.(nts < first_ts + a) then (Fdeque.enqueue_back tstps_out (nts, ntp), tstps_in)
       else (tstps_out, Fdeque.enqueue_back tstps_in (nts, ntp))
     else
-      (if Int.equal a 0 then (tstps_out, Fdeque.enqueue_back tstps_in (nts, ntp))
+      (if Time.is_zero a then (tstps_out, Fdeque.enqueue_back tstps_in (nts, ntp))
        else (Fdeque.enqueue_back tstps_out (nts, ntp), tstps_in))
 
   let shift_tstps_future a first_ts ntp tstps_out tstps_in =
     let tstps_out' = Fdeque.fold tstps_in ~init:tstps_out ~f:(fun tstps_out' (ts', tp') ->
-                         if (ts' < first_ts + a) && (tp' < ntp) then
+                         if Time.(ts' < first_ts + a) && (tp' < ntp) then
                            Fdeque.enqueue_back tstps_out' (ts', tp')
                          else tstps_out') in
-    (remove_cond_front (fun (ts', tp') -> (ts' < first_ts) && (tp' < ntp)) tstps_out',
-     remove_cond_front (fun (ts', tp') -> (ts' < first_ts + a) && (tp' < ntp)) tstps_in)
+    (remove_cond_front (fun (ts', tp') -> Time.(ts' < first_ts) && (tp' < ntp)) tstps_out',
+     remove_cond_front (fun (ts', tp') -> Time.(ts' < first_ts + a) && (tp' < ntp)) tstps_in)
 
   let shift_tstps_past (l, r) a ts tp tstps_in tstps_out =
-    if a = 0 then
-      (remove_cond_front (fun (ts', _) -> ts' < l) (Fdeque.enqueue_back tstps_in (ts, tp)), tstps_out)
+    if Time.is_zero a then
+      (remove_cond_front (fun (ts', _) -> Time.(ts' < l)) (Fdeque.enqueue_back tstps_in (ts, tp)), tstps_out)
     else
       let tstps_out' = Fdeque.enqueue_back tstps_out (ts, tp) in
-      (remove_cond_front (fun (ts', _) -> ts' < l)
+      (remove_cond_front (fun (ts', _) -> Time.(ts' < l))
          (Fdeque.fold tstps_out' ~init:tstps_in ~f:(fun tstps_in' (ts', tp') ->
-              if ts' <= r then Fdeque.enqueue_back tstps_in' (ts', tp')
+              if Time.(ts' <= r) then Fdeque.enqueue_back tstps_in' (ts', tp')
               else tstps_in')),
-       remove_cond_front (fun (ts', _) -> ts' <= r) tstps_out')
+       remove_cond_front (fun (ts', _) -> Time.(ts' <= r)) tstps_out')
 
-  let tstps_to_string ts_zero tstps_in tstps_out =
+  let tstps_to_string (ts_zero: Time.t option) tstps_in tstps_out =
     (match ts_zero with
      | None -> ""
-     | Some(ts) -> Printf.sprintf "\n\tts_zero = (%d)\n" ts) ^
+     | Some(ts) -> Printf.sprintf "\n\tts_zero = (%s)\n" (Time.to_string ts)) ^
       Fdeque.fold tstps_in ~init:"\n\ttstps_in = ["
-        ~f:(fun acc (ts, tp) -> acc ^ (Printf.sprintf "(%d, %d);" ts tp)) ^
+        ~f:(fun acc (ts, tp) -> acc ^ (Printf.sprintf "(%s, %d);" (Time.to_string ts) tp)) ^
         (Printf.sprintf "]\n") ^
           Fdeque.fold tstps_out ~init:"\n\ttstps_out = ["
-            ~f:(fun acc (ts, tp) -> acc ^ (Printf.sprintf "(%d, %d);" ts tp)) ^
+            ~f:(fun acc (ts, tp) -> acc ^ (Printf.sprintf "(%s, %d);" (Time.to_string ts) tp)) ^
             (Printf.sprintf "]\n")
 
   module Buf2 = struct
@@ -369,13 +371,13 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
 
   module Once = struct
 
-    type t = { ts_zero: timestamp option
-             ; tstps_in: (timestamp * timepoint) Fdeque.t
-             ; tstps_out: (timestamp * timepoint) Fdeque.t
-             ; s_alphas_in: (timestamp * Proof.t) Fdeque.t
-             ; s_alphas_out: (timestamp * Proof.t) Fdeque.t
-             ; v_alphas_in: (timestamp * Proof.vp) Fdeque.t
-             ; v_alphas_out: (timestamp * Proof.vp) Fdeque.t }
+    type t = { ts_zero: Time.t option
+             ; tstps_in: (Time.t * timepoint) Fdeque.t
+             ; tstps_out: (Time.t * timepoint) Fdeque.t
+             ; s_alphas_in: (Time.t * Proof.t) Fdeque.t
+             ; s_alphas_out: (Time.t * Proof.t) Fdeque.t
+             ; v_alphas_in: (Time.t * Proof.vp) Fdeque.t
+             ; v_alphas_out: (Time.t * Proof.vp) Fdeque.t }
 
     let init () = { ts_zero = None
                   ; tstps_in = Fdeque.empty
@@ -395,16 +397,16 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       ("\n\nOnce state: " ^ (tstps_to_string ts_zero tstps_in tstps_out) ^
          Fdeque.fold s_alphas_in ~init:"\ns_alphas_in = "
            ~f:(fun acc (ts, p) ->
-             acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^
+             acc ^ (Printf.sprintf "\n(%s)\n" (Time.to_string ts)) ^ Proof.to_string "" p) ^
            Fdeque.fold s_alphas_out ~init:"\ns_alphas_out = "
              ~f:(fun acc (ts, p) ->
-               acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^
+               acc ^ (Printf.sprintf "\n(%s)\n" (Time.to_string ts)) ^ Proof.to_string "" p) ^
              Fdeque.fold v_alphas_in ~init:"\nv_alphas_in = "
                ~f:(fun acc (ts, p) ->
-                 acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.v_to_string "" p) ^
+                 acc ^ (Printf.sprintf "\n(%s)\n" (Time.to_string ts)) ^ Proof.v_to_string "" p) ^
                Fdeque.fold v_alphas_out ~init:"\nv_alphas_out = "
                  ~f:(fun acc (ts, p) ->
-                   acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.v_to_string "" p))
+                   acc ^ (Printf.sprintf "\n(%s)\n" (Time.to_string ts)) ^ Proof.v_to_string "" p))
 
     let update_s_alphas_in new_in_sat s_alphas_in =
       if not (Fdeque.is_empty new_in_sat) then
@@ -420,10 +422,10 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       | V vp1 -> { moaux with v_alphas_out = Fdeque.enqueue_back moaux.v_alphas_out (ts, vp1) }
 
     let clean (l, r) moaux =
-      { moaux with s_alphas_in = remove_cond_front (fun (ts, _) -> ts < l) moaux.s_alphas_in
-                 ; s_alphas_out = remove_cond_front (fun (ts, _) -> ts <= r) moaux.s_alphas_out
-                 ; v_alphas_in = remove_cond_front (fun (ts, _) -> ts < l) moaux.v_alphas_in
-                 ; v_alphas_out = remove_cond_front (fun (ts, _) -> ts <= r) moaux.v_alphas_out }
+      { moaux with s_alphas_in = remove_cond_front (fun (ts, _) -> Time.(ts < l)) moaux.s_alphas_in
+                 ; s_alphas_out = remove_cond_front (fun (ts, _) -> Time.(ts <= r)) moaux.s_alphas_out
+                 ; v_alphas_in = remove_cond_front (fun (ts, _) -> Time.(ts < l)) moaux.v_alphas_in
+                 ; v_alphas_out = remove_cond_front (fun (ts, _) -> Time.(ts <= r)) moaux.v_alphas_out }
 
     let shift_sat (l, r) s_alphas_out s_alphas_in =
       let (s_alphas_out', new_in_sat) = split_in_out (fun (ts, _) -> ts) (l, r) s_alphas_out in
@@ -471,19 +473,23 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
     let update i ts tp p1 moaux mode =
       let a = Interval.left i in
       let moaux_z = if Option.is_none moaux.ts_zero then
-                      { moaux with ts_zero = Some(ts) }
-                    else moaux in
+                      { moaux with ts_zero = Some ts }
+                    else
+                      moaux in
       let moaux_subps = match mode with
         | Out.ENFORCE -> add_subps_enforce ts p1 moaux_z
         | _ -> add_subps ts p1 moaux_z in
-      if ts < (Option.value_exn moaux_subps.ts_zero) + a then
+      if Time.(ts < Option.value_exn moaux_subps.ts_zero + a) then
         ({ moaux_subps with tstps_out = Fdeque.enqueue_back moaux_subps.tstps_out (ts, tp) },
          [Proof.V (Proof.make_vonceout tp)])
       else
         let b = Interval.right i in
-        let l = if (Option.is_some b) then max 0 (ts - (Option.value_exn b))
-                else (Option.value_exn moaux_subps.ts_zero) in
-        let r = ts - a in
+        let l =
+          if Option.is_some b then
+            Time.max Time.zero Time.(ts - Option.value_exn b)
+          else
+            Option.value_exn moaux_subps.ts_zero in
+        let r = Time.(ts - a) in
         match mode with
         | Out.ENFORCE ->
            let moaux_shifted = shift_enforce (l, r) a ts tp moaux_subps in
@@ -495,7 +501,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
 
     (* Only used for approximation (enforcement related) *)
     let do_once_base tp a (p: Proof.t) =
-      match p, Int.equal a 0 with
+      match p, Time.is_zero a with
       | S sp, true -> Proof.S (Proof.make_sonce tp sp)
       | _ -> Proof.V (Proof.make_vff tp)
 
@@ -504,11 +510,11 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
 
   module Eventually = struct
 
-    type t = { tstps_out: (timestamp * timepoint) Fdeque.t
-             ; tstps_in: (timestamp * timepoint) Fdeque.t
-             ; s_alphas_in: (timestamp * Proof.t) Fdeque.t
-             ; v_alphas_in: (timestamp * Proof.vp) Fdeque.t
-             ; optimal_proofs: (timestamp * Proof.t) Fdeque.t }
+    type t = { tstps_out: (Time.t * timepoint) Fdeque.t
+             ; tstps_in: (Time.t * timepoint) Fdeque.t
+             ; s_alphas_in: (Time.t * Proof.t) Fdeque.t
+             ; v_alphas_in: (Time.t * Proof.vp) Fdeque.t
+             ; optimal_proofs: (Time.t * Proof.t) Fdeque.t }
 
     let init () = { tstps_out = Fdeque.empty
                   ; tstps_in = Fdeque.empty
@@ -524,13 +530,13 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       ("\n\nEventually state: " ^ (tstps_to_string None tstps_in tstps_out) ^
          Fdeque.fold s_alphas_in ~init:"\ns_alphas_in = "
            ~f:(fun acc (ts, p) ->
-             acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^
+             acc ^ (Printf.sprintf "\n(%s)\n" (Time.to_string ts)) ^ Proof.to_string "" p) ^
            Fdeque.fold v_alphas_in ~init:"\nv_alphas_in = "
              ~f:(fun acc (ts, p) ->
-               acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.v_to_string "" p) ^
+               acc ^ (Printf.sprintf "\n(%s)\n" (Time.to_string ts)) ^ Proof.v_to_string "" p) ^
              Fdeque.fold optimal_proofs ~init:"\noptimal_proofs = "
                ~f:(fun acc (ts, p) ->
-                 acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p))
+                 acc ^ (Printf.sprintf "\n(%s)\n" (Time.to_string ts)) ^ Proof.to_string "" p))
 
     let adjust a (nts, ntp) meaux =
       let (tstps_out, tstps_in) = drop_first_ts_tp meaux.tstps_out meaux.tstps_in in
@@ -539,9 +545,9 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
         | Some(ts', tp') -> (ts', tp') in
       let (tstps_out', tstps_in') = shift_tstps_future a first_ts ntp tstps_out tstps_in in
       let s_alphas_in' = remove_cond_front (fun (ts', p) ->
-                             ts' < first_ts + a || (Proof.p_at p < first_tp)) meaux.s_alphas_in in
+                             Time.(ts' < first_ts + a) || (Proof.p_at p < first_tp)) meaux.s_alphas_in in
       let v_alphas_in' = remove_cond_front (fun (ts', vp) ->
-                             ts' < first_ts + a || (Proof.v_at vp < first_tp)) meaux.v_alphas_in in
+                             Time.(ts' < first_ts + a) || (Proof.v_at vp < first_tp)) meaux.v_alphas_in in
       { meaux with tstps_out = tstps_out'
                  ; tstps_in = tstps_in'
                  ; s_alphas_in = s_alphas_in'
@@ -569,23 +575,24 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
 
     let add_subp a (ts, tp) (p1: Proof.t) meaux =
       let first_ts = match first_ts_tp meaux.tstps_out meaux.tstps_in with
-        | None -> 0
+        | None -> Time.zero
         | Some(ts', _) -> ts' in
       match p1 with
-      | S sp1 -> if ts >= first_ts + a then
+      | S sp1 -> if Time.(first_ts + a <= ts) then
                    { meaux with s_alphas_in = sorted_enqueue (ts, (Proof.S sp1)) meaux.s_alphas_in }
                  else meaux
-      | V vp1 -> if ts >= first_ts + a then
+      | V vp1 -> if Time.(first_ts + a <= ts) then
                    { meaux with v_alphas_in = Fdeque.enqueue_back meaux.v_alphas_in (ts, vp1) }
                  else meaux
 
-    let update i nts ntp p meaux =
+    let update i (nts: Time.t) ntp p meaux =
       let a = Interval.left i in
       let b = match Interval.right i with
-        | None -> max_int
+        | None -> Time.max_time
         | Some(b') -> b' in
       let meaux_shifted = shift (a, b) (nts, ntp) meaux in
-      let (tstps_out, tstps_in) = add_tstp_future a b nts ntp meaux_shifted.tstps_out meaux_shifted.tstps_in in
+      let (tstps_out, tstps_in) = add_tstp_future a b nts
+                                    ntp meaux_shifted.tstps_out meaux_shifted.tstps_in in
       add_subp a (nts, ntp) p { meaux_shifted with tstps_out; tstps_in }
 
     let rec eval i nts ntp (meaux, ops) =
@@ -596,7 +603,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
          let meaux_shifted = shift (a, b) (nts, ntp) meaux in
          match Fdeque.peek_back meaux_shifted.optimal_proofs with
          | None -> (meaux, ops)
-         | Some(ts, _) -> if ts + b < nts then
+         | Some(ts, _) -> if Time.(ts + b < nts) then
                             let ((_, op), optimal_proofs) = Fdeque.dequeue_back_exn meaux_shifted.optimal_proofs in
                             let (meaux', ops') = eval i nts ntp ({ meaux_shifted with optimal_proofs }, ops) in
                             (meaux', ops' @ [op])
@@ -604,11 +611,11 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
 
     let do_eventually_base tp i is_pos (p_next: Proof.t) (p_now: Proof.t) =
       match p_next, p_now, Interval.left i, is_pos with
-      | _  , S sp_now, 0, true  -> Proof.S (Proof.make_seventuallynow sp_now i)
-      | S _, _       , a, true when not (Int.equal a 0) -> Proof.S (Proof.make_seventuallyassm tp i)
+      | _  , S sp_now, a, true when Time.is_zero a -> Proof.S (Proof.make_seventuallynow sp_now i)
+      | S _, _       , a, true when not (Time.is_zero a) -> Proof.S (Proof.make_seventuallyassm tp i)
       | _  , _       , _, true  -> Proof.V (Proof.make_vff tp)
-      | V _, V vp_now, 0, false -> Proof.V (Proof.make_veventuallyassm tp (Some vp_now) i)
-      | V _, _       , a, false when not (Int.equal a 0) -> Proof.V (Proof.make_veventuallyassm tp None i)
+      | V _, V vp_now, a, false when Time.is_zero a -> Proof.V (Proof.make_veventuallyassm tp (Some vp_now) i)
+      | V _, _       , a, false when not (Time.is_zero a) -> Proof.V (Proof.make_veventuallyassm tp None i)
       | _  , _       , _, false -> Proof.S (Proof.make_stt tp)
 
   end
@@ -616,13 +623,13 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
 
   module Historically = struct
 
-    type t = { ts_zero: timestamp option
-             ; tstps_in: (timestamp * timepoint) Fdeque.t
-             ; tstps_out: (timestamp * timepoint) Fdeque.t
-             ; s_alphas_in: (timestamp * Proof.sp) Fdeque.t
-             ; s_alphas_out: (timestamp * Proof.sp) Fdeque.t
-             ; v_alphas_in: (timestamp * Proof.t) Fdeque.t
-             ; v_alphas_out: (timestamp * Proof.t) Fdeque.t }
+    type t = { ts_zero: Time.t option
+             ; tstps_in: (Time.t * timepoint) Fdeque.t
+             ; tstps_out: (Time.t * timepoint) Fdeque.t
+             ; s_alphas_in: (Time.t * Proof.sp) Fdeque.t
+             ; s_alphas_out: (Time.t * Proof.sp) Fdeque.t
+             ; v_alphas_in: (Time.t * Proof.t) Fdeque.t
+             ; v_alphas_out: (Time.t * Proof.t) Fdeque.t }
 
     let init () = { ts_zero = None
                   ; tstps_in = Fdeque.empty
@@ -642,16 +649,16 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       ("\n\nHistorically state: " ^ (tstps_to_string ts_zero tstps_in tstps_out) ^
          Fdeque.fold s_alphas_in ~init:"\ns_alphas_in = "
            ~f:(fun acc (ts, sp) ->
-             acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.s_to_string "" sp) ^
+             acc ^ (Printf.sprintf "\n(%s)\n" (Time.to_string ts)) ^ Proof.s_to_string "" sp) ^
            Fdeque.fold s_alphas_out ~init:"\ns_alphas_out = "
              ~f:(fun acc (ts, sp) ->
-               acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.s_to_string "" sp) ^
+               acc ^ (Printf.sprintf "\n(%s)\n" (Time.to_string ts)) ^ Proof.s_to_string "" sp) ^
              Fdeque.fold v_alphas_in ~init:"\nv_alphas_in = "
                ~f:(fun acc (ts, p) ->
-                 acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^
+                 acc ^ (Printf.sprintf "\n(%s)\n" (Time.to_string ts)) ^ Proof.to_string "" p) ^
                Fdeque.fold v_alphas_in ~init:"\nv_alphas_out = "
                  ~f:(fun acc (ts, p) ->
-                   acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p))
+                   acc ^ (Printf.sprintf "\n(%s)\n" (Time.to_string ts)) ^ Proof.to_string "" p))
 
     let update_s_alphas_in new_in_sat s_alphas_in =
       Fdeque.fold new_in_sat ~init:s_alphas_in ~f:(fun s_alphas_in' (ts, sp) ->
@@ -675,10 +682,10 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       (v_alphas_out', update_v_alphas_in new_in_viol v_alphas_in)
 
     let clean (l, r) mhaux =
-      { mhaux with s_alphas_in = remove_cond_front (fun (ts, _) -> ts < l) mhaux.s_alphas_in
-                 ; s_alphas_out = remove_cond_front (fun (ts, _) -> ts <= r) mhaux.s_alphas_out
-                 ; v_alphas_in = remove_cond_front (fun (ts, _) -> ts < l) mhaux.v_alphas_in
-                 ; v_alphas_out = remove_cond_front (fun (ts, _) -> ts <= r) mhaux.v_alphas_out }
+      { mhaux with s_alphas_in = remove_cond_front (fun (ts, _) -> Time.(ts < l)) mhaux.s_alphas_in
+                 ; s_alphas_out = remove_cond_front (fun (ts, _) -> Time.(ts <= r)) mhaux.s_alphas_out
+                 ; v_alphas_in = remove_cond_front (fun (ts, _) -> Time.(ts < l)) mhaux.v_alphas_in
+                 ; v_alphas_out = remove_cond_front (fun (ts, _) -> Time.(ts <= r)) mhaux.v_alphas_out }
 
     let shift (l, r) a ts tp mhaux =
       let (tstps_in, tstps_out) = shift_tstps_past (l, r) a ts tp mhaux.tstps_in mhaux.tstps_out in
@@ -706,20 +713,22 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
                       { mhaux with ts_zero = Some(ts) }
                     else mhaux in
       let mhaux_subps = add_subps ts p1 mhaux_z in
-      if ts < (Option.value_exn mhaux_subps.ts_zero) + a then
+      if Time.(ts < (Option.value_exn mhaux_subps.ts_zero) + a) then
         ({ mhaux_subps with tstps_out = Fdeque.enqueue_back mhaux_subps.tstps_out (ts, tp) },
          [Proof.S (Proof.make_shistoricallyout tp)])
       else
         let b = Interval.right i in
-        let l = if (Option.is_some b) then max 0 (ts - (Option.value_exn b))
-                else (Option.value_exn mhaux_subps.ts_zero) in
-        let r = ts - a in
+        let l = if (Option.is_some b) then
+                  Time.max Time.zero Time.(ts - (Option.value_exn b))
+                else
+                  (Option.value_exn mhaux_subps.ts_zero) in
+        let r = Time.(ts - a) in
         let mhaux_shifted = shift (l, r) a ts tp mhaux_subps in
         (mhaux_shifted, eval tp mhaux_shifted)
 
     (* Only used for approximation (enforcement related) *)
     let do_historically_base tp a (p: Proof.t) =
-      match p, Int.equal a 0 with
+      match p, Time.is_zero a with
       | V vp, true -> Proof.V (Proof.make_vhistorically tp vp)
       | _ -> Proof.S (Proof.make_stt tp)
 
@@ -727,11 +736,11 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
 
   module Always = struct
 
-    type t = { tstps_out: (timestamp * timepoint) Fdeque.t
-             ; tstps_in: (timestamp * timepoint) Fdeque.t
-             ; v_alphas_in: (timestamp * Proof.t) Fdeque.t
-             ; s_alphas_in: (timestamp * Proof.sp) Fdeque.t
-             ; optimal_proofs: (timestamp * Proof.t) Fdeque.t }
+    type t = { tstps_out: (Time.t * timepoint) Fdeque.t
+             ; tstps_in: (Time.t * timepoint) Fdeque.t
+             ; v_alphas_in: (Time.t * Proof.t) Fdeque.t
+             ; s_alphas_in: (Time.t * Proof.sp) Fdeque.t
+             ; optimal_proofs: (Time.t * Proof.t) Fdeque.t }
 
     let init () = { tstps_out = Fdeque.empty
                   ; tstps_in = Fdeque.empty
@@ -747,13 +756,13 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       ("\n\nAlways state: " ^ (tstps_to_string None tstps_in tstps_out) ^
          Fdeque.fold v_alphas_in ~init:"\nv_alphas_in = "
            ~f:(fun acc (ts, p) ->
-             acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^
+             acc ^ (Printf.sprintf "\n(%s)\n" (Time.to_string ts)) ^ Proof.to_string "" p) ^
            Fdeque.fold s_alphas_in ~init:"\ns_alphas_in = "
              ~f:(fun acc (ts, sp) ->
-               acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.s_to_string "" sp) ^
+               acc ^ (Printf.sprintf "\n(%s)\n" (Time.to_string ts)) ^ Proof.s_to_string "" sp) ^
              Fdeque.fold optimal_proofs ~init:"\noptimal_proofs = "
                ~f:(fun acc (ts, p) ->
-                 acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p))
+                 acc ^ (Printf.sprintf "\n(%s)\n" (Time.to_string ts)) ^ Proof.to_string "" p))
 
     let adjust a (nts, ntp) maaux =
       let (tstps_out, tstps_in) = drop_first_ts_tp maaux.tstps_out maaux.tstps_in in
@@ -762,9 +771,9 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
         | Some(ts', tp') -> (ts', tp') in
       let (tstps_out', tstps_in') = shift_tstps_future a first_ts ntp tstps_out tstps_in in
       let s_alphas_in' = remove_cond_front (fun (ts', sp) ->
-                             ts' < first_ts + a || (Proof.s_at sp < first_tp)) maaux.s_alphas_in in
+                             Time.(ts' < first_ts + a) || (Proof.s_at sp < first_tp)) maaux.s_alphas_in in
       let v_alphas_in' = remove_cond_front (fun (ts', p) ->
-                             ts' < first_ts + a || (Proof.p_at p < first_tp)) maaux.v_alphas_in in
+                             Time.(ts' < first_ts + a) || (Proof.p_at p < first_tp)) maaux.v_alphas_in in
       { maaux with tstps_out = tstps_out'
                  ; tstps_in = tstps_in'
                  ; v_alphas_in = v_alphas_in'
@@ -791,20 +800,20 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
 
     let add_subp a (ts, tp) (p1: Proof.t) maaux =
       let first_ts = match first_ts_tp maaux.tstps_out maaux.tstps_in with
-        | None -> 0
+        | None -> Time.zero
         | Some(ts', _) -> ts' in
       match p1 with
-      | V vp1 -> if ts >= first_ts + a then
+      | V vp1 -> if Time.(first_ts + a <= ts) then
                    { maaux with v_alphas_in = sorted_enqueue (ts, (Proof.V vp1)) maaux.v_alphas_in }
                  else maaux
-      | S sp1 -> if ts >= (first_ts + a) then
+      | S sp1 -> if Time.(first_ts + a <= ts) then
                    { maaux with s_alphas_in = Fdeque.enqueue_back maaux.s_alphas_in (ts, sp1) }
                  else maaux
 
     let update i nts ntp p maaux =
       let a = Interval.left i in
       let b = match Interval.right i with
-        | None -> max_int
+        | None -> Time.max_time
         | Some(b') -> b' in
       let maaux_shifted = shift (a, b) (nts, ntp) maaux in
       let (tstps_out, tstps_in) = add_tstp_future a b nts ntp maaux_shifted.tstps_out maaux_shifted.tstps_in in
@@ -818,7 +827,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
          let maaux_shifted = shift (a, b) (nts, ntp) maaux in
          match Fdeque.peek_back maaux_shifted.optimal_proofs with
          | None -> (maaux, ops)
-         | Some(ts, _) -> if ts + b < nts then
+         | Some(ts, _) -> if Time.(ts + b < nts) then
                             let ((_, op), optimal_proofs) = Fdeque.dequeue_back_exn maaux_shifted.optimal_proofs in
                             let (maaux', ops') = eval i nts ntp ({ maaux_shifted with optimal_proofs }, ops) in
                             (maaux', ops' @ [op])
@@ -826,26 +835,26 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
 
     let do_always_base tp i is_pos (p_next: Proof.t) (p_now: Proof.t) =
       match p_next, p_now, Interval.left i, is_pos with
-      | _  , V vp_now, 0, false -> Proof.V (Proof.make_valwaysnow vp_now i)
-      | V _, _       , a, false when not (Int.equal a 0) -> Proof.V (Proof.make_valwaysassm tp i)
+      | _  , V vp_now, a, false when Time.is_zero a -> Proof.V (Proof.make_valwaysnow vp_now i)
+      | V _, _       , a, false when not (Time.is_zero a) -> Proof.V (Proof.make_valwaysassm tp i)
       | _  , _       , _, false -> Proof.S (Proof.make_stt tp)
-      | S _, S sp_now, 0, true  -> Proof.S (Proof.make_salwaysassm tp (Some sp_now) i)
-      | S _, _       , a, true when not (Int.equal a 0) -> Proof.S (Proof.make_salwaysassm tp None i)
+      | S _, S sp_now, a, true when Time.is_zero a  -> Proof.S (Proof.make_salwaysassm tp (Some sp_now) i)
+      | S _, _       , a, true when not (Time.is_zero a) -> Proof.S (Proof.make_salwaysassm tp None i)
       | _  , _       , _, true  -> Proof.V (Proof.make_vff tp)
 
   end
 
   module Since = struct
 
-    type t = { ts_zero: timestamp option
-             ; tstps_in: (timestamp * timepoint) Fdeque.t
-             ; tstps_out: (timestamp * timepoint) Fdeque.t
-             ; s_beta_alphas_in: (timestamp * Proof.t) Fdeque.t
-             ; s_beta_alphas_out: (timestamp * Proof.t) Fdeque.t
-             ; v_alpha_betas_in: (timestamp * Proof.t) Fdeque.t
-             ; v_alphas_out: (timestamp * Proof.t) Fdeque.t
-             ; v_betas_in: (timestamp * Proof.vp) Fdeque.t
-             ; v_alphas_betas_out: (timestamp * Proof.vp option * Proof.vp option) Fdeque.t }
+    type t = { ts_zero: Time.t option
+             ; tstps_in: (Time.t * timepoint) Fdeque.t
+             ; tstps_out: (Time.t * timepoint) Fdeque.t
+             ; s_beta_alphas_in: (Time.t * Proof.t) Fdeque.t
+             ; s_beta_alphas_out: (Time.t * Proof.t) Fdeque.t
+             ; v_alpha_betas_in: (Time.t * Proof.t) Fdeque.t
+             ; v_alphas_out: (Time.t * Proof.t) Fdeque.t
+             ; v_betas_in: (Time.t * Proof.vp) Fdeque.t
+             ; v_alphas_betas_out: (Time.t * Proof.vp option * Proof.vp option) Fdeque.t }
 
     let init () = { ts_zero = None
                   ; tstps_in = Fdeque.empty
@@ -869,27 +878,27 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       ("\n\nSince state: " ^ (tstps_to_string ts_zero tstps_in tstps_out) ^
          Fdeque.fold s_beta_alphas_in ~init:"\ns_beta_alphas_in = "
            ~f:(fun acc (ts, p) ->
-             acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^
+             acc ^ (Printf.sprintf "\n(%s)\n" (Time.to_string ts)) ^ Proof.to_string "" p) ^
            Fdeque.fold s_beta_alphas_out ~init:"\ns_beta_alphas_out = "
              ~f:(fun acc (ts, p) ->
-               acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^
+               acc ^ (Printf.sprintf "\n(%s)\n" (Time.to_string ts)) ^ Proof.to_string "" p) ^
              Fdeque.fold v_alpha_betas_in ~init:"\nv_alpha_betas_in = "
                ~f:(fun acc (ts, p) ->
-                 acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^
+                 acc ^ (Printf.sprintf "\n(%s)\n" (Time.to_string ts)) ^ Proof.to_string "" p) ^
                Fdeque.fold v_alphas_out ~init:"\nv_alphas_out = "
                  ~f:(fun acc (ts, p) ->
-                   acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^
+                   acc ^ (Printf.sprintf "\n(%s)\n" (Time.to_string ts)) ^ Proof.to_string "" p) ^
                  Fdeque.fold v_betas_in ~init:"\nv_betas_in = "
                    ~f:(fun acc (ts, p) ->
-                     acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.v_to_string "" p) ^
+                     acc ^ (Printf.sprintf "\n(%s)\n" (Time.to_string ts)) ^ Proof.v_to_string "" p) ^
                    Fdeque.fold v_alphas_betas_out ~init:"\nv_alphas_betas_out = "
                      ~f:(fun acc (ts, p1_opt, p2_opt) ->
                        match p1_opt, p2_opt with
                        | None, None -> acc
-                       | Some(p1), None -> acc ^ (Printf.sprintf "\n(%d)\nalpha = " ts) ^ Proof.v_to_string "" p1
-                       | None, Some(p2) -> acc ^ (Printf.sprintf "\n(%d)\nbeta = " ts) ^ Proof.v_to_string "" p2
-                       | Some(p1), Some(p2) -> acc ^ (Printf.sprintf "\n(%d)\nalpha = " ts) ^ Proof.v_to_string "" p1 ^
-                                                 (Printf.sprintf "\n(%d)\nbeta = " ts) ^ Proof.v_to_string "" p2))
+                       | Some(p1), None -> acc ^ (Printf.sprintf "\n(%s)\nalpha = " (Time.to_string ts)) ^ Proof.v_to_string "" p1
+                       | None, Some(p2) -> acc ^ (Printf.sprintf "\n(%s)\nbeta = " (Time.to_string ts)) ^ Proof.v_to_string "" p2
+                       | Some(p1), Some(p2) -> acc ^ (Printf.sprintf "\n(%s)\nalpha = " (Time.to_string ts)) ^ Proof.v_to_string "" p1 ^
+                                                 (Printf.sprintf "\n(%s)\nbeta = " (Time.to_string ts)) ^ Proof.v_to_string "" p2))
 
     let update_s_beta_alphas_in new_in s_beta_alphas_in =
       if not (Fdeque.is_empty new_in) then
@@ -971,10 +980,10 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       (v_alphas_betas_out', update_v_alpha_betas_in tp new_in_vio v_alpha_betas_in, v_betas_in)
 
     let clean (l, r) msaux =
-      { msaux with s_beta_alphas_in = remove_cond_front (fun (ts, _) -> ts < l) msaux.s_beta_alphas_in
-                 ; v_alpha_betas_in = remove_cond_front (fun (ts, _) -> ts < l) msaux.v_alpha_betas_in
-                 ; v_alphas_out = remove_cond_front (fun (ts, _) -> ts <= r) msaux.v_alphas_out
-                 ; v_betas_in = remove_cond_front (fun (ts, _) -> ts < l) msaux.v_betas_in }
+      { msaux with s_beta_alphas_in = remove_cond_front (fun (ts, _) -> Time.(ts < l)) msaux.s_beta_alphas_in
+                 ; v_alpha_betas_in = remove_cond_front (fun (ts, _) -> Time.(ts < l)) msaux.v_alpha_betas_in
+                 ; v_alphas_out = remove_cond_front (fun (ts, _) -> Time.(ts <= r)) msaux.v_alphas_out
+                 ; v_betas_in = remove_cond_front (fun (ts, _) -> Time.(ts < l)) msaux.v_betas_in }
 
     let shift (l, r) a ts tp msaux =
       let (tstps_in, tstps_out) = shift_tstps_past (l, r) a ts tp msaux.tstps_in msaux.tstps_out in
@@ -1048,14 +1057,14 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       let msaux_subps = match mode with
         | Out.ENFORCE -> add_subps_enforce ts p1 p2 msaux_z
         | _ -> add_subps ts p1 p2 msaux_z in
-      if ts < (Option.value_exn msaux_subps.ts_zero) + a then
+      if Time.(ts < Option.value_exn msaux_subps.ts_zero + a) then
         ({ msaux_subps with tstps_out = Fdeque.enqueue_back msaux_subps.tstps_out (ts, tp) },
          [Proof.V (Proof.make_vsinceout tp)])
       else
         (let b = Interval.right i in
-         let l = if (Option.is_some b) then max 0 (ts - (Option.value_exn b))
+         let l = if (Option.is_some b) then Time.max Time.zero Time.(ts - (Option.value_exn b))
                  else (Option.value_exn msaux_subps.ts_zero) in
-         let r = ts - a in
+         let r = Time.(ts - a) in
          match mode with
          | Out.ENFORCE ->
             let msaux_shifted = shift_enforce (l, r) a ts tp msaux_subps in
@@ -1068,24 +1077,24 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
     (* Only used for approximation (enforcement related) *)
     let do_since_base tp a pol (p1: Proof.t) (p2: Proof.t) =
       match p1, p2, pol with
-      | _    , S sp2, true when Int.equal a 0 -> Proof.S (Proof.make_ssince sp2 Fdeque.empty)
+      | _    , S sp2, true when Time.is_zero a -> Proof.S (Proof.make_ssince sp2 Fdeque.empty)
       | _    , _    , true -> Proof.V (Proof.make_vff tp)
-      | V vp1, _    , false when not (Int.equal a 0) -> Proof.V (Proof.make_vsince tp vp1 (Fdeque.empty))
+      | V vp1, _    , false when not (Time.is_zero a) -> Proof.V (Proof.make_vsince tp vp1 (Fdeque.empty))
       | _    , _    , false -> Proof.S (Proof.make_stt tp)
 
   end
 
   module Until = struct
 
-    type t = { tstps_in: (timestamp * timepoint) Fdeque.t
-             ; tstps_out: (timestamp * timepoint) Fdeque.t
-             ; s_alphas_beta: ((timestamp * Proof.t) Fdeque.t) Fdeque.t
-             ; s_alphas_suffix: (timestamp * Proof.sp) Fdeque.t
-             ; v_betas_alpha: ((timestamp * Proof.t) Fdeque.t) Fdeque.t
-             ; v_alphas_out: (timestamp * Proof.t) Fdeque.t
-             ; v_alphas_in: (timestamp * Proof.t) Fdeque.t
-             ; v_betas_suffix_in: (timestamp * Proof.vp) Fdeque.t
-             ; optimal_proofs: (timestamp * Proof.t) Fdeque.t }
+    type t = { tstps_in: (Time.t * timepoint) Fdeque.t
+             ; tstps_out: (Time.t * timepoint) Fdeque.t
+             ; s_alphas_beta: ((Time.t * Proof.t) Fdeque.t) Fdeque.t
+             ; s_alphas_suffix: (Time.t * Proof.sp) Fdeque.t
+             ; v_betas_alpha: ((Time.t * Proof.t) Fdeque.t) Fdeque.t
+             ; v_alphas_out: (Time.t * Proof.t) Fdeque.t
+             ; v_alphas_in: (Time.t * Proof.t) Fdeque.t
+             ; v_betas_suffix_in: (Time.t * Proof.vp) Fdeque.t
+             ; optimal_proofs: (Time.t * Proof.t) Fdeque.t }
 
     let init () = { tstps_in = Fdeque.empty
                   ; tstps_out = Fdeque.empty
@@ -1111,27 +1120,27 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
            ~f:(fun acc1 d ->
              acc1 ^ "\n" ^
                Fdeque.fold d ~init:"[" ~f:(fun acc2 (ts, p) ->
-                   acc2 ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^ "\n]\n") ^
+                   acc2 ^ (Printf.sprintf "\n(%s)\n" (Time.to_string ts)) ^ Proof.to_string "" p) ^ "\n]\n") ^
            Fdeque.fold s_alphas_suffix ~init:"\ns_alphas_suffix = "
              ~f:(fun acc (ts, p) ->
-               acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.s_to_string "" p) ^
+               acc ^ (Printf.sprintf "\n(%s)\n" (Time.to_string ts)) ^ Proof.s_to_string "" p) ^
              Fdeque.fold v_betas_alpha ~init:"\nv_betas_alpha = \n"
                ~f:(fun acc1 d ->
                  acc1 ^ "\n" ^
                    Fdeque.fold d ~init:"[" ~f:(fun acc2 (ts, p) ->
-                       acc2 ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^ "\n]\n") ^
+                       acc2 ^ (Printf.sprintf "\n(%s)\n" (Time.to_string ts)) ^ Proof.to_string "" p) ^ "\n]\n") ^
                Fdeque.fold v_alphas_out ~init:"\nv_alphas_out = "
                  ~f:(fun acc (ts, p) ->
-                   acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^
+                   acc ^ (Printf.sprintf "\n(%s)\n" (Time.to_string ts)) ^ Proof.to_string "" p) ^
                  Fdeque.fold v_alphas_in ~init:"\nv_alphas_in = "
                    ~f:(fun acc (ts, p) ->
-                     acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p) ^
+                     acc ^ (Printf.sprintf "\n(%s)\n" (Time.to_string ts)) ^ Proof.to_string "" p) ^
                    Fdeque.fold v_betas_suffix_in ~init:"\nv_betas_suffix_in = "
                      ~f:(fun acc (ts, p) ->
-                       acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.v_to_string "" p) ^
+                       acc ^ (Printf.sprintf "\n(%s)\n" (Time.to_string ts)) ^ Proof.v_to_string "" p) ^
                      Fdeque.fold optimal_proofs ~init:"\noptimal_proofs = "
                        ~f:(fun acc (ts, p) ->
-                         acc ^ (Printf.sprintf "\n(%d)\n" ts) ^ Proof.to_string "" p))
+                         acc ^ (Printf.sprintf "\n(%s)\n" (Time.to_string ts)) ^ Proof.to_string "" p))
 
     let ts_of_tp tp tstps_in tstps_out =
       match (Fdeque.find tstps_out ~f:(fun (ts', tp') -> tp = tp')) with
@@ -1156,7 +1165,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       let rec vdrop_until vp =
         let is_out = match Fdeque.find ~f:(fun (_, tp') -> (Proof.v_etp vp) = tp') tstps_in with
           | None -> true
-          | Some(ts', _) -> ts' < (first_ts + a) in
+          | Some(ts', _) -> Time.(ts' < (first_ts + a)) in
         if is_out then
           (match Proof.v_drop vp with
            | None -> None
@@ -1174,17 +1183,17 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       remove_cond_front_ne (fun d' -> Fdeque.is_empty d')
         (Fdeque.map d ~f:(fun d' ->
              (Fdeque.fold d' ~init:Fdeque.empty ~f:(fun acc (ts, p) ->
-                  if ts >= lim then
+                  if Time.(lim <= ts) then
                     Fdeque.enqueue_back acc (ts, p)
                   else acc))))
 
     let add_subps a (ts, tp) (p1: Proof.t) (p2: Proof.t) muaux =
       let first_ts = match first_ts_tp muaux.tstps_out muaux.tstps_in with
-        | None -> 0
+        | None -> Time.zero
         | Some(ts', _) -> ts' in
       match p1, p2 with
       | S sp1, S sp2 ->
-         let s_alphas_beta = if ts >= first_ts + a then
+         let s_alphas_beta = if Time.(first_ts + a <= ts) then
                                let cur_s_alphas_beta = Fdeque.peek_back_exn muaux.s_alphas_beta in
                                let sp = Proof.S (Proof.make_suntil sp2 (Fdeque.map muaux.s_alphas_suffix ~f:snd)) in
                                let cur_s_alphas_beta_add = sorted_enqueue (ts, sp) cur_s_alphas_beta in
@@ -1194,17 +1203,17 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
                                Fdeque.enqueue_back muaux.v_betas_alpha Fdeque.empty
                              else muaux.v_betas_alpha in
          let s_alphas_suffix = Fdeque.enqueue_back muaux.s_alphas_suffix (ts, sp1) in
-         let v_betas_suffix_in = if ts >= first_ts + a then Fdeque.empty
+         let v_betas_suffix_in = if Time.(first_ts + a <= ts) then Fdeque.empty
                                  else muaux.v_betas_suffix_in in
          { muaux with s_alphas_beta; v_betas_alpha; s_alphas_suffix; v_betas_suffix_in }
       | S sp1, V vp2 ->
          let s_alphas_suffix = Fdeque.enqueue_back muaux.s_alphas_suffix (ts, sp1) in
-         let v_betas_suffix_in = if ts >= first_ts + a then
+         let v_betas_suffix_in = if Time.(first_ts + a <= ts) then
                                    Fdeque.enqueue_back muaux.v_betas_suffix_in (ts, vp2)
                                  else muaux.v_betas_suffix_in in
          { muaux with s_alphas_suffix; v_betas_suffix_in }
       | V vp1, S sp2 ->
-         let s_alphas_beta = if ts >= first_ts + a then
+         let s_alphas_beta = if Time.(first_ts + a <= ts) then
                                (let cur_s_alphas_beta = Fdeque.peek_back_exn muaux.s_alphas_beta in
                                 let ssp = Proof.S (Proof.make_suntil sp2 (Fdeque.map muaux.s_alphas_suffix ~f:snd)) in
                                 let cur_s_alphas_beta_add = sorted_enqueue (ts, ssp) cur_s_alphas_beta in
@@ -1218,11 +1227,11 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
                                Fdeque.enqueue_back muaux.v_betas_alpha Fdeque.empty
                              else muaux.v_betas_alpha in
          let s_alphas_suffix = Fdeque.empty in
-         let (v_alphas_in, v_alphas_out) = if ts >= first_ts + a then
+         let (v_alphas_in, v_alphas_out) = if Time.(first_ts + a <= ts) then
                                              (Fdeque.enqueue_back muaux.v_alphas_in (ts, Proof.V vp1),
                                               muaux.v_alphas_out)
                                            else (muaux.v_alphas_in, sorted_enqueue (ts, Proof.V vp1) muaux.v_alphas_out) in
-         let v_betas_suffix_in = if ts >= first_ts + a then Fdeque.empty
+         let v_betas_suffix_in = if Time.(first_ts + a <= ts) then Fdeque.empty
                                  else muaux.v_betas_suffix_in in
          { muaux with s_alphas_beta; v_betas_alpha; s_alphas_suffix; v_alphas_in; v_alphas_out; v_betas_suffix_in }
       | V vp1, V vp2 ->
@@ -1230,17 +1239,17 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
                                Fdeque.enqueue_back muaux.s_alphas_beta Fdeque.empty
                              else muaux.s_alphas_beta in
          let s_alphas_suffix = Fdeque.empty in
-         let v_betas_suffix_in = if ts >= first_ts + a then
+         let v_betas_suffix_in = if Time.(first_ts + a <= ts) then
                                    Fdeque.enqueue_back muaux.v_betas_suffix_in (ts, vp2)
                                  else muaux.v_betas_suffix_in in
-         let v_betas_alpha = if ts >= first_ts + a then
+         let v_betas_alpha = if Time.(first_ts + a <= ts) then
                                (let cur_v_betas_alpha = Fdeque.peek_back_exn muaux.v_betas_alpha in
                                 let vvp = Proof.V (Proof.make_vuntil tp vp1 (Fdeque.map v_betas_suffix_in ~f:snd)) in
                                 let cur_v_betas_alpha_add = sorted_enqueue (ts, vvp) cur_v_betas_alpha in
                                 Fdeque.enqueue_back (Fdeque.drop_back_exn muaux.v_betas_alpha)
                                   cur_v_betas_alpha_add)
                              else muaux.v_betas_alpha in
-         let (v_alphas_in, v_alphas_out) = if ts >= first_ts + a then
+         let (v_alphas_in, v_alphas_out) = if Time.(first_ts + a <= ts) then
                                              (Fdeque.enqueue_back muaux.v_alphas_in (ts, Proof.V vp1),
                                               muaux.v_alphas_out)
                                            else (muaux.v_alphas_in, sorted_enqueue (ts, Proof.V vp1) muaux.v_alphas_out) in
@@ -1290,8 +1299,8 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       (* v_betas_alpha *)
       let v_betas_alpha_step1 = Fdeque.map v_betas_alpha ~f:(fun d ->
                                     remove_cond_front (fun (ts', p) ->
-                                        (ts' < first_ts + a) || ((Proof.p_at p) < first_tp)) d) in
-      let v_betas_alpha_step2 = if a = 0 then
+                                        Time.(ts' < first_ts + a) || ((Proof.p_at p) < first_tp)) d) in
+      let v_betas_alpha_step2 = if Time.is_zero a then
                                   drop_v_single_ts eval_tp v_betas_alpha_step1
                                 else drop_v_ts a first_ts v_betas_alpha_step1 tstps_in' in
       let v_betas_alpha_step3 = remove_cond_front_ne (fun d' -> Fdeque.is_empty d') v_betas_alpha_step2 in
@@ -1302,8 +1311,8 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       let s_alphas_beta_step2 = Fdeque.map s_alphas_beta_step1 ~f:(fun d ->
                                     (remove_cond_front (fun (ts', p) ->
                                          match p with
-                                         | Proof.S sp -> (ts_of_tp (Proof.s_ltp sp)
-                                                            tstps_in'' tstps_out'') < (first_ts + a)
+                                         | Proof.S sp -> Time.((ts_of_tp (Proof.s_ltp sp)
+                                                                  tstps_in'' tstps_out'') < (first_ts + a))
                                          | V _ -> raise (Invalid_argument "found V proof in S deque")) d)) in
       let s_alphas_beta_step3 = remove_cond_front_ne (fun d' -> Fdeque.is_empty d') s_alphas_beta_step2 in
       (* s_alphas_suffix *)
@@ -1311,7 +1320,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       (* v_alphas_in and v_alphas_out *)
       let v_alphas_out_step1 = remove_cond_front (fun (_, p) -> (Proof.p_at p) < first_tp) v_alphas_out in
       let (new_out_v_alphas, v_alphas_in') = split_out_in (fun (ts', _) -> ts')
-                                               (first_ts, (first_ts + a)) v_alphas_in in
+                                               (first_ts, Time.(first_ts + a)) v_alphas_in in
       let v_alphas_out' = sorted_append new_out_v_alphas v_alphas_out_step1 in
       (* v_betas_in *)
       let v_betas_suffix_in' = remove_cond_front (fun (_, vp) ->
@@ -1385,7 +1394,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
     let update i nts ntp p1 p2 muaux =
       let a = Interval.left i in
       let b = match Interval.right i with
-        | None -> max_int
+        | None -> Time.max_time
         | Some(b') -> b' in
       let muaux_shifted = shift (a, b) (nts, ntp) muaux in
       let (tstps_out, tstps_in) = add_tstp_future a b nts ntp muaux_shifted.tstps_out muaux_shifted.tstps_in in
@@ -1398,7 +1407,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       | Some(b) -> let muaux_shifted = shift (a, b) (nts, ntp) muaux in
                    (match Fdeque.peek_back muaux.optimal_proofs with
                     | None -> (muaux, ops)
-                    | Some(ts, _) -> if ts + b < nts then
+                    | Some(ts, _) -> if Time.(ts + b < nts) then
                                        let ((_, op), optimal_proofs) = Fdeque.dequeue_back_exn muaux_shifted.optimal_proofs in
                                        let (muaux', ops') = eval i nts ntp ({ muaux_shifted with optimal_proofs }, ops) in
                                        (muaux', ops' @ [op])
@@ -1407,11 +1416,11 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
     (* Only used for approximation (enforcement related) *)
     let do_until_base tp i pol (p_new1: Proof.t) (p_new2: Proof.t) (p_next: Proof.t) =
       match p_new1, p_new2, p_next, pol with
-      | _    , S sp2, _  , true when Interval.mem 0 i -> Proof.S (Proof.make_suntilnow sp2 i)
+      | _    , S sp2, _  , true when Interval.has_zero i -> Proof.S (Proof.make_suntilnow sp2 i)
       | S sp1, _    , S _, true -> Proof.S (Proof.make_suntilassm tp sp1 i)
       | _    , _    , _  , true -> Proof.V (Proof.make_vff tp)
       | V vp1, _    , V _, false -> Proof.V (Proof.make_vuntilassm tp vp1 i)
-      | _    , V vp2, _  , false when Interval.mem 0 i -> Proof.V (Proof.make_vuntilnow vp2 i)
+      | _    , V vp2, _  , false when Interval.has_zero i -> Proof.V (Proof.make_vuntilnow vp2 i)
       | _    , _    , _  , false -> Proof.S (Proof.make_stt tp)
 
   end
@@ -1422,7 +1431,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
 
     let update_eval op i p ts ts' =
       let c1 = (match p with
-                | Proof.S sp -> if Interval.mem (ts' - ts) i then
+                | Proof.S sp -> if Interval.mem Time.(ts' - ts) i then
                                   (match op with
                                    | Prev -> [Proof.S (Proof.make_sprev sp)]
                                    | Next -> [S (Proof.make_snext sp)])
@@ -1430,12 +1439,12 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
                 | V vp -> (match op with
                            | Prev -> [V (Proof.make_vprev vp)]
                            | Next -> [V (Proof.make_vnext vp)])) in
-      let c2 = if Interval.below (ts' - ts) i then
+      let c2 = if Interval.below Time.(ts' - ts) i then
                  (match op with
                   | Prev -> [Proof.V (Proof.make_vprevoutl ((Proof.p_at p)+1))]
                   | Next -> [V (Proof.make_vnextoutl ((Proof.p_at p)-1))])
                else [] in
-      let c3 = if (Interval.above (ts' - ts) i) then
+      let c3 = if (Interval.above Time.(ts' - ts) i) then
                  (match op with
                   | Prev -> [Proof.V (Proof.make_vprevoutr ((Proof.p_at p)+1))]
                   | Next -> [V (Proof.make_vnextoutr ((Proof.p_at p)-1))])
@@ -1447,15 +1456,15 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
   module MFormula = struct
 
     type binop_info         = (Expl.t, Expl.t) Buf2.t
-    type prev_info          = (Expl.t, timestamp) Buft.t
-    type next_info          = timestamp list
-    type tp_info            = (timestamp * timepoint) list
-    type buft_info          = (Expl.t, timestamp * timepoint) Buft.t
+    type prev_info          = (Expl.t, Time.t) Buft.t
+    type next_info          = Time.t list
+    type tp_info            = (Time.t * timepoint) list
+    type buft_info          = (Expl.t, Time.t * timepoint) Buft.t
     type once_info          = Once.t Pdt.t
     type eventually_info    = Eventually.t Pdt.t
     type historically_info  = Historically.t Pdt.t
     type always_info        = Always.t Pdt.t
-    type buf2t_info         = (Expl.t, Expl.t, timestamp * timepoint) Buf2t.t
+    type buf2t_info         = (Expl.t, Expl.t, Time.t * timepoint) Buf2t.t
     type since_info         = Since.t Pdt.t
     type until_info         = Until.t Pdt.t
 
@@ -1466,6 +1475,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       | MFF
       | MEqConst      of Term.t * Dom.t
       | MPredicate    of string * Term.t list
+      | MAgg          of string * Aggregation.op * Aggregation.op_fun * Term.t list * Term.t * string list * t
       | MNeg          of t
       | MAnd          of Formula.Side.t * t * t * binop_info
       | MOr           of Formula.Side.t * t * t * binop_info
@@ -1495,13 +1505,15 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       | MEqConst (x, d) -> Formula.FF
       | MEqConst (x, d) -> Formula.EqConst (x, d)
       | MPredicate (e, t) -> Formula.Predicate (e, t)
+      | MAgg (s, op, op_fun, _, x, y, f) ->
+         Formula.Agg (s, op, x, y, to_formula f)
       | MNeg f -> Formula.Neg (to_formula f)
       | MAnd (s, f, g, bi) -> Formula.And (s, to_formula f, to_formula g)
       | MOr (s, f, g, bi) -> Formula.Or (s, to_formula f, to_formula g)
       | MImp (s, f, g, bi) -> Formula.Imp (s, to_formula f, to_formula g)
       | MIff (s, t, f, g, bi) -> Formula.Iff (s, t, to_formula f, to_formula g)
-      | MExists (x, tt, f) -> Formula.Exists (x, tt, to_formula f)
-      | MForall (x, tt, f) -> Formula.Forall (x, tt, to_formula f)
+      | MExists (x, tt, f) -> Formula.Exists (x, to_formula f)
+      | MForall (x, tt, f) -> Formula.Forall (x, to_formula f)
       | MPrev (i, f, b, pi) -> Formula.Prev (i, to_formula f)
       | MNext (i, f, b, si) -> Formula.Next (i, to_formula f)
       | MENext (i, f, h) -> Formula.Next (i, to_formula f)
@@ -1515,58 +1527,81 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       | MUntil (i, f, g, bi, ui) -> Formula.Until (N, i, to_formula f, to_formula g)
       | MEUntil (s, i, f, g, h) -> Formula.Until (s, i, to_formula f, to_formula g)
 
-    let init (tf: Tformula.t) =
-      let rec aux h (tf: Tformula.t) = match tf.f with
-        | Tformula.TTT -> h, MTT
-        | TFF -> h, MFF
-        | TEqConst (x, c) -> h, MEqConst (x, c)
-        | TPredicate (r, trms) -> h, MPredicate (r, trms)
-        | TNeg f -> let h, mf = aux h f in h, MNeg mf
+    let init trms (tf: Tformula.t) =
+      let rec aux vt h (tf: Tformula.t) = match tf.f with
+        | Tformula.TTT -> vt, h, MTT
+        | TFF -> vt, h, MFF
+        | TEqConst (x, c) -> vt, h, MEqConst (x, c)
+        | TPredicate (r, trms) -> vt, h, MPredicate (r, trms)
+        | TAgg (s, tt, op, x, y, f) ->
+           let vt, h, mf = aux vt h f in
+           let op_fun = Aggregation.eval op tt in
+           let trms' = Set.elements (Formula.terms (Tformula.to_formula f)) in
+           let trms' = Aggregation.order_trms trms trms' x y in
+           vt, h, MAgg (s, op, op_fun, trms', x, y, mf)
+        | TNeg f -> let vt, h, mf = aux vt h f in vt, h, MNeg mf
         | TAnd (s, f, g) ->
-           let h, mf = aux h f in
-           let h, mg = aux h g in
-           h, MAnd (s, mf, mg, ([], []))
+           let vt, h, mf = aux vt h f in
+           let vt, h, mg = aux vt h g in
+           vt, h, MAnd (s, mf, mg, ([], []))
         | TOr (s, f, g) ->
-           let h, mf = aux h f in
-           let h, mg = aux h g in
-           h, MOr (s, mf, mg, ([], []))
+           let vt, h, mf = aux vt h f in
+           let vt, h, mg = aux vt h g in
+           vt, h, MOr (s, mf, mg, ([], []))
         | TImp (s, f, g) ->
-           let h, mf = aux h f in
-           let h, mg = aux h g in
-           h, MImp (s, mf, mg, ([], []))
+           let vt, h, mf = aux vt h f in
+           let vt, h, mg = aux vt h g in
+           vt, h, MImp (s, mf, mg, ([], []))
         | TIff (s, t, f, g) ->
-           let h, mf = aux h f in
-           let h, mg = aux h g in
-           h, MIff (s, t, mf, mg, ([], []))
-        | TExists (x, tt, f) -> let h, mf = aux h f in h, MExists (x, tt, mf)
-        | TForall (x, tt, f) -> let h, mf = aux h f in h, MForall (x, tt, mf)
-        | TPrev (i, f) -> let h, mf = aux h f in h, MPrev (i, mf, true, ([], []))
+           let vt, h, mf = aux vt h f in
+           let vt, h, mg = aux vt h g in
+           vt, h, MIff (s, t, mf, mg, ([], []))
+        | TExists (x, tt, f) ->
+           let vt, h, mf = aux vt h f in
+           Map.update vt x (fun _ -> tt), h, MExists (x, tt, mf)
+        | TForall (x, tt, f) ->
+           let vt, h, mf = aux vt h f in
+           Map.update vt x (fun _ -> tt), h, MForall (x, tt, mf)
+        | TPrev (i, f) ->
+           let vt, h, mf = aux vt h f in
+           vt, h, MPrev (i, mf, true, ([], []))
         | TNext (i, f) when tf.enftype == EnfType.Obs ->
-           let h, mf = aux h f in h, MNext (i, mf, true, [])
-        | TNext (i, f) -> let h, mf = aux h f in h+1, MENext (i, mf, h)
-        | TOnce (i, f) -> let h, mf = aux h f in h, MOnce (i, mf, [], Leaf (Once.init ()))
+           let vt, h, mf = aux vt h f in
+           vt, h, MNext (i, mf, true, [])
+        | TNext (i, f) ->
+           let vt, h, mf = aux vt h f in
+           vt, h+1, MENext (i, mf, h)
+        | TOnce (i, f) ->
+           let vt, h, mf = aux vt h f in
+           vt, h, MOnce (i, mf, [], Leaf (Once.init ()))
         | TEventually (i, _, f) when tf.enftype == EnfType.Obs ->
-           let h, mf = aux h f in h, MEventually (i, mf, ([], []), Leaf (Eventually.init ()))
+           let vt, h, mf = aux vt h f in
+           vt, h, MEventually (i, mf, ([], []), Leaf (Eventually.init ()))
         | TEventually (i, _, f) ->
-           let h, mf = aux h f in h+1, MEEventually (i, mf, h)
+           let vt, h, mf = aux vt h f in
+           vt, h+1, MEEventually (i, mf, h)
         | THistorically (i, f) ->
-           let h, mf = aux h f in h, MHistorically (i, mf, [], Leaf (Historically.init ()))
+           let vt, h, mf = aux vt h f in
+           vt, h, MHistorically (i, mf, [], Leaf (Historically.init ()))
         | TAlways (i, _, f) when tf.enftype == EnfType.Obs ->
-           let h, mf = aux h f in h, MAlways (i, mf, ([], []), Leaf (Always.init ()))
-        | TAlways (i, _, f) -> let h, mf = aux h f in h+1, MEAlways (i, mf, h)
+           let vt, h, mf = aux vt h f in
+           vt, h, MAlways (i, mf, ([], []), Leaf (Always.init ()))
+        | TAlways (i, _, f) ->
+           let vt, h, mf = aux vt h f in
+           vt, h+1, MEAlways (i, mf, h)
         | TSince (s, i, f, g) ->
-           let h, mf = aux h f in
-           let h, mg = aux h g in
-           h, MSince (s, i, mf, mg, (([], []), []), Leaf (Since.init ()))
+           let vt, h, mf = aux vt h f in
+           let vt, h, mg = aux vt h g in
+           vt, h, MSince (s, i, mf, mg, (([], []), []), Leaf (Since.init ()))
         | TUntil (s, i, _, f, g) when tf.enftype == EnfType.Obs ->
-           let h, mf = aux h f in
-           let h, mg = aux h g in
-           h, MUntil (i, mf, mg, (([], []), []), Leaf (Until.init ()))
+           let vt, h, mf = aux vt h f in
+           let vt, h, mg = aux vt h g in
+           vt, h, MUntil (i, mf, mg, (([], []), []), Leaf (Until.init ()))
         | TUntil (s, i, _, f, g) ->
-           let h, mf = aux h f in
-           let h, mg = aux h g in
-           h+1, MEUntil (s, i, mf, mg, h)
-      in snd (aux 0 tf)
+           let vt, h, mf = aux vt h f in
+           let vt, h, mg = aux vt h g in
+           vt, h+1, MEUntil (s, i, mf, mg, h)
+      in match aux (Map.empty (module String)) 0 tf with (_, _, mf) -> mf
 
     let rec equal mf1 mf2 = match mf1, mf2 with
       | MTT, MTT
@@ -1574,6 +1609,9 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       | MEqConst (trm, c), MEqConst (trm', c') -> Term.equal trm trm' && Dom.equal c c'
       | MPredicate (r, trms), MPredicate (r', trms') -> String.equal r r' &&
                                                           List.for_all2_exn trms trms' ~f:Term.equal
+      | MAgg (s, op, _, _, x, y, f), MAgg (s', op', _, _, x', y', f') ->
+         String.equal s s' && Aggregation.equal_op op op' && Term.equal x x' && List.length y == List.length y'
+         && List.for_all (List.zip_exn y y') (fun (y, y') -> String.equal y y') && equal f f'
       | MNeg mf, MNeg mf' -> equal mf mf'
       | MPrev (i, mf, _, _), MPrev (i', mf', _, _)
         | MNext (i, mf, _, _), MNext (i', mf', _, _)
@@ -1612,7 +1650,8 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
         | MEEventually (_, f, _)
         | MHistorically (_, f, _, _)
         | MAlways (_, f, _, _)
-        | MEAlways (_, f, _) -> rank f
+        | MEAlways (_, f, _)
+        | MAgg (_, _, _, _, _, _, f) -> rank f
       | MAnd (_, f, g, _)
         | MOr (_, f, g, _)
         | MImp (_, f, g, _)
@@ -1637,6 +1676,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
           | Const d' -> MFF
           | trm -> MEqConst (trm, d))
       | MPredicate (e, t) -> MPredicate (e, List.map t (av_term v))
+      | MAgg (s, op, op_fun, trms, x, y, f) -> MAgg (s, op, op_fun, trms, x, y, r f)
       | MNeg f -> MNeg (r f)
       | MAnd (s, f, g, bi) -> MAnd (s, r f, r g, av_buf2 bi)
       | MOr (s, f, g, bi) -> MOr (s, r f, r g, av_buf2 bi)
@@ -1662,6 +1702,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       | MEqConst (Var x, c) -> Set.of_list (module String) [x]
       | MEqConst _ -> Set.empty (module String)
       | MPredicate (x, trms) -> Set.of_list (module String) (Pred.Term.fv_list trms)
+      | MAgg (s, _, _, _, _, y, _) -> Set.of_list (module String) (s::y)
       | MExists (x, _, f)
         | MForall (x, _, f) -> Set.filter (fv f) ~f:(fun y -> not (String.equal x y))
       | MNeg f
@@ -1686,6 +1727,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       | MTT | MFF -> Set.empty (module Term)
       | MEqConst (trm, c) -> Set.singleton (module Term) trm
       | MPredicate (x, trms) -> Set.of_list (module Term) trms
+      | MAgg (s, _, _, _, _, y, _) -> Set.of_list (module Term) (List.map (s::y) ~f:(fun x -> Pred.Term.Var x))
       | MExists (x, _, f)
         | MForall (x, _, f) ->
          Set.filter (terms f)
@@ -1714,6 +1756,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       | MFF -> Printf.sprintf "⊥"
       | MEqConst (trm, c) -> Printf.sprintf "%s = %s" (Term.to_string trm) (Dom.to_string c)
       | MPredicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
+      | MAgg (s, op, _, _, x, y, f) -> Printf.sprintf "%s = %s(%s; %s; %s)" s (Aggregation.op_to_string op) (Term.value_to_string x) (String.concat ~sep:", " y) (to_string_rec 5 f)
       | MNeg f -> Printf.sprintf "¬%a" (fun x -> to_string_rec 5) f
       | MAnd (_, f, g, _) -> Printf.sprintf (Etc.paren l 4 "%a ∧ %a") (fun x -> to_string_rec 4) f (fun x -> to_string_rec 4) g
       | MOr (_, f, g, _) -> Printf.sprintf (Etc.paren l 3 "%a ∨ %a") (fun x -> to_string_rec 3) f (fun x -> to_string_rec 4) g
@@ -1743,6 +1786,8 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       | MFF -> Printf.sprintf "⊥"
       | MEqConst (x, c) -> Printf.sprintf "="
       | MPredicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
+      | MAgg (s, op, _, _, x, y, _) -> Printf.sprintf "%s = %s(%s; %s)" s (Aggregation.op_to_string op) (Term.to_string x)
+                                  (String.concat ~sep:", " y)  
       | MNeg _ -> Printf.sprintf "¬"
       | MAnd (_, _, _, _) -> Printf.sprintf "∧"
       | MOr (_, _, _, _) -> Printf.sprintf "∨"
@@ -1767,26 +1812,27 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
     let side_to_string = function
       | MTT -> Printf.sprintf "N"
       | MFF -> Printf.sprintf "N"
-      | MEqConst (x, c) -> Printf.sprintf "N"
-      | MPredicate (r, trms) -> Printf.sprintf "N"
+      | MEqConst _ -> Printf.sprintf "N"
+      | MPredicate _ -> Printf.sprintf "N"
+      | MAgg _ -> Printf.sprintf "N"
       | MNeg _ -> Printf.sprintf "N"
       | MAnd (s, _, _, _) -> Printf.sprintf "%s" (Formula.Side.to_string s)
       | MOr (s, _, _, _) -> Printf.sprintf "%s" (Formula.Side.to_string s)
       | MImp (s, _, _, _) -> Printf.sprintf "%s" (Formula.Side.to_string s)
       | MIff (s, _, _, _, _) -> Printf.sprintf "%s" (Formula.Side.to_string s)
-      | MExists (_, _, _) -> Printf.sprintf "N"
-      | MForall (_, _, _) -> Printf.sprintf "N"
-      | MPrev (_, _, _, _) -> Printf.sprintf "N"
-      | MNext (_, _, _, _) -> Printf.sprintf "N"
-      | MENext (_, _, _) -> Printf.sprintf "N"
-      | MOnce (_, _, _, _) -> Printf.sprintf "N"
-      | MEventually (_, _, _, _) -> Printf.sprintf "N"
-      | MEEventually (_, _, _) -> Printf.sprintf "N"
-      | MHistorically (_, _, _, _) -> Printf.sprintf "N"
-      | MAlways (_, _, _, _) -> Printf.sprintf "N"
-      | MEAlways (_, _, _) -> Printf.sprintf "N"
+      | MExists _ -> Printf.sprintf "N"
+      | MForall _ -> Printf.sprintf "N"
+      | MPrev _ -> Printf.sprintf "N"
+      | MNext _ -> Printf.sprintf "N"
+      | MENext _ -> Printf.sprintf "N"
+      | MOnce _ -> Printf.sprintf "N"
+      | MEventually _ -> Printf.sprintf "N"
+      | MEEventually _ -> Printf.sprintf "N"
+      | MHistorically _ -> Printf.sprintf "N"
+      | MAlways _ -> Printf.sprintf "N"
+      | MEAlways _ -> Printf.sprintf "N"
       | MSince (s, _, _, _, _, _) -> Printf.sprintf "%s" (Formula.Side.to_string s)
-      | MUntil (_, _, _, _, _) -> Printf.sprintf "N"
+      | MUntil _ -> Printf.sprintf "N"
       | MEUntil (s, _, _, _, _) -> Printf.sprintf "%s" (Formula.Side.to_string s)
 
   end
@@ -1803,10 +1849,10 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
 
       type kind =
         | FFormula of MFormula.t * int
-        | FInterval of int * Interval.t * MFormula.t * int
-        | FUntil of int * Formula.Side.t * Interval.t * MFormula.t * MFormula.t * int
-        | FAlways of int * Interval.t * MFormula.t * int
-        | FEventually of int * Interval.t * MFormula.t * int
+        | FInterval of Time.t * Interval.t * MFormula.t * int
+        | FUntil of Time.t * Formula.Side.t * Interval.t * MFormula.t * MFormula.t * int
+        | FAlways of Time.t * Interval.t * MFormula.t * int
+        | FEventually of Time.t * Interval.t * MFormula.t * int
 
       type t = kind * Etc.valuation * polarity
 
@@ -1815,9 +1861,9 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
         | FInterval (ts, i, mf, h), FInterval (ts', i', mf', h')
           | FAlways (ts, i, mf, h), FAlways (ts', i', mf', h')
           | FEventually (ts, i, mf, h), FEventually (ts', i', mf', h') ->
-           Int.equal ts ts' && Interval.equal i i' && h = h'
+           Time.equal ts ts' && Interval.equal i i' && h = h'
         | FUntil (ts, s, i, mf, mg, h), FUntil (ts', s', i', mf', mg', h') ->
-           Int.equal ts ts' && Formula.Side.equal s s' && Interval.equal i i' && h = h'
+           Time.equal ts ts' && Formula.Side.equal s s' && Interval.equal i i' && h = h'
         | _ -> false
 
       let compare_kind k1 k2 = match k1, k2 with
@@ -1825,18 +1871,18 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
         | FFormula _, _ -> 1
         | FInterval _, FFormula _ -> -1
         | FInterval (ts, i, mf, h), FInterval (ts', i', mf', h') ->
-           Etc.lexicographic3 Int.compare Interval.compare Int.compare (ts, i, h) (ts', i', h')
+           Etc.lexicographic3 Time.compare Interval.compare Int.compare (ts, i, h) (ts', i', h')
         | FInterval _, _ -> 1
         | FAlways _, FFormula _ | FAlways _, FInterval _ -> -1
         | FAlways (ts, i, mf, h), FAlways (ts', i', mf', h') ->
-           Etc.lexicographic3 Int.compare Interval.compare Int.compare (ts, i, h) (ts', i', h')
+           Etc.lexicographic3 Time.compare Interval.compare Int.compare (ts, i, h) (ts', i', h')
         | FAlways _, _ -> 1
         | FEventually _, FFormula _ | FEventually _, FInterval _ | FEventually _, FAlways _ -> -1
         | FEventually (ts, i, mf, h), FEventually (ts', i', mf', h') ->
-           Etc.lexicographic3 Int.compare Interval.compare Int.compare (ts, i, h) (ts', i', h')
+           Etc.lexicographic3 Time.compare Interval.compare Int.compare (ts, i, h) (ts', i', h')
         | FEventually _, FUntil _ -> 1
         | FUntil (ts, s, i, mf, mg, h), FUntil (ts', s', i', mf', mg', h') ->
-           Etc.lexicographic4 Int.compare Formula.Side.compare Interval.compare Int.compare (ts, s, i, h) (ts', s', i', h')
+           Etc.lexicographic4 Time.compare Formula.Side.compare Interval.compare Int.compare (ts, s, i, h) (ts', s', i', h')
         | FUntil _, _ -> -1
 
       let compare =
@@ -1868,37 +1914,37 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       let eval_kind ts' tp k v = match k with
         | FFormula (mf, _) -> mf
         | FInterval (ts, i, mf, h) ->
-           if Interval.mem (ts' - ts) i then
-             MEUntil (R, Interval.sub2 i (ts' - ts), MNeg (_tp), MAnd (L, MFormula._tp, mf, empty_binop_info), h)
+           if Interval.mem Time.(ts' - ts) i then
+             MEUntil (R, Interval.sub2 i Time.(ts' - ts), MNeg (_tp), MAnd (L, MFormula._tp, mf, empty_binop_info), h)
            else
              MTT
         | FUntil (ts, side, i, mf1, mf2, h) ->
-           if not (Interval.above (ts' - ts) i) then
+           if not (Interval.above Time.(ts' - ts) i) then
              let mf1' = match mf1 with
                | MImp (_, _tp, mf1, _) -> mf1
                | _ -> mf1 in
              let mf2' = match mf2 with
                | MAnd (_, _tp, mf2, _) -> mf2
                | _ -> mf2 in
-             MEUntil (side, Interval.sub2 i (ts' - ts),
+             MEUntil (side, Interval.sub2 i Time.(ts' - ts),
                       (if MFormula.equal mf1' (MNeg _tp) then MNeg _tp else MImp (R, _tp, mf1', empty_binop_info)),
                       MAnd (L, _tp, mf2', empty_binop_info), h)
            else
              MFF
         | FAlways (ts, i, mf, h) ->
-           if not (Interval.above (ts' - ts) i) then
+           if not (Interval.above Time.(ts' - ts) i) then
              let mf' = match mf with
                | MImp (_, _tp, mf, _) -> mf
                | _ -> mf in
-             MEAlways (Interval.sub2 i (ts' - ts), MImp (R, _tp, mf', empty_binop_info), h)
+             MEAlways (Interval.sub2 i Time.(ts' - ts), MImp (R, _tp, mf', empty_binop_info), h)
            else
              MTT
         | FEventually (ts, i, mf, h) ->
-           if not (Interval.above (ts' - ts) i) then
+           if not (Interval.above Time.(ts' - ts) i) then
              let mf' = match mf with
                | MAnd (_, _tp, mf, _) -> mf
                | _ -> mf in
-             MEEventually (Interval.sub2 i (ts' - ts), MAnd (L, _tp, mf', empty_binop_info), h)
+             MEEventually (Interval.sub2 i Time.(ts' - ts), MAnd (L, _tp, mf', empty_binop_info), h)
            else
              MFF
 
@@ -1914,11 +1960,15 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
 
       let rec kind_to_string = function
         | FFormula (f, h) -> Printf.sprintf "FFormula(%s, %d)" (to_string f) h
-        | FInterval (ts, i, mf, h) -> Printf.sprintf "FInterval(%d, %s, %s, %d)" ts (Interval.to_string i) (to_string mf) h
-        | FUntil (ts, s, i, mf, mg, h) -> Printf.sprintf "FUntil(%d, %s, %s, %s, %s, %d)" ts (Formula.Side.to_string s)
+        | FInterval (ts, i, mf, h) -> Printf.sprintf "FInterval(%s, %s, %s, %d)"
+                                        (Time.to_string ts) (Interval.to_string i) (to_string mf) h
+        | FUntil (ts, s, i, mf, mg, h) -> Printf.sprintf "FUntil(%s, %s, %s, %s, %s, %d)"
+                                            (Time.to_string ts) (Formula.Side.to_string s)
                                             (Interval.to_string i) (to_string mf) (to_string mg) h
-        | FAlways (ts, i, mf, h) -> Printf.sprintf "FAlways(%d, %s, %s, %d)" ts (Interval.to_string i) (to_string mf) h
-        | FEventually (ts, i, mf, h) -> Printf.sprintf "FEventually(%d, %s, %s, %d)" ts (Interval.to_string i) (to_string mf) h
+        | FAlways (ts, i, mf, h) -> Printf.sprintf "FAlways(%s, %s, %s, %d)"
+                                      (Time.to_string ts) (Interval.to_string i) (to_string mf) h
+        | FEventually (ts, i, mf, h) -> Printf.sprintf "FEventually(%s, %s, %s, %d)"
+                                          (Time.to_string ts) (Interval.to_string i) (to_string mf) h
 
       let to_string ((kind, valuation, pol) : t) =
         Printf.sprintf "Kind: %s; " (kind_to_string kind) ^
@@ -2203,8 +2253,10 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
     let rec meval_rec vars ts tp (db: Db.t) ~pol (fobligs: FObligations.t) mformula =
       (* fun f -> *)
       (*print_endline (MFormula.to_string mformula (*^ " pol=" ^ FObligation.polarity_to_string pol *)
-        ^ " db=[" ^ (Db.to_string db) ^ "] fobligs=[" ^
-        Etc.string_list_to_string (List.map (Set.elements fobligs) ~f:FObligation.to_string)
+                     ^ " vars=[" ^ (String.concat ~sep:", " (List.map vars ~f:Term.to_string))
+                     ^ "] db=[" ^ (Db.to_string db)
+                     ^ "] fobligs=["
+                     ^ Etc.string_list_to_string (List.map (Set.elements fobligs) ~f:FObligation.to_string)
         ^ "]\n\n");*)
       match mformula with
       | MTT -> let expl = Pdt.Leaf (Proof.S (Proof.make_stt tp)) in
@@ -2239,12 +2291,27 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
            let expl = if List.is_empty maps'
                       then Pdt.Leaf (Proof.V (Proof.make_vpred tp r trms))
                       else pdt_of tp r trms fv_vars maps' in
-           (*print_endline "MPredicate";
-           print_endline (Db.to_string db');
-           print_endline (Expl.to_string expl);*)
            (*List.iter fv_vars ~f:(fun x -> print_endline (Term.value_to_string x));*)
            (*print_endline (string_of_int tp ^ " " ^ string_of_int ts);*)
            ([expl], expl, MPredicate (r, trms))
+      | MAgg (s, op, op_fun, trms', x, y, mf) ->
+         let (expls, aexpl, mf') = meval_rec trms' ts tp db fobligs ~pol mf in
+         let is_in_setc s d_opt =
+           match d_opt with
+           | None ->
+              Proof.V (Proof.make_vff tp)
+           | Some d ->
+              if Setc.mem s d then Proof.S (Proof.make_stt tp) else Proof.V (Proof.make_vff tp) in
+         (*print_endline "-MAgg";
+         print_endline ("ts="^string_of_int ts);
+         print_endline "ps=";*)
+         (*List.iter expls ~f:(fun expl -> print_endline (Pdt.to_string (Proof.to_string "") "" expl));*)
+         let aggregate = Pdt.aggregate Proof.isS is_in_setc op_fun s x y vars trms' in
+         let f_expls = List.map expls ~f:aggregate in
+         (*print_endline "p=";
+         print_endline (Pdt.to_string (Proof.to_string "") "" aexpl);*)
+         let f_aexpl = aggregate aexpl in
+         (f_expls, f_aexpl, MAgg (s, op, op_fun, trms', x, y, mf'))
       | MNeg (mf) ->
          let (expls, aexpl, mf') = meval_rec vars ts tp db fobligs ~pol:(pol >>| FObligation.neg) mf in
          let f_expls = List.map expls ~f:(Pdt.apply1_reduce Proof.equal vars (fun p -> do_neg p)) in
@@ -2310,7 +2377,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
            Buft.another_take
              (fun expl ts ts' -> Pdt.apply1_reduce Proof.equal vars
                                    (fun p -> Prev_Next.update_eval Prev i p ts ts') expl)
-             (buf @ expls, tss @ [ts]) in
+             (buf @ expls, tss @ [Time.of_timestamp ts]) in
          let aexpl = else_any (approx_default f_expls) tp pol in
          ((if first then (Leaf (V Proof.make_vprev0) :: f_expls) else f_expls), aexpl, MPrev (i, mf', false, (buf', tss')))
       | MNext (i, mf, first, tss) ->
@@ -2321,7 +2388,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
            Buft.another_take
              (fun expl ts ts' -> Pdt.apply1_reduce Proof.equal vars
                                    (fun p -> Prev_Next.update_eval Next i p ts ts') expl)
-             (expls', tss @ [ts]) in
+             (expls', tss @ [Time.of_timestamp ts]) in
          (f_expls, else_any approx_false tp pol, MNext (i, mf', first, tss'))
       | MENext (i, mf, h) ->
          let (_, _, mf') = meval_rec vars ts tp db ~pol fobligs mf in
@@ -2336,7 +2403,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
                  Pdt.split_prod (Pdt.apply2 vars (fun p aux -> (* Stdio.printf "%s\n" (Once.to_string aux); *)
                                      Once.update i ts tp p aux mode) expl aux_pdt) in
                (aux_pdt', es @ (Pdt.split_list es')))
-             (moaux_pdt, []) (expls, (tstps @ [(ts,tp)])) in
+             (moaux_pdt, []) (expls, (tstps @ [(Time.of_timestamp ts,tp)])) in
          let expls'' = List.map expls' ~f:(Pdt.reduce Proof.equal) in
          let aexpl = else_any (approx_once vars expls'' aexpl i) tp pol in
          (expls'', aexpl, MOnce (i, mf', tstps', moaux_pdt'))
@@ -2345,9 +2412,9 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
          let (meaux_pdt', buf', ntstps') =
            Buft.take
              (fun expl ts tp aux_pdt -> Pdt.apply2 vars (fun p aux -> Eventually.update i ts tp p aux) expl aux_pdt)
-             meaux_pdt (buf @ expls, (ntstps @ [(ts,tp)])) in
+             meaux_pdt (buf @ expls, (ntstps @ [(Time.of_timestamp ts,tp)])) in
          let (nts, ntp) = match ntstps' with
-           | [] -> (ts, tp)
+           | [] -> (Time.of_timestamp ts, tp)
            | (nts', ntp') :: _ -> (nts', ntp') in
          let (meaux_pdt', es') =
            Pdt.split_prod (Pdt.apply1 vars (fun aux -> Eventually.eval i nts ntp (aux, [])) meaux_pdt') in
@@ -2368,7 +2435,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
                  Pdt.split_prod (Pdt.apply2 vars
                                    (fun p aux -> Historically.update i ts tp p aux) expl aux_pdt) in
                (aux_pdt', es @ (Pdt.split_list es')))
-             (mhaux_pdt, []) (expls, (tstps @ [(ts,tp)])) in
+             (mhaux_pdt, []) (expls, (tstps @ [(Time.of_timestamp ts,tp)])) in
          let expls'' = List.map expls' ~f:(Pdt.reduce Proof.equal) in
          let aexpl = else_any (approx_historically vars expls'' aexpl i) tp pol in
          (expls'', aexpl, MHistorically (i, mf', tstps', mhaux_pdt'))
@@ -2377,9 +2444,9 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
          let (maaux_pdt', buf', ntstps') =
            Buft.take
              (fun expl ts tp aux_pdt -> Pdt.apply2 vars (fun p aux -> Always.update i ts tp p aux) expl aux_pdt)
-             maaux_pdt (buf @ expls, (ntstps @ [(ts,tp)])) in
+             maaux_pdt (buf @ expls, (ntstps @ [(Time.of_timestamp ts,tp)])) in
          let (nts, ntp) = match ntstps' with
-           | [] -> (ts, tp)
+           | [] -> (Time.of_timestamp ts, tp)
            | (nts', ntp') :: _ -> (nts', ntp') in
          let (maaux_pdt', es') =
            Pdt.split_prod (Pdt.apply1 vars (fun aux -> Always.eval i nts ntp (aux, [])) maaux_pdt') in
@@ -2402,7 +2469,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
                                    (fun p1 p2 aux ->
                                      Since.update i ts tp p1 p2 aux mode) expl1 expl2 aux_pdt) in
                (aux_pdt', es @ (Pdt.split_list es')))
-             (msaux_pdt, []) (Buf2.add expls1 expls2 buf2) (tstps @ [(ts,tp)]) in
+             (msaux_pdt, []) (Buf2.add expls1 expls2 buf2) (tstps @ [(Time.of_timestamp ts,tp)]) in
          let expls'' = List.map expls' ~f:(Pdt.reduce Proof.equal) in
          let aexpl = else_any (approx_since vars expls'' aexpl1 aexpl2 i) tp pol in
          (expls'', aexpl, MSince (s, i, mf1', mf2', (buf2', tstps'), msaux_pdt'))
@@ -2413,9 +2480,9 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
            Buf2t.take
              (fun expl1 expl2 ts tp aux_pdt ->
                Pdt.apply3 vars (fun p1 p2 aux -> Until.update i ts tp p1 p2 aux) expl1 expl2 aux_pdt)
-             muaux_pdt (Buf2.add expls1 expls2 buf2) (ntstps @ [(ts,tp)]) in
+             muaux_pdt (Buf2.add expls1 expls2 buf2) (ntstps @ [(Time.of_timestamp ts,tp)]) in
          let (nts, ntp) = match ntstps' with
-           | [] -> (ts, tp)
+           | [] -> (Time.of_timestamp ts, tp)
            | (nts', ntp') :: _ -> (nts', ntp') in
          let (muaux_pdt', es') =
            Pdt.split_prod (Pdt.apply1 vars (fun aux -> Until.eval i nts ntp (aux, [])) muaux_pdt') in
@@ -2475,6 +2542,9 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
 
   let mstep mode (trms: Term.t list) ts db approx (ms: MState.t) (fobligs: FObligations.t) =
     let pol_opt = if approx then Some FObligation.POS else None in
+    (*print_endline "mstep";
+    print_endline "db=";
+    print_endline (Db.to_string db);*)
     let (expls, aexpl, mf') = meval trms ts ms.tp_cur db pol_opt fobligs ms.mf mode in
     let expls, tstps =
       match mode with
@@ -2519,7 +2589,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
               let paths = CI.false_paths (Queue.to_list ms'.tsdbs) f (List.map tstp_expls ~f:snd) in
               Plain.expls tstp_expls (Some(c)) (Some(paths)) None mode);
           if more then step (Some(pb)) ms') in
-    let mf = init (Tformula.of_formula f) in
+    let mf = init trms (Tformula.of_formula' f) in
     let ms = MState.init mf in
     step None ms
 
@@ -2541,7 +2611,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
              else raise (Failure "trace is not monotonic")))
       with Failure msg -> Some (Some(msg), ([], []), ms) in
     let ms = match obj_opt with
-      | None -> let mf = init (Tformula.of_formula f) in
+      | None -> let mf = init trms (Tformula.of_formula' f) in
                 MState.init mf
       | Some (ms') -> { ms' with tp_cur = ms'.tp_out + (Queue.length ms'.ts_waiting) + 1 } in
     let str_dbs = List.map (List.filter (String.split log ~on:'@') ~f:(fun s -> not (String.is_empty s)))

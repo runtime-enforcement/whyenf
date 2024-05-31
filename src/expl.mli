@@ -64,6 +64,8 @@ module Pdt : sig
   val collect: ('a -> bool) -> Etc.valuation -> string -> 'a t -> (Dom.t, Dom.comparator_witness) Setc.t
   val from_valuation: Term.t list -> Etc.valuation -> 'b -> 'b -> 'b t
 
+  val aggregate: ('a -> bool) -> ((Dom.t, Dom.comparator_witness) Setc.t -> Dom.t option -> 'b) -> ((Dom.t, int, Dom.comparator_witness) Map.t -> Dom.t) -> string -> Pred.Term.t -> string list -> Term.t list -> Term.t list -> 'a t -> 'b t
+
 end
 
 

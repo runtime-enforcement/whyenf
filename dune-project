@@ -1,4 +1,4 @@
-(lang dune 3.0)
+(lang dune 3.13)
 
 (name whyenf)
 
@@ -22,7 +22,7 @@
 
 (documentation https://url/to/documentation)
 
-(using menhir 2.0)
+(using menhir 3.0)
 
 (package
  (name whyenf)

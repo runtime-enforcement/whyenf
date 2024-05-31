@@ -37,6 +37,7 @@ module type MonitorT = sig
       | MFF
       | MEqConst      of Pred.Term.t * Dom.t
       | MPredicate    of string * Pred.Term.t list
+      | MAgg          of string * Aggregation.op * Aggregation.op_fun * Pred.Term.t list * Pred.Term.t * string list * t
       | MNeg          of t
       | MAnd          of Formula.Side.t * t * t * binop_info
       | MOr           of Formula.Side.t * t * t * binop_info
@@ -57,7 +58,7 @@ module type MonitorT = sig
       | MUntil        of Interval.t * t * t * buf2t_info * until_info
       | MEUntil       of Formula.Side.t * Interval.t * t * t * int
 
-    val init: Tformula.t -> t
+    val init: Pred.Term.t list -> Tformula.t -> t
     val rank: t -> int
 
     val apply_valuation : Etc.valuation -> t -> t
@@ -79,15 +80,15 @@ module type MonitorT = sig
 
     type kind =
       | FFormula of MFormula.t * int                       (* fun _ -> f *)
-      | FInterval of int * Interval.t * MFormula.t * int   (* fun t -> if mem t i then f else Formula.TT *)
-      | FUntil of int * Formula.Side.t * Interval.t * MFormula.t * MFormula.t * int (* fun t -> Until (s, sub2 i (t-t0), f1, f2) *)
-      | FAlways of int * Interval.t * MFormula.t * int     (* fun t -> Always (sub2 i (t-t0), f1) *)
-      | FEventually of int * Interval.t * MFormula.t * int (* fun t -> Eventually (sub2 i (t-t0), f1) *)
+      | FInterval of Time.t * Interval.t * MFormula.t * int   (* fun t -> if mem t i then f else Formula.TT *)
+      | FUntil of Time.t * Formula.Side.t * Interval.t * MFormula.t * MFormula.t * int (* fun t -> Until (s, sub2 i (t-t0), f1, f2) *)
+      | FAlways of Time.t * Interval.t * MFormula.t * int     (* fun t -> Always (sub2 i (t-t0), f1) *)
+      | FEventually of Time.t * Interval.t * MFormula.t * int (* fun t -> Eventually (sub2 i (t-t0), f1) *)
 
     type t = kind * Etc.valuation * polarity
 
     val equal: t -> t -> bool
-    val eval: int -> int -> t -> MFormula.t
+    val eval: Time.t -> int -> t -> MFormula.t
     val to_string: t -> string
 
     include Comparable.S with type t := t

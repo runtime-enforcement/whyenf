@@ -17,6 +17,7 @@ type core_t =
   | TFF
   | TEqConst of Term.t * Dom.t
   | TPredicate of string * Term.t list
+  | TAgg of string * Dom.tt * Aggregation.op * Term.t * string list * t
   | TNeg of t
   | TAnd of Side.t * t * t
   | TOr of Side.t * t * t
@@ -44,6 +45,7 @@ val conj : Side.t -> t -> t -> EnfType.t -> t
 
 val op_to_string : t -> string
 
-val of_formula : Formula.t -> t
+val of_formula :  Formula.t -> Dom.ctxt -> Dom.ctxt * t
+val of_formula' : Formula.t -> t
 val to_formula : t -> Formula.t
 val to_string : t -> string
