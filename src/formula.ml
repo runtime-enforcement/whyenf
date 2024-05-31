@@ -44,13 +44,14 @@ type t =
   | FF
   | EqConst of Term.t * Dom.t
   | Predicate of string * Term.t list
+  | Agg of string * Aggregation.op * Term.t * string list * t
   | Neg of t
   | And of Side.t * t * t
   | Or of Side.t * t * t
   | Imp of Side.t * t * t
   | Iff of Side.t * Side.t * t * t
-  | Exists of string * Dom.tt * t
-  | Forall of string * Dom.tt * t
+  | Exists of string * t
+  | Forall of string * t
   | Prev of Interval.t * t
   | Next of Interval.t * t
   | Once of Interval.t * t
@@ -60,7 +61,7 @@ type t =
   | Since of Side.t * Interval.t * t * t
   | Until of Side.t * Interval.t * t * t [@@deriving compare, sexp_of, hash]
 
-let rec var_tt x = function
+(*let rec var_tt x = function
   | TT | FF -> []
   | EqConst _ -> []
   | Predicate (r, trms) ->
@@ -81,23 +82,22 @@ let rec var_tt x = function
     | Imp (_, f, g)
     | Iff (_, _, f, g)
     | Since (_, _, f, g)
-    | Until (_, _, f, g) -> var_tt x f @ var_tt x g
+    | Until (_, _, f, g) -> var_tt x f @ var_tt x g*)
 
 let tt = TT
 let ff = FF
 let eqconst x d = EqConst (x, d)
+let agg s op x y f = Agg (s, op, x, y, f)
 let predicate p_name trms = Predicate (p_name, trms)
 let neg f = Neg f
 let conj s f g = And (s, f, g)
 let disj s f g = Or (s, f, g)
 let imp s f g = Imp (s, f, g)
 let iff s t f g = Iff (s, t, f, g)
-let exists x f =
-  try Exists (x, List.hd_exn (var_tt x f), f)
-  with e -> raise (Invalid_argument ("unused variable " ^ x))
-let forall x f =
-  try Forall (x, List.hd_exn (var_tt x f), f)
-  with e -> raise (Invalid_argument ("unused variable " ^ x))
+let exists x f = Exists (x, f)
+let forall x f = Forall (x, f)
+(*  try Forall (x, List.hd_exn (var_tt x f), f)
+  with e -> raise (Invalid_argument ("unused variable " ^ x))*)
 let prev i f = Prev (i, f)
 let next i f = Next (i, f)
 let once i f = Once (i, f)
@@ -114,14 +114,17 @@ let release s i f g = Neg (Until (s, i, Neg f, Neg g))
 let equal x y = match x, y with
   | TT, TT | FF, FF -> true
   | EqConst (x, c), EqConst (x', c') -> Term.equal x x'
+  | Agg (s, op, x, y, f), Agg (s', op', x', y', f') ->
+     String.equal s s' && Aggregation.equal_op op op' && Term.equal x x' && List.length y == List.length y'
+     && List.for_all (List.zip_exn y y') (fun (y, y') -> String.equal y y') && phys_equal f f'
   | Predicate (r, trms), Predicate (r', trms') -> String.equal r r' && List.equal Term.equal trms trms'
   | Neg f, Neg f' -> phys_equal f f'
   | And (s, f, g), And (s', f', g')
     | Or (s, f, g), Or (s', f', g')
     | Imp (s, f, g), Imp (s', f', g') -> Side.equal s s' && phys_equal f f' && phys_equal g g'
   | Iff (s, t, f, g), Iff (s', t', f', g') -> Side.equal s s' && Side.equal t t' && phys_equal f f' && phys_equal g g'
-  | Exists (x, tt, f), Exists (x', tt', f')
-    | Forall (x, tt, f), Forall (x', tt', f') -> String.equal x x' && Dom.tt_equal tt tt' && phys_equal f f'
+  | Exists (x, f), Exists (x', f')
+    | Forall (x, f), Forall (x', f') -> String.equal x x' && phys_equal f f'
   | Prev (i, f), Prev (i', f')
     | Next (i, f), Next (i', f')
     | Once (i, f), Once (i', f')
@@ -136,11 +139,12 @@ let rec fv = function
   | TT | FF -> Set.empty (module String)
   | EqConst (Var x, c) -> Set.of_list (module String) [x]
   | EqConst _ -> Set.empty (module String)
+  | Agg (s, op, x, y, f) -> Set.of_list (module String) y
   | Predicate (x, trms) when not (Sig.equal_pred_kind (Sig.kind_of_pred x) (Sig.Predicate)) ->
      Set.of_list (module String) (Pred.Term.fv_list trms)
   | Predicate _ -> Set.empty (module String)
-  | Exists (x, _, f)
-    | Forall (x, _, f) -> Set.filter (fv f) ~f:(fun y -> not (String.equal x y))
+  | Exists (x, f)
+    | Forall (x, f) -> Set.filter (fv f) ~f:(fun y -> not (String.equal x y))
   | Neg f
     | Prev (_, f)
     | Once (_, f)
@@ -158,10 +162,11 @@ let rec fv = function
 let rec terms = function
   | TT | FF -> Set.empty (module Term)
   | EqConst (trm, c) -> Set.singleton (module Term) trm
+  | Agg (s, _, _, y, f) -> Set.of_list (module Term) (List.map (s::y) ~f:(fun v -> Term.Var v))
   | Predicate (x, trms) -> Set.filter (Set.of_list (module Term) trms)
                              ~f:(function Const _ -> false | _ -> true)
-  | Exists (x, _, f)
-    | Forall (x, _, f) ->
+  | Exists (x, f)
+    | Forall (x, f) ->
      Set.filter (terms f)
        ~f:(fun y -> not (List.mem (Pred.Term.fv_list [y]) x ~equal:String.equal))
   | Neg f
@@ -183,9 +188,10 @@ let check_bindings f =
   let rec check_bindings_rec bound_vars = function
     | TT | FF -> (bound_vars, true)
     | EqConst (x, c) -> (bound_vars, true)
+    | Agg (s, x, y, _, f) -> ((Set.add bound_vars s), (not (Set.mem fv_f s)) && (not (Set.mem bound_vars s)))
     | Predicate _ -> (bound_vars, true)
-    | Exists (x, _, f)
-      | Forall (x, _, f) -> ((Set.add bound_vars x), (not (Set.mem fv_f x)) && (not (Set.mem bound_vars x)))
+    | Exists (x, f)
+      | Forall (x, f) -> ((Set.add bound_vars x), (not (Set.mem fv_f x)) && (not (Set.mem bound_vars x)))
     | Neg f
       | Prev (_, f)
       | Once (_, f)
@@ -210,8 +216,8 @@ let rec hp = function
     | EqConst _
     | Predicate _ -> 0
   | Neg f
-    | Exists (_, _, f)
-    | Forall (_, _, f) -> hp f
+    | Exists (_, f)
+    | Forall (_, f) -> hp f
   | And (_, f1, f2)
     | Or (_, f1, f2)
     | Imp (_, f1, f2)
@@ -221,7 +227,8 @@ let rec hp = function
     | Historically (_, f) -> hp f + 1
   | Eventually (_, f)
     | Always (_, f)
-    | Next (_, f) -> hp f
+    | Next (_, f)
+    | Agg (_, _, _, _, f) -> hp f
   | Since (_, _, f1, f2) -> max (hp f1) (hp f2) + 1
   | Until (_, _, f1, f2) -> max (hp f1) (hp f2)
 
@@ -232,15 +239,16 @@ let rec hf = function
     | EqConst _
     | Predicate _ -> 0
   | Neg f
-    | Exists (_, _, f)
-    | Forall (_, _, f) -> hf f
+    | Exists (_, f)
+    | Forall (_, f) -> hf f
   | And (_, f1, f2)
     | Or (_, f1, f2)
     | Imp (_, f1, f2)
     | Iff (_, _, f1, f2) -> max (hf f1) (hf f2)
   | Prev (_, f)
     | Once (_, f)
-    | Historically (_, f) -> hf f
+    | Historically (_, f)
+    | Agg (_, _, _, _, f) -> hf f
   | Eventually (_, f)
     | Always (_, f)
     | Next (_, f) -> hf f + 1
@@ -255,14 +263,15 @@ let immediate_subfs = function
     | EqConst _
     | Predicate _ -> []
   | Neg f
-    | Exists (_, _, f)
-    | Forall (_, _, f)
+    | Exists (_, f)
+    | Forall (_, f)
     | Prev (_, f)
     | Next (_, f)
     | Once (_, f)
     | Eventually (_, f)
     | Historically (_, f)
-    | Always (_, f) -> [f]
+    | Always (_, f)
+    | Agg (_, _, _, _, f) -> [f]
   | And (_, f, g)
     | Or (_, f, g)
     | Imp (_, f, g)
@@ -280,14 +289,15 @@ let rec subfs_dfs h = match h with
   | Or (_, f, g) -> [h] @ (subfs_dfs f) @ (subfs_dfs g)
   | Imp (_, f, g) -> [h] @ (subfs_dfs f) @ (subfs_dfs g)
   | Iff (_, _, f, g) -> [h] @ (subfs_dfs f) @ (subfs_dfs g)
-  | Exists (_, _, f) -> [h] @ (subfs_dfs f)
-  | Forall (_, _, f) -> [h] @ (subfs_dfs f)
+  | Exists (_, f) -> [h] @ (subfs_dfs f)
+  | Forall (_, f) -> [h] @ (subfs_dfs f)
   | Prev (_, f) -> [h] @ (subfs_dfs f)
   | Next (_, f) -> [h] @ (subfs_dfs f)
   | Once (_, f) -> [h] @ (subfs_dfs f)
   | Eventually (_, f) -> [h] @ (subfs_dfs f)
   | Historically (_, f) -> [h] @ (subfs_dfs f)
   | Always (_, f) -> [h] @ (subfs_dfs f)
+  | Agg (_, _, _, _, f) -> [h] @ (subfs_dfs f)
   | Since (_, _, f, g) -> [h] @ (subfs_dfs f) @ (subfs_dfs g)
   | Until (_, _, f, g) -> [h] @ (subfs_dfs f) @ (subfs_dfs g)
 
@@ -296,15 +306,16 @@ let subfs_scope h i =
     match h with
     | TT | FF | EqConst _ | Predicate _ -> (i, [(i, ([], []))])
     | Neg f
-      | Exists (_, _, f)
-      | Forall (_, _, f)
+      | Exists (_, f)
+      | Forall (_, f)
       | Prev (_, f)
       | Next (_, f)
       | Once (_, f)
       | Eventually (_, f)
       | Historically (_, f)
-      | Always (_, f) -> let (i', subfs_f) = subfs_scope_rec f (i+1) in
-                         (i', [(i, (List.map subfs_f ~f:fst, []))] @ subfs_f)
+      | Always (_, f)
+      | Agg (_, _, _, _, f) -> let (i', subfs_f) = subfs_scope_rec f (i+1) in
+                               (i', [(i, (List.map subfs_f ~f:fst, []))] @ subfs_f)
     | And (_, f, g)
       | Or (_, f, g)
       | Imp (_, f, g)
@@ -319,10 +330,11 @@ let subfs_scope h i =
 let rec preds = function
   | TT | FF | EqConst _ -> []
   | Predicate (r, trms) -> [Predicate (r, trms)]
-  | Neg f | Exists (_, _, f) | Forall (_, _, f)
+  | Neg f | Exists (_, f) | Forall (_, f)
     | Next (_, f) | Prev (_, f)
     | Once (_, f) | Historically (_, f)
-    | Eventually (_, f) | Always (_, f) -> preds f
+    | Eventually (_, f) | Always (_, f)
+    | Agg (_, _, _, _, f) -> preds f
   | And (_, f1, f2) | Or (_, f1, f2)
     | Imp (_, f1, f2) | Iff (_, _, f1, f2)
     | Until (_, _, f1, f2) | Since (_, _, f1, f2) -> let a1s = List.fold_left (preds f1) ~init:[]
@@ -338,10 +350,11 @@ let pred_names f =
   let rec pred_names_rec s = function
     | TT | FF | EqConst _ -> s
     | Predicate (r, trms) -> Set.add s r
-    | Neg f | Exists (_, _, f) | Forall (_, _, f)
+    | Neg f | Exists (_, f) | Forall (_, f)
       | Prev (_, f) | Next (_, f)
       | Once (_, f) | Eventually (_, f)
-      | Historically (_, f) | Always (_, f) -> pred_names_rec s f
+      | Historically (_, f) | Always (_, f)
+      | Agg (_, _, _, _, f) -> pred_names_rec s f
     | And (_, f1, f2) | Or (_, f1, f2)
       | Imp (_, f1, f2) | Iff (_, _, f1, f2)
       | Until (_, _, f1, f2) | Since (_, _, f1, f2) -> Set.union (pred_names_rec s f1) (pred_names_rec s f2) in
@@ -352,13 +365,15 @@ let op_to_string = function
   | FF -> Printf.sprintf "⊥"
   | EqConst (x, c) -> Printf.sprintf "="
   | Predicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
+  | Agg (_, op, x, y, _) -> Printf.sprintf "%s(%s; %s)" (Aggregation.op_to_string op) (Term.value_to_string x)
+                              (String.concat ~sep:", " y)  
   | Neg _ -> Printf.sprintf "¬"
   | And (_, _, _) -> Printf.sprintf "∧"
   | Or (_, _, _) -> Printf.sprintf "∨"
   | Imp (_, _, _) -> Printf.sprintf "→"
   | Iff (_, _, _, _) -> Printf.sprintf "↔"
-  | Exists (x, _, _) -> Printf.sprintf "∃ %s." x
-  | Forall (x, _, _) -> Printf.sprintf "∀ %s." x
+  | Exists (x, _) -> Printf.sprintf "∃ %s." x
+  | Forall (x, _) -> Printf.sprintf "∀ %s." x
   | Prev (i, _) -> Printf.sprintf "●%s" (Interval.to_string i)
   | Next (i, _) -> Printf.sprintf "○%s" (Interval.to_string i)
   | Once (i, f) -> Printf.sprintf "⧫%s" (Interval.to_string i)
@@ -373,13 +388,14 @@ let rec to_string_rec l = function
   | FF -> Printf.sprintf "⊥"
   | EqConst (trm, c) -> Printf.sprintf "%s = %s" (Term.value_to_string trm) (Dom.to_string c)
   | Predicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
+  | Agg (s, op, x, y, f) -> Printf.sprintf "%s = %s(%s; %s; %s)" s (Aggregation.op_to_string op) (Term.value_to_string x) (String.concat ~sep:", " y) (to_string_rec 5 f)
   | Neg f -> Printf.sprintf "¬%a" (fun x -> to_string_rec 5) f
   | And (s, f, g) -> Printf.sprintf (Etc.paren l 4 "%a ∧%a %a") (fun x -> to_string_rec 4) f (fun x -> Side.to_string) s (fun x -> to_string_rec 4) g
   | Or (s, f, g) -> Printf.sprintf (Etc.paren l 3 "%a ∨%a %a") (fun x -> to_string_rec 3) f (fun x -> Side.to_string) s (fun x -> to_string_rec 4) g
   | Imp (s, f, g) -> Printf.sprintf (Etc.paren l 5 "%a →%a %a") (fun x -> to_string_rec 5) f (fun x -> Side.to_string) s (fun x -> to_string_rec 5) g
   | Iff (s, t, f, g) -> Printf.sprintf (Etc.paren l 5 "%a ↔%a %a") (fun x -> to_string_rec 5) f (fun x -> Side.to_string2) (s, t) (fun x -> to_string_rec 5) g
-  | Exists (x, _, f) -> Printf.sprintf (Etc.paren l 5 "∃%s. %a") x (fun x -> to_string_rec 5) f
-  | Forall (x, _, f) -> Printf.sprintf (Etc.paren l 5 "∀%s. %a") x (fun x -> to_string_rec 5) f
+  | Exists (x, f) -> Printf.sprintf (Etc.paren l 5 "∃%s. %a") x (fun x -> to_string_rec 5) f
+  | Forall (x, f) -> Printf.sprintf (Etc.paren l 5 "∀%s. %a") x (fun x -> to_string_rec 5) f
   | Prev (i, f) -> Printf.sprintf (Etc.paren l 5 "●%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
   | Next (i, f) -> Printf.sprintf (Etc.paren l 5 "○%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
   | Once (i, f) -> Printf.sprintf (Etc.paren l 5 "⧫%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
@@ -400,9 +416,11 @@ let rec to_json_rec indent pos f =
   | FF -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"FF\"\n%s}"
             indent pos indent' indent
   | EqConst (trm, c) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"EqConst\",\n%s\"variable\": \"%s\",\n%s\"constant\": \"%s\"\n%s}"
-                        indent pos indent' indent' (Term.to_string trm) indent' (Dom.to_string c) indent
+                          indent pos indent' indent' (Term.to_string trm) indent' (Dom.to_string c) indent
   | Predicate (r, trms) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Predicate\",\n%s\"name\": \"%s\",\n%s\"terms\": \"%s\"\n%s}"
                              indent pos indent' indent' r indent' (Term.list_to_string trms) indent
+  | Agg (s, op, x, y, f) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Agg\",\n%s\"variable\": \"%s\",\n%s\"agg_variable\": \"%s\"\n%s\"groupby_variables\": \"%s,%s\n%s}"
+                              indent pos indent' indent' s indent' (Term.to_string x) indent' (String.concat ~sep:", " y) (to_json_rec indent' "f" f) indent
   | Neg f -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Neg\",\n%s\n%s}"
                indent pos indent' (to_json_rec indent' "" f) indent
   | And (_, f, g) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"And\",\n%s,\n%s\n%s}"
@@ -413,9 +431,9 @@ let rec to_json_rec indent pos f =
                     indent pos indent' (to_json_rec indent' "l" f) (to_json_rec indent' "r" g) indent
   | Iff (_, _, f, g) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Iff\",\n%s,\n%s\n%s}"
                     indent pos indent' (to_json_rec indent' "l" f) (to_json_rec indent' "r" g) indent
-  | Exists (x, _, g) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Exists\",\n%s\"variable\": \"%s\",\n%s\n%s}"
+  | Exists (x, g) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Exists\",\n%s\"variable\": \"%s\",\n%s\n%s}"
                        indent pos indent' indent' x (to_json_rec indent' "" f) indent
-  | Forall (x, _, g) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Forall\",\n%s\"variable\": \"%s\",\n%s\n%s}"
+  | Forall (x, g) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Forall\",\n%s\"variable\": \"%s\",\n%s\n%s}"
                        indent pos indent' indent' x (to_json_rec indent' "" f) indent
   | Prev (i, f) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Prev\",\n%s\"Interval.t\": \"%s\",\n%s\n%s}"
                      indent pos indent' indent' (Interval.to_string i) (to_json_rec indent' "" f) indent
@@ -440,13 +458,14 @@ let rec to_latex_rec l = function
   | FF -> Printf.sprintf "\\bot"
   | EqConst (trm, c) -> Printf.sprintf "%s = %s" (Etc.escape_underscores (Term.to_string trm)) (Dom.to_string c)
   | Predicate (r, trms) -> Printf.sprintf "%s\\,(%s)" (Etc.escape_underscores r) (Term.list_to_string trms)
+  | Agg (s, op, x, y, f) -> Printf.sprintf "%s \\leftarrow %s %s;%s. %s" (Etc.escape_underscores s) (Aggregation.op_to_string op) (Etc.escape_underscores (Term.to_string x)) (Etc.escape_underscores (String.concat ~sep:", " y)) (to_latex_rec 5 f)
   | Neg f -> Printf.sprintf "\\neg %a" (fun x -> to_latex_rec 5) f
   | And (_, f, g) -> Printf.sprintf (Etc.paren l 4 "%a \\land %a") (fun x -> to_latex_rec 4) f (fun x -> to_latex_rec 4) g
   | Or (_, f, g) -> Printf.sprintf (Etc.paren l 3 "%a \\lor %a") (fun x -> to_latex_rec 3) f (fun x -> to_latex_rec 4) g
   | Imp (_, f, g) -> Printf.sprintf (Etc.paren l 5 "%a \\rightarrow %a") (fun x -> to_latex_rec 5) f (fun x -> to_latex_rec 5) g
   | Iff (_, _, f, g) -> Printf.sprintf (Etc.paren l 5 "%a \\leftrightarrow %a") (fun x -> to_latex_rec 5) f (fun x -> to_latex_rec 5) g
-  | Exists (x, _, f) -> Printf.sprintf (Etc.paren l 5 "\\exists %s. %a") x (fun x -> to_latex_rec 5) f
-  | Forall (x, _, f) -> Printf.sprintf (Etc.paren l 5 "\\forall %s. %a") x (fun x -> to_latex_rec 5) f
+  | Exists (x, f) -> Printf.sprintf (Etc.paren l 5 "\\exists %s. %a") x (fun x -> to_latex_rec 5) f
+  | Forall (x, f) -> Printf.sprintf (Etc.paren l 5 "\\forall %s. %a") x (fun x -> to_latex_rec 5) f
   | Prev (i, f) -> Printf.sprintf (Etc.paren l 5 "\\Prev{%a} %a") (fun x -> Interval.to_latex) i (fun x -> to_latex_rec 5) f
   | Next (i, f) -> Printf.sprintf (Etc.paren l 5 "\\Next{%a} %a") (fun x -> Interval.to_latex) i (fun x -> to_latex_rec 5) f
   | Once (i, f) -> Printf.sprintf (Etc.paren l 5 "\\Once{%a} %a") (fun x -> Interval.to_latex) i (fun x -> to_latex_rec 5) f
@@ -459,29 +478,65 @@ let rec to_latex_rec l = function
                          (fun x -> Interval.to_latex) i (fun x -> to_latex_rec 5) g
 let to_latex = to_latex_rec 0
 
-let check_types f =
-  let rec check types = function
-  | TT -> types
-  | FF -> types
-  | EqConst (trm, c) -> check_term types (Dom.tt_of_domain c) trm
-  | Predicate (r, trms) -> check_terms types r trms
-  | Neg f
-    | Prev (_, f) 
-    | Next (_, f)
-    | Once (_, f)
-    | Eventually (_, f)
-    | Historically (_, f)
-    | Always (_, f) -> check types f
-  | And (_, f, g) 
-    | Or (_, f, g)
-    | Imp (_, f, g)
-    | Iff (_, _, f, g)
-    | Since (_, _, f, g)
-    | Until (_, _, f, g)
-    -> check (check types f) g
-  | Exists (x, tt, f)
-    | Forall (x, tt, f) ->
-     let types = Map.update types x ~f:(fun _ -> tt) in
-     check types f
-  in ignore (check (Map.empty (module String)) f)
+
+let rec is_past_guarded x p f =
+  let r =
+  match f with
+  | TT | FF -> false
+  | EqConst (y, _) -> p && (Term.Var x == y)
+  | Predicate (_, ts) when p -> List.exists ~f:(Term.equal (Term.Var x)) ts
+  | Agg (s, _, _, y, f) when List.mem y x ~equal:String.equal -> is_past_guarded x p f
+  | Agg (s, _, _, _, _) -> String.equal s x
+  | Neg f -> is_past_guarded x (not p) f
+  | And (_, f, g) when p -> is_past_guarded x p f || is_past_guarded x p g
+  | And (_, f, g) -> is_past_guarded x p f && is_past_guarded x p g
+  | Or (_, f, g) when p -> is_past_guarded x p f && is_past_guarded x p g
+  | Or (_, f, g) -> is_past_guarded x p f || is_past_guarded x p g
+  | Imp (_, f, g) when p -> is_past_guarded x (not p) f && is_past_guarded x p g
+  | Imp (_, f, g) -> is_past_guarded x (not p) f || is_past_guarded x p g
+  | Iff (_, _, f, g) when p -> is_past_guarded x (not p) f && is_past_guarded x p g
+                               || is_past_guarded x p f && is_past_guarded x (not p) g
+  | Iff (_, _, f, g) -> (is_past_guarded x (not p) f || is_past_guarded x p g)
+                        && (is_past_guarded x p f || is_past_guarded x (not p) g)
+  | Exists (y, f) | Forall (y, f) -> x != y && is_past_guarded x p f
+  | Prev (_, f) -> p && is_past_guarded x p f
+  | Once (_, f) | Eventually (_, f) when p -> is_past_guarded x p f
+  | Once (i, f) | Eventually (i, f) -> Interval.has_zero i && is_past_guarded x p f
+  | Historically (_, f) | Always (_, f) when not p -> is_past_guarded x p f
+  | Historically (i, f) | Eventually (i, f) -> Interval.has_zero i && is_past_guarded x p f
+  | Since (_, i, f, g) when p -> not (Interval.has_zero i) && is_past_guarded x p f
+                                      || is_past_guarded x p g
+  | Until (_, i, f, g) when p -> not (Interval.has_zero i) && is_past_guarded x p f
+                                      || is_past_guarded x p f && is_past_guarded x p g
+  | Since (_, i, f, g) | Until (_, i, f, g) -> Interval.has_zero i && is_past_guarded x p g
+  | _ -> false
+  in 
+r
+
+let check_agg types s op x y f =
+  let x_tt = Sig.var_tt_of_term_exn types x in
+  match Aggregation.ret_tt op x_tt with
+  | None -> raise (Invalid_argument (
+                       Printf.sprintf "type clash for operator %s: invalid type %s"
+                         (Aggregation.op_to_string op) (Dom.tt_to_string x_tt)))
+  | Some s_tt when not (Dom.tt_equal s_tt (Map.find_exn types s)) ->
+     raise (Invalid_argument (
+                Printf.sprintf "type clash for return type of operator %s: found %s, expected %s"
+                  (Aggregation.op_to_string op)
+                  (Dom.tt_to_string s_tt)
+                  (Dom.tt_to_string (Map.find_exn types s))))
+  | _ -> let vars = (Term.fv_list [x]) @ y in
+         let fv = fv f in
+         List.iter vars ~f:(
+             fun x ->
+             if not (Set.mem fv x) then
+               raise (Invalid_argument (
+                          Printf.sprintf "variable %s is used in aggregation, but not free in %s"
+                            x (to_string f)))
+             else ());
+         (*if Set.mem fv s then
+           raise (Invalid_argument (
+                      Printf.sprintf "variable %s is both the target of an aggregation and free in %s"
+                        s (to_string f)));*)
+         types
 

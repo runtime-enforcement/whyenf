@@ -16,6 +16,10 @@ module Term : sig
 
   type comparator_witness
 
+  val var: string -> t
+  val const: Dom.t -> t
+  val app: string -> t list -> t
+
   val unvar: t -> string
 
   val unconst: t -> Dom.t
@@ -31,6 +35,10 @@ module Term : sig
   val value_to_string: t -> string
 
   val list_to_string: t list -> string
+
+  val filter_vars: t list -> string list
+
+  val reorder: t list -> string list -> t list
 
 end
 
@@ -99,6 +107,8 @@ module Sig : sig
 
   val var_tt_of_term: string -> Dom.tt -> Term.t -> Dom.tt option
   val var_tt_of_terms: string -> Dom.tt list -> Term.t list -> Dom.tt option
+
+  val var_tt_of_term_exn: (string, Dom.tt, String.comparator_witness) Map.t -> Term.t -> Dom.tt
   
 end
 

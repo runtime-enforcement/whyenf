@@ -27,13 +27,14 @@ type t =
   | FF
   | EqConst of Term.t * Dom.t
   | Predicate of string * Term.t list
+  | Agg of string * Aggregation.op * Term.t * string list * t
   | Neg of t
   | And of Side.t * t * t
   | Or of Side.t * t * t
   | Imp of Side.t * t * t
   | Iff of Side.t * Side.t * t * t
-  | Exists of string * Dom.tt * t
-  | Forall of string * Dom.tt * t
+  | Exists of string * t
+  | Forall of string * t
   | Prev of Interval.t * t
   | Next of Interval.t * t
   | Once of Interval.t * t
@@ -46,6 +47,7 @@ type t =
 val tt: t
 val ff: t
 val eqconst: Term.t -> Dom.t -> t
+val agg: string -> Aggregation.op -> Term.t -> string list -> t -> t
 val predicate: string -> Term.t list -> t
 val neg: t -> t
 val conj: Side.t -> t -> t -> t
@@ -86,4 +88,6 @@ val to_string: t -> string
 val to_json: t -> string
 val to_latex: t -> string
 
-val check_types: t -> unit
+(*val check_types: t -> unit*)
+val is_past_guarded: string -> bool -> t -> bool
+val check_agg: (string, Dom.tt, Base.String.comparator_witness) Base.Map.t -> string -> Aggregation.op -> Term.t -> string list -> t -> (string, Dom.tt, Base.String.comparator_witness) Base.Map.t

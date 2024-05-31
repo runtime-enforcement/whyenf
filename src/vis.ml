@@ -69,7 +69,7 @@ module Expl = struct
 
   let rec cell_idx idx = function
     | Formula.TT | FF | EqConst _ | Predicate _ -> idx
-    | Neg f' | Exists (_, _, f') | Forall (_, _, f')
+    | Neg f' | Exists (_, f') | Forall (_, f')
       | Prev (_, f') | Next (_, f')
       | Once (_, f') | Eventually (_, f')
       | Historically (_, f') | Always (_, f') -> cell_idx (idx+1) f'
@@ -157,13 +157,13 @@ module Expl = struct
        let cells = [(Expl.Proof.v_at vp1, vp1_idx, None, Boolean false);
                     (Expl.Proof.v_at vp2, vp2_idx, None, Boolean false)] in
        ((cell, cells) :: tbl'', idx'')
-    | Exists (_, _, f'), S (SExists (x, d, sp)) ->
+    | Exists (_, f'), S (SExists (x, d, sp)) ->
        let sp_idx = idx+1 in
        let (row', idx') = ssubfs_cell_row row sp_idx f' (S sp) in
        let cell = (Expl.Proof.p_at p, idx, None, Assignment (x, Dom.to_string d, true)) in
        let cells = [(Expl.Proof.s_at sp, sp_idx, None, Boolean true)] in
        ((cell, cells) :: row', idx')
-    | Forall (_, _, f'), S (SForall (x, part)) ->
+    | Forall (_, f'), S (SForall (x, part)) ->
        let sps_idx = idx+1 in
        let row' = List.filter row ~f:(fun (cell, _) -> not (String.equal (cell_kind cell) "partition")) in
        let (idx', part_tbl) = List.fold_map part ~init:sps_idx ~f:(fun i (s, sp) ->
@@ -283,7 +283,7 @@ module Expl = struct
        let cells = [(Expl.Proof.v_at vp1, vp1_idx, None, Boolean false);
                     (Expl.Proof.s_at sp2, sp2_idx, None, Boolean true)] in
        ((cell, cells) :: tbl'', idx'')
-    | Exists (_, _, f'), V (VExists (x, part)) ->
+    | Exists (_, f'), V (VExists (x, part)) ->
        let vps_idx = idx+1 in
        let row' = List.filter row ~f:(fun (cell, _) -> not (String.equal (cell_kind cell) "partition")) in
        let (idx', part_tbl) = List.fold_map part ~init:vps_idx ~f:(fun i (s, vp) ->
@@ -294,7 +294,7 @@ module Expl = struct
        let part = Partition (x, part_tbl) in
        let cell = (Expl.Proof.p_at p, idx, None, part) in
        ((cell, []) :: row, idx')
-    | Forall (_, _, f'), V (VForall (x, d, vp)) ->
+    | Forall (_, f'), V (VForall (x, d, vp)) ->
        let vp_idx = idx+1 in
        let (row', idx') = ssubfs_cell_row row vp_idx f' (V vp) in
        let cell = (Expl.Proof.p_at p, idx, None, Assignment (x, Dom.to_string d, false)) in

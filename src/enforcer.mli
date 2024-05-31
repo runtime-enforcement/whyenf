@@ -10,7 +10,7 @@
 
 module type EnforcerT = sig
   
-  val exec: Formula.t -> in_channel -> int -> unit
+  val exec: Formula.t -> in_channel -> Time.t -> unit
 
 end
 

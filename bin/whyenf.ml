@@ -19,7 +19,7 @@ module Whyenf = struct
   let formula_ref = ref None
   let sig_ref = ref In_channel.stdin
   let logstr_ref = ref ""
-  let b_ref = ref 0
+  let b_ref = ref Time.zero
 
   let n_args = ref 0
 
@@ -69,8 +69,9 @@ module Whyenf = struct
          In_channel.with_file f ~f:(fun inc ->
              let lexbuf = Lexing.from_channel inc in
              formula_ref := try Some (Formula_parser.formula Formula_lexer.token lexbuf)
-                            with Formula_parser.Error -> Stdio.printf "%s\n" (Etc.lexbuf_error_msg lexbuf);
-                                                         Stdlib.flush_all (); None);
+                            with Formula_parser.Error ->
+                              Stdio.printf "%s\n" (Etc.lexbuf_error_msg lexbuf);
+                              Stdlib.flush_all (); None);
          process_args_rec args
       | ("-func":: f :: args) ->
          n_args := !n_args + 1;
@@ -81,7 +82,7 @@ module Whyenf = struct
       | ("-b" :: bound :: args) ->
          (match int_of_string_opt bound with
           | None -> bound_error ()
-          | Some b -> b_ref := b);
+          | Some b -> b_ref := Time.Second b);
          process_args_rec args
       | [] -> if !n_args >= 2 then () else usage ()
       | _ -> usage () in

@@ -17,6 +17,7 @@ type core_t =
   | TFF
   | TEqConst of Term.t * Dom.t
   | TPredicate of string * Term.t list
+  | TAgg of string * Dom.tt * Aggregation.op * Term.t * string list * t
   | TNeg of t
   | TAnd of Side.t * t * t
   | TOr of Side.t * t * t
@@ -35,30 +36,79 @@ type core_t =
 
 and t = { f: core_t; enftype: EnfType.t }
 
-let rec core_of_formula = function
-  | TT -> TTT
-  | FF -> TFF
-  | EqConst (x, v) -> TEqConst (x, v)
-  | Predicate (e, t) when not (Sig.equal_pred_kind (Sig.kind_of_pred e) Sig.Predicate) ->
-     TPredicate (e, t)
-  | Predicate (e, t) -> TEqConst (Term.App (e, t), Dom.Int 1)
-  | Neg f -> TNeg (of_formula f)
-  | And (s, f, g) -> TAnd (s, of_formula f, of_formula g)
-  | Or (s, f, g) -> TOr (s, of_formula f, of_formula g)
-  | Imp (s, f, g) -> TImp (s, of_formula f, of_formula g)
-  | Iff (s, t, f, g) -> TIff (s, t, of_formula f, of_formula g)
-  | Exists (x, tt, f) -> TExists (x, tt, of_formula f)
-  | Forall (x, tt, f) -> TForall (x, tt, of_formula f)
-  | Prev (i, f) -> TPrev (i, of_formula f)
-  | Next (i, f) -> TNext (i, of_formula f)
-  | Once (i, f) -> TOnce (i, of_formula f)
-  | Eventually (i, f) -> TEventually (i, true, of_formula f)
-  | Historically (i, f) -> THistorically (i, of_formula f)
-  | Always (i, f) -> TAlways (i, true, of_formula f)
-  | Since (s, i, f, g) -> TSince (s, i, of_formula f, of_formula g)
-  | Until (s, i, f, g) -> TUntil (s, i, true, of_formula f, of_formula g)
+let rec core_of_formula f (types: Dom.ctxt) = match f with
+  | TT -> types, TTT
+  | FF -> types, TFF
+  | EqConst (trm, c) ->
+     let types = Pred.check_term types (Dom.tt_of_domain c) trm in
+     types, TEqConst (trm, c)
+  | Predicate (e, trms) when not (Sig.equal_pred_kind (Sig.kind_of_pred e) Sig.Predicate) ->
+     let types = Pred.check_terms types e trms in
+     types, TPredicate (e, trms)
+  | Predicate (e, trms) ->
+     let types = Pred.check_terms types e trms in
+     types, TEqConst (Term.App (e, trms), Dom.Int 1)
+  | Agg (s, op, x, y, f) ->
+     let types, mf = of_formula f types in
+     let types = Formula.check_agg types s op x y f in
+     types, TAgg (s, Sig.var_tt_of_term_exn types x,  op, x, y, mf)
+  | Neg f ->
+     let types, mf = of_formula f types in
+     types, TNeg mf
+  | And (s, f, g) ->
+     let types, mf = of_formula f types in
+     let types, mg = of_formula g types in
+     types, TAnd (s, mf, mg)
+  | Or (s, f, g) ->
+     let types, mf = of_formula f types in
+     let types, mg = of_formula g types in
+     types, TOr (s, mf, mg)
+  | Imp (s, f, g) ->
+     let types, mf = of_formula f types in
+     let types, mg = of_formula g types in
+     types, TImp (s, mf, mg)
+  | Iff (s, t, f, g) ->
+     let types, mf = of_formula f types in
+     let types, mg = of_formula g types in
+     types, TIff (s, t, mf, mg)
+  | Exists (x, f) ->
+     let types, mf = of_formula f types in
+     types, TExists (x, Map.find_exn types x, mf)
+  | Forall (x, f) ->
+     let types, mf = of_formula f types in
+     types, TForall (x, Map.find_exn types x, mf)
+  | Prev (i, f) ->
+     let types, mf = of_formula f types in
+     types, TPrev (i, mf)
+  | Next (i, f) ->
+     let types, mf = of_formula f types in
+     types, TNext (i, mf)
+  | Once (i, f) ->
+     let types, mf = of_formula f types in
+     types, TOnce (i, mf)
+  | Eventually (i, f) ->
+     let types, mf = of_formula f types in
+     types, TEventually (i, true, mf)
+  | Historically (i, f) ->
+     let types, mf = of_formula f types in
+     types, THistorically (i, mf)
+  | Always (i, f) ->
+     let types, mf = of_formula f types in
+     types, TAlways (i, true, mf)
+  | Since (s, i, f, g) ->
+     let types, mf = of_formula f types in
+     let types, mg = of_formula g types in
+     types, TSince (s, i, mf, mg)
+  | Until (s, i, f, g) ->
+     let types, mf = of_formula f types in
+     let types, mg = of_formula g types in
+     types, TUntil (s, i, true, mf, mg)
 
-and of_formula f = { f = core_of_formula f; enftype = EnfType.Obs }
+and of_formula f (types: Dom.ctxt) =
+  let types, f = core_of_formula f types in
+  types, { f; enftype = EnfType.Obs }
+
+let of_formula' f = snd (of_formula f (Map.empty (module String)))
 
 let rec rank = function
   | TTT | TFF -> 0
@@ -72,7 +122,8 @@ let rec rank = function
     | TOnce (_, f)
     | TEventually (_, _, f)
     | THistorically (_, f)
-    | TAlways (_, _, f) -> rank f.f
+    | TAlways (_, _, f)
+    | TAgg (_, _, _, _, _, f) -> rank f.f
   | TAnd (_, f, g)
     | TOr (_, f, g)
     | TImp (_, f, g)
@@ -91,13 +142,14 @@ let rec to_formula f = match f.f with
   | TFF -> FF
   | TEqConst (x, v) -> EqConst (x, v)
   | TPredicate (e, t) -> Predicate (e, t)
+  | TAgg (s, _, op, x, y, f) -> Agg (s, op, x, y, to_formula f)
   | TNeg f -> Neg (to_formula f)
   | TAnd (s, f, g) -> And (fix_side s f.f g.f, to_formula f, to_formula g)
   | TOr (s, f, g) -> Or (fix_side s f.f g.f, to_formula f, to_formula g)
   | TImp (s, f, g) -> Imp (fix_side s f.f g.f, to_formula f, to_formula g)
   | TIff (s, t, f, g) -> Iff (fix_side s f.f g.f, fix_side t f.f g.f, to_formula f, to_formula g)
-  | TExists (x, tt, f) -> Exists (x, tt, to_formula f)
-  | TForall (x, tt, f) -> Forall (x, tt, to_formula f)
+  | TExists (x, tt, f) -> Exists (x, to_formula f)
+  | TForall (x, tt, f) -> Forall (x, to_formula f)
   | TPrev (i, f) -> Prev (i, to_formula f)
   | TNext (i, f) -> Next (i, to_formula f)
   | TOnce (i, f) -> Once (i, to_formula f)
@@ -118,6 +170,7 @@ let rec op_to_string_core = function
   | TFF -> Printf.sprintf "⊥"
   | TEqConst (x, c) -> Printf.sprintf "="
   | TPredicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
+  | TAgg (_, _, op, x, y, _) -> Printf.sprintf "%s(%s; %s)" (Aggregation.op_to_string op) (Term.value_to_string x) (String.concat ~sep:", " y)
   | TNeg _ -> Printf.sprintf "¬"
   | TAnd (_, _, _) -> Printf.sprintf "∧"
   | TOr (_, _, _) -> Printf.sprintf "∨"
@@ -141,6 +194,7 @@ let rec to_string_core_rec l = function
   | TFF -> Printf.sprintf "⊥"
   | TEqConst (trm, c) -> Printf.sprintf "%s = %s" (Term.value_to_string trm) (Dom.to_string c)
   | TPredicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
+  | TAgg (s, _, op, x, y, f) -> Printf.sprintf "%s = %s(%s; %s; %s)" s (Aggregation.op_to_string op) (Term.value_to_string x) (String.concat ~sep:", " y) (to_string_rec 4 f)
   | TNeg f -> Printf.sprintf "¬%a" (fun x -> to_string_rec 5) f
   | TAnd (s, f, g) -> Printf.sprintf (Etc.paren l 4 "%a ∧%a %a") (fun x -> to_string_rec 4) f (fun x -> Side.to_string) s (fun x -> to_string_rec 4) g
   | TOr (s, f, g) -> Printf.sprintf (Etc.paren l 3 "%a ∨%a %a") (fun x -> to_string_rec 3) f (fun x -> Side.to_string) s (fun x -> to_string_rec 4) g

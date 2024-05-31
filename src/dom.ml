@@ -16,6 +16,8 @@ module T = struct
 
   type t = Int of Int.t | Str of String.t | Float of Float.t [@@deriving compare, sexp_of, hash]
 
+  type ctxt = (string, tt, String.comparator_witness) Map.t
+
   let equal d d' = match d, d' with
     | Int v, Int v' -> Int.equal v v'
     | Str v, Str v' -> String.equal v v'
@@ -63,6 +65,18 @@ module T = struct
 
   let list_to_string ds =
     String.drop_suffix (List.fold ds ~init:"" ~f:(fun acc d -> acc ^ (to_string d) ^ ", ")) 2
+
+  let to_int_exn = function
+    | Int v -> v
+    | d -> raise (Invalid_argument (Printf.sprintf "type %s is not supported" (tt_to_string (tt_of_domain d))))
+
+  let to_float_exn = function
+    | Float v -> v
+    | d -> raise (Invalid_argument (Printf.sprintf "type %s is not supported" (tt_to_string (tt_of_domain d))))
+
+  let to_string_exn = function
+    | Str v -> v
+    | d -> raise (Invalid_argument (Printf.sprintf "type %s is not supported" (tt_to_string (tt_of_domain d))))
 
 end
 
