@@ -82,7 +82,7 @@ module EnfType = struct
     | Sup    -> Cau
     | CauSup -> CauSup
     | Obs    -> Obs
-  
+
   let to_int = function
     | Cau    -> 1
     | Sup    -> 2
@@ -122,7 +122,7 @@ let ts_event_name = "ts"
 module Sig = struct
 
   type pred_kind = Trace | Predicate | External | Builtin [@@deriving compare, sexp_of, hash, equal]
-    
+
   type pred = { arity: int;
                 arg_tts: (string * Dom.tt) list;
                 enftype: EnfType.t;
@@ -134,9 +134,9 @@ module Sig = struct
     Printf.sprintf "%s(%s)" name
       (String.drop_prefix (List.fold pred.arg_tts ~init:"" ~f) 1)
 
-  
+
   type ty = Pred of pred | Func of Funcs.t (*[@@deriving compare, sexp_of, hash]*)
-  
+
   let string_of_ty name = function
     | Pred pred -> string_of_pred name pred
     | Func func -> Funcs.to_string name func
@@ -173,7 +173,7 @@ module Sig = struct
     Hashtbl.add_exn table ~key:ts_event_name
       ~data:(Pred { arity = 1; arg_tts = [("t", TInt)]; enftype = Obs; rank = 0; kind = Builtin });
     table
-  
+
   let add_pred p_name arg_tts enftype rank kind =
     if equal_pred_kind kind Predicate then
       Hashtbl.add_exn table ~key:p_name ~data:(Func { arity = List.length arg_tts; arg_tts; ret_tt = TInt; kind = External })
@@ -208,7 +208,7 @@ module Sig = struct
 
   let print_table () =
     Hashtbl.iteri table ~f:(fun ~key:n ~data:ps -> Stdio.printf "%s\n" (string_of_ty n ps))
-  
+
   let rec eval (v: Etc.valuation) = function
     | Term.Var x ->
        (match Map.find v x with
@@ -276,8 +276,7 @@ let rec check_term types tt trm =
 and check_terms types p_name trms =
   let sig_pred = Hashtbl.find_exn Sig.table p_name in
   if List.length trms = Sig.arity sig_pred then
-    List.fold2_exn trms (Sig.arg_tts sig_pred) ~init:types 
+    List.fold2_exn trms (Sig.arg_tts sig_pred) ~init:types
       ~f:(fun types trm ntc -> check_term types (snd ntc) trm)
   else raise (Invalid_argument (
                   Printf.sprintf "arity of %s is %d" p_name (Sig.arity sig_pred)))
-

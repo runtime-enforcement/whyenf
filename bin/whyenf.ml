@@ -37,16 +37,8 @@ module Whyenf = struct
        \t\t <file>             - specify log file as trace (default: stdin)
        \t -out
        \t\t <file>             - output file (default: stdout)
-       \t -b int               - default bound for future operators (default: 0)\n%!";
+       \t -b int                     - default bound for future operators (default: 0)\n%!";
     exit 0
-
-  let mode_error () =
-    Caml.Format.eprintf "modes: unverified, verified or debug\n%!";
-    raise (Invalid_argument "undefined mode")
-
-  let measure_error () =
-    Caml.Format.eprintf "measures: size and none\n%!";
-    raise (Invalid_argument "undefined measure")
 
   let bound_error () =
     Caml.Format.eprintf "b: any integer\n%!";
@@ -54,6 +46,9 @@ module Whyenf = struct
 
   let process_args =
     let rec process_args_rec = function
+      | ("-debug" :: args) ->
+         Etc.debug := true;
+         process_args_rec args
       | ("-log" :: logf :: args) ->
          Etc.inc_ref := In_channel.create logf;
          process_args_rec args
