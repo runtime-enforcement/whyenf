@@ -1,0 +1,4 @@
+□ (∀dat. ∀datai. ∀dsi.
+  let p(data, dataid, dsid) = use(data, dataid, dsid) →
+    (⧫ legal_grounds(dsid, data)) ∨ (¬ ds_revoke(dsid, data) S ds_consent(dsid, data)) in
+  p(dat, datai, dsi))

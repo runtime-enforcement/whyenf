@@ -66,3 +66,5 @@ val lexicographic5: ('a -> 'a -> int) -> ('b -> 'b -> int) -> ('c -> 'c -> int) 
 val _print: string -> ('a -> string) -> 'a -> 'a
 
 val reorder: ('a -> 'a -> bool) -> 'a list -> 'a list -> 'a list
+
+val gen_fresh: string -> string

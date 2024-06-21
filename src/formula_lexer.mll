@@ -44,14 +44,16 @@ rule token = parse
   | '*'                                           { debug "MUL"; MUL }
   | '/'                                           { debug "DIV"; DIV }
   | '^'                                           { debug "CONC"; CONC }
-  | "false" | "⊥"                                 { debug "FALSE"; FALSE }
-  | "true" | "⊤"                                  { debug "TRUE"; TRUE }
+  | "let"                                         { debug "LET"; LET }
+  | "in"                                          { debug "IN"; IN }
+  | "false" | "⊥"                                { debug "FALSE"; FALSE }
+  | "true" | "⊤"                                 { debug "TRUE"; TRUE }
   | '='                                           { debug "EQCONST"; EQCONST }
   | '<'                                           { debug "LT"; EQCONST }
   | '>'                                           { debug "GT"; EQCONST }
   | "¬" | "NOT"                                   { debug "NEG"; NEG }
-  | "∧" | "AND"                                   { debug "AND"; AND }
-  | "∨" | "OR"                                    { debug "OR"; OR }
+  | "∧" | "AND"                                  { debug "AND"; AND }
+  | "∨" | "OR"                                   { debug "OR"; OR }
   | "→" | "IMPLIES"                               { debug "IMP"; IMP }
   | "↔" | "IFF"                                   { debug "IFF"; IFF }
   | "∃"  | "EXISTS"                               { debug "EXISTS"; EXISTS }
@@ -64,7 +66,7 @@ rule token = parse
   | "PREV" | "PREVIOUS" | "Y" | "●"               { debug "PREV"; PREV }
   | "GLOBALLY" | "ALWAYS" | "G" | "□"             { debug "ALWAYS"; ALWAYS }
   | "EVENTUALLY" | "F" | "◊"                      { debug "EVENTUALLY"; EVENTUALLY }
-  | "GLOBALLY_PAST" | "HISTORICALLY" | "■"        { debug "HISTORICALLY"; HISTORICALLY }
+  | "GLOBALLY_PAST" | "HISTORICALLY" | "■"       { debug "HISTORICALLY"; HISTORICALLY }
   | "ONCE" | "⧫"                                  { debug "ONCE"; ONCE }
   | "SUM"                                         { debug "SUM"; SUM }
   | "AVG"                                         { debug "AVG"; AVG }
