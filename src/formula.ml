@@ -42,12 +42,14 @@ end
 (* Variable mapping (let operator related) *)
 type m = string Map.M(String).t [@@deriving compare, sexp_of, hash]
 
+type letp = string * string list [@@deriving compare, sexp_of, hash]
+
 type t =
   | TT
   | FF
   | EqConst of Term.t * Dom.t
   | Predicate of string * Term.t list
-  | Let of string * Term.t list * m * t * t
+  | Let of letp * m * t * t
   | Agg of string * Aggregation.op * Term.t * string list * t
   | Neg of t
   | And of Side.t * t * t
@@ -97,7 +99,7 @@ let rec fv = function
   | Predicate (x, trms) when not (Sig.equal_pred_kind (Sig.kind_of_pred x) (Sig.Predicate)) ->
      Set.of_list (module String) (Pred.Term.fv_list trms)
   | Predicate _ -> Set.empty (module String)
-  | Let (_, _, _, _, g) -> fv g
+  | Let (_, _, _, g) -> fv g
   | Exists (x, f)
     | Forall (x, f) -> Set.filter (fv f) ~f:(fun y -> not (String.equal x y))
   | Neg f
@@ -120,7 +122,7 @@ let rec bv = function
   | EqConst _ -> Set.empty (module String)
   | Agg _ -> Set.empty (module String)
   | Predicate _ -> Set.empty (module String)
-  | Let (_, _, _, _, g) -> bv g
+  | Let (_, _, _, g) -> bv g
   | Exists (x, f)
     | Forall (x, f) -> Set.add (bv f) x
   | Neg f
@@ -163,7 +165,7 @@ let rec replace_fv y z f = match f with
   | Predicate _ -> f
   | Exists (x, f) -> Exists (x, replace_fv y z f)
   | Forall (x, f) -> Forall (x, replace_fv y z f)
-  | Let (name, fvs, m, f, g) -> Let (name, fvs, m, f, replace_fv y z g)
+  | Let ((name, fvs), m, f, g) -> Let ((name, fvs), m, f, replace_fv y z g)
   | Neg f -> Neg (replace_fv y z f)
   | Prev (i, f) -> Prev (i, replace_fv y z f)
   | Once (i, f) -> Once (i, replace_fv y z f)
@@ -190,7 +192,7 @@ let rec replace_bv y z f = match f with
   | Forall (x, f) -> if String.equal x y then
                        Forall (z, f)
                      else Forall (x, replace_bv y z f)
-  | Let (name, fvs, m, f, g) -> Let (name, fvs, m, f, replace_bv y z g)
+  | Let ((name, fvs), m, f, g) -> Let ((name, fvs), m, f, replace_bv y z g)
   | Neg f -> Neg (replace_bv y z f)
   | Prev (i, f) -> Prev (i, replace_bv y z f)
   | Once (i, f) -> Once (i, replace_bv y z f)
@@ -225,7 +227,8 @@ let ff = FF
 let eqconst x d = EqConst (x, d)
 let agg s op x y f = Agg (s, op, x, y, f)
 let predicate p_name trms = Predicate (p_name, trms)
-let flet name nfvs f g = Let (name, nfvs, Map.empty (module String), f, g)
+let letp letp_name vars = (letp_name, vars)
+let flet letp f g = Let (letp, Map.empty (module String), f, g)
 let neg f = Neg f
 let conj s f g = And (s, f, g)
 let disj s f g = Or (s, f, g)
@@ -257,9 +260,10 @@ let equal x y = match x, y with
      String.equal s s' && Aggregation.equal_op op op' && Term.equal x x' && List.length y == List.length y'
      && List.for_all (List.zip_exn y y') (fun (y, y') -> String.equal y y') && phys_equal f f'
   | Predicate (r, trms), Predicate (r', trms') -> String.equal r r' && List.equal Term.equal trms trms'
-  | Let (r, fvs, m, f, g), Let (r', fvs', m', f', g') -> String.equal r r' && List.equal Term.equal fvs fvs' &&
-                                                           Map.equal String.equal m m' && phys_equal f f' &&
-                                                             phys_equal g g'
+  | Let ((r, vars), m, f, g), Let ((r', vars'), m', f', g') -> String.equal r r' &&
+                                                                 List.equal String.equal vars vars' &&
+                                                                   Map.equal String.equal m m' && phys_equal f f' &&
+                                                                     phys_equal g g'
   | Neg f, Neg f' -> phys_equal f f'
   | And (s, f, g), And (s', f', g')
     | Or (s, f, g), Or (s', f', g')
@@ -284,7 +288,7 @@ let rec terms = function
   | Agg (s, _, _, y, f) -> Set.of_list (module Term) (List.map (s::y) ~f:(fun v -> Term.Var v))
   | Predicate (x, trms) -> Set.filter (Set.of_list (module Term) trms)
                              ~f:(function Const _ -> false | _ -> true)
-  | Let (_, _, _, _, g) -> terms g
+  | Let (_, _, _, g) -> terms g
   | Exists (x, f)
     | Forall (x, f) ->
      Set.filter (terms f)
@@ -310,7 +314,7 @@ let check_bindings f =
     | EqConst (x, c) -> (bound_vars, true)
     | Agg (s, x, y, _, f) -> ((Set.add bound_vars s), (not (Set.mem fv_f s)) && (not (Set.mem bound_vars s)))
     | Predicate _ -> (bound_vars, true)
-    | Let (_, _, _, _, g) -> check_bindings_rec bound_vars g
+    | Let (_, _, _, g) -> check_bindings_rec bound_vars g
     | Exists (x, f)
       | Forall (x, f) -> ((Set.add bound_vars x), (not (Set.mem fv_f x)) && (not (Set.mem bound_vars x)))
     | Neg f
@@ -336,7 +340,7 @@ let rec hp = function
     | FF
     | EqConst _
     | Predicate _ -> 0
-  | Let (_, _, _, _, g) -> hp g
+  | Let (_, _, _, g) -> hp g
   | Neg f
     | Exists (_, f)
     | Forall (_, f) -> hp f
@@ -360,7 +364,7 @@ let rec hf = function
     | FF
     | EqConst _
     | Predicate _ -> 0
-  | Let (_, _, _, _, g) -> hf g
+  | Let (_, _, _, g) -> hf g
   | Neg f
     | Exists (_, f)
     | Forall (_, f) -> hf f
@@ -385,7 +389,7 @@ let immediate_subfs = function
     | FF
     | EqConst _
     | Predicate _ -> []
-  | Let (_, _, _, _, g) -> [g]
+  | Let (_, _, _, g) -> [g]
   | Neg f
     | Exists (_, f)
     | Forall (_, f)
@@ -408,7 +412,7 @@ let rec subfs_bfs xs =
 
 let rec subfs_dfs h = match h with
   | TT | FF | EqConst _ | Predicate _ -> [h]
-  | Let (_, _, _, _, g) -> [h] @ (subfs_dfs g)
+  | Let (_, _, _, g) -> [h] @ (subfs_dfs g)
   | Neg f -> [h] @ (subfs_dfs f)
   | And (_, f, g) -> [h] @ (subfs_dfs f) @ (subfs_dfs g)
   | Or (_, f, g) -> [h] @ (subfs_dfs f) @ (subfs_dfs g)
@@ -430,7 +434,7 @@ let subfs_scope h i =
   let rec subfs_scope_rec h i =
     match h with
     | TT | FF | EqConst _ | Predicate _ -> (i, [(i, ([], []))])
-    | Let (_, _, _, _, f)
+    | Let (_, _, _, f)
       | Neg f
       | Exists (_, f)
       | Forall (_, f)
@@ -456,7 +460,7 @@ let subfs_scope h i =
 let rec preds = function
   | TT | FF | EqConst _ -> []
   | Predicate (r, trms) -> [Predicate (r, trms)]
-  | Let (_, _, _, _, g) -> preds g
+  | Let (_, _, _, g) -> preds g
   | Neg f | Exists (_, f) | Forall (_, f)
     | Next (_, f) | Prev (_, f)
     | Once (_, f) | Historically (_, f)
@@ -478,7 +482,7 @@ let pred_names f =
   let rec pred_names_rec s = function
     | TT | FF | EqConst _ -> s
     | Predicate (r, trms) -> Set.add s r
-    | Let (_, _, _, _, g) -> pred_names_rec s g
+    | Let (_, _, _, g) -> pred_names_rec s g
     | Neg f | Exists (_, f) | Forall (_, f)
       | Prev (_, f) | Next (_, f)
       | Once (_, f) | Eventually (_, f)
@@ -494,7 +498,7 @@ let op_to_string = function
   | FF -> Printf.sprintf "⊥"
   | EqConst (x, c) -> Printf.sprintf "="
   | Predicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
-  | Let (name, _, _, _, _) -> Printf.sprintf "let %s" name
+  | Let ((r, _), _, _, _) -> Printf.sprintf "let %s" r
   | Agg (_, op, x, y, _) -> Printf.sprintf "%s(%s; %s)" (Aggregation.op_to_string op) (Term.value_to_string x)
                               (String.concat ~sep:", " y)
   | Neg _ -> Printf.sprintf "¬"
@@ -518,9 +522,9 @@ let rec to_string_rec l = function
   | FF -> Printf.sprintf "⊥"
   | EqConst (trm, c) -> Printf.sprintf "%s = %s" (Term.value_to_string trm) (Dom.to_string c)
   | Predicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
-  | Let (name, vars, _, f, g) -> Printf.sprintf "let %s(%s) = %a in %a" name
-                                   (Etc.string_list_to_string (List.map vars ~f:Term.unvar))
-                                   (fun x -> to_string_rec 4) f (fun x -> to_string_rec 4) g
+  | Let ((r, vars), _, f, g) -> Printf.sprintf "let %s(%s) = %a in %a" r
+                                  (Etc.string_list_to_string vars)
+                                  (fun x -> to_string_rec 4) f (fun x -> to_string_rec 4) g
   | Agg (s, op, x, y, f) -> Printf.sprintf "%s = %s(%s; %s; %s)" s (Aggregation.op_to_string op)
                               (Term.value_to_string x) (String.concat ~sep:", " y) (to_string_rec 5 f)
   | Neg f -> Printf.sprintf "¬%a" (fun x -> to_string_rec 5) f
@@ -649,7 +653,7 @@ let rec is_past_guarded x p f =
   | TT | FF -> false
   | EqConst (y, _) -> p && (Term.Var x == y)
   | Predicate (_, ts) when p -> List.exists ~f:(Term.equal (Term.Var x)) ts
-  | Let (_, _, _, f, g) -> is_past_guarded x p f && is_past_guarded x p g
+  | Let (_, _, f, g) -> is_past_guarded x p f && is_past_guarded x p g
   | Agg (s, _, _, y, f) when List.mem y x ~equal:String.equal -> is_past_guarded x p f
   | Agg (s, _, _, _, _) -> String.equal s x
   | Neg f -> is_past_guarded x (not p) f

@@ -26,12 +26,14 @@ end
 (* Variable mapping (let operator related) *)
 type m = string Map.M(String).t [@@deriving compare, sexp_of, hash]
 
+type letp = string * string list [@@deriving compare, sexp_of, hash]
+
 type t =
   | TT
   | FF
   | EqConst of Term.t * Dom.t
   | Predicate of string * Term.t list
-  | Let of string * Term.t list * m * t * t
+  | Let of letp * m * t * t
   | Agg of string * Aggregation.op * Term.t * string list * t
   | Neg of t
   | And of Side.t * t * t
@@ -54,7 +56,8 @@ val ff: t
 val eqconst: Term.t -> Dom.t -> t
 val agg: string -> Aggregation.op -> Term.t -> string list -> t -> t
 val predicate: string -> Term.t list -> t
-val flet: string -> Term.t list -> t -> t -> t
+val letp: string -> string list -> letp
+val flet: letp -> t -> t -> t
 val neg: t -> t
 val conj: Side.t -> t -> t -> t
 val disj: Side.t -> t -> t -> t

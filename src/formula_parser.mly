@@ -81,17 +81,17 @@ let debug m = if !debug then Stdio.print_endline ("[debug] formula_parser: " ^ m
 %%
 
 formula:
-| e EOF                                { debug "formula"; $1 }
+| e EOF                                  { debug "formula"; $1 }
 
 e:
-| LPA e RPA                            { debug "( e )"; $2 }
-| TRUE                                 { debug "TRUE"; tt }
-| FALSE                                { debug "FALSE"; ff }
-| LET e EQCONST e IN e %prec EQCONST   { debug "LET"; match $2 with
-                                                      | Predicate (r, trms) ->
-                                                         flet r trms $4 $6
-                                                      | _ -> raise (Invalid_argument
-                                                                      "invalid let definition") }
+| LPA e RPA                              { debug "( e )"; $2 }
+| TRUE                                   { debug "TRUE"; tt }
+| FALSE                                  { debug "FALSE"; ff }
+| LET pletp EQCONST e IN e %prec EQCONST { debug "LET"; match $2 with
+                                                       | (r, vars) ->
+                                                          flet (r, vars) $4 $6
+                                                       | _ -> raise (Invalid_argument
+                                                                       "invalid let definition") }
 | LBR term EQCONST const RBR           { debug "EQCONST"; eqconst $2 (Pred.Term.unconst $4)}
 | STR EQCONST aggregation LPA term SEMICOLON vars2 SEMICOLON e RPA
                                        { debug "AGG"; agg $1 $3 $5 $7 $9 }
@@ -135,6 +135,9 @@ e:
 | EXISTS vars DOT e %prec EXISTS       { debug "EXISTS STR DOT e"; List.fold_right exists (List.tl $2) (exists (List.hd $2) $4) }
 | FORALL vars DOT e %prec FORALL       { debug "FORALL STR DOT e"; List.fold_right forall (List.tl $2) (forall (List.hd $2) $4) }
 | STR LPA terms RPA                    { debug "STR LPA terms RPA"; predicate $1 $3 }
+
+pletp:
+| STR LPA vars RPA                     { debug "STR LPA vars RPA"; letp $1 $3 }
 
 side:
 | COL STR                              { debug "COL STR"; Side.of_string $2 }
