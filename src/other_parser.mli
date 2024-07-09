@@ -31,6 +31,7 @@ module Parsebuf : sig
            ; mutable pred_sig: Pred.Sig.elt option
            ; mutable ts: int
            ; mutable db: Db.t
+           ; mutable check: bool
            ; stats: Stats.t
            }
 

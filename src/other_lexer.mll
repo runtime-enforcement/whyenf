@@ -11,7 +11,7 @@
 
 open Etc
 
-type token = AT | FUN | PRD | EXT | LPA | RPA | LAN | RAN | COM | SEP | COL | EOF | PLS | MNS | STR of string
+type token = AT | FUN | PRD | EXT | LPA | RPA | LAN | RAN | COM | SEP | COL | EOF | PLS | MNS | QU | STR of string
 
 }
 
@@ -44,6 +44,7 @@ rule token = parse
   | ":"                            { COL }
   | "+"                            { PLS }
   | "-"                            { MNS }
+  | "?"                            { QU }
   | string as s                    { STR s }
   | '"' (quoted_string as s) '"'   { STR s }
   | eof                            { EOF }
