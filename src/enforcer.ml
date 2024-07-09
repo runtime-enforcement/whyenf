@@ -382,10 +382,13 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
                                                         db = es.db }
       else if not (Db.is_tick pb.db) then
         match reactive_step pb.db es with
-        | ReOrd (c, s) as o, es -> Other_parser.Stats.add_cau (Db.size c) pb.stats;
-                                   Other_parser.Stats.add_sup (Db.size s) pb.stats;
-                                   Order.print es.ts o;
-                                   { es with tp = es.tp + 1 }
+        | ReOrd (c, s) as o, es' -> Other_parser.Stats.add_cau (Db.size c) pb.stats;
+                                    Other_parser.Stats.add_sup (Db.size s) pb.stats;
+                                    Order.print es.ts o;
+                                    if pb.check then
+                                      es
+                                    else
+                                      { es' with tp = es'.tp + 1 }
       else
         es
     in

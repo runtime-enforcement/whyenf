@@ -73,6 +73,7 @@ module Parsebuf = struct
            ; mutable pred_sig: Pred.Sig.elt option
            ; mutable ts: int
            ; mutable db: Db.t
+           ; mutable check: bool
            ; stats: Stats.t
            }
 
@@ -81,6 +82,7 @@ module Parsebuf = struct
                     ; pred_sig = None
                     ; ts = -1
                     ; db = Db.create []
+                    ; check = false
                     ; stats = Stats.init ()
                     }
 
@@ -125,7 +127,8 @@ module Sig = struct
       | SEP, SEP
       | EOF, EOF
       | FUN, FUN
-      | COL, COL -> true
+      | COL, COL
+      | QU, QU -> true
     | STR s1, STR s2 -> String.equal s1 s2
     | _ -> false
 
@@ -264,6 +267,7 @@ module Trace = struct
                  (match ts with
                   | Some ts -> Parsebuf.next pb;
                                pb.ts <- ts;
+                               pb.check <- false;
                                parse_db ()
                   | None -> raise (Failure ("expected a time-stamp but found " ^ s)))
       | t -> raise (Failure ("expected a time-stamp but found " ^ string_of_token t))
@@ -281,6 +285,7 @@ module Trace = struct
       | AT -> Some (true, pb)
       | EOF -> Some (false, pb)
       | SEP -> Some (true, pb)
+      | QU -> pb.check <- true; Some (true, pb)
       | t -> raise (Failure ("expected a predicate or '@' but found " ^ string_of_token t))
     and parse_tuple () =
       match pb.token with
