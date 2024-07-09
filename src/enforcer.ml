@@ -130,20 +130,26 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
 
     let exec_monitor mf es =
       let vars = Set.elements (MFormula.terms mf) in
+      (*print_endline "exec_monitor mf:";
+      print_endline (MFormula.to_string mf);
+      print_endline "exec_monitor vars:";
+      List.iter vars ~f:(fun trm -> print_endline (Pred.Term.to_string trm));*)
       let (_, aexpl, _) = mstep_state vars { es with ms = { es.ms with mf } } in
       (*print_endline (Expl.to_string aexpl);*)
       aexpl
 
     let sat v mf es =
+      (*print_endline "---sat---";
+      print_endline ("v=" ^ (Etc.valuation_to_string v));
+      print_endline ("mf=" ^ (MFormula.to_string mf));
+      print_endline ("expl=" ^ (Monitor.CI.Expl.to_string (exec_monitor mf es)));
+      print_endline "---end.sat---";*)
       CI.Expl.Proof.isS (Expl.Pdt.specialize v (exec_monitor mf es))
 
     let vio v mf es =
       sat v (MNeg mf) es
     
     let all_not_sat v x mf es =
-      (*print_endline "all_not_sat.begin";
-      print_endline (Etc.valuation_to_string v);
-      print_endline (Monitor.CI.Expl.to_string (exec_monitor mf es));*)
       match Expl.Pdt.collect CI.Expl.Proof.isV v x (exec_monitor mf es) with
       | Setc.Finite s -> Set.elements s
       | _ -> failwith ("Infinite set of candidates for " ^ x ^ " in " ^ MFormula.to_string mf)

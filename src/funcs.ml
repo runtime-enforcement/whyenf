@@ -57,6 +57,10 @@ let lt [x;y] = Dom.Int (if x < y then 1 else 0)
 let leq [x;y] = Dom.Int (if x <= y then 1 else 0)
 let gt [x;y] = Dom.Int (if x > y then 1 else 0)
 let geq [x;y] = Dom.Int (if x >= y then 1 else 0)
+
+let is_eq = function
+  | "eq" | "feq" | "seq" -> true
+  | _ -> false
   
 let builtins =
   [
@@ -252,3 +256,4 @@ let builtins =
                      match x, start, end_ with
                        Dom.Str i, Dom.Int j, Dom.Int k -> Str (String.slice i j k))});
   ]
+

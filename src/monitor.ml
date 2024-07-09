@@ -2122,11 +2122,12 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
     | Some expl when Expl.at expl == tp -> expl
     | _ -> approx_false tp pol
 
-  let approx_quant aexpl pol vars tp x tc mf = match mf with
-    | MExists _ -> Pdt.hide_reduce Proof.equal (vars @ [Term.Var x])
+  let approx_quant aexpl pol vars tp x tc mf =
+    match mf with
+    | MExists _ -> Pdt.hide_reduce x Proof.equal vars
                      (fun p -> minp_list (do_exists_leaf x tc p))
                      (fun p -> minp_list (do_exists_node x tc p)) aexpl
-    | MForall _ -> Pdt.hide_reduce Proof.equal (vars @ [Term.Var x])
+    | MForall _ -> Pdt.hide_reduce x Proof.equal vars
                      (fun p -> minp_list (do_forall_leaf x tc p))
                      (fun p -> minp_list (do_forall_node x tc p)) aexpl
     | _ -> raise (Invalid_argument ("function is not defined for " ^ MFormula.op_to_string mf))
@@ -2358,18 +2359,42 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
          let aexpl = else_any (approx_default f_expls) tp pol in
          (f_expls, aexpl, MIff (s, t, mf1', mf2', buf2'))
       | MExists (x, tc, mf) ->
-         let (expls, aexpl, mf') = meval_rec (vars @ [Var x]) ts tp db ~pol fobligs mf in
-         let f_expls = List.map expls ~f:(Pdt.hide_reduce Proof.equal (vars @ [Var x])
+         let new_terms = List.filter (Set.elements (MFormula.terms mf))
+                           (fun y -> List.mem (Term.fv_list [y]) x ~equal:String.equal) in
+         let vars' = vars @ new_terms in
+         let (expls, aexpl, mf') = meval_rec vars' ts tp db ~pol fobligs mf in
+         let expls = List.map expls ~f:(Pdt.simplify x Proof.equal) in
+         let aexpl = Pdt.simplify x Proof.equal aexpl in
+         let vars'' = Pdt.simplify_vars x vars' in
+         let f_expls = List.map expls ~f:(Pdt.hide_reduce x Proof.equal vars''
                                             (fun p -> minp_list (do_exists_leaf x tc p))
                                             (fun p -> minp_list (do_exists_node x tc p))) in
-         let aexpl = approx_quant aexpl pol vars tp x tc mformula in
+         let aexpl = approx_quant aexpl pol vars'' tp x tc mformula in
          (f_expls, aexpl, MExists(x, tc, mf'))
       | MForall (x, tc, mf) ->
-         let (expls, aexpl, mf') = meval_rec (vars @ [Var x]) ts tp db ~pol fobligs mf in
-         let f_expls = List.map expls ~f:(Pdt.hide_reduce Proof.equal (vars @ [Var x])
+         (* TODO: apply same changes to MExists *)
+         let f y =
+           Set.is_subset
+             (Set.of_list (module String) (Term.fv_list [y]))
+             (Set.of_list (module String) (x::(Term.fv_list vars)))
+           && not (List.mem vars y ~equal:Term.equal) in
+         let new_terms = List.filter (Set.elements (MFormula.terms mf)) ~f in
+         (*print_endline "new_terms=";
+         List.iter vars (fun x -> print_endline (Term.to_string x));
+         List.iter new_terms (fun x -> print_endline (Term.to_string x));*)
+         let vars' = vars @ new_terms in
+         let (expls, aexpl, mf') = meval_rec vars' ts tp db ~pol fobligs mf in
+         let expls = List.map expls ~f:(Pdt.simplify x Proof.equal) in
+         (*print_endline ("MForall\nx=" ^ x ^ "\naexpl before before="  ^ Expl.to_string aexpl);*)
+         let aexpl = Pdt.simplify x Proof.equal aexpl in
+         let vars'' = Pdt.simplify_vars x vars' in
+         (*print_endline ("MForall\nx=" ^ x ^ "\naexpl before="  ^ Expl.to_string aexpl ^ "\nvars''=");
+         List.iter vars'' (fun x -> print_endline (Term.to_string x));*)
+         let f_expls = List.map expls ~f:(Pdt.hide_reduce x Proof.equal vars''
                                             (fun p -> minp_list (do_forall_leaf x tc p))
                                             (fun p -> minp_list (do_forall_node x tc p))) in
-         let aexpl = approx_quant aexpl pol vars tp x tc mformula in
+         let aexpl = approx_quant aexpl pol vars'' tp x tc mformula in
+         (*print_endline ("after="^ Expl.to_string aexpl);*)
          (f_expls, aexpl, MForall(x, tc, mf'))
       | MPrev (i, mf, first, (buf, tss)) ->
          let (expls, aexpl, mf') = meval_rec vars ts tp db ~pol fobligs mf in

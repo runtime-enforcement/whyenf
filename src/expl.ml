@@ -23,6 +23,10 @@ module Part = struct
 
   let trivial p = [(Setc.univ (module Dom), p)]
 
+  let get_trivial = function
+    | [(s, p)] when Setc.is_univ s -> Some p
+    | _ -> None
+
   let hd part = snd (List.hd_exn part)
 
   let length part = List.length part
@@ -249,7 +253,8 @@ module Pdt = struct
     | z :: vars, Node (x, part) ->
        if Term.equal x z then
          Node (x, Part.map_dedup (eq p_eq) part (apply1_reduce p_eq vars f))
-       else apply1_reduce p_eq vars f (Node (x, part))
+       else
+         apply1_reduce p_eq vars f (Node (x, part))
     | _ -> raise (Invalid_argument "variable list is empty")
 
   let rec apply2_reduce p_eq vars f pdt1 pdt2 = match vars, pdt1, pdt2 with
@@ -280,12 +285,17 @@ module Pdt = struct
     | Leaf l -> List.map l ~f:(fun el -> Leaf el)
     | Node (x, part) -> List.map (Part.split_list_dedup (eq p_eq) (Part.map part (split_list_reduce p_eq))) ~f:(fun el -> Node (x, el))
 
-  let rec hide_reduce p_eq vars f_leaf f_node pdt = match vars, pdt with
+  let rec hide_reduce x' p_eq vars f_leaf f_node pdt = match vars, pdt with
     |  _ , Leaf l -> Leaf (f_leaf l)
-    | [x], Node (y, part) -> Leaf (f_node (Part.map part unleaf))
-    | x :: vars, Node (y, part) -> if Term.equal x y then
-                                     Node (y, Part.map_dedup (eq p_eq) part (hide_reduce p_eq vars f_leaf f_node))
-                                   else hide_reduce p_eq vars f_leaf f_node (Node (y, part))
+    (*| [x], Node (y, part) -> Leaf (f_node (Part.map part unleaf))*)
+    | x :: vars, Node (y, part) ->
+       if Term.equal x y then
+         (if Term.equal x (Var x') then
+            Leaf (f_node (Part.map part unleaf))
+          else
+            Node (y, Part.map_dedup (eq p_eq) part (hide_reduce x' p_eq vars f_leaf f_node)))
+       else
+         hide_reduce x' p_eq vars f_leaf f_node (Node (y, part))
     | _ -> raise (Invalid_argument "function not defined for other cases")
 
   let rec specialize (v: Etc.valuation) = function
@@ -299,6 +309,59 @@ module Pdt = struct
        | Const d -> specialize_partial v (Part.find part d)
        | x -> Node (x, Part.map part (specialize_partial v))
 
+  let simplify x p_eq pdt = 
+    let rec aux (v: Setc.valuation) = function
+      | Leaf l -> Leaf l
+      | Node (App (g, [Var x'; y]) as trm, part) when Funcs.is_eq g ->
+         (match Part.get_trivial part with
+          (* if part is trivial, descend into it *)
+          | Some p -> aux v p
+          (* otherwise evaluate y *)
+          | None ->
+             (match Sig.set_eval v y with
+             (* if y yields a finite set of terms *)
+             | Setc.Finite trms ->
+                let f = function Term.Const d -> Some d | _ -> None in
+                let s = Option.all (List.map (Set.elements trms) ~f) in
+                (match s with
+                 (* if these terms are fully evaluated (= constants) *)
+                 | Some ds ->
+                    let d_set = Set.of_list (module Dom) ds in
+                    let d_set' =
+                      match Map.find v x' with
+                      | Some d_set' -> d_set'
+                      | None        -> Setc.univ (module Dom) in
+                    let set_pos = Setc.inter d_set' (Setc.Finite d_set) in
+                    let set_neg = Setc.comp set_pos in
+                    (if Setc.is_empty set_pos then
+                       Part.find part (Dom.Int 0)
+                     else
+                       Node (Var x', [(set_pos, Part.find part (Dom.Int 1));
+                                      (set_neg, Part.find part (Dom.Int 0))]))
+                 (* otherwise, do not evaluate further *)
+                 | None -> Node (trm, Part.map_dedup (eq p_eq) part (aux v)))
+             (* otherwise, do not evaluate further *)
+             | Setc.Complement _ -> Node (trm, Part.map_dedup (eq p_eq) part (aux v))))
+      | Node (Var x', part) ->
+         (match Part.get_trivial part with
+          | Some p -> aux v p
+          | _ -> let f (data, p) = (data,  aux (Map.add_exn v ~key:x' ~data) p) in
+                 Node (Var x', Part.map2_dedup (eq p_eq) part f))
+      | Node (trm, part) -> (*TODO: evaluate?*)
+         Node (trm, Part.map_dedup (eq p_eq) part (aux v)) in
+    aux Setc.empty_valuation pdt
+
+  let simplify_vars x vars =
+    let f seen = function
+      | Term.Var x' as trm -> Set.add seen x', trm
+      | Term.App (g, [Var x'; y])
+           when Funcs.is_eq g
+                && Set.is_subset
+                     (Set.of_list (module String) (Term.fv_list [y])) seen
+        -> Set.add seen x', Term.Var x'
+      | trm -> seen, trm in
+    snd (List.fold_map vars ~init:(Set.empty (module String)) ~f)
+
   let rec collect f (v: Etc.valuation) (x: string) p =
     let rec aux f (v: Etc.valuation) (x: string) (s: (Dom.t, Dom.comparator_witness) Setc.t) = function
       | Leaf l when f l -> s
@@ -306,6 +369,10 @@ module Pdt = struct
       | Node (Var x', part) when String.equal x x' ->
          Setc.union_list (module Dom)
            (Part.map2 part (fun (s', p) -> aux f v x (Setc.inter s s') p))
+      | Node (App (g, [Var x'; y]), part) when Funcs.is_eq g && String.equal x x' ->
+         (match Sig.eval v y with
+          | Const d -> Setc.singleton (module Dom) d
+          | _ -> assert false)
       | Node (x', part) when List.mem (Term.fv_list [x']) x ~equal:String.equal ->
          (match s with
           | Finite s' ->
@@ -419,7 +486,8 @@ module Pdt = struct
 
                         (* 
 check example from paper
- *)
+                         *)
+
 
 end
 

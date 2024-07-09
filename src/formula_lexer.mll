@@ -76,8 +76,8 @@ rule token = parse
                                                   { debug "INTERVAL"; INTERVAL (make_interval lexbuf l i u j v r) }
   | "("                                           { debug "LPA"; LPA }
   | ")"                                           { debug "RPA"; RPA }
-  | "{"                                           { debug "LBR"; LPA }
-  | "}"                                           { debug "RBR"; RPA }
+  | "{"                                           { debug "LBR"; LBR }
+  | "}"                                           { debug "RBR"; RBR }
   | digits as d                                   { debug ("INT " ^ d); INT (Base.Int.of_string d) }
   | string as s                                   { debug ("STR " ^ s); STR s }
   | quoted_string as qs                           { debug ("QSTR " ^ qs); QSTR qs }
