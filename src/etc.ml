@@ -156,8 +156,20 @@ let rec reorder equal l = function
   | [] -> []
   | h::t when not (List.mem l h ~equal) -> reorder equal l t
   | h::t -> h :: (reorder equal (List.filter l (fun x -> not (equal x h))) t)
+
   
 let rec cartesian = function
   | [] -> [[]]
   | l :: t -> let rest = cartesian t in
               List.concat (List.map l (fun x -> List.map rest ~f:(fun l -> x::l)))
+
+
+let gen_fresh s =
+  let last_chr = List.last_exn (String.to_list s) in
+  if not (String.is_empty s) &&
+       Char.to_int last_chr >= 97 &&
+         Char.to_int last_chr < 122 then
+    (String.chop_suffix_exn s ~suffix:(Char.to_string last_chr)) ^
+      (Char.to_string (Char.of_int_exn (Char.to_int last_chr + 1)))
+  else s ^ "a"
+
