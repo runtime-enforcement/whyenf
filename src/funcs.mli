@@ -22,3 +22,5 @@ type t =
 val to_string: string -> t -> string
 
 val builtins: (string * t) list
+
+val is_eq: string -> bool

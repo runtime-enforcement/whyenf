@@ -56,6 +56,7 @@ val fdeque_for_all2_exn: 'a Fdeque.t -> 'b Fdeque.t -> f:('a -> 'b -> bool) -> b
 
 val spaces: int -> string
 
+val lexicographics: ('a -> 'a -> int) -> 'a list -> 'a list -> int
 val lexicographic2: ('a -> 'a -> int) -> ('b -> 'b -> int) -> ('a * 'b) -> ('a * 'b) -> int
 val lexicographic3: ('a -> 'a -> int) -> ('b -> 'b -> int) -> ('c -> 'c -> int) -> ('a * 'b * 'c) -> ('a * 'b * 'c) -> int
 val lexicographic4: ('a -> 'a -> int) -> ('b -> 'b -> int) -> ('c -> 'c -> int) -> ('d -> 'd -> int) -> ('a * 'b * 'c * 'd) -> ('a * 'b * 'c * 'd) -> int
@@ -66,3 +67,5 @@ val lexicographic5: ('a -> 'a -> int) -> ('b -> 'b -> int) -> ('c -> 'c -> int) 
 val _print: string -> ('a -> string) -> 'a -> 'a
 
 val reorder: ('a -> 'a -> bool) -> 'a list -> 'a list -> 'a list
+
+val cartesian: 'a list list -> 'a list list

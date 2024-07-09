@@ -102,6 +102,14 @@ let rec fdeque_for_all2_exn d1 d2 ~f:((f : _ -> _ -> _)) =
 
 let rec spaces n = if n < 0 then "" else " " ^ spaces (n-1)
 
+let rec lexicographics compare l l' =
+  match l, l' with
+  | [], [] -> 0
+  | h::t, [] -> 1
+  | [], h'::t' -> -1
+  | h::t, h'::t' when compare h h' == 0 -> lexicographics compare t t'
+  | h::t, h'::t' -> compare h h'
+
 let lexicographic2 compare1 compare2 =
   fun (a, b) (a', b') ->
   if compare1 a a' < 0 then -1
@@ -149,3 +157,7 @@ let rec reorder equal l = function
   | h::t when not (List.mem l h ~equal) -> reorder equal l t
   | h::t -> h :: (reorder equal (List.filter l (fun x -> not (equal x h))) t)
   
+let rec cartesian = function
+  | [] -> [[]]
+  | l :: t -> let rest = cartesian t in
+              List.concat (List.map l (fun x -> List.map rest ~f:(fun l -> x::l)))

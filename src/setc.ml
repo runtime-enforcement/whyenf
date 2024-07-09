@@ -46,6 +46,10 @@ let mem cs el = match cs with
   | Finite s -> Set.mem s el
   | Complement s -> not (Set.mem s el)
 
+let comp = function
+  | Finite s -> Complement s
+  | Complement s -> Finite s
+
 let inter cs1 cs2 =
   if phys_equal cs1 cs2 then cs1
   else (match cs1, cs2 with
@@ -75,17 +79,17 @@ let diff cs1 cs2 = match cs1, cs2 with
 let some_elt tt = function
   | Finite s -> Set.min_elt_exn s
   | Complement s -> (match tt with
-                     | Dom.TInt -> let elt = ref (Dom.Int (Random.int 100000)) in
+                     | Dom.TInt -> let elt = ref (Dom.Int (Random.int Int.max_value)) in
                                       (while Set.mem s !elt do
-                                         elt := Int (Random.int 100000)
+                                         elt := Int (Random.int Int.max_value)
                                        done); !elt
                      | TStr -> let elt = ref (Dom.Str (Etc.some_string ())) in
                                (while Set.mem s !elt do
                                   elt := Str (Etc.some_string ())
                                 done); !elt
-                     | TFloat -> let elt = ref (Dom.Float (Random.float 100000.0)) in
+                     | TFloat -> let elt = ref (Dom.Float (Random.float Float.max_value)) in
                                  (while Set.mem s !elt do
-                                    elt := Float (Random.float 100000.0)
+                                    elt := Float (Random.float Float.max_value)
                                   done); !elt)
 
 let is_finite = function
@@ -115,3 +119,6 @@ let to_string = function
 let to_latex = function
   | Finite s -> Printf.sprintf "\\{%s\\}" (format s)
   | Complement s -> Printf.sprintf "\\{%s\\}^\\cp" (format s)
+
+type valuation = (string, (Dom.t, Dom.comparator_witness) t, String.comparator_witness) Map.t
+let empty_valuation = Map.empty (module String)

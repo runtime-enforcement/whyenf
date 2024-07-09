@@ -386,7 +386,7 @@ let op_to_string = function
 let rec to_string_rec l = function
   | TT -> Printf.sprintf "⊤"
   | FF -> Printf.sprintf "⊥"
-  | EqConst (trm, c) -> Printf.sprintf "%s = %s" (Term.value_to_string trm) (Dom.to_string c)
+  | EqConst (trm, c) -> Printf.sprintf "{%s = %s}" (Term.value_to_string trm) (Dom.to_string c)
   | Predicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
   | Agg (s, op, x, y, f) -> Printf.sprintf "%s = %s(%s; %s; %s)" s (Aggregation.op_to_string op) (Term.value_to_string x) (String.concat ~sep:", " y) (to_string_rec 5 f)
   | Neg f -> Printf.sprintf "¬%a" (fun x -> to_string_rec 5) f
@@ -456,7 +456,7 @@ let to_json = to_json_rec "    " ""
 let rec to_latex_rec l = function
   | TT -> Printf.sprintf "\\top"
   | FF -> Printf.sprintf "\\bot"
-  | EqConst (trm, c) -> Printf.sprintf "%s = %s" (Etc.escape_underscores (Term.to_string trm)) (Dom.to_string c)
+  | EqConst (trm, c) -> Printf.sprintf "{%s = %s}" (Etc.escape_underscores (Term.to_string trm)) (Dom.to_string c)
   | Predicate (r, trms) -> Printf.sprintf "%s\\,(%s)" (Etc.escape_underscores r) (Term.list_to_string trms)
   | Agg (s, op, x, y, f) -> Printf.sprintf "%s \\leftarrow %s %s;%s. %s" (Etc.escape_underscores s) (Aggregation.op_to_string op) (Etc.escape_underscores (Term.to_string x)) (Etc.escape_underscores (String.concat ~sep:", " y)) (to_latex_rec 5 f)
   | Neg f -> Printf.sprintf "\\neg %a" (fun x -> to_latex_rec 5) f
@@ -479,10 +479,67 @@ let rec to_latex_rec l = function
 let to_latex = to_latex_rec 0
 
 
+let rec solve_past_guarded x vars p f =
+  let s = 
+    match f, p with
+    | TT, false -> [[]]
+    | FF, true -> [[]]
+    | EqConst (y, _), true when Term.Var x == y -> [[]]
+    | EqConst (Term.App (f, [Term.Var x; trm]), Dom.Int 1), true when Funcs.is_eq f ->
+       [Term.fv_list [trm]]
+    | Predicate (_, ts), true when List.exists ~f:(Term.equal (Term.Var x)) ts -> [[]]
+    | Agg (_, _, _, y, f), _ when List.mem y x ~equal:String.equal -> solve_past_guarded x vars p f
+    | Agg (s, _, _, _, _), _ when String.equal s x -> [[]]
+    | Neg f, _ -> solve_past_guarded x vars (not p) f
+    | And (_, f', g'), true | Or (_, f', g'), false | Imp (_, f', g'), false ->
+       let q = match f with Imp _ -> not p | _ -> p in
+       let fltr v = not (Set.mem vars v) || not (is_past_guarded v ~vars:(Some vars) q f') in
+       let vars_f = solve_past_guarded x vars q f' in
+       let vars_g = List.map ~f:(List.filter ~f:fltr) (solve_past_guarded x vars p g') in
+       vars_f @ vars_g
+    | And (_, f', g'), false | Or (_, f', g'), true | Imp (_, f', g'), true ->
+       let q = match f with Imp _ -> not p | _ -> p in
+       let vars_f = solve_past_guarded x vars q f' in
+       let vars_g = solve_past_guarded x vars p g' in
+       List.map (List.cartesian_product vars_f vars_g) ~f:(fun (v, v') -> v @ v')
+    | Iff (_, _, f, g), _ -> solve_past_guarded x vars p (And (N, Imp (N, f, g), Imp (N, g, f)))
+    | Exists (y, f), _ | Forall (y, f), _ when x != y -> solve_past_guarded x vars p f
+    | Prev (_, f), true -> solve_past_guarded x vars p f
+    | Once (_, f), true | Eventually (_, f), true -> solve_past_guarded x vars p f
+    | Once (i, f), false | Eventually (i, f), false when Interval.has_zero i -> solve_past_guarded x vars p f
+    | Historically (_, f), false | Always (_, f), false -> solve_past_guarded x vars p f
+    | Historically (i, f), true | Always (i, f), true when Interval.has_zero i -> solve_past_guarded x vars p f
+    | Since (_, i, f, g), true when not (Interval.has_zero i) -> solve_past_guarded x vars p (And (N, f, g))
+    | Since (_, i, f, g), true -> solve_past_guarded x vars p g
+    | Since (_, i, f, g), false | Until (_, i, f, g), false when Interval.has_zero i -> solve_past_guarded x vars p g
+    | Until (_, i, f, g), true when not (Interval.has_zero i) -> solve_past_guarded x vars p f
+    | Until (_, i, f, g), true -> solve_past_guarded x vars p (Or (N, f, g))
+    | _ -> [] in
+  (*print_endline "solve_past_guarded";
+  print_endline ("x=" ^ x);
+  print_endline ("p=" ^ (if p then "true" else "false"));
+  print_endline ("vars=" ^ String.concat ~sep:"," (Set.elements vars));
+  print_endline ("f=" ^ to_string f);
+  print_endline ("constraints=[" ^ String.concat ~sep:", " (List.map s ~f:(fun l -> "[" ^ String.concat ~sep:", " l ^ "]" ))^"]");
+  print_newline ();*)
+  s
+
+and is_past_guarded x ?(vars=None) p f =
+  (*print_endline "is_past_guarded";
+  print_endline ("x=" ^ x);
+  print_endline ("p=" ^ (if p then "true" else "false"));
+  print_endline ("f=" ^ to_string f);
+  print_endline ("constraints=[" ^ String.concat ~sep:", " (List.map (solve_past_guarded x p f) ~f:(fun l -> "[" ^ String.concat ~sep:", " l ^ "]" ))^"]");
+  print_newline ();*)
+  let vars = match vars with None -> fv f | Some s -> s in
+  List.exists ~f:List.is_empty (solve_past_guarded x vars p f)
+
+
+(*
 let rec is_past_guarded x p f =
-  let r =
   match f with
-  | TT | FF -> false
+  | TT -> not p
+  | FF -> p
   | EqConst (y, _) -> p && (Term.Var x == y)
   | Predicate (_, ts) when p -> List.exists ~f:(Term.equal (Term.Var x)) ts
   | Agg (s, _, _, y, f) when List.mem y x ~equal:String.equal -> is_past_guarded x p f
@@ -510,8 +567,7 @@ let rec is_past_guarded x p f =
                                       || is_past_guarded x p f && is_past_guarded x p g
   | Since (_, i, f, g) | Until (_, i, f, g) -> Interval.has_zero i && is_past_guarded x p g
   | _ -> false
-  in 
-r
+ *)
 
 let check_agg types s op x y f =
   let x_tt = Sig.var_tt_of_term_exn types x in

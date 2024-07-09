@@ -104,6 +104,7 @@ module Sig : sig
   val arg_tts: ty -> (string * Dom.tt) list
 
   val eval: Etc.valuation -> Term.t -> Term.t
+  val set_eval: Setc.valuation -> Term.t -> (Term.t, Term.comparator_witness) Setc.t
 
   val var_tt_of_term: string -> Dom.tt -> Term.t -> Dom.tt option
   val var_tt_of_terms: string -> Dom.tt list -> Term.t list -> Dom.tt option

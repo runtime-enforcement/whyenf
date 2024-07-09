@@ -15,7 +15,22 @@ module Term = struct
 
   module T = struct
 
-    type t = Var of string | Const of Dom.t | App of string * t list [@@deriving compare, sexp_of, hash]
+    type t = Var of string | Const of Dom.t | App of string * t list [@@deriving sexp_of, hash]
+
+    let rec compare t t' =
+      match t, t' with
+      | Var s, Var s' -> String.compare s s'
+      | Var _, _ -> -1
+      | Const d, Const d' -> Dom.compare d d'
+      | Const _, Var _ -> 1
+      | Const _, App _ -> -1
+      | App (s, [Var x; trm]), App (s', [Var x'; trm']) when Funcs.is_eq s && Funcs.is_eq s' ->
+         Etc.lexicographic2 String.compare compare (x, trm) (x', trm')
+      | App (s, [Var x; trm]), App _ when Funcs.is_eq s -> -1
+      | App _, App (s', [Var x'; trm']) when Funcs.is_eq s' -> 1
+      | App (s, ts), App (s', ts') ->
+         Etc.lexicographic2 String.compare (Etc.lexicographics compare) (s, ts) (s', ts')
+      | App _, _ -> 1
 
     let var x = Var x
     let const d = Const d
@@ -221,7 +236,26 @@ module Sig = struct
        match Option.all (List.map trms ~f) with
        | Some ds -> Const (func ff ds)
        | None -> App (ff, trms)
-
+  
+  let rec set_eval (v: Setc.valuation) = function
+    | Term.Var x ->
+       (match Map.find v x with
+        | Some (Setc.Finite s) -> Setc.Finite (Set.map (module Term) s ~f:Term.const)
+        | Some (Setc.Complement s) -> Setc.Complement (Set.map (module Term) s ~f:Term.const)
+        | None -> Setc.singleton (module Term) (Var x))
+    | Const c -> Setc.singleton (module Term) (Const c)
+    | App (ff, trms) ->
+       let trms' = List.map trms ~f:(set_eval v) in
+       let f trms =
+         match Option.all (List.map trms ~f:(function Term.Const d -> Some d | _ -> None)) with
+         | Some ds -> Term.Const (func ff ds)
+         | None -> Term.App (ff, trms) in
+       match Option.all (List.map trms' ~f:(function Setc.Finite s -> Some s | _ -> None)) with
+       | Some ds -> let prod   = Etc.cartesian (List.map ds ~f:Set.elements) in
+                    let trms'' = List.map prod ~f in
+                    Setc.Finite (Set.of_list (module Term) trms'')
+       | None -> Setc.singleton (module Term) (Term.App (ff, trms))
+  
   let rec var_tt_of_term x tt = function
     | Term.Var x' when String.equal x x' -> Some tt
     | Var x' -> None

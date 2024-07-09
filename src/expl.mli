@@ -56,11 +56,13 @@ module Pdt : sig
   val apply3_reduce: ('a -> 'a -> bool) -> Term.t list -> ('b -> 'c -> 'd -> 'a) -> 'b t -> 'c t -> 'd t -> 'a t
   val split_prod_reduce: ('a -> 'a -> bool) -> ('a * 'a) t -> 'a t * 'a t
   val split_list_reduce: ('a -> 'a -> bool) -> 'a list t -> 'a t list
-  val hide_reduce: ('a -> 'a -> bool) -> Term.t list -> ('b -> 'a) -> ('b Part.t -> 'a) -> 'b t -> 'a t
+  val hide_reduce: string -> ('a -> 'a -> bool) -> Term.t list -> ('b -> 'a) -> ('b Part.t -> 'a) -> 'b t -> 'a t
 
   (*val replace_leaf: Etc.valuation -> 'a -> 'a t -> 'a t*)
   val specialize: Etc.valuation -> 'a t -> 'a
   val specialize_partial: Etc.valuation -> 'a t -> 'a t
+  val simplify: string -> ('a -> 'a -> bool) -> 'a t -> 'a t
+  val simplify_vars: string -> Term.t list -> Term.t list
   val collect: ('a -> bool) -> Etc.valuation -> string -> 'a t -> (Dom.t, Dom.comparator_witness) Setc.t
   val from_valuation: Term.t list -> Etc.valuation -> 'b -> 'b -> 'b t
 

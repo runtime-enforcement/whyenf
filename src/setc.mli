@@ -22,6 +22,7 @@ val singleton: ('a, 'b) Comparator.Module.t -> 'a -> ('a, 'b) t
 val is_empty: ('a, 'b) t -> bool
 val is_univ: ('a, 'b) t -> bool
 val mem: ('a, 'b) t -> 'a -> bool
+val comp: ('a, 'b) t -> ('a, 'b) t
 val inter: ('a, 'b) t -> ('a, 'b) t -> ('a, 'b) t
 val union: ('a, 'b) t -> ('a, 'b) t -> ('a, 'b) t
 val union_list: ('a, 'b) Comparator.Module.t -> ('a, 'b) t list -> ('a, 'b) t
@@ -33,3 +34,6 @@ val to_list: ('a, 'b) t -> 'a list
 val to_json: (Dom.t, 'a) t -> string
 val to_string: (Dom.t, 'a) t -> string
 val to_latex: (Dom.t, 'a) t -> string
+
+type valuation = (string, (Dom.t, Dom.comparator_witness) t, String.comparator_witness) Map.t
+val empty_valuation: valuation
