@@ -68,4 +68,8 @@ val _print: string -> ('a -> string) -> 'a -> 'a
 
 val reorder: ('a -> 'a -> bool) -> 'a list -> 'a list -> 'a list
 
+
 val cartesian: 'a list list -> 'a list list
+
+val gen_fresh: string -> string
+
