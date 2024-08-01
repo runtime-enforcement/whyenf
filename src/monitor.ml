@@ -1,4 +1,3 @@
-
 (*******************************************************************)
 (*     This is part of WhyMon, and it is distributed under the     *)
 (*     terms of the GNU Lesser General Public License version 3    *)
@@ -18,7 +17,7 @@ open Option
 module type MonitorT = sig
 
   module CI : Checker_interface.Checker_interfaceT
-  
+
   module MFormula : sig
 
     type binop_info
@@ -142,13 +141,13 @@ end
 module Make (CI: Checker_interface.Checker_interfaceT) = struct
 
   module CI = CI
-  
+
   open CI
   module Plain = Out.Plain (CI)
   module Json = Out.Json (CI)
 
   open Expl
-  
+
   (* let minp_list = Proof.Size.minp_list *)
   (* let minp_bool = Proof.Size.minp_bool *)
   (* let minp = Proof.Size.minp *)
@@ -1475,6 +1474,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       | MFF
       | MEqConst      of Term.t * Dom.t
       | MPredicate    of string * Term.t list
+      | MLet          of string * string list * t * t
       | MAgg          of string * Aggregation.op * Aggregation.op_fun * Term.t list * Term.t * string list * t
       | MNeg          of t
       | MAnd          of Formula.Side.t * t * t * binop_info
@@ -1787,7 +1787,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       | MEqConst (x, c) -> Printf.sprintf "="
       | MPredicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
       | MAgg (s, op, _, _, x, y, _) -> Printf.sprintf "%s = %s(%s; %s)" s (Aggregation.op_to_string op) (Term.to_string x)
-                                  (String.concat ~sep:", " y)  
+                                  (String.concat ~sep:", " y)
       | MNeg _ -> Printf.sprintf "¬"
       | MAnd (_, _, _, _) -> Printf.sprintf "∧"
       | MOr (_, _, _, _) -> Printf.sprintf "∨"
@@ -2086,7 +2086,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
        (match match_terms trms ds map with
         | None -> None
         | Some map' -> Some (Map.add_exn map' ~key:(Term.App (f, trms')) ~data:d))
-    | _, _ -> assert false                       
+    | _, _ -> assert false
 
   let print_maps maps =
     Stdio.print_endline "> Map:";
