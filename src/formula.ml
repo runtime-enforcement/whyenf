@@ -39,17 +39,12 @@ module Side = struct
 
 end
 
-(* Variable mapping (let operator related) *)
-type m = string Map.M(String).t [@@deriving compare, sexp_of, hash]
-
-type letp = string * string list [@@deriving compare, sexp_of, hash]
-
 type t =
   | TT
   | FF
   | EqConst of Term.t * Dom.t
   | Predicate of string * Term.t list
-  | Let of letp * m * t * t
+  | Let of string * string list * t * t
   | Agg of string * Aggregation.op * Term.t * string list * t
   | Neg of t
   | And of Side.t * t * t
@@ -165,7 +160,7 @@ let rec replace_fv y z f = match f with
   | Predicate _ -> f
   | Exists (x, f) -> Exists (x, replace_fv y z f)
   | Forall (x, f) -> Forall (x, replace_fv y z f)
-  | Let ((name, fvs), m, f, g) -> Let ((name, fvs), m, f, replace_fv y z g)
+  | Let (name, vars, f, g) -> Let (name, vars, f, replace_fv y z g)
   | Neg f -> Neg (replace_fv y z f)
   | Prev (i, f) -> Prev (i, replace_fv y z f)
   | Once (i, f) -> Once (i, replace_fv y z f)
@@ -192,7 +187,7 @@ let rec replace_bv y z f = match f with
   | Forall (x, f) -> if String.equal x y then
                        Forall (z, f)
                      else Forall (x, replace_bv y z f)
-  | Let ((name, fvs), m, f, g) -> Let ((name, fvs), m, f, replace_bv y z g)
+  | Let (name, vars, f, g) -> Let (name, vars, f, replace_bv y z g)
   | Neg f -> Neg (replace_bv y z f)
   | Prev (i, f) -> Prev (i, replace_bv y z f)
   | Once (i, f) -> Once (i, replace_bv y z f)
@@ -207,28 +202,52 @@ let rec replace_bv y z f = match f with
   | Since (s, i, f1, f2) -> Since (s, i, replace_bv y z f1, replace_bv y z f2)
   | Until (s, i, f1, f2) -> Until (s, i, replace_bv y z f1, replace_bv y z f2)
 
-(* let gen_let_fvs f g = *)
-(*   let vars_g = Set.union (fv g) (bv g) in *)
-(*   Set.fold (Set.union (fv f) (bv f)) ~init:(Map.empty (module String)) ~f:(fun acc x -> *)
-(*       let quit_loop = ref false in *)
-(*       while not !quit_loop do *)
-(*         let y = ref (Etc.gen_fresh x) in *)
-(*         if not (Map.mem acc y) && not (Set.mem vars_g) then *)
-(*           Map. *)
-(*           done *)
-
-
-
-
-(* let fix_let f g = *)
+let let_map vars f =
+  let rec let_map_rec = function
+    | TT | FF
+      | EqConst _
+      | Agg _
+      | Let _ -> Map.empty (module String)
+    | Predicate (r, trms) when not (Sig.equal_pred_kind (Sig.kind_of_pred r) (Sig.Predicate)) ->
+       List.fold2_exn (List.map trms ~f:Pred.Term.unvar) (Pred.Sig.arg_tts_of_pred r)
+         ~init:(Map.empty (module String))
+         ~f:(fun m x tt -> match Map.add m ~key:x ~data:tt with
+                           | `Ok m -> m
+                           | `Duplicate -> if Dom.tt_equal (Map.find_exn m x) tt then m
+                                           else raise (Failure ("variable " ^ x ^ " is not well typed")))
+    | Predicate _ -> Map.empty (module String)
+    | Neg f
+      | Exists (_, f)
+      | Forall (_, f)
+      | Prev (_, f)
+      | Once (_, f)
+      | Historically (_, f)
+      | Eventually (_, f)
+      | Always (_, f)
+      | Next (_, f) -> let_map_rec f
+    | And (_, f1, f2)
+      | Or (_, f1, f2)
+      | Imp (_, f1, f2)
+      | Iff (_, _, f1, f2)
+      | Since (_, _, f1, f2)
+      | Until (_, _, f1, f2) -> Map.merge (let_map_rec f1) (let_map_rec f2)
+                                  ~f:(fun ~key:x merge ->
+                                    match merge with
+                                    | `Left tt -> Some tt
+                                    | `Right tt -> Some tt
+                                    | `Both (tt1, tt2) ->
+                                       if Dom.tt_equal tt1 tt2 then
+                                         Some tt1
+                                       else raise (Failure ("variable " ^ x ^ " is not well typed"))) in
+  let m = let_map_rec f in
+  List.map vars ~f:(fun x -> (x, Map.find_exn m x))
 
 let tt = TT
 let ff = FF
 let eqconst x d = EqConst (x, d)
 let agg s op x y f = Agg (s, op, x, y, f)
 let predicate p_name trms = Predicate (p_name, trms)
-let letp letp_name vars = (letp_name, vars)
-let flet letp f g = Let (letp, Map.empty (module String), f, g)
+let flet r vars f g = Pred.Sig.add_letpred r (let_map vars f); Let (r, vars, f, g)
 let neg f = Neg f
 let conj s f g = And (s, f, g)
 let disj s f g = Or (s, f, g)
@@ -260,10 +279,9 @@ let equal x y = match x, y with
      String.equal s s' && Aggregation.equal_op op op' && Term.equal x x' && List.length y == List.length y'
      && List.for_all (List.zip_exn y y') (fun (y, y') -> String.equal y y') && phys_equal f f'
   | Predicate (r, trms), Predicate (r', trms') -> String.equal r r' && List.equal Term.equal trms trms'
-  | Let ((r, vars), m, f, g), Let ((r', vars'), m', f', g') -> String.equal r r' &&
-                                                                 List.equal String.equal vars vars' &&
-                                                                   Map.equal String.equal m m' && phys_equal f f' &&
-                                                                     phys_equal g g'
+  | Let (r, vars, f, g), Let (r', vars', f', g') -> String.equal r r' &&
+                                                      List.equal String.equal vars vars' &&
+                                                        phys_equal f f' && phys_equal g g'
   | Neg f, Neg f' -> phys_equal f f'
   | And (s, f, g), And (s', f', g')
     | Or (s, f, g), Or (s', f', g')
@@ -498,7 +516,7 @@ let op_to_string = function
   | FF -> Printf.sprintf "⊥"
   | EqConst (x, c) -> Printf.sprintf "="
   | Predicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
-  | Let ((r, _), _, _, _) -> Printf.sprintf "let %s" r
+  | Let (r, _, _, _) -> Printf.sprintf "let %s" r
   | Agg (_, op, x, y, _) -> Printf.sprintf "%s(%s; %s)" (Aggregation.op_to_string op) (Term.value_to_string x)
                               (String.concat ~sep:", " y)
   | Neg _ -> Printf.sprintf "¬"
@@ -522,7 +540,7 @@ let rec to_string_rec l = function
   | FF -> Printf.sprintf "⊥"
   | EqConst (trm, c) -> Printf.sprintf "{%s = %s}" (Term.value_to_string trm) (Dom.to_string c)
   | Predicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
-  | Let ((r, vars), _, f, g) -> Printf.sprintf "let %s(%s) = %a in %a" r
+  | Let (r, vars, f, g) -> Printf.sprintf "let %s(%s) = %a in %a" r
                                   (Etc.string_list_to_string vars)
                                   (fun x -> to_string_rec 4) f (fun x -> to_string_rec 4) g
   | Agg (s, op, x, y, f) -> Printf.sprintf "%s = %s(%s; %s; %s)" s (Aggregation.op_to_string op)
@@ -648,7 +666,7 @@ let to_latex = to_latex_rec 0
 
 
 let rec solve_past_guarded x vars p f =
-  let s = 
+  let s =
     match f, p with
     | TT, false -> [[]]
     | FF, true -> [[]]
