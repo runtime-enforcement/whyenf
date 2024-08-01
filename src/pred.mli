@@ -69,7 +69,7 @@ val tick_event_name: string
 
 module Sig : sig
 
-  type pred_kind = Trace | Predicate | External | Builtin [@@deriving compare, sexp_of, hash, equal]
+  type pred_kind = Trace | Predicate | External | Builtin | Let [@@deriving compare, sexp_of, hash, equal]
 
   type pred = { arity: int;
                 arg_tts: (string * Dom.tt) list;
@@ -78,13 +78,14 @@ module Sig : sig
                 kind: pred_kind } [@@deriving compare, sexp_of, hash]
 
   type ty = Pred of pred | Func of Funcs.t (*[@@deriving compare, sexp_of, hash]*)
-                                  
+
   type elt = string * ty (* [@@deriving compare, sexp_of, hash]*)
 
   type t = (string, ty) Hashtbl.t
 
   val table: t
 
+  val add_letpred: string -> (string * Dom.tt) list -> unit
   val add_pred: string -> (string * Dom.tt) list -> EnfType.t -> int -> pred_kind -> unit
 
   val add_func: string -> (string * Dom.tt) list -> Dom.tt -> Funcs.kind -> unit
@@ -100,7 +101,7 @@ module Sig : sig
   val print_table: unit -> unit
 
   val arity: ty -> int
-  
+
   val arg_tts: ty -> (string * Dom.tt) list
 
   val eval: Etc.valuation -> Term.t -> Term.t
@@ -110,7 +111,7 @@ module Sig : sig
   val var_tt_of_terms: string -> Dom.tt list -> Term.t list -> Dom.tt option
 
   val var_tt_of_term_exn: (string, Dom.tt, String.comparator_witness) Map.t -> Term.t -> Dom.tt
-  
+
 end
 
 val check_const: (string, Dom.tt, 'a) Map.t -> Dom.t -> Dom.tt -> (string, Dom.tt, 'a) Map.t

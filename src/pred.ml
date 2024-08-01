@@ -136,7 +136,7 @@ let ts_event_name = "ts"
 
 module Sig = struct
 
-  type pred_kind = Trace | Predicate | External | Builtin [@@deriving compare, sexp_of, hash, equal]
+  type pred_kind = Trace | Predicate | External | Builtin | Let [@@deriving compare, sexp_of, hash, equal]
 
   type pred = { arity: int;
                 arg_tts: (string * Dom.tt) list;
@@ -189,11 +189,17 @@ module Sig = struct
       ~data:(Pred { arity = 1; arg_tts = [("t", TInt)]; enftype = Obs; rank = 0; kind = Builtin });
     table
 
+  let add_letpred p_name arg_tts =
+    Hashtbl.add_exn table ~key:p_name
+      ~data:(Pred { arity = List.length arg_tts; arg_tts; enftype = Obs; rank = 0; kind = Let })
+
   let add_pred p_name arg_tts enftype rank kind =
     if equal_pred_kind kind Predicate then
-      Hashtbl.add_exn table ~key:p_name ~data:(Func { arity = List.length arg_tts; arg_tts; ret_tt = TInt; kind = External })
+      Hashtbl.add_exn table ~key:p_name
+        ~data:(Func { arity = List.length arg_tts; arg_tts; ret_tt = TInt; kind = External })
     else
-      Hashtbl.add_exn table ~key:p_name ~data:(Pred { arity = List.length arg_tts; arg_tts; enftype; rank; kind })
+      Hashtbl.add_exn table ~key:p_name
+        ~data:(Pred { arity = List.length arg_tts; arg_tts; enftype; rank; kind })
 
   let add_func f_name arg_tts ret_tt kind =
     Hashtbl.add_exn table ~key:f_name ~data:(Func { arity = List.length arg_tts; arg_tts; ret_tt; kind })
@@ -236,7 +242,7 @@ module Sig = struct
        match Option.all (List.map trms ~f) with
        | Some ds -> Const (func ff ds)
        | None -> App (ff, trms)
-  
+
   let rec set_eval (v: Setc.valuation) = function
     | Term.Var x ->
        (match Map.find v x with
@@ -255,7 +261,7 @@ module Sig = struct
                     let trms'' = List.map prod ~f in
                     Setc.Finite (Set.of_list (module Term) trms'')
        | None -> Setc.singleton (module Term) (Term.App (ff, trms))
-  
+
   let rec var_tt_of_term x tt = function
     | Term.Var x' when String.equal x x' -> Some tt
     | Var x' -> None
