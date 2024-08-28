@@ -37,14 +37,15 @@ module type MonitorT = sig
       | MFF
       | MEqConst      of Pred.Term.t * Dom.t
       | MPredicate    of string * Pred.Term.t list
-      | MAgg          of string * Aggregation.op * Aggregation.op_fun * Pred.Term.t list * Pred.Term.t * string list * t
+      | MLet          of string * string list * t * t
+      | MAgg          of string * Aggregation.op * Aggregation.op_fun * string list * Pred.Lbl.tt list * Pred.Term.t * string list * t
       | MNeg          of t
       | MAnd          of Formula.Side.t * t * t * binop_info
       | MOr           of Formula.Side.t * t * t * binop_info
       | MImp          of Formula.Side.t * t * t * binop_info
       | MIff          of Formula.Side.t * Formula.Side.t * t * t * binop_info
-      | MExists       of string * Dom.tt * t
-      | MForall       of string * Dom.tt * t
+      | MExists       of string * Dom.tt * bool * t
+      | MForall       of string * Dom.tt * bool * t
       | MPrev         of Interval.t * t * bool * prev_info
       | MNext         of Interval.t * t * bool * next_info
       | MENext        of Interval.t * t * int
@@ -58,13 +59,13 @@ module type MonitorT = sig
       | MUntil        of Interval.t * t * t * buf2t_info * until_info
       | MEUntil       of Formula.Side.t * Interval.t * t * t * int
 
-    val init: Pred.Term.t list -> Tformula.t -> t
+    val init: Pred.Lbl.tt list -> Tformula.t -> t
     val rank: t -> int
 
     val apply_valuation : Etc.valuation -> t -> t
 
     val fv: t -> (String.t, Base.String.comparator_witness) Base.Set.t
-    val terms: t -> (Pred.Term.t, Pred.Term.comparator_witness) Base.Set.t
+    val lbls: string list -> t -> Pred.Lbl.tt list
 
     val to_string: t -> string
     val op_to_string: t -> string
@@ -125,7 +126,7 @@ module type MonitorT = sig
 
   end
 
-  val mstep: Out.mode -> Pred.Term.t list -> timestamp -> Db.t -> bool -> MState.t -> FObligations.t ->
+  val mstep: Out.mode -> string list -> Pred.Lbl.tt list -> timepoint -> timestamp -> Db.t -> bool -> MState.t -> FObligations.t ->
              ((timestamp * timepoint) * CI.Expl.t) list * CI.Expl.t * MState.t
 
   val exec: Out.mode -> string -> Formula.t -> in_channel -> unit

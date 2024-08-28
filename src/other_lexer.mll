@@ -45,8 +45,8 @@ rule token = parse
   | "+"                            { PLS }
   | "-"                            { MNS }
   | "?"                            { QU }
-  | string as s                    { STR s }
   | '"' (quoted_string as s) '"'   { STR s }
+  | string as s                    { STR s }
   | eof                            { EOF }
   | _ as c                         { lexing_error lexbuf "unexpected character: `%c'" c }
 

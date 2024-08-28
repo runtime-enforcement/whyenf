@@ -60,7 +60,11 @@ let rec string_list_to_string = function
 type valuation = (string, Dom.t, String.comparator_witness) Map.t
 
 let compare_valuation = Map.compare_direct Dom.compare
+let equal_valuation = Map.equal Dom.equal
 let empty_valuation: valuation = Map.empty (module String)
+let sexp_of_valuation v =
+  let f (k, d) = Sexp.List [Atom k; Atom (Dom.to_string d)] in
+  Sexp.List (List.map (Map.to_alist v) ~f)
 
 let dom_map_to_string m =
   string_list_to_string

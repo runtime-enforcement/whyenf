@@ -23,8 +23,8 @@ type core_t =
   | TOr of Side.t * t * t
   | TImp of Side.t * t * t
   | TIff of Side.t * Side.t * t * t
-  | TExists of string * Dom.tt * t
-  | TForall of string * Dom.tt * t
+  | TExists of string * Dom.tt * bool * t
+  | TForall of string * Dom.tt * bool * t
   | TPrev of Interval.t * t
   | TNext of Interval.t * t
   | TOnce of Interval.t * t

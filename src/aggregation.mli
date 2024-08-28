@@ -1,10 +1,11 @@
 open Base
+open Pred
 
-type op = ASum | AAvg | AMed | ACnt | AMin | AMax [@@deriving compare, sexp_of, hash, equal]
+type op = ASum | AAvg | AMed | ACnt | AMin | AMax | AAssign [@@deriving compare, sexp_of, hash, equal]
 
 type op_fun = (Dom.t, int, Dom.comparator_witness) Map.t -> Dom.t
 
-val order_trms : Pred.Term.t list -> Pred.Term.t list -> Pred.Term.t -> string list -> Pred.Term.t list
+val order_lbls : Lbl.TLbl.t list -> Lbl.TLbl.t list -> Lbl.TLbl.t -> string list -> Lbl.TLbl.t list
 
 val op_to_string : op -> string
 

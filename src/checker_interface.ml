@@ -261,7 +261,7 @@ module Checker_interface = struct
     | E.Pdt.Leaf pt -> (match pt with
                       | Expl.Proof.S sp -> Leaf (Inl (convert_sp sp))
                       | V vp -> Leaf (Inr (convert_vp vp)))
-    | Node (Var x, part) -> Node (x, convert_pdt_part part)
+    | Node (LVar x, part) -> Node (x, convert_pdt_part part)
 
   let convert_p = function
     | Expl.Proof.S sp -> Inl (convert_sp sp)
@@ -269,7 +269,7 @@ module Checker_interface = struct
 
   let rec convert_expl = function
     | E.Pdt.Leaf pt -> Leaf (convert_p pt)
-    | Node (Var x, part) -> Node (x, convert_pdt_part part)
+    | Node (LVar x, part) -> Node (x, convert_pdt_part part)
 
   let convert_interval = function
     | Interval.B bi -> (match bi with

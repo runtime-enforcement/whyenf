@@ -71,6 +71,7 @@ module Parsebuf = struct
   type t = { lexbuf: Lexing.lexbuf
            ; mutable token: Other_lexer.token
            ; mutable pred_sig: Pred.Sig.elt option
+           ; mutable tp: int
            ; mutable ts: int
            ; mutable db: Db.t
            ; mutable check: bool
@@ -80,6 +81,7 @@ module Parsebuf = struct
   let init lexbuf = { lexbuf = lexbuf
                     ; token = Other_lexer.token lexbuf
                     ; pred_sig = None
+                    ; tp = -1
                     ; ts = -1
                     ; db = Db.create []
                     ; check = false
@@ -95,6 +97,7 @@ module Parsebuf = struct
   let pred pb = fst (Option.value_exn pb.pred_sig)
 
   let clean pb = { pb with pred_sig = None
+                         ; tp = -1
                          ; ts = -1
                          ; db = Db.create [] }
 

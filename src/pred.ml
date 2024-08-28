@@ -278,6 +278,125 @@ module Sig = struct
 
 end
 
+module Lbl = struct
+
+  module T = struct
+    
+    type t = LVar of string | LClos of string * (Term.t list) * Etc.valuation [@@deriving equal, compare, sexp_of]
+
+    module TLbl = struct
+
+      module T = struct
+
+        module S = struct
+          type t = (string, String.comparator_witness) Set.t
+          let equal = Set.equal 
+          let compare = Set.compare_direct 
+          let sexp_of_t s = Sexp.List (List.map (Set.elements s) ~f:(fun x -> Sexp.Atom x))
+          let empty = Set.empty (module String)
+          let is_empty = Set.is_empty
+          let mem = Set.mem
+          let filter = Set.filter
+          let singleton = Set.singleton (module String)
+          let of_list = Set.of_list (module String)
+          let length = Set.length
+          let elements = Set.elements
+        end
+
+        type t = TLVar of string | TLClos of string * (Term.t list) * S.t [@@deriving equal, compare, sexp_of]
+
+        let rec equal tt tt' = match tt, tt' with
+          | TLVar s, TLVar s' -> String.equal s s'
+          | TLClos (s, ts, vars), TLClos (s', ts', vars') when List.length ts == List.length ts'
+            -> String.equal s s'
+               && List.for_all2_exn ts ts' ~f:Term.equal
+               && S.equal vars vars'
+          | _, _ -> false
+
+        let var s = TLVar s
+
+        let is_var = function
+          | TLVar _ -> true
+          | _ -> false
+
+        let of_term = function
+          | Term.Var s -> TLVar s
+          | App (f, ts) -> TLClos (f, ts, S.empty)
+
+        let rec fv = function
+          | TLVar s -> S.singleton s
+          | TLClos (f, ts, vars) ->
+             S.filter (S.of_list (Term.fv_list ts)) ~f:(fun x -> not (S.mem vars x))
+
+        let to_string = function
+          | TLVar x -> Printf.sprintf "TLVar %s" x
+          | TLClos (f, ts, vars) ->
+             Printf.sprintf "TLClos %s(%s; [%s])"
+               f (String.concat ~sep:", " (List.map ts ~f:Term.to_string))
+               (String.concat ~sep:", " (Set.elements vars))
+
+        let quantify x = function
+          | TLVar y when String.equal x y -> None
+          | TLVar y -> Some (TLVar y)
+          | TLClos (f, ts, vars) as lbl ->
+             let fvs = fv lbl in
+             if S.mem fvs x then (
+               if S.length fvs == 1 then
+                 None
+               else
+                 Some (TLClos (f, ts, Set.add vars x))
+             )
+             else
+               Some (TLClos (f, ts, vars))
+
+      end
+
+      include T
+      include Comparator.Make(T)
+
+    end
+
+    type tt = TLbl.t
+
+    let term = function
+      | LVar s -> Term.Var s
+      | LClos (f, ts, v) -> App (f, ts)
+
+    let of_term = function
+      | Term.Var s -> LVar s
+      | App (f, ts) -> LClos (f, ts, Etc.empty_valuation)
+
+    let to_string = function
+      | LVar x -> Printf.sprintf "LVar %s" x
+      | LClos (f, ts, v) ->
+         Printf.sprintf "LClos %s(%s; [%s])"
+           f (String.concat ~sep:", " (List.map ts ~f:Term.to_string)) (Etc.valuation_to_string v)
+
+    let rec eval (v: Etc.valuation) = function
+      | LVar s when Map.mem v s -> Term.Const (Map.find_exn v s)
+      | LVar s -> Var s
+      | LClos (f, ts, v') ->
+         let aux = function | `Left y | `Right y | `Both (y, _) -> Some y in
+         Sig.eval (Map.merge v v' (fun ~key -> aux)) (App (f, ts))
+
+    let matches tt t = match tt, t with
+      | TLbl.TLVar x, LVar y when String.equal x y -> true
+      | TLClos (x, ts, vars), LClos (y, ut, v)
+           when String.equal x y
+                && List.equal Term.equal ts ut
+                && TLbl.S.equal (TLbl.S.of_list (Map.keys v)) vars -> true
+      | _, _ -> false
+
+    let t_of_tt = function
+      | TLbl.TLVar s -> LVar s
+      | TLClos (f, ts, vars) when TLbl.S.is_empty vars -> LClos (f, ts, Etc.empty_valuation)
+  end
+
+  include T
+  include Comparator.Make(T)
+  
+end
+
 let check_const types c tt =
   if Dom.tt_equal (Dom.tt_of_domain c) tt then
     types
