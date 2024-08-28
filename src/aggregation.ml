@@ -1,6 +1,8 @@
 open Base
+open Pred
 
-type op = ASum | AAvg | AMed | ACnt | AMin | AMax [@@deriving compare, sexp_of, hash, equal]
+type op = ASum | AAvg | AMed | ACnt | AMin | AMax | AAssign
+  [@@deriving compare, sexp_of, hash, equal]
 
 type op_fun = (Dom.t, int, Dom.comparator_witness) Map.t -> Dom.t
 
@@ -11,6 +13,7 @@ let op_to_string = function
   | ACnt -> "CNT"
   | AMin -> "MIN"
   | AMax -> "MAX"
+  | AAssign -> "ASSIGN"
 
 (* Order terms in trms' to fulfill the following invariants:
     * all variables in y, ordered as in trms, come first
@@ -18,11 +21,11 @@ let op_to_string = function
     * then come all other variables not in x or y
     * any term using a variable z comes after z
  *)
-let order_trms trms trms' x y =
-  let vars  = Pred.Term.filter_vars trms in
-  let trms1 = List.map (Etc.reorder String.equal y vars) ~f:Pred.Term.var @ [x] in
-  let trms2 = List.filter trms' ~f:(fun trm -> not (List.mem trms1 trm ~equal:Pred.Term.equal)) in
-  trms1 @ trms2
+let order_lbls lbls lbls' x y =
+  let vars  = List.filter lbls ~f:Lbl.TLbl.is_var in
+  let lbls1 = (Etc.reorder Lbl.TLbl.equal (List.map y ~f:Lbl.TLbl.var) vars) @ [x] in
+  let lbls2 = List.filter lbls' ~f:(fun lbl -> not (List.mem lbls1 lbl ~equal:Lbl.TLbl.equal)) in
+  lbls1 @ lbls2
 
 
 let median compare xs =
@@ -45,6 +48,7 @@ let ret_tt op tt =
   | AMin, Dom.TFloat -> Some Dom.TFloat
   | AMax, Dom.TInt   -> Some Dom.TInt
   | AMax, Dom.TFloat -> Some Dom.TFloat
+  | AAssign, x       -> Some x
   | _                -> None
 
 let ret_tt_exn op tt =
@@ -107,5 +111,7 @@ let eval op tt m =
      if Map.is_empty m then
        Dom.Float Float.min_value
      else
-       fst (Map.max_elt_exn m)
+       fst (Map.min_elt_exn m)
+  | AAssign, ty ->
+     fst (Map.min_elt_exn m)
   | _, _ -> assert false

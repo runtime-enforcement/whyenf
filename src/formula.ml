@@ -39,6 +39,7 @@ module Side = struct
 
 end
 
+
 type t =
   | TT
   | FF
@@ -110,6 +111,8 @@ let rec fv = function
     | Iff (_, _, f1, f2)
     | Since (_, _, f1, f2)
     | Until (_, _, f1, f2) -> Set.union (fv f1) (fv f2)
+
+let list_fv e = Set.elements (fv e)
 
 (* Bound variables *)
 let rec bv = function
@@ -300,7 +303,7 @@ let equal x y = match x, y with
                                                       phys_equal f f' && phys_equal g g'
   | _ -> false
 
-let rec terms = function
+(*let rec terms = function
   | TT | FF -> Set.empty (module Term)
   | EqConst (trm, c) -> Set.singleton (module Term) trm
   | Agg (s, _, _, y, f) -> Set.of_list (module Term) (List.map (s::y) ~f:(fun v -> Term.Var v))
@@ -308,9 +311,7 @@ let rec terms = function
                              ~f:(function Const _ -> false | _ -> true)
   | Let (_, _, _, g) -> terms g
   | Exists (x, f)
-    | Forall (x, f) ->
-     Set.filter (terms f)
-       ~f:(fun y -> not (List.mem (Pred.Term.fv_list [y]) x ~equal:String.equal))
+    | Forall (x, f) -> Set.filter (terms f) ~f:(fun y -> not (Term.equal y (Var x)))
   | Neg f
     | Prev (_, f)
     | Once (_, f)
@@ -323,7 +324,62 @@ let rec terms = function
     | Imp (_, f1, f2)
     | Iff (_, _, f1, f2)
     | Since (_, _, f1, f2)
-    | Until (_, _, f1, f2) -> Set.union (terms f1) (terms f2)
+    | Until (_, _, f1, f2) -> Set.union (terms f1) (terms f2)*)
+
+(*let rec lbls = function
+  | TT | FF -> Set.empty (module Lbl.TLbl)
+  | EqConst (Const _, c) -> Set.empty (module Lbl.TLbl)
+  | EqConst (t, c) -> Set.singleton (module Lbl.TLbl) (Lbl.TLbl.of_term t)
+  | Agg (s, _, _, y, f) ->
+     Set.of_list (module Lbl.TLbl) (List.map (s::y) ~f:(fun v -> Lbl.TLbl.TLVar v))
+  | Predicate (x, ts) ->
+     Set.of_list (module Lbl.TLbl) (List.filter_map ts
+                                      (function Const _ -> None | t -> Some (Lbl.TLbl.of_term t)))
+  | Let (_, _, _, g) -> lbls g
+  | Exists (x, f)
+    | Forall (x, f) ->
+     Set.filter_map (module Lbl.TLbl) (lbls f) (Lbl.TLbl.quantify x)
+  | Neg f
+    | Prev (_, f)
+    | Once (_, f)
+    | Historically (_, f)
+    | Eventually (_, f)
+    | Always (_, f)
+    | Next (_, f) -> lbls f
+  | And (_, f1, f2)
+    | Or (_, f1, f2)
+    | Imp (_, f1, f2)
+    | Iff (_, _, f1, f2)
+    | Since (_, _, f1, f2)
+    | Until (_, _, f1, f2) -> Set.union (lbls f1) (lbls f2)*)
+
+let lbls fvs f =
+  let nodup l =
+    List.remove_consecutive_duplicates
+      (List.sort l ~compare:Lbl.TLbl.compare) ~equal:Lbl.TLbl.equal in
+  let rec nonvars = function
+  | TT | FF | EqConst (Const _, _) | EqConst (Var _, _) | Agg _ -> [] 
+  | EqConst (t, _) -> [Lbl.TLbl.of_term t]
+  | Predicate (x, ts) ->
+     nodup (List.filter_map ts (function | Const _ | Var _ -> None
+                                         | t -> Some (Lbl.TLbl.of_term t)))
+  | Let (_, _, _, g) -> nonvars g
+  | Exists (x, f)
+    | Forall (x, f) -> List.filter_map (nonvars f) (Lbl.TLbl.quantify x)
+  | Neg f
+    | Prev (_, f)
+    | Once (_, f)
+    | Historically (_, f)
+    | Eventually (_, f)
+    | Always (_, f)
+    | Next (_, f) -> nonvars f
+  | And (_, f1, f2)
+    | Or (_, f1, f2)
+    | Imp (_, f1, f2)
+    | Iff (_, _, f1, f2)
+    | Since (_, _, f1, f2)
+    | Until (_, _, f1, f2) -> nodup (nonvars f1 @ nonvars f2)
+  in (List.map fvs ~f:Lbl.TLbl.var) @ (nonvars f)
 
 let check_bindings f =
   let fv_f = fv f in
@@ -701,22 +757,9 @@ let rec solve_past_guarded x vars p f =
     | Until (_, i, f, g), true when not (Interval.has_zero i) -> solve_past_guarded x vars p f
     | Until (_, i, f, g), true -> solve_past_guarded x vars p (Or (N, f, g))
     | _ -> [] in
-  (*print_endline "solve_past_guarded";
-  print_endline ("x=" ^ x);
-  print_endline ("p=" ^ (if p then "true" else "false"));
-  print_endline ("vars=" ^ String.concat ~sep:"," (Set.elements vars));
-  print_endline ("f=" ^ to_string f);
-  print_endline ("constraints=[" ^ String.concat ~sep:", " (List.map s ~f:(fun l -> "[" ^ String.concat ~sep:", " l ^ "]" ))^"]");
-  print_newline ();*)
   s
 
 and is_past_guarded x ?(vars=None) p f =
-  (*print_endline "is_past_guarded";
-  print_endline ("x=" ^ x);
-  print_endline ("p=" ^ (if p then "true" else "false"));
-  print_endline ("f=" ^ to_string f);
-  print_endline ("constraints=[" ^ String.concat ~sep:", " (List.map (solve_past_guarded x p f) ~f:(fun l -> "[" ^ String.concat ~sep:", " l ^ "]" ))^"]");
-  print_newline ();*)
   let vars = match vars with None -> fv f | Some s -> s in
   List.exists ~f:List.is_empty (solve_past_guarded x vars p f)
 

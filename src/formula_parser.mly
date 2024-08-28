@@ -96,6 +96,7 @@ e:
 | LBR term EQCONST const RBR           { debug "EQCONST"; eqconst $2 (Pred.Term.unconst $4)}
 | STR EQCONST aggregation LPA term SEMICOLON vars2 SEMICOLON e RPA
                                        { debug "AGG"; agg $1 $3 $5 $7 $9 }
+| e SEMICOLON STR EQCONST term         { debug "AGG"; agg $3 Aggregation.AAssign $5 (list_fv $1) $1 }
 | NEG e                                { debug "NEG e"; neg $2 }
 | PREV INTERVAL e                      { debug "PREV INTERVAL e"; prev $2 $3 }
 | PREV e                               { debug "PREV e"; prev Interval.full $2 }

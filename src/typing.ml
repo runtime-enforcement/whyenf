@@ -187,7 +187,7 @@ let rec types t f =
       | Since (_, i, f, g) -> conj (types Sup f) (types Sup g)
       | Eventually (_, f) | Always (_, f) -> types Sup f
       | Until (L, i, f, g) when not (Interval.has_zero i) -> types Sup f
-      | Until (R, i, f, g) when not (Interval.has_zero i) -> types Sup g
+      | Until (R, _, _, g) -> types Sup g
       | Until (_, i, f, g) when not (Interval.has_zero i) -> disj (types Sup f) (types Sup g)
       | Until (_, _, _, g) -> types Sup g
       | Prev _ -> error "● is never Sup"
@@ -195,6 +195,7 @@ let rec types t f =
     end
   | Obs -> Possible CTT
   | CauSup -> Impossible (EFormula (None, f, t))
+
 
 
 let rec convert b enftype form types : Dom.ctxt * Tformula.t option =
@@ -287,13 +288,13 @@ let rec convert b enftype form types : Dom.ctxt * Tformula.t option =
         | Exists (x, f) ->
            begin
              match convert Cau f types with
-             | types, Some mf -> types, Some (Tformula.TExists (x, Map.find_exn types x, mf))
+             | types, Some mf -> types, Some (Tformula.TExists (x, Map.find_exn types x, true, mf))
              | types, None    -> types, None
            end
         | Forall (x, f) when is_past_guarded x false f ->
            begin
              match convert Cau f types with
-             | types, Some mf -> types, Some (Tformula.TForall (x, Map.find_exn types x, mf))
+             | types, Some mf -> types, Some (Tformula.TForall (x, Map.find_exn types x, false, mf))
              | types, None    -> types, None
            end
         | Next (i, f) when Interval.is_full i ->
@@ -360,13 +361,13 @@ let rec convert b enftype form types : Dom.ctxt * Tformula.t option =
         | Exists (x, f) when is_past_guarded x true f ->
            begin
              match convert Sup f types with
-             | types, Some mf -> types, Some (Tformula.TExists (x, Map.find_exn types x, mf))
+             | types, Some mf -> types, Some (Tformula.TExists (x, Map.find_exn types x, true, mf))
              | types, None    -> types, None
            end
         | Forall (x, f) ->
            begin
              match convert Sup f types with
-             | types, Some mf -> types, Some (Tformula.TForall (x, Map.find_exn types x, mf))
+             | types, Some mf -> types, Some (Tformula.TForall (x, Map.find_exn types x, false, mf))
              | types, None    -> types, None
            end
         | Next (i, f) -> apply1 (convert Sup f) (fun mf -> Tformula.TNext (i, mf)) types
@@ -386,18 +387,18 @@ let rec convert b enftype form types : Dom.ctxt * Tformula.t option =
         | Until (L, i, f, g) when not (Interval.has_zero i) ->
            apply2' (convert Sup f) (Tformula.of_formula g)
              (fun mf mg -> Tformula.TUntil (L, i, true, mf, mg)) types
-        | Until (R, i, f, g) when not (Interval.has_zero i) ->
+        | Until (R, i, f, g) ->
            apply2' (convert Sup g) (Tformula.of_formula f)
              (fun mg mf -> Tformula.TUntil (R, i, true, mf, mg)) types
         | Until (_, i, f, g) when not (Interval.has_zero i) ->
            begin
              match convert Sup f types with
-             | types, Some mf ->
-                apply1' (Tformula.of_formula g)
-                  (fun mg -> Tformula.TUntil (L, i, true, mf, mg)) types
              | types, None    ->
                 apply2' (convert Sup g) (Tformula.of_formula f)
                   (fun mg mf -> Tformula.TUntil (R, i, true, mf, mg)) types
+             | types, Some mf ->
+                apply1' (Tformula.of_formula g)
+                  (fun mg -> Tformula.TUntil (L, i, true, mf, mg)) types
            end
         | Until (_, i, f, g) ->
            apply2' (convert Sup g) (Tformula.of_formula f)
@@ -450,7 +451,7 @@ let do_type f b =
 let rec relative_interval (f: Tformula.t) =
   match f.f with
   | TTT | TFF | TEqConst (_, _) | TPredicate (_, _) -> Zinterval.singleton Time.zero
-  | TNeg f | TExists (_, _, f) | TForall (_, _, f) | TAgg (_, _, _, _, _, f) -> relative_interval f
+  | TNeg f | TExists (_, _, _, f) | TForall (_, _, _, f) | TAgg (_, _, _, _, _, f) -> relative_interval f
   | TAnd (_, f1, f2) | TOr (_, f1, f2) | TImp (_, f1, f2) | TIff (_, _, f1, f2)
     -> Zinterval.lub (relative_interval f1) (relative_interval f2)
   | TPrev (i, f) | TOnce (i, f) | THistorically (i, f)
@@ -474,7 +475,7 @@ let strict f =
     ((Zinterval.has_zero itv) && fut)
     || (match f.f with
         | TTT | TFF | TEqConst (_, _) | TPredicate _ -> false
-        | TNeg f | TExists (_, _, f) | TForall (_, _, f) | TAgg (_, _, _, _, _, f) -> _strict itv fut f
+        | TNeg f | TExists (_, _, _, f) | TForall (_, _, _, f) | TAgg (_, _, _, _, _, f) -> _strict itv fut f
         | TAnd (_, f1, f2) | TOr (_, f1, f2) | TImp (_, f1, f2) | TIff (_, _, f1, f2)
           -> (_strict itv fut f1) || (_strict itv fut f2)
         | TPrev (i, f) | TOnce (i, f) | THistorically (i, f)
@@ -502,7 +503,7 @@ let is_transparent (f: Tformula.t) =
     | Cau -> begin
         match f.f with
         | TTT | TPredicate (_, _) -> true
-        | TNeg f | TExists (_, _, f) | TForall (_, _, f)
+        | TNeg f | TExists (_, _, _, f) | TForall (_, _, _, f)
           | TOnce (_, f) | TNext (_, f) | THistorically (_, f)
            | TAlways (_, _, f) -> aux f
         | TEventually (_, b, f) -> b && aux f
@@ -521,7 +522,7 @@ let is_transparent (f: Tformula.t) =
     | Sup -> begin
         match f.f with
         | TFF | TPredicate (_, _) -> true
-        | TNeg f | TExists (_, _, f) | TForall (_, _, f)
+        | TNeg f | TExists (_, _, _, f) | TForall (_, _, _, f)
           | TOnce (_, f) | TNext (_, f) | THistorically (_, f)
           | TEventually (_, _, f) -> aux f
         | TAlways (_, b, f) -> b && aux f

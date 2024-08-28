@@ -37,6 +37,8 @@ module Part = struct
 
   let fold_left part init f = List.fold_left part ~init:init ~f:(fun acc (_, p) -> f acc p)
 
+  let fold_left2 part init f = List.fold_left part ~init:init ~f:(fun acc (d, p) -> f acc d p)
+
   let filter part f = List.filter part ~f:(fun (_, p) -> f p)
 
   let exists part f = List.exists part ~f:(fun (_, p) -> f p)
@@ -82,15 +84,17 @@ module Part = struct
     let vs = List.map part ~f:snd in
     List.map (Option.value_exn (List.transpose vs)) ~f:(List.zip_exn subs)
 
-  let rec el_to_string indent var f (sub, v) =
-    Printf.sprintf "%s%s ∈ %s\n\n%s" indent (Term.value_to_string var) (Setc.to_string sub)
-      (f (indent ^ (String.make 4 ' ')) v)
+  let el_to_string indent s f (sub, v) =
+    Printf.sprintf "%s%s ∈ %s\n\n%s"
+      indent s (Setc.to_string sub) (f (indent ^ (String.make 4 ' ')) v)
 
-  let to_string indent var f = function
+  let to_string indent s f = function
     | [] -> indent ^ "❮ · ❯"
-    | [x] -> indent ^ "❮\n\n" ^ (el_to_string indent var f x) ^ "\n" ^ indent ^ "❯\n"
-    | xs -> List.fold_left xs ~init:(indent ^ "❮\n\n")
-              ~f:(fun s el -> s ^ (el_to_string indent var f el) ^ "\n") ^ indent ^ "❯\n"
+    | [x] -> indent ^ "❮\n\n" ^ (el_to_string indent s f x) ^ "\n" ^ indent ^ "❯\n"
+    | xs -> indent ^ "❮\n\n"
+            ^ String.concat ~sep:"\n" (List.map xs (el_to_string indent s f)) ^ "\n"
+            ^ indent ^ "❯\n"
+
 
   (* dedup related *)
   let dedup p_eq part =
@@ -128,84 +132,84 @@ end
 
 module Pdt = struct
 
-  type 'a t = Leaf of 'a | Node of Term.t * ('a t) Part.t
+  type 'a t = Leaf of 'a | Node of Pred.Lbl.t * ('a t) Part.t
 
-  let rec apply1 trms f pdt = match trms, pdt with
+  let rec apply1 lbls f pdt = match lbls, pdt with
     | _ , Leaf l -> Leaf (f l)
-    | z :: trms, Node (x, part) ->
-       if Term.equal x z then
-         Node (x, Part.map part (apply1 trms f))
-       else apply1 trms f (Node (x, part))
+    | z :: lbls, Node (x, part) ->
+       if Lbl.matches z x then
+         Node (x, Part.map part (apply1 lbls f))
+       else apply1 lbls f (Node (x, part))
     | _ -> raise (Invalid_argument "variable list is empty")
 
-  let rec apply2 trms f pdt1 pdt2 = match trms, pdt1, pdt2 with
+  let rec apply2 lbls f pdt1 pdt2 = match lbls, pdt1, pdt2 with
     | _ , Leaf l1, Leaf l2 -> Leaf (f l1 l2)
-    | _ , Leaf l1, Node (x, part2) -> Node (x, Part.map part2 (apply1 trms (f l1)))
-    | _ , Node (x, part1), Leaf l2 -> Node (x, Part.map part1 (apply1 trms (fun l1 -> f l1 l2)))
-    | z :: trms, Node (x, part1), Node (y, part2) ->
-       if Term.equal x z && Term.equal y z then
-         Node (z, Part.merge2 (apply2 trms f) part1 part2)
-       else (if Term.equal x z then
-               Node (x, Part.map part1 (fun pdt1 -> apply2 trms f pdt1 (Node (y, part2))))
-             else (if Term.equal y z then
-                     Node (y, Part.map part2 (apply2 trms f (Node (x, part1))))
-                   else apply2 trms f (Node (x, part1)) (Node (y, part2))))
+    | _ , Leaf l1, Node (x, part2) -> Node (x, Part.map part2 (apply1 lbls (f l1)))
+    | _ , Node (x, part1), Leaf l2 -> Node (x, Part.map part1 (apply1 lbls (fun l1 -> f l1 l2)))
+    | z :: lbls, Node (x, part1), Node (y, part2) ->
+       if Lbl.matches z x && Lbl.matches z y then
+         Node (x, Part.merge2 (apply2 lbls f) part1 part2)
+       else (if Lbl.matches z x then
+               Node (x, Part.map part1 (fun pdt1 -> apply2 lbls f pdt1 (Node (y, part2))))
+             else (if Lbl.matches z y then
+                     Node (y, Part.map part2 (apply2 lbls f (Node (x, part1))))
+                   else apply2 lbls f (Node (x, part1)) (Node (y, part2))))
     | _ -> raise (Invalid_argument "variable list is empty")
 
-  let rec apply3 trms f pdt1 pdt2 pdt3 = match trms, pdt1, pdt2, pdt3 with
+  let rec apply3 lbls f pdt1 pdt2 pdt3 = match lbls, pdt1, pdt2, pdt3 with
     | _ , Leaf l1, Leaf l2, Leaf l3 -> Leaf (f l1 l2 l3)
     | _ , Leaf l1, Leaf l2, Node (x, part3) ->
-       Node (x, Part.map part3 (apply1 trms (fun l3 -> f l1 l2 l3)))
+       Node (x, Part.map part3 (apply1 lbls (fun l3 -> f l1 l2 l3)))
     | _ , Leaf l1, Node (x, part2), Leaf l3 ->
-       Node (x, Part.map part2 (apply1 trms (fun l2 -> f l1 l2 l3)))
+       Node (x, Part.map part2 (apply1 lbls (fun l2 -> f l1 l2 l3)))
     | _ , Node (x, part1), Leaf l2, Leaf l3 ->
-       Node (x, Part.map part1 (apply1 trms (fun l1 -> f l1 l2 l3)))
-    | w :: trms, Leaf l1, Node (y, part2), Node (z, part3) ->
-       if Term.equal y w && Term.equal z w then
-         Node (w, Part.merge2 (apply2 trms (f l1)) part2 part3)
-       else (if Term.equal y w then
-               Node (y, Part.map part2 (fun pdt2 -> apply2 trms (f l1) pdt2 (Node (z, part3))))
-             else (if Term.equal z w then
-                     Node (z, Part.map part3 (fun pdt3 -> apply2 trms (f l1) (Node (y, part2)) pdt3))
-                   else apply3 trms f (Leaf l1) (Node (y, part2)) (Node(z, part3))))
-    | w :: trms, Node (x, part1), Node (y, part2), Leaf l3 ->
-       if Term.equal x w && Term.equal y w then
-         Node (w, Part.merge2 (apply2 trms (fun l1 l2 -> f l1 l2 l3)) part1 part2)
-       else (if Term.equal x w then
-               Node (x, Part.map part1 (fun pdt1 -> apply2 trms (fun pt1 pt2 -> f pt1 pt2 l3) pdt1 (Node (y, part2))))
-             else (if Term.equal y w then
-                     Node (y, Part.map part2 (fun pdt2 -> apply2 trms (fun l1 l2 -> f l1 l2 l3) (Node (x, part1)) pdt2))
-                   else apply3 trms f (Node (x, part1)) (Node (y, part2)) (Leaf l3)))
-    | w :: trms, Node (x, part1), Leaf l2, Node (z, part3) ->
-       if Term.equal x w && Term.equal z w then
-         Node (w, Part.merge2 (apply2 trms (fun l1 -> f l1 l2)) part1 part3)
-       else (if Term.equal x w then
-               Node (x, Part.map part1 (fun pdt1 -> apply2 trms (fun l1 -> f l1 l2) pdt1 (Node (z, part3))))
-             else (if Term.equal z w then
-                     Node (z, Part.map part3 (fun pdt3 -> apply2 trms (fun l1 -> f l1 l2) (Node (x, part1)) pdt3))
-                   else apply3 trms f (Node (x, part1)) (Leaf l2) (Node (z, part3))))
-    | w :: trms, Node (x, part1), Node (y, part2), Node (z, part3) ->
-       if Term.equal x w && Term.equal y w && Term.equal z w then
-         Node (z, Part.merge3 (apply3 trms f) part1 part2 part3)
-       else (if Term.equal x w && Term.equal y w then
-               Node (w, Part.merge2 (fun pdt1 pdt2 -> apply3 trms f pdt1 pdt2 (Node (z, part3))) part1 part2)
-             else (if Term.equal x w && Term.equal z w then
-                     Node (w, Part.merge2 (fun pdt1 pdt3 -> apply3 trms f pdt1 (Node (y, part2)) pdt3) part1 part3)
-                   else (if Term.equal y w && Term.equal z w then
-                           Node (w, Part.merge2 (apply3 trms (fun l1 -> f l1) (Node (x, part1))) part2 part3)
-                         else (if Term.equal x w then
-                                 Node (x, Part.map part1 (fun pdt1 -> apply3 trms f pdt1 (Node (y, part2)) (Node (z, part3))))
-                               else (if Term.equal y w then
-                                       Node (y, Part.map part2 (fun pdt2 -> apply3 trms f (Node (x, part1)) pdt2 (Node (z, part3))))
-                                     else (if Term.equal z w then
-                                             Node (z, Part.map part3 (fun pdt3 -> apply3 trms f (Node (x, part1)) (Node (y, part2)) pdt3))
-                                           else apply3 trms f (Node (x, part1)) (Node (y, part2)) (Node (z, part3))))))))
+       Node (x, Part.map part1 (apply1 lbls (fun l1 -> f l1 l2 l3)))
+    | w :: lbls, Leaf l1, Node (y, part2), Node (z, part3) ->
+       if Lbl.matches w y && Lbl.matches w z then
+         Node (y, Part.merge2 (apply2 lbls (f l1)) part2 part3)
+       else (if Lbl.matches w y then
+               Node (y, Part.map part2 (fun pdt2 -> apply2 lbls (f l1) pdt2 (Node (z, part3))))
+             else (if Lbl.matches w z then
+                     Node (z, Part.map part3 (fun pdt3 -> apply2 lbls (f l1) (Node (y, part2)) pdt3))
+                   else apply3 lbls f (Leaf l1) (Node (y, part2)) (Node(z, part3))))
+    | w :: lbls, Node (x, part1), Node (y, part2), Leaf l3 ->
+       if Lbl.matches w x && Lbl.matches w y then
+         Node (x, Part.merge2 (apply2 lbls (fun l1 l2 -> f l1 l2 l3)) part1 part2)
+       else (if Lbl.matches w x then
+               Node (x, Part.map part1 (fun pdt1 -> apply2 lbls (fun pt1 pt2 -> f pt1 pt2 l3) pdt1 (Node (y, part2))))
+             else (if Lbl.matches w y then
+                     Node (y, Part.map part2 (fun pdt2 -> apply2 lbls (fun l1 l2 -> f l1 l2 l3) (Node (x, part1)) pdt2))
+                   else apply3 lbls f (Node (x, part1)) (Node (y, part2)) (Leaf l3)))
+    | w :: lbls, Node (x, part1), Leaf l2, Node (z, part3) ->
+       if Lbl.matches w x && Lbl.matches w z then
+         Node (x, Part.merge2 (apply2 lbls (fun l1 -> f l1 l2)) part1 part3)
+       else (if Lbl.matches w x then
+               Node (x, Part.map part1 (fun pdt1 -> apply2 lbls (fun l1 -> f l1 l2) pdt1 (Node (z, part3))))
+             else (if Lbl.matches w z then
+                     Node (z, Part.map part3 (fun pdt3 -> apply2 lbls (fun l1 -> f l1 l2) (Node (x, part1)) pdt3))
+                   else apply3 lbls f (Node (x, part1)) (Leaf l2) (Node (z, part3))))
+    | w :: lbls, Node (x, part1), Node (y, part2), Node (z, part3) ->
+       if Lbl.matches w x && Lbl.matches w y && Lbl.matches w z then
+         Node (z, Part.merge3 (apply3 lbls f) part1 part2 part3)
+       else (if Lbl.matches w x && Lbl.matches w y then
+               Node (x, Part.merge2 (fun pdt1 pdt2 -> apply3 lbls f pdt1 pdt2 (Node (z, part3))) part1 part2)
+             else (if Lbl.matches w x && Lbl.matches w z then
+                     Node (x, Part.merge2 (fun pdt1 pdt3 -> apply3 lbls f pdt1 (Node (y, part2)) pdt3) part1 part3)
+                   else (if Lbl.matches w y && Lbl.matches w z then
+                           Node (y, Part.merge2 (apply3 lbls (fun l1 -> f l1) (Node (x, part1))) part2 part3)
+                         else (if Lbl.matches w x then
+                                 Node (x, Part.map part1 (fun pdt1 -> apply3 lbls f pdt1 (Node (y, part2)) (Node (z, part3))))
+                               else (if Lbl.matches w y then
+                                       Node (y, Part.map part2 (fun pdt2 -> apply3 lbls f (Node (x, part1)) pdt2 (Node (z, part3))))
+                                     else (if Lbl.matches w z then
+                                             Node (z, Part.map part3 (fun pdt3 -> apply3 lbls f (Node (x, part1)) (Node (y, part2)) pdt3))
+                                           else apply3 lbls f (Node (x, part1)) (Node (y, part2)) (Node (z, part3))))))))
     | _ -> raise (Invalid_argument "variable list is empty")
 
   let rec split_prod = function
     | Leaf (l1, l2) -> (Leaf l1, Leaf l2)
     | Node (x, part) -> let (part1, part2) = Part.split_prod (Part.map part split_prod) in
-                        (Node (x, part1), Node (x, part2))
+                           (Node (x, part1), Node (x, part2))
 
   let rec split_list = function
     | Leaf l -> List.map l ~f:(fun el -> Leaf el)
@@ -213,15 +217,15 @@ module Pdt = struct
 
   let rec to_string f indent = function
     | Leaf pt -> Printf.sprintf "%s%s\n" indent (f pt)
-    | Node (x, part) -> (Part.to_string indent x (to_string f) part)
+    | Node (x, part) -> (Part.to_string indent (Lbl.to_string x) (to_string f) part)
 
   let rec to_latex f indent = function
     | Leaf pt -> Printf.sprintf "%s%s\n" indent (f pt)
-    | Node (x, part) -> (Part.to_string indent x (to_latex f) part)
+    | Node (x, part) -> (Part.to_string indent (Lbl.to_string x) (to_latex f) part)
 
   let rec to_light_string f indent = function
     | Leaf pt -> Printf.sprintf "%s%s\n" indent (f pt)
-    | Node (x, part) -> (Part.to_string indent x (to_light_string f) part)
+    | Node (x, part) -> (Part.to_string indent (Lbl.to_string x) (to_light_string f) part)
 
   let unleaf = function
     | Leaf l -> l
@@ -230,18 +234,20 @@ module Pdt = struct
   let rec hide vars f_leaf f_node pdt = match vars, pdt with
     |  _ , Leaf l -> Leaf (f_leaf l)
     | [x], Node (y, part) -> Leaf (f_node (Part.map part unleaf))
-    | x :: vars, Node (y, part) -> if Term.equal x y then
-                                     Node (y, Part.map part (hide vars f_leaf f_node))
-                                   else hide vars f_leaf f_node (Node (y, part))
+    | x :: vars, Node (y, part) -> if Lbl.matches x y then
+                                        Node (y, Part.map part (hide vars f_leaf f_node))
+                                      else
+                                        hide vars f_leaf f_node (Node (y, part))
     | _ -> raise (Invalid_argument "function not defined for other cases")
 
   (* reduce related *)
   let rec eq p_eq pdt1 pdt2 =
     match pdt1, pdt2 with
     | Leaf l1, Leaf l2 -> p_eq l1 l2
-    | Node (x, part), Node (x', part') -> Term.equal x x' && Int.equal (Part.length part) (Part.length part') &&
-                                            List.for_all2_exn part part' ~f:(fun (s, v) (s', v') ->
-                                                Setc.equal s s' && eq p_eq v v')
+    | Node (x, part), Node (x', part') ->
+       Lbl.equal x x'  && Int.equal (Part.length part) (Part.length part') &&
+         List.for_all2_exn part part' ~f:(fun (s, v) (s', v') ->
+             Setc.equal s s' && eq p_eq v v')
     | _ -> false
 
   let rec reduce p_eq = function
@@ -251,7 +257,7 @@ module Pdt = struct
   let rec apply1_reduce p_eq vars f pdt = match vars, pdt with
     | _ , Leaf l -> Leaf (f l)
     | z :: vars, Node (x, part) ->
-       if Term.equal x z then
+       if Lbl.matches z x then
          Node (x, Part.map_dedup (eq p_eq) part (apply1_reduce p_eq vars f))
        else
          apply1_reduce p_eq vars f (Node (x, part))
@@ -262,11 +268,11 @@ module Pdt = struct
     | _ , Leaf l1, Node (x, part2) -> Node (x, Part.map_dedup (eq p_eq) part2 (apply1_reduce p_eq vars (f l1)))
     | _ , Node (x, part1), Leaf l2 -> Node (x, Part.map_dedup (eq p_eq) part1 (apply1_reduce p_eq vars (fun l1 -> f l1 l2)))
     | z :: vars, Node (x, part1), Node (y, part2) ->
-       if Term.equal x z && Term.equal y z then
-         Node (z, Part.merge2_dedup (eq p_eq) (apply2_reduce p_eq vars f) part1 part2)
-       else (if Term.equal x z then
+       if Lbl.matches z x && Lbl.matches z y then
+         Node (x, Part.merge2_dedup (eq p_eq) (apply2_reduce p_eq vars f) part1 part2)
+       else (if Lbl.matches z x then
                Node (x, Part.map_dedup (eq p_eq) part1 (fun pdt1 -> apply2_reduce p_eq vars f pdt1 (Node (y, part2))))
-             else (if Term.equal y z then
+             else (if Lbl.matches z y then
                      Node (y, Part.map_dedup (eq p_eq) part2 (apply2_reduce p_eq vars f (Node (x, part1))))
                    else apply2_reduce p_eq vars f (Node (x, part1)) (Node (y, part2))))
     | _ -> raise (Invalid_argument "variable list is empty")
@@ -285,34 +291,63 @@ module Pdt = struct
     | Leaf l -> List.map l ~f:(fun el -> Leaf el)
     | Node (x, part) -> List.map (Part.split_list_dedup (eq p_eq) (Part.map part (split_list_reduce p_eq))) ~f:(fun el -> Node (x, el))
 
-  let rec hide_reduce x' p_eq vars f_leaf f_node pdt = match vars, pdt with
-    |  _ , Leaf l -> Leaf (f_leaf l)
-    (*| [x], Node (y, part) -> Leaf (f_node (Part.map part unleaf))*)
-    | x :: vars, Node (y, part) ->
-       if Term.equal x y then
-         (if Term.equal x (Var x') then
-            Leaf (f_node (Part.map part unleaf))
-          else
-            Node (y, Part.map_dedup (eq p_eq) part (hide_reduce x' p_eq vars f_leaf f_node)))
-       else
-         hide_reduce x' p_eq vars f_leaf f_node (Node (y, part))
-    | _ -> raise (Invalid_argument "function not defined for other cases")
 
   let rec specialize (v: Etc.valuation) = function
     | Leaf l -> l
-    | Node (x, part) -> specialize v (Part.find part (Term.unconst (Sig.eval v x)))
+    | Node (x, part) -> specialize v (Part.find part (Term.unconst (Lbl.eval v x)))
 
   let rec specialize_partial (v: Etc.valuation) = function
     | Leaf l -> Leaf l
     | Node (x, part) ->
-       match Sig.eval v x with
+       match Lbl.eval v x with
        | Const d -> specialize_partial v (Part.find part d)
-       | x -> Node (x, Part.map part (specialize_partial v))
+       | _ -> Node ((match x with
+                     | LVar s               -> LVar s
+                     | LClos (f, terms, v') -> LClos (f, List.map terms ~f:(Sig.eval v), v')),
+                    Part.map part (specialize_partial v))
 
+  let rec hide_reduce x' p_eq lbls f_leaf f_node pdt = match lbls, pdt with
+    |  _ , Leaf l -> Leaf (f_leaf l)
+    (*| [x], Node (y, part) -> Leaf (f_node (Part.map part unleaf))*)
+    | x :: _, Node (y, part) ->
+       if Lbl.matches x y then
+         (if Lbl.TLbl.equal x (TLVar x') then
+            let v d = Map.singleton (module String) x' d in
+            let distribute (s, pdt) = match s with
+              | Setc.Finite s ->
+                 List.map (Set.elements s) ~f:(fun d -> specialize_partial (v d) pdt)
+              | Complement s -> [pdt] in
+            let all_pdts = List.concat (Part.map2 part distribute) in
+            f_node all_pdts
+          else
+            Node (y, Part.map_dedup (eq p_eq) part (hide_reduce x' p_eq lbls f_leaf f_node)))
+       else
+         hide_reduce x' p_eq lbls f_leaf f_node (Node (y, part))
+    | _ -> raise (Invalid_argument "function not defined for other cases")
+
+  (*
+  let rec simplify_quantifiers f_ex f_all (v: Etc.valuation) pdt =
+    let s_q = simplify_quantifiers f_ex f_all in
+    let simplify_tree x pdt d = s_q (Map.update v x ~f:(fun _ -> d)) pdt in
+    let simplify_trees x (s, pdt) = match s with
+      | Setc.Finite s -> List.map (Set.elements s) ~f:(simplify_tree x pdt)
+      | Complement s -> [s_q v pdt] in
+    match pdt with
+    | Leaf l -> Leaf l
+    | Node (term, One, part) ->
+       (match Sig.eval v term with
+       | Const d -> Part.find part d
+       | term' -> Node (term', One, Part.map part (s_q v)))
+    | Node (Var x, q, part) ->
+       (match q with | Ex -> f_ex | All -> f_all)
+         (List.concat (Part.map2 part (simplify_trees x)))
+   *)   
+
+  (*
   let simplify x p_eq pdt = 
     let rec aux (v: Setc.valuation) = function
       | Leaf l -> Leaf l
-      | Node (App (g, [Var x'; y]) as trm, part) when Funcs.is_eq g ->
+      | Node (App (g, [Var x'; y]) as trm, q, part) when Funcs.is_eq g ->
          (match Part.get_trivial part with
           (* if part is trivial, descend into it *)
           | Some p -> aux v p
@@ -336,20 +371,22 @@ module Pdt = struct
                     (if Setc.is_empty set_pos then
                        Part.find part (Dom.Int 0)
                      else
-                       Node (Var x', [(set_pos, Part.find part (Dom.Int 1));
-                                      (set_neg, Part.find part (Dom.Int 0))]))
+                       Node (Var x', q, [(set_pos, Part.find part (Dom.Int 1));
+                                         (set_neg, Part.find part (Dom.Int 0))]))
                  (* otherwise, do not evaluate further *)
-                 | None -> Node (trm, Part.map_dedup (eq p_eq) part (aux v)))
+                 | None -> Node (trm, q, Part.map_dedup (eq p_eq) part (aux v)))
              (* otherwise, do not evaluate further *)
-             | Setc.Complement _ -> Node (trm, Part.map_dedup (eq p_eq) part (aux v))))
-      | Node (Var x', part) ->
+             | Setc.Complement _ -> Node (trm, q, Part.map_dedup (eq p_eq) part (aux v))))
+      | Node (Var x', q, part) ->
          (match Part.get_trivial part with
           | Some p -> aux v p
           | _ -> let f (data, p) = (data,  aux (Map.add_exn v ~key:x' ~data) p) in
-                 Node (Var x', Part.map2_dedup (eq p_eq) part f))
-      | Node (trm, part) -> (*TODO: evaluate?*)
-         Node (trm, Part.map_dedup (eq p_eq) part (aux v)) in
-    aux Setc.empty_valuation pdt
+                 Node (Var x', q, Part.map2_dedup (eq p_eq) part f))
+      | Node (trm, q, part) -> (*TODO: evaluate?*)
+         Node (trm, q, Part.map_dedup (eq p_eq) part (aux v)) in
+    aux Setc.empty_valuation pdt*)
+
+  (*
 
   let simplify_vars x vars =
     let f seen = function
@@ -362,18 +399,22 @@ module Pdt = struct
       | trm -> seen, trm in
     snd (List.fold_map vars ~init:(Set.empty (module String)) ~f)
 
-  let rec collect f (v: Etc.valuation) (x: string) p =
-    let rec aux f (v: Etc.valuation) (x: string) (s: (Dom.t, Dom.comparator_witness) Setc.t) = function
-      | Leaf l when f l -> s
+   *)
+
+  let rec collect f_leaf (v: Etc.valuation) (x: string) p =
+    let rec aux (v: Etc.valuation) (x: string) (s: (Dom.t, Dom.comparator_witness) Setc.t) =
+      function
+      | Leaf l when f_leaf l -> s
       | Leaf l -> Setc.empty (module Dom)
-      | Node (Var x', part) when String.equal x x' ->
-         Setc.union_list (module Dom)
-           (Part.map2 part (fun (s', p) -> aux f v x (Setc.inter s s') p))
-      | Node (App (g, [Var x'; y]), part) when Funcs.is_eq g && String.equal x x' ->
+      | Node (LVar x', part) when String.equal x x' ->
+         let s = Setc.union_list (module Dom)
+                   (Part.map2 part (fun (s', p) -> aux v x (Setc.inter s s') p)) in
+         s
+      (*| Node (App (g, [Var x'; y]), q, part) when Funcs.is_eq g && String.equal x x' ->
          (match Sig.eval v y with
           | Const d -> Setc.singleton (module Dom) d
           | _ -> assert false)
-      | Node (x', part) when List.mem (Term.fv_list [x']) x ~equal:String.equal ->
+      | Node (x', q, part) when List.mem (Term.fv_list [x']) x ~equal:String.equal ->
          (match s with
           | Finite s' ->
              Setc.union_list (module Dom)
@@ -384,21 +425,32 @@ module Pdt = struct
                     | _ -> Setc.union_list (module Dom)
                              (Part.map2 part (fun (s', p) -> aux f v x s p))))
           | Complement s' -> Setc.union_list (module Dom)
-                               (Part.map2 part (fun (s', p) -> aux f v x s p)))
-      | Node (x', part) ->
-         (match Sig.eval v x' with
-          | Const d -> aux f v x s (Part.find part d)
-          | _ -> Setc.union_list (module Dom)
-                             (Part.map2 part (fun (s', p) -> aux f v x s p)))
-    in aux f v x (Setc.univ (module Dom)) p
+                               (Part.map2 part (fun (s', p) -> aux f v x s p)))*)
+      | Node (LClos (f, terms, v') as term, part) ->
+         (match s, Part.get_trivial part with
+          | _, Some p -> aux v x s p
+          | Finite s, _ when
+                 Set.is_subset
+                   (Set.of_list (module String) (Term.fv_list terms))
+                   ~of_:((Set.of_list (module String) (x :: (Map.keys v @ Map.keys v')))) ->
+                let f d =
+                  let v = Map.update v x (fun _ -> d) in
+                  let d' = Term.unconst (Lbl.eval v term) in
+                  aux v x (Setc.singleton (module Dom) d)
+                    (snd (Part.find3 part (fun s -> Setc.mem s d'))) in
+                let s = Setc.union_list (module Dom) (List.map (Set.elements s) ~f) in
+                s
+          | _ -> s)
+    in aux v x (Setc.univ (module Dom)) p
     
-  let rec from_valuation (trms: Term.t list) (v: Etc.valuation) p p' =
-    match trms with
+  let rec from_valuation (lbls: Lbl.tt list) (v: Etc.valuation) p p' =
+    match lbls with
     | [] -> Leaf p
-    | trm::trms -> let d = Term.unconst (Sig.eval v trm) in
-                   let rest = from_valuation trms v p p' in
+    | lbl::lbls -> let lbl = Lbl.t_of_tt lbl in
+                   let d = Term.unconst (Lbl.eval v lbl) in
+                   let rest = from_valuation lbls v p p' in
                    let part = Part.tabulate (Set.singleton (module Dom) d) (fun _ -> rest) (Leaf p') in
-                   Node (trm, part)
+                   Node (lbl, part)
 
   (*
   let simplify p =
@@ -410,8 +462,7 @@ module Pdt = struct
        
 
   (* s = AGG (x; y; f) where p is a Pdt for f *)
-  let aggregate cond f agg s x_trm y trms trms' p =
-    (*print_endline "aggregate";*)
+  let aggregate cond f agg s x_trm y lbls lbls' p =
     let merge m m' =
       Map.fold2 m m' ~init:(Map.empty (module Dom)) ~f:(fun ~key ~data m ->
           match data with
@@ -420,7 +471,7 @@ module Pdt = struct
     let union_part part = match snd (List.unzip part) with
          | [pdt] -> pdt
          | pdt::pdts -> List.fold pdts ~init:pdt
-                          ~f:(apply2_reduce (Map.equal Int.equal) trms' merge) in
+                          ~f:(apply2_reduce (Map.equal Int.equal) lbls' merge) in
     let multiset sv =
       let rec aux vs = function
         | (Term.Var x, Setc.Finite s) ->
@@ -436,53 +487,36 @@ module Pdt = struct
       match p, gs, trms with
       | Leaf l, _, _ when cond l -> Leaf (multiset (List.rev sv))
       | Leaf l, _, _ -> Leaf (Map.empty (module Dom))
-      | Node (trm', _), _, trm :: trms when not (Term.equal trm trm') ->
+      | Node (lbl, _), _, trm :: trms when not (Lbl.matches trm lbl) ->
          multisets sv gs trms p
-      | Node (trm', part), g :: gs, _ :: trms when Term.equal (Var g) trm' ->
-         let part = Part.map2 part (fun (s, p) -> (s, multisets ((trm', s)::sv) gs trms p)) in
-         Node (trm', part)
-      | Node (trm', part), _, _ :: trms ->
-         let part = Part.map2 part (fun (s, p) -> (s, multisets ((trm', s)::sv) gs trms p)) in
+      | Node (lbl, part), g :: gs, _ :: trms when Lbl.matches (TLVar g) lbl ->
+         let part = Part.map2 part (fun (s, p) -> (s, multisets ((Var g, s)::sv) gs trms p)) in
+         Node (lbl, part)
+      | Node (lbl, part), _, _ :: trms ->
+         let part = Part.map2 part (fun (s, p) -> (s, multisets ((Lbl.term lbl, s)::sv) gs trms p)) in
          union_part part in
     let rec collect_leaf_values = function
       | Leaf None -> Set.empty (module Dom)
       | Leaf (Some v) -> Set.singleton (module Dom) v
       | Node (_, part) -> Set.union_list (module Dom)
                             (List.map part ~f:(fun (_, pdt) -> collect_leaf_values pdt)) in
-    let rec insert_aggregations trms (pdt: Dom.t option t) =
-      (*print_endline "insert_aggregations";
-      print_endline "trms=";
-      print_endline (String.concat ~sep:", " (List.map trms ~f:Term.to_string));
-      print_endline "pdt=";
-      print_endline (to_string (function Some x -> "Some " ^ Dom.to_string x | None -> "None")  "" pdt);*)
-      match pdt, trms with
-      | _, (Term.Var x') :: trms when String.equal x' s ->
+    let rec insert_aggregations lbls (pdt: Dom.t option t) =
+      match pdt, lbls with
+      | _, (Lbl.TLbl.TLVar x') :: trms when String.equal x' s ->
          let leaf_values = collect_leaf_values pdt in
          let setcs = (Setc.Complement leaf_values) ::
                        (List.map (Set.elements leaf_values)
                           ~f:(fun s -> Setc.Finite (Set.singleton (module Dom) s))) in
-         Node (Var s, List.map setcs (fun s -> (s, apply1 trms (f s) pdt)))
-      | Node (trm', part), trm :: trms when Term.equal trm trm' ->
-         Node (trm', Part.map part (insert_aggregations trms))
+         Node (LVar s, List.map setcs (fun s -> (s, apply1 lbls (f s) pdt)))
+      | Node (lbl, part), trm :: trms when Lbl.matches trm lbl ->
+         Node (lbl, Part.map part (insert_aggregations trms))
       | _, _ :: trms ->
          insert_aggregations trms pdt
     in
     let agg' m = if Map.is_empty m then None else Some (agg m) in
-    (*print_endline "y=";
-    print_endline (String.concat ~sep:", " y);
-    print_endline "trms=";
-    print_endline (String.concat ~sep:", " (List.map trms ~f:Term.to_string));
-    print_endline "trms'=";
-    print_endline (String.concat ~sep:", " (List.map trms' ~f:Term.to_string));*)
-    let multiset_pdt = multisets [] y trms' p in
-    (*print_endline "multiset_pdt=";
-    print_endline (to_string (fun x -> "{" ^ String.concat ~sep:", " (List.map (Map.to_alist x) ~f:(fun (k, v) -> Dom.to_string k ^ ": "^ string_of_int v)) ^ "}") "" multiset_pdt);*)
-    let aggregations_pdt = apply1 trms' agg' multiset_pdt in
-    (*
-    print_endline "aggregations_pdt=";
-    print_endline (to_string (function Some x -> "Some " ^ Dom.to_string x | None -> "None") "" aggregations_pdt);
-    print_endline "ok";*)
-    insert_aggregations trms aggregations_pdt
+    let multiset_pdt = multisets [] y lbls' p in
+    let aggregations_pdt = apply1 lbls' agg' multiset_pdt in
+    insert_aggregations lbls aggregations_pdt
 
                         (* 
 check example from paper
@@ -922,7 +956,7 @@ module Proof : ProofT with type sp = t_sp and type vp = t_vp = struct
     | SExists (x, d, sp) -> Printf.sprintf "%sSExists{%d}{%s=%s}\n%s\n" indent (s_at p)
                               x (Dom.to_string d) (s_to_string indent' sp)
     | SForall (x, part) -> Printf.sprintf "%sSForall{%d}{%s}\n%s\n" indent (s_at (SForall (x, part)))
-                             x (Part.to_string indent' (Var x) s_to_string part)
+                             x (Part.to_string indent' x s_to_string part)
     | SPrev sp -> Printf.sprintf "%sSPrev{%d}\n%s" indent (s_at p) (s_to_string indent' sp)
     | SNext sp -> Printf.sprintf "%sSNext{%d}\n%s" indent (s_at p) (s_to_string indent' sp)
     | SNextAssm tp -> Printf.sprintf "%sSNextAssm{%d}\n" indent tp
@@ -964,7 +998,7 @@ module Proof : ProofT with type sp = t_sp and type vp = t_vp = struct
     | VIffSV (sp1, vp2) -> Printf.sprintf "%sVIffSV{%d}\n%s\n%s" indent (v_at p) (s_to_string indent' sp1) (v_to_string indent' vp2)
     | VIffVS (vp1, sp2) -> Printf.sprintf "%sVIffVS{%d}\n%s\n%s" indent (v_at p) (v_to_string indent' vp1) (s_to_string indent' sp2)
     | VExists (x, part) -> Printf.sprintf "%sVExists{%d}{%s}\n%s\n" indent (v_at (VExists (x, part)))
-                             x (Part.to_string indent' (Var x) v_to_string part)
+                             x (Part.to_string indent' x v_to_string part)
     | VForall (x, d, vp) -> Printf.sprintf "%sVForall{%d}{%s=%s}\n%s\n" indent (v_at p)
                               x (Dom.to_string d) (v_to_string indent' vp)
     | VPrev vp -> Printf.sprintf "%sVPrev{%d}\n%s" indent (v_at p) (v_to_string indent' vp)

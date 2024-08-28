@@ -114,6 +114,43 @@ module Sig : sig
 
 end
 
+module Lbl : sig
+  
+  type t = LVar of string | LClos of string * (Term.t list) * Etc.valuation [@@deriving equal, compare, sexp_of]
+
+  module TLbl : sig
+
+    type t = TLVar of string | TLClos of string * (Term.t list) * ((String.t, String.comparator_witness) Set.t) [@@deriving equal, compare, sexp_of]
+    
+    val var: string -> t
+    val is_var: t -> bool
+    val of_term: Term.t -> t
+
+    val fv: t -> (string, String.comparator_witness) Set.t
+    val quantify: string -> t -> t option
+
+    type comparator_witness
+    val comparator: (t, comparator_witness) Comparator.t
+
+    val to_string: t -> string
+
+  end
+
+  type tt = TLbl.t
+  
+  val t_of_tt: tt -> t
+  val term: t -> Term.t
+  val of_term: Term.t -> t
+  val to_string: t -> string
+  val eval: Etc.valuation -> t -> Term.t
+  val matches: tt -> t -> bool
+
+  type comparator_witness
+  val comparator: (t, comparator_witness) Comparator.t
+
+end
+
+
 val check_const: (string, Dom.tt, 'a) Map.t -> Dom.t -> Dom.tt -> (string, Dom.tt, 'a) Map.t
 val check_var: (string, Dom.tt, 'a) Map.t -> string -> Dom.tt -> (string, Dom.tt, 'a) Map.t
 val check_app: (string, Dom.tt, 'a) Map.t -> string -> Dom.tt -> (string, Dom.tt, 'a) Map.t

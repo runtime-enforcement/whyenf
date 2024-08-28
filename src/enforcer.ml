@@ -125,25 +125,16 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
           es'
       in loop Triple.empty es
 
-    let mstep_state vars es =
-      mstep Out.ENFORCE vars es.ts es.db true es.ms es.fobligs
+    let mstep_state es =
+      let fvs = Set.elements (MFormula.fv es.ms.mf) in
+      let lbls = MFormula.lbls fvs es.ms.mf in
+      mstep Out.ENFORCE fvs lbls es.tp es.ts es.db true es.ms es.fobligs
 
     let exec_monitor mf es =
-      let vars = Set.elements (MFormula.terms mf) in
-      (*print_endline "exec_monitor mf:";
-      print_endline (MFormula.to_string mf);
-      print_endline "exec_monitor vars:";
-      List.iter vars ~f:(fun trm -> print_endline (Pred.Term.to_string trm));*)
-      let (_, aexpl, _) = mstep_state vars { es with ms = { es.ms with mf } } in
-      (*print_endline (Expl.to_string aexpl);*)
+      let (_, aexpl, _) = mstep_state { es with ms = { es.ms with mf } } in
       aexpl
 
     let sat v mf es =
-      (*print_endline "---sat---";
-      print_endline ("v=" ^ (Etc.valuation_to_string v));
-      print_endline ("mf=" ^ (MFormula.to_string mf));
-      print_endline ("expl=" ^ (Monitor.CI.Expl.to_string (exec_monitor mf es)));
-      print_endline "---end.sat---";*)
       CI.Expl.Proof.isS (Expl.Pdt.specialize v (exec_monitor mf es))
 
     let vio v mf es =
@@ -175,8 +166,6 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
 
     and enfsat_forall x mf v es =
       let enfs d = enfsat mf (Map.update v x ~f:(fun _ -> d)) es in
-      (* print_endline (Etc.string_list_to_string (List.map ~f:to_string (List.map (all_not_sat v x mf es) ~f:enfs))); *)
-      (* print_endline (to_string (List.fold_left (List.map (all_not_sat v x mf es) ~f:enfs) ~init:es ~f:combine )); *)
       List.fold_left (List.map (all_not_sat v x mf es) ~f:enfs) ~init:es ~f:combine
 
     and enfvio_or mf1 =
@@ -200,9 +189,6 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       enfvio mf v es
 
     and enfsat (mf: MFormula.t) v es =
-      (*Stdio.printf "enfsat(mf=%s, op=%s, side=%s, v=%s, db=%s)\n" (MFormula.to_string mf)
-        (MFormula.op_to_string mf) (MFormula.side_to_string mf) (Etc.valuation_to_string v) (Db.to_string es.db);
-        Stdlib.flush_all ();*)
       match mf with
       | MTT -> es
       | MPredicate (r, trms) when Pred.Sig.equal_pred_kind (Pred.Sig.kind_of_pred r) Pred.Sig.Trace ->
@@ -219,8 +205,8 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
          fixpoint (enfsat_and
                      (MImp (side1, mf1, mf2, empty_binop_info))
                      (MImp (side1, mf2, mf1, empty_binop_info)) v) es
-      | MExists (x, tt, mf) -> enfsat mf (Map.add_exn v ~key:x ~data:(Dom.tt_default tt)) es
-      | MForall (x, tt, mf) -> fixpoint (enfsat_forall x mf v) es
+      | MExists (x, tt, b, mf) -> enfsat mf (Map.add_exn v ~key:x ~data:(Dom.tt_default tt)) es
+      | MForall (x, tt, b, mf) -> fixpoint (enfsat_forall x mf v) es
       | MENext (i, mf, h) -> add_foblig (FInterval (Time.of_timestamp es.ts, i, mf, h), v, POS) es
       | MEEventually (i, mf, h) ->
          if Interval.is_zero i && es.nick then
@@ -247,9 +233,9 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       | _ -> raise (Invalid_argument ("function enfsat is not defined for "
                                       ^ MFormula.op_to_string mf))
     and enfvio (mf: MFormula.t) v es =
-      (*Stdio.printf "enfvio(mf=%s, op=%s, side=%s, v=%s, db=%s)\n" (MFormula.to_string mf)
+      Stdio.printf "enfvio(mf=%s, op=%s, side=%s, v=%s, db=%s)\n" (MFormula.to_string mf)
         (MFormula.op_to_string mf) (MFormula.side_to_string mf) (Etc.valuation_to_string v) (Db.to_string es.db);
-        Stdlib.flush_all ();*)
+        Stdlib.flush_all ();
       match mf with
       | MFF -> es
       | MPredicate (r, trms) when Pred.Sig.equal_pred_kind (Pred.Sig.kind_of_pred r) Pred.Sig.Trace ->
@@ -266,8 +252,8 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       | MImp (R, mf1, mf2, _) -> fixpoint (enfvio_imp mf2 mf1 v) es
       | MIff (L, _, mf1, mf2, _) -> fixpoint (enfvio_imp mf1 mf2 v) es
       | MIff (R, _, mf1, mf2, _) -> fixpoint (enfvio_imp mf2 mf1 v) es
-      | MExists (x, tt, mf) -> fixpoint (enfvio_exists x mf v) es
-      | MForall (x, tt, mf) -> enfvio mf (Map.add_exn v ~key:x ~data:(Dom.tt_default tt)) es
+      | MExists (x, tt, b, mf) -> fixpoint (enfvio_exists x mf v) es
+      | MForall (x, tt, b, mf) -> enfvio mf (Map.add_exn v ~key:x ~data:(Dom.tt_default tt)) es
       | MENext (i, mf, h) -> add_foblig (FInterval (Time.of_timestamp es.ts, i, mf, h), v, NEG) es
       | MEEventually (i, mf, h) -> enfvio_eventually i h mf v es
       | MEAlways (i, mf, h) ->
@@ -322,33 +308,24 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
     let mf = match obligs with
       | [] -> MFormula.MTT
       | init::rest -> List.fold_left rest ~init ~f:(fun mf mg -> MAnd (L, mf, mg, empty_binop_info)) in
-    let vars = Set.elements (MFormula.terms mf) in
-    match (mstep Out.ENFORCE vars es.ts es.db true { es.ms with mf } es.fobligs)
-    with (_, _, ms) -> (*Stdio.printf "b\n"; Stdlib.flush_all (); *)ms.mf
+    match (EState.mstep_state { es with ms = { es.ms with mf } })
+    with (_, _, ms) -> ms.mf
 
 
   (* (NOT-SO-URGENT) TODO: other execution mode with automatic timestamps; Pdts everywhere *)
   let exec f inc b =
     let reactive_step new_db es =
-      (*print_endline "reactive_step";
-      print_endline "new_db=";
-      print_endline (Db.to_string new_db);
-      print_endline "es.db=";
-      print_endline (Db.to_string EState.(es.db));*)
       let mf = goal es in
-      (*print_endline (MFormula.to_string mf);*)
       let vars = Set.elements (MFormula.fv mf) in
       let es = { es with ms      = { es.ms with tp_cur = es.tp };
                          r       = (Db.create [Db.Event._tp], Db.create [], FObligations.empty);
                          db      = Db.add_event new_db Db.Event._tp;
                          fobligs = FObligations.empty;
                          nick    = false } in
-      (*print_endline "ready ot call enf";*)
       let es = EState.enf mf es in
       Order.ReOrd (Triple.cau es.r, Triple.sup es.r), es
     in
     let proactive_step es =
-      (*print_endline "proactive_step";*)
       let mf = goal es in
       let vars = Set.elements (MFormula.fv mf) in
       let es' = { es with ms      = { es.ms with tp_cur = es.tp };
@@ -363,11 +340,6 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
         Order.NoOrd, es
     in
     let rec process_db (pb: Other_parser.Parsebuf.t) (es: EState.t) =
-      (*Stdio.printf "%d %d %d" pb.ts es.ts es.tp;
-      Stdio.printf "------------\n";
-      Stdio.printf "Before: \n";
-      Stdio.printf "%s" (EState.to_string es);
-      Stdlib.flush_all ();*)
       if Int.equal pb.ts (-1) && FObligations.accepts_empty es.fobligs then
         es
       else if not (Int.equal pb.ts es.ts) then
@@ -393,7 +365,6 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
         es
     in
     let rec step first pb_opt (es: EState.t) =
-      (*print_endline "step";*)
       let conclude (pb: Other_parser.Parsebuf.t) es =
         let _ = process_db { pb with ts = -1; db = Db.create [] } es
         in ()
@@ -401,25 +372,18 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       match Other_parser.Trace.parse_from_channel inc pb_opt with
       | None -> ()
       | Some (more, pb) ->
-         (*Stdio.printf "------------\n";
-           Stdio.printf "Before: \n";
-           Stdio.printf "%s" (EState.to_string es);
-           Stdlib.flush_all ();*)
          let es = if first then { es with ts = pb.ts } else es in
          let es = process_db pb es in
          Stdlib.flush_all();
-         (*Stdio.printf "------------\n";
-           Stdio.printf "After: \n";
-           Stdio.printf "%s" (EState.to_string es);
-           Stdlib.flush_all ();*)
          if more then step false (Some(pb)) es else conclude pb es in
     let tf = try Typing.do_type f b with Invalid_argument s -> failwith s in
     let transparent =
       try Typing.is_transparent tf
       with Invalid_argument s -> print_endline s; false in
     let f = Tformula.to_formula tf in
-    let trms = Set.elements (Formula.terms f) in
-    let mf = Monitor.MFormula.init trms tf in
+    let fvs = Set.elements (Formula.fv f) in
+    let lbls = Formula.lbls fvs f in
+    let mf = Monitor.MFormula.init lbls tf in
     let ms = Monitor.MState.init mf in
     let es = EState.init ms mf in
     step true None es

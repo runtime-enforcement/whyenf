@@ -29,6 +29,7 @@ module Parsebuf : sig
   type t = { lexbuf: Lexing.lexbuf
            ; mutable token: Other_lexer.token
            ; mutable pred_sig: Pred.Sig.elt option
+           ; mutable tp: int
            ; mutable ts: int
            ; mutable db: Db.t
            ; mutable check: bool

@@ -23,8 +23,8 @@ type core_t =
   | TOr of Side.t * t * t
   | TImp of Side.t * t * t
   | TIff of Side.t * Side.t * t * t
-  | TExists of string * Dom.tt * t
-  | TForall of string * Dom.tt * t
+  | TExists of string * Dom.tt * bool * t
+  | TForall of string * Dom.tt * bool * t
   | TPrev of Interval.t * t
   | TNext of Interval.t * t
   | TOnce of Interval.t * t
@@ -36,7 +36,17 @@ type core_t =
 
 and t = { f: core_t; enftype: EnfType.t }
 
-let rec core_of_formula f (types: Dom.ctxt) = match f with
+let rec core_of_formula f (types: Dom.ctxt) =
+  let f_q x f =
+    if Formula.is_past_guarded x true f then
+      true
+    else if Formula.is_past_guarded x false f then
+      false
+    else
+      raise (Invalid_argument
+               (Printf.sprintf "variable %s is not monitorable in %s" x (Formula.to_string f)))
+  in
+  match f with
   | TT -> types, TTT
   | FF -> types, TFF
   | EqConst (trm, c) ->
@@ -73,10 +83,10 @@ let rec core_of_formula f (types: Dom.ctxt) = match f with
      types, TIff (s, t, mf, mg)
   | Exists (x, f) ->
      let types, mf = of_formula f types in
-     types, TExists (x, Map.find_exn types x, mf)
+     types, TExists (x, Map.find_exn types x, f_q x f, mf)
   | Forall (x, f) ->
      let types, mf = of_formula f types in
-     types, TForall (x, Map.find_exn types x, mf)
+     types, TForall (x, Map.find_exn types x, f_q x f, mf)
   | Prev (i, f) ->
      let types, mf = of_formula f types in
      types, TPrev (i, mf)
@@ -108,15 +118,16 @@ and of_formula f (types: Dom.ctxt) =
   let types, f = core_of_formula f types in
   types, { f; enftype = EnfType.Obs }
 
-let of_formula' f = snd (of_formula f (Map.empty (module String)))
+let of_formula' f =
+  snd (of_formula f (Map.empty (module String)))
 
 let rec rank = function
   | TTT | TFF -> 0
   | TEqConst _ -> 0
   | TPredicate (r, _) -> Pred.Sig.rank_of_pred r
   | TNeg f
-    | TExists (_, _, f)
-    | TForall (_, _, f)
+    | TExists (_, _, _, f)
+    | TForall (_, _, _, f)
     | TPrev (_, f)
     | TNext (_, f)
     | TOnce (_, f)
@@ -148,8 +159,8 @@ let rec to_formula f = match f.f with
   | TOr (s, f, g) -> Or (fix_side s f.f g.f, to_formula f, to_formula g)
   | TImp (s, f, g) -> Imp (fix_side s f.f g.f, to_formula f, to_formula g)
   | TIff (s, t, f, g) -> Iff (fix_side s f.f g.f, fix_side t f.f g.f, to_formula f, to_formula g)
-  | TExists (x, tt, f) -> Exists (x, to_formula f)
-  | TForall (x, tt, f) -> Forall (x, to_formula f)
+  | TExists (x, _, _, f) -> Exists (x, to_formula f)
+  | TForall (x, _, _, f) -> Forall (x, to_formula f)
   | TPrev (i, f) -> Prev (i, to_formula f)
   | TNext (i, f) -> Next (i, to_formula f)
   | TOnce (i, f) -> Once (i, to_formula f)
@@ -176,8 +187,8 @@ let rec op_to_string_core = function
   | TOr (_, _, _) -> Printf.sprintf "∨"
   | TImp (_, _, _) -> Printf.sprintf "→"
   | TIff (_, _, _, _) -> Printf.sprintf "↔"
-  | TExists (x, _, _) -> Printf.sprintf "∃ %s." x
-  | TForall (x, _, _) -> Printf.sprintf "∀ %s." x
+  | TExists (x, _, _, _) -> Printf.sprintf "∃ %s." x
+  | TForall (x, _, _, _) -> Printf.sprintf "∀ %s." x
   | TPrev (i, _) -> Printf.sprintf "●%s" (Interval.to_string i)
   | TNext (i, _) -> Printf.sprintf "○%s" (Interval.to_string i)
   | TOnce (i, f) -> Printf.sprintf "⧫%s" (Interval.to_string i)
@@ -200,8 +211,8 @@ let rec to_string_core_rec l = function
   | TOr (s, f, g) -> Printf.sprintf (Etc.paren l 3 "%a ∨%a %a") (fun x -> to_string_rec 3) f (fun x -> Side.to_string) s (fun x -> to_string_rec 4) g
   | TImp (s, f, g) -> Printf.sprintf (Etc.paren l 5 "%a →%a %a") (fun x -> to_string_rec 5) f (fun x -> Side.to_string) s (fun x -> to_string_rec 5) g
   | TIff (s, t, f, g) -> Printf.sprintf (Etc.paren l 5 "%a ↔%a %a") (fun x -> to_string_rec 5) f (fun x -> Side.to_string2) (s, t) (fun x -> to_string_rec 5) g
-  | TExists (x, _, f) -> Printf.sprintf (Etc.paren l 5 "∃%s. %a") x (fun x -> to_string_rec 5) f
-  | TForall (x, _, f) -> Printf.sprintf (Etc.paren l 5 "∀%s. %a") x (fun x -> to_string_rec 5) f
+  | TExists (x, _, _, f) -> Printf.sprintf (Etc.paren l 5 "∃%s. %a") x (fun x -> to_string_rec 5) f
+  | TForall (x, _, _, f) -> Printf.sprintf (Etc.paren l 5 "∀%s. %a") x (fun x -> to_string_rec 5) f
   | TPrev (i, f) -> Printf.sprintf (Etc.paren l 5 "●%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
   | TNext (i, f) -> Printf.sprintf (Etc.paren l 5 "○%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
   | TOnce (i, f) -> Printf.sprintf (Etc.paren l 5 "⧫%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
