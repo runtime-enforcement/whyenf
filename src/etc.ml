@@ -65,6 +65,7 @@ let empty_valuation: valuation = Map.empty (module String)
 let sexp_of_valuation v =
   let f (k, d) = Sexp.List [Atom k; Atom (Dom.to_string d)] in
   Sexp.List (List.map (Map.to_alist v) ~f)
+let extend_valuation v v' = Map.merge v v' ~f:(fun ~key d -> match d with `Left d -> Some d | `Right d -> Some d | `Both (d, _) -> Some d)
 
 let dom_map_to_string m =
   string_list_to_string
@@ -149,6 +150,7 @@ let lexicographic5 compare1 compare2 compare3 compare4 compare5 =
   else if compare4 d d' < 0 then -1
   else if compare4 d d' > 0 then 1
   else compare5 e e'
+
 
 (* For debugging only *)
 let _print s f x =

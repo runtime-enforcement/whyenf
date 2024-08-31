@@ -91,7 +91,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
                        db = Db.create [];
                        r = Triple.empty;
                        fobligs = Set.singleton (module FObligation)
-                                   (FFormula (mf, -1), Base.Map.empty (module Base.String), POS);
+                                   (FFormula (mf, -1, Etc.empty_valuation), Base.Map.empty (module Base.String), POS);
                        nick = false; }
 
     let update r es =
@@ -110,7 +110,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
               Set.empty (module FObligation)) es
 
     let add_foblig foblig es =
-      update (Set.empty (module Db.Event),
+      update (Set.empty (module Db.Event), 
               Set.empty (module Db.Event),
               Set.singleton (module FObligation) foblig) es
 
@@ -178,14 +178,14 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       let enfs d = enfvio mf (Base.Map.update v x ~f:(fun _ -> d)) es in
       List.fold_left (List.map (all_not_vio v x mf es) ~f:enfs) ~init:es ~f:combine
 
-    and enfvio_until i h mf1 mf2 =
+    and enfvio_until i (h, vv) mf1 mf2 =
       let test1 = if Interval.has_zero i then vio else (fun _ _ _ -> true) in
-      let enf2 mf2 v es = add_foblig (FUntil (Time.of_timestamp es.ts, LR, i, mf1, mf2, h), v, NEG) es in
+      let enf2 mf2 v es = add_foblig (FUntil (Time.of_timestamp es.ts, LR, i, mf1, mf2, h, vv), v, NEG) es in
       lr test1 sat enfvio enf2 mf1 mf2
 
-    and enfvio_eventually i h mf v es =
+    and enfvio_eventually i (h, vv) mf v es =
       let test1 = if Interval.has_zero i then vio else (fun _ _ _ -> true) in
-      let es = add_foblig (FEventually (Time.of_timestamp es.ts, i, mf, h), v, NEG) es in
+      let es = add_foblig (FEventually (Time.of_timestamp es.ts, i, mf, h, vv), v, NEG) es in
       enfvio mf v es
 
     and enfsat (mf: MFormula.t) v es =
@@ -207,35 +207,32 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
                      (MImp (side1, mf2, mf1, empty_binop_info)) v) es
       | MExists (x, tt, b, mf) -> enfsat mf (Map.add_exn v ~key:x ~data:(Dom.tt_default tt)) es
       | MForall (x, tt, b, mf) -> fixpoint (enfsat_forall x mf v) es
-      | MENext (i, mf, h) -> add_foblig (FInterval (Time.of_timestamp es.ts, i, mf, h), v, POS) es
-      | MEEventually (i, mf, h) ->
+      | MENext (i, mf, h, vv) -> add_foblig (FInterval (Time.of_timestamp es.ts, i, mf, h, vv), v, POS) es
+      | MEEventually (i, mf, h, vv) ->
          if Interval.is_zero i && es.nick then
            enfsat mf v es
          else
-           add_foblig (FEventually (Time.of_timestamp es.ts, i, mf, h), v, POS) es
-      | MEAlways (i, mf, h) ->
-         add_foblig (FAlways (Time.of_timestamp es.ts, i, mf, h), v, POS) (enfsat mf v es)
+           add_foblig (FEventually (Time.of_timestamp es.ts, i, mf, h, vv), v, POS) es
+      | MEAlways (i, mf, h, vv) ->
+         add_foblig (FAlways (Time.of_timestamp es.ts, i, mf, h, vv), v, POS) (enfsat mf v es)
       | MSince (_, _, mf1, mf2, _, _) -> enfsat mf2 v es
-      | MEUntil (R, i, mf1, mf2, h) ->
+      | MEUntil (R, i, mf1, mf2, h, vv) ->
          if Interval.is_zero i && es.nick then
            add_cau Db.Event._tp (enfsat mf2 v es)
          else if not (sat v mf1 es) then
            enfsat mf2 v es
          else
-           add_foblig (FUntil (Time.of_timestamp es.ts, LR, i, mf1, mf2, h), v, POS) (enfsat mf1 v es)
-      | MEUntil (LR, i, mf1, mf2, h) ->
+           add_foblig (FUntil (Time.of_timestamp es.ts, LR, i, mf1, mf2, h, vv), v, POS) (enfsat mf1 v es)
+      | MEUntil (LR, i, mf1, mf2, h, vv) ->
          if Interval.is_zero i && es.nick then
            add_cau Db.Event._tp (enfsat mf2 v es)
          else
-           add_foblig (FUntil (Time.of_timestamp es.ts, LR, i, mf1, mf2, h), v, POS) (enfsat mf1 v es)
+           add_foblig (FUntil (Time.of_timestamp es.ts, LR, i, mf1, mf2, h, vv), v, POS) (enfsat mf1 v es)
       | MAnd (LR, _, _, _) -> raise (Invalid_argument ("side for " ^
                                                          MFormula.op_to_string mf ^ " was not fixed"))
       | _ -> raise (Invalid_argument ("function enfsat is not defined for "
                                       ^ MFormula.op_to_string mf))
     and enfvio (mf: MFormula.t) v es =
-      Stdio.printf "enfvio(mf=%s, op=%s, side=%s, v=%s, db=%s)\n" (MFormula.to_string mf)
-        (MFormula.op_to_string mf) (MFormula.side_to_string mf) (Etc.valuation_to_string v) (Db.to_string es.db);
-        Stdlib.flush_all ();
       match mf with
       | MFF -> es
       | MPredicate (r, trms) when Pred.Sig.equal_pred_kind (Pred.Sig.kind_of_pred r) Pred.Sig.Trace ->
@@ -254,25 +251,25 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       | MIff (R, _, mf1, mf2, _) -> fixpoint (enfvio_imp mf2 mf1 v) es
       | MExists (x, tt, b, mf) -> fixpoint (enfvio_exists x mf v) es
       | MForall (x, tt, b, mf) -> enfvio mf (Map.add_exn v ~key:x ~data:(Dom.tt_default tt)) es
-      | MENext (i, mf, h) -> add_foblig (FInterval (Time.of_timestamp es.ts, i, mf, h), v, NEG) es
-      | MEEventually (i, mf, h) -> enfvio_eventually i h mf v es
-      | MEAlways (i, mf, h) ->
+      | MENext (i, mf, h, vv) -> add_foblig (FInterval (Time.of_timestamp es.ts, i, mf, h, vv), v, NEG) es
+      | MEEventually (i, mf, h, vv) -> enfvio_eventually i (h, vv) mf v es
+      | MEAlways (i, mf, h, vv) ->
          if Interval.is_zero i && es.nick then
            enfvio mf v es
          else
-           add_foblig (FAlways (Time.of_timestamp es.ts, i, mf, h), v, NEG) es
+           add_foblig (FAlways (Time.of_timestamp es.ts, i, mf, h, vv), v, NEG) es
       | MSince (L, _, mf1, _, _, _) -> enfvio mf1 v es
       | MSince (R, i, mf1, mf2, _, _) ->
          let f' = MNeg (MAnd (R, mf1, mf, empty_binop_info)) in
          fixpoint (enfsat_and f' (MNeg mf2) v) es
 
-      | MEUntil (L, _, mf1, _, _) -> enfvio mf1 v es
-      | MEUntil (R, i, mf1, mf2, h) -> fixpoint (enfvio_until i h mf1 mf2 v) es
+      | MEUntil (L, _, mf1, _, _, _) -> enfvio mf1 v es
+      | MEUntil (R, i, mf1, mf2, h, vv) -> fixpoint (enfvio_until i (h, vv) mf1 mf2 v) es
       | MAnd (LR, _, _, _)
         | MOr (LR, _, _, _)
         | MImp (LR, _, _, _)
         | MSince (LR, _, _, _, _, _)
-        | MEUntil (LR, _, _, _, _) ->
+        | MEUntil (LR, _, _, _, _, _) ->
          raise (Invalid_argument ("side for " ^ MFormula.op_to_string mf ^ " was not fixed"))
       | _ -> raise (Invalid_argument ("function enfvio is not defined for "
                                       ^ MFormula.op_to_string mf))

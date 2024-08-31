@@ -64,7 +64,9 @@ module EnfType : sig
 
 end
 
+val tilde_tp_event_name: string
 val tp_event_name: string
+val ts_event_name: string
 val tick_event_name: string
 
 module Sig : sig

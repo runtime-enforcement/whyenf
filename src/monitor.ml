@@ -51,16 +51,16 @@ module type MonitorT = sig
       | MForall       of string * Dom.tt * bool * t
       | MPrev         of Interval.t * t * bool * prev_info
       | MNext         of Interval.t * t * bool * next_info
-      | MENext        of Interval.t * t * int
+      | MENext        of Interval.t * t * int * Etc.valuation
       | MOnce         of Interval.t * t * tp_info * once_info
       | MEventually   of Interval.t * t * buft_info * eventually_info
-      | MEEventually  of Interval.t * t * int
+      | MEEventually  of Interval.t * t * int * Etc.valuation
       | MHistorically of Interval.t * t * tp_info * historically_info
       | MAlways       of Interval.t * t * buft_info * always_info
-      | MEAlways      of Interval.t * t * int
+      | MEAlways      of Interval.t * t * int * Etc.valuation
       | MSince        of Formula.Side.t * Interval.t * t * t * buf2t_info * since_info
       | MUntil        of Interval.t * t * t * buf2t_info * until_info
-      | MEUntil       of Formula.Side.t * Interval.t * t * t * int
+      | MEUntil       of Formula.Side.t * Interval.t * t * t * int * Etc.valuation
 
     val init: Lbl.TLbl.t list -> Tformula.t -> t
     val rank: t -> int
@@ -85,11 +85,11 @@ module type MonitorT = sig
     type polarity = POS | NEG
 
     type kind =
-      | FFormula of MFormula.t * int                       (* fun _ -> f *)
-      | FInterval of Time.t * Interval.t * MFormula.t * int   (* fun t -> if mem t i then f else Formula.TT *)
-      | FUntil of Time.t * Formula.Side.t * Interval.t * MFormula.t * MFormula.t * int (* fun t -> Until (s, sub2 i (t-t0), f1, f2) *)
-      | FAlways of Time.t * Interval.t * MFormula.t * int     (* fun t -> Always (sub2 i (t-t0), f1) *)
-      | FEventually of Time.t * Interval.t * MFormula.t * int (* fun t -> Eventually (sub2 i (t-t0), f1) *)
+      | FFormula of MFormula.t * int * Etc.valuation                         (* fun _ -> f *)
+      | FInterval of Time.t * Interval.t * MFormula.t * int * Etc.valuation  (* fun t -> if mem t i then f else Formula.TT *)
+      | FUntil of Time.t * Formula.Side.t * Interval.t * MFormula.t * MFormula.t * int * Etc.valuation (* fun t -> Until (s, sub2 i (t-t0), f1, f2) *)
+      | FAlways of Time.t * Interval.t * MFormula.t * int * Etc.valuation     (* fun t -> Always (sub2 i (t-t0), f1) *)
+      | FEventually of Time.t * Interval.t * MFormula.t * int * Etc.valuation (* fun t -> Eventually (sub2 i (t-t0), f1) *)
 
     type t = kind * Etc.valuation * polarity
 
@@ -1487,18 +1487,18 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       | MForall       of string * Dom.tt * bool * t
       | MPrev         of Interval.t * t * bool * prev_info
       | MNext         of Interval.t * t * bool * next_info
-      | MENext        of Interval.t * t * int
+      | MENext        of Interval.t * t * int * Etc.valuation
       | MOnce         of Interval.t * t * tp_info * once_info
       | MEventually   of Interval.t * t * buft_info * eventually_info
-      | MEEventually  of Interval.t * t * int
+      | MEEventually  of Interval.t * t * int * Etc.valuation
       | MHistorically of Interval.t * t * tp_info * historically_info
       | MAlways       of Interval.t * t * buft_info * always_info
-      | MEAlways      of Interval.t * t * int
+      | MEAlways      of Interval.t * t * int * Etc.valuation
       | MSince        of Formula.Side.t * Interval.t * t * t * buf2t_info * since_info
       | MUntil        of Interval.t * t * t * buf2t_info * until_info
-      | MEUntil       of Formula.Side.t * Interval.t * t * t * int
+      | MEUntil       of Formula.Side.t * Interval.t * t * t * int * Etc.valuation
 
-    let _tp = MPredicate (Pred.tp_event_name, [])
+    let _tp = MPredicate (Pred.tilde_tp_event_name, [])
 
     let rec to_formula = function
       | MTT -> Formula.TT
@@ -1518,16 +1518,16 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       | MForall (x, tt, _, f) -> Formula.Forall (x, to_formula f)
       | MPrev (i, f, b, pi) -> Formula.Prev (i, to_formula f)
       | MNext (i, f, b, si) -> Formula.Next (i, to_formula f)
-      | MENext (i, f, h) -> Formula.Next (i, to_formula f)
+      | MENext (i, f, _, _) -> Formula.Next (i, to_formula f)
       | MOnce (i, f, ti, oi) -> Formula.Once (i, to_formula f)
       | MEventually (i, f, bi, oi) -> Formula.Eventually (i, to_formula f)
-      | MEEventually (i, f, h) -> Formula.Eventually (i, to_formula f)
+      | MEEventually (i, f, _, _) -> Formula.Eventually (i, to_formula f)
       | MHistorically (i, f, ti, oi) -> Formula.Historically (i, to_formula f)
       | MAlways (i, f, bi, ai) -> Formula.Always (i, to_formula f)
-      | MEAlways (i, f, h) -> Formula.Always (i, to_formula f)
+      | MEAlways (i, f, _, _) -> Formula.Always (i, to_formula f)
       | MSince (s, i, f, g, bi, si) -> Formula.Since (s, i, to_formula f, to_formula g)
       | MUntil (i, f, g, bi, ui) -> Formula.Until (N, i, to_formula f, to_formula g)
-      | MEUntil (s, i, f, g, h) -> Formula.Until (s, i, to_formula f, to_formula g)
+      | MEUntil (s, i, f, g, _, _) -> Formula.Until (s, i, to_formula f, to_formula g)
 
     let init lbls (tf: Tformula.t) =
       let rec aux vt h (tf: Tformula.t) = match tf.f with
@@ -1573,7 +1573,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
            vt, h, MNext (i, mf, true, [])
         | TNext (i, f) ->
            let vt, h, mf = aux vt h f in
-           vt, h+1, MENext (i, mf, h)
+           vt, h+1, MENext (i, mf, h, Etc.empty_valuation)
         | TOnce (i, f) ->
            let vt, h, mf = aux vt h f in
            vt, h, MOnce (i, mf, [], Leaf (Once.init ()))
@@ -1582,7 +1582,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
            vt, h, MEventually (i, mf, ([], []), Leaf (Eventually.init ()))
         | TEventually (i, _, f) ->
            let vt, h, mf = aux vt h f in
-           vt, h+1, MEEventually (i, mf, h)
+           vt, h+1, MEEventually (i, mf, h, Etc.empty_valuation)
         | THistorically (i, f) ->
            let vt, h, mf = aux vt h f in
            vt, h, MHistorically (i, mf, [], Leaf (Historically.init ()))
@@ -1591,7 +1591,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
            vt, h, MAlways (i, mf, ([], []), Leaf (Always.init ()))
         | TAlways (i, _, f) ->
            let vt, h, mf = aux vt h f in
-           vt, h+1, MEAlways (i, mf, h)
+           vt, h+1, MEAlways (i, mf, h, Etc.empty_valuation)
         | TSince (s, i, f, g) ->
            let vt, h, mf = aux vt h f in
            let vt, h, mg = aux vt h g in
@@ -1603,7 +1603,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
         | TUntil (s, i, _, f, g) ->
            let vt, h, mf = aux vt h f in
            let vt, h, mg = aux vt h g in
-           vt, h+1, MEUntil (s, i, mf, mg, h)
+           vt, h+1, MEUntil (s, i, mf, mg, h, Etc.empty_valuation)
       in match aux (Map.empty (module String)) 0 tf with (_, _, mf) -> mf
 
     let rec equal mf1 mf2 = match mf1, mf2 with
@@ -1618,13 +1618,13 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       | MNeg mf, MNeg mf' -> equal mf mf'
       | MPrev (i, mf, _, _), MPrev (i', mf', _, _)
         | MNext (i, mf, _, _), MNext (i', mf', _, _)
-        | MENext (i, mf, _), MENext (i', mf', _)
         | MOnce (i, mf, _, _), MOnce (i', mf', _, _)
         | MEventually (i, mf, _, _), MEventually (i', mf', _, _)
-        | MEEventually (i, mf, _), MEEventually (i', mf', _)
         | MHistorically (i, mf, _, _), MHistorically (i', mf', _, _)
-        | MAlways (i, mf, _, _), MAlways (i', mf', _, _)
-        | MEAlways (i, mf, _), MEAlways (i', mf', _) -> Interval.equal i i' && equal mf mf'
+        | MAlways (i, mf, _, _), MAlways (i', mf', _, _) -> Interval.equal i i' && equal mf mf'          | MENext (_, _, h, v), MENext (_, _, h', v')
+        | MEEventually (_, _, h, v), MEEventually (_, _, h', v')
+        | MEAlways (_, _, h, v), MEAlways (_, _, h', v')
+        | MEUntil (_, _, _, _, h, v), MEUntil (_, _, _, _, h', v') -> h = h' && Etc.equal_valuation v v'
       | MExists (x, tt, b, mf), MExists (x', tt', b', mf')
         | MForall (x, tt, b, mf), MForall (x', tt', b', mf') ->
          String.equal x x' && Dom.tt_equal tt tt' && equal mf mf' && Bool.equal b b'
@@ -1634,7 +1634,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       | MIff (s, t, mf, mg, _), MIff (s', t', mf', mg', _) -> Formula.Side.equal s s' && Formula.Side.equal t t' &&
                                                                 equal mf mf' && equal mg mg'
       | MSince (s, i, mf, mg, _, _), MSince (s', i', mf', mg', _, _)
-        | MEUntil (s, i, mf, mg, _), MEUntil (s', i', mf', mg', _) -> Formula.Side.equal s s' && Interval.equal i i' &&
+         -> Formula.Side.equal s s' && Interval.equal i i' &&
                                                                         equal mf mf' && equal mg mg'
       | MUntil (i, mf, mg, _, _), MUntil (i', mf', mg', _, _) -> Interval.equal i i' && equal mf mf' && equal mg mg'
       | _ -> false
@@ -1648,13 +1648,13 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
         | MForall (_, _, _, f)
         | MPrev (_, f, _, _)
         | MNext (_, f, _, _)
-        | MENext (_, f, _)
+        | MENext (_, f, _, _)
         | MOnce (_, f, _, _)
         | MEventually (_, f, _, _)
-        | MEEventually (_, f, _)
+        | MEEventually (_, f, _, _)
         | MHistorically (_, f, _, _)
         | MAlways (_, f, _, _)
-        | MEAlways (_, f, _)
+        | MEAlways (_, f, _, _)
         | MAgg (_, _, _, _, _, _, _, f) -> rank f
       | MAnd (_, f, g, _)
         | MOr (_, f, g, _)
@@ -1662,7 +1662,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
         | MIff (_, _, f, g, _)
         | MSince (_, _, f, g, _, _)
         | MUntil (_, f, g, _, _)
-        | MEUntil (_, _, f, g, _) -> rank f + rank g
+        | MEUntil (_, _, f, g, _, _) -> rank f + rank g
 
     let rec apply_valuation (v: Etc.valuation) f =
       let r = apply_valuation v in
@@ -1690,16 +1690,16 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       | MForall (x, tt, b, f) -> MForall (x, tt, b, r f)
       | MPrev (i, f, b, pi) -> MPrev (i, r f, b, av_buft pi)
       | MNext (i, f, b, si) -> MNext (i, r f, b, si)
-      | MENext (i, f, h) -> MENext (i, r f, h)
+      | MENext (i, f, h, vv) -> MENext (i, r f, h, Etc.extend_valuation v vv)
       | MOnce (i, f, ti, oi) -> MOnce (i, r f, ti, av_pdt oi)
       | MEventually (i, f, bi, oi) -> MEventually (i, r f, av_buft bi, av_pdt oi)
-      | MEEventually (i, f, h) -> MEEventually (i, r f, h)
+      | MEEventually (i, f, h, vv) -> MEEventually (i, r f, h, Etc.extend_valuation v vv)
       | MHistorically (i, f, ti, oi) -> MHistorically (i, r f, ti, av_pdt oi)
       | MAlways (i, f, bi, ai) -> MAlways (i, r f, av_buft bi, av_pdt ai)
-      | MEAlways (i, f, h) -> MEAlways (i, r f, h)
+      | MEAlways (i, f, h, vv) -> MEAlways (i, r f, h, Etc.extend_valuation v vv)
       | MSince (s, i, f, g, bi, si) -> MSince (s, i, r f, r g, av_buf2t bi, av_pdt si)
       | MUntil (i, f, g, bi, ui) -> MUntil (i, r f, r g, av_buf2t bi, av_pdt ui)
-      | MEUntil (s, i, f, g, h) -> MEUntil (s, i, r f, r g, h)
+      | MEUntil (s, i, f, g, h, vv) -> MEUntil (s, i, r f, r g, h, Etc.extend_valuation v vv)
 
     let rec fv = function
       | MTT | MFF -> Set.empty (module String)
@@ -1714,18 +1714,18 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
         | MOnce (_, f, _, _)
         | MHistorically (_, f, _, _)
         | MEventually (_, f, _, _)
-        | MEEventually (_, f, _)
+        | MEEventually (_, f, _, _)
         | MAlways (_, f, _, _)
-        | MEAlways (_, f, _)
+        | MEAlways (_, f, _, _)
         | MNext (_, f, _, _)
-        | MENext (_, f, _) -> fv f
+        | MENext (_, f, _, _) -> fv f
       | MAnd (_, f1, f2, _)
         | MOr (_, f1, f2, _)
         | MImp (_, f1, f2, _)
         | MIff (_, _, f1, f2, _)
         | MSince (_, _, f1, f2, _, _)
         | MUntil (_, f1, f2, _, _)
-        | MEUntil (_, _, f1, f2, _) -> Set.union (fv f1) (fv f2)
+        | MEUntil (_, _, f1, f2, _, _) -> Set.union (fv f1) (fv f2)
 
     let lbls fvs f =
       let nodup l =
@@ -1745,9 +1745,9 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
           | MOnce (_, f, _, _)
           | MHistorically (_, f, _, _)
           | MEventually (_, f, _, _)
-          | MEEventually (_, f, _)
+          | MEEventually (_, f, _, _)
           | MAlways (_, f, _, _)
-          | MEAlways (_, f, _)
+          | MEAlways (_, f, _, _)
           | MNext (_, f, _, _) -> nonvars f
         | MAnd (_, f1, f2, _)
           | MOr (_, f1, f2, _)
@@ -1755,7 +1755,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
           | MIff (_, _, f1, f2, _)
           | MSince (_, _, f1, f2, _, _)
           | MUntil (_, f1, f2, _, _)
-          | MEUntil (_, _, f1, f2, _) -> nodup (nonvars f1 @ nonvars f2)
+          | MEUntil (_, _, f1, f2, _, _) -> nodup (nonvars f1 @ nonvars f2)
       in (List.map fvs ~f:Lbl.TLbl.var) @ (nonvars f)
 
     let rec to_string_rec l = function
@@ -1773,18 +1773,18 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       | MForall (x, _, _, f) -> Printf.sprintf (Etc.paren l 5 "∀%s. %a") x (fun x -> to_string_rec 5) f
       | MPrev (i, f, _, _) -> Printf.sprintf (Etc.paren l 5 "●%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
       | MNext (i, f, _, _) -> Printf.sprintf (Etc.paren l 5 "○%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
-      | MENext (i, f, _) -> Printf.sprintf (Etc.paren l 5 "○*%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
+      | MENext (i, f, _, _) -> Printf.sprintf (Etc.paren l 5 "○*%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
       | MOnce (i, f, _, _) -> Printf.sprintf (Etc.paren l 5 "⧫%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
       | MEventually (i, f, _, _) -> Printf.sprintf (Etc.paren l 5 "◊%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
-      | MEEventually (i, f, _) -> Printf.sprintf (Etc.paren l 5 "◊*%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
+      | MEEventually (i, f, _, _) -> Printf.sprintf (Etc.paren l 5 "◊*%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
       | MHistorically (i, f, _, _) -> Printf.sprintf (Etc.paren l 5 "■%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
       | MAlways (i, f, _, _) -> Printf.sprintf (Etc.paren l 5 "□%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
-      | MEAlways (i, f, _) -> Printf.sprintf (Etc.paren l 5 "□*%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
+      | MEAlways (i, f, _, _) -> Printf.sprintf (Etc.paren l 5 "□*%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
       | MSince (_, i, f, g, _, _) -> Printf.sprintf (Etc.paren l 0 "%a S%a %a") (fun x -> to_string_rec 5) f
                                        (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) g
       | MUntil (i, f, g, _, _) -> Printf.sprintf (Etc.paren l 0 "%a U%a %a") (fun x -> to_string_rec 5) f
                                     (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) g
-      | MEUntil (s, i, f, g, _) -> Printf.sprintf (Etc.paren l 0 "%a U*%a %a") (fun x -> to_string_rec 5) f
+      | MEUntil (s, i, f, g, _, _) -> Printf.sprintf (Etc.paren l 0 "%a U*%a %a") (fun x -> to_string_rec 5) f
                                      (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) g
     let to_string = to_string_rec 0
 
@@ -1804,16 +1804,16 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       | MForall (x, _, _, _) -> Printf.sprintf "∀ %s." x
       | MPrev (i, _, _, _) -> Printf.sprintf "●%s" (Interval.to_string i)
       | MNext (i, _, _, _) -> Printf.sprintf "○%s" (Interval.to_string i)
-      | MENext (i, _, _) -> Printf.sprintf "○*%s" (Interval.to_string i)
+      | MENext (i, _, _, _) -> Printf.sprintf "○*%s" (Interval.to_string i)
       | MOnce (i, f, _, _) -> Printf.sprintf "⧫%s" (Interval.to_string i)
       | MEventually (i, f, _, _) -> Printf.sprintf "◊%s" (Interval.to_string i)
-      | MEEventually (i, f, _) -> Printf.sprintf "◊*%s" (Interval.to_string i)
+      | MEEventually (i, f, _, _) -> Printf.sprintf "◊*%s" (Interval.to_string i)
       | MHistorically (i, f, _, _) -> Printf.sprintf "■%s" (Interval.to_string i)
       | MAlways (i, f, _, _) -> Printf.sprintf "□%s" (Interval.to_string i)
-      | MEAlways (i, f, _) -> Printf.sprintf "□*%s" (Interval.to_string i)
+      | MEAlways (i, f, _, _) -> Printf.sprintf "□*%s" (Interval.to_string i)
       | MSince (_, i, _, _, _, _) -> Printf.sprintf "S%s" (Interval.to_string i)
       | MUntil (i, _, _, _, _) -> Printf.sprintf "U%s" (Interval.to_string i)
-      | MEUntil (_, i, _, _, _) -> Printf.sprintf "U*%s" (Interval.to_string i)
+      | MEUntil (_, i, _, _, _, _) -> Printf.sprintf "U*%s" (Interval.to_string i)
 
 
     let side_to_string = function
@@ -1840,7 +1840,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       | MEAlways _ -> Printf.sprintf "N"
       | MSince (s, _, _, _, _, _) -> Printf.sprintf "%s" (Formula.Side.to_string s)
       | MUntil _ -> Printf.sprintf "N"
-      | MEUntil (s, _, _, _, _) -> Printf.sprintf "%s" (Formula.Side.to_string s)
+      | MEUntil (s, _, _, _, _, _) -> Printf.sprintf "%s" (Formula.Side.to_string s)
 
   end
 
@@ -1855,48 +1855,55 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       let neg = function POS -> NEG | NEG -> POS
 
       type kind =
-        | FFormula of MFormula.t * int
-        | FInterval of Time.t * Interval.t * MFormula.t * int
-        | FUntil of Time.t * Formula.Side.t * Interval.t * MFormula.t * MFormula.t * int
-        | FAlways of Time.t * Interval.t * MFormula.t * int
-        | FEventually of Time.t * Interval.t * MFormula.t * int
+        | FFormula of MFormula.t * int * Etc.valuation
+        | FInterval of Time.t * Interval.t * MFormula.t * int * Etc.valuation
+        | FUntil of Time.t * Formula.Side.t * Interval.t * MFormula.t * MFormula.t * int * Etc.valuation
+        | FAlways of Time.t * Interval.t * MFormula.t * int * Etc.valuation
+        | FEventually of Time.t * Interval.t * MFormula.t * int * Etc.valuation
 
       type t = kind * Etc.valuation * polarity
 
       let kind_equal k1 k2 = match k1, k2 with
-        | FFormula (mf, h), FFormula (mf', h') -> h = h'
-        | FInterval (ts, i, mf, h), FInterval (ts', i', mf', h')
-          | FAlways (ts, i, mf, h), FAlways (ts', i', mf', h')
-          | FEventually (ts, i, mf, h), FEventually (ts', i', mf', h') ->
-           Time.equal ts ts' && Interval.equal i i' && h = h'
-        | FUntil (ts, s, i, mf, mg, h), FUntil (ts', s', i', mf', mg', h') ->
+        | FFormula (mf, h, v), FFormula (mf', h', v') -> h = h' && Etc.equal_valuation v v'
+        | FInterval (ts, i, mf, h, v), FInterval (ts', i', mf', h', v')
+          | FAlways (ts, i, mf, h, v), FAlways (ts', i', mf', h', v')
+          | FEventually (ts, i, mf, h, v), FEventually (ts', i', mf', h', v') ->
+           Time.equal ts ts' && Interval.equal i i' && h = h' && Etc.equal_valuation v v'
+        | FUntil (ts, s, i, mf, mg, h, v), FUntil (ts', s', i', mf', mg', h', v') ->
            Time.equal ts ts' && Formula.Side.equal s s' && Interval.equal i i' && h = h'
+           && Etc.equal_valuation v v'
         | _ -> false
 
       let compare_kind k1 k2 = match k1, k2 with
-        | FFormula (mf, h), FFormula (mf', h') -> Int.compare h h'
+        | FFormula (_, h, v), FFormula (_, h', v') ->
+           Etc.lexicographic2 Int.compare Etc.compare_valuation (h, v) (h', v')
         | FFormula _, _ -> 1
         | FInterval _, FFormula _ -> -1
-        | FInterval (ts, i, mf, h), FInterval (ts', i', mf', h') ->
-           Etc.lexicographic3 Time.compare Interval.compare Int.compare (ts, i, h) (ts', i', h')
+        | FInterval (ts, i, _, h, v), FInterval (ts', i', _, h', v') ->
+           Etc.lexicographic4
+             Time.compare Interval.compare Int.compare Etc.compare_valuation
+             (ts, i, h, v) (ts', i', h', v')
         | FInterval _, _ -> 1
         | FAlways _, FFormula _ | FAlways _, FInterval _ -> -1
-        | FAlways (ts, i, mf, h), FAlways (ts', i', mf', h') ->
-           Etc.lexicographic3 Time.compare Interval.compare Int.compare (ts, i, h) (ts', i', h')
+        | FAlways (ts, i, _, h, v), FAlways (ts', i', _, h', v') ->
+           Etc.lexicographic4 Time.compare Interval.compare Int.compare Etc.compare_valuation
+             (ts, i, h, v) (ts', i', h', v')
         | FAlways _, _ -> 1
         | FEventually _, FFormula _ | FEventually _, FInterval _ | FEventually _, FAlways _ -> -1
-        | FEventually (ts, i, mf, h), FEventually (ts', i', mf', h') ->
-           Etc.lexicographic3 Time.compare Interval.compare Int.compare (ts, i, h) (ts', i', h')
+        | FEventually (ts, i, _, h, v), FEventually (ts', i', _, h', v') ->
+           Etc.lexicographic4 Time.compare Interval.compare Int.compare Etc.compare_valuation
+             (ts, i, h, v) (ts', i', h', v')
         | FEventually _, FUntil _ -> 1
-        | FUntil (ts, s, i, mf, mg, h), FUntil (ts', s', i', mf', mg', h') ->
-           Etc.lexicographic4 Time.compare Formula.Side.compare Interval.compare Int.compare (ts, s, i, h) (ts', s', i', h')
+        | FUntil (ts, s, i, _, _, h, v), FUntil (ts', s', i', _, _, h', v') ->
+           Etc.lexicographic5 Time.compare Formula.Side.compare Interval.compare Int.compare Etc.compare_valuation
+             (ts, s, i, h, v) (ts', s', i', h', v')
         | FUntil _, _ -> -1
 
       let compare =
         Etc.lexicographic3 compare_kind Etc.compare_valuation compare_polarity
 
       let sexp_of_t _ = Sexp.Atom "FObligation"
-      let t_of_sexp _ = (FFormula (MFormula.MTT, 0), Etc.empty_valuation,  POS)
+      let t_of_sexp _ = (FFormula (MFormula.MTT, 0, Etc.empty_valuation), Etc.empty_valuation,  POS)
 
       let polarity_equal pol1 pol2 = match pol1, pol2 with
         | POS, POS -> true
@@ -1909,23 +1916,23 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
 
       let corresp_proof tp pol p_opt = function
         | FFormula _ -> Proof.S (Proof.make_snextassm tp)
-        | FInterval (_, i, _, _) when pol == POS -> Proof.S (Proof.make_snextassm tp)
-        | FInterval (_, i, _, _) when pol == NEG -> Proof.V (Proof.make_vnextassm tp i)
-        | FUntil (_, _, i, _, _, _) when pol == POS -> Proof.S (Proof.make_stt tp)
-        | FUntil (_, _, i, _, _, _) when pol == NEG -> Proof.V (Proof.make_vff tp)
-        | FEventually (_, i, _, _) when pol == POS -> Proof.S (Proof.make_stt tp)
-        | FEventually (_, i, _, _) when pol == NEG -> Proof.V (Proof.make_vff tp)
-        | FAlways (_, i, _, _) when pol == POS -> Proof.S (Proof.make_stt tp)
-        | FAlways (_, i, _, _) when pol == NEG -> Proof.V (Proof.make_vff tp)
+        | FInterval (_, i, _, _, _) when pol == POS -> Proof.S (Proof.make_snextassm tp)
+        | FInterval (_, i, _, _, _) when pol == NEG -> Proof.V (Proof.make_vnextassm tp i)
+        | FUntil (_, _, i, _, _, _, _) when pol == POS -> Proof.S (Proof.make_stt tp)
+        | FUntil (_, _, i, _, _, _, _) when pol == NEG -> Proof.V (Proof.make_vff tp)
+        | FEventually (_, i, _, _, _) when pol == POS -> Proof.S (Proof.make_stt tp)
+        | FEventually (_, i, _, _ ,_) when pol == NEG -> Proof.V (Proof.make_vff tp)
+        | FAlways (_, i, _, _, _) when pol == POS -> Proof.S (Proof.make_stt tp)
+        | FAlways (_, i, _, _, _) when pol == NEG -> Proof.V (Proof.make_vff tp)
 
-      let eval_kind ts' tp k v = match k with
-        | FFormula (mf, _) -> mf
-        | FInterval (ts, i, mf, h) ->
+      let eval_kind ts' tp k = match k with
+        | FFormula (mf, _, _) -> mf
+        | FInterval (ts, i, mf, h, v) ->
            if Interval.mem Time.(ts' - ts) i then
-             MEUntil (R, Interval.sub2 i Time.(ts' - ts), MNeg (_tp), MAnd (L, MFormula._tp, mf, empty_binop_info), h)
+             MEUntil (R, Interval.sub2 i Time.(ts' - ts), MNeg (_tp), MAnd (L, MFormula._tp, mf, empty_binop_info), h, v)
            else
              MTT
-        | FUntil (ts, side, i, mf1, mf2, h) ->
+        | FUntil (ts, side, i, mf1, mf2, h, v) ->
            if not (Interval.above Time.(ts' - ts) i) then
              let mf1' = match mf1 with
                | MImp (_, _tp, mf1, _) -> mf1
@@ -1935,28 +1942,28 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
                | _ -> mf2 in
              MEUntil (side, Interval.sub2 i Time.(ts' - ts),
                       (if MFormula.equal mf1' (MNeg _tp) then MNeg _tp else MImp (R, _tp, mf1', empty_binop_info)),
-                      MAnd (L, _tp, mf2', empty_binop_info), h)
+                      MAnd (L, _tp, mf2', empty_binop_info), h, v)
            else
              MFF
-        | FAlways (ts, i, mf, h) ->
+        | FAlways (ts, i, mf, h, v) ->
            if not (Interval.above Time.(ts' - ts) i) then
              let mf' = match mf with
                | MImp (_, _tp, mf, _) -> mf
                | _ -> mf in
-             MEAlways (Interval.sub2 i Time.(ts' - ts), MImp (R, _tp, mf', empty_binop_info), h)
+             MEAlways (Interval.sub2 i Time.(ts' - ts), MImp (R, _tp, mf', empty_binop_info), h, v)
            else
              MTT
-        | FEventually (ts, i, mf, h) ->
+        | FEventually (ts, i, mf, h, v) ->
            if not (Interval.above Time.(ts' - ts) i) then
              let mf' = match mf with
                | MAnd (_, _tp, mf, _) -> mf
                | _ -> mf in
-             MEEventually (Interval.sub2 i Time.(ts' - ts), MAnd (L, _tp, mf', empty_binop_info), h)
+             MEEventually (Interval.sub2 i Time.(ts' - ts), MAnd (L, _tp, mf', empty_binop_info), h, v)
            else
              MFF
 
       let eval ts tp (k, v, pol) =
-        let mf = apply_valuation v (eval_kind ts tp k v) in
+        let mf = apply_valuation v (eval_kind ts tp k) in
         match pol with
         | POS -> mf
         | NEG -> MNeg mf
@@ -1966,16 +1973,24 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
         | NEG -> "-"
 
       let rec kind_to_string = function
-        | FFormula (f, h) -> Printf.sprintf "FFormula(%s, %d)" (to_string f) h
-        | FInterval (ts, i, mf, h) -> Printf.sprintf "FInterval(%s, %s, %s, %d)"
-                                        (Time.to_string ts) (Interval.to_string i) (to_string mf) h
-        | FUntil (ts, s, i, mf, mg, h) -> Printf.sprintf "FUntil(%s, %s, %s, %s, %s, %d)"
-                                            (Time.to_string ts) (Formula.Side.to_string s)
-                                            (Interval.to_string i) (to_string mf) (to_string mg) h
-        | FAlways (ts, i, mf, h) -> Printf.sprintf "FAlways(%s, %s, %s, %d)"
-                                      (Time.to_string ts) (Interval.to_string i) (to_string mf) h
-        | FEventually (ts, i, mf, h) -> Printf.sprintf "FEventually(%s, %s, %s, %d)"
-                                          (Time.to_string ts) (Interval.to_string i) (to_string mf) h
+        | FFormula (f, h, v) ->
+           Printf.sprintf "FFormula(%s, %d, %s)" (to_string f) h (Etc.valuation_to_string v)
+        | FInterval (ts, i, mf, h, v) ->
+           Printf.sprintf "FInterval(%s, %s, %s, %d, %s)"
+             (Time.to_string ts) (Interval.to_string i) (to_string mf)
+             h (Etc.valuation_to_string v)
+        | FUntil (ts, s, i, mf, mg, h, v) ->
+           Printf.sprintf "FUntil(%s, %s, %s, %s, %s, %d, %s)"
+             (Time.to_string ts) (Formula.Side.to_string s)
+             (Interval.to_string i) (to_string mf) (to_string mg) h (Etc.valuation_to_string v)
+        | FAlways (ts, i, mf, h, v) ->
+           Printf.sprintf "FAlways(%s, %s, %s, %d, %s)"
+             (Time.to_string ts) (Interval.to_string i) (to_string mf)
+             h (Etc.valuation_to_string v)
+        | FEventually (ts, i, mf, h, v) ->
+           Printf.sprintf "FEventually(%s, %s, %s, %d, %s)"
+             (Time.to_string ts) (Interval.to_string i) (to_string mf)
+             h (Etc.valuation_to_string v)
 
       let to_string ((kind, valuation, pol) : t) =
         Printf.sprintf "Kind: %s; " (kind_to_string kind) ^
@@ -2101,7 +2116,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
        let find_maps d =
          List.filter_map maps ~f:(fun map -> match Map.find map lbl with
                                              | Some d' when Dom.equal d d' -> Some map
-                                             | None -> None)  in
+                                             | _ -> None)  in
        let part = Part.tabulate_dedup (Pdt.eq Proof.equal) (Set.of_list (module Dom) ds)
                     (fun d -> pdt_of tp r trms lbls (find_maps d))
                     (Leaf (V (Proof.make_vpred tp r trms))) in
@@ -2154,11 +2169,12 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
     | _ -> raise (Invalid_argument ("function is not defined for " ^ MFormula.op_to_string mf))
 
 
-  let approx_next vars (fobligs: FObligations.t) i h mf tp pol =
+  let approx_next vars (fobligs: FObligations.t) i (h, vv) mf tp pol =
     let relevant_fobligs =
       Set.elements (Set.filter fobligs ~f:(fun (k, v, pol') ->
                         match k with
-                        | FInterval (_, _, _, h') -> h = h' && FObligation.polarity_equal pol pol'
+                        | FInterval (_, _, _, h', v') ->
+                           h = h' && Etc.equal_valuation v' vv && FObligation.polarity_equal pol pol'
                         | _ -> false)) in
     let f (k, v, _) =
       let p = FObligation.corresp_proof tp pol None k in
@@ -2185,17 +2201,21 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
     let aexpl_new = aexpl in
     let expls = match h_opt with
       | None -> []
-      | Some h -> begin
+      | Some (h, vv) -> begin
           let relevant_fobligs =
             Set.elements (Set.filter fobligs ~f:(fun (k, v, pol') ->
                               match k with
-                              | FEventually (_, _, _, h') -> h = h' && FObligation.polarity_equal pol pol'
+                              | FEventually (_, _, _, h', v') ->
+                                 h = h' && Etc.equal_valuation vv v'
+                                 && FObligation.polarity_equal pol pol'
                               | _ -> false)) in
-          let f (k, v, _) =
+          let f (k, v, pol) =
             let p = FObligation.corresp_proof tp pol None k in
             let p' = proof_false tp pol in
-            Pdt.from_valuation  vars v p p' in
-          List.map relevant_fobligs ~f
+            try
+              Some (Pdt.from_valuation vars v p p')
+            with Invalid_argument _ -> None in
+          List.filter_map relevant_fobligs ~f
         end in
     let aexpl_next = do_ors vars tp expls in
     Pdt.apply2_reduce Proof.equal vars
@@ -2206,12 +2226,13 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
     let aexpl_new = aexpl in
     let expls = match h_opt with
       | None -> []
-      | Some h -> begin
+      | Some (h, vv) -> begin
           let relevant_fobligs =
             Set.elements (Set.filter fobligs ~f:(fun (k, v, pol') ->
                               match k with
-                              | FAlways (_, _, _, h') ->
-                                 h = h' && FObligation.polarity_equal pol pol'
+                              | FAlways (_, _, _, h', v') ->
+                                 h = h' && Etc.equal_valuation vv v'
+                                 && FObligation.polarity_equal pol pol'
                               | _ -> false)) in
           let f (k, v, _) =
             let p = FObligation.corresp_proof tp pol None k in
@@ -2235,11 +2256,13 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
     let aexpl_new2 = aexpl2 in
     let expls = match h_opt with
       | None -> []
-      | Some h -> begin
+      | Some (h, vv) -> begin
           let relevant_fobligs =
             Set.elements (Set.filter fobligs ~f:(fun (k, v, pol') ->
                               match k with
-                              | FUntil (_, s, _, _, _, h') -> h = h' && FObligation.polarity_equal pol pol'
+                              | FUntil (_, s, _, _, _, h', v') ->
+                                 h = h' && Etc.equal_valuation vv v'
+                                 && FObligation.polarity_equal pol pol'
                               | _ -> false)) in
           let f (k, v, _) =
             let p = FObligation.corresp_proof tp pol None k in
@@ -2258,13 +2281,9 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
 
   let meval (fvs: string list) (lbls: Lbl.tt list) ts tp (db: Db.t) ~pol (fobligs: FObligations.t) mformula mode =
     let rec meval_rec fvs lbls ts tp (db: Db.t) ~pol (fobligs: FObligations.t) mformula =
-      (* fun f -> *)
-      (*print_endline (MFormula.to_string mformula (*^ " pol=" ^ FObligation.polarity_to_string pol *)
-                     ^ " vars=[" ^ (String.concat ~sep:", " (List.map vars ~f:Term.to_string))
-                     ^ "] db=[" ^ (Db.to_string db)
-                     ^ "] fobligs=["
-                     ^ Etc.string_list_to_string (List.map (Set.elements fobligs) ~f:FObligation.to_string)
-        ^ "]\n\n");*)
+      (*print_endline "meval_rec";
+      print_endline (String.concat ~sep:", " (List.map lbls ~f:Lbl.TLbl.to_string));
+      print_endline (MFormula.to_string mformula);*)
       match mformula with
       | MTT -> let expl = Pdt.Leaf (Proof.S (Proof.make_stt tp)) in
                ([expl], expl, MTT)
@@ -2381,10 +2400,10 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
                                    (fun p -> Prev_Next.update_eval Next i p ts ts') expl)
              (expls', tss @ [Time.of_timestamp ts]) in
          (f_expls, else_any approx_false tp pol, MNext (i, mf', first, tss'))
-      | MENext (i, mf, h) ->
+      | MENext (i, mf, h, v) ->
          let (_, _, mf') = meval_rec fvs lbls ts tp db ~pol fobligs mf in
-         let aexpl = else_any (approx_next lbls fobligs i h mformula) tp pol in
-         ([aexpl], aexpl, MENext (i, mf', h))
+         let aexpl = else_any (approx_next lbls fobligs i (h, v) mformula) tp pol in
+         ([aexpl], aexpl, MENext (i, mf', h, v))
       | MOnce (i, mf, tstps, moaux_pdt) ->
          let (expls, aexpl, mf') = meval_rec fvs lbls ts tp db ~pol fobligs mf in
          let ((moaux_pdt', expls'), buf', tstps') =
@@ -2413,10 +2432,10 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
          let expls'' = List.map expls' ~f:(Pdt.reduce Proof.equal) in
          let aexpl = else_any (approx_eventually lbls aexpl fobligs i None) tp pol in
          (expls'', aexpl, MEventually (i, mf', (buf', ntstps'), meaux_pdt'))
-      | MEEventually (i, mf, h) ->
+      | MEEventually (i, mf, h, v) ->
          let (expls, aexpl, mf') = meval_rec fvs lbls ts tp db ~pol fobligs mf in
-         let aexpl = else_any (approx_eventually lbls aexpl fobligs i (Some h)) tp pol in
-         ([aexpl], aexpl, MEEventually (i, mf', h))
+         let aexpl = else_any (approx_eventually lbls aexpl fobligs i (Some (h, v))) tp pol in
+         ([aexpl], aexpl, MEEventually (i, mf', h, v))
       | MHistorically (i, mf, tstps, mhaux_pdt) ->
          let (expls, aexpl, mf') = meval_rec fvs lbls ts tp db ~pol fobligs mf in
          let ((mhaux_pdt', expls'), buf', tstps') =
@@ -2445,10 +2464,10 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
          let expls'' = List.map expls' ~f:(Pdt.reduce Proof.equal) in
          let aexpl = else_any (approx_always lbls aexpl fobligs i None) tp pol in
          (expls'', aexpl, MAlways (i, mf', (buf', ntstps'), maaux_pdt'))
-      | MEAlways (i, mf, h) ->
+      | MEAlways (i, mf, h, v) ->
          let (expls, aexpl, mf') = meval_rec fvs lbls ts tp db ~pol fobligs mf in
-         let aexpl = else_any (approx_always lbls aexpl fobligs i (Some h)) tp pol in
-         ([aexpl], aexpl, MEAlways (i, mf', h))
+         let aexpl = else_any (approx_always lbls aexpl fobligs i (Some (h, v))) tp pol in
+         ([aexpl], aexpl, MEAlways (i, mf', h, v))
       | MSince (s, i, mf1, mf2, (buf2, tstps), msaux_pdt) ->
          let (expls1, aexpl1, mf1') = meval_rec fvs lbls ts tp db ~pol fobligs mf1 in
          let (expls2, aexpl2, mf2') = meval_rec fvs lbls ts tp db ~pol fobligs mf2 in
@@ -2481,11 +2500,11 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
          let expls'' = List.map expls' ~f:(Pdt.reduce Proof.equal) in
          let aexpl = else_any (approx_until lbls aexpl1 aexpl2 fobligs i None) tp pol in
          (expls'', aexpl, MUntil (i, mf1', mf2', (buf2', ntstps'), muaux_pdt'))
-      | MEUntil (s, i, mf1, mf2, h) ->
+      | MEUntil (s, i, mf1, mf2, h, v) ->
          let (expls1, aexpl1, mf1') = meval_rec fvs lbls ts tp db ~pol fobligs mf1 in
          let (expls2, aexpl2, mf2') = meval_rec fvs lbls ts tp db ~pol fobligs mf2 in
-         let aexpl = else_any (approx_until lbls aexpl1 aexpl2 fobligs i (Some h)) tp pol in
-         ([aexpl], aexpl, MEUntil (s, i, mf1', mf2', h)) in
+         let aexpl = else_any (approx_until lbls aexpl1 aexpl2 fobligs i (Some (h, v))) tp pol in
+         ([aexpl], aexpl, MEUntil (s, i, mf1', mf2', h, v)) in
     meval_rec fvs lbls ts tp db ~pol fobligs mformula
 
   module MState = struct
