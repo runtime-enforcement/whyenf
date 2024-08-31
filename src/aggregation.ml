@@ -22,9 +22,9 @@ let op_to_string = function
     * any term using a variable z comes after z
  *)
 let order_lbls lbls lbls' x y =
-  let vars  = List.filter lbls ~f:Lbl.TLbl.is_var in
-  let lbls1 = (Etc.reorder Lbl.TLbl.equal (List.map y ~f:Lbl.TLbl.var) vars) @ [x] in
-  let lbls2 = List.filter lbls' ~f:(fun lbl -> not (List.mem lbls1 lbl ~equal:Lbl.TLbl.equal)) in
+  let vars  = List.filter lbls ~f:Lbl.is_var in
+  let lbls1 = (Etc.reorder Lbl.equal (List.map y ~f:Lbl.var) vars) @ [x] in
+  let lbls2 = List.filter lbls' ~f:(fun lbl -> not (List.mem lbls1 lbl ~equal:Lbl.equal)) in
   lbls1 @ lbls2
 
 
