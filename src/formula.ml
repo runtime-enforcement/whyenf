@@ -356,16 +356,16 @@ let equal x y = match x, y with
 let lbls fvs f =
   let nodup l =
     List.remove_consecutive_duplicates
-      (List.sort l ~compare:Lbl.TLbl.compare) ~equal:Lbl.TLbl.equal in
+      (List.sort l ~compare:Lbl.compare) ~equal:Lbl.equal in
   let rec nonvars = function
   | TT | FF | EqConst (Const _, _) | EqConst (Var _, _) | Agg _ -> [] 
-  | EqConst (t, _) -> [Lbl.TLbl.of_term t]
+  | EqConst (t, _) -> [Lbl.of_term t]
   | Predicate (x, ts) ->
      nodup (List.filter_map ts (function | Const _ | Var _ -> None
-                                         | t -> Some (Lbl.TLbl.of_term t)))
+                                         | t -> Some (Lbl.of_term t)))
   | Let (_, _, _, g) -> nonvars g
-  | Exists (x, f)
-    | Forall (x, f) -> List.filter_map (nonvars f) (Lbl.TLbl.quantify x)
+  | Exists (x, f) -> (LEx x) :: List.map (nonvars f) (Lbl.quantify ~forall:false x)
+  | Forall (x, f) -> (LAll x) :: List.map (nonvars f) (Lbl.quantify ~forall:true x)
   | Neg f
     | Prev (_, f)
     | Once (_, f)
@@ -379,7 +379,7 @@ let lbls fvs f =
     | Iff (_, _, f1, f2)
     | Since (_, _, f1, f2)
     | Until (_, _, f1, f2) -> nodup (nonvars f1 @ nonvars f2)
-  in (List.map fvs ~f:Lbl.TLbl.var) @ (nonvars f)
+  in (List.map fvs ~f:Lbl.var) @ (nonvars f)
 
 let check_bindings f =
   let fv_f = fv f in

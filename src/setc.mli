@@ -25,6 +25,7 @@ val mem: ('a, 'b) t -> 'a -> bool
 val comp: ('a, 'b) t -> ('a, 'b) t
 val inter: ('a, 'b) t -> ('a, 'b) t -> ('a, 'b) t
 val union: ('a, 'b) t -> ('a, 'b) t -> ('a, 'b) t
+val inter_list: ('a, 'b) Comparator.Module.t -> ('a, 'b) t list -> ('a, 'b) t
 val union_list: ('a, 'b) Comparator.Module.t -> ('a, 'b) t list -> ('a, 'b) t
 val diff: ('a, 'b) t -> ('a, 'b) t -> ('a, 'b) t
 val some_elt: Dom.tt -> (Dom.t, 'a) t -> Dom.t

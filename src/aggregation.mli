@@ -5,7 +5,7 @@ type op = ASum | AAvg | AMed | ACnt | AMin | AMax | AAssign [@@deriving compare,
 
 type op_fun = (Dom.t, int, Dom.comparator_witness) Map.t -> Dom.t
 
-val order_lbls : Lbl.TLbl.t list -> Lbl.TLbl.t list -> Lbl.TLbl.t -> string list -> Lbl.TLbl.t list
+val order_lbls : Lbl.t list -> Lbl.t list -> Lbl.t -> string list -> Lbl.t list
 
 val op_to_string : op -> string
 

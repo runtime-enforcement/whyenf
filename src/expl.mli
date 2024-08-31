@@ -41,22 +41,23 @@ module Pdt : sig
 
   type 'a t = Leaf of 'a | Node of Lbl.t * ('a t) Part.t
 
-  val apply1: Lbl.tt list -> ('a -> 'b) -> 'a t -> 'b t
-  val apply2: Lbl.tt list -> ('a -> 'b -> 'c) -> 'a t -> 'b t -> 'c t
-  val apply3: Lbl.tt list -> ('a -> 'b -> 'c -> 'd) -> 'a t -> 'b t -> 'c t -> 'd t
+  val apply1: Lbl.t list -> ('a -> 'b) -> 'a t -> 'b t
+  val apply2: Lbl.t list -> ('a -> 'b -> 'c) -> 'a t -> 'b t -> 'c t
+  val apply3: Lbl.t list -> ('a -> 'b -> 'c -> 'd) -> 'a t -> 'b t -> 'c t -> 'd t
   val split_prod: ('a * 'b) t -> 'a t * 'b t
   val split_list: 'a list t -> 'a t list
-  val hide: Lbl.tt list -> ('a -> 'b) -> ('a Part.t -> 'b) -> 'a t -> 'b t
+  val hide: Lbl.t list -> ('a -> 'b) -> ('a Part.t -> 'b) -> 'a t -> 'b t
   val to_string: ('a -> string) -> string -> 'a t -> string
 
   val eq: ('a -> 'a -> bool) -> 'a t -> 'a t -> bool
   val reduce: ('a -> 'a -> bool) -> 'a t -> 'a t
-  val apply1_reduce: ('a -> 'a -> bool) -> Lbl.tt list -> ('b -> 'a) -> 'b t -> 'a t
-  val apply2_reduce: ('a -> 'a -> bool) -> Lbl.tt list -> ('b -> 'c -> 'a) -> 'b t -> 'c t -> 'a t
-  val apply3_reduce: ('a -> 'a -> bool) -> Lbl.tt list -> ('b -> 'c -> 'd -> 'a) -> 'b t -> 'c t -> 'd t -> 'a t
+  val apply1_reduce: ('a -> 'a -> bool) -> Lbl.t list -> ('b -> 'a) -> 'b t -> 'a t
+  val apply2_reduce: ('a -> 'a -> bool) -> Lbl.t list -> ('b -> 'c -> 'a) -> 'b t -> 'c t -> 'a t
+  val apply3_reduce: ('a -> 'a -> bool) -> Lbl.t list -> ('b -> 'c -> 'd -> 'a) -> 'b t -> 'c t -> 'd t -> 'a t
   val split_prod_reduce: ('a -> 'a -> bool) -> ('a * 'a) t -> 'a t * 'a t
   val split_list_reduce: ('a -> 'a -> bool) -> 'a list t -> 'a t list
-  val hide_reduce: string -> ('a -> 'a -> bool) -> Lbl.tt list -> ('b -> 'a) -> ('b t list -> 'a t) -> 'b t -> 'a t
+  (*val hide_reduce: string -> ('a -> 'a -> bool) -> Lbl.t list -> ('b -> 'a) -> ('b t list -> 'a t) -> 'b t -> 'a t*)
+  val quantify: forall:bool -> string -> 'a t -> 'a t
 
   (*val replace_leaf: Etc.valuation -> 'a -> 'a t -> 'a t*)
   val specialize: Etc.valuation -> 'a t -> 'a
@@ -66,9 +67,9 @@ module Pdt : sig
   (*val simplify_vars: string -> Term.t list -> Term.t list*)
   
   val collect: ('a -> bool) -> Etc.valuation -> string -> 'a t -> (Dom.t, Dom.comparator_witness) Setc.t
-  val from_valuation: Lbl.tt list -> Etc.valuation -> 'b -> 'b -> 'b t
+  val from_valuation: Lbl.t list -> Etc.valuation -> 'b -> 'b -> 'b t
 
-  val aggregate: ('a -> bool) -> ((Dom.t, Dom.comparator_witness) Setc.t -> Dom.t option -> 'b) -> ((Dom.t, int, Dom.comparator_witness) Map.t -> Dom.t) -> string -> Pred.Term.t -> string list -> Lbl.tt list -> Lbl.tt list -> 'a t -> 'b t
+  val aggregate: ('a -> bool) -> ((Dom.t, Dom.comparator_witness) Setc.t -> Dom.t option -> 'b) -> ((Dom.t, int, Dom.comparator_witness) Map.t -> Dom.t) -> string -> Pred.Term.t -> string list -> Lbl.t list -> Lbl.t list -> 'a t -> 'b t
 
 end
 

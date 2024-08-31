@@ -72,7 +72,7 @@ val release: Side.t -> Interval.t -> t -> t -> t
 
 val fv: t -> (String.t, Base.String.comparator_witness) Base.Set.t
 val list_fv: t -> String.t list
-val lbls: string list -> t -> Pred.Lbl.tt list
+val lbls: string list -> t -> Pred.Lbl.t list
 val check_bindings: t -> bool
 
 val equal: t -> t -> bool

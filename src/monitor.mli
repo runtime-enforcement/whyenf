@@ -38,7 +38,7 @@ module type MonitorT = sig
       | MEqConst      of Pred.Term.t * Dom.t
       | MPredicate    of string * Pred.Term.t list
       | MLet          of string * string list * t * t
-      | MAgg          of string * Aggregation.op * Aggregation.op_fun * string list * Pred.Lbl.tt list * Pred.Term.t * string list * t
+      | MAgg          of string * Aggregation.op * Aggregation.op_fun * string list * Pred.Lbl.t list * Pred.Term.t * string list * t
       | MNeg          of t
       | MAnd          of Formula.Side.t * t * t * binop_info
       | MOr           of Formula.Side.t * t * t * binop_info
@@ -59,13 +59,13 @@ module type MonitorT = sig
       | MUntil        of Interval.t * t * t * buf2t_info * until_info
       | MEUntil       of Formula.Side.t * Interval.t * t * t * int * Etc.valuation
 
-    val init: Pred.Lbl.tt list -> Tformula.t -> t
+    val init: Pred.Lbl.t list -> Tformula.t -> t
     val rank: t -> int
 
     val apply_valuation : Etc.valuation -> t -> t
 
     val fv: t -> (String.t, Base.String.comparator_witness) Base.Set.t
-    val lbls: string list -> t -> Pred.Lbl.tt list
+    val lbls: string list -> t -> Pred.Lbl.t list
 
     val to_string: t -> string
     val op_to_string: t -> string
@@ -126,7 +126,7 @@ module type MonitorT = sig
 
   end
 
-  val mstep: Out.mode -> string list -> Pred.Lbl.tt list -> timepoint -> timestamp -> Db.t -> bool -> MState.t -> FObligations.t ->
+  val mstep: Out.mode -> string list -> Pred.Lbl.t list -> timepoint -> timestamp -> Db.t -> bool -> MState.t -> FObligations.t ->
              ((timestamp * timepoint) * CI.Expl.t) list * CI.Expl.t * MState.t
 
   val exec: Out.mode -> string -> Formula.t -> in_channel -> unit
@@ -136,3 +136,4 @@ module type MonitorT = sig
 end
 
 module Make (CI : Checker_interface.Checker_interfaceT) : MonitorT
+
