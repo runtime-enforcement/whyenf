@@ -38,7 +38,7 @@ module Event = struct
   include T
   include Comparable.Make(T)
 
-  let _tp = (Pred.tp_event_name, [])
+  let _tp = (Pred.tilde_tp_event_name, [])
   let _tick = (Pred.tick_event_name, [])
 
 end
@@ -83,6 +83,6 @@ let retrieve_external name =
   create events
 
 let retrieve_builtin ts tp = function
-  | "tp" -> create [("tp", [Int tp])]
-  | "ts" -> create [("ts", [Int ts])]
+  | name when String.equal name Pred.tp_event_name -> create [("TP", [Int tp])]
+  | name when String.equal name Pred.ts_event_name -> create [("TS", [Int ts])]
 

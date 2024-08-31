@@ -48,16 +48,16 @@ module type MonitorT = sig
       | MForall       of string * Dom.tt * bool * t
       | MPrev         of Interval.t * t * bool * prev_info
       | MNext         of Interval.t * t * bool * next_info
-      | MENext        of Interval.t * t * int
+      | MENext        of Interval.t * t * int * Etc.valuation
       | MOnce         of Interval.t * t * tp_info * once_info
       | MEventually   of Interval.t * t * buft_info * eventually_info
-      | MEEventually  of Interval.t * t * int
+      | MEEventually  of Interval.t * t * int * Etc.valuation
       | MHistorically of Interval.t * t * tp_info * historically_info
       | MAlways       of Interval.t * t * buft_info * always_info
-      | MEAlways      of Interval.t * t * int
+      | MEAlways      of Interval.t * t * int * Etc.valuation
       | MSince        of Formula.Side.t * Interval.t * t * t * buf2t_info * since_info
       | MUntil        of Interval.t * t * t * buf2t_info * until_info
-      | MEUntil       of Formula.Side.t * Interval.t * t * t * int
+      | MEUntil       of Formula.Side.t * Interval.t * t * t * int * Etc.valuation
 
     val init: Pred.Lbl.tt list -> Tformula.t -> t
     val rank: t -> int
@@ -80,11 +80,11 @@ module type MonitorT = sig
     type polarity = POS | NEG
 
     type kind =
-      | FFormula of MFormula.t * int                       (* fun _ -> f *)
-      | FInterval of Time.t * Interval.t * MFormula.t * int   (* fun t -> if mem t i then f else Formula.TT *)
-      | FUntil of Time.t * Formula.Side.t * Interval.t * MFormula.t * MFormula.t * int (* fun t -> Until (s, sub2 i (t-t0), f1, f2) *)
-      | FAlways of Time.t * Interval.t * MFormula.t * int     (* fun t -> Always (sub2 i (t-t0), f1) *)
-      | FEventually of Time.t * Interval.t * MFormula.t * int (* fun t -> Eventually (sub2 i (t-t0), f1) *)
+      | FFormula of MFormula.t * int * Etc.valuation                       (* fun _ -> f *)
+      | FInterval of Time.t * Interval.t * MFormula.t * int * Etc.valuation   (* fun t -> if mem t i then f else Formula.TT *)
+      | FUntil of Time.t * Formula.Side.t * Interval.t * MFormula.t * MFormula.t * int * Etc.valuation (* fun t -> Until (s, sub2 i (t-t0), f1, f2) *)
+      | FAlways of Time.t * Interval.t * MFormula.t * int * Etc.valuation     (* fun t -> Always (sub2 i (t-t0), f1) *)
+      | FEventually of Time.t * Interval.t * MFormula.t * int * Etc.valuation (* fun t -> Eventually (sub2 i (t-t0), f1) *)
 
     type t = kind * Etc.valuation * polarity
 

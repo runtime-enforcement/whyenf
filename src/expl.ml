@@ -309,7 +309,7 @@ module Pdt = struct
   let rec hide_reduce x' p_eq lbls f_leaf f_node pdt = match lbls, pdt with
     |  _ , Leaf l -> Leaf (f_leaf l)
     (*| [x], Node (y, part) -> Leaf (f_node (Part.map part unleaf))*)
-    | x :: _, Node (y, part) ->
+    | x :: lbls, Node (y, part) ->
        if Lbl.matches x y then
          (if Lbl.TLbl.equal x (TLVar x') then
             let v d = Map.singleton (module String) x' d in
@@ -410,6 +410,9 @@ module Pdt = struct
          let s = Setc.union_list (module Dom)
                    (Part.map2 part (fun (s', p) -> aux v x (Setc.inter s s') p)) in
          s
+      | Node (LVar x', part) ->
+         let d = Map.find_exn v x' in
+         aux v x s (Part.find part d)
       (*| Node (App (g, [Var x'; y]), q, part) when Funcs.is_eq g && String.equal x x' ->
          (match Sig.eval v y with
           | Const d -> Setc.singleton (module Dom) d

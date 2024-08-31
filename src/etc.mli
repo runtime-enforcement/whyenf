@@ -44,6 +44,7 @@ val compare_valuation: valuation -> valuation -> int
 val equal_valuation: valuation -> valuation -> bool
 val empty_valuation: valuation
 val sexp_of_valuation: valuation -> Sexp.t
+val extend_valuation: valuation -> valuation -> valuation
 
 val dom_map_to_string: (string, Dom.t, String.comparator_witness) Map.t -> string
 val valuation_to_string: (string, Dom.t, String.comparator_witness) Map.t -> string
