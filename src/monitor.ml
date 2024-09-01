@@ -2361,7 +2361,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
          (f_expls, aexpl, MIff (s, t, mf1', mf2', buf2'))
       | MExists (x, tc, b, mf) ->
          let fvs' = fvs @ [x] in
-         let lbls' = Lbl.quantify_list ~forall:false x lbls in
+         let lbls' = Lbl.unquantify_list x lbls in
          let (expls, aexpl, mf') = meval_rec fvs' lbls' ts tp db ~pol fobligs mf in
          let quant expl = approx_quant expl pol lbls lbls' tp x tc mformula in
          let expls = List.map expls ~f:quant in
@@ -2370,9 +2370,9 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       | MForall (x, tc, b, mf) ->
          let fvs' = fvs @ [x] in
          print_endline "--MForall";
-         print_endline ("x    =" ^x);
+         print_endline ("x    =" ^ x);
          print_endline ("lbls =" ^ (Lbl.to_string_list lbls));
-         let lbls' = Lbl.quantify_list ~forall:true x lbls in
+         let lbls' = Lbl.unquantify_list x lbls in
          print_endline ("lbls'=" ^ (Lbl.to_string_list lbls'));
          let (expls, aexpl, mf') = meval_rec fvs' lbls' ts tp db ~pol fobligs mf in
          let quant expl = approx_quant expl pol lbls lbls' tp x tc mformula in

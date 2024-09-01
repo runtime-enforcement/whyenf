@@ -156,6 +156,7 @@ module Lbl : sig
   val fv: t -> (string, String.comparator_witness) Set.t
   val quantify: forall:bool -> string -> t -> t
   val quantify_list: forall:bool -> string -> t list -> t list
+  val unquantify_list: string -> t list -> t list
 
   val eval: Etc.valuation -> t -> Term.t
   (*val matches: tt -> t -> bool*)

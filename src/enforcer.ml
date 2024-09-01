@@ -135,10 +135,13 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       aexpl
 
     let sat v mf es =
+      print_endline "sat";
+      print_endline ("expl=" ^ CI.Expl.to_string (exec_monitor mf es));
+      print_endline ("v=" ^ Etc.valuation_to_string v);
       CI.Expl.Proof.isS (Expl.Pdt.specialize v (exec_monitor mf es))
 
-    let vio v mf es =
-      sat v (MNeg mf) es
+    let vio x mf es =
+      sat x (MNeg mf) es
     
     let all_not_sat v x mf es =
       match Expl.Pdt.collect CI.Expl.Proof.isV v x (exec_monitor mf es) with

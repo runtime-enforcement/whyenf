@@ -291,11 +291,6 @@ module Pdt = struct
     | Leaf l -> List.map l ~f:(fun el -> Leaf el)
     | Node (x, part) -> List.map (Part.split_list_dedup (eq p_eq) (Part.map part (split_list_reduce p_eq))) ~f:(fun el -> Node (x, el))
 
-
-  let rec specialize (v: Etc.valuation) = function
-    | Leaf l -> l
-    | Node (x, part) -> specialize v (Part.find part (Term.unconst (Lbl.eval v x)))
-
   let rec specialize_partial (v: Etc.valuation) = function
     | Leaf l -> Leaf l
     | Node (x, part) ->
@@ -415,6 +410,25 @@ module Pdt = struct
 
    *)
 
+  let rec specialize f_ex f_all (v: Etc.valuation) =
+    let update v x' d = Map.update v x' (fun _ -> d) in
+    let distribute x callback (s, p) = match s with
+      | Setc.Finite s' ->
+         List.map (Set.elements s') ~f:(fun d -> callback (update v x d))
+      | Complement s' -> [callback v] in
+    function
+    | Leaf l -> l
+    | Node (LVar x, part) when Map.mem v x ->
+       specialize f_ex f_all v (Part.find part (Map.find_exn v x))
+    | Node (LEx x, part) ->
+       let all_p = List.concat (Part.map2 part (distribute x (specialize f_ex f_all))) in
+       f_ex all_p
+    | Node (LAll x, part) ->
+       let all_p = List.concat (Part.map2 part (distribute x (specialize f_ex f_all))) in
+       f_all all_p
+    | Node (x, part) -> specialize (Part.find part (Term.unconst (Lbl.eval v x))) v
+
+
   let rec collect f_leaf (v: Etc.valuation) (x: string) p =
     let update v x' d = Map.update v x' (fun _ -> d) in
     let distribute x' callback (s, p) = match s with
@@ -474,10 +488,12 @@ module Pdt = struct
   let rec from_valuation (lbls: Lbl.t list) (v: Etc.valuation) p p' =
     match lbls with
     | [] -> Leaf p
-    | lbl::lbls -> let d = Term.unconst (Lbl.eval v lbl) in
-                   let rest = from_valuation lbls v p p' in
-                   let part = Part.tabulate (Set.singleton (module Dom) d) (fun _ -> rest) (Leaf p') in
-                   Node (lbl, part)
+    | (LVar x)::lbls ->
+       let d = Map.find_exn v x in
+       let rest = from_valuation lbls v p p' in
+       let part = Part.tabulate (Set.singleton (module Dom) d) (fun _ -> rest) (Leaf p') in
+       Node (LVar x, part)
+    | _::lbls -> from_valuation lbls v p p'
 
   (*
   let simplify p =
