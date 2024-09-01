@@ -394,7 +394,7 @@ module Lbl = struct
       | LClos (f, ts, vars) ->
          S.filter (S.of_list (Term.fv_list ts)) ~f:(fun x -> not (S.mem vars x))
 
-    let rec quantify ~forall x = function
+    let quantify ~forall x = function
       | LVar x' when String.equal x x' ->
          if forall then LAll x' else LEx x'
       | LClos (f, ts, vars) as lbl ->
@@ -407,6 +407,22 @@ module Lbl = struct
 
     let quantify_list ~forall x lbls =
       List.map lbls ~f:(quantify ~forall x)
+
+    let rec unquantify_list x =
+      let rec unquantify_list2 = function
+        | [] -> []
+        | (LAll x' as lbl) :: terms | (LEx x' as lbl) :: terms when String.equal x x'
+          -> lbl :: terms
+        | LClos (f, ts, vars) :: terms
+          -> LClos (f, ts, Set.remove vars x) :: unquantify_list2 terms
+        | lbl :: terms
+          -> lbl :: unquantify_list2 terms in
+      function
+      | [] -> []
+      | LAll x' :: terms | LEx x' :: terms when String.equal x x' ->
+         LVar x' :: (unquantify_list2 terms)
+      | lbl :: terms -> lbl :: (unquantify_list x terms)
+
 
     let rec eval (v: Etc.valuation) = function
       | LVar s when Map.mem v s -> Term.Const (Map.find_exn v s)
