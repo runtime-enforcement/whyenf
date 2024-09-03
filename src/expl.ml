@@ -414,8 +414,8 @@ module Pdt = struct
     let update v x' d = Map.update v x' (fun _ -> d) in
     let distribute x callback (s, p) = match s with
       | Setc.Finite s' ->
-         List.map (Set.elements s') ~f:(fun d -> callback (update v x d))
-      | Complement s' -> [callback v] in
+         List.map (Set.elements s') ~f:(fun d -> callback (update v x d) p)
+      | Complement s' -> [callback v p] in
     function
     | Leaf l -> l
     | Node (LVar x, part) when Map.mem v x ->
@@ -426,12 +426,12 @@ module Pdt = struct
     | Node (LAll x, part) ->
        let all_p = List.concat (Part.map2 part (distribute x (specialize f_ex f_all))) in
        f_all all_p
-    | Node (x, part) -> specialize (Part.find part (Term.unconst (Lbl.eval v x))) v
+    | Node (x, part) -> specialize f_ex f_all v (Part.find part (Term.unconst (Lbl.eval v x)))
 
 
-  let rec collect f_leaf (v: Etc.valuation) (x: string) p =
+  let rec collect f_leaf f_ex f_all (v: Etc.valuation) (x: string) p =
     let update v x' d = Map.update v x' (fun _ -> d) in
-    let distribute x' callback (s, p) = match s with
+    let distribute x' s callback (s', p) = match s' with
       | Setc.Finite s' ->
          List.map (Set.elements s') ~f:(fun d -> callback (update v x' d) x s p)
       | Complement s' -> [callback v x s p] in
@@ -447,11 +447,13 @@ module Pdt = struct
          let d = Map.find_exn v x' in
          aux v x s (Part.find part d)
       | Node (LEx x', part) ->
-         let all_s = List.concat (Part.map2 part (distribute x' aux)) in
-         Setc.union_list (module Dom) all_s
+         let all_s = List.concat (Part.map2 part (distribute x' s aux)) in
+         f_ex all_s
       | Node (LAll x', part) ->
-         let all_s = List.concat (Part.map2 part (distribute x' aux)) in
-         Setc.inter_list (module Dom) all_s
+         let all_s = List.concat (Part.map2 part (distribute x' s aux)) in
+         (*print_endline "--collect.LAll";
+         print_endline (String.concat ~sep:"," (List.map ~f:Setc.to_string all_s));*)
+         f_all all_s
       (*| Node (App (g, [Var x'; y]), q, part) when Funcs.is_eq g && String.equal x x' ->
          (match Sig.eval v y with
           | Const d -> Setc.singleton (module Dom) d

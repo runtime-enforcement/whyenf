@@ -6,7 +6,7 @@ ds_repeal(data:string, dataid:string, dsid:string)
 ds_object(dsid:string, data:string)
 legal_grounds(dsid:string, data:string)
 ds_revoke(dsid:string, data:string)
-delete(data:string, dataid:string, dsid:string)+
+delete(data:string, dataid:string, dsid:string)
 grant_access(dsid:string)+
 share_with(processorid:string, dataid:string)
 inform(dsid:string)+
