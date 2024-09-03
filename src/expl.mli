@@ -60,13 +60,13 @@ module Pdt : sig
   val quantify: forall:bool -> string -> 'a t -> 'a t
 
   (*val replace_leaf: Etc.valuation -> 'a -> 'a t -> 'a t*)
-  val specialize: Etc.valuation -> 'a t -> 'a
+  val specialize: ('a list -> 'a) -> ('a list -> 'a) -> Etc.valuation -> 'a t -> 'a
   val specialize_partial: Etc.valuation -> 'a t -> 'a t
   
   (*val simplify: string -> ('a -> 'a -> bool) -> 'a t -> 'a t*)
   (*val simplify_vars: string -> Term.t list -> Term.t list*)
   
-  val collect: ('a -> bool) -> Etc.valuation -> string -> 'a t -> (Dom.t, Dom.comparator_witness) Setc.t
+  val collect: ('a -> bool) -> ((Dom.t, Dom.comparator_witness) Setc.t list -> (Dom.t, Dom.comparator_witness) Setc.t) -> ((Dom.t, Dom.comparator_witness) Setc.t list -> (Dom.t, Dom.comparator_witness) Setc.t) -> Etc.valuation -> string -> 'a t -> (Dom.t, Dom.comparator_witness) Setc.t
   val from_valuation: Lbl.t list -> Etc.valuation -> 'b -> 'b -> 'b t
 
   val aggregate: ('a -> bool) -> ((Dom.t, Dom.comparator_witness) Setc.t -> Dom.t option -> 'b) -> ((Dom.t, int, Dom.comparator_witness) Map.t -> Dom.t) -> string -> Pred.Term.t -> string list -> Lbl.t list -> Lbl.t list -> 'a t -> 'b t

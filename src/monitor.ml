@@ -2276,8 +2276,8 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
 
   let meval (fvs: string list) (lbls: Lbl.t list) ts tp (db: Db.t) ~pol (fobligs: FObligations.t) mformula mode =
     let rec meval_rec fvs lbls ts tp (db: Db.t) ~pol (fobligs: FObligations.t) mformula =
-      (*print_endline "meval_rec";
-      print_endline (String.concat ~sep:", " (List.map lbls ~f:Lbl.TLbl.to_string));
+      (*print_endline "--meval_rec";
+      print_endline (String.concat ~sep:", " (List.map lbls ~f:Lbl.to_string));
       print_endline (MFormula.to_string mformula);*)
       match mformula with
       | MTT -> let expl = Pdt.Leaf (Proof.S (Proof.make_stt tp)) in
@@ -2306,7 +2306,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
                             ~f:(fun acc evt -> match_terms trms (snd evt)
                                                  (Map.empty (module Lbl)) :: acc)) in
            let fvs  = List.filter fvs ~f:(fun x -> List.mem (Term.fv_list trms) x ~equal:String.equal) in
-           let lbls = Formula.lbls fvs (Predicate (r, trms)) in
+           (*let lbls = Formula.lbls fvs (Predicate (r, trms)) in*)
            let expl = if List.is_empty maps
                       then Pdt.Leaf (Proof.V (Proof.make_vpred tp r trms))
                       else pdt_of tp r trms lbls maps in
@@ -2349,6 +2349,9 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
          let (expls1, aexpl1, mf1') = meval_rec fvs lbls ts tp db ~pol:(pol >>| FObligation.neg) fobligs mf1 in
          let (expls2, aexpl2, mf2') = meval_rec fvs lbls ts tp db ~pol fobligs mf2 in
          let f = Pdt.apply2_reduce Proof.equal lbls (fun p1 p2 -> minp_list (do_imp p1 p2)) in
+         (*print_endline "--MImp";
+         print_endline ("aexpl1=" ^ Expl.to_string aexpl1);
+         print_endline ("aexpl2=" ^ Expl.to_string aexpl2);*)
          let (f_expls, buf2') = Buf2.take f (Buf2.add expls1 expls2 buf2) in
          let aexpl = approx_expl2 aexpl1 aexpl2 lbls tp mformula in
          (f_expls, aexpl, MImp (s, mf1', mf2', buf2'))
@@ -2369,15 +2372,17 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
          (expls, aexpl, MExists(x, tc, b, mf'))
       | MForall (x, tc, b, mf) ->
          let fvs' = fvs @ [x] in
-         print_endline "--MForall";
-         print_endline ("x    =" ^ x);
-         print_endline ("lbls =" ^ (Lbl.to_string_list lbls));
+         (*print_endline "--MForall";
+         print_endline ("x =" ^ x);*)
+         (*print_endline ("lbls =" ^ (Lbl.to_string_list lbls));*)
          let lbls' = Lbl.unquantify_list x lbls in
-         print_endline ("lbls'=" ^ (Lbl.to_string_list lbls'));
+         (*print_endline ("lbls'=" ^ (Lbl.to_string_list lbls'));*)
          let (expls, aexpl, mf') = meval_rec fvs' lbls' ts tp db ~pol fobligs mf in
          let quant expl = approx_quant expl pol lbls lbls' tp x tc mformula in
          let expls = List.map expls ~f:quant in
+         (*print_endline ("aexpl (before) = " ^ Expl.to_string aexpl);*)
          let aexpl = quant aexpl in
+         (*print_endline ("aexpl (after) = " ^ Expl.to_string aexpl);*)
          (expls, aexpl, MForall(x, tc, b, mf'))
       | MPrev (i, mf, first, (buf, tss)) ->
          let (expls, aexpl, mf') = meval_rec fvs lbls ts tp db ~pol fobligs mf in

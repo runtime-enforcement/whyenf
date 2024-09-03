@@ -56,7 +56,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       "\nTriple:\n" ^
         Printf.sprintf "\n%ssup = %s" indent (Db.to_string sup) ^
           Printf.sprintf "\n%scau = %s" indent (Db.to_string cau) ^
-            Printf.sprintf "\n%sfobligs = %s" indent (FObligations.to_string fobligs) ^ "]\n"
+            Printf.sprintf "\n%sfobligs = [%s]\n" indent (FObligations.to_string fobligs)
 
   end
 
@@ -134,22 +134,55 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       let (_, aexpl, _) = mstep_state { es with ms = { es.ms with mf } } in
       aexpl
 
+    let do_or (p1: CI.Expl.Proof.t) (p2: CI.Expl.Proof.t) : CI.Expl.Proof.t = match p1, p2 with
+      | S sp1, S sp2 -> (S (CI.Expl.Proof.make_sorl sp1))
+      | S sp1, V _ -> S (CI.Expl.Proof.make_sorl sp1)
+      | V _ , S sp2 -> S (CI.Expl.Proof.make_sorr sp2)
+      | V vp1, V vp2 -> V (CI.Expl.Proof.make_vor vp1 vp2)
+
+    let do_and (p1: CI.Expl.Proof.t) (p2: CI.Expl.Proof.t) : CI.Expl.Proof.t = match p1, p2 with
+      | S sp1, S sp2 -> S (CI.Expl.Proof.make_sand sp1 sp2)
+      | S _ , V vp2 -> V (CI.Expl.Proof.make_vandr vp2)
+      | V vp1, S _ -> V (CI.Expl.Proof.make_vandl vp1)
+      | V vp1, V vp2 -> V (CI.Expl.Proof.make_vandl vp1)
+
+    let rec do_ors tp : CI.Expl.Proof.t list -> CI.Expl.Proof.t = function
+      | [] -> S (CI.Expl.Proof.make_stt tp)
+      | h::t -> do_or h (do_ors tp t)
+
+    let rec do_ands tp : CI.Expl.Proof.t list -> CI.Expl.Proof.t = function
+      | [] -> V (CI.Expl.Proof.make_vff tp)
+      | h::t -> do_and h (do_ands tp t)
+      
+    let specialize mf es =
+      let fvs = Set.elements (MFormula.fv mf) in
+      let lbls = MFormula.lbls fvs mf in
+      Expl.Pdt.specialize (do_ors es.tp) (do_ands es.tp)
+
     let sat v mf es =
-      print_endline "sat";
-      print_endline ("expl=" ^ CI.Expl.to_string (exec_monitor mf es));
-      print_endline ("v=" ^ Etc.valuation_to_string v);
-      CI.Expl.Proof.isS (Expl.Pdt.specialize v (exec_monitor mf es))
+      (*print_endline "--sat";
+      print_endline ("sat.mf=" ^ MFormula.to_string mf);
+      print_endline ("sat.expl=" ^ CI.Expl.to_string (exec_monitor mf es));
+      print_endline ("sat.v=" ^ Etc.valuation_to_string v);
+      print_endline ("sat.proof=" ^ CI.Expl.Proof.to_string "" (specialize mf es v (exec_monitor mf es)));*)
+      CI.Expl.Proof.isS (specialize mf es v (exec_monitor mf es))
 
     let vio x mf es =
       sat x (MNeg mf) es
     
     let all_not_sat v x mf es =
-      match Expl.Pdt.collect CI.Expl.Proof.isV v x (exec_monitor mf es) with
+      (*print_endline "--all_not_sat";
+      print_endline ("all_not_sat.mf=" ^ MFormula.to_string mf);
+      print_endline ("all_not_sat.x=" ^ x);
+      print_endline ("all_not_sat.v=" ^ Etc.valuation_to_string v);
+      print_endline ("all_not_sat.proof="^ CI.Expl.to_string (exec_monitor mf es));
+      print_endline ("all_not_sat.collected(" ^ x  ^ ")=" ^ Setc.to_string (Expl.Pdt.collect CI.Expl.Proof.isV (Setc.inter_list (module Dom)) (Setc.union_list (module Dom)) v x (exec_monitor mf es)));*)
+      match Expl.Pdt.collect CI.Expl.Proof.isV (Setc.inter_list (module Dom)) (Setc.union_list (module Dom)) v x (exec_monitor mf es) with
       | Setc.Finite s -> Set.elements s
       | _ -> failwith ("Infinite set of candidates for " ^ x ^ " in " ^ MFormula.to_string mf)
 
     let all_not_vio v x mf es =
-      match Expl.Pdt.collect CI.Expl.Proof.isS v x (exec_monitor (MNeg mf) es) with
+      match Expl.Pdt.collect CI.Expl.Proof.isS (Setc.union_list (module Dom)) (Setc.inter_list (module Dom)) v x (exec_monitor (MNeg mf) es) with
       | Setc.Finite s -> Set.elements s
       | _ -> failwith ("Infinite set of candidates for " ^ x ^ " in " ^ MFormula.to_string mf)
 
@@ -192,6 +225,8 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       enfvio mf v es
 
     and enfsat (mf: MFormula.t) v es =
+      (*print_endline "--enfsat";
+      print_endline (MFormula.to_string mf);*)
       match mf with
       | MTT -> es
       | MPredicate (r, trms) when Pred.Sig.equal_pred_kind (Pred.Sig.kind_of_pred r) Pred.Sig.Trace ->
@@ -315,8 +350,8 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
   (* (NOT-SO-URGENT) TODO: other execution mode with automatic timestamps; Pdts everywhere *)
   let exec f inc b =
     let reactive_step new_db es =
+      (*print_endline (EState.to_string es);*)
       let mf = goal es in
-      let vars = Set.elements (MFormula.fv mf) in
       let es = { es with ms      = { es.ms with tp_cur = es.tp };
                          r       = (Db.create [Db.Event._tp], Db.create [], FObligations.empty);
                          db      = Db.add_event new_db Db.Event._tp;
@@ -326,8 +361,8 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       Order.ReOrd (Triple.cau es.r, Triple.sup es.r), es
     in
     let proactive_step es =
+      (*print_endline (EState.to_string es);*)
       let mf = goal es in
-      let vars = Set.elements (MFormula.fv mf) in
       let es' = { es with ms      = { es.ms with tp_cur = es.tp };
                           r       = (Db.create [], Db.create [], FObligations.empty);
                           db      = Db.create [];
