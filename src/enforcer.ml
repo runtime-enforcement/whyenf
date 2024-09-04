@@ -356,7 +356,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
   (* (NOT-SO-URGENT) TODO: other execution mode with automatic timestamps; Pdts everywhere *)
   let exec f inc b =
     let reactive_step new_db (es: EState.t) =
-      Hashtbl.clear es.memo;
+      (*Hashtbl.clear es.memo;*)
       (*print_endline ("-- reactive_step tp=" ^ string_of_int es.tp);*)
       let mf = goal es in
       (*print_endline ("goal="^  MFormula.to_string mf);*)
@@ -372,7 +372,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       Order.ReOrd (Triple.cau es.r, Triple.sup es.r), es
     in
     let proactive_step (es: EState.t) =
-      Hashtbl.clear es.memo;
+      (*Hashtbl.clear es.memo;*)
       (*print_endline ("-- proactive_step ts=" ^ string_of_int es.ts);
       print_endline ("before: " ^ EState.to_string es);*)
       let mf = goal es in
