@@ -34,7 +34,7 @@ type core_t =
   | TSince of Side.t * Interval.t * t * t
   | TUntil of Side.t * Interval.t * bool * t * t
 
-and t = { f: core_t; enftype: EnfType.t }
+and t = { f: core_t; enftype: EnfType.t } [@@deriving compare, hash, sexp_of]
 
 let rec core_of_formula f (types: Dom.ctxt) =
   let f_q x f =

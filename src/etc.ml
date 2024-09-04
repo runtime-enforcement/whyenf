@@ -66,6 +66,8 @@ let sexp_of_valuation v =
   let f (k, d) = Sexp.List [Atom k; Atom (Dom.to_string d)] in
   Sexp.List (List.map (Map.to_alist v) ~f)
 let extend_valuation v v' = Map.merge v v' ~f:(fun ~key d -> match d with `Left d -> Some d | `Right d -> Some d | `Both (d, _) -> Some d)
+let hash_valuation (v: valuation) =
+  List.fold_left ~init:0 ~f:(fun acc (x, d) -> String.hash x lxor Dom.hash d lxor acc) (Map.to_alist v)
 
 let dom_map_to_string m =
   string_list_to_string

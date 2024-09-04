@@ -1468,8 +1468,8 @@ module LightProof : ProofT with type sp = int and type vp = int = struct
   let rec v_equal x y = true
  
   let equal x y = match x, y with
-    | S sp1, S sp2 -> sp1 == sp2
-    | V vp1, V vp2 -> vp1 == vp2
+    | S sp1, S sp2 -> true
+    | V vp1, V vp2 -> true
     | _ -> false
 
   let unS = function
