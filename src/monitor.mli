@@ -32,7 +32,7 @@ module type MonitorT = sig
 
     val empty_binop_info: binop_info
 
-    type t =
+    type core_t =
       | MTT
       | MFF
       | MEqConst      of Pred.Term.t * Dom.t
@@ -44,21 +44,25 @@ module type MonitorT = sig
       | MOr           of Formula.Side.t * t * t * binop_info
       | MImp          of Formula.Side.t * t * t * binop_info
       | MIff          of Formula.Side.t * Formula.Side.t * t * t * binop_info
-      | MExists       of string * Dom.tt * bool * t
-      | MForall       of string * Dom.tt * bool * t
+      | MExists       of string * Dom.tt * bool * string list * Pred.Lbl.t list * t
+      | MForall       of string * Dom.tt * bool * string list * Pred.Lbl.t list *  t
       | MPrev         of Interval.t * t * bool * prev_info
       | MNext         of Interval.t * t * bool * next_info
-      | MENext        of Interval.t * t * int * Etc.valuation
+      | MENext        of Interval.t * t * Etc.valuation
       | MOnce         of Interval.t * t * tp_info * once_info
       | MEventually   of Interval.t * t * buft_info * eventually_info
-      | MEEventually  of Interval.t * t * int * Etc.valuation
+      | MEEventually  of Interval.t * t * Etc.valuation
       | MHistorically of Interval.t * t * tp_info * historically_info
       | MAlways       of Interval.t * t * buft_info * always_info
-      | MEAlways      of Interval.t * t * int * Etc.valuation
+      | MEAlways      of Interval.t * t * Etc.valuation
       | MSince        of Formula.Side.t * Interval.t * t * t * buf2t_info * since_info
       | MUntil        of Interval.t * t * t * buf2t_info * until_info
-      | MEUntil       of Formula.Side.t * Interval.t * t * t * int * Etc.valuation
+      | MEUntil       of Formula.Side.t * Interval.t * t * t * Etc.valuation
 
+    and t = { mf: core_t; hash: int }
+
+    val make: core_t -> t
+    
     val init: Pred.Lbl.t list -> Tformula.t -> t
     val rank: t -> int
 
@@ -126,10 +130,14 @@ module type MonitorT = sig
 
   end
 
-  val mstep: Out.mode -> string list -> Pred.Lbl.t list -> timepoint -> timestamp -> Db.t -> bool -> MState.t -> FObligations.t ->
+  type memo = (int, CI.Expl.Proof.t Expl.Pdt.t list * CI.Expl.Proof.t Expl.Pdt.t * MFormula.t) Base.Hashtbl.t
+
+  val mstep: Out.mode -> string list -> Pred.Lbl.t list -> timepoint -> timestamp -> Db.t -> bool -> MState.t -> FObligations.t -> memo ->
              ((timestamp * timepoint) * CI.Expl.t) list * CI.Expl.t * MState.t
 
-  val exec: Out.mode -> string -> Formula.t -> in_channel -> unit
+  val meval_c: int ref 
+
+  val exec: Out.mode -> string -> Formula.t -> in_channel -> memo -> unit
 
   val exec_vis: MState.t option -> Formula.t -> string -> (MState.t * string)
 

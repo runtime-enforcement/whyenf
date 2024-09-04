@@ -68,6 +68,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
              ; db: Db.t
              ; r : Triple.t
              ; fobligs: FObligations.t
+             ; memo: Monitor.memo
              ; nick: bool
              }
 
@@ -92,9 +93,12 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
                        r = Triple.empty;
                        fobligs = Set.singleton (module FObligation)
                                    (FFormula (mf, -1, Etc.empty_valuation), Base.Map.empty (module Base.String), POS);
+                       memo = Hashtbl.create (module Int);
                        nick = false; }
 
     let update r es =
+      if not (Triple.is_empty r) then
+        Hashtbl.clear es.memo;
       { es with db      = Triple.update_db es.db r;
                 fobligs = Triple.update_fobligs es.fobligs r;
                 r       = Triple.join es.r r }
@@ -131,7 +135,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       mstep Out.ENFORCE fvs lbls es.tp es.ts es.db true es.ms es.fobligs
 
     let exec_monitor mf es =
-      let (_, aexpl, _) = mstep_state { es with ms = { es.ms with mf } } in
+      let (_, aexpl, _) = mstep_state { es with ms = { es.ms with mf } } es.memo in
       aexpl
 
     let do_or (p1: CI.Expl.Proof.t) (p2: CI.Expl.Proof.t) : CI.Expl.Proof.t = match p1, p2 with
@@ -168,7 +172,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       CI.Expl.Proof.isS (specialize mf es v (exec_monitor mf es))
 
     let vio x mf es =
-      sat x (MNeg mf) es
+      sat x (MFormula.make (MNeg mf)) es
     
     let all_not_sat v x mf es =
       (*print_endline "--all_not_sat";
@@ -182,7 +186,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       | _ -> failwith ("Infinite set of candidates for " ^ x ^ " in " ^ MFormula.to_string mf)
 
     let all_not_vio v x mf es =
-      match Expl.Pdt.collect CI.Expl.Proof.isS (Setc.union_list (module Dom)) (Setc.inter_list (module Dom)) v x (exec_monitor (MNeg mf) es) with
+      match Expl.Pdt.collect CI.Expl.Proof.isS (Setc.union_list (module Dom)) (Setc.inter_list (module Dom)) v x (exec_monitor (MFormula.make (MNeg mf)) es) with
       | Setc.Finite s -> Set.elements s
       | _ -> failwith ("Infinite set of candidates for " ^ x ^ " in " ^ MFormula.to_string mf)
 
@@ -224,10 +228,11 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       let es = add_foblig (FEventually (Time.of_timestamp es.ts, i, mf, h, vv), v, NEG) es in
       enfvio mf v es
 
-    and enfsat (mf: MFormula.t) v es =
+    and enfsat (mformula: MFormula.t) v es =
       (*print_endline "--enfsat";
-      print_endline (MFormula.to_string mf);*)
-      match mf with
+      print_endline ("mformula=" ^ MFormula.to_string mformula);
+      print_endline ("v=" ^ Etc.valuation_to_string v);*)
+      match mformula.mf with
       | MTT -> es
       | MPredicate (r, trms) when Pred.Sig.equal_pred_kind (Pred.Sig.kind_of_pred r) Pred.Sig.Trace ->
          let new_cau = (r, List.map trms (fun trm -> Pred.Term.unconst (Pred.Sig.eval v trm))) in
@@ -241,37 +246,37 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       | MImp (R, mf1, mf2, _) -> enfsat mf2 v es
       | MIff (side1, side2, mf1, mf2, bi) ->
          fixpoint (enfsat_and
-                     (MImp (side1, mf1, mf2, empty_binop_info))
-                     (MImp (side1, mf2, mf1, empty_binop_info)) v) es
-      | MExists (x, tt, b, mf) -> enfsat mf (Map.add_exn v ~key:x ~data:(Dom.tt_default tt)) es
-      | MForall (x, tt, b, mf) -> fixpoint (enfsat_forall x mf v) es
-      | MENext (i, mf, h, vv) -> add_foblig (FInterval (Time.of_timestamp es.ts, i, mf, h, vv), v, POS) es
-      | MEEventually (i, mf, h, vv) ->
+                     (MFormula.make (MImp (side1, mf1, mf2, empty_binop_info)))
+                     (MFormula.make (MImp (side1, mf2, mf1, empty_binop_info))) v) es
+      | MExists (x, tt, b, _, _, mf) -> enfsat mf (Map.add_exn v ~key:x ~data:(Dom.tt_default tt)) es
+      | MForall (x, tt, b, _, _, mf) -> fixpoint (enfsat_forall x mf v) es
+      | MENext (i, mf, vv) -> add_foblig (FInterval (Time.of_timestamp es.ts, i, mf, mformula.hash, vv), v, POS) es
+      | MEEventually (i, mf, vv) ->
          if Interval.is_zero i && es.nick then
            enfsat mf v es
          else
-           add_foblig (FEventually (Time.of_timestamp es.ts, i, mf, h, vv), v, POS) es
-      | MEAlways (i, mf, h, vv) ->
-         add_foblig (FAlways (Time.of_timestamp es.ts, i, mf, h, vv), v, POS) (enfsat mf v es)
+           add_foblig (FEventually (Time.of_timestamp es.ts, i, mf, mformula.hash, vv), v, POS) es
+      | MEAlways (i, mf, vv) ->
+         add_foblig (FAlways (Time.of_timestamp es.ts, i, mf, mformula.hash, vv), v, POS) (enfsat mf v es)
       | MSince (_, _, mf1, mf2, _, _) -> enfsat mf2 v es
-      | MEUntil (R, i, mf1, mf2, h, vv) ->
+      | MEUntil (R, i, mf1, mf2, vv) ->
          if Interval.is_zero i && es.nick then
            add_cau Db.Event._tp (enfsat mf2 v es)
          else if not (sat v mf1 es) then
            enfsat mf2 v es
          else
-           add_foblig (FUntil (Time.of_timestamp es.ts, LR, i, mf1, mf2, h, vv), v, POS) (enfsat mf1 v es)
-      | MEUntil (LR, i, mf1, mf2, h, vv) ->
+           add_foblig (FUntil (Time.of_timestamp es.ts, LR, i, mf1, mf2, mformula.hash, vv), v, POS) (enfsat mf1 v es)
+      | MEUntil (LR, i, mf1, mf2, vv) ->
          if Interval.is_zero i && es.nick then
            add_cau Db.Event._tp (enfsat mf2 v es)
          else
-           add_foblig (FUntil (Time.of_timestamp es.ts, LR, i, mf1, mf2, h, vv), v, POS) (enfsat mf1 v es)
+           add_foblig (FUntil (Time.of_timestamp es.ts, LR, i, mf1, mf2, mformula.hash, vv), v, POS) (enfsat mf1 v es)
       | MAnd (LR, _, _, _) -> raise (Invalid_argument ("side for " ^
-                                                         MFormula.op_to_string mf ^ " was not fixed"))
+                                                         MFormula.op_to_string mformula ^ " was not fixed"))
       | _ -> raise (Invalid_argument ("function enfsat is not defined for "
-                                      ^ MFormula.op_to_string mf))
-    and enfvio (mf: MFormula.t) v es =
-      match mf with
+                                      ^ MFormula.op_to_string mformula))
+    and enfvio (mformula: MFormula.t) v es =
+      match mformula.mf with
       | MFF -> es
       | MPredicate (r, trms) when Pred.Sig.equal_pred_kind (Pred.Sig.kind_of_pred r) Pred.Sig.Trace ->
          let new_sup = (r, List.map trms (fun trm -> match trm with
@@ -287,30 +292,30 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       | MImp (R, mf1, mf2, _) -> fixpoint (enfvio_imp mf2 mf1 v) es
       | MIff (L, _, mf1, mf2, _) -> fixpoint (enfvio_imp mf1 mf2 v) es
       | MIff (R, _, mf1, mf2, _) -> fixpoint (enfvio_imp mf2 mf1 v) es
-      | MExists (x, tt, b, mf) -> fixpoint (enfvio_exists x mf v) es
-      | MForall (x, tt, b, mf) -> enfvio mf (Map.add_exn v ~key:x ~data:(Dom.tt_default tt)) es
-      | MENext (i, mf, h, vv) -> add_foblig (FInterval (Time.of_timestamp es.ts, i, mf, h, vv), v, NEG) es
-      | MEEventually (i, mf, h, vv) -> enfvio_eventually i (h, vv) mf v es
-      | MEAlways (i, mf, h, vv) ->
+      | MExists (x, tt, b, _, _, mf) -> fixpoint (enfvio_exists x mf v) es
+      | MForall (x, tt, b, _, _, mf) -> enfvio mf (Map.add_exn v ~key:x ~data:(Dom.tt_default tt)) es
+      | MENext (i, mf, vv) -> add_foblig (FInterval (Time.of_timestamp es.ts, i, mf, mformula.hash, vv), v, NEG) es
+      | MEEventually (i, mf, vv) -> enfvio_eventually i (mformula.hash, vv) mf v es
+      | MEAlways (i, mf, vv) ->
          if Interval.is_zero i && es.nick then
            enfvio mf v es
          else
-           add_foblig (FAlways (Time.of_timestamp es.ts, i, mf, h, vv), v, NEG) es
+           add_foblig (FAlways (Time.of_timestamp es.ts, i, mf, mformula.hash, vv), v, NEG) es
       | MSince (L, _, mf1, _, _, _) -> enfvio mf1 v es
       | MSince (R, i, mf1, mf2, _, _) ->
-         let f' = MNeg (MAnd (R, mf1, mf, empty_binop_info)) in
-         fixpoint (enfsat_and f' (MNeg mf2) v) es
+         let f' = MFormula.make (MNeg (MFormula.make (MAnd (R, mf1, mformula, empty_binop_info)))) in
+         fixpoint (enfsat_and f' (MFormula.make (MNeg mf2)) v) es
 
-      | MEUntil (L, _, mf1, _, _, _) -> enfvio mf1 v es
-      | MEUntil (R, i, mf1, mf2, h, vv) -> fixpoint (enfvio_until i (h, vv) mf1 mf2 v) es
+      | MEUntil (L, _, mf1, _, _) -> enfvio mf1 v es
+      | MEUntil (R, i, mf1, mf2, vv) -> fixpoint (enfvio_until i (mformula.hash, vv) mf1 mf2 v) es
       | MAnd (LR, _, _, _)
         | MOr (LR, _, _, _)
         | MImp (LR, _, _, _)
         | MSince (LR, _, _, _, _, _)
-        | MEUntil (LR, _, _, _, _, _) ->
-         raise (Invalid_argument ("side for " ^ MFormula.op_to_string mf ^ " was not fixed"))
+        | MEUntil (LR, _, _, _, _) ->
+         raise (Invalid_argument ("side for " ^ MFormula.op_to_string mformula ^ " was not fixed"))
       | _ -> raise (Invalid_argument ("function enfvio is not defined for "
-                                      ^ MFormula.op_to_string mf))
+                                      ^ MFormula.op_to_string mformula))
 
     let enf mf es =
       let es = { es with r = Triple.empty; fobligs = FObligations.empty } in
@@ -341,40 +346,52 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
   let goal (es: EState.t) =
     let obligs = List.map (Set.elements es.fobligs) ~f:(FObligation.eval (Time.of_timestamp es.ts) es.tp) in
     let mf = match obligs with
-      | [] -> MFormula.MTT
-      | init::rest -> List.fold_left rest ~init ~f:(fun mf mg -> MAnd (L, mf, mg, empty_binop_info)) in
-    match (EState.mstep_state { es with ms = { es.ms with mf } })
-    with (_, _, ms) -> ms.mf
+      | [] -> MFormula.make (MFormula.MTT)
+      | init::rest -> List.fold_left rest ~init ~f:(fun mf mg -> MFormula.make (MAnd (L, mf, mg, empty_binop_info))) in
+    (*print_endline ("<-- " ^ MFormula.to_string mf);*)
+    match (EState.mstep_state { es with ms = { es.ms with mf } }) es.memo
+    with (_, _, ms) -> (*print_endline ("--> " ^ MFormula.to_string ms.mf) ; *)ms.mf
 
 
   (* (NOT-SO-URGENT) TODO: other execution mode with automatic timestamps; Pdts everywhere *)
   let exec f inc b =
-    let reactive_step new_db es =
-      (*print_endline (EState.to_string es);*)
+    let reactive_step new_db (es: EState.t) =
+      Hashtbl.clear es.memo;
+      (*print_endline ("-- reactive_step tp=" ^ string_of_int es.tp);*)
       let mf = goal es in
+      (*print_endline ("goal="^  MFormula.to_string mf);*)
       let es = { es with ms      = { es.ms with tp_cur = es.tp };
                          r       = (Db.create [Db.Event._tp], Db.create [], FObligations.empty);
                          db      = Db.add_event new_db Db.Event._tp;
                          fobligs = FObligations.empty;
                          nick    = false } in
+      Hashtbl.clear es.memo;
+      (*print_endline ("before: " ^ EState.to_string es);*)
       let es = EState.enf mf es in
+      (*print_endline ("after: " ^ EState.to_string es);*)
       Order.ReOrd (Triple.cau es.r, Triple.sup es.r), es
     in
-    let proactive_step es =
-      (*print_endline (EState.to_string es);*)
+    let proactive_step (es: EState.t) =
+      Hashtbl.clear es.memo;
+      (*print_endline ("-- proactive_step ts=" ^ string_of_int es.ts);
+      print_endline ("before: " ^ EState.to_string es);*)
       let mf = goal es in
       let es' = { es with ms      = { es.ms with tp_cur = es.tp };
                           r       = (Db.create [], Db.create [], FObligations.empty);
                           db      = Db.create [];
                           fobligs = FObligations.empty;
                           nick    = true } in
+      Hashtbl.clear es.memo;
       let es' = EState.enf mf es' in
+      (*print_endline ("after: " ^ EState.to_string es');*)
       if Db.mem (Triple.cau es'.r) Db.Event._tp then
         Order.PrOrd (Db.remove (Triple.cau es'.r) Db.Event._tp), es'
       else
         Order.NoOrd, es
     in
     let rec process_db (pb: Other_parser.Parsebuf.t) (es: EState.t) =
+      (*print_endline ("--process_db " ^ string_of_int !Monitor.meval_c);*)
+      Monitor.meval_c := 0;
       if Int.equal pb.ts (-1) && FObligations.accepts_empty es.fobligs then
         es
       else if not (Int.equal pb.ts es.ts) then
