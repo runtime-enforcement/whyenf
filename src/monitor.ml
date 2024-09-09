@@ -1697,39 +1697,6 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       match aux (Map.empty (module String)) fvs lbls tf with (_, mf) -> make mf 
 
     let rec equal mf1 mf2 = mf1.hash = mf2.hash
-    (*let rec equal mf1 mf2 = match mf1, mf2 with
-      | MTT, MTT
-        | MFF, MFF -> true
-      | MEqConst (trm, c), MEqConst (trm', c') -> Term.equal trm trm' && Dom.equal c c'
-      | MPredicate (r, trms), MPredicate (r', trms') -> String.equal r r' &&
-                                                          List.for_all2_exn trms trms' ~f:Term.equal
-      | MAgg (s, op, _, _, _, x, y, f), MAgg (s', op', _, _, _, x', y', f') ->
-         String.equal s s' && Aggregation.equal_op op op' && Term.equal x x' && List.length y == List.length y'
-         && List.for_all (List.zip_exn y y') (fun (y, y') -> String.equal y y') && equal f f'
-      | MNeg mf, MNeg mf' -> equal mf mf'
-      | MPrev (i, mf, _, _), MPrev (i', mf', _, _)
-        | MNext (i, mf, _, _), MNext (i', mf', _, _)
-        | MOnce (i, mf, _, _), MOnce (i', mf', _, _)
-        | MEventually (i, mf, _, _), MEventually (i', mf', _, _)
-        | MHistorically (i, mf, _, _), MHistorically (i', mf', _, _)
-        | MAlways (i, mf, _, _), MAlways (i', mf', _, _) -> Interval.equal i i' && equal mf mf'          | MENext (_, _, h, v), MENext (_, _, h', v')
-        | MEEventually (_, _, h, v), MEEventually (_, _, h', v')
-        | MEAlways (_, _, h, v), MEAlways (_, _, h', v')
-        | MEUntil (_, _, _, _, h, v), MEUntil (_, _, _, _, h', v') -> h = h' && Etc.equal_valuation v v'
-      | MExists (x, tt, b, _, _, mf), MExists (x', tt', b', _, _, mf')
-        | MForall (x, tt, b, _, _, mf), MForall (x', tt', b', _, _, mf') ->
-         String.equal x x' && Dom.tt_equal tt tt' && equal mf mf' && Bool.equal b b'
-      | MAnd (s, mf, mg, _), MAnd (s', mf', mg', _)
-        | MOr (s, mf, mg, _), MOr (s', mf', mg', _)
-        | MImp (s, mf, mg, _), MImp (s', mf', mg', _) -> Formula.Side.equal s s' && equal mf mf' && equal mg mg'
-      | MIff (s, t, mf, mg, _), MIff (s', t', mf', mg', _) -> Formula.Side.equal s s' && Formula.Side.equal t t' &&
-                                                                equal mf mf' && equal mg mg'
-      | MSince (s, i, mf, mg, _, _), MSince (s', i', mf', mg', _, _)
-         -> Formula.Side.equal s s' && Interval.equal i i' &&
-                                                                        equal mf mf' && equal mg mg'
-      | MUntil (i, mf, mg, _, _), MUntil (i', mf', mg', _, _) -> Interval.equal i i' && equal mf mf' && equal mg mg'
-      | _ -> false
-     *)
 
     let rec rank mf = match mf.mf with
       | MTT | MFF -> 0
@@ -2393,7 +2360,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
 
   let meval_c = ref 0
 
-  let memo = Hashtbl.create (module Formula)
+  (*let memo = Hashtbl.create (module Formula)*)
 
 
   let meval (fvs: string list) (lbls: Lbl.t list) ts tp (db: Db.t) ~pol (fobligs: FObligations.t) mformula mode memo =

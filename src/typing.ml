@@ -135,6 +135,13 @@ let rec types t f =
       match f with
       | TT -> Possible CTT
       | Predicate (e, _) -> types_predicate Cau e
+      | Agg (s, op, x, y, f) ->
+         let fvs = Term.fv_list [x] in
+         let bad_fvs = List.filter fvs (fun x -> not (is_past_guarded x true f)) in
+         (match bad_fvs with
+          | [] -> Possible CTT
+          | _  -> error ("for causability, variables " ^ String.concat ~sep:", " bad_fvs
+                         ^ " must past-guarded"))
       | Neg f -> types Sup f
       | And (_, f, g) -> conj (types Cau f) (types Cau g)
       | Or (L, f, g) -> types Cau f
@@ -226,6 +233,14 @@ let rec convert b enftype form types : Dom.ctxt * Tformula.t option =
         | Predicate (e, trms) when Pred.Sig.enftype_of_pred e == Cau ->
            let types = check_terms types e trms in
            types, Some (Tformula.TPredicate (e, trms))
+        | Agg (s, op, x, y, f) ->
+           let types, tf = Tformula.of_formula f types in
+           let tt = Sig.var_tt_of_term_exn types x in
+           let fvs = Term.fv_list [x] in
+           if List.for_all fvs (fun x -> is_past_guarded x true f) then
+             types, Some (Tformula.TAgg (s, tt, op, x, y, tf))
+           else
+             types, None
         | Neg f -> apply1 (convert Sup f) (fun mf -> Tformula.TNeg mf) types
         | And (s, f, g) -> apply2 (convert Cau f) (convert Cau g)
                              (fun mf mg -> Tformula.TAnd (default_L s, mf, mg)) types
