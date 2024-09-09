@@ -313,128 +313,29 @@ module Pdt = struct
        Node (LClos (f, trms, vars), Part.map part (quantify ~forall x'))
     | Node (lbl, part) -> Node (lbl, Part.map part (quantify ~forall x'))
 
-(*
-  let rec hide_reduce x' ~forall:false p_eq lbls f_leaf f_node pdt = match lbls, pdt with
-    |  _ , Leaf l -> Leaf (f_leaf l)
-    (*| [x], Node (y, part) -> Leaf (f_node (Part.map part unleaf))*)
-    | x :: lbls, Node (y, part) ->
-       if Lbl.equal x y then
-         (if Lbl.equal x (LVar x') then
-            let v d = Map.singleton (module String) x' d in
-            let distribute (s, pdt) = match s with
-              | Setc.Finite s ->
-                 List.map (Set.elements s) ~f:(fun d -> specialize_partial (v d) pdt)
-              | Complement s -> [pdt] in
-            let all_pdts = List.concat (Part.map2 part distribute) in
-            f_node all_pdts
-          else
-            Node (y, Part.map_dedup (eq p_eq) part (hide_reduce x' p_eq lbls f_leaf f_node)))
-       else
-         hide_reduce x' p_eq lbls f_leaf f_node (Node (y, part))
-    | _ -> raise (Invalid_argument "function not defined for other cases")*)
-
-  
-  (*
-  let rec simplify_quantifiers f_ex f_all (v: Etc.valuation) pdt =
-    let s_q = simplify_quantifiers f_ex f_all in
-    let simplify_tree x pdt d = s_q (Map.update v x ~f:(fun _ -> d)) pdt in
-    let simplify_trees x (s, pdt) = match s with
-      | Setc.Finite s -> List.map (Set.elements s) ~f:(simplify_tree x pdt)
-      | Complement s -> [s_q v pdt] in
-    match pdt with
-    | Leaf l -> Leaf l
-    | Node (term, One, part) ->
-       (match Sig.eval v term with
-       | Const d -> Part.find part d
-       | term' -> Node (term', One, Part.map part (s_q v)))
-    | Node (Var x, q, part) ->
-       (match q with | Ex -> f_ex | All -> f_all)
-         (List.concat (Part.map2 part (simplify_trees x)))
-   *)   
-
-  (*
-  let simplify x p_eq pdt = 
-    let rec aux (v: Setc.valuation) = function
-      | Leaf l -> Leaf l
-      | Node (App (g, [Var x'; y]) as trm, q, part) when Funcs.is_eq g ->
-         (match Part.get_trivial part with
-          (* if part is trivial, descend into it *)
-          | Some p -> aux v p
-          (* otherwise evaluate y *)
-          | None ->
-             (match Sig.set_eval v y with
-             (* if y yields a finite set of terms *)
-             | Setc.Finite trms ->
-                let f = function Term.Const d -> Some d | _ -> None in
-                let s = Option.all (List.map (Set.elements trms) ~f) in
-                (match s with
-                 (* if these terms are fully evaluated (= constants) *)
-                 | Some ds ->
-                    let d_set = Set.of_list (module Dom) ds in
-                    let d_set' =
-                      match Map.find v x' with
-                      | Some d_set' -> d_set'
-                      | None        -> Setc.univ (module Dom) in
-                    let set_pos = Setc.inter d_set' (Setc.Finite d_set) in
-                    let set_neg = Setc.comp set_pos in
-                    (if Setc.is_empty set_pos then
-                       Part.find part (Dom.Int 0)
-                     else
-                       Node (Var x', q, [(set_pos, Part.find part (Dom.Int 1));
-                                         (set_neg, Part.find part (Dom.Int 0))]))
-                 (* otherwise, do not evaluate further *)
-                 | None -> Node (trm, q, Part.map_dedup (eq p_eq) part (aux v)))
-             (* otherwise, do not evaluate further *)
-             | Setc.Complement _ -> Node (trm, q, Part.map_dedup (eq p_eq) part (aux v))))
-      | Node (Var x', q, part) ->
-         (match Part.get_trivial part with
-          | Some p -> aux v p
-          | _ -> let f (data, p) = (data,  aux (Map.add_exn v ~key:x' ~data) p) in
-                 Node (Var x', q, Part.map2_dedup (eq p_eq) part f))
-      | Node (trm, q, part) -> (*TODO: evaluate?*)
-         Node (trm, q, Part.map_dedup (eq p_eq) part (aux v)) in
-    aux Setc.empty_valuation pdt*)
-
-  (*
-
-  let simplify_vars x vars =
-    let f seen = function
-      | Term.Var x' as trm -> Set.add seen x', trm
-      | Term.App (g, [Var x'; y])
-           when Funcs.is_eq g
-                && Set.is_subset
-                     (Set.of_list (module String) (Term.fv_list [y])) seen
-        -> Set.add seen x', Term.Var x'
-      | trm -> seen, trm in
-    snd (List.fold_map vars ~init:(Set.empty (module String)) ~f)
-
-   *)
+  let distribute x callback v (s', p) =
+    let update v x' d = Map.update v x' (fun _ -> d) in
+    match s' with
+    | Setc.Finite s' ->
+       List.map (Set.elements s') ~f:(fun d -> callback (update v x d) p)
+    | Complement s' -> [callback v p]
 
   let rec specialize f_ex f_all (v: Etc.valuation) =
-    let update v x' d = Map.update v x' (fun _ -> d) in
-    let distribute x callback (s, p) = match s with
-      | Setc.Finite s' ->
-         List.map (Set.elements s') ~f:(fun d -> callback (update v x d) p)
-      | Complement s' -> [callback v p] in
     function
     | Leaf l -> l
     | Node (LVar x, part) when Map.mem v x ->
        specialize f_ex f_all v (Part.find part (Map.find_exn v x))
     | Node (LEx x, part) ->
-       let all_p = List.concat (Part.map2 part (distribute x (specialize f_ex f_all))) in
+       let all_p = List.concat (Part.map2 part (fun (s, p) ->
+                                    distribute x (specialize f_ex f_all) v (s, p))) in
        f_ex all_p
     | Node (LAll x, part) ->
-       let all_p = List.concat (Part.map2 part (distribute x (specialize f_ex f_all))) in
+       let all_p = List.concat (Part.map2 part (fun (s, p) ->
+                                    distribute x (specialize f_ex f_all) v (s, p))) in
        f_all all_p
     | Node (x, part) -> specialize f_ex f_all v (Part.find part (Term.unconst (Lbl.eval v x)))
 
-
   let rec collect f_leaf f_ex f_all (v: Etc.valuation) (x: string) p =
-    let update v x' d = Map.update v x' (fun _ -> d) in
-    let distribute x' s callback (s', p) = match s' with
-      | Setc.Finite s' ->
-         List.map (Set.elements s') ~f:(fun d -> callback (update v x' d) x s p)
-      | Complement s' -> [callback v x s p] in
     let rec aux (v: Etc.valuation) (x: string) (s: (Dom.t, Dom.comparator_witness) Setc.t) =
       function
       | Leaf l when f_leaf l -> s
@@ -447,29 +348,13 @@ module Pdt = struct
          let d = Map.find_exn v x' in
          aux v x s (Part.find part d)
       | Node (LEx x', part) ->
-         let all_s = List.concat (Part.map2 part (distribute x' s aux)) in
+         let all_s = List.concat (Part.map2 part (distribute x' (fun v p -> aux v x s p) v)) in
          f_ex all_s
       | Node (LAll x', part) ->
-         let all_s = List.concat (Part.map2 part (distribute x' s aux)) in
+         let all_s = List.concat (Part.map2 part (distribute x' (fun v p -> aux v x s p) v)) in
          (*print_endline "--collect.LAll";
          print_endline (String.concat ~sep:"," (List.map ~f:Setc.to_string all_s));*)
          f_all all_s
-      (*| Node (App (g, [Var x'; y]), q, part) when Funcs.is_eq g && String.equal x x' ->
-         (match Sig.eval v y with
-          | Const d -> Setc.singleton (module Dom) d
-          | _ -> assert false)
-      | Node (x', q, part) when List.mem (Term.fv_list [x']) x ~equal:String.equal ->
-         (match s with
-          | Finite s' ->
-             Setc.union_list (module Dom)
-               (List.map (Set.elements s')
-                  ~f:(fun data ->
-                    match Sig.eval (Map.add_exn v ~key:x ~data) x' with
-                    | Const d -> aux f v x (Setc.singleton (module Dom) data) (Part.find part d)
-                    | _ -> Setc.union_list (module Dom)
-                             (Part.map2 part (fun (s', p) -> aux f v x s p))))
-          | Complement s' -> Setc.union_list (module Dom)
-                               (Part.map2 part (fun (s', p) -> aux f v x s p)))*)
       | Node (LClos (f, terms, vars) as term, part) ->
          (match s, Part.get_trivial part with
           | _, Some p -> aux v x s p
@@ -497,23 +382,18 @@ module Pdt = struct
        Node (LVar x, part)
     | _::lbls -> from_valuation lbls v p p'
 
-  (*
-  let simplify p =
-    let rec aux (v: Etc.valuation) = function
-    | Leaf l -> Leaf l
-    | Node (Var x, part) -> Node (Var x, Part.map part (aux v))
-    | Node (Const c, part) -> snd (Part.find3 part (fun s -> Setc.mem s c))
-    | _ -> assert false*)
-       
 
   (* s = AGG (x; y; f) where p is a Pdt for f *)
   let aggregate cond f agg s x_trm y lbls lbls' p =
-    let merge m m' =
+    let fold_merge fun_both fun_one m m' =
       Map.fold2 m m' ~init:(Map.empty (module Dom)) ~f:(fun ~key ~data m ->
           match data with
-          | `Both (data, data') -> Map.add_exn m ~key ~data:(data + data')
-          | `Left data | `Right data -> Map.add_exn m ~key ~data) in
-    let union_part part = match snd (List.unzip part) with
+          | `Both (data, data')      -> Map.add_exn m ~key ~data:(fun_both data data')
+          | `Left data | `Right data -> Map.add_exn m ~key ~data:(fun_one data)) in
+    let merge_add = fold_merge (+) (fun x -> x) in
+    let merge_max = fold_merge max (fun x -> x) in
+    let merge_min = fold_merge min (fun _ -> 0) in
+    let merge_pdts merge = function
          | [pdt] -> pdt
          | pdt::pdts -> List.fold pdts ~init:pdt
                           ~f:(apply2_reduce (Map.equal Int.equal) lbls' merge) in
@@ -528,18 +408,24 @@ module Pdt = struct
       let ds = List.map vs ~f:(fun v -> Term.unconst (Sig.eval v x_trm)) in
       let f m d = Map.update m d ~f:(function None -> 1 | Some x -> x+1) in
       List.fold_left ds ~init:(Map.empty (module Dom)) ~f in
-    let rec multisets sv gs trms p =
+    let rec multisets sv gs trms w p =
       match p, gs, trms with
       | Leaf l, _, _ when cond l -> Leaf (multiset (List.rev sv))
       | Leaf l, _, _ -> Leaf (Map.empty (module Dom))
       | Node (lbl, _), _, trm :: trms when not (Lbl.equal trm lbl) ->
-         multisets sv gs trms p
-      | Node (lbl, part), g :: gs, _ :: trms when Lbl.equal (LVar g) lbl ->
-         let part = Part.map2 part (fun (s, p) -> (s, multisets ((Var g, s)::sv) gs trms p)) in
+         multisets sv gs trms w p
+      | Node (lbl, part),  g :: gs, _ :: trms when Lbl.equal (LVar g) lbl ->
+         let part = Part.map2 part (fun (s, p) -> (s, multisets ((Var g, s)::sv) gs trms w p)) in
          Node (lbl, part)
+      | Node (LEx x', part), g :: gs, _ :: trms ->
+         let pdts = List.concat (Part.map2 part (distribute x' (multisets sv gs trms) w)) in
+         merge_pdts merge_max pdts
+      | Node (LAll x', part), g :: gs, _ :: trms ->
+         let pdts = List.concat (Part.map2 part (distribute x' (multisets sv gs trms) w)) in
+         merge_pdts merge_min pdts
       | Node (lbl, part), _, _ :: trms ->
-         let part = Part.map2 part (fun (s, p) -> (s, multisets ((Lbl.term lbl, s)::sv) gs trms p)) in
-         union_part part in
+         let pdts = Part.map2 part (fun (s, p) -> multisets ((Lbl.term lbl, s)::sv) gs trms w p) in
+         merge_pdts merge_add pdts in
     let rec collect_leaf_values = function
       | Leaf None -> Set.empty (module Dom)
       | Leaf (Some v) -> Set.singleton (module Dom) v
@@ -547,19 +433,19 @@ module Pdt = struct
                             (List.map part ~f:(fun (_, pdt) -> collect_leaf_values pdt)) in
     let rec insert_aggregations lbls (pdt: Dom.t option t) =
       match pdt, lbls with
-      | _, (Lbl.LVar x') :: trms when String.equal x' s ->
+      | _, (Lbl.LVar x') :: lbls when String.equal x' s ->
          let leaf_values = collect_leaf_values pdt in
          let setcs = (Setc.Complement leaf_values) ::
                        (List.map (Set.elements leaf_values)
                           ~f:(fun s -> Setc.Finite (Set.singleton (module Dom) s))) in
          Node (LVar s, List.map setcs (fun s -> (s, apply1 lbls (f s) pdt)))
-      | Node (lbl, part), trm :: trms when Lbl.equal trm lbl ->
-         Node (lbl, Part.map part (insert_aggregations trms))
-      | _, _ :: trms ->
-         insert_aggregations trms pdt
+      | Node (lbl, part), lbl' :: lbls when Lbl.equal lbl lbl' ->
+         Node (lbl, Part.map part (insert_aggregations lbls))
+      | _, _ :: lbls -> 
+         insert_aggregations lbls pdt
     in
     let agg' m = if Map.is_empty m then None else Some (agg m) in
-    let multiset_pdt = multisets [] y lbls' p in
+    let multiset_pdt = multisets [] y lbls' Etc.empty_valuation p in
     let aggregations_pdt = apply1 lbls' agg' multiset_pdt in
     insert_aggregations lbls aggregations_pdt
 
