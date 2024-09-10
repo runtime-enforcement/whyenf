@@ -273,9 +273,9 @@ module Checker_interface = struct
 
   let convert_interval = function
     | Interval.B bi -> (match bi with
-                        | BI (l, r) -> interval (nat_of_int (Time.to_int l)) (Enat (nat_of_int (Time.to_int r))))
+                        | BI (l, r) -> interval (nat_of_int (Time.Span.to_int l)) (Enat (nat_of_int (Time.Span.to_int r))))
     | U ui -> (match ui with
-               | UI l -> interval (nat_of_int (Time.to_int l)) Infinity_enat)
+               | UI l -> interval (nat_of_int (Time.Span.to_int l)) Infinity_enat)
 
   let rec convert_f = function
     | Formula.TT -> TT

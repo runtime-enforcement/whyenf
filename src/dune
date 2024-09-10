@@ -7,5 +7,5 @@
 
 (library
  (name monitor_lib)
- (libraries core_kernel base zarith unix pyml)
+ (libraries core_kernel base zarith unix pyml calendar)
  (preprocess (pps ppx_jane)))

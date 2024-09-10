@@ -1,120 +1,140 @@
 open Core
 
-type t = Second of int | Minute of int | Hour of int [@@deriving compare, sexp_of, hash, equal]
+open CalendarLib
 
-let (+) t u = match t, u with
-  | Second i, Second j -> Second (i+j)
-  | Second i, Minute j -> Second (j*60 + i)
-  | Second i, Hour   j -> Second (j*3600 + i)
-  | Minute i, Minute j -> Minute (i+j)
-  | Minute i, Second j -> Second (i*60 + j)
-  | Minute i, Hour   j -> Minute (j*60 + i)
-  | Hour   i, Hour   j -> Hour   (i+j)
-  | Hour   i, Second j -> Second (i*3600 + j)
-  | Hour   i, Minute j -> Second (i*60 + j)
+(*type t = Second of int | Minute of int | Hour of int *)
+type t = Calendar.t
 
-let inc t = match t with
-  | Second i -> Second Int.(i+1)
-  | Minute i -> Minute Int.(i+1)
-  | Hour   i -> Hour   Int.(i+1)
+let equal = Calendar.equal
+let compare = Calendar.compare
 
-let dec t = match t with
-  | Second i -> Second Int.(i-1)
-  | Minute i -> Minute Int.(i-1)
-  | Hour   i -> Hour   Int.(i-1)
+let hash_fold_t state t =
+  let open Calendar in
+  let state = Hash.fold_int state (year t) in
+  let state = Hash.fold_int state (Date.int_of_month (month t)) in
+  let state = Hash.fold_int state (day_of_month t) in
+  let state = Hash.fold_int state (hour t) in
+  let state = Hash.fold_int state (minute t) in
+  Hash.fold_float state (Time.Second.to_float (second t))
 
-let inv = function
-  | Second i -> Second (-i)
-  | Minute i -> Minute (-i)
-  | Hour   i -> Hour   (-i)
+let sexp_of_t calendar =
+  let open Calendar in
+  let year = year calendar in
+  let month = month calendar |> Date.int_of_month in
+  let day = day_of_month calendar in
+  let hour = hour calendar in
+  let minute = minute calendar in
+  let second = second calendar in
+  Sexp.List [
+    Sexp.Atom (string_of_int year);
+    Sexp.Atom (string_of_int month);
+    Sexp.Atom (string_of_int day);
+    Sexp.Atom (string_of_int hour);
+    Sexp.Atom (string_of_int minute);
+    Sexp.Atom (string_of_float (Time.Second.to_float second))
+  ]
 
-let (|+) t u = match t, u with
-  | Second i, Second j -> Second (Int.max Int.(i+j) 0)
-  | Second i, Minute j -> Second (Int.max Int.(j*60 + i) 0)
-  | Second i, Hour   j -> Second (Int.max Int.(j*3600 + i) 0)
-  | Minute i, Minute j -> Minute (Int.max Int.(i+j) 0)
-  | Minute i, Second j -> Second (Int.max Int.(i*60 + j) 0)
-  | Minute i, Hour   j -> Minute (Int.max Int.(j*60 + i) 0)
-  | Hour   i, Hour   j -> Hour   (Int.max Int.(i+j) 0)
-  | Hour   i, Second j -> Second (Int.max Int.(i*3600 + j) 0)
-  | Hour   i, Minute j -> Second (Int.max Int.(i*60 + j) 0)
+module Span = struct
 
-let (-) t u = (+) t (inv u)
+  open Calendar.Period
+  
+  type t = Calendar.Period.t
+    
+  let to_period t = t
 
-let (|-) t u = (|+) t (inv u)
+  let equal = equal
+  let compare = compare
+  
+  let hash_fold_t state t =
+    let y, m, d, s = ymds t in
+    let state = Hash.fold_int state y in
+    let state = Hash.fold_int state m in
+    let state = Hash.fold_int state d in
+    Hash.fold_int state s
 
-let (<=) t u = match t, u with
-  | Second i, Second j -> i <= j
-  | Second i, Minute j -> i <= j*60
-  | Second i, Hour   j -> i <= j*3600
-  | Minute i, Minute j -> i <= j
-  | Minute i, Second j -> i*60 <= j
-  | Minute i, Hour   j -> i <= j*60
-  | Hour   i, Hour   j -> i <= j
-  | Hour   i, Second j -> i*3600 <= j
-  | Hour   i, Minute j -> i*60 <= j
+  let sexp_of_t t =
+    let y, m, d, s = ymds t in
+    Sexp.List [
+        Sexp.Atom (string_of_int y);
+        Sexp.Atom (string_of_int m);
+        Sexp.Atom (string_of_int d);
+        Sexp.Atom (string_of_int s)
+      ]
 
-let (<) t u = match t, u with
-  | Second i, Second j -> i < j
-  | Second i, Minute j -> i < j*60
-  | Second i, Hour   j -> i < j*3600
-  | Minute i, Minute j -> i < j
-  | Minute i, Second j -> i*60 < j
-  | Minute i, Hour   j -> i < j*60
-  | Hour   i, Hour   j -> i < j
-  | Hour   i, Second j -> i*3600 < j
-  | Hour   i, Minute j -> i*60 < j
+  let inc t =
+    match ymds t with
+    | 0, 0, 0, s -> second (s+1)
+    | 0, 0, d, _ -> day    (d+1)
+    | 0, m, _, _ -> month  (m+1)
+    | y, _, _, _ -> year   (y+1)
 
-let min t u = match t, u with
-  | Second i, Second j -> Second (Int.min i j)
-  | Second i, Minute j -> Second (Int.min i (j*60))
-  | Second i, Hour   j -> Second (Int.min i (j*3600))
-  | Minute i, Minute j -> Minute (Int.min i j)
-  | Minute i, Second j -> Second (Int.min (i*60) j)
-  | Minute i, Hour   j -> Minute (Int.min i (j*60))
-  | Hour   i, Hour   j -> Hour   (Int.min i j)
-  | Hour   i, Second j -> Hour   (Int.min (i*3600) j)
-  | Hour   i, Minute j -> Hour   (Int.min (i*60) j)
+  let dec t =
+    match ymds t with
+    | 0, 0, 0, s -> second (s-1)
+    | 0, 0, d, _ -> day    (d-1)
+    | 0, m, _, _ -> month  (m-1)
+    | y, _, _, _ -> year   (y-1)
 
-let max t u = match t, u with
-  | Second i, Second j -> Second (Int.max i j)
-  | Second i, Minute j -> Second (Int.max i (j*60))
-  | Second i, Hour   j -> Second (Int.max i (j*3600))
-  | Minute i, Minute j -> Minute (Int.max i j)
-  | Minute i, Second j -> Second (Int.max (i*60) j)
-  | Minute i, Hour   j -> Minute (Int.max i (j*60))
-  | Hour   i, Hour   j -> Hour   (Int.max i j)
-  | Hour   i, Second j -> Hour   (Int.max (i*3600) j)
-  | Hour   i, Minute j -> Hour   (Int.max (i*60) j)
+  let inv = opp
 
-let is_zero = function
-  | Second 0 -> true
-  | Minute 0 -> true
-  | Hour   0 -> true
-  | _ -> false
+  let (+) = add
+  let (-) = sub
 
-let zero = Second 0
-let max_time = Second max_int
+  let (<=) t u = compare t u <= 0
+  let (<)  t u = compare t u < 0
 
-let to_zero = function
-  | Second i -> Second 0
-  | Minute i -> Minute 0
-  | Hour   i -> Hour   0
+  let min t u = if t <= u then t else u
+  let max t u = if u <= t then t else u
 
-let to_string = function
-  | Second i -> string_of_int i
-  | Minute i -> string_of_int i ^ " m"
-  | Hour   i -> string_of_int i ^ " h"
+  let max_span = year Int.max_value
 
-(* Only for backwards-compatibility -- do not use for arithmetics *)
-let to_int = function
-  | Second i -> i
-  | Minute i -> i*60
-  | Hour   i -> i*3600
+  let is_zero = equal empty
+  let zero = empty
+  
+  let make i = function
+    | "" | "s" -> second i
+    | "m" -> minute i
+    | "h" -> hour i
+    | "d" -> day i
+    | "M" -> month i
+    | "Y" -> year i
+    | u -> failwith ("Invalid time unit: " ^ u)
 
-let make i = function
-  | "" | "s" -> Second i
-  | "m" -> Minute i
-  | "h" -> Hour i
+  let to_int t =
+    let y, m, d, s = ymds t in
+    Int.(((y*365+m)*30+d)*24*3600+s)
 
-let of_timestamp i = Second i
+  let of_string s =
+    let (_, v, u) = String.fold s ~init:(false, "", "")
+                      ~f:(fun (b, v, u) c ->
+                        if b then (b, v, u ^ String.of_char c)
+                        else if Char.is_digit c then (b, v ^ String.of_char c, u)
+                        else (true, v, String.of_char c)) in
+    make (int_of_string v) u
+
+  let to_string t =
+    let y, m, d, s = ymds t in
+    Printf.sprintf "%dy %dm %dd %ds" y m d s
+  
+end
+
+let of_float ts = Calendar.from_unixfloat ts
+
+let of_int ts = of_float (float_of_int ts)
+
+let (+) t u = Calendar.add t (Span.to_period u)
+
+let (-) t u = Calendar.sub t u
+let (--) t u = Calendar.add t (Calendar.Period.opp (Span.to_period u))
+
+let (<=) t u = (Calendar.compare t u) <= 0
+let (<) t u = (Calendar.compare t u) < 0
+
+let min t u = if t <= u then t else u
+let max t u = if u <= t then t else u
+
+let zero = Calendar.make 0 0 0 0 0 0
+
+let to_string = Printer.Calendar.to_string
+
+

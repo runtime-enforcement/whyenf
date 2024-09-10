@@ -293,6 +293,8 @@ module Pdt = struct
 
   let rec specialize_partial (v: Etc.valuation) = function
     | Leaf l -> Leaf l
+    | Node (LEx x as lbl, part)
+      | Node (LAll x as lbl, part) -> Node (lbl, Part.map part (specialize_partial (Map.remove v x)))
     | Node (x, part) ->
        match Lbl.eval v x with
        | Const d -> specialize_partial v (Part.find part d)
@@ -409,6 +411,8 @@ module Pdt = struct
       let f m d = Map.update m d ~f:(function None -> 1 | Some x -> x+1) in
       List.fold_left ds ~init:(Map.empty (module Dom)) ~f in
     let rec multisets sv gs trms w p =
+      (*print_endline "--multisets";
+      print_endline (String.concat ~sep:", " (List.map ~f:Lbl.to_string trms));*)
       match p, gs, trms with
       | Leaf l, _, _ when cond l -> Leaf (multiset (List.rev sv))
       | Leaf l, _, _ -> Leaf (Map.empty (module Dom))
@@ -417,10 +421,10 @@ module Pdt = struct
       | Node (lbl, part),  g :: gs, _ :: trms when Lbl.equal (LVar g) lbl ->
          let part = Part.map2 part (fun (s, p) -> (s, multisets ((Var g, s)::sv) gs trms w p)) in
          Node (lbl, part)
-      | Node (LEx x', part), g :: gs, _ :: trms ->
+      | Node (LEx x', part), _, _ :: trms ->
          let pdts = List.concat (Part.map2 part (distribute x' (multisets sv gs trms) w)) in
          merge_pdts merge_max pdts
-      | Node (LAll x', part), g :: gs, _ :: trms ->
+      | Node (LAll x', part), _, _ :: trms ->
          let pdts = List.concat (Part.map2 part (distribute x' (multisets sv gs trms) w)) in
          merge_pdts merge_min pdts
       | Node (lbl, part), _, _ :: trms ->
@@ -432,21 +436,27 @@ module Pdt = struct
       | Node (_, part) -> Set.union_list (module Dom)
                             (List.map part ~f:(fun (_, pdt) -> collect_leaf_values pdt)) in
     let rec insert_aggregations lbls (pdt: Dom.t option t) =
+      (*print_endline ("--insert_aggregations");
+      print_endline (String.concat ~sep:", " (List.map ~f:Lbl.to_string lbls));*)
       match pdt, lbls with
       | _, (Lbl.LVar x') :: lbls when String.equal x' s ->
+         (*print_endline "case 1";*)
          let leaf_values = collect_leaf_values pdt in
          let setcs = (Setc.Complement leaf_values) ::
                        (List.map (Set.elements leaf_values)
                           ~f:(fun s -> Setc.Finite (Set.singleton (module Dom) s))) in
          Node (LVar s, List.map setcs (fun s -> (s, apply1 lbls (f s) pdt)))
-      | Node (lbl, part), lbl' :: lbls when Lbl.equal lbl lbl' ->
-         Node (lbl, Part.map part (insert_aggregations lbls))
-      | _, _ :: lbls -> 
+      | Node (lbl', part), lbl :: lbls when Lbl.equal lbl lbl' ->
+         (*print_endline "case 2";*)
+         Node (lbl', Part.map part (insert_aggregations lbls))
+      | _, _ :: lbls ->
+         (*print_endline "case 3";*)
          insert_aggregations lbls pdt
     in
     let agg' m = if Map.is_empty m then None else Some (agg m) in
     let multiset_pdt = multisets [] y lbls' Etc.empty_valuation p in
     let aggregations_pdt = apply1 lbls' agg' multiset_pdt in
+    (*print_endline "--aggregate";*)
     insert_aggregations lbls aggregations_pdt
 
                         (* 
@@ -1044,11 +1054,11 @@ module Proof : ProofT with type sp = t_sp and type vp = t_vp = struct
          (s_at sp) tp (s_at sp) tp (Interval.to_latex i) (s_to_latex indent' v idx sp f)
     | SHistorically (tp, _, sps), Historically (i, f) ->
        Printf.sprintf "\\infer[\\Shistorically{}]{%s, %d \\pvd %s}\n%s{{\\tau_%d - \\tau_0 \\geq %s} & %s}\n"
-         (val_changes_to_latex v) (s_at p) (Formula.to_latex h) indent tp (Time.to_string (Interval.left i))
+         (val_changes_to_latex v) (s_at p) (Formula.to_latex h) indent tp (Time.Span.to_string (Interval.left i))
          (String.concat ~sep:"&" (Fdeque.to_list (Fdeque.map sps ~f:(fun sp -> "{" ^ (s_to_latex indent' v idx sp f) ^ "}"))))
     | SHistoricallyOut _, Historically (i, f) ->
        Printf.sprintf "\\infer[\\ShistoricallyL{}]{%s, %d \\pvd %s}\n%s{\\tau_%d - \\tau_0 < %s}\n"
-         (val_changes_to_latex v) (s_at p) (Formula.to_latex h) indent (s_at p) (Time.to_string (Interval.left i))
+         (val_changes_to_latex v) (s_at p) (Formula.to_latex h) indent (s_at p) (Time.Span.to_string (Interval.left i))
     | SAlways (_, _, sps), Always (i, f) ->
        Printf.sprintf "\\infer[\\Salways{}]{%s, %d \\pvd %s}\n%s{%s}\n"
          (val_changes_to_latex v) (s_at p) (Formula.to_latex h) indent
@@ -1121,25 +1131,25 @@ module Proof : ProofT with type sp = t_sp and type vp = t_vp = struct
        Printf.sprintf "\\infer[\\Vprevz]{%s, %d \\nvd %s}{}\n" (val_changes_to_latex v) (v_at p) (Formula.to_latex h)
     | VPrevOutL tp, Prev (i, f) ->
        Printf.sprintf "\\infer[\\Vprevl]{%s, %d \\nvd %s}\n%s{{%d > 0} & {\\tau_%d - \\tau_%d < %s}}\n"
-         (val_changes_to_latex v) (v_at p) (Formula.to_latex h) indent (v_at p) (v_at p) ((v_at p)-1) (Time.to_string (Interval.left i))
+         (val_changes_to_latex v) (v_at p) (Formula.to_latex h) indent (v_at p) (v_at p) ((v_at p)-1) (Time.Span.to_string (Interval.left i))
     | VPrevOutR tp, Prev (i, f) ->
        Printf.sprintf "\\infer[\\Vprevr]{%s, %d \\nvd %s}\n%s{{%d > 0} & {\\tau_%d - \\tau_%d > %s}}\n"
-         (val_changes_to_latex v) (v_at p) (Formula.to_latex h) indent (v_at p) (v_at p) ((v_at p)-1) (Time.to_string (Option.value_exn (Interval.right i)))
+         (val_changes_to_latex v) (v_at p) (Formula.to_latex h) indent (v_at p) (v_at p) ((v_at p)-1) (Time.Span.to_string (Option.value_exn (Interval.right i)))
     | VNext vp, Next (i, f) ->
        Printf.sprintf "\\infer[\\Vnext{}]{%s, %d \\nvd %s}\n%s{%s}\n"
          (val_changes_to_latex v) (v_at p) (Formula.to_latex h) indent (v_to_latex indent' v idx vp f)
     | VNextOutL tp, Next (i, f) ->
        Printf.sprintf "\\infer[\\Vnextl]{%s, %d \\nvd %s}{\\tau_%d - \\tau_%d < %s}\n"
-         (val_changes_to_latex v) (v_at p) (Formula.to_latex h) ((v_at p)+1) (v_at p) (Time.to_string (Interval.left i))
+         (val_changes_to_latex v) (v_at p) (Formula.to_latex h) ((v_at p)+1) (v_at p) (Time.Span.to_string (Interval.left i))
     | VNextOutR tp, Next (i, f) ->
        Printf.sprintf "\\infer[\\Vnextr]{%s, %d \\nvd %s}{\\tau_%d - \\tau_%d > %s}\n"
-         (val_changes_to_latex v) (v_at p) (Formula.to_latex h) ((v_at p)+1) (v_at p) (Time.to_string (Option.value_exn (Interval.right i)))
+         (val_changes_to_latex v) (v_at p) (Formula.to_latex h) ((v_at p)+1) (v_at p) (Time.Span.to_string (Option.value_exn (Interval.right i)))
     | VOnceOut tp, Once (i, f) ->
        Printf.sprintf "\\infer[\\Voncel{}]{%s, %d \\nvd %s}\n%s{\\tau_%d - \\tau_0 < %s}\n"
-         (val_changes_to_latex v) (v_at p) (Formula.to_latex h) indent (v_at p) (Time.to_string (Interval.left i))
+         (val_changes_to_latex v) (v_at p) (Formula.to_latex h) indent (v_at p) (Time.Span.to_string (Interval.left i))
     | VOnce (_, _, vps), Once (i, f) ->
        Printf.sprintf "\\infer[\\Vonce{}]{%s, %d \\nvd %s}\n%s{{\\tau_%d - \\tau_0 \\geq %s} & %s}\n"
-         (val_changes_to_latex v) (v_at p) (Formula.to_latex h) indent (v_at p) (Time.to_string (Interval.left i))
+         (val_changes_to_latex v) (v_at p) (Formula.to_latex h) indent (v_at p) (Time.Span.to_string (Interval.left i))
          (String.concat ~sep:"&" (Fdeque.to_list (Fdeque.map vps ~f:(fun vp -> "{" ^ (v_to_latex indent' v idx vp f) ^ "}"))))
     | VEventually (_, _, vps), Eventually (i, f) ->
        Printf.sprintf "\\infer[\\Veventually{}]{%s, %d \\nvd %s}\n%s{%s}\n"
@@ -1155,15 +1165,15 @@ module Proof : ProofT with type sp = t_sp and type vp = t_vp = struct
          (v_at vp) tp (v_at vp) tp (Interval.to_latex i) (v_to_latex indent' v idx vp f)
     | VSinceOut tp, Since (_, i, f, g) ->
        Printf.sprintf "\\infer[\\Vsincel{}]{%s, %d \\nvd %s}\n%s{\\tau_%d - \\tau_0 < %s}\n"
-         (val_changes_to_latex v) (v_at p) (Formula.to_latex h) indent (v_at p) (Time.to_string (Interval.left i))
+         (val_changes_to_latex v) (v_at p) (Formula.to_latex h) indent (v_at p) (Time.Span.to_string (Interval.left i))
     | VSince (tp, vp1, vp2s), Since (_, i, f, g) ->
        Printf.sprintf "\\infer[\\Vsince{}]{%s, %d \\nvd %s}\n%s{{%d \\leq %d} & {\\tau_%d - \\tau_0 \\geq %s} & {%s} & %s}\n"
          (val_changes_to_latex v) (v_at p) (Formula.to_latex h) indent
-         (v_at vp1) tp tp (Time.to_string (Interval.left i)) (v_to_latex indent' v idx vp1 f)
+         (v_at vp1) tp tp (Time.Span.to_string (Interval.left i)) (v_to_latex indent' v idx vp1 f)
          (String.concat ~sep:"&" (Fdeque.to_list (Fdeque.map vp2s ~f:(fun vp -> "{" ^ (v_to_latex indent' v idx vp g) ^ "}"))))
     | VSinceInf (tp, _, vp2s), Since (_, i, f, g) ->
        Printf.sprintf "\\infer[\\Vsinceinf{}]{%s, %d \\nvd %s}\n%s{{\\tau_%d - \\tau_0 \\geq %s} & %s}\n"
-         (val_changes_to_latex v) (v_at p) (Formula.to_latex h) indent tp (Time.to_string (Interval.left i))
+         (val_changes_to_latex v) (v_at p) (Formula.to_latex h) indent tp (Time.Span.to_string (Interval.left i))
          (String.concat ~sep:"&" (Fdeque.to_list (Fdeque.map vp2s ~f:(fun vp -> "{" ^ (v_to_latex indent' v idx vp g) ^ "}"))))
     | VUntil (tp, vp1, vp2s), Until (_, i, f, g) ->
        Printf.sprintf "\\infer[\\Vuntil{}]{%s, %d \\nvd %s}\n%s{{%d \\leq %d} & %s & {%s}}\n"

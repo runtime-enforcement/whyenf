@@ -465,7 +465,7 @@ let do_type f b =
 
 let rec relative_interval (f: Tformula.t) =
   match f.f with
-  | TTT | TFF | TEqConst (_, _) | TPredicate (_, _) -> Zinterval.singleton Time.zero
+  | TTT | TFF | TEqConst (_, _) | TPredicate (_, _) -> Zinterval.singleton Time.Span.zero
   | TNeg f | TExists (_, _, _, f) | TForall (_, _, _, f) | TAgg (_, _, _, _, _, f) -> relative_interval f
   | TAnd (_, f1, f2) | TOr (_, f1, f2) | TImp (_, f1, f2) | TIff (_, _, f1, f2)
     -> Zinterval.lub (relative_interval f1) (relative_interval f2)
@@ -503,7 +503,7 @@ let strict f =
         | TUntil (_, i, _, f1, f2)
           -> (_strict (Zinterval.sum (Zinterval.inv (Zinterval.of_interval i)) itv) true f1)
              || (_strict (Zinterval.sum (Zinterval.inv (Zinterval.of_interval i)) itv) true f2))
-  in not (_strict (Zinterval.singleton Time.zero) false f)
+  in not (_strict (Zinterval.singleton Time.Span.zero) false f)
 
 let relative_past f =
   Zinterval.is_nonpositive (relative_interval f)
