@@ -19,7 +19,7 @@ module Whyenf = struct
   let formula_ref = ref None
   let sig_ref = ref In_channel.stdin
   let logstr_ref = ref ""
-  let b_ref = ref Time.zero
+  let b_ref = ref Time.Span.zero
 
   let n_args = ref 0
 
@@ -39,10 +39,6 @@ module Whyenf = struct
        \t\t <file>             - output file (default: stdout)
        \t -b int                     - default bound for future operators (default: 0)\n%!";
     exit 0
-
-  let bound_error () =
-    Caml.Format.eprintf "b: any integer\n%!";
-    raise (Invalid_argument "invalid default bound")
 
   let process_args =
     let rec process_args_rec = function
@@ -75,9 +71,7 @@ module Whyenf = struct
          Etc.outc_ref := Out_channel.create outf;
          process_args_rec args
       | ("-b" :: bound :: args) ->
-         (match int_of_string_opt bound with
-          | None -> bound_error ()
-          | Some b -> b_ref := Time.Second b);
+         b_ref := Time.Span.of_string bound;
          process_args_rec args
       | [] -> if !n_args >= 2 then () else usage ()
       | _ -> usage () in

@@ -272,7 +272,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       if Time.(nts < first_ts + a) then (Fdeque.enqueue_back tstps_out (nts, ntp), tstps_in)
       else (tstps_out, Fdeque.enqueue_back tstps_in (nts, ntp))
     else
-      (if Time.is_zero a then (tstps_out, Fdeque.enqueue_back tstps_in (nts, ntp))
+      (if Time.Span.is_zero a then (tstps_out, Fdeque.enqueue_back tstps_in (nts, ntp))
        else (Fdeque.enqueue_back tstps_out (nts, ntp), tstps_in))
 
   let shift_tstps_future a first_ts ntp tstps_out tstps_in =
@@ -284,7 +284,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
      remove_cond_front (fun (ts', tp') -> Time.(ts' < first_ts + a) && (tp' < ntp)) tstps_in)
 
   let shift_tstps_past (l, r) a ts tp tstps_in tstps_out =
-    if Time.is_zero a then
+    if Time.Span.is_zero a then
       (remove_cond_front (fun (ts', _) -> Time.(ts' < l)) (Fdeque.enqueue_back tstps_in (ts, tp)), tstps_out)
     else
       let tstps_out' = Fdeque.enqueue_back tstps_out (ts, tp) in
@@ -495,10 +495,10 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
         let b = Interval.right i in
         let l =
           if Option.is_some b then
-            Time.max Time.zero Time.(ts - Option.value_exn b)
+            Time.max Time.zero Time.(ts -- Option.value_exn b)
           else
             Option.value_exn moaux_subps.ts_zero in
-        let r = Time.(ts - a) in
+        let r = Time.(ts -- a) in
         match mode with
         | Out.ENFORCE ->
            let moaux_shifted = shift_enforce (l, r) a ts tp moaux_subps in
@@ -510,7 +510,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
 
     (* Only used for approximation (enforcement related) *)
     let do_once_base tp a (p: Proof.t) =
-      match p, Time.is_zero a with
+      match p, Time.Span.is_zero a with
       | S sp, true -> Proof.S (Proof.make_sonce tp sp)
       | _ -> Proof.V (Proof.make_vff tp)
 
@@ -597,7 +597,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
     let update i (nts: Time.t) ntp p meaux =
       let a = Interval.left i in
       let b = match Interval.right i with
-        | None -> Time.max_time
+        | None -> Time.Span.max_span
         | Some(b') -> b' in
       let meaux_shifted = shift (a, b) (nts, ntp) meaux in
       let (tstps_out, tstps_in) = add_tstp_future a b nts
@@ -620,11 +620,11 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
 
     let do_eventually_base tp i is_pos (p_next: Proof.t) (p_now: Proof.t) =
       match p_next, p_now, Interval.left i, is_pos with
-      | _  , S sp_now, a, true when Time.is_zero a -> Proof.S (Proof.make_seventuallynow sp_now i)
-      | S _, _       , a, true when not (Time.is_zero a) -> Proof.S (Proof.make_seventuallyassm tp i)
+      | _  , S sp_now, a, true when Time.Span.is_zero a -> Proof.S (Proof.make_seventuallynow sp_now i)
+      | S _, _       , a, true when not (Time.Span.is_zero a) -> Proof.S (Proof.make_seventuallyassm tp i)
       | _  , _       , _, true  -> Proof.V (Proof.make_vff tp)
-      | V _, V vp_now, a, false when Time.is_zero a -> Proof.V (Proof.make_veventuallyassm tp (Some vp_now) i)
-      | V _, _       , a, false when not (Time.is_zero a) -> Proof.V (Proof.make_veventuallyassm tp None i)
+      | V _, V vp_now, a, false when Time.Span.is_zero a -> Proof.V (Proof.make_veventuallyassm tp (Some vp_now) i)
+      | V _, _       , a, false when not (Time.Span.is_zero a) -> Proof.V (Proof.make_veventuallyassm tp None i)
       | _  , _       , _, false -> Proof.S (Proof.make_stt tp)
 
   end
@@ -671,7 +671,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
 
     let update_s_alphas_in new_in_sat s_alphas_in =
       Fdeque.fold new_in_sat ~init:s_alphas_in ~f:(fun s_alphas_in' (ts, sp) ->
-          Fdeque.enqueue_back s_alphas_in' (ts, sp))
+          Fdeque.enqueue_back s_alphas_in' (ts, sp)) 
 
     let update_v_alphas_in new_in_vio v_alphas_in =
       if not (Fdeque.is_empty new_in_vio) then
@@ -728,16 +728,16 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       else
         let b = Interval.right i in
         let l = if (Option.is_some b) then
-                  Time.max Time.zero Time.(ts - (Option.value_exn b))
+                  Time.max Time.zero Time.(ts -- (Option.value_exn b))
                 else
                   (Option.value_exn mhaux_subps.ts_zero) in
-        let r = Time.(ts - a) in
+        let r = Time.(ts -- a) in
         let mhaux_shifted = shift (l, r) a ts tp mhaux_subps in
         (mhaux_shifted, eval tp mhaux_shifted)
 
     (* Only used for approximation (enforcement related) *)
     let do_historically_base tp a (p: Proof.t) =
-      match p, Time.is_zero a with
+      match p, Time.Span.is_zero a with
       | V vp, true -> Proof.V (Proof.make_vhistorically tp vp)
       | _ -> Proof.S (Proof.make_stt tp)
 
@@ -822,7 +822,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
     let update i nts ntp p maaux =
       let a = Interval.left i in
       let b = match Interval.right i with
-        | None -> Time.max_time
+        | None -> Time.Span.max_span
         | Some(b') -> b' in
       let maaux_shifted = shift (a, b) (nts, ntp) maaux in
       let (tstps_out, tstps_in) = add_tstp_future a b nts ntp maaux_shifted.tstps_out maaux_shifted.tstps_in in
@@ -844,11 +844,11 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
 
     let do_always_base tp i is_pos (p_next: Proof.t) (p_now: Proof.t) =
       match p_next, p_now, Interval.left i, is_pos with
-      | _  , V vp_now, a, false when Time.is_zero a -> Proof.V (Proof.make_valwaysnow vp_now i)
-      | V _, _       , a, false when not (Time.is_zero a) -> Proof.V (Proof.make_valwaysassm tp i)
+      | _  , V vp_now, a, false when Time.Span.is_zero a -> Proof.V (Proof.make_valwaysnow vp_now i)
+      | V _, _       , a, false when not (Time.Span.is_zero a) -> Proof.V (Proof.make_valwaysassm tp i)
       | _  , _       , _, false -> Proof.S (Proof.make_stt tp)
-      | S _, S sp_now, a, true when Time.is_zero a  -> Proof.S (Proof.make_salwaysassm tp (Some sp_now) i)
-      | S _, _       , a, true when not (Time.is_zero a) -> Proof.S (Proof.make_salwaysassm tp None i)
+      | S _, S sp_now, a, true when Time.Span.is_zero a  -> Proof.S (Proof.make_salwaysassm tp (Some sp_now) i)
+      | S _, _       , a, true when not (Time.Span.is_zero a) -> Proof.S (Proof.make_salwaysassm tp None i)
       | _  , _       , _, true  -> Proof.V (Proof.make_vff tp)
 
   end
@@ -1071,9 +1071,9 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
          [Proof.V (Proof.make_vsinceout tp)])
       else
         (let b = Interval.right i in
-         let l = if (Option.is_some b) then Time.max Time.zero Time.(ts - (Option.value_exn b))
+         let l = if (Option.is_some b) then Time.max Time.zero Time.(ts -- (Option.value_exn b))
                  else (Option.value_exn msaux_subps.ts_zero) in
-         let r = Time.(ts - a) in
+         let r = Time.(ts -- a) in
          match mode with
          | Out.ENFORCE ->
             let msaux_shifted = shift_enforce (l, r) a ts tp msaux_subps in
@@ -1086,9 +1086,9 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
     (* Only used for approximation (enforcement related) *)
     let do_since_base tp a pol (p1: Proof.t) (p2: Proof.t) =
       match p1, p2, pol with
-      | _    , S sp2, true when Time.is_zero a -> Proof.S (Proof.make_ssince sp2 Fdeque.empty)
+      | _    , S sp2, true when Time.Span.is_zero a -> Proof.S (Proof.make_ssince sp2 Fdeque.empty)
       | _    , _    , true -> Proof.V (Proof.make_vff tp)
-      | V vp1, _    , false when not (Time.is_zero a) -> Proof.V (Proof.make_vsince tp vp1 (Fdeque.empty))
+      | V vp1, _    , false when not (Time.Span.is_zero a) -> Proof.V (Proof.make_vsince tp vp1 (Fdeque.empty))
       | _    , _    , false -> Proof.S (Proof.make_stt tp)
 
   end
@@ -1309,7 +1309,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       let v_betas_alpha_step1 = Fdeque.map v_betas_alpha ~f:(fun d ->
                                     remove_cond_front (fun (ts', p) ->
                                         Time.(ts' < first_ts + a) || ((Proof.p_at p) < first_tp)) d) in
-      let v_betas_alpha_step2 = if Time.is_zero a then
+      let v_betas_alpha_step2 = if Time.Span.is_zero a then
                                   drop_v_single_ts eval_tp v_betas_alpha_step1
                                 else drop_v_ts a first_ts v_betas_alpha_step1 tstps_in' in
       let v_betas_alpha_step3 = remove_cond_front_ne (fun d' -> Fdeque.is_empty d') v_betas_alpha_step2 in
@@ -1403,7 +1403,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
     let update i nts ntp p1 p2 muaux =
       let a = Interval.left i in
       let b = match Interval.right i with
-        | None -> Time.max_time
+        | None -> Time.Span.max_span
         | Some(b') -> b' in
       let muaux_shifted = shift (a, b) (nts, ntp) muaux in
       let (tstps_out, tstps_in) = add_tstp_future a b nts ntp muaux_shifted.tstps_out muaux_shifted.tstps_in in
@@ -1617,11 +1617,11 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
         | TEqConst (x, c) -> vt, MEqConst (x, c)
         | TPredicate (r, trms) -> vt, MPredicate (r, trms)
         | TAgg (s, tt, op, x, y, f) ->
-           let h, mf = aux vt fvs lbls f in
            let op_fun = Aggregation.eval op tt in
-           let fvs'  = Set.elements (Formula.fv (Tformula.to_formula f)) in
-           let lbls' = Formula.lbls fvs' (Tformula.to_formula f) in
-           let lbls' = Aggregation.order_lbls lbls lbls' (Lbl.of_term x) y in
+           let fvs'   = Set.elements (Formula.fv (Tformula.to_formula f)) in
+           let lbls'  = Formula.lbls fvs' (Tformula.to_formula f) in
+           let lbls'  = Aggregation.order_lbls lbls lbls' (Lbl.of_term x) y  in
+           let vt, mf  = aux vt fvs' lbls' f in
            vt, MAgg (s, op, op_fun, fvs', lbls', x, y, make mf)
         | TNeg f -> let vt, mf = aux vt fvs lbls f in
                     vt, MNeg (make mf)
@@ -1997,7 +1997,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
         | FFormula (mf, _, _) -> mf
         | FInterval (ts, i, mf, h, v) ->
            if Interval.mem Time.(ts' - ts) i then
-             make (MEUntil (R, Interval.sub2 i Time.(ts' - ts),
+             make (MEUntil (R, Interval.sub i Time.(ts' - ts),
                             _neg_tp,
                             make (MAnd (L, MFormula._tp, mf, empty_binop_info)),
                             v))
@@ -2011,7 +2011,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
              let mf2' = match mf2.mf with
                | MAnd (_, _tp, mf2, _) -> mf2
                | _ -> mf2 in
-             make (MEUntil (side, Interval.sub2 i Time.(ts' - ts),
+             make (MEUntil (side, Interval.sub i Time.(ts' - ts),
                             (if MFormula.equal mf1' _neg_tp then
                                _neg_tp
                              else
@@ -2025,7 +2025,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
              let mf' = match mf.mf with
                | MImp (_, _tp, mf, _) -> mf
                | _ -> mf in
-             make (MEAlways (Interval.sub2 i Time.(ts' - ts),
+             make (MEAlways (Interval.sub i Time.(ts' - ts),
                              make (MImp (R, _tp, mf', empty_binop_info)),
                              v))
            else
@@ -2035,7 +2035,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
              let mf' = match mf.mf with
                | MAnd (_, _tp, mf, _) -> mf
                | _ -> mf in
-             make (MEEventually (Interval.sub2 i Time.(ts' - ts),
+             make (MEEventually (Interval.sub i Time.(ts' - ts),
                                  make (MAnd (L, _tp, mf', empty_binop_info)),
                                  v))
            else
@@ -2416,7 +2416,11 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
                 Proof.V (Proof.make_vff tp)
              | Some d ->
                 if Setc.mem s d then Proof.S (Proof.make_stt tp) else Proof.V (Proof.make_vff tp) in
-           let aggregate = Pdt.aggregate Proof.isS is_in_setc op_fun s x y lbls' in
+           (*print_endline "--MAgg";
+           print_endline ("aexpl=" ^ Expl.to_string aexpl);
+           print_endline ("lbls="  ^ String.concat ~sep:", " (List.map ~f:Lbl.to_string lbls));
+           print_endline ("lbls'=" ^ String.concat ~sep:", " (List.map ~f:Lbl.to_string lbls'));*)
+           let aggregate = Pdt.aggregate Proof.isS is_in_setc op_fun s x y lbls in
            let f_expls = List.map expls ~f:(aggregate lbls') in
            let f_aexpl = aggregate lbls' aexpl in
            (f_expls, f_aexpl, MAgg (s, op, op_fun, fvs', lbls', x, y, mf'))
@@ -2460,10 +2464,16 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
            let aexpl = else_any (approx_default f_expls) tp pol in
            (f_expls, aexpl, MIff (s, t, mf1', mf2', buf2'))
         | MExists (x, tc, b, fvs', lbls', mf) ->
+           (*print_endline "--MExists";
+           print_endline ("x =" ^ x);
+           print_endline ("lbls =" ^ (Lbl.to_string_list lbls));
+           print_endline ("lbls'=" ^ (Lbl.to_string_list lbls'));*)
            let (expls, aexpl, mf') = meval_rec fvs' lbls' ts tp db ~pol fobligs mf in
            let quant expl = approx_quant expl pol lbls lbls' tp x tc mformula.mf in
            let expls = List.map expls ~f:quant in
+           (*print_endline ("aexpl (before) = " ^ Expl.to_string aexpl);*)
            let aexpl = quant aexpl in
+           (*print_endline ("aexpl (after) = " ^ Expl.to_string aexpl);*)
            (expls, aexpl, MExists(x, tc, b, fvs', lbls', mf'))
         | MForall (x, tc, b, fvs', lbls', mf) ->
            (*print_endline "--MForall";
@@ -2483,7 +2493,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
              Buft.another_take
                (fun expl ts ts' -> Pdt.apply1_reduce Proof.equal lbls
                                      (fun p -> Prev_Next.update_eval Prev i p ts ts') expl)
-               (buf @ expls, tss @ [Time.of_timestamp ts]) in
+               (buf @ expls, tss @ [Time.of_int ts]) in
            let aexpl = else_any (approx_default f_expls) tp pol in
            ((if first then (Leaf (V Proof.make_vprev0) :: f_expls) else f_expls), aexpl, MPrev (i, mf', false, (buf', tss')))
         | MNext (i, mf, first, tss) ->
@@ -2494,7 +2504,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
              Buft.another_take
                (fun expl ts ts' -> Pdt.apply1_reduce Proof.equal lbls
                                      (fun p -> Prev_Next.update_eval Next i p ts ts') expl)
-               (expls', tss @ [Time.of_timestamp ts]) in
+               (expls', tss @ [Time.of_int ts]) in
            (f_expls, else_any approx_false tp pol, MNext (i, mf', first, tss'))
         | MENext (i, mf, v) ->
            let (_, _, mf') = meval_rec fvs lbls ts tp db ~pol fobligs mf in
@@ -2509,7 +2519,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
                    Pdt.split_prod (Pdt.apply2 lbls (fun p aux -> (* Stdio.printf "%s\n" (Once.to_string aux); *)
                                        Once.update i ts tp p aux mode) expl aux_pdt) in
                  (aux_pdt', es @ (Pdt.split_list es')))
-               (moaux_pdt, []) (expls, (tstps @ [(Time.of_timestamp ts,tp)])) in
+               (moaux_pdt, []) (expls, (tstps @ [(Time.of_int ts,tp)])) in
            let expls'' = List.map expls' ~f:(Pdt.reduce Proof.equal) in
            let aexpl = else_any (approx_once lbls expls'' aexpl i) tp pol in
            (expls'', aexpl, MOnce (i, mf', tstps', moaux_pdt'))
@@ -2518,9 +2528,9 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
            let (meaux_pdt', buf', ntstps') =
              Buft.take
                (fun expl ts tp aux_pdt -> Pdt.apply2 lbls (fun p aux -> Eventually.update i ts tp p aux) expl aux_pdt)
-               meaux_pdt (buf @ expls, (ntstps @ [(Time.of_timestamp ts,tp)])) in
+               meaux_pdt (buf @ expls, (ntstps @ [(Time.of_int ts,tp)])) in
            let (nts, ntp) = match ntstps' with
-             | [] -> (Time.of_timestamp ts, tp)
+             | [] -> (Time.of_int ts, tp)
              | (nts', ntp') :: _ -> (nts', ntp') in
            let (meaux_pdt', es') =
              Pdt.split_prod (Pdt.apply1 lbls (fun aux -> Eventually.eval i nts ntp (aux, [])) meaux_pdt') in
@@ -2541,7 +2551,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
                    Pdt.split_prod (Pdt.apply2 lbls
                                      (fun p aux -> Historically.update i ts tp p aux) expl aux_pdt) in
                  (aux_pdt', es @ (Pdt.split_list es')))
-               (mhaux_pdt, []) (expls, (tstps @ [(Time.of_timestamp ts,tp)])) in
+               (mhaux_pdt, []) (expls, (tstps @ [(Time.of_int ts,tp)])) in
            let expls'' = List.map expls' ~f:(Pdt.reduce Proof.equal) in
            let aexpl = else_any (approx_historically lbls expls'' aexpl i) tp pol in
            (expls'', aexpl, MHistorically (i, mf', tstps', mhaux_pdt'))
@@ -2550,9 +2560,9 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
            let (maaux_pdt', buf', ntstps') =
              Buft.take
                (fun expl ts tp aux_pdt -> Pdt.apply2 lbls (fun p aux -> Always.update i ts tp p aux) expl aux_pdt)
-               maaux_pdt (buf @ expls, (ntstps @ [(Time.of_timestamp ts,tp)])) in
+               maaux_pdt (buf @ expls, (ntstps @ [(Time.of_int ts,tp)])) in
            let (nts, ntp) = match ntstps' with
-             | [] -> (Time.of_timestamp ts, tp)
+             | [] -> (Time.of_int ts, tp)
              | (nts', ntp') :: _ -> (nts', ntp') in
            let (maaux_pdt', es') =
              Pdt.split_prod (Pdt.apply1 lbls (fun aux -> Always.eval i nts ntp (aux, [])) maaux_pdt') in
@@ -2575,7 +2585,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
                                      (fun p1 p2 aux ->
                                        Since.update i ts tp p1 p2 aux mode) expl1 expl2 aux_pdt) in
                  (aux_pdt', es @ (Pdt.split_list es')))
-               (msaux_pdt, []) (Buf2.add expls1 expls2 buf2) (tstps @ [(Time.of_timestamp ts,tp)]) in
+               (msaux_pdt, []) (Buf2.add expls1 expls2 buf2) (tstps @ [(Time.of_int ts,tp)]) in
            let expls'' = List.map expls' ~f:(Pdt.reduce Proof.equal) in
            let aexpl = else_any (approx_since lbls expls'' aexpl1 aexpl2 i) tp pol in
            (*print_endline "--MSince";
@@ -2590,9 +2600,9 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
              Buf2t.take
                (fun expl1 expl2 ts tp aux_pdt ->
                  Pdt.apply3 lbls (fun p1 p2 aux -> Until.update i ts tp p1 p2 aux) expl1 expl2 aux_pdt)
-               muaux_pdt (Buf2.add expls1 expls2 buf2) (ntstps @ [(Time.of_timestamp ts,tp)]) in
+               muaux_pdt (Buf2.add expls1 expls2 buf2) (ntstps @ [(Time.of_int ts,tp)]) in
            let (nts, ntp) = match ntstps' with
-             | [] -> (Time.of_timestamp ts, tp)
+             | [] -> (Time.of_int ts, tp)
              | (nts', ntp') :: _ -> (nts', ntp') in
            let (muaux_pdt', es') =
              Pdt.split_prod (Pdt.apply1 lbls (fun aux -> Until.eval i nts ntp (aux, [])) muaux_pdt') in

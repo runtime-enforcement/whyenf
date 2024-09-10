@@ -730,8 +730,7 @@ let rec solve_past_guarded x vars p f =
     | EqConst (Term.App (f, [Term.Var x; trm]), Dom.Int 1), true when Funcs.is_eq f ->
        [Term.fv_list [trm]]
     | Predicate (_, ts), true when List.exists ~f:(Term.equal (Term.Var x)) ts -> [[]]
-    | Agg (_, _, _, y, f), _ when List.mem y x ~equal:String.equal -> solve_past_guarded x vars p f
-    | Agg (s, _, _, _, _), _ when String.equal s x -> [[]]
+    | Agg (s, _, _, _, _), true when String.equal s x -> [[]]
     | Neg f, _ -> solve_past_guarded x vars (not p) f
     | And (_, f', g'), true | Or (_, f', g'), false | Imp (_, f', g'), false ->
        let q = match f with Imp _ -> not p | _ -> p in

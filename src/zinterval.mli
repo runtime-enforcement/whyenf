@@ -10,33 +10,34 @@
 (*******************************************************************)
 
 open Interval
+open Time
 
 type t = ZB of bt | ZUL of ut | ZUR of ut | ZU
 
 val equal: t -> t -> bool
 
-val lclosed_UI: Time.t -> t
-val lopen_UI: Time.t -> t
+val lclosed_UI: Span.t -> t
+val lopen_UI: Span.t -> t
 
-val lopen_ropen_BI: Time.t -> Time.t -> t
-val lopen_rclosed_BI: Time.t -> Time.t -> t
-val lclosed_ropen_BI: Time.t -> Time.t -> t
-val lclosed_rclosed_BI: Time.t -> Time.t -> t
-val singleton: Time.t -> t
+val lopen_ropen_BI: Span.t -> Span.t -> t
+val lopen_rclosed_BI: Span.t -> Span.t -> t
+val lclosed_ropen_BI: Span.t -> Span.t -> t
+val lclosed_rclosed_BI: Span.t -> Span.t -> t
+val singleton: Span.t -> t
 val of_interval: Interval.t -> t
 
 val full: t
 
-val mem: Time.t -> t -> bool
+val mem: Span.t -> t -> bool
 
-val left: t -> Time.t option
-val right: t -> Time.t option
+val left: t -> Span.t option
+val right: t -> Span.t option
 
 val lub: t -> t -> t
 val has_zero: t -> bool
 val to_zero: t -> t
 val is_nonpositive: t -> bool
-val add: Time.t -> t -> t
+val add: Span.t -> t -> t
 val sum: t -> t -> t
 val inv: t -> t
 

@@ -37,10 +37,10 @@ type core_t =
 and t = { f: core_t; enftype: EnfType.t } [@@deriving compare, hash, sexp_of]
 
 let rec core_of_formula f (types: Dom.ctxt) =
-  let f_q x f =
+  let f_q ?(true_ok=true) f x =
     if Formula.is_past_guarded x true f then
       true
-    else if Formula.is_past_guarded x false f then
+    else if Formula.is_past_guarded x false f && true_ok then
       false
     else
       raise (Invalid_argument
@@ -61,7 +61,12 @@ let rec core_of_formula f (types: Dom.ctxt) =
   | Agg (s, op, x, y, f) ->
      let types, mf = of_formula f types in
      let types = Formula.check_agg types s op x y f in
-     types, TAgg (s, Sig.var_tt_of_term_exn types x,  op, x, y, mf)
+     let vars_to_monitor =
+       Term.fv_list [x]
+       @ (List.filter (Set.elements (Formula.fv f))
+            ~f:(fun x -> List.mem y x ~equal:String.equal)) in
+     ignore (List.map vars_to_monitor ~f:(f_q ~true_ok:false f));
+     types, TAgg (s, Sig.var_tt_of_term_exn types x, op, x, y, mf)
   | Neg f ->
      let types, mf = of_formula f types in
      types, TNeg mf
@@ -83,10 +88,10 @@ let rec core_of_formula f (types: Dom.ctxt) =
      types, TIff (s, t, mf, mg)
   | Exists (x, f) ->
      let types, mf = of_formula f types in
-     types, TExists (x, Map.find_exn types x, f_q x f, mf)
+     types, TExists (x, Map.find_exn types x, f_q f x, mf)
   | Forall (x, f) ->
      let types, mf = of_formula f types in
-     types, TForall (x, Map.find_exn types x, f_q x f, mf)
+     types, TForall (x, Map.find_exn types x, f_q f x, mf)
   | Prev (i, f) ->
      let types, mf = of_formula f types in
      types, TPrev (i, mf)

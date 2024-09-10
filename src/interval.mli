@@ -8,20 +8,20 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
-type ut = UI of Time.t [@@deriving compare, sexp_of, hash, equal]
-type bt = BI of Time.t * Time.t [@@deriving compare, sexp_of, hash, equal]
+type ut = UI of Time.Span.t [@@deriving compare, sexp_of, hash, equal]
+type bt = BI of Time.Span.t * Time.Span.t [@@deriving compare, sexp_of, hash, equal]
 type t = B of bt | U of ut [@@deriving compare, sexp_of, hash, equal]
 
 val equal: t -> t -> bool
 
-val lclosed_UI: Time.t -> t
-val lopen_UI: Time.t -> t
+val lclosed_UI: Time.Span.t -> t
+val lopen_UI: Time.Span.t -> t
 
-val lopen_ropen_BI: Time.t -> Time.t -> t
-val lopen_rclosed_BI: Time.t -> Time.t -> t
-val lclosed_ropen_BI: Time.t -> Time.t -> t
-val lclosed_rclosed_BI: Time.t -> Time.t -> t
-val singleton: Time.t -> t
+val lopen_ropen_BI: Time.Span.t -> Time.Span.t -> t
+val lopen_rclosed_BI: Time.Span.t -> Time.Span.t -> t
+val lclosed_ropen_BI: Time.Span.t -> Time.Span.t -> t
+val lclosed_rclosed_BI: Time.Span.t -> Time.Span.t -> t
+val singleton: Time.Span.t -> t
 val is_zero: t -> bool
 
 val full: t
@@ -29,19 +29,18 @@ val full: t
 val is_bounded_exn: string -> t -> unit
 val is_bounded: t -> bool
 
-val sub: t -> Time.t -> t
-val sub2: t -> Time.t -> t
-val boundaries: t -> Time.t * Time.t
+val sub: t -> Time.Span.t -> t
+val boundaries: t -> Time.Span.t * Time.Span.t
 
-val mem: Time.t -> t -> bool
+val mem: Time.Span.t -> t -> bool
 
-val left: t -> Time.t
-val right: t -> Time.t option
+val left: t -> Time.Span.t
+val right: t -> Time.Span.t option
 
 val lub: t -> t -> t
 
-val below: Time.t -> t -> bool
-val above: Time.t -> t -> bool
+val below: Time.Span.t -> t -> bool
+val above: Time.Span.t -> t -> bool
 
 val to_string: t -> string
 val to_latex: t -> string
