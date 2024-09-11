@@ -48,16 +48,16 @@ module type MonitorT = sig
       | MForall       of string * Dom.tt * bool * string list * Pred.Lbl.t list *  t
       | MPrev         of Interval.t * t * bool * prev_info
       | MNext         of Interval.t * t * bool * next_info
-      | MENext        of Interval.t * t * Etc.valuation
+      | MENext        of Interval.t * Time.t option * t * Etc.valuation
       | MOnce         of Interval.t * t * tp_info * once_info
       | MEventually   of Interval.t * t * buft_info * eventually_info
-      | MEEventually  of Interval.t * t * Etc.valuation
+      | MEEventually  of Interval.t * Time.t option * t * Etc.valuation
       | MHistorically of Interval.t * t * tp_info * historically_info
       | MAlways       of Interval.t * t * buft_info * always_info
-      | MEAlways      of Interval.t * t * Etc.valuation
+      | MEAlways      of Interval.t * Time.t option * t * Etc.valuation
       | MSince        of Formula.Side.t * Interval.t * t * t * buf2t_info * since_info
       | MUntil        of Interval.t * t * t * buf2t_info * until_info
-      | MEUntil       of Formula.Side.t * Interval.t * t * t * Etc.valuation
+      | MEUntil       of Formula.Side.t * Interval.t * Time.t option * t * t * Etc.valuation
 
     and t = { mf: core_t; hash: int }
 

@@ -37,6 +37,8 @@ val mem: Time.Span.t -> t -> bool
 val left: t -> Time.Span.t
 val right: t -> Time.Span.t option
 
+val diff_right_of: Time.t -> Time.t -> t -> bool
+
 val lub: t -> t -> t
 
 val below: Time.Span.t -> t -> bool

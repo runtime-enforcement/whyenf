@@ -114,7 +114,10 @@ module Span = struct
 
   let to_string t =
     let y, m, d, s = ymds t in
-    Printf.sprintf "%dy %dm %dd %ds" y m d s
+    let f (v, u) = if v > 0 then Some (Printf.sprintf "%d%s" v u) else None in
+    let str = String.concat ~sep:" " (List.filter_map ~f [(y, "y"); (m, "m"); (d, "d"); (s, "s")]) in
+    if String.is_empty str then "0" else str
+  
   
 end
 
