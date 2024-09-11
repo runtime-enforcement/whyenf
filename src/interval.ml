@@ -60,6 +60,7 @@ let sub i t = match i with
   | B (BI (a, b)) -> B (BI (Span.(a - t), Span.(b - t)))
   | U (UI a) -> U (UI (Span.(a - t)))
 
+
 let boundaries = function
   | B (BI (a, b)) -> (a, b)
   | U _ -> raise (Invalid_argument (Printf.sprintf "unbounded future operator"))
@@ -80,6 +81,11 @@ let right =
   let right_UI (UI l) = None in
   let right_BI (BI (l, r)) = Some(r) in
   case right_BI right_UI
+
+let diff_right_of ts ts' i =
+  match right i with
+  | Some b -> ts + b <= ts'
+  | None -> false
 
 let lub i i' =
   let l = Span.min (left i) (left i') in

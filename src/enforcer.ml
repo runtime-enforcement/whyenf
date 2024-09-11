@@ -201,6 +201,9 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       else
         es
 
+    let default_ts ts es =
+      Option.value ts ~default:(Time.of_int es.ts)
+
     let rec enfsat_and mf1 =
       lr sat sat enfsat enfsat mf1
 
@@ -250,30 +253,33 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
                      (MFormula.make (MImp (side1, mf2, mf1, empty_binop_info))) v) es
       | MExists (x, tt, b, _, _, mf) -> enfsat mf (Map.add_exn v ~key:x ~data:(Dom.tt_default tt)) es
       | MForall (x, tt, b, _, _, mf) -> fixpoint (enfsat_forall x mf v) es
-      | MENext (i, mf, vv) -> add_foblig (FInterval (Time.of_int es.ts, i, mf, mformula.hash, vv), v, POS) es
-      | MEEventually (i, mf, vv) ->
-         if Interval.is_zero i && es.nick then
+      | MENext (i, ts, mf, vv) ->
+         add_foblig (FInterval (default_ts ts es, i, mf, mformula.hash, vv), v, POS) es
+      | MEEventually (i, ts, mf, vv) ->
+         if Interval.diff_right_of (default_ts ts es) (Time.of_int es.ts) i && es.nick then
            enfsat mf v es
          else
-           add_foblig (FEventually (Time.of_int es.ts, i, mf, mformula.hash, vv), v, POS) es
-      | MEAlways (i, mf, vv) ->
-         add_foblig (FAlways (Time.of_int es.ts, i, mf, mformula.hash, vv), v, POS) (enfsat mf v es)
+           add_foblig (FEventually (default_ts ts es, i, mf, mformula.hash, vv), v, POS) es
+      | MEAlways (i, ts, mf, vv) ->
+         add_foblig (FAlways (default_ts ts es, i, mf, mformula.hash, vv), v, POS) (enfsat mf v es)
       | MSince (_, _, mf1, mf2, _, _) -> enfsat mf2 v es
-      | MEUntil (R, i, mf1, mf2, vv) ->
-         if Interval.is_zero i && es.nick then
+      | MEUntil (R, i, ts, mf1, mf2, vv) ->
+         if Interval.diff_right_of (default_ts ts es) (Time.of_int es.ts) i && es.nick then
            add_cau Db.Event._tp (enfsat mf2 v es)
          else if not (sat v mf1 es) then
            enfsat mf2 v es
          else
-           add_foblig (FUntil (Time.of_int es.ts, LR, i, mf1, mf2, mformula.hash, vv), v, POS) (enfsat mf1 v es)
-      | MEUntil (LR, i, mf1, mf2, vv) ->
-         if Interval.is_zero i && es.nick then
+           add_foblig (FUntil (default_ts ts es, LR, i, mf1, mf2, mformula.hash, vv), v, POS) (enfsat mf1 v es)
+      | MEUntil (LR, i, ts, mf1, mf2, vv) ->
+         if Interval.diff_right_of (default_ts ts es) (Time.of_int es.ts) i && es.nick then
            add_cau Db.Event._tp (enfsat mf2 v es)
          else
-           add_foblig (FUntil (Time.of_int es.ts, LR, i, mf1, mf2, mformula.hash, vv), v, POS) (enfsat mf1 v es)
+           add_foblig (FUntil (default_ts ts es, LR, i, mf1, mf2, mformula.hash, vv), v, POS) (enfsat mf1 v es)
       | MAnd (LR, _, _, _) -> raise (Invalid_argument ("side for " ^
                                                          MFormula.op_to_string mformula ^ " was not fixed"))
-      | _ -> raise (Invalid_argument ("function enfsat is not defined for "
+      | _ -> print_endline (MFormula.to_string mformula);
+             print_endline (to_string es);
+             raise (Invalid_argument ("function enfsat is not defined for "
                                       ^ MFormula.op_to_string mformula))
     and enfvio (mformula: MFormula.t) v es =
       match mformula.mf with
@@ -294,25 +300,25 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       | MIff (R, _, mf1, mf2, _) -> fixpoint (enfvio_imp mf2 mf1 v) es
       | MExists (x, tt, b, _, _, mf) -> fixpoint (enfvio_exists x mf v) es
       | MForall (x, tt, b, _, _, mf) -> enfvio mf (Map.add_exn v ~key:x ~data:(Dom.tt_default tt)) es
-      | MENext (i, mf, vv) -> add_foblig (FInterval (Time.of_int es.ts, i, mf, mformula.hash, vv), v, NEG) es
-      | MEEventually (i, mf, vv) -> enfvio_eventually i (mformula.hash, vv) mf v es
-      | MEAlways (i, mf, vv) ->
-         if Interval.is_zero i && es.nick then
+      | MENext (i, ts, mf, vv) -> add_foblig (FInterval (default_ts ts es, i, mf, mformula.hash, vv), v, NEG) es
+      | MEEventually (i, ts, mf, vv) -> enfvio_eventually i (mformula.hash, vv) mf v es (*TODO*)
+      | MEAlways (i, ts, mf, vv) ->
+         if Interval.diff_right_of (default_ts ts es) (Time.of_int es.ts) i && es.nick then
            enfvio mf v es
          else
-           add_foblig (FAlways (Time.of_int es.ts, i, mf, mformula.hash, vv), v, NEG) es
+           add_foblig (FAlways (default_ts ts es, i, mf, mformula.hash, vv), v, NEG) es
       | MSince (L, _, mf1, _, _, _) -> enfvio mf1 v es
       | MSince (R, i, mf1, mf2, _, _) ->
          let f' = MFormula.make (MNeg (MFormula.make (MAnd (R, mf1, mformula, empty_binop_info)))) in
          fixpoint (enfsat_and f' (MFormula.make (MNeg mf2)) v) es
 
-      | MEUntil (L, _, mf1, _, _) -> enfvio mf1 v es
-      | MEUntil (R, i, mf1, mf2, vv) -> fixpoint (enfvio_until i (mformula.hash, vv) mf1 mf2 v) es
+      | MEUntil (L, _, ts, mf1, _, _) -> enfvio mf1 v es (*TODO*)
+      | MEUntil (R, i, ts, mf1, mf2, vv) -> fixpoint (enfvio_until i (mformula.hash, vv) mf1 mf2 v) es (*TODO*)
       | MAnd (LR, _, _, _)
         | MOr (LR, _, _, _)
         | MImp (LR, _, _, _)
         | MSince (LR, _, _, _, _, _)
-        | MEUntil (LR, _, _, _, _) ->
+        | MEUntil (LR, _, _, _, _, _) ->
          raise (Invalid_argument ("side for " ^ MFormula.op_to_string mformula ^ " was not fixed"))
       | _ -> raise (Invalid_argument ("function enfvio is not defined for "
                                       ^ MFormula.op_to_string mformula))
