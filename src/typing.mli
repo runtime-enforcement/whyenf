@@ -9,5 +9,5 @@
 
 open Formula
 
-val do_type : t -> Time.Span.t -> Tformula.t
+val do_type : t -> Time.Span.s -> Tformula.t
 val is_transparent: Tformula.t -> bool

@@ -495,10 +495,10 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
         let b = Interval.right i in
         let l =
           if Option.is_some b then
-            Time.max Time.zero Time.(ts -- Option.value_exn b)
+            Time.max Time.zero Time.(ts - Option.value_exn b)
           else
             Option.value_exn moaux_subps.ts_zero in
-        let r = Time.(ts -- a) in
+        let r = Time.(ts - a) in
         match mode with
         | Out.ENFORCE ->
            let moaux_shifted = shift_enforce (l, r) a ts tp moaux_subps in
@@ -597,7 +597,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
     let update i (nts: Time.t) ntp p meaux =
       let a = Interval.left i in
       let b = match Interval.right i with
-        | None -> Time.Span.max_span
+        | None -> Time.Span.infty
         | Some(b') -> b' in
       let meaux_shifted = shift (a, b) (nts, ntp) meaux in
       let (tstps_out, tstps_in) = add_tstp_future a b nts
@@ -728,10 +728,10 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       else
         let b = Interval.right i in
         let l = if (Option.is_some b) then
-                  Time.max Time.zero Time.(ts -- (Option.value_exn b))
+                  Time.max Time.zero Time.(ts - (Option.value_exn b))
                 else
                   (Option.value_exn mhaux_subps.ts_zero) in
-        let r = Time.(ts -- a) in
+        let r = Time.(ts - a) in
         let mhaux_shifted = shift (l, r) a ts tp mhaux_subps in
         (mhaux_shifted, eval tp mhaux_shifted)
 
@@ -822,7 +822,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
     let update i nts ntp p maaux =
       let a = Interval.left i in
       let b = match Interval.right i with
-        | None -> Time.Span.max_span
+        | None -> Time.Span.infty
         | Some(b') -> b' in
       let maaux_shifted = shift (a, b) (nts, ntp) maaux in
       let (tstps_out, tstps_in) = add_tstp_future a b nts ntp maaux_shifted.tstps_out maaux_shifted.tstps_in in
@@ -1071,9 +1071,9 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
          [Proof.V (Proof.make_vsinceout tp)])
       else
         (let b = Interval.right i in
-         let l = if (Option.is_some b) then Time.max Time.zero Time.(ts -- (Option.value_exn b))
+         let l = if (Option.is_some b) then Time.max Time.zero Time.(ts - (Option.value_exn b))
                  else (Option.value_exn msaux_subps.ts_zero) in
-         let r = Time.(ts -- a) in
+         let r = Time.(ts - a) in
          match mode with
          | Out.ENFORCE ->
             let msaux_shifted = shift_enforce (l, r) a ts tp msaux_subps in
@@ -1403,7 +1403,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
     let update i nts ntp p1 p2 muaux =
       let a = Interval.left i in
       let b = match Interval.right i with
-        | None -> Time.Span.max_span
+        | None -> Time.Span.infty
         | Some(b') -> b' in
       let muaux_shifted = shift (a, b) (nts, ntp) muaux in
       let (tstps_out, tstps_in) = add_tstp_future a b nts ntp muaux_shifted.tstps_out muaux_shifted.tstps_in in
@@ -1440,7 +1440,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
 
     let update_eval op i p ts ts' =
       let c1 = (match p with
-                | Proof.S sp -> if Interval.mem Time.(ts' - ts) i then
+                | Proof.S sp -> if Interval.diff_is_in ts ts' i then
                                   (match op with
                                    | Prev -> [Proof.S (Proof.make_sprev sp)]
                                    | Next -> [S (Proof.make_snext sp)])
@@ -1448,12 +1448,12 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
                 | V vp -> (match op with
                            | Prev -> [V (Proof.make_vprev vp)]
                            | Next -> [V (Proof.make_vnext vp)])) in
-      let c2 = if Interval.below Time.(ts' - ts) i then
+      let c2 = if Interval.diff_left_of ts ts' i then
                  (match op with
                   | Prev -> [Proof.V (Proof.make_vprevoutl ((Proof.p_at p)+1))]
                   | Next -> [V (Proof.make_vnextoutl ((Proof.p_at p)-1))])
                else [] in
-      let c3 = if (Interval.above Time.(ts' - ts) i) then
+      let c3 = if Interval.diff_right_of ts ts' i then
                  (match op with
                   | Prev -> [Proof.V (Proof.make_vprevoutr ((Proof.p_at p)+1))]
                   | Next -> [V (Proof.make_vnextoutr ((Proof.p_at p)-1))])
@@ -1508,7 +1508,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
 
     and t = { mf: core_t; hash: int }
 
-    let rec core_to_formula ts' =
+    (*let rec core_to_formula ts' =
       let sub i = function
         | Some ts -> Interval.sub i Time.(ts' - ts)
         | None -> i in
@@ -1541,7 +1541,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       | MUntil (i, f, g, bi, ui) -> Formula.Until (N, i, to_formula f, to_formula g)
       | MEUntil (s, i, ts, f, g, _) -> Formula.Until (s, sub i ts, to_formula f, to_formula g)
 
-    and to_formula ?(ts'=Time.zero) mf = core_to_formula ts' mf.mf
+    and to_formula ?(ts'=Time.zero) mf = core_to_formula ts' mf.mf*)
 
     let rec core_hash =
       let (+++) x y = x * 65599 + y in
@@ -2026,14 +2026,14 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       let eval_kind ts' tp k = match k with
         | FFormula (mf, _, _) -> mf
         | FInterval (ts, i, mf, h, v) ->
-           if Interval.mem Time.(ts' - ts) i then
+           if Interval.diff_is_in ts ts' i then
              make (MEUntil (R, i, Some ts, _neg_tp,
                             make (MAnd (L, MFormula._tp, mf, empty_binop_info)),
                             v))
            else
              _tt
         | FUntil (ts, side, i, mf1, mf2, h, v) ->
-           if not (Interval.above Time.(ts' - ts) i) then
+           if not (Interval.diff_right_of ts ts' i) then
              let mf1' = match mf1.mf with
                | MImp (_, _tp, mf1, _) -> mf1
                | _ -> mf1 in
@@ -2048,9 +2048,9 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
                             make (MAnd (L, _tp, mf2', empty_binop_info)),
                             v))
            else
-             _ff
+             assert false
         | FAlways (ts, i, mf, h, v) ->
-           if not (Interval.above Time.(ts' - ts) i) then
+           if not (Interval.diff_right_of ts ts' i) then
              let mf' = match mf.mf with
                | MImp (_, _tp, mf, _) -> mf
                | _ -> mf in
@@ -2060,15 +2060,19 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
            else
              _tt
         | FEventually (ts, i, mf, h, v) ->
-           if not (Interval.above Time.(ts' - ts) i) then
+           if not (Interval.diff_right_of ts ts' i) then
              let mf' = match mf.mf with
                | MAnd (_, _tp, mf, _) -> mf
                | _ -> mf in
              make (MEEventually (i, Some ts,
                                  make (MAnd (L, _tp, mf', empty_binop_info)),
                                  v))
-           else
-             _ff
+           else (
+             print_endline (MFormula.to_string mf);
+             print_endline (Interval.to_string i);
+             print_endline (Time.to_string ts);
+             print_endline (Time.to_string ts');
+             assert false)
 
       let eval ts tp (k, v, pol) =
         let mf = apply_valuation v (eval_kind ts tp k) in

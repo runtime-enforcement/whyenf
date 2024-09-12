@@ -11,110 +11,173 @@
 open Base
 open Time
 
-(* Unbounded [i,+∞) *)
-type ut = UI of Span.t [@@deriving compare, sexp_of, hash, equal]
+module type B = sig
 
-(* Bounded [i,j] *)
-type bt = BI of Span.t * Span.t [@@deriving compare, sexp_of, hash, equal]
+  type v
+  type t
 
-type t = B of bt | U of ut [@@deriving compare, sexp_of, hash, equal]
+  val equal : t -> t -> bool
+  val compare : t -> t -> int
+  val sexp_of_t : t -> Sexp.t
+  val hash_fold_t : Base_internalhash_types.state -> t -> Base_internalhash_types.state
 
-let lclosed_UI i = U (UI i)
-let lopen_UI i = U (UI (Span.inc i))
+  val has_zero : t -> bool
+  val is_zero : t -> bool
+  val is_full : t -> bool
+  val is_bounded : t -> bool
+  val is_nonpositive : t -> bool
+  val left : t -> v option
+  val right : t -> v option
+  val to_string : t -> string
+  val to_latex : t -> string
+  val make_exn : t -> t
 
-let nonempty_BI l r = if Span.(l <= r) then BI (l, r) else raise (Invalid_argument "empty interval")
-let lopen_ropen_BI i j = B (nonempty_BI (Span.inc i) (Span.dec j))
-let lopen_rclosed_BI i j = B (nonempty_BI (Span.inc i) j)
-let lclosed_ropen_BI i j = B (nonempty_BI i (Span.dec j))
-let lclosed_rclosed_BI i j = B (nonempty_BI i j)
+end
 
-let singleton i = lclosed_rclosed_BI i i
+module MakeUI (S : S) : B with type v = S.v and type t = S.v = struct
 
-let is_zero = function
-  | U _ -> false
-  | B (BI (i, j)) -> Span.is_zero i && Span.equal i j
+  (* Unbounded [i,+∞) *)
+  type v = S.v
+  type t = S.v
+  
+  let compare = S.compare_v
+  let sexp_of_t = S.sexp_of_v
+  let hash_fold_t = S.hash_fold_v
+  let equal = S.equal_v
 
-let has_zero = function
-  | U (UI i) -> Span.is_zero i
-  | B (BI (i, j)) -> Span.is_zero i
+  let has_zero i = S.is_zero i
+  let is_zero _ = false
+  let is_full i = S.is_zero i
+  let is_bounded i = false
+  let is_nonpositive i = false
+  let left i = Some i
+  let right i = None
+  let to_string i = Printf.sprintf "[%s,∞)" (S.to_string i)
+  let to_latex i = Printf.sprintf "[%s,\\infty)" (S.to_string i)
+  let make_exn i = i
 
-let is_full = function
-  | U (UI i) -> Span.is_zero i
-  | B _ -> false
+end
 
-let full = U (UI Span.zero)
+module MakeNUI (S : S) : B with type v = S.v and type t = S.v = struct
 
-let case f1 f2 = function
-  | B i -> f1 i
-  | U i -> f2 i
+  (* Unbounded [i,+∞) *)
+  type v = S.v
+  type t = S.v
+  
+  let compare = S.compare_v
+  let sexp_of_t = S.sexp_of_v
+  let hash_fold_t = S.hash_fold_v
+  let equal = S.equal_v
 
-let is_bounded = function
-  | B _ -> true
-  | U _ -> false
+  let has_zero i = S.leq S.zero i
+  let is_zero _ = false
+  let is_full i = false
+  let is_bounded i = false
+  let is_nonpositive i = S.leq i S.zero
+  let left i = None
+  let right i = Some i
+  let to_string i = Printf.sprintf "(∞,%s]" (S.to_string i)
+  let to_latex i = Printf.sprintf "(\\infty,%s]" (S.to_string i)
+  let make_exn i = i
 
-let is_bounded_exn op = function
-  | B _ -> ()
-  | U _ -> raise (Invalid_argument (Printf.sprintf "unbounded future operator: %s" op))
+end
 
-let sub i t = match i with
-  | B (BI (a, b)) -> B (BI (Span.(a - t), Span.(b - t)))
-  | U (UI a) -> U (UI (Span.(a - t)))
+module MakeBI (S : S) : B with type v = S.v and type t = S.v * S.v = struct
 
+  (* Bounded [i,j] *)
+  type v = S.v
+  type t = S.v * S.v [@@deriving compare, sexp_of, hash, equal]
 
-let boundaries = function
-  | B (BI (a, b)) -> (a, b)
-  | U _ -> raise (Invalid_argument (Printf.sprintf "unbounded future operator"))
+  let has_zero (i, _) = S.is_zero i
+  let is_zero (i, j) = S.is_zero i && S.is_zero j
+  let is_full _ = false
+  let is_bounded _ = true
+  let is_nonpositive (_, j) = S.leq j S.zero
+  let left (i, j) = Some i
+  let right (i, j) = Some j
+  let to_string (i, j) = Printf.sprintf "[%s,%s]" (S.to_string i) (S.to_string j)
+  let to_latex = to_string
+  let make_exn (l, r) = if S.leq l r then (l, r) else raise (Invalid_argument "empty interval")
+  
+end
 
-let map f1 f2 = case (fun i -> B (f1 i)) (fun i -> U (f2 i))
+module MakeUUI (S : S) : B with type v = S.v and type t = unit = struct
 
-let mem t =
-  let mem_UI t (UI l) = Span.(l <= t) in
-  let mem_BI t (BI (l, r)) = Span.(l <= t) && Span.(t <= r) in
-  case (mem_BI t) (mem_UI t)
+  (* Bounded [i,j] *)
+  type v = S.v
+  type t = unit [@@deriving compare, sexp_of, hash, equal]
 
-let left =
-  let left_UI (UI l) = l in
-  let left_BI (BI (l, r)) = l in
-  case left_BI left_UI
+  let has_zero _ = true
+  let is_zero _ = false
+  let is_full _ = true
+  let is_bounded _ = false
+  let is_nonpositive _ = false
+  let left _ = None
+  let right _ = None
+  let to_string _ = "(-∞,∞)"
+  let to_latex = to_string
+  let make_exn _ = ()
+  
+end
 
-let right =
-  let right_UI (UI l) = None in
-  let right_BI (BI (l, r)) = Some(r) in
-  case right_BI right_UI
+module MakeInterval (S : S) = struct
 
-let diff_right_of ts ts' i =
-  match right i with
-  | Some b -> ts + b <= ts'
-  | None -> false
+  type v = S.v
 
-let lub i i' =
-  let l = Span.min (left i) (left i') in
-  match right i, right i' with
-  | Some r, Some r' -> lclosed_rclosed_BI l (Span.max r r')
-  | _ -> lclosed_UI l
+  module UI = MakeUI(S)
+  module BI = MakeBI(S)
 
-let below_UI t (UI l) = Span.(t < l)
-let below_BI t (BI (l, r)) = Span.(t < l)
-let below t = case (below_BI t) (below_UI t)
+  type t = B of BI.t | U of UI.t [@@deriving compare, sexp_of, hash, equal]
 
-(* Check if t > interval *)
-let above_UI t (UI l) = false
-let above_BI t (BI (l, r)) = Span.(r < t)
-let above t = case (above_BI t) (above_UI t)
+  let case f1 f2 = function
+    | B bt -> f1 bt
+    | U ut -> f2 ut
 
-let to_string_BI = function
-  | BI (i, j) -> Printf.sprintf "[%s,%s]" (Span.to_string i) (Span.to_string j)
+  let lclosed_UI i = U i
+  let lopen_UI i = U (S.inc i)
 
-let to_string = function
-  | U (UI i) -> Printf.sprintf "[%s,∞)" (Span.to_string i)
-  | B i -> Printf.sprintf "%a" (fun x -> to_string_BI) i
+  let lopen_ropen_BI i j = B (BI.make_exn (S.inc i, S.dec j))
+  let lopen_rclosed_BI i j = B (BI.make_exn (S.inc i, j))
+  let lclosed_ropen_BI i j = B (BI.make_exn (S.dec i, j))
+  let lclosed_rclosed_BI i j = B (BI.make_exn (i, j))
 
-let to_latex = function
-  | U (UI i) -> Printf.sprintf "[%s,\\infty)" (Span.to_string i)
-  | B i -> Printf.sprintf "%a" (fun x -> to_string_BI) i
+  let singleton i = lclosed_rclosed_BI i i
+
+  let is_zero = case BI.is_zero UI.is_zero
+  let has_zero = case BI.has_zero UI.has_zero
+  let is_full = case BI.is_full UI.is_full
+
+  let full = U (S.zero)
+
+  let is_bounded = case BI.is_bounded UI.is_bounded
+  
+  let left i = Option.value_exn (case BI.left UI.left i)
+  let right = case BI.right UI.right
+
+  let diff_right_of ts ts' i =
+    match right i with
+    | Some b -> S.(ts + b) < ts'
+    | None -> false
+
+  let diff_right_boundary_of ts ts' i =
+    match right i with
+    | Some b -> S.(ts + b) == ts'
+    | None -> false
+
+  let diff_left_of ts ts' i =
+    ts' < S.(ts + left i)
+
+  let diff_is_in ts ts' i =
+    not (diff_right_of ts ts' i || diff_left_of ts ts' i)
+
+  let to_string = case BI.to_string UI.to_string
+  let to_latex = case BI.to_latex UI.to_latex
+
+end
+
+include MakeInterval(Span.S)
 
 let lex error l i u j v r =
-  let i = Int.of_string i in
   match j with
    | "INFINITY" | "∞" | "*" ->
       (match l with
@@ -122,8 +185,7 @@ let lex error l i u j v r =
        | '(' -> lopen_UI (Span.make i u)
        | _ -> error ())
    | _ ->
-      (let j = Int.of_string j in
-       match l, r with
+      (match l, r with
        | '[',']' -> lclosed_rclosed_BI (Span.make i u) (Span.make j v)
        | '(',']' -> lopen_rclosed_BI (Span.make i u) (Span.make j v)
        | '[',')' -> lclosed_ropen_BI (Span.make i u) (Span.make j v)
@@ -131,4 +193,4 @@ let lex error l i u j v r =
        | _ -> error ())
 
 
-  
+ 

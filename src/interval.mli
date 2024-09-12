@@ -8,46 +8,79 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
-type ut = UI of Time.Span.t [@@deriving compare, sexp_of, hash, equal]
-type bt = BI of Time.Span.t * Time.Span.t [@@deriving compare, sexp_of, hash, equal]
-type t = B of bt | U of ut [@@deriving compare, sexp_of, hash, equal]
+open Base
+open Time
 
-val equal: t -> t -> bool
+module type B = sig
 
-val lclosed_UI: Time.Span.t -> t
-val lopen_UI: Time.Span.t -> t
+  type v
+  type t
 
-val lopen_ropen_BI: Time.Span.t -> Time.Span.t -> t
-val lopen_rclosed_BI: Time.Span.t -> Time.Span.t -> t
-val lclosed_ropen_BI: Time.Span.t -> Time.Span.t -> t
-val lclosed_rclosed_BI: Time.Span.t -> Time.Span.t -> t
-val singleton: Time.Span.t -> t
-val is_zero: t -> bool
+  val equal : t -> t -> bool
+  val compare : t -> t -> int
+  val sexp_of_t : t -> Sexp.t
+  val hash_fold_t : Base_internalhash_types.state -> t -> Base_internalhash_types.state
 
-val full: t
+  val has_zero : t -> bool
+  val is_zero : t -> bool
+  val is_full : t -> bool
+  val is_bounded : t -> bool
+  val is_nonpositive : t -> bool
+  val left : t -> v option
+  val right : t -> v option
+  val to_string : t -> string
+  val to_latex : t -> string
+  val make_exn : t -> t
 
-val is_bounded_exn: string -> t -> unit
-val is_bounded: t -> bool
+end
 
-val sub: t -> Time.Span.t -> t
-val boundaries: t -> Time.Span.t * Time.Span.t
+module MakeUI (S : S) : B with type v = S.v and type t = S.v
+module MakeNUI (S : S) : B with type v = S.v and type t = S.v
+module MakeBI (S : S) : B with type v = S.v and type t = S.v * S.v
+module MakeUUI (S : S) : B with type v = S.v and type t = unit
 
-val mem: Time.Span.t -> t -> bool
+module MakeInterval (S : S) : sig
 
-val left: t -> Time.Span.t
-val right: t -> Time.Span.t option
+  type v = S.v
 
-val diff_right_of: Time.t -> Time.t -> t -> bool
+  module UI : B with type v = S.v and type t = S.v
+  module BI : B with type v = S.v and type t = S.v * S.v
+  
+  type t = B of BI.t | U of UI.t [@@deriving compare, sexp_of, hash, equal]
 
-val lub: t -> t -> t
+  val equal: t -> t -> bool
+  
+  val lclosed_UI: v -> t
+  val lopen_UI: v -> t
 
-val below: Time.Span.t -> t -> bool
-val above: Time.Span.t -> t -> bool
+  val lopen_ropen_BI: v -> v -> t
+  val lopen_rclosed_BI: v -> v -> t
+  val lclosed_ropen_BI: v -> v -> t
+  val lclosed_rclosed_BI: v -> v -> t
+  val singleton: v -> t
 
-val to_string: t -> string
-val to_latex: t -> string
+  val is_zero: t -> bool
+  val has_zero: t -> bool
+  val is_full: t -> bool
+
+  val full: t
+
+  val is_bounded: t -> bool
+
+  val left: t -> v
+  val right: t -> v option
+
+  val diff_right_of: Time.t -> Time.t -> t -> bool
+  val diff_right_boundary_of: Time.t -> Time.t -> t -> bool
+  val diff_left_of: Time.t -> Time.t -> t -> bool
+  val diff_is_in: Time.t -> Time.t -> t -> bool
+
+  val to_string: t -> string
+  val to_latex: t -> string
+
+end
+
+include module type of MakeInterval(Time.Span.S) with type v = Time.Span.s
+
 val lex: (unit -> t) -> char -> string -> string -> string -> string -> char -> t
 
-val has_zero: t -> bool
-val is_zero: t -> bool
-val is_full: t -> bool

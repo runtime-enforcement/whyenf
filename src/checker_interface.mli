@@ -58,5 +58,4 @@ module type Checker_interfaceT = sig
 
 end
 
-module Checker_interface : Checker_interfaceT
 module LightChecker_interface : Checker_interfaceT

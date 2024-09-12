@@ -42,7 +42,6 @@ module Plain (CI: Checker_interfaceT) = struct
     | ExplanationCheckDebug ((ts, tp), e, b, c_e, c_t, path_opt) ->
        Stdio.printf "%d:%d\nExplanation: \n%s\n" ts tp (Expl.to_string e);
        Stdio.printf "\nChecker output: %B\n\n" b;
-       Stdio.printf "\n[debug] Checker explanation:\n%s\n\n" (Checker_interface.Checker_pdt.to_string "" c_e);
        Stdio.printf "\n[debug] Checker trace:\n%s" (Checker_trace.to_string c_t);
        (match path_opt with
         | None -> ()
