@@ -10,8 +10,9 @@
 
 module type EnforcerT = sig
   
-  val exec: Formula.t -> in_channel -> Time.Span.t -> unit
+  val exec: Formula.t -> in_channel -> Time.Span.s -> unit
 
 end
 
 module Make (C: Checker_interface.Checker_interfaceT) : EnforcerT
+

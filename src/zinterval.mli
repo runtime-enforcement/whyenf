@@ -9,37 +9,61 @@
 (*  François Hublet (ETH Zurich)                                   *)
 (*******************************************************************)
 
+open Base
 open Interval
 open Time
 
-type t = ZB of bt | ZUL of ut | ZUR of ut | ZU
+module Z : S
 
-val equal: t -> t -> bool
+module MakeZinterval (S : S) : sig
 
-val lclosed_UI: Span.t -> t
-val lopen_UI: Span.t -> t
+  type v = Z.v
 
-val lopen_ropen_BI: Span.t -> Span.t -> t
-val lopen_rclosed_BI: Span.t -> Span.t -> t
-val lclosed_ropen_BI: Span.t -> Span.t -> t
-val lclosed_rclosed_BI: Span.t -> Span.t -> t
-val singleton: Span.t -> t
-val of_interval: Interval.t -> t
+  module UI : module type of MakeUI(Z)
+  module NUI : module type of MakeNUI(Z)
+  module BI : module type of MakeBI(Z)
+  module UUI : module type of MakeUUI(Z)
 
-val full: t
+  module SInterval : module type of MakeInterval(S)
+  
+  type t = ZB of BI.t | ZUL of NUI.t | ZUR of UI.t | ZU of UUI.t [@@deriving equal]
 
-val mem: Span.t -> t -> bool
+  val equal: t -> t -> bool
 
-val left: t -> Span.t option
-val right: t -> Span.t option
+  val lclosed_UI: v -> t
+  val lopen_UI: v -> t
+  val rclosed_UI: v -> t
+  val ropen_UI: v -> t
 
-val lub: t -> t -> t
-val has_zero: t -> bool
-val to_zero: t -> t
-val is_nonpositive: t -> bool
-val add: Span.t -> t -> t
-val sum: t -> t -> t
-val inv: t -> t
+  val lopen_ropen_BI: v -> v -> t
+  val lopen_rclosed_BI: v -> v -> t
+  val lclosed_ropen_BI: v -> v -> t
+  val lclosed_rclosed_BI: v -> v -> t  
+  val singleton: v -> t
 
-val to_string: t -> string
-val to_latex: t -> string
+  val is_zero : t -> bool
+  val has_zero : t -> bool
+  val is_full : t -> bool
+
+  val full : t
+
+  val is_bounded : t -> bool
+  val is_nonpositive : t -> bool
+  
+  val left : t -> v option
+  val right : t -> v option
+
+  val lub : t -> t -> t
+  val sum : t -> t -> t
+  val inv : t -> t
+
+  val to_zero : t -> t
+
+  val of_interval: SInterval.t -> t
+
+  val to_string: t -> string
+  val to_latex: t -> string
+
+end
+
+include module type of MakeZinterval(Time.Span.S)
