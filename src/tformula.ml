@@ -50,13 +50,13 @@ let rec core_of_formula f (types: Dom.ctxt) =
   | TT -> types, TTT
   | FF -> types, TFF
   | EqConst (trm, c) ->
-     let types = Pred.check_term types (Dom.tt_of_domain c) trm in
+     let types, trm = Pred.check_term types (Dom.tt_of_domain c) trm in
      types, TEqConst (trm, c)
   | Predicate (e, trms) when not (Sig.equal_pred_kind (Sig.kind_of_pred e) Sig.Predicate) ->
-     let types = Pred.check_terms types e trms in
+     let types, trms = Pred.check_terms types e trms in
      types, TPredicate (e, trms)
   | Predicate (e, trms) ->
-     let types = Pred.check_terms types e trms in
+     let types, trms = Pred.check_terms types e trms in
      types, TEqConst (Term.App (e, trms), Dom.Int 1)
   | Agg (s, op, x, y, f) ->
      let types, mf = of_formula f types in
@@ -66,7 +66,7 @@ let rec core_of_formula f (types: Dom.ctxt) =
        @ (List.filter (Set.elements (Formula.fv f))
             ~f:(fun x -> List.mem y x ~equal:String.equal)) in
      ignore (List.map vars_to_monitor ~f:(f_q ~true_ok:false f));
-     types, TAgg (s, Sig.var_tt_of_term_exn types x, op, x, y, mf)
+     types, TAgg (s, Sig.tt_of_term_exn types x, op, x, y, mf)
   | Neg f ->
      let types, mf = of_formula f types in
      types, TNeg mf

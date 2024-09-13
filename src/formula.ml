@@ -799,7 +799,7 @@ let rec is_past_guarded x p f =
  *)
 
 let check_agg types s op x y f =
-  let x_tt = Sig.var_tt_of_term_exn types x in
+  let x_tt = Sig.tt_of_term_exn types x in
   match Aggregation.ret_tt op x_tt with
   | None -> raise (Invalid_argument (
                        Printf.sprintf "type clash for operator %s: invalid type %s"

@@ -245,15 +245,57 @@ let builtins =
        arity   = 2;
        arg_tts = [("x", Dom.TStr); ("y", Dom.TStr)];
        ret_tt  = Dom.TStr;
-       kind    = Builtin (fun [x;y] -> match x, y with Dom.Str i, Dom.Str j -> Str (i ^ j))
+       kind    = Builtin (fun [Str i; Str j] -> Str (i ^ j))
     });
     ("substr",
      {
        arity   = 2;
        arg_tts = [("x", Dom.TStr); ("start", Dom.TInt); ("end", Dom.TInt)];
        ret_tt  = Dom.TStr;
-       kind    = Builtin (fun [x;start;end_] ->
-                     match x, start, end_ with
-                       Dom.Str i, Dom.Int j, Dom.Int k -> Str (String.slice i j k))});
+       kind    = Builtin (fun [Str i; Int j; Int k] -> Str (String.slice i j k))
+    });
+    ("string_of_int",
+     {
+       arity   = 1;
+       arg_tts = [("x", TInt)];
+       ret_tt  = Dom.TStr;
+       kind    = Builtin (fun [Int i] -> Str (string_of_int i))
+    });
+    ("string_of_float",
+     {
+       arity   = 1;
+       arg_tts = [("x", TFloat)];
+       ret_tt  = TStr;
+       kind    = Builtin (fun [Float i] -> Str (string_of_float i))
+    });
+    ("int_of_float",
+     {
+       arity   = 1;
+       arg_tts = [("x", TFloat)];
+       ret_tt  = TInt;
+       kind    = Builtin (fun [Float i] -> Int (int_of_float i))
+    });
+    ("float_of_int",
+     {
+       arity   = 1;
+       arg_tts = [("x", TInt)];
+       ret_tt  = TFloat;
+       kind    = Builtin (fun [Int i] -> Float (float_of_int i))
+    });
   ]
 
+let autocast = [
+    ("eq",  [Dom.TFloat; Dom.TFloat], "feq");
+    ("neq", [Dom.TFloat; Dom.TFloat], "fneq");
+    ("lt",  [Dom.TFloat; Dom.TFloat], "flt");
+    ("leq", [Dom.TFloat; Dom.TFloat], "fleq");
+    ("gt",  [Dom.TFloat; Dom.TFloat], "fgt");
+    ("geq", [Dom.TFloat; Dom.TFloat], "fgeq");
+    ("add", [Dom.TFloat; Dom.TFloat], "fadd");
+    ("add", [Dom.TFloat; Dom.TFloat], "fadd");
+    ("mul", [Dom.TFloat; Dom.TFloat], "fmul");
+    ("div", [Dom.TFloat; Dom.TFloat], "fdiv");
+    ("pow", [Dom.TFloat; Dom.TFloat], "fpow");
+    ("eq",  [Dom.TStr;   Dom.TStr],   "seq");
+    ("neq", [Dom.TStr;   Dom.TStr],   "sneq");
+  ]

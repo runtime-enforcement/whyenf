@@ -18,8 +18,6 @@ let debug m = if !debug then Stdio.print_endline ("[debug] formula_parser: " ^ m
 
 %token LPA
 %token RPA
-%token LBR
-%token RBR
 %token COMMA
 %token SEMICOLON
 %token DOT
@@ -33,8 +31,8 @@ let debug m = if !debug then Stdio.print_endline ("[debug] formula_parser: " ^ m
 
 %token FALSE
 %token TRUE
-%token EQCONST
-%token LT GT
+%token EQCONST 
+%token LT GT LEQ GEQ EQEQ NEQ
 %token NEG
 %token AND
 %token OR
@@ -42,6 +40,7 @@ let debug m = if !debug then Stdio.print_endline ("[debug] formula_parser: " ^ m
 %token IFF
 %token EXISTS
 %token FORALL
+%token GETS
 %token PREV
 %token NEXT
 %token ONCE
@@ -59,13 +58,9 @@ let debug m = if !debug then Stdio.print_endline ("[debug] formula_parser: " ^ m
 %token LET
 %token IN
 
-(* %nonassoc LET IN *)
-%nonassoc LT GT EQCONST
+%nonassoc IN
 
-%left ADD SUB
-%left MUL DIV
-%left CONC
-
+%left SEMICOLON
 %nonassoc INTERVAL
 %right SINCE UNTIL RELEASE TRIGGER
 %nonassoc PREV NEXT ONCE EVENTUALLY HISTORICALLY ALWAYS
@@ -74,6 +69,16 @@ let debug m = if !debug then Stdio.print_endline ("[debug] formula_parser: " ^ m
 %left OR
 %left AND
 %nonassoc NEG
+
+%left ADD SUB
+%left MUL DIV
+%left CONC
+%nonassoc LT
+%nonassoc GT
+%nonassoc LEQ
+%nonassoc GEQ
+%nonassoc EQEQ
+%nonassoc NEQ
 
 %type <Formula.t> formula
 %start formula
@@ -87,16 +92,16 @@ e:
 | LPA e RPA                                 { debug "( e )"; $2 }
 | TRUE                                      { debug "TRUE"; tt }
 | FALSE                                     { debug "FALSE"; ff }
-| LET pletp EQCONST e IN e %prec EQCONST
+| LET pletp EQCONST e IN e %prec IN
                                             { debug "LET"; match $2 with
                                                            | (r, vars) ->
                                                              flet r vars $4 $6
                                                            | _ -> raise (Invalid_argument
                                                                   "invalid let definition") }
-| LBR term EQCONST const RBR           { debug "EQCONST"; eqconst $2 (Pred.Term.unconst $4)}
-| STR EQCONST aggregation LPA term SEMICOLON vars2 SEMICOLON e RPA
+| const EQEQ top_term                  { debug "EQCONST"; eqconst $3 (Pred.Term.unconst $1)}
+| STR GETS aggregation LPA top_term SEMICOLON vars2 SEMICOLON e RPA
                                        { debug "AGG"; agg $1 $3 $5 $7 $9 }
-| e SEMICOLON STR EQCONST term         { debug "AGG"; agg $3 Aggregation.AAssign $5 (list_fv $1) $1 }
+| e SEMICOLON STR GETS top_term        { debug "AGG"; agg $3 Aggregation.AAssign $5 (list_fv $1) $1 }
 | NEG e                                { debug "NEG e"; neg $2 }
 | PREV INTERVAL e                      { debug "PREV INTERVAL e"; prev $2 $3 }
 | PREV e                               { debug "PREV e"; prev Interval.full $2 }
@@ -148,40 +153,35 @@ side:
 sides:
 | COL STR COMMA STR                    { debug "COL STR COMMA STR"; (Side.of_string $2, Side.of_string $4) }
 
-term:
-| LPA term RPA             { debug "LPA term RPA"; $2 }
+top_term:
 | const                    { debug "const"; $1 }
 | STR                      { debug "STR"; Pred.Term.Var $1 }
 | STR LPA terms RPA        { debug "STR LPA terms RPA"; Pred.Term.App ($1, $3) }
-| term ADD term            { debug "term ADD term"; Pred.Term.App ("add", [$1; $3]) }
-| term SUB term            { debug "term SUB term"; Pred.Term.App ("sub", [$1; $3]) }
-| term MUL term            { debug "term MUL term"; Pred.Term.App ("mul", [$1; $3]) }
-| term DIV term            { debug "term DIV term"; Pred.Term.App ("div", [$1; $3]) }
-| term EQCONST EQCONST term { debug "term EQ EQ term"; Pred.Term.App ("eq", [$1; $4]) }
-| term LT GT term          { debug "term LT GT term"; Pred.Term.App ("neq", [$1; $4]) }
-| term LT term             { debug "term LT term"; Pred.Term.App ("lt", [$1; $3]) }
-| term LT EQCONST term     { debug "term LT EQCONST term"; Pred.Term.App ("leq", [$1; $4]) }
-| term GT term             { debug "term GT term"; Pred.Term.App ("gt", [$1; $3]) }
-| term GT EQCONST term     { debug "term GT EQCONST term"; Pred.Term.App ("geq", [$1; $4]) }
-| term ADD DOT term %prec ADD { debug "term ADD DOT term"; Pred.Term.App ("fadd", [$1; $4]) }
-| term SUB DOT term %prec SUB { debug "term SUB DOT term"; Pred.Term.App ("fsub", [$1; $4]) }
-| term MUL DOT term %prec MUL { debug "term MUL DOT term"; Pred.Term.App ("fmul", [$1; $4]) }
-| term MUL MUL term        { debug "term MUL MUL term"; Pred.Term.App ("pow", [$1; $4]) }
-| term DIV DOT term %prec DIV { debug "term DIV DOT term"; Pred.Term.App ("fdiv", [$1; $4]) }
-| term EQCONST EQCONST DOT term %prec EQCONST { debug "term EQ EQ DOT term"; Pred.Term.App ("feq", [$1; $5]) }
-| term LT GT DOT term %prec GT { debug "term LT GT DOT term"; Pred.Term.App ("fneq", [$1; $5]) }
-| term LT DOT term %prec LT { debug "term LT DOT term"; Pred.Term.App ("flt", [$1; $4]) }
-| term LT EQCONST DOT term %prec EQCONST { debug "term LT EQCONST DOT term"; Pred.Term.App ("fleq", [$1; $5]) }
-| term GT DOT term %prec GT { debug "term GT DOT term"; Pred.Term.App ("fgt", [$1; $4]) }
-| term GT EQCONST DOT term %prec EQCONST { debug "term GT EQCONST DOT term"; Pred.Term.App ("fgeq", [$1; $5]) }
-| term CONC term           { debug "term CONC term"; Pred.Term.App ("conc", [$1; $3]) }
+| term bop term            { debug "term ADD term"; Pred.Term.App ($2, [$1; $3]) }
+
+bop:
+| ADD  { "add" }
+| SUB  { "sub" }
+| MUL  { "mul" }
+| DIV  { "div" }
+| EQEQ { "eq" }
+| NEQ  { "neq" }
+| LT   { "lt" }
+| LEQ  { "leq" }
+| GT   { "gt" }
+| GEQ  { "geq" }
+| CONC { "conc" }
+
+term:
+| LPA term RPA { debug "LPA term RPA"; $2 }
+| top_term     { debug "top_term"; $1 }
 
 const:
 | INT                                  { debug "INT"; Pred.Term.Const (Int $1) }
 | QSTR                                 { debug "QSTR"; Pred.Term.Const (Str (Etc.unquote $1)) }
 
 terms:
-| trms=separated_list (COMMA, term)    { debug "trms"; trms }
+| trms=separated_list (COMMA, top_term)    { debug "trms"; trms }
 
 vars:
 | vrs=separated_nonempty_list (COMMA, STR) { debug "vrs"; vrs }

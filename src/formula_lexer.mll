@@ -48,9 +48,14 @@ rule token = parse
   | "in"                                          { debug "IN"; IN }
   | "false" | "⊥"                                { debug "FALSE"; FALSE }
   | "true" | "⊤"                                 { debug "TRUE"; TRUE }
+  | "=="                                          { debug "EQEQ"; EQEQ }
   | '='                                           { debug "EQCONST"; EQCONST }
-  | '<'                                           { debug "LT"; EQCONST }
-  | '>'                                           { debug "GT"; EQCONST }
+  | "<-"                                          { debug "GETS"; GETS }
+  | "<="                                           { debug "LEQ"; LEQ }
+  | "<>"                                           { debug "NEQ"; NEQ }
+  | '<'                                           { debug "LT"; LT }
+  | ">="                                           { debug "GEQ"; GEQ }
+  | '>'                                           { debug "GT"; GT }
   | "¬" | "NOT"                                   { debug "NEG"; NEG }
   | "∧" | "AND"                                  { debug "AND"; AND }
   | "∨" | "OR"                                   { debug "OR"; OR }
@@ -78,8 +83,6 @@ rule token = parse
                                                   { debug "INTERVAL"; INTERVAL (make_interval lexbuf l i u j v r) }
   | "("                                           { debug "LPA"; LPA }
   | ")"                                           { debug "RPA"; RPA }
-  | "{"                                           { debug "LBR"; LBR }
-  | "}"                                           { debug "RBR"; RBR }
   | digits as d                                   { debug ("INT " ^ d); INT (Base.Int.of_string d) }
   | string as s                                   { debug ("STR " ^ s); STR s }
   | quoted_string as qs                           { debug ("QSTR " ^ qs); QSTR qs }

@@ -231,11 +231,11 @@ let rec convert b enftype form types : Dom.ctxt * Tformula.t option =
         match form with
         | TT -> types, Some (Tformula.TTT)
         | Predicate (e, trms) when Pred.Sig.enftype_of_pred e == Cau ->
-           let types = check_terms types e trms in
+           let types, trms = check_terms types e trms in
            types, Some (Tformula.TPredicate (e, trms))
         | Agg (s, op, x, y, f) ->
            let types, tf = Tformula.of_formula f types in
-           let tt = Sig.var_tt_of_term_exn types x in
+           let tt = Sig.tt_of_term_exn types x in
            let fvs = Term.fv_list [x] in
            if List.for_all fvs (fun x -> is_past_guarded x true f) then
              types, Some (Tformula.TAgg (s, tt, op, x, y, tf))
@@ -339,7 +339,7 @@ let rec convert b enftype form types : Dom.ctxt * Tformula.t option =
         match form with
         | FF -> types, Some (Tformula.TFF)
         | Predicate (e, trms) when Pred.Sig.enftype_of_pred e == Sup ->
-           let types = check_terms types e trms in
+           let types, trms = check_terms types e trms in
            types, Some (Tformula.TPredicate (e, trms))
         | Neg f -> apply1 (convert Cau f) (fun mf -> Tformula.TNeg mf) types
         | And (L, f, g) -> apply2' (convert Sup f) (Tformula.of_formula g)
