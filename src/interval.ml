@@ -161,7 +161,7 @@ module MakeInterval (S : S) = struct
 
   let diff_right_boundary_of ts ts' i =
     match right i with
-    | Some b -> S.(ts + b) == ts'
+    | Some b -> ts' < S.(ts + b)
     | None -> false
 
   let diff_left_of ts ts' i =

@@ -271,10 +271,11 @@ module Sig = struct
     List.find_map (List.zip_exn tts trms)
       ~f:(fun (tt, trm) -> var_tt_of_term x tt trm)
 
-  let rec var_tt_of_term_exn vt = function
+  let rec tt_of_term_exn vt = function
     | Term.Var x -> Map.find_exn vt x
     | Const d -> Dom.tt_of_domain d
-    | App (f, _) -> ret_tt_of_func f
+    | App (f, _) -> ret_tt_of_func f    
+    
 
 end
 
@@ -398,26 +399,35 @@ let check_var types v tt =
                 Printf.sprintf "type clash for variable %s: found %s, expected %s"
                   v (Dom.tt_to_string tt) (Dom.tt_to_string tt')))
 
-let check_app types f tt =
+let check_app types f trms tt =
   if Dom.tt_equal (Sig.ret_tt_of_func f) tt then
-    types
+    (types, Term.App (f, trms))
   else
-    raise (Invalid_argument (
-               Printf.sprintf "type clash for return type of %s: found %s, expected %s"
-                 f
-                 (Dom.tt_to_string (Sig.ret_tt_of_func f))
-                 (Dom.tt_to_string tt)))
+    let trms_tt = List.map trms ~f:(Sig.tt_of_term_exn types) in
+    match List.find_map Funcs.autocast ~f:(fun (f1, tts, f2) ->
+              if String.equal f f1 && List.equal Dom.tt_equal trms_tt tts
+              then Some f2 else None) with
+    | Some f' -> (types, Term.App (f', trms))
+    | None ->  
+       raise (Invalid_argument (
+                Printf.sprintf "type clash for return type of %s: found %s, expected %s"
+                  f
+                  (Dom.tt_to_string (Sig.ret_tt_of_func f))
+                  (Dom.tt_to_string tt)))
 
 let rec check_term types tt trm =
   match trm with
-  | Term.Var x -> check_var types x tt
-  | Const c -> check_const types c tt
-  | App (f, trms) -> check_app (check_terms types f trms) f tt
+  | Term.Var x    -> (check_var types x tt,   trm)
+  | Const c       -> (check_const types c tt, trm)
+  | App (f, trms) -> let types, trms = check_terms types f trms in
+                     check_app types f trms tt
 
 and check_terms types p_name trms =
   let sig_pred = Hashtbl.find_exn Sig.table p_name in
   if List.length trms = Sig.arity sig_pred then
-    List.fold2_exn trms (Sig.arg_tts sig_pred) ~init:types
-      ~f:(fun types trm ntc -> check_term types (snd ntc) trm)
+    List.fold2_exn trms (Sig.arg_tts sig_pred) ~init:(types, [])
+      ~f:(fun (types, trms) trm ntc -> let types, trm' = check_term types (snd ntc) trm in
+                                       (types, trms @ [trm']))
   else raise (Invalid_argument (
                   Printf.sprintf "arity of %s is %d" p_name (Sig.arity sig_pred)))
+

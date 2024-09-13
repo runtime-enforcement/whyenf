@@ -88,9 +88,7 @@ module Span  = struct
     
   end
 
-  module Second_ : U = Second 
-
-  module Minute : U = struct
+  module Minute_ : U = struct
  
     type u = int [@@deriving equal, compare, sexp_of, hash]
 
@@ -106,7 +104,7 @@ module Span  = struct
     
   end
   
-  module Hour : U = struct
+  module Hour_ : U = struct
  
     type u = int [@@deriving equal, compare, sexp_of, hash]
 
@@ -122,7 +120,7 @@ module Span  = struct
     
   end
   
-  module Day : U = struct
+  module Day_ : U = struct
  
     type u = int [@@deriving equal, compare, sexp_of, hash]
 
@@ -138,7 +136,7 @@ module Span  = struct
     
   end
 
-  module Month : U = struct
+  module Month_ : U = struct
  
     type u = int [@@deriving equal, compare, sexp_of, hash]
 
@@ -154,7 +152,7 @@ module Span  = struct
     
   end
 
-  module Year : U = struct
+  module Year_ : U = struct
  
     type u = int [@@deriving equal, compare, sexp_of, hash]
 
@@ -169,6 +167,28 @@ module Span  = struct
     let to_string u = Int.to_string u ^ "y"
     
   end
+
+  module Offset (U : U) : U = struct
+
+    type u = U.u * float [@@deriving equal, compare, sexp_of, hash]
+
+    let min_seconds (u, o) = U.min_seconds u +. o
+    let max_seconds (u, o) = U.max_seconds u +. o
+    let (+) t (u, o) = Fcalendar.add U.(t + u) (Fcalendar.Period.second o)
+    let neg (u, o) = (U.neg u, -. o)
+    let inc (u, o) = (u, o +. 1.)
+    let dec (u, o) = (u, o -. 1.)
+    let is_zero (u, o) = U.is_zero u && Float.equal o 0.
+    let of_string s = (U.of_string s, 0.)
+    let to_string (u, o) = Printf.sprintf "%s+%ss" (U.to_string u) (string_of_float o)
+
+  end
+
+  module Minute = Offset(Minute_)
+  module Hour   = Offset(Hour_)
+  module Day    = Offset(Day_)
+  module Month  = Offset(Month_)
+  module Year   = Offset(Year_)
 
   type s =
     | Second of Second.u
@@ -211,7 +231,6 @@ module Span  = struct
     | Month  u -> Month (Month.dec u)
     | Year   u -> Year (Year.dec u)
 
-
   let is_zero = function
     | Second u -> Second.is_zero u
     | Minute u -> Minute.is_zero u
@@ -249,6 +268,7 @@ module Span  = struct
   let (-) t u = (+) t (neg u)
 
   let zero = Second (Second.of_string "0")
+  let one = Second (Second.of_string "1")
   let infty = Year (Year.of_string (string_of_int (Int.max_value)))
 
   let min_seconds = function
@@ -268,7 +288,6 @@ module Span  = struct
     | Year   u -> Year.max_seconds u
 
   let leq a b = Float.(<=) (max_seconds a) (min_seconds b)
-
 
   module S = struct
     
@@ -304,6 +323,8 @@ let (==) t u = (Fcalendar.compare t u) = 0
 
 let min t u = if t <= u then t else u
 let max t u = if u <= t then t else u
+
+let inc t = t + Span.one
 
 let zero = Fcalendar.make 0 0 0 0 0 0.
 

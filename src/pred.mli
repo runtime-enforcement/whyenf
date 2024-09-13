@@ -112,7 +112,7 @@ module Sig : sig
   val var_tt_of_term: string -> Dom.tt -> Term.t -> Dom.tt option
   val var_tt_of_terms: string -> Dom.tt list -> Term.t list -> Dom.tt option
 
-  val var_tt_of_term_exn: (string, Dom.tt, String.comparator_witness) Map.t -> Term.t -> Dom.tt
+  val tt_of_term_exn: (string, Dom.tt, String.comparator_witness) Map.t -> Term.t -> Dom.tt
 
 end
 
@@ -169,7 +169,7 @@ end
 
 val check_const: (string, Dom.tt, 'a) Map.t -> Dom.t -> Dom.tt -> (string, Dom.tt, 'a) Map.t
 val check_var: (string, Dom.tt, 'a) Map.t -> string -> Dom.tt -> (string, Dom.tt, 'a) Map.t
-val check_app: (string, Dom.tt, 'a) Map.t -> string -> Dom.tt -> (string, Dom.tt, 'a) Map.t
+val check_app: (string, Dom.tt, 'a) Map.t -> string -> Term.t list -> Dom.tt -> (string, Dom.tt, 'a) Map.t * Term.t
 
-val check_term: (string, Dom.tt, 'a) Map.t -> Dom.tt -> Term.t -> (string, Dom.tt, 'a) Map.t
-val check_terms: (string, Dom.tt, 'a) Map.t -> string -> Term.t list ->  (string, Dom.tt, 'a) Map.t
+val check_term: (string, Dom.tt, 'a) Map.t -> Dom.tt -> Term.t -> (string, Dom.tt, 'a) Map.t * Term.t
+val check_terms: (string, Dom.tt, 'a) Map.t -> string -> Term.t list ->  (string, Dom.tt, 'a) Map.t  * Term.t list
