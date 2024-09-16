@@ -24,14 +24,5 @@ module Plain (CI: Checker_interfaceT) : sig
 
 end
 
-module Json (CI: Checker_interfaceT) : sig
 
-  val table_columns: Formula.t -> string
 
-  val db: timestamp -> timepoint -> Db.t -> Formula.t -> string
-
-  val expls: (timepoint, timestamp) Hashtbl.t -> Formula.t -> CI.Expl.t list -> string list
-
-  val aggregate: string list -> string list -> string
-
-end

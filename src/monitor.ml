@@ -43,8 +43,8 @@ module type MonitorT = sig
       | MLet          of string * string list * t * t
       | MAgg          of string * Aggregation.op * Aggregation.op_fun * string list * Lbl.t list * Term.t * string list * t
       | MNeg          of t
-      | MAnd          of Formula.Side.t * t * t * binop_info
-      | MOr           of Formula.Side.t * t * t * binop_info
+      | MAnd          of Formula.Side.t * t list * binop_info
+      | MOr           of Formula.Side.t * t list * binop_info
       | MImp          of Formula.Side.t * t * t * binop_info
       | MIff          of Formula.Side.t * Formula.Side.t * t * t * binop_info
       | MExists       of string * Dom.tt * bool * string list * Lbl.t list * t
@@ -62,9 +62,9 @@ module type MonitorT = sig
       | MUntil        of Interval.t * t * t * buf2t_info * until_info
       | MEUntil       of Formula.Side.t * Interval.t * Time.t option * t * t * Etc.valuation
 
-    and t = { mf: core_t; hash: int }
+    and t = { mf: core_t; filter: Formula.Filter.filter; hash: int }
 
-    val make: core_t -> t
+    val make: core_t -> Formula.Filter.filter -> t
 
     val init: Lbl.t list -> Tformula.t -> t
     val rank: t -> int
@@ -142,10 +142,6 @@ module type MonitorT = sig
 
   val meval_c: int ref
 
-  val exec: Out.mode -> string -> Formula.t -> in_channel -> memo -> unit
-
-  val exec_vis: MState.t option -> Formula.t -> string -> (MState.t * string)
-
 end
 
 module Make (CI: Checker_interface.Checker_interfaceT) = struct
@@ -154,7 +150,6 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
 
   open CI
   module Plain = Out.Plain (CI)
-  module Json = Out.Json (CI)
 
   open Expl
 
@@ -1487,8 +1482,8 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       | MLet          of string * string list * t * t
       | MAgg          of string * Aggregation.op * Aggregation.op_fun * string list * Lbl.t list * Term.t * string list * t
       | MNeg          of t
-      | MAnd          of Formula.Side.t * t * t * binop_info
-      | MOr           of Formula.Side.t * t * t * binop_info
+      | MAnd          of Formula.Side.t * t list * binop_info
+      | MOr           of Formula.Side.t * t list * binop_info
       | MImp          of Formula.Side.t * t * t * binop_info
       | MIff          of Formula.Side.t * Formula.Side.t * t * t * binop_info
       | MExists       of string * Dom.tt * bool * string list * Lbl.t list * t
@@ -1506,7 +1501,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       | MUntil        of Interval.t * t * t * buf2t_info * until_info
       | MEUntil       of Formula.Side.t * Interval.t * Time.t option *  t * t * Etc.valuation
 
-    and t = { mf: core_t; hash: int }
+    and t = { mf: core_t; filter: Formula.Filter.filter; hash: int }
 
     (*let rec core_to_formula ts' =
       let sub i = function
@@ -1545,6 +1540,9 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
 
     let rec core_hash =
       let (+++) x y = x * 65599 + y in
+      let rec ppp = function
+        | [x; y] -> x.hash +++ y.hash
+        | x :: ys -> x.hash +++ ppp ys in
       function
       | MTT -> String.hash "MTT"
       | MFF -> String.hash "MFF"
@@ -1560,16 +1558,16 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
          +++ List.fold_left ~f:(+++) ~init:0 (List.map ~f:String.hash y) +++ f.hash
       | MNeg f ->
          String.hash "MNeg" +++ f.hash
-      | MAnd (s, f, g, bi) ->
-         String.hash "MAnd" +++ Formula.Side.hash s +++ f.hash +++ g.hash
-      | MOr (s, f, g, bi) ->
+      | MAnd (s, fs, bi) ->
+         String.hash "MAnd" +++ Formula.Side.hash s +++ ppp fs
+      | MOr (s, fs, bi) ->
          (*print_endline "--MOr ";
          print_endline ("hash('MOr')=" ^ string_of_int (String.hash "MOr"));
          print_endline ("hash(s)=" ^ string_of_int (Formula.Side.hash s));
          print_endline ("hash(f)=" ^ string_of_int (f.hash));
          print_endline ("hash(g)=" ^ string_of_int (g.hash));
          print_endline ("hash(MOr)=" ^ string_of_int (String.hash "MOr" +++ Formula.Side.hash s +++ f.hash +++ g.hash));*)
-         String.hash "MOr" +++ Formula.Side.hash s +++ f.hash +++ g.hash
+         String.hash "MOr" +++ Formula.Side.hash s +++ ppp fs
       | MImp (s, f, g, bi) ->
          String.hash "MImp" +++ Formula.Side.hash s +++ f.hash +++ g.hash
       | MIff (s, t, f, g, bi) ->
@@ -1606,13 +1604,13 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
 
     and hash mf = core_hash mf.mf
 
-    let make mf =
-      { mf; hash = core_hash mf }
+    let make mf filter =
+      { mf; filter; hash = core_hash mf }
          
-    let _tp     = make (MPredicate (Pred.tilde_tp_event_name, []))
-    let _neg_tp = make (MNeg _tp)
-    let _tt     = make MTT
-    let _ff     = make MFF
+    let _tp     = make (MPredicate (Pred.tilde_tp_event_name, [])) Formula.Filter._true
+    let _neg_tp = make (MNeg _tp) Formula.Filter._true
+    let _tt     = make MTT Formula.Filter._true
+    let _ff     = make MFF Formula.Filter._true
 
     let init lbls (tf: Tformula.t) =
       let rec aux vt (fvs: string list) (lbls: Lbl.t list) (tf: Tformula.t) = match tf.f with
@@ -1626,79 +1624,77 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
            let lbls'  = Formula.lbls fvs' (Tformula.to_formula f) in
            let lbls'  = Aggregation.order_lbls lbls lbls' (Lbl.of_term x) y  in
            let vt, mf  = aux vt fvs' lbls' f in
-           vt, MAgg (s, op, op_fun, fvs', lbls', x, y, make mf)
+           vt, MAgg (s, op, op_fun, fvs', lbls', x, y, make mf Formula.Filter._true)
         | TNeg f -> let vt, mf = aux vt fvs lbls f in
-                    vt, MNeg (make mf)
-        | TAnd (s, f, g) ->
-           let vt, mf = aux vt fvs lbls f in
-           let vt, mg = aux vt fvs lbls g in
-           vt, MAnd (s, make mf, make mg, ([], []))
-        | TOr (s, f, g) ->
-           let vt, mf = aux vt fvs lbls f in
-           let vt, mg = aux vt fvs lbls g in
-           vt, MOr (s, make mf, make mg, ([], []))
+                    vt, MNeg (make mf tf.filter)
+        | TAnd (s, fs) ->
+           let vt, mfs = List.fold_map fs ~init:vt ~f:(fun vt -> aux vt fvs lbls) in
+           vt, MAnd (s, List.map2_exn ~f:make mfs (List.map fs ~f:(fun tf -> tf.filter)), ([], []))
+        | TOr (s, fs) ->
+           let vt, mfs = List.fold_map fs ~init:vt ~f:(fun vt -> aux vt fvs lbls) in
+           vt, MOr (s, List.map2_exn ~f:make mfs (List.map fs ~f:(fun tf -> tf.filter)), ([], []))
         | TImp (s, f, g) ->
            let vt, mf = aux vt fvs lbls f in
            let vt, mg = aux vt fvs lbls g in
-           vt, MImp (s, make mf, make mg, ([], []))
+           vt, MImp (s, make mf f.filter, make mg g.filter, ([], []))
         | TIff (s, t, f, g) ->
            let vt, mf = aux vt fvs lbls f in
            let vt, mg = aux vt fvs lbls g in
-           vt, MIff (s, t, make mf, make mg, ([], []))
+           vt, MIff (s, t, make mf f.filter, make mg g.filter, ([], []))
         | TExists (x, tt, b, f) ->
            let fvs' = fvs @ [x] in
            let lbls' = Lbl.unquantify_list x lbls in
            let vt, mf = aux vt fvs' lbls' f in
-           Map.update vt x (fun _ -> tt), MExists (x, tt, b, fvs', lbls', make mf)
+           Map.update vt x (fun _ -> tt), MExists (x, tt, b, fvs', lbls', make mf f.filter)
         | TForall (x, tt, b, f) ->
            let fvs' = fvs @ [x] in
            let lbls' = Lbl.unquantify_list x lbls in
            let vt, mf = aux vt fvs' lbls' f in
-           Map.update vt x (fun _ -> tt), MForall (x, tt, b, fvs', lbls', make mf)
+           Map.update vt x (fun _ -> tt), MForall (x, tt, b, fvs', lbls', make mf f.filter)
         | TPrev (i, f) ->
            let vt, mf = aux vt fvs lbls f in
-           vt, MPrev (i, make mf, true, ([], []))
+           vt, MPrev (i, make mf f.filter, true, ([], []))
         | TNext (i, f) when tf.enftype == EnfType.Obs ->
            let vt, mf = aux vt fvs lbls f in
-           vt, MNext (i, make mf, true, [])
+           vt, MNext (i, make mf f.filter, true, [])
         | TNext (i, f) ->
            let vt, mf = aux vt fvs lbls f in
-           vt, MENext (i, None, make mf, Etc.empty_valuation)
+           vt, MENext (i, None, make mf f.filter, Etc.empty_valuation)
         | TOnce (i, f) ->
            let vt, mf = aux vt fvs lbls f in
-           vt, MOnce (i, make mf, [], Leaf (Once.init ()))
+           vt, MOnce (i, make mf f.filter, [], Leaf (Once.init ()))
         | TEventually (i, _, f) when tf.enftype == EnfType.Obs ->
            let vt, mf = aux vt fvs lbls f in
-           vt, MEventually (i, make mf, ([], []), Leaf (Eventually.init ()))
+           vt, MEventually (i, make mf f.filter, ([], []), Leaf (Eventually.init ()))
         | TEventually (i, _, f) ->
            let vt, mf = aux vt fvs lbls f in
-           vt, MEEventually (i, None, make mf, Etc.empty_valuation)
+           vt, MEEventually (i, None, make mf f.filter, Etc.empty_valuation)
         | THistorically (i, f) ->
            let vt, mf = aux vt fvs lbls f in
-           vt, MHistorically (i, make mf, [], Leaf (Historically.init ()))
+           vt, MHistorically (i, make mf f.filter, [], Leaf (Historically.init ()))
         | TAlways (i, _, f) when tf.enftype == EnfType.Obs ->
            let vt, mf = aux vt fvs lbls f in
-           vt, MAlways (i, make mf, ([], []), Leaf (Always.init ()))
+           vt, MAlways (i, make mf f.filter, ([], []), Leaf (Always.init ()))
         | TAlways (i, _, f) ->
            let vt, mf = aux vt fvs lbls f in
-           vt, MEAlways (i, None, make mf, Etc.empty_valuation)
+           vt, MEAlways (i, None, make mf f.filter, Etc.empty_valuation)
         | TSince (s, i, f, g) ->
            let vt, mf = aux vt fvs lbls f in
            let vt, mg = aux vt fvs lbls g in
-           vt, MSince (s, i, make mf, make mg, (([], []), []), Leaf (Since.init ()))
+           vt, MSince (s, i, make mf f.filter, make mg g.filter, (([], []), []), Leaf (Since.init ()))
         | TUntil (s, i, _, f, g) when tf.enftype == EnfType.Obs ->
            let vt, mf = aux vt fvs lbls f in
            let vt, mg = aux vt fvs lbls g in
-           vt, MUntil (i, make mf, make mg, (([], []), []), Leaf (Until.init ()))
+           vt, MUntil (i, make mf f.filter, make mg g.filter, (([], []), []), Leaf (Until.init ()))
         | TUntil (s, i, _, f, g) ->
            let vt, mf = aux vt fvs lbls f in
            let vt, mg = aux vt fvs lbls g in
-           vt, MEUntil (s, i, None, make mf, make mg, Etc.empty_valuation)
+           vt, MEUntil (s, i, None, make mf f.filter, make mg g.filter, Etc.empty_valuation)
       in
       let f = Tformula.to_formula tf in
       let fvs = Set.elements (Formula.fv f) in
       let lbls = Formula.lbls fvs f in
-      match aux (Map.empty (module String)) fvs lbls tf with (_, mf) -> make mf 
+      match aux (Map.empty (module String)) fvs lbls tf with (_, mf) -> make mf tf.filter
 
     let rec equal mf1 mf2 = mf1.hash = mf2.hash
 
@@ -1719,13 +1715,14 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
         | MAlways (_, f, _, _)
         | MEAlways (_, _, f, _)
         | MAgg (_, _, _, _, _, _, _, f) -> rank f
-      | MAnd (_, f, g, _)
-        | MOr (_, f, g, _)
-        | MImp (_, f, g, _)
+      | MImp (_, f, g, _)
         | MIff (_, _, f, g, _)
         | MSince (_, _, f, g, _, _)
         | MUntil (_, f, g, _, _)
         | MEUntil (_, _, _, f, g, _) -> rank f + rank g
+      | MAnd (_, fs, _)
+        | MOr (_, fs, _) -> List.fold ~init:0 ~f:(+) (List.map fs ~f:rank)
+
 
 
     let rec fv mf = match mf.mf with
@@ -1746,13 +1743,14 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
         | MEAlways (_, _, f, _)
         | MNext (_, f, _, _)
         | MENext (_, _, f, _) -> fv f
-      | MAnd (_, f1, f2, _)
-        | MOr (_, f1, f2, _)
-        | MImp (_, f1, f2, _)
+      | MImp (_, f1, f2, _)
         | MIff (_, _, f1, f2, _)
         | MSince (_, _, f1, f2, _, _)
         | MUntil (_, f1, f2, _, _)
         | MEUntil (_, _, _, f1, f2, _) -> Set.union (fv f1) (fv f2)
+      | MAnd (_, fs, _)
+        | MOr (_, fs, _) -> Set.union_list (module String) (List.map fs ~f:fv)
+
 
     let lbls fvs f =
       let nodup l =
@@ -1777,13 +1775,13 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
           | MEAlways (_, _, f, _)
           | MNext (_, f, _, _)
           | MENext (_, _, f, _) -> nonvars f
-        | MAnd (_, f1, f2, _)
-          | MOr (_, f1, f2, _)
-          | MImp (_, f1, f2, _)
+        | MImp (_, f1, f2, _)
           | MIff (_, _, f1, f2, _)
           | MSince (_, _, f1, f2, _, _)
           | MUntil (_, f1, f2, _, _)
           | MEUntil (_, _, _, f1, f2, _) -> nodup (nonvars f1 @ nonvars f2)
+        | MAnd (_, fs, _)
+          | MOr (_, fs, _) -> nodup (List.fold ~init:[] ~f:(@) (List.map fs ~f:nonvars))
       in (List.map fvs ~f:Lbl.var) @ (nonvars f)
 
     let ts_i_to_string (ts, i) =
@@ -1799,8 +1797,8 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       | MPredicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
       | MAgg (s, op, _, _, _, x, y, f) -> Printf.sprintf "%s = %s(%s; %s; %s)" s (Aggregation.op_to_string op) (Term.value_to_string x) (String.concat ~sep:", " y) (to_string_rec 5 f)
       | MNeg f -> Printf.sprintf "¬%a" (fun x -> to_string_rec 5) f
-      | MAnd (_, f, g, _) -> Printf.sprintf (Etc.paren l 4 "%a ∧ %a") (fun x -> to_string_rec 4) f (fun x -> to_string_rec 4) g
-      | MOr (_, f, g, _) -> Printf.sprintf (Etc.paren l 3 "%a ∨ %a") (fun x -> to_string_rec 3) f (fun x -> to_string_rec 4) g
+      | MAnd (_, fs, _) -> Printf.sprintf (Etc.paren l 4 "%s") (String.concat ~sep:"∧" (List.map fs ~f:(to_string_rec 4)))
+      | MOr (_, fs, _) -> Printf.sprintf (Etc.paren l 3 "%s") (String.concat ~sep:"∨" (List.map fs ~f:(to_string_rec 4)))
       | MImp (_, f, g, _) -> Printf.sprintf (Etc.paren l 4 "%a → %a") (fun x -> to_string_rec 4) f (fun x -> to_string_rec 4) g
       | MIff (_, _, f, g, _) -> Printf.sprintf (Etc.paren l 4 "%a ↔ %a") (fun x -> to_string_rec 4) f (fun x -> to_string_rec 4) g
       | MExists (x, _, _, _, _, f) -> Printf.sprintf (Etc.paren l 5 "∃%s. %a") x (fun x -> to_string_rec 5) f
@@ -1830,8 +1828,8 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       | MAgg (s, op, _, _, _, x, y, _) -> Printf.sprintf "%s = %s(%s; %s)" s (Aggregation.op_to_string op) (Term.to_string x)
                                   (String.concat ~sep:", " y)
       | MNeg _ -> Printf.sprintf "¬"
-      | MAnd (_, _, _, _) -> Printf.sprintf "∧"
-      | MOr (_, _, _, _) -> Printf.sprintf "∨"
+      | MAnd (_, _, _) -> Printf.sprintf "∧"
+      | MOr (_, _, _) -> Printf.sprintf "∨"
       | MImp (_, _, _, _) -> Printf.sprintf "→"
       | MIff (_, _, _, _, _) -> Printf.sprintf "↔"
       | MExists (x, _, _, _, _, _) -> Printf.sprintf "∃ %s." x
@@ -1858,8 +1856,8 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       | MPredicate _ -> Printf.sprintf "N"
       | MAgg _ -> Printf.sprintf "N"
       | MNeg _ -> Printf.sprintf "N"
-      | MAnd (s, _, _, _) -> Printf.sprintf "%s" (Formula.Side.to_string s)
-      | MOr (s, _, _, _) -> Printf.sprintf "%s" (Formula.Side.to_string s)
+      | MAnd (s, _, _) -> Printf.sprintf "%s" (Formula.Side.to_string s)
+      | MOr (s, _, _) -> Printf.sprintf "%s" (Formula.Side.to_string s)
       | MImp (s, _, _, _) -> Printf.sprintf "%s" (Formula.Side.to_string s)
       | MIff (s, _, _, _, _) -> Printf.sprintf "%s" (Formula.Side.to_string s)
       | MExists _ -> Printf.sprintf "N"
@@ -1884,7 +1882,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       let av_buft b = Buft.map (Pdt.specialize_partial v) (fun t -> t) b in
       let av_buf2t b = Buf2t.map (Pdt.specialize_partial v) (Pdt.specialize_partial v) (fun t -> t) b in
       let av_pdt p = Pdt.specialize_partial v p in
-      let mf = match mf.mf with
+      let mf_ = match mf.mf with
         | MTT -> MTT
         | MFF -> MFF
         | MEqConst (trm, d) ->
@@ -1895,8 +1893,8 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
         | MPredicate (e, t) -> MPredicate (e, List.map t (av_term v))
         | MAgg (s, op, op_fun, fvs, trms, x, y, f) -> MAgg (s, op, op_fun, fvs, trms, x, y, r f)
         | MNeg f -> MNeg (r f)
-        | MAnd (s, f, g, bi) -> MAnd (s, r f, r g, av_buf2 bi)
-        | MOr (s, f, g, bi) -> MOr (s, r f, r g, av_buf2 bi)
+        | MAnd (s, fs, bi) -> MAnd (s, List.map ~f:r fs, av_buf2 bi)
+        | MOr (s, fs, bi) -> MOr (s, List.map ~f:r fs, av_buf2 bi)
         | MImp (s, f, g, bi) -> MImp (s, r f, r g, av_buf2 bi)
         | MIff (s, t, f, g, bi) -> MIff (s, t, r f, r g, av_buf2 bi)
         | MExists (x, tt, b, fvs, lbls, f) -> MExists (x, tt, b, fvs, lbls, r f)
@@ -1915,7 +1913,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
         | MEUntil (s, i, ts, f, g, vv) -> MEUntil (s, i, ts, r f, r g, Etc.extend_valuation v vv)
       in
       (*print_endline ("hash(apply_valuation(" ^ Etc.valuation_to_string v ^ ", " ^ to_string { mf; hash = 0 } ^ ")=" ^ (string_of_int (make mf).hash));*)
-      make mf
+      make mf_ mf.filter
 
 
   end
@@ -2023,13 +2021,16 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
 
 
 
-      let eval_kind ts' tp k = match k with
+      let eval_kind ts' tp k =
+        let tp_filter mf = 
+          Formula.Filter.conj mf.filter (Formula.Filter.An Pred.tilde_tp_event_name) in
+        match k with
         | FFormula (mf, _, _) -> mf
         | FInterval (ts, i, mf, h, v) ->
            if Interval.diff_is_in ts ts' i then
              make (MEUntil (R, i, Some ts, _neg_tp,
-                            make (MAnd (L, MFormula._tp, mf, empty_binop_info)),
-                            v))
+                            make (MAnd (L, [_tp; mf], empty_binop_info)) Formula.Filter._true,
+                            v)) Formula.Filter._true
            else
              _tt
         | FUntil (ts, side, i, mf1, mf2, h, v) ->
@@ -2038,15 +2039,15 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
                | MImp (_, _tp, mf1, _) -> mf1
                | _ -> mf1 in
              let mf2' = match mf2.mf with
-               | MAnd (_, _tp, mf2, _) -> mf2
+               | MAnd (_, [_tp; mf2], _) -> mf2
                | _ -> mf2 in
              make (MEUntil (side, i, Some ts,
                             (if MFormula.equal mf1' _neg_tp then
                                _neg_tp
                              else
-                               make (MImp (R, _tp, mf1', empty_binop_info))),
-                            make (MAnd (L, _tp, mf2', empty_binop_info)),
-                            v))
+                               make (MImp (R, _tp, mf1', empty_binop_info)) (tp_filter mf1')),
+                            make (MAnd (L, [_tp; mf2'], empty_binop_info)) Formula.Filter._true,
+                            v)) Formula.Filter._true
            else
              assert false
         | FAlways (ts, i, mf, h, v) ->
@@ -2055,24 +2056,19 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
                | MImp (_, _tp, mf, _) -> mf
                | _ -> mf in
              make (MEAlways (i, Some ts,
-                             make (MImp (R, _tp, mf', empty_binop_info)),
-                             v))
+                             make (MImp (R, _tp, mf', empty_binop_info)) (tp_filter mf'),
+                             v)) Formula.Filter._true
            else
              _tt
         | FEventually (ts, i, mf, h, v) ->
            if not (Interval.diff_right_of ts ts' i) then
              let mf' = match mf.mf with
-               | MAnd (_, _tp, mf, _) -> mf
+               | MAnd (_, [_tp; mf], _) -> mf
                | _ -> mf in
              make (MEEventually (i, Some ts,
-                                 make (MAnd (L, _tp, mf', empty_binop_info)),
-                                 v))
-           else (
-             print_endline (MFormula.to_string mf);
-             print_endline (Interval.to_string i);
-             print_endline (Time.to_string ts);
-             print_endline (Time.to_string ts');
-             assert false)
+                                 make (MAnd (L, [_tp; mf'], empty_binop_info)) Formula.Filter._true,
+                                 v)) Formula.Filter._true
+           else assert false
 
       let eval ts tp (k, v, pol) =
         let mf = apply_valuation v (eval_kind ts tp k) in
@@ -2080,7 +2076,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
         | POS -> mf
         | NEG -> match mf.mf with
                  | MNeg mf -> mf
-                 | _       -> make (MNeg mf)
+                 | _       -> make (MNeg mf) Formula.Filter._true
 
       let polarity_to_string = function
         | POS -> "+"
@@ -2415,11 +2411,12 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
     let rec meval_rec fvs lbls ts tp (db: Db.t) ~pol (fobligs: FObligations.t) mformula =
       (*print_endline "--meval_rec";*)
       (*print_endline (String.concat ~sep:", " (List.map lbls ~f:Lbl.to_string));*)
-      (*print_endline (MFormula.to_string mformula);*)
+      (*print_endline ("mf=" ^ MFormula.to_string mformula);
+      print_endline ("hash=" ^ string_of_int mformula.hash);*)
       (*print_endline ("incr: " ^ MFormula.to_string mformula);*)
       incr meval_c;
       match Hashtbl.find memo mformula.hash with
-      | Some res -> ((*print_endline ("memo(" ^ string_of_int mformula.hash ^ ")!"); *)res)
+      | Some res -> ((*print_endline ("memo(" ^ string_of_int mformula.hash ^ ")!");*) res)
       | None -> 
       let (expls, aexpl, mf) =
         match mformula.mf with
@@ -2436,16 +2433,16 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
            ([expl], expl, MEqConst (trm, d))
         | MPredicate (r, trms) ->
            let db' = match Sig.kind_of_pred r with
-             | Trace -> Set.filter db ~f:(fun evt -> String.equal r (fst(evt)))
+             | Trace -> Db.filter db ~f:(fun evt -> String.equal r (fst(evt)))
              | External -> Db.retrieve_external r
              | Builtin -> Db.retrieve_builtin ts tp r in
            if List.is_empty trms then
-             (let expl = if Set.is_empty db' then Pdt.Leaf (Proof.V (Proof.make_vpred tp r trms))
+             (let expl = if Db.is_empty db' then Pdt.Leaf (Proof.V (Proof.make_vpred tp r trms))
                          else Leaf (S (Proof.make_spred tp r trms)) in
               ([expl], expl, MPredicate (r, trms)))
            else
              let maps = List.filter_opt (
-                            Set.fold db' ~init:[]
+                            Set.fold (Db.events db') ~init:[]
                               ~f:(fun acc evt -> match_terms trms (snd evt)
                                                    (Map.empty (module Lbl)) :: acc)) in
              let expl = if List.is_empty maps
@@ -2477,24 +2474,29 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
            let f_expls = List.map expls ~f:(Pdt.apply1_reduce Proof.equal lbls (fun p -> do_neg p)) in
            let f_aexpl = approx_expl1 aexpl lbls tp mformula.mf in
            (f_expls, f_aexpl, MNeg mf')
-        | MAnd (s, mf1, mf2, buf2) ->
-           let (expls1, aexpl1, mf1') = meval_rec fvs lbls ts tp db ~pol fobligs mf1 in
-           let (expls2, aexpl2, mf2') = meval_rec fvs lbls ts tp db ~pol fobligs mf2 in
-           let (f_expls, buf2') = Buf2.take
-                                    (Pdt.apply2_reduce Proof.equal lbls (fun p1 p2 -> minp_list (do_and p1 p2)))
-                                    (Buf2.add expls1 expls2 buf2) in
-           let aexpl = approx_expl2 aexpl1 aexpl2 lbls tp mformula.mf in
-           (f_expls, aexpl, MAnd (s, mf1', mf2', buf2'))
-        | MOr (s, mf1, mf2, buf2) ->
-           let (expls1, aexpl1, mf1') = meval_rec fvs lbls ts tp db ~pol fobligs mf1 in
-           let (expls2, aexpl2, mf2') = meval_rec fvs lbls ts tp db ~pol fobligs mf2 in
-           let (f_expls, buf2') = Buf2.take
-                                    (Pdt.apply2_reduce Proof.equal lbls (fun p1 p2 -> minp_list (do_or p1 p2)))
-                                    (Buf2.add expls1 expls2 buf2) in
-           let aexpl = approx_expl2 aexpl1 aexpl2 lbls tp mformula.mf in
-           (f_expls, aexpl, MOr (s, mf1', mf2', buf2'))
+        | MAnd (s, mfs, buf2) ->
+           let expls1 :: expls_list, aexpl1 :: aexpl_list, mfs' =
+             List.unzip3 (List.map ~f:(meval_rec fvs lbls ts tp db ~pol fobligs) mfs) in
+           let (f_expls, buf2') =
+             List.fold expls_list ~init:(expls1, buf2) ~f:(fun (expls1, buf2) expls2  -> 
+                 Buf2.take
+                   (Pdt.apply2_reduce Proof.equal lbls (fun p1 p2 -> minp_list (do_and p1 p2)))
+                   (Buf2.add expls1 expls2 buf2)) in
+           let aexpl = List.fold aexpl_list ~init:aexpl1 ~f:(fun aexpl1 aexpl2 ->
+                 approx_expl2 aexpl1 aexpl2 lbls tp mformula.mf) in
+           (f_expls, aexpl, MAnd (s, mfs', buf2'))
+        | MOr (s, mfs, buf2) ->
+           let expls1 :: expls_list, aexpl1 :: aexpl_list, mfs' =
+             List.unzip3 (List.map ~f:(meval_rec fvs lbls ts tp db ~pol fobligs) mfs) in
+           let (f_expls, buf2') =
+             List.fold expls_list ~init:(expls1, buf2) ~f:(fun (expls1, buf2) expls2  -> 
+                 Buf2.take
+                   (Pdt.apply2_reduce Proof.equal lbls (fun p1 p2 -> minp_list (do_or p1 p2)))
+                   (Buf2.add expls1 expls2 buf2)) in
+           let aexpl = List.fold aexpl_list ~init:aexpl1 ~f:(fun aexpl1 aexpl2 ->
+                 approx_expl2 aexpl1 aexpl2 lbls tp mformula.mf) in
+           (f_expls, aexpl, MOr (s, mfs', buf2'))
         | MImp (s, mf1, mf2, buf2) ->
-           (* Note: still not sure about this polarity change *)
            let (expls1, aexpl1, mf1') = meval_rec fvs lbls ts tp db ~pol:(pol >>| FObligation.neg) fobligs mf1 in
            let (expls2, aexpl2, mf2') = meval_rec fvs lbls ts tp db ~pol fobligs mf2 in
            let f = Pdt.apply2_reduce Proof.equal lbls (fun p1 p2 -> minp_list (do_imp p1 p2)) in
@@ -2663,7 +2665,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
            let (expls2, aexpl2, mf2') = meval_rec fvs lbls ts tp db ~pol fobligs mf2 in
            let aexpl = else_any (approx_until lbls aexpl1 aexpl2 fobligs i (Some (mformula.hash, v))) tp pol in
            ([aexpl], aexpl, MEUntil (s, i, f_ts, mf1', mf2', v))
-      in let mf = make mf in
+      in let mf = make mf mformula.filter in
          ignore (Hashtbl.add memo ~key:mformula.hash ~data:(expls, aexpl, mf));
          (*print_endline ("add memo: " ^ MFormula.to_string mformula ^ " (" ^ string_of_int mformula.hash ^ ") -> " ^ Expl.to_string aexpl);*)
          (expls, aexpl, mf) 
@@ -2741,66 +2743,5 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
      ; tp_cur = ms.tp_cur + 1
      ; ts_waiting
      ; tsdbs = tsdbs })
-
-  let exec mode measure f inc memo =
-    let fvs = Set.elements (Formula.fv f) in
-    let lbls = Formula.lbls fvs f in
-    let rec step pb_opt ms =
-      match Other_parser.Trace.parse_from_channel inc pb_opt with
-      | None -> ()
-      | Some (more, pb) ->
-         (let (tstp_expls, _, ms') = mstep mode fvs lbls pb.tp pb.ts pb.db false ms FObligations.empty memo in
-          (match mode with
-           | Out.UNVERIFIED -> Plain.expls tstp_expls None None None mode
-           | Out.LATEX -> Plain.expls tstp_expls None None (Some(f)) mode
-           | Out.LIGHT -> Plain.expls tstp_expls None None None mode
-           | Out.DEBUGVIS -> raise (Failure "function exec is undefined for the mode debugvis")
-           | Out.VERIFIED ->
-              let c = CI.check (Queue.to_list ms'.tsdbs) f (List.map tstp_expls ~f:snd) in
-              Plain.expls tstp_expls (Some(c)) None None mode
-           | Out.DEBUG ->
-              let c = CI.check (Queue.to_list ms'.tsdbs) f (List.map tstp_expls ~f:snd) in
-              let paths = CI.false_paths (Queue.to_list ms'.tsdbs) f (List.map tstp_expls ~f:snd) in
-              Plain.expls tstp_expls (Some(c)) (Some(paths)) None mode);
-          if more then step (Some(pb)) ms') in
-    let mf = init lbls (Tformula.of_formula' f) in
-    let ms = MState.init mf in
-    step None ms
-
-  let exec_vis (obj_opt: MState.t option) f log =
-    let fvs = Set.elements (Formula.fv f) in
-    let lbls = Formula.lbls fvs f in
-    let step (ms: MState.t) db =
-      try
-        (match Other_parser.Trace.parse_from_string db with
-         | None -> None
-         | Some (_, pb) ->
-            (let last_ts = Hashtbl.fold ms.tpts ~init:0 ~f:(fun ~key:_ ~data:ts l_ts -> if ts > l_ts then ts else l_ts) in
-             if pb.ts >= last_ts then
-               let (tstps_expls, _, ms') = mstep Out.UNVERIFIED fvs lbls pb.tp pb.ts pb.db false ms FObligations.empty (Hashtbl.create (module Int)) in
-               let tp_out' = List.fold tstps_expls ~init:ms'.tp_out
-                               ~f:(fun acc ((ts, tp), _) -> Hashtbl.add_exn ms.tpts ~key:(acc + 1) ~data:ts; acc + 1) in
-               let json_expls = Json.expls ms.tpts f (List.map tstps_expls ~f:snd) in
-               let json_db = Json.db pb.ts ms.tp_cur pb.db f in
-               Some (None, (json_expls, [json_db]), { ms' with tp_out = tp_out' })
-             else raise (Failure "trace is not monotonic")))
-      with Failure msg -> Some (Some(msg), ([], []), ms) in
-    let ms = match obj_opt with
-      | None -> let mf = init lbls (Tformula.of_formula' f) in
-                MState.init mf
-      | Some (ms') -> { ms' with tp_cur = ms'.tp_out + (Queue.length ms'.ts_waiting) + 1 } in
-    let str_dbs = List.map (List.filter (String.split log ~on:'@') ~f:(fun s -> not (String.is_empty s)))
-                    ~f:(fun s -> "@" ^ s) in
-    let (fail_msg_opt, (json_expls, json_dbs), ms') =
-      List.fold str_dbs ~init:(None, ([], []), ms)
-        ~f:(fun (fail_msg_opt, (json_es, json_dbs), m) str_db ->
-          match step m str_db with
-          | None -> (fail_msg_opt, (json_es, json_dbs), m)
-          | Some (fail_msg_opt', (json_es', json_dbs'), m') ->
-             (fail_msg_opt', (json_es @ json_es', json_dbs @ json_dbs'), m')) in
-    let json = Json.aggregate json_dbs json_expls in
-    match fail_msg_opt with
-    | None -> (ms', json)
-    | Some (fail_msg) -> Stdio.print_endline fail_msg; (ms, json)
 
 end

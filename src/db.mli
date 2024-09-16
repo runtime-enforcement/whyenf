@@ -25,14 +25,27 @@ module Event : sig
   val _tick: t
 end
 
-type t = (Event.t, Event.comparator_witness) Set.t
+type t
+
+val events: t -> (Event.t, Event.comparator_witness) Set.t
+
+val mem_trace: t -> string -> bool
 
 val create: Event.t list -> t
+
+val diff: t -> t -> t
+val union: t -> t -> t
+
+val empty: t
+val singleton : Event.t -> t
+
+val equal: t -> t -> bool
 
 val mem: t -> Event.t -> bool
 val is_empty: t -> bool
 val remove: t -> Event.t -> t
 val size: t -> int
+val filter: t -> f:(Event.t -> bool) -> t
 
 val event: string -> string list -> Event.t
 
