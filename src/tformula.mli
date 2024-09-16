@@ -19,8 +19,8 @@ type core_t =
   | TPredicate of string * Term.t list
   | TAgg of string * Dom.tt * Aggregation.op * Term.t * string list * t
   | TNeg of t
-  | TAnd of Side.t * t * t
-  | TOr of Side.t * t * t
+  | TAnd of Side.t * t list
+  | TOr of Side.t * t list
   | TImp of Side.t * t * t
   | TIff of Side.t * Side.t * t * t
   | TExists of string * Dom.tt * bool * t
@@ -34,7 +34,11 @@ type core_t =
   | TSince of Side.t * Interval.t * t * t
   | TUntil of Side.t * Interval.t * bool * t * t
 
-and t = { f: core_t; enftype: EnfType.t }  [@@deriving compare, hash, sexp_of]
+and t = {
+    f:       core_t;
+    enftype: EnfType.t;
+    filter:  Filter.filter
+  }  [@@deriving compare, hash, sexp_of]
 
 val ttrue  : t
 val tfalse : t
@@ -47,5 +51,8 @@ val op_to_string : t -> string
 
 val of_formula :  Formula.t -> Dom.ctxt -> Dom.ctxt * t
 val of_formula' : Formula.t -> t
+
+val ac_simplify : t -> t
+
 val to_formula : t -> Formula.t
 val to_string : t -> string

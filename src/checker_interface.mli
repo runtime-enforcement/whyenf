@@ -36,12 +36,6 @@ module type Checker_interfaceT = sig
 
   end
 
-  module Vis : sig
-
-    val to_json: Formula.t -> Expl.t -> string
-
-  end
-
   module Checker_pdt : sig
 
     type t = (event_data, (event_data sproof, event_data vproof) sum) pdt

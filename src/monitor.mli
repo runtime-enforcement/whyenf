@@ -40,8 +40,8 @@ module type MonitorT = sig
       | MLet          of string * string list * t * t
       | MAgg          of string * Aggregation.op * Aggregation.op_fun * string list * Pred.Lbl.t list * Pred.Term.t * string list * t
       | MNeg          of t
-      | MAnd          of Formula.Side.t * t * t * binop_info
-      | MOr           of Formula.Side.t * t * t * binop_info
+      | MAnd          of Formula.Side.t * t list * binop_info
+      | MOr           of Formula.Side.t * t list * binop_info
       | MImp          of Formula.Side.t * t * t * binop_info
       | MIff          of Formula.Side.t * Formula.Side.t * t * t * binop_info
       | MExists       of string * Dom.tt * bool * string list * Pred.Lbl.t list * t
@@ -59,9 +59,9 @@ module type MonitorT = sig
       | MUntil        of Interval.t * t * t * buf2t_info * until_info
       | MEUntil       of Formula.Side.t * Interval.t * Time.t option * t * t * Etc.valuation
 
-    and t = { mf: core_t; hash: int }
+    and t = { mf: core_t; filter: Formula.Filter.filter; hash: int }
 
-    val make: core_t -> t
+    val make: core_t -> Formula.Filter.filter -> t
     
     val init: Pred.Lbl.t list -> Tformula.t -> t
     val rank: t -> int
@@ -136,10 +136,6 @@ module type MonitorT = sig
              ((timestamp * timepoint) * CI.Expl.t) list * CI.Expl.t * MState.t
 
   val meval_c: int ref 
-
-  val exec: Out.mode -> string -> Formula.t -> in_channel -> memo -> unit
-
-  val exec_vis: MState.t option -> Formula.t -> string -> (MState.t * string)
 
 end
 

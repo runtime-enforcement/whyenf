@@ -110,12 +110,6 @@ module type Checker_interfaceT = sig
 
   end
 
-  module Vis : sig
-
-    val to_json: Formula.t -> Expl.Proof.t E.Pdt.t -> string
-
-  end
-
   module Checker_pdt : sig
 
     type t = (event_data, (event_data sproof, event_data vproof) sum) pdt
@@ -137,7 +131,6 @@ module LightChecker_interface = struct
 
   module E = Expl
   module Expl = Expl.Make (Expl.LightProof)
-  module Vis = Vis.LightExpl
 
   module Checker_pdt = struct
 

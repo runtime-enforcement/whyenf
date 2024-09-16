@@ -94,4 +94,24 @@ val to_latex: t -> string
 
 (*val check_types: t -> unit*)
 val is_past_guarded: string -> ?vars:((string, Base.String.comparator_witness) Base.Set.t) option -> bool -> t -> bool
+
 val check_agg: (string, Dom.tt, Base.String.comparator_witness) Base.Map.t -> string -> Aggregation.op -> Term.t -> string list -> t -> (string, Dom.tt, Base.String.comparator_witness) Base.Map.t
+
+module Filter : sig
+
+  type filter = An of string | AllOf of filter list | OneOf of filter list [@@deriving equal, compare, hash, sexp_of]
+
+  val _true : filter
+  val _false : filter
+
+  val eval : Db.t -> filter -> bool
+
+  val to_string : filter -> string
+
+  val simplify : filter -> filter
+  val present_filter : ?b:bool -> t -> filter
+
+  val conj : filter -> filter -> filter
+  val disj : filter -> filter -> filter
+  
+end

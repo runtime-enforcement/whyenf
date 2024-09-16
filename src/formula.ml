@@ -762,7 +762,6 @@ and is_past_guarded x ?(vars=None) p f =
   let vars = match vars with None -> fv f | Some s -> s in
   List.exists ~f:List.is_empty (solve_past_guarded x vars p f)
 
-
 (*
 let rec is_past_guarded x p f =
   match f with
@@ -824,3 +823,84 @@ let check_agg types s op x y f =
                       Printf.sprintf "variable %s is both the target of an aggregation and free in %s"
                         s (to_string f)));*)
          types
+
+let formula_to_string = to_string
+
+module Filter = struct
+
+  type filter = An of string | AllOf of filter list | OneOf of filter list [@@deriving equal, compare, hash, sexp_of]
+
+  let _true = AllOf []
+  let _false = OneOf []
+
+  let is_an = function An _ -> true | _ -> false
+  let is_allof = function AllOf _ -> true | _ -> false
+  let is_oneof = function OneOf _ -> true | _ -> false
+
+  let rec eval (db : Db.t) = function
+    | An e -> Db.mem_trace db e
+    | AllOf fis -> List.for_all fis ~f:(eval db)
+    | OneOf fis -> List.exists fis ~f:(eval db)
+  
+  let rec to_string_rec l = function
+    | An e -> e
+    | AllOf [] -> "⊤"
+    | OneOf [] -> "⊥"
+    | AllOf fis -> Printf.sprintf (Etc.paren l 4 "%s") (String.concat ~sep:"∧" (List.map fis ~f:(to_string_rec 4)))
+    | OneOf fis -> Printf.sprintf (Etc.paren l 3 "%s") (String.concat ~sep:"∨" (List.map fis ~f:(to_string_rec 3)))
+      
+  let to_string = to_string_rec 0
+
+  let rec simplify = function
+    | An e -> An e
+    | AllOf [] -> AllOf []
+    | OneOf [] -> OneOf []
+    | AllOf fis ->
+       let fis        = List.map fis ~f:simplify in
+       let all_of_fis = List.concat_map fis ~f:(function AllOf fis -> fis | _ -> []) in
+       let one_ofs    = List.filter fis ~f:is_oneof in
+       let ans        = List.filter fis ~f:is_an in
+       let one_of_bad = List.exists one_ofs ~f:(equal_filter _false) in
+       if one_of_bad then
+         _false
+       else
+         AllOf (all_of_fis @ one_ofs @ ans)
+    | OneOf fis ->
+       let fis        = List.map fis ~f:simplify in
+       let one_of_fis = List.concat_map fis ~f:(function OneOf fis -> fis | _ -> []) in
+       let all_ofs    = List.filter fis ~f:is_allof in
+       let ans        = List.filter fis ~f:is_an in
+       let all_of_bad = List.exists all_ofs ~f:(equal_filter _true) in
+       if all_of_bad then
+         _true
+       else
+         OneOf (one_of_fis @ all_ofs @ ans)
+
+  let rec present_filter_ ?(b=true) f =
+    let filter = 
+      match f with
+      | TT -> if b then _true else _false
+      | FF -> if b then _false else _true
+      | Predicate (e, _) when b -> An e
+      | Neg f -> present_filter_ ~b:(not b) f
+      | And (_, f, g) when b -> AllOf [present_filter_ ~b f; present_filter_ ~b g]
+      | And (_, f, g) -> OneOf [present_filter_ ~b f; present_filter_ ~b g]
+      | Or (_, f, g) when b -> OneOf [present_filter_ ~b f; present_filter_ ~b g]
+      | Or (_, f, g) -> AllOf [present_filter_ ~b f; present_filter_ ~b g]
+      | Imp (_, f, g) when b -> OneOf [present_filter_ ~b:(not b) f; present_filter_ ~b g]
+      | Imp (_, f, g) -> AllOf [present_filter_ ~b:(not b) f; present_filter_ ~b g]
+      | Iff (_, _, f, g) -> present_filter_ ~b (And (N, Imp (N, f, g), Imp (N, g, f)))
+      | Exists (_, f) | Forall (_, f) -> present_filter_ ~b f
+      | _ -> _true
+    in (*print_endline (Printf.sprintf "present_filter_ %s (%s) = %s" (Bool.to_string b) (formula_to_string f) (to_string filter));*)
+       filter
+
+  let present_filter ?(b=true) f =
+    simplify (present_filter_ ~b f)
+
+  let conj fi1 fi2 = simplify (AllOf [fi1; fi2])
+  let disj fi1 fi2 = simplify (OneOf [fi1; fi2])
+
+end
+
+

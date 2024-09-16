@@ -33,6 +33,8 @@ module Event = struct
                  Printf.sprintf "\"value\": \"%s\" " (Dom.to_string d) ^
                    Printf.sprintf "}"))
 
+    let name = fst
+
   end
 
   include T
@@ -43,14 +45,44 @@ module Event = struct
 
 end
 
-type t = (Event.t, Event.comparator_witness) Set.t
+type ev_set = (Event.t, Event.comparator_witness) Set.t
 
-let create evtl = Set.of_list (module Event) evtl
+type t = {
+    events : ev_set;
+    trace  : (String.t, String.comparator_witness) Set.t
+  }
 
-let mem = Set.mem
-let is_empty = Set.is_empty
-let remove = Set.remove
-let size = Set.length
+let events db = db.events
+
+let mem_trace db e = Set.mem db.trace e
+
+let equal db1 db2 = Set.equal db1.events db2.events && Set.equal db1.trace db2.trace
+
+let set_trace db =
+  { db with trace = Set.map (module String) db.events ~f:Event.name }
+
+let create evtl = {
+    events = Set.of_list (module Event) evtl;
+    trace  = Set.of_list (module String) (List.map evtl ~f:Event.name)
+  }
+
+let diff db1 db2 =
+  set_trace { db1 with events = Set.diff db1.events db2.events } 
+  
+let union db1 db2 = {
+    events = Set.union db1.events db2.events;
+    trace  = Set.union db1.trace db2.trace
+  }
+
+let empty = { events = Set.empty (module Event); trace = Set.empty (module String) }
+
+let singleton ev = create [ev]
+
+let mem db = Set.mem db.events
+let is_empty db = Set.is_empty db.events
+let remove db x = { db with events = Set.remove db.events x }
+let size db = Set.length db.events
+let filter db ~f = { db with events = Set.filter db.events ~f }
 
 let event name consts =
   let pred_sig = Hashtbl.find_exn Pred.Sig.table name in
@@ -62,18 +94,19 @@ let event name consts =
                              | TFloat -> Float (Float.of_string c)))
   else raise (Invalid_argument (Printf.sprintf "predicate %s has arity %d" name (Pred.Sig.arity pred_sig)))
 
-let add_event db evt = Set.add db evt
+let add_event db evt = { db with events = Set.add db.events evt }
 
 let is_tick db =
   mem db Event._tick && size db == 1
 
-let to_string db =
-  Etc.string_list_to_string (List.map ~f:Event.to_string (Set.elements db))
+let ev_set_to_string events =
+  Etc.string_list_to_string (List.map ~f:Event.to_string (Set.elements events))
 
+let to_string db = ev_set_to_string db.events
 
 let to_json db =
   "[ " ^ (String.concat ~sep:", "
-            (List.rev(Set.fold db ~init:[] ~f:(fun acc evt ->
+            (List.rev(Set.fold db.events ~init:[] ~f:(fun acc evt ->
                           Event.to_json evt :: acc)))) ^ "] "
 
 let retrieve_external name =

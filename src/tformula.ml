@@ -19,8 +19,8 @@ type core_t =
   | TPredicate of string * Term.t list
   | TAgg of string * Dom.tt * Aggregation.op * Term.t * string list * t
   | TNeg of t
-  | TAnd of Side.t * t * t
-  | TOr of Side.t * t * t
+  | TAnd of Side.t * t list
+  | TOr of Side.t * t list 
   | TImp of Side.t * t * t
   | TIff of Side.t * Side.t * t * t
   | TExists of string * Dom.tt * bool * t
@@ -34,7 +34,11 @@ type core_t =
   | TSince of Side.t * Interval.t * t * t
   | TUntil of Side.t * Interval.t * bool * t * t
 
-and t = { f: core_t; enftype: EnfType.t } [@@deriving compare, hash, sexp_of]
+and t = {
+    f:       core_t;
+    enftype: EnfType.t;
+    filter:  Filter.filter;
+  } [@@deriving compare, hash, sexp_of]
 
 let rec core_of_formula f (types: Dom.ctxt) =
   let f_q ?(true_ok=true) f x =
@@ -73,11 +77,11 @@ let rec core_of_formula f (types: Dom.ctxt) =
   | And (s, f, g) ->
      let types, mf = of_formula f types in
      let types, mg = of_formula g types in
-     types, TAnd (s, mf, mg)
+     types, TAnd (s, [mf; mg])
   | Or (s, f, g) ->
      let types, mf = of_formula f types in
      let types, mg = of_formula g types in
-     types, TOr (s, mf, mg)
+     types, TOr (s, [mf; mg])
   | Imp (s, f, g) ->
      let types, mf = of_formula f types in
      let types, mg = of_formula g types in
@@ -121,7 +125,7 @@ let rec core_of_formula f (types: Dom.ctxt) =
 
 and of_formula f (types: Dom.ctxt) =
   let types, f = core_of_formula f types in
-  types, { f; enftype = EnfType.Obs }
+  types, { f; enftype = EnfType.Obs; filter = Filter._true }
 
 let of_formula' f =
   snd (of_formula f (Map.empty (module String)))
@@ -140,18 +144,57 @@ let rec rank = function
     | THistorically (_, f)
     | TAlways (_, _, f)
     | TAgg (_, _, _, _, _, f) -> rank f.f
-  | TAnd (_, f, g)
-    | TOr (_, f, g)
-    | TImp (_, f, g)
+  | TImp (_, f, g)
     | TIff (_, _, f, g)
     | TSince (_, _, f, g)
     | TUntil (_, _, _, f, g) -> rank f.f + rank g.f
+  | TAnd (_, fs)
+    | TOr (_, fs) -> let f f = rank f.f in
+                     List.fold ~f:(+) ~init:0 (List.map fs ~f)
+
 
 let fix_side s f g =
   match s with
   | Side.LR -> if rank f < rank g then Side.L
                else Side.R
   | _ -> s
+
+let rec ac_simplify_core = function
+  | TTT -> TTT
+  | TFF -> TFF
+  | TEqConst (x, v) -> TEqConst (x, v)
+  | TPredicate (e, t) -> TPredicate (e, t)
+  | TAgg (s, tt, op, x, y, f) -> TAgg (s, tt, op, x, y, ac_simplify f)
+  | TNeg f -> TNeg f
+  | TAnd (s, fs) ->
+     let fs = List.map fs ~f:ac_simplify in
+     let f fs f' = match f'.f with
+       | TAnd (s', fs') when Side.equal s s' -> fs @ fs'
+       | _ -> fs @ [f'] in
+     let fs = List.fold_left fs ~init:[] ~f in
+     TAnd (s, fs)
+  | TOr (s, fs) ->
+     let fs = List.map fs ~f:ac_simplify in
+     let f fs f' = match f'.f with
+       | TAnd (s', fs') when Side.equal s s' -> fs @ fs'
+       | _ -> fs @ [f'] in
+     let fs = List.fold_left fs ~init:[] ~f in
+     TOr (s, fs)
+  | TImp (s, f, g) -> TImp (s, ac_simplify f, ac_simplify g)
+  | TIff (s, t, f, g) -> TIff (s, t, ac_simplify f, ac_simplify g)
+  | TExists (x, tt, b, f) -> TExists (x, tt, b, ac_simplify f)
+  | TForall (x, tt, b, f) -> TForall (x, tt, b, ac_simplify f)
+  | TPrev (i, f) -> TPrev (i, ac_simplify f)
+  | TNext (i, f) -> TNext (i, ac_simplify f)
+  | TOnce (i, f) -> TOnce (i, ac_simplify f)
+  | TEventually (i, b, f) -> TEventually (i, b, ac_simplify f)
+  | THistorically (i, f) -> THistorically (i, ac_simplify f)
+  | TAlways (i, b, f) -> TAlways (i, b, ac_simplify f)
+  | TSince (s, i, f, g) -> TSince (s, i, ac_simplify f, ac_simplify g)
+  | TUntil (s, i, b, f, g) -> TUntil (s, i, b, ac_simplify f, ac_simplify g)
+
+and ac_simplify f =
+  { f with f = ac_simplify_core f.f }
 
 let rec to_formula f = match f.f with
   | TTT -> TT
@@ -160,8 +203,10 @@ let rec to_formula f = match f.f with
   | TPredicate (e, t) -> Predicate (e, t)
   | TAgg (s, _, op, x, y, f) -> Agg (s, op, x, y, to_formula f)
   | TNeg f -> Neg (to_formula f)
-  | TAnd (s, f, g) -> And (fix_side s f.f g.f, to_formula f, to_formula g)
-  | TOr (s, f, g) -> Or (fix_side s f.f g.f, to_formula f, to_formula g)
+  | TAnd (s, [f; g]) -> And (fix_side s f.f g.f, to_formula f, to_formula g)
+  | TAnd (s, f :: fs) -> List.fold ~init:(to_formula f) ~f:(fun f g -> And (s, f, to_formula g)) fs
+  | TOr (s, [f; g]) -> Or (fix_side s f.f g.f, to_formula f, to_formula g)
+  | TOr (s, f :: fs) -> List.fold ~init:(to_formula f) ~f:(fun f g -> Or (s, f, to_formula g)) fs
   | TImp (s, f, g) -> Imp (fix_side s f.f g.f, to_formula f, to_formula g)
   | TIff (s, t, f, g) -> Iff (fix_side s f.f g.f, fix_side t f.f g.f, to_formula f, to_formula g)
   | TExists (x, _, _, f) -> Exists (x, to_formula f)
@@ -175,11 +220,11 @@ let rec to_formula f = match f.f with
   | TSince (s, i, f, g) -> Since (fix_side s f.f g.f, i, to_formula f, to_formula g)
   | TUntil (s, i, _, f, g) -> Until (s, i, to_formula f, to_formula g)
 
-let ttrue  = { f = TTT; enftype = Cau }
-let tfalse = { f = TFF; enftype = Sup }
+let ttrue  = { f = TTT; enftype = Cau; filter = Filter._true }
+let tfalse = { f = TFF; enftype = Sup; filter = Filter._true }
 
-let neg f enftype = { f = TNeg f; enftype }
-let conj side f g enftype = { f = TAnd (side, f, g); enftype }
+let neg f enftype = { f = TNeg f; enftype; filter = Filter._true }
+let conj side f g enftype = { f = TAnd (side, [f; g]); enftype; filter = Filter._true }
 
 let rec op_to_string_core = function
   | TTT -> Printf.sprintf "⊤"
@@ -188,8 +233,8 @@ let rec op_to_string_core = function
   | TPredicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
   | TAgg (_, _, op, x, y, _) -> Printf.sprintf "%s(%s; %s)" (Aggregation.op_to_string op) (Term.value_to_string x) (String.concat ~sep:", " y)
   | TNeg _ -> Printf.sprintf "¬"
-  | TAnd (_, _, _) -> Printf.sprintf "∧"
-  | TOr (_, _, _) -> Printf.sprintf "∨"
+  | TAnd (_, _) -> Printf.sprintf "∧"
+  | TOr (_, _) -> Printf.sprintf "∨"
   | TImp (_, _, _) -> Printf.sprintf "→"
   | TIff (_, _, _, _) -> Printf.sprintf "↔"
   | TExists (x, _, _, _) -> Printf.sprintf "∃ %s." x
@@ -212,8 +257,8 @@ let rec to_string_core_rec l = function
   | TPredicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
   | TAgg (s, _, op, x, y, f) -> Printf.sprintf "%s = %s(%s; %s; %s)" s (Aggregation.op_to_string op) (Term.value_to_string x) (String.concat ~sep:", " y) (to_string_rec 4 f)
   | TNeg f -> Printf.sprintf "¬%a" (fun x -> to_string_rec 5) f
-  | TAnd (s, f, g) -> Printf.sprintf (Etc.paren l 4 "%a ∧%a %a") (fun x -> to_string_rec 4) f (fun x -> Side.to_string) s (fun x -> to_string_rec 4) g
-  | TOr (s, f, g) -> Printf.sprintf (Etc.paren l 3 "%a ∨%a %a") (fun x -> to_string_rec 3) f (fun x -> Side.to_string) s (fun x -> to_string_rec 4) g
+  | TAnd (s, fs) -> Printf.sprintf (Etc.paren l 4 "%s") (String.concat ~sep:("∧" ^ Side.to_string s) (List.map fs ~f:(to_string_rec 4)))
+  | TOr (s, fs) -> Printf.sprintf (Etc.paren l 3 "%s") (String.concat ~sep:("∨" ^ Side.to_string s) (List.map fs ~f:(to_string_rec 4)))
   | TImp (s, f, g) -> Printf.sprintf (Etc.paren l 5 "%a →%a %a") (fun x -> to_string_rec 5) f (fun x -> Side.to_string) s (fun x -> to_string_rec 5) g
   | TIff (s, t, f, g) -> Printf.sprintf (Etc.paren l 5 "%a ↔%a %a") (fun x -> to_string_rec 5) f (fun x -> Side.to_string2) (s, t) (fun x -> to_string_rec 5) g
   | TExists (x, _, _, f) -> Printf.sprintf (Etc.paren l 5 "∃%s. %a") x (fun x -> to_string_rec 5) f
