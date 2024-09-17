@@ -838,7 +838,7 @@ module Filter = struct
   let is_oneof = function OneOf _ -> true | _ -> false
 
   let rec eval (db : Db.t) = function
-    | An e -> Db.mem_trace db e
+    | An e -> (*print_endline (Printf.sprintf "eval(%s, An %s)=%b" (Db.to_string db) e  (Db.mem_trace db e)); *)(Db.mem_trace db e)
     | AllOf fis -> List.for_all fis ~f:(eval db)
     | OneOf fis -> List.exists fis ~f:(eval db)
   
