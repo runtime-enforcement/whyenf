@@ -59,8 +59,12 @@ module type MonitorT = sig
       | MUntil        of Interval.t * t * t * buf2t_info * until_info
       | MEUntil       of Formula.Side.t * Interval.t * Time.t option * t * t * Etc.valuation
 
-    and t = { mf: core_t; filter: Formula.Filter.filter; hash: int }
-
+    and t = { mf: core_t;
+              filter: Formula.Filter.filter;
+              events: (string, String.comparator_witness) Set.t option;
+              obligations: (int, Int.comparator_witness) Set.t option;
+              hash: int }
+    
     val make: core_t -> Formula.Filter.filter -> t
     
     val init: Pred.Lbl.t list -> Tformula.t -> t
@@ -95,6 +99,7 @@ module type MonitorT = sig
     val equal: t -> t -> bool
     val eval: Time.t -> int -> t -> MFormula.t
     val to_string: t -> string
+    val h: t -> int
 
     include Comparable.S with type t := t
 
@@ -130,10 +135,21 @@ module type MonitorT = sig
 
   end
 
-  type memo = (int, CI.Expl.Proof.t Expl.Pdt.t list * CI.Expl.Proof.t Expl.Pdt.t * MFormula.t) Base.Hashtbl.t
+  module Memo : sig
 
-  val mstep: Out.mode -> string list -> Pred.Lbl.t list -> timepoint -> timestamp -> Db.t -> bool -> MState.t -> FObligations.t -> memo ->
-             ((timestamp * timepoint) * CI.Expl.t) list * CI.Expl.t * MState.t
+    type 'a t
+    
+    val find : 'a t -> MFormula.t -> 'a option
+    val add_event : 'a t -> string -> 'a t
+    val add_obligation : 'a t -> int -> 'a t
+    val empty : 'a t
+
+  end
+
+  type res = CI.Expl.t list * CI.Expl.t * MFormula.t
+
+  val mstep: Out.mode -> string list -> Pred.Lbl.t list -> timepoint -> timestamp -> Db.t -> bool -> MState.t -> FObligations.t ->
+             res Memo.t -> res Memo.t * (((timestamp * timepoint) * CI.Expl.t) list * CI.Expl.t * MState.t)
 
   val meval_c: int ref 
 
