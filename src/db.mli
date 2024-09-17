@@ -18,6 +18,7 @@ module Event : sig
   val equal: t -> t -> bool
 
   val to_string: t -> string
+  val name : t -> string
 
   include Comparable.S with type t := t
 

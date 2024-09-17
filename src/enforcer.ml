@@ -52,6 +52,13 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
 
     let update_fobligs fobligs (_, _, fobligs') = Set.union fobligs fobligs'
 
+    let update_memo (_, cau, fobligs) memo =
+      let memo = Set.fold (Set.map (module String) ~f:Db.Event.name (Db.events cau))
+                   ~init:memo ~f:Memo.add_event in
+      let memo = Set.fold (Set.map (module Int) ~f:FObligation.h fobligs)
+                   ~init:memo ~f:Memo.add_obligation in
+      memo
+
     let to_lists (sup, cau, fobligs) =
       (Set.to_list sup, Set.to_list cau, fobligs)
 
@@ -71,7 +78,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
              ; db: Db.t
              ; r : Triple.t
              ; fobligs: FObligations.t
-             ; memo: Monitor.memo
+             ; memo: Monitor.res Monitor.Memo.t
              ; nick: bool
              }
 
@@ -96,15 +103,15 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
                        r = Triple.empty;
                        fobligs = Set.singleton (module FObligation)
                                    (FFormula (mf, -1, Etc.empty_valuation), Base.Map.empty (module Base.String), POS);
-                       memo = Hashtbl.create (module Int);
+                       memo = Memo.empty;
                        nick = false; }
 
     let update r es =
-      if not (Triple.is_empty r) then
-        ((*print_endline "clear!"; *)Hashtbl.clear es.memo);
+      let memo = Triple.update_memo r es.memo in
       { es with db      = Triple.update_db es.db r;
                 fobligs = Triple.update_fobligs es.fobligs r;
-                r       = Triple.join es.r r }
+                r       = Triple.join es.r r;
+                memo }
 
     let add_sup sup es =
       update (Db.singleton sup, Db.empty, Set.empty (module FObligation)) es
@@ -132,8 +139,8 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       mstep Out.ENFORCE fvs lbls es.tp es.ts es.db true es.ms es.fobligs
 
     let exec_monitor mf es =
-      let (_, aexpl, _) = mstep_state { es with ms = { es.ms with mf } } es.memo in
-      aexpl
+      let memo, (_, aexpl, _) = mstep_state { es with ms = { es.ms with mf } } es.memo in
+      { es with memo }, aexpl
 
     let do_or (p1: CI.Expl.Proof.t) (p2: CI.Expl.Proof.t) : CI.Expl.Proof.t = match p1, p2 with
       | S sp1, S sp2 -> (S (CI.Expl.Proof.make_sorl sp1))
@@ -166,7 +173,8 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       print_endline ("sat.expl=" ^ CI.Expl.to_string (exec_monitor mf es));
       print_endline ("sat.v=" ^ Etc.valuation_to_string v);
       print_endline ("sat.proof=" ^ CI.Expl.Proof.to_string "" (specialize mf es v (exec_monitor mf es)));*)
-      CI.Expl.Proof.isS (specialize mf es v (exec_monitor mf es))
+      let es, p = exec_monitor mf es in
+      es, CI.Expl.Proof.isS (specialize mf es v p)
 
     let vio x mf es =
       sat x (MFormula.make (MNeg mf) Formula.Filter._true) es
@@ -178,21 +186,23 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       print_endline ("all_not_sat.v=" ^ Etc.valuation_to_string v);
       print_endline ("all_not_sat.proof="^ CI.Expl.to_string (exec_monitor mf es));
       print_endline ("all_not_sat.collected(" ^ x  ^ ")=" ^ Setc.to_string (Expl.Pdt.collect CI.Expl.Proof.isV (Setc.inter_list (module Dom)) (Setc.union_list (module Dom)) v x (exec_monitor mf es)));*)
+      let es, p = exec_monitor mf es in
       match Expl.Pdt.collect
               CI.Expl.Proof.isV
               (Setc.inter_list (module Dom))
               (Setc.union_list (module Dom))
-              v x (exec_monitor mf es) with
-      | Setc.Finite s -> Set.elements s
+              v x p with
+      | Setc.Finite s -> es, Set.elements s
       | _ -> failwith ("Infinite set of candidates for " ^ x ^ " in " ^ MFormula.to_string mf)
 
     let all_not_vio v x mf es =
+      let es, p = exec_monitor (MFormula.make (MNeg mf) mf.filter) es in
       match Expl.Pdt.collect
               CI.Expl.Proof.isS
               (Setc.union_list (module Dom))
               (Setc.inter_list (module Dom))
-              v x (exec_monitor (MFormula.make (MNeg mf) mf.filter) es) with
-      | Setc.Finite s -> Set.elements s
+              v x p with
+      | Setc.Finite s -> es, Set.elements s
       | _ -> failwith ("Infinite set of candidates for " ^ x ^ " in " ^ MFormula.to_string mf)
 
     let can_skip es mformula =
@@ -201,8 +211,12 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
     let testenf test enf v es mf =
       (*print_endline "-- testenf";
       print_endline ("filters=" ^ Formula.Filter.to_string mf.filter);*)
-      if not (can_skip es mf) && not (test v mf es) then
-        enf mf v es
+      if not (can_skip es mf) then
+        (let es, b = test v mf es in
+         if not b then
+           enf mf v es
+         else
+           es)
       else
         es
       
@@ -220,8 +234,9 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       List.fold_right mfs ~init:es ~f:(fun mf es -> testenf sat enfsat v es mf)
 
     and enfsat_forall x mf v es =
-      let enfs d = enfsat mf (Map.update v x ~f:(fun _ -> d)) es in
-      List.fold_left (List.map (all_not_sat v x mf es) ~f:enfs) ~init:es ~f:combine
+      let enfs es d = enfsat mf (Map.update v x ~f:(fun _ -> d)) es in
+      let es, ds = all_not_sat v x mf es in
+      List.fold ds ~init:es ~f:enfs
 
     and enfvio_orl v mfs es =
       List.fold_left mfs ~init:es ~f:(testenf vio enfvio v)
@@ -233,24 +248,25 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       lr sat vio enfsat enfvio mf1
 
     and enfvio_exists x mf v es =
-      let enfs d = enfvio mf (Base.Map.update v x ~f:(fun _ -> d)) es in
-      List.fold_left (List.map (all_not_vio v x mf es) ~f:enfs) ~init:es ~f:combine
+      let enfs es d = enfvio mf (Base.Map.update v x ~f:(fun _ -> d)) es in
+      let es, ds = all_not_vio v x mf es in
+      List.fold ds ~init:es ~f:enfs
 
     and enfvio_until i ts (h, vv) mf1 mf2 =
-      let test1 = if Interval.has_zero i then vio else (fun _ _ _ -> true) in
+      let test1 = if Interval.has_zero i then vio else (fun _ _ es -> es, true) in
       let enf2 mf2 v es = add_foblig (FUntil (default_ts ts es, LR, i, mf1, mf2, h, vv), v, NEG) es in
       lr test1 sat enfvio enf2 mf1 mf2
 
     and enfvio_eventually i ts (h, vv) mf v es =
-      let test1 = if Interval.has_zero i then vio else (fun _ _ _ -> true) in
+      let test1 = if Interval.has_zero i then vio else (fun _ _ es -> es, true) in
       let es = add_foblig (FEventually (default_ts ts es, i, mf, h, vv), v, NEG) es in
       enfvio mf v es
 
-    and enfsat (mformula: MFormula.t) v es =
+    and enfsat (mformula: MFormula.t) v es : t =
       (*print_endline "--enfsat";
       print_endline ("mformula=" ^ MFormula.to_string mformula);
-      print_endline ("v=" ^ Etc.valuation_to_string v);
-      print_endline ("filter=" ^ Formula.Filter.to_string mformula.filter);*)
+      print_endline ("v=" ^ Etc.valuation_to_string v);*)
+      (*print_endline ("filter=" ^ Formula.Filter.to_string mformula.filter);*)
       match mformula.mf with
       | _ when can_skip es mformula ->
          (*print_endline (Printf.sprintf "Skipping %s as there are no %s in %s"
@@ -288,10 +304,12 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       | MEUntil (R, i, ts, mf1, mf2, vv) ->
          if Interval.diff_right_boundary_of (default_ts ts es) (Time.of_int es.ts) i && es.nick then
            add_cau Db.Event._tp (enfsat mf2 v es)
-         else if not (sat v mf1 es) then
-           enfsat mf2 v es
-         else
-           add_foblig (FUntil (default_ts ts es, LR, i, mf1, mf2, mformula.hash, vv), v, POS) (enfsat mf1 v es)
+         else (
+           let es, b = sat v mf1 es in
+           if not b then
+             enfsat mf2 v es
+           else
+             add_foblig (FUntil (default_ts ts es, LR, i, mf1, mf2, mformula.hash, vv), v, POS) (enfsat mf1 v es))
       | MEUntil (LR, i, ts, mf1, mf2, vv) ->
          if Interval.diff_right_boundary_of (default_ts ts es) (Time.of_int es.ts) i && es.nick then
            add_cau Db.Event._tp (enfsat mf2 v es)
@@ -352,7 +370,8 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
     let enf mf es =
       let es = { es with r = Triple.empty; fobligs = FObligations.empty } in
       let v = Map.empty (module String) in
-      if not (sat v mf es) then
+      let es, b = sat v mf es in
+      if not b then
         enfsat mf (Map.empty (module String)) es
       else
         es
@@ -384,7 +403,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       | mfs -> MFormula.make (MAnd (L, mfs, empty_binop_info)) Formula.Filter._true in
     (*print_endline ("<-- " ^ MFormula.to_string mf);*)
     match (EState.mstep_state { es with ms = { es.ms with mf } }) es.memo
-    with (_, _, ms) -> (*print_endline ("--> " ^ MFormula.to_string ms.mf) ; *)ms.mf
+    with (memo, (_, _, ms)) -> (*print_endline ("--> " ^ MFormula.to_string ms.mf) ; *){ es with memo }, ms.mf
 
 
   (* (NOT-SO-URGENT) TODO: other execution mode with automatic timestamps; Pdts everywhere *)
@@ -393,7 +412,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       (*Hashtbl.clear es.memo;*)
       (*print_endline ("-- reactive_step tp=" ^ string_of_int es.tp);*)
       (*let time_before = Unix.gettimeofday() in*)
-      let mf = goal es in
+      let es, mf = goal es in
       (*let time_after = Unix.gettimeofday() in
       print_endline ("Goal time: " ^ string_of_float (time_after -. time_before));*)
       (*print_endline ("goal="^  MFormula.to_string mf);*)
@@ -404,11 +423,12 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
                                     FObligations.empty);
                          db      = Db.add_event new_db Db.Event._tp;
                          fobligs = FObligations.empty;
-                         nick    = false } in
+                         nick    = false;
+                         memo    = Monitor.Memo.empty } in
       (*let time_after = Unix.gettimeofday() in*)
       (*print_endline ("Update es time: " ^ string_of_float (time_after -. time_before));*)
       (*let time_before = Unix.gettimeofday() in*)
-      Hashtbl.clear es.memo;
+      (*Hashtbl.clear es.memo;*)
       (*let time_after = Unix.gettimeofday() in
       print_endline ("Clear memo time: " ^ string_of_float (time_after -. time_before));*)
       (*print_endline ("before: " ^ EState.to_string es);*)
@@ -425,14 +445,15 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       print_endline ("before: " ^ EState.to_string es);*)
       (*print_endline "-- proactive_step";
       print_endline (EState.to_string es);*)
-      let mf = goal es in
+      let es, mf = goal es in
       (*print_endline (MFormula.to_string mf);*)
       let es' = { es with ms      = { es.ms with tp_cur = es.tp };
                           r       = Triple.empty;
                           db      = Db.create [];
                           fobligs = FObligations.empty;
-                          nick    = true } in
-      Hashtbl.clear es.memo;
+                          nick    = true;
+                          memo    = Monitor.Memo.empty } in
+      (*Hashtbl.clear es.memo;*)
       let es' = EState.enf mf es' in
       (*print_endline ("after: " ^ EState.to_string es');*)
       if Db.mem (Triple.cau es'.r) Db.Event._tp then
