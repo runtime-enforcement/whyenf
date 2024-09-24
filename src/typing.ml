@@ -128,6 +128,9 @@ let types_predicate t e =
   | CauSup, _         -> Possible (eq e t)
   | _, _              -> Impossible (ECast (e, t', t))
 
+(* let bindings related *)
+let pred_types = Hashtbl.create (module String)
+
 let rec types t f =
   let error s = Impossible (EFormula (Some s, f, t)) in
   match t with
@@ -135,6 +138,9 @@ let rec types t f =
       match f with
       | TT -> Possible CTT
       | Predicate (e, _) -> types_predicate Cau e
+      (* Note that r must not occur in f *)
+      | Let (r, _, f, g) -> Hashtbl.add_exn pred_types ~key:r ~data:Cau;
+                            conj (types Cau f) (types Cau g)
       | Neg f -> types Sup f
       | And (_, f, g) -> conj (types Cau f) (types Cau g)
       | Or (L, f, g) -> types Cau f
@@ -167,6 +173,9 @@ let rec types t f =
       match f with
       | FF -> Possible CTT
       | Predicate (e, _) -> types_predicate Sup e
+      (* Note that r must not occur in f *)
+      | Let (r, _, f, g) -> Hashtbl.add_exn pred_types ~key:r ~data:Sup;
+                            conj (types Sup f) (types Sup g)
       | Neg f -> types Cau f
       | And (L, f, g) -> types Sup f
       | And (R, f, g) -> types Sup g
@@ -231,7 +240,10 @@ let rec convert b enftype form types : Dom.ctxt * Tformula.t option =
         | Predicate (e, trms) when Pred.Sig.enftype_of_pred e == Cau ->
            let types, trms = check_terms types e trms in
            types, Some (Tformula.TPredicate (e, trms)), Filter._true
-        | Neg f -> apply1 (convert Sup f) (fun mf -> Tformula.TNeg mf) types 
+        | Let (e, xs, f, g) ->
+           let types, trms = check_terms types e (List.map xs ~f:(fun x -> Pred.Term.Var x)) in
+           failwith "not yet"
+        | Neg f -> apply1 (convert Sup f) (fun mf -> Tformula.TNeg mf) types
         | And (s, f, g) -> apply2 (convert Cau f) (convert Cau g)
                              (fun mf mg -> Tformula.TAnd (default_L s, [mf; mg])) types
         | Or (L, f, g) -> apply2' (convert Cau f) (Tformula.of_formula g)
@@ -348,6 +360,9 @@ let rec convert b enftype form types : Dom.ctxt * Tformula.t option =
         | Predicate (e, trms) when Pred.Sig.enftype_of_pred e == Sup ->
            let types, trms = check_terms types e trms in
            types, Some (Tformula.TPredicate (e, trms)), Filter.An e
+        | Let (e, xs, f, g) ->
+           let types, trms = check_terms types e (List.map xs ~f:(fun x -> Pred.Term.Var x)) in
+           failwith "not yet"
         | Neg f -> apply1 (convert Cau f) (fun mf -> Tformula.TNeg mf) types
         | And (L, f, g) -> apply2' (convert Sup f) (Tformula.of_formula g)
                              (fun mf mg -> Tformula.TAnd (L, [mf; mg])) types

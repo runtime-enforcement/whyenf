@@ -161,7 +161,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
     let rec do_ands tp : CI.Expl.Proof.t list -> CI.Expl.Proof.t = function
       | [] -> V (CI.Expl.Proof.make_vff tp)
       | h::t -> do_and h (do_ands tp t)
-      
+
     let specialize mf es =
       let fvs = Set.elements (MFormula.fv mf) in
       let lbls = MFormula.lbls fvs mf in
@@ -178,7 +178,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
 
     let vio x mf es =
       sat x (MFormula.make (MNeg mf) Formula.Filter._true) es
-    
+
     let all_not_sat v x mf es =
       (*print_endline "--all_not_sat";
       print_endline ("all_not_sat.mf=" ^ MFormula.to_string mf);
@@ -219,7 +219,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
            es)
       else
         es
-      
+
     let lr test1 test2 enf1 enf2 mf1 mf2 v es =
       let es = testenf test1 enf1 v es mf1 in
       testenf test2 enf2 v es mf2
@@ -504,9 +504,9 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
          Stdlib.flush_all();
          if more then step false (Some(pb)) es else conclude pb es in
     let tf = try Typing.do_type f b with Invalid_argument s -> failwith s in
-    let transparent =
-      try Typing.is_transparent tf
-      with Invalid_argument s -> print_endline s; false in
+    (* let transparent = *)
+    (*   try Typing.is_transparent tf *)
+    (*   with Invalid_argument s -> print_endline s; false in *)
     let f = Tformula.to_formula tf in
     let fvs = Set.elements (Formula.fv f) in
     let lbls = Formula.lbls fvs f in

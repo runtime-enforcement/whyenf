@@ -17,10 +17,11 @@ type core_t =
   | TFF
   | TEqConst of Term.t * Dom.t
   | TPredicate of string * Term.t list
+  | TLet of string * string list * t * t
   | TAgg of string * Dom.tt * Aggregation.op * Term.t * string list * t
   | TNeg of t
   | TAnd of Side.t * t list
-  | TOr of Side.t * t list 
+  | TOr of Side.t * t list
   | TImp of Side.t * t * t
   | TIff of Side.t * Side.t * t * t
   | TExists of string * Dom.tt * bool * t
@@ -62,6 +63,11 @@ let rec core_of_formula f (types: Dom.ctxt) =
   | Predicate (e, trms) ->
      let types, trms = Pred.check_terms types e trms in
      types, TEqConst (Term.App (e, trms), Dom.Int 1)
+  | Let (e, xs, f, g) ->
+     let types, trms = Pred.check_terms types e (List.map xs ~f:(fun x -> Pred.Term.Var x)) in
+     let types, mf = of_formula f types in
+     let types, mg = of_formula g types in
+     types, TLet (e, List.map trms ~f:(fun trm -> Pred.Term.unvar trm), mf, mg)
   | Agg (s, op, x, y, f) ->
      let types, mf = of_formula f types in
      let types = Formula.check_agg types s op x y f in
@@ -201,6 +207,7 @@ let rec to_formula f = match f.f with
   | TFF -> FF
   | TEqConst (x, v) -> EqConst (x, v)
   | TPredicate (e, t) -> Predicate (e, t)
+  | TLet (e, xs, f, g) -> Let (e, xs, to_formula f, to_formula g)
   | TAgg (s, _, op, x, y, f) -> Agg (s, op, x, y, to_formula f)
   | TNeg f -> Neg (to_formula f)
   | TAnd (s, [f; g]) -> And (fix_side s f.f g.f, to_formula f, to_formula g)
@@ -231,6 +238,7 @@ let rec op_to_string_core = function
   | TFF -> Printf.sprintf "⊥"
   | TEqConst (x, c) -> Printf.sprintf "="
   | TPredicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
+  | TLet _ -> Printf.sprintf "let"
   | TAgg (_, _, op, x, y, _) -> Printf.sprintf "%s(%s; %s)" (Aggregation.op_to_string op) (Term.value_to_string x) (String.concat ~sep:", " y)
   | TNeg _ -> Printf.sprintf "¬"
   | TAnd (_, _) -> Printf.sprintf "∧"
@@ -255,6 +263,8 @@ let rec to_string_core_rec l = function
   | TFF -> Printf.sprintf "⊥"
   | TEqConst (trm, c) -> Printf.sprintf "{%s = %s}" (Term.value_to_string trm) (Dom.to_string c)
   | TPredicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
+  | TLet (e, xs, f, g) -> Printf.sprintf "let %s(%s) = %s in\n%s" e (Term.list_to_string (List.map xs ~f:(fun x -> Pred.Term.Var x)))
+                            (to_string_rec l f) (to_string_rec l g)
   | TAgg (s, _, op, x, y, f) -> Printf.sprintf "%s = %s(%s; %s; %s)" s (Aggregation.op_to_string op) (Term.value_to_string x) (String.concat ~sep:", " y) (to_string_rec 4 f)
   | TNeg f -> Printf.sprintf "¬%a" (fun x -> to_string_rec 5) f
   | TAnd (s, fs) -> Printf.sprintf (Etc.paren l 4 "%s") (String.concat ~sep:("∧" ^ Side.to_string s) (List.map fs ~f:(to_string_rec 4)))

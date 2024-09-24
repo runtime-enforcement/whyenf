@@ -63,29 +63,6 @@ type t =
   | Since of Side.t * Interval.t * t * t
   | Until of Side.t * Interval.t * t * t [@@deriving compare, sexp_of, hash]
 
-(*let rec var_tt x = function
-  | TT | FF -> []
-  | EqConst _ -> []
-  | Predicate (r, trms) ->
-     (match Sig.var_tt_of_terms x (Sig.arg_tts_of_pred r) trms with
-      | None -> []
-      | Some tt -> [tt])
-  | Neg f
-    | Exists (_, _, f)
-    | Forall (_, _, f)
-    | Prev (_, f)
-    | Next (_, f)
-    | Once (_, f)
-    | Eventually (_, f)
-    | Historically (_, f)
-    | Always (_, f) -> var_tt x f
-  | And (_, f, g)
-    | Or (_, f, g)
-    | Imp (_, f, g)
-    | Iff (_, _, f, g)
-    | Since (_, _, f, g)
-    | Until (_, _, f, g) -> var_tt x f @ var_tt x g*)
-
 (* Free variables *)
 let rec fv = function
   | TT | FF -> Set.empty (module String)
@@ -147,63 +124,6 @@ let rec replace_trms y z l = match l with
   | [] -> []
   | x::xs -> if Term.equal x y then z::xs
              else x::(replace_trms y z xs)
-
-(* Replaces free variable y with z in f *)
-let rec replace_fv y z f = match f with
-  | TT | FF -> f
-  | EqConst (Var x, c) -> if String.equal x y then
-                            EqConst (Var z, c)
-                          else EqConst (Var x, c)
-  | EqConst _ -> f
-  | Agg (s, op, w, xs, f) -> if List.mem xs y String.equal then
-                              Agg (s, op, w, replace y z xs, f)
-                            else Agg (s, op, w, xs, f)
-  | Predicate (r, trms) when not (Sig.equal_pred_kind (Sig.kind_of_pred r) (Sig.Predicate)) ->
-     Predicate (r, replace_trms (Var y) (Var z) trms)
-  | Predicate _ -> f
-  | Exists (x, f) -> Exists (x, replace_fv y z f)
-  | Forall (x, f) -> Forall (x, replace_fv y z f)
-  | Let (name, vars, f, g) -> Let (name, vars, f, replace_fv y z g)
-  | Neg f -> Neg (replace_fv y z f)
-  | Prev (i, f) -> Prev (i, replace_fv y z f)
-  | Once (i, f) -> Once (i, replace_fv y z f)
-  | Historically (i, f) -> Historically (i, replace_fv y z f)
-  | Eventually (i, f) -> Eventually (i, replace_fv y z f)
-  | Always (i, f) -> Always (i, replace_fv y z f)
-  | Next (i, f) -> Next (i, replace_fv y z f)
-  | And (s, f1, f2) -> And (s, replace_fv y z f1, replace_fv y z f2)
-  | Or (s, f1, f2) -> Or (s, replace_fv y z f1, replace_fv y z f2)
-  | Imp (s, f1, f2) -> Imp (s, replace_fv y z f1, replace_fv y z f2)
-  | Iff (s1, s2, f1, f2) -> Iff (s1, s2, replace_fv y z f1, replace_fv y z f2)
-  | Since (s, i, f1, f2) -> Since (s, i, replace_fv y z f1, replace_fv y z f2)
-  | Until (s, i, f1, f2) -> Until (s, i, replace_fv y z f1, replace_fv y z f2)
-
-(* Replaces bound variable y with z in f *)
-let rec replace_bv y z f = match f with
-  | TT | FF
-    | EqConst _
-    | Agg _
-    | Predicate _ -> f
-  | Exists (x, f) -> if String.equal x y then
-                       Exists (z, f)
-                     else Exists (x, replace_bv y z f)
-  | Forall (x, f) -> if String.equal x y then
-                       Forall (z, f)
-                     else Forall (x, replace_bv y z f)
-  | Let (name, vars, f, g) -> Let (name, vars, f, replace_bv y z g)
-  | Neg f -> Neg (replace_bv y z f)
-  | Prev (i, f) -> Prev (i, replace_bv y z f)
-  | Once (i, f) -> Once (i, replace_bv y z f)
-  | Historically (i, f) -> Historically (i, replace_bv y z f)
-  | Eventually (i, f) -> Eventually (i, replace_bv y z f)
-  | Always (i, f) -> Always (i, replace_bv y z f)
-  | Next (i, f) -> Next (i, replace_bv y z f)
-  | And (s, f1, f2) -> And (s, replace_bv y z f1, replace_bv y z f2)
-  | Or (s, f1, f2) -> Or (s, replace_bv y z f1, replace_bv y z f2)
-  | Imp (s, f1, f2) -> Imp (s, replace_bv y z f1, replace_bv y z f2)
-  | Iff (s1, s2, f1, f2) -> Iff (s1, s2, replace_bv y z f1, replace_bv y z f2)
-  | Since (s, i, f1, f2) -> Since (s, i, replace_bv y z f1, replace_bv y z f2)
-  | Until (s, i, f1, f2) -> Until (s, i, replace_bv y z f1, replace_bv y z f2)
 
 let let_map vars f =
   let rec let_map_rec = function
@@ -358,7 +278,7 @@ let lbls fvs f =
     List.remove_consecutive_duplicates
       (List.sort l ~compare:Lbl.compare) ~equal:Lbl.equal in
   let rec nonvars = function
-  | TT | FF | EqConst (Const _, _) | EqConst (Var _, _) | Agg _ -> [] 
+  | TT | FF | EqConst (Const _, _) | EqConst (Var _, _) | Agg _ -> []
   | EqConst (t, _) -> [Lbl.of_term t]
   | Predicate (x, ts) ->
      nodup (List.filter_map ts (function | Const _ | Var _ -> None
@@ -841,14 +761,14 @@ module Filter = struct
     | An e -> (*print_endline (Printf.sprintf "eval(%s, An %s)=%b" (Db.to_string db) e  (Db.mem_trace db e)); *)(Db.mem_trace db e)
     | AllOf fis -> List.for_all fis ~f:(eval db)
     | OneOf fis -> List.exists fis ~f:(eval db)
-  
+
   let rec to_string_rec l = function
     | An e -> e
     | AllOf [] -> "⊤"
     | OneOf [] -> "⊥"
     | AllOf fis -> Printf.sprintf (Etc.paren l 4 "%s") (String.concat ~sep:"∧" (List.map fis ~f:(to_string_rec 4)))
     | OneOf fis -> Printf.sprintf (Etc.paren l 3 "%s") (String.concat ~sep:"∨" (List.map fis ~f:(to_string_rec 3)))
-      
+
   let to_string = to_string_rec 0
 
   let rec simplify = function
@@ -877,7 +797,7 @@ module Filter = struct
          OneOf (one_of_fis @ all_ofs @ ans)
 
   let rec present_filter_ ?(b=true) f =
-    let filter = 
+    let filter =
       match f with
       | TT -> if b then _true else _false
       | FF -> if b then _false else _true
@@ -902,5 +822,3 @@ module Filter = struct
   let disj fi1 fi2 = simplify (OneOf [fi1; fi2])
 
 end
-
-
