@@ -34,6 +34,7 @@ let quoted_string = '"' ([^ '"' '\\'] | '\\' _)* '"'
 rule token = parse
   | newline                                       { Lexing.new_line lexbuf; token lexbuf }
   | blank                                         { token lexbuf }
+  | "(*"                                          { comment lexbuf; token lexbuf }
   | '#'                                           { debug "skip_line"; skip_line lexbuf }
   | ','                                           { debug "COMMA"; COMMA }
   | ';'                                           { debug "SEMICOLON"; SEMICOLON }
@@ -44,10 +45,10 @@ rule token = parse
   | '*'                                           { debug "MUL"; MUL }
   | '/'                                           { debug "DIV"; DIV }
   | '^'                                           { debug "CONC"; CONC }
-  | "let"                                         { debug "LET"; LET }
-  | "in"                                          { debug "IN"; IN }
-  | "false" | "⊥"                                { debug "FALSE"; FALSE }
-  | "true" | "⊤"                                 { debug "TRUE"; TRUE }
+  | "LET"                                         { debug "LET"; LET }
+  | "IN"                                          { debug "IN"; IN }
+  | "FALSE" | "⊥"                                { debug "FALSE"; FALSE }
+  | "TRUE" | "⊤"                                 { debug "TRUE"; TRUE }
   | "=="                                          { debug "EQEQ"; EQEQ }
   | '='                                           { debug "EQCONST"; EQCONST }
   | "<-"                                          { debug "GETS"; GETS }
@@ -93,3 +94,10 @@ and skip_line = parse
   | "\n" | "\r" | "\r\n"                          { Lexing.new_line lexbuf; token lexbuf }
   | eof                                           { debug "EOF"; EOF }
   | _                                             { skip_line lexbuf }
+
+and comment = parse
+  | "*)" { () }
+  | "(*" { comment lexbuf; comment lexbuf }
+  | eof { failwith "Unterminated comment" }
+  | newline { Lexing.new_line lexbuf; comment lexbuf }
+  | _ { comment lexbuf }

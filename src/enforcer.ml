@@ -134,9 +134,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       in loop Triple.empty es
 
     let mstep_state es =
-      let fvs = Set.elements (MFormula.fv es.ms.mf) in
-      let lbls = MFormula.lbls fvs es.ms.mf in
-      mstep Out.ENFORCE fvs lbls es.tp es.ts es.db true es.ms es.fobligs
+      mstep Out.ENFORCE es.tp es.ts es.db true es.ms es.fobligs
 
     let exec_monitor mf es =
       let memo, (_, aexpl, _) = mstep_state { es with ms = { es.ms with mf } } es.memo in
@@ -162,9 +160,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       | [] -> V (CI.Expl.Proof.make_vff tp)
       | h::t -> do_and h (do_ands tp t)
       
-    let specialize mf es =
-      let fvs = Set.elements (MFormula.fv mf) in
-      let lbls = MFormula.lbls fvs mf in
+    let specialize es =
       Expl.Pdt.specialize (do_ors es.tp) (do_ands es.tp)
 
     let sat v mf es =
@@ -174,10 +170,10 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       print_endline ("sat.v=" ^ Etc.valuation_to_string v);
       print_endline ("sat.proof=" ^ CI.Expl.Proof.to_string "" (specialize mf es v (exec_monitor mf es)));*)
       let es, p = exec_monitor mf es in
-      es, CI.Expl.Proof.isS (specialize mf es v p)
+      es, CI.Expl.Proof.isS (specialize es v p)
 
     let vio x mf es =
-      sat x (MFormula.make (MNeg mf) Formula.Filter._true) es
+      sat x (MFormula.map_mf mf Formula.Filter._true (fun mf -> MNeg mf)) es
     
     let all_not_sat v x mf es =
       (*print_endline "--all_not_sat";
@@ -196,7 +192,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       | _ -> failwith ("Infinite set of candidates for " ^ x ^ " in " ^ MFormula.to_string mf)
 
     let all_not_vio v x mf es =
-      let es, p = exec_monitor (MFormula.make (MNeg mf) mf.filter) es in
+      let es, p = exec_monitor (MFormula.map_mf mf mf.filter (fun mf -> MNeg mf)) es in
       match Expl.Pdt.collect
               CI.Expl.Proof.isS
               (Setc.union_list (module Dom))
@@ -287,10 +283,12 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       | MImp (R, mf1, mf2, _) -> enfsat mf2 v es
       | MIff (side1, side2, mf1, mf2, bi) ->
          fixpoint (enfsat_andl v
-                     [MFormula.make (MImp (side1, mf1, mf2, empty_binop_info)) Formula.Filter._true;
-                      (MFormula.make (MImp (side1, mf2, mf1, empty_binop_info)) Formula.Filter._true)]) es
-      | MExists (x, tt, b, _, _, mf) -> enfsat mf (Map.add_exn v ~key:x ~data:(Dom.tt_default tt)) es
-      | MForall (x, tt, b, _, _, mf) -> fixpoint (enfsat_forall x mf v) es
+                     [MFormula.map2_mf mf1 mf2 Formula.Filter._true
+                        (fun mf1 mf2 -> MImp (side1, mf1, mf2, empty_binop_info));
+                      MFormula.map2_mf mf2 mf1 Formula.Filter._true
+                        (fun mf2 mf1 -> MImp (side1, mf2, mf1, empty_binop_info))]) es
+      | MExists (x, tt, b, mf) -> enfsat mf (Map.add_exn v ~key:x ~data:(Dom.tt_default tt)) es
+      | MForall (x, tt, b, mf) -> fixpoint (enfsat_forall x mf v) es
       | MENext (i, ts, mf, vv) ->
          add_foblig (FInterval (default_ts ts es, i, mf, mformula.hash, vv), v, POS) es
       | MEEventually (i, ts, mf, vv) ->
@@ -300,6 +298,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
            add_foblig (FEventually (default_ts ts es, i, mf, mformula.hash, vv), v, POS) es
       | MEAlways (i, ts, mf, vv) ->
          add_foblig (FAlways (default_ts ts es, i, mf, mformula.hash, vv), v, POS) (enfsat mf v es)
+      | MOnce (_, mf, _, _) -> enfsat mf v es
       | MSince (_, _, mf1, mf2, _, _) -> enfsat mf2 v es
       | MEUntil (R, i, ts, mf1, mf2, vv) ->
          if Interval.diff_right_boundary_of (default_ts ts es) (Time.of_int es.ts) i && es.nick then
@@ -322,6 +321,9 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
              raise (Invalid_argument ("function enfsat is not defined for "
                                       ^ MFormula.op_to_string mformula))
     and enfvio (mformula: MFormula.t) v es =
+      (*print_endline "--enfvio";
+      print_endline ("mformula=" ^ MFormula.to_string mformula);
+      print_endline ("v=" ^ Etc.valuation_to_string v);*)
       match mformula.mf with
       | _ when can_skip es mformula -> es
       | MFF -> es
@@ -339,8 +341,8 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       | MImp (R, mf1, mf2, _) -> fixpoint (enfvio_imp mf2 mf1 v) es
       | MIff (L, _, mf1, mf2, _) -> fixpoint (enfvio_imp mf1 mf2 v) es
       | MIff (R, _, mf1, mf2, _) -> fixpoint (enfvio_imp mf2 mf1 v) es
-      | MExists (x, tt, b, _, _, mf) -> fixpoint (enfvio_exists x mf v) es
-      | MForall (x, tt, b, _, _, mf) -> enfvio mf (Map.add_exn v ~key:x ~data:(Dom.tt_default tt)) es
+      | MExists (x, tt, b, mf) -> fixpoint (enfvio_exists x mf v) es
+      | MForall (x, tt, b, mf) -> enfvio mf (Map.add_exn v ~key:x ~data:(Dom.tt_default tt)) es
       | MENext (i, ts, mf, vv) -> add_foblig (FInterval (default_ts ts es, i, mf, mformula.hash, vv), v, NEG) es
       | MEEventually (i, ts, mf, vv) -> enfvio_eventually i ts (mformula.hash, vv) mf v es
       | MEAlways (i, ts, mf, vv) ->
@@ -350,12 +352,12 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
            add_foblig (FAlways (default_ts ts es, i, mf, mformula.hash, vv), v, NEG) es
       | MSince (L, _, mf1, _, _, _) -> enfvio mf1 v es
       | MSince (R, i, mf1, mf2, _, _) ->
-         let f' = MFormula.make
-                    (MNeg (MFormula.make
-                             (MAnd (R, [mf1; mformula], empty_binop_info))
-                             Formula.Filter._true))
-                    Formula.Filter._true in
-         fixpoint (enfsat_andr v [f'; MFormula.make (MNeg mf2) mf2.filter]) es
+         let f' = MFormula.map_mf
+                    (MFormula.map2_mf mf1 mformula Formula.Filter._true
+                       (fun mf1 mf2 -> MAnd (R, [mf1; mf2], empty_binop_info)))
+                    Formula.Filter._true
+                    (fun mf -> MNeg mf) in
+         fixpoint (enfsat_andr v [f'; MFormula.map_mf mf2 mf2.filter (fun mf2 -> MNeg mf2)]) es
       | MEUntil (L, _, ts, mf1, _, _) -> enfvio mf1 v es
       | MEUntil (R, i, ts, mf1, mf2, vv) -> fixpoint (enfvio_until i ts (mformula.hash, vv) mf1 mf2 v) es
       | MAnd (LR, _, _)
@@ -396,14 +398,15 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
   end
 
   let goal (es: EState.t) =
-    let obligs = List.map (Set.elements es.fobligs) ~f:(FObligation.eval (Time.of_int es.ts) es.tp) in
+    let obligs = List.map (Set.elements es.fobligs)
+                   ~f:(FObligation.eval (Time.of_int es.ts) es.tp) in
     let mf = match obligs with
-      | [] -> MFormula.make (MFormula.MTT) Formula.Filter._true
+      | [] -> MFormula._tt
       | [mf] -> mf
-      | mfs -> MFormula.make (MAnd (L, mfs, empty_binop_info)) Formula.Filter._true in
-    (*print_endline ("<-- " ^ MFormula.to_string mf);*)
+      | mfs -> MFormula.mapn_mf mfs Formula.Filter._true (fun mfs -> MAnd (L, mfs, empty_binop_info))  in
     match (EState.mstep_state { es with ms = { es.ms with mf } }) es.memo
-    with (memo, (_, _, ms)) -> (*print_endline ("--> " ^ MFormula.to_string ms.mf) ; *){ es with memo }, ms.mf
+    with (memo, (_, _, ms)) -> (
+      (*print_endline ("goal= " ^ MFormula.to_string ms.mf) ;*) { es with memo }, ms.mf)
 
 
   (* (NOT-SO-URGENT) TODO: other execution mode with automatic timestamps; Pdts everywhere *)
@@ -508,9 +511,8 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       try Typing.is_transparent tf
       with Invalid_argument s -> print_endline s; false in
     let f = Tformula.to_formula tf in
-    let fvs = Set.elements (Formula.fv f) in
-    let lbls = Formula.lbls fvs f in
-    let mf = Monitor.MFormula.init lbls tf in
+    let mf = Monitor.MFormula.init tf in
+    (*print_endline (Monitor.MFormula.to_string mf);*)
     let ms = Monitor.MState.init mf in
     let es = EState.init ms mf in
     step true None es

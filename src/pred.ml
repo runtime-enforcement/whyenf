@@ -81,6 +81,15 @@ module Term = struct
       | h::t when not (List.mem l (Var h) ~equal) -> reorder l t
       | h::t -> (Var h) :: (reorder (List.filter l (fun x -> not (equal x (Var h)))) t)
 
+    let rec subst v = function
+      | Var x -> (match Map.find v x with
+                  | None -> Var x
+                  | Some trm -> trm)
+      | Const d -> Const d
+      | App (f, ts) -> App (f, List.map ~f:(subst v) ts)
+
+    let rec substs v = List.map ~f:(subst v)
+
   end
 
   include T
@@ -300,7 +309,11 @@ module Lbl = struct
 
   module T = struct
     
-    type t = LVar of string | LEx of string | LAll of string | LClos of string * Term.t list * S.t [@@deriving equal, compare, sexp_of]
+    type t =
+      | LVar  of string
+      | LEx   of string
+      | LAll  of string
+      | LClos of string * Term.t list * S.t [@@deriving equal, compare, sexp_of]
 
     let var s = LVar s
     let ex s = LEx s

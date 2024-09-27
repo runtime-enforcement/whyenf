@@ -60,7 +60,7 @@ module Whyenf = struct
          In_channel.with_file f ~f:(fun inc ->
              let lexbuf = Lexing.from_channel inc in
              formula_ref := try Some (Formula_parser.formula Formula_lexer.token lexbuf)
-                            with Formula_parser.Error ->
+                            with Formula_parser.Error as e ->
                               Stdio.printf "%s\n" (Etc.lexbuf_error_msg lexbuf);
                               Stdlib.flush_all (); None);
          process_args_rec args

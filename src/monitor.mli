@@ -37,15 +37,14 @@ module type MonitorT = sig
       | MFF
       | MEqConst      of Pred.Term.t * Dom.t
       | MPredicate    of string * Pred.Term.t list
-      | MLet          of string * string list * t * t
-      | MAgg          of string * Aggregation.op * Aggregation.op_fun * string list * Pred.Lbl.t list * Pred.Term.t * string list * t
+      | MAgg          of string * Aggregation.op * Aggregation.op_fun * Pred.Term.t * string list * t
       | MNeg          of t
       | MAnd          of Formula.Side.t * t list * binop_info
       | MOr           of Formula.Side.t * t list * binop_info
       | MImp          of Formula.Side.t * t * t * binop_info
       | MIff          of Formula.Side.t * Formula.Side.t * t * t * binop_info
-      | MExists       of string * Dom.tt * bool * string list * Pred.Lbl.t list * t
-      | MForall       of string * Dom.tt * bool * string list * Pred.Lbl.t list *  t
+      | MExists       of string * Dom.tt * bool * t
+      | MForall       of string * Dom.tt * bool * t
       | MPrev         of Interval.t * t * bool * prev_info
       | MNext         of Interval.t * t * bool * next_info
       | MENext        of Interval.t * Time.t option * t * Etc.valuation
@@ -63,19 +62,26 @@ module type MonitorT = sig
               filter: Formula.Filter.filter;
               events: (string, String.comparator_witness) Set.t option;
               obligations: (int, Int.comparator_witness) Set.t option;
-              hash: int }
+              hash: int;
+              lbls: Pred.Lbl.t list }
     
     val make: core_t -> Formula.Filter.filter -> t
+    val set_make: core_t -> Formula.Filter.filter -> t
+    val map_mf: t -> Formula.Filter.filter -> (t -> core_t) -> t
+    val map2_mf: t -> t -> Formula.Filter.filter -> (t -> t -> core_t) -> t
+    val mapn_mf: t list -> Formula.Filter.filter -> (t list -> core_t) -> t
+
+    val _tt : t
+    val _ff : t
     
-    val init: Pred.Lbl.t list -> Tformula.t -> t
+    val init: Tformula.t -> t
     val rank: t -> int
 
     val apply_valuation : Etc.valuation -> t -> t
 
     val fv: t -> (String.t, Base.String.comparator_witness) Base.Set.t
-    val lbls: string list -> t -> Pred.Lbl.t list
 
-    val to_string: t -> string
+    val to_string: ?l:int -> t -> string
     val op_to_string: t -> string
     val side_to_string: t -> string
 
@@ -148,7 +154,7 @@ module type MonitorT = sig
 
   type res = CI.Expl.t list * CI.Expl.t * MFormula.t
 
-  val mstep: Out.mode -> string list -> Pred.Lbl.t list -> timepoint -> timestamp -> Db.t -> bool -> MState.t -> FObligations.t ->
+  val mstep: Out.mode -> timepoint -> timestamp -> Db.t -> bool -> MState.t -> FObligations.t ->
              res Memo.t -> res Memo.t * (((timestamp * timepoint) * CI.Expl.t) list * CI.Expl.t * MState.t)
 
   val meval_c: int ref 

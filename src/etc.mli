@@ -70,7 +70,8 @@ val lexicographic5: ('a -> 'a -> int) -> ('b -> 'b -> int) -> ('c -> 'c -> int) 
 (* For debugging only *)
 val _print: string -> ('a -> string) -> 'a -> 'a
 
-val reorder: ('a -> 'a -> bool) -> 'a list -> 'a list -> 'a list
+val reorder: equal:('a -> 'a -> bool) -> 'a list -> 'a list -> 'a list
+val dedup: equal:('a -> 'a -> bool) -> 'a list -> 'a list
 
 
 val cartesian: 'a list list -> 'a list list
