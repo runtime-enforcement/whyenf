@@ -29,7 +29,7 @@ let parsing_error i j fmt = Caml.Format.kasprintf (fun s -> raise (Parsing_error
 let lexing_error lexbuf fmt = parsing_error (Lexing.lexeme_start_p lexbuf) (Lexing.lexeme_end_p lexbuf) fmt
 let lexbuf_error_msg (lexbuf: Lexing.lexbuf) =
   Printf.sprintf "a problem was found at line %d character %d"
-    (lexbuf.lex_curr_p.pos_lnum) (lexbuf.lex_curr_p.pos_cnum - lexbuf.lex_curr_p.pos_bol)
+    (lexbuf.lex_curr_p.pos_lnum) (lexbuf.lex_curr_p.pos_cnum - lexbuf.lex_curr_p.pos_bol) 
 
 exception Empty_deque of string
 let deque_to_string indent f d =
@@ -160,11 +160,17 @@ let _print s f x =
   Stdlib.flush_all ();
   x
 
-let rec reorder equal l = function
+let rec reorder ~equal l = function
   | [] -> []
   | h::t when not (List.mem l h ~equal) -> reorder equal l t
   | h::t -> h :: (reorder equal (List.filter l (fun x -> not (equal x h))) t)
 
+let rec dedup ~equal l = 
+  let rec aux seen = function
+    | [] -> List.rev seen
+    | h::t when List.mem seen h ~equal -> aux seen t
+    | h::t -> aux (h::seen) t in
+  aux [] l 
   
 let rec cartesian = function
   | [] -> [[]]

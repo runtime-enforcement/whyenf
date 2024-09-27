@@ -454,6 +454,9 @@ let convert' b enftype f =
   snd (convert b Cau f (Map.empty (module String)))
 
 let do_type f b =
+  let f = Formula.unroll_let f in
+  (*print_endline (Formula.to_string f);
+  assert false;*)
   if not (Set.is_empty (Formula.fv f)) then
     ignore (raise (Invalid_argument (Printf.sprintf "formula %s is not closed" (Formula.to_string f))));
   match types Cau f with

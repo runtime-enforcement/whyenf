@@ -40,6 +40,9 @@ module Term : sig
 
   val reorder: t list -> string list -> t list
 
+  val subst: (String.t, t, String.comparator_witness) Map.t -> t -> t
+  val substs: (String.t, t, String.comparator_witness) Map.t -> t list -> t list
+
 end
 
 module EnfType : sig

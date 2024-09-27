@@ -58,7 +58,7 @@ let debug m = if !debug then Stdio.print_endline ("[debug] formula_parser: " ^ m
 %token LET
 %token IN
 
-%nonassoc IN
+
 
 %left SEMICOLON
 %nonassoc INTERVAL
@@ -79,6 +79,8 @@ let debug m = if !debug then Stdio.print_endline ("[debug] formula_parser: " ^ m
 %nonassoc GEQ
 %nonassoc EQEQ
 %nonassoc NEQ
+
+%left IN
 
 %type <Formula.t> formula
 %start formula
@@ -144,7 +146,7 @@ e:
 | STR LPA terms RPA                    { debug "STR LPA terms RPA"; predicate $1 $3 }
 
 pletp:
-| STR LPA vars RPA                     { debug "STR LPA vars RPA"; ($1, $3) }
+| STR LPA vars RPA                     { debug "pletp"; ($1, $3) }
 
 side:
 | COL STR                              { debug "COL STR"; Side.of_string $2 }
@@ -159,7 +161,7 @@ top_term:
 | STR LPA terms RPA        { debug "STR LPA terms RPA"; Pred.Term.App ($1, $3) }
 | term bop term            { debug "term ADD term"; Pred.Term.App ($2, [$1; $3]) }
 
-bop:
+%inline bop:
 | ADD  { "add" }
 | SUB  { "sub" }
 | MUL  { "mul" }

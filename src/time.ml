@@ -313,6 +313,8 @@ end
 
 let of_float ts = Fcalendar.from_unixfloat ts
 let of_int ts = of_float (float_of_int ts)
+let to_float ts = Fcalendar.to_unixfloat ts
+let to_int ts = int_of_float (to_float ts)
 
 let (+) = Span.(+)
 let (-) = Span.(-)

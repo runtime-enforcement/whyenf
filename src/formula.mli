@@ -72,7 +72,7 @@ val release: Side.t -> Interval.t -> t -> t -> t
 
 val fv: t -> (String.t, Base.String.comparator_witness) Base.Set.t
 val list_fv: t -> String.t list
-val lbls: string list -> t -> Pred.Lbl.t list
+(*val lbls: string list -> t -> Pred.Lbl.t list*)
 val check_bindings: t -> bool
 
 val equal: t -> t -> bool
@@ -96,6 +96,8 @@ val to_latex: t -> string
 val is_past_guarded: string -> ?vars:((string, Base.String.comparator_witness) Base.Set.t) option -> bool -> t -> bool
 
 val check_agg: (string, Dom.tt, Base.String.comparator_witness) Base.Map.t -> string -> Aggregation.op -> Term.t -> string list -> t -> (string, Dom.tt, Base.String.comparator_witness) Base.Map.t
+
+val unroll_let: t -> t
 
 module Filter : sig
 
