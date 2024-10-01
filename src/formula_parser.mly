@@ -18,6 +18,8 @@ let debug m = if !debug then Stdio.print_endline ("[debug] formula_parser: " ^ m
 
 %token LPA
 %token RPA
+%token LBR
+%token RBR
 %token COMMA
 %token SEMICOLON
 %token DOT
@@ -28,6 +30,7 @@ let debug m = if !debug then Stdio.print_endline ("[debug] formula_parser: " ^ m
 %token <string> STR
 %token <string> QSTR
 %token <int> INT
+%token <float> FLOAT
 
 %token FALSE
 %token TRUE
@@ -58,7 +61,7 @@ let debug m = if !debug then Stdio.print_endline ("[debug] formula_parser: " ^ m
 %token LET
 %token IN
 
-
+%right IN
 
 %left SEMICOLON
 %nonassoc INTERVAL
@@ -70,17 +73,15 @@ let debug m = if !debug then Stdio.print_endline ("[debug] formula_parser: " ^ m
 %left AND
 %nonassoc NEG
 
-%left ADD SUB
-%left MUL DIV
-%left CONC
 %nonassoc LT
 %nonassoc GT
 %nonassoc LEQ
 %nonassoc GEQ
 %nonassoc EQEQ
 %nonassoc NEQ
-
-%left IN
+%left ADD SUB
+%left MUL DIV
+%left CONC
 
 %type <Formula.t> formula
 %start formula
@@ -100,10 +101,12 @@ e:
                                                              flet r vars $4 $6
                                                            | _ -> raise (Invalid_argument
                                                                   "invalid let definition") }
-| const EQEQ top_term                  { debug "EQCONST"; eqconst $3 (Pred.Term.unconst $1)}
-| STR GETS aggregation LPA top_term SEMICOLON vars2 SEMICOLON e RPA
+| LBR term RBR EQCONST const           { debug "EQCONST"; eqconst $2 (Pred.Term.unconst $5)}
+| const EQCONST LBR term RBR           { debug "EQCONST"; eqconst $4 (Pred.Term.unconst $1)}
+| LBR term RBR                         { debug "EQCONST"; eqconst $2 (Pred.Term.unconst (Const (Dom.Int 1)))}
+| STR GETS aggregation LPA term SEMICOLON vars2 SEMICOLON e RPA
                                        { debug "AGG"; agg $1 $3 $5 $7 $9 }
-| e SEMICOLON STR GETS top_term        { debug "AGG"; agg $3 Aggregation.AAssign $5 (list_fv $1) $1 }
+| e SEMICOLON STR GETS term            { debug "AGG"; agg $3 Aggregation.AAssign $5 (list_fv $1) $1 }
 | NEG e                                { debug "NEG e"; neg $2 }
 | PREV INTERVAL e                      { debug "PREV INTERVAL e"; prev $2 $3 }
 | PREV e                               { debug "PREV e"; prev Interval.full $2 }
@@ -146,7 +149,7 @@ e:
 | STR LPA terms RPA                    { debug "STR LPA terms RPA"; predicate $1 $3 }
 
 pletp:
-| STR LPA vars RPA                     { debug "pletp"; ($1, $3) }
+| STR LPA vars2 RPA                     { debug "pletp"; ($1, $3) }
 
 side:
 | COL STR                              { debug "COL STR"; Side.of_string $2 }
@@ -155,11 +158,12 @@ side:
 sides:
 | COL STR COMMA STR                    { debug "COL STR COMMA STR"; (Side.of_string $2, Side.of_string $4) }
 
-top_term:
+term:
 | const                    { debug "const"; $1 }
 | STR                      { debug "STR"; Pred.Term.Var $1 }
 | STR LPA terms RPA        { debug "STR LPA terms RPA"; Pred.Term.App ($1, $3) }
-| term bop term            { debug "term ADD term"; Pred.Term.App ($2, [$1; $3]) }
+| term bop term            { debug "term bop term"; Pred.Term.App ($2, [$1; $3]) }
+| LPA term RPA             { debug "LPA term RPA"; $2 }
 
 %inline bop:
 | ADD  { "add" }
@@ -174,16 +178,13 @@ top_term:
 | GEQ  { "geq" }
 | CONC { "conc" }
 
-term:
-| LPA term RPA { debug "LPA term RPA"; $2 }
-| top_term     { debug "top_term"; $1 }
-
 const:
 | INT                                  { debug "INT"; Pred.Term.Const (Int $1) }
+| FLOAT                                { debug "FLOAT"; Pred.Term.Const (Float $1) }
 | QSTR                                 { debug "QSTR"; Pred.Term.Const (Str (Etc.unquote $1)) }
 
 terms:
-| trms=separated_list (COMMA, top_term)    { debug "trms"; trms }
+| trms=separated_list (COMMA, term)    { debug "trms"; trms }
 
 vars:
 | vrs=separated_nonempty_list (COMMA, STR) { debug "vrs"; vrs }

@@ -71,6 +71,7 @@ val lexicographic5: ('a -> 'a -> int) -> ('b -> 'b -> int) -> ('c -> 'c -> int) 
 val _print: string -> ('a -> string) -> 'a -> 'a
 
 val reorder: equal:('a -> 'a -> bool) -> 'a list -> 'a list -> 'a list
+val reorder_subset: equal:('a -> 'a -> bool) -> 'a list -> 'a list -> 'a list
 val dedup: equal:('a -> 'a -> bool) -> 'a list -> 'a list
 
 

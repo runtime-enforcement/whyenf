@@ -15,8 +15,8 @@ let op_to_string = function
   | AMax -> "MAX"
   | AAssign -> "ASSIGN"
 
-(* Order terms in trms' to fulfill the following invariants:
-    * all variables in y, ordered as in trms, come first
+(* Order terms in lbls' to fulfill the following invariants:
+    * all variables in y, ordered as in lbls, come first
     * then comes x
     * then come all other variables not in x or y
     * any term using a variable z comes after z

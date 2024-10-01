@@ -335,7 +335,10 @@ module Pdt = struct
        let all_p = List.concat (Part.map2 part (fun (s, p) ->
                                     distribute x (specialize f_ex f_all) v (s, p))) in
        f_all all_p
-    | Node (x, part) -> specialize f_ex f_all v (Part.find part (Term.unconst (Lbl.eval v x)))
+    | Node (x, part) ->
+       match Part.get_trivial part with
+       | Some pdt -> specialize f_ex f_all v pdt
+       | None     -> specialize f_ex f_all v (Part.find part (Term.unconst (Lbl.eval v x)))
 
   let rec collect f_leaf f_ex f_all (v: Etc.valuation) (x: string) p =
     let rec aux (v: Etc.valuation) (x: string) (s: (Dom.t, Dom.comparator_witness) Setc.t) =
@@ -412,13 +415,17 @@ module Pdt = struct
       List.fold_left ds ~init:(Map.empty (module Dom)) ~f in
     let rec multisets sv gs trms w p =
       (*print_endline "--multisets";
-      print_endline (String.concat ~sep:", " (List.map ~f:Lbl.to_string trms));*)
+      print_endline (String.concat ~sep:", " (List.map ~f:Lbl.to_string trms));
+      print_endline (String.concat ~sep:", " gs);*)
       match p, gs, trms with
       | Leaf l, _, _ when cond l -> Leaf (multiset (List.rev sv))
       | Leaf l, _, _ -> Leaf (Map.empty (module Dom))
+      | Node (lbl, _), g :: gs, trm :: trms
+           when not (Lbl.equal trm lbl) && Lbl.equal trm (LVar g) ->
+         multisets sv gs trms w p
       | Node (lbl, _), _, trm :: trms when not (Lbl.equal trm lbl) ->
          multisets sv gs trms w p
-      | Node (lbl, part),  g :: gs, _ :: trms when Lbl.equal (LVar g) lbl ->
+      | Node (lbl, part), g :: gs, _ :: trms when Lbl.equal (LVar g) lbl ->
          let part = Part.map2 part (fun (s, p) -> (s, multisets ((Var g, s)::sv) gs trms w p)) in
          Node (lbl, part)
       | Node (LEx x', part), _, _ :: trms ->
@@ -456,12 +463,7 @@ module Pdt = struct
     let agg' m = if Map.is_empty m then None else Some (agg m) in
     let multiset_pdt = multisets [] y lbls' Etc.empty_valuation p in
     let aggregations_pdt = apply1 lbls' agg' multiset_pdt in
-    (*print_endline "--aggregate";*)
     insert_aggregations lbls aggregations_pdt
-
-                        (* 
-check example from paper
-                         *)
 
 
 end

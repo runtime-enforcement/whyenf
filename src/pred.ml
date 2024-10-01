@@ -36,6 +36,14 @@ module Term = struct
     let const d = Const d
     let app f trms = App (f, trms)
 
+    let is_var = function
+      | Var x -> true
+      | _ -> false
+
+    let is_const = function
+      | Const d -> true
+      | _ -> false
+
     let unvar = function
       | Var x -> x
       | Const _ -> raise (Invalid_argument "unvar is undefined for Consts")
@@ -404,6 +412,7 @@ let check_const types c tt =
                  (Dom.tt_to_string tt)))
 
 let check_var types v tt =
+  (*print_endline ("check_var(" ^ v ^ ": " ^ Dom.tt_to_string tt ^ ")");*)
   match Map.find types v with
   | None -> Map.add_exn types ~key:v ~data:tt
   | Some tt' when Dom.tt_equal tt tt' -> types
@@ -413,27 +422,25 @@ let check_var types v tt =
                   v (Dom.tt_to_string tt) (Dom.tt_to_string tt')))
 
 let check_app types f trms tt =
-  if Dom.tt_equal (Sig.ret_tt_of_func f) tt then
-    (types, Term.App (f, trms))
-  else
-    let trms_tt = List.map trms ~f:(Sig.tt_of_term_exn types) in
-    match List.find_map Funcs.autocast ~f:(fun (f1, tts, f2) ->
-              if String.equal f f1 && List.equal Dom.tt_equal trms_tt tts
-              then Some f2 else None) with
-    | Some f' -> (types, Term.App (f', trms))
-    | None ->  
-       raise (Invalid_argument (
+  let trms_tt = List.map trms ~f:(Sig.tt_of_term_exn types) in
+  match List.find_map Funcs.autocast ~f:(fun (f1, tts, f2) ->
+            if String.equal f f1 && List.equal Dom.tt_equal trms_tt tts
+            then Some f2 else None) with
+  | Some f' -> (types, Term.App (f', trms))
+  | None when Dom.tt_equal (Sig.ret_tt_of_func f) tt -> (types, Term.App (f, trms))
+  | None ->  
+     raise (Invalid_argument (
                 Printf.sprintf "type clash for return type of %s: found %s, expected %s"
                   f
                   (Dom.tt_to_string (Sig.ret_tt_of_func f))
                   (Dom.tt_to_string tt)))
 
 let rec check_term types tt trm =
+  (*print_endline ("check_term(" ^ Term.to_string trm ^ ": " ^Dom.tt_to_string tt ^ ")");*)
   match trm with
   | Term.Var x    -> (check_var types x tt,   trm)
   | Const c       -> (check_const types c tt, trm)
-  | App (f, trms) -> let types, trms = check_terms types f trms in
-                     check_app types f trms tt
+  | App (f, trms) -> check_app types f trms tt
 
 and check_terms types p_name trms =
   let sig_pred = Hashtbl.find_exn Sig.table p_name in

@@ -455,10 +455,12 @@ let convert' b enftype f =
 
 let do_type f b =
   let f = Formula.unroll_let f in
-  (*print_endline (Formula.to_string f);
-  assert false;*)
-  if not (Set.is_empty (Formula.fv f)) then
-    ignore (raise (Invalid_argument (Printf.sprintf "formula %s is not closed" (Formula.to_string f))));
+  if not (Set.is_empty (Formula.fv f)) then (
+    Stdio.print_endline ("The formula\n "
+                         ^ Formula.to_string f
+                         ^ "\nis not closed: free variables are "
+                         ^ String.concat ~sep:", " (Set.elements (Formula.fv f)));
+    ignore (raise (Invalid_argument (Printf.sprintf "formula %s is not closed" (Formula.to_string f)))));
   match types Cau f with
   | Possible c ->
      begin
@@ -489,6 +491,7 @@ let do_type f b =
      raise (Invalid_argument (Printf.sprintf "formula %s is not enforceable" (Formula.to_string f)))
 
 let rec relative_interval (f: Tformula.t) =
+  let i = 
   match f.f with
   | TTT | TFF | TEqConst (_, _) | TPredicate (_, _) -> Zinterval.singleton (Zinterval.Z.zero)
   | TNeg f | TExists (_, _, _, f) | TForall (_, _, _, f) | TAgg (_, _, _, _, _, f) -> relative_interval f
@@ -510,7 +513,7 @@ let rec relative_interval (f: Tformula.t) =
      let i' = Zinterval.of_interval i in
      (Zinterval.lub (Zinterval.sum (Zinterval.to_zero i') (relative_interval f1))
         (Zinterval.sum i' (relative_interval f2)))
-
+  in i
 
 let strict f =
   let rec _strict itv fut (f: Tformula.t) =
@@ -542,7 +545,7 @@ let strictly_relative_past f =
 
 let is_transparent (f: Tformula.t) =
   let rec aux (f: Tformula.t) =
-    (*print_endline (Tformula.to_string f);*)
+    let b =
     match f.enftype with
     | Cau -> begin
         match f.f with
@@ -570,10 +573,12 @@ let is_transparent (f: Tformula.t) =
           | TOnce (_, f) | TNext (_, f) | THistorically (_, f)
           | TEventually (_, _, f) -> aux f
         | TAlways (_, b, f) -> b && aux f
-        | TAnd (L, [f; g]) | TIff (L, L, f, g)
-          -> aux f && strictly_relative_past g
-        | TAnd (R, [f; g]) | TIff (R, R, f, g)
-          -> aux g && strictly_relative_past f
+        | TAnd (L, f :: gs) 
+          -> aux f && List.for_all ~f:strictly_relative_past gs
+        | TIff (L, L, f, g) -> aux f && strictly_relative_past g
+        | TAnd (R, (_::_ as fs)) ->
+           aux (List.last_exn fs) && List.for_all ~f:strictly_relative_past (List.drop_last_exn fs)
+        | TIff (R, R, f, g) -> aux g && strictly_relative_past f
         | TIff (_, _, f, g)
           -> aux f && aux g
         | TOr (_, fs) -> List.for_all ~f:strictly_relative_past fs
@@ -583,6 +588,7 @@ let is_transparent (f: Tformula.t) =
         | TUntil (_, _, _, f, g) -> aux f && strictly_relative_past g
         | _ -> false
       end
+    in b
   in
   if aux f then
     true
