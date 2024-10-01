@@ -50,6 +50,13 @@ let rec core_of_formula f (types: Dom.ctxt) =
       raise (Invalid_argument
                (Printf.sprintf "variable %s is not monitorable in %s" x (Formula.to_string f)))
   in
+  let f_q_nonvar f x =
+    let nonvars = Set.filter (Formula.terms f) ~f:(fun t -> not (Term.is_var t)) in
+    let nonvars_fvs = Term.fv_list (Set.elements nonvars) in
+    if List.mem nonvars_fvs x ~equal:String.equal then
+      f_q f x
+    else
+      true in
   match f with
   | TT -> types, TTT
   | FF -> types, TFF
@@ -92,10 +99,13 @@ let rec core_of_formula f (types: Dom.ctxt) =
      types, TIff (s, t, mf, mg)
   | Exists (x, f) ->
      let types, mf = of_formula f types in
-     types, TExists (x, Map.find_exn types x, f_q f x, mf)
+     (*print_endline "--core_of_formula.Exists";
+     print_endline (Formula.to_string f);*)
+     (*Map.iteri types ~f:(fun ~key ~data -> print_endline (key ^ " -> " ^ Dom.tt_to_string data));*)
+     types, TExists (x, Map.find_exn types x, f_q_nonvar f x, mf)
   | Forall (x, f) ->
      let types, mf = of_formula f types in
-     types, TForall (x, Map.find_exn types x, f_q f x, mf)
+     types, TForall (x, Map.find_exn types x, f_q_nonvar f x, mf)
   | Prev (i, f) ->
      let types, mf = of_formula f types in
      types, TPrev (i, mf)
@@ -176,7 +186,7 @@ let rec ac_simplify_core = function
   | TOr (s, fs) ->
      let fs = List.map fs ~f:ac_simplify in
      let f fs f' = match f'.f with
-       | TAnd (s', fs') when Side.equal s s' -> fs @ fs'
+       | TOr (s', fs') when Side.equal s s' -> fs @ fs'
        | _ -> fs @ [f'] in
      let fs = List.fold_left fs ~init:[] ~f in
      TOr (s, fs)
@@ -253,9 +263,9 @@ and op_to_string f = op_to_string_core f.f
 let rec to_string_core_rec l = function
   | TTT -> Printf.sprintf "⊤"
   | TFF -> Printf.sprintf "⊥"
-  | TEqConst (trm, c) -> Printf.sprintf "{%s = %s}" (Term.value_to_string trm) (Dom.to_string c)
+  | TEqConst (trm, c) -> Printf.sprintf "{%s} = %s" (Term.value_to_string trm) (Dom.to_string c)
   | TPredicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
-  | TAgg (s, _, op, x, y, f) -> Printf.sprintf "%s = %s(%s; %s; %s)" s (Aggregation.op_to_string op) (Term.value_to_string x) (String.concat ~sep:", " y) (to_string_rec 4 f)
+  | TAgg (s, _, op, x, y, f) -> Printf.sprintf "%s <- %s(%s; %s; %s)" s (Aggregation.op_to_string op) (Term.value_to_string x) (String.concat ~sep:", " y) (to_string_rec 4 f)
   | TNeg f -> Printf.sprintf "¬%a" (fun x -> to_string_rec 5) f
   | TAnd (s, fs) -> Printf.sprintf (Etc.paren l 4 "%s") (String.concat ~sep:("∧" ^ Side.to_string s) (List.map fs ~f:(to_string_rec 4)))
   | TOr (s, fs) -> Printf.sprintf (Etc.paren l 3 "%s") (String.concat ~sep:("∨" ^ Side.to_string s) (List.map fs ~f:(to_string_rec 4)))

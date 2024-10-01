@@ -77,7 +77,7 @@ module MakeZinterval (S : S) = struct
   let is_nonpositive = case BI.is_nonpositive NUI.is_nonpositive UI.is_nonpositive UUI.is_nonpositive
 
   let left = case BI.left NUI.left UI.left UUI.left
-  let right = case BI.left NUI.left UI.left UUI.left 
+  let right = case BI.right NUI.right UI.right UUI.right 
 
   let lub i i' = 
     match left i, left i' with

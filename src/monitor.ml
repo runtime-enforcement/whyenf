@@ -1530,7 +1530,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
               lbls: Lbl.t list
             }
 
-        let rec subs mf = match mf.mf with
+    let rec subs mf = match mf.mf with
       | MTT | MFF | MEqConst _ | MPredicate _ -> []
       | MAgg (_, _, _, _, _, f) -> [f]
       | MExists (_, _, _, f)
@@ -1567,7 +1567,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       | MFF -> Printf.sprintf "⊥"
       | MEqConst (trm, c) -> Printf.sprintf "%s = %s" (Term.value_to_string trm) (Dom.to_string c)
       | MPredicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
-      | MAgg (s, op, _, x, y, f) -> Printf.sprintf "%s = %s(%s; %s; %s)" s (Aggregation.op_to_string op) (Term.value_to_string x) (String.concat ~sep:", " y) (value_to_string_rec 5 f)
+      | MAgg (s, op, _, x, y, f) -> Printf.sprintf "%s <- %s(%s; %s; %s)" s (Aggregation.op_to_string op) (Term.value_to_string x) (String.concat ~sep:", " y) (value_to_string_rec 5 f)
       | MNeg f -> Printf.sprintf "¬%a" (fun x -> value_to_string_rec 5) f
       | MAnd (_, fs, _) -> Printf.sprintf (Etc.paren l 4 "%s") (String.concat ~sep:"∧" (List.map fs ~f:(value_to_string_rec 4)))
       | MOr (_, fs, _) -> Printf.sprintf (Etc.paren l 3 "%s") (String.concat ~sep:"∨" (List.map fs ~f:(value_to_string_rec 4)))
@@ -1889,12 +1889,14 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       let mf' = match mf.mf with
       | MTT | MFF -> with_lbls mf []
       | MAgg (s, op, op_fun, x, y, f) ->
-         let fvs = Set.elements (fv f) in
-         map1 fvs f (fun f -> MAgg (s, op, op_fun, x, y, f))
-           (fun lbls -> order_lbls lbls (s::y) false) 
+         let y    = Etc.reorder_subset ~equal:String.equal y fvs in
+         let sy   = Etc.reorder_subset ~equal:String.equal (s::y) fvs in
+         let fvs' = Etc.reorder_subset ~equal:String.equal (Set.elements (fv f)) y in
+         map1 fvs' f (fun f -> MAgg (s, op, op_fun, x, y, f)) (fun _ -> List.map ~f:Lbl.var sy)
       | MEqConst (t, _) -> with_lbls mf [Lbl.of_term t]
       | MPredicate (x, ts) ->
-         with_lbls mf (order_lbls (List.map ts ~f:Lbl.of_term) fvs true)
+         with_lbls mf (order_lbls (List.map (List.filter ~f:(fun t -> not (Term.is_const t)) ts)
+                                      ~f:Lbl.of_term) fvs true)
       | MExists (x, tt, b, f) ->
          map1 (fvs @ [x]) f (fun f -> MExists (x, tt, b, f)) (Lbl.quantify_list ~forall:false x)
       | MForall (x, tt, b, f) ->
@@ -1916,10 +1918,13 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       | MSince (s, i, f, g, inf1, inf2) -> map2 fvs f g (fun f g -> MSince (s, i, f, g, inf1, inf2)) id
       | MUntil (i, f, g, inf1, inf2) -> map2 fvs f g (fun f g -> MUntil (i, f, g, inf1, inf2)) id
       | MEUntil (s, i, t_opt, f, g, v) -> map2 fvs f g (fun f g -> MEUntil (s, i, t_opt, f, g, v)) id in
-      (*print_endline (Printf.sprintf "set_lbls([%s], %s)=%s\n"
+      (*(match mf.mf with
+       | MAgg _ -> 
+      print_endline (Printf.sprintf "set_lbls([%s], %s)=%s\n\n\n"
                        (String.concat ~sep:", " fvs)
                        (to_string mf)
-                       (to_string mf'));*)
+                       (to_string mf'))
+       | _ -> ());*)
       mf'
 
 
@@ -2661,12 +2666,16 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
                 | Some d ->
                    if Setc.mem s d then Proof.S (Proof.make_stt tp) else Proof.V (Proof.make_vff tp) in
               (*print_endline "--MAgg";
-                print_endline ("aexpl=" ^ Expl.to_string aexpl);
-                print_endline ("lbls="  ^ String.concat ~sep:", " (List.map ~f:Lbl.to_string lbls));
-                print_endline ("lbls'=" ^ String.concat ~sep:", " (List.map ~f:Lbl.to_string lbls'));*)
-              let aggregate = Pdt.aggregate Proof.isS is_in_setc op_fun s x y mformula.lbls in
-              let f_expls = List.map expls ~f:(aggregate mf.lbls) in
-              let f_aexpl = aggregate mf.lbls aexpl in
+              print_endline ("mf=" ^ MFormula.to_string mformula);
+              print_endline ("aexpl=" ^ Expl.to_string aexpl);
+              print_endline ("lbls="  ^ String.concat ~sep:", " (List.map ~f:Lbl.to_string mformula.lbls));
+              print_endline ("lbls'=" ^ String.concat ~sep:", " (List.map ~f:Lbl.to_string mf.lbls));*)
+              let aggregate = Pdt.aggregate Proof.isS is_in_setc op_fun s x y mformula.lbls mf.lbls in
+              (*print_endline "--MAgg";
+              print_endline (Expl.to_string aexpl);
+              print_endline (MFormula.to_string mformula);*)
+              let f_expls = List.map expls ~f:aggregate in
+              let f_aexpl = aggregate aexpl in
               memo, (f_expls, f_aexpl, MAgg (s, op, op_fun, x, y, mf'))
            | MNeg (mf) ->
               let memo, (expls, aexpl, mf') = meval_rec ts tp db fobligs ~pol:(pol >>| FObligation.neg) memo mf in
@@ -2679,7 +2688,6 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
               memo, (f_expls, f_aexpl, MNeg mf')
            | MAnd (s, mfs, buf2) ->
               (*print_endline "--MAnd";
-              print_endline ("lbls="  ^ String.concat ~sep:", " (List.map ~f:Lbl.to_string mformula.lbls));
               print_endline ("mf=" ^ MFormula.to_string mformula);*)
               let memo, data =
                 List.fold_map ~init:memo ~f:(meval_rec ts tp db ~pol fobligs) mfs in
@@ -2691,7 +2699,8 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
                     Buf2.take
                       (fun expl1 expl2 ->
                         (*print_endline ("take expl1=" ^ Expl.to_string expl1);
-                        print_endline ("take expl2=" ^ Expl.to_string expl2);*)
+                        print_endline ("take expl2=" ^ Expl.to_string expl2);
+                        print_endline ("take lbls=" ^ Lbl.to_string_list mformula.lbls);*)
                         Pdt.apply2_reduce Proof.equal mformula.lbls (fun p1 p2 -> minp_list (do_and p1 p2)) expl1 expl2)
                       (Buf2.add expls1 expls2 buf2)) in
               let aexpl = List.fold aexpl_list ~init:aexpl1 ~f:(fun aexpl1 aexpl2 ->

@@ -76,8 +76,8 @@ module MakeNUI (S : S) : B with type v = S.v and type t = S.v = struct
   let is_nonpositive i = S.leq i S.zero
   let left i = None
   let right i = Some i
-  let to_string i = Printf.sprintf "(∞,%s]" (S.to_string i)
-  let to_latex i = Printf.sprintf "(\\infty,%s]" (S.to_string i)
+  let to_string i = Printf.sprintf "(-∞,%s]" (S.to_string i)
+  let to_latex i = Printf.sprintf "(-\\infty,%s]" (S.to_string i)
   let make_exn i = i
 
 end

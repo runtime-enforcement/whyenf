@@ -170,6 +170,8 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       print_endline ("sat.v=" ^ Etc.valuation_to_string v);
       print_endline ("sat.proof=" ^ CI.Expl.Proof.to_string "" (specialize mf es v (exec_monitor mf es)));*)
       let es, p = exec_monitor mf es in
+      (*print_endline "--sat";
+      print_endline (CI.Expl.to_string  p);*)
       es, CI.Expl.Proof.isS (specialize es v p)
 
     let vio x mf es =
@@ -518,3 +520,17 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
     step true None es
 
 end
+
+(* TODO[FH]: variable renaming --- order of vars in aggregations *)
+(* dummy OK
+   clean-logs OK
+   logging-behavior OK
+   finalized-height OK
+   finalization-consistency OK
+   replica-divergence OK
+   block-validation-latency OK
+   unauthorized-connections OK
+   reboot-count OK
+
+   OK = sanity checked (probably actually buggy)
+*)

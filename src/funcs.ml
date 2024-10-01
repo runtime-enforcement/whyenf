@@ -254,6 +254,14 @@ let builtins =
        ret_tt  = Dom.TStr;
        kind    = Builtin (fun [Str i; Int j; Int k] -> Str (String.slice i j k))
     });
+    ("match",
+     {
+       arity   = 2;
+       arg_tts = [("x", Dom.TStr); ("r", Dom.TStr)];
+       ret_tt  = Dom.TInt;
+       kind    = Builtin (fun [Str i; Str j] ->
+                     if Str.string_match (Str.regexp j) i 0 then Dom.Int 1 else Dom.Int 0)
+    });
     ("string_of_int",
      {
        arity   = 1;

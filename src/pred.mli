@@ -20,6 +20,9 @@ module Term : sig
   val const: Dom.t -> t
   val app: string -> t list -> t
 
+  val is_var: t -> bool
+  val is_const: t -> bool
+
   val unvar: t -> string
 
   val unconst: t -> Dom.t

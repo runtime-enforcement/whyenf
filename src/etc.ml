@@ -165,6 +165,11 @@ let rec reorder ~equal l = function
   | h::t when not (List.mem l h ~equal) -> reorder equal l t
   | h::t -> h :: (reorder equal (List.filter l (fun x -> not (equal x h))) t)
 
+let rec reorder_subset ~equal l l' =
+  let l_in_l' = reorder ~equal (List.filter l ~f:(List.mem l' ~equal)) l' in
+  let l_not_in_l' = List.filter l ~f:(fun x -> not (List.mem l' ~equal x)) in
+  l_in_l' @ l_not_in_l'
+
 let rec dedup ~equal l = 
   let rec aux seen = function
     | [] -> List.rev seen
