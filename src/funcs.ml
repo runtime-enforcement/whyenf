@@ -43,6 +43,7 @@ type t =
     arg_tts: (string * Dom.tt) list;
     ret_tt: Dom.tt;
     kind: kind;
+    strict: bool
   }
 
 let to_string name func =
@@ -69,14 +70,16 @@ let builtins =
        arity   = 2;
        arg_tts = [("x", Dom.TInt); ("y", Dom.TInt)];
        ret_tt  = Dom.TInt;
-       kind    = Builtin eq
+       kind    = Builtin eq;
+       strict  = true;
     });
     ("neq",
      {
        arity   = 2;
        arg_tts = [("x", Dom.TInt); ("y", Dom.TInt)];
        ret_tt  = Dom.TInt;
-       kind    = Builtin neq
+       kind    = Builtin neq;
+       strict  = true;
     });
     ("lt",
      {
@@ -84,7 +87,8 @@ let builtins =
        arg_tts = [("x", Dom.TInt); ("y", Dom.TInt)];
        ret_tt  = Dom.TInt;
        kind    = Builtin (fun [x;y] -> match x, y with Dom.Int i, Dom.Int j ->
-                                         Int (if i < j then 1 else 0))
+                                         Int (if i < j then 1 else 0));
+       strict  = true;
     });
     ("leq",
      {
@@ -92,7 +96,8 @@ let builtins =
        arg_tts = [("x", Dom.TInt); ("y", Dom.TInt)];
        ret_tt  = Dom.TInt;
        kind    = Builtin (fun [x;y] -> match x, y with Dom.Int i, Dom.Int j ->
-                                         Int (if i <= j then 1 else 0))
+                                         Int (if i <= j then 1 else 0));
+       strict  = true;
     });
     ("gt",
      {
@@ -100,7 +105,8 @@ let builtins =
        arg_tts = [("x", Dom.TInt); ("y", Dom.TInt)];
        ret_tt  = Dom.TInt;
        kind    = Builtin (fun [x;y] -> match x, y with Dom.Int i, Dom.Int j ->
-                                         Int (if i > j then 1 else 0))
+                                         Int (if i > j then 1 else 0));
+       strict  = true;
     });
     ("geq",
      {
@@ -108,56 +114,64 @@ let builtins =
        arg_tts = [("x", Dom.TInt); ("y", Dom.TInt)];
        ret_tt  = Dom.TInt;
        kind    = Builtin (fun [x;y] -> match x, y with Dom.Int i, Dom.Int j ->
-                                         Int (if i >= j then 1 else 0))
+                                         Int (if i >= j then 1 else 0));
+       strict  = true;
     });
     ("add",
      {
        arity   = 2;
        arg_tts = [("x", Dom.TInt); ("y", Dom.TInt)];
        ret_tt  = Dom.TInt;
-       kind    = Builtin (fun [x;y] -> match x, y with Dom.Int i, Dom.Int j -> Int (i+j))
+       kind    = Builtin (fun [x;y] -> match x, y with Dom.Int i, Dom.Int j -> Int (i+j));
+       strict  = false;
     });
     ("sub",
      {
        arity   = 2;
        arg_tts = [("x", Dom.TInt); ("y", Dom.TInt)];
        ret_tt  = Dom.TInt;
-       kind    = Builtin (fun [x;y] -> match x, y with Dom.Int i, Dom.Int j -> Int (i-j))
+       kind    = Builtin (fun [x;y] -> match x, y with Dom.Int i, Dom.Int j -> Int (i-j));
+       strict  = false;
     });
     ("mul",
      {
        arity   = 2;
        arg_tts = [("x", Dom.TInt); ("y", Dom.TInt)];
        ret_tt  = Dom.TInt;
-       kind    = Builtin (fun [x;y] -> match x, y with Dom.Int i, Dom.Int j -> Int (i*j))
+       kind    = Builtin (fun [x;y] -> match x, y with Dom.Int i, Dom.Int j -> Int (i*j));
+       strict  = false;
     });
     ("div",
      {
        arity   = 2;
        arg_tts = [("x", Dom.TInt); ("y", Dom.TInt)];
        ret_tt  = Dom.TInt;
-       kind    = Builtin (fun [x;y] -> match x, y with Dom.Int i, Dom.Int j -> Int (i/j))
+       kind    = Builtin (fun [x;y] -> match x, y with Dom.Int i, Dom.Int j -> Int (i/j));
+       strict  = false;
     });
     ("pow",
      {
        arity   = 2;
        arg_tts = [("x", Dom.TInt); ("y", Dom.TInt)];
        ret_tt  = Dom.TInt;
-       kind    = Builtin (fun [x;y] -> match x, y with Dom.Int i, Dom.Int j -> Int (Int.pow i j))
+       kind    = Builtin (fun [x;y] -> match x, y with Dom.Int i, Dom.Int j -> Int (Int.pow i j));
+       strict  = false;
     });
     ("feq",
      {
        arity   = 2;
        arg_tts = [("x", Dom.TFloat); ("y", Dom.TFloat)];
        ret_tt  = Dom.TInt;
-       kind    = Builtin eq
+       kind    = Builtin eq;
+       strict  = true;
     });
     ("fneq",
      {
        arity   = 2;
        arg_tts = [("x", Dom.TFloat); ("y", Dom.TFloat)];
        ret_tt  = Dom.TInt;
-       kind    = Builtin neq
+       kind    = Builtin neq;
+       strict  = true;
     });
     ("flt",
      {
@@ -165,7 +179,8 @@ let builtins =
        arg_tts = [("x", Dom.TFloat); ("y", Dom.TFloat)];
        ret_tt  = Dom.TInt;
        kind    = Builtin (fun [x;y] -> match x, y with Dom.Float i, Dom.Float j ->
-                                         Int (if Float.(i < j) then 1 else 0))
+                                         Int (if Float.(i < j) then 1 else 0));
+       strict  = true;
     });
     ("fleq",
      {
@@ -173,7 +188,8 @@ let builtins =
        arg_tts = [("x", Dom.TFloat); ("y", Dom.TFloat)];
        ret_tt  = Dom.TInt;
        kind    = Builtin (fun [x;y] -> match x, y with Dom.Float i, Dom.Float j ->
-                                         Int (if Float.(i <= j) then 1 else 0))
+                                         Int (if Float.(i <= j) then 1 else 0));
+       strict  = true;
     });
     ("fgt",
      {
@@ -181,7 +197,8 @@ let builtins =
        arg_tts = [("x", Dom.TFloat); ("y", Dom.TFloat)];
        ret_tt  = Dom.TInt;
        kind    = Builtin (fun [x;y] -> match x, y with Dom.Float i, Dom.Float j ->
-                                         Int (if Float.(i > j) then 1 else 0))
+                                         Int (if Float.(i > j) then 1 else 0));
+       strict  = true;
     });
     ("fgeq",
      {
@@ -189,70 +206,80 @@ let builtins =
        arg_tts = [("x", Dom.TFloat); ("y", Dom.TFloat)];
        ret_tt  = Dom.TInt;
        kind    = Builtin (fun [x;y] -> match x, y with Dom.Float i, Dom.Float j ->
-                                         Int (if Float.(i >= j) then 1 else 0))
+                                         Int (if Float.(i >= j) then 1 else 0));
+       strict  = true;
     });
     ("fadd",
      {
        arity   = 2;
        arg_tts = [("x", Dom.TFloat); ("y", Dom.TFloat)];
        ret_tt  = Dom.TFloat;
-       kind    = Builtin (fun [x;y] -> match x, y with Dom.Float i, Dom.Float j -> Float (i+.j))
+       kind    = Builtin (fun [x;y] -> match x, y with Dom.Float i, Dom.Float j -> Float (i+.j));
+       strict  = false;
     });
     ("fsub",
      {
        arity   = 2;
        arg_tts = [("x", Dom.TFloat); ("y", Dom.TFloat)];
        ret_tt  = Dom.TFloat;
-       kind    = Builtin (fun [x;y] -> match x, y with Dom.Float i, Dom.Float j -> Float (i-.j))
+       kind    = Builtin (fun [x;y] -> match x, y with Dom.Float i, Dom.Float j -> Float (i-.j));
+       strict  = false;
     });
     ("fmul",
      {
        arity   = 2;
        arg_tts = [("x", Dom.TFloat); ("y", Dom.TFloat)];
        ret_tt  = Dom.TFloat;
-       kind    = Builtin (fun [x;y] -> match x, y with Dom.Float i, Dom.Float j -> Float (i*.j))
+       kind    = Builtin (fun [x;y] -> match x, y with Dom.Float i, Dom.Float j -> Float (i*.j));
+       strict  = false;
     });
     ("fdiv",
      {
        arity   = 2;
        arg_tts = [("x", Dom.TFloat); ("y", Dom.TFloat)];
        ret_tt  = Dom.TFloat;
-       kind    = Builtin (fun [x;y] -> match x, y with Dom.Float i, Dom.Float j -> Float (i/.j))
+       kind    = Builtin (fun [x;y] -> match x, y with Dom.Float i, Dom.Float j -> Float (i/.j));
+       strict  = false;
     });
     ("fpow",
      {
        arity   = 2;
        arg_tts = [("x", Dom.TFloat); ("y", Dom.TFloat)];
        ret_tt  = Dom.TFloat;
-       kind    = Builtin (fun [x;y] -> match x, y with Dom.Float i, Dom.Float j -> Float (i ** j))
+       kind    = Builtin (fun [x;y] -> match x, y with Dom.Float i, Dom.Float j -> Float (i ** j));
+       strict  = false;
     });
     ("seq",
      {
        arity   = 2;
        arg_tts = [("x", Dom.TStr); ("y", Dom.TStr)];
        ret_tt  = Dom.TInt;
-       kind    = Builtin eq
+       kind    = Builtin eq;
+       strict  = true;
     });
     ("sneq",
      {
        arity   = 2;
        arg_tts = [("x", Dom.TStr); ("y", Dom.TStr)];
        ret_tt  = Dom.TInt;
-       kind    = Builtin neq
+       kind    = Builtin neq;
+       strict  = true;
     });
     ("conc",
      {
        arity   = 2;
        arg_tts = [("x", Dom.TStr); ("y", Dom.TStr)];
        ret_tt  = Dom.TStr;
-       kind    = Builtin (fun [Str i; Str j] -> Str (i ^ j))
+       kind    = Builtin (fun [Str i; Str j] -> Str (i ^ j));
+       strict  = false;
     });
     ("substr",
      {
        arity   = 2;
        arg_tts = [("x", Dom.TStr); ("start", Dom.TInt); ("end", Dom.TInt)];
        ret_tt  = Dom.TStr;
-       kind    = Builtin (fun [Str i; Int j; Int k] -> Str (String.slice i j k))
+       kind    = Builtin (fun [Str i; Int j; Int k] -> Str (String.slice i j k));
+       strict  = false;
     });
     ("match",
      {
@@ -260,35 +287,40 @@ let builtins =
        arg_tts = [("x", Dom.TStr); ("r", Dom.TStr)];
        ret_tt  = Dom.TInt;
        kind    = Builtin (fun [Str i; Str j] ->
-                     if Str.string_match (Str.regexp j) i 0 then Dom.Int 1 else Dom.Int 0)
+                     if Str.string_match (Str.regexp j) i 0 then Dom.Int 1 else Dom.Int 0);
+       strict  = false;
     });
     ("string_of_int",
      {
        arity   = 1;
        arg_tts = [("x", TInt)];
        ret_tt  = Dom.TStr;
-       kind    = Builtin (fun [Int i] -> Str (string_of_int i))
+       kind    = Builtin (fun [Int i] -> Str (string_of_int i));
+       strict  = false;
     });
     ("string_of_float",
      {
        arity   = 1;
        arg_tts = [("x", TFloat)];
        ret_tt  = TStr;
-       kind    = Builtin (fun [Float i] -> Str (string_of_float i))
+       kind    = Builtin (fun [Float i] -> Str (string_of_float i));
+       strict  = false;
     });
     ("int_of_float",
      {
        arity   = 1;
        arg_tts = [("x", TFloat)];
        ret_tt  = TInt;
-       kind    = Builtin (fun [Float i] -> Int (int_of_float i))
+       kind    = Builtin (fun [Float i] -> Int (int_of_float i));
+       strict  = false;
     });
     ("float_of_int",
      {
        arity   = 1;
        arg_tts = [("x", TInt)];
        ret_tt  = TFloat;
-       kind    = Builtin (fun [Int i] -> Float (float_of_int i))
+       kind    = Builtin (fun [Int i] -> Float (float_of_int i));
+       strict  = false;
     });
   ]
 

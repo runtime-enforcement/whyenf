@@ -194,13 +194,14 @@ module Sig = struct
   let rec parse_pred_sigs (pb: Parsebuf.t) rank_ref =
     match pb.token with
     | EOF -> ()
-    | FUN -> begin
+    | FUN | SFUN -> begin
         Parsebuf.next pb;
         match pb.token with
          | STR s -> Parsebuf.next pb;
                     let arg_tts = convert_types (parse_arg_tts pb) in
                     let ret_tt = Dom.tt_of_string (parse_ret_tt pb) in
-                    Pred.Sig.add_func s arg_tts ret_tt External;
+                    let strict = match pb.token with SFUN -> true | _ -> false in
+                    Pred.Sig.add_func s arg_tts ret_tt External strict;
                     parse_pred_sigs pb rank_ref
          | t -> raise (Failure ("unexpected character: " ^ string_of_token t))
       end

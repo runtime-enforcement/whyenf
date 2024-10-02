@@ -633,42 +633,46 @@ let rec to_latex_rec l = function
 let to_latex = to_latex_rec 0
 
 
-let rec solve_past_guarded x vars p f =
-  let s =
-    match f, p with
-    | TT, false -> true
-    | FF, true -> true
-    | EqConst (y, _), true when Term.equal (Term.Var x) y -> true
-    | Predicate (_, ts), true when List.exists ~f:(Term.equal (Term.Var x)) ts -> true
-    | Agg (s, _, t, _, f), true when String.equal s x ->
-       List.for_all (Term.fv_list [t]) ~f:(fun z -> solve_past_guarded z vars p f)
-    | Agg (_, _, _, y, f), _ when List.mem y x ~equal:String.equal -> solve_past_guarded x vars p f
-    | Neg f, _ -> solve_past_guarded x vars (not p) f
-    | And (_, f', g'), true | Or (_, f', g'), false | Imp (_, f', g'), false ->
-       let q = match f with Imp _ -> not p | _ -> p in
-       (solve_past_guarded x vars q f') || (solve_past_guarded x vars p g')
-    | And (_, f', g'), false | Or (_, f', g'), true | Imp (_, f', g'), true ->
-       let q = match f with Imp _ -> not p | _ -> p in
-       (solve_past_guarded x vars q f') && (solve_past_guarded x vars p g')
-    | Iff (_, _, f, g), _ -> solve_past_guarded x vars p (And (N, Imp (N, f, g), Imp (N, g, f)))
-    | Exists (y, f), _ | Forall (y, f), _ when x != y -> solve_past_guarded x vars p f
-    | Prev (_, f), true -> solve_past_guarded x vars p f
-    | Once (_, f), true | Eventually (_, f), true -> solve_past_guarded x vars p f
-    | Once (i, f), false | Eventually (i, f), false when Interval.has_zero i -> solve_past_guarded x vars p f
-    | Historically (_, f), false | Always (_, f), false -> solve_past_guarded x vars p f
-    | Historically (i, f), true | Always (i, f), true when Interval.has_zero i -> solve_past_guarded x vars p f
-    | Since (_, i, f, g), true when not (Interval.has_zero i) -> solve_past_guarded x vars p (And (N, f, g))
-    | Since (_, i, f, g), true -> solve_past_guarded x vars p g
-    | Since (_, i, f, g), false | Until (_, i, f, g), false when Interval.has_zero i -> solve_past_guarded x vars p g
-    | Until (_, i, f, g), true when not (Interval.has_zero i) -> solve_past_guarded x vars p f
-    | Until (_, i, f, g), true -> solve_past_guarded x vars p (Or (N, f, g))
-    | _ -> false in
-  (*print_endline (Printf.sprintf "solve_past_guarded(%s, %b, %s) = %b" x p (to_string f) s);*)
-  s
+let rec solve_past_guarded x p f =
+  let vars = fv f in
+  let rec aux x p f =
+    let s =
+      match f, p with
+      | TT, false -> Some (Set.empty (module String))
+      | FF, true -> Some (Set.empty (module String))
+      | EqConst (y, _), true when Term.equal (Term.Var x) y -> Some (Set.empty (module String))
+      | Predicate (r, ts), true when List.exists ~f:(Term.equal (Term.Var x)) ts ->
+         Some (Set.singleton (module String) r)
+      | Agg (s, _, t, _, f), true when String.equal s x ->
+         Option.map ~f:(Etc.inter_list (module String))
+           (Option.all (List.map (Term.fv_list [t]) ~f:(fun z -> solve_past_guarded z p f)))
+      | Agg (_, _, _, y, f), _ when List.mem y x ~equal:String.equal -> aux x p f
+      | Neg f, _ -> aux x (not p) f
+      | And (_, f', g'), true | Or (_, f', g'), false | Imp (_, f', g'), false ->
+         let q = match f with Imp _ -> not p | _ -> p in
+         Option.merge (aux x q f') (aux x p g') ~f:Set.union
+      | And (_, f', g'), false | Or (_, f', g'), true | Imp (_, f', g'), true ->
+         let q = match f with Imp _ -> not p | _ -> p in
+         Option.map2 (aux x q f') (aux x p g') ~f:Set.inter
+      | Iff (_, _, f, g), _ -> aux x p (And (N, Imp (N, f, g), Imp (N, g, f)))
+      | Exists (y, f), _ | Forall (y, f), _ when x != y -> aux x p f
+      | Prev (_, f), true -> aux x p f
+      | Once (_, f), true | Eventually (_, f), true -> aux x p f
+      | Once (i, f), false | Eventually (i, f), false when Interval.has_zero i -> aux x p f
+      | Historically (_, f), false | Always (_, f), false -> aux x p f
+      | Historically (i, f), true | Always (i, f), true when Interval.has_zero i -> aux x p f
+      | Since (_, i, f, g), true when not (Interval.has_zero i) -> aux x p (And (N, f, g))
+      | Since (_, i, f, g), true -> aux x p g
+      | Since (_, i, f, g), false | Until (_, i, f, g), false when Interval.has_zero i -> aux x p g
+      | Until (_, i, f, g), true when not (Interval.has_zero i) -> aux x p f
+      | Until (_, i, f, g), true -> aux x p (Or (N, f, g))
+      | _ -> None in
+    (*print_endline (Printf.sprintf "solve_past_guarded(%s, %b, %s) = %b" x p (to_string f) s);*)
+    s in
+  aux x p f
 
-and is_past_guarded x ?(vars=None) p f =
-  let vars = match vars with None -> fv f | Some s -> s in
-  solve_past_guarded x vars p f
+and is_past_guarded x p f =
+  Option.is_some (solve_past_guarded x p f)
 
 (*
 let rec is_past_guarded x p f =

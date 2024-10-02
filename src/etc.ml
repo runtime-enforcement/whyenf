@@ -182,6 +182,12 @@ let rec cartesian = function
   | l :: t -> let rest = cartesian t in
               List.concat (List.map l (fun x -> List.map rest ~f:(fun l -> x::l)))
 
+let rec set_cartesian m = function
+  | [] -> [Set.empty m]
+  | l :: t -> let rest = set_cartesian m t in
+              List.concat (List.map (Set.elements l)
+                             ~f:(fun x -> List.map rest ~f:(fun l -> Set.add l x)))
+
 
 let gen_fresh s =
   let last_chr = List.last_exn (String.to_list s) in
@@ -192,3 +198,8 @@ let gen_fresh s =
       (Char.to_string (Char.of_int_exn (Char.to_int last_chr + 1)))
   else s ^ "a"
 
+
+let rec inter_list m = function
+  | []   -> Set.empty m
+  | [h]  -> h
+  | h::t -> Set.inter h (inter_list m t)

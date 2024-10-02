@@ -76,6 +76,8 @@ val dedup: equal:('a -> 'a -> bool) -> 'a list -> 'a list
 
 
 val cartesian: 'a list list -> 'a list list
+val set_cartesian: ('a, 'b) Comparator.Module.t -> ('a, 'b) Base.Set.t list -> ('a, 'b) Base.Set.t list
 
 val gen_fresh: string -> string
 
+val inter_list: ('a, 'b) Comparator.Module.t -> ('a, 'b) Base.Set.t list -> ('a, 'b) Base.Set.t

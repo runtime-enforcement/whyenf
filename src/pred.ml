@@ -60,6 +60,12 @@ module Term = struct
       | Var x :: trms -> x :: fv_list trms
       | App (_, trms) :: trms' -> fv_list trms @ fv_list trms'
 
+    let rec fn_list = function
+      | [] -> []
+      | Const c :: trms -> fn_list trms
+      | Var x :: trms -> fn_list trms
+      | App (f, trms) :: trms' -> f :: fn_list (trms @ trms')
+
     let rec equal t t' = match t, t' with
       | Var x, Var x' -> String.equal x x'
       | Const d, Const d' -> Dom.equal d d'
@@ -107,39 +113,58 @@ end
 
 module EnfType = struct
 
-  type t = Cau | Sup | CauSup | Obs [@@deriving compare, sexp_of, hash]
+  type t = Cau | NCau | SCau | Sup | CauSup | Obs [@@deriving compare, sexp_of, hash, equal]
 
   let neg = function
-    | Cau    -> Sup
-    | Sup    -> Cau
-    | CauSup -> CauSup
-    | Obs    -> Obs
+    | Cau
+      | NCau
+      | SCau     -> Sup
+    | Sup        -> Cau 
+    | CauSup     -> CauSup
+    | Obs        -> Obs
 
   let to_int = function
     | Cau    -> 1
-    | Sup    -> 2
-    | CauSup -> 3
+    | NCau   -> 2
+    | SCau   -> 3
+    | Sup    -> 4
+    | CauSup -> 5
     | Obs    -> 0
 
   let to_string = function
     | Cau    -> "Cau"
+    | NCau   -> "NCau"
+    | SCau   -> "SCau"
     | Sup    -> "Sup"
     | CauSup -> "CauSup"
     | Obs    -> "Obs"
 
   let meet a b = match a, b with
     | _, _ when a == b -> a
-    | Cau, Sup | Sup, Cau | CauSup, _ | _, CauSup -> CauSup
+    | Cau, Sup | Sup, Cau
+      | NCau, Sup | Sup, NCau
+      | SCau, Sup | Sup, SCau
+      | CauSup, _ | _, CauSup -> CauSup
+    | Cau, NCau | NCau, Cau
+      | Cau, SCau | SCau, Cau
+      | NCau, SCau | SCau, NCau -> Cau
     | Obs, x | x, Obs -> x
 
   let join a b = match a, b with
     | _, _ when a == b -> a
-    | Cau, Sup | Sup, Cau | Obs, _ | _, Obs -> Obs
+    | Cau, Sup | Sup, Cau
+      | SCau, NCau | NCau, SCau
+      | Obs, _ | _, Obs -> Obs
+    | Cau, NCau | NCau, Cau
+      | CauSup, NCau | NCau, CauSup
+      -> NCau
+    | Cau, SCau | SCau, Cau
+      | CauSup, SCau | SCau, CauSup -> SCau
     | Cau, _ | _, Cau -> Cau
     | _, _ -> Sup
 
-  let leq a b = (join a b) == a
-  let geq a b = (meet a b) == b
+  let leq a b = (meet a b) == b
+  let geq a b = (join a b) == b
 
   let specialize a b = if leq b a then Some b else None
 
@@ -213,13 +238,13 @@ module Sig = struct
   let add_pred p_name arg_tts enftype rank kind =
     if equal_pred_kind kind Predicate then
       Hashtbl.add_exn table ~key:p_name
-        ~data:(Func { arity = List.length arg_tts; arg_tts; ret_tt = TInt; kind = External })
+        ~data:(Func { arity = List.length arg_tts; arg_tts; ret_tt = TInt; kind = External; strict = false })
     else
       Hashtbl.add_exn table ~key:p_name
         ~data:(Pred { arity = List.length arg_tts; arg_tts; enftype; rank; kind })
 
-  let add_func f_name arg_tts ret_tt kind =
-    Hashtbl.add_exn table ~key:f_name ~data:(Func { arity = List.length arg_tts; arg_tts; ret_tt; kind })
+  let add_func f_name arg_tts ret_tt kind strict =
+    Hashtbl.add_exn table ~key:f_name ~data:(Func { arity = List.length arg_tts; arg_tts; ret_tt; kind; strict })
 
   let update_enftype name enftype =
     Hashtbl.update table name ~f:(fun (Some (Pred x)) -> Pred { x with enftype })
@@ -291,7 +316,10 @@ module Sig = struct
   let rec tt_of_term_exn vt = function
     | Term.Var x -> Map.find_exn vt x
     | Const d -> Dom.tt_of_domain d
-    | App (f, _) -> ret_tt_of_func f    
+    | App (f, _) -> ret_tt_of_func f
+
+  let is_strict trms =
+    List.for_all (Term.fn_list trms) ~f:(fun name -> (unfunc (Hashtbl.find_exn table name)).strict)
     
 
 end
@@ -421,7 +449,11 @@ let check_var types v tt =
                 Printf.sprintf "type clash for variable %s: found %s, expected %s"
                   v (Dom.tt_to_string tt) (Dom.tt_to_string tt')))
 
-let check_app types f trms tt =
+let rec check_app types f trms tt =
+  let types, trms =
+    List.fold2_exn trms (Sig.arg_tts_of_func f) ~init:(types, [])
+      ~f:(fun (types, trms) trm tt -> let types, trm' = check_term types tt trm in
+                                      (types, trms @ [trm'])) in
   let trms_tt = List.map trms ~f:(Sig.tt_of_term_exn types) in
   match List.find_map Funcs.autocast ~f:(fun (f1, tts, f2) ->
             if String.equal f f1 && List.equal Dom.tt_equal trms_tt tts
@@ -431,11 +463,9 @@ let check_app types f trms tt =
   | None ->  
      raise (Invalid_argument (
                 Printf.sprintf "type clash for return type of %s: found %s, expected %s"
-                  f
-                  (Dom.tt_to_string (Sig.ret_tt_of_func f))
-                  (Dom.tt_to_string tt)))
+                  f (Dom.tt_to_string (Sig.ret_tt_of_func f)) (Dom.tt_to_string tt)))
 
-let rec check_term types tt trm =
+and check_term types tt trm =
   (*print_endline ("check_term(" ^ Term.to_string trm ^ ": " ^Dom.tt_to_string tt ^ ")");*)
   match trm with
   | Term.Var x    -> (check_var types x tt,   trm)
