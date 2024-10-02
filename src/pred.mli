@@ -30,6 +30,7 @@ module Term : sig
   val comparator: (t, comparator_witness) Comparator.t
 
   val fv_list: t list -> string list
+  val fn_list: t list -> string list
 
   val equal: t -> t -> bool
 
@@ -50,7 +51,7 @@ end
 
 module EnfType : sig
 
-  type t = Cau | Sup | CauSup | Obs [@@deriving compare, sexp_of, hash]
+  type t = Cau | NCau | SCau | Sup | CauSup | Obs [@@deriving compare, sexp_of, hash, equal]
 
   val neg : t -> t
 
@@ -96,7 +97,7 @@ module Sig : sig
   val add_letpred: string -> (string * Dom.tt) list -> unit
   val add_pred: string -> (string * Dom.tt) list -> EnfType.t -> int -> pred_kind -> unit
 
-  val add_func: string -> (string * Dom.tt) list -> Dom.tt -> Funcs.kind -> unit
+  val add_func: string -> (string * Dom.tt) list -> Dom.tt -> Funcs.kind -> bool -> unit
 
   val update_enftype: string -> EnfType.t -> unit
 
@@ -119,6 +120,8 @@ module Sig : sig
   val var_tt_of_terms: string -> Dom.tt list -> Term.t list -> Dom.tt option
 
   val tt_of_term_exn: (string, Dom.tt, String.comparator_witness) Map.t -> Term.t -> Dom.tt
+
+  val is_strict: Term.t list -> bool
 
 end
 

@@ -17,6 +17,7 @@ type t =
     arg_tts: (string * Dom.tt) list;
     ret_tt: Dom.tt;
     kind: kind;
+    strict: bool;
   }
 
 val to_string: string -> t -> string
