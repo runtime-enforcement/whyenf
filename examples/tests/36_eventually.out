@@ -1,0 +1,21 @@
+The formula
+ ◊[0s,10s] B(1)
+is enforceable and types to
+ ◊[0s,10s] (B(1) : Cau) : Cau
+[Enforcer] @1 OK.
+[Enforcer] @1 nothing to do proactively.
+[Enforcer] @2 OK.
+[Enforcer] @2 nothing to do proactively.
+[Enforcer] @3 OK.
+[Enforcer] @3 nothing to do proactively.
+[Enforcer] @4 nothing to do proactively.
+[Enforcer] @5 nothing to do proactively.
+[Enforcer] @6 nothing to do proactively.
+[Enforcer] @7 nothing to do proactively.
+[Enforcer] @8 nothing to do proactively.
+[Enforcer] @9 nothing to do proactively.
+[Enforcer] @10 nothing to do proactively.
+[Enforcer] @11 proactively commands:
+Cause: 
+B(1)
+OK.

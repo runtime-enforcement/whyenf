@@ -71,7 +71,6 @@ module MakeInterval (S : S) : sig
   val right: t -> v option
 
   val diff_right_of: Time.t -> Time.t -> t -> bool
-  val diff_right_boundary_of: Time.t -> Time.t -> t -> bool
   val diff_left_of: Time.t -> Time.t -> t -> bool
   val diff_is_in: Time.t -> Time.t -> t -> bool
 

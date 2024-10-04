@@ -11,8 +11,8 @@ module type U = sig
   
   type u [@@deriving equal, compare, sexp_of, hash]
   
-  val min_seconds : u -> float
-  val max_seconds : u -> float
+  val min_seconds : u -> int
+  val max_seconds : u -> int
   val (+) : t -> u -> t
   val neg : u -> u
   val inc : u -> u
@@ -32,8 +32,8 @@ module type S = sig
   val sexp_of_v : v -> Sexp.t
   val hash_fold_v : Base_internalhash_types.state -> v -> Base_internalhash_types.state
 
-  val min_seconds : v -> float
-  val max_seconds : v -> float
+  val min_seconds : v -> int
+  val max_seconds : v -> int
   val leq : v -> v -> bool
   val (+) : t -> v -> t
   val inc : v -> v
@@ -76,17 +76,15 @@ module Span : sig
   val zero : s
   val infty : s
 
-  val min_seconds : s -> float
-  val max_seconds : s -> float
+  val min_seconds : s -> int
+  val max_seconds : s -> int
   val leq : s -> s -> bool
 
   module S : S with type v = s
   
 end
 
-val of_float : float -> t
 val of_int : int -> t
-val to_float : t -> float
 val to_int : t -> int
 
 val (+) : t -> Span.s -> t

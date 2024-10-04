@@ -154,14 +154,12 @@ module MakeInterval (S : S) = struct
   let left i = Option.value_exn (case BI.left UI.left i)
   let right = case BI.right UI.right
 
+  let to_string = case BI.to_string UI.to_string
+  let to_latex = case BI.to_latex UI.to_latex
+
   let diff_right_of ts ts' i =
     match right i with
     | Some b -> S.(ts + b) < ts'
-    | None -> false
-
-  let diff_right_boundary_of ts ts' i =
-    match right i with
-    | Some b -> ts' < S.(ts + b)
     | None -> false
 
   let diff_left_of ts ts' i =
@@ -170,8 +168,6 @@ module MakeInterval (S : S) = struct
   let diff_is_in ts ts' i =
     not (diff_right_of ts ts' i || diff_left_of ts ts' i)
 
-  let to_string = case BI.to_string UI.to_string
-  let to_latex = case BI.to_latex UI.to_latex
 
 end
 

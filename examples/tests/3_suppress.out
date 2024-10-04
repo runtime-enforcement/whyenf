@@ -1,0 +1,12 @@
+The formula
+ □[0s,∞) ∀x. A(x) → ¬C(x)
+is enforceable and types to
+ □[0s,∞) (∀x. (A(x) →:R (¬(C(x) : Sup) : Cau) : Cau) : Cau) : Cau
+[Enforcer] @1 OK.
+[Enforcer] @1 nothing to do proactively.
+[Enforcer] @2 reactively commands:
+Suppress:
+C(2)
+OK.
+[Enforcer] @2 nothing to do proactively.
+[Enforcer] @3 OK.

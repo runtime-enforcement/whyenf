@@ -31,6 +31,7 @@ FORMULAE_WHYENF = {
     "Information": "information",
     "Limitation":  "limitation",
     "Deletion":    "deletion",
+    "GDPR":        "gdpr",
 }
 
 SIG = "examples/arfelt_et_al_2019.sig"
@@ -134,7 +135,7 @@ if __name__ == '__main__':
         ACCELERATIONS = [5.12e7]
     else:
         ACCELERATIONS = [1e5, 2e5, 4e5, 8e5, 1.6e6, 3.2e6, 6.4e6, 1.28e7, 2.56e7, 5.12e7]
-    N             = 1
+    N             = 5
 
     print(f"Running evaluation for RQ2-3 on logs from Arfelt et al. (2019), OPTION = {OPTION}, SMOKE_TEST = {SMOKE_TEST}")
 

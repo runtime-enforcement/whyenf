@@ -1,0 +1,1 @@
+ALWAYS (FORALL x. B(x) IMPLIES B(x+1))

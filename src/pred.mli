@@ -67,7 +67,8 @@ module EnfType : sig
 
   val geq : t -> t -> bool
 
-  val specialize : t -> t -> t option
+  val is_causable : t -> bool
+  val is_suppressable : t -> bool
 
 end
 

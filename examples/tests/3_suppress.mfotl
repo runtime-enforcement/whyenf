@@ -1,0 +1,1 @@
+ALWAYS (FORALL x. A(x) IMPLIES NOT C(x))

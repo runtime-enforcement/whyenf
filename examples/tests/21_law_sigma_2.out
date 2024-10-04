@@ -1,0 +1,49 @@
+The formula
+ □[0s,∞) ∀d. ∀u. ∀c. use(c, d, u) → ⧫[0s,∞) (consent(u, c) ∨ legal_ground(u, d))
+is enforceable and types to
+ □[0s,∞) (∀d. (∀u. (∀c. ((use(c, d, u) : Sup) →:L ⧫[0s,∞) (consent(u, c)∨legal_ground(u, d)) : Cau) : Cau) : Cau) : Cau) : Cau
+[Enforcer] @10 OK.
+[Enforcer] @10 nothing to do proactively.
+[Enforcer] @11 nothing to do proactively.
+[Enforcer] @12 nothing to do proactively.
+[Enforcer] @13 nothing to do proactively.
+[Enforcer] @14 nothing to do proactively.
+[Enforcer] @15 nothing to do proactively.
+[Enforcer] @16 nothing to do proactively.
+[Enforcer] @17 nothing to do proactively.
+[Enforcer] @18 nothing to do proactively.
+[Enforcer] @19 nothing to do proactively.
+[Enforcer] @20 nothing to do proactively.
+[Enforcer] @21 nothing to do proactively.
+[Enforcer] @22 nothing to do proactively.
+[Enforcer] @23 nothing to do proactively.
+[Enforcer] @24 nothing to do proactively.
+[Enforcer] @25 nothing to do proactively.
+[Enforcer] @26 nothing to do proactively.
+[Enforcer] @27 nothing to do proactively.
+[Enforcer] @28 nothing to do proactively.
+[Enforcer] @29 nothing to do proactively.
+[Enforcer] @30 nothing to do proactively.
+[Enforcer] @31 nothing to do proactively.
+[Enforcer] @32 nothing to do proactively.
+[Enforcer] @33 nothing to do proactively.
+[Enforcer] @34 nothing to do proactively.
+[Enforcer] @35 nothing to do proactively.
+[Enforcer] @36 nothing to do proactively.
+[Enforcer] @37 nothing to do proactively.
+[Enforcer] @38 nothing to do proactively.
+[Enforcer] @39 nothing to do proactively.
+[Enforcer] @40 nothing to do proactively.
+[Enforcer] @41 nothing to do proactively.
+[Enforcer] @42 nothing to do proactively.
+[Enforcer] @43 nothing to do proactively.
+[Enforcer] @44 nothing to do proactively.
+[Enforcer] @45 nothing to do proactively.
+[Enforcer] @46 nothing to do proactively.
+[Enforcer] @47 nothing to do proactively.
+[Enforcer] @48 nothing to do proactively.
+[Enforcer] @49 nothing to do proactively.
+[Enforcer] @50 reactively commands:
+Suppress:
+use(c1, d3, 1)
+OK.

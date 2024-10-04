@@ -1,0 +1,1 @@
+ALWAYS (FORALL x. A(x) IMPLIES (C(x) UNTIL[0,5] B(x)))

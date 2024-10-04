@@ -1,0 +1,1 @@
+ALWAYS (FORALL x. B(x) AND (EXISTS y. A(f(x, y))) IMPLIES:R C(x, x))

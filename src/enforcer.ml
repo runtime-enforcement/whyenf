@@ -120,6 +120,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       update (Db.empty, Db.singleton cau, Set.empty (module FObligation)) es
 
     let add_foblig foblig es =
+      (*print_endline ("add_foblig: " ^ FObligation.to_string foblig);*)
       update (Db.empty, Db.empty, Set.singleton (module FObligation) foblig) es
 
     let combine es' es = update es'.r es
@@ -152,13 +153,13 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       | V vp1, S _ -> V (CI.Expl.Proof.make_vandl vp1)
       | V vp1, V vp2 -> V (CI.Expl.Proof.make_vandl vp1)
 
-    let rec do_ors tp : CI.Expl.Proof.t list -> CI.Expl.Proof.t = function
-      | [] -> S (CI.Expl.Proof.make_stt tp)
-      | h::t -> do_or h (do_ors tp t)
+    let do_ors tp : CI.Expl.Proof.t list -> CI.Expl.Proof.t = function
+      | [] -> V (CI.Expl.Proof.make_vff tp)
+      | h::t -> List.fold_left ~init:h ~f:do_or t
 
     let rec do_ands tp : CI.Expl.Proof.t list -> CI.Expl.Proof.t = function
-      | [] -> V (CI.Expl.Proof.make_vff tp)
-      | h::t -> do_and h (do_ands tp t)
+      | [] -> S (CI.Expl.Proof.make_stt tp)
+      | h::t -> List.fold_left ~init:h ~f:do_and t
       
     let specialize es =
       Expl.Pdt.specialize (do_ors es.tp) (do_ands es.tp)
@@ -170,20 +171,21 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       print_endline ("sat.v=" ^ Etc.valuation_to_string v);
       print_endline ("sat.proof=" ^ CI.Expl.Proof.to_string "" (specialize mf es v (exec_monitor mf es)));*)
       let es, p = exec_monitor mf es in
-      (*print_endline "--sat";
-      print_endline (CI.Expl.to_string  p);*)
+      (*print_endline (Printf.sprintf "sat(%s)=%s"
+                       (CI.Expl.to_string  p)
+                       (CI.Expl.Proof.to_string "" (specialize es v p)));*)
       es, CI.Expl.Proof.isS (specialize es v p)
 
     let vio x mf es =
       sat x (MFormula.map_mf mf Formula.Filter._true (fun mf -> MNeg mf)) es
     
     let all_not_sat v x mf es =
-      (*print_endline "--all_not_sat";
-      print_endline ("all_not_sat.mf=" ^ MFormula.to_string mf);
+      (*print_endline "--all_not_sat";*)
+      (*print_endline ("all_not_sat.mf=" ^ MFormula.to_string mf);
       print_endline ("all_not_sat.x=" ^ x);
       print_endline ("all_not_sat.v=" ^ Etc.valuation_to_string v);
-      print_endline ("all_not_sat.proof="^ CI.Expl.to_string (exec_monitor mf es));
-      print_endline ("all_not_sat.collected(" ^ x  ^ ")=" ^ Setc.to_string (Expl.Pdt.collect CI.Expl.Proof.isV (Setc.inter_list (module Dom)) (Setc.union_list (module Dom)) v x (exec_monitor mf es)));*)
+      print_endline ("all_not_sat.proof="^ CI.Expl.to_string (snd(exec_monitor mf es)));*)
+      (*print_endline ("all_not_sat.collected(" ^ x  ^ ")=" ^ Setc.to_string (Expl.Pdt.collect CI.Expl.Proof.isV (Setc.inter_list (module Dom)) (Setc.union_list (module Dom)) v x (snd (exec_monitor mf es))));*)
       let es, p = exec_monitor mf es in
       match Expl.Pdt.collect
               CI.Expl.Proof.isV
@@ -252,7 +254,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
 
     and enfvio_until i ts (h, vv) mf1 mf2 =
       let test1 = if Interval.has_zero i then vio else (fun _ _ es -> es, true) in
-      let enf2 mf2 v es = add_foblig (FUntil (default_ts ts es, LR, i, mf1, mf2, h, vv), v, NEG) es in
+      let enf2 mf2 v es = add_foblig (FUntil (default_ts ts es, R, i, mf1, mf2, h, vv), v, NEG) es in
       lr test1 sat enfvio enf2 mf1 mf2
 
     and enfvio_eventually i ts (h, vv) mf v es =
@@ -262,8 +264,9 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
 
     and enfsat (mformula: MFormula.t) v es : t =
       (*print_endline "--enfsat";
-      print_endline ("mformula=" ^ MFormula.to_string mformula);
-      print_endline ("v=" ^ Etc.valuation_to_string v);*)
+      print_endline ("mformula=" ^ MFormula.to_string mformula);*)
+      (*print_endline ("v=" ^ Etc.valuation_to_string v);
+      print_endline ("es=" ^ to_string es);*)
       (*print_endline ("filter=" ^ Formula.Filter.to_string mformula.filter);*)
       match mformula.mf with
       | _ when can_skip es mformula ->
@@ -294,38 +297,49 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       | MENext (i, ts, mf, vv) ->
          add_foblig (FInterval (default_ts ts es, i, mf, mformula.hash, vv), v, POS) es
       | MEEventually (i, ts, mf, vv) ->
-         if Interval.diff_right_boundary_of (default_ts ts es) (Time.of_int es.ts) i && es.nick then
+         if Interval.diff_right_of (default_ts ts es) (Time.of_int (es.ts+1)) i && es.nick then
            enfsat mf v es
          else
            add_foblig (FEventually (default_ts ts es, i, mf, mformula.hash, vv), v, POS) es
       | MEAlways (i, ts, mf, vv) ->
-         add_foblig (FAlways (default_ts ts es, i, mf, mformula.hash, vv), v, POS) (enfsat mf v es)
+         let es =
+           let es, b = sat v mf es in
+           if Interval.diff_is_in (default_ts ts es) (Time.of_int es.ts) i && not b then
+             enfsat mf v es
+           else
+             es
+         in if Interval.diff_right_of (default_ts ts es) (Time.of_int (es.ts+1)) i && es.nick then
+              es
+            else
+              add_foblig (FAlways (default_ts ts es, i, mf, mformula.hash, vv), v, POS) es
       | MOnce (_, mf, _, _) -> enfsat mf v es
       | MSince (_, _, mf1, mf2, _, _) -> enfsat mf2 v es
       | MEUntil (R, i, ts, mf1, mf2, vv) ->
-         if Interval.diff_right_boundary_of (default_ts ts es) (Time.of_int es.ts) i && es.nick then
+         if Interval.diff_right_of (default_ts ts es) (Time.of_int (es.ts+1)) i && es.nick then
            add_cau Db.Event._tp (enfsat mf2 v es)
          else (
            let es, b = sat v mf1 es in
            if not b then
              enfsat mf2 v es
            else
-             add_foblig (FUntil (default_ts ts es, LR, i, mf1, mf2, mformula.hash, vv), v, POS) (enfsat mf1 v es))
+             add_foblig (FUntil (default_ts ts es, R, i, mf1, mf2, mformula.hash, vv), v, POS) es)
       | MEUntil (LR, i, ts, mf1, mf2, vv) ->
-         if Interval.diff_right_boundary_of (default_ts ts es) (Time.of_int es.ts) i && es.nick then
+         if Interval.diff_right_of (default_ts ts es) (Time.of_int (es.ts+1)) i && es.nick then
            add_cau Db.Event._tp (enfsat mf2 v es)
          else
-           add_foblig (FUntil (default_ts ts es, LR, i, mf1, mf2, mformula.hash, vv), v, POS) (enfsat mf1 v es)
+           add_foblig (FUntil (default_ts ts es, LR, i, mf1, mf2, mformula.hash, vv), v, POS)
+             (enfsat mf1 v es)
       | MAnd (LR, _, _) ->
          raise (Invalid_argument ("side for " ^ MFormula.to_string mformula ^ " was not fixed"))
-      | _ -> print_endline (MFormula.to_string mformula);
-             print_endline (to_string es);
+      | _ -> (*print_endline (MFormula.to_string mformula);
+             print_endline (to_string es);*)
              raise (Invalid_argument ("function enfsat is not defined for "
                                       ^ MFormula.op_to_string mformula))
     and enfvio (mformula: MFormula.t) v es =
       (*print_endline "--enfvio";
-      print_endline ("mformula=" ^ MFormula.to_string mformula);
-      print_endline ("v=" ^ Etc.valuation_to_string v);*)
+      print_endline ("mformula=" ^ MFormula.to_string mformula);*)
+        (*print_endline ("v=" ^ Etc.valuation_to_string v);
+      print_endline ("es=" ^ to_string es);*)
       match mformula.mf with
       | _ when can_skip es mformula -> es
       | MFF -> es
@@ -345,23 +359,30 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       | MIff (R, _, mf1, mf2, _) -> fixpoint (enfvio_imp mf2 mf1 v) es
       | MExists (x, tt, b, mf) -> fixpoint (enfvio_exists x mf v) es
       | MForall (x, tt, b, mf) -> enfvio mf (Map.add_exn v ~key:x ~data:(Dom.tt_default tt)) es
-      | MENext (i, ts, mf, vv) -> add_foblig (FInterval (default_ts ts es, i, mf, mformula.hash, vv), v, NEG) es
+      | MENext (i, ts, mf, vv) ->
+         add_foblig (FInterval (default_ts ts es, i, mf, mformula.hash, vv), v, NEG) es
       | MEEventually (i, ts, mf, vv) -> enfvio_eventually i ts (mformula.hash, vv) mf v es
       | MEAlways (i, ts, mf, vv) ->
-         if Interval.diff_right_boundary_of (default_ts ts es) (Time.of_int es.ts) i && es.nick then
+         if Interval.diff_right_of (default_ts ts es) (Time.of_int (es.ts+1)) i && es.nick then
            enfvio mf v es
          else
            add_foblig (FAlways (default_ts ts es, i, mf, mformula.hash, vv), v, NEG) es
       | MSince (L, _, mf1, _, _, _) -> enfvio mf1 v es
-      | MSince (R, i, mf1, mf2, _, _) ->
-         let f' = MFormula.map_mf
-                    (MFormula.map2_mf mf1 mformula Formula.Filter._true
-                       (fun mf1 mf2 -> MAnd (R, [mf1; mf2], empty_binop_info)))
-                    Formula.Filter._true
-                    (fun mf -> MNeg mf) in
-         fixpoint (enfsat_andr v [f'; MFormula.map_mf mf2 mf2.filter (fun mf2 -> MNeg mf2)]) es
       | MEUntil (L, _, ts, mf1, _, _) -> enfvio mf1 v es
-      | MEUntil (R, i, ts, mf1, mf2, vv) -> fixpoint (enfvio_until i ts (mformula.hash, vv) mf1 mf2 v) es
+      | MEUntil (R, i, ts, mf1, mf2, vv) ->
+         let es, b1 = sat v mf1 es in
+         let es, b2 = sat v mf2 es in
+         let es =
+           if Interval.diff_is_in (default_ts ts es) (Time.of_int es.ts) i && b2 then
+             enfvio mf2 v es
+           else
+             es
+         in
+         if not (Interval.diff_right_of (default_ts ts es) (Time.of_int (es.ts+1)) i && es.nick)
+            && b1 then
+           add_foblig (FUntil (default_ts ts es, R, i, mf1, mf2, mformula.hash, vv), v, NEG) es
+         else
+           es
       | MAnd (LR, _, _)
         | MOr (LR, _, _)
         | MImp (LR, _, _, _)
@@ -401,7 +422,9 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
 
   let goal (es: EState.t) =
     let obligs = List.map (Set.elements es.fobligs)
-                   ~f:(FObligation.eval (Time.of_int es.ts) es.tp) in
+                   ~f:(fun f -> (*print_endline (FObligation.to_string f);
+                                print_endline (MFormula.to_string (FObligation.eval (Time.of_int es.ts) es.tp f));*)
+                                FObligation.eval (Time.of_int es.ts) es.tp f) in
     let mf = match obligs with
       | [] -> MFormula._tt
       | [mf] -> mf
@@ -446,12 +469,12 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
     in
     let proactive_step (es: EState.t) =
       (*Hashtbl.clear es.memo;*)
-      (*print_endline ("-- proactive_step ts=" ^ string_of_int es.ts);
-      print_endline ("before: " ^ EState.to_string es);*)
+      (*print_endline ("-- proactive_step ts=" ^ string_of_int es.ts);*)
+
       (*print_endline "-- proactive_step";
       print_endline (EState.to_string es);*)
       let es, mf = goal es in
-      (*print_endline (MFormula.to_string mf);*)
+      (*print_endline ("goal="^  MFormula.to_string mf);*)
       let es' = { es with ms      = { es.ms with tp_cur = es.tp };
                           r       = Triple.empty;
                           db      = Db.create [];
@@ -459,6 +482,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
                           nick    = true;
                           memo    = Monitor.Memo.empty } in
       (*Hashtbl.clear es.memo;*)
+      (*print_endline ("before: " ^ EState.to_string es);*)
       let es' = EState.enf mf es' in
       (*print_endline ("after: " ^ EState.to_string es');*)
       if Db.mem (Triple.cau es'.r) Db.Event._tp then
@@ -486,8 +510,6 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
         match reactive_step pb.db es with
         | ReOrd (c, s) as o, es' -> Other_parser.Stats.add_cau (Db.size c) pb.stats;
                                     Other_parser.Stats.add_sup (Db.size s) pb.stats;
-                                    (*let time_after = Unix.gettimeofday() in
-                                    print_endline ("Step time: " ^ string_of_float (time_after -. time_before));*)
                                     Order.print es.ts o;
                                     if pb.check then
                                       es

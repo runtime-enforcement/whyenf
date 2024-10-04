@@ -1,0 +1,1 @@
+ALWAYS ((EXISTS x. C(x)) IMPLIES:R (NEXT B(50)))
