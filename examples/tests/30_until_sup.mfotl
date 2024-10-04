@@ -1,0 +1,1 @@
+ALWAYS (NOT (C(3) UNTIL[0,10] C(2)))

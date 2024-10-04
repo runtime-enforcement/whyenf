@@ -638,22 +638,22 @@ let rec solve_past_guarded x p f =
   let rec aux x p f =
     let s =
       match f, p with
-      | TT, false -> Some (Set.empty (module String))
-      | FF, true -> Some (Set.empty (module String))
-      | EqConst (y, _), true when Term.equal (Term.Var x) y -> Some (Set.empty (module String))
+      | TT, false -> [Set.empty (module String)]
+      | FF, true -> [Set.empty (module String)]
+      | EqConst (y, _), true when Term.equal (Term.Var x) y -> [Set.empty (module String)]
       | Predicate (r, ts), true when List.exists ~f:(Term.equal (Term.Var x)) ts ->
-         Some (Set.singleton (module String) r)
+         [Set.singleton (module String) r]
       | Agg (s, _, t, _, f), true when String.equal s x ->
-         Option.map ~f:(Etc.inter_list (module String))
-           (Option.all (List.map (Term.fv_list [t]) ~f:(fun z -> solve_past_guarded z p f)))
+         let sols_list = List.map (Term.fv_list [t]) ~f:(fun z -> solve_past_guarded z p f) in
+         List.map ~f:(Etc.inter_list (module String)) (Etc.cartesian sols_list)
       | Agg (_, _, _, y, f), _ when List.mem y x ~equal:String.equal -> aux x p f
       | Neg f, _ -> aux x (not p) f
       | And (_, f', g'), true | Or (_, f', g'), false | Imp (_, f', g'), false ->
          let q = match f with Imp _ -> not p | _ -> p in
-         Option.merge (aux x q f') (aux x p g') ~f:Set.union
+         aux x q f' @ aux x p g'
       | And (_, f', g'), false | Or (_, f', g'), true | Imp (_, f', g'), true ->
          let q = match f with Imp _ -> not p | _ -> p in
-         Option.map2 (aux x q f') (aux x p g') ~f:Set.inter
+         List.map ~f:(Set.union_list (module String)) (Etc.cartesian [aux x q f'; aux x p g'])
       | Iff (_, _, f, g), _ -> aux x p (And (N, Imp (N, f, g), Imp (N, g, f)))
       | Exists (y, f), _ | Forall (y, f), _ when x != y -> aux x p f
       | Prev (_, f), true -> aux x p f
@@ -666,13 +666,13 @@ let rec solve_past_guarded x p f =
       | Since (_, i, f, g), false | Until (_, i, f, g), false when Interval.has_zero i -> aux x p g
       | Until (_, i, f, g), true when not (Interval.has_zero i) -> aux x p f
       | Until (_, i, f, g), true -> aux x p (Or (N, f, g))
-      | _ -> None in
+      | _ -> [] in
     (*print_endline (Printf.sprintf "solve_past_guarded(%s, %b, %s) = %b" x p (to_string f) s);*)
     s in
   aux x p f
 
 and is_past_guarded x p f =
-  Option.is_some (solve_past_guarded x p f)
+  not (List.is_empty (solve_past_guarded x p f))
 
 (*
 let rec is_past_guarded x p f =
@@ -824,7 +824,7 @@ module Filter = struct
       match f with
       | TT -> if b then _true else _false
       | FF -> if b then _false else _true
-      | Predicate (e, _) when b -> An e
+      | Predicate (e, _) when b -> (match Sig.kind_of_pred e with Trace -> An e | _ -> _true)
       | Neg f -> present_filter_ ~b:(not b) f
       | And (_, f, g) when b -> AllOf [present_filter_ ~b f; present_filter_ ~b g]
       | And (_, f, g) -> OneOf [present_filter_ ~b f; present_filter_ ~b g]

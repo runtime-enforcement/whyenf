@@ -387,6 +387,11 @@ module Pdt = struct
        Node (LVar x, part)
     | _::lbls -> from_valuation lbls v p p'
 
+  let rec exquant = function
+    | Leaf l              -> Leaf l
+    | Node (LEx x,  part) -> Node (LAll x, Part.map part exquant)
+    | Node (LAll x, part) -> Node (LEx x,  Part.map part exquant)
+    | Node (lbl,    part) -> Node (lbl,    Part.map part exquant)
 
   (* s = AGG (x; y; f) where p is a Pdt for f *)
   let aggregate cond f agg s x_trm y lbls lbls' p =

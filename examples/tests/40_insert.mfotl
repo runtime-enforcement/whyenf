@@ -1,0 +1,1 @@
+ALWAYS (FORALL x. ((ts(x) AND { x <= 1000 }) IMPLIES:R (NEXT[0,1] TRUE)))

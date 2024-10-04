@@ -1,0 +1,1 @@
+ALWAYS (FORALL y. y <- SUM(x; ; ONCE A(x)) IMPLIES B(y))

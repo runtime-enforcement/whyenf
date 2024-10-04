@@ -47,8 +47,12 @@ let rec core_of_formula f (types: Dom.ctxt) =
     else if Formula.is_past_guarded x false f && true_ok then
       false
     else
-      raise (Invalid_argument
-               (Printf.sprintf "variable %s is not monitorable in %s" x (Formula.to_string f)))
+      (Stdio.print_endline ("The formula is not enforceable because the variable\n "
+                            ^ x
+                            ^ "\nis not monitorable in\n "
+                            ^ Formula.to_string f);
+       raise (Invalid_argument
+                (Printf.sprintf "variable %s is not monitorable in %s" x (Formula.to_string f))))
   in
   let f_q_nonvar f x =
     let nonvars = Set.filter (Formula.terms f) ~f:(fun t -> not (Term.is_var t)) in

@@ -1,0 +1,39 @@
+The formula
+ □[0s,∞) ∀x. A(x) → ◊[10s,20s] B(x)
+is enforceable and types to
+ □[0s,∞) (∀x. (A(x) →:R (◊[10s,20s] (B(x) : Cau) : Cau) : Cau) : Cau) : Cau
+[Enforcer] @1 OK.
+[Enforcer] @1 nothing to do proactively.
+[Enforcer] @2 OK.
+[Enforcer] @2 nothing to do proactively.
+[Enforcer] @3 OK.
+[Enforcer] @3 nothing to do proactively.
+[Enforcer] @4 nothing to do proactively.
+[Enforcer] @5 nothing to do proactively.
+[Enforcer] @6 nothing to do proactively.
+[Enforcer] @7 nothing to do proactively.
+[Enforcer] @8 nothing to do proactively.
+[Enforcer] @9 nothing to do proactively.
+[Enforcer] @10 nothing to do proactively.
+[Enforcer] @11 nothing to do proactively.
+[Enforcer] @12 nothing to do proactively.
+[Enforcer] @13 nothing to do proactively.
+[Enforcer] @14 nothing to do proactively.
+[Enforcer] @15 nothing to do proactively.
+[Enforcer] @16 nothing to do proactively.
+[Enforcer] @17 nothing to do proactively.
+[Enforcer] @18 nothing to do proactively.
+[Enforcer] @19 nothing to do proactively.
+[Enforcer] @20 nothing to do proactively.
+[Enforcer] @21 proactively commands:
+Cause: 
+B(1)
+OK.
+[Enforcer] @22 proactively commands:
+Cause: 
+B(2)
+OK.
+[Enforcer] @23 proactively commands:
+Cause: 
+B(3)
+OK.

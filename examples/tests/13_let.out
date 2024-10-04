@@ -1,0 +1,18 @@
+The formula
+ □[0s,∞) ∀x. A(x) → (B(x) ∧ B(add(x, 1)) ∧ B(add(x, 2)) ∧ B(add(add(x, 2), 1)) ∧ B(add(x, 4)) ∧ B(add(add(x, 4), 1)) ∧ B(add(add(x, 4), 2)) ∧ B(add(add(add(x, 4), 2), 1)) ∧ B(add(x, 8)) ∧ B(add(add(x, 8), 1)) ∧ B(add(add(x, 8), 2)) ∧ B(add(add(add(x, 8), 2), 1)) ∧ B(add(add(x, 8), 4)) ∧ B(add(add(add(x, 8), 4), 1)) ∧ B(add(add(add(x, 8), 4), 2)) ∧ B(add(add(add(add(x, 8), 4), 2), 1)))
+is enforceable and types to
+ □[0s,∞) (∀x. (A(x) →:R (((((((((B(x) : Cau)∧:L(B(add(x, 1)) : Cau)) : Cau)∧:L(((B(add(x, 2)) : Cau)∧:L(B(add(add(x, 2), 1)) : Cau)) : Cau)) : Cau)∧:L(((((B(add(x, 4)) : Cau)∧:L(B(add(add(x, 4), 1)) : Cau)) : Cau)∧:L(((B(add(add(x, 4), 2)) : Cau)∧:L(B(add(add(add(x, 4), 2), 1)) : Cau)) : Cau)) : Cau)) : Cau)∧:L(((((((B(add(x, 8)) : Cau)∧:L(B(add(add(x, 8), 1)) : Cau)) : Cau)∧:L(((B(add(add(x, 8), 2)) : Cau)∧:L(B(add(add(add(x, 8), 2), 1)) : Cau)) : Cau)) : Cau)∧:L(((((B(add(add(x, 8), 4)) : Cau)∧:L(B(add(add(add(x, 8), 4), 1)) : Cau)) : Cau)∧:L(((B(add(add(add(x, 8), 4), 2)) : Cau)∧:L(B(add(add(add(add(x, 8), 4), 2), 1)) : Cau)) : Cau)) : Cau)) : Cau)) : Cau) : Cau) : Cau) : Cau
+[Enforcer] @1 reactively commands:
+Cause:
+B(1), B(2), B(3), B(4), B(5), B(6), B(7), B(8), B(9), B(10), B(11), B(12), B(13), B(14), B(15), B(16)
+OK.
+[Enforcer] @1 nothing to do proactively.
+[Enforcer] @2 reactively commands:
+Cause:
+B(3), B(4), B(5), B(6), B(7), B(8), B(9), B(10), B(11), B(12), B(13), B(14), B(15), B(16), B(17)
+OK.
+[Enforcer] @2 nothing to do proactively.
+[Enforcer] @3 reactively commands:
+Cause:
+B(3), B(4), B(5), B(6), B(7), B(8), B(9), B(10), B(11), B(12), B(13), B(14), B(15), B(16), B(17), B(18)
+OK.

@@ -1,0 +1,1 @@
+ALWAYS (FORALL x. A(x) IMPLIES C(x) IMPLIES:R B(x))

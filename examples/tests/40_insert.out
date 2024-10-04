@@ -1,0 +1,3960 @@
+The formula
+ □[0s,∞) ∀x. (ts(x) ∧ {leq(x, 1000)} = 1) →:R ○[0s,1s] ⊤
+is enforceable and types to
+ □[0s,∞) (∀x. ((ts(x)∧{leq(x, 1000)} = 1) →:R (○[0s,1s] (⊤ : Cau) : Cau) : Cau) : Cau) : Cau
+[Enforcer] @10 OK.
+[Enforcer] @10 nothing to do proactively.
+[Enforcer] @11 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @12 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @13 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @14 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @15 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @16 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @17 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @18 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @19 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @20 OK.
+[Enforcer] @20 nothing to do proactively.
+[Enforcer] @21 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @22 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @23 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @24 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @25 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @26 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @27 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @28 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @29 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @30 OK.
+[Enforcer] @30 nothing to do proactively.
+[Enforcer] @31 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @32 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @33 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @34 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @35 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @36 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @37 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @38 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @39 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @40 OK.
+[Enforcer] @40 nothing to do proactively.
+[Enforcer] @41 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @42 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @43 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @44 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @45 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @46 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @47 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @48 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @49 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @50 OK.
+[Enforcer] @50 nothing to do proactively.
+[Enforcer] @51 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @52 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @53 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @54 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @55 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @56 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @57 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @58 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @59 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @60 OK.
+[Enforcer] @60 nothing to do proactively.
+[Enforcer] @61 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @62 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @63 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @64 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @65 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @66 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @67 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @68 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @69 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @70 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @71 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @72 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @73 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @74 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @75 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @76 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @77 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @78 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @79 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @80 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @81 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @82 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @83 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @84 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @85 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @86 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @87 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @88 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @89 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @90 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @91 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @92 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @93 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @94 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @95 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @96 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @97 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @98 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @99 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @100 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @101 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @102 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @103 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @104 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @105 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @106 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @107 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @108 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @109 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @110 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @111 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @112 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @113 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @114 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @115 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @116 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @117 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @118 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @119 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @120 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @121 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @122 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @123 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @124 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @125 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @126 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @127 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @128 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @129 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @130 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @131 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @132 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @133 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @134 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @135 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @136 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @137 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @138 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @139 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @140 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @141 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @142 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @143 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @144 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @145 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @146 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @147 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @148 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @149 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @150 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @151 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @152 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @153 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @154 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @155 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @156 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @157 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @158 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @159 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @160 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @161 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @162 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @163 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @164 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @165 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @166 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @167 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @168 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @169 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @170 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @171 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @172 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @173 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @174 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @175 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @176 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @177 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @178 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @179 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @180 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @181 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @182 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @183 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @184 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @185 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @186 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @187 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @188 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @189 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @190 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @191 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @192 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @193 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @194 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @195 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @196 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @197 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @198 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @199 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @200 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @201 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @202 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @203 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @204 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @205 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @206 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @207 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @208 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @209 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @210 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @211 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @212 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @213 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @214 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @215 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @216 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @217 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @218 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @219 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @220 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @221 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @222 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @223 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @224 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @225 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @226 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @227 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @228 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @229 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @230 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @231 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @232 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @233 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @234 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @235 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @236 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @237 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @238 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @239 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @240 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @241 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @242 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @243 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @244 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @245 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @246 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @247 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @248 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @249 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @250 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @251 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @252 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @253 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @254 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @255 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @256 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @257 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @258 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @259 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @260 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @261 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @262 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @263 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @264 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @265 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @266 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @267 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @268 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @269 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @270 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @271 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @272 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @273 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @274 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @275 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @276 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @277 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @278 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @279 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @280 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @281 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @282 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @283 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @284 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @285 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @286 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @287 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @288 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @289 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @290 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @291 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @292 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @293 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @294 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @295 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @296 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @297 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @298 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @299 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @300 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @301 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @302 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @303 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @304 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @305 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @306 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @307 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @308 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @309 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @310 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @311 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @312 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @313 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @314 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @315 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @316 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @317 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @318 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @319 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @320 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @321 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @322 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @323 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @324 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @325 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @326 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @327 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @328 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @329 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @330 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @331 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @332 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @333 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @334 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @335 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @336 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @337 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @338 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @339 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @340 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @341 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @342 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @343 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @344 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @345 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @346 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @347 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @348 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @349 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @350 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @351 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @352 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @353 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @354 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @355 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @356 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @357 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @358 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @359 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @360 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @361 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @362 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @363 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @364 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @365 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @366 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @367 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @368 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @369 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @370 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @371 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @372 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @373 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @374 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @375 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @376 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @377 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @378 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @379 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @380 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @381 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @382 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @383 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @384 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @385 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @386 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @387 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @388 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @389 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @390 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @391 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @392 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @393 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @394 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @395 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @396 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @397 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @398 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @399 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @400 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @401 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @402 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @403 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @404 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @405 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @406 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @407 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @408 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @409 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @410 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @411 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @412 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @413 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @414 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @415 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @416 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @417 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @418 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @419 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @420 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @421 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @422 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @423 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @424 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @425 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @426 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @427 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @428 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @429 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @430 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @431 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @432 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @433 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @434 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @435 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @436 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @437 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @438 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @439 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @440 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @441 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @442 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @443 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @444 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @445 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @446 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @447 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @448 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @449 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @450 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @451 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @452 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @453 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @454 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @455 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @456 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @457 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @458 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @459 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @460 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @461 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @462 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @463 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @464 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @465 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @466 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @467 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @468 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @469 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @470 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @471 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @472 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @473 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @474 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @475 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @476 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @477 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @478 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @479 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @480 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @481 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @482 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @483 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @484 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @485 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @486 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @487 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @488 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @489 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @490 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @491 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @492 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @493 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @494 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @495 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @496 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @497 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @498 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @499 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @500 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @501 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @502 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @503 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @504 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @505 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @506 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @507 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @508 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @509 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @510 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @511 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @512 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @513 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @514 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @515 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @516 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @517 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @518 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @519 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @520 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @521 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @522 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @523 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @524 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @525 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @526 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @527 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @528 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @529 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @530 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @531 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @532 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @533 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @534 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @535 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @536 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @537 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @538 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @539 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @540 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @541 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @542 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @543 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @544 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @545 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @546 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @547 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @548 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @549 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @550 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @551 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @552 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @553 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @554 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @555 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @556 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @557 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @558 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @559 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @560 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @561 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @562 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @563 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @564 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @565 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @566 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @567 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @568 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @569 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @570 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @571 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @572 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @573 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @574 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @575 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @576 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @577 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @578 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @579 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @580 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @581 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @582 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @583 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @584 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @585 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @586 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @587 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @588 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @589 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @590 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @591 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @592 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @593 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @594 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @595 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @596 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @597 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @598 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @599 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @600 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @601 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @602 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @603 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @604 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @605 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @606 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @607 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @608 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @609 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @610 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @611 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @612 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @613 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @614 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @615 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @616 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @617 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @618 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @619 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @620 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @621 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @622 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @623 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @624 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @625 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @626 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @627 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @628 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @629 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @630 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @631 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @632 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @633 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @634 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @635 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @636 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @637 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @638 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @639 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @640 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @641 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @642 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @643 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @644 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @645 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @646 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @647 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @648 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @649 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @650 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @651 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @652 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @653 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @654 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @655 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @656 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @657 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @658 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @659 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @660 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @661 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @662 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @663 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @664 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @665 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @666 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @667 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @668 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @669 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @670 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @671 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @672 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @673 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @674 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @675 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @676 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @677 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @678 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @679 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @680 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @681 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @682 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @683 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @684 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @685 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @686 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @687 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @688 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @689 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @690 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @691 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @692 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @693 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @694 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @695 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @696 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @697 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @698 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @699 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @700 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @701 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @702 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @703 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @704 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @705 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @706 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @707 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @708 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @709 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @710 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @711 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @712 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @713 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @714 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @715 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @716 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @717 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @718 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @719 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @720 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @721 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @722 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @723 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @724 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @725 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @726 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @727 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @728 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @729 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @730 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @731 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @732 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @733 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @734 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @735 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @736 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @737 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @738 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @739 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @740 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @741 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @742 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @743 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @744 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @745 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @746 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @747 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @748 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @749 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @750 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @751 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @752 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @753 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @754 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @755 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @756 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @757 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @758 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @759 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @760 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @761 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @762 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @763 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @764 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @765 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @766 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @767 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @768 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @769 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @770 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @771 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @772 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @773 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @774 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @775 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @776 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @777 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @778 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @779 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @780 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @781 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @782 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @783 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @784 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @785 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @786 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @787 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @788 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @789 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @790 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @791 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @792 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @793 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @794 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @795 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @796 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @797 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @798 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @799 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @800 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @801 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @802 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @803 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @804 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @805 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @806 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @807 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @808 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @809 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @810 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @811 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @812 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @813 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @814 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @815 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @816 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @817 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @818 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @819 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @820 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @821 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @822 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @823 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @824 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @825 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @826 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @827 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @828 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @829 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @830 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @831 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @832 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @833 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @834 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @835 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @836 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @837 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @838 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @839 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @840 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @841 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @842 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @843 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @844 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @845 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @846 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @847 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @848 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @849 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @850 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @851 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @852 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @853 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @854 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @855 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @856 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @857 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @858 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @859 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @860 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @861 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @862 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @863 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @864 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @865 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @866 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @867 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @868 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @869 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @870 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @871 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @872 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @873 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @874 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @875 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @876 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @877 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @878 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @879 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @880 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @881 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @882 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @883 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @884 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @885 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @886 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @887 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @888 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @889 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @890 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @891 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @892 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @893 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @894 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @895 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @896 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @897 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @898 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @899 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @900 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @901 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @902 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @903 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @904 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @905 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @906 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @907 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @908 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @909 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @910 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @911 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @912 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @913 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @914 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @915 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @916 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @917 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @918 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @919 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @920 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @921 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @922 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @923 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @924 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @925 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @926 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @927 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @928 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @929 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @930 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @931 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @932 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @933 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @934 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @935 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @936 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @937 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @938 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @939 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @940 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @941 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @942 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @943 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @944 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @945 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @946 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @947 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @948 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @949 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @950 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @951 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @952 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @953 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @954 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @955 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @956 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @957 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @958 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @959 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @960 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @961 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @962 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @963 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @964 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @965 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @966 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @967 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @968 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @969 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @970 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @971 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @972 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @973 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @974 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @975 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @976 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @977 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @978 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @979 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @980 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @981 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @982 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @983 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @984 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @985 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @986 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @987 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @988 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @989 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @990 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @991 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @992 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @993 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @994 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @995 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @996 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @997 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @998 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @999 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @1000 proactively commands:
+Cause: 
+
+OK.
+[Enforcer] @1001 proactively commands:
+Cause: 
+
+OK.

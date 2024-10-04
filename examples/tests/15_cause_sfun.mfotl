@@ -1,0 +1,1 @@
+ALWAYS (FORALL x. ((B(x) OR D(x)) IMPLIES D(g(x))))

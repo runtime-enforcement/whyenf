@@ -94,7 +94,7 @@ val to_json: t -> string
 val to_latex: t -> string
 
 (*val check_types: t -> unit*)
-val solve_past_guarded: string -> bool -> t -> (string, Base.String.comparator_witness) Base.Set.t option
+val solve_past_guarded: string -> bool -> t -> (string, Base.String.comparator_witness) Base.Set.t list
 val is_past_guarded: string -> bool -> t -> bool
 
 val check_agg: (string, Dom.tt, Base.String.comparator_witness) Base.Map.t -> string -> Aggregation.op -> Term.t -> string list -> t -> (string, Dom.tt, Base.String.comparator_witness) Base.Map.t

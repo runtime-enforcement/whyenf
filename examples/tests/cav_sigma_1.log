@@ -1,0 +1,2 @@
+@10 consent(1,"c1") consent(1,"c2")
+@50 use("c1","d3",1) use("c2","d1",1)

@@ -2,22 +2,22 @@ open Core
 
 open CalendarLib
 
-type t = Fcalendar.t
+type t = Calendar.t
 
-let equal = Fcalendar.equal
-let compare = Fcalendar.compare
+let equal = Calendar.equal
+let compare = Calendar.compare
 
 let hash_fold_t state t =
-  let open Fcalendar in
+  let open Calendar in
   let state = Hash.fold_int state (year t) in
   let state = Hash.fold_int state (Date.int_of_month (month t)) in
   let state = Hash.fold_int state (day_of_month t) in
   let state = Hash.fold_int state (hour t) in
   let state = Hash.fold_int state (minute t) in
-  Hash.fold_float state (Time.Second.to_float (second t))
+  Hash.fold_int state (Time.Second.to_int (second t))
 
 let sexp_of_t calendar =
-  let open Fcalendar in
+  let open Calendar in
   let year = year calendar in
   let month = month calendar |> Date.int_of_month in
   let day = day_of_month calendar in
@@ -30,15 +30,15 @@ let sexp_of_t calendar =
     Sexp.Atom (string_of_int day);
     Sexp.Atom (string_of_int hour);
     Sexp.Atom (string_of_int minute);
-    Sexp.Atom (string_of_float (Time.Second.to_float second))
+    Sexp.Atom (string_of_int second)
   ]
 
 module type U = sig
   
   type u [@@deriving equal, compare, sexp_of, hash]
 
-  val min_seconds : u -> float
-  val max_seconds : u -> float
+  val min_seconds : u -> int
+  val max_seconds : u -> int
   val (+) : t -> u -> t
   val neg : u -> u
   val inc : u -> u
@@ -58,8 +58,8 @@ module type S = sig
   val sexp_of_v : v -> Sexp.t
   val hash_fold_v : Base_internalhash_types.state -> v -> Base_internalhash_types.state
 
-  val min_seconds : v -> float
-  val max_seconds : v -> float
+  val min_seconds : v -> int
+  val max_seconds : v -> int
   val leq : v -> v -> bool
   val (+) : t -> v -> t
   val inc : v -> v
@@ -76,9 +76,9 @@ module Span  = struct
  
     type u = int [@@deriving equal, compare, sexp_of, hash]
 
-    let min_seconds u = float_of_int u
-    let max_seconds u = float_of_int u
-    let (+) t u = Fcalendar.add t (Fcalendar.Period.second (float_of_int u))
+    let min_seconds u = u
+    let max_seconds u = u
+    let (+) t u = Calendar.add t (Calendar.Period.second u)
     let neg u = - u
     let inc u = Int.(+) u 1
     let dec u = Int.(-) u 1
@@ -92,9 +92,9 @@ module Span  = struct
  
     type u = int [@@deriving equal, compare, sexp_of, hash]
 
-    let min_seconds u = float_of_int u *. 60.
-    let max_seconds u = float_of_int u *. 60. (* Ignores leap seconds! *)
-    let (+) t u = Fcalendar.add t (Fcalendar.Period.minute u)
+    let min_seconds u = u * 60
+    let max_seconds u = u * 60 (* Ignores leap seconds! *)
+    let (+) t u = Calendar.add t (Calendar.Period.minute u)
     let neg u = - u
     let inc u = Int.(+) u 1
     let dec u = Int.(-) u 1
@@ -108,9 +108,9 @@ module Span  = struct
  
     type u = int [@@deriving equal, compare, sexp_of, hash]
 
-    let min_seconds u = float_of_int u *. 3600.
-    let max_seconds u = float_of_int u *. 3600.
-    let (+) t u = Fcalendar.add t (Fcalendar.Period.hour u)
+    let min_seconds u = u * 3600
+    let max_seconds u = u * 3600 (* Ignores leap seconds! *)
+    let (+) t u = Calendar.add t (Calendar.Period.hour u)
     let neg u = - u
     let inc u = Int.(+) u 1
     let dec u = Int.(-) u 1
@@ -124,9 +124,9 @@ module Span  = struct
  
     type u = int [@@deriving equal, compare, sexp_of, hash]
 
-    let min_seconds u = float_of_int u *. 86400.
-    let max_seconds u = float_of_int u *. 86400.
-    let (+) t u = Fcalendar.add t (Fcalendar.Period.day u)
+    let min_seconds u = u * 86400 - 3600 (* Leap hours *)
+    let max_seconds u = u * 86400 + 3600 (* Leap hours *)
+    let (+) t u = Calendar.add t (Calendar.Period.day u)
     let neg u = - u
     let inc u = Int.(+) u 1
     let dec u = Int.(-) u 1
@@ -140,9 +140,9 @@ module Span  = struct
  
     type u = int [@@deriving equal, compare, sexp_of, hash]
 
-    let min_seconds u = float_of_int u *. 86400. *. 28.
-    let max_seconds u = float_of_int u *. 86400. *. 31. (* Ignores leap seconds! *)
-    let (+) t u = Fcalendar.add t (Fcalendar.Period.month u)
+    let min_seconds u = u * 86400 * 28 - 3600 (* Leap hours *)
+    let max_seconds u = u * 86400 * 31 + 3600 (* Leap hours *)
+    let (+) t u = Calendar.add t (Calendar.Period.month u)
     let neg u = - u
     let inc u = Int.(+) u 1
     let dec u = Int.(-) u 1
@@ -156,9 +156,9 @@ module Span  = struct
  
     type u = int [@@deriving equal, compare, sexp_of, hash]
 
-    let min_seconds u = float_of_int u *. 86400. *. 365.
-    let max_seconds u = float_of_int u *. 86400. *. 366. (* Ignores leap seconds! *)
-    let (+) t u = Fcalendar.add t (Fcalendar.Period.year u)
+    let min_seconds u = u * 86400 * 365 - 3600 
+    let max_seconds u = u * 86400 * 365 + (u / 4 + 1) * 86400 + 3600
+    let (+) t u = Calendar.add t (Calendar.Period.year u)
     let neg u = - u
     let inc u = Int.(+) u 1
     let dec u = Int.(-) u 1
@@ -170,17 +170,17 @@ module Span  = struct
 
   module Offset (U : U) : U = struct
 
-    type u = U.u * float [@@deriving equal, compare, sexp_of, hash]
+    type u = U.u * int [@@deriving equal, compare, sexp_of, hash]
 
-    let min_seconds (u, o) = U.min_seconds u +. o
-    let max_seconds (u, o) = U.max_seconds u +. o
-    let (+) t (u, o) = Fcalendar.add U.(t + u) (Fcalendar.Period.second o)
-    let neg (u, o) = (U.neg u, -. o)
-    let inc (u, o) = (u, o +. 1.)
-    let dec (u, o) = (u, o -. 1.)
-    let is_zero (u, o) = U.is_zero u && Float.equal o 0.
-    let of_string s = (U.of_string s, 0.)
-    let to_string (u, o) = Printf.sprintf "%s+%ss" (U.to_string u) (string_of_float o)
+    let min_seconds (u, o) = U.min_seconds u + o
+    let max_seconds (u, o) = U.max_seconds u + o
+    let (+) t (u, o) = Calendar.add U.(t + u) (Calendar.Period.second o)
+    let neg (u, o) = (U.neg u, - o)
+    let inc (u, o) = (u, Int.(o + 1))
+    let dec (u, o) = (u, o - 1)
+    let is_zero (u, o) = U.is_zero u && Int.equal o 0
+    let of_string s = (U.of_string s, 0)
+    let to_string (u, o) = Printf.sprintf "%s+%ss" (U.to_string u) (string_of_int o)
 
   end
 
@@ -287,7 +287,7 @@ module Span  = struct
     | Month  u -> Month.max_seconds u
     | Year   u -> Year.max_seconds u
 
-  let leq a b = Float.(<=) (max_seconds a) (min_seconds b)
+  let leq a b = Int.(<=) (max_seconds a) (min_seconds b)
 
   module S = struct
     
@@ -311,25 +311,23 @@ module Span  = struct
 
 end
 
-let of_float ts = Fcalendar.from_unixfloat ts
-let of_int ts = of_float (float_of_int ts)
-let to_float ts = Fcalendar.to_unixfloat ts
-let to_int ts = int_of_float (to_float ts)
+let of_int ts = Calendar.from_unixfloat (float_of_int ts)
+let to_int ts = int_of_float (Calendar.to_unixfloat ts)
 
 let (+) = Span.(+)
 let (-) = Span.(-)
 
-let (<=) t u = (Fcalendar.compare t u) <= 0
-let (<) t u = (Fcalendar.compare t u) < 0
-let (==) t u = (Fcalendar.compare t u) = 0
+let (<=) t u = (Calendar.compare t u) <= 0
+let (<) t u = (Calendar.compare t u) < 0
+let (==) t u = (Calendar.compare t u) = 0
 
 let min t u = if t <= u then t else u
 let max t u = if u <= t then t else u
 
 let inc t = t + Span.one
 
-let zero = Fcalendar.make 0 0 0 0 0 0.
+let zero = Calendar.make 0 0 0 0 0 0
 
-let to_string = Printer.Fcalendar.to_string
+let to_string = Printer.Calendar.to_string
 
 

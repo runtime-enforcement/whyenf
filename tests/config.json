@@ -1,0 +1,319 @@
+[
+    {
+        "label": "1_trivial",
+        "sig": "simple.sig",
+        "formula": "1_trivial.mfotl",
+        "log": "simple.log",
+        "output": "1_trivial.out"
+    },
+    {
+        "label": "2_cause",
+        "sig": "simple.sig",
+        "formula": "2_cause.mfotl",
+        "log": "simple.log",
+        "output": "2_cause.out"
+    },
+    {
+        "label": "3_suppress",
+        "sig": "simple.sig",
+        "formula": "3_suppress.mfotl",
+        "log": "simple.log",
+        "output": "3_suppress.out"
+    },
+    {
+        "label": "4_cause_nonstable",
+        "sig": "simple.sig",
+        "formula": "4_cause_nonstable.mfotl",
+        "log": "simple.log",
+        "output": "4_cause_nonstable.out"
+    },
+    {
+        "label": "5_cause_stable",
+        "sig": "simple.sig",
+        "formula": "5_cause_stable.mfotl",
+        "log": "simple.log",
+        "output": "5_cause_stable.out"
+    },
+    {
+        "label": "6_cause_stable_impossible",
+        "sig": "simple.sig",
+        "formula": "6_cause_stable_impossible.mfotl",
+        "log": "simple.log",
+        "output": "6_cause_stable_impossible.out",
+        "success": false
+    },
+    {
+        "label": "7_cause_multiple",
+        "sig": "simple.sig",
+        "formula": "2_cause.mfotl",
+        "log": "multiple.log",
+        "output": "7_cause_multiple.out"
+    },
+    {
+        "label": "8_suppress_multiple",
+        "sig": "simple.sig",
+        "formula": "3_suppress.mfotl",
+        "log": "multiple.log",
+        "output": "8_suppress_multiple.out"
+    },
+    {
+        "label": "9_complex_terms",
+        "sig": "complex.sig",
+        "formula": "9_complex_terms.mfotl",
+        "log": "complex.log",
+        "output": "9_complex_terms.out",
+        "func": "complex.py"
+    },
+    {
+        "label": "10_complex_non_monitorable",
+        "sig": "complex.sig",
+        "formula": "10_complex_non_monitorable.mfotl",
+        "log": "complex.log",
+        "output": "10_complex_non_monitorable.out",
+        "func": "complex.py",
+        "success": false
+    },
+    {
+        "label": "11_aggregation",
+        "sig": "simple.sig",
+        "formula": "11_aggregation.mfotl",
+        "log": "simple.log",
+        "output": "11_aggregation.out"
+    },
+    {
+        "label": "12_aggregation_complex",
+        "sig": "complex.sig",
+        "formula": "12_aggregation_complex.mfotl",
+        "log": "complex.log",
+        "output": "12_aggregation_complex.out",
+        "func": "complex.py"
+    },
+    {
+        "label": "13_let",
+        "sig": "simple.sig",
+        "formula": "13_let.mfotl",
+        "log": "simple.log",
+        "output": "13_let.out"
+    },
+    {
+        "label": "14_aggregation_group",
+        "sig": "complex.sig",
+        "formula": "14_aggregation_group.mfotl",
+        "log": "complex.log",
+        "output": "14_aggregation_group.out"
+    },
+    {
+        "label": "15_cause_sfun",
+        "sig": "complex.sig",
+        "formula": "15_cause_sfun.mfotl",
+        "log": "complex.log",
+        "output": "15_cause_sfun.out",
+        "func": "complex.py"
+    },
+    {
+        "label": "16_and",
+        "sig": "simple.sig",
+        "formula": "16_and.mfotl",
+        "log": "simple.log",
+        "output": "16_and.out"
+    },
+    {
+        "label": "17_or",
+        "sig": "simple.sig",
+        "formula": "17_or.mfotl",
+        "log": "multiple.log",
+        "output": "17_or.out"
+    },
+    {
+        "label": "18_or_impossible",
+        "sig": "simple.sig",
+        "formula": "18_or_impossible.mfotl",
+        "log": "multiple.log",
+        "output": "18_or_impossible.out",
+        "success": false
+    },
+    {
+        "label": "19_implies",
+        "sig": "simple.sig",
+        "formula": "19_implies.mfotl",
+        "log": "multiple.log",
+        "output": "19_implies.out"
+    },
+    {
+        "label": "20_law_sigma_1",
+        "sig": "cav.sig",
+        "formula": "20_21_law.mfotl",
+        "log": "cav_sigma_1.log",
+        "output": "20_law_sigma_1.out"
+    },
+    {
+        "label": "21_law_sigma_2",
+        "sig": "cav.sig",
+        "formula": "20_21_law.mfotl",
+        "log": "cav_sigma_2.log",
+        "output": "21_law_sigma_2.out"
+    },
+    {
+        "label": "22_del_sigma_1",
+        "sig": "cav.sig",
+        "formula": "22_23_del.mfotl",
+        "log": "cav_sigma_1.log",
+        "output": "22_del_sigma_1.out"
+    },
+    {
+        "label": "23_del_sigma_2",
+        "sig": "cav.sig",
+        "formula": "22_23_del.mfotl",
+        "log": "cav_sigma_2.log",
+        "output": "23_del_sigma_2.out"
+    },
+    {
+        "label": "24_iff",
+        "sig": "complex.sig",
+        "formula": "24_iff.mfotl",
+        "log": "iff.log",
+        "output": "24_iff.out"
+    },
+    {
+        "label": "25_since_cau",
+        "sig": "simple.sig",
+        "formula": "25_since_cau.mfotl",
+        "log": "temporal.log",
+        "output": "25_since_cau.out"
+    },
+    {
+        "label": "26_since_sup_lr",
+        "sig": "simple.sig",
+        "formula": "26_since_sup_lr.mfotl",
+        "log": "temporal.log",
+        "output": "26_since_sup_lr.out"
+    },
+    {
+        "label": "27_since_sup_r",
+        "sig": "simple.sig",
+        "formula": "27_since_sup_r.mfotl",
+        "log": "temporal.log",
+        "output": "27_since_sup_r.out"
+    },
+    {
+        "label": "28_until_cau_lr",
+        "sig": "simple.sig",
+        "formula": "28_until_cau_lr.mfotl",
+        "log": "temporal.log",
+        "output": "28_until_cau_lr.out"
+    },
+    {
+        "label": "29_until_cau_r",
+        "sig": "simple.sig",
+        "formula": "29_until_cau_r.mfotl",
+        "log": "temporal.log",
+        "output": "29_until_cau_r.out"
+    },
+    {
+        "label": "30_until_sup",
+        "sig": "simple.sig",
+        "formula": "30_until_sup.mfotl",
+        "log": "temporal.log",
+        "output": "30_until_sup.out"
+    },
+    {
+        "label": "31_next_cau",
+        "sig": "simple.sig",
+        "formula": "31_next_cau.mfotl",
+        "log": "temporal.log",
+        "output": "31_next_cau.out"
+    },
+    {
+        "label": "32_next_sup",
+        "sig": "simple.sig",
+        "formula": "32_next_sup.mfotl",
+        "log": "temporal.log",
+        "output": "32_next_sup.out"
+    },
+    {
+        "label": "33_until_cau_r_variant",
+        "sig": "simple.sig",
+        "formula": "33_until_cau_r_variant.mfotl",
+        "log": "temporal_variant.log",
+        "output": "33_until_cau_r_variant.out"
+    },
+    {
+        "label": "34_until_sup_variant",
+        "sig": "simple.sig",
+        "formula": "34_until_sup_variant.mfotl",
+        "log": "temporal_variant.log",
+        "output": "34_until_sup_variant.out"
+    },
+    {
+        "label": "35_non_transparent",
+        "sig": "simple.sig",
+        "formula": "35_non_transparent.mfotl",
+        "log": "multiple.log",
+        "output": "35_non_transparent.out"
+    },
+    {
+        "label": "36_eventually",
+        "sig": "simple.sig",
+        "formula": "36_eventually.mfotl",
+        "log": "simple.log",
+        "output": "36_eventually.out"
+    },
+    {
+        "label": "37_hour",
+        "sig": "simple.sig",
+        "formula": "37_hour.mfotl",
+        "log": "hour.log",
+        "output": "37_hour.out"
+    },
+    {
+        "label": "38_month",
+        "sig": "simple.sig",
+        "formula": "38_month.mfotl",
+        "log": "month.log",
+        "output": "38_month.out"
+    },
+    {
+        "label": "39_after_end",
+        "sig": "simple.sig",
+        "formula": "39_after_end.mfotl",
+        "log": "simple.log",
+        "output": "39_after_end.out"
+    },
+    {
+        "label": "40_insert",
+        "sig": "simple.sig",
+        "formula": "40_insert.mfotl",
+        "log": "temporal.log",
+        "output": "40_insert.out"
+    },
+    {
+        "label": "41_non_strict_relative_past",
+        "sig": "simple.sig",
+        "formula": "41_non_strict_relative_past.mfotl",
+        "log": "simple.log",
+        "output": "41_non_strict_relative_past.out"
+    },
+    {
+        "label": "42_strict_relative_past",
+        "sig": "simple.sig",
+        "formula": "42_strict_relative_past.mfotl",
+        "log": "simple.log",
+        "output": "42_strict_relative_past.out"
+    },
+    {
+        "label": "43_impossible",
+        "sig": "simple.sig",
+        "formula": "43_impossible.mfotl",
+        "log": "simple.log",
+        "output": "43_impossible.out",
+        "success": false        
+    },
+    {
+        "label": "44_not_closed",
+        "sig": "simple.sig",
+        "formula": "44_not_closed.mfotl",
+        "log": "simple.log",
+        "output": "44_not_closed.out",
+        "success": false        
+    }
+]

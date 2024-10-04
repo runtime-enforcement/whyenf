@@ -1,0 +1,18 @@
+The formula
+ □[0s,∞) ∀y. y <- SUM(x; ; ⧫[0s,∞) A(x)) → B(y)
+is enforceable and types to
+ □[0s,∞) (∀y. (y <- SUM(x; ; ⧫[0s,∞) A(x)) →:R (B(y) : Cau) : Cau) : Cau) : Cau
+[Enforcer] @1 reactively commands:
+Cause:
+B(1)
+OK.
+[Enforcer] @1 nothing to do proactively.
+[Enforcer] @2 reactively commands:
+Cause:
+B(3)
+OK.
+[Enforcer] @2 nothing to do proactively.
+[Enforcer] @3 reactively commands:
+Cause:
+B(6)
+OK.

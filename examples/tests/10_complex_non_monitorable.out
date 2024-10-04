@@ -1,0 +1,4 @@
+The formula is not enforceable because the variable
+ y
+is not monitorable in
+ A(f(x, y))

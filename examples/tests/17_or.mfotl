@@ -1,0 +1,1 @@
+ALWAYS (FORALL x. A(x) OR C(x) IMPLIES B(x))

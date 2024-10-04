@@ -1,0 +1,18 @@
+The formula
+ □[0s,∞) ∀x. A(x) → B(add(x, 1))
+is enforceable and types to
+ □[0s,∞) (∀x. (A(x) →:R (B(add(x, 1)) : Cau) : Cau) : Cau) : Cau
+[Enforcer] @1 reactively commands:
+Cause:
+B(2)
+OK.
+[Enforcer] @1 nothing to do proactively.
+[Enforcer] @2 reactively commands:
+Cause:
+B(3)
+OK.
+[Enforcer] @2 nothing to do proactively.
+[Enforcer] @3 reactively commands:
+Cause:
+B(4)
+OK.

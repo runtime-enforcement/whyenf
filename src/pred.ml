@@ -118,10 +118,10 @@ module EnfType = struct
   let neg = function
     | Cau
       | NCau
-      | SCau     -> Sup
-    | Sup        -> Cau 
-    | CauSup     -> CauSup
-    | Obs        -> Obs
+      | SCau -> Sup
+    | Sup    -> Cau 
+    | CauSup -> CauSup
+    | Obs    -> Obs
 
   let to_int = function
     | Cau    -> 1
@@ -141,32 +141,28 @@ module EnfType = struct
 
   let meet a b = match a, b with
     | _, _ when a == b -> a
-    | Cau, Sup | Sup, Cau
-      | NCau, Sup | Sup, NCau
-      | SCau, Sup | Sup, SCau
-      | CauSup, _ | _, CauSup -> CauSup
-    | Cau, NCau | NCau, Cau
-      | Cau, SCau | SCau, Cau
-      | NCau, SCau | SCau, NCau -> Cau
     | Obs, x | x, Obs -> x
+    | Cau, NCau | NCau, Cau
+      | Cau, SCau | SCau, Cau -> Cau
+    | _, _ -> CauSup
 
   let join a b = match a, b with
     | _, _ when a == b -> a
-    | Cau, Sup | Sup, Cau
-      | SCau, NCau | NCau, SCau
-      | Obs, _ | _, Obs -> Obs
-    | Cau, NCau | NCau, Cau
-      | CauSup, NCau | NCau, CauSup
-      -> NCau
-    | Cau, SCau | SCau, Cau
-      | CauSup, SCau | SCau, CauSup -> SCau
-    | Cau, _ | _, Cau -> Cau
-    | _, _ -> Sup
+    | CauSup, x | x, CauSup -> x
+    | Cau, NCau | NCau, Cau -> NCau
+    | Cau, SCau | SCau, Cau -> SCau
+    | _, _ -> Obs
 
-  let leq a b = (meet a b) == b
-  let geq a b = (join a b) == b
+  let leq a b = (meet a b) == a
+  let geq a b = (join a b) == a
 
-  let specialize a b = if leq b a then Some b else None
+  let is_causable = function
+    | CauSup | Cau | NCau | SCau -> true
+    | _ -> false
+
+  let is_suppressable = function
+    | CauSup | Sup -> true
+    | _ -> false
 
 end
 
@@ -320,7 +316,6 @@ module Sig = struct
 
   let is_strict trms =
     List.for_all (Term.fn_list trms) ~f:(fun name -> (unfunc (Hashtbl.find_exn table name)).strict)
-    
 
 end
 

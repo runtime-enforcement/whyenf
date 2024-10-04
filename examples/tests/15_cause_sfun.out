@@ -1,0 +1,18 @@
+The formula
+ □[0s,∞) ∀x. (B(x) ∨ D(x)) → D(g(x))
+is enforceable and types to
+ □[0s,∞) (∀x. ((B(x)∨D(x)) →:R (D(g(x)) : Cau) : Cau) : Cau) : Cau
+[Enforcer] @1 reactively commands:
+Cause:
+D(0), D(1)
+OK.
+[Enforcer] @1 nothing to do proactively.
+[Enforcer] @2 reactively commands:
+Cause:
+D(0), D(1), D(2)
+OK.
+[Enforcer] @2 nothing to do proactively.
+[Enforcer] @3 reactively commands:
+Cause:
+D(0), D(1), D(2), D(3)
+OK.

@@ -1,0 +1,1 @@
+ALWAYS ((ONCE[0,0] (ONCE[0,0] A(1))) IMPLIES B(1))

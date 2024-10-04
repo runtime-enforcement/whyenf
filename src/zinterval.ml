@@ -15,22 +15,22 @@ open Time
 
 module Z = struct
 
-  type v = float
+  type v = int
 
-  let equal_v = Float.equal
-  let compare_v = Float.compare
-  let sexp_of_v = Float.sexp_of_t
-  let hash_fold_v = Float.hash_fold_t
+  let equal_v = Int.equal
+  let compare_v = Int.compare
+  let sexp_of_v = Int.sexp_of_t
+  let hash_fold_v = Int.hash_fold_t
 
   let min_seconds i = i
   let max_seconds i = i
-  let leq = Float.(<=)
+  let leq = Int.(<=)
   let (+) t u = assert false
-  let inc i = Float.(i + 1.)
-  let dec i = Float.(i - 1.)
-  let is_zero i = Float.(i = 0.)
-  let zero = 0.
-  let to_string = string_of_float
+  let inc i = Int.(i + 1)
+  let dec i = Int.(i - 1)
+  let is_zero i = Int.(i = 0)
+  let zero = 0
+  let to_string = string_of_int
 
 end
 
@@ -83,33 +83,33 @@ module MakeZinterval (S : S) = struct
     match left i, left i' with
     | Some l, Some l' -> begin
         match right i, right i' with
-        | Some r, Some r' -> lclosed_rclosed_BI (Float.min l l') (Float.max r r')
-        | _ -> lclosed_UI (Float.min l l')
+        | Some r, Some r' -> lclosed_rclosed_BI (Int.min l l') (Int.max r r')
+        | _ -> lclosed_UI (Int.min l l')
       end
     | _, _ ->
        match right i, right i' with
-       | Some r, Some r' -> rclosed_UI (Float.max r r')
+       | Some r, Some r' -> rclosed_UI (Int.max r r')
        | _ -> full
 
   let sum i i' =
     match left i, left i' with
     | Some l, Some l' -> begin
         match right i, right i' with
-        | Some r, Some r' -> lclosed_rclosed_BI (Float.(l + l')) (Float.(r + r'))
-        | _ -> lclosed_UI (Float.(l + l'))
+        | Some r, Some r' -> lclosed_rclosed_BI (Int.(l + l')) (Int.(r + r'))
+        | _ -> lclosed_UI (Int.(l + l'))
       end
     | _, _ ->
        match right i, right i' with
-       | Some r, Some r' -> rclosed_UI (Float.(r + r'))
+       | Some r, Some r' -> rclosed_UI (Int.(r + r'))
        | _ -> full
 
   let inv = function
-    | ZB (l, r) -> ZB (Float.(- r), Float.(- l))
-    | ZUL l -> ZUR Float.(- l)
-    | ZUR l -> ZUL Float.(- l)
+    | ZB (l, r) -> ZB (Int.(- r), Int.(- l))
+    | ZUL l -> ZUR Int.(- l)
+    | ZUR l -> ZUL Int.(- l)
     | ZU () -> ZU ()
 
-  let to_zero i = lub (singleton 0.) i
+  let to_zero i = lub (singleton 0) i
   
   let of_interval = function
     | (B (a, b) : SInterval.t) -> ZB (S.min_seconds a, S.max_seconds b)
