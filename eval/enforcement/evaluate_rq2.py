@@ -38,6 +38,7 @@ SIG = "examples/arfelt_et_al_2019.sig"
 LOG = "examples/arfelt_et_al_2019_repeatable.log"
 
 SUMMARY = "summary.csv"
+TABLE   = "table.csv"
 GRAPH   = "graph.png"
   
 PREFIX  = "> LATENCY "
@@ -57,6 +58,21 @@ def summary(df, step, a):
             "avg_time": df["out_time"].diff().mean(),
             "max_time": df["out_time"].diff().max(),
             "max_latency": df["latency"].max()}
+
+def table(df):
+    series = []
+    for formula, formula_df in df.groupby("formula"):
+        avg_df = formula_df.groupby(["formula", "a", "d1"]).mean()
+        ok_avg_df = avg_df[avg_df["max_latency"] <= avg_df.index.get_level_values("d1")].sort_index()
+        best_avg_s = ok_avg_df.iloc[-1]
+        series.append(pd.Series({"formula": formula,
+                                 "a": ok_avg_df.index.get_level_values("a")[-1],
+                                 "avg_latency": best_avg_s["avg_latency"],
+                                 "max_latency": best_avg_s["max_latency"],
+                                 "avg_time": best_avg_s["avg_time"],
+                                 "max_time": best_avg_s["max_time"],
+                                 "avg_ev": best_avg_s["avg_ev"]}))
+    return pd.DataFrame(series)
 
 def run_whymon(formula, step, a):
     command = COMMAND.format(SIG, formula)
@@ -135,7 +151,7 @@ if __name__ == '__main__':
         ACCELERATIONS = [5.12e7]
     else:
         ACCELERATIONS = [1e5, 2e5, 4e5, 8e5, 1.6e6, 3.2e6, 6.4e6, 1.28e7, 2.56e7, 5.12e7]
-    N             = 5
+    N             = 10
 
     print(f"Running evaluation for RQ2-3 on logs from Arfelt et al. (2019), OPTION = {OPTION}, SMOKE_TEST = {SMOKE_TEST}")
 
@@ -157,27 +173,27 @@ if __name__ == '__main__':
                     series.append(summ)
                     print(summ)
             
-        summary = pd.DataFrame(series)
-        summary.to_csv(os.path.join(OUT, SUMMARY), index=None)
+        summary_df = pd.DataFrame(series)
+        summary_df.to_csv(os.path.join(OUT, SUMMARY), index=False)
 
-    summary = pd.read_csv(os.path.join(OUT, SUMMARY))
+    summary_df = pd.read_csv(os.path.join(OUT, SUMMARY))
 
-    summary = summary[["formula", "a", "avg_ev", "avg_latency", "max_latency", "avg_time", "max_time"]]
-    summary["d1"] = (1000*24*3600) / summary["a"]
+    summary_df = summary_df[["formula", "a", "avg_ev", "avg_latency", "max_latency", "avg_time", "max_time"]]
+    summary_df["d1"] = (1000*24*3600) / summary_df["a"]
+
+    print(table(summary_df).to_string())
 
     fig, ax2 = plt.subplots(1, 1, figsize=(7.5, 3))
     ax = ax2.twinx()
     
-    d1 = summary[["a", "d1"]].groupby("a").mean()
+    d1 = summary_df[["a", "d1"]].groupby("a").mean()
     ax.plot(d1.index, d1["d1"], "k--", label="$1/a$", linewidth=1.5)
             
     for desc in FORMULAE_WHYENF:
-        s = summary[summary["formula"] == desc][["a", "max_latency"]].groupby("a").mean()
+        s = summary_df[summary_df["formula"] == desc][["a", "max_latency"]].groupby("a").mean()
         ax.plot(s.index, s["max_latency"], label=f'“{desc}”', linewidth=1.5)
 
-    print(summary)
-    
-    ae = summary[["a", "avg_ev"]].groupby("a").mean()
+    ae = summary_df[["a", "avg_ev"]].groupby("a").mean()
     ax2.plot(ae.index, ae["avg_ev"], "k:", label="avg. event rate", linewidth=0.5)
 
     ax2.set_xlabel("acceleration $a$")

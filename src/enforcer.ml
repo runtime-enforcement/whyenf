@@ -193,7 +193,9 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
               (Setc.union_list (module Dom))
               v x p with
       | Setc.Finite s -> es, Set.elements s
-      | _ -> failwith ("Infinite set of candidates for " ^ x ^ " in " ^ MFormula.to_string mf)
+      | s -> Stdio.printf "Infinite set of candidates for %s in %s: from %s collected %s\n"
+               x (MFormula.to_string mf) (Monitor.CI.Expl.to_string p) (Setc.to_string s);
+             failwith "Internal error: Infinite set of candidates in all_not_sat"
 
     let all_not_vio v x mf es =
       let es, p = exec_monitor (MFormula.map_mf mf mf.filter (fun mf -> MNeg mf)) es in
@@ -203,7 +205,9 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
               (Setc.inter_list (module Dom))
               v x p with
       | Setc.Finite s -> es, Set.elements s
-      | _ -> failwith ("Infinite set of candidates for " ^ x ^ " in " ^ MFormula.to_string mf)
+      | s -> Stdio.printf "Infinite set of candidates for %s in %s: from %s collected %s\n"
+               x (MFormula.to_string mf) (Monitor.CI.Expl.to_string p) (Setc.to_string s);
+             failwith "Internal error: Infinite set of candidates in all_not_vio"
 
     let can_skip es mformula =
       not (Formula.Filter.eval es.db mformula.filter)
