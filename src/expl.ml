@@ -357,8 +357,6 @@ module Pdt = struct
          f_ex all_s
       | Node (LAll x', part) ->
          let all_s = List.concat (Part.map2 part (distribute x' (fun v p -> aux v x s p) v)) in
-         (*print_endline "--collect.LAll";
-         print_endline (String.concat ~sep:"," (List.map ~f:Setc.to_string all_s));*)
          f_all all_s
       | Node (LClos (f, terms, vars) as term, part) ->
          (match s, Part.get_trivial part with

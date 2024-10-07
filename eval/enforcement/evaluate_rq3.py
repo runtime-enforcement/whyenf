@@ -31,6 +31,7 @@ FORMULAE_WHYENF = {
     "Information": "information",
     "Limitation":  "limitation",
     "Deletion":    "deletion",
+    "GDPR":        "gdpr",
 }
 
 SIG = "examples/arfelt_et_al_2019.sig"
@@ -162,23 +163,24 @@ if __name__ == '__main__':
                     series.append(summ)
                     print(summ)
             
-        summary = pd.DataFrame(series)
+        summary_df = pd.DataFrame(series)
+        summary_df.to_csv(os.path.join(OUT, summary_fn), index=False)
 
-    summary = pd.read_csv(os.path.join(OUT, summary_fn))
+    summary_df = pd.read_csv(os.path.join(OUT, summary_fn))
 
-    summary = summary[["formula", "k", "n", "avg_time", "max_time"]]
+    summary_df = summary_df[["formula", "k", "n", "avg_time", "max_time"]]
 
     fig_k, ax_k = plt.subplots(1, 1, figsize=(7.5, 3))
     fig_n, ax_n = plt.subplots(1, 1, figsize=(7.5, 3))
                 
     for desc in FORMULAE_WHYENF:
-        s_max = summary[(summary["formula"] == desc) & (summary["n"] == SYNTHETIC_N)][["k", "max_time"]].groupby("k").mean()
-        s_avg = summary[(summary["formula"] == desc) & (summary["n"] == SYNTHETIC_N)][["k", "avg_time"]].groupby("k").mean()
+        s_max = summary_df[(summary_df["formula"] == desc) & (summary_df["n"] == SYNTHETIC_N)][["k", "max_time"]].groupby("k").mean()
+        s_avg = summary_df[(summary_df["formula"] == desc) & (summary_df["n"] == SYNTHETIC_N)][["k", "avg_time"]].groupby("k").mean()
         ax_k.plot(s_avg.index, s_avg["avg_time"], label=f'“{desc}” ($\mathsf{{avg}}_t$)', linewidth=1.5)
 
     for desc in FORMULAE_WHYENF:
-        s_max = summary[(summary["formula"] == desc) & (summary["k"] == SYNTHETIC_K)][["n", "max_time"]].groupby("n").mean()
-        s_avg = summary[(summary["formula"] == desc) & (summary["k"] == SYNTHETIC_K)][["n", "avg_time"]].groupby("n").mean()
+        s_max = summary_df[(summary_df["formula"] == desc) & (summary_df["k"] == SYNTHETIC_K)][["n", "max_time"]].groupby("n").mean()
+        s_avg = summary_df[(summary_df["formula"] == desc) & (summary_df["k"] == SYNTHETIC_K)][["n", "avg_time"]].groupby("n").mean()
         ax_n.plot(s_avg.index, s_avg["avg_time"], label=f'“{desc}” ($\mathsf{{avg}}_t$)', linewidth=1.5)
 
     ax_k.set_xlabel("$k$")

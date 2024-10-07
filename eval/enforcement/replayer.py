@@ -4,9 +4,14 @@ from time import time, sleep
 from multiprocessing import Process, Manager, Lock, Queue, TimeoutError
 from io import StringIO
 from tqdm import tqdm
+import re
+
+def read_log(log):
+    df = pd.read_csv(log, header=None, names=["ts", "line"], sep="|")
+    return df
 
 def feeder(log, acc, p, q, queuing, lock):
-    df = pd.read_csv(log, header=None, names=["ts", "line"], sep="|")
+    df = read_log(log)
     df["ts"] -= df["ts"].iloc[0]
     t0 = time()
     data = []

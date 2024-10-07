@@ -167,7 +167,7 @@ let rec types (t: EnfType.t) (pgs: pg_map) (f: Formula.t) =
       | TT -> Possible CTT
       | Predicate (e, ts) ->
          let fvs = Etc.dedup ~equal:String.equal (Term.fv_list ts) in
-         let es  = List.map fvs ~f:(Map.find_exn pgs) in
+         let es  = List.map fvs ~f:(fun x -> Option.value (Map.find pgs x) ~default:[]) in
          (match List.map ~f:(Set.union_list (module String)) (Etc.cartesian es) with
           | [] -> Impossible (EFormula (None, f, t))            
           | es_ncau_list ->
@@ -468,8 +468,8 @@ let rec convert b enftype form types : Dom.ctxt * Tformula.t option =
            let types, since_f = Tformula.of_formula (Since (N, i, f, g)) types in
            apply2 (convert Sup f) (convert Sup g)
              (fun mf mg ->
-               let f = Tformula.TAnd (L, [mg; since_f]) in
-               Tformula.TOr (L, [mf; {f; enftype = Sup; filter = Filter._true}])) types
+               let f = Tformula.TAnd (L, [mf; since_f]) in
+               Tformula.TOr (L, [mg; {f; enftype = Sup; filter = Filter._true}])) types
         | Eventually (i, f) ->
            apply1 ~temporal:true (convert Sup f)
              (fun mf -> Tformula.TEventually (i, true, mf)) types

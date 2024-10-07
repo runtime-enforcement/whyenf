@@ -461,7 +461,7 @@ let rec check_app types f trms tt =
                   f (Dom.tt_to_string (Sig.ret_tt_of_func f)) (Dom.tt_to_string tt)))
 
 and check_term types tt trm =
-  (*print_endline ("check_term(" ^ Term.to_string trm ^ ": " ^Dom.tt_to_string tt ^ ")");*)
+  print_endline ("check_term(" ^ Term.to_string trm ^ ": " ^Dom.tt_to_string tt ^ ")");
   match trm with
   | Term.Var x    -> (check_var types x tt,   trm)
   | Const c       -> (check_const types c tt, trm)
