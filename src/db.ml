@@ -88,11 +88,11 @@ let filter db ~f = set_trace { db with events = Set.filter db.events ~f }
 let event name consts =
   let pred_sig = Hashtbl.find_exn Pred.Sig.table name in
   if Pred.Sig.arity pred_sig = List.length consts then
-    (name, List.map2_exn (Pred.Sig.arg_tts pred_sig) consts
+    (name, List.map2_exn (Pred.Sig.arg_ttts pred_sig) consts
              ~f:(fun tc c -> match snd tc with
-                             | TInt -> Dom.Int (Int.of_string c)
-                             | TStr -> Str c
-                             | TFloat -> Float (Float.of_string c)))
+                             | TConst TInt -> Dom.Int (Int.of_string c)
+                             | TConst TStr -> Str c
+                             | TConst TFloat -> Float (Float.of_string c)))
   else raise (Invalid_argument (Printf.sprintf "predicate %s has arity %d" name (Pred.Sig.arity pred_sig)))
 
 let add_event db evt = set_trace { db with events = Set.add db.events evt }
@@ -111,7 +111,7 @@ let to_json db =
                           Event.to_json evt :: acc)))) ^ "] "
 
 let retrieve_external name =
-  let tts = Pred.Sig.arg_tts_of_pred name in
+  let tts = List.map ~f:Ctxt.unconst (Pred.Sig.arg_ttts_of_pred name) in
   let dom_list_list = Funcs.Python.retrieve_db name tts in
   let events: Event.t list = List.map dom_list_list (fun dom_list -> (name, dom_list)) in
   create events

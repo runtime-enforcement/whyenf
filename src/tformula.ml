@@ -40,7 +40,7 @@ and t = {
     filter:  Filter.filter;
   } [@@deriving compare, hash, sexp_of]
 
-let rec core_of_formula f (types: Dom.ctxt) =
+let rec core_of_formula f (types: Ctxt.t) =
   let f_q ?(true_ok=true) f x =
     if Formula.is_past_guarded x true f then
       true
@@ -65,13 +65,13 @@ let rec core_of_formula f (types: Dom.ctxt) =
   | TT -> types, TTT
   | FF -> types, TFF
   | EqConst (trm, c) ->
-     let types, trm = Pred.check_term types (Dom.tt_of_domain c) trm in
+     let types, _ = Sig.check_term types (Ctxt.TConst (Dom.tt_of_domain c)) trm in
      types, TEqConst (trm, c)
   | Predicate (e, trms) when not (Sig.equal_pred_kind (Sig.kind_of_pred e) Sig.Predicate) ->
-     let types, trms = Pred.check_terms types e trms in
+     let types, _ = Sig.check_terms types e trms in
      types, TPredicate (e, trms)
   | Predicate (e, trms) ->
-     let types, trms = Pred.check_terms types e trms in
+     let types, _ = Sig.check_terms types e trms in
      types, TEqConst (Term.App (e, trms), Dom.Int 1)
   | Agg (s, op, x, y, f) ->
      let types, mf = of_formula f types in
@@ -106,10 +106,10 @@ let rec core_of_formula f (types: Dom.ctxt) =
      (*print_endline "--core_of_formula.Exists";
      print_endline (Formula.to_string f);*)
      (*Map.iteri types ~f:(fun ~key ~data -> print_endline (key ^ " -> " ^ Dom.tt_to_string data));*)
-     types, TExists (x, Map.find_exn types x, f_q_nonvar f x, mf)
+     types, TExists (x, Ctxt.get_tt_exn x types, f_q_nonvar f x, mf)
   | Forall (x, f) ->
      let types, mf = of_formula f types in
-     types, TForall (x, Map.find_exn types x, f_q_nonvar f x, mf)
+     types, TForall (x, Ctxt.get_tt_exn x types, f_q_nonvar f x, mf)
   | Prev (i, f) ->
      let types, mf = of_formula f types in
      types, TPrev (i, mf)
@@ -137,12 +137,12 @@ let rec core_of_formula f (types: Dom.ctxt) =
      let types, mg = of_formula g types in
      types, TUntil (s, i, true, mf, mg)
 
-and of_formula f (types: Dom.ctxt) =
+and of_formula f (types: Ctxt.t) =
   let types, f = core_of_formula f types in
   types, { f; enftype = EnfType.Obs; filter = Filter._true }
 
 let of_formula' f =
-  snd (of_formula f (Map.empty (module String)))
+  snd (of_formula f Ctxt.empty)
 
 let rec rank = function
   | TTT | TFF -> 0

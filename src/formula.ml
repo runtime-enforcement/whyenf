@@ -715,14 +715,8 @@ let check_agg types s op x y f =
   | None -> raise (Invalid_argument (
                        Printf.sprintf "type clash for operator %s: invalid type %s"
                          (Aggregation.op_to_string op) (Dom.tt_to_string x_tt)))
-  | Some s_tt when Map.mem types s && not (Dom.tt_equal s_tt (Map.find_exn types s)) ->
-     raise (Invalid_argument (
-                Printf.sprintf "type clash for return type of operator %s: found %s, expected %s"
-                  (Aggregation.op_to_string op)
-                  (Dom.tt_to_string s_tt)
-                  (Dom.tt_to_string (Map.find_exn types s))))
   | Some s_tt ->
-     let types = Map.update types s ~f:(fun _ -> s_tt) in
+     let types, _ = Pred.Sig.check_var types s (Ctxt.TConst s_tt) in
      let vars = (Term.fv_list [x]) @ y in
      let fv = fv f in
      List.iter vars ~f:(

@@ -256,7 +256,7 @@ let rec types (t: EnfType.t) (pgs: pg_map) (f: Formula.t) =
 
 
 
-let rec convert b enftype form types : Dom.ctxt * Tformula.t option =
+let rec convert b enftype form (types: Ctxt.t) : Ctxt.t * Tformula.t option =
   let convert = convert b in
   let default_L (s: Side.t) = if Side.equal s R then Side.R else L in
   let opt_filter = function
@@ -290,7 +290,7 @@ let rec convert b enftype form types : Dom.ctxt * Tformula.t option =
         match form with
         | TT -> types, Some (Tformula.TTT), Filter._true
         | Predicate (e, trms) when EnfType.is_causable (Pred.Sig.enftype_of_pred e) ->
-           let types, trms = check_terms types e trms in
+           let types, _ = Sig.check_terms types e trms in
            types, Some (Tformula.TPredicate (e, trms)), Filter._true
         | Neg f -> apply1 (convert Sup f) (fun mf -> Tformula.TNeg mf) types 
         | And (s, f, g) -> apply2 (convert Cau f) (convert Cau g)
@@ -368,13 +368,13 @@ let rec convert b enftype form types : Dom.ctxt * Tformula.t option =
         | Exists (x, f) ->
            begin
              match convert Cau f types with
-             | types, Some mf -> types, Some (Tformula.TExists (x, Map.find_exn types x, true, mf)), mf.filter
+             | types, Some mf -> types, Some (Tformula.TExists (x, Ctxt.get_tt_exn x types, true, mf)), mf.filter
              | types, None    -> types, None, Filter._true
            end
         | Forall (x, f) when is_past_guarded x false f ->
            begin
              match convert Cau f types with
-             | types, Some mf -> types, Some (Tformula.TForall (x, Map.find_exn types x, false, mf)), mf.filter
+             | types, Some mf -> types, Some (Tformula.TForall (x, Ctxt.get_tt_exn x types, false, mf)), mf.filter
              | types, None    -> types, None, Filter._true
            end
         | Next (i, f) when Interval.has_zero i && not (Interval.is_zero i) -> 
@@ -406,7 +406,7 @@ let rec convert b enftype form types : Dom.ctxt * Tformula.t option =
         match form with
         | FF -> types, Some (Tformula.TFF), Filter._true
         | Predicate (e, trms) when EnfType.is_suppressable (Pred.Sig.enftype_of_pred e) ->
-           let types, trms = check_terms types e trms in
+           let types, _ = Sig.check_terms types e trms in
            types, Some (Tformula.TPredicate (e, trms)), Filter.An e
         | Neg f -> apply1 (convert Cau f) (fun mf -> Tformula.TNeg mf) types
         | And (L, f, g) -> apply2' (convert Sup f) (Tformula.of_formula g)
@@ -448,13 +448,13 @@ let rec convert b enftype form types : Dom.ctxt * Tformula.t option =
         | Exists (x, f) when is_past_guarded x true f ->
            begin
              match convert Sup f types with
-             | types, Some mf -> types, Some (Tformula.TExists (x, Map.find_exn types x, true, mf)), mf.filter
+             | types, Some mf -> types, Some (Tformula.TExists (x, Ctxt.get_tt_exn x types, true, mf)), mf.filter
              | types, None    -> types, None, Filter._true
            end
         | Forall (x, f) ->
            begin
              match convert Sup f types with
-             | types, Some mf -> types, Some (Tformula.TForall (x, Map.find_exn types x, false, mf)), mf.filter
+             | types, Some mf -> types, Some (Tformula.TForall (x, Ctxt.get_tt_exn x types, false, mf)), mf.filter
              | types, None    -> types, None, Filter._true
            end
         | Next (i, f) -> apply1 ~temporal:true (convert Sup f) (fun mf -> Tformula.TNext (i, mf)) types
@@ -514,7 +514,7 @@ let rec convert b enftype form types : Dom.ctxt * Tformula.t option =
   types, r
 
 let convert' b enftype f =
-  snd (convert b Cau f (Map.empty (module String)))
+  snd (convert b Cau f Ctxt.empty)
 
 let do_type f b =
   let f = Formula.unroll_let f in

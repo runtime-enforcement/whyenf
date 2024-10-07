@@ -97,7 +97,7 @@ val to_latex: t -> string
 val solve_past_guarded: string -> bool -> t -> (string, Base.String.comparator_witness) Base.Set.t list
 val is_past_guarded: string -> bool -> t -> bool
 
-val check_agg: (string, Dom.tt, Base.String.comparator_witness) Base.Map.t -> string -> Aggregation.op -> Term.t -> string list -> t -> (string, Dom.tt, Base.String.comparator_witness) Base.Map.t
+val check_agg: Ctxt.t -> string -> Aggregation.op -> Term.t -> string list -> t -> Ctxt.t
 
 val unroll_let: t -> t
 

@@ -82,7 +82,7 @@ module Sig : sig
   type pred_kind = Trace | Predicate | External | Builtin | Let [@@deriving compare, sexp_of, hash, equal]
 
   type pred = { arity: int;
-                arg_tts: (string * Dom.tt) list;
+                arg_ttts: (string * Ctxt.ttt) list;
                 enftype: EnfType.t;
                 rank: int;
                 kind: pred_kind } [@@deriving compare, sexp_of, hash]
@@ -95,7 +95,7 @@ module Sig : sig
 
   val table: t
 
-  val add_letpred: string -> (string * Dom.tt) list -> unit
+  val add_letpred: string -> (string * Ctxt.ttt) list -> unit
   val add_pred: string -> (string * Dom.tt) list -> EnfType.t -> int -> pred_kind -> unit
 
   val add_func: string -> (string * Dom.tt) list -> Dom.tt -> Funcs.kind -> bool -> unit
@@ -103,7 +103,7 @@ module Sig : sig
   val update_enftype: string -> EnfType.t -> unit
 
   val vars_of_pred: string -> string list
-  val arg_tts_of_pred: string -> Dom.tt list
+  val arg_ttts_of_pred: string -> Ctxt.ttt list
   val enftype_of_pred: string -> EnfType.t
   val rank_of_pred: string -> int
   val kind_of_pred: string -> pred_kind
@@ -112,17 +112,23 @@ module Sig : sig
 
   val arity: ty -> int
 
-  val arg_tts: ty -> (string * Dom.tt) list
+  val arg_ttts: ty -> (string * Ctxt.ttt) list
 
   val eval: Etc.valuation -> Term.t -> Term.t
   val set_eval: Setc.valuation -> Term.t -> (Term.t, Term.comparator_witness) Setc.t
 
-  val var_tt_of_term: string -> Dom.tt -> Term.t -> Dom.tt option
-  val var_tt_of_terms: string -> Dom.tt list -> Term.t list -> Dom.tt option
+  (*val var_tt_of_term: string -> Dom.tt -> Term.t -> Dom.tt option
+  val var_tt_of_terms: string -> Dom.tt list -> Term.t list -> Dom.tt option*)
 
-  val tt_of_term_exn: (string, Dom.tt, String.comparator_witness) Map.t -> Term.t -> Dom.tt
+  val tt_of_term_exn: Ctxt.t -> Term.t -> Dom.tt
 
   val is_strict: Term.t list -> bool
+
+  val check_const: Ctxt.t -> Dom.t -> Ctxt.ttt -> Ctxt.t * Ctxt.ttt
+  val check_var:   Ctxt.t -> string -> Ctxt.ttt -> Ctxt.t * Ctxt.ttt
+  val check_app:   Ctxt.t -> string -> Term.t list -> Ctxt.ttt -> Ctxt.t * Ctxt.ttt
+  val check_term:  Ctxt.t -> Ctxt.ttt -> Term.t -> Ctxt.t * Ctxt.ttt
+  val check_terms: Ctxt.t -> string -> Term.t list -> Ctxt.t * Ctxt.ttt list
 
 end
 
@@ -177,9 +183,3 @@ module Lbl : sig
 end
 
 
-val check_const: (string, Dom.tt, 'a) Map.t -> Dom.t -> Dom.tt -> (string, Dom.tt, 'a) Map.t
-val check_var: (string, Dom.tt, 'a) Map.t -> string -> Dom.tt -> (string, Dom.tt, 'a) Map.t
-val check_app: (string, Dom.tt, 'a) Map.t -> string -> Term.t list -> Dom.tt -> (string, Dom.tt, 'a) Map.t * Term.t
-
-val check_term: (string, Dom.tt, 'a) Map.t -> Dom.tt -> Term.t -> (string, Dom.tt, 'a) Map.t * Term.t
-val check_terms: (string, Dom.tt, 'a) Map.t -> string -> Term.t list ->  (string, Dom.tt, 'a) Map.t  * Term.t list

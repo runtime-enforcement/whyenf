@@ -40,17 +40,17 @@ type kind =
 
 type t =
   { arity: int;
-    arg_tts: (string * Dom.tt) list;
-    ret_tt: Dom.tt;
+    arg_ttts: (string * Ctxt.ttt) list;
+    ret_ttt: Ctxt.ttt;
     kind: kind;
     strict: bool
   }
 
 let to_string name func =
-  let f acc (var, tt) = acc ^ "," ^ var ^ ":" ^ (Dom.tt_to_string tt) in
+  let f acc (var, tt) = acc ^ "," ^ var ^ ":" ^ (Ctxt.ttt_to_string tt) in
   Printf.sprintf "%s(%s) : %s" name
-    (String.drop_prefix (List.fold func.arg_tts ~init:"" ~f) 1)
-    (Dom.tt_to_string func.ret_tt)
+    (String.drop_prefix (List.fold func.arg_ttts ~init:"" ~f) 1)
+    (Ctxt.ttt_to_string func.ret_ttt)
 
 let eq [x;y]  = Dom.Int (if x == y then 1 else 0)
 let neq [x;y] = Dom.Int (if x != y then 1 else 0)
@@ -68,24 +68,24 @@ let builtins =
     ("eq",
      {
        arity   = 2;
-       arg_tts = [("x", Dom.TInt); ("y", Dom.TInt)];
-       ret_tt  = Dom.TInt;
+       arg_ttts = [("x", Ctxt.TVar "a"); ("y", Ctxt.TVar "a")];
+       ret_ttt  = Ctxt.TConst Dom.TInt;
        kind    = Builtin eq;
        strict  = true;
     });
     ("neq",
      {
        arity   = 2;
-       arg_tts = [("x", Dom.TInt); ("y", Dom.TInt)];
-       ret_tt  = Dom.TInt;
+       arg_ttts = [("x", Ctxt.TVar "a"); ("y", Ctxt.TVar "a")];
+       ret_ttt  = Ctxt.TConst Dom.TInt;
        kind    = Builtin neq;
        strict  = true;
     });
     ("lt",
      {
        arity   = 2;
-       arg_tts = [("x", Dom.TInt); ("y", Dom.TInt)];
-       ret_tt  = Dom.TInt;
+       arg_ttts = [("x", Ctxt.TVar "a"); ("y", Ctxt.TVar "a")];
+       ret_ttt  = Ctxt.TConst Dom.TInt;
        kind    = Builtin (fun [x;y] -> match x, y with Dom.Int i, Dom.Int j ->
                                          Int (if i < j then 1 else 0));
        strict  = true;
@@ -93,8 +93,8 @@ let builtins =
     ("leq",
      {
        arity   = 2;
-       arg_tts = [("x", Dom.TInt); ("y", Dom.TInt)];
-       ret_tt  = Dom.TInt;
+       arg_ttts = [("x", Ctxt.TVar "a"); ("y", Ctxt.TVar "a")];
+       ret_ttt  = Ctxt.TConst Dom.TInt;
        kind    = Builtin (fun [x;y] -> match x, y with Dom.Int i, Dom.Int j ->
                                          Int (if i <= j then 1 else 0));
        strict  = true;
@@ -102,8 +102,8 @@ let builtins =
     ("gt",
      {
        arity   = 2;
-       arg_tts = [("x", Dom.TInt); ("y", Dom.TInt)];
-       ret_tt  = Dom.TInt;
+       arg_ttts = [("x", Ctxt.TVar "a"); ("y", Ctxt.TVar "a")];
+       ret_ttt  = Ctxt.TConst Dom.TInt;
        kind    = Builtin (fun [x;y] -> match x, y with Dom.Int i, Dom.Int j ->
                                          Int (if i > j then 1 else 0));
        strict  = true;
@@ -111,8 +111,8 @@ let builtins =
     ("geq",
      {
        arity   = 2;
-       arg_tts = [("x", Dom.TInt); ("y", Dom.TInt)];
-       ret_tt  = Dom.TInt;
+       arg_ttts = [("x", Ctxt.TVar "a"); ("y", Ctxt.TVar "a")];
+       ret_ttt  = Ctxt.TConst Dom.TInt;
        kind    = Builtin (fun [x;y] -> match x, y with Dom.Int i, Dom.Int j ->
                                          Int (if i >= j then 1 else 0));
        strict  = true;
@@ -120,172 +120,104 @@ let builtins =
     ("add",
      {
        arity   = 2;
-       arg_tts = [("x", Dom.TInt); ("y", Dom.TInt)];
-       ret_tt  = Dom.TInt;
+       arg_ttts = [("x", Ctxt.TConst Dom.TInt); ("y", Ctxt.TConst Dom.TInt)];
+       ret_ttt  = Ctxt.TConst Dom.TInt;
        kind    = Builtin (fun [x;y] -> match x, y with Dom.Int i, Dom.Int j -> Int (i+j));
        strict  = false;
     });
     ("sub",
      {
        arity   = 2;
-       arg_tts = [("x", Dom.TInt); ("y", Dom.TInt)];
-       ret_tt  = Dom.TInt;
+       arg_ttts = [("x", Ctxt.TConst Dom.TInt); ("y", Ctxt.TConst Dom.TInt)];
+       ret_ttt  = Ctxt.TConst Dom.TInt;
        kind    = Builtin (fun [x;y] -> match x, y with Dom.Int i, Dom.Int j -> Int (i-j));
        strict  = false;
     });
     ("mul",
      {
        arity   = 2;
-       arg_tts = [("x", Dom.TInt); ("y", Dom.TInt)];
-       ret_tt  = Dom.TInt;
+       arg_ttts = [("x", Ctxt.TConst Dom.TInt); ("y", Ctxt.TConst Dom.TInt)];
+       ret_ttt  = Ctxt.TConst Dom.TInt;
        kind    = Builtin (fun [x;y] -> match x, y with Dom.Int i, Dom.Int j -> Int (i*j));
        strict  = false;
     });
     ("div",
      {
        arity   = 2;
-       arg_tts = [("x", Dom.TInt); ("y", Dom.TInt)];
-       ret_tt  = Dom.TInt;
+       arg_ttts = [("x", Ctxt.TConst Dom.TInt); ("y", Ctxt.TConst Dom.TInt)];
+       ret_ttt  = Ctxt.TConst Dom.TInt;
        kind    = Builtin (fun [x;y] -> match x, y with Dom.Int i, Dom.Int j -> Int (i/j));
        strict  = false;
     });
     ("pow",
      {
        arity   = 2;
-       arg_tts = [("x", Dom.TInt); ("y", Dom.TInt)];
-       ret_tt  = Dom.TInt;
+       arg_ttts = [("x", Ctxt.TConst Dom.TInt); ("y", Ctxt.TConst Dom.TInt)];
+       ret_ttt  = Ctxt.TConst Dom.TInt;
        kind    = Builtin (fun [x;y] -> match x, y with Dom.Int i, Dom.Int j -> Int (Int.pow i j));
        strict  = false;
-    });
-    ("feq",
-     {
-       arity   = 2;
-       arg_tts = [("x", Dom.TFloat); ("y", Dom.TFloat)];
-       ret_tt  = Dom.TInt;
-       kind    = Builtin eq;
-       strict  = true;
-    });
-    ("fneq",
-     {
-       arity   = 2;
-       arg_tts = [("x", Dom.TFloat); ("y", Dom.TFloat)];
-       ret_tt  = Dom.TInt;
-       kind    = Builtin neq;
-       strict  = true;
-    });
-    ("flt",
-     {
-       arity   = 2;
-       arg_tts = [("x", Dom.TFloat); ("y", Dom.TFloat)];
-       ret_tt  = Dom.TInt;
-       kind    = Builtin (fun [x;y] -> match x, y with Dom.Float i, Dom.Float j ->
-                                         Int (if Float.(i < j) then 1 else 0));
-       strict  = true;
-    });
-    ("fleq",
-     {
-       arity   = 2;
-       arg_tts = [("x", Dom.TFloat); ("y", Dom.TFloat)];
-       ret_tt  = Dom.TInt;
-       kind    = Builtin (fun [x;y] -> match x, y with Dom.Float i, Dom.Float j ->
-                                         Int (if Float.(i <= j) then 1 else 0));
-       strict  = true;
-    });
-    ("fgt",
-     {
-       arity   = 2;
-       arg_tts = [("x", Dom.TFloat); ("y", Dom.TFloat)];
-       ret_tt  = Dom.TInt;
-       kind    = Builtin (fun [x;y] -> match x, y with Dom.Float i, Dom.Float j ->
-                                         Int (if Float.(i > j) then 1 else 0));
-       strict  = true;
-    });
-    ("fgeq",
-     {
-       arity   = 2;
-       arg_tts = [("x", Dom.TFloat); ("y", Dom.TFloat)];
-       ret_tt  = Dom.TInt;
-       kind    = Builtin (fun [x;y] -> match x, y with Dom.Float i, Dom.Float j ->
-                                         Int (if Float.(i >= j) then 1 else 0));
-       strict  = true;
     });
     ("fadd",
      {
        arity   = 2;
-       arg_tts = [("x", Dom.TFloat); ("y", Dom.TFloat)];
-       ret_tt  = Dom.TFloat;
+       arg_ttts = [("x", Ctxt.TConst Dom.TFloat); ("y", Ctxt.TConst Dom.TFloat)];
+       ret_ttt  = Ctxt.TConst Dom.TFloat;
        kind    = Builtin (fun [x;y] -> match x, y with Dom.Float i, Dom.Float j -> Float (i+.j));
        strict  = false;
     });
     ("fsub",
      {
        arity   = 2;
-       arg_tts = [("x", Dom.TFloat); ("y", Dom.TFloat)];
-       ret_tt  = Dom.TFloat;
+       arg_ttts = [("x", Ctxt.TConst Dom.TFloat); ("y", Ctxt.TConst Dom.TFloat)];
+       ret_ttt  = Ctxt.TConst Dom.TFloat;
        kind    = Builtin (fun [x;y] -> match x, y with Dom.Float i, Dom.Float j -> Float (i-.j));
        strict  = false;
     });
     ("fmul",
      {
        arity   = 2;
-       arg_tts = [("x", Dom.TFloat); ("y", Dom.TFloat)];
-       ret_tt  = Dom.TFloat;
+       arg_ttts = [("x", Ctxt.TConst Dom.TFloat); ("y", Ctxt.TConst Dom.TFloat)];
+       ret_ttt  = Ctxt.TConst Dom.TFloat;
        kind    = Builtin (fun [x;y] -> match x, y with Dom.Float i, Dom.Float j -> Float (i*.j));
        strict  = false;
     });
     ("fdiv",
      {
        arity   = 2;
-       arg_tts = [("x", Dom.TFloat); ("y", Dom.TFloat)];
-       ret_tt  = Dom.TFloat;
+       arg_ttts = [("x", Ctxt.TConst Dom.TFloat); ("y", Ctxt.TConst Dom.TFloat)];
+       ret_ttt  = Ctxt.TConst Dom.TFloat;
        kind    = Builtin (fun [x;y] -> match x, y with Dom.Float i, Dom.Float j -> Float (i/.j));
        strict  = false;
     });
     ("fpow",
      {
        arity   = 2;
-       arg_tts = [("x", Dom.TFloat); ("y", Dom.TFloat)];
-       ret_tt  = Dom.TFloat;
+       arg_ttts = [("x", Ctxt.TConst Dom.TFloat); ("y", Ctxt.TConst Dom.TFloat)];
+       ret_ttt  = Ctxt.TConst Dom.TFloat;
        kind    = Builtin (fun [x;y] -> match x, y with Dom.Float i, Dom.Float j -> Float (i ** j));
        strict  = false;
-    });
-    ("seq",
-     {
-       arity   = 2;
-       arg_tts = [("x", Dom.TStr); ("y", Dom.TStr)];
-       ret_tt  = Dom.TInt;
-       kind    = Builtin eq;
-       strict  = true;
-    });
-    ("sneq",
-     {
-       arity   = 2;
-       arg_tts = [("x", Dom.TStr); ("y", Dom.TStr)];
-       ret_tt  = Dom.TInt;
-       kind    = Builtin neq;
-       strict  = true;
     });
     ("conc",
      {
        arity   = 2;
-       arg_tts = [("x", Dom.TStr); ("y", Dom.TStr)];
-       ret_tt  = Dom.TStr;
+       arg_ttts = [("x", Ctxt.TConst Dom.TStr); ("y", Ctxt.TConst Dom.TStr)];
+       ret_ttt  = Ctxt.TConst Dom.TStr;
        kind    = Builtin (fun [Str i; Str j] -> Str (i ^ j));
        strict  = false;
     });
     ("substr",
      {
        arity   = 2;
-       arg_tts = [("x", Dom.TStr); ("start", Dom.TInt); ("end", Dom.TInt)];
-       ret_tt  = Dom.TStr;
+       arg_ttts = [("x", Ctxt.TConst Dom.TStr); ("start", Ctxt.TConst Dom.TInt); ("end", Ctxt.TConst Dom.TInt)];
+       ret_ttt  = Ctxt.TConst Dom.TStr;
        kind    = Builtin (fun [Str i; Int j; Int k] -> Str (String.slice i j k));
        strict  = false;
     });
     ("match",
      {
        arity   = 2;
-       arg_tts = [("x", Dom.TStr); ("r", Dom.TStr)];
-       ret_tt  = Dom.TInt;
+       arg_ttts = [("x", Ctxt.TConst Dom.TStr); ("r", Ctxt.TConst Dom.TStr)];
+       ret_ttt  = Ctxt.TConst Dom.TInt;
        kind    = Builtin (fun [Str i; Str j] ->
                      if Str.string_match (Str.regexp j) i 0 then Dom.Int 1 else Dom.Int 0);
        strict  = false;
@@ -293,49 +225,34 @@ let builtins =
     ("string_of_int",
      {
        arity   = 1;
-       arg_tts = [("x", TInt)];
-       ret_tt  = Dom.TStr;
+       arg_ttts = [("x", Ctxt.TConst TInt)];
+       ret_ttt  = Ctxt.TConst Dom.TStr;
        kind    = Builtin (fun [Int i] -> Str (string_of_int i));
        strict  = false;
     });
     ("string_of_float",
      {
        arity   = 1;
-       arg_tts = [("x", TFloat)];
-       ret_tt  = TStr;
+       arg_ttts = [("x", Ctxt.TConst TFloat)];
+       ret_ttt  = Ctxt.TConst TStr;
        kind    = Builtin (fun [Float i] -> Str (string_of_float i));
        strict  = false;
     });
     ("int_of_float",
      {
        arity   = 1;
-       arg_tts = [("x", TFloat)];
-       ret_tt  = TInt;
+       arg_ttts = [("x", Ctxt.TConst TFloat)];
+       ret_ttt  = Ctxt.TConst TInt;
        kind    = Builtin (fun [Float i] -> Int (int_of_float i));
        strict  = false;
     });
     ("float_of_int",
      {
        arity   = 1;
-       arg_tts = [("x", TInt)];
-       ret_tt  = TFloat;
+       arg_ttts = [("x", Ctxt.TConst TInt)];
+       ret_ttt = Ctxt.TConst TFloat;
        kind    = Builtin (fun [Int i] -> Float (float_of_int i));
        strict  = false;
     });
   ]
 
-let autocast = [
-    ("eq",  [Dom.TFloat; Dom.TFloat], "feq");
-    ("neq", [Dom.TFloat; Dom.TFloat], "fneq");
-    ("lt",  [Dom.TFloat; Dom.TFloat], "flt");
-    ("leq", [Dom.TFloat; Dom.TFloat], "fleq");
-    ("gt",  [Dom.TFloat; Dom.TFloat], "fgt");
-    ("geq", [Dom.TFloat; Dom.TFloat], "fgeq");
-    ("add", [Dom.TFloat; Dom.TFloat], "fadd");
-    ("add", [Dom.TFloat; Dom.TFloat], "fadd");
-    ("mul", [Dom.TFloat; Dom.TFloat], "fmul");
-    ("div", [Dom.TFloat; Dom.TFloat], "fdiv");
-    ("pow", [Dom.TFloat; Dom.TFloat], "fpow");
-    ("eq",  [Dom.TStr;   Dom.TStr],   "seq");
-    ("neq", [Dom.TStr;   Dom.TStr],   "sneq");
-  ]
