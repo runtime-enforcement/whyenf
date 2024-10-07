@@ -315,5 +315,13 @@
         "log": "simple.log",
         "output": "44_not_closed.out",
         "success": false        
+    },
+    {
+        "label": "45_polymorphic_impossible",
+        "sig": "simple.sig",
+        "formula": "45_polymorphic_impossible.mfotl",
+        "log": "simple.log",
+        "output": "45_polymorphic_impossible.out",
+        "success": false        
     }
 ]

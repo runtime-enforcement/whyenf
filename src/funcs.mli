@@ -14,8 +14,8 @@ type kind =
 
 type t =
   { arity: int;
-    arg_tts: (string * Dom.tt) list;
-    ret_tt: Dom.tt;
+    arg_ttts: (string * Ctxt.ttt) list;
+    ret_ttt: Ctxt.ttt;
     kind: kind;
     strict: bool;
   }
@@ -26,4 +26,3 @@ val builtins: (string * t) list
 
 val is_eq: string -> bool
 
-val autocast: (string * Dom.tt list * string) list

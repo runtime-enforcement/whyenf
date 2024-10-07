@@ -16,8 +16,6 @@ module T = struct
 
   type t = Int of Int.t | Str of String.t | Float of Float.t [@@deriving compare, sexp_of, hash]
 
-  type ctxt = (string, tt, String.comparator_witness) Map.t
-
   let equal d d' = match d, d' with
     | Int v, Int v' -> Int.equal v v'
     | Str v, Str v' -> String.equal v v'
@@ -82,3 +80,4 @@ end
 
 include T
 include Comparator.Make(T)
+

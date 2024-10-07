@@ -49,7 +49,7 @@ val conj : Side.t -> t -> t -> EnfType.t -> t
 
 val op_to_string : t -> string
 
-val of_formula :  Formula.t -> Dom.ctxt -> Dom.ctxt * t
+val of_formula :  Formula.t -> Ctxt.t -> Ctxt.t * t
 val of_formula' : Formula.t -> t
 
 val ac_simplify : t -> t
