@@ -61,8 +61,8 @@ module Constraints = struct
     | CFF
     | CGeq of string * EnfType.t
     | CNLeqNCau of string * EnfType.t
-    | CConj of constr * constr
-    | CDisj of constr * constr [@@deriving compare, sexp_of]
+    | CConj of constr list
+    | CDisj of constr list [@@deriving equal, compare, sexp_of]
 
   type verdict = Possible of constr | Impossible of Errors.error
 
@@ -71,19 +71,46 @@ module Constraints = struct
   let geq s t = CGeq (s, t)
   let nleqncau s t = CNLeqNCau (s, t)
 
+  let rec ac_simplify = function
+    | CConj cs ->
+       let cs = List.map ~f:ac_simplify cs in
+       let f_has_ff = function CFF -> true | _ -> false in
+       (if List.exists cs ~f:f_has_ff then
+          CFF
+        else
+          let f_conjs = function CConj cs' -> Some cs' | _ -> None in
+          let f_not_conjs = function CConj cs' -> false | CTT -> false | _ -> true in
+          let cs_conjs = List.concat (List.filter_map cs ~f:f_conjs) in
+          let cs_not_conjs = List.filter cs ~f:f_not_conjs in
+          let cs' = Etc.dedup ~equal:equal_constr (cs_conjs @ cs_not_conjs) in
+          CConj cs')
+    | CDisj cs ->
+       let cs = List.map ~f:ac_simplify cs in
+       let f_has_tt = function CTT -> true | _ -> false in
+       (if List.exists cs ~f:f_has_tt then
+          CTT
+        else
+          let f_disjs = function CDisj cs' -> Some cs' | _ -> None in
+          let f_not_disjs = function CDisj cs' -> false | CFF -> false | _ -> true in
+          let cs_disjs = List.concat (List.filter_map cs ~f:f_disjs) in
+          let cs_not_disjs = List.filter cs ~f:f_not_disjs in
+          let cs' = Etc.dedup ~equal:equal_constr (cs_disjs @ cs_not_disjs) in
+          CDisj cs')
+    | c -> c
+
   let conj c d = match c, d with
     | Possible CTT, _ -> d
     | _, Possible CTT -> c
     | Impossible c, Impossible d -> Impossible (EConj (c, d))
     | Impossible c, _ | _, Impossible c -> Impossible c
-    | Possible c, Possible d -> Possible (CConj (c, d))
+    | Possible c, Possible d -> Possible (ac_simplify (CConj [c; d]))
 
   let disj c d = match c, d with
     | Impossible c, Impossible d -> Impossible (EDisj (c, d))
     | Impossible c, _ -> d
     | _, Impossible d -> c
     | Possible CTT, _ | _, Possible CTT -> Possible CTT
-    | Possible c, Possible d -> Possible (CDisj (c, d))
+    | Possible c, Possible d -> Possible (ac_simplify (CDisj [c; d]))
 
   let rec conjs = function
     | [] -> Possible CTT
@@ -125,16 +152,21 @@ module Constraints = struct
     | CGeq (s, t) -> [Map.singleton (module String) s (t, Some EnfType.Obs)]
     | CNLeqNCau (s, t) -> [Map.singleton (module String) s (EnfType.join EnfType.SCau t, None);
                            Map.singleton (module String) s (EnfType.join EnfType.Sup t,  None)]
-    | CConj (c, d) -> List.filter_map (cartesian (solve c) (solve d)) ~f:try_merge
-    | CDisj (c, d) -> (solve c) @ (solve d)
+    | CConj [] -> [Map.empty (module String)]
+    | CConj (c::cs) ->
+       let f sol d = List.filter_map (cartesian sol (solve d)) ~f:try_merge in
+       List.fold_left cs ~init:(solve c) ~f
+    | CDisj cs -> List.concat_map cs ~f:solve
 
   let rec to_string_rec l = function
     | CTT -> Printf.sprintf "⊤"
     | CFF -> Printf.sprintf "⊥"
     | CGeq (s, t) -> Printf.sprintf "t(%s) ⋡ Obs ∧ t(%s) ≽ %s" s s (EnfType.to_string t)
     | CNLeqNCau (s, t) -> Printf.sprintf "NCau ⋡ t(%s)" s 
-    | CConj (c, d) -> Printf.sprintf (Etc.paren l 4 "%a ∧ %a") (fun x -> to_string_rec 4) c (fun x -> to_string_rec 4) d
-    | CDisj (c, d) -> Printf.sprintf (Etc.paren l 3 "%a ∨ %a") (fun x -> to_string_rec 3) c (fun x -> to_string_rec 4) d
+    | CConj cs -> Printf.sprintf (Etc.paren l 4 "%s")
+                    (String.concat ~sep:" ∧ " (List.map ~f:(to_string_rec 4) cs))
+    | CDisj cs -> Printf.sprintf (Etc.paren l 3 "%s")
+                    (String.concat ~sep:" ∨ " (List.map ~f:(to_string_rec 3) cs))
 
   let to_string = to_string_rec 0
 
@@ -518,6 +550,7 @@ let convert' b enftype f =
 
 let do_type f b =
   let f = Formula.unroll_let f in
+  (*print_endline (Formula.to_string f);*)
   if not (Set.is_empty (Formula.fv f)) then (
     Stdio.print_endline ("The formula\n "
                          ^ Formula.to_string f
@@ -527,7 +560,7 @@ let do_type f b =
   match types Cau (Map.empty (module String)) f with
   | Possible c ->
      begin
-       (*print_endline (Constraints.to_string c);*)
+       let c = Constraints.ac_simplify c in
        match Constraints.solve c with
        | sol::_ ->
           begin

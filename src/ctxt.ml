@@ -77,6 +77,11 @@ type t = { types: (string, ttt, String.comparator_witness) Map.t;
            next_var: int;
            next_tv: int }
 
+let empty = { types = Map.empty (module String);
+              tvs = UnionFind.empty;
+              next_var = 0;
+              next_tv = 0 }
+
 let fresh_var ctxt =
   { ctxt with next_var = ctxt.next_var + 1 }, "~v" ^ string_of_int ctxt.next_var
 
@@ -90,11 +95,44 @@ let merge v tv ttt_new ctxt =
   match ttt_new with
   | TConst tt -> (match UnionFind.find ctxt.tvs tv with
                   | tvs, Some tt' when Dom.tt_equal tt tt' -> { ctxt with tvs }
-                  | _  , Some tt' ->  raise (Invalid_argument (
-                                            Printf.sprintf "type clash for %s: found %s, expected %s"
-                                              v (tt_to_string tt) (tt_to_string tt')))
+                  | _  , Some tt' ->
+                     raise (Invalid_argument (
+                                Printf.sprintf "type clash for %s: found %s, expected %s"
+                                  v (tt_to_string tt) (tt_to_string tt')))
                   | tvs, None -> { ctxt with tvs = UnionFind.set ctxt.tvs tv (Some tt) })
   | TVar tv' -> { ctxt with tvs = UnionFind.union ctxt.tvs tv tv' }
+
+let unify v ttt ttt' ctxt =
+  match ttt, ttt' with
+  | TConst tt, TConst tt' when tt_equal tt tt' -> ctxt, ttt'
+  | TConst tt, TConst tt' ->
+     raise (Invalid_argument (
+                Printf.sprintf "type clash for %s: found %s, expected %s"
+                  v (tt_to_string tt) (tt_to_string tt')))
+  | TVar tv, _  -> merge v tv  ttt' ctxt, ttt'
+  | _, TVar tv' -> merge v tv' ttt  ctxt, ttt
+
+let get_tt_exn v ctxt =
+  match Map.find ctxt.types v with
+  | Some (TConst tt) -> tt
+  | Some (TVar tv) -> (match snd (UnionFind.find ctxt.tvs tv) with
+                       | Some tt -> tt
+                       | None -> raise (Invalid_argument (
+                                            Printf.sprintf "cannot find concrete type for variable %s" v)))
+  | _ -> raise (Invalid_argument (
+                    Printf.sprintf "cannot find concrete type for variable %s" v))
+
+let type_const d ttt ctxt =
+  let tt = tt_of_domain d in
+  unify ("constant " ^ to_string d) ttt (TConst tt) ctxt
+
+let type_var v ttt ctxt =
+  match Map.find ctxt.types v with
+  | None -> let tvs = match ttt with
+              | TConst _  -> ctxt.tvs
+              | TVar tv -> UnionFind.add ctxt.tvs tv None in
+            { ctxt with types = Map.add_exn ctxt.types ~key:v ~data:ttt; tvs }, ttt
+  | Some ttt' -> unify ("variable " ^ v) ttt ttt' ctxt
 
 let replace_ttt tv ttt_new ttt = if ttt_equal ttt (TVar tv) then ttt_new else ttt
 
@@ -104,39 +142,3 @@ let convert_with_fresh_ttts ctxt ttts =
   ctxt, List.fold2_exn old_tvs new_ttts ~init:ttts
           ~f:(fun tts old_tv new_ttt -> List.map ~f:(replace_ttt old_tv new_ttt) tts)
 
-let unify v ttt ttt' ctxt =
-  match ttt, ttt' with
-  | TConst tt, TConst tt' when tt_equal tt tt' -> ctxt, ttt'
-  | TConst tt, TConst tt' ->
-     raise (Invalid_argument (
-                Printf.sprintf "type clash for %s: found %s, expected %s"
-                  v (tt_to_string tt) (tt_to_string tt')))
-  | TVar tv, _  -> merge v tv ttt' ctxt, ttt'
-  | _, TVar tv' -> merge v tv' ttt ctxt, ttt
-
-let unify_tt v ttt tt ctxt = unify v ttt (TConst tt) ctxt
-
-let empty = { types = Map.empty (module String);
-              tvs = UnionFind.empty;
-              next_var = 0;
-              next_tv = 0 }
-
-let get_tt_exn v ctxt =
-  match Map.find ctxt.types v with
-  | Some (TConst tt) -> tt
-  | Some (TVar tv) -> (match snd (UnionFind.find ctxt.tvs tv) with
-                       | Some tt ->  tt
-                       | None -> raise (Invalid_argument (Printf.sprintf "cannot find concrete type for variable %s" v)))
-  | _ -> raise (Invalid_argument (Printf.sprintf "cannot find concrete type for variable %s" v))
-
-let type_const d ttt ctxt =
-  let tt = tt_of_domain d in
-  unify_tt ("constant " ^ to_string d) ttt tt ctxt
-
-let type_var v ttt ctxt =
-  match Map.find ctxt.types v with
-  | None -> let tvs = match ttt with
-              | TConst _  -> ctxt.tvs
-              | TVar tv -> UnionFind.add ctxt.tvs tv None in
-            { ctxt with types = Map.add_exn ctxt.types ~key:v ~data:ttt; tvs }, ttt
-  | Some ttt' -> unify ("variable " ^ v) ttt ttt' ctxt

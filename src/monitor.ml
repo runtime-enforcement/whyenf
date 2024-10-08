@@ -2690,9 +2690,8 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
               print_endline ("lbls="  ^ String.concat ~sep:", " (List.map ~f:Lbl.to_string mformula.lbls));
               print_endline ("lbls'=" ^ String.concat ~sep:", " (List.map ~f:Lbl.to_string mf.lbls));*)
               let aggregate = Pdt.aggregate Proof.isS is_in_setc op_fun s x y mformula.lbls mf.lbls in
-              (*print_endline "--MAgg";
-              print_endline (Expl.to_string aexpl);
-              print_endline (MFormula.to_string mformula);*)
+              print_endline ("MAgg.aexpl=" ^ Expl.to_string aexpl);
+              (*print_endline ("MAgg.mformula=" ^ MFormula.to_string mformula);*)
               let f_expls = List.map expls ~f:aggregate in
               let f_aexpl = aggregate aexpl in
               memo, (f_expls, f_aexpl, MAgg (s, op, op_fun, x, y, mf'))

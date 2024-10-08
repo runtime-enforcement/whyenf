@@ -55,7 +55,8 @@ let debug m = if !debug then Stdio.print_endline ("[debug] formula_parser: " ^ m
 %token RELEASE
 %token TRIGGER
 
-%token ADD SUB MUL DIV CONC
+%token ADD SUB MUL DIV POW CONC
+%token FADD FSUB FMUL FDIV FPOW
 %token SUM AVG MED CNT MIN MAX
 
 %token LET
@@ -79,8 +80,9 @@ let debug m = if !debug then Stdio.print_endline ("[debug] formula_parser: " ^ m
 %nonassoc GEQ
 %nonassoc EQEQ
 %nonassoc NEQ
-%left ADD SUB
-%left MUL DIV
+%left ADD SUB FADD FSUB
+%left MUL DIV FMUL FDIV
+%left POW FPOW
 %left CONC
 
 %type <Formula.t> formula
@@ -170,6 +172,12 @@ term:
 | SUB  { "sub" }
 | MUL  { "mul" }
 | DIV  { "div" }
+| POW  { "pow" }
+| FADD { "fadd" }
+| FSUB { "fsub" }
+| FMUL { "fmul" }
+| FDIV { "fdiv" }
+| FPOW { "fpow" }
 | EQEQ { "eq" }
 | NEQ  { "neq" }
 | LT   { "lt" }

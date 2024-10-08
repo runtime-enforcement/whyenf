@@ -138,7 +138,7 @@ module MakeInterval (S : S) = struct
 
   let lopen_ropen_BI i j = B (BI.make_exn (S.inc i, S.dec j))
   let lopen_rclosed_BI i j = B (BI.make_exn (S.inc i, j))
-  let lclosed_ropen_BI i j = B (BI.make_exn (S.dec i, j))
+  let lclosed_ropen_BI i j = B (BI.make_exn (i, S.dec j))
   let lclosed_rclosed_BI i j = B (BI.make_exn (i, j))
 
   let singleton i = lclosed_rclosed_BI i i
