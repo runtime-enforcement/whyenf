@@ -41,9 +41,15 @@ rule token = parse
   | ';'                                           { debug "SEMICOLON"; SEMICOLON }
   | '.'                                           { debug "DOT"; DOT }
   | ':'                                           { debug "COL"; COL }
+  | "+."                                          { debug "FADD"; FADD }
+  | "-."                                          { debug "FSUB"; FSUB }
+  | "*."                                          { debug "FMUL"; FMUL }
+  | "/."                                          { debug "FDIV"; FDIV }
+  | "**."                                         { debug "FPOW"; FPOW }
   | '+'                                           { debug "ADD"; ADD }
   | '-'                                           { debug "SUB"; SUB }
   | '*'                                           { debug "MUL"; MUL }
+  | "**"                                          { debug "POW"; POW }
   | '/'                                           { debug "DIV"; DIV }
   | '^'                                           { debug "CONC"; CONC }
   | "LET"                                         { debug "LET"; LET }

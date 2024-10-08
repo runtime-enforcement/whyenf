@@ -632,7 +632,6 @@ let rec to_latex_rec l = function
                          (fun x -> Interval.to_latex) i (fun x -> to_latex_rec 5) g
 let to_latex = to_latex_rec 0
 
-
 let rec solve_past_guarded x p f =
   let vars = fv f in
   let rec aux x p f =
@@ -650,14 +649,13 @@ let rec solve_past_guarded x p f =
       | Neg f, _ -> aux x (not p) f
       | And (_, f', g'), true | Or (_, f', g'), false | Imp (_, f', g'), false ->
          let q = match f with Imp _ -> not p | _ -> p in
-         aux x q f' @ aux x p g'
+         Etc.dedup ~equal:Set.equal (aux x q f' @ aux x p g')
       | And (_, f', g'), false | Or (_, f', g'), true | Imp (_, f', g'), true ->
          let q = match f with Imp _ -> not p | _ -> p in
-         List.map ~f:(Set.union_list (module String)) (Etc.cartesian [aux x q f'; aux x p g'])
+         List.map ~f:(Etc.inter_list (module String)) (Etc.cartesian [aux x q f'; aux x p g'])
       | Iff (_, _, f, g), _ -> aux x p (And (N, Imp (N, f, g), Imp (N, g, f)))
       | Exists (y, f), _ | Forall (y, f), _ when x != y -> aux x p f
-      | Prev (_, f), true -> aux x p f
-      | Once (_, f), true | Eventually (_, f), true -> aux x p f
+      | Prev (_, f), true | Once (_, f), true -> aux x p f
       | Once (i, f), false | Eventually (i, f), false when Interval.has_zero i -> aux x p f
       | Historically (_, f), false | Always (_, f), false -> aux x p f
       | Historically (i, f), true | Always (i, f), true when Interval.has_zero i -> aux x p f
@@ -667,7 +665,9 @@ let rec solve_past_guarded x p f =
       | Until (_, i, f, g), true when not (Interval.has_zero i) -> aux x p f
       | Until (_, i, f, g), true -> aux x p (Or (N, f, g))
       | _ -> [] in
-    (*print_endline (Printf.sprintf "solve_past_guarded(%s, %b, %s) = %b" x p (to_string f) s);*)
+    
+    print_endline (Printf.sprintf "solve_past_guarded(%s, %b, %s) = [%s]" x p (to_string f)
+      (String.concat ~sep:"; " (List.map ~f:(fun es -> "{" ^ (String.concat ~sep:", " (Set.elements es)) ^ "}") s)) );
     s in
   aux x p f
 

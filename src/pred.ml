@@ -332,6 +332,7 @@ module Sig = struct
     let types, (ret_ttt :: arg_ttts) =
       Ctxt.convert_with_fresh_ttts types (ret_ttt :: arg_ttts) in
     let types, ret_var = Ctxt.fresh_var types in
+    (*print_endline ("check_app(" ^ ret_var ^ ", " ^ f ^ ")");*)
     let types, _ = Ctxt.type_var ret_var ret_ttt types in
     let types, _ =
       List.fold2_exn trms arg_ttts ~init:(types, [])
