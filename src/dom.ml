@@ -22,6 +22,30 @@ module T = struct
     | Float v, Float v' -> Float.equal v v'
     | _ -> false
 
+  let lt d d' = match d, d' with
+    | Int v, Int v' -> Int.(v < v')
+    | Str v, Str v' -> String.(v < v')
+    | Float v, Float v' -> Float.(v < v')
+    | _ -> false
+
+  let gt d d' = match d, d' with
+    | Int v, Int v' -> Int.(v > v')
+    | Str v, Str v' -> String.(v > v')
+    | Float v, Float v' -> Float.(v > v')
+    | _ -> false
+
+  let leq d d' = match d, d' with
+    | Int v, Int v' -> Int.(v <= v')
+    | Str v, Str v' -> String.(v <= v')
+    | Float v, Float v' -> Float.(v <= v')
+    | _ -> false
+
+  let geq d d' = match d, d' with
+    | Int v, Int v' -> Int.(v >= v')
+    | Str v, Str v' -> String.(v >= v')
+    | Float v, Float v' -> Float.(v >= v')
+    | _ -> false
+
   let tt_equal tt tt' = match tt, tt' with
     | TInt, TInt
       | TStr, TStr
