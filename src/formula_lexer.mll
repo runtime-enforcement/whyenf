@@ -29,7 +29,7 @@ let digit = ['0'-'9']
 
 let digits = ['0'-'9']+
 let float = digits '.' digit*
-let string = (letter | digit | '_' | '-' | '!')+
+let string = (letter | digit | '_' | '!')+
 let quoted_string = '"' ([^ '"' '\\'] | '\\' _)* '"'
 
 rule token = parse

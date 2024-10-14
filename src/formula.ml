@@ -666,8 +666,8 @@ let rec solve_past_guarded x p f =
       | Until (_, i, f, g), true -> aux x p (Or (N, f, g))
       | _ -> [] in
     
-    print_endline (Printf.sprintf "solve_past_guarded(%s, %b, %s) = [%s]" x p (to_string f)
-      (String.concat ~sep:"; " (List.map ~f:(fun es -> "{" ^ (String.concat ~sep:", " (Set.elements es)) ^ "}") s)) );
+    (*print_endline (Printf.sprintf "solve_past_guarded(%s, %b, %s) = [%s]" x p (to_string f)
+      (String.concat ~sep:"; " (List.map ~f:(fun es -> "{" ^ (String.concat ~sep:", " (Set.elements es)) ^ "}") s)) );*)
     s in
   aux x p f
 

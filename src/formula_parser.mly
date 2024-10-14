@@ -165,6 +165,7 @@ term:
 | STR                      { debug "STR"; Pred.Term.Var $1 }
 | STR LPA terms RPA        { debug "STR LPA terms RPA"; Pred.Term.App ($1, $3) }
 | term bop term            { debug "term bop term"; Pred.Term.App ($2, [$1; $3]) }
+| uop term                 { debug "uop term"; Pred.Term.App ($1, [$2]) }
 | LPA term RPA             { debug "LPA term RPA"; $2 }
 
 %inline bop:
@@ -185,6 +186,10 @@ term:
 | GT   { "gt" }
 | GEQ  { "geq" }
 | CONC { "conc" }
+
+%inline uop:
+| SUB  { "usub" }
+| FSUB { "ufsub" }
 
 const:
 | INT                                  { debug "INT"; Pred.Term.Const (Int $1) }

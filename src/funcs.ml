@@ -133,9 +133,17 @@ let builtins =
        kind    = Builtin (fun [x;y] -> match x, y with Dom.Int i, Dom.Int j -> Int (i-j));
        strict  = false;
     });
+    ("usub",
+     {
+       arity   = 1;
+       arg_ttts = [("x", Ctxt.TConst Dom.TInt)];
+       ret_ttt  = Ctxt.TConst Dom.TInt;
+       kind    = Builtin (fun [x] -> match x with Dom.Int i -> Int (-i));
+       strict  = true;
+    });
     ("mul",
      {
-       arity   = 2;
+       arity   = 1;
        arg_ttts = [("x", Ctxt.TConst Dom.TInt); ("y", Ctxt.TConst Dom.TInt)];
        ret_ttt  = Ctxt.TConst Dom.TInt;
        kind    = Builtin (fun [x;y] -> match x, y with Dom.Int i, Dom.Int j -> Int (i*j));
@@ -172,6 +180,14 @@ let builtins =
        ret_ttt  = Ctxt.TConst Dom.TFloat;
        kind    = Builtin (fun [x;y] -> match x, y with Dom.Float i, Dom.Float j -> Float (i-.j));
        strict  = false;
+    });
+    ("ufsub",
+     {
+       arity   = 1;
+       arg_ttts = [("x", Ctxt.TConst Dom.TFloat)];
+       ret_ttt  = Ctxt.TConst Dom.TFloat;
+       kind    = Builtin (fun [x] -> match x with Dom.Float i -> Float (-.i));
+       strict  = true;
     });
     ("fmul",
      {

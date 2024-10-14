@@ -284,11 +284,13 @@ module Sig = struct
         | None -> Var x)
     | Const c -> Const c
     | App (ff, trms) ->
+       (*print_endline ("eval.App=" ^ ff);*)
        let trms = List.map trms ~f:(eval v) in
-       let f = function Term.Const d -> Some d | _ -> None in
+       (*print_endline (Term.list_to_string trms);*)
+       let f = function Term.Const d -> Some d | c -> (*print_endline (Term.to_string c); *)None in
        match Option.all (List.map trms ~f) with
-       | Some ds -> Const (func ff ds)
-       | None -> App (ff, trms)
+       | Some ds -> (*print_endline ("case1 with "^ ff);*) Const (func ff ds)
+       | None -> (*print_endline ("case2 with "^ ff);*) App (ff, trms)
 
   let rec set_eval (v: Setc.valuation) = function
     | Term.Var x ->
