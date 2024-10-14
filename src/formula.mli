@@ -9,19 +9,6 @@
 (*******************************************************************)
 
 open Base
-open Pred
-
-module Side : sig
-
-  type t = N | L | R | LR [@@deriving compare, sexp_of, hash]
-
-  val equal: t -> t -> bool
-
-  val to_string: t -> string
-  val to_string2: t * t -> string
-  val of_string: string -> t
-
-end
 
 type t =
   | TT
@@ -69,6 +56,8 @@ val since: Side.t -> Interval.t -> t -> t -> t
 val until: Side.t -> Interval.t -> t -> t -> t
 val trigger: Side.t -> Interval.t -> t -> t -> t
 val release: Side.t -> Interval.t -> t -> t -> t
+
+val init: Sformula.t -> t
 
 val fv: t -> (String.t, Base.String.comparator_witness) Base.Set.t
 val list_fv: t -> String.t list

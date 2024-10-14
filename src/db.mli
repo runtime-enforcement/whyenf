@@ -9,7 +9,6 @@
 (*******************************************************************)
 
 open Base
-open Pred
 open Etc
 
 module Event : sig

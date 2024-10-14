@@ -141,6 +141,14 @@ let builtins =
        kind    = Builtin (fun [x] -> match x with Dom.Int i -> Int (-i));
        strict  = true;
     });
+    ("not",
+     {
+       arity   = 1;
+       arg_ttts = [("x", Ctxt.TConst Dom.TInt)];
+       ret_ttt  = Ctxt.TConst Dom.TInt;
+       kind    = Builtin (fun [x] -> match x with Dom.Int i -> Int Int.(if i = 0 then 1 else 0));
+       strict  = true;
+    });
     ("mul",
      {
        arity   = 1;

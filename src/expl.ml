@@ -9,7 +9,6 @@
 (*******************************************************************)
 
 open Base
-open Pred
 
 module Fdeque = Core.Fdeque
 
@@ -132,7 +131,7 @@ end
 
 module Pdt = struct
 
-  type 'a t = Leaf of 'a | Node of Pred.Lbl.t * ('a t) Part.t
+  type 'a t = Leaf of 'a | Node of Lbl.t * ('a t) Part.t
 
   let rec apply1 lbls f pdt = match lbls, pdt with
     | _ , Leaf l -> Leaf (f l)

@@ -1,7 +1,7 @@
 The formula
- □[0s,∞) ∀d. ∀u. ∀c. deletion_request(c, d, u) → ◊[0s,30s] delete(c, d, u)
+ □[0s,∞) ∀c. ∀d. ∀u. deletion_request(c, d, u) → ◊[0s,30s] delete(c, d, u)
 is enforceable and types to
- □[0s,∞) (∀d. (∀u. (∀c. (deletion_request(c, d, u) →:R (◊[0s,30s] (delete(c, d, u) : Cau) : Cau) : Cau) : Cau) : Cau) : Cau) : Cau
+ □[0s,∞) (∀c. (∀d. (∀u. (deletion_request(c, d, u) →:R (◊[0s,30s] (delete(c, d, u) : Cau) : Cau) : Cau) : Cau) : Cau) : Cau) : Cau
 [Enforcer] @10 OK.
 [Enforcer] @10 nothing to do proactively.
 [Enforcer] @11 nothing to do proactively.

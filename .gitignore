@@ -21,3 +21,6 @@ test/tmp/gen_fmla_full
 *.ocaml
 examples/monitoring/misc/nokia/all.log
 *.opam
+eval/enforcement/*.png
+eval/enforcement/*.csv
+*.orig

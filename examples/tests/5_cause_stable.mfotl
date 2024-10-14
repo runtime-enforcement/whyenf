@@ -1,1 +1,1 @@
-ALWAYS (FORALL x. B(x) IMPLIES B(x==x))
+ALWAYS (FORALL x. B(x) IMPLIES B(x=x))

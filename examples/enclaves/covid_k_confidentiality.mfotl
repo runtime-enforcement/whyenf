@@ -4,5 +4,5 @@ ALWAYS (
     IMPLIES
     (EXISTS count.
       count <- CNT(user; covidStrain; ONCE input(user, age, covidStrain))
-      AND { count > 1 })
+      AND count > 1)
 )

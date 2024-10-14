@@ -27,7 +27,7 @@ module Event = struct
 
     let to_json (name, ds) =
       String.concat ~sep:", "
-        (List.map2_exn (Pred.Sig.vars_of_pred name) ds  ~f:(fun x d ->
+        (List.map2_exn (Sig.vars_of_pred name) ds  ~f:(fun x d ->
              Printf.sprintf "{ " ^
                Printf.sprintf "\"var\": \"%s\", " x ^
                  Printf.sprintf "\"value\": \"%s\" " (Dom.to_string d) ^
@@ -40,8 +40,8 @@ module Event = struct
   include T
   include Comparable.Make(T)
 
-  let _tp = (Pred.tilde_tp_event_name, [])
-  let _tick = (Pred.tick_event_name, [])
+  let _tp = (Sig.tilde_tp_event_name, [])
+  let _tick = (Sig.tick_event_name, [])
 
 end
 
@@ -86,14 +86,14 @@ let size db = Set.length db.events
 let filter db ~f = set_trace { db with events = Set.filter db.events ~f }
 
 let event name consts =
-  let pred_sig = Hashtbl.find_exn Pred.Sig.table name in
-  if Pred.Sig.arity pred_sig = List.length consts then
-    (name, List.map2_exn (Pred.Sig.arg_ttts pred_sig) consts
+  let pred_sig = Hashtbl.find_exn Sig.table name in
+  if Sig.arity pred_sig = List.length consts then
+    (name, List.map2_exn (Sig.arg_ttts pred_sig) consts
              ~f:(fun tc c -> match snd tc with
                              | TConst TInt -> Dom.Int (Int.of_string c)
                              | TConst TStr -> Str c
                              | TConst TFloat -> Float (Float.of_string c)))
-  else raise (Invalid_argument (Printf.sprintf "predicate %s has arity %d" name (Pred.Sig.arity pred_sig)))
+  else raise (Invalid_argument (Printf.sprintf "predicate %s has arity %d" name (Sig.arity pred_sig)))
 
 let add_event db evt = set_trace { db with events = Set.add db.events evt }
 
@@ -111,12 +111,12 @@ let to_json db =
                           Event.to_json evt :: acc)))) ^ "] "
 
 let retrieve_external name =
-  let tts = List.map ~f:Ctxt.unconst (Pred.Sig.arg_ttts_of_pred name) in
+  let tts = List.map ~f:Ctxt.unconst (Sig.arg_ttts_of_pred name) in
   let dom_list_list = Funcs.Python.retrieve_db name tts in
   let events: Event.t list = List.map dom_list_list (fun dom_list -> (name, dom_list)) in
   create events
 
 let retrieve_builtin ts tp = function
-  | name when String.equal name Pred.tp_event_name -> create [("TP", [Int tp])]
-  | name when String.equal name Pred.ts_event_name -> create [("TS", [Int ts])]
+  | name when String.equal name Sig.tp_event_name -> create [("TP", [Int tp])]
+  | name when String.equal name Sig.ts_event_name -> create [("TS", [Int ts])]
 
