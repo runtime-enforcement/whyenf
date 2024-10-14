@@ -1,0 +1,5 @@
+ALWAYS
+  (FORALL c.
+    c <- CNT(t; ; ONCE (tp(t) AND interrupt()))
+    AND c > 2
+  IMPLIES kill() AND NOT interrupt())
