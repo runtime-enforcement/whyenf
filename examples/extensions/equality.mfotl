@@ -1,0 +1,1 @@
+ALWAYS (FORALL x. FORALL y. (A(x,x) AND {eq(y,x) = 1}) IMPLIES B(y))

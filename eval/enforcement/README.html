@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+<title>README.html</title>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
+
+</head>
+
+<body>
+
+<h1>README: Replication instructions</h1>
+
+<p>This document describes how to reproduce the empirical evaluation presented in Section 6 and Appendix D of</p>
+
+<p>Hublet, F., Lima, L., Basin, D., Krstić, S., &amp; Traytel, D. (2024). Proactive Real Time First-Order Enforcement. <em>CAV'24</em>.</p>
+
+<h2>Step 0. Requirements and preparation.</h2>
+
+<p>The configuration used for our experiments was as follows:</p>
+
+<ul>
+<li>Processor: Intel i5-1135G7, 2.4 GHz</li>
+<li>RAM: 32 GB</li>
+<li>OS: Ubuntu 20.04.6</li>
+<li>Python 3.8.10</li>
+</ul>
+
+<p>Follow the instructions in the <a href="https://github.com/runtime-enforcement/whyenf">main README file</a> at the root of this repository to install WhyEnf.</p>
+
+<p>Then open a terminal at the root of the repository and execute</p>
+
+<p><code>
+cd eval/enforcement
+virtualenv env
+source env/bin/activate
+pip3 install -r requirements.txt
+</code></p>
+
+<h2>Step 1 (optional). Preprocessing the log from Debois &amp; Slaats (2015).</h2>
+
+<p>Indicative duration: &lt; 1 minute.</p>
+
+<p>You can run </p>
+
+<p><code>
+python3 preprocess.py
+</code></p>
+
+<p>to preprocess the raw log published by Debois &amp; Slaats (2015) as specified by Arfelt et al. (2019) into the format used for our experiments.</p>
+
+<p>The original csv file can be found at <code>examples/debois_slaats_2015.csv</code>.</p>
+
+<p>If you set the constant <code>REPEATABLE</code> in <code>process.py</code> to <code>False</code>, this preprocesses the raw log for direct feeding into an enforcer. The preprocessed file is written to <code>examples/arfelt_et_al_2019.log</code>.</p>
+
+<p>If you set the constant <code>REPEATABLE</code> in <code>process.py</code> to <code>True</code>, this preprocesses the raw log for usage by our repeater script (see below). The preprocessed file is written to <code>examples/arfelt_et_al_2019_repeatable.log</code>.</p>
+
+<p>Note that we provide that the two preprocessed logs are already provided at the desired location in the repository.</p>
+
+<h2>Step 2. Reproducing the type checking decisions for RQ1.</h2>
+
+<p>Indicative duration: &lt; 1 minute.</p>
+
+<p>You can type</p>
+
+<p><code>
+../../bin/whyenf.exe -sig examples/arfelt_et_al_2019.sig -formula examples/formulae_whyenf/{formula}.mfotl -log examples/arfelt_et_al_2019.log
+</code></p>
+
+<p>where <code>{formula}</code> is any of <code>minimization</code>, <code>limitation</code>, <code>lawfulness</code>, <code>consent</code>, <code>information</code>, <code>deletion</code>, or <code>sharing</code>, to see the type checking decisions and run the enforcer on the corresponding formula and log.</p>
+
+<p>This experiment will use the following files:</p>
+
+<ul>
+<li>The logs generated in the previous step;</li>
+<li>The signature file in <code>examples/arfelt_et_al_2019.sig</code>;</li>
+<li>The formulae in <code>examples/formulae_whyenf/</code>.</li>
+</ul>
+
+<h2>Step 3. Reproducing the measurements with the log from Debois &amp; Slaats (2015) for RQ2-3</h2>
+
+<p>Indicative duration: 1-3 hours.</p>
+
+<p>You can run 
+<code>
+python3 evaluate_rq2.py option [-e ENFPOLY_PATH] [-g] [-s]
+</code>
+to run the performance measurements for RQ2-3 described in Section 7 and Appendix D and generate the corresponding graphs. </p>
+
+<p>The options are as follows:</p>
+
+<ul>
+<li><strong>Required</strong>: <code>OPTION</code> (possible values are <code>Enfpoly</code>, <code>WhyEnf</code>, and <code>WhyMon</code>) to select the tool to use as a backend;</li>
+<li><code>-e</code> to provide the path to the <code>Enfpoly</code> executable (required iff <code>OPTION = Enfpoly</code>);</li>
+<li><code>-g</code> to only regenerate the graphs and tables without performing new experiments;</li>
+<li><code>-s</code> to only perform a smoke test without performing the full experiments.</li>
+</ul>
+
+<p>This script uses the replayer script in <code>replayer.py</code>.</p>
+
+<p>The experiments will use the following files:</p>
+
+<ul>
+<li>The logs and signature file, as before;</li>
+<li>The formulae in <code>examples/formulae_{tool}/</code>, where <code>{tool}</code> is one of <code>enfpoly</code>, <code>whyenf</code>, or <code>whymon</code>. The formulae in each of these folders adhere to the input grammar of the corresponding tool.</li>
+</ul>
+
+<p>In <code>evaluate_rq2.py</code>, </p>
+
+<p>For installing Enfpoly, see instructions at <a href="https://bitbucket.org/jshs/monpoly/src/enfpoly/">Enfpoly's repository</a>.</p>
+
+<p>After running the script, you will find:</p>
+
+<ul>
+<li>Figure 8 (Sec. 7) at <code>out_whyenf/summary.png</code> (after running with <code>OPTION = WhyEnf</code>);</li>
+<li>Figure 9 (Sec. 7) printed on standard input (after running with all three options);</li>
+<li>Figure 13 (App. D) at <code>out_whymon/summary.png</code> (after running with <code>OPTION = WhyMon</code>);</li>
+<li>Figure 14 (App. D) at <code>out_enfpoly/summary.png</code> (after running with <code>OPTION = Enfpoly</code>);</li>
+<li>Figure 15 (App. D) at <code>out_whyenf/consent_400000.png</code>, <code>out_whyenf/information_1600000.png</code>, and <code>out_whyenf/sharing_1600000</code> (after running with <code>OPTION = WhyEnf</code>).</li>
+</ul>
+
+<p>Note that for every experiment performed, the time profile is plotted to <code>out_{tool}/{formula}_{acceleration}.png</code>.</p>
+
+<h2>Step 4. Reproducing the measurements with synthetic traces for RQ3.</h2>
+
+<p>Indicative duration: 1-3 hours.</p>
+
+<p>You can run 
+<code>
+python3 evaluate_rq3.py option [-e ENFPOLY_PATH] [-g] [-s]
+</code>
+to run the performance measurements described in Section 7. The options are as in Step 3.</p>
+
+<p>This script uses the replayer script in <code>replayer.py</code> and the trace generator in <code>generator.py</code>.</p>
+
+<p>The experiments will use the following files:</p>
+
+<ul>
+<li>A synthetic log that will be saved into <code>examples/synthetic.log</code>;</li>
+<li>The signature file, as before;</li>
+<li>The formulae in the <code>examples/formulae_{tool}/</code> folders.</li>
+</ul>
+
+<p>After running the script, you will find:</p>
+
+<ul>
+<li>Figure 10 (Sec. 7) printed on standard input (after running with all three options).</li>
+</ul>
+
+<p>Note that for every experiment performed, the time profile is plotted to <code>out_{tool}/{formula}_{n}_{k}.png</code> where $n$ and $k$ are as in the paper.</p>
+
+</body>
+</html>
