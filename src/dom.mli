@@ -19,6 +19,10 @@ type comparator_witness
 val comparator : (t, comparator_witness) Comparator.t
 
 val equal: t -> t -> bool
+val lt: t -> t -> bool
+val gt: t -> t -> bool
+val leq: t -> t -> bool
+val geq: t -> t -> bool
 
 val tt_equal: tt -> tt -> bool
 

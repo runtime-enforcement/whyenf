@@ -5,7 +5,8 @@ ALWAYS (
     (EXISTS realMedianAge.
       realMedianAge <- AVG(age; covidStrain; ONCE input(person, age, covidStrain))
       AND { realMedianAge - medianAge < 2 }
-      AND { medianAge - realMedianAge < 2 }
+      AND { realMedianAge - medianAge > -2 }
+      AND { realMedianAge <> medianAge }
     )
   )
 )

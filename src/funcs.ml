@@ -52,8 +52,8 @@ let to_string name func =
     (String.drop_prefix (List.fold func.arg_ttts ~init:"" ~f) 1)
     (Ctxt.ttt_to_string func.ret_ttt)
 
-let eq [x;y]  = Dom.Int (if x == y then 1 else 0)
-let neq [x;y] = Dom.Int (if x != y then 1 else 0)
+let eq [x;y]  = Dom.Int (if Dom.equal x y then 1 else 0)
+let neq [x;y] = Dom.Int (if Dom.equal x y then 0 else 1)
 let lt [x;y] = Dom.Int (if x < y then 1 else 0)
 let leq [x;y] = Dom.Int (if x <= y then 1 else 0)
 let gt [x;y] = Dom.Int (if x > y then 1 else 0)
