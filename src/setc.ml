@@ -67,7 +67,7 @@ let union cs1 cs2 =
         | Complement s1, Complement s2 -> Complement (Set.inter s1 s2))
 
 let inter_list m css =
-  List.fold css ~init:(empty m) ~f:inter
+  List.fold css ~init:(univ m) ~f:inter
   
 let union_list m css =
   List.fold css ~init:(empty m) ~f:union

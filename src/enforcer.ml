@@ -181,11 +181,11 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
     
     let all_not_sat v x mf es =
       (*print_endline "--all_not_sat";*)
-      (*print_endline ("all_not_sat.mf=" ^ MFormula.to_string mf);
-      print_endline ("all_not_sat.x=" ^ x);
+      (*print_endline ("all_not_sat.mf=" ^ MFormula.to_string mf);*)
+      (*print_endline ("all_not_sat.x=" ^ x);
       print_endline ("all_not_sat.v=" ^ Etc.valuation_to_string v);
-      print_endline ("all_not_sat.proof="^ CI.Expl.to_string (snd(exec_monitor mf es)));*)
-      (*print_endline ("all_not_sat.collected(" ^ x  ^ ")=" ^ Setc.to_string (Expl.Pdt.collect CI.Expl.Proof.isV (Setc.inter_list (module Dom)) (Setc.union_list (module Dom)) v x (snd (exec_monitor mf es))));*)
+      print_endline ("all_not_sat.proof="^ CI.Expl.to_string (snd(exec_monitor mf es)));
+      print_endline ("all_not_sat.collected(" ^ x  ^ ")=" ^ Setc.to_string (Expl.Pdt.collect CI.Expl.Proof.isV (Setc.inter_list (module Dom)) (Setc.union_list (module Dom)) v x (snd (exec_monitor mf es))));*)
       let es, p = exec_monitor mf es in
       match Expl.Pdt.collect
               CI.Expl.Proof.isV
