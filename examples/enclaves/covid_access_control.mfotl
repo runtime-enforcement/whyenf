@@ -1,0 +1,6 @@
+ALWAYS (
+  FORALL recipient, medianAge, covidStrain.
+    output(recipient, medianAge, covidStrain)
+    IMPLIES
+    ONCE isAuthorized(recipient)
+)

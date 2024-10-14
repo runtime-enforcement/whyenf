@@ -1,0 +1,7 @@
+ALWAYS (
+  FORALL recipient, medianAge, covidStrain.
+    output(recipient, medianAge, covidStrain)
+    IMPLIES
+    (medianAge <- AVG(age; covidStrain; ONCE input(person, age, covidStrain))
+  )
+)

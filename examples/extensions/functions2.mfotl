@@ -1,0 +1,1 @@
+ALWAYS (FORALL x, y. A(x,y) IMPLIES B(add(x, y)))
