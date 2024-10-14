@@ -8,7 +8,6 @@
 (*******************************************************************)
 
 open Base
-open Pred
 
 open Formula
 
@@ -36,16 +35,16 @@ type core_t =
 
 and t = {
     f:       core_t;
-    enftype: EnfType.t;
+    enftype: Enftype.t;
     filter:  Filter.filter
   }  [@@deriving compare, hash, sexp_of]
 
 val ttrue  : t
 val tfalse : t
 
-val neg : t -> EnfType.t -> t
+val neg : t -> Enftype.t -> t
 (*val fv : t -> (String.t, Base.String.comparator_witness) Base.Set.t*)
-val conj : Side.t -> t -> t -> EnfType.t -> t
+val conj : Side.t -> t -> t -> Enftype.t -> t
 
 val op_to_string : t -> string
 

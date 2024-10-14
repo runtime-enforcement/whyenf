@@ -54,17 +54,16 @@ rule token = parse
   | '^'                                           { debug "CONC"; CONC }
   | "LET"                                         { debug "LET"; LET }
   | "IN"                                          { debug "IN"; IN }
-  | "FALSE" | "⊥"                                { debug "FALSE"; FALSE }
+  | "FALSE" | "⊥"                                 { debug "FALSE"; FALSE }
   | "TRUE" | "⊤"                                 { debug "TRUE"; TRUE }
-  | "=="                                          { debug "EQEQ"; EQEQ }
-  | '='                                           { debug "EQCONST"; EQCONST }
+  | '='                                           { debug "EQ"; EQ }
   | "<-"                                          { debug "GETS"; GETS }
-  | "<="                                           { debug "LEQ"; LEQ }
-  | "<>"                                           { debug "NEQ"; NEQ }
+  | "≤" | "<="                                     { debug "LEQ"; LEQ }
+  | "≠" | "<>" | "!="                                     { debug "NEQ"; NEQ }
   | '<'                                           { debug "LT"; LT }
-  | ">="                                           { debug "GEQ"; GEQ }
+  | "≥" |">="                                           { debug "GEQ"; GEQ }
   | '>'                                           { debug "GT"; GT }
-  | "¬" | "NOT"                                   { debug "NEG"; NEG }
+  | "¬" | "NOT"                                   { debug "NOT"; NOT }
   | "∧" | "AND"                                  { debug "AND"; AND }
   | "∨" | "OR"                                   { debug "OR"; OR }
   | "→" | "IMPLIES"                               { debug "IMP"; IMP }
@@ -91,8 +90,6 @@ rule token = parse
                                                   { debug "INTERVAL"; INTERVAL (make_interval lexbuf l i u j v r) }
   | "("                                           { debug "LPA"; LPA }
   | ")"                                           { debug "RPA"; RPA }
-  | '{'                                           { debug "LBR"; LBR }
-  | '}'                                           { debug "RBR"; RBR }
   | digits as d                                   { debug ("INT " ^ d); INT (Base.Int.of_string d) }
   | float as f                                    { debug ("FLOAT " ^ f); FLOAT (Base.Float.of_string f) }
   | string as s                                   { debug ("STR " ^ s); STR s }

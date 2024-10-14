@@ -1,5 +1,4 @@
 open Base
-open Pred
 
 type op = ASum | AAvg | AMed | ACnt | AMin | AMax | AAssign
   [@@deriving compare, sexp_of, hash, equal]
@@ -14,6 +13,14 @@ let op_to_string = function
   | AMin -> "MIN"
   | AMax -> "MAX"
   | AAssign -> "ASSIGN"
+
+let init = function
+  | Sformula.Aop.ASum -> ASum
+  | AAvg -> AAvg
+  | AMed -> AMed
+  | ACnt -> ACnt
+  | AMin -> AMin
+  | AMax -> AMax
 
 (* Order terms in lbls' to fulfill the following invariants:
     * all variables in y, ordered as in lbls, come first

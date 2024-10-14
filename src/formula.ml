@@ -9,36 +9,7 @@
 (*******************************************************************)
 
 open Base
-open Pred
-
-module Side = struct
-
-  type t = N | L | R | LR [@@deriving compare, sexp_of, hash]
-
-  let equal s s' = match s, s' with
-    | N, N
-      | L, L
-      | R, R
-      | LR, LR -> true
-    | _ -> false
-
-  let to_string = function
-    | N  -> ""
-    | L  -> ":L"
-    | R  -> ":R"
-    | LR -> ":LR"
-
-  let to_string2 =
-    let aux = function N  -> "N" | L  -> "L" | R  -> "R" | LR -> "LR"
-    in function (N, N) -> "" | (a, b) -> ":" ^ aux a ^ "," ^ aux b
-
-  let of_string = function
-    | "L"  -> L
-    | "R"  -> R
-    | "LR" -> LR
-
-end
-
+open Sformula
 
 type t =
   | TT
@@ -70,7 +41,7 @@ let rec fv = function
   | EqConst (Var x, _) -> Set.of_list (module String) [x]
   | EqConst _ -> Set.empty (module String)
   | Agg (s, _, _, y, _) -> Set.of_list (module String) (s::y)
-  | Predicate (x, trms) -> Set.of_list (module String) (Pred.Term.fv_list trms)
+  | Predicate (x, trms) -> Set.of_list (module String) (Term.fv_list trms)
   | Predicate _ -> Set.empty (module String)
   | Let (_, _, _, g) -> fv g
   | Exists (x, f)
@@ -197,8 +168,6 @@ let imp s f g = Imp (s, f, g)
 let iff s t f g = Iff (s, t, f, g)
 let exists x f = Exists (x, f)
 let forall x f = Forall (x, f)
-(*  try Forall (x, List.hd_exn (var_tt x f), f)
-  with e -> raise (Invalid_argument ("unused variable " ^ x))*)
 let prev i f = Prev (i, f)
 let next i f = Next (i, f)
 let once i f = Once (i, f)
@@ -265,33 +234,36 @@ let rec terms = function
     | Since (_, _, f1, f2)
     | Until (_, _, f1, f2) -> Set.union (terms f1) (terms f2)
 
-(*let lbls fvs f =
-  let nodup l =
-    List.remove_consecutive_duplicates
-      (List.sort l ~compare:Lbl.compare) ~equal:Lbl.equal in
-  let rec nonvars = function
-  | TT | FF | EqConst (Const _, _) | EqConst (Var _, _) | Agg _ -> [] 
-  | EqConst (t, _) -> [Lbl.of_term t]
-  | Predicate (x, ts) ->
-     nodup (List.filter_map ts (function | Const _ | Var _ -> None
-                                         | t -> Some (Lbl.of_term t)))
-  | Let (_, _, _, g) -> nonvars g
-  | Exists (x, f) -> (LEx x) :: List.map (nonvars f) (Lbl.quantify ~forall:false x)
-  | Forall (x, f) -> (LAll x) :: List.map (nonvars f) (Lbl.quantify ~forall:true x)
-  | Neg f
-    | Prev (_, f)
-    | Once (_, f)
-    | Historically (_, f)
-    | Eventually (_, f)
-    | Always (_, f)
-    | Next (_, f) -> nonvars f
-  | And (_, f1, f2)
-    | Or (_, f1, f2)
-    | Imp (_, f1, f2)
-    | Iff (_, _, f1, f2)
-    | Since (_, _, f1, f2)
-    | Until (_, _, f1, f2) -> nodup (nonvars f1 @ nonvars f2)
-  in (List.map fvs ~f:Lbl.var) @ (nonvars f)*)
+let rec init =
+  let side s_opt = Option.value s_opt ~default:Side.N in
+  function
+  | SConst (CBool true)               -> TT
+  | SConst (CBool false)              -> FF
+  | SBop (None, t, Bop.BEq, SConst c) -> EqConst (Term.init t, Const.to_dom c)
+  | SBop (None, t, bop, u) as term
+       when Bop.is_relational bop     -> EqConst (Term.init term, Dom.Int 1)
+  | SAgg (s, aop, x, y, t)            -> Agg (s, Aggregation.init aop, Term.init x, y, init t)
+  | SAssign (t, s, x)                 -> let f = init t in
+                                         Agg (s, Aggregation.AAssign, Term.init x, list_fv f, f)
+  | SApp (p, ts)                      -> Predicate (p, List.map ~f:Term.init ts)
+  | SLet (x, y, t, u)                 -> Let (x, y, init t, init u)
+  | SExists (xs, t)                   -> List.fold_right xs ~init:(init t) ~f:exists
+  | SForall (xs, t)                   -> List.fold_right xs ~init:(init t) ~f:forall
+  | SUop (Uop.UNot, t)                -> Neg (init t)
+  | SUtop (i, Utop.UPrev, t)          -> Prev (i, init t)
+  | SUtop (i, Utop.UNext, t)          -> Next (i, init t)
+  | SUtop (i, Utop.UHistorically, t)  -> Historically (i, init t)
+  | SUtop (i, Utop.UAlways, t)        -> Always (i, init t)
+  | SUtop (i, Utop.UOnce, t)          -> Once (i, init t)
+  | SUtop (i, Utop.UEventually, t)    -> Eventually (i, init t)
+  | SBop (s_opt, t, Bop.BAnd, u)      -> And (side s_opt, init t, init u)
+  | SBop (s_opt, t, Bop.BOr, u)       -> Or (side s_opt, init t, init u)
+  | SBop (s_opt, t, Bop.BImp, u)      -> Imp (side s_opt, init t, init u)
+  | SBop2 (s_opt, t, Bop2.BIff, u)    -> let s1, s2 = Option.value s_opt ~default:(N, N) in Iff (s1, s2, init t, init u)
+  | SBtop (s_opt, i, t, Btop.BSince, u) -> Since (side s_opt, i, init t, init u)
+  | SBtop (s_opt, i, t, Btop.BUntil, u) -> Until (side s_opt, i, init t, init u)
+  | SBtop (s_opt, i, t, Btop.BRelease, u) -> release (side s_opt) i (init t) (init u)
+  | SBtop (s_opt, i, t, Btop.BTrigger, u) -> trigger (side s_opt) i (init t) (init u)
 
 let check_bindings f =
   let fv_f = fv f in
@@ -674,40 +646,6 @@ let rec solve_past_guarded x p f =
 and is_past_guarded x p f =
   not (List.is_empty (solve_past_guarded x p f))
 
-(*
-let rec is_past_guarded x p f =
-  match f with
-  | TT -> not p
-  | FF -> p
-  | EqConst (y, _) -> p && (Term.Var x == y)
-  | Predicate (_, ts) when p -> List.exists ~f:(Term.equal (Term.Var x)) ts
-  | Let (_, _, f, g) -> is_past_guarded x p f && is_past_guarded x p g
-  | Agg (s, _, _, y, f) when List.mem y x ~equal:String.equal -> is_past_guarded x p f
-  | Agg (s, _, _, _, _) -> String.equal s x
-  | Neg f -> is_past_guarded x (not p) f
-  | And (_, f, g) when p -> is_past_guarded x p f || is_past_guarded x p g
-  | And (_, f, g) -> is_past_guarded x p f && is_past_guarded x p g
-  | Or (_, f, g) when p -> is_past_guarded x p f && is_past_guarded x p g
-  | Or (_, f, g) -> is_past_guarded x p f || is_past_guarded x p g
-  | Imp (_, f, g) when p -> is_past_guarded x (not p) f && is_past_guarded x p g
-  | Imp (_, f, g) -> is_past_guarded x (not p) f || is_past_guarded x p g
-  | Iff (_, _, f, g) when p -> is_past_guarded x (not p) f && is_past_guarded x p g
-                               || is_past_guarded x p f && is_past_guarded x (not p) g
-  | Iff (_, _, f, g) -> (is_past_guarded x (not p) f || is_past_guarded x p g)
-                        && (is_past_guarded x p f || is_past_guarded x (not p) g)
-  | Exists (y, f) | Forall (y, f) -> x != y && is_past_guarded x p f
-  | Prev (_, f) -> p && is_past_guarded x p f
-  | Once (_, f) | Eventually (_, f) when p -> is_past_guarded x p f
-  | Once (i, f) | Eventually (i, f) -> Interval.has_zero i && is_past_guarded x p f
-  | Historically (_, f) | Always (_, f) when not p -> is_past_guarded x p f
-  | Historically (i, f) | Eventually (i, f) -> Interval.has_zero i && is_past_guarded x p f
-  | Since (_, i, f, g) when p -> not (Interval.has_zero i) && is_past_guarded x p f
-                                      || is_past_guarded x p g
-  | Until (_, i, f, g) when p -> not (Interval.has_zero i) && is_past_guarded x p f
-                                      || is_past_guarded x p f && is_past_guarded x p g
-  | Since (_, i, f, g) | Until (_, i, f, g) -> Interval.has_zero i && is_past_guarded x p g
-  | _ -> false
- *)
 
 let check_agg types s op x y f =
   let x_tt = Sig.tt_of_term_exn types x in
@@ -716,7 +654,7 @@ let check_agg types s op x y f =
                        Printf.sprintf "type clash for operator %s: invalid type %s"
                          (Aggregation.op_to_string op) (Dom.tt_to_string x_tt)))
   | Some s_tt ->
-     let types, _ = Pred.Sig.check_var types s (Ctxt.TConst s_tt) in
+     let types, _ = Sig.check_var types s (Ctxt.TConst s_tt) in
      let vars = (Term.fv_list [x]) @ y in
      let fv = fv f in
      List.iter vars ~f:(

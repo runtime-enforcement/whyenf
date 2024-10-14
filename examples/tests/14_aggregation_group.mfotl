@@ -1,1 +1,1 @@
-ALWAYS (FORALL y, z. z <- SUM(x; y; ONCE A(y) AND B(x)) IMPLIES C(y, z))
+ALWAYS (FORALL y, z. z <- SUM(x; y; ONCE (A(y) AND B(x))) IMPLIES C(y, z))

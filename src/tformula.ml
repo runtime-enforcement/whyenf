@@ -8,7 +8,6 @@
 (*******************************************************************)
 
 open Base
-open Pred
 open Formula
 
 
@@ -36,7 +35,7 @@ type core_t =
 
 and t = {
     f:       core_t;
-    enftype: EnfType.t;
+    enftype: Enftype.t;
     filter:  Filter.filter;
   } [@@deriving compare, hash, sexp_of]
 
@@ -139,7 +138,7 @@ let rec core_of_formula f (types: Ctxt.t) =
 
 and of_formula f (types: Ctxt.t) =
   let types, f = core_of_formula f types in
-  types, { f; enftype = EnfType.Obs; filter = Filter._true }
+  types, { f; enftype = Enftype.Obs; filter = Filter._true }
 
 let of_formula' f =
   snd (of_formula f Ctxt.empty)
@@ -147,7 +146,7 @@ let of_formula' f =
 let rec rank = function
   | TTT | TFF -> 0
   | TEqConst _ -> 0
-  | TPredicate (r, _) -> Pred.Sig.rank_of_pred r
+  | TPredicate (r, _) -> Sig.rank_of_pred r
   | TNeg f
     | TExists (_, _, _, f)
     | TForall (_, _, _, f)
@@ -288,9 +287,9 @@ let rec to_string_core_rec l = function
   | TUntil (s, i, _, f, g) -> Printf.sprintf (Etc.paren l 0 "%a U%a%a %a") (fun x -> to_string_rec 5) f
                              (fun x -> Interval.to_string) i (fun x -> Side.to_string) s (fun x -> to_string_rec 5) g
 and to_string_rec l form =
-  if form.enftype == EnfType.Obs then
+  if form.enftype == Enftype.Obs then
     Printf.sprintf "%a" (fun x -> to_string_core_rec 5) form.f
   else
-    Printf.sprintf (Etc.paren l 0 "%a : %s") (fun x -> to_string_core_rec 5) form.f (EnfType.to_string form.enftype)
+    Printf.sprintf (Etc.paren l 0 "%a : %s") (fun x -> to_string_core_rec 5) form.f (Enftype.to_string form.enftype)
 
 let to_string = to_string_rec 0

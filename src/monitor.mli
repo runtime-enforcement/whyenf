@@ -35,14 +35,14 @@ module type MonitorT = sig
     type core_t =
       | MTT
       | MFF
-      | MEqConst      of Pred.Term.t * Dom.t
-      | MPredicate    of string * Pred.Term.t list
-      | MAgg          of string * Aggregation.op * Aggregation.op_fun * Pred.Term.t * string list * t
+      | MEqConst      of Term.t * Dom.t
+      | MPredicate    of string * Term.t list
+      | MAgg          of string * Aggregation.op * Aggregation.op_fun * Term.t * string list * t
       | MNeg          of t
-      | MAnd          of Formula.Side.t * t list * binop_info
-      | MOr           of Formula.Side.t * t list * binop_info
-      | MImp          of Formula.Side.t * t * t * binop_info
-      | MIff          of Formula.Side.t * Formula.Side.t * t * t * binop_info
+      | MAnd          of Side.t * t list * binop_info
+      | MOr           of Side.t * t list * binop_info
+      | MImp          of Side.t * t * t * binop_info
+      | MIff          of Side.t * Side.t * t * t * binop_info
       | MExists       of string * Dom.tt * bool * t
       | MForall       of string * Dom.tt * bool * t
       | MPrev         of Interval.t * t * bool * prev_info
@@ -54,16 +54,16 @@ module type MonitorT = sig
       | MHistorically of Interval.t * t * tp_info * historically_info
       | MAlways       of Interval.t * t * buft_info * always_info
       | MEAlways      of Interval.t * Time.t option * t * Etc.valuation
-      | MSince        of Formula.Side.t * Interval.t * t * t * buf2t_info * since_info
+      | MSince        of Side.t * Interval.t * t * t * buf2t_info * since_info
       | MUntil        of Interval.t * t * t * buf2t_info * until_info
-      | MEUntil       of Formula.Side.t * Interval.t * Time.t option * t * t * Etc.valuation
+      | MEUntil       of Side.t * Interval.t * Time.t option * t * t * Etc.valuation
 
     and t = { mf: core_t;
               filter: Formula.Filter.filter;
               events: (string, String.comparator_witness) Set.t option;
               obligations: (int, Int.comparator_witness) Set.t option;
               hash: int;
-              lbls: Pred.Lbl.t list }
+              lbls: Lbl.t list }
     
     val make: core_t -> Formula.Filter.filter -> t
     val set_make: core_t -> Formula.Filter.filter -> t
@@ -96,7 +96,7 @@ module type MonitorT = sig
     type kind =
       | FFormula of MFormula.t * int * Etc.valuation                       (* fun _ -> f *)
       | FInterval of Time.t * Interval.t * MFormula.t * int * Etc.valuation   (* fun t -> if mem t i then f else Formula.TT *)
-      | FUntil of Time.t * Formula.Side.t * Interval.t * MFormula.t * MFormula.t * int * Etc.valuation (* fun t -> Until (s, sub2 i (t-t0), f1, f2) *)
+      | FUntil of Time.t * Side.t * Interval.t * MFormula.t * MFormula.t * int * Etc.valuation (* fun t -> Until (s, sub2 i (t-t0), f1, f2) *)
       | FAlways of Time.t * Interval.t * MFormula.t * int * Etc.valuation     (* fun t -> Always (sub2 i (t-t0), f1) *)
       | FEventually of Time.t * Interval.t * MFormula.t * int * Etc.valuation (* fun t -> Eventually (sub2 i (t-t0), f1) *)
 

@@ -1,1 +1,1 @@
-ALWAYS (FORALL x, y. B(x) AND B(y) AND NOT { x == y } AND NOT A(f(x, y)) IMPLIES:R C(x, y))
+ALWAYS (FORALL x, y. B(x) AND B(y) AND NOT (x = y) AND NOT A(f(x, y)) IMPLIES:R C(x, y))

@@ -280,8 +280,8 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
                           (Db.to_string es.db));*)
          es
       | MTT -> es
-      | MPredicate (r, trms) when Pred.Sig.equal_pred_kind (Pred.Sig.kind_of_pred r) Pred.Sig.Trace ->
-         let new_cau = (r, List.map trms (fun trm -> Pred.Term.unconst (Pred.Sig.eval v trm))) in
+      | MPredicate (r, trms) when Sig.equal_pred_kind (Sig.kind_of_pred r) Sig.Trace ->
+         let new_cau = (r, List.map trms (fun trm -> Term.unconst (Sig.eval v trm))) in
          add_cau new_cau es
       | MNeg mf -> enfvio mf v es
       | MAnd (L, mfs, _) -> fixpoint (enfsat_andl v mfs) es
@@ -347,7 +347,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       match mformula.mf with
       | _ when can_skip es mformula -> es
       | MFF -> es
-      | MPredicate (r, trms) when Pred.Sig.equal_pred_kind (Pred.Sig.kind_of_pred r) Pred.Sig.Trace ->
+      | MPredicate (r, trms) when Sig.equal_pred_kind (Sig.kind_of_pred r) Sig.Trace ->
          let new_sup = (r, List.map trms (fun trm -> match trm with
                                                      | Var x -> Map.find_exn v x
                                                      | Const c -> c)) in

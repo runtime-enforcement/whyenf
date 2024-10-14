@@ -9,14 +9,13 @@
 
 open Base
 open Formula
-open Pred
 
 
 module Errors = struct
 
   type error =
-    | ECast of string * EnfType.t * EnfType.t
-    | EFormula of string option * t * EnfType.t
+    | ECast of string * Enftype.t * Enftype.t
+    | EFormula of string option * t * Enftype.t
     | EConj of error * error
     | EDisj of error * error
 
@@ -27,19 +26,19 @@ module Errors = struct
      | ECast (e, t', t) -> "make "
                            ^ e
                            ^ " "
-                           ^ EnfType.to_string t
+                           ^ Enftype.to_string t
                            ^ " (currently, it has type "
-                           ^ EnfType.to_string t'
+                           ^ Enftype.to_string t'
                            ^ ")"
      | EFormula (None, f, t) -> "make "
                                 ^ Formula.to_string f
                                 ^ " "
-                                ^ EnfType.to_string t
+                                ^ Enftype.to_string t
                                 ^ ", but this is impossible"
      | EFormula (Some s, f, t) -> "make "
                                 ^ Formula.to_string f
                                 ^ " "
-                                ^ EnfType.to_string t
+                                ^ Enftype.to_string t
                                 ^ ", but this is impossible"
                                 ^ " (" ^ s ^ ")"
      | EConj (f, g) -> "both" ^ lb ^ "* "
@@ -59,8 +58,8 @@ module Constraints = struct
   type constr =
     | CTT
     | CFF
-    | CGeq of string * EnfType.t
-    | CNLeqNCau of string * EnfType.t
+    | CGeq of string * Enftype.t
+    | CNLeqNCau of string * Enftype.t
     | CConj of constr list
     | CDisj of constr list [@@deriving equal, compare, sexp_of]
 
@@ -129,16 +128,16 @@ module Constraints = struct
   let merge_aux ~key = function
     | `Left t | `Right t -> Some t
     | `Both ((t, t'), (u, u')) ->
-       let v  = EnfType.join t u in
-       let v' = Option.merge ~f:EnfType.meet t' u' in
+       let v  = Enftype.join t u in
+       let v' = Option.merge ~f:Enftype.meet t' u' in
        match v' with
-       | Some v' when EnfType.leq v' v ->
+       | Some v' when Enftype.leq v' v ->
           (*print_endline (Printf.sprintf "merge_aux key=%s t=%s t'=%s u=%s, u'=%s"
                            key
-                           (EnfType.to_string t)
-                           (Option.fold t' ~init:"None" ~f:(fun _ v -> EnfType.to_string v))
-                           (EnfType.to_string u)
-                           (Option.fold u' ~init:"None" ~f:(fun _ v -> EnfType.to_string v)));*)
+                           (Enftype.to_string t)
+                           (Option.fold t' ~init:"None" ~f:(fun _ v -> Enftype.to_string v))
+                           (Enftype.to_string u)
+                           (Option.fold u' ~init:"None" ~f:(fun _ v -> Enftype.to_string v)));*)
           raise CannotMerge
        | _ ->  Some (v, v')
 
@@ -149,9 +148,9 @@ module Constraints = struct
   let rec solve = function
     | CTT -> [Map.empty (module String)]
     | CFF -> []
-    | CGeq (s, t) -> [Map.singleton (module String) s (t, Some EnfType.Obs)]
-    | CNLeqNCau (s, t) -> [Map.singleton (module String) s (EnfType.join EnfType.SCau t, None);
-                           Map.singleton (module String) s (EnfType.join EnfType.Sup t,  None)]
+    | CGeq (s, t) -> [Map.singleton (module String) s (t, Some Enftype.Obs)]
+    | CNLeqNCau (s, t) -> [Map.singleton (module String) s (Enftype.join Enftype.SCau t, None);
+                           Map.singleton (module String) s (Enftype.join Enftype.Sup t,  None)]
     | CConj [] -> [Map.empty (module String)]
     | CConj (c::cs) ->
        let f sol d = List.filter_map (cartesian sol (solve d)) ~f:try_merge in
@@ -161,7 +160,7 @@ module Constraints = struct
   let rec to_string_rec l = function
     | CTT -> Printf.sprintf "⊤"
     | CFF -> Printf.sprintf "⊥"
-    | CGeq (s, t) -> Printf.sprintf "t(%s) ⋡ Obs ∧ t(%s) ≽ %s" s s (EnfType.to_string t)
+    | CGeq (s, t) -> Printf.sprintf "t(%s) ⋡ Obs ∧ t(%s) ≽ %s" s s (Enftype.to_string t)
     | CNLeqNCau (s, t) -> Printf.sprintf "NCau ⋡ t(%s)" s 
     | CConj cs -> Printf.sprintf (Etc.paren l 4 "%s")
                     (String.concat ~sep:" ∧ " (List.map ~f:(to_string_rec 4) cs))
@@ -176,22 +175,22 @@ module Constraints = struct
 
 end
 
-open EnfType
+open Enftype
 open Constraints
 open Option
 
 (* todo: ensure that there is no shadowing *)
 
 let types_predicate t e =
-  let t' = Pred.Sig.enftype_of_pred e in
-  if EnfType.geq t t' then
+  let t' = Sig.enftype_of_pred e in
+  if Enftype.geq t t' then
     Possible (geq e t)
   else
     Impossible (ECast (e, t', t))
 
 type pg_map = (string, (string, String.comparator_witness) Set.t list, String.comparator_witness) Map.t
 
-let rec types (t: EnfType.t) (pgs: pg_map) (f: Formula.t) =
+let rec types (t: Enftype.t) (pgs: pg_map) (f: Formula.t) =
   let error s = Impossible (EFormula (Some s, f, t)) in
   match t with
     Cau -> begin
@@ -211,13 +210,13 @@ let rec types (t: EnfType.t) (pgs: pg_map) (f: Formula.t) =
                              conj (types_predicate Cau e)
                                (conjs (List.map (Set.elements es_ncau)
                                          ~f:(fun e ->
-                                           Possible (nleqncau e (Pred.Sig.enftype_of_pred e)))))))
+                                           Possible (nleqncau e (Sig.enftype_of_pred e)))))))
                 else
                   disjs (List.map es_ncau_list ~f:(fun es_ncau ->
                              conj (types_predicate NCau e)
                                (conjs (List.map (Set.elements es_ncau)
                                          ~f:(fun e ->
-                                           Possible (nleqncau e (Pred.Sig.enftype_of_pred e))))))))
+                                           Possible (nleqncau e (Sig.enftype_of_pred e))))))))
              in c)
       | Neg f -> types Sup pgs f
       | And (_, f, g) -> conj (types Cau pgs f) (types Cau pgs g)
@@ -316,12 +315,12 @@ let rec convert b enftype form (types: Ctxt.t) : Ctxt.t * Tformula.t option =
   let types, f, filter =
     (*print_endline "-- convert";
     print_endline (Formula.to_string form);
-    print_endline (EnfType.to_string enftype);*)
+    print_endline (Enftype.to_string enftype);*)
     match enftype with
     | Cau | NCau | SCau -> begin
         match form with
         | TT -> types, Some (Tformula.TTT), Filter._true
-        | Predicate (e, trms) when EnfType.is_causable (Pred.Sig.enftype_of_pred e) ->
+        | Predicate (e, trms) when Enftype.is_causable (Sig.enftype_of_pred e) ->
            let types, _ = Sig.check_terms types e trms in
            types, Some (Tformula.TPredicate (e, trms)), Filter._true
         | Neg f -> apply1 (convert Sup f) (fun mf -> Tformula.TNeg mf) types 
@@ -437,7 +436,7 @@ let rec convert b enftype form (types: Ctxt.t) : Ctxt.t * Tformula.t option =
     | Sup -> begin
         match form with
         | FF -> types, Some (Tformula.TFF), Filter._true
-        | Predicate (e, trms) when EnfType.is_suppressable (Pred.Sig.enftype_of_pred e) ->
+        | Predicate (e, trms) when Enftype.is_suppressable (Sig.enftype_of_pred e) ->
            let types, _ = Sig.check_terms types e trms in
            types, Some (Tformula.TPredicate (e, trms)), Filter.An e
         | Neg f -> apply1 (convert Cau f) (fun mf -> Tformula.TNeg mf) types
@@ -539,7 +538,7 @@ let rec convert b enftype form (types: Ctxt.t) : Ctxt.t * Tformula.t option =
   in
   let r = (match f with Some f -> Some Tformula.{ f; enftype; filter } | None -> None) in
   (*Stdio.printf "convert %s (%s) = (%s, %s)\n\n"
-    (EnfType.to_string enftype)
+    (Enftype.to_string enftype)
     (Formula.to_string form)
     (match r with Some r -> Tformula.to_string r | None -> "")
     (Filter.to_string filter);*)
@@ -564,7 +563,7 @@ let do_type f b =
        match Constraints.solve c with
        | sol::_ ->
           begin
-            Map.iteri sol ~f:(fun ~key ~data -> (*print_endline ("key=" ^ key ^ "; data="^ EnfType.to_string (fst data)); *)Pred.Sig.update_enftype key (fst data));
+            Map.iteri sol ~f:(fun ~key ~data -> (*print_endline ("key=" ^ key ^ "; data="^ Enftype.to_string (fst data)); *)Sig.update_enftype key (fst data));
             match convert' b Cau f with
             | Some f' -> Stdio.print_endline ("The formula\n "
                                               ^ Formula.to_string f

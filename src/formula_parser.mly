@@ -10,82 +10,51 @@
 (*******************************************************************)
 
 open Etc
-open Formula
+open Sformula
 
 let debug m = if !debug then Stdio.print_endline ("[debug] formula_parser: " ^ m)
 
 %}
 
-%token LPA
-%token RPA
-%token LBR
-%token RBR
-%token COMMA
-%token SEMICOLON
-%token DOT
-%token COL
+%token LPA RPA
+%token COMMA SEMICOLON DOT COL GETS LET IN
 %token EOF
 
 %token <Interval.t> INTERVAL
-%token <string> STR
-%token <string> QSTR
-%token <int> INT
-%token <float> FLOAT
+%token <string>     STR
+%token <string>     QSTR
+%token <int>        INT
+%token <float>      FLOAT
+%token FALSE TRUE
 
-%token FALSE
-%token TRUE
-%token EQCONST 
-%token LT GT LEQ GEQ EQEQ NEQ
-%token NEG
-%token AND
-%token OR
-%token IMP
-%token IFF
-%token EXISTS
-%token FORALL
-%token GETS
-%token PREV
-%token NEXT
-%token ONCE
-%token EVENTUALLY
-%token HISTORICALLY
-%token ALWAYS
-%token SINCE
-%token UNTIL
-%token RELEASE
-%token TRIGGER
-
+%token NOT
+%token LT GT LEQ GEQ EQ NEQ
+%token AND OR IMP IFF
+%token EXISTS FORALL
+%token PREV NEXT ONCE EVENTUALLY HISTORICALLY ALWAYS
+%token SINCE UNTIL RELEASE TRIGGER
 %token ADD SUB MUL DIV POW CONC
 %token FADD FSUB FMUL FDIV FPOW
 %token SUM AVG MED CNT MIN MAX
 
-%token LET
-%token IN
 
-%right IN
-
+%left IN
 %left SEMICOLON
-%nonassoc INTERVAL
-%right SINCE UNTIL RELEASE TRIGGER
-%nonassoc PREV NEXT ONCE EVENTUALLY HISTORICALLY ALWAYS
-%nonassoc EXISTS FORALL
-%right IFF IMP
+%left EXISTS FORALL
+
+%left IFF
+%right IMP
 %left OR
 %left AND
-%nonassoc NEG
-
-%nonassoc LT
-%nonassoc GT
-%nonassoc LEQ
-%nonassoc GEQ
-%nonassoc EQEQ
-%nonassoc NEQ
-%left ADD SUB FADD FSUB
+%nonassoc SINCE UNTIL RELEASE TRIGGER
+%left PREV NEXT ONCE EVENTUALLY HISTORICALLY ALWAYS
+%nonassoc LT GT LEQ GEQ EQ NEQ
+%left ADD SUB FADD FSUB CONC
 %left MUL DIV FMUL FDIV
 %left POW FPOW
-%left CONC
+%left NOT
 
-%type <Formula.t> formula
+%type <Sformula.t> formula
 %start formula
 
 %%
@@ -95,120 +64,106 @@ formula:
 
 e:
 | LPA e RPA                                 { debug "( e )"; $2 }
-| TRUE                                      { debug "TRUE"; tt }
-| FALSE                                     { debug "FALSE"; ff }
-| LET pletp EQCONST e IN e %prec IN
-                                            { debug "LET"; match $2 with
-                                                           | (r, vars) ->
-                                                             flet r vars $4 $6
-                                                           | _ -> raise (Invalid_argument
-                                                                  "invalid let definition") }
-| LBR term RBR EQCONST const           { debug "EQCONST"; eqconst $2 (Pred.Term.unconst $5)}
-| const EQCONST LBR term RBR           { debug "EQCONST"; eqconst $4 (Pred.Term.unconst $1)}
-| LBR term RBR                         { debug "EQCONST"; eqconst $2 (Pred.Term.unconst (Const (Dom.Int 1)))}
-| STR GETS aggregation LPA term SEMICOLON vars2 SEMICOLON e RPA
-                                       { debug "AGG"; agg $1 $3 $5 $7 $9 }
-| e SEMICOLON STR GETS term            { debug "AGG"; agg $3 Aggregation.AAssign $5 (list_fv $1) $1 }
-| NEG e                                { debug "NEG e"; neg $2 }
-| PREV INTERVAL e                      { debug "PREV INTERVAL e"; prev $2 $3 }
-| PREV e                               { debug "PREV e"; prev Interval.full $2 }
-| NEXT INTERVAL e                      { debug "NEXT INTERVAL e"; next $2 $3 }
-| NEXT e                               { debug "NEXT e"; next Interval.full $2 }
-| ONCE INTERVAL e                      { debug "ONCE INTERVAL e"; once $2 $3 }
-| ONCE e                               { debug "ONCE e"; once Interval.full $2 }
-| EVENTUALLY INTERVAL e                { debug "EVENTUALLY INTERVAL e"; (*Interval.is_bounded_exn "eventually" $2;*) eventually $2 $3 }
-| EVENTUALLY e                         { debug "EVENTUALLY e"; (*raise (Invalid_argument "unbounded future operator: eventually")*) eventually Interval.full $2 }
-| HISTORICALLY INTERVAL e              { debug "HISTORICALLY INTERVAL e"; historically $2 $3 }
-| HISTORICALLY e                       { debug "HISTORICALLY e"; historically Interval.full $2 }
-| ALWAYS INTERVAL e                    { debug "ALWAYS INTERVAL e"; (*Interval.is_bounded_exn "always" $2;*) always $2 $3 }
-| ALWAYS e                             { debug "ALWAYS e"; (*raise (Invalid_argument "unbounded future operator: always")*) always Interval.full $2 }
-| e AND side e                         { debug "e AND side e"; conj $3 $1 $4 }
-| e AND e                              { debug "e AND e"; conj N $1 $3 }
-| e OR side e                          { debug "e OR side e"; disj $3 $1 $4 }
-| e OR e                               { debug "e OR e"; disj N $1 $3 }
-| e IMP side e                         { debug "e IMP side e"; imp $3 $1 $4 }
-| e IMP e                              { debug "e IMP e"; imp N $1 $3 }
-| e IFF sides e                        { debug "e IFF sides e"; iff (fst $3) (snd $3) $1 $4 }
-| e IFF e                              { debug "e IFF e"; iff N N $1 $3 }
-| e SINCE INTERVAL side e              { debug "e SINCE INTERVAL side e"; since $4 $3 $1 $5 }
-| e SINCE INTERVAL e                   { debug "e SINCE INTERVAL side e"; since N $3 $1 $4 }
-| e SINCE side e                       { debug "e SINCE side e"; since $3 Interval.full $1 $4 }
-| e SINCE e                            { debug "e SINCE e"; since N Interval.full $1 $3 }
-| e UNTIL INTERVAL side e              { debug "e UNTIL INTERVAL side e"; (*Interval.is_bounded_exn "until" $4;*) until $4 $3 $1 $5 }
-| e UNTIL INTERVAL e                   { debug "e UNTIL INTERVAL e"; (*Interval.is_bounded_exn "until" $4;*) until N $3 $1 $4 }
-| e UNTIL side e                       { debug "e UNTIL side e"; (*raise (Invalid_argument "unbounded future operator: until")*) until $3 Interval.full $1 $4 }
-| e UNTIL e                            { debug "e UNTIL e"; (*raise (Invalid_argument "unbounded future operator: until")*) until N Interval.full $1 $3 }
-| e TRIGGER INTERVAL side e            { debug "e TRIGGER INTERVAL side e"; trigger $4 $3 $1 $5 }
-| e TRIGGER INTERVAL e                 { debug "e TRIGGER INTERVAL e"; trigger N $3 $1 $4 }
-| e TRIGGER side e                     { debug "e TRIGGER side e"; trigger $3 Interval.full $1 $4 }
-| e TRIGGER e                          { debug "e TRIGGER e"; trigger N Interval.full $1 $3 }
-| e RELEASE INTERVAL side e            { debug "e RELEASE INTERVAL side e"; (*Interval.is_bounded_exn "release" $3;*) release $4 $3 $1 $5 }
-| e RELEASE INTERVAL e                 { debug "e RELEASE INTERVAL e"; (*Interval.is_bounded_exn "release" $3;*) release N $3 $1 $4 }
-| e RELEASE side e                     { debug "e RELEASE side e"; (*raise (Invalid_argument "unbounded future operator: release")*) release $3 Interval.full $1 $4 }
-| e RELEASE e                          { debug "e RELEASE e"; (*raise (Invalid_argument "unbounded future operator: release")*) release N Interval.full $1 $3 }
-| EXISTS vars DOT e %prec EXISTS       { debug "EXISTS STR DOT e"; List.fold_right exists (List.tl $2) (exists (List.hd $2) $4) }
-| FORALL vars DOT e %prec FORALL       { debug "FORALL STR DOT e"; List.fold_right forall (List.tl $2) (forall (List.hd $2) $4) }
-| STR LPA terms RPA                    { debug "STR LPA terms RPA"; predicate $1 $3 }
-
-pletp:
-| STR LPA vars2 RPA                     { debug "pletp"; ($1, $3) }
-
-side:
-| COL STR                              { debug "COL STR"; Side.of_string $2 }
-| COL RELEASE                          { debug "COL RELEASE"; Side.of_string "R" }
-
-sides:
-| COL STR COMMA STR                    { debug "COL STR COMMA STR"; (Side.of_string $2, Side.of_string $4) }
-
-term:
-| const                    { debug "const"; $1 }
-| STR                      { debug "STR"; Pred.Term.Var $1 }
-| STR LPA terms RPA        { debug "STR LPA terms RPA"; Pred.Term.App ($1, $3) }
-| term bop term            { debug "term bop term"; Pred.Term.App ($2, [$1; $3]) }
-| uop term                 { debug "uop term"; Pred.Term.App ($1, [$2]) }
-| LPA term RPA             { debug "LPA term RPA"; $2 }
-
-%inline bop:
-| ADD  { "add" }
-| SUB  { "sub" }
-| MUL  { "mul" }
-| DIV  { "div" }
-| POW  { "pow" }
-| FADD { "fadd" }
-| FSUB { "fsub" }
-| FMUL { "fmul" }
-| FDIV { "fdiv" }
-| FPOW { "fpow" }
-| EQEQ { "eq" }
-| NEQ  { "neq" }
-| LT   { "lt" }
-| LEQ  { "leq" }
-| GT   { "gt" }
-| GEQ  { "geq" }
-| CONC { "conc" }
-
-%inline uop:
-| SUB  { "usub" }
-| FSUB { "ufsub" }
-
-const:
-| INT                                  { debug "INT"; Pred.Term.Const (Int $1) }
-| FLOAT                                { debug "FLOAT"; Pred.Term.Const (Float $1) }
-| QSTR                                 { debug "QSTR"; Pred.Term.Const (Str (Etc.unquote $1)) }
+| const                                     { debug "const"; SConst $1 }
+| STR LPA terms RPA                         { debug "STR LPA terms RPA"; SApp ($1, $3) }
+| STR                                       { debug "STR"; SVar $1 }
+| LET pletp EQ e IN e %prec IN              { debug "LET"; SLet (fst $2, snd $2, $4, $6) }
+| STR GETS aop LPA e SEMICOLON vars_or_empty SEMICOLON e RPA
+                                            { debug "AGG"; SAgg ($1, $3, $5, $7, $9) }
+| e SEMICOLON STR GETS e %prec SEMICOLON    { debug "AGG"; SAssign ($1, $3, $5) }
+| uop e                                     { debug "uop e"; SUop ($1, $2) }
+| e AND side e %prec AND                    { debug "e AND side e"; SBop (Some $3, $1, Bop.BAnd, $4) }
+| e OR side e %prec OR                      { debug "e OR side e"; SBop (Some $3, $1, Bop.BOr, $4) }
+| e IMP side e %prec IMP                    { debug "e IMP side e"; SBop (Some $3, $1, Bop.BImp, $4) }
+| e bop e                                   { debug "e bop e"; SBop (None, $1, $2, $3) }
+| e bop2 sides e %prec IFF                  { debug "e bop2 sides e"; SBop2 (Some $3, $1, $2, $4) }
+| e bop2 e                                  { debug "e bop2 e"; SBop2 (None, $1, $2, $3) }
+| utop INTERVAL e %prec PREV                { debug "utop INTERVAL e"; SUtop ($2, $1, $3) }
+| utop e                                    { debug "utop e"; SUtop (Interval.full, $1, $2) }
+| e btop INTERVAL side e %prec SINCE        { debug "e btop INTERVAL side e"; SBtop (Some $4, $3, $1, $2, $5) }
+| e btop INTERVAL e %prec SINCE             { debug "e btop INTERVAL e"; SBtop (None, $3, $1, $2, $4) }
+| e btop side e %prec SINCE                 { debug "e btop side e"; SBtop (Some $3, Interval.full, $1, $2, $4) }
+| e btop e                                  { debug "e btop e"; SBtop (None, Interval.full, $1, $2, $3) }
+| EXISTS vars DOT e %prec EXISTS            { debug "EXISTS vars DOT e"; SExists ($2, $4) }
+| FORALL vars DOT e %prec FORALL            { debug "FORALL vars DOT e"; SForall ($2, $4) }
 
 terms:
-| trms=separated_list (COMMA, term)    { debug "trms"; trms }
+| separated_list (COMMA, e)                 { debug "trms"; $1 }
 
 vars:
-| vrs=separated_nonempty_list (COMMA, STR) { debug "vrs"; vrs }
+| separated_nonempty_list (COMMA, STR)      { debug "vrs"; $1 }
 
-vars2:
-| vrs=separated_list (COMMA, STR) { debug "vrs"; vrs }
+vars_or_empty:
+| separated_list (COMMA, STR)               { debug "vrs"; $1 }
 
-aggregation:
-| SUM { debug "SUM"; Aggregation.ASum }
-| AVG { debug "AVG"; Aggregation.AAvg }
-| MED { debug "MED"; Aggregation.AMed }
-| CNT { debug "CNT"; Aggregation.ACnt }
-| MIN { debug "MIN"; Aggregation.AMin }
-| MAX { debug "MAX"; Aggregation.AMax }
+%inline pletp:
+| STR LPA vars_or_empty RPA                 { debug "pletp"; ($1, $3) }
+
+%inline uop:
+| SUB                                       { Uop.USub }
+| FSUB                                      { Uop.UFSub }
+| NOT                                       { Uop.UNot }
+
+%inline bop:
+| lbop                                      { $1 }
+| ADD                                       { Bop.BAdd }
+| SUB                                       { Bop.BSub }
+| MUL                                       { Bop.BMul }
+| DIV                                       { Bop.BDiv }
+| POW                                       { Bop.BPow }
+| FADD                                      { Bop.BFAdd }
+| FSUB                                      { Bop.BFSub }
+| FMUL                                      { Bop.BFMul }
+| FDIV                                      { Bop.BFDiv }
+| FPOW                                      { Bop.BFPow }
+| EQ                                        { Bop.BEq }
+| NEQ                                       { Bop.BNeq }
+| LT                                        { Bop.BLt }
+| LEQ                                       { Bop.BLeq }
+| GT                                        { Bop.BGt }
+| GEQ                                       { Bop.BGeq }
+| CONC                                      { Bop.BConc }
+
+%inline lbop:
+| AND                                       { Bop.BAnd }
+| OR                                        { Bop.BOr }
+| IMP                                       { Bop.BImp }
+
+%inline bop2:
+| IFF                                       { Bop2.BIff }
+
+%inline utop:
+| PREV                                      { Utop.UPrev }
+| NEXT                                      { Utop.UNext }
+| ALWAYS                                    { Utop.UAlways }
+| HISTORICALLY                              { Utop.UHistorically }
+| EVENTUALLY                                { Utop.UEventually }
+| ONCE                                      { Utop.UOnce }
+
+%inline btop:
+| SINCE                                     { Btop.BSince }
+| UNTIL                                     { Btop.BUntil }
+| RELEASE                                   { Btop.BRelease }
+| TRIGGER                                   { Btop.BTrigger }
+
+%inline side:
+| COL STR                                   { debug "COL STR"; Side.of_string $2 }
+| COL RELEASE                               { debug "COL RELEASE"; Side.of_string "R" }
+
+%inline sides:
+| COL STR COMMA STR                         { debug "COL STR COMMA STR"; (Side.of_string $2, Side.of_string $4) }
+
+%inline const:
+| TRUE                                      { debug "TRUE"; Const.CBool true }                                    
+| FALSE                                     { debug "FALSE"; Const.CBool false }                                    
+| INT                                       { debug "INT"; Const.CInt $1 }
+| FLOAT                                     { debug "FLOAT"; Const.CFloat $1 }
+| QSTR                                      { debug "QSTR"; Const.CStr $1 }
+
+%inline aop:
+| SUM                                       { debug "SUM"; Aop.ASum }
+| AVG                                       { debug "AVG"; Aop.AAvg }
+| MED                                       { debug "MED"; Aop.AMed }
+| CNT                                       { debug "CNT"; Aop.ACnt }
+| MIN                                       { debug "MIN"; Aop.AMin }
+| MAX                                       { debug "MAX"; Aop.AMax }

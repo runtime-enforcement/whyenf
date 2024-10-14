@@ -1,4 +1,4 @@
 The formula
- □[0s,∞) ∀y. ∀x. (A(x) ∨ C(y)) → (B(x) ∧ B(y))
+ □[0s,∞) ∀x. ∀y. (A(x) ∨ C(y)) → (B(x) ∧ B(y))
 is not enforceable. To make it enforceable, you would need to
- make ∀y. ∀x. (A(x) ∨ C(y)) → (B(x) ∧ B(y)) Cau, but this is impossible (for causability y must be past-guarded)
+ make ∀x. ∀y. (A(x) ∨ C(y)) → (B(x) ∧ B(y)) Cau, but this is impossible (for causability x must be past-guarded)

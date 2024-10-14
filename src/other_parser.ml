@@ -12,6 +12,8 @@ open Base
 open Stdio
 open Etc
 
+module TheSig = Sig
+
 let string_of_token (t: Other_lexer.token) =
   match t with
   | AT -> "'@'"
@@ -70,7 +72,7 @@ module Parsebuf = struct
 
   type t = { lexbuf: Lexing.lexbuf
            ; mutable token: Other_lexer.token
-           ; mutable pred_sig: Pred.Sig.elt option
+           ; mutable pred_sig: Sig.elt option
            ; mutable tp: int
            ; mutable ts: int
            ; mutable db: Db.t
@@ -92,7 +94,7 @@ module Parsebuf = struct
 
   let reset_stats pb = Stats.reset pb.stats
 
-  let arity pb = (Pred.Sig.arity (snd (Option.value_exn pb.pred_sig)))
+  let arity pb = (Sig.arity (snd (Option.value_exn pb.pred_sig)))
 
   let pred pb = fst (Option.value_exn pb.pred_sig)
 
@@ -180,16 +182,16 @@ module Sig = struct
     | PLS -> begin Parsebuf.next pb;
                    match pb.token with
                    | MNS -> Parsebuf.next pb;
-                            Pred.EnfType.CauSup
-                   | _   -> Pred.EnfType.Cau
+                            Enftype.CauSup
+                   | _   -> Enftype.Cau
              end
     | MNS -> begin Parsebuf.next pb;
         match pb.token with
         | PLS -> Parsebuf.next pb;
-                 Pred.EnfType.CauSup
-        | _   -> Pred.EnfType.Sup
+                 Enftype.CauSup
+        | _   -> Enftype.Sup
              end
-    | _ -> Pred.EnfType.Obs
+    | _ -> Enftype.Obs
 
   let rec parse_pred_sigs (pb: Parsebuf.t) rank_ref =
     match pb.token with
@@ -201,7 +203,7 @@ module Sig = struct
                     let arg_tts = convert_types (parse_arg_tts pb) in
                     let ret_tt = Dom.tt_of_string (parse_ret_tt pb) in
                     let strict = match kw with SFUN -> true | _ -> false in
-                    Pred.Sig.add_func s arg_tts ret_tt External strict;
+                    Sig.add_func s arg_tts ret_tt External strict;
                     parse_pred_sigs pb rank_ref
          | t -> raise (Failure ("unexpected character: " ^ string_of_token t))
       end
@@ -210,7 +212,7 @@ module Sig = struct
         match pb.token with
          | STR s -> Parsebuf.next pb;
                     let arg_tts = convert_types (parse_arg_tts pb) in
-                    Pred.Sig.add_pred s arg_tts Pred.EnfType.Obs 0
+                    Sig.add_pred s arg_tts Enftype.Obs 0
                       (match tok with PRD -> Predicate | EXT -> External);
                     parse_pred_sigs pb rank_ref
          | t -> raise (Failure ("unexpected character: " ^ string_of_token t))
@@ -220,13 +222,13 @@ module Sig = struct
         let arg_tts = convert_types (parse_arg_tts pb) in
         let enftype  = parse_enftype pb in
         let rank = match enftype with
-          | Pred.EnfType.Obs -> 0
+          | Enftype.Obs -> 0
           | _ -> rank_ref in
         let next_rank_ref = if Int.equal rank 0 then
                               rank_ref + 1
                             else
                               rank_ref in
-        Pred.Sig.add_pred s arg_tts enftype rank Trace;
+        Sig.add_pred s arg_tts enftype rank Trace;
         parse_pred_sigs pb (next_rank_ref)
       end
     | t -> raise (Failure ("unexpected character: " ^ string_of_token t))
@@ -278,7 +280,7 @@ module Trace = struct
     and parse_db () =
       Parsebuf.count_tp pb;
       match pb.token with
-      | STR s -> (match Hashtbl.find Pred.Sig.table s with
+      | STR s -> (match Hashtbl.find TheSig.table s with
                   | Some props -> (pb.pred_sig <- Some(s, props);
                                    Parsebuf.next pb;
                                    (match pb.token with
