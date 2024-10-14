@@ -1,0 +1,7 @@
+@0 isAuthorized("Alice")
+@1 input("Alice", 20, "Omicron")
+@2 input("Bob", 30, "Beta")
+@3 input("Charlie", 40, "Omicron")
+@4 output("Alice", 30, "Omicron")
+@5 output("Charlie", 30, "Beta")
+@6 output("Eve", 40, "Omicron")

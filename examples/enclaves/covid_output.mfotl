@@ -1,0 +1,11 @@
+ALWAYS (
+  FORALL recipient, medianAge, covidStrain. (
+    output(recipient, medianAge, covidStrain)
+    IMPLIES
+    (EXISTS realMedianAge.
+      realMedianAge <- AVG(age; covidStrain; ONCE input(person, age, covidStrain))
+      AND { realMedianAge - medianAge < 2 }
+      AND { medianAge - realMedianAge < 2 }
+    )
+  )
+)

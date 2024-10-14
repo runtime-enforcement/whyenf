@@ -1,0 +1,8 @@
+ALWAYS (
+  FORALL recipient, medianAge, covidStrain.
+    output(recipient, medianAge, covidStrain)
+    IMPLIES
+    (EXISTS count.
+      count <- CNT(user; covidStrain; ONCE input(user, age, covidStrain))
+      AND { count > 1 })
+)
