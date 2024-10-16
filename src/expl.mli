@@ -106,7 +106,6 @@ module type ProofT = sig
   val s_to_string: string -> sp -> string
   val v_to_string: string -> vp -> string
   val to_string: string -> t -> string
-  val to_latex: string -> Formula.t -> t -> string
   val to_bool: t -> string
 
   val make_stt: int -> sp
@@ -184,6 +183,20 @@ module type ProofT = sig
     val minp_list: t list -> t
 
   end
+
+end
+
+module type ExplT = sig
+
+  module Proof: ProofT
+  type t = Proof.t Pdt.t
+
+  val is_violated: t -> bool
+  val is_satisfied: t -> bool
+  val at: t -> int
+
+  val to_string: t -> string
+  val to_light_string: t -> string
 
 end
 
@@ -267,7 +280,6 @@ module Make (P : ProofT) : sig
   val at: t -> int
 
   val to_string: t -> string
-  val to_latex: Formula.t -> t -> string
   val to_light_string: t -> string
 
 end

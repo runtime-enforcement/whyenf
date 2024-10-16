@@ -15,7 +15,9 @@ type t =
   | FF
   | EqConst of Term.t * Dom.t
   | Predicate of string * Term.t list
-  | Let of string * string list * t * t
+  | Predicate' of string * Term.t list * t
+  | Let of string * Enftype.t option * string list * t * t
+  | Let' of string * string list * t * t
   | Agg of string * Aggregation.op * Term.t * string list * t
   | Neg of t
   | And of Side.t * t * t
@@ -38,7 +40,7 @@ val ff: t
 val eqconst: Term.t -> Dom.t -> t
 val agg: string -> Aggregation.op -> Term.t -> string list -> t -> t
 val predicate: string -> Term.t list -> t
-val flet: string -> string list -> t -> t -> t
+val flet: string -> Enftype.t option -> string list -> t -> t -> t
 val neg: t -> t
 val conj: Side.t -> t -> t -> t
 val disj: Side.t -> t -> t -> t
@@ -62,32 +64,19 @@ val init: Sformula.t -> t
 val fv: t -> (String.t, Base.String.comparator_witness) Base.Set.t
 val list_fv: t -> String.t list
 val terms: t -> (Term.t, Term.comparator_witness) Base.Set.t
-(*val lbls: string list -> t -> Pred.Lbl.t list*)
-val check_bindings: t -> bool
 
 val equal: t -> t -> bool
 
-val hp: t -> int
-val hf: t -> int
-val height: t -> int
-
-val subfs_bfs: t list -> t list
-val subfs_dfs: t -> t list
-val subfs_scope: t -> int -> (int * (int list * int list)) list
-val preds: t -> t list
-val pred_names: t -> (string, Base.String.comparator_witness) Base.Set.t
-
 val op_to_string: t -> string
 val to_string: t -> string
-val to_json: t -> string
-val to_latex: t -> string
 
-(*val check_types: t -> unit*)
 val solve_past_guarded: string -> bool -> t -> (string, Base.String.comparator_witness) Base.Set.t list
 val is_past_guarded: string -> bool -> t -> bool
 
 val check_agg: Ctxt.t -> string -> Aggregation.op -> Term.t -> string list -> t -> Ctxt.t
 
+val convert_vars: t -> t
+val convert_lets: t -> t
 val unroll_let: t -> t
 
 module Filter : sig

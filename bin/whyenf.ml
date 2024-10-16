@@ -81,9 +81,8 @@ module Whyenf = struct
     try
       process_args (List.tl_exn (Array.to_list Sys.argv));
       let sformula = Option.value_exn !formula_ref in
-      let (module CI: Checker_interface.Checker_interfaceT) =
-        (module Checker_interface.LightChecker_interface) in
-      let module Enforcer = Enforcer.Make (CI) in
+      let (module E: Expl.ExplT) = (module Expl.Make(Expl.LightProof)) in
+      let module Enforcer = Enforcer.Make (E) in
       let _ = Enforcer.exec (Formula.init sformula) !Etc.inc_ref !b_ref in ()
     with End_of_file -> Out_channel.close !Etc.outc_ref; exit 0
 

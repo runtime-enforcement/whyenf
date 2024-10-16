@@ -55,19 +55,19 @@ rule token = parse
   | "LET"                                         { debug "LET"; LET }
   | "IN"                                          { debug "IN"; IN }
   | "FALSE" | "⊥"                                 { debug "FALSE"; FALSE }
-  | "TRUE" | "⊤"                                 { debug "TRUE"; TRUE }
+  | "TRUE" | "⊤"                                  { debug "TRUE"; TRUE }
   | '='                                           { debug "EQ"; EQ }
   | "<-"                                          { debug "GETS"; GETS }
-  | "≤" | "<="                                     { debug "LEQ"; LEQ }
-  | "≠" | "<>" | "!="                                     { debug "NEQ"; NEQ }
+  | "≤" | "<="                                    { debug "LEQ"; LEQ }
+  | "≠" | "<>" | "!="                             { debug "NEQ"; NEQ }
   | '<'                                           { debug "LT"; LT }
-  | "≥" |">="                                           { debug "GEQ"; GEQ }
+  | "≥" |">="                                     { debug "GEQ"; GEQ }
   | '>'                                           { debug "GT"; GT }
   | "¬" | "NOT"                                   { debug "NOT"; NOT }
-  | "∧" | "AND"                                  { debug "AND"; AND }
-  | "∨" | "OR"                                   { debug "OR"; OR }
-  | "→" | "IMPLIES"                               { debug "IMP"; IMP }
-  | "↔" | "IFF"                                   { debug "IFF"; IFF }
+  | "∧" | "AND"                                   { debug "AND"; AND }
+  | "∨" | "OR"                                    { debug "OR"; OR }
+  | "→" | "IMPLIES"                              { debug "IMP"; IMP }
+  | "↔" | "IFF"                                  { debug "IFF"; IFF }
   | "∃"  | "EXISTS"                               { debug "EXISTS"; EXISTS }
   | "∀"  | "FORALL"                               { debug "FORALL"; FORALL }
   | "SINCE" | "S"                                 { debug "SINCE"; SINCE }
@@ -78,7 +78,7 @@ rule token = parse
   | "PREV" | "PREVIOUS" | "Y" | "●"               { debug "PREV"; PREV }
   | "GLOBALLY" | "ALWAYS" | "G" | "□"             { debug "ALWAYS"; ALWAYS }
   | "EVENTUALLY" | "F" | "◊"                      { debug "EVENTUALLY"; EVENTUALLY }
-  | "GLOBALLY_PAST" | "HISTORICALLY" | "■"       { debug "HISTORICALLY"; HISTORICALLY }
+  | "GLOBALLY_PAST" | "HISTORICALLY" | "■"        { debug "HISTORICALLY"; HISTORICALLY }
   | "ONCE" | "⧫"                                  { debug "ONCE"; ONCE }
   | "SUM"                                         { debug "SUM"; SUM }
   | "AVG"                                         { debug "AVG"; AVG }
@@ -86,6 +86,14 @@ rule token = parse
   | "CNT"                                         { debug "CNT"; CNT }
   | "MIN"                                         { debug "MIN"; MIN }
   | "MAX"                                         { debug "MAX"; MAX }
+  | "OBS"                                         { debug "OBS"; OBS }
+  | "SUP"                                         { debug "SUP"; SUP }
+  | "NSUP"                                        { debug "NSUP"; NSUP }
+  | "SSUP"                                        { debug "SSUP"; SSUP }
+  | "CAU"                                         { debug "CAU"; CAU }
+  | "NCAU"                                        { debug "NCAU"; NCAU }
+  | "SCAU"                                        { debug "SCAU"; SCAU }
+  | "CAUSUP"                                      { debug "CAUSUP"; CAUSUP }
   | (['(' '['] as l) blank* (digits as i) blank* (string? as u) blank* ',' blank* ((digits | "INFINITY" | "∞" | "*") as j) blank* (string? as v) blank* ([')' ']'] as r)
                                                   { debug "INTERVAL"; INTERVAL (make_interval lexbuf l i u j v r) }
   | "("                                           { debug "LPA"; LPA }

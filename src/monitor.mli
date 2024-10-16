@@ -13,7 +13,7 @@ open Etc
 
 module type MonitorT = sig
 
-  module CI : Checker_interface.Checker_interfaceT
+  module E : Expl.ExplT
   
   module MFormula : sig
 
@@ -152,14 +152,14 @@ module type MonitorT = sig
 
   end
 
-  type res = CI.Expl.t list * CI.Expl.t * MFormula.t
+  type res = E.t list * E.t * MFormula.t
 
-  val mstep: Out.mode -> timepoint -> timestamp -> Db.t -> bool -> MState.t -> FObligations.t ->
-             res Memo.t -> res Memo.t * (((timestamp * timepoint) * CI.Expl.t) list * CI.Expl.t * MState.t)
+  val mstep: timepoint -> timestamp -> Db.t -> bool -> MState.t -> FObligations.t ->
+             res Memo.t -> res Memo.t * (((timestamp * timepoint) * E.t) list * E.t * MState.t)
 
   val meval_c: int ref 
 
 end
 
-module Make (CI : Checker_interface.Checker_interfaceT) : MonitorT
+module Make (Expl : Expl.ExplT) : MonitorT
 

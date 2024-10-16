@@ -323,5 +323,13 @@
         "log": "simple.log",
         "output": "45_polymorphic_impossible.out",
         "success": false        
+    },
+    {
+        "label": "46_let_impossible",
+        "sig": "simple.sig",
+        "formula": "46_let_impossible.mfotl",
+        "log": "simple.log",
+        "output": "46_let_impossible.out",
+        "success": false        
     }
 ]

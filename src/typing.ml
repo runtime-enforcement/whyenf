@@ -16,8 +16,8 @@ module Errors = struct
   type error =
     | ECast of string * Enftype.t * Enftype.t
     | EFormula of string option * t * Enftype.t
-    | EConj of error * error
-    | EDisj of error * error
+    | EConj of error list
+    | EDisj of error list [@@deriving equal]
 
   let rec to_string ?(n=0) e =
     let sp = Etc.spaces (2*n) in
@@ -41,15 +41,28 @@ module Errors = struct
                                 ^ Enftype.to_string t
                                 ^ ", but this is impossible"
                                 ^ " (" ^ s ^ ")"
-     | EConj (f, g) -> "both" ^ lb ^ "* "
-                       ^ to_string ~n:(n+1) f
-                       ^ lb ^ "and" ^ lb ^ "* "
-                       ^ to_string ~n:(n+1) g
-     | EDisj (f, g) -> "either" ^ lb ^ "* "
-                       ^ to_string ~n:(n+1) f
-                       ^ lb ^ "or" ^ lb ^ "* "
-                       ^ to_string ~n:(n+1) g
-    )
+     | EConj es -> "at the same time"
+                   ^ String.concat (List.map ~f:(fun e -> lb ^ "* " ^ to_string ~n:(n+1) e) es)
+     | EDisj es -> "either"
+                   ^ String.concat (List.map ~f:(fun e -> lb ^ "* " ^ to_string ~n:(n+1) e) es))
+
+  let rec ac_simplify = function
+    | EConj es  ->
+       let es = List.map ~f:ac_simplify es in
+       let e_conjs = function EConj es' -> Some es' | _ -> None in
+       let e_not_conjs = function EConj es' -> false | _ -> true in
+       let es_conjs = List.concat (List.filter_map es ~f:e_conjs) in
+       let es_not_conjs = List.filter es ~f:e_not_conjs in
+       let es' = Etc.dedup ~equal:equal_error (es_conjs @ es_not_conjs) in
+       if List.length es' = 1 then List.hd_exn es' else EConj es'
+    | EDisj es ->
+       let e_disjs = function EDisj cs' -> Some cs' | _ -> None in
+       let e_not_disjs = function EDisj cs' -> false | _ -> true in
+       let es_disjs = List.concat (List.filter_map es ~f:e_disjs) in
+       let es_not_disjs = List.filter es ~f:e_not_disjs in
+       let es' = Etc.dedup ~equal:equal_error (es_disjs @ es_not_disjs) in
+       if List.length es' = 1 then List.hd_exn es' else EDisj es'
+    | e -> e
 
 end
 
@@ -68,7 +81,8 @@ module Constraints = struct
   let tt = CTT
   let ff = CFF
   let geq s t = CGeq (s, t)
-  let nleqncau s t = CNLeqNCau (s, t)
+
+  let nleqncau s = CNLeqNCau (s, Sig.enftype_of_pred s)
 
   let rec ac_simplify = function
     | CConj cs ->
@@ -100,12 +114,12 @@ module Constraints = struct
   let conj c d = match c, d with
     | Possible CTT, _ -> d
     | _, Possible CTT -> c
-    | Impossible c, Impossible d -> Impossible (EConj (c, d))
+    | Impossible c, Impossible d -> Impossible (Errors.ac_simplify (EConj [c; d]))
     | Impossible c, _ | _, Impossible c -> Impossible c
     | Possible c, Possible d -> Possible (ac_simplify (CConj [c; d]))
 
   let disj c d = match c, d with
-    | Impossible c, Impossible d -> Impossible (EDisj (c, d))
+    | Impossible c, Impossible d -> Impossible (Errors.ac_simplify (EDisj [c; d]))
     | Impossible c, _ -> d
     | _, Impossible d -> c
     | Possible CTT, _ | _, Possible CTT -> Possible CTT
@@ -132,30 +146,25 @@ module Constraints = struct
        let v' = Option.merge ~f:Enftype.meet t' u' in
        match v' with
        | Some v' when Enftype.leq v' v ->
-          (*print_endline (Printf.sprintf "merge_aux key=%s t=%s t'=%s u=%s, u'=%s"
+          (*print_endline (Printf.sprintf "merge_aux.no key=%s t=%s t'=%s u=%s, u'=%s"
                            key
                            (Enftype.to_string t)
                            (Option.fold t' ~init:"None" ~f:(fun _ v -> Enftype.to_string v))
                            (Enftype.to_string u)
                            (Option.fold u' ~init:"None" ~f:(fun _ v -> Enftype.to_string v)));*)
           raise CannotMerge
-       | _ ->  Some (v, v')
+       | _ ->
+          (*print_endline (Printf.sprintf "merge_aux.yes key=%s t=%s t'=%s u=%s, u'=%s"
+                           key
+                           (Enftype.to_string t)
+                           (Option.fold t' ~init:"None" ~f:(fun _ v -> Enftype.to_string v))
+                           (Enftype.to_string u)
+                           (Option.fold u' ~init:"None" ~f:(fun _ v -> Enftype.to_string v)));*)
+          Some (v, v')
 
   let try_merge (a, b) =
     try Some (Map.merge a b ~f:merge_aux)
     with CannotMerge -> None
-
-  let rec solve = function
-    | CTT -> [Map.empty (module String)]
-    | CFF -> []
-    | CGeq (s, t) -> [Map.singleton (module String) s (t, Some Enftype.Obs)]
-    | CNLeqNCau (s, t) -> [Map.singleton (module String) s (Enftype.join Enftype.SCau t, None);
-                           Map.singleton (module String) s (Enftype.join Enftype.Sup t,  None)]
-    | CConj [] -> [Map.empty (module String)]
-    | CConj (c::cs) ->
-       let f sol d = List.filter_map (cartesian sol (solve d)) ~f:try_merge in
-       List.fold_left cs ~init:(solve c) ~f
-    | CDisj cs -> List.concat_map cs ~f:solve
 
   let rec to_string_rec l = function
     | CTT -> Printf.sprintf "⊤"
@@ -173,118 +182,175 @@ module Constraints = struct
     | Possible c -> Printf.sprintf "Possible(%s)" (to_string c)
     | Impossible e -> Printf.sprintf "Impossible(%s)" (Errors.to_string e)
 
+  let rec solve c =
+    let r = match c with
+    | CTT -> [Map.empty (module String)]
+    | CFF (*| CGeq (_, Obs)*) -> []
+    | CGeq (s, t) -> [Map.singleton (module String) s (t, Some Enftype.Obs)]
+    | CNLeqNCau (s, t) -> [Map.singleton (module String) s (Enftype.join Enftype.SCau t, None);
+                           Map.singleton (module String) s (Enftype.join Enftype.Sup t,  None)]
+    | CConj [] -> [Map.empty (module String)]
+    | CConj (c::cs) ->
+       let f sol d = List.filter_map (cartesian sol (solve d)) ~f:try_merge in
+       List.fold_left cs ~init:(solve c) ~f
+    | CDisj cs -> List.concat_map cs ~f:solve
+    in(* Stdio.printf "solve(%s)=[%s]\n" (to_string c) (String.concat ~sep:"; " (List.map r ~f:(fun m -> String.concat ~sep:", " (List.map (Map.to_alist m) ~f:(fun (key, (lower, upper_obs)) -> key ^ " ≽ " ^ Enftype.to_string lower ^ (match upper_obs with None -> "" | Some upper -> " ∧ " ^ key ^ " ⋡ " ^ Enftype.to_string upper))))));*)
+       r
+    
+
+
 end
 
 open Enftype
 open Constraints
 open Option
 
-(* todo: ensure that there is no shadowing *)
+type pg_map = (string, (string, String.comparator_witness) Set.t list, String.comparator_witness) Map.t
+type t_map  = (string, Enftype.t * int list, String.comparator_witness) Map.t
 
-let types_predicate t e =
-  let t' = Sig.enftype_of_pred e in
-  if Enftype.geq t t' then
-    Possible (geq e t)
+
+let types_predicate (ts: t_map) (t: Enftype.t) (e: string) =
+  let t', _ = Map.find_exn ts e in
+  let t'' = Enftype.join t t' in
+  if not (Enftype.geq t'' Obs) then
+    Possible (geq e t'')
   else
     Impossible (ECast (e, t', t))
 
-type pg_map = (string, (string, String.comparator_witness) Set.t list, String.comparator_witness) Map.t
-
 let rec types (t: Enftype.t) (pgs: pg_map) (f: Formula.t) =
   let error s = Impossible (EFormula (Some s, f, t)) in
-  match t with
-    Cau -> begin
-      match f with
-      | TT -> Possible CTT
-      | Predicate (e, ts) ->
-         let fvs = Etc.dedup ~equal:String.equal (Term.fv_list ts) in
-         let es  = List.map fvs ~f:(fun x -> Option.value (Map.find pgs x) ~default:[]) in
-         (match List.map ~f:(Set.union_list (module String)) (Etc.cartesian es) with
-          | [] -> Impossible (EFormula (None, f, t))            
-          | es_ncau_list ->
-             (*print_endline (Printf.sprintf "types.es_ncau_list=[%s]"
-               (String.concat ~sep:"; " (List.map es_ncau_list ~f:(fun s -> Printf.sprintf "[%s]" ((String.concat ~sep:", " (Set.elements s)))))));*)
-             let c =
-               (if Sig.is_strict ts then
-                  disjs (List.map es_ncau_list ~f:(fun es_ncau ->
-                             conj (types_predicate Cau e)
-                               (conjs (List.map (Set.elements es_ncau)
-                                         ~f:(fun e ->
-                                           Possible (nleqncau e (Sig.enftype_of_pred e)))))))
-                else
-                  disjs (List.map es_ncau_list ~f:(fun es_ncau ->
-                             conj (types_predicate NCau e)
-                               (conjs (List.map (Set.elements es_ncau)
-                                         ~f:(fun e ->
-                                           Possible (nleqncau e (Sig.enftype_of_pred e))))))))
-             in c)
-      | Neg f -> types Sup pgs f
-      | And (_, f, g) -> conj (types Cau pgs f) (types Cau pgs g)
-      | Or (L, f, g) -> types Cau pgs f
-      | Or (R, f, g) -> types Cau pgs g
-      | Or (_, f, g) -> disj (types Cau pgs f) (types Cau pgs g)
-      | Imp (L, f, g) -> types Sup pgs f
-      | Imp (R, f, g) -> types Cau pgs g
-      | Imp (_, f, g) -> disj (types Sup pgs f) (types Cau pgs g)
-      | Iff (L, L, f, g) -> conj (types Sup pgs f) (types Cau pgs f)
-      | Iff (L, R, f, g) -> conj (types Sup pgs f) (types Sup pgs g)
-      | Iff (R, L, f, g) -> conj (types Cau pgs g) (types Cau pgs f)
-      | Iff (R, R, f, g) -> conj (types Cau pgs g) (types Sup pgs g)
-      | Iff (_, _, f, g) -> conj (disj (types Sup pgs f) (types Cau pgs g))
-                              (disj (types Cau pgs f) (types Sup pgs g))
-      | Exists (_, f) -> types Cau pgs f
-      | Forall (x, f) ->
-         let es = Formula.solve_past_guarded x false f in
-         (match es with
-          | [] -> error ("for causability " ^ x ^ " must be past-guarded")
-          | _  -> types Cau (Map.update pgs x (fun _ -> es)) f)
-      | Next (i, f) when Interval.has_zero i && not (Interval.is_zero i) -> types Cau pgs f
-      | Next _ -> error "○ with non-[0,a) interval, a > 0, is never Cau"
-      | Once (i, g) | Since (_, i, _, g) when Interval.has_zero i -> types Cau pgs g
-      | Once _ | Since _ -> error "⧫[a,b) or S[a,b) with a > 0 is never Cau"
-      | Eventually (_, f) | Always (_, f) -> types Cau pgs f
-      | Until (LR, B _, f, g) -> conj (types Cau pgs f) (types Cau pgs g)
-      | Until (_, i, f, g) when Interval.has_zero i -> types Cau pgs g
-      | Until (_, _, f, g) -> conj (types Cau pgs f) (types Cau pgs g)
-      | Prev _ -> error "● is never Cau"
-      | _ -> Impossible (EFormula (None, f, t))
-    end
-  | Sup -> begin
-      match f with
-      | FF -> Possible CTT
-      | Predicate (e, _) -> types_predicate Sup e
-      | Neg f -> types Cau pgs f
-      | And (L, f, g) -> types Sup pgs f
-      | And (R, f, g) -> types Sup pgs g
-      | And (_, f, g) -> disj (types Sup pgs f) (types Sup pgs g)
-      | Or (_, f, g) -> conj (types Sup pgs f) (types Sup pgs g)
-      | Imp (_, f, g) -> conj (types Cau pgs f) (types Sup pgs g)
-      | Iff (L, _, f, g) -> conj (types Cau pgs f) (types Sup pgs g)
-      | Iff (R, _, f, g) -> conj (types Sup pgs f) (types Cau pgs g)
-      | Iff (_, _, f, g) -> disj (conj (types Cau pgs f) (types Sup pgs g))
-                              (conj (types Sup pgs f) (types Cau pgs g))
-      | Exists (x, f) ->
-         let es = Formula.solve_past_guarded x true f in
-         (match es with
-          | [] -> error ("for suppressability " ^ x ^ " must be past-guarded")
-          | _  -> types Sup (Map.update pgs x (fun _ -> es)) f)
-      | Forall (_, f) -> types Sup pgs f
-      | Next (_, f) -> types Sup pgs f
-      | Historically (i, f) when Interval.has_zero i -> types Sup pgs f
-      | Historically _ -> error "■[a,b) with a > 0 is never Sup"
-      | Since (_, i, f, _) when not (Interval.has_zero i) -> types Sup pgs f
-      | Since (_, i, f, g) -> conj (types Sup pgs f) (types Sup pgs g)
-      | Eventually (_, f) | Always (_, f) -> types Sup pgs f
-      | Until (L, i, f, g) when not (Interval.has_zero i) -> types Sup pgs f
-      | Until (R, _, _, g) -> types Sup pgs g
-      | Until (_, i, f, g) when not (Interval.has_zero i) -> types Sup pgs f
-      | Until (_, _, _, g) -> types Sup pgs g
-      | Prev _ -> error "● is never Sup"
-      | _ -> Impossible (EFormula (None, f, t))
-    end
-  | Obs -> Possible CTT
-  | CauSup -> Impossible (EFormula (None, f, t))
-
+  let ts = Sig.pred_enftype_map () in
+  let rec aux (t: Enftype.t) (pgs: pg_map) (ts: t_map) (f: Formula.t) =
+    let aux' t f = aux t pgs ts f in
+    let r = match t with
+      Cau | NCau | SCau -> begin
+        match f with
+        | TT -> Possible CTT
+        | Predicate (e, terms) ->
+           let _, is = Map.find_exn ts e in
+           let terms = List.filteri terms ~f:(fun i _ -> List.mem is i ~equal:Int.equal) in
+           let fvs   = Etc.dedup ~equal:String.equal (Term.fv_list terms) in
+           let es    = List.map fvs ~f:(fun x -> Option.value (Map.find pgs x) ~default:[]) in
+           let unguarded = List.filter_map (List.zip_exn fvs es) ~f:(fun (x, e) ->
+                               if List.is_empty e then Some x else None) in
+           (match List.map ~f:(Set.union_list (module String)) (Etc.cartesian es) with
+            | [] -> Impossible (EFormula (Some ("no guards found for " ^ String.concat ~sep:", " unguarded), f, t))
+            | es_ncau_list ->
+               (*print_endline (Printf.sprintf "aux.es_ncau_list=[%s]"
+                 (String.concat ~sep:"; " (List.map es_ncau_list ~f:(fun s -> Printf.sprintf "[%s]" ((String.concat ~sep:", " (Set.elements s)))))));*)
+               let c =
+                 (if Sig.is_strict terms && Enftype.leq t SCau then
+                    disjs (List.map es_ncau_list ~f:(fun es_ncau ->
+                               conj (types_predicate ts t e)
+                                 (conjs (List.map (Set.elements es_ncau)
+                                           ~f:(fun e ->
+                                             Possible (nleqncau e))))))
+                  else if Enftype.geq t SCau then
+                    error ("the predicate " ^ Formula.to_string f
+                           ^ " cannot be SCau since it has non-strict terms")
+                  else
+                    disjs (List.map es_ncau_list ~f:(fun es_ncau ->
+                               conj (types_predicate ts NCau e)
+                                 (conjs (List.map (Set.elements es_ncau)
+                                           ~f:(fun e ->
+                                             Possible (nleqncau e)))))))
+               in c) 
+        | Let (e, enftype_opt, vars, f, g) ->
+           let f_unguarded i x = if not (Formula.is_past_guarded x false f) then Some (x, i) else None in
+           let unguarded_x, unguarded_i = List.unzip (List.filter_mapi vars ~f:f_unguarded) in
+           let pgs' = List.fold_left unguarded_x ~init:pgs ~f:(Map.update ~f:(fun _ -> [Set.empty (module String)])) in
+           (match enftype_opt with
+            | Some enftype ->
+               conj (aux enftype pgs' ts f) (aux t pgs (Map.update ts e ~f:(fun _ -> NCau, unguarded_i)) g)
+            | None ->
+               disjs [conj (aux NCau pgs' ts f) (aux t pgs (Map.update ts e ~f:(fun _ -> NCau, unguarded_i)) g);
+                      conj (aux NSup pgs' ts f) (aux t pgs (Map.update ts e ~f:(fun _ -> NSup, unguarded_i)) g);
+                      conj (aux SCau pgs' ts f) (aux t pgs (Map.update ts e ~f:(fun _ -> SCau, unguarded_i)) g);
+                      conj (aux SSup pgs' ts f) (aux t pgs (Map.update ts e ~f:(fun _ -> SSup, unguarded_i)) g);
+                      aux t pgs (Map.update ts e ~f:(fun _ -> Obs, unguarded_i)) g])
+        | Neg f -> aux' (Enftype.neg t) f
+        | And (_, f, g) -> conj (aux' t f) (aux' t g)
+        | Or (L, f, g) -> aux' t f
+        | Or (R, f, g) -> aux' t g
+        | Or (_, f, g) -> disj (aux' t f) (aux' t g)
+        | Imp (L, f, g) -> aux' (Enftype.neg t) f
+        | Imp (R, f, g) -> aux' t g
+        | Imp (_, f, g) -> disj (aux' (Enftype.neg t) f) (aux' t g)
+        | Iff (L, L, f, g) -> conj (aux' (Enftype.neg t) f) (aux' t f)
+        | Iff (L, R, f, g) -> conj (aux' (Enftype.neg t) f) (aux' (Enftype.neg t) g)
+        | Iff (R, L, f, g) -> conj (aux' t g) (aux' t f)
+        | Iff (R, R, f, g) -> conj (aux' t g) (aux' (Enftype.neg t) g)
+        | Iff (_, _, f, g) -> conj (disj (aux' (Enftype.neg t) f) (aux' t g))
+                                (disj (aux' t f) (aux' (Enftype.neg t) g))
+        | Exists (_, f) -> aux' t f
+        | Forall (x, f) ->
+           let es = Formula.solve_past_guarded x false f in
+           (match es with
+            | [] -> error ("for causability " ^ x ^ " must be past-guarded")
+            | _  -> aux t (Map.update pgs x (fun _ -> es)) ts f)
+        | Next (i, f) when Interval.has_zero i && not (Interval.is_zero i) -> aux' t f
+        | Next _ -> error "○ with non-[0,a) interval, a > 0, is never Cau"
+        | Once (i, g) | Since (_, i, _, g) when Interval.has_zero i -> aux' t g
+        | Once _ | Since _ -> error "⧫[a,b) or S[a,b) with a > 0 is never Cau"
+        | Eventually (_, f) | Always (_, f) -> aux' t f
+        | Until (LR, B _, f, g) -> conj (aux' t f) (aux' t g)
+        | Until (_, i, f, g) when Interval.has_zero i -> aux' t g
+        | Until (_, _, f, g) -> conj (aux' t f) (aux' t g)
+        | Prev _ -> error "● is never Cau"
+        | _ -> Impossible (EFormula (None, f, t))
+      end
+    | Sup | NSup | SSup -> begin
+        match f with
+        | FF -> Possible CTT
+        | Predicate (e, _) -> types_predicate ts t e
+        | Let (e, enftype_opt, vars, f, g) ->
+           let f_unguarded i x = if not (Formula.is_past_guarded x false f) then Some (x, i) else None in
+           let unguarded_x, unguarded_i = List.unzip (List.filter_mapi vars ~f:f_unguarded) in
+           let pgs' = List.fold_left unguarded_x ~init:pgs ~f:(Map.update ~f:(fun _ -> [Set.empty (module String)])) in
+           (match enftype_opt with
+            | Some enftype ->
+               conj (aux enftype pgs' ts f) (aux t pgs (Map.update ts e ~f:(fun _ -> NCau, unguarded_i)) g)
+            | None ->
+               disjs [conj (aux NCau pgs' ts f) (aux t pgs (Map.update ts e ~f:(fun _ -> NCau, unguarded_i)) g);
+                      conj (aux SCau pgs' ts f) (aux t pgs (Map.update ts e ~f:(fun _ -> SCau, unguarded_i)) g);
+                      conj (aux NSup pgs' ts f) (aux t pgs (Map.update ts e ~f:(fun _ -> NSup, unguarded_i)) g);
+                      conj (aux SSup pgs' ts f) (aux t pgs (Map.update ts e ~f:(fun _ -> SSup, unguarded_i)) g);
+                      aux t pgs (Map.update ts e ~f:(fun _ -> Obs, unguarded_i)) g])
+        | Neg f -> aux' (Enftype.neg t) f
+        | And (L, f, g) -> aux' t f
+        | And (R, f, g) -> aux' t g
+        | And (_, f, g) -> disj (aux' t f) (aux' t g)
+        | Or (_, f, g) -> conj (aux' t f) (aux' t g)
+        | Imp (_, f, g) -> conj (aux' (Enftype.neg t) f) (aux' t g)
+        | Iff (L, _, f, g) -> conj (aux' (Enftype.neg t) f) (aux' t g)
+        | Iff (R, _, f, g) -> conj (aux' t f) (aux' (Enftype.neg t) g)
+        | Iff (_, _, f, g) -> disj (conj (aux' (Enftype.neg t) f) (aux' t g))
+                                (conj (aux' t f) (aux' (Enftype.neg t) g))
+        | Exists (x, f) ->
+           let es = Formula.solve_past_guarded x true f in
+           (match es with
+            | [] -> error ("for suppressability " ^ x ^ " must be past-guarded")
+            | _  -> aux t (Map.update pgs x (fun _ -> es)) ts f)
+        | Forall (_, f) -> aux' t f
+        | Next (_, f) -> aux' t f
+        | Historically (i, f) when Interval.has_zero i -> aux' t f
+        | Historically _ -> error "■[a,b) with a > 0 is never Sup"
+        | Since (_, i, f, _) when not (Interval.has_zero i) -> aux' t f
+        | Since (_, i, f, g) -> conj (aux' t f) (aux' t g)
+        | Eventually (_, f) | Always (_, f) -> aux' t f
+        | Until (L, i, f, g) when not (Interval.has_zero i) -> aux' t f
+        | Until (R, _, _, g) -> aux' t g
+        | Until (_, i, f, g) when not (Interval.has_zero i) -> aux' t f
+        | Until (_, _, _, g) -> aux' t g
+        | Prev _ -> error "● is never Sup"
+        | _ -> Impossible (EFormula (None, f, t))
+      end
+    | Obs -> Possible CTT
+    | CauSup -> Impossible (EFormula (Some (Formula.to_string f ^ " is never CauSup"), f, t))
+    in
+    (*Stdio.printf "types.aux(%s, %s)=%s\n" (Enftype.to_string t) (Formula.to_string f) (Constraints.verdict_to_string r);*)
+    r
+  in aux t pgs ts f
 
 
 let rec convert b enftype form (types: Ctxt.t) : Ctxt.t * Tformula.t option =
@@ -323,30 +389,36 @@ let rec convert b enftype form (types: Ctxt.t) : Ctxt.t * Tformula.t option =
         | Predicate (e, trms) when Enftype.is_causable (Sig.enftype_of_pred e) ->
            let types, _ = Sig.check_terms types e trms in
            types, Some (Tformula.TPredicate (e, trms)), Filter._true
-        | Neg f -> apply1 (convert Sup f) (fun mf -> Tformula.TNeg mf) types 
-        | And (s, f, g) -> apply2 (convert Cau f) (convert Cau g)
+        | Predicate' (e, trms, f) ->
+           apply1 (convert enftype f) (fun mf -> Tformula.TPredicate' (e, trms, mf)) types
+        | Let' (e, vars, f, g) ->
+           let enftype' = Sig.enftype_of_pred e in
+           apply2 (convert enftype f) (convert enftype g)
+             (fun mf mg -> Tformula.TLet' (e, vars, mf, mg)) types
+        | Neg f -> apply1 (convert (Enftype.neg enftype) f) (fun mf -> Tformula.TNeg mf) types 
+        | And (s, f, g) -> apply2 (convert enftype f) (convert enftype g)
                              (fun mf mg -> Tformula.TAnd (default_L s, [mf; mg])) types
-        | Or (L, f, g) -> apply2' (convert Cau f) (Tformula.of_formula g)
+        | Or (L, f, g) -> apply2' (convert enftype f) (Tformula.of_formula g)
                             (fun mf mg -> Tformula.TOr (L, [mf; mg])) types
                             (conj_filter ~b:false f g)
-        | Or (R, f, g) -> apply2' (convert Cau g) (Tformula.of_formula f)
+        | Or (R, f, g) -> apply2' (convert enftype g) (Tformula.of_formula f)
                             (fun mg mf -> Tformula.TOr (R, [mf; mg])) types
                             (conj_filter ~b:false f g)
         | Or (_, f, g) ->
            begin
-             match convert Cau f types with
+             match convert enftype f types with
              | types, Some mf -> apply1'
                                    ~new_filter:(Some (conj_filter ~b:false f g))
                                    (Tformula.of_formula g)
                                    (fun mg -> Tformula.TOr (L, [mf; mg])) types
-             | types, None    -> apply2' (convert Cau g) (Tformula.of_formula f)
+             | types, None    -> apply2' (convert enftype g) (Tformula.of_formula f)
                                    (fun mg mf -> Tformula.TOr (R, [mf; mg])) types
                                    (conj_filter ~b:false f g)
            end
-        | Imp (L, f, g) -> apply2' (convert Sup f) (Tformula.of_formula g)
+        | Imp (L, f, g) -> apply2' (convert (Enftype.neg enftype) f) (Tformula.of_formula g)
                              (fun mf mg -> Tformula.TImp (L, mf, mg)) types
                              (conj_filter ~neg:true f g)
-        | Imp (R, f, g) -> apply2' (convert Cau g) (Tformula.of_formula f)
+        | Imp (R, f, g) -> apply2' (convert enftype g) (Tformula.of_formula f)
                              (fun mg mf -> Tformula.TImp (R, mf, mg)) types
                              (conj_filter ~neg:true f g)
         | Imp (_, f, g) ->
@@ -356,40 +428,42 @@ let rec convert b enftype form (types: Ctxt.t) : Ctxt.t * Tformula.t option =
                                    ~new_filter:(Some (conj_filter ~neg:true f g))
                                    (Tformula.of_formula g)
                                    (fun mg -> Tformula.TImp (L, mf, mg)) types
-             | types, None    -> apply2' (convert Cau g) (Tformula.of_formula f)
+             | types, None    -> apply2' (convert enftype g) (Tformula.of_formula f)
                                    (fun mg mf -> Tformula.TImp (R, mf, mg)) types
                                    (conj_filter ~neg:true f g)
            end
-        | Iff (L, L, f, g) -> apply2' (convert Sup f) (Tformula.of_formula g)
+        | Iff (L, L, f, g) -> apply2' (convert (Enftype.neg enftype) f) (Tformula.of_formula g)
                                 (fun mf mg -> Tformula.TIff (L, L, mf, mg)) types
                                 Filter._true
-        | Iff (L, R, f, g) -> apply2 (convert Sup f) (convert Sup g)
+        | Iff (L, R, f, g) -> apply2 (convert (Enftype.neg enftype) f)
+                                (convert (Enftype.neg enftype) g)
                                 (fun mf mg -> Tformula.TIff (L, R, mf, mg)) types
-        | Iff (R, L, f, g) -> apply2 (convert Cau g) (convert Cau f)
+        | Iff (R, L, f, g) -> apply2 (convert enftype g) (convert enftype f)
                                 (fun mg mf -> Tformula.TIff (R, L, mf, mg)) types
-        | Iff (R, R, f, g) -> apply2' (convert Cau g) (Tformula.of_formula f)
+        | Iff (R, R, f, g) -> apply2' (convert enftype g) (Tformula.of_formula f)
                                 (fun mg mf -> Tformula.TIff (R, R, mf, mg)) types
                                 Filter._true
         | Iff (_, _, f, g) ->
            begin
-             match convert Sup f types with
+             match convert (Enftype.neg enftype) f types with
              | types, Some mf ->
                 begin
-                  match convert Cau f types with
+                  match convert enftype f types with
                   | types, Some mf -> apply1' (Tformula.of_formula g)
                                         (fun mg -> Tformula.TIff (L, L, mf, mg)) types
-                  | types, None    -> apply1 (convert Sup g)
+                  | types, None    -> apply1 (convert (Enftype.neg enftype) g)
                                         (fun mg -> Tformula.TIff (L, R, mf, mg)) types
                 end
              | types, None ->
                 begin
-                  match convert Cau g types with
+                  match convert enftype g types with
                   | types, Some mg ->
                      begin
-                       match convert Cau f types with
+                       match convert enftype f types with
                        | types, Some mf -> types, Some (Tformula.TIff (R, L, mf, mg)),
                                            Filter.disj mf.filter mg.filter
-                       | types, None    -> apply2' (convert Sup g) (Tformula.of_formula f)
+                       | types, None    -> apply2' (convert (Enftype.neg enftype) g)
+                                             (Tformula.of_formula f)
                                              (fun mg mf -> Tformula.TIff (R, R, mf, mg)) types
                                              Filter._true
                      end
@@ -398,78 +472,85 @@ let rec convert b enftype form (types: Ctxt.t) : Ctxt.t * Tformula.t option =
            end
         | Exists (x, f) ->
            begin
-             match convert Cau f types with
+             match convert enftype f types with
              | types, Some mf -> types, Some (Tformula.TExists (x, Ctxt.get_tt_exn x types, true, mf)), mf.filter
              | types, None    -> types, None, Filter._true
            end
         | Forall (x, f) when is_past_guarded x false f ->
            begin
-             match convert Cau f types with
+             match convert enftype f types with
              | types, Some mf -> types, Some (Tformula.TForall (x, Ctxt.get_tt_exn x types, false, mf)), mf.filter
              | types, None    -> types, None, Filter._true
            end
         | Next (i, f) when Interval.has_zero i && not (Interval.is_zero i) -> 
-           apply1 ~temporal:true (convert Cau f) (fun mf -> Tformula.TNext (i, mf)) types
+           apply1 ~temporal:true (convert enftype f) (fun mf -> Tformula.TNext (i, mf)) types
         | Once (i, f) when Interval.has_zero i ->
-           apply1 (convert Cau f) (fun mf -> Tformula.TOnce (i, mf)) types
+           apply1 (convert enftype f) (fun mf -> Tformula.TOnce (i, mf)) types
         | Since (_, i, f, g) when Interval.has_zero i ->
-           apply2' (convert Cau g) (Tformula.of_formula f)
+           apply2' (convert enftype g) (Tformula.of_formula f)
              (fun mg mf -> Tformula.TSince (R, i, mf, mg)) types
              Filter._true
         | Eventually (i, f) ->
-           apply1 ~temporal:true (convert Cau f)
+           apply1 ~temporal:true (convert enftype f)
              (fun mf -> Tformula.TEventually (set_b i, Interval.is_bounded i, mf)) types
         | Always (i, f) ->
-           apply1 ~temporal:true (convert Cau f) (fun mf -> Tformula.TAlways (i, true, mf)) types
+           apply1 ~temporal:true (convert enftype f)
+             (fun mf -> Tformula.TAlways (i, true, mf)) types
         | Until (LR, i, f, g) ->
-           apply2 ~temporal:true (convert Cau f) (convert Cau g)
+           apply2 ~temporal:true (convert enftype f) (convert enftype g)
              (fun mf mg -> Tformula.TUntil (LR, set_b i, Interval.is_bounded i, mf, mg)) types
         | Until (_, i, f, g) when Interval.has_zero i ->
-           apply2' ~temporal:true (convert Cau g) (Tformula.of_formula f)
+           apply2' ~temporal:true (convert enftype g) (Tformula.of_formula f)
              (fun mg mf -> Tformula.TUntil (R, set_b i, Interval.is_bounded i, mf, mg)) types
              Filter._true
         | Until (_, i, f, g) ->
-           apply2 ~temporal:true (convert Cau f) (convert Cau g)
+           apply2 ~temporal:true (convert enftype f) (convert Cau g)
              (fun mf mg -> Tformula.TUntil (LR, set_b i, Interval.is_bounded i, mf, mg)) types
         | _ -> types, None, Filter._true
       end
-    | Sup -> begin
+    | Sup | NSup | SSup -> begin
         match form with
         | FF -> types, Some (Tformula.TFF), Filter._true
         | Predicate (e, trms) when Enftype.is_suppressable (Sig.enftype_of_pred e) ->
            let types, _ = Sig.check_terms types e trms in
            types, Some (Tformula.TPredicate (e, trms)), Filter.An e
-        | Neg f -> apply1 (convert Cau f) (fun mf -> Tformula.TNeg mf) types
-        | And (L, f, g) -> apply2' (convert Sup f) (Tformula.of_formula g)
+        | Predicate' (e, trms, f) ->
+           apply1 (convert enftype f) (fun mf -> Tformula.TPredicate' (e, trms, mf)) types
+        | Let' (e, vars, f, g) ->
+           let enftype' = Sig.enftype_of_pred e in
+           apply2 (convert enftype f) (convert enftype g)
+             (fun mf mg -> Tformula.TLet' (e, vars, mf, mg)) types
+        | Neg f -> apply1 (convert (Enftype.neg enftype) f) (fun mf -> Tformula.TNeg mf) types
+        | And (L, f, g) -> apply2' (convert enftype f) (Tformula.of_formula g)
                              (fun mf mg -> Tformula.TAnd (L, [mf; mg])) types
                              (conj_filter f g)
-        | And (R, f, g) -> apply2' (convert Sup g) (Tformula.of_formula f)
+        | And (R, f, g) -> apply2' (convert enftype g) (Tformula.of_formula f)
                              (fun mg mf -> Tformula.TAnd (R, [mf; mg])) types
                              (conj_filter f g)
         | And (_, f, g) ->
            begin
-              match convert Sup f types with
+              match convert enftype f types with
               | types, Some mf -> apply1' ~new_filter:(Some (conj_filter f g))
                                     (Tformula.of_formula g)
                                     (fun mg -> Tformula.TAnd (L, [mf; mg])) types
-              | types, None    -> apply2' (convert Sup g) (Tformula.of_formula f)
+              | types, None    -> apply2' (convert enftype g) (Tformula.of_formula f)
                                     (fun mg mf -> Tformula.TAnd (R, [mf; mg])) types
                                     (conj_filter f g)
            end
-        | Or (s, f, g) -> apply2 (convert Sup f) (convert Sup g)
+        | Or (s, f, g) -> apply2 (convert enftype f) (convert enftype g)
                             (fun mf mg -> Tformula.TOr (default_L s, [mf; mg])) types
-        | Imp (s, f, g) -> apply2 (convert Cau f) (convert Sup g)
+        | Imp (s, f, g) -> apply2 (convert (Enftype.neg enftype) f) (convert enftype g)
                              (fun mf mg -> Tformula.TImp (default_L s, mf, mg)) types
-        | Iff (L, _, f, g) -> apply2 (convert Cau f) (convert Sup g)
+        | Iff (L, _, f, g) -> apply2 (convert (Enftype.neg enftype) f) (convert enftype g)
                                 (fun mf mg -> Tformula.TIff (L, N, mf, mg)) types
-        | Iff (R, _, f, g) -> apply2 (convert Sup f) (convert Cau g)
+        | Iff (R, _, f, g) -> apply2 (convert enftype f) (convert (Enftype.neg enftype) g)
                                 (fun mf mg -> Tformula.TIff (R, N, mf, mg)) types
         | Iff (_, _, f, g) ->
            begin
-             match convert Cau f types with
+             match convert (Enftype.neg enftype) f types with
              | types, Some mf ->
                 begin
-                  match convert Sup g types with
+                  match convert enftype g types with
                   | types, Some mg -> types, Some (Tformula.TIff (L, R, mf, mg)),
                                       Filter.disj mf.filter mg.filter
                   | types, None    -> types, None, Filter._true
@@ -478,48 +559,49 @@ let rec convert b enftype form (types: Ctxt.t) : Ctxt.t * Tformula.t option =
            end
         | Exists (x, f) when is_past_guarded x true f ->
            begin
-             match convert Sup f types with
+             match convert enftype f types with
              | types, Some mf -> types, Some (Tformula.TExists (x, Ctxt.get_tt_exn x types, true, mf)), mf.filter
              | types, None    -> types, None, Filter._true
            end
         | Forall (x, f) ->
            begin
-             match convert Sup f types with
+             match convert enftype f types with
              | types, Some mf -> types, Some (Tformula.TForall (x, Ctxt.get_tt_exn x types, false, mf)), mf.filter
              | types, None    -> types, None, Filter._true
            end
-        | Next (i, f) -> apply1 ~temporal:true (convert Sup f) (fun mf -> Tformula.TNext (i, mf)) types
+        | Next (i, f) -> apply1 ~temporal:true (convert enftype f)
+                           (fun mf -> Tformula.TNext (i, mf)) types
         | Historically (i, f) when Interval.has_zero i ->
-           apply1 (convert Sup f) (fun mf -> Tformula.THistorically (i, mf)) types
+           apply1 (convert enftype f) (fun mf -> Tformula.THistorically (i, mf)) types
         | Since (_, i, f, g) when not (Interval.has_zero i) ->
-           apply2' (convert Sup f) (Tformula.of_formula g)
+           apply2' (convert enftype f) (Tformula.of_formula g)
              (fun mf mg -> Tformula.TSince (L, i, mf, mg)) types
              Filter._true
         | Since (_, i, f, g) ->
            let types, since_f = Tformula.of_formula (Since (N, i, f, g)) types in
-           apply2 (convert Sup f) (convert Sup g)
+           apply2 (convert enftype f) (convert enftype g)
              (fun mf mg ->
                let f = Tformula.TAnd (L, [mf; since_f]) in
-               Tformula.TOr (L, [mg; {f; enftype = Sup; filter = Filter._true}])) types
+               Tformula.TOr (L, [mg; {f; enftype; filter = Filter._true}])) types
         | Eventually (i, f) ->
-           apply1 ~temporal:true (convert Sup f)
+           apply1 ~temporal:true (convert enftype f)
              (fun mf -> Tformula.TEventually (i, true, mf)) types
         | Always (i, f) ->
-           apply1 ~temporal:true (convert Sup f)
+           apply1 ~temporal:true (convert enftype f)
              (fun mf -> Tformula.TAlways (set_b i, Interval.is_bounded i, mf)) types
         | Until (L, i, f, g) when not (Interval.has_zero i) ->
-           apply2' ~temporal:true (convert Sup f) (Tformula.of_formula g)
+           apply2' ~temporal:true (convert enftype f) (Tformula.of_formula g)
              (fun mf mg -> Tformula.TUntil (L, i, true, mf, mg)) types
              Filter._true
         | Until (R, i, f, g) ->
-           apply2' ~temporal:true (convert Sup g) (Tformula.of_formula f)
+           apply2' ~temporal:true (convert enftype g) (Tformula.of_formula f)
              (fun mg mf -> Tformula.TUntil (R, i, true, mf, mg)) types
              Filter._true
         | Until (_, i, f, g) when not (Interval.has_zero i) ->
            begin
-             match convert Sup f types with
+             match convert enftype f types with
              | types, None    ->
-                apply2' ~temporal:true (convert Sup g) (Tformula.of_formula f)
+                apply2' ~temporal:true (convert enftype g) (Tformula.of_formula f)
                   (fun mg mf -> Tformula.TUntil (R, i, true, mf, mg)) types
                   Filter._true
              | types, Some mf ->
@@ -527,7 +609,7 @@ let rec convert b enftype form (types: Ctxt.t) : Ctxt.t * Tformula.t option =
                   (fun mg -> Tformula.TUntil (L, i, true, mf, mg)) types
            end
         | Until (_, i, f, g) ->
-           apply2' ~temporal:true (convert Sup g) (Tformula.of_formula f)
+           apply2' ~temporal:true (convert enftype g) (Tformula.of_formula f)
              (fun mg mf -> Tformula.TUntil (R, i, true, mf, mg)) types
              Filter._true
         | _ -> types, None, Filter._true
@@ -548,7 +630,9 @@ let convert' b enftype f =
   snd (convert b Cau f Ctxt.empty)
 
 let do_type f b =
-  let f = Formula.unroll_let f in
+  let orig_f = f in
+  let f = Formula.convert_vars f in
+  let f = Formula.convert_lets f in
   (*print_endline (Formula.to_string f);*)
   if not (Set.is_empty (Formula.fv f)) then (
     Stdio.print_endline ("The formula\n "
@@ -560,20 +644,26 @@ let do_type f b =
   | Possible c ->
      begin
        let c = Constraints.ac_simplify c in
+       (*print_endline (Constraints.to_string c);*)
        match Constraints.solve c with
        | sol::_ ->
           begin
-            Map.iteri sol ~f:(fun ~key ~data -> (*print_endline ("key=" ^ key ^ "; data="^ Enftype.to_string (fst data)); *)Sig.update_enftype key (fst data));
+            let bound = Map.fold sol ~init:[] ~f:
+                          (fun ~key ~data bound -> if Hashtbl.mem Sig.table key then
+                                                     (Sig.update_enftype key (fst data); bound)
+                                                   else
+                                                     (Sig.add_letpred key []; key::bound)) in
+            let f = Formula.unroll_let f in
             match convert' b Cau f with
             | Some f' -> Stdio.print_endline ("The formula\n "
-                                              ^ Formula.to_string f
+                                              ^ Formula.to_string orig_f
                                               ^ "\nis enforceable and types to\n "
                                               ^ Tformula.to_string f');
                          Tformula.ac_simplify f'
             | None    -> raise (Invalid_argument (Printf.sprintf "formula %s cannot be converted" (Formula.to_string f)))
           end
        | _ -> Stdio.print_endline ("The formula\n "
-                                   ^ Formula.to_string f
+                                   ^ Formula.to_string orig_f
                                    ^ "\nis not enforceable because the constraint\n "
                                    ^ Constraints.to_string c
                                    ^ "\nhas no solution.");
@@ -581,7 +671,7 @@ let do_type f b =
      end
   | Impossible e ->
      Stdio.print_endline ("The formula\n "
-                          ^ Formula.to_string f
+                          ^ Formula.to_string orig_f
                           ^ "\nis not enforceable. To make it enforceable, you would need to\n "
                           ^ Errors.to_string e);
      raise (Invalid_argument (Printf.sprintf "formula %s is not enforceable" (Formula.to_string f)))
@@ -590,7 +680,9 @@ let rec relative_interval (f: Tformula.t) =
   let i = 
   match f.f with
   | TTT | TFF | TEqConst (_, _) | TPredicate (_, _) -> Zinterval.singleton (Zinterval.Z.zero)
-  | TNeg f | TExists (_, _, _, f) | TForall (_, _, _, f) | TAgg (_, _, _, _, _, f) -> relative_interval f
+  | TNeg f | TExists (_, _, _, f) | TForall (_, _, _, f) | TAgg (_, _, _, _, _, f)
+    | TPredicate' (_, _, f) | TLet' (_, _, _, f)
+    -> relative_interval f
   | TImp (_, f1, f2) | TIff (_, _, f1, f2)
     -> Zinterval.lub (relative_interval f1) (relative_interval f2)
   | TAnd (_, f :: fs) | TOr (_, f :: fs)
@@ -616,7 +708,8 @@ let strict f =
     ((Zinterval.has_zero itv) && fut)
     || (match f.f with
         | TTT | TFF | TEqConst (_, _) | TPredicate _ -> false
-        | TNeg f | TExists (_, _, _, f) | TForall (_, _, _, f) | TAgg (_, _, _, _, _, f) -> _strict itv fut f
+        | TNeg f | TExists (_, _, _, f) | TForall (_, _, _, f) | TAgg (_, _, _, _, _, f)
+          | TPredicate' (_, _, f) | TLet' (_, _, _, f) -> _strict itv fut f
         | TImp (_, f1, f2) | TIff (_, _, f1, f2)
           -> (_strict itv fut f1) || (_strict itv fut f2)
         | TAnd (_, fs) | TOr (_, fs)
@@ -644,12 +737,12 @@ let is_transparent (f: Tformula.t) =
     (*print_endline ("aux " ^ Tformula.to_string f);*)
     let b =
     match f.enftype with
-    | Cau -> begin
+    | Cau | NCau | SCau -> begin
         match f.f with
         | TTT | TPredicate (_, _) -> true
         | TNeg f | TExists (_, _, _, f) | TForall (_, _, _, f)
           | TOnce (_, f) | TNext (_, f) | THistorically (_, f)
-           | TAlways (_, _, f) -> aux f
+           | TAlways (_, _, f) | TPredicate' (_, _, f) | TLet' (_, _, _, f) -> aux f
         | TEventually (_, b, f) -> b && aux f
         | TOr (L, [f; g]) | TImp (L, f, g) | TIff (L, L, f, g)
           -> aux f && strictly_relative_past g
@@ -663,12 +756,12 @@ let is_transparent (f: Tformula.t) =
         | TUntil (LR, _, b, f, g) -> b && aux f && aux g
         | _ -> false
       end
-    | Sup -> begin
+    | Sup | NSup | SSup -> begin
         match f.f with
         | TFF | TPredicate (_, _) -> true
         | TNeg f | TExists (_, _, _, f) | TForall (_, _, _, f)
           | TOnce (_, f) | TNext (_, f) | THistorically (_, f)
-          | TEventually (_, _, f) -> aux f
+          | TEventually (_, _, f) | TPredicate' (_, _, f) | TLet' (_, _, _, f) -> aux f
         | TAlways (_, b, f) -> b && aux f
         | TAnd (L, f :: gs) 
           -> aux f && List.for_all ~f:strictly_relative_past gs

@@ -65,7 +65,7 @@ type t =
   | SConst of Const.t
   | SVar of string
   | SApp of string * t list
-  | SLet of string * string list * t * t
+  | SLet of string * Enftype.t option * string list * t * t
   | SAgg of string * Aop.t * t * string list * t
   | SAssign of t * string * t
   | SBop of Side.t option * t * Bop.t * t

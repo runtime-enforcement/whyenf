@@ -1,7 +1,7 @@
 The formula
  □[0s,∞) (∀x. A(x) → B(x) ∧ ∀x. B(x) → B(0) ∧ ∀x. B(x) → B(1))
 is enforceable and types to
- □[0s,∞) (((((∀x. (A(x) →:R (B(x) : Cau) : Cau) : Cau)∧:L(∀x. (B(x) →:R (B(0) : Cau) : Cau) : Cau)) : Cau)∧:L(∀x. (B(x) →:R (B(1) : Cau) : Cau) : Cau)) : Cau) : Cau
+ □[0s,∞) (((((∀x. (A(x) →:R (B(x) : Cau) : Cau) : Cau)∧:L(∀x.1. (B(x.1) →:R (B(0) : Cau) : Cau) : Cau)) : Cau)∧:L(∀x.2. (B(x.2) →:R (B(1) : Cau) : Cau) : Cau)) : Cau) : Cau
 [Enforcer] @1 reactively commands:
 Cause:
 B(0), B(1)
