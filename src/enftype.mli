@@ -1,4 +1,4 @@
-type t = Cau | NCau | SCau | Sup | CauSup | Obs [@@deriving compare, sexp_of, hash, equal]
+type t = Cau | NCau | SCau | Sup | NSup | SSup | CauSup | Obs [@@deriving compare, sexp_of, hash, equal]
 
 val neg : t -> t
 

@@ -1,0 +1,17 @@
+The formula
+ LET G1(x) = A(x) IN □[0s,∞) ∀x. (G1(x) ∧ ¬G1(x))
+is not enforceable. To make it enforceable, you would need to
+ either
+ * at the same time
+   * make A NCau (currently, it has type Obs)
+   * make LET G1(x) = A(x) IN □[0s,∞) ∀x.1. (G1(x.1) ∧ ¬G1(x.1)) Cau, but this is impossible (for causability x.1 must be past-guarded)
+ * at the same time
+   * make A NSup (currently, it has type Obs)
+   * make LET G1(x) = A(x) IN □[0s,∞) ∀x.1. (G1(x.1) ∧ ¬G1(x.1)) Cau, but this is impossible (for causability x.1 must be past-guarded)
+ * at the same time
+   * make A SCau (currently, it has type Obs)
+   * make LET G1(x) = A(x) IN □[0s,∞) ∀x.1. (G1(x.1) ∧ ¬G1(x.1)) Cau, but this is impossible (for causability x.1 must be past-guarded)
+ * at the same time
+   * make A SSup (currently, it has type Obs)
+   * make LET G1(x) = A(x) IN □[0s,∞) ∀x.1. (G1(x.1) ∧ ¬G1(x.1)) Cau, but this is impossible (for causability x.1 must be past-guarded)
+ * make LET G1(x) = A(x) IN □[0s,∞) ∀x.1. (G1(x.1) ∧ ¬G1(x.1)) Cau, but this is impossible (for causability x.1 must be past-guarded)

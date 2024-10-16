@@ -18,10 +18,9 @@ module type EnforcerT = sig
 
 end
 
-module Make (CI: Checker_interface.Checker_interfaceT) = struct
+module Make (E: Expl.ExplT) = struct
 
-  module Monitor = Monitor.Make (CI)
-  module Plain = Out.Plain (CI)
+  module Monitor = Monitor.Make (E)
 
   open Monitor
   open MFormula
@@ -135,30 +134,30 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       in loop Triple.empty es
 
     let mstep_state es =
-      mstep Out.ENFORCE es.tp es.ts es.db true es.ms es.fobligs
+      mstep es.tp es.ts es.db true es.ms es.fobligs
 
     let exec_monitor mf es =
       let memo, (_, aexpl, _) = mstep_state { es with ms = { es.ms with mf } } es.memo in
       { es with memo }, aexpl
 
-    let do_or (p1: CI.Expl.Proof.t) (p2: CI.Expl.Proof.t) : CI.Expl.Proof.t = match p1, p2 with
-      | S sp1, S sp2 -> (S (CI.Expl.Proof.make_sorl sp1))
-      | S sp1, V _ -> S (CI.Expl.Proof.make_sorl sp1)
-      | V _ , S sp2 -> S (CI.Expl.Proof.make_sorr sp2)
-      | V vp1, V vp2 -> V (CI.Expl.Proof.make_vor vp1 vp2)
+    let do_or (p1: E.Proof.t) (p2: E.Proof.t) : E.Proof.t = match p1, p2 with
+      | S sp1, S sp2 -> (S (E.Proof.make_sorl sp1))
+      | S sp1, V _ -> S (E.Proof.make_sorl sp1)
+      | V _ , S sp2 -> S (E.Proof.make_sorr sp2)
+      | V vp1, V vp2 -> V (E.Proof.make_vor vp1 vp2)
 
-    let do_and (p1: CI.Expl.Proof.t) (p2: CI.Expl.Proof.t) : CI.Expl.Proof.t = match p1, p2 with
-      | S sp1, S sp2 -> S (CI.Expl.Proof.make_sand sp1 sp2)
-      | S _ , V vp2 -> V (CI.Expl.Proof.make_vandr vp2)
-      | V vp1, S _ -> V (CI.Expl.Proof.make_vandl vp1)
-      | V vp1, V vp2 -> V (CI.Expl.Proof.make_vandl vp1)
+    let do_and (p1: E.Proof.t) (p2: E.Proof.t) : E.Proof.t = match p1, p2 with
+      | S sp1, S sp2 -> S (E.Proof.make_sand sp1 sp2)
+      | S _ , V vp2 -> V (E.Proof.make_vandr vp2)
+      | V vp1, S _ -> V (E.Proof.make_vandl vp1)
+      | V vp1, V vp2 -> V (E.Proof.make_vandl vp1)
 
-    let do_ors tp : CI.Expl.Proof.t list -> CI.Expl.Proof.t = function
-      | [] -> V (CI.Expl.Proof.make_vff tp)
+    let do_ors tp : E.Proof.t list -> E.Proof.t = function
+      | [] -> V (E.Proof.make_vff tp)
       | h::t -> List.fold_left ~init:h ~f:do_or t
 
-    let rec do_ands tp : CI.Expl.Proof.t list -> CI.Expl.Proof.t = function
-      | [] -> S (CI.Expl.Proof.make_stt tp)
+    let rec do_ands tp : E.Proof.t list -> E.Proof.t = function
+      | [] -> S (E.Proof.make_stt tp)
       | h::t -> List.fold_left ~init:h ~f:do_and t
       
     let specialize es =
@@ -167,14 +166,14 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
     let sat v mf es =
       (*print_endline "--sat";
       print_endline ("sat.mf=" ^ MFormula.to_string mf);
-      print_endline ("sat.expl=" ^ CI.Expl.to_string (exec_monitor mf es));
+      print_endline ("sat.expl=" ^ Expl.to_string (exec_monitor mf es));
       print_endline ("sat.v=" ^ Etc.valuation_to_string v);
-      print_endline ("sat.proof=" ^ CI.Expl.Proof.to_string "" (specialize mf es v (exec_monitor mf es)));*)
+      print_endline ("sat.proof=" ^ E.Proof.to_string "" (specialize mf es v (exec_monitor mf es)));*)
       let es, p = exec_monitor mf es in
       (*print_endline (Printf.sprintf "sat(%s)=%s"
-                       (CI.Expl.to_string  p)
-                       (CI.Expl.Proof.to_string "" (specialize es v p)));*)
-      es, CI.Expl.Proof.isS (specialize es v p)
+                       (Expl.to_string  p)
+                       (E.Proof.to_string "" (specialize es v p)));*)
+      es, E.Proof.isS (specialize es v p)
 
     let vio x mf es =
       sat x (MFormula.map_mf mf Formula.Filter._true (fun mf -> MNeg mf)) es
@@ -184,29 +183,29 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       (*print_endline ("all_not_sat.mf=" ^ MFormula.to_string mf);*)
       (*print_endline ("all_not_sat.x=" ^ x);
       print_endline ("all_not_sat.v=" ^ Etc.valuation_to_string v);
-      print_endline ("all_not_sat.proof="^ CI.Expl.to_string (snd(exec_monitor mf es)));
-      print_endline ("all_not_sat.collected(" ^ x  ^ ")=" ^ Setc.to_string (Expl.Pdt.collect CI.Expl.Proof.isV (Setc.inter_list (module Dom)) (Setc.union_list (module Dom)) v x (snd (exec_monitor mf es))));*)
+      print_endline ("all_not_sat.proof="^ Expl.to_string (snd(exec_monitor mf es)));
+      print_endline ("all_not_sat.collected(" ^ x  ^ ")=" ^ Setc.to_string (Expl.Pdt.collect E.Proof.isV (Setc.inter_list (module Dom)) (Setc.union_list (module Dom)) v x (snd (exec_monitor mf es))));*)
       let es, p = exec_monitor mf es in
       match Expl.Pdt.collect
-              CI.Expl.Proof.isV
+              E.Proof.isV
               (Setc.inter_list (module Dom))
               (Setc.union_list (module Dom))
               v x p with
       | Setc.Finite s -> es, Set.elements s
       | s -> Stdio.printf "Infinite set of candidates for %s in %s: from %s collected %s\n"
-               x (MFormula.to_string mf) (Monitor.CI.Expl.to_string p) (Setc.to_string s);
+               x (MFormula.to_string mf) (Monitor.E.to_string p) (Setc.to_string s);
              failwith "Internal error: Infinite set of candidates in all_not_sat"
 
     let all_not_vio v x mf es =
       let es, p = exec_monitor (MFormula.map_mf mf mf.filter (fun mf -> MNeg mf)) es in
       match Expl.Pdt.collect
-              CI.Expl.Proof.isS
+              E.Proof.isS
               (Setc.union_list (module Dom))
               (Setc.inter_list (module Dom))
               v x p with
       | Setc.Finite s -> es, Set.elements s
       | s -> Stdio.printf "Infinite set of candidates for %s in %s: from %s collected %s\n"
-               x (MFormula.to_string mf) (Monitor.CI.Expl.to_string p) (Setc.to_string s);
+               x (MFormula.to_string mf) (Monitor.E.to_string p) (Setc.to_string s);
              failwith "Internal error: Infinite set of candidates in all_not_vio"
 
     let can_skip es mformula =

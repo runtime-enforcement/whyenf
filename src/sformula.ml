@@ -164,7 +164,7 @@ type t =
   | SConst of Const.t
   | SVar of string
   | SApp of string * t list
-  | SLet of string * string list * t * t
+  | SLet of string * Enftype.t option * string list * t * t
   | SAgg of string * Aop.t * t * string list * t
   | SAssign of t * string * t
   | SBop of Side.t option * t * Bop.t * t
@@ -180,10 +180,13 @@ let rec to_string_rec l = function
   | SConst c -> Const.to_string c
   | SVar s -> s
   | SApp (f, ts) -> Printf.sprintf "%s(%s)" f (list_to_string ts)
-  | SLet (r, vars, f, g) -> Printf.sprintf "LET %s(%s) = %s IN %s" r
-                              (Etc.string_list_to_string vars)
-                              (to_string_rec 4 f)
-                              (to_string_rec 4 g)
+  | SLet (r, enftype_opt, vars, f, g) ->
+     Printf.sprintf "LET %s(%s)%s = %s IN %s" r
+       (Etc.string_list_to_string vars)
+       (Option.fold enftype_opt ~init:""
+          ~f:(fun _ enftype -> " : " ^ Enftype.to_string enftype))
+          (to_string_rec 4 f)
+          (to_string_rec 4 g)
   | SAgg (s, op, x, y, f) -> Printf.sprintf "%s <- %s(%s; %s; %s)"
                                s
                                (Aop.to_string op)

@@ -14,5 +14,5 @@ module type EnforcerT = sig
 
 end
 
-module Make (C: Checker_interface.Checker_interfaceT) : EnforcerT
+module Make (E: Expl.ExplT) : EnforcerT
 

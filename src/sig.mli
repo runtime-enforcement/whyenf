@@ -21,6 +21,8 @@ type t = (string, ty) Hashtbl.t
 
 val table: t
 
+val pred_enftype_map: unit -> (string, Enftype.t * int list, String.comparator_witness) Map.t
+
 val add_letpred: string -> (string * Ctxt.ttt) list -> unit
 val add_pred: string -> (string * Dom.tt) list -> Enftype.t -> int -> pred_kind -> unit
 

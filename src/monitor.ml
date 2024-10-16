@@ -15,7 +15,7 @@ open Option
 
 module type MonitorT = sig
 
-  module CI : Checker_interface.Checker_interfaceT
+  module E : Expl.ExplT
 
   module MFormula : sig
 
@@ -156,23 +156,20 @@ module type MonitorT = sig
     
   end
 
-  type res = CI.Expl.t list * CI.Expl.t * MFormula.t
+  type res = E.t list * E.t * MFormula.t
 
-  val mstep: Out.mode -> timepoint -> timestamp -> Db.t -> bool -> MState.t -> FObligations.t ->
-             res Memo.t -> res Memo.t * (((timestamp * timepoint) * CI.Expl.t) list * CI.Expl.t * MState.t)
+  val mstep: timepoint -> timestamp -> Db.t -> bool -> MState.t -> FObligations.t ->
+             res Memo.t -> res Memo.t * (((timestamp * timepoint) * E.t) list * E.t * MState.t)
 
   val meval_c: int ref
 
 end
 
-module Make (CI: Checker_interface.Checker_interfaceT) = struct
+module Make (E: Expl.ExplT) = struct
 
-  module CI = CI
+  module E = E
 
-  open CI
-  module Plain = Out.Plain (CI)
-
-  open Expl
+  open E
 
   (* let minp_list = Proof.Size.minp_list *)
   (* let minp_bool = Proof.Size.minp_bool *)
@@ -495,15 +492,13 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       else
         [Proof.V (Proof.make_vff tp)]
 
-    let update i ts tp p1 moaux mode =
+    let update i ts tp p1 moaux =
       let a = Interval.left i in
       let moaux_z = if Option.is_none moaux.ts_zero then
                       { moaux with ts_zero = Some ts }
                     else
                       moaux in
-      let moaux_subps = match mode with
-        | Out.ENFORCE -> add_subps_enforce ts p1 moaux_z
-        | _ -> add_subps ts p1 moaux_z in
+      let moaux_subps = add_subps_enforce ts p1 moaux_z in
       if Time.(ts < Option.value_exn moaux_subps.ts_zero + a) then
         ({ moaux_subps with tstps_out = Fdeque.enqueue_back moaux_subps.tstps_out (ts, tp) },
          [Proof.V (Proof.make_vonceout tp)])
@@ -515,14 +510,9 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
           else
             Option.value_exn moaux_subps.ts_zero in
         let r = Time.(ts - a) in
-        match mode with
-        | Out.ENFORCE ->
-           let moaux_shifted = shift_enforce (l, r) a ts tp moaux_subps in
-           let ps = eval_enforce tp moaux_shifted in
-           (moaux_shifted, ps)
-        | _ -> let moaux_shifted = shift (l, r) a ts tp moaux_subps in
-               let ps = eval tp moaux_shifted in
-               (moaux_shifted, ps)
+        let moaux_shifted = shift_enforce (l, r) a ts tp moaux_subps in
+        let ps = eval_enforce tp moaux_shifted in
+        (moaux_shifted, ps)
 
     (* Only used for approximation (enforcement related) *)
     let do_once_base tp a (p: Proof.t) =
@@ -1078,14 +1068,12 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
       else
         [Proof.V (Proof.make_vff tp)]
 
-    let update i ts tp p1 p2 msaux mode =
+    let update i ts tp p1 p2 msaux =
       let a = Interval.left i in
       let msaux_z = if Option.is_none msaux.ts_zero then
                       { msaux with ts_zero = Some(ts) }
                     else msaux in
-      let msaux_subps = match mode with
-        | Out.ENFORCE -> add_subps_enforce ts p1 p2 msaux_z
-        | _ -> add_subps ts p1 p2 msaux_z in
+      let msaux_subps = add_subps_enforce ts p1 p2 msaux_z in
       if Time.(ts < Option.value_exn msaux_subps.ts_zero + a) then
         ({ msaux_subps with tstps_out = Fdeque.enqueue_back msaux_subps.tstps_out (ts, tp) },
          [Proof.V (Proof.make_vsinceout tp)])
@@ -1094,14 +1082,9 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
          let l = if (Option.is_some b) then Time.max Time.zero Time.(ts - (Option.value_exn b))
                  else (Option.value_exn msaux_subps.ts_zero) in
          let r = Time.(ts - a) in
-         match mode with
-         | Out.ENFORCE ->
-            let msaux_shifted = shift_enforce (l, r) a ts tp msaux_subps in
-            let ps = eval_enforce tp msaux_shifted in
-            (msaux_shifted, ps)
-         | _ -> let msaux_shifted = shift (l, r) a ts tp msaux_subps in
-                let ps = eval tp msaux_shifted in
-                (msaux_shifted, ps))
+         let msaux_shifted = shift_enforce (l, r) a ts tp msaux_subps in
+         let ps = eval_enforce tp msaux_shifted in
+         (msaux_shifted, ps))
 
     (* Only used for approximation (enforcement related) *)
     let do_since_base tp a pol (p1: Proof.t) (p2: Proof.t) =
@@ -1485,16 +1468,16 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
 
   module MFormula = struct
 
-    type binop_info         = (Expl.t, Expl.t) Buf2.t
-    type prev_info          = (Expl.t, Time.t) Buft.t
+    type binop_info         = (E.t, E.t) Buf2.t
+    type prev_info          = (E.t, Time.t) Buft.t
     type next_info          = Time.t list
     type tp_info            = (Time.t * timepoint) list
-    type buft_info          = (Expl.t, Time.t * timepoint) Buft.t
+    type buft_info          = (E.t, Time.t * timepoint) Buft.t
     type once_info          = Once.t Pdt.t
     type eventually_info    = Eventually.t Pdt.t
     type historically_info  = Historically.t Pdt.t
     type always_info        = Always.t Pdt.t
-    type buf2t_info         = (Expl.t, Expl.t, Time.t * timepoint) Buf2t.t
+    type buf2t_info         = (E.t, E.t, Time.t * timepoint) Buf2t.t
     type since_info         = Since.t Pdt.t
     type until_info         = Until.t Pdt.t
 
@@ -1978,6 +1961,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
         | TFF -> MFF
         | TEqConst (x, c) -> MEqConst (x, c)
         | TPredicate (r, trms) -> MPredicate (r, trms)
+        | TPredicate' (_, _, f) | TLet' (_, _, _, f) -> aux f
         | TAgg (s, tt, op, x, y, f) ->
            let op_fun = Aggregation.eval op tt in
            MAgg (s, op, op_fun, x, y, make (aux f) Formula.Filter._true)
@@ -2401,7 +2385,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
     List.iter maps ~f:(fun map -> Map.iteri map ~f:(fun ~key:k ~data:v ->
                                       Stdio.printf "%s -> %s\n" (Term.to_string k) (Dom.to_string v)))
 
-  let rec pdt_of tp r trms (lbls: Lbl.t list) maps : Expl.t = match lbls with
+  let rec pdt_of tp r trms (lbls: Lbl.t list) maps : E.t = match lbls with
     | [] -> Leaf (S (Proof.make_spred tp r trms))
     | lbl :: lbls ->
        let ds = List.filter_map maps ~f:(fun map -> Map.find map lbl) in
@@ -2425,7 +2409,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
 
   let approx_default expls tp pol =
     match List.last expls with
-    | Some expl when Expl.at expl == tp -> expl
+    | Some expl when E.at expl == tp -> expl
     | _ -> approx_false tp pol
 
 
@@ -2485,14 +2469,14 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
 
   let approx_once vars expls aexpl i tp pol =
     match List.last expls, pol with
-    | Some expl, _ when Expl.at expl == tp -> expl
+    | Some expl, _ when E.at expl == tp -> expl
     | _, FObligation.POS ->
        Pdt.apply1_reduce Proof.equal vars (Once.do_once_base tp (Interval.left i)) aexpl
     | _, _ -> approx_false tp pol
 
   let approx_historically vars expls aexpl i tp pol =
     match List.last expls, pol with
-    | Some expl, _ when Expl.at expl == tp -> expl
+    | Some expl, _ when E.at expl == tp -> expl
     | _, FObligation.NEG ->
        Pdt.apply1_reduce Proof.equal vars (Historically.do_historically_base tp (Interval.left i)) aexpl
     | _, _ -> approx_false tp pol
@@ -2548,7 +2532,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
 
   let approx_since vars expls aexpl1 aexpl2 i tp pol =
     match List.last expls, pol with
-    | Some expl, _ when Expl.at expl == tp -> expl
+    | Some expl, _ when E.at expl == tp -> expl
     | _ -> Pdt.apply2_reduce Proof.equal vars
              (Since.do_since_base tp (Interval.left i) (pol == FObligation.POS)) aexpl1 aexpl2
 
@@ -2626,7 +2610,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
     
   end
 
-  let meval ts tp (db: Db.t) ~pol (fobligs: FObligations.t) mformula mode memo =
+  let meval ts tp (db: Db.t) ~pol (fobligs: FObligations.t) mformula memo =
     let outer_ts = ts and outer_tp = tp in
     let rec meval_rec ts tp (db: Db.t) ~pol (fobligs: FObligations.t) memo mformula =
       (*print_endline "--meval_rec";
@@ -2813,7 +2797,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
                   (fun expl ts tp (aux_pdt, es) ->
                     let (aux_pdt', es') =
                       Pdt.split_prod (Pdt.apply2 mformula.lbls (fun p aux -> (* Stdio.printf "%s\n" (Once.to_string aux); *)
-                                          Once.update i ts tp p aux mode) expl aux_pdt) in
+                                          Once.update i ts tp p aux) expl aux_pdt) in
                     (aux_pdt', es @ (Pdt.split_list es')))
                   (moaux_pdt, []) (expls, (tstps @ [(Time.of_int ts,tp)])) in
               let expls'' = List.map expls' ~f:(Pdt.reduce Proof.equal) in
@@ -2883,7 +2867,7 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
                     let (aux_pdt', es') =
                       Pdt.split_prod (Pdt.apply3 mformula.lbls
                                         (fun p1 p2 aux ->
-                                          Since.update i ts tp p1 p2 aux mode) expl1 expl2 aux_pdt) in
+                                          Since.update i ts tp p1 p2 aux) expl1 expl2 aux_pdt) in
                     (aux_pdt', es @ (Pdt.split_list es')))
                   (msaux_pdt, []) (Buf2.add expls1 expls2 buf2) (tstps @ [(Time.of_int ts,tp)]) in
               let expls'' = List.map expls' ~f:(Pdt.reduce Proof.equal) in
@@ -2965,26 +2949,14 @@ module Make (CI: Checker_interface.Checker_interfaceT) = struct
 
   end
 
-  type res = CI.Expl.t list * CI.Expl.t * MFormula.t
+  type res = E.t list * E.t * MFormula.t
   
-  let mstep mode tp ts db approx (ms: MState.t) (fobligs: FObligations.t) (memo : res Memo.t) =
+  let mstep tp ts db approx (ms: MState.t) (fobligs: FObligations.t) (memo : res Memo.t) =
     let pol_opt = if approx then Some FObligation.POS else None in
-    let memo, (expls, aexpl, mf') = meval ts ms.tp_cur db pol_opt fobligs ms.mf mode memo in
-    let expls, tstps =
-      match mode with
-      | Out.ENFORCE -> [aexpl], [(ms.tp_cur, ts)]
-      | _ -> Queue.enqueue ms.ts_waiting ts;
-             expls, List.zip_exn (List.take (Queue.to_list ms.ts_waiting) (List.length expls))
-                      (List.range ms.tp_cur (ms.tp_cur + List.length expls)) in
-    let tsdbs =
-      match mode with
-      | Out.VERIFIED
-        | Out.DEBUG -> Queue.enqueue ms.tsdbs (ts, db); ms.tsdbs
-      | _ -> ms.tsdbs in
-    let ts_waiting =
-      match mode with
-      | Out.ENFORCE -> ms.ts_waiting
-      | _ -> queue_drop ms.ts_waiting (List.length expls) in
+    let memo, (expls, aexpl, mf') = meval ts ms.tp_cur db pol_opt fobligs ms.mf memo in
+    let expls, tstps = [aexpl], [(ms.tp_cur, ts)] in
+    let tsdbs = ms.tsdbs in
+    let ts_waiting = ms.ts_waiting in
     memo, (List.zip_exn tstps expls,
            aexpl,
            { ms with

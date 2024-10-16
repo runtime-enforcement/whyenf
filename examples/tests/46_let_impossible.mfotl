@@ -1,0 +1,2 @@
+LET G1(x) = A(x) IN
+ALWAYS (FORALL x. G1(x) AND NOT G1(x))

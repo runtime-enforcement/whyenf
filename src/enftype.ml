@@ -1,12 +1,14 @@
 open Base
 
-type t = Cau | NCau | SCau | Sup | CauSup | Obs [@@deriving compare, sexp_of, hash, equal]
+type t = Cau | NCau | SCau | Sup | NSup | SSup | CauSup | Obs [@@deriving compare, sexp_of, hash, equal]
 
 let neg = function
-  | Cau
-    | NCau
-    | SCau -> Sup
-  | Sup    -> Cau 
+  | Cau    -> Sup
+  | NCau   -> NSup
+  | SCau   -> SSup
+  | Sup    -> Cau
+  | NSup   -> NCau
+  | SSup   -> SCau 
   | CauSup -> CauSup
   | Obs    -> Obs
 
@@ -15,7 +17,9 @@ let to_int = function
   | NCau   -> 2
   | SCau   -> 3
   | Sup    -> 4
-  | CauSup -> 5
+  | NSup   -> 5
+  | SSup   -> 6
+  | CauSup -> 7
   | Obs    -> 0
 
 let to_string = function
@@ -23,6 +27,8 @@ let to_string = function
   | NCau   -> "NCau"
   | SCau   -> "SCau"
   | Sup    -> "Sup"
+  | NSup   -> "NSup"
+  | SSup   -> "SSup"
   | CauSup -> "CauSup"
   | Obs    -> "Obs"
 
@@ -31,6 +37,8 @@ let meet a b = match a, b with
   | Obs, x | x, Obs -> x
   | Cau, NCau | NCau, Cau
     | Cau, SCau | SCau, Cau -> Cau
+  | Sup, NSup | NSup, Sup
+    | Sup, SSup | SSup, Sup -> Sup
   | _, _ -> CauSup
 
 let join a b = match a, b with
@@ -38,6 +46,8 @@ let join a b = match a, b with
   | CauSup, x | x, CauSup -> x
   | Cau, NCau | NCau, Cau -> NCau
   | Cau, SCau | SCau, Cau -> SCau
+  | Sup, NSup | NSup, Sup -> NSup
+  | Sup, SSup | SSup, Sup -> SSup
   | _, _ -> Obs
 
 let leq a b = (meet a b) == a
@@ -48,5 +58,5 @@ let is_causable = function
   | _ -> false
 
 let is_suppressable = function
-  | CauSup | Sup -> true
+  | CauSup | Sup | NSup | SSup -> true
   | _ -> false

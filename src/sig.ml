@@ -58,6 +58,13 @@ let table: t =
     ~data:(Pred { arity = 1; arg_ttts = [("t", TConst TInt)]; enftype = Obs; rank = 0; kind = Builtin });
   table
 
+let pred_enftype_map () =
+  Hashtbl.fold table ~init:(Map.empty (module String))
+    ~f:(fun ~key ~data ->
+      match data with
+      | Pred pred -> Map.add_exn ~key ~data:(pred.enftype, List.init pred.arity ~f:(fun x -> x))
+      | _ -> fun m -> m)
+
 let add_letpred p_name arg_ttts =
   Hashtbl.add_exn table ~key:p_name
     ~data:(Pred { arity = List.length arg_ttts; arg_ttts; enftype = Obs; rank = 0; kind = Let })
@@ -83,7 +90,8 @@ let add_func f_name arg_tts ret_tt kind strict =
              kind; strict })
 
 let update_enftype name enftype =
-  Hashtbl.update table name ~f:(fun (Some (Pred x)) -> Pred { x with enftype })
+  if Hashtbl.mem table name then
+    Hashtbl.update table name ~f:(fun (Some (Pred x)) -> Pred { x with enftype })
 
 let vars_of_pred name = List.map (unpred (Hashtbl.find_exn table name)).arg_ttts ~f:fst
 
