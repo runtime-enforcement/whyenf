@@ -86,8 +86,7 @@ let builtins =
        arity   = 2;
        arg_ttts = [("x", Ctxt.TVar "a"); ("y", Ctxt.TVar "a")];
        ret_ttt  = Ctxt.TConst Dom.TInt;
-       kind    = Builtin (fun [x;y] -> match x, y with Dom.Int i, Dom.Int j ->
-                                         Int (if i < j then 1 else 0));
+       kind    = Builtin (fun [x;y] -> Int (if Dom.lt x y then 1 else 0));
        strict  = true;
     });
     ("leq",
@@ -95,8 +94,7 @@ let builtins =
        arity   = 2;
        arg_ttts = [("x", Ctxt.TVar "a"); ("y", Ctxt.TVar "a")];
        ret_ttt  = Ctxt.TConst Dom.TInt;
-       kind    = Builtin (fun [x;y] -> match x, y with Dom.Int i, Dom.Int j ->
-                                         Int (if i <= j then 1 else 0));
+       kind    = Builtin (fun [x;y] -> Int (if Dom.leq x y then 1 else 0));
        strict  = true;
     });
     ("gt",
@@ -104,8 +102,7 @@ let builtins =
        arity   = 2;
        arg_ttts = [("x", Ctxt.TVar "a"); ("y", Ctxt.TVar "a")];
        ret_ttt  = Ctxt.TConst Dom.TInt;
-       kind    = Builtin (fun [x;y] -> match x, y with Dom.Int i, Dom.Int j ->
-                                         Int (if i > j then 1 else 0));
+       kind    = Builtin (fun [x;y] -> Int (if Dom.gt x y then 1 else 0));
        strict  = true;
     });
     ("geq",
@@ -113,8 +110,7 @@ let builtins =
        arity   = 2;
        arg_ttts = [("x", Ctxt.TVar "a"); ("y", Ctxt.TVar "a")];
        ret_ttt  = Ctxt.TConst Dom.TInt;
-       kind    = Builtin (fun [x;y] -> match x, y with Dom.Int i, Dom.Int j ->
-                                         Int (if i >= j then 1 else 0));
+       kind    = Builtin (fun [x;y] -> Int (if Dom.geq x y then 1 else 0));
        strict  = true;
     });
     ("add",

@@ -185,8 +185,8 @@ let rec to_string_rec l = function
        (Etc.string_list_to_string vars)
        (Option.fold enftype_opt ~init:""
           ~f:(fun _ enftype -> " : " ^ Enftype.to_string enftype))
-          (to_string_rec 4 f)
-          (to_string_rec 4 g)
+       (to_string_rec 4 f)
+       (to_string_rec 4 g)
   | SAgg (s, op, x, y, f) -> Printf.sprintf "%s <- %s(%s; %s; %s)"
                                s
                                (Aop.to_string op)
