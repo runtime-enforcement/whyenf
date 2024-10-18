@@ -117,6 +117,7 @@ module T = struct
     | SUop   (uop, t)           ->
        (let f = match uop with
           | Uop.USub -> "usub"
+          | Uop.UFSub -> "ufsub"
           | Uop.UNot -> "not" in
         App (f, [init t]))
 

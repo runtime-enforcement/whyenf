@@ -52,13 +52,6 @@ let to_string name func =
     (String.drop_prefix (List.fold func.arg_ttts ~init:"" ~f) 1)
     (Ctxt.ttt_to_string func.ret_ttt)
 
-let eq [x;y]  = Dom.Int (if Dom.equal x y then 1 else 0)
-let neq [x;y] = Dom.Int (if Dom.equal x y then 0 else 1)
-let lt [x;y] = Dom.Int (if x < y then 1 else 0)
-let leq [x;y] = Dom.Int (if x <= y then 1 else 0)
-let gt [x;y] = Dom.Int (if x > y then 1 else 0)
-let geq [x;y] = Dom.Int (if x >= y then 1 else 0)
-
 let is_eq = function
   | "eq" | "feq" | "seq" -> true
   | _ -> false
@@ -70,7 +63,7 @@ let builtins =
        arity   = 2;
        arg_ttts = [("x", Ctxt.TVar "a"); ("y", Ctxt.TVar "a")];
        ret_ttt  = Ctxt.TConst Dom.TInt;
-       kind    = Builtin eq;
+       kind    = Builtin (fun [x;y] -> Int (if Dom.equal x y then 1 else 0));
        strict  = true;
     });
     ("neq",
@@ -78,7 +71,7 @@ let builtins =
        arity   = 2;
        arg_ttts = [("x", Ctxt.TVar "a"); ("y", Ctxt.TVar "a")];
        ret_ttt  = Ctxt.TConst Dom.TInt;
-       kind    = Builtin neq;
+       kind    = Builtin (fun [x;y] -> Int (if Dom.equal x y then 0 else 1));
        strict  = true;
     });
     ("lt",
