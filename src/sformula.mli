@@ -15,7 +15,7 @@ end
 
 module Aop : sig
 
-  type t = ASum | AAvg | AMed | ACnt | AMin | AMax
+  type t = ASum | AAvg | AMed | ACnt | AMin | AMax | AStd
            [@@deriving compare, sexp_of, hash, equal]
 
 end

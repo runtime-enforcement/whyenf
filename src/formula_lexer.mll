@@ -86,6 +86,7 @@ rule token = parse
   | "CNT"                                         { debug "CNT"; CNT }
   | "MIN"                                         { debug "MIN"; MIN }
   | "MAX"                                         { debug "MAX"; MAX }
+  | "STD"                                         { debug "STD"; STD }
   | "OBS"                                         { debug "OBS"; OBS }
   | "SUP"                                         { debug "SUP"; SUP }
   | "NSUP"                                        { debug "NSUP"; NSUP }

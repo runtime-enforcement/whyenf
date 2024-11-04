@@ -26,12 +26,11 @@ module Event = struct
     let to_string (name, ds) = Printf.sprintf "%s(%s)" name (Dom.list_to_string ds)
 
     let to_json (name, ds) =
-      String.concat ~sep:", "
-        (List.map2_exn (Sig.vars_of_pred name) ds  ~f:(fun x d ->
-             Printf.sprintf "{ " ^
-               Printf.sprintf "\"var\": \"%s\", " x ^
-                 Printf.sprintf "\"value\": \"%s\" " (Dom.to_string d) ^
-                   Printf.sprintf "}"))
+      Printf.sprintf "{ \"name\": \"%s\", \"args\": [ %s ] }"
+        name
+        (String.concat ~sep:", "
+           (List.map2_exn (Sig.vars_of_pred name) ds ~f:(fun x d ->
+                Printf.sprintf "{ \"var\": \"%s\", \"value\": \"%s\" }" x (Dom.to_string d))))
 
     let name = fst
 
@@ -108,7 +107,7 @@ let to_string db = ev_set_to_string db.events
 let to_json db =
   "[ " ^ (String.concat ~sep:", "
             (List.rev(Set.fold db.events ~init:[] ~f:(fun acc evt ->
-                          Event.to_json evt :: acc)))) ^ "] "
+                          Event.to_json evt :: acc)))) ^ " ]"
 
 let retrieve_external name =
   let tts = List.map ~f:Ctxt.unconst (Sig.arg_ttts_of_pred name) in

@@ -25,7 +25,7 @@ end
 
 module Aop = struct
 
-  type t = ASum | AAvg | AMed | ACnt | AMin | AMax
+  type t = ASum | AAvg | AMed | ACnt | AMin | AMax | AStd
            [@@deriving compare, sexp_of, hash, equal]
 
   let to_string = function
@@ -35,6 +35,7 @@ module Aop = struct
     | ACnt    -> "CNT"
     | AMin    -> "MIN"
     | AMax    -> "MAX"
+    | AStd    -> "STD"
   
 end
 

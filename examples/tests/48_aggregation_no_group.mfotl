@@ -1,0 +1,1 @@
+ALWAYS (FORALL s. s <- MAX(x; ; ONCE (C(x, x))) IMPLIES C(s, s))

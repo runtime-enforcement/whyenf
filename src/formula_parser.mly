@@ -36,7 +36,7 @@ let debug m = if !debug then Stdio.print_endline ("[debug] formula_parser: " ^ m
 %token SINCE UNTIL RELEASE TRIGGER
 %token ADD SUB MUL DIV POW CONC
 %token FADD FSUB FMUL FDIV FPOW
-%token SUM AVG MED CNT MIN MAX
+%token SUM AVG MED CNT MIN MAX STD
 
 
 %left IN

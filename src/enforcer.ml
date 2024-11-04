@@ -410,17 +410,37 @@ module Make (E: Expl.ExplT) = struct
 
     type t = ReOrd of Db.t * Db.t | PrOrd of Db.t | NoOrd
 
-    let print ts = function
-      | PrOrd c -> Stdio.printf "[Enforcer] @%d proactively commands:\nCause: \n%s\nOK.\n" ts (Db.to_string c)
+    let print_json ts = function
+      | PrOrd c ->
+         Stdio.printf "{ \"ts\": %d, \"cause\": %s, \"proactive\": true }\n" ts (Db.to_json c)
       | ReOrd (c, s) when not (Db.is_empty c) && not (Db.is_empty s) ->
-         Stdio.printf "[Enforcer] @%d reactively commands:\nCause:\n%s\nSuppress:\n%s\nOK.\n" ts
-           (Db.to_string c) (Db.to_string s)
+         Stdio.printf "{ \"ts\": %d, \"cause\": %s, \"suppress\": %s }\n"
+           ts (Db.to_json c) (Db.to_json s)
       | ReOrd (c, s) when not (Db.is_empty c) && Db.is_empty s ->
-         Stdio.printf "[Enforcer] @%d reactively commands:\nCause:\n%s\nOK.\n" ts (Db.to_string c)
+         Stdio.printf "{ \"ts\": %d, \"cause\": %s }\n" ts (Db.to_json c)
       | ReOrd (c, s) when Db.is_empty c && not (Db.is_empty s) ->
-         Stdio.printf "[Enforcer] @%d reactively commands:\nSuppress:\n%s\nOK.\n" ts (Db.to_string s)
+         Stdio.printf "{ \"ts\": %d, \"suppress\": %s }\n" ts (Db.to_json s)
+      | ReOrd (_, _) -> Stdio.printf "{ \"ts\": %d }\n" ts
+      | NoOrd -> Stdio.printf "{ \"ts\": %d, \"proactive\": true }\n" ts
+
+    let print_textual ts = function
+      | PrOrd c -> Stdio.printf "[Enforcer] @%d proactively commands:\nCause: \n%s\nOK.\n"
+                     ts (Db.to_string c)
+      | ReOrd (c, s) when not (Db.is_empty c) && not (Db.is_empty s) ->
+         Stdio.printf "[Enforcer] @%d reactively commands:\nCause:\n%s\nSuppress:\n%s\nOK.\n"
+           ts (Db.to_string c) (Db.to_string s)
+      | ReOrd (c, s) when not (Db.is_empty c) && Db.is_empty s ->
+         Stdio.printf "[Enforcer] @%d reactively commands:\nCause:\n%s\nOK.\n"
+           ts (Db.to_string c)
+      | ReOrd (c, s) when Db.is_empty c && not (Db.is_empty s) ->
+         Stdio.printf "[Enforcer] @%d reactively commands:\nSuppress:\n%s\nOK.\n"
+           ts (Db.to_string s)
       | ReOrd (_, _) -> Stdio.printf "[Enforcer] @%d OK.\n" ts
       | NoOrd -> Stdio.printf "[Enforcer] @%d nothing to do proactively.\n" ts
+      
+    let print ts ord =
+      if !Etc.json then print_json ts ord else print_textual ts ord
+    
   end
 
   let goal (es: EState.t) =
@@ -545,17 +565,3 @@ module Make (E: Expl.ExplT) = struct
     step true None es
 
 end
-
-(* TODO[FH]: variable renaming --- order of vars in aggregations *)
-(* dummy OK
-   clean-logs OK
-   logging-behavior OK
-   finalized-height OK
-   finalization-consistency OK
-   replica-divergence OK
-   block-validation-latency OK
-   unauthorized-connections OK
-   reboot-count OK
-
-   OK = sanity checked (probably actually buggy)
-*)

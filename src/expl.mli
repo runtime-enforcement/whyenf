@@ -70,7 +70,7 @@ module Pdt : sig
 
   val exquant: 'a t -> 'a t
 
-  val aggregate: ('a -> bool) -> ((Dom.t, Dom.comparator_witness) Setc.t -> Dom.t option -> 'b) -> ((Dom.t, int, Dom.comparator_witness) Map.t -> Dom.t) -> string -> Term.t -> string list -> Lbl.t list -> Lbl.t list -> 'a t -> 'b t
+  val aggregate: ('a -> bool) -> ((Dom.t, Dom.comparator_witness) Setc.t -> Dom.t option -> 'b) -> ((Dom.t, Dom.comparator_witness) Multiset.t -> Dom.t) -> string -> Term.t -> string list -> Lbl.t list -> Lbl.t list -> 'a t -> 'b t
 
 end
 
