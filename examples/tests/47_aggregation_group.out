@@ -1,0 +1,9 @@
+The formula
+ □[0s,∞) ∀s. ∀y. s <- MAX(x; y; ⧫[0s,∞) C(x, y)) → C(s, y)
+is enforceable and types to
+ □[0s,∞) (∀s. (∀y. (s <- MAX(x; y; ⧫[0s,∞) C(x, y)) →:R (C(s, y) : Cau) : Cau) : Cau) : Cau) : Cau
+[Enforcer] @1 OK.
+[Enforcer] @1 nothing to do proactively.
+[Enforcer] @2 OK.
+[Enforcer] @2 nothing to do proactively.
+[Enforcer] @3 OK.

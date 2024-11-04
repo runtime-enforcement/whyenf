@@ -331,5 +331,21 @@
         "log": "simple.log",
         "output": "46_let_impossible.out",
         "success": false        
+    },
+    {
+        "label": "47_aggregation_group",
+        "sig": "complex.sig",
+        "formula": "47_aggregation_group.mfotl",
+        "log": "complex.log",
+        "output": "47_aggregation_group.out",
+        "success": true        
+    },
+    {
+        "label": "48_aggregation_no_group",
+        "sig": "complex.sig",
+        "formula": "48_aggregation_no_group.mfotl",
+        "log": "complex.log",
+        "output": "48_aggregation_no_group.out",
+        "success": true        
     }
 ]

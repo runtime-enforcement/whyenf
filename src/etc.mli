@@ -15,6 +15,7 @@ type timestamp = int
 val debug: bool ref
 val inc_ref: Stdio.In_channel.t ref
 val outc_ref: Stdio.Out_channel.t ref
+val json: bool ref
 
 val eat: string -> string -> string
 val paren: int -> int -> ('b, 'c, 'd, 'e, 'f, 'g) format6 -> ('b, 'c, 'd, 'e, 'f, 'g) format6

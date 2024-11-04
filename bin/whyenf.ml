@@ -70,6 +70,9 @@ module Whyenf = struct
       | ("-out" :: outf :: args) ->
          Etc.outc_ref := Out_channel.create outf;
          process_args_rec args
+      | ("-json" :: args) ->
+         Etc.json := true;
+         process_args_rec args
       | ("-b" :: bound :: args) ->
          b_ref := Time.Span.of_string bound;
          process_args_rec args

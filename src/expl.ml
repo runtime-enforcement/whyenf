@@ -387,19 +387,19 @@ module Pdt = struct
     | Node (lbl,    part) -> Node (lbl,    Part.map part exquant)
 
   (* s = AGG (x; y; f) where p is a Pdt for f *)
-  let aggregate cond f agg s x_trm y lbls lbls' p =
-    let fold_merge fun_both fun_one m m' =
+  let aggregate cond f (agg: (Dom.t, Dom.comparator_witness) Multiset.t -> Dom.t) s x_trm y lbls lbls' p =
+    (*let fold_merge fun_both fun_one m m' =
       Map.fold2 m m' ~init:(Map.empty (module Dom)) ~f:(fun ~key ~data m ->
           match data with
           | `Both (data, data')      -> Map.add_exn m ~key ~data:(fun_both data data')
           | `Left data | `Right data -> Map.add_exn m ~key ~data:(fun_one data)) in
     let merge_add = fold_merge (+) (fun x -> x) in
     let merge_max = fold_merge max (fun x -> x) in
-    let merge_min = fold_merge min (fun _ -> 0) in
+    let merge_min = fold_merge min (fun _ -> 0) in*)
     let merge_pdts merge = function
          | [pdt] -> pdt
          | pdt::pdts -> List.fold pdts ~init:pdt
-                          ~f:(apply2_reduce (Map.equal Int.equal) lbls' merge) in
+                          ~f:(apply2_reduce Multiset.equal lbls' merge) in
     let multiset sv =
       let rec aux vs = function
         | (Term.Var x, Setc.Finite s) ->
@@ -409,15 +409,14 @@ module Pdt = struct
         | (trm, s) -> List.filter vs ~f:(fun v -> Setc.mem s (Term.unconst (Sig.eval v trm))) in
       let vs = List.fold_left sv ~init:([Map.empty (module String)]) ~f:aux in
       let ds = List.map vs ~f:(fun v -> Term.unconst (Sig.eval v x_trm)) in
-      let f m d = Map.update m d ~f:(function None -> 1 | Some x -> x+1) in
-      List.fold_left ds ~init:(Map.empty (module Dom)) ~f in
+      List.fold_left ds ~init:(Multiset.empty (module Dom)) ~f:Multiset.append in
     let rec multisets sv gs trms w p =
       (*print_endline "--multisets";
       print_endline (String.concat ~sep:", " (List.map ~f:Lbl.to_string trms));
       print_endline (String.concat ~sep:", " gs);*)
       match p, gs, trms with
       | Leaf l, _, _ when cond l -> Leaf (multiset (List.rev sv))
-      | Leaf l, _, _ -> Leaf (Map.empty (module Dom))
+      | Leaf l, _, _ -> Leaf (Multiset.empty (module Dom))
       | Node (lbl, _), g :: gs, trm :: trms
            when not (Lbl.equal trm lbl) && Lbl.equal trm (LVar g) ->
          multisets sv gs trms w p
@@ -428,13 +427,13 @@ module Pdt = struct
          Node (lbl, part)
       | Node (LEx x', part), _, _ :: trms ->
          let pdts = List.concat (Part.map2 part (distribute x' (multisets sv gs trms) w)) in
-         merge_pdts merge_max pdts
+         merge_pdts (Multiset.union (module Dom)) pdts
       | Node (LAll x', part), _, _ :: trms ->
          let pdts = List.concat (Part.map2 part (distribute x' (multisets sv gs trms) w)) in
-         merge_pdts merge_min pdts
+         merge_pdts (Multiset.inter (module Dom)) pdts
       | Node (lbl, part), _, _ :: trms ->
          let pdts = Part.map2 part (fun (s, p) -> multisets ((Lbl.term lbl, s)::sv) gs trms w p) in
-         merge_pdts merge_add pdts in
+         merge_pdts (Multiset.add (module Dom)) pdts in
     let rec collect_leaf_values = function
       | Leaf None -> Set.empty (module Dom)
       | Leaf (Some v) -> Set.singleton (module Dom) v
@@ -458,7 +457,7 @@ module Pdt = struct
          (*print_endline "case 3";*)
          insert_aggregations lbls pdt
     in
-    let agg' m = if Map.is_empty m then None else Some (agg m) in
+    let agg' m = if Multiset.is_empty m && List.length y > 0 then None else Some (agg m) in
     let multiset_pdt = multisets [] y lbls' Etc.empty_valuation p in
     let aggregations_pdt = apply1 lbls' agg' multiset_pdt in
     insert_aggregations lbls aggregations_pdt
