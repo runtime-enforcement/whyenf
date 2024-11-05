@@ -117,5 +117,5 @@ let retrieve_external name =
 
 let retrieve_builtin ts tp = function
   | name when String.equal name Sig.tp_event_name -> create [("TP", [Int tp])]
-  | name when String.equal name Sig.ts_event_name -> create [("TS", [Int ts])]
+  | name when String.equal name Sig.ts_event_name -> create [("TS", [Int (Time.to_int ts)])]
 

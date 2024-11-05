@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional, Sequence
+from typing import Dict, List, Optional, Sequence
 import pandas as pd # type: ignore
 import json
 import subprocess
@@ -13,7 +13,7 @@ EXAMPLE = Path("./examples/tests")
 
 class Test:
 
-    command : list[str]
+    command : List[str]
 
     def __init__(self, label : str, sig : Path, formula : Path, log : Path, output : str, 
                  func : Optional[Path] = None, success : bool = True):
@@ -27,7 +27,7 @@ class Test:
         self._make_command()
 
     @classmethod
-    def from_config(self, json_fn : dict[str, str]) -> "Test":
+    def from_config(self, json_fn : Dict[str, str]) -> "Test":
         sig     = EXAMPLE / json_fn["sig"]
         formula = EXAMPLE / json_fn["formula"]    
         log     = EXAMPLE / json_fn["log"]
@@ -38,7 +38,7 @@ class Test:
         return Test(json_fn["label"], sig, formula, log, output, func, success=success)
     
     def _make_command(self) -> None:
-        command : list[str] = [str(WHYENF), "-sig", str(self.sig), "-formula", str(self.formula), "-log", str(self.log)]
+        command : List[str] = [str(WHYENF), "-sig", str(self.sig), "-formula", str(self.formula), "-log", str(self.log)]
         if self.func:
             command += ["-func", str(self.func)]
         self.command = command

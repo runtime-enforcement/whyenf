@@ -1,7 +1,7 @@
 The formula
  □[0s,∞) (B(0) S[0s,30s] B(1))
 is enforceable and types to
- □[0s,∞) ((B(0) S[0s,30s]:R (B(1) : Cau)) : Cau) : Cau
+ □[0s,∞) ((B(0) S[0s,30s]:R B(1) : Cau) : Cau) : Cau
 [Enforcer] @10 reactively commands:
 Cause:
 B(1)

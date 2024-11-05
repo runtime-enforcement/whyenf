@@ -69,11 +69,13 @@ module Make (E: Expl.ExplT) = struct
 
   end
 
+  let inc_ts ts = Time.(ts + !Etc.s_ref)
+
   module EState = struct
 
     type t = { ms: MState.t
              ; tp: timepoint
-             ; ts: timepoint
+             ; ts: timestamp
              ; db: Db.t
              ; r : Triple.t
              ; fobligs: FObligations.t
@@ -88,7 +90,7 @@ module Make (E: Expl.ExplT) = struct
                   ; r
                   ; fobligs } =
       "\n<> EState <> \n" ^
-        Printf.sprintf "ts = %d\n" ts ^
+        Printf.sprintf "ts = %s\n" (Time.to_string ts) ^
           Printf.sprintf "tp = %d\n" tp ^
             Printf.sprintf "db = %s\n" (Db.to_string db) ^
               Printf.sprintf "fobligs = %s\n" (FObligations.to_string fobligs) ^
@@ -97,7 +99,7 @@ module Make (E: Expl.ExplT) = struct
 
     let init ms mf = { ms;
                        tp = 0;
-                       ts = 0;
+                       ts = Time.zero;
                        db = Db.create [];
                        r = Triple.empty;
                        fobligs = Set.singleton (module FObligation)
@@ -199,7 +201,7 @@ module Make (E: Expl.ExplT) = struct
     let all_not_vio v x mf es =
       let es, p = exec_monitor (MFormula.map_mf mf mf.filter (fun mf -> MNeg mf)) es in
       match Expl.Pdt.collect
-              E.Proof.isS
+              E.Proof.isV
               (Setc.union_list (module Dom))
               (Setc.inter_list (module Dom))
               v x p with
@@ -228,7 +230,7 @@ module Make (E: Expl.ExplT) = struct
       testenf test2 enf2 v es mf2
 
     let default_ts ts es =
-      Option.value ts ~default:(Time.of_int es.ts)
+      Option.value ts ~default:es.ts
 
     let rec enfsat_andl v mfs es =
       List.fold_left mfs ~init:es ~f:(testenf sat enfsat v)
@@ -300,25 +302,25 @@ module Make (E: Expl.ExplT) = struct
       | MENext (i, ts, mf, vv) ->
          add_foblig (FInterval (default_ts ts es, i, mf, mformula.hash, vv), v, POS) es
       | MEEventually (i, ts, mf, vv) ->
-         if Interval.diff_right_of (default_ts ts es) (Time.of_int (es.ts+1)) i && es.nick then
+         if Interval.diff_right_of (default_ts ts es) (inc_ts es.ts) i && es.nick then
            enfsat mf v es
          else
            add_foblig (FEventually (default_ts ts es, i, mf, mformula.hash, vv), v, POS) es
       | MEAlways (i, ts, mf, vv) ->
          let es =
            let es, b = sat v mf es in
-           if Interval.diff_is_in (default_ts ts es) (Time.of_int es.ts) i && not b then
+           if Interval.diff_is_in (default_ts ts es) es.ts i && not b then
              enfsat mf v es
            else
              es
-         in if Interval.diff_right_of (default_ts ts es) (Time.of_int (es.ts+1)) i && es.nick then
+         in if Interval.diff_right_of (default_ts ts es) (inc_ts es.ts) i && es.nick then
               es
             else
               add_foblig (FAlways (default_ts ts es, i, mf, mformula.hash, vv), v, POS) es
       | MOnce (_, mf, _, _) -> enfsat mf v es
       | MSince (_, _, mf1, mf2, _, _) -> enfsat mf2 v es
       | MEUntil (R, i, ts, mf1, mf2, vv) ->
-         if Interval.diff_right_of (default_ts ts es) (Time.of_int (es.ts+1)) i && es.nick then
+         if Interval.diff_right_of (default_ts ts es) (inc_ts es.ts) i && es.nick then
            add_cau Db.Event._tp (enfsat mf2 v es)
          else (
            let es, b = sat v mf1 es in
@@ -327,7 +329,7 @@ module Make (E: Expl.ExplT) = struct
            else
              add_foblig (FUntil (default_ts ts es, R, i, mf1, mf2, mformula.hash, vv), v, POS) es)
       | MEUntil (LR, i, ts, mf1, mf2, vv) ->
-         if Interval.diff_right_of (default_ts ts es) (Time.of_int (es.ts+1)) i && es.nick then
+         if Interval.diff_right_of (default_ts ts es) (inc_ts es.ts) i && es.nick then
            add_cau Db.Event._tp (enfsat mf2 v es)
          else
            add_foblig (FUntil (default_ts ts es, LR, i, mf1, mf2, mformula.hash, vv), v, POS)
@@ -366,7 +368,7 @@ module Make (E: Expl.ExplT) = struct
          add_foblig (FInterval (default_ts ts es, i, mf, mformula.hash, vv), v, NEG) es
       | MEEventually (i, ts, mf, vv) -> enfvio_eventually i ts (mformula.hash, vv) mf v es
       | MEAlways (i, ts, mf, vv) ->
-         if Interval.diff_right_of (default_ts ts es) (Time.of_int (es.ts+1)) i && es.nick then
+         if Interval.diff_right_of (default_ts ts es) (inc_ts es.ts) i && es.nick then
            enfvio mf v es
          else
            add_foblig (FAlways (default_ts ts es, i, mf, mformula.hash, vv), v, NEG) es
@@ -376,12 +378,12 @@ module Make (E: Expl.ExplT) = struct
          let es, b1 = sat v mf1 es in
          let es, b2 = sat v mf2 es in
          let es =
-           if Interval.diff_is_in (default_ts ts es) (Time.of_int es.ts) i && b2 then
+           if Interval.diff_is_in (default_ts ts es) es.ts i && b2 then
              enfvio mf2 v es
            else
              es
          in
-         if not (Interval.diff_right_of (default_ts ts es) (Time.of_int (es.ts+1)) i && es.nick)
+         if not (Interval.diff_right_of (default_ts ts es) (inc_ts es.ts) i && es.nick)
             && b1 then
            add_foblig (FUntil (default_ts ts es, R, i, mf1, mf2, mformula.hash, vv), v, NEG) es
          else
@@ -412,31 +414,34 @@ module Make (E: Expl.ExplT) = struct
 
     let print_json ts = function
       | PrOrd c ->
-         Stdio.printf "{ \"ts\": %d, \"cause\": %s, \"proactive\": true }\n" ts (Db.to_json c)
+         Stdio.printf "{ \"ts\": %s, \"cause\": %s, \"proactive\": true }\n"
+           (Time.to_epoch_string ts) (Db.to_json c)
       | ReOrd (c, s) when not (Db.is_empty c) && not (Db.is_empty s) ->
-         Stdio.printf "{ \"ts\": %d, \"cause\": %s, \"suppress\": %s }\n"
-           ts (Db.to_json c) (Db.to_json s)
+         Stdio.printf "{ \"ts\": %s, \"cause\": %s, \"suppress\": %s }\n"
+           (Time.to_epoch_string ts) (Db.to_json c) (Db.to_json s)
       | ReOrd (c, s) when not (Db.is_empty c) && Db.is_empty s ->
-         Stdio.printf "{ \"ts\": %d, \"cause\": %s }\n" ts (Db.to_json c)
+         Stdio.printf "{ \"ts\": %s, \"cause\": %s }\n"
+           (Time.to_epoch_string ts) (Db.to_json c)
       | ReOrd (c, s) when Db.is_empty c && not (Db.is_empty s) ->
-         Stdio.printf "{ \"ts\": %d, \"suppress\": %s }\n" ts (Db.to_json s)
-      | ReOrd (_, _) -> Stdio.printf "{ \"ts\": %d }\n" ts
-      | NoOrd -> Stdio.printf "{ \"ts\": %d, \"proactive\": true }\n" ts
+         Stdio.printf "{ \"ts\": %s, \"suppress\": %s }\n"
+           (Time.to_epoch_string ts) (Db.to_json s)
+      | ReOrd (_, _) -> Stdio.printf "{ \"ts\": %s }\n" (Time.to_epoch_string ts)
+      | NoOrd -> Stdio.printf "{ \"ts\": %s, \"proactive\": true }\n" (Time.to_epoch_string ts)
 
     let print_textual ts = function
-      | PrOrd c -> Stdio.printf "[Enforcer] @%d proactively commands:\nCause: \n%s\nOK.\n"
-                     ts (Db.to_string c)
+      | PrOrd c -> Stdio.printf "[Enforcer] @%s proactively commands:\nCause: \n%s\nOK.\n"
+                     (Time.to_epoch_string ts) (Db.to_string c)
       | ReOrd (c, s) when not (Db.is_empty c) && not (Db.is_empty s) ->
-         Stdio.printf "[Enforcer] @%d reactively commands:\nCause:\n%s\nSuppress:\n%s\nOK.\n"
-           ts (Db.to_string c) (Db.to_string s)
+         Stdio.printf "[Enforcer] @%s reactively commands:\nCause:\n%s\nSuppress:\n%s\nOK.\n"
+           (Time.to_epoch_string ts) (Db.to_string c) (Db.to_string s)
       | ReOrd (c, s) when not (Db.is_empty c) && Db.is_empty s ->
-         Stdio.printf "[Enforcer] @%d reactively commands:\nCause:\n%s\nOK.\n"
-           ts (Db.to_string c)
+         Stdio.printf "[Enforcer] @%s reactively commands:\nCause:\n%s\nOK.\n"
+           (Time.to_epoch_string ts) (Db.to_string c)
       | ReOrd (c, s) when Db.is_empty c && not (Db.is_empty s) ->
-         Stdio.printf "[Enforcer] @%d reactively commands:\nSuppress:\n%s\nOK.\n"
-           ts (Db.to_string s)
-      | ReOrd (_, _) -> Stdio.printf "[Enforcer] @%d OK.\n" ts
-      | NoOrd -> Stdio.printf "[Enforcer] @%d nothing to do proactively.\n" ts
+         Stdio.printf "[Enforcer] @%s reactively commands:\nSuppress:\n%s\nOK.\n"
+           (Time.to_epoch_string ts) (Db.to_string s)
+      | ReOrd (_, _) -> Stdio.printf "[Enforcer] @%s OK.\n" (Time.to_epoch_string ts)
+      | NoOrd -> Stdio.printf "[Enforcer] @%s nothing to do proactively.\n" (Time.to_epoch_string ts)
       
     let print ts ord =
       if !Etc.json then print_json ts ord else print_textual ts ord
@@ -447,7 +452,7 @@ module Make (E: Expl.ExplT) = struct
     let obligs = List.map (Set.elements es.fobligs)
                    ~f:(fun f -> (*print_endline (FObligation.to_string f);
                                 print_endline (MFormula.to_string (FObligation.eval (Time.of_int es.ts) es.tp f));*)
-                                FObligation.eval (Time.of_int es.ts) es.tp f) in
+                                FObligation.eval es.ts es.tp f) in
     let mf = match obligs with
       | [] -> MFormula._tt
       | [mf] -> mf
@@ -519,15 +524,15 @@ module Make (E: Expl.ExplT) = struct
       Monitor.meval_c := 0;
       if Int.equal pb.ts (-1) && FObligations.accepts_empty es.fobligs then
         es
-      else if not (Int.equal pb.ts es.ts) then
+      else if not (Time.equal (Time.of_int pb.ts) es.ts) then
         match proactive_step { es with db = Db.create [] } with
         | PrOrd c as o, es' -> Other_parser.Stats.add_cau ~ins:true (Db.size c) pb.stats;
                                Order.print es.ts o;
                                process_db pb { es' with tp = es.tp + 1;
-                                                        ts = es.ts + 1;
+                                                        ts = inc_ts es.ts;
                                                         db = es.db }
         | NoOrd as o, es'   -> Order.print es.ts o;
-                               process_db pb { es' with ts = es.ts + 1;
+                               process_db pb { es' with ts = inc_ts es.ts;
                                                         db = es.db }
       else if not (Db.is_tick pb.db) then
         match reactive_step pb.db es with
@@ -549,7 +554,7 @@ module Make (E: Expl.ExplT) = struct
       match Other_parser.Trace.parse_from_channel inc pb_opt with
       | None -> ()
       | Some (more, pb) ->
-         let es = if first then { es with ts = pb.ts } else es in
+         let es = if first then { es with ts = Time.of_int pb.ts } else es in
          let es = process_db pb es in
          Stdlib.flush_all();
          if more then step false (Some(pb)) es else conclude pb es in

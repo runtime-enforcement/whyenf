@@ -137,6 +137,10 @@ let until s i f g = Until (s, i, f, g)
 let trigger s i f g = Neg (Since (s, i, Neg f, Neg g))
 let release s i f g = Neg (Until (s, i, Neg f, Neg g))
 
+let exists_of_agg s op x y f =
+  let z = List.filter (list_fv f) ~f:(fun x -> not (List.mem y x ~equal:String.equal)) in
+  List.fold_right z ~f:(fun z f -> Exists (z, f)) ~init:f
+
 (* TODO: I don't think phys_equal achieves the intended goal here (equal should be rec) *)
 (* Disclaimer: this function doesn't seem to be used anywhere *)
 let equal x y = match x, y with
@@ -262,16 +266,20 @@ let rec to_string_rec l = function
   | EqConst (trm, c) -> Printf.sprintf "{%s} = %s" (Term.value_to_string trm) (Dom.to_string c)
   | Predicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
   | Predicate' (r, trms, _) -> Printf.sprintf "%s٭(%s)" r (Term.list_to_string trms)
-  | Let (r, enftype, vars, f, g) -> Printf.sprintf "LET %s(%s)%s = %a IN %a" r
+  | Let (r, enftype, vars, f, g) -> Printf.sprintf (Etc.paren l (-1) "LET %s(%s)%s = %a IN %a") r
                                       (Etc.string_list_to_string vars)
                                       (Option.fold enftype ~init:""
                                          ~f:(fun _ enftype -> " : " ^ Enftype.to_string enftype))
-                                      (fun x -> to_string_rec 4) f (fun x -> to_string_rec 4) g
-  | Let' (r, vars, f, g) -> Printf.sprintf "LET %s٭(%s) = %a IN %a" r
-                              (Etc.string_list_to_string vars)
-                              (fun x -> to_string_rec 4) f (fun x -> to_string_rec 4) g
-  | Agg (s, op, x, y, f) -> Printf.sprintf "%s <- %s(%s; %s; %s)" s (Aggregation.op_to_string op)
-                              (Term.value_to_string x) (String.concat ~sep:", " y) (to_string_rec 5 f)
+                                      (fun x -> to_string_rec (-1)) f
+                                      (fun x -> to_string_rec (-1)) g
+  | Let' (r, vars, f, g) -> Printf.sprintf (Etc.paren l (-1) "LET %s٭(%s) = %a IN %a")
+                              r (Etc.string_list_to_string vars)
+                              (fun x -> to_string_rec (-1)) f
+                              (fun x -> to_string_rec (-1)) g
+  | Agg (s, op, x, y, f) -> Printf.sprintf (Etc.paren l (-1) "%s <- %s(%s; %s; %s)")
+                              s (Aggregation.op_to_string op)
+                              (Term.value_to_string x) (String.concat ~sep:", " y)
+                              (to_string_rec (-1) f)
   | Neg f -> Printf.sprintf "¬%a" (fun x -> to_string_rec 5) f
   | And (s, f, g) -> Printf.sprintf (Etc.paren l 4 "%a ∧%a %a") (fun x -> to_string_rec 4) f
                        (fun x -> Side.to_string) s (fun x -> to_string_rec 4) g
@@ -292,10 +300,10 @@ let rec to_string_rec l = function
                              (fun x -> to_string_rec 5) f
   | Always (i, f) -> Printf.sprintf (Etc.paren l 5 "□%a %a") (fun x -> Interval.to_string) i
                        (fun x -> to_string_rec 5) f
-  | Since (s, i, f, g) -> Printf.sprintf (Etc.paren l 0 "%a S%a%a %a") (fun x -> to_string_rec 5) f
-                          (fun x -> Interval.to_string) i (fun x -> Side.to_string) s (fun x -> to_string_rec 5) g
-  | Until (s, i, f, g) -> Printf.sprintf (Etc.paren l 0 "%a U%a%a %a") (fun x -> to_string_rec 5) f
-                         (fun x -> Interval.to_string) i (fun x -> Side.to_string) s (fun x -> to_string_rec 5) g
+  | Since (s, i, f, g) -> Printf.sprintf (Etc.paren l 0 "%a S%a%a %a") (fun x -> to_string_rec 0) f
+                          (fun x -> Interval.to_string) i (fun x -> Side.to_string) s (fun x -> to_string_rec 0) g
+  | Until (s, i, f, g) -> Printf.sprintf (Etc.paren l 0 "%a U%a%a %a") (fun x -> to_string_rec 0) f
+                         (fun x -> Interval.to_string) i (fun x -> Side.to_string) s (fun x -> to_string_rec 0) g
 let to_string = to_string_rec 0
 
 let solve_past_guarded x p f =

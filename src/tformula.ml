@@ -286,10 +286,12 @@ let rec to_string_core_rec l = function
   | TEqConst (trm, c) -> Printf.sprintf "{%s} = %s" (Term.value_to_string trm) (Dom.to_string c)
   | TPredicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
   | TPredicate' (r, trms, _) -> Printf.sprintf "%s٭(%s)" r (Term.list_to_string trms)
-  | TLet' (r, vars, f, g) -> Printf.sprintf "LET %s(%s) = %a IN %a" r
+  | TLet' (r, vars, f, g) -> Printf.sprintf (Etc.paren l (-1) "LET %s(%s) = %a IN %a") r
                                (Etc.string_list_to_string vars)
-                               (fun x -> to_string_rec 4) f (fun x -> to_string_rec 4) g
-  | TAgg (s, _, op, x, y, f) -> Printf.sprintf "%s <- %s(%s; %s; %s)" s (Aggregation.op_to_string op) (Term.value_to_string x) (String.concat ~sep:", " y) (to_string_rec 4 f)
+                               (fun x -> to_string_rec (-1)) f (fun x -> to_string_rec (-1)) g
+  | TAgg (s, _, op, x, y, f) -> Printf.sprintf (Etc.paren l (-1) "%s <- %s(%s; %s; %s)") s
+                                  (Aggregation.op_to_string op) (Term.value_to_string x)
+                                  (String.concat ~sep:", " y) (to_string_rec (-1) f)
   | TNeg f -> Printf.sprintf "¬%a" (fun x -> to_string_rec 5) f
   | TAnd (s, fs) -> Printf.sprintf (Etc.paren l 4 "%s") (String.concat ~sep:("∧" ^ Side.to_string s) (List.map fs ~f:(to_string_rec 4)))
   | TOr (s, fs) -> Printf.sprintf (Etc.paren l 3 "%s") (String.concat ~sep:("∨" ^ Side.to_string s) (List.map fs ~f:(to_string_rec 4)))
@@ -303,10 +305,10 @@ let rec to_string_core_rec l = function
   | TEventually (i, _, f) -> Printf.sprintf (Etc.paren l 5 "◊%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
   | THistorically (i, f) -> Printf.sprintf (Etc.paren l 5 "■%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
   | TAlways (i, _, f) -> Printf.sprintf (Etc.paren l 5 "□%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5) f
-  | TSince (s, i, f, g) -> Printf.sprintf (Etc.paren l 0 "%a S%a%a %a") (fun x -> to_string_rec 5) f
-                         (fun x -> Interval.to_string) i (fun x -> Side.to_string) s (fun x -> to_string_rec 5) g
-  | TUntil (s, i, _, f, g) -> Printf.sprintf (Etc.paren l 0 "%a U%a%a %a") (fun x -> to_string_rec 5) f
-                             (fun x -> Interval.to_string) i (fun x -> Side.to_string) s (fun x -> to_string_rec 5) g
+  | TSince (s, i, f, g) -> Printf.sprintf (Etc.paren l 0 "%a S%a%a %a") (fun x -> to_string_rec 0) f
+                         (fun x -> Interval.to_string) i (fun x -> Side.to_string) s (fun x -> to_string_rec 0) g
+  | TUntil (s, i, _, f, g) -> Printf.sprintf (Etc.paren l 0 "%a U%a%a %a") (fun x -> to_string_rec 0) f
+                             (fun x -> Interval.to_string) i (fun x -> Side.to_string) s (fun x -> to_string_rec 0) g
 and to_string_rec l form =
   if form.enftype == Enftype.Obs then
     Printf.sprintf "%a" (fun x -> to_string_core_rec 5) form.f

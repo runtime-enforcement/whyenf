@@ -1,7 +1,7 @@
 The formula
- □[0s,∞) ∀y. y <- SUM(f(x, x); ; ⧫[0s,∞) A(x)) → C(y, y)
+ □[0s,∞) ∀y. (y <- SUM(f(x, x); ; ⧫[0s,∞) A(x))) → C(y, y)
 is enforceable and types to
- □[0s,∞) (∀y. (y <- SUM(f(x, x); ; ⧫[0s,∞) A(x)) →:R (C(y, y) : Cau) : Cau) : Cau) : Cau
+ □[0s,∞) (∀y. ((y <- SUM(f(x, x); ; ⧫[0s,∞) A(x))) →:R (C(y, y) : Cau) : Cau) : Cau) : Cau
 [Enforcer] @1 reactively commands:
 Cause:
 C(6, 6)
@@ -15,4 +15,4 @@ OK.
 [Enforcer] @3 reactively commands:
 Cause:
 C(30, 30)
-OK.
+OK. 

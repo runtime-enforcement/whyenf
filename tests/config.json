@@ -347,5 +347,13 @@
         "log": "complex.log",
         "output": "48_aggregation_no_group.out",
         "success": true        
+    },
+    {
+        "label": "49_aggregation_suppressable",
+        "sig": "simple.sig",
+        "formula": "49_aggregation_suppressable.mfotl",
+        "log": "simple.log",
+        "output": "49_aggregation_suppressable.out",
+        "success": true        
     }
 ]

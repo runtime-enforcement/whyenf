@@ -316,6 +316,7 @@ let rec types (t: Enftype.t) (pgs: pg_map) (f: Formula.t) =
                       conj (aux NSup pgs' ts f) (aux t pgs (Map.update ts e ~f:(fun _ -> NSup, unguarded_i)) g);
                       conj (aux SSup pgs' ts f) (aux t pgs (Map.update ts e ~f:(fun _ -> SSup, unguarded_i)) g);
                       aux t pgs (Map.update ts e ~f:(fun _ -> Obs, unguarded_i)) g])
+        | Agg (s, op, x, (_::_ as y), f) -> aux t pgs ts (Formula.exists_of_agg s op x y f)
         | Neg f -> aux' (Enftype.neg t) f
         | And (L, f, g) -> aux' t f
         | And (R, f, g) -> aux' t g
@@ -520,6 +521,13 @@ let rec convert b enftype form (types: Ctxt.t) : Ctxt.t * Tformula.t option =
            let enftype' = Sig.enftype_of_pred e in
            apply2 (convert enftype f) (convert enftype g)
              (fun mf mg -> Tformula.TLet' (e, vars, mf, mg)) types
+        | Agg (s, op, x, y, f) ->
+           begin
+             match convert enftype (Formula.exists_of_agg s op x y f) types with
+             | types, Some mf -> apply1' (Tformula.of_formula form)
+                                   (fun mg -> Tformula.TAnd (L, [mf; mg])) types
+             | types, None    -> types, None, Filter._true
+           end
         | Neg f -> apply1 (convert (Enftype.neg enftype) f) (fun mf -> Tformula.TNeg mf) types
         | And (L, f, g) -> apply2' (convert enftype f) (Tformula.of_formula g)
                              (fun mf mg -> Tformula.TAnd (L, [mf; mg])) types
@@ -741,8 +749,8 @@ let is_transparent (f: Tformula.t) =
         match f.f with
         | TTT | TPredicate (_, _) -> true
         | TNeg f | TExists (_, _, _, f) | TForall (_, _, _, f)
-          | TOnce (_, f) | TNext (_, f) | THistorically (_, f)
-           | TAlways (_, _, f) | TPredicate' (_, _, f) | TLet' (_, _, _, f) -> aux f
+          | TOnce (_, f) | TNext (_, f) | THistorically (_, f) | TAlways (_, _, f)
+          | TPredicate' (_, _, f) | TLet' (_, _, _, f) -> aux f
         | TEventually (_, b, f) -> b && aux f
         | TOr (L, [f; g]) | TImp (L, f, g) | TIff (L, L, f, g)
           -> aux f && strictly_relative_past g
@@ -760,8 +768,8 @@ let is_transparent (f: Tformula.t) =
         match f.f with
         | TFF | TPredicate (_, _) -> true
         | TNeg f | TExists (_, _, _, f) | TForall (_, _, _, f)
-          | TOnce (_, f) | TNext (_, f) | THistorically (_, f)
-          | TEventually (_, _, f) | TPredicate' (_, _, f) | TLet' (_, _, _, f) -> aux f
+          | TOnce (_, f) | TNext (_, f) | THistorically (_, f) | TEventually (_, _, f)
+          | TPredicate' (_, _, f) | TLet' (_, _, _, f) -> aux f
         | TAlways (_, b, f) -> b && aux f
         | TAnd (L, f :: gs) 
           -> aux f && List.for_all ~f:strictly_relative_past gs

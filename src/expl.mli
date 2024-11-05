@@ -266,8 +266,6 @@ and t_vp =
   | VUntilAssm of int * t_vp * Interval.t
   | VUntilNow of t_vp * Interval.t
 
-module Proof : ProofT with type sp = t_sp and type vp = t_vp
-
 module LightProof : ProofT with type sp = int and type vp = int
 
 module Make (P : ProofT) : sig

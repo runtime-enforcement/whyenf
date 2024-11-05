@@ -58,6 +58,7 @@ val since: Side.t -> Interval.t -> t -> t -> t
 val until: Side.t -> Interval.t -> t -> t -> t
 val trigger: Side.t -> Interval.t -> t -> t -> t
 val release: Side.t -> Interval.t -> t -> t -> t
+val exists_of_agg: string -> Aggregation.op -> Term.t -> string list -> t -> t
 
 val init: Sformula.t -> t
 

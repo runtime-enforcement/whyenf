@@ -100,3 +100,4 @@ val max : t -> t -> t
 val zero : t
 
 val to_string : t -> string
+val to_epoch_string : t -> string

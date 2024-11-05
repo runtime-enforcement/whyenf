@@ -155,7 +155,7 @@ module type MonitorT = sig
   type res = E.t list * E.t * MFormula.t
 
   val mstep: timepoint -> timestamp -> Db.t -> bool -> MState.t -> FObligations.t ->
-             res Memo.t -> res Memo.t * (((timestamp * timepoint) * E.t) list * E.t * MState.t)
+             res Memo.t -> res Memo.t * (((timepoint * timestamp) * E.t) list * E.t * MState.t)
 
   val meval_c: int ref 
 
