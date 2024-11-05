@@ -19,13 +19,12 @@ module Whyenf = struct
   let formula_ref = ref None
   let sig_ref = ref In_channel.stdin
   let logstr_ref = ref ""
-  let b_ref = ref Time.Span.zero
 
   let n_args = ref 0
 
   let usage () =
     Caml.Format.eprintf
-      "usage: ./whyenf.exe [-sig] [-formula] [-func] [-log] [-out] [-b]
+      "usage: ./whyenf.exe [-sig] [-formula] [-func] [-log] [-out] [-b] [-tz]
        arguments:
        \t -sig
        \t\t <file>             - signature
@@ -37,7 +36,12 @@ module Whyenf = struct
        \t\t <file>             - specify log file as trace (default: stdin)
        \t -out
        \t\t <file>             - output file (default: stdout)
-       \t -b int                     - default bound for future operators (default: 0)\n%!";
+       \t -b 
+       \t\t <int> [smhdMy]     - default bound for future operators (default: 0)
+       \t -tz
+       \t\t local or <int>     - time zone (default: local, otherwise UTC+x)
+       \t -s                 
+       \t\t <int> [smhdMy]     - enforcement step (default: 1s)\n%!";
     exit 0
 
   let process_args =
@@ -74,7 +78,17 @@ module Whyenf = struct
          Etc.json := true;
          process_args_rec args
       | ("-b" :: bound :: args) ->
-         b_ref := Time.Span.of_string bound;
+         Etc.b_ref := Time.Span.of_string bound;
+         process_args_rec args
+      | ("-tz" :: time_zone :: args) ->
+         let tz = if String.equal time_zone "local" then
+                    CalendarLib.Time_Zone.Local
+                  else
+                    CalendarLib.Time_Zone.UTC_Plus (int_of_string time_zone) in
+         CalendarLib.Time_Zone.change tz;
+         process_args_rec args
+      | ("-s" :: step :: args) ->
+         Etc.s_ref := Time.Span.of_string step;
          process_args_rec args
       | [] -> if !n_args >= 2 then () else usage ()
       | _ -> usage () in
@@ -86,7 +100,7 @@ module Whyenf = struct
       let sformula = Option.value_exn !formula_ref in
       let (module E: Expl.ExplT) = (module Expl.Make(Expl.LightProof)) in
       let module Enforcer = Enforcer.Make (E) in
-      let _ = Enforcer.exec (Formula.init sformula) !Etc.inc_ref !b_ref in ()
+      let _ = Enforcer.exec (Formula.init sformula) !Etc.inc_ref !Etc.b_ref in ()
     with End_of_file -> Out_channel.close !Etc.outc_ref; exit 0
 
 end

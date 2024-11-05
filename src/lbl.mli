@@ -28,6 +28,8 @@ val ex: string -> t
 val all: string -> t
 val clos: string -> Term.t list -> ((String.t, String.comparator_witness) Set.t) -> t
 
+val exquant: t -> t
+
 val is_var: t -> bool
 
 val term: t -> Term.t

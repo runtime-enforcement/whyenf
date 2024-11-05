@@ -1,0 +1,1 @@
+ALWAYS (FORALL s, y. A(s) IMPLIES NOT (s <- SUM(x; y; B(x) AND C(y))))

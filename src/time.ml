@@ -312,7 +312,7 @@ module Span  = struct
 end
 
 let of_int ts = Calendar.from_unixfloat (float_of_int ts)
-let to_int ts = int_of_float (Calendar.to_unixfloat ts)
+let to_int ts = Float.iround_nearest_exn (Calendar.to_unixfloat ts)
 
 let (+) = Span.(+)
 let (-) = Span.(-)
@@ -329,5 +329,5 @@ let inc t = t + Span.one
 let zero = Calendar.make 0 0 0 0 0 0
 
 let to_string = Printer.Calendar.to_string
-
+let to_epoch_string x = string_of_int (to_int x)
 

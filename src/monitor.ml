@@ -159,7 +159,7 @@ module type MonitorT = sig
   type res = E.t list * E.t * MFormula.t
 
   val mstep: timepoint -> timestamp -> Db.t -> bool -> MState.t -> FObligations.t ->
-             res Memo.t -> res Memo.t * (((timestamp * timepoint) * E.t) list * E.t * MState.t)
+             res Memo.t -> res Memo.t * (((timepoint * timestamp) * E.t) list * E.t * MState.t)
 
   val meval_c: int ref
 
@@ -1554,7 +1554,7 @@ module Make (E: Expl.ExplT) = struct
       | MFF -> Printf.sprintf "⊥"
       | MEqConst (trm, c) -> Printf.sprintf "%s = %s" (Term.value_to_string trm) (Dom.to_string c)
       | MPredicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
-      | MAgg (s, op, _, x, y, f) -> Printf.sprintf "%s <- %s(%s; %s; %s)" s (Aggregation.op_to_string op) (Term.value_to_string x) (String.concat ~sep:", " y) (value_to_string_rec 5 f)
+      | MAgg (s, op, _, x, y, f) -> Printf.sprintf (Etc.paren l (-1) "%s <- %s(%s; %s; %s)") s (Aggregation.op_to_string op) (Term.value_to_string x) (String.concat ~sep:", " y) (value_to_string_rec (-1) f)
       | MNeg f -> Printf.sprintf "¬%a" (fun x -> value_to_string_rec 5) f
       | MAnd (_, fs, _) -> Printf.sprintf (Etc.paren l 4 "%s") (String.concat ~sep:"∧" (List.map fs ~f:(value_to_string_rec 4)))
       | MOr (_, fs, _) -> Printf.sprintf (Etc.paren l 3 "%s") (String.concat ~sep:"∨" (List.map fs ~f:(value_to_string_rec 4)))
@@ -1888,7 +1888,7 @@ module Make (E: Expl.ExplT) = struct
          map1 (fvs @ [x]) f (fun f -> MExists (x, tt, b, f)) (Lbl.quantify_list ~forall:false x)
       | MForall (x, tt, b, f) ->
          map1 (fvs @ [x]) f (fun f -> MForall (x, tt, b, f)) (Lbl.quantify_list ~forall:true x)
-      | MNeg f -> map1 fvs f (fun f -> MNeg f) (fun x -> x)
+      | MNeg f -> map1 fvs f (fun f -> MNeg f) (List.map ~f:Lbl.exquant)
       | MAnd (s, fs, inf) -> mapn fvs fs (fun fs -> MAnd (s, fs, inf)) id
       | MOr (s, fs, inf) -> mapn fvs fs (fun fs -> MOr (s, fs, inf)) id
       | MImp (s, f, g, inf) -> map2 fvs f g (fun f g -> MImp (s, f, g, inf)) id
@@ -2610,9 +2610,9 @@ module Make (E: Expl.ExplT) = struct
     
   end
 
-  let meval ts tp (db: Db.t) ~pol (fobligs: FObligations.t) mformula memo =
+  let meval (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) mformula memo =
     let outer_ts = ts and outer_tp = tp in
-    let rec meval_rec ts tp (db: Db.t) ~pol (fobligs: FObligations.t) memo mformula =
+    let rec meval_rec (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) memo mformula =
       (*print_endline "--meval_rec";
       print_endline ("mf=" ^ MFormula.to_string mformula);
       print_endline "";*)
@@ -2657,7 +2657,7 @@ module Make (E: Expl.ExplT) = struct
                 print_endline r;*)
                 (*  print_endline ("maps=" ^ (String.concat ~sep:"; " (List.map maps ~f:(fun map -> String.concat ~sep:", " (List.map (Map.to_alist map) ~f:(fun (lbl, d) -> Lbl.to_string lbl ^ " -> " ^ Dom.to_string d))))));
                   print_endline ("lbls=" ^ (String.concat ~sep:", " (List.map lbls ~f:Lbl.to_string)));*)
-                (*print_endline ("expl=" ^ Expl.to_string expl);*)
+                (*print_endline ("expl=" ^ E.to_string expl);*)
                 memo, ([expl], expl, MPredicate (r, trms))
            | MAgg (s, op, op_fun, x, y, mf) ->
               let memo, (expls, aexpl, mf') = meval_rec ts tp db fobligs ~pol memo mf in
@@ -2682,7 +2682,7 @@ module Make (E: Expl.ExplT) = struct
               let memo, (expls, aexpl, mf') = meval_rec ts tp db fobligs ~pol:(pol >>| FObligation.neg) memo mf in
               (*print_endline ("--MNeg");
               print_endline ("--mformula=" ^ MFormula.to_string mformula);
-              print_endline ("--aexpl=" ^ Expl.to_string aexpl);
+              print_endline ("--aexpl=" ^ E.to_string(Pdt.exquant ( aexpl)));
               print_endline "";*)
               let f_neg pdt = Pdt.apply1_reduce Proof.equal mformula.lbls
                                 (fun p -> do_neg p) (Pdt.exquant pdt) in
@@ -2690,8 +2690,7 @@ module Make (E: Expl.ExplT) = struct
               let f_aexpl = approx_expl1 aexpl mformula.lbls tp mformula.mf in
               memo, (f_expls, f_aexpl, MNeg mf')
            | MAnd (s, mfs, buf2) ->
-              (*print_endline "--MAnd";
-              print_endline ("mf=" ^ MFormula.to_string mformula);*)
+              (*print_endline "--MAnd";*)
               let memo, data =
                 List.fold_map ~init:memo ~f:(meval_rec ts tp db ~pol fobligs) mfs in
               (*List.iter data ~f:(fun (_, aexpl, mf) -> print_endline (MFormula.to_string mf);
@@ -2708,6 +2707,7 @@ module Make (E: Expl.ExplT) = struct
                       (Buf2.add expls1 expls2 buf2)) in
               let aexpl = List.fold aexpl_list ~init:aexpl1 ~f:(fun aexpl1 aexpl2 ->
                               approx_expl2 aexpl1 aexpl2 mformula.lbls tp mformula.mf) in
+              (*print_endline ("MAnd.aexpl(" ^ MFormula.to_string mformula ^ ")=" ^ E.to_string aexpl);*)
               memo, (f_expls, aexpl, MAnd (s, mfs', buf2'))
            | MOr (s, mfs, buf2) ->
               let memo, data =
@@ -2773,7 +2773,7 @@ module Make (E: Expl.ExplT) = struct
                 Buft.another_take
                   (fun expl ts ts' -> Pdt.apply1_reduce Proof.equal mformula.lbls
                                         (fun p -> Prev_Next.update_eval Prev i p ts ts') expl)
-                  (buf @ expls, tss @ [Time.of_int ts]) in
+                  (buf @ expls, tss @ [ts]) in
               let aexpl = else_any (approx_default f_expls) tp pol in
               memo, ((if first then (Leaf (V Proof.make_vprev0) :: f_expls) else f_expls), aexpl, MPrev (i, mf', false, (buf', tss')))
            | MNext (i, mf, first, tss) ->
@@ -2784,7 +2784,7 @@ module Make (E: Expl.ExplT) = struct
                 Buft.another_take
                   (fun expl ts ts' -> Pdt.apply1_reduce Proof.equal mformula.lbls
                                         (fun p -> Prev_Next.update_eval Next i p ts ts') expl)
-                  (expls', tss @ [Time.of_int ts]) in
+                  (expls', tss @ [ts]) in
               memo, (f_expls, else_any approx_false tp pol, MNext (i, mf', first, tss'))
            | MENext (i, f_ts, mf, v) ->
               let memo, (_, _, mf') = meval_rec ts tp db ~pol fobligs memo mf in
@@ -2799,7 +2799,7 @@ module Make (E: Expl.ExplT) = struct
                       Pdt.split_prod (Pdt.apply2 mformula.lbls (fun p aux -> (* Stdio.printf "%s\n" (Once.to_string aux); *)
                                           Once.update i ts tp p aux) expl aux_pdt) in
                     (aux_pdt', es @ (Pdt.split_list es')))
-                  (moaux_pdt, []) (expls, (tstps @ [(Time.of_int ts,tp)])) in
+                  (moaux_pdt, []) (expls, (tstps @ [(ts,tp)])) in
               let expls'' = List.map expls' ~f:(Pdt.reduce Proof.equal) in
               let aexpl = else_any (approx_once mformula.lbls expls'' aexpl i) tp pol in
               memo, (expls'', aexpl, MOnce (i, mf', tstps', moaux_pdt'))
@@ -2808,9 +2808,9 @@ module Make (E: Expl.ExplT) = struct
               let (meaux_pdt', buf', ntstps') =
                 Buft.take
                   (fun expl ts tp aux_pdt -> Pdt.apply2 mformula.lbls (fun p aux -> Eventually.update i ts tp p aux) expl aux_pdt)
-                  meaux_pdt (buf @ expls, (ntstps @ [(Time.of_int ts,tp)])) in
+                  meaux_pdt (buf @ expls, (ntstps @ [(ts,tp)])) in
               let (nts, ntp) = match ntstps' with
-                | [] -> (Time.of_int ts, tp)
+                | [] -> (ts, tp)
                 | (nts', ntp') :: _ -> (nts', ntp') in
               let (meaux_pdt', es') =
                 Pdt.split_prod (Pdt.apply1 mformula.lbls (fun aux -> Eventually.eval i nts ntp (aux, [])) meaux_pdt') in
@@ -2833,7 +2833,7 @@ module Make (E: Expl.ExplT) = struct
                       Pdt.split_prod (Pdt.apply2 mformula.lbls
                                         (fun p aux -> Historically.update i ts tp p aux) expl aux_pdt) in
                     (aux_pdt', es @ (Pdt.split_list es')))
-                  (mhaux_pdt, []) (expls, (tstps @ [(Time.of_int ts,tp)])) in
+                  (mhaux_pdt, []) (expls, (tstps @ [(ts,tp)])) in
               let expls'' = List.map expls' ~f:(Pdt.reduce Proof.equal) in
               let aexpl = else_any (approx_historically mformula.lbls expls'' aexpl i) tp pol in
               memo, (expls'', aexpl, MHistorically (i, mf', tstps', mhaux_pdt'))
@@ -2842,9 +2842,9 @@ module Make (E: Expl.ExplT) = struct
               let (maaux_pdt', buf', ntstps') =
                 Buft.take
                   (fun expl ts tp aux_pdt -> Pdt.apply2 mformula.lbls (fun p aux -> Always.update i ts tp p aux) expl aux_pdt)
-                  maaux_pdt (buf @ expls, (ntstps @ [(Time.of_int ts,tp)])) in
+                  maaux_pdt (buf @ expls, (ntstps @ [(ts,tp)])) in
               let (nts, ntp) = match ntstps' with
-                | [] -> (Time.of_int ts, tp)
+                | [] -> (ts, tp)
                 | (nts', ntp') :: _ -> (nts', ntp') in
               let (maaux_pdt', es') =
                 Pdt.split_prod (Pdt.apply1 mformula.lbls (fun aux -> Always.eval i nts ntp (aux, [])) maaux_pdt') in
@@ -2869,7 +2869,7 @@ module Make (E: Expl.ExplT) = struct
                                         (fun p1 p2 aux ->
                                           Since.update i ts tp p1 p2 aux) expl1 expl2 aux_pdt) in
                     (aux_pdt', es @ (Pdt.split_list es')))
-                  (msaux_pdt, []) (Buf2.add expls1 expls2 buf2) (tstps @ [(Time.of_int ts,tp)]) in
+                  (msaux_pdt, []) (Buf2.add expls1 expls2 buf2) (tstps @ [(ts,tp)]) in
               let expls'' = List.map expls' ~f:(Pdt.reduce Proof.equal) in
               let aexpl = else_any (approx_since mformula.lbls expls'' aexpl1 aexpl2 i) tp pol in
               (*print_endline "--MSince";
@@ -2884,9 +2884,9 @@ module Make (E: Expl.ExplT) = struct
                 Buf2t.take
                   (fun expl1 expl2 ts tp aux_pdt ->
                     Pdt.apply3 mformula.lbls (fun p1 p2 aux -> Until.update i ts tp p1 p2 aux) expl1 expl2 aux_pdt)
-                  muaux_pdt (Buf2.add expls1 expls2 buf2) (ntstps @ [(Time.of_int ts,tp)]) in
+                  muaux_pdt (Buf2.add expls1 expls2 buf2) (ntstps @ [(ts,tp)]) in
               let (nts, ntp) = match ntstps' with
-                | [] -> (Time.of_int ts, tp)
+                | [] -> (ts, tp)
                 | (nts', ntp') :: _ -> (nts', ntp') in
               let (muaux_pdt', es') =
                 Pdt.split_prod (Pdt.apply1 mformula.lbls (fun aux -> Until.eval i nts ntp (aux, [])) muaux_pdt') in
@@ -2938,14 +2938,14 @@ module Make (E: Expl.ExplT) = struct
             Printf.sprintf "%stp_out = %d\n" indent tp_out ^
               Printf.sprintf "\n%sts_waiting = [" indent ^ (String.concat ~sep:", "
                                                               (Queue.to_list
-                                                                 (Queue.map ts_waiting ~f:Int.to_string))) ^ "]\n" ^
+                                                                 (Queue.map ts_waiting ~f:Time.to_string))) ^ "]\n" ^
                 Printf.sprintf "\n%stsdbs = [" indent ^ (String.concat ~sep:", "
                                                            (Queue.to_list (Queue.map tsdbs ~f:(fun (ts, db) ->
-                                                                               Printf.sprintf "(%d):\n %s\n" ts
-                                                                                 (Db.to_string db))))) ^ "]\n" ^
+                                                                               Printf.sprintf "(%s):\n %s\n" 
+                                                                                 (Time.to_string ts) (Db.to_string db))))) ^ "]\n" ^
                   Printf.sprintf "\n%stpts = [" indent ^ (String.concat ~sep:", "
                                                             (Hashtbl.fold tpts ~init:[] ~f:(fun ~key:tp ~data:ts acc ->
-                                                                 acc @ [Printf.sprintf "(%d, %d)" tp ts]))) ^ "]\n"
+                                                                 acc @ [Printf.sprintf "(%d, %s)" tp (Time.to_string ts)]))) ^ "]\n"
 
   end
 

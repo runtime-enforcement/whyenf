@@ -30,6 +30,12 @@ module T = struct
   let all s = LAll s
   let clos s terms vars = LClos (s, terms, vars)
 
+  let exquant = function
+    | LVar x -> LVar x
+    | LEx x -> LAll x
+    | LAll x -> LEx x
+    | LClos (f, ts, v) -> LClos (f, ts, v)
+
   let is_var = function
     | LVar _ -> true
     | _ -> false
