@@ -99,6 +99,8 @@ rule token = parse
                                                   { debug "INTERVAL"; INTERVAL (make_interval lexbuf l i u j v r) }
   | "("                                           { debug "LPA"; LPA }
   | ")"                                           { debug "RPA"; RPA }
+  | "["                                           { debug "LBR"; LBR }
+  | "]"                                           { debug "RBR"; RBR }
   | digits as d                                   { debug ("INT " ^ d); INT (Base.Int.of_string d) }
   | float as f                                    { debug ("FLOAT " ^ f); FLOAT (Base.Float.of_string f) }
   | string as s                                   { debug ("STR " ^ s); STR s }

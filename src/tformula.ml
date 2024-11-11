@@ -19,6 +19,7 @@ type core_t =
   | TPredicate' of string * Term.t list * t
   | TLet' of string * string list * t * t
   | TAgg of string * Dom.tt * Aggregation.op * Term.t * string list * t
+  | TTop of (string * Dom.tt) list * string * Term.t list * string list * t
   | TNeg of t
   | TAnd of Side.t * t list
   | TOr of Side.t * t list 
@@ -83,13 +84,22 @@ let rec core_of_formula f (types: Ctxt.t) =
      types, TLet' (r, trms, mf, mg)
   | Agg (s, op, x, y, f) ->
      let types, mf = of_formula f types in
-     let types = Formula.check_agg types s op x y f in
+     let types, s_tt = Formula.check_agg types s op x y f in
      let vars_to_monitor =
        Term.fv_list [x]
        @ (List.filter (Set.elements (Formula.fv f))
             ~f:(fun x -> List.mem y x ~equal:String.equal)) in
      ignore (List.map vars_to_monitor ~f:(f_q ~true_ok:false f));
-     types, TAgg (s, Sig.tt_of_term_exn types x, op, x, y, mf)
+     types, TAgg (s, s_tt, op, x, y, mf)
+  | Top (s, op, x, y, f) ->
+     let types, mf = of_formula f types in
+     let types, s_ttts = Formula.check_top types s op x y f in
+     let vars_to_monitor =
+       Term.fv_list x
+       @ (List.filter (Set.elements (Formula.fv f))
+            ~f:(fun x -> List.mem y x ~equal:String.equal)) in
+     ignore (List.map vars_to_monitor ~f:(f_q ~true_ok:false f));
+     types, TTop (List.zip_exn s s_ttts, op, x, y, mf)
   | Neg f ->
      let types, mf = of_formula f types in
      types, TNeg mf
@@ -167,7 +177,8 @@ let rec rank = function
     | TEventually (_, _, f)
     | THistorically (_, f)
     | TAlways (_, _, f)
-    | TAgg (_, _, _, _, _, f) -> rank f.f
+    | TAgg (_, _, _, _, _, f)
+    | TTop (_, _, _, _, f) -> rank f.f
   | TImp (_, f, g)
     | TIff (_, _, f, g)
     | TSince (_, _, f, g)
@@ -191,6 +202,7 @@ let rec ac_simplify_core = function
   | TPredicate' (e, t, f) -> TPredicate' (e, t, f)
   | TLet' (r, vars, f, g) -> TLet' (r, vars, ac_simplify f, ac_simplify g)
   | TAgg (s, tt, op, x, y, f) -> TAgg (s, tt, op, x, y, ac_simplify f)
+  | TTop (s, op, x, y, f) -> TTop (s, op, x, y, ac_simplify f)
   | TNeg f -> TNeg f
   | TAnd (s, fs) ->
      let fs = List.map fs ~f:ac_simplify in
@@ -230,6 +242,7 @@ let rec to_formula f = match f.f with
   | TPredicate' (e, t, f) -> Predicate' (e, t, to_formula f)
   | TLet' (r, vars, f, g) -> Let' (r, vars, to_formula f, to_formula g)
   | TAgg (s, _, op, x, y, f) -> Agg (s, op, x, y, to_formula f)
+  | TTop (s, op, x, y, f) -> Top (List.map ~f:fst s, op, x, y, to_formula f)
   | TNeg f -> Neg (to_formula f)
   | TAnd (s, [f; g]) -> And (fix_side s f.f g.f, to_formula f, to_formula g)
   | TAnd (s, f :: fs) -> List.fold ~init:(to_formula f) ~f:(fun f g -> And (s, f, to_formula g)) fs
@@ -262,6 +275,7 @@ let rec op_to_string_core = function
   | TPredicate' (r, trms, _) -> Printf.sprintf "%s٭(%s)" r (Term.list_to_string trms)
   | TLet' (r, _, _, _) -> Printf.sprintf "LET %s" r
   | TAgg (_, _, op, x, y, _) -> Printf.sprintf "%s(%s; %s)" (Aggregation.op_to_string op) (Term.value_to_string x) (String.concat ~sep:", " y)
+  | TTop (_, op, x, y, _) -> Printf.sprintf "%s(%s; %s)" op (Term.list_to_string x) (String.concat ~sep:", " y)
   | TNeg _ -> Printf.sprintf "¬"
   | TAnd (_, _) -> Printf.sprintf "∧"
   | TOr (_, _) -> Printf.sprintf "∨"
@@ -292,6 +306,9 @@ let rec to_string_core_rec l = function
   | TAgg (s, _, op, x, y, f) -> Printf.sprintf (Etc.paren l (-1) "%s <- %s(%s; %s; %s)") s
                                   (Aggregation.op_to_string op) (Term.value_to_string x)
                                   (String.concat ~sep:", " y) (to_string_rec (-1) f)
+  | TTop (s, op, x, y, f) -> Printf.sprintf (Etc.paren l (-1) "[%s] <- %s([%s]; %s; %s)")
+                               (Etc.string_list_to_string (List.map ~f:fst s)) op
+                               (Term.list_to_string x) (String.concat ~sep:", " y) (to_string_rec (-1) f)
   | TNeg f -> Printf.sprintf "¬%a" (fun x -> to_string_rec 5) f
   | TAnd (s, fs) -> Printf.sprintf (Etc.paren l 4 "%s") (String.concat ~sep:("∧" ^ Side.to_string s) (List.map fs ~f:(to_string_rec 4)))
   | TOr (s, fs) -> Printf.sprintf (Etc.paren l 3 "%s") (String.concat ~sep:("∨" ^ Side.to_string s) (List.map fs ~f:(to_string_rec 4)))

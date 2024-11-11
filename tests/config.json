@@ -337,23 +337,28 @@
         "sig": "complex.sig",
         "formula": "47_aggregation_group.mfotl",
         "log": "complex.log",
-        "output": "47_aggregation_group.out",
-        "success": true        
+        "output": "47_aggregation_group.out"
     },
     {
         "label": "48_aggregation_no_group",
         "sig": "complex.sig",
         "formula": "48_aggregation_no_group.mfotl",
         "log": "complex.log",
-        "output": "48_aggregation_no_group.out",
-        "success": true        
+        "output": "48_aggregation_no_group.out"        
     },
     {
         "label": "49_aggregation_suppressable",
         "sig": "simple.sig",
         "formula": "49_aggregation_suppressable.mfotl",
         "log": "simple.log",
-        "output": "49_aggregation_suppressable.out",
-        "success": true        
+        "output": "49_aggregation_suppressable.out"
+    },
+    {
+        "label": "50_table_operator",
+        "sig": "point.sig",
+        "formula": "50_table_operator.mfotl",
+        "log": "point.log",
+        "output": "50_table_operator.out",
+        "func": "point.py"   
     }
 ]

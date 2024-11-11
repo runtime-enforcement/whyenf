@@ -74,7 +74,7 @@ let add_pred p_name arg_tts enftype rank kind =
     Hashtbl.add_exn table ~key:p_name
       ~data:(Func { arity = List.length arg_tts;
                     arg_ttts = List.map arg_tts ~f:(fun (x, tt) -> x, Ctxt.TConst tt);
-                    ret_ttt = TConst TInt;
+                    ret_ttts = [TConst TInt];
                     kind = External; strict = false })
   else
     Hashtbl.add_exn table ~key:p_name
@@ -86,8 +86,15 @@ let add_func f_name arg_tts ret_tt kind strict =
   Hashtbl.add_exn table ~key:f_name ~data:(
       Func { arity = List.length arg_tts;
              arg_ttts = List.map arg_tts ~f:(fun (x, tt) -> x, Ctxt.TConst tt);
-             ret_ttt = Ctxt.TConst ret_tt;
+             ret_ttts = [Ctxt.TConst ret_tt];
              kind; strict })
+
+let add_tfunc f_name arg_tts ret_tts =
+  Hashtbl.add_exn table ~key:f_name ~data:(
+      Func { arity = List.length arg_tts;
+             arg_ttts = List.map arg_tts ~f:(fun (x, tt) -> x, Ctxt.TConst tt);
+             ret_ttts = List.map ~f:(fun x -> Ctxt.TConst x) ret_tts;
+             kind = Table; strict = false })
 
 let update_enftype name enftype =
   if Hashtbl.mem table name then
@@ -99,7 +106,7 @@ let arg_ttts_of_pred name = List.map (unpred (Hashtbl.find_exn table name)).arg_
 
 let arg_ttts_of_func name = List.map (unfunc (Hashtbl.find_exn table name)).arg_ttts ~f:snd
 
-let ret_ttt_of_func name = (unfunc (Hashtbl.find_exn table name)).ret_ttt
+let ret_ttts_of_func name = (unfunc (Hashtbl.find_exn table name)).ret_ttts
 
 let enftype_of_pred name = (unpred (Hashtbl.find_exn table name)).enftype
 
@@ -111,7 +118,12 @@ let func ff ds =
   let the_func = unfunc (Hashtbl.find_exn table ff) in
   match the_func.kind with
   | Builtin f -> f ds
-  | External -> Funcs.Python.call ff ds (Ctxt.unconst the_func.ret_ttt)
+  | External -> Funcs.Python.call ff ds (Ctxt.unconst (List.hd_exn the_func.ret_ttts))
+
+let tfunc ff dss =
+  let the_func = unfunc (Hashtbl.find_exn table ff) in
+  match the_func.kind with
+  | Table -> Funcs.Python.tcall ff dss (List.map ~f:Ctxt.unconst the_func.ret_ttts)
 
 let print_table () =
   Hashtbl.iteri table ~f:(fun ~key:n ~data:ps -> Stdio.printf "%s\n" (string_of_ty n ps))
@@ -170,9 +182,9 @@ let check_var (types: Ctxt.t) v (ttt: Ctxt.ttt) : Ctxt.t * Ctxt.ttt =
   Ctxt.type_var v ttt types
 
 let rec check_app (types: Ctxt.t) f trms (ttt: Ctxt.ttt) : Ctxt.t * Ctxt.ttt =
-  let arg_ttts, ret_ttt = arg_ttts_of_func f, ret_ttt_of_func f in
+  let arg_ttts, ret_ttt = arg_ttts_of_func f, ret_ttts_of_func f in
   let types, (ret_ttt :: arg_ttts) =
-    Ctxt.convert_with_fresh_ttts types (ret_ttt :: arg_ttts) in
+    Ctxt.convert_with_fresh_ttts types (ret_ttt @ arg_ttts) in
   let types, ret_var = Ctxt.fresh_var types in
   (*print_endline ("check_app(" ^ ret_var ^ ", " ^ f ^ ")");*)
   let types, _ = Ctxt.type_var ret_var ret_ttt types in

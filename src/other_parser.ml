@@ -171,6 +171,20 @@ module Sig = struct
     | STR s -> Parsebuf.next pb; s
     | t -> raise (Failure ("expected a string but found " ^ string_of_token t))
 
+  let parse_ret_tts (pb: Parsebuf.t) =
+    let rec parse_ret_tts_rec l =
+      match pb.token with
+      | COM -> Parsebuf.next pb;
+               parse_ret_tts_rec ((parse_string pb)::l)
+      | RPA -> Parsebuf.next pb; List.rev l
+      | t -> raise (Failure ("expected ',' or ')' but found " ^ string_of_token t)) in
+    expect_token pb COL;
+    expect_token pb LPA;
+    match pb.token with
+    | RPA -> Parsebuf.next pb; []
+    | STR s -> Parsebuf.next pb; parse_ret_tts_rec [s]
+    | t -> raise (Failure ("expected a string or ')' but found " ^ string_of_token t))
+
   let convert_types sl =
     List.map sl ~f:(fun s -> match String.split s ~on:':' with
                              | [] -> raise (Failure ("unable to parse the variable signature string " ^ s))
@@ -204,6 +218,16 @@ module Sig = struct
                     let ret_tt = Dom.tt_of_string (parse_ret_tt pb) in
                     let strict = match kw with SFUN -> true | _ -> false in
                     Sig.add_func s arg_tts ret_tt External strict;
+                    parse_pred_sigs pb rank_ref
+         | t -> raise (Failure ("unexpected character: " ^ string_of_token t))
+      end
+    | TFUN as kw -> begin
+        Parsebuf.next pb;
+        match pb.token with
+         | STR s -> Parsebuf.next pb;
+                    let arg_tts = convert_types (parse_arg_tts pb) in
+                    let ret_tts = List.map ~f:Dom.tt_of_string (parse_ret_tts pb) in
+                    Sig.add_tfunc s arg_tts ret_tts;
                     parse_pred_sigs pb rank_ref
          | t -> raise (Failure ("unexpected character: " ^ string_of_token t))
       end

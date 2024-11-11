@@ -19,6 +19,7 @@ type core_t =
   | TPredicate' of string * Term.t list * t
   | TLet' of string * string list * t * t
   | TAgg of string * Dom.tt * Aggregation.op * Term.t * string list * t
+  | TTop of (string * Dom.tt) list * string * Term.t list * string list * t
   | TNeg of t
   | TAnd of Side.t * t list
   | TOr of Side.t * t list

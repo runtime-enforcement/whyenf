@@ -51,8 +51,8 @@ module Make (E: Expl.ExplT) = struct
 
     let update_fobligs fobligs (_, _, fobligs') = Set.union fobligs fobligs'
 
-    let update_memo (_, cau, fobligs) memo =
-      let memo = Set.fold (Set.map (module String) ~f:Db.Event.name (Db.events cau))
+    let update_memo (sup, cau, fobligs) memo =
+      let memo = Set.fold (Set.map (module String) ~f:Db.Event.name (Db.events (Db.union sup cau)))
                    ~init:memo ~f:Memo.add_event in
       let memo = Set.fold (Set.map (module Int) ~f:FObligation.h fobligs)
                    ~init:memo ~f:Memo.add_obligation in
@@ -178,14 +178,14 @@ module Make (E: Expl.ExplT) = struct
       es, E.Proof.isS (specialize es v p)
 
     let vio x mf es =
-      sat x (MFormula.map_mf mf Formula.Filter._true (fun mf -> MNeg mf)) es
+      sat x (MFormula.map_mf mf Formula.Filter._true ~exquant:true (fun mf -> MNeg mf)) es
     
     let all_not_sat v x mf es =
       (*print_endline "--all_not_sat";*)
       (*print_endline ("all_not_sat.mf=" ^ MFormula.to_string mf);*)
       (*print_endline ("all_not_sat.x=" ^ x);
       print_endline ("all_not_sat.v=" ^ Etc.valuation_to_string v);
-      print_endline ("all_not_sat.proof="^ Expl.to_string (snd(exec_monitor mf es)));
+      print_endline ("all_not_sat.proof="^ E.to_string (snd(exec_monitor mf es)));
       print_endline ("all_not_sat.collected(" ^ x  ^ ")=" ^ Setc.to_string (Expl.Pdt.collect E.Proof.isV (Setc.inter_list (module Dom)) (Setc.union_list (module Dom)) v x (snd (exec_monitor mf es))));*)
       let es, p = exec_monitor mf es in
       match Expl.Pdt.collect
@@ -199,9 +199,14 @@ module Make (E: Expl.ExplT) = struct
              failwith "Internal error: Infinite set of candidates in all_not_sat"
 
     let all_not_vio v x mf es =
-      let es, p = exec_monitor (MFormula.map_mf mf mf.filter (fun mf -> MNeg mf)) es in
+      (*let neg_mf = MFormula.map_mf mf mf.filter ~exquant:true (fun mf -> MNeg mf) in*)
+      (*print_endline ("all_not_vio.x=" ^ x);
+      print_endline ("all_not_vio.v=" ^ Etc.valuation_to_string v);
+      print_endline ("all_not_vio.proof="^ E.to_string (snd(exec_monitor mf es)));
+      print_endline ("all_not_vio.collected(" ^ x  ^ ")=" ^ Setc.to_string (Expl.Pdt.collect E.Proof.isV (Setc.union_list (module Dom)) (Setc.inter_list (module Dom)) v x (snd (exec_monitor neg_mf es))));*)
+      let es, p = exec_monitor (*neg_*)mf es in
       match Expl.Pdt.collect
-              E.Proof.isV
+              E.Proof.isS
               (Setc.union_list (module Dom))
               (Setc.inter_list (module Dom))
               v x p with
@@ -255,6 +260,7 @@ module Make (E: Expl.ExplT) = struct
     and enfvio_exists x mf v es =
       let enfs es d = enfvio mf (Base.Map.update v x ~f:(fun _ -> d)) es in
       let es, ds = all_not_vio v x mf es in
+      (*print_endline ("--enfvio_exists.ds="^ (Dom.list_to_string ds));*)
       List.fold ds ~init:es ~f:enfs
 
     and enfvio_until i ts (h, vv) mf1 mf2 =
@@ -342,9 +348,9 @@ module Make (E: Expl.ExplT) = struct
                                       ^ MFormula.op_to_string mformula))
     and enfvio (mformula: MFormula.t) v es =
       (*print_endline "--enfvio";
-      print_endline ("mformula=" ^ MFormula.to_string mformula);*)
-        (*print_endline ("v=" ^ Etc.valuation_to_string v);
-      print_endline ("es=" ^ to_string es);*)
+      print_endline ("mformula=" ^ MFormula.to_string mformula);
+      print_endline ("v=" ^ Etc.valuation_to_string v);*)
+      (*print_endline ("es=" ^ to_string es);*)
       match mformula.mf with
       | _ when can_skip es mformula -> es
       | MFF -> es
@@ -462,17 +468,15 @@ module Make (E: Expl.ExplT) = struct
       (*print_endline ("goal= " ^ MFormula.to_string ms.mf) ;*) { es with memo }, ms.mf)
 
 
-  (* (NOT-SO-URGENT) TODO: other execution mode with automatic timestamps; Pdts everywhere *)
   let exec f inc (b: Time.Span.s) =
     let reactive_step new_db (es: EState.t) =
-      (*Hashtbl.clear es.memo;*)
       (*print_endline ("-- reactive_step tp=" ^ string_of_int es.tp);*)
       (*let time_before = Unix.gettimeofday() in*)
       let es, mf = goal es in
       (*let time_after = Unix.gettimeofday() in
       print_endline ("Goal time: " ^ string_of_float (time_after -. time_before));*)
       (*print_endline ("goal="^  MFormula.to_string mf);*)
-      let time_before = Unix.gettimeofday() in
+      (*let time_before = Unix.gettimeofday() in*)
       let es = { es with ms      = { es.ms with tp_cur = es.tp };
                          r       = (Db.singleton Db.Event._tp,
                                     Db.empty,

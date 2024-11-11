@@ -70,8 +70,6 @@ module Pdt : sig
 
   val exquant: 'a t -> 'a t
 
-  val aggregate: ('a -> bool) -> ((Dom.t, Dom.comparator_witness) Setc.t -> Dom.t option -> 'b) -> ((Dom.t, Dom.comparator_witness) Multiset.t -> Dom.t) -> string -> Term.t -> string list -> Lbl.t list -> Lbl.t list -> 'a t -> 'b t
-
 end
 
 
@@ -197,6 +195,11 @@ module type ExplT = sig
 
   val to_string: t -> string
   val to_light_string: t -> string
+  
+  val pdt_of: int -> string -> Term.t list -> Lbl.t list -> (Lbl.t, Dom.t, 'a) Map.t list -> Proof.t Pdt.t
+
+  val table_operator: (Dom.t list list -> Dom.t list list) -> string list -> int -> Term.t list -> string list -> Lbl.t list -> Lbl.t list -> t -> t
+  val aggregate: ((Dom.t, Dom.comparator_witness) Multiset.t -> Dom.t) -> string -> int -> Term.t -> string list -> Lbl.t list -> Lbl.t list -> t -> t
 
 end
 
@@ -268,16 +271,4 @@ and t_vp =
 
 module LightProof : ProofT with type sp = int and type vp = int
 
-module Make (P : ProofT) : sig
-
-  module Proof : ProofT with type sp = P.sp and type vp = P.vp and type t = P.t
-  type t = P.t Pdt.t
-
-  val is_violated: t -> bool
-  val is_satisfied: t -> bool
-  val at: t -> int
-
-  val to_string: t -> string
-  val to_light_string: t -> string
-
-end
+module Make (P : ProofT) : ExplT

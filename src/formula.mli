@@ -19,6 +19,7 @@ type t =
   | Let of string * Enftype.t option * string list * t * t
   | Let' of string * string list * t * t
   | Agg of string * Aggregation.op * Term.t * string list * t
+  | Top of string list * string * Term.t list * string list * t
   | Neg of t
   | And of Side.t * t * t
   | Or of Side.t * t * t
@@ -39,6 +40,7 @@ val tt: t
 val ff: t
 val eqconst: Term.t -> Dom.t -> t
 val agg: string -> Aggregation.op -> Term.t -> string list -> t -> t
+val top: string list -> string -> Term.t list -> string list -> t -> t
 val predicate: string -> Term.t list -> t
 val flet: string -> Enftype.t option -> string list -> t -> t -> t
 val neg: t -> t
@@ -58,7 +60,7 @@ val since: Side.t -> Interval.t -> t -> t -> t
 val until: Side.t -> Interval.t -> t -> t -> t
 val trigger: Side.t -> Interval.t -> t -> t -> t
 val release: Side.t -> Interval.t -> t -> t -> t
-val exists_of_agg: string -> Aggregation.op -> Term.t -> string list -> t -> t
+val exists_of_agg: string list -> t -> t
 
 val init: Sformula.t -> t
 
@@ -74,7 +76,8 @@ val to_string: t -> string
 val solve_past_guarded: string -> bool -> t -> (string, Base.String.comparator_witness) Base.Set.t list
 val is_past_guarded: string -> bool -> t -> bool
 
-val check_agg: Ctxt.t -> string -> Aggregation.op -> Term.t -> string list -> t -> Ctxt.t
+val check_agg: Ctxt.t -> string -> Aggregation.op -> Term.t -> string list -> t -> Ctxt.t * Dom.tt
+val check_top: Ctxt.t -> string list -> string -> Term.t list -> string list -> t -> Ctxt.t * Dom.tt list
 
 val convert_vars: t -> t
 val convert_lets: t -> t

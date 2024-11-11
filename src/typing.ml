@@ -316,7 +316,8 @@ let rec types (t: Enftype.t) (pgs: pg_map) (f: Formula.t) =
                       conj (aux NSup pgs' ts f) (aux t pgs (Map.update ts e ~f:(fun _ -> NSup, unguarded_i)) g);
                       conj (aux SSup pgs' ts f) (aux t pgs (Map.update ts e ~f:(fun _ -> SSup, unguarded_i)) g);
                       aux t pgs (Map.update ts e ~f:(fun _ -> Obs, unguarded_i)) g])
-        | Agg (s, op, x, (_::_ as y), f) -> aux t pgs ts (Formula.exists_of_agg s op x y f)
+        | Agg (s, op, x, (_::_ as y), f) -> aux t pgs ts (Formula.exists_of_agg y f)
+        | Top (s, op, x, (_::_ as y), f) -> aux t pgs ts (Formula.exists_of_agg y f)
         | Neg f -> aux' (Enftype.neg t) f
         | And (L, f, g) -> aux' t f
         | And (R, f, g) -> aux' t g
@@ -521,9 +522,9 @@ let rec convert b enftype form (types: Ctxt.t) : Ctxt.t * Tformula.t option =
            let enftype' = Sig.enftype_of_pred e in
            apply2 (convert enftype f) (convert enftype g)
              (fun mf mg -> Tformula.TLet' (e, vars, mf, mg)) types
-        | Agg (s, op, x, y, f) ->
+        | Agg (_, _, _, y, f) | Top (_, _, _, y, f) ->
            begin
-             match convert enftype (Formula.exists_of_agg s op x y f) types with
+             match convert enftype (Formula.exists_of_agg y f) types with
              | types, Some mf -> apply1' (Tformula.of_formula form)
                                    (fun mg -> Tformula.TAnd (L, [mf; mg])) types
              | types, None    -> types, None, Filter._true
@@ -689,7 +690,7 @@ let rec relative_interval (f: Tformula.t) =
   match f.f with
   | TTT | TFF | TEqConst (_, _) | TPredicate (_, _) -> Zinterval.singleton (Zinterval.Z.zero)
   | TNeg f | TExists (_, _, _, f) | TForall (_, _, _, f) | TAgg (_, _, _, _, _, f)
-    | TPredicate' (_, _, f) | TLet' (_, _, _, f)
+    | TTop (_, _, _, _, f) | TPredicate' (_, _, f) | TLet' (_, _, _, f)
     -> relative_interval f
   | TImp (_, f1, f2) | TIff (_, _, f1, f2)
     -> Zinterval.lub (relative_interval f1) (relative_interval f2)
@@ -717,7 +718,7 @@ let strict f =
     || (match f.f with
         | TTT | TFF | TEqConst (_, _) | TPredicate _ -> false
         | TNeg f | TExists (_, _, _, f) | TForall (_, _, _, f) | TAgg (_, _, _, _, _, f)
-          | TPredicate' (_, _, f) | TLet' (_, _, _, f) -> _strict itv fut f
+          | TTop (_, _, _, _, f) | TPredicate' (_, _, f) | TLet' (_, _, _, f) -> _strict itv fut f
         | TImp (_, f1, f2) | TIff (_, _, f1, f2)
           -> (_strict itv fut f1) || (_strict itv fut f2)
         | TAnd (_, fs) | TOr (_, fs)

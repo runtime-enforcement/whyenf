@@ -67,6 +67,7 @@ type t =
   | SApp of string * t list
   | SLet of string * Enftype.t option * string list * t * t
   | SAgg of string * Aop.t * t * string list * t
+  | STop of string list * string * t list * string list * t
   | SAssign of t * string * t
   | SBop of Side.t option * t * Bop.t * t
   | SBop2 of (Side.t * Side.t) option * t * Bop2.t * t

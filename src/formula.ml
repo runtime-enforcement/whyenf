@@ -20,6 +20,7 @@ type t =
   | Let of string * Enftype.t option * string list * t * t
   | Let' of string * string list * t * t
   | Agg of string * Aggregation.op * Term.t * string list * t
+  | Top of string list * string * Term.t list * string list * t
   | Neg of t
   | And of Side.t * t * t
   | Or of Side.t * t * t
@@ -43,6 +44,7 @@ let rec fv = function
   | EqConst (Var x, _) -> Set.of_list (module String) [x]
   | EqConst _ -> Set.empty (module String)
   | Agg (s, _, _, y, _) -> Set.of_list (module String) (s::y)
+  | Top (s, _, x, y, _) -> Set.of_list (module String) (s@y)
   | Predicate (x, trms) -> Set.of_list (module String) (Term.fv_list trms)
   | Predicate _ -> Set.empty (module String)
   | Predicate' (_, _, f) -> fv f
@@ -78,18 +80,20 @@ let rec replace_trms y z l = match l with
              else x::(replace_trms y z xs)
 
 (* Replaces free variable y with z in f *)
+let subst_var v s =
+  match Map.find v s with
+  | Some (Term.Var z) -> z
+  | Some trm ->
+     raise (Invalid_argument (
+                Printf.sprintf "cannot substitute non-variable term %s for aggregation variable %s"
+                  (Term.to_string trm) s))
+  | None -> s
+  
 let rec subst v f = match f with
   | TT | FF -> f
   | EqConst (trm, c) -> EqConst (Term.subst v trm, c)
-  | Agg (s, op, w, xs, f) ->
-     (match Map.find v s with
-      | Some (Var z) -> Agg (z, op, w, xs, f)
-      | Some trm     ->
-         raise (Invalid_argument (
-                Printf.sprintf "cannot substitute non-variable term %s for aggregation variable %s"
-                  (Term.to_string trm)
-                  s))
-      | None         -> Agg (s, op, w, xs, f))
+  | Agg (s, op, t, y, f) -> Agg (subst_var v s, op, t, y, f)
+  | Top (s, op, x, y, f) -> Top (List.map ~f:(subst_var v) s, op, x, y, f)
   | Predicate (r, trms) -> Predicate (r, Term.substs v trms)
   | Predicate' (r, trms, f) -> Predicate' (r, Term.substs v trms, subst v f)
   | Exists (x, f) -> Exists (x, subst (Map.remove v x) f)
@@ -115,6 +119,7 @@ let tt = TT
 let ff = FF
 let eqconst x d = EqConst (x, d)
 let agg s op x y f = Agg (s, op, x, y, f)
+let top s op x y f = Top (s, op, x, y, f)
 let predicate p_name trms = Predicate (p_name, trms)
 let flet r enftype vars f g = Let (r, enftype, vars, f, g)
 let neg f = Neg f
@@ -137,7 +142,7 @@ let until s i f g = Until (s, i, f, g)
 let trigger s i f g = Neg (Since (s, i, Neg f, Neg g))
 let release s i f g = Neg (Until (s, i, Neg f, Neg g))
 
-let exists_of_agg s op x y f =
+let exists_of_agg y f =
   let z = List.filter (list_fv f) ~f:(fun x -> not (List.mem y x ~equal:String.equal)) in
   List.fold_right z ~f:(fun z f -> Exists (z, f)) ~init:f
 
@@ -149,6 +154,9 @@ let equal x y = match x, y with
   | Agg (s, op, x, y, f), Agg (s', op', x', y', f') ->
      String.equal s s' && Aggregation.equal_op op op' && Term.equal x x' && List.length y == List.length y'
      && List.for_all (List.zip_exn y y') (fun (y, y') -> String.equal y y') && phys_equal f f'
+  | Top (s, op, x, y, f), Top (s', op', x', y', f') ->
+     List.equal String.equal s s' && String.equal op op' && List.equal Term.equal x x'
+     && List.equal String.equal y y' && phys_equal f f'
   | Predicate (r, trms), Predicate (r', trms') -> String.equal r r' && List.equal Term.equal trms trms'
   | Predicate' (r, trms, f), Predicate' (r', trms', f') ->
      String.equal r r' && List.equal Term.equal trms trms' && phys_equal f f'
@@ -181,7 +189,8 @@ let equal x y = match x, y with
 let rec terms = function
   | TT | FF -> Set.empty (module Term)
   | EqConst (trm, c) -> Set.singleton (module Term) trm
-  | Agg (s, _, _, y, f) -> Set.of_list (module Term) (List.map (s::y) ~f:(fun v -> Term.Var v))
+  | Agg (s, _, _, y, _) -> Set.of_list (module Term) (List.map (s::y) ~f:(fun v -> Term.Var v))
+  | Top (s, _, x, y, _) -> Set.of_list (module Term) (List.map (s@y) ~f:(fun v -> Term.Var v))
   | Predicate (x, trms) -> Set.of_list (module Term) trms
   | Predicate' (_, _, f) -> terms f
   | Let (_, _, _, _, g) -> terms g
@@ -212,6 +221,7 @@ let rec init =
   | SBop (None, t, bop, u) as term
        when Bop.is_relational bop     -> EqConst (Term.init term, Dom.Int 1)
   | SAgg (s, aop, x, y, t)            -> Agg (s, Aggregation.init aop, Term.init x, y, init t)
+  | STop (s, op, x, y, t)             -> Top (s, op, List.map ~f:Term.init x, y, init t)
   | SAssign (t, s, x)                 -> let f = init t in
                                          Agg (s, Aggregation.AAssign, Term.init x, list_fv f, f)
   | SApp (p, ts)                      -> Predicate (p, List.map ~f:Term.init ts)
@@ -244,6 +254,7 @@ let op_to_string = function
   | Let' (r, _, _, _) -> Printf.sprintf "LET٭ %s" r
   | Agg (_, op, x, y, _) -> Printf.sprintf "%s(%s; %s)" (Aggregation.op_to_string op) (Term.value_to_string x)
                               (String.concat ~sep:", " y)
+  | Top (_, op, x, y, _) -> Printf.sprintf "%s(%s; %s)" op (Term.list_to_string x) (String.concat ~sep:", " y)
   | Neg _ -> Printf.sprintf "¬"
   | And (_, _, _) -> Printf.sprintf "∧"
   | Or (_, _, _) -> Printf.sprintf "∨"
@@ -279,6 +290,10 @@ let rec to_string_rec l = function
   | Agg (s, op, x, y, f) -> Printf.sprintf (Etc.paren l (-1) "%s <- %s(%s; %s; %s)")
                               s (Aggregation.op_to_string op)
                               (Term.value_to_string x) (String.concat ~sep:", " y)
+                              (to_string_rec (-1) f)
+  | Top (s, op, x, y, f) -> Printf.sprintf (Etc.paren l (-1) "[%s] <- %s([%s]; %s; %s)")
+                              (String.concat ~sep:", " s) op
+                              (Term.list_to_string x) (String.concat ~sep:", " y)
                               (to_string_rec (-1) f)
   | Neg f -> Printf.sprintf "¬%a" (fun x -> to_string_rec 5) f
   | And (s, f, g) -> Printf.sprintf (Etc.paren l 4 "%a ∧%a %a") (fun x -> to_string_rec 4) f
@@ -331,6 +346,10 @@ let solve_past_guarded x p f =
          let sols_list = List.map (Term.fv_list [t]) ~f:(fun z -> aux ts z p f) in
          List.map ~f:(Etc.inter_list (module String)) (Etc.cartesian sols_list)
       | Agg (_, _, _, y, f), _ when List.mem y x ~equal:String.equal -> aux ts x p f
+      | Top (_, _, _, y, f), _ when List.mem y x ~equal:String.equal -> aux ts x p f
+      | Top (s, _, x', _, f), true when List.mem s x ~equal:String.equal ->
+         let sols_list = List.map (Term.fv_list x') ~f:(fun z -> aux ts z p f) in
+         List.map ~f:(Etc.inter_list (module String)) (Etc.cartesian sols_list)
       | Neg f, _ -> aux ts x (not p) f
       | And (_, f', g'), true | Or (_, f', g'), false | Imp (_, f', g'), false ->
          let q = match f with Imp _ -> not p | _ -> p in
@@ -362,7 +381,7 @@ let check_agg types s op x y f =
   let x_tt = Sig.tt_of_term_exn types x in
   match Aggregation.ret_tt op x_tt with
   | None -> raise (Invalid_argument (
-                       Printf.sprintf "type clash for operator %s: invalid type %s"
+                       Printf.sprintf "type clash for aggregation operator %s: invalid type %s"
                          (Aggregation.op_to_string op) (Dom.tt_to_string x_tt)))
   | Some s_tt ->
      let types, _ = Sig.check_var types s (Ctxt.TConst s_tt) in
@@ -379,7 +398,26 @@ let check_agg types s op x y f =
        raise (Invalid_argument (
        Printf.sprintf "variable %s is both the target of an aggregation and free in %s"
        s (to_string f)));*)
-     types
+     types, s_tt
+
+let check_top types s op x y f =
+  let x_tts = List.map ~f:(Sig.tt_of_term_exn types) x in
+  let arg_ttts = Sig.arg_ttts_of_func op in
+  let ret_ttts = Sig.ret_ttts_of_func op in
+  let types = List.fold2_exn ~init:types
+                ~f:(fun types trm ttt -> fst (Sig.check_term types trm ttt)) arg_ttts x in
+  let types = List.fold2_exn ~init:types
+                ~f:(fun types ttt x -> fst (Sig.check_var types x ttt)) ret_ttts s in
+  let vars = (Term.fv_list x) @ y in
+  let fv = fv f in
+  List.iter vars ~f:(
+      fun x ->
+      if not (Set.mem fv x) then
+        raise (Invalid_argument (
+                   Printf.sprintf "variable %s is used in aggregation, but not free in %s"
+                     x (to_string f)))
+      else ());
+  types, List.map ~f:Ctxt.unconst ret_ttts
 
 let unroll_let =
   let rec aux (v : (String.t, string list * t, String.comparator_witness) Map.t) = function
@@ -393,6 +431,7 @@ let unroll_let =
     | Let (r, _, vars, f, g) ->
        Let' (r, vars, aux v f, aux (Map.update v r (fun _ -> (vars, aux v f))) g)
     | Agg (s, op, x, y, f) -> Agg (s, op, x, y, aux v f)
+    | Top (s, op, x, y, f) -> Top (s, op, x, y, aux v f)
     | Neg f -> Neg (aux v f)
     | And (s, f, g) -> And (s, aux v f, aux v g)
     | Or (s, f, g) -> Or (s, aux v f, aux v g)
@@ -433,7 +472,11 @@ let convert_vars f =
     | Agg (s, op, x, y, f) ->
        (fun i -> let fvs = Set.elements (Set.diff (fv f) (Set.of_list (module String) ((Term.fv_list [x])@y))) in
                  let (i, v), vars = List.fold_map fvs ~init:(i, v) ~f:fresh in
-                 ((fun f -> return (Agg (s, op, x, y, f))) >>= (aux v f)) i)
+                 ((fun f -> return (Agg (s, op, Term.subst v x, y, f))) >>= (aux v f)) i)
+    | Top (s, op, x, y, f) ->
+       (fun i -> let fvs = Set.elements (Set.diff (fv f) (Set.of_list (module String) y)) in
+                 let (i, v), vars = List.fold_map fvs ~init:(i, v) ~f:fresh in
+                 ((fun f -> return (Top (s, op, Term.substs v x, y, f))) >>= (aux v f)) i)
     | Neg f -> (fun f -> return (Neg f)) >>= (aux v f)
     | And (s, f, g) -> (fun f -> (fun g -> return (And (s, f, g))) >>= (aux v g)) >>= (aux v f)
     | Or (s, f, g) -> (fun f -> (fun g -> return (Or (s, f, g))) >>= (aux v g)) >>= (aux v f)
@@ -476,6 +519,7 @@ let convert_lets f =
        (fun i -> let i, (rk, v) = fresh i r v in
                  ((fun f -> (fun g -> return (Let' (rk, vars, f, g))) >>= (aux v g)) >>= (aux v f)) i)
     | Agg (s, op, x, y, f) -> (fun f -> return (Agg (s, op, x, y, f))) >>= (aux v f)
+    | Top (s, op, x, y, f) -> (fun f -> return (Top (s, op, x, y, f))) >>= (aux v f)
     | Neg f -> (fun f -> return (Neg f)) >>= (aux v f)
     | And (s, f, g) -> (fun f -> (fun g -> return (And (s, f, g))) >>= (aux v g)) >>= (aux v f)
     | Or (s, f, g) -> (fun f -> (fun g -> return (Or (s, f, g))) >>= (aux v g)) >>= (aux v f)

@@ -4,6 +4,7 @@ type op = ASum | AAvg | AMed | ACnt | AMin | AMax | AStd | AAssign
   [@@deriving compare, sexp_of, hash, equal]
 
 type op_fun = (Dom.t, Dom.comparator_witness) Multiset.t -> Dom.t
+type op_tfun = Dom.t list list -> Dom.t list list
 
 let op_to_string = function
   | ASum -> "SUM"

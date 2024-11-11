@@ -43,4 +43,4 @@ let add   mo (m: ('a, 'b) t) (m': ('a, 'b) t) = fold_merge mo (+)     (fun x -> 
 let union mo (m: ('a, 'b) t) (m': ('a, 'b) t) = fold_merge mo Int.max (fun x -> x) m m'
 let inter mo (m: ('a, 'b) t) (m': ('a, 'b) t) = fold_merge mo Int.min (fun _ -> 0) m m'
 
-        
+let of_list mo l = List.fold_left l ~init:(empty mo) ~f:append

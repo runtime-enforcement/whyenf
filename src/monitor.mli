@@ -38,6 +38,7 @@ module type MonitorT = sig
       | MEqConst      of Term.t * Dom.t
       | MPredicate    of string * Term.t list
       | MAgg          of string * Aggregation.op * Aggregation.op_fun * Term.t * string list * t
+      | MTop          of string list * string * Aggregation.op_tfun * Term.t list * string list * t
       | MNeg          of t
       | MAnd          of Side.t * t list * binop_info
       | MOr           of Side.t * t list * binop_info
@@ -67,7 +68,7 @@ module type MonitorT = sig
     
     val make: core_t -> Formula.Filter.filter -> t
     val set_make: core_t -> Formula.Filter.filter -> t
-    val map_mf: t -> Formula.Filter.filter -> (t -> core_t) -> t
+    val map_mf: t -> Formula.Filter.filter -> ?exquant:bool -> (t -> core_t) -> t
     val map2_mf: t -> t -> Formula.Filter.filter -> (t -> t -> core_t) -> t
     val mapn_mf: t list -> Formula.Filter.filter -> (t list -> core_t) -> t
 
