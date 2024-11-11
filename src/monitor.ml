@@ -1,4 +1,4 @@
-(*******************************************************************)
+2(*******************************************************************)
 (*     This is part of WhyMon, and it is distributed under the     *)
 (*     terms of the GNU Lesser General Public License version 3    *)
 (*           (see file LICENSE for more details)                   *)
@@ -40,6 +40,7 @@ module type MonitorT = sig
       | MEqConst      of Term.t * Dom.t
       | MPredicate    of string * Term.t list
       | MAgg          of string * Aggregation.op * Aggregation.op_fun * Term.t * string list * t
+      | MTop          of string list * string * Aggregation.op_tfun * Term.t list * string list * t
       | MNeg          of t
       | MAnd          of Side.t * t list * binop_info
       | MOr           of Side.t * t list * binop_info
@@ -69,7 +70,7 @@ module type MonitorT = sig
 
     val make: core_t -> Formula.Filter.filter -> t
     val set_make: core_t -> Formula.Filter.filter -> t
-    val map_mf: t -> Formula.Filter.filter -> (t -> core_t) -> t
+    val map_mf: t -> Formula.Filter.filter -> ?exquant:bool -> (t -> core_t) -> t
     val map2_mf: t -> t -> Formula.Filter.filter -> (t -> t -> core_t) -> t
     val mapn_mf: t list -> Formula.Filter.filter -> (t list -> core_t) -> t
 
@@ -1489,6 +1490,7 @@ module Make (E: Expl.ExplT) = struct
       | MEqConst      of Term.t * Dom.t
       | MPredicate    of string * Term.t list
       | MAgg          of string * Aggregation.op * Aggregation.op_fun * Term.t * string list * t
+      | MTop          of string list * string * Aggregation.op_tfun * Term.t list * string list * t
       | MNeg          of t
       | MAnd          of Side.t * t list * binop_info
       | MOr           of Side.t * t list * binop_info
@@ -1519,7 +1521,6 @@ module Make (E: Expl.ExplT) = struct
 
     let rec subs mf = match mf.mf with
       | MTT | MFF | MEqConst _ | MPredicate _ -> []
-      | MAgg (_, _, _, _, _, f) -> [f]
       | MExists (_, _, _, f)
         | MForall (_, _, _, f) 
         | MNeg f
@@ -1531,7 +1532,9 @@ module Make (E: Expl.ExplT) = struct
         | MAlways (_, f, _, _)
         | MEAlways (_, _, f, _)
         | MNext (_, f, _, _)
-        | MENext (_, _, f, _) -> [f]
+        | MENext (_, _, f, _)
+        | MAgg (_, _, _, _, _, f)
+        | MTop (_, _, _, _, _, f) -> [f]
       | MImp (_, f1, f2, _)
         | MIff (_, _, f1, f2, _)
         | MSince (_, _, f1, f2, _, _)
@@ -1555,6 +1558,10 @@ module Make (E: Expl.ExplT) = struct
       | MEqConst (trm, c) -> Printf.sprintf "%s = %s" (Term.value_to_string trm) (Dom.to_string c)
       | MPredicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
       | MAgg (s, op, _, x, y, f) -> Printf.sprintf (Etc.paren l (-1) "%s <- %s(%s; %s; %s)") s (Aggregation.op_to_string op) (Term.value_to_string x) (String.concat ~sep:", " y) (value_to_string_rec (-1) f)
+      | MTop (s, op, _, x, y, f) -> Printf.sprintf (Etc.paren l (-1) "[%s] <- %s(%s; %s; %s)")
+                                      (Etc.string_list_to_string s) op
+                                      (Term.list_to_string x) (Etc.string_list_to_string y)
+                                      (value_to_string_rec (-1) f)
       | MNeg f -> Printf.sprintf "¬%a" (fun x -> value_to_string_rec 5) f
       | MAnd (_, fs, _) -> Printf.sprintf (Etc.paren l 4 "%s") (String.concat ~sep:"∧" (List.map fs ~f:(value_to_string_rec 4)))
       | MOr (_, fs, _) -> Printf.sprintf (Etc.paren l 3 "%s") (String.concat ~sep:"∨" (List.map fs ~f:(value_to_string_rec 4)))
@@ -1610,8 +1617,12 @@ module Make (E: Expl.ExplT) = struct
       | MFF -> Printf.sprintf "⊥"
       | MEqConst (x, c) -> Printf.sprintf "="
       | MPredicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
-      | MAgg (s, op, _, x, y, _) -> Printf.sprintf "%s = %s(%s; %s)" s (Aggregation.op_to_string op) (Term.to_string x)
-                                            (String.concat ~sep:", " y)
+      | MAgg (s, op, _, x, y, _) -> Printf.sprintf "%s <- %s(%s; %s)" s
+                                      (Aggregation.op_to_string op) (Term.to_string x)
+                                      (Etc.string_list_to_string y)
+      | MTop (s, op, _, x, y, _) -> Printf.sprintf "[%s] <- %s(%s; %s)"
+                                      (Etc.string_list_to_string s) op
+                                      (Term.list_to_string x) (Etc.string_list_to_string y)
       | MNeg _ -> Printf.sprintf "¬"
       | MAnd (_, _, _) -> Printf.sprintf "∧"
       | MOr (_, _, _) -> Printf.sprintf "∨"
@@ -1640,6 +1651,7 @@ module Make (E: Expl.ExplT) = struct
       | MEqConst _ -> Printf.sprintf "N"
       | MPredicate _ -> Printf.sprintf "N"
       | MAgg _ -> Printf.sprintf "N"
+      | MTop _ -> Printf.sprintf "N"
       | MNeg _ -> Printf.sprintf "N"
       | MAnd (s, _, _) -> Printf.sprintf "%s" (Side.to_string s)
       | MOr (s, _, _) -> Printf.sprintf "%s" (Side.to_string s)
@@ -1701,6 +1713,7 @@ module Make (E: Expl.ExplT) = struct
       let rec ppp = function
         | [x; y] -> x.hash +++ y.hash
         | x :: ys -> x.hash +++ ppp ys in
+      let list_hash f l = List.fold_left ~f:(+++) ~init:0 (List.map ~f l) in
       function
       | MTT -> String.hash "MTT"
       | MFF -> String.hash "MFF"
@@ -1708,12 +1721,15 @@ module Make (E: Expl.ExplT) = struct
       | MPredicate (e, t) ->
          (*print_endline "--core_hash";
            List.iter t ~f:(fun t -> print_endline (string_of_int (Term.hash t)));*)
-         String.hash "MPredicate" +++ String.hash e
-         +++ List.fold_left ~f:(+++) ~init:0 (List.map ~f:Term.hash t)
+         String.hash "MPredicate" +++ String.hash e +++ list_hash Term.hash t
       | MAgg (s, op, _, x, y, f) ->
          String.hash "MAgg"
          +++ String.hash s +++ Aggregation.hash_op op +++ Term.hash x
-         +++ List.fold_left ~f:(+++) ~init:0 (List.map ~f:String.hash y) +++ f.hash
+         +++ list_hash String.hash y +++ f.hash
+      | MTop (s, op, _, x, y, f) ->
+         String.hash "MTop"
+         +++ list_hash String.hash s +++ String.hash op
+         +++ list_hash Term.hash x +++ list_hash String.hash y +++ f.hash
       | MNeg f ->
          String.hash "MNeg" +++ f.hash
       | MAnd (s, fs, bi) ->
@@ -1793,6 +1809,7 @@ module Make (E: Expl.ExplT) = struct
            | MEqConst _ -> with_events mf (Set.empty (module String))
          | MPredicate (r, _) -> with_events mf (Set.singleton (module String) r)
          | MAgg (s, op, op_fun, x, y, f) -> map1 f (fun f -> MAgg (s, op, op_fun, x, y, f))
+         | MTop (s, op, op_fun, x, y, f) -> map1 f (fun f -> MTop (s, op, op_fun, x, y, f))
          | MNeg f -> map1 f (fun f -> MNeg f)
          | MAnd (s, fs, inf) -> mapn fs (fun fs -> MAnd (s, fs, inf))
          | MOr (s, fs, inf) -> mapn fs (fun fs -> MOr (s, fs, inf))
@@ -1818,6 +1835,7 @@ module Make (E: Expl.ExplT) = struct
       | MEqConst (trm, _) -> Set.of_list (module String) (Term.fv_list [trm])
       | MPredicate (_, trms) -> Set.of_list (module String) (Term.fv_list trms)
       | MAgg (s, _, _, _, y, _) -> Set.of_list (module String) (s::y)
+      | MTop (s, _, _, _, y, _) -> Set.of_list (module String) (s@y)
       | MNeg f -> fv f
       | MAnd (_, fs, _)
         | MOr (_, fs, _) -> Set.union_list (module String) (List.map fs ~f:fv)
@@ -1866,13 +1884,15 @@ module Make (E: Expl.ExplT) = struct
         let f1 = set_lbls ~fvs f1 in
         let f2 = set_lbls ~fvs f2 in
         { mf with mf   = comb f1 f2;
-                  lbls = flbls (order_lbls (f1.lbls @ f2.lbls) fvs true) } in
+                  lbls = flbls f1.lbls f2.lbls } in
       let mapn fvs fs comb flbls =
         let fs = List.map ~f:(set_lbls ~fvs) fs in
         { mf with mf   = comb fs;
                   lbls = flbls (order_lbls
                                   (List.concat (List.map ~f:(fun f -> f.lbls) fs)) fvs true) } in
       let id lbls = lbls in
+      let id2 lbls1 lbls2 = order_lbls (lbls1 @ lbls2) fvs true in
+      let imp lbls1 lbls2 = order_lbls ((List.map ~f:Lbl.exquant lbls1) @ lbls2) fvs true in
       let mf' = match mf.mf with
       | MTT | MFF -> with_lbls mf []
       | MAgg (s, op, op_fun, x, y, f) ->
@@ -1880,6 +1900,11 @@ module Make (E: Expl.ExplT) = struct
          let sy   = Etc.reorder_subset ~equal:String.equal (s::y) fvs in
          let fvs' = Etc.reorder_subset ~equal:String.equal (Set.elements (fv f)) y in
          map1 fvs' f (fun f -> MAgg (s, op, op_fun, x, y, f)) (fun _ -> List.map ~f:Lbl.var sy)
+      | MTop (s, op, op_fun, x, y, f) ->
+         let y    = Etc.reorder_subset ~equal:String.equal y fvs in
+         let sy   = Etc.reorder_subset ~equal:String.equal (s@y) fvs in
+         let fvs' = Etc.reorder_subset ~equal:String.equal (Set.elements (fv f)) y in
+         map1 fvs' f (fun f -> MTop (s, op, op_fun, x, y, f)) (fun _ -> List.map ~f:Lbl.var sy)
       | MEqConst (t, _) -> with_lbls mf [Lbl.of_term t]
       | MPredicate (x, ts) ->
          with_lbls mf (order_lbls (List.map (List.filter ~f:(fun t -> not (Term.is_const t)) ts)
@@ -1891,8 +1916,8 @@ module Make (E: Expl.ExplT) = struct
       | MNeg f -> map1 fvs f (fun f -> MNeg f) (List.map ~f:Lbl.exquant)
       | MAnd (s, fs, inf) -> mapn fvs fs (fun fs -> MAnd (s, fs, inf)) id
       | MOr (s, fs, inf) -> mapn fvs fs (fun fs -> MOr (s, fs, inf)) id
-      | MImp (s, f, g, inf) -> map2 fvs f g (fun f g -> MImp (s, f, g, inf)) id
-      | MIff (s, t, f, g, inf) -> map2 fvs f g (fun f g -> MIff (s, t, f, g, inf)) id
+      | MImp (s, f, g, inf) -> map2 fvs f g (fun f g -> MImp (s, f, g, inf)) imp
+      | MIff (s, t, f, g, inf) -> map2 fvs f g (fun f g -> MIff (s, t, f, g, inf)) id2
       | MPrev (i, f, b, inf) -> map1 fvs f (fun f -> MPrev (i, f, b, inf)) id
       | MNext (i, f, b, inf) -> map1 fvs f (fun f -> MNext (i, f, b, inf)) id
       | MENext (i, t_opt, f, v) -> map1 fvs f (fun f -> MENext (i, t_opt, f, v)) id
@@ -1902,9 +1927,9 @@ module Make (E: Expl.ExplT) = struct
       | MHistorically (i, f, inf1, inf2) -> map1 fvs f (fun f -> MHistorically (i, f, inf1, inf2)) id
       | MAlways (i, f, inf1, inf2) -> map1 fvs f (fun f -> MAlways (i, f, inf1, inf2)) id
       | MEAlways (i, t_opt, f, inf) -> map1 fvs f (fun f -> MEAlways (i, t_opt, f, inf)) id
-      | MSince (s, i, f, g, inf1, inf2) -> map2 fvs f g (fun f g -> MSince (s, i, f, g, inf1, inf2)) id
-      | MUntil (i, f, g, inf1, inf2) -> map2 fvs f g (fun f g -> MUntil (i, f, g, inf1, inf2)) id
-      | MEUntil (s, i, t_opt, f, g, v) -> map2 fvs f g (fun f g -> MEUntil (s, i, t_opt, f, g, v)) id in
+      | MSince (s, i, f, g, inf1, inf2) -> map2 fvs f g (fun f g -> MSince (s, i, f, g, inf1, inf2)) id2
+      | MUntil (i, f, g, inf1, inf2) -> map2 fvs f g (fun f g -> MUntil (i, f, g, inf1, inf2)) id2
+      | MEUntil (s, i, t_opt, f, g, v) -> map2 fvs f g (fun f g -> MEUntil (s, i, t_opt, f, g, v)) id2 in
       (*(match mf.mf with
        | MAgg _ -> 
       print_endline (Printf.sprintf "set_lbls([%s], %s)=%s\n\n\n"
@@ -1921,14 +1946,14 @@ module Make (E: Expl.ExplT) = struct
     let set_make mf filter =
       set_lbls (set_events (make mf filter))
 
-    let map_mf mf filter f =
+    let map_mf mf filter ?(exquant=false) f =
       let mf_mf = f mf in
       { mf          = mf_mf;
         filter;
         events      = mf.events;
         obligations = mf.obligations;
         hash        = core_hash mf_mf;
-        lbls        = mf.lbls }
+        lbls        = if exquant then List.map ~f:Lbl.exquant mf.lbls else mf.lbls }
 
     let map2_mf mf1 mf2 filter f =
       let mf_mf = f mf1 mf2 in
@@ -1965,6 +1990,9 @@ module Make (E: Expl.ExplT) = struct
         | TAgg (s, tt, op, x, y, f) ->
            let op_fun = Aggregation.eval op tt in
            MAgg (s, op, op_fun, x, y, make (aux f) Formula.Filter._true)
+        | TTop (s, op, x, y, f) ->
+           let op_fun = Sig.tfunc op in
+           MTop (List.map ~f:fst s, op, op_fun, x, y, make (aux f) Formula.Filter._true)
         | TNeg f -> MNeg (make (aux f) tf.filter)
         | TAnd (s, fs) ->
            MAnd (s, List.map2_exn ~f:make (List.map ~f:aux fs) (List.map fs ~f:(fun tf -> tf.filter)), ([], []))
@@ -2012,7 +2040,8 @@ module Make (E: Expl.ExplT) = struct
         | MHistorically (_, f, _, _)
         | MAlways (_, f, _, _)
         | MEAlways (_, _, f, _)
-        | MAgg (_, _, _, _, _, f) -> rank f
+        | MAgg (_, _, _, _, _, f)
+        | MTop (_, _, _, _, _, f) -> rank f
       | MImp (_, f, g, _)
         | MIff (_, _, f, g, _)
         | MSince (_, _, f, g, _, _)
@@ -2040,6 +2069,7 @@ module Make (E: Expl.ExplT) = struct
             | trm -> MEqConst (trm, d))
         | MPredicate (e, t) -> MPredicate (e, List.map t (av_term v))
         | MAgg (s, op, op_fun, x, y, f) -> MAgg (s, op, op_fun, x, y, r f)
+        | MTop (s, op, op_fun, x, y, f) -> MTop (s, op, op_fun, x, y, r f)
         | MNeg f -> MNeg (r f)
         | MAnd (s, fs, bi) -> MAnd (s, List.map ~f:r fs, av_buf2 bi)
         | MOr (s, fs, bi) -> MOr (s, List.map ~f:r fs, av_buf2 bi)
@@ -2258,7 +2288,7 @@ module Make (E: Expl.ExplT) = struct
         | POS -> (*print_endline (Printf.sprintf "eval()=%s" (MFormula.to_string mf)); *)mf
         | NEG -> match mf.mf with
                  | MNeg mf -> mf
-                 | _       -> map_mf mf Formula.Filter._true (fun mf -> MNeg mf)
+                 | _       -> map_mf mf Formula.Filter._true (fun mf -> MNeg mf) ~exquant:true
 
 
       let accepts_empty = function
@@ -2384,22 +2414,6 @@ module Make (E: Expl.ExplT) = struct
     Stdio.print_endline "> Map:";
     List.iter maps ~f:(fun map -> Map.iteri map ~f:(fun ~key:k ~data:v ->
                                       Stdio.printf "%s -> %s\n" (Term.to_string k) (Dom.to_string v)))
-
-  let rec pdt_of tp r trms (lbls: Lbl.t list) maps : E.t = match lbls with
-    | [] -> Leaf (S (Proof.make_spred tp r trms))
-    | lbl :: lbls ->
-       let ds = List.filter_map maps ~f:(fun map -> Map.find map lbl) in
-       let find_maps d =
-         List.filter_map maps ~f:(fun map -> match Map.find map lbl with
-                                             | Some d' when Dom.equal d d' -> Some map
-                                             | _ -> None)  in
-       if List.is_empty ds then
-         pdt_of tp r trms lbls maps
-       else
-         let part = Part.tabulate_dedup (Pdt.eq Proof.equal) (Set.of_list (module Dom) ds)
-                      (fun d -> pdt_of tp r trms lbls (find_maps d))
-                      (Leaf (V (Proof.make_vpred tp r trms))) in
-         Node (lbl, part)
 
   let proof_false tp = function
     | FObligation.POS -> Proof.V (Proof.make_vff tp)
@@ -2613,9 +2627,9 @@ module Make (E: Expl.ExplT) = struct
   let meval (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) mformula memo =
     let outer_ts = ts and outer_tp = tp in
     let rec meval_rec (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) memo mformula =
-      (*print_endline "--meval_rec";
-      print_endline ("mf=" ^ MFormula.to_string mformula);
-      print_endline "";*)
+      (*print_endline "--meval_rec";*)
+      (*print_endline ("mf=" ^ MFormula.to_string mformula);*)
+      (*print_endline "";*)
       (*print_endline ("memo=" ^ Memo.to_string memo);*)
       (*print_endline ("hash=" ^ string_of_int mformula.hash);*)
       (*print_endline ("incr: " ^ MFormula.to_string mformula);*)
@@ -2642,7 +2656,8 @@ module Make (E: Expl.ExplT) = struct
                 | External -> Db.retrieve_external r
                 | Builtin -> Db.retrieve_builtin ts tp r in
               if List.is_empty trms then
-                (let expl = if Db.is_empty db' then Pdt.Leaf (Proof.V (Proof.make_vpred tp r trms))
+                (let expl = if Db.is_empty db'
+                            then Pdt.Leaf (Proof.V (Proof.make_vpred tp r trms))
                             else Leaf (S (Proof.make_spred tp r trms)) in
                  memo, ([expl], expl, MPredicate (r, trms)))
               else
@@ -2652,7 +2667,7 @@ module Make (E: Expl.ExplT) = struct
                                                       (Map.empty (module Lbl)) :: acc)) in
                 let expl = if List.is_empty maps
                            then Pdt.Leaf (Proof.V (Proof.make_vpred tp r trms))
-                           else pdt_of tp r trms mformula.lbls maps in
+                           else E.pdt_of tp r trms mformula.lbls maps in
                 (*print_endline "--MPredicate";
                 print_endline r;*)
                 (*  print_endline ("maps=" ^ (String.concat ~sep:"; " (List.map maps ~f:(fun map -> String.concat ~sep:", " (List.map (Map.to_alist map) ~f:(fun (lbl, d) -> Lbl.to_string lbl ^ " -> " ^ Dom.to_string d))))));
@@ -2661,29 +2676,37 @@ module Make (E: Expl.ExplT) = struct
                 memo, ([expl], expl, MPredicate (r, trms))
            | MAgg (s, op, op_fun, x, y, mf) ->
               let memo, (expls, aexpl, mf') = meval_rec ts tp db fobligs ~pol memo mf in
-              let is_in_setc s d_opt =
-                match d_opt with
-                | None ->
-                   Proof.V (Proof.make_vff tp)
-                | Some d ->
-                   if Setc.mem s d then Proof.S (Proof.make_stt tp) else Proof.V (Proof.make_vff tp) in
-              (*print_endline "--MAgg";
+              (*print_endline ("--MAgg.aexpl=" ^ E.to_string aexpl);
               print_endline ("mf=" ^ MFormula.to_string mformula);
-              print_endline ("aexpl=" ^ Expl.to_string aexpl);
-              print_endline ("lbls="  ^ String.concat ~sep:", " (List.map ~f:Lbl.to_string mformula.lbls));
+              print_endline ("aexpl=" ^ Expl.to_string aexpl);*)
+              (*print_endline ("lbls="  ^ String.concat ~sep:", " (List.map ~f:Lbl.to_string mformula.lbls));
               print_endline ("lbls'=" ^ String.concat ~sep:", " (List.map ~f:Lbl.to_string mf.lbls));*)
-              let aggregate = Pdt.aggregate Proof.isS is_in_setc op_fun s x y mformula.lbls mf.lbls in
-              (*print_endline ("MAgg.aexpl=" ^ Expl.to_string aexpl);*)
+              let aggregate = E.aggregate op_fun s tp x y mformula.lbls mf.lbls in
+              (*print_endline ("MAgg.aexpl=" ^ E.to_string aexpl);*)
               (*print_endline ("MAgg.mformula=" ^ MFormula.to_string mformula);*)
               let f_expls = List.map expls ~f:aggregate in
               let f_aexpl = aggregate aexpl in
+              (*print_endline ("--MAgg.f_aexpl=" ^ E.to_string f_aexpl);*)
               memo, (f_expls, f_aexpl, MAgg (s, op, op_fun, x, y, mf'))
+           | MTop (s, op, op_fun, x, y, mf) ->
+              let memo, (expls, aexpl, mf') = meval_rec ts tp db fobligs ~pol memo mf in
+              (*print_endline ("--MAgg.aexpl=" ^ E.to_string aexpl);
+              print_endline ("mf=" ^ MFormula.to_string mformula);
+              print_endline ("aexpl=" ^ Expl.to_string aexpl);*)
+              (*print_endline ("lbls="  ^ String.concat ~sep:", " (List.map ~f:Lbl.to_string mformula.lbls));
+              print_endline ("lbls'=" ^ String.concat ~sep:", " (List.map ~f:Lbl.to_string mf.lbls));*)
+              let aggregate = E.table_operator op_fun s tp x y mformula.lbls mf.lbls in
+              (*print_endline ("MAgg.aexpl=" ^ E.to_string aexpl);*)
+              (*print_endline ("MAgg.mformula=" ^ MFormula.to_string mformula);*)
+              let f_expls = List.map expls ~f:aggregate in
+              let f_aexpl = aggregate aexpl in
+              (*print_endline ("--MTop.f_aexpl=" ^ E.to_string f_aexpl);*)
+              memo, (f_expls, f_aexpl, MTop (s, op, op_fun, x, y, mf'))
            | MNeg (mf) ->
               let memo, (expls, aexpl, mf') = meval_rec ts tp db fobligs ~pol:(pol >>| FObligation.neg) memo mf in
               (*print_endline ("--MNeg");
               print_endline ("--mformula=" ^ MFormula.to_string mformula);
-              print_endline ("--aexpl=" ^ E.to_string(Pdt.exquant ( aexpl)));
-              print_endline "";*)
+              print_endline ("--aexpl=" ^ E.to_string aexpl);*)
               let f_neg pdt = Pdt.apply1_reduce Proof.equal mformula.lbls
                                 (fun p -> do_neg p) (Pdt.exquant pdt) in
               let f_expls = List.map expls ~f:f_neg in
@@ -2727,14 +2750,14 @@ module Make (E: Expl.ExplT) = struct
               let f_imp pdt1 pdt2 =
                 Pdt.apply2_reduce Proof.equal mformula.lbls
                   (fun p1 p2 -> minp_list (do_imp p1 p2)) (Pdt.exquant pdt1) pdt2 in
-              (*print_endline "--MImp";
-              print_endline ("mformula=" ^ MFormula.to_string mformula);
-              print_endline ("aexpl1=" ^ Expl.to_string aexpl1);
-              print_endline ("aexpl2=" ^ Expl.to_string aexpl2);*)
+              (*print_endline "--MImp";*)
+              (*print_endline ("mformula=" ^ MFormula.to_string mformula);*)
+              (*print_endline ("aexpl1=" ^ E.to_string aexpl1);
+              print_endline ("aexpl2=" ^ E.to_string aexpl2);*)
               (*print_endline ("lbls=" ^ Lbl.to_string_list mformula.lbls);*)
               let (f_expls, buf2') = Buf2.take f_imp (Buf2.add expls1 expls2 buf2) in
               let aexpl = approx_expl2 aexpl1 aexpl2 mformula.lbls tp mformula.mf in
-              (*(print_endline ("aexpl=" ^ Expl.to_string aexpl);*)
+              (*print_endline ("aexpl=" ^ E.to_string aexpl);*)
               memo, (f_expls, aexpl, MImp (s, mf1', mf2', buf2'))
            | MIff (s, t, mf1, mf2, buf2) ->
               let memo, (expls1, _, mf1') = meval_rec ts tp db ~pol fobligs memo mf1 in
@@ -2753,7 +2776,7 @@ module Make (E: Expl.ExplT) = struct
               let expls = List.map expls ~f:quant in
               (*print_endline ("aexpl (before) = " ^ Expl.to_string aexpl);*)
               let aexpl = quant aexpl in
-              (*print_endline ("aexpl (after) = " ^ Expl.to_string aexpl);*)
+              (*print_endline ("aexpl (after) = " ^ E.to_string aexpl);*)
               memo, (expls, aexpl, MExists(x, tc, b, mf'))
            | MForall (x, tc, b, mf) ->
               (*print_endline "--MForall";
@@ -2855,7 +2878,8 @@ module Make (E: Expl.ExplT) = struct
            | MEAlways (i, f_ts, mf, v) ->
               let memo, (expls, aexpl, mf') = meval_rec ts tp db ~pol fobligs memo mf in
               (*print_endline "--MEAlways";
-                print_endline ("lbls =" ^ (Lbl.to_string_list lbls));*)
+              print_endline ("lbls = " ^ (Lbl.to_string_list mformula.lbls));
+              print_endline ("aexpl = " ^ E.to_string aexpl);*)
               let aexpl = else_any (approx_always mformula.lbls aexpl fobligs i (Some (mformula.hash, v))) tp pol in
               memo, ([aexpl], aexpl, MEAlways (i, f_ts, mf', v))
            | MSince (s, i, mf1, mf2, (buf2, tstps), msaux_pdt) ->

@@ -386,83 +386,6 @@ module Pdt = struct
     | Node (LAll x, part) -> Node (LEx x,  Part.map part exquant)
     | Node (lbl,    part) -> Node (lbl,    Part.map part exquant)
 
-  (* s = AGG (x; y; f) where p is a Pdt for f *)
-  let aggregate cond f (agg: (Dom.t, Dom.comparator_witness) Multiset.t -> Dom.t) s x_trm y lbls lbls' p =
-    (*let fold_merge fun_both fun_one m m' =
-      Map.fold2 m m' ~init:(Map.empty (module Dom)) ~f:(fun ~key ~data m ->
-          match data with
-          | `Both (data, data')      -> Map.add_exn m ~key ~data:(fun_both data data')
-          | `Left data | `Right data -> Map.add_exn m ~key ~data:(fun_one data)) in
-    let merge_add = fold_merge (+) (fun x -> x) in
-    let merge_max = fold_merge max (fun x -> x) in
-    let merge_min = fold_merge min (fun _ -> 0) in*)
-    let merge_pdts merge = function
-         | [pdt] -> pdt
-         | pdt::pdts -> List.fold pdts ~init:pdt
-                          ~f:(apply2_reduce Multiset.equal lbls' merge) in
-    let multiset sv =
-      let rec aux vs = function
-        | (Term.Var x, Setc.Finite s) ->
-           List.concat_map (Set.elements s) ~f:(fun d -> List.map vs (fun v -> Map.update v x ~f:(fun _ -> d)))
-        | (Term.Const d, s) when Setc.mem s d -> vs
-        | (Term.Const _, _) -> []
-        | (trm, s) -> List.filter vs ~f:(fun v -> Setc.mem s (Term.unconst (Sig.eval v trm))) in
-      let vs = List.fold_left sv ~init:([Map.empty (module String)]) ~f:aux in
-      let ds = List.map vs ~f:(fun v -> Term.unconst (Sig.eval v x_trm)) in
-      List.fold_left ds ~init:(Multiset.empty (module Dom)) ~f:Multiset.append in
-    let rec multisets sv gs trms w p =
-      (*print_endline "--multisets";
-      print_endline (String.concat ~sep:", " (List.map ~f:Lbl.to_string trms));
-      print_endline (String.concat ~sep:", " gs);*)
-      match p, gs, trms with
-      | Leaf l, _, _ when cond l -> Leaf (multiset (List.rev sv))
-      | Leaf l, _, _ -> Leaf (Multiset.empty (module Dom))
-      | Node (lbl, _), g :: gs, trm :: trms
-           when not (Lbl.equal trm lbl) && Lbl.equal trm (LVar g) ->
-         multisets sv gs trms w p
-      | Node (lbl, _), _, trm :: trms when not (Lbl.equal trm lbl) ->
-         multisets sv gs trms w p
-      | Node (lbl, part), g :: gs, _ :: trms when Lbl.equal (LVar g) lbl ->
-         let part = Part.map2 part (fun (s, p) -> (s, multisets ((Var g, s)::sv) gs trms w p)) in
-         Node (lbl, part)
-      | Node (LEx x', part), _, _ :: trms ->
-         let pdts = List.concat (Part.map2 part (distribute x' (multisets sv gs trms) w)) in
-         merge_pdts (Multiset.union (module Dom)) pdts
-      | Node (LAll x', part), _, _ :: trms ->
-         let pdts = List.concat (Part.map2 part (distribute x' (multisets sv gs trms) w)) in
-         merge_pdts (Multiset.inter (module Dom)) pdts
-      | Node (lbl, part), _, _ :: trms ->
-         let pdts = Part.map2 part (fun (s, p) -> multisets ((Lbl.term lbl, s)::sv) gs trms w p) in
-         merge_pdts (Multiset.add (module Dom)) pdts in
-    let rec collect_leaf_values = function
-      | Leaf None -> Set.empty (module Dom)
-      | Leaf (Some v) -> Set.singleton (module Dom) v
-      | Node (_, part) -> Set.union_list (module Dom)
-                            (List.map part ~f:(fun (_, pdt) -> collect_leaf_values pdt)) in
-    let rec insert_aggregations lbls (pdt: Dom.t option t) =
-      (*print_endline ("--insert_aggregations");
-      print_endline (String.concat ~sep:", " (List.map ~f:Lbl.to_string lbls));*)
-      match pdt, lbls with
-      | _, (Lbl.LVar x') :: lbls when String.equal x' s ->
-         (*print_endline "case 1";*)
-         let leaf_values = collect_leaf_values pdt in
-         let setcs = (Setc.Complement leaf_values) ::
-                       (List.map (Set.elements leaf_values)
-                          ~f:(fun s -> Setc.Finite (Set.singleton (module Dom) s))) in
-         Node (LVar s, List.map setcs (fun s -> (s, apply1 lbls (f s) pdt)))
-      | Node (lbl', part), lbl :: lbls when Lbl.equal lbl lbl' ->
-         (*print_endline "case 2";*)
-         Node (lbl', Part.map part (insert_aggregations lbls))
-      | _, _ :: lbls ->
-         (*print_endline "case 3";*)
-         insert_aggregations lbls pdt
-    in
-    let agg' m = if Multiset.is_empty m && List.length y > 0 then None else Some (agg m) in
-    let multiset_pdt = multisets [] y lbls' Etc.empty_valuation p in
-    let aggregations_pdt = apply1 lbls' agg' multiset_pdt in
-    insert_aggregations lbls aggregations_pdt
-
-
 end
 
 module type ProofT = sig
@@ -587,7 +510,12 @@ module type ExplT = sig
 
   val to_string: t -> string
   val to_light_string: t -> string
+  
+  val pdt_of: int -> string -> Term.t list -> Lbl.t list -> (Lbl.t, Dom.t, 'a) Map.t list -> Proof.t Pdt.t
 
+  val table_operator: (Dom.t list list -> Dom.t list list) -> string list -> int -> Term.t list -> string list -> Lbl.t list -> Lbl.t list -> t -> t
+  val aggregate: ((Dom.t, Dom.comparator_witness) Multiset.t -> Dom.t) -> string -> int -> Term.t -> string list -> Lbl.t list -> Lbl.t list -> t -> t
+  
 end
 
 type t_sp =
@@ -828,5 +756,122 @@ module Make (P: ProofT) = struct
   let to_string expl = Pdt.to_string (Proof.to_string "") "" expl
 
   let to_light_string expl = Pdt.to_light_string Proof.to_bool "" expl
+
+  let rec pdt_of tp r trms (lbls: Lbl.t list) maps : t = match lbls with
+    | [] -> Leaf (S (Proof.make_spred tp r trms))
+    | lbl :: lbls ->
+       let ds = List.filter_map maps ~f:(fun map -> Map.find map lbl) in
+       let find_maps d =
+         List.filter_map maps ~f:(fun map -> match Map.find map lbl with
+                                             | Some d' when Dom.equal d d' -> Some map
+                                             | _ -> None)  in
+       if List.is_empty ds then
+         pdt_of tp r trms lbls maps
+       else
+         let part = Part.tabulate_dedup (Pdt.eq Proof.equal) (Set.of_list (module Dom) ds)
+                      (fun d -> pdt_of tp r trms lbls (find_maps d))
+                      (Leaf (V (Proof.make_vpred tp r trms))) in
+         Node (lbl, part)
+
+  (* [s_1, ..., s_k] <- OP (y; f) where p is a Pdt for f *)
+  let table_operator (op: Dom.t list list -> Dom.t list list) (s: string list) tp x y lbls lbls' p =
+    let merge_pdts merge = function
+         | [pdt] -> pdt
+         | pdt::pdts -> List.fold pdts ~init:pdt
+                          ~f:(Pdt.apply2_reduce (List.equal Etc.equal_valuation) lbls' merge) in
+    let tabulate sv =
+      let aux vs = function
+        | (Term.Var x, Setc.Finite s) ->
+           List.concat_map (Set.elements s) ~f:(fun d -> List.map vs (fun v -> Map.update v x ~f:(fun _ -> d)))
+        | (Term.Const d, s) when Setc.mem s d -> vs
+        | (Term.Const _, _) -> []
+        | (trm, s) -> List.filter vs ~f:(fun v -> Setc.mem s (Term.unconst (Sig.eval v trm))) in
+      List.fold_left sv ~init:([Map.empty (module String)]) ~f:aux in 
+    let rec gather sv gs trms w p  =
+      (*print_endline "--gather"; 
+      print_endline (String.concat ~sep:", " (List.map ~f:Lbl.to_string trms));
+      print_endline (String.concat ~sep:", " gs);*)
+      match p, gs, trms with
+      | Pdt.Leaf l, _, _ when Proof.isS l ->
+         Pdt.Leaf (tabulate (List.rev sv))
+      | Leaf l, _, _ -> Leaf []
+      | Node (lbl, _), g :: gs, trm :: trms
+           when not (Lbl.equal trm lbl) && Lbl.equal trm (LVar g) ->
+         gather sv gs trms w p
+      | Node (lbl, _), _, trm :: trms when not (Lbl.equal trm lbl) ->
+         gather sv gs trms w p
+      | Node (lbl, part), g :: gs, _ :: trms when Lbl.equal (LVar g) lbl ->
+         let part = Part.map2 part (fun (s, p) -> (s, gather ((Var g, s)::sv) gs trms w p)) in
+         Node (lbl, part)
+      | Node (LEx x', part), _, _ :: trms ->
+         let pdts = List.concat (Part.map2 part (Pdt.distribute x' (gather sv gs trms) w)) in
+         merge_pdts (@) pdts 
+      | Node (LAll x', part), _, _ :: trms ->
+         let pdts = List.concat (Part.map2 part (Pdt.distribute x' (gather sv gs trms) w)) in
+         merge_pdts (fun l l' -> List.filter l (List.mem l' ~equal:Etc.equal_valuation)) pdts 
+      | Node (lbl, part), _, _ :: trms ->
+         let pdts = Part.map2 part (fun (s, p) -> gather ((Lbl.term lbl, s)::sv) gs trms w p) in
+         merge_pdts (@) pdts in
+    let rec collect_leaf_values x = function
+      | Pdt.Leaf None  -> Set.empty (module Dom)
+      | Leaf (Some vs) -> Set.of_list (module Dom) (List.map ~f:(fun v -> Map.find_exn v x) vs)
+      | Node (_, part) -> Set.union_list (module Dom)
+                            (List.map part ~f:(fun (_, pdt) -> collect_leaf_values x pdt)) in
+    let rec insert lbls (v: Etc.valuation) (pdt: Etc.valuation list option Pdt.t) =
+      (*print_endline ("--insert_aggregations");
+      print_endline ("insert_aggregations.lbls=" ^ String.concat ~sep:", " (List.map ~f:Lbl.to_strigbng lbls));*)
+      (*let print_pdt pdt =
+        Pdt.to_string (fun vs_opt ->
+            match vs_opt with
+            | None -> ""
+            | Some vs -> Etc.list_to_string "" (fun _ -> Etc.valuation_to_string) vs) "" pdt in
+      print_endline ("insert_aggregations.pdt =" ^ print_pdt pdt);*)
+(*      print_endline ("insert_aggregations.s   =" ^ Etc.list_to_string "" (fun _ x -> x) s);*)
+      let r = "~aggregate" and trms = List.map ~f:Term.var s in
+      match pdt, lbls with
+      | _, (Lbl.LVar x') :: lbls when List.mem s x' ~equal:String.equal ->
+         (*print_endline "case 1";*)
+         let ds = collect_leaf_values x' pdt in
+         (if Set.is_empty ds then
+            Pdt.Leaf (P.V (Proof.make_vpred tp r trms))
+          else
+            let v d = Map.update v x' (fun _ -> d) in
+            let parts = Part.tabulate_dedup (Pdt.eq Proof.equal) ds
+                          (fun d -> insert lbls (v d) pdt)
+                          (Leaf (V (Proof.make_vpred tp r trms))) in
+            Pdt.Node (Lbl.LVar x', parts)
+            (*print_endline ("p=" ^ Pdt.to_string (P.to_string "") "" p);         
+            p*))
+      | Node (lbl', part), lbl :: lbls when Lbl.equal lbl lbl' ->
+         (*print_endline "case 2";*)
+         (*let p = *)Pdt.Node (lbl', Part.map part (insert lbls v))(* in*)
+         (*print_endline ("p=" ^ Pdt.to_string (P.to_string "") "" p);
+         p*)
+      | Node _, _ :: lbls ->
+         (*print_endline "case 3";*)
+         insert lbls v pdt
+      | Leaf (Some vs), _ ->
+         if List.exists vs ~f:(fun v' ->
+                Map.for_alli v ~f:(fun ~key ~data -> Dom.equal (Map.find_exn v' key) data))
+         then Pdt.Leaf (S (Proof.make_spred tp r trms))
+         else Pdt.Leaf (V (Proof.make_vpred tp r trms))
+      | Leaf None, _ ->
+         Pdt.Leaf (V (Proof.make_vpred tp r trms))
+    in
+    let apply_op (vs: Etc.valuation list) : Etc.valuation list option =
+      if List.is_empty vs && List.length y > 0
+      then None
+      else (
+        let dss = List.map ~f:(fun v -> List.map ~f:(fun x -> Term.unconst (Sig.eval v x)) x) vs in
+        
+        let vs = List.map ~f:(fun v -> Map.of_alist_exn (module String) (List.zip_exn s v)) (op dss) in
+        Some vs) in
+    insert lbls Etc.empty_valuation
+      (Pdt.apply1 lbls' apply_op (gather [] y lbls' Etc.empty_valuation p))
+
+  let aggregate (agg: (Dom.t, Dom.comparator_witness) Multiset.t -> Dom.t) s tp x_trm y lbls lbls' p =
+    let multiset dss = Multiset.of_list (module Dom) (List.map ~f:List.hd_exn dss) in
+    table_operator (fun dss -> [[agg (multiset dss)]]) [s] tp [x_trm] y lbls lbls' p
+
 
 end

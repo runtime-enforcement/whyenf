@@ -1,0 +1,61 @@
+The formula
+ □[0s,∞) ∀c. ∃l. (([c, l] <- dbscan([c, x, y]; ; ⧫[0s,∞) Point(c, x, y))) ∧ {eq(l, usub(1))} = 1) → ¬∃x. ∃y. Point(c, x, y)
+is enforceable and types to
+ □[0s,∞) (∀c. (∃l. (([c, l] <- dbscan([c.1, x, y]; ; ⧫[0s,∞) Point(c.1, x, y)))∧{eq(l, usub(1))} = 1) →:R (¬(∃x.1. (∃y.1. (Point(c, x.1, y.1) : Sup) : Sup) : Sup) : Cau) : Cau) : Cau) : Cau
+[Enforcer] @0 OK.
+[Enforcer] @0 nothing to do proactively.
+[Enforcer] @1 reactively commands:
+Suppress:
+Point(5, 90., 1.)
+OK.
+[Enforcer] @1 nothing to do proactively.
+[Enforcer] @2 OK.
+[Enforcer] @2 nothing to do proactively.
+[Enforcer] @3 reactively commands:
+Suppress:
+Point(10, 89., 12.)
+OK.
+[Enforcer] @3 nothing to do proactively.
+[Enforcer] @4 OK.
+[Enforcer] @4 nothing to do proactively.
+[Enforcer] @5 OK.
+[Enforcer] @5 nothing to do proactively.
+[Enforcer] @6 reactively commands:
+Suppress:
+Point(15, 90., 1.)
+OK.
+[Enforcer] @6 nothing to do proactively.
+[Enforcer] @7 OK.
+[Enforcer] @7 nothing to do proactively.
+[Enforcer] @8 OK.
+[Enforcer] @8 nothing to do proactively.
+[Enforcer] @9 reactively commands:
+Suppress:
+Point(20, 89., 12.)
+OK.
+[Enforcer] @9 nothing to do proactively.
+[Enforcer] @10 OK.
+[Enforcer] @10 nothing to do proactively.
+[Enforcer] @11 OK.
+[Enforcer] @11 nothing to do proactively.
+[Enforcer] @12 OK.
+[Enforcer] @12 nothing to do proactively.
+[Enforcer] @13 OK.
+[Enforcer] @13 nothing to do proactively.
+[Enforcer] @14 reactively commands:
+Suppress:
+Point(25, 90., 1.)
+OK.
+[Enforcer] @14 nothing to do proactively.
+[Enforcer] @15 OK.
+[Enforcer] @15 nothing to do proactively.
+[Enforcer] @16 OK.
+[Enforcer] @16 nothing to do proactively.
+[Enforcer] @17 OK.
+[Enforcer] @17 nothing to do proactively.
+[Enforcer] @18 OK.
+[Enforcer] @18 nothing to do proactively.
+[Enforcer] @19 reactively commands:
+Suppress:
+Point(30, 89., 12.)
+OK.

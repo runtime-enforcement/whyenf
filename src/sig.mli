@@ -27,6 +27,7 @@ val add_letpred: string -> (string * Ctxt.ttt) list -> unit
 val add_pred: string -> (string * Dom.tt) list -> Enftype.t -> int -> pred_kind -> unit
 
 val add_func: string -> (string * Dom.tt) list -> Dom.tt -> Funcs.kind -> bool -> unit
+val add_tfunc: string -> (string * Dom.tt) list -> Dom.tt list -> unit
 
 val update_enftype: string -> Enftype.t -> unit
 
@@ -35,6 +36,11 @@ val arg_ttts_of_pred: string -> Ctxt.ttt list
 val enftype_of_pred: string -> Enftype.t
 val rank_of_pred: string -> int
 val kind_of_pred: string -> pred_kind
+
+val arg_ttts_of_func: string -> Ctxt.ttt list
+val ret_ttts_of_func: string -> Ctxt.ttt list
+
+val tfunc: string -> Dom.t list list -> Dom.t list list
 
 val print_table: unit -> unit
 

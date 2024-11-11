@@ -19,7 +19,7 @@ class Test:
                  func : Optional[Path] = None, success : bool = True):
         self.label   = label
         self.sig     = sig
-        self.formula = formula
+        self.formula = formula    
         self.log     = log
         self.output  = output
         self.func    = func

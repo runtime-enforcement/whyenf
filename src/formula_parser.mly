@@ -16,7 +16,7 @@ let debug m = if !debug then Stdio.print_endline ("[debug] formula_parser: " ^ m
 
 %}
 
-%token LPA RPA
+%token LPA RPA LBR RBR
 %token COMMA SEMICOLON DOT COL GETS LET IN
 %token OBS SUP NSUP SSUP CAU NCAU SCAU CAUSUP
 %token EOF
@@ -67,12 +67,14 @@ e:
 | LPA e RPA                                 { debug "( e )"; $2 }
 | const                                     { debug "const"; SConst $1 }
 | STR LPA terms RPA                         { debug "STR LPA terms RPA"; SApp ($1, $3) }
-| STR                                       { debug "STR"; SVar $1 }
+| STR                                       { debug "STR "; SVar $1 }
 | LET pletp EQ e IN e %prec IN              { debug "LET"; SLet (fst $2, None, snd $2, $4, $6) }
 | LET pletp COL enftype EQ e IN e %prec IN  { debug "LET"; SLet (fst $2, Some $4, snd $2, $6, $8) }
 | STR GETS aop LPA e SEMICOLON vars_or_empty SEMICOLON e RPA
                                             { debug "AGG"; SAgg ($1, $3, $5, $7, $9) }
 | e SEMICOLON STR GETS e %prec SEMICOLON    { debug "AGG"; SAssign ($1, $3, $5) }
+| LBR vars RBR GETS STR LPA LBR terms RBR SEMICOLON vars_or_empty SEMICOLON e RPA
+                                            { debug "TOP"; STop ($2, $5, $8, $11, $13) }
 | uop e                                     { debug "uop e"; SUop ($1, $2) }
 | e AND side e %prec AND                    { debug "e AND side e"; SBop (Some $3, $1, Bop.BAnd, $4) }
 | e OR side e %prec OR                      { debug "e OR side e"; SBop (Some $3, $1, Bop.BOr, $4) }
@@ -169,6 +171,7 @@ vars_or_empty:
 | CNT                                       { debug "CNT"; Aop.ACnt }
 | MIN                                       { debug "MIN"; Aop.AMin }
 | MAX                                       { debug "MAX"; Aop.AMax }
+| STD                                       { debug "STD"; Aop.AStd }
 
 %inline enftype:
 | OBS                                       { debug "OBS"; Enftype.Obs }

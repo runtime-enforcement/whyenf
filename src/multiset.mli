@@ -23,3 +23,5 @@ val append: ('a, 'b) t -> 'a -> ('a, 'b) t
 val add: ('a, 'b) Comparator.Module.t ->  ('a, 'b) t -> ('a, 'b) t -> ('a, 'b) t
 val union: ('a, 'b) Comparator.Module.t ->  ('a, 'b) t -> ('a, 'b) t -> ('a, 'b) t
 val inter: ('a, 'b) Comparator.Module.t ->  ('a, 'b) t -> ('a, 'b) t -> ('a, 'b) t
+
+val of_list: ('a, 'b) Comparator.Module.t -> 'a list -> ('a, 'b) t

@@ -1,0 +1,1 @@
+ALWAYS (FORALL c. ((EXISTS l. [c, l] <- dbscan([c, x, y]; ; ONCE Point(c, x, y)) AND l = (-1)) IMPLIES NOT (EXISTS x, y. Point(c, x, y))))
