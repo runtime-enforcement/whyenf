@@ -42,7 +42,7 @@ and t = {
     filter:  Filter.filter;
   } [@@deriving compare, hash, sexp_of]
 
-let rec core_of_formula f (types: Ctxt.t) =
+let rec core_of_formula f let_types (types: Ctxt.t) =
   let f_q ?(true_ok=true) f x =
     if Formula.is_past_guarded x true f then
       true
@@ -64,100 +64,102 @@ let rec core_of_formula f (types: Ctxt.t) =
     else
       true in
   match f with
-  | TT -> types, TTT
-  | FF -> types, TFF
+  | TT -> types, TTT, Enftype.obs
+  | FF -> types, TFF, Enftype.obs
   | EqConst (trm, c) ->
      let types, _ = Sig.check_term types (Ctxt.TConst (Dom.tt_of_domain c)) trm in
-     types, TEqConst (trm, c)
+     types, TEqConst (trm, c), Enftype.obs
   | Predicate (e, trms) when not (Sig.equal_pred_kind (Sig.kind_of_pred e) Sig.Predicate) ->
      let types, _ = Sig.check_terms types e trms in
-     types, TPredicate (e, trms)
+     let enftype  = Sig.enftype_of_pred e in
+     types, TPredicate (e, trms), Enftype.join enftype Enftype.obs
   | Predicate (e, trms) ->
      let types, _ = Sig.check_terms types e trms in
-     types, TEqConst (Term.App (e, trms), Dom.Int 1)
+     let enftype  = Sig.enftype_of_pred e in
+     types, TEqConst (Term.App (e, trms), Dom.Int 1), Enftype.join enftype Enftype.obs
   | Predicate' (e, trms, f) ->
-     let types, mf = of_formula f types in
-     types, TPredicate' (e, trms, mf)
+     let types, mf = of_formula f ~let_types types in
+     types, TPredicate' (e, trms, mf), Map.find_exn let_types e
   | Let' (r, trms, f, g) ->
-     let _, mf = of_formula f types in
-     let types, mg = of_formula g types in
-     types, TLet' (r, trms, mf, mg)
+     let _, mf = of_formula f ~let_types types in
+     let types, mg = of_formula g ~let_types types in
+     types, TLet' (r, trms, mf, mg), Enftype.join mf.enftype mg.enftype
   | Agg (s, op, x, y, f) ->
-     let types, mf = of_formula f types in
+     let types, mf = of_formula f ~let_types types in
      let types, s_tt = Formula.check_agg types s op x y f in
      let vars_to_monitor =
        Term.fv_list [x]
        @ (List.filter (Set.elements (Formula.fv f))
             ~f:(fun x -> List.mem y x ~equal:String.equal)) in
      ignore (List.map vars_to_monitor ~f:(f_q ~true_ok:false f));
-     types, TAgg (s, s_tt, op, x, y, mf)
+     types, TAgg (s, s_tt, op, x, y, mf), mf.enftype
   | Top (s, op, x, y, f) ->
-     let types, mf = of_formula f types in
+     let types, mf = of_formula f ~let_types types in
      let types, s_ttts = Formula.check_top types s op x y f in
      let vars_to_monitor =
        Term.fv_list x
        @ (List.filter (Set.elements (Formula.fv f))
             ~f:(fun x -> List.mem y x ~equal:String.equal)) in
      ignore (List.map vars_to_monitor ~f:(f_q ~true_ok:false f));
-     types, TTop (List.zip_exn s s_ttts, op, x, y, mf)
+     types, TTop (List.zip_exn s s_ttts, op, x, y, mf), mf.enftype
   | Neg f ->
-     let types, mf = of_formula f types in
-     types, TNeg mf
+     let types, mf = of_formula f ~let_types types in
+     types, TNeg mf, mf.enftype
   | And (s, f, g) ->
-     let types, mf = of_formula f types in
-     let types, mg = of_formula g types in
-     types, TAnd (s, [mf; mg])
+     let types, mf = of_formula f ~let_types types in
+     let types, mg = of_formula g ~let_types types in
+     types, TAnd (s, [mf; mg]), Enftype.join mf.enftype mg.enftype
   | Or (s, f, g) ->
-     let types, mf = of_formula f types in
-     let types, mg = of_formula g types in
-     types, TOr (s, [mf; mg])
+     let types, mf = of_formula f ~let_types types in
+     let types, mg = of_formula g ~let_types types in
+     types, TOr (s, [mf; mg]), Enftype.join mf.enftype mg.enftype
   | Imp (s, f, g) ->
-     let types, mf = of_formula f types in
-     let types, mg = of_formula g types in
-     types, TImp (s, mf, mg)
+     let types, mf = of_formula f ~let_types types in
+     let types, mg = of_formula g ~let_types types in
+     types, TImp (s, mf, mg), Enftype.join mf.enftype mg.enftype
   | Iff (s, t, f, g) ->
-     let types, mf = of_formula f types in
-     let types, mg = of_formula g types in
-     types, TIff (s, t, mf, mg)
+     let types, mf = of_formula f ~let_types types in
+     let types, mg = of_formula g ~let_types types in
+     types, TIff (s, t, mf, mg), Enftype.join mf.enftype mg.enftype
   | Exists (x, f) ->
-     let types, mf = of_formula f types in
+     let types, mf = of_formula f ~let_types types in
      (*print_endline "--core_of_formula.Exists";
      print_endline (Formula.to_string f);*)
      (*Map.iteri types ~f:(fun ~key ~data -> print_endline (key ^ " -> " ^ Dom.tt_to_string data));*)
-     types, TExists (x, Ctxt.get_tt_exn x types, f_q_nonvar f x, mf)
+     types, TExists (x, Ctxt.get_tt_exn x types, f_q_nonvar f x, mf), mf.enftype
   | Forall (x, f) ->
-     let types, mf = of_formula f types in
-     types, TForall (x, Ctxt.get_tt_exn x types, f_q_nonvar f x, mf)
+     let types, mf = of_formula f ~let_types types in
+     types, TForall (x, Ctxt.get_tt_exn x types, f_q_nonvar f x, mf), mf.enftype
   | Prev (i, f) ->
-     let types, mf = of_formula f types in
-     types, TPrev (i, mf)
+     let types, mf = of_formula f ~let_types types in
+     types, TPrev (i, mf), mf.enftype
   | Next (i, f) ->
-     let types, mf = of_formula f types in
-     types, TNext (i, mf)
+     let types, mf = of_formula f ~let_types types in
+     types, TNext (i, mf), mf.enftype
   | Once (i, f) ->
-     let types, mf = of_formula f types in
-     types, TOnce (i, mf)
+     let types, mf = of_formula f ~let_types types in
+     types, TOnce (i, mf), mf.enftype
   | Eventually (i, f) ->
-     let types, mf = of_formula f types in
-     types, TEventually (i, true, mf)
+     let types, mf = of_formula f ~let_types types in
+     types, TEventually (i, true, mf), mf.enftype
   | Historically (i, f) ->
-     let types, mf = of_formula f types in
-     types, THistorically (i, mf)
+     let types, mf = of_formula f ~let_types types in
+     types, THistorically (i, mf), mf.enftype
   | Always (i, f) ->
-     let types, mf = of_formula f types in
-     types, TAlways (i, true, mf)
+     let types, mf = of_formula f ~let_types types in
+     types, TAlways (i, true, mf), mf.enftype
   | Since (s, i, f, g) ->
-     let types, mf = of_formula f types in
-     let types, mg = of_formula g types in
-     types, TSince (s, i, mf, mg)
+     let types, mf = of_formula f ~let_types types in
+     let types, mg = of_formula g ~let_types types in
+     types, TSince (s, i, mf, mg), Enftype.join mf.enftype mg.enftype
   | Until (s, i, f, g) ->
-     let types, mf = of_formula f types in
-     let types, mg = of_formula g types in
-     types, TUntil (s, i, true, mf, mg)
+     let types, mf = of_formula f ~let_types types in
+     let types, mg = of_formula g ~let_types types in
+     types, TUntil (s, i, true, mf, mg), Enftype.join mf.enftype mg.enftype
 
-and of_formula f (types: Ctxt.t) =
-  let types, f = core_of_formula f types in
-  types, { f; enftype = Enftype.Obs; filter = Filter._true }
+and of_formula f ?(let_types=Map.empty (module String)) (types: Ctxt.t) =
+  let types, f, enftype = core_of_formula f let_types types in
+  types, { f; enftype; filter = Filter._true }
 
 let of_formula' f =
   snd (of_formula f Ctxt.empty)
@@ -261,8 +263,8 @@ let rec to_formula f = match f.f with
   | TSince (s, i, f, g) -> Since (fix_side s f.f g.f, i, to_formula f, to_formula g)
   | TUntil (s, i, _, f, g) -> Until (s, i, to_formula f, to_formula g)
 
-let ttrue  = { f = TTT; enftype = Cau; filter = Filter._true }
-let tfalse = { f = TFF; enftype = Sup; filter = Filter._true }
+let ttrue  = { f = TTT; enftype = Enftype.cau; filter = Filter._true }
+let tfalse = { f = TFF; enftype = Enftype.sup; filter = Filter._true }
 
 let neg f enftype = { f = TNeg f; enftype; filter = Filter._true }
 let conj side f g enftype = { f = TAnd (side, [f; g]); enftype; filter = Filter._true }
@@ -327,7 +329,7 @@ let rec to_string_core_rec l = function
   | TUntil (s, i, _, f, g) -> Printf.sprintf (Etc.paren l 0 "%a U%a%a %a") (fun x -> to_string_rec 0) f
                              (fun x -> Interval.to_string) i (fun x -> Side.to_string) s (fun x -> to_string_rec 0) g
 and to_string_rec l form =
-  if form.enftype == Enftype.Obs then
+  if Enftype.is_only_observable form.enftype then
     Printf.sprintf "%a" (fun x -> to_string_core_rec 5) form.f
   else
     Printf.sprintf (Etc.paren l 0 "%a : %s") (fun x -> to_string_core_rec 5) form.f (Enftype.to_string form.enftype)

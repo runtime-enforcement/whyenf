@@ -6,12 +6,12 @@ is not enforceable. To make it enforceable, you would need to
    * make A NCau (currently, it has type Obs)
    * make (LET G1(x) = A(x) IN □[0s,∞) ∀x.1. (G1(x.1) ∧ ¬G1(x.1))) Cau, but this is impossible (for causability x.1 must be past-guarded)
  * at the same time
-   * make A NSup (currently, it has type Obs)
+   * make A(x) Sup, Cau, NonSct, but this is impossible (A(x) is never CauSup)
    * make (LET G1(x) = A(x) IN □[0s,∞) ∀x.1. (G1(x.1) ∧ ¬G1(x.1))) Cau, but this is impossible (for causability x.1 must be past-guarded)
  * at the same time
    * make A SCau (currently, it has type Obs)
    * make (LET G1(x) = A(x) IN □[0s,∞) ∀x.1. (G1(x.1) ∧ ¬G1(x.1))) Cau, but this is impossible (for causability x.1 must be past-guarded)
  * at the same time
-   * make A SSup (currently, it has type Obs)
+   * make A(x) Sup, Cau, Sct, but this is impossible (A(x) is never CauSup)
    * make (LET G1(x) = A(x) IN □[0s,∞) ∀x.1. (G1(x.1) ∧ ¬G1(x.1))) Cau, but this is impossible (for causability x.1 must be past-guarded)
  * make (LET G1(x) = A(x) IN □[0s,∞) ∀x.1. (G1(x.1) ∧ ¬G1(x.1))) Cau, but this is impossible (for causability x.1 must be past-guarded)

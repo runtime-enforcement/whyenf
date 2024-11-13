@@ -133,7 +133,8 @@ module Sig = struct
       | EOF, EOF
       | FUN, FUN
       | COL, COL
-      | QU, QU -> true
+      | QST, QST
+      | EXC, EXC -> true
     | STR s1, STR s2 -> String.equal s1 s2
     | _ -> false
 
@@ -193,19 +194,27 @@ module Sig = struct
 
   let parse_enftype (pb: Parsebuf.t) =
     match pb.token with
-    | PLS -> begin Parsebuf.next pb;
+    | ADD -> begin Parsebuf.next pb;
                    match pb.token with
-                   | MNS -> Parsebuf.next pb;
-                            Enftype.CauSup
-                   | _   -> Enftype.Cau
+                   | SUB -> Parsebuf.next pb;
+                            Enftype.causup
+                   | QST -> Parsebuf.next pb;
+                            Enftype.caubot
+                   | _   -> Enftype.cau
              end
-    | MNS -> begin Parsebuf.next pb;
-        match pb.token with
-        | PLS -> Parsebuf.next pb;
-                 Enftype.CauSup
-        | _   -> Enftype.Sup
+    | SUB -> begin Parsebuf.next pb;
+                   match pb.token with
+                   | ADD -> Parsebuf.next pb;
+                            Enftype.causup
+                   | _   -> Enftype.sup
              end
-    | _ -> Enftype.Obs
+    | QST -> begin Parsebuf.next pb;
+                   match pb.token with
+                   | ADD -> Parsebuf.next pb;
+                            Enftype.caubot
+                   | _   -> Enftype.bot
+             end
+    | _ -> Enftype.obs
 
   let rec parse_pred_sigs (pb: Parsebuf.t) rank_ref =
     match pb.token with
@@ -236,7 +245,7 @@ module Sig = struct
         match pb.token with
          | STR s -> Parsebuf.next pb;
                     let arg_tts = convert_types (parse_arg_tts pb) in
-                    Sig.add_pred s arg_tts Enftype.Obs 0
+                    Sig.add_pred s arg_tts Enftype.obs 0
                       (match tok with PRD -> Predicate | EXT -> External);
                     parse_pred_sigs pb rank_ref
          | t -> raise (Failure ("unexpected character: " ^ string_of_token t))
@@ -245,9 +254,7 @@ module Sig = struct
         Parsebuf.next pb;
         let arg_tts = convert_types (parse_arg_tts pb) in
         let enftype  = parse_enftype pb in
-        let rank = match enftype with
-          | Enftype.Obs -> 0
-          | _ -> rank_ref in
+        let rank = if Enftype.is_observable enftype then 0 else rank_ref in
         let next_rank_ref = if Int.equal rank 0 then
                               rank_ref + 1
                             else
@@ -315,7 +322,7 @@ module Trace = struct
       | AT -> Some (true, pb)
       | EOF -> Some (false, pb)
       | SEP -> Some (true, pb)
-      | QU -> pb.check <- true; Some (true, pb)
+      | QST -> pb.check <- true; Some (true, pb)
       | t -> raise (Failure ("expected a predicate or '@' but found " ^ string_of_token t))
     and parse_tuple () =
       match pb.token with

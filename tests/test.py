@@ -14,7 +14,7 @@ EXAMPLE = Path("./examples/tests")
 class Test:
 
     command : List[str]
-
+    
     def __init__(self, label : str, sig : Path, formula : Path, log : Path, output : str, 
                  func : Optional[Path] = None, success : bool = True):
         self.label   = label

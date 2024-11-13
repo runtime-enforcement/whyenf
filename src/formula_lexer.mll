@@ -52,6 +52,8 @@ rule token = parse
   | "**"                                          { debug "POW"; POW }
   | '/'                                           { debug "DIV"; DIV }
   | '^'                                           { debug "CONC"; CONC }
+  | '?'                                           { debug "QST"; QST }
+  | '!'                                           { debug "EXC"; EXC }
   | "LET"                                         { debug "LET"; LET }
   | "IN"                                          { debug "IN"; IN }
   | "FALSE" | "⊥"                                 { debug "FALSE"; FALSE }
@@ -87,14 +89,6 @@ rule token = parse
   | "MIN"                                         { debug "MIN"; MIN }
   | "MAX"                                         { debug "MAX"; MAX }
   | "STD"                                         { debug "STD"; STD }
-  | "OBS"                                         { debug "OBS"; OBS }
-  | "SUP"                                         { debug "SUP"; SUP }
-  | "NSUP"                                        { debug "NSUP"; NSUP }
-  | "SSUP"                                        { debug "SSUP"; SSUP }
-  | "CAU"                                         { debug "CAU"; CAU }
-  | "NCAU"                                        { debug "NCAU"; NCAU }
-  | "SCAU"                                        { debug "SCAU"; SCAU }
-  | "CAUSUP"                                      { debug "CAUSUP"; CAUSUP }
   | (['(' '['] as l) blank* (digits as i) blank* (string? as u) blank* ',' blank* ((digits | "INFINITY" | "∞" | "*") as j) blank* (string? as v) blank* ([')' ']'] as r)
                                                   { debug "INTERVAL"; INTERVAL (make_interval lexbuf l i u j v r) }
   | "("                                           { debug "LPA"; LPA }

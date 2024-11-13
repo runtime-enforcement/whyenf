@@ -36,6 +36,7 @@ val arg_ttts_of_pred: string -> Ctxt.ttt list
 val enftype_of_pred: string -> Enftype.t
 val rank_of_pred: string -> int
 val kind_of_pred: string -> pred_kind
+val mem: string -> bool
 
 val arg_ttts_of_func: string -> Ctxt.ttt list
 val ret_ttts_of_func: string -> Ctxt.ttt list

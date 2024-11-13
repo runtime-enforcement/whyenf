@@ -17,8 +17,7 @@ let debug m = if !debug then Stdio.print_endline ("[debug] formula_parser: " ^ m
 %}
 
 %token LPA RPA LBR RBR
-%token COMMA SEMICOLON DOT COL GETS LET IN
-%token OBS SUP NSUP SSUP CAU NCAU SCAU CAUSUP
+%token COMMA SEMICOLON DOT COL GETS LET IN QST EXC
 %token EOF
 
 %token <Interval.t> INTERVAL
@@ -69,7 +68,7 @@ e:
 | STR LPA terms RPA                         { debug "STR LPA terms RPA"; SApp ($1, $3) }
 | STR                                       { debug "STR "; SVar $1 }
 | LET pletp EQ e IN e %prec IN              { debug "LET"; SLet (fst $2, None, snd $2, $4, $6) }
-| LET pletp COL enftype EQ e IN e %prec IN  { debug "LET"; SLet (fst $2, Some $4, snd $2, $6, $8) }
+| LET pletp enftype EQ e IN e %prec IN      { debug "LET"; SLet (fst $2, Some $3, snd $2, $5, $7) }
 | STR GETS aop LPA e SEMICOLON vars_or_empty SEMICOLON e RPA
                                             { debug "AGG"; SAgg ($1, $3, $5, $7, $9) }
 | e SEMICOLON STR GETS e %prec SEMICOLON    { debug "AGG"; SAssign ($1, $3, $5) }
@@ -174,11 +173,12 @@ vars_or_empty:
 | STD                                       { debug "STD"; Aop.AStd }
 
 %inline enftype:
-| OBS                                       { debug "OBS"; Enftype.Obs }
-| SUP                                       { debug "SUP"; Enftype.Sup }
-| NSUP                                      { debug "NSUP"; Enftype.NSup }
-| SSUP                                      { debug "SSUP"; Enftype.SSup }
-| CAU                                       { debug "CAU"; Enftype.Cau }
-| NCAU                                      { debug "NCAU"; Enftype.NCau }
-| SCAU                                      { debug "SCAU"; Enftype.SCau }
-| CAUSUP                                    { debug "CAUSUP"; Enftype.CauSup }
+| QST                                       { debug "QST";    Enftype.bot    }
+| EXC                                       { debug "EXC";    Enftype.obs    }
+| SUB                                       { debug "SUB";    Enftype.sup    }
+| ADD                                       { debug "ADD";    Enftype.cau    }
+| ADD SUB                                   { debug "ADD SUB"; Enftype.causup }
+| SUB ADD                                   { debug "SUB ADD"; Enftype.causup }
+| ADD QST                                   { debug "ADD QST"; Enftype.caubot }
+| QST ADD                                   { debug "QST ADD"; Enftype.caubot }
+
