@@ -334,7 +334,9 @@ let solve_past_guarded x p f =
       | Predicate (r, trms), _ when List.existsi ~f:(matches ts x r) trms ->
          let f i t = if matches ts x r i t then Some (Map.find_exn ts (eib r i p)) else None in
          List.concat (List.filter_mapi trms ~f)
-      | Predicate (r, trms), true when List.exists ~f:(Term.equal (Term.Var x)) trms ->
+      | Predicate (r, trms), true when List.exists ~f:(Term.equal (Term.Var x)) trms
+                                       && Sig.mem r
+                                       && Enftype.is_observable (Sig.enftype_of_pred r) ->
          [Set.singleton (module String) r]
       | Let (e, _, vars, f, g), _ ->
          let f i ts z =
@@ -594,7 +596,10 @@ module Filter = struct
       match f with
       | TT -> if b then _true else _false
       | FF -> if b then _false else _true
-      | Predicate (e, _) when b -> (match Sig.kind_of_pred e with Trace -> An e | _ -> _true)
+      | Predicate (e, _) when b ->
+         (match Sig.kind_of_pred e with
+          | Trace when Enftype.is_observable (Sig.enftype_of_pred e) -> An e
+          | _ -> _true)
       | Neg f -> present_filter_ ~b:(not b) f
       | And (_, f, g) when b -> AllOf [present_filter_ ~b f; present_filter_ ~b g]
       | And (_, f, g) -> OneOf [present_filter_ ~b f; present_filter_ ~b g]

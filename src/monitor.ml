@@ -1980,7 +1980,7 @@ module Make (E: Expl.ExplT) = struct
     let _tt     = set_make MTT Formula.Filter._true
     let _ff     = set_make MFF Formula.Filter._true
 
-    let init (tf: Tformula.t) = 
+    let init (tf: Tformula.t) =
       let rec aux (tf: Tformula.t) = match tf.f with
         | Tformula.TTT -> MTT
         | TFF -> MFF
@@ -2003,19 +2003,19 @@ module Make (E: Expl.ExplT) = struct
         | TExists (x, tt, b, f) -> MExists (x, tt, b, make (aux f) f.filter)
         | TForall (x, tt, b, f) -> MForall (x, tt, b, make (aux f) f.filter)
         | TPrev (i, f) -> MPrev (i, make (aux f) f.filter, true, ([], []))
-        | TNext (i, f) when tf.enftype == Enftype.Obs -> MNext (i, make (aux f) f.filter, true, [])
+        | TNext (i, f) when Enftype.is_only_observable tf.enftype -> MNext (i, make (aux f) f.filter, true, [])
         | TNext (i, f) -> MENext (i, None, make (aux f) f.filter, Etc.empty_valuation)
         | TOnce (i, f) -> MOnce (i, make (aux f) f.filter, [], Leaf (Once.init ()))
-        | TEventually (i, _, f) when tf.enftype == Enftype.Obs ->
+        | TEventually (i, _, f) when Enftype.is_only_observable tf.enftype ->
            MEventually (i, make (aux f) f.filter, ([], []), Leaf (Eventually.init ()))
         | TEventually (i, _, f) -> MEEventually (i, None, make (aux f) f.filter, Etc.empty_valuation)
         | THistorically (i, f) -> MHistorically (i, make (aux f) f.filter, [], Leaf (Historically.init ()))
-        | TAlways (i, _, f) when tf.enftype == Enftype.Obs ->
+        | TAlways (i, _, f) when Enftype.is_only_observable tf.enftype ->
            MAlways (i, make (aux f) f.filter, ([], []), Leaf (Always.init ()))
         | TAlways (i, _, f) -> MEAlways (i, None, make (aux f) f.filter, Etc.empty_valuation)
         | TSince (s, i, f, g) ->
            MSince (s, i, make (aux f) f.filter, make (aux g) g.filter, (([], []), []), Leaf (Since.init ()))
-        | TUntil (s, i, _, f, g) when tf.enftype == Enftype.Obs ->
+        | TUntil (s, i, _, f, g) when Enftype.is_only_observable tf.enftype ->
            MUntil (i, make (aux f) f.filter, make (aux g) g.filter, (([], []), []), Leaf (Until.init ()))
         | TUntil (s, i, _, f, g) ->
            MEUntil (s, i, None, make (aux f) f.filter, make (aux g) g.filter, Etc.empty_valuation)
@@ -2629,6 +2629,7 @@ module Make (E: Expl.ExplT) = struct
     let rec meval_rec (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) memo mformula =
       (*print_endline "--meval_rec";*)
       (*print_endline ("mf=" ^ MFormula.to_string mformula);*)
+      (*print_endline ("pol=" ^ Option.value_map pol ~default:"None" ~f:FObligation.polarity_to_string);*)
       (*print_endline "";*)
       (*print_endline ("memo=" ^ Memo.to_string memo);*)
       (*print_endline ("hash=" ^ string_of_int mformula.hash);*)
@@ -2650,6 +2651,14 @@ module Make (E: Expl.ExplT) = struct
                                    [(Setc.Complement (Set.of_list (module Dom) [d]), l2);
                                     (Setc.Finite (Set.of_list (module Dom) [d]), l1)]) in
               memo, ([expl], expl, MEqConst (trm, d))
+           | MPredicate (r, trms) when not (Enftype.is_observable (Sig.enftype_of_pred r)) ->
+              (*print_endline ("not observable: " ^ r);*)
+              let expl = Pdt.Leaf (if FObligation.polarity_equal FObligation.POS
+                                        (Option.value pol ~default:FObligation.POS) then
+                                     (Proof.V (Proof.make_vff tp))
+                                   else
+                                     (Proof.S (Proof.make_stt tp))) in
+              memo, ([expl], expl, MPredicate (r, trms))
            | MPredicate (r, trms) ->
               let db' = match Sig.kind_of_pred r with
                 | Trace -> Db.filter db ~f:(fun evt -> String.equal r (fst(evt)))
@@ -2924,7 +2933,7 @@ module Make (E: Expl.ExplT) = struct
               let aexpl = else_any (approx_until mformula.lbls aexpl1 aexpl2 fobligs i (Some (mformula.hash, v))) tp pol in
               memo, ([aexpl], aexpl, MEUntil (s, i, f_ts, mf1', mf2', v))
          in let mf = { mformula with mf } in
-            (*print_endline ("add memo: " ^ " (" ^ MFormula.to_string mf ^ ", " ^ string_of_int tp ^ ", " ^ string_of_int mformula.hash ^ ") -> " ^ Expl.to_string aexpl);*)
+            (*print_endline ("add memo: " ^ " (" ^ MFormula.to_string mf ^ ", " ^ string_of_int tp ^ ", " ^ string_of_int mformula.hash ^ ") -> " ^ E.to_string aexpl);*)
             let memo = if tp = outer_tp then Memo.memoize memo mformula (expls, aexpl, mf) else memo in
             memo, (expls, aexpl, mf)
     in meval_rec ts tp db ~pol fobligs memo mformula

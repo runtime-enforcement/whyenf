@@ -360,5 +360,12 @@
         "log": "point.log",
         "output": "50_table_operator.out",
         "func": "point.py"   
+    },
+    {
+        "label": "51_nonobservable",
+        "sig": "nonobservable.sig",
+        "formula": "51_nonobservable.mfotl",
+        "log": "nonobservable.log",
+        "output": "51_nonobservable.out"
     }
 ]

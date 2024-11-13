@@ -49,13 +49,13 @@ let table: t =
   let table = Hashtbl.of_alist_exn (module String)
                 (List.map Funcs.builtins ~f:(fun (k,v) -> (k, Func v))) in
   Hashtbl.add_exn table ~key:tilde_tp_event_name
-    ~data:(Pred { arity = 0; arg_ttts = []; enftype = Cau; rank = 0; kind = Trace });
+    ~data:(Pred { arity = 0; arg_ttts = []; enftype = Enftype.cau; rank = 0; kind = Trace });
   Hashtbl.add_exn table ~key:tick_event_name
-    ~data:(Pred { arity = 0; arg_ttts = []; enftype = Obs; rank = 0; kind = Trace });
+    ~data:(Pred { arity = 0; arg_ttts = []; enftype = Enftype.obs; rank = 0; kind = Trace });
   Hashtbl.add_exn table ~key:tp_event_name
-    ~data:(Pred { arity = 1; arg_ttts = [("i", TConst TInt)]; enftype = Obs; rank = 0; kind = Builtin });
+    ~data:(Pred { arity = 1; arg_ttts = [("i", TConst TInt)]; enftype = Enftype.obs; rank = 0; kind = Builtin });
   Hashtbl.add_exn table ~key:ts_event_name
-    ~data:(Pred { arity = 1; arg_ttts = [("t", TConst TInt)]; enftype = Obs; rank = 0; kind = Builtin });
+    ~data:(Pred { arity = 1; arg_ttts = [("t", TConst TInt)]; enftype = Enftype.obs; rank = 0; kind = Builtin });
   table
 
 let pred_enftype_map () =
@@ -67,9 +67,10 @@ let pred_enftype_map () =
 
 let add_letpred p_name arg_ttts =
   Hashtbl.add_exn table ~key:p_name
-    ~data:(Pred { arity = List.length arg_ttts; arg_ttts; enftype = Obs; rank = 0; kind = Let })
+    ~data:(Pred { arity = List.length arg_ttts; arg_ttts; enftype = Enftype.obs; rank = 0; kind = Let })
 
 let add_pred p_name arg_tts enftype rank kind =
+  (*print_endline (p_name ^ " " ^ Enftype.to_string enftype);*)
   if equal_pred_kind kind Predicate then
     Hashtbl.add_exn table ~key:p_name
       ~data:(Func { arity = List.length arg_tts;
@@ -113,6 +114,8 @@ let enftype_of_pred name = (unpred (Hashtbl.find_exn table name)).enftype
 let rank_of_pred name = (unpred (Hashtbl.find_exn table name)).rank
 
 let kind_of_pred name = (unpred (Hashtbl.find_exn table name)).kind
+
+let mem name = Hashtbl.mem table name
 
 let func ff ds =
   let the_func = unfunc (Hashtbl.find_exn table ff) in
