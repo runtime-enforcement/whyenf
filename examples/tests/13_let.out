@@ -1,7 +1,7 @@
 The formula
  (LET B1(x) = B(x) ∧ B(add(x, 1)) IN LET B2(x) = B1(x) ∧ B1(add(x, 2)) IN LET B4(x) = B2(x) ∧ B2(add(x, 4)) IN LET B8(x) = B4(x) ∧ B4(add(x, 8)) IN □[0s,∞) ∀x. A(x) → B8(x))
 is enforceable and types to
- (LET B1(x) = ((B(x) : Cau)∧:L(B(add(x, 1)) : Cau)) : Cau IN (LET B2(x.1) = ((B1٭(x.1) : Cau)∧:L(B1٭(add(x.1, 2)) : Cau)) : Cau IN (LET B4(x.2) = ((B2٭(x.2) : Cau)∧:L(B2٭(add(x.2, 4)) : Cau)) : Cau IN (LET B8(x.3) = ((B4٭(x.3) : Cau)∧:L(B4٭(add(x.3, 8)) : Cau)) : Cau IN □[0s,∞) (∀x.4. (A(x.4) →:R (B8٭(x.4) : Cau) : Cau) : Cau) : Cau) : Cau) : Cau) : Cau) : Cau
+ (LET B1(x) = (B(x)∧B(add(x, 1))) IN (LET B2(x.1) = (B1٭(x.1)∧B1٭(add(x.1, 2))) IN (LET B4(x.2) = (B2٭(x.2)∧B2٭(add(x.2, 4))) IN (LET B8(x.3) = (B4٭(x.3)∧B4٭(add(x.3, 8))) IN □[0s,∞) (∀x.4. (A(x.4) →:R (B8٭(x.4) : Cau) : Cau) : Cau) : Cau) : Cau) : Cau) : Cau) : Cau
 [Enforcer] @1 reactively commands:
 Cause:
 B(1), B(2), B(3), B(4), B(5), B(6), B(7), B(8), B(9), B(10), B(11), B(12), B(13), B(14), B(15), B(16)

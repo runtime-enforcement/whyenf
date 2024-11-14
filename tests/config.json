@@ -367,5 +367,13 @@
         "formula": "51_nonobservable.mfotl",
         "log": "nonobservable.log",
         "output": "51_nonobservable.out"
+    },
+    {
+        "label": "52_grubbs",
+        "sig": "grubbs.sig",
+        "formula": "52_grubbs.mfotl",
+        "log": "grubbs.log",
+        "output": "52_grubbs.out",
+        "func": "grubbs.py"
     }
 ]

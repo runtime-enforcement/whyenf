@@ -206,3 +206,5 @@ let rec inter_list m = function
   | []   -> Set.empty m
   | [h]  -> h
   | h::t -> Set.inter h (inter_list m t)
+
+type string_set_list = (string, Base.String.comparator_witness) Base.Set.t list

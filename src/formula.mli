@@ -73,8 +73,9 @@ val equal: t -> t -> bool
 val op_to_string: t -> string
 val to_string: t -> string
 
-val solve_past_guarded: string -> bool -> t -> (string, Base.String.comparator_witness) Base.Set.t list
-val is_past_guarded: string -> bool -> t -> bool
+val solve_past_guarded: (string, Etc.string_set_list, Base.String.comparator_witness) Base.Map.t -> string -> bool -> t -> Etc.string_set_list
+val solve_past_guarded_multiple: (string, Etc.string_set_list, Base.String.comparator_witness) Base.Map.t -> string list -> string -> t -> (string, Etc.string_set_list, Base.String.comparator_witness) Base.Map.t
+val is_past_guarded: ?ts:(string, Etc.string_set_list, Base.String.comparator_witness) Base.Map.t -> string -> bool -> t -> bool
 
 val check_agg: Ctxt.t -> string -> Aggregation.op -> Term.t -> string list -> t -> Ctxt.t * Dom.tt
 val check_top: Ctxt.t -> string list -> string -> Term.t list -> string list -> t -> Ctxt.t * Dom.tt list

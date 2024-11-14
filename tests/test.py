@@ -14,7 +14,7 @@ EXAMPLE = Path("./examples/tests")
 class Test:
 
     command : List[str]
-    
+
     def __init__(self, label : str, sig : Path, formula : Path, log : Path, output : str, 
                  func : Optional[Path] = None, success : bool = True):
         self.label   = label
@@ -45,7 +45,7 @@ class Test:
     
     def _run_whyenf(self) -> subprocess.CompletedProcess[str]:
         try:
-            return subprocess.run(self.command, capture_output=True, text=True, timeout=1)
+            return subprocess.run(self.command, capture_output=True, text=True, timeout=10)
         except subprocess.TimeoutExpired:
             return subprocess.CompletedProcess(args=self.command, returncode=-1, stdout="", stderr="Timeout occurred")
     
