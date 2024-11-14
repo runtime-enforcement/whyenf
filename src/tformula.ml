@@ -79,7 +79,7 @@ let rec core_of_formula f let_types (types: Ctxt.t) =
      types, TEqConst (Term.App (e, trms), Dom.Int 1), Enftype.join enftype Enftype.obs
   | Predicate' (e, trms, f) ->
      let types, mf = of_formula f ~let_types types in
-     types, TPredicate' (e, trms, mf), Map.find_exn let_types e
+     types, TPredicate' (e, trms, mf), mf.enftype
   | Let' (r, trms, f, g) ->
      let _, mf = of_formula f ~let_types types in
      let types, mg = of_formula g ~let_types types in

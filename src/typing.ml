@@ -208,9 +208,8 @@ open Enftype
 open Constraints
 open Option
 
-type pg_map = (string, (string, String.comparator_witness) Set.t list, String.comparator_witness) Map.t
+type pg_map = (string, Etc.string_set_list, String.comparator_witness) Map.t
 type t_map  = (string, Enftype.t * int list, String.comparator_witness) Map.t
-
 
 let types_predicate (ts: t_map) (t: Enftype.t) (e: string) =
   let t', _ = Map.find_exn ts e in
@@ -273,15 +272,16 @@ let rec types (t: Enftype.t) (pgs: pg_map) (f: Formula.t) =
            let f_unguarded i x = if not (Formula.is_past_guarded x false f) then Some (x, i) else None in
            let unguarded_x, unguarded_i = List.unzip (List.filter_mapi vars ~f:f_unguarded) in
            let pgs' = List.fold_left unguarded_x ~init:pgs ~f:(Map.update ~f:(fun _ -> [Set.empty (module String)])) in
+           let pgs'' = Formula.solve_past_guarded_multiple pgs vars e f in
            (match enftype_opt with
             | Some enftype ->
-               conj (aux enftype pgs' ts f) (aux t pgs (Map.update ts e ~f:(fun _ -> Enftype.ncau, unguarded_i)) g)
+               conj (aux enftype pgs' ts f) (aux t pgs'' (Map.update ts e ~f:(fun _ -> Enftype.ncau, unguarded_i)) g)
             | None ->
-               disjs [conj (aux Enftype.ncau pgs' ts f) (aux t pgs (Map.update ts e ~f:(fun _ -> Enftype.ncau, unguarded_i)) g);
-                      conj (aux Enftype.nsup pgs' ts f) (aux t pgs (Map.update ts e ~f:(fun _ -> Enftype.nsup, unguarded_i)) g);
-                      conj (aux Enftype.scau pgs' ts f) (aux t pgs (Map.update ts e ~f:(fun _ -> Enftype.scau, unguarded_i)) g);
-                      conj (aux Enftype.ssup pgs' ts f) (aux t pgs (Map.update ts e ~f:(fun _ -> Enftype.ssup, unguarded_i)) g);
-                      aux t pgs (Map.update ts e ~f:(fun _ -> Enftype.obs, unguarded_i)) g])
+               disjs [conj (aux Enftype.ncau pgs' ts f) (aux t pgs'' (Map.update ts e ~f:(fun _ -> Enftype.ncau, unguarded_i)) g);
+                      conj (aux Enftype.nsup pgs' ts f) (aux t pgs'' (Map.update ts e ~f:(fun _ -> Enftype.nsup, unguarded_i)) g);
+                      conj (aux Enftype.scau pgs' ts f) (aux t pgs'' (Map.update ts e ~f:(fun _ -> Enftype.scau, unguarded_i)) g);
+                      conj (aux Enftype.ssup pgs' ts f) (aux t pgs'' (Map.update ts e ~f:(fun _ -> Enftype.ssup, unguarded_i)) g);
+                      aux t pgs'' (Map.update ts e ~f:(fun _ -> Enftype.obs, unguarded_i)) g])
         | Neg f -> aux' (Enftype.neg t) f
         | And (_, f, g) -> conj (aux' t f) (aux' t g)
         | Or (L, f, g) -> aux' t f
@@ -298,7 +298,7 @@ let rec types (t: Enftype.t) (pgs: pg_map) (f: Formula.t) =
                                 (disj (aux' t f) (aux' (Enftype.neg t) g))
         | Exists (_, f) -> aux' t f
         | Forall (x, f) ->
-           let es = Formula.solve_past_guarded x false f in
+           let es = Formula.solve_past_guarded pgs x false f in
            (match es with
             | [] -> error ("for causability " ^ x ^ " must be past-guarded")
             | _  -> aux t (Map.update pgs x (fun _ -> es)) ts f)
@@ -321,15 +321,16 @@ let rec types (t: Enftype.t) (pgs: pg_map) (f: Formula.t) =
            let f_unguarded i x = if not (Formula.is_past_guarded x false f) then Some (x, i) else None in
            let unguarded_x, unguarded_i = List.unzip (List.filter_mapi vars ~f:f_unguarded) in
            let pgs' = List.fold_left unguarded_x ~init:pgs ~f:(Map.update ~f:(fun _ -> [Set.empty (module String)])) in
+           let pgs'' = Formula.solve_past_guarded_multiple pgs vars e f in
            (match enftype_opt with
             | Some enftype ->
-               conj (aux enftype pgs' ts f) (aux t pgs (Map.update ts e ~f:(fun _ -> Enftype.ncau, unguarded_i)) g)
+               conj (aux enftype pgs' ts f) (aux t pgs'' (Map.update ts e ~f:(fun _ -> Enftype.ncau, unguarded_i)) g)
             | None ->
-               disjs [conj (aux Enftype.ncau pgs' ts f) (aux t pgs (Map.update ts e ~f:(fun _ -> Enftype.ncau, unguarded_i)) g);
-                      conj (aux Enftype.scau pgs' ts f) (aux t pgs (Map.update ts e ~f:(fun _ -> Enftype.scau, unguarded_i)) g);
-                      conj (aux Enftype.nsup pgs' ts f) (aux t pgs (Map.update ts e ~f:(fun _ -> Enftype.nsup, unguarded_i)) g);
-                      conj (aux Enftype.ssup pgs' ts f) (aux t pgs (Map.update ts e ~f:(fun _ -> Enftype.ssup, unguarded_i)) g);
-                      aux t pgs (Map.update ts e ~f:(fun _ -> Enftype.obs, unguarded_i)) g])
+               disjs [conj (aux Enftype.ncau pgs' ts f) (aux t pgs'' (Map.update ts e ~f:(fun _ -> Enftype.ncau, unguarded_i)) g);
+                      conj (aux Enftype.scau pgs' ts f) (aux t pgs'' (Map.update ts e ~f:(fun _ -> Enftype.scau, unguarded_i)) g);
+                      conj (aux Enftype.nsup pgs' ts f) (aux t pgs'' (Map.update ts e ~f:(fun _ -> Enftype.nsup, unguarded_i)) g);
+                      conj (aux Enftype.ssup pgs' ts f) (aux t pgs'' (Map.update ts e ~f:(fun _ -> Enftype.ssup, unguarded_i)) g);
+                      aux t pgs'' (Map.update ts e ~f:(fun _ -> Enftype.obs, unguarded_i)) g])
         | Agg (s, op, x, (_::_ as y), f) -> aux t pgs ts (Formula.exists_of_agg y f)
         | Top (s, op, x, (_::_ as y), f) -> aux t pgs ts (Formula.exists_of_agg y f)
         | Neg f -> aux' (Enftype.neg t) f
@@ -343,7 +344,7 @@ let rec types (t: Enftype.t) (pgs: pg_map) (f: Formula.t) =
         | Iff (_, _, f, g) -> disj (conj (aux' (Enftype.neg t) f) (aux' t g))
                                 (conj (aux' t f) (aux' (Enftype.neg t) g))
         | Exists (x, f) ->
-           let es = Formula.solve_past_guarded x true f in
+           let es = Formula.solve_past_guarded pgs x true f in
            (match es with
             | [] -> error ("for suppressability " ^ x ^ " must be past-guarded")
             | _  -> aux t (Map.update pgs x (fun _ -> es)) ts f)
@@ -407,9 +408,9 @@ let rec convert b enftype form (types: Ctxt.t) : Ctxt.t * Tformula.t option =
         | Predicate' (e, trms, f) ->
            apply1 (convert enftype f) (fun mf -> Tformula.TPredicate' (e, trms, mf)) types
         | Let' (e, vars, f, g) ->
-           let enftype' = Sig.enftype_of_pred e in
-           apply2 (convert enftype f) (convert enftype g)
-             (fun mf mg -> Tformula.TLet' (e, vars, mf, mg)) types
+           apply2' (convert enftype g) (Tformula.of_formula f)
+             (fun mg mf -> Tformula.TLet' (e, vars, mf, mg)) types
+             (Filter.present_filter g)
         | Neg f -> apply1 (convert (Enftype.neg enftype) f) (fun mf -> Tformula.TNeg mf) types 
         | And (s, f, g) -> apply2 (convert enftype f) (convert enftype g)
                              (fun mf mg -> Tformula.TAnd (default_L s, [mf; mg])) types

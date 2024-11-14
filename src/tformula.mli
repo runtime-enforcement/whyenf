@@ -51,7 +51,7 @@ val conj : Side.t -> t -> t -> Enftype.t -> t
 
 val op_to_string : t -> string
 
-val of_formula :  Formula.t -> ?let_types:(string, Enftype.t, Base.String.comparator_witness) Base.Map.t -> Ctxt.t -> Ctxt.t * t
+val of_formula :  Formula.t ->  ?let_types:(string, Enftype.t, Base.String.comparator_witness) Base.Map.t -> Ctxt.t -> Ctxt.t * t
 val of_formula' : Formula.t -> t
 
 val ac_simplify : t -> t

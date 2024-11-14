@@ -86,3 +86,5 @@ val set_cartesian: ('a, 'b) Comparator.Module.t -> ('a, 'b) Base.Set.t list -> (
 val gen_fresh: string -> string
 
 val inter_list: ('a, 'b) Comparator.Module.t -> ('a, 'b) Base.Set.t list -> ('a, 'b) Base.Set.t
+
+type string_set_list = (string, Base.String.comparator_witness) Base.Set.t list

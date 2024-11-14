@@ -88,18 +88,21 @@ let subst_var v s =
                 Printf.sprintf "cannot substitute non-variable term %s for aggregation variable %s"
                   (Term.to_string trm) s))
   | None -> s
+
+let subst_vars v s = List.map ~f:(subst_var v) s
   
 let rec subst v f = match f with
   | TT | FF -> f
   | EqConst (trm, c) -> EqConst (Term.subst v trm, c)
-  | Agg (s, op, t, y, f) -> Agg (subst_var v s, op, t, y, f)
-  | Top (s, op, x, y, f) -> Top (List.map ~f:(subst_var v) s, op, x, y, f)
+  | Agg (s, op, t, y, f) -> Agg (subst_var v s, op, t, subst_vars v y, subst v f)
+  | Top (s, op, x, y, f) -> Top (subst_vars v s, op, x, subst_vars v y, subst v f)
   | Predicate (r, trms) -> Predicate (r, Term.substs v trms)
   | Predicate' (r, trms, f) -> Predicate' (r, Term.substs v trms, subst v f)
   | Exists (x, f) -> Exists (x, subst (Map.remove v x) f)
   | Forall (x, f) -> Forall (x, subst (Map.remove v x) f)
-  | Let (r, enftype, vars, f, g) -> let filter x = not (List.mem vars x ~equal:String.equal) in
-                                    Let (r, enftype, vars, f, subst (Map.filter_keys v filter) g)
+  | Let (r, enftype, vars, f, g) ->
+     let filter x = not (List.mem vars x ~equal:String.equal) in
+     Let (r, enftype, vars, f, subst (Map.filter_keys v filter) g)
   | Let' (r, vars, f, g) -> Let' (r, vars, f, subst v g)
   | Neg f -> Neg (subst v f)
   | Prev (i, f) -> Prev (i, subst v f)
@@ -119,6 +122,7 @@ let tt = TT
 let ff = FF
 let eqconst x d = EqConst (x, d)
 let agg s op x y f = Agg (s, op, x, y, f)
+let assign s x f = Agg (s, Aggregation.AAssign, x, Set.elements (fv f), f)
 let top s op x y f = Top (s, op, x, y, f)
 let predicate p_name trms = Predicate (p_name, trms)
 let flet r enftype vars f g = Let (r, enftype, vars, f, g)
@@ -321,9 +325,10 @@ let rec to_string_rec l = function
                          (fun x -> Interval.to_string) i (fun x -> Side.to_string) s (fun x -> to_string_rec 0) g
 let to_string = to_string_rec 0
 
-let solve_past_guarded x p f =
+let eib = Printf.sprintf "%s.%d.%b"
+
+let rec solve_past_guarded ts x p f =
   let vars = fv f in
-  let eib = Printf.sprintf "%s.%d.%b" in
   let matches ts x r i t = Term.equal (Term.Var x) t && Map.mem ts (eib r i true) in
   let rec aux ts x p f =
     let s =
@@ -338,19 +343,28 @@ let solve_past_guarded x p f =
                                        && Sig.mem r
                                        && Enftype.is_observable (Sig.enftype_of_pred r) ->
          [Set.singleton (module String) r]
+      | Predicate' (_, _, f), _ -> aux ts x p f
       | Let (e, _, vars, f, g), _ ->
-         let f i ts z =
+         (*let f i ts z =
            let ts = Map.update ts (eib e i true) ~f:(fun _ -> aux ts z true f) in
-           Map.update ts (eib e i false) ~f:(fun _ -> aux ts z false f) in
-         let ts = List.foldi vars ~init:ts ~f in
+           Map.update ts (eib e i false) ~f:(fun _ -> aux ts z false f) in*)
+         (*let ts = List.foldi vars ~init:ts ~f in*)
+         let ts = solve_past_guarded_multiple ts vars e f in
          aux ts x p g
+      | Let' (_, _, _, f), _ -> aux ts x p f
       | Agg (s, _, t, _, f), true when String.equal s x ->
          let sols_list = List.map (Term.fv_list [t]) ~f:(fun z -> aux ts z p f) in
          List.map ~f:(Etc.inter_list (module String)) (Etc.cartesian sols_list)
       | Agg (_, _, _, y, f), _ when List.mem y x ~equal:String.equal -> aux ts x p f
       | Top (_, _, _, y, f), _ when List.mem y x ~equal:String.equal -> aux ts x p f
       | Top (s, _, x', _, f), true when List.mem s x ~equal:String.equal ->
+         (*print_endline "#############################";
+         print_endline "solve_past_guarded.Top--begin";*)
          let sols_list = List.map (Term.fv_list x') ~f:(fun z -> aux ts z p f) in
+         (*print_endline "solve_past_guarded.Top--end";
+         print_endline "#############################";
+         print_endline "";
+         print_endline "";*)
          List.map ~f:(Etc.inter_list (module String)) (Etc.cartesian sols_list)
       | Neg f, _ -> aux ts x (not p) f
       | And (_, f', g'), true | Or (_, f', g'), false | Imp (_, f', g'), false ->
@@ -371,13 +385,21 @@ let solve_past_guarded x p f =
       | Until (_, i, f, g), true when not (Interval.has_zero i) -> aux ts x p f
       | Until (_, i, f, g), true -> aux ts x p (Or (N, f, g))
       | _ -> [] in
-    (*print_endline (Printf.sprintf "solve_past_guarded(%s, %b, %s) = [%s]" x p (to_string f)
+    (*print_endline (Printf.sprintf "solve_past_guarded([%s], %s, %b, %s) = [%s]"
+                     (String.concat ~sep:"; " (List.map ~f:(fun (k, v) -> Printf.sprintf "%s -> %s" k (String.concat ~sep:"; " (List.map ~f:(fun es -> "{" ^ (String.concat ~sep:", " (Set.elements es)) ^ "}") s))) (Map.to_alist ts)))
+                     x p (to_string f)
                      (String.concat ~sep:"; " (List.map ~f:(fun es -> "{" ^ (String.concat ~sep:", " (Set.elements es)) ^ "}") s)) );*)
     s in
-  aux (Map.empty (module String)) x p f
+  aux ts x p f
 
-let is_past_guarded x p f =
-  not (List.is_empty (solve_past_guarded x p f))
+and solve_past_guarded_multiple ts x e f =
+  let f i ts x = 
+    let ts = Map.update ts (eib e i true) ~f:(fun _ -> solve_past_guarded ts x true f) in
+    Map.update ts (eib e i false) ~f:(fun _ -> solve_past_guarded ts x false f)
+  in List.foldi x ~init:ts ~f
+
+let is_past_guarded ?(ts=Map.empty (module String)) x p f =
+  not (List.is_empty (solve_past_guarded ts x p f))
 
 let check_agg types s op x y f =
   let x_tt = Sig.tt_of_term_exn types x in
@@ -459,12 +481,21 @@ let convert_vars f =
   let fresh (i, v) x =
     let xk, k = match Map.find i x with Some k -> name x (k+1), k+1 | None -> x, 0 in
     (Map.update i x ~f:(fun _ -> k), (Map.update v x ~f:(fun _ -> Term.Var xk))), xk  in
+  let var_subst v x = match Map.find v x with Some (Term.Var x) -> x | _ -> x in
+  let vars_subst v xs = List.map xs ~f:(var_subst v) in
   let rec aux v = function
     | TT -> return TT 
-    | FF -> return FF
+    | FF ->return FF
     | EqConst (x, c) -> return (EqConst (Term.subst v x, c))
     | Predicate (r, trms) -> return (Predicate (r, Term.substs v trms))
-    | Predicate' (r, trms, f) -> (fun f -> Predicate' (r, Term.substs v trms, f)) >>| (aux v f)
+    | Predicate' (r, trms, f) ->
+       let process_trm (i, v) = function
+         | Term.Var x -> let (i, v), xk = fresh (i, v) x   in (i, v), (xk, None)
+         | trm        -> let (i, v), xk = fresh (i, v) "v" in (i, v), (xk, Some trm) in
+       (fun i -> let (i, v), trms' = List.fold_map trms ~init:(i, v) ~f:process_trm in
+                 let e f = function (xk, Some trm) -> exists xk (assign xk trm f) | _ -> f in
+                 let q f = List.fold_left trms' ~init:f ~f:e in
+                 ((fun f -> return (Predicate' (r, Term.substs v trms, q f))) >>= (aux v f)) i)
     | Let (r, enftype, vars, f, g) ->
        (fun i -> let (i, v), vars = List.fold_map vars ~init:(i, v) ~f:fresh in
                  ((fun f -> (fun g -> return (Let (r, enftype, vars, f, g))) >>= (aux v g)) >>= (aux v f)) i)
@@ -473,12 +504,14 @@ let convert_vars f =
                  ((fun f -> (fun g -> return (Let' (r, vars, f, g))) >>= (aux v g)) >>= (aux v f)) i)
     | Agg (s, op, x, y, f) ->
        (fun i -> let fvs = Set.elements (Set.diff (fv f) (Set.of_list (module String) ((Term.fv_list [x])@y))) in
-                 let (i, v), vars = List.fold_map fvs ~init:(i, v) ~f:fresh in
-                 ((fun f -> return (Agg (s, op, Term.subst v x, y, f))) >>= (aux v f)) i)
+                 let (i, v'), vars = List.fold_map fvs ~init:(i, v) ~f:fresh in
+                 ((fun f -> return (Agg (var_subst v s, op, Term.subst v' x, vars_subst v y, f)))
+                  >>= (aux v' f)) i)
     | Top (s, op, x, y, f) ->
        (fun i -> let fvs = Set.elements (Set.diff (fv f) (Set.of_list (module String) y)) in
-                 let (i, v), vars = List.fold_map fvs ~init:(i, v) ~f:fresh in
-                 ((fun f -> return (Top (s, op, Term.substs v x, y, f))) >>= (aux v f)) i)
+                 let (i, v'), vars = List.fold_map fvs ~init:(i, v) ~f:fresh in
+                 ((fun f -> return (Top (vars_subst v s, op, Term.substs v' x, vars_subst v y, f)))
+                  >>= (aux v' f)) i)
     | Neg f -> (fun f -> return (Neg f)) >>= (aux v f)
     | And (s, f, g) -> (fun f -> (fun g -> return (And (s, f, g))) >>= (aux v g)) >>= (aux v f)
     | Or (s, f, g) -> (fun f -> (fun g -> return (Or (s, f, g))) >>= (aux v g)) >>= (aux v f)
