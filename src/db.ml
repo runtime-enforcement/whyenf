@@ -10,6 +10,10 @@
 
 open Base
 
+module Dom = MFOTL_lib.Dom
+module Etc = MFOTL_lib.Etc
+module Time = MFOTL_lib.Time
+
 module Event = struct
 
   module T = struct
@@ -91,8 +95,11 @@ let event name consts =
                              | TConst TInt -> Dom.Int (Int.of_string c)
                              | TConst TStr -> Str c
                              | TConst TFloat -> Float (Float.of_string c)
-                             | _ -> assert false))
-  else raise (Invalid_argument (Printf.sprintf "predicate %s has arity %d" name (Sig.arity pred_sig)))
+                             | ttt -> raise (Invalid_argument
+                                               (Printf.sprintf "cannot create event with arg type %s"
+                                                  (Ctxt.ttt_to_string ttt)))))
+  else raise (Invalid_argument
+                (Printf.sprintf "predicate %s has arity %d" name (Sig.arity pred_sig)))
 
 let add_event db evt = set_trace { db with events = Set.add db.events evt }
 
@@ -118,5 +125,5 @@ let retrieve_external name =
 let retrieve_builtin ts tp = function
   | name when String.equal name Sig.tp_event_name -> create [("TP", [Int tp])]
   | name when String.equal name Sig.ts_event_name -> create [("TS", [Int (Time.to_int ts)])]
-  | _ -> assert false
+  | name -> raise (Invalid_argument (Printf.sprintf "builtin %s does not exist" name)) 
 

@@ -1,5 +1,8 @@
 open Core
 
+module Etc = MFOTL_lib.Etc
+module Dom = MFOTL_lib.Dom
+
 module Python = struct
 
   let m = ref None

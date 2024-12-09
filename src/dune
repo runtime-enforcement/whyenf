@@ -7,5 +7,6 @@
 
 (library
  (name lifeboat_lib)
- (libraries core_kernel base zarith unix pyml calendar str)
+ (libraries MFOTL_lib core_kernel base zarith unix pyml calendar str)
  (preprocess (pps ppx_jane)))
+

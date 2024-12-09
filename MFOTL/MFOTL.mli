@@ -10,31 +10,13 @@
 
 open Base
 
-open MFOTL_Base
-
-module Filter : sig
-
-  type t = An of string | AllOf of t list | OneOf of t list [@@deriving equal, compare, hash, sexp_of]
-
-  val tt : t
-  val ff : t
-
-  val eval : Db.t -> t -> bool
-
-  val to_string : t -> string
-
-  val simplify : t -> t
-
-  val conj : t -> t -> t
-  val disj : t -> t -> t
-  
-end
+open Modules
 
 module Make
   (Info : I)
   (Var  : V)
   (Dom  : D)
-  (Term : MFOTL_Term.T with type v = Var.t) : sig
+  (Term : Term.T with type v = Var.t) : sig
 
   type ('i, 'v, 'd, 't) _core_t =
     | TT
@@ -76,7 +58,7 @@ module Make
       flag : bool
     } [@@deriving compare, sexp_of, hash, equal]
 
-  module TypedInfo : MFOTL_Base.I with type t = typed_info
+  module TypedInfo : Modules.I with type t = typed_info
 
   type core_typed_t = (TypedInfo.t, Var.t, Dom.t, Term.t) _core_t
   type typed_t      = (TypedInfo.t, Var.t, Dom.t, Term.t) _t
@@ -143,7 +125,7 @@ module Make
   val strict : ?itl_strict:(string, bool, Base.String.comparator_witness) Base.Map.t -> ?itv:Zinterval.t -> ?fut:bool -> t -> bool
   val stricts : ?itl_strict:(string, bool, Base.String.comparator_witness) Base.Map.t -> ?itv:Zinterval.t -> ?fut:bool -> t list -> bool
 
-  module MFOTL_Enforceability (_ : MFOTL_Base.S) : sig
+  module MFOTL_Enforceability (_ : Modules.S) : sig
 
     val rank : t -> int
 

@@ -10,70 +10,13 @@
 
 open Base
 
-open MFOTL_Base
-
-module Filter = struct
-
-  type t = An of string | AllOf of t list | OneOf of t list [@@deriving equal, compare, hash, sexp_of]
-
-  let tt = AllOf []
-  let ff = OneOf []
-
-  let is_an = function An _ -> true | _ -> false
-  let is_allof = function AllOf _ -> true | _ -> false
-  let is_oneof = function OneOf _ -> true | _ -> false
-
-  let rec eval (db : Db.t) = function
-    | An e -> (*print_endline (Printf.sprintf "eval(%s, An %s)=%b" (Db.to_string db) e  (Db.mem_trace db e)); *)(Db.mem_trace db e)
-    | AllOf fis -> List.for_all fis ~f:(eval db)
-    | OneOf fis -> List.exists fis ~f:(eval db)
-  
-  let rec to_string_rec l = function
-    | An e -> e
-    | AllOf [] -> "⊤"
-    | OneOf [] -> "⊥"
-    | AllOf fis -> Printf.sprintf (Etc.paren l 4 "%s") (String.concat ~sep:"∧" (List.map fis ~f:(to_string_rec 4)))
-    | OneOf fis -> Printf.sprintf (Etc.paren l 3 "%s") (String.concat ~sep:"∨" (List.map fis ~f:(to_string_rec 3)))
-  
-  let to_string = to_string_rec 0
-
-  let rec simplify = function
-    | An e -> An e
-    | AllOf [] -> AllOf []
-    | OneOf [] -> OneOf []
-    | AllOf fis ->
-       let fis        = List.map fis ~f:simplify in
-       let all_of_fis = List.concat_map fis ~f:(function AllOf fis -> fis | _ -> []) in
-       let one_ofs    = List.filter fis ~f:is_oneof in
-       let ans        = List.filter fis ~f:is_an in
-       let one_of_bad = List.exists one_ofs ~f:(equal ff) in
-       if one_of_bad then
-         ff
-       else
-         AllOf (all_of_fis @ one_ofs @ ans)
-    | OneOf fis ->
-       let fis        = List.map fis ~f:simplify in
-       let one_of_fis = List.concat_map fis ~f:(function OneOf fis -> fis | _ -> []) in
-       let all_ofs    = List.filter fis ~f:is_allof in
-       let ans        = List.filter fis ~f:is_an in
-       let all_of_bad = List.exists all_ofs ~f:(equal tt) in
-       if all_of_bad then
-         tt
-       else
-         OneOf (one_of_fis @ all_ofs @ ans)
-
-  let conj fi1 fi2 = simplify (AllOf [fi1; fi2])
-  let disj fi1 fi2 = simplify (OneOf [fi1; fi2])
-  let conjs fis    = simplify (AllOf fis)
-  let disjs fis    = simplify (OneOf fis)
-
-end
+open Modules
 
 module Make
          (Info : I)
          (Var  : V)
          (Dom  : D)
-         (Term : MFOTL_Term.T with type v = Var.t) = struct
+         (Term : Term.T with type v = Var.t) = struct
 
   (* Main datatype: abstract MFOTL+ formulae *)
 
@@ -121,7 +64,7 @@ module Make
       flag : bool
     } [@@deriving compare, sexp_of, hash, equal]
 
-  module TypedInfo : MFOTL_Base.I with type t = typed_info = struct
+  module TypedInfo : Modules.I with type t = typed_info = struct
 
     type t = typed_info [@@deriving compare, sexp_of, hash, equal]
 
@@ -797,7 +740,7 @@ module Make
 
   let formula_to_string = to_string
 
-  module MFOTL_Enforceability (Sig : MFOTL_Base.S) = struct
+  module MFOTL_Enforceability (Sig : Modules.S) = struct
 
     (* Rank *)
 
@@ -1177,10 +1120,10 @@ module Make
       let rec aux (t: Enftype.t) (pgs: pg_map) (ts: t_map) (f: t) =
         (*print_endline (Printf.sprintf "types: t=%s, f=%s" (Enftype.to_string t) (to_string f));*)
         let aux' t f = aux t pgs ts f in
-        let r = match t with
-          | _ when Enftype.is_causable t && Enftype.is_suppressable t ->
+        let r = match Enftype.is_causable t, Enftype.is_suppressable t with
+          | true, true ->
              Constraints.Impossible (EFormula (Some (to_string f ^ " is never CauSup"), f, t))
-          | _ when Enftype.is_causable t -> begin
+          | true, false -> begin
               match f.form with
               | TT -> Constraints.Possible CTT
               | Predicate (e, terms) ->
@@ -1226,11 +1169,9 @@ module Make
                   | Some enftype ->
                      Constraints.conj (aux enftype pgs' ts f) (aux t pgs'' (Map.update ts e ~f:(fun _ -> Enftype.ncau, unguarded_i)) g)
                   | None ->
-                     Constraints.disjs [Constraints.conj (aux Enftype.ncaubot pgs' ts f) (aux t pgs'' (Map.update ts e ~f:(fun _ -> Enftype.ncau, unguarded_i)) g);
-                                        Constraints.conj (aux Enftype.scaubot pgs' ts f) (aux t pgs'' (Map.update ts e ~f:(fun _ -> Enftype.scau, unguarded_i)) g);
-                                        Constraints.conj (aux Enftype.nsup pgs' ts f) (aux t pgs'' (Map.update ts e ~f:(fun _ -> Enftype.nsup, unguarded_i)) g);
-                                        Constraints.conj (aux Enftype.ssup pgs' ts f) (aux t pgs'' (Map.update ts e ~f:(fun _ -> Enftype.ssup, unguarded_i)) g);
-                                        aux t pgs'' (Map.update ts e ~f:(fun _ -> Enftype.obs, unguarded_i)) g])
+                     let f enftype = Constraints.conj (aux enftype pgs' ts f) (aux t pgs'' (Map.update ts e ~f:(fun _ -> enftype, unguarded_i)) g) in
+                     Constraints.disjs ((List.map ~f [Enftype.ncaubot; Enftype.scaubot; Enftype.nsup; Enftype.ssup])
+                     @ [aux t pgs'' (Map.update ts e ~f:(fun _ -> Enftype.obs, unguarded_i)) g]))
               | Neg f -> aux' (Enftype.neg t) f 
               | And (_, fs) ->
                  only_if_strictly_relative_past fs (Constraints.conjs (List.map ~f:(aux' t) fs))
@@ -1271,7 +1212,7 @@ module Make
               | Prev _ -> error "● is never Cau"
               | _ -> Impossible (EFormula (None, f, t))
             end
-          | _ when Enftype.is_suppressable t -> begin
+          | false, true -> begin
               match f.form with
               | FF -> Possible CTT
               | Predicate (e, _) -> types_predicate_lower ts t e
@@ -1284,11 +1225,9 @@ module Make
                   | Some enftype ->
                      Constraints.conj (aux enftype pgs' ts f) (aux t pgs'' (Map.update ts e ~f:(fun _ -> Enftype.ncau, unguarded_i)) g)
                   | None ->
-                     Constraints.disjs [Constraints.conj (aux Enftype.ncaubot pgs' ts f) (aux t pgs'' (Map.update ts e ~f:(fun _ -> Enftype.ncau, unguarded_i)) g);
-                                        Constraints.conj (aux Enftype.scaubot pgs' ts f) (aux t pgs'' (Map.update ts e ~f:(fun _ -> Enftype.scau, unguarded_i)) g);
-                                        Constraints.conj (aux Enftype.nsup pgs' ts f) (aux t pgs'' (Map.update ts e ~f:(fun _ -> Enftype.nsup, unguarded_i)) g);
-                                        Constraints.conj (aux Enftype.ssup pgs' ts f) (aux t pgs'' (Map.update ts e ~f:(fun _ -> Enftype.ssup, unguarded_i)) g);
-                                        aux t pgs'' (Map.update ts e ~f:(fun _ -> Enftype.obs, unguarded_i)) g])
+                     let f enftype = Constraints.conj (aux enftype pgs' ts f) (aux t pgs'' (Map.update ts e ~f:(fun _ -> enftype, unguarded_i)) g) in
+                     Constraints.disjs ((List.map ~f [Enftype.ncaubot; Enftype.scaubot; Enftype.nsup; Enftype.ssup])
+                                        @ [aux t pgs'' (Map.update ts e ~f:(fun _ -> Enftype.obs, unguarded_i)) g]))
               | Agg (_, _, _, (_::_ as y), f) -> aux t pgs ts (exists_of_agg y f (fun _ _ -> Info.dummy))
               | Top (_, _, _, (_::_ as y), f) -> aux t pgs ts (exists_of_agg y f (fun _ _ -> Info.dummy))
               | Neg f -> aux' (Enftype.neg t) f
@@ -1328,12 +1267,11 @@ module Make
               | Prev _ -> error "● is never Sup"
               | _ -> Impossible (EFormula (None, f, t))
             end
-          | _ when Enftype.is_suppressable t ->
-             if observable ~itl_observable f then
-               Possible CTT
-             else
-               error "is not observable"
-          | _ -> assert false
+          | false, false ->
+             raise (Invalid_argument (
+                        Printf.sprintf
+                          "cannot type formula to %s: type is neither causable nor suppressable"
+                          (Enftype.to_string t)))
         in
         (*Stdio.printf "types.aux(%s, %s)=%s\n" (Enftype.to_string t) (Formula.to_string f) (Constraints.verdict_to_string r);*)
         r
@@ -1670,8 +1608,8 @@ module Make
         (*print_endline ("aux " ^ to_string f);*)
         let b =
           let flag = f.info.flag in
-          match f.info.enftype with
-          | _ when Enftype.is_causable f.info.enftype -> begin
+          match Enftype.is_causable f.info.enftype, Enftype.is_suppressable f.info.enftype with
+          | true, false -> begin
               match f.form with
               | TT | Predicate (_, _) -> true
               | Neg f | Exists (_, f) | Forall (_, f)
@@ -1688,7 +1626,7 @@ module Make
               | Until (LR, _, f, g) -> flag && aux f && aux g
               | _ -> false
             end
-          | _ when Enftype.is_suppressable f.info.enftype -> begin
+          | false, true -> begin
               let flag = f.info.flag in
               match f.form with
               | FF | Predicate (_, _) -> true
@@ -1706,7 +1644,10 @@ module Make
               | Until (_, _, f, g) -> aux f && strictly_relative_past g
               | _ -> false
             end
-          | _ -> assert false
+          | _ -> raise (Invalid_argument (
+                            Printf.sprintf
+                              "cannot check transparency of formula with type %s: type must be either causable or suppressable, but not both"
+                          (Enftype.to_string f.info.enftype)))
         in b
       in
       aux f

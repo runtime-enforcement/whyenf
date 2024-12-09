@@ -1,4 +1,4 @@
-2(*******************************************************************)
+(*******************************************************************)
 (*     This is part of WhyMon, and it is distributed under the     *)
 (*     terms of the GNU Lesser General Public License version 3    *)
 (*           (see file LICENSE for more details)                   *)
@@ -9,9 +9,20 @@
 
 (*open Core*)
 open Base
-open Etc
 open Expl
 open Option
+
+module Dom = MFOTL_lib.Dom
+module Aggregation = MFOTL_lib.Aggregation
+module Side = MFOTL_lib.Side
+module Interval = MFOTL_lib.Interval
+module Time = MFOTL_lib.Time
+module MFOTL = MFOTL_lib.MFOTL
+module Enftype = MFOTL_lib.Enftype
+module Etc = MFOTL_lib.Etc
+module Filter = MFOTL_lib.Filter
+
+open Etc
 
 module type MonitorT = sig
 
@@ -62,17 +73,17 @@ module type MonitorT = sig
       | MEUntil       of Side.t * Interval.t * Time.t option * t * t * Etc.valuation
 
     and t = { mf: core_t;
-              filter: MFOTL.Filter.t;
+              filter: Filter.t;
               events: (string, String.comparator_witness) Set.t option;
               obligations: (int, Int.comparator_witness) Set.t option;
               hash: int;
               lbls: Lbl.t list }
 
-    val make: core_t -> MFOTL.Filter.t -> t
-    val set_make: core_t -> MFOTL.Filter.t -> t
-    val map_mf: t -> MFOTL.Filter.t -> ?exquant:bool -> (t -> core_t) -> t
-    val map2_mf: t -> t -> MFOTL.Filter.t -> (t -> t -> core_t) -> t
-    val mapn_mf: t list -> MFOTL.Filter.t -> (t list -> core_t) -> t
+    val make: core_t -> Filter.t -> t
+    val set_make: core_t -> Filter.t -> t
+    val map_mf: t -> Filter.t -> ?exquant:bool -> (t -> core_t) -> t
+    val map2_mf: t -> t -> Filter.t -> (t -> t -> core_t) -> t
+    val mapn_mf: t list -> Filter.t -> (t list -> core_t) -> t
 
     val _tt : t
     val _ff : t
@@ -1509,7 +1520,7 @@ module Make (E: Expl.ExplT) = struct
       | MEUntil       of Side.t * Interval.t * Time.t option *  t * t * Etc.valuation
 
     and t = { mf: core_t;
-              filter: MFOTL.Filter.t;
+              filter: Filter.t;
               events: (string, String.comparator_witness) Set.t option;
               obligations: (int, Int.comparator_witness) Set.t option;
               hash: int;
@@ -1584,7 +1595,7 @@ module Make (E: Expl.ExplT) = struct
     let value_to_string = value_to_string_rec 0
 
     (*    and t = { mf: core_t;
-              filter: MFOTL.Filter.t;
+              filter: Filter.t;
               events: (string, String.comparator_witness) Set.t option;
               obligations: (int, Int.comparator_witness) Set.t option;
               hash: int;
@@ -1595,7 +1606,7 @@ module Make (E: Expl.ExplT) = struct
       Printf.sprintf  "%s{ mf = %s;%s  filter = %s;%s  events = %s;%s  obligations = %s;%s  hash = %d;%s  lbls = [%s];%s  subformulae = [%s] }"
         n
         (value_to_string mf) n
-        (MFOTL.Filter.to_string mf.filter) n
+        (Filter.to_string mf.filter) n
         (match mf.events with
          | None -> "None"
          | Some evs -> Printf.sprintf "[%s]" (String.concat ~sep:", " (Set.elements evs))) n
@@ -1710,7 +1721,7 @@ module Make (E: Expl.ExplT) = struct
       let rec ppp = function
         | [x; y] -> x.hash +++ y.hash
         | x :: ys -> x.hash +++ ppp ys
-        | _ -> assert false in
+        | [] -> raise (Invalid_argument "cannot apply ppp to less than two elements") in
       let list_hash f l = List.fold_left ~f:(+++) ~init:0 (List.map ~f l) in
       function
       | MTT -> String.hash "MTT"
@@ -1973,10 +1984,10 @@ module Make (E: Expl.ExplT) = struct
         hash        = core_hash mf_mf;
         lbls        = Etc.dedup ~equal:Lbl.equal (List.concat_map mfs ~f:(fun mf -> mf.lbls)) }
     
-    let _tp     = set_make (MPredicate (Sig.tilde_tp_event_name, [])) MFOTL.Filter.tt
-    let _neg_tp = set_make (MNeg _tp) MFOTL.Filter.tt
-    let _tt     = set_make MTT MFOTL.Filter.tt
-    let _ff     = set_make MFF MFOTL.Filter.tt
+    let _tp     = set_make (MPredicate (Sig.tilde_tp_event_name, [])) Filter.tt
+    let _neg_tp = set_make (MNeg _tp) Filter.tt
+    let _tt     = set_make MTT Filter.tt
+    let _ff     = set_make MFF Filter.tt
 
     let init (tf: Tformula.t) =
       let rec aux (tf: Tformula.t) = match tf.form with
@@ -1987,10 +1998,10 @@ module Make (E: Expl.ExplT) = struct
         | Predicate' (_, _, f) | Let' (_, _, _, f) -> aux f
         | Agg ((s, tt), op, x, y, f) ->
            let op_fun = Aggregation.eval op tt in
-           MAgg (s, op, op_fun, Tterm.to_term x, List.map ~f:fst y, make (aux f) MFOTL.Filter.tt)
+           MAgg (s, op, op_fun, Tterm.to_term x, List.map ~f:fst y, make (aux f) Filter.tt)
         | Top (s, op, x, y, f) ->
            let op_fun = Sig.tfunc op in
-           MTop (List.map ~f:fst s, op, op_fun, Tterm.to_terms x, List.map ~f:fst y, make (aux f) MFOTL.Filter.tt)
+           MTop (List.map ~f:fst s, op, op_fun, Tterm.to_terms x, List.map ~f:fst y, make (aux f) Filter.tt)
         | Neg f -> MNeg (make (aux f) tf.info.filter)
         | And (s, fs) ->
            MAnd (s, List.map2_exn ~f:make (List.map ~f:aux fs) (List.map fs ~f:(fun tf -> tf.info.filter)), ([], []))
@@ -2229,14 +2240,14 @@ module Make (E: Expl.ExplT) = struct
 
       let eval_kind ts' _ k =
         let tp_filter mf = 
-          MFOTL.Filter.conj mf.filter (MFOTL.Filter.An Sig.tilde_tp_event_name) in
+          Filter.conj mf.filter (Filter.An Sig.tilde_tp_event_name) in
         match k with
         | FFormula (mf, _, _) -> mf
         | FInterval (ts, i, mf, _, v) ->
            if Interval.diff_is_in ts ts' i then
              map_mf
-               (map_mf mf MFOTL.Filter.tt (fun mf -> (MAnd (L, [_tp; mf], empty_binop_info))))
-               MFOTL.Filter.tt
+               (map_mf mf Filter.tt (fun mf -> (MAnd (L, [_tp; mf], empty_binop_info))))
+               Filter.tt
                (fun mf -> MEUntil (R, i, Some ts, _neg_tp, mf, v))
            else
              _tt
@@ -2253,8 +2264,8 @@ module Make (E: Expl.ExplT) = struct
                   _neg_tp
                 else
                   map_mf mf1' (tp_filter mf1') (fun mf -> MImp (R, _tp, mf, empty_binop_info)))
-               (map_mf mf2' MFOTL.Filter.tt (fun mf -> MAnd (R, [_tp; mf], empty_binop_info)))
-               MFOTL.Filter.tt
+               (map_mf mf2' Filter.tt (fun mf -> MAnd (R, [_tp; mf], empty_binop_info)))
+               Filter.tt
                (fun mf1 mf2 -> MEUntil (side, i, Some ts, mf1, mf2, v))
            else
              _ff
@@ -2265,7 +2276,7 @@ module Make (E: Expl.ExplT) = struct
                | _ -> mf in
              map_mf
                (map_mf mf' (tp_filter mf') (fun mf -> MImp (R, _tp, mf, empty_binop_info)))
-               MFOTL.Filter.tt
+               Filter.tt
                (fun mf -> MEAlways (i, Some ts, mf, v))
            else
              _tt
@@ -2275,8 +2286,8 @@ module Make (E: Expl.ExplT) = struct
                | MAnd (_, [mf1; mf2], _) when MFormula.equal _tp mf1 -> mf2
                | _ -> mf in
              map_mf
-               (map_mf mf' MFOTL.Filter.tt (fun mf -> MAnd (L, [_tp; mf], empty_binop_info)))
-               MFOTL.Filter.tt
+               (map_mf mf' Filter.tt (fun mf -> MAnd (L, [_tp; mf], empty_binop_info)))
+               Filter.tt
                (fun mf -> MEEventually (i, Some ts, mf, v))
            else
              _ff
@@ -2287,7 +2298,7 @@ module Make (E: Expl.ExplT) = struct
         | POS -> (*print_endline (Printf.sprintf "eval()=%s" (MFormula.to_string mf)); *)mf
         | NEG -> match mf.mf with
                  | MNeg mf -> mf
-                 | _       -> map_mf mf MFOTL.Filter.tt (fun mf -> MNeg mf) ~exquant:true
+                 | _       -> map_mf mf Filter.tt (fun mf -> MNeg mf) ~exquant:true
 
 
       let accepts_empty = function
@@ -2407,7 +2418,10 @@ module Make (E: Expl.ExplT) = struct
        (match match_terms trms ds map with
         | None -> None
         | Some map' -> Some (Map.add_exn map' ~key:(Lbl.LClos (f, trms', Set.empty (module String))) ~data:d))
-    | _, _ -> assert false
+    | _, _ -> raise (Invalid_argument
+                       (Printf.sprintf "Cannot match terms %s with domain elements %s"
+                          (Term.list_to_string_core trms) (Dom.list_to_string ds)))
+                        
 
   (*let print_maps maps =
     Stdio.print_endline "> Map:";

@@ -10,13 +10,20 @@
 
 open Base
 
+module Enftype = MFOTL_lib.Enftype
+module MFOTL = MFOTL_lib.MFOTL
+module Modules = MFOTL_lib.Modules
+module Etc = MFOTL_lib.Etc
+module Dom = MFOTL_lib.Dom
+module Filter = MFOTL_lib.Filter
+
 type info_type = {
     enftype: Enftype.t;
-    filter:  MFOTL.Filter.t;
+    filter:  Filter.t;
     flag:    bool;
   } [@@deriving compare, sexp_of, hash, equal]
 
-module TypeInfo : MFOTL_Base.I with type t = info_type = struct
+module TypeInfo : Modules.I with type t = info_type = struct
 
   type t = info_type [@@deriving compare, sexp_of, hash, equal]
 
@@ -26,7 +33,7 @@ module TypeInfo : MFOTL_Base.I with type t = info_type = struct
     else
       Printf.sprintf (Etc.paren l 0 "%s : %s") s (Enftype.to_string info.enftype)
 
-  let dummy = { enftype = Enftype.obs; filter = MFOTL.Filter.tt; flag = false }
+  let dummy = { enftype = Enftype.obs; filter = Filter.tt; flag = false }
 
 end 
 
@@ -160,7 +167,7 @@ let rec core_of_formula (f : Formula.typed_t) let_types (types: Ctxt.t) : Ctxt.t
 
 and of_formula f ?(let_types=Map.empty (module String)) (types: Ctxt.t) =
   let types, f, enftype, flag = core_of_formula f let_types types in
-  types, make f { enftype; filter = MFOTL.Filter.tt; flag }
+  types, make f { enftype; filter = Filter.tt; flag }
 
 let of_formula' f =
   snd (of_formula f Ctxt.empty)

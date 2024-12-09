@@ -9,6 +9,16 @@
 (*******************************************************************)
 
 open Base
+
+module Dom = MFOTL_lib.Dom
+module Aggregation = MFOTL_lib.Aggregation
+module Side = MFOTL_lib.Side
+module Interval = MFOTL_lib.Interval
+module Time = MFOTL_lib.Time
+module MFOTL = MFOTL_lib.MFOTL
+module Etc = MFOTL_lib.Etc
+module Filter = MFOTL_lib.Filter
+
 open Etc
 
 module type MonitorT = sig
@@ -48,29 +58,29 @@ module type MonitorT = sig
       | MForall       of string * Dom.tt * bool * t
       | MPrev         of Interval.t * t * bool * prev_info
       | MNext         of Interval.t * t * bool * next_info
-      | MENext        of Interval.t * Time.t option * t * Etc.valuation
+      | MENext        of Interval.t * Time.t option * t * valuation
       | MOnce         of Interval.t * t * tp_info * once_info
       | MEventually   of Interval.t * t * buft_info * eventually_info
-      | MEEventually  of Interval.t * Time.t option * t * Etc.valuation
+      | MEEventually  of Interval.t * Time.t option * t * valuation
       | MHistorically of Interval.t * t * tp_info * historically_info
       | MAlways       of Interval.t * t * buft_info * always_info
-      | MEAlways      of Interval.t * Time.t option * t * Etc.valuation
+      | MEAlways      of Interval.t * Time.t option * t * valuation
       | MSince        of Side.t * Interval.t * t * t * buf2t_info * since_info
       | MUntil        of Interval.t * t * t * buf2t_info * until_info
-      | MEUntil       of Side.t * Interval.t * Time.t option * t * t * Etc.valuation
+      | MEUntil       of Side.t * Interval.t * Time.t option * t * t * valuation
 
     and t = { mf: core_t;
-              filter: MFOTL.Filter.t;
+              filter: Filter.t;
               events: (string, String.comparator_witness) Set.t option;
               obligations: (int, Int.comparator_witness) Set.t option;
               hash: int;
               lbls: Lbl.t list }
     
-    val make: core_t -> MFOTL.Filter.t -> t
-    val set_make: core_t -> MFOTL.Filter.t -> t
-    val map_mf: t -> MFOTL.Filter.t -> ?exquant:bool -> (t -> core_t) -> t
-    val map2_mf: t -> t -> MFOTL.Filter.t -> (t -> t -> core_t) -> t
-    val mapn_mf: t list -> MFOTL.Filter.t -> (t list -> core_t) -> t
+    val make: core_t -> Filter.t -> t
+    val set_make: core_t -> Filter.t -> t
+    val map_mf: t -> Filter.t -> ?exquant:bool -> (t -> core_t) -> t
+    val map2_mf: t -> t -> Filter.t -> (t -> t -> core_t) -> t
+    val mapn_mf: t list -> Filter.t -> (t list -> core_t) -> t
 
     val _tt : t
     val _ff : t
@@ -78,7 +88,7 @@ module type MonitorT = sig
     val init: Tformula.t -> t
     val rank: t -> int
 
-    val apply_valuation : Etc.valuation -> t -> t
+    val apply_valuation : valuation -> t -> t
 
     val fv: t -> (String.t, Base.String.comparator_witness) Base.Set.t
 
@@ -93,13 +103,13 @@ module type MonitorT = sig
     type polarity = POS | NEG
 
     type kind =
-      | FFormula of MFormula.t * int * Etc.valuation                       (* fun _ -> f *)
-      | FInterval of Time.t * Interval.t * MFormula.t * int * Etc.valuation   (* fun t -> if mem t i then f else Formula.TT *)
-      | FUntil of Time.t * Side.t * Interval.t * MFormula.t * MFormula.t * int * Etc.valuation (* fun t -> Until (s, sub2 i (t-t0), f1, f2) *)
-      | FAlways of Time.t * Interval.t * MFormula.t * int * Etc.valuation     (* fun t -> Always (sub2 i (t-t0), f1) *)
-      | FEventually of Time.t * Interval.t * MFormula.t * int * Etc.valuation (* fun t -> Eventually (sub2 i (t-t0), f1) *)
+      | FFormula of MFormula.t * int * valuation                       (* fun _ -> f *)
+      | FInterval of Time.t * Interval.t * MFormula.t * int * valuation   (* fun t -> if mem t i then f else Formula.TT *)
+      | FUntil of Time.t * Side.t * Interval.t * MFormula.t * MFormula.t * int * valuation (* fun t -> Until (s, sub2 i (t-t0), f1, f2) *)
+      | FAlways of Time.t * Interval.t * MFormula.t * int * valuation     (* fun t -> Always (sub2 i (t-t0), f1) *)
+      | FEventually of Time.t * Interval.t * MFormula.t * int * valuation (* fun t -> Eventually (sub2 i (t-t0), f1) *)
 
-    type t = kind * Etc.valuation * polarity
+    type t = kind * valuation * polarity
 
     (*val equal: t -> t -> bool*)
     val eval: Time.t -> int -> t -> MFormula.t

@@ -22,7 +22,7 @@ let of_string = function
   | "L"  -> L
   | "R"  -> R
   | "LR" -> LR
-  | _ -> assert false
+  | s -> raise (Invalid_argument (Printf.sprintf "invalid input for side: %s" s))
 
 let value = Option.value ~default:N
 let value2 = Option.value ~default:(N, N)

@@ -1,5 +1,9 @@
 open Base
 
+module Enftype = MFOTL_lib.Enftype
+module Etc = MFOTL_lib.Etc
+module Dom = MFOTL_lib.Dom
+
 let tilde_tp_event_name = "~tp"
 let tick_event_name = "tick"
 let tp_event_name = "tp"
@@ -104,7 +108,11 @@ let add_tfunc f_name arg_tts ret_tts =
 let update_enftype name enftype =
   if Hashtbl.mem table name then
     Hashtbl.update table name ~f:(
-        function (Some (Pred x)) -> Pred { x with enftype } | _ -> assert false)
+        function
+        | Some (Pred x) -> Pred { x with enftype }
+        | _ ->
+           raise (Invalid_argument
+                    (Printf.sprintf "cannot update enftype for %s: event does not exist" name)))
 
 let vars_of_pred name = List.map (unpred (Hashtbl.find_exn table name)).arg_ttts ~f:fst
 
@@ -127,13 +135,15 @@ let func ff ds =
   match the_func.kind with
   | Builtin f -> f ds
   | External -> Funcs.Python.call ff ds (Ctxt.unconst (List.hd_exn the_func.ret_ttts))
-  | _ -> assert false
+  | _ -> raise (Invalid_argument
+                  (Printf.sprintf "cannot find function %s: not a function" ff))
 
 let tfunc ff dss =
   let the_func = unfunc (Hashtbl.find_exn table ff) in
   match the_func.kind with
   | Table -> Funcs.Python.tcall ff dss (List.map ~f:Ctxt.unconst the_func.ret_ttts)
-  | _ -> assert false
+  | _ -> raise (Invalid_argument
+                  (Printf.sprintf "cannot find table function %s: not a table function" ff))
 
 let print_table () =
   Hashtbl.iteri table ~f:(fun ~key:n ~data:ps -> Stdio.printf "%s\n" (string_of_ty n ps))

@@ -1,5 +1,7 @@
 open Base
 
+open MFOTL_lib
+
 module Const : sig
 
   type t =

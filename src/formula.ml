@@ -11,7 +11,13 @@
 open Base
 open Sformula
 
-module StringVar : MFOTL_Base.V with type t = string and type comparator_witness = String.comparator_witness = struct
+module Modules = MFOTL_lib.Modules
+module MFOTL = MFOTL_lib.MFOTL
+module Dom = MFOTL_lib.Dom
+module Side = MFOTL_lib.Side
+module Aggregation = MFOTL_lib.Aggregation
+
+module StringVar : Modules.V with type t = string and type comparator_witness = String.comparator_witness = struct
 
   module T = struct
 
@@ -36,6 +42,15 @@ let dummy = Term.TrivialInfo.dummy
 
 include MFOTL.Make(Term.TrivialInfo)(StringVar)(Dom)(Term)
 
+let aggregation_init = function
+  | Sformula.Aop.ASum -> Aggregation.ASum
+  | AAvg -> AAvg
+  | AMed -> AMed
+  | ACnt -> ACnt
+  | AMin -> AMin
+  | AMax -> AMax
+  | AStd -> AStd
+
 let rec init sf : t =
   let side s_opt = Side.value s_opt in
   let form = match sf with
@@ -44,7 +59,7 @@ let rec init sf : t =
     | SBop (None, t, Bop.BEq, SConst c) -> eqconst (Term.init t) (Const.to_dom c)
     | SBop (None, _, bop, _) as term when Bop.is_relational bop
       -> eqconst (Term.init term) (Dom.Int 1)
-    | SAgg (s, aop, x, y, t)            -> agg s (Aggregation.init aop) (Term.init x) y (init t)
+    | SAgg (s, aop, x, y, t)            -> agg s (aggregation_init aop) (Term.init x) y (init t)
     | STop (s, op, x, y, t)             -> top s op (List.map ~f:Term.init x) y (init t)
     | SAssign (t, s, x)                 -> let f = init t in
                                            agg s (Aggregation.AAssign) (Term.init x) (list_fv f) f

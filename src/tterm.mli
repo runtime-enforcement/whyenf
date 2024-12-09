@@ -1,8 +1,9 @@
 open Base
 
-module TypedVar : MFOTL_Base.V with type t = string * Dom.tt
 
-include module type of MFOTL_Term.Make(TypedVar)(Dom)(Term.NoOp)(Term.NoOp)(Term.TrivialInfo)
+module TypedVar : MFOTL_lib.Modules.V with type t = string * MFOTL_lib.Dom.tt
+
+include module type of MFOTL_lib.Term.Make(TypedVar)(MFOTL_lib.Dom)(Term.NoOp)(Term.NoOp)(Term.TrivialInfo)
 
 val convert_var : Ctxt.t -> Term.v -> v
 val convert_vars : Ctxt.t -> Term.v list -> v list

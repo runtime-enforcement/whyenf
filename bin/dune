@@ -1,5 +1,6 @@
 (executable
  (public_name lifeboat)
  (name lifeboat)
- (libraries lifeboat_lib pyml)
+ (libraries lifeboat_lib MFOTL_lib pyml core core_unix.command_unix)
+ (preprocess (pps ppx_let))
  (promote (until-clean)))

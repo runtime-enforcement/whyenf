@@ -10,7 +10,14 @@
 
 open Base
 open Stdio
-open Etc
+open MFOTL_lib.Etc
+
+open Global
+
+module Time = MFOTL_lib.Time
+module Filter = MFOTL_lib.Filter
+module Dom = MFOTL_lib.Dom
+module Interval = MFOTL_lib.Interval
 
 module type EnforcerT = sig
 
@@ -69,7 +76,7 @@ module Make (E: Expl.ExplT) = struct
 
   end
 
-  let inc_ts ts = Time.(ts + !Etc.s_ref)
+  let inc_ts ts = Time.(ts + !s_ref)
 
   module EState = struct
 
@@ -103,7 +110,7 @@ module Make (E: Expl.ExplT) = struct
                        db = Db.create [];
                        r = Triple.empty;
                        fobligs = Set.singleton (module FObligation)
-                                   (FFormula (mf, -1, Etc.empty_valuation), Base.Map.empty (module Base.String), POS);
+                                   (FFormula (mf, -1, empty_valuation), Base.Map.empty (module Base.String), POS);
                        memo = Memo.empty;
                        nick = false; }
 
@@ -178,7 +185,7 @@ module Make (E: Expl.ExplT) = struct
       es, E.Proof.isS (specialize es v p)
 
     let vio x mf es =
-      sat x (MFormula.map_mf mf MFOTL.Filter.tt ~exquant:true (fun mf -> MNeg mf)) es
+      sat x (MFormula.map_mf mf Filter.tt ~exquant:true (fun mf -> MNeg mf)) es
     
     let all_not_sat v x mf es =
       (*print_endline "--all_not_sat";*)
@@ -215,8 +222,13 @@ module Make (E: Expl.ExplT) = struct
                x (MFormula.to_string mf) (Monitor.E.to_string p) (Setc.to_string s);
              failwith "Internal error: Infinite set of candidates in all_not_vio"
 
+    let rec filter_eval (db : Db.t) = function
+      | Filter.An e -> (Db.mem_trace db e)
+      | AllOf fis -> List.for_all fis ~f:(filter_eval db)
+      | OneOf fis -> List.exists fis ~f:(filter_eval db)
+
     let can_skip es mformula =
-      not (MFOTL.Filter.eval es.db mformula.filter)
+      not (filter_eval es.db mformula.filter)
 
     let testenf test enf v es mf =
       (*print_endline "-- testenf";
@@ -299,9 +311,9 @@ module Make (E: Expl.ExplT) = struct
       | MImp (R, _, mf2, _) -> enfsat mf2 v es
       | MIff (side1, _, mf1, mf2, _) ->
          fixpoint (enfsat_andl v
-                     [MFormula.map2_mf mf1 mf2 MFOTL.Filter.tt
+                     [MFormula.map2_mf mf1 mf2 Filter.tt
                         (fun mf1 mf2 -> MImp (side1, mf1, mf2, empty_binop_info));
-                      MFormula.map2_mf mf2 mf1 MFOTL.Filter.tt
+                      MFormula.map2_mf mf2 mf1 Filter.tt
                         (fun mf2 mf1 -> MImp (side1, mf2, mf1, empty_binop_info))]) es
       | MExists (x, tt, _, mf) -> enfsat mf (Map.add_exn v ~key:x ~data:(Dom.tt_default tt)) es
       | MForall (x, _, _, mf) -> fixpoint (enfsat_forall x mf v) es
@@ -447,7 +459,7 @@ module Make (E: Expl.ExplT) = struct
       | NoOrd -> Stdio.printf "[Enforcer] @%s nothing to do proactively.\n" (Time.to_epoch_string ts)
       
     let print ts ord =
-      if !Etc.json then print_json ts ord else print_textual ts ord
+      if !json then print_json ts ord else print_textual ts ord
     
   end
 
@@ -459,7 +471,7 @@ module Make (E: Expl.ExplT) = struct
     let mf = match obligs with
       | [] -> MFormula._tt
       | [mf] -> mf
-      | mfs -> MFormula.mapn_mf mfs MFOTL.Filter.tt (fun mfs -> MAnd (L, mfs, empty_binop_info))  in
+      | mfs -> MFormula.mapn_mf mfs Filter.tt (fun mfs -> MAnd (L, mfs, empty_binop_info))  in
     match (EState.mstep_state { es with ms = { es.ms with mf } }) es.memo
     with (memo, (_, _, ms)) -> (
       (*print_endline ("goal= " ^ MFormula.to_string ms.mf) ;*) { es with memo }, ms.mf)

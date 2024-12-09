@@ -11,6 +11,9 @@
 open Base
 open Stdio
 
+module Enftype = MFOTL_lib.Enftype
+module Dom = MFOTL_lib.Dom
+
 module TheSig = Sig
 
 let string_of_token (t: Other_lexer.token) =
@@ -252,7 +255,7 @@ module Sig = struct
                       (match tok with
                        | PRD -> Predicate
                        | EXT -> External
-                       | _ -> assert false);
+                       | _ -> raise (Failure ("unexpected character: " ^ string_of_token tok)));
                     parse_pred_sigs pb rank_ref
          | t -> raise (Failure ("unexpected character: " ^ string_of_token t))
       end

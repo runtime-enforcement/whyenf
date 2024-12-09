@@ -9,98 +9,92 @@
 (*  François Hublet (ETH Zurich)                                   *)
 (*******************************************************************)
 
-open Base
+open Core
 open Stdio
 open Lifeboat_lib
+open Lifeboat_lib.Global
 
-(* TODO: This module must be rewritten using the Command module from Core *)
 module Lifeboat = struct
 
+  let lexbuf_error_msg (lexbuf: Lexing.lexbuf) =
+    Printf.sprintf "a problem was found at line %d character %d"
+      (lexbuf.lex_curr_p.pos_lnum) (lexbuf.lex_curr_p.pos_cnum - lexbuf.lex_curr_p.pos_bol)
+  
   let formula_ref = ref None
   let sig_ref = ref In_channel.stdin
   let logstr_ref = ref ""
 
-  let n_args = ref 0
-
-  let usage () =
-    Caml.Format.eprintf
-      "usage: lifeboat [-sig] [-formula] [-func] [-log] [-out] [-b] [-tz]
-       arguments:
-       \t -sig
-       \t\t <file>             - signature
-       \t -formula
-       \t\t <file> or <string> - MFOTL formula
-       \t -func
-       \t\t <file>             - Python file containing function definitions
-       \t -log
-       \t\t <file>             - specify log file as trace (default: stdin)
-       \t -out
-       \t\t <file>             - output file (default: stdout)
-       \t -b 
-       \t\t <int> [smhdMy]     - default bound for future operators (default: 0)
-       \t -tz
-       \t\t local or <int>     - time zone (default: local, otherwise UTC+x)
-       \t -s                 
-       \t\t <int> [smhdMy]     - enforcement step (default: 1s)\n%!";
-    exit 0
-
-  let process_args =
-    let rec process_args_rec = function
-      | ("-debug" :: args) ->
-         Etc.debug := true;
-         process_args_rec args
-      | ("-log" :: logf :: args) ->
-         Etc.inc_ref := In_channel.create logf;
-         process_args_rec args
-      | ("-logstr" :: logs :: args) ->
-         logstr_ref := logs;
-         process_args_rec args
-      | ("-sig" :: sf :: args) ->
-         n_args := !n_args + 1;
-         Other_parser.Sig.parse_from_channel sf;
-         process_args_rec args
-      | ("-formula" :: f :: args) ->
-         n_args := !n_args + 1;
+  let run debug log_file logstr sig_file formula_file func_file out_file json bound time_zone step =
+    if debug then Global.debug := true;
+    (match log_file with
+     | Some logf -> inc_ref := In_channel.create logf
+     | None -> ());
+    logstr_ref := Option.value logstr ~default:"";
+    (match sig_file with
+     | Some sf -> Other_parser.Sig.parse_from_channel sf
+     | None -> ());
+    (match formula_file with
+     | Some f ->
          In_channel.with_file f ~f:(fun inc ->
-             let lexbuf = Lexing.from_channel inc in
-             formula_ref := try Some (Formula_parser.formula Formula_lexer.token lexbuf)
-                            with Formula_parser.Error as e ->
-                              Stdio.printf "%s\n" (Etc.lexbuf_error_msg lexbuf);
-                              Stdlib.flush_all (); None);
-         process_args_rec args
-      | ("-func":: f :: args) ->
-         n_args := !n_args + 1;
-         Funcs.Python.load f
-      | ("-out" :: outf :: args) ->
-         Etc.outc_ref := Out_channel.create outf;
-         process_args_rec args
-      | ("-json" :: args) ->
-         Etc.json := true;
-         process_args_rec args
-      | ("-b" :: bound :: args) ->
-         Etc.b_ref := Time.Span.of_string bound;
-         process_args_rec args
-      | ("-tz" :: time_zone :: args) ->
-         let tz = if String.equal time_zone "local" then
-                    CalendarLib.Time_Zone.Local
-                  else
-                    CalendarLib.Time_Zone.UTC_Plus (int_of_string time_zone) in
-         CalendarLib.Time_Zone.change tz;
-         process_args_rec args
-      | ("-s" :: step :: args) ->
-         Etc.s_ref := Time.Span.of_string step;
-         process_args_rec args
-      | [] -> if !n_args >= 2 then () else usage ()
-      | _ -> usage () in
-    process_args_rec
+           let lexbuf = Lexing.from_channel inc in
+           formula_ref := (try Some (Formula_parser.formula Formula_lexer.token lexbuf)
+                           with Formula_parser.Error ->
+                             printf "%s\n" (lexbuf_error_msg lexbuf);
+                             Out_channel.flush stdout;
+                             None))
+     | None -> ());
+    (match func_file with
+     | Some f -> Funcs.Python.load f
+     | None -> ());
+    (match out_file with
+     | Some outf -> outc_ref := Out_channel.create outf
+     | None -> ());
+    if json then Global.json := true;
+    (match bound with
+     | Some b -> b_ref := MFOTL_lib.Time.Span.of_string b
+     | None -> ());
+    (match time_zone with
+     | Some tz ->
+         let tz_setting = if String.(=) tz "local" then
+                            CalendarLib.Time_Zone.Local
+                          else
+                            CalendarLib.Time_Zone.UTC_Plus (Int.of_string tz)
+         in
+         CalendarLib.Time_Zone.change tz_setting
+     | None -> ());
+    (match step with
+     | Some s -> s_ref := MFOTL_lib.Time.Span.of_string s
+     | None -> ());
 
-  let _ =
-    try
-      process_args (List.tl_exn (Array.to_list Sys.argv));
-      let sformula = Option.value_exn !formula_ref in
-      let (module E: Expl.ExplT) = (module Expl.Make(Expl.LightProof)) in
-      let module Enforcer = Enforcer.Make (E) in
-      let _ = Enforcer.exec (Formula.init sformula) !Etc.inc_ref !Etc.b_ref in ()
-    with End_of_file -> Out_channel.close !Etc.outc_ref; exit 0
+    match !formula_ref with
+    | Some sformula ->
+        let (module E : Expl.ExplT) = (module Expl.Make(Expl.LightProof)) in
+        let module Enforcer = Enforcer.Make(E) in
+        let _ = Enforcer.exec (Formula.init sformula) !inc_ref !b_ref in
+        ()
+    | None ->
+        printf "Error: No valid formula provided.\n";
+        exit 1
 
+  let command =
+    Command.basic
+      ~summary:"Lifeboat: A tool for monitoring and enforcing MFOTL formulas"
+      ~readme:(fun () -> "Processes log files against MFOTL formulas with various options.")
+      (let%map_open.Command debug = flag "-debug" no_arg ~doc:" Enable debug mode"
+       and log_file = flag "-log" (optional string) ~doc:"FILE Log file as trace (default: stdin)"
+       and logstr = flag "-logstr" (optional string) ~doc:"STRING Log string"
+       and sig_file = flag "-sig" (optional string) ~doc:"FILE Signature file"
+       and formula_file = flag "-formula" (optional string) ~doc:"FILE MFOTL formula file" 
+       and func_file = flag "-func" (optional string) ~doc:"FILE Python file containing function definitions"
+       and out_file = flag "-out" (optional string) ~doc:"FILE Output file (default: stdout)"
+       and json = flag "-json" no_arg ~doc:" Enable JSON output" 
+       and bound = flag "-b" (optional string) ~doc:"INT[smhdMy] Default bound for future operators (default: 0)"
+       and time_zone = flag "-tz" (optional string) ~doc:"local|INT Time zone (default: local, otherwise UTC+x)"
+       and step = flag "-s" (optional string) ~doc:"INT[smhdMy] Enforcement step (default: 1s)"
+       in 
+       fun () ->
+       run debug log_file logstr sig_file formula_file func_file out_file json bound time_zone step)
+       
 end
+
+let () = Command_unix.run Lifeboat.command

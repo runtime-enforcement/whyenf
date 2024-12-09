@@ -10,6 +10,11 @@
 
 open Base
 
+module Dom = MFOTL_lib.Dom
+module Etc = MFOTL_lib.Etc
+module Interval = MFOTL_lib.Interval
+module Multiset = MFOTL_lib.Multiset
+
 module Fdeque = Core.Fdeque
 
 module Part = struct
@@ -296,7 +301,7 @@ module Pdt = struct
        | _ -> Node ((match x with
                      | LVar s               -> LVar s
                      | LClos (f, terms, v') -> LClos (f, List.map terms ~f:(Sig.eval v), v')
-                     | _                    -> assert false),
+                     | _                    -> assert false (*dead code *)),
                     Part.map part (specialize_partial v))
 
   let rec quantify ~forall x' = function
@@ -777,7 +782,7 @@ module Make (P: ProofT) = struct
   (* [s_1, ..., s_k] <- OP (y; f) where p is a Pdt for f *)
   let table_operator (op: Dom.t list list -> Dom.t list list) (s: string list) tp x y lbls lbls' p =
     let merge_pdts merge = function
-      | [] -> assert false
+      | [] -> raise (Invalid_argument "cannot merge 0 PDTs")
       | [pdt] -> pdt
       | pdt::pdts -> List.fold pdts ~init:pdt
                        ~f:(Pdt.apply2_reduce (List.equal Etc.equal_valuation) lbls' merge) in
@@ -815,7 +820,7 @@ module Make (P: ProofT) = struct
       | Node (lbl, part), _, _ :: trms ->
          let pdts = Part.map2 part (fun (s, p) -> gather (((Lbl.term lbl).trm, s)::sv) gs trms w p) in
          merge_pdts (@) pdts
-      | Node _, _, [] -> assert false in
+      | Node _, _, [] -> raise (Invalid_argument "there are no labels left to process node") in
     let rec collect_leaf_values x = function
       | Pdt.Leaf None  -> Set.empty (module Dom)
       | Leaf (Some vs) -> Set.of_list (module Dom) (List.map ~f:(fun v -> Map.find_exn v x) vs)
@@ -854,7 +859,7 @@ module Make (P: ProofT) = struct
       | Node _, _ :: lbls ->
          (*print_endline "case 3";*)
          insert lbls v pdt
-      | Node _, [] -> assert false
+      | Node _, [] -> raise (Invalid_argument "there are no labels left to process node")
       | Leaf (Some vs), _ ->
          if List.exists vs ~f:(fun v' ->
                 Map.for_alli v ~f:(fun ~key ~data -> Dom.equal (Map.find_exn v' key) data))

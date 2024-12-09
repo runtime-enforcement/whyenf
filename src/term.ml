@@ -1,7 +1,9 @@
 open Base
 open Sformula
 
-module TrivialInfo : MFOTL_Base.I with type t = unit = struct
+open MFOTL_lib
+
+module TrivialInfo : Modules.I with type t = unit = struct
 
   type t = unit [@@deriving compare, sexp_of, hash, equal]
 
@@ -10,7 +12,7 @@ module TrivialInfo : MFOTL_Base.I with type t = unit = struct
 
 end
 
-module StringVar : MFOTL_Base.V with type t = string = struct
+module StringVar : Modules.V with type t = string = struct
 
   module T = struct
 
@@ -33,12 +35,12 @@ module NoOp = struct
 
   type t = unit [@@deriving compare, sexp_of, hash, equal]
 
-  let to_string _ = assert false
+  let to_string _ = ""
   let prio _ = 0
 
 end
 
-include MFOTL_Term.Make(StringVar)(Dom)(NoOp)(NoOp)(TrivialInfo)
+include Term.Make(StringVar)(Dom)(NoOp)(NoOp)(TrivialInfo)
 
 let rec init sf =
   let trm = match sf with

@@ -14,25 +14,12 @@ module Fdeque = Core.Fdeque
 type timepoint = int
 type timestamp = Time.t
 
-let debug = ref false
-let inc_ref = ref Stdio.In_channel.stdin
-let outc_ref = ref Stdio.Out_channel.stdout
-let json = ref false
-let b_ref = ref Time.Span.zero
-let s_ref = ref (Time.Span.Second (Time.Span.Second.of_string "1"))
 
 let eat s t = s ^ (String.strip t)
 let paren h k x = if h>k then Caml.( "("^^x^^")" ) else x
 let is_digit = function
   | '0' .. '9' -> true
   | _ -> false
-
-let lexing_error lexbuf s =
-  raise (Errors.ParserError (Lexing.lexeme_start_p lexbuf, Lexing.lexeme_end_p lexbuf, s))
-
-let lexbuf_error_msg (lexbuf: Lexing.lexbuf) =
-  Printf.sprintf "a problem was found at line %d character %d"
-    (lexbuf.lex_curr_p.pos_lnum) (lexbuf.lex_curr_p.pos_cnum - lexbuf.lex_curr_p.pos_bol) 
 
 exception Empty_deque of string
 let deque_to_string indent f d =

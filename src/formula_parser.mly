@@ -9,8 +9,10 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
-open Etc
 open Sformula
+open MFOTL_lib
+open Etc
+open Global
 
 let debug m = if !debug then Stdio.print_endline ("[debug] formula_parser: " ^ m)
 
@@ -20,7 +22,7 @@ let debug m = if !debug then Stdio.print_endline ("[debug] formula_parser: " ^ m
 %token COMMA SEMICOLON DOT COL GETS LET IN QST EXC
 %token EOF
 
-%token <Interval.t> INTERVAL
+%token <MFOTL_lib.Interval.t> INTERVAL
 %token <string>     STR
 %token <string>     QSTR
 %token <int>        INT

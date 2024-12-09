@@ -1,6 +1,6 @@
 open Base
 
-open MFOTL_Base
+open Modules
 
 module type T = sig
 
@@ -33,7 +33,7 @@ end
 
 module Make (Var : V) (Dom : D) (Uop : O) (Bop : O) (Info : I) = struct
 
-  module Ctxt = MFOTL_Ctxt.Make(Dom)
+  module Ctxt = Ctxt.Make(Dom)
 
   module T = struct
 
@@ -142,6 +142,7 @@ module Make (Var : V) (Dom : D) (Uop : O) (Bop : O) (Info : I) = struct
                     | Record kvs -> fn_list (List.map ~f:snd kvs)) @ fn_list ts
 
     let list_to_string trms = String.concat ~sep:", " (List.map trms ~f:value_to_string)
+    let list_to_string_core trms = String.concat ~sep:", " (List.map trms ~f:value_to_string_core)
 
     let filter_vars = List.filter_map ~f:(fun t -> match t.trm with Var x -> Some x | _ -> None)
 
