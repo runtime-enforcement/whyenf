@@ -1,8 +1,8 @@
 The formula
- □[0s,∞) C(0) → B(0)
+ □[0s,∞) (C(0) → B(0))
 is enforceable and types to
- □[0s,∞) ((C(0) : Bot) →:R (B(0) : Cau) : Cau) : Cau
-Warning: this formula cannot be transparently enforced
+ □[0s,∞) (((C(0) : Bot) →:R (B(0) : Cau)) : <NonObs,Cau,ErrSct>) : <NonObs,Cau,ErrSct>
+This formula cannot be transparently enforced.
 [Enforcer] @1 reactively commands:
 Cause:
 B(0)

@@ -25,9 +25,7 @@ val eat: string -> string -> string
 val paren: int -> int -> ('b, 'c, 'd, 'e, 'f, 'g) format6 -> ('b, 'c, 'd, 'e, 'f, 'g) format6
 val is_digit: char -> bool
 
-exception Parsing_error of Lexing.position*Lexing.position*string
-val parsing_error: Lexing.position -> Lexing.position -> ('a, Format.formatter, unit, 'b) format4 -> 'a
-val lexing_error: Lexing.lexbuf -> ('a, Format.formatter, unit, 'b) format4 -> 'a
+val lexing_error: Lexing.lexbuf -> string -> 'a
 val lexbuf_error_msg: Lexing.lexbuf -> string
 
 exception Empty_deque of string
@@ -88,3 +86,5 @@ val gen_fresh: string -> string
 val inter_list: ('a, 'b) Comparator.Module.t -> ('a, 'b) Base.Set.t list -> ('a, 'b) Base.Set.t
 
 type string_set_list = (string, Base.String.comparator_witness) Base.Set.t list
+
+val inter_string_set_list: string_set_list list -> string_set_list

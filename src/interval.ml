@@ -48,10 +48,10 @@ module MakeUI (S : S) : B with type v = S.v and type t = S.v = struct
   let has_zero i = S.is_zero i
   let is_zero _ = false
   let is_full i = S.is_zero i
-  let is_bounded i = false
-  let is_nonpositive i = false
+  let is_bounded _ = false
+  let is_nonpositive _ = false
   let left i = Some i
-  let right i = None
+  let right _ = None
   let to_string i = Printf.sprintf "[%s,∞)" (S.to_string i)
   let to_latex i = Printf.sprintf "[%s,\\infty)" (S.to_string i)
   let make_exn i = i
@@ -71,10 +71,10 @@ module MakeNUI (S : S) : B with type v = S.v and type t = S.v = struct
 
   let has_zero i = S.leq S.zero i
   let is_zero _ = false
-  let is_full i = false
-  let is_bounded i = false
+  let is_full _ = false
+  let is_bounded _ = false
   let is_nonpositive i = S.leq i S.zero
-  let left i = None
+  let left _ = None
   let right i = Some i
   let to_string i = Printf.sprintf "(-∞,%s]" (S.to_string i)
   let to_latex i = Printf.sprintf "(-\\infty,%s]" (S.to_string i)
@@ -93,8 +93,8 @@ module MakeBI (S : S) : B with type v = S.v and type t = S.v * S.v = struct
   let is_full _ = false
   let is_bounded _ = true
   let is_nonpositive (_, j) = S.leq j S.zero
-  let left (i, j) = Some i
-  let right (i, j) = Some j
+  let left (i, _) = Some i
+  let right (_, j) = Some j
   let to_string (i, j) = Printf.sprintf "[%s,%s]" (S.to_string i) (S.to_string j)
   let to_latex = to_string
   let make_exn (l, r) = if S.leq l r then (l, r) else raise (Invalid_argument "empty interval")

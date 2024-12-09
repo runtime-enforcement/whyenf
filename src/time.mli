@@ -18,6 +18,7 @@ module type U = sig
   val inc : u -> u
   val dec : u -> u
   val is_zero : u -> bool
+  val is_one : u -> bool
   val of_string : string -> u
   val to_string : u -> string
   
@@ -101,3 +102,5 @@ val zero : t
 
 val to_string : t -> string
 val to_epoch_string : t -> string
+
+val of_string : string -> t

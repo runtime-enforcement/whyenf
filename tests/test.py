@@ -6,7 +6,7 @@ import subprocess
 from time import time
 from tqdm import tqdm # type: ignore
 
-WHYENF  = Path("./_build/default/bin/whyenf.exe")
+WHYENF  = Path("./_build/default/bin/lifeboat.exe")
 CONFIG  = Path("./tests/config.json")
 SUMMARY = Path("./tests/summary.csv")
 EXAMPLE = Path("./examples/tests")
@@ -45,7 +45,7 @@ class Test:
     
     def _run_whyenf(self) -> subprocess.CompletedProcess[str]:
         try:
-            return subprocess.run(self.command, capture_output=True, text=True, timeout=10)
+            return subprocess.run(self.command, capture_output=True, text=True, timeout=1)
         except subprocess.TimeoutExpired:
             return subprocess.CompletedProcess(args=self.command, returncode=-1, stdout="", stderr="Timeout occurred")
     

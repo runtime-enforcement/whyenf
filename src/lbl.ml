@@ -6,12 +6,12 @@ module S = struct
   let compare = Set.compare_direct 
   let sexp_of_t s = Sexp.List (List.map (Set.elements s) ~f:(fun x -> Sexp.Atom x))
   let empty = Set.empty (module String)
-  let is_empty = Set.is_empty
+  (*let is_empty = Set.is_empty*)
   let mem = Set.mem
   let filter = Set.filter
   let singleton = Set.singleton (module String)
   let of_list = Set.of_list (module String)
-  let length = Set.length
+  (*let length = Set.length*)
   let elements = Set.elements
   let to_string s =
     Printf.sprintf "{%s}" (String.concat ~sep:", " (elements s))
@@ -41,12 +41,14 @@ module T = struct
     | _ -> false
 
   let term = function
-    | LVar s -> Term.Var s
-    | LClos (f, ts, v) -> App (f, ts)
+    | LVar s -> Term.make_dummy (Term.Var s)
+    | LClos (f, ts, _) -> Term.make_dummy (App (f, ts))
+    | _ -> raise (Invalid_argument "term is undefined for quantified labels")
 
-  let of_term = function
+  let of_term t = match Term.(t.trm) with
     | Term.Var s -> LVar s
     | App (f, ts) -> LClos (f, ts, S.empty)
+    | _ -> raise (Invalid_argument "of_term is undefined for quantified labels")
 
   let to_string = function
     | LVar x -> Printf.sprintf "LVar %s" x
@@ -59,10 +61,11 @@ module T = struct
   let to_string_list lbls =
     String.concat ~sep:", " (List.map ~f:to_string lbls)
 
-  let rec fv = function
+  let fv = function
     | LVar s -> S.singleton s
-    | LClos (f, ts, vars) ->
+    | LClos (_, ts, vars) ->
        S.filter (S.of_list (Term.fv_list ts)) ~f:(fun x -> not (S.mem vars x))
+    | _ -> raise (Invalid_argument "fv is undefined for quantified labels")
 
   let quantify ~forall x = function
     | LVar x' when String.equal x x' ->
@@ -93,14 +96,27 @@ module T = struct
        LVar x' :: (unquantify_list2 terms)
     | lbl :: terms -> lbl :: (unquantify_list x terms)
 
-
-  let rec eval (v: Etc.valuation) = function
+  let eval (v: Etc.valuation) lbl =
+    let trm = match lbl with
     | LVar s when Map.mem v s -> Term.Const (Map.find_exn v s)
-    | LVar s -> Var s
-    | LClos (f, ts, _) ->
-       let aux = function | `Left y | `Right y | `Both (y, _) -> Some y in
-       Sig.eval v (App (f, ts))
-    | _ -> assert false
+    | LVar s -> Term.Var s
+    | LClos (f, ts, _) -> (Sig.eval v (Term.make_dummy (App (f, ts)))).trm
+    | _ -> raise (Invalid_argument "cannot evaluate quantified label")
+    in Term.make_dummy trm
+
+  
+  (* Order terms in lbls' to fulfill the following invariants:
+   * all variables in y, ordered as in lbls, come first
+   * then comes x
+   * then come all other variables not in x or y
+   * any term using a variable z comes after z
+   *)
+  let order lbls lbls' x y =
+    let vars  = List.filter lbls ~f:is_var in
+    let lbls1 = (Etc.reorder ~equal:equal (List.map y ~f:var) vars) @ [x] in
+    let lbls2 = List.filter lbls' ~f:(fun lbl -> not (List.mem lbls1 lbl ~equal:equal)) in
+    lbls1 @ lbls2
+
 
 end
 

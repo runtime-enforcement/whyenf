@@ -10,7 +10,6 @@
 
 open Base
 open Stdio
-open Etc
 
 module TheSig = Sig
 
@@ -24,6 +23,17 @@ let string_of_token (t: Other_lexer.token) =
   | COL -> "':'"
   | STR s -> "\"" ^ String.escaped s ^ "\""
   | EOF -> "<EOF>"
+  | FUN -> "\"fun\""
+  | SFUN -> "\"sfun\""
+  | TFUN -> "\"tfun\""
+  | PRD -> "\"pred\""
+  | EXT -> "\"ext\""
+  | LAN -> "'>'"
+  | RAN -> "'<'"
+  | ADD -> "'+'"
+  | SUB -> "'-'"
+  | QST -> "'?'"
+  | EXC -> "'!'"
 
 
 module Stats = struct
@@ -111,11 +121,9 @@ module Parsebuf = struct
   let count_tp pb =
     Stats.inc_tp pb.stats
 
-  let clear pb = pb
-
   let print_stats comment pb = 
     Stdio.printf ">%s %s %d <\n" comment (Stats.to_string pb.stats)
-      (int_of_float (1000. *. Unix.gettimeofday ()));
+      (Float.to_int (1000. *. Unix.gettimeofday ()));
     Stdlib.flush_all();
     reset_stats pb
 
@@ -142,11 +150,6 @@ module Sig = struct
     match pb.token with
     | STR s -> Parsebuf.next pb; s
     | t -> raise (Failure ("expected a string but found " ^ string_of_token t))
-
-  let parse_int pb =
-    let s = parse_string pb in
-    try Int.of_string s
-    with Failure _ -> raise (Failure ("expected an integer but found \"" ^ String.escaped s ^ "\""))
 
   let expect_token (pb: Parsebuf.t) t =
     if token_equal pb.token t then Parsebuf.next pb
@@ -230,7 +233,7 @@ module Sig = struct
                     parse_pred_sigs pb rank_ref
          | t -> raise (Failure ("unexpected character: " ^ string_of_token t))
       end
-    | TFUN as kw -> begin
+    | TFUN -> begin
         Parsebuf.next pb;
         match pb.token with
          | STR s -> Parsebuf.next pb;
@@ -246,7 +249,10 @@ module Sig = struct
          | STR s -> Parsebuf.next pb;
                     let arg_tts = convert_types (parse_arg_tts pb) in
                     Sig.add_pred s arg_tts Enftype.obs 0
-                      (match tok with PRD -> Predicate | EXT -> External);
+                      (match tok with
+                       | PRD -> Predicate
+                       | EXT -> External
+                       | _ -> assert false);
                     parse_pred_sigs pb rank_ref
          | t -> raise (Failure ("unexpected character: " ^ string_of_token t))
       end

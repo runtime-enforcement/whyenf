@@ -62,17 +62,17 @@ module type MonitorT = sig
       | MEUntil       of Side.t * Interval.t * Time.t option * t * t * Etc.valuation
 
     and t = { mf: core_t;
-              filter: Formula.Filter.filter;
+              filter: MFOTL.Filter.t;
               events: (string, String.comparator_witness) Set.t option;
               obligations: (int, Int.comparator_witness) Set.t option;
               hash: int;
               lbls: Lbl.t list }
 
-    val make: core_t -> Formula.Filter.filter -> t
-    val set_make: core_t -> Formula.Filter.filter -> t
-    val map_mf: t -> Formula.Filter.filter -> ?exquant:bool -> (t -> core_t) -> t
-    val map2_mf: t -> t -> Formula.Filter.filter -> (t -> t -> core_t) -> t
-    val mapn_mf: t list -> Formula.Filter.filter -> (t list -> core_t) -> t
+    val make: core_t -> MFOTL.Filter.t -> t
+    val set_make: core_t -> MFOTL.Filter.t -> t
+    val map_mf: t -> MFOTL.Filter.t -> ?exquant:bool -> (t -> core_t) -> t
+    val map2_mf: t -> t -> MFOTL.Filter.t -> (t -> t -> core_t) -> t
+    val mapn_mf: t list -> MFOTL.Filter.t -> (t list -> core_t) -> t
 
     val _tt : t
     val _ff : t
@@ -94,8 +94,6 @@ module type MonitorT = sig
 
   module FObligation : sig
 
-    open MFormula
-
     type polarity = POS | NEG
 
     type kind =
@@ -107,7 +105,7 @@ module type MonitorT = sig
 
     type t = kind * Etc.valuation * polarity
 
-    val equal: t -> t -> bool
+    (*val equal: t -> t -> bool*)
     val eval: Time.t -> int -> t -> MFormula.t
     val to_string: t -> string
     val h: t -> int
@@ -176,8 +174,8 @@ module Make (E: Expl.ExplT) = struct
   (* let minp_bool = Proof.Size.minp_bool *)
   (* let minp = Proof.Size.minp *)
   let minp_list = List.hd_exn
-  let minp_bool = fun p1 p2 -> true
-  let minp = fun p1 p2 -> p1
+  let minp_bool = fun _ _ -> true
+  (*let minp = fun p1 _ -> p1*)
 
   let s_append_deque sp1 d =
     Fdeque.map d ~f:(fun (ts, ssp) ->
@@ -185,11 +183,11 @@ module Make (E: Expl.ExplT) = struct
         | Proof.S sp -> (ts, Proof.S (Proof.s_append sp sp1))
         | V _ -> raise (Invalid_argument "found V proof in S deque"))
 
-  let v_append_deque vp2 d =
+  (*let v_append_deque vp2 d =
     Fdeque.map d ~f:(fun (ts, vvp) ->
         match vvp with
         | Proof.V vp -> (ts, Proof.V (Proof.v_append vp vp2))
-        | S _ -> raise (Invalid_argument "found S proof in V deque"))
+        | S _ -> raise (Invalid_argument "found S proof in V deque"))*)
 
   let remove_cond_front f deque =
     let rec remove_cond_front_rec d = match Fdeque.dequeue_front d with
@@ -277,7 +275,7 @@ module Make (E: Expl.ExplT) = struct
     | None -> (tstps_out, Fdeque.drop_front_exn tstps_in)
     | Some _ -> (Fdeque.drop_front_exn tstps_out, tstps_in)
 
-  let add_tstp_future a b nts ntp tstps_out tstps_in =
+  let add_tstp_future a _ nts ntp tstps_out tstps_in =
     (* (ts, tp) update is performed differently if the queues are not empty *)
     if not (Fdeque.is_empty tstps_out) || not (Fdeque.is_empty tstps_in) then
       let first_ts = match first_ts_tp tstps_out tstps_in with
@@ -308,7 +306,7 @@ module Make (E: Expl.ExplT) = struct
               else tstps_in')),
        remove_cond_front (fun (ts', _) -> Time.(ts' <= r)) tstps_out')
 
-  let tstps_to_string (ts_zero: Time.t option) tstps_in tstps_out =
+  (*let tstps_to_string (ts_zero: Time.t option) tstps_in tstps_out =
     (match ts_zero with
      | None -> ""
      | Some(ts) -> Printf.sprintf "\n\tts_zero = (%s)\n" (Time.to_string ts)) ^
@@ -317,7 +315,7 @@ module Make (E: Expl.ExplT) = struct
         (Printf.sprintf "]\n") ^
           Fdeque.fold tstps_out ~init:"\n\ttstps_out = ["
             ~f:(fun acc (ts, tp) -> acc ^ (Printf.sprintf "(%s, %d);" (Time.to_string ts) tp)) ^
-            (Printf.sprintf "]\n")
+            (Printf.sprintf "]\n")*)
 
   module Buf2 = struct
 
@@ -331,11 +329,13 @@ module Make (E: Expl.ExplT) = struct
       | x::xs, y::ys -> let (zs, buf2') = take f (xs, ys) in
                         ((f x y)::zs, buf2')
 
-    let rec pdt_equal b1 b2 = match b1, b2 with
+    (*let rec pdt_equal b1 b2 = match b1, b2 with
       | ([], []), ([], []) -> true
       | (x1::x1s, y1::y1s), (x2::x2s, y2::y2s) ->
          Int.equal (List.length x1s) (List.length x2s) && Int.equal (List.length y1s) (List.length y2s) &&
-           Pdt.eq Proof.equal x1 x2 && Pdt.eq Proof.equal y1 y2
+           Pdt.eq Proof.equal x1 x2 && Pdt.eq Proof.equal y1 y2 &&
+             pdt_equal (x1s, y1s) (x2s, y2s)
+      | _, _ -> false*)
 
     let map f1 f2 (l1, l2) = (List.map ~f:f1 l1, List.map ~f:f2 l2)
 
@@ -357,12 +357,13 @@ module Make (E: Expl.ExplT) = struct
       | xs, [] -> (z, xs, [])
       | x::xs, (a,b)::ys -> take f (f x a b z) (xs, ys)
 
-    let rec pdt_equal b1 b2 = match b1, b2 with
+    (*let rec pdt_equal b1 b2 = match b1, b2 with
       | ([], []), ([], []) -> true
       | (x1::x1s, (y11, y12)::y1s), (x2::x2s, (y21, y22)::y2s) ->
          Int.equal (List.length x1s) (List.length x2s) && Int.equal (List.length y1s) (List.length y2s) &&
            Pdt.eq Proof.equal x1 x2 && Int.equal y11 y21 && Int.equal y12 y22 &&
              pdt_equal (x1s, y1s) (x2s, y2s)
+      | _, _ -> false*)
 
     let map f1 f2 (l1, l2) = (List.map ~f:f1 l1, List.map ~f:f2 l2)
 
@@ -372,7 +373,7 @@ module Make (E: Expl.ExplT) = struct
 
     type ('a, 'b, 'c) t = ('a list * 'b list) * 'c list
 
-    let add xs ys (l1, l2) = (l1 @ xs, l2 @ ys)
+    (*let add xs ys (l1, l2) = (l1 @ xs, l2 @ ys)*)
 
     let rec take f w (xs, ys) zs = match (xs, ys), zs with
       | ([], ys), zs -> (w, (([], ys), zs))
@@ -380,13 +381,14 @@ module Make (E: Expl.ExplT) = struct
       | (xs, ys), [] -> (w, ((xs, ys), []))
       | (x::xs, y::ys), (a,b)::zs -> take f (f x y a b w) (xs, ys) zs
 
-    let rec pdt_equal b1 b2 = match b1, b2 with
+    (*let rec pdt_equal b1 b2 = match b1, b2 with
       | (([], []), []), (([], []), []) -> true
       | ((x1::x1s, y1::y1s), (z11, z12)::z1s), ((x2::x2s, y2::y2s), (z21, z22)::z2s) ->
          Int.equal (List.length x1s) (List.length x2s) && Int.equal (List.length y1s) (List.length y2s) &&
            Int.equal (List.length z1s) (List.length z2s) && Pdt.eq Proof.equal x1 x2 &&
-             Pdt.eq Proof.equal y2 y2 && Int.equal z11 z21 && Int.equal z12 z22 &&
+             Pdt.eq Proof.equal y1 y2 && Int.equal z11 z21 && Int.equal z12 z22 &&
                pdt_equal ((x1s, y1s), z1s) ((x2s, y2s), z2s)
+      | _, _ -> false*)
 
     let map f1 f2 f3 ((l1, l2), l3) = ((List.map ~f:f1 l1, List.map ~f:f2 l2), List.map ~f:f3 l3)
 
@@ -395,7 +397,6 @@ module Make (E: Expl.ExplT) = struct
   module Once = struct
 
     type t = { ts_zero: Time.t option
-             ; tstps_in: (Time.t * timepoint) Fdeque.t
              ; tstps_out: (Time.t * timepoint) Fdeque.t
              ; s_alphas_in: (Time.t * Proof.t) Fdeque.t
              ; s_alphas_out: (Time.t * Proof.t) Fdeque.t
@@ -403,14 +404,13 @@ module Make (E: Expl.ExplT) = struct
              ; v_alphas_out: (Time.t * Proof.vp) Fdeque.t }
 
     let init () = { ts_zero = None
-                  ; tstps_in = Fdeque.empty
                   ; tstps_out = Fdeque.empty
                   ; s_alphas_in = Fdeque.empty
                   ; s_alphas_out = Fdeque.empty
                   ; v_alphas_in = Fdeque.empty
                   ; v_alphas_out = Fdeque.empty }
 
-    let to_string { ts_zero
+    (*let to_string { ts_zero
                   ; tstps_in
                   ; tstps_out
                   ; s_alphas_in
@@ -430,19 +430,20 @@ module Make (E: Expl.ExplT) = struct
                Fdeque.fold v_alphas_out ~init:"\nv_alphas_out = "
                  ~f:(fun acc (ts, p) ->
                    acc ^ (Printf.sprintf "\n(%s)\n" (Time.to_string ts)) ^ Proof.v_to_string "" p))
-
+     *)
+    
     let update_s_alphas_in new_in_sat s_alphas_in =
       if not (Fdeque.is_empty new_in_sat) then
         sorted_append new_in_sat s_alphas_in
       else s_alphas_in
 
-    let update_v_alphas_in new_in_vio v_alphas_in =
+    (*let update_v_alphas_in new_in_vio v_alphas_in =
       Fdeque.fold new_in_vio ~init:v_alphas_in ~f:(fun v_alphas_in' (ts, vp) ->
-          Fdeque.enqueue_back v_alphas_in' (ts, vp))
+          Fdeque.enqueue_back v_alphas_in' (ts, vp))*)
 
-    let add_subps ts p1 moaux = match p1 with
+    (*let add_subps ts p1 moaux = match p1 with
       | Proof.S sp1 -> { moaux with s_alphas_out = Fdeque.enqueue_back moaux.s_alphas_out (ts, (Proof.S sp1)) }
-      | V vp1 -> { moaux with v_alphas_out = Fdeque.enqueue_back moaux.v_alphas_out (ts, vp1) }
+      | V vp1 -> { moaux with v_alphas_out = Fdeque.enqueue_back moaux.v_alphas_out (ts, vp1) }*)
 
     let clean (l, r) moaux =
       { moaux with s_alphas_in = remove_cond_front (fun (ts, _) -> Time.(ts < l)) moaux.s_alphas_in
@@ -454,11 +455,11 @@ module Make (E: Expl.ExplT) = struct
       let (s_alphas_out', new_in_sat) = split_in_out (fun (ts, _) -> ts) (l, r) s_alphas_out in
       (s_alphas_out', update_s_alphas_in new_in_sat s_alphas_in)
 
-    let shift_vio (l, r) v_alphas_out v_alphas_in =
+    (*let shift_vio (l, r) v_alphas_out v_alphas_in =
       let (v_alphas_out', new_in_vio) = split_in_out (fun (ts, _) -> ts) (l, r) v_alphas_out in
-      (v_alphas_out', update_v_alphas_in new_in_vio v_alphas_in)
+      (v_alphas_out', update_v_alphas_in new_in_vio v_alphas_in)*)
 
-    let shift (l, r) a ts tp moaux =
+    (*let shift (l, r) a ts tp moaux =
       let (tstps_in, tstps_out) = shift_tstps_past (l, r) a ts tp moaux.tstps_in moaux.tstps_out in
       let (s_alphas_out, s_alphas_in) = shift_sat (l,r) moaux.s_alphas_out moaux.s_alphas_in in
       let (v_alphas_out, v_alphas_in) = shift_vio (l,r) moaux.v_alphas_out moaux.v_alphas_in in
@@ -467,22 +468,22 @@ module Make (E: Expl.ExplT) = struct
                               ; s_alphas_out
                               ; s_alphas_in
                               ; v_alphas_out
-                              ; v_alphas_in }
+                              ; v_alphas_in }*)
 
-    let eval tp moaux =
+    (*let eval tp moaux =
       if not (Fdeque.is_empty moaux.s_alphas_in) then
         [Proof.S (Proof.make_sonce tp (Proof.unS (snd (Fdeque.peek_front_exn moaux.s_alphas_in))))]
       else
         let etp = match Fdeque.is_empty moaux.v_alphas_in with
           | true -> etp moaux.tstps_in moaux.tstps_out tp
           | false -> Proof.v_at (snd(Fdeque.peek_front_exn moaux.v_alphas_in)) in
-        [Proof.V (Proof.make_vonce tp etp (Fdeque.map moaux.v_alphas_in ~f:snd))]
+        [Proof.V (Proof.make_vonce tp etp (Fdeque.map moaux.v_alphas_in ~f:snd))]*)
 
     let add_subps_enforce ts p1 moaux = match p1 with
       | Proof.S sp1 -> { moaux with s_alphas_out = Fdeque.enqueue_back moaux.s_alphas_out (ts, (Proof.S sp1)) }
-      | V vp1 -> moaux
+      | V _ -> moaux
 
-    let shift_enforce (l, r) a ts tp moaux =
+    let shift_enforce (l, r) _ _ _ moaux =
       let (s_alphas_out, s_alphas_in) = shift_sat (l,r) moaux.s_alphas_out moaux.s_alphas_in in
       clean (l, r) { moaux with s_alphas_out
                               ; s_alphas_in }
@@ -538,7 +539,7 @@ module Make (E: Expl.ExplT) = struct
                   ; v_alphas_in = Fdeque.empty
                   ; optimal_proofs = Fdeque.empty }
 
-    let to_string { tstps_out
+    (*let to_string { tstps_out
                   ; tstps_in
                   ; s_alphas_in
                   ; v_alphas_in
@@ -552,7 +553,7 @@ module Make (E: Expl.ExplT) = struct
                acc ^ (Printf.sprintf "\n(%s)\n" (Time.to_string ts)) ^ Proof.v_to_string "" p) ^
              Fdeque.fold optimal_proofs ~init:"\noptimal_proofs = "
                ~f:(fun acc (ts, p) ->
-                 acc ^ (Printf.sprintf "\n(%s)\n" (Time.to_string ts)) ^ Proof.to_string "" p))
+                 acc ^ (Printf.sprintf "\n(%s)\n" (Time.to_string ts)) ^ Proof.to_string "" p))*)
 
     let adjust a (nts, ntp) meaux =
       let (tstps_out, tstps_in) = drop_first_ts_tp meaux.tstps_out meaux.tstps_in in
@@ -573,7 +574,7 @@ module Make (E: Expl.ExplT) = struct
       let optimal_proofs =
         (if not (Fdeque.is_empty meaux.s_alphas_in) then
            (match Fdeque.peek_front_exn meaux.s_alphas_in with
-            | (_, S sp) -> Fdeque.enqueue_back meaux.optimal_proofs
+            | (_, S _) -> Fdeque.enqueue_back meaux.optimal_proofs
                              (ts, S (Proof.make_seventually tp (Proof.unS(snd(Fdeque.peek_front_exn meaux.s_alphas_in)))))
             | _ -> raise (Invalid_argument "found V proof in S deque"))
          else
@@ -589,7 +590,7 @@ module Make (E: Expl.ExplT) = struct
       Fdeque.fold tstps ~init:meaux ~f:(fun meaux' (ts, tp) ->
           eval_step a (nts, ntp) ts tp meaux')
 
-    let add_subp a (ts, tp) (p1: Proof.t) meaux =
+    let add_subp a (ts, _) (p1: Proof.t) meaux =
       let first_ts = match first_ts_tp meaux.tstps_out meaux.tstps_in with
         | None -> Time.zero
         | Some(ts', _) -> ts' in
@@ -659,7 +660,7 @@ module Make (E: Expl.ExplT) = struct
                   ; v_alphas_in = Fdeque.empty
                   ; v_alphas_out = Fdeque.empty }
 
-    let to_string { ts_zero
+    (*let to_string { ts_zero
                   ; tstps_in
                   ; tstps_out
                   ; s_alphas_in
@@ -678,7 +679,7 @@ module Make (E: Expl.ExplT) = struct
                  acc ^ (Printf.sprintf "\n(%s)\n" (Time.to_string ts)) ^ Proof.to_string "" p) ^
                Fdeque.fold v_alphas_in ~init:"\nv_alphas_out = "
                  ~f:(fun acc (ts, p) ->
-                   acc ^ (Printf.sprintf "\n(%s)\n" (Time.to_string ts)) ^ Proof.to_string "" p))
+                   acc ^ (Printf.sprintf "\n(%s)\n" (Time.to_string ts)) ^ Proof.to_string "" p))*)
 
     let update_s_alphas_in new_in_sat s_alphas_in =
       Fdeque.fold new_in_sat ~init:s_alphas_in ~f:(fun s_alphas_in' (ts, sp) ->
@@ -768,7 +769,7 @@ module Make (E: Expl.ExplT) = struct
                   ; s_alphas_in = Fdeque.empty
                   ; optimal_proofs = Fdeque.empty }
 
-    let to_string { tstps_out
+    (*let to_string { tstps_out
                   ; tstps_in
                   ; v_alphas_in
                   ; s_alphas_in
@@ -782,7 +783,7 @@ module Make (E: Expl.ExplT) = struct
                acc ^ (Printf.sprintf "\n(%s)\n" (Time.to_string ts)) ^ Proof.s_to_string "" sp) ^
              Fdeque.fold optimal_proofs ~init:"\noptimal_proofs = "
                ~f:(fun acc (ts, p) ->
-                 acc ^ (Printf.sprintf "\n(%s)\n" (Time.to_string ts)) ^ Proof.to_string "" p))
+                 acc ^ (Printf.sprintf "\n(%s)\n" (Time.to_string ts)) ^ Proof.to_string "" p))*)
 
     let adjust a (nts, ntp) maaux =
       let (tstps_out, tstps_in) = drop_first_ts_tp maaux.tstps_out maaux.tstps_in in
@@ -803,7 +804,7 @@ module Make (E: Expl.ExplT) = struct
       let optimal_proofs =
         (if not (Fdeque.is_empty maaux.v_alphas_in) then
            (match Fdeque.peek_front_exn maaux.v_alphas_in with
-            | (_, V vp) -> Fdeque.enqueue_back maaux.optimal_proofs
+            | (_, V _) -> Fdeque.enqueue_back maaux.optimal_proofs
                              (ts, V (Proof.make_valways tp (Proof.unV(snd(Fdeque.peek_front_exn maaux.v_alphas_in)))))
             | _ -> raise (Invalid_argument "found S proof in V deque"))
          else
@@ -818,7 +819,7 @@ module Make (E: Expl.ExplT) = struct
       Fdeque.fold tstps ~init:maaux ~f:(fun maaux' (ts, tp) ->
           eval_step a (nts, ntp) ts tp maaux')
 
-    let add_subp a (ts, tp) (p1: Proof.t) maaux =
+    let add_subp a (ts, _) (p1: Proof.t) maaux =
       let first_ts = match first_ts_tp maaux.tstps_out maaux.tstps_in with
         | None -> Time.zero
         | Some(ts', _) -> ts' in
@@ -867,26 +868,22 @@ module Make (E: Expl.ExplT) = struct
   module Since = struct
 
     type t = { ts_zero: Time.t option
-             ; tstps_in: (Time.t * timepoint) Fdeque.t
              ; tstps_out: (Time.t * timepoint) Fdeque.t
              ; s_beta_alphas_in: (Time.t * Proof.t) Fdeque.t
              ; s_beta_alphas_out: (Time.t * Proof.t) Fdeque.t
              ; v_alpha_betas_in: (Time.t * Proof.t) Fdeque.t
              ; v_alphas_out: (Time.t * Proof.t) Fdeque.t
-             ; v_betas_in: (Time.t * Proof.vp) Fdeque.t
-             ; v_alphas_betas_out: (Time.t * Proof.vp option * Proof.vp option) Fdeque.t }
+             ; v_betas_in: (Time.t * Proof.vp) Fdeque.t }
 
     let init () = { ts_zero = None
-                  ; tstps_in = Fdeque.empty
                   ; tstps_out = Fdeque.empty
                   ; s_beta_alphas_in = Fdeque.empty
                   ; s_beta_alphas_out = Fdeque.empty
                   ; v_alpha_betas_in = Fdeque.empty
                   ; v_alphas_out = Fdeque.empty
-                  ; v_betas_in = Fdeque.empty
-                  ; v_alphas_betas_out = Fdeque.empty }
+                  ; v_betas_in = Fdeque.empty }
 
-    let to_string { ts_zero
+    (*let to_string { ts_zero
                   ; tstps_in
                   ; tstps_out
                   ; s_beta_alphas_in
@@ -918,20 +915,20 @@ module Make (E: Expl.ExplT) = struct
                        | Some(p1), None -> acc ^ (Printf.sprintf "\n(%s)\nalpha = " (Time.to_string ts)) ^ Proof.v_to_string "" p1
                        | None, Some(p2) -> acc ^ (Printf.sprintf "\n(%s)\nbeta = " (Time.to_string ts)) ^ Proof.v_to_string "" p2
                        | Some(p1), Some(p2) -> acc ^ (Printf.sprintf "\n(%s)\nalpha = " (Time.to_string ts)) ^ Proof.v_to_string "" p1 ^
-                                                 (Printf.sprintf "\n(%s)\nbeta = " (Time.to_string ts)) ^ Proof.v_to_string "" p2))
+                                                 (Printf.sprintf "\n(%s)\nbeta = " (Time.to_string ts)) ^ Proof.v_to_string "" p2))*)
 
     let update_s_beta_alphas_in new_in s_beta_alphas_in =
       if not (Fdeque.is_empty new_in) then
         sorted_append new_in s_beta_alphas_in
       else s_beta_alphas_in
 
-    let update_v_betas_in new_in v_betas_in =
+    (*let update_v_betas_in new_in v_betas_in =
       Fdeque.fold new_in ~init:v_betas_in ~f:(fun v_betas_in' (ts, _, vp2_opt) ->
           match vp2_opt with
           | None -> Fdeque.empty
-          | Some(vp2) -> Fdeque.enqueue_back v_betas_in' (ts, vp2))
+          | Some(vp2) -> Fdeque.enqueue_back v_betas_in' (ts, vp2))*)
 
-    let construct_vsinceps tp new_in =
+    (*let construct_vsinceps tp new_in =
       Fdeque.fold new_in ~init:Fdeque.empty
         ~f:(fun acc (ts, vp1_opt, vp2_opt) ->
           match vp1_opt with
@@ -943,31 +940,31 @@ module Make (E: Expl.ExplT) = struct
                           | Some(vp2) -> let acc' = v_append_deque vp2 acc in
                                          let vp2s = Fdeque.enqueue_back Fdeque.empty vp2 in
                                          let vp = Proof.V (Proof.make_vsince tp vp1 vp2s) in
-                                         Fdeque.enqueue_back acc' (ts, vp)))
+                                         Fdeque.enqueue_back acc' (ts, vp)))*)
 
-    let add_new_ps_v_alpha_betas_in tp new_in v_alpha_betas_in =
+    (*let add_new_ps_v_alpha_betas_in tp new_in v_alpha_betas_in =
       let new_vsinceps_in = construct_vsinceps tp new_in in
       if not (Fdeque.is_empty new_vsinceps_in) then
         sorted_append new_vsinceps_in v_alpha_betas_in
-      else v_alpha_betas_in
+      else v_alpha_betas_in*)
 
-    let update_v_alpha_betas_in_tps tp v_alpha_betas_in =
+    (*let update_v_alpha_betas_in_tps tp v_alpha_betas_in =
       Fdeque.map v_alpha_betas_in ~f:(fun (ts, vvp) ->
           match vvp with
           | Proof.V vp -> (match Proof.decompose_vsince vp with
                            | Some (vp1, vp2s) -> (ts, Proof.V (Proof.make_vsince tp vp1 vp2s))
                            | None -> raise (Invalid_argument "found S proof in V deque"))
-          | _ -> raise (Invalid_argument "found S proof in V deque"))
+          | _ -> raise (Invalid_argument "found S proof in V deque"))*)
 
-    let update_v_alpha_betas_in tp new_in v_alpha_betas_in =
+    (*let update_v_alpha_betas_in tp new_in v_alpha_betas_in =
       let v_alpha_betas_in_vapp = Fdeque.fold new_in ~init:v_alpha_betas_in ~f:(fun v_alpha_betas_in' (_, _, vp2_opt) ->
                                       match vp2_opt with
                                       | None -> Fdeque.empty
                                       | Some(vp2) -> v_append_deque vp2 v_alpha_betas_in') in
       let v_alpha_betas_in' = add_new_ps_v_alpha_betas_in tp new_in v_alpha_betas_in_vapp in
-      update_v_alpha_betas_in_tps tp v_alpha_betas_in'
+      update_v_alpha_betas_in_tps tp v_alpha_betas_in'*)
 
-    let add_subps ts (p1: Proof.t) (p2: Proof.t) msaux =
+    (*let add_subps ts (p1: Proof.t) (p2: Proof.t) msaux =
       match p1, p2 with
       | S sp1, S sp2 ->
          let s_beta_alphas_in = s_append_deque sp1 msaux.s_beta_alphas_in in
@@ -988,16 +985,16 @@ module Make (E: Expl.ExplT) = struct
       | V vp1, V vp2 ->
          let v_alphas_out = sorted_enqueue (ts, (Proof.V vp1)) msaux.v_alphas_out in
          let v_alphas_betas_out = Fdeque.enqueue_back msaux.v_alphas_betas_out (ts, Some(vp1), Some(vp2)) in
-         { msaux with s_beta_alphas_in = Fdeque.empty; s_beta_alphas_out = Fdeque.empty; v_alphas_out; v_alphas_betas_out }
+         { msaux with s_beta_alphas_in = Fdeque.empty; s_beta_alphas_out = Fdeque.empty; v_alphas_out; v_alphas_betas_out }*)
 
     let shift_sat (l, r) s_beta_alphas_out s_beta_alphas_in =
       let (s_beta_alphas_out', new_in_sat) = split_in_out (fun (ts, _) -> ts) (l, r) s_beta_alphas_out in
       (s_beta_alphas_out', update_s_beta_alphas_in new_in_sat s_beta_alphas_in)
 
-    let shift_vio (l, r) tp v_alphas_betas_out v_alpha_betas_in v_betas_in =
+    (*let shift_vio (l, r) tp v_alphas_betas_out v_alpha_betas_in v_betas_in =
       let (v_alphas_betas_out', new_in_vio) = split_in_out (fun (ts, _, _) -> ts) (l, r) v_alphas_betas_out in
       let v_betas_in = update_v_betas_in new_in_vio v_betas_in in
-      (v_alphas_betas_out', update_v_alpha_betas_in tp new_in_vio v_alpha_betas_in, v_betas_in)
+      (v_alphas_betas_out', update_v_alpha_betas_in tp new_in_vio v_alpha_betas_in, v_betas_in)*)
 
     let clean (l, r) msaux =
       { msaux with s_beta_alphas_in = remove_cond_front (fun (ts, _) -> Time.(ts < l)) msaux.s_beta_alphas_in
@@ -1005,7 +1002,7 @@ module Make (E: Expl.ExplT) = struct
                  ; v_alphas_out = remove_cond_front (fun (ts, _) -> Time.(ts <= r)) msaux.v_alphas_out
                  ; v_betas_in = remove_cond_front (fun (ts, _) -> Time.(ts < l)) msaux.v_betas_in }
 
-    let shift (l, r) a ts tp msaux =
+    (*let shift (l, r) a ts tp msaux =
       let (tstps_in, tstps_out) = shift_tstps_past (l, r) a ts tp msaux.tstps_in msaux.tstps_out in
       let (s_beta_alphas_out, s_beta_alphas_in) = shift_sat (l,r) msaux.s_beta_alphas_out msaux.s_beta_alphas_in in
       let (v_alphas_betas_out, v_alpha_betas_in, v_betas_in) =
@@ -1017,9 +1014,9 @@ module Make (E: Expl.ExplT) = struct
                     ; s_beta_alphas_out
                     ; v_alpha_betas_in
                     ; v_betas_in
-                    ; v_alphas_betas_out })
+                    ; v_alphas_betas_out })*)
 
-    let eval tp msaux =
+    (*let eval tp msaux =
       if not (Fdeque.is_empty msaux.s_beta_alphas_in) then
         [snd(Fdeque.peek_front_exn msaux.s_beta_alphas_in)]
       else
@@ -1038,7 +1035,7 @@ module Make (E: Expl.ExplT) = struct
                       | false -> Proof.v_at (snd(Fdeque.peek_front_exn msaux.v_betas_in)) in
                     [Proof.V (Proof.make_vsinceinf tp etp (Fdeque.map msaux.v_betas_in ~f:snd))]
                   else [] in
-        [minp_list (cp1 @ cp2 @ cp3)]
+        [minp_list (cp1 @ cp2 @ cp3)]*)
 
     let add_subps_enforce ts (p1: Proof.t) (p2: Proof.t) msaux =
       match p1, p2 with
@@ -1047,7 +1044,7 @@ module Make (E: Expl.ExplT) = struct
          let s_beta_alphas_out = s_append_deque sp1 msaux.s_beta_alphas_out in
          let s_beta_alphas_out' = Fdeque.enqueue_back s_beta_alphas_out (ts, Proof.S (Proof.make_ssince sp2 Fdeque.empty)) in
          { msaux with s_beta_alphas_in; s_beta_alphas_out = s_beta_alphas_out' }
-      | S sp1, V vp2 ->
+      | S sp1, V _ ->
          let s_beta_alphas_in = s_append_deque sp1 msaux.s_beta_alphas_in in
          let s_beta_alphas_out = s_append_deque sp1 msaux.s_beta_alphas_out in
          { msaux with s_beta_alphas_in; s_beta_alphas_out }
@@ -1055,10 +1052,10 @@ module Make (E: Expl.ExplT) = struct
          let s_beta_alphas_out = Fdeque.enqueue_back Fdeque.empty (ts, Proof.S (Proof.make_ssince sp2 Fdeque.empty)) in
          let v_alphas_out = sorted_enqueue (ts, (Proof.V vp1)) msaux.v_alphas_out in
          { msaux with s_beta_alphas_in = Fdeque.empty; s_beta_alphas_out; v_alphas_out }
-      | V vp1, V vp2 ->
+      | V _, V _ ->
          { msaux with s_beta_alphas_in = Fdeque.empty; s_beta_alphas_out = Fdeque.empty }
 
-    let shift_enforce (l, r) a ts tp msaux =
+    let shift_enforce (l, r) _ _ _ msaux =
       let (s_beta_alphas_out, s_beta_alphas_in) = shift_sat (l,r) msaux.s_beta_alphas_out msaux.s_beta_alphas_in in
       clean (l, r) ({ msaux with s_beta_alphas_in
                                ; s_beta_alphas_out })
@@ -1119,7 +1116,7 @@ module Make (E: Expl.ExplT) = struct
                   ; v_betas_suffix_in = Fdeque.empty
                   ; optimal_proofs = Fdeque.empty }
 
-    let to_string { tstps_in
+    (*let to_string { tstps_in
                   ; tstps_out
                   ; s_alphas_beta
                   ; s_alphas_suffix
@@ -1153,11 +1150,11 @@ module Make (E: Expl.ExplT) = struct
                        acc ^ (Printf.sprintf "\n(%s)\n" (Time.to_string ts)) ^ Proof.v_to_string "" p) ^
                      Fdeque.fold optimal_proofs ~init:"\noptimal_proofs = "
                        ~f:(fun acc (ts, p) ->
-                         acc ^ (Printf.sprintf "\n(%s)\n" (Time.to_string ts)) ^ Proof.to_string "" p))
+                         acc ^ (Printf.sprintf "\n(%s)\n" (Time.to_string ts)) ^ Proof.to_string "" p))*)
 
     let ts_of_tp tp tstps_in tstps_out =
-      match (Fdeque.find tstps_out ~f:(fun (ts', tp') -> tp = tp')) with
-      | None -> (match (Fdeque.find tstps_in ~f:(fun (ts', tp') -> tp = tp')) with
+      match (Fdeque.find tstps_out ~f:(fun (_, tp') -> tp = tp')) with
+      | None -> (match (Fdeque.find tstps_in ~f:(fun (_, tp') -> tp = tp')) with
                  | None -> raise (Failure "ts not found")
                  | Some(ts, _) -> ts)
       | Some(ts, _) -> ts
@@ -1192,13 +1189,13 @@ module Make (E: Expl.ExplT) = struct
                             | Some (vp') -> Fdeque.enqueue_back v_betas_alpha' (ts, Proof.V vp'))
            | S _ -> raise (Invalid_argument "found S proof in V deque")))
 
-    let remove_out_less2_lts lim d =
+    (*let remove_out_less2_lts lim d =
       remove_cond_front_ne (fun d' -> Fdeque.is_empty d')
         (Fdeque.map d ~f:(fun d' ->
              (Fdeque.fold d' ~init:Fdeque.empty ~f:(fun acc (ts, p) ->
                   if Time.(lim <= ts) then
                     Fdeque.enqueue_back acc (ts, p)
-                  else acc))))
+                  else acc))))*)
 
     let add_subps a (ts, tp) (p1: Proof.t) (p2: Proof.t) muaux =
       let first_ts = match first_ts_tp muaux.tstps_out muaux.tstps_in with
@@ -1322,7 +1319,7 @@ module Make (E: Expl.ExplT) = struct
       (* s_alphas_beta *)
       let s_alphas_beta_step1 = drop_tp eval_tp s_alphas_beta in
       let s_alphas_beta_step2 = Fdeque.map s_alphas_beta_step1 ~f:(fun d ->
-                                    (remove_cond_front (fun (ts', p) ->
+                                    (remove_cond_front (fun (_, p) ->
                                          match p with
                                          | Proof.S sp -> Time.((ts_of_tp (Proof.s_ltp sp)
                                                                   tstps_in'' tstps_out'') < (first_ts + a))
@@ -1433,7 +1430,7 @@ module Make (E: Expl.ExplT) = struct
       | S sp1, _    , S _, true -> Proof.S (Proof.make_suntilassm tp sp1 i)
       | _    , _    , _  , true -> Proof.V (Proof.make_vff tp)
       | V vp1, _    , _  , false when not (Interval.has_zero i) -> Proof.V (Proof.make_vuntilnow vp1 i)
-      | V vp1, V vp2, _  , false -> Proof.V (Proof.make_vuntilnow vp1 i)
+      | V vp1, V   _, _  , false -> Proof.V (Proof.make_vuntilnow vp1 i)
       | _    , V vp2, V _, false -> Proof.V (Proof.make_vuntilassm tp vp2 i)
       | _    , _    , _  , false -> Proof.S (Proof.make_stt tp)
 
@@ -1512,14 +1509,14 @@ module Make (E: Expl.ExplT) = struct
       | MEUntil       of Side.t * Interval.t * Time.t option *  t * t * Etc.valuation
 
     and t = { mf: core_t;
-              filter: Formula.Filter.filter;
+              filter: MFOTL.Filter.t;
               events: (string, String.comparator_witness) Set.t option;
               obligations: (int, Int.comparator_witness) Set.t option;
               hash: int;
               lbls: Lbl.t list
             }
 
-    let rec subs mf = match mf.mf with
+    let subs mf = match mf.mf with
       | MTT | MFF | MEqConst _ | MPredicate _ -> []
       | MExists (_, _, _, f)
         | MForall (_, _, _, f) 
@@ -1562,32 +1559,32 @@ module Make (E: Expl.ExplT) = struct
                                       (Etc.string_list_to_string s) op
                                       (Term.list_to_string x) (Etc.string_list_to_string y)
                                       (value_to_string_rec (-1) f)
-      | MNeg f -> Printf.sprintf "¬%a" (fun x -> value_to_string_rec 5) f
+      | MNeg f -> Printf.sprintf "¬%a" (fun _ -> value_to_string_rec 5) f
       | MAnd (_, fs, _) -> Printf.sprintf (Etc.paren l 4 "%s") (String.concat ~sep:"∧" (List.map fs ~f:(value_to_string_rec 4)))
       | MOr (_, fs, _) -> Printf.sprintf (Etc.paren l 3 "%s") (String.concat ~sep:"∨" (List.map fs ~f:(value_to_string_rec 4)))
-      | MImp (_, f, g, _) -> Printf.sprintf (Etc.paren l 4 "%a → %a") (fun x -> value_to_string_rec 4) f (fun x -> value_to_string_rec 4) g
-      | MIff (_, _, f, g, _) -> Printf.sprintf (Etc.paren l 4 "%a ↔ %a") (fun x -> value_to_string_rec 4) f (fun x -> value_to_string_rec 4) g
-      | MExists (x, _, _, f) -> Printf.sprintf (Etc.paren l 5 "∃%s. %a") x (fun x -> value_to_string_rec 5) f
-      | MForall (x, _, _, f) -> Printf.sprintf (Etc.paren l 5 "∀%s. %a") x (fun x -> value_to_string_rec 5) f
-      | MPrev (i, f, _, _) -> Printf.sprintf (Etc.paren l 5 "●%a %a") (fun x -> Interval.to_string) i (fun x -> value_to_string_rec 5) f
-      | MNext (i, f, _, _) -> Printf.sprintf (Etc.paren l 5 "○%a %a") (fun x -> Interval.to_string) i (fun x -> value_to_string_rec 5) f
-      | MENext (i, ts, f, _) -> Printf.sprintf (Etc.paren l 5 "○*%a %a") (fun x -> ts_i_to_string) (ts, i) (fun x -> value_to_string_rec 5) f
-      | MOnce (i, f, _, _) -> Printf.sprintf (Etc.paren l 5 "⧫%a %a") (fun x -> Interval.to_string) i (fun x -> value_to_string_rec 5) f
-      | MEventually (i, f, _, _) -> Printf.sprintf (Etc.paren l 5 "◊%a %a") (fun x -> Interval.to_string) i (fun x -> value_to_string_rec 5) f
-      | MEEventually (i, ts, f, _) -> Printf.sprintf (Etc.paren l 5 "◊*%a %a") (fun x -> ts_i_to_string) (ts, i) (fun x -> value_to_string_rec 5) f
-      | MHistorically (i, f, _, _) -> Printf.sprintf (Etc.paren l 5 "■%a %a") (fun x -> Interval.to_string) i (fun x -> value_to_string_rec 5) f
-      | MAlways (i, f, _, _) -> Printf.sprintf (Etc.paren l 5 "□%a %a") (fun x -> Interval.to_string) i (fun x -> value_to_string_rec 5) f
-      | MEAlways (i, ts, f, _) -> Printf.sprintf (Etc.paren l 5 "□*%a %a") (fun x -> ts_i_to_string) (ts, i) (fun x -> value_to_string_rec 5) f
-      | MSince (_, i, f, g, _, _) -> Printf.sprintf (Etc.paren l 0 "%a S%a %a") (fun x -> value_to_string_rec 5) f
-                                       (fun x -> Interval.to_string) i (fun x -> value_to_string_rec 5) g
-      | MUntil (i, f, g, _, _) -> Printf.sprintf (Etc.paren l 0 "%a U%a %a") (fun x -> value_to_string_rec 5) f
-                                    (fun x -> Interval.to_string) i (fun x -> value_to_string_rec 5) g
-      | MEUntil (s, i, ts, f, g, _) -> Printf.sprintf (Etc.paren l 0 "%a U*%a %a") (fun x -> value_to_string_rec 5) f
-                                         (fun x -> ts_i_to_string) (ts, i) (fun x -> value_to_string_rec 5) g
+      | MImp (_, f, g, _) -> Printf.sprintf (Etc.paren l 4 "%a → %a") (fun _ -> value_to_string_rec 4) f (fun _ -> value_to_string_rec 4) g
+      | MIff (_, _, f, g, _) -> Printf.sprintf (Etc.paren l 4 "%a ↔ %a") (fun _ -> value_to_string_rec 4) f (fun _ -> value_to_string_rec 4) g
+      | MExists (x, _, _, f) -> Printf.sprintf (Etc.paren l 5 "∃%s. %a") x (fun _ -> value_to_string_rec 5) f
+      | MForall (x, _, _, f) -> Printf.sprintf (Etc.paren l 5 "∀%s. %a") x (fun _ -> value_to_string_rec 5) f
+      | MPrev (i, f, _, _) -> Printf.sprintf (Etc.paren l 5 "●%a %a") (fun _ -> Interval.to_string) i (fun _ -> value_to_string_rec 5) f
+      | MNext (i, f, _, _) -> Printf.sprintf (Etc.paren l 5 "○%a %a") (fun _ -> Interval.to_string) i (fun _ -> value_to_string_rec 5) f
+      | MENext (i, ts, f, _) -> Printf.sprintf (Etc.paren l 5 "○*%a %a") (fun _ -> ts_i_to_string) (ts, i) (fun _ -> value_to_string_rec 5) f
+      | MOnce (i, f, _, _) -> Printf.sprintf (Etc.paren l 5 "⧫%a %a") (fun _ -> Interval.to_string) i (fun _ -> value_to_string_rec 5) f
+      | MEventually (i, f, _, _) -> Printf.sprintf (Etc.paren l 5 "◊%a %a") (fun _ -> Interval.to_string) i (fun _ -> value_to_string_rec 5) f
+      | MEEventually (i, ts, f, _) -> Printf.sprintf (Etc.paren l 5 "◊*%a %a") (fun _ -> ts_i_to_string) (ts, i) (fun _ -> value_to_string_rec 5) f
+      | MHistorically (i, f, _, _) -> Printf.sprintf (Etc.paren l 5 "■%a %a") (fun _ -> Interval.to_string) i (fun _ -> value_to_string_rec 5) f
+      | MAlways (i, f, _, _) -> Printf.sprintf (Etc.paren l 5 "□%a %a") (fun _ -> Interval.to_string) i (fun _ -> value_to_string_rec 5) f
+      | MEAlways (i, ts, f, _) -> Printf.sprintf (Etc.paren l 5 "□*%a %a") (fun _ -> ts_i_to_string) (ts, i) (fun _ -> value_to_string_rec 5) f
+      | MSince (_, i, f, g, _, _) -> Printf.sprintf (Etc.paren l 0 "%a S%a %a") (fun _ -> value_to_string_rec 5) f
+                                       (fun _ -> Interval.to_string) i (fun _ -> value_to_string_rec 5) g
+      | MUntil (i, f, g, _, _) -> Printf.sprintf (Etc.paren l 0 "%a U%a %a") (fun _ -> value_to_string_rec 5) f
+                                    (fun _ -> Interval.to_string) i (fun _ -> value_to_string_rec 5) g
+      | MEUntil (_, i, ts, f, g, _) -> Printf.sprintf (Etc.paren l 0 "%a U*%a %a") (fun _ -> value_to_string_rec 5) f
+                                         (fun _ -> ts_i_to_string) (ts, i) (fun _ -> value_to_string_rec 5) g
     let value_to_string = value_to_string_rec 0
 
     (*    and t = { mf: core_t;
-              filter: Formula.Filter.filter;
+              filter: MFOTL.Filter.t;
               events: (string, String.comparator_witness) Set.t option;
               obligations: (int, Int.comparator_witness) Set.t option;
               hash: int;
@@ -1598,14 +1595,14 @@ module Make (E: Expl.ExplT) = struct
       Printf.sprintf  "%s{ mf = %s;%s  filter = %s;%s  events = %s;%s  obligations = %s;%s  hash = %d;%s  lbls = [%s];%s  subformulae = [%s] }"
         n
         (value_to_string mf) n
-        (Formula.Filter.to_string mf.filter) n
+        (MFOTL.Filter.to_string mf.filter) n
         (match mf.events with
          | None -> "None"
          | Some evs -> Printf.sprintf "[%s]" (String.concat ~sep:", " (Set.elements evs))) n
         (match mf.obligations with
          | None -> "None"
          | Some evs -> Printf.sprintf "[%s]" (String.concat ~sep:", "
-                                                (List.map ~f:string_of_int (Set.elements evs)))) n
+                                                (List.map ~f:Int.to_string (Set.elements evs)))) n
         mf.hash n
         (Lbl.to_string_list mf.lbls) n
         (String.concat ~sep:";"
@@ -1615,7 +1612,7 @@ module Make (E: Expl.ExplT) = struct
     let rec core_op_to_string = function
       | MTT -> Printf.sprintf "⊤"
       | MFF -> Printf.sprintf "⊥"
-      | MEqConst (x, c) -> Printf.sprintf "="
+      | MEqConst (_, _) -> Printf.sprintf "="
       | MPredicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
       | MAgg (s, op, _, x, y, _) -> Printf.sprintf "%s <- %s(%s; %s)" s
                                       (Aggregation.op_to_string op) (Term.to_string x)
@@ -1633,12 +1630,12 @@ module Make (E: Expl.ExplT) = struct
       | MPrev (i, _, _, _) -> Printf.sprintf "●%s" (Interval.to_string i)
       | MNext (i, _, _, _) -> Printf.sprintf "○%s" (Interval.to_string i)
       | MENext (i, ts, _, _) -> Printf.sprintf "○*%s" (ts_i_to_string (ts, i))
-      | MOnce (i, f, _, _) -> Printf.sprintf "⧫%s" (Interval.to_string i)
-      | MEventually (i, f, _, _) -> Printf.sprintf "◊%s" (Interval.to_string i)
-      | MEEventually (i, ts, f, _) -> Printf.sprintf "◊*%s" (ts_i_to_string (ts, i))
-      | MHistorically (i, f, _, _) -> Printf.sprintf "■%s" (Interval.to_string i)
-      | MAlways (i, f, _, _) -> Printf.sprintf "□%s" (Interval.to_string i)
-      | MEAlways (i, ts, f, _) -> Printf.sprintf "□*%s" (ts_i_to_string (ts, i))
+      | MOnce (i, _, _, _) -> Printf.sprintf "⧫%s" (Interval.to_string i)
+      | MEventually (i, _, _, _) -> Printf.sprintf "◊%s" (Interval.to_string i)
+      | MEEventually (i, ts, _, _) -> Printf.sprintf "◊*%s" (ts_i_to_string (ts, i))
+      | MHistorically (i, _, _, _) -> Printf.sprintf "■%s" (Interval.to_string i)
+      | MAlways (i, _, _, _) -> Printf.sprintf "□%s" (Interval.to_string i)
+      | MEAlways (i, ts, _, _) -> Printf.sprintf "□*%s" (ts_i_to_string (ts, i))
       | MSince (_, i, _, _, _, _) -> Printf.sprintf "S%s" (Interval.to_string i)
       | MUntil (i, _, _, _, _) -> Printf.sprintf "U%s" (Interval.to_string i)
       | MEUntil (_, i, ts, _, _, _) -> Printf.sprintf "U*%s" (ts_i_to_string (ts, i))
@@ -1708,11 +1705,12 @@ module Make (E: Expl.ExplT) = struct
 
       and to_formula ?(ts'=Time.zero) mf = core_to_formula ts' mf.mf*)
 
-    let rec core_hash =
+    let core_hash =
       let (+++) x y = x * 65599 + y in
       let rec ppp = function
         | [x; y] -> x.hash +++ y.hash
-        | x :: ys -> x.hash +++ ppp ys in
+        | x :: ys -> x.hash +++ ppp ys
+        | _ -> assert false in
       let list_hash f l = List.fold_left ~f:(+++) ~init:0 (List.map ~f l) in
       function
       | MTT -> String.hash "MTT"
@@ -1720,7 +1718,7 @@ module Make (E: Expl.ExplT) = struct
       | MEqConst (x, d) -> String.hash "MEqConst" +++ Term.hash x +++ Dom.hash d
       | MPredicate (e, t) ->
          (*print_endline "--core_hash";
-           List.iter t ~f:(fun t -> print_endline (string_of_int (Term.hash t)));*)
+           List.iter t ~f:(fun t -> print_endline (Int.to_string (Term.hash t)));*)
          String.hash "MPredicate" +++ String.hash e +++ list_hash Term.hash t
       | MAgg (s, op, _, x, y, f) ->
          String.hash "MAgg"
@@ -1732,51 +1730,51 @@ module Make (E: Expl.ExplT) = struct
          +++ list_hash Term.hash x +++ list_hash String.hash y +++ f.hash
       | MNeg f ->
          String.hash "MNeg" +++ f.hash
-      | MAnd (s, fs, bi) ->
+      | MAnd (s, fs, _) ->
          String.hash "MAnd" +++ Side.hash s +++ ppp fs
-      | MOr (s, fs, bi) ->
+      | MOr (s, fs, _) ->
          (*print_endline "--MOr ";
-           print_endline ("hash('MOr')=" ^ string_of_int (String.hash "MOr"));
-           print_endline ("hash(s)=" ^ string_of_int (Side.hash s));
-           print_endline ("hash(f)=" ^ string_of_int (f.hash));
-           print_endline ("hash(g)=" ^ string_of_int (g.hash));
-           print_endline ("hash(MOr)=" ^ string_of_int (String.hash "MOr" +++ Side.hash s +++ f.hash +++ g.hash));*)
+           print_endline ("hash('MOr')=" ^ Int.to_string (String.hash "MOr"));
+           print_endline ("hash(s)=" ^ Int.to_string (Side.hash s));
+           print_endline ("hash(f)=" ^ Int.to_string (f.hash));
+           print_endline ("hash(g)=" ^ Int.to_string (g.hash));
+           print_endline ("hash(MOr)=" ^ Int.to_string (String.hash "MOr" +++ Side.hash s +++ f.hash +++ g.hash));*)
          String.hash "MOr" +++ Side.hash s +++ ppp fs
-      | MImp (s, f, g, bi) ->
+      | MImp (s, f, g, _) ->
          String.hash "MImp" +++ Side.hash s +++ f.hash +++ g.hash
-      | MIff (s, t, f, g, bi) ->
+      | MIff (s, _, f, g, _) ->
          String.hash "MIff" +++ Side.hash s +++ f.hash +++ g.hash
-      | MExists (x, tt, _, f) ->
+      | MExists (x, _, _, f) ->
          String.hash "MExists" +++ String.hash x +++ f.hash
-      | MForall (x, tt, _, f) ->
+      | MForall (x, _, _, f) ->
          String.hash "MForall" +++ String.hash x +++ f.hash
-      | MPrev (i, f, b, pi) ->
+      | MPrev (i, f, _, _) ->
          String.hash "MPrev" +++ Interval.hash i +++ f.hash
-      | MNext (i, f, b, si) ->
+      | MNext (i, f, _, _) ->
          String.hash "MNext" +++ Interval.hash i +++ f.hash
       | MENext (i, _, f, _) ->
          String.hash "MENext" +++ Interval.hash i +++ f.hash
-      | MOnce (i, f, ti, oi) ->
+      | MOnce (i, f, _, _) ->
          String.hash "MOnce" +++ Interval.hash i +++ f.hash
-      | MEventually (i, f, bi, oi) ->
+      | MEventually (i, f, _, _) ->
          String.hash "MEventually" +++ Interval.hash i +++ f.hash
       | MEEventually (i, _, f, v) ->
          String.hash "MEEventually" +++ Interval.hash i +++ f.hash +++ Etc.hash_valuation v
-      | MHistorically (i, f, ti, oi) ->
+      | MHistorically (i, f, _, _) ->
          String.hash "MHistorically" +++ Interval.hash i +++ f.hash
-      | MAlways (i, f, bi, ai) ->
+      | MAlways (i, f, _, _) ->
          String.hash "MAlways" +++ Interval.hash i +++ f.hash
       | MEAlways (i, _, f, v) ->
          String.hash "MEAlways" +++ Interval.hash i +++ f.hash +++ Etc.hash_valuation v
-      | MSince (s, i, f, g, bi, si) ->
+      | MSince (s, i, f, g, _, _) ->
          String.hash "MSince" +++ Side.hash s +++ Interval.hash i +++ f.hash +++ g.hash
-      | MUntil (i, f, g, bi, ui) ->
+      | MUntil (i, f, g, _, _) ->
          String.hash "MUntil" +++ Interval.hash i +++ f.hash +++ g.hash
       | MEUntil (s, i, _, f, g, v) ->
          String.hash "MEUntil" +++ Side.hash s +++ Interval.hash i +++ f.hash
          +++ g.hash +++ Etc.hash_valuation v
 
-    and hash mf = core_hash mf.mf
+    (*and hash mf = core_hash mf.mf*)
 
     let rec set_events mf =
       let with_events mf events =
@@ -1858,17 +1856,17 @@ module Make (E: Expl.ExplT) = struct
 
     let rec set_lbls ?(fvs=[]) mf =
       let with_lbls mf lbls = { mf with lbls } in
-      let order_lbls lbls fvs keep_nonvars =
+      let order_lbls lbls fvs _ =
         let f (vars, quants, nonvars) = function
           | Lbl.LVar z when List.mem fvs z ~equal:String.equal -> (z :: vars, quants, nonvars)
-          | LVar z -> (vars, quants, nonvars)
+          | LVar _ -> (vars, quants, nonvars)
           | LAll _ | LEx _ as t -> (vars, quants @ [t], nonvars)
           | t      -> (vars, quants, t :: nonvars) in
         let (vars, quants, nonvars) = List.fold_left lbls ~init:([], [], []) ~f in
         let vars = Etc.dedup ~equal:String.equal vars in
         let quants = Etc.dedup ~equal:Lbl.equal quants in
         let nonvars = Etc.dedup ~equal:Lbl.equal nonvars in
-        let var_terms = List.map (Etc.reorder String.equal vars fvs) ~f:Lbl.var in
+        let var_terms = List.map (Etc.reorder ~equal:String.equal vars fvs) ~f:Lbl.var in
         let nonvars = List.sort nonvars ~compare:Lbl.compare in
         (*print_endline (Printf.sprintf "filter_lbls_vars([%s], [%s], %b) = [%s]\n"
                          (Lbl.to_string_list lbls)
@@ -1906,7 +1904,7 @@ module Make (E: Expl.ExplT) = struct
          let fvs' = Etc.reorder_subset ~equal:String.equal (Set.elements (fv f)) y in
          map1 fvs' f (fun f -> MTop (s, op, op_fun, x, y, f)) (fun _ -> List.map ~f:Lbl.var sy)
       | MEqConst (t, _) -> with_lbls mf [Lbl.of_term t]
-      | MPredicate (x, ts) ->
+      | MPredicate (_, ts) ->
          with_lbls mf (order_lbls (List.map (List.filter ~f:(fun t -> not (Term.is_const t)) ts)
                                       ~f:Lbl.of_term) fvs true)
       | MExists (x, tt, b, f) ->
@@ -1975,54 +1973,55 @@ module Make (E: Expl.ExplT) = struct
         hash        = core_hash mf_mf;
         lbls        = Etc.dedup ~equal:Lbl.equal (List.concat_map mfs ~f:(fun mf -> mf.lbls)) }
     
-    let _tp     = set_make (MPredicate (Sig.tilde_tp_event_name, [])) Formula.Filter._true
-    let _neg_tp = set_make (MNeg _tp) Formula.Filter._true
-    let _tt     = set_make MTT Formula.Filter._true
-    let _ff     = set_make MFF Formula.Filter._true
+    let _tp     = set_make (MPredicate (Sig.tilde_tp_event_name, [])) MFOTL.Filter.tt
+    let _neg_tp = set_make (MNeg _tp) MFOTL.Filter.tt
+    let _tt     = set_make MTT MFOTL.Filter.tt
+    let _ff     = set_make MFF MFOTL.Filter.tt
 
     let init (tf: Tformula.t) =
-      let rec aux (tf: Tformula.t) = match tf.f with
-        | Tformula.TTT -> MTT
-        | TFF -> MFF
-        | TEqConst (x, c) -> MEqConst (x, c)
-        | TPredicate (r, trms) -> MPredicate (r, trms)
-        | TPredicate' (_, _, f) | TLet' (_, _, _, f) -> aux f
-        | TAgg (s, tt, op, x, y, f) ->
+      let rec aux (tf: Tformula.t) = match tf.form with
+        | Tformula.TT -> MTT
+        | FF -> MFF
+        | EqConst (x, c) -> MEqConst (Tterm.to_term x, c)
+        | Predicate (r, trms) -> MPredicate (r, Tterm.to_terms trms)
+        | Predicate' (_, _, f) | Let' (_, _, _, f) -> aux f
+        | Agg ((s, tt), op, x, y, f) ->
            let op_fun = Aggregation.eval op tt in
-           MAgg (s, op, op_fun, x, y, make (aux f) Formula.Filter._true)
-        | TTop (s, op, x, y, f) ->
+           MAgg (s, op, op_fun, Tterm.to_term x, List.map ~f:fst y, make (aux f) MFOTL.Filter.tt)
+        | Top (s, op, x, y, f) ->
            let op_fun = Sig.tfunc op in
-           MTop (List.map ~f:fst s, op, op_fun, x, y, make (aux f) Formula.Filter._true)
-        | TNeg f -> MNeg (make (aux f) tf.filter)
-        | TAnd (s, fs) ->
-           MAnd (s, List.map2_exn ~f:make (List.map ~f:aux fs) (List.map fs ~f:(fun tf -> tf.filter)), ([], []))
-        | TOr (s, fs) ->
-           MOr (s, List.map2_exn ~f:make (List.map ~f:aux fs) (List.map fs ~f:(fun tf -> tf.filter)), ([], []))
-        | TImp (s, f, g) -> MImp (s, make (aux f) f.filter, make (aux g) g.filter, ([], []))
-        | TIff (s, t, f, g) -> MIff (s, t, make (aux f) f.filter, make (aux g) g.filter, ([], []))
-        | TExists (x, tt, b, f) -> MExists (x, tt, b, make (aux f) f.filter)
-        | TForall (x, tt, b, f) -> MForall (x, tt, b, make (aux f) f.filter)
-        | TPrev (i, f) -> MPrev (i, make (aux f) f.filter, true, ([], []))
-        | TNext (i, f) when Enftype.is_only_observable tf.enftype -> MNext (i, make (aux f) f.filter, true, [])
-        | TNext (i, f) -> MENext (i, None, make (aux f) f.filter, Etc.empty_valuation)
-        | TOnce (i, f) -> MOnce (i, make (aux f) f.filter, [], Leaf (Once.init ()))
-        | TEventually (i, _, f) when Enftype.is_only_observable tf.enftype ->
-           MEventually (i, make (aux f) f.filter, ([], []), Leaf (Eventually.init ()))
-        | TEventually (i, _, f) -> MEEventually (i, None, make (aux f) f.filter, Etc.empty_valuation)
-        | THistorically (i, f) -> MHistorically (i, make (aux f) f.filter, [], Leaf (Historically.init ()))
-        | TAlways (i, _, f) when Enftype.is_only_observable tf.enftype ->
-           MAlways (i, make (aux f) f.filter, ([], []), Leaf (Always.init ()))
-        | TAlways (i, _, f) -> MEAlways (i, None, make (aux f) f.filter, Etc.empty_valuation)
-        | TSince (s, i, f, g) ->
-           MSince (s, i, make (aux f) f.filter, make (aux g) g.filter, (([], []), []), Leaf (Since.init ()))
-        | TUntil (s, i, _, f, g) when Enftype.is_only_observable tf.enftype ->
-           MUntil (i, make (aux f) f.filter, make (aux g) g.filter, (([], []), []), Leaf (Until.init ()))
-        | TUntil (s, i, _, f, g) ->
-           MEUntil (s, i, None, make (aux f) f.filter, make (aux g) g.filter, Etc.empty_valuation)
-      in set_make (aux tf) tf.filter
+           MTop (List.map ~f:fst s, op, op_fun, Tterm.to_terms x, List.map ~f:fst y, make (aux f) MFOTL.Filter.tt)
+        | Neg f -> MNeg (make (aux f) tf.info.filter)
+        | And (s, fs) ->
+           MAnd (s, List.map2_exn ~f:make (List.map ~f:aux fs) (List.map fs ~f:(fun tf -> tf.info.filter)), ([], []))
+        | Or (s, fs) ->
+           MOr (s, List.map2_exn ~f:make (List.map ~f:aux fs) (List.map fs ~f:(fun tf -> tf.info.filter)), ([], []))
+        | Imp (s, f, g) -> MImp (s, make (aux f) f.info.filter, make (aux g) g.info.filter, ([], []))
+        | Exists ((x, tt), f) -> MExists (x, tt, tf.info.flag, make (aux f) f.info.filter)
+        | Forall ((x, tt), f) -> MForall (x, tt, tf.info.flag, make (aux f) f.info.filter)
+        | Prev (i, f) -> MPrev (i, make (aux f) f.info.filter, true, ([], []))
+        | Next (i, f) when Enftype.is_only_observable tf.info.enftype -> MNext (i, make (aux f) f.info.filter, true, [])
+        | Next (i, f) -> MENext (i, None, make (aux f) f.info.filter, Etc.empty_valuation)
+        | Once (i, f) -> MOnce (i, make (aux f) f.info.filter, [], Leaf (Once.init ()))
+        | Eventually (i, f) when Enftype.is_only_observable tf.info.enftype ->
+           MEventually (i, make (aux f) f.info.filter, ([], []), Leaf (Eventually.init ()))
+        | Eventually (i, f) -> MEEventually (i, None, make (aux f) f.info.filter, Etc.empty_valuation)
+        | Historically (i, f) -> MHistorically (i, make (aux f) f.info.filter, [], Leaf (Historically.init ()))
+        | Always (i, f) when Enftype.is_only_observable tf.info.enftype ->
+           MAlways (i, make (aux f) f.info.filter, ([], []), Leaf (Always.init ()))
+        | Always (i, f) -> MEAlways (i, None, make (aux f) f.info.filter, Etc.empty_valuation)
+        | Since (s, i, f, g) ->
+           MSince (s, i, make (aux f) f.info.filter, make (aux g) g.info.filter, (([], []), []), Leaf (Since.init ()))
+        | Until (_, i, f, g) when Enftype.is_only_observable tf.info.enftype ->
+           MUntil (i, make (aux f) f.info.filter, make (aux g) g.info.filter, (([], []), []), Leaf (Until.init ()))
+        | Until (s, i, f, g) ->
+           MEUntil (s, i, None, make (aux f) f.info.filter, make (aux g) g.info.filter, Etc.empty_valuation)
+        | Type (f, _) -> aux f
+        | Let _ -> raise (Invalid_argument "Let bindings must be unrolled to initialize MFormula")
+      in set_make (aux tf) tf.info.filter
 
 
-    let rec equal mf1 mf2 = mf1.hash = mf2.hash
+    let equal mf1 mf2 = mf1.hash = mf2.hash
 
     let rec rank mf = match mf.mf with
       | MTT | MFF -> 0
@@ -2063,11 +2062,11 @@ module Make (E: Expl.ExplT) = struct
         | MTT -> MTT
         | MFF -> MFF
         | MEqConst (trm, d) ->
-           (match Sig.eval v trm with
+           (match (Sig.eval v trm).trm with
             | Const d' when Dom.equal d d' -> MTT
-            | Const d' -> MFF
-            | trm -> MEqConst (trm, d))
-        | MPredicate (e, t) -> MPredicate (e, List.map t (av_term v))
+            | Const _ -> MFF
+            | _ -> MEqConst (trm, d))
+        | MPredicate (e, t) -> MPredicate (e, List.map t ~f:(av_term v))
         | MAgg (s, op, op_fun, x, y, f) -> MAgg (s, op, op_fun, x, y, r f)
         | MTop (s, op, op_fun, x, y, f) -> MTop (s, op, op_fun, x, y, r f)
         | MNeg f -> MNeg (r f)
@@ -2090,7 +2089,7 @@ module Make (E: Expl.ExplT) = struct
         | MUntil (i, f, g, bi, ui) -> MUntil (i, r f, r g, av_buf2t bi, av_pdt ui)
         | MEUntil (s, i, ts, f, g, vv) -> MEUntil (s, i, ts, r f, r g, Etc.extend_valuation v vv)
       in
-      (*print_endline ("hash(apply_valuation(" ^ Etc.valuation_to_string v ^ ", " ^ to_string { mf; hash = 0 } ^ ")=" ^ (string_of_int (make mf).hash));*)
+      (*print_endline ("hash(apply_valuation(" ^ Etc.valuation_to_string v ^ ", " ^ to_string { mf; hash = 0 } ^ ")=" ^ (Int.to_string (make mf).hash));*)
       set_make mf_ mf.filter
 
 
@@ -2117,9 +2116,9 @@ module Make (E: Expl.ExplT) = struct
 
       type t = kind * Etc.valuation * polarity
 
-      let is_fformula = function
+      (*let is_fformula = function
         | FFormula _ -> true
-        | _ -> false
+        | _ -> false*)
 
       let is_finterval = function
         | FInterval _ -> true
@@ -2137,16 +2136,16 @@ module Make (E: Expl.ExplT) = struct
         | FEventually _ -> true
         | _ -> false
 
-      let kind_equal k1 k2 = match k1, k2 with
-        | FFormula (mf, h, v), FFormula (mf', h', v') -> h = h' && Etc.equal_valuation v v'
-        | FInterval (ts, i, mf, h, v), FInterval (ts', i', mf', h', v')
-          | FAlways (ts, i, mf, h, v), FAlways (ts', i', mf', h', v')
-          | FEventually (ts, i, mf, h, v), FEventually (ts', i', mf', h', v') ->
+      (*let kind_equal k1 k2 = match k1, k2 with
+        | FFormula (_, h, v), FFormula (_, h', v') -> h = h' && Etc.equal_valuation v v'
+        | FInterval (ts, i, _, h, v), FInterval (ts', i', _, h', v')
+          | FAlways (ts, i, _, h, v), FAlways (ts', i', _, h', v')
+          | FEventually (ts, i, _, h, v), FEventually (ts', i', _, h', v') ->
            Time.equal ts ts' && Interval.equal i i' && h = h' && Etc.equal_valuation v v'
-        | FUntil (ts, s, i, mf, mg, h, v), FUntil (ts', s', i', mf', mg', h', v') ->
+        | FUntil (ts, s, i, _, _, h, v), FUntil (ts', s', i', _, _, h', v') ->
            Time.equal ts ts' && Side.equal s s' && Interval.equal i i' && h = h'
            && Etc.equal_valuation v v'
-        | _ -> false
+        | _ -> false*)
 
       let compare_kind k1 k2 = match k1, k2 with
         | FFormula (_, h, v), FFormula (_, h', v') ->
@@ -2177,33 +2176,33 @@ module Make (E: Expl.ExplT) = struct
         Etc.lexicographic3 compare_kind Etc.compare_valuation compare_polarity
 
       let sexp_of_t _ = Sexp.Atom "FObligation"
-      let t_of_sexp _ = (FFormula (_tt, 0, Etc.empty_valuation), Etc.empty_valuation,  POS)
+      (*let t_of_sexp _ = (FFormula (_tt, 0, Etc.empty_valuation), Etc.empty_valuation, POS)*)
 
-      let polarity_equal pol1 pol2 = match pol1, pol2 with
+      let equal_polarity pol1 pol2 = match pol1, pol2 with
         | POS, POS -> true
         | NEG, NEG -> true
         | _ -> false
 
-      let equal (k, v, pol) (k', v', pol') =
-        kind_equal k k' && Map.equal Dom.equal v v' && polarity_equal pol pol'
+      (*let equal (k, v, pol) (k', v', pol') =
+        kind_equal k k' && Map.equal Dom.equal v v' && equal_polarity pol pol'*)
 
-
-      let corresp_proof tp pol p_opt = function
+      let corresp_proof tp pol _ = function
         | FFormula _ -> Proof.S (Proof.make_snextassm tp)
-        | FInterval (_, i, _, _, _) when pol == POS -> Proof.S (Proof.make_snextassm tp)
-        | FInterval (_, i, _, _, _) when pol == NEG -> Proof.V (Proof.make_vnextassm tp i)
-        | FUntil (_, _, i, _, _, _, _) when pol == POS -> Proof.S (Proof.make_stt tp)
-        | FUntil (_, _, i, _, _, _, _) when pol == NEG -> Proof.V (Proof.make_vff tp)
-        | FEventually (_, i, _, _, _) when pol == POS -> Proof.S (Proof.make_stt tp)
-        | FEventually (_, i, _, _ ,_) when pol == NEG -> Proof.V (Proof.make_vff tp)
-        | FAlways (_, i, _, _, _) when pol == POS -> Proof.S (Proof.make_stt tp)
-        | FAlways (_, i, _, _, _) when pol == NEG -> Proof.V (Proof.make_vff tp)
+        | FInterval _ when equal_polarity pol POS -> Proof.S (Proof.make_snextassm tp)
+        | FInterval (_, i, _, _, _) -> Proof.V (Proof.make_vnextassm tp i)
+        | FUntil _ when equal_polarity pol POS -> Proof.S (Proof.make_stt tp)
+        | FUntil _ -> Proof.V (Proof.make_vff tp)
+        | FEventually _ when equal_polarity pol POS -> Proof.S (Proof.make_stt tp)
+        | FEventually _ -> Proof.V (Proof.make_vff tp)
+        | FAlways _ when equal_polarity pol POS -> Proof.S (Proof.make_stt tp)
+        | FAlways _ -> Proof.V (Proof.make_vff tp)
+      
 
       let polarity_to_string = function
         | POS -> "+"
         | NEG -> "-"
 
-      let rec kind_to_string = function
+      let kind_to_string = function
         | FFormula (f, h, v) ->
            Printf.sprintf "FFormula(%s, %d, %s)" (to_string f) h (Etc.valuation_to_string v)
         | FInterval (ts, i, mf, h, v) ->
@@ -2228,20 +2227,20 @@ module Make (E: Expl.ExplT) = struct
           Printf.sprintf "Valuation: %s; " (Etc.dom_map_to_string valuation) ^
             Printf.sprintf "Polarity: %s" (polarity_to_string pol)
 
-      let eval_kind ts' tp k =
+      let eval_kind ts' _ k =
         let tp_filter mf = 
-          Formula.Filter.conj mf.filter (Formula.Filter.An Sig.tilde_tp_event_name) in
+          MFOTL.Filter.conj mf.filter (MFOTL.Filter.An Sig.tilde_tp_event_name) in
         match k with
         | FFormula (mf, _, _) -> mf
-        | FInterval (ts, i, mf, h, v) ->
+        | FInterval (ts, i, mf, _, v) ->
            if Interval.diff_is_in ts ts' i then
              map_mf
-               (map_mf mf Formula.Filter._true (fun mf -> (MAnd (L, [_tp; mf], empty_binop_info))))
-               Formula.Filter._true
+               (map_mf mf MFOTL.Filter.tt (fun mf -> (MAnd (L, [_tp; mf], empty_binop_info))))
+               MFOTL.Filter.tt
                (fun mf -> MEUntil (R, i, Some ts, _neg_tp, mf, v))
            else
              _tt
-        | FUntil (ts, side, i, mf1, mf2, h, v) ->
+        | FUntil (ts, side, i, mf1, mf2, _, v) ->
            if not (Interval.diff_right_of ts ts' i) then
              let mf1' = match mf1.mf with
                | MImp (_, mf11, mf12, _) when MFormula.equal _tp mf11 -> mf12
@@ -2254,30 +2253,30 @@ module Make (E: Expl.ExplT) = struct
                   _neg_tp
                 else
                   map_mf mf1' (tp_filter mf1') (fun mf -> MImp (R, _tp, mf, empty_binop_info)))
-               (map_mf mf2' Formula.Filter._true (fun mf -> MAnd (R, [_tp; mf], empty_binop_info)))
-               Formula.Filter._true
+               (map_mf mf2' MFOTL.Filter.tt (fun mf -> MAnd (R, [_tp; mf], empty_binop_info)))
+               MFOTL.Filter.tt
                (fun mf1 mf2 -> MEUntil (side, i, Some ts, mf1, mf2, v))
            else
              _ff
-        | FAlways (ts, i, mf, h, v) ->
+        | FAlways (ts, i, mf, _, v) ->
            if not (Interval.diff_right_of ts ts' i) then
              let mf' = match mf.mf with
                | MImp (_, mf1, mf2, _) when MFormula.equal _tp mf1 -> mf2
                | _ -> mf in
              map_mf
                (map_mf mf' (tp_filter mf') (fun mf -> MImp (R, _tp, mf, empty_binop_info)))
-               Formula.Filter._true
+               MFOTL.Filter.tt
                (fun mf -> MEAlways (i, Some ts, mf, v))
            else
              _tt
-        | FEventually (ts, i, mf, h, v) ->
+        | FEventually (ts, i, mf, _, v) ->
            if not (Interval.diff_right_of ts ts' i) then
              let mf' = match mf.mf with
                | MAnd (_, [mf1; mf2], _) when MFormula.equal _tp mf1 -> mf2
                | _ -> mf in
              map_mf
-               (map_mf mf' Formula.Filter._true (fun mf -> MAnd (L, [_tp; mf], empty_binop_info)))
-               Formula.Filter._true
+               (map_mf mf' MFOTL.Filter.tt (fun mf -> MAnd (L, [_tp; mf], empty_binop_info)))
+               MFOTL.Filter.tt
                (fun mf -> MEEventually (i, Some ts, mf, v))
            else
              _ff
@@ -2288,15 +2287,15 @@ module Make (E: Expl.ExplT) = struct
         | POS -> (*print_endline (Printf.sprintf "eval()=%s" (MFormula.to_string mf)); *)mf
         | NEG -> match mf.mf with
                  | MNeg mf -> mf
-                 | _       -> map_mf mf Formula.Filter._true (fun mf -> MNeg mf) ~exquant:true
+                 | _       -> map_mf mf MFOTL.Filter.tt (fun mf -> MNeg mf) ~exquant:true
 
 
       let accepts_empty = function
-        | (FFormula _, _, pol) -> pol == NEG
-        | (FInterval _, _, pol) -> pol == NEG
-        | (FUntil _, _, pol) -> pol == NEG
-        | (FAlways _, _, pol) -> pol == POS
-        | (FEventually _, _, pol) -> pol == NEG
+        | (FFormula _, _, pol) -> equal_polarity pol NEG
+        | (FInterval _, _, pol) -> equal_polarity pol NEG
+        | (FUntil _, _, pol) -> equal_polarity pol NEG
+        | (FAlways _, _, pol) -> equal_polarity pol POS
+        | (FEventually _, _, pol) -> equal_polarity pol NEG
 
       let hv = function
         | FFormula (_, i, v) -> (i, v)
@@ -2360,11 +2359,11 @@ module Make (E: Expl.ExplT) = struct
     | V vp1, S sp2 -> V (Proof.make_viffvs vp1 sp2)
     | V vp1, V vp2 -> S (Proof.make_siffvv vp1 vp2)
 
-  let do_exists_leaf x tc = function
+  (*let do_exists_leaf x tc = function
     | Proof.S sp -> [Proof.S (Proof.make_sexists x (Dom.tt_default tc) sp)]
-    | V vp -> [Proof.V (Proof.make_vexists x (Part.trivial vp))]
+    | V vp -> [Proof.V (Proof.make_vexists x (Part.trivial vp))]*)
 
-  let do_exists_node x tc part =
+  (*let do_exists_node x tc part =
     if Part.exists part Proof.isS then
       (let sats = Part.filter part (fun p -> Proof.isS p) in
        (Part.values (Part.map2_dedup Proof.equal sats (fun (s, p) ->
@@ -2373,23 +2372,23 @@ module Make (E: Expl.ExplT) = struct
                                     (Setc.Finite (Set.of_list (module Dom) [witness]),
                                      Proof.S (Proof.make_sexists x (Setc.some_elt tc s) sp)))
                          | V vp -> raise (Invalid_argument "found V proof in S list")))))
-    else [V (Proof.make_vexists x (Part.map_dedup Proof.v_equal part Proof.unV))]
+    else [V (Proof.make_vexists x (Part.map_dedup Proof.v_equal part Proof.unV))]*)
 
-  let do_forall_leaf x tc = function
+  (*let do_forall_leaf x tc = function
     | Proof.S sp -> [Proof.S (Proof.make_sforall x (Part.trivial sp))]
-    | V vp -> [Proof.V (Proof.make_vforall x (Dom.tt_default tc) vp)]
+    | V vp -> [Proof.V (Proof.make_vforall x (Dom.tt_default tc) vp)]*)
 
-  let do_forall_node x tc part =
+  (*let do_forall_node x tc part =
     if Part.for_all part Proof.isS then
       [Proof.S (Proof.make_sforall x (Part.map part Proof.unS))]
     else
       (let vios = Part.filter part (fun p -> Proof.isV p) in
        (Part.values (Part.map2_dedup Proof.equal vios (fun (s, p) ->
                          match p with
-                         | S sp -> raise (Invalid_argument "found S proof in V list")
+                         | S _ -> raise (Invalid_argument "found S proof in V list")
                          | V vp -> (let witness = Setc.some_elt tc s in
                                     (Setc.Finite (Set.of_list (module Dom) [witness]),
-                                     Proof.V (Proof.make_vforall x (Setc.some_elt tc s) vp)))))))
+                                     Proof.V (Proof.make_vforall x (Setc.some_elt tc s) vp)))))))*)
 
   let rec match_terms trms ds map =
     (*print_endline ("trms=" ^ Term.list_to_string trms);
@@ -2410,10 +2409,10 @@ module Make (E: Expl.ExplT) = struct
         | Some map' -> Some (Map.add_exn map' ~key:(Lbl.LClos (f, trms', Set.empty (module String))) ~data:d))
     | _, _ -> assert false
 
-  let print_maps maps =
+  (*let print_maps maps =
     Stdio.print_endline "> Map:";
     List.iter maps ~f:(fun map -> Map.iteri map ~f:(fun ~key:k ~data:v ->
-                                      Stdio.printf "%s -> %s\n" (Term.to_string k) (Dom.to_string v)))
+                                      Stdio.printf "%s -> %s\n" (Term.to_string k) (Dom.to_string v)))*)
 
   let proof_false tp = function
     | FObligation.POS -> Proof.V (Proof.make_vff tp)
@@ -2423,15 +2422,15 @@ module Make (E: Expl.ExplT) = struct
 
   let approx_default expls tp pol =
     match List.last expls with
-    | Some expl when E.at expl == tp -> expl
+    | Some expl when E.at expl = tp -> expl
     | _ -> approx_false tp pol
 
 
-  let approx_expl1 aexpl vars tp mf = match mf with
+  let approx_expl1 aexpl vars mf = match mf with
     | MNeg _ -> Pdt.apply1_reduce Proof.equal vars (fun p -> do_neg p) (Pdt.exquant aexpl)
     | _ -> raise (Invalid_argument ("function is not defined for " ^ MFormula.core_op_to_string mf))
 
-  let approx_expl2 aexpl1 aexpl2 vars tp mf =
+  let approx_expl2 aexpl1 aexpl2 vars mf =
     match mf with
     | MAnd _ -> Pdt.apply2_reduce Proof.equal vars (fun p1 p2 -> minp_list (do_and p1 p2)) aexpl1 aexpl2
     | MOr _ -> Pdt.apply2_reduce Proof.equal vars (fun p1 p2 -> minp_list (do_or p1 p2)) aexpl1 aexpl2
@@ -2440,28 +2439,28 @@ module Make (E: Expl.ExplT) = struct
     | _ -> raise (Invalid_argument ("function is not defined for " ^ MFormula.core_op_to_string mf))
 
   let rec do_ors vars tp pol = function
-    | [] when pol == FObligation.POS -> Pdt.Leaf (Proof.V (Proof.make_vff tp))
+    | [] when FObligation.equal_polarity pol FObligation.POS -> Pdt.Leaf (Proof.V (Proof.make_vff tp))
     | [] -> Pdt.Leaf (Proof.S (Proof.make_stt tp))
     | [p] -> p
     | p::ps -> Pdt.apply2_reduce Proof.equal vars (fun p1 p2 -> minp_list (do_or p1 p2)) p (do_ors vars tp pol ps)
 
 
-  let rec do_ands vars tp = function
+  (*let rec do_ands vars tp = function
     | [] -> Pdt.Leaf (Proof.S (Proof.make_stt tp))
     | [p] -> p
-    | p::ps -> Pdt.apply2_reduce Proof.equal vars (fun p1 p2 -> minp_list (do_and p1 p2)) p (do_ands vars tp ps)
+    | p::ps -> Pdt.apply2_reduce Proof.equal vars (fun p1 p2 -> minp_list (do_and p1 p2)) p (do_ands vars tp ps)*)
 
 
-  let approx_quant aexpl pol lbls lbls' tp x tc mf =
+  let approx_quant aexpl x mf =
     match mf with
     | MExists _ -> Pdt.quantify ~forall:false x aexpl
     | MForall _ -> Pdt.quantify ~forall:true x aexpl
     | _ -> raise (Invalid_argument ("function is not defined for " ^ MFormula.core_op_to_string mf))
 
   let relevant_fobligs fobligs test h vv pol =
-    let f (k, v, pol') =
+    let f (k, _, pol') =
       let (h', v') = FObligation.hv k in
-      h = h' && Etc.equal_valuation v' vv && FObligation.polarity_equal pol pol' && test k
+      h = h' && Etc.equal_valuation v' vv && FObligation.equal_polarity pol pol' && test k
     in Set.elements (Set.filter fobligs ~f)
 
   let expls_approx test tp pol vars fobligs h vv =
@@ -2471,7 +2470,7 @@ module Make (E: Expl.ExplT) = struct
       Pdt.from_valuation vars v p p' in
     List.map (relevant_fobligs fobligs test h vv pol) ~f
 
-  let approx_next vars (fobligs: FObligations.t) i (h, vv) mf tp pol = (*TODO*)
+  let approx_next vars (fobligs: FObligations.t) _ (h, vv) _ tp pol = (*TODO*)
     let expls = expls_approx FObligation.is_finterval tp pol vars fobligs h vv in
     (*let relevant_fobligs =
       Set.elements (Set.filter fobligs ~f:(fun (k, _, pol') ->
@@ -2483,14 +2482,14 @@ module Make (E: Expl.ExplT) = struct
 
   let approx_once vars expls aexpl i tp pol =
     match List.last expls, pol with
-    | Some expl, _ when E.at expl == tp -> expl
+    | Some expl, _ when E.at expl = tp -> expl
     | _, FObligation.POS ->
        Pdt.apply1_reduce Proof.equal vars (Once.do_once_base tp (Interval.left i)) aexpl
     | _, _ -> approx_false tp pol
 
   let approx_historically vars expls aexpl i tp pol =
     match List.last expls, pol with
-    | Some expl, _ when E.at expl == tp -> expl
+    | Some expl, _ when E.at expl = tp -> expl
     | _, FObligation.NEG ->
        Pdt.apply1_reduce Proof.equal vars (Historically.do_historically_base tp (Interval.left i)) aexpl
     | _, _ -> approx_false tp pol
@@ -2522,7 +2521,7 @@ module Make (E: Expl.ExplT) = struct
     print_endline ("approx_eventually pol=" ^ FObligation.polarity_to_string pol);
     print_endline ("approx_eventually i=" ^ Interval.to_string i);*)
     Pdt.apply2_reduce Proof.equal vars
-      (fun p1 p2 -> Eventually.do_eventually_base tp i (pol == POS) p1 p2)
+      (fun p1 p2 -> Eventually.do_eventually_base tp i (FObligation.equal_polarity pol POS) p1 p2)
       aexpl_next aexpl_new
 
   let approx_always vars aexpl (fobligs: FObligations.t) i h_opt tp pol = (*TODO*)
@@ -2541,14 +2540,14 @@ module Make (E: Expl.ExplT) = struct
         end in
     let aexpl_next = do_ors vars tp pol expls in
     Pdt.apply2_reduce Proof.equal vars
-      (fun p1 p2 -> Always.do_always_base tp i (pol == POS) p1 p2)
+      (fun p1 p2 -> Always.do_always_base tp i (FObligation.equal_polarity pol POS) p1 p2)
       aexpl_next aexpl_new 
 
   let approx_since vars expls aexpl1 aexpl2 i tp pol =
     match List.last expls, pol with
-    | Some expl, _ when E.at expl == tp -> expl
+    | Some expl, _ when E.at expl = tp -> expl
     | _ -> Pdt.apply2_reduce Proof.equal vars
-             (Since.do_since_base tp (Interval.left i) (pol == FObligation.POS)) aexpl1 aexpl2
+             (Since.do_since_base tp (Interval.left i) (FObligation.equal_polarity pol FObligation.POS)) aexpl1 aexpl2
 
   let approx_until vars aexpl1 aexpl2 (fobligs: FObligations.t) i h_opt tp pol = (*TODO*)
     let aexpl_new1 = aexpl1 in
@@ -2580,7 +2579,7 @@ module Make (E: Expl.ExplT) = struct
       (fun p1 p2 p3 -> Until.do_until_base tp i (pol == POS) p1 p2 p3)
       aexpl_new1 aexpl_new2 aexpl_next));*)
     Pdt.apply3_reduce Proof.equal vars
-      (fun p1 p2 p3 -> Until.do_until_base tp i (pol == POS) p1 p2 p3)
+      (fun p1 p2 p3 -> Until.do_until_base tp i (FObligation.equal_polarity pol POS) p1 p2 p3)
       aexpl_new1 aexpl_new2 aexpl_next
 
   let else_any f tp = function
@@ -2603,9 +2602,9 @@ module Make (E: Expl.ExplT) = struct
       | None, _, _
         | _, None, _
         | _, _, None -> None
-      | Some res, Some mf_events, _ when not (Set.are_disjoint mf_events memo.ex_events) ->
+      | Some _, Some mf_events, _ when not (Set.are_disjoint mf_events memo.ex_events) ->
          None
-      | Some res, _, Some mf_obligations when not (Set.are_disjoint mf_obligations memo.ex_obligations) ->
+      | Some _, _, Some mf_obligations when not (Set.are_disjoint mf_obligations memo.ex_obligations) ->
          None
       | Some res, _, _ -> Some res
 
@@ -2616,27 +2615,27 @@ module Make (E: Expl.ExplT) = struct
                   ex_obligations = Set.empty (module Int) }
     let memoize memo mf res = { memo with map = Map.update memo.map mf.hash ~f:(fun _ -> res) }
 
-    let to_string (memo : 'a t) =
+    (*let to_string (memo : 'a t) =
       Printf.sprintf "memo(map.keys = {%s};\n     ex_events = {%s};\n     ex_obligations = {%s}y)"
-        (String.concat ~sep:", " (List.map (Map.keys memo.map) ~f:string_of_int))
+        (String.concat ~sep:", " (List.map (Map.keys memo.map) ~f:Int.to_string))
         (String.concat ~sep:", " (Set.elements memo.ex_events))
-        (String.concat ~sep:", " (List.map ~f:string_of_int (Set.elements memo.ex_obligations)))
+        (String.concat ~sep:", " (List.map ~f:Int.to_string (Set.elements memo.ex_obligations)))*)
     
   end
 
   let meval (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) mformula memo =
-    let outer_ts = ts and outer_tp = tp in
+    let outer_tp = tp in
     let rec meval_rec (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) memo mformula =
       (*print_endline "--meval_rec";*)
       (*print_endline ("mf=" ^ MFormula.to_string mformula);*)
       (*print_endline ("pol=" ^ Option.value_map pol ~default:"None" ~f:FObligation.polarity_to_string);*)
       (*print_endline "";*)
       (*print_endline ("memo=" ^ Memo.to_string memo);*)
-      (*print_endline ("hash=" ^ string_of_int mformula.hash);*)
+      (*print_endline ("hash=" ^ Int.to_string mformula.hash);*)
       (*print_endline ("incr: " ^ MFormula.to_string mformula);*)
-      incr meval_c;
+      Int.incr meval_c;
       match Memo.find memo mformula with
-      | Some (expls, aexpl, mf) -> ((*print_endline ("meval:memo(" ^ string_of_int mf.hash ^ ", " ^ string_of_int tp ^ ")");*) (memo, (expls, aexpl, mf)))
+      | Some (expls, aexpl, mf) -> ((*print_endline ("meval:memo(" ^ Int.to_string mf.hash ^ ", " ^ Int.to_string tp ^ ")");*) (memo, (expls, aexpl, mf)))
       | None -> 
          let memo, (expls, aexpl, mf) =
            match mformula.mf with
@@ -2653,7 +2652,7 @@ module Make (E: Expl.ExplT) = struct
               memo, ([expl], expl, MEqConst (trm, d))
            | MPredicate (r, trms) when not (Enftype.is_observable (Sig.enftype_of_pred r)) ->
               (*print_endline ("not observable: " ^ r);*)
-              let expl = Pdt.Leaf (if FObligation.polarity_equal FObligation.POS
+              let expl = Pdt.Leaf (if FObligation.equal_polarity FObligation.POS
                                         (Option.value pol ~default:FObligation.POS) then
                                      (Proof.V (Proof.make_vff tp))
                                    else
@@ -2663,7 +2662,9 @@ module Make (E: Expl.ExplT) = struct
               let db' = match Sig.kind_of_pred r with
                 | Trace -> Db.filter db ~f:(fun evt -> String.equal r (fst(evt)))
                 | External -> Db.retrieve_external r
-                | Builtin -> Db.retrieve_builtin ts tp r in
+                | Builtin -> Db.retrieve_builtin ts tp r
+                | Predicate -> raise (Invalid_argument "cannot evaluate Predicate")
+                | Let -> raise (Invalid_argument "cannot evaluate Let")in
               if List.is_empty trms then
                 (let expl = if Db.is_empty db'
                             then Pdt.Leaf (Proof.V (Proof.make_vpred tp r trms))
@@ -2672,7 +2673,7 @@ module Make (E: Expl.ExplT) = struct
               else
                 let maps = List.filter_opt (
                                Set.fold (Db.events db') ~init:[]
-                                 ~f:(fun acc evt -> match_terms trms (snd evt)
+                                 ~f:(fun acc evt -> match_terms (List.map ~f:(fun x -> x.trm) trms) (snd evt)
                                                       (Map.empty (module Lbl)) :: acc)) in
                 let expl = if List.is_empty maps
                            then Pdt.Leaf (Proof.V (Proof.make_vpred tp r trms))
@@ -2719,7 +2720,7 @@ module Make (E: Expl.ExplT) = struct
               let f_neg pdt = Pdt.apply1_reduce Proof.equal mformula.lbls
                                 (fun p -> do_neg p) (Pdt.exquant pdt) in
               let f_expls = List.map expls ~f:f_neg in
-              let f_aexpl = approx_expl1 aexpl mformula.lbls tp mformula.mf in
+              let f_aexpl = approx_expl1 aexpl mformula.lbls mformula.mf in
               memo, (f_expls, f_aexpl, MNeg mf')
            | MAnd (s, mfs, buf2) ->
               (*print_endline "--MAnd";*)
@@ -2727,7 +2728,9 @@ module Make (E: Expl.ExplT) = struct
                 List.fold_map ~init:memo ~f:(meval_rec ts tp db ~pol fobligs) mfs in
               (*List.iter data ~f:(fun (_, aexpl, mf) -> print_endline (MFormula.to_string mf);
                 print_endline (Expl.to_string aexpl));*)
-              let expls1 :: expls_list, aexpl1 :: aexpl_list, mfs' = List.unzip3 data in
+              let expls_list', aexpl_list', mfs' = List.unzip3 data in
+              let expls1, expls_list = List.hd_exn expls_list', List.tl_exn expls_list' in
+              let aexpl1, aexpl_list = List.hd_exn aexpl_list', List.tl_exn aexpl_list' in
               let (f_expls, buf2') =
                 List.fold expls_list ~init:(expls1, buf2) ~f:(fun (expls1, buf2) expls2  ->
                     Buf2.take
@@ -2738,20 +2741,22 @@ module Make (E: Expl.ExplT) = struct
                         Pdt.apply2_reduce Proof.equal mformula.lbls (fun p1 p2 -> minp_list (do_and p1 p2)) expl1 expl2)
                       (Buf2.add expls1 expls2 buf2)) in
               let aexpl = List.fold aexpl_list ~init:aexpl1 ~f:(fun aexpl1 aexpl2 ->
-                              approx_expl2 aexpl1 aexpl2 mformula.lbls tp mformula.mf) in
+                              approx_expl2 aexpl1 aexpl2 mformula.lbls mformula.mf) in
               (*print_endline ("MAnd.aexpl(" ^ MFormula.to_string mformula ^ ")=" ^ E.to_string aexpl);*)
               memo, (f_expls, aexpl, MAnd (s, mfs', buf2'))
            | MOr (s, mfs, buf2) ->
               let memo, data =
                 List.fold_map ~init:memo ~f:(meval_rec ts tp db ~pol fobligs) mfs in
-              let expls1 :: expls_list, aexpl1 :: aexpl_list, mfs' = List.unzip3 data in
+              let expls_list', aexpl_list', mfs' = List.unzip3 data in
+              let expls1, expls_list = List.hd_exn expls_list', List.tl_exn expls_list' in
+              let aexpl1, aexpl_list = List.hd_exn aexpl_list', List.tl_exn aexpl_list' in
               let (f_expls, buf2') =
                 List.fold expls_list ~init:(expls1, buf2) ~f:(fun (expls1, buf2) expls2  -> 
                     Buf2.take
                       (Pdt.apply2_reduce Proof.equal mformula.lbls (fun p1 p2 -> minp_list (do_or p1 p2)))
                       (Buf2.add expls1 expls2 buf2)) in
               let aexpl = List.fold aexpl_list ~init:aexpl1 ~f:(fun aexpl1 aexpl2 ->
-                              approx_expl2 aexpl1 aexpl2 mformula.lbls tp mformula.mf) in
+                              approx_expl2 aexpl1 aexpl2 mformula.lbls mformula.mf) in
               memo, (f_expls, aexpl, MOr (s, mfs', buf2'))
            | MImp (s, mf1, mf2, buf2) ->
               let memo, (expls1, aexpl1, mf1') = meval_rec ts tp db ~pol:(pol >>| FObligation.neg) fobligs memo mf1 in
@@ -2765,7 +2770,7 @@ module Make (E: Expl.ExplT) = struct
               print_endline ("aexpl2=" ^ E.to_string aexpl2);*)
               (*print_endline ("lbls=" ^ Lbl.to_string_list mformula.lbls);*)
               let (f_expls, buf2') = Buf2.take f_imp (Buf2.add expls1 expls2 buf2) in
-              let aexpl = approx_expl2 aexpl1 aexpl2 mformula.lbls tp mformula.mf in
+              let aexpl = approx_expl2 aexpl1 aexpl2 mformula.lbls mformula.mf in
               (*print_endline ("aexpl=" ^ E.to_string aexpl);*)
               memo, (f_expls, aexpl, MImp (s, mf1', mf2', buf2'))
            | MIff (s, t, mf1, mf2, buf2) ->
@@ -2781,7 +2786,7 @@ module Make (E: Expl.ExplT) = struct
                 print_endline ("lbls =" ^ (Lbl.to_string_list lbls));
                 print_endline ("lbls'=" ^ (Lbl.to_string_list lbls'));*)
               let memo, (expls, aexpl, mf') = meval_rec ts tp db ~pol fobligs memo mf in
-              let quant expl = approx_quant expl pol mformula.lbls mf.lbls tp x tc mformula.mf in
+              let quant expl = approx_quant expl x mformula.mf in
               let expls = List.map expls ~f:quant in
               (*print_endline ("aexpl (before) = " ^ Expl.to_string aexpl);*)
               let aexpl = quant aexpl in
@@ -2793,14 +2798,14 @@ module Make (E: Expl.ExplT) = struct
                 (*print_endline ("lbls =" ^ (Lbl.to_string_list lbls));
                 print_endline ("lbls'=" ^ (Lbl.to_string_list lbls'));*)
               let memo, (expls, aexpl, mf') = meval_rec ts tp db ~pol fobligs memo mf in
-              let quant expl = approx_quant expl pol mformula.lbls mf.lbls tp x tc mformula.mf in
+              let quant expl = approx_quant expl x mformula.mf in
               let expls = List.map expls ~f:quant in
               (*print_endline ("aexpl (before) = " ^ Expl.to_string aexpl);*)
               let aexpl = quant aexpl in
               (*print_endline ("aexpl (after) = " ^ Expl.to_string aexpl);*)
               memo, (expls, aexpl, MForall(x, tc, b, mf'))
            | MPrev (i, mf, first, (buf, tss)) ->
-              let memo, (expls, aexpl, mf') = meval_rec ts tp db ~pol fobligs memo mf in
+              let memo, (expls, _, mf') = meval_rec ts tp db ~pol fobligs memo mf in
               let (f_expls, (buf', tss')) =
                 Buft.another_take
                   (fun expl ts ts' -> Pdt.apply1_reduce Proof.equal mformula.lbls
@@ -2812,7 +2817,7 @@ module Make (E: Expl.ExplT) = struct
               let memo, (expls, _, mf') = meval_rec ts tp db ~pol fobligs memo mf in
               let (expls', first) = if first && (List.length expls) > 0 then (List.tl_exn expls, false)
                                     else (expls, first) in
-              let (f_expls, (buf', tss')) =
+              let (f_expls, (_, tss')) =
                 Buft.another_take
                   (fun expl ts ts' -> Pdt.apply1_reduce Proof.equal mformula.lbls
                                         (fun p -> Prev_Next.update_eval Next i p ts ts') expl)
@@ -2824,7 +2829,7 @@ module Make (E: Expl.ExplT) = struct
               memo, ([aexpl], aexpl, MENext (i, f_ts, mf', v))
            | MOnce (i, mf, tstps, moaux_pdt) ->
               let memo, (expls, aexpl, mf') = meval_rec ts tp db ~pol fobligs memo mf in
-              let ((moaux_pdt', expls'), buf', tstps') =
+              let ((moaux_pdt', expls'), _, tstps') =
                 Buft.take
                   (fun expl ts tp (aux_pdt, es) ->
                     let (aux_pdt', es') =
@@ -2853,12 +2858,12 @@ module Make (E: Expl.ExplT) = struct
               (*print_endline ("MEventually aexpl(after)=" ^ Expl.to_string aexpl);*)
               memo, (expls'', aexpl, MEventually (i, mf', (buf', ntstps'), meaux_pdt'))
            | MEEventually (i, f_ts, mf, v) ->
-              let memo, (expls, aexpl, mf') = meval_rec ts tp db ~pol fobligs memo mf in
+              let memo, (_, aexpl, mf') = meval_rec ts tp db ~pol fobligs memo mf in
               let aexpl = else_any (approx_eventually mformula.lbls aexpl fobligs i (Some (mformula.hash, v))) tp pol in
               memo, ([aexpl], aexpl, MEEventually (i, f_ts, mf', v))
            | MHistorically (i, mf, tstps, mhaux_pdt) ->
               let memo, (expls, aexpl, mf') = meval_rec ts tp db ~pol fobligs memo mf in
-              let ((mhaux_pdt', expls'), buf', tstps') =
+              let ((mhaux_pdt', expls'), _, tstps') =
                 Buft.take
                   (fun expl ts tp (aux_pdt, es) ->
                     let (aux_pdt', es') =
@@ -2885,7 +2890,7 @@ module Make (E: Expl.ExplT) = struct
               let aexpl = else_any (approx_always mformula.lbls aexpl fobligs i None) tp pol in
               memo, (expls'', aexpl, MAlways (i, mf', (buf', ntstps'), maaux_pdt'))
            | MEAlways (i, f_ts, mf, v) ->
-              let memo, (expls, aexpl, mf') = meval_rec ts tp db ~pol fobligs memo mf in
+              let memo, (_, aexpl, mf') = meval_rec ts tp db ~pol fobligs memo mf in
               (*print_endline "--MEAlways";
               print_endline ("lbls = " ^ (Lbl.to_string_list mformula.lbls));
               print_endline ("aexpl = " ^ E.to_string aexpl);*)
@@ -2928,12 +2933,12 @@ module Make (E: Expl.ExplT) = struct
               let aexpl = else_any (approx_until mformula.lbls aexpl1 aexpl2 fobligs i None) tp pol in
               memo, (expls'', aexpl, MUntil (i, mf1', mf2', (buf2', ntstps'), muaux_pdt'))
            | MEUntil (s, i, f_ts, mf1, mf2, v) ->
-              let memo, (expls1, aexpl1, mf1') = meval_rec ts tp db ~pol fobligs memo mf1 in
-              let memo, (expls2, aexpl2, mf2') = meval_rec ts tp db ~pol fobligs memo mf2 in
+              let memo, (_, aexpl1, mf1') = meval_rec ts tp db ~pol fobligs memo mf1 in
+              let memo, (_, aexpl2, mf2') = meval_rec ts tp db ~pol fobligs memo mf2 in
               let aexpl = else_any (approx_until mformula.lbls aexpl1 aexpl2 fobligs i (Some (mformula.hash, v))) tp pol in
               memo, ([aexpl], aexpl, MEUntil (s, i, f_ts, mf1', mf2', v))
          in let mf = { mformula with mf } in
-            (*print_endline ("add memo: " ^ " (" ^ MFormula.to_string mf ^ ", " ^ string_of_int tp ^ ", " ^ string_of_int mformula.hash ^ ") -> " ^ E.to_string aexpl);*)
+            (*print_endline ("add memo: " ^ " (" ^ MFormula.to_string mf ^ ", " ^ Int.to_string tp ^ ", " ^ Int.to_string mformula.hash ^ ") -> " ^ E.to_string aexpl);*)
             let memo = if tp = outer_tp then Memo.memoize memo mformula (expls, aexpl, mf) else memo in
             memo, (expls, aexpl, mf)
     in meval_rec ts tp db ~pol fobligs memo mformula
@@ -2984,9 +2989,9 @@ module Make (E: Expl.ExplT) = struct
 
   type res = E.t list * E.t * MFormula.t
   
-  let mstep tp ts db approx (ms: MState.t) (fobligs: FObligations.t) (memo : res Memo.t) =
+  let mstep _ ts db approx (ms: MState.t) (fobligs: FObligations.t) (memo : res Memo.t) =
     let pol_opt = if approx then Some FObligation.POS else None in
-    let memo, (expls, aexpl, mf') = meval ts ms.tp_cur db pol_opt fobligs ms.mf memo in
+    let memo, (_, aexpl, mf') = meval ts ms.tp_cur db ~pol:pol_opt fobligs ms.mf memo in
     let expls, tstps = [aexpl], [(ms.tp_cur, ts)] in
     let tsdbs = ms.tsdbs in
     let ts_waiting = ms.ts_waiting in

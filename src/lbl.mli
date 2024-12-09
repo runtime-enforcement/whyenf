@@ -47,3 +47,5 @@ val eval: Etc.valuation -> t -> Term.t
 
 type comparator_witness
 val comparator: (t, comparator_witness) Comparator.t
+
+val order : t list -> t list -> t -> string list -> t list

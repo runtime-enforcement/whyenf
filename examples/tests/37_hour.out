@@ -1,7 +1,7 @@
 The formula
- □[0s,∞) ∀x. A(x) → ◊[0s,1h+0s] B(x)
+ □[0s,∞) (∀x. A(x) → ◊[0s,1h+0s] B(x))
 is enforceable and types to
- □[0s,∞) (∀x. (A(x) →:R (◊[0s,1h+0s] (B(x) : Cau) : Cau) : Cau) : Cau) : Cau
+ □[0s,∞) ((∀x. (A(x) →:R (◊[0s,1h+0s] (B(x) : Cau) : Cau) : Cau)) : Cau) : Cau
 [Enforcer] @0 OK.
 [Enforcer] @0 nothing to do proactively.
 [Enforcer] @1 nothing to do proactively.

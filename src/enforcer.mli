@@ -14,5 +14,5 @@ module type EnforcerT = sig
 
 end
 
-module Make (E: Expl.ExplT) : EnforcerT
+module Make (_: Expl.ExplT) : EnforcerT
 

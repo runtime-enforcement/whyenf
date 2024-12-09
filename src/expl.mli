@@ -271,4 +271,4 @@ and t_vp =
 
 module LightProof : ProofT with type sp = int and type vp = int
 
-module Make (P : ProofT) : ExplT
+module Make (_ : ProofT) : ExplT

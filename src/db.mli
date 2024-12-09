@@ -14,8 +14,6 @@ open Etc
 module Event : sig
   type t = string * Dom.t list [@@deriving compare, sexp_of]
 
-  val equal: t -> t -> bool
-
   val to_string: t -> string
   val name : t -> string
 

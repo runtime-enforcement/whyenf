@@ -1,0 +1,4 @@
+The formula
+ □[0s,∞) (∀x. A(x) ∧ (x = "1") → B(x))
+is enforceable and types to
+ □[0s,∞) ((∀x. (A(x) ∧ (x = "1") →:R (B(x) : Cau) : Cau)) : Cau) : Cau

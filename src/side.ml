@@ -18,6 +18,11 @@ let to_string2 =
   in function (N, N) -> "" | (a, b) -> ":" ^ aux a ^ "," ^ aux b
 
 let of_string = function
+  | "N"  -> N
   | "L"  -> L
   | "R"  -> R
   | "LR" -> LR
+  | _ -> assert false
+
+let value = Option.value ~default:N
+let value2 = Option.value ~default:(N, N)

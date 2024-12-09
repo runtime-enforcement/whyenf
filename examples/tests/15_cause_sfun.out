@@ -1,7 +1,7 @@
 The formula
- □[0s,∞) ∀x. (B(x) ∨ D(x)) → D(g(x))
+ □[0s,∞) (∀x. B(x) ∨ D(x) → D(g(x)))
 is enforceable and types to
- □[0s,∞) (∀x. ((B(x)∨D(x)) →:R (D(g(x)) : Cau) : Cau) : Cau) : Cau
+ □[0s,∞) ((∀x. (B(x) ∨ D(x) →:R (D(g(x)) : Cau) : Cau)) : Cau) : Cau
 [Enforcer] @1 reactively commands:
 Cause:
 D(0), D(1)

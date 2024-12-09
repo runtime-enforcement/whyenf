@@ -1,7 +1,7 @@
 The formula
  □[0s,∞) (B(10) U[0s,5s] B(20))
 is enforceable and types to
- □[0s,∞) ((B(10) U[0s,5s]:R B(20) : Cau) : Cau) : Cau
+ □[0s,∞) ((B(10) U[0s,5s]:R (B(20) : Cau)) : Cau) : Cau
 [Enforcer] @10 reactively commands:
 Cause:
 B(20)

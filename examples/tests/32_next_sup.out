@@ -1,7 +1,7 @@
 The formula
- □[0s,∞) ¬○[0s,∞) C(50)
+ □[0s,∞) ¬(○[0s,∞) C(50))
 is enforceable and types to
- □[0s,∞) (¬(○[0s,∞) (C(50) : Sup) : Sup) : Cau) : Cau
+ □[0s,∞) (¬((○[0s,∞) (C(50) : Sup)) : Sup) : Cau) : Cau
 [Enforcer] @10 OK.
 [Enforcer] @10 nothing to do proactively.
 [Enforcer] @11 nothing to do proactively.

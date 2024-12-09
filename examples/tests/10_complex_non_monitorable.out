@@ -1,4 +1,8 @@
-The formula is not enforceable because the variable
+The formula
+ □[0s,∞) (∀x. B(x) ∧ (∃y. A(f(x, y))) →:R C(x, x))
+is enforceable and types to
+ □[0s,∞) ((∀x. (B(x) ∧ (∃y. A(f(x, y))) →:R (C(x, x) : Cau) : Cau)) : Cau) : Cau
+However, the formula is not  because the variable
  y
 is not monitorable in
  A(f(x, y))

@@ -14,7 +14,7 @@ open Etc
 
 module type EnforcerT = sig
 
-  val exec: Formula.t -> in_channel -> Time.Span.s -> unit
+  val exec: Formula.t -> Stdio.In_channel.t -> Time.Span.s -> unit
 
 end
 
@@ -32,20 +32,20 @@ module Make (E: Expl.ExplT) = struct
     let join (sup1, cau1, fobligs1) (sup2, cau2, fobligs2) =
       (Db.union sup1 sup2, Db.union cau1 cau2, Set.union fobligs1 fobligs2)
 
-    let equal (sup1, cau1, fobligs1) (sup2, cau2, fobligs2) =
-      Db.equal sup1 sup2 && Db.equal cau1 cau2 && Set.equal fobligs1 fobligs2
+    (*let equal (sup1, cau1, fobligs1) (sup2, cau2, fobligs2) =
+      Db.equal sup1 sup2 && Db.equal cau1 cau2 && Set.equal fobligs1 fobligs2*)
 
     let db_equal (sup1, cau1, _) (sup2, cau2, _) =
       Db.equal sup1 sup2 && Db.equal cau1 cau2
 
     let sup (sup, _, _) = sup
     let cau (_, cau, _) = cau
-    let fobligs (_, _, fobligs) = fobligs
+    (*let fobligs (_, _, fobligs) = fobligs*)
 
     let empty = (Db.empty, Db.empty, Set.empty (module FObligation))
-    let empty2 fobligs = (Db.empty, Db.empty, fobligs)
+    (*let empty2 fobligs = (Db.empty, Db.empty, fobligs)*)
 
-    let is_empty (sup, cau, fobligs) = Db.is_empty sup && Db.is_empty cau && Set.is_empty fobligs
+    (*let is_empty (sup, cau, fobligs) = Db.is_empty sup && Db.is_empty cau && Set.is_empty fobligs*)
 
     let update_db db (sup, cau, _) = Db.union (Db.diff db sup) cau
 
@@ -58,14 +58,14 @@ module Make (E: Expl.ExplT) = struct
                    ~init:memo ~f:Memo.add_obligation in
       memo
 
-    let to_lists (sup, cau, fobligs) =
-      (Set.to_list sup, Set.to_list cau, fobligs)
+    (*let to_lists (sup, cau, fobligs) =
+      (Set.to_list sup, Set.to_list cau, fobligs)*)
 
-    let to_string indent (sup, cau, fobligs) =
+    (*let to_string indent (sup, cau, fobligs) =
       "\nTriple:\n" ^
         Printf.sprintf "\n%ssup = %s" indent (Db.to_string sup) ^
           Printf.sprintf "\n%scau = %s" indent (Db.to_string cau) ^
-            Printf.sprintf "\n%sfobligs = [%s]\n" indent (FObligations.to_string fobligs)
+            Printf.sprintf "\n%sfobligs = [%s]\n" indent (FObligations.to_string fobligs)*)
 
   end
 
@@ -83,7 +83,7 @@ module Make (E: Expl.ExplT) = struct
              ; nick: bool
              }
 
-    let to_string { ms
+    (*let to_string { ms
                   ; tp
                   ; ts
                   ; db
@@ -95,7 +95,7 @@ module Make (E: Expl.ExplT) = struct
             Printf.sprintf "db = %s\n" (Db.to_string db) ^
               Printf.sprintf "fobligs = %s\n" (FObligations.to_string fobligs) ^
                 Printf.sprintf "%s" (MState.to_string "  " ms) ^
-                  (Triple.to_string "  " r)
+                  (Triple.to_string "  " r)*)
 
     let init ms mf = { ms;
                        tp = 0;
@@ -124,7 +124,7 @@ module Make (E: Expl.ExplT) = struct
       (*print_endline ("add_foblig: " ^ FObligation.to_string foblig);*)
       update (Db.empty, Db.empty, Set.singleton (module FObligation) foblig) es
 
-    let combine es' es = update es'.r es
+    (*let combine es' es = update es'.r es*)
 
     let fixpoint fn es =
       let rec loop r es =
@@ -143,7 +143,7 @@ module Make (E: Expl.ExplT) = struct
       { es with memo }, aexpl
 
     let do_or (p1: E.Proof.t) (p2: E.Proof.t) : E.Proof.t = match p1, p2 with
-      | S sp1, S sp2 -> (S (E.Proof.make_sorl sp1))
+      | S sp1, S _ -> (S (E.Proof.make_sorl sp1))
       | S sp1, V _ -> S (E.Proof.make_sorl sp1)
       | V _ , S sp2 -> S (E.Proof.make_sorr sp2)
       | V vp1, V vp2 -> V (E.Proof.make_vor vp1 vp2)
@@ -152,13 +152,13 @@ module Make (E: Expl.ExplT) = struct
       | S sp1, S sp2 -> S (E.Proof.make_sand sp1 sp2)
       | S _ , V vp2 -> V (E.Proof.make_vandr vp2)
       | V vp1, S _ -> V (E.Proof.make_vandl vp1)
-      | V vp1, V vp2 -> V (E.Proof.make_vandl vp1)
+      | V vp1, V _ -> V (E.Proof.make_vandl vp1)
 
     let do_ors tp : E.Proof.t list -> E.Proof.t = function
       | [] -> V (E.Proof.make_vff tp)
       | h::t -> List.fold_left ~init:h ~f:do_or t
 
-    let rec do_ands tp : E.Proof.t list -> E.Proof.t = function
+    let do_ands tp : E.Proof.t list -> E.Proof.t = function
       | [] -> S (E.Proof.make_stt tp)
       | h::t -> List.fold_left ~init:h ~f:do_and t
       
@@ -178,7 +178,7 @@ module Make (E: Expl.ExplT) = struct
       es, E.Proof.isS (specialize es v p)
 
     let vio x mf es =
-      sat x (MFormula.map_mf mf Formula.Filter._true ~exquant:true (fun mf -> MNeg mf)) es
+      sat x (MFormula.map_mf mf MFOTL.Filter.tt ~exquant:true (fun mf -> MNeg mf)) es
     
     let all_not_sat v x mf es =
       (*print_endline "--all_not_sat";*)
@@ -216,7 +216,7 @@ module Make (E: Expl.ExplT) = struct
              failwith "Internal error: Infinite set of candidates in all_not_vio"
 
     let can_skip es mformula =
-      not (Formula.Filter.eval es.db mformula.filter)
+      not (MFOTL.Filter.eval es.db mformula.filter)
 
     let testenf test enf v es mf =
       (*print_endline "-- testenf";
@@ -263,13 +263,13 @@ module Make (E: Expl.ExplT) = struct
       (*print_endline ("--enfvio_exists.ds="^ (Dom.list_to_string ds));*)
       List.fold ds ~init:es ~f:enfs
 
-    and enfvio_until i ts (h, vv) mf1 mf2 =
+    (*and enfvio_until i ts (h, vv) mf1 mf2 =
       let test1 = if Interval.has_zero i then vio else (fun _ _ es -> es, true) in
       let enf2 mf2 v es = add_foblig (FUntil (default_ts ts es, R, i, mf1, mf2, h, vv), v, NEG) es in
-      lr test1 sat enfvio enf2 mf1 mf2
+      lr test1 sat enfvio enf2 mf1 mf2*)
 
     and enfvio_eventually i ts (h, vv) mf v es =
-      let test1 = if Interval.has_zero i then vio else (fun _ _ es -> es, true) in
+      (*let test1 = if Interval.has_zero i then vio else (fun _ _ es -> es, true) in*)
       let es = add_foblig (FEventually (default_ts ts es, i, mf, h, vv), v, NEG) es in
       enfvio mf v es
 
@@ -288,23 +288,23 @@ module Make (E: Expl.ExplT) = struct
          es
       | MTT -> es
       | MPredicate (r, trms) when Sig.equal_pred_kind (Sig.kind_of_pred r) Sig.Trace ->
-         let new_cau = (r, List.map trms (fun trm -> Term.unconst (Sig.eval v trm))) in
+         let new_cau = (r, List.map trms ~f:(fun trm -> Term.unconst (Sig.eval v trm))) in
          add_cau new_cau es
       | MNeg mf -> enfvio mf v es
       | MAnd (L, mfs, _) -> fixpoint (enfsat_andl v mfs) es
       | MAnd (R, mfs, _) -> fixpoint (enfsat_andr v mfs) es
       | MOr (L, [mf1; _], _) -> enfsat mf1 v es
       | MOr (R, [_; mf2], _) -> enfsat mf2 v es
-      | MImp (L, mf1, mf2, _) -> enfvio mf1 v es
-      | MImp (R, mf1, mf2, _) -> enfsat mf2 v es
-      | MIff (side1, side2, mf1, mf2, bi) ->
+      | MImp (L, mf1, _, _) -> enfvio mf1 v es
+      | MImp (R, _, mf2, _) -> enfsat mf2 v es
+      | MIff (side1, _, mf1, mf2, _) ->
          fixpoint (enfsat_andl v
-                     [MFormula.map2_mf mf1 mf2 Formula.Filter._true
+                     [MFormula.map2_mf mf1 mf2 MFOTL.Filter.tt
                         (fun mf1 mf2 -> MImp (side1, mf1, mf2, empty_binop_info));
-                      MFormula.map2_mf mf2 mf1 Formula.Filter._true
+                      MFormula.map2_mf mf2 mf1 MFOTL.Filter.tt
                         (fun mf2 mf1 -> MImp (side1, mf2, mf1, empty_binop_info))]) es
-      | MExists (x, tt, b, mf) -> enfsat mf (Map.add_exn v ~key:x ~data:(Dom.tt_default tt)) es
-      | MForall (x, tt, b, mf) -> fixpoint (enfsat_forall x mf v) es
+      | MExists (x, tt, _, mf) -> enfsat mf (Map.add_exn v ~key:x ~data:(Dom.tt_default tt)) es
+      | MForall (x, _, _, mf) -> fixpoint (enfsat_forall x mf v) es
       | MENext (i, ts, mf, vv) ->
          add_foblig (FInterval (default_ts ts es, i, mf, mformula.hash, vv), v, POS) es
       | MEEventually (i, ts, mf, vv) ->
@@ -324,7 +324,7 @@ module Make (E: Expl.ExplT) = struct
             else
               add_foblig (FAlways (default_ts ts es, i, mf, mformula.hash, vv), v, POS) es
       | MOnce (_, mf, _, _) -> enfsat mf v es
-      | MSince (_, _, mf1, mf2, _, _) -> enfsat mf2 v es
+      | MSince (_, _, _, mf2, _, _) -> enfsat mf2 v es
       | MEUntil (R, i, ts, mf1, mf2, vv) ->
          if Interval.diff_right_of (default_ts ts es) (inc_ts es.ts) i && es.nick then
            add_cau Db.Event._tp (enfsat mf2 v es)
@@ -342,8 +342,7 @@ module Make (E: Expl.ExplT) = struct
              (enfsat mf1 v es)
       | MAnd (LR, _, _) ->
          raise (Invalid_argument ("side for " ^ MFormula.to_string mformula ^ " was not fixed"))
-      | _ -> (*print_endline (MFormula.to_string mformula);
-             print_endline (to_string es);*)
+      | _ -> print_endline (MFormula.to_string mformula);
              raise (Invalid_argument ("function enfsat is not defined for "
                                       ^ MFormula.op_to_string mformula))
     and enfvio (mformula: MFormula.t) v es =
@@ -355,9 +354,7 @@ module Make (E: Expl.ExplT) = struct
       | _ when can_skip es mformula -> es
       | MFF -> es
       | MPredicate (r, trms) when Sig.equal_pred_kind (Sig.kind_of_pred r) Sig.Trace ->
-         let new_sup = (r, List.map trms (fun trm -> match trm with
-                                                     | Var x -> Map.find_exn v x
-                                                     | Const c -> c)) in
+         let new_sup = (r, List.map trms ~f:(fun trm -> Term.unconst (Sig.eval v trm))) in
          add_sup new_sup es
       | MNeg mf -> enfsat mf v es
       | MAnd (L, [mf1; _], _) -> enfvio mf1 v es
@@ -368,8 +365,8 @@ module Make (E: Expl.ExplT) = struct
       | MImp (R, mf1, mf2, _) -> fixpoint (enfvio_imp mf2 mf1 v) es
       | MIff (L, _, mf1, mf2, _) -> fixpoint (enfvio_imp mf1 mf2 v) es
       | MIff (R, _, mf1, mf2, _) -> fixpoint (enfvio_imp mf2 mf1 v) es
-      | MExists (x, tt, b, mf) -> fixpoint (enfvio_exists x mf v) es
-      | MForall (x, tt, b, mf) -> enfvio mf (Map.add_exn v ~key:x ~data:(Dom.tt_default tt)) es
+      | MExists (x, _, _, mf) -> fixpoint (enfvio_exists x mf v) es
+      | MForall (x, tt, _, mf) -> enfvio mf (Map.add_exn v ~key:x ~data:(Dom.tt_default tt)) es
       | MENext (i, ts, mf, vv) ->
          add_foblig (FInterval (default_ts ts es, i, mf, mformula.hash, vv), v, NEG) es
       | MEEventually (i, ts, mf, vv) -> enfvio_eventually i ts (mformula.hash, vv) mf v es
@@ -379,7 +376,7 @@ module Make (E: Expl.ExplT) = struct
          else
            add_foblig (FAlways (default_ts ts es, i, mf, mformula.hash, vv), v, NEG) es
       | MSince (L, _, mf1, _, _, _) -> enfvio mf1 v es
-      | MEUntil (L, _, ts, mf1, _, _) -> enfvio mf1 v es
+      | MEUntil (L, _, _, mf1, _, _) -> enfvio mf1 v es
       | MEUntil (R, i, ts, mf1, mf2, vv) ->
          let es, b1 = sat v mf1 es in
          let es, b2 = sat v mf2 es in
@@ -462,7 +459,7 @@ module Make (E: Expl.ExplT) = struct
     let mf = match obligs with
       | [] -> MFormula._tt
       | [mf] -> mf
-      | mfs -> MFormula.mapn_mf mfs Formula.Filter._true (fun mfs -> MAnd (L, mfs, empty_binop_info))  in
+      | mfs -> MFormula.mapn_mf mfs MFOTL.Filter.tt (fun mfs -> MAnd (L, mfs, empty_binop_info))  in
     match (EState.mstep_state { es with ms = { es.ms with mf } }) es.memo
     with (memo, (_, _, ms)) -> (
       (*print_endline ("goal= " ^ MFormula.to_string ms.mf) ;*) { es with memo }, ms.mf)
@@ -538,6 +535,7 @@ module Make (E: Expl.ExplT) = struct
         | NoOrd as o, es'   -> Order.print es.ts o;
                                process_db pb { es' with ts = inc_ts es.ts;
                                                         db = es.db }
+        | _ -> raise (Invalid_argument "Reactive step did not return a proactive command")
       else if not (Db.is_tick pb.db) then
         match reactive_step pb.db es with
         | ReOrd (c, s) as o, es' -> Other_parser.Stats.add_cau (Db.size c) pb.stats;
@@ -547,6 +545,7 @@ module Make (E: Expl.ExplT) = struct
                                       es
                                     else
                                       { es' with tp = es'.tp + 1 }
+        | _ -> raise (Invalid_argument "Reactive step did not return a reactive command")
       else
         es
     in
@@ -562,11 +561,15 @@ module Make (E: Expl.ExplT) = struct
          let es = process_db pb es in
          Stdlib.flush_all();
          if more then step false (Some(pb)) es else conclude pb es in
-    let tf = try Typing.do_type f b with Invalid_argument s -> failwith s in
-    let transparent =
-      try Typing.is_transparent tf
-      with Invalid_argument s -> print_endline s; false in
-    let f = Tformula.to_formula tf in
+    let open Formula.MFOTL_Enforceability(Sig) in
+    let typed_f, tf = try let typed_f = do_type f b in
+                          typed_f, Tformula.of_formula' typed_f
+                      with Invalid_argument s -> failwith s in
+    let transparent = is_transparent typed_f in
+    if (not transparent) then
+      print_endline "This formula cannot be transparently enforced.";
+    (*print_endline (Formula.to_string_typed typed_f);
+    print_endline (Tformula.to_string tf);*)
     let mf = Monitor.MFormula.init tf in
     (*print_endline (Monitor.MFormula.to_string mf);*)
     let ms = Monitor.MState.init mf in

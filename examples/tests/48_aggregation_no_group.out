@@ -1,7 +1,7 @@
 The formula
- □[0s,∞) ∀s. (s <- MAX(x; ; ⧫[0s,∞) C(x, x))) → C(s, s)
+ □[0s,∞) (∀s. (s <- MAX(x; ; ⧫[0s,∞) C(x, x))) → C(s, s))
 is enforceable and types to
- □[0s,∞) (∀s. ((s <- MAX(x; ; ⧫[0s,∞) C(x, x))) →:R (C(s, s) : Cau) : Cau) : Cau) : Cau
+ □[0s,∞) ((∀s. ((s <- MAX(x; ; ⧫[0s,∞) C(x, x))) →:R (C(s, s) : Cau) : Cau)) : Cau) : Cau
 [Enforcer] @1 reactively commands:
 Cause:
 C(-4611686018427387904, -4611686018427387904)

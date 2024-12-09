@@ -1,6 +1,6 @@
 (lang dune 3.13)
 
-(name whyenf)
+(name lifeboat)
 
 (generate_opam_files true)
 
@@ -25,7 +25,7 @@
 (using menhir 3.0)
 
 (package
- (name whyenf)
+ (name lifeboat)
  (synopsis "")
  (description "")
  (depends

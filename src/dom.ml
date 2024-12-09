@@ -12,15 +12,9 @@ open Base
 
 module T = struct
 
-  type tt = TInt | TStr | TFloat [@@deriving compare, sexp_of, hash]
+  type tt = TInt | TStr | TFloat [@@deriving compare, sexp_of, hash, equal]
 
-  type t = Int of Int.t | Str of String.t | Float of Float.t [@@deriving compare, sexp_of, hash]
-
-  let equal d d' = match d, d' with
-    | Int v, Int v' -> Int.equal v v'
-    | Str v, Str v' -> String.equal v v'
-    | Float v, Float v' -> Float.equal v v'
-    | _ -> false
+  type t = Int of Int.t | Str of String.t | Float of Float.t [@@deriving compare, sexp_of, hash, equal]
 
   let lt d d' = match d, d' with
     | Int v, Int v' -> Int.(v < v')
@@ -46,11 +40,7 @@ module T = struct
     | Float v, Float v' -> Float.(v >= v')
     | _ -> false
 
-  let tt_equal tt tt' = match tt, tt' with
-    | TInt, TInt
-      | TStr, TStr
-      | TFloat, TFloat -> true
-    | _ -> false
+  let bool_tt = Int 1
 
   let tt_of_string = function
     | "int" -> TInt

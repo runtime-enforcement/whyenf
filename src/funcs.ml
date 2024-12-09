@@ -28,7 +28,7 @@ module Python = struct
     Printf.sprintf "%s([%s])" f
       (String.concat ~sep:", "
          (List.map dss
-            ~f:(fun ds -> "[" ^ String.concat ~sep:", " (List.map ds string_of_dom) ^ "]")))
+            ~f:(fun ds -> "[" ^ String.concat ~sep:", " (List.map ds ~f:string_of_dom) ^ "]")))
 
   let eval string =
     match !m with
@@ -69,6 +69,55 @@ let to_string name func =
 let is_eq = function
   | "eq" | "feq" | "seq" -> true
   | _ -> false
+
+let poly_fun2 f f_name = function
+  | [x; y] -> f x y
+  | l -> raise (Errors.FunctionError 
+                  (Printf.sprintf "Function %s called with %d arguments, expected 2"
+                     f_name (List.length l)))
+
+let tt_string l =
+  if List.length l = 1 then
+    Printf.sprintf "type %s" (Dom.tt_to_string (Dom.tt_of_domain (List.hd_exn l)))
+  else
+    Printf.sprintf "types (%s)"
+      (String.concat ~sep:", " (List.map l ~f:(fun d -> Dom.tt_to_string (Dom.tt_of_domain d))))
+
+let int_fun1 f f_name = function
+  | [Dom.Int x] -> f x
+  | l -> raise (Errors.FunctionError 
+                  (Printf.sprintf "Function %s takes an argument of type int, but it is called with arguments of %s"
+                     f_name (tt_string l)))
+
+let int_fun2 f f_name = function
+  | [Dom.Int x; Int y] -> f x y
+  | l -> raise (Errors.FunctionError 
+                  (Printf.sprintf "Function %s takes arguments of types (int, int), but it is called with arguments of %s"
+                     f_name (tt_string l)))
+
+let float_fun1 f f_name = function
+  | [Dom.Float x] -> f x
+  | l -> raise (Errors.FunctionError 
+                  (Printf.sprintf "Function %s takes an argument of type float, but it is called with arguments of %s"
+                     f_name (tt_string l)))
+
+let float_fun2 f f_name = function
+  | [Dom.Float x; Float y] -> f x y
+  | l -> raise (Errors.FunctionError 
+                  (Printf.sprintf "Function %s takes arguments of types (float, float), but it is called with arguments of %s"
+                     f_name (tt_string l)))
+
+let string_fun2 f f_name = function
+  | [Dom.Str x; Str y] -> f x y
+  | l -> raise (Errors.FunctionError 
+                  (Printf.sprintf "Function %s takes arguments of types (str, str), but it is called with arguments of %s"
+                     f_name (tt_string l)))
+
+let string_int_int_fun f f_name = function
+  | [Dom.Str i; Int j; Int k] -> f i j k
+  | l -> raise (Errors.FunctionError 
+                  (Printf.sprintf "Function %s takes arguments of types (str, int, int), but it is called with arguments of %s"
+                     f_name (tt_string l)))
   
 let builtins =
   [
@@ -77,7 +126,7 @@ let builtins =
        arity   = 2;
        arg_ttts = [("x", Ctxt.TVar "a"); ("y", Ctxt.TVar "a")];
        ret_ttts = [Ctxt.TConst Dom.TInt];
-       kind    = Builtin (fun [x;y] -> Int (if Dom.equal x y then 1 else 0));
+       kind    = Builtin (poly_fun2 (fun x y -> Dom.Int (if Dom.equal x y then 1 else 0)) "eq");
        strict  = true;
     });
     ("neq",
@@ -85,7 +134,7 @@ let builtins =
        arity   = 2;
        arg_ttts = [("x", Ctxt.TVar "a"); ("y", Ctxt.TVar "a")];
        ret_ttts = [Ctxt.TConst Dom.TInt];
-       kind    = Builtin (fun [x;y] -> Int (if Dom.equal x y then 0 else 1));
+       kind    = Builtin (poly_fun2 (fun x y -> Dom.Int (if Dom.equal x y then 0 else 1)) "neq");
        strict  = true;
     });
     ("lt",
@@ -93,7 +142,7 @@ let builtins =
        arity   = 2;
        arg_ttts = [("x", Ctxt.TVar "a"); ("y", Ctxt.TVar "a")];
        ret_ttts  = [Ctxt.TConst Dom.TInt];
-       kind    = Builtin (fun [x;y] -> Int (if Dom.lt x y then 1 else 0));
+       kind    = Builtin (poly_fun2 (fun x y -> Dom.Int (if Dom.lt x y then 1 else 0)) "lt");
        strict  = true;
     });
     ("leq",
@@ -101,7 +150,7 @@ let builtins =
        arity   = 2;
        arg_ttts = [("x", Ctxt.TVar "a"); ("y", Ctxt.TVar "a")];
        ret_ttts  = [Ctxt.TConst Dom.TInt];
-       kind    = Builtin (fun [x;y] -> Int (if Dom.leq x y then 1 else 0));
+       kind    = Builtin (poly_fun2 (fun x y -> Dom.Int (if Dom.leq x y then 1 else 0)) "leq");
        strict  = true;
     });
     ("gt",
@@ -109,7 +158,7 @@ let builtins =
        arity   = 2;
        arg_ttts = [("x", Ctxt.TVar "a"); ("y", Ctxt.TVar "a")];
        ret_ttts  = [Ctxt.TConst Dom.TInt];
-       kind    = Builtin (fun [x;y] -> Int (if Dom.gt x y then 1 else 0));
+       kind    = Builtin (poly_fun2 (fun x y -> Dom.Int (if Dom.gt x y then 1 else 0)) "gt");
        strict  = true;
     });
     ("geq",
@@ -117,7 +166,7 @@ let builtins =
        arity   = 2;
        arg_ttts = [("x", Ctxt.TVar "a"); ("y", Ctxt.TVar "a")];
        ret_ttts  = [Ctxt.TConst Dom.TInt];
-       kind    = Builtin (fun [x;y] -> Int (if Dom.geq x y then 1 else 0));
+       kind    = Builtin (poly_fun2 (fun x y -> Dom.Int (if Dom.geq x y then 1 else 0)) "geq");
        strict  = true;
     });
     ("add",
@@ -125,7 +174,7 @@ let builtins =
        arity   = 2;
        arg_ttts = [("x", Ctxt.TConst Dom.TInt); ("y", Ctxt.TConst Dom.TInt)];
        ret_ttts  = [Ctxt.TConst Dom.TInt];
-       kind    = Builtin (fun [x;y] -> match x, y with Dom.Int i, Dom.Int j -> Int (i+j));
+       kind    = Builtin (int_fun2 (fun i j -> Dom.Int (i+j)) "add");
        strict  = false;
     });
     ("sub",
@@ -133,7 +182,7 @@ let builtins =
        arity   = 2;
        arg_ttts = [("x", Ctxt.TConst Dom.TInt); ("y", Ctxt.TConst Dom.TInt)];
        ret_ttts  = [Ctxt.TConst Dom.TInt];
-       kind    = Builtin (fun [x;y] -> match x, y with Dom.Int i, Dom.Int j -> Int (i-j));
+       kind    = Builtin (int_fun2 (fun i j -> Dom.Int (i-j)) "sub");
        strict  = false;
     });
     ("usub",
@@ -141,7 +190,7 @@ let builtins =
        arity   = 1;
        arg_ttts = [("x", Ctxt.TConst Dom.TInt)];
        ret_ttts  = [Ctxt.TConst Dom.TInt];
-       kind    = Builtin (fun [x] -> match x with Dom.Int i -> Int (-i));
+       kind    = Builtin (int_fun1 (fun i -> Dom.Int i) "usub");
        strict  = true;
     });
     ("not",
@@ -149,7 +198,7 @@ let builtins =
        arity   = 1;
        arg_ttts = [("x", Ctxt.TConst Dom.TInt)];
        ret_ttts  = [Ctxt.TConst Dom.TInt];
-       kind    = Builtin (fun [x] -> match x with Dom.Int i -> Int Int.(if i = 0 then 1 else 0));
+       kind    = Builtin (int_fun1 (fun i -> Dom.Int Int.(if i = 0 then 1 else 0)) "not");
        strict  = true;
     });
     ("mul",
@@ -157,7 +206,7 @@ let builtins =
        arity   = 1;
        arg_ttts = [("x", Ctxt.TConst Dom.TInt); ("y", Ctxt.TConst Dom.TInt)];
        ret_ttts  = [Ctxt.TConst Dom.TInt];
-       kind    = Builtin (fun [x;y] -> match x, y with Dom.Int i, Dom.Int j -> Int (i*j));
+       kind    = Builtin (int_fun2 (fun i j -> Dom.Int (i*j)) "mul");
        strict  = false;
     });
     ("div",
@@ -165,7 +214,7 @@ let builtins =
        arity   = 2;
        arg_ttts = [("x", Ctxt.TConst Dom.TInt); ("y", Ctxt.TConst Dom.TInt)];
        ret_ttts  = [Ctxt.TConst Dom.TInt];
-       kind    = Builtin (fun [x;y] -> match x, y with Dom.Int i, Dom.Int j -> Int (i/j));
+       kind    = Builtin (int_fun2 (fun i j -> Dom.Int (i/j)) "div");
        strict  = false;
     });
     ("pow",
@@ -173,7 +222,7 @@ let builtins =
        arity   = 2;
        arg_ttts = [("x", Ctxt.TConst Dom.TInt); ("y", Ctxt.TConst Dom.TInt)];
        ret_ttts  = [Ctxt.TConst Dom.TInt];
-       kind    = Builtin (fun [x;y] -> match x, y with Dom.Int i, Dom.Int j -> Int (Int.pow i j));
+       kind    = Builtin (int_fun2 (fun i j -> Dom.Int (Int.pow i j)) "pow");
        strict  = false;
     });
     ("fadd",
@@ -181,7 +230,7 @@ let builtins =
        arity   = 2;
        arg_ttts = [("x", Ctxt.TConst Dom.TFloat); ("y", Ctxt.TConst Dom.TFloat)];
        ret_ttts  = [Ctxt.TConst Dom.TFloat];
-       kind    = Builtin (fun [x;y] -> match x, y with Dom.Float i, Dom.Float j -> Float (i+.j));
+       kind    = Builtin (float_fun2 (fun i j -> Dom.Float (i+.j)) "fadd");
        strict  = false;
     });
     ("fsub",
@@ -189,7 +238,7 @@ let builtins =
        arity   = 2;
        arg_ttts = [("x", Ctxt.TConst Dom.TFloat); ("y", Ctxt.TConst Dom.TFloat)];
        ret_ttts  = [Ctxt.TConst Dom.TFloat];
-       kind    = Builtin (fun [x;y] -> match x, y with Dom.Float i, Dom.Float j -> Float (i-.j));
+       kind    = Builtin (float_fun2 (fun i j -> Dom.Float (i-.j)) "fsub");
        strict  = false;
     });
     ("ufsub",
@@ -197,7 +246,7 @@ let builtins =
        arity   = 1;
        arg_ttts = [("x", Ctxt.TConst Dom.TFloat)];
        ret_ttts  = [Ctxt.TConst Dom.TFloat];
-       kind    = Builtin (fun [x] -> match x with Dom.Float i -> Float (-.i));
+       kind    = Builtin (float_fun1 (fun i -> Dom.Float (-.i)) "ufsub");
        strict  = true;
     });
     ("fmul",
@@ -205,7 +254,7 @@ let builtins =
        arity   = 2;
        arg_ttts = [("x", Ctxt.TConst Dom.TFloat); ("y", Ctxt.TConst Dom.TFloat)];
        ret_ttts  = [Ctxt.TConst Dom.TFloat];
-       kind    = Builtin (fun [x;y] -> match x, y with Dom.Float i, Dom.Float j -> Float (i*.j));
+       kind    = Builtin (float_fun2 (fun i j -> Dom.Float (i*.j)) "fmul");
        strict  = false;
     });
     ("fdiv",
@@ -213,7 +262,7 @@ let builtins =
        arity   = 2;
        arg_ttts = [("x", Ctxt.TConst Dom.TFloat); ("y", Ctxt.TConst Dom.TFloat)];
        ret_ttts  = [Ctxt.TConst Dom.TFloat];
-       kind    = Builtin (fun [x;y] -> match x, y with Dom.Float i, Dom.Float j -> Float (i/.j));
+       kind    = Builtin (float_fun2 (fun i j -> Dom.Float (i/.j)) "fdiv");
        strict  = false;
     });
     ("fpow",
@@ -221,7 +270,7 @@ let builtins =
        arity   = 2;
        arg_ttts = [("x", Ctxt.TConst Dom.TFloat); ("y", Ctxt.TConst Dom.TFloat)];
        ret_ttts  = [Ctxt.TConst Dom.TFloat];
-       kind    = Builtin (fun [x;y] -> match x, y with Dom.Float i, Dom.Float j -> Float (i ** j));
+       kind    = Builtin (float_fun2 (fun i j -> Dom.Float (i ** j)) "fpow");
        strict  = false;
     });
     ("conc",
@@ -229,7 +278,7 @@ let builtins =
        arity   = 2;
        arg_ttts = [("x", Ctxt.TConst Dom.TStr); ("y", Ctxt.TConst Dom.TStr)];
        ret_ttts  = [Ctxt.TConst Dom.TStr];
-       kind    = Builtin (fun [Str i; Str j] -> Str (i ^ j));
+       kind    = Builtin (string_fun2 (fun i j -> Dom.Str (i ^ j)) "conc");
        strict  = false;
     });
     ("substr",
@@ -237,7 +286,7 @@ let builtins =
        arity   = 2;
        arg_ttts = [("x", Ctxt.TConst Dom.TStr); ("start", Ctxt.TConst Dom.TInt); ("end", Ctxt.TConst Dom.TInt)];
        ret_ttts  = [Ctxt.TConst Dom.TStr];
-       kind    = Builtin (fun [Str i; Int j; Int k] -> Str (String.slice i j k));
+       kind    = Builtin (string_int_int_fun (fun i j k -> Dom.Str (String.slice i j k)) "substr");
        strict  = false;
     });
     ("match",
@@ -245,8 +294,8 @@ let builtins =
        arity   = 2;
        arg_ttts = [("x", Ctxt.TConst Dom.TStr); ("r", Ctxt.TConst Dom.TStr)];
        ret_ttts  = [Ctxt.TConst Dom.TInt];
-       kind    = Builtin (fun [Str i; Str j] ->
-                     if Str.string_match (Str.regexp j) i 0 then Dom.Int 1 else Dom.Int 0);
+       kind    = Builtin (string_fun2 (fun i j -> 
+                     if Str.string_match (Str.regexp j) i 0 then Dom.Int 1 else Dom.Int 0) "match");
        strict  = false;
     });
     ("string_of_int",
@@ -254,7 +303,7 @@ let builtins =
        arity   = 1;
        arg_ttts = [("x", Ctxt.TConst TInt)];
        ret_ttts  = [Ctxt.TConst Dom.TStr];
-       kind    = Builtin (fun [Int i] -> Str (string_of_int i));
+       kind    = Builtin (int_fun1 (fun i -> Dom.Str (string_of_int i)) "string_of_int");
        strict  = false;
     });
     ("string_of_float",
@@ -262,7 +311,7 @@ let builtins =
        arity   = 1;
        arg_ttts = [("x", Ctxt.TConst TFloat)];
        ret_ttts  = [Ctxt.TConst TStr];
-       kind    = Builtin (fun [Float i] -> Str (string_of_float i));
+       kind    = Builtin (float_fun1 (fun i -> Dom.Str (string_of_float i)) "string_of_float");
        strict  = false;
     });
     ("int_of_float",
@@ -270,7 +319,7 @@ let builtins =
        arity   = 1;
        arg_ttts = [("x", Ctxt.TConst TFloat)];
        ret_ttts  = [Ctxt.TConst TInt];
-       kind    = Builtin (fun [Float i] -> Int (int_of_float i));
+       kind    = Builtin (float_fun1 (fun i -> Dom.Int (int_of_float i)) "int_of_float");
        strict  = false;
     });
     ("float_of_int",
@@ -278,7 +327,7 @@ let builtins =
        arity   = 1;
        arg_ttts = [("x", Ctxt.TConst TInt)];
        ret_ttts = [Ctxt.TConst TFloat];
-       kind    = Builtin (fun [Int i] -> Float (float_of_int i));
+       kind    = Builtin (int_fun1 (fun i -> Dom.Float (float_of_int i)) "float_of_int");
        strict  = false;
     });
   ]

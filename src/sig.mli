@@ -5,6 +5,8 @@ val tp_event_name: string
 val ts_event_name: string
 val tick_event_name: string
 
+type term = Term.t
+
 type pred_kind = Trace | Predicate | External | Builtin | Let [@@deriving compare, sexp_of, hash, equal]
 
 type pred = { arity: int;
@@ -25,6 +27,7 @@ val pred_enftype_map: unit -> (string, Enftype.t * int list, String.comparator_w
 
 val add_letpred: string -> (string * Ctxt.ttt) list -> unit
 val add_pred: string -> (string * Dom.tt) list -> Enftype.t -> int -> pred_kind -> unit
+val add_letpred_empty: string -> unit
 
 val add_func: string -> (string * Dom.tt) list -> Dom.tt -> Funcs.kind -> bool -> unit
 val add_tfunc: string -> (string * Dom.tt) list -> Dom.tt list -> unit
@@ -54,7 +57,7 @@ val set_eval: Setc.valuation -> Term.t -> (Term.t, Term.comparator_witness) Setc
 
 val tt_of_term_exn: Ctxt.t -> Term.t -> Dom.tt
 
-val is_strict: Term.t list -> bool
+val strict_of_func: string -> bool
 
 val check_const: Ctxt.t -> Dom.t -> Ctxt.ttt -> Ctxt.t * Ctxt.ttt
 val check_var:   Ctxt.t -> string -> Ctxt.ttt -> Ctxt.t * Ctxt.ttt
