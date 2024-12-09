@@ -1,6 +1,6 @@
 open Base
 
-open MFOTL_Base
+open Modules
 
 module type T = sig
 
@@ -83,6 +83,7 @@ module Make (Var : V) (Dom : D) (Uop : O) (Bop : O) (Info : I) : sig
   val value_to_string: ?l:int -> t -> string
 
   val list_to_string: t list -> string
+  val list_to_string_core: core_t list -> string
 
   val filter_vars: t list -> v list
 

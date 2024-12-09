@@ -1,1 +1,1 @@
-include MFOTL_Ctxt.Make(Dom)
+include MFOTL_lib.Ctxt.Make(MFOTL_lib.Dom)

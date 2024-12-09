@@ -10,6 +10,8 @@
 
 open Base
 
+open MFOTL_lib
+
 type ('a, 'b) t = Finite of ('a, 'b) Set.t | Complement of ('a, 'b) Set.t
 
 let phys_equal = Stdlib.( == )

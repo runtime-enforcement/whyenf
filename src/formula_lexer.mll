@@ -9,8 +9,14 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
-open Etc
+
 open Formula_parser
+open Global
+
+module Interval = MFOTL_lib.Interval
+
+let lexing_error lexbuf s =
+  raise (Errors.ParserError (Lexing.lexeme_start_p lexbuf, Lexing.lexeme_end_p lexbuf, s))
 
 let make_interval lexbuf = Interval.lex (fun () -> lexing_error lexbuf "interval lexing did not succeed")
 

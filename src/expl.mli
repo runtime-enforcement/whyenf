@@ -11,6 +11,10 @@
 open Base
 
 module Fdeque = Core.Fdeque
+module Dom = MFOTL_lib.Dom
+module Etc = MFOTL_lib.Etc
+module Interval = MFOTL_lib.Interval
+module Multiset = MFOTL_lib.Multiset
 
 module Part : sig
 

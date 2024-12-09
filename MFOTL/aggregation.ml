@@ -16,15 +16,6 @@ let op_to_string = function
   | AStd -> "STD"
   | AAssign -> "ASSIGN"
 
-let init = function
-  | Sformula.Aop.ASum -> ASum
-  | AAvg -> AAvg
-  | AMed -> AMed
-  | ACnt -> ACnt
-  | AMin -> AMin
-  | AMax -> AMax
-  | AStd -> AStd
-
 let ret_tt op tt =
   match op, tt with
   | ASum, Dom.TInt   -> Some Dom.TInt
@@ -45,7 +36,7 @@ let ret_tt op tt =
 let ret_tt_exn op tt =
   Option.value_exn (ret_tt op tt)
 
-let error s = raise (Errors.FunctionError s)
+let error s = raise (Failure ("Aggregation error: " ^ s))
 
 let eval op tt m =
   match op, tt with
@@ -102,10 +93,12 @@ let eval op tt m =
        let a = Multiset.fold m ~init:0. ~f /. Float.of_int (Multiset.card m) in
        let center_and_square = function
          | Dom.Float x -> Dom.Float ((x -. a) **. 2.)
-         | d -> error (Printf.sprintf "Cannot apply STD operator to non-float %s" (Dom.to_string d)) in
+         | d -> error (Printf.sprintf "Cannot apply STD operator to non-float %s"
+                         (Dom.to_string d)) in
        let m_sq = Multiset.map (module Dom) ~f:center_and_square m in
        Dom.Float (Float.sqrt (Multiset.fold m_sq ~init:0. ~f /. Float.of_int (Multiset.card m_sq)))
   | AAssign, _ ->
      Multiset.min m
-  | _, _ -> assert false
+  | _, _ -> error (Printf.sprintf "Cannot apply %s operator to type %s"
+                     (op_to_string op) (Dom.tt_to_string tt))
 

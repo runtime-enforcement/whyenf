@@ -1,1 +1,1 @@
-include module type of MFOTL_Ctxt.Make(Dom)
+include module type of MFOTL_lib.Ctxt.Make(MFOTL_lib.Dom)

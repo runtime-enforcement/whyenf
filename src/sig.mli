@@ -1,5 +1,8 @@
 open Base
 
+module Enftype = MFOTL_lib.Enftype
+module Dom = MFOTL_lib.Dom
+
 val tilde_tp_event_name: string
 val tp_event_name: string
 val ts_event_name: string
@@ -52,7 +55,7 @@ val arity: ty -> int
 
 val arg_ttts: ty -> (string * Ctxt.ttt) list
 
-val eval: Etc.valuation -> Term.t -> Term.t
+val eval: MFOTL_lib.Etc.valuation -> Term.t -> Term.t
 val set_eval: Setc.valuation -> Term.t -> (Term.t, Term.comparator_witness) Setc.t
 
 val tt_of_term_exn: Ctxt.t -> Term.t -> Dom.tt

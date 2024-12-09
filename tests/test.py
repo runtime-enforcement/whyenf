@@ -53,10 +53,10 @@ class Test:
         print(f"Running test {self.label}...".ljust(48), end=' ')
         start_time = time()
         completed_process = self._run_whyenf()
-        actual_success = completed_process.returncode == 0
+        actual_success = completed_process.returncode == 0  
         actual_output = completed_process.stdout
         end_time = time()
-        delta_time = end_time - start_time
+        delta_time = end_time - start_time  
         if actual_output.strip() == self.output.strip() and actual_success == self.success:
             print(f"\033[1;32mPassed\033[0m ({delta_time:.3f}s)")
             return pd.Series({"label": self.label, "passed": True, "delta_time": delta_time, 

@@ -1,0 +1,4 @@
+(library
+ (name MFOTL_lib)
+ (libraries core_kernel base zarith unix pyml calendar str)
+ (preprocess (pps ppx_jane)))

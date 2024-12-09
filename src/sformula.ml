@@ -1,3 +1,6 @@
+open MFOTL_lib
+open MFOTL
+
 open Base
 
 module Const = struct

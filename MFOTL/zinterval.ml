@@ -25,7 +25,7 @@ module Z = struct
   let min_seconds i = i
   let max_seconds i = i
   let leq = Int.(<=)
-  let (+) _ _ = assert false
+  let (+) t _ = t
   let inc i = Int.(i + 1)
   let dec i = Int.(i - 1)
   let is_zero i = Int.(i = 0)
@@ -33,7 +33,6 @@ module Z = struct
   let to_string = Int.to_string
 
 end
-
   
 module MakeZinterval (S : S) = struct
 

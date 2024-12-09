@@ -1,5 +1,5 @@
 open Base
-open MFOTL_Base
+open Modules
 
 module type C = sig
 
@@ -88,7 +88,7 @@ module Make (Dom : D) = struct
       let uf, root = find_root uf key in
       match Map.find_exn uf root with
       | Root tt_opt -> uf, tt_opt
-      | _ -> assert false
+      | _ -> assert false (* dead code *)
 
     let set uf key tt_opt =
       (*Stdio.printf "set('%s,%s)\n" key (match tt_opt with Some  tt -> Dom.tt_to_string tt | _ -> "None");*)

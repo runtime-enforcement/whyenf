@@ -1,5 +1,6 @@
 open Base
 
+
 type t = LVar of string | LEx of string | LAll of string | LClos of string * Term.t list * ((String.t, String.comparator_witness) Set.t) [@@deriving equal, compare, sexp_of]
 
 (*module TLbl : sig
@@ -42,7 +43,7 @@ val quantify: forall:bool -> string -> t -> t
 val quantify_list: forall:bool -> string -> t list -> t list
 val unquantify_list: string -> t list -> t list
 
-val eval: Etc.valuation -> t -> Term.t
+val eval: MFOTL_lib.Etc.valuation -> t -> Term.t
 (*val matches: tt -> t -> bool*)
 
 type comparator_witness

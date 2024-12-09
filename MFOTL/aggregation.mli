@@ -1,5 +1,5 @@
 open Base
-open Sformula
+(*open Sformula*)
 
 type op = ASum | AAvg | AMed | ACnt | AMin | AMax | AStd | AAssign [@@deriving compare, sexp_of, hash, equal]
 
@@ -13,6 +13,6 @@ val ret_tt_exn : op -> Dom.tt -> Dom.tt
 
 val eval : op -> Dom.tt -> (Dom.t, Dom.comparator_witness) Multiset.t -> Dom.t
 
-val init : Aop.t -> op
+(*val init : Aop.t -> op*)
 
 

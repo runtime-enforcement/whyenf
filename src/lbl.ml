@@ -1,5 +1,7 @@
 open Base
 
+module Etc = MFOTL_lib.Etc
+
 module S = struct
   type t = (string, String.comparator_witness) Set.t
   let equal = Set.equal 

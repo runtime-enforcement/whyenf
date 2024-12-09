@@ -1,3 +1,5 @@
+module Dom = MFOTL_lib.Dom
+
 module Python : sig
 
   val load: string -> unit

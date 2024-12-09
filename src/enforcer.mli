@@ -10,7 +10,7 @@
 
 module type EnforcerT = sig
   
-  val exec: Formula.t -> in_channel -> Time.Span.s -> unit
+  val exec: Formula.t -> in_channel -> MFOTL_lib.Time.Span.s -> unit
 
 end
 
