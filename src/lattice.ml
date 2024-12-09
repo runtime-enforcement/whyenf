@@ -40,8 +40,8 @@ module Linear (L : LinT) : PreL with type t = L.t = struct
 
   type t = L.t [@@deriving compare, sexp_of, hash, equal]
 
-  let join a b = if L.value a <= L.value b then a else b
-  let meet a b = if L.value a <= L.value b then b else a
+  let join a b = if L.value a <= L.value b then b else a
+  let meet a b = if L.value a <= L.value b then a else b
 
   let to_string = L.to_string
 
@@ -65,7 +65,7 @@ module PreMake2 (P1 : PreL) (P2 : PreL) : PreL with type t = P1.t * P2.t = struc
   let join (a1, a2) (b1, b2) = (P1.join a1 b1, P2.join a2 b2)
   let meet (a1, a2) (b1, b2) = (P1.meet a1 b1, P2.meet a2 b2)
 
-  let to_string (a1, a2) = P1.to_string a1 ^ ", " ^ P2.to_string a2
+  let to_string (a1, a2) = Printf.sprintf "<%s,%s>" (P1.to_string a1) (P2.to_string a2)
 
 end
 
@@ -78,10 +78,23 @@ module PreMake3 (P1 : PreL) (P2 : PreL) (P3 : PreL) : PreL with type t = P1.t * 
   let join (a1, a2, a3) (b1, b2, b3) = (P1.join a1 b1, P2.join a2 b2, P3.join a3 b3)
   let meet (a1, a2, a3) (b1, b2, b3) = (P1.meet a1 b1, P2.meet a2 b2, P3.meet a3 b3)
 
-  let to_string (a1, a2, a3) = P1.to_string a1 ^ ", " ^ P2.to_string a2 ^ ", " ^ P3.to_string a3
+  let to_string (a1, a2, a3) = Printf.sprintf "<%s,%s,%s>" (P1.to_string a1) (P2.to_string a2) (P3.to_string a3)
 
 end
 
 module Make3 (P1 : PreL) (P2 : PreL) (P3 : PreL) : L with type t = P1.t * P2.t * P3.t = Make (PreMake3 (P1) (P2) (P3))
+
+module PreMake4 (P1 : PreL) (P2 : PreL) (P3 : PreL) (P4 : PreL) : PreL with type t = P1.t * P2.t * P3.t * P4.t = struct
+
+  type t = P1.t * P2.t * P3.t * P4.t [@@deriving compare, sexp_of, hash, equal]
+
+  let join (a1, a2, a3, a4) (b1, b2, b3, b4) = (P1.join a1 b1, P2.join a2 b2, P3.join a3 b3, P4.join a4 b4)
+  let meet (a1, a2, a3, a4) (b1, b2, b3, b4) = (P1.meet a1 b1, P2.meet a2 b2, P3.meet a3 b3, P4.join a4 b4)
+
+  let to_string (a1, a2, a3, a4) = Printf.sprintf "<%s,%s,%s,%s>" (P1.to_string a1) (P2.to_string a2) (P3.to_string a3) (P4.to_string a4)
+  
+end
+
+module Make4 (P1 : PreL) (P2 : PreL) (P3 : PreL) (P4 : PreL) : L with type t = P1.t * P2.t * P3.t * P4.t = Make (PreMake4 (P1) (P2) (P3) (P4))
 
 

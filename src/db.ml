@@ -9,7 +9,6 @@
 (*******************************************************************)
 
 open Base
-open Etc
 
 module Event = struct
 
@@ -17,11 +16,11 @@ module Event = struct
 
     type t = string * Dom.t list [@@deriving compare, sexp_of]
 
-    let equal (name1, ds1) (name2, ds2) =
+    (*let equal (name1, ds1) (name2, ds2) =
       String.equal name1 name2 &&
         (match (List.for_all2 ds1 ds2 ~f:(fun d1 d2 -> Dom.equal d1 d2)) with
          | Ok b -> b
-         | Unequal_lengths -> false)
+         | Unequal_lengths -> false)*)
 
     let to_string (name, ds) = Printf.sprintf "%s(%s)" name (Dom.list_to_string ds)
 
@@ -91,13 +90,14 @@ let event name consts =
              ~f:(fun tc c -> match snd tc with
                              | TConst TInt -> Dom.Int (Int.of_string c)
                              | TConst TStr -> Str c
-                             | TConst TFloat -> Float (Float.of_string c)))
+                             | TConst TFloat -> Float (Float.of_string c)
+                             | _ -> assert false))
   else raise (Invalid_argument (Printf.sprintf "predicate %s has arity %d" name (Sig.arity pred_sig)))
 
 let add_event db evt = set_trace { db with events = Set.add db.events evt }
 
 let is_tick db =
-  mem db Event._tick && size db == 1
+  mem db Event._tick && size db = 1
 
 let ev_set_to_string events =
   Etc.string_list_to_string (List.map ~f:Event.to_string (Set.elements events))
@@ -112,10 +112,11 @@ let to_json db =
 let retrieve_external name =
   let tts = List.map ~f:Ctxt.unconst (Sig.arg_ttts_of_pred name) in
   let dom_list_list = Funcs.Python.retrieve_db name tts in
-  let events: Event.t list = List.map dom_list_list (fun dom_list -> (name, dom_list)) in
+  let events: Event.t list = List.map dom_list_list ~f:(fun dom_list -> (name, dom_list)) in
   create events
 
 let retrieve_builtin ts tp = function
   | name when String.equal name Sig.tp_event_name -> create [("TP", [Int tp])]
   | name when String.equal name Sig.ts_event_name -> create [("TS", [Int (Time.to_int ts)])]
+  | _ -> assert false
 

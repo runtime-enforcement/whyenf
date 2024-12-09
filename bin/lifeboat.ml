@@ -11,10 +11,10 @@
 
 open Base
 open Stdio
-open Monitor_lib
+open Lifeboat_lib
 
 (* TODO: This module must be rewritten using the Command module from Core *)
-module Whyenf = struct
+module Lifeboat = struct
 
   let formula_ref = ref None
   let sig_ref = ref In_channel.stdin
@@ -24,7 +24,7 @@ module Whyenf = struct
 
   let usage () =
     Caml.Format.eprintf
-      "usage: ./whyenf.exe [-sig] [-formula] [-func] [-log] [-out] [-b] [-tz]
+      "usage: lifeboat [-sig] [-formula] [-func] [-log] [-out] [-b] [-tz]
        arguments:
        \t -sig
        \t\t <file>             - signature

@@ -25,12 +25,12 @@ module Z = struct
   let min_seconds i = i
   let max_seconds i = i
   let leq = Int.(<=)
-  let (+) t u = assert false
+  let (+) _ _ = assert false
   let inc i = Int.(i + 1)
   let dec i = Int.(i - 1)
   let is_zero i = Int.(i = 0)
   let zero = 0
-  let to_string = string_of_int
+  let to_string = Int.to_string
 
 end
 
@@ -108,6 +108,13 @@ module MakeZinterval (S : S) = struct
     | ZUL l -> ZUR Int.(- l)
     | ZUR l -> ZUL Int.(- l)
     | ZU () -> ZU ()
+
+  let mem t =
+    let mem_BI (l, r) = Int.(l <= t) && Int.(t <= r) in
+    let mem_UIL r = Int.(t <= r) in
+    let mem_UIR l = Int.(l <= t) in
+    let mem_UUI () = true in
+    case mem_BI mem_UIL mem_UIR mem_UUI
 
   let to_zero i = lub (singleton 0) i
   

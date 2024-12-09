@@ -10,7 +10,6 @@
 (*******************************************************************)
 
 open Etc
-open Formula
 open Formula_parser
 
 let make_interval lexbuf = Interval.lex (fun () -> lexing_error lexbuf "interval lexing did not succeed")
@@ -99,7 +98,9 @@ rule token = parse
   | float as f                                    { debug ("FLOAT " ^ f); FLOAT (Base.Float.of_string f) }
   | string as s                                   { debug ("STR " ^ s); STR s }
   | quoted_string as qs                           { debug ("QSTR " ^ qs); QSTR qs }
-  | _ as c                                        { lexing_error lexbuf "unexpected character: `%c'" c }
+  | _                                             { lexing_error lexbuf
+                                                      (Printf.sprintf "unexpected character: `%s'"
+                                                         (Lexing.lexeme lexbuf)) }
   | eof                                           { debug "EOF"; EOF }
 
 and skip_line = parse

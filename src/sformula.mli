@@ -37,6 +37,8 @@ module Bop : sig
     [@@deriving compare, sexp_of, hash]
 
   val is_relational: t -> bool
+
+  val to_string: t -> string
   
 end
 
@@ -45,6 +47,8 @@ module Uop : sig
   type t = USub | UFSub | UNot
            [@@deriving compare, sexp_of, hash]
 
+  val to_string: t -> string
+
 end
 
 module Btop : sig
@@ -52,13 +56,17 @@ module Btop : sig
   type t = BSince | BUntil | BRelease | BTrigger
            [@@deriving compare, sexp_of, hash]
 
+  val to_string: t -> string
+
 end
 
 module Utop : sig
 
   type t = UNext | UPrev | UAlways | UHistorically | UEventually | UOnce
            [@@deriving compare, sexp_of, hash]
-
+  
+  val to_string: t -> string
+  
 end
 
 type t =
@@ -77,3 +85,5 @@ type t =
   | SBtop of Side.t option * Interval.t * t * Btop.t * t
   | SUtop of Interval.t * Utop.t * t
   [@@deriving compare, sexp_of, hash]
+
+val to_string : t -> string

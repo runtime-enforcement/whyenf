@@ -13,7 +13,7 @@ open Base
 open Interval
 open Time
 
-module Z : S
+module Z : S with type v = int
 
 module MakeZinterval (S : S) : sig
 
@@ -56,6 +56,7 @@ module MakeZinterval (S : S) : sig
   val lub : t -> t -> t
   val sum : t -> t -> t
   val inv : t -> t
+  val mem : v -> t -> bool
 
   val to_zero : t -> t
 
@@ -66,4 +67,4 @@ module MakeZinterval (S : S) : sig
 
 end
 
-include module type of MakeZinterval(Time.Span.S)
+include module type of MakeZinterval(Time.Span.S) with type v = int

@@ -5,6 +5,8 @@ let tick_event_name = "tick"
 let tp_event_name = "tp"
 let ts_event_name = "ts"
 
+type term = Term.t
+
 type pred_kind = Trace | Predicate | External | Builtin | Let [@@deriving compare, sexp_of, hash, equal]
 
 type pred = { arity: int;
@@ -35,11 +37,11 @@ let arg_ttts = function
 
 let unpred = function
   | Pred pred -> pred
-  | Func func -> raise (Invalid_argument "unpred is undefined for Funs")
+  | Func _ -> raise (Invalid_argument "unpred is undefined for Funs")
 
 let unfunc = function
   | Func func -> func
-  | Pred pred -> raise (Invalid_argument "unfunc is undefined for Preds")
+  | Pred _ -> raise (Invalid_argument "unfunc is undefined for Preds")
 
 type elt = string * ty (*[@@deriving compare, sexp_of, hash]*)
 
@@ -68,6 +70,8 @@ let pred_enftype_map () =
 let add_letpred p_name arg_ttts =
   Hashtbl.add_exn table ~key:p_name
     ~data:(Pred { arity = List.length arg_ttts; arg_ttts; enftype = Enftype.obs; rank = 0; kind = Let })
+
+let add_letpred_empty p_name = add_letpred p_name []
 
 let add_pred p_name arg_tts enftype rank kind =
   (*print_endline (p_name ^ " " ^ Enftype.to_string enftype);*)
@@ -99,7 +103,8 @@ let add_tfunc f_name arg_tts ret_tts =
 
 let update_enftype name enftype =
   if Hashtbl.mem table name then
-    Hashtbl.update table name ~f:(fun (Some (Pred x)) -> Pred { x with enftype })
+    Hashtbl.update table name ~f:(
+        function (Some (Pred x)) -> Pred { x with enftype } | _ -> assert false)
 
 let vars_of_pred name = List.map (unpred (Hashtbl.find_exn table name)).arg_ttts ~f:fst
 
@@ -122,16 +127,19 @@ let func ff ds =
   match the_func.kind with
   | Builtin f -> f ds
   | External -> Funcs.Python.call ff ds (Ctxt.unconst (List.hd_exn the_func.ret_ttts))
+  | _ -> assert false
 
 let tfunc ff dss =
   let the_func = unfunc (Hashtbl.find_exn table ff) in
   match the_func.kind with
   | Table -> Funcs.Python.tcall ff dss (List.map ~f:Ctxt.unconst the_func.ret_ttts)
+  | _ -> assert false
 
 let print_table () =
   Hashtbl.iteri table ~f:(fun ~key:n ~data:ps -> Stdio.printf "%s\n" (string_of_ty n ps))
 
-let rec eval (v: Etc.valuation) = function
+let rec eval (v: Etc.valuation) (t: Term.t) : Term.t =
+  let trm = match t.trm with
   | Term.Var x ->
      (match Map.find v x with
       | Some d -> Term.Const d
@@ -140,43 +148,41 @@ let rec eval (v: Etc.valuation) = function
   | App (ff, trms) ->
      (*Stdio.printf "eval(App(%s, %s), %s)\n" ff (Term.list_to_string trms) (Etc.valuation_to_string v);*)
      let trms = List.map trms ~f:(eval v) in
-     let f = function Term.Const d -> Some d | c -> None in
-     match Option.all (List.map trms ~f) with
+     let f (t: Term.t) = match t.trm with
+       | Term.Const d -> Some d
+       | _ -> None in
+     (match Option.all (List.map trms ~f) with
      | Some ds -> (*Stdio.printf "=%s\n" (Dom.to_string(func ff ds));*)
         Const (func ff ds)
      | None -> (*Stdio.printf "=%s\n" (Term.to_string(App (ff, trms)));*)
-        App (ff, trms)
+        App (ff, trms))
+  | _ -> raise (Invalid_argument (Printf.sprintf "cannot evaluate %s" (Term.to_string t)))
+  in { t with trm }
 
-let rec set_eval (v: Setc.valuation) = function
+let rec set_eval (v: Setc.valuation) (t: Term.t) =
+  match t.trm with
   | Term.Var x ->
      (match Map.find v x with
-      | Some (Setc.Finite s) -> Setc.Finite (Set.map (module Term) s ~f:Term.const)
-      | Some (Setc.Complement s) -> Setc.Complement (Set.map (module Term) s ~f:Term.const)
-      | None -> Setc.singleton (module Term) (Var x))
-  | Const c -> Setc.singleton (module Term) (Const c)
+      | Some (Setc.Finite s) -> Setc.Finite (Set.map (module Term) s ~f:(fun c -> Term.make_dummy (Term.const c)))
+      | Some (Setc.Complement s) -> Setc.Complement (Set.map (module Term) s ~f:(fun c -> Term.make_dummy (Term.const c)))
+      | None -> Setc.singleton (module Term) t)
+  | Const _ -> Setc.singleton (module Term) t
   | App (ff, trms) ->
      let trms' = List.map trms ~f:(set_eval v) in
      let f trms =
-       match Option.all (List.map trms ~f:(function Term.Const d -> Some d | _ -> None)) with
-       | Some ds -> Term.Const (func ff ds)
-       | None -> Term.App (ff, trms) in
-     match Option.all (List.map trms' ~f:(function Setc.Finite s -> Some s | _ -> None)) with
+       match Option.all (List.map trms ~f:(fun t -> match Term.(t.trm) with Term.Const d -> Some d | _ -> None)) with
+       | Some ds -> { t with trm = Term.Const (func ff ds) }
+       | None -> t in
+     (match Option.all (List.map trms' ~f:(function Setc.Finite s -> Some s | _ -> None)) with
      | Some ds -> let prod   = Etc.cartesian (List.map ds ~f:Set.elements) in
                   let trms'' = List.map prod ~f in
                   Setc.Finite (Set.of_list (module Term) trms'')
-     | None -> Setc.singleton (module Term) (Term.App (ff, trms))
+     | None -> Setc.singleton (module Term) t)
+  | _ -> raise (Invalid_argument (Printf.sprintf "cannot evaluate %s" (Term.to_string t)))
 
-let rec var_tt_of_term x tt = function
-  | Term.Var x' when String.equal x x' -> Some tt
-  | Var x' -> None
-  | App (f, trms) -> var_tt_of_terms x (arg_ttts_of_func f) trms
-  | Const c -> None
-and var_tt_of_terms x tts trms =
-  List.find_map (List.zip_exn tts trms)
-    ~f:(fun (tt, trm) -> var_tt_of_term x tt trm)
 
-let is_strict trms =
-  List.for_all (Term.fn_list trms) ~f:(fun name -> (unfunc (Hashtbl.find_exn table name)).strict)
+let strict_of_func name =
+  (unfunc (Hashtbl.find_exn table name)).strict
 
 let check_const (types: Ctxt.t) c (ttt: Ctxt.ttt) : Ctxt.t * Ctxt.ttt =
   Ctxt.type_const c ttt types
@@ -186,8 +192,8 @@ let check_var (types: Ctxt.t) v (ttt: Ctxt.ttt) : Ctxt.t * Ctxt.ttt =
 
 let rec check_app (types: Ctxt.t) f trms (ttt: Ctxt.ttt) : Ctxt.t * Ctxt.ttt =
   let arg_ttts, ret_ttt = arg_ttts_of_func f, ret_ttts_of_func f in
-  let types, (ret_ttt :: arg_ttts) =
-    Ctxt.convert_with_fresh_ttts types (ret_ttt @ arg_ttts) in
+  let types, arg_ttts = Ctxt.convert_with_fresh_ttts types (ret_ttt @ arg_ttts) in
+  let ret_ttt, arg_ttts = List.hd_exn arg_ttts, List.tl_exn arg_ttts in
   let types, ret_var = Ctxt.fresh_var types in
   (*print_endline ("check_app(" ^ ret_var ^ ", " ^ f ^ ")");*)
   let types, _ = Ctxt.type_var ret_var ret_ttt types in
@@ -198,11 +204,12 @@ let rec check_app (types: Ctxt.t) f trms (ttt: Ctxt.ttt) : Ctxt.t * Ctxt.ttt =
   let types, ret_ttt = check_var types ret_var ttt in
   types, ret_ttt
 
-and check_term (types: Ctxt.t) (ttt: Ctxt.ttt) trm : Ctxt.t * Ctxt.ttt =
-  match trm with
+and check_term (types: Ctxt.t) (ttt: Ctxt.ttt) (t: Term.t) : Ctxt.t * Ctxt.ttt =
+  match t.trm with
   | Term.Var x    -> check_var types x ttt
   | Const c       -> check_const types c ttt
   | App (f, trms) -> check_app types f trms ttt
+  | _ -> raise (Invalid_argument (Printf.sprintf "cannot check %s" (Term.to_string t)))
 
 and check_terms (types: Ctxt.t) p_name trms : Ctxt.t * Ctxt.ttt list =
   let sig_pred = Hashtbl.find_exn table p_name in
@@ -214,9 +221,10 @@ and check_terms (types: Ctxt.t) p_name trms : Ctxt.t * Ctxt.ttt list =
   else raise (Invalid_argument (
                   Printf.sprintf "arity of %s is %d" p_name (arity sig_pred)))
 
+
 let tt_of_term_exn (types: Ctxt.t) trm : Dom.tt =
   let types, new_ttt = Ctxt.fresh_ttt types in
-  let types, ttt = check_term types new_ttt trm in
+  let _, ttt = check_term types new_ttt trm in
   match ttt with
   | Ctxt.TConst tt -> tt
   | Ctxt.TVar _ -> raise (Invalid_argument (

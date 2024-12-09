@@ -60,17 +60,17 @@ module type MonitorT = sig
       | MEUntil       of Side.t * Interval.t * Time.t option * t * t * Etc.valuation
 
     and t = { mf: core_t;
-              filter: Formula.Filter.filter;
+              filter: MFOTL.Filter.t;
               events: (string, String.comparator_witness) Set.t option;
               obligations: (int, Int.comparator_witness) Set.t option;
               hash: int;
               lbls: Lbl.t list }
     
-    val make: core_t -> Formula.Filter.filter -> t
-    val set_make: core_t -> Formula.Filter.filter -> t
-    val map_mf: t -> Formula.Filter.filter -> ?exquant:bool -> (t -> core_t) -> t
-    val map2_mf: t -> t -> Formula.Filter.filter -> (t -> t -> core_t) -> t
-    val mapn_mf: t list -> Formula.Filter.filter -> (t list -> core_t) -> t
+    val make: core_t -> MFOTL.Filter.t -> t
+    val set_make: core_t -> MFOTL.Filter.t -> t
+    val map_mf: t -> MFOTL.Filter.t -> ?exquant:bool -> (t -> core_t) -> t
+    val map2_mf: t -> t -> MFOTL.Filter.t -> (t -> t -> core_t) -> t
+    val mapn_mf: t list -> MFOTL.Filter.t -> (t list -> core_t) -> t
 
     val _tt : t
     val _ff : t
@@ -90,8 +90,6 @@ module type MonitorT = sig
 
   module FObligation : sig
 
-    open MFormula
-
     type polarity = POS | NEG
 
     type kind =
@@ -103,7 +101,7 @@ module type MonitorT = sig
 
     type t = kind * Etc.valuation * polarity
 
-    val equal: t -> t -> bool
+    (*val equal: t -> t -> bool*)
     val eval: Time.t -> int -> t -> MFormula.t
     val to_string: t -> string
     val h: t -> int
@@ -162,5 +160,5 @@ module type MonitorT = sig
 
 end
 
-module Make (Expl : Expl.ExplT) : MonitorT
+module Make (_ : Expl.ExplT) : MonitorT
 

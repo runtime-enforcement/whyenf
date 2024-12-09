@@ -44,6 +44,7 @@ module type U = sig
   val inc : u -> u
   val dec : u -> u
   val is_zero : u -> bool
+  val is_one : u -> bool
   val of_string : string -> u
   val to_string : u -> string
   
@@ -83,6 +84,7 @@ module Span  = struct
     let inc u = Int.(+) u 1
     let dec u = Int.(-) u 1
     let is_zero u = 0 = u
+    let is_one u = 1 = u
     let of_string s = int_of_string s
     let to_string u = Int.to_string u ^ "s"
     
@@ -99,6 +101,7 @@ module Span  = struct
     let inc u = Int.(+) u 1
     let dec u = Int.(-) u 1
     let is_zero u = 0 = u
+    let is_one u = 1 = u
     let of_string s = int_of_string s 
     let to_string u = Int.to_string u ^ "m"
     
@@ -115,6 +118,7 @@ module Span  = struct
     let inc u = Int.(+) u 1
     let dec u = Int.(-) u 1
     let is_zero u = 0 = u
+    let is_one u = 1 = u
     let of_string s = int_of_string s
     let to_string u = Int.to_string u ^ "h"
     
@@ -131,6 +135,7 @@ module Span  = struct
     let inc u = Int.(+) u 1
     let dec u = Int.(-) u 1
     let is_zero u = 0 = u
+    let is_one u = 1 = u
     let of_string s = int_of_string s
     let to_string u = Int.to_string u ^ "d"
     
@@ -147,6 +152,7 @@ module Span  = struct
     let inc u = Int.(+) u 1
     let dec u = Int.(-) u 1
     let is_zero u = 0 = u
+    let is_one u = 1 = u
     let of_string s = int_of_string s
     let to_string u = Int.to_string u ^ "M"
     
@@ -163,6 +169,7 @@ module Span  = struct
     let inc u = Int.(+) u 1
     let dec u = Int.(-) u 1
     let is_zero u = 0 = u
+    let is_one u = 1 = u
     let of_string s = int_of_string s
     let to_string u = Int.to_string u ^ "y"
     
@@ -179,6 +186,7 @@ module Span  = struct
     let inc (u, o) = (u, Int.(o + 1))
     let dec (u, o) = (u, o - 1)
     let is_zero (u, o) = U.is_zero u && Int.equal o 0
+    let is_one (u, o) = U.is_one u && Int.equal o 0
     let of_string s = (U.of_string s, 0)
     let to_string (u, o) = Printf.sprintf "%s+%ss" (U.to_string u) (string_of_int o)
 
@@ -268,7 +276,6 @@ module Span  = struct
   let (-) t u = (+) t (neg u)
 
   let zero = Second (Second.of_string "0")
-  let one = Second (Second.of_string "1")
   let infty = Year (Year.of_string (string_of_int (Int.max_value)))
 
   let min_seconds = function
@@ -324,10 +331,9 @@ let (==) t u = (Calendar.compare t u) = 0
 let min t u = if t <= u then t else u
 let max t u = if u <= t then t else u
 
-let inc t = t + Span.one
-
 let zero = Calendar.make 0 0 0 0 0 0
 
 let to_string = Printer.Calendar.to_string
 let to_epoch_string x = string_of_int (to_int x)
 
+let of_string = Printer.Calendar.from_string

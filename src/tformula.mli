@@ -9,52 +9,15 @@
 
 open Base
 
-open Formula
-
-type core_t =
-  | TTT
-  | TFF
-  | TEqConst of Term.t * Dom.t
-  | TPredicate of string * Term.t list
-  | TPredicate' of string * Term.t list * t
-  | TLet' of string * string list * t * t
-  | TAgg of string * Dom.tt * Aggregation.op * Term.t * string list * t
-  | TTop of (string * Dom.tt) list * string * Term.t list * string list * t
-  | TNeg of t
-  | TAnd of Side.t * t list
-  | TOr of Side.t * t list
-  | TImp of Side.t * t * t
-  | TIff of Side.t * Side.t * t * t
-  | TExists of string * Dom.tt * bool * t
-  | TForall of string * Dom.tt * bool * t
-  | TPrev of Interval.t * t
-  | TNext of Interval.t * t
-  | TOnce of Interval.t * t
-  | TEventually of Interval.t * bool * t
-  | THistorically of Interval.t * t
-  | TAlways of Interval.t * bool * t
-  | TSince of Side.t * Interval.t * t * t
-  | TUntil of Side.t * Interval.t * bool * t * t
-
-and t = {
-    f:       core_t;
+type info_type = {
     enftype: Enftype.t;
-    filter:  Filter.filter
-  }  [@@deriving compare, hash, sexp_of]
+    filter:  MFOTL.Filter.t;
+    flag:    bool;
+  } [@@deriving compare, sexp_of, hash]
 
-val ttrue  : t
-val tfalse : t
+module TypeInfo : MFOTL_Base.I with type t = info_type
 
-val neg : t -> Enftype.t -> t
-(*val fv : t -> (String.t, Base.String.comparator_witness) Base.Set.t*)
-val conj : Side.t -> t -> t -> Enftype.t -> t
+include module type of MFOTL.Make(TypeInfo)(Tterm.TypedVar)(Dom)(Tterm)
 
-val op_to_string : t -> string
-
-val of_formula :  Formula.t ->  ?let_types:(string, Enftype.t, Base.String.comparator_witness) Base.Map.t -> Ctxt.t -> Ctxt.t * t
-val of_formula' : Formula.t -> t
-
-val ac_simplify : t -> t
-
-val to_formula : t -> Formula.t
-val to_string : t -> string
+val of_formula :  Formula.typed_t ->  ?let_types:(string, Enftype.t, Base.String.comparator_witness) Base.Map.t -> Ctxt.t -> Ctxt.t * t
+val of_formula' : Formula.typed_t -> t

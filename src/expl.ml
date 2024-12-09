@@ -18,7 +18,7 @@ module Part = struct
 
   type 'a t = (sub * 'a) list
 
-  let random_empty_set = Set.empty (module String)
+  (*let random_empty_set = Set.empty (module String)*)
 
   let trivial p = [(Setc.univ (module Dom), p)]
 
@@ -36,7 +36,7 @@ module Part = struct
 
   let fold_left part init f = List.fold_left part ~init:init ~f:(fun acc (_, p) -> f acc p)
 
-  let fold_left2 part init f = List.fold_left part ~init:init ~f:(fun acc (d, p) -> f acc d p)
+  (*let fold_left2 part init f = List.fold_left part ~init:init ~f:(fun acc (d, p) -> f acc d p)*)
 
   let filter part f = List.filter part ~f:(fun (_, p) -> f p)
 
@@ -46,13 +46,13 @@ module Part = struct
 
   let values part = List.map part ~f:(fun (_, p) -> p)
 
-  let find part x = snd (List.find_exn part ~f:(fun (s, p) -> Setc.mem s x))
+  let find part x = snd (List.find_exn part ~f:(fun (s, _) -> Setc.mem s x))
 
-  let find2 part f = List.find_exn part ~f:(fun (s, p) -> f p)
+  (*let find2 part f = List.find_exn part ~f:(fun (_, p) -> f p)*)
 
-  let find3 part f = List.find_exn part ~f:(fun (s, p) -> f s)
+  let find3 part f = List.find_exn part ~f:(fun (s, _) -> f s)
 
-  let rec tabulate ds f z =
+  let tabulate ds f z =
     (Setc.Complement ds, z) ::
       (Set.fold ds ~init:[] ~f:(fun acc d -> (Setc.Finite (Set.of_list (module Dom) [d]), f d) :: acc))
 
@@ -91,7 +91,7 @@ module Part = struct
     | [] -> indent ^ "❮ · ❯"
     | [x] -> indent ^ "❮\n\n" ^ (el_to_string indent s f x) ^ "\n" ^ indent ^ "❯\n"
     | xs -> indent ^ "❮\n\n"
-            ^ String.concat ~sep:"\n" (List.map xs (el_to_string indent s f)) ^ "\n"
+            ^ String.concat ~sep:"\n" (List.map xs ~f:(el_to_string indent s f)) ^ "\n"
             ^ indent ^ "❯\n"
 
 
@@ -117,7 +117,7 @@ module Part = struct
 
   let merge2_dedup p_eq f part1 part2 = dedup p_eq (merge2 f part1 part2)
 
-  let merge3_dedup p_eq f part1 part2 part3 = dedup p_eq (merge3 f part1 part2 part3)
+  (*let merge3_dedup p_eq f part1 part2 part3 = dedup p_eq (merge3 f part1 part2 part3)*)
 
   let split_prod_dedup p_eq part =
     let part1, part2 = split_prod part in
@@ -228,7 +228,7 @@ module Pdt = struct
 
   let rec hide vars f_leaf f_node pdt = match vars, pdt with
     |  _ , Leaf l -> Leaf (f_leaf l)
-    | [x], Node (y, part) -> Leaf (f_node (Part.map part unleaf))
+    | [_], Node (_, part) -> Leaf (f_node (Part.map part unleaf))
     | x :: vars, Node (y, part) -> if Lbl.equal x y then
                                         Node (y, Part.map part (hide vars f_leaf f_node))
                                       else
@@ -273,7 +273,7 @@ module Pdt = struct
     | _ -> raise (Invalid_argument "variable list is empty")
 
   let apply3_reduce p_eq vars f pdt1 pdt2 pdt3 =
-    let p_eq2 (a, b) (a', b') = a == a' && b == b' in
+    let p_eq2 (a, b) (a', b') = phys_equal a a' && phys_equal b b' in
     let pdt12 = apply2_reduce p_eq2 vars (fun a b -> (a, b)) pdt1 pdt2 in
     apply2_reduce p_eq vars (fun (a, b) c -> f a b c) pdt12 pdt3
 
@@ -289,13 +289,14 @@ module Pdt = struct
   let rec specialize_partial (v: Etc.valuation) = function
     | Leaf l -> Leaf l
     | Node (LEx x as lbl, part)
-      | Node (LAll x as lbl, part) -> Node (lbl, Part.map part (specialize_partial (Map.remove v x)))
+    | Node (LAll x as lbl, part) -> Node (lbl, Part.map part (specialize_partial (Map.remove v x)))
     | Node (x, part) ->
-       match Lbl.eval v x with
+       match (Lbl.eval v x).trm with
        | Const d -> specialize_partial v (Part.find part d)
        | _ -> Node ((match x with
                      | LVar s               -> LVar s
-                     | LClos (f, terms, v') -> LClos (f, List.map terms ~f:(Sig.eval v), v')),
+                     | LClos (f, terms, v') -> LClos (f, List.map terms ~f:(Sig.eval v), v')
+                     | _                    -> assert false),
                     Part.map part (specialize_partial v))
 
   let rec quantify ~forall x' = function
@@ -311,11 +312,11 @@ module Pdt = struct
     | Node (lbl, part) -> Node (lbl, Part.map part (quantify ~forall x'))
 
   let distribute x callback v (s', p) =
-    let update v x' d = Map.update v x' (fun _ -> d) in
+    let update v x' d = Map.update v x' ~f:(fun _ -> d) in
     match s' with
     | Setc.Finite s' ->
        List.map (Set.elements s') ~f:(fun d -> callback (update v x d) p)
-    | Complement s' -> [callback v p]
+    | Complement _ -> [callback v p]
 
   let rec specialize f_ex f_all (v: Etc.valuation) =
     function
@@ -335,11 +336,11 @@ module Pdt = struct
        | Some pdt -> specialize f_ex f_all v pdt
        | None     -> specialize f_ex f_all v (Part.find part (Term.unconst (Lbl.eval v x)))
 
-  let rec collect f_leaf f_ex f_all (v: Etc.valuation) (x: string) p =
+  let collect f_leaf f_ex f_all (v: Etc.valuation) (x: string) p =
     let rec aux (v: Etc.valuation) (x: string) (s: (Dom.t, Dom.comparator_witness) Setc.t) =
       function
       | Leaf l when f_leaf l -> s
-      | Leaf l -> Setc.empty (module Dom)
+      | Leaf _ -> Setc.empty (module Dom)
       | Node (LVar x', part) when String.equal x x' ->
          let s = Setc.union_list (module Dom)
                    (Part.map2 part (fun (s', p) -> aux v x (Setc.inter s s') p)) in
@@ -353,7 +354,7 @@ module Pdt = struct
       | Node (LAll x', part) ->
          let all_s = List.concat (Part.map2 part (distribute x' (fun v p -> aux v x s p) v)) in
          f_all all_s
-      | Node (LClos (f, terms, vars) as term, part) ->
+      | Node (LClos (_, terms, _) as term, part) ->
          (match s, Part.get_trivial part with
           | _, Some p -> aux v x s p
           | Finite s, _ when
@@ -361,7 +362,7 @@ module Pdt = struct
                    (Set.of_list (module String) (Term.fv_list terms))
                    ~of_:((Set.of_list (module String) (x :: (Map.keys v)))) ->
                 let f d =
-                  let v = Map.update v x (fun _ -> d) in
+                  let v = Map.update v x ~f:(fun _ -> d) in
                   let d' = Term.unconst (Lbl.eval v term) in
                   aux v x (Setc.singleton (module Dom) d)
                     (snd (Part.find3 part (fun s -> Setc.mem s d'))) in
@@ -592,12 +593,12 @@ module LightProof : ProofT with type sp = int and type vp = int = struct
   
   type t = S of sp | V of vp
 
-  let rec s_equal x y = true
-  let rec v_equal x y = true
+  let s_equal = Int.equal
+  let v_equal = Int.equal
  
   let equal x y = match x, y with
-    | S sp1, S sp2 -> true
-    | V vp1, V vp2 -> true
+    | S sp, S sp' -> s_equal sp sp'
+    | V vp, V vp' -> v_equal vp vp' 
     | _ -> false
 
   let unS = function
@@ -616,9 +617,9 @@ module LightProof : ProofT with type sp = int and type vp = int = struct
     | S _ -> false
     | V _ -> true
 
-  let s_append sp sp1 = sp
+  let s_append sp _ = sp
 
-  let v_append vp vp2 = vp
+  let v_append vp _ = vp
 
   let s_drop _ = None
 
@@ -635,7 +636,7 @@ module LightProof : ProofT with type sp = int and type vp = int = struct
 
   let v_etp _ = 0
 
-  let cmp f p1 p2 = f p1 <= f p2
+  (*let cmp f p1 p2 = f p1 <= f p2*)
 
   let s_to_string indent sp =
     Printf.sprintf "%strue{%d}" indent sp
@@ -652,46 +653,46 @@ module LightProof : ProofT with type sp = int and type vp = int = struct
     | V _ -> "false\n"
 
   let make_stt tp = tp
-  let make_seqconst tp x c = tp
-  let make_spred tp r terms = tp
+  let make_seqconst tp _ _ = tp
+  let make_spred tp _ _ = tp
   let make_sneg vp = vp
   let make_sorl sp = sp
   let make_sorr sp = sp
-  let make_sand sp1 sp2 = sp1
+  let make_sand sp1 _ = sp1
   let make_simpl vp = vp
   let make_simpr sp = sp
-  let make_siffss sp1 sp2 = sp1
-  let make_siffvv vp1 vp2 = vp1
-  let make_sexists x d sp = sp
-  let make_sforall x sps = Part.hd sps
+  let make_siffss sp1 _ = sp1
+  let make_siffvv vp1 _ = vp1
+  let make_sexists _ _ sp = sp
+  let make_sforall _ sps = Part.hd sps
   let make_sprev sp = sp + 1
   let make_snext sp = sp - 1
   let make_snextassm tp = tp 
-  let make_sonce tp sp = tp
-  let make_seventually tp sp = tp
-  let make_seventuallyassm tp i = tp
-  let make_seventuallynow sp i = sp
-  let make_shistorically tp ltp sps = tp
+  let make_sonce tp _ = tp
+  let make_seventually tp _ = tp
+  let make_seventuallyassm tp _ = tp
+  let make_seventuallynow sp _ = sp
+  let make_shistorically tp _ _ = tp
   let make_shistoricallyout tp = tp
-  let make_salways tp ltp sps = tp
-  let make_salwaysassm tp sp_opt i = tp
-  let make_ssince sp sps = sp
-  let make_suntil sp sps = sp
-  let make_suntilassm tp sp i = tp
-  let make_suntilnow sp i = sp
+  let make_salways tp _ _ = tp
+  let make_salwaysassm tp _ _ = tp
+  let make_ssince sp _ = sp
+  let make_suntil sp _ = sp
+  let make_suntilassm tp _ _ = tp
+  let make_suntilnow sp _ = sp
 
   let make_vff tp = tp
-  let make_veqconst tp x c = tp
-  let make_vpred tp r terms = tp
+  let make_veqconst tp _ _ = tp
+  let make_vpred tp _ _ = tp
   let make_vneg sp = sp
-  let make_vor vp1 vp2 = vp1
+  let make_vor vp1 _ = vp1
   let make_vandl vp = vp
   let make_vandr vp = vp
-  let make_vimp sp vp = sp
-  let make_viffsv sp vp = sp
-  let make_viffvs vp sp = vp
-  let make_vexists x vps = Part.hd vps
-  let make_vforall x d vp = vp
+  let make_vimp sp _ = sp
+  let make_viffsv sp _ = sp
+  let make_viffvs vp _ = vp
+  let make_vexists _ vps = Part.hd vps
+  let make_vforall _ _ vp = vp
   let make_vprev vp = vp + 1
   let make_vprev0 = 0
   let make_vprevoutl tp = tp
@@ -699,22 +700,22 @@ module LightProof : ProofT with type sp = int and type vp = int = struct
   let make_vnext vp = vp - 1
   let make_vnextoutl tp = tp
   let make_vnextoutr tp = tp
-  let make_vnextassm tp i = tp
+  let make_vnextassm tp _ = tp
   let make_vonceout tp = tp
-  let make_vonce tp ltp vps = tp
-  let make_veventually tp ltp vps = tp
-  let make_veventuallyassm tp vp_opt i = tp
-  let make_vhistorically tp vp = tp
-  let make_valways tp vp = tp
-  let make_valwaysassm tp i = tp
-  let make_valwaysnow vp i = vp
+  let make_vonce tp _ _ = tp
+  let make_veventually tp _ _ = tp
+  let make_veventuallyassm tp _ _ = tp
+  let make_vhistorically tp _ = tp
+  let make_valways tp _ = tp
+  let make_valwaysassm tp _ = tp
+  let make_valwaysnow vp _ = vp
   let make_vsinceout tp = tp
-  let make_vsince tp vp vps = tp
-  let make_vsinceinf tp ltp vps = tp
-  let make_vuntil tp vp vps = tp
-  let make_vuntilinf tp ltp vps = tp
-  let make_vuntilassm tp vp i = tp
-  let make_vuntilnow vp i = vp
+  let make_vsince tp _ _ = tp
+  let make_vsinceinf tp _ _ = tp
+  let make_vuntil tp _ _ = tp
+  let make_vuntilinf tp _ _ = tp
+  let make_vuntilassm tp _ _ = tp
+  let make_vuntilnow vp _ = vp
 
   let decompose_vsince vp = Some (vp, Fdeque.of_list [])
 
@@ -723,10 +724,10 @@ module LightProof : ProofT with type sp = int and type vp = int = struct
   module Size = struct
 
     let minp_bool _ _ = true
-    let minp x y = x
+    let minp x _ = x
     let minp_list = function
       | [] -> raise (Invalid_argument "function not defined for empty lists")
-      | x :: xs -> x
+      | x :: _ -> x
 
   end
 
@@ -741,13 +742,13 @@ module Make (P: ProofT) = struct
     | Pdt.Leaf l -> (match l with
                      | Proof.S _ -> false
                      | V _ -> true)
-    | Node (x, part) -> Part.exists part is_violated
+    | Node (_, part) -> Part.exists part is_violated
 
   let rec is_satisfied = function
     | Pdt.Leaf l -> (match l with
                      | Proof.S _ -> true
                      | V _ -> false)
-    | Node (x, part) -> Part.exists part is_satisfied
+    | Node (_, part) -> Part.exists part is_satisfied
 
   let rec at = function
     | Pdt.Leaf pt -> Proof.p_at pt
@@ -776,16 +777,18 @@ module Make (P: ProofT) = struct
   (* [s_1, ..., s_k] <- OP (y; f) where p is a Pdt for f *)
   let table_operator (op: Dom.t list list -> Dom.t list list) (s: string list) tp x y lbls lbls' p =
     let merge_pdts merge = function
-         | [pdt] -> pdt
-         | pdt::pdts -> List.fold pdts ~init:pdt
-                          ~f:(Pdt.apply2_reduce (List.equal Etc.equal_valuation) lbls' merge) in
+      | [] -> assert false
+      | [pdt] -> pdt
+      | pdt::pdts -> List.fold pdts ~init:pdt
+                       ~f:(Pdt.apply2_reduce (List.equal Etc.equal_valuation) lbls' merge) in
     let tabulate sv =
       let aux vs = function
         | (Term.Var x, Setc.Finite s) ->
-           List.concat_map (Set.elements s) ~f:(fun d -> List.map vs (fun v -> Map.update v x ~f:(fun _ -> d)))
+           List.concat_map (Set.elements s) ~f:(fun d ->
+               List.map vs ~f:(fun v -> Map.update v x ~f:(fun _ -> d)))
         | (Term.Const d, s) when Setc.mem s d -> vs
         | (Term.Const _, _) -> []
-        | (trm, s) -> List.filter vs ~f:(fun v -> Setc.mem s (Term.unconst (Sig.eval v trm))) in
+        | (trm, s) -> List.filter vs ~f:(fun v -> Setc.mem s (Term.unconst (Sig.eval v (Term.make_dummy trm)))) in
       List.fold_left sv ~init:([Map.empty (module String)]) ~f:aux in 
     let rec gather sv gs trms w p  =
       (*print_endline "--gather"; 
@@ -794,7 +797,7 @@ module Make (P: ProofT) = struct
       match p, gs, trms with
       | Pdt.Leaf l, _, _ when Proof.isS l ->
          Pdt.Leaf (tabulate (List.rev sv))
-      | Leaf l, _, _ -> Leaf []
+      | Leaf _, _, _ -> Leaf []
       | Node (lbl, _), g :: gs, trm :: trms
            when not (Lbl.equal trm lbl) && Lbl.equal trm (LVar g) ->
          gather sv gs trms w p
@@ -808,10 +811,11 @@ module Make (P: ProofT) = struct
          merge_pdts (@) pdts 
       | Node (LAll x', part), _, _ :: trms ->
          let pdts = List.concat (Part.map2 part (Pdt.distribute x' (gather sv gs trms) w)) in
-         merge_pdts (fun l l' -> List.filter l (List.mem l' ~equal:Etc.equal_valuation)) pdts 
+         merge_pdts (fun l l' -> List.filter l ~f:(List.mem l' ~equal:Etc.equal_valuation)) pdts 
       | Node (lbl, part), _, _ :: trms ->
-         let pdts = Part.map2 part (fun (s, p) -> gather ((Lbl.term lbl, s)::sv) gs trms w p) in
-         merge_pdts (@) pdts in
+         let pdts = Part.map2 part (fun (s, p) -> gather (((Lbl.term lbl).trm, s)::sv) gs trms w p) in
+         merge_pdts (@) pdts
+      | Node _, _, [] -> assert false in
     let rec collect_leaf_values x = function
       | Pdt.Leaf None  -> Set.empty (module Dom)
       | Leaf (Some vs) -> Set.of_list (module Dom) (List.map ~f:(fun v -> Map.find_exn v x) vs)
@@ -827,7 +831,7 @@ module Make (P: ProofT) = struct
             | Some vs -> Etc.list_to_string "" (fun _ -> Etc.valuation_to_string) vs) "" pdt in
       print_endline ("insert_aggregations.pdt =" ^ print_pdt pdt);*)
 (*      print_endline ("insert_aggregations.s   =" ^ Etc.list_to_string "" (fun _ x -> x) s);*)
-      let r = "~aggregate" and trms = List.map ~f:Term.var s in
+      let r = "~aggregate" and trms = List.map ~f:(fun v -> Term.make_dummy (Term.var v)) s in
       match pdt, lbls with
       | _, (Lbl.LVar x') :: lbls when List.mem s x' ~equal:String.equal ->
          (*print_endline "case 1";*)
@@ -835,7 +839,7 @@ module Make (P: ProofT) = struct
          (if Set.is_empty ds then
             Pdt.Leaf (P.V (Proof.make_vpred tp r trms))
           else
-            let v d = Map.update v x' (fun _ -> d) in
+            let v d = Map.update v x' ~f:(fun _ -> d) in
             let parts = Part.tabulate_dedup (Pdt.eq Proof.equal) ds
                           (fun d -> insert lbls (v d) pdt)
                           (Leaf (V (Proof.make_vpred tp r trms))) in
@@ -850,6 +854,7 @@ module Make (P: ProofT) = struct
       | Node _, _ :: lbls ->
          (*print_endline "case 3";*)
          insert lbls v pdt
+      | Node _, [] -> assert false
       | Leaf (Some vs), _ ->
          if List.exists vs ~f:(fun v' ->
                 Map.for_alli v ~f:(fun ~key ~data -> Dom.equal (Map.find_exn v' key) data))

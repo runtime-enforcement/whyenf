@@ -13,7 +13,7 @@ let fold (m: ('a, 'b) t) ~init ~f =
   Map.fold m ~init ~f
 
 let card (m: ('a, 'b) t) =
-  Map.fold m ~init:0 ~f:(fun ~key ~data acc -> data + acc)
+  Map.fold m ~init:0 ~f:(fun ~key:_ ~data acc -> data + acc)
 
 let median ~compare (m: ('a, 'b) t) =
   let xs = Map.to_alist m in

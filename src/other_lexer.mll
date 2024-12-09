@@ -50,8 +50,11 @@ rule token = parse
   | "!"                            { EXC }
   | '"' (quoted_string as s) '"'   { STR s }
   | string as s                    { STR s }
+  | _                              { lexing_error lexbuf
+                                       (Printf.sprintf "unexpected character: `%s'"
+                                          (Lexing.lexeme lexbuf)) }
   | eof                            { EOF }
-  | _ as c                         { lexing_error lexbuf "unexpected character: `%c'" c }
+
 
 and skip_line = parse
   | "\n" | "\r" | "\r\n"           { Lexing.new_line lexbuf; token lexbuf }

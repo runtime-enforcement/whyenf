@@ -1,7 +1,7 @@
 The formula
- □[0s,∞) ∀x. C(x, x) ↔ D(x)
+ □[0s,∞) (∀x. (C(x, x) → D(x)) ∧ (D(x) → C(x, x)))
 is enforceable and types to
- □[0s,∞) (∀x. ((C(x, x) : Cau) ↔:R,L (D(x) : Cau) : Cau) : Cau) : Cau
+ □[0s,∞) ((∀x. (((C(x, x) →:R (D(x) : Cau)) : Cau) ∧:L ((D(x) →:R (C(x, x) : Cau)) : Cau) : Cau)) : Cau) : Cau
 [Enforcer] @1 reactively commands:
 Cause:
 D(1)

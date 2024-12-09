@@ -1,7 +1,7 @@
 The formula
- □[0s,∞) ∀x. ∀y. (B(x) ∧ B(y) ∧ ¬{eq(x, y)} = 1 ∧ ¬A(f(x, y))) →:R C(x, y)
+ □[0s,∞) (∀x. ∀y. B(x) ∧ B(y) ∧ ¬(eq(x, y) = 1) ∧ ¬A(f(x, y)) →:R C(x, y))
 is enforceable and types to
- □[0s,∞) (∀x. (∀y. ((((B(x)∧B(y))∧¬{eq(x, y)} = 1)∧¬A(f(x, y))) →:R (C(x, y) : Cau) : Cau) : Cau) : Cau) : Cau
+ □[0s,∞) ((∀x. (∀y. (B(x) ∧ B(y) ∧ ¬(eq(x, y) = 1) ∧ ¬A(f(x, y)) →:R (C(x, y) : Cau) : Cau) : Cau)) : Cau) : Cau
 [Enforcer] @1 OK.
 [Enforcer] @1 nothing to do proactively.
 [Enforcer] @2 reactively commands:

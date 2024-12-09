@@ -22,14 +22,14 @@ let b_ref = ref Time.Span.zero
 let s_ref = ref (Time.Span.Second (Time.Span.Second.of_string "1"))
 
 let eat s t = s ^ (String.strip t)
-let paren h k x = if h>k then "("^^x^^")" else x
+let paren h k x = if h>k then Caml.( "("^^x^^")" ) else x
 let is_digit = function
   | '0' .. '9' -> true
   | _ -> false
 
-exception Parsing_error of Lexing.position*Lexing.position*string
-let parsing_error i j fmt = Caml.Format.kasprintf (fun s -> raise (Parsing_error(i,j,s))) fmt
-let lexing_error lexbuf fmt = parsing_error (Lexing.lexeme_start_p lexbuf) (Lexing.lexeme_end_p lexbuf) fmt
+let lexing_error lexbuf s =
+  raise (Errors.ParserError (Lexing.lexeme_start_p lexbuf, Lexing.lexeme_end_p lexbuf, s))
+
 let lexbuf_error_msg (lexbuf: Lexing.lexbuf) =
   Printf.sprintf "a problem was found at line %d character %d"
     (lexbuf.lex_curr_p.pos_lnum) (lexbuf.lex_curr_p.pos_cnum - lexbuf.lex_curr_p.pos_bol) 
@@ -68,7 +68,7 @@ let empty_valuation: valuation = Map.empty (module String)
 let sexp_of_valuation v =
   let f (k, d) = Sexp.List [Atom k; Atom (Dom.to_string d)] in
   Sexp.List (List.map (Map.to_alist v) ~f)
-let extend_valuation v v' = Map.merge v v' ~f:(fun ~key d -> match d with `Left d -> Some d | `Right d -> Some d | `Both (d, _) -> Some d)
+let extend_valuation v v' = Map.merge v v' ~f:(fun ~key:_ d -> match d with `Left d -> Some d | `Right d -> Some d | `Both (d, _) -> Some d)
 let hash_valuation (v: valuation) =
   List.fold_left ~init:0 ~f:(fun acc (x, d) -> String.hash x lxor Dom.hash d lxor acc) (Map.to_alist v)
 
@@ -115,10 +115,10 @@ let rec spaces n = if n < 0 then "" else " " ^ spaces (n-1)
 let rec lexicographics compare l l' =
   match l, l' with
   | [], [] -> 0
-  | h::t, [] -> 1
-  | [], h'::t' -> -1
-  | h::t, h'::t' when compare h h' == 0 -> lexicographics compare t t'
-  | h::t, h'::t' -> compare h h'
+  | _::_, [] -> 1
+  | [], _::_ -> -1
+  | h::t, h'::t' when compare h h' = 0 -> lexicographics compare t t'
+  | h::_, h'::_ -> compare h h'
 
 let lexicographic2 compare1 compare2 =
   fun (a, b) (a', b') ->
@@ -165,15 +165,15 @@ let _print s f x =
 
 let rec reorder ~equal l = function
   | [] -> []
-  | h::t when not (List.mem l h ~equal) -> reorder equal l t
-  | h::t -> h :: (reorder equal (List.filter l (fun x -> not (equal x h))) t)
+  | h::t when not (List.mem l h ~equal) -> reorder ~equal l t
+  | h::t -> h :: (reorder ~equal (List.filter l ~f:(fun x -> not (equal x h))) t)
 
-let rec reorder_subset ~equal l l' =
+let reorder_subset ~equal l l' =
   let l_in_l' = reorder ~equal (List.filter l ~f:(List.mem l' ~equal)) l' in
   let l_not_in_l' = List.filter l ~f:(fun x -> not (List.mem l' ~equal x)) in
   l_in_l' @ l_not_in_l'
 
-let rec dedup ~equal l = 
+let dedup ~equal l = 
   let rec aux seen = function
     | [] -> List.rev seen
     | h::t when List.mem seen h ~equal -> aux seen t
@@ -183,7 +183,7 @@ let rec dedup ~equal l =
 let rec cartesian = function
   | [] -> [[]]
   | l :: t -> let rest = cartesian t in
-              List.concat (List.map l (fun x -> List.map rest ~f:(fun l -> x::l)))
+              List.concat (List.map l ~f:(fun x -> List.map rest ~f:(fun l -> x::l)))
 
 let rec set_cartesian m = function
   | [] -> [Set.empty m]
@@ -208,3 +208,6 @@ let rec inter_list m = function
   | h::t -> Set.inter h (inter_list m t)
 
 type string_set_list = (string, Base.String.comparator_witness) Base.Set.t list
+
+let inter_string_set_list (s : string_set_list list) : string_set_list =
+  List.map ~f:(Set.union_list (module String)) (cartesian s)

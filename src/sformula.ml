@@ -20,6 +20,7 @@ module Const = struct
     | CInt i -> Dom.Int i
     | CFloat f -> Float f
     | CStr s -> Str s
+    | CBool b -> Dom.Int (Bool.to_int b)
 
 end
 
@@ -47,7 +48,7 @@ module Bop2 = struct
     | BIff   -> "↔"
 
   let prio = function
-    | BIff   -> 80
+    | BIff   -> 20
 
 end
 
@@ -88,26 +89,26 @@ module Bop = struct
     | BConc  -> "^"
 
   let prio = function
-    | BPow   -> 10
-    | BFPow  -> 10
-    | BFMul  -> 20
-    | BFDiv  -> 20
-    | BMul   -> 20
-    | BDiv   -> 20
-    | BAdd   -> 30
-    | BSub   -> 30
-    | BFAdd  -> 30
-    | BFSub  -> 30
-    | BConc  -> 30
-    | BEq    -> 40
-    | BNeq   -> 40
-    | BLt    -> 40
-    | BLeq   -> 40
-    | BGt    -> 40
-    | BGeq   -> 40
+    | BPow   -> 90
+    | BFPow  -> 90
+    | BFMul  -> 80
+    | BFDiv  -> 80
+    | BMul   -> 80
+    | BDiv   -> 80
+    | BAdd   -> 70
+    | BSub   -> 70
+    | BFAdd  -> 70
+    | BFSub  -> 70
+    | BConc  -> 70
+    | BEq    -> 60
+    | BNeq   -> 60
+    | BLt    -> 60
+    | BLeq   -> 60
+    | BGt    -> 60
+    | BGeq   -> 60
     | BAnd   -> 50
-    | BOr    -> 60
-    | BImp   -> 70
+    | BOr    -> 40
+    | BImp   -> 30
 
 end
 
@@ -122,9 +123,9 @@ module Uop = struct
     | UNot  -> "¬"
 
   let prio = function
-    | USub  -> 8
-    | UFSub -> 8
-    | UNot  -> 45
+    | USub  -> 98
+    | UFSub -> 98
+    | UNot  -> 55
 
 end
 
@@ -139,7 +140,7 @@ module Btop = struct
     | BRelease -> "R"
     | BTrigger -> "T"
 
-  let prio _ = 49
+  let prio _ = 45
 
 end
 
@@ -156,7 +157,7 @@ module Utop = struct
     | UEventually   -> "◊"
     | UOnce         -> "⧫"
 
-  let prio _ = 47
+  let prio _ = 50
 
 end
 
@@ -183,48 +184,48 @@ let rec to_string_rec l = function
   | SVar s -> s
   | SApp (f, ts) -> Printf.sprintf "%s(%s)" f (list_to_string ts)
   | SLet (r, enftype_opt, vars, f, g) ->
-     Printf.sprintf "LET %s(%s)%s = %s IN %s" r
+     Printf.sprintf (Etc.paren l 4 ("LET %s(%s)%s = %s IN %s") ) r
        (Etc.string_list_to_string vars)
        (Option.fold enftype_opt ~init:""
           ~f:(fun _ enftype -> " : " ^ Enftype.to_string enftype))
        (to_string_rec 4 f)
        (to_string_rec 4 g)
-  | SAgg (s, op, x, y, f) -> Printf.sprintf "%s <- %s(%s; %s; %s)"
+  | SAgg (s, op, x, y, f) -> Printf.sprintf (Etc.paren l 5 "%s <- %s(%s; %s; %s)")
                                s
                                (Aop.to_string op)
                                (to_string x)
                                (String.concat ~sep:", " y)
                                (to_string_rec 5 f)
-  | STop (s, op, x, y, f) -> Printf.sprintf "(%s) <- %s(%s; %s, %s)"
+  | STop (s, op, x, y, f) -> Printf.sprintf (Etc.paren l 5 "(%s) <- %s(%s; %s, %s)")
                                (Etc.list_to_string "" (fun _ x -> x) s)
                                op
                                (list_to_string x)
                                (String.concat ~sep:", " y)
                                (to_string_rec 5 f)
-  | SAssign (f, s, t) -> Printf.sprintf "%s; %s <- %s"
+  | SAssign (f, s, t) -> Printf.sprintf (Etc.paren l 5 "%s; %s <- %s")
                            (to_string_rec 5 f)
                            s
                            (to_string t)
-  | SBop (s_opt, f, bop, g) -> Printf.sprintf "%s %s%s %s"
+  | SBop (s_opt, f, bop, g) -> Printf.sprintf (Etc.paren l (Bop.prio bop) "%s %s%s %s")
                                  (to_string_rec (Bop.prio bop) f)
                                  (Bop.to_string bop)
                                  (Option.fold s_opt ~init:"" ~f:(fun _ -> Side.to_string))
                                  (to_string_rec (Bop.prio bop) g)
-  | SBop2 (s2_opt, f, bop, g) -> Printf.sprintf "%s %s%s %s"
+  | SBop2 (s2_opt, f, bop, g) -> Printf.sprintf (Etc.paren l (Bop2.prio bop) "%s %s%s %s")
                                    (to_string_rec (Bop2.prio bop) f)
                                    (Bop2.to_string bop)
                                    (Option.fold s2_opt ~init:"" ~f:(fun _ -> Side.to_string2))
                                    (to_string_rec (Bop2.prio bop) g)
-  | SUop (uop, f) -> Printf.sprintf "%s %s"
+  | SUop (uop, f) -> Printf.sprintf (Etc.paren l (Uop.prio uop) "%s %s")
                        (Uop.to_string uop)
                        (to_string_rec (Uop.prio uop) f)
-  | SExists (xs, f) -> Printf.sprintf (Etc.paren l 5 "∃%s. %s")
+  | SExists (xs, f) -> Printf.sprintf (Etc.paren l 6 "∃%s. %s")
                          (String.concat ~sep:", " xs)
-                         (to_string_rec 5 f)
-  | SForall (xs, f) -> Printf.sprintf (Etc.paren l 5 "∀%s. %s")
+                         (to_string_rec 6 f)
+  | SForall (xs, f) -> Printf.sprintf (Etc.paren l 6 "∀%s. %s")
                          (String.concat ~sep:", " xs)
-                         (to_string_rec 5 f)
-  | SBtop (s_opt, i, f, btop, g) -> Printf.sprintf "%s %s%s%s %s"
+                         (to_string_rec 6 f)
+  | SBtop (s_opt, i, f, btop, g) -> Printf.sprintf  (Etc.paren l (Btop.prio btop) "%s %s%s%s %s")
                                       (to_string_rec (Btop.prio btop) f)
                                       (Btop.to_string btop)
                                       (Interval.to_string i)

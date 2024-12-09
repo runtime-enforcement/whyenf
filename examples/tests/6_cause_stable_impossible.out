@@ -1,5 +1,5 @@
 The formula
- □[0s,∞) ∀x. B(x) → B(add(x, 1))
+ □[0s,∞) (∀x. B(x) → B(add(x, 1)))
 is not enforceable because the constraint
- t(B) ⋡ Obs ∧ t(B) ≽ NCau ∧ NCau ⋡ t(B)
+ t(B) ≽ <NonObs,Cau,NonSct> ∧ Cau ≽ t(B) ∧ SCau ≽ t(B)
 has no solution.

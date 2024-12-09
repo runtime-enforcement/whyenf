@@ -36,10 +36,10 @@ let singleton m c = Finite (Set.singleton m c)
 
 let is_empty = function
   | Finite s -> Set.is_empty s
-  | Complement s -> false
+  | Complement _ -> false
 
 let is_univ = function
-  | Finite s -> false
+  | Finite _ -> false
   | Complement s -> Set.is_empty s
 
 let mem cs el = match cs with

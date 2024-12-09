@@ -1,5 +1,5 @@
 (executable
- (public_name whyenf)
- (name whyenf)
- (libraries monitor_lib pyml)
+ (public_name lifeboat)
+ (name lifeboat)
+ (libraries lifeboat_lib pyml)
  (promote (until-clean)))
