@@ -1,4 +1,6 @@
-module Dom = MFOTL_lib.Dom
+open MFOTL_lib
+
+module Ctxt : module type of Ctxt.Make(Dom)
 
 module Python : sig
 

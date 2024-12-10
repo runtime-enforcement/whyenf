@@ -156,7 +156,7 @@ module Make
 
     end
 
-    type pg_map = (Var.t, Etc.string_set_list, Var.comparator_witness) Map.t
+    type pg_map = (string, Etc.string_set_list, String.comparator_witness) Map.t
     type t_map  = (string, Enftype.t * int list, String.comparator_witness) Map.t
 
     val solve_past_guarded : pg_map -> Var.t -> bool -> ('i, Var.t, Dom.t, Term.t) _t -> Etc.string_set_list

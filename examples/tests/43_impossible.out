@@ -1,5 +1,5 @@
 The formula
- BC(1) ∧ ¬BC(1)
+ ¬BC(1) ∧ BC(1)
 is not enforceable because the constraint
  t(BC) ≽ <NonObs,Cau,ErrSct> ∧ <Sup,Cau,AnySct> ≽ t(BC) ∧ t(BC) ≽ <Sup,NonCau,ErrSct>
 has no solution.

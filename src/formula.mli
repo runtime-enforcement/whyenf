@@ -1,12 +1,15 @@
 open Base
 
-module Dom = MFOTL_lib.Dom
+module MyTerm = Term
+open MFOTL_lib
+module Ctxt : module type of Ctxt.Make(Dom)
+module Term = MyTerm
 
-module StringVar : MFOTL_lib.Modules.V with type t = string
+module StringVar : Modules.V with type t = string
 
-include module type of MFOTL_lib.MFOTL.Make(Term.TrivialInfo)(StringVar)(Dom)(Term)
+include module type of MFOTL.Make(Term.TrivialInfo)(StringVar)(Dom)(Term)
 
 val init: Sformula.t -> t
 
-val check_agg : Ctxt.t -> string -> MFOTL_lib.Aggregation.op -> Term.t -> string list -> typed_t -> Ctxt.t * Dom.tt
-val check_top : Ctxt.t -> string list -> string -> Term.t list -> string list -> typed_t -> Ctxt.t * Dom.tt list
+val check_agg : Ctxt.t -> string -> Aggregation.op -> Term.t -> string list -> t -> Ctxt.t * Dom.tt
+val check_top : Ctxt.t -> string list -> string -> Term.t list -> string list -> t -> Ctxt.t * Dom.tt list

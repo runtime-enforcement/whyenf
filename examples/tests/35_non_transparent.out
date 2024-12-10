@@ -1,7 +1,7 @@
 The formula
- □[0s,∞) (∀x. ¬C(x) ∨:L ◊[0s,∞) B(x))
+ □[0s,∞) (∀x:int. ◊[0s,∞) B(x:int) ∨:L ¬C(x:int))
 is enforceable and types to
- □[0s,∞) ((∀x. ((¬(C(x) : Sup) : Cau) ∨:L ◊[0s,∞) B(x) : Cau)) : Cau) : Cau
+ □[0s,∞) ((∀x:int. ((¬(C(x:int) : Sup) : Cau) ∨:L ◊[0s,∞) B(x:int) : Cau)) : Cau) : Cau
 This formula cannot be transparently enforced.
 [Enforcer] @1 OK.
 [Enforcer] @1 nothing to do proactively.

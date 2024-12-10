@@ -1,8 +1,9 @@
 open Base
 open Stdio
 
-module Enftype = MFOTL_lib.Enftype
-module Dom = MFOTL_lib.Dom
+module MyTerm = Term
+open MFOTL_lib
+module Term = MyTerm
 
 module TheSig = Sig
 

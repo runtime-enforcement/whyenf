@@ -1,11 +1,10 @@
 open Base
 open Sformula
 
-module Modules = MFOTL_lib.Modules
-module MFOTL = MFOTL_lib.MFOTL
-module Dom = MFOTL_lib.Dom
-module Side = MFOTL_lib.Side
-module Aggregation = MFOTL_lib.Aggregation
+module MyTerm = Term
+open MFOTL_lib
+module Ctxt = Ctxt.Make(Dom)
+module Term = MyTerm
 
 module StringVar : Modules.V with type t = string and type comparator_witness = String.comparator_witness = struct
 
@@ -62,8 +61,8 @@ let rec init sf : t =
     | SUop (Uop.UNot, t)                -> neg (init t)
     | SUtop (i, Utop.UPrev, t)          -> prev i (init t)
     | SUtop (i, Utop.UNext, t)          -> next i (init t)
-    | SUtop (i, Utop.UHistorically, t)  -> historically i (init t)
     | SUtop (i, Utop.UAlways, t)        -> always i (init t)
+    | SUtop (i, Utop.UHistorically, t)  -> historically i (init t)
     | SUtop (i, Utop.UOnce, t)          -> once i (init t)
     | SUtop (i, Utop.UEventually, t)    -> eventually i (init t)
     | SBop (s_opt, t, Bop.BAnd, u)      -> conj (side s_opt) (init t) (init u)
@@ -81,7 +80,7 @@ let rec init sf : t =
                    (Sformula.to_string sf)))
   in ac_simplify (make_dummy form)
 
-let check_agg types s op x y f =
+let check_agg types s op x y (f: t) =
   let x_tt = Sig.tt_of_term_exn types x in
   match Aggregation.ret_tt op x_tt with
   | None -> raise (Invalid_argument (
@@ -96,7 +95,7 @@ let check_agg types s op x y f =
          if not (Set.mem fv x) then
            raise (Invalid_argument (
                       Printf.sprintf "variable %s is used in aggregation, but not free in %s"
-                        x (to_string_typed f)))
+                        x (to_string f)))
          else ());
      (*if Set.mem fv s then
        raise (Invalid_argument (
@@ -104,7 +103,7 @@ let check_agg types s op x y f =
        s (to_string f)));*)
      types, s_tt
 
-let check_top types s op x y f =
+let check_top types s op x y (f: t) =
   let _ = List.map ~f:(Sig.tt_of_term_exn types) x in
   let arg_ttts = Sig.arg_ttts_of_func op in
   let ret_ttts = Sig.ret_ttts_of_func op in
@@ -119,7 +118,7 @@ let check_top types s op x y f =
       if not (Set.mem fv x) then
         raise (Invalid_argument (
                    Printf.sprintf "variable %s is used in aggregation, but not free in %s"
-                     x (to_string_typed f)))
+                     x (to_string f)))
       else ());
   types, List.map ~f:Ctxt.unconst ret_ttts
 

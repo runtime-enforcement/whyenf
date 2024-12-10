@@ -1,7 +1,7 @@
 The formula
- LET unintended_reboot(s, dc) = reboot(s, dc) ∧ ¬(●[0s,∞) (¬reboot(s, dc) S[0s,∞) intended_reboot(s, dc))) IN LET cnt_reboots(dc, c) = c <- CNT(i; dc; ⧫[0s,1799s] unintended_reboot(s, dc) ∧ tp(i)) IN □[0s,∞) (∀dc. ∀l. ([dc, l] <- GRUBBS([dc, c]; ; cnt_reboots(dc, c))) ∧ (l = 1) → alert(conc(conc("Data center ", string_of_int(dc)), " has rebooted too often")))
+ LET unintended_reboot(s:int, dc:int) = ¬(●[0s,∞) (¬reboot(s:int, dc:int) S[0s,∞) intended_reboot(s:int, dc:int))) ∧ reboot(s:int, dc:int) IN LET cnt_reboots(dc:int, c:int) = c:int <- CNT(i:int; dc:int; ⧫[0s,1799s] tp(i:int) ∧ unintended_reboot(s:int, dc:int)) IN □[0s,∞) (∀dc:int. ∀l:int. (l:int = 1) ∧ ([dc:int, l:int] <- GRUBBS([dc:int, c:int]; ; cnt_reboots(dc:int, c:int))) → alert(conc(conc("Data center ", string_of_int(dc:int)), " has rebooted too often")))
 is enforceable and types to
- LET unintended_reboot٭(s, dc) = reboot(s, dc) ∧ ¬(●[0s,∞) (¬reboot(s, dc) S[0s,∞) intended_reboot(s, dc))) IN (LET cnt_reboots٭(dc, c) = c <- CNT(i; dc; ⧫[0s,1799s] unintended_reboot٭(s, dc) ∧ tp(i)) IN (□[0s,∞) ((∀dc. (∀l. (([dc, l] <- GRUBBS([dc, c]; ; cnt_reboots٭(dc, c))) ∧ (l = 1) →:R (alert(conc(conc("Data center ", string_of_int(dc)), " has rebooted too often")) : Cau) : Cau) : Cau)) : Cau) : Cau) : Cau) : Cau
+ LET unintended_reboot٭(s:int, dc:int) = reboot(s:int, dc:int) ∧ ¬(●[0s,∞) (¬reboot(s:int, dc:int) S[0s,∞) intended_reboot(s:int, dc:int))) IN (LET cnt_reboots٭(dc:int, c:int) = c:int <- CNT(i:int; dc:int; ⧫[0s,1799s] unintended_reboot٭(s:int, dc:int) ∧ tp(i:int)) IN (□[0s,∞) ((∀dc:int. (∀l:int. (([dc:int, l:int] <- GRUBBS([dc:int, c:int]; ; cnt_reboots٭(dc:int, c:int))) ∧ (l:int = 1) →:R (alert(conc(conc("Data center ", string_of_int(dc:int)), " has rebooted too often")) : Cau) : Cau) : Cau)) : Cau) : Cau) : Cau) : Cau
 [Enforcer] @12 OK.
 [Enforcer] @12 nothing to do proactively.
 [Enforcer] @13 nothing to do proactively.
