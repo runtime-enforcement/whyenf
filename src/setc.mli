@@ -1,20 +1,9 @@
-(*******************************************************************)
-(*     This is part of WhyMon, and it is distributed under the     *)
-(*     terms of the GNU Lesser General Public License version 3    *)
-(*           (see file LICENSE for more details)                   *)
-(*                                                                 *)
-(*  Copyright 2023:                                                *)
-(*  Dmitriy Traytel (UCPH)                                         *)
-(*  Leonardo Lima (UCPH)                                           *)
-(*******************************************************************)
-
 open Base
 
 open MFOTL_lib
 
 type ('a, 'b) t = Finite of ('a, 'b) Set.t | Complement of ('a, 'b) Set.t
 
-(*val min_elt_exn: ('a, 'b) t -> 'a*)
 val length: ('a, 'b) t -> int
 val empty: ('a, 'b) Comparator.Module.t -> ('a, 'b) t
 val univ: ('a, 'b) Comparator.Module.t -> ('a, 'b) t

@@ -1,13 +1,3 @@
-(*******************************************************************)
-(*     This is part of WhyMon, and it is distributed under the     *)
-(*           (see file LICENSE for more details)                   *)
-(*     terms of the GNU Lesser General Public License version 3    *)
-(*                                                                 *)
-(*  Copyright 2023:                                                *)
-(*  Dmitriy Traytel (UCPH)                                         *)
-(*  Leonardo Lima (UCPH)                                           *)
-(*******************************************************************)
-
 open Base
 open Sformula
 
