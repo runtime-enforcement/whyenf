@@ -1,13 +1,3 @@
-(*******************************************************************)
-(*     This is part of WhyMon, and it is distributed under the     *)
-(*     terms of the GNU Lesser General Public License version 3    *)
-(*           (see file LICENSE for more details)                   *)
-(*                                                                 *)
-(*  Copyright 2023:                                                *)
-(*  Dmitriy Traytel (UCPH)                                         *)
-(*  Leonardo Lima (UCPH)                                           *)
-(*******************************************************************)
-
 open Base
 
 module Dom = MFOTL_lib.Dom
@@ -122,13 +112,17 @@ module Part = struct
 
   let merge2_dedup p_eq f part1 part2 = dedup p_eq (merge2 f part1 part2)
 
-  (*let merge3_dedup p_eq f part1 part2 part3 = dedup p_eq (merge3 f part1 part2 part3)*)
-
   let split_prod_dedup p_eq part =
     let part1, part2 = split_prod part in
     (dedup p_eq part1, dedup p_eq part2)
 
   let split_list_dedup p_eq part = List.map (split_list part) ~f:(dedup p_eq)
+
+  let rec join_parts ps = match ps with 
+    | [] -> trivial []
+    | [p] -> List.map ~f:(fun (sub, x) -> (sub, [x])) p
+    | p :: ps -> merge2 (fun x y -> x :: y) p (join_parts ps)
+
 
 end
 
@@ -137,6 +131,18 @@ end
 module Pdt = struct
 
   type 'a t = Leaf of 'a | Node of Lbl.t * ('a t) Part.t
+
+  let is_leaf = function
+    | Leaf _ -> true
+    | Node _ -> false
+
+  let unleaf = function
+    | Leaf l -> Some l
+    | _ -> None
+    
+  let unleaf_exn = function
+    | Leaf l -> l
+    | _ -> raise (Invalid_argument "function not defined for nodes")
 
   let rec apply1 lbls f pdt = match lbls, pdt with
     | _ , Leaf l -> Leaf (f l)
@@ -210,6 +216,26 @@ module Pdt = struct
                                            else apply3 lbls f (Node (x, part1)) (Node (y, part2)) (Node (z, part3))))))))
     | _ -> raise (Invalid_argument "variable list is empty")
 
+  let rec papply_list f xs ys = match xs, ys with 
+    | [], _ -> f ys
+    | None :: xs, y :: ys -> papply_list (fun zs -> f (y :: zs)) xs ys 
+    | Some x :: xs, ys -> papply_list (fun zs -> f (x :: zs)) xs ys 
+    | _, _ -> raise (Invalid_argument "cannot use papply_list if the ys list is empty")
+    
+  let rec applyN lbls f pdts = match lbls with
+    | w :: lbls ->
+       let f' = papply_list f (List.map ~f:unleaf pdts) in
+       let nodes = List.filter ~f:(fun pdt -> not (is_leaf pdt)) pdts in
+       let f_other_nodes = function Node (x, _) when Lbl.equal x w -> None | pdt -> Some pdt in
+       let other_nodes = List.map ~f:f_other_nodes nodes in
+       let f_w_parts = function Node (x, part) when Lbl.equal x w -> Some part | _ -> None in
+       let w_parts = List.filter_map ~f:f_w_parts nodes in
+       if List.is_empty w_parts then
+         applyN lbls f' nodes 
+       else
+         Node (w, Part.map (Part.join_parts w_parts) (fun pdts -> papply_list (applyN lbls f') other_nodes pdts))
+    | [] -> Leaf (f (List.map pdts unleaf_exn)) 
+
   let rec split_prod = function
     | Leaf (l1, l2) -> (Leaf l1, Leaf l2)
     | Node (x, part) -> let (part1, part2) = Part.split_prod (Part.map part split_prod) in
@@ -227,9 +253,6 @@ module Pdt = struct
     | Leaf pt -> Printf.sprintf "%s%s\n" indent (f pt)
     | Node (x, part) -> (Part.to_string indent (Lbl.to_string x) (to_light_string f) part)
 
-  let unleaf = function
-    | Leaf l -> l
-    | _ -> raise (Invalid_argument "function not defined for nodes")
 
   let rec hide vars f_leaf f_node pdt = match vars, pdt with
     |  _ , Leaf l -> Leaf (f_leaf l)
@@ -281,6 +304,20 @@ module Pdt = struct
     let p_eq2 (a, b) (a', b') = phys_equal a a' && phys_equal b b' in
     let pdt12 = apply2_reduce p_eq2 vars (fun a b -> (a, b)) pdt1 pdt2 in
     apply2_reduce p_eq vars (fun (a, b) c -> f a b c) pdt12 pdt3
+
+  let rec applyN_reduce p_eq lbls f pdts = match lbls with
+    | w :: lbls ->
+       let f' = papply_list f (List.map ~f:unleaf pdts) in
+       let nodes = List.filter ~f:(fun pdt -> not (is_leaf pdt)) pdts in
+       let f_other_nodes = function Node (x, _) when Lbl.equal x w -> None | pdt -> Some pdt in
+       let other_nodes = List.map ~f:f_other_nodes nodes in
+       let f_w_parts = function Node (x, part) when Lbl.equal x w -> Some part | _ -> None in
+       let w_parts = List.filter_map ~f:f_w_parts nodes in
+       if List.is_empty w_parts then
+         applyN lbls f' nodes 
+       else
+         Node (w, Part.map_dedup (eq p_eq) (Part.join_parts w_parts) (fun pdts -> papply_list (applyN lbls f') other_nodes pdts))
+    | [] -> Leaf (f (List.map pdts unleaf_exn)) 
 
   let rec split_prod_reduce p_eq = function
     | Leaf (l1, l2) -> (Leaf l1, Leaf l2)
@@ -784,8 +821,7 @@ module Make (P: ProofT) = struct
     let merge_pdts merge = function
       | [] -> raise (Invalid_argument "cannot merge 0 PDTs")
       | [pdt] -> pdt
-      | pdt::pdts -> List.fold pdts ~init:pdt
-                       ~f:(Pdt.apply2_reduce (List.equal Etc.equal_valuation) lbls' merge) in
+      | pdts -> Pdt.applyN_reduce (List.equal Etc.equal_valuation) lbls' merge pdts in
     let tabulate sv =
       let aux vs = function
         | (Term.Var x, Setc.Finite s) ->
@@ -813,13 +849,13 @@ module Make (P: ProofT) = struct
          Node (lbl, part)
       | Node (LEx x', part), _, _ :: trms ->
          let pdts = List.concat (Part.map2 part (Pdt.distribute x' (gather sv gs trms) w)) in
-         merge_pdts (@) pdts 
+         merge_pdts List.concat pdts 
       | Node (LAll x', part), _, _ :: trms ->
          let pdts = List.concat (Part.map2 part (Pdt.distribute x' (gather sv gs trms) w)) in
-         merge_pdts (fun l l' -> List.filter l ~f:(List.mem l' ~equal:Etc.equal_valuation)) pdts 
+         merge_pdts (Etc.list_intersection Etc.equal_valuation) pdts 
       | Node (lbl, part), _, _ :: trms ->
          let pdts = Part.map2 part (fun (s, p) -> gather (((Lbl.term lbl).trm, s)::sv) gs trms w p) in
-         merge_pdts (@) pdts
+         merge_pdts List.concat pdts
       | Node _, _, [] -> raise (Invalid_argument "there are no labels left to process node") in
     let rec collect_leaf_values x = function
       | Pdt.Leaf None  -> Set.empty (module Dom)

@@ -1,14 +1,3 @@
-(*******************************************************************)
-(*     This is part of WhyMon, and it is distributed under the     *)
-(*     terms of the GNU Lesser General Public License version 3    *)
-(*           (see file LICENSE for more details)                   *)
-(*                                                                 *)
-(*  Copyright 2023:                                                *)
-(*  Dmitriy Traytel (UCPH)                                         *)
-(*  Leonardo Lima (UCPH)                                           *)
-(*  François Hublet (ETH Zurich)                                   *)
-(*******************************************************************)
-
 open Base
 open Interval
 open Time

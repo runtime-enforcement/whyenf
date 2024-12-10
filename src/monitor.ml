@@ -1,13 +1,3 @@
-(*******************************************************************)
-(*     This is part of WhyMon, and it is distributed under the     *)
-(*     terms of the GNU Lesser General Public License version 3    *)
-(*           (see file LICENSE for more details)                   *)
-(*                                                                 *)
-(*  Copyright 2023:                                                *)
-(*  Leonardo Lima (UCPH)                                           *)
-(*******************************************************************)
-
-(*open Core*)
 open Base
 open Expl
 open Option
@@ -31,6 +21,7 @@ module type MonitorT = sig
   module MFormula : sig
 
     type binop_info
+    type nop_info
     type prev_info
     type tp_info
     type buft_info
@@ -44,6 +35,7 @@ module type MonitorT = sig
     type until_info
 
     val empty_binop_info: binop_info
+    val empty_nop_info: int -> nop_info
 
     type core_t =
       | MTT
@@ -53,8 +45,8 @@ module type MonitorT = sig
       | MAgg          of string * Aggregation.op * Aggregation.op_fun * Term.t * string list * t
       | MTop          of string list * string * Aggregation.op_tfun * Term.t list * string list * t
       | MNeg          of t
-      | MAnd          of Side.t * t list * binop_info
-      | MOr           of Side.t * t list * binop_info
+      | MAnd          of Side.t * t list * nop_info
+      | MOr           of Side.t * t list * nop_info
       | MImp          of Side.t * t * t * binop_info
       | MIff          of Side.t * Side.t * t * t * binop_info
       | MExists       of string * Dom.tt * bool * t
@@ -349,6 +341,26 @@ module Make (E: Expl.ExplT) = struct
       | _, _ -> false*)
 
     let map f1 f2 (l1, l2) = (List.map ~f:f1 l1, List.map ~f:f2 l2)
+
+  end
+
+  module Bufn = struct
+
+    type 'a t = 'a list list
+
+    let empty n = List.init n ~f:(fun _ -> [])
+
+    let add xss ls = List.map2_exn xss ls ~f:(@)
+
+    let rec take f xss =
+      match Option.all (List.map xss ~f:List.hd) with
+      | None -> ([], xss)
+      | Some heads -> let tails = List.map xss ~f:List.tl_exn in
+                      let (zs, buf2') = take f tails in
+                      ((f heads)::zs, buf2')
+
+  
+    let map (f: 'a -> 'b) (ls: 'a t) : 'b t = List.map ~f:(List.map ~f) ls
 
   end
 
@@ -1478,6 +1490,7 @@ module Make (E: Expl.ExplT) = struct
   module MFormula = struct
 
     type binop_info         = (E.t, E.t) Buf2.t
+    type nop_info           = E.t Bufn.t
     type prev_info          = (E.t, Time.t) Buft.t
     type next_info          = Time.t list
     type tp_info            = (Time.t * timepoint) list
@@ -1491,6 +1504,7 @@ module Make (E: Expl.ExplT) = struct
     type until_info         = Until.t Pdt.t
 
     let empty_binop_info = ([], [])
+    let empty_nop_info = Bufn.empty
 
     type core_t =
       | MTT
@@ -1500,8 +1514,8 @@ module Make (E: Expl.ExplT) = struct
       | MAgg          of string * Aggregation.op * Aggregation.op_fun * Term.t * string list * t
       | MTop          of string list * string * Aggregation.op_tfun * Term.t list * string list * t
       | MNeg          of t
-      | MAnd          of Side.t * t list * binop_info
-      | MOr           of Side.t * t list * binop_info
+      | MAnd          of Side.t * t list * nop_info
+      | MOr           of Side.t * t list * nop_info
       | MImp          of Side.t * t * t * binop_info
       | MIff          of Side.t * Side.t * t * t * binop_info
       | MExists       of string * Dom.tt * bool * t
@@ -2004,9 +2018,11 @@ module Make (E: Expl.ExplT) = struct
            MTop (List.map ~f:fst s, op, op_fun, Tterm.to_terms x, List.map ~f:fst y, make (aux f) Filter.tt)
         | Neg f -> MNeg (make (aux f) tf.info.filter)
         | And (s, fs) ->
-           MAnd (s, List.map2_exn ~f:make (List.map ~f:aux fs) (List.map fs ~f:(fun tf -> tf.info.filter)), ([], []))
+           MAnd (s, List.map2_exn ~f:make (List.map ~f:aux fs) (List.map fs ~f:(fun tf -> tf.info.filter)),
+                 empty_nop_info (List.length fs))
         | Or (s, fs) ->
-           MOr (s, List.map2_exn ~f:make (List.map ~f:aux fs) (List.map fs ~f:(fun tf -> tf.info.filter)), ([], []))
+           MOr (s, List.map2_exn ~f:make (List.map ~f:aux fs) (List.map fs ~f:(fun tf -> tf.info.filter)),
+                empty_nop_info (List.length fs))
         | Imp (s, f, g) -> MImp (s, make (aux f) f.info.filter, make (aux g) g.info.filter, ([], []))
         | Exists ((x, tt), f) -> MExists (x, tt, tf.info.flag, make (aux f) f.info.filter)
         | Forall ((x, tt), f) -> MForall (x, tt, tf.info.flag, make (aux f) f.info.filter)
@@ -2066,6 +2082,7 @@ module Make (E: Expl.ExplT) = struct
       let r = apply_valuation v in
       let av_term = Sig.eval in
       let av_buf2 b = Buf2.map (Pdt.specialize_partial v) (Pdt.specialize_partial v) b in
+      let av_bufn b = Bufn.map (Pdt.specialize_partial v) b in
       let av_buft b = Buft.map (Pdt.specialize_partial v) (fun t -> t) b in
       let av_buf2t b = Buf2t.map (Pdt.specialize_partial v) (Pdt.specialize_partial v) (fun t -> t) b in
       let av_pdt p = Pdt.specialize_partial v p in
@@ -2081,8 +2098,8 @@ module Make (E: Expl.ExplT) = struct
         | MAgg (s, op, op_fun, x, y, f) -> MAgg (s, op, op_fun, x, y, r f)
         | MTop (s, op, op_fun, x, y, f) -> MTop (s, op, op_fun, x, y, r f)
         | MNeg f -> MNeg (r f)
-        | MAnd (s, fs, bi) -> MAnd (s, List.map ~f:r fs, av_buf2 bi)
-        | MOr (s, fs, bi) -> MOr (s, List.map ~f:r fs, av_buf2 bi)
+        | MAnd (s, fs, bi) -> MAnd (s, List.map ~f:r fs, av_bufn bi)
+        | MOr (s, fs, bi) -> MOr (s, List.map ~f:r fs, av_bufn bi)
         | MImp (s, f, g, bi) -> MImp (s, r f, r g, av_buf2 bi)
         | MIff (s, t, f, g, bi) -> MIff (s, t, r f, r g, av_buf2 bi)
         | MExists (x, tt, b, f) -> MExists (x, tt, b, r f)
@@ -2246,7 +2263,7 @@ module Make (E: Expl.ExplT) = struct
         | FInterval (ts, i, mf, _, v) ->
            if Interval.diff_is_in ts ts' i then
              map_mf
-               (map_mf mf Filter.tt (fun mf -> (MAnd (L, [_tp; mf], empty_binop_info))))
+               (map_mf mf Filter.tt (fun mf -> (MAnd (L, [_tp; mf], empty_nop_info 2))))
                Filter.tt
                (fun mf -> MEUntil (R, i, Some ts, _neg_tp, mf, v))
            else
@@ -2264,7 +2281,7 @@ module Make (E: Expl.ExplT) = struct
                   _neg_tp
                 else
                   map_mf mf1' (tp_filter mf1') (fun mf -> MImp (R, _tp, mf, empty_binop_info)))
-               (map_mf mf2' Filter.tt (fun mf -> MAnd (R, [_tp; mf], empty_binop_info)))
+               (map_mf mf2' Filter.tt (fun mf -> MAnd (R, [_tp; mf], empty_nop_info 2)))
                Filter.tt
                (fun mf1 mf2 -> MEUntil (side, i, Some ts, mf1, mf2, v))
            else
@@ -2286,7 +2303,7 @@ module Make (E: Expl.ExplT) = struct
                | MAnd (_, [mf1; mf2], _) when MFormula.equal _tp mf1 -> mf2
                | _ -> mf in
              map_mf
-               (map_mf mf' Filter.tt (fun mf -> MAnd (L, [_tp; mf], empty_binop_info)))
+               (map_mf mf' Filter.tt (fun mf -> MAnd (L, [_tp; mf], empty_nop_info 2)))
                Filter.tt
                (fun mf -> MEEventually (i, Some ts, mf, v))
            else
@@ -2352,11 +2369,28 @@ module Make (E: Expl.ExplT) = struct
     | V vp1, S _ -> [V (Proof.make_vandl vp1)]
     | V vp1, V vp2 -> [(V (Proof.make_vandl vp1)); (V (Proof.make_vandr vp2))]
 
+  let do_ands (ps: Proof.t list) : Proof.t list =
+    let sps = List.map ~f:(function S sp1 -> Some sp1 | _ -> None) ps in
+    match Option.all sps with
+    | Some sps -> [Proof.S (List.fold_left (List.tl_exn sps) ~init:(List.hd_exn sps)
+                              ~f:(fun l r -> Proof.make_sand l r))]
+    | None -> let vps = List.filter_map ~f:(function V vp -> Some vp | _ -> None) ps in
+              List.map ~f:(fun vp -> Proof.V (Proof.make_vandl vp)) vps
+
   let do_or (p1: Proof.t) (p2: Proof.t) : Proof.t list = match p1, p2 with
     | S sp1, S sp2 -> [(S (Proof.make_sorl sp1)); (S (Proof.make_sorr sp2))]
     | S sp1, V _ -> [S (Proof.make_sorl sp1)]
     | V _ , S sp2 -> [S (Proof.make_sorr sp2)]
     | V vp1, V vp2 -> [V (Proof.make_vor vp1 vp2)]
+
+  let do_ors (ps: Proof.t list) : Proof.t list =
+    let vps = List.map ~f:(function V vp1 -> Some vp1 | _ -> None) ps in
+    match Option.all vps with
+    | Some vps -> [Proof.V (List.fold_left (List.tl_exn vps) ~init:(List.hd_exn vps)
+                              ~f:(fun l r -> Proof.make_vor l r))]
+    | None -> let sps = List.filter_map ~f:(function S sp -> Some sp | _ -> None) ps in
+              List.map ~f:(fun sp -> Proof.S (Proof.make_sorl sp)) sps
+
 
   let do_imp (p1: Proof.t) (p2: Proof.t) : Proof.t list = match p1, p2 with
     | S _, S sp2 -> [S (Proof.make_simpr sp2)]
@@ -2452,18 +2486,18 @@ module Make (E: Expl.ExplT) = struct
     | MIff _ -> Pdt.apply2_reduce Proof.equal vars (fun p1 p2 -> do_iff p1 p2) aexpl1 aexpl2
     | _ -> raise (Invalid_argument ("function is not defined for " ^ MFormula.core_op_to_string mf))
 
-  let rec do_ors vars tp pol = function
+  
+  let rec approx_ors vars tp pol = function
     | [] when FObligation.equal_polarity pol FObligation.POS -> Pdt.Leaf (Proof.V (Proof.make_vff tp))
     | [] -> Pdt.Leaf (Proof.S (Proof.make_stt tp))
-    | [p] -> p
-    | p::ps -> Pdt.apply2_reduce Proof.equal vars (fun p1 p2 -> minp_list (do_or p1 p2)) p (do_ors vars tp pol ps)
+    | [pdt] -> pdt
+    | pdts -> Pdt.applyN_reduce Proof.equal vars (fun ps -> minp_list (do_ors ps)) pdts
 
-
-  (*let rec do_ands vars tp = function
+  (*let rec approx_ands vars tp pol = function
+    | [] when FObligation.equal_polarity pol FObligation.NEG -> Pdt.Leaf (Proof.V (Proof.make_vff tp))
     | [] -> Pdt.Leaf (Proof.S (Proof.make_stt tp))
-    | [p] -> p
-    | p::ps -> Pdt.apply2_reduce Proof.equal vars (fun p1 p2 -> minp_list (do_and p1 p2)) p (do_ands vars tp ps)*)
-
+    | [pdt] -> pdt
+    | pdts -> Pdt.applyN_reduce Proof.equal vars (fun ps -> minp_list (do_ands ps)) pdts*)
 
   let approx_quant aexpl x mf =
     match mf with
@@ -2492,7 +2526,7 @@ module Make (E: Expl.ExplT) = struct
       | FInterval (_, _, _, h', v') ->
       h = h' && Etc.equal_valuation v' vv && FObligation.polarity_equal pol pol'
       | _ -> false)) in*)
-    do_ors vars tp pol expls
+    approx_ors vars tp pol expls
 
   let approx_once vars expls aexpl i tp pol =
     match List.last expls, pol with
@@ -2529,7 +2563,7 @@ module Make (E: Expl.ExplT) = struct
             List.filter_map (relevant_fobligs fobligs FObligation.is_feventually h vv pol)  ~f*)
           expls_approx FObligation.is_feventually tp pol vars fobligs h vv
         end in
-    let aexpl_next = do_ors vars tp pol expls in
+    let aexpl_next = approx_ors vars tp pol expls in
     (*print_endline ("approx_eventually aexpl_new=" ^ Expl.to_string aexpl_new);
     print_endline ("approx_eventually aexpl_next=" ^ Expl.to_string aexpl_next);
     print_endline ("approx_eventually pol=" ^ FObligation.polarity_to_string pol);
@@ -2552,7 +2586,7 @@ module Make (E: Expl.ExplT) = struct
             | _ -> false)) in*)
           expls_approx FObligation.is_falways tp pol vars fobligs h vv
         end in
-    let aexpl_next = do_ors vars tp pol expls in
+    let aexpl_next = approx_ors vars tp pol expls in
     Pdt.apply2_reduce Proof.equal vars
       (fun p1 p2 -> Always.do_always_base tp i (FObligation.equal_polarity pol POS) p1 p2)
       aexpl_next aexpl_new 
@@ -2583,7 +2617,7 @@ module Make (E: Expl.ExplT) = struct
             List.map (relevant_fobligs fobligs FObligation.is_funtil h vv pol) ~f*)
           expls_approx FObligation.is_funtil tp pol vars fobligs h vv
         end in
-    let aexpl_next = do_ors vars tp pol expls in
+    let aexpl_next = approx_ors vars tp pol expls in
     (*print_endline ("approx_until aexpl_new1=" ^ Expl.to_string aexpl_new1);
     print_endline ("approx_until aexpl_new2=" ^ Expl.to_string aexpl_new2);
     print_endline ("approx_until aexpl_next=" ^ Expl.to_string aexpl_next);
@@ -2737,40 +2771,20 @@ module Make (E: Expl.ExplT) = struct
               let f_aexpl = approx_expl1 aexpl mformula.lbls mformula.mf in
               memo, (f_expls, f_aexpl, MNeg mf')
            | MAnd (s, mfs, buf2) ->
-              (*print_endline "--MAnd";*)
               let memo, data =
                 List.fold_map ~init:memo ~f:(meval_rec ts tp db ~pol fobligs) mfs in
-              (*List.iter data ~f:(fun (_, aexpl, mf) -> print_endline (MFormula.to_string mf);
-                print_endline (Expl.to_string aexpl));*)
-              let expls_list', aexpl_list', mfs' = List.unzip3 data in
-              let expls1, expls_list = List.hd_exn expls_list', List.tl_exn expls_list' in
-              let aexpl1, aexpl_list = List.hd_exn aexpl_list', List.tl_exn aexpl_list' in
-              let (f_expls, buf2') =
-                List.fold expls_list ~init:(expls1, buf2) ~f:(fun (expls1, buf2) expls2  ->
-                    Buf2.take
-                      (fun expl1 expl2 ->
-                        (*print_endline ("take expl1=" ^ Expl.to_string expl1);
-                        print_endline ("take expl2=" ^ Expl.to_string expl2);
-                        print_endline ("take lbls=" ^ Lbl.to_string_list mformula.lbls);*)
-                        Pdt.apply2_reduce Proof.equal mformula.lbls (fun p1 p2 -> minp_list (do_and p1 p2)) expl1 expl2)
-                      (Buf2.add expls1 expls2 buf2)) in
-              let aexpl = List.fold aexpl_list ~init:aexpl1 ~f:(fun aexpl1 aexpl2 ->
-                              approx_expl2 aexpl1 aexpl2 mformula.lbls mformula.mf) in
-              (*print_endline ("MAnd.aexpl(" ^ MFormula.to_string mformula ^ ")=" ^ E.to_string aexpl);*)
+              let expls_list, aexpl_list, mfs' = List.unzip3 data in
+              let apply_ands = Pdt.applyN_reduce Proof.equal mformula.lbls (fun ps -> minp_list (do_ands ps)) in
+              let (f_expls, buf2') = Bufn.take apply_ands (Bufn.add expls_list buf2) in
+              let aexpl = apply_ands aexpl_list in
               memo, (f_expls, aexpl, MAnd (s, mfs', buf2'))
            | MOr (s, mfs, buf2) ->
               let memo, data =
                 List.fold_map ~init:memo ~f:(meval_rec ts tp db ~pol fobligs) mfs in
-              let expls_list', aexpl_list', mfs' = List.unzip3 data in
-              let expls1, expls_list = List.hd_exn expls_list', List.tl_exn expls_list' in
-              let aexpl1, aexpl_list = List.hd_exn aexpl_list', List.tl_exn aexpl_list' in
-              let (f_expls, buf2') =
-                List.fold expls_list ~init:(expls1, buf2) ~f:(fun (expls1, buf2) expls2  -> 
-                    Buf2.take
-                      (Pdt.apply2_reduce Proof.equal mformula.lbls (fun p1 p2 -> minp_list (do_or p1 p2)))
-                      (Buf2.add expls1 expls2 buf2)) in
-              let aexpl = List.fold aexpl_list ~init:aexpl1 ~f:(fun aexpl1 aexpl2 ->
-                              approx_expl2 aexpl1 aexpl2 mformula.lbls mformula.mf) in
+              let expls_list, aexpl_list, mfs' = List.unzip3 data in
+              let apply_ors = Pdt.applyN_reduce Proof.equal mformula.lbls (fun ps -> minp_list (do_ors ps)) in
+              let (f_expls, buf2') = Bufn.take apply_ors (Bufn.add expls_list buf2) in
+              let aexpl = apply_ors aexpl_list in
               memo, (f_expls, aexpl, MOr (s, mfs', buf2'))
            | MImp (s, mf1, mf2, buf2) ->
               let memo, (expls1, aexpl1, mf1') = meval_rec ts tp db ~pol:(pol >>| FObligation.neg) fobligs memo mf1 in

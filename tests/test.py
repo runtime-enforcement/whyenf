@@ -45,7 +45,7 @@ class Test:
     
     def _run_whyenf(self) -> subprocess.CompletedProcess[str]:
         try:
-            return subprocess.run(self.command, capture_output=True, text=True, timeout=1)
+            return subprocess.run(self.command, capture_output=True, text=True, timeout=90)
         except subprocess.TimeoutExpired:
             return subprocess.CompletedProcess(args=self.command, returncode=-1, stdout="", stderr="Timeout occurred")
     

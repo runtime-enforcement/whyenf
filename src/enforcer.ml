@@ -1,13 +1,3 @@
-(*******************************************************************)
-(*     This is part of WhyEnf, and it is distributed under the     *)
-(*     terms of the GNU Lesser General Public License version 3    *)
-(*           (see file LICENSE for more details)                   *)
-(*                                                                 *)
-(*  Copyright 2023:                                                *)
-(*  François Hublet (ETH Zurich)                                   *)
-(*  Leonardo Lima (UCPH)                                           *)
-(*******************************************************************)
-
 open Base
 open Stdio
 open MFOTL_lib.Etc
@@ -471,7 +461,7 @@ module Make (E: Expl.ExplT) = struct
     let mf = match obligs with
       | [] -> MFormula._tt
       | [mf] -> mf
-      | mfs -> MFormula.mapn_mf mfs Filter.tt (fun mfs -> MAnd (L, mfs, empty_binop_info))  in
+      | mfs -> MFormula.mapn_mf mfs Filter.tt (fun mfs -> MAnd (L, mfs, empty_nop_info (List.length mfs)))  in
     match (EState.mstep_state { es with ms = { es.ms with mf } }) es.memo
     with (memo, (_, _, ms)) -> (
       (*print_endline ("goal= " ^ MFormula.to_string ms.mf) ;*) { es with memo }, ms.mf)

@@ -1,13 +1,3 @@
-(*******************************************************************)
-(*     This is part of WhyMon, and it is distributed under the     *)
-(*     terms of the GNU Lesser General Public License version 3    *)
-(*           (see file LICENSE for more details)                   *)
-(*                                                                 *)
-(*  Copyright 2023:                                                *)
-(*  Dmitriy Traytel (UCPH)                                         *)
-(*  Leonardo Lima (UCPH)                                           *)
-(*******************************************************************)
-
 open Base
 
 module Fdeque = Core.Fdeque
@@ -47,9 +37,11 @@ module Pdt : sig
   val apply1: Lbl.t list -> ('a -> 'b) -> 'a t -> 'b t
   val apply2: Lbl.t list -> ('a -> 'b -> 'c) -> 'a t -> 'b t -> 'c t
   val apply3: Lbl.t list -> ('a -> 'b -> 'c -> 'd) -> 'a t -> 'b t -> 'c t -> 'd t
+  val applyN: Lbl.t list -> ('a list -> 'b) -> 'a t list -> 'b t
+
   val split_prod: ('a * 'b) t -> 'a t * 'b t
   val split_list: 'a list t -> 'a t list
-  val hide: Lbl.t list -> ('a -> 'b) -> ('a Part.t -> 'b) -> 'a t -> 'b t
+  val hide: Lbl.t list -> ('a -> 'b) -> ((Part.sub * 'a option) list -> 'b) -> 'a t -> 'b t
   val to_string: ('a -> string) -> string -> 'a t -> string
 
   val eq: ('a -> 'a -> bool) -> 'a t -> 'a t -> bool
@@ -57,6 +49,7 @@ module Pdt : sig
   val apply1_reduce: ('a -> 'a -> bool) -> Lbl.t list -> ('b -> 'a) -> 'b t -> 'a t
   val apply2_reduce: ('a -> 'a -> bool) -> Lbl.t list -> ('b -> 'c -> 'a) -> 'b t -> 'c t -> 'a t
   val apply3_reduce: ('a -> 'a -> bool) -> Lbl.t list -> ('b -> 'c -> 'd -> 'a) -> 'b t -> 'c t -> 'd t -> 'a t
+  val applyN_reduce: ('a -> 'a -> bool) -> Lbl.t list -> ('b list -> 'a) -> 'b t list -> 'a t
   val split_prod_reduce: ('a -> 'a -> bool) -> ('a * 'a) t -> 'a t * 'a t
   val split_list_reduce: ('a -> 'a -> bool) -> 'a list t -> 'a t list
   (*val hide_reduce: string -> ('a -> 'a -> bool) -> Lbl.t list -> ('b -> 'a) -> ('b t list -> 'a t) -> 'b t -> 'a t*)

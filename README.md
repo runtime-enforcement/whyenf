@@ -1,4 +1,17 @@
-# WhyEnf: a proactive real-time first-order enforcer
+# LIFEBOAT: a proactive real-time first-order enforcer
+
+## Authors
+
+The LIFEBOAT enforcer is the successor of the WhyEnf enfocer, which itself shares part of its
+code base with the WhyMon monitoring tool.
+
+The following individuals have contributed to the development of LIFEBOAT, WhyEnf, and/or WhyMon:
+
+* François Hublet (ETH Zürich): LIFEBOAT (lead), WhyEnf (co-lead)
+* Leonardo Lima (University of Copenhagen): LIFEBOAT, WhyEnf (co-lead), WhyMon (lead)
+* Srđan Krstić (ETH Zürich): LIFEBOAT, WhyEnf
+* Dmitriy Traytel (University of Copenhagen): LIFEBOAT, WhyEnf, WhyMon
+* David Basin (ETH Zürich): LIFEBOAT, WhyEnf
 
 ## Getting Started
 
@@ -48,4 +61,5 @@ $ dune clean
 
 ## License
 
-This project is licensed under the GNU Lesser GPL-3.0 license - see [LICENSE](LICENSE) for details.
+This project and its predecessors WhyEnf and WhyMon are licensed under the GNU Lesser GPL-3.0 license - see [LICENSE](LICENSE) for details.
+

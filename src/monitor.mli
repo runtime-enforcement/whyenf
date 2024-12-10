@@ -1,13 +1,3 @@
-(*******************************************************************)
-(*     This is part of WhyMon, and it is distributed under the     *)
-(*     terms of the GNU Lesser General Public License version 3    *)
-(*           (see file LICENSE for more details)                   *)
-(*                                                                 *)
-(*  Copyright 2023:                                                *)
-(*  Leonardo Lima (UCPH)                                           *)
-(*  François Hublet (ETH Zurich)                                   *)
-(*******************************************************************)
-
 open Base
 
 module Dom = MFOTL_lib.Dom
@@ -28,6 +18,7 @@ module type MonitorT = sig
   module MFormula : sig
 
     type binop_info
+    type nop_info
     type prev_info
     type tp_info
     type buft_info
@@ -41,6 +32,7 @@ module type MonitorT = sig
     type until_info
 
     val empty_binop_info: binop_info
+    val empty_nop_info: int -> nop_info
 
     type core_t =
       | MTT
@@ -50,8 +42,8 @@ module type MonitorT = sig
       | MAgg          of string * Aggregation.op * Aggregation.op_fun * Term.t * string list * t
       | MTop          of string list * string * Aggregation.op_tfun * Term.t list * string list * t
       | MNeg          of t
-      | MAnd          of Side.t * t list * binop_info
-      | MOr           of Side.t * t list * binop_info
+      | MAnd          of Side.t * t list * nop_info
+      | MOr           of Side.t * t list * nop_info
       | MImp          of Side.t * t * t * binop_info
       | MIff          of Side.t * Side.t * t * t * binop_info
       | MExists       of string * Dom.tt * bool * t

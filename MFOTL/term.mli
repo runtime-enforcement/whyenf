@@ -11,10 +11,6 @@ module type T = sig
   type comparator_witness
   val comparator : (t, comparator_witness) Comparator.t
 
-  (*val var : v -> core_t
-  val const : d -> core_t
-  val app : string -> t list -> core_t*)
-
   val dummy_var : v -> t
 
   val unvar_opt : t -> v option

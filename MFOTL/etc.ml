@@ -1,19 +1,9 @@
-(*******************************************************************)
-(*     This is part of WhyMon, and it is distributed under the     *)
-(*     terms of the GNU Lesser General Public License version 3    *)
-(*           (see file LICENSE for more details)                   *)
-(*                                                                 *)
-(*  Copyright 2023:                                                *)
-(*  Leonardo Lima (UCPH)                                           *)
-(*******************************************************************)
-
 open Base
 
 module Fdeque = Core.Fdeque
 
 type timepoint = int
 type timestamp = Time.t
-
 
 let eat s t = s ^ (String.strip t)
 let paren h k x = if h>k then Caml.( "("^^x^^")" ) else x
@@ -198,3 +188,13 @@ type string_set_list = (string, Base.String.comparator_witness) Base.Set.t list
 
 let inter_string_set_list (s : string_set_list list) : string_set_list =
   List.map ~f:(Set.union_list (module String)) (cartesian s)
+
+let list_intersection equal lists =
+  match lists with
+  | [] -> []
+  | hd :: tl ->
+    List.filter hd ~f:(fun elem ->
+      List.for_all tl ~f:(fun lst ->
+        List.mem lst elem ~equal
+      )
+    )
