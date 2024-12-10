@@ -1,13 +1,8 @@
 open Base
 
-module Dom = MFOTL_lib.Dom
-module Aggregation = MFOTL_lib.Aggregation
-module Side = MFOTL_lib.Side
-module Interval = MFOTL_lib.Interval
-module Time = MFOTL_lib.Time
-module MFOTL = MFOTL_lib.MFOTL
-module Etc = MFOTL_lib.Etc
-module Filter = MFOTL_lib.Filter
+module MyTerm = Term
+open MFOTL_lib
+module Term = MyTerm
 
 open Etc
 
@@ -45,7 +40,6 @@ module type MonitorT = sig
       | MAnd          of Side.t * t list * nop_info
       | MOr           of Side.t * t list * nop_info
       | MImp          of Side.t * t * t * binop_info
-      | MIff          of Side.t * Side.t * t * t * binop_info
       | MExists       of string * Dom.tt * bool * t
       | MForall       of string * Dom.tt * bool * t
       | MPrev         of Interval.t * t * bool * prev_info

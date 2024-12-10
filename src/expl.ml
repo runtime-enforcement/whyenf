@@ -1,9 +1,8 @@
 open Base
 
-module Dom = MFOTL_lib.Dom
-module Etc = MFOTL_lib.Etc
-module Interval = MFOTL_lib.Interval
-module Multiset = MFOTL_lib.Multiset
+module MyTerm = Term
+open MFOTL_lib
+module Term = MyTerm
 
 module Fdeque = Core.Fdeque
 

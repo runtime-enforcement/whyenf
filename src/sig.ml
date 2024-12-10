@@ -1,8 +1,9 @@
 open Base
 
-module Enftype = MFOTL_lib.Enftype
-module Etc = MFOTL_lib.Etc
-module Dom = MFOTL_lib.Dom
+module MyTerm = Term
+open MFOTL_lib
+module Term = MyTerm
+module Ctxt = Ctxt.Make(Dom)
 
 let tilde_tp_event_name = "~tp"
 let tick_event_name = "tick"
@@ -231,6 +232,14 @@ and check_terms (types: Ctxt.t) p_name trms : Ctxt.t * Ctxt.ttt list =
   else raise (Invalid_argument (
                   Printf.sprintf "arity of %s is %d" p_name (arity sig_pred)))
 
+and check_terms_ttts (types: Ctxt.t) p_name (ttts: Ctxt.ttt list) trms : Ctxt.t * Ctxt.ttt list =
+  let arity = List.length ttts in
+  if List.length trms = arity then
+    List.fold2_exn trms ttts ~init:(types, [])
+      ~f:(fun (types, ttts) trm ttt -> let types, ttt = check_term types ttt trm in
+                                       (types, ttts @ [ttt]))
+  else raise (Invalid_argument (
+                  Printf.sprintf "arity of let-bound predicate %s is %d" p_name arity))
 
 let tt_of_term_exn (types: Ctxt.t) trm : Dom.tt =
   let types, new_ttt = Ctxt.fresh_ttt types in

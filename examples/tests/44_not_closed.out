@@ -1,3 +1,3 @@
 The formula
- A(x)
-is not closed: free variables are x
+ A(x:int)
+is not closed: free variables are x:int

@@ -762,9 +762,9 @@ module Make
 
     (* Past-guardedness check *)
 
-    let eib r i b = Var.of_ident (Printf.sprintf "%s.%d.%b" r i b)
+    let eib r i b = Printf.sprintf "%s.%d.%b" r i b
 
-    type pg_map = (Var.t, Etc.string_set_list, Var.comparator_witness) Map.t
+    type pg_map = (string, Etc.string_set_list, String.comparator_witness) Map.t
     type t_map  = (string, Enftype.t * int list, String.comparator_witness) Map.t
 
     let rec solve_past_guarded (ts: pg_map) (x: Var.t) p (f:('i, Var.t, Dom.t, Term.t) _t) =
@@ -846,10 +846,10 @@ module Make
     let solve_past_guarded_multiple ts (x : Var.t) e fs =
       Etc.inter_string_set_list (List.map ~f:(solve_past_guarded ts x e) fs)
 
-    let is_past_guarded ?(ts=Map.empty (module Var)) x p f =
+    let is_past_guarded ?(ts=Map.empty (module String)) x p f =
       not (List.is_empty (solve_past_guarded ts x p f))
 
-    let is_past_guarded_multiple ?(ts=Map.empty (module Var)) x p =
+    let is_past_guarded_multiple ?(ts=Map.empty (module String)) x p =
       List.for_all ~f:(is_past_guarded ~ts x p) 
 
     (* Present filters *)
@@ -1120,7 +1120,7 @@ module Make
                  let _, is = Map.find_exn ts e in
                  let terms = List.filteri terms ~f:(fun i _ -> List.mem is i ~equal:Int.equal) in
                  let fvs   = Etc.dedup ~equal:Var.equal (Term.fv_list terms) in
-                 let es    = List.map fvs ~f:(fun x -> Option.value (Map.find pgs x) ~default:[]) in
+                 let es    = List.map fvs ~f:(fun x -> Option.value (Map.find pgs (Var.ident x)) ~default:[]) in
                  let unguarded = List.filter_map (List.zip_exn fvs es) ~f:(fun (x, e) ->
                                      if List.is_empty e then Some x else None) in
                  (match List.map ~f:(Set.union_list (module String)) (Etc.cartesian es) with
@@ -1153,7 +1153,7 @@ module Make
               | Let (e, enftype_opt, vars, f, g) ->
                  let f_unguarded i x = if not (is_past_guarded x false f) then Some (x, i) else None in
                  let unguarded_x, unguarded_i = List.unzip (List.filter_mapi vars ~f:f_unguarded) in
-                 let pgs' = List.fold_left unguarded_x ~init:pgs ~f:(Map.update ~f:(fun _ -> [Set.empty (module String)])) in
+                 let pgs' = List.fold_left unguarded_x ~init:pgs ~f:(fun m x -> Map.update m (Var.ident x) ~f:(fun _ -> [Set.empty (module String)])) in
                  let pgs'' = solve_past_guarded_multiple_vars pgs vars e f in
                  (match enftype_opt with
                   | Some enftype ->
@@ -1184,7 +1184,7 @@ module Make
                  let es = solve_past_guarded pgs x false f in
                  (match es with
                   | [] -> error ("for causability " ^ Var.to_string x ^ " must be past-guarded")
-                  | _  -> aux t (Map.update pgs x ~f:(fun _ -> es)) ts f)
+                  | _  -> aux t (Map.update pgs (Var.ident x) ~f:(fun _ -> es)) ts f)
               | Next (i, f) when Interval.has_zero i && not (Interval.is_zero i) -> aux' t f
               | Next _ -> error "○ with non-[0,a) interval, a > 0, is never Cau"
               | Once (i, g) when Interval.has_zero i -> aux' t g
@@ -1209,7 +1209,7 @@ module Make
               | Let (e, enftype_opt, vars, f, g) ->
                  let f_unguarded i x = if not (is_past_guarded x false f) then Some (x, i) else None in
                  let unguarded_x, unguarded_i = List.unzip (List.filter_mapi vars ~f:f_unguarded) in
-                 let pgs' = List.fold_left unguarded_x ~init:pgs ~f:(Map.update ~f:(fun _ -> [Set.empty (module String)])) in
+                 let pgs' = List.fold_left unguarded_x ~init:pgs ~f:(fun m x -> Map.update m (Var.ident x) ~f:(fun _ -> [Set.empty (module String)])) in
                  let pgs'' = solve_past_guarded_multiple_vars pgs vars e f in
                  (match enftype_opt with
                   | Some enftype ->
@@ -1235,7 +1235,7 @@ module Make
                  let es = solve_past_guarded pgs x true f in
                  (match es with
                   | [] -> error ("for suppressability " ^ Var.to_string x ^ " must be past-guarded")
-                  | _  -> aux t (Map.update pgs x ~f:(fun _ -> es)) ts f)
+                  | _  -> aux t (Map.update pgs (Var.ident x) ~f:(fun _ -> es)) ts f)
               | Forall (_, f) -> aux' t f
               | Next (_, f) -> aux' t f
               | Historically (i, f) when Interval.has_zero i -> aux' t f
@@ -1540,7 +1540,6 @@ module Make
 
     let do_type f b =
       let orig_f = f in
-      let f = convert_vars f in
       let f = convert_lets f in
       if not (Set.is_empty (fv f)) then (
         Stdio.print_endline ("The formula\n "
@@ -1548,7 +1547,7 @@ module Make
                              ^ "\nis not closed: free variables are "
                              ^ String.concat ~sep:", " (List.map ~f:Var.to_string (Set.elements (fv f))));
         ignore (raise (Invalid_argument (Printf.sprintf "formula %s is not closed" (to_string f)))));
-      match types Enftype.cauboterr (Map.empty (module Var)) f with
+      match types Enftype.cauboterr (Map.empty (module String)) f with
       | Possible c ->
          begin
            let c = Constraints.ac_simplify c in

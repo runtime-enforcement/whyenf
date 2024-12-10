@@ -1,7 +1,8 @@
 open Core
 
-module Etc = MFOTL_lib.Etc
-module Dom = MFOTL_lib.Dom
+open MFOTL_lib
+
+module Ctxt = Ctxt.Make(Dom)
 
 module Python = struct
 

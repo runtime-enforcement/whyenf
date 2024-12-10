@@ -1,7 +1,9 @@
 open Base
 
-module Enftype = MFOTL_lib.Enftype
-module Dom = MFOTL_lib.Dom
+module MyTerm = Term
+open MFOTL_lib
+module Term = MyTerm
+module Ctxt : module type of Ctxt.Make(Dom)
 
 val tilde_tp_event_name: string
 val tp_event_name: string
@@ -67,3 +69,4 @@ val check_var:   Ctxt.t -> string -> Ctxt.ttt -> Ctxt.t * Ctxt.ttt
 val check_app:   Ctxt.t -> string -> Term.t list -> Ctxt.ttt -> Ctxt.t * Ctxt.ttt
 val check_term:  Ctxt.t -> Ctxt.ttt -> Term.t -> Ctxt.t * Ctxt.ttt
 val check_terms: Ctxt.t -> string -> Term.t list -> Ctxt.t * Ctxt.ttt list
+val check_terms_ttts: Ctxt.t -> string -> Ctxt.ttt list -> Term.t list -> Ctxt.t * Ctxt.ttt list

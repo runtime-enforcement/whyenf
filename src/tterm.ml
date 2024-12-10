@@ -1,14 +1,19 @@
 open Base
 
-module TypedVar : MFOTL_lib.Modules.V with type t = (string * MFOTL_lib.Dom.tt) = struct
+module MyTerm = Term
+open MFOTL_lib
+module Term = MyTerm
+module Ctxt = Ctxt.Make(Dom)
+
+module TypedVar : Modules.V with type t = (string * MFOTL_lib.Dom.tt) = struct
 
   module T = struct
     
-    type t = string * MFOTL_lib.Dom.tt [@@deriving compare, sexp_of, hash, equal]
+    type t = string * Dom.tt [@@deriving compare, sexp_of, hash, equal]
 
     let to_string (x, tt) = Printf.sprintf "%s:%s" x (MFOTL_lib.Dom.tt_to_string tt)
     let ident = fst
-    let of_ident _ = raise (Invalid_argument "Cannot create a typed variable without a type")
+    let of_ident x = (x, Dom.TInt)(*raise (Invalid_argument "Cannot create a typed variable without a type")*)
 
     let replace (_, tt) (z, _) = (z, tt)
 

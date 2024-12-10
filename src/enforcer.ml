@@ -1,13 +1,11 @@
 open Base
 open Stdio
-open MFOTL_lib.Etc
 
+module MyTerm = Term
+open MFOTL_lib
+module Term = MyTerm
+open Etc
 open Global
-
-module Time = MFOTL_lib.Time
-module Filter = MFOTL_lib.Filter
-module Dom = MFOTL_lib.Dom
-module Interval = MFOTL_lib.Interval
 
 module type EnforcerT = sig
 
@@ -299,12 +297,6 @@ module Make (E: Expl.ExplT) = struct
       | MOr (R, [_; mf2], _) -> enfsat mf2 v es
       | MImp (L, mf1, _, _) -> enfvio mf1 v es
       | MImp (R, _, mf2, _) -> enfsat mf2 v es
-      | MIff (side1, _, mf1, mf2, _) ->
-         fixpoint (enfsat_andl v
-                     [MFormula.map2_mf mf1 mf2 Filter.tt
-                        (fun mf1 mf2 -> MImp (side1, mf1, mf2, empty_binop_info));
-                      MFormula.map2_mf mf2 mf1 Filter.tt
-                        (fun mf2 mf1 -> MImp (side1, mf2, mf1, empty_binop_info))]) es
       | MExists (x, tt, _, mf) -> enfsat mf (Map.add_exn v ~key:x ~data:(Dom.tt_default tt)) es
       | MForall (x, _, _, mf) -> fixpoint (enfsat_forall x mf v) es
       | MENext (i, ts, mf, vv) ->
@@ -365,8 +357,6 @@ module Make (E: Expl.ExplT) = struct
       | MOr (R, mfs, _) -> fixpoint (enfvio_orr v mfs) es
       | MImp (L, mf1, mf2, _) -> fixpoint (enfvio_imp mf1 mf2 v) es
       | MImp (R, mf1, mf2, _) -> fixpoint (enfvio_imp mf2 mf1 v) es
-      | MIff (L, _, mf1, mf2, _) -> fixpoint (enfvio_imp mf1 mf2 v) es
-      | MIff (R, _, mf1, mf2, _) -> fixpoint (enfvio_imp mf2 mf1 v) es
       | MExists (x, _, _, mf) -> fixpoint (enfvio_exists x mf v) es
       | MForall (x, tt, _, mf) -> enfvio mf (Map.add_exn v ~key:x ~data:(Dom.tt_default tt)) es
       | MENext (i, ts, mf, vv) ->
@@ -466,8 +456,7 @@ module Make (E: Expl.ExplT) = struct
     with (memo, (_, _, ms)) -> (
       (*print_endline ("goal= " ^ MFormula.to_string ms.mf) ;*) { es with memo }, ms.mf)
 
-
-  let exec f inc (b: Time.Span.s) =
+  let exec' (tf: Tformula.t) inc (b: Time.Span.s) =
     let reactive_step new_db (es: EState.t) =
       (*print_endline ("-- reactive_step tp=" ^ string_of_int es.tp);*)
       (*let time_before = Unix.gettimeofday() in*)
@@ -563,19 +552,30 @@ module Make (E: Expl.ExplT) = struct
          let es = process_db pb es in
          Stdlib.flush_all();
          if more then step false (Some(pb)) es else conclude pb es in
-    let open Formula.MFOTL_Enforceability(Sig) in
-    let typed_f, tf = try let typed_f = do_type f b in
-                          typed_f, Tformula.of_formula' typed_f
-                      with Invalid_argument s -> failwith s in
-    let transparent = is_transparent typed_f in
-    if (not transparent) then
-      print_endline "This formula cannot be transparently enforced.";
-    (*print_endline (Formula.to_string_typed typed_f);
-    print_endline (Tformula.to_string tf);*)
     let mf = Monitor.MFormula.init tf in
     (*print_endline (Monitor.MFormula.to_string mf);*)
     let ms = Monitor.MState.init mf in
     let es = EState.init ms mf in
     step true None es
+
+  let compile (f: Formula.t) (b: Time.Span.s) : Tformula.t =
+    let open Tyformula.MFOTL_Enforceability(Sig) in
+    (* Applying alpha conversion to obtain unique variable names *)
+    let f = Formula.convert_vars f in
+    (* Typing terms: Formula.t -> Tyformula.t *)
+    let tyf = Tyformula.of_formula' f in
+    (* Typing formulae: Tyformula.t -> Tyformula.typed_t *)
+    let typed_tyf = do_type tyf b in
+    (* Checking monitorability: Tyformula.typed_t -> Tformula.t *)
+    let tf = Tformula.of_formula' typed_tyf in
+    (* Checking transparency *)
+    let transparent = is_transparent typed_tyf in
+    if (not transparent) then
+      print_endline "This formula cannot be transparently enforced.";
+    tf
+    
+  let exec (f: Formula.t) inc (b: Time.Span.s) =
+    let tf = compile f b in
+    exec' tf inc b
 
 end

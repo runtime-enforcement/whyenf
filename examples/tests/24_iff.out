@@ -1,7 +1,7 @@
 The formula
- □[0s,∞) (∀x. (C(x, x) → D(x)) ∧ (D(x) → C(x, x)))
+ □[0s,∞) (∀x:int. (D(x:int) → C(x:int, x:int)) ∧ (C(x:int, x:int) → D(x:int)))
 is enforceable and types to
- □[0s,∞) ((∀x. (((C(x, x) →:R (D(x) : Cau)) : Cau) ∧:L ((D(x) →:R (C(x, x) : Cau)) : Cau) : Cau)) : Cau) : Cau
+ □[0s,∞) ((∀x:int. (((C(x:int, x:int) →:R (D(x:int) : Cau)) : Cau) ∧:L ((D(x:int) →:R (C(x:int, x:int) : Cau)) : Cau) : Cau)) : Cau) : Cau
 [Enforcer] @1 reactively commands:
 Cause:
 D(1)

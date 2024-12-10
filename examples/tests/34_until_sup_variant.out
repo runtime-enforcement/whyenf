@@ -1,7 +1,7 @@
 The formula
- □[0s,∞) (∀x. A(x) → ¬(B(x) U[0s,20s] C(x)))
+ □[0s,∞) (∀x:int. A(x:int) → ¬(B(x:int) U[0s,20s] C(x:int)))
 is enforceable and types to
- □[0s,∞) ((∀x. (A(x) →:R (¬((B(x) U[0s,20s]:R (C(x) : Sup)) : Sup) : Cau) : Cau)) : Cau) : Cau
+ □[0s,∞) ((∀x:int. (A(x:int) →:R (¬((B(x:int) U[0s,20s]:R (C(x:int) : Sup)) : Sup) : Cau) : Cau)) : Cau) : Cau
 [Enforcer] @10 OK.
 [Enforcer] @10 nothing to do proactively.
 [Enforcer] @11 nothing to do proactively.

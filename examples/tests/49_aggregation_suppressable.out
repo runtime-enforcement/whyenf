@@ -1,7 +1,7 @@
 The formula
- □[0s,∞) (∀s. ∀y. A(s) → ¬(s <- SUM(x; y; B(x) ∧ C(y))))
+ □[0s,∞) (∀s:int. ∀y:int. A(s:int) → ¬(s:int <- SUM(x:int; y:int; C(y:int) ∧ B(x:int))))
 is enforceable and types to
- □[0s,∞) ((∀s. (∀y. (A(s) →:R (¬((((∃x. (B(x) ∧:R (C(y) : Sup) : Sup)) : Sup) ∧:L (s <- SUM(x; y; B(x) ∧ C(y)))) : Sup) : Cau) : Cau) : Cau)) : Cau) : Cau
+ □[0s,∞) ((∀s:int. (∀y:int. (A(s:int) →:R (¬((((∃x:int. (B(x:int) ∧:R (C(y:int) : Sup) : Sup)) : Sup) ∧:L (s:int <- SUM(x:int; y:int; B(x:int) ∧ C(y:int)))) : Sup) : Cau) : Cau) : Cau)) : Cau) : Cau
 [Enforcer] @1 OK.
 [Enforcer] @1 nothing to do proactively.
 [Enforcer] @2 reactively commands:

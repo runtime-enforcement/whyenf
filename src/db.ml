@@ -1,9 +1,9 @@
 open Base
 
-module Dom = MFOTL_lib.Dom
-module Etc = MFOTL_lib.Etc
-module Time = MFOTL_lib.Time
+open MFOTL_lib
 
+module Ctxt = Ctxt.Make(Dom)
+  
 module Event = struct
 
   module T = struct
