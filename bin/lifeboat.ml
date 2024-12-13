@@ -68,8 +68,6 @@ module Lifeboat = struct
 
     match !formula_ref with
     | Some sformula ->
-        let (module E : Expl.ExplT) = (module Expl.Make(Expl.LightProof)) in
-        let module Enforcer = Enforcer.Make(E) in
         let _ = Enforcer.exec (Formula.init sformula) !inc_ref !b_ref in
         ()
     | None ->

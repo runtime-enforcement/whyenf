@@ -71,3 +71,5 @@ type string_set_list = (string, Base.String.comparator_witness) Base.Set.t list
 val inter_string_set_list: string_set_list list -> string_set_list
 
 val list_intersection: ('a -> 'a -> bool) -> 'a list list -> 'a list
+
+val option_to_string : ('a -> string) -> 'a option -> string

@@ -138,7 +138,7 @@ module Pdt = struct
   let unleaf = function
     | Leaf l -> Some l
     | _ -> None
-    
+  
   let unleaf_exn = function
     | Leaf l -> l
     | _ -> raise (Invalid_argument "function not defined for nodes")
@@ -220,7 +220,7 @@ module Pdt = struct
     | None :: xs, y :: ys -> papply_list (fun zs -> f (y :: zs)) xs ys 
     | Some x :: xs, ys -> papply_list (fun zs -> f (x :: zs)) xs ys 
     | _, _ -> raise (Invalid_argument "cannot use papply_list if the ys list is empty")
-    
+  
   let rec applyN lbls f pdts = match lbls with
     | w :: lbls ->
        let f' = papply_list f (List.map ~f:unleaf pdts) in
@@ -238,7 +238,7 @@ module Pdt = struct
   let rec split_prod = function
     | Leaf (l1, l2) -> (Leaf l1, Leaf l2)
     | Node (x, part) -> let (part1, part2) = Part.split_prod (Part.map part split_prod) in
-                           (Node (x, part1), Node (x, part2))
+                        (Node (x, part1), Node (x, part2))
 
   let rec split_list = function
     | Leaf l -> List.map l ~f:(fun el -> Leaf el)
@@ -257,9 +257,9 @@ module Pdt = struct
     |  _ , Leaf l -> Leaf (f_leaf l)
     | [_], Node (_, part) -> Leaf (f_node (Part.map part unleaf))
     | x :: vars, Node (y, part) -> if Lbl.equal x y then
-                                        Node (y, Part.map part (hide vars f_leaf f_node))
-                                      else
-                                        hide vars f_leaf f_node (Node (y, part))
+                                     Node (y, Part.map part (hide vars f_leaf f_node))
+                                   else
+                                     hide vars f_leaf f_node (Node (y, part))
     | _ -> raise (Invalid_argument "function not defined for other cases")
 
   (* reduce related *)
@@ -330,7 +330,7 @@ module Pdt = struct
   let rec specialize_partial (v: Etc.valuation) = function
     | Leaf l -> Leaf l
     | Node (LEx x as lbl, part)
-    | Node (LAll x as lbl, part) -> Node (lbl, Part.map part (specialize_partial (Map.remove v x)))
+      | Node (LAll x as lbl, part) -> Node (lbl, Part.map part (specialize_partial (Map.remove v x)))
     | Node (x, part) ->
        match (Lbl.eval v x).trm with
        | Const d -> specialize_partial v (Part.find part d)
@@ -402,16 +402,16 @@ module Pdt = struct
                  Set.is_subset
                    (Set.of_list (module String) (Term.fv_list terms))
                    ~of_:((Set.of_list (module String) (x :: (Map.keys v)))) ->
-                let f d =
-                  let v = Map.update v x ~f:(fun _ -> d) in
-                  let d' = Term.unconst (Lbl.eval v term) in
-                  aux v x (Setc.singleton (module Dom) d)
-                    (snd (Part.find3 part (fun s -> Setc.mem s d'))) in
-                let s = Setc.union_list (module Dom) (List.map (Set.elements s) ~f) in
-                s
+             let f d =
+               let v = Map.update v x ~f:(fun _ -> d) in
+               let d' = Term.unconst (Lbl.eval v term) in
+               aux v x (Setc.singleton (module Dom) d)
+                 (snd (Part.find3 part (fun s -> Setc.mem s d'))) in
+             let s = Setc.union_list (module Dom) (List.map (Set.elements s) ~f) in
+             s
           | _ -> s)
     in aux v x (Setc.univ (module Dom)) p
-    
+  
   let rec from_valuation (lbls: Lbl.t list) (v: Etc.valuation) p p' =
     match lbls with
     | [] -> Leaf p
@@ -430,493 +430,137 @@ module Pdt = struct
 
 end
 
-module type ProofT = sig
+type t = bool Pdt.t
 
-  type sp
-  type vp
+let rec is_violated = function
+  | Pdt.Leaf l -> not l
+  | Node (_, part) -> Part.exists part is_violated
 
-  type t = S of sp | V of vp
+let rec is_satisfied = function
+  | Pdt.Leaf l -> l
+  | Node (_, part) -> Part.exists part is_satisfied
 
-  val s_equal: sp -> sp -> bool
-  val v_equal: vp -> vp -> bool
-  val equal: t -> t -> bool
+let to_string expl = Pdt.to_string Bool.to_string "" expl
 
-  val unS: t -> sp
-  val unV: t -> vp
-  val isS: t -> bool
-  val isV: t -> bool
+let to_light_string expl = Pdt.to_light_string Bool.to_string "" expl
 
-  val s_append: sp -> sp -> sp
-  val v_append: vp -> vp -> vp
-  val s_drop: sp -> sp option
-  val v_drop: vp -> vp option
+let rec pdt_of tp r trms (lbls: Lbl.t list) maps : t = match lbls with
+  | [] -> Leaf true
+  | lbl :: lbls ->
+     let ds = List.filter_map maps ~f:(fun map -> Map.find map lbl) in
+     let find_maps d =
+       List.filter_map maps ~f:(fun map -> match Map.find map lbl with
+                                           | Some d' when Dom.equal d d' -> Some map
+                                           | _ -> None)  in
+     if List.is_empty ds then
+       pdt_of tp r trms lbls maps
+     else
+       let part = Part.tabulate_dedup (Pdt.eq Bool.equal) (Set.of_list (module Dom) ds)
+                    (fun d -> pdt_of tp r trms lbls (find_maps d))
+                    (Leaf false) in
+       Node (lbl, part)
 
-  val s_at: sp -> int
-  val v_at: vp -> int
-  val p_at: t -> int
-
-  val s_ltp: sp -> int
-  val v_etp: vp -> int
-
-  val s_to_string: string -> sp -> string
-  val v_to_string: string -> vp -> string
-  val to_string: string -> t -> string
-  val to_bool: t -> string
-
-  val make_stt: int -> sp
-  val make_seqconst: int -> Term.t -> Dom.t -> sp
-  val make_spred: int -> string -> Term.t list -> sp
-  val make_sneg: vp -> sp
-  val make_sorl: sp -> sp
-  val make_sorr: sp -> sp
-  val make_sand: sp -> sp -> sp
-  val make_simpl: vp -> sp
-  val make_simpr: sp -> sp
-  val make_siffss: sp -> sp -> sp
-  val make_siffvv: vp -> vp -> sp
-  val make_sexists: string -> Dom.t -> sp -> sp
-  val make_sforall: string -> sp Part.t -> sp
-  val make_sprev: sp -> sp
-  val make_snext: sp -> sp
-  val make_snextassm: int -> sp
-  val make_sonce: int -> sp -> sp
-  val make_seventually: int -> sp -> sp
-  val make_seventuallyassm: int -> Interval.t -> sp
-  val make_seventuallynow: sp -> Interval.t -> sp
-  val make_shistorically: int -> int -> sp Fdeque.t -> sp
-  val make_shistoricallyout: int -> sp
-  val make_salways: int -> int -> sp Fdeque.t -> sp
-  val make_salwaysassm: int -> sp option -> Interval.t -> sp
-  val make_ssince: sp -> sp Fdeque.t -> sp
-  val make_suntil: sp -> sp Fdeque.t -> sp
-  val make_suntilassm: int -> sp -> Interval.t -> sp
-  val make_suntilnow: sp -> Interval.t -> sp
-
-  val make_vff: int -> vp
-  val make_veqconst: int -> Term.t -> Dom.t -> vp
-  val make_vpred: int -> string -> Term.t list -> vp
-  val make_vneg: sp -> vp
-  val make_vor: vp -> vp -> vp
-  val make_vandl: vp -> vp
-  val make_vandr: vp -> vp
-  val make_vimp: sp -> vp -> vp
-  val make_viffsv: sp -> vp -> vp
-  val make_viffvs: vp -> sp -> vp
-  val make_vexists: string -> vp Part.t -> vp
-  val make_vforall: string -> Dom.t -> vp -> vp
-  val make_vprev: vp -> vp
-  val make_vprev0: vp
-  val make_vprevoutl: int -> vp
-  val make_vprevoutr: int -> vp
-  val make_vnext: vp -> vp
-  val make_vnextoutl: int -> vp
-  val make_vnextoutr: int -> vp
-  val make_vnextassm: int -> Interval.t -> vp
-  val make_vonceout: int -> vp
-  val make_vonce: int -> int -> vp Fdeque.t -> vp
-  val make_veventually: int -> int -> vp Fdeque.t -> vp
-  val make_veventuallyassm: int -> vp option -> Interval.t -> vp
-  val make_vhistorically: int -> vp -> vp
-  val make_valways: int -> vp -> vp
-  val make_valwaysassm: int -> Interval.t -> vp
-  val make_valwaysnow: vp -> Interval.t -> vp
-  val make_vsinceout: int -> vp
-  val make_vsince: int -> vp -> vp Fdeque.t -> vp
-  val make_vsinceinf: int -> int -> vp Fdeque.t -> vp
-  val make_vuntil: int -> vp -> vp Fdeque.t -> vp
-  val make_vuntilinf: int -> int -> vp Fdeque.t -> vp
-  val make_vuntilassm: int -> vp -> Interval.t -> vp
-  val make_vuntilnow: vp -> Interval.t -> vp
-
-  val decompose_vsince: vp -> (vp * vp Fdeque.t) option
-  val decompose_vuntil: vp -> (vp * vp Fdeque.t) option
-  
-  module Size : sig
-
-    val minp_bool: t -> t -> bool
-    val minp: t -> t -> t
-    val minp_list: t list -> t
-
-  end
-
-end
-
-module type ExplT = sig
-
-  module Proof: ProofT
-  type t = Proof.t Pdt.t
-
-  val is_violated: t -> bool
-  val is_satisfied: t -> bool
-  val at: t -> int
-
-  val to_string: t -> string
-  val to_light_string: t -> string
-  
-  val pdt_of: int -> string -> Term.t list -> Lbl.t list -> (Lbl.t, Dom.t, 'a) Map.t list -> Proof.t Pdt.t
-
-  val table_operator: (Dom.t list list -> Dom.t list list) -> string list -> int -> Term.t list -> string list -> Lbl.t list -> Lbl.t list -> t -> t
-  val aggregate: ((Dom.t, Dom.comparator_witness) Multiset.t -> Dom.t) -> string -> int -> Term.t -> string list -> Lbl.t list -> Lbl.t list -> t -> t
-  
-end
-
-type t_sp =
-  | STT of int
-  | SEqConst of int * Term.t * Dom.t
-  | SPred of int * string * Term.t list
-  | SNeg of t_vp
-  | SOrL of t_sp
-  | SOrR of t_sp
-  | SAnd of t_sp * t_sp
-  | SImpL of t_vp
-  | SImpR of t_sp
-  | SIffSS of t_sp * t_sp
-  | SIffVV of t_vp * t_vp
-  | SExists of string * Dom.t * t_sp
-  | SForall of string * (t_sp Part.t)
-  | SPrev of t_sp
-  | SNext of t_sp
-  | SNextAssm of int
-  | SOnce of int * t_sp
-  | SEventually of int * t_sp
-  | SEventuallyAssm of int * Interval.t
-  | SEventuallyNow of t_sp * Interval.t
-  | SHistorically of int * int * t_sp Fdeque.t
-  | SHistoricallyOut of int
-  | SAlways of int * int * t_sp Fdeque.t
-  | SAlwaysAssm of int * t_sp option * Interval.t
-  | SSince of t_sp * t_sp Fdeque.t
-  | SUntil of t_sp * t_sp Fdeque.t
-  | SUntilAssm of int * t_sp * Interval.t
-  | SUntilNow of t_sp * Interval.t
-and t_vp =
-  | VFF of int
-  | VEqConst of int * Term.t * Dom.t
-  | VPred of int * string * Term.t list
-  | VNeg of t_sp
-  | VOr of t_vp * t_vp
-  | VAndL of t_vp
-  | VAndR of t_vp
-  | VImp of t_sp * t_vp
-  | VIffSV of t_sp * t_vp
-  | VIffVS of t_vp * t_sp
-  | VExists of string * (t_vp Part.t)
-  | VForall of string * Dom.t * t_vp
-  | VPrev of t_vp
-  | VPrev0
-  | VPrevOutL of int
-  | VPrevOutR of int
-  | VNext of t_vp
-  | VNextOutL of int
-  | VNextOutR of int
-  | VNextAssm of int * Interval.t
-  | VOnceOut of int
-  | VOnce of int * int * t_vp Fdeque.t
-  | VEventually of int * int * t_vp Fdeque.t
-  | VEventuallyAssm of int * t_vp option * Interval.t
-  | VHistorically of int * t_vp
-  | VAlways of int * t_vp
-  | VAlwaysAssm of int * Interval.t
-  | VAlwaysNow of t_vp * Interval.t
-  | VSinceOut of int
-  | VSince of int * t_vp * t_vp Fdeque.t
-  | VSinceInf of int * int * t_vp Fdeque.t
-  | VUntil of int * t_vp * t_vp Fdeque.t
-  | VUntilInf of int * int * t_vp Fdeque.t
-  | VUntilAssm of int * t_vp * Interval.t
-  | VUntilNow of t_vp * Interval.t
-
-
-module LightProof : ProofT with type sp = int and type vp = int = struct
-
-  type sp = int
-  type vp = int
-  
-  type t = S of sp | V of vp
-
-  let s_equal = Int.equal
-  let v_equal = Int.equal
- 
-  let equal x y = match x, y with
-    | S sp, S sp' -> s_equal sp sp'
-    | V vp, V vp' -> v_equal vp vp' 
-    | _ -> false
-
-  let unS = function
-    | S tp -> tp
-    | _ -> raise (Invalid_argument "unS is not defined for V proofs")
-
-  let unV = function
-    | V tp -> tp
-    | _ -> raise (Invalid_argument "unV is not defined for S proofs")
-
-  let isS = function
-    | S _ -> true
-    | V _ -> false
-
-  let isV = function
-    | S _ -> false
-    | V _ -> true
-
-  let s_append sp _ = sp
-
-  let v_append vp _ = vp
-
-  let s_drop _ = None
-
-  let v_drop _ = None
-
-  let s_at sp = sp
-  let v_at vp = vp
-
-  let p_at = function
-    | S sp -> s_at sp
-    | V vp -> v_at vp
-
-  let s_ltp _ = 0
-
-  let v_etp _ = 0
-
-  (*let cmp f p1 p2 = f p1 <= f p2*)
-
-  let s_to_string indent sp =
-    Printf.sprintf "%strue{%d}" indent sp
-
-  let v_to_string indent vp =
-    Printf.sprintf "%sfalse{%d}" indent vp
-
-  let to_string indent = function
-    | S sp -> s_to_string indent sp
-    | V vp -> v_to_string indent vp
-
-  let to_bool = function 
-    | S _ -> "true\n"
-    | V _ -> "false\n"
-
-  let make_stt tp = tp
-  let make_seqconst tp _ _ = tp
-  let make_spred tp _ _ = tp
-  let make_sneg vp = vp
-  let make_sorl sp = sp
-  let make_sorr sp = sp
-  let make_sand sp1 _ = sp1
-  let make_simpl vp = vp
-  let make_simpr sp = sp
-  let make_siffss sp1 _ = sp1
-  let make_siffvv vp1 _ = vp1
-  let make_sexists _ _ sp = sp
-  let make_sforall _ sps = Part.hd sps
-  let make_sprev sp = sp + 1
-  let make_snext sp = sp - 1
-  let make_snextassm tp = tp 
-  let make_sonce tp _ = tp
-  let make_seventually tp _ = tp
-  let make_seventuallyassm tp _ = tp
-  let make_seventuallynow sp _ = sp
-  let make_shistorically tp _ _ = tp
-  let make_shistoricallyout tp = tp
-  let make_salways tp _ _ = tp
-  let make_salwaysassm tp _ _ = tp
-  let make_ssince sp _ = sp
-  let make_suntil sp _ = sp
-  let make_suntilassm tp _ _ = tp
-  let make_suntilnow sp _ = sp
-
-  let make_vff tp = tp
-  let make_veqconst tp _ _ = tp
-  let make_vpred tp _ _ = tp
-  let make_vneg sp = sp
-  let make_vor vp1 _ = vp1
-  let make_vandl vp = vp
-  let make_vandr vp = vp
-  let make_vimp sp _ = sp
-  let make_viffsv sp _ = sp
-  let make_viffvs vp _ = vp
-  let make_vexists _ vps = Part.hd vps
-  let make_vforall _ _ vp = vp
-  let make_vprev vp = vp + 1
-  let make_vprev0 = 0
-  let make_vprevoutl tp = tp
-  let make_vprevoutr tp = tp
-  let make_vnext vp = vp - 1
-  let make_vnextoutl tp = tp
-  let make_vnextoutr tp = tp
-  let make_vnextassm tp _ = tp
-  let make_vonceout tp = tp
-  let make_vonce tp _ _ = tp
-  let make_veventually tp _ _ = tp
-  let make_veventuallyassm tp _ _ = tp
-  let make_vhistorically tp _ = tp
-  let make_valways tp _ = tp
-  let make_valwaysassm tp _ = tp
-  let make_valwaysnow vp _ = vp
-  let make_vsinceout tp = tp
-  let make_vsince tp _ _ = tp
-  let make_vsinceinf tp _ _ = tp
-  let make_vuntil tp _ _ = tp
-  let make_vuntilinf tp _ _ = tp
-  let make_vuntilassm tp _ _ = tp
-  let make_vuntilnow vp _ = vp
-
-  let decompose_vsince vp = Some (vp, Fdeque.of_list [])
-
-  let decompose_vuntil vp = Some (vp, Fdeque.of_list [])
-
-  module Size = struct
-
-    let minp_bool _ _ = true
-    let minp x _ = x
-    let minp_list = function
-      | [] -> raise (Invalid_argument "function not defined for empty lists")
-      | x :: _ -> x
-
-  end
-
-end
-
-module Make (P: ProofT) = struct
-
-  module Proof = P
-  type t = Proof.t Pdt.t
-
-  let rec is_violated = function
-    | Pdt.Leaf l -> (match l with
-                     | Proof.S _ -> false
-                     | V _ -> true)
-    | Node (_, part) -> Part.exists part is_violated
-
-  let rec is_satisfied = function
-    | Pdt.Leaf l -> (match l with
-                     | Proof.S _ -> true
-                     | V _ -> false)
-    | Node (_, part) -> Part.exists part is_satisfied
-
-  let rec at = function
-    | Pdt.Leaf pt -> Proof.p_at pt
-    | Node (_, part) -> at (Part.hd part)
-
-  let to_string expl = Pdt.to_string (Proof.to_string "") "" expl
-
-  let to_light_string expl = Pdt.to_light_string Proof.to_bool "" expl
-
-  let rec pdt_of tp r trms (lbls: Lbl.t list) maps : t = match lbls with
-    | [] -> Leaf (S (Proof.make_spred tp r trms))
-    | lbl :: lbls ->
-       let ds = List.filter_map maps ~f:(fun map -> Map.find map lbl) in
-       let find_maps d =
-         List.filter_map maps ~f:(fun map -> match Map.find map lbl with
-                                             | Some d' when Dom.equal d d' -> Some map
-                                             | _ -> None)  in
-       if List.is_empty ds then
-         pdt_of tp r trms lbls maps
-       else
-         let part = Part.tabulate_dedup (Pdt.eq Proof.equal) (Set.of_list (module Dom) ds)
-                      (fun d -> pdt_of tp r trms lbls (find_maps d))
-                      (Leaf (V (Proof.make_vpred tp r trms))) in
-         Node (lbl, part)
-
-  (* [s_1, ..., s_k] <- OP (y; f) where p is a Pdt for f *)
-  let table_operator (op: Dom.t list list -> Dom.t list list) (s: string list) tp x y lbls lbls' p =
-    let merge_pdts merge = function
-      | [] -> raise (Invalid_argument "cannot merge 0 PDTs")
-      | [pdt] -> pdt
-      | pdts -> Pdt.applyN_reduce (List.equal Etc.equal_valuation) lbls' merge pdts in
-    let tabulate sv =
-      let aux vs = function
-        | (Term.Var x, Setc.Finite s) ->
-           List.concat_map (Set.elements s) ~f:(fun d ->
-               List.map vs ~f:(fun v -> Map.update v x ~f:(fun _ -> d)))
-        | (Term.Const d, s) when Setc.mem s d -> vs
-        | (Term.Const _, _) -> []
-        | (trm, s) -> List.filter vs ~f:(fun v -> Setc.mem s (Term.unconst (Sig.eval v (Term.make_dummy trm)))) in
-      List.fold_left sv ~init:([Map.empty (module String)]) ~f:aux in 
-    let rec gather sv gs trms w p  =
-      (*print_endline "--gather"; 
+(* [s_1, ..., s_k] <- OP (y; f) where p is a Pdt for f *)
+let table_operator (op: Dom.t list list -> Dom.t list list) (s: string list) tp x y lbls lbls' p =
+  let merge_pdts merge = function
+    | [] -> raise (Invalid_argument "cannot merge 0 PDTs")
+    | [pdt] -> pdt
+    | pdts -> Pdt.applyN_reduce (List.equal Etc.equal_valuation) lbls' merge pdts in
+  let tabulate sv =
+    let aux vs = function
+      | (Term.Var x, Setc.Finite s) ->
+         List.concat_map (Set.elements s) ~f:(fun d ->
+             List.map vs ~f:(fun v -> Map.update v x ~f:(fun _ -> d)))
+      | (Term.Const d, s) when Setc.mem s d -> vs
+      | (Term.Const _, _) -> []
+      | (trm, s) -> List.filter vs ~f:(fun v -> Setc.mem s (Term.unconst (Sig.eval v (Term.make_dummy trm)))) in
+    List.fold_left sv ~init:([Map.empty (module String)]) ~f:aux in 
+  let rec gather sv gs trms w p  =
+    (*print_endline "--gather"; 
       print_endline (String.concat ~sep:", " (List.map ~f:Lbl.to_string trms));
       print_endline (String.concat ~sep:", " gs);*)
-      match p, gs, trms with
-      | Pdt.Leaf l, _, _ when Proof.isS l ->
-         Pdt.Leaf (tabulate (List.rev sv))
-      | Leaf _, _, _ -> Leaf []
-      | Node (lbl, _), g :: gs, trm :: trms
-           when not (Lbl.equal trm lbl) && Lbl.equal trm (LVar g) ->
-         gather sv gs trms w p
-      | Node (lbl, _), _, trm :: trms when not (Lbl.equal trm lbl) ->
-         gather sv gs trms w p
-      | Node (lbl, part), g :: gs, _ :: trms when Lbl.equal (LVar g) lbl ->
-         let part = Part.map2 part (fun (s, p) -> (s, gather ((Var g, s)::sv) gs trms w p)) in
-         Node (lbl, part)
-      | Node (LEx x', part), _, _ :: trms ->
-         let pdts = List.concat (Part.map2 part (Pdt.distribute x' (gather sv gs trms) w)) in
-         merge_pdts List.concat pdts 
-      | Node (LAll x', part), _, _ :: trms ->
-         let pdts = List.concat (Part.map2 part (Pdt.distribute x' (gather sv gs trms) w)) in
-         merge_pdts (Etc.list_intersection Etc.equal_valuation) pdts 
-      | Node (lbl, part), _, _ :: trms ->
-         let pdts = Part.map2 part (fun (s, p) -> gather (((Lbl.term lbl).trm, s)::sv) gs trms w p) in
-         merge_pdts List.concat pdts
-      | Node _, _, [] -> raise (Invalid_argument "there are no labels left to process node") in
-    let rec collect_leaf_values x = function
-      | Pdt.Leaf None  -> Set.empty (module Dom)
-      | Leaf (Some vs) -> Set.of_list (module Dom) (List.map ~f:(fun v -> Map.find_exn v x) vs)
-      | Node (_, part) -> Set.union_list (module Dom)
-                            (List.map part ~f:(fun (_, pdt) -> collect_leaf_values x pdt)) in
-    let rec insert lbls (v: Etc.valuation) (pdt: Etc.valuation list option Pdt.t) =
-      (*print_endline ("--insert_aggregations");
+    match p, gs, trms with
+    | Pdt.Leaf true, _, _ -> 
+       Pdt.Leaf (tabulate (List.rev sv))
+    | Leaf _, _, _ -> Leaf []
+    | Node (lbl, _), g :: gs, trm :: trms
+         when not (Lbl.equal trm lbl) && Lbl.equal trm (LVar g) ->
+       gather sv gs trms w p
+    | Node (lbl, _), _, trm :: trms when not (Lbl.equal trm lbl) ->
+       gather sv gs trms w p
+    | Node (lbl, part), g :: gs, _ :: trms when Lbl.equal (LVar g) lbl ->
+       let part = Part.map2 part (fun (s, p) -> (s, gather ((Var g, s)::sv) gs trms w p)) in
+       Node (lbl, part)
+    | Node (LEx x', part), _, _ :: trms ->
+       let pdts = List.concat (Part.map2 part (Pdt.distribute x' (gather sv gs trms) w)) in
+       merge_pdts List.concat pdts 
+    | Node (LAll x', part), _, _ :: trms ->
+       let pdts = List.concat (Part.map2 part (Pdt.distribute x' (gather sv gs trms) w)) in
+       merge_pdts (Etc.list_intersection Etc.equal_valuation) pdts 
+    | Node (lbl, part), _, _ :: trms ->
+       let pdts = Part.map2 part (fun (s, p) -> gather (((Lbl.term lbl).trm, s)::sv) gs trms w p) in
+       merge_pdts List.concat pdts
+    | Node _, _, [] -> raise (Invalid_argument "there are no labels left to process node") in
+  let rec collect_leaf_values x = function
+    | Pdt.Leaf None  -> Set.empty (module Dom)
+    | Leaf (Some vs) -> Set.of_list (module Dom) (List.map ~f:(fun v -> Map.find_exn v x) vs)
+    | Node (_, part) -> Set.union_list (module Dom)
+                          (List.map part ~f:(fun (_, pdt) -> collect_leaf_values x pdt)) in
+  let rec insert lbls (v: Etc.valuation) (pdt: Etc.valuation list option Pdt.t) =
+    (*print_endline ("--insert_aggregations");
       print_endline ("insert_aggregations.lbls=" ^ String.concat ~sep:", " (List.map ~f:Lbl.to_strigbng lbls));*)
-      (*let print_pdt pdt =
-        Pdt.to_string (fun vs_opt ->
-            match vs_opt with
-            | None -> ""
-            | Some vs -> Etc.list_to_string "" (fun _ -> Etc.valuation_to_string) vs) "" pdt in
+    (*let print_pdt pdt =
+      Pdt.to_string (fun vs_opt ->
+      match vs_opt with
+      | None -> ""
+      | Some vs -> Etc.list_to_string "" (fun _ -> Etc.valuation_to_string) vs) "" pdt in
       print_endline ("insert_aggregations.pdt =" ^ print_pdt pdt);*)
-(*      print_endline ("insert_aggregations.s   =" ^ Etc.list_to_string "" (fun _ x -> x) s);*)
-      let r = "~aggregate" and trms = List.map ~f:(fun v -> Term.make_dummy (Term.var v)) s in
-      match pdt, lbls with
-      | _, (Lbl.LVar x') :: lbls when List.mem s x' ~equal:String.equal ->
-         (*print_endline "case 1";*)
-         let ds = collect_leaf_values x' pdt in
-         (if Set.is_empty ds then
-            Pdt.Leaf (P.V (Proof.make_vpred tp r trms))
-          else
-            let v d = Map.update v x' ~f:(fun _ -> d) in
-            let parts = Part.tabulate_dedup (Pdt.eq Proof.equal) ds
-                          (fun d -> insert lbls (v d) pdt)
-                          (Leaf (V (Proof.make_vpred tp r trms))) in
-            Pdt.Node (Lbl.LVar x', parts)
-            (*print_endline ("p=" ^ Pdt.to_string (P.to_string "") "" p);         
-            p*))
-      | Node (lbl', part), lbl :: lbls when Lbl.equal lbl lbl' ->
-         (*print_endline "case 2";*)
-         (*let p = *)Pdt.Node (lbl', Part.map part (insert lbls v))(* in*)
-         (*print_endline ("p=" ^ Pdt.to_string (P.to_string "") "" p);
-         p*)
-      | Node _, _ :: lbls ->
-         (*print_endline "case 3";*)
-         insert lbls v pdt
-      | Node _, [] -> raise (Invalid_argument "there are no labels left to process node")
-      | Leaf (Some vs), _ ->
-         if List.exists vs ~f:(fun v' ->
-                Map.for_alli v ~f:(fun ~key ~data -> Dom.equal (Map.find_exn v' key) data))
-         then Pdt.Leaf (S (Proof.make_spred tp r trms))
-         else Pdt.Leaf (V (Proof.make_vpred tp r trms))
-      | Leaf None, _ ->
-         Pdt.Leaf (V (Proof.make_vpred tp r trms))
-    in
-    let apply_op (vs: Etc.valuation list) : Etc.valuation list option =
-      if List.is_empty vs && List.length y > 0
-      then None
-      else (
-        let dss = List.map ~f:(fun v -> List.map ~f:(fun x -> Term.unconst (Sig.eval v x)) x) vs in
-        
-        let vs = List.map ~f:(fun v -> Map.of_alist_exn (module String) (List.zip_exn s v)) (op dss) in
-        Some vs) in
-    insert lbls Etc.empty_valuation
-      (Pdt.apply1 lbls' apply_op (gather [] y lbls' Etc.empty_valuation p))
+    (*      print_endline ("insert_aggregations.s   =" ^ Etc.list_to_string "" (fun _ x -> x) s);*)
+    let r = "~aggregate" and trms = List.map ~f:(fun v -> Term.make_dummy (Term.var v)) s in
+    match pdt, lbls with
+    | _, (Lbl.LVar x') :: lbls when List.mem s x' ~equal:String.equal ->
+       (*print_endline "case 1";*)
+       let ds = collect_leaf_values x' pdt in
+       (if Set.is_empty ds then
+          Pdt.Leaf false
+        else
+          let v d = Map.update v x' ~f:(fun _ -> d) in
+          let parts = Part.tabulate_dedup (Pdt.eq Bool.equal) ds
+                        (fun d -> insert lbls (v d) pdt)
+                        (Leaf false) in
+          Pdt.Node (Lbl.LVar x', parts)
+       (*print_endline ("p=" ^ Pdt.to_string (P.to_string "") "" p);         
+         p*))
+    | Node (lbl', part), lbl :: lbls when Lbl.equal lbl lbl' ->
+       (*print_endline "case 2";*)
+       (*let p = *)Pdt.Node (lbl', Part.map part (insert lbls v))(* in*)
+    (*print_endline ("p=" ^ Pdt.to_string (P.to_string "") "" p);
+      p*)
+    | Node _, _ :: lbls ->
+       (*print_endline "case 3";*)
+       insert lbls v pdt
+    | Node _, [] -> raise (Invalid_argument "there are no labels left to process node")
+    | Leaf (Some vs), _ ->
+       if List.exists vs ~f:(fun v' ->
+              Map.for_alli v ~f:(fun ~key ~data -> Dom.equal (Map.find_exn v' key) data))
+       then Pdt.Leaf true
+       else Pdt.Leaf false
+    | Leaf None, _ ->
+       Pdt.Leaf false
+  in
+  let apply_op (vs: Etc.valuation list) : Etc.valuation list option =
+    if List.is_empty vs && List.length y > 0
+    then None
+    else (
+      let dss = List.map ~f:(fun v -> List.map ~f:(fun x -> Term.unconst (Sig.eval v x)) x) vs in
+      
+      let vs = List.map ~f:(fun v -> Map.of_alist_exn (module String) (List.zip_exn s v)) (op dss) in
+      Some vs) in
+  insert lbls Etc.empty_valuation
+    (Pdt.apply1 lbls' apply_op (gather [] y lbls' Etc.empty_valuation p))
 
-  let aggregate (agg: (Dom.t, Dom.comparator_witness) Multiset.t -> Dom.t) s tp x_trm y lbls lbls' p =
-    let multiset dss = Multiset.of_list (module Dom) (List.map ~f:List.hd_exn dss) in
-    table_operator (fun dss -> [[agg (multiset dss)]]) [s] tp [x_trm] y lbls lbls' p
+let aggregate (agg: (Dom.t, Dom.comparator_witness) Multiset.t -> Dom.t) s tp x_trm y lbls lbls' p =
+  let multiset dss = Multiset.of_list (module Dom) (List.map ~f:List.hd_exn dss) in
+  table_operator (fun dss -> [[agg (multiset dss)]]) [s] tp [x_trm] y lbls lbls' p
 
 
-end
