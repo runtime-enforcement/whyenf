@@ -790,7 +790,10 @@ OK.
 [Enforcer] @785 nothing to do proactively.
 [Enforcer] @786 nothing to do proactively.
 [Enforcer] @787 nothing to do proactively.
-[Enforcer] @788 OK.
+[Enforcer] @788 reactively commands:
+Cause:
+alert("Data center "2" has rebooted too often")
+OK.
 [Enforcer] @788 nothing to do proactively.
 [Enforcer] @789 nothing to do proactively.
 [Enforcer] @790 nothing to do proactively.
@@ -950,7 +953,7 @@ OK.
 [Enforcer] @944 nothing to do proactively.
 [Enforcer] @945 reactively commands:
 Cause:
-alert("Data center "1" has rebooted too often")
+alert("Data center "3" has rebooted too often")
 OK.
 [Enforcer] @945 nothing to do proactively.
 [Enforcer] @946 nothing to do proactively.
@@ -1110,10 +1113,7 @@ OK.
 [Enforcer] @1100 nothing to do proactively.
 [Enforcer] @1101 nothing to do proactively.
 [Enforcer] @1102 nothing to do proactively.
-[Enforcer] @1103 reactively commands:
-Cause:
-alert("Data center "2" has rebooted too often")
-OK.
+[Enforcer] @1103 OK.
 [Enforcer] @1103 nothing to do proactively.
 [Enforcer] @1104 nothing to do proactively.
 [Enforcer] @1105 nothing to do proactively.
@@ -1300,7 +1300,10 @@ OK.
 [Enforcer] @1286 nothing to do proactively.
 [Enforcer] @1287 nothing to do proactively.
 [Enforcer] @1288 nothing to do proactively.
-[Enforcer] @1289 OK.
+[Enforcer] @1289 reactively commands:
+Cause:
+alert("Data center "1" has rebooted too often")
+OK.
 [Enforcer] @1289 nothing to do proactively.
 [Enforcer] @1290 nothing to do proactively.
 [Enforcer] @1291 nothing to do proactively.
@@ -1694,10 +1697,7 @@ OK.
 [Enforcer] @1675 nothing to do proactively.
 [Enforcer] @1676 nothing to do proactively.
 [Enforcer] @1677 nothing to do proactively.
-[Enforcer] @1678 reactively commands:
-Cause:
-alert("Data center "2" has rebooted too often")
-OK.
+[Enforcer] @1678 OK.
 [Enforcer] @1678 nothing to do proactively.
 [Enforcer] @1679 nothing to do proactively.
 [Enforcer] @1680 nothing to do proactively.
@@ -2071,7 +2071,7 @@ OK.
 [Enforcer] @2044 nothing to do proactively.
 [Enforcer] @2045 reactively commands:
 Cause:
-alert("Data center "3" has rebooted too often")
+alert("Data center "1" has rebooted too often")
 OK.
 [Enforcer] @2045 nothing to do proactively.
 [Enforcer] @2046 nothing to do proactively.
@@ -2264,7 +2264,7 @@ OK.
 [Enforcer] @2233 nothing to do proactively.
 [Enforcer] @2234 reactively commands:
 Cause:
-alert("Data center "1" has rebooted too often")
+alert("Data center "3" has rebooted too often")
 OK.
 [Enforcer] @2234 nothing to do proactively.
 [Enforcer] @2235 nothing to do proactively.
@@ -2488,7 +2488,10 @@ OK.
 [Enforcer] @2453 nothing to do proactively.
 [Enforcer] @2454 nothing to do proactively.
 [Enforcer] @2455 nothing to do proactively.
-[Enforcer] @2456 OK.
+[Enforcer] @2456 reactively commands:
+Cause:
+alert("Data center "2" has rebooted too often")
+OK.
 [Enforcer] @2456 nothing to do proactively.
 [Enforcer] @2457 nothing to do proactively.
 [Enforcer] @2458 nothing to do proactively.
@@ -2711,7 +2714,10 @@ OK.
 [Enforcer] @2675 nothing to do proactively.
 [Enforcer] @2676 nothing to do proactively.
 [Enforcer] @2677 nothing to do proactively.
-[Enforcer] @2678 OK.
+[Enforcer] @2678 reactively commands:
+Cause:
+alert("Data center "1" has rebooted too often")
+OK.
 [Enforcer] @2678 nothing to do proactively.
 [Enforcer] @2679 nothing to do proactively.
 [Enforcer] @2680 nothing to do proactively.
@@ -2935,7 +2941,10 @@ OK.
 [Enforcer] @2898 nothing to do proactively.
 [Enforcer] @2899 nothing to do proactively.
 [Enforcer] @2900 nothing to do proactively.
-[Enforcer] @2901 OK.
+[Enforcer] @2901 reactively commands:
+Cause:
+alert("Data center "3" has rebooted too often")
+OK.
 [Enforcer] @2901 nothing to do proactively.
 [Enforcer] @2902 nothing to do proactively.
 [Enforcer] @2903 nothing to do proactively.
@@ -3158,10 +3167,7 @@ OK.
 [Enforcer] @3120 nothing to do proactively.
 [Enforcer] @3121 nothing to do proactively.
 [Enforcer] @3122 nothing to do proactively.
-[Enforcer] @3123 reactively commands:
-Cause:
-alert("Data center "1" has rebooted too often")
-OK.
+[Enforcer] @3123 OK.
 [Enforcer] @3123 nothing to do proactively.
 [Enforcer] @3124 nothing to do proactively.
 [Enforcer] @3125 nothing to do proactively.
@@ -3830,10 +3836,7 @@ OK.
 [Enforcer] @3786 nothing to do proactively.
 [Enforcer] @3787 nothing to do proactively.
 [Enforcer] @3788 nothing to do proactively.
-[Enforcer] @3789 reactively commands:
-Cause:
-alert("Data center "2" has rebooted too often")
-OK.
+[Enforcer] @3789 OK.
 [Enforcer] @3789 nothing to do proactively.
 [Enforcer] @3790 nothing to do proactively.
 [Enforcer] @3791 nothing to do proactively.
@@ -4057,10 +4060,7 @@ OK.
 [Enforcer] @4009 nothing to do proactively.
 [Enforcer] @4010 nothing to do proactively.
 [Enforcer] @4011 nothing to do proactively.
-[Enforcer] @4012 reactively commands:
-Cause:
-alert("Data center "2" has rebooted too often")
-OK.
+[Enforcer] @4012 OK.
 [Enforcer] @4012 nothing to do proactively.
 [Enforcer] @4013 nothing to do proactively.
 [Enforcer] @4014 nothing to do proactively.
@@ -4283,10 +4283,7 @@ OK.
 [Enforcer] @4231 nothing to do proactively.
 [Enforcer] @4232 nothing to do proactively.
 [Enforcer] @4233 nothing to do proactively.
-[Enforcer] @4234 reactively commands:
-Cause:
-alert("Data center "2" has rebooted too often")
-OK.
+[Enforcer] @4234 OK.
 [Enforcer] @4234 nothing to do proactively.
 [Enforcer] @4235 nothing to do proactively.
 [Enforcer] @4236 nothing to do proactively.

@@ -49,7 +49,10 @@ OK.
 [Enforcer] @47 nothing to do proactively.
 [Enforcer] @48 nothing to do proactively.
 [Enforcer] @49 nothing to do proactively.
-[Enforcer] @50 OK.
+[Enforcer] @50 reactively commands:
+Suppress:
+C(2)
+OK.
 [Enforcer] @50 nothing to do proactively.
 [Enforcer] @51 nothing to do proactively.
 [Enforcer] @52 nothing to do proactively.

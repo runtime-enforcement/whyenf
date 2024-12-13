@@ -158,6 +158,21 @@ module MakeInterval (S : S) = struct
   let diff_is_in ts ts' i =
     not (diff_right_of ts ts' i || diff_left_of ts ts' i)
 
+  let out_left i =
+    if has_zero i then
+      None
+    else
+      Some (match i with
+            | B bt -> B (BI.make_exn (S.zero, S.dec (Option.value_exn (BI.left bt))))
+            | U ut -> B (BI.make_exn (S.zero, S.dec (Option.value_exn (UI.left ut)))))
+
+  let out_right = function
+    | B bt -> U (UI.make_exn (S.inc (Option.value_exn (BI.right bt))))
+    | U ut -> raise (Invalid_argument "Cannot compute out_right of an unbounded interval")
+
+  let to_zero = function
+    | B bt -> B (BI.make_exn (S.zero, Option.value_exn (BI.right bt)))
+    | U ut -> full
 
 end
 

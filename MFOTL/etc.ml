@@ -198,3 +198,7 @@ let list_intersection equal lists =
         List.mem lst elem ~equal
       )
     )
+
+let option_to_string f = function
+  | None -> "None"
+  | Some x -> Printf.sprintf "Some(%s)" (f x)

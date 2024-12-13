@@ -1,0 +1,18 @@
+The formula
+ LET B1(x:int) = B(add(x:int, 1)) ∧ B(x:int) IN LET B2(x:int) = B1(add(x:int, 2)) ∧ B1(x:int) IN LET B4(x:int) = B2(add(x:int, 4)) ∧ B2(x:int) IN LET B8(x:int) = B4(add(x:int, 8)) ∧ B4(x:int) IN □[0s,∞) (∀x:int. A(x:int) → B8(x:int))
+is enforceable and types to
+ LET B1٭(x:int) = B(x:int) ∧ B(add(x:int, 1)) IN (LET B2٭(x:int) = B1٭(x:int) ∧ B1٭(add(x:int, 2)) IN (LET B4٭(x:int) = B2٭(x:int) ∧ B2٭(add(x:int, 4)) IN (LET B8٭(x:int) = B4٭(x:int) ∧ B4٭(add(x:int, 8)) IN (□[0s,∞) ((∀x:int. (A(x:int) →:R (B8٭(x:int) : Cau) : Cau)) : Cau) : Cau) : Cau) : Cau) : Cau) : Cau
+[Enforcer] @1 reactively commands:
+Cause:
+B(1), B(2), B(3), B(4), B(5), B(6), B(7), B(8), B(9), B(10), B(11), B(12), B(13), B(14), B(15), B(16)
+OK.
+[Enforcer] @1 nothing to do proactively.
+[Enforcer] @2 reactively commands:
+Cause:
+B(3), B(4), B(5), B(6), B(7), B(8), B(9), B(10), B(11), B(12), B(13), B(14), B(15), B(16), B(17)
+OK.
+[Enforcer] @2 nothing to do proactively.
+[Enforcer] @3 reactively commands:
+Cause:
+B(3), B(4), B(5), B(6), B(7), B(8), B(9), B(10), B(11), B(12), B(13), B(14), B(15), B(16), B(17), B(18)
+OK.

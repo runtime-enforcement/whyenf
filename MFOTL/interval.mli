@@ -64,6 +64,10 @@ module MakeInterval (S : S) : sig
   val diff_left_of: Time.t -> Time.t -> t -> bool
   val diff_is_in: Time.t -> Time.t -> t -> bool
 
+  val out_left: t -> t option
+  val out_right: t -> t
+  val to_zero: t -> t
+
   val to_string: t -> string
   val to_latex: t -> string
 
