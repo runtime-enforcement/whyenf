@@ -149,15 +149,29 @@ let to_string ((a, b, c) as d) =
   | Sup.Sup   , Cau.NonCau, Sct.Sct    -> "SSup"
   | Sup.Abs   , Cau.NonCau, Sct.AnySct -> "Abs"
   | Sup.Itl   , Cau.Itl   , Sct.AnySct -> "Itl"
+  | Sup.Sup   , Cau.Cau   , Sct.AnySct -> "CauSup"
+  | Sup.Sup   , Cau.NonCau, Sct.ErrSct -> "suppressable"
+  | Sup.NonObs, Cau.Cau   , Sct.ErrSct -> "causable"
+  | Sup.NonObs, Cau.Cau   , Sct.NonSct -> "non-strictly causable"
+  | Sup.NonObs, Cau.Cau   , Sct.Sct    -> "strictly causable"
+  | Sup.Sup   , Cau.NonCau, Sct.NonSct -> "non-strictly suppressable"
+  | Sup.Sup   , Cau.NonCau, Sct.Sct    -> "strictly suppressable"
   | _         ,    _         , _       -> to_string d
 
-
+let to_string_let d =
+  if equal d bot then "?"
+  else if equal d obs then "!"
+  else if equal d sup then "-"
+  else if equal d cau then "+"
+  else if equal d causup then "+-"
+  else if equal d caubot then "+?"
+  else ""
 
 module Constraint = struct
 
-  type enftype_t = t
+  type enftype_t = t [@@deriving equal]
   
-  type t = { lower: enftype_t option; upper: enftype_t option }
+  type t = { lower: enftype_t option; upper: enftype_t option } [@@deriving equal]
 
   let empty = { lower = None; upper = None }
 
@@ -182,13 +196,14 @@ module Constraint = struct
 
   let merge ~key:_ = function
     | `Left t | `Right t -> Some t
+    | `Both ((c:t), (c':t)) when equal c c' -> Some c
     | `Both ((c:t), (c':t)) ->
        (*print_endline (Printf.sprintf "Merging c=%s with c'=%s..." (to_string c) (to_string c'));*)
        let lower           = merge_join c.lower c'.lower in
        let upper           = merge_meet c.upper c'.upper in
        let c'' = 
          if (
-           not (geq_opt upper lower) (* if there is nothing between lower and upperd upper *)
+           not (geq_opt upper lower) (* if there is nothing between lower and upper *)
            || is_error_opt upper     (* if upper contains an error *)
            || is_causable_opt lower && is_suppressable_opt lower (* if lower is CauSup *)
          ) then
@@ -202,7 +217,7 @@ module Constraint = struct
   let solve c =
     match c.upper with
     | Some enftype -> enftype
-    | _ -> raise (Invalid_argument "cannot solve constraint without an upper bound")
+    | _ -> raise (Etc.EnforceabilityError "cannot solve constraint without an upper bound")
 
 end
       

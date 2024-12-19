@@ -36,7 +36,9 @@ let ret_tt op tt =
 let ret_tt_exn op tt =
   Option.value_exn (ret_tt op tt)
 
-let error s = raise (Failure ("Aggregation error: " ^ s))
+exception AggregationError of string
+
+let error s = raise (AggregationError s)
 
 let eval op tt m =
   match op, tt with
@@ -77,12 +79,17 @@ let eval op tt m =
        Multiset.min m
   | AMin, Dom.TFloat ->
      if Multiset.is_empty m then
-       Dom.Float Float.max_value
+       Dom.Float Float.min_value
      else
-       Multiset.max m
+       Multiset.min m
   | AMax, Dom.TInt ->
      if Multiset.is_empty m then
        Dom.Int Int.min_value
+     else
+       Multiset.max m
+  | AMax, Dom.TFloat ->
+     if Multiset.is_empty m then
+       Dom.Float Float.max_value
      else
        Multiset.max m
   | AStd, Dom.TFloat ->

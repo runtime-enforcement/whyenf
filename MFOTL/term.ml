@@ -2,6 +2,8 @@ open Base
 
 open Modules
 
+exception TermError of string
+
 module type T = sig
 
   type t [@@deriving compare, sexp_of, hash, equal]
@@ -114,11 +116,11 @@ module Make (Var : V) (Dom : D) (Uop : O) (Bop : O) (Info : I) = struct
 
     let unvar t = match t.trm with
       | Var x -> x
-      | _ -> raise (Invalid_argument (Printf.sprintf "unvar is undefined for %s" (to_string t)))
+      | _ -> raise (TermError (Printf.sprintf "unvar is undefined for %s" (to_string t)))
 
     let unconst t = match t.trm with
       | Const c -> c
-      | _ -> raise (Invalid_argument (Printf.sprintf "unconst is undefined for %s" (to_string t)))
+      | _ -> raise (TermError (Printf.sprintf "unconst is undefined for %s" (to_string t)))
 
     let rec fv_list = function
       | [] -> []

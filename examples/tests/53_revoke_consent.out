@@ -1,0 +1,19 @@
+The formula
+ □[0s,∞) (∀x:int. use(x:int) → ¬revoke(x:int) S[0s,∞) consent(x:int))
+is enforceable and types to
+ □[0s,∞) ((∀x:int. ((use(x:int) : Sup) →:L ¬revoke(x:int) S[0s,∞) consent(x:int) : Cau)) : Cau) : Cau
+[Enforcer] @1 OK.
+[Enforcer] @1 nothing to do proactively.
+[Enforcer] @2 OK.
+[Enforcer] @2 nothing to do proactively.
+[Enforcer] @3 OK.
+[Enforcer] @3 nothing to do proactively.
+[Enforcer] @4 reactively commands:
+Suppress:
+use(2)
+OK.
+[Enforcer] @4 nothing to do proactively.
+[Enforcer] @5 reactively commands:
+Suppress:
+use(3)
+OK.

@@ -13,7 +13,7 @@ module TypedVar : Modules.V with type t = (string * MFOTL_lib.Dom.tt) = struct
 
     let to_string (x, tt) = Printf.sprintf "%s:%s" x (MFOTL_lib.Dom.tt_to_string tt)
     let ident = fst
-    let of_ident x = (x, Dom.TInt)(*raise (Invalid_argument "Cannot create a typed variable without a type")*)
+    let of_ident x = (x, Dom.TInt)
 
     let replace (_, tt) (z, _) = (z, tt)
 
@@ -35,7 +35,7 @@ let rec convert (types : Ctxt.t) (t : Term.t) =
   | Term.Var v -> Var (convert_var types v)
   | Const c -> Const c
   | App (f, ts) -> App (f, convert_multiple types ts)
-  | _ -> raise (Invalid_argument (Printf.sprintf "cannot convert %s" (Term.to_string t)))
+  | _ -> raise (Errors.FormulaError (Printf.sprintf "cannot convert %s" (Term.to_string t)))
   in make_dummy trm
 
 and convert_multiple types ts = List.map ~f:(convert types) ts
@@ -45,7 +45,7 @@ let rec to_term t =
   | Var (v, _) -> Term.Var v
   | Const c -> Const c
   | App (f, ts) -> App (f, to_terms ts)
-  | _ -> raise (Invalid_argument (Printf.sprintf "cannot convert %s" (to_string t)))
+  | _ -> raise (Errors.FormulaError (Printf.sprintf "cannot convert %s" (to_string t)))
   in Term.make_dummy trm
 
 and to_terms = List.map ~f:to_term

@@ -1,6 +1,7 @@
 open Base
 
 module MyTerm = Term
+module Errs = Errors
 open MFOTL_lib
 module Ctxt = Ctxt.Make(Dom)
 module Term = MyTerm
@@ -40,7 +41,7 @@ let rec core_of_formula (f : Tyformula.typed_t) (types: Ctxt.t) : Ctxt.t * core_
                             ^ Tterm.TypedVar.to_string x
                             ^ "\nis not monitorable in\n "
                             ^ Tyformula.to_string_typed f);
-       raise (Invalid_argument
+       raise (Errs.FormulaError
                 (Printf.sprintf "variable %s is not monitorable in %s"
                    (Tterm.TypedVar.to_string x) (Tyformula.to_string_typed f))))
   in 
@@ -50,7 +51,17 @@ let rec core_of_formula (f : Tyformula.typed_t) (types: Ctxt.t) : Ctxt.t * core_
     if List.mem nonvars_fvs x ~equal:Tterm.equal_v then
       f_q f x
     else
-      true in
+      true
+  in
+  let check_right_bound enftype (i: Interval.t) =
+    if Enftype.is_only_observable enftype && not (Interval.is_bounded i) then
+      (Stdio.print_endline ("However, the formula is not monitorable because the interval\n "
+                            ^ Interval.to_string i
+                            ^ "\nis not future-bounded");
+       raise (Errs.FormulaError
+                (Printf.sprintf "interval %s is not future-bounded" (Interval.to_string i))))
+  in
+  (*print_endline (Printf.sprintf "core_of_formula(%s)" (Tyformula.to_string_typed f));*)
   match f.form with
   | TT -> types, TT, Enftype.cau, false
   | FF -> types, FF, Enftype.sup, false
@@ -67,11 +78,11 @@ let rec core_of_formula (f : Tyformula.typed_t) (types: Ctxt.t) : Ctxt.t * core_
   | Predicate' (e, trms, f) ->
      let types, mf = of_formula f types in
      types, Predicate' (e, trms, mf), mf.info.enftype, false
-  | Let _ -> raise (Invalid_argument "Let bindings must be unrolled to convert to Tformula")
-  | Let' (r, trms, f, g) ->
+  | Let _ -> raise (Errs.FormulaError "Let bindings must be unrolled to convert to Tformula")
+  | Let' (r, enftype, trms, f, g) ->
      let _, mf = of_formula f types in
      let types, mg = of_formula g types in
-     types, Let' (r, trms, mf, mg),
+     types, Let' (r, enftype, trms, mf, mg),
      Enftype.join mf.info.enftype mg.info.enftype, false
   | Agg (s, op, x, y, f) ->
      let types, mf = of_formula f types in
@@ -130,12 +141,14 @@ let rec core_of_formula (f : Tyformula.typed_t) (types: Ctxt.t) : Ctxt.t * core_
      types, Once (i, mf), mf.info.enftype, false
   | Eventually (i, f) ->
      let types, mf = of_formula f types in
+     check_right_bound mf.info.enftype i;
      types, Eventually (i, mf), mf.info.enftype, true
   | Historically (i, f) ->
      let types, mf = of_formula f types in
      types, Historically (i, mf), mf.info.enftype, false
   | Always (i, f) ->
      let types, mf = of_formula f types in
+     check_right_bound mf.info.enftype i;
      types, Always (i, mf), mf.info.enftype, true
   | Since (s, i, f, g) ->
      let types, mf = of_formula f types in
@@ -144,6 +157,7 @@ let rec core_of_formula (f : Tyformula.typed_t) (types: Ctxt.t) : Ctxt.t * core_
   | Until (s, i, f, g) ->
      let types, mf = of_formula f types in
      let types, mg = of_formula g types in
+     check_right_bound (Enftype.join mf.info.enftype mg.info.enftype) i;
      types, Until (s, i, mf, mg), Enftype.join mf.info.enftype mg.info.enftype, true
   | Type (f, ty) ->
      let types, mf = of_formula f types in

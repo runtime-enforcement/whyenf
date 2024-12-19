@@ -83,13 +83,19 @@ let event name consts =
     (name, List.map2_exn (Sig.arg_ttts pred_sig) consts
              ~f:(fun tc c -> match snd tc with
                              | TConst TInt -> Dom.Int (Int.of_string c)
-                             | TConst TStr -> Str c
+                             | TConst TStr -> if String.is_prefix c ~prefix:"\""
+                                                 && String.is_suffix c ~suffix:"\"" then
+                                                Str (String.sub c 0 ((String.length c)-2))
+                                              else
+                                                Str c
                              | TConst TFloat -> Float (Float.of_string c)
-                             | ttt -> raise (Invalid_argument
-                                               (Printf.sprintf "cannot create event with arg type %s"
-                                                  (Ctxt.ttt_to_string ttt)))))
-  else raise (Invalid_argument
-                (Printf.sprintf "predicate %s has arity %d" name (Sig.arity pred_sig)))
+                             | ttt ->
+                                raise (Errors.InternalError
+                                         (Printf.sprintf "cannot create event with arg type %s"
+                                            (Ctxt.ttt_to_string ttt)))))
+  else
+    raise (Errors.InternalError
+             (Printf.sprintf "predicate %s has arity %d" name (Sig.arity pred_sig)))
 
 let add_event db evt = set_trace { db with events = Set.add db.events evt }
 
@@ -115,5 +121,5 @@ let retrieve_external name =
 let retrieve_builtin ts tp = function
   | name when String.equal name Sig.tp_event_name -> create [("TP", [Int tp])]
   | name when String.equal name Sig.ts_event_name -> create [("TS", [Int (Time.to_int ts)])]
-  | name -> raise (Invalid_argument (Printf.sprintf "builtin %s does not exist" name)) 
+  | name -> raise (Errors.MonitoringError (Printf.sprintf "builtin %s does not exist" name)) 
 

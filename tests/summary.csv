@@ -1,53 +1,55 @@
 label,passed,delta_time,command
-1_trivial,True,0.009963512420654297,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/1_trivial.mfotl -log examples/tests/simple.log
-2_cause,True,0.009365081787109375,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/2_cause.mfotl -log examples/tests/simple.log
-3_suppress,True,0.01059865951538086,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/3_suppress.mfotl -log examples/tests/simple.log
-4_cause_nonstable,True,0.009453773498535156,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/4_cause_nonstable.mfotl -log examples/tests/simple.log
-5_cause_stable,True,0.009385824203491211,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/5_cause_stable.mfotl -log examples/tests/simple.log
-6_cause_stable_impossible,True,0.010175466537475586,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/6_cause_stable_impossible.mfotl -log examples/tests/simple.log
-7_cause_multiple,True,0.009703636169433594,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/2_cause.mfotl -log examples/tests/multiple.log
-8_suppress_multiple,True,0.012934446334838867,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/3_suppress.mfotl -log examples/tests/multiple.log
-9_complex_terms,True,0.06376481056213379,_build/default/bin/lifeboat.exe -sig examples/tests/complex.sig -formula examples/tests/9_complex_terms.mfotl -log examples/tests/complex.log -func examples/tests/complex.py
-10_complex_non_monitorable,True,0.06151556968688965,_build/default/bin/lifeboat.exe -sig examples/tests/complex.sig -formula examples/tests/10_complex_non_monitorable.mfotl -log examples/tests/complex.log -func examples/tests/complex.py
-11_aggregation,True,0.01039266586303711,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/11_aggregation.mfotl -log examples/tests/simple.log
-12_aggregation_complex,True,0.07009243965148926,_build/default/bin/lifeboat.exe -sig examples/tests/complex.sig -formula examples/tests/12_aggregation_complex.mfotl -log examples/tests/complex.log -func examples/tests/complex.py
-13_let,True,0.8702600002288818,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/13_let.mfotl -log examples/tests/simple.log
-14_aggregation_group,True,0.010002851486206055,_build/default/bin/lifeboat.exe -sig examples/tests/complex.sig -formula examples/tests/14_aggregation_group.mfotl -log examples/tests/complex.log
-15_cause_sfun,True,0.061272382736206055,_build/default/bin/lifeboat.exe -sig examples/tests/complex.sig -formula examples/tests/15_cause_sfun.mfotl -log examples/tests/complex.log -func examples/tests/complex.py
-16_and,True,0.009074926376342773,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/16_and.mfotl -log examples/tests/simple.log
-17_or,True,0.010223627090454102,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/17_or.mfotl -log examples/tests/multiple.log
-18_or_impossible,True,0.007933855056762695,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/18_or_impossible.mfotl -log examples/tests/multiple.log
-19_implies,True,0.009418010711669922,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/19_implies.mfotl -log examples/tests/multiple.log
-20_law_sigma_1,True,0.01081705093383789,_build/default/bin/lifeboat.exe -sig examples/tests/cav.sig -formula examples/tests/20_21_law.mfotl -log examples/tests/cav_sigma_1.log
-21_law_sigma_2,True,0.009652137756347656,_build/default/bin/lifeboat.exe -sig examples/tests/cav.sig -formula examples/tests/20_21_law.mfotl -log examples/tests/cav_sigma_2.log
-22_del_sigma_1,True,0.009873628616333008,_build/default/bin/lifeboat.exe -sig examples/tests/cav.sig -formula examples/tests/22_23_del.mfotl -log examples/tests/cav_sigma_1.log
-23_del_sigma_2,True,0.010711908340454102,_build/default/bin/lifeboat.exe -sig examples/tests/cav.sig -formula examples/tests/22_23_del.mfotl -log examples/tests/cav_sigma_2.log
-24_iff,True,0.008738517761230469,_build/default/bin/lifeboat.exe -sig examples/tests/complex.sig -formula examples/tests/24_iff.mfotl -log examples/tests/iff.log
-25_since_cau,True,0.00978541374206543,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/25_since_cau.mfotl -log examples/tests/temporal.log
-26_since_sup_lr,True,0.010799884796142578,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/26_since_sup_lr.mfotl -log examples/tests/temporal.log
-27_since_sup_r,True,0.009194374084472656,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/27_since_sup_r.mfotl -log examples/tests/temporal.log
-28_until_cau_lr,True,0.010793447494506836,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/28_until_cau_lr.mfotl -log examples/tests/temporal.log
-29_until_cau_r,True,0.010539054870605469,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/29_until_cau_r.mfotl -log examples/tests/temporal.log
-30_until_sup,True,0.009609460830688477,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/30_until_sup.mfotl -log examples/tests/temporal.log
-31_next_cau,True,0.010672807693481445,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/31_next_cau.mfotl -log examples/tests/temporal.log
-32_next_sup,True,0.010073661804199219,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/32_next_sup.mfotl -log examples/tests/temporal.log
-33_until_cau_r_variant,True,0.00971841812133789,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/33_until_cau_r_variant.mfotl -log examples/tests/temporal_variant.log
-34_until_sup_variant,True,0.010456562042236328,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/34_until_sup_variant.mfotl -log examples/tests/temporal_variant.log
-35_non_transparent,True,0.010670661926269531,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/35_non_transparent.mfotl -log examples/tests/multiple.log
-36_eventually,True,0.00858163833618164,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/36_eventually.mfotl -log examples/tests/simple.log
-37_hour,True,0.04584002494812012,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/37_hour.mfotl -log examples/tests/hour.log
-38_month,True,45.164916038513184,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/38_month.mfotl -log examples/tests/month.log
-39_after_end,True,0.010706663131713867,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/39_after_end.mfotl -log examples/tests/simple.log
-40_insert,True,0.0450439453125,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/40_insert.mfotl -log examples/tests/temporal.log
-41_non_strict_relative_past,True,0.00870370864868164,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/41_non_strict_relative_past.mfotl -log examples/tests/simple.log
-42_strict_relative_past,True,0.00989079475402832,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/42_strict_relative_past.mfotl -log examples/tests/simple.log
-43_impossible,True,0.007885217666625977,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/43_impossible.mfotl -log examples/tests/simple.log
-44_not_closed,True,0.008691787719726562,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/44_not_closed.mfotl -log examples/tests/simple.log
-45_polymorphic_impossible,True,0.009050607681274414,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/45_polymorphic_impossible.mfotl -log examples/tests/simple.log
-46_let_impossible,True,0.00792694091796875,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/46_let_impossible.mfotl -log examples/tests/simple.log
-47_aggregation_group,True,0.010329961776733398,_build/default/bin/lifeboat.exe -sig examples/tests/complex.sig -formula examples/tests/47_aggregation_group.mfotl -log examples/tests/complex.log
-48_aggregation_no_group,True,0.008670330047607422,_build/default/bin/lifeboat.exe -sig examples/tests/complex.sig -formula examples/tests/48_aggregation_no_group.mfotl -log examples/tests/complex.log
-49_aggregation_suppressable,True,0.009724617004394531,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/49_aggregation_suppressable.mfotl -log examples/tests/simple.log
-50_table_operator,True,0.6961030960083008,_build/default/bin/lifeboat.exe -sig examples/tests/point.sig -formula examples/tests/50_table_operator.mfotl -log examples/tests/point.log -func examples/tests/point.py
-51_nonobservable,True,0.009613037109375,_build/default/bin/lifeboat.exe -sig examples/tests/nonobservable.sig -formula examples/tests/51_nonobservable.mfotl -log examples/tests/nonobservable.log
-52_grubbs,True,10.451029062271118,_build/default/bin/lifeboat.exe -sig examples/tests/grubbs.sig -formula examples/tests/52_grubbs.mfotl -log examples/tests/grubbs.log -func examples/tests/grubbs.py
+1_trivial,True,0.008404731750488281,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/1_trivial.mfotl -log examples/tests/simple.log
+2_cause,True,0.008817434310913086,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/2_cause.mfotl -log examples/tests/simple.log
+3_suppress,True,0.00791025161743164,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/3_suppress.mfotl -log examples/tests/simple.log
+4_cause_nonstable,True,0.008744955062866211,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/4_cause_nonstable.mfotl -log examples/tests/simple.log
+5_cause_stable,True,0.008279561996459961,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/5_cause_stable.mfotl -log examples/tests/simple.log
+6_cause_stable_impossible,True,0.00806736946105957,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/6_cause_stable_impossible.mfotl -log examples/tests/simple.log
+7_cause_multiple,True,0.008400917053222656,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/2_cause.mfotl -log examples/tests/multiple.log
+8_suppress_multiple,True,0.008074045181274414,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/3_suppress.mfotl -log examples/tests/multiple.log
+9_complex_terms,True,0.05825400352478027,_build/default/bin/lifeboat.exe -sig examples/tests/complex.sig -formula examples/tests/9_complex_terms.mfotl -log examples/tests/complex.log -func examples/tests/complex.py
+10_complex_non_monitorable,True,0.060569047927856445,_build/default/bin/lifeboat.exe -sig examples/tests/complex.sig -formula examples/tests/10_complex_non_monitorable.mfotl -log examples/tests/complex.log -func examples/tests/complex.py
+11_aggregation,True,0.007907629013061523,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/11_aggregation.mfotl -log examples/tests/simple.log
+12_aggregation_complex,True,0.060771942138671875,_build/default/bin/lifeboat.exe -sig examples/tests/complex.sig -formula examples/tests/12_aggregation_complex.mfotl -log examples/tests/complex.log -func examples/tests/complex.py
+13_let,True,0.8026986122131348,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/13_let.mfotl -log examples/tests/simple.log
+14_aggregation_group,True,0.008260011672973633,_build/default/bin/lifeboat.exe -sig examples/tests/complex.sig -formula examples/tests/14_aggregation_group.mfotl -log examples/tests/complex.log
+15_cause_sfun,True,0.06000685691833496,_build/default/bin/lifeboat.exe -sig examples/tests/complex.sig -formula examples/tests/15_cause_sfun.mfotl -log examples/tests/complex.log -func examples/tests/complex.py
+16_and,True,0.008467674255371094,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/16_and.mfotl -log examples/tests/simple.log
+17_or,True,0.008072137832641602,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/17_or.mfotl -log examples/tests/multiple.log
+18_or_impossible,True,0.007262706756591797,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/18_or_impossible.mfotl -log examples/tests/multiple.log
+19_implies,True,0.008306026458740234,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/19_implies.mfotl -log examples/tests/multiple.log
+20_law_sigma_1,True,0.009896039962768555,_build/default/bin/lifeboat.exe -sig examples/tests/cav.sig -formula examples/tests/20_21_law.mfotl -log examples/tests/cav_sigma_1.log
+21_law_sigma_2,True,0.009143590927124023,_build/default/bin/lifeboat.exe -sig examples/tests/cav.sig -formula examples/tests/20_21_law.mfotl -log examples/tests/cav_sigma_2.log
+22_del_sigma_1,True,0.00896763801574707,_build/default/bin/lifeboat.exe -sig examples/tests/cav.sig -formula examples/tests/22_23_del.mfotl -log examples/tests/cav_sigma_1.log
+23_del_sigma_2,True,0.009189844131469727,_build/default/bin/lifeboat.exe -sig examples/tests/cav.sig -formula examples/tests/22_23_del.mfotl -log examples/tests/cav_sigma_2.log
+24_iff,True,0.008275032043457031,_build/default/bin/lifeboat.exe -sig examples/tests/complex.sig -formula examples/tests/24_iff.mfotl -log examples/tests/iff.log
+25_since_cau,True,0.00943899154663086,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/25_since_cau.mfotl -log examples/tests/temporal.log
+26_since_sup_lr,True,0.009264707565307617,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/26_since_sup_lr.mfotl -log examples/tests/temporal.log
+27_since_sup_r,True,0.00886082649230957,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/27_since_sup_r.mfotl -log examples/tests/temporal.log
+28_until_cau_lr,True,0.009354114532470703,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/28_until_cau_lr.mfotl -log examples/tests/temporal.log
+29_until_cau_r,True,0.008087635040283203,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/29_until_cau_r.mfotl -log examples/tests/temporal.log
+30_until_sup,True,0.00939321517944336,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/30_until_sup.mfotl -log examples/tests/temporal.log
+31_next_cau,True,0.008672714233398438,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/31_next_cau.mfotl -log examples/tests/temporal.log
+32_next_sup,True,0.008840084075927734,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/32_next_sup.mfotl -log examples/tests/temporal.log
+33_until_cau_r_variant,True,0.009181976318359375,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/33_until_cau_r_variant.mfotl -log examples/tests/temporal_variant.log
+34_until_sup_variant,True,0.00871729850769043,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/34_until_sup_variant.mfotl -log examples/tests/temporal_variant.log
+35_non_transparent,True,0.008739233016967773,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/35_non_transparent.mfotl -log examples/tests/multiple.log
+36_eventually,True,0.0076448917388916016,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/36_eventually.mfotl -log examples/tests/simple.log
+37_hour,True,0.06074929237365723,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/37_hour.mfotl -log examples/tests/hour.log
+38_month,False,1.0120351314544678,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/38_month.mfotl -log examples/tests/month.log
+39_after_end,True,0.009947776794433594,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/39_after_end.mfotl -log examples/tests/simple.log
+40_insert,True,0.041445255279541016,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/40_insert.mfotl -log examples/tests/temporal.log
+41_non_strict_relative_past,True,0.008888721466064453,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/41_non_strict_relative_past.mfotl -log examples/tests/simple.log
+42_strict_relative_past,True,0.00809621810913086,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/42_strict_relative_past.mfotl -log examples/tests/simple.log
+43_impossible,True,0.008010387420654297,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/43_impossible.mfotl -log examples/tests/simple.log
+44_not_closed,True,0.007364988327026367,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/44_not_closed.mfotl -log examples/tests/simple.log
+45_polymorphic_impossible,True,0.007335662841796875,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/45_polymorphic_impossible.mfotl -log examples/tests/simple.log
+46_let_impossible,True,0.0075724124908447266,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/46_let_impossible.mfotl -log examples/tests/simple.log
+47_aggregation_group,True,0.008487224578857422,_build/default/bin/lifeboat.exe -sig examples/tests/complex.sig -formula examples/tests/47_aggregation_group.mfotl -log examples/tests/complex.log
+48_aggregation_no_group,True,0.008564949035644531,_build/default/bin/lifeboat.exe -sig examples/tests/complex.sig -formula examples/tests/48_aggregation_no_group.mfotl -log examples/tests/complex.log
+49_aggregation_suppressable,True,0.00805974006652832,_build/default/bin/lifeboat.exe -sig examples/tests/simple.sig -formula examples/tests/49_aggregation_suppressable.mfotl -log examples/tests/simple.log
+50_table_operator,True,0.6459460258483887,_build/default/bin/lifeboat.exe -sig examples/tests/point.sig -formula examples/tests/50_table_operator.mfotl -log examples/tests/point.log -func examples/tests/point.py
+51_nonobservable,True,0.008610010147094727,_build/default/bin/lifeboat.exe -sig examples/tests/nonobservable.sig -formula examples/tests/51_nonobservable.mfotl -log examples/tests/nonobservable.log
+52_grubbs,False,1.006629228591919,_build/default/bin/lifeboat.exe -sig examples/tests/grubbs.sig -formula examples/tests/52_grubbs.mfotl -log examples/tests/grubbs.log -func examples/tests/grubbs.py
+53_revoke_consent,True,0.009383916854858398,_build/default/bin/lifeboat.exe -sig examples/tests/consent.sig -formula examples/tests/53_revoke_consent.mfotl -log examples/tests/consent.log
+54_fjord,True,0.008666753768920898,_build/default/bin/lifeboat.exe -sig examples/tests/fjord.sig -formula examples/tests/54_fjord.mfotl -log examples/tests/fjord.log

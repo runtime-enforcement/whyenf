@@ -35,7 +35,7 @@ is enforceable and types to
 [Enforcer] @39 nothing to do proactively.
 [Enforcer] @40 proactively commands:
 Cause: 
-delete(c2, d1, 1)
+delete("c2", "d1", 1)
 OK.
 [Enforcer] @41 nothing to do proactively.
 [Enforcer] @42 nothing to do proactively.

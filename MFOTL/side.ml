@@ -1,5 +1,7 @@
 type t = N | L | R | LR [@@deriving compare, sexp_of, hash]
 
+exception SideError of string
+
 let equal s s' = match s, s' with
   | N, N
     | L, L
@@ -22,7 +24,7 @@ let of_string = function
   | "L"  -> L
   | "R"  -> R
   | "LR" -> LR
-  | s -> raise (Invalid_argument (Printf.sprintf "invalid input for side: %s" s))
+  | s -> raise (SideError (Printf.sprintf "invalid input for side: %s" s))
 
 let value = Option.value ~default:N
 let value2 = Option.value ~default:(N, N)

@@ -92,7 +92,8 @@ rule token = parse
   | digits as d                                   { debug ("INT " ^ d); INT (Base.Int.of_string d) }
   | float as f                                    { debug ("FLOAT " ^ f); FLOAT (Base.Float.of_string f) }
   | string as s                                   { debug ("STR " ^ s); STR s }
-  | quoted_string as qs                           { debug ("QSTR " ^ qs); QSTR qs }
+  | quoted_string as qs                           { debug ("QSTR " ^ qs);
+                                                      QSTR (String.sub qs 1 ((String.length qs)-2)) }
   | _                                             { lexing_error lexbuf
                                                       (Printf.sprintf "unexpected character: `%s'"
                                                          (Lexing.lexeme lexbuf)) }

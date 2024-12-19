@@ -88,4 +88,6 @@ type t =
   | SUtop of Interval.t * Utop.t * t
   [@@deriving compare, sexp_of, hash]
 
+val fv : t -> (string, String.comparator_witness) Set.t
+
 val to_string : t -> string

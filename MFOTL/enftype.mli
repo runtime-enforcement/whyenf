@@ -3,6 +3,7 @@ type t [@@deriving compare, sexp_of, hash, equal]
 val neg : t -> t
 
 val to_string : t -> string
+val to_string_let : t -> string
 
 val meet : t -> t -> t
 val join : t -> t -> t

@@ -45,12 +45,12 @@ module T = struct
   let term = function
     | LVar s -> Term.make_dummy (Term.Var s)
     | LClos (f, ts, _) -> Term.make_dummy (App (f, ts))
-    | _ -> raise (Invalid_argument "term is undefined for quantified labels")
+    | _ -> raise (Errors.TermError "term is undefined for quantified labels")
 
   let of_term t = match Term.(t.trm) with
     | Term.Var s -> LVar s
     | App (f, ts) -> LClos (f, ts, S.empty)
-    | _ -> raise (Invalid_argument "of_term is undefined for quantified labels")
+    | _ -> raise (Errors.TermError "of_term is undefined for quantified labels")
 
   let to_string = function
     | LVar x -> Printf.sprintf "LVar %s" x
@@ -67,7 +67,7 @@ module T = struct
     | LVar s -> S.singleton s
     | LClos (_, ts, vars) ->
        S.filter (S.of_list (Term.fv_list ts)) ~f:(fun x -> not (S.mem vars x))
-    | _ -> raise (Invalid_argument "fv is undefined for quantified labels")
+    | _ -> raise (Errors.TermError "fv is undefined for quantified labels")
 
   let quantify ~forall x = function
     | LVar x' when String.equal x x' ->
@@ -103,7 +103,7 @@ module T = struct
     | LVar s when Map.mem v s -> Term.Const (Map.find_exn v s)
     | LVar s -> Term.Var s
     | LClos (f, ts, _) -> (Sig.eval v (Term.make_dummy (App (f, ts)))).trm
-    | _ -> raise (Invalid_argument "cannot evaluate quantified label")
+    | _ -> raise (Errors.TermError "cannot evaluate quantified label")
     in Term.make_dummy trm
 
   

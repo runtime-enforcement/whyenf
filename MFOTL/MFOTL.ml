@@ -2,6 +2,8 @@ open Base
 
 open Modules
 
+exception FormulaError of string
+
 module Make
          (Info : I)
          (Var  : V)
@@ -16,8 +18,8 @@ module Make
     | EqConst of 't * 'd
     | Predicate of string * 't list
     | Predicate' of string * 't list * ('i, 'v, 'd, 't) _t
-    | Let of string * Enftype.t option * 'v list * ('i, 'v, 'd, 't) _t * ('i, 'v, 'd, 't) _t
-    | Let' of string * 'v list * ('i, 'v, 'd, 't) _t * ('i, 'v, 'd, 't) _t
+    | Let of string * Enftype.t * 'v list * ('i, 'v, 'd, 't) _t * ('i, 'v, 'd, 't) _t
+    | Let' of string * Enftype.t * 'v list * ('i, 'v, 'd, 't) _t * ('i, 'v, 'd, 't) _t
     | Agg of 'v * Aggregation.op *  't * 'v list * ('i, 'v, 'd, 't) _t
     | Top of 'v list * string * 't list * 'v list * ('i, 'v, 'd, 't) _t
     | Neg of ('i, 'v, 'd, 't) _t
@@ -79,7 +81,7 @@ module Make
       | Predicate (e, ts) -> Predicate (e, ts)
       | Predicate' (e, ts, mf) -> Predicate' (e, ts, map_info ~f mf)
       | Let (e, ty_opt, vars, mf, mg) -> Let (e, ty_opt, vars, map_info ~f mf, map_info ~f mg)
-      | Let' (e, vars, mf, mg) -> Let' (e, vars, map_info ~f mf, map_info ~f mg)
+      | Let' (e, ty_opt, vars, mf, mg) -> Let' (e, ty_opt, vars, map_info ~f mf, map_info ~f mg)
       | Agg (s, op, x, y, mf) -> Agg (s, op, x, y, map_info ~f mf)
       | Top (s, op, x, y, mf) -> Top (s, op, x, y, map_info ~f mf)
       | Neg mf -> Neg (map_info ~f mf)
@@ -112,7 +114,7 @@ module Make
     | Predicate (_, trms) -> Set.of_list (module Var) (Term.fv_list trms)
     | Predicate' (_, _, f) -> fv f
     | Let (_, _, _, _, f)
-      | Let' (_, _, _, f)
+      | Let' (_, _, _, _, f)
       | Neg f
       | Prev (_, f)
       | Once (_, f)
@@ -146,7 +148,7 @@ module Make
        Set.filter (terms f) ~f:filter
     | Predicate' (_, _, f)
       | Let (_, _, _, _, f)
-      | Let' (_, _, _, f)
+      | Let' (_, _, _, _, f)
       | Neg f
       | Prev (_, f)
       | Once (_, f)
@@ -168,7 +170,7 @@ module Make
     | Predicate (r, trms) -> [r, trms]
     | Predicate' (_, _, f)
       | Let (_, _, _, _, f)
-      | Let' (_, _, _, f)
+      | Let' (_, _, _, _, f)
       | Neg f 
       | Exists (_, f)
       | Forall (_, f)
@@ -193,7 +195,7 @@ module Make
       | EqConst _ 
       | Predicate _ -> 2
     | Predicate' (_, _, f)
-      | Let' (_, _, _, f)
+      | Let' (_, _, _, _, f)
       | Neg f 
       | Exists (_, f)
       | Forall (_, f)
@@ -222,7 +224,7 @@ module Make
   let assign s x f = Agg (s, Aggregation.AAssign, x, Set.elements (fv f), f)
   let top s op x y f = Top (s, op, x, y, f)
   let predicate p_name trms = Predicate (p_name, trms)
-  let flet r enftype vars f g = Let (r, enftype, vars, f, g)
+  let flet r enftype vars f g = Let (r, Option.value ~default:Enftype.obs enftype, vars, f, g)
   let neg f = Neg f
   let conj s f g = And (s, [f; g])
   let disj s f g = Or (s, [f; g])
@@ -260,7 +262,7 @@ module Make
        (match Term.unvar_opt trm with
         | Some z -> Var.replace s z
         | None ->
-           raise (Invalid_argument (
+           raise (FormulaError (
                       Printf.sprintf "cannot substitute non-variable term %s for aggregation variable %s"
                         (Term.to_string trm) (Var.to_string s))))
     | None -> s
@@ -271,8 +273,8 @@ module Make
     let form = match ff.form with
       | TT | FF -> ff.form
       | EqConst (trm, c) -> EqConst (Term.subst v trm, c)
-      | Agg (s, op, t, y, f) -> Agg (subst_var v s, op, t, subst_vars v y, subst v f)
-      | Top (s, op, t, y, f) -> Top (subst_vars v s, op, t, subst_vars v y, subst v f)
+      | Agg (s, op, t, y, f) -> Agg (subst_var v s, op, Term.subst v t, subst_vars v y, subst v f)
+      | Top (s, op, t, y, f) -> Top (subst_vars v s, op, Term.substs v t, subst_vars v y, subst v f)
       | Predicate (r, trms) -> Predicate (r, Term.substs v trms)
       | Predicate' (r, trms, f) -> Predicate' (r, Term.substs v trms, subst v f)
       | Exists (x, f) -> Exists (x, subst (Map.remove v x) f)
@@ -280,7 +282,7 @@ module Make
       | Let (r, enftype, vars, f, g) ->
          let filter x = not (List.mem vars x ~equal:Var.equal) in
          Let (r, enftype, vars, f, subst (Map.filter_keys v ~f:filter) g)
-      | Let' (r, vars, f, g) -> Let' (r, vars, f, subst v g)
+      | Let' (r, enftype, vars, f, g) -> Let' (r, enftype, vars, f, subst v g)
       | Neg f -> Neg (subst v f)
       | Prev (i, f) -> Prev (i, subst v f)
       | Once (i, f) -> Once (i, subst v f)
@@ -311,7 +313,7 @@ module Make
     | Predicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
     | Predicate' (r, trms, _) -> Printf.sprintf "%s٭(%s)" r (Term.list_to_string trms)
     | Let (r, _, _, _, _) -> Printf.sprintf "LET %s" r
-    | Let' (r, _, _, _) -> Printf.sprintf "LET٭ %s" r
+    | Let' (r, _, _, _, _) -> Printf.sprintf "LET٭ %s" r
     | Agg (_, op, x, y, _) -> Printf.sprintf "%s(%s; %s)" (Aggregation.op_to_string op) (Term.value_to_string x)
                                 (String.concat ~sep:", " (List.map ~f:Var.to_string y))
     | Top (_, op, x, y, _) -> Printf.sprintf "%s(%s; %s)" op (Term.list_to_string x) (String.concat ~sep:", " (List.map ~f:Var.to_string y))
@@ -340,18 +342,18 @@ module Make
          (Term.value_to_string trm) (Dom.to_string c)
     | Predicate (r, trms) ->
        Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
-    | Predicate' (r, trms, _) ->
+    | Predicate' (r, trms, f) ->
        Printf.sprintf "%s٭(%s)" r (Term.list_to_string trms)
     | Let (r, enftype, vars, f, g) ->
        Printf.sprintf (Etc.paren l 4 "LET %s(%s)%s = %a IN %a") r
          (Etc.string_list_to_string (List.map ~f:Var.to_string vars))
-         (Option.fold enftype ~init:""
-            ~f:(fun _ enftype -> " : " ^ Enftype.to_string enftype))
+         (Enftype.to_string_let enftype)
          (fun _ -> to_string_rec 4) f
          (fun _ -> to_string_rec 4) g
-    | Let' (r, vars, f, g) ->
-       Printf.sprintf (Etc.paren l 4 "LET %s٭(%s) = %a IN %a")
+    | Let' (r, enftype, vars, f, g) ->
+       Printf.sprintf (Etc.paren l 4 "LET %s٭(%s)%s = %a IN %a")
          r (Etc.string_list_to_string (List.map ~f:Var.to_string vars))
+         (Enftype.to_string_let enftype)
          (fun _ -> to_string_rec 4) f
          (fun _ -> to_string_rec 4) g
     | Agg (s, op, x, y, f) ->
@@ -454,8 +456,8 @@ module Make
            (match Map.find v r with
             | None -> Predicate (r, trms)
             | Some (vars, e) -> Predicate' (r, trms, subst (Map.of_alist_exn (module Var) (List.zip_exn vars trms)) e))
-        | Let (r, _, vars, f, g) ->
-           Let' (r, vars, aux v f, aux (Map.update v r ~f:(fun _ -> (vars, aux v f))) g)
+        | Let (r, enftype, vars, f, g) ->
+           Let' (r, enftype, vars, aux v f, aux (Map.update v r ~f:(fun _ -> (vars, aux v f))) g)
         | Agg (s, op, x, y, f) -> Agg (s, op, x, y, aux v f)
         | Top (s, op, x, y, f) -> Top (s, op, x, y, aux v f)
         | Neg f -> Neg (aux v f)
@@ -473,7 +475,7 @@ module Make
         | Since (s, i, f, g) -> Since (s, i, aux v f, aux v g)
         | Until (s, i, f, g) -> Until (s, i, aux v f, aux v g)
         | Type (f, ty) -> Type (aux v f, ty)
-        | Predicate' _ | Let' _ -> raise (Invalid_argument ("Cannot unroll Predicate' or Let'"))
+        | Predicate' _ | Let' _ -> raise (FormulaError ("Cannot unroll Predicate' or Let'"))
       in { f with form }
     in aux (Map.empty (module String))
 
@@ -510,9 +512,9 @@ module Make
         | Let (r, enftype, vars, f, g) ->
            (fun i -> let (i, v), vars = List.fold_map vars ~init:(i, v) ~f:fresh in
                      ((fun f -> (fun g -> return (Let (r, enftype, vars, f, g))) >>= (aux v g)) >>= (aux v f)) i)
-        | Let' (r, vars, f, g) ->
+        | Let' (r, enftype, vars, f, g) ->
            (fun i -> let (i, v), vars = List.fold_map vars ~init:(i, v) ~f:fresh in
-                     ((fun f -> (fun g -> return (Let' (r, vars, f, g))) >>= (aux v g)) >>= (aux v f)) i)
+                     ((fun f -> (fun g -> return (Let' (r, enftype, vars, f, g))) >>= (aux v g)) >>= (aux v f)) i)
         | Agg (s, op, x, y, f) ->
            (fun i -> let fvs = Set.elements (Set.diff (fv f) (Set.of_list (module Var) ((Term.fv_list [x])@y))) in
                      let (i, v'), _ = List.fold_map fvs ~init:(i, v) ~f:fresh in
@@ -574,9 +576,9 @@ module Make
         | Let (r, enftype, vars, f, g) ->
            (fun i -> let i, (rk, v) = fresh i r v in
                      ((fun f -> (fun g -> return (Let (rk, enftype, vars, f, g))) >>= (aux v g))>>= (aux v f)) i)
-        | Let' (r, vars, f, g) ->
+        | Let' (r, enftype, vars, f, g) ->
            (fun i -> let i, (rk, v) = fresh i r v in
-                     ((fun f -> (fun g -> return (Let' (rk, vars, f, g))) >>= (aux v g)) >>= (aux v f)) i)
+                     ((fun f -> (fun g -> return (Let' (rk, enftype, vars, f, g))) >>= (aux v g)) >>= (aux v f)) i)
         | Agg (s, op, x, y, f) -> (fun f -> return (Agg (s, op, x, y, f))) >>= (aux v f)
         | Top (s, op, x, y, f) -> (fun f -> return (Top (s, op, x, y, f))) >>= (aux v f)
         | Neg f -> (fun f -> return (Neg f)) >>= (aux v f)
@@ -614,7 +616,7 @@ module Make
     | Predicate (e, t) -> Predicate (e, t)
     | Predicate' (e, t, f) -> Predicate' (e, t, f)
     | Let (r, enftype_opt, vars, f, g) -> Let (r, enftype_opt, vars, ac_simplify f, ac_simplify g)
-    | Let' (r, vars, f, g) -> Let' (r, vars, ac_simplify f, ac_simplify g)
+    | Let' (r, enftype_opt, vars, f, g) -> Let' (r, enftype_opt, vars, ac_simplify f, ac_simplify g)
     | Agg (s, op, x, y, f) -> Agg (s, op, x, y, ac_simplify f)
     | Top (s, op, x, y, f) -> Top (s, op, x, y, ac_simplify f)
     | Neg f -> Neg f
@@ -661,7 +663,7 @@ module Make
          | None -> Zinterval.singleton 0
          end
       | Neg f | Exists (_, f) | Forall (_, f) | Agg (_, _, _, _, f)
-        | Top (_, _, _, _, f) | Predicate' (_, _, f) | Let' (_, _, _, f) | Type (f, _)
+        | Top (_, _, _, _, f) | Predicate' (_, _, f) | Let' (_, _, _, _, f) | Type (f, _)
         -> relative_interval f
       | Imp (_, f1, f2)
         -> Zinterval.lub (relative_interval f1) (relative_interval f2)
@@ -682,7 +684,7 @@ module Make
          let i' = Zinterval.of_interval i in
          (Zinterval.lub (Zinterval.sum (Zinterval.to_zero i') (relative_interval f1))
             (Zinterval.sum i' (relative_interval f2)))
-      | Let _ -> raise (Invalid_argument "Let bindings must be unrolled to compute a relative interval")
+      | Let _ -> raise (FormulaError "Let bindings must be unrolled to compute a relative interval")
     in i
 
   let relative_intervals ?(itl_itvs=Map.empty (module String)) fs =
@@ -691,6 +693,8 @@ module Make
 
   let relative_past ?(itl_itvs=Map.empty (module String)) f =
     Zinterval.is_nonpositive (relative_interval ~itl_itvs f)
+
+  let is_right_bounded f = Option.is_some (Zinterval.right (relative_interval f))
 
   (* Strictness *)
   
@@ -705,7 +709,7 @@ module Make
              | None -> false
              end
           | Neg f | Exists (_, f) | Forall (_, f) | Agg (_, _, _, _, f)
-            | Top (_, _, _, _, f) | Predicate' (_, _, f) | Let' (_, _, _, f) | Type (f, _) -> _strict itv fut f
+            | Top (_, _, _, _, f) | Predicate' (_, _, f) | Let' (_, _, _, _, f) | Type (f, _) -> _strict itv fut f
           | Imp (_, f1, f2)
             -> (_strict itv fut f1) || (_strict itv fut f2)
           | And (_, fs) | Or (_, fs)
@@ -720,7 +724,7 @@ module Make
           | Until (_, i, f1, f2)
             -> (_strict (Zinterval.sum (Zinterval.inv (Zinterval.of_interval i)) itv) true f1)
                || (_strict (Zinterval.sum (Zinterval.inv (Zinterval.of_interval i)) itv) true f2)
-          | Let _ -> raise (Invalid_argument "Let bindings must be unrolled to compute strictness"))
+          | Let _ -> raise (FormulaError "Let bindings must be unrolled to compute strictness"))
     in not (_strict itv fut f)
 
   let stricts ?(itl_strict=Map.empty (module String)) ?(itv=Zinterval.singleton 0) ?(fut=false) =
@@ -740,7 +744,7 @@ module Make
       | Predicate (r, _) -> Sig.rank_of_pred r
       | Predicate' (_, _, f)
         | Let (_, _, _, _, f)
-        | Let' (_, _, _, f)
+        | Let' (_, _, _, _, f)
         | Neg f
         | Exists (_, f)
         | Forall (_, f)
@@ -790,11 +794,12 @@ module Make
              (*let ts = List.foldi vars ~init:ts ~f in*)
              let ts = solve_past_guarded_multiple_vars ts vars e f in
              aux ts x p g
-          | Let' (_, _, _, f), _ -> aux ts x p f
+          | Let' (_, _, _, _, f), _ -> aux ts x p f
           | Agg (s, _, t, _, f), true when Var.equal s x ->
              let sols_list = List.map (Term.fv_list [t]) ~f:(fun z -> aux ts z p f) in
              List.map ~f:(Etc.inter_list (module String)) (Etc.cartesian sols_list)
-          | Agg (_, _, _, y, f), _ when List.mem y x ~equal:Var.equal -> aux ts x p f
+          | Agg (_, _, _, y, f), _ when List.mem y x ~equal:Var.equal ->
+             aux ts x p f
           | Top (_, _, _, y, f), _ when List.mem y x ~equal:Var.equal -> aux ts x p f
           | Top (s, _, x', _, f), true when List.mem s x ~equal:Var.equal ->
              (*print_endline "#############################";
@@ -831,8 +836,8 @@ module Make
           | Until (_, _, f, g), true -> aux ts x p (make (disj N f g) f.info)
           | _ -> [] in
         (*print_endline (Printf.sprintf "solve_past_guarded([%s], %s, %b, %s) = [%s]"
-          (String.concat ~sep:"; " (List.map ~f:(fun (k, v) -> Printf.sprintf "%s -> %s" k (String.concat ~sep:"; " (List.map ~f:(fun es -> "{" ^ (String.concat ~sep:", " (Set.elements es)) ^ "}") s))) (Map.to_alist ts)))
-          x p (to_string f)
+                         (String.concat ~sep:"; " (List.map ~f:(fun (k, v) -> Printf.sprintf "%s -> %s" k (String.concat ~sep:"; " (List.map ~f:(fun es -> "{" ^ (String.concat ~sep:", " (Set.elements es)) ^ "}") s))) (Map.to_alist ts)))
+          (Var.to_string x) p (op_to_string f)
           (String.concat ~sep:"; " (List.map ~f:(fun es -> "{" ^ (String.concat ~sep:", " (Set.elements es)) ^ "}") s)) );*)
         s in
       aux ts x p f
@@ -1024,9 +1029,9 @@ module Make
 
       let to_string = to_string_rec 0
 
-      (*let verdict_to_string = function
+      let verdict_to_string = function
         | Possible c -> Printf.sprintf "Possible(%s)" (to_string c)
-        | Impossible e -> Printf.sprintf "Impossible(%s)" (Errors.to_string e)*)
+        | Impossible e -> Printf.sprintf "Impossible(%s)" (Errors.to_string e)
 
       let rec solve c =
         let r = match c with
@@ -1102,6 +1107,7 @@ module Make
       let rolling_only_if_strictly_relative_past fs f_to_constr =
         let rec aux acc = function
           | [] -> Constraints.Possible CTT
+          | [f] -> only_if_strictly_relative_past acc (f_to_constr f)
           | f :: fs -> Constraints.disj
                          (aux (f::acc) fs)
                          (only_if_strictly_relative_past (acc@fs) (f_to_constr f)) in
@@ -1112,7 +1118,7 @@ module Make
         let aux' t f = aux t pgs ts f in
         let r = match Enftype.is_causable t, Enftype.is_suppressable t with
           | true, true ->
-             Constraints.Impossible (EFormula (Some (to_string f ^ " is never CauSup"), f, t))
+             Constraints.Impossible (EFormula (Some (to_string f ^ " is never both causable and suppressable"), f, t))
           | true, false -> begin
               match f.form with
               | TT -> Constraints.Possible CTT
@@ -1150,18 +1156,12 @@ module Make
                                                          ~f:(types_predicate_strict ts))))))
                        )
                      in c) 
-              | Let (e, enftype_opt, vars, f, g) ->
+              | Let (e, enftype, vars, f, g) ->
                  let f_unguarded i x = if not (is_past_guarded x false f) then Some (x, i) else None in
                  let unguarded_x, unguarded_i = List.unzip (List.filter_mapi vars ~f:f_unguarded) in
                  let pgs' = List.fold_left unguarded_x ~init:pgs ~f:(fun m x -> Map.update m (Var.ident x) ~f:(fun _ -> [Set.empty (module String)])) in
                  let pgs'' = solve_past_guarded_multiple_vars pgs vars e f in
-                 (match enftype_opt with
-                  | Some enftype ->
-                     Constraints.conj (aux enftype pgs' ts f) (aux t pgs'' (Map.update ts e ~f:(fun _ -> Enftype.ncau, unguarded_i)) g)
-                  | None ->
-                     let f enftype = Constraints.conj (aux enftype pgs' ts f) (aux t pgs'' (Map.update ts e ~f:(fun _ -> enftype, unguarded_i)) g) in
-                     Constraints.disjs ((List.map ~f [Enftype.ncaubot; Enftype.scaubot; Enftype.nsup; Enftype.ssup])
-                     @ [aux t pgs'' (Map.update ts e ~f:(fun _ -> Enftype.obs, unguarded_i)) g]))
+                 Constraints.conj (aux enftype pgs' ts f) (aux t pgs'' (Map.update ts e ~f:(fun _ -> enftype, unguarded_i)) g)
               | Neg f -> aux' (Enftype.neg t) f 
               | And (_, fs) ->
                  only_if_strictly_relative_past fs (Constraints.conjs (List.map ~f:(aux' t) fs))
@@ -1206,18 +1206,12 @@ module Make
               match f.form with
               | FF -> Possible CTT
               | Predicate (e, _) -> types_predicate_lower ts t e
-              | Let (e, enftype_opt, vars, f, g) ->
+              | Let (e, enftype, vars, f, g) ->
                  let f_unguarded i x = if not (is_past_guarded x false f) then Some (x, i) else None in
                  let unguarded_x, unguarded_i = List.unzip (List.filter_mapi vars ~f:f_unguarded) in
                  let pgs' = List.fold_left unguarded_x ~init:pgs ~f:(fun m x -> Map.update m (Var.ident x) ~f:(fun _ -> [Set.empty (module String)])) in
                  let pgs'' = solve_past_guarded_multiple_vars pgs vars e f in
-                 (match enftype_opt with
-                  | Some enftype ->
-                     Constraints.conj (aux enftype pgs' ts f) (aux t pgs'' (Map.update ts e ~f:(fun _ -> Enftype.ncau, unguarded_i)) g)
-                  | None ->
-                     let f enftype = Constraints.conj (aux enftype pgs' ts f) (aux t pgs'' (Map.update ts e ~f:(fun _ -> enftype, unguarded_i)) g) in
-                     Constraints.disjs ((List.map ~f [Enftype.ncaubot; Enftype.scaubot; Enftype.nsup; Enftype.ssup])
-                                        @ [aux t pgs'' (Map.update ts e ~f:(fun _ -> Enftype.obs, unguarded_i)) g]))
+                 Constraints.conj (aux enftype pgs' ts f) (aux t pgs'' (Map.update ts e ~f:(fun _ -> Enftype.ncau, unguarded_i)) g)
               | Agg (_, _, _, (_::_ as y), f) -> aux t pgs ts (exists_of_agg y f (fun _ _ -> Info.dummy))
               | Top (_, _, _, (_::_ as y), f) -> aux t pgs ts (exists_of_agg y f (fun _ _ -> Info.dummy))
               | Neg f -> aux' (Enftype.neg t) f
@@ -1257,13 +1251,9 @@ module Make
               | Prev _ -> error "● is never Sup"
               | _ -> Impossible (EFormula (None, f, t))
             end
-          | false, false ->
-             raise (Invalid_argument (
-                        Printf.sprintf
-                          "cannot type formula to %s: type is neither causable nor suppressable"
-                          (Enftype.to_string t)))
+          | false, false -> Possible CTT
         in
-        (*Stdio.printf "types.aux(%s, %s)=%s\n" (Enftype.to_string t) (Formula.to_string f) (Constraints.verdict_to_string r);*)
+        (*Stdio.printf "types.aux(%s, %s)=%s\n" (Enftype.to_string t) (to_string f) (Constraints.verdict_to_string r);*)
         r
       in aux t pgs ts f
 
@@ -1276,7 +1266,7 @@ module Make
           | Predicate (e, ts) -> Predicate (e, ts)
           | Predicate' (e, ts, f) -> Predicate' (e, ts, of_formula f)
           | Let (e, typ_opt, vars, f, g) -> Let (e, typ_opt, vars, of_formula f, of_formula g)
-          | Let' (e, vars, f, g) -> Let' (e, vars, of_formula f, of_formula g)
+          | Let' (e, typ_opt, vars, f, g) -> Let' (e, typ_opt, vars, of_formula f, of_formula g)
           | Agg (s, op, x, y, f) -> Agg (s, op, x, y, of_formula f)
           | Top (s, op, x, y, f) -> Top (s, op, x, y, of_formula f)
           | Neg f -> Neg (of_formula f)
@@ -1331,8 +1321,8 @@ module Make
         print_endline ("enftype: " ^ Enftype.to_string enftype);
         print_endline ("is_causable: " ^ Bool.to_string (Enftype.is_causable enftype));
         print_endline ("is_suppressable: " ^ Bool.to_string (Enftype.is_suppressable enftype));*)
-        match enftype with
-        | _ when Enftype.is_causable enftype -> begin
+        match Enftype.is_causable enftype, Enftype.is_suppressable enftype with
+        | true, _ -> begin
             match formula.form with
             | TT -> Some TT, Filter.tt, false
             | Predicate (e, trms) when Enftype.is_causable (Sig.enftype_of_pred e) ->
@@ -1340,10 +1330,9 @@ module Make
             | Predicate' (e, trms, f) ->
                apply1 (convert enftype f)
                  (fun mf -> Predicate' (e, trms, mf)) 
-            | Let' (e, vars, f, g) ->
-               apply2' (convert enftype g) (of_formula f)
-                 (fun mg mf -> Let' (e, vars, mf, mg)) 
-                 (present_filter g)
+            | Let' (e, enftype', vars, f, g) ->
+               apply2 (convert enftype' f) (convert enftype g)
+                 (fun mf mg -> Let' (e, enftype', vars, mf, mg)) 
             | Neg f -> apply1 (convert (Enftype.neg enftype) f) (fun mf -> Neg mf) 
             | And (s, fs) -> applyn (List.map ~f:(convert enftype) fs)
                                (fun mfs -> And (default_L s, mfs))
@@ -1354,17 +1343,17 @@ module Make
                             apply2' (convert enftype g) (List.map ~f:of_formula fs)
                               (fun mg mfs -> Or (R, mfs @ [mg]))
                               (conj_filters ~b:false fs)
-            | Or (_, f :: gs) ->
+            | Or (_, fs) ->
                begin
-                 match convert enftype f with
-                 | Some mf -> apply1'
-                                ~new_filter:(Some (conj_filters ~b:false (f::gs)))
-                                (List.map ~f:of_formula gs)
-                                (fun mgs -> Or (L, mf :: mgs)) 
-                 | None    -> let fs, g = List.drop_last_exn (f::gs), List.last_exn (f::gs) in
-                              apply2' (convert enftype g) (List.map ~f:of_formula fs)
-                                (fun mg mfs -> Or (R, mfs @ [mg]))
-                              (conj_filters ~b:false fs)
+                 let converted_fs = List.map ~f:(convert enftype) fs in
+                 match List.findi converted_fs ~f:(fun _ -> Option.is_some) with
+                 | Some (mf_i, mf_opt) -> 
+                    let mf = Option.value_exn mf_opt in
+                    let gs = List.filteri fs ~f:(fun i _ -> i != mf_i) in
+                    apply1' ~new_filter:(Some (conj_filters ~b:false fs))
+                      (List.map ~f:of_formula gs)
+                      (fun mgs -> Or (L, mf :: mgs))
+                 | None -> None, Filter.tt, false
                end
             | Imp (L, f, g) -> apply2' (convert (Enftype.neg enftype) f) (of_formula g)
                                  (fun mf mg -> Imp (L, mf, mg)) 
@@ -1421,7 +1410,7 @@ module Make
                  (fun mf mg -> Until (LR, set_b i, mf, mg))
             | _ -> None, Filter.tt, false
           end
-        | _ when Enftype.is_suppressable enftype -> begin
+        | _, true -> begin
             match formula.form with
             | FF -> Some FF, Filter.tt, false
             | Predicate (e, trms) when Enftype.is_suppressable (Sig.enftype_of_pred e) ->
@@ -1429,10 +1418,9 @@ module Make
             | Predicate' (e, trms, f) ->
                apply1 (convert enftype f)
                  (fun mf -> Predicate' (e, trms, mf)) 
-            | Let' (e, vars, f, g) ->
-               (*let enftype' = Sig.enftype_of_pred e in*)
-               apply2 (convert enftype f) (convert enftype g)
-                 (fun mf mg -> Let' (e, vars, mf, mg)) 
+            | Let' (e, enftype', vars, f, g) ->
+               apply2 (convert enftype' f) (convert enftype g)
+                 (fun mf mg -> Let' (e, enftype', vars, mf, mg)) 
             | Agg (_, _, _, y, f) | Top (_, _, _, y, f) ->
                begin
                  match convert enftype (exists_of_agg y f (fun _ _ -> f.info)) with
@@ -1449,17 +1437,17 @@ module Make
                              apply2' (convert enftype g) (List.map ~f:of_formula fs)
                                (fun mg mfs -> And (R, mfs @ [mg]))
                                (conj_filters fs)
-            | And (_, f :: gs) ->
+            | And (_, fs) ->
                begin
-                 match convert enftype f with
-                 | Some mf -> apply1'
-                                ~new_filter:(Some (conj_filters (f::gs)))
-                                (List.map ~f:of_formula gs)
-                                (fun mgs -> And (L, mf :: mgs)) 
-                 | None    -> let fs, g = List.drop_last_exn (f::gs), List.last_exn (f::gs) in
-                              apply2' (convert enftype g) (List.map ~f:of_formula fs)
-                                (fun mg mfs -> And (R, mfs @ [mg]))
-                                (conj_filters fs)
+                 let converted_fs = List.map ~f:(convert enftype) fs in
+                 match List.findi converted_fs ~f:(fun _ -> Option.is_some) with
+                 | Some (mf_i, mf_opt) ->
+                    let mf = Option.value_exn mf_opt in
+                    let gs = List.filteri fs ~f:(fun i _ -> i != mf_i) in
+                    apply1' ~new_filter:(Some (conj_filters fs))
+                      (List.map ~f:of_formula gs)
+                      (fun mgs -> And (L, mf :: mgs))
+                 | None -> None, Filter.tt, false
                end
             | Or (s, fs) -> applyn (List.map ~f:(convert enftype) fs)
                                (fun mfs -> Or (default_L s, mfs))
@@ -1522,17 +1510,14 @@ module Make
                  Filter.tt
             | _ -> None, Filter.tt, false
           end
-        | _ -> let f = of_formula formula in
-               Some f.form, Filter.tt, false
+        | _, _ -> let f = of_formula formula in
+                  Some f.form, Filter.tt, false
       in
       let enftype = if observable formula then Enftype.join Enftype.obs enftype else enftype in
       let r = (match f with
                | Some f -> Some (make f { info = formula.info; enftype; filter; flag })
                | None -> None) in
-      (*Stdio.printf "%s : %s (%b)\n"
-        (to_string formula)
-        (Enftype.to_string enftype)
-        (Enftype.is_only_observable enftype) ;*)
+      (*print_endline ("Convert(" ^ to_string formula ^ ")=" ^ Option.value_map r ~default:"None" ~f:(to_string_typed) ^ "\n");*)
       r
 
     let convert' b f =
@@ -1546,12 +1531,11 @@ module Make
                              ^ to_string f
                              ^ "\nis not closed: free variables are "
                              ^ String.concat ~sep:", " (List.map ~f:Var.to_string (Set.elements (fv f))));
-        ignore (raise (Invalid_argument (Printf.sprintf "formula %s is not closed" (to_string f)))));
+        ignore (raise (FormulaError (Printf.sprintf "formula %s is not closed" (to_string f)))));
       match types Enftype.cauboterr (Map.empty (module String)) f with
       | Possible c ->
          begin
            let c = Constraints.ac_simplify c in
-           (*print_endline (Constraints.to_string c);*)
            match Constraints.solve c with
            | sol::_ ->
               begin
@@ -1575,21 +1559,25 @@ module Make
                                                   ^ "\nis enforceable and types to\n "
                                                   ^ to_string_typed f');
                              ac_simplify f'
-                | None    -> raise (Invalid_argument (Printf.sprintf "formula %s cannot be converted" (to_string f)))
+                | None    -> Stdio.print_endline ("The formula\n "
+                                                  ^ to_string f
+                                                  ^ "\n cannot be converted.");
+                             raise (FormulaError (Printf.sprintf "formula %s cannot be converted"
+                                                    (to_string f)))
               end
            | _ -> Stdio.print_endline ("The formula\n "
                                        ^ to_string orig_f
                                        ^ "\nis not enforceable because the constraint\n "
                                        ^ Constraints.to_string c
                                        ^ "\nhas no solution.");
-                  raise (Invalid_argument (Printf.sprintf "formula %s is not enforceable" (to_string f)))
+                  raise (FormulaError (Printf.sprintf "formula %s is not enforceable" (to_string f)))
          end
       | Impossible e ->
          Stdio.print_endline ("The formula\n "
                               ^ to_string orig_f
                               ^ "\nis not enforceable. To make it enforceable, you would need to\n "
                               ^ Errors.to_string e);
-         raise (Invalid_argument (Printf.sprintf "formula %s is not enforceable" (to_string f)))
+         raise (FormulaError (Printf.sprintf "formula %s is not enforceable" (to_string f)))
 
 
     let is_transparent (f: typed_t) = 
@@ -1603,7 +1591,7 @@ module Make
               | TT | Predicate (_, _) -> true
               | Neg f | Exists (_, f) | Forall (_, f)
                 | Once (_, f) | Next (_, f) | Historically (_, f) | Always (_, f)
-                | Predicate' (_, _, f) | Let' (_, _, _, f) -> aux f
+                | Predicate' (_, _, f) | Let' (_, _, _, _, f) -> aux f
               | Eventually (_, f) -> flag && aux f
               | Or (L, [f; g]) | Imp (L, f, g)
                 -> aux f && strictly_relative_past g
@@ -1621,7 +1609,7 @@ module Make
               | FF | Predicate (_, _) -> true
               | Neg f | Exists (_, f) | Forall (_, f)
                 | Once (_, f) | Next (_, f) | Historically (_, f) | Eventually (_, f)
-                | Predicate' (_, _, f) | Let' (_, _, _, f) -> aux f
+                | Predicate' (_, _, f) | Let' (_, _, _, _, f) -> aux f
               | Always (_, f) -> flag && aux f
               | And (L, f :: gs) 
                 -> aux f && List.for_all ~f:strictly_relative_past gs
@@ -1633,7 +1621,7 @@ module Make
               | Until (_, _, f, g) -> aux f && strictly_relative_past g
               | _ -> false
             end
-          | _ -> raise (Invalid_argument (
+          | _ -> raise (FormulaError (
                             Printf.sprintf
                               "cannot check transparency of formula with type %s: type must be either causable or suppressable, but not both"
                           (Enftype.to_string f.info.enftype)))
