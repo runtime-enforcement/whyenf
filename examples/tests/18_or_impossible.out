@@ -1,4 +1,4 @@
 The formula
  □[0s,∞) (∀x:int. ∀y:int. C(y:int) ∨ A(x:int) → B(y:int) ∧ B(x:int))
 is not enforceable. To make it enforceable, you would need to
- make □[0s,∞) (∀x:int. ∀y:int. A(x:int) ∨ C(y:int) → B(x:int) ∧ B(y:int)) <NonObs,Cau,ErrSct>, but this is impossible (for causability x:int must be past-guarded)
+ make □[0s,∞) (∀x:int. ∀y:int. A(x:int) ∨ C(y:int) → B(x:int) ∧ B(y:int)) causable, but this is impossible (for causability x:int must be past-guarded)

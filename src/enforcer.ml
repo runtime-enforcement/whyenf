@@ -165,7 +165,7 @@ module EState = struct
     | Setc.Finite s -> es, Set.elements s
     | s -> Stdio.printf "Infinite set of candidates for %s in %s: from %s collected %s\n"
              x (MFormula.to_string mf) (Expl.to_string p) (Setc.to_string s);
-           failwith "Internal error: Infinite set of candidates in all_not_sat"
+           raise (Errors.EnforcementError "Internal error: Infinite set of candidates in all_not_sat")
 
   let all_not_vio v x mf es =
     (*let neg_mf = MFormula.map_mf mf mf.filter ~exquant:true (fun mf -> MNeg mf) in*)
@@ -182,7 +182,7 @@ module EState = struct
     | Setc.Finite s -> es, Set.elements s
     | s -> Stdio.printf "Infinite set of candidates for %s in %s: from %s collected %s\n"
              x (MFormula.to_string mf) (Expl.to_string p) (Setc.to_string s);
-           failwith "Internal error: Infinite set of candidates in all_not_vio"
+           raise (Errors.EnforcementError "Internal error: Infinite set of candidates in all_not_vio")
 
   let rec filter_eval (db : Db.t) = function
     | Filter.An e -> (Db.mem_trace db e)
@@ -250,8 +250,8 @@ module EState = struct
   and enfsat (mformula: MFormula.t) v es : t =
     (*print_endline "--enfsat";
     print_endline ("mformula=" ^ MFormula.to_string mformula);
-    print_endline ("v=" ^ Etc.valuation_to_string v);
-    print_endline ("db=" ^ Db.to_string (es.db));*)
+    print_endline ("v=" ^ Etc.valuation_to_string v);*)
+    (*print_endline ("db=" ^ Db.to_string (es.db));*)
       (*print_endline ("es=" ^ to_string es);*)
     (*print_endline ("filter=" ^ Formula.Filter.to_string mformula.filter);*)
     match mformula.mf with
@@ -268,8 +268,8 @@ module EState = struct
     | MNeg mf -> enfvio mf v es
     | MAnd (L, mfs, _) -> fixpoint (enfsat_andl v mfs) es
     | MAnd (R, mfs, _) -> fixpoint (enfsat_andr v mfs) es
-    | MOr (L, [mf1; _], _) -> enfsat mf1 v es
-    | MOr (R, [_; mf2], _) -> enfsat mf2 v es
+    | MOr (L, mf1 :: _, _) -> enfsat mf1 v es
+    | MOr (R, mfs, _) when not (List.is_empty mfs) -> enfsat (List.last_exn mfs) v es
     | MImp (L, mf1, _, _) -> enfvio mf1 v es
     | MImp (R, _, mf2, _) -> enfsat mf2 v es
     | MExists (x, tt, _, mf) -> enfsat mf (Map.add_exn v ~key:x ~data:(Dom.tt_default tt)) es
@@ -310,14 +310,16 @@ module EState = struct
          add_foblig (FUntil (default_ts ts es, LR, i, mf1, mf2, mformula.hash, vv), v, POS)
            (enfsat mf1 v es)
     | MAnd (LR, _, _) ->
-       raise (Invalid_argument ("side for " ^ MFormula.to_string mformula ^ " was not fixed"))
+       raise (Errors.EnforcementError
+                (Printf.sprintf "side for %s was not fixed" (MFormula.to_string mformula)))
     | _ -> print_endline (MFormula.to_string mformula);
-           raise (Invalid_argument ("function enfsat is not defined for "
-                                    ^ MFormula.op_to_string mformula))
+           raise (Errors.EnforcementError
+                    (Printf.sprintf "function enfsat is not defined for %s"
+                       (MFormula.op_to_string mformula)))
   and enfvio (mformula: MFormula.t) v es =
     (*print_endline "--enfvio";
-      print_endline ("mformula=" ^ MFormula.to_string mformula);
-      print_endline ("v=" ^ Etc.valuation_to_string v);*)
+    print_endline ("mformula=" ^ MFormula.to_string mformula);
+    print_endline ("v=" ^ Etc.valuation_to_string v);*)
     (*print_endline ("es=" ^ to_string es);*)
     match mformula.mf with
     | _ when can_skip es mformula -> es
@@ -326,8 +328,8 @@ module EState = struct
        let new_sup = (r, List.map trms ~f:(fun trm -> Term.unconst (Sig.eval v trm))) in
        add_sup new_sup es
     | MNeg mf -> enfsat mf v es
-    | MAnd (L, [mf1; _], _) -> enfvio mf1 v es
-    | MAnd (R, [_; mf2], _) -> enfvio mf2 v es
+    | MAnd (L, mf1 :: _, _) -> enfvio mf1 v es
+    | MAnd (R, mfs, _) when not (List.is_empty mfs) -> enfvio (List.last_exn mfs) v es
     | MOr (L, mfs, _) -> fixpoint (enfvio_orl v mfs) es
     | MOr (R, mfs, _) -> fixpoint (enfvio_orr v mfs) es
     | MImp (L, mf1, mf2, _) -> fixpoint (enfvio_imp mf1 mf2 v) es
@@ -363,9 +365,11 @@ module EState = struct
       | MImp (LR, _, _, _)
       | MSince (LR, _, _, _, _)
       | MEUntil (LR, _, _, _, _, _) ->
-       raise (Invalid_argument ("side for " ^ MFormula.to_string mformula ^ " was not fixed"))
-    | _ -> raise (Invalid_argument ("function enfvio is not defined for "
-                                    ^ MFormula.op_to_string mformula))
+       raise (Errors.EnforcementError
+                (Printf.sprintf "side for %s was not fixed" (MFormula.to_string mformula)))
+    | _ -> raise (Errors.EnforcementError
+                    (Printf.sprintf "function enfvio is not defined for %s"
+                       (MFormula.op_to_string mformula)))
 
   let enf mf es =
     let es = { es with r = Triple.empty; fobligs = FObligations.empty } in
@@ -460,7 +464,9 @@ let exec' (tf: Tformula.t) inc (b: Time.Span.s) =
     (*print_endline ("before: " ^ EState.to_string es);*)
     (*let time_before = Unix.gettimeofday() in*)
     let es = EState.enf mf es in
+    (*print_endline ("BEFORE UPDATE: " ^ EState.to_string es);*)
     let es = update_fobligs es in
+    (*print_endline ("AFTER UPDATE: " ^ EState.to_string es);*)
     (*let time_after = Unix.gettimeofday() in
       print_endline ("Enf time: " ^ string_of_float (time_after -. time_before));*)
     (*print_endline ("after: " ^ EState.to_string es);*)
@@ -538,12 +544,24 @@ let exec' (tf: Tformula.t) inc (b: Time.Span.s) =
   let es = EState.init ms mf in
   step true None es
 
+let make_monitoring (tyf : Tyformula.t) : Tyformula.t =
+  let open Tyformula in
+  let xs = Set.elements (fv tyf) in
+  Sig.add_pred "violation" xs Enftype.cau 0 Trace;
+  let vars = List.map ~f:(fun x -> Tterm.make_dummy (Tterm.var x)) xs in
+  let violation = make_dummy (Predicate ("violation", vars)) in
+  let tyf = make_dummy (Imp (Side.R, tyf, violation)) in
+  let tyf = List.fold_right xs ~init:tyf ~f:(fun x f -> make_dummy (forall x f)) in
+  make_dummy (Always (Interval.full, tyf))
+
 let compile (f: Formula.t) (b: Time.Span.s) : Tformula.t =
   let open Tyformula.MFOTL_Enforceability(Sig) in
   (* Applying alpha conversion to obtain unique variable names *)
   let f = Formula.convert_vars f in
   (* Typing terms: Formula.t -> Tyformula.t *)
   let tyf = Tyformula.of_formula' f in
+  (* If monitoring, do f -> FORALL x_1, ..., x_k. f IMPLIES violation(x_1, ..., x_k) *)
+  let tyf = if !monitoring then make_monitoring tyf else tyf in
   (* Typing formulae: Tyformula.t -> Tyformula.typed_t *)
   let typed_tyf = do_type tyf b in
   (* Checking monitorability: Tyformula.typed_t -> Tformula.t *)
@@ -554,7 +572,7 @@ let compile (f: Formula.t) (b: Time.Span.s) : Tformula.t =
     print_endline "This formula cannot be transparently enforced.";
   tf
 
-let exec (f: Formula.t) inc (b: Time.Span.s) =
-  let tf = compile f b in
-  exec' tf inc b
+let exec (f: Formula.t) =
+  let tf = compile f !b_ref in
+  exec' tf !inc_ref !b_ref
 

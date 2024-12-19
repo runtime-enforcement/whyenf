@@ -1,6 +1,8 @@
 open MFOTL_lib
 
 let debug = ref false
+let forall = ref false
+let monitoring = ref false
 let inc_ref = ref Stdio.In_channel.stdin
 let outc_ref = ref Stdio.Out_channel.stdout
 let json = ref false

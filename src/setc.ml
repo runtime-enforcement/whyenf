@@ -93,7 +93,7 @@ let is_finite = function
 
 let to_list = function
   | Finite s -> Set.to_list s
-  | Complement _ -> raise (Invalid_argument "to_list is not defined for complement sets")
+  | Complement _ -> raise (Errors.InternalError "to_list is not defined for complement sets")
 
 let to_json = function
   | Finite s -> (Printf.sprintf "\"subset_type\": \"finite\", \"subset_values\": %s,"

@@ -42,11 +42,11 @@ let arg_ttts = function
 
 let unpred = function
   | Pred pred -> pred
-  | Func _ -> raise (Invalid_argument "unpred is undefined for Funs")
+  | Func _ -> raise (Errors.SigError "unpred is undefined for Funs")
 
 let unfunc = function
   | Func func -> func
-  | Pred _ -> raise (Invalid_argument "unfunc is undefined for Preds")
+  | Pred _ -> raise (Errors.SigError "unfunc is undefined for Preds")
 
 type elt = string * ty (*[@@deriving compare, sexp_of, hash]*)
 
@@ -112,7 +112,7 @@ let update_enftype name enftype =
         function
         | Some (Pred x) -> Pred { x with enftype }
         | _ ->
-           raise (Invalid_argument
+           raise (Errors.SigError
                     (Printf.sprintf "cannot update enftype for %s: event does not exist" name)))
 
 let vars_of_pred name = List.map (unpred (Hashtbl.find_exn table name)).arg_ttts ~f:fst
@@ -136,14 +136,14 @@ let func ff ds =
   match the_func.kind with
   | Builtin f -> f ds
   | External -> Funcs.Python.call ff ds (Ctxt.unconst (List.hd_exn the_func.ret_ttts))
-  | _ -> raise (Invalid_argument
+  | _ -> raise (Errors.SigError
                   (Printf.sprintf "cannot find function %s: not a function" ff))
 
 let tfunc ff dss =
   let the_func = unfunc (Hashtbl.find_exn table ff) in
   match the_func.kind with
   | Table -> Funcs.Python.tcall ff dss (List.map ~f:Ctxt.unconst the_func.ret_ttts)
-  | _ -> raise (Invalid_argument
+  | _ -> raise (Errors.SigError
                   (Printf.sprintf "cannot find table function %s: not a table function" ff))
 
 let print_table () =
@@ -167,7 +167,7 @@ let rec eval (v: Etc.valuation) (t: Term.t) : Term.t =
         Const (func ff ds)
      | None -> (*Stdio.printf "=%s\n" (Term.to_string(App (ff, trms)));*)
         App (ff, trms))
-  | _ -> raise (Invalid_argument (Printf.sprintf "cannot evaluate %s" (Term.to_string t)))
+  | _ -> raise (Errors.SigError (Printf.sprintf "cannot evaluate %s" (Term.to_string t)))
   in { t with trm }
 
 let rec set_eval (v: Setc.valuation) (t: Term.t) =
@@ -189,7 +189,7 @@ let rec set_eval (v: Setc.valuation) (t: Term.t) =
                   let trms'' = List.map prod ~f in
                   Setc.Finite (Set.of_list (module Term) trms'')
      | None -> Setc.singleton (module Term) t)
-  | _ -> raise (Invalid_argument (Printf.sprintf "cannot evaluate %s" (Term.to_string t)))
+  | _ -> raise (Errors.SigError (Printf.sprintf "cannot evaluate %s" (Term.to_string t)))
 
 
 let strict_of_func name =
@@ -220,7 +220,7 @@ and check_term (types: Ctxt.t) (ttt: Ctxt.ttt) (t: Term.t) : Ctxt.t * Ctxt.ttt =
   | Term.Var x    -> check_var types x ttt
   | Const c       -> check_const types c ttt
   | App (f, trms) -> check_app types f trms ttt
-  | _ -> raise (Invalid_argument (Printf.sprintf "cannot check %s" (Term.to_string t)))
+  | _ -> raise (Errors.SigError (Printf.sprintf "cannot check %s" (Term.to_string t)))
 
 and check_terms (types: Ctxt.t) p_name trms : Ctxt.t * Ctxt.ttt list =
   let sig_pred = Hashtbl.find_exn table p_name in
@@ -229,7 +229,7 @@ and check_terms (types: Ctxt.t) p_name trms : Ctxt.t * Ctxt.ttt list =
     List.fold2_exn trms ttts ~init:(types, [])
       ~f:(fun (types, ttts) trm ttt -> let types, ttt = check_term types ttt trm in
                                        (types, ttts @ [ttt]))
-  else raise (Invalid_argument (
+  else raise (Errors.SigError (
                   Printf.sprintf "arity of %s is %d" p_name (arity sig_pred)))
 
 and check_terms_ttts (types: Ctxt.t) p_name (ttts: Ctxt.ttt list) trms : Ctxt.t * Ctxt.ttt list =
@@ -238,7 +238,7 @@ and check_terms_ttts (types: Ctxt.t) p_name (ttts: Ctxt.ttt list) trms : Ctxt.t 
     List.fold2_exn trms ttts ~init:(types, [])
       ~f:(fun (types, ttts) trm ttt -> let types, ttt = check_term types ttt trm in
                                        (types, ttts @ [ttt]))
-  else raise (Invalid_argument (
+  else raise (Errors.SigError (
                   Printf.sprintf "arity of let-bound predicate %s is %d" p_name arity))
 
 let tt_of_term_exn (types: Ctxt.t) trm : Dom.tt =
@@ -246,5 +246,5 @@ let tt_of_term_exn (types: Ctxt.t) trm : Dom.tt =
   let _, ttt = check_term types new_ttt trm in
   match ttt with
   | Ctxt.TConst tt -> tt
-  | Ctxt.TVar _ -> raise (Invalid_argument (
+  | Ctxt.TVar _ -> raise (Errors.SigError (
                               Printf.sprintf "cannot determine concrete type for %s" (Term.to_string trm)))

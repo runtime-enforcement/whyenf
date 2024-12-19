@@ -2,7 +2,7 @@ open MFOTL_lib
 
 open MFOTL_lib.Etc
 
-type t
+type t [@@deriving compare, sexp_of, hash, equal]
 
 val empty : t
 val to_string : t -> string

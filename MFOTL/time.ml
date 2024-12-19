@@ -2,6 +2,8 @@ open Core
 
 open CalendarLib
 
+exception TimeError of string
+
 type t = Calendar.t
 
 let equal = Calendar.equal
@@ -254,7 +256,7 @@ module Span  = struct
     | "d" -> Day (Day.of_string s)
     | "M" -> Month (Month.of_string s)
     | "Y" -> Year (Year.of_string s)
-    | u -> failwith ("Invalid time unit: " ^ u)
+    | u -> raise (TimeError (Printf.sprintf "Invalid time unit: %s" u))
 
   let of_string s =
     let pattern = Str.regexp "^[ \t]*\\([0-9]+\\)[ \t]*\\(.*\\)[ \t]*$" in
@@ -263,7 +265,7 @@ module Span  = struct
       let s = Str.matched_group 2 s in
       make s i
     else
-      raise (Invalid_argument ("Invalid string for bound: " ^ s))
+      raise (TimeError (Printf.sprintf "Invalid string for bound: %s" s))
 
   let to_string = function
     | Second u -> Second.to_string u

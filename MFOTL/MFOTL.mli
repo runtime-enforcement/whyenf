@@ -14,8 +14,8 @@ module Make
     | EqConst of 't * 'd
     | Predicate of string * 't list
     | Predicate' of string * 't list * ('i, 'v, 'd, 't) _t
-    | Let of string * Enftype.t option * 'v list * ('i, 'v, 'd, 't) _t * ('i, 'v, 'd, 't) _t
-    | Let' of string * 'v list * ('i, 'v, 'd, 't) _t * ('i, 'v, 'd, 't) _t
+    | Let of string * Enftype.t * 'v list * ('i, 'v, 'd, 't) _t * ('i, 'v, 'd, 't) _t
+    | Let' of string * Enftype.t * 'v list * ('i, 'v, 'd, 't) _t * ('i, 'v, 'd, 't) _t
     | Agg of 'v * Aggregation.op *  't * 'v list * ('i, 'v, 'd, 't) _t
     | Top of 'v list * string * 't list * 'v list * ('i, 'v, 'd, 't) _t
     | Neg of ('i, 'v, 'd, 't) _t
@@ -112,6 +112,8 @@ module Make
   val relative_interval : ?itl_itvs:(string, Zinterval.t, Base.String.comparator_witness) Base.Map.t -> t -> Zinterval.t
   val relative_intervals : ?itl_itvs:(string, Zinterval.t, Base.String.comparator_witness) Base.Map.t -> t list -> Zinterval.t
   val relative_past : ?itl_itvs:(string, Zinterval.t, Base.String.comparator_witness) Base.Map.t -> t -> bool
+  val is_right_bounded : ('i, Var.t, Dom.t, Term.t) _t  -> bool
+  
   val strict : ?itl_strict:(string, bool, Base.String.comparator_witness) Base.Map.t -> ?itv:Zinterval.t -> ?fut:bool -> t -> bool
   val stricts : ?itl_strict:(string, bool, Base.String.comparator_witness) Base.Map.t -> ?itv:Zinterval.t -> ?fut:bool -> t list -> bool
 

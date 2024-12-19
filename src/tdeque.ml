@@ -2,7 +2,7 @@ open MFOTL_lib
 
 open MFOTL_lib.Etc
 
-type t = timestamp Fdeque.t
+type t = Time.t Fdeque.t [@@deriving compare, sexp_of, hash, equal]
 
 let empty : t = Fdeque.empty
 

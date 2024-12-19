@@ -45,5 +45,5 @@ is enforceable and types to
 [Enforcer] @49 nothing to do proactively.
 [Enforcer] @50 reactively commands:
 Suppress:
-use(c1, d3, 1)
+use("c1", "d3", 1)
 OK.

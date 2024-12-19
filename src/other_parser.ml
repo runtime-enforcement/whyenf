@@ -143,11 +143,13 @@ module Sig = struct
   let parse_string (pb: Parsebuf.t) =
     match pb.token with
     | STR s -> Parsebuf.next pb; s
-    | t -> raise (Failure ("expected a string but found " ^ string_of_token t))
+    | t -> raise (Errors.SigError
+                    (Printf.sprintf "expected a string but found %s" (string_of_token t)))
 
   let expect_token (pb: Parsebuf.t) t =
     if token_equal pb.token t then Parsebuf.next pb
-    else raise (Failure ("expected " ^ string_of_token t ^ " but found " ^ string_of_token pb.token))
+    else raise (Errors.SigError
+                  (Printf.sprintf "expected %s but found %s" (string_of_token t) (string_of_token pb.token)))
 
   let parse_arg_tts (pb: Parsebuf.t) =
     let rec parse_arg_tts_rec l =
@@ -156,18 +158,21 @@ module Sig = struct
                let s = parse_string pb in
                parse_arg_tts_rec (s::l)
       | RPA -> Parsebuf.next pb; List.rev l
-      | t -> raise (Failure ("expected ',' or ')' but found " ^ string_of_token t)) in
+      | t -> raise (Errors.SigError
+                      (Printf.sprintf "expected ',' or ')' but found %s" (string_of_token t))) in
     expect_token pb LPA;
     match pb.token with
     | RPA -> Parsebuf.next pb; []
     | STR s -> Parsebuf.next pb; parse_arg_tts_rec [s]
-    | t -> raise (Failure ("expected a string or ')' but found " ^ string_of_token t))
+    | t -> raise (Errors.SigError
+                    (Printf.sprintf "expected a string or ')' but found %s" (string_of_token t)))
 
   let parse_ret_tt (pb: Parsebuf.t) =
     expect_token pb COL;
     match pb.token with
     | STR s -> Parsebuf.next pb; s
-    | t -> raise (Failure ("expected a string but found " ^ string_of_token t))
+    | t -> raise (Errors.SigError
+                    (Printf.sprintf "expected a string but found %s" (string_of_token t)))
 
   let parse_ret_tts (pb: Parsebuf.t) =
     let rec parse_ret_tts_rec l =
@@ -175,19 +180,24 @@ module Sig = struct
       | COM -> Parsebuf.next pb;
                parse_ret_tts_rec ((parse_string pb)::l)
       | RPA -> Parsebuf.next pb; List.rev l
-      | t -> raise (Failure ("expected ',' or ')' but found " ^ string_of_token t)) in
+      | t -> raise (Errors.SigError
+                      (Printf.sprintf "expected ',' or ')' but found %s" (string_of_token t))) in
     expect_token pb COL;
     expect_token pb LPA;
     match pb.token with
     | RPA -> Parsebuf.next pb; []
     | STR s -> Parsebuf.next pb; parse_ret_tts_rec [s]
-    | t -> raise (Failure ("expected a string or ')' but found " ^ string_of_token t))
+    | t -> raise (Errors.SigError
+                    (Printf.sprintf "expected a string or ')' but found %s" (string_of_token t)))
 
   let convert_types sl =
-    List.map sl ~f:(fun s -> match String.split s ~on:':' with
-                             | [] -> raise (Failure ("unable to parse the variable signature string " ^ s))
-                             | name :: ttype :: [] -> (name, Dom.tt_of_string ttype)
-                             | _ -> raise (Failure ("unable to parse the variable signature string " ^ s)))
+    List.map sl ~f:(fun s ->
+        match String.split s ~on:':' with
+        | [] -> raise (Errors.SigError
+                         (Printf.sprintf "unable to parse the variable signature string %s" s))
+        | name :: ttype :: [] -> (name, Dom.tt_of_string ttype)
+        | _ -> raise (Errors.SigError
+                        (Printf.sprintf "unable to parse the variable signature string %s" s)))
 
   let parse_enftype (pb: Parsebuf.t) =
     match pb.token with
@@ -225,7 +235,8 @@ module Sig = struct
                     let strict = match kw with SFUN -> true | _ -> false in
                     Sig.add_func s arg_tts ret_tt External strict;
                     parse_pred_sigs pb rank_ref
-         | t -> raise (Failure ("unexpected character: " ^ string_of_token t))
+         | t -> raise (Errors.SigError
+                         (Printf.sprintf "unexpected character: %s" (string_of_token t)))
       end
     | TFUN -> begin
         Parsebuf.next pb;
@@ -235,7 +246,8 @@ module Sig = struct
                     let ret_tts = List.map ~f:Dom.tt_of_string (parse_ret_tts pb) in
                     Sig.add_tfunc s arg_tts ret_tts;
                     parse_pred_sigs pb rank_ref
-         | t -> raise (Failure ("unexpected character: " ^ string_of_token t))
+         | t -> raise (Errors.SigError
+                         (Printf.sprintf "unexpected character: %s" (string_of_token t)))
       end
     | PRD | EXT as tok -> begin
         Parsebuf.next pb;
@@ -246,9 +258,11 @@ module Sig = struct
                       (match tok with
                        | PRD -> Predicate
                        | EXT -> External
-                       | _ -> raise (Failure ("unexpected character: " ^ string_of_token tok)));
+                       | _ -> raise (Errors.SigError
+                                       (Printf.sprintf "unexpected character: %s" (string_of_token tok))));
                     parse_pred_sigs pb rank_ref
-         | t -> raise (Failure ("unexpected character: " ^ string_of_token t))
+         | t -> raise (Errors.SigError
+                         (Printf.sprintf "unexpected character: %s" (string_of_token t)))
       end
     | STR s -> begin
         Parsebuf.next pb;
@@ -262,7 +276,8 @@ module Sig = struct
         Sig.add_pred s arg_tts enftype rank Trace;
         parse_pred_sigs pb (next_rank_ref)
       end
-    | t -> raise (Failure ("unexpected character: " ^ string_of_token t))
+    | t -> raise (Errors.SigError
+                    (Printf.sprintf "unexpected character: %s" (string_of_token t)))
 
   let parse_from_channel fn =
     let inc = In_channel.create fn in
@@ -270,13 +285,15 @@ module Sig = struct
     let pb = Parsebuf.init lexbuf in
     let () = Lexing.set_filename lexbuf fn in
     try parse_pred_sigs pb 0
-    with Failure s -> failwith ("error while parsing signature\n " ^ s)
+    with Failure s -> raise (Errors.SigError
+                               (Printf.sprintf "error while parsing signature\n %s" s))
 
   let parse_from_string ssig =
     let lexbuf = Lexing.from_string ssig in
     let pb = Parsebuf.init lexbuf in
     try parse_pred_sigs pb 0
-    with Failure s -> failwith ("error while parsing signature\n " ^ s)
+    with Failure s -> raise (Errors.SigError
+                               (Printf.sprintf "error while parsing signature\n %s"  s))
 
 end
 
@@ -291,13 +308,15 @@ module Trace = struct
       | LAN -> Parsebuf.next pb;
                Parsebuf.print_stats (parse_comment "") pb;
                parse_init ()
-      | t -> raise (Failure ("expected '@' but found " ^ string_of_token t))
+      | t -> raise (Errors.LogError
+                      (Printf.sprintf "expected '@' but found %s" (string_of_token t)))
     and parse_comment acc =
       match pb.token with
       | RAN -> acc
       | STR s -> Parsebuf.next pb; parse_comment (acc ^ " " ^ s)
       | _   -> Parsebuf.next pb; parse_comment acc
     and parse_ts () =
+      Parsebuf.count_tp pb;
       match pb.token with
       | STR s -> let ts = try Some (Int.of_string s)
                           with _ -> None in
@@ -306,10 +325,11 @@ module Trace = struct
                                pb.ts <- ts;
                                pb.check <- false;
                                parse_db ()
-                  | None -> raise (Failure ("expected a time-stamp but found " ^ s)))
-      | t -> raise (Failure ("expected a time-stamp but found " ^ string_of_token t))
+                  | None -> raise (Errors.LogError
+                                     (Printf.sprintf "expected a time-stamp but found %s" s)))
+      | t -> raise (Errors.LogError
+                      (Printf.sprintf "expected a time-stamp but found %s" (string_of_token t)))
     and parse_db () =
-      Parsebuf.count_tp pb;
       match pb.token with
       | STR s -> (match Hashtbl.find TheSig.table s with
                   | Some props -> (pb.pred_sig <- Some(s, props);
@@ -317,27 +337,32 @@ module Trace = struct
                                    (match pb.token with
                                     | LPA -> Parsebuf.next pb;
                                              parse_tuple ()
-                                    | t -> raise (Failure ("expected '(' but found " ^ string_of_token t))))
-                  | None -> raise (Failure ("predicate " ^ s ^ " was not specified")))
+                                    | t -> raise (Errors.LogError
+                                                    (Printf.sprintf "expected '(' but found %s" (string_of_token t)))))
+                  | None -> raise (Errors.LogError
+                                     (Printf.sprintf "predicate %s was not specified" s)))
       | AT -> Some (true, pb)
       | EOF -> Some (false, pb)
       | SEP -> Some (true, pb)
       | QST -> pb.check <- true; Some (true, pb)
-      | t -> raise (Failure ("expected a predicate or '@' but found " ^ string_of_token t))
+      | t -> raise (Errors.LogError
+                      (Printf.sprintf "expected a predicate or '@' but found %s" (string_of_token t)))
     and parse_tuple () =
       match pb.token with
       | RPA -> parse_tuple_cont (Queue.create ())
       | STR s -> Parsebuf.next pb;
                  parse_tuple_cont (Queue.of_list [s])
-      | t -> raise (Failure ("expected a tuple or ')' but found " ^ string_of_token t))
+      | t -> raise (Errors.LogError
+                      (Printf.sprintf "expected a tuple or ')' but found %s" (string_of_token t)))
     and parse_tuple_cont q =
       match pb.token with
       | RPA -> Parsebuf.next pb;
                (if Int.equal (Queue.length q) (Parsebuf.arity pb) then
                   let evt = Db.event (Parsebuf.pred pb) (Queue.to_list q) in
                   Parsebuf.add_event evt pb
-                else raise (Failure (Printf.sprintf "expected a tuple of arity %d but found %d arguments"
-                                       (Parsebuf.arity pb) (Queue.length q))));
+                else raise (Errors.LogError
+                              (Printf.sprintf "expected a tuple of arity %d but found %d arguments"
+                                 (Parsebuf.arity pb) (Queue.length q))));
                (match pb.token with
                 | LPA -> Parsebuf.next pb; parse_tuple ()
                 | _ -> parse_db ())
@@ -346,8 +371,10 @@ module Trace = struct
                 | STR s -> Parsebuf.next pb;
                            Queue.enqueue q s;
                            parse_tuple_cont q
-                | t -> raise (Failure ("expected a tuple but found " ^ string_of_token t)))
-      | t -> raise (Failure ("expected ',' or ')' but found " ^ string_of_token t)) in
+                | t -> raise (Errors.LogError
+                                (Printf.sprintf "expected a tuple but found %s" (string_of_token t))))
+      | t -> raise (Errors.LogError
+                      (Printf.sprintf "expected ',' or ')' but found %s" (string_of_token t))) in
     parse_init ()
 
   let parse_from_channel inc pb_opt =

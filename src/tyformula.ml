@@ -1,6 +1,7 @@
 open Base
 
 module MyTerm = Term
+module Errs = Errors
 open MFOTL_lib
 module Ctxt = Ctxt.Make(Dom)
 module Term = MyTerm
@@ -32,14 +33,14 @@ let rec core_of_formula (f : Formula.t) let_types (types: Ctxt.t) : Ctxt.t * cor
      let types, mf = of_formula f ~let_types types in
      List.iter vars ~f:(
          fun v -> if not (Ctxt.mem types v) then
-                    raise (Invalid_argument (Printf.sprintf "Variable %s in let-bound predicate %s is unused" v r)));
+                    raise (Errs.FormulaError (Printf.sprintf "Variable %s in let-bound predicate %s is unused" v r)));
      let let_types = Map.add_exn let_types r (List.map ~f:(fun v -> Ctxt.get_ttt_exn v types) vars) in
      let types, mg = of_formula g ~let_types types in
      types, Let (r, enftype_opt, Tterm.convert_vars types vars, mf, mg)
-  | Let' (r, vars, f, g) ->
+  | Let' (r, enftype_opt, vars, f, g) ->
      let types, mf = of_formula f ~let_types types in
      let types, mg = of_formula g ~let_types types in
-     types, Let' (r, Tterm.convert_vars types vars, mf, mg)
+     types, Let' (r, enftype_opt, Tterm.convert_vars types vars, mf, mg)
   | Agg (s, op, x, y, f) ->
      let types, mf = of_formula f ~let_types types in
      let types, s_tt = Formula.check_agg types s op x y f in

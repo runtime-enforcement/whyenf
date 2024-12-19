@@ -36,9 +36,11 @@ module Make (Dom : D) = struct
 
   type ttt = TConst of tt | TVar of string [@@deriving compare, sexp_of, hash, equal]
 
+  exception CtxtError of string
+
   let unconst = function
     | TConst tt -> tt
-    | TVar _ -> raise (Invalid_argument "unconst is undefined for TVars")
+    | TVar _ -> raise (CtxtError "unconst is undefined for TVars")
 
   let ttt_to_string = function
     | TConst tt -> Dom.tt_to_string tt
@@ -128,7 +130,7 @@ module Make (Dom : D) = struct
     | TConst tt -> (match UnionFind.find ctxt.tvs tv with
                     | tvs, Some tt' when equal_tt tt tt' -> { ctxt with tvs }
                     | _  , Some tt' ->
-                       raise (Invalid_argument (
+                       raise (CtxtError (
                                   Printf.sprintf "type clash for %s: found %s, expected %s"
                                     v (Dom.tt_to_string tt) (Dom.tt_to_string tt')))
                     | _, None -> { ctxt with tvs = UnionFind.set ctxt.tvs tv (Some tt) })
@@ -138,7 +140,7 @@ module Make (Dom : D) = struct
     match ttt, ttt' with
     | TConst tt, TConst tt' when equal_tt tt tt' -> ctxt, ttt'
     | TConst tt, TConst tt' ->
-       raise (Invalid_argument (
+       raise (CtxtError (
                   Printf.sprintf "type clash for %s: found %s, expected %s"
                     v (Dom.tt_to_string tt) (Dom.tt_to_string tt')))
     | TVar tv, _  -> merge v tv  ttt' ctxt, ttt'
@@ -149,12 +151,12 @@ module Make (Dom : D) = struct
   let get_tt_exn v ctxt =
     match Map.find ctxt.types v with
     | Some (TConst tt) -> tt
-    | Some (TVar tv) -> (match snd (UnionFind.find ctxt.tvs tv) with
-                         | Some tt -> tt
-                         | None -> raise (Invalid_argument (
-                                              Printf.sprintf "cannot find concrete type for variable %s" v)))
-    | _ -> raise (Invalid_argument (
-                      Printf.sprintf "cannot find concrete type for variable %s" v))
+    | Some (TVar tv) ->
+       (match snd (UnionFind.find ctxt.tvs tv) with
+        | Some tt -> tt
+        | None -> raise (CtxtError (
+                             Printf.sprintf "cannot find concrete type for variable %s" v)))
+    | _ -> raise (CtxtError (Printf.sprintf "cannot find concrete type for variable %s" v))
 
   let type_const d ttt ctxt =
     let tt = Dom.tt_of_domain d in

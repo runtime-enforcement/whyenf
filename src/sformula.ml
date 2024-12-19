@@ -182,6 +182,22 @@ type t =
   | SUtop of Interval.t * Utop.t * t
   [@@deriving compare, sexp_of, hash]
 
+let rec fv = function
+  | SConst _ -> Set.empty (module String)
+  | SVar x -> Set.singleton (module String) x
+  | SApp (_, ts) -> Set.union_list (module String) (List.map ts ~f:fv)
+  | SLet (_, _, vars, f, g) -> Set.union (Set.diff (fv f) (Set.of_list (module String) vars)) (fv g)
+  | SAgg (s, _, _, y, _) -> Set.of_list (module String) (s::y)
+  | STop (s, _, _, y, _) -> Set.of_list (module String) (s@y)
+  | SAssign (f, s, _) -> Set.add (fv f) s
+  | SBop (_, t, _, u) -> Set.union (fv t) (fv u)
+  | SBop2 (_, t, _, u) -> Set.union (fv t) (fv u)
+  | SUop (_, f) -> fv f
+  | SExists (xs, f) -> Set.diff (fv f) (Set.of_list (module String) xs)
+  | SForall (xs, f) -> Set.diff (fv f) (Set.of_list (module String) xs)
+  | SBtop (_, _, f, _, g) -> Set.union (fv f) (fv g)
+  | SUtop (_, _, f) -> fv f
+
 let rec to_string_rec l = function
   | SConst c -> Const.to_string c
   | SVar s -> s

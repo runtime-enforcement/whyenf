@@ -167,12 +167,12 @@ module MakeInterval (S : S) = struct
             | U ut -> B (BI.make_exn (S.zero, S.dec (Option.value_exn (UI.left ut)))))
 
   let out_right = function
-    | B bt -> U (UI.make_exn (S.inc (Option.value_exn (BI.right bt))))
-    | U ut -> raise (Invalid_argument "Cannot compute out_right of an unbounded interval")
+    | B bt -> Some (U (UI.make_exn (S.inc (Option.value_exn (BI.right bt)))))
+    | U _ -> None
 
   let to_zero = function
     | B bt -> B (BI.make_exn (S.zero, Option.value_exn (BI.right bt)))
-    | U ut -> full
+    | U _ -> full
 
 end
 

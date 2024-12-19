@@ -375,5 +375,19 @@
         "log": "grubbs.log",
         "output": "52_grubbs.out",
         "func": "grubbs.py"
+    },
+    {
+        "label": "53_revoke_consent",
+        "sig": "consent.sig",
+        "formula": "53_revoke_consent.mfotl",
+        "log": "consent.log",
+        "output": "53_revoke_consent.out"
+    },
+    {
+        "label": "54_fjord",
+        "sig": "fjord.sig",
+        "formula": "54_fjord.mfotl",
+        "log": "fjord.log",
+        "output": "54_fjord.out"
     }
 ]

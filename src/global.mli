@@ -1,4 +1,6 @@
 val debug: bool ref
+val forall: bool ref
+val monitoring: bool ref
 val inc_ref: Stdio.In_channel.t ref
 val outc_ref: Stdio.Out_channel.t ref
 val json: bool ref

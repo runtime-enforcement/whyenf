@@ -2,6 +2,9 @@ open Base
 
 module Fdeque = Core.Fdeque
 
+exception TypingError of string
+exception EnforceabilityError of string
+
 type timepoint = int
 type timestamp = Time.t
 
@@ -40,7 +43,7 @@ val unquote: string -> string
 
 val escape_underscores: string -> string
 
-val fdeque_for_all2_exn: 'a Fdeque.t -> 'b Fdeque.t -> f:('a -> 'b -> bool) -> bool
+(*val fdeque_for_all2_exn: 'a Fdeque.t -> 'b Fdeque.t -> f:('a -> 'b -> bool) -> bool*)
 
 val spaces: int -> string
 

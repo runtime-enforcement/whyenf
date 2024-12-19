@@ -83,7 +83,7 @@ let rec init sf : t =
 let check_agg types s op x y (f: t) =
   let x_tt = Sig.tt_of_term_exn types x in
   match Aggregation.ret_tt op x_tt with
-  | None -> raise (Invalid_argument (
+  | None -> raise (Errors.FormulaError (
                        Printf.sprintf "type clash for aggregation operator %s: invalid type %s"
                          (Aggregation.op_to_string op) (Dom.tt_to_string x_tt)))
   | Some s_tt ->
@@ -93,7 +93,7 @@ let check_agg types s op x y (f: t) =
      List.iter vars ~f:(
          fun x ->
          if not (Set.mem fv x) then
-           raise (Invalid_argument (
+           raise (Errors.FormulaError (
                       Printf.sprintf "variable %s is used in aggregation, but not free in %s"
                         x (to_string f)))
          else ());
@@ -116,7 +116,7 @@ let check_top types s op x y (f: t) =
   List.iter vars ~f:(
       fun x ->
       if not (Set.mem fv x) then
-        raise (Invalid_argument (
+        raise (Errors.FormulaError (
                    Printf.sprintf "variable %s is used in aggregation, but not free in %s"
                      x (to_string f)))
       else ());

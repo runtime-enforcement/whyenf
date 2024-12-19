@@ -66,7 +66,7 @@ module Part = struct
   let merge3 f part1 part2 part3 = match part1, part2, part3 with
     | [], _ , _
       | _ , [], _
-      | _ , _ , [] -> raise (Invalid_argument "one of the partitions is empty")
+      | _ , _ , [] -> raise (Errors.MonitoringError "one of the partitions is empty")
     | part1, part2, part3 ->
        merge2 (fun pt3 f' -> f' pt3) part3 (merge2 f part1 part2)
 
@@ -141,7 +141,7 @@ module Pdt = struct
   
   let unleaf_exn = function
     | Leaf l -> l
-    | _ -> raise (Invalid_argument "function not defined for nodes")
+    | _ -> raise (Errors.EnforcementError "function not defined for nodes")
 
   let rec apply1 lbls f pdt = match lbls, pdt with
     | _ , Leaf l -> Leaf (f l)
@@ -149,7 +149,7 @@ module Pdt = struct
        if Lbl.equal z x then
          Node (x, Part.map part (apply1 lbls f))
        else apply1 lbls f (Node (x, part))
-    | _ -> raise (Invalid_argument "variable list is empty")
+    | _ -> raise (Errors.EnforcementError "variable list is empty")
 
   let rec apply2 lbls f pdt1 pdt2 = match lbls, pdt1, pdt2 with
     | _ , Leaf l1, Leaf l2 -> Leaf (f l1 l2)
@@ -163,7 +163,7 @@ module Pdt = struct
              else (if Lbl.equal z y then
                      Node (y, Part.map part2 (apply2 lbls f (Node (x, part1))))
                    else apply2 lbls f (Node (x, part1)) (Node (y, part2))))
-    | _ -> raise (Invalid_argument "variable list is empty")
+    | _ -> raise (Errors.EnforcementError "variable list is empty")
 
   let rec apply3 lbls f pdt1 pdt2 pdt3 = match lbls, pdt1, pdt2, pdt3 with
     | _ , Leaf l1, Leaf l2, Leaf l3 -> Leaf (f l1 l2 l3)
@@ -213,13 +213,13 @@ module Pdt = struct
                                      else (if Lbl.equal w z then
                                              Node (z, Part.map part3 (fun pdt3 -> apply3 lbls f (Node (x, part1)) (Node (y, part2)) pdt3))
                                            else apply3 lbls f (Node (x, part1)) (Node (y, part2)) (Node (z, part3))))))))
-    | _ -> raise (Invalid_argument "variable list is empty")
+    | _ -> raise (Errors.EnforcementError "variable list is empty")
 
   let rec papply_list f xs ys = match xs, ys with 
     | [], _ -> f ys
     | None :: xs, y :: ys -> papply_list (fun zs -> f (y :: zs)) xs ys 
     | Some x :: xs, ys -> papply_list (fun zs -> f (x :: zs)) xs ys 
-    | _, _ -> raise (Invalid_argument "cannot use papply_list if the ys list is empty")
+    | _, _ -> raise (Errors.EnforcementError "cannot use papply_list if the ys list is empty")
   
   let rec applyN lbls f pdts = match lbls with
     | w :: lbls ->
@@ -260,7 +260,7 @@ module Pdt = struct
                                      Node (y, Part.map part (hide vars f_leaf f_node))
                                    else
                                      hide vars f_leaf f_node (Node (y, part))
-    | _ -> raise (Invalid_argument "function not defined for other cases")
+    | _ -> raise (Errors.EnforcementError "function not defined for other cases")
 
   (* reduce related *)
   let rec eq p_eq pdt1 pdt2 =
@@ -283,7 +283,7 @@ module Pdt = struct
          Node (x, Part.map_dedup (eq p_eq) part (apply1_reduce p_eq vars f))
        else
          apply1_reduce p_eq vars f (Node (x, part))
-    | _ -> raise (Invalid_argument "variable list is empty")
+    | _ -> raise (Errors.EnforcementError "variable list is empty")
 
   let rec apply2_reduce p_eq vars f pdt1 pdt2 = match vars, pdt1, pdt2 with
     | _ , Leaf l1, Leaf l2 -> Leaf (f l1 l2)
@@ -297,7 +297,7 @@ module Pdt = struct
              else (if Lbl.equal z y then
                      Node (y, Part.map_dedup (eq p_eq) part2 (apply2_reduce p_eq vars f (Node (x, part1))))
                    else apply2_reduce p_eq vars f (Node (x, part1)) (Node (y, part2))))
-    | _ -> raise (Invalid_argument "variable list is empty")
+    | _ -> raise (Errors.EnforcementError "variable list is empty")
 
   let apply3_reduce p_eq vars f pdt1 pdt2 pdt3 =
     let p_eq2 (a, b) (a', b') = phys_equal a a' && phys_equal b b' in
@@ -463,7 +463,7 @@ let rec pdt_of tp r trms (lbls: Lbl.t list) maps : t = match lbls with
 (* [s_1, ..., s_k] <- OP (y; f) where p is a Pdt for f *)
 let table_operator (op: Dom.t list list -> Dom.t list list) (s: string list) tp x y lbls lbls' p =
   let merge_pdts merge = function
-    | [] -> raise (Invalid_argument "cannot merge 0 PDTs")
+    | [] -> raise (Errors.EnforcementError "cannot merge 0 PDTs")
     | [pdt] -> pdt
     | pdts -> Pdt.applyN_reduce (List.equal Etc.equal_valuation) lbls' merge pdts in
   let tabulate sv =
@@ -500,7 +500,7 @@ let table_operator (op: Dom.t list list -> Dom.t list list) (s: string list) tp 
     | Node (lbl, part), _, _ :: trms ->
        let pdts = Part.map2 part (fun (s, p) -> gather (((Lbl.term lbl).trm, s)::sv) gs trms w p) in
        merge_pdts List.concat pdts
-    | Node _, _, [] -> raise (Invalid_argument "there are no labels left to process node") in
+    | Node _, _, [] -> raise (Errors.EnforcementError "there are no labels left to process node") in
   let rec collect_leaf_values x = function
     | Pdt.Leaf None  -> Set.empty (module Dom)
     | Leaf (Some vs) -> Set.of_list (module Dom) (List.map ~f:(fun v -> Map.find_exn v x) vs)
@@ -539,7 +539,7 @@ let table_operator (op: Dom.t list list -> Dom.t list list) (s: string list) tp 
     | Node _, _ :: lbls ->
        (*print_endline "case 3";*)
        insert lbls v pdt
-    | Node _, [] -> raise (Invalid_argument "there are no labels left to process node")
+    | Node _, [] -> raise (Errors.EnforcementError "there are no labels left to process node")
     | Leaf (Some vs), _ ->
        if List.exists vs ~f:(fun v' ->
               Map.for_alli v ~f:(fun ~key ~data -> Dom.equal (Map.find_exn v' key) data))

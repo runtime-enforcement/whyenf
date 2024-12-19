@@ -1,0 +1,13 @@
+The formula
+ □[0s,∞) (∀a:float. ∀p:string. (a:float <- AVG(m:float; p:string; ⧫[0s,60s] measurement(p:string, "ph", m:float))) ∧ dump_water(p:string) → geq(a:float, 4.) = 1)
+is enforceable and types to
+ □[0s,∞) ((∀a:float. (∀p:string. (((dump_water(p:string) : Sup) ∧:L (a:float <- AVG(m:float; p:string; ⧫[0s,60s] measurement(p:string, "ph", m:float))) : Sup) →:L geq(a:float, 4.) = 1 : Cau) : Cau)) : Cau) : Cau
+[Enforcer] @1 OK.
+[Enforcer] @1 nothing to do proactively.
+[Enforcer] @2 OK.
+[Enforcer] @2 nothing to do proactively.
+[Enforcer] @3 reactively commands:
+Suppress:
+dump_water("place1")
+OK.
+[Enforcer] @3 OK.

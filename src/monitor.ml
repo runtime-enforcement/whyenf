@@ -168,7 +168,7 @@ let s_append_deque sp1 d =
   Fdeque.map d ~f:(fun (ts, ssp) ->
       match ssp with
       | true -> (ts, true)
-      | false -> raise (Invalid_argument "found V proof in S deque"))
+      | false -> raise (Errors.MonitoringError "found V proof in S deque"))
 
 (*let v_append_deque vp2 d =
   Fdeque.map d ~f:(fun (ts, vvp) ->
@@ -240,7 +240,7 @@ let add_tstp_future a _ nts ntp tstps_out tstps_in =
   (* (ts, tp) update is performed differently if the queues are not empty *)
   if not (Fdeque.is_empty tstps_out) || not (Fdeque.is_empty tstps_in) then
     let first_ts = match first_ts_tp tstps_out tstps_in with
-      | None -> raise (Failure "tstps deques are empty")
+      | None -> raise (Errors.MonitoringError "tstps deques are empty")
       | Some(ts', _) -> ts' in
     if Time.(nts < first_ts + a) then (Fdeque.enqueue_back tstps_out (nts, ntp), tstps_in)
     else (tstps_out, Fdeque.enqueue_back tstps_in (nts, ntp))
@@ -415,15 +415,15 @@ module Prev = struct
 
   let rec update (lbls : Lbl.t list) (aux : t) : t * Expl.t TS.t list =
     match aux.tstps, aux.buf with
-    | [(ts, tp)], [_] when aux.first ->
+    | [(ts, tp)], _ when aux.first ->
        { aux with first = false }, [TS.make tp ts (Pdt.Leaf false)]
-    | [_], [_] -> aux, []
     | (ts, tp) :: (ts', tp') :: tstps, buf_expl :: buf when Interval.diff_is_in ts ts' aux.itv ->
        let aux, bs = update lbls { aux with tstps = (ts', tp') :: tstps; buf } in
        aux, (TS.make tp ts buf_expl)::bs
     | (ts, tp) :: (ts', tp') :: tstps, buf_expl :: buf ->
        let aux, bs = update lbls { aux with tstps = (ts', tp') :: tstps; buf }  in
        aux, (TS.make tp ts (Pdt.Leaf false))::bs
+    | _,  _ -> aux, []
 
   let approximate tp expls =
     match List.last expls with
@@ -468,7 +468,10 @@ end
 module Once = struct
 
   type alpha_t = { alphas_in : Tdeque.t;
-                   alphas_out: Tdeque.t }
+                   alphas_out: Tdeque.t } [@@deriving compare, sexp_of, hash, equal]
+
+  let equal_alpha_t_bool (oaux, b) (oaux', b') =
+    equal_alpha_t oaux oaux' && Bool.equal b b'
 
   type t = { oaux   : alpha_t Pdt.t;
              itv_in : Interval.t;
@@ -520,7 +523,7 @@ module Once = struct
     in
     match Buft.get aux.buf with
     | Some (expl_pdt, (ts, tp)), buf ->
-       let oaux, b = Pdt.split_prod (Pdt.apply2 lbls (process ts tp) expl_pdt aux.oaux) in
+       let oaux, b = Pdt.split_prod (Pdt.apply2_reduce equal_alpha_t_bool lbls (process ts tp) expl_pdt aux.oaux) in
        let aux = { aux with oaux; buf } in
        let aux, bs = update lbls aux in
        aux, (TS.make tp ts b)::bs
@@ -537,7 +540,10 @@ end
 module Eventually = struct
 
   type alpha_t = { alphas_in : Tdeque.t;
-                   alphas_out: Tdeque.t }
+                   alphas_out: Tdeque.t } [@@deriving compare, sexp_of, hash, equal]
+
+  let equal_alpha_t_bool (eaux, b) (eaux', b') =
+    equal_alpha_t eaux eaux' && Bool.equal b b'
 
   type t = { eaux      : alpha_t Pdt.t;
              itv_in    : Interval.t;
@@ -549,7 +555,7 @@ module Eventually = struct
   let init itv_in neg = { eaux       = Pdt.Leaf { alphas_in  = Tdeque.empty
                                             ; alphas_out = Tdeque.empty };
                           itv_in;
-                          itv_out    = Interval.out_right itv_in;
+                          itv_out    = Option.value_exn (Interval.out_right itv_in);
                           tstps_todo = [];
                           buf        = ([], []);
                           neg }
@@ -595,7 +601,7 @@ module Eventually = struct
     let ts_opt, aux = load aux in
     match aux.tstps_todo, ts_opt with
     | (ts, tp)::tstps_todo, Some ts' when Interval.diff_right_of ts ts' aux.itv_in -> 
-       let eaux, b = Pdt.split_prod (Pdt.apply1 lbls (process ts tp) aux.eaux) in
+       let eaux, b = Pdt.split_prod (Pdt.apply1_reduce equal_alpha_t_bool lbls (process ts tp) aux.eaux) in
        let aux = { aux with eaux; tstps_todo } in
        let aux, bs = update lbls aux in
        aux, (TS.make tp ts b)::bs
@@ -631,7 +637,10 @@ end
 module Since = struct
 
   type beta_alphas_t = { beta_alphas_in : Tdeque.t;
-                         beta_alphas_out: Tdeque.t }
+                         beta_alphas_out: Tdeque.t } [@@deriving compare, sexp_of, hash, equal]
+
+  let equal_beta_alphas_t_bool (saux, b) (saux', b') =
+    equal_beta_alphas_t saux saux' && Bool.equal b b'
 
   type t = { saux   : beta_alphas_t Pdt.t;
              itv_in : Interval.t;
@@ -643,10 +652,11 @@ module Since = struct
                       itv_in;
                       itv_out = Interval.out_left itv_in;
                       buf     = (([], []), []) }
-
+  
   let beta_alphas_to_string =
-    Pdt.to_string (fun o -> Printf.sprintf "{ beta_alphas_in = %s; beta_alphas_out = %s }"
-                              (Tdeque.to_string o.beta_alphas_in) (Tdeque.to_string o.beta_alphas_out)) ""
+    Pdt.to_string
+      (fun o -> Printf.sprintf "{ beta_alphas_in = %s; beta_alphas_out = %s }"
+                  (Tdeque.to_string o.beta_alphas_in) (Tdeque.to_string o.beta_alphas_out)) ""
 
   let to_string aux =
     Printf.sprintf "{ saux = %s; itv_in = %s; itv_out = %s; buf = %s }"
@@ -671,13 +681,13 @@ module Since = struct
            let beta_alphas_out, beta_alphas_in = Tdeque.split_left beta_alphas_out beta_alphas_in ts itv_out in
            beta_alphas_out, beta_alphas_in
         | None ->
-           (* Insert timestamp into beta_alphas_out *)
+           (* Interval starts at 0: insert timestamp directly into beta_alphas_in *)
            let beta_alphas_in = if b_alpha
                                 then saux.beta_alphas_in
                                 else Tdeque.empty in
            let beta_alphas_in = if b_beta
                                 then Tdeque.enqueue_back beta_alphas_in ts
-                                else saux.beta_alphas_out in
+                                else beta_alphas_in in
            saux.beta_alphas_out, beta_alphas_in
       in
       (* Remove timestamps from beta_alphas_in when they are too old *)
@@ -688,7 +698,7 @@ module Since = struct
     in
     match Buf2t.get aux.buf with
     | Some ((expl_alpha_pdt, expl_beta_pdt), (ts, tp)), buf ->
-       let saux, b = Pdt.split_prod (Pdt.apply3 lbls (process ts tp) expl_alpha_pdt expl_beta_pdt aux.saux) in
+       let saux, b = Pdt.split_prod (Pdt.apply3_reduce equal_beta_alphas_t_bool lbls (process ts tp) expl_alpha_pdt expl_beta_pdt aux.saux) in
        let aux = { aux with saux; buf } in
        let aux, bs = update lbls aux in
        aux, (TS.make tp ts b)::bs
@@ -711,7 +721,7 @@ module Until = struct
   type alphas_beta_t = { alpha_in : Tdeque.t;
                          alpha_out: Tdeque.t;
                          beta_in  : Tdeque.t;
-                         beta_out : Tdeque.t }
+                         beta_out : Tdeque.t } [@@deriving compare, sexp_of, hash, equal]
 
   type t = { uaux        : alphas_beta_t Pdt.t;
              itv_beta_in : Interval.t;
@@ -740,7 +750,7 @@ module Until = struct
                                                    ; beta_out  = Tdeque.empty };
                            itv_beta_in;
                            itv_alpha_in = Interval.to_zero itv_beta_in;
-                           itv_out      = Interval.out_right itv_beta_in;
+                           itv_out      = Option.value_exn (Interval.out_right itv_beta_in);
                            tstps_todo   = [];
                            buf          = (([], []), []) }
   
@@ -772,7 +782,7 @@ module Until = struct
     let rec load ?(ts_opt=None) uaux =
       match Buf2t.get uaux.buf with
       | Some ((expl_alpha_pdt, expl_beta_pdt), (ts, tp)), buf ->
-         let uaux = Pdt.apply3 lbls (load1 ts tp) expl_alpha_pdt expl_beta_pdt aux.uaux in
+         let uaux = Pdt.apply3_reduce equal_alphas_beta_t lbls (load1 ts tp) expl_alpha_pdt expl_beta_pdt aux.uaux in
          let aux = { aux with uaux; buf } in
          load ~ts_opt:(Some ts) aux
       | _ -> ts_opt, aux
@@ -1038,7 +1048,7 @@ module MFormula = struct
     let rec ppp = function
       | [x; y] -> x.hash +++ y.hash
       | x :: ys -> x.hash +++ ppp ys
-      | [] -> raise (Invalid_argument "cannot apply ppp to less than two elements") in
+      | [] -> raise (Errors.MonitoringError "cannot apply ppp to less than two elements") in
     let list_hash f l = List.fold_left ~f:(+++) ~init:0 (List.map ~f l) in
     function
     | MTT -> String.hash "MTT"
@@ -1307,7 +1317,7 @@ module MFormula = struct
       | FF -> MFF
       | EqConst (x, c) -> MEqConst (Tterm.to_term x, c)
       | Predicate (r, trms) -> MPredicate (r, Tterm.to_terms trms)
-      | Predicate' (_, _, f) | Let' (_, _, _, f) -> aux f
+      | Predicate' (_, _, f) | Let' (_, _, _, _, f) -> aux f
       | Agg ((s, tt), op, x, y, f) ->
          let op_fun = Aggregation.eval op tt in
          MAgg (s, op, op_fun, Tterm.to_term x, List.map ~f:fst y, make (aux f) Filter.tt)
@@ -1342,7 +1352,7 @@ module MFormula = struct
       | Until (s, i, f, g) ->
          MEUntil (s, i, None, make (aux f) f.info.filter, make (aux g) g.info.filter, Etc.empty_valuation)
       | Type (f, _) -> aux f
-      | Let _ -> raise (Invalid_argument "Let bindings must be unrolled to initialize MFormula")
+      | Let _ -> raise (Errors.MonitoringError "Let bindings must be unrolled to initialize MFormula")
     in set_make (aux tf) tf.info.filter
 
 
@@ -1681,7 +1691,7 @@ let rec match_terms trms ds map =
      (match match_terms trms ds map with
       | None -> None
       | Some map' -> Some (Map.add_exn map' ~key:(Lbl.LClos (f, trms', Set.empty (module String))) ~data:d))
-  | _, _ -> raise (Invalid_argument
+  | _, _ -> raise (Errors.MonitoringError
                      (Printf.sprintf "Cannot match terms %s with domain elements %s"
                         (Term.list_to_string_core trms) (Dom.list_to_string ds)))
 
@@ -1793,7 +1803,8 @@ let approximate_quant aexpl x mf =
   match mf with
   | MExists _ -> Pdt.quantify ~forall:false x aexpl
   | MForall _ -> Pdt.quantify ~forall:true x aexpl
-  | _ -> raise (Invalid_argument ("function is not defined for " ^ MFormula.core_op_to_string mf))
+  | _ -> raise (Errors.MonitoringError
+                  (Printf.sprintf "function is not defined for %s" (MFormula.core_op_to_string mf)))
 
 let approximate_enext lbls (fobligs: FObligations.t) (h, vv) tp pol_opt = (*TODO*)
   let expls = expls_approx FObligation.is_finterval tp (pol_value pol_opt) lbls fobligs h vv in
@@ -1921,8 +1932,8 @@ let meval (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) mformula 
               | Trace -> Db.filter db ~f:(fun evt -> String.equal r (fst(evt)))
               | External -> Db.retrieve_external r
               | Builtin -> Db.retrieve_builtin ts tp r
-              | Predicate -> raise (Invalid_argument "cannot evaluate Predicate")
-              | Let -> raise (Invalid_argument "cannot evaluate Let")in
+              | Predicate -> raise (Errors.MonitoringError "cannot evaluate Predicate")
+              | Let -> raise (Errors.MonitoringError "cannot evaluate Let") in
             if List.is_empty trms then
               (let expl = Pdt.Leaf (not (Db.is_empty db')) in
                memo, ([TS.make tp ts expl], expl, MPredicate (r, trms)))
@@ -1936,10 +1947,9 @@ let meval (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) mformula 
                          else Expl.pdt_of tp r trms mformula.lbls maps in
               (*print_endline "--MPredicate";
               print_endline ("r=" ^ r);
-              print_endline ("db'=" ^ Db.to_string db');*)
-              (*  print_endline ("maps=" ^ (String.concat ~sep:"; " (List.map maps ~f:(fun map -> String.concat ~sep:", " (List.map (Map.to_alist map) ~f:(fun (lbl, d) -> Lbl.to_string lbl ^ " -> " ^ Dom.to_string d))))));
-                  print_endline ("lbls=" ^ (String.concat ~sep:", " (List.map lbls ~f:Lbl.to_string)));*)
-              (*print_endline ("expl=" ^ Expl.to_string expl);*)
+              print_endline ("db'=" ^ Db.to_string db');
+              print_endline ("maps=" ^ (String.concat ~sep:"; " (List.map maps ~f:(fun map -> String.concat ~sep:", " (List.map (Map.to_alist map) ~f:(fun (lbl, d) -> Lbl.to_string lbl ^ " -> " ^ Dom.to_string d))))));
+              print_endline ("expl=" ^ Expl.to_string expl);*)
               memo, ([TS.make tp ts expl], expl, MPredicate (r, trms))
          | MAgg (s, op, op_fun, x, y, mf) ->
             let memo, (expls, aexpl, mf') = meval_rec ts tp db fobligs ~pol memo mf in
@@ -1971,9 +1981,6 @@ let meval (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) mformula 
             memo, (f_expls, f_aexpl, MTop (s, op, op_fun, x, y, mf'))
          | MNeg (mf) ->
             let memo, (expls, aexpl, mf') = meval_rec ts tp db fobligs ~pol:(pol >>| FObligation.neg) memo mf in
-            (*print_endline ("--MNeg");
-              print_endline ("--mformula=" ^ MFormula.to_string mformula);
-              print_endline ("--aexpl=" ^ Expl.to_string aexpl);*)
             let f_neg pdt = Pdt.apply1_reduce Bool.equal mformula.lbls (fun b -> not b) (Pdt.exquant pdt) in
             let f_expls = List.map expls ~f:(TS.map f_neg) in
             let f_aexpl = f_neg aexpl in
@@ -1997,10 +2004,9 @@ let meval (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) mformula 
             let memo, (expls2, aexpl2, mf2') = meval_rec ts tp db ~pol fobligs memo mf2 in
             let f_imp pdt1 pdt2 =
               Pdt.apply2_reduce Bool.equal mformula.lbls (fun p1 p2 -> (not p1) || p2) (Pdt.exquant pdt1) pdt2 in
-            (*print_endline "--MImp";*)
-            (*print_endline ("mformula=" ^ MFormula.to_string mformula);*)
-            (*print_endline ("aexpl1=" ^ Expl.to_string aexpl1);
-              print_endline ("aexpl2=" ^ Expl.to_string aexpl2);*)
+            (*print_endline "--MImp";
+            print_endline ("aexpl1=" ^ Expl.to_string aexpl1);
+            print_endline ("aexpl2=" ^ Expl.to_string aexpl2);*)
             (*print_endline ("lbls=" ^ Lbl.to_string_list mformula.lbls);*)
             let (f_expls, buf2) = Buf2.take (TS.map2 f_imp) (Buf2.add expls1 expls2 buf2) in
             let aexpl = f_imp aexpl1 aexpl2 in
@@ -2055,7 +2061,10 @@ let meval (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) mformula 
             let memo, (expls, aexpl, mf') = meval_rec ts tp db ~pol fobligs memo mf in
             let aux = { aux with buf = Buft.add aux.buf expls } in
             let aux, f_expls = Once.update mformula.lbls aux in
+            (*print_endline ("--MOnce");
+            print_endline ("aux=" ^ Once.to_string aux);*)
             let aexpl = approximate_once mformula.lbls f_expls aexpl i tp (pol_value pol) in
+                (*print_endline ("aexpl=" ^ Expl.to_string aexpl);*)
             memo, (f_expls, aexpl, MOnce (i, mf', aux))
          | MEventually (i, mf, aux) ->
             let memo, (expls, aexpl, mf') = meval_rec ts tp db ~pol fobligs memo mf in
@@ -2095,7 +2104,9 @@ let meval (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) mformula 
             let memo, (expls2, aexpl2, mf2') = meval_rec ts tp db ~pol fobligs memo mf2 in
             (*print_endline "-- MSince (before)";
             print_endline (Since.to_string aux);
-            print_endline ("expls1=" ^ Etc.list_to_string "" (fun _ -> TS.to_string Expl.to_string) expls1);
+            print_endline (Expl.to_string aexpl1);
+            print_endline (Expl.to_string aexpl2);*)
+            (*print_endline ("expls1=" ^ Etc.list_to_string "" (fun _ -> TS.to_string Expl.to_string) expls1);
             print_endline ("expls2=" ^ Etc.list_to_string "" (fun _ -> TS.to_string Expl.to_string) expls2);*)
             let aux = { aux with buf = Buf2t.add aux.buf expls1 expls2 } in
             let aux, f_expls = Since.update mformula.lbls aux in

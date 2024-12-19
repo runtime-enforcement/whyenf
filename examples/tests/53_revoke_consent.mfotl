@@ -1,0 +1,1 @@
+ALWAYS (FORALL x. use(x) IMPLIES ((NOT revoke(x)) SINCE consent(x)))

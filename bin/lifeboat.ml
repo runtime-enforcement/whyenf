@@ -24,8 +24,10 @@ module Lifeboat = struct
   let sig_ref = ref In_channel.stdin
   let logstr_ref = ref ""
 
-  let run debug log_file logstr sig_file formula_file func_file out_file json bound time_zone step =
+  let run debug forall monitoring log_file logstr sig_file formula_file func_file out_file json bound time_zone step =
     if debug then Global.debug := true;
+    if forall then Global.forall := true;
+    if monitoring then Global.monitoring := true;	
     (match log_file with
      | Some logf -> inc_ref := In_channel.create logf
      | None -> ());
@@ -65,11 +67,16 @@ module Lifeboat = struct
     (match step with
      | Some s -> s_ref := MFOTL_lib.Time.Span.of_string s
      | None -> ());
-
     match !formula_ref with
     | Some sformula ->
-        let _ = Enforcer.exec (Formula.init sformula) !inc_ref !b_ref in
-        ()
+       let _ =
+         let xs = Set.elements (Sformula.fv sformula) in
+         let sformula =
+           if forall
+           then Sformula.SExists (xs, sformula)
+           else sformula in
+         Enforcer.exec (Formula.init sformula) in
+         ()
     | None ->
         printf "Error: No valid formula provided.\n";
         exit 1
@@ -79,6 +86,8 @@ module Lifeboat = struct
       ~summary:"Lifeboat: A tool for monitoring and enforcing MFOTL formulas"
       ~readme:(fun () -> "Processes log files against MFOTL formulas with various options.")
       (let%map_open.Command debug = flag "-debug" no_arg ~doc:" Enable debug mode"
+       and forall = flag "-forall" no_arg ~doc:" Quantify free variables universally"
+       and monitoring = flag "-monitoring" no_arg ~doc:" Monitoring mode"
        and log_file = flag "-log" (optional string) ~doc:"FILE Log file as trace (default: stdin)"
        and logstr = flag "-logstr" (optional string) ~doc:"STRING Log string"
        and sig_file = flag "-sig" (optional string) ~doc:"FILE Signature file"
@@ -91,7 +100,7 @@ module Lifeboat = struct
        and step = flag "-s" (optional string) ~doc:"INT[smhdMy] Enforcement step (default: 1s)"
        in 
        fun () ->
-       run debug log_file logstr sig_file formula_file func_file out_file json bound time_zone step)
+       run debug forall monitoring log_file logstr sig_file formula_file func_file out_file json bound time_zone step)
        
 end
 

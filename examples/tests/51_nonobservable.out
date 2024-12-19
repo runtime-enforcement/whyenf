@@ -1,7 +1,7 @@
 The formula
  □[0s,∞) (C(0) → B(0))
 is enforceable and types to
- □[0s,∞) (((C(0) : Bot) →:R (B(0) : Cau)) : <NonObs,Cau,ErrSct>) : <NonObs,Cau,ErrSct>
+ □[0s,∞) (((C(0) : Bot) →:R (B(0) : Cau)) : causable) : causable
 This formula cannot be transparently enforced.
 [Enforcer] @1 reactively commands:
 Cause:

@@ -6,6 +6,8 @@ module T = struct
 
   type t = Int of Int.t | Str of String.t | Float of Float.t [@@deriving compare, sexp_of, hash, equal]
 
+  exception DomError of string
+
   let lt d d' = match d, d' with
     | Int v, Int v' -> Int.(v < v')
     | Str v, Str v' -> String.(v < v')
@@ -36,7 +38,7 @@ module T = struct
     | "int" -> TInt
     | "string" -> TStr
     | "float" -> TFloat
-    | t -> raise (Invalid_argument (Printf.sprintf "type %s is not supported" t))
+    | t -> raise (DomError (Printf.sprintf "type %s is not supported" t))
 
   let tt_of_domain = function
     | Int _ -> TInt
@@ -55,14 +57,14 @@ module T = struct
 
   let string_to_t s tt = match tt with
     | TInt -> (try Int (Int.of_string s)
-               with Failure _ -> raise (Invalid_argument (Printf.sprintf "%s is not an int" s)))
+               with Failure _ -> raise (DomError (Printf.sprintf "%s is not an int" s)))
     | TStr -> Str s
     | TFloat -> (try Float (Float.of_string s)
-                 with Failure _ -> raise (Invalid_argument (Printf.sprintf "%s is not a float" s)))
+                 with Failure _ -> raise (DomError (Printf.sprintf "%s is not a float" s)))
 
   let to_string = function
     | Int v -> Int.to_string v
-    | Str v -> v
+    | Str v -> Printf.sprintf "\"%s\"" v
     | Float v -> Float.to_string v
 
   let list_to_string ds =
@@ -70,15 +72,15 @@ module T = struct
 
   let to_int_exn = function
     | Int v -> v
-    | d -> raise (Invalid_argument (Printf.sprintf "type %s is not supported" (tt_to_string (tt_of_domain d))))
+    | d -> raise (DomError (Printf.sprintf "type %s is not supported" (tt_to_string (tt_of_domain d))))
 
   let to_float_exn = function
     | Float v -> v
-    | d -> raise (Invalid_argument (Printf.sprintf "type %s is not supported" (tt_to_string (tt_of_domain d))))
+    | d -> raise (DomError (Printf.sprintf "type %s is not supported" (tt_to_string (tt_of_domain d))))
 
   let to_string_exn = function
     | Str v -> v
-    | d -> raise (Invalid_argument (Printf.sprintf "type %s is not supported" (tt_to_string (tt_of_domain d))))
+    | d -> raise (DomError (Printf.sprintf "type %s is not supported" (tt_to_string (tt_of_domain d))))
 
 end
 

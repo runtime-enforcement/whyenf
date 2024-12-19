@@ -31,10 +31,10 @@ def feeder(log, acc, p, q, queuing, lock):
 PREFIX = "> LATENCY "
 SUFFIX = " <"
 
-def reader(p, q, queuing, lock, last_tp):
+def reader(p, q, queuing, lock, last_tp, desc):
     data = []
     tp = -1
-    bar = tqdm(total=last_tp+1)
+    bar = tqdm(total=last_tp+1, desc=desc)
     while tp != last_tp:
         line = p.stdout.readline()
         if not line:
@@ -51,20 +51,20 @@ def reader(p, q, queuing, lock, last_tp):
     bar.update(n=1)
     q.put(data)
 
-def replay(log, last_tp, command, acc=1000, to=400, nto=3):
+def replay(log, last_tp, command, desc, acc=1000, to=600):
     p = Popen(command, stdin=PIPE, stdout=PIPE, text=True, shell=True)
     manager = Manager()
     queuing = manager.Value('queuing', 0)
     q = Queue()
     lock = Lock()
-    sleep(2)
+    sleep(1)
     f = Process(target=feeder, args=(log, acc, p, q, queuing, lock))
-    r = Process(target=reader, args=(p, q, queuing, lock, last_tp))
-    f.start()
+    r = Process(target=reader, args=(p, q, queuing, lock, last_tp, desc))
     r.start()
+    f.start()
     try:
-        data1 = list(q.get(timeout=600))
-        data2 = list(q.get(timeout=600))
+        data1 = list(q.get(timeout=to))
+        data2 = list(q.get(timeout=to))
     except:
         return None
     return pd.read_csv(StringIO("type,tp,ts,computer_time,n_ev,n_tp,cau,sup,ins,done_time\n" + "\n".join(data1 + data2)))
