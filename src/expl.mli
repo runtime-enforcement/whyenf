@@ -24,8 +24,8 @@ module Part : sig
   val tabulate: (Dom.t, Dom.comparator_witness) Set.t -> (Dom.t -> 'a) -> 'a -> 'a t
 
   val dedup: ('a -> 'a -> bool) -> 'a t -> 'a t
-  val map_dedup: ('a -> 'a -> bool) -> 'd t -> ('d -> 'a) -> 'a t
-  val map2_dedup: ('a -> 'a -> bool) -> 'a t -> (sub * 'a -> sub * 'a) -> 'a t
+  val map_dedup: ('a -> 'a -> bool) -> ('d -> 'a) -> 'd t -> 'a t
+  val map2_dedup: ('a -> 'a -> bool) -> (sub * 'a -> sub * 'a) -> 'a t -> 'a t
   val tabulate_dedup: ('a -> 'a -> bool) -> (Dom.t, Dom.comparator_witness) Set.t -> (Dom.t -> 'a) -> 'a -> 'a t
 
 end
@@ -41,7 +41,6 @@ module Pdt : sig
 
   val split_prod: ('a * 'b) t -> 'a t * 'b t
   val split_list: 'a list t -> 'a t list
-  val hide: Lbl.t list -> ('a -> 'b) -> ((Part.sub * 'a option) list -> 'b) -> 'a t -> 'b t
   val to_string: ('a -> string) -> string -> 'a t -> string
 
   val eq: ('a -> 'a -> bool) -> 'a t -> 'a t -> bool
@@ -52,15 +51,10 @@ module Pdt : sig
   val applyN_reduce: ('a -> 'a -> bool) -> Lbl.t list -> ('b list -> 'a) -> 'b t list -> 'a t
   val split_prod_reduce: ('a -> 'a -> bool) -> ('a * 'a) t -> 'a t * 'a t
   val split_list_reduce: ('a -> 'a -> bool) -> 'a list t -> 'a t list
-  (*val hide_reduce: string -> ('a -> 'a -> bool) -> Lbl.t list -> ('b -> 'a) -> ('b t list -> 'a t) -> 'b t -> 'a t*)
   val quantify: forall:bool -> string -> 'a t -> 'a t
 
-  (*val replace_leaf: Etc.valuation -> 'a -> 'a t -> 'a t*)
   val specialize: ('a list -> 'a) -> ('a list -> 'a) -> Etc.valuation -> 'a t -> 'a
   val specialize_partial: Etc.valuation -> 'a t -> 'a t
-  
-  (*val simplify: string -> ('a -> 'a -> bool) -> 'a t -> 'a t*)
-  (*val simplify_vars: string -> Term.t list -> Term.t list*)
   
   val collect: ('a -> bool) -> ((Dom.t, Dom.comparator_witness) Setc.t list -> (Dom.t, Dom.comparator_witness) Setc.t) -> ((Dom.t, Dom.comparator_witness) Setc.t list -> (Dom.t, Dom.comparator_witness) Setc.t) -> Etc.valuation -> string -> 'a t -> (Dom.t, Dom.comparator_witness) Setc.t
   val from_valuation: Lbl.t list -> Etc.valuation -> 'b -> 'b -> 'b t

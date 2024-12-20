@@ -83,11 +83,7 @@ let event name consts =
     (name, List.map2_exn (Sig.arg_ttts pred_sig) consts
              ~f:(fun tc c -> match snd tc with
                              | TConst TInt -> Dom.Int (Int.of_string c)
-                             | TConst TStr -> if String.is_prefix c ~prefix:"\""
-                                                 && String.is_suffix c ~suffix:"\"" then
-                                                Str (String.sub c 0 ((String.length c)-2))
-                                              else
-                                                Str c
+                             | TConst TStr -> Str (Etc.unquote c)
                              | TConst TFloat -> Float (Float.of_string c)
                              | ttt ->
                                 raise (Errors.InternalError
