@@ -4,8 +4,19 @@ run_experiments(
     option        = 'lifeboat',
     benchmark     = 'nokia',
     exe           = './lifeboat.exe',
-    accelerations = [1],
+    accelerations = [100],
     n             = 1,#10,
     time_unit     = 1,
-    to            = 3600*24
 )
+
+
+
+run_experiments(
+    option        = 'whyenf',
+    benchmark     = 'nokia',
+    exe           = './whyenf.exe',
+    accelerations = [100],
+    n             = 1,#10,
+    time_unit     = 1,
+)
+

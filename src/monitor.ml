@@ -1988,7 +1988,7 @@ let meval (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) mformula 
          | MAnd (s, mfs, bufn) ->
             let memo, data = List.fold_map ~init:memo ~f:(meval_rec ts tp db ~pol fobligs) mfs in
             let expls_list, aexpl_list, mfs' = List.unzip3 data in
-            let apply_ands = Pdt.applyN_reduce Bool.equal mformula.lbls (List.fold_left ~init:true ~f:(&&)) in
+            let apply_ands = Pdt.applyN_reduce Bool.equal mformula.lbls (List.fold_left ~init:true ~f:(&&)) in            
             let (f_expls, bufn) = Bufn.take (TS.map_list apply_ands) (Bufn.add expls_list bufn) in
             let aexpl = apply_ands aexpl_list in
             memo, (f_expls, aexpl, MAnd (s, mfs', bufn))
@@ -2004,13 +2004,13 @@ let meval (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) mformula 
             let memo, (expls2, aexpl2, mf2') = meval_rec ts tp db ~pol fobligs memo mf2 in
             let f_imp pdt1 pdt2 =
               Pdt.apply2_reduce Bool.equal mformula.lbls (fun p1 p2 -> (not p1) || p2) (Pdt.exquant pdt1) pdt2 in
-            (*print_endline "--MImp";
+            print_endline "--MImp";
             print_endline ("aexpl1=" ^ Expl.to_string aexpl1);
-            print_endline ("aexpl2=" ^ Expl.to_string aexpl2);*)
-            (*print_endline ("lbls=" ^ Lbl.to_string_list mformula.lbls);*)
+            print_endline ("aexpl2=" ^ Expl.to_string aexpl2);
+            print_endline ("lbls=" ^ Lbl.to_string_list mformula.lbls);
             let (f_expls, buf2) = Buf2.take (TS.map2 f_imp) (Buf2.add expls1 expls2 buf2) in
             let aexpl = f_imp aexpl1 aexpl2 in
-            (*print_endline ("aexpl=" ^ Expl.to_string aexpl);*)
+            print_endline ("aexpl=" ^ Expl.to_string aexpl);
             memo, (f_expls, aexpl, MImp (s, mf1', mf2', buf2))
          | MExists (x, tc, b, mf) ->
             (*print_endline "--MExists";
