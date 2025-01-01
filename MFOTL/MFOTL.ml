@@ -342,7 +342,7 @@ module Make
          (Term.value_to_string trm) (Dom.to_string c)
     | Predicate (r, trms) ->
        Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
-    | Predicate' (r, trms, f) ->
+    | Predicate' (r, trms, _) ->
        Printf.sprintf "%s٭(%s)" r (Term.list_to_string trms)
     | Let (r, enftype, vars, f, g) ->
        Printf.sprintf (Etc.paren l 4 "LET %s(%s)%s = %a IN %a") r
@@ -773,18 +773,23 @@ module Make
 
     let rec solve_past_guarded (ts: pg_map) (x: Var.t) p (f:('i, Var.t, Dom.t, Term.t) _t) =
       let matches ts x r i t = Term.equal (Term.dummy_var x) t && Map.mem ts (eib r i true) in
+      let map_var default f t = match Term.unvar_opt t with Some y -> f y | None -> default in
+      let x_id = Var.ident x in
       let rec aux ts x p (f: ('i, Var.t, Dom.t, Term.t) _t) =
         let s =
           match f.form, p with
           | TT, false -> [Set.empty (module String)]
           | FF, true -> [Set.empty (module String)]
-          | EqConst (y, _), true when Term.equal (Term.dummy_var x) y -> [Set.empty (module String)]
+          | EqConst (y, _), true ->
+             map_var [] (fun y -> if String.equal x_id (Var.ident y)
+                                then [Set.empty (module String)] else []) y
           | Predicate (r, trms), _ when List.existsi ~f:(matches ts x r) trms ->
              let f i t = if matches ts x r i t then Some (Map.find_exn ts (eib r i p)) else None in
              List.concat (List.filter_mapi trms ~f)
-          | Predicate (r, trms), true when List.exists ~f:(Term.equal (Term.dummy_var x)) trms
-                                           && Sig.mem r
-                                           && Enftype.is_observable (Sig.enftype_of_pred r) ->
+          | Predicate (r, trms), true
+               when List.exists ~f:(map_var false (fun y -> String.equal x_id (Var.ident y))) trms
+                    && Sig.mem r
+                    && Enftype.is_observable (Sig.enftype_of_pred r) ->
              [Set.singleton (module String) r]
           | Predicate' (_, _, f), _ -> aux ts x p f
           | Let (e, _, vars, f, g), _ ->
@@ -835,8 +840,8 @@ module Make
           | Until (_, i, f, _), true when not (Interval.has_zero i) -> aux ts x p f
           | Until (_, _, f, g), true -> aux ts x p (make (disj N f g) f.info)
           | _ -> [] in
-        (*print_endline (Printf.sprintf "solve_past_guarded([%s], %s, %b, %s) = [%s]"
-                         (String.concat ~sep:"; " (List.map ~f:(fun (k, v) -> Printf.sprintf "%s -> %s" k (String.concat ~sep:"; " (List.map ~f:(fun es -> "{" ^ (String.concat ~sep:", " (Set.elements es)) ^ "}") s))) (Map.to_alist ts)))
+        (*Stdio.print_endline (Printf.sprintf "solve_past_guarded([%s], %s, %b, %s) = [%s]"
+                         (String.concat ~sep:"; " (List.map ~f:(fun (k, _) -> Printf.sprintf "%s -> %s" k (String.concat ~sep:"; " (List.map ~f:(fun es -> "{" ^ (String.concat ~sep:", " (Set.elements es)) ^ "}") s))) (Map.to_alist ts)))
           (Var.to_string x) p (op_to_string f)
           (String.concat ~sep:"; " (List.map ~f:(fun es -> "{" ^ (String.concat ~sep:", " (Set.elements es)) ^ "}") s)) );*)
         s in
@@ -1029,9 +1034,9 @@ module Make
 
       let to_string = to_string_rec 0
 
-      let verdict_to_string = function
+      (*let verdict_to_string = function
         | Possible c -> Printf.sprintf "Possible(%s)" (to_string c)
-        | Impossible e -> Printf.sprintf "Impossible(%s)" (Errors.to_string e)
+        | Impossible e -> Printf.sprintf "Impossible(%s)" (Errors.to_string e)*)
 
       let rec solve c =
         let r = match c with
@@ -1118,19 +1123,25 @@ module Make
         let aux' t f = aux t pgs ts f in
         let r = match Enftype.is_causable t, Enftype.is_suppressable t with
           | true, true ->
-             Constraints.Impossible (EFormula (Some (to_string f ^ " is never both causable and suppressable"), f, t))
+             Constraints.Impossible (
+                 EFormula (Some (to_string f
+                                 ^ " is never both causable and suppressable"), f, t))
           | true, false -> begin
               match f.form with
               | TT -> Constraints.Possible CTT
               | Predicate (e, terms) ->
-                 let _, is = Map.find_exn ts e in
-                 let terms = List.filteri terms ~f:(fun i _ -> List.mem is i ~equal:Int.equal) in
-                 let fvs   = Etc.dedup ~equal:Var.equal (Term.fv_list terms) in
-                 let es    = List.map fvs ~f:(fun x -> Option.value (Map.find pgs (Var.ident x)) ~default:[]) in
-                 let unguarded = List.filter_map (List.zip_exn fvs es) ~f:(fun (x, e) ->
+                 let _, is     = Map.find_exn ts e in
+                 let terms     = List.filteri terms
+                                   ~f:(fun i _ -> List.mem is i ~equal:Int.equal) in
+                 let fvs       = Term.fv_list terms in
+                 let fvs_ids   = Etc.dedup ~equal:String.equal (List.map ~f:Var.ident fvs)  in
+                 let es        = List.map fvs_ids
+                                   ~f:(fun x -> Option.value (Map.find pgs x) ~default:[]) in
+                 let unguarded = List.filter_map (List.zip_exn fvs_ids es) ~f:(fun (x, e) ->
                                      if List.is_empty e then Some x else None) in
                  (match List.map ~f:(Set.union_list (module String)) (Etc.cartesian es) with
-                  | [] -> Impossible (EFormula (Some ("no guards found for " ^ String.concat ~sep:", " (List.map ~f:Var.to_string unguarded)), f, t))
+                  | [] -> Impossible (EFormula (Some ("no guards found for "
+                                                      ^ String.concat ~sep:", " unguarded), f, t))
                   | es_ncau_list ->
                      let c =
                        (if terms_are_strict terms then (
@@ -1186,11 +1197,11 @@ module Make
                   | [] -> error ("for causability " ^ Var.to_string x ^ " must be past-guarded")
                   | _  -> aux t (Map.update pgs (Var.ident x) ~f:(fun _ -> es)) ts f)
               | Next (i, f) when Interval.has_zero i && not (Interval.is_zero i) -> aux' t f
-              | Next _ -> error "○ with non-[0,a) interval, a > 0, is never Cau"
+              | Next _ -> error "○ with non-[0,a) interval, a > 0, is never causable"
               | Once (i, g) when Interval.has_zero i -> aux' t g
               | Since (_, i, f, g) when Interval.has_zero i ->
                  only_if_strictly_relative_past [f] (aux' t g)
-              | Once _ | Since _ -> error "⧫[a,b) or S[a,b) with a > 0 is never Cau"
+              | Once _ | Since _ -> error "⧫[a,b) or S[a,b) with a > 0 is never causable"
               | Eventually (i, f) -> only_if_bounded i (aux' t f)
               | Always (_, f) -> aux' t f
               | Until (LR, i, f, g) ->
@@ -1199,7 +1210,7 @@ module Make
                  only_if_bounded i (only_if_strictly_relative_past [f] (aux' t g))
               | Until (_, i, f, g) ->
                  only_if_bounded i (Constraints.conj (aux' t f) (aux' t g))
-              | Prev _ -> error "● is never Cau"
+              | Prev _ -> error "● is never causable"
               | _ -> Impossible (EFormula (None, f, t))
             end
           | false, true -> begin
@@ -1233,7 +1244,7 @@ module Make
               | Forall (_, f) -> aux' t f
               | Next (_, f) -> aux' t f
               | Historically (i, f) when Interval.has_zero i -> aux' t f
-              | Historically _ -> error "■[a,b) with a > 0 is never Sup"
+              | Historically _ -> error "■[a,b) with a > 0 is never suppressable"
               | Since (_, i, f, g) when not (Interval.has_zero i) ->
                  only_if_strictly_relative_past [g] (aux' t f)
               | Since (_, _, f, g) ->
@@ -1248,7 +1259,7 @@ module Make
                  only_if_strictly_relative_past [g] (aux' t f)
               | Until (_, _, _, g) ->
                  only_if_strictly_relative_past [f] (aux' t g)
-              | Prev _ -> error "● is never Sup"
+              | Prev _ -> error "● is never suppressable"
               | _ -> Impossible (EFormula (None, f, t))
             end
           | false, false -> Possible CTT
@@ -1349,7 +1360,7 @@ module Make
                  match List.findi converted_fs ~f:(fun _ -> Option.is_some) with
                  | Some (mf_i, mf_opt) -> 
                     let mf = Option.value_exn mf_opt in
-                    let gs = List.filteri fs ~f:(fun i _ -> i != mf_i) in
+                    let gs = List.filteri fs ~f:(fun i _ -> not Int.(i = mf_i)) in
                     apply1' ~new_filter:(Some (conj_filters ~b:false fs))
                       (List.map ~f:of_formula gs)
                       (fun mgs -> Or (L, mf :: mgs))
@@ -1443,7 +1454,7 @@ module Make
                  match List.findi converted_fs ~f:(fun _ -> Option.is_some) with
                  | Some (mf_i, mf_opt) ->
                     let mf = Option.value_exn mf_opt in
-                    let gs = List.filteri fs ~f:(fun i _ -> i != mf_i) in
+                    let gs = List.filteri fs ~f:(fun i _ -> not Int.(i = mf_i)) in
                     apply1' ~new_filter:(Some (conj_filters fs))
                       (List.map ~f:of_formula gs)
                       (fun mgs -> And (L, mf :: mgs))

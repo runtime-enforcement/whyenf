@@ -151,11 +151,24 @@ module Sig = struct
     else raise (Errors.SigError
                   (Printf.sprintf "expected %s but found %s" (string_of_token t) (string_of_token pb.token)))
 
+  let parse_arg_tt (pb: Parsebuf.t) =
+    match pb.token with
+    | STR s -> Parsebuf.next pb;
+               expect_token pb COL;
+               (match pb.token with
+                | STR t -> Parsebuf.next pb; (s, Dom.tt_of_string t)
+                | t -> raise (Errors.SigError
+                                (Printf.sprintf "expected argument type but found %s"
+                                   (string_of_token t))))
+    | t -> raise (Errors.SigError
+                    (Printf.sprintf "expected argument name but found %s"
+                       (string_of_token t)))
+
   let parse_arg_tts (pb: Parsebuf.t) =
     let rec parse_arg_tts_rec l =
       match pb.token with
       | COM -> Parsebuf.next pb;
-               let s = parse_string pb in
+               let s = parse_arg_tt pb in
                parse_arg_tts_rec (s::l)
       | RPA -> Parsebuf.next pb; List.rev l
       | t -> raise (Errors.SigError
@@ -163,7 +176,7 @@ module Sig = struct
     expect_token pb LPA;
     match pb.token with
     | RPA -> Parsebuf.next pb; []
-    | STR s -> Parsebuf.next pb; parse_arg_tts_rec [s]
+    | STR s -> parse_arg_tts_rec [parse_arg_tt pb]
     | t -> raise (Errors.SigError
                     (Printf.sprintf "expected a string or ')' but found %s" (string_of_token t)))
 
@@ -189,15 +202,6 @@ module Sig = struct
     | STR s -> Parsebuf.next pb; parse_ret_tts_rec [s]
     | t -> raise (Errors.SigError
                     (Printf.sprintf "expected a string or ')' but found %s" (string_of_token t)))
-
-  let convert_types sl =
-    List.map sl ~f:(fun s ->
-        match String.split s ~on:':' with
-        | [] -> raise (Errors.SigError
-                         (Printf.sprintf "unable to parse the variable signature string %s" s))
-        | name :: ttype :: [] -> (name, Dom.tt_of_string ttype)
-        | _ -> raise (Errors.SigError
-                        (Printf.sprintf "unable to parse the variable signature string %s" s)))
 
   let parse_enftype (pb: Parsebuf.t) =
     match pb.token with
@@ -230,7 +234,7 @@ module Sig = struct
         Parsebuf.next pb;
         match pb.token with
          | STR s -> Parsebuf.next pb;
-                    let arg_tts = convert_types (parse_arg_tts pb) in
+                    let arg_tts = parse_arg_tts pb in
                     let ret_tt = Dom.tt_of_string (parse_ret_tt pb) in
                     let strict = match kw with SFUN -> true | _ -> false in
                     Sig.add_func s arg_tts ret_tt External strict;
@@ -242,7 +246,7 @@ module Sig = struct
         Parsebuf.next pb;
         match pb.token with
          | STR s -> Parsebuf.next pb;
-                    let arg_tts = convert_types (parse_arg_tts pb) in
+                    let arg_tts = parse_arg_tts pb in
                     let ret_tts = List.map ~f:Dom.tt_of_string (parse_ret_tts pb) in
                     Sig.add_tfunc s arg_tts ret_tts;
                     parse_pred_sigs pb rank_ref
@@ -253,7 +257,7 @@ module Sig = struct
         Parsebuf.next pb;
         match pb.token with
          | STR s -> Parsebuf.next pb;
-                    let arg_tts = convert_types (parse_arg_tts pb) in
+                    let arg_tts = parse_arg_tts pb in
                     Sig.add_pred s arg_tts Enftype.obs 0
                       (match tok with
                        | PRD -> Predicate
@@ -266,7 +270,7 @@ module Sig = struct
       end
     | STR s -> begin
         Parsebuf.next pb;
-        let arg_tts = convert_types (parse_arg_tts pb) in
+        let arg_tts = parse_arg_tts pb in
         let enftype  = parse_enftype pb in
         let rank = if Enftype.is_observable enftype then 0 else rank_ref in
         let next_rank_ref = if Int.equal rank 0 then

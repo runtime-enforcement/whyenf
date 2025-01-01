@@ -1900,8 +1900,8 @@ let meval (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) mformula 
   let map_expl f (tp, (ts, x)) = (tp,  x) in
   let rec meval_rec (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) memo mformula :
     'a *  (Expl.t TS.t list * Expl.t * MFormula.t) =
-    (*print_endline "--meval_rec";*)
-    (*print_endline ("mf=" ^ MFormula.to_string mformula);*)
+    (*print_endline "--meval_rec";
+    print_endline ("mf=" ^ MFormula.to_string mformula);*)
     (*print_endline ("pol=" ^ Option.value_map pol ~default:"None" ~f:FObligation.polarity_to_string);*)
     (*print_endline "";*)
     (*print_endline ("memo=" ^ Memo.to_string memo);*)
@@ -2004,13 +2004,13 @@ let meval (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) mformula 
             let memo, (expls2, aexpl2, mf2') = meval_rec ts tp db ~pol fobligs memo mf2 in
             let f_imp pdt1 pdt2 =
               Pdt.apply2_reduce Bool.equal mformula.lbls (fun p1 p2 -> (not p1) || p2) (Pdt.exquant pdt1) pdt2 in
-            print_endline "--MImp";
+            (*print_endline "--MImp";
             print_endline ("aexpl1=" ^ Expl.to_string aexpl1);
             print_endline ("aexpl2=" ^ Expl.to_string aexpl2);
-            print_endline ("lbls=" ^ Lbl.to_string_list mformula.lbls);
+            print_endline ("lbls=" ^ Lbl.to_string_list mformula.lbls);*)
             let (f_expls, buf2) = Buf2.take (TS.map2 f_imp) (Buf2.add expls1 expls2 buf2) in
             let aexpl = f_imp aexpl1 aexpl2 in
-            print_endline ("aexpl=" ^ Expl.to_string aexpl);
+            (*print_endline ("aexpl=" ^ Expl.to_string aexpl);*)
             memo, (f_expls, aexpl, MImp (s, mf1', mf2', buf2))
          | MExists (x, tc, b, mf) ->
             (*print_endline "--MExists";
