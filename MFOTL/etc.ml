@@ -189,6 +189,9 @@ let rec inter_list m = function
 
 type string_set_list = (string, Base.String.comparator_witness) Base.Set.t list
 
+let string_set_list_to_string =
+  list_to_string "" (fun _ string_set -> list_to_string "" (fun _ s -> s) (Set.elements string_set))
+
 let inter_string_set_list (s : string_set_list list) : string_set_list =
   List.map ~f:(Set.union_list (module String)) (cartesian s)
 

@@ -154,9 +154,7 @@ let to_string ((a, b, c) as d) =
   | Sup.NonObs, Cau.Cau   , Sct.ErrSct -> "causable"
   | Sup.NonObs, Cau.Cau   , Sct.NonSct -> "non-strictly causable"
   | Sup.NonObs, Cau.Cau   , Sct.Sct    -> "strictly causable"
-  | Sup.Sup   , Cau.NonCau, Sct.NonSct -> "non-strictly suppressable"
-  | Sup.Sup   , Cau.NonCau, Sct.Sct    -> "strictly suppressable"
-  | _         ,    _         , _       -> to_string d
+  | _         ,    _      , _          -> to_string d
 
 let to_string_let d =
   if equal d bot then "?"

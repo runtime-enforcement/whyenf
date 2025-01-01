@@ -234,7 +234,8 @@ module Pdt = struct
          applyN lbls f' nodes 
        else
          Node (w, Part.map (Part.join_parts w_parts) (fun pdts -> papply_list (applyN lbls f') other_nodes pdts))
-    | [] -> Leaf (f (List.map pdts unleaf_exn)) 
+    | [] -> Leaf (f (List.map pdts unleaf_exn))
+  
   let rec split_prod = function
     | Leaf (l1, l2) -> (Leaf l1, Leaf l2)
     | Node (x, part) -> let (part1, part2) = Part.split_prod (Part.map part split_prod) in
@@ -262,21 +263,21 @@ module Pdt = struct
              Setc.equal s s' && eq p_eq v v')
     | _ -> false
 
-  let simplify_node f x part =
-    let part = f part in
-    match Part.get_trivial part with
-    | Some pdt -> pdt
-    | None -> Node (x, part)
+  let simplify = function
+    | Leaf l -> Leaf l
+    | Node (x, part) -> match Part.get_trivial part with
+                        | Some pdt -> pdt
+                        | None -> Node (x, part)
         
   let rec reduce p_eq = function
     | Leaf l -> Leaf l
-    | Node (x, part) -> Node (x, Part.dedup (eq p_eq) (Part.map part (reduce p_eq)))
+    | Node (x, part) -> simplify (Node (x, Part.dedup (eq p_eq) (Part.map part (reduce p_eq))))
 
   let rec apply1_reduce p_eq vars f pdt = match vars, pdt with
     | _ , Leaf l -> Leaf (f l)
     | z :: vars, Node (x, part) ->
        if Lbl.equal z x then
-         Node (x, Part.map_dedup (eq p_eq) (apply1_reduce p_eq vars f) part)
+         simplify (Node (x, Part.map_dedup (eq p_eq) (apply1_reduce p_eq vars f) part))
        else
          apply1_reduce p_eq vars f (Node (x, part))
     | _ -> raise (Errors.EnforcementError "variable list is empty")
@@ -284,16 +285,16 @@ module Pdt = struct
   let rec apply2_reduce p_eq vars f pdt1 pdt2 = match vars, pdt1, pdt2 with
     | _ , Leaf l1, Leaf l2 -> Leaf (f l1 l2)
     | _ , Leaf l1, Node (x, part2) ->
-       Node (x, Part.map_dedup (eq p_eq) (apply1_reduce p_eq vars (f l1)) part2)
+       simplify (Node (x, Part.map_dedup (eq p_eq) (apply1_reduce p_eq vars (f l1)) part2))
     | _ , Node (x, part1), Leaf l2 ->
-       Node (x, Part.map_dedup (eq p_eq) (apply1_reduce p_eq vars (fun l1 -> f l1 l2)) part1)
+       simplify (Node (x, Part.map_dedup (eq p_eq) (apply1_reduce p_eq vars (fun l1 -> f l1 l2)) part1))
     | z :: vars, Node (x, part1), Node (y, part2) ->
        if Lbl.equal z x && Lbl.equal z y then
-         Node (x, Part.merge2_dedup (eq p_eq) (apply2_reduce p_eq vars f) part1 part2)
+         simplify (Node (x, Part.merge2_dedup (eq p_eq) (apply2_reduce p_eq vars f) part1 part2))
        else (if Lbl.equal z x then
-               Node (x, Part.map_dedup (eq p_eq) (fun pdt1 -> apply2_reduce p_eq vars f pdt1 (Node (y, part2))) part1)
+               simplify (Node (x, Part.map_dedup (eq p_eq) (fun pdt1 -> apply2_reduce p_eq vars f pdt1 (Node (y, part2))) part1))
              else (if Lbl.equal z y then
-                     Node (x, Part.map_dedup (eq p_eq) (apply2_reduce p_eq vars f (Node (x, part1))) part2)
+                     simplify (Node (y, Part.map_dedup (eq p_eq) (apply2_reduce p_eq vars f (Node (x, part1))) part2))
                    else
                      apply2_reduce p_eq vars f (Node (x, part1)) (Node (y, part2))))
     | _ -> raise (Errors.EnforcementError "variable list is empty")
@@ -312,10 +313,10 @@ module Pdt = struct
        let f_w_parts = function Node (x, part) when Lbl.equal x w -> Some part | _ -> None in
        let w_parts = List.filter_map ~f:f_w_parts nodes in
        if List.is_empty w_parts then
-         applyN lbls f' nodes 
+         applyN_reduce p_eq lbls f' nodes 
        else
-         Node (w, Part.map_dedup (eq p_eq) (fun pdts -> papply_list (applyN lbls f') other_nodes pdts)
-           (Part.join_parts w_parts))
+         simplify (Node (w, Part.map_dedup (eq p_eq) (fun pdts -> papply_list (applyN_reduce p_eq lbls f') other_nodes pdts)
+           (Part.join_parts w_parts)))
     | [] -> Leaf (f (List.map pdts unleaf_exn)) 
 
   let rec split_prod_reduce p_eq = function

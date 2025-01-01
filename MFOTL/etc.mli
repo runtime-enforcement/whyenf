@@ -71,6 +71,8 @@ val inter_list: ('a, 'b) Comparator.Module.t -> ('a, 'b) Base.Set.t list -> ('a,
 
 type string_set_list = (string, Base.String.comparator_witness) Base.Set.t list
 
+val string_set_list_to_string: string_set_list -> string
+
 val inter_string_set_list: string_set_list list -> string_set_list
 
 val list_intersection: ('a -> 'a -> bool) -> 'a list list -> 'a list

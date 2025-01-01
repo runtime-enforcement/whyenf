@@ -10,6 +10,14 @@ run_experiments(
 )
 
 
+run_experiments(
+    option        = 'enfpoly',
+    benchmark     = 'nokia',
+    exe           = './enfpoly.exe',
+    accelerations = [100],
+    n             = 1,#10,
+    time_unit     = 1,
+)
 
 run_experiments(
     option        = 'whyenf',

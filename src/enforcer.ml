@@ -248,8 +248,8 @@ module EState = struct
     enfvio mf v es
 
   and enfsat (mformula: MFormula.t) v es : t =
-    (*print_endline "--enfsat";
-    print_endline ("mformula=" ^ MFormula.to_string mformula);
+    (*print_endline ("--enfsat" ^ MFormula.op_to_string mformula);*)
+    (*print_endline ("mformula=" ^ MFormula.to_string mformula);
     print_endline ("v=" ^ Etc.valuation_to_string v);*)
     (*print_endline ("db=" ^ Db.to_string (es.db));*)
       (*print_endline ("es=" ^ to_string es);*)
