@@ -1,0 +1,10 @@
+ALWAYS (
+  FORALL u, s, m, a.
+    withdraw(u, a)
+    AND
+    s <- AVG(a; u; ONCE[0,91) (withdraw(u, a) AND tp(t)))
+    AND
+    m <- MAX(a; u; ONCE[0,8) (withdraw(u, a) AND tp(t)))
+    IMPLIES
+    m <= 2. *. s
+)

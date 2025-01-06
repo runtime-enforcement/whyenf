@@ -1,0 +1,8 @@
+ALWAYS (
+  FORALL user, data.
+    delete(user, "db3", data) AND NOT (data = "[unknown]")
+    IMPLIES
+    ONCE[0,60) EVENTUALLY[0,1) (
+      EXISTS user2. delete(user2, "db2", data)
+    )
+)

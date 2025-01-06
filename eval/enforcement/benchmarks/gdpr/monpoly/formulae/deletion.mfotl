@@ -1,0 +1,1 @@
+NOT (EXISTS data, dataid, dsid. ds_deletion_request(data, dataid, dsid) AND NOT (EVENTUALLY[0,30] delete(data, dataid, dsid)))

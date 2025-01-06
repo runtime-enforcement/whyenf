@@ -1,0 +1,1 @@
+□ (∀data. ∀dataid. ∀dsid. use(data, dataid, dsid) → (⧫ legal_grounds(dsid, data)) ∨ (owner(data, dataid) = dsid ∧ has_consent(dsid, data) = 1))

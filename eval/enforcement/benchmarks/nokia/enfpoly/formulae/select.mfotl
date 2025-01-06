@@ -1,0 +1,1 @@
+select(user, "db2", data) AND NOT ((user = "script") OR (user = "triggers"))

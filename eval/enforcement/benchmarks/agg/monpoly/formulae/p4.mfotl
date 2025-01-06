@@ -1,0 +1,3 @@
+(v <- AVG a;u ONCE[0,90] withdraw(u,a) AND tp(i)) AND 
+(m <- MAX a;u ONCE[0,6] withdraw(u,a)) AND 
+NOT (m <= 2.0 * v)

@@ -1,0 +1,176 @@
+\documentclass[a4paper,9pt]{extarticle}
+\usepackage{geometry}
+\usepackage{fancyhdr}
+\usepackage{multicol}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{tcolorbox}
+
+% Set page margins
+\geometry{margin=0.8in}
+
+% Header and footer
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{LIFEBOAT Cheat Sheet}
+\rfoot{\thepage}
+
+% Set font size
+\renewcommand{\baselinestretch}{0.9}
+
+% Title format
+\titleformat{\section}{\large\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{1em}{}
+
+% Color for section titles
+\definecolor{sectioncolor}{RGB}{0, 51, 102}
+\titleformat{\section}[block]{\color{sectioncolor}\large\bfseries}{\thesection}{1em}{}
+
+% Begin document
+\begin{document}
+
+\begin{center}
+    {\Large \textbf{LIFEBOOT Runtime Enforcer Cheat Sheet}}
+\end{center}
+
+\vspace{0.5em}
+
+% Double column layout
+\begin{multicols}{2}
+
+% Command Line Syntax and Options
+\section{Command Line Syntax}
+\tcbset{colback=white, colframe=black, boxrule=0.5pt, arc=1mm}
+\begin{tcolorbox}
+  \texttt{lifeboat [options] -sig FILE -formula FILE}
+\\[10pt]
+  Options:\\
+  \begin{tabular}{ll}
+    \texttt{-func FILE} & external function definition file \\
+    \texttt{-log FILE} & log file (default: stdin) \\
+    \texttt{-logstr STRING} & log string \\
+    \texttt{-out FILE} & output file (default: stdout) \\
+    \texttt{-b INT[smhdMy]} & future bound (default: 0) \\
+    \texttt{-s INT[smhdMy]} & enforcement step (default: 1s) \\
+    \texttt{-tz (local|INT)} & UTC time zone (default: local) \\
+    \texttt{-json} & JSON output \\
+    \texttt{-forall} & quantify free variables \\
+    \texttt{-monitoring} & monitoring mode \\
+    \texttt{-help} & print tool usage \\
+  \end{tabular}
+\end{tcolorbox}
+
+% Syntax of the Signature File
+\section{Signature File}
+\begin{tcolorbox}
+  Value types: \texttt{int}, \texttt{float}, \texttt{string}\\[5pt]
+  Declare event: $\texttt{name(arg}_1\texttt{:type}_1\texttt{,..., arg}_k\texttt{:type}_k\texttt{)}$\\[5pt]
+  Add \texttt{+} after $\texttt{)}$ for `causable', \texttt{-} for `suppressable', \texttt{?}
+  for `non-observable' events. Default: `observable'.\\[5pt]
+  Declare function:\\ $\texttt{fun~f(arg}_1\texttt{:type}_1\texttt{,..., arg}_k\texttt{:type}_k\texttt{)} : \texttt{ret\_type}$\\[5pt]
+  Replace \texttt{fun} by \texttt{sfun} for a \emph{strict} function.\\[5pt]
+  Replace \texttt{fun} by \texttt{afun} for an \emph{aggregation} function.\\[5pt]
+  The return type of an aggregation function is a tuple $\texttt{(ret\_type'}_1\texttt{, ..., ret\_type'}_k\texttt{)}$.
+\end{tcolorbox}
+
+% Syntax of the Log File
+\section{Log File}
+\begin{tcolorbox}
+\begin{verbatim}
+@ts1 ev11(arg111, ..., arg11k) ev12(...) ...;
+@ts2 ev21(...) ...;
+...
+@tsn
+\end{verbatim}
+  $\texttt{ts}_k \in \mathbf{N}$ (seconds since epoch), $\texttt{ts}_{k+1} \geq \texttt{ts}_{k}~\forall k$
+\end{tcolorbox}
+
+% Syntax of the Formula File: MFOTL Logic
+\section{Formula File}
+\begin{tcolorbox}
+  1. Expressions: \\
+  \begin{tabular}{ll}
+    \texttt{( ... )} & Brackets \\
+    \texttt{TRUE}, \texttt{FALSE} & Boolean constant \\
+    $\texttt{event}\texttt{(term}_1\texttt{,}\dots\texttt{,term}_k\texttt{)}$ & Predicate \\
+    \texttt{NOT} & Negation \\
+    \texttt{AND}, \texttt{OR}, \texttt{IMPLIES}, \texttt{IFF} & Prop. connectives \\
+    \texttt{EXISTS | FORALL~x. ...} & Quantifiers \\
+    \texttt{PREVIOUS}, \texttt{ONCE}, \texttt{HISTORICALLY} & \\
+    \texttt{NEXT}, \texttt{EVENTUALLY}, \texttt{ALWAYS} & \\
+    \texttt{SINCE}, \texttt{UNTIL} & Temp. connectives \\
+    \texttt{LET event(...) = ...IN...} & Let binding \\
+    \texttt{expr; x <- term} & Assignment
+  \end{tabular}
+  \\[5pt]
+  
+  2. Temporal connectives can be followed by intervals \texttt{[a, b]}, \texttt{[a, b)},
+  \texttt{(a, b]}, or \texttt{(a, b)} where \texttt{b} can be \texttt{*} ($\infty$).
+  Finite bounds are integers followed by an optional time unit in \texttt{s}, \texttt{m},
+  \texttt{h}, \texttt{d}, \texttt{M}, \texttt{Y} (default: \texttt{s}).\\[5pt]
+  3. Special expressions --- aggregations:
+\begin{verbatim}
+x <- AGG (term; g1, ...., gk; expr)
+\end{verbatim}
+  aggregates in \texttt{x} the values of \texttt{term} satisfying \texttt{expr}, grouping on
+  variables \texttt{g1} to \texttt{gk}. \texttt{AGG} is any of \texttt{SUM}, \texttt{AVG},
+  \texttt{MED}, \texttt{CNT}, \texttt{MIN}, \texttt{MAX}, \texttt{STD}.
+\\[5pt]
+  --- custom user-defined aggregations:
+\begin{verbatim}
+[x1, ..., xk] <- 
+AGG ([term1, ..., termk]; g1, ..., gk; expr)
+\end{verbatim}
+
+  4. Mark that the LHS (RHS, resp.) of a binary operator should be caused/suppressed
+  with $\mathtt{:L}$ ($\mathtt{:R}$, resp.). Both sides caused/suppressed: $\mathtt{:LR}$.\\[5pt]
+  5. Make a let-bound event causable/suppressable:
+\begin{verbatim}
+LET event(...)+ = ... IN ...
+LET event(...)- = ... IN ...
+\end{verbatim}
+  6. Terms:\\
+  \begin{tabular}{ll}
+    \texttt{x} & Variable \\
+    \texttt{0}, \texttt{0}., \texttt{"}...\texttt{"} & Integer, float, string \\
+    \texttt{+}, \texttt{-}, \texttt{*}, \texttt{/}, \texttt{**} & \texttt{int} arithmetics \\
+    \texttt{+.}, \texttt{-.}, \texttt{*.}, \texttt{/.}, \texttt{**.} & \texttt{float} arithmetics \\
+    \texttt{<}, \texttt{>}, \texttt{<=}, \texttt{>=}, \texttt{==}, \texttt{<>}& comparison operators 
+  \end{tabular}
+\end{tcolorbox}
+
+% Syntax of the Functions / Python File
+\section{Function Definition File (Python 3)}
+\begin{tcolorbox}
+\begin{verbatim}
+def f(arg1:type1, ..., argk:typek) -> ret_type:
+  """ 
+Implementation for function declared as
+fun f(arg1:type1, ..., argk:typek): ret_type
+  """
+  ...
+  return ret_val
+\end{verbatim}
+\begin{verbatim}
+def AGG(arg: List[Tuple[type1, ..., typek]])
+  -> List[Tuple[ret_type'1, ..., ret_type'l]]:
+  """ 
+Implementation for function declared as
+afun AGG(arg1:type1, ..., argk:typek): 
+  (ret_type'1, ..., ret_type'l)
+  """
+  ...
+  return ret_table
+\end{verbatim}
+\end{tcolorbox}
+
+\end{multicols}
+
+\vspace{0.5em}
+\begin{center}
+    \textit{For more information, check our repo at \url{https://github.com/runtime-enforcement/whyenf/tree/lifeboat}.}
+\end{center}
+
+\end{document}

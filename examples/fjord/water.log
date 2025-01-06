@@ -1,0 +1,4 @@
+@1 measurement("place1", "ph", 4)
+@2 measurement("place2", "ph", 5)
+@3 dump_water("place1")
+@3 dump_water("place2")

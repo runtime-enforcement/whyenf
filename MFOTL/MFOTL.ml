@@ -126,7 +126,7 @@ module Make
     | Agg (s, _, _, y, _) -> Set.of_list (module Var) (s::y)
     | Top (s, _, _, y, _) -> Set.of_list (module Var) (s@y)
     | Exists (x, f)
-      | Forall (x, f) -> Set.filter (fv f) ~f:(fun y -> not (Var.equal x y))
+      | Forall (x, f) -> Set.filter (fv f) ~f:(fun y -> not (Var.equal_ident x y))
     | And (_, fs)
       | Or (_, fs) -> Set.union_list (module Var) (List.map fs ~f:fv)
     | Imp (_, f1, f2)
@@ -144,7 +144,7 @@ module Make
     | Top (s, _, _, y, _) -> Set.of_list (module Term) (List.map (s@y) ~f:(fun v -> Term.dummy_var v))
     | Predicate (_, trms) -> Set.of_list (module Term) trms
     | Exists (x, f) | Forall (x, f) ->
-       let filter y = not (List.mem (Term.fv_list [y]) x ~equal:Var.equal) in
+       let filter y = not (List.mem (Term.fv_list [y]) x ~equal:Var.equal_ident) in
        Set.filter (terms f) ~f:filter
     | Predicate' (_, _, f)
       | Let (_, _, _, _, f)
@@ -280,7 +280,7 @@ module Make
       | Exists (x, f) -> Exists (x, subst (Map.remove v x) f)
       | Forall (x, f) -> Forall (x, subst (Map.remove v x) f)
       | Let (r, enftype, vars, f, g) ->
-         let filter x = not (List.mem vars x ~equal:Var.equal) in
+         let filter x = not (List.mem vars x ~equal:Var.equal_ident) in
          Let (r, enftype, vars, f, subst (Map.filter_keys v ~f:filter) g)
       | Let' (r, enftype, vars, f, g) -> Let' (r, enftype, vars, f, subst v g)
       | Neg f -> Neg (subst v f)
@@ -301,7 +301,7 @@ module Make
   (* Generates EXISTS x1, ..., xk. f where {x1, ..., xk} are the free variables of f not in y  *)
 
   let exists_of_agg y f info =
-    let z = List.filter (list_fv f) ~f:(fun x -> not (List.mem y x ~equal:Var.equal)) in
+    let z = List.filter (list_fv f) ~f:(fun x -> not (List.mem y x ~equal:Var.equal_ident)) in
     List.fold_right z ~f:(fun z f -> { form = Exists (z, f); info = info z f }) ~init:f
 
   (* Printing *)
@@ -774,20 +774,19 @@ module Make
     let rec solve_past_guarded (ts: pg_map) (x: Var.t) p (f:('i, Var.t, Dom.t, Term.t) _t) =
       let matches ts x r i t = Term.equal (Term.dummy_var x) t && Map.mem ts (eib r i true) in
       let map_var default f t = match Term.unvar_opt t with Some y -> f y | None -> default in
-      let x_id = Var.ident x in
       let rec aux ts x p (f: ('i, Var.t, Dom.t, Term.t) _t) =
         let s =
           match f.form, p with
           | TT, false -> [Set.empty (module String)]
           | FF, true -> [Set.empty (module String)]
           | EqConst (y, _), true ->
-             map_var [] (fun y -> if String.equal x_id (Var.ident y)
-                                then [Set.empty (module String)] else []) y
+             map_var [] (fun y -> if Var.equal_ident x y
+                                  then [Set.empty (module String)] else []) y
           | Predicate (r, trms), _ when List.existsi ~f:(matches ts x r) trms ->
              let f i t = if matches ts x r i t then Some (Map.find_exn ts (eib r i p)) else None in
              List.concat (List.filter_mapi trms ~f)
           | Predicate (r, trms), true
-               when List.exists ~f:(map_var false (fun y -> String.equal x_id (Var.ident y))) trms
+               when List.exists ~f:(map_var false (Var.equal_ident x)) trms
                     && Sig.mem r
                     && Enftype.is_observable (Sig.enftype_of_pred r) ->
              [Set.singleton (module String) r]
@@ -800,13 +799,13 @@ module Make
              let ts = solve_past_guarded_multiple_vars ts vars e f in
              aux ts x p g
           | Let' (_, _, _, _, f), _ -> aux ts x p f
-          | Agg (s, _, t, _, f), true when Var.equal s x ->
+          | Agg (s, _, t, _, f), true when Var.equal_ident s x ->
              let sols_list = List.map (Term.fv_list [t]) ~f:(fun z -> aux ts z p f) in
              List.map ~f:(Etc.inter_list (module String)) (Etc.cartesian sols_list)
-          | Agg (_, _, _, y, f), _ when List.mem y x ~equal:Var.equal ->
+          | Agg (_, _, _, y, f), _ when List.mem y x ~equal:Var.equal_ident ->
              aux ts x p f
-          | Top (_, _, _, y, f), _ when List.mem y x ~equal:Var.equal -> aux ts x p f
-          | Top (s, _, x', _, f), true when List.mem s x ~equal:Var.equal ->
+          | Top (_, _, _, y, f), _ when List.mem y x ~equal:Var.equal_ident -> aux ts x p f
+          | Top (s, _, x', _, f), true when List.mem s x ~equal:Var.equal_ident ->
              (*print_endline "#############################";
                print_endline "solve_past_guarded.Top--begin";*)
              let sols_list = List.map (Term.fv_list x') ~f:(fun z -> aux ts z p f) in
@@ -828,7 +827,7 @@ module Make
           | Imp (_, f', g'), true ->
              let q = match f.form with Imp _ -> not p | _ -> p in
              List.map ~f:(Etc.inter_list (module String)) (Etc.cartesian [aux ts x q f'; aux ts x p g'])
-          | Exists (y, f), _ | Forall (y, f), _ when not (Var.equal x y) -> aux ts x p f
+          | Exists (y, f), _ | Forall (y, f), _ when not (Var.equal_ident x y) -> aux ts x p f
           | Prev (_, f), true | Once (_, f), true -> aux ts x p f
           | Once (i, f), false | Eventually (i, f), false when Interval.has_zero i -> aux ts x p f
           | Historically (_, f), false | Always (_, f), false -> aux ts x p f

@@ -1,0 +1,4 @@
+(NOT (EXISTS data, dataid, dsid. use(data, dataid, dsid) AND NOT (ONCE (ds_consent(dsid, data) OR legal_grounds(dsid, data))))) AND
+(NOT (EXISTS data, dataid, dsid. ds_deletion_request(data, dataid, dsid) AND NOT (EVENTUALLY[0,30] delete(data, dataid, dsid)))) AND
+(NOT (EXISTS data, dataid, dsid. collect(data, dataid, dsid) AND NOT (NEXT inform(dsid) OR (ONCE inform(dsid))))) AND 
+(NOT (EXISTS data, dataid, dsid. ds_deletion_request(data, dataid, dsid) AND NOT (EVENTUALLY[0,30] delete(data, dataid, dsid))))

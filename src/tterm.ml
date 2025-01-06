@@ -16,6 +16,8 @@ module TypedVar : Modules.V with type t = (string * MFOTL_lib.Dom.tt) = struct
     let of_ident x = (x, Dom.TInt)
 
     let replace (_, tt) (z, _) = (z, tt)
+    
+    let equal_ident (x, _) (y, _) = String.equal x y
 
   end
   

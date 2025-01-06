@@ -1,0 +1,1 @@
+□ (∀data. ∀dataid. ds_deletion_request(data, dataid, owner(data, dataid)) → ◊[0,30] delete(data, dataid, owner(data, dataid)))

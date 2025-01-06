@@ -1,0 +1,1 @@
+(s <- SUM a;u ONCE[0,30] withdraw(u,a) AND tp(i)) AND NOT (s <= 10000.0)

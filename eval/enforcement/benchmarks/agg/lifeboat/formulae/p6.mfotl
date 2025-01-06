@@ -1,0 +1,13 @@
+ALWAYS (
+  FORALL u, c, a.
+    withdraw(u, a)
+    AND
+    c <- CNT(k; u; 
+      (v <- AVG(a; u; ONCE[0,31)(withdraw(u, a) AND tp(t)))
+      AND withdraw(u, p) 
+      AND tp(k)
+      AND 2. *. v < p)
+    )
+    IMPLIES
+    c <= 5
+)

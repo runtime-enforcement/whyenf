@@ -1,0 +1,1 @@
+NOT (EXISTS data, dataid, dsid. collect(data, dataid, dsid) AND NOT (NEXT inform(dsid) OR (ONCE inform(dsid))))

@@ -17,6 +17,8 @@ module StringVar : Modules.V with type t = string and type comparator_witness = 
     let of_ident s = s
 
     let replace _ z = z
+
+    let equal_ident = equal
     
   end
 

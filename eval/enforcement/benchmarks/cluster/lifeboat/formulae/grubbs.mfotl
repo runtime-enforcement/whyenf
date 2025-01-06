@@ -1,0 +1,8 @@
+LET unintended_reboot(s, dc) = 
+  reboot(s, dc) AND NOT (PREVIOUS (NOT reboot(s, dc) SINCE intended_reboot(s, dc))) IN
+LET cnt_reboots(dc, c) =
+  c <- CNT(i; dc; ONCE[0,1800) (unintended_reboot(s, dc) AND tp(i))) IN
+ALWAYS
+  (FORALL dc, l.
+    [dc, l] <- GRUBBS([dc, c];; cnt_reboots(dc, c)) AND l = 1 
+    IMPLIES alert("Data center " ^ string_of_int(dc) ^ " has rebooted too often"))

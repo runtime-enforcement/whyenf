@@ -1,0 +1,1 @@
+□ (∀data. ∀dataid. ∀dsid. collect(data, dataid, dsid) → call_function("register_owner", register_owner(data, dataid, dsid)) ∧ (○ inform(dsid) ∨ ⧫ inform(dsid)))

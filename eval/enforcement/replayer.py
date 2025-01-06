@@ -1,16 +1,17 @@
 from subprocess import Popen, PIPE
 import pandas as pd
 from time import time, sleep
-from multiprocessing import Process, Manager, Lock, Queue, TimeoutError
+from multiprocessing import Process, Manager, Lock, Queue
 from io import StringIO
 from tqdm import tqdm
 import re
+import sys
 
 def read_log(log):
     df = pd.read_csv(log, header=None, names=["ts", "line"], sep="|")
     return df
 
-def feeder(log, acc, p, q, queuing, lock):
+def feeder(log, acc, p, q, queuing, lock, verbose):
     df = read_log(log)
     df["ts"] -= df["ts"].iloc[0]
     t0 = time()
@@ -24,19 +25,26 @@ def feeder(log, acc, p, q, queuing, lock):
         t = int(1000*time())
         p.stdin.write(row["line"] + "\n")
         p.stdin.write(f"> LATENCY {tp} {ts} <\n")
+        if verbose:
+            print("feeder: " + row["line"])
+            print(f"feeder: > LATENCY {tp} {ts} <")
         p.stdin.flush()
         data.append(f"f,{tp},{ts},{t}")
+    if verbose:
+        print("feeder: DONE")
     q.put(data)
 
 PREFIX = "> LATENCY "
 SUFFIX = " <"
 
-def reader(p, q, queuing, lock, last_tp, desc):
+def reader(p, q, queuing, lock, last_tp, desc, verbose):
     data = []
     tp = -1
     bar = tqdm(total=last_tp+1, desc=desc)
     while tp != last_tp:
         line = p.stdout.readline()
+        if verbose:
+            print("reader: " + line[:-1])
         if not line:
             break
         bar.update(n=tp+1-bar.n)
@@ -48,18 +56,21 @@ def reader(p, q, queuing, lock, last_tp, desc):
             others = ",".join(rest[2:])
             t = int(1000*time())
             data.append(f"r,{tp},{ts},{t},{others}")
-    bar.update(n=1)
+    if verbose:
+        print("reader: DONE")
+    bar.update(n=last_tp+1-bar.n)
+    bar.close()
     q.put(data)
 
-def replay(log, last_tp, command, desc, acc=1000, to=600):
-    p = Popen(command, stdin=PIPE, stdout=PIPE, text=True, shell=True)
+def replay(log, last_tp, command, desc, acc=1000, to=600, verbose=False):
+    p = Popen(command, stdin=PIPE, stdout=PIPE, stderr=sys.stderr, text=True, shell=True)
     manager = Manager()
     queuing = manager.Value('queuing', 0)
     q = Queue()
     lock = Lock()
     sleep(1)
-    f = Process(target=feeder, args=(log, acc, p, q, queuing, lock))
-    r = Process(target=reader, args=(p, q, queuing, lock, last_tp, desc))
+    f = Process(target=feeder, args=(log, acc, p, q, queuing, lock, verbose))
+    r = Process(target=reader, args=(p, q, queuing, lock, last_tp, desc, verbose))
     r.start()
     f.start()
     try:

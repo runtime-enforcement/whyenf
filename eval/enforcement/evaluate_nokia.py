@@ -1,6 +1,15 @@
 from evaluation import run_experiments
 
 run_experiments(
+    option        = 'monpoly',
+    benchmark     = 'nokia',
+    exe           = './monpoly.exe',
+    accelerations = [100],
+    n             = 1,#10,
+    time_unit     = 1,
+)
+
+run_experiments(
     option        = 'lifeboat',
     benchmark     = 'nokia',
     exe           = './lifeboat.exe',
@@ -8,7 +17,6 @@ run_experiments(
     n             = 1,#10,
     time_unit     = 1,
 )
-
 
 run_experiments(
     option        = 'enfpoly',

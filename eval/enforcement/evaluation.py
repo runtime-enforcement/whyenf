@@ -44,10 +44,10 @@ def table(df: pd.DataFrame) -> pd.DataFrame:
                                     "avg_ev"     : best_avg_s["avg_ev"]}))
     return pd.DataFrame(series)
 
-def run_tool(command: str, log: Path, a: float, desc: str, to: int) -> Optional[pd.DataFrame]:
+def run_tool(command: str, log: Path, a: float, desc: str, to: int, verbose : bool) -> Optional[pd.DataFrame]:
     print(command)
     max_tp = len(open(log, 'r').readlines()) - 1
-    df = replay(log, max_tp, command, desc=desc, acc=a, to=to)
+    df = replay(log, max_tp, command, desc=desc, acc=a, to=to, verbose=verbose)
     if df is None:
         return None
     series = []
@@ -140,6 +140,7 @@ def run_experiments(
         time_unit     : int  = 1,
         to            : int  = 600,
         func          : bool = False,
+        verbose       : bool = False,
 ) -> None:
     # Set benchmark path and output folder
     benchmark_path = Path('benchmarks') / benchmark / option
@@ -155,6 +156,8 @@ def run_experiments(
     command : str = ""
     if   option == "enfpoly":
         command = exe + ' -enforce -sig {} -formula ' + str(formulae_path) + '/{} -ignore_parse_errors'
+    elif option == "monpoly":
+        command = exe + ' -sig {} -formula ' + str(formulae_path) + '/{} -ignore_parse_errors'
     elif option == "whyenf":
         command = exe + ' -sig {} -formula ' + str(formulae_path) + '/{}'
     elif option == "lifeboat":
@@ -184,7 +187,7 @@ def run_experiments(
 
                     for i in range(n):
                         desc = f"formula = {formula_desc}, log = {log_desc}, a = {a}, it = {i+1}"
-                        df = run_tool(command.format(sig_fn, formula_fn), logs_path / log_fn, a, desc, to = to)
+                        df = run_tool(command.format(sig_fn, formula_fn), logs_path / log_fn, a, desc, to = to, verbose = verbose)
                         if df is not None:
                             csv_fn = f"{formula_desc}_{log_desc}_{a}.csv"
                             png_fn = f"{formula_desc}_{log_desc}_{a}.png"

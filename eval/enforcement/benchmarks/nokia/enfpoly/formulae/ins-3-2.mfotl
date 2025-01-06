@@ -1,0 +1,5 @@
+insert(user, "db3", data)
+AND NOT (data = "[unknown]")
+AND ONCE[0,60) (
+  EXISTS user2. insert(user2, "db2", data)
+)
