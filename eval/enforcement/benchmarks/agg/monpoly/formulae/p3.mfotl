@@ -1,0 +1,3 @@
+(s <- SUM a;u ONCE[0,30] withdraw(u,a) AND tp(i)) 
+AND (NOT EXISTS l'. limit(u,l') SINCE limit(u,l))
+AND NOT (s <= l)

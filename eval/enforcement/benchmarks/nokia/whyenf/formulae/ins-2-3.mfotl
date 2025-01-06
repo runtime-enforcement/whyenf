@@ -1,0 +1,8 @@
+ALWAYS (
+  FORALL user, data.
+    insert(user, "db2", data) AND NOT (data = "[unknown]")
+    IMPLIES
+    ONCE[0,1) EVENTUALLY[0,60] (
+      EXISTS user2. insert(user2, "db3", data)
+    )
+)

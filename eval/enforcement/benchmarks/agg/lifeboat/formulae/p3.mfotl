@@ -1,0 +1,10 @@
+ALWAYS (
+  FORALL u, s, a, l.
+    withdraw(u, a)
+    AND
+    s <- SUM(a; u; ONCE[0,31)(withdraw(u, a) AND tp(t)))
+    AND
+    ((NOT (EXISTS l2. limit(u, l2))) SINCE limit(u, l))
+    IMPLIES
+    s <= l
+)

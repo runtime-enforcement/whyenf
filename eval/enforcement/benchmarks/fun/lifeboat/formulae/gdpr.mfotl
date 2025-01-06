@@ -1,0 +1,6 @@
+(□ (∀data. ∀dataid. ∀dsid. use(data, dataid, dsid) → (⧫ legal_grounds(dsid, data)) ∨ (owner(data, dataid) = dsid ∧ has_consent(dsid, data) = 1))) ∧
+(□ (∀data. ∀dataid. ds_deletion_request(data, dataid, owner(data, dataid)) → ◊[0,30] delete(data, dataid, owner(data, dataid)))) ∧
+(□ (∀data. ∀dataid. ∀dsid. collect(data, dataid, dsid) → call_function("register_owner", register_owner(data, dataid, dsid)) ∧ (○ inform(dsid) ∨ ⧫ inform(dsid)))) ∧
+(□ (∀data. ∀dataid. ∀processorid. (ds_deletion_request(data, dataid, owner(data, dataid)) ∧ ⧫ share_with(processorid, dataid)) → ◊[0,30] notify_proc(processorid, dataid))) ∧
+(□ (∀data. ∀dsid. (ds_consent(dsid, data) → call_function("register_consent", register_consent(dsid, data)))
+                ∧ (ds_revoke(dsid, data) → call_function("revoke_consent", revoke_consent(dsid, data)))))

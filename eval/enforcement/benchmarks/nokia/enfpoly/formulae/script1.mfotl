@@ -1,0 +1,12 @@
+(select("script", db, data)
+ OR insert("script", db, data)
+ OR delete("script", db, data)
+ OR update("script", db, data))
+AND NOT (
+  (ONCE[0,1) end("script1"))
+  SINCE
+  (ONCE[0,1) start("script1"))
+)
+AND NOT (
+   ONCE[0,1) end("script1")
+)

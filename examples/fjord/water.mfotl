@@ -1,0 +1,8 @@
+ALWAYS (
+  FORALL a, p.
+    dump_water(p)
+    AND
+    (a <- AVG(m; p; ONCE[0,60] measurement(p, "ph", m)))
+    IMPLIES
+    a >= 4.
+)

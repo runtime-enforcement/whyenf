@@ -1,0 +1,7 @@
+(c <- CNT v; u
+    (v <- AVG a;u ONCE[0,30] withdraw(u,a) AND tp(i)) 
+  AND  
+    (ONCE [0,30] withdraw(u,p) AND tp(j)) 
+  AND 
+    2.0 * v < p
+) AND NOT (c <= 5)

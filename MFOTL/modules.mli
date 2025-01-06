@@ -22,6 +22,8 @@ module type V = sig
 
   val replace : t -> t -> t
 
+  val equal_ident : t -> t -> bool
+
 end
 
 module type D = sig

@@ -1,0 +1,8 @@
+ALWAYS (
+  FORALL u, s, a.
+    withdraw(u, a)
+    AND
+    s <- SUM(a; u; ONCE[0,31)(withdraw(u, a) AND tp(t)))
+    IMPLIES
+    s <= 10000.
+)

@@ -24,6 +24,8 @@ module StringVar : Modules.V with type t = string = struct
 
     let replace _ z = z
     
+    let equal_ident = equal
+    
   end
 
   include T

@@ -1,6 +1,16 @@
 from evaluation import run_experiments
 
 run_experiments(
+    option        = 'monpoly',
+    benchmark     = 'gdpr',
+    exe           = './monpoly.exe',
+    accelerations = [1e5],
+    n             = 1,#10,
+    time_unit     = 24 * 3600,
+    to            = 10,
+)
+
+run_experiments(
     option        = 'lifeboat',
     benchmark     = 'gdpr',
     exe           = './lifeboat.exe',
