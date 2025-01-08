@@ -13,3 +13,5 @@ val init: Sformula.t -> t
 
 val check_agg : Ctxt.t -> string -> Aggregation.op -> Term.t -> string list -> t -> Ctxt.t * Dom.tt
 val check_top : Ctxt.t -> string list -> string -> Term.t list -> string list -> t -> Ctxt.t * Dom.tt list
+
+val print_statistics : t -> unit
