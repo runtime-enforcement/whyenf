@@ -125,7 +125,21 @@ let check_top types s op x y (f: t) =
   types, List.map ~f:Ctxt.unconst ret_ttts
 
 
-
+let print_statistics (f: t) =
+  Stdio.printf "Size of formula            %d\n" (size f);
+  let unrolled_f = unroll_let f in
+  Stdio.printf "Size of formula (unrolled) %d\n" (size unrolled_f);
+  let has_let = exists_subformula f
+                  ~f_term:(fun _ -> false)
+                  ~f_fun:(fun f -> match f.form with Let _ -> true | _ -> false) in
+  let has_agg = exists_subformula f
+                  ~f_term:(fun _ -> false)
+                  ~f_fun:(fun f -> match f.form with Agg _ -> true | Top _ -> true | _ -> false) in
+  let has_fun = exists_subformula f
+                  ~f_term:(fun t -> match t.trm with App _ -> true | _ -> false)
+                  ~f_fun:(fun _ -> false) in
+  Stdio.printf "Let bindings               %b\nAggregations               %b\nFunction applications      %b\n"
+    has_let has_agg has_fun
 
 
 

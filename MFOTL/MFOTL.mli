@@ -96,6 +96,8 @@ module Make
   val list_fv : t -> Var.t list
   val terms : ('i, Var.t, Dom.t, Term.t) _t -> (Term.t, Term.comparator_witness) Base.Set.t
   val deg : ('i, Var.t, Dom.t, Term.t) _t -> int
+  val size : ('i, Var.t, Dom.t, Term.t) _t -> int
+  val exists_subformula : f_term:(Term.t -> bool) -> f_fun:(('i, Var.t, Dom.t, Term.t) _t -> bool) -> ('i, Var.t, Dom.t, Term.t) _t -> bool
   val predicates : t -> (string * Term.t list) list
 
   val subst : (Var.t, Term.t, Var.comparator_witness) Base.Map.t -> t -> t

@@ -17,6 +17,8 @@ module type T = sig
 
   val fv_list : t list -> v list
   val fn_list : t list -> string list
+  val size : t -> int
+  val exists_subterm : f:(t -> bool) -> t -> bool
   val equal : t -> t -> bool
 
   val to_string : t -> string
@@ -73,6 +75,8 @@ module Make (Var : V) (Dom : D) (Uop : O) (Bop : O) (Info : I) : sig
 
   val fv_list: t list -> v list
   val fn_list: t list -> string list
+  val size: t -> int
+  val exists_subterm: f:(t -> bool) -> t -> bool
 
   val to_string: t -> string
 

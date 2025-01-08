@@ -22,6 +22,8 @@ module type T = sig
 
   val fv_list : t list -> v list
   val fn_list : t list -> string list
+  val size : t -> int
+  val exists_subterm : f:(t -> bool) -> t -> bool
   val equal : t -> t -> bool
 
   val to_string : t -> string
@@ -142,6 +144,25 @@ module Make (Var : V) (Dom : D) (Uop : O) (Bop : O) (Info : I) = struct
                     | Binop (trm, _, trm') -> fn_list [trm; trm']
                     | Proj (trm, _) -> fn_list [trm]
                     | Record kvs -> fn_list (List.map ~f:snd kvs)) @ fn_list ts
+
+    let rec size t = match t.trm with
+      | Var _ -> 1
+      | Const _ -> 1
+      | App (f, ts) -> 1 + List.fold_left ~f:(+) ~init:0 (List.map ~f:size ts)
+      | Unop (o, t) -> 1 + size t
+      | Binop (t, o, t') -> 1 + size t + size t'
+      | Proj (t, p) -> 1 + size t
+      | Record kvs -> 1 + List.fold_left ~f:(+) ~init:0 (List.map ~f:(fun (_, v) -> size v) kvs)
+
+    let rec exists_subterm ~f t =
+      f t || begin match t.trm with
+             | Var _ | Const _ -> false
+             | App (_, ts) -> List.exists ~f:(exists_subterm ~f) ts
+             | Unop (_, t) -> exists_subterm ~f t
+             | Binop (t, _, t') -> exists_subterm ~f t || exists_subterm ~f t'
+             | Proj (t, _) -> exists_subterm ~f t
+             | Record kvs -> List.exists ~f:(fun (_, v) -> exists_subterm ~f v) kvs
+             end
 
     let list_to_string trms = String.concat ~sep:", " (List.map trms ~f:value_to_string)
     let list_to_string_core trms = String.concat ~sep:", " (List.map trms ~f:value_to_string_core)

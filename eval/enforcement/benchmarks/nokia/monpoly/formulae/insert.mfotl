@@ -1,0 +1,1 @@
+NOT (EXISTS user, data. insert(user, "db2", data) AND NOT (user = "script"))
