@@ -148,10 +148,10 @@ module Make (Var : V) (Dom : D) (Uop : O) (Bop : O) (Info : I) = struct
     let rec size t = match t.trm with
       | Var _ -> 1
       | Const _ -> 1
-      | App (f, ts) -> 1 + List.fold_left ~f:(+) ~init:0 (List.map ~f:size ts)
-      | Unop (o, t) -> 1 + size t
-      | Binop (t, o, t') -> 1 + size t + size t'
-      | Proj (t, p) -> 1 + size t
+      | App (_, ts) -> 1 + List.fold_left ~f:(+) ~init:0 (List.map ~f:size ts)
+      | Unop (_, t) -> 1 + size t
+      | Binop (t, _, t') -> 1 + size t + size t'
+      | Proj (t, _) -> 1 + size t
       | Record kvs -> 1 + List.fold_left ~f:(+) ~init:0 (List.map ~f:(fun (_, v) -> size v) kvs)
 
     let rec exists_subterm ~f t =

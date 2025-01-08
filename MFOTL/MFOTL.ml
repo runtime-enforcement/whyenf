@@ -219,7 +219,7 @@ module Make
     | TT
       | FF -> 1
     | EqConst (t, _) -> 1 + Term.size t
-    | Predicate (r, ts) -> 1 + List.fold ~f:(+) ~init:0 (List.map ~f:Term.size ts)
+    | Predicate (_, ts) -> 1 + List.fold ~f:(+) ~init:0 (List.map ~f:Term.size ts)
     | Predicate' (_, _, f)
       | Let' (_, _, _, _, f) -> size f
     | Neg f 
@@ -247,7 +247,7 @@ module Make
         | TT
           | FF -> false
         | EqConst (t, _) -> f_term t
-        | Predicate (r, ts) -> List.exists ~f:f_term ts
+        | Predicate (_, ts) -> List.exists ~f:f_term ts
         | Predicate' (_, _, f)
           | Let' (_, _, _, _, f) -> exists_subformula ~f_term ~f_fun f
         | Neg f 
@@ -822,7 +822,7 @@ module Make
     type pg_map = (string, Etc.string_set_list, String.comparator_witness) Map.t
     type t_map  = (string, Enftype.t * int list, String.comparator_witness) Map.t
 
-    let rec solve_past_guarded (ts: pg_map) (x: Var.t) p (f:('i, Var.t, Dom.t, Term.t) _t) =
+    let rec solve_past_guarded (ts: pg_map) (x: Var.t) p (f:('i, Var.t, Dom.t, Term.t) _t)  =
       let matches ts x r i t = Term.equal (Term.dummy_var x) t && Map.mem ts (eib r i true) in
       let map_var default f t = match Term.unvar_opt t with Some y -> f y | None -> default in
       let rec aux ts x p (f: ('i, Var.t, Dom.t, Term.t) _t) =
@@ -1143,7 +1143,7 @@ module Make
           (t: Enftype.t) (pgs: pg_map) (f: t) =
       let error s = Constraints.Impossible (EFormula (Some s, f, t)) in
       let strictly_relative_past = strictly_relative_past ~itl_itvs ~itl_strict ~itl_observable in
-      let transparently = Enftype.geq t Enftype.tcau || Enftype.geq t Enftype.tsup in
+      let transparently = Enftype.geq t Enftype.tcausable || Enftype.geq t Enftype.tsuppressable in
       let only_if_strictly_relative_past fs constr =
         if not transparently then
           constr
@@ -1582,7 +1582,7 @@ module Make
       r
 
     let convert' b f =
-      convert b Enftype.cauboterr f
+      convert b Enftype.causable f
 
     let do_type f b =
       let orig_f = f in
@@ -1593,7 +1593,7 @@ module Make
                              ^ "\nis not closed: free variables are "
                              ^ String.concat ~sep:", " (List.map ~f:Var.to_string (Set.elements (fv f))));
         ignore (raise (FormulaError (Printf.sprintf "formula %s is not closed" (to_string f)))));
-      match types Enftype.cauboterr (Map.empty (module String)) f with
+      match types Enftype.causable (Map.empty (module String)) f with
       | Possible c ->
          begin
            let c = Constraints.ac_simplify c in

@@ -5,7 +5,10 @@ from tqdm import tqdm
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+
 
 from replayer import replay
 
@@ -50,25 +53,21 @@ def run_tool(command: str, log: Path, a: float, desc: str, to: int, verbose : bo
     df = replay(log, max_tp, command, desc=desc, acc=a, to=to, verbose=verbose)
     if df is None:
         return None
-    series = []
-    df = df.set_index(["type", "tp"])
-    for (t, tp) in df.index:
-        if t == 'f':
-            try:
-                the_f = df.loc[('f', tp)]
-                the_r = df.loc[('r', tp)]
-            except:
-                continue
-            series.append({'tp'      : tp,
-                           'n_ev'    : the_r['n_ev'],
-                           'n_tp'    : the_r['n_tp'],
-                           'cau'     : the_r['cau'],
-                           'sup'     : the_r['sup'],
-                           'ins'     : the_r['ins'],
-                           'time'    : the_f['ts'],
-                           'latency' : the_r['computer_time'] - the_f['computer_time'],
-                           'out_time': the_r['computer_time']})
-    return pd.DataFrame(series).sort_values(by="tp")
+    df_f = df[df["type"] == "f"]
+    df_r = df[df["type"] == "r"]
+    merged_df = df_f.merge(df_r, on="tp", suffixes=("_f", "_r"))
+    result_df = pd.DataFrame({
+        "tp"      : merged_df["tp"],
+        "n_ev"    : merged_df["n_ev_r"],
+        "n_tp"    : merged_df["n_tp_r"],
+        "cau"     : merged_df["cau_r"],
+        "sup"     : merged_df["sup_r"],
+        "ins"     : merged_df["ins_r"],
+        "time"    : merged_df["ts_f"],
+        "latency" : merged_df["computer_time_r"] - merged_df["computer_time_f"],
+        "out_time": merged_df["computer_time_r"]
+    })    
+    return result_df.sort_values(by="tp")
 
 def name_of_time_unit(time_unit: int) -> str:
     if time_unit == 1:
@@ -183,7 +182,16 @@ def run_experiments(
              
             for log_desc, log_fn in logs.items():
 
+                is_no_longer_real_time = False
+                can_skip = False
+
                 for a in accelerations:
+
+                    if can_skip:
+                        t.update()
+                        continue
+
+                    has_real_time_iteration = False
 
                     for i in range(n):
                         desc = f"formula = {formula_desc}, log = {log_desc}, a = {a}, it = {i+1}"
@@ -197,7 +205,16 @@ def run_experiments(
                             summ["log"] = log_desc
                             plot(formula_desc, log_desc, a, df, out_path / png_fn, time_unit)
                             series.append(summ)
-                        t.update()
+                            if summ["max_latency"] <= summ["d1"]:
+                                has_real_time_iteration = True
+
+                    t.update()
+
+                    if not has_real_time_iteration:
+                        if is_no_longer_real_time:
+                            can_skip = True
+                        else:
+                            is_no_longer_real_time = True
                 
         summary_df = pd.DataFrame(series)
         summary_df.to_csv(summary_csv_fn, index=False)

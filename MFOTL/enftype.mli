@@ -24,30 +24,20 @@ val is_transparent : t -> bool
 
 val bot : t
 val cau : t
-val tcau : t
 val ncau : t
-val ntcau : t
-val scau : t
-val stcau : t
-val obs : t
 val sup : t
-val tsup : t
-val nsup : t
-val ntsup : t
-val ssup : t
-val stsup : t
 val causup : t
-val causuperr : t
 val caubot : t
-val cauboterr : t
 val ncaubot : t
-val scaubot : t
-val tcaubot : t
+val obs : t
 val sct : t
-val nonsct : t
-val noncau : t
 val abs : t
 val itl : t
+
+val causable : t
+val suppressable : t
+val tcausable : t
+val tsuppressable : t
 
 module Constraint : sig
 
