@@ -1,0 +1,12 @@
+NOT EXISTS data. (
+  (
+    EXISTS user.
+      delete(user, "db3", data) 
+      AND NOT (data = "[unknown]")
+  ) 
+  AND NOT (   
+    ONCE[0,60s) EVENTUALLY[0,1) (
+      EXISTS user2. delete(user2, "db2", data)
+    )
+  )
+)

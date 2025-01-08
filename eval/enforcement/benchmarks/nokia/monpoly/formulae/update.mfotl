@@ -1,0 +1,1 @@
+NOT (EXISTS user, data. update(user, "db2", data))

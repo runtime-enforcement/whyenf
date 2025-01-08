@@ -1,0 +1,14 @@
+LET any_operation(script, db, data) =
+     select(script, db, data)
+  OR insert(script, db, data)
+  OR delete(script, db, data)
+  OR update(script, db, data)
+IN
+LET running(script) =
+  (NOT ONCE[0,1) EVENTUALLY[0,1) end(script))
+  SINCE
+  (ONCE[0,1) EVENTUALLY[0,1) start(script))
+IN
+(EXISTS db, data. any_operation("script", db, data))
+IMPLIES
+(running("script1") OR (ONCE[0,1) EVENTUALLY[0,1) end("script1")))

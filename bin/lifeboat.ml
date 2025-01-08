@@ -24,7 +24,7 @@ module Lifeboat = struct
   let sig_ref = ref In_channel.stdin
   let logstr_ref = ref ""
 
-  let run debug forall monitoring log_file logstr sig_file formula_file func_file out_file json bound time_zone step =
+  let run debug forall monitoring log_file logstr sig_file formula_file func_file out_file json bound time_zone step statistics =
     if debug then Global.debug := true;
     if forall then Global.forall := true;
     if monitoring then Global.monitoring := true;	
@@ -75,7 +75,11 @@ module Lifeboat = struct
            if forall
            then Sformula.SExists (xs, sformula)
            else sformula in
-         Enforcer.exec (Formula.init sformula) in
+         if not statistics then
+           Enforcer.exec (Formula.init sformula)
+         else
+           Formula.print_statistics (Formula.init sformula)
+       in
          ()
     | None ->
         printf "Error: No valid formula provided.\n";
@@ -98,9 +102,10 @@ module Lifeboat = struct
        and bound = flag "-b" (optional string) ~doc:"INT[smhdMy] Default bound for future operators (default: 0)"
        and time_zone = flag "-tz" (optional string) ~doc:"local|INT Time zone (default: local, otherwise UTC+x)"
        and step = flag "-s" (optional string) ~doc:"INT[smhdMy] Enforcement step (default: 1s)"
+       and statistics = flag "-statistics" no_arg ~doc:" Print statistics about the formula"
        in 
        fun () ->
-       run debug forall monitoring log_file logstr sig_file formula_file func_file out_file json bound time_zone step)
+       run debug forall monitoring log_file logstr sig_file formula_file func_file out_file json bound time_zone step statistics)
        
 end
 

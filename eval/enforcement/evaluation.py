@@ -138,7 +138,7 @@ def run_experiments(
         only_graph    : bool = False, 
         n             : int  = 10,
         time_unit     : int  = 1,
-        to            : int  = 600,
+        to            : int  = 900,
         func          : bool = False,
         verbose       : bool = False,
 ) -> None:

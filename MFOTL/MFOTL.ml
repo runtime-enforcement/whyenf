@@ -103,7 +103,7 @@ module Make
 
   let untyped = map_info ~f:(fun info -> info.info)
 
-  (* Free variables, terms, predicates, degree *)
+  (* Free variables, terms, predicates, degree, size, exists *)
 
   let rec fv f =
     match f.form with
@@ -214,6 +214,61 @@ module Make
       | Until (_, _, f, g) -> max 2 (max (deg f) (deg g))
     | And (_, fs)
       | Or (_, fs) -> List.fold_left (List.map fs ~f:deg) ~init:1 ~f:max
+
+  let rec size f = match f.form with
+    | TT
+      | FF -> 1
+    | EqConst (t, _) -> 1 + Term.size t
+    | Predicate (r, ts) -> 1 + List.fold ~f:(+) ~init:0 (List.map ~f:Term.size ts)
+    | Predicate' (_, _, f)
+      | Let' (_, _, _, _, f) -> size f
+    | Neg f 
+      | Exists (_, f)
+      | Forall (_, f)
+      | Prev (_, f)
+      | Next (_, f)
+      | Once (_, f)
+      | Eventually (_, f)
+      | Historically (_, f)
+      | Always (_, f)
+      | Type (f, _)
+      | Agg (_, _, _, _, f)
+      | Top (_, _, _, _, f)
+      | Let (_, _, _, _, f) -> 1 + size f
+    | Imp (_, f, g)
+      | Since (_, _, f, g)
+      | Until (_, _, f, g) -> 1 + size f + size g
+    | And (_, fs)
+      | Or (_, fs) -> 1 + List.fold_left ~f:(+) ~init:0 (List.map ~f:size fs)
+
+  let rec exists_subformula ~f_term ~f_fun f =
+    f_fun f || begin
+        match f.form with
+        | TT
+          | FF -> false
+        | EqConst (t, _) -> f_term t
+        | Predicate (r, ts) -> List.exists ~f:f_term ts
+        | Predicate' (_, _, f)
+          | Let' (_, _, _, _, f) -> exists_subformula ~f_term ~f_fun f
+        | Neg f 
+          | Exists (_, f)
+          | Forall (_, f)
+          | Prev (_, f)
+          | Next (_, f)
+          | Once (_, f)
+          | Eventually (_, f)
+          | Historically (_, f)
+          | Always (_, f)
+          | Type (f, _)
+          | Agg (_, _, _, _, f)
+          | Top (_, _, _, _, f)
+          | Let (_, _, _, _, f) -> exists_subformula ~f_term ~f_fun f
+        | Imp (_, f, g)
+          | Since (_, _, f, g)
+          | Until (_, _, f, g) -> exists_subformula ~f_term ~f_fun f || exists_subformula ~f_term ~f_fun g
+        | And (_, fs)
+          | Or (_, fs) -> List.exists ~f:(exists_subformula ~f_term ~f_fun) fs
+    end
 
   (* Functional constructors *)
 
@@ -439,10 +494,6 @@ module Make
 
   let to_string = to_string_rec 0
   let to_string_typed = to_string_typed_rec 0
-
-
-  (* Well-formedness checks *)
-
   
   (* Unrolling of let bindings *)
 

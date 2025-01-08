@@ -1,0 +1,12 @@
+NOT EXISTS data. (
+  (
+    EXISTS user.
+      insert(user, "db2", data) 
+      AND NOT (data = "[unknown]")
+  )
+  AND NOT (
+    ONCE[0,1s) EVENTUALLY[0,60s] (
+      EXISTS user2. insert(user2, "db3", data)
+    )
+  )
+)

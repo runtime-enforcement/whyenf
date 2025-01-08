@@ -1,0 +1,1 @@
+NOT (EXISTS data, user. select(user, "db2", data) AND NOT (user = "script") AND NOT (user = "triggers"))
