@@ -158,6 +158,8 @@ module Make
 
       val solve : constr -> (string, Enftype.Constraint.t, String.comparator_witness) Map.t list
 
+      val verdict_to_string : verdict -> string
+
     end
 
     type pg_map = (string, Etc.string_set_list, String.comparator_witness) Map.t
