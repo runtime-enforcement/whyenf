@@ -77,6 +77,7 @@ def replay(log, last_tp, command, desc, acc=1000, to=600, verbose=False):
         data1 = list(q.get(timeout=to))
         data2 = list(q.get(timeout=to))
     except:
+        p.kill()    
         return None
     r.join()
     f.join()
