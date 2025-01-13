@@ -735,12 +735,13 @@ module Make
          let i' = Zinterval.of_interval i in
          (Zinterval.lub (Zinterval.sum (Zinterval.to_zero i') (relative_interval f1))
             (Zinterval.sum i' (relative_interval f2)))
-      | Let _ -> raise (FormulaError "Let bindings must be unrolled to compute a relative interval")
-    in i
+      | Let _ -> raise (FormulaError "Let bindings must be unrolled to compute a relative interval") in
+    (*Stdio.print_endline (Printf.sprintf "MFOTL.relative_interval (%s) = %s" (op_to_string f) (Zinterval.to_string i));*)
+    i
 
   let relative_intervals ?(itl_itvs=Map.empty (module String)) fs =
     let itvs = (List.map fs ~f:(relative_interval ~itl_itvs:itl_itvs)) in
-    List.fold itvs ~init:Zinterval.full ~f:Zinterval.lub
+    List.fold itvs ~init:(Zinterval.singleton 0) ~f:Zinterval.lub
 
   let relative_past ?(itl_itvs=Map.empty (module String)) f =
     Zinterval.is_nonpositive (relative_interval ~itl_itvs f)
@@ -897,7 +898,7 @@ module Make
         s in
       aux ts x p f
 
-    and solve_past_guarded_multiple_vars (ts: pg_map) (x: Var.t list) e f =
+    and solve_past_guarded_multiple_vars (ts: pg_map) (x: Var.t list) e f : pg_map =
       let f i ts x = 
         let ts = Map.update ts (eib e i true) ~f:(fun _ -> solve_past_guarded ts x true f) in
         Map.update ts (eib e i false) ~f:(fun _ -> solve_past_guarded ts x false f)
@@ -1084,9 +1085,9 @@ module Make
 
       let to_string = to_string_rec 0
 
-      (*let verdict_to_string = function
+      let verdict_to_string = function
         | Possible c -> Printf.sprintf "Possible(%s)" (to_string c)
-        | Impossible e -> Printf.sprintf "Impossible(%s)" (Errors.to_string e)*)
+        | Impossible e -> Printf.sprintf "Impossible(%s)" (Errors.to_string e)
 
       let rec solve c =
         let r = match c with

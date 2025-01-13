@@ -1,6 +1,7 @@
 import os.path
 from pathlib import Path
 from tqdm import tqdm 
+import gc
 
 from typing import Any, Dict, List, Optional
 
@@ -209,6 +210,7 @@ def run_experiments(
                                 has_real_time_iteration = True
 
                     t.update()
+                    gc.collect()
 
                     if not has_real_time_iteration:
                         if is_no_longer_real_time:

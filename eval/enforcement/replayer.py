@@ -80,5 +80,7 @@ def replay(log, last_tp, command, desc, acc=1000, to=600, verbose=False):
         return None
     r.join()
     f.join()
+    q.close()
+    p.kill()
     return pd.read_csv(StringIO("type,tp,ts,computer_time,n_ev,n_tp,cau,sup,ins,done_time\n" + "\n".join(data1 + data2)))
 
