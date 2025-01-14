@@ -189,7 +189,7 @@ def run_experiments(
                 for a in accelerations:
 
                     if can_skip:
-                        t.update()
+                        t.update(n=n)
                         continue
 
                     has_real_time_iteration = False
@@ -208,9 +208,8 @@ def run_experiments(
                             series.append(summ)
                             if summ["max_latency"] <= summ["d1"]:
                                 has_real_time_iteration = True
-
-                    t.update()
-                    gc.collect()
+                        t.update()
+                        gc.collect()
 
                     if not has_real_time_iteration:
                         if is_no_longer_real_time:
