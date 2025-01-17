@@ -9,7 +9,7 @@ type timepoint = int
 type timestamp = Time.t
 
 let eat s t = s ^ (String.strip t)
-let paren h k x = if h>k then Caml.( "("^^x^^")" ) else x
+let paren h k x = if h>k then Stdlib.( "("^^x^^")" ) else x
 let is_digit = function
   | '0' .. '9' -> true
   | _ -> false
