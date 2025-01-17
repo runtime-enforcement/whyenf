@@ -18,7 +18,7 @@ def feeder(log, acc, p, q, queuing, lock, verbose):
     data = []
     for tp, row in df.iterrows():
         ts = int(row["ts"] / acc * 1000)
-        while (time()-t0)*1000 < ts and queuing.value > 0:
+        while (time()-t0)*1000 < ts and queuing.value > 0: # !!!!!!!!!!!!!!!!
             pass
         with lock:
             queuing.value += 1
@@ -50,7 +50,7 @@ def reader(p, q, queuing, lock, last_tp, desc, verbose):
         bar.update(n=tp+1-bar.n)
         if line.startswith(PREFIX):
             with lock:
-                queuing.value -= 1
+                queuing.value -= 1 # !!!!!!!!!!!!
             rest = line[len(PREFIX):-len(SUFFIX)-1].split(" ")
             tp, ts = int(rest[0]), int(rest[1])
             others = ",".join(rest[2:])
@@ -77,11 +77,10 @@ def replay(log, last_tp, command, desc, acc=1000, to=600, verbose=False):
         data1 = list(q.get(timeout=to))
         data2 = list(q.get(timeout=to))
     except:
-        p.kill()    
+        p.kill()
         return None
     r.join()
     f.join()
     q.close()
     p.kill()
     return pd.read_csv(StringIO("type,tp,ts,computer_time,n_ev,n_tp,cau,sup,ins,done_time\n" + "\n".join(data1 + data2)))
-
