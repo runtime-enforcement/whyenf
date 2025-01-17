@@ -718,8 +718,8 @@ end
 
 module Until = struct
 
-  type alphas_beta_t = { alpha_in : Tdeque.t;
-                         alpha_out: Tdeque.t;
+  type alphas_beta_t = { not_alpha_in : Tdeque.t;
+                         not_alpha_out: Tdeque.t;
                          beta_in  : Tdeque.t;
                          beta_out : Tdeque.t } [@@deriving compare, sexp_of, hash, equal]
 
@@ -731,8 +731,8 @@ module Until = struct
              buf         : (Expl.t, Expl.t, timestamp * timepoint) Buf2t.t }
 
   let beta_alphas_to_string =
-    Pdt.to_string (fun o -> Printf.sprintf "{ alpha_in = %s; alpha_out = %s; beta_in = %s; beta_out = %s }"
-                              (Tdeque.to_string o.alpha_in) (Tdeque.to_string o.alpha_out) (Tdeque.to_string o.beta_in) (Tdeque.to_string o.beta_out)) ""
+    Pdt.to_string (fun o -> Printf.sprintf "{ not_alpha_in = %s; not_alpha_out = %s; beta_in = %s; beta_out = %s }"
+                              (Tdeque.to_string o.not_alpha_in) (Tdeque.to_string o.not_alpha_out) (Tdeque.to_string o.beta_in) (Tdeque.to_string o.beta_out)) ""
 
   let to_string aux =
     Printf.sprintf "{ uaux = %s; itv_beta_in = %s; itv_alpha_in = %s; itv_out = %s; tstps_todo = %s; buf = %s }"
@@ -744,8 +744,8 @@ module Until = struct
       (Buf2t.to_string Expl.to_string Expl.to_string (fun (ts, tp) -> Printf.sprintf "(%s, %d)" (Time.to_string ts) tp) aux.buf)
 
 
-  let init itv_beta_in = { uaux         = Pdt.Leaf { alpha_in  = Tdeque.empty
-                                                   ; alpha_out = Tdeque.empty
+  let init itv_beta_in = { uaux         = Pdt.Leaf { not_alpha_in  = Tdeque.empty
+                                                   ; not_alpha_out = Tdeque.empty
                                                    ; beta_in   = Tdeque.empty
                                                    ; beta_out  = Tdeque.empty };
                            itv_beta_in;
@@ -757,27 +757,27 @@ module Until = struct
   let rec update (lbls: Lbl.t list) (aux : t) : t * Expl.t TS.t list =
     let process (ts: timestamp) (tp: timepoint) (uaux : alphas_beta_t) : alphas_beta_t * bool = 
       (* Move timestamps from alpha_out to alpha_in if they are outside of ts + i *)
-      let alpha_out, alpha_in = Tdeque.split_right uaux.alpha_out uaux.alpha_in ts aux.itv_out in
+      let not_alpha_out, not_alpha_in = Tdeque.split_right uaux.not_alpha_out uaux.not_alpha_in ts aux.itv_out in
       (* Remove timestamps from alpha_in when they are too old *)
-      let alphas_in = Tdeque.clean_right alpha_in ts aux.itv_alpha_in in
+      let not_alpha_in = Tdeque.clean_right not_alpha_in ts aux.itv_alpha_in in
       (* Move timestamps from beta_out to beta_in if they are outside of ts + i *)
       let beta_out, beta_in = Tdeque.split_right uaux.beta_out uaux.beta_in ts aux.itv_out in
       (* Remove timestamps from beta_in when they are too old *)
       let beta_in = Tdeque.clean_right beta_in ts aux.itv_beta_in in
-      let b = Tdeque.compute_until alpha_in beta_in in
+      let b = Tdeque.compute_until not_alpha_in beta_in in
       (* Return true iff alphas_in is not empty *)
-      { uaux with alpha_in; alpha_out; beta_in; beta_out }, b
+      { uaux with not_alpha_in; not_alpha_out; beta_in; beta_out }, b
     in
     let load1 ts tp b_alpha b_beta uaux =
       (* Insert timestamp into alpha_out *)
-      let alpha_out = if not b_alpha
-                      then Tdeque.enqueue_back uaux.alpha_out ts
-                      else uaux.alpha_out in
+      let not_alpha_out = if not b_alpha
+                          then Tdeque.enqueue_back uaux.not_alpha_out ts
+                          else uaux.not_alpha_out in
       (* Insert timestamp into beta_out *)
       let beta_out = if b_beta
                      then Tdeque.enqueue_back uaux.beta_out ts
                      else uaux.beta_out in
-      { uaux with alpha_out; beta_out }
+      { uaux with not_alpha_out; beta_out} 
     in
     let rec load ?(ts_opt=None) uaux =
       match Buf2t.get uaux.buf with
@@ -788,13 +788,15 @@ module Until = struct
       | _ -> ts_opt, aux
     in
     let ts_opt, aux = load aux in
-    match aux.tstps_todo, ts_opt with
-    | (ts, tp)::tstps_todo, Some ts' when Interval.diff_right_of ts ts' aux.itv_beta_in -> 
-       let uaux, b = Pdt.split_prod (Pdt.apply1 lbls (process ts tp) aux.uaux) in
-       let aux = { aux with uaux; tstps_todo } in
-       let aux, bs = update lbls aux in
-       aux, (TS.make tp ts b)::bs
-    | _ -> aux, []
+    let rec loop aux = 
+      match aux.tstps_todo, ts_opt with
+      | (ts, tp)::tstps_todo, Some ts' when Interval.diff_right_of ts ts' aux.itv_beta_in ->
+         let uaux, b = Pdt.split_prod (Pdt.apply1 lbls (process ts tp) aux.uaux) in
+         let aux = { aux with uaux; tstps_todo } in
+         let aux, bs = loop aux in
+         aux, (TS.make tp ts b)::bs
+      | _ -> aux, []
+    in loop aux
 
   let approximate tp i pol b_alpha b_beta b_next =
     match b_alpha, b_beta, b_next, pol with
