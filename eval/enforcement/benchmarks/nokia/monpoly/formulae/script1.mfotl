@@ -9,6 +9,6 @@ LET running(script) =
   SINCE
   (ONCE[0,1) EVENTUALLY[0,1) start(script))
 IN
-(EXISTS db, data. any_operation("script", db, data))
+(EXISTS db, data. any_operation("script1", db, data))
 IMPLIES
 (running("script1") OR (ONCE[0,1) EVENTUALLY[0,1) end("script1")))

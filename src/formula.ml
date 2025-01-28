@@ -80,7 +80,8 @@ let rec init sf : t =
        raise (Errors.FormulaError
                 (Printf.sprintf "Expression %s is not a valid MFOTL formula"
                    (Sformula.to_string sf)))
-  in ac_simplify (make_dummy form)
+  in
+  ac_simplify (make_dummy form)
 
 let check_agg types s op x y (f: t) =
   let x_tt = Sig.tt_of_term_exn types x in

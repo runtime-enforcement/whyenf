@@ -1547,6 +1547,10 @@ module FObligation = struct
       | POS -> "+"
       | NEG -> "-"
 
+    let polarity_to_int = function
+      | POS -> 1
+      | NEG -> 0
+
     let kind_to_string = function
       | FFormula (f, h, v) ->
          Printf.sprintf "FFormula(%s, %d, %s)" (to_string f) h (Etc.valuation_to_string v)
@@ -1862,8 +1866,9 @@ module Memo = struct
                 ex_events: (string, String.comparator_witness) Set.t;
                 ex_obligations: (int, Int.comparator_witness) Set.t }
 
-  let find memo mf =
-    match Map.find memo.map mf.hash, mf.events, mf.obligations with
+  let find memo mf pol =
+    let hash = mf.hash * 65599 + (FObligation.polarity_to_int pol) in
+    match Map.find memo.map hash, mf.events, mf.obligations with
     | None, _, _
       | _, None, _
       | _, _, None -> None
@@ -1878,7 +1883,10 @@ module Memo = struct
   let empty = { map = Map.empty (module Int);
                 ex_events = Set.empty (module String);
                 ex_obligations = Set.empty (module Int) }
-  let memoize memo mf res = { memo with map = Map.update memo.map mf.hash ~f:(fun _ -> res) }
+  
+  let memoize memo mf pol res =
+    let hash = mf.hash * 65599 + (FObligation.polarity_to_int pol) in
+    { memo with map = Map.update memo.map mf.hash ~f:(fun _ -> res) }
 
 (*let to_string (memo : 'a t) =
   Printf.sprintf "memo(map.keys = {%s};\n     ex_events = {%s};\n     ex_obligations = {%s}y)"
@@ -1903,14 +1911,14 @@ let meval (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) mformula 
   let rec meval_rec (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) memo mformula :
     'a *  (Expl.t TS.t list * Expl.t * MFormula.t) =
     (*print_endline "--meval_rec";
-    print_endline ("mf=" ^ MFormula.to_string mformula);*)
-    (*print_endline ("pol=" ^ Option.value_map pol ~default:"None" ~f:FObligation.polarity_to_string);*)
+    print_endline ("mf=" ^ MFormula.to_string mformula);
+    print_endline ("pol=" ^ Option.value_map pol ~default:"None" ~f:FObligation.polarity_to_string);*)
     (*print_endline "";*)
     (*print_endline ("memo=" ^ Memo.to_string memo);*)
     (*print_endline ("hash=" ^ Int.to_string mformula.hash);*)
     (*print_endline ("incr: " ^ MFormula.to_string mformula);*)
     Int.incr meval_c;
-    match Memo.find memo mformula with
+    match Memo.find memo mformula (pol_value pol) with
     | Some (expls, aexpl, mf) -> ((*print_endline ("meval:memo(" ^ Int.to_string mf.hash ^ ", " ^ Int.to_string tp ^ ")");*) (memo, (expls, aexpl, mf)))
     | None -> 
        let memo, (expls, aexpl, mf) =
@@ -2063,10 +2071,8 @@ let meval (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) mformula 
             let memo, (expls, aexpl, mf') = meval_rec ts tp db ~pol fobligs memo mf in
             let aux = { aux with buf = Buft.add aux.buf expls } in
             let aux, f_expls = Once.update mformula.lbls aux in
-            (*print_endline ("--MOnce");
-            print_endline ("aux=" ^ Once.to_string aux);*)
             let aexpl = approximate_once mformula.lbls f_expls aexpl i tp (pol_value pol) in
-                (*print_endline ("aexpl=" ^ Expl.to_string aexpl);*)
+            (*print_endline ("aexpl=" ^ Expl.to_string aexpl);*)
             memo, (f_expls, aexpl, MOnce (i, mf', aux))
          | MEventually (i, mf, aux) ->
             let memo, (expls, aexpl, mf') = meval_rec ts tp db ~pol fobligs memo mf in
@@ -2132,8 +2138,8 @@ let meval (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) mformula 
             let aexpl = approximate_until mformula.lbls aexpl1 aexpl2 fobligs i (Some (mformula.hash, v)) tp (pol_value pol) in
             memo, ([TS.make tp ts aexpl], aexpl, MEUntil (s, i, f_ts, mf1', mf2', v))
        in let mf = { mformula with mf } in
-          (*print_endline ("add memo: " ^ " (" ^ MFormula.to_string mf ^ ", " ^ Int.to_string tp ^ ", " ^ Int.to_string mformula.hash ^ ") -> " ^ Expl.to_string aexpl);*)
-          let memo = if tp = outer_tp then Memo.memoize memo mformula (expls, aexpl, mf) else memo in
+          (*print_endline ("add memo: " ^ " (" ^ MFormula.to_string mf ^ ", " ^ Int.to_string tp ^ ", " ^ Int.to_string mformula.hash ^ ", " ^ Option.value ~default:"None" (Option.map ~f:FObligation.polarity_to_string pol) ^ ") -> " ^ Expl.to_string aexpl);*)
+          let memo = if tp = outer_tp then Memo.memoize memo mformula (pol_value pol) (expls, aexpl, mf) else memo in
           memo, (expls, aexpl, mf)
   in meval_rec ts tp db ~pol fobligs memo mformula
 

@@ -140,7 +140,7 @@ module Memo : sig
 
   type 'a t
   
-  val find : 'a t -> MFormula.t -> 'a option
+  val find : 'a t -> MFormula.t -> FObligation.polarity -> 'a option
   val add_event : 'a t -> string -> 'a t
   val add_obligation : 'a t -> int -> 'a t
   val empty : 'a t

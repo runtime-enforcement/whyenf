@@ -8,4 +8,5 @@ run_experiments(
     n             = 1,#10,
     time_unit     = 24 * 3600,
     func          = True,
+    only_graph    = True,
 )

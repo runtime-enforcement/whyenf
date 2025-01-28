@@ -1,8 +1,25 @@
 ALWAYS (
   FORALL user, data.
-    insert(user, "db1", data) AND NOT (data = "[unknown]")
-    IMPLIES
-    ONCE[0,1) EVENTUALLY[0,108000] (
-      EXISTS user2. insert(user2, "db2", data) OR delete(user2, "db1", data)
+    delete(user, "db1", data) AND NOT (data = "[unknown]")
+    IMPLIES (
+      (
+        ONCE[0,1) EVENTUALLY[0,108000) (
+          EXISTS user2. delete(user2, "db2", data)
+        )
+      )   
+      OR
+      (
+        (
+          EVENTUALLY[0,1) ONCE[0,108000) (
+            EXISTS user2. insert(user2, "db1", data)
+          )
+        )
+        AND
+        (
+          HISTORICALLY[0,108000) ALWAYS[0,108000) (
+            NOT (EXISTS user2. delete(user2, "db3", data))
+          )
+        )
+      )
     )
 )

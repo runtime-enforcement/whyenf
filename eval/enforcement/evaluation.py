@@ -176,7 +176,7 @@ def run_experiments(
     series : List[Dict[str, Any]] = []
     total_steps = len(formulae) * len(logs) * len(accelerations) * n
     desc = f"option = {option}, benchmark = {benchmark}, accelerations = {accelerations[0]}-{accelerations[-1]}, n = {n}"
-    t = tqdm(total = total_steps, desc = desc)
+    t : tqdm = tqdm(total = total_steps, desc = desc)
     if not only_graph:
     
         for formula_desc, formula_fn in formulae.items():
