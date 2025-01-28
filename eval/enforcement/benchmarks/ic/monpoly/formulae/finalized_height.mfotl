@@ -110,7 +110,7 @@ LET fin(node, subnet, height, hash, replica_version) =
 IN
 (
   (NOT subnet_is_changing(subnet))
-  SINCE[80001,*]  (* 80_001 ms = 80 s + delta *)
+  SINCE[81,*]  (* 80_001 ms = 80 s + delta *)
     fin(n1, subnet, height1, hash1, replica_version)
 )
 AND fin(n2, subnet, height2, hash2, replica_version)
