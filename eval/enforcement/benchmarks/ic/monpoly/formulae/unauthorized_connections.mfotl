@@ -53,7 +53,7 @@ AND NOT (
     AND in_subnet(dest_id, dest_addr, subnet)  (* help monpoly *)
     AND NOT (subneta = subnet)  (* negated constraint requires all free variables to appears before *)
   )
-  AND ONCE[0,900000] ((* 900000 ms = 15 m *)
+  AND ONCE[0,900] ((* 900000 ms = 15 m *)
     in_subnet(_, sender_addr, subnet)
   )
 )

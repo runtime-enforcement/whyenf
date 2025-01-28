@@ -32,7 +32,7 @@ LET unintended_reboot(ip_addr, data_center) =
 IN
 LET num_reboots(data_center, n) =
   n <- CNT i; data_center
-    (ONCE [0, 1800000)  (* 30 min = 30*60*1000 = 1800000 *)
+    (ONCE [0, 1800)  (* 30 min = 30*60*1000 = 1800000 *)
       (unintended_reboot(ip_addr, data_center) AND tp(i)))
 IN
 num_reboots(data_center, n) AND n > 2

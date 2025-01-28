@@ -23,12 +23,9 @@ ALWAYS ( FORALL node2, hash2, addr2, subnet, height, replica_version.
 
   (finalized(node2, subnet, height, hash2, replica_version) AND in_ic(node2, addr2))
   IMPLIES (NOT
-    (
-      ONCE (EXISTS node1, hash1, addr1.
-        finalized(node1, subnet, height, hash1, replica_version)
-        AND in_ic(node1, addr1)
-        AND (hash1 = hash2)
-      )
-    )
+    (EXISTS node1, hash1, addr1.
+      ONCE (finalized(node1, subnet, height, hash1, replica_version))
+      AND in_ic(node1, addr1)
+      AND NOT (hash1 = hash2))
   )
 )

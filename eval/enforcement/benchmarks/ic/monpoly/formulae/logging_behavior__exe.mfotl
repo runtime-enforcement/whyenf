@@ -80,7 +80,7 @@ LET msg_count(node_id, subnet, count) =
     (
       (
         (c <- CNT i; node_id, subnet
-          ONCE (*(*)[0, 600000)
+          ONCE (*(*)[0, 600)
             relevant_log(node_id, subnet, level, message, i)
         )
         AND
@@ -105,16 +105,16 @@ LET typical_behavior(subnet, median) =
   )
 IN
 LET typical_behaviors(subnet, median) =
-  (ONCE (*(*)[0,600000) typical_behavior(subnet, median))
+  (ONCE (*(*)[0,600) typical_behavior(subnet, median))
   OR
-  (EVENTUALLY (*(*)[0,600000) typical_behavior(subnet, median))
+  (EVENTUALLY (*(*)[0,600) typical_behavior(subnet, median))
 IN
 
 (*
   Compute the behavior and the typical behavior.
 *)
 LET compute(subnet, node_id, count, min, max) =
-  (NOT EVENTUALLY (*(*)[0,600000) end_test())
+  (NOT EVENTUALLY (*(*)[0,600) end_test())
   AND
   (EXISTS c. msg_count(node_id, subnet, c) AND count = i2f(c))
   AND
@@ -136,5 +136,5 @@ IN
   Rate limit continuous violations to once every 600000 ms.
 *)
 exceeds(subnet, node_id, count, min, max) AND NOT
-  PREVIOUS (*(*)[0,600000)
+  PREVIOUS (*(*)[0,600)
     (EXISTS a, b, c. exceeds(subnet, node_id, a, b, c))
