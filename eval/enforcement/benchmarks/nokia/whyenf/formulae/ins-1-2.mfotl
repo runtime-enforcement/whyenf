@@ -1,7 +1,7 @@
 ALWAYS (
   FORALL user, data.
     insert(user, "db1", data) AND NOT (data = "[unknown]")
-    IMPLIES
+    IMPLIES:R
     ONCE[0,1) EVENTUALLY[0,108000] (
       EXISTS user2. insert(user2, "db2", data) OR delete(user2, "db1", data)
     )

@@ -1,13 +1,13 @@
 ALWAYS (
   FORALL user, data.
     delete(user, "db1", data) AND data <> "[unknown]"
-    IMPLIES (
+    IMPLIES:R (
       (
         ONCE[0,1) EVENTUALLY[0,30h) (
           EXISTS user2. delete(user2, "db2", data)
         )
       )   
-      OR
+      OR:L
       (
         (
           EVENTUALLY[0,1s) ONCE[0,30h) (

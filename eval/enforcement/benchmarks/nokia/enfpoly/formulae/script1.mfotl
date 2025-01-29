@@ -1,7 +1,7 @@
 (select("script1", db, data)
  OR insert("script1", db, data)
  OR delete("script1", db, data)
- OR update("script1", db, data))
+ OR update("script1 ", db, data))
 AND NOT (
   (ONCE[0,1) end("script1"))
   SINCE

@@ -1241,7 +1241,8 @@ module Make
                  Constraints.disj
                    (only_if_strictly_relative_past [g] (aux' (Enftype.neg t) f))
                    (only_if_strictly_relative_past [f] (aux' t g))
-              | Exists (_, f) -> aux' t f
+              | Exists (x, f) ->
+                 aux t (Map.update pgs (Var.ident x) ~f:(fun _ -> [Set.empty (module String)])) ts f
               | Forall (x, f) ->
                  let es = solve_past_guarded pgs x false f in
                  (match es with
