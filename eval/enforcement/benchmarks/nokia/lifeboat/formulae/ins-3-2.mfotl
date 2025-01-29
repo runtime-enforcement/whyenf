@@ -1,7 +1,7 @@
 ALWAYS (
   FORALL user, data.
     insert(user, "db3", data) AND data <> "[unknown]"
-    IMPLIES
+    IMPLIES:R
     ONCE[0,60s) EVENTUALLY[0,1s] (
       EXISTS user2. insert(user2, "db2", data)
     )
