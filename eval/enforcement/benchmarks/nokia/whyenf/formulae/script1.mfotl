@@ -1,18 +1,18 @@
 ALWAYS (
   FORALL db, data.
     (
-      select("script1", db, data)
-      OR insert("script1", db, data)
-      OR delete("script1", db, data)
-      OR update("script1", db, data)
+      select("script", db, data)
+      OR insert("script", db, data)
+      OR delete("script", db, data)
+      OR update("script", db, data)
     )
     IMPLIES (
       (
-        (NOT ONCE[0,1) EVENTUALLY[0,1) end("script1"))
+        (NOT ONCE[0,1) EVENTUALLY[0,1) end("script"))
         SINCE
-        (ONCE[0,1) EVENTUALLY[0,1) start("script1"))
+        (ONCE[0,1) EVENTUALLY[0,1) start("script"))
       )
       OR
-      ONCE[0,1) EVENTUALLY[0,1) end("script1")
+      ONCE[0,1) EVENTUALLY[0,1) end("script")
     )
 )

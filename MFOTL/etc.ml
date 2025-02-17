@@ -77,7 +77,7 @@ let int_list_to_json l =
 
 let unquote s =
     let len = String.length s in
-    if Char.equal s.[0] '\"' && Char.equal s.[len-1] '\"' then
+    if len >= 2 && Char.equal s.[0] '\"' && Char.equal s.[len-1] '\"' then
       String.sub s ~pos:1 ~len:(len-2)
     else s
 
@@ -208,3 +208,11 @@ let list_intersection equal lists =
 let option_to_string f = function
   | None -> "None"
   | Some x -> Printf.sprintf "Some(%s)" (f x)
+
+
+let replace_all original replacement text =
+  let regexp = Str.regexp_string original in
+  Str.global_replace regexp replacement text
+
+
+let latex_string s = replace_all "_" "\\_" s

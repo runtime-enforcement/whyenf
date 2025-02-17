@@ -11,7 +11,7 @@ LET running(script) =
 IN
 ALWAYS (
   FORALL db, data.
-    any_operation("script1", db, data)
+    any_operation("script", db, data)
     IMPLIES
-    (running("script1") OR (ONCE[0,1) EVENTUALLY[0,1) end("script1")))
+    (running("script") OR (ONCE[0,1) EVENTUALLY[0,1) end("script")))
 )

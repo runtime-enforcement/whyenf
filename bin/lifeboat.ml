@@ -24,7 +24,7 @@ module Lifeboat = struct
   let sig_ref = ref In_channel.stdin
   let logstr_ref = ref ""
 
-  let run debug forall monitoring log_file logstr sig_file formula_file func_file out_file json bound time_zone step statistics =
+  let run debug forall monitoring log_file logstr sig_file formula_file func_file out_file json bound time_zone step statistics latex =
     if debug then Global.debug := true;
     if forall then Global.forall := true;
     if monitoring then Global.monitoring := true;	
@@ -75,10 +75,13 @@ module Lifeboat = struct
            if forall
            then Sformula.SExists (xs, sformula)
            else sformula in
-         if not statistics then
-           Enforcer.exec (Formula.init sformula)
+         let formula = Formula.init sformula in
+         if statistics then
+           Formula.print_statistics formula
+         else if latex then
+           Stdio.printf "%s\n" (Formula.to_latex formula)
          else
-           Formula.print_statistics (Formula.init sformula)
+           Enforcer.exec formula
        in
          ()
     | None ->
@@ -103,9 +106,10 @@ module Lifeboat = struct
        and time_zone = flag "-tz" (optional string) ~doc:"local|INT Time zone (default: local, otherwise UTC+x)"
        and step = flag "-s" (optional string) ~doc:"INT[smhdMy] Enforcement step (default: 1s)"
        and statistics = flag "-statistics" no_arg ~doc:" Print statistics about the formula"
+       and latex = flag "-latex" no_arg ~doc:" Print latex code of the formula"
        in 
        fun () ->
-       run debug forall monitoring log_file logstr sig_file formula_file func_file out_file json bound time_zone step statistics)
+       run debug forall monitoring log_file logstr sig_file formula_file func_file out_file json bound time_zone step statistics latex)
        
 end
 

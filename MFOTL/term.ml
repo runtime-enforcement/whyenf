@@ -28,7 +28,9 @@ module type T = sig
 
   val to_string : t -> string
   val value_to_string : ?l:int -> t -> string
+  val value_to_latex : ?l:int -> t -> string
   val list_to_string : t list -> string
+  val list_to_latex : t list -> string
 
   val subst : (v, t, 'a) Map.t -> t -> t
   val substs : (v, t, 'a) Map.t -> t list -> t list
@@ -116,6 +118,28 @@ module Make (Var : V) (Dom : D) (Uop : O) (Bop : O) (Info : I) = struct
     and value_to_string ?(l=0) t =
       Info.to_string l (value_to_string_core ~l t.trm) t.info
 
+    let rec value_to_latex_core ?(l=0) t =  match t with
+      | Var x -> Printf.sprintf "%s" (Var.to_latex x)
+      | Const d -> Printf.sprintf "%s" (Dom.to_latex d)
+      | App (f, ts) -> Printf.sprintf "\\mathsf{%s}(%s)"
+                         (Etc.latex_string f)
+                         (String.concat ~sep:", " (List.map ts ~f:(value_to_latex ~l)))
+      | Unop (o, t) -> let l' = Uop.prio o in
+                       Printf.sprintf (Etc.paren l l' "%s %s")
+                         (Uop.to_latex o)
+                         (value_to_latex ~l:10 t)
+      | Binop (t, o, t') -> let l' = Bop.prio o in
+                            Printf.sprintf (Etc.paren l l' "%s %s %s")
+                              (value_to_latex ~l:l' t)
+                              (Bop.to_latex o)
+                              (value_to_latex ~l:l' t')
+      | Proj (t, p) -> Printf.sprintf "%s.%s" (value_to_latex ~l:10 t) p
+      | Record kvs ->
+         let f (k, v) = k ^ " : " ^ value_to_latex v in
+         Printf.sprintf "{ %s }" (String.concat ~sep:", " (List.map kvs ~f))
+    and value_to_latex ?(l=0) t =
+      Info.to_string l (value_to_latex_core ~l t.trm) t.info
+
     let unvar t = match t.trm with
       | Var x -> x
       | _ -> raise (TermError (Printf.sprintf "unvar is undefined for %s" (to_string t)))
@@ -166,6 +190,7 @@ module Make (Var : V) (Dom : D) (Uop : O) (Bop : O) (Info : I) = struct
 
     let list_to_string trms = String.concat ~sep:", " (List.map trms ~f:value_to_string)
     let list_to_string_core trms = String.concat ~sep:", " (List.map trms ~f:value_to_string_core)
+    let list_to_latex trms = String.concat ~sep:", " (List.map trms ~f:value_to_latex)
 
     let filter_vars = List.filter_map ~f:(fun t -> match t.trm with Var x -> Some x | _ -> None)
 

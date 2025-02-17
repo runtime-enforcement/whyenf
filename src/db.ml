@@ -21,9 +21,7 @@ module Event = struct
     let to_json (name, ds) =
       Printf.sprintf "{ \"name\": \"%s\", \"args\": [ %s ] }"
         name
-        (String.concat ~sep:", "
-           (List.map2_exn (Sig.vars_of_pred name) ds ~f:(fun x d ->
-                Printf.sprintf "{ \"var\": \"%s\", \"value\": \"%s\" }" x (Dom.to_string d))))
+        (String.concat ~sep:", " (List.map  ds ~f:(fun d -> (Dom.to_string d))))
 
     let name = fst
 

@@ -12,10 +12,11 @@ module TypedVar : Modules.V with type t = (string * MFOTL_lib.Dom.tt) = struct
     type t = string * Dom.tt [@@deriving compare, sexp_of, hash, equal]
 
     let to_string (x, tt) = Printf.sprintf "%s:%s" x (MFOTL_lib.Dom.tt_to_string tt)
+    let to_latex (x, tt) = Printf.sprintf "%s:%s" x (MFOTL_lib.Dom.tt_to_string tt)
     let ident = fst
     let of_ident x = (x, Dom.TInt)
 
-    let replace (_, tt) (z, _) = (z, tt)
+    let replace (z, _) (_, tt) = (z, tt)
     
     let equal_ident (x, _) (y, _) = String.equal x y
 

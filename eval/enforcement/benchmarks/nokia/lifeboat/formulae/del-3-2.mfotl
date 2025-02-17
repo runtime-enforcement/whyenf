@@ -1,7 +1,7 @@
 ALWAYS (
   FORALL user, data.
     delete(user, "db3", data) AND data <> "[unknown]"
-    IMPLIES:R
+    IMPLIES
     ONCE[0,60s) EVENTUALLY[0,1) (
       EXISTS user2. delete(user2, "db2", data)
     )
