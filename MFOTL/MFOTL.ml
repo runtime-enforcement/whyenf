@@ -233,11 +233,11 @@ module Make
       | Always (_, f)
       | Type (f, _)
       | Agg (_, _, _, _, f)
-      | Top (_, _, _, _, f)
-      | Let (_, _, _, _, f) -> 1 + size f
+      | Top (_, _, _, _, f) -> 1 + size f
     | Imp (_, f, g)
       | Since (_, _, f, g)
-      | Until (_, _, f, g) -> 1 + size f + size g
+      | Until (_, _, f, g)
+      | Let (_, _, _, f, g) -> 1 + size f + size g
     | And (_, fs)
       | Or (_, fs) -> 1 + List.fold_left ~f:(+) ~init:0 (List.map ~f:size fs)
 
@@ -315,7 +315,7 @@ module Make
     match Map.find v s with
     | Some trm ->
        (match Term.unvar_opt trm with
-        | Some z -> Var.replace s z
+        | Some z -> Var.replace z s
         | None ->
            raise (FormulaError (
                       Printf.sprintf "cannot substitute non-variable term %s for aggregation variable %s"
@@ -411,6 +411,9 @@ module Make
          (Enftype.to_string_let enftype)
          (fun _ -> to_string_rec 4) f
          (fun _ -> to_string_rec 4) g
+    | Agg (s, Aggregation.AAssign, x, _, f) ->
+       Printf.sprintf (Etc.paren l 5 "%s; %s <- %s")
+         (to_string_rec 5 f) (Var.to_string s) (Term.value_to_string x)
     | Agg (s, op, x, y, f) ->
        Printf.sprintf (Etc.paren l 5 "%s <- %s(%s; %s; %s)")
          (Var.to_string s) (Aggregation.op_to_string op)
@@ -494,6 +497,117 @@ module Make
 
   let to_string = to_string_rec 0
   let to_string_typed = to_string_typed_rec 0
+
+  let to_latex_core_rec to_latex_rec l f =
+    match f with
+    | TT -> Printf.sprintf "\\bot"
+    | FF -> Printf.sprintf "\\top"
+    | EqConst (trm, c) ->
+       Printf.sprintf (Etc.paren l 40 "%s \\approx %s")
+         (Term.value_to_latex trm) (Dom.to_latex c)
+    | Predicate (r, trms) ->
+       Printf.sprintf "\\mathsf{%s}(%s)"
+         (Etc.latex_string r)
+         (Term.list_to_latex trms)
+    | Predicate' (r, trms, _) ->
+       Printf.sprintf "\\mathsf{%s}^\\star(%s)"
+         (Etc.latex_string r)
+         (Term.list_to_latex trms)
+    | Let (r, enftype, vars, f, g) ->
+       Printf.sprintf (Etc.paren l 4 "\\llet\\,\\mathsf{%s}(%s)\\texttt{%s} = %a\\,\\iin\\,%a")
+         (Etc.latex_string r)
+         (Etc.string_list_to_string (List.map ~f:Var.to_latex vars))
+         (Enftype.to_string_let enftype)
+         (fun _ -> to_latex_rec 4) f
+         (fun _ -> to_latex_rec 4) g
+    | Let' (r, enftype, vars, f, g) ->
+       Printf.sprintf (Etc.paren l 4 "\\llet\\,\\mathsf{%s}^\\star(%s)%s = %a\\,\\iin\\,%a")
+         (Etc.latex_string r)
+         (Etc.string_list_to_string (List.map ~f:Var.to_latex vars))
+         (Enftype.to_string_let enftype)
+         (fun _ -> to_latex_rec 4) f
+         (fun _ -> to_latex_rec 4) g
+    | Agg (s, op, x, y, f) ->
+       Printf.sprintf (Etc.paren l 5 "%s \\gets \\mathtt{%s}(%s; %s; %s)")
+         (Var.to_latex s)
+         (Aggregation.op_to_string op)
+         (Term.value_to_latex x) (String.concat ~sep:", " (List.map ~f:Var.to_latex y))
+         (to_latex_rec 5 f)
+    | Top (s, op, x, y, f) ->
+       Printf.sprintf (Etc.paren l 5 "[%s] \\gets \\mathtt{%s}([%s]; %s; %s)")
+         (String.concat ~sep:", " (List.map ~f:Var.to_latex s))
+         (Etc.latex_string op)
+         (Term.list_to_string x) (String.concat ~sep:", " (List.map ~f:Var.to_latex y))
+         (to_latex_rec 5 f)
+    | Neg f ->
+       Printf.sprintf (Etc.paren l 55 "\\neg%a")
+         (fun _ -> to_latex_rec 55) f
+    | And (s, fs) ->
+       Printf.sprintf (Etc.paren l 50 "%s")
+         (String.concat ~sep:(" \\land" ^ Side.to_string s ^ " ")
+            (List.map ~f:(to_latex_rec 50) fs))
+    | Or (s, fs) ->
+       Printf.sprintf (Etc.paren l 40 "%s")
+         (String.concat ~sep:(" \\lor" ^ Side.to_string s ^ " ")
+            (List.map ~f:(to_latex_rec 40) fs))
+    | Imp (s, f, g) ->
+       Printf.sprintf (Etc.paren l 30 "%a \\Rightarrow%a %a")
+         (fun _ -> to_latex_rec 30) f
+         (fun _ -> Side.to_string) s
+         (fun _ -> to_latex_rec 30) g
+    | Exists (x, f) ->
+       Printf.sprintf (Etc.paren l 6 "\\exists%a.~%a")
+         (fun _ -> Var.to_latex) x
+         (fun _ -> to_latex_rec 6) f
+    | Forall (x, f) ->
+       Printf.sprintf (Etc.paren l 6 "\\forall%a.~%a")
+         (fun _ -> Var.to_latex) x
+         (fun _ -> to_latex_rec 6) f
+    | Prev (i, f) ->
+       Printf.sprintf (Etc.paren l 50 "\\Prev_{%a} %a")
+         (fun _ -> Interval.to_latex) i
+         (fun _ -> to_latex_rec 50) f
+    | Next (i, f) ->
+       Printf.sprintf (Etc.paren l 50 "\\Next_{%a} %a")
+         (fun _ -> Interval.to_latex) i
+         (fun _ -> to_latex_rec 50) f
+    | Once (i, f) ->
+       Printf.sprintf (Etc.paren l 50 "\\Once_{%a} %a")
+         (fun _ -> Interval.to_latex) i
+         (fun _ -> to_latex_rec 50) f
+    | Eventually (i, f) ->
+       Printf.sprintf (Etc.paren l 50 "\\Eventually_{%a} %a")
+         (fun _ -> Interval.to_latex) i
+         (fun _ -> to_latex_rec 50) f
+    | Historically (i, f) ->
+       Printf.sprintf (Etc.paren l 50 "\\PGlobally_{%a} %a")
+         (fun _ -> Interval.to_latex) i
+         (fun _ -> to_latex_rec 50) f
+    | Always (i, f) ->
+       Printf.sprintf (Etc.paren l 50 "\\Always_{%a} %a")
+         (fun _ -> Interval.to_latex) i
+         (fun _ -> to_latex_rec 50) f
+    | Since (s, i, f, g) ->
+       Printf.sprintf (Etc.paren l 45 "%a \\Since_{%a}%a %a")
+         (fun _ -> to_latex_rec 45) f
+         (fun _ -> Interval.to_latex) i
+         (fun _ -> Side.to_string) s
+         (fun _ -> to_latex_rec 45) g
+    | Until (s, i, f, g) ->
+       Printf.sprintf (Etc.paren l 45 "%a \\UUntil_{%a}%a %a")
+         (fun _ -> to_latex_rec 45) f
+         (fun _ -> Interval.to_latex) i
+         (fun _ -> Side.to_string) s
+         (fun _ -> to_latex_rec 45) g
+    | Type (f, ty) ->
+       Printf.sprintf (Etc.paren l 0 "%a : %s")
+         (fun _ -> to_latex_rec 0) f
+         (Enftype.to_string ty)
+
+  let rec to_latex_rec l f =
+    Info.to_string l (to_latex_core_rec to_latex_rec l f.form) f.info
+
+  let to_latex = to_latex_rec 0
   
   (* Unrolling of let bindings *)
 
@@ -533,9 +647,9 @@ module Make
   (* Alpha-convert vars to remove shadowing *)
 
   let convert_vars f =
-    let return f i = f, i in
-    let (>>|) func fi i = let f, i = fi i in func f, i in
-    let (>>=) func fi i = let f, i = fi i in let g, i = func f i in g, i in
+    let return f i v = f, (i, v) in
+    let (>>|) func fi i v = let f, (i, v) = fi i v in func f, (i, v) in
+    let (>>=) func fi i v = let f, (i, v) = fi i v in let g, (i, v) = func f i v in g, (i, v) in
     let name x k = Printf.sprintf "%s.%d" x k in
     let fresh (i, v) x =
       let xk, k = match Map.find i x with
@@ -546,7 +660,7 @@ module Make
     let vv = Var.of_ident "v" in
     (*let var_subst v x = match Map.find v x with Some (Term.Var x) -> x | _ -> x in
       let vars_subst v xs = List.map xs ~f:(var_subst v) in*)
-    let rec aux v f i =
+    let rec aux f i v =
       let g = match f.form with
         | TT -> return TT 
         | FF -> return FF
@@ -556,54 +670,59 @@ module Make
            let process_trm (i, v) trm = match Term.unvar_opt trm with
              | Some x -> let (i, v), xk = fresh (i, v) x  in (i, v), (xk, None)
              | None   -> let (i, v), xk = fresh (i, v) vv in (i, v), (xk, Some trm) in
-           (fun i -> let (i, v), trms' = List.fold_map trms ~init:(i, v) ~f:process_trm in
-                     let e f = function (xk, Some trm) -> make_dummy (exists xk (make_dummy (assign xk trm f))) | _ -> f in
-                     let q f = List.fold_left trms' ~init:f ~f:e in
-                     ((fun f -> return (Predicate' (r, Term.substs v trms, q f))) >>= (aux v f)) i)
+           (fun i v -> let (i, v), trms' = List.fold_map trms ~init:(i, v) ~f:process_trm in
+                       let e f = function (xk, Some trm) -> make_dummy (exists xk (make_dummy (assign xk trm f))) | _ -> f in
+                       let q f = List.fold_left trms' ~init:f ~f:e in
+                       ((fun f -> return (Predicate' (r, Term.substs v trms, q f))) >>= (aux f)) i v)
         | Let (r, enftype, vars, f, g) ->
-           (fun i -> let (i, v), vars = List.fold_map vars ~init:(i, v) ~f:fresh in
-                     ((fun f -> (fun g -> return (Let (r, enftype, vars, f, g))) >>= (aux v g)) >>= (aux v f)) i)
+           (fun i v -> let (i, v), vars = List.fold_map vars ~init:(i, v) ~f:fresh in
+                       ((fun f -> (fun g -> return (Let (r, enftype, vars, f, g))) >>= (aux g)) >>= (aux f)) i v)
         | Let' (r, enftype, vars, f, g) ->
-           (fun i -> let (i, v), vars = List.fold_map vars ~init:(i, v) ~f:fresh in
-                     ((fun f -> (fun g -> return (Let' (r, enftype, vars, f, g))) >>= (aux v g)) >>= (aux v f)) i)
+           (fun i v -> let (i, v), vars = List.fold_map vars ~init:(i, v) ~f:fresh in
+                       ((fun f -> (fun g -> return (Let' (r, enftype, vars, f, g))) >>= (aux g)) >>= (aux f)) i v)
         | Agg (s, op, x, y, f) ->
-           (fun i -> let fvs = Set.elements (Set.diff (fv f) (Set.of_list (module Var) ((Term.fv_list [x])@y))) in
-                     let (i, v'), _ = List.fold_map fvs ~init:(i, v) ~f:fresh in
-                     ((fun f -> return (Agg (subst_var v s, op, Term.subst v' x, subst_vars v y, f)))
-                      >>= (aux v' f)) i)
+           (fun i v -> let fvs = Set.elements (Set.diff (fv f) (Set.of_list (module Var) ((Term.fv_list [x])@y))) in
+                       let (i, v'), _ = List.fold_map fvs ~init:(i, v) ~f:fresh in
+                       ((fun f -> return (Agg (subst_var v s, op, Term.subst v' x, subst_vars v y, f)))
+                        >>= (aux f)) i v')
         | Top (s, op, x, y, f) ->
-           (fun i -> let fvs = Set.elements (Set.diff (fv f) (Set.of_list (module Var) y)) in
-                     let (i, v'), _ = List.fold_map fvs ~init:(i, v) ~f:fresh in
-                     ((fun f -> return (Top (subst_vars v s, op, Term.substs v' x, subst_vars v y, f)))
-                      >>= (aux v' f)) i)
-        | Neg f -> (fun f -> return (Neg f)) >>= (aux v f)
+           (fun i v -> let fvs = Set.elements (Set.diff (fv f) (Set.of_list (module Var) y)) in
+                       let (i, v'), _ = List.fold_map fvs ~init:(i, v) ~f:fresh in
+                       ((fun f -> return (Top (subst_vars v s, op, Term.substs v' x, subst_vars v y, f)))
+                        >>= (aux f)) i v)
+        | Neg f -> (fun f -> return (Neg f)) >>= (aux f)
         (*| And (s, f, g) ->
           (fun f -> (fun g -> return (And (s, f, g))) >>= (aux v g)) >>= (aux v f)*)
         | And (s, fs) ->
            (List.fold_right
               ~init:(fun fs -> return (And (s, fs)))
-              ~f:(fun f g fs -> (fun f -> g (f :: fs)) >>= (aux v f)) fs) []
+              ~f:(fun f g fs -> (fun f -> g (f :: fs)) >>= (aux f)) fs) []
         (*| Or (s, fs) -> (fun f -> (fun g -> return (Or (s, f, g))) >>= (aux v g)) >>= (aux v f)*)
         | Or (s, fs) ->
            (List.fold_right
               ~init:(fun fs -> return (Or (s, fs)))
-              ~f:(fun f g fs -> (fun f -> g (f :: fs)) >>= (aux v f)) fs) []
-        | Imp (s, f, g) -> (fun f -> (fun g -> return (Imp (s, f, g))) >>= (aux v g)) >>= (aux v f)
-        | Exists (x, f) -> (fun i -> let (i, v), xk = fresh (i, v) x in
-                                     ((fun f -> return (Exists (Var.replace x xk, f))) >>= (aux v f)) i)
-        | Forall (x, f) -> (fun i -> let (i, v), xk = fresh (i, v) x in
-                                     ((fun f -> return (Forall (Var.replace x xk, f))) >>= (aux v f)) i)
-        | Prev (i, f) -> (fun f -> Prev (i, f)) >>| (aux v f)
-        | Next (i, f) -> (fun f -> Next (i, f)) >>| (aux v f)
-        | Once (i, f) -> (fun f -> Once (i, f)) >>| (aux v f)
-        | Eventually (i, f) -> (fun f -> Eventually (i, f)) >>| (aux v f)
-        | Historically (i, f) -> (fun f -> Historically (i, f)) >>| (aux v f)
-        | Always (i, f) -> (fun f -> Always (i, f)) >>| (aux v f)
-        | Since (s, i, f, g) -> (fun f -> (fun g -> return (Since (s, i, f, g))) >>= (aux v g)) >>= (aux v f)
-        | Until (s, i, f, g) -> (fun f -> (fun g -> return (Until (s, i, f, g))) >>= (aux v g)) >>= (aux v f)
-        | Type (f, ty) -> (fun f -> return (Type (f, ty))) >>= (aux v f)
-      in let form, b = g i in { f with form }, b
-    in fst (aux (Map.empty (module Var)) f (Map.empty (module Var)))
+              ~f:(fun f g fs -> (fun f -> g (f :: fs)) >>= (aux f)) fs) []
+        | Imp (s, f, g) -> (fun f -> (fun g -> return (Imp (s, f, g))) >>= (aux g)) >>= (aux f)
+        | Exists (x, f) -> (fun i v -> let (i, v), xk = fresh (i, v) x in
+                                       ((fun f -> return (Exists (Var.replace xk x, f))) >>= (aux f)) i v)
+        | Forall (x, f) -> (fun i v -> let (i, v), xk = fresh (i, v) x in
+                                       ((fun f -> return (Forall (Var.replace xk x, f))) >>= (aux f)) i v)
+        | Prev (i, f) -> (fun f -> Prev (i, f)) >>| (aux f)
+        | Next (i, f) -> (fun f -> Next (i, f)) >>| (aux f)
+        | Once (i, f) -> (fun f -> Once (i, f)) >>| (aux f)
+        | Eventually (i, f) -> (fun f -> Eventually (i, f)) >>| (aux f)
+        | Historically (i, f) -> (fun f -> Historically (i, f)) >>| (aux f)
+        | Always (i, f) -> (fun f -> Always (i, f)) >>| (aux f)
+        | Since (s, i, f, g) -> (fun f -> (fun g -> return (Since (s, i, f, g))) >>= (aux g)) >>= (aux f)
+        | Until (s, i, f, g) -> (fun f -> (fun g -> return (Until (s, i, f, g))) >>= (aux g)) >>= (aux f)
+        | Type (f, ty) -> (fun f -> return (Type (f, ty))) >>= (aux f)
+      in let form, b = g i v in
+         (*Stdio.print_endline (to_string f);
+         Stdio.print_endline (Etc.list_to_string "" (fun _ (var, term) -> Var.to_string var ^ " -> " ^ Term.to_string term) (Map.to_alist v));
+         Stdio.print_endline (Etc.list_to_string "" (fun _ (var, i) -> Var.to_string var ^ " -> " ^ Int.to_string i) (Map.to_alist i));
+         Stdio.print_endline ("-> " ^ to_string { f with form } ^ "\n");*)
+         { f with form }, b
+    in fst (aux f (Map.empty (module Var)) (Map.empty (module Var)))
 
   (* Alpha-convert let bindings to remove shadowing *)
 

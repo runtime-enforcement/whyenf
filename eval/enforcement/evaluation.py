@@ -205,6 +205,7 @@ def run_experiments(
                             summ["formula"] = formula_desc
                             summ["log"] = log_desc
                             plot(formula_desc, log_desc, a, df, out_path / png_fn, time_unit)
+                            print(summ)
                             series.append(summ)
                             if summ["max_latency"] <= summ["d1"]:
                                 has_real_time_iteration = True

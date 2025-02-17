@@ -67,6 +67,11 @@ module T = struct
     | Str v -> Printf.sprintf "\"%s\"" v
     | Float v -> Float.to_string v
 
+  let to_latex = function
+    | Int v -> Int.to_string v
+    | Str v -> Printf.sprintf "\\texttt{\"%s\"}" v
+    | Float v -> Float.to_string v
+
   let list_to_string ds =
     String.drop_suffix (List.fold ds ~init:"" ~f:(fun acc d -> acc ^ (to_string d) ^ ", ")) 2
 

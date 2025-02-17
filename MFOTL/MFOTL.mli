@@ -60,6 +60,7 @@ module Make
   val ff: core_t
   val eqconst: Term.t -> Dom.t -> core_t
   val agg: Var.t -> Aggregation.op -> Term.t -> Var.t list -> t -> core_t
+  val assign: Var.t -> Term.t -> t -> core_t
   val top: Var.t list -> string -> Term.t list -> Var.t list -> t -> core_t
   val predicate: string -> Term.t list -> core_t
   val flet: string -> Enftype.t option -> Var.t list -> t -> t -> core_t
@@ -105,6 +106,7 @@ module Make
   val op_to_string : t -> string
   val to_string : t -> string
   val to_string_typed : typed_t -> string
+  val to_latex : t -> string
 
   val convert_vars : t -> t
   val convert_lets : t -> t

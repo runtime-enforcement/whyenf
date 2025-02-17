@@ -19,10 +19,11 @@ module StringVar : Modules.V with type t = string = struct
     type t = string [@@deriving compare, sexp_of, hash, equal]
     
     let to_string s = s
+    let to_latex s = Printf.sprintf "\\mathit{%s}" (Etc.latex_string s)
     let ident s = s
     let of_ident s = s
 
-    let replace _ z = z
+    let replace z _ = z
     
     let equal_ident = equal
     
@@ -38,6 +39,7 @@ module NoOp = struct
   type t = unit [@@deriving compare, sexp_of, hash, equal]
 
   let to_string _ = ""
+  let to_latex _ = ""
   let prio _ = 0
 
 end

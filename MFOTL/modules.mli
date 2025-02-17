@@ -17,6 +17,7 @@ module type V = sig
   val comparator : (t, comparator_witness) Comparator.t
 
   val to_string : t -> string
+  val to_latex : t -> string
   val ident : t -> string
   val of_ident : string -> t
 
@@ -32,6 +33,7 @@ module type D = sig
   type tt [@@deriving compare, sexp_of, hash, equal]
 
   val to_string : t -> string
+  val to_latex : t -> string
   val tt_to_string : tt -> string
   val bool_tt : t
   val tt_of_domain : t -> tt
@@ -43,6 +45,7 @@ module type O = sig
   type t [@@deriving compare, sexp_of, hash, equal]
 
   val to_string : t -> string
+  val to_latex : t -> string
   val prio : t -> int
 
 end

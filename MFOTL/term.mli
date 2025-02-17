@@ -23,7 +23,9 @@ module type T = sig
 
   val to_string : t -> string
   val value_to_string : ?l:int -> t -> string
+  val value_to_latex : ?l:int -> t -> string
   val list_to_string : t list -> string
+  val list_to_latex : t list -> string
 
   val subst : (v, t, 'a) Map.t -> t -> t
   val substs : (v, t, 'a) Map.t -> t list -> t list
@@ -81,8 +83,10 @@ module Make (Var : V) (Dom : D) (Uop : O) (Bop : O) (Info : I) : sig
   val to_string: t -> string
 
   val value_to_string: ?l:int -> t -> string
+  val value_to_latex : ?l:int -> t -> string
 
   val list_to_string: t list -> string
+  val list_to_latex: t list -> string
   val list_to_string_core: core_t list -> string
 
   val filter_vars: t list -> v list
