@@ -203,9 +203,12 @@ module Constraint = struct
        c''
 
   let solve c =
-    match c.upper with
+    match c.lower with
     | Some enftype -> enftype
-    | _ -> raise (Etc.EnforceabilityError "cannot solve constraint without an upper bound")
+    | _ -> raise (Etc.EnforceabilityError "cannot solve constraint without a lower bound")
+    (*match c.upper with
+    | Some enftype -> enftype
+    | _ -> raise (Etc.EnforceabilityError "cannot solve constraint without an upper bound")*)
 
 end
       
