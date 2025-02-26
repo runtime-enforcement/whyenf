@@ -29,6 +29,8 @@ module type T = sig
 
   val subst : (v, t, 'a) Map.t -> t -> t
   val substs : (v, t, 'a) Map.t -> t list -> t list
+
+  val map_consts: f:(d -> d) -> t -> t
  
 end
 
@@ -95,5 +97,7 @@ module Make (Var : V) (Dom : D) (Uop : O) (Bop : O) (Info : I) : sig
 
   val subst: (v, t, 'a) Map.t -> t -> t
   val substs: (v, t, 'a) Map.t -> t list -> t list
+
+  val map_consts: f:(d -> d) -> t -> t
   
 end

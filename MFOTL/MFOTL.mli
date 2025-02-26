@@ -6,7 +6,7 @@ module Make
   (Info : I)
   (Var  : V)
   (Dom  : D)
-  (Term : Term.T with type v = Var.t) : sig
+  (Term : Term.T with type v = Var.t and type d = Dom.t) : sig
 
   type ('i, 'v, 'd, 't) _core_t =
     | TT
@@ -14,8 +14,8 @@ module Make
     | EqConst of 't * 'd
     | Predicate of string * 't list
     | Predicate' of string * 't list * ('i, 'v, 'd, 't) _t
-    | Let of string * Enftype.t * 'v list * ('i, 'v, 'd, 't) _t * ('i, 'v, 'd, 't) _t
-    | Let' of string * Enftype.t * 'v list * ('i, 'v, 'd, 't) _t * ('i, 'v, 'd, 't) _t
+    | Let of string * Enftype.t * ('v * Dom.tt option) list * ('i, 'v, 'd, 't) _t * ('i, 'v, 'd, 't) _t
+    | Let' of string * Enftype.t * ('v * Dom.tt option) list * ('i, 'v, 'd, 't) _t * ('i, 'v, 'd, 't) _t
     | Agg of 'v * Aggregation.op *  't * 'v list * ('i, 'v, 'd, 't) _t
     | Top of 'v list * string * 't list * 'v list * ('i, 'v, 'd, 't) _t
     | Neg of ('i, 'v, 'd, 't) _t
@@ -63,7 +63,7 @@ module Make
   val assign: Var.t -> Term.t -> t -> core_t
   val top: Var.t list -> string -> Term.t list -> Var.t list -> t -> core_t
   val predicate: string -> Term.t list -> core_t
-  val flet: string -> Enftype.t option -> Var.t list -> t -> t -> core_t
+  val flet: string -> Enftype.t option -> (Var.t * Dom.tt option) list -> t -> t -> core_t
   val neg: t -> core_t
   val conj: Side.t -> t -> t -> core_t
   val disj: Side.t -> t -> t -> core_t
@@ -102,11 +102,13 @@ module Make
   val predicates : t -> (string * Term.t list) list
 
   val subst : (Var.t, Term.t, Var.comparator_witness) Base.Map.t -> t -> t
+  val map_consts : f:(Term.d -> Term.d) -> t -> t
 
   val op_to_string : t -> string
   val to_string : t -> string
   val to_string_typed : typed_t -> string
   val to_latex : t -> string
+  val string_of_opt_typed_var : (Var.t * Dom.tt option) -> string
 
   val convert_vars : t -> t
   val convert_lets : t -> t
@@ -170,7 +172,7 @@ module Make
     type t_map  = (string, Enftype.t * int list, String.comparator_witness) Map.t
 
     val solve_past_guarded : pg_map -> Var.t -> bool -> ('i, Var.t, Dom.t, Term.t) _t -> Etc.string_set_list
-    val solve_past_guarded_multiple_vars : pg_map -> Var.t list -> string -> ('i, Var.t, Dom.t, Term.t) _t -> pg_map
+    val solve_past_guarded_multiple_vars : pg_map -> (Var.t * Dom.tt option) list -> string -> ('i, Var.t, Dom.t, Term.t) _t -> pg_map
     val solve_past_guarded_multiple : pg_map -> Var.t -> bool -> ('i, Var.t, Dom.t, Term.t) _t list -> Etc.string_set_list
     val is_past_guarded : ?ts:pg_map -> Var.t -> bool -> ('i, Var.t, Dom.t, Term.t) _t -> bool
     val is_past_guarded_multiple : ?ts:pg_map -> Var.t -> bool -> ('i, Var.t, Dom.t, Term.t) _t list -> bool

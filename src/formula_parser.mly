@@ -88,11 +88,18 @@ terms:
 vars:
 | separated_nonempty_list (COMMA, STR)      { debug "vrs"; $1 }
 
+opt_typed_str:
+| STR                                       { ($1, None) }
+| STR COL STR                               { ($1, Some (Dom.tt_of_string $3)) }
+
 vars_or_empty:
 | separated_list (COMMA, STR)               { debug "vrs"; $1 }
 
+opt_typed_vars_or_empty:
+| separated_list (COMMA, opt_typed_str)     { debug "opt_typed_vrs"; $1 }
+
 %inline pletp:
-| STR LPA vars_or_empty RPA                 { debug "pletp"; ($1, $3) }
+| STR LPA opt_typed_vars_or_empty RPA       { debug "pletp"; ($1, $3) }
 
 %inline uop:
 | SUB                                       { Uop.USub }

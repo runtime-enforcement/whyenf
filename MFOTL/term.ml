@@ -35,6 +35,8 @@ module type T = sig
   val subst : (v, t, 'a) Map.t -> t -> t
   val substs : (v, t, 'a) Map.t -> t list -> t list
 
+  val map_consts: f:(d -> d) -> t -> t
+
 end
 
 module Make (Var : V) (Dom : D) (Uop : O) (Bop : O) (Info : I) = struct
@@ -213,6 +215,17 @@ module Make (Var : V) (Dom : D) (Uop : O) (Bop : O) (Info : I) = struct
       in { t with trm }
 
     let substs v = List.map ~f:(subst v)
+
+    let rec map_consts ~f t =
+      let trm = match t.trm with
+      | Var x -> Var x
+      | Const d -> Const (f d)
+      | App (f', ts) -> App (f', List.map ~f:(map_consts ~f) ts)
+      | Unop (o, t) -> Unop (o, map_consts ~f t)
+      | Binop (t, o, t') -> Binop (map_consts ~f t, o, map_consts ~f t')
+      | Proj (t, p) -> Proj (map_consts ~f t, p)
+      | Record kvs -> Record (List.map ~f:(fun (k, w) -> (k, map_consts ~f w)) kvs)
+    in { t with trm }
 
   end
 

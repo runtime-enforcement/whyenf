@@ -23,6 +23,7 @@ module type C = sig
   val convert_with_fresh_ttts : t -> ttt list -> t * ttt list
   val get_ttt : string -> t -> default:ttt -> ttt
   val get_ttt_exn : string -> t -> ttt
+  val get_tt : string -> t -> default:tt -> tt
   val get_tt_exn : string -> t -> tt
   val type_const : d -> ttt -> t -> t * ttt
   val type_var : string -> ttt -> t -> t * ttt

@@ -31,6 +31,8 @@ include MFOTL_lib.Term.Make(TypedVar)(MFOTL_lib.Dom)(Term.NoOp)(Term.NoOp)(Term.
 
 let convert_var (types : Ctxt.t) x = (x, Ctxt.get_tt_exn x types)
 
+let convert_var_default (types : Ctxt.t) x ~default = (x, Ctxt.get_tt x types ~default)
+
 let convert_vars types = List.map ~f:(convert_var types)
 
 let rec convert (types : Ctxt.t) (t : Term.t) =
