@@ -162,6 +162,8 @@ module Make
 
       val verdict_to_string : verdict -> string
 
+      val to_string : constr -> string
+
     end
 
     type pg_map = (string, Etc.string_set_list, String.comparator_witness) Map.t

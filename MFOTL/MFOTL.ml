@@ -315,7 +315,7 @@ module Make
     match Map.find v s with
     | Some trm ->
        (match Term.unvar_opt trm with
-        | Some z -> Var.replace z s
+        | Some z -> Var.replace s z
         | None ->
            raise (FormulaError (
                       Printf.sprintf "cannot substitute non-variable term %s for aggregation variable %s"
@@ -328,7 +328,10 @@ module Make
     let form = match ff.form with
       | TT | FF -> ff.form
       | EqConst (trm, c) -> EqConst (Term.subst v trm, c)
-      | Agg (s, op, t, y, f) -> Agg (subst_var v s, op, Term.subst v t, subst_vars v y, subst v f)
+      | Agg (s, op, t, y, f) ->
+         (*Stdio.print_endline (String.concat ~sep:"," (List.map ~f:Var.to_string y));
+         Stdio.print_endline (String.concat ~sep:"," (List.map ~f:Var.to_string (subst_vars v y)));*)
+         Agg (subst_var v s, op, Term.subst v t, subst_vars v y, subst v f)
       | Top (s, op, t, y, f) -> Top (subst_vars v s, op, Term.substs v t, subst_vars v y, subst v f)
       | Predicate (r, trms) -> Predicate (r, Term.substs v trms)
       | Predicate' (r, trms, f) -> Predicate' (r, Term.substs v trms, subst v f)
@@ -393,7 +396,7 @@ module Make
     | TT -> Printf.sprintf "⊤"
     | FF -> Printf.sprintf "⊥"
     | EqConst (trm, c) ->
-       Printf.sprintf (Etc.paren l 40 "%s = %s")
+       Printf.sprintf (Etc.paren l 40 "(%s) = %s")
          (Term.value_to_string trm) (Dom.to_string c)
     | Predicate (r, trms) ->
        Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
@@ -413,7 +416,8 @@ module Make
          (fun _ -> to_string_rec 4) g
     | Agg (s, Aggregation.AAssign, x, _, f) ->
        Printf.sprintf (Etc.paren l 5 "%s; %s <- %s")
-         (to_string_rec 5 f) (Var.to_string s) (Term.value_to_string x)
+         (to_string_rec 5 f) (Var.to_string s)
+         (Term.value_to_string x)
     | Agg (s, op, x, y, f) ->
        Printf.sprintf (Etc.paren l 5 "%s <- %s(%s; %s; %s)")
          (Var.to_string s) (Aggregation.op_to_string op)
@@ -1181,7 +1185,7 @@ module Make
         | c::cs -> List.fold_left ~init:c ~f:conj cs
       
       let disjs = function
-        | [] -> Possible CFF
+        | [] -> Impossible (ERule "Empty disjunction is false")
         | c::cs -> List.fold_left ~init:c ~f:disj cs
 
       let rec cartesian a = function
