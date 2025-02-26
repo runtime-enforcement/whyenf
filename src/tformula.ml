@@ -90,6 +90,9 @@ let rec core_of_formula (f : Tyformula.typed_t) (types: Ctxt.t) : Ctxt.t * core_
        Tterm.fv_list [x]
        @ (List.filter (Set.elements (Tyformula.fv f))
             ~f:(fun x -> List.mem y x ~equal:Tterm.equal_v)) in
+     (*print_endline (to_string mf);
+     print_endline (Etc.list_to_string ""  (fun _ v -> fst v) y);
+     print_endline (Etc.list_to_string ""  (fun _ v -> fst v) vars_to_monitor);*)
      ignore (List.map vars_to_monitor ~f:(f_q ~true_ok:false f));
      types, Agg (s, op, x, y, mf),
      mf.info.enftype, false

@@ -22,6 +22,7 @@ module type C = sig
   val convert_with_fresh_ttts : t -> ttt list -> t * ttt list
   val get_ttt : string -> t -> default:ttt -> ttt
   val get_ttt_exn : string -> t -> ttt
+  val get_tt : string -> t -> default:tt -> tt
   val get_tt_exn : string -> t -> tt
   val type_const : d -> ttt -> t -> t * ttt
   val type_var : string -> ttt -> t -> t * ttt
@@ -150,6 +151,15 @@ module Make (Dom : D) = struct
   let get_ttt v ctxt ~default = Option.value ~default (Map.find ctxt.types v)
 
   let get_ttt_exn v ctxt = Map.find_exn ctxt.types v
+
+  let get_tt v ctxt ~default =
+    match Map.find ctxt.types v with
+    | Some (TConst tt) -> tt
+    | Some (TVar tv) ->
+       (match snd (UnionFind.find ctxt.tvs tv) with
+        | Some tt -> tt
+        | None -> default)
+    | _ -> default
 
   let get_tt_exn v ctxt =
     match Map.find ctxt.types v with

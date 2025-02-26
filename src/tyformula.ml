@@ -31,16 +31,33 @@ let rec core_of_formula (f : Formula.t) let_types (types: Ctxt.t) : Ctxt.t * cor
      types, Predicate' (e, Tterm.convert_multiple types trms, mf)
   | Let (r, enftype_opt, vars, f, g) ->
      let types, mf = of_formula f ~let_types types in
-     List.iter vars ~f:(
-         fun v -> if not (Ctxt.mem types v) then
-                    raise (Errs.FormulaError (Printf.sprintf "Variable %s in let-bound predicate %s is unused" v r)));
-     let let_types = Map.add_exn let_types r (List.map ~f:(fun v -> Ctxt.get_ttt_exn v types) vars) in
+     let check_var = function
+       | (v, Some tt) -> begin
+           if Ctxt.mem types v then
+             let tt' = Ctxt.get_tt_exn v types in
+             if not (Dom.equal_tt tt tt') then
+               raise (Errs.FormulaError
+                        (Printf.sprintf "Variable %s in let-bound predicate has type %s, but it is declared of type %s"
+                           v (Dom.tt_to_string tt) (Dom.tt_to_string tt')))
+         end
+       | (v, None) -> begin
+          if not (Ctxt.mem types v) then
+            raise (Errs.FormulaError (Printf.sprintf "Variable %s in let-bound predicate %s is unused" v r))
+         end in
+     List.iter vars ~f:check_var;
+     let map_var_type = function
+       | (v, None)     -> Ctxt.get_ttt_exn v types
+       | (v, Some tt) -> Ctxt.get_ttt v types ~default:(TConst tt) in
+     let let_types = Map.add_exn let_types r (List.map ~f:map_var_type vars) in
      let types, mg = of_formula g ~let_types types in
-     types, Let (r, enftype_opt, Tterm.convert_vars types vars, mf, mg)
+     let convert_var = function
+       | (v, None) -> (Tterm.convert_var types v, None)
+       | (v, Some tt) -> (Tterm.convert_var_default types v ~default:tt, Some tt) in
+     types, Let (r, enftype_opt, List.map ~f:convert_var vars, mf, mg)
   | Let' (r, enftype_opt, vars, f, g) ->
      let types, mf = of_formula f ~let_types types in
      let types, mg = of_formula g ~let_types types in
-     types, Let' (r, enftype_opt, Tterm.convert_vars types vars, mf, mg)
+     types, Let' (r, enftype_opt, List.map ~f:(fun (x, tt_opt) -> (Tterm.convert_var types x, tt_opt)) vars, mf, mg)
   | Agg (s, op, x, y, f) ->
      let types, mf = of_formula f ~let_types types in
      let types, s_tt = Formula.check_agg types s op x y f in

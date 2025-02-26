@@ -146,14 +146,16 @@ let to_string ((a, b, c) as d) =
   | Sup.NonObs, Cau.Cau   , Sct.Sct    -> "strictly causable"
   | _         ,    _      , _          -> to_string d
 
+
 let to_string_let d =
-  if equal d bot then "?"
-  else if equal d obs then "!"
-  else if equal d sup then "-"
-  else if equal d cau then "+"
-  else if equal d causup then "+-"
-  else if equal d caubot then "+?"
-  else ""
+  if is_causable d then (
+    if is_suppressable d then "+-"
+    else if is_observable d then "+"
+    else "+?"
+  )
+  else if is_suppressable d then "-"
+  else if is_observable d then ""
+  else "?"
 
 module Constraint = struct
 

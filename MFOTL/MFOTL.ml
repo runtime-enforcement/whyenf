@@ -8,7 +8,7 @@ module Make
          (Info : I)
          (Var  : V)
          (Dom  : D)
-         (Term : Term.T with type v = Var.t) = struct
+         (Term : Term.T with type v = Var.t and type d = Dom.t) = struct
 
   (* Main datatype: abstract MFOTL+ formulae *)
 
@@ -18,8 +18,8 @@ module Make
     | EqConst of 't * 'd
     | Predicate of string * 't list
     | Predicate' of string * 't list * ('i, 'v, 'd, 't) _t
-    | Let of string * Enftype.t * 'v list * ('i, 'v, 'd, 't) _t * ('i, 'v, 'd, 't) _t
-    | Let' of string * Enftype.t * 'v list * ('i, 'v, 'd, 't) _t * ('i, 'v, 'd, 't) _t
+    | Let of string * Enftype.t * ('v * Dom.tt option) list * ('i, 'v, 'd, 't) _t * ('i, 'v, 'd, 't) _t
+    | Let' of string * Enftype.t * ('v * Dom.tt option) list * ('i, 'v, 'd, 't) _t * ('i, 'v, 'd, 't) _t
     | Agg of 'v * Aggregation.op *  't * 'v list * ('i, 'v, 'd, 't) _t
     | Top of 'v list * string * 't list * 'v list * ('i, 'v, 'd, 't) _t
     | Neg of ('i, 'v, 'd, 't) _t
@@ -315,7 +315,7 @@ module Make
     match Map.find v s with
     | Some trm ->
        (match Term.unvar_opt trm with
-        | Some z -> Var.replace s z
+        | Some z -> Var.replace z s
         | None ->
            raise (FormulaError (
                       Printf.sprintf "cannot substitute non-variable term %s for aggregation variable %s"
@@ -338,7 +338,7 @@ module Make
       | Exists (x, f) -> Exists (x, subst (Map.remove v x) f)
       | Forall (x, f) -> Forall (x, subst (Map.remove v x) f)
       | Let (r, enftype, vars, f, g) ->
-         let filter x = not (List.mem vars x ~equal:Var.equal_ident) in
+         let filter x = not (List.mem (List.map ~f:fst vars) x ~equal:Var.equal_ident) in
          Let (r, enftype, vars, f, subst (Map.filter_keys v ~f:filter) g)
       | Let' (r, enftype, vars, f, g) -> Let' (r, enftype, vars, f, subst v g)
       | Neg f -> Neg (subst v f)
@@ -354,6 +354,39 @@ module Make
       | Since (s, i, f1, f2) -> Since (s, i, subst v f1, subst v f2)
       | Until (s, i, f1, f2) -> Until (s, i, subst v f1, subst v f2)
       | Type (f, ty) -> Type (subst v f, ty) in
+    { ff with form }
+
+  (* Mapping of constants in terms *)
+
+  let rec map_consts ~f (ff : t) : t =
+    let map_consts_multiple = List.map ~f:(Term.map_consts ~f) in
+    let form = match ff.form with
+      | TT | FF -> ff.form
+      | EqConst (trm, c) -> EqConst (Term.map_consts ~f trm, f c)
+      | Agg (s, op, t, y, f') ->
+         (*Stdio.print_endline (String.concat ~sep:"," (List.map ~f:Var.to_string y));
+         Stdio.print_endline (String.concat ~sep:"," (List.map ~f:Var.to_string (subst_vars v y)));*)
+         Agg (s, op, Term.map_consts ~f t, y, map_consts ~f f')
+      | Top (s, op, t, y, f') -> Top (s, op, map_consts_multiple t, y, map_consts ~f f')
+      | Predicate (r, trms) -> Predicate (r, map_consts_multiple trms)
+      | Predicate' (r, trms, f') -> Predicate' (r, map_consts_multiple trms, map_consts ~f f')
+      | Exists (x, f') -> Exists (x, map_consts ~f f')
+      | Forall (x, f') -> Forall (x, map_consts ~f f')
+      | Let (r, enftype, vars, f', g) -> Let (r, enftype, vars, map_consts ~f f', map_consts ~f g)
+      | Let' (r, enftype, vars, f', g) -> Let' (r, enftype, vars, map_consts ~f f', map_consts ~f g)
+      | Neg f' -> Neg (map_consts ~f f')
+      | Prev (i, f') -> Prev (i, map_consts ~f f')
+      | Once (i, f') -> Once (i, map_consts ~f f')
+      | Historically (i, f') -> Historically (i, map_consts ~f f')
+      | Eventually (i, f') -> Eventually (i, map_consts ~f f')
+      | Always (i, f') -> Always (i, map_consts ~f f')
+      | Next (i, f') -> Next (i, map_consts ~f f')
+      | And (s, fs) -> And (s, List.map fs ~f:(map_consts ~f))
+      | Or (s, fs) -> Or (s, List.map fs ~f:(map_consts ~f))
+      | Imp (s, f1, f2) -> Imp (s, map_consts ~f f1, map_consts ~f f2)
+      | Since (s, i, f1, f2) -> Since (s, i, map_consts ~f f1, map_consts ~f f2)
+      | Until (s, i, f1, f2) -> Until (s, i, map_consts ~f f1, map_consts ~f f2)
+      | Type (f', ty) -> Type (map_consts ~f f', ty) in
     { ff with form }
 
   (* Generates EXISTS x1, ..., xk. f where {x1, ..., xk} are the free variables of f not in y  *)
@@ -390,6 +423,14 @@ module Make
     | Since (_, i, _, _) -> Printf.sprintf "S%s" (Interval.to_string i)
     | Until (_, i, _, _) -> Printf.sprintf "U%s" (Interval.to_string i)
     | Type _ -> Printf.sprintf ":"
+
+  let string_of_opt_typed_var = function
+    | (s, None) -> Var.to_string s
+    | (s, Some tt) -> Printf.sprintf "%s : %s" (Var.to_string s) (Dom.tt_to_string tt)
+
+  let latex_of_opt_typed_var = function
+    | (s, None) -> Var.to_string s
+    | (s, Some tt) -> Printf.sprintf "%s : %s" (Var.to_latex s) (Dom.tt_to_string tt)
  
   let to_string_core_rec to_string_rec l f =
     match f with
@@ -404,13 +445,13 @@ module Make
        Printf.sprintf "%s٭(%s)" r (Term.list_to_string trms)
     | Let (r, enftype, vars, f, g) ->
        Printf.sprintf (Etc.paren l 4 "LET %s(%s)%s = %a IN %a") r
-         (Etc.string_list_to_string (List.map ~f:Var.to_string vars))
+         (Etc.string_list_to_string (List.map ~f:string_of_opt_typed_var vars))
          (Enftype.to_string_let enftype)
          (fun _ -> to_string_rec 4) f
          (fun _ -> to_string_rec 4) g
     | Let' (r, enftype, vars, f, g) ->
        Printf.sprintf (Etc.paren l 4 "LET %s٭(%s)%s = %a IN %a")
-         r (Etc.string_list_to_string (List.map ~f:Var.to_string vars))
+         r (Etc.string_list_to_string (List.map ~f:string_of_opt_typed_var vars))
          (Enftype.to_string_let enftype)
          (fun _ -> to_string_rec 4) f
          (fun _ -> to_string_rec 4) g
@@ -520,14 +561,14 @@ module Make
     | Let (r, enftype, vars, f, g) ->
        Printf.sprintf (Etc.paren l 4 "\\llet\\,\\mathsf{%s}(%s)\\texttt{%s} = %a\\,\\iin\\,%a")
          (Etc.latex_string r)
-         (Etc.string_list_to_string (List.map ~f:Var.to_latex vars))
+         (Etc.string_list_to_string (List.map ~f:latex_of_opt_typed_var vars))
          (Enftype.to_string_let enftype)
          (fun _ -> to_latex_rec 4) f
          (fun _ -> to_latex_rec 4) g
     | Let' (r, enftype, vars, f, g) ->
        Printf.sprintf (Etc.paren l 4 "\\llet\\,\\mathsf{%s}^\\star(%s)%s = %a\\,\\iin\\,%a")
          (Etc.latex_string r)
-         (Etc.string_list_to_string (List.map ~f:Var.to_latex vars))
+         (Etc.string_list_to_string (List.map ~f:latex_of_opt_typed_var vars))
          (Enftype.to_string_let enftype)
          (fun _ -> to_latex_rec 4) f
          (fun _ -> to_latex_rec 4) g
@@ -612,7 +653,7 @@ module Make
     Info.to_string l (to_latex_core_rec to_latex_rec l f.form) f.info
 
   let to_latex = to_latex_rec 0
-  
+
   (* Unrolling of let bindings *)
 
   let unroll_let =
@@ -626,7 +667,7 @@ module Make
             | None -> Predicate (r, trms)
             | Some (vars, e) -> Predicate' (r, trms, subst (Map.of_alist_exn (module Var) (List.zip_exn vars trms)) e))
         | Let (r, enftype, vars, f, g) ->
-           Let' (r, enftype, vars, aux v f, aux (Map.update v r ~f:(fun _ -> (vars, aux v f))) g)
+           Let' (r, enftype, vars, aux v f, aux (Map.update v r ~f:(fun _ -> (List.map ~f:fst vars, aux v f))) g)
         | Agg (s, op, x, y, f) -> Agg (s, op, x, y, aux v f)
         | Top (s, op, x, y, f) -> Top (s, op, x, y, aux v f)
         | Neg f -> Neg (aux v f)
@@ -679,10 +720,10 @@ module Make
                        let q f = List.fold_left trms' ~init:f ~f:e in
                        ((fun f -> return (Predicate' (r, Term.substs v trms, q f))) >>= (aux f)) i v)
         | Let (r, enftype, vars, f, g) ->
-           (fun i v -> let (i, v), vars = List.fold_map vars ~init:(i, v) ~f:fresh in
+           (fun i v -> let (i, v), vars = List.fold_map vars ~init:(i, v) ~f:(fun a (v, x) -> let a, v = fresh a v in (a, (v, x))) in
                        ((fun f -> (fun g -> return (Let (r, enftype, vars, f, g))) >>= (aux g)) >>= (aux f)) i v)
         | Let' (r, enftype, vars, f, g) ->
-           (fun i v -> let (i, v), vars = List.fold_map vars ~init:(i, v) ~f:fresh in
+           (fun i v -> let (i, v), vars = List.fold_map vars ~init:(i, v) ~f:(fun a (v, x) -> let a, v = fresh a v in (a, (v, x))) in
                        ((fun f -> (fun g -> return (Let' (r, enftype, vars, f, g))) >>= (aux g)) >>= (aux f)) i v)
         | Agg (s, op, x, y, f) ->
            (fun i v -> let fvs = Set.elements (Set.diff (fv f) (Set.of_list (module Var) ((Term.fv_list [x])@y))) in
@@ -1021,8 +1062,8 @@ module Make
         s in
       aux ts x p f
 
-    and solve_past_guarded_multiple_vars (ts: pg_map) (x: Var.t list) e f : pg_map =
-      let f i ts x = 
+    and solve_past_guarded_multiple_vars (ts: pg_map) (x: (Var.t * Dom.tt option) list) e f : pg_map =
+      let f i ts (x, _) = 
         let ts = Map.update ts (eib e i true) ~f:(fun _ -> solve_past_guarded ts x true f) in
         Map.update ts (eib e i false) ~f:(fun _ -> solve_past_guarded ts x false f)
       in List.foldi x ~init:ts ~f
@@ -1342,7 +1383,7 @@ module Make
                        )
                      in c) 
               | Let (e, enftype, vars, f, g) ->
-                 let f_unguarded i x = if not (is_past_guarded x false f) then Some (x, i) else None in
+                 let f_unguarded i (x, _) = if not (is_past_guarded x false f) then Some (x, i) else None in
                  let unguarded_x, unguarded_i = List.unzip (List.filter_mapi vars ~f:f_unguarded) in
                  let pgs' = List.fold_left unguarded_x ~init:pgs ~f:(fun m x -> Map.update m (Var.ident x) ~f:(fun _ -> [Set.empty (module String)])) in
                  let pgs'' = solve_past_guarded_multiple_vars pgs vars e f in
@@ -1393,7 +1434,7 @@ module Make
               | FF -> Possible CTT
               | Predicate (e, _) -> types_predicate_lower ts t e
               | Let (e, enftype, vars, f, g) ->
-                 let f_unguarded i x = if not (is_past_guarded x false f) then Some (x, i) else None in
+                 let f_unguarded i (x, _) = if not (is_past_guarded x false f) then Some (x, i) else None in
                  let unguarded_x, unguarded_i = List.unzip (List.filter_mapi vars ~f:f_unguarded) in
                  let pgs' = List.fold_left unguarded_x ~init:pgs ~f:(fun m x -> Map.update m (Var.ident x) ~f:(fun _ -> [Set.empty (module String)])) in
                  let pgs'' = solve_past_guarded_multiple_vars pgs vars e f in
