@@ -37,6 +37,7 @@ module type D = sig
   val tt_to_string : tt -> string
   val bool_tt : t
   val tt_of_domain : t -> tt
+  val of_int : int -> t
   
 end
 

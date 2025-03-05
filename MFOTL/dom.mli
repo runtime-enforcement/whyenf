@@ -36,3 +36,5 @@ val to_int_exn: t -> int
 val to_float_exn: t -> float
 val to_string_exn: t -> string
 
+val of_int: int -> t
+
