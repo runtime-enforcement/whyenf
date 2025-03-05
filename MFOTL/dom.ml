@@ -87,6 +87,8 @@ module T = struct
     | Str v -> v
     | d -> raise (DomError (Printf.sprintf "type %s is not supported" (tt_to_string (tt_of_domain d))))
 
+  let of_int i = Int i
+
 end
 
 include T

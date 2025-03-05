@@ -17,6 +17,8 @@ module type T = sig
   val const : d -> t
   val app : string -> t list -> t*)
   val dummy_var : v -> t
+  val dummy_app : string -> t list -> t
+  val dummy_int : int -> t
 
   val unvar_opt : t -> v option
 
@@ -71,6 +73,8 @@ module Make (Var : V) (Dom : D) (Uop : O) (Bop : O) (Info : I) = struct
     let record kvs = Record kvs
 
     let dummy_var v = make_dummy (var v)
+    let dummy_app f trms = make_dummy (app f trms)
+    let dummy_int i = make_dummy (Const (Dom.of_int i))
 
     let unvar_opt t = match t.trm with
       | Var x -> Some x
@@ -225,7 +229,7 @@ module Make (Var : V) (Dom : D) (Uop : O) (Bop : O) (Info : I) = struct
       | Binop (t, o, t') -> Binop (map_consts ~f t, o, map_consts ~f t')
       | Proj (t, p) -> Proj (map_consts ~f t, p)
       | Record kvs -> Record (List.map ~f:(fun (k, w) -> (k, map_consts ~f w)) kvs)
-    in { t with trm }
+      in { t with trm }
 
   end
 
@@ -233,3 +237,4 @@ module Make (Var : V) (Dom : D) (Uop : O) (Bop : O) (Info : I) = struct
   include Comparator.Make(T)
 
 end
+

@@ -12,6 +12,8 @@ module type T = sig
   val comparator : (t, comparator_witness) Comparator.t
 
   val dummy_var : v -> t
+  val dummy_app : string -> t list -> t
+  val dummy_int : int -> t
 
   val unvar_opt : t -> v option
 
@@ -31,7 +33,7 @@ module type T = sig
   val substs : (v, t, 'a) Map.t -> t list -> t list
 
   val map_consts: f:(d -> d) -> t -> t
- 
+
 end
 
 
@@ -65,6 +67,8 @@ module Make (Var : V) (Dom : D) (Uop : O) (Bop : O) (Info : I) : sig
   val make_dummy : core_t -> t
 
   val dummy_var : v -> t
+  val dummy_app : string -> t list -> t
+  val dummy_int : int -> t
 
   val is_var: t -> bool
   val is_const: t -> bool
