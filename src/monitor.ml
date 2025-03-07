@@ -323,7 +323,6 @@ module Bufn = struct
                     let (zs, buf2') = take f tails in
                     ((f heads)::zs, buf2')
 
-  
   let map (f: 'a -> 'b) (ls: 'a t) : 'b t = List.map ~f:(List.map ~f) ls
 
 end
@@ -1204,10 +1203,9 @@ module MFormula = struct
       let nonvars = Etc.dedup ~equal:Lbl.equal nonvars in
       let var_terms = List.map (Etc.reorder ~equal:String.equal vars fvs) ~f:Lbl.var in
       let nonvars = List.sort nonvars ~compare:Lbl.compare in
-      (*print_endline (Printf.sprintf "filter_lbls_vars([%s], [%s], %b) = [%s]\n"
+      (*print_endline (Printf.sprintf "order_lbls([%s], [%s]) = [%s]\n"
         (Lbl.to_string_list lbls)
         (String.concat ~sep:", " fvs)
-        keep_nonvars
         (Lbl.to_string_list (var_terms @ quants @ nonvars)));*)
       var_terms @ quants @ nonvars in
     let map1 fvs f comb flbls =
@@ -1995,10 +1993,14 @@ let meval (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) mformula 
             let f_expls = List.map expls ~f:(TS.map f_neg) in
             let f_aexpl = f_neg aexpl in
             memo, (f_expls, f_aexpl, MNeg mf')
-         | MAnd (s, mfs, bufn) ->
-            let memo, data = List.fold_map ~init:memo ~f:(meval_rec ts tp db ~pol fobligs) mfs in
+         | MAnd (s, mfs, bufn) -> 
+            let mem, data = List.fold_map ~init:memo ~f:(meval_rec ts tp db ~pol fobligs) mfs in
             let expls_list, aexpl_list, mfs' = List.unzip3 data in
-            let apply_ands = Pdt.applyN_reduce Bool.equal mformula.lbls (List.fold_left ~init:true ~f:(&&)) in            
+            let apply_ands = Pdt.applyN_reduce Bool.equal mformula.lbls (List.fold_left ~init:true ~f:(&&)) in
+            (*print_endline ("MAnd " ^ MFormula.to_string mformula);
+            print_endline "and_a";
+            List.iter expls_list ~f:(fun expl_list -> List.iter expl_list ~f:(fun expl -> print_endline (TS.to_string Expl.to_string expl)));
+            print_endline "and_b";*)
             let (f_expls, bufn) = Bufn.take (TS.map_list apply_ands) (Bufn.add expls_list bufn) in
             let aexpl = apply_ands aexpl_list in
             memo, (f_expls, aexpl, MAnd (s, mfs', bufn))
@@ -2006,7 +2008,12 @@ let meval (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) mformula 
             let memo, data = List.fold_map ~init:memo ~f:(meval_rec ts tp db ~pol fobligs) mfs in
             let expls_list, aexpl_list, mfs' = List.unzip3 data in
             let apply_ors = Pdt.applyN_reduce Bool.equal mformula.lbls (List.fold_left ~init:false ~f:(||)) in
+            (*print_endline ("MOr " ^ MFormula.to_string mformula);
+            print_endline "or_a";
+            List.iter expls_list ~f:(fun expl_list -> List.iter expl_list ~f:(fun expl -> print_endline (TS.to_string Expl.to_string expl)));*)
             let (f_expls, bufn) = Bufn.take (TS.map_list apply_ors) (Bufn.add expls_list bufn) in
+            (*print_endline "or_b";*)
+            (*List.iter ~f:(fun e -> print_endline (TS.to_string Expl.to_string e)) f_expls;*)
             let aexpl = apply_ors aexpl_list in
             memo, (f_expls, aexpl, MOr (s, mfs', bufn))
          | MImp (s, mf1, mf2, buf2) ->
@@ -2138,7 +2145,7 @@ let meval (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) mformula 
             let aexpl = approximate_until mformula.lbls aexpl1 aexpl2 fobligs i (Some (mformula.hash, v)) tp (pol_value pol) in
             memo, ([TS.make tp ts aexpl], aexpl, MEUntil (s, i, f_ts, mf1', mf2', v))
        in let mf = { mformula with mf } in
-          (*print_endline ("add memo: " ^ " (" ^ MFormula.to_string mf ^ ", " ^ Int.to_string tp ^ ", " ^ Int.to_string mformula.hash ^ ", " ^ Option.value ~default:"None" (Option.map ~f:FObligation.polarity_to_string pol) ^ ") -> " ^ Expl.to_string aexpl);*)
+          (*print_endline ("add memo: " ^ " (" ^  MFormula.value_to_string mf ^ ", " ^ Int.to_string tp ^ ", " ^ Int.to_string mformula.hash ^ ", " ^ Option.value ~default:"None" (Option.map ~f:FObligation.polarity_to_string pol) ^ ") -> " ^ Expl.to_string aexpl);*)
           let memo = if tp = outer_tp then Memo.memoize memo mformula (pol_value pol) (expls, aexpl, mf) else memo in
           memo, (expls, aexpl, mf)
   in meval_rec ts tp db ~pol fobligs memo mformula

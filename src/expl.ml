@@ -142,7 +142,6 @@ module Pdt = struct
   let unleaf_exn = function
     | Leaf l -> l
     | _ -> raise (Errors.EnforcementError "function not defined for nodes")
-
   
   let rec apply1 lbls f pdt = match lbls, pdt with
     | _ , Leaf l -> Leaf (f l)
@@ -306,6 +305,8 @@ module Pdt = struct
 
   let rec applyN_reduce p_eq lbls f pdts = match lbls with
     | w :: lbls ->
+       (*print_endline ("\napplyN_reduce " ^ Lbl.to_string w ^ " " ^ (Int.to_string (List.length pdts)));*)
+       (*List.iter pdts ~f:(fun pdt -> match pdt with | Leaf _ -> print_endline "leaf" | Node (x, _) -> print_endline (Lbl.to_string x));*)
        let f' = papply_list f (List.map ~f:unleaf pdts) in
        let nodes = List.filter ~f:(fun pdt -> not (is_leaf pdt)) pdts in
        let f_other_nodes = function Node (x, _) when Lbl.equal x w -> None | pdt -> Some pdt in

@@ -1,7 +1,7 @@
 The formula
- □[0s,∞) (∀x:int. ∀y:int. ¬A(f(x:int, y:int)) ∧ ¬(eq(x:int, y:int) = 1) ∧ B(y:int) ∧ B(x:int) →:R C(x:int, y:int))
+ □[0s,∞) (∀x:int. ∀y:int. B(x:int) ∧ B(y:int) ∧ ¬((eq(x:int, y:int)) = 1) ∧ ¬A(f(x:int, y:int)) →:R C(x:int, y:int))
 is enforceable and types to
- □[0s,∞) ((∀x:int. (∀y:int. (B(x:int) ∧ B(y:int) ∧ ¬(eq(x:int, y:int) = 1) ∧ ¬A(f(x:int, y:int)) →:R (C(x:int, y:int) : Cau) : Cau) : Cau)) : Cau) : Cau
+ □[0s,∞) ((∀x:int. (∀y:int. (B(x:int) ∧ B(y:int) ∧ ¬((eq(x:int, y:int)) = 1) ∧ ¬A(f(x:int, y:int)) →:R (C(x:int, y:int) : Cau) : Cau) : Cau)) : Cau) : Cau
 [Enforcer] @1 OK.
 [Enforcer] @1 nothing to do proactively.
 [Enforcer] @2 reactively commands:

@@ -1,7 +1,7 @@
 The formula
- □[0s,∞) (∀x:int. B(x:int) → B(1)) ∧ (∀x:int. B(x:int) → B(0)) ∧ (∀x:int. A(x:int) → B(x:int))
+ □[0s,∞) (∀x.2:int. A(x.2:int) → B(x.2:int)) ∧ (∀x.1:int. B(x.1:int) → B(0)) ∧ (∀x:int. B(x:int) → B(1))
 is enforceable and types to
- □[0s,∞) (((∀x:int. (A(x:int) →:R (B(x:int) : Cau) : Cau)) : Cau) ∧:L ((∀x:int. (B(x:int) →:R (B(0) : Cau) : Cau)) : Cau) ∧:L ((∀x:int. (B(x:int) →:R (B(1) : Cau) : Cau)) : Cau) : Cau) : Cau
+ □[0s,∞) (((∀x.2:int. (A(x.2:int) →:R (B(x.2:int) : Cau) : Cau)) : Cau) ∧:L ((∀x.1:int. (B(x.1:int) →:R (B(0) : Cau) : Cau)) : Cau) ∧:L ((∀x:int. (B(x:int) →:R (B(1) : Cau) : Cau)) : Cau) : Cau) : Cau
 [Enforcer] @1 reactively commands:
 Cause:
 B(0), B(1)
