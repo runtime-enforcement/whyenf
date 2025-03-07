@@ -1,5 +1,5 @@
 The formula
- □[0s,∞) (∀x:int. (D(x:int) → C(x:int, x:int)) ∧ (C(x:int, x:int) → D(x:int)))
+ □[0s,∞) (∀x:int. (C(x:int, x:int) → D(x:int)) ∧ (D(x:int) → C(x:int, x:int)))
 is enforceable and types to
  □[0s,∞) ((∀x:int. (((C(x:int, x:int) →:R (D(x:int) : Cau)) : Cau) ∧:L ((D(x:int) →:R (C(x:int, x:int) : Cau)) : Cau) : Cau)) : Cau) : Cau
 [Enforcer] @1 reactively commands:

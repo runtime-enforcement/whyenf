@@ -72,6 +72,7 @@ module MFormula : sig
   val fv: t -> (String.t, Base.String.comparator_witness) Base.Set.t
 
   val to_string: ?l:int -> t -> string
+  val value_to_string: t -> string
   val op_to_string: t -> string
   val side_to_string: t -> string
 

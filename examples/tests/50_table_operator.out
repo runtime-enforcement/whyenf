@@ -1,7 +1,7 @@
 The formula
- □[0s,∞) (∀c:int. (∃l:int. (eq(l:int, usub(1)) = 1) ∧ ([c:int, l:int] <- dbscan([c:int, x:float, y:float]; ; ⧫[0s,∞) Point(c:int, x:float, y:float)))) → ¬(∃x:float. ∃y:float. Point(c:int, x:float, y:float)))
+ □[0s,∞) (∀c:int. (∃l:int. ([c:int, l:int] <- dbscan([c:int, x:float, y:float]; ; ⧫[0s,∞) Point(c:int, x:float, y:float))) ∧ ((eq(l:int, usub(1))) = 1)) → ¬(∃x:float. ∃y:float. Point(c:int, x:float, y:float)))
 is enforceable and types to
- □[0s,∞) ((∀c:int. ((∃l:int. ([c:int, l:int] <- dbscan([c:int, x:float, y:float]; ; ⧫[0s,∞) Point(c:int, x:float, y:float))) ∧ (eq(l:int, usub(1)) = 1)) →:R (¬((∃x:float. (∃y:float. (Point(c:int, x:float, y:float) : Sup) : Sup)) : Sup) : Cau) : Cau)) : Cau) : Cau
+ □[0s,∞) ((∀c:int. ((∃l:int. ([c:int, l:int] <- dbscan([c:int, x:float, y:float]; ; ⧫[0s,∞) Point(c:int, x:float, y:float))) ∧ ((eq(l:int, usub(1))) = 1)) →:R (¬((∃x:float. (∃y:float. (Point(c:int, x:float, y:float) : Sup) : Sup)) : Sup) : Cau) : Cau)) : Cau) : Cau
 [Enforcer] @0 OK.
 [Enforcer] @0 nothing to do proactively.
 [Enforcer] @1 OK.
