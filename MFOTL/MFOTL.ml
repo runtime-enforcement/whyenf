@@ -946,6 +946,58 @@ module Make
   let stricts ?(itl_strict=Map.empty (module String)) ?(itv=Zinterval.singleton 0) ?(fut=false) =
     List.for_all ~f:(strict ~itl_strict ~itv ~fut)
 
+  (* Monotonicity *)
+  
+  (* TODO[JD]: use set instead of list or deduplicate entries *)
+  let rec non_monotone_predicates ?(init=[]) f  =
+    match f.form with
+    | TT | FF | EqConst (_, _) | Predicate _ -> init
+    | Predicate' _ -> init (* TODO[JD]: what is the meaning of Predicate' and what is `g`? *)
+    | Neg f -> begin match f.form with
+                | Predicate (r, _) -> r :: init
+                | Predicate' (r, _, g) -> r :: init (* TODO[JD]: what is the meaning of Predicate' and what is `g`? *)
+                | _ -> non_anti_monotone_predicates ~init:init f end
+    | Let _ | Let' _ -> assert false (* TODO[JD]: finalize let binding monotonicity rule(s) *)
+    | Agg _ -> assert false (* TODO[JD]: finalize aggregation monotonicity rule(s) *)
+    | Top _ -> assert false (* TODO[JD]: what is `Top`? *)
+    | And (_, fs)
+    | Or (_, fs) -> List.fold ~f:(fun init f -> non_monotone_predicates ~init:init f) ~init:init fs
+    | Imp (_, f, g) -> non_anti_monotone_predicates ~init:(non_monotone_predicates ~init:init g) f
+    | Exists (_, f)
+    | Forall (_, f)
+    | Prev (_, f)
+    | Next (_, f)
+    | Once (_, f)
+    | Eventually (_, f)
+    | Historically (_, f)
+    | Always (_, f) -> non_monotone_predicates ~init:init f
+    | Since (_, _, f, g)
+    | Since (_, _, f, g) -> non_monotone_predicates ~init:(non_monotone_predicates ~init:init g) f
+    | Type _ -> assert false (* TODO[JD]: what is `Type` supposed to represent? *)
+  and non_anti_monotone_predicates ?(init=[]) f =
+    match f.form with
+    | TT | FF | EqConst (_, _) -> init
+    | Predicate (r, _) -> r :: init
+    | Predicate' (r, _, g) -> r :: init (* TODO[JD]: what is the meaning of Predicate' and what is `g`? *)
+    | Neg f -> non_monotone_predicates ~init:init f
+    | Let _ | Let' _ -> assert false (* TODO[JD]: finalize let binding monotonicity rule(s) *)
+    | Agg _ -> assert false (* TODO[JD]: finalize aggregation monotonicity rule(s) *)
+    | Top _ -> assert false (* TODO[JD]: what is `Top`? *)
+    | And (_, fs)
+    | Or (_, fs) -> List.fold ~f:(fun init f -> non_anti_monotone_predicates ~init:init f) ~init:init fs
+    | Imp (_, f, g) -> non_monotone_predicates ~init:(non_anti_monotone_predicates ~init: init g) f
+    | Exists (_, f)
+    | Forall (_, f)
+    | Prev (_, f)
+    | Next (_, f)
+    | Once (_, f)
+    | Eventually (_, f)
+    | Historically (_, f)
+    | Always (_, f) -> non_anti_monotone_predicates ~init:init f
+    | Since (_, _, f, g)
+    | Since (_, _, f, g) -> non_anti_monotone_predicates ~init:(non_anti_monotone_predicates ~init:init g) f
+    | Type _ -> assert false (* TODO[JD]: what is `Type` supposed to represent? *)
+
   (* Enforceability *)
 
   let formula_to_string = to_string
