@@ -1,5 +1,5 @@
 The formula
- □[0s,∞) (∀c:string. ∀d:string. ∀u:int. use(c:string, d:string, u:int) → ⧫[0s,∞) (legal_ground(u:int, d:string) ∨ consent(u:int, c:string)))
+ □[0s,∞) (∀c:string. ∀d:string. ∀u:int. use(c:string, d:string, u:int) → ⧫[0s,∞) (consent(u:int, c:string) ∨ legal_ground(u:int, d:string)))
 is enforceable and types to
  □[0s,∞) ((∀c:string. (∀d:string. (∀u:int. ((use(c:string, d:string, u:int) : Sup) →:L ⧫[0s,∞) (consent(u:int, c:string) ∨ legal_ground(u:int, d:string)) : Cau) : Cau) : Cau)) : Cau) : Cau
 [Enforcer] @10 OK.

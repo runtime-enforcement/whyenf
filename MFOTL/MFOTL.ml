@@ -389,12 +389,6 @@ module Make
       | Type (f', ty) -> Type (map_consts ~f f', ty) in
     { ff with form }
 
-  (* Generates EXISTS x1, ..., xk. f where {x1, ..., xk} are the free variables of f not in y  *)
-
-  let exists_of_agg y f info =
-    let z = List.filter (list_fv f) ~f:(fun x -> not (List.mem y x ~equal:Var.equal_ident)) in
-    List.fold_right z ~f:(fun z f -> { form = Exists (z, f); info = info z f }) ~init:f
-
   (* Printing *)
 
   let op_to_string f = match f.form with
@@ -654,6 +648,14 @@ module Make
 
   let to_latex = to_latex_rec 0
 
+  (* Generates EXISTS x1, ..., xk. f where {x1, ..., xk} are the free variables of f not in y  *)
+
+  let exists_of_agg y f info =
+    (*print_endline ("exists_of_agg " ^ to_string f);*)
+    let z = List.filter (list_fv f) ~f:(fun x -> not (List.mem y x ~equal:Var.equal_ident)) in
+    (*print_endline ("-> " ^ to_string (List.fold_right z ~f:(fun z f -> { form = Exists (z, f); info = info z f }) ~init:f));*)
+    List.fold_right z ~f:(fun z f -> { form = Exists (z, f); info = info z f }) ~init:f
+
   (* Unrolling of let bindings *)
 
   let unroll_let =
@@ -712,41 +714,48 @@ module Make
         | EqConst (x, c) -> return (EqConst (Term.subst v x, c))
         | Predicate (r, trms) -> return (Predicate (r, Term.substs v trms))
         | Predicate' (r, trms, f) ->
-           let process_trm (i, v) trm = match Term.unvar_opt trm with
+           (fun f -> return (Predicate' (r, Term.substs v trms, f))) >>= (aux f)
+           (*let process_trm (i, v) trm = match Term.unvar_opt trm with
              | Some x -> let (i, v), xk = fresh (i, v) x  in (i, v), (xk, None)
              | None   -> let (i, v), xk = fresh (i, v) vv in (i, v), (xk, Some trm) in
            (fun i v -> let (i, v), trms' = List.fold_map trms ~init:(i, v) ~f:process_trm in
                        let e f = function (xk, Some trm) -> make_dummy (exists xk (make_dummy (assign xk trm f))) | _ -> f in
                        let q f = List.fold_left trms' ~init:f ~f:e in
-                       ((fun f -> return (Predicate' (r, Term.substs v trms, q f))) >>= (aux f)) i v)
+                       ((fun f -> return (Predicate' (r, Term.substs v trms, q f))) >>= (aux f)) i v)*)
         | Let (r, enftype, vars, f, g) ->
-           (fun i v -> let (i, v), vars = List.fold_map vars ~init:(i, v) ~f:(fun a (v, x) -> let a, v = fresh a v in (a, (v, x))) in
-                       ((fun f -> (fun g -> return (Let (r, enftype, vars, f, g))) >>= (aux g)) >>= (aux f)) i v)
+           (fun i v -> let (i, v'), vars = List.fold_map vars ~init:(i, v) ~f:(fun a (v, x) -> let a, v = fresh a v in (a, (v, x))) in
+                       let f, (i, _) = aux f i v' in
+                       ((fun g -> return (Let (r, enftype, vars, f, g))) >>= (aux g)) i v)
         | Let' (r, enftype, vars, f, g) ->
-           (fun i v -> let (i, v), vars = List.fold_map vars ~init:(i, v) ~f:(fun a (v, x) -> let a, v = fresh a v in (a, (v, x))) in
-                       ((fun f -> (fun g -> return (Let' (r, enftype, vars, f, g))) >>= (aux g)) >>= (aux f)) i v)
+           (fun i v -> let (i, v'), vars = List.fold_map vars ~init:(i, v) ~f:(fun a (v, x) -> let a, v = fresh a v in (a, (v, x))) in
+                       let f, (i, _) = aux f i v' in
+                       ((fun g -> return (Let' (r, enftype, vars, f, g))) >>= (aux g)) i v)
         | Agg (s, op, x, y, f) ->
-           (fun i v -> let fvs = Set.elements (Set.diff (fv f) (Set.of_list (module Var) ((Term.fv_list [x])@y))) in
+           (fun i v -> (*let x = Term.subst v x in
+                       let y = subst_vars v y in*)
+                       let fvs = Set.elements (Set.diff (fv f) (Set.of_list (module Var) ((Term.fv_list [x])@y))) in
                        let (i, v'), _ = List.fold_map fvs ~init:(i, v) ~f:fresh in
-                       ((fun f -> return (Agg (subst_var v s, op, Term.subst v' x, subst_vars v y, f)))
+                       ((fun f -> return (Agg (subst_var v s, op, Term.subst v' x, subst_vars v' y, f)))
                         >>= (aux f)) i v')
         | Top (s, op, x, y, f) ->
-           (fun i v -> let fvs = Set.elements (Set.diff (fv f) (Set.of_list (module Var) y)) in
+           (fun i v -> (*let x = Term.substs v x in
+                       let y = subst_vars v y in*)
+                       let fvs = Set.elements (Set.diff (fv f) (Set.of_list (module Var) ((Term.fv_list x) @y))) in
                        let (i, v'), _ = List.fold_map fvs ~init:(i, v) ~f:fresh in
-                       ((fun f -> return (Top (subst_vars v s, op, Term.substs v' x, subst_vars v y, f)))
-                        >>= (aux f)) i v)
+                       ((fun f -> return (Top (subst_vars v s, op, Term.substs v' x, subst_vars v' y, f)))
+                        >>= (aux f)) i v')
         | Neg f -> (fun f -> return (Neg f)) >>= (aux f)
         (*| And (s, f, g) ->
           (fun f -> (fun g -> return (And (s, f, g))) >>= (aux v g)) >>= (aux v f)*)
         | And (s, fs) ->
-           (List.fold_right
+           (List.fold_left
               ~init:(fun fs -> return (And (s, fs)))
-              ~f:(fun f g fs -> (fun f -> g (f :: fs)) >>= (aux f)) fs) []
+              ~f:(fun g f fs -> (fun f -> g (f :: fs)) >>= (aux f)) fs) []
         (*| Or (s, fs) -> (fun f -> (fun g -> return (Or (s, f, g))) >>= (aux v g)) >>= (aux v f)*)
         | Or (s, fs) ->
-           (List.fold_right
+           (List.fold_left
               ~init:(fun fs -> return (Or (s, fs)))
-              ~f:(fun f g fs -> (fun f -> g (f :: fs)) >>= (aux f)) fs) []
+              ~f:(fun g f fs -> (fun f -> g (f :: fs)) >>= (aux f)) fs) []
         | Imp (s, f, g) -> (fun f -> (fun g -> return (Imp (s, f, g))) >>= (aux g)) >>= (aux f)
         | Exists (x, f) -> (fun i v -> let (i, v), xk = fresh (i, v) x in
                                        ((fun f -> return (Exists (Var.replace xk x, f))) >>= (aux f)) i v)
@@ -799,14 +808,14 @@ module Make
         | Neg f -> (fun f -> return (Neg f)) >>= (aux v f)
         (*| And (s, f, g) -> (fun f -> (fun g -> return (And (s, f, g))) >>= (aux v g)) >>= (aux v f)*)
         | And (s, fs) ->
-           (List.fold_right
+           (List.fold_left
               ~init:(fun fs -> return (And (s, fs)))
-              ~f:(fun f g fs -> (fun f -> g (f :: fs)) >>= (aux v f)) fs) []
+              ~f:(fun g f fs -> (fun f -> g (f :: fs)) >>= (aux v f)) fs) []
         (*| Or (s, f, g) -> (fun f -> (fun g -> return (Or (s, f, g))) >>= (aux v g)) >>= (aux v f)*)
         | Or (s, fs) ->
-           (List.fold_right
+           (List.fold_left
               ~init:(fun fs -> return (Or (s, fs)))
-              ~f:(fun f g fs -> (fun f -> g (f :: fs)) >>= (aux v f)) fs) []
+              ~f:(fun g f fs -> (fun f -> g (f :: fs)) >>= (aux v f)) fs) []
         | Imp (s, f, g) -> (fun f -> (fun g -> return (Imp (s, f, g))) >>= (aux v g)) >>= (aux v f)
         | Exists (x, f) -> (fun f -> Exists (x, f)) >>| (aux v f)
         | Forall (x, f) -> (fun f -> Forall (x, f)) >>| (aux v f)
@@ -1832,6 +1841,8 @@ module Make
                   ) in
                 let _ = Map.fold sol ~init:[] ~f:set_enftype in
                 let f = unroll_let f in
+                let f = convert_vars f in
+                (*List.iter (Set.elements (fv f)) ~f:(fun v -> print_endline ("var: " ^  (Var.to_string v)));*)
                 match convert' b f with
                 | Some f' -> Stdio.print_endline ("The formula\n "
                                                   ^ to_string orig_f

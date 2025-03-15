@@ -1,5 +1,5 @@
 The formula
- □[0s,∞) (∀x:int. ◊[0s,∞) B(x:int) ∨:L ¬C(x:int))
+ □[0s,∞) (∀x:int. ¬C(x:int) ∨:L ◊[0s,∞) B(x:int))
 is enforceable and types to
  □[0s,∞) ((∀x:int. ((¬(C(x:int) : Sup) : Cau) ∨:L ◊[0s,∞) B(x:int) : Cau)) : Cau) : Cau
 This formula cannot be transparently enforced.

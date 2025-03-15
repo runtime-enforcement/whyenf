@@ -1,5 +1,5 @@
 The formula
- □[0s,∞) (∀s:int. ∀y:int. A(s:int) → ¬(s:int <- SUM(x:int; y:int; C(y:int) ∧ B(x:int))))
+ □[0s,∞) (∀s:int. ∀y:int. A(s:int) → ¬(s:int <- SUM(x:int; y:int; B(x:int) ∧ C(y:int))))
 is enforceable and types to
  □[0s,∞) ((∀s:int. (∀y:int. (A(s:int) →:R (¬((((∃x:int. ((C(y:int) : Sup) ∧:L B(x:int) : Sup)) : Sup) ∧:L (s:int <- SUM(x:int; y:int; B(x:int) ∧ C(y:int)))) : Sup) : Cau) : Cau) : Cau)) : Cau) : Cau
 [Enforcer] @1 OK.

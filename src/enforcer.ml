@@ -220,6 +220,8 @@ module EState = struct
   and enfsat_forall x mf v es =
     let enfs es d = enfsat mf (Map.update v x ~f:(fun _ -> d)) es in
     let es, ds = all_not_sat v x mf es in
+    (*print_endline ("--enfsat_forall.mf="^ (MFormula.value_to_string mf));
+    print_endline ("--enfsat_forall.ds="^ (Dom.list_to_string ds));*)
     List.fold ds ~init:es ~f:enfs
 
   and enfvio_orl v mfs es =
@@ -234,7 +236,8 @@ module EState = struct
   and enfvio_exists x mf v es =
     let enfs es d = enfvio mf (Base.Map.update v x ~f:(fun _ -> d)) es in
     let es, ds = all_not_vio v x mf es in
-    (*print_endline ("--enfvio_exists.ds="^ (Dom.list_to_string ds));*)
+    (*print_endline ("--enfvio_exists.mf="^ (MFormula.value_to_string mf));
+    print_endline ("--enfvio_exists.ds="^ (Dom.list_to_string ds));*)
     List.fold ds ~init:es ~f:enfs
 
   (*and enfvio_until i ts (h, vv) mf1 mf2 =
@@ -248,8 +251,8 @@ module EState = struct
     enfvio mf v es
 
   and enfsat (mformula: MFormula.t) v es : t =
-    (*print_endline ("--enfsat" ^ MFormula.op_to_string mformula);*)
-    (*print_endline ("mformula=" ^ MFormula.to_string mformula);
+    (*print_endline ("--enfsat");
+    print_endline ("mformula=" ^ MFormula.value_to_string mformula);
     print_endline ("v=" ^ Etc.valuation_to_string v);*)
     (*print_endline ("db=" ^ Db.to_string (es.db));*)
       (*print_endline ("es=" ^ to_string es);*)
@@ -318,7 +321,7 @@ module EState = struct
                        (MFormula.op_to_string mformula)))
   and enfvio (mformula: MFormula.t) v es =
     (*print_endline "--enfvio";
-    print_endline ("mformula=" ^ MFormula.to_string mformula);
+    print_endline ("mformula=" ^ MFormula.value_to_string mformula);
     print_endline ("v=" ^ Etc.valuation_to_string v);*)
     (*print_endline ("es=" ^ to_string es);*)
     match mformula.mf with
