@@ -704,7 +704,7 @@ module Make
         | None -> (Var.ident x), 0 in
       let xk = Var.replace (Var.of_ident xk) x in
       (Map.update i x ~f:(fun _ -> k), (Map.update v x ~f:(fun _ -> Term.dummy_var xk))), xk in
-    let vv = Var.of_ident "v" in
+    (* let vv = Var.of_ident "v" in *) (* TODO[JD]: I commented this line out, because dune complained that `vv` was unused when building lex *)
     (*let var_subst v x = match Map.find v x with Some (Term.Var x) -> x | _ -> x in
       let vars_subst v xs = List.map xs ~f:(var_subst v) in*)
     let rec aux f i v =
@@ -957,44 +957,23 @@ module Make
 
   (* Monotonicity *)
   
-  (* TODO[JD]: use set instead of list or deduplicate entries *)
-  let rec non_monotone_predicates ?(init=[]) f  =
-    match f.form with
-    | TT | FF | EqConst (_, _) | Predicate _ -> init
-    | Predicate' _ -> init (* TODO[JD]: what is the meaning of Predicate' and what is `g`? *)
-    | Neg f -> begin match f.form with
-                | Predicate (r, _) -> r :: init
-                | Predicate' (r, _, g) -> r :: init (* TODO[JD]: what is the meaning of Predicate' and what is `g`? *)
-                | _ -> non_anti_monotone_predicates ~init:init f end
-    | Let _ | Let' _ -> assert false (* TODO[JD]: finalize let binding monotonicity rule(s) *)
-    | Agg _ -> assert false (* TODO[JD]: finalize aggregation monotonicity rule(s) *)
-    | Top _ -> assert false (* TODO[JD]: what is `Top`? *)
-    | And (_, fs)
-    | Or (_, fs) -> List.fold ~f:(fun init f -> non_monotone_predicates ~init:init f) ~init:init fs
-    | Imp (_, f, g) -> non_anti_monotone_predicates ~init:(non_monotone_predicates ~init:init g) f
-    | Exists (_, f)
-    | Forall (_, f)
-    | Prev (_, f)
-    | Next (_, f)
-    | Once (_, f)
-    | Eventually (_, f)
-    | Historically (_, f)
-    | Always (_, f) -> non_monotone_predicates ~init:init f
-    | Since (_, _, f, g)
-    | Since (_, _, f, g) -> non_monotone_predicates ~init:(non_monotone_predicates ~init:init g) f
-    | Type _ -> assert false (* TODO[JD]: what is `Type` supposed to represent? *)
-  and non_anti_monotone_predicates ?(init=[]) f =
+  let rec not_monotone ?(anti=false) ?(init=Set.empty (module String)) f =
     match f.form with
     | TT | FF | EqConst (_, _) -> init
-    | Predicate (r, _) -> r :: init
-    | Predicate' (r, _, g) -> r :: init (* TODO[JD]: what is the meaning of Predicate' and what is `g`? *)
-    | Neg f -> non_monotone_predicates ~init:init f
+    | Predicate (r, _) -> if anti then Set.add init r else init
+    (* | Predicate' (r, _, g) -> if anti then r::init else init (* TODO[JD]: what is the meaning of Predicate' and what is `g`? *) *)
+    | Predicate' (r, _, _) -> if anti then Set.add init r else init (* TODO[JD]: what is the meaning of Predicate' and what is `g`? *)
+    | Neg f -> begin match f.form with
+                | Predicate (r, _) -> if anti then init else Set.add init r
+                (* | Predicate' (r, _, g) -> if anti then init else r::init (* TODO[JD]: what is the meaning of Predicate' and what is `g`? *) *)
+                | Predicate' (r, _, _) -> if anti then init else Set.add init r (* TODO[JD]: what is the meaning of Predicate' and what is `g`? *)
+                | _ -> not_monotone ~anti:true ~init:init f end
     | Let _ | Let' _ -> assert false (* TODO[JD]: finalize let binding monotonicity rule(s) *)
     | Agg _ -> assert false (* TODO[JD]: finalize aggregation monotonicity rule(s) *)
     | Top _ -> assert false (* TODO[JD]: what is `Top`? *)
     | And (_, fs)
-    | Or (_, fs) -> List.fold ~f:(fun init f -> non_anti_monotone_predicates ~init:init f) ~init:init fs
-    | Imp (_, f, g) -> non_monotone_predicates ~init:(non_anti_monotone_predicates ~init: init g) f
+    | Or (_, fs) -> List.fold ~f:(fun init f -> not_monotone ~init:init f) ~init:init fs
+    | Imp (_, f, g) -> not_monotone ~anti:true ~init:(not_monotone ~init:init g) f
     | Exists (_, f)
     | Forall (_, f)
     | Prev (_, f)
@@ -1002,9 +981,9 @@ module Make
     | Once (_, f)
     | Eventually (_, f)
     | Historically (_, f)
-    | Always (_, f) -> non_anti_monotone_predicates ~init:init f
-    | Since (_, _, f, g)
-    | Since (_, _, f, g) -> non_anti_monotone_predicates ~init:(non_anti_monotone_predicates ~init:init g) f
+    | Always (_, f) -> not_monotone ~init:init f
+    | Until (_, _, f, g)
+    | Since (_, _, f, g) -> not_monotone ~init:(not_monotone ~init:init g) f
     | Type _ -> assert false (* TODO[JD]: what is `Type` supposed to represent? *)
 
   (* Enforceability *)
