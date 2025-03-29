@@ -957,23 +957,34 @@ module Make
 
   (* Monotonicity *)
   
-  let rec not_monotone ?(anti=false) ?(init=Set.empty (module String)) f =
+  let rec not_monotone ?(let_ctxt=Map.empty (module String)) ?(anti=false) ?(init=Set.empty (module String)) f =
     match f.form with
     | TT | FF | EqConst (_, _) -> init
-    | Predicate (r, _) -> if anti then Set.add init r else init
-    (* | Predicate' (r, _, g) -> if anti then r::init else init (* TODO[JD]: what is the meaning of Predicate' and what is `g`? *) *)
-    | Predicate' (r, _, _) -> if anti then Set.add init r else init (* TODO[JD]: what is the meaning of Predicate' and what is `g`? *)
+    | Predicate (r, _) ->
+      if Map.mem let_ctxt r then
+        if anti then Set.add init r else init
+      else
+        let ctxt = Map.remove let_ctxt r in (* TODO[JD]: requires more consideration if the same predicate can be bound in a nested manner *)
+        not_monotone ~let_ctxt:ctxt ~anti:anti ~init:init (Map.find_exn let_ctxt r)
+    | Predicate' (_, _, f)
+    | Let' (_, _, _, _, f)
+    | Type (f, _) -> not_monotone ~let_ctxt:let_ctxt ~anti:anti ~init:init f
     | Neg f -> begin match f.form with
-                | Predicate (r, _) -> if anti then init else Set.add init r
-                (* | Predicate' (r, _, g) -> if anti then init else r::init (* TODO[JD]: what is the meaning of Predicate' and what is `g`? *) *)
-                | Predicate' (r, _, _) -> if anti then init else Set.add init r (* TODO[JD]: what is the meaning of Predicate' and what is `g`? *)
-                | _ -> not_monotone ~anti:true ~init:init f end
-    | Let _ | Let' _ -> assert false (* TODO[JD]: finalize let binding monotonicity rule(s) *)
+                | Predicate (r, _) ->
+                  if Map.mem let_ctxt r then
+                    if anti then init else Set.add init r
+                  else
+                    let ctxt = Map.remove let_ctxt r in (* TODO[JD]: requires more consideration if the same predicate can be bound in a nested manner *)
+                    not_monotone ~let_ctxt:ctxt ~anti:(not anti) ~init:init (Map.find_exn let_ctxt r)
+                | _ -> not_monotone ~let_ctxt:let_ctxt ~anti:(not anti) ~init:init f end
+    | Let (e, _, _, f, g) ->
+      let ctxt = Map.add_exn let_ctxt ~key:e  ~data:f in (*TODO[JD]: is add_exn safe to use here or could the same predicate/event be bound in a 'nested' manner? *)
+      not_monotone ~let_ctxt:ctxt ~anti:anti ~init:init g
     | Agg _ -> assert false (* TODO[JD]: finalize aggregation monotonicity rule(s) *)
-    | Top _ -> assert false (* TODO[JD]: what is `Top`? *)
+    | Top _ -> assert false (* TODO[JD]: Top (table operator) is a more general case of aggregation *)
     | And (_, fs)
-    | Or (_, fs) -> List.fold ~f:(fun init f -> not_monotone ~init:init f) ~init:init fs
-    | Imp (_, f, g) -> not_monotone ~anti:true ~init:(not_monotone ~init:init g) f
+    | Or (_, fs) -> List.fold ~f:(fun init f -> not_monotone ~let_ctxt:let_ctxt ~init:init f) ~init:init fs
+    | Imp (_, f, g) -> not_monotone ~let_ctxt:let_ctxt ~anti:true ~init:(not_monotone ~let_ctxt:let_ctxt ~init:init g) f
     | Exists (_, f)
     | Forall (_, f)
     | Prev (_, f)
@@ -981,10 +992,9 @@ module Make
     | Once (_, f)
     | Eventually (_, f)
     | Historically (_, f)
-    | Always (_, f) -> not_monotone ~init:init f
+    | Always (_, f) -> not_monotone ~let_ctxt:let_ctxt ~init:init f
     | Until (_, _, f, g)
-    | Since (_, _, f, g) -> not_monotone ~init:(not_monotone ~init:init g) f
-    | Type _ -> assert false (* TODO[JD]: what is `Type` supposed to represent? *)
+    | Since (_, _, f, g) -> not_monotone ~let_ctxt:let_ctxt ~init:(not_monotone ~let_ctxt:let_ctxt ~init:init g) f
 
   (* Enforceability *)
 
