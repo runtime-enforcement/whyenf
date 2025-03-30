@@ -958,9 +958,11 @@ module Make
   (* Monotonicity *)
   
   let rec not_monotone ?(let_ctxt_mon: 'str_str_info_map=Map.empty (module String)) ?(let_ctxt_anti_mon: 'str_str_info_map=Map.empty (module String)) ?(init_mon: 'str_info_map=Map.empty (module String)) ?(init_anti_mon: 'str_info_map= Map.empty (module String)) f : ('str_info_map * 'str_info_map) =
+    (** computes the predicates that appear none-(anti)-monotonely in a formula f
+        along with information such as a which occurrence of a predicate is none-(anti)-monotone *)
     (* Because f.info is 'abstract' one cannot directly access lexing positional information
        The position information will later be extracted and combined *)
-    let combine_maps m1 m2 =
+    let combine_str_info_maps m1 m2 =
       Map.merge m1 m2 ~f:(fun ~key:_ -> function
           | `Both (v1, v2) -> Some (v1 @ v2)
           | `Left v -> Some v
@@ -970,11 +972,11 @@ module Make
     | Predicate (r, _) ->
       let mon =
         if Map.mem let_ctxt_mon r then
-          combine_maps init_mon (Map.find_exn let_ctxt_mon r)
+          combine_str_info_maps init_mon (Map.find_exn let_ctxt_mon r)
         else init_mon in
       let anti_mon =
         if Map.mem let_ctxt_anti_mon r then
-          combine_maps init_anti_mon (Map.find_exn let_ctxt_anti_mon r)
+          combine_str_info_maps init_anti_mon (Map.find_exn let_ctxt_anti_mon r)
         else Map.update init_anti_mon r
               ~f:(fun info -> match info with
                     | None -> [f.info]
@@ -1000,8 +1002,8 @@ module Make
       let mono_maps = List.map fs ~f:(fun f ->
         not_monotone ~let_ctxt_mon ~let_ctxt_anti_mon ~init_mon ~init_anti_mon f) in
       List.fold ~f:(fun (init_mon, init_anti_mon) (mon, anti_mon) ->
-        let mon = combine_maps init_mon mon in
-        let anti_mon = combine_maps init_anti_mon anti_mon in
+        let mon = combine_str_info_maps init_mon mon in
+        let anti_mon = combine_str_info_maps init_anti_mon anti_mon in
         mon, anti_mon) ~init:(init_mon, init_anti_mon) mono_maps
     | Imp (_, f, g)
     | Until (_, _, f, g)
@@ -1010,8 +1012,8 @@ module Make
         not_monotone ~let_ctxt_mon ~let_ctxt_anti_mon ~init_mon ~init_anti_mon f in
       let g_mon, g_anti_mon =
         not_monotone ~let_ctxt_mon ~let_ctxt_anti_mon ~init_mon ~init_anti_mon g in
-      let mon = combine_maps f_mon g_mon in
-      let anti_mon = combine_maps f_anti_mon g_anti_mon in
+      let mon = combine_str_info_maps f_mon g_mon in
+      let anti_mon = combine_str_info_maps f_anti_mon g_anti_mon in
       mon, anti_mon
     | Exists (_, f)
     | Forall (_, f)
@@ -1025,7 +1027,6 @@ module Make
     | Let' (_, _, _, _, f)
     | Type (f, _) ->
       not_monotone ~let_ctxt_mon ~let_ctxt_anti_mon ~init_mon ~init_anti_mon f
-    | _ -> assert false
 
   (* Enforceability *)
 
