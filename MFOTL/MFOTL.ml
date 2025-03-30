@@ -957,34 +957,62 @@ module Make
 
   (* Monotonicity *)
   
-  let rec not_monotone ?(let_ctxt=Map.empty (module String)) ?(anti=false) ?(init=Set.empty (module String)) f =
+  let rec not_monotone ?(let_ctxt_mon: 'str_str_info_map=Map.empty (module String)) ?(let_ctxt_anti_mon: 'str_str_info_map=Map.empty (module String)) ?(init_mon: 'str_info_map=Map.empty (module String)) ?(init_anti_mon: 'str_info_map= Map.empty (module String)) f : ('str_info_map * 'str_info_map) =
+    (* Because f.info is 'abstract' one cannot directly access lexing positional information
+       The position information will later be extracted and combined *)
+    let combine_maps m1 m2 =
+      Map.merge m1 m2 ~f:(fun ~key:_ -> function
+          | `Both (v1, v2) -> Some (v1 @ v2)
+          | `Left v -> Some v
+          | `Right v -> Some v) in
     match f.form with
-    | TT | FF | EqConst (_, _) -> init
+    | TT | FF | EqConst (_, _) -> init_mon, init_anti_mon
     | Predicate (r, _) ->
-      if Map.mem let_ctxt r then
-        if anti then Set.add init r else init
-      else
-        let ctxt = Map.remove let_ctxt r in (* TODO[JD]: requires more consideration if the same predicate can be bound in a nested manner *)
-        not_monotone ~let_ctxt:ctxt ~anti:anti ~init:init (Map.find_exn let_ctxt r)
-    | Predicate' (_, _, f)
-    | Let' (_, _, _, _, f)
-    | Type (f, _) -> not_monotone ~let_ctxt:let_ctxt ~anti:anti ~init:init f
-    | Neg f -> begin match f.form with
-                | Predicate (r, _) ->
-                  if Map.mem let_ctxt r then
-                    if anti then init else Set.add init r
-                  else
-                    let ctxt = Map.remove let_ctxt r in (* TODO[JD]: requires more consideration if the same predicate can be bound in a nested manner *)
-                    not_monotone ~let_ctxt:ctxt ~anti:(not anti) ~init:init (Map.find_exn let_ctxt r)
-                | _ -> not_monotone ~let_ctxt:let_ctxt ~anti:(not anti) ~init:init f end
+      let mon =
+        if Map.mem let_ctxt_mon r then
+          combine_maps init_mon (Map.find_exn let_ctxt_mon r)
+        else init_mon in
+      let anti_mon =
+        if Map.mem let_ctxt_anti_mon r then
+          combine_maps init_anti_mon (Map.find_exn let_ctxt_anti_mon r)
+        else Map.update init_anti_mon r
+              ~f:(fun info -> match info with
+                    | None -> [f.info]
+                    | Some info -> f.info :: info) in
+      mon, anti_mon
+    | Neg f ->
+      let anti_mon, mon = not_monotone
+        (* ~let_ctxt_mon:let_ctxt_anti_mon ~let_ctxt_anti_mon:let_ctxt_mon *)
+        ~let_ctxt_mon ~let_ctxt_anti_mon
+        ~init_mon:init_anti_mon ~init_anti_mon:init_mon f in 
+        mon, anti_mon
     | Let (e, _, _, f, g) ->
-      let ctxt = Map.add_exn let_ctxt ~key:e  ~data:f in (*TODO[JD]: is add_exn safe to use here or could the same predicate/event be bound in a 'nested' manner? *)
-      not_monotone ~let_ctxt:ctxt ~anti:anti ~init:init g
+      let f_mon, f_anti_mon =
+        not_monotone ~let_ctxt_mon ~let_ctxt_anti_mon ~init_mon ~init_anti_mon f in
+      let ctxt_mon = Map.update let_ctxt_mon e ~f:(fun _ -> f_mon) in
+      let ctxt_anti_mon = Map.update let_ctxt_anti_mon e ~f:(fun _ -> f_anti_mon) in
+      not_monotone ~let_ctxt_mon:ctxt_mon ~let_ctxt_anti_mon:ctxt_anti_mon
+        ~init_mon:f_mon ~init_anti_mon:f_anti_mon g
     | Agg _ -> assert false (* TODO[JD]: finalize aggregation monotonicity rule(s) *)
     | Top _ -> assert false (* TODO[JD]: Top (table operator) is a more general case of aggregation *)
     | And (_, fs)
-    | Or (_, fs) -> List.fold ~f:(fun init f -> not_monotone ~let_ctxt:let_ctxt ~init:init f) ~init:init fs
-    | Imp (_, f, g) -> not_monotone ~let_ctxt:let_ctxt ~anti:true ~init:(not_monotone ~let_ctxt:let_ctxt ~init:init g) f
+    | Or (_, fs) ->
+      let mono_maps = List.map fs ~f:(fun f ->
+        not_monotone ~let_ctxt_mon ~let_ctxt_anti_mon ~init_mon ~init_anti_mon f) in
+      List.fold ~f:(fun (init_mon, init_anti_mon) (mon, anti_mon) ->
+        let mon = combine_maps init_mon mon in
+        let anti_mon = combine_maps init_anti_mon anti_mon in
+        mon, anti_mon) ~init:(init_mon, init_anti_mon) mono_maps
+    | Imp (_, f, g)
+    | Until (_, _, f, g)
+    | Since (_, _, f, g) ->
+      let f_mon, f_anti_mon =
+        not_monotone ~let_ctxt_mon ~let_ctxt_anti_mon ~init_mon ~init_anti_mon f in
+      let g_mon, g_anti_mon =
+        not_monotone ~let_ctxt_mon ~let_ctxt_anti_mon ~init_mon ~init_anti_mon g in
+      let mon = combine_maps f_mon g_mon in
+      let anti_mon = combine_maps f_anti_mon g_anti_mon in
+      mon, anti_mon
     | Exists (_, f)
     | Forall (_, f)
     | Prev (_, f)
@@ -992,9 +1020,12 @@ module Make
     | Once (_, f)
     | Eventually (_, f)
     | Historically (_, f)
-    | Always (_, f) -> not_monotone ~let_ctxt:let_ctxt ~init:init f
-    | Until (_, _, f, g)
-    | Since (_, _, f, g) -> not_monotone ~let_ctxt:let_ctxt ~init:(not_monotone ~let_ctxt:let_ctxt ~init:init g) f
+    | Always (_, f)
+    | Predicate' (_, _, f)
+    | Let' (_, _, _, _, f)
+    | Type (f, _) ->
+      not_monotone ~let_ctxt_mon ~let_ctxt_anti_mon ~init_mon ~init_anti_mon f
+    | _ -> assert false
 
   (* Enforceability *)
 
