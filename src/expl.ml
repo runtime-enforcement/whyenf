@@ -267,7 +267,7 @@ module Pdt = struct
     | Node (x, part) -> match Part.get_trivial part with
                         | Some pdt -> pdt
                         | None -> Node (x, part)
-        
+  
   let rec reduce p_eq = function
     | Leaf l -> Leaf l
     | Node (x, part) -> simplify (Node (x, Part.dedup (eq p_eq) (Part.map part (reduce p_eq))))
@@ -317,7 +317,7 @@ module Pdt = struct
          applyN_reduce p_eq lbls f' nodes 
        else
          simplify (Node (w, Part.map_dedup (eq p_eq) (fun pdts -> papply_list (applyN_reduce p_eq lbls f') other_nodes pdts)
-           (Part.join_parts w_parts)))
+                              (Part.join_parts w_parts)))
     | [] -> Leaf (f (List.map pdts unleaf_exn)) 
 
   let rec split_prod_reduce p_eq = function
@@ -379,6 +379,25 @@ module Pdt = struct
        | Some pdt -> specialize f_ex f_all v pdt
        | None     -> specialize f_ex f_all v (Part.find part (Term.unconst (Lbl.eval v x)))
 
+  let fold f_leaf f_var f_ex f_all f_impossible p =
+    let rec aux (v: Etc.valuation) =
+      function
+      | Leaf l -> f_leaf v l
+      | Node (LVar x, part) ->
+         f_var (List.concat (Part.map2 part (distribute x aux v)))
+      | Node (LEx x, part) ->
+         f_ex (List.concat (Part.map2 part (distribute x aux v)))
+      | Node (LAll x, part) ->
+         f_all (List.concat (Part.map2 part (distribute x aux v)))
+      | Node (LClos (_, terms, _) as term, part) ->
+         (match Part.get_trivial part with
+          | Some p -> aux v p
+          | None ->
+             (match (Lbl.eval v term).trm with
+              | Term.Const d -> aux v (snd (Part.find3 part (fun s -> Setc.mem s d)))
+              | _ -> f_impossible))
+    in aux Etc.empty_valuation p
+
   let collect f_leaf f_ex f_all (v: Etc.valuation) (x: string) p =
     let rec aux (v: Etc.valuation) (x: string) (s: (Dom.t, Dom.comparator_witness) Setc.t) =
       function
@@ -432,22 +451,23 @@ module Pdt = struct
 
 end
 
-type t = bool Pdt.t
 
-let rec is_violated = function
-  | Pdt.Leaf l -> not l
-  | Node (_, part) -> Part.exists part is_violated
+type 'a t = 'a Pdt.t
 
-let rec is_satisfied = function
-  | Pdt.Leaf l -> l
-  | Node (_, part) -> Part.exists part is_satisfied
+let rec is_violated ~sat = function
+  | Pdt.Leaf l -> not (sat l)
+  | Node (_, part) -> Part.exists part (is_violated ~sat)
 
-let to_string expl = Pdt.to_string Bool.to_string "" expl
+let rec is_satisfied ~sat = function
+  | Pdt.Leaf l -> sat l
+  | Node (_, part) -> Part.exists part (is_satisfied ~sat)
 
-let to_light_string expl = Pdt.to_light_string Bool.to_string "" expl
+let to_string ~to_string expl = Pdt.to_string to_string "" expl
 
-let rec pdt_of tp r trms (lbls: Lbl.t list) maps : t = match lbls with
-  | [] -> Leaf true
+let to_light_string ~to_string expl = Pdt.to_light_string to_string "" expl
+
+let rec pdt_of tp r trms (lbls: Lbl.t list) maps ~equal ~tt ~ff : 'a t = match lbls with
+  | [] -> Leaf tt
   | lbl :: lbls ->
      let ds = List.filter_map maps ~f:(fun map -> Map.find map lbl) in
      let find_maps d =
@@ -455,15 +475,15 @@ let rec pdt_of tp r trms (lbls: Lbl.t list) maps : t = match lbls with
                                            | Some d' when Dom.equal d d' -> Some map
                                            | _ -> None)  in
      if List.is_empty ds then
-       pdt_of tp r trms lbls maps
+       pdt_of tp r trms lbls maps ~equal ~tt ~ff
      else
-       let part = Part.tabulate_dedup (Pdt.eq Bool.equal) (Set.of_list (module Dom) ds)
-                    (fun d -> pdt_of tp r trms lbls (find_maps d))
-                    (Leaf false) in
+       let part = Part.tabulate_dedup (Pdt.eq equal) (Set.of_list (module Dom) ds)
+                    (fun d -> pdt_of tp r trms lbls (find_maps d) equal tt ff)
+                    (Leaf ff) in
        Node (lbl, part)
 
 (* [s_1, ..., s_k] <- OP (y; f) where p is a Pdt for f *)
-let table_operator (op: Dom.t list list -> Dom.t list list) (s: string list) tp x y lbls lbls' p =
+let table_operator (op: Dom.t list list -> Dom.t list list) (s: string list) tp x y lbls lbls' ~sat ~equal ~tt ~ff (p: 'a Pdt.t) : 'a Pdt.t  =
   let merge_pdts merge = function
     | [] -> raise (Errors.EnforcementError "cannot merge 0 PDTs")
     | [pdt] -> pdt
@@ -482,7 +502,7 @@ let table_operator (op: Dom.t list list -> Dom.t list list) (s: string list) tp 
       print_endline (String.concat ~sep:", " (List.map ~f:Lbl.to_string trms));
       print_endline (String.concat ~sep:", " gs);*)
     match p, gs, trms with
-    | Pdt.Leaf true, _, _ -> 
+    | Pdt.Leaf leaf, _, _ when sat leaf -> 
        Pdt.Leaf (tabulate (List.rev sv))
     | Leaf _, _, _ -> Leaf []
     | Node (lbl, _), g :: gs, trm :: trms
@@ -508,7 +528,7 @@ let table_operator (op: Dom.t list list -> Dom.t list list) (s: string list) tp 
     | Leaf (Some vs) -> Set.of_list (module Dom) (List.map ~f:(fun v -> Map.find_exn v x) vs)
     | Node (_, part) -> Set.union_list (module Dom)
                           (List.map part ~f:(fun (_, pdt) -> collect_leaf_values x pdt)) in
-  let rec insert lbls (v: Etc.valuation) (pdt: Etc.valuation list option Pdt.t) =
+  let rec insert lbls (v: Etc.valuation) (pdt: Etc.valuation list option Pdt.t) : 'a Pdt.t =
     (*print_endline ("--insert_aggregations");
       print_endline ("insert_aggregations.lbls=" ^ String.concat ~sep:", " (List.map ~f:Lbl.to_strigbng lbls));*)
     (*let print_pdt pdt =
@@ -524,12 +544,12 @@ let table_operator (op: Dom.t list list -> Dom.t list list) (s: string list) tp 
        (*print_endline "case 1";*)
        let ds = collect_leaf_values x' pdt in
        (if Set.is_empty ds then
-          Pdt.Leaf false
+          Pdt.Leaf ff
         else
           let v d = Map.update v x' ~f:(fun _ -> d) in
-          let parts = Part.tabulate_dedup (Pdt.eq Bool.equal) ds
+          let parts = Part.tabulate_dedup (Pdt.eq equal) ds
                         (fun d -> insert lbls (v d) pdt)
-                        (Leaf false) in
+                        (Leaf ff) in
           Pdt.Node (Lbl.LVar x', parts)
        (*print_endline ("p=" ^ Pdt.to_string (P.to_string "") "" p);         
          p*))
@@ -545,10 +565,10 @@ let table_operator (op: Dom.t list list -> Dom.t list list) (s: string list) tp 
     | Leaf (Some vs), _ ->
        if List.exists vs ~f:(fun v' ->
               Map.for_alli v ~f:(fun ~key ~data -> Dom.equal (Map.find_exn v' key) data))
-       then Pdt.Leaf true
-       else Pdt.Leaf false
+       then Pdt.Leaf tt
+       else Pdt.Leaf ff
     | Leaf None, _ ->
-       Pdt.Leaf false
+       Pdt.Leaf ff
   in
   let apply_op (vs: Etc.valuation list) : Etc.valuation list option =
     if List.is_empty vs && List.length y > 0
@@ -561,8 +581,9 @@ let table_operator (op: Dom.t list list -> Dom.t list list) (s: string list) tp 
   insert lbls Etc.empty_valuation
     (Pdt.apply1 lbls' apply_op (gather [] y lbls' Etc.empty_valuation p))
 
-let aggregate (agg: (Dom.t, Dom.comparator_witness) Multiset.t -> Dom.t) s tp x_trm y lbls lbls' p =
+let aggregate (agg: (Dom.t, Dom.comparator_witness) Multiset.t -> Dom.t) s tp x_trm y lbls lbls' ~sat ~equal ~tt ~ff p =
   let multiset dss = Multiset.of_list (module Dom) (List.map ~f:List.hd_exn dss) in
-  table_operator (fun dss -> [[agg (multiset dss)]]) [s] tp [x_trm] y lbls lbls' p
+  table_operator (fun dss -> [[agg (multiset dss)]]) [s] tp [x_trm] y lbls lbls' ~sat ~equal ~tt ~ff p
+
 
 
