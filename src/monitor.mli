@@ -6,54 +6,82 @@ module Term = MyTerm
 
 open Etc
 
-module MFormula : sig
+type polarity = POS | NEG [@@deriving compare, sexp_of, hash, equal]
 
-  type binop_info
-  type nop_info
-  type prev_info
-  type once_info
-  type next_info
-  type eventually_info
-  type historically_info
-  type always_info
-  type since_info
-  type until_info
+type binop_info
+and nop_info
+and prev_info
+and next_info
+and once_info
+and eventually_info
+and historically_info
+and always_info
+and since_info
+and until_info
+
+and mf_core_t =
+  | MTT
+  | MFF
+  | MEqConst      of Term.t * Dom.t
+  | MPredicate    of string * Term.t list
+  | MAgg          of string * Aggregation.op * Aggregation.op_fun * Term.t * string list * mf_t
+  | MTop          of string list * string * Aggregation.op_tfun * Term.t list * string list * mf_t
+  | MNeg          of mf_t
+  | MAnd          of Side.t * mf_t list * nop_info
+  | MOr           of Side.t * mf_t list * nop_info
+  | MImp          of Side.t * mf_t * mf_t * binop_info
+  | MExists       of string * Dom.tt * bool * mf_t
+  | MForall       of string * Dom.tt * bool * mf_t
+  | MPrev         of Interval.t * mf_t * prev_info
+  | MNext         of Interval.t * mf_t * next_info
+  | MENext        of Interval.t * timestamp option * mf_t
+  | MOnce         of Interval.t * mf_t * once_info
+  | MEventually   of Interval.t * mf_t * eventually_info
+  | MEEventually  of Interval.t * timestamp option * mf_t
+  | MHistorically of Interval.t * mf_t * historically_info
+  | MAlways       of Interval.t * mf_t * always_info
+  | MEAlways      of Interval.t * timestamp option * mf_t
+  | MSince        of Side.t * Interval.t * mf_t * mf_t * since_info
+  | MUntil        of Interval.t * mf_t * mf_t * until_info
+  | MEUntil       of Side.t * Interval.t * timestamp option * mf_t * mf_t
+
+and mf_t = {
+    mf: mf_core_t;
+    filter: Filter.t;
+    events: (string, String.comparator_witness) Set.t option;
+    obligations: (int, Int.comparator_witness) Set.t option;
+    hash: int;
+    lbls: Lbl.t list
+  } 
+
+and fo =
+  | FFormula of mf_t * int * Etc.valuation
+  | FInterval of timestamp * Interval.t * mf_t * int * Etc.valuation
+  | FUntil of timestamp * Side.t * Interval.t * mf_t * mf_t * int * Etc.valuation
+  | FAlways of timestamp * Interval.t * mf_t * int * Etc.valuation
+  | FEventually of timestamp * Interval.t * mf_t * int * Etc.valuation
+
+and fix =
+  | FEvent of string * Term.t list * polarity
+  | FOblig of fo * polarity
+
+and fbool =
+  | FTrue  of fix list
+  | FFalse of fix list
+
+val fix_is_oblig: fix -> bool
+val fix_is_event: fix -> bool
+val value_to_string: mf_t -> string
+val fbool_to_string: fbool -> string
+val fix_to_string: fix -> string
+val compare_fix: fix -> fix -> int
+
+module MFormula : sig
 
   val empty_binop_info: binop_info
   val empty_nop_info: int -> nop_info
 
-  type core_t =
-    | MTT
-    | MFF
-    | MEqConst      of Term.t * Dom.t
-    | MPredicate    of string * Term.t list
-    | MAgg          of string * Aggregation.op * Aggregation.op_fun * Term.t * string list * t
-    | MTop          of string list * string * Aggregation.op_tfun * Term.t list * string list * t
-    | MNeg          of t
-    | MAnd          of Side.t * t list * nop_info
-    | MOr           of Side.t * t list * nop_info
-    | MImp          of Side.t * t * t * binop_info
-    | MExists       of string * Dom.tt * bool * t
-    | MForall       of string * Dom.tt * bool * t
-    | MPrev         of Interval.t * t * prev_info
-    | MNext         of Interval.t * t * next_info
-    | MENext        of Interval.t * Time.t option * t * valuation
-    | MOnce         of Interval.t * t * once_info
-    | MEventually   of Interval.t * t * eventually_info
-    | MEEventually  of Interval.t * Time.t option * t * valuation
-    | MHistorically of Interval.t * t * historically_info
-    | MAlways       of Interval.t * t * always_info
-    | MEAlways      of Interval.t * Time.t option * t * valuation
-    | MSince        of Side.t * Interval.t * t * t * since_info
-    | MUntil        of Interval.t * t * t * until_info
-    | MEUntil       of Side.t * Interval.t * Time.t option * t * t * valuation
-
-  and t = { mf: core_t;
-            filter: Filter.t;
-            events: (string, String.comparator_witness) Set.t option;
-            obligations: (int, Int.comparator_witness) Set.t option;
-            hash: int;
-            lbls: Lbl.t list }
+  type core_t = mf_core_t and t = mf_t
   
   val make: core_t -> Filter.t -> t
   val set_make: core_t -> Filter.t -> t
@@ -72,7 +100,6 @@ module MFormula : sig
   val fv: t -> (String.t, Base.String.comparator_witness) Base.Set.t
 
   val to_string: ?l:int -> t -> string
-  val value_to_string: t -> string
   val op_to_string: t -> string
   val side_to_string: t -> string
 
@@ -86,19 +113,12 @@ end
 
 module FObligation : sig
 
-  type polarity = POS | NEG
-
-  type kind =
-    | FFormula of MFormula.t * int * valuation                       (* fun _ -> f *)
-    | FInterval of Time.t * Interval.t * MFormula.t * int * valuation   (* fun t -> if mem t i then f else Formula.TT *)
-    | FUntil of Time.t * Side.t * Interval.t * MFormula.t * MFormula.t * int * valuation (* fun t -> Until (s, sub2 i (t-t0), f1, f2) *)
-    | FAlways of Time.t * Interval.t * MFormula.t * int * valuation     (* fun t -> Always (sub2 i (t-t0), f1) *)
-    | FEventually of Time.t * Interval.t * MFormula.t * int * valuation (* fun t -> Eventually (sub2 i (t-t0), f1) *)
-
-  type t = kind * valuation * polarity
+  type t = fo * polarity
 
   (*val equal: t -> t -> bool*)
   val fold_map: ('a -> MFormula.t -> 'a * MFormula.t) -> 'a -> t -> 'a * t
+  val set_valuation: Etc.valuation -> fo -> fo
+  val pop_valuation: fo -> fo * Etc.valuation
   val eval: Time.t -> int -> t -> MFormula.t
   val to_string: t -> string
   val h: t -> int
@@ -141,17 +161,17 @@ module Memo : sig
 
   type 'a t
   
-  val find : 'a t -> MFormula.t -> FObligation.polarity -> 'a option
+  val find : 'a t -> MFormula.t -> polarity -> 'a option
   val add_event : 'a t -> string -> 'a t
   val add_obligation : 'a t -> int -> 'a t
   val empty : 'a t
 
 end
 
-type res = Expl.t TS.t list * Expl.t * MFormula.t
+type res = bool Expl.t TS.t list * fbool Expl.t * MFormula.t
 
-val mstep: timepoint -> timestamp -> Db.t -> bool -> MState.t -> FObligations.t ->
-           res Memo.t -> res Memo.t * (((timepoint * timestamp) * Expl.t) list * Expl.t * MState.t)
+val mstep: timepoint -> timestamp -> Db.t -> bool -> MState.t -> FObligations.t -> bool -> 
+           res Memo.t -> res Memo.t * (fbool Expl.t * MState.t)
 
 val meval_c: int ref 
 

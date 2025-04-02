@@ -55,7 +55,8 @@ module Pdt : sig
 
   val specialize: ('a list -> 'a) -> ('a list -> 'a) -> Etc.valuation -> 'a t -> 'a
   val specialize_partial: Etc.valuation -> 'a t -> 'a t
-  
+
+  val fold: (Etc.valuation -> 'a -> 'b) -> ('b list -> 'b) -> ('b list -> 'b) -> ('b list -> 'b) -> 'b -> 'a t -> 'b
   val collect: ('a -> bool) -> ((Dom.t, Dom.comparator_witness) Setc.t list -> (Dom.t, Dom.comparator_witness) Setc.t) -> ((Dom.t, Dom.comparator_witness) Setc.t list -> (Dom.t, Dom.comparator_witness) Setc.t) -> Etc.valuation -> string -> 'a t -> (Dom.t, Dom.comparator_witness) Setc.t
   val from_valuation: Lbl.t list -> Etc.valuation -> 'b -> 'b -> 'b t
 
@@ -63,16 +64,16 @@ module Pdt : sig
 
 end
 
-type t = bool Pdt.t
+type 'a t = 'a Pdt.t
 
-val is_violated: t -> bool
-val is_satisfied: t -> bool
+val is_violated: sat:('a -> bool) -> 'a t -> bool
+val is_satisfied: sat:('a -> bool) -> 'a t -> bool
 
-val to_string: t -> string
-val to_light_string: t -> string
+val to_string: to_string:('a -> string) -> 'a t -> string
+val to_light_string: to_string:('a -> string) -> 'a t -> string
 
-val pdt_of: int -> string -> Term.t list -> Lbl.t list -> (Lbl.t, Dom.t, 'a) Map.t list -> bool Pdt.t
+val pdt_of: int -> string -> Term.t list -> Lbl.t list -> (Lbl.t, Dom.t, 'a) Map.t list -> equal:('b -> 'b -> bool) -> tt:'b -> ff:'b -> 'b t
 
-val table_operator: (Dom.t list list -> Dom.t list list) -> string list -> int -> Term.t list -> string list -> Lbl.t list -> Lbl.t list -> t -> t
-val aggregate: ((Dom.t, Dom.comparator_witness) Multiset.t -> Dom.t) -> string -> int -> Term.t -> string list -> Lbl.t list -> Lbl.t list -> t -> t
+val table_operator: (Dom.t list list -> Dom.t list list) -> string list -> int -> Term.t list -> string list -> Lbl.t list -> Lbl.t list -> sat:('a -> bool) -> equal:('a -> 'a -> bool) -> tt:'a -> ff:'a -> 'a t -> 'a t
+val aggregate: ((Dom.t, Dom.comparator_witness) Multiset.t -> Dom.t) -> string -> int -> Term.t -> string list -> Lbl.t list -> Lbl.t list -> sat:('a -> bool) -> equal:('a -> 'a -> bool) -> tt:'a -> ff:'a -> 'a t -> 'a t
 
