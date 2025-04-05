@@ -255,7 +255,7 @@ module Span  = struct
     | "h" -> Hour (Hour.of_string s)
     | "d" -> Day (Day.of_string s)
     | "M" -> Month (Month.of_string s)
-    | "Y" -> Year (Year.of_string s)
+    | "y" -> Year (Year.of_string s)
     | u -> raise (TimeError (Printf.sprintf "Invalid time unit: %s" u))
 
   let of_string s =

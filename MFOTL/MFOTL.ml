@@ -704,7 +704,7 @@ module Make
         | None -> (Var.ident x), 0 in
       let xk = Var.replace (Var.of_ident xk) x in
       (Map.update i x ~f:(fun _ -> k), (Map.update v x ~f:(fun _ -> Term.dummy_var xk))), xk in
-    let vv = Var.of_ident "v" in
+    (*let vv = Var.of_ident "v" in*)
     (*let var_subst v x = match Map.find v x with Some (Term.Var x) -> x | _ -> x in
       let vars_subst v xs = List.map xs ~f:(var_subst v) in*)
     let rec aux f i v =
