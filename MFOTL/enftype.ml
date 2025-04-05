@@ -209,8 +209,10 @@ module Constraint = struct
     | Some enftype, _ when not (is_causable enftype && is_suppressable enftype) -> enftype
     | Some enftype, Some enftype' when is_causable enftype' ->
        meet enftype (Sup.Obs, Cau.Cau, Sct.AnySct)
-    | Some enftype, _ ->
+    | Some enftype, Some enftype' when is_suppressable enftype' ->
        meet enftype (Sup.Sup, Cau.NonCau, Sct.AnySct)
+    | Some enftype, _ ->
+       meet enftype (Sup.Obs, Cau.NonCau, Sct.AnySct)
     | _ -> raise (Etc.EnforceabilityError "cannot solve constraint without an upper bound")
     (*match c.upper with
     | Some enftype -> enftype
