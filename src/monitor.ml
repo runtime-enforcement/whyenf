@@ -263,7 +263,7 @@ and fo =
   | FEventually of timestamp * Interval.t * mf_t * int * Etc.valuation
 
 and fix =
-  | FEvent of string * Term.t list * polarity
+  | FEvent of string * Term.t list * polarity * int
   | FOblig of fo * polarity
 
 and fbool =
@@ -345,9 +345,9 @@ let rec fo_to_string = function
        h (Etc.valuation_to_string v)
 
 and fix_to_string = function
-  | FEvent (e, trms, pol) -> Printf.sprintf "(%s(%s))%s" e
-                               (String.concat ~sep:", " (List.map ~f:Term.value_to_string trms))
-                               (polarity_to_string pol)
+  | FEvent (e, trms, pol, _) -> Printf.sprintf "(%s(%s))%s" e
+                                  (String.concat ~sep:", " (List.map ~f:Term.value_to_string trms))
+                                  (polarity_to_string pol)
   | FOblig (fo, pol) -> Printf.sprintf "(%s)%s" (fo_to_string fo) (polarity_to_string pol)
 
 and fbool_to_string = function
@@ -414,20 +414,15 @@ let compare_fo k k' = match k, k' with
   | FUntil _, _ -> -1
 
 let equal_fix f f' = match f, f' with
-  | FEvent (r, trms, pol), FEvent (r', trms', pol') ->
-     String.equal r r'
-     && (match List.for_all2 trms trms' Term.equal with
-         | Base.List.Or_unequal_lengths.Ok b -> b
-         | Base.List.Or_unequal_lengths.Unequal_lengths -> false)
-     && equal_polarity pol pol'
+  | FEvent (r, trms, pol, h), FEvent (r', trms', pol', h') ->
+     h = h' && equal_polarity pol pol'
   | FOblig (fo, pol), FOblig (fo', pol') ->
      equal_fo fo fo' && equal_polarity pol pol'
   | _ -> false
 
 let compare_fix f f' = match f, f' with
-  | FEvent (r, trms, pol), FEvent (r', trms', pol') ->
-     Etc.lexicographic3 String.compare (List.compare Term.compare) compare_polarity
-       (r, trms, pol) (r', trms', pol')
+  | FEvent (r, trms, pol, h), FEvent (r', trms', pol', h') ->
+     Etc.lexicographic2 Int.compare compare_polarity (h, pol) (h', pol')
   | FEvent _, _ -> 1
   | FOblig (fo, pol), FOblig (fo', pol') ->
      Etc.lexicographic2 compare_fo compare_polarity (fo, pol) (fo', pol')
@@ -1810,32 +1805,37 @@ let meval (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) nick mfor
             if List.is_empty trms then
               (let expl = Pdt.Leaf (not (Db.is_empty db')) in
                let fexpl = Pdt.Leaf (if not (Db.is_empty db') then
-                                       FTrue [FEvent (r, [], NEG)]
+                                       FTrue [FEvent (r, [], NEG, mformula.hash)]
                                      else
-                                       FFalse [FEvent (r, [], POS)]) in
+                                       FFalse [FEvent (r, [], POS, mformula.hash)]) in
                memo, ([TS.make tp ts expl], fexpl, MPredicate (r, trms)))
             else
               let maps = List.filter_opt (
                              Set.fold (Db.events db') ~init:[]
                                ~f:(fun acc evt -> match_terms (List.map ~f:(fun x -> x.trm) trms) (snd evt)
                                                     (Map.empty (module Lbl)) :: acc)) in
+              let enftype = Sig.enftype_of_pred r in
               let expl = if List.is_empty maps
                          then Pdt.Leaf false
                          else Expl.pdt_of tp r trms mformula.lbls maps
                                 ~equal:Bool.equal ~tt:true ~ff:false in
               let fexpl = if List.is_empty maps
-                          then Pdt.Leaf (FFalse [FEvent (r, trms, POS)])
+                          then Pdt.Leaf (FFalse (if Enftype.is_causable enftype
+                                                 then [FEvent (r, trms, POS, mformula.hash)]
+                                                 else []))
                           else Expl.pdt_of tp r trms mformula.lbls maps
                                  ~equal:equal_fbool
-                                 ~tt:(FTrue (if Enftype.is_suppressable (Sig.enftype_of_pred r)
-                                             then [FEvent (r, trms, NEG)] else []))
-                                 ~ff:(FFalse (if Enftype.is_causable (Sig.enftype_of_pred r)
-                                              then [FEvent (r, trms, POS)] else [])) in
+                                 ~tt:(FTrue (if Enftype.is_suppressable enftype
+                                             then [FEvent (r, trms, NEG, mformula.hash)]
+                                             else []))
+                                 ~ff:(FFalse (if Enftype.is_causable enftype
+                                              then [FEvent (r, trms, POS, mformula.hash)]
+                                              else [])) in
               (*print_endline "--MPredicate";
               print_endline ("r=" ^ r);
               print_endline ("db'=" ^ Db.to_string db');
-              print_endline ("maps=" ^ (String.concat ~sep:"; " (List.map maps ~f:(fun map -> String.concat ~sep:", " (List.map (Map.to_alist map) ~f:(fun (lbl, d) -> Lbl.to_string lbl ^ " -> " ^ Dom.to_string d))))));
-              print_endline ("expl=" ^ Expl.to_string expl);*)
+              print_endline ("maps=" ^ (String.concat ~sep:"; " (List.map maps ~f:(fun map -> String.concat ~sep:", " (List.map (Map.to_alist map) ~f:(fun (lbl, d) -> Lbl.to_string lbl ^ " -> " ^ Dom.to_string d))))));*)
+              (*print_endline ("fexpl=" ^ Expl.to_string ~to_string:fbool_to_string fexpl);*)
               memo, ([TS.make tp ts expl], fexpl, MPredicate (r, trms))
          | MAgg (s, op, op_fun, x, y, mf) ->
             let memo, (expls, aexpl, mf') = meval_rec ts tp db fobligs ~pol memo mf in
