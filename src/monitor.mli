@@ -62,7 +62,7 @@ and fo =
   | FEventually of timestamp * Interval.t * mf_t * int * Etc.valuation
 
 and fix =
-  | FEvent of string * Term.t list * polarity
+  | FEvent of string * Term.t list * polarity * int
   | FOblig of fo * polarity
 
 and fbool =

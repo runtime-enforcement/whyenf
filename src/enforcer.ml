@@ -141,13 +141,13 @@ module EState = struct
     Option.value ts ~default:es.ts
       
   let eval_fix ts tp v = function
-    | FEvent (r, trms, pol) -> FEvent (r, List.map ~f:(Sig.eval v) trms, pol)
-    | FOblig (fo, pol)      -> FOblig (FObligation.set_valuation v fo, pol) (* this set_valuation does not set the right valuation in the failing example *)
+    | FEvent (r, trms, pol, h) -> FEvent (r, List.map ~f:(Sig.eval v) trms, pol, h)
+    | FOblig (fo, pol)         -> FOblig (FObligation.set_valuation v fo, pol) (* this set_valuation does not set the right valuation in the failing example *)
 
   let apply_fix es = function
-    | FEvent (r, trms, POS) -> add_cau (r, List.map ~f:Term.unconst trms) es
-    | FEvent (r, trms, NEG) -> add_sup (r, List.map ~f:Term.unconst trms) es
-    | FOblig (fo, pol)      -> add_foblig (fo, pol) es
+    | FEvent (r, trms, POS, _) -> add_cau (r, List.map ~f:Term.unconst trms) es
+    | FEvent (r, trms, NEG, _) -> add_sup (r, List.map ~f:Term.unconst trms) es
+    | FOblig (fo, pol)         -> add_foblig (fo, pol) es
 
   let apply_fixes es = List.fold_left ~f:apply_fix ~init:es
 
