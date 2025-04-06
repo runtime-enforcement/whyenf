@@ -283,7 +283,6 @@ let ts_i_to_string (ts, i) =
   | Some ts -> Printf.sprintf "(%s+%s)" (Time.to_string ts) (Interval.to_string i)
   | None -> Interval.to_string i
 
-
 let rec value_to_string_rec l mf =
   match mf.mf with
   | MTT -> Printf.sprintf "⊤"
@@ -358,10 +357,10 @@ let fbool_of_bool = function
   | true -> FTrue []
   | false -> FFalse []
 
-let corresp_proof tp pol _ fo =
+(*let corresp_proof tp pol _ fo =
   match pol with
   | POS -> FTrue [FOblig (fo, NEG)]
-  | NEG -> FFalse [FOblig (fo, POS)]
+  | NEG -> FFalse [FOblig (fo, POS)]*)
 
 let fbool_of_polarity = function
   | POS -> FTrue []
