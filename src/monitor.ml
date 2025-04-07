@@ -1663,12 +1663,26 @@ let approximate_since lbls (expls: bool Expl.t TS.t list) aexpl1 aexpl2 i tp pol
   let expl = approximate_expl tp pol lbls expls in
   Pdt.apply3_reduce equal_fbool lbls (Since.approximate pol (Interval.left i)) aexpl1 aexpl2 expl
 
-let approximate_quant aexpl x mf =
+let approximate_quant eq ne aexpl x mf =
+  let simplify = 
+    Pdt.simple_fold
+      (fun l -> Pdt.Leaf l)
+      (fun x part -> Node (LVar x, part))
+      (fun x part -> if List.exists part ~f:(fun (_, pdt) -> Pdt.eq eq pdt (Leaf ne))
+                     then Leaf ne else Node (LEx x, part))
+      (fun x part -> if List.exists part ~f:(fun (_, pdt) -> Pdt.eq eq pdt (Leaf ne))
+                     then Leaf ne else Node (LAll x, part))
+      (fun f trms fvs part -> Pdt.Node (LClos (f, trms, fvs), part)) in
   match mf with
-  | MExists _ -> Pdt.quantify ~forall:false x aexpl
-  | MForall _ -> Pdt.quantify ~forall:true x aexpl
-  | _ -> raise (Errors.MonitoringError
-                  (Printf.sprintf "function is not defined for %s" (MFormula.core_op_to_string mf)))
+  | MExists _ ->
+     let aexpl = Pdt.quantify ~forall:false x aexpl in
+     simplify aexpl
+  | MForall _ ->
+     let aexpl = Pdt.quantify ~forall:true x aexpl in
+     simplify aexpl
+  | _ ->
+     raise (Errors.MonitoringError
+              (Printf.sprintf "function is not defined for %s" (MFormula.core_op_to_string mf)))
 
 let approximate_enext lbls (fobligs: FObligations.t) ts i mf h pol = (*TODO*)
   approximate_fobligs lbls fobligs (FInterval (ts, i, mf, h, Etc.empty_valuation), pol)
@@ -1929,10 +1943,10 @@ let meval (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) nick mfor
               print_endline ("lbls =" ^ (Lbl.to_string_list lbls));
               print_endline ("lbls'=" ^ (Lbl.to_string_list lbls'));*)
             let memo, (expls, aexpl, mf') = meval_rec ts tp db ~pol fobligs memo mf in
-            let quant expl = approximate_quant expl x mformula.mf in
-            let expls = List.map expls ~f:(TS.map quant) in
+            let quant expl eq ne = approximate_quant expl eq ne x mformula.mf in
+            let expls = List.map expls ~f:(TS.map (quant Bool.equal true)) in
             (*print_endline ("aexpl (before) = " ^ Expl.to_string aexpl);*)
-            let aexpl = quant aexpl in
+            let aexpl = quant equal_fbool (FTrue []) aexpl in
             (*print_endline ("aexpl (after) = " ^ Expl.to_string aexpl);*)
             memo, (expls, aexpl, MExists(x, tc, b, mf'))
          | MForall (x, tc, b, mf) ->
@@ -1941,10 +1955,10 @@ let meval (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) nick mfor
             (*print_endline ("lbls =" ^ (Lbl.to_string_list lbls));
               print_endline ("lbls'=" ^ (Lbl.to_string_list lbls'));*)
             let memo, (expls, aexpl, mf') = meval_rec ts tp db ~pol fobligs memo mf in
-            let quant expl = approximate_quant expl x mformula.mf in
-            let expls = List.map expls ~f:(TS.map quant) in
+            let quant expl eq ne = approximate_quant expl eq ne x mformula.mf in
+            let expls = List.map expls ~f:(TS.map (quant Bool.equal false)) in
             (*print_endline ("aexpl (before) = " ^ Expl.to_string aexpl);*)
-            let aexpl = quant aexpl in
+            let aexpl = quant equal_fbool (FFalse []) aexpl in
             (*print_endline ("aexpl (after) = " ^ Expl.to_string aexpl);*)
             memo, (expls, aexpl, MForall(x, tc, b, mf'))
          | MPrev (i, mf, aux) -> 

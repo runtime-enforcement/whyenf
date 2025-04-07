@@ -53,11 +53,13 @@ module Pdt : sig
   val split_list_reduce: ('a -> 'a -> bool) -> 'a list t -> 'a t list
   val quantify: forall:bool -> string -> 'a t -> 'a t
 
-  val specialize: ('a list -> 'a) -> ('a list -> 'a) -> Etc.valuation -> 'a t -> 'a
+  (*val specialize: ('a list -> 'a) -> ('a list -> 'a) -> Etc.valuation -> 'a t -> 'a*)
   val specialize_partial: Etc.valuation -> 'a t -> 'a t
 
+  val fold2: (Etc.valuation -> 'a -> 'b) -> (string -> 'b list -> 'b) -> (string -> 'b list -> 'b) -> (string -> 'b list -> 'b) -> 'b -> 'a t -> 'b
   val fold: (Etc.valuation -> 'a -> 'b) -> ('b list -> 'b) -> ('b list -> 'b) -> ('b list -> 'b) -> 'b -> 'a t -> 'b
-  val collect: ('a -> bool) -> ((Dom.t, Dom.comparator_witness) Setc.t list -> (Dom.t, Dom.comparator_witness) Setc.t) -> ((Dom.t, Dom.comparator_witness) Setc.t list -> (Dom.t, Dom.comparator_witness) Setc.t) -> Etc.valuation -> string -> 'a t -> (Dom.t, Dom.comparator_witness) Setc.t
+  val simple_fold: ('a -> 'b t) -> (string -> (Part.sub * 'b t) list -> 'b t) -> (string -> (Part.sub * 'b t) list -> 'b t) -> (string -> (Part.sub * 'b t) list -> 'b t) -> (string -> Term.t list -> (string, String.comparator_witness) Set.t -> (Part.sub * 'b t) list -> 'b t) -> 'a t -> 'b t
+  (*val collect: ('a -> bool) -> ((Dom.t, Dom.comparator_witness) Setc.t list -> (Dom.t, Dom.comparator_witness) Setc.t) -> ((Dom.t, Dom.comparator_witness) Setc.t list -> (Dom.t, Dom.comparator_witness) Setc.t) -> Etc.valuation -> string -> 'a t -> (Dom.t, Dom.comparator_witness) Setc.t*)
   val from_valuation: Lbl.t list -> Etc.valuation -> 'b -> 'b -> 'b t
 
   val exquant: 'a t -> 'a t
