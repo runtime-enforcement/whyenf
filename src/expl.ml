@@ -361,7 +361,7 @@ module Pdt = struct
        List.map (Set.elements s') ~f:(fun d -> callback (update v x d) p)
     | Complement _ -> [callback v p]
 
-  let rec specialize f_ex f_all (v: Etc.valuation) =
+  (*let rec specialize f_ex f_all (v: Etc.valuation) =
     function
     | Leaf l -> l
     | Node (LVar x, part) when Map.mem v x ->
@@ -377,18 +377,18 @@ module Pdt = struct
     | Node (x, part) ->
        match Part.get_trivial part with
        | Some pdt -> specialize f_ex f_all v pdt
-       | None     -> specialize f_ex f_all v (Part.find part (Term.unconst (Lbl.eval v x)))
+       | None     -> specialize f_ex f_all v (Part.find part (Term.unconst (Lbl.eval v x)))*)
 
-  let fold f_leaf f_var f_ex f_all f_impossible p =
+  let fold2 f_leaf f_var f_ex f_all f_impossible p =
     let rec aux (v: Etc.valuation) =
       function
       | Leaf l -> f_leaf v l
       | Node (LVar x, part) ->
-         f_var (List.concat (Part.map2 part (distribute x aux v)))
+         f_var x (List.concat (Part.map2 part (distribute x aux v)))
       | Node (LEx x, part) ->
-         f_ex (List.concat (Part.map2 part (distribute x aux v)))
+         f_ex x (List.concat (Part.map2 part (distribute x aux v)))
       | Node (LAll x, part) ->
-         f_all (List.concat (Part.map2 part (distribute x aux v)))
+         f_all x (List.concat (Part.map2 part (distribute x aux v)))
       | Node (LClos (_, terms, _) as term, part) ->
          (match Part.get_trivial part with
           | Some p -> aux v p
@@ -398,7 +398,21 @@ module Pdt = struct
               | _ -> f_impossible))
     in aux Etc.empty_valuation p
 
-  let collect f_leaf f_ex f_all (v: Etc.valuation) (x: string) p =
+  let fold f_leaf f_var f_ex f_all = 
+    fold2 f_leaf (fun x part -> f_var part) (fun x part -> f_ex part) (fun x part -> f_all part)
+
+  let rec simple_fold f_leaf f_var f_ex f_all f_clos = function
+    | Leaf l -> f_leaf l
+    | Node (LVar x, part) ->
+       f_var x (Part.map part (simple_fold f_leaf f_var f_ex f_all f_clos))
+    | Node (LEx x, part) ->
+       f_ex x (Part.map part (simple_fold f_leaf f_var f_ex f_all f_clos))
+    | Node (LAll x, part) ->
+       f_all x (Part.map part (simple_fold f_leaf f_var f_ex f_all f_clos))
+    | Node (LClos (x, term, fvs), part) ->
+       f_clos x term fvs (Part.map part (simple_fold f_leaf f_var f_ex f_all f_clos))
+
+  (*let collect f_leaf f_ex f_all (v: Etc.valuation) (x: string) p =
     let rec aux (v: Etc.valuation) (x: string) (s: (Dom.t, Dom.comparator_witness) Setc.t) =
       function
       | Leaf l when f_leaf l -> s
@@ -431,7 +445,7 @@ module Pdt = struct
              let s = Setc.union_list (module Dom) (List.map (Set.elements s) ~f) in
              s
           | _ -> s)
-    in aux v x (Setc.univ (module Dom)) p
+    in aux v x (Setc.univ (module Dom)) p*)
   
   let rec from_valuation (lbls: Lbl.t list) (v: Etc.valuation) p p' =
     match lbls with
