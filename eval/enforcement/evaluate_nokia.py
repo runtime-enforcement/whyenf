@@ -12,9 +12,9 @@ run_experiments(
 )
 
 run_experiments(
-    option        = 'lifeboat',
+    option        = 'enfguard',
     benchmark     = 'nokia',
-    exe           = './lifeboat.exe',
+    exe           = './enfguard.exe',
     accelerations = [32, 64, 128, 256],#[1, 2, 4, 8, 16, 32, 64, 128, 256],
     n             = 1,#10,
     time_unit     = 1,
@@ -40,4 +40,3 @@ run_experiments(
     time_unit     = 1,
     only_graph    = True,
 )
-
