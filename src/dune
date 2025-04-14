@@ -6,7 +6,6 @@
  (explain true))
 
 (library
- (name lifeboat_lib)
+ (name enfguard_lib)
  (libraries MFOTL_lib core_kernel base zarith unix pyml calendar str)
  (preprocess (pps ppx_jane)))
-

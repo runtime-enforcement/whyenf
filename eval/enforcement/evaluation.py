@@ -1,6 +1,6 @@
 import os.path
 from pathlib import Path
-from tqdm import tqdm 
+from tqdm import tqdm
 import gc
 
 from typing import Any, Dict, List, Optional
@@ -67,7 +67,7 @@ def run_tool(command: str, log: Path, a: float, desc: str, to: int, verbose : bo
         "time"    : merged_df["ts_f"],
         "latency" : merged_df["computer_time_r"] - merged_df["computer_time_f"],
         "out_time": merged_df["computer_time_r"]
-    })    
+    })
     return result_df.sort_values(by="tp")
 
 def name_of_time_unit(time_unit: int) -> str:
@@ -107,10 +107,10 @@ def plot(formula: str, log: str, a: float, df: pd.DataFrame, fn: Path, time_unit
 def summary_plot(summary_df: pd.DataFrame, formulae: Dict[str, str], logs: Dict[str, str], fn: Path) -> None:
     fig, ax2 = plt.subplots(1, 1, figsize=(7.5, 3))
     ax = ax2.twinx()
-    
+
     d1 = summary_df[["a", "d1"]].groupby("a").mean()
     ax.plot(d1.index, d1["d1"], "k--", label="$1/a$", linewidth=1.5)
-            
+
     for formula_desc in formulae:
         for log_desc in logs:
             s = summary_df[(summary_df["formula"] == formula_desc) & (summary_df["log"] == log_desc)][["a", "max_latency"]].groupby("a").mean()
@@ -122,20 +122,20 @@ def summary_plot(summary_df: pd.DataFrame, formulae: Dict[str, str], logs: Dict[
     ax2.set_xlabel("acceleration $a$")
     ax.set_ylabel("max latency $\mathsf{max}_{\ell}(a)$ (ms)")
     ax2.set_ylabel("events/s")
-        
+
     ax2.set_xscale('log')
-    ax.set_yscale('log')     
+    ax.set_yscale('log')
     ax2.set_yscale('log')
     fig.tight_layout()
     fig.savefig(str(fn), dpi=300)
     plt.close()
 
 def run_experiments(
-        option        : str, 
-        benchmark     : str, 
-        exe           : str, 
+        option        : str,
+        benchmark     : str,
+        exe           : str,
         accelerations : List[float],
-        only_graph    : bool = False, 
+        only_graph    : bool = False,
         n             : int  = 10,
         time_unit     : int  = 1,
         to            : int  = 900,
@@ -160,13 +160,13 @@ def run_experiments(
         command = exe + ' -sig {} -formula ' + str(formulae_path) + '/{} -ignore_parse_errors'
     elif option == "whyenf":
         command = exe + ' -sig {} -formula ' + str(formulae_path) + '/{}'
-    elif option == "lifeboat":
+    elif option == "enfguard":
         command = exe + ' -sig {} -formula ' + str(formulae_path) + '/{}'
     else:
         raise ValueError("Invalid option " + option)
     if func:
         command += ' -func ' + str(benchmark_path / 'functions.py')
-    
+
     # Find formulae, logs, signature
     formulae : Dict[str, str] = { fn.split(".")[0]: fn for fn in os.listdir(formulae_path) }
     logs     : Dict[str, str] = { fn.split(".")[0]: fn for fn in os.listdir(logs_path) }
@@ -178,9 +178,9 @@ def run_experiments(
     desc = f"option = {option}, benchmark = {benchmark}, accelerations = {accelerations[0]}-{accelerations[-1]}, n = {n}"
     t : tqdm = tqdm(total = total_steps, desc = desc)
     if not only_graph:
-    
+
         for formula_desc, formula_fn in formulae.items():
-             
+
             for log_desc, log_fn in logs.items():
 
                 is_no_longer_real_time = False
@@ -217,7 +217,7 @@ def run_experiments(
                             can_skip = True
                         else:
                             is_no_longer_real_time = True
-                
+
         summary_df = pd.DataFrame(series)
         summary_df.to_csv(summary_csv_fn, index=False)
 
@@ -227,5 +227,3 @@ def run_experiments(
 
     # Generate summary plot
     summary_plot(summary_df, formulae, logs, summary_png_fn)
-
-

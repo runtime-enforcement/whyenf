@@ -9,9 +9,9 @@ def count_events(text):
     matches = re.findall(pattern, text)
     return len(matches)
 
-def parse_lifeboat_statistics(lifeboat_path : str, formula_folder : Path, formula_fn : str):
-    lifeboat_path = lifeboat_path.format(str(formula_folder / formula_fn))
-    result = subprocess.run(lifeboat_path, capture_output=True, text=True, shell=True)
+def parse_enfguard_statistics(enfguard_path : str, formula_folder : Path, formula_fn : str):
+    enfguard_path = enfguard_path.format(str(formula_folder / formula_fn))
+    result = subprocess.run(enfguard_path, capture_output=True, text=True, shell=True)
     output = result.stdout
 
     size = re.search(r'Size of formula\s+(\d+)', output)
@@ -33,7 +33,7 @@ def parse_lifeboat_statistics(lifeboat_path : str, formula_folder : Path, formul
 
 
 def print_log_statistics(
-    option    : str, 
+    option    : str,
     benchmark : str,
     k         : int = 1,
 ) -> None:
@@ -56,7 +56,7 @@ def print_log_statistics(
     print()
 
 def print_formula_statistics(
-    lifeboat_path : str,
+    enfguard_path : str,
     option        : str,
     benchmark     : str
 ) -> None:
@@ -66,23 +66,23 @@ def print_formula_statistics(
     formulae_fns = os.listdir(formulae_path)
     formulae_rows = []
     for formula_fn in formulae_fns:
-        formulae_rows.append(parse_lifeboat_statistics(lifeboat_path, formulae_path, formula_fn))
+        formulae_rows.append(parse_enfguard_statistics(enfguard_path, formulae_path, formula_fn))
 
     print(f"Formula statistics for benchmark {benchmark} (option {option})")
     print(pd.DataFrame(formulae_rows).sort_values("size"))
     print()
 
-LIFEBOAT_PATH = "./lifeboat.exe -formula {} -statistics"
-print_formula_statistics(LIFEBOAT_PATH, "lifeboat", "gdpr")
-print_formula_statistics(LIFEBOAT_PATH, "lifeboat", "nokia")    
-print_formula_statistics(LIFEBOAT_PATH, "lifeboat", "ic")
-print_formula_statistics(LIFEBOAT_PATH, "lifeboat", "agg")
-print_formula_statistics(LIFEBOAT_PATH, "lifeboat", "cluster")
-print_formula_statistics(LIFEBOAT_PATH, "lifeboat", "fun")
+ENFGUARD_PATH = "./enfguard.exe -formula {} -statistics"
+print_formula_statistics(ENFGUARD_PATH, "enfguard", "gdpr")
+print_formula_statistics(ENFGUARD_PATH, "enfguard", "nokia")
+print_formula_statistics(ENFGUARD_PATH, "enfguard", "ic")
+print_formula_statistics(ENFGUARD_PATH, "enfguard", "agg")
+print_formula_statistics(ENFGUARD_PATH, "enfguard", "cluster")
+print_formula_statistics(ENFGUARD_PATH, "enfguard", "fun")
 
-print_log_statistics("lifeboat", "gdpr")
-print_log_statistics("lifeboat", "nokia")
-print_log_statistics("lifeboat", "ic")
-print_log_statistics("lifeboat", "agg")
-print_log_statistics("lifeboat", "cluster")
-print_log_statistics("lifeboat", "fun")
+print_log_statistics("enfguard", "gdpr")
+print_log_statistics("enfguard", "nokia")
+print_log_statistics("enfguard", "ic")
+print_log_statistics("enfguard", "agg")
+print_log_statistics("enfguard", "cluster")
+print_log_statistics("enfguard", "fun")
