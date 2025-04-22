@@ -965,7 +965,7 @@ module Make
           | `Right v -> Some v) in
     match f.form with
     | TT | FF | EqConst (_, _) -> Map.empty (module String)
-    | Predicate (r, _) -> Map.of_alist_exn (module String) [(x, [f.info])]
+    | Predicate (x, _) -> Map.of_alist_exn (module String) [(x, [f.info])]
     | Let (e, _, _, f, g) -> 
       let preds = predicates_of_formula f in
       let preds' = Map.remove (predicates_of_formula g) e in
