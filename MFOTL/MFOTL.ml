@@ -438,13 +438,13 @@ module Make
     | Predicate' (r, trms, _) ->
        Printf.sprintf "%s٭(%s)" r (Term.list_to_string trms)
     | Let (r, enftype, vars, f, g) ->
-       Printf.sprintf (Etc.paren l 4 "LET %s(%s)%s = %a IN %a") r
+       Printf.sprintf (Etc.paren l 4 "LET %s(%s)%s = %a IN\n%a") r
          (Etc.string_list_to_string (List.map ~f:string_of_opt_typed_var vars))
          (Enftype.to_string_let enftype)
          (fun _ -> to_string_rec 4) f
          (fun _ -> to_string_rec 4) g
     | Let' (r, enftype, vars, f, g) ->
-       Printf.sprintf (Etc.paren l 4 "LET %s٭(%s)%s = %a IN %a")
+       Printf.sprintf (Etc.paren l 4 "LET %s٭(%s)%s = %a IN\n%a")
          r (Etc.string_list_to_string (List.map ~f:string_of_opt_typed_var vars))
          (Enftype.to_string_let enftype)
          (fun _ -> to_string_rec 4) f
@@ -1386,7 +1386,7 @@ module Make
         | Possible c -> Printf.sprintf "Possible(%s)" (to_string c)
         | Impossible e -> Printf.sprintf "Impossible(%s)" (Errors.to_string e)
 
-      let rec solve c =
+      let rec solve c : (string, Enftype.Constraint.t, Base.String.comparator_witness) Base.Map.t list=
         let r = match c with
           | CTT -> [Map.empty (module String)]
           | CFF (*| CGeq (_, Obs)*) -> []
