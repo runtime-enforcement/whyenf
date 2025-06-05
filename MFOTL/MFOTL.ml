@@ -955,6 +955,130 @@ module Make
   let stricts ?(itl_strict=Map.empty (module String)) ?(itv=Zinterval.singleton 0) ?(fut=false) =
     List.for_all ~f:(strict ~itl_strict ~itv ~fut)
 
+  (* Monotonicity *)
+
+  let rec predicates_of_formula f =
+    let combine_str_info_maps m1 m2 =
+      Map.merge m1 m2 ~f:(fun ~key:_ -> function
+          | `Both (v1, v2) -> Some (v1 @ v2)
+          | `Left v -> Some v
+          | `Right v -> Some v) in
+    match f.form with
+    | TT | FF | EqConst (_, _) -> Map.empty (module String)
+    | Predicate (x, _) -> Map.of_alist_exn (module String) [(x, [f.info])]
+    | Let (e, _, _, f, g) -> 
+      let preds = predicates_of_formula f in
+      let preds' = Map.remove (predicates_of_formula g) e in
+      combine_str_info_maps preds preds'
+    | Neg f
+    | Agg (_, _, _, _, f)
+    | Top (_, _, _, _, f)
+    | Exists (_, f)
+    | Forall (_, f)
+    | Prev (_, f)
+    | Next (_, f)
+    | Once (_, f)
+    | Eventually (_, f)
+    | Historically (_, f)
+    | Always (_, f)
+    | Predicate' (_, _, f)
+    | Let' (_, _, _, _, f)
+    | Type (f, _) ->
+      predicates_of_formula f
+    | And (_, fs)
+    | Or (_, fs) ->
+      List.fold ~init:(Map.empty (module String)) ~f:(fun acc f -> combine_str_info_maps acc (predicates_of_formula f)) fs
+    | Imp (_, f, g)
+    | Until (_, _, f, g)
+    | Since (_, _, f, g) ->
+      let f_preds = predicates_of_formula f in
+      let g_preds = predicates_of_formula g in
+      combine_str_info_maps f_preds g_preds
+
+  let rec non_monotone_predicates ?(let_ctxt_mon: 'str_str_info_map=Map.empty (module String)) ?(let_ctxt_anti_mon: 'str_str_info_map=Map.empty (module String)) ?(init_mon: 'str_info_map=Map.empty (module String)) ?(init_anti_mon: 'str_info_map= Map.empty (module String)) f : ('str_info_map * 'str_info_map) =
+    (** computes the predicates that appear none-(anti)-monotonely in a formula f
+        along with information such as a which occurrence of a predicate is none-(anti)-monotone *)
+    (* Because f.info is 'abstract' one cannot directly access lexing positional information
+       The position information will later be extracted and combined *)
+    let combine_str_info_maps m1 m2 =
+      Map.merge m1 m2 ~f:(fun ~key:_ -> function
+          | `Both (v1, v2) -> Some (v1 @ v2)
+          | `Left v -> Some v
+          | `Right v -> Some v) in
+    match f.form with
+    | TT | FF | EqConst (_, _) -> init_mon, init_anti_mon
+    | Predicate (r, _) ->
+      let mon =
+        if Map.mem let_ctxt_mon r then
+          combine_str_info_maps init_mon (Map.find_exn let_ctxt_mon r)
+        else init_mon in
+      let anti_mon =
+        if Map.mem let_ctxt_anti_mon r then
+          combine_str_info_maps init_anti_mon (Map.find_exn let_ctxt_anti_mon r)
+        else Map.update init_anti_mon r
+              ~f:(fun info -> match info with
+                    | None -> [f.info]
+                    | Some info -> f.info :: info) in
+      mon, anti_mon
+    | Neg f ->
+      let anti_mon, mon = non_monotone_predicates
+        ~let_ctxt_mon ~let_ctxt_anti_mon
+        ~init_mon:init_anti_mon ~init_anti_mon:init_mon f in 
+        mon, anti_mon
+    | Let (e, _, _, f, g) ->
+      let f_mon, f_anti_mon =
+        non_monotone_predicates ~let_ctxt_mon ~let_ctxt_anti_mon ~init_mon ~init_anti_mon f in
+      let ctxt_mon = Map.update let_ctxt_mon e ~f:(fun _ -> f_mon) in
+      let ctxt_anti_mon = Map.update let_ctxt_anti_mon e ~f:(fun _ -> f_anti_mon) in
+      non_monotone_predicates ~let_ctxt_mon:ctxt_mon ~let_ctxt_anti_mon:ctxt_anti_mon
+        ~init_mon:f_mon ~init_anti_mon:f_anti_mon g
+    | Agg (_, _, _, _, f)
+      (* [JD] this is a conservative overestimation of which predicates
+      appear (non)-monotone in an aggregation.
+      as such it just marks all predicates that appear in the 
+      aggregation as (potentially) (non)-monotone *)
+      (* TODO[JD]: actully figure out when a predicate is (non)-monotone in an aggregation *)
+    | Top (_, _, _, _, f) ->
+      (* [JD] this is a conservative overestimation of which predicates
+      appear (non)-monotone in a table-operator.
+      as such it just marks all predicates that appear in the 
+      aggregation as (potentially) (non)-monotone *)
+      (* TODO[JD]: actully figure out when a predicate is (non)-monotone in a table-operator *)
+      let preds = predicates_of_formula f in
+      let mon = combine_str_info_maps init_mon preds in
+      let anti_mon = combine_str_info_maps init_anti_mon preds in
+      mon, anti_mon
+    | And (_, fs)
+    | Or (_, fs) ->
+      let mono_maps = List.map fs ~f:(fun f ->
+        non_monotone_predicates ~let_ctxt_mon ~let_ctxt_anti_mon ~init_mon ~init_anti_mon f) in
+      List.fold ~f:(fun (init_mon, init_anti_mon) (mon, anti_mon) ->
+        let mon = combine_str_info_maps init_mon mon in
+        let anti_mon = combine_str_info_maps init_anti_mon anti_mon in
+        mon, anti_mon) ~init:(init_mon, init_anti_mon) mono_maps
+    | Imp (_, f, g)
+    | Until (_, _, f, g)
+    | Since (_, _, f, g) ->
+      let f_mon, f_anti_mon =
+        non_monotone_predicates ~let_ctxt_mon ~let_ctxt_anti_mon ~init_mon ~init_anti_mon f in
+      let g_mon, g_anti_mon =
+        non_monotone_predicates ~let_ctxt_mon ~let_ctxt_anti_mon ~init_mon ~init_anti_mon g in
+      let mon = combine_str_info_maps f_mon g_mon in
+      let anti_mon = combine_str_info_maps f_anti_mon g_anti_mon in
+      mon, anti_mon
+    | Exists (_, f)
+    | Forall (_, f)
+    | Prev (_, f)
+    | Next (_, f)
+    | Once (_, f)
+    | Eventually (_, f)
+    | Historically (_, f)
+    | Always (_, f)
+    | Predicate' (_, _, f)
+    | Let' (_, _, _, _, f)
+    | Type (f, _) ->
+      non_monotone_predicates ~let_ctxt_mon ~let_ctxt_anti_mon ~init_mon ~init_anti_mon f
+
   (* Enforceability *)
 
   let formula_to_string = to_string
