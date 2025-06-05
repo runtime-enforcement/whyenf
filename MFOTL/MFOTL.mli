@@ -123,6 +123,16 @@ module Make
   val strict : ?itl_strict:(string, bool, Base.String.comparator_witness) Base.Map.t -> ?itv:Zinterval.t -> ?fut:bool -> t -> bool
   val stricts : ?itl_strict:(string, bool, Base.String.comparator_witness) Base.Map.t -> ?itv:Zinterval.t -> ?fut:bool -> t list -> bool
 
+   val non_monotone_predicates : ?let_ctxt_mon:(string, (string, Info.t list, Base.String.comparator_witness) Base.Map.t, Base.String.comparator_witness) Base.Map.t ->
+                                ?let_ctxt_anti_mon:(string, (string, Info.t list, Base.String.comparator_witness) Base.Map.t, Base.String.comparator_witness) Base.Map.t ->
+                                ?init_mon:(string, Info.t list, Base.String.comparator_witness) Base.Map.t ->
+                                ?init_anti_mon:(string, Info.t list, Base.String.comparator_witness) Base.Map.t ->
+                                t ->
+                                  (string, Info.t list, Base.String.comparator_witness) Base.Map.t *
+                                  (string, Info.t list, Base.String.comparator_witness) Base.Map.t
+
+   
+
   module MFOTL_Enforceability (_ : Modules.S) : sig
 
     val rank : t -> int
