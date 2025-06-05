@@ -1,25 +1,14 @@
-(*******************************************************************)
-(*     This is part of WhyEnf, and it is distributed under the     *)
-(*     terms of the GNU Lesser General Public License version 3    *)
-(*           (see file LICENSE for more details)                   *)
-(*                                                                 *)
-(*  Copyright 2023:                                                *)
-(*  Dmitriy Traytel (UCPH)                                         *)
-(*  Leonardo Lima (UCPH)                                           *)
-(*  François Hublet (ETH Zurich)                                   *)
-(*******************************************************************)
-
 open Core
 open Stdio
-open Lifeboat_lib
-open Lifeboat_lib.Global
+open Enfguard_lib
+open Enfguard_lib.Global
 
-module Lifeboat = struct
+module Enfguard = struct
 
   let lexbuf_error_msg (lexbuf: Lexing.lexbuf) =
     Printf.sprintf "a problem was found at line %d character %d"
       (lexbuf.lex_curr_p.pos_lnum) (lexbuf.lex_curr_p.pos_cnum - lexbuf.lex_curr_p.pos_bol)
-  
+
   let formula_ref = ref None
   let sig_ref = ref In_channel.stdin
   let logstr_ref = ref ""
@@ -27,7 +16,7 @@ module Lifeboat = struct
   let run debug forall monitoring log_file logstr sig_file formula_file func_file out_file json bound time_zone step statistics latex =
     if debug then Global.debug := true;
     if forall then Global.forall := true;
-    if monitoring then Global.monitoring := true;	
+    if monitoring then Global.monitoring := true;
     (match log_file with
      | Some logf -> inc_ref := In_channel.create logf
      | None -> ());
@@ -90,7 +79,7 @@ module Lifeboat = struct
 
   let command =
     Command.basic
-      ~summary:"Lifeboat: A tool for monitoring and enforcing MFOTL formulas"
+      ~summary:"EnfGuard: A tool for monitoring and enforcing MFOTL formulas"
       ~readme:(fun () -> "Processes log files against MFOTL formulas with various options.")
       (let%map_open.Command debug = flag "-debug" no_arg ~doc:" Enable debug mode"
        and forall = flag "-forall" no_arg ~doc:" Quantify free variables universally"
@@ -98,19 +87,19 @@ module Lifeboat = struct
        and log_file = flag "-log" (optional string) ~doc:"FILE Log file as trace (default: stdin)"
        and logstr = flag "-logstr" (optional string) ~doc:"STRING Log string"
        and sig_file = flag "-sig" (optional string) ~doc:"FILE Signature file"
-       and formula_file = flag "-formula" (optional string) ~doc:"FILE MFOTL formula file" 
+       and formula_file = flag "-formula" (optional string) ~doc:"FILE MFOTL formula file"
        and func_file = flag "-func" (optional string) ~doc:"FILE Python file containing function definitions"
        and out_file = flag "-out" (optional string) ~doc:"FILE Output file (default: stdout)"
-       and json = flag "-json" no_arg ~doc:" Enable JSON output" 
+       and json = flag "-json" no_arg ~doc:" Enable JSON output"
        and bound = flag "-b" (optional string) ~doc:"INT[smhdMy] Default bound for future operators (default: 0)"
        and time_zone = flag "-tz" (optional string) ~doc:"local|INT Time zone (default: local, otherwise UTC+x)"
        and step = flag "-s" (optional string) ~doc:"INT[smhdMy] Enforcement step (default: 1s)"
        and statistics = flag "-statistics" no_arg ~doc:" Print statistics about the formula"
        and latex = flag "-latex" no_arg ~doc:" Print latex code of the formula"
-       in 
+       in
        fun () ->
        run debug forall monitoring log_file logstr sig_file formula_file func_file out_file json bound time_zone step statistics latex)
-       
+
 end
 
-let () = Command_unix.run Lifeboat.command
+let () = Command_unix.run Enfguard.command

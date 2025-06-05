@@ -1,3 +1,0 @@
-examples/tests/38_month. filter=lfs diff=lfs merge=lfs -text
-examples/tests/38_month.out filter=lfs diff=lfs merge=lfs -text
-eval/enforcement/benchmarks/nokia/lifeboat/logs/ldcc_short.log filter=lfs diff=lfs merge=lfs -text

@@ -1,17 +1,17 @@
-# LIFEBOAT: a proactive real-time first-order enforcer
+# EnfGuard: a proactive real-time first-order enforcer
 
 ## Authors
 
-The LIFEBOAT enforcer is the successor of the WhyEnf enfocer, which itself shares part of its
+The EnfGuard enforcer is the successor of the WhyEnf enforcer, which itself shares part of its
 code base with the WhyMon monitoring tool.
 
-The following individuals have contributed to the development of LIFEBOAT, WhyEnf, and/or WhyMon:
+The following individuals have contributed to the development of EnfGuard, WhyEnf, and/or WhyMon:
 
-* François Hublet (ETH Zürich): LIFEBOAT (lead), WhyEnf (co-lead)
-* Leonardo Lima (University of Copenhagen): LIFEBOAT, WhyEnf (co-lead), WhyMon (lead)
-* Srđan Krstić (ETH Zürich): LIFEBOAT, WhyEnf
-* Dmitriy Traytel (University of Copenhagen): LIFEBOAT, WhyEnf, WhyMon
-* David Basin (ETH Zürich): LIFEBOAT, WhyEnf
+* François Hublet (ETH Zürich): EnfGuard (lead), WhyEnf (co-lead)
+* Leonardo Lima (University of Copenhagen): EnfGuard, WhyEnf (co-lead), WhyMon (lead)
+* Srđan Krstić (ETH Zürich): EnfGuard, WhyEnf
+* Dmitriy Traytel (University of Copenhagen): EnfGuard, WhyEnf, WhyMon
+* David Basin (ETH Zürich): EnfGuard, WhyEnf
 
 ## Getting Started
 
@@ -47,10 +47,10 @@ From the root folder, you can compile the code with
 $ dune build
 ```
 
-to obtain the executable **whyenf.exe** inside the folder [bin](bin/). Moreover, you can run one of our predefined examples with
+to obtain the executable **enfguard.exe** inside the folder [bin](bin/). Moreover, you can run one of our predefined examples with
 
 ```
-$ ./bin/whyenf.exe -sig examples/enforcement/paper/case_study/arfelt.sig -formula examples/enforcement/paper/case_study/formulae_whyenf/arfelt_2_limitation.mfotl -log examples/enforcement/paper/case_study/arfelt.log
+$ ./bin/enfguard.exe -sig examples/enforcement/paper/case_study/arfelt.sig -formula examples/enforcement/paper/case_study/formulae_whyenf/arfelt_2_limitation.mfotl -log examples/enforcement/paper/case_study/arfelt.log
 ```
 
 You can remove the binary and clean the working directory with
@@ -62,4 +62,3 @@ $ dune clean
 ## License
 
 This project and its predecessors WhyEnf and WhyMon are licensed under the GNU Lesser GPL-3.0 license - see [LICENSE](LICENSE) for details.
-
