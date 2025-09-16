@@ -389,5 +389,12 @@
         "formula": "54_fjord.mfotl",
         "log": "fjord.log",
         "output": "54_fjord.out"
+    },
+    {
+        "label": "55_rv",
+        "sig": "rv.sig",
+        "formula": "55_rv.mfotl",
+        "log": "rv.log",
+        "output": "55_rv.out"
     }
 ]
