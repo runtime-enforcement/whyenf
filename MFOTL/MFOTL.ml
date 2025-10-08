@@ -1386,7 +1386,7 @@ module Make
         | Possible c -> Printf.sprintf "Possible(%s)" (to_string c)
         | Impossible e -> Printf.sprintf "Impossible(%s)" (Errors.to_string e)
 
-      let rec solve c =
+      let rec solve c : (string, Enftype.Constraint.t, Base.String.comparator_witness) Base.Map.t list =
         let r = match c with
           | CTT -> [Map.empty (module String)]
           | CFF (*| CGeq (_, Obs)*) -> []
