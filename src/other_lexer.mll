@@ -6,7 +6,7 @@ let lexing_error lexbuf s =
   raise (Errors.ParserError (Lexing.lexeme_start_p lexbuf, Lexing.lexeme_end_p lexbuf, s))
 
 let lexbuf_error_msg (lexbuf: Lexing.lexbuf) =
-  Printf.sprintf "a problem was found at line %d character %d"
+  Printf.sprintf "lexer error: a problem was found at line %d character %d"
     (lexbuf.lex_curr_p.pos_lnum) (lexbuf.lex_curr_p.pos_cnum - lexbuf.lex_curr_p.pos_bol) 
 
 }
@@ -20,7 +20,7 @@ let letter = uc | lc
 let digit = ['0'-'9']
 
 let digits = ['0'-'9']+
-let string = (letter | digit | '_' | '!' | '.' | '-')+
+let string = (letter | digit | '_' | '!' | '.' | '-')+ '\''*
 (*let string = (letter | digit | '_' | '[' | ']' | '/' | '-' | '.' | '!' | ':' | '"')+ *)
 let quoted_string = ([^ '"' '\\'] | '\\' _)*
 

@@ -561,6 +561,7 @@ let compile (f: Formula.t) (b: Time.Span.s) : Tformula.t =
   let open Tyformula.MFOTL_Enforceability(Sig) in
   (* Applying alpha conversion to obtain unique variable names *)
   let f = Formula.convert_vars f in
+  print_endline (Formula.to_string f);
   (* Typing terms: Formula.t -> Tyformula.t *)
   let tyf = Tyformula.of_formula' f in
   (* If monitoring, do f -> FORALL x_1, ..., x_k. f IMPLIES violation(x_1, ..., x_k) *)

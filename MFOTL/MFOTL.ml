@@ -1387,6 +1387,7 @@ module Make
         | Impossible e -> Printf.sprintf "Impossible(%s)" (Errors.to_string e)
 
       let rec solve c =
+        (*Stdio.print_endline ("solve(" ^  (to_string c) ^ ")");*)
         let r = match c with
           | CTT -> [Map.empty (module String)]
           | CFF (*| CGeq (_, Obs)*) -> []
@@ -1394,6 +1395,7 @@ module Make
           | CLeq (s, t) -> [Map.singleton (module String) s (upper t)]
           | CConj [] -> [Map.empty (module String)]
           | CConj (c::cs) ->
+             (*Stdio.print_endline ("CConj(" ^ string_of_int (List.length (c::cs)) ^ ")");*)
              let f sol d = List.filter_map (cartesian sol (solve d)) ~f:try_merge in
              List.fold_left cs ~init:(solve c) ~f
           | CDisj cs -> List.concat_map cs ~f:solve
@@ -1405,16 +1407,19 @@ module Make
     (* Predicate e must have enftype at least t, at most its type in ts, and not be CauSup*)
     let types_predicate_lower (ts: t_map) (t: Enftype.t) (e: string) =
       let t' = fst (Map.find_exn ts e) in
-      (*print_endline ("types_predicate t''=" ^ Enftype.to_string t'' ^ " (t'' >= Obs)="  ^ (if Enftype.geq t'' Enftype.obs then "true" else "false"));*)
       if Enftype.geq t' t then
         Constraints.Possible (CConj [Constraints.geq e t; Constraints.leq e t'])
       else
         Constraints.Impossible (ECast (e, t', t))
 
-    (* Predicate e must be strict *)
+    (* Predicate e must be strict; only add the constraint if the event is more than obs *)
     let types_predicate_strict (ts: t_map) (e: string) =
       let t' = fst (Map.find_exn ts e) in
-      Constraints.Possible (Constraints.leq e (Enftype.meet t' Enftype.sct))
+      let t' = Enftype.meet t' Enftype.sct in
+      if Enftype.leq t' Enftype.obs then
+        Constraints.Possible CTT
+      else
+        Constraints.Possible (Constraints.leq e t')
 
     let terms_are_strict trms =
       List.for_all (Term.fn_list trms) ~f:(fun name -> Sig.strict_of_func name)
@@ -1896,6 +1901,7 @@ module Make
       | Possible c ->
          begin
            let c = Constraints.ac_simplify c in
+           (*print_endline (Constraints.to_string c);*)
            match Constraints.solve c with
            | sol::_ ->
               begin
