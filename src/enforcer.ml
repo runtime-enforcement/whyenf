@@ -252,8 +252,8 @@ module EState = struct
 
   and enfsat (mformula: MFormula.t) v es : t =
     (*print_endline ("--enfsat");
-    print_endline ("mformula=" ^ MFormula.value_to_string mformula);
-    print_endline ("v=" ^ Etc.valuation_to_string v);*)
+    print_endline ("mformula=" ^ MFormula.value_to_string mformula);*)
+    (*print_endline ("v=" ^ Etc.valuation_to_string v);*)
     (*print_endline ("db=" ^ Db.to_string (es.db));*)
       (*print_endline ("es=" ^ to_string es);*)
     (*print_endline ("filter=" ^ Formula.Filter.to_string mformula.filter);*)
@@ -315,14 +315,13 @@ module EState = struct
     | MAnd (LR, _, _) ->
        raise (Errors.EnforcementError
                 (Printf.sprintf "side for %s was not fixed" (MFormula.to_string mformula)))
-    | _ -> print_endline (MFormula.to_string mformula);
-           raise (Errors.EnforcementError
+    | _ -> raise (Errors.EnforcementError
                     (Printf.sprintf "function enfsat is not defined for %s"
                        (MFormula.op_to_string mformula)))
   and enfvio (mformula: MFormula.t) v es =
     (*print_endline "--enfvio";
-    print_endline ("mformula=" ^ MFormula.value_to_string mformula);
-    print_endline ("v=" ^ Etc.valuation_to_string v);*)
+    print_endline ("mformula=" ^ MFormula.value_to_string mformula);*)
+    (*print_endline ("v=" ^ Etc.valuation_to_string v);*)
     (*print_endline ("es=" ^ to_string es);*)
     match mformula.mf with
     | _ when can_skip es mformula -> es
@@ -561,7 +560,6 @@ let compile (f: Formula.t) (b: Time.Span.s) : Tformula.t =
   let open Tyformula.MFOTL_Enforceability(Sig) in
   (* Applying alpha conversion to obtain unique variable names *)
   let f = Formula.convert_vars f in
-  print_endline (Formula.to_string f);
   (* Typing terms: Formula.t -> Tyformula.t *)
   let tyf = Tyformula.of_formula' f in
   (* If monitoring, do f -> FORALL x_1, ..., x_k. f IMPLIES violation(x_1, ..., x_k) *)
