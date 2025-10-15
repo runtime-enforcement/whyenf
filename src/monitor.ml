@@ -1237,7 +1237,10 @@ module MFormula = struct
          let sy   = Etc.reorder_subset ~equal:String.equal (s@y) fvs in
          let fvs' = Etc.reorder_subset ~equal:String.equal (Set.elements (fv f)) y in
          map1 fvs' f (fun f -> MTop (s, op, op_fun, x, y, f)) (fun _ -> List.map ~f:Lbl.var sy)
-      | MEqConst (t, _) -> with_lbls mf [Lbl.of_term t]
+      | MEqConst (t, _) ->
+         (match t.trm with
+          | Term.Const _ -> with_lbls mf []
+          | _ -> with_lbls mf [Lbl.of_term t])
       | MPredicate (_, ts) ->
          with_lbls mf (order_lbls (List.map (List.filter ~f:(fun t -> not (Term.is_const t)) ts)
                                      ~f:Lbl.of_term) fvs true)
