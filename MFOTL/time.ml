@@ -190,7 +190,9 @@ module Span  = struct
     let is_zero (u, o) = U.is_zero u && Int.equal o 0
     let is_one (u, o) = U.is_one u && Int.equal o 0
     let of_string s = (U.of_string s, 0)
-    let to_string (u, o) = Printf.sprintf "%s+%ss" (U.to_string u) (string_of_int o)
+    let to_string (u, o) =
+      if o = 0 then U.to_string u
+      else Printf.sprintf "%s+%ss" (U.to_string u) (string_of_int o)
 
   end
 
