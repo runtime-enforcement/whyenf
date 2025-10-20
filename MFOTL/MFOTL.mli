@@ -113,6 +113,7 @@ module Make
   val convert_vars : t -> t
   val convert_lets : t -> t
   val unroll_let : t -> t
+  val unprime : t -> t
   val ac_simplify : t -> t
 
   val relative_interval : ?itl_itvs:(string, Zinterval.t, Base.String.comparator_witness) Base.Map.t -> t -> Zinterval.t
@@ -147,6 +148,7 @@ module Make
         | ERule of string [@@deriving equal]
 
       val to_string : ?n:int -> error -> string
+      val ac_simplify: error -> error
 
     end
         

@@ -140,16 +140,17 @@ module Make (Dom : D) = struct
       else Map.add_exn uf ~key ~data:(Root (root_of_ttt ttt))
 
     let rec repr uf key =
-      match Map.find_exn uf key with
-      | Child key' -> let uf, root = repr uf key' in
-                      (Map.update uf key ~f:(fun _ -> Child root)), root
-      | Root _ -> uf, key
+      match Map.find uf key with
+      | Some (Child key') ->
+         let uf, root = repr uf key' in
+         (Map.update uf key ~f:(fun _ -> Child root)), root
+      | _ -> uf, key
 
     let find (uf: t) (key: string) : t * ttt =
       let uf, rkey = repr uf key in
-      match Map.find_exn uf rkey with
-      | Root ttt -> uf, ttt_of_root ~rkey ttt
-      | _ -> assert false (* dead code *) 
+      match Map.find uf rkey with
+      | Some (Root ttt) -> uf, ttt_of_root ~rkey ttt
+      | _ -> uf, TVar key
  
     let union ~(unify:(ttt -> ttt -> t -> t * ttt)) (uf: t) (key1: string) (key2: string) : t =
       let uf, rkey1 = repr uf key1 in
