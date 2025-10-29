@@ -75,9 +75,10 @@ module Make (Var : V) (Dom : D) (Uop : O) (Bop : O) (Info : I) = struct
       | Binop (l, b, r), Binop (l', b', r') -> core_equal l l' && Bop.equal b b' && core_equal r r'
       | Proj (trm, a), Proj (trm', a') -> core_equal trm trm' && String.equal a a'
       | Record kvs, Record kvs' ->
-         match List.for_all2 kvs kvs' ~f:(fun (k, v) (k', v') -> String.equal k k' && core_equal v v') with
-         | Ok b -> b
-         | _ -> false
+         (match List.for_all2 kvs kvs' ~f:(fun (k, v) (k', v') -> String.equal k k' && core_equal v v') with
+          | Ok b -> b
+          | _ -> false)
+      | _ -> false
 
     let make trm info = { trm; info }
     let make_dummy trm = make trm Info.dummy
