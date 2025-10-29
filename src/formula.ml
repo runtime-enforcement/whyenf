@@ -78,6 +78,7 @@ let rec init sf : t =
     | SBtop (s_opt, i, t, Btop.BUntil, u) -> until (side s_opt) i (init t) (init u)
     | SBtop (s_opt, i, t, Btop.BRelease, u) -> release (side s_opt) i (init t) (init u) dummy dummy dummy
     | SBtop (s_opt, i, t, Btop.BTrigger, u) -> trigger (side s_opt) i (init t) (init u) dummy dummy dummy
+    | SLabel (s, t)                     -> label s (init t)
     | sf ->
        raise (Errors.FormulaError
                 (Printf.sprintf "Expression %s is not a valid MFOTL formula"

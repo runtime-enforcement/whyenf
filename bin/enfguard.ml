@@ -13,10 +13,12 @@ module Enfguard = struct
   let sig_ref = ref In_channel.stdin
   let logstr_ref = ref ""
 
-  let run debug forall monitoring log_file logstr sig_file formula_file func_file out_file json bound time_zone step statistics latex =
+  let run debug forall monitoring log_file logstr sig_file formula_file func_file out_file json bound time_zone step statistics latex label simplify =
     if debug then Global.debug := true;
     if forall then Global.forall := true;
     if monitoring then Global.monitoring := true;
+    if label then Global.label := true;
+    if simplify then Global.simplify := true;
     (match log_file with
      | Some logf -> inc_ref := In_channel.create logf
      | None -> ());
@@ -65,6 +67,10 @@ module Enfguard = struct
            then Sformula.SExists (xs, sformula)
            else sformula in
          let formula = Formula.init sformula in
+         let formula =
+           if label
+           then formula
+           else Formula.erase_label formula in
          if statistics then
            Formula.print_statistics formula
          else if latex then
@@ -96,9 +102,11 @@ module Enfguard = struct
        and step = flag "-s" (optional string) ~doc:"INT[smhdMy] Enforcement step (default: 1s)"
        and statistics = flag "-statistics" no_arg ~doc:" Print statistics about the formula"
        and latex = flag "-latex" no_arg ~doc:" Print latex code of the formula"
+       and label = flag "-label" no_arg ~doc:" Report labels of enforcement actions"
+       and simplify = flag "-simplify" no_arg ~doc:" Simplify the formula"
        in
        fun () ->
-       run debug forall monitoring log_file logstr sig_file formula_file func_file out_file json bound time_zone step statistics latex)
+       run debug forall monitoring log_file logstr sig_file formula_file func_file out_file json bound time_zone step statistics latex label simplify)
 
 end
 

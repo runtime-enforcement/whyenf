@@ -33,13 +33,16 @@ module Make
     | Since of Side.t * Interval.t * ('i, 'v, 'd, 't) _t * ('i, 'v, 'd, 't) _t
     | Until of Side.t * Interval.t * ('i, 'v, 'd, 't) _t * ('i, 'v, 'd, 't) _t
     | Type of ('i, 'v, 'd, 't) _t * Enftype.t
-                                      [@@deriving compare, sexp_of, hash, equal]
+    | Label of string * ('i, 'v, 'd, 't) _t
+                          [@@deriving compare, sexp_of, hash, equal]
 
   and ('i, 'v, 'd, 't) _t = { form : ('i, 'v, 'd, 't) _core_t; info : 'i}
                               [@@deriving compare, sexp_of, hash, equal]
 
   type core_t = (Info.t, Var.t, Dom.t, Term.t) _core_t [@@deriving compare, sexp_of, hash, equal]
   type t      = (Info.t, Var.t, Dom.t, Term.t) _t      [@@deriving compare, sexp_of, hash, equal]
+
+  val core_equal : t -> t -> bool
 
   type typed_info = {
       info : Info.t;
@@ -81,6 +84,7 @@ module Make
   val since: Side.t -> Interval.t -> t -> t -> core_t
   val until: Side.t -> Interval.t -> t -> t -> core_t
   val ftype: t -> Enftype.t -> core_t
+  val label: string -> t -> core_t
   
   val exists_of_agg: Var.t list -> t -> (Var.t -> t -> Info.t) -> t
 
@@ -113,7 +117,10 @@ module Make
   val convert_vars : t -> t
   val convert_lets : t -> t
   val unroll_let : t -> t
+  val unprime : t -> t
+  val erase_label : t -> t
   val ac_simplify : t -> t
+  val simplify : t -> t
 
   val relative_interval : ?itl_itvs:(string, Zinterval.t, Base.String.comparator_witness) Base.Map.t -> t -> Zinterval.t
   val relative_intervals : ?itl_itvs:(string, Zinterval.t, Base.String.comparator_witness) Base.Map.t -> t list -> Zinterval.t
@@ -190,7 +197,7 @@ module Make
 
     val types : ?itl_itvs:(string, Zinterval.t, String.comparator_witness) Map.t -> ?itl_strict:(string, bool, String.comparator_witness) Map.t -> ?itl_observable:(string, bool, String.comparator_witness) Map.t -> Enftype.t -> pg_map -> t -> Constraints.verdict
     val convert : Interval.v -> Enftype.t -> t -> typed_t option
-    val do_type : t -> Time.Span.s -> typed_t
+    val do_type : ?simp:bool -> t -> Time.Span.s -> typed_t
     val strictly_relative_past : ?itl_itvs:(string, Zinterval.t, String.comparator_witness) Map.t -> ?itl_strict:(string, bool, String.comparator_witness) Map.t -> ?itl_observable:(string, bool, String.comparator_witness) Map.t -> ('i, Var.t, Dom.t, Term.t) _t -> bool
     val is_transparent: typed_t -> bool
 

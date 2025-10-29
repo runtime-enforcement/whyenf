@@ -37,7 +37,8 @@ module Make
     | Since of Side.t * Interval.t * ('i, 'v, 'd, 't) _t * ('i, 'v, 'd, 't) _t
     | Until of Side.t * Interval.t * ('i, 'v, 'd, 't) _t * ('i, 'v, 'd, 't) _t
     | Type of ('i, 'v, 'd, 't) _t * Enftype.t
-                                      [@@deriving compare, sexp_of, hash, equal]
+    | Label of string * ('i, 'v, 'd, 't) _t
+                          [@@deriving compare, sexp_of, hash, equal]
 
   and ('i, 'v, 'd, 't) _t = { form : ('i, 'v, 'd, 't) _core_t; info : 'i}
                               [@@deriving compare, sexp_of, hash, equal]
@@ -46,6 +47,47 @@ module Make
 
   type core_t = (Info.t, Var.t, Dom.t, Term.t) _core_t [@@deriving compare, sexp_of, hash, equal]
   type t      = (Info.t, Var.t, Dom.t, Term.t) _t      [@@deriving compare, sexp_of, hash, equal]
+
+  let rec core_equal (f: t) (g: t) =
+    let fa x y ~f = match List.for_all2 x y ~f with Ok b -> b | _ -> false in
+    match f.form, g.form with
+    | Predicate' (_, _, f), _ -> core_equal f g
+    | _, Predicate' (_, _, g) -> core_equal f g
+    | Let' (_, _, _, _, f), _ -> core_equal f g
+    | _, Let' (_, _, _, _, g) -> core_equal f g 
+    | TT, TT
+    | FF, FF -> true
+    | EqConst (trm, d), EqConst (trm', d') -> Term.core_equal trm trm' && Dom.equal d d'
+    | Predicate (e, trms), Predicate (e', trms') ->
+       String.equal e e' && fa trms trms' ~f:Term.core_equal
+    | Let (e, enftype, trms, f, g), Let (e', enftype', trms', f', g') ->
+       String.equal e e' && Enftype.equal enftype enftype'
+       && fa trms trms' ~f:(fun (x, _) (x', _) -> Var.equal_ident x x')
+       && core_equal f f' && core_equal g g'
+    | Agg (x, op, y, z, f), Agg (x', op', y', z', f') ->
+       Var.equal_ident x x' && Aggregation.equal_op op op' && Term.core_equal y y'
+       && fa z z' ~f:Var.equal_ident && core_equal f f'
+    | Top (x, op, y, z, f), Top (x', op', y', z', f') ->
+       fa x x' ~f:Var.equal && String.equal op op' && fa y y' ~f:Term.equal
+       && fa z z' ~f:Var.equal && core_equal f f'
+    | Neg f, Neg f' -> core_equal f f'
+    | And (s, fs), And (s', fs')
+    | Or (s, fs), Or (s', fs') -> Side.equal s s' && fa fs fs' ~f:core_equal
+    | Imp (s, f, g), Imp (s', f', g') -> Side.equal s s' && core_equal f f' && core_equal g g'
+    | Exists (x, f), Exists (x', f')
+    | Forall (x, f), Forall (x', f') -> Var.equal_ident x x' && core_equal f f'
+    | Prev (i, f), Prev (i', f')
+    | Next (i, f), Next (i', f')
+    | Once (i, f), Once (i', f')
+    | Eventually (i, f), Eventually (i', f')
+    | Historically (i, f), Historically (i', f')
+    | Always (i, f), Always (i', f') -> Interval.equal i i' && core_equal f f'
+    | Since (s, i, f, g), Since (s', i', f', g')
+    | Until (s, i, f, g), Until (s', i', f', g') ->
+       Side.equal s s' && Interval.equal i i' && core_equal f f' && core_equal g g'
+    | Type (f, enftype), Type (f', enftype') -> core_equal f f' && Enftype.equal enftype enftype'
+    | Label (s, f), Label (s', f') -> String.equal s s' && core_equal f f'
+    | _, _ -> false
 
   (* Abstract MFOTL+ formulae with enforcement types *)
 
@@ -99,6 +141,7 @@ module Make
       | Since (s, i, mf, mg) -> Since (s, i, map_info ~f mf, map_info ~f mg)
       | Until (s, i, mf, mg) -> Until (s, i, map_info ~f mf, map_info ~f mg)
       | Type (mf, ty) -> Type (map_info ~f mf, ty)
+      | Label (s, mf) -> Label (s, map_info ~f mf)
     in { form; info = f formula.info }
 
   let untyped = map_info ~f:(fun info -> info.info)
@@ -122,7 +165,8 @@ module Make
       | Eventually (_, f)
       | Always (_, f)
       | Next (_, f)
-      | Type (f, _) -> fv f
+      | Type (f, _)
+      | Label (_, f) -> fv f
     | Agg (s, _, _, y, _) -> Set.of_list (module Var) (s::y)
     | Top (s, _, _, y, _) -> Set.of_list (module Var) (s@y)
     | Exists (x, f)
@@ -156,7 +200,8 @@ module Make
       | Eventually (_, f)
       | Always (_, f)
       | Next (_, f)
-      | Type (f, _) -> terms f
+      | Type (f, _)
+      | Label (_, f) -> terms f
     | And (_, fs)
       | Or (_, fs) -> Set.union_list (module Term) (List.map fs ~f:terms)
     | Imp (_, f1, f2)
@@ -182,7 +227,8 @@ module Make
       | Always(_, f) 
       | Agg (_, _, _, _, f)
       | Top (_, _, _, _, f)
-      | Type (f, _) -> predicates f
+      | Type (f, _)
+      | Label (_, f) -> predicates f
     | Imp (_, f, g)
       | Since (_, _, f, g)
       | Until (_, _, f, g) -> predicates f @ predicates g
@@ -206,6 +252,7 @@ module Make
       | Historically (_, f)
       | Always (_, f)
       | Type (f, _)
+      | Label (_, f)
       | Agg (_, _, _, _, f)
       | Top (_, _, _, _, f)
       | Let (_, _, _, _, f) -> deg f
@@ -232,6 +279,7 @@ module Make
       | Historically (_, f)
       | Always (_, f)
       | Type (f, _)
+      | Label (_, f)
       | Agg (_, _, _, _, f)
       | Top (_, _, _, _, f) -> 1 + size f
     | Imp (_, f, g)
@@ -260,6 +308,7 @@ module Make
           | Historically (_, f)
           | Always (_, f)
           | Type (f, _)
+          | Label (_, f)
           | Agg (_, _, _, _, f)
           | Top (_, _, _, _, f)
           | Let (_, _, _, _, f) -> exists_subformula ~f_term ~f_fun f
@@ -297,6 +346,7 @@ module Make
   let since s i f g = Since (s, i, f, g)
   let until s i f g = Until (s, i, f, g)
   let ftype f ty = Type (f, ty)
+  let label s f = Label (s, f)
 
   (* Function constructors for non-native operators *)
 
@@ -353,7 +403,8 @@ module Make
       | Imp (s, f1, f2) -> Imp (s, subst v f1, subst v f2)
       | Since (s, i, f1, f2) -> Since (s, i, subst v f1, subst v f2)
       | Until (s, i, f1, f2) -> Until (s, i, subst v f1, subst v f2)
-      | Type (f, ty) -> Type (subst v f, ty) in
+      | Type (f, ty) -> Type (subst v f, ty)
+      | Label (s, f) -> Label (s, subst v f) in
     { ff with form }
 
   (* Mapping of constants in terms *)
@@ -386,7 +437,8 @@ module Make
       | Imp (s, f1, f2) -> Imp (s, map_consts ~f f1, map_consts ~f f2)
       | Since (s, i, f1, f2) -> Since (s, i, map_consts ~f f1, map_consts ~f f2)
       | Until (s, i, f1, f2) -> Until (s, i, map_consts ~f f1, map_consts ~f f2)
-      | Type (f', ty) -> Type (map_consts ~f f', ty) in
+      | Type (f', ty) -> Type (map_consts ~f f', ty) 
+      | Label (s, f') -> Label (s, map_consts ~f f') in
     { ff with form }
 
   (* Printing *)
@@ -417,6 +469,7 @@ module Make
     | Since (_, i, _, _) -> Printf.sprintf "S%s" (Interval.to_string i)
     | Until (_, i, _, _) -> Printf.sprintf "U%s" (Interval.to_string i)
     | Type _ -> Printf.sprintf ":"
+    | Label (s, _) -> Printf.sprintf "{%s}" s
 
   let string_of_opt_typed_var = function
     | (s, None) -> Var.to_string s
@@ -527,6 +580,9 @@ module Make
        Printf.sprintf (Etc.paren l 0 "%a : %s")
          (fun _ -> to_string_rec 0) f
          (Enftype.to_string ty)
+    | Label (s, f) ->
+       Printf.sprintf "{\"%s\"}{%a}" s
+         (fun _ -> to_string_rec 0) f
 
   let rec to_string_rec l f =
     Info.to_string l (to_string_core_rec to_string_rec l f.form) f.info
@@ -642,6 +698,11 @@ module Make
        Printf.sprintf (Etc.paren l 0 "%a : %s")
          (fun _ -> to_latex_rec 0) f
          (Enftype.to_string ty)
+    | Label (s, f) ->
+       Printf.sprintf "\\{\"%s\"\\}\\{%a\\}" s
+         (fun _ -> to_string_rec 0) f
+       
+
 
   let rec to_latex_rec l f =
     Info.to_string l (to_latex_core_rec to_latex_rec l f.form) f.info
@@ -687,9 +748,72 @@ module Make
         | Since (s, i, f, g) -> Since (s, i, aux v f, aux v g)
         | Until (s, i, f, g) -> Until (s, i, aux v f, aux v g)
         | Type (f, ty) -> Type (aux v f, ty)
+        | Label (s, f) -> Label (s, aux v f)
         | Predicate' _ | Let' _ -> raise (FormulaError ("Cannot unroll Predicate' or Let'"))
       in { f with form }
     in aux (Map.empty (module String))
+
+  let rec unprime f =
+    let form = match f.form with
+      | TT -> TT
+      | FF -> FF
+      | EqConst (x, c) -> EqConst (x, c)
+      | Predicate (r, trms) -> Predicate (r, trms)
+      | Let (r, enftype, vars, f, g) -> Let (r, enftype, vars, unprime f, unprime g)
+      | Agg (s, op, x, y, f) -> Agg (s, op, x, y, unprime f)
+      | Top (s, op, x, y, f) -> Top (s, op, x, y, unprime f)
+      | Neg f -> Neg (unprime f)
+      | And (s, fs) -> And (s, List.map ~f:unprime fs)
+      | Or (s, fs) -> Or (s, List.map ~f:unprime fs)
+      | Imp (s, f, g) -> Imp (s, unprime f, unprime g)
+      | Exists (x, f) -> Exists (x, unprime f)
+      | Forall (x, f) -> Forall (x, unprime f)
+      | Prev (i, f) -> Prev (i, unprime f)
+      | Next (i, f) -> Next (i, unprime f)
+      | Once (i, f) -> Once (i, unprime f)
+      | Eventually (i, f) -> Eventually (i, unprime f)
+      | Historically (i, f) -> Historically (i, unprime f)
+      | Always (i, f) -> Always (i, unprime f)
+      | Since (s, i, f, g) -> Since (s, i, unprime f, unprime g)
+      | Until (s, i, f, g) -> Until (s, i, unprime f, unprime g)
+      | Type (f, ty) -> Type (unprime f, ty)
+      | Label (_, f) -> (unprime f).form
+      | Let' (_, _, _, _, g)
+        | Predicate' (_, _, g) -> (unprime g).form 
+    in { f with form }
+
+  (* Erasure of labels *)
+
+  let erase_label =
+     let rec aux f =
+      let form = match f.form with
+        | TT -> TT
+        | FF -> FF
+        | EqConst (x, c) -> EqConst (x, c)
+        | Predicate (r, trms) -> Predicate (r, trms)
+        | Let (r, enftype, vars, f, g) -> Let (r, enftype, vars, aux f, aux g)
+        | Agg (s, op, x, y, f) -> Agg (s, op, x, y, aux f)
+        | Top (s, op, x, y, f) -> Top (s, op, x, y, aux f)
+        | Neg f -> Neg (aux f)
+        | And (s, fs) -> And (s, List.map ~f:(aux) fs)
+        | Or (s, fs) -> Or (s, List.map ~f:(aux) fs)
+        | Imp (s, f, g) -> Imp (s, aux f, aux g)
+        | Exists (x, f) -> Exists (x, aux f)
+        | Forall (x, f) -> Forall (x, aux f)
+        | Prev (i, f) -> Prev (i, aux f)
+        | Next (i, f) -> Next (i, aux f)
+        | Once (i, f) -> Once (i, aux f)
+        | Eventually (i, f) -> Eventually (i, aux f)
+        | Historically (i, f) -> Historically (i, aux f)
+        | Always (i, f) -> Always (i, aux f)
+        | Since (s, i, f, g) -> Since (s, i, aux f, aux g)
+        | Until (s, i, f, g) -> Until (s, i, aux f, aux g)
+        | Type (f, ty) -> Type (aux f, ty)
+        | Label (s, f) -> (aux f).form
+        | Predicate' (r, trms, f) -> Predicate' (r, trms, aux f)
+        | Let' (r, enftype, trms, f, g) -> Let' (r, enftype, trms, aux f, aux g)
+      in { f with form }
+    in aux
 
   (* Alpha-convert vars to remove shadowing *)
 
@@ -770,6 +894,7 @@ module Make
         | Since (s, i, f, g) -> (fun f -> (fun g -> return (Since (s, i, f, g))) >>= (aux g)) >>= (aux f)
         | Until (s, i, f, g) -> (fun f -> (fun g -> return (Until (s, i, f, g))) >>= (aux g)) >>= (aux f)
         | Type (f, ty) -> (fun f -> return (Type (f, ty))) >>= (aux f)
+        | Label (s, f) -> (fun f -> return (Label (s, f))) >>= (aux f)
       in let form, b = g i v in
          (*Stdio.print_endline (to_string f);
          Stdio.print_endline (Etc.list_to_string "" (fun _ (var, term) -> Var.to_string var ^ " -> " ^ Term.to_string term) (Map.to_alist v));
@@ -828,6 +953,7 @@ module Make
         | Since (s, i, f, g) -> (fun f -> (fun g -> return (Since (s, i, f, g))) >>= (aux v g)) >>= (aux v f)
         | Until (s, i, f, g) -> (fun f -> (fun g -> return (Until (s, i, f, g))) >>= (aux v g)) >>= (aux v f)
         | Type (f, ty) -> (fun f -> Type (f, ty)) >>| (aux v f)
+        | Label (s, f) -> (fun f -> Label (s, f)) >>| (aux v f)
       in let form, b = g i in { f with form }, b
     in fst (aux (Map.empty (module String)) f (Map.empty (module String)))
 
@@ -844,20 +970,28 @@ module Make
     | Agg (s, op, x, y, f) -> Agg (s, op, x, y, ac_simplify f)
     | Top (s, op, x, y, f) -> Top (s, op, x, y, ac_simplify f)
     | Neg f -> Neg f
-    | And (s, fs) ->
+    | And (s, fs) -> 
        let fs = List.map fs ~f:ac_simplify in
        let f fs f' = match f'.form with
          | And (s', fs') when Side.equal s s' -> fs @ fs'
+         | TT -> fs
          | _ -> fs @ [f'] in
        let fs = List.fold_left fs ~init:[] ~f in
-       And (s, fs)
+       if List.exists fs ~f:(fun f' -> match f'.form with FF -> true | _ -> false)
+       then FF
+       else if List.length fs = 1 then (List.hd_exn fs).form
+       else And (s, fs)
     | Or (s, fs) ->
        let fs = List.map fs ~f:ac_simplify in
        let f fs f' = match f'.form with
          | Or (s', fs') when Side.equal s s' -> fs @ fs'
+         | FF -> fs
          | _ -> fs @ [f'] in
        let fs = List.fold_left fs ~init:[] ~f in
-       Or (s, fs)
+       if List.exists fs ~f:(fun f' -> match f'.form with TT -> true | _ -> false)
+       then TT
+       else if List.length fs = 1 then (List.hd_exn fs).form
+       else Or (s, fs)
     | Imp (s, f, g) -> Imp (s, ac_simplify f, ac_simplify g)
     | Exists (x, f) -> Exists (x, ac_simplify f)
     | Forall (x, f) -> Forall (x, ac_simplify f)
@@ -870,9 +1004,65 @@ module Make
     | Since (s, i, f, g) -> Since (s, i, ac_simplify f, ac_simplify g)
     | Until (s, i, f, g) -> Until (s, i, ac_simplify f, ac_simplify g)
     | Type (f, ty) -> Type (ac_simplify f, ty)
+    | Label (s, f) -> Label (s, ac_simplify f)
 
   and ac_simplify f =
     { f with form = ac_simplify_core f.form }
+
+  (* Simplification *)
+
+  let rec and_simplify_core ?(pos: t list = []) (f: t) =
+    print_endline ("and_simplify_core f=" ^ to_string f ^ " pos=" ^ String.concat ~sep:", " (List.map ~f:to_string pos));
+    match List.mem pos f ~equal:core_equal with
+    | true -> print_endline "simplify!"; TT
+    | _ -> 
+       match f.form with
+       | TT -> TT
+       | FF -> FF
+       | EqConst (x, v) -> EqConst (x, v)
+       | Predicate (e, t) -> Predicate (e, t)
+       | Predicate' (e, t, f) -> Predicate' (e, t, f)
+       | Let (r, enftype_opt, vars, f, g) -> Let (r, enftype_opt, vars, and_simplify ~pos f, and_simplify ~pos g)
+       | Let' (r, enftype_opt, vars, f, g) -> Let' (r, enftype_opt, vars, and_simplify ~pos f, and_simplify ~pos g)
+       | Agg (s, op, x, y, f) -> Agg (s, op, x, y, and_simplify ~pos f)
+       | Top (s, op, x, y, f) -> Top (s, op, x, y, and_simplify ~pos f)
+       | Neg f -> Neg (and_simplify ~pos f)
+       | And (s, fs) -> 
+          let f fs f' = fs @ [and_simplify ~pos:(pos @ fs) f'] in
+          let fs = List.fold_left fs ~init:[] ~f in
+          if List.exists fs ~f:(fun f' -> match f'.form with FF -> true | _ -> false)
+          then FF
+          else if List.length fs = 1 then (List.hd_exn fs).form
+          else And (s, fs)
+       | Or (s, fs) ->
+          let f fs f' = fs @ [and_simplify ~pos:(pos @ fs) f'] in
+          let fs = List.fold_left fs ~init:[] ~f in
+          if List.exists fs ~f:(fun f' -> match f'.form with TT -> true | _ -> false)
+          then TT
+          else if List.length fs = 1 then (List.hd_exn fs).form
+          else Or (s, fs)
+       | Imp (s, f, g) -> Imp (s, and_simplify ~pos f, and_simplify ~pos g)
+       | Exists (x, f) -> Exists (x, and_simplify ~pos f)
+       | Forall (x, f) -> Forall (x, and_simplify ~pos f)
+       | Prev (i, f) -> Prev (i, and_simplify ~pos f)
+       | Next (i, f) -> Next (i, and_simplify ~pos f)
+       | Once (i, f) -> Once (i, and_simplify ~pos f)
+       | Eventually (i, f) -> Eventually (i, and_simplify ~pos f)
+       | Historically (i, f) -> Historically (i, and_simplify ~pos f)
+       | Always (i, f) -> Always (i, and_simplify ~pos f)
+       | Since (s, i, f, g) -> Since (s, i, and_simplify ~pos f, and_simplify ~pos g)
+       | Until (s, i, f, g) -> Until (s, i, and_simplify ~pos f, and_simplify ~pos g)
+       | Type (f, ty) -> Type (and_simplify ~pos f, ty)
+       | Label (s, f) -> Label (s, and_simplify ~pos f)
+
+  and and_simplify ?(pos: t list = []) (f: t) =
+    { f with form = and_simplify_core ~pos f }
+
+  let simplify (f : t) =
+    f
+    |> ac_simplify
+    |> and_simplify
+    |> ac_simplify
 
   (* Relative interval *)
   
@@ -887,7 +1077,7 @@ module Make
          | None -> Zinterval.singleton 0
          end
       | Neg f | Exists (_, f) | Forall (_, f) | Agg (_, _, _, _, f)
-        | Top (_, _, _, _, f) | Predicate' (_, _, f) | Let' (_, _, _, _, f) | Type (f, _)
+        | Top (_, _, _, _, f) | Predicate' (_, _, f) | Let' (_, _, _, _, f) | Type (f, _) | Label (_, f)
         -> relative_interval f
       | Imp (_, f1, f2)
         -> Zinterval.lub (relative_interval f1) (relative_interval f2)
@@ -934,7 +1124,8 @@ module Make
              | None -> false
              end
           | Neg f | Exists (_, f) | Forall (_, f) | Agg (_, _, _, _, f)
-            | Top (_, _, _, _, f) | Predicate' (_, _, f) | Let' (_, _, _, _, f) | Type (f, _) -> _strict itv fut f
+            | Top (_, _, _, _, f) | Predicate' (_, _, f) | Let' (_, _, _, _, f)
+            | Type (f, _) | Label (_, f) -> _strict itv fut f
           | Imp (_, f1, f2)
             -> (_strict itv fut f1) || (_strict itv fut f2)
           | And (_, fs) | Or (_, fs)
@@ -967,33 +1158,34 @@ module Make
     | TT | FF | EqConst (_, _) -> Map.empty (module String)
     | Predicate (x, _) -> Map.of_alist_exn (module String) [(x, [f.info])]
     | Let (e, _, _, f, g) -> 
-      let preds = predicates_of_formula f in
-      let preds' = Map.remove (predicates_of_formula g) e in
-      combine_str_info_maps preds preds'
+       let preds = predicates_of_formula f in
+       let preds' = Map.remove (predicates_of_formula g) e in
+       combine_str_info_maps preds preds'
     | Neg f
-    | Agg (_, _, _, _, f)
-    | Top (_, _, _, _, f)
-    | Exists (_, f)
-    | Forall (_, f)
-    | Prev (_, f)
-    | Next (_, f)
-    | Once (_, f)
-    | Eventually (_, f)
-    | Historically (_, f)
-    | Always (_, f)
-    | Predicate' (_, _, f)
-    | Let' (_, _, _, _, f)
-    | Type (f, _) ->
-      predicates_of_formula f
+      | Agg (_, _, _, _, f)
+      | Top (_, _, _, _, f)
+      | Exists (_, f)
+      | Forall (_, f)
+      | Prev (_, f)
+      | Next (_, f)
+      | Once (_, f)
+      | Eventually (_, f)
+      | Historically (_, f)
+      | Always (_, f)
+      | Predicate' (_, _, f)
+      | Let' (_, _, _, _, f)
+      | Type (f, _)
+      | Label (_, f) ->
+       predicates_of_formula f
     | And (_, fs)
-    | Or (_, fs) ->
-      List.fold ~init:(Map.empty (module String)) ~f:(fun acc f -> combine_str_info_maps acc (predicates_of_formula f)) fs
+      | Or (_, fs) ->
+       List.fold ~init:(Map.empty (module String)) ~f:(fun acc f -> combine_str_info_maps acc (predicates_of_formula f)) fs
     | Imp (_, f, g)
-    | Until (_, _, f, g)
-    | Since (_, _, f, g) ->
-      let f_preds = predicates_of_formula f in
-      let g_preds = predicates_of_formula g in
-      combine_str_info_maps f_preds g_preds
+      | Until (_, _, f, g)
+      | Since (_, _, f, g) ->
+       let f_preds = predicates_of_formula f in
+       let g_preds = predicates_of_formula g in
+       combine_str_info_maps f_preds g_preds
 
   let rec non_monotone_predicates ?(let_ctxt_mon: 'str_str_info_map=Map.empty (module String)) ?(let_ctxt_anti_mon: 'str_str_info_map=Map.empty (module String)) ?(init_mon: 'str_info_map=Map.empty (module String)) ?(init_anti_mon: 'str_info_map= Map.empty (module String)) f : ('str_info_map * 'str_info_map) =
     (** computes the predicates that appear none-(anti)-monotonely in a formula f
@@ -1076,7 +1268,8 @@ module Make
     | Always (_, f)
     | Predicate' (_, _, f)
     | Let' (_, _, _, _, f)
-    | Type (f, _) ->
+    | Type (f, _)
+    | Label (_, f) ->
       non_monotone_predicates ~let_ctxt_mon ~let_ctxt_anti_mon ~init_mon ~init_anti_mon f
 
   (* Enforceability *)
@@ -1105,7 +1298,8 @@ module Make
         | Always (_, f)
         | Agg (_, _, _, _, f)
         | Top (_, _, _, _, f)
-        | Type (f, _) -> rank f
+        | Type (f, _)
+        | Label (_, f) -> rank f
       | Imp (_, f, g)
         | Since (_, _, f, g)
         | Until (_, _, f, g) -> rank f + rank g
@@ -1187,6 +1381,7 @@ module Make
           | Since (_, i, _, g), false | Until (_, i, _, g), false when Interval.has_zero i -> aux ts x p g
           | Until (_, i, f, _), true when not (Interval.has_zero i) -> aux ts x p f
           | Until (_, _, f, g), true -> aux ts x p (make (disj N f g) f.info)
+          | Label (_, f), _ -> aux ts x p f
           | _ -> [] in
         (*Stdio.print_endline (Printf.sprintf "solve_past_guarded([%s], %s, %b, %s) = [%s]"
                          (String.concat ~sep:"; " (List.map ~f:(fun (k, _) -> Printf.sprintf "%s -> %s" k (String.concat ~sep:"; " (List.map ~f:(fun es -> "{" ^ (String.concat ~sep:", " (Set.elements es)) ^ "}") s))) (Map.to_alist ts)))
@@ -1229,7 +1424,7 @@ module Make
         | Or (_, fs) -> AllOf (List.map ~f:(present_filter_ ~b) fs)
         | Imp (_, f, g) when b -> OneOf [present_filter_ ~b:(not b) f; present_filter_ ~b g]
         | Imp (_, f, g) -> AllOf [present_filter_ ~b:(not b) f; present_filter_ ~b g]
-        | Exists (_, f) | Forall (_, f) -> present_filter_ ~b f
+        | Exists (_, f) | Forall (_, f) | Label (_, f) -> present_filter_ ~b f
         | _ -> tt
       in (*print_endline (Printf.sprintf "present_filter_ %s (%s) = %s" (Bool.to_string b) (formula_to_string f) (to_string filter));*)
       filter
@@ -1565,6 +1760,7 @@ module Make
               | Until (_, i, f, g) ->
                  only_if_bounded i (Constraints.conj (aux' t f) (aux' t g))
               | Prev _ -> error "● is never causable"
+              | Label (_, f) -> aux' t f
               | _ -> Impossible (EFormula (None, f, t))
             end
           | false, true -> begin
@@ -1614,6 +1810,7 @@ module Make
               | Until (_, _, _, g) ->
                  only_if_strictly_relative_past [f] (aux' t g)
               | Prev _ -> error "● is never suppressable"
+              | Label (_, f) -> aux' t f
               | _ -> Impossible (EFormula (None, f, t))
             end
           | false, false -> Possible CTT
@@ -1648,7 +1845,8 @@ module Make
           | Always (i, f) -> Always (i, of_formula f)
           | Since (s, i, f, g) -> Since (s, i, of_formula f, of_formula g)
           | Until (s, i, f, g) -> Until (s, i, of_formula f, of_formula g)
-          | Type (f, ty) -> Type (of_formula f, ty) 
+          | Type (f, ty) -> Type (of_formula f, ty)
+          | Label (s, f) -> Label (s, of_formula f)
         in
         let enftype = if observable f then Enftype.obs else Enftype.bot in
         { form; info = { info = f.info; enftype; filter = Filter.tt; flag = false } }
@@ -1773,6 +1971,7 @@ module Make
             | Until (_, i, f, g) ->
                apply2 ~temporal:true ~flag:(Interval.is_bounded i) (convert enftype f) (convert enftype g)
                  (fun mf mg -> Until (LR, set_b i, mf, mg))
+            | Label (s, f) -> apply1 (convert enftype f) (fun mf -> Label (s, mf))
             | _ -> None, Filter.tt, false
           end
         | _, true -> begin
@@ -1873,6 +2072,7 @@ module Make
                apply2' ~temporal:true ~flag:true (convert enftype g) (of_formula f)
                  (fun mg mf -> Until (R, i, mf, mg))
                  Filter.tt
+            | Label (s, f) -> apply1 (convert enftype f) (fun mf -> Label (s, mf))
             | _ -> None, Filter.tt, false
           end
         | _, _ -> let f = of_formula formula in
@@ -1888,7 +2088,7 @@ module Make
     let convert' b f =
       convert b Enftype.causable f
 
-    let do_type f b =
+    let do_type ?(simp=false) f b =
       let orig_f = f in
       let f = convert_lets f in
       if not (Set.is_empty (fv f)) then (
@@ -1920,6 +2120,7 @@ module Make
                 let _ = Map.fold sol ~init:[] ~f:set_enftype in
                 let f = unroll_let f in
                 let f = convert_vars f in
+                let f = if simp then simplify f else f in
                 (*List.iter (Set.elements (fv f)) ~f:(fun v -> print_endline ("var: " ^  (Var.to_string v)));*)
                 match convert' b f with
                 | Some f' -> Stdio.print_endline ("The formula\n "
@@ -1959,7 +2160,7 @@ module Make
               | TT | Predicate (_, _) -> true
               | Neg f | Exists (_, f) | Forall (_, f)
                 | Once (_, f) | Next (_, f) | Historically (_, f) | Always (_, f)
-                | Predicate' (_, _, f) | Let' (_, _, _, _, f) -> aux f
+                | Predicate' (_, _, f) | Let' (_, _, _, _, f) | Label (_, f) -> aux f
               | Eventually (_, f) -> flag && aux f
               | Or (L, [f; g]) | Imp (L, f, g)
                 -> aux f && strictly_relative_past g
@@ -1977,7 +2178,7 @@ module Make
               | FF | Predicate (_, _) -> true
               | Neg f | Exists (_, f) | Forall (_, f)
                 | Once (_, f) | Next (_, f) | Historically (_, f) | Eventually (_, f)
-                | Predicate' (_, _, f) | Let' (_, _, _, _, f) -> aux f
+                | Predicate' (_, _, f) | Let' (_, _, _, _, f) | Label (_, f) -> aux f
               | Always (_, f) -> flag && aux f
               | And (L, f :: gs) 
                 -> aux f && List.for_all ~f:strictly_relative_past gs
