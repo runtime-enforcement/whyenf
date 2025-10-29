@@ -1,0 +1,1 @@
+ALWAYS (FORALL x. p(x) IMPLIES EXISTS y, z. q(y) AND r(z) AND y = z AND x = (y+z)/2)

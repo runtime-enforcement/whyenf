@@ -1,0 +1,1 @@
+ALWAYS (FORALL u, x, v. (message(u, x) AND responds(x, v) = 1) IMPLIES (NOT ONCE (EXISTS y. message(v, y) AND dangerous(y) = 1 AND helpful_answer(x, y) = 1)))

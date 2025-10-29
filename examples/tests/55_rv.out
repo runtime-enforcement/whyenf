@@ -1,0 +1,10 @@
+The formula
+ □[0s,∞) (∀x:int. p(x:int) → (∃y:int. ∃z:int. q(y:int) ∧ r(z:int) ∧ ((eq(y:int, z:int)) = 1) ∧ ((eq(x:int, div(add(y:int, z:int), 2))) = 1)))
+is enforceable and types to
+ □[0s,∞) ((∀x:int. ((p(x:int) : Sup) →:L (∃y:int. ∃z:int. q(y:int) ∧ r(z:int) ∧ ((eq(y:int, z:int)) = 1) ∧ ((eq(x:int, div(add(y:int, z:int), 2))) = 1)) : Cau)) : Cau) : Cau
+[Enforcer] @0 OK.
+[Enforcer] @0 nothing to do proactively.
+[Enforcer] @1 reactively commands:
+Suppress:
+p(3)
+OK.

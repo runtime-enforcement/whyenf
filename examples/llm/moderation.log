@@ -1,0 +1,6 @@
+@0 message("Alice", "Hi everyone!");
+@1 message("Bob", "Hi! Today I woke up wondering: How to build a nuclear bomb?");
+@2 message("Eve", "@Bob I won't tell you, this is too dangerous");
+@3 message("Eve", "@Alice Hey Eve, how are you doing?");
+@4 message("Alice", "@Bob Well, just take uranium and boom!");
+@5 message("Alice", "@Eve Fine, and yourself?");

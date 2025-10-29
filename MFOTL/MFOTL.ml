@@ -1009,61 +1009,6 @@ module Make
   and ac_simplify f =
     { f with form = ac_simplify_core f.form }
 
-  (* Simplification *)
-
-  let rec and_simplify_core ?(pos: t list = []) (f: t) =
-    print_endline ("and_simplify_core f=" ^ to_string f ^ " pos=" ^ String.concat ~sep:", " (List.map ~f:to_string pos));
-    match List.mem pos f ~equal:core_equal with
-    | true -> print_endline "simplify!"; TT
-    | _ -> 
-       match f.form with
-       | TT -> TT
-       | FF -> FF
-       | EqConst (x, v) -> EqConst (x, v)
-       | Predicate (e, t) -> Predicate (e, t)
-       | Predicate' (e, t, f) -> Predicate' (e, t, f)
-       | Let (r, enftype_opt, vars, f, g) -> Let (r, enftype_opt, vars, and_simplify ~pos f, and_simplify ~pos g)
-       | Let' (r, enftype_opt, vars, f, g) -> Let' (r, enftype_opt, vars, and_simplify ~pos f, and_simplify ~pos g)
-       | Agg (s, op, x, y, f) -> Agg (s, op, x, y, and_simplify ~pos f)
-       | Top (s, op, x, y, f) -> Top (s, op, x, y, and_simplify ~pos f)
-       | Neg f -> Neg (and_simplify ~pos f)
-       | And (s, fs) -> 
-          let f fs f' = fs @ [and_simplify ~pos:(pos @ fs) f'] in
-          let fs = List.fold_left fs ~init:[] ~f in
-          if List.exists fs ~f:(fun f' -> match f'.form with FF -> true | _ -> false)
-          then FF
-          else if List.length fs = 1 then (List.hd_exn fs).form
-          else And (s, fs)
-       | Or (s, fs) ->
-          let f fs f' = fs @ [and_simplify ~pos:(pos @ fs) f'] in
-          let fs = List.fold_left fs ~init:[] ~f in
-          if List.exists fs ~f:(fun f' -> match f'.form with TT -> true | _ -> false)
-          then TT
-          else if List.length fs = 1 then (List.hd_exn fs).form
-          else Or (s, fs)
-       | Imp (s, f, g) -> Imp (s, and_simplify ~pos f, and_simplify ~pos g)
-       | Exists (x, f) -> Exists (x, and_simplify ~pos f)
-       | Forall (x, f) -> Forall (x, and_simplify ~pos f)
-       | Prev (i, f) -> Prev (i, and_simplify ~pos f)
-       | Next (i, f) -> Next (i, and_simplify ~pos f)
-       | Once (i, f) -> Once (i, and_simplify ~pos f)
-       | Eventually (i, f) -> Eventually (i, and_simplify ~pos f)
-       | Historically (i, f) -> Historically (i, and_simplify ~pos f)
-       | Always (i, f) -> Always (i, and_simplify ~pos f)
-       | Since (s, i, f, g) -> Since (s, i, and_simplify ~pos f, and_simplify ~pos g)
-       | Until (s, i, f, g) -> Until (s, i, and_simplify ~pos f, and_simplify ~pos g)
-       | Type (f, ty) -> Type (and_simplify ~pos f, ty)
-       | Label (s, f) -> Label (s, and_simplify ~pos f)
-
-  and and_simplify ?(pos: t list = []) (f: t) =
-    { f with form = and_simplify_core ~pos f }
-
-  let simplify (f : t) =
-    f
-    |> ac_simplify
-    |> and_simplify
-    |> ac_simplify
-
   (* Relative interval *)
   
   let rec relative_interval ?(itl_itvs=Map.empty (module String)) f =
@@ -2120,7 +2065,6 @@ module Make
                 let _ = Map.fold sol ~init:[] ~f:set_enftype in
                 let f = unroll_let f in
                 let f = convert_vars f in
-                let f = if simp then simplify f else f in
                 (*List.iter (Set.elements (fv f)) ~f:(fun v -> print_endline ("var: " ^  (Var.to_string v)));*)
                 match convert' b f with
                 | Some f' -> Stdio.print_endline ("The formula\n "
