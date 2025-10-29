@@ -51,6 +51,7 @@ module type MonitorT = sig
       | MSince        of Side.t * Interval.t * t * t * since_info
       | MUntil        of Interval.t * t * t * until_info
       | MEUntil       of Side.t * Interval.t * timestamp option * t * t * Etc.valuation
+      | MLabel        of string * t
 
     and t = { mf: core_t;
               filter: Filter.t;
@@ -853,6 +854,7 @@ module MFormula = struct
     | MSince        of Side.t * Interval.t * t * t * since_info
     | MUntil        of Interval.t * t * t * until_info
     | MEUntil       of Side.t * Interval.t * timestamp option *  t * t * Etc.valuation
+    | MLabel        of string * t
 
   and t = { mf: core_t;
             filter: Filter.t;
@@ -877,7 +879,8 @@ module MFormula = struct
       | MNext (_, f, _)
       | MENext (_, _, f, _)
       | MAgg (_, _, _, _, _, f)
-      | MTop (_, _, _, _, _, f) -> [f]
+      | MTop (_, _, _, _, _, f)
+      | MLabel (_, f) -> [f]
     | MImp (_, f1, f2, _)
       | MSince (_, _, f1, f2, _)
       | MUntil (_, f1, f2, _)
@@ -922,6 +925,7 @@ module MFormula = struct
                                (fun _ -> Interval.to_string) i (fun _ -> value_to_string_rec 5) g
     | MEUntil (_, i, ts, f, g, _) -> Printf.sprintf (Etc.paren l 0 "%a U*%a %a") (fun _ -> value_to_string_rec 5) f
                                        (fun _ -> ts_i_to_string) (ts, i) (fun _ -> value_to_string_rec 5) g
+    | MLabel (s, f) -> Printf.sprintf (Etc.paren l 0 "{%s}{%a}") s (fun _ -> value_to_string_rec 0) f
   let value_to_string = value_to_string_rec 0
 
   let rec with_aux_to_string_rec l mf =
@@ -958,6 +962,8 @@ module MFormula = struct
                                  (fun _ -> Until.to_string) aux
     | MEUntil (_, i, ts, f, g, _) -> Printf.sprintf (Etc.paren l 0 "%a U*%a %a") (fun _ -> value_to_string_rec 5) f
                                        (fun _ -> ts_i_to_string) (ts, i) (fun _ -> value_to_string_rec 5) g
+    | MLabel (s, f) -> Printf.sprintf (Etc.paren l 0 "{%s}{%a}") s (fun _ -> value_to_string_rec 0) f
+  
   let with_aux_to_string = with_aux_to_string_rec 0
 
   (*    and t = { mf: core_t;
@@ -1015,6 +1021,7 @@ module MFormula = struct
     | MSince (_, i, _, _, _) -> Printf.sprintf "S%s" (Interval.to_string i)
     | MUntil (i, _, _, _) -> Printf.sprintf "U%s" (Interval.to_string i)
     | MEUntil (_, i, ts, _, _, _) -> Printf.sprintf "U*%s" (ts_i_to_string (ts, i))
+    | MLabel (s, _) -> Printf.sprintf "{%s}" s
 
   and op_to_string mf = core_op_to_string mf.mf
 
@@ -1043,6 +1050,7 @@ module MFormula = struct
     | MSince (s, _, _, _, _) -> Printf.sprintf "%s" (Side.to_string s)
     | MUntil _ -> Printf.sprintf "N"
     | MEUntil (s, _, _, _, _, _) -> Printf.sprintf "%s" (Side.to_string s)
+    | MLabel (s, _) -> Printf.sprintf "N"
 
   let core_hash =
     let (+++) x y = x * 65599 + y in
@@ -1110,6 +1118,8 @@ module MFormula = struct
     | MEUntil (s, i, _, f, g, v) ->
        String.hash "MEUntil" +++ Side.hash s +++ Interval.hash i +++ f.hash
        +++ g.hash +++ Etc.hash_valuation v
+    | MLabel (s, f) ->
+       String.hash "MLabel" +++ String.hash s +++ f.hash
 
   (*and hash mf = core_hash mf.mf*)
 
@@ -1163,6 +1173,7 @@ module MFormula = struct
        | MSince (s, i, f, g, inf) -> map2 f g (fun f g -> MSince (s, i, f, g, inf))
        | MUntil (i, f, g, inf) -> map2 f g (fun f g -> MUntil (i, f, g, inf))
        | MEUntil (s, i, t_opt, f, g, v) -> add_hash (map2 f g (fun f g -> MEUntil (s, i, t_opt, f, g, v)))
+       | MLabel (s, f) -> map1 f (fun f -> MLabel (s, f))
 
   let rec fv mf = match mf.mf with
     | MTT | MFF -> Set.empty (module String)
@@ -1187,7 +1198,8 @@ module MFormula = struct
       | MEEventually (_, _, f, _)
       | MHistorically (_, f, _)
       | MAlways (_, f, _)
-      | MEAlways (_, _, f, _) -> fv f
+      | MEAlways (_, _, f, _)
+      | MLabel (_, f) -> fv f
 
   let rec set_lbls ?(fvs=[]) mf =
     let with_lbls mf lbls = { mf with lbls } in
@@ -1263,7 +1275,8 @@ module MFormula = struct
       | MEAlways (i, t_opt, f, inf) -> map1 fvs f (fun f -> MEAlways (i, t_opt, f, inf)) id
       | MSince (s, i, f, g, inf) -> map2 fvs f g (fun f g -> MSince (s, i, f, g, inf)) id2
       | MUntil (i, f, g, inf) -> map2 fvs f g (fun f g -> MUntil (i, f, g, inf)) id2
-      | MEUntil (s, i, t_opt, f, g, v) -> map2 fvs f g (fun f g -> MEUntil (s, i, t_opt, f, g, v)) id2 in
+      | MEUntil (s, i, t_opt, f, g, v) -> map2 fvs f g (fun f g -> MEUntil (s, i, t_opt, f, g, v)) id2 
+      | MLabel (s, f) -> map1 fvs f (fun f -> MLabel (s, f)) id in
     (*(match mf.mf with
       | MAgg _ -> 
       print_endline (Printf.sprintf "set_lbls([%s], %s)=%s\n\n\n"
@@ -1355,6 +1368,7 @@ module MFormula = struct
       | Until (s, i, f, g) ->
          MEUntil (s, i, None, make (aux f) f.info.filter, make (aux g) g.info.filter, Etc.empty_valuation)
       | Type (f, _) -> aux f
+      | Label (s, f) -> MLabel (s, make (aux f) f.info.filter)
       | Let _ -> raise (Errors.MonitoringError "Let bindings must be unrolled to initialize MFormula")
     in set_make (aux tf) tf.info.filter
 
@@ -1378,7 +1392,8 @@ module MFormula = struct
       | MAlways (_, f, _)
       | MEAlways (_, _, f, _)
       | MAgg (_, _, _, _, _, f)
-      | MTop (_, _, _, _, _, f) -> rank f
+      | MTop (_, _, _, _, _, f)
+      | MLabel (_, f) -> rank f
     | MImp (_, f, g, _)
       | MSince (_, _, f, g, _)
       | MUntil (_, f, g, _)
@@ -1426,6 +1441,7 @@ module MFormula = struct
       | MSince (s, i, f, g, si) -> MSince (s, i, r f, r g, Since.map spec spec si)
       | MUntil (i, f, g, ui) -> MUntil (i, r f, r g, Until.map spec spec ui)
       | MEUntil (s, i, ts, f, g, vv) -> MEUntil (s, i, ts, r f, r g, Etc.extend_valuation v vv)
+      | MLabel (s, f) -> MLabel (s, r f)
     in
     (*print_endline ("hash(apply_valuation(" ^ Etc.valuation_to_string v ^ ", " ^ to_string { mf; hash = 0 } ^ ")=" ^ (Int.to_string (make mf).hash));*)
     set_make mf_ mf.filter
@@ -2147,6 +2163,9 @@ let meval (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) mformula 
             let memo, (_, aexpl2, mf2') = meval_rec ts tp db ~pol fobligs memo mf2 in
             let aexpl = approximate_until mformula.lbls aexpl1 aexpl2 fobligs i (Some (mformula.hash, v)) tp (pol_value pol) in
             memo, ([TS.make tp ts aexpl], aexpl, MEUntil (s, i, f_ts, mf1', mf2', v))
+         | MLabel (s, mf) ->
+            let memo, (expls, aexpl, mf) = meval_rec ts tp db ~pol fobligs memo mf in
+            memo, (expls, aexpl, MLabel (s, mf))
        in let mf = { mformula with mf } in
           (*print_endline ("add memo: " ^ " (" ^  MFormula.value_to_string mf ^ ", " ^ Int.to_string tp ^ ", " ^ Int.to_string mformula.hash ^ ", " ^ Option.value ~default:"None" (Option.map ~f:FObligation.polarity_to_string pol) ^ ") -> " ^ Expl.to_string aexpl);*)
           let memo = if tp = outer_tp then Memo.memoize memo mformula (pol_value pol) (expls, aexpl, mf) else memo in

@@ -9,6 +9,7 @@ module type T = sig
   type d [@@deriving compare, sexp_of, hash, equal]
 
   type comparator_witness
+  val core_equal : t -> t -> bool
   val comparator : (t, comparator_witness) Comparator.t
 
   val dummy_var : v -> t
@@ -54,6 +55,8 @@ module Make (Var : V) (Dom : D) (Uop : O) (Bop : O) (Info : I) : sig
   type d = Dom.t [@@deriving compare, sexp_of, hash, equal]
 
   type comparator_witness
+
+  val core_equal: t -> t -> bool
 
   val var: v -> core_t
   val const: d -> core_t

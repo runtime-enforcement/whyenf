@@ -8,7 +8,7 @@ let debug m = if !debug then Stdio.print_endline ("[debug] formula_parser: " ^ m
 
 %}
 
-%token LPA RPA LBR RBR
+%token LPA RPA LBR RBR LCU RCU
 %token COMMA SEMICOLON DOT COL GETS LET IN QST EXC
 %token EOF
 
@@ -81,6 +81,7 @@ e:
 | e btop e                                  { debug "e btop e"; SBtop (None, Interval.full, $1, $2, $3) }
 | EXISTS vars DOT e %prec EXISTS            { debug "EXISTS vars DOT e"; SExists ($2, $4) }
 | FORALL vars DOT e %prec FORALL            { debug "FORALL vars DOT e"; SForall ($2, $4) }
+| LCU QSTR RCU LCU e RCU                    { debug "LCU QSTR RCU LCU e RCU"; SLabel ($2, $5) }
 
 terms:
 | separated_list (COMMA, e)                 { debug "trms"; $1 }

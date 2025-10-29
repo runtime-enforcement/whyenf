@@ -50,11 +50,14 @@ let to_string indent (sup, cau, fobligs) =
   "\nTriple:\n" ^
   Printf.sprintf "\n%ssup = %s" indent (Db.to_string sup) ^
   Printf.sprintf "\n%scau = %s" indent (Db.to_string cau) ^
-  Printf.sprintf "\n%sfobligs = [%s]\n" indent (FObligations.to_string fobligs)
+    Printf.sprintf "\n%sfobligs = [%s]\n" indent (FObligations.to_string fobligs)
 
 end
 
 let inc_ts ts = Time.(ts + !s_ref)
+
+let labels_to_string ls =
+  String.concat ~sep:", " (List.map ~f:(fun l -> Printf.sprintf "\"%s\"" l) ls)
 
 module EState = struct
 
@@ -66,6 +69,7 @@ module EState = struct
            ; fobligs: FObligations.t
            ; memo: Monitor.res Monitor.Memo.t
            ; nick: bool
+           ; labels: string list
            }
 
   let to_string { ms
@@ -90,7 +94,8 @@ module EState = struct
                      fobligs = Set.singleton (module FObligation)
                                  (FFormula (mf, -1, empty_valuation), Base.Map.empty (module Base.String), POS);
                      memo = Memo.empty;
-                     nick = false; }
+                     nick = false;
+                     labels = [] }
 
   let update r es =
     let memo = Triple.update_memo r es.memo in
@@ -100,9 +105,17 @@ module EState = struct
               memo }
 
   let add_sup sup es =
+    if !Global.label then
+      Stdio.printf "[Enforcer:Label] Suppress %s: %s\n"
+        (Db.Event.to_string sup)
+        (labels_to_string es.labels);
     update (Db.singleton sup, Db.empty, Set.empty (module FObligation)) es
 
   let add_cau cau es =
+    if !Global.label then
+      Stdio.printf "[Enforcer:Labels] Cause %s: %s\n"
+        (Db.Event.to_string cau)
+        (labels_to_string es.labels);
     update (Db.empty, Db.singleton cau, Set.empty (module FObligation)) es
 
   let add_foblig foblig es =
@@ -251,8 +264,8 @@ module EState = struct
     enfvio mf v es
 
   and enfsat (mformula: MFormula.t) v es : t =
-    (*print_endline ("--enfsat");
-    print_endline ("mformula=" ^ MFormula.value_to_string mformula);*)
+    print_endline ("--enfsat");
+    print_endline ("mformula=" ^ MFormula.value_to_string mformula);
     (*print_endline ("v=" ^ Etc.valuation_to_string v);*)
     (*print_endline ("db=" ^ Db.to_string (es.db));*)
       (*print_endline ("es=" ^ to_string es);*)
@@ -315,12 +328,15 @@ module EState = struct
     | MAnd (LR, _, _) ->
        raise (Errors.EnforcementError
                 (Printf.sprintf "side for %s was not fixed" (MFormula.to_string mformula)))
+    | MLabel (s, mf) ->
+       let es' = enfsat mf v { es with labels = s :: es.labels } in
+       { es' with labels =  es.labels }
     | _ -> raise (Errors.EnforcementError
                     (Printf.sprintf "function enfsat is not defined for %s"
                        (MFormula.op_to_string mformula)))
   and enfvio (mformula: MFormula.t) v es =
-    (*print_endline "--enfvio";
-    print_endline ("mformula=" ^ MFormula.value_to_string mformula);*)
+    print_endline "--enfvio";
+    print_endline ("mformula=" ^ MFormula.value_to_string mformula);
     (*print_endline ("v=" ^ Etc.valuation_to_string v);*)
     (*print_endline ("es=" ^ to_string es);*)
     match mformula.mf with
@@ -369,6 +385,9 @@ module EState = struct
       | MEUntil (LR, _, _, _, _, _) ->
        raise (Errors.EnforcementError
                 (Printf.sprintf "side for %s was not fixed" (MFormula.to_string mformula)))
+    | MLabel (s, mf) ->
+       let es' = enfvio mf v { es with labels = s :: es.labels } in
+       { es' with labels = es.labels }
     | _ -> raise (Errors.EnforcementError
                     (Printf.sprintf "function enfvio is not defined for %s"
                        (MFormula.op_to_string mformula)))
@@ -565,13 +584,15 @@ let compile (f: Formula.t) (b: Time.Span.s) : Tformula.t =
   (* If monitoring, do f -> FORALL x_1, ..., x_k. f IMPLIES violation(x_1, ..., x_k) *)
   let tyf = if !monitoring then make_monitoring tyf else tyf in
   (* Typing formulae: Tyformula.t -> Tyformula.typed_t *)
-  let typed_tyf = do_type tyf b in
+  let typed_tyf = do_type ~simp:!Global.simplify tyf b in
   (* Checking monitorability: Tyformula.typed_t -> Tformula.t *)
   let tf = Tformula.of_formula' typed_tyf in
   (* Checking transparency *)
   let transparent = is_transparent typed_tyf in
   if (not transparent) then
     print_endline "This formula cannot be transparently enforced.";
+  (*let tf = if !Global.simplify then Tformula.simplify tf else tf in*)
+  print_endline ("unprimed: " ^ Tformula.to_string (Tformula.unprime tf));
   tf
 
 let exec (f: Formula.t) =

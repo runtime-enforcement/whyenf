@@ -11,6 +11,7 @@ module type T = sig
   type d [@@deriving compare, sexp_of, hash, equal]
 
   type comparator_witness
+  val core_equal : t -> t -> bool
   val comparator : (t, comparator_witness) Comparator.t
 
   (*val var : v -> t
@@ -60,6 +61,23 @@ module Make (Var : V) (Dom : D) (Uop : O) (Bop : O) (Info : I) = struct
     
     type v = Var.t [@@deriving compare, sexp_of, hash, equal]
     type d = Dom.t [@@deriving compare, sexp_of, hash, equal]
+
+    let rec core_equal t u =
+      match t.trm, u.trm with
+      | Var v, Var v' -> Var.equal_ident v v'
+      | Const d, Const d' -> Dom.equal d d'
+      | App (f, trms), App (f', trms') ->
+         String.equal f f'
+         && (match List.for_all2 trms trms' ~f:core_equal with
+             | Ok b -> b
+             | _ -> false)
+      | Unop (u, trm), Unop (u', trm') -> Uop.equal u u' && core_equal trm trm'
+      | Binop (l, b, r), Binop (l', b', r') -> core_equal l l' && Bop.equal b b' && core_equal r r'
+      | Proj (trm, a), Proj (trm', a') -> core_equal trm trm' && String.equal a a'
+      | Record kvs, Record kvs' ->
+         match List.for_all2 kvs kvs' ~f:(fun (k, v) (k', v') -> String.equal k k' && core_equal v v') with
+         | Ok b -> b
+         | _ -> false
 
     let make trm info = { trm; info }
     let make_dummy trm = make trm Info.dummy

@@ -86,6 +86,7 @@ type t =
   | SForall of string list * t
   | SBtop of Side.t option * Interval.t * t * Btop.t * t
   | SUtop of Interval.t * Utop.t * t
+  | SLabel of string * t 
   [@@deriving compare, sexp_of, hash]
 
 val fv : t -> (string, String.comparator_witness) Set.t

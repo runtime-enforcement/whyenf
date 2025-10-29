@@ -122,6 +122,9 @@ let rec core_of_formula (f : Formula.t) let_types (types: Ctxt.t) : Ctxt.t * cor
   | Type (f, ty) ->
      let types, mf = of_formula f ~let_types types in
      types, Type (mf, ty)
+  | Label (s, f) ->
+     let types, mf = of_formula f ~let_types types in
+     types, Label (s, mf)
 
 and of_formula f ?(let_types=Map.empty (module String)) (types: Ctxt.t) =
   let types, f = core_of_formula f let_types types in

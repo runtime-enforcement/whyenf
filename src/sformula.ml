@@ -180,6 +180,7 @@ type t =
   | SForall of string list * t
   | SBtop of Side.t option * Interval.t * t * Btop.t * t
   | SUtop of Interval.t * Utop.t * t
+  | SLabel of string * t
   [@@deriving compare, sexp_of, hash]
 
 let rec fv = function
@@ -197,6 +198,7 @@ let rec fv = function
   | SForall (xs, f) -> Set.diff (fv f) (Set.of_list (module String) xs)
   | SBtop (_, _, f, _, g) -> Set.union (fv f) (fv g)
   | SUtop (_, _, f) -> fv f
+  | SLabel (_, f) -> fv f
 
 let string_of_opt_typed_var = function
   | (s, None) -> s
@@ -258,6 +260,7 @@ let rec to_string_rec l = function
                             (Utop.to_string utop)
                             (Interval.to_string i)
                             (to_string_rec (Utop.prio utop) f)
+  | SLabel (s, f) -> Printf.sprintf "[%s]{%s}" s (to_string_rec 0 f)
 
 and list_to_string ts = String.concat ~sep:", " (List.map ~f:to_string ts)
 

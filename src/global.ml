@@ -8,3 +8,5 @@ let outc_ref = ref Stdio.Out_channel.stdout
 let json = ref false
 let b_ref = ref Time.Span.zero
 let s_ref = ref (Time.Span.Second (Time.Span.Second.of_string "1"))
+let label = ref false
+let simplify = ref false

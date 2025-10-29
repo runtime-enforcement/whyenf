@@ -165,6 +165,9 @@ let rec core_of_formula (f : Tyformula.typed_t) (types: Ctxt.t) : Ctxt.t * core_
   | Type (f, ty) ->
      let types, mf = of_formula f types in
      types, Type (mf, ty), mf.info.enftype, false
+  | Label (s, f) ->
+     let types, mf = of_formula f types in
+     types, Label (s, mf), mf.info.enftype, false
 
 and of_formula f  (types: Ctxt.t) =
   let types, f, enftype, flag = core_of_formula f types in

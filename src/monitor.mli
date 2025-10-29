@@ -47,6 +47,7 @@ module MFormula : sig
     | MSince        of Side.t * Interval.t * t * t * since_info
     | MUntil        of Interval.t * t * t * until_info
     | MEUntil       of Side.t * Interval.t * Time.t option * t * t * valuation
+    | MLabel        of string * t
 
   and t = { mf: core_t;
             filter: Filter.t;
