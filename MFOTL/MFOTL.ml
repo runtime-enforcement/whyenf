@@ -809,7 +809,7 @@ module Make
         | Since (s, i, f, g) -> Since (s, i, aux f, aux g)
         | Until (s, i, f, g) -> Until (s, i, aux f, aux g)
         | Type (f, ty) -> Type (aux f, ty)
-        | Label (s, f) -> (aux f).form
+        | Label (_, f) -> (aux f).form
         | Predicate' (r, trms, f) -> Predicate' (r, trms, aux f)
         | Let' (r, enftype, trms, f, g) -> Let' (r, enftype, trms, aux f, aux g)
       in { f with form }
@@ -2033,7 +2033,7 @@ module Make
     let convert' b f =
       convert b Enftype.causable f
 
-    let do_type ?(simp=false) f b =
+    let do_type f b =
       let orig_f = f in
       let f = convert_lets f in
       if not (Set.is_empty (fv f)) then (

@@ -584,7 +584,7 @@ let compile (f: Formula.t) (b: Time.Span.s) : Tformula.t =
   (* If monitoring, do f -> FORALL x_1, ..., x_k. f IMPLIES violation(x_1, ..., x_k) *)
   let tyf = if !monitoring then make_monitoring tyf else tyf in
   (* Typing formulae: Tyformula.t -> Tyformula.typed_t *)
-  let typed_tyf = do_type ~simp:!Global.simplify tyf b in
+  let typed_tyf = do_type tyf b in
   (* Checking monitorability: Tyformula.typed_t -> Tformula.t *)
   let tf = Tformula.of_formula' typed_tyf in
   (* Checking transparency *)
