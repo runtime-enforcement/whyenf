@@ -1416,23 +1416,65 @@ module Make
                        ^ String.concat (List.map ~f:(fun e -> lb ^ "* " ^ to_string ~n:(n+1) e) es)
          | ERule s -> s)
 
-      let rec ac_simplify = function
-        | EConj es  ->
-           let es = List.map ~f:ac_simplify es in
-           let e_conjs = function EConj es' -> Some es' | _ -> None in
-           let e_not_conjs = function EConj _ -> false | _ -> true in
-           let es_conjs = List.concat (List.filter_map es ~f:e_conjs) in
-           let es_not_conjs = List.filter es ~f:e_not_conjs in
-           let es' = Etc.dedup ~equal:equal_error (es_conjs @ es_not_conjs) in
-           if List.length es' = 1 then List.hd_exn es' else EConj es'
+      let rec ac_flatten = function
+        | EConj es ->
+           let es = List.map ~f:ac_flatten es in
+           let es = List.concat_map es ~f:(function EConj xs -> xs | c -> [c]) in
+           (match es with [c] -> c | _ -> EConj es)
         | EDisj es ->
-           let e_disjs = function EDisj cs' -> Some cs' | _ -> None in
-           let e_not_disjs = function EDisj _ -> false | _ -> true in
-           let es_disjs = List.concat (List.filter_map es ~f:e_disjs) in
-           let es_not_disjs = List.filter es ~f:e_not_disjs in
-           let es' = Etc.dedup ~equal:equal_error (es_disjs @ es_not_disjs) in
-           if List.length es' = 1 then List.hd_exn es' else EDisj es'
-        | e -> e
+           let es = List.map ~f:ac_flatten es in
+           let es = List.concat_map es ~f:(function EDisj xs -> xs | c -> [c]) in
+           (match es with [c] -> c | _ -> EDisj es)
+        | c -> c
+
+      let rec ac_simplify = function
+        | EConj es ->
+           let es = List.map ~f:ac_simplify es in
+           let f_has_ff = function EDisj [] -> true | _ -> false in
+           (if List.exists es ~f:f_has_ff then
+              EDisj []
+            else
+              match ac_flatten (EConj es) with
+              | EConj es' ->
+                 (*Stdio.print_endline (Printf.sprintf "dedup.conj.1(\n-%s\n,\n %s\n) = %s\n\n" (to_string (CConj cs)) (String.concat ~sep:"\n " (List.map ~f:to_string cs')) (to_string (CConj cs')));*)
+                 let es', _ =
+                   let is_weaker_clause c ds =
+                     (* All disjuncts in d' are in d, so d is unnecessary *)
+                     let isin d = List.for_all ~f:(List.mem d ~equal:equal_error) in
+                     let d = match c with EDisj d -> d | _ -> [c] in
+                     d, List.exists ds ~f:(isin d) in
+                   let f c (cs, ds) =
+                     let d, b = is_weaker_clause c ds in
+                     if b then (cs, ds) else (c::cs, d::ds) in
+                   List.fold_right es' ~init:([], []) ~f
+                 in
+                 (*Stdio.print_endline (Printf.sprintf "dedup.conj(\n-%s\n,\n %s\n) = %s\n\n" (to_string (CConj cs)) (String.concat ~sep:"\n " (List.map ~f:to_string cs)) (to_string (CConj cs')));*)
+                 EConj es'
+              | c -> c)
+        | EDisj es ->
+           let es = List.map ~f:ac_simplify es in
+           let f_has_tt = function EConj [] -> true | _ -> false in
+           (if List.exists es ~f:f_has_tt then
+              EConj []
+            else
+              match ac_flatten (EDisj es) with
+              | EDisj es' -> 
+                 let es', _ =
+                   let is_weaker_clause c ds =
+                     (* All conjuncts in d' are in d, so d is unnecessary *)
+                     let isin d = List.for_all ~f:(List.mem d ~equal:equal_error) in
+                     let d = match c with EConj d -> d | _ -> [c] in
+                     d, List.exists ds ~f:(isin d) in
+                   let f c (cs, ds) =
+                     let d, b = is_weaker_clause c ds in
+                     if b then (cs, ds) else (c::cs, d::ds) in
+                   List.fold_right es' ~init:([], []) ~f 
+                 in
+                 (*Stdio.print_endline (Printf.sprintf "dedup.disj(\n-%s\n,\n %s\n) = %s\n\n" (to_string (CDisj cs))(String.concat ~sep:"\n " (List.map ~f:to_string cs)) (to_string (CDisj cs')));*)
+                 EDisj es'
+              | c -> c)
+        | c -> c
+            
 
     end
 
@@ -1450,8 +1492,35 @@ module Make
 
       type verdict = Possible of constr | Impossible of Errors.error
 
+      (*let rec to_string_rec l = function
+        | CTT -> Printf.sprintf "⊤"
+        | CFF -> Printf.sprintf "⊥"
+        | CGeq (s, t) -> Printf.sprintf "t(%s) ≽ %s" s (Enftype.to_string t)
+        | CLeq (s, t) -> Printf.sprintf "%s ≽ t(%s)" (Enftype.to_string t) s
+        | CConj cs -> Printf.sprintf (Etc.paren l 4 "%s")
+                        (String.concat ~sep:" ∧ " (List.map ~f:(to_string_rec 4) cs))
+        | CDisj cs -> Printf.sprintf (Etc.paren l 3 "%s")
+                        (String.concat ~sep:" ∨ " (List.map ~f:(to_string_rec 3) cs))
+
+      let to_string = to_string_rec 0
+
+      let verdict_to_string = function
+        | Possible c -> Printf.sprintf "Possible(%s)" (to_string c)
+        | Impossible e -> Printf.sprintf "Impossible(%s)" (Errors.to_string e)*)
+
       let geq s t = CGeq (s, t)
       let leq s t = CLeq (s, t)
+
+      let rec ac_flatten = function
+        | CConj cs ->
+           let cs = List.map ~f:ac_flatten cs in
+           let cs = List.concat_map cs ~f:(function CConj xs -> xs | CTT -> [] | c -> [c]) in
+           (match cs with [] -> CTT | [c] -> c | _ -> CConj cs)
+        | CDisj cs ->
+           let cs = List.map ~f:ac_flatten cs in
+           let cs = List.concat_map cs ~f:(function CDisj xs -> xs | CFF -> [] | c -> [c]) in
+           (match cs with [] -> CFF | [c] -> c | _ -> CDisj cs)
+        | c -> c
 
       let rec ac_simplify = function
         | CConj cs ->
@@ -1460,24 +1529,45 @@ module Make
            (if List.exists cs ~f:f_has_ff then
               CFF
             else
-              let f_conjs = function CConj cs' -> Some cs' | _ -> None in
-              let f_not_conjs = function CConj _ -> false | CTT -> false | _ -> true in
-              let cs_conjs = List.concat (List.filter_map cs ~f:f_conjs) in
-              let cs_not_conjs = List.filter cs ~f:f_not_conjs in
-              let cs' = Etc.dedup ~equal:equal_constr (cs_conjs @ cs_not_conjs) in
-              CConj cs')
+              match ac_flatten (CConj cs) with
+              | CConj cs' ->
+                 (*Stdio.print_endline (Printf.sprintf "dedup.conj.1(\n-%s\n,\n %s\n) = %s\n\n" (to_string (CConj cs)) (String.concat ~sep:"\n " (List.map ~f:to_string cs')) (to_string (CConj cs')));*)
+                 let cs', _ =
+                   let is_weaker_clause c ds =
+                     (* All disjuncts in d' are in d, so d is unnecessary *)
+                     let isin d = List.for_all ~f:(List.mem d ~equal:equal_constr) in
+                     let d = match c with CDisj d -> d | _ -> [c] in
+                     d, List.exists ds ~f:(isin d) in
+                   let f c (cs, ds) =
+                     let d, b = is_weaker_clause c ds in
+                     if b then (cs, ds) else (c::cs, d::ds) in
+                   List.fold_right cs' ~init:([], []) ~f
+                 in
+                 (*Stdio.print_endline (Printf.sprintf "dedup.conj(\n-%s\n,\n %s\n) = %s\n\n" (to_string (CConj cs)) (String.concat ~sep:"\n " (List.map ~f:to_string cs)) (to_string (CConj cs')));*)
+                 CConj cs'
+              | c -> c)
         | CDisj cs ->
            let cs = List.map ~f:ac_simplify cs in
            let f_has_tt = function CTT -> true | _ -> false in
            (if List.exists cs ~f:f_has_tt then
               CTT
             else
-              let f_disjs = function CDisj cs' -> Some cs' | _ -> None in
-              let f_not_disjs = function CDisj _ -> false | CFF -> false | _ -> true in
-              let cs_disjs = List.concat (List.filter_map cs ~f:f_disjs) in
-              let cs_not_disjs = List.filter cs ~f:f_not_disjs in
-              let cs' = Etc.dedup ~equal:equal_constr (cs_disjs @ cs_not_disjs) in
-              CDisj cs')
+              match ac_flatten (CDisj cs) with
+              | CDisj cs' -> 
+                 let cs', _ =
+                   let is_weaker_clause c ds =
+                     (* All conjuncts in d' are in d, so d is unnecessary *)
+                     let isin d = List.for_all ~f:(List.mem d ~equal:equal_constr) in
+                     let d = match c with CConj d -> d | _ -> [c] in
+                     d, List.exists ds ~f:(isin d) in
+                   let f c (cs, ds) =
+                     let d, b = is_weaker_clause c ds in
+                     if b then (cs, ds) else (c::cs, d::ds) in
+                    List.fold_right cs' ~init:([], []) ~f
+                 in
+                 (*Stdio.print_endline (Printf.sprintf "dedup.disj(\n-%s\n,\n %s\n) = %s\n\n" (to_string (CDisj cs))(String.concat ~sep:"\n " (List.map ~f:to_string cs)) (to_string (CDisj cs')));*)
+                 CDisj cs'
+              | c -> c)
         | c -> c
 
       let conj c d = match c, d with
@@ -1499,7 +1589,7 @@ module Make
         | c::cs -> List.fold_left ~init:c ~f:conj cs
       
       let disjs = function
-        | [] -> Impossible (ERule "Empty disjunction is false")
+        | [] -> Impossible (EDisj [])
         | c::cs -> List.fold_left ~init:c ~f:disj cs
 
       let rec cartesian a = function
@@ -1526,7 +1616,7 @@ module Make
         | Possible c -> Printf.sprintf "Possible(%s)" (to_string c)
         | Impossible e -> Printf.sprintf "Impossible(%s)" (Errors.to_string e)
 
-      let rec solve c =
+      let rec solve c : (string, Enftype.Constraint.t, Base.String.comparator_witness) Base.Map.t list =
         (*Stdio.print_endline ("solve(" ^  (to_string c) ^ ")");*)
         let r = match c with
           | CTT -> [Map.empty (module String)]

@@ -137,7 +137,6 @@ module Make
                                   (string, Info.t list, Base.String.comparator_witness) Base.Map.t *
                                   (string, Info.t list, Base.String.comparator_witness) Base.Map.t
 
-
   module MFOTL_Enforceability (_ : Modules.S) : sig
 
     val rank : t -> int
