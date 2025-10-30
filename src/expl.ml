@@ -564,5 +564,3 @@ let table_operator (op: Dom.t list list -> Dom.t list list) (s: string list) tp 
 let aggregate (agg: (Dom.t, Dom.comparator_witness) Multiset.t -> Dom.t) s tp x_trm y lbls lbls' p =
   let multiset dss = Multiset.of_list (module Dom) (List.map ~f:List.hd_exn dss) in
   table_operator (fun dss -> [[agg (multiset dss)]]) [s] tp [x_trm] y lbls lbls' p
-
-
