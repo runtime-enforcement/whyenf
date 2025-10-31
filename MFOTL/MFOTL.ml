@@ -959,17 +959,21 @@ module Make
 
   (* AC-rewriting *)
   
-  let rec ac_simplify_core = function
+  let rec ac_simplify_core =
+    let or_bool f g = match f.form with TT -> TT | FF -> FF | _ -> g f in
+    function
     | TT -> TT
     | FF -> FF
     | EqConst (x, v) -> EqConst (x, v)
     | Predicate (e, t) -> Predicate (e, t)
-    | Predicate' (e, t, f) -> Predicate' (e, t, f)
+    | Predicate' (e, t, f) -> Predicate' (e, t, ac_simplify f)
     | Let (r, enftype_opt, vars, f, g) -> Let (r, enftype_opt, vars, ac_simplify f, ac_simplify g)
     | Let' (r, enftype_opt, vars, f, g) -> Let' (r, enftype_opt, vars, ac_simplify f, ac_simplify g)
     | Agg (s, op, x, y, f) -> Agg (s, op, x, y, ac_simplify f)
     | Top (s, op, x, y, f) -> Top (s, op, x, y, ac_simplify f)
-    | Neg f -> Neg f
+    | Neg f ->
+      let f = ac_simplify f in
+      (match f.form with TT -> FF | FF -> TT | _ -> Neg f)
     | And (s, fs) -> 
        let fs = List.map fs ~f:ac_simplify in
        let f fs f' = match f'.form with
@@ -979,6 +983,7 @@ module Make
        let fs = List.fold_left fs ~init:[] ~f in
        if List.exists fs ~f:(fun f' -> match f'.form with FF -> true | _ -> false)
        then FF
+       else if List.is_empty fs then TT
        else if List.length fs = 1 then (List.hd_exn fs).form
        else And (s, fs)
     | Or (s, fs) ->
@@ -990,24 +995,92 @@ module Make
        let fs = List.fold_left fs ~init:[] ~f in
        if List.exists fs ~f:(fun f' -> match f'.form with TT -> true | _ -> false)
        then TT
+       else if List.is_empty fs then FF
        else if List.length fs = 1 then (List.hd_exn fs).form
        else Or (s, fs)
-    | Imp (s, f, g) -> Imp (s, ac_simplify f, ac_simplify g)
-    | Exists (x, f) -> Exists (x, ac_simplify f)
-    | Forall (x, f) -> Forall (x, ac_simplify f)
-    | Prev (i, f) -> Prev (i, ac_simplify f)
-    | Next (i, f) -> Next (i, ac_simplify f)
-    | Once (i, f) -> Once (i, ac_simplify f)
-    | Eventually (i, f) -> Eventually (i, ac_simplify f)
-    | Historically (i, f) -> Historically (i, ac_simplify f)
-    | Always (i, f) -> Always (i, ac_simplify f)
-    | Since (s, i, f, g) -> Since (s, i, ac_simplify f, ac_simplify g)
-    | Until (s, i, f, g) -> Until (s, i, ac_simplify f, ac_simplify g)
+    | Imp (s, f, g) ->
+      let f = ac_simplify f in
+      let g = ac_simplify g in
+      (match f.form, g.form with
+       | FF, _ | _, TT -> TT
+       | TT, FF -> FF
+       | TT, _ -> g.form
+       | _, FF -> Neg f
+       | _, _ -> Imp (s, f, g))
+    | Exists (x, f) ->
+      or_bool (ac_simplify f) (fun f -> Exists (x, f))
+    | Forall (x, f) ->
+      or_bool (ac_simplify f) (fun f -> Forall (x, f))
+    | Prev (i, f) ->
+      or_bool (ac_simplify f) (fun f -> Prev (i, f))
+    | Next (i, f) ->
+      or_bool (ac_simplify f) (fun f -> Next (i, f))
+    | Once (i, f) ->
+      or_bool (ac_simplify f) (fun f -> Once (i, f))
+    | Eventually (i, f) ->
+      or_bool (ac_simplify f) (fun f -> Eventually(i, f))
+    | Historically (i, f) ->
+      or_bool (ac_simplify f) (fun f -> Historically (i, f))
+    | Always (i, f) ->
+      or_bool (ac_simplify f) (fun f -> Always (i, f))
+    | Since (s, i, f, g) ->
+      let f = ac_simplify f in
+      let g = ac_simplify g in
+      (match f.form, g.form with
+       | _, FF -> FF
+       | FF, g -> g
+       | TT, _ -> Once (i, g)
+       | _, _ -> Since (s, i, f, g))
+    | Until (s, i, f, g) ->
+      let f = ac_simplify f in
+      let g = ac_simplify g in
+      (match f.form, g.form with
+       | _, FF -> FF
+       | FF, g -> g
+       | TT, _ -> Eventually (i, g)
+       | _, _ -> Until (s, i, f, g))
     | Type (f, ty) -> Type (ac_simplify f, ty)
     | Label (s, f) -> Label (s, ac_simplify f)
 
   and ac_simplify f =
+    (*print_endline (Printf.sprintf "ac_simplify(%s)=%s" (op_to_string f) (op_to_string {f with form =ac_simplify_core f.form}));*)
     { f with form = ac_simplify_core f.form }
+      
+  (* Simplify formulae *)
+
+  let rec simplify_core = function
+    | TT -> TT
+    | FF -> FF
+    | EqConst (x, v) ->
+      (match Term.unconst_opt x with
+       | Some d when Dom.equal v d -> TT
+       | Some _ -> FF
+       | None -> EqConst (x, v))
+    | Predicate (e, t) -> Predicate (e, t)
+    | Predicate' (e, t, f) -> Predicate' (e, t, simplify f)
+    | Let (r, enftype_opt, vars, f, g) -> Let (r, enftype_opt, vars, simplify f, simplify g)
+    | Let' (r, enftype_opt, vars, f, g) -> Let' (r, enftype_opt, vars, simplify f, simplify g)
+    | Agg (s, op, x, y, f) -> Agg (s, op, x, y, simplify f)
+    | Top (s, op, x, y, f) -> Top (s, op, x, y, simplify f)
+    | Neg f -> Neg (simplify f)
+    | And (s, fs) -> And (s, List.map ~f:simplify fs)
+    | Or (s, fs) -> Or (s, List.map ~f:simplify fs)
+    | Imp (s, f, g) -> Imp (s, simplify f, simplify g)
+    | Exists (x, f) -> Exists (x, simplify f)
+    | Forall (x, f) -> Forall (x, simplify f)
+    | Prev (i, f) -> Prev (i, simplify f)
+    | Next (i, f) -> Next (i, simplify f)
+    | Once (i, f) -> Once (i, simplify f)
+    | Eventually (i, f) -> Eventually (i, simplify f)
+    | Historically (i, f) -> Historically (i, simplify f)
+    | Always (i, f) -> Always (i, simplify f)
+    | Since (s, i, f, g) -> Since (s, i, simplify f, simplify g)
+    | Until (s, i, f, g) -> Until (s, i, simplify f, simplify g)
+    | Type (f, ty) -> Type (simplify f, ty)
+    | Label (s, f) -> Label (s, simplify f)
+
+  and simplify f =
+    { f with form = simplify_core f.form }
 
   (* Relative interval *)
   
@@ -2027,7 +2100,7 @@ module Make
       let r = (match f with
                | Some f -> Some (make f { info = formula.info; enftype; filter; flag })
                | None -> None) in
-      (*print_endline ("Convert(" ^ to_string formula ^ ")=" ^ Option.value_map r ~default:"None" ~f:(to_string_typed) ^ "\n");*)
+      (*print_endline (Printf.sprintf "MFOTL.convert(%s,%s)" (match r with Some f -> to_string_typed f | _ -> "") (Filter.to_string filter));*)
       r
 
     let convert' b f =
@@ -2063,15 +2136,15 @@ module Make
                     key::bound
                   ) in
                 let _ = Map.fold sol ~init:[] ~f:set_enftype in
-                let f = unroll_let f in
-                let f = convert_vars f in
+                let f = f |> unroll_let |> simplify |> convert_vars in
                 (*List.iter (Set.elements (fv f)) ~f:(fun v -> print_endline ("var: " ^  (Var.to_string v)));*)
                 match convert' b f with
-                | Some f' -> Stdio.print_endline ("The formula\n "
+                | Some f' -> let f' = ac_simplify f' in
+                             Stdio.print_endline ("The formula\n "
                                                   ^ to_string orig_f
                                                   ^ "\nis enforceable and types to\n "
                                                   ^ to_string_typed f');
-                             ac_simplify f'
+                             f'
                 | None    -> Stdio.print_endline ("The formula\n "
                                                   ^ to_string f
                                                   ^ "\n cannot be converted.");

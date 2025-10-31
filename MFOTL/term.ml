@@ -22,6 +22,7 @@ module type T = sig
   val dummy_int : int -> t
 
   val unvar_opt : t -> v option
+  val unconst_opt : t -> d option
 
   val fv_list : t list -> v list
   val fn_list : t list -> string list
@@ -96,6 +97,10 @@ module Make (Var : V) (Dom : D) (Uop : O) (Bop : O) (Info : I) = struct
 
     let unvar_opt t = match t.trm with
       | Var x -> Some x
+      | _ -> None
+
+    let unconst_opt t = match t.trm with
+      | Const d -> Some d
       | _ -> None
 
     let is_var t = match t.trm with

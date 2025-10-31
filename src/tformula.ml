@@ -169,9 +169,10 @@ let rec core_of_formula (f : Tyformula.typed_t) (types: Ctxt.t) : Ctxt.t * core_
      let types, mf = of_formula f types in
      types, Label (s, mf), mf.info.enftype, false
 
-and of_formula f  (types: Ctxt.t) =
+and of_formula f (types: Ctxt.t) =
+  let filter = f.info.filter in
   let types, f, enftype, flag = core_of_formula f types in
-  types, make f { enftype; filter = Filter.tt; flag }
+  types, make f { enftype; filter; flag }
 
 let of_formula' f =
   snd (of_formula f Ctxt.empty)
