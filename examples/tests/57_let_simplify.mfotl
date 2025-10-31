@@ -1,1 +1,0 @@
-FORALL x. (ALWAYS (LET E(x) = A(x) AND A(x) IN E(x) AND E(x) IMPLIES B(x))) AND (ALWAYS (LET E(x) = A(x) AND A(x) IN E(x) AND E(x) IMPLIES B(x)))

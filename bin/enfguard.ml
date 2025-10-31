@@ -13,12 +13,13 @@ module Enfguard = struct
   let sig_ref = ref In_channel.stdin
   let logstr_ref = ref ""
 
-  let run debug forall monitoring log_file logstr sig_file formula_file func_file out_file json bound time_zone step statistics latex label simplify =
+  let run debug forall monitoring log_file logstr sig_file formula_file func_file out_file json bound time_zone step statistics latex label simplify no_filter =
     if debug then Global.debug := true;
     if forall then Global.forall := true;
     if monitoring then Global.monitoring := true;
     if label then Global.label := true;
     if simplify then Global.simplify := true;
+    if no_filter then Global.filter := false;
     (match log_file with
      | Some logf -> inc_ref := In_channel.create logf
      | None -> ());
@@ -104,9 +105,10 @@ module Enfguard = struct
        and latex = flag "-latex" no_arg ~doc:" Print latex code of the formula"
        and label = flag "-label" no_arg ~doc:" Report labels of enforcement actions"
        and simplify = flag "-simplify" no_arg ~doc:" Simplify the formula"
+       and no_filter = flag "-no-filter" no_arg ~doc:" Do not use filter optimization"
        in
        fun () ->
-       run debug forall monitoring log_file logstr sig_file formula_file func_file out_file json bound time_zone step statistics latex label simplify)
+       run debug forall monitoring log_file logstr sig_file formula_file func_file out_file json bound time_zone step statistics latex label simplify no_filter)
 
 end
 

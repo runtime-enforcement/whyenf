@@ -31,3 +31,4 @@ docs/*/*.log
 docs/*/*.out
 docs/*/*.pdf
 docs/*/*/*.el
+*.secret

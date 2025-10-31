@@ -1,0 +1,17 @@
+The formula
+ □[0s,∞) (∀x:int. {"Main rule"}{A(x:int) → B(x:int)})
+is enforceable and types to
+ □[0s,∞) ((∀x:int. ({"Main rule"}{A(x:int) →:R (B(x:int) : Cau) : Cau} : Cau)) : Cau) : Cau
+[Enforcer:Label] Cause B(1): "Main rule"
+[Enforcer] @1 reactively commands:
+Cause:
+B(1)
+OK.
+[Enforcer] @1 nothing to do proactively.
+[Enforcer] @2 OK.
+[Enforcer] @2 nothing to do proactively.
+[Enforcer:Label] Cause B(3): "Main rule"
+[Enforcer] @3 reactively commands:
+Cause:
+B(3)
+OK.
