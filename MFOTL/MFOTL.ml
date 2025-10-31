@@ -1011,24 +1011,40 @@ module Make
       or_bool (ac_simplify f) (fun f -> Exists (x, f))
     | Forall (x, f) ->
       or_bool (ac_simplify f) (fun f -> Forall (x, f))
-    | Prev (i, f) ->
-      or_bool (ac_simplify f) (fun f -> Prev (i, f))
-    | Next (i, f) ->
-      or_bool (ac_simplify f) (fun f -> Next (i, f))
+    | Prev (i, f) -> Prev (i, ac_simplify f)
+    | Next (i, f) -> Next (i, ac_simplify f)
     | Once (i, f) ->
-      or_bool (ac_simplify f) (fun f -> Once (i, f))
+      let f = ac_simplify f in
+      (match f.form with
+       | FF -> FF
+       | TT when Interval.has_zero i -> TT
+       | _ -> Once (i, f))
     | Eventually (i, f) ->
-      or_bool (ac_simplify f) (fun f -> Eventually(i, f))
+      let f = ac_simplify f in
+      (match f.form with
+       | FF -> FF
+       | TT when Interval.has_zero i -> TT
+       | _ -> Eventually (i, f))
     | Historically (i, f) ->
-      or_bool (ac_simplify f) (fun f -> Historically (i, f))
+      let f = ac_simplify f in
+      (match f.form with
+       | FF when Interval.has_zero i -> FF
+       | TT -> TT
+       | _ -> Historically (i, f))
     | Always (i, f) ->
-      or_bool (ac_simplify f) (fun f -> Always (i, f))
+      let f = ac_simplify f in
+      (match f.form with
+       | FF when Interval.has_zero i -> FF
+       | TT -> TT
+       | _ -> Always (i, f))
     | Since (s, i, f, g) ->
       let f = ac_simplify f in
       let g = ac_simplify g in
       (match f.form, g.form with
        | _, FF -> FF
        | FF, g -> g
+       | TT, FF -> FF
+       | TT, TT when Interval.has_zero i -> TT
        | TT, _ -> Once (i, g)
        | _, _ -> Since (s, i, f, g))
     | Until (s, i, f, g) ->
@@ -1037,6 +1053,8 @@ module Make
       (match f.form, g.form with
        | _, FF -> FF
        | FF, g -> g
+       | TT, FF -> FF
+       | TT, TT when Interval.has_zero i -> TT
        | TT, _ -> Eventually (i, g)
        | _, _ -> Until (s, i, f, g))
     | Type (f, ty) -> Type (ac_simplify f, ty)

@@ -19,8 +19,8 @@ module type T = sig
   val app : string -> t list -> t*)
   val dummy_var : v -> t
   val dummy_app : string -> t list -> t
-  val dummy_int : int -> t
 
+  val dummy_int : int -> t
   val unvar_opt : t -> v option
   val unconst_opt : t -> d option
 
