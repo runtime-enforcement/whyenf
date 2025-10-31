@@ -1328,7 +1328,8 @@ module MFormula = struct
   let _ff     = set_make MFF Filter.tt
 
   let init (tf: Tformula.t) =
-    let rec aux (tf: Tformula.t) = match tf.form with
+    let rec aux (tf: Tformula.t) =
+      let r = match tf.form with
       | Tformula.TT -> MTT
       | FF -> MFF
       | EqConst (x, c) -> MEqConst (Tterm.to_term x, c)
@@ -1370,7 +1371,11 @@ module MFormula = struct
       | Type (f, _) -> aux f
       | Label (s, f) -> MLabel (s, make (aux f) f.info.filter)
       | Let _ -> raise (Errors.MonitoringError "Let bindings must be unrolled to initialize MFormula")
-    in set_make (aux tf) tf.info.filter
+      in
+      (*print_endline (Printf.sprintf "monitor.init.aux(%s, %s)" (Tformula.to_string tf) (Filter.to_string tf.info.filter));*)
+      r
+    in
+    set_make (aux tf) tf.info.filter
 
 
   let equal mf1 mf2 = mf1.hash = mf2.hash

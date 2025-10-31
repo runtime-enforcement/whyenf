@@ -402,15 +402,9 @@
         "sig": "simple.sig",
         "formula": "56_cause_label.mfotl",
         "log": "simple.log",
-        "output": "56_cause_label.out"
-    },
-    {
-        "label": "57_let_simplify",
-        "sig": "simple.sig",
-        "formula": "57_let_simplify.mfotl",
-        "log": "simple.log",
-        "output": "57_let_simplify.out"
-    },
+        "output": "56_cause_label.out",
+        "label_option": true
+    }
 ]
 
 
