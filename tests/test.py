@@ -16,14 +16,15 @@ class Test:
     command : List[str]
 
     def __init__(self, label : str, sig : Path, formula : Path, log : Path, output : str,
-                 func : Optional[Path] = None, success : bool = True):
-        self.label   = label
-        self.sig     = sig
-        self.formula = formula
-        self.log     = log
-        self.output  = output
-        self.func    = func
-        self.success = success
+                 func : Optional[Path] = None, label_option : bool = False, success : bool = True):
+        self.label        = label
+        self.sig          = sig
+        self.formula      = formula
+        self.log          = log
+        self.output       = output
+        self.func         = func
+        self.label_option = label_option
+        self.success      = success
         self._make_command()
 
     @classmethod
@@ -35,12 +36,15 @@ class Test:
             output = f.read()
         func    = EXAMPLE / json_fn["func"] if "func" in json_fn else None
         success = (json_fn["success"] == True) if "success" in json_fn else True
-        return Test(json_fn["label"], sig, formula, log, output, func, success=success)
+        label_option = json_fn.get("label_option", False)
+        return Test(json_fn["label"], sig, formula, log, output, func, label_option, success=success)
 
     def _make_command(self) -> None:
         command : List[str] = [str(ENFGUARD_PATH), "-sig", str(self.sig), "-formula", str(self.formula), "-log", str(self.log)]
         if self.func:
             command += ["-func", str(self.func)]
+        if self.label_option:
+            command += ["-label"]
         self.command = command
 
     def _run_enfguard(self) -> subprocess.CompletedProcess[str]:
