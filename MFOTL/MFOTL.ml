@@ -1043,7 +1043,6 @@ module Make
       (match f.form, g.form with
        | _, FF -> FF
        | FF, g -> g
-       | TT, FF -> FF
        | TT, TT when Interval.has_zero i -> TT
        | TT, _ -> Once (i, g)
        | _, _ -> Since (s, i, f, g))
@@ -1053,7 +1052,6 @@ module Make
       (match f.form, g.form with
        | _, FF -> FF
        | FF, g -> g
-       | TT, FF -> FF
        | TT, TT when Interval.has_zero i -> TT
        | TT, _ -> Eventually (i, g)
        | _, _ -> Until (s, i, f, g))
