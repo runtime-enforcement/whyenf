@@ -113,7 +113,7 @@ module EState = struct
 
   let add_cau cau es =
     if !Global.label then
-      Stdio.printf "[Enforcer:Labels] Cause %s: %s\n"
+      Stdio.printf "[Enforcer:Label] Cause %s: %s\n"
         (Db.Event.to_string cau)
         (labels_to_string es.labels);
     update (Db.empty, Db.singleton cau, Set.empty (module FObligation)) es
@@ -203,7 +203,7 @@ module EState = struct
     | OneOf fis -> List.exists fis ~f:(filter_eval db)
 
   let can_skip es mformula =
-    not (filter_eval es.db mformula.filter)
+    !Global.filter && not (filter_eval es.db mformula.filter)
 
   let testenf test enf v es mf =
     (*print_endline "-- testenf";
@@ -264,12 +264,12 @@ module EState = struct
     enfvio mf v es
 
   and enfsat (mformula: MFormula.t) v es : t =
-    print_endline ("--enfsat");
-    print_endline ("mformula=" ^ MFormula.value_to_string mformula);
+    (*print_endline ("--enfsat");*)
+    (*print_endline ("mformula=" ^ MFormula.value_to_string mformula);*)
     (*print_endline ("v=" ^ Etc.valuation_to_string v);*)
     (*print_endline ("db=" ^ Db.to_string (es.db));*)
       (*print_endline ("es=" ^ to_string es);*)
-    (*print_endline ("filter=" ^ Formula.Filter.to_string mformula.filter);*)
+    (*print_endline ("filter=" ^ Filter.to_string mformula.filter);*)
     match mformula.mf with
     | _ when can_skip es mformula ->
        (*print_endline (Printf.sprintf "Skipping %s as there are no %s in %s"
@@ -299,7 +299,7 @@ module EState = struct
          add_foblig (FEventually (default_ts ts es, i, mf, mformula.hash, vv), v, POS) es
     | MEAlways (i, ts, mf, vv) ->
        let es =
-         let es, b = sat v mf es in
+         let es, b = if can_skip es mf then es, true else sat v mf es in
          if Interval.diff_is_in (default_ts ts es) es.ts i && not b then
            enfsat mf v es
          else
@@ -314,7 +314,7 @@ module EState = struct
        if Interval.diff_right_of (default_ts ts es) (inc_ts es.ts) i && es.nick then
          add_cau Db.Event._tp (enfsat mf2 v es)
        else (
-         let es, b = sat v mf1 es in
+         let es, b = if can_skip es mf1 then es, true else sat v mf1 es in
          if not b then
            enfsat mf2 v es
          else
@@ -335,8 +335,8 @@ module EState = struct
                     (Printf.sprintf "function enfsat is not defined for %s"
                        (MFormula.op_to_string mformula)))
   and enfvio (mformula: MFormula.t) v es =
-    print_endline "--enfvio";
-    print_endline ("mformula=" ^ MFormula.value_to_string mformula);
+    (*print_endline "--enfvio";
+      print_endline ("mformula=" ^ MFormula.value_to_string mformula);*)
     (*print_endline ("v=" ^ Etc.valuation_to_string v);*)
     (*print_endline ("es=" ^ to_string es);*)
     match mformula.mf with
@@ -592,7 +592,7 @@ let compile (f: Formula.t) (b: Time.Span.s) : Tformula.t =
   if (not transparent) then
     print_endline "This formula cannot be transparently enforced.";
   (*let tf = if !Global.simplify then Tformula.simplify tf else tf in*)
-  print_endline ("unprimed: " ^ Tformula.to_string (Tformula.unprime tf));
+  (*print_endline ("unprimed: " ^ Tformula.to_string (Tformula.unprime tf));*)
   tf
 
 let exec (f: Formula.t) =

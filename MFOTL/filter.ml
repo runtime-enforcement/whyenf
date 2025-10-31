@@ -31,7 +31,7 @@ let rec simplify = function
      if one_of_bad then
        ff
      else
-       AllOf (all_of_fis @ one_ofs @ ans)
+       AllOf (List.dedup_and_sort (all_of_fis @ one_ofs @ ans) ~compare)
   | OneOf fis ->
      let fis        = List.map fis ~f:simplify in
      let one_of_fis = List.concat_map fis ~f:(function OneOf fis -> fis | _ -> []) in
@@ -41,7 +41,7 @@ let rec simplify = function
      if all_of_bad then
        tt
      else
-       OneOf (one_of_fis @ all_ofs @ ans)
+       OneOf (List.dedup_and_sort (one_of_fis @ all_ofs @ ans) ~compare)
 
 let conj fi1 fi2 = simplify (AllOf [fi1; fi2])
 let disj fi1 fi2 = simplify (OneOf [fi1; fi2])
