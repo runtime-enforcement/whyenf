@@ -131,7 +131,8 @@ module EState = struct
         loop es.r es'
       else
         es'
-    in loop Triple.empty es
+    in
+    loop Triple.empty es
 
   let mstep_state es =
     mstep es.tp es.ts es.db true es.ms es.fobligs
@@ -272,10 +273,10 @@ module EState = struct
     (*print_endline ("filter=" ^ Filter.to_string mformula.filter);*)
     match mformula.mf with
     | _ when can_skip es mformula ->
-       (*print_endline (Printf.sprintf "Skipping %s as there are no %s in %s"
+      print_endline (Printf.sprintf "Skipping %s as there are no %s in %s"
          (MFormula.to_string mformula)
-         (Formula.Filter.to_string mformula.filter)
-         (Db.to_string es.db));*)
+         (Filter.to_string mformula.filter)
+         (Db.to_string es.db));
        es
     | MTT -> es
     | MPredicate (r, trms) when Sig.equal_pred_kind (Sig.kind_of_pred r) Sig.Trace ->
@@ -519,8 +520,6 @@ let exec' (tf: Tformula.t) inc (b: Time.Span.s) =
   in
   let rec process_db (pb: Other_parser.Parsebuf.t) (es: EState.t) =
     (*let time_before = Unix.gettimeofday() in*)
-    (*print_endline ("--process_db " ^ string_of_int !Monitor.meval_c);*)
-    Monitor.meval_c := 0;
     if Int.equal pb.ts (-1) && FObligations.accepts_empty es.fobligs then
       es
     else if not (Time.equal (Time.of_int pb.ts) es.ts) then

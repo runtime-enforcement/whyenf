@@ -404,6 +404,13 @@
         "log": "simple.log",
         "output": "56_cause_label.out",
         "label_option": true
+    },
+    {
+	"label": "57_let_guarded",
+	"sig": "simple.sig",
+	"formula": "57_let_guarded.mfotl",
+	"log": "simple.log",
+	"output": "57_let_guarded.out"
     }
 ]
 

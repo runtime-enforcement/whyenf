@@ -152,8 +152,6 @@ module type MonitorT = sig
   val mstep: timepoint -> timestamp -> Db.t -> bool -> MState.t -> FObligations.t ->
              res Memo.t -> res Memo.t * (((timepoint * timestamp) * Expl.t) list * Expl.t * MState.t)
 
-  val meval_c: int ref
-
 end
 
 open Expl
@@ -812,6 +810,183 @@ module Until = struct
 
 end
 
+(*
+module IVar : sig
+
+  type t = int [@@deriving compare, sexp_of, hash, equal]
+
+  type comparator_witness
+  val comparator : (t, comparator_witness) Comparator.t
+
+  val to_string : t -> string
+  val to_latex : t -> string
+  val ident : t -> string
+  val of_ident : string -> t
+
+  val replace : t -> t -> t
+
+  val equal_ident : t -> t -> bool
+
+  val of_var : Lbl.t list -> string -> t
+  val of_vars : Lbl.t list -> string list -> t list
+
+end = struct
+
+  module T = struct
+
+    type t = int [@@deriving compare, sexp_of, hash, equal]
+    
+    let to_string i = Printf.sprintf "idx(%d)" i
+    
+    let to_latex i = Printf.sprintf "\\mathsf{idx}(%d)" i
+    let ident i = Int.to_string i
+    let of_ident _ = 0
+
+    let replace z _ = z
+
+    let equal_ident = equal
+
+    let of_var (lbls: Lbl.t list) (s: string) =
+      let f _ = function
+        | Lbl.LVar s' | LAll s' | LEx s' -> String.equal s s'
+        | _ -> false in
+      fst (List.findi_exn lbls ~f)
+
+    let of_vars lbls = List.map ~f:(of_var lbls)
+    
+  end
+
+  include T
+  
+  let comparator = Int.comparator
+  type comparator_witness = Int.comparator_witness
+end
+
+module ITerm : sig
+
+  type t =
+    | Const of Dom.t
+    | Index of int
+  [@@deriving compare, sexp_of, hash, equal]
+        
+  type v = IVar.t [@@deriving compare, sexp_of, hash, equal]
+  type d = Dom.t [@@deriving compare, sexp_of, hash, equal]
+
+  type comparator_witness
+  val core_equal : t -> t -> bool
+  val comparator : (t, comparator_witness) Comparator.t
+
+  val dummy_var : v -> t
+  val dummy_app : string -> t list -> t
+  val dummy_int : int -> t
+
+  val unvar_opt : t -> v option
+  val unconst_opt : t -> d option
+
+  val fv_list : t list -> v list
+  val fn_list : t list -> string list
+  val size : t -> int
+  val exists_subterm : f:(t -> bool) -> t -> bool
+  val equal : t -> t -> bool
+
+  val to_string : t -> string
+  val value_to_string : ?l:int -> t -> string
+  val value_to_latex : ?l:int -> t -> string
+  val list_to_string : t list -> string
+  val list_to_latex : t list -> string
+
+  val subst : (v, t, 'a) Map.t -> t -> t
+  val substs : (v, t, 'a) Map.t -> t list -> t list
+
+  val map_consts: f:(d -> d) -> t -> t
+
+  val of_term : Lbl.t list -> Term.t -> t
+  val of_terms : Lbl.t list -> Term.t list -> t list
+    
+end = struct
+
+  module T = struct
+
+    type t =
+      | Const of Dom.t
+      | Index of int
+    [@@deriving compare, sexp_of, hash, equal]
+          
+    type v = IVar.t [@@deriving compare, sexp_of, hash, equal]
+    type d = Dom.t [@@deriving compare, sexp_of, hash, equal]
+
+    let core_equal t u =
+      match t, u with
+      | Const d, Const d' -> Dom.equal d d'
+      | Index i, Index i' -> Int.equal i i'
+      | _ -> false
+
+    let dummy_var _ = Index 0
+    let dummy_app _ _ = Index 0
+    let dummy_int _ = Index 0
+      
+    let unvar_opt _ = None
+    let unconst_opt _ = None
+
+    let fv_list _ = []
+    let fn_list _ = []
+    let size _ = 1
+    let exists_subterm ~f:_ _ = false
+
+    let to_string = function
+      | Const d -> Printf.sprintf "Const %s" (Dom.to_string d)
+      | Index i -> Printf.sprintf "Index %d" i
+                     
+    let value_to_string ?(l=0) = function
+      | Const d -> Printf.sprintf "%s" (Dom.to_string d)
+      | Index i -> Printf.sprintf "idx(%d)" i
+                     
+    let value_to_latex ?(l=0) = function
+      | Const d -> Printf.sprintf "%s" (Dom.to_latex d)
+      | Index i -> Printf.sprintf "\\mathsf{idx}(%d)" i
+        
+    let list_to_string ts = String.concat ~sep:", " (List.map ts ~f:value_to_string)
+    let list_to_latex ts = String.concat ~sep:", " (List.map ts ~f:value_to_latex)
+
+    let subst _ t = t
+    let substs _ ts = ts
+
+    let map_consts ~f:_ t = t
+
+    let of_term (lbls: Lbl.t list) (trm: Term.t) =
+      match trm.trm with
+      | Term.Const d -> Const d
+      | App (f, ts) ->
+        let f _ = function
+          | Lbl.LClos (f', ts', _) ->
+            String.equal f f'
+            && (match List.for_all2 ts ts' ~f:Term.equal with
+                | Base.List.Or_unequal_lengths.Ok b -> b
+                | _ -> false)
+          | _ -> false in
+        Index (fst (List.findi_exn lbls ~f))
+      | Var s ->
+        let f _ = function
+          | Lbl.LVar s' | LAll s' | LEx s' -> String.equal s s'
+          | _ -> false in
+        Index (fst (List.findi_exn lbls ~f))
+      | _ -> assert false
+
+    let of_terms lbls = List.map ~f:(of_term lbls)
+
+  end
+
+  include T
+  include Comparator.Make(T)
+
+end
+
+module IFormula = struct
+
+  include MFOTL.Make(Term.TrivialInfo)(IVar)(Dom)(ITerm)
+
+end
+   *)
 
 module MFormula = struct
 
@@ -864,6 +1039,24 @@ module MFormula = struct
             lbls: Lbl.t list
           }
 
+  (*
+  let rec to_iformula mf =
+    let aux f = IFormula.make_dummy (to_iformula f) in
+    match mf.mf with
+    | MTT -> IFormula.TT
+    | MFF -> FF
+    | MEqConst (t, d) -> EqConst (ITerm.of_term mf.lbls t, d)
+    | MPredicate (r, ts) -> Predicate (r, ITerm.of_terms mf.lbls ts)
+    | MAgg (s, op, _, x, y, f) -> Agg (IVar.of_var mf.lbls s, op, ITerm.of_term f.lbls x, IVar.of_vars f.lbls y, aux f)
+    | MTop (s, op, _, x, y, f) -> Top (IVar.of_vars mf.lbls s, op, ITerm.of_terms f.lbls x, IVar.of_vars f.lbls y, aux f)
+    | MNeg f -> Neg (aux f)
+    | MAnd (s, fs, _) -> And (s, List.map ~f:aux fs)
+    | MOr (s, fs, _) -> Or (s, List.map ~f:aux fs)
+    | MImp (s, f, g) -> Imp (s, aux f, aux g)
+    | MExists (x, 
+                        *)
+                          
+
   let subs mf = match mf.mf with
     | MTT | MFF | MEqConst _ | MPredicate _ -> []
     | MExists (_, _, _, f)
@@ -899,11 +1092,14 @@ module MFormula = struct
     | MFF -> Printf.sprintf "⊥"
     | MEqConst (trm, c) -> Printf.sprintf "%s = %s" (Term.value_to_string trm) (Dom.to_string c)
     | MPredicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
-    | MAgg (s, op, _, x, y, f) -> Printf.sprintf (Etc.paren l (-1) "%s <- %s(%s; %s; %s)") s (Aggregation.op_to_string op) (Term.value_to_string x) (String.concat ~sep:", " y) (value_to_string_rec (-1) f)
-    | MTop (s, op, _, x, y, f) -> Printf.sprintf (Etc.paren l (-1) "[%s] <- %s(%s; %s; %s)")
-                                    (Etc.string_list_to_string s) op
-                                    (Term.list_to_string x) (Etc.string_list_to_string y)
-                                    (value_to_string_rec (-1) f)
+    | MAgg (s, op, _, x, y, f) ->
+      Printf.sprintf (Etc.paren l (-1) "%s <- %s(%s; %s; %s)") s
+        (Aggregation.op_to_string op) (Term.value_to_string x)
+        (String.concat ~sep:", " y) (value_to_string_rec (-1) f)
+    | MTop (s, op, _, x, y, f) ->
+      Printf.sprintf (Etc.paren l (-1) "[%s] <- %s(%s; %s; %s)")
+        (Etc.string_list_to_string s) op (Term.list_to_string x)
+        (Etc.string_list_to_string y) (value_to_string_rec (-1) f)
     | MNeg f -> Printf.sprintf "¬%a" (fun _ -> value_to_string_rec 5) f
     | MAnd (_, fs, _) -> Printf.sprintf (Etc.paren l 4 "%s") (String.concat ~sep:"∧" (List.map fs ~f:(value_to_string_rec 4)))
     | MOr (_, fs, _) -> Printf.sprintf (Etc.paren l 3 "%s") (String.concat ~sep:"∨" (List.map fs ~f:(value_to_string_rec 4)))
@@ -1118,8 +1314,7 @@ module MFormula = struct
     | MEUntil (s, i, _, f, g, v) ->
        String.hash "MEUntil" +++ Side.hash s +++ Interval.hash i +++ f.hash
        +++ g.hash +++ Etc.hash_valuation v
-    | MLabel (s, f) ->
-       String.hash "MLabel" +++ String.hash s +++ f.hash
+    | MLabel (s, f) -> f.hash
 
   (*and hash mf = core_hash mf.mf*)
 
@@ -1285,7 +1480,6 @@ module MFormula = struct
       (to_string mf'))
       | _ -> ());*)
     mf'
-
 
   let make mf filter =
     { mf; filter; events = None; obligations = None; hash = core_hash mf; lbls = [] }
@@ -1877,8 +2071,6 @@ let approximate_until lbls aexpl1 aexpl2 (fobligs: FObligations.t) i h_opt tp po
     (fun p1 p2 p3 -> Until.approximate tp i (FObligation.equal_polarity pol POS) p1 p2 p3)
     aexpl_new1 aexpl_new2 aexpl_next
 
-let meval_c = ref 0
-
 (*let memo = Hashtbl.create (module Formula)*)
 
 
@@ -1939,7 +2131,6 @@ let meval (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) mformula 
     (*print_endline ("memo=" ^ Memo.to_string memo);*)
     (*print_endline ("hash=" ^ Int.to_string mformula.hash);*)
     (*print_endline ("incr: " ^ MFormula.to_string mformula);*)
-    Int.incr meval_c;
     match Memo.find memo mformula (pol_value pol) with
     | Some (expls, aexpl, mf) -> ((*print_endline ("meval:memo(" ^ Int.to_string mf.hash ^ ", " ^ Int.to_string tp ^ ")");*) (memo, (expls, aexpl, mf)))
     | None -> 

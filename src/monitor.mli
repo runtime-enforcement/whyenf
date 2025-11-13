@@ -154,6 +154,5 @@ type res = Expl.t TS.t list * Expl.t * MFormula.t
 val mstep: timepoint -> timestamp -> Db.t -> bool -> MState.t -> FObligations.t ->
            res Memo.t -> res Memo.t * (((timepoint * timestamp) * Expl.t) list * Expl.t * MState.t)
 
-val meval_c: int ref 
 
 

@@ -38,12 +38,10 @@ module Make
     | Until of Side.t * Interval.t * ('i, 'v, 'd, 't) _t * ('i, 'v, 'd, 't) _t
     | Type of ('i, 'v, 'd, 't) _t * Enftype.t
     | Label of string * ('i, 'v, 'd, 't) _t
-                          [@@deriving compare, sexp_of, hash, equal]
+  [@@deriving compare, sexp_of, hash, equal]
 
   and ('i, 'v, 'd, 't) _t = { form : ('i, 'v, 'd, 't) _core_t; info : 'i}
-                              [@@deriving compare, sexp_of, hash, equal]
-
-
+  [@@deriving compare, sexp_of, hash, equal]
 
   type core_t = (Info.t, Var.t, Dom.t, Term.t) _core_t [@@deriving compare, sexp_of, hash, equal]
   type t      = (Info.t, Var.t, Dom.t, Term.t) _t      [@@deriving compare, sexp_of, hash, equal]
@@ -593,6 +591,113 @@ module Make
   let to_string = to_string_rec 0
   let to_string_typed = to_string_typed_rec 0
 
+  let rec to_string_value_rec l (f: ('i, Var.t, Dom.t, Term.t) _t)  =
+    match f.form with
+    | TT -> Printf.sprintf "⊤"
+    | FF -> Printf.sprintf "⊥"
+    | EqConst (trm, c) ->
+       Printf.sprintf (Etc.paren l 40 "(%s) = %s")
+         (Term.value_to_string trm) (Dom.to_string c)
+    | Predicate (r, trms) ->
+       Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
+    | Predicate' (r, trms, _) ->
+       Printf.sprintf "%s٭(%s)" r (Term.list_to_string trms)
+    | Let (r, enftype, vars, f, g) ->
+       Printf.sprintf (Etc.paren l 4 "LET %s(%s)%s = %a IN %a") r
+         (Etc.string_list_to_string (List.map ~f:string_of_opt_typed_var vars))
+         (Enftype.to_string_let enftype)
+         (fun _ -> to_string_value_rec 4) f
+         (fun _ -> to_string_value_rec 4) g
+    | Let' (r, enftype, vars, f, g) ->
+       Printf.sprintf (Etc.paren l 4 "LET %s٭(%s)%s = %a IN %a")
+         r (Etc.string_list_to_string (List.map ~f:string_of_opt_typed_var vars))
+         (Enftype.to_string_let enftype)
+         (fun _ -> to_string_value_rec 4) f
+         (fun _ -> to_string_value_rec 4) g
+    | Agg (s, Aggregation.AAssign, x, _, f) ->
+       Printf.sprintf (Etc.paren l 5 "%s; %s <- %s")
+         (to_string_value_rec 5 f) (Var.to_string s)
+         (Term.value_to_string x)
+    | Agg (s, op, x, y, f) ->
+       Printf.sprintf (Etc.paren l 5 "%s <- %s(%s; %s; %s)")
+         (Var.to_string s) (Aggregation.op_to_string op)
+         (Term.value_to_string x) (String.concat ~sep:", " (List.map ~f:Var.to_string y))
+         (to_string_value_rec 5 f)
+    | Top (s, op, x, y, f) ->
+       Printf.sprintf (Etc.paren l 5 "[%s] <- %s([%s]; %s; %s)")
+         (String.concat ~sep:", " (List.map ~f:Var.to_string s)) op
+         (Term.list_to_string x) (String.concat ~sep:", " (List.map ~f:Var.to_string y))
+         (to_string_value_rec 5 f)
+    | Neg f ->
+       Printf.sprintf (Etc.paren l 55 "¬%a")
+         (fun _ -> to_string_value_rec 55) f
+    | And (s, fs) ->
+       Printf.sprintf (Etc.paren l 50 "%s")
+         (String.concat ~sep:(" ∧" ^ Side.to_string s ^ " ")
+            (List.map ~f:(to_string_value_rec 50) fs))
+    | Or (s, fs) ->
+       Printf.sprintf (Etc.paren l 40 "%s")
+         (String.concat ~sep:(" ∨" ^ Side.to_string s ^ " ")
+            (List.map ~f:(to_string_value_rec 40) fs))
+    | Imp (s, f, g) ->
+       Printf.sprintf (Etc.paren l 30 "%a →%a %a")
+         (fun _ -> to_string_value_rec 30) f
+         (fun _ -> Side.to_string) s
+         (fun _ -> to_string_value_rec 30) g
+    | Exists (x, f) ->
+       Printf.sprintf (Etc.paren l 6 "∃%a. %a")
+         (fun _ -> Var.to_string) x
+         (fun _ -> to_string_value_rec 6) f
+    | Forall (x, f) ->
+       Printf.sprintf (Etc.paren l 6 "∀%a. %a")
+         (fun _ -> Var.to_string) x
+         (fun _ -> to_string_value_rec 6) f
+    | Prev (i, f) ->
+       Printf.sprintf (Etc.paren l 50 "●%a %a")
+         (fun _ -> Interval.to_string) i
+         (fun _ -> to_string_value_rec 50) f
+    | Next (i, f) ->
+       Printf.sprintf (Etc.paren l 50 "○%a %a")
+         (fun _ -> Interval.to_string) i
+         (fun _ -> to_string_value_rec 50) f
+    | Once (i, f) ->
+       Printf.sprintf (Etc.paren l 50 "⧫%a %a")
+         (fun _ -> Interval.to_string) i
+         (fun _ -> to_string_value_rec 50) f
+    | Eventually (i, f) ->
+       Printf.sprintf (Etc.paren l 50 "◊%a %a")
+         (fun _ -> Interval.to_string) i
+         (fun _ -> to_string_value_rec 50) f
+    | Historically (i, f) ->
+       Printf.sprintf (Etc.paren l 50 "■%a %a")
+         (fun _ -> Interval.to_string) i
+         (fun _ -> to_string_value_rec 50) f
+    | Always (i, f) ->
+       Printf.sprintf (Etc.paren l 50 "□%a %a")
+         (fun _ -> Interval.to_string) i
+         (fun _ -> to_string_value_rec 50) f
+    | Since (s, i, f, g) ->
+       Printf.sprintf (Etc.paren l 45 "%a S%a%a %a")
+         (fun _ -> to_string_value_rec 45) f
+         (fun _ -> Interval.to_string) i
+         (fun _ -> Side.to_string) s
+         (fun _ -> to_string_value_rec 45) g
+    | Until (s, i, f, g) ->
+       Printf.sprintf (Etc.paren l 45 "%a U%a%a %a")
+         (fun _ -> to_string_value_rec 45) f
+         (fun _ -> Interval.to_string) i
+         (fun _ -> Side.to_string) s
+         (fun _ -> to_string_value_rec 45) g
+    | Type (f, ty) ->
+       Printf.sprintf (Etc.paren l 0 "%a : %s")
+         (fun _ -> to_string_value_rec 0) f
+         (Enftype.to_string ty)
+    | Label (s, f) ->
+       Printf.sprintf "{\"%s\"}{%a}" s
+         (fun _ -> to_string_value_rec 0) f
+
+  let to_string_value f = to_string_value_rec 0 f
+
   let to_latex_core_rec to_latex_rec l f =
     match f with
     | TT -> Printf.sprintf "\\bot"
@@ -702,8 +807,6 @@ module Make
        Printf.sprintf "\\{\"%s\"\\}\\{%a\\}" s
          (fun _ -> to_string_rec 0) f
        
-
-
   let rec to_latex_rec l f =
     Info.to_string l (to_latex_core_rec to_latex_rec l f.form) f.info
 
@@ -959,8 +1062,10 @@ module Make
 
   (* AC-rewriting *)
   
-  let rec ac_simplify_core =
-    let or_bool f g = match f.form with TT -> TT | FF -> FF | _ -> g f in
+  let rec ac_simplify_core ?(debug=false) =
+    let unpr' f = match f.form with Predicate' (_, _, f) -> f.form | _ -> f.form in
+    let or_bool f g = match unpr' f with TT -> TT | FF -> FF | _ -> g f in
+    let ac_simplify = ac_simplify ~debug in
     function
     | TT -> TT
     | FF -> FF
@@ -973,27 +1078,27 @@ module Make
     | Top (s, op, x, y, f) -> Top (s, op, x, y, ac_simplify f)
     | Neg f ->
       let f = ac_simplify f in
-      (match f.form with TT -> FF | FF -> TT | _ -> Neg f)
+      (match unpr' f with TT -> FF | FF -> TT | _ -> Neg f)
     | And (s, fs) -> 
        let fs = List.map fs ~f:ac_simplify in
-       let f fs f' = match f'.form with
+       let f fs f' = match unpr' f' with
          | And (s', fs') when Side.equal s s' -> fs @ fs'
          | TT -> fs
          | _ -> fs @ [f'] in
        let fs = List.fold_left fs ~init:[] ~f in
-       if List.exists fs ~f:(fun f' -> match f'.form with FF -> true | _ -> false)
+       if List.exists fs ~f:(fun f' -> match unpr' f' with FF -> true | _ -> false)
        then FF
        else if List.is_empty fs then TT
        else if List.length fs = 1 then (List.hd_exn fs).form
        else And (s, fs)
     | Or (s, fs) ->
        let fs = List.map fs ~f:ac_simplify in
-       let f fs f' = match f'.form with
+       let f fs f' = match unpr' f' with
          | Or (s', fs') when Side.equal s s' -> fs @ fs'
          | FF -> fs
          | _ -> fs @ [f'] in
        let fs = List.fold_left fs ~init:[] ~f in
-       if List.exists fs ~f:(fun f' -> match f'.form with TT -> true | _ -> false)
+       if List.exists fs ~f:(fun f' -> match unpr' f' with TT -> true | _ -> false)
        then TT
        else if List.is_empty fs then FF
        else if List.length fs = 1 then (List.hd_exn fs).form
@@ -1001,7 +1106,7 @@ module Make
     | Imp (s, f, g) ->
       let f = ac_simplify f in
       let g = ac_simplify g in
-      (match f.form, g.form with
+      (match unpr' f, unpr' g with
        | FF, _ | _, TT -> TT
        | TT, FF -> FF
        | TT, _ -> g.form
@@ -1015,32 +1120,32 @@ module Make
     | Next (i, f) -> Next (i, ac_simplify f)
     | Once (i, f) ->
       let f = ac_simplify f in
-      (match f.form with
+      (match unpr' f with
        | FF -> FF
        | TT when Interval.has_zero i -> TT
        | _ -> Once (i, f))
     | Eventually (i, f) ->
       let f = ac_simplify f in
-      (match f.form with
+      (match unpr' f with
        | FF -> FF
        | TT when Interval.has_zero i -> TT
        | _ -> Eventually (i, f))
     | Historically (i, f) ->
       let f = ac_simplify f in
-      (match f.form with
+      (match unpr' f with
        | FF when Interval.has_zero i -> FF
        | TT -> TT
        | _ -> Historically (i, f))
     | Always (i, f) ->
       let f = ac_simplify f in
-      (match f.form with
+      (match unpr' f with
        | FF when Interval.has_zero i -> FF
        | TT -> TT
        | _ -> Always (i, f))
     | Since (s, i, f, g) ->
       let f = ac_simplify f in
       let g = ac_simplify g in
-      (match f.form, g.form with
+      (match unpr' f, unpr' g with
        | _, FF -> FF
        | FF, g -> g
        | TT, FF -> FF
@@ -1050,19 +1155,20 @@ module Make
     | Until (s, i, f, g) ->
       let f = ac_simplify f in
       let g = ac_simplify g in
-      (match f.form, g.form with
+      (match unpr' f, unpr' g with
        | _, FF -> FF
-       | FF, g -> g
+       | FF, _ -> g.form
        | TT, FF -> FF
        | TT, TT when Interval.has_zero i -> TT
        | TT, _ -> Eventually (i, g)
        | _, _ -> Until (s, i, f, g))
-    | Type (f, ty) -> Type (ac_simplify f, ty)
-    | Label (s, f) -> Label (s, ac_simplify f)
+    | Type (f, ty) -> or_bool (ac_simplify f) (fun f -> Type (f, ty))
+    | Label (s, f) -> or_bool (ac_simplify f) (fun f -> Label (s, f))
 
-  and ac_simplify f =
-    (*print_endline (Printf.sprintf "ac_simplify(%s)=%s" (op_to_string f) (op_to_string {f with form =ac_simplify_core f.form}));*)
-    { f with form = ac_simplify_core f.form }
+  and ac_simplify ?(debug=false) f =
+    (*if debug then
+      print_endline (Printf.sprintf "ac_simplify(%s)=%s" (to_string_value f) (to_string_value {f with form =ac_simplify_core f.form}));*)
+    { f with form = ac_simplify_core ~debug f.form }
       
   (* Simplify formulae *)
 
@@ -1351,7 +1457,7 @@ module Make
     type t_map  = (string, Enftype.t * int list, String.comparator_witness) Map.t
 
     let rec solve_past_guarded (ts: pg_map) (x: Var.t) p (f:('i, Var.t, Dom.t, Term.t) _t)  =
-      let matches ts x r i t = Term.equal (Term.dummy_var x) t && Map.mem ts (eib r i true) in
+      let matches ts x r i t = Term.equal (Term.dummy_var x) t && Map.mem ts (eib r i p) in
       let map_var default f t = match Term.unvar_opt t with Some y -> f y | None -> default in
       let rec aux ts x p (f: ('i, Var.t, Dom.t, Term.t) _t) =
         let s =
@@ -1362,21 +1468,23 @@ module Make
              map_var [] (fun y -> if Var.equal_ident x y
                                   then [Set.empty (module String)] else []) y
           | Predicate (r, trms), _ when List.existsi ~f:(matches ts x r) trms ->
+            (*print_endline "Predicate--case 1";*)
              let f i t = if matches ts x r i t then Some (Map.find_exn ts (eib r i p)) else None in
              List.concat (List.filter_mapi trms ~f)
           | Predicate (r, trms), true
                when List.exists ~f:(map_var false (Var.equal_ident x)) trms
                     && Sig.mem r
                     && Enftype.is_observable (Sig.enftype_of_pred r) ->
+               (*print_endline "Predicate--case 2";*)
              [Set.singleton (module String) r]
           | Predicate' (_, _, f), _ -> aux ts x p f
           | Let (e, _, vars, f, g), _ ->
-             (*let f i ts z =
+            (*let f i ts z =
                let ts = Map.update ts (eib e i true) ~f:(fun _ -> aux ts z true f) in
-               Map.update ts (eib e i false) ~f:(fun _ -> aux ts z false f) in*)
-             (*let ts = List.foldi vars ~init:ts ~f in*)
-             let ts = solve_past_guarded_multiple_vars ts vars e f in
-             aux ts x p g
+               Map.update ts (eib e i false) ~f:(fun _ -> aux ts z false f) in
+              let ts = List.foldi vars ~init:ts ~f in*)
+            let ts = solve_past_guarded_multiple_vars ts vars e f in
+            aux ts x p g
           | Let' (_, _, _, _, f), _ -> aux ts x p f
           | Agg (s, _, t, _, f), true when Var.equal_ident s x ->
              let sols_list = List.map (Term.fv_list [t]) ~f:(fun z -> aux ts z p f) in
@@ -1395,17 +1503,13 @@ module Make
              List.map ~f:(Etc.inter_list (module String)) (Etc.cartesian sols_list)
           | Neg f, _ -> aux ts x (not p) f
           | And (_, fs'), true | Or (_, fs'), false ->
-             let q = match f.form with Imp _ -> not p | _ -> p in
-             Etc.dedup ~equal:Set.equal (List.concat_map fs' ~f:(aux ts x q))
+             Etc.dedup ~equal:Set.equal (List.concat_map fs' ~f:(aux ts x p))
           | Imp (_, f', g'), false ->
-             let q = match f.form with Imp _ -> not p | _ -> p in
-             Etc.dedup ~equal:Set.equal (aux ts x q f' @ aux ts x p g')
+             Etc.dedup ~equal:Set.equal (aux ts x (not p) f' @ aux ts x p g')
           | And (_, fs'), false | Or (_, fs'), true ->
-             let q = match f.form with Imp _ -> not p | _ -> p in
-             List.map ~f:(Etc.inter_list (module String)) (Etc.cartesian (List.map fs' ~f:(aux ts x q)))
+             List.map ~f:(Etc.inter_list (module String)) (Etc.cartesian (List.map fs' ~f:(aux ts x p)))
           | Imp (_, f', g'), true ->
-             let q = match f.form with Imp _ -> not p | _ -> p in
-             List.map ~f:(Etc.inter_list (module String)) (Etc.cartesian [aux ts x q f'; aux ts x p g'])
+             List.map ~f:(Etc.inter_list (module String)) (Etc.cartesian [aux ts x (not p) f'; aux ts x p g'])
           | Exists (y, f), _ | Forall (y, f), _ when not (Var.equal_ident x y) -> aux ts x p f
           | Prev (_, f), true | Once (_, f), true -> aux ts x p f
           | Once (i, f), false | Eventually (i, f), false when Interval.has_zero i -> aux ts x p f
@@ -1419,17 +1523,21 @@ module Make
           | Until (_, _, f, g), true -> aux ts x p (make (disj N f g) f.info)
           | Label (_, f), _ -> aux ts x p f
           | _ -> [] in
+        (*Stdio.print_endline (Printf.sprintf "solve_past_guarded(%s, %s, %b) = [%s]"
+                               (Var.to_string x)
+                               (to_string_value f) p
+                               (*(String.concat ~sep:"; " (List.map ~f:(fun (k, _) -> Printf.sprintf "%s -> [%s]" k (String.concat ~sep:"; " (List.map ~f:(fun es -> "{" ^ (String.concat ~sep:", " (Set.elements es)) ^ "}") s))) (Map.to_alist ts)))*)
+                               (String.concat ~sep:"; " (List.map ~f:(fun es -> "{" ^ (String.concat ~sep:", " (Set.elements es)) ^ "}") s)) );*)
         (*Stdio.print_endline (Printf.sprintf "solve_past_guarded([%s], %s, %b, %s) = [%s]"
                          (String.concat ~sep:"; " (List.map ~f:(fun (k, _) -> Printf.sprintf "%s -> %s" k (String.concat ~sep:"; " (List.map ~f:(fun es -> "{" ^ (String.concat ~sep:", " (Set.elements es)) ^ "}") s))) (Map.to_alist ts)))
           (Var.to_string x) p (op_to_string f)
-          (String.concat ~sep:"; " (List.map ~f:(fun es -> "{" ^ (String.concat ~sep:", " (Set.elements es)) ^ "}") s)) );*)
-        s in
+          (String.concat ~sep:"; " (List.map ~f:(fun es -> "{" ^ (String.concat ~sep:", " (Set.elements es)) ^ "}") s)) );*)        s in
       aux ts x p f
 
     and solve_past_guarded_multiple_vars (ts: pg_map) (x: (Var.t * Dom.tt option) list) e f : pg_map =
       let f i ts (x, _) = 
-        let ts = Map.update ts (eib e i true) ~f:(fun _ -> solve_past_guarded ts x true f) in
-        Map.update ts (eib e i false) ~f:(fun _ -> solve_past_guarded ts x false f)
+        let ts = Map.update ts (eib e i true) ~f:(fun _ -> let r = solve_past_guarded ts x true f in (*Stdio.print_endline ("add_mapping: " ^ eib e i true ^ " -> " ^ (String.concat ~sep:"; " (List.map ~f:(fun es -> "{" ^ (String.concat ~sep:", " (Set.elements es)) ^ "}") r)));*) r) in
+        Map.update ts (eib e i false) ~f:(fun _ -> let r = solve_past_guarded ts x false f in   (*Stdio.print_endline ("add_mapping: " ^ eib e i true ^ " -> " ^ (String.concat ~sep:"; " (List.map ~f:(fun es -> "{" ^ (String.concat ~sep:", " (Set.elements es)) ^ "}") r)));*) r)
       in List.foldi x ~init:ts ~f
 
     let solve_past_guarded_multiple ts (x : Var.t) e fs =
@@ -1460,13 +1568,15 @@ module Make
         | Or (_, fs) -> AllOf (List.map ~f:(present_filter_ ~b) fs)
         | Imp (_, f, g) when b -> OneOf [present_filter_ ~b:(not b) f; present_filter_ ~b g]
         | Imp (_, f, g) -> AllOf [present_filter_ ~b:(not b) f; present_filter_ ~b g]
-        | Exists (_, f) | Forall (_, f) | Label (_, f) -> present_filter_ ~b f
+        | Exists (_, f) | Forall (_, f) | Label (_, f) | Predicate' (_, _, f) -> present_filter_ ~b f
         | _ -> tt
       in (*print_endline (Printf.sprintf "present_filter_ %s (%s) = %s" (Bool.to_string b) (formula_to_string f) (to_string filter));*)
       filter
 
     let present_filter ?(b=true) f =
-      Filter.simplify (present_filter_ ~b f)
+      let filter = Filter.simplify (present_filter_ ~b f) in
+      (*print_endline (Printf.sprintf "present_filter %s (%s) = %s" (Bool.to_string b) (formula_to_string f) (Filter.to_string filter));*)
+      filter
 
     (* Enforceability typing *)
     
@@ -2154,10 +2264,10 @@ module Make
                     key::bound
                   ) in
                 let _ = Map.fold sol ~init:[] ~f:set_enftype in
-                let f = f |> unroll_let |> simplify |> convert_vars in
+                let f = f |> unroll_let |> (if simp then simplify else fun x -> x) |> convert_vars in
                 (*List.iter (Set.elements (fv f)) ~f:(fun v -> print_endline ("var: " ^  (Var.to_string v)));*)
                 match convert' b f with
-                | Some f' -> let f' = ac_simplify f' in
+                | Some f' -> let f' = ac_simplify ~debug:true f' in
                              Stdio.print_endline ("The formula\n "
                                                   ^ to_string orig_f
                                                   ^ "\nis enforceable and types to\n "

@@ -110,3 +110,5 @@ module Make (Var : V) (Dom : D) (Uop : O) (Bop : O) (Info : I) : sig
   val map_consts: f:(d -> d) -> t -> t
   
 end
+
+module Index : T with type t = int
