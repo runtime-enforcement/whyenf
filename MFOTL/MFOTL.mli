@@ -138,7 +138,6 @@ module Make
                                   (string, Info.t list, Base.String.comparator_witness) Base.Map.t *
                                   (string, Info.t list, Base.String.comparator_witness) Base.Map.t
 
-
   module MFOTL_Enforceability (_ : Modules.S) : sig
 
     val rank : t -> int
@@ -155,6 +154,7 @@ module Make
         | ERule of string [@@deriving equal]
 
       val to_string : ?n:int -> error -> string
+      val ac_simplify : error -> error
 
     end
         
@@ -197,7 +197,7 @@ module Make
 
     val types : ?itl_itvs:(string, Zinterval.t, String.comparator_witness) Map.t -> ?itl_strict:(string, bool, String.comparator_witness) Map.t -> ?itl_observable:(string, bool, String.comparator_witness) Map.t -> Enftype.t -> pg_map -> t -> Constraints.verdict
     val convert : Interval.v -> Enftype.t -> t -> typed_t option
-    val do_type : ?simp:bool -> t -> Time.Span.s -> typed_t
+    val do_type : t -> Time.Span.s -> typed_t
     val strictly_relative_past : ?itl_itvs:(string, Zinterval.t, String.comparator_witness) Map.t -> ?itl_strict:(string, bool, String.comparator_witness) Map.t -> ?itl_observable:(string, bool, String.comparator_witness) Map.t -> ('i, Var.t, Dom.t, Term.t) _t -> bool
     val is_transparent: typed_t -> bool
 

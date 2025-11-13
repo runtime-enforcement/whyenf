@@ -155,4 +155,3 @@ val mstep: timepoint -> timestamp -> Db.t -> bool -> MState.t -> FObligations.t 
            res Memo.t -> res Memo.t * (((timepoint * timestamp) * Expl.t) list * Expl.t * MState.t)
 
 
-
