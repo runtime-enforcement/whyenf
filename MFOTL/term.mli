@@ -111,4 +111,3 @@ module Make (Var : V) (Dom : D) (Uop : O) (Bop : O) (Info : I) : sig
   
 end
 
-module Index : T with type t = int

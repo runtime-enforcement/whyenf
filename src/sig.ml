@@ -4,6 +4,7 @@ module MyTerm = Term
 open MFOTL_lib
 module Term = MyTerm
 module Ctxt = Ctxt.Make(Dom)
+module Valuation = ITerm.Valuation
 
 let tilde_tp_event_name = "~tp"
 let tick_event_name = "tick"
@@ -149,27 +150,35 @@ let tfunc ff dss =
 let print_table () =
   Hashtbl.iteri table ~f:(fun ~key:n ~data:ps -> Stdio.printf "%s\n" (string_of_ty n ps))
 
-let rec eval (v: Etc.valuation) (t: Term.t) : Term.t =
+let rec teval (lbls: Lbl.t list) (v: Valuation.t) (t: Term.t) : Term.t =
   let trm = match t.trm with
   | Term.Var x ->
-     (match Map.find v x with
+     (match Map.find v (ITerm.of_var lbls x) with
       | Some d -> Term.Const d
       | None -> Var x)
   | Const c -> Const c
   | App (ff, trms) ->
-     (*Stdio.printf "eval(App(%s, %s), %s)\n" ff (Term.list_to_string trms) (Etc.valuation_to_string v);*)
-     let trms = List.map trms ~f:(eval v) in
+     let trms = List.map trms ~f:(teval lbls v) in
      let f (t: Term.t) = match t.trm with
        | Term.Const d -> Some d
        | _ -> None in
      (match Option.all (List.map trms ~f) with
-     | Some ds -> (*Stdio.printf "=%s\n" (Dom.to_string(func ff ds));*)
+     | Some ds ->
         Const (func ff ds)
-     | None -> (*Stdio.printf "=%s\n" (Term.to_string(App (ff, trms)));*)
+     | None ->
         App (ff, trms))
   | _ -> raise (Errors.SigError (Printf.sprintf "cannot evaluate %s" (Term.to_string t)))
   in { t with trm }
 
+let eval_lbl (lbls: Lbl.t list) (v: Valuation.t) (lbl: Lbl.t) =
+  teval lbls v (Lbl.term lbl)
+
+let rec eval (lbls: Lbl.t list) (v: Valuation.t) (t: ITerm.t) : ITerm.t =
+  match t.trm with
+  | ITerm.Var i -> ITerm.init lbls (eval_lbl lbls v (List.nth_exn lbls i))
+  | Const c -> ITerm.make_dummy (Const c)
+
+(*
 let rec set_eval (v: Setc.valuation) (t: Term.t) =
   match t.trm with
   | Term.Var x ->
@@ -190,7 +199,7 @@ let rec set_eval (v: Setc.valuation) (t: Term.t) =
                   Setc.Finite (Set.of_list (module Term) trms'')
      | None -> Setc.singleton (module Term) t)
   | _ -> raise (Errors.SigError (Printf.sprintf "cannot evaluate %s" (Term.to_string t)))
-
+*)
 
 let strict_of_func name =
   (unfunc (Hashtbl.find_exn table name)).strict

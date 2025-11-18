@@ -34,6 +34,8 @@ module StringVar : Modules.V with type t = string = struct
   
 end
 
+module Valuation = Valuation.Make(StringVar)
+
 module NoOp = struct
 
   type t = unit [@@deriving compare, sexp_of, hash, equal]

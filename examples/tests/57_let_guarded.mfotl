@@ -1,0 +1,2 @@
+LET boundA(x) = A(x) OR C(x) IN
+ALWAYS (FORALL x. boundA(x) IMPLIES B(x))

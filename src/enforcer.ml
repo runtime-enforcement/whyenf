@@ -4,11 +4,12 @@ open Stdio
 module MyTerm = Term
 open MFOTL_lib
 module Term = MyTerm
+module Valuation = ITerm.Valuation
 open Etc
 open Global
 
 open Monitor
-open MFormula
+open Mformula
 
 module Triple = struct
 
@@ -92,7 +93,7 @@ module EState = struct
                      db = Db.create [];
                      r = Triple.empty;
                      fobligs = Set.singleton (module FObligation)
-                                 (FFormula (mf, -1, empty_valuation), Base.Map.empty (module Base.String), POS);
+                                 (FFormula (IFormula.init mf, -1, Valuation.empty), Valuation.empty, POS);
                      memo = Memo.empty;
                      nick = false;
                      labels = [] }
@@ -146,9 +147,9 @@ module EState = struct
   let do_ors = List.fold_left ~f:(||) ~init:false
   let do_ands = List.fold_left ~f:(&&) ~init:true
 
-  let specialize es = Expl.Pdt.specialize do_ors do_ands
+  let specialize lbls es = Expl.Pdt.specialize lbls do_ors do_ands
 
-  let sat v mf es =
+  let sat (v: ITerm.Valuation.t) mf es =
     (*print_endline "--sat";
       print_endline ("sat.mf=" ^ MFormula.to_string mf);
       print_endline ("sat.expl=" ^ Expl.to_string (exec_monitor mf es));
@@ -158,12 +159,12 @@ module EState = struct
     (*print_endline (Printf.sprintf "sat(%s)=%s"
       (Expl.to_string  p)
       (E.Proof.to_string "" (specialize es v p)));*)
-    es, specialize es v p
+    es, specialize mf.lbls es v p
 
   let vio x mf es =
-    sat x (MFormula.map_mf mf Filter.tt ~exquant:true (fun mf -> MNeg mf)) es
+    sat x (IFormula.map_mf mf Filter.tt ~exquant:true (fun mf p -> MNeg (p mf))) es
   
-  let all_not_sat v x mf es =
+  let all_not_sat v (x: int) mf es =
     (*print_endline "--all_not_sat";*)
     (*print_endline ("all_not_sat.mf=" ^ MFormula.to_string mf);*)
     (*print_endline ("all_not_sat.x=" ^ x);
@@ -172,13 +173,14 @@ module EState = struct
       print_endline ("all_not_sat.collected(" ^ x  ^ ")=" ^ Setc.to_string (Expl.Pdt.collect E.Proof.isV (Setc.inter_list (module Dom)) (Setc.union_list (module Dom)) v x (snd (exec_monitor mf es))));*)
     let es, p = exec_monitor mf es in
     match Expl.Pdt.collect
+            mf.lbls
             (fun b -> not b)
             (Setc.inter_list (module Dom))
             (Setc.union_list (module Dom))
             v x p with
     | Setc.Finite s -> es, Set.elements s
-    | s -> Stdio.printf "Infinite set of candidates for %s in %s: from %s collected %s\n"
-             x (MFormula.to_string mf) (Expl.to_string p) (Setc.to_string s);
+    | s -> Stdio.printf "Infinite set of candidates for %d in %s: from %s collected %s\n"
+             x (IFormula.to_string mf) (Expl.to_string p) (Setc.to_string s);
            raise (Errors.EnforcementError "Internal error: Infinite set of candidates in all_not_sat")
 
   let all_not_vio v x mf es =
@@ -189,13 +191,14 @@ module EState = struct
       print_endline ("all_not_vio.collected(" ^ x  ^ ")=" ^ Setc.to_string (Expl.Pdt.collect E.Proof.isV (Setc.union_list (module Dom)) (Setc.inter_list (module Dom)) v x (snd (exec_monitor neg_mf es))));*)
     let es, p = exec_monitor (*neg_*)mf es in
     match Expl.Pdt.collect
+            mf.lbls
             (fun b -> b)
             (Setc.union_list (module Dom))
             (Setc.inter_list (module Dom))
             v x p with
     | Setc.Finite s -> es, Set.elements s
-    | s -> Stdio.printf "Infinite set of candidates for %s in %s: from %s collected %s\n"
-             x (MFormula.to_string mf) (Expl.to_string p) (Setc.to_string s);
+    | s -> Stdio.printf "Infinite set of candidates for %d in %s: from %s collected %s\n"
+             x (IFormula.to_string mf) (Expl.to_string p) (Setc.to_string s);
            raise (Errors.EnforcementError "Internal error: Infinite set of candidates in all_not_vio")
 
   let rec filter_eval (db : Db.t) = function
@@ -203,7 +206,7 @@ module EState = struct
     | AllOf fis -> List.for_all fis ~f:(filter_eval db)
     | OneOf fis -> List.exists fis ~f:(filter_eval db)
 
-  let can_skip es mformula =
+  let can_skip es (mformula: IFormula.t) =
     !Global.filter && not (filter_eval es.db mformula.filter)
 
   let testenf test enf v es mf =
@@ -259,12 +262,12 @@ module EState = struct
     let enf2 mf2 v es = add_foblig (FUntil (default_ts ts es, R, i, mf1, mf2, h, vv), v, NEG) es in
     lr test1 sat enfvio enf2 mf1 mf2*)
 
-  and enfvio_eventually i ts (h, vv) mf v es =
+  and enfvio_eventually i ts (h, vv) (mf: IFormula.t) v es =
     (*let test1 = if Interval.has_zero i then vio else (fun _ _ es -> es, true) in*)
     let es = add_foblig (FEventually (default_ts ts es, i, mf, h, vv), v, NEG) es in
     enfvio mf v es
 
-  and enfsat (mformula: MFormula.t) v es : t =
+  and enfsat (mformula: IFormula.t) v es : t =
     (*print_endline ("--enfsat");*)
     (*print_endline ("mformula=" ^ MFormula.value_to_string mformula);*)
     (*print_endline ("v=" ^ Etc.valuation_to_string v);*)
@@ -273,14 +276,14 @@ module EState = struct
     (*print_endline ("filter=" ^ Filter.to_string mformula.filter);*)
     match mformula.mf with
     | _ when can_skip es mformula ->
-      print_endline (Printf.sprintf "Skipping %s as there are no %s in %s"
+      (*print_endline (Printf.sprintf "Skipping %s as there are no %s in %s"
          (MFormula.to_string mformula)
          (Filter.to_string mformula.filter)
-         (Db.to_string es.db));
+         (Db.to_string es.db));*)
        es
     | MTT -> es
     | MPredicate (r, trms) when Sig.equal_pred_kind (Sig.kind_of_pred r) Sig.Trace ->
-       let new_cau = (r, List.map trms ~f:(fun trm -> Term.unconst (Sig.eval v trm))) in
+       let new_cau = (r, List.map trms ~f:(fun trm -> ITerm.unconst (Sig.eval mformula.lbls v trm))) in
        add_cau new_cau es
     | MNeg mf -> enfvio mf v es
     | MAnd (L, mfs, _) -> fixpoint (enfsat_andl v mfs) es
@@ -328,14 +331,14 @@ module EState = struct
            (enfsat mf1 v es)
     | MAnd (LR, _, _) ->
        raise (Errors.EnforcementError
-                (Printf.sprintf "side for %s was not fixed" (MFormula.to_string mformula)))
+                (Printf.sprintf "side for %s was not fixed" (IFormula.to_string mformula)))
     | MLabel (s, mf) ->
        let es' = enfsat mf v { es with labels = s :: es.labels } in
        { es' with labels =  es.labels }
     | _ -> raise (Errors.EnforcementError
                     (Printf.sprintf "function enfsat is not defined for %s"
-                       (MFormula.op_to_string mformula)))
-  and enfvio (mformula: MFormula.t) v es =
+                       (IFormula.op_to_string mformula)))
+  and enfvio (mformula: IFormula.t) v es =
     (*print_endline "--enfvio";
       print_endline ("mformula=" ^ MFormula.value_to_string mformula);*)
     (*print_endline ("v=" ^ Etc.valuation_to_string v);*)
@@ -344,7 +347,7 @@ module EState = struct
     | _ when can_skip es mformula -> es
     | MFF -> es
     | MPredicate (r, trms) when Sig.equal_pred_kind (Sig.kind_of_pred r) Sig.Trace ->
-       let new_sup = (r, List.map trms ~f:(fun trm -> Term.unconst (Sig.eval v trm))) in
+       let new_sup = (r, List.map trms ~f:(fun trm -> ITerm.unconst (Sig.eval mformula.lbls v trm))) in
        add_sup new_sup es
     | MNeg mf -> enfsat mf v es
     | MAnd (L, mf1 :: _, _) -> enfvio mf1 v es
@@ -385,20 +388,19 @@ module EState = struct
       | MSince (LR, _, _, _, _)
       | MEUntil (LR, _, _, _, _, _) ->
        raise (Errors.EnforcementError
-                (Printf.sprintf "side for %s was not fixed" (MFormula.to_string mformula)))
+                (Printf.sprintf "side for %s was not fixed" (IFormula.to_string mformula)))
     | MLabel (s, mf) ->
        let es' = enfvio mf v { es with labels = s :: es.labels } in
        { es' with labels = es.labels }
     | _ -> raise (Errors.EnforcementError
                     (Printf.sprintf "function enfvio is not defined for %s"
-                       (MFormula.op_to_string mformula)))
+                       (IFormula.op_to_string mformula)))
 
   let enf mf es =
     let es = { es with r = Triple.empty; fobligs = FObligations.empty } in
-    let v = Map.empty (module String) in
-    let es, b = sat v mf es in
+    let es, b = sat ITerm.Valuation.empty mf es in
     if not b then
-      enfsat mf (Map.empty (module String)) es
+      enfsat mf ITerm.Valuation.empty es
     else
       es
 
@@ -444,13 +446,14 @@ module Order = struct
   
 end
 
-let goal (es: EState.t) =
+let goal (es: EState.t) : IFormula.t =
   (*print_endline ("state_goal=" ^ EState.to_string es);*)
   let obligs = List.map (Set.elements es.fobligs) ~f:(FObligation.eval es.ts es.tp) in
   match obligs with
-    | [] -> MFormula._tt
+    | [] -> IFormula._tt
     | [mf] -> mf
-    | mfs -> MFormula.mapn_mf mfs Filter.tt (fun mfs -> MAnd (L, mfs, empty_nop_info (List.length mfs)))
+    | mfs -> IFormula.mapn_mf mfs Filter.tt
+               (fun mfs p -> MAnd (L, List.map ~f:p mfs, IFormula.empty_nop_info (List.length mfs)))
 
 let update_fobligs (es: EState.t) =
   let aux (es: EState.t) mf  = 
@@ -558,7 +561,7 @@ let exec' (tf: Tformula.t) inc (b: Time.Span.s) =
        let es = process_db pb es in
        Stdlib.flush_all();
        if more then step false (Some(pb)) es else conclude pb es in
-  let mf = Monitor.MFormula.init tf in
+  let mf = MFormula.init tf in
   (*print_endline (Monitor.MFormula.to_string mf);*)
   let ms = Monitor.MState.init mf in
   let es = EState.init ms mf in

@@ -2352,7 +2352,7 @@ module Make
                     key::bound
                   ) in
                 let _ = Map.fold sol ~init:[] ~f:set_enftype in
-                let f = f |> unroll_let |> (if simp then simplify else fun x -> x) |> convert_vars in
+                let f = f |> unroll_let |> simplify |> convert_vars in
                 (*List.iter (Set.elements (fv f)) ~f:(fun v -> print_endline ("var: " ^  (Var.to_string v)));*)
                 match convert' b f with
                 | Some f' -> let f' = ac_simplify ~debug:true f' in

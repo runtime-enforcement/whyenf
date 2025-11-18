@@ -4,6 +4,7 @@ module MyTerm = Term
 open MFOTL_lib
 module Term = MyTerm
 module Ctxt : module type of Ctxt.Make(Dom)
+module Valuation = ITerm.Valuation
 
 val tilde_tp_event_name: string
 val tp_event_name: string
@@ -57,8 +58,11 @@ val arity: ty -> int
 
 val arg_ttts: ty -> (string * Ctxt.ttt) list
 
-val eval: MFOTL_lib.Etc.valuation -> Term.t -> Term.t
-val set_eval: Setc.valuation -> Term.t -> (Term.t, Term.comparator_witness) Setc.t
+val teval: Lbl.t list -> Valuation.t -> Term.t -> Term.t
+val eval_lbl: Lbl.t list -> Valuation.t -> Lbl.t -> Term.t
+val eval: Lbl.t list -> Valuation.t -> ITerm.t -> ITerm.t
+(*val set_eval: Setc.valuation -> Term.t -> (Term.t, Term.comparator_witness) Setc.t*)
+                                          
 
 val tt_of_term_exn: Ctxt.t -> Term.t -> Dom.tt
 

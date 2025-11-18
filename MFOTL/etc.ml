@@ -216,3 +216,5 @@ let replace_all original replacement text =
 
 
 let latex_string s = replace_all "_" "\\_" s
+
+let id x = x

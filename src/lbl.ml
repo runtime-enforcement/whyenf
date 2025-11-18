@@ -42,6 +42,10 @@ module T = struct
     | LVar _ -> true
     | _ -> false
 
+  let unvar = function
+    | LVar s -> s
+    | _ -> raise (Errors.TermError "unvar is undefined for non-variable labels")
+
   let term = function
     | LVar s -> Term.make_dummy (Term.Var s)
     | LClos (f, ts, _) -> Term.make_dummy (App (f, ts))
@@ -98,15 +102,6 @@ module T = struct
        LVar x' :: (unquantify_list2 terms)
     | lbl :: terms -> lbl :: (unquantify_list x terms)
 
-  let eval (v: Etc.valuation) lbl =
-    let trm = match lbl with
-    | LVar s when Map.mem v s -> Term.Const (Map.find_exn v s)
-    | LVar s -> Term.Var s
-    | LClos (f, ts, _) -> (Sig.eval v (Term.make_dummy (App (f, ts)))).trm
-    | _ -> raise (Errors.TermError "cannot evaluate quantified label")
-    in Term.make_dummy trm
-
-  
   (* Order terms in lbls' to fulfill the following invariants:
    * all variables in y, ordered as in lbls, come first
    * then comes x

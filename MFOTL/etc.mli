@@ -25,18 +25,7 @@ val some_string: unit -> string
 
 val string_list_to_json: string list -> string
 
-type valuation = (string, Dom.t, String.comparator_witness) Map.t
-
-val compare_valuation: valuation -> valuation -> int
-val equal_valuation: valuation -> valuation -> bool
-val empty_valuation: valuation
-val sexp_of_valuation: valuation -> Sexp.t
-val extend_valuation: valuation -> valuation -> valuation
-val hash_valuation: valuation -> int
-
 val dom_map_to_string: (string, Dom.t, String.comparator_witness) Map.t -> string
-val valuation_to_string: (string, Dom.t, String.comparator_witness) Map.t -> string
-
 val int_list_to_json: int list -> string
 
 val unquote: string -> string
@@ -82,3 +71,5 @@ val option_to_string : ('a -> string) -> 'a option -> string
 val replace_all : string -> string -> string -> string
 
 val latex_string : string -> string
+
+val id : 'a -> 'a
