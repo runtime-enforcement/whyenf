@@ -13,6 +13,7 @@ module Polarity : sig
 
   val neg : t -> t
   val to_int: t -> int
+  val to_string: t -> string
   val value: t option -> t
 
 end

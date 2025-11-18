@@ -55,7 +55,7 @@ module Make (Lbl : L) : sig
   val apply1_reduce: ('a -> 'a -> bool) -> ('b -> 'a) -> (Lbl.t -> Lbl.t) -> 'b t -> 'a t
   val apply2_reduce: ('a -> 'a -> bool) -> ('b -> 'c -> 'a) -> (Lbl.t -> Lbl.t) -> (Lbl.t -> Lbl.t) -> 'b t -> 'c t -> 'a t
   val apply3_reduce: ('a -> 'a -> bool) -> ('b -> 'c -> 'd -> 'a) -> (Lbl.t -> Lbl.t) -> (Lbl.t -> Lbl.t) -> (Lbl.t -> Lbl.t) -> 'b t -> 'c t -> 'd t -> 'a t
-  val applyN_reduce: ('a -> 'a -> bool) -> ('b list -> 'a) -> ((Lbl.t -> Lbl.t) list) -> 'b t list -> 'a t
+  val applyN_reduce: ('a -> 'a -> bool) -> ('b list -> 'a) -> (((Lbl.t -> Lbl.t) * 'b t) list) -> 'a t
   val split_prod_reduce: ('a -> 'a -> bool) -> ('a * 'a) t -> 'a t * 'a t
   val split_list_reduce: ('a -> 'a -> bool) -> 'a list t -> 'a t list
 

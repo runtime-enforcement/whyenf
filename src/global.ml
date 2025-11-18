@@ -11,3 +11,4 @@ let s_ref = ref (Time.Span.Second (Time.Span.Second.of_string "1"))
 let label = ref false
 let simplify = ref false
 let filter = ref true
+let memo = ref true

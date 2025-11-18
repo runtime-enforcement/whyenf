@@ -9,3 +9,4 @@ val s_ref: MFOTL_lib.Time.Span.s ref
 val label: bool ref
 val simplify: bool ref
 val filter: bool ref
+val memo: bool ref

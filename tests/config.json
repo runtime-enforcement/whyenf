@@ -411,6 +411,13 @@
 	"formula": "57_let_guarded.mfotl",
 	"log": "simple.log",
 	"output": "57_let_guarded.out"
+    },
+    {
+        "label": "58_memo",
+        "sig": "simple.sig",
+        "formula": "58_memo.mfotl",
+        "log": "simple.log",
+        "output": "58_memo.out"
     }
 ]
 

@@ -9,6 +9,9 @@ module Valuation = ITerm.Valuation
 
 open Etc
 
+let debug s =
+  if !Global.debug then Stdio.printf "[debug:mformula] %s\n%!" s
+
 (* Polarity *)
 
 module Polarity = struct
@@ -817,7 +820,7 @@ module MFormulaMake (Var : Modules.V) (Term : MFOTL_lib.Term.T with type v = Var
 
   let rec to_string ?(l=0) mf =
     let n = "\n" ^ Etc.spaces (l*4) in
-    Printf.sprintf  "%s{ mf = %s;%s  filter = %s;%s  events = %s;%s  obligations = %s;%s  hash = %d;%s  lbls = [%s];%s  subformulae = [%s] }"
+    Printf.sprintf  "%s{ mf = %s;%s  filter = %s;%s  events = %s;%s  obligations = %s;%s  hash = %d;%s  lbls = [%s];%s  projs = [%s];%s  subformulae = [%s] }"
       n
       (with_aux_to_string mf) n
       (Filter.to_string mf.filter) n
@@ -830,6 +833,7 @@ module MFormulaMake (Var : Modules.V) (Term : MFOTL_lib.Term.T with type v = Var
                                               (List.map ~f:Int.to_string (Set.elements evs)))) n
       mf.hash n
       (Lbl.to_string_list mf.lbls) n
+      (String.concat ~sep:", " (List.map ~f:string_of_int mf.projs)) n
       (String.concat ~sep:";"
          (List.map ~f:(fun f -> Printf.sprintf "\n%s" (to_string ~l:(l+1) f)) (subs mf)))
   
@@ -1068,7 +1072,10 @@ module MFormulaMake (Var : Modules.V) (Term : MFOTL_lib.Term.T with type v = Var
   let set_projs lbls mf =
     (* Computes the projection for the child with lbls' onto the parent with lbls *)
     let projs = List.mapi mf.lbls ~f:(fun i lbl' ->
-        match List.findi lbls ~f:(fun _ -> Lbl.equal lbl') with
+        match List.findi lbls ~f:(fun _ lbl -> match lbl, lbl' with
+            | Lbl.LAll x, LVar x'
+            | LEx x, LVar x' -> String.equal x x'
+            | _, _ -> Lbl.equal lbl lbl') with
         | Some (i, _) -> i
         | None -> -1) in
     { mf with projs }
@@ -1097,17 +1104,17 @@ module MFormula = struct
     let map1 fvs f comb flbls =
       let f = set_lbls ~fvs f in
       let lbls = flbls f.lbls in
-      { mf with mf = comb f (set_projs mf.lbls); lbls } in
+      { mf with mf = comb f (set_projs lbls); lbls } in
     let map2 fvs f1 f2 comb flbls =
       let f1 = set_lbls ~fvs f1 in
       let f2 = set_lbls ~fvs f2 in
       let lbls = flbls f1.lbls f2.lbls in
-      { mf with mf = comb f1 f2 (set_projs mf.lbls); lbls } in
+      { mf with mf = comb f1 f2 (set_projs lbls); lbls } in
     let mapn fvs fs comb flbls =
       let fs = List.map ~f:(set_lbls ~fvs) fs in
       let lbls = flbls (order_lbls
                           (List.concat (List.map ~f:(fun f -> f.lbls) fs)) fvs true) in
-      { mf with mf = comb fs (set_projs mf.lbls); lbls } in
+      { mf with mf = comb fs (set_projs lbls); lbls } in
     let id lbls = lbls in
     let id2 lbls1 lbls2 = order_lbls (lbls1 @ lbls2) fvs true in
     let imp lbls1 lbls2 = order_lbls ((List.map ~f:Lbl.exquant lbls1) @ lbls2) fvs true in
@@ -1228,13 +1235,14 @@ module IFormula = struct
 
   include MFormulaMake(ITerm.IntVar)(ITerm)
 
-  let set_make mf filter =
-    set_events (make mf filter)
+  let set_make mf filter lbls projs =
+    let mf = make mf filter in
+    set_events { mf with lbls; projs }
 
-  let _tp     = set_make (MPredicate (Sig.tilde_tp_event_name, [])) Filter.tt
-  let _neg_tp = set_make (MNeg _tp) Filter.tt
-  let _tt     = set_make MTT Filter.tt
-  let _ff     = set_make MFF Filter.tt
+  let _tp     = set_make (MPredicate (Sig.tilde_tp_event_name, [])) Filter.tt [] []
+  let _neg_tp = set_make (MNeg _tp) Filter.tt [] []
+  let _tt     = set_make MTT Filter.tt [] []
+  let _ff     = set_make MFF Filter.tt [] []
 
   let rec init (mf: MFormula.t) =
     let mf_core = 
@@ -1277,15 +1285,15 @@ module IFormula = struct
       projs = mf.projs }
 
     let map_mf mf filter ?(exquant=false) f =
-    let lbls = if exquant then List.map ~f:Lbl.exquant mf.lbls else mf.lbls in
-    let mf_mf = f mf (set_projs lbls) in
-    { mf          = mf_mf;
-      filter;
-      events      = mf.events;
-      obligations = mf.obligations;
-      hash        = core_hash mf_mf;
-      lbls;
-      projs       = [] }
+      let lbls = if exquant then List.map ~f:Lbl.exquant mf.lbls else mf.lbls in
+      let mf_mf = f mf (set_projs lbls) in
+      { mf          = mf_mf;
+        filter;
+        events      = mf.events;
+        obligations = mf.obligations;
+        hash        = core_hash mf_mf;
+        lbls;
+        projs       = [] }
     
   let map2_mf mf1 mf2 filter f =
     let lbls = Etc.dedup ~equal:Lbl.equal (mf1.lbls @ mf2.lbls) in
@@ -1351,7 +1359,7 @@ module IFormula = struct
       | MEUntil (s, i, ts, f, g, vv) -> MEUntil (s, i, ts, r f, r g, Valuation.extend v vv)
       | MLabel (s, f) -> MLabel (s, r f)
     in
-    set_make mf_ mf.filter
+    set_make mf_ mf.filter mf.lbls mf.projs
 
 end
 
@@ -1525,11 +1533,15 @@ module FObligation = struct
 
     let eval ts tp (k, v, pol) =
       let mf = apply_valuation v (eval_kind ts tp k) in
-      match pol with
-      | Polarity.POS -> (*print_endline (Printf.sprintf "eval()=%s" (MFormula.to_string mf)); *)mf
-      | NEG -> match mf.mf with
-               | MNeg mf -> mf
-               | _       -> map_mf mf Filter.tt (fun mf p -> MNeg (p mf)) ~exquant:true
+      let mf = match pol with
+        | Polarity.POS -> mf
+        | NEG -> match mf.mf with
+          | MNeg mf -> mf
+          | _       -> map_mf mf Filter.tt (fun mf p -> MNeg (p mf)) ~exquant:true in
+      debug (Printf.sprintf "FObligation.eval (ts=%s, tp=%d, k=%s, v=%s, pol=%s) = %s"
+               (Time.to_string ts) tp (kind_to_string k) (Valuation.to_string v) (Polarity.to_string pol)
+               (IFormula.to_string mf));
+      mf
 
 
     let accepts_empty = function
@@ -1585,11 +1597,11 @@ let expls_approx test tp pol (lbls: Lbl.t list) fobligs h vv =
     Pdt.from_valuation lbls v p p' in
   List.map (relevant_fobligs fobligs test h vv pol) ~f
 
-let apply_ands =
-  Expl.Pdt.applyN_reduce Bool.equal (List.fold_left ~init:true ~f:(&&))
+let apply_ands projs (pdts: Expl.t list) =
+  Pdt.applyN_reduce Bool.equal (List.fold_left ~init:true ~f:(&&)) (List.zip_exn projs pdts)
 
-let apply_ors =
-  Pdt.applyN_reduce Bool.equal (List.fold_left ~init:false ~f:(||))
+let apply_ors projs (pdts: Expl.t list) =
+  Pdt.applyN_reduce Bool.equal (List.fold_left ~init:false ~f:(||)) (List.zip_exn projs pdts)
 
 let apply_imp proj1 proj2 pdt1 pdt2 =
   Pdt.apply2_reduce Bool.equal (fun p1 p2 -> (not p1) || p2) proj1 proj2 pdt1 pdt2
@@ -1599,10 +1611,10 @@ let apply_imp proj1 proj2 pdt1 pdt2 =
 let approximate_neg pdt =
   Pdt.apply1_reduce Bool.equal (fun b -> not b) id pdt
   
-let approximate_and projs (aexpl_list: Expl.t list) =
+let approximate_and projs aexpl_list = 
   apply_ands projs aexpl_list
 
-let approximate_or projs (aexpl_list: Expl.t list) =
+let approximate_or projs aexpl_list = 
   apply_ors projs aexpl_list
 
 let approximate_imp proj1 proj2 (aexpl1: Expl.t) (aexpl2: Expl.t) =
@@ -1610,7 +1622,7 @@ let approximate_imp proj1 proj2 (aexpl1: Expl.t) (aexpl2: Expl.t) =
 
 let approximate_enext (lbls: Lbl.t list) (fobligs: FObligations.t) (h, vv) tp pol_opt =
   let expls = expls_approx FObligation.is_finterval tp (Polarity.value pol_opt) lbls fobligs h vv in
-  Pdt.applyN_reduce Bool.equal (List.fold ~init:false ~f:(||)) (List.map expls ~f:(fun _ -> id)) expls 
+  Pdt.applyN_reduce Bool.equal (List.fold ~init:false ~f:(||)) (List.map expls ~f:(fun expl -> (id, expl)))
 
 let approximate_eventually (lbls: Lbl.t list) (aexpl: Expl.t) (fobligs: FObligations.t) (i: Interval.t) (h_opt: (int * Valuation.t) option) (tp: timepoint) (pol: Polarity.t option) =
   let aexpl_new = aexpl in
@@ -1618,7 +1630,7 @@ let approximate_eventually (lbls: Lbl.t list) (aexpl: Expl.t) (fobligs: FObligat
   let expls = match h_opt with
     | None -> []
     | Some (h, vv) -> expls_approx FObligation.is_feventually tp pol lbls fobligs h vv in
-  let aexpl_next = Pdt.applyN_reduce Bool.equal (List.fold ~init:false ~f:(||)) (List.map expls ~f:(fun _ -> id)) expls in
+  let aexpl_next = Pdt.applyN_reduce Bool.equal (List.fold ~init:false ~f:(||)) (List.map expls ~f:(fun expl -> (id, expl))) in
   Pdt.apply2_reduce Bool.equal 
     (fun p1 p2 -> Eventually.approximate tp i (Polarity.equal pol POS) p1 p2)
     id id aexpl_next aexpl_new
@@ -1629,7 +1641,7 @@ let approximate_always (lbls: Lbl.t list) aexpl (fobligs: FObligations.t) i h_op
   let expls = match h_opt with
     | None -> []
     | Some (h, vv) -> expls_approx FObligation.is_falways tp pol lbls fobligs h vv in
-  let aexpl_next = Pdt.applyN_reduce Bool.equal (List.fold ~init:false ~f:(||)) (List.map expls ~f:(fun _ -> id)) expls in
+  let aexpl_next = Pdt.applyN_reduce Bool.equal (List.fold ~init:false ~f:(||)) (List.map expls ~f:(fun expl -> (id, expl))) in
   Pdt.apply2_reduce Bool.equal 
     (fun p1 p2 -> Eventually.approximate_always tp i (Polarity.equal pol POS) p1 p2)
     id id aexpl_next aexpl_new
@@ -1641,7 +1653,7 @@ let approximate_until (lbls: Lbl.t list) proj1 proj2 aexpl1 aexpl2 (fobligs: FOb
   let expls = match h_opt with
     | None -> []
     | Some (h, vv) -> expls_approx FObligation.is_funtil tp pol lbls fobligs h vv in
-  let aexpl_next = Pdt.applyN_reduce Bool.equal (List.fold ~init:false ~f:(||)) (List.map expls ~f:(fun _ -> id)) expls in
+  let aexpl_next = Pdt.applyN_reduce Bool.equal (List.fold ~init:false ~f:(||)) (List.map expls ~f:(fun expl -> (id, expl))) in
   Pdt.apply3_reduce Bool.equal 
     (fun p1 p2 p3 -> Until.approximate tp i (Polarity.equal pol POS) p1 p2 p3)
     proj1 proj2 id aexpl_new1 aexpl_new2 aexpl_next

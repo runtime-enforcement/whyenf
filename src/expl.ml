@@ -146,7 +146,7 @@ let table_operator
   let merge_pdts merge = function
     | [] -> raise (Errors.EnforcementError "cannot merge 0 PDTs")
     | [pdt] -> pdt
-    | pdts -> Pdt.applyN_reduce (List.equal Valuation.equal) merge (List.map ~f:(fun _ -> Etc.id) pdts) pdts in
+    | pdts -> Pdt.applyN_reduce (List.equal Valuation.equal) merge (List.map ~f:(fun pdt -> (Etc.id, pdt)) pdts) in
   let tabulate sv =
     let aux vs = function
       | (Term.Var x, Setc.Finite s) ->

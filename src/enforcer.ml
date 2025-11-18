@@ -11,6 +11,9 @@ open Global
 open Monitor
 open Mformula
 
+let debug s =
+  if !Global.debug then Stdio.printf "[debug:enforcer] %s\n%!" s
+
 module Triple = struct
 
   type t = Db.t * Db.t * FObligations.t
@@ -268,6 +271,7 @@ module EState = struct
     enfvio mf v es
 
   and enfsat (mformula: IFormula.t) v es : t =
+    debug (Printf.sprintf "enforce (%s, %s, +)" (IFormula.to_string mformula) (Valuation.to_string v));
     (*print_endline ("--enfsat");*)
     (*print_endline ("mformula=" ^ MFormula.value_to_string mformula);*)
     (*print_endline ("v=" ^ Etc.valuation_to_string v);*)
@@ -339,6 +343,7 @@ module EState = struct
                     (Printf.sprintf "function enfsat is not defined for %s"
                        (IFormula.op_to_string mformula)))
   and enfvio (mformula: IFormula.t) v es =
+    debug (Printf.sprintf "enforce (%s, %s, -)" (IFormula.to_string mformula) (Valuation.to_string v));
     (*print_endline "--enfvio";
       print_endline ("mformula=" ^ MFormula.value_to_string mformula);*)
     (*print_endline ("v=" ^ Etc.valuation_to_string v);*)
@@ -465,9 +470,11 @@ let update_fobligs (es: EState.t) =
 
 let exec' (tf: Tformula.t) inc (b: Time.Span.s) =
   let reactive_step new_db (es: EState.t) =
+    debug (Printf.sprintf "Reactive step (tp=%d)" es.tp);
     (*print_endline ("-- reactive_step tp=" ^ string_of_int es.tp);*)
     (*let time_before = Unix.gettimeofday() in*)
     let mf = goal es in
+    debug (Printf.sprintf "Goal: %s" (IFormula.to_string mf));
     (*let time_after = Unix.gettimeofday() in
       print_endline ("Goal time: " ^ string_of_float (time_after -. time_before));*)
     (*print_endline ("goal="^  MFormula.to_string mf);*)
@@ -498,12 +505,14 @@ let exec' (tf: Tformula.t) inc (b: Time.Span.s) =
     Order.ReOrd (Triple.cau es.r, Triple.sup es.r), es
   in
   let proactive_step (es: EState.t) =
+    debug (Printf.sprintf "Proactive step (tp=%d)" es.tp);
     (*Hashtbl.clear es.memo;*)
     (*print_endline ("-- proactive_step ts=" ^ string_of_int es.ts);*)
 
     (*print_endline "-- proactive_step";
       print_endline (EState.to_string es);*)
     let mf = goal es in
+    debug (Printf.sprintf "Goal: %s" (IFormula.to_string mf));
     (*print_endline ("goal="^  MFormula.to_string mf);*)
     let es' = { es with ms      = { es.ms with tp_cur = es.tp };
                         r       = Triple.empty;
@@ -562,8 +571,9 @@ let exec' (tf: Tformula.t) inc (b: Time.Span.s) =
        Stdlib.flush_all();
        if more then step false (Some(pb)) es else conclude pb es in
   let mf = MFormula.init tf in
-  (*print_endline (Monitor.MFormula.to_string mf);*)
+  debug (Printf.sprintf "Initial MFormula: %s" (MFormula.to_string mf));
   let ms = Monitor.MState.init mf in
+  debug (Printf.sprintf "Initial IFormula: %s" (IFormula.to_string ms.mf));
   let es = EState.init ms mf in
   step true None es
 
@@ -579,20 +589,28 @@ let make_monitoring (tyf : Tyformula.t) : Tyformula.t =
 
 let compile (f: Formula.t) (b: Time.Span.s) : Tformula.t =
   let open Tyformula.MFOTL_Enforceability(Sig) in
+  debug ("Starting compilation");
   (* Applying alpha conversion to obtain unique variable names *)
+  debug ("Compilation: Alpha conversion... (1/6)");
   let f = Formula.convert_vars f in
   (* Typing terms: Formula.t -> Tyformula.t *)
+  debug ("Compilation: Typing... (2/6)");
   let tyf = Tyformula.of_formula' f in
   (* If monitoring, do f -> FORALL x_1, ..., x_k. f IMPLIES violation(x_1, ..., x_k) *)
+  debug ("Compilation: Optional monitoring rewrite... (3/6)");
   let tyf = if !monitoring then make_monitoring tyf else tyf in
   (* Typing formulae: Tyformula.t -> Tyformula.typed_t *)
+  debug ("Compilation: Enforceability checks... (4/6)");
   let typed_tyf = do_type tyf b in
   (* Checking monitorability: Tyformula.typed_t -> Tformula.t *)
+  debug ("Compilation: Monitorability checks... (5/6)");
   let tf = Tformula.of_formula' typed_tyf in
   (* Checking transparency *)
+  debug ("Compilation: Transparency checks... (6/6)");
   let transparent = is_transparent typed_tyf in
   if (not transparent) then
     print_endline "This formula cannot be transparently enforced.";
+  debug ("Done compilation");
   (*let tf = if !Global.simplify then Tformula.simplify tf else tf in*)
   (*print_endline ("unprimed: " ^ Tformula.to_string (Tformula.unprime tf));*)
   tf

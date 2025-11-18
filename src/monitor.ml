@@ -9,6 +9,9 @@ module Term = MyTerm
 open Etc
 open Mformula
 
+let debug s =
+  if !Global.debug then Stdio.printf "[debug:monitor] %s\n%!" s
+
 (* let minp_list = Proof.Size.minp_list *)
 (* let minp_bool = Proof.Size.minp_bool *)
 (* let minp = Proof.Size.minp *)
@@ -152,16 +155,20 @@ module Memo = struct
                 ex_obligations: (int, Int.comparator_witness) Set.t }
 
   let find memo (mf: IFormula.t) pol =
-    let hash = mf.hash * 65599 + (Polarity.to_int pol) in
-    match Map.find memo.map hash, mf.events, mf.obligations with
-    | None, _, _
-      | _, None, _
-      | _, _, None -> None
-    | Some _, Some mf_events, _ when not (Set.are_disjoint mf_events memo.ex_events) ->
-       None
-    | Some _, _, Some mf_obligations when not (Set.are_disjoint mf_obligations memo.ex_obligations) ->
-       None
-    | Some res, _, _ -> Some res
+    if !Global.memo then
+      begin
+        let hash = mf.hash * 65599 + (Polarity.to_int pol) in
+        match Map.find memo.map hash, mf.events, mf.obligations with
+        | None, _, _
+        | _, None, _
+        | _, _, None -> None
+        | Some _, Some mf_events, _ when not (Set.are_disjoint mf_events memo.ex_events) ->
+          None
+        | Some _, _, Some mf_obligations when not (Set.are_disjoint mf_obligations memo.ex_obligations) ->
+          None
+        | Some res, _, _ -> Some res
+      end
+    else None
 
   let add_event memo e = { memo with ex_events = Set.add memo.ex_events e }
   let add_obligation memo h = { memo with ex_obligations = Set.add memo.ex_obligations h }
@@ -170,18 +177,18 @@ module Memo = struct
                 ex_obligations = Set.empty (module Int) }
   
   let memoize memo (mf: IFormula.t) pol res =
-    let hash = mf.hash * 65599 + (Polarity.to_int pol) in
-    { memo with map = Map.update memo.map mf.hash ~f:(fun _ -> res) }
+    if !Global.memo then
+      let hash = mf.hash * 65599 + (Polarity.to_int pol) in
+      { memo with map = Map.update memo.map hash ~f:(fun _ -> res) }
+    else memo
 
-(*let to_string (memo : 'a t) =
-  Printf.sprintf "memo(map.keys = {%s};\n     ex_events = {%s};\n     ex_obligations = {%s}y)"
-  (String.concat ~sep:", " (List.map (Map.keys memo.map) ~f:Int.to_string))
-  (String.concat ~sep:", " (Set.elements memo.ex_events))
-  (String.concat ~sep:", " (List.map ~f:Int.to_string (Set.elements memo.ex_obligations)))*)
+  let to_string (memo : 'a t) =
+    Printf.sprintf "memo(map.keys = {%s};\n     ex_events = {%s};\n     ex_obligations = {%s})"
+      (String.concat ~sep:", " (List.map (Map.keys memo.map) ~f:Int.to_string))
+      (String.concat ~sep:", " (Set.elements memo.ex_events))
+      (String.concat ~sep:", " (List.map ~f:Int.to_string (Set.elements memo.ex_obligations)))
   
 end
-
-
 
 let meval (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) (mformula: IFormula.t) memo =
   let outer_tp = tp in
@@ -190,8 +197,12 @@ let meval (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) (mformula
   let p (mf: IFormula.t) = List.nth_exn mf.projs in
   let rec meval_rec (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) memo (mformula: IFormula.t) :
     'a *  (Expl.t TS.t list * Expl.t * IFormula.t) =
+    debug (Printf.sprintf "meval_rec (%s, %d, %s, %s)..." (Time.to_string ts) tp (IFormula.to_string mformula) (Polarity.to_string (Polarity.value pol)));
+    debug (Printf.sprintf "memo = %s" (Memo.to_string memo));
     match Memo.find memo mformula (Polarity.value pol) with
-    | Some (expls, aexpl, mf) -> (memo, (expls, aexpl, mf))
+    | Some (expls, aexpl, mf) ->
+      debug ("memo!");
+      (memo, (expls, aexpl, mf))
     | None -> 
        let memo, (expls, aexpl, mf) =
          match mformula.mf with
@@ -246,7 +257,7 @@ let meval (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) (mformula
             let aexpl = approximate_neg aexpl in
             memo, (expls, aexpl, MNeg mf')
          | MAnd (s, mfs, bufn) -> 
-            let mem, data = List.fold_map ~init:memo ~f:(meval_rec ts tp db ~pol fobligs) mfs in
+            let memo, data = List.fold_map ~init:memo ~f:(meval_rec ts tp db ~pol fobligs) mfs in
             let expls_list, aexpl_list, mfs' = List.unzip3 data in
             let (f_expls, bufn) = update_and (List.map mfs ~f:p) expls_list bufn in
             let aexpl = approximate_and (List.map mfs ~f:p) aexpl_list in
@@ -339,9 +350,12 @@ let meval (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) (mformula
          | MLabel (s, mf) ->
             let memo, (expls, aexpl, mf) = meval_rec ts tp db ~pol fobligs memo mf in
             memo, (expls, aexpl, MLabel (s, mf))
-       in let mf = { mformula with mf } in
-          let memo = if tp = outer_tp then Memo.memoize memo mformula (Polarity.value pol) (expls, aexpl, mf) else memo in
-          memo, (expls, aexpl, mf)
+       in
+       let mf = { mformula with mf } in
+       let memo = if tp = outer_tp then Memo.memoize memo mformula (Polarity.value pol) (expls, aexpl, mf) else memo in
+       debug (Printf.sprintf "meval_rec (%s, %d, %s) = %s"
+                (Time.to_string ts) tp (IFormula.to_string mformula) (Expl.to_string aexpl));
+       memo, (expls, aexpl, mf)
   in meval_rec ts tp db ~pol fobligs memo mformula
 
 
