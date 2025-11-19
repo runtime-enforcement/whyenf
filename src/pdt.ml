@@ -146,13 +146,14 @@ module Make (Lbl : L) = struct
   let unleaf_exn = function
     | Leaf l -> l
     | _ -> raise (Errors.EnforcementError "function not defined for nodes")
-  
+
+  (*
   let rec papply_list f xs ys = match xs, ys with 
     | [], _ -> f ys
     | None :: xs, y :: ys -> papply_list (fun zs -> f (y :: zs)) xs ys 
     | Some x :: xs, ys -> papply_list (fun zs -> f (x :: zs)) xs ys 
-    | _, _ -> raise (Errors.EnforcementError "cannot use papply_list if the ys list is empty")
-  
+    | _, _ -> raise (Errors.EnforcementError "cannot use papply_list if the ys list is empty")*)
+
   let rec split_prod = function
     | Leaf (l1, l2) -> (Leaf l1, Leaf l2)
     | Node (x, part) -> let (part1, part2) = Part.split_prod (Part.map part split_prod) in
@@ -200,15 +201,16 @@ module Make (Lbl : L) = struct
   let rec apply2_reduce p_eq f proj1 proj2 pdt1 pdt2 = match pdt1, pdt2 with
     | Leaf l1, Leaf l2 -> Leaf (f l1 l2)
     | Leaf l1, Node (x, part2) ->
-       simplify (Node (x, Part.map_dedup (eq p_eq) (apply1_reduce p_eq (f l1) proj2) part2))
+      simplify (Node (proj2 x, Part.map_dedup (eq p_eq) (apply1_reduce p_eq (f l1) proj2) part2))
     | Node (x, part1), Leaf l2 ->
-       simplify (Node (x, Part.map_dedup (eq p_eq) (apply1_reduce p_eq (fun l1 -> f l1 l2) proj1) part1))
+      simplify (Node (proj1 x, Part.map_dedup (eq p_eq) (apply1_reduce p_eq (fun l1 -> f l1 l2) proj1) part1))
     | Node (x, part1), Node (y, part2) ->
-       if Lbl.equal (proj1 x) (proj2 y) then
-         simplify (Node (proj1 x, Part.merge2_dedup (eq p_eq) (apply2_reduce p_eq f proj1 proj2) part1 part2))
-       else (if Lbl.compare (proj1 x) (proj2 y) < 0 then
-               simplify (Node (proj1 x, Part.map_dedup (eq p_eq) (fun pdt1 -> apply2_reduce p_eq f proj1 proj2 pdt1 (Node (y, part2))) part1))
-             else simplify (Node (proj2 y, Part.map_dedup (eq p_eq) (apply2_reduce p_eq f proj1 proj2 (Node (x, part1))) part2)))
+      if Lbl.equal (proj1 x) (proj2 y) then
+        simplify (Node (proj1 x, Part.merge2_dedup (eq p_eq) (apply2_reduce p_eq f proj1 proj2) part1 part2))
+      else (if Lbl.compare (proj1 x) (proj2 y) < 0 then
+              simplify (Node (proj1 x, Part.map_dedup (eq p_eq) (fun pdt1 -> apply2_reduce p_eq f proj1 proj2 pdt1 pdt2) part1))
+            else
+              simplify (Node (proj2 y, Part.map_dedup (eq p_eq) (apply2_reduce p_eq f proj1 proj2 pdt1) part2)))
     | _ -> raise (Errors.EnforcementError "variable list is empty")
 
   let apply3_reduce p_eq f proj1 proj2 proj3 pdt1 pdt2 pdt3 =
@@ -216,6 +218,7 @@ module Make (Lbl : L) = struct
     let pdt12 = apply2_reduce p_eq2 (fun a b -> (a, b)) proj1 proj2 pdt1 pdt2 in
     apply2_reduce p_eq (fun (a, b) c -> f a b c) proj2 proj3 pdt12 pdt3
 
+  (*
   let rec applyN_reduce p_eq f projs_pdts : 'a t = 
     let f' = papply_list f (List.map ~f:(fun (_, pdt) -> unleaf pdt) projs_pdts) in
     let projs_nodes = List.filter ~f:(fun (_, pdt) -> not (is_leaf pdt)) projs_pdts in
@@ -229,7 +232,8 @@ module Make (Lbl : L) = struct
         | pdt -> Some (proj, pdt) in
       let other_projs_nodes = List.map ~f:f_other_nodes projs_nodes in
       let f_w_parts (proj, pdt) = match pdt with
-        | Node (x, part) when Lbl.equal (proj x) w -> Some (Part.map part (fun s -> (proj, s)))
+        | Node (x, part) when Lbl.equal (proj x) w ->
+          Some (Part.map part (fun s -> (proj, s)))
         | _ -> None in
       let w_parts = List.filter_map ~f:f_w_parts projs_nodes in
       if List.is_empty w_parts then
@@ -237,11 +241,42 @@ module Make (Lbl : L) = struct
       else
         simplify
           ((Node (w, Part.map_dedup (eq p_eq)
-                    (fun pdts -> papply_list (applyN_reduce p_eq f') other_projs_nodes pdts)
+                    (papply_list (applyN_reduce p_eq f') other_projs_nodes)
                     (Part.join_parts w_parts))))
     end
     else
-      Leaf (f (List.map projs_pdts ~f:(fun (_, pdt) -> unleaf_exn pdt)))
+      Leaf (f (List.map projs_pdts ~f:(fun (_, pdt) -> unleaf_exn pdt)))*)
+     
+
+  (* Assumes that f is AC *)
+  let applyN_reduce p_eq f projs_pdts : 'a t =
+    let rec aux leaves projs_pdts =
+      let new_leaves = List.filter_map ~f:(fun (_, pdt) -> unleaf pdt) projs_pdts in
+      let leaves = leaves @ new_leaves in
+      let projs_nodes = List.filter ~f:(fun (_, pdt) -> not (is_leaf pdt)) projs_pdts in
+      if not (List.is_empty projs_nodes) then begin
+        let ws = List.filter_map
+            ~f:(function (proj, Node (x, _)) -> Some (proj x) | _ -> None)
+            projs_nodes in
+        let w = Lbl.minimum ws in
+        let f_other_nodes (proj, pdt) = match pdt with
+          | Node (x, _) when Lbl.equal (proj x) w -> None
+          | pdt -> Some (proj, pdt) in
+        let other_projs_nodes = List.filter_map ~f:f_other_nodes projs_nodes in
+        let f_w_parts (proj, pdt) = match pdt with
+          | Node (x, part) when Lbl.equal (proj x) w ->
+            Some (Part.map part (fun s -> (proj, s)))
+          | _ -> None in
+        let w_parts = List.filter_map ~f:f_w_parts projs_nodes in
+        simplify
+          ((Node (w, Part.map_dedup (eq p_eq)
+                    (fun pdts -> aux leaves (pdts @ other_projs_nodes))
+                    (Part.join_parts w_parts))))
+      end
+      else
+        Leaf (f leaves) in
+    aux [] projs_pdts
+
 
   let rec split_prod_reduce p_eq = function
     | Leaf (l1, l2) -> (Leaf l1, Leaf l2)

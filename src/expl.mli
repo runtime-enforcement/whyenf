@@ -29,7 +29,7 @@ val is_satisfied: t -> bool
 
 val to_string: t -> string
 
-val pdt_of: ?i:int -> int -> string -> ITerm.t list -> (int, Dom.t, 'a) Map.t list -> bool Pdt.t
+val pdt_of: ?i:int -> int -> string -> Lbl.t list -> (int, Dom.t, 'a) Map.t list -> bool Pdt.t
 
 val table_operator: (Dom.t list list -> Dom.t list list) -> int list -> (int -> int) -> int -> Term.t list -> string list -> Lbl.t list -> Lbl.t list -> t -> t
 val aggregate: ((Dom.t, Dom.comparator_witness) Multiset.t -> Dom.t) -> int -> (int -> int) -> int -> Term.t -> string list -> Lbl.t list -> Lbl.t list -> t -> t

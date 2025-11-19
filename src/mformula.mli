@@ -131,8 +131,8 @@ module MFormula : sig
     | MFF
     | MEqConst      of Term.t * Dom.t
     | MPredicate    of string * Term.t list
-    | MAgg          of string * Aggregation.op * Aggregation.op_fun * Term.t * string list * t
-    | MTop          of string list * string * Aggregation.op_tfun * Term.t list * string list * t
+    | MAgg          of string * Aggregation.op * Aggregation.op_fun * MyTerm.t * string list * t
+    | MTop          of string list * string * Aggregation.op_tfun * MyTerm.t list * string list * t
     | MNeg          of t
     | MAnd          of Side.t * t list * nop_info
     | MOr           of Side.t * t list * nop_info
@@ -199,8 +199,8 @@ module IFormula : sig
     | MFF
     | MEqConst      of ITerm.t * Dom.t
     | MPredicate    of string * ITerm.t list
-    | MAgg          of int * Aggregation.op * Aggregation.op_fun * ITerm.t * int list * t
-    | MTop          of int list * string * Aggregation.op_tfun * ITerm.t list * int list * t
+    | MAgg          of int * Aggregation.op * Aggregation.op_fun * MyTerm.t * int list * t
+    | MTop          of int list * string * Aggregation.op_tfun * MyTerm.t list * int list * t
     | MNeg          of t
     | MAnd          of Side.t * t list * nop_info
     | MOr           of Side.t * t list * nop_info
@@ -236,15 +236,16 @@ module IFormula : sig
   val _tp : t
   val _neg_tp : t
 
-  val map_mf: t -> Filter.t -> ?exquant:bool -> (t -> (t -> t) -> core_t) -> t
-  val map2_mf: t -> t -> Filter.t -> (t -> t -> (t -> t) -> core_t) -> t
-  val mapn_mf: t list -> Filter.t -> (t list -> (t -> t) -> core_t) -> t
+  val map_mf: t -> Filter.t -> ?exquant:bool -> ?new_events:((string, String.comparator_witness) Set.t option) -> (t -> (t -> t) -> core_t) -> t
+  val map2_mf: t -> t -> Filter.t -> ?new_events:((string, String.comparator_witness) Set.t option) -> (t -> t -> (t -> t) -> core_t) -> t
+  val mapn_mf: t list -> Filter.t -> ?new_events:((string, String.comparator_witness) Set.t option) -> (t list -> (t -> t) -> core_t) -> t
 
   val equal : t -> t -> bool
   
   val make: core_t -> Filter.t -> t
 
-  val apply_valuation : Valuation.t -> t -> t
+  val unproj: t -> Valuation.t -> Valuation.t
+  val apply_valuation : ?parent_lbls:Lbl.t list -> Valuation.t -> t -> t
 
   val to_string: ?l:int -> t -> string
   val value_to_string: t -> string

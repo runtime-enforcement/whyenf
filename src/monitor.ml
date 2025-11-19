@@ -166,7 +166,9 @@ module Memo = struct
           None
         | Some _, _, Some mf_obligations when not (Set.are_disjoint mf_obligations memo.ex_obligations) ->
           None
-        | Some res, _, _ -> Some res
+        | Some res, _, _ ->
+          debug (Printf.sprintf "Memo.find: %d" hash);
+          Some res
       end
     else None
 
@@ -179,6 +181,7 @@ module Memo = struct
   let memoize memo (mf: IFormula.t) pol res =
     if !Global.memo then
       let hash = mf.hash * 65599 + (Polarity.to_int pol) in
+      debug (Printf.sprintf "Memo.memoize: %d" hash);
       { memo with map = Map.update memo.map hash ~f:(fun _ -> res) }
     else memo
 
@@ -201,8 +204,7 @@ let meval (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) (mformula
     debug (Printf.sprintf "memo = %s" (Memo.to_string memo));
     match Memo.find memo mformula (Polarity.value pol) with
     | Some (expls, aexpl, mf) ->
-      debug ("memo!");
-      (memo, (expls, aexpl, mf))
+      (memo, (expls, aexpl, { mf with lbls = mformula.lbls; projs = mformula.projs }))
     | None -> 
        let memo, (expls, aexpl, mf) =
          match mformula.mf with
@@ -237,17 +239,17 @@ let meval (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) (mformula
                           (Map.empty (module Int)) :: acc)) in
              let expl = if List.is_empty maps
                then Pdt.Leaf false
-               else Expl.pdt_of tp r trms maps in
+               else Expl.pdt_of tp r mformula.lbls maps in
              memo, (one_ts tp ts expl, expl, MPredicate (r, trms))
          | MAgg (s, op, op_fun, x, y, mf) ->
             let memo, (expls, aexpl, mf') = meval_rec ts tp db fobligs ~pol memo mf in
-            let aggregate = Expl.aggregate op_fun s (p mf) tp (ITerm.to_term mf.lbls x) (ITerm.to_vars mf.lbls y) mformula.lbls mf.lbls in
+            let aggregate = Expl.aggregate op_fun s (p mf) tp x (ITerm.to_vars mf.lbls y) mformula.lbls mf.lbls in
             let f_expls = List.map expls ~f:(TS.map aggregate) in
             let f_aexpl = aggregate aexpl in
             memo, (f_expls, f_aexpl, MAgg (s, op, op_fun, x, y, mf'))
          | MTop (s, op, op_fun, x, y, mf) ->
             let memo, (expls, aexpl, mf') = meval_rec ts tp db fobligs ~pol memo mf in
-            let aggregate = Expl.table_operator op_fun s (p mf) tp (ITerm.to_terms mf.lbls x) (ITerm.to_vars mf.lbls y) mformula.lbls mf.lbls in
+            let aggregate = Expl.table_operator op_fun s (p mf) tp x (ITerm.to_vars mf.lbls y) mformula.lbls mf.lbls in
             let f_expls = List.map expls ~f:(TS.map aggregate) in
             let f_aexpl = aggregate aexpl in
             memo, (f_expls, f_aexpl, MTop (s, op, op_fun, x, y, mf'))

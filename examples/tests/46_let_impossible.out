@@ -2,5 +2,5 @@ The formula
  LET G1(x:int)+- = A(x:int) IN □[0s,∞) (∀x.1:int. G1(x.1:int) ∧ ¬G1(x.1:int))
 is not enforceable. To make it enforceable, you would need to
  at the same time
- * make A(x:int) CauSup, but this is impossible (A(x:int) is never both causable and suppressable)
+ * make A(x:int) <Sup,Cau,NonSct>, but this is impossible (A(x:int) is never both causable and suppressable)
  * make LET G1(x:int)+- = A(x:int) IN □[0s,∞) (∀x.1:int. G1(x.1:int) ∧ ¬G1(x.1:int)) causable, but this is impossible (for causability x.1:int must be past-guarded)

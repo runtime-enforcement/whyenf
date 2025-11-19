@@ -150,12 +150,37 @@ let tfunc ff dss =
 let print_table () =
   Hashtbl.iteri table ~f:(fun ~key:n ~data:ps -> Stdio.printf "%s\n" (string_of_ty n ps))
 
+let rec normalize (t: Term.t) : Term.t =
+  let trm = match t.trm with
+  | Term.Var x -> Term.Var x
+  | Const c -> Const c
+  | App (ff, trms) ->
+    let trms = List.map ~f:normalize trms in
+    let f (t: Term.t) = match t.trm with
+      | Term.Const d -> Some d
+      | _ -> None in
+    (match Option.all (List.map trms ~f) with
+     | Some ds ->
+       Const (func ff ds)
+     | None ->
+       App (ff, trms))
+  | _ -> raise (Errors.SigError (Printf.sprintf "cannot normalize %s" (Term.to_string t)))
+  in { t with trm }
+
+let rec normalize_list (t: Term.t list) : Term.t list =
+  List.map ~f:normalize t
+
 let rec teval (lbls: Lbl.t list) (v: Valuation.t) (t: Term.t) : Term.t =
   let trm = match t.trm with
   | Term.Var x ->
-     (match Map.find v (ITerm.of_var lbls x) with
-      | Some d -> Term.Const d
-      | None -> Var x)
+    (let i_opt =
+       try Some (ITerm.of_var lbls x)
+       with _ -> None in
+     match i_opt with
+     | None -> Term.Var x
+     | Some i -> match Map.find v i with
+       | Some d -> Const d
+       | None -> Var x)
   | Const c -> Const c
   | App (ff, trms) ->
      let trms = List.map trms ~f:(teval lbls v) in
@@ -170,12 +195,24 @@ let rec teval (lbls: Lbl.t list) (v: Valuation.t) (t: Term.t) : Term.t =
   | _ -> raise (Errors.SigError (Printf.sprintf "cannot evaluate %s" (Term.to_string t)))
   in { t with trm }
 
-let eval_lbl (lbls: Lbl.t list) (v: Valuation.t) (lbl: Lbl.t) =
+let eval_lbl (lbls: Lbl.t list) (v: Valuation.t) (lbl: Lbl.t) : Term.t =
   teval lbls v (Lbl.term lbl)
 
+let eval_lbl_to_lbl (lbls: Lbl.t list) (v: Valuation.t) (lbl: Lbl.t) : Lbl.t option =
+  match lbl with
+  | LAll _ | LEx _ -> Some lbl
+  | LVar x -> (match Map.find v (ITerm.of_var lbls x) with Some v -> None | _ -> Some (LVar x))
+  | LClos (ff, trms) ->
+    (match (teval lbls v (Term.make_dummy (Term.App (ff, trms)))).trm with
+     | Const _ -> None
+     | App (ff, trms) -> Some (LClos (ff, trms))
+     | _ -> assert false)
+
 let rec eval (lbls: Lbl.t list) (v: Valuation.t) (t: ITerm.t) : ITerm.t =
+  (*Stdio.printf "Sig.eval ([%s], %s, %s)\n" (String.concat ~sep:", " (List.map ~f:Lbl.to_string lbls)) (Valuation.to_string v) (ITerm.to_string t);*)
   match t.trm with
-  | ITerm.Var i -> ITerm.init lbls (eval_lbl lbls v (List.nth_exn lbls i))
+  | ITerm.Var i ->
+    ITerm.init lbls (eval_lbl lbls v (List.nth_exn lbls i))
   | Const c -> ITerm.make_dummy (Const c)
 
 (*

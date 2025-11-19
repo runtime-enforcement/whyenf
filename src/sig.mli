@@ -58,8 +58,11 @@ val arity: ty -> int
 
 val arg_ttts: ty -> (string * Ctxt.ttt) list
 
+val normalize: Term.t -> Term.t
+val normalize_list: Term.t list -> Term.t list
 val teval: Lbl.t list -> Valuation.t -> Term.t -> Term.t
 val eval_lbl: Lbl.t list -> Valuation.t -> Lbl.t -> Term.t
+val eval_lbl_to_lbl: Lbl.t list -> Valuation.t -> Lbl.t -> Lbl.t option
 val eval: Lbl.t list -> Valuation.t -> ITerm.t -> ITerm.t
 (*val set_eval: Setc.valuation -> Term.t -> (Term.t, Term.comparator_witness) Setc.t*)
                                           

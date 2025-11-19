@@ -84,8 +84,13 @@ include Lattice.Make3(Suppressability)(Causability)(Strictness)
 let bot           = (Sup.NonObs, Cau.NonCau, Sct.AnySct)
 let cau           = (Sup.Obs,    Cau.Cau,    Sct.AnySct)
 let ncau          = (Sup.Obs,    Cau.Cau,    Sct.NonSct)
+let scau          = (Sup.Obs,    Cau.Cau,    Sct.Sct)
 let sup           = (Sup.Sup,    Cau.NonCau, Sct.AnySct)
+let nsup          = (Sup.Sup,    Cau.NonCau, Sct.NonSct)
+let ssup          = (Sup.Sup,    Cau.NonCau, Sct.Sct)
 let causup        = (Sup.Sup,    Cau.Cau,    Sct.AnySct)
+let ncausup       = (Sup.Sup,    Cau.Cau,    Sct.NonSct)
+let scausup       = (Sup.Sup,    Cau.Cau,    Sct.Sct)
 let caubot        = (Sup.NonObs, Cau.Cau,    Sct.AnySct)
 let obs           = (Sup.Obs,    Cau.NonCau, Sct.AnySct)
 let sct           = (Sup.Sup,    Cau.Cau,    Sct.Sct)
@@ -146,14 +151,21 @@ let to_string ((a, b, c) as d) =
   | Sup.NonObs, Cau.Cau   , Sct.Sct    -> "strictly causable"
   | _         ,    _      , _          -> to_string d
 
+let to_string_alias = to_string
+
 
 let to_string_let d =
   if is_causable d then (
-    if is_suppressable d then "+-"
-    else if is_observable d then "+"
-    else "+?"
+    if is_suppressable d then (
+      if is_strict d then "++-" else "+-"
+    )
+    else (
+      if is_strict d then "++" else "+"
+    )
   )
-  else if is_suppressable d then "-"
+  else if is_suppressable d then (
+    if is_strict d  then "--" else "-"
+  )
   else if is_observable d then ""
   else "?"
 
@@ -174,17 +186,17 @@ module Constraint = struct
       (Option.value_map c.lower ~default:[] ~f:(g "t ≽ %s")
        @ Option.value_map c.upper ~default:[] ~f:(g "%s ≽ t"))
 
-  exception CannotMerge
+  exception CannotMerge of string
 
   let merge_join = Option.merge ~f:join
   let merge_meet = Option.merge ~f:meet
-  let geq_opt x y = Option.value ~default:false (Option.map2 ~f:geq x y)
+  let geq_opt x y = Option.value ~default:true (Option.map2 ~f:geq x y)
   (*let equal_opt x y = Option.value ~default:false (Option.map2 ~f:equal x y)*)
   let is_error_opt = Option.value_map ~default:false ~f:is_error
   let is_causable_opt = Option.value_map ~default:false ~f:is_causable
   let is_suppressable_opt = Option.value_map ~default:false ~f:is_suppressable
 
-  let merge ~key:_ = function
+  let merge ~key = function
     | `Left t | `Right t -> Some t
     | `Both ((c:t), (c':t)) when equal c c' -> Some c
     | `Both ((c:t), (c':t)) ->
@@ -196,8 +208,15 @@ module Constraint = struct
            not (geq_opt upper lower) (* if there is nothing between lower and upper *)
            || is_error_opt upper     (* if upper contains an error *)
            || is_causable_opt lower && is_suppressable_opt lower (* if lower is CauSup *)
-         ) then
-           raise CannotMerge
+         ) then (
+           (*Stdio.printf "%s %s %b %b %b\n"
+             (match upper with None -> "None" | Some b -> to_string_alias b)
+             (match lower with None -> "None" | Some b -> to_string_alias b)
+             (not (geq_opt upper lower))
+             (is_error_opt upper)
+             (is_causable_opt lower && is_suppressable_opt lower);*)
+           raise (CannotMerge key)
+         )
          else
            Some { lower; upper }
        in

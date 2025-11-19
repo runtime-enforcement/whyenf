@@ -194,7 +194,7 @@ let builtins =
        arity   = 1;
        arg_ttts = [("x", Ctxt.TConst Dom.TInt)];
        ret_ttts  = [Ctxt.TConst Dom.TInt];
-       kind    = Builtin (int_fun1 (fun i -> Dom.Int i) "usub");
+       kind    = Builtin (int_fun1 (fun i -> Dom.Int (-i)) "usub");
        strict  = true;
     });
     ("not",

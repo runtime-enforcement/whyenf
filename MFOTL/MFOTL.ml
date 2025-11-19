@@ -1062,10 +1062,9 @@ module Make
 
   (* AC-rewriting *)
   
-  let rec ac_simplify_core ?(debug=false) =
+  let rec ac_simplify_core =
     let unpr' f = match f.form with Predicate' (_, _, f) -> f.form | _ -> f.form in
     let or_bool f g = match unpr' f with TT -> TT | FF -> FF | _ -> g f in
-    let ac_simplify = ac_simplify ~debug in
     function
     | TT -> TT
     | FF -> FF
@@ -1163,10 +1162,10 @@ module Make
     | Type (f, ty) -> or_bool (ac_simplify f) (fun f -> Type (f, ty))
     | Label (s, f) -> or_bool (ac_simplify f) (fun f -> Label (s, f))
 
-  and ac_simplify ?(debug=false) f =
+  and ac_simplify f =
     (*if debug then
       print_endline (Printf.sprintf "ac_simplify(%s)=%s" (to_string_value f) (to_string_value {f with form =ac_simplify_core f.form}));*)
-    { f with form = ac_simplify_core ~debug f.form }
+    { f with form = ac_simplify_core f.form }
       
   (* Simplify formulae *)
 
@@ -1797,7 +1796,7 @@ module Make
 
       let try_merge (a, b) =
         try Some (Map.merge a b ~f:merge)
-        with CannotMerge -> None
+        with CannotMerge k -> (*print_endline ("Cannot merge: "^k);*)None
 
       let rec to_string_rec l = function
         | CTT -> Printf.sprintf "⊤"
@@ -1927,8 +1926,8 @@ module Make
                   | es_ncau_list ->
                      let c =
                        (if terms_are_strict terms then (
-                          (*print_endline "case 1";*)
-                          Constraints.disjs
+                           (*print_endline "case 1";*)
+                           Constraints.disjs
                             (List.map es_ncau_list ~f:(fun es_ncau ->
                                  Constraints.conj (types_predicate_lower ts t e)
                                    (Constraints.conjs (List.map (Set.elements es_ncau)
@@ -2355,11 +2354,11 @@ module Make
                 let f = f |> unroll_let |> simplify |> convert_vars in
                 (*List.iter (Set.elements (fv f)) ~f:(fun v -> print_endline ("var: " ^  (Var.to_string v)));*)
                 match convert' b f with
-                | Some f' -> let f' = ac_simplify ~debug:true f' in
-                             Stdio.print_endline ("The formula\n "
+                | Some f' -> Stdio.print_endline ("The formula\n "
                                                   ^ to_string orig_f
                                                   ^ "\nis enforceable and types to\n "
                                                   ^ to_string_typed f');
+                             let f' = ac_simplify f' in
                              f'
                 | None    -> Stdio.print_endline ("The formula\n "
                                                   ^ to_string f

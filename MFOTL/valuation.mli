@@ -18,6 +18,9 @@ module type T = sig
   val to_string: t -> string
 
   val of_alist_exn : v list -> Dom.t list -> t
+  val map_keys : t -> f:(v -> v option) -> t
+
+  val is_empty : t -> bool
 
 end
 

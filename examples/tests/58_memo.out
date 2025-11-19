@@ -1,0 +1,15 @@
+The formula
+ □[0s,∞) (∀x.17:int. A(x.17:int) → B(x.17:int)) ∧ (∀x.16:int. A(x.16:int) → B(x.16:int)) ∧ (∀x.15:int. A(x.15:int) → B(x.15:int)) ∧ (∀x.14:int. A(x.14:int) → B(x.14:int)) ∧ (∀x.13:int. A(x.13:int) → B(x.13:int)) ∧ (∀x.12:int. A(x.12:int) → B(x.12:int)) ∧ (∀x.11:int. A(x.11:int) → B(x.11:int)) ∧ (∀x.10:int. A(x.10:int) → B(x.10:int)) ∧ (∀x.9:int. A(x.9:int) → B(x.9:int)) ∧ (∀x.8:int. A(x.8:int) → B(x.8:int)) ∧ (∀x.7:int. A(x.7:int) → B(x.7:int)) ∧ (∀x.6:int. A(x.6:int) → B(x.6:int)) ∧ (∀x.5:int. A(x.5:int) → B(x.5:int)) ∧ (∀x.4:int. A(x.4:int) → B(x.4:int)) ∧ (∀x.3:int. A(x.3:int) → B(x.3:int)) ∧ (∀x.2:int. A(x.2:int) → B(x.2:int)) ∧ (∀x.1:int. A(x.1:int) → B(x.1:int)) ∧ (∀x:int. A(x:int) → B(x:int))
+is enforceable and types to
+ □[0s,∞) (((∀x.17:int. (A(x.17:int) →:R (B(x.17:int) : Cau) : Cau)) : Cau) ∧:L ((∀x.16:int. (A(x.16:int) →:R (B(x.16:int) : Cau) : Cau)) : Cau) ∧:L ((∀x.15:int. (A(x.15:int) →:R (B(x.15:int) : Cau) : Cau)) : Cau) ∧:L ((∀x.14:int. (A(x.14:int) →:R (B(x.14:int) : Cau) : Cau)) : Cau) ∧:L ((∀x.13:int. (A(x.13:int) →:R (B(x.13:int) : Cau) : Cau)) : Cau) ∧:L ((∀x.12:int. (A(x.12:int) →:R (B(x.12:int) : Cau) : Cau)) : Cau) ∧:L ((∀x.11:int. (A(x.11:int) →:R (B(x.11:int) : Cau) : Cau)) : Cau) ∧:L ((∀x.10:int. (A(x.10:int) →:R (B(x.10:int) : Cau) : Cau)) : Cau) ∧:L ((∀x.9:int. (A(x.9:int) →:R (B(x.9:int) : Cau) : Cau)) : Cau) ∧:L ((∀x.8:int. (A(x.8:int) →:R (B(x.8:int) : Cau) : Cau)) : Cau) ∧:L ((∀x.7:int. (A(x.7:int) →:R (B(x.7:int) : Cau) : Cau)) : Cau) ∧:L ((∀x.6:int. (A(x.6:int) →:R (B(x.6:int) : Cau) : Cau)) : Cau) ∧:L ((∀x.5:int. (A(x.5:int) →:R (B(x.5:int) : Cau) : Cau)) : Cau) ∧:L ((∀x.4:int. (A(x.4:int) →:R (B(x.4:int) : Cau) : Cau)) : Cau) ∧:L ((∀x.3:int. (A(x.3:int) →:R (B(x.3:int) : Cau) : Cau)) : Cau) ∧:L ((∀x.2:int. (A(x.2:int) →:R (B(x.2:int) : Cau) : Cau)) : Cau) ∧:L ((∀x.1:int. (A(x.1:int) →:R (B(x.1:int) : Cau) : Cau)) : Cau) ∧:L ((∀x:int. (A(x:int) →:R (B(x:int) : Cau) : Cau)) : Cau) : Cau) : Cau
+[Enforcer] @1 reactively commands:
+Cause:
+B(1)
+OK.
+[Enforcer] @1 nothing to do proactively.
+[Enforcer] @2 OK.
+[Enforcer] @2 nothing to do proactively.
+[Enforcer] @3 reactively commands:
+Cause:
+B(3)
+OK.

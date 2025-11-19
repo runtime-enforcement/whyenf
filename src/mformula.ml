@@ -676,8 +676,8 @@ module MFormulaMake (Var : Modules.V) (Term : MFOTL_lib.Term.T with type v = Var
     | MFF
     | MEqConst      of Term.t * Dom.t
     | MPredicate    of string * Term.t list
-    | MAgg          of Var.t * Aggregation.op * Aggregation.op_fun * Term.t * Var.t list * t
-    | MTop          of Var.t list * string * Aggregation.op_tfun * Term.t list * Var.t list * t
+    | MAgg          of Var.t * Aggregation.op * Aggregation.op_fun * MyTerm.t * Var.t list * t
+    | MTop          of Var.t list * string * Aggregation.op_tfun * MyTerm.t list * Var.t list * t
     | MNeg          of t
     | MAnd          of Side.t * t list * nop_info
     | MOr           of Side.t * t list * nop_info
@@ -746,11 +746,11 @@ module MFormulaMake (Var : Modules.V) (Term : MFOTL_lib.Term.T with type v = Var
     | MPredicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
     | MAgg (s, op, _, x, y, f) ->
       Printf.sprintf (Etc.paren l (-1) "%s <- %s(%s; %s; %s)") (Var.to_string s)
-        (Aggregation.op_to_string op) (Term.value_to_string x)
+        (Aggregation.op_to_string op) (MyTerm.value_to_string x)
         (Etc.string_list_to_string (List.map ~f:Var.to_string y)) (value_to_string_rec (-1) f)
     | MTop (s, op, _, x, y, f) ->
       Printf.sprintf (Etc.paren l (-1) "[%s] <- %s(%s; %s; %s)")
-        (Etc.string_list_to_string (List.map ~f:Var.to_string s)) op (Term.list_to_string x)
+        (Etc.string_list_to_string (List.map ~f:Var.to_string s)) op (MyTerm.list_to_string x)
         (Etc.string_list_to_string (List.map ~f:Var.to_string y)) (value_to_string_rec (-1) f)
     | MNeg f -> Printf.sprintf "¬%a" (fun _ -> value_to_string_rec 5) f
     | MAnd (_, fs, _) -> Printf.sprintf (Etc.paren l 4 "%s") (String.concat ~sep:"∧" (List.map fs ~f:(value_to_string_rec 4)))
@@ -784,12 +784,12 @@ module MFormulaMake (Var : Modules.V) (Term : MFOTL_lib.Term.T with type v = Var
     | MPredicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
     | MAgg (s, op, _, x, y, f) ->
       Printf.sprintf (Etc.paren l (-1) "%s <- %s(%s; %s; %s)") (Var.to_string s)
-        (Aggregation.op_to_string op) (Term.value_to_string x)
+        (Aggregation.op_to_string op) (MyTerm.value_to_string x)
         (Etc.string_list_to_string (List.map ~f:Var.to_string y)) (value_to_string_rec (-1) f)
     | MTop (s, op, _, x, y, f) ->
       Printf.sprintf (Etc.paren l (-1) "[%s] <- %s(%s; %s; %s)")
         (Etc.string_list_to_string (List.map ~f:Var.to_string s)) op
-        (Term.list_to_string x) (Etc.string_list_to_string (List.map ~f:Var.to_string y))
+        (MyTerm.list_to_string x) (Etc.string_list_to_string (List.map ~f:Var.to_string y))
         (value_to_string_rec (-1) f)
     | MNeg f -> Printf.sprintf "¬%a" (fun _ -> value_to_string_rec 5) f
     | MAnd (_, fs, _) -> Printf.sprintf (Etc.paren l 4 "%s") (String.concat ~sep:"∧" (List.map fs ~f:(value_to_string_rec 4)))
@@ -820,7 +820,7 @@ module MFormulaMake (Var : Modules.V) (Term : MFOTL_lib.Term.T with type v = Var
 
   let rec to_string ?(l=0) mf =
     let n = "\n" ^ Etc.spaces (l*4) in
-    Printf.sprintf  "%s{ mf = %s;%s  filter = %s;%s  events = %s;%s  obligations = %s;%s  hash = %d;%s  lbls = [%s];%s  projs = [%s];%s  subformulae = [%s] }"
+    Printf.sprintf  "%s{ mf = %s;%s  filter = %s;%s  events = %s;%s  obligations = %s;%s  hash = %d;%s  lbls = %s;%s  projs = [%s];%s  subformulae = [%s] }"
       n
       (with_aux_to_string mf) n
       (Filter.to_string mf.filter) n
@@ -844,11 +844,11 @@ module MFormulaMake (Var : Modules.V) (Term : MFOTL_lib.Term.T with type v = Var
     | MEqConst (_, _) -> Printf.sprintf "="
     | MPredicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
     | MAgg (s, op, _, x, y, _) -> Printf.sprintf "%s <- %s(%s; %s)" (Var.to_string s)
-                                    (Aggregation.op_to_string op) (Term.to_string x)
+                                    (Aggregation.op_to_string op) (MyTerm.to_string x)
                                     (Etc.string_list_to_string (List.map ~f:Var.to_string y))
     | MTop (s, op, _, x, y, _) -> Printf.sprintf "[%s] <- %s(%s; %s)"
                                     (Etc.string_list_to_string (List.map ~f:Var.to_string s)) op
-                                    (Term.list_to_string x) (Etc.string_list_to_string (List.map ~f:Var.to_string y))
+                                    (MyTerm.list_to_string x) (Etc.string_list_to_string (List.map ~f:Var.to_string y))
     | MNeg _ -> Printf.sprintf "¬"
     | MAnd (_, _, _) -> Printf.sprintf "∧"
     | MOr (_, _, _) -> Printf.sprintf "∨"
@@ -913,12 +913,12 @@ module MFormulaMake (Var : Modules.V) (Term : MFOTL_lib.Term.T with type v = Var
        String.hash "MPredicate" +++ String.hash e +++ list_hash Term.hash t
     | MAgg (s, op, _, x, y, f) ->
        String.hash "MAgg"
-       +++ Var.hash s +++ Aggregation.hash_op op +++ Term.hash x
+       +++ Var.hash s +++ Aggregation.hash_op op +++ MyTerm.hash x
        +++ list_hash Var.hash y +++ f.hash
     | MTop (s, op, _, x, y, f) ->
        String.hash "MTop"
        +++ list_hash Var.hash s +++ String.hash op
-       +++ list_hash Term.hash x +++ list_hash Var.hash y +++ f.hash
+       +++ list_hash MyTerm.hash x +++ list_hash Var.hash y +++ f.hash
     | MNeg f ->
        String.hash "MNeg" +++ f.hash
     | MAnd (s, fs, _) ->
@@ -1074,7 +1074,9 @@ module MFormulaMake (Var : Modules.V) (Term : MFOTL_lib.Term.T with type v = Var
     let projs = List.mapi mf.lbls ~f:(fun i lbl' ->
         match List.findi lbls ~f:(fun _ lbl -> match lbl, lbl' with
             | Lbl.LAll x, LVar x'
-            | LEx x, LVar x' -> String.equal x x'
+            | LEx x, LVar x'
+            | LEx x, LAll x'
+            | LAll x, LEx x' -> String.equal x x'
             | _, _ -> Lbl.equal lbl lbl') with
         | Some (i, _) -> i
         | None -> -1) in
@@ -1088,7 +1090,7 @@ module MFormula = struct
 
   let rec set_lbls ?(fvs=[]) mf =
     let with_lbls mf lbls = { mf with lbls } in
-    let order_lbls lbls fvs _ =
+    let order_lbls lbls fvs =
       let f (vars, quants, nonvars) = function
         | Lbl.LVar z when List.mem fvs z ~equal:String.equal -> (z :: vars, quants, nonvars)
         | LVar _ -> (vars, quants, nonvars)
@@ -1101,6 +1103,10 @@ module MFormula = struct
       let var_terms = List.map (Etc.reorder ~equal:String.equal vars fvs) ~f:Lbl.var in
       let nonvars = List.sort nonvars ~compare:Lbl.compare in
       var_terms @ quants @ nonvars in
+    let lbls_of_term term =
+      order_lbls (Lbl.of_term term :: List.map ~f:Lbl.var (Term.fv_list [term])) fvs in
+    let lbls_of_terms terms =
+      order_lbls (List.map ~f:Lbl.of_term terms @ List.map ~f:Lbl.var (Term.fv_list terms)) fvs in
     let map1 fvs f comb flbls =
       let f = set_lbls ~fvs f in
       let lbls = flbls f.lbls in
@@ -1113,11 +1119,11 @@ module MFormula = struct
     let mapn fvs fs comb flbls =
       let fs = List.map ~f:(set_lbls ~fvs) fs in
       let lbls = flbls (order_lbls
-                          (List.concat (List.map ~f:(fun f -> f.lbls) fs)) fvs true) in
+                          (List.concat (List.map ~f:(fun f -> f.lbls) fs)) fvs) in
       { mf with mf = comb fs (set_projs lbls); lbls } in
     let id lbls = lbls in
-    let id2 lbls1 lbls2 = order_lbls (lbls1 @ lbls2) fvs true in
-    let imp lbls1 lbls2 = order_lbls ((List.map ~f:Lbl.exquant lbls1) @ lbls2) fvs true in
+    let id2 lbls1 lbls2 = order_lbls (lbls1 @ lbls2) fvs in
+    let imp lbls1 lbls2 = order_lbls ((List.map ~f:Lbl.exquant lbls1) @ lbls2) fvs in
     let mf' = match mf.mf with
       | MTT | MFF -> with_lbls mf []
       | MAgg (s, op, op_fun, x, y, f) ->
@@ -1133,10 +1139,9 @@ module MFormula = struct
       | MEqConst (t, _) ->
         (match t.trm with
          | Term.Const _ -> with_lbls mf []
-         | _ -> with_lbls mf [Lbl.of_term t])
+         | _ -> with_lbls mf (lbls_of_term t))
       | MPredicate (_, ts) ->
-        with_lbls mf (order_lbls (List.map (List.filter ~f:(fun t -> not (Term.is_const t)) ts)
-                                    ~f:Lbl.of_term) fvs true)
+        with_lbls mf (lbls_of_terms (List.filter ~f:(fun t -> not (Term.is_const t)) ts))
       | MExists (x, tt, b, f) ->
         map1 (fvs @ [x]) f (fun f p -> MExists (x, tt, b, p f)) (Lbl.quantify_list ~forall:false x)
       | MForall (x, tt, b, f) ->
@@ -1185,15 +1190,16 @@ module MFormula = struct
       let r = match tf.form with
       | Tformula.TT -> MTT
       | FF -> MFF
-      | EqConst (x, c) -> MEqConst (Tterm.to_term x, c)
-      | Predicate (r, trms) -> MPredicate (r, Tterm.to_terms trms)
+      | EqConst (x, c) -> MEqConst (Sig.normalize (Tterm.to_term x), c)
+      | Predicate (r, trms) -> MPredicate (r, Sig.normalize_list (Tterm.to_terms trms))
       | Predicate' (_, _, f) | Let' (_, _, _, _, f) -> aux f
       | Agg ((s, tt), op, x, y, f) ->
          let op_fun = Aggregation.eval op tt in
-         MAgg (s, op, op_fun, Tterm.to_term x, List.map ~f:fst y, make (aux f) Filter.tt)
+         MAgg (s, op, op_fun, Sig.normalize (Tterm.to_term x), List.map ~f:fst y, make (aux f) Filter.tt)
       | Top (s, op, x, y, f) ->
          let op_fun = Sig.tfunc op in
-         MTop (List.map ~f:fst s, op, op_fun, Tterm.to_terms x, List.map ~f:fst y, make (aux f) Filter.tt)
+         MTop (List.map ~f:fst s, op, op_fun, Sig.normalize_list (Tterm.to_terms x),
+               List.map ~f:fst y, make (aux f) Filter.tt)
       | Neg f -> MNeg (make (aux f) tf.info.filter)
       | And (s, fs) ->
          MAnd (s, List.map2_exn ~f:make (List.map ~f:aux fs) (List.map fs ~f:(fun tf -> tf.info.filter)),
@@ -1235,14 +1241,15 @@ module IFormula = struct
 
   include MFormulaMake(ITerm.IntVar)(ITerm)
 
-  let set_make mf filter lbls projs =
+  let set_make mf filter lbls =
     let mf = make mf filter in
-    set_events { mf with lbls; projs }
+    set_events { mf with lbls }
 
-  let _tp     = set_make (MPredicate (Sig.tilde_tp_event_name, [])) Filter.tt [] []
-  let _neg_tp = set_make (MNeg _tp) Filter.tt [] []
-  let _tt     = set_make MTT Filter.tt [] []
-  let _ff     = set_make MFF Filter.tt [] []
+  let _tp     = set_make (MPredicate (Sig.tilde_tp_event_name, [])) Filter.tt []
+  let _neg_tp = set_make (MNeg _tp) Filter.tt []
+  let _tt     = set_make MTT Filter.tt []
+  let _ff     = set_make MFF Filter.tt []
+  let singleton_tp = Set.singleton (module String) Sig.tilde_tp_event_name
 
   let rec init (mf: MFormula.t) =
     let mf_core = 
@@ -1252,11 +1259,9 @@ module IFormula = struct
       | MEqConst (t, d) -> MEqConst (ITerm.init mf.lbls t, d)
       | MPredicate (r, ts) -> MPredicate (r, ITerm.init_multiple mf.lbls ts)
       | MAgg (s, op, f_op, x, y, f) ->
-        MAgg (ITerm.of_var mf.lbls s, op, f_op, ITerm.init f.lbls x,
-              ITerm.of_vars f.lbls y, init f)
+        MAgg (ITerm.of_var mf.lbls s, op, f_op, x, ITerm.of_vars f.lbls y, init f)
       | MTop (s, op, f_op, x, y, f) ->
-        MTop (ITerm.of_vars mf.lbls s, op, f_op, ITerm.init_multiple f.lbls x,
-              ITerm.of_vars f.lbls y, init f)
+        MTop (ITerm.of_vars mf.lbls s, op, f_op, x, ITerm.of_vars f.lbls y, init f)
       | MNeg f -> MNeg (init f)
       | MAnd (s, fs, inf) -> MAnd (s, List.map ~f:init fs, inf)
       | MOr (s, fs, inf) -> MOr (s, List.map ~f:init fs, inf)
@@ -1284,82 +1289,96 @@ module IFormula = struct
       lbls = mf.lbls;
       projs = mf.projs }
 
-    let map_mf mf filter ?(exquant=false) f =
+    let map_mf mf filter ?(exquant=false) ?(new_events=None) f =
       let lbls = if exquant then List.map ~f:Lbl.exquant mf.lbls else mf.lbls in
       let mf_mf = f mf (set_projs lbls) in
       { mf          = mf_mf;
         filter;
-        events      = mf.events;
+        events      = Option.map2 mf.events new_events Set.union;
         obligations = mf.obligations;
         hash        = core_hash mf_mf;
         lbls;
         projs       = [] }
     
-  let map2_mf mf1 mf2 filter f =
+  let map2_mf mf1 mf2 filter ?(new_events=None) f =
     let lbls = Etc.dedup ~equal:Lbl.equal (mf1.lbls @ mf2.lbls) in
     let mf_mf = f mf1 mf2 (set_projs lbls) in
     { mf          = mf_mf;
       filter;
-      events      = Option.map2 mf1.events mf2.events ~f:Set.union;
+      events      = Option.map2 (Option.map2 mf1.events mf2.events ~f:Set.union) new_events ~f:Set.union;
       obligations = Option.map2 mf1.obligations mf2.obligations ~f:Set.union;
       hash        = core_hash mf_mf;
       lbls;
       projs       = [] }
 
-  let mapn_mf mfs filter f =
+  let mapn_mf mfs filter ?(new_events=None) f =
     let lbls = Etc.dedup ~equal:Lbl.equal (List.concat_map mfs ~f:(fun mf -> mf.lbls)) in
     let mf_mf = f mfs (set_projs lbls) in
     { mf          = mf_mf;
       filter;
-      events      = Option.map (Option.all (List.map ~f:(fun mf -> mf.events) mfs))
-                      ~f:(Set.union_list (module String));
+      events      = Option.map2 (
+          Option.map (Option.all (List.map ~f:(fun mf -> mf.events) mfs))
+            ~f:(Set.union_list (module String)))
+          new_events ~f:Set.union;
       obligations = Option.map (Option.all (List.map ~f:(fun mf -> mf.obligations) mfs))
                       ~f:(Set.union_list (module Int));
       hash        = core_hash mf_mf;
       lbls;
       projs       = [] }
 
-  let rec apply_valuation (v: Valuation.t) mf =
-    let r = apply_valuation v in
-    let av_term = Sig.eval mf.lbls in
-    let spec t = Pdt.specialize_partial mf.lbls v t in
-    let av_buf2 b = Buf2.map (TS.map spec) (TS.map spec) b in
-    let av_bufn b = Bufn.map (TS.map spec) b in
-    let av_buft b = Buft.map (spec) (fun t -> t) b in
-    let av_buf2t b = Buf2t.map (spec) (spec) (fun t -> t) b in
-    let av_pdt p = spec p in
-    let mf_ = match mf.mf with
-      | MTT -> MTT
-      | MFF -> MFF
-      | MEqConst (trm, d) ->
-         (match (Sig.eval mf.lbls v trm).trm with
-          | Const d' when Dom.equal d d' -> MTT
-          | Const _ -> MFF
-          | _ -> MEqConst (trm, d))
-      | MPredicate (e, t) -> MPredicate (e, List.map t ~f:(av_term v))
-      | MAgg (s, op, op_fun, x, y, f) -> MAgg (s, op, op_fun, x, y, r f)
-      | MTop (s, op, op_fun, x, y, f) -> MTop (s, op, op_fun, x, y, r f)
-      | MNeg f -> MNeg (r f)
-      | MAnd (s, fs, bi) -> MAnd (s, List.map ~f:r fs, av_bufn bi)
-      | MOr (s, fs, bi) -> MOr (s, List.map ~f:r fs, av_bufn bi)
-      | MImp (s, f, g, bi) -> MImp (s, r f, r g, av_buf2 bi)
-      | MExists (x, tt, b, f) -> MExists (x, tt, b, r f)
-      | MForall (x, tt, b, f) -> MForall (x, tt, b, r f)
-      | MPrev (i, f, pi) -> MPrev (i, r f, Prev.map spec pi)
-      | MNext (i, f, si) -> MNext (i, r f, si)
-      | MENext (i, ts, f, vv) -> MENext (i, ts, r f, Valuation.extend v vv)
-      | MOnce (i, f, oi) -> MOnce (i, r f, Once.map spec spec oi)
-      | MEventually (i, f, oi) -> MEventually (i, r f, Eventually.map spec spec oi)
-      | MEEventually (i, ts, f, vv) -> MEEventually (i, ts, r f, Valuation.extend v vv)
-      | MHistorically (i, f, oi) -> MHistorically (i, r f, Once.map spec spec oi)
-      | MAlways (i, f, ai) -> MAlways (i, r f, Eventually.map spec spec ai)
-      | MEAlways (i, ts, f, vv) -> MEAlways (i, ts, r f, Valuation.extend v vv)
-      | MSince (s, i, f, g, si) -> MSince (s, i, r f, r g, Since.map spec spec si)
-      | MUntil (i, f, g, ui) -> MUntil (i, r f, r g, Until.map spec spec ui)
-      | MEUntil (s, i, ts, f, g, vv) -> MEUntil (s, i, ts, r f, r g, Valuation.extend v vv)
-      | MLabel (s, f) -> MLabel (s, r f)
-    in
-    set_make mf_ mf.filter mf.lbls mf.projs
+  let unproj (mf: t) (v: Valuation.t) : Valuation.t =
+    let f v = Option.map ~f:fst (List.findi mf.projs ~f:(fun _ -> Int.equal v)) in
+    Valuation.map_keys v ~f
+
+  let rec apply_valuation ?(parent_lbls=[]) (v: Valuation.t) (mf: t) : t =
+    if Valuation.is_empty v then mf else
+      let lbls = List.filter_map ~f:(Sig.eval_lbl_to_lbl mf.lbls v) mf.lbls in
+      let r = apply_valuation ~parent_lbls:lbls v in
+      let mr mf = apply_valuation ~parent_lbls:lbls (unproj mf v) mf in
+      let av_term = Sig.eval mf.lbls in
+      let spec t = Pdt.specialize_partial mf.lbls v t in
+      let av_buf2 b = Buf2.map (TS.map spec) (TS.map spec) b in
+      let av_bufn b = Bufn.map (TS.map spec) b in
+      let av_buft b = Buft.map (spec) (fun t -> t) b in
+      let av_buf2t b = Buf2t.map (spec) (spec) (fun t -> t) b in
+      let av_pdt p = spec p in
+      debug (Printf.sprintf "apply_valuation (%s, %s)..."
+               (Valuation.to_string v) (to_string mf));
+      let mf_ = match mf.mf with
+        | MTT -> MTT
+        | MFF -> MFF
+        | MEqConst (trm, d) ->
+          (match (Sig.eval mf.lbls v trm).trm with
+           | Const d' when Dom.equal d d' -> MTT
+           | Const _ -> MFF
+           | _ -> MEqConst (trm, d))
+        | MPredicate (e, t) -> MPredicate (e, List.map t ~f:(av_term v))
+        | MAgg (s, op, op_fun, x, y, f) -> MAgg (s, op, op_fun, x, y, mr f)
+        | MTop (s, op, op_fun, x, y, f) -> MTop (s, op, op_fun, x, y, mr f)
+        | MNeg f -> MNeg (r f)
+        | MAnd (s, fs, bi) -> MAnd (s, List.map ~f:mr fs, av_bufn bi)
+        | MOr (s, fs, bi) -> MOr (s, List.map ~f:mr fs, av_bufn bi)
+        | MImp (s, f, g, bi) -> MImp (s, mr f, mr g, av_buf2 bi)
+        | MExists (x, tt, b, f) -> MExists (x, tt, b, r f)
+        | MForall (x, tt, b, f) -> MForall (x, tt, b, r f)
+        | MPrev (i, f, pi) -> MPrev (i, r f, Prev.map spec pi)
+        | MNext (i, f, si) -> MNext (i, r f, si)
+        | MENext (i, ts, f, vv) -> MENext (i, ts, r f, Valuation.extend v vv)
+        | MOnce (i, f, oi) -> MOnce (i, r f, Once.map spec spec oi)
+        | MEventually (i, f, oi) -> MEventually (i, r f, Eventually.map spec spec oi)
+        | MEEventually (i, ts, f, vv) -> MEEventually (i, ts, r f, Valuation.extend v vv)
+        | MHistorically (i, f, oi) -> MHistorically (i, r f, Once.map spec spec oi)
+        | MAlways (i, f, ai) -> MAlways (i, r f, Eventually.map spec spec ai)
+        | MEAlways (i, ts, f, vv) -> MEAlways (i, ts, r f, Valuation.extend v vv)
+        | MSince (s, i, f, g, si) -> MSince (s, i, mr f, mr g, Since.map spec spec si)
+        | MUntil (i, f, g, ui) -> MUntil (i, mr f, mr g, Until.map spec spec ui)
+        | MEUntil (s, i, ts, f, g, vv) -> MEUntil (s, i, ts, mr f, mr g, Valuation.extend v vv)
+        | MLabel (s, f) -> MLabel (s, r f)
+      in
+      let r = set_projs parent_lbls (set_make mf_ mf.filter lbls) in
+      debug (Printf.sprintf "apply_valuation (%s, %s) = %s"
+               (Valuation.to_string v) (to_string mf) (to_string r));
+      r
 
 end
 
@@ -1485,7 +1504,8 @@ module FObligation = struct
       | FInterval (ts, i, mf, _, v) ->
          if Interval.diff_is_in ts ts' i then
            map_mf
-             (map_mf mf Filter.tt (fun mf p -> (MAnd (L, [_tp; p mf], empty_nop_info 2))))
+             (map_mf mf Filter.tt ~new_events:(Some singleton_tp)
+                (fun mf p -> (MAnd (L, [_tp; p mf], empty_nop_info 2))))
              Filter.tt
              (fun mf p -> MEUntil (R, i, Some ts, _neg_tp, p mf, v))
          else
@@ -1502,8 +1522,10 @@ module FObligation = struct
              (if IFormula.equal mf1' _neg_tp then
                 _neg_tp
               else
-                map_mf mf1' (tp_filter mf1') (fun mf p -> MImp (R, _tp, p mf, empty_binop_info)))
-             (map_mf mf2' Filter.tt (fun mf p -> MAnd (R, [_tp; p mf], empty_nop_info 2)))
+                map_mf mf1' (tp_filter mf1') ~new_events:(Some singleton_tp)
+                  (fun mf p -> MImp (R, _tp, p mf, empty_binop_info)))
+             (map_mf mf2' Filter.tt ~new_events:(Some singleton_tp)
+                (fun mf p -> MAnd (R, [_tp; p mf], empty_nop_info 2)))
              Filter.tt
              (fun mf1 mf2 p -> MEUntil (side, i, Some ts, p mf1, p mf2, v))
          else
@@ -1514,7 +1536,8 @@ module FObligation = struct
              | MImp (_, mf1, mf2, _) when IFormula.equal _tp mf1 -> mf2
              | _ -> mf in
            map_mf
-             (map_mf mf' (tp_filter mf') (fun mf p -> MImp (R, _tp, p mf, empty_binop_info)))
+             (map_mf mf' (tp_filter mf') ~new_events:(Some singleton_tp)
+                (fun mf p -> MImp (R, _tp, p mf, empty_binop_info)))
              Filter.tt
              (fun mf p -> MEAlways (i, Some ts, p mf, v))
          else
@@ -1525,7 +1548,8 @@ module FObligation = struct
              | MAnd (_, [mf1; mf2], _) when IFormula.equal _tp mf1 -> mf2
              | _ -> mf in
            map_mf
-             (map_mf mf' Filter.tt (fun mf p -> MAnd (L, [_tp; p mf], empty_nop_info 2)))
+             (map_mf mf' Filter.tt ~new_events:(Some singleton_tp)
+                (fun mf p -> MAnd (L, [_tp; p mf], empty_nop_info 2)))
              Filter.tt
              (fun mf p -> MEEventually (i, Some ts, p mf, v))
          else

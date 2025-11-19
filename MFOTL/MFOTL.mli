@@ -120,7 +120,7 @@ module Make
   val unroll_let : t -> t
   val unprime : t -> t
   val erase_label : t -> t
-  val ac_simplify : ?debug:bool -> t -> t
+  val ac_simplify : t -> t
 
   val relative_interval : ?itl_itvs:(string, Zinterval.t, Base.String.comparator_witness) Base.Map.t -> t -> Zinterval.t
   val relative_intervals : ?itl_itvs:(string, Zinterval.t, Base.String.comparator_witness) Base.Map.t -> t list -> Zinterval.t

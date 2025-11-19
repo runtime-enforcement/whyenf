@@ -74,13 +74,13 @@ module Pdt = struct
         | LAll x' -> 
           let all_s = List.concat (Part.map2 part (distribute i (fun v p -> aux v s p) v)) in
           f_all all_s
-        | LClos (_, terms, _) as term ->
+        | LClos (_, terms) as term ->
           (match s, Part.get_trivial part with
            | _, Some p -> aux v s p
            | Finite s, _ when
                Set.is_subset
                  (Set.of_list (module String) (Term.fv_list terms))
-                 ~of_:((Set.of_list (module String) (ITerm.to_vars lbls (Map.keys v)))) -> (* removed x from variables here *)
+                 ~of_:((Set.of_list (module String) (ITerm.to_vars lbls (j :: Map.keys v)))) ->
              let f d =
                let v = Map.update v j ~f:(fun _ -> d) in
                let d' = Term.unconst (Sig.eval_lbl lbls v term) in
@@ -88,8 +88,10 @@ module Pdt = struct
                  (snd (Part.find2 part (fun s -> Setc.mem s d'))) in
              let s = Setc.union_list (module Dom) (List.map (Set.elements s) ~f) in
              s
-           | _ -> s)
-    in aux v (Setc.univ (module Dom)) p
+           | _ -> s) in
+    let r = aux v (Setc.univ (module Dom)) p in
+    r
+           
   
   let rec from_valuation ?(i=0) (lbls: Lbl.t list) (v: Valuation.t) p p' =
     match lbls with
@@ -117,8 +119,8 @@ let to_string expl = Pdt.to_string Bool.to_string "" expl
 
 let to_light_string expl = Pdt.to_light_string Bool.to_string "" expl
 
-let rec pdt_of ?(i=0) tp r trms maps : t =
-  if i >= List.length trms then
+let rec pdt_of ?(i=0) tp r lbls maps : t =
+  if i >= List.length lbls then
     Leaf true
   else
     let ds = List.filter_map maps ~f:(fun map -> Map.find map i) in
@@ -127,10 +129,10 @@ let rec pdt_of ?(i=0) tp r trms maps : t =
           | Some d' when Dom.equal d d' -> Some map
           | _ -> None)  in
     if List.is_empty ds then
-      pdt_of ~i:(i+1) tp r trms maps
+      pdt_of ~i:(i+1) tp r lbls maps
     else
       let part = Part.tabulate_dedup (Pdt.eq Bool.equal) (Set.of_list (module Dom) ds)
-          (fun d -> pdt_of ~i:(i+1) tp r trms (find_maps d))
+          (fun d -> pdt_of ~i:(i+1) tp r lbls (find_maps d))
           (Leaf false) in
       Node (i, part)
 
@@ -142,7 +144,7 @@ let table_operator
     (tp: int)
     (x: Term.t list) (y: string list)
     (lbls: Lbl.t list) (lbls': Lbl.t list)
-    (p: bool Pdt.t) =
+    (p: t) =
   let merge_pdts merge = function
     | [] -> raise (Errors.EnforcementError "cannot merge 0 PDTs")
     | [pdt] -> pdt
@@ -181,7 +183,6 @@ let table_operator
     | Node (_, part) -> Set.union_list (module Dom)
                           (List.map part ~f:(fun (_, pdt) -> collect_leaf_values i pdt)) in
   let rec insert ?(i=0) (lbls: Lbl.t list) (v: Valuation.t) (pdt: Valuation.t list option Pdt.t) =
-    let r = "~aggregate" and trms = List.map ~f:(fun v -> Term.make_dummy (Term.var (Lbl.unvar (List.nth_exn lbls v)))) s in
     match pdt with
     | _ when List.mem s i ~equal:Int.equal ->
       let ds = collect_leaf_values i pdt in
@@ -194,7 +195,7 @@ let table_operator
              (Leaf false) in
          Pdt.Node (i, parts))
     | Node (lbl', part) ->
-      Pdt.Node (lbl', Part.map part (insert lbls v))
+      Pdt.Node (lbl', Part.map part (insert ~i:(i+1) lbls v))
     | Leaf (Some vs) ->
        if List.exists vs ~f:(fun v' ->
               Map.for_alli v ~f:(fun ~key ~data -> Dom.equal (Map.find_exn v' key) data))
@@ -210,8 +211,18 @@ let table_operator
       let dss = List.map ~f:(fun v -> List.map ~f:(fun x -> Term.unconst (Sig.teval lbls' v x)) x) vs in
       let vs = List.map ~f:(fun v -> Valuation.of_alist_exn s v) (op dss) in
       Some vs) in
-  insert lbls Valuation.empty
-    (Pdt.apply1_reduce (Option.equal (List.equal (Valuation.equal))) apply_op f (gather [] y lbls' Valuation.empty p))
+  let r = insert lbls Valuation.empty
+      (Pdt.apply1_reduce (Option.equal (List.equal (Valuation.equal))) apply_op f (gather [] y lbls' Valuation.empty p)) in
+  if !Global.debug then
+      Stdio.printf "[debug:Expl] table_operator (s=[%s], x=%s, y=[%s], lbls=%s, lbls'=%s, p=%s) = %s"
+      (String.concat ~sep:", " (List.map ~f:string_of_int s))
+      (Term.list_to_string x)
+      (Etc.string_list_to_string y)
+      (Lbl.to_string_list lbls)
+      (Lbl.to_string_list lbls')
+      (to_string p)
+      (to_string r);
+  r
 
 let aggregate
     (agg: (Dom.t, Dom.comparator_witness) Multiset.t -> Dom.t)
@@ -221,6 +232,6 @@ let aggregate
     (x: Term.t)
     (y: string list)
     (lbls: Lbl.t list) (lbls': Lbl.t list)
-    (p: bool Pdt.t)  =
+    (p: t)  =
   let multiset dss = Multiset.of_list (module Dom) (List.map ~f:List.hd_exn dss) in
   table_operator (fun dss -> [[agg (multiset dss)]]) [s] f tp [x] y lbls lbls' p

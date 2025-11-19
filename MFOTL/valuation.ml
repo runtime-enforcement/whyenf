@@ -18,6 +18,9 @@ module type T = sig
   val to_string: t -> string
 
   val of_alist_exn : v list -> Dom.t list -> t
+  val map_keys: t -> f:(v -> v option) -> t
+
+  val is_empty: t -> bool
 
 end
 
@@ -55,5 +58,12 @@ module Make (Var : V) = struct
   let of_alist_exn s v : t =
     Map.of_alist_exn (module Var) (List.zip_exn s v)
 
+  let map_keys (v: t) ~f:(f: Var.t -> Var.t option) : t =
+    Map.map_keys_exn (module Var)
+      (Map.filter_keys v ~f:(fun v -> Option.is_some (f v)))
+      ~f:(fun v -> Option.value_exn (f v))
+
+  let is_empty = Map.is_empty 
+      
 end
 

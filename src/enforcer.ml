@@ -152,7 +152,7 @@ module EState = struct
 
   let specialize lbls es = Expl.Pdt.specialize lbls do_ors do_ands
 
-  let sat (v: ITerm.Valuation.t) mf es =
+  let sat (v: Valuation.t) mf es =
     (*print_endline "--sat";
       print_endline ("sat.mf=" ^ MFormula.to_string mf);
       print_endline ("sat.expl=" ^ Expl.to_string (exec_monitor mf es));
@@ -162,6 +162,9 @@ module EState = struct
     (*print_endline (Printf.sprintf "sat(%s)=%s"
       (Expl.to_string  p)
       (E.Proof.to_string "" (specialize es v p)));*)
+    debug (Printf.sprintf "specialize (%s, %s, %s)"
+             (Lbl.to_string_list mf.lbls)
+             (Valuation.to_string v) (Expl.to_string p));
     es, specialize mf.lbls es v p
 
   let vio x mf es =
@@ -175,12 +178,13 @@ module EState = struct
       print_endline ("all_not_sat.proof="^ E.to_string (snd(exec_monitor mf es)));
       print_endline ("all_not_sat.collected(" ^ x  ^ ")=" ^ Setc.to_string (Expl.Pdt.collect E.Proof.isV (Setc.inter_list (module Dom)) (Setc.union_list (module Dom)) v x (snd (exec_monitor mf es))));*)
     let es, p = exec_monitor mf es in
-    match Expl.Pdt.collect
-            mf.lbls
-            (fun b -> not b)
-            (Setc.inter_list (module Dom))
-            (Setc.union_list (module Dom))
-            v x p with
+    let s = Expl.Pdt.collect mf.lbls (fun b -> not b)
+        (Setc.inter_list (module Dom)) (Setc.union_list (module Dom)) v x p in
+    debug (Printf.sprintf "collect ([%s], %s, %d, %s, -) = %s\n"
+             (Lbl.to_string_list mf.lbls)
+             (Valuation.to_string v) x (Expl.to_string p)
+             (Setc.to_string s));
+    match s with
     | Setc.Finite s -> es, Set.elements s
     | s -> Stdio.printf "Infinite set of candidates for %d in %s: from %s collected %s\n"
              x (IFormula.to_string mf) (Expl.to_string p) (Setc.to_string s);
@@ -193,12 +197,13 @@ module EState = struct
       print_endline ("all_not_vio.proof="^ E.to_string (snd(exec_monitor mf es)));
       print_endline ("all_not_vio.collected(" ^ x  ^ ")=" ^ Setc.to_string (Expl.Pdt.collect E.Proof.isV (Setc.union_list (module Dom)) (Setc.inter_list (module Dom)) v x (snd (exec_monitor neg_mf es))));*)
     let es, p = exec_monitor (*neg_*)mf es in
-    match Expl.Pdt.collect
-            mf.lbls
-            (fun b -> b)
-            (Setc.union_list (module Dom))
-            (Setc.inter_list (module Dom))
-            v x p with
+    let s = Expl.Pdt.collect mf.lbls (fun b -> b)
+            (Setc.union_list (module Dom)) (Setc.inter_list (module Dom)) v x p in
+    debug (Printf.sprintf "collect ([%s], %s, %d, %s, +) = {%s}\n"
+             (Lbl.to_string_list mf.lbls)
+             (Valuation.to_string v) x (Expl.to_string p)
+             (Setc.to_string s));
+    match s with
     | Setc.Finite s -> es, Set.elements s
     | s -> Stdio.printf "Infinite set of candidates for %d in %s: from %s collected %s\n"
              x (IFormula.to_string mf) (Expl.to_string p) (Setc.to_string s);
@@ -211,14 +216,14 @@ module EState = struct
 
   let can_skip es (mformula: IFormula.t) =
     !Global.filter && not (filter_eval es.db mformula.filter)
-
+  
   let testenf test enf v es mf =
     (*print_endline "-- testenf";
       print_endline ("filters=" ^ Formula.Filter.to_string mf.filter);*)
     if not (can_skip es mf) then
       (let es, b = test v mf es in
        if not b then
-         enf mf v es
+         enf mf (IFormula.unproj mf v) es
        else
          es)
     else
@@ -292,10 +297,10 @@ module EState = struct
     | MNeg mf -> enfvio mf v es
     | MAnd (L, mfs, _) -> fixpoint (enfsat_andl v mfs) es
     | MAnd (R, mfs, _) -> fixpoint (enfsat_andr v mfs) es
-    | MOr (L, mf1 :: _, _) -> enfsat mf1 v es
+    | MOr (L, mf1 :: _, _) -> enfsat mf1 (IFormula.unproj mf1 v) es
     | MOr (R, mfs, _) when not (List.is_empty mfs) -> enfsat (List.last_exn mfs) v es
-    | MImp (L, mf1, _, _) -> enfvio mf1 v es
-    | MImp (R, _, mf2, _) -> enfsat mf2 v es
+    | MImp (L, mf1, _, _) -> enfvio mf1 (IFormula.unproj mf1 v) es
+    | MImp (R, _, mf2, _) -> enfsat mf2 (IFormula.unproj mf2 v) es
     | MExists (x, tt, _, mf) -> enfsat mf (Map.add_exn v ~key:x ~data:(Dom.tt_default tt)) es
     | MForall (x, _, _, mf) -> fixpoint (enfsat_forall x mf v) es
     | MENext (i, ts, mf, vv) ->
@@ -320,19 +325,19 @@ module EState = struct
     | MSince (_, _, _, mf2, _) -> enfsat mf2 v es
     | MEUntil (R, i, ts, mf1, mf2, vv) ->
        if Interval.diff_right_of (default_ts ts es) (inc_ts es.ts) i && es.nick then
-         add_cau Db.Event._tp (enfsat mf2 v es)
+         add_cau Db.Event._tp (enfsat mf2 (IFormula.unproj mf2 v) es)
        else (
-         let es, b = if can_skip es mf1 then es, true else sat v mf1 es in
+         let es, b = if can_skip es mf1 then es, true else sat (IFormula.unproj mf1 v) mf1 es in
          if not b then
-           enfsat mf2 v es
+           enfsat mf2 (IFormula.unproj mf2 v) es
          else
            add_foblig (FUntil (default_ts ts es, R, i, mf1, mf2, mformula.hash, vv), v, POS) es)
     | MEUntil (LR, i, ts, mf1, mf2, vv) ->
        if Interval.diff_right_of (default_ts ts es) (inc_ts es.ts) i && es.nick then
-         add_cau Db.Event._tp (enfsat mf2 v es)
+         add_cau Db.Event._tp (enfsat mf2 (IFormula.unproj mf2 v) es)
        else
          add_foblig (FUntil (default_ts ts es, LR, i, mf1, mf2, mformula.hash, vv), v, POS)
-           (enfsat mf1 v es)
+           (enfsat mf1 (IFormula.unproj mf1 v) es)
     | MAnd (LR, _, _) ->
        raise (Errors.EnforcementError
                 (Printf.sprintf "side for %s was not fixed" (IFormula.to_string mformula)))
@@ -355,8 +360,9 @@ module EState = struct
        let new_sup = (r, List.map trms ~f:(fun trm -> ITerm.unconst (Sig.eval mformula.lbls v trm))) in
        add_sup new_sup es
     | MNeg mf -> enfsat mf v es
-    | MAnd (L, mf1 :: _, _) -> enfvio mf1 v es
-    | MAnd (R, mfs, _) when not (List.is_empty mfs) -> enfvio (List.last_exn mfs) v es
+    | MAnd (L, mf1 :: _, _) -> enfvio mf1 (IFormula.unproj mf1 v) es
+    | MAnd (R, mfs, _) when not (List.is_empty mfs) ->
+      enfvio (List.last_exn mfs) (IFormula.unproj (List.last_exn mfs) v) es
     | MOr (L, mfs, _) -> fixpoint (enfvio_orl v mfs) es
     | MOr (R, mfs, _) -> fixpoint (enfvio_orr v mfs) es
     | MImp (L, mf1, mf2, _) -> fixpoint (enfvio_imp mf1 mf2 v) es
@@ -371,14 +377,14 @@ module EState = struct
          enfvio mf v es
        else
          add_foblig (FAlways (default_ts ts es, i, mf, mformula.hash, vv), v, NEG) es
-    | MSince (L, _, mf1, _, _) -> enfvio mf1 v es
-    | MEUntil (L, _, _, mf1, _, _) -> enfvio mf1 v es
+    | MSince (L, _, mf1, _, _) -> enfvio mf1 (IFormula.unproj mf1 v) es
+    | MEUntil (L, _, _, mf1, _, _) -> enfvio mf1 (IFormula.unproj mf1 v) es
     | MEUntil (R, i, ts, mf1, mf2, vv) ->
-       let es, b1 = sat v mf1 es in
-       let es, b2 = sat v mf2 es in
+       let es, b1 = sat (IFormula.unproj mf1 v) mf1 es in
+       let es, b2 = sat (IFormula.unproj mf2 v) mf2 es in
        let es =
          if Interval.diff_is_in (default_ts ts es) es.ts i && b2 then
-           enfvio mf2 v es
+           enfvio mf2 (IFormula.unproj mf2 v) es
          else
            es
        in

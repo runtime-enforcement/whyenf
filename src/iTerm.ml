@@ -11,7 +11,7 @@ module IntVar : Modules.V with type t = int = struct
 
     type t = int [@@deriving compare, sexp_of, hash, equal]
     
-    let to_string s = Int.to_string s
+    let to_string s = Printf.sprintf "#%d" s
     let to_latex s = Printf.sprintf "\\mathit{%d}" s
     let ident s = Int.to_string s
     let of_ident s = 0
@@ -37,7 +37,7 @@ let init (lbls: Lbl.t list) (trm: MyTerm.t) =
     | MyTerm.Const d -> Const d
     | App (f, ts) ->
       let f _ = function
-        | Lbl.LClos (f', ts', _) ->
+        | Lbl.LClos (f', ts') ->
           String.equal f f'
           && (match List.for_all2 ts ts' ~f:MyTerm.equal with
               | Base.List.Or_unequal_lengths.Ok b -> b
@@ -62,7 +62,7 @@ let to_term (lbls: Lbl.t list) (trm: t) =
     | Var i ->
       (match List.nth_exn lbls i with
        | LVar x -> Var x
-       | LClos (f, trms, _) -> App (f, trms)
+       | LClos (f, trms) -> App (f, trms)
        | _ -> assert false)
     | _ -> assert false in
   MyTerm.make_dummy trm

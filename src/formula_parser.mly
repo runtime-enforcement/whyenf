@@ -173,12 +173,14 @@ opt_typed_vars_or_empty:
 | STD                                       { debug "STD"; Aop.AStd }
 
 %inline enftype:
-| QST                                       { debug "QST";    Enftype.bot    }
-| EXC                                       { debug "EXC";    Enftype.obs    }
-| SUB                                       { debug "SUB";    Enftype.sup    }
-| ADD                                       { debug "ADD";    Enftype.cau    }
-| ADD SUB                                   { debug "ADD SUB"; Enftype.causup }
-| SUB ADD                                   { debug "SUB ADD"; Enftype.causup }
-| ADD QST                                   { debug "ADD QST"; Enftype.caubot }
-| QST ADD                                   { debug "QST ADD"; Enftype.caubot }
+| QST                                       { debug "QST";         Enftype.bot }
+| EXC                                       { debug "EXC";         Enftype.obs }
+| SUB                                       { debug "SUB";         Enftype.nsup }
+| ADD                                       { debug "ADD";         Enftype.ncau }
+| ADD ADD                                   { debug "ADD ADD";     Enftype.scau }
+| SUB SUB                                   { debug "ADD ADD";     Enftype.ssup }
+| ADD SUB                                   { debug "ADD SUB";     Enftype.ncausup }
+| SUB ADD                                   { debug "ADD SUB";     Enftype.ncausup }
+| ADD ADD SUB                               { debug "SUB ADD ADD"; Enftype.scausup }
+| SUB ADD ADD                               { debug "SUB ADD ADD"; Enftype.scausup }
 

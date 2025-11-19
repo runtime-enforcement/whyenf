@@ -25,18 +25,18 @@ module T = struct
     | LVar  of string
     | LEx   of string
     | LAll  of string
-    | LClos of string * Term.t list * S.t [@@deriving equal, compare, sexp_of]
+    | LClos of string * Term.t list [@@deriving equal, compare, sexp_of]
 
   let var s = LVar s
   let ex s = LEx s
   let all s = LAll s
-  let clos s terms vars = LClos (s, terms, vars)
+  let clos s terms vars = LClos (s, terms)
 
   let exquant = function
     | LVar x -> LVar x
     | LEx x -> LAll x
     | LAll x -> LEx x
-    | LClos (f, ts, v) -> LClos (f, ts, v)
+    | LClos (f, ts) -> LClos (f, ts)
 
   let is_var = function
     | LVar _ -> true
@@ -48,40 +48,28 @@ module T = struct
 
   let term = function
     | LVar s -> Term.make_dummy (Term.Var s)
-    | LClos (f, ts, _) -> Term.make_dummy (App (f, ts))
+    | LClos (f, ts) -> Term.make_dummy (App (f, ts))
     | _ -> raise (Errors.TermError "term is undefined for quantified labels")
 
   let of_term t = match Term.(t.trm) with
     | Term.Var s -> LVar s
-    | App (f, ts) -> LClos (f, ts, S.empty)
+    | App (f, ts) -> LClos (f, ts)
     | _ -> raise (Errors.TermError "of_term is undefined for quantified labels")
 
   let to_string = function
     | LVar x -> Printf.sprintf "LVar %s" x
     | LEx x -> Printf.sprintf "LEx %s" x
     | LAll x -> Printf.sprintf "LAll %s" x
-    | LClos (f, ts, v) ->
-       Printf.sprintf "LClos %s(%s; [%s])"
-         f (String.concat ~sep:", " (List.map ts ~f:Term.to_string)) (S.to_string v)
+    | LClos (f, ts) ->
+       Printf.sprintf "LClos %s(%s)"
+         f (String.concat ~sep:", " (List.map ts ~f:Term.to_string))
 
   let to_string_list lbls =
-    String.concat ~sep:", " (List.map ~f:to_string lbls)
-
-  let fv = function
-    | LVar s -> S.singleton s
-    | LClos (_, ts, vars) ->
-       S.filter (S.of_list (Term.fv_list ts)) ~f:(fun x -> not (S.mem vars x))
-    | _ -> raise (Errors.TermError "fv is undefined for quantified labels")
+    "[" ^ String.concat ~sep:", " (List.map ~f:to_string lbls) ^ "]"
 
   let quantify ~forall x = function
     | LVar x' when String.equal x x' ->
        if forall then LAll x' else LEx x'
-    | LClos (f, ts, vars) as lbl ->
-       let fvs = fv lbl in
-       (if S.mem fvs x then
-          LClos (f, ts, Set.add vars x)
-        else
-          LClos (f, ts, vars))
     | lbl -> lbl
 
   let quantify_list ~forall x lbls =
@@ -92,8 +80,6 @@ module T = struct
       | [] -> []
       | (LAll x' as lbl) :: terms | (LEx x' as lbl) :: terms when String.equal x x'
         -> lbl :: terms
-      | LClos (f, ts, vars) :: terms
-        -> LClos (f, ts, Set.remove vars x) :: unquantify_list2 terms
       | lbl :: terms
         -> lbl :: unquantify_list2 terms in
     function
