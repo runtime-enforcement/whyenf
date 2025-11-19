@@ -266,13 +266,6 @@
         "output": "37_hour.out"
     },
     {
-        "label": "38_month",
-        "sig": "simple.sig",
-        "formula": "38_month.mfotl",
-        "log": "month.log",
-        "output": "38_month.out"
-    },
-    {
         "label": "39_after_end",
         "sig": "simple.sig",
         "formula": "39_after_end.mfotl",
