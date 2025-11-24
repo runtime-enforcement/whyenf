@@ -21,6 +21,9 @@ module type T = sig
   val unvar_opt : t -> v option
   val unconst_opt : t -> d option
 
+  val is_var : t -> bool
+  val is_const : t -> bool
+      
   val fv_list : t list -> v list
   val fn_list : t list -> string list
   val size : t -> int

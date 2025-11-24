@@ -193,15 +193,15 @@ module Memo = struct
   
 end
 
-let meval (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) (mformula: IFormula.t) memo =
+let meval (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) (m: (string * IFormula.t) list) (mformula: IFormula.t) memo =
   let outer_tp = tp in
   let map_expl f (tp, (ts, x)) = (tp, x) in
   let one_ts tp ts expl = [TS.make tp ts expl] in
   let p (mf: IFormula.t) = List.nth_exn mf.projs in
   let rec meval_rec (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) memo (mformula: IFormula.t) :
     'a *  (Expl.t TS.t list * Expl.t * IFormula.t) =
-    debug (Printf.sprintf "meval_rec (%s, %d, %s, %s)..." (Time.to_string ts) tp (IFormula.to_string mformula) (Polarity.to_string (Polarity.value pol)));
-    debug (Printf.sprintf "memo = %s" (Memo.to_string memo));
+    debug (Printf.sprintf "meval_rec (%s, %d, %s, %s)..." (Time.to_string ts) tp (IFormula.value_to_string mformula) (Polarity.to_string (Polarity.value pol)));
+    (*debug (Printf.sprintf "memo = %s" (Memo.to_string memo));*)
     match Memo.find memo mformula (Polarity.value pol) with
     | Some (expls, aexpl, mf) ->
       (memo, (expls, aexpl, { mf with lbls = mformula.lbls; projs = mformula.projs }))
@@ -223,24 +223,31 @@ let meval (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) (mformula
                                       (Polarity.value pol))) in
             memo, (one_ts tp ts expl, expl, MPredicate (r, trms))
          | MPredicate (r, trms) ->
-           let db' = match Sig.kind_of_pred r with
-             | Trace -> Db.filter db ~f:(fun evt -> String.equal r (fst(evt)))
-             | External -> Db.retrieve_external r
-             | Builtin -> Db.retrieve_builtin ts tp r
-             | Predicate -> raise (Errors.MonitoringError "cannot evaluate Predicate")
-             | Let -> raise (Errors.MonitoringError "cannot evaluate Let") in
-           if List.is_empty trms then
-             (let expl = Pdt.Leaf (not (Db.is_empty db')) in
-              memo, ([TS.make tp ts expl], expl, MPredicate (r, trms)))
-           else
-             let maps = List.filter_opt (
-                 Set.fold (Db.events db') ~init:[]
-                   ~f:(fun acc evt -> match_terms (List.map ~f:(fun x -> x.trm) trms) (snd evt)
-                          (Map.empty (module Int)) :: acc)) in
-             let expl = if List.is_empty maps
-               then Pdt.Leaf false
-               else Expl.pdt_of tp r mformula.lbls maps in
-             memo, (one_ts tp ts expl, expl, MPredicate (r, trms))
+           begin
+             match List.find m (fun (e, _) -> String.equal r e) with
+             | None ->
+               let db' = match Sig.kind_of_pred r with
+                 | Trace -> Db.filter db ~f:(fun evt -> String.equal r (fst(evt)))
+                 | External -> Db.retrieve_external r
+                 | Builtin -> Db.retrieve_builtin ts tp r
+                 | Predicate -> raise (Errors.MonitoringError "cannot evaluate Predicate")
+                 | Let -> raise (Errors.MonitoringError "cannot evaluate Let") in
+               if List.is_empty trms then
+                 (let expl = Pdt.Leaf (not (Db.is_empty db')) in
+                  memo, ([TS.make tp ts expl], expl, MPredicate (r, trms)))
+               else
+                 let maps = List.filter_opt (
+                     Set.fold (Db.events db') ~init:[]
+                       ~f:(fun acc evt -> match_terms (List.map ~f:(fun x -> x.trm) trms) (snd evt)
+                              (Map.empty (module Int)) :: acc)) in
+                 let expl = if List.is_empty maps
+                   then Pdt.Leaf false
+                   else Expl.pdt_of tp r mformula.lbls maps in
+                 memo, (one_ts tp ts expl, expl, MPredicate (r, trms))
+             | Some (_, mf) ->
+               let memo, (expls, aexpl, mf') = meval_rec ts tp db fobligs ~pol memo mf in
+               memo, (expls, aexpl, MPredicate (r, trms))
+           end
          | MAgg (s, op, op_fun, x, y, mf) ->
             let memo, (expls, aexpl, mf') = meval_rec ts tp db fobligs ~pol memo mf in
             let aggregate = Expl.aggregate op_fun s (p mf) tp x (ITerm.to_vars mf.lbls y) mformula.lbls mf.lbls in
@@ -356,7 +363,7 @@ let meval (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) (mformula
        let mf = { mformula with mf } in
        let memo = if tp = outer_tp then Memo.memoize memo mformula (Polarity.value pol) (expls, aexpl, mf) else memo in
        debug (Printf.sprintf "meval_rec (%s, %d, %s) = %s"
-                (Time.to_string ts) tp (IFormula.to_string mformula) (Expl.to_string aexpl));
+                (Time.to_string ts) tp (IFormula.value_to_string mformula) (Expl.to_string aexpl));
        memo, (expls, aexpl, mf)
   in meval_rec ts tp db ~pol fobligs memo mformula
 
@@ -368,14 +375,18 @@ module MState = struct
            ; tp_out: timepoint                        (* last time-point that was output *)
            ; ts_waiting: timestamp Queue.t
            ; tsdbs: (timestamp * Db.t) Queue.t
-           ; tpts: (timepoint, timestamp) Hashtbl.t }
+           ; tpts: (timepoint, timestamp) Hashtbl.t
+           ; lets: (string * IFormula.t) list }
 
-  let init mf = { mf = IFormula.init mf
-                ; tp_cur = 0
-                ; tp_out = -1
-                ; ts_waiting = Queue.create ()
-                ; tsdbs = Queue.create ()
-                ; tpts = Hashtbl.create (module Int) }
+  let init mf =
+    let mf, lets = IFormula.init mf in
+    { mf
+    ; tp_cur = 0
+    ; tp_out = -1
+    ; ts_waiting = Queue.create ()
+    ; tsdbs = Queue.create ()
+    ; tpts = Hashtbl.create (module Int)
+    ; lets }
 
   let tp_cur ms = ms.tp_cur
 
@@ -406,9 +417,20 @@ end
 
 type res = Expl.t TS.t list * Expl.t * IFormula.t
 
-let mstep _ ts db approx (ms: MState.t) (fobligs: FObligations.t) (memo : res Memo.t) =
+let mstep ?(force_evaluate_lets=false) ts db approx (ms: MState.t) (fobligs: FObligations.t) (memo : res Memo.t) =
   let pol_opt = if approx then Some Polarity.POS else None in
-  let memo, (_, aexpl, mf') = meval ts ms.tp_cur db ~pol:pol_opt fobligs ms.mf memo in
+  (*let memo, ms = List.fold_left ms.lets ~init:(memo, ms)
+      ~f:(fun (memo, ms) (e, mf) -> 
+          let memo, (_, _, mf) = meval ts ms.tp_cur db ~pol:None fobligs ms.lets mf memo in
+          memo, { ms with lets = ms.lets @ [e, mf] }) in*)
+  let memo, (_, aexpl, mf') = meval ts ms.tp_cur db ~pol:pol_opt fobligs ms.lets ms.mf memo in
+  let memo, ms =
+    if force_evaluate_lets then
+      List.fold_left ms.lets ~init:(memo, ms)
+        ~f:(fun (memo, ms) (e, mf) -> 
+            let memo, (_, _, mf) = meval ts ms.tp_cur db ~pol:None fobligs ms.lets mf memo in
+            memo, { ms with lets = ms.lets @ [e, mf] })
+    else memo, ms in
   let expls, tstps = [aexpl], [(ms.tp_cur, ts)] in
   let tsdbs = ms.tsdbs in
   let ts_waiting = ms.ts_waiting in

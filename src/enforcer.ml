@@ -90,16 +90,18 @@ module EState = struct
     Printf.sprintf "%s" (MState.to_string "  " ms) ^
     (Triple.to_string "  " r)
 
-  let init ms mf = { ms;
-                     tp = 0;
-                     ts = Time.zero;
-                     db = Db.create [];
-                     r = Triple.empty;
-                     fobligs = Set.singleton (module FObligation)
-                                 (FFormula (IFormula.init mf, -1, Valuation.empty), Valuation.empty, POS);
-                     memo = Memo.empty;
-                     nick = false;
-                     labels = [] }
+  let init ms mf =
+    let mf, lets = IFormula.init mf in
+    { ms = { ms with lets };
+      tp = 0;
+      ts = Time.zero;
+      db = Db.create [];
+      r = Triple.empty;
+      fobligs = Set.singleton (module FObligation)
+          (FFormula (mf, -1, Valuation.empty), Valuation.empty, POS);
+      memo = Memo.empty;
+      nick = false;
+      labels = []; }
 
   let update r es =
     let memo = Triple.update_memo r es.memo in
@@ -138,8 +140,8 @@ module EState = struct
     in
     loop Triple.empty es
 
-  let mstep_state es =
-    mstep es.tp es.ts es.db true es.ms es.fobligs
+  let mstep_state ?(force_evaluate_lets=false) es =
+    mstep ~force_evaluate_lets es.ts es.db true es.ms es.fobligs
 
   let exec_monitor mf es =
     let memo, (_, aexpl, _) = mstep_state { es with ms = { es.ms with mf } } es.memo in
@@ -153,8 +155,8 @@ module EState = struct
   let specialize lbls es = Expl.Pdt.specialize lbls do_ors do_ands
 
   let sat (v: Valuation.t) mf es =
-    (*print_endline "--sat";
-      print_endline ("sat.mf=" ^ MFormula.to_string mf);
+    (*print_endline "--sat";*)
+    (*  print_endline ("sat.mf=" ^ MFormula.to_string mf);
       print_endline ("sat.expl=" ^ Expl.to_string (exec_monitor mf es));
       print_endline ("sat.v=" ^ Etc.valuation_to_string v);
       print_endline ("sat.proof=" ^ E.Proof.to_string "" (specialize mf es v (exec_monitor mf es)));*)
@@ -163,7 +165,7 @@ module EState = struct
       (Expl.to_string  p)
       (E.Proof.to_string "" (specialize es v p)));*)
     debug (Printf.sprintf "specialize (%s, %s, %s)"
-             (Lbl.to_string_list mf.lbls)
+             (IFormula.to_string mf)
              (Valuation.to_string v) (Expl.to_string p));
     es, specialize mf.lbls es v p
 
@@ -218,8 +220,8 @@ module EState = struct
     !Global.filter && not (filter_eval es.db mformula.filter)
   
   let testenf test enf v es mf =
-    (*print_endline "-- testenf";
-      print_endline ("filters=" ^ Formula.Filter.to_string mf.filter);*)
+    (*print_endline "--testenf";*)
+    (*  print_endline ("filters=" ^ Formula.Filter.to_string mf.filter);*)
     if not (can_skip es mf) then
       (let es, b = test v mf es in
        if not b then
@@ -230,16 +232,20 @@ module EState = struct
       es
   
   let lr test1 test2 enf1 enf2 mf1 mf2 v es =
+    (*print_endline "--lr.1";*)
     let es = testenf test1 enf1 v es mf1 in
+    (*print_endline "--lr.2";*)
     testenf test2 enf2 v es mf2
 
   let default_ts ts es =
     Option.value ts ~default:es.ts
 
   let rec enfsat_andl v mfs es =
+    (*print_endline "--enfsat_andl";*)
     List.fold_left mfs ~init:es ~f:(testenf sat enfsat v)
 
   and enfsat_andr v mfs es =
+    (*print_endline "--enfsat_andr";*)
     List.fold_right mfs ~init:es ~f:(fun mf es -> testenf sat enfsat v es mf)
 
   and enfsat_forall x mf v es =
@@ -250,12 +256,15 @@ module EState = struct
     List.fold ds ~init:es ~f:enfs
 
   and enfvio_orl v mfs es =
+    (*print_endline "--enfvio_orl";*)
     List.fold_left mfs ~init:es ~f:(testenf vio enfvio v)
 
   and enfvio_orr v mfs es =
+    (*print_endline "--enfvio_orr";*)
     List.fold_right mfs ~init:es ~f:(fun mf es -> testenf vio enfvio v es mf)
 
   and enfvio_imp mf1 =
+    (*print_endline "--enfvio_imp";*)
     lr sat vio enfsat enfvio mf1
 
   and enfvio_exists x mf v es =
@@ -276,7 +285,7 @@ module EState = struct
     enfvio mf v es
 
   and enfsat (mformula: IFormula.t) v es : t =
-    debug (Printf.sprintf "enforce (%s, %s, +)" (IFormula.to_string mformula) (Valuation.to_string v));
+    debug (Printf.sprintf "enforce (%s, %s, +)" (IFormula.value_to_string mformula) (Valuation.to_string v));
     (*print_endline ("--enfsat");*)
     (*print_endline ("mformula=" ^ MFormula.value_to_string mformula);*)
     (*print_endline ("v=" ^ Etc.valuation_to_string v);*)
@@ -291,6 +300,10 @@ module EState = struct
          (Db.to_string es.db));*)
        es
     | MTT -> es
+    | MPredicate (r, trms) when List.exists es.ms.lets ~f:(fun (e, _) -> String.equal e r) ->
+       let v = Valuation.of_alist_exn (List.init (List.length trms) ~f:id)
+          (List.map ~f:(fun t -> ITerm.unconst (Sig.eval mformula.lbls v t)) trms) in
+       enfsat (snd (List.find_exn es.ms.lets ~f:(fun (e, _) -> String.equal e r))) v es
     | MPredicate (r, trms) when Sig.equal_pred_kind (Sig.kind_of_pred r) Sig.Trace ->
        let new_cau = (r, List.map trms ~f:(fun trm -> ITerm.unconst (Sig.eval mformula.lbls v trm))) in
        add_cau new_cau es
@@ -312,6 +325,7 @@ module EState = struct
          add_foblig (FEventually (default_ts ts es, i, mf, mformula.hash, vv), v, POS) es
     | MEAlways (i, ts, mf, vv) ->
        let es =
+         (*print_endline "enfsat_mealways";*)
          let es, b = if can_skip es mf then es, true else sat v mf es in
          if Interval.diff_is_in (default_ts ts es) es.ts i && not b then
            enfsat mf v es
@@ -327,6 +341,7 @@ module EState = struct
        if Interval.diff_right_of (default_ts ts es) (inc_ts es.ts) i && es.nick then
          add_cau Db.Event._tp (enfsat mf2 (IFormula.unproj mf2 v) es)
        else (
+         print_endline "enfsat_meuntil";
          let es, b = if can_skip es mf1 then es, true else sat (IFormula.unproj mf1 v) mf1 es in
          if not b then
            enfsat mf2 (IFormula.unproj mf2 v) es
@@ -340,7 +355,7 @@ module EState = struct
            (enfsat mf1 (IFormula.unproj mf1 v) es)
     | MAnd (LR, _, _) ->
        raise (Errors.EnforcementError
-                (Printf.sprintf "side for %s was not fixed" (IFormula.to_string mformula)))
+                (Printf.sprintf "side for %s was not fixed" (IFormula.value_to_string mformula)))
     | MLabel (s, mf) ->
        let es' = enfsat mf v { es with labels = s :: es.labels } in
        { es' with labels =  es.labels }
@@ -356,6 +371,10 @@ module EState = struct
     match mformula.mf with
     | _ when can_skip es mformula -> es
     | MFF -> es
+    | MPredicate (r, trms) when List.exists es.ms.lets ~f:(fun (e, _) -> String.equal e r) ->
+       let v = Valuation.of_alist_exn (List.init (List.length trms) ~f:id)
+           (List.map ~f:(fun t -> ITerm.unconst (Sig.eval mformula.lbls v t)) trms) in
+       enfvio (snd (List.find_exn es.ms.lets ~f:(fun (e, _) -> String.equal e r))) v es
     | MPredicate (r, trms) when Sig.equal_pred_kind (Sig.kind_of_pred r) Sig.Trace ->
        let new_sup = (r, List.map trms ~f:(fun trm -> ITerm.unconst (Sig.eval mformula.lbls v trm))) in
        add_sup new_sup es
@@ -380,6 +399,7 @@ module EState = struct
     | MSince (L, _, mf1, _, _) -> enfvio mf1 (IFormula.unproj mf1 v) es
     | MEUntil (L, _, _, mf1, _, _) -> enfvio mf1 (IFormula.unproj mf1 v) es
     | MEUntil (R, i, ts, mf1, mf2, vv) ->
+       (*print_endline "enfvio_meuntil";*)
        let es, b1 = sat (IFormula.unproj mf1 v) mf1 es in
        let es, b2 = sat (IFormula.unproj mf2 v) mf2 es in
        let es =
@@ -409,6 +429,7 @@ module EState = struct
 
   let enf mf es =
     let es = { es with r = Triple.empty; fobligs = FObligations.empty } in
+    (*print_endline "enf";*)
     let es, b = sat ITerm.Valuation.empty mf es in
     if not b then
       enfsat mf ITerm.Valuation.empty es
@@ -467,6 +488,10 @@ let goal (es: EState.t) : IFormula.t =
                (fun mfs p -> MAnd (L, List.map ~f:p mfs, IFormula.empty_nop_info (List.length mfs)))
 
 let update_fobligs (es: EState.t) =
+  let memo, (_, _, ms) =
+    EState.mstep_state ~force_evaluate_lets:true
+      { es with ms = { es.ms with mf = IFormula.make MTT Filter.tt } } es.memo in
+  let es = { es with ms = { es.ms with lets = ms.lets } } in
   let aux (es: EState.t) mf  = 
     let memo, (_, _, ms) = EState.mstep_state { es with ms = { es.ms with mf } } es.memo in
     { es with memo }, ms.mf in
@@ -607,7 +632,7 @@ let compile (f: Formula.t) (b: Time.Span.s) : Tformula.t =
   let tyf = if !monitoring then make_monitoring tyf else tyf in
   (* Typing formulae: Tyformula.t -> Tyformula.typed_t *)
   debug ("Compilation: Enforceability checks... (4/6)");
-  let typed_tyf = do_type tyf b in
+  let typed_tyf = do_type ~moderate:(not !Global.unroll_all) tyf b in
   (* Checking monitorability: Tyformula.typed_t -> Tformula.t *)
   debug ("Compilation: Monitorability checks... (5/6)");
   let tf = Tformula.of_formula' typed_tyf in

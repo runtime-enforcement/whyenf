@@ -152,6 +152,7 @@ module MFormula : sig
     | MUntil        of Interval.t * t * t * until_info
     | MEUntil       of Side.t * Interval.t * Time.t option * t * t * Valuation.t
     | MLabel        of string * t
+    | MLet          of string * string list * t * t
 
   and t = { mf: core_t;
             filter: Filter.t;
@@ -220,6 +221,7 @@ module IFormula : sig
     | MUntil        of Interval.t * t * t * until_info
     | MEUntil       of Side.t * Interval.t * Time.t option * t * t * Valuation.t
     | MLabel        of string * t
+    | MLet          of string * int list * t * t
 
   and t = { mf: core_t;
             filter: Filter.t;
@@ -229,7 +231,7 @@ module IFormula : sig
             lbls: Lbl.t list;
             projs: int list }
 
-  val init : MFormula.t -> t
+  val init : MFormula.t -> t * (string * t) list
 
   val _tt : t
   val _ff : t

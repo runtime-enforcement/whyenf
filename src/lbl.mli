@@ -50,3 +50,6 @@ type comparator_witness
 val comparator: (t, comparator_witness) Comparator.t
 
 val order : t list -> t list -> t -> string list -> t list
+
+val subst : (string, Term.t, 'a) Map.t -> t -> t
+val substs : (string, Term.t, 'a) Map.t -> t list -> t list

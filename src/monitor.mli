@@ -15,7 +15,8 @@ module MState : sig
            ; tp_out: timepoint
            ; ts_waiting: timestamp Queue.t
            ; tsdbs: (timestamp * Db.t) Queue.t
-           ; tpts: (timepoint, timestamp) Hashtbl.t }
+           ; tpts: (timepoint, timestamp) Hashtbl.t
+           ; lets: (string * IFormula.t) list }
 
   val tp_cur: t -> timepoint
 
@@ -40,7 +41,7 @@ end
 
 type res = Expl.t TS.t list * Expl.t * IFormula.t
 
-val mstep: timepoint -> timestamp -> Db.t -> bool -> MState.t -> FObligations.t ->
+val mstep: ?force_evaluate_lets:bool -> timestamp -> Db.t -> bool -> MState.t -> FObligations.t ->
            res Memo.t -> res Memo.t * (((timepoint * timestamp) * Expl.t) list * Expl.t * MState.t)
 
 

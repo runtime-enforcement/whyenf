@@ -10,3 +10,4 @@ val label: bool ref
 val simplify: bool ref
 val filter: bool ref
 val memo: bool ref
+val unroll_all: bool ref

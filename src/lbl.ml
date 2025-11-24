@@ -100,6 +100,16 @@ module T = struct
     let lbls2 = List.filter lbls' ~f:(fun lbl -> not (List.mem lbls1 lbl ~equal:equal)) in
     lbls1 @ lbls2
 
+  let rec subst m = function
+    | LVar x ->
+      (match Map.find m x with
+       | Some term -> of_term term
+       | None -> LVar x)
+    | LEx x -> LEx x
+    | LAll x -> LAll x
+    | LClos (e, ts) -> LClos (e, Term.substs m ts)
+
+  let substs m = List.map ~f:(subst m)
 
 end
 

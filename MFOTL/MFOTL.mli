@@ -48,7 +48,8 @@ module Make
       info : Info.t;
       enftype : Enftype.t;
       filter : Filter.t;
-      flag : bool
+      flag : bool;
+      tabular: bool;
     } [@@deriving compare, sexp_of, hash, equal]
 
   module TypedInfo : Modules.I with type t = typed_info
@@ -117,7 +118,7 @@ module Make
 
   val convert_vars : t -> t
   val convert_lets : t -> t
-  val unroll_let : t -> t
+  val unroll_let : ?moderate:bool -> t -> t
   val unprime : t -> t
   val erase_label : t -> t
   val ac_simplify : t -> t
@@ -197,7 +198,7 @@ module Make
 
     val types : ?itl_itvs:(string, Zinterval.t, String.comparator_witness) Map.t -> ?itl_strict:(string, bool, String.comparator_witness) Map.t -> ?itl_observable:(string, bool, String.comparator_witness) Map.t -> Enftype.t -> pg_map -> t -> Constraints.verdict
     val convert : Interval.v -> Enftype.t -> t -> typed_t option
-    val do_type : t -> Time.Span.s -> typed_t
+    val do_type : ?moderate:bool -> t -> Time.Span.s -> typed_t
     val strictly_relative_past : ?itl_itvs:(string, Zinterval.t, String.comparator_witness) Map.t -> ?itl_strict:(string, bool, String.comparator_witness) Map.t -> ?itl_observable:(string, bool, String.comparator_witness) Map.t -> ('i, Var.t, Dom.t, Term.t) _t -> bool
     val is_transparent: typed_t -> bool
 

@@ -2,4 +2,4 @@ LET B1(x)+ = B(x) AND B(x+1) IN
 LET B2(x)+ = B1(x) AND B1(x+2) IN
 LET B4(x)+ = B2(x) AND B2(x+4) IN
 LET B8(x)+ = B4(x) AND B4(x+8) IN
-ALWAYS (FORALL x. A(x) IMPLIES B8(x))
+ALWAYS (FORALL x. A(x) IMPLIES:R B8(x))

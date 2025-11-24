@@ -12,3 +12,4 @@ let label = ref false
 let simplify = ref false
 let filter = ref true
 let memo = ref true
+let unroll_all = ref false
