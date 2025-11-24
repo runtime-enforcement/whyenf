@@ -211,7 +211,7 @@ module Make
     | TT
       | FF
       | EqConst _ -> []
-    | Predicate (r, trms) -> [r, trms]
+    | Predicate (r, trms) -> [r]
     | Predicate' (_, _, f)
       | Let (_, _, _, _, f)
       | Let' (_, _, _, _, f)
@@ -2041,9 +2041,9 @@ module Make
 
     let observable ?(itl_observable=Map.empty (module String)) f =
       List.for_all (predicates f)
-        ~f:(fun (e, _) -> match Map.find itl_observable e with
-                          | Some b -> b
-                          | None -> Enftype.is_observable (Sig.enftype_of_pred e))
+        ~f:(fun e -> match Map.find itl_observable e with
+            | Some b -> b
+            | None -> Enftype.is_observable (Sig.enftype_of_pred e))
 
     let observable_multiple ?(itl_observable=Map.empty (module String)) =
       List.for_all ~f:(observable ~itl_observable)
@@ -2239,7 +2239,8 @@ module Make
         r
       in aux t pgs ts f
 
-    let rec convert b enftype formula : typed_t option =
+    let rec convert ?(lets=Map.empty (module String)) b enftype formula
+      : typed_t option =
       let rec of_formula (f : t) : typed_t =
         let form = match f.form with
           | TT -> TT
@@ -2271,7 +2272,8 @@ module Make
         let enftype = if observable f then Enftype.obs else Enftype.bot in
         { form; info = { info = f.info; enftype; filter = Filter.tt; flag = false; tabular = false } }
       in
-      let convert = convert b in
+      let convert' = convert in
+      let convert = convert' ~lets b in
       let default_L (s: Side.t) = if Side.equal s R then Side.R else L in
       let opt_filter (x : typed_t option) = match x with
         | Some x -> x.info.filter
@@ -2308,13 +2310,16 @@ module Make
         | true, _ -> begin
             match formula.form with
             | TT -> Some TT, Filter.tt, false
-            | Predicate (e, trms) -> (*when Enftype.is_causable (Sig.enftype_of_pred e) ->*)
+            | Predicate (e, trms) when Enftype.is_causable (Option.value ~default:Enftype.bot (Map.find lets e)) ->
+               Some (Predicate (e, trms)), Filter.tt, false
+            | Predicate (e, trms) when not (Map.mem lets e) && Enftype.is_causable (Sig.enftype_of_pred e) ->
                Some (Predicate (e, trms)), Filter.tt, false
             | Predicate' (e, trms, f) ->
                apply1 (convert enftype f)
                  (fun mf -> Predicate' (e, trms, mf))
             | Let (e, enftype', vars, f, g) ->
-               apply2 (convert enftype' f) (convert enftype g)
+               let lets = Map.update lets e ~f:(fun _ -> enftype') in
+               apply2 (convert enftype' f) (convert' ~lets b enftype g)
                  (fun mf mg -> Let (e, enftype', vars, mf, mg))
             | Let' (e, enftype', vars, f, g) ->
                apply2 (convert enftype' f) (convert enftype g)
@@ -2347,7 +2352,7 @@ module Make
             | Imp (R, f, g) -> apply2' (convert enftype g) (of_formula f)
                                  (fun mg mf -> Imp (R, mf, mg)) 
                                  (conj_filter ~neg:true f g)
-            | Imp (_, f, g) ->
+            | Imp (_, f, g) -> 
                begin
                  match convert (Enftype.neg enftype) f with
                  | Some mf -> apply1'
@@ -2400,15 +2405,18 @@ module Make
         | _, true -> begin
             match formula.form with
             | FF -> Some FF, Filter.tt, false
-            | Predicate (e, trms) when Enftype.is_suppressable (Sig.enftype_of_pred e) ->
-              Some (Predicate (e, trms)), Filter.An e, false
-            | Predicate (e, trms) ->
+            | Predicate (e, trms) when Enftype.is_suppressable (Option.value ~default:Enftype.bot (Map.find lets e)) ->
               Some (Predicate (e, trms)), Filter.tt, false
+            | Predicate (e, trms) when not (Map.mem lets e) && Enftype.is_suppressable (Sig.enftype_of_pred e) ->
+              Some (Predicate (e, trms)), Filter.An e, false
+            (*| Predicate (e, trms) ->
+              Some (Predicate (e, trms)), Filter.tt, false*)
             | Predicate' (e, trms, f) ->
                apply1 (convert enftype f)
                  (fun mf -> Predicate' (e, trms, mf))
             | Let (e, enftype', vars, f, g) ->
-               apply2 (convert enftype' f) (convert enftype g)
+               let lets = Map.update lets e ~f:(fun _ -> enftype') in
+               apply2 (convert enftype' f) (convert' ~lets b enftype g)
                  (fun mf mg -> Let (e, enftype', vars, mf, mg))
             | Let' (e, enftype', vars, f, g) ->
                apply2 (convert enftype' f) (convert enftype g)
@@ -2506,11 +2514,14 @@ module Make
         | _, _ -> let f = of_formula formula in
                   Some f.form, Filter.tt, false
       in
-      let enftype = if observable formula then Enftype.join Enftype.obs enftype else enftype in
+      let enftype =
+        if observable ~itl_observable:(Map.map lets ~f:(Enftype.is_observable)) formula
+        then Enftype.join Enftype.obs enftype
+        else enftype in
       let r = (match f with
                | Some f -> Some (mark_tabular (make f { info = formula.info; enftype; filter; flag; tabular = false }))
                | None -> None) in
-      (*print_endline (Printf.sprintf "MFOTL.conver(t(%s)=%s (%s)" (to_string formula) (match r with Some f -> to_string_typed f | _ -> "") (Enftype.to_string enftype));*)
+      (*print_endline (Printf.sprintf "MFOTL.convert(%s)=%s (%s)" (to_string formula) (match r with Some f -> to_string_typed f | _ -> "") (Enftype.to_string enftype));*)
       r
 
     (*    MFOTL.convert(LET B8(x.3:int)+ = B4(x.3:int) ∧ B4٭(add(x.3:int, 8)) IN □[0s,∞) (∀x.4:int. A(x.4:int) → B8(x.4:int)))=LET B8(x.3:int)+ = ((B4(x.3:int) : Cau) ∧:L (B4٭(add(x.3:int, 8)) : Cau) : Cau) IN (□[0s,∞) ((∀x.4:int. ((A(x.4:int) : Sup) →:L B8(x.4:int) : Cau)) : Cau) : Cau ) : Cau *)

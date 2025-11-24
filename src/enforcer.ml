@@ -341,7 +341,7 @@ module EState = struct
        if Interval.diff_right_of (default_ts ts es) (inc_ts es.ts) i && es.nick then
          add_cau Db.Event._tp (enfsat mf2 (IFormula.unproj mf2 v) es)
        else (
-         print_endline "enfsat_meuntil";
+         (*print_endline "enfsat_meuntil";*)
          let es, b = if can_skip es mf1 then es, true else sat (IFormula.unproj mf1 v) mf1 es in
          if not b then
            enfsat mf2 (IFormula.unproj mf2 v) es
