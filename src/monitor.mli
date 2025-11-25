@@ -41,6 +41,8 @@ end
 
 type res = Expl.t TS.t list * Expl.t * IFormula.t
 
+val monitor_steps: int ref
+
 val mstep: ?force_evaluate_lets:bool -> timestamp -> Db.t -> bool -> MState.t -> FObligations.t ->
            res Memo.t -> res Memo.t * (((timepoint * timestamp) * Expl.t) list * Expl.t * MState.t)
 

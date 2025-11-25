@@ -193,6 +193,8 @@ module Memo = struct
   
 end
 
+let monitor_steps = ref 0
+    
 let meval (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) (m: (string * IFormula.t) list) (mformula: IFormula.t) memo =
   let outer_tp = tp in
   let map_expl f (tp, (ts, x)) = (tp, x) in
@@ -201,6 +203,7 @@ let meval (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) (m: (stri
   let rec meval_rec (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) memo (mformula: IFormula.t) :
     'a *  (Expl.t TS.t list * Expl.t * IFormula.t) =
     debug (Printf.sprintf "meval_rec (%s, %d, %s, %s)..." (Time.to_string ts) tp (IFormula.value_to_string mformula) (Polarity.to_string (Polarity.value pol)));
+    incr monitor_steps;
     (*debug (Printf.sprintf "memo = %s" (Memo.to_string memo));*)
     match Memo.find memo mformula (Polarity.value pol) with
     | Some (expls, aexpl, mf) ->
@@ -426,7 +429,7 @@ let mstep ?(force_evaluate_lets=false) ts db approx (ms: MState.t) (fobligs: FOb
   let memo, (_, aexpl, mf') = meval ts ms.tp_cur db ~pol:pol_opt fobligs ms.lets ms.mf memo in
   let memo, ms =
     if force_evaluate_lets then
-      List.fold_left ms.lets ~init:(memo, ms)
+      List.fold_left ms.lets ~init:(memo, { ms with lets = [] })
         ~f:(fun (memo, ms) (e, mf) -> 
             let memo, (_, _, mf) = meval ts ms.tp_cur db ~pol:None fobligs ms.lets mf memo in
             memo, { ms with lets = ms.lets @ [e, mf] })

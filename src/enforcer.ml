@@ -60,6 +60,8 @@ end
 
 let inc_ts ts = Time.(ts + !s_ref)
 
+let enforcer_steps = ref 0
+
 let labels_to_string ls =
   String.concat ~sep:", " (List.map ~f:(fun l -> Printf.sprintf "\"%s\"" l) ls)
 
@@ -101,7 +103,7 @@ module EState = struct
           (FFormula (mf, -1, Valuation.empty), Valuation.empty, POS);
       memo = Memo.empty;
       nick = false;
-      labels = []; }
+      labels = [] }
 
   let update r es =
     let memo = Triple.update_memo r es.memo in
@@ -165,7 +167,7 @@ module EState = struct
       (Expl.to_string  p)
       (E.Proof.to_string "" (specialize es v p)));*)
     debug (Printf.sprintf "specialize (%s, %s, %s)"
-             (IFormula.to_string mf)
+             (IFormula.value_to_string mf)
              (Valuation.to_string v) (Expl.to_string p));
     es, specialize mf.lbls es v p
 
@@ -286,6 +288,7 @@ module EState = struct
 
   and enfsat (mformula: IFormula.t) v es : t =
     debug (Printf.sprintf "enforce (%s, %s, +)" (IFormula.value_to_string mformula) (Valuation.to_string v));
+    incr enforcer_steps;
     (*print_endline ("--enfsat");*)
     (*print_endline ("mformula=" ^ MFormula.value_to_string mformula);*)
     (*print_endline ("v=" ^ Etc.valuation_to_string v);*)
@@ -363,7 +366,8 @@ module EState = struct
                     (Printf.sprintf "function enfsat is not defined for %s"
                        (IFormula.op_to_string mformula)))
   and enfvio (mformula: IFormula.t) v es =
-    debug (Printf.sprintf "enforce (%s, %s, -)" (IFormula.to_string mformula) (Valuation.to_string v));
+    debug (Printf.sprintf "enforce (%s, %s, -)" (IFormula.value_to_string mformula) (Valuation.to_string v));
+    incr enforcer_steps;
     (*print_endline "--enfvio";
       print_endline ("mformula=" ^ MFormula.value_to_string mformula);*)
     (*print_endline ("v=" ^ Etc.valuation_to_string v);*)
@@ -492,6 +496,7 @@ let update_fobligs (es: EState.t) =
     EState.mstep_state ~force_evaluate_lets:true
       { es with ms = { es.ms with mf = IFormula.make MTT Filter.tt } } es.memo in
   let es = { es with ms = { es.ms with lets = ms.lets } } in
+  print_endline ("update_fobligs: lets=" ^ string_of_int (List.length ms.lets));
   let aux (es: EState.t) mf  = 
     let memo, (_, _, ms) = EState.mstep_state { es with ms = { es.ms with mf } } es.memo in
     { es with memo }, ms.mf in
@@ -501,11 +506,13 @@ let update_fobligs (es: EState.t) =
 
 let exec' (tf: Tformula.t) inc (b: Time.Span.s) =
   let reactive_step new_db (es: EState.t) =
-    debug (Printf.sprintf "Reactive step (tp=%d)" es.tp);
+    debug (Printf.sprintf "Reactive step (tp=%d, lets=%d, enforcer_steps=+%d, monitor_steps=+%d)" es.tp (List.length es.ms.lets) !enforcer_steps !monitor_steps);
+    enforcer_steps := 0;
+    monitor_steps := 0;
     (*print_endline ("-- reactive_step tp=" ^ string_of_int es.tp);*)
     (*let time_before = Unix.gettimeofday() in*)
     let mf = goal es in
-    debug (Printf.sprintf "Goal: %s" (IFormula.to_string mf));
+    debug (Printf.sprintf "Goal (size=%d): %s" (IFormula.size mf) (IFormula.to_string mf));
     (*let time_after = Unix.gettimeofday() in
       print_endline ("Goal time: " ^ string_of_float (time_after -. time_before));*)
     (*print_endline ("goal="^  MFormula.to_string mf);*)
@@ -536,21 +543,23 @@ let exec' (tf: Tformula.t) inc (b: Time.Span.s) =
     Order.ReOrd (Triple.cau es.r, Triple.sup es.r), es
   in
   let proactive_step (es: EState.t) =
-    debug (Printf.sprintf "Proactive step (tp=%d)" es.tp);
+    debug (Printf.sprintf "Proactive step (tp=%d, lets=%d, enforcer_steps=+%d, monitor_steps=+%d)" es.tp (List.length es.ms.lets) !enforcer_steps !monitor_steps);
+    enforcer_steps := 0;
+    monitor_steps := 0;
     (*Hashtbl.clear es.memo;*)
     (*print_endline ("-- proactive_step ts=" ^ string_of_int es.ts);*)
 
     (*print_endline "-- proactive_step";
       print_endline (EState.to_string es);*)
     let mf = goal es in
-    debug (Printf.sprintf "Goal: %s" (IFormula.to_string mf));
+    debug (Printf.sprintf "Goal (size=%d): %s" (IFormula.size mf) (IFormula.value_to_string mf));
     (*print_endline ("goal="^  MFormula.to_string mf);*)
     let es' = { es with ms      = { es.ms with tp_cur = es.tp };
                         r       = Triple.empty;
                         db      = Db.create [];
                         fobligs = FObligations.empty;
                         nick    = true;
-                        memo    = Monitor.Memo.empty } in
+                        memo    = Monitor.Memo.empty; } in
     (*Hashtbl.clear es.memo;*)
     (*print_endline ("before: " ^ EState.to_string es);*)
     let es' = EState.enf mf es' in

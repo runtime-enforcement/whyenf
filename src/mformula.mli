@@ -169,7 +169,8 @@ module MFormula : sig
 
   val init: Tformula.t -> t
   val rank: t -> int
-
+  val size : t -> int
+    
   val fv: t -> (string, Term.StringVar.comparator_witness) Base.Set.t
 
   val to_string: ?l:int -> t -> string
@@ -243,6 +244,8 @@ module IFormula : sig
   val mapn_mf: t list -> Filter.t -> ?new_events:((string, String.comparator_witness) Set.t option) -> (t list -> (t -> t) -> core_t) -> t
 
   val equal : t -> t -> bool
+  val rank : t -> int
+  val size : t -> int
   
   val make: core_t -> Filter.t -> t
 

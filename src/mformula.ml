@@ -1095,6 +1095,33 @@ module MFormulaMake (Var : Modules.V) (Term : MFOTL_lib.Term.T with type v = Var
     | MAnd (_, fs, _)
     | MOr (_, fs, _) -> List.fold ~init:0 ~f:(+) (List.map fs ~f:rank)
     | MLet (_, _, _, f) -> rank f
+  
+  let rec size mf = match mf.mf with
+    | MTT | MFF
+    | MEqConst _ 
+    | MPredicate _ -> 1
+    | MNeg f
+      | MExists (_, _, _, f)
+      | MForall (_, _, _, f)
+      | MPrev (_, f, _)
+      | MNext (_, f, _)
+      | MENext (_, _, f, _)
+      | MOnce (_, f, _)
+      | MEventually (_, f, _)
+      | MEEventually (_, _, f, _)
+      | MHistorically (_, f, _)
+      | MAlways (_, f, _)
+      | MEAlways (_, _, f, _)
+      | MAgg (_, _, _, _, _, f)
+      | MTop (_, _, _, _, _, f)
+      | MLabel (_, f) -> 1 + size f
+    | MImp (_, f, g, _)
+      | MSince (_, _, f, g, _)
+      | MUntil (_, f, g, _)
+      | MEUntil (_, _, _, f, g, _)
+      | MLet (_, _, f, g) -> 1 + size f + size g
+    | MAnd (_, fs, _)
+    | MOr (_, fs, _) -> List.fold ~init:1 ~f:(+) (List.map fs ~f:size)
 
   let set_projs lbls mf =
     (* Computes the projection for the child with lbls' onto the parent with lbls *)
