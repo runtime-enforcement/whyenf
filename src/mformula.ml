@@ -516,6 +516,9 @@ module Since = struct
     in
     match Buf2t.get aux.buf with
     | Some ((expl_alpha_pdt, expl_beta_pdt), (ts, tp)), buf ->
+      (*print_endline (Expl.to_string expl_alpha_pdt); 
+       print_endline (Expl.to_string expl_beta_pdt);
+        print_endline (beta_alphas_to_string aux.saux); *)
        let saux, b = Pdt.split_prod (Pdt.apply3_reduce equal_beta_alphas_t_bool (process ts tp) proj1 proj2 id expl_alpha_pdt expl_beta_pdt aux.saux) in
        let aux = { aux with saux; buf } in
        let aux, bs = update proj1 proj2 aux in

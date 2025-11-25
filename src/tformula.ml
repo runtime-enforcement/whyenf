@@ -30,15 +30,17 @@ include MFOTL.Make(TypeInfo)(Tterm.TypedVar)(Dom)(Tterm)
 
 include Tyformula.MFOTL_Enforceability(Sig)
 
-let rec of_formula ?(m: (string, Enftype.t, 'a) Map.t=Map.empty (module String))
+let rec of_formula
+    ?(m: (string, Enftype.t, 'a) Map.t=Map.empty (module String))
+    ?(ts: pg_map=Map.empty (module String))
     (f: Tyformula.typed_t) (types: Ctxt.t) : Ctxt.t * t =
   let filter = f.info.filter in
   let of_formula' = of_formula in
-  let of_formula = of_formula ~m in
+  let of_formula = of_formula ~m ~ts in
   let f_q ?(true_ok=true) f x =
-    if is_past_guarded x true f then
+    if is_past_guarded x ~ts true f then
       true
-    else if is_past_guarded x false f && true_ok then
+    else if is_past_guarded x ~ts false f && true_ok then
       false
     else
       (Stdio.print_endline ("However, the formula is not monitorable because the variable\n "
@@ -87,7 +89,8 @@ let rec of_formula ?(m: (string, Enftype.t, 'a) Map.t=Map.empty (module String))
       types, Predicate' (e, trms, mf), mf.info.enftype, false
     | Let (r, enftype, trms, f, g) ->
       let _, mf = of_formula f types in
-      let types, mg = of_formula' ~m:(Map.update m r ~f:(fun _ -> enftype)) g types in
+      let ts = solve_past_guarded_multiple_vars ts trms r f in
+      let types, mg = of_formula' ~m:(Map.update m r ~f:(fun _ -> enftype)) ~ts g types in
       types, Let (r, enftype, trms, mf, mg),
       Enftype.join mf.info.enftype mg.info.enftype, false
     | Let' (r, enftype, trms, f, g) ->

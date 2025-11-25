@@ -15,5 +15,7 @@ module TypeInfo : Modules.I with type t = info_type
 
 include module type of MFOTL.Make(TypeInfo)(Tterm.TypedVar)(Dom)(Tterm)
 
-val of_formula : ?m:((string, Enftype.t, String.comparator_witness) Map.t) -> Tyformula.typed_t -> Ctxt.t -> Ctxt.t * t
+include module type of Tyformula.MFOTL_Enforceability(Sig)
+
+val of_formula : ?m:((string, Enftype.t, String.comparator_witness) Map.t) -> ?ts:pg_map -> Tyformula.typed_t -> Ctxt.t -> Ctxt.t * t
 val of_formula' : Tyformula.typed_t -> t

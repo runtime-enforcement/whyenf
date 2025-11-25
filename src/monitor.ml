@@ -218,7 +218,7 @@ let meval (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) (m: (stri
                 [(Setc.Complement (Set.of_list (module Dom) [d]), Pdt.Leaf false);
                  (Setc.Finite (Set.of_list (module Dom) [d]), Pdt.Leaf true)]) in
            memo, (one_ts tp ts expl, expl, MEqConst (trm, d))
-         | MPredicate (r, trms) when not (Enftype.is_observable (Sig.enftype_of_pred r)) ->
+         | MPredicate (r, trms) when Sig.mem r && not (Enftype.is_observable (Sig.enftype_of_pred r)) ->
             let expl = Pdt.Leaf (not (Polarity.equal Polarity.POS
                                       (Polarity.value pol))) in
             memo, (one_ts tp ts expl, expl, MPredicate (r, trms))

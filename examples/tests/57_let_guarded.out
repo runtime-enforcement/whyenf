@@ -1,7 +1,8 @@
 The formula
  LET boundA(x:int) = A(x:int) ∨ C(x:int) IN □[0s,∞) (∀x.1:int. boundA(x.1:int) → B(x.1:int))
 is enforceable and types to
- LET boundA٭(x:int) = A(x:int) ∨ C(x:int) IN (□[0s,∞) ((∀x.1:int. (boundA٭(x.1:int) →:R (B(x.1:int) : Cau) : Cau)) : Cau) : Cau) : Cau
+ LET boundA(x:int) = A(x:int) ∨ C(x:int) IN (□[0s,∞) ((∀x.1:int. (boundA(x.1:int) →:R (B(x.1:int) : Cau) : Cau)) : Cau) : Cau) : Cau
+This formula cannot be transparently enforced.
 [Enforcer] @1 reactively commands:
 Cause:
 B(1)

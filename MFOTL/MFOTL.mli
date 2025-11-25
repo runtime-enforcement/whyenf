@@ -104,7 +104,7 @@ module Make
   val deg : ('i, Var.t, Dom.t, Term.t) _t -> int
   val size : ('i, Var.t, Dom.t, Term.t) _t -> int
   val exists_subformula : f_term:(Term.t -> bool) -> f_fun:(('i, Var.t, Dom.t, Term.t) _t -> bool) -> ('i, Var.t, Dom.t, Term.t) _t -> bool
-  val predicates : t -> string list
+  val predicates : ?lets:((string, (string, String.comparator_witness) Set.t, String.comparator_witness) Map.t) -> t -> (string, String.comparator_witness) Set.t
 
   val subst : (Var.t, Term.t, Var.comparator_witness) Base.Map.t -> t -> t
   val map_consts : f:(Term.d -> Term.d) -> t -> t
@@ -127,7 +127,7 @@ module Make
   val relative_intervals : ?itl_itvs:(string, Zinterval.t, Base.String.comparator_witness) Base.Map.t -> t list -> Zinterval.t
   val relative_past : ?itl_itvs:(string, Zinterval.t, Base.String.comparator_witness) Base.Map.t -> t -> bool
   val is_right_bounded : ('i, Var.t, Dom.t, Term.t) _t  -> bool
-  
+    
   val strict : ?itl_strict:(string, bool, Base.String.comparator_witness) Base.Map.t -> ?itv:Zinterval.t -> ?fut:bool -> t -> bool
   val stricts : ?itl_strict:(string, bool, Base.String.comparator_witness) Base.Map.t -> ?itv:Zinterval.t -> ?fut:bool -> t list -> bool
 
@@ -143,7 +143,7 @@ module Make
 
     val rank : t -> int
 
-    val present_filter : ?b:bool -> t -> Filter.t
+    val present_filter : ?lets:((string, 'a * Filter.t, String.comparator_witness) Map.t) -> ?b:bool -> t -> Filter.t
 
     module Errors : sig
 
@@ -197,7 +197,7 @@ module Make
     val observable_multiple: ?itl_observable:(string, bool, String.comparator_witness) Map.t -> ('i, Var.t, Dom.t, Term.t) _t list -> bool
 
     val types : ?itl_itvs:(string, Zinterval.t, String.comparator_witness) Map.t -> ?itl_strict:(string, bool, String.comparator_witness) Map.t -> ?itl_observable:(string, bool, String.comparator_witness) Map.t -> Enftype.t -> pg_map -> t -> Constraints.verdict
-    val convert : ?lets:(string, Enftype.t, String.comparator_witness) Map.t -> Interval.v -> Enftype.t -> t -> typed_t option
+    val convert : ?lets:(string, Enftype.t * Filter.t, String.comparator_witness) Map.t -> Interval.v -> Enftype.t -> t -> typed_t option
     val do_type : ?moderate:bool -> t -> Time.Span.s -> typed_t
     val strictly_relative_past : ?itl_itvs:(string, Zinterval.t, String.comparator_witness) Map.t -> ?itl_strict:(string, bool, String.comparator_witness) Map.t -> ?itl_observable:(string, bool, String.comparator_witness) Map.t -> ('i, Var.t, Dom.t, Term.t) _t -> bool
     val is_transparent: typed_t -> bool

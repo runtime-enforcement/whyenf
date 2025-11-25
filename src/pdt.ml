@@ -216,7 +216,7 @@ module Make (Lbl : L) = struct
   let apply3_reduce p_eq f proj1 proj2 proj3 pdt1 pdt2 pdt3 =
     let p_eq2 (a, b) (a', b') = phys_equal a a' && phys_equal b b' in
     let pdt12 = apply2_reduce p_eq2 (fun a b -> (a, b)) proj1 proj2 pdt1 pdt2 in
-    apply2_reduce p_eq (fun (a, b) c -> f a b c) proj2 proj3 pdt12 pdt3
+    apply2_reduce p_eq (fun (a, b) c -> f a b c) (fun x -> x) proj3 pdt12 pdt3
 
   (*
   let rec applyN_reduce p_eq f projs_pdts : 'a t = 
