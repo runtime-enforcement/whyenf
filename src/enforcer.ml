@@ -623,7 +623,7 @@ let make_monitoring (tyf : Tyformula.t) : Tyformula.t =
   Sig.add_pred "violation" xs Enftype.cau 0 Trace;
   let vars = List.map ~f:(fun x -> Tterm.make_dummy (Tterm.var x)) xs in
   let violation = make_dummy (Predicate ("violation", vars)) in
-  let tyf = make_dummy (Imp (Side.R, make_dummy (Neg tyf), violation)) in
+  let tyf = make_dummy (Imp (Side.R, make_dummy (neg tyf), violation)) in
   let tyf = List.fold_right xs ~init:tyf ~f:(fun x f -> make_dummy (forall x f)) in
   make_dummy (Always (Interval.full, tyf))
 

@@ -840,6 +840,92 @@ module Make
 
   let to_latex = to_latex_rec 0
 
+  let rec to_json t = match t.form with
+    | TT -> "{ \"constructor\": \"TT\" }"
+    | FF -> "{ \"constructor\": \"FF\" }"
+    | EqConst (term, dom) -> 
+      Printf.sprintf "{ \"constructor\": \"EqConst\", \"term\": %s, \"const\": %s }"
+        (Term.to_json term) (Dom.to_json dom)
+    | Predicate (name, terms) -> 
+      Printf.sprintf "{ \"constructor\": \"Predicate\", \"name\": \"%s\", \"args\": [%s] }"
+        name (String.concat ~sep:", " (List.map terms ~f:Term.to_json))
+    | Predicate' (name, terms, phi) -> 
+      Printf.sprintf "{ \"constructor\": \"Predicate'\", \"name\": \"%s\", \"args\": [%s], \"formula\": %s }"
+        name (String.concat ~sep:", " (List.map terms ~f:Term.to_json)) (to_json phi)
+    | Let (name, typ, bindings, phi1, phi2) -> 
+      Printf.sprintf
+        "{ \"constructor\": \"Let\", \"name\": \"%s\", \"type\": \"%s\", \"bindings\": [%s], \"body\": %s, \"in\": %s }"
+        name (Enftype.to_string typ)
+        (String.concat ~sep:", " (List.map bindings ~f:(fun (v, opt_d) -> Printf.sprintf "\"%s\"" (Var.to_string v))))
+        (to_json phi1) (to_json phi2)
+    | Let' (name, typ, bindings, phi1, phi2) -> 
+      Printf.sprintf
+        "{ \"constructor\": \"Let'\", \"name\": \"%s\", \"type\": \"%s\", \"bindings\": [%s], \"body\": %s, \"in\": %s }"
+        name (Enftype.to_string typ)
+        (String.concat ~sep:", " (List.map bindings ~f:(fun (v, opt_d) -> Printf.sprintf "\"%s\"" (Var.to_string v))))
+        (to_json phi1) (to_json phi2)
+    | Agg (v, op, term, vars, phi) -> 
+      Printf.sprintf
+        "{ \"constructor\": \"Agg\", \"var\": \"%s\", \"op\": \"%s\", \"term\": %s, \"group_by\": [%s], \"formula\": %s }"
+        (Var.to_string v) (Aggregation.op_to_string op) (Term.to_json term)
+        (String.concat ~sep:", " (List.map vars ~f:(fun v -> Printf.sprintf "\"%s\"" (Var.to_string v))))
+        (to_json phi)
+    | Top (vars1, name, terms, vars2, phi) -> 
+      Printf.sprintf
+        "{ \"constructor\": \"Top\", \"vars\": [%s], \"name\": \"%s\", \"terms\": [%s], \"group_by\": [%s], \"formula\": %s }"
+        (String.concat ~sep:", " (List.map vars1 ~f:(fun v -> Printf.sprintf "\"%s\"" (Var.to_string v))))
+        name
+        (String.concat ~sep:", " (List.map terms ~f:Term.to_json))
+        (String.concat ~sep:", " (List.map vars2 ~f:(fun v -> Printf.sprintf "\"%s\"" (Var.to_string v))))
+        (to_json phi)
+    | Neg phi -> 
+      Printf.sprintf "{ \"constructor\": \"Neg\", \"arg\": %s }" (to_json phi)
+    | And (side, phis) -> 
+      Printf.sprintf "{ \"constructor\": \"And\", \"side\": \"%s\", \"args\": [%s] }"
+        (Side.to_string side) (String.concat ~sep:", " (List.map phis ~f:to_json))
+    | Or (side, phis) -> 
+      Printf.sprintf "{ \"constructor\": \"Or\", \"side\": \"%s\", \"args\": [%s] }"
+        (Side.to_string side) (String.concat ~sep:", " (List.map phis ~f:to_json))
+    | Imp (side, phi1, phi2) -> 
+      Printf.sprintf "{ \"constructor\": \"Imp\", \"side\": \"%s\", \"left\": %s, \"right\": %s }"
+        (Side.to_string side) (to_json phi1) (to_json phi2)
+    | Exists (v, phi) -> 
+      Printf.sprintf "{ \"constructor\": \"Exists\", \"var\": \"%s\", \"formula\": %s }"
+        (Var.to_string v) (to_json phi)
+    | Forall (v, phi) -> 
+      Printf.sprintf "{ \"constructor\": \"Forall\", \"var\": \"%s\", \"formula\": %s }"
+        (Var.to_string v) (to_json phi)
+    | Prev (intv, phi) -> 
+      Printf.sprintf "{ \"constructor\": \"Prev\", \"interval\": %s, \"formula\": %s }"
+        (Interval.to_json intv) (to_json phi)
+    | Next (intv, phi) -> 
+      Printf.sprintf "{ \"constructor\": \"Next\", \"interval\": %s, \"formula\": %s }"
+        (Interval.to_json intv) (to_json phi)
+    | Once (intv, phi) -> 
+      Printf.sprintf "{ \"constructor\": \"Once\", \"interval\": %s, \"formula\": %s }"
+        (Interval.to_json intv) (to_json phi)
+    | Eventually (intv, phi) -> 
+      Printf.sprintf "{ \"constructor\": \"Eventually\", \"interval\": %s, \"formula\": %s }"
+        (Interval.to_json intv) (to_json phi)
+    | Historically (intv, phi) -> 
+      Printf.sprintf "{ \"constructor\": \"Historically\", \"interval\": %s, \"formula\": %s }"
+        (Interval.to_json intv) (to_json phi)
+    | Always (intv, phi) -> 
+      Printf.sprintf "{ \"constructor\": \"Always\", \"interval\": %s, \"formula\": %s }"
+        (Interval.to_json intv) (to_json phi)
+    | Since (side, intv, phi1, phi2) -> 
+      Printf.sprintf "{ \"constructor\": \"Since\", \"side\": \"%s\", \"interval\": %s, \"left\": %s, \"right\": %s }"
+        (Side.to_string side) (Interval.to_json intv) (to_json phi1) (to_json phi2)
+    | Until (side, intv, phi1, phi2) -> 
+      Printf.sprintf "{ \"constructor\": \"Until\", \"side\": \"%s\", \"interval\": %s, \"left\": %s, \"right\": %s }"
+        (Side.to_string side) (Interval.to_json intv) (to_json phi1) (to_json phi2)
+    | Type (phi, typ) -> 
+      Printf.sprintf "{ \"constructor\": \"Type\", \"formula\": %s, \"type\": \"%s\" }"
+        (to_json phi) (Enftype.to_string typ)
+    | Label (label, phi) -> 
+      Printf.sprintf "{ \"constructor\": \"Label\", \"label\": \"%s\", \"formula\": %s }"
+        label (to_json phi)
+
   (* Generates EXISTS x1, ..., xk. f where {x1, ..., xk} are the free variables of f not in y  *)
 
   let exists_of_agg y f info =

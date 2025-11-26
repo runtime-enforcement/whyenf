@@ -20,6 +20,7 @@ module type B = sig
   val right : t -> v option
   val to_string : t -> string
   val to_latex : t -> string
+  val to_json : t -> string
   val make_exn : t -> t
 
 end
@@ -70,6 +71,7 @@ module MakeInterval (S : S) : sig
 
   val to_string: t -> string
   val to_latex: t -> string
+  val to_json: t -> string
 
 end
 

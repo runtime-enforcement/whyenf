@@ -20,6 +20,7 @@ module type B = sig
   val right : t -> v option
   val to_string : t -> string
   val to_latex : t -> string
+  val to_json : t -> string
   val make_exn : t -> t
 
 end
@@ -44,6 +45,7 @@ module MakeUI (S : S) : B with type v = S.v and type t = S.v = struct
   let right _ = None
   let to_string i = Printf.sprintf "[%s,∞)" (S.to_string i)
   let to_latex i = Printf.sprintf "[%s,\\infty)" (S.to_string i)
+  let to_json i = Printf.sprintf "{ \"lower\": %s, \"upper\": \"inf\" }" (S.to_json i)
   let make_exn i = i
 
 end
@@ -68,6 +70,7 @@ module MakeNUI (S : S) : B with type v = S.v and type t = S.v = struct
   let right i = Some i
   let to_string i = Printf.sprintf "(-∞,%s]" (S.to_string i)
   let to_latex i = Printf.sprintf "(-\\infty,%s]" (S.to_string i)
+  let to_json i = Printf.sprintf "{ \"lower\": \"-inf\", \"upper\": %s }" (S.to_json i)
   let make_exn i = i
 
 end
@@ -87,6 +90,7 @@ module MakeBI (S : S) : B with type v = S.v and type t = S.v * S.v = struct
   let right (_, j) = Some j
   let to_string (i, j) = Printf.sprintf "[%s,%s]" (S.to_string i) (S.to_string j)
   let to_latex = to_string
+  let to_json (i, j) = Printf.sprintf "{ \"lower\": %s, \"upper\": %s }" (S.to_json i) (S.to_json j)
   let make_exn (l, r) = if S.leq l r then (l, r) else raise (Invalid_argument "empty interval")
   
 end
@@ -106,6 +110,7 @@ module MakeUUI (S : S) : B with type v = S.v and type t = unit = struct
   let right _ = None
   let to_string _ = "(-∞,∞)"
   let to_latex = to_string
+  let to_json _ = "{ \"lower\": \"-inf\", \"upper\": \"+inf\" }"
   let make_exn _ = ()
   
 end
@@ -146,6 +151,7 @@ module MakeInterval (S : S) = struct
 
   let to_string = case BI.to_string UI.to_string
   let to_latex = case BI.to_latex UI.to_latex
+  let to_json = case BI.to_json UI.to_json
 
   let diff_right_of ts ts' i =
     match right i with

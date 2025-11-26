@@ -13,7 +13,7 @@ module Enfguard = struct
   let sig_ref = ref In_channel.stdin
   let logstr_ref = ref ""
 
-  let run debug forall monitoring log_file logstr sig_file formula_file func_file out_file json bound time_zone step statistics latex label simplify no_filter no_memo unroll_all =
+  let run debug forall monitoring log_file logstr sig_file formula_file func_file out_file json bound time_zone step statistics latex print_json label simplify no_filter no_memo unroll_all =
     if debug then Global.debug := true;
     if forall then Global.forall := true;
     if monitoring then Global.monitoring := true;
@@ -78,6 +78,8 @@ module Enfguard = struct
            Formula.print_statistics formula
          else if latex then
            Stdio.printf "%s\n" (Formula.to_latex formula)
+         else if print_json then
+           Stdio.printf "%s\n" (Formula.to_json formula)
          else
            Enforcer.exec formula
        in
@@ -105,6 +107,7 @@ module Enfguard = struct
        and step = flag "-s" (optional string) ~doc:"INT[smhdMy] Enforcement step (default: 1s)"
        and statistics = flag "-statistics" no_arg ~doc:" Print statistics about the formula"
        and latex = flag "-latex" no_arg ~doc:" Print latex code of the formula"
+       and print_json = flag "-print-json" no_arg ~doc:" Print json representation of the formula"
        and label = flag "-label" no_arg ~doc:" Report labels of enforcement actions"
        and simplify = flag "-simplify" no_arg ~doc:" Simplify the formula"
        and no_filter = flag "-no-filter" no_arg ~doc:" Do not use filter optimization"
@@ -112,7 +115,7 @@ module Enfguard = struct
        and unroll_all = flag "-unroll-all" no_arg ~doc:" Unroll all let bindings"
        in
        fun () ->
-       run debug forall monitoring log_file logstr sig_file formula_file func_file out_file json bound time_zone step statistics latex label simplify no_filter no_memo unroll_all)
+       run debug forall monitoring log_file logstr sig_file formula_file func_file out_file json bound time_zone step statistics latex print_json label simplify no_filter no_memo unroll_all)
 
 end
 

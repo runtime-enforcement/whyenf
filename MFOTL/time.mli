@@ -21,6 +21,7 @@ module type U = sig
   val is_one : u -> bool
   val of_string : string -> u
   val to_string : u -> string
+  val to_json : u -> string
   
 end
 
@@ -42,6 +43,7 @@ module type S = sig
   val is_zero : v -> bool
   val zero : v
   val to_string : v -> string
+  val to_json : v -> string
   
 end
 

@@ -49,6 +49,7 @@ module type U = sig
   val is_one : u -> bool
   val of_string : string -> u
   val to_string : u -> string
+  val to_json : u -> string
   
 end
 
@@ -70,6 +71,7 @@ module type S = sig
   val is_zero : v -> bool
   val zero : v
   val to_string : v -> string
+  val to_json : v -> string
   
 end
 
@@ -89,6 +91,7 @@ module Span  = struct
     let is_one u = 1 = u
     let of_string s = int_of_string s
     let to_string u = Int.to_string u ^ "s"
+    let to_json u = Printf.sprintf "{ \"unit\": \"Second\", \"count\": %d }" u
     
   end
 
@@ -106,6 +109,7 @@ module Span  = struct
     let is_one u = 1 = u
     let of_string s = int_of_string s 
     let to_string u = Int.to_string u ^ "m"
+    let to_json u = Printf.sprintf "{ \"unit\": \"Minute\", \"count\": %d }" u
     
   end
   
@@ -123,6 +127,7 @@ module Span  = struct
     let is_one u = 1 = u
     let of_string s = int_of_string s
     let to_string u = Int.to_string u ^ "h"
+    let to_json u = Printf.sprintf "{ \"unit\": \"Hour\", \"count\": %d }" u
     
   end
   
@@ -140,6 +145,7 @@ module Span  = struct
     let is_one u = 1 = u
     let of_string s = int_of_string s
     let to_string u = Int.to_string u ^ "d"
+    let to_json u = Printf.sprintf "{ \"unit\": \"Day\", \"count\": %d }" u
     
   end
 
@@ -157,6 +163,7 @@ module Span  = struct
     let is_one u = 1 = u
     let of_string s = int_of_string s
     let to_string u = Int.to_string u ^ "M"
+    let to_json u = Printf.sprintf "{ \"unit\": \"Month\", \"count\": %d }" u
     
   end
 
@@ -174,7 +181,8 @@ module Span  = struct
     let is_one u = 1 = u
     let of_string s = int_of_string s
     let to_string u = Int.to_string u ^ "y"
-    
+    let to_json u = Printf.sprintf "{ \"unit\": \"Year\", \"count\": %d }" u
+        
   end
 
   module Offset (U : U) : U = struct
@@ -193,6 +201,9 @@ module Span  = struct
     let to_string (u, o) =
       if o = 0 then U.to_string u
       else Printf.sprintf "%s+%ss" (U.to_string u) (string_of_int o)
+    let to_json (u, o) =
+      Printf.sprintf "{ \"constructor\": \"Offset\", \"duration\": %s, \"additional_seconds\": %d }"
+        (U.to_json u) o
 
   end
 
@@ -277,6 +288,14 @@ module Span  = struct
     | Month  u -> Month.to_string u
     | Year   u -> Year.to_string u
 
+  let to_json = function
+    | Second u -> Second.to_json u
+    | Minute u -> Minute.to_json u
+    | Hour   u -> Hour.to_json u
+    | Day    u -> Day.to_json u
+    | Month  u -> Month.to_json u
+    | Year   u -> Year.to_json u
+
   let (-) t u = (+) t (neg u)
 
   let zero = Second (Second.of_string "0")
@@ -317,6 +336,7 @@ module Span  = struct
     let is_zero = is_zero
     let zero = zero
     let to_string = to_string
+    let to_json = to_json
 
   end
 

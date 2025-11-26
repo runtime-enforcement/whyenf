@@ -20,6 +20,7 @@ module Z = struct
   let is_zero i = Int.(i = 0)
   let zero = 0
   let to_string = Int.to_string
+  let to_json = to_string
 
 end
   
@@ -112,6 +113,7 @@ module MakeZinterval (S : S) = struct
 
   let to_string = case BI.to_string NUI.to_string UI.to_string UUI.to_string
   let to_latex = case BI.to_latex NUI.to_latex UI.to_latex UUI.to_latex
+  let to_json = case BI.to_json NUI.to_json UI.to_json UUI.to_json
 
 
 end

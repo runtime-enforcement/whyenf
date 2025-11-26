@@ -34,6 +34,7 @@ module type D = sig
 
   val to_string : t -> string
   val to_latex : t -> string
+  val to_json : t -> string
   val tt_to_string : tt -> string
   val bool_tt : t
   val tt_of_domain : t -> tt

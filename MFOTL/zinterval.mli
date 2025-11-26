@@ -53,6 +53,7 @@ module MakeZinterval (S : S) : sig
 
   val to_string: t -> string
   val to_latex: t -> string
+  val to_json: t -> string
 
 end
 

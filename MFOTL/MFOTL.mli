@@ -114,6 +114,7 @@ module Make
   val to_string_typed : typed_t -> string
   val to_string_value : ('i, Var.t, Dom.t, Term.t) _t -> string
   val to_latex : t -> string
+  val to_json : t -> string
   val string_of_opt_typed_var : (Var.t * Dom.tt option) -> string
 
   val convert_vars : t -> t

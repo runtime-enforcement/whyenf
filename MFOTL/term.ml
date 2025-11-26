@@ -35,6 +35,7 @@ module type T = sig
   val value_to_latex : ?l:int -> t -> string
   val list_to_string : t list -> string
   val list_to_latex : t list -> string
+  val to_json : t -> string
 
   val subst : (v, t, 'a) Map.t -> t -> t
   val substs : (v, t, 'a) Map.t -> t list -> t list
@@ -169,6 +170,21 @@ module Make (Var : V) (Dom : D) (Uop : O) (Bop : O) (Info : I) = struct
          Printf.sprintf "{ %s }" (String.concat ~sep:", " (List.map kvs ~f))
     and value_to_latex ?(l=0) t =
       Info.to_string l (value_to_latex_core ~l t.trm) t.info
+
+    let rec to_json t = match t.trm with
+      | Var x -> Printf.sprintf "{ \"constructor\": \"Var\", \"name\": \"%s\" }" (Var.to_string x)
+      | Const d -> Printf.sprintf "{ \"constructor\": \"Const\", \"value\": %s }" (Dom.to_json d)
+      | App (f, ts) -> Printf.sprintf "{ \"constructor\": \"App\", \"fun\": \"%s\", \"args\": [%s] }"
+                         f (String.concat ~sep:", " (List.map ts ~f:to_json))
+      | Unop (o, t) -> Printf.sprintf "{ \"constructor\": \"Unop\", \"op\": \"%s\", \"arg\": %s }"
+                         (Uop.to_string o) (to_json t)
+      | Binop (t, o, t') -> Printf.sprintf "{ \"constructor\": \"Binop\", \"op\": \"%s\", \"args\": [%s, %s] }"
+                              (Bop.to_string o) (to_json t) (to_json t')
+      | Proj (t, p) -> Printf.sprintf "{ \"constructor\": \"Proj\", \"arg\": %s, \"field\": \"%s\" }"
+                         (to_json t) p
+      | Record kvs -> Printf.sprintf "{ \"constructor\": \"Record\", \"fields\": {%s} }"
+                        (String.concat ~sep:", "
+                           (List.map kvs ~f:(fun (k, v) -> Printf.sprintf "\"%s\" : %s" k (to_json v))))
 
     let unvar t = match t.trm with
       | Var x -> x
