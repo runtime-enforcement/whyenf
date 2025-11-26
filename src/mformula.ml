@@ -710,7 +710,8 @@ module MFormulaMake (Var : Modules.V) (Term : MFOTL_lib.Term.T with type v = Var
                               (* Relevant obligations *)
             hash: int;        (* Hash *)
             lbls: Lbl.t list; (* Labels *)
-            projs: int list;  (* Map current indices -> parent indices *)
+            projs: int array;  (* Map current indices -> parent indices *)
+            unprojs: int option array; (* Map parent indices -> current indices *)
           }
 
   let subs mf = match mf.mf with
@@ -845,7 +846,7 @@ module MFormulaMake (Var : Modules.V) (Term : MFOTL_lib.Term.T with type v = Var
                                               (List.map ~f:Int.to_string (Set.elements evs)))) n
       mf.hash n
       (Lbl.to_string_list mf.lbls) n
-      (String.concat ~sep:", " (List.map ~f:string_of_int mf.projs)) n
+      (String.concat ~sep:", " (Array.to_list (Array.map ~f:string_of_int mf.projs))) n
       (String.concat ~sep:";"
          (List.map ~f:(fun f -> Printf.sprintf "\n%s" (to_string ~l:(l+1) f)) (subs mf)))
   
@@ -1067,7 +1068,14 @@ module MFormulaMake (Var : Modules.V) (Term : MFOTL_lib.Term.T with type v = Var
   let equal mf1 mf2 = mf1.hash = mf2.hash
 
   let make mf filter =
-    { mf; filter; events = None; obligations = None; hash = core_hash mf; lbls = []; projs = [] }
+    { mf;
+      filter;
+      events = None;
+      obligations = None;
+      hash = core_hash mf;
+      lbls = [];
+      projs = Array.create ~len:0 0;
+      unprojs = Array.create ~len:0 None; }
 
   let rec rank mf = match mf.mf with
     | MTT | MFF -> 0
@@ -1133,8 +1141,12 @@ module MFormulaMake (Var : Modules.V) (Term : MFOTL_lib.Term.T with type v = Var
             | LAll x, LEx x' -> String.equal x x'
             | _, _ -> Lbl.equal lbl lbl') with
         | Some (i, _) -> i
-        | None -> -1) in
-    { mf with projs }
+        | None -> -1)
+      |> Array.of_list in
+    let unprojs = Array.init (List.length lbls)
+        ~f:(fun i -> Array.findi projs ~f:(fun _ -> Int.equal i)
+             |> Option.map ~f:fst) in
+    { mf with projs; unprojs }
 
 end
 
@@ -1367,7 +1379,8 @@ module IFormula = struct
         obligations = mf.obligations;
         hash = core_hash mf_core;
         lbls = mf.lbls;
-        projs = mf.projs }
+        projs = mf.projs;
+        unprojs = mf.unprojs; }
     in aux mf, List.map ~f:(fun (e, mf) -> (e, aux mf)) lets
 
     let map_mf mf filter ?(exquant=false) ?(new_events=None) f =
@@ -1379,7 +1392,8 @@ module IFormula = struct
         obligations = mf.obligations;
         hash        = core_hash mf_mf;
         lbls;
-        projs       = [] }
+        projs       = Array.create 0 0;
+        unprojs     = Array.create 0 None; }
     
   let map2_mf mf1 mf2 filter ?(new_events=None) f =
     let lbls = Etc.dedup ~equal:Lbl.equal (mf1.lbls @ mf2.lbls) in
@@ -1390,7 +1404,8 @@ module IFormula = struct
       obligations = Option.map2 mf1.obligations mf2.obligations ~f:Set.union;
       hash        = core_hash mf_mf;
       lbls;
-      projs       = [] }
+      projs       = Array.create 0 0;
+      unprojs     = Array.create 0 None; }
 
   let mapn_mf mfs filter ?(new_events=None) f =
     let lbls = Etc.dedup ~equal:Lbl.equal (List.concat_map mfs ~f:(fun mf -> mf.lbls)) in
@@ -1405,11 +1420,12 @@ module IFormula = struct
                       ~f:(Set.union_list (module Int));
       hash        = core_hash mf_mf;
       lbls;
-      projs       = [] }
+      projs       = Array.create 0 0;
+      unprojs     = Array.create 0 None; }
 
   let unproj (mf: t) (v: Valuation.t) : Valuation.t =
-    let f v = Option.map ~f:fst (List.findi mf.projs ~f:(fun _ -> Int.equal v)) in
-    Valuation.map_keys v ~f
+    (*let f v = Option.map ~f:fst (Array.findi mf.projs ~f:(fun _ -> Int.equal v)) in*)
+    Valuation.map_keys v ~f:(fun i -> try Array.get mf.unprojs i with _ -> None)
 
   let rec apply_valuation ?(parent_lbls=[]) (v: Valuation.t) (mf: t) : t =
     if Valuation.is_empty v then mf else

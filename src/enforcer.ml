@@ -496,7 +496,7 @@ let update_fobligs (es: EState.t) =
     EState.mstep_state ~force_evaluate_lets:true
       { es with ms = { es.ms with mf = IFormula.make MTT Filter.tt } } es.memo in
   let es = { es with ms = { es.ms with lets = ms.lets } } in
-  print_endline ("update_fobligs: lets=" ^ string_of_int (List.length ms.lets));
+  (*print_endline ("update_fobligs: lets=" ^ string_of_int (List.length ms.lets));*)
   let aux (es: EState.t) mf  = 
     let memo, (_, _, ms) = EState.mstep_state { es with ms = { es.ms with mf } } es.memo in
     { es with memo }, ms.mf in

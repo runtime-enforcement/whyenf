@@ -199,7 +199,7 @@ let meval (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) (m: (stri
   let outer_tp = tp in
   let map_expl f (tp, (ts, x)) = (tp, x) in
   let one_ts tp ts expl = [TS.make tp ts expl] in
-  let p (mf: IFormula.t) = List.nth_exn mf.projs in
+  let p (mf: IFormula.t) = Array.get mf.projs in
   let rec meval_rec (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) memo (mformula: IFormula.t) :
     'a *  (Expl.t TS.t list * Expl.t * IFormula.t) =
     debug (Printf.sprintf "meval_rec (%s, %d, %s, %s)..." (Time.to_string ts) tp (IFormula.value_to_string mformula) (Polarity.to_string (Polarity.value pol)));
@@ -288,10 +288,10 @@ let meval (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) (m: (stri
             memo, (f_expls, aexpl, MImp (s, mf1', mf2', buf2))
          | MExists (x, tc, b, mf) ->
             let memo, (expls, aexpl, mf') = meval_rec ts tp db ~pol fobligs memo mf in
-            memo, (expls, aexpl, MExists(x, tc, b, mf'))
+            memo, (expls, aexpl, MExists (x, tc, b, mf'))
          | MForall (x, tc, b, mf) ->
             let memo, (expls, aexpl, mf') = meval_rec ts tp db ~pol fobligs memo mf in
-            memo, (expls, aexpl, MForall(x, tc, b, mf'))
+            memo, (expls, aexpl, MForall (x, tc, b, mf'))
          | MPrev (i, mf, aux) -> 
             let memo, (expls, _, mf') = meval_rec ts tp db ~pol fobligs memo mf in
             let aux = Prev.add expls aux in 

@@ -160,7 +160,8 @@ module MFormula : sig
             obligations: (int, Int.comparator_witness) Set.t option;
             hash: int;
             lbls: Lbl.t list;
-            projs: int list }
+            projs: int array;
+            unprojs: int option array; }
 
   val equal : t -> t -> bool
   
@@ -230,7 +231,8 @@ module IFormula : sig
             obligations: (int, Int.comparator_witness) Set.t option;
             hash: int;
             lbls: Lbl.t list;
-            projs: int list }
+            projs: int array;
+            unprojs: int option array; }
 
   val init : MFormula.t -> t * (string * t) list
 
