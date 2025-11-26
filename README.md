@@ -33,8 +33,8 @@ and then
 $ opam init -y
 $ opam switch create 4.13.1
 $ eval $(opam env --switch=4.13.1)
-$ opam install dune core_kernel base zarith menhir js_of_ocaml js_of_ocaml-ppx \
-               zarith_stubs_js dune-build-info qcheck pyml calendar
+$ opam install dune core_kernel core_unix base zarith menhir \
+               zarith_stubs_js dune-build-info qcheck pyml calendar str z3
 ```
 
 should be enough.
