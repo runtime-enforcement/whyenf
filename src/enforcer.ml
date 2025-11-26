@@ -185,7 +185,7 @@ module EState = struct
     let s = Expl.Pdt.collect mf.lbls (fun b -> not b)
         (Setc.inter_list (module Dom)) (Setc.union_list (module Dom)) v x p in
     debug (Printf.sprintf "collect ([%s], %s, %d, %s, -) = %s\n"
-             (Lbl.to_string_list mf.lbls)
+             (Lbl.to_string_list (Array.to_list mf.lbls))
              (Valuation.to_string v) x (Expl.to_string p)
              (Setc.to_string s));
     match s with
@@ -204,7 +204,7 @@ module EState = struct
     let s = Expl.Pdt.collect mf.lbls (fun b -> b)
             (Setc.union_list (module Dom)) (Setc.inter_list (module Dom)) v x p in
     debug (Printf.sprintf "collect ([%s], %s, %d, %s, +) = {%s}\n"
-             (Lbl.to_string_list mf.lbls)
+             (Lbl.to_string_list (Array.to_list mf.lbls))
              (Valuation.to_string v) x (Expl.to_string p)
              (Setc.to_string s));
     match s with
@@ -623,7 +623,7 @@ let make_monitoring (tyf : Tyformula.t) : Tyformula.t =
   Sig.add_pred "violation" xs Enftype.cau 0 Trace;
   let vars = List.map ~f:(fun x -> Tterm.make_dummy (Tterm.var x)) xs in
   let violation = make_dummy (Predicate ("violation", vars)) in
-  let tyf = make_dummy (Imp (Side.R, tyf, violation)) in
+  let tyf = make_dummy (Imp (Side.R, make_dummy (Neg tyf), violation)) in
   let tyf = List.fold_right xs ~init:tyf ~f:(fun x f -> make_dummy (forall x f)) in
   make_dummy (Always (Interval.full, tyf))
 

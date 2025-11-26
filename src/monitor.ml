@@ -245,7 +245,7 @@ let meval (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) (m: (stri
                               (Map.empty (module Int)) :: acc)) in
                  let expl = if List.is_empty maps
                    then Pdt.Leaf false
-                   else Expl.pdt_of tp r mformula.lbls maps in
+                   else Expl.pdt_of tp r (Array.to_list mformula.lbls) maps in
                  memo, (one_ts tp ts expl, expl, MPredicate (r, trms))
              | Some (_, mf) ->
                let memo, (expls, aexpl, mf') = meval_rec ts tp db fobligs ~pol memo mf in

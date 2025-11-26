@@ -170,7 +170,7 @@ let rec normalize (t: Term.t) : Term.t =
 let rec normalize_list (t: Term.t list) : Term.t list =
   List.map ~f:normalize t
 
-let rec teval (lbls: Lbl.t list) (v: Valuation.t) (t: Term.t) : Term.t =
+let rec teval (lbls: Lbl.t array) (v: Valuation.t) (t: Term.t) : Term.t =
   let trm = match t.trm with
   | Term.Var x ->
     (let i_opt =
@@ -195,10 +195,10 @@ let rec teval (lbls: Lbl.t list) (v: Valuation.t) (t: Term.t) : Term.t =
   | _ -> raise (Errors.SigError (Printf.sprintf "cannot evaluate %s" (Term.to_string t)))
   in { t with trm }
 
-let eval_lbl (lbls: Lbl.t list) (v: Valuation.t) (lbl: Lbl.t) : Term.t =
+let eval_lbl (lbls: Lbl.t array) (v: Valuation.t) (lbl: Lbl.t) : Term.t =
   teval lbls v (Lbl.term lbl)
 
-let eval_lbl_to_lbl (lbls: Lbl.t list) (v: Valuation.t) (lbl: Lbl.t) : Lbl.t option =
+let eval_lbl_to_lbl (lbls: Lbl.t array) (v: Valuation.t) (lbl: Lbl.t) : Lbl.t option =
   match lbl with
   | LAll _ | LEx _ -> Some lbl
   | LVar x -> (match Map.find v (ITerm.of_var lbls x) with Some v -> None | _ -> Some (LVar x))
@@ -208,11 +208,11 @@ let eval_lbl_to_lbl (lbls: Lbl.t list) (v: Valuation.t) (lbl: Lbl.t) : Lbl.t opt
      | App (ff, trms) -> Some (LClos (ff, trms))
      | _ -> assert false)
 
-let rec eval (lbls: Lbl.t list) (v: Valuation.t) (t: ITerm.t) : ITerm.t =
+let rec eval (lbls: Lbl.t array) (v: Valuation.t) (t: ITerm.t) : ITerm.t =
   (*Stdio.printf "Sig.eval ([%s], %s, %s)\n" (String.concat ~sep:", " (List.map ~f:Lbl.to_string lbls)) (Valuation.to_string v) (ITerm.to_string t);*)
   match t.trm with
   | ITerm.Var i ->
-    ITerm.init lbls (eval_lbl lbls v (List.nth_exn lbls i))
+    ITerm.init lbls (eval_lbl lbls v (Array.get lbls i))
   | Const c -> ITerm.make_dummy (Const c)
 
 (*

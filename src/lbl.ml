@@ -72,8 +72,8 @@ module T = struct
        if forall then LAll x' else LEx x'
     | lbl -> lbl
 
-  let quantify_list ~forall x lbls =
-    List.map lbls ~f:(quantify ~forall x)
+  let quantify_array ~forall x lbls =
+    Array.map lbls ~f:(quantify ~forall x)
 
   let rec unquantify_list x =
     let rec unquantify_list2 = function

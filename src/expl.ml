@@ -17,10 +17,10 @@ module Pdt = struct
 
   include Pdt.Make(I)
 
-  let rec specialize_partial (lbls: Lbl.t list) (v: Valuation.t) = function
+  let rec specialize_partial (lbls: Lbl.t array) (v: Valuation.t) = function
     | Leaf l -> Leaf l
     | Node (i, part) ->
-      match List.nth_exn lbls i with
+      match Array.get lbls i with
       | LEx x
       | LAll x -> Node (i, Part.map part (specialize_partial lbls (Map.remove v i)))
       | lbl ->
@@ -35,11 +35,11 @@ module Pdt = struct
        List.map (Set.elements s') ~f:(fun d -> callback (update v x d) p)
     | Complement _ -> [callback v p]
 
-  let rec specialize (lbls: Lbl.t list) (f_ex: 'a list -> 'a) (f_all : 'a list -> 'a) (v: Valuation.t) : 'a t -> 'a =
+  let rec specialize (lbls: Lbl.t array) (f_ex: 'a list -> 'a) (f_all : 'a list -> 'a) (v: Valuation.t) : 'a t -> 'a =
     function
     | Leaf l -> l
     | Node (i, part) ->
-      match List.nth_exn lbls i with
+      match Array.get lbls i with
       | LVar x when Map.mem v i ->
         specialize lbls f_ex f_all v (Part.find part (Map.find_exn v i))
       | LEx x ->
@@ -54,13 +54,13 @@ module Pdt = struct
         | Some pdt -> specialize lbls f_ex f_all v pdt
         | None     -> specialize lbls f_ex f_all v (Part.find part (Term.unconst (Sig.eval_lbl lbls v lbl)))
 
-  let collect (lbls: Lbl.t list) f_leaf f_ex f_all (v: Valuation.t) (j: int) p =
+  let collect (lbls: Lbl.t array) f_leaf f_ex f_all (v: Valuation.t) (j: int) p =
     let rec aux (v: Valuation.t) (s: (Dom.t, Dom.comparator_witness) Setc.t) =
       function
       | Leaf l when f_leaf l -> s
       | Leaf _ -> Setc.empty (module Dom)
       | Node (i, part) ->
-        match List.nth_exn lbls i with
+        match Array.get lbls i with
         | _ when Int.equal j i ->
           let s = Setc.union_list (module Dom)
               (Part.map2 part (fun (s', p) -> aux v (Setc.inter s s') p)) in
@@ -143,7 +143,7 @@ let table_operator
     (f: int -> int)
     (tp: int)
     (x: Term.t list) (y: string list)
-    (lbls: Lbl.t list) (lbls': Lbl.t list)
+    (lbls: Lbl.t array) (lbls': Lbl.t array)
     (p: t) =
   let merge_pdts merge = function
     | [] -> raise (Errors.EnforcementError "cannot merge 0 PDTs")
@@ -158,16 +158,16 @@ let table_operator
       | (Term.Const _, _) -> []
       | (trm, s) -> List.filter vs ~f:(fun v -> Setc.mem s (Term.unconst (Sig.teval lbls' v (Term.make_dummy trm)))) in
     List.fold_left sv ~init:([Valuation.empty]) ~f:aux in 
-  let rec gather sv gs lbls (w: Valuation.t) p =
+  let rec gather sv gs (lbls: Lbl.t array) (w: Valuation.t) p =
     match p, gs with
     | Pdt.Leaf true, _ -> 
        Pdt.Leaf (tabulate (List.rev sv))
     | Leaf _, _ -> Leaf []
-    | Node (i, part), g :: gs when Lbl.equal (List.nth_exn lbls i) (LVar g) ->
+    | Node (i, part), g :: gs when Lbl.equal (Array.get lbls i) (LVar g) ->
        let part = Part.map2 part (fun (s, p) -> (s, gather ((Var g, s)::sv) gs lbls w p)) in
        Node (i, part)
     | Node (i, part), _ ->
-      match List.nth_exn lbls i with
+      match Array.get lbls i with
       | LEx x' ->
         let pdts = List.concat (Part.map2 part (Pdt.distribute i (gather sv gs lbls) w)) in
         merge_pdts List.concat pdts
@@ -175,14 +175,14 @@ let table_operator
         let pdts = List.concat (Part.map2 part (Pdt.distribute i (gather sv gs lbls) w)) in
         merge_pdts (Etc.list_intersection Valuation.equal) pdts
       | _ -> 
-        let pdts = Part.map2 part (fun (s, p) -> gather (((Lbl.term (List.nth_exn lbls i)).trm, s)::sv) gs lbls w p) in
+        let pdts = Part.map2 part (fun (s, p) -> gather (((Lbl.term (Array.get lbls i)).trm, s)::sv) gs lbls w p) in
         merge_pdts List.concat pdts in
   let rec collect_leaf_values i = function
     | Pdt.Leaf None  -> Set.empty (module Dom)
     | Leaf (Some vs) -> Set.of_list (module Dom) (List.map ~f:(fun v -> Map.find_exn v i) vs)
     | Node (_, part) -> Set.union_list (module Dom)
                           (List.map part ~f:(fun (_, pdt) -> collect_leaf_values i pdt)) in
-  let rec insert ?(i=0) (lbls: Lbl.t list) (v: Valuation.t) (pdt: Valuation.t list option Pdt.t) =
+  let rec insert ?(i=0) (lbls: Lbl.t array) (v: Valuation.t) (pdt: Valuation.t list option Pdt.t) =
     match pdt with
     | _ when List.mem s i ~equal:Int.equal ->
       let ds = collect_leaf_values i pdt in
@@ -218,8 +218,8 @@ let table_operator
       (String.concat ~sep:", " (List.map ~f:string_of_int s))
       (Term.list_to_string x)
       (Etc.string_list_to_string y)
-      (Lbl.to_string_list lbls)
-      (Lbl.to_string_list lbls')
+      (Lbl.to_string_list (Array.to_list lbls))
+      (Lbl.to_string_list (Array.to_list lbls'))
       (to_string p)
       (to_string r);
   r
@@ -231,7 +231,7 @@ let aggregate
     (tp: int)
     (x: Term.t)
     (y: string list)
-    (lbls: Lbl.t list) (lbls': Lbl.t list)
+    (lbls: Lbl.t array) (lbls': Lbl.t array)
     (p: t)  =
   let multiset dss = Multiset.of_list (module Dom) (List.map ~f:List.hd_exn dss) in
   table_operator (fun dss -> [[agg (multiset dss)]]) [s] f tp [x] y lbls lbls' p

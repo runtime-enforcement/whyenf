@@ -31,7 +31,7 @@ module Valuation = Valuation.Make(IntVar)
     
 include Term.Make(IntVar)(Dom)(MyTerm.NoOp)(MyTerm.NoOp)(MyTerm.TrivialInfo)
 
-let init (lbls: Lbl.t list) (trm: MyTerm.t) =
+let init (lbls: Lbl.t array) (trm: MyTerm.t) =
   let trm = 
     match trm.trm with
     | MyTerm.Const d -> Const d
@@ -43,47 +43,47 @@ let init (lbls: Lbl.t list) (trm: MyTerm.t) =
               | Base.List.Or_unequal_lengths.Ok b -> b
               | _ -> false)
         | _ -> false in
-      Var (fst (List.findi_exn lbls ~f))
+      Var (fst (Array.findi_exn lbls ~f))
     | Var s ->
       let f _ = function
         | Lbl.LVar s' | LAll s' | LEx s' -> String.equal s s'
         | _ -> false in
-      Var (fst (List.findi_exn lbls ~f))
+      Var (fst (Array.findi_exn lbls ~f))
     | _ -> assert false in
   make_dummy trm
 
-let init_multiple (lbls: Lbl.t list) (trms: MyTerm.t list) =
+let init_multiple (lbls: Lbl.t array) (trms: MyTerm.t list) =
   List.map ~f:(init lbls) trms
 
-let to_term (lbls: Lbl.t list) (trm: t) =
+let to_term (lbls: Lbl.t array) (trm: t) =
   let trm =
     match trm.trm with
     | Const d -> MyTerm.Const d
     | Var i ->
-      (match List.nth_exn lbls i with
+      (match Array.get lbls i with
        | LVar x -> Var x
        | LClos (f, trms) -> App (f, trms)
        | _ -> assert false)
     | _ -> assert false in
   MyTerm.make_dummy trm
 
-let to_terms (lbls: Lbl.t list) (trms: t list) =
+let to_terms (lbls: Lbl.t array) (trms: t list) =
   List.map ~f:(to_term lbls) trms
 
-let of_var (lbls: Lbl.t list) (s: string) =
+let of_var (lbls: Lbl.t array) (s: string) =
   let f _ = function
     | Lbl.LVar s' | LAll s' | LEx s' -> String.equal s s'
     | _ -> false in
-  fst (List.findi_exn lbls ~f)
+  fst (Array.findi_exn lbls ~f)
 
-let of_vars (lbls: Lbl.t list) (s: string list) =
+let of_vars (lbls: Lbl.t array) (s: string list) =
   List.map ~f:(of_var lbls) s
 
-let to_var (lbls: Lbl.t list) (y: int) =
-  match List.nth_exn lbls y with
+let to_var (lbls: Lbl.t array) (y: int) =
+  match Array.get lbls y with
   | LVar x | LEx x | LAll x -> x
   | _ -> assert false
   
-let to_vars (lbls: Lbl.t list) (y: int list) =
+let to_vars (lbls: Lbl.t array) (y: int list) =
   List.map ~f:(to_var lbls) y
 

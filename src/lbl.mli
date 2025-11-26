@@ -40,7 +40,7 @@ val to_string: t -> string
 val to_string_list: t list -> string
 
 val quantify: forall:bool -> string -> t -> t
-val quantify_list: forall:bool -> string -> t list -> t list
+val quantify_array: forall:bool -> string -> t array -> t array
 val unquantify_list: string -> t list -> t list
 
 (*val eval: Term.Valuation.t -> t -> Term.t*)

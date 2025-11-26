@@ -159,7 +159,7 @@ module MFormula : sig
             events: (string, String.comparator_witness) Set.t option;
             obligations: (int, Int.comparator_witness) Set.t option;
             hash: int;
-            lbls: Lbl.t list;
+            lbls: Lbl.t array;
             projs: int array;
             unprojs: int option array; }
 
@@ -230,7 +230,7 @@ module IFormula : sig
             events: (string, String.comparator_witness) Set.t option;
             obligations: (int, Int.comparator_witness) Set.t option;
             hash: int;
-            lbls: Lbl.t list;
+            lbls: Lbl.t array;
             projs: int array;
             unprojs: int option array; }
 
@@ -252,7 +252,7 @@ module IFormula : sig
   val make: core_t -> Filter.t -> t
 
   val unproj: t -> Valuation.t -> Valuation.t
-  val apply_valuation : ?parent_lbls:Lbl.t list -> Valuation.t -> t -> t
+  val apply_valuation : ?parent_lbls:Lbl.t array -> Valuation.t -> t -> t
 
   val to_string: ?l:int -> t -> string
   val value_to_string: t -> string
@@ -297,10 +297,10 @@ val approximate_neg : Expl.t -> Expl.t
 val approximate_and : (int -> int) list -> Expl.t list -> Expl.t
 val approximate_or : (int -> int) list -> Expl.t list -> Expl.t
 val approximate_imp : (int -> int) -> (int -> int) -> Expl.t -> Expl.t -> Expl.t
-val approximate_enext : Lbl.t list -> FObligations.t -> int * ITerm.Valuation.t -> timepoint -> Polarity.t option -> Expl.t
-val approximate_eventually : Lbl.t list -> Expl.t -> FObligations.t -> Interval.t -> (int * ITerm.Valuation.t) option -> timepoint -> Polarity.t option -> Expl.t
-val approximate_always : Lbl.t list -> Expl.t -> FObligations.t -> Interval.t -> (int * ITerm.Valuation.t) option -> timepoint -> Polarity.t option -> Expl.t
-val approximate_until : Lbl.t list -> (int -> int) -> (int -> int) -> Expl.t -> Expl.t -> FObligations.t -> Interval.t -> (int * ITerm.Valuation.t) option -> timepoint -> Polarity.t option -> Expl.t
+val approximate_enext : Lbl.t array -> FObligations.t -> int * ITerm.Valuation.t -> timepoint -> Polarity.t option -> Expl.t
+val approximate_eventually : Lbl.t array -> Expl.t -> FObligations.t -> Interval.t -> (int * ITerm.Valuation.t) option -> timepoint -> Polarity.t option -> Expl.t
+val approximate_always : Lbl.t array -> Expl.t -> FObligations.t -> Interval.t -> (int * ITerm.Valuation.t) option -> timepoint -> Polarity.t option -> Expl.t
+val approximate_until : Lbl.t array -> (int -> int) -> (int -> int) -> Expl.t -> Expl.t -> FObligations.t -> Interval.t -> (int * ITerm.Valuation.t) option -> timepoint -> Polarity.t option -> Expl.t
 
 val update_neg : Expl.t TS.t list -> Expl.t TS.t list
 val update_and : (int -> int) list -> Expl.t TS.t list list -> MFormula.nop_info -> Expl.t TS.t list * MFormula.nop_info
