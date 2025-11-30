@@ -314,6 +314,12 @@ let meval (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) (m: (stri
             let aux, f_expls = Once.update aux in
             let aexpl = Once.approximate f_expls aexpl i tp pol in
             memo, (f_expls, aexpl, MOnce (i, mf', aux))
+         | MSimpleOnce (mf, aux) ->
+            let memo, (expls, aexpl, mf') = meval_rec ts tp db ~pol fobligs memo mf in
+            let aux = SimpleOnce.add expls aux in
+            let aux, f_expls = SimpleOnce.update aux in
+            let aexpl = SimpleOnce.approximate f_expls aexpl tp pol in
+            memo, (f_expls, aexpl, MSimpleOnce (mf', aux))
          | MEventually (i, mf, aux) ->
             let memo, (expls, aexpl, mf') = meval_rec ts tp db ~pol fobligs memo mf in
             let aux = Eventually.add expls aux in
@@ -347,6 +353,13 @@ let meval (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) (m: (stri
             let aux, f_expls = Since.update (p mf1) (p mf2) aux in
             let aexpl = Since.approximate (p mf1) (p mf2) f_expls aexpl1 aexpl2 i tp pol in
             memo, (f_expls, aexpl, MSince (s, i, mf1', mf2', aux))
+         | MSimpleSince (s, mf1, mf2, aux) ->
+            let memo, (expls1, aexpl1, mf1') = meval_rec ts tp db ~pol fobligs memo mf1 in
+            let memo, (expls2, aexpl2, mf2') = meval_rec ts tp db ~pol fobligs memo mf2 in
+            let aux = SimpleSince.add expls1 expls2 aux in
+            let aux, f_expls = SimpleSince.update (p mf1) (p mf2) aux in
+            let aexpl = SimpleSince.approximate (p mf1) (p mf2) f_expls aexpl1 aexpl2 tp pol in
+            memo, (f_expls, aexpl, MSimpleSince (s, mf1', mf2', aux))
          | MUntil (i, mf1, mf2, aux) ->
             let memo, (expls1, aexpl1, mf1') = meval_rec ts tp db ~pol fobligs memo mf1 in
             let memo, (expls2, aexpl2, mf2') = meval_rec ts tp db ~pol fobligs memo mf2 in

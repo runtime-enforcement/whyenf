@@ -82,6 +82,17 @@ module Once : sig
 
 end
 
+module SimpleOnce : sig
+
+  type t
+
+  val add : Expl.t TS.t list -> t -> t
+  val update : t -> t * Expl.t TS.t list
+  val approximate : Expl.t TS.t list -> Expl.t -> timepoint -> Polarity.t option -> Expl.t
+  val approximate_historically : Expl.t TS.t list -> Expl.t -> timepoint -> Polarity.t option -> Expl.t
+
+end
+
 module Eventually : sig
 
   type t
@@ -101,6 +112,16 @@ module Since : sig
 
 end
 
+module SimpleSince : sig
+
+  type t
+
+  val add : Expl.t TS.t list -> Expl.t TS.t list -> t -> t
+  val update : (int -> int) -> (int -> int) -> t -> t * Expl.t TS.t list
+  val approximate : (int -> int) -> (int -> int) -> Expl.t TS.t list -> Expl.t -> Expl.t -> timepoint -> Polarity.t option -> Expl.t
+
+end
+
 module Until : sig
 
   type t
@@ -117,10 +138,12 @@ module MFormula : sig
   type prev_info          = Prev.t
   type next_info          = Next.t
   type once_info          = Once.t
+  type simple_once_info   = SimpleOnce.t
   type eventually_info    = Eventually.t
   type historically_info  = Once.t
   type always_info        = Eventually.t
   type since_info         = Since.t
+  type simple_since_info  = SimpleSince.t                        
   type until_info         = Until.t
 
   val empty_binop_info: binop_info
@@ -143,12 +166,14 @@ module MFormula : sig
     | MNext         of Interval.t * t * next_info
     | MENext        of Interval.t * Time.t option * t * Valuation.t
     | MOnce         of Interval.t * t * once_info
+    | MSimpleOnce   of t * simple_once_info
     | MEventually   of Interval.t * t * eventually_info
     | MEEventually  of Interval.t * Time.t option * t * Valuation.t
     | MHistorically of Interval.t * t * historically_info
     | MAlways       of Interval.t * t * always_info
     | MEAlways      of Interval.t * Time.t option * t * Valuation.t
     | MSince        of Side.t * Interval.t * t * t * since_info
+    | MSimpleSince  of Side.t * t * t * simple_since_info
     | MUntil        of Interval.t * t * t * until_info
     | MEUntil       of Side.t * Interval.t * Time.t option * t * t * Valuation.t
     | MLabel        of string * t
@@ -188,10 +213,12 @@ module IFormula : sig
   type prev_info          = Prev.t
   type next_info          = Next.t
   type once_info          = Once.t
+  type simple_once_info   = SimpleOnce.t
   type eventually_info    = Eventually.t
   type historically_info  = Once.t
   type always_info        = Eventually.t
   type since_info         = Since.t
+  type simple_since_info  = SimpleSince.t
   type until_info         = Until.t
 
   val empty_binop_info: binop_info
@@ -214,12 +241,14 @@ module IFormula : sig
     | MNext         of Interval.t * t * next_info
     | MENext        of Interval.t * Time.t option * t * Valuation.t
     | MOnce         of Interval.t * t * once_info
+    | MSimpleOnce   of t * simple_once_info
     | MEventually   of Interval.t * t * eventually_info
     | MEEventually  of Interval.t * Time.t option * t * Valuation.t
     | MHistorically of Interval.t * t * historically_info
     | MAlways       of Interval.t * t * always_info
     | MEAlways      of Interval.t * Time.t option * t * Valuation.t
     | MSince        of Side.t * Interval.t * t * t * since_info
+    | MSimpleSince  of Side.t * t * t * simple_since_info
     | MUntil        of Interval.t * t * t * until_info
     | MEUntil       of Side.t * Interval.t * Time.t option * t * t * Valuation.t
     | MLabel        of string * t

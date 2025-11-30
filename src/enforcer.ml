@@ -338,8 +338,8 @@ module EState = struct
             es
           else
             add_foblig (FAlways (default_ts ts es, i, mf, mformula.hash, vv), v, POS) es
-    | MOnce (_, mf, _) -> enfsat mf v es
-    | MSince (_, _, _, mf2, _) -> enfsat mf2 v es
+    | MOnce (_, mf, _) | MSimpleOnce (mf, _) -> enfsat mf v es
+    | MSince (_, _, _, mf2, _) | MSimpleSince (_, _, mf2, _) -> enfsat mf2 v es
     | MEUntil (R, i, ts, mf1, mf2, vv) ->
        if Interval.diff_right_of (default_ts ts es) (inc_ts es.ts) i && es.nick then
          add_cau Db.Event._tp (enfsat mf2 (IFormula.unproj mf2 v) es)
@@ -400,7 +400,7 @@ module EState = struct
          enfvio mf v es
        else
          add_foblig (FAlways (default_ts ts es, i, mf, mformula.hash, vv), v, NEG) es
-    | MSince (L, _, mf1, _, _) -> enfvio mf1 (IFormula.unproj mf1 v) es
+    | MSince (L, _, mf1, _, _) | MSimpleSince (L, mf1, _, _) -> enfvio mf1 (IFormula.unproj mf1 v) es
     | MEUntil (L, _, _, mf1, _, _) -> enfvio mf1 (IFormula.unproj mf1 v) es
     | MEUntil (R, i, ts, mf1, mf2, vv) ->
        (*print_endline "enfvio_meuntil";*)

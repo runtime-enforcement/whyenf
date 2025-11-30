@@ -351,6 +351,59 @@ module Once = struct
   
 end
 
+module SimpleOnce = struct
+
+  type t = { oaux: Expl.t;
+             buf : (Expl.t, (timestamp * timepoint)) Buft.t;
+             neg : bool }
+
+  let equal_bool_bool (oaux, b) (oaux', b') =
+    Bool.equal oaux oaux' && Bool.equal b b'
+
+  let init itv_in neg = { oaux    = Pdt.Leaf false;
+                          buf     = ([], []);
+                          neg }
+  let to_string aux =
+    Printf.sprintf "{ oaux = %s; buf = %s; neg = %b }"
+      (Expl.to_string aux.oaux)
+      (Buft.to_string Expl.to_string (fun (ts, tp) -> Printf.sprintf "(%s, %d)" (Time.to_string ts) tp) aux.buf)
+      aux.neg
+
+  let add (expls : Expl.t TS.t list) (aux : t) : t =
+    { aux with buf = Buft.add aux.buf expls }
+  
+  let rec update (aux : t) : t * Expl.t TS.t list =
+    let process (b: bool) (cur: bool) : bool = cur || Bool.equal aux.neg b in 
+    match Buft.get aux.buf with
+    | Some (expl_pdt, (ts, tp)), buf ->
+       let oaux = Pdt.apply2_reduce Bool.equal process id id expl_pdt aux.oaux in
+       let aux = { aux with oaux; buf } in
+       let aux, bs = update aux in
+       aux, (TS.make tp ts oaux)::bs
+    | _ -> aux, []
+
+  let approximate_ b neg =
+    Bool.equal neg b
+
+  let approximate (expls: Expl.t TS.t list) (aexpl: Expl.t) (tp: timepoint) (pol: Polarity.t option) : Expl.t =
+    match List.last expls, Polarity.value pol with
+    | Some expl, _ when expl.tp = tp -> expl.data
+    | _, Polarity.POS ->
+      Pdt.apply1_reduce Bool.equal (approximate_ true) id aexpl
+    | _, pol -> approximate_false pol
+
+ let approximate_historically (expls: Expl.t TS.t list) (aexpl: Expl.t) (tp: timepoint) (pol: Polarity.t option) : Expl.t =
+   match List.last expls, Polarity.value pol with
+   | Some expl, _ when expl.tp = tp -> expl.data
+   | _, Polarity.NEG ->
+     Pdt.apply1_reduce Bool.equal (approximate_ false) id aexpl
+   | _, pol -> approximate_false pol
+
+  let map f g (aux: t) =
+    { aux with oaux = f aux.oaux; buf = Buft.map g (fun t -> t) aux.buf }
+  
+end
+
 module Eventually = struct
 
   type alpha_t = { alphas_in : Tdeque.t;
@@ -544,6 +597,53 @@ module Since = struct
   
 end
 
+module SimpleSince = struct
+
+  type t = { saux   : Expl.t;
+             buf    : (Expl.t, Expl.t, timestamp * timepoint) Buf2t.t }
+
+  let init itv_in = { saux    = Pdt.Leaf false;
+                      buf     = (([], []), []) }
+  
+  let to_string aux =
+    Printf.sprintf "{ saux = %s; buf = %s }"
+      (Expl.to_string aux.saux)
+      (Buf2t.to_string Expl.to_string Expl.to_string (fun (ts, tp) -> Printf.sprintf "(%s, %d)" (Time.to_string ts) tp) aux.buf)
+
+  let add (expls1: Expl.t TS.t list) (expls2: Expl.t TS.t list) (aux: t) : t =
+    { aux with buf = Buf2t.add aux.buf expls1 expls2 } 
+  
+  let rec update proj1 proj2 (aux : t) : t * Expl.t TS.t list =
+    let process (b_alpha: bool) (b_beta: bool) (cur : bool) : bool = b_beta || b_alpha && cur in
+    match Buf2t.get aux.buf with
+    | Some ((expl_alpha_pdt, expl_beta_pdt), (ts, tp)), buf ->
+      (*print_endline (Expl.to_string expl_alpha_pdt); 
+       print_endline (Expl.to_string expl_beta_pdt);
+        print_endline (beta_alphas_to_string aux.saux); *)
+       let saux = Pdt.apply3_reduce Bool.equal process proj1 proj2 id expl_alpha_pdt expl_beta_pdt aux.saux in
+       let aux = { aux with saux; buf } in
+       let aux, bs = update proj1 proj2 aux in
+       aux, (TS.make tp ts saux)::bs
+    | _ -> aux, []
+
+  let approximate_ pol b_alpha b_beta =
+    match b_alpha, b_beta, pol with
+      | _    , true, true  -> true
+      | _    , _   , true  -> false
+      | _    , _   , false -> true
+
+  let approximate proj1 proj2 (expls: Expl.t TS.t list) (aexpl1: Expl.t) (aexpl2: Expl.t) (tp: timepoint) (pol: Polarity.t option) =
+    match List.last expls, pol with
+    | Some expl, _ when expl.tp = tp -> expl.data
+    | _ -> Pdt.apply2_reduce Bool.equal 
+             (approximate_ (Polarity.equal (Polarity.value pol) Polarity.POS)) proj1 proj2 aexpl1 aexpl2
+
+  
+  let map f g (aux: t) =
+    { aux with saux = f aux.saux; buf = Buf2t.map g g (fun t -> t) aux.buf }
+  
+end
+
 module Until = struct
 
   type alphas_beta_t = { not_alpha_in : Tdeque.t;
@@ -665,10 +765,12 @@ module MFormulaMake (Var : Modules.V) (Term : MFOTL_lib.Term.T with type v = Var
   type prev_info          = Prev.t
   type next_info          = Next.t
   type once_info          = Once.t
+  type simple_once_info   = SimpleOnce.t
   type eventually_info    = Eventually.t
   type historically_info  = Once.t
   type always_info        = Eventually.t
   type since_info         = Since.t
+  type simple_since_info  = SimpleSince.t
   type until_info         = Until.t
 
   let empty_binop_info = ([], [])
@@ -691,12 +793,14 @@ module MFormulaMake (Var : Modules.V) (Term : MFOTL_lib.Term.T with type v = Var
     | MNext         of Interval.t * t * next_info
     | MENext        of Interval.t * timestamp option * t * Valuation.t
     | MOnce         of Interval.t * t * once_info
+    | MSimpleOnce   of t * simple_once_info
     | MEventually   of Interval.t * t * eventually_info
     | MEEventually  of Interval.t * timestamp option * t * Valuation.t
     | MHistorically of Interval.t * t * historically_info
     | MAlways       of Interval.t * t * always_info
     | MEAlways      of Interval.t * timestamp option * t * Valuation.t
     | MSince        of Side.t * Interval.t * t * t * since_info
+    | MSimpleSince  of Side.t * t * t * simple_since_info
     | MUntil        of Interval.t * t * t * until_info
     | MEUntil       of Side.t * Interval.t * timestamp option *  t * t * Valuation.t
     | MLabel        of string * t
@@ -721,6 +825,7 @@ module MFormulaMake (Var : Modules.V) (Term : MFOTL_lib.Term.T with type v = Var
     | MNeg f
     | MPrev (_, f, _)
     | MOnce (_, f, _)
+    | MSimpleOnce (f, _)
     | MHistorically (_, f, _)
     | MEventually (_, f, _)
     | MEEventually (_, _, f, _)
@@ -733,6 +838,7 @@ module MFormulaMake (Var : Modules.V) (Term : MFOTL_lib.Term.T with type v = Var
     | MLabel (_, f) -> [f]
     | MImp (_, f1, f2, _)
     | MSince (_, _, f1, f2, _)
+    | MSimpleSince (_, f1, f2, _)
     | MUntil (_, f1, f2, _)
     | MEUntil (_, _, _, f1, f2, _)
     | MLet (_, _, f1, f2) -> [f1; f2]
@@ -768,6 +874,7 @@ module MFormulaMake (Var : Modules.V) (Term : MFOTL_lib.Term.T with type v = Var
     | MNext (i, f, _) -> Printf.sprintf (Etc.paren l 5 "○%a %a") (fun _ -> Interval.to_string) i (fun _ -> value_to_string_rec 5) f
     | MENext (i, ts, f, _) -> Printf.sprintf (Etc.paren l 5 "○*%a %a") (fun _ -> ts_i_to_string) (ts, i) (fun _ -> value_to_string_rec 5) f
     | MOnce (i, f, _) -> Printf.sprintf (Etc.paren l 5 "⧫%a %a") (fun _ -> Interval.to_string) i (fun _ -> value_to_string_rec 5) f
+    | MSimpleOnce (f, _) -> Printf.sprintf (Etc.paren l 5 "⧫ %a") (fun _ -> value_to_string_rec 5) f
     | MEventually (i, f, _) -> Printf.sprintf (Etc.paren l 5 "◊%a %a") (fun _ -> Interval.to_string) i (fun _ -> value_to_string_rec 5) f
     | MEEventually (i, ts, f, _) -> Printf.sprintf (Etc.paren l 5 "◊*%a %a") (fun _ -> ts_i_to_string) (ts, i) (fun _ -> value_to_string_rec 5) f
     | MHistorically (i, f, _) -> Printf.sprintf (Etc.paren l 5 "■%a %a") (fun _ -> Interval.to_string) i (fun _ -> value_to_string_rec 5) f
@@ -775,6 +882,8 @@ module MFormulaMake (Var : Modules.V) (Term : MFOTL_lib.Term.T with type v = Var
     | MEAlways (i, ts, f, _) -> Printf.sprintf (Etc.paren l 5 "□*%a %a") (fun _ -> ts_i_to_string) (ts, i) (fun _ -> value_to_string_rec 5) f
     | MSince (_, i, f, g, _) -> Printf.sprintf (Etc.paren l 0 "%a S%a %a") (fun _ -> value_to_string_rec 5) f
                                   (fun _ -> Interval.to_string) i (fun _ -> value_to_string_rec 5) g
+    | MSimpleSince (_, f, g, _) -> Printf.sprintf (Etc.paren l 0 "%a S %a") (fun _ -> value_to_string_rec 5) f
+                                     (fun _ -> value_to_string_rec 5) g
     | MUntil (i, f, g, _) -> Printf.sprintf (Etc.paren l 0 "%a U%a %a") (fun _ -> value_to_string_rec 5) f
                                (fun _ -> Interval.to_string) i (fun _ -> value_to_string_rec 5) g
     | MEUntil (_, i, ts, f, g, _) -> Printf.sprintf (Etc.paren l 0 "%a U*%a %a") (fun _ -> value_to_string_rec 5) f
@@ -811,6 +920,7 @@ module MFormulaMake (Var : Modules.V) (Term : MFOTL_lib.Term.T with type v = Var
     | MNext (i, f, aux) -> Printf.sprintf (Etc.paren l 5 "{ f = ○%a %a; aux = %a }") (fun _ -> Interval.to_string) i (fun _ -> value_to_string_rec 5) f (fun _ -> Next.to_string) aux
     | MENext (i, ts, f, _) -> Printf.sprintf (Etc.paren l 5 "○*%a %a") (fun _ -> ts_i_to_string) (ts, i) (fun _ -> value_to_string_rec 5) f
     | MOnce (i, f, aux) -> Printf.sprintf (Etc.paren l 5 "{ f = ⧫%a %a; aux = %a }") (fun _ -> Interval.to_string) i (fun _ -> value_to_string_rec 5) f (fun _ -> Once.to_string) aux
+    | MSimpleOnce (f, aux) -> Printf.sprintf (Etc.paren l 5 "{ f = ⧫ %a; aux = %a }") (fun _ -> value_to_string_rec 5) f (fun _ -> SimpleOnce.to_string) aux
     | MEventually (i, f, aux) -> Printf.sprintf (Etc.paren l 5 "{ f = ◊%a %a; aux = %a }") (fun _ -> Interval.to_string) i (fun _ -> value_to_string_rec 5) f (fun _ -> Eventually.to_string) aux
     | MEEventually (i, ts, f, _) -> Printf.sprintf (Etc.paren l 5 "◊*%a %a") (fun _ -> ts_i_to_string) (ts, i) (fun _ -> value_to_string_rec 5) f
     | MHistorically (i, f, aux) -> Printf.sprintf (Etc.paren l 5 "{ f = ■%a %a; aux = %a }") (fun _ -> Interval.to_string) i (fun _ -> value_to_string_rec 5) f (fun _ -> Once.to_string) aux
@@ -819,6 +929,8 @@ module MFormulaMake (Var : Modules.V) (Term : MFOTL_lib.Term.T with type v = Var
     | MSince (_, i, f, g, aux) -> Printf.sprintf (Etc.paren l 0 "{ f = %a S%a %a; aux = %a }") (fun _ -> value_to_string_rec 5) f 
                                     (fun _ -> Interval.to_string) i (fun _ -> value_to_string_rec 5) g
                                     (fun _ -> Since.to_string) aux
+    | MSimpleSince (_, f, g, aux) -> Printf.sprintf (Etc.paren l 0 "{ f = %a S %a; aux = %a }") (fun _ -> value_to_string_rec 5) f 
+                                          (fun _ -> value_to_string_rec 5) g (fun _ -> SimpleSince.to_string) aux
     | MUntil (i, f, g, aux) -> Printf.sprintf (Etc.paren l 0 "{ f = %a U%a %a; aux = %a }") (fun _ -> value_to_string_rec 5) f
                                  (fun _ -> Interval.to_string) i (fun _ -> value_to_string_rec 5) g
                                  (fun _ -> Until.to_string) aux
@@ -872,12 +984,14 @@ module MFormulaMake (Var : Modules.V) (Term : MFOTL_lib.Term.T with type v = Var
     | MNext (i, _, _) -> Printf.sprintf "○%s" (Interval.to_string i)
     | MENext (i, ts, _, _) -> Printf.sprintf "○*%s" (ts_i_to_string (ts, i))
     | MOnce (i, _, _) -> Printf.sprintf "⧫%s" (Interval.to_string i)
+    | MSimpleOnce (_, _) -> Printf.sprintf "⧫"
     | MEventually (i, _, _) -> Printf.sprintf "◊%s" (Interval.to_string i)
     | MEEventually (i, ts, _, _) -> Printf.sprintf "◊*%s" (ts_i_to_string (ts, i))
     | MHistorically (i, _, _) -> Printf.sprintf "■%s" (Interval.to_string i)
     | MAlways (i, _, _) -> Printf.sprintf "□%s" (Interval.to_string i)
     | MEAlways (i, ts, _, _) -> Printf.sprintf "□*%s" (ts_i_to_string (ts, i))
     | MSince (_, i, _, _, _) -> Printf.sprintf "S%s" (Interval.to_string i)
+    | MSimpleSince (_, _, _, _) -> Printf.sprintf "S"
     | MUntil (i, _, _, _) -> Printf.sprintf "U%s" (Interval.to_string i)
     | MEUntil (_, i, ts, _, _, _) -> Printf.sprintf "U*%s" (ts_i_to_string (ts, i))
     | MLabel (s, _) -> Printf.sprintf "{%s}" s
@@ -902,12 +1016,13 @@ module MFormulaMake (Var : Modules.V) (Term : MFOTL_lib.Term.T with type v = Var
     | MNext _ -> Printf.sprintf "N"
     | MENext _ -> Printf.sprintf "N"
     | MOnce _ -> Printf.sprintf "N"
+    | MSimpleOnce _ -> Printf.sprintf "N"
     | MEventually _ -> Printf.sprintf "N"
     | MEEventually _ -> Printf.sprintf "N"
     | MHistorically _ -> Printf.sprintf "N"
     | MAlways _ -> Printf.sprintf "N"
     | MEAlways _ -> Printf.sprintf "N"
-    | MSince (s, _, _, _, _) -> Printf.sprintf "%s" (Side.to_string s)
+    | MSince (s, _, _, _, _) | MSimpleSince (s, _, _, _) -> Printf.sprintf "%s" (Side.to_string s)
     | MUntil _ -> Printf.sprintf "N"
     | MEUntil (s, _, _, _, _, _) -> Printf.sprintf "%s" (Side.to_string s)
     | MLabel (s, _) -> Printf.sprintf "N"
@@ -954,6 +1069,8 @@ module MFormulaMake (Var : Modules.V) (Term : MFOTL_lib.Term.T with type v = Var
        String.hash "MENext" +++ Interval.hash i +++ f.hash
     | MOnce (i, f, _) ->
        String.hash "MOnce" +++ Interval.hash i +++ f.hash
+    | MSimpleOnce (f, _) ->
+       String.hash "MSimpleOnce" +++ f.hash
     | MEventually (i, f, _) ->
        String.hash "MEventually" +++ Interval.hash i +++ f.hash
     | MEEventually (i, _, f, v) ->
@@ -966,6 +1083,8 @@ module MFormulaMake (Var : Modules.V) (Term : MFOTL_lib.Term.T with type v = Var
        String.hash "MEAlways" +++ Interval.hash i +++ f.hash +++ Valuation.hash v
     | MSince (s, i, f, g, _) ->
        String.hash "MSince" +++ Side.hash s +++ Interval.hash i +++ f.hash +++ g.hash
+    | MSimpleSince (s, f, g, _) ->
+       String.hash "MSince" +++ Side.hash s +++ f.hash +++ g.hash
     | MUntil (i, f, g, _) ->
        String.hash "MUntil" +++ Interval.hash i +++ f.hash +++ g.hash
     | MEUntil (s, i, _, f, g, v) ->
@@ -1024,12 +1143,14 @@ module MFormulaMake (Var : Modules.V) (Term : MFOTL_lib.Term.T with type v = Var
         | MNext (i, f, inf) -> map1 m f (fun f -> MNext (i, f, inf))
         | MENext (i, t_opt, f, v) -> add_hash (map1 m f (fun f -> MENext (i, t_opt, f, v)))
         | MOnce (i, f, inf) -> map1 m f (fun f -> MOnce (i, f, inf))
+        | MSimpleOnce (f, inf) -> map1 m f (fun f -> MSimpleOnce (f, inf))
         | MEventually (i, f, inf) -> map1 m f (fun f -> MEventually (i, f, inf))
         | MEEventually (i, t_opt, f, v) -> add_hash (map1 m f (fun f -> MEEventually (i, t_opt, f, v)))
         | MHistorically (i, f, inf) -> map1 m f (fun f -> MHistorically (i, f, inf))
         | MAlways (i, f, inf) -> map1 m f (fun f -> MAlways (i, f, inf))
         | MEAlways (i, t_opt, f, inf) -> add_hash (map1 m f (fun f -> MEAlways (i, t_opt, f, inf)))
         | MSince (s, i, f, g, inf) -> map2 m f g (fun f g -> MSince (s, i, f, g, inf))
+        | MSimpleSince (s, f, g, inf) -> map2 m f g (fun f g -> MSimpleSince (s, f, g, inf))
         | MUntil (i, f, g, inf) -> map2 m f g (fun f g -> MUntil (i, f, g, inf))
         | MEUntil (s, i, t_opt, f, g, v) -> add_hash (map2 m f g (fun f g -> MEUntil (s, i, t_opt, f, g, v)))
         | MLabel (s, f) -> map1 m f (fun f -> MLabel (s, f))
@@ -1048,7 +1169,8 @@ module MFormulaMake (Var : Modules.V) (Term : MFOTL_lib.Term.T with type v = Var
     | MAnd (_, fs, _)
       | MOr (_, fs, _) -> Set.union_list (module Var) (List.map fs ~f:fv)
     | MImp (_, f, g, _)
-      | MSince (_, _, f, g, _)
+    | MSince (_, _, f, g, _)
+      | MSimpleSince (_, f, g, _)
       | MUntil (_, f, g, _)
       | MEUntil (_, _, _, f, g, _) -> Set.union (fv f) (fv g)
     | MExists (_, _, _, f)
@@ -1056,7 +1178,8 @@ module MFormulaMake (Var : Modules.V) (Term : MFOTL_lib.Term.T with type v = Var
       | MPrev (_, f, _)
       | MNext (_, f, _)
       | MENext (_, _, f, _)
-      | MOnce (_, f, _) 
+      | MOnce (_, f, _)
+      | MSimpleOnce (f, _) 
       | MEventually (_, f, _)
       | MEEventually (_, _, f, _)
       | MHistorically (_, f, _)
@@ -1090,6 +1213,7 @@ module MFormulaMake (Var : Modules.V) (Term : MFOTL_lib.Term.T with type v = Var
       | MNext (_, f, _)
       | MENext (_, _, f, _)
       | MOnce (_, f, _)
+      | MSimpleOnce (f, _)      
       | MEventually (_, f, _)
       | MEEventually (_, _, f, _)
       | MHistorically (_, f, _)
@@ -1100,6 +1224,7 @@ module MFormulaMake (Var : Modules.V) (Term : MFOTL_lib.Term.T with type v = Var
       | MLabel (_, f) -> rank f
     | MImp (_, f, g, _)
       | MSince (_, _, f, g, _)
+      | MSimpleSince (_, f, g, _)
       | MUntil (_, f, g, _)
       | MEUntil (_, _, _, f, g, _) -> rank f + rank g
     | MAnd (_, fs, _)
@@ -1117,6 +1242,7 @@ module MFormulaMake (Var : Modules.V) (Term : MFOTL_lib.Term.T with type v = Var
       | MNext (_, f, _)
       | MENext (_, _, f, _)
       | MOnce (_, f, _)
+      | MSimpleOnce (f, _)
       | MEventually (_, f, _)
       | MEEventually (_, _, f, _)
       | MHistorically (_, f, _)
@@ -1127,6 +1253,7 @@ module MFormulaMake (Var : Modules.V) (Term : MFOTL_lib.Term.T with type v = Var
       | MLabel (_, f) -> 1 + size f
     | MImp (_, f, g, _)
       | MSince (_, _, f, g, _)
+      | MSimpleSince (_, f, g, _)
       | MUntil (_, f, g, _)
       | MEUntil (_, _, _, f, g, _)
       | MLet (_, _, f, g) -> 1 + size f + size g
@@ -1245,6 +1372,8 @@ module MFormula = struct
         map1 fvs m f (fun f p -> MENext (i, t_opt, p f, v)) id
       | MOnce (i, f, inf) ->
         map1 fvs m f (fun f p -> MOnce (i, p f, inf)) id
+      | MSimpleOnce (f, inf) ->
+        map1 fvs m f (fun f p -> MSimpleOnce (p f, inf)) id
       | MEventually (i, f, inf) ->
         map1 fvs m f (fun f p -> MEventually (i, p f, inf)) id
       | MEEventually (i, t_opt, f, v) ->
@@ -1257,6 +1386,8 @@ module MFormula = struct
         map1 fvs m f (fun f p -> MEAlways (i, t_opt, p f, inf)) id
       | MSince (s, i, f, g, inf) ->
         map2 fvs m f g (fun f g p -> MSince (s, i, p f, p g, inf)) id2
+      | MSimpleSince (s, f, g, inf) ->
+        map2 fvs m f g (fun f g p -> MSimpleSince (s, p f, p g, inf)) id2
       | MUntil (i, f, g, inf) ->
         map2 fvs m f g (fun f g p -> MUntil (i, p f, p g, inf)) id2
       | MEUntil (s, i, t_opt, f, g, v) ->
@@ -1302,7 +1433,10 @@ module MFormula = struct
       | Prev (i, f) -> MPrev (i, make (aux f) f.info.filter, Prev.init i)
       | Next (i, f) when Enftype.is_only_observable tf.info.enftype -> MNext (i, make (aux f) f.info.filter, Next.init i)
       | Next (i, f) -> MENext (i, None, make (aux f) f.info.filter, Valuation.empty)
-      | Once (i, f) -> MOnce (i, make (aux f) f.info.filter, Once.init i true)
+      | Once (i, f) ->
+        (if Interval.is_full i
+         then MSimpleOnce (make (aux f) f.info.filter, SimpleOnce.init i true)
+         else MOnce (i, make (aux f) f.info.filter, Once.init i true))
       | Eventually (i, f) when Enftype.is_only_observable tf.info.enftype ->
          MEventually (i, make (aux f) f.info.filter, Eventually.init i true)
       | Eventually (i, f) -> MEEventually (i, None, make (aux f) f.info.filter, Valuation.empty)
@@ -1311,7 +1445,9 @@ module MFormula = struct
          MAlways (i, make (aux f) f.info.filter, Eventually.init i false)
       | Always (i, f) -> MEAlways (i, None, make (aux f) f.info.filter, Valuation.empty)
       | Since (s, i, f, g) ->
-         MSince (s, i, make (aux f) f.info.filter, make (aux g) g.info.filter, Since.init i)
+        (if Interval.is_full i
+         then MSimpleSince (s, make (aux f) f.info.filter, make (aux g) g.info.filter, SimpleSince.init i)
+         else MSince (s, i, make (aux f) f.info.filter, make (aux g) g.info.filter, Since.init i))
       | Until (_, i, f, g) when Enftype.is_only_observable tf.info.enftype ->
          MUntil (i, make (aux f) f.info.filter, make (aux g) g.info.filter, Until.init i)
       | Until (s, i, f, g) ->
@@ -1370,12 +1506,14 @@ module IFormula = struct
         | MNext (i, f, inf) -> MNext (i, aux f, inf)
         | MENext (i, ts, f, vv) -> MENext (i, ts, aux f, vv)
         | MOnce (i, f, inf) -> MOnce (i, aux f, inf)
+        | MSimpleOnce (f, inf) -> MSimpleOnce (aux f, inf)
         | MEventually (i, f, inf) -> MEventually (i, aux f, inf)
         | MEEventually (i, ts, f, vv) -> MEEventually (i, ts, aux f, vv)
         | MHistorically (i, f, inf) -> MHistorically (i, aux f, inf)
         | MAlways (i, f, inf) -> MAlways (i, aux f, inf)
         | MEAlways (i, ts, f, vv) -> MEAlways (i, ts, aux f, vv)
         | MSince (s, i, f, g, inf) -> MSince (s, i, aux f, aux g, inf)
+        | MSimpleSince (s, f, g, inf) -> MSimpleSince (s, aux f, aux g, inf)
         | MUntil (i, f, g, inf) -> MUntil (i, aux f, aux g, inf)
         | MEUntil (s, i, ts, f, g, vv) -> MEUntil (s, i, ts, aux f, aux g, vv)
         | MLabel (s, f) -> MLabel (s, aux f)
@@ -1469,12 +1607,14 @@ module IFormula = struct
         | MNext (i, f, si) -> MNext (i, r f, si)
         | MENext (i, ts, f, vv) -> MENext (i, ts, r f, Valuation.extend v vv)
         | MOnce (i, f, oi) -> MOnce (i, r f, Once.map spec spec oi)
+        | MSimpleOnce (f, oi) -> MSimpleOnce (r f, SimpleOnce.map spec spec oi)
         | MEventually (i, f, oi) -> MEventually (i, r f, Eventually.map spec spec oi)
         | MEEventually (i, ts, f, vv) -> MEEventually (i, ts, r f, Valuation.extend v vv)
         | MHistorically (i, f, oi) -> MHistorically (i, r f, Once.map spec spec oi)
         | MAlways (i, f, ai) -> MAlways (i, r f, Eventually.map spec spec ai)
         | MEAlways (i, ts, f, vv) -> MEAlways (i, ts, r f, Valuation.extend v vv)
         | MSince (s, i, f, g, si) -> MSince (s, i, mr f, mr g, Since.map spec spec si)
+        | MSimpleSince (s, f, g, si) -> MSimpleSince (s, mr f, mr g, SimpleSince.map spec spec si)
         | MUntil (i, f, g, ui) -> MUntil (i, mr f, mr g, Until.map spec spec ui)
         | MEUntil (s, i, ts, f, g, vv) -> MEUntil (s, i, ts, mr f, mr g, Valuation.extend v vv)
         | MLabel (s, f) -> MLabel (s, r f)
