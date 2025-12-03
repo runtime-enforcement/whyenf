@@ -50,7 +50,7 @@ $ dune build
 to obtain the executable **enfguard.exe** inside the folder [bin](bin/). Moreover, you can run one of our predefined examples with
 
 ```
-$ ./bin/enfguard.exe -sig examples/enforcement/paper/case_study/arfelt.sig -formula examples/enforcement/paper/case_study/formulae_whyenf/arfelt_2_limitation.mfotl -log examples/enforcement/paper/case_study/arfelt.log
+$ ./enfguard -sig examples/case_study/arfelt_et_al_2019.sig -formula examples/case_study/formulae_whyenf/consent.mfotl -log examples/case_study/arfelt_et_al_2019.log 
 ```
 
 You can remove the binary and clean the working directory with
