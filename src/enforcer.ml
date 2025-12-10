@@ -627,7 +627,7 @@ let make_monitoring (tyf : Tyformula.t) : Tyformula.t =
   let tyf = List.fold_right xs ~init:tyf ~f:(fun x f -> make_dummy (forall x f)) in
   make_dummy (Always (Interval.full, tyf))
 
-let type_formula (f: Formula.t) : Tyformula.typed_t =
+let type_formula ?(verbose=true) (f: Formula.t) : Tyformula.typed_t =
   let open Tyformula.MFOTL_Enforceability(Sig) in
   debug ("Starting compilation");
   (* Applying alpha conversion to obtain unique variable names *)
@@ -641,11 +641,11 @@ let type_formula (f: Formula.t) : Tyformula.typed_t =
   let tyf = if !monitoring then make_monitoring tyf else tyf in
   (* Typing formulae: Tyformula.t -> Tyformula.typed_t *)
   debug ("Compilation: Enforceability checks... (4/6)");
-  do_type ~moderate:(not !Global.unroll_all) tyf !b_ref
+  do_type ~verbose ~moderate:(not !Global.unroll_all) tyf !b_ref
 
 let compile (f: Formula.t) : Tformula.t =
   let open Tyformula.MFOTL_Enforceability(Sig) in
-  let typed_tyf = type_formula f in
+  let typed_tyf = type_formula ~verbose:true f in
   (* Checking monitorability: Tyformula.typed_t -> Tformula.t *)
   debug ("Compilation: Monitorability checks... (5/6)");
   let tf = Tformula.of_formula' typed_tyf in

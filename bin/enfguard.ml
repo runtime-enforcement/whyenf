@@ -79,10 +79,10 @@ module Enfguard = struct
            Formula.print_statistics formula
          else if print_normal_form && json then
            let open Tyformula.MFOTL_Enforceability(Sig) in
-           Stdio.printf "%s\n" (Normalized.to_json (Normalized.init (Enforcer.type_formula formula)))
+           Stdio.printf "%s\n" (Normalized.to_json (Normalized.init (Enforcer.type_formula ~verbose:false formula)))
          else if print_normal_form then
            let open Tyformula.MFOTL_Enforceability(Sig) in
-           Stdio.printf "%s\n" (Normalized.to_string (Normalized.init (Enforcer.type_formula formula)))
+           Stdio.printf "%s\n" (Normalized.to_string (Normalized.init (Enforcer.type_formula ~verbose:false formula)))
          else if latex then
            Stdio.printf "%s\n" (Formula.to_latex formula)
          else if print_json then

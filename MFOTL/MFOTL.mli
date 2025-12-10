@@ -199,7 +199,7 @@ module Make
 
     val types : ?itl_itvs:(string, Zinterval.t, String.comparator_witness) Map.t -> ?itl_strict:(string, bool, String.comparator_witness) Map.t -> ?itl_observable:(string, bool, String.comparator_witness) Map.t -> Enftype.t -> pg_map -> t -> Constraints.verdict
     val convert : ?lets:(string, Enftype.t * Filter.t, String.comparator_witness) Map.t -> Interval.v -> Enftype.t -> t -> typed_t option
-    val do_type : ?moderate:bool -> t -> Time.Span.s -> typed_t
+    val do_type : ?verbose:bool -> ?moderate:bool -> t -> Time.Span.s -> typed_t
     val strictly_relative_past : ?itl_itvs:(string, Zinterval.t, String.comparator_witness) Map.t -> ?itl_strict:(string, bool, String.comparator_witness) Map.t -> ?itl_observable:(string, bool, String.comparator_witness) Map.t -> ('i, Var.t, Dom.t, Term.t) _t -> bool
     val is_transparent: typed_t -> bool
 

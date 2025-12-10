@@ -1,3 +1,4 @@
+
 open Base
 
 open Modules
@@ -2629,10 +2630,10 @@ module Make
     let convert' b f =
       convert b Enftype.causable f
 
-    let do_type ?(moderate=true) f b =
+    let do_type ?(verbose=true) ?(moderate=true) f b =
       let orig_f = f in
       let f = convert_lets f in
-      if not (Set.is_empty (fv f)) then (
+      if not (Set.is_empty (fv f)) && verbose then (
         Stdio.print_endline ("The formula\n "
                              ^ to_string f
                              ^ "\nis not closed: free variables are "
@@ -2663,30 +2664,34 @@ module Make
                 (*Stdio.print_endline (to_string f);*)
                 (*List.iter (Set.elements (fv f)) ~f:(fun v -> print_endline ("var: " ^  (Var.to_string v)));*)
                 match convert' b f with
-                | Some f' -> Stdio.print_endline ("The formula\n "
-                                                  ^ to_string orig_f
-                                                  ^ "\nis enforceable and types to\n "
-                                                  ^ to_string_typed f');
+                | Some f' -> (if verbose then
+                                Stdio.print_endline ("The formula\n "
+                                                     ^ to_string orig_f
+                                                     ^ "\nis enforceable and types to\n "
+                                                     ^ to_string_typed f'));
                              let f' = ac_simplify f' in
                              f'
-                | None    -> Stdio.print_endline ("The formula\n "
-                                                  ^ to_string f
-                                                  ^ "\n cannot be converted.");
+                | None    -> (if verbose then
+                                Stdio.print_endline ("The formula\n "
+                                                     ^ to_string f
+                                                     ^ "\n cannot be converted."));
                              raise (FormulaError (Printf.sprintf "formula %s cannot be converted"
                                                     (to_string f)))
               end
-           | _ -> Stdio.print_endline ("The formula\n "
-                                       ^ to_string orig_f
-                                       ^ "\nis not enforceable because the constraint\n "
-                                       ^ Constraints.to_string c
-                                       ^ "\nhas no solution.");
+           | _ -> (if verbose then
+                     Stdio.print_endline ("The formula\n "
+                                          ^ to_string orig_f
+                                          ^ "\nis not enforceable because the constraint\n "
+                                          ^ Constraints.to_string c
+                                          ^ "\nhas no solution."));
                   raise (FormulaError (Printf.sprintf "formula %s is not enforceable" (to_string f)))
          end
       | Impossible e ->
-         Stdio.print_endline ("The formula\n "
-                              ^ to_string orig_f
-                              ^ "\nis not enforceable. To make it enforceable, you would need to\n "
-                              ^ Errors.to_string e);
+        (if verbose then
+           Stdio.print_endline ("The formula\n "
+                                ^ to_string orig_f
+                                ^ "\nis not enforceable. To make it enforceable, you would need to\n "
+                                ^ Errors.to_string e));
          raise (FormulaError (Printf.sprintf "formula %s is not enforceable" (to_string f)))
 
 
