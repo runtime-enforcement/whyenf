@@ -203,6 +203,16 @@ module Make
     val strictly_relative_past : ?itl_itvs:(string, Zinterval.t, String.comparator_witness) Map.t -> ?itl_strict:(string, bool, String.comparator_witness) Map.t -> ?itl_observable:(string, bool, String.comparator_witness) Map.t -> ('i, Var.t, Dom.t, Term.t) _t -> bool
     val is_transparent: typed_t -> bool
 
+    module Normalized : sig
+
+      type t
+
+      val to_string : t -> string
+      val to_json : t -> string
+      val init : ?label:string option -> typed_t -> t
+        
+    end
+
   end
 
 end

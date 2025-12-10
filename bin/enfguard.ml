@@ -13,7 +13,7 @@ module Enfguard = struct
   let sig_ref = ref In_channel.stdin
   let logstr_ref = ref ""
 
-  let run debug forall monitoring log_file logstr sig_file formula_file func_file out_file json bound time_zone step statistics latex print_json label simplify no_filter no_memo unroll_all =
+  let run debug forall monitoring log_file logstr sig_file formula_file func_file out_file json bound time_zone step statistics latex print_json print_normal_form label simplify no_filter no_memo unroll_all =
     if debug then Global.debug := true;
     if forall then Global.forall := true;
     if monitoring then Global.monitoring := true;
@@ -22,6 +22,7 @@ module Enfguard = struct
     if no_filter then Global.filter := false;
     if no_memo then Global.memo := false;
     if unroll_all then Global.unroll_all := true;
+    if print_normal_form then Global.print_normal_form := true;
     (match log_file with
      | Some logf -> inc_ref := In_channel.create logf
      | None -> ());
@@ -76,6 +77,12 @@ module Enfguard = struct
            else Formula.erase_label formula in
          if statistics then
            Formula.print_statistics formula
+         else if print_normal_form && json then
+           let open Tyformula.MFOTL_Enforceability(Sig) in
+           Stdio.printf "%s\n" (Normalized.to_json (Normalized.init (Enforcer.type_formula formula)))
+         else if print_normal_form then
+           let open Tyformula.MFOTL_Enforceability(Sig) in
+           Stdio.printf "%s\n" (Normalized.to_string (Normalized.init (Enforcer.type_formula formula)))
          else if latex then
            Stdio.printf "%s\n" (Formula.to_latex formula)
          else if print_json then
@@ -108,6 +115,7 @@ module Enfguard = struct
        and statistics = flag "-statistics" no_arg ~doc:" Print statistics about the formula"
        and latex = flag "-latex" no_arg ~doc:" Print latex code of the formula"
        and print_json = flag "-print-json" no_arg ~doc:" Print json representation of the formula"
+       and print_normal_form = flag "-print-normal-form" no_arg ~doc:" Print normal form of the formula"
        and label = flag "-label" no_arg ~doc:" Report labels of enforcement actions"
        and simplify = flag "-simplify" no_arg ~doc:" Simplify the formula"
        and no_filter = flag "-no-filter" no_arg ~doc:" Do not use filter optimization"
@@ -115,7 +123,7 @@ module Enfguard = struct
        and unroll_all = flag "-unroll-all" no_arg ~doc:" Unroll all let bindings"
        in
        fun () ->
-       run debug forall monitoring log_file logstr sig_file formula_file func_file out_file json bound time_zone step statistics latex print_json label simplify no_filter no_memo unroll_all)
+       run debug forall monitoring log_file logstr sig_file formula_file func_file out_file json bound time_zone step statistics latex print_json print_normal_form label simplify no_filter no_memo unroll_all)
 
 end
 

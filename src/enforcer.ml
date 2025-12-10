@@ -504,7 +504,7 @@ let update_fobligs (es: EState.t) =
     List.fold_map (Set.elements es.fobligs) ~init:es ~f:(FObligation.fold_map aux) in
   { es with fobligs = Set.of_list (module FObligation) fobligs_list }
 
-let exec' (tf: Tformula.t) inc (b: Time.Span.s) =
+let exec' (tf: Tformula.t) inc =
   let reactive_step new_db (es: EState.t) =
     debug (Printf.sprintf "Reactive step (tp=%d, lets=%d, enforcer_steps=+%d, monitor_steps=+%d)" es.tp (List.length es.ms.lets) !enforcer_steps !monitor_steps);
     enforcer_steps := 0;
@@ -627,7 +627,7 @@ let make_monitoring (tyf : Tyformula.t) : Tyformula.t =
   let tyf = List.fold_right xs ~init:tyf ~f:(fun x f -> make_dummy (forall x f)) in
   make_dummy (Always (Interval.full, tyf))
 
-let compile (f: Formula.t) (b: Time.Span.s) : Tformula.t =
+let type_formula (f: Formula.t) : Tyformula.typed_t =
   let open Tyformula.MFOTL_Enforceability(Sig) in
   debug ("Starting compilation");
   (* Applying alpha conversion to obtain unique variable names *)
@@ -641,7 +641,11 @@ let compile (f: Formula.t) (b: Time.Span.s) : Tformula.t =
   let tyf = if !monitoring then make_monitoring tyf else tyf in
   (* Typing formulae: Tyformula.t -> Tyformula.typed_t *)
   debug ("Compilation: Enforceability checks... (4/6)");
-  let typed_tyf = do_type ~moderate:(not !Global.unroll_all) tyf b in
+  do_type ~moderate:(not !Global.unroll_all) tyf !b_ref
+
+let compile (f: Formula.t) : Tformula.t =
+  let open Tyformula.MFOTL_Enforceability(Sig) in
+  let typed_tyf = type_formula f in
   (* Checking monitorability: Tyformula.typed_t -> Tformula.t *)
   debug ("Compilation: Monitorability checks... (5/6)");
   let tf = Tformula.of_formula' typed_tyf in
@@ -656,6 +660,6 @@ let compile (f: Formula.t) (b: Time.Span.s) : Tformula.t =
   tf
 
 let exec (f: Formula.t) =
-  let tf = compile f !b_ref in
-  exec' tf !inc_ref !b_ref
+  let tf = compile f in
+  exec' tf !inc_ref 
 

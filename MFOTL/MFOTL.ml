@@ -46,7 +46,7 @@ module Make
   type core_t = (Info.t, Var.t, Dom.t, Term.t) _core_t [@@deriving compare, sexp_of, hash, equal]
   type t      = (Info.t, Var.t, Dom.t, Term.t) _t      [@@deriving compare, sexp_of, hash, equal]
 
-  let rec core_equal (f: t) (g: t) =
+  let rec core_equal f g =
     let fa x y ~f = match List.for_all2 x y ~f with Ok b -> b | _ -> false in
     match f.form, g.form with
     | Predicate' (_, _, f), _ -> core_equal f g
@@ -111,8 +111,8 @@ module Make
 
   end 
 
-  type core_typed_t = (TypedInfo.t, Var.t, Dom.t, Term.t) _core_t
-  type typed_t      = (TypedInfo.t, Var.t, Dom.t, Term.t) _t
+  type core_typed_t = (TypedInfo.t, Var.t, Dom.t, Term.t) _core_t [@@deriving equal]
+  type typed_t      = (TypedInfo.t, Var.t, Dom.t, Term.t) _t      [@@deriving equal]
 
   let rec map_info ~f:(f:'a -> 'b) (formula: ('a, Var.t, Dom.t, Term.t) _t) : ('b, Var.t, Dom.t, Term.t) _t =
     let form = match formula.form with
@@ -2739,7 +2739,798 @@ module Make
       in
       aux f
 
-    
+    module Normalized = struct
+
+     (*
+         Normalized formulae must have the following form outside-in:
+         - A conjunction of causable temporal operators
+         - A sequence of ∀ quantifiers
+         - Within each temporal operator, either a(.)∨b(.)∨...→f→g(.)∧h(.)∧... where a(.)∨b(.)∨... guard the free variables and g(.), h(.), ... are causable (predicates or future)
+                                          or     a(.)∨b(.)∨...→f where a(.), b(.), ... are suppressable predicates
+         - Within each future operator in a g(.), h(.), ..., the same structure
+
+         Variant for suppressable formulae (intermediate representation only)
+         - either (a(.)∨b(.)∨...)∧f∧¬g(.)∨¬h(.)∨... where a(.)∨b(.)∨... guard the free variables and g(.), h(.), ... are causable (predicates or future)
+         - either (a(.)∨b(.)∨...)∧f where a(.), b(.), ... are suppressable predicates
+     *)
+
+      type formula = typed_t [@@deriving equal]
+        
+      type modality =
+        | NNow
+        | NNext of Interval.t
+        | NUntilL of Interval.t * formula
+        | NUntilR of Interval.t * formula
+        | NUntilLR of Interval.t
+        | NAlways of Interval.t
+        | NEventually of Interval.t
+        | NOnce of Interval.t
+        | NHistorically of Interval.t
+        | NSinceL of Interval.t * formula
+        | NSinceR of Interval.t * formula [@@deriving equal]
+
+      type effect =
+        | NInstructions of instruction list
+        | NEvent of formula (* only predicates *) [@@deriving equal]
+
+      and by = {
+        filter:  formula;
+        effects: effect list;
+      } [@@deriving equal]
+
+      and recipe =
+        | CauByCau of by
+        | CauBySup of by
+        | SupByCau of by
+        | SupBySup of by [@@deriving equal]
+
+      and instruction = {
+        modality: modality;
+        vars: (Var.t * bool) list;
+        recipe: recipe;
+        r_recipe_opt: recipe option;
+        label: string option;
+      } [@@deriving equal]
+
+      and let_ = {
+        e: string;
+        vars: Var.t list;
+        enftype: Enftype.t;
+        instrs_opt: instruction list option;
+        formula: typed_t;
+      } [@@deriving equal]
+
+      type t = {
+        lets: let_ list;
+        instrs: instruction list;
+      } [@@deriving equal]
+
+      let can_merge_recipes recipe recipe' =
+        match recipe, recipe' with
+        | CauByCau by_cau, CauByCau by_cau' -> equal_typed_t by_cau.filter by_cau'.filter
+        | CauBySup by_sup, CauBySup by_sup' -> equal_typed_t by_sup.filter by_sup'.filter
+        | SupByCau by_cau, SupByCau by_cau' -> equal_typed_t by_cau.filter by_cau'.filter
+        | SupBySup by_sup, SupBySup by_sup' -> equal_typed_t by_sup.filter by_sup'.filter
+
+      let can_merge instr instr' =
+        equal_modality instr.modality instr'.modality
+        && List.equal (fun (v, b) (v', b') -> Var.equal v v' && Bool.equal b b') instr.vars instr'.vars
+        && can_merge_recipes instr.recipe instr'.recipe
+        && Option.is_none instr.r_recipe_opt && Option.is_none instr'.r_recipe_opt
+        && Option.equal String.equal instr.label instr'.label
+
+      let merge_recipe recipe recipe' =
+        match recipe, recipe' with
+        | CauByCau by_cau, CauByCau by_cau' -> CauByCau { by_cau with effects = by_cau.effects @ by_cau'.effects }
+        | CauBySup by_sup, CauBySup by_sup' -> CauBySup { by_sup with effects = by_sup.effects @ by_sup'.effects }
+        | SupByCau by_cau, SupByCau by_cau' -> SupByCau { by_cau with effects = by_cau.effects @ by_cau'.effects }
+        | SupBySup by_sup, SupBySup by_sup' -> SupBySup { by_sup with effects = by_sup.effects @ by_sup'.effects }
+        
+      let merge instr instr' =
+        { instr with recipe = merge_recipe instr.recipe instr'.recipe }
+        
+      let modality_to_string nm s r_s_opt =
+        match nm with
+        | NNow -> s
+        | NNext i -> Printf.sprintf "○%s %s" (Interval.to_string i) s
+        | NUntilR (i, f) -> Printf.sprintf "%s U%s:R %s" (to_string_typed f) (Interval.to_string i) s
+        | NUntilL (i, f) -> Printf.sprintf "%s U%s:L %s" s (Interval.to_string i) (to_string_typed f)
+        | NUntilLR i -> Printf.sprintf "%s U%s:LR %s" s (Interval.to_string i) (Option.value_exn r_s_opt)
+        | NAlways i -> Printf.sprintf "□%s %s" (Interval.to_string i) s
+        | NEventually i -> Printf.sprintf "◊%s %s" (Interval.to_string i) s
+        | NOnce i -> Printf.sprintf "⧫%s %s" (Interval.to_string i) s
+        | NHistorically i -> Printf.sprintf "■%s %s" (Interval.to_string i) s
+        | NSinceL (i, f) -> Printf.sprintf "%s U%s:L %s" s (Interval.to_string i) (to_string_typed f)
+        | NSinceR (i, f) -> Printf.sprintf "%s U%s:R %s" (to_string_typed f) (Interval.to_string i) s
+
+      let rec effect_to_string = function
+        | NInstructions instrs -> String.concat ~sep:" ∧ " (List.map ~f:instruction_to_string instrs)
+        | NEvent f -> to_string_typed f
+
+      and recipe_to_string = function
+        | CauByCau by_cau ->
+          if core_equal by_cau.filter (make_dummy TT) then
+            (String.concat ~sep:" ∧ " (List.map ~f:effect_to_string by_cau.effects))
+          else
+            Printf.sprintf "%s →:R %s" (* We cause the RHS if the LHS is true *)
+              (to_string_typed by_cau.filter)
+              (String.concat ~sep:" ∧ " (List.map ~f:effect_to_string by_cau.effects))
+        | CauBySup by_sup -> (* We suppress the RHS if the LHS is true *)
+          if core_equal by_sup.filter (make_dummy TT) then
+             (String.concat ~sep:" ∧ " (List.map ~f:effect_to_string by_sup.effects))
+          else
+            Printf.sprintf "%s →:R ¬(%s)"
+              (to_string_typed by_sup.filter)
+              (String.concat ~sep:" ∧ " (List.map ~f:effect_to_string by_sup.effects))
+        | SupByCau by_cau -> (* We cause the RHS if the LHS is true *)
+          if core_equal by_cau.filter (make_dummy TT) then
+             (String.concat ~sep:" ∧ " (List.map ~f:effect_to_string by_cau.effects))
+          else
+            Printf.sprintf "%s ∧:R ¬(%s)"
+              (to_string_typed by_cau.filter)
+              (String.concat ~sep:" ∧ " (List.map ~f:effect_to_string by_cau.effects))
+        | SupBySup by_sup -> (* We suppress the RHS if the LHS is true *)
+          if core_equal by_sup.filter (make_dummy TT) then
+             (String.concat ~sep:" ∧ " (List.map ~f:effect_to_string by_sup.effects))
+          else
+            Printf.sprintf "%s ∧:R %s"
+              (to_string_typed by_sup.filter)
+              (String.concat ~sep:" ∧ " (List.map  ~f:effect_to_string by_sup.effects))
+
+      and instruction_to_string instr =
+        let v = instr.vars
+          |> List.map ~f:(fun (var, q) -> Printf.sprintf "%s%s. " (if q then "∀" else "∃") (Var.to_string var))
+          |> String.concat in
+        let s = recipe_to_string instr.recipe in
+        let r_s_opt = Option.map ~f:recipe_to_string instr.r_recipe_opt in
+        let m = Printf.sprintf "%s[%s]" v (modality_to_string instr.modality s r_s_opt) in
+        match instr.label with
+        | None -> m
+        | Some lbl -> Printf.sprintf "{\"%s\"}{%s}" lbl m
+
+      and let_to_string (let_: let_) =
+        Printf.sprintf "LET %s(%s)%s = %s IN" let_.e
+          (Etc.string_list_to_string (List.map ~f:Var.to_string let_.vars))
+          (Enftype.to_string_let let_.enftype)
+          (Option.value_map let_.instrs_opt ~default:(to_string_typed let_.formula)
+             ~f:(fun x -> String.concat ~sep:" " (List.map ~f:instruction_to_string x)))
+
+      let to_string nf =
+        String.concat ~sep:"\n" (List.map ~f:let_to_string nf.lets)
+        ^ "\n" ^
+        String.concat ~sep:" ∧\n" (List.map ~f:instruction_to_string nf.instrs)
+
+      let rec modality_to_json = function
+        | NNow -> "{ \"constructor\": \"NNow\" }"
+        | NNext i -> 
+          Printf.sprintf "{ \"constructor\": \"NNext\", \"interval\": %s }" (Interval.to_json i)
+        | NUntilR (i, f) -> 
+          Printf.sprintf "{ \"constructor\": \"NUntilR\", \"interval\": %s, \"formula\": %s }" 
+            (Interval.to_json i) (to_json f)
+        | NUntilL (i, f) -> 
+          Printf.sprintf "{ \"constructor\": \"NUntilL\", \"interval\": %s, \"formula\": %s }" 
+            (Interval.to_json i) (to_json f)
+        | NUntilLR i -> 
+          Printf.sprintf "{ \"constructor\": \"NUntilLR\", \"interval\": %s }" (Interval.to_json i)
+        | NAlways i -> 
+          Printf.sprintf "{ \"constructor\": \"NAlways\", \"interval\": %s }" (Interval.to_json i)
+        | NEventually i -> 
+          Printf.sprintf "{ \"constructor\": \"NEventually\", \"interval\": %s }" (Interval.to_json i)
+        | NOnce i -> 
+          Printf.sprintf "{ \"constructor\": \"NOnce\", \"interval\": %s }" (Interval.to_json i)
+        | NHistorically i -> 
+          Printf.sprintf "{ \"constructor\": \"NHistorically\", \"interval\": %s }" (Interval.to_json i)
+        | NSinceL (i, f) -> 
+          Printf.sprintf "{ \"constructor\": \"NSinceL\", \"interval\": %s, \"formula\": %s }" 
+            (Interval.to_json i) (to_json f)
+        | NSinceR (i, f) -> 
+          Printf.sprintf "{ \"constructor\": \"NSinceR\", \"interval\": %s, \"formula\": %s }" 
+            (Interval.to_json i) (to_json f)
+
+      and effect_to_json = function
+        | NInstructions instrs -> 
+          Printf.sprintf "{ \"constructor\": \"NInstructions\", \"instructions\": [%s] }" 
+            (String.concat ~sep:", " (List.map ~f:instruction_to_json instrs))
+        | NEvent f -> 
+          Printf.sprintf "{ \"constructor\": \"NEvent\", \"formula\": %s }" (to_json f)
+
+      and by_to_json by =
+        Printf.sprintf "{ \"filter\": %s, \"effects\": [%s] }"
+          (to_json by.filter)
+          (String.concat ~sep:", " (List.map ~f:effect_to_json by.effects))
+
+      and recipe_to_json = function
+        | CauByCau by -> 
+          Printf.sprintf "{ \"constructor\": \"CauByCau\", \"by\": %s }" (by_to_json by)
+        | CauBySup by -> 
+          Printf.sprintf "{ \"constructor\": \"CauBySup\", \"by\": %s }" (by_to_json by)
+        | SupByCau by -> 
+          Printf.sprintf "{ \"constructor\": \"SupByCau\", \"by\": %s }" (by_to_json by)
+        | SupBySup by -> 
+          Printf.sprintf "{ \"constructor\": \"SupBySup\", \"by\": %s }" (by_to_json by)
+
+      and instruction_to_json instr =
+        Printf.sprintf "{ \"modality\": %s, \"vars\": [%s], \"recipe\": %s, \"r_recipe_opt\": %s, \"label\": %s }"
+          (modality_to_json instr.modality)
+          (String.concat ~sep:", " 
+            (List.map instr.vars ~f:(fun (v, q) -> 
+              Printf.sprintf "{ \"var\": \"%s\", \"quantifier\": \"%s\" }" 
+                (Var.to_string v) (if q then "forall" else "exists"))))
+          (recipe_to_json instr.recipe)
+          (match instr.r_recipe_opt with
+           | None -> "null"
+           | Some r -> recipe_to_json r)
+          (match instr.label with
+           | None -> "null"
+           | Some lbl -> Printf.sprintf "\"%s\"" lbl)
+
+      and let_to_json let_ =
+        Printf.sprintf "{ \"e\": \"%s\", \"vars\": [%s], \"enftype\": \"%s\", \"instrs_opt\": %s, \"formula\": %s }"
+          let_.e
+          (String.concat ~sep:", " (List.map let_.vars ~f:(fun v -> Printf.sprintf "\"%s\"" (Var.to_string v))))
+          (Enftype.to_string let_.enftype)
+          (match let_.instrs_opt with
+           | None -> "null"
+           | Some instrs -> Printf.sprintf "[%s]" (String.concat ~sep:", " (List.map ~f:instruction_to_json instrs)))
+          (to_json let_.formula)
+
+      let to_json nf =
+        Printf.sprintf "{ \"lets\": [%s], \"instrs\": [%s] }"
+          (String.concat ~sep:", " (List.map ~f:let_to_json nf.lets))
+          (String.concat ~sep:", " (List.map ~f:instruction_to_json nf.instrs))
+
+      let neg_recipe = function
+        | CauByCau by_cau -> SupByCau by_cau
+        | CauBySup by_sup -> SupBySup by_sup
+        | SupByCau by_cau -> CauByCau by_cau
+        | SupBySup by_sup -> CauBySup by_sup
+
+      let neg_instruction instr =
+        { instr with vars = List.map ~f:(fun (v, b) -> (v, not b)) instr.vars;
+                     recipe = neg_recipe instr.recipe;
+                     r_recipe_opt = Option.map ~f:neg_recipe instr.r_recipe_opt }
+
+      let rec split_lets (formula: typed_t) : let_ list * typed_t =
+        let (>>|) f formula =
+          let lets, formula = split_lets formula in
+          lets, make (f formula) formula.info in
+        let bind2 f g h =
+          let lets_g, g = split_lets g in
+          let lets_h, h = split_lets h in
+          lets_g @ lets_h, make (f g h) formula.info in
+        let bindn f gs =
+          let lets, fs = List.map ~f:split_lets gs |> List.unzip in
+          List.concat lets, make (f gs) formula.info in
+        match formula.form with
+        | TT | FF | EqConst _ | Predicate _ -> [], formula
+        | Predicate' (e, ts, f) -> split_lets f
+        | Let (e, enftype, vars, f, g) ->
+          let lets_f, formula = split_lets f in
+          let lets_g, g = split_lets g in
+          let vars = List.map ~f:fst vars in
+          lets_f @ { e; enftype; vars; formula; instrs_opt = None } :: lets_g, g
+        | Let' (e, typ_opt, vars, f, g) -> split_lets g
+        | Agg (s, op, x, y, f) -> (fun f -> Agg (s, op, x, y, f)) >>| f
+        | Top (s, op, x, y, f) -> (fun f -> Top (s, op, x, y, f)) >>| f
+        | Neg f -> (fun f -> Neg f) >>| f
+        | And (s, fs) -> bindn (fun fs -> And (s, fs)) fs
+        | Or (s, fs) -> bindn (fun fs -> Or (s, fs)) fs
+        | Imp (s, f, g) -> bind2 (fun f g -> Imp (s, f, g)) f g 
+        | Exists (x, f) -> (fun f -> Exists (x, f)) >>| f
+        | Forall (x, f) -> (fun f -> Forall (x, f)) >>| f
+        | Prev (i, f) -> (fun f -> Prev (i, f)) >>| f
+        | Next (i, f) -> (fun f -> Next (i, f)) >>| f
+        | Once (i, f) -> (fun f -> Once (i, f)) >>| f
+        | Eventually (i, f) -> (fun f -> Eventually (i, f)) >>| f
+        | Historically (i, f) -> (fun f -> Historically (i, f)) >>| f
+        | Always (i, f) -> (fun f -> Always (i, f)) >>| f
+        | Since (s, i, f, g) -> bind2 (fun f g -> Since (s, i, f, g)) f g
+        | Until (s, i, f, g) -> bind2 (fun f g -> Until (s, i, f, g)) f g 
+        | Type (f, ty) -> (fun f -> Type (f, ty)) >>| f
+        | Label (s, f) -> split_lets f
+
+      let rec init ?(label=None) (formula: typed_t) =
+        let enftype = formula.info.enftype in
+        let init_ = init in
+        let init = init ~label in
+        let make_dummy f = make f TypedInfo.dummy in
+        let and_filter filter f = ac_simplify (make_dummy (And (N, [filter; f]))) in
+        let and_recipe filter = function
+          | CauByCau by_cau ->
+            CauByCau { by_cau with filter = and_filter filter by_cau.filter }
+          | CauBySup by_sup ->
+            CauBySup { by_sup with filter = and_filter filter by_sup.filter }
+          | SupByCau by_cau ->
+            SupByCau { by_cau with filter = and_filter filter by_cau.filter }
+          | SupBySup by_sup ->
+            SupBySup { by_sup with filter = and_filter filter by_sup.filter } in
+        let rec merge_all = function
+          | [] -> []
+          | h::t ->
+            let mergeable = List.filter t ~f:(can_merge h) in
+            let not_mergeable = List.filter t ~f:(fun x -> not (can_merge h x)) in
+            let h = List.fold_left ~init:h ~f:merge mergeable in
+            h :: merge_all not_mergeable in
+        let f = 
+          match Enftype.is_causable enftype, Enftype.is_suppressable enftype with
+          | true, _ -> begin 
+              match formula.form with
+              | TT ->
+                {
+                  lets = [];
+                  instrs = [
+                    {
+                      modality = NNow;
+                      vars = [];
+                      recipe = CauByCau {
+                          filter = make_dummy TT;
+                          effects = []
+                        };
+                      r_recipe_opt = None;
+                      label;
+                    }
+                  ]
+                }
+              | Predicate (e, trms) ->
+                {
+                  lets = [];
+                  instrs = [
+                    {
+                      modality = NNow;
+                      vars = [];
+                      recipe = CauByCau {
+                          filter = make_dummy TT;
+                          effects = [NEvent formula]
+                        };
+                      r_recipe_opt = None;
+                      label;
+                    }
+                  ]
+                }
+              | Predicate' (e, trms, f) -> init f
+              | Let (e, enftype, vars, f, g) ->
+                let ng = init g in
+                let nf_opt =
+                if not (Enftype.is_causable enftype || Enftype.is_suppressable enftype)
+                then None
+                else Some (init f) in
+              let f_lets = Option.value_map ~default:[] ~f:(fun nf -> nf.lets) nf_opt in
+              let instrs_opt = Option.map ~f:(fun nf -> nf.instrs) nf_opt in
+              let new_let =
+                { e; vars = List.map ~f:fst vars; enftype; formula = f; instrs_opt } in
+              {
+                lets = new_let :: ng.lets;
+                instrs = ng.instrs
+              } 
+            | Let' (_, _, _, _, g) -> init g
+            | Neg f ->
+              let nf = init f in
+              { nf with instrs = List.map ~f:neg_instruction nf.instrs }
+            | And (L, fs) ->
+              let nfs = List.map ~f:init fs in
+              {
+                lets = List.concat_map nfs ~f:(fun nf -> nf.lets);
+                instrs = List.concat_map nfs ~f:(fun nf -> nf.instrs) |> merge_all
+              }
+            | And (R, fs) ->
+              let nfs = List.map ~f:init fs in
+              {
+                lets = List.concat_map nfs ~f:(fun nf -> nf.lets);
+                instrs = List.concat_map (List.rev nfs) ~f:(fun nf -> nf.instrs) |> merge_all
+              }
+            | Or (L, f :: gs) ->
+              let nf = init f in
+              let lets, gs = List.map ~f:split_lets gs |> List.unzip in
+              let filter = match gs with
+                | [] -> make_dummy FF
+                | [g] -> make_dummy (Neg g)
+                | gs -> make_dummy (Neg (make_dummy (Or (N, gs)))) in
+              {
+                lets = nf.lets @ List.concat lets;
+                instrs = List.map nf.instrs
+                    ~f:(fun instr -> match instr.modality with
+                      | NNow -> { instr with recipe = and_recipe filter instr.recipe }
+                      | _ -> {
+                          modality = NNow;
+                          vars = [];
+                          recipe = CauByCau {
+                                filter;
+                                effects = [NInstructions [instr]]
+                              }; 
+                          r_recipe_opt = None;
+                          label;
+                        })
+              }
+            | Or (R, fs) -> init (make (Or (L, List.rev fs)) formula.info)
+            | Imp (L, f, g) ->
+              let nf = init f in
+              let lets, g = split_lets g in
+              let filter = make_dummy (Neg g) in
+              {
+                lets = nf.lets @ lets;
+                instrs = List.map nf.instrs
+                    ~f:(fun instr -> match instr.modality with
+                        | NNow -> { instr with recipe = and_recipe filter instr.recipe }
+                        | _ -> {
+                            modality = NNow;
+                            vars = [];
+                            recipe = SupBySup {
+                                filter;
+                                effects = [NInstructions [instr]]
+                              }; 
+                            r_recipe_opt = None;
+                            label;
+                          })
+                       |> List.map ~f:neg_instruction
+              }
+            | Imp (R, f, g) ->
+              let ng = init g in
+              let lets, f = split_lets f in
+              {
+                lets = lets @ ng.lets;
+                instrs = List.map ng.instrs
+                    ~f:(fun instr -> match instr.modality with
+                        | NNow -> { instr with recipe = and_recipe f instr.recipe }
+                        | _ -> {
+                            modality = NNow;
+                            vars = [];
+                            recipe = CauByCau {
+                                filter = f;
+                                effects = [NInstructions [instr]]
+                              }; 
+                            r_recipe_opt = None;
+                            label;
+                          })
+              }
+            | Exists (x, f) ->
+              let nf = init f in
+              { lets = nf.lets;
+                instrs = List.map ~f:(fun instr -> { instr with vars = (x, false) :: instr.vars }) nf.instrs }
+            | Forall (x, f) ->
+              let nf = init f in
+              { lets = nf.lets;
+                instrs = List.map ~f:(fun instr -> { instr with vars = (x, true) :: instr.vars }) nf.instrs }
+            | Next (i, f) ->
+              let nf = init f in
+              { lets = nf.lets;
+                instrs = List.map ~f:(fun instr -> { instr with modality = NNext i }) nf.instrs }
+            | Once (i, f) ->
+              let nf = init f in
+              {
+                lets = nf.lets;
+                instrs = [
+                  {
+                    modality = NOnce i;
+                    vars = [];
+                    recipe = CauByCau {
+                        filter = make_dummy TT;
+                        effects = [NInstructions nf.instrs]
+                      };
+                    r_recipe_opt = None;
+                    label;
+                  }
+                ]
+              }
+            | Since (_, i, f, g) ->
+              let ng = init g in
+              let lets, f = split_lets f in
+              {
+                lets = lets @ ng.lets;
+                instrs = [
+                  {
+                    modality = NSinceR (i, f);
+                    vars = [];
+                    recipe = CauByCau {
+                        filter = make_dummy TT;
+                        effects = [NInstructions ng.instrs]
+                      };
+                    r_recipe_opt = None;
+                    label;
+                  }
+                ]
+              }
+            | Eventually (i, f) ->
+              let nf = init f in
+              {
+                lets = nf.lets;
+                instrs = [
+                  {
+                    modality = NEventually i;
+                    vars = [];
+                    recipe = CauByCau {
+                        filter = make_dummy TT;
+                        effects = [NInstructions nf.instrs]
+                      };
+                    r_recipe_opt = None;
+                    label;
+                  }
+                ]
+              }
+            | Always (i, f) ->
+              let nf = init f in
+              {
+                lets = nf.lets;
+                instrs = [
+                  {
+                    modality = NAlways i;
+                    vars = [];
+                    recipe = CauByCau {
+                        filter = make_dummy TT;
+                        effects = [NInstructions nf.instrs]
+                      };
+                    r_recipe_opt = None;
+                    label;
+                  }
+                ]
+              }
+            | Until (LR, i, f, g) ->
+              let nf = init f and ng = init g in
+              {
+                lets = nf.lets @ ng.lets;
+                instrs = [
+                  {
+                    modality = NUntilLR i;
+                    vars = [];
+                    recipe = CauByCau {
+                        filter = make_dummy TT;
+                        effects = [NInstructions nf.instrs]
+                      };
+                    r_recipe_opt = Some (CauByCau {
+                        filter = make_dummy TT;
+                        effects = [NInstructions ng.instrs]
+                      });
+                    label;
+                  }
+                ]
+              }
+            | Until (R, i, f, g) ->
+              let ng = init g in
+              let lets, f = split_lets f in
+              {
+                lets = lets @ ng.lets;
+                instrs = [
+                  {
+                    modality = NUntilR (i, f);
+                    vars = [];
+                    recipe = CauByCau {
+                        filter = make_dummy TT;
+                        effects = [NInstructions ng.instrs]
+                      };
+                    r_recipe_opt = None;
+                    label;
+                  }
+                ]
+              }
+            | Label (s, f) -> init_ ~label:(Some s) f
+            | _ -> assert false
+          end
+        | _, true -> begin
+            match formula.form with
+            | FF ->
+              {
+                lets = [];
+                instrs = [
+                  {
+                    modality = NNow;
+                    vars = [];
+                    recipe = SupBySup {
+                        filter = make_dummy TT;
+                        effects = []
+                      };
+                    r_recipe_opt = None;
+                    label;
+                  }
+                ]
+              }
+            | Predicate (e, trms) ->
+              {
+                lets = [];
+                instrs = [
+                  {
+                    modality = NNow;
+                    vars = [];
+                    recipe = SupBySup {
+                        filter = make_dummy TT;
+                        effects = [NEvent formula]
+                      };
+                    r_recipe_opt = None;
+                    label;
+                  }
+                ]
+              }
+            | Predicate' (e, trms, f) -> init f
+            | Let (e, enftype, vars, f, g) ->
+              let ng = init g in
+              let nf_opt =
+                if Enftype.is_only_observable enftype then None else Some (init f) in
+              let f_lets = Option.value_map ~default:[] ~f:(fun nf -> nf.lets) nf_opt in
+              let instrs_opt = Option.map ~f:(fun nf -> nf.instrs) nf_opt in
+              let new_let =
+                { e; vars = List.map ~f:fst vars; enftype; formula = f; instrs_opt } in
+              {
+                lets = new_let :: ng.lets;
+                instrs = ng.instrs
+              } 
+            | Let' (_, _, _, _, g) -> init g
+            | Neg f ->
+              let nf = init f in
+              { nf with instrs = List.map ~f:neg_instruction nf.instrs }
+            | And (L, f :: gs) ->
+              let nf = init f in
+              let lets, gs = List.map ~f:split_lets gs |> List.unzip in
+              let filter = match gs with
+                | [] -> make_dummy TT
+                | [g] -> g
+                | gs -> make_dummy (And (N, gs)) in
+              {
+                lets = nf.lets @ List.concat lets;
+                instrs = List.map nf.instrs
+                    ~f:(fun instr -> match instr.modality with
+                        | NNow -> { instr with recipe = and_recipe filter instr.recipe }
+                        | _ -> {
+                            modality = NNow;
+                            vars = [];
+                            recipe = SupBySup {
+                                filter;
+                                effects = [NInstructions [instr]]
+                              }; 
+                            r_recipe_opt = None;
+                            label;
+                          })
+              }
+            | And (R, fs) -> init (make (And (L, List.rev fs)) formula.info)
+            | Or (L, fs) ->
+              let nfs = List.map ~f:init fs in
+              {
+                lets = List.concat_map nfs ~f:(fun nf -> nf.lets);
+                instrs = List.concat_map nfs ~f:(fun nf -> nf.instrs) |> merge_all
+              }
+            | Or (R, fs) ->
+              let nfs = List.map ~f:init fs in
+              {
+                lets = List.concat_map nfs ~f:(fun nf -> nf.lets);
+                instrs = List.concat_map (List.rev nfs) ~f:(fun nf -> nf.instrs) |> merge_all
+              }
+            | Imp (L, f, g) ->
+              let nf = init f and ng = init g in
+              {
+                lets = nf.lets @ ng.lets;
+                instrs = (nf.instrs @ ng.instrs) |> merge_all
+              }
+            | Imp (R, f, g) ->
+              let nf = init f and ng = init g in
+              {
+                lets = nf.lets @ ng.lets;
+                instrs = (ng.instrs @ nf.instrs) |> merge_all
+              }
+            | Exists (x, f) ->
+              let nf = init f in
+              { lets = nf.lets;
+                instrs = List.map ~f:(fun instr -> { instr with vars = (x, false) :: instr.vars }) nf.instrs }
+            | Forall (x, f) ->
+              let nf = init f in
+              { lets = nf.lets;
+                instrs = List.map ~f:(fun instr -> { instr with vars = (x, true) :: instr.vars }) nf.instrs }
+            | Next (i, f) ->
+              let nf = init f in
+              { lets = nf.lets;
+                instrs = List.map ~f:(fun instr -> { instr with modality = NNext i }) nf.instrs }
+            | Historically (i, f) ->
+              let nf = init f in
+              {
+                lets = nf.lets;
+                instrs = [
+                  {
+                    modality = NHistorically i;
+                    vars = [];
+                    recipe = SupBySup {
+                        filter = make_dummy TT;
+                        effects = [NInstructions nf.instrs]
+                      };
+                    r_recipe_opt = None;
+                    label;
+                  }
+                ]
+              }
+            | Since (L, i, f, g) ->
+              let nf = init f in
+              let lets, g = split_lets g in
+              {
+                lets = nf.lets @ lets;
+                instrs = [
+                  {
+                    modality = NSinceL (i, g);
+                    vars = [];
+                    recipe = SupBySup {
+                        filter = make_dummy TT;
+                        effects = [NInstructions nf.instrs]
+                      };
+                    r_recipe_opt = None;
+                    label;
+                  }
+                ]
+              }
+            | Eventually (i, f) ->
+              let nf = init f in
+              {
+                lets = nf.lets;
+                instrs = [
+                  {
+                    modality = NEventually i;
+                    vars = [];
+                    recipe = SupBySup {
+                        filter = make_dummy TT;
+                        effects = [NInstructions nf.instrs]
+                      };
+                    r_recipe_opt = None;
+                    label;
+                  }
+                ]
+              }
+            | Always (i, f) ->
+              let nf = init f in
+              {
+                lets = nf.lets;
+                instrs = [
+                  {
+                    modality = NAlways i;
+                    vars = [];
+                    recipe = SupBySup {
+                        filter = make_dummy TT;
+                        effects = [NInstructions nf.instrs]
+                      };
+                    r_recipe_opt = None;
+                    label;
+                  }
+                ]
+              }
+            | Until (L, i, f, g) ->
+              let nf = init f in
+              let lets, g = split_lets g in
+              {
+                lets = nf.lets;
+                instrs = [
+                  {
+                    modality = NUntilL (i, g);
+                    vars = [];
+                    recipe = SupBySup {
+                        filter = make_dummy TT;
+                        effects = [NInstructions nf.instrs]
+                      };
+                    r_recipe_opt = None;
+                    label;
+                  }
+                ]
+              }
+            | Until (R, i, f, g) ->
+              let ng = init g in
+              let lets, f = split_lets f in
+              {
+                lets = ng.lets;
+                instrs = [
+                  {
+                    modality = NUntilR (i, f);
+                    vars = [];
+                    recipe = SupBySup {
+                        filter = make_dummy TT;
+                        effects = [NInstructions ng.instrs]
+                      };
+                    r_recipe_opt = None;
+                    label;
+                  }
+                ]
+              }
+            | Label (s, f) -> init_ ~label:(Some s) f
+            | _ -> assert false
+          end
+        | _, _ -> assert false
+
+        in (*print_endline (to_string_typed formula ^ " -> " ^ to_string f ^ "\n\n");*)
+        f
+
+
+    end
+
   end
 
 end
