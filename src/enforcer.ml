@@ -172,7 +172,7 @@ module EState = struct
     es, specialize mf.lbls es v p
 
   let vio x mf es =
-    sat x (IFormula.map_mf mf Filter.tt ~exquant:true (fun mf p -> MNeg (p mf))) es
+    sat x (IFormula.map_mf mf Enftype.cau Filter.tt ~exquant:true (fun mf p -> MNeg (p mf))) es
   
   let all_not_sat v (x: int) mf es =
     (*print_endline "--all_not_sat";*)
@@ -311,14 +311,17 @@ module EState = struct
        let new_cau = (r, List.map trms ~f:(fun trm -> ITerm.unconst (Sig.eval mformula.lbls v trm))) in
        add_cau new_cau es
     | MNeg mf -> enfvio mf v es
-    | MAnd (L, mfs, _) -> fixpoint (enfsat_andl v mfs) es
-    | MAnd (R, mfs, _) -> fixpoint (enfsat_andr v mfs) es
-    | MOr (L, mf1 :: _, _) -> enfsat mf1 (IFormula.unproj mf1 v) es
-    | MOr (R, mfs, _) when not (List.is_empty mfs) -> enfsat (List.last_exn mfs) v es
-    | MImp (L, mf1, _, _) -> enfvio mf1 (IFormula.unproj mf1 v) es
-    | MImp (R, _, mf2, _) -> enfsat mf2 (IFormula.unproj mf2 v) es
-    | MExists (x, tt, _, mf) -> enfsat mf (Map.add_exn v ~key:x ~data:(Dom.tt_default tt)) es
-    | MForall (x, _, _, mf) -> fixpoint (enfsat_forall x mf v) es
+    | MAnd (L, false, mfs, _) -> fixpoint (enfsat_andl v mfs) es
+    | MAnd (R, false, mfs, _) -> fixpoint (enfsat_andr v mfs) es
+    | MAnd (L, true, mfs, _) -> enfsat_andl v mfs es
+    | MAnd (R, true, mfs, _) -> enfsat_andr v mfs es
+    | MOr (L, _, mf1 :: _, _) -> enfsat mf1 (IFormula.unproj mf1 v) es
+    | MOr (R, _, mfs, _) when not (List.is_empty mfs) -> enfsat (List.last_exn mfs) v es
+    | MImp (L, _, mf1, _, _) -> enfvio mf1 (IFormula.unproj mf1 v) es
+    | MImp (R, _, _, mf2, _) -> enfsat mf2 (IFormula.unproj mf2 v) es
+    | MExists (x, tt, _, _, mf) -> enfsat mf (Map.add_exn v ~key:x ~data:(Dom.tt_default tt)) es
+    | MForall (x, _, _, false, mf) -> fixpoint (enfsat_forall x mf v) es
+    | MForall (x, _, _, true, mf) -> enfsat_forall x mf v es
     | MENext (i, ts, mf, vv) ->
        add_foblig (FInterval (default_ts ts es, i, mf, mformula.hash, vv), v, POS) es
     | MEEventually (i, ts, mf, vv) ->
@@ -356,7 +359,7 @@ module EState = struct
        else
          add_foblig (FUntil (default_ts ts es, LR, i, mf1, mf2, mformula.hash, vv), v, POS)
            (enfsat mf1 (IFormula.unproj mf1 v) es)
-    | MAnd (LR, _, _) ->
+    | MAnd (LR, _, _, _) ->
        raise (Errors.EnforcementError
                 (Printf.sprintf "side for %s was not fixed" (IFormula.value_to_string mformula)))
     | MLabel (s, mf) ->
@@ -383,15 +386,18 @@ module EState = struct
        let new_sup = (r, List.map trms ~f:(fun trm -> ITerm.unconst (Sig.eval mformula.lbls v trm))) in
        add_sup new_sup es
     | MNeg mf -> enfsat mf v es
-    | MAnd (L, mf1 :: _, _) -> enfvio mf1 (IFormula.unproj mf1 v) es
-    | MAnd (R, mfs, _) when not (List.is_empty mfs) ->
+    | MAnd (L, _, mf1 :: _, _) -> enfvio mf1 (IFormula.unproj mf1 v) es
+    | MAnd (R, _, mfs, _) when not (List.is_empty mfs) ->
       enfvio (List.last_exn mfs) (IFormula.unproj (List.last_exn mfs) v) es
-    | MOr (L, mfs, _) -> fixpoint (enfvio_orl v mfs) es
-    | MOr (R, mfs, _) -> fixpoint (enfvio_orr v mfs) es
-    | MImp (L, mf1, mf2, _) -> fixpoint (enfvio_imp mf1 mf2 v) es
-    | MImp (R, mf1, mf2, _) -> fixpoint (enfvio_imp mf2 mf1 v) es
-    | MExists (x, _, _, mf) -> fixpoint (enfvio_exists x mf v) es
-    | MForall (x, tt, _, mf) -> enfvio mf (Map.add_exn v ~key:x ~data:(Dom.tt_default tt)) es
+    | MOr (L, false, mfs, _) -> fixpoint (enfvio_orl v mfs) es
+    | MOr (R, false, mfs, _) -> fixpoint (enfvio_orr v mfs) es
+    | MOr (L, true, mfs, _) -> enfvio_orl v mfs es
+    | MOr (R, true, mfs, _) -> enfvio_orr v mfs es
+    | MImp (L, _, mf1, mf2, _) -> fixpoint (enfvio_imp mf1 mf2 v) es
+    | MImp (R, _, mf1, mf2, _) -> fixpoint (enfvio_imp mf2 mf1 v) es
+    | MExists (x, _, _, false, mf) -> fixpoint (enfvio_exists x mf v) es
+    | MExists (x, _, _, true, mf) -> enfvio_exists x mf v es
+    | MForall (x, tt, _, _, mf) -> enfvio mf (Map.add_exn v ~key:x ~data:(Dom.tt_default tt)) es
     | MENext (i, ts, mf, vv) ->
        add_foblig (FInterval (default_ts ts es, i, mf, mformula.hash, vv), v, NEG) es
     | MEEventually (i, ts, mf, vv) -> enfvio_eventually i ts (mformula.hash, vv) mf v es
@@ -417,9 +423,9 @@ module EState = struct
          add_foblig (FUntil (default_ts ts es, R, i, mf1, mf2, mformula.hash, vv), v, NEG) es
        else
          es
-    | MAnd (LR, _, _)
-      | MOr (LR, _, _)
-      | MImp (LR, _, _, _)
+    | MAnd (LR, _, _, _)
+      | MOr (LR, _, _, _)
+      | MImp (LR, _, _, _, _)
       | MSince (LR, _, _, _, _)
       | MEUntil (LR, _, _, _, _, _) ->
        raise (Errors.EnforcementError
@@ -488,13 +494,13 @@ let goal (es: EState.t) : IFormula.t =
   match obligs with
     | [] -> IFormula._tt
     | [mf] -> mf
-    | mfs -> IFormula.mapn_mf mfs Filter.tt
-               (fun mfs p -> MAnd (L, List.map ~f:p mfs, IFormula.empty_nop_info (List.length mfs)))
+    | mfs -> IFormula.mapn_mf mfs Enftype.cau Filter.tt
+               (fun mfs p -> MAnd (L, false, List.map ~f:p mfs, IFormula.empty_nop_info (List.length mfs)))
 
 let update_fobligs (es: EState.t) =
   let memo, (_, _, ms) =
     EState.mstep_state ~force_evaluate_lets:true
-      { es with ms = { es.ms with mf = IFormula.make MTT Filter.tt } } es.memo in
+      { es with ms = { es.ms with mf = IFormula.make MTT Enftype.cau Filter.tt } } es.memo in
   let es = { es with ms = { es.ms with lets = ms.lets } } in
   (*print_endline ("update_fobligs: lets=" ^ string_of_int (List.length ms.lets));*)
   let aux (es: EState.t) mf  = 

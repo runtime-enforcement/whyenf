@@ -131,6 +131,17 @@ module Until : sig
 
 end
 
+module EventUse : sig
+  
+  type t = Passive | Active | Mixed
+
+  val is_active : t -> bool
+  val (||) : t -> t -> t
+  val to_string : t -> string
+
+end
+
+
 module MFormula : sig
 
   type binop_info         = (Expl.t TS.t, Expl.t TS.t) Buf2.t
@@ -149,6 +160,7 @@ module MFormula : sig
   val empty_binop_info: binop_info
   val empty_nop_info: int -> nop_info
 
+
   type core_t =
     | MTT
     | MFF
@@ -157,11 +169,11 @@ module MFormula : sig
     | MAgg          of string * Aggregation.op * Aggregation.op_fun * MyTerm.t * string list * t
     | MTop          of string list * string * Aggregation.op_tfun * MyTerm.t list * string list * t
     | MNeg          of t
-    | MAnd          of Side.t * t list * nop_info
-    | MOr           of Side.t * t list * nop_info
-    | MImp          of Side.t * t * t * binop_info
-    | MExists       of string * Dom.tt * bool * t
-    | MForall       of string * Dom.tt * bool * t
+    | MAnd          of Side.t * bool * t list * nop_info
+    | MOr           of Side.t * bool * t list * nop_info
+    | MImp          of Side.t * bool * t * t * binop_info
+    | MExists       of string * Dom.tt * bool * bool * t
+    | MForall       of string * Dom.tt * bool * bool * t
     | MPrev         of Interval.t * t * prev_info
     | MNext         of Interval.t * t * next_info
     | MENext        of Interval.t * Time.t option * t * Valuation.t
@@ -180,8 +192,9 @@ module MFormula : sig
     | MLet          of string * string list * t * t
 
   and t = { mf: core_t;
+            enftype: Enftype.t;
             filter: Filter.t;
-            events: (string, String.comparator_witness) Set.t option;
+            events: (string, EventUse.t, String.comparator_witness) Map.t option;
             obligations: (int, Int.comparator_witness) Set.t option;
             hash: int;
             lbls: Lbl.t array;
@@ -190,8 +203,8 @@ module MFormula : sig
 
   val equal : t -> t -> bool
   
-  val make: core_t -> Filter.t -> t
-  val set_make: core_t -> Filter.t -> t
+  val make: core_t -> Enftype.t -> Filter.t -> t
+  val set_make: core_t -> Enftype.t -> Filter.t -> t
 
   val init: Tformula.t -> t
   val rank: t -> int
@@ -232,11 +245,11 @@ module IFormula : sig
     | MAgg          of int * Aggregation.op * Aggregation.op_fun * MyTerm.t * int list * t
     | MTop          of int list * string * Aggregation.op_tfun * MyTerm.t list * int list * t
     | MNeg          of t
-    | MAnd          of Side.t * t list * nop_info
-    | MOr           of Side.t * t list * nop_info
-    | MImp          of Side.t * t * t * binop_info
-    | MExists       of int * Dom.tt * bool * t
-    | MForall       of int * Dom.tt * bool * t
+    | MAnd          of Side.t * bool * t list * nop_info
+    | MOr           of Side.t * bool * t list * nop_info
+    | MImp          of Side.t * bool * t * t * binop_info
+    | MExists       of int * Dom.tt * bool * bool * t
+    | MForall       of int * Dom.tt * bool * bool * t
     | MPrev         of Interval.t * t * prev_info
     | MNext         of Interval.t * t * next_info
     | MENext        of Interval.t * Time.t option * t * Valuation.t
@@ -255,8 +268,9 @@ module IFormula : sig
     | MLet          of string * int list * t * t
 
   and t = { mf: core_t;
+            enftype: Enftype.t;
             filter: Filter.t;
-            events: (string, String.comparator_witness) Set.t option;
+            events: (string, EventUse.t, String.comparator_witness) Map.t option;
             obligations: (int, Int.comparator_witness) Set.t option;
             hash: int;
             lbls: Lbl.t array;
@@ -270,15 +284,15 @@ module IFormula : sig
   val _tp : t
   val _neg_tp : t
 
-  val map_mf: t -> Filter.t -> ?exquant:bool -> ?new_events:((string, String.comparator_witness) Set.t option) -> (t -> (t -> t) -> core_t) -> t
-  val map2_mf: t -> t -> Filter.t -> ?new_events:((string, String.comparator_witness) Set.t option) -> (t -> t -> (t -> t) -> core_t) -> t
-  val mapn_mf: t list -> Filter.t -> ?new_events:((string, String.comparator_witness) Set.t option) -> (t list -> (t -> t) -> core_t) -> t
+  val map_mf: t -> Enftype.t -> Filter.t -> ?exquant:bool -> ?new_events:((string, EventUse.t, String.comparator_witness) Map.t option) -> (t -> (t -> t) -> core_t) -> t
+  val map2_mf: t -> t -> Enftype.t -> Filter.t -> ?new_events:((string, EventUse.t, String.comparator_witness) Map.t option) -> (t -> t -> (t -> t) -> core_t) -> t
+  val mapn_mf: t list -> Enftype.t -> Filter.t -> ?new_events:((string, EventUse.t, String.comparator_witness) Map.t option) -> (t list -> (t -> t) -> core_t) -> t
 
   val equal : t -> t -> bool
   val rank : t -> int
   val size : t -> int
   
-  val make: core_t -> Filter.t -> t
+  val make: core_t -> Enftype.t -> Filter.t -> t
 
   val unproj: t -> Valuation.t -> Valuation.t
   val apply_valuation : ?parent_lbls:Lbl.t array -> Valuation.t -> t -> t
