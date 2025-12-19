@@ -304,9 +304,10 @@ module EState = struct
        es
     | MTT -> es
     | MPredicate (r, trms) when List.exists es.ms.lets ~f:(fun (e, _) -> String.equal e r) ->
-       let v = Valuation.of_alist_exn (List.init (List.length trms) ~f:id)
-          (List.map ~f:(fun t -> ITerm.unconst (Sig.eval mformula.lbls v t)) trms) in
-       enfsat (snd (List.find_exn es.ms.lets ~f:(fun (e, _) -> String.equal e r))) v es
+       let v' = Valuation.of_alist_exn (List.init (List.length trms) ~f:id)
+           (List.map ~f:(fun t -> ITerm.unconst (Sig.eval mformula.lbls v t)) trms) in
+       debug (Printf.sprintf "projecting(%s)=%s" (Valuation.to_string v) (Valuation.to_string v'));
+       enfsat (snd (List.find_exn es.ms.lets ~f:(fun (e, _) -> String.equal e r))) v' es
     | MPredicate (r, trms) when Sig.equal_pred_kind (Sig.kind_of_pred r) Sig.Trace ->
        let new_cau = (r, List.map trms ~f:(fun trm -> ITerm.unconst (Sig.eval mformula.lbls v trm))) in
        add_cau new_cau es
@@ -315,7 +316,9 @@ module EState = struct
     | MAnd (R, false, mfs, _) -> fixpoint (enfsat_andr v mfs) es
     | MAnd (L, true, mfs, _) -> enfsat_andl v mfs es
     | MAnd (R, true, mfs, _) -> enfsat_andr v mfs es
-    | MOr (L, _, mf1 :: _, _) -> enfsat mf1 (IFormula.unproj mf1 v) es
+    | MOr (L, _, mf1 :: _, _) ->
+      print_endline ("MOr " ^ IFormula.to_string mformula);
+      enfsat mf1 (IFormula.unproj mf1 v) es
     | MOr (R, _, mfs, _) when not (List.is_empty mfs) -> enfsat (List.last_exn mfs) v es
     | MImp (L, _, mf1, _, _) -> enfvio mf1 (IFormula.unproj mf1 v) es
     | MImp (R, _, _, mf2, _) -> enfsat mf2 (IFormula.unproj mf2 v) es
@@ -378,7 +381,7 @@ module EState = struct
     match mformula.mf with
     | _ when can_skip es mformula -> es
     | MFF -> es
-    | MPredicate (r, trms) when List.exists es.ms.lets ~f:(fun (e, _) -> String.equal e r) ->
+    | MPredicate (r, trms) when List.exists es.ms.lets ~f:(fun (e, _) -> String.equal e r) ->       
        let v = Valuation.of_alist_exn (List.init (List.length trms) ~f:id)
            (List.map ~f:(fun t -> ITerm.unconst (Sig.eval mformula.lbls v t)) trms) in
        enfvio (snd (List.find_exn es.ms.lets ~f:(fun (e, _) -> String.equal e r))) v es

@@ -70,6 +70,8 @@ let diff cs1 cs2 = match cs1, cs2 with
   | Complement s1, Finite s2 -> Complement (Set.union s1 s2)
   | Complement s1, Complement s2 -> inter (Complement s1) (Finite s2)
 
+let is_subset cs1 cs2 = equal (inter cs1 cs2) cs1
+
 (* TODO: This should be rewritten more carefully *)
 let some_elt tt = function
   | Finite s -> Set.min_elt_exn s
@@ -86,6 +88,21 @@ let some_elt tt = function
                                  (while Set.mem s !elt do
                                     elt := Float (Random.float Float.max_value)
                                   done); !elt)
+
+(* From a list of non-disjoint sets l, compute a list of disjoint sets l' such that
+   every set in l is the union of sets in l' *)
+let rec disjoint_cover = function
+  | [] -> []
+  | s :: l when List.mem l s ~equal || is_empty s -> disjoint_cover l
+  | s :: l ->
+    let overlapping = List.filter l ~f:(fun s' -> not (is_empty (inter s s'))) in
+    match overlapping with
+    | [] -> s :: disjoint_cover l
+    | _ ->
+      let non_overlapping = List.filter l ~f:(fun s' -> is_empty (inter s s')) in
+      let pieces = List.concat_map ~f:(fun s' -> [inter s s'; diff s s'; diff s' s]) overlapping in
+      disjoint_cover (pieces @ non_overlapping)
+    
 
 let is_finite = function
   | Finite _ -> true

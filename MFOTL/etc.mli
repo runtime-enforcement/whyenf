@@ -73,3 +73,5 @@ val replace_all : string -> string -> string -> string
 val latex_string : string -> string
 
 val id : 'a -> 'a
+
+val merge_lists : print:('a -> string) -> compare:('a -> 'a -> int) -> 'a list list -> 'a list

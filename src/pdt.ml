@@ -287,5 +287,66 @@ module Make (Lbl : L) = struct
     | Leaf l -> List.map l ~f:(fun el -> Leaf el)
     | Node (x, part) -> List.map (Part.split_list_dedup (eq p_eq) (Part.map part (split_list_reduce p_eq))) ~f:(fun el -> Node (x, el))
 
+  (*let reorder lbls p_eq pdt =
+    let rec aux lbls branches pdt =
+      match lbls, branches, pdt with
+      | [], _, Leaf l -> Leaf l
+      | lbl :: lbls, _, Node (x, part) when Lbl.equal x lbl ->
+        simplify (Node (x, Part.map_dedup (eq p_eq) (aux lbls branches) part))
+      | lbl :: lbls, (x, sub) :: branches when Lbl.equal x lbl ->*)
+
+  (* Swap the first two nodes labeled with l (root) and l' (next) of a pdt *)
+  let swap l' = function
+    | Leaf _ -> assert false
+    | Node (l, part) ->
+      let trees = List.concat_map part (function
+          | (sub, Node (x, part)) when Lbl.equal x l' ->
+            List.map ~f:(fun (sub', pdt') -> (sub, sub', pdt')) part
+          | (sub, pdt) -> [(sub, Setc.univ (module Dom), pdt)]) in
+      let subs' = Setc.disjoint_cover (List.map ~f:(fun (_, sub, _) -> sub) trees) in
+      let part = List.map subs'
+          ~f:(fun sub' ->
+              (sub', Node (l, List.filter_map trees ~f:(fun (sub, sub2', pdt') ->
+                   if Setc.is_subset sub' sub2' then Some (sub, pdt') else None)))) in
+      Node (l', part)
+
+  (* Sift node l' up to the top of the pdt *)
+  let rec sift_up l' = function
+    | Leaf l -> Leaf l
+    | Node (l, part) when Lbl.equal l l' -> Node (l, part)
+    | Node (l, part) -> let part = Part.map part (sift_up l') in swap l' (Node (l, part))
+
+  (* Reorder the nodes of the pdt according to lbls through sequences of swaps *)
+  let reorder lbls p_eq pdt =
+    let rec aux lbls pdt =
+      match lbls with
+      | [] -> (*print_endline "on top(0): none";*) pdt
+      | (lbl, lbl') :: lbls -> 
+        let pdt' = sift_up lbl pdt in 
+        match pdt' with
+        | Node (x, part) when Lbl.equal lbl x ->
+          (*print_endline (Printf.sprintf "on top(1): %s" (Lbl.to_string lbl'));*)
+          Node (lbl', Part.map part (aux lbls))
+        | Node _ -> 
+          (*print_endline (Printf.sprintf "on top(2): %s" (Lbl.to_string lbl'));*)
+          aux lbls pdt'
+        | Leaf _ -> (*print_endline "Leaf";*) pdt'
+   (* let rec aux lbls pdt =
+      match lbls, pdt with
+      | [], _ -> print_endline "on top(0): none"; pdt
+      | (lbl, lbl') :: lbls, Node (x, part) when Lbl.equal lbl x ->
+        print_endline (Printf.sprintf "on top(1): %s" (Lbl.to_string lbl'));
+        Node (lbl', Part.map part (aux lbls))
+      | (lbl, lbl') :: lbls, Node (x, part) ->
+        let pdt' = sift_up lbl pdt in
+        (match sift_up lbl (aux lbls pdt) with
+         | Node (x, part) when Lbl.equal lbl x -> print_endline (Printf.sprintf "on top(2): %s" (Lbl.to_string lbl')); Node (lbl', part)
+         | pdt -> print_endline "on top(3): ?"; pdt)
+      | _, Leaf l ->
+        print_endline (Printf.sprintf "reorder:3(Leaf)");
+        Leaf l*)
+    in reduce p_eq (aux lbls pdt)
+    
+
 end
 

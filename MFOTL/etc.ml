@@ -209,7 +209,6 @@ let option_to_string f = function
   | None -> "None"
   | Some x -> Printf.sprintf "Some(%s)" (f x)
 
-
 let replace_all original replacement text =
   let regexp = Str.regexp_string original in
   Str.global_replace regexp replacement text
@@ -218,3 +217,18 @@ let replace_all original replacement text =
 let latex_string s = replace_all "_" "\\_" s
 
 let id x = x
+
+let rec merge_lists ~(print:'a -> string) ~(compare:'a -> 'a -> int) (ls: 'a list list) =
+  (*print_endline (Printf.sprintf "merge_lists(%s)"
+                   (String.concat ~sep:", "
+                      (List.map ~f:(fun l -> "[" ^ String.concat ~sep:", " (List.map ~f:print l) ^"]")ls)));*)
+  let ls = List.filter ~f:(fun l -> not (List.is_empty l)) ls in
+  match ls with
+  | [] -> []
+  | l :: _ ->
+    let hs = List.map ~f:List.hd_exn ls in
+    let h = Option.value_exn (List.min_elt ~compare hs) in
+    (*print_endline ("select: " ^ print h);*)
+    h :: (merge_lists ~print ~compare (List.map ~f:(function h' :: l ->
+        if compare h h' = 0 then l else h' :: l) ls))
+

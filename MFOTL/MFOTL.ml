@@ -1080,9 +1080,12 @@ module Make
                        let q f = List.fold_left trms' ~init:f ~f:e in
                        ((fun f -> return (Predicate' (r, Term.substs v trms, q f))) >>= (aux f)) i v)*)
         | Let (r, enftype, vars, f, g) ->
-           (fun i v -> let (i, v'), vars = List.fold_map vars ~init:(i, v) ~f:(fun a (v, x) -> let a, v = fresh a v in (a, (v, x))) in
+          (*(fun i v -> let (i, v'), vars = List.fold_map vars ~init:(i, v) ~f:(fun a (v, x) -> let a, v = fresh a v in (a, (v, x))) in
                        let f, (i, _) = aux f i v' in
-                       ((fun g -> return (Let (r, enftype, vars, f, g))) >>= (aux g)) i v)
+                       ((fun g -> return (Let (r, enftype, vars, f, g))) >>= (aux g)) i v)*)
+          (fun i v -> let (i, v'), vars = List.fold_map vars ~init:(i, v) ~f:(fun a (v, x) -> let a, v = fresh a v in (a, (v, x))) in
+                       let f, (i, _) = aux f i v' in
+                       ((fun f -> (fun g -> return (Let (r, enftype, vars, f, g))) >>= (aux g)) >>= (aux f)) i v)
         | Let' (r, enftype, vars, f, g) ->
            (fun i v -> let (i, v'), vars = List.fold_map vars ~init:(i, v) ~f:(fun a (v, x) -> let a, v = fresh a v in (a, (v, x))) in
                        let f, (i, _) = aux f i v' in

@@ -8,6 +8,8 @@ module type T = sig
   type c
   type t = (v, Dom.t, c) Map.t
 
+  val set: t -> v -> Dom.t -> t
+
   val compare: t -> t -> int
   val equal: t -> t -> bool
   val empty: t

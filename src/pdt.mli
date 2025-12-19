@@ -59,5 +59,7 @@ module Make (Lbl : L) : sig
   val split_prod_reduce: ('a -> 'a -> bool) -> ('a * 'a) t -> 'a t * 'a t
   val split_list_reduce: ('a -> 'a -> bool) -> 'a list t -> 'a t list
 
+  val reorder: (Lbl.t * Lbl.t) list -> ('a -> 'a -> bool) -> 'a t -> 'a t
+
 end
 

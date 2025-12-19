@@ -33,3 +33,5 @@ val pdt_of: ?i:int -> int -> string -> Lbl.t list -> (int, Dom.t, 'a) Map.t list
 
 val table_operator: (Dom.t list list -> Dom.t list list) -> int list -> (int -> int) -> int -> Term.t list -> string list -> Lbl.t array -> Lbl.t array -> t -> t
 val aggregate: ((Dom.t, Dom.comparator_witness) Multiset.t -> Dom.t) -> int -> (int -> int) -> int -> Term.t -> string list -> Lbl.t array -> Lbl.t array -> t -> t
+
+val well_formed : t -> bool

@@ -235,3 +235,9 @@ let aggregate
     (p: t)  =
   let multiset dss = Multiset.of_list (module Dom) (List.map ~f:List.hd_exn dss) in
   table_operator (fun dss -> [[agg (multiset dss)]]) [s] f tp [x] y lbls lbls' p
+
+let rec well_formed = function
+  | Pdt.Leaf _ -> true
+  | Node (x, part) ->
+    (Part.for_all part
+       (fun p -> well_formed p && (match p with Node (x', _) -> x < x' | _ -> true)))

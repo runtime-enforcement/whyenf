@@ -8,6 +8,7 @@ module type T = sig
   type c
   type t = (v, Dom.t, c) Map.t
 
+  val set: t -> v -> Dom.t -> t
   val compare: t -> t -> int
   val equal: t -> t -> bool
   val empty: t
@@ -29,6 +30,8 @@ module Make (Var : V) = struct
   type v = Var.t
   type c = Var.comparator_witness
   type t = (Var.t, Dom.t, Var.comparator_witness) Map.t
+
+  let set (v: t) (k: Var.t) (d: Dom.t) = Map.update v k (fun _ -> d)
 
   let compare (v: t) (v': t) = Map.compare_direct Dom.compare v v'
 

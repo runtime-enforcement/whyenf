@@ -207,6 +207,8 @@ let meval (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) (m: (stri
     (*debug (Printf.sprintf "memo = %s" (Memo.to_string memo));*)
     match Memo.find memo mformula (Polarity.value pol) with
     | Some (expls, aexpl, mf) ->
+      debug (Printf.sprintf "meval_rec (%s, %d, %s) = %s"
+               (Time.to_string ts) tp (IFormula.value_to_string mformula) (Expl.to_string aexpl));
       (memo, (expls, aexpl, { mf with lbls = mformula.lbls; projs = mformula.projs }))
     | None -> 
        let memo, (expls, aexpl, mf) =
@@ -249,6 +251,11 @@ let meval (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) (m: (stri
                  memo, (one_ts tp ts expl, expl, MPredicate (r, trms))
              | Some (_, mf) ->
                let memo, (expls, aexpl, mf') = meval_rec ts tp db fobligs ~pol memo mf in
+               debug (Printf.sprintf "Reordering with trms=%s lbls=%s"
+                        (ITerm.list_to_string trms)
+                        (Lbl.to_string_list (Array.to_list mf.lbls)));
+               let expls = update_let_predicate trms mf.lbls expls in
+               let aexpl = approximate_let_predicate trms mf.lbls aexpl in
                memo, (expls, aexpl, MPredicate (r, trms))
            end
          | MAgg (s, op, op_fun, x, y, mf) ->
@@ -380,6 +387,7 @@ let meval (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) (m: (stri
        let memo = if tp = outer_tp then Memo.memoize memo mformula (Polarity.value pol) (expls, aexpl, mf) else memo in
        debug (Printf.sprintf "meval_rec (%s, %d, %s) = %s"
                 (Time.to_string ts) tp (IFormula.value_to_string mformula) (Expl.to_string aexpl));
+       if !Global.debug then assert (Expl.well_formed aexpl);
        memo, (expls, aexpl, mf)
   in meval_rec ts tp db ~pol fobligs memo mformula
 

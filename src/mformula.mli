@@ -344,9 +344,10 @@ val approximate_enext : Lbl.t array -> FObligations.t -> int * ITerm.Valuation.t
 val approximate_eventually : Lbl.t array -> Expl.t -> FObligations.t -> Interval.t -> (int * ITerm.Valuation.t) option -> timepoint -> Polarity.t option -> Expl.t
 val approximate_always : Lbl.t array -> Expl.t -> FObligations.t -> Interval.t -> (int * ITerm.Valuation.t) option -> timepoint -> Polarity.t option -> Expl.t
 val approximate_until : Lbl.t array -> (int -> int) -> (int -> int) -> Expl.t -> Expl.t -> FObligations.t -> Interval.t -> (int * ITerm.Valuation.t) option -> timepoint -> Polarity.t option -> Expl.t
+val approximate_let_predicate : ITerm.t list -> Lbl.t array -> Expl.t -> Expl.t
 
 val update_neg : Expl.t TS.t list -> Expl.t TS.t list
 val update_and : (int -> int) list -> Expl.t TS.t list list -> MFormula.nop_info -> Expl.t TS.t list * MFormula.nop_info
 val update_or : (int -> int) list -> Expl.t TS.t list list -> MFormula.nop_info -> Expl.t TS.t list * MFormula.nop_info
 val update_imp : (int -> int) -> (int -> int) -> Expl.t TS.t list -> Expl.t TS.t list -> MFormula.binop_info -> Expl.t TS.t list * MFormula.binop_info
-
+val update_let_predicate : ITerm.t list -> Lbl.t array -> Expl.t TS.t list -> Expl.t TS.t list

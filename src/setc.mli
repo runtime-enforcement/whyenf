@@ -19,8 +19,11 @@ val union: ('a, 'b) t -> ('a, 'b) t -> ('a, 'b) t
 val inter_list: ('a, 'b) Comparator.Module.t -> ('a, 'b) t list -> ('a, 'b) t
 val union_list: ('a, 'b) Comparator.Module.t -> ('a, 'b) t list -> ('a, 'b) t
 val diff: ('a, 'b) t -> ('a, 'b) t -> ('a, 'b) t
+val is_subset: ('a, 'b) t -> ('a, 'b) t -> bool
 val some_elt: Dom.tt -> (Dom.t, 'a) t -> Dom.t
 val is_finite: ('a, 'b) t -> bool
+
+val disjoint_cover: ('a, 'b) t list -> ('a, 'b) t list
 
 val to_list: ('a, 'b) t -> 'a list
 val to_json: (Dom.t, 'a) t -> string

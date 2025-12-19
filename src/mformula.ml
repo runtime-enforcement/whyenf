@@ -847,7 +847,7 @@ module MFormulaMake (Var : Modules.V) (Term : MFOTL_lib.Term.T with type v = Var
           }
 
   let subs mf = match mf.mf with
-    | MTT | MFF | MEqConst _ | MPredicate _ -> []
+    | MTT | MFF | MEqConst _ | MPredicate _  -> []
     | MExists (_, _, _, _, f)
     | MForall (_, _, _, _, f) 
     | MNeg f
@@ -973,7 +973,7 @@ module MFormulaMake (Var : Modules.V) (Term : MFOTL_lib.Term.T with type v = Var
 
   let rec to_string ?(l=0) mf =
     let n = "\n" ^ Etc.spaces (l*4) in
-    Printf.sprintf  "%s{ mf = %s;%s  filter = %s;%s  events = %s;%s  obligations = %s;%s  hash = %d;%s  lbls = %s;%s  projs = [%s];%s  subformulae = [%s] }"
+    Printf.sprintf  "%s{ mf = %s;%s  filter = %s;%s  events = %s;%s  obligations = %s;%s  hash = %d;%s  lbls = %s;%s  projs = [%s];%s  unprojs = [%s];%s  subformulae = [%s] }"
       n
       (with_aux_to_string mf) n
       (Filter.to_string mf.filter) n
@@ -990,6 +990,7 @@ module MFormulaMake (Var : Modules.V) (Term : MFOTL_lib.Term.T with type v = Var
       mf.hash n
       (Lbl.to_string_list (Array.to_list mf.lbls)) n
       (String.concat ~sep:", " (Array.to_list (Array.map ~f:string_of_int mf.projs))) n
+      (String.concat ~sep:", " (Array.to_list (Array.map ~f:(fun x -> match x with None -> "None" | Some i -> string_of_int i) mf.unprojs))) n
       (String.concat ~sep:";"
          (List.map ~f:(fun f -> Printf.sprintf "\n%s" (to_string ~l:(l+1) f)) (subs mf)))
   
@@ -1320,20 +1321,26 @@ module MFormulaMake (Var : Modules.V) (Term : MFOTL_lib.Term.T with type v = Var
     | MAnd (_, _, fs, _)
     | MOr (_, _,fs, _) -> List.fold ~init:1 ~f:(+) (List.map fs ~f:size)
 
-  let set_projs lbls mf =
+  let set_projs ?(reverse=false) lbls mf =
+    print_endline (Printf.sprintf "set_projs(%s,%s,%b)" (Lbl.to_string_list (Array.to_list lbls)) (to_string mf) reverse);
     (* Computes the projection for the child with lbls' onto the parent with lbls *)
-    let projs = Array.mapi mf.lbls ~f:(fun i lbl' ->
-        match Array.findi lbls ~f:(fun _ lbl -> match lbl, lbl' with
-            | Lbl.LAll x, LVar x'
+    let lbls_list = Array.to_list lbls in
+    let _, projs = Array.fold_mapi mf.lbls ~init:0 ~f:(fun i j lbl' ->
+        (*print_endline (Int.to_string j ^ " -- " ^ Lbl.to_string lbl' ^ " -- " ^  String.concat ~sep:"," (List.map ~f:Lbl.to_string (List.drop lbls_list j)));*)
+        match List.findi (List.drop lbls_list j) ~f:(fun _ lbl -> match lbl, lbl' with
+            | Lbl.LAll x, Lbl.LVar x'
             | LEx x, LVar x'
             | LEx x, LAll x'
             | LAll x, LEx x' -> String.equal x x'
             | _, _ -> Lbl.equal lbl lbl') with
-        | Some (i, _) -> i
-        | None -> -1) in
+        | Some (i, _) -> j+i, j+i
+        | None -> j, -1) in
+    print_endline ("=" ^ (Etc.string_list_to_string (List.map ~f:Int.to_string (Array.to_list projs))));
+    assert (fst (Array.fold projs ~init:(true, -1) ~f:(fun (b, l) x -> (b && l < x, x))));
     let unprojs = Array.init (Array.length lbls)
         ~f:(fun i -> Array.findi projs ~f:(fun _ -> Int.equal i)
              |> Option.map ~f:fst) in
+    print_endline ("=" ^ (Etc.string_list_to_string (List.map ~f:(fun p -> Option.value_map ~default:"None" ~f:Int.to_string p) (Array.to_list unprojs))));
     { mf with projs; unprojs }
 
 end
@@ -1343,6 +1350,7 @@ module MFormula = struct
   include MFormulaMake(Term.StringVar)(Term)
 
   let rec set_lbls ?(fvs=[]) ?(m=Map.empty (module String)) mf =
+    (*debug (Printf.sprintf "set_lbls(%s)..." (to_string mf));*)
     let with_lbls mf lbls = { mf with lbls } in
     let order_lbls lbls fvs =
       let f (vars, quants, nonvars) = function
@@ -1351,9 +1359,9 @@ module MFormula = struct
         | LAll _ | LEx _ as t -> (vars, quants @ [t], nonvars)
         | t      -> (vars, quants, t :: nonvars) in
       let (vars, quants, nonvars) = List.fold_left lbls ~init:([], [], []) ~f in
-      let vars = Etc.dedup ~equal:String.equal vars in
+      (*let vars = Etc.dedup ~equal:String.equal vars in
       let quants = Etc.dedup ~equal:Lbl.equal quants in
-      let nonvars = Etc.dedup ~equal:Lbl.equal nonvars in
+      let nonvars = Etc.dedup ~equal:Lbl.equal nonvars in*)
       let var_terms = List.map (Etc.reorder ~equal:String.equal vars fvs) ~f:Lbl.var in
       let nonvars = List.sort nonvars ~compare:Lbl.compare in
       var_terms @ quants @ nonvars in
@@ -1363,6 +1371,8 @@ module MFormula = struct
     let lbls_of_terms terms =
       order_lbls (List.map ~f:Lbl.of_term terms @ List.map ~f:Lbl.var (Term.fv_list terms)) fvs
       |> Array.of_list in
+    (*let lbls_of_term term = Array.of_list [Lbl.of_term term] in
+      let lbls_of_terms terms = Array.of_list (order_lbls (List.map ~f:Lbl.of_term terms) fvs) in*)
     let map1 fvs m f comb flbls =
       let f = set_lbls ~fvs ~m f in
       let lbls = flbls f.lbls in
@@ -1374,13 +1384,24 @@ module MFormula = struct
       { mf with mf = comb f1 f2 (set_projs lbls); lbls } in
     let mapn fvs m fs comb (flbls: Lbl.t array -> Lbl.t array) =
       let fs = List.map ~f:(set_lbls ~fvs ~m) fs in
+      (*print_endline "mapn";*)
+      (*List.iter fs ~f:(fun f -> print_endline (Lbl.to_string_list (Array.to_list f.lbls)));*)
       let lbls = flbls (order_lbls
-                          (List.concat (List.map ~f:(fun f -> Array.to_list f.lbls) fs)) fvs
+                          (Etc.merge_lists ~print:Lbl.to_string ~compare:Lbl.compare
+                             (List.map ~f:(fun f -> Array.to_list f.lbls) fs)) fvs
                         |> Array.of_list) in
+      (*print_endline ("-> " ^ Lbl.to_string_list (Array.to_list lbls));*)
       { mf with mf = comb fs (set_projs lbls); lbls } in
     let id lbls = lbls in
-    let id2 lbls1 lbls2 = order_lbls ((Array.to_list lbls1) @ (Array.to_list lbls2)) fvs |> Array.of_list in
-    let imp lbls1 lbls2 = order_lbls ((List.map ~f:Lbl.exquant (Array.to_list lbls1)) @ (Array.to_list lbls2)) fvs |> Array.of_list in
+    let id2 lbls1 lbls2 =
+      order_lbls (Etc.merge_lists ~print:Lbl.to_string ~compare:Lbl.compare
+                    [Array.to_list lbls1; Array.to_list lbls2]) fvs
+      |> Array.of_list in
+    let imp lbls1 lbls2 =
+      order_lbls (Etc.merge_lists ~print:Lbl.to_string ~compare:Lbl.compare
+                    [List.map ~f:Lbl.exquant (Array.to_list lbls1);
+                     Array.to_list lbls2]) fvs
+      |> Array.of_list in
     let mf' = match mf.mf with
       | MTT | MFF -> with_lbls mf no_lbls
       | MAgg (s, op, op_fun, x, y, f) ->
@@ -1401,16 +1422,13 @@ module MFormula = struct
       | MPredicate (e, ts) ->
         (match Map.find m e with
          | Some (vars, lbls) ->
-           (*print_endline "case 1";*)
+           let fvs' = Term.fv_list ts in
            let lbls = Lbl.substs
                (Map.of_alist_exn (module String) (List.zip_exn vars ts)) lbls in
-           let extra_fvs = List.filter fvs
+           let extra_fvs = List.filter fvs'
                ~f:(fun v -> not (List.mem lbls (LVar v) ~equal:Lbl.equal)) in
-           with_lbls mf (Array.of_list ((List.map ~f:Lbl.var extra_fvs) @ lbls))
+           with_lbls mf (Array.of_list (order_lbls ((List.map ~f:Lbl.var extra_fvs) @ lbls) fvs))
          | None ->
-           (*print_endline "case 2";
-           print_endline (Int.to_string (List.length ts));
-             print_endline (Int.to_string (List.length (List.filter ~f:(fun t -> not (Term.is_const t)) ts)));*)
            with_lbls mf (lbls_of_terms (List.filter ~f:(fun t -> not (Term.is_const t)) ts)))
       | MExists (x, tt, b, b', f) ->
         map1 (fvs @ [x]) m f (fun f p -> MExists (x, tt, b, b', p f)) (Lbl.quantify_array ~forall:false x)
@@ -1554,7 +1572,8 @@ module IFormula = struct
       | MFormula.MLet (e, vars, f, g) -> let g, glets = pull_lets g in g, (e, f) :: glets
       | _ -> mf, [] in
     let mf, lets = pull_lets mf in
-    let rec aux (mf: MFormula.t)  = 
+    let rec aux (mf: MFormula.t)  =
+      (*print_endline ("init " ^ MFormula.to_string mf);*)
       let mf_core = match mf.mf with
         | MFormula.MTT -> MTT
         | MFF -> MFF
@@ -1611,7 +1630,7 @@ module IFormula = struct
         unprojs     = Array.create 0 None; }
     
   let map2_mf mf1 mf2 enftype filter ?(new_events=None) f =
-    let lbls = Array.of_list (Etc.dedup ~equal:Lbl.equal (Array.to_list mf1.lbls @ Array.to_list mf2.lbls)) in
+    let lbls = Array.of_list (Etc.merge_lists ~print:Lbl.to_string ~compare:Lbl.compare ([Array.to_list mf1.lbls; Array.to_list mf2.lbls])) in
     let mf_mf = f mf1 mf2 (set_projs lbls) in
     { mf          = mf_mf;
       enftype;
@@ -1624,7 +1643,7 @@ module IFormula = struct
       unprojs     = Array.create 0 None; }
 
   let mapn_mf mfs enftype filter ?(new_events=None) f =
-    let lbls = Array.of_list (Etc.dedup ~equal:Lbl.equal (List.concat_map mfs ~f:(fun mf -> Array.to_list mf.lbls))) in
+    let lbls = Array.of_list (Etc.merge_lists ~print:Lbl.to_string ~compare:Lbl.compare (List.map mfs ~f:(fun mf -> Array.to_list mf.lbls))) in
     let mf_mf = f mfs (set_projs lbls) in
     { mf          = mf_mf;
       enftype;
@@ -2003,6 +2022,20 @@ let approximate_until (lbls: Lbl.t array) proj1 proj2 aexpl1 aexpl2 (fobligs: FO
     (fun p1 p2 p3 -> Until.approximate tp i (Polarity.equal pol POS) p1 p2 p3)
     proj1 proj2 id aexpl_new1 aexpl_new2 aexpl_next
 
+let approximate_let_predicate (trms: ITerm.t list) lbls (expl: Expl.t) =
+  let v = List.foldi ~init:Valuation.empty
+      ~f:(fun i v trm -> match ITerm.unconst_opt trm with
+          | Some d -> Valuation.set v i d
+          | None -> v) trms in
+  let idx = List.filter_map ~f:ITerm.unvar_opt trms in
+  let expl = Expl.Pdt.specialize_partial lbls v expl in
+  let inv_idx = List.init (List.length idx) ~f:(fun i -> fst (List.findi_exn idx ~f:(fun _ -> Int.equal i)), i) in
+  (*print_endline ("idx = " ^ Etc.string_list_to_string (List.map ~f:Int.to_string idx));
+    print_endline ("inv_idx = " ^ Etc.string_list_to_string (List.map ~f:(fun (a,b) -> Int.to_string a ^ "/" ^ Int.to_string b) inv_idx));*)
+  let r = Expl.Pdt.reorder inv_idx Bool.equal expl in
+  (*print_endline ("r = " ^ Expl.to_string r);*)
+  r
+
 (* Update functions (non-temporal operators) *)
 
 let update_neg (expls: Expl.t TS.t list) : Expl.t TS.t list =
@@ -2017,3 +2050,5 @@ let update_or projs (expls_list: Expl.t TS.t list list) (bufn: MFormula.nop_info
 let update_imp proj1 proj2 (expls1: Expl.t TS.t list) (expls2: Expl.t TS.t list) (buf2: MFormula.binop_info) : Expl.t TS.t list * MFormula.binop_info =
   Buf2.take (TS.map2 (apply_imp proj1 proj2)) (Buf2.add expls1 expls2 buf2)
 
+let update_let_predicate (trms: ITerm.t list) lbls (expls: Expl.t TS.t list) =
+  List.map expls ~f:(TS.map (approximate_let_predicate trms lbls))
