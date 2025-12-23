@@ -64,6 +64,8 @@ let rec of_formula
     if Enftype.is_only_observable enftype && not (Interval.is_bounded i) then
       (Stdio.print_endline ("However, the formula is not monitorable because the interval\n "
                             ^ Interval.to_string i
+                            ^ "\nin subformula\n "
+                            ^ Tyformula.to_string_typed f
                             ^ "\nis not future-bounded");
        raise (Errs.FormulaError
                 (Printf.sprintf "interval %s is not future-bounded" (Interval.to_string i))))
@@ -77,13 +79,13 @@ let rec of_formula
     | Predicate (e, trms) when Map.mem m e ->
       types, Predicate (e, trms), Map.find_exn m e, false
     | Predicate (e, trms) when not (Sig.equal_pred_kind (Sig.kind_of_pred e) Sig.Predicate) ->
-      let enftype  = Sig.enftype_of_pred e in
+      (*let enftype  = Sig.enftype_of_pred e in*)
       types, Predicate (e, trms),
-      Enftype.join enftype Enftype.obs, false
+      Enftype.join f.info.enftype Enftype.obs, false
     | Predicate (e, trms) ->
-      let enftype  = Sig.enftype_of_pred e in
+      (*let enftype  = Sig.enftype_of_pred e in*)
       types, EqConst (Tterm.make_dummy (Tterm.App (e, trms)), Dom.Int 1),
-      Enftype.join enftype Enftype.obs, false
+      Enftype.join f.info.enftype Enftype.obs, false
     | Predicate' (e, trms, f) ->
       let types, mf = of_formula f types in
       types, Predicate' (e, trms, mf), mf.info.enftype, false

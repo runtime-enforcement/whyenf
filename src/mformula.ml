@@ -924,6 +924,7 @@ module MFormulaMake (Var : Modules.V) (Term : MFOTL_lib.Term.T with type v = Var
   let value_to_string = value_to_string_rec 0
 
   let rec with_aux_to_string_rec l mf =
+    let fp b = if not b then "⟲ " else "" in
     match mf.mf with
     | MTT -> Printf.sprintf "⊤"
     | MFF -> Printf.sprintf "⊥"
@@ -932,42 +933,42 @@ module MFormulaMake (Var : Modules.V) (Term : MFOTL_lib.Term.T with type v = Var
     | MAgg (s, op, _, x, y, f) ->
       Printf.sprintf (Etc.paren l (-1) "%s <- %s(%s; %s; %s)") (Var.to_string s)
         (Aggregation.op_to_string op) (MyTerm.value_to_string x)
-        (Etc.string_list_to_string (List.map ~f:Var.to_string y)) (value_to_string_rec (-1) f)
+        (Etc.string_list_to_string (List.map ~f:Var.to_string y)) (with_aux_to_string_rec (-1) f)
     | MTop (s, op, _, x, y, f) ->
       Printf.sprintf (Etc.paren l (-1) "[%s] <- %s(%s; %s; %s)")
         (Etc.string_list_to_string (List.map ~f:Var.to_string s)) op
         (MyTerm.list_to_string x) (Etc.string_list_to_string (List.map ~f:Var.to_string y))
-        (value_to_string_rec (-1) f)
-    | MNeg f -> Printf.sprintf "¬%a" (fun _ -> value_to_string_rec 5) f
-    | MAnd (_, _, fs, _) -> Printf.sprintf (Etc.paren l 4 "%s") (String.concat ~sep:"∧" (List.map fs ~f:(value_to_string_rec 4)))
-    | MOr (_, _, fs, _) -> Printf.sprintf (Etc.paren l 3 "%s") (String.concat ~sep:"∨" (List.map fs ~f:(value_to_string_rec 4)))
-    | MImp (_, _, f, g, _) -> Printf.sprintf (Etc.paren l 4 "%a → %a") (fun _ -> value_to_string_rec 4) f (fun _ -> value_to_string_rec 4) g
-    | MExists (x, _, _, _, f) -> Printf.sprintf (Etc.paren l 5 "∃%s. %a") (Var.to_string x) (fun _ -> value_to_string_rec 5) f
-    | MForall (x, _, _, _, f) -> Printf.sprintf (Etc.paren l 5 "∀%s. %a") (Var.to_string x) (fun _ -> value_to_string_rec 5) f
-    | MPrev (i, f, aux) -> Printf.sprintf (Etc.paren l 5 "{ f = ●%a %a; aux = %a }") (fun _ -> Interval.to_string) i (fun _ -> value_to_string_rec 5) f (fun _ -> Prev.to_string) aux
-    | MNext (i, f, aux) -> Printf.sprintf (Etc.paren l 5 "{ f = ○%a %a; aux = %a }") (fun _ -> Interval.to_string) i (fun _ -> value_to_string_rec 5) f (fun _ -> Next.to_string) aux
-    | MENext (i, ts, f, _) -> Printf.sprintf (Etc.paren l 5 "○*%a %a") (fun _ -> ts_i_to_string) (ts, i) (fun _ -> value_to_string_rec 5) f
-    | MOnce (i, f, aux) -> Printf.sprintf (Etc.paren l 5 "{ f = ⧫%a %a; aux = %a }") (fun _ -> Interval.to_string) i (fun _ -> value_to_string_rec 5) f (fun _ -> Once.to_string) aux
-    | MSimpleOnce (f, aux) -> Printf.sprintf (Etc.paren l 5 "{ f = ⧫ %a; aux = %a }") (fun _ -> value_to_string_rec 5) f (fun _ -> SimpleOnce.to_string) aux
-    | MEventually (i, f, aux) -> Printf.sprintf (Etc.paren l 5 "{ f = ◊%a %a; aux = %a }") (fun _ -> Interval.to_string) i (fun _ -> value_to_string_rec 5) f (fun _ -> Eventually.to_string) aux
-    | MEEventually (i, ts, f, _) -> Printf.sprintf (Etc.paren l 5 "◊*%a %a") (fun _ -> ts_i_to_string) (ts, i) (fun _ -> value_to_string_rec 5) f
-    | MHistorically (i, f, aux) -> Printf.sprintf (Etc.paren l 5 "{ f = ■%a %a; aux = %a }") (fun _ -> Interval.to_string) i (fun _ -> value_to_string_rec 5) f (fun _ -> Once.to_string) aux
-    | MAlways (i, f, aux) -> Printf.sprintf (Etc.paren l 5 "{ f = □%a %a; aux = %a }") (fun _ -> Interval.to_string) i (fun _ -> value_to_string_rec 5) f (fun _ -> Eventually.to_string) aux
-    | MEAlways (i, ts, f, _) -> Printf.sprintf (Etc.paren l 5 "□*%a %a") (fun _ -> ts_i_to_string) (ts, i) (fun _ -> value_to_string_rec 5) f
-    | MSince (_, i, f, g, aux) -> Printf.sprintf (Etc.paren l 0 "{ f = %a S%a %a; aux = %a }") (fun _ -> value_to_string_rec 5) f 
-                                    (fun _ -> Interval.to_string) i (fun _ -> value_to_string_rec 5) g
+        (with_aux_to_string_rec (-1) f)
+    | MNeg f -> Printf.sprintf "¬%a" (fun _ -> with_aux_to_string_rec 5) f
+    | MAnd (_, b, fs, _) -> Printf.sprintf (Etc.paren l 4 "%s") (String.concat ~sep:("∧" ^ fp b) (List.map fs ~f:(with_aux_to_string_rec 4)))
+    | MOr (_, b, fs, _) -> Printf.sprintf (Etc.paren l 3 "%s") (String.concat ~sep:("∨" ^ fp b) (List.map fs ~f:(with_aux_to_string_rec 4)))
+    | MImp (_, b, f, g, _) -> Printf.sprintf (Etc.paren l 4 "%a →%s %a") (fun _ -> with_aux_to_string_rec 4) f (fp b) (fun _ -> with_aux_to_string_rec 4) g
+    | MExists (x, _, b, _, f) -> Printf.sprintf (Etc.paren l 5 "∃%s%s. %a") (Var.to_string x) (fp b) (fun _ -> with_aux_to_string_rec 5) f
+    | MForall (x, _, b, _, f) -> Printf.sprintf (Etc.paren l 5 "∀%s%s. %a") (Var.to_string x) (fp b) (fun _ -> with_aux_to_string_rec 5) f
+    | MPrev (i, f, aux) -> Printf.sprintf (Etc.paren l 5 "{ f = ●%a %a; aux = %a }") (fun _ -> Interval.to_string) i (fun _ -> with_aux_to_string_rec 5) f (fun _ -> Prev.to_string) aux
+    | MNext (i, f, aux) -> Printf.sprintf (Etc.paren l 5 "{ f = ○%a %a; aux = %a }") (fun _ -> Interval.to_string) i (fun _ -> with_aux_to_string_rec 5) f (fun _ -> Next.to_string) aux
+    | MENext (i, ts, f, _) -> Printf.sprintf (Etc.paren l 5 "○*%a %a") (fun _ -> ts_i_to_string) (ts, i) (fun _ -> with_aux_to_string_rec 5) f
+    | MOnce (i, f, aux) -> Printf.sprintf (Etc.paren l 5 "{ f = ⧫%a %a; aux = %a }") (fun _ -> Interval.to_string) i (fun _ -> with_aux_to_string_rec 5) f (fun _ -> Once.to_string) aux
+    | MSimpleOnce (f, aux) -> Printf.sprintf (Etc.paren l 5 "{ f = ⧫ %a; aux = %a }") (fun _ -> with_aux_to_string_rec 5) f (fun _ -> SimpleOnce.to_string) aux
+    | MEventually (i, f, aux) -> Printf.sprintf (Etc.paren l 5 "{ f = ◊%a %a; aux = %a }") (fun _ -> Interval.to_string) i (fun _ -> with_aux_to_string_rec 5) f (fun _ -> Eventually.to_string) aux
+    | MEEventually (i, ts, f, _) -> Printf.sprintf (Etc.paren l 5 "◊*%a %a") (fun _ -> ts_i_to_string) (ts, i) (fun _ -> with_aux_to_string_rec 5) f
+    | MHistorically (i, f, aux) -> Printf.sprintf (Etc.paren l 5 "{ f = ■%a %a; aux = %a }") (fun _ -> Interval.to_string) i (fun _ -> with_aux_to_string_rec 5) f (fun _ -> Once.to_string) aux
+    | MAlways (i, f, aux) -> Printf.sprintf (Etc.paren l 5 "{ f = □%a %a; aux = %a }") (fun _ -> Interval.to_string) i (fun _ -> with_aux_to_string_rec 5) f (fun _ -> Eventually.to_string) aux
+    | MEAlways (i, ts, f, _) -> Printf.sprintf (Etc.paren l 5 "□*%a %a") (fun _ -> ts_i_to_string) (ts, i) (fun _ -> with_aux_to_string_rec 5) f
+    | MSince (_, i, f, g, aux) -> Printf.sprintf (Etc.paren l 0 "{ f = %a S%a %a; aux = %a }") (fun _ -> with_aux_to_string_rec 5) f 
+                                    (fun _ -> Interval.to_string) i (fun _ -> with_aux_to_string_rec 5) g
                                     (fun _ -> Since.to_string) aux
-    | MSimpleSince (_, f, g, aux) -> Printf.sprintf (Etc.paren l 0 "{ f = %a S %a; aux = %a }") (fun _ -> value_to_string_rec 5) f 
-                                          (fun _ -> value_to_string_rec 5) g (fun _ -> SimpleSince.to_string) aux
-    | MUntil (i, f, g, aux) -> Printf.sprintf (Etc.paren l 0 "{ f = %a U%a %a; aux = %a }") (fun _ -> value_to_string_rec 5) f
-                                 (fun _ -> Interval.to_string) i (fun _ -> value_to_string_rec 5) g
+    | MSimpleSince (_, f, g, aux) -> Printf.sprintf (Etc.paren l 0 "{ f = %a S %a; aux = %a }") (fun _ -> with_aux_to_string_rec 5) f 
+                                          (fun _ -> with_aux_to_string_rec 5) g (fun _ -> SimpleSince.to_string) aux
+    | MUntil (i, f, g, aux) -> Printf.sprintf (Etc.paren l 0 "{ f = %a U%a %a; aux = %a }") (fun _ -> with_aux_to_string_rec 5) f
+                                 (fun _ -> Interval.to_string) i (fun _ -> with_aux_to_string_rec 5) g
                                  (fun _ -> Until.to_string) aux
-    | MEUntil (_, i, ts, f, g, _) -> Printf.sprintf (Etc.paren l 0 "%a U*%a %a") (fun _ -> value_to_string_rec 5) f
-                                       (fun _ -> ts_i_to_string) (ts, i) (fun _ -> value_to_string_rec 5) g
-    | MLabel (s, f) -> Printf.sprintf (Etc.paren l 0 "{%s}{%a}") s (fun _ -> value_to_string_rec 0) f
+    | MEUntil (_, i, ts, f, g, _) -> Printf.sprintf (Etc.paren l 0 "%a U*%a %a") (fun _ -> with_aux_to_string_rec 5) f
+                                       (fun _ -> ts_i_to_string) (ts, i) (fun _ -> with_aux_to_string_rec 5) g
+    | MLabel (s, f) -> Printf.sprintf (Etc.paren l 0 "{%s}{%a}") s (fun _ -> with_aux_to_string_rec 0) f
     | MLet (e, vars, f, g) -> Printf.sprintf (Etc.paren l (-1) "LET %s(%s) = %s IN %s")
                                 e (Etc.string_list_to_string (List.map ~f:Var.to_string vars))
-                                (value_to_string_rec (-1) f) (value_to_string_rec (-1) g)
+                                (with_aux_to_string_rec (-1) f) (with_aux_to_string_rec (-1) g)
   
   let with_aux_to_string = with_aux_to_string_rec 0
 
@@ -1186,10 +1187,11 @@ module MFormulaMake (Var : Modules.V) (Term : MFOTL_lib.Term.T with type v = Var
         | MPredicate (r, _) ->
           (match Map.find m r with
            | Some evs -> with_events mf evs
-           | None -> let is_actionable =
-                       if Enftype.is_causable mf.enftype || Enftype.is_suppressable mf.enftype
-                       then EventUse.Active else Passive in
-                     with_events mf (Map.singleton (module String) r is_actionable))
+           | None ->
+             let is_actionable =
+               if Enftype.is_causable mf.enftype || Enftype.is_suppressable mf.enftype
+               then EventUse.Active else Passive in
+             with_events mf (Map.singleton (module String) r is_actionable))
         (*| MPredicate (r, _) -> with_events mf (Set.singleton (module String) r)*)
         | MAgg (s, op, op_fun, x, y, f) -> map1 m f (fun f -> MAgg (s, op, op_fun, x, y, f))
         | MTop (s, op, op_fun, x, y, f) -> map1 m f (fun f -> MTop (s, op, op_fun, x, y, f))
@@ -1322,7 +1324,7 @@ module MFormulaMake (Var : Modules.V) (Term : MFOTL_lib.Term.T with type v = Var
     | MOr (_, _,fs, _) -> List.fold ~init:1 ~f:(+) (List.map fs ~f:size)
 
   let set_projs ?(reverse=false) lbls mf =
-    print_endline (Printf.sprintf "set_projs(%s,%s,%b)" (Lbl.to_string_list (Array.to_list lbls)) (to_string mf) reverse);
+    (*print_endline (Printf.sprintf "set_projs(%s,%s,%b)" (Lbl.to_string_list (Array.to_list lbls)) (to_string mf) reverse);*)
     (* Computes the projection for the child with lbls' onto the parent with lbls *)
     let lbls_list = Array.to_list lbls in
     let _, projs = Array.fold_mapi mf.lbls ~init:0 ~f:(fun i j lbl' ->
@@ -1335,7 +1337,7 @@ module MFormulaMake (Var : Modules.V) (Term : MFOTL_lib.Term.T with type v = Var
             | _, _ -> Lbl.equal lbl lbl') with
         | Some (i, _) -> j+i, j+i
         | None -> j, -1) in
-    print_endline ("=" ^ (Etc.string_list_to_string (List.map ~f:Int.to_string (Array.to_list projs))));
+    (*print_endline ("=" ^ (Etc.string_list_to_string (List.map ~f:Int.to_string (Array.to_list projs))));*)
     assert (fst (Array.fold projs ~init:(true, -1)
                    ~f:(fun (b, l) x -> if x < 0 then (b, l) else (b && l < x, x))));
     let unprojs = Array.init (Array.length lbls)
@@ -1490,7 +1492,8 @@ module MFormula = struct
       | Tformula.TT -> MTT
       | FF -> MFF
       | EqConst (x, c) -> MEqConst (Sig.normalize (Tterm.to_term x), c)
-      | Predicate (r, trms) -> MPredicate (r, Sig.normalize_list (Tterm.to_terms trms))
+      | Predicate (r, trms) ->
+        MPredicate (r, Sig.normalize_list (Tterm.to_terms trms))
       | Predicate' (_, _, f) | Let' (_, _, _, _, f) -> aux f
       | Agg ((s, tt), op, x, y, f) ->
          let op_fun = Aggregation.eval op tt in
@@ -2030,7 +2033,12 @@ let approximate_let_predicate (trms: ITerm.t list) lbls (expl: Expl.t) =
           | None -> v) trms in
   let idx = List.filter_map ~f:ITerm.unvar_opt trms in
   let expl = Expl.Pdt.specialize_partial lbls v expl in
-  let inv_idx = List.init (List.length idx) ~f:(fun i -> fst (List.findi_exn idx ~f:(fun _ -> Int.equal i)), i) in
+  let inv_idx =
+    List.filter_map ~f:(fun x -> x)
+      (List.init (List.length idx) ~f:(fun i ->
+           match List.findi idx ~f:(fun _ -> Int.equal i) with
+           | Some j -> Some (fst j, i)
+           | None -> None)) in
   (*print_endline ("idx = " ^ Etc.string_list_to_string (List.map ~f:Int.to_string idx));
     print_endline ("inv_idx = " ^ Etc.string_list_to_string (List.map ~f:(fun (a,b) -> Int.to_string a ^ "/" ^ Int.to_string b) inv_idx));*)
   let r = Expl.Pdt.reorder inv_idx Bool.equal expl in

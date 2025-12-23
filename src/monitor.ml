@@ -253,6 +253,7 @@ let meval (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) (m: (stri
                  memo, (one_ts tp ts expl, expl, MPredicate (r, trms))
              | Some (_, mf) ->
                let memo, (expls, aexpl, mf') = meval_rec ts tp db fobligs ~pol memo mf in
+               (*print_endline (IFormula.to_string mf);*)
                debug (Printf.sprintf "Reordering with trms=%s lbls=%s"
                         (ITerm.list_to_string trms)
                         (Lbl.to_string_list (Array.to_list mf.lbls)));
