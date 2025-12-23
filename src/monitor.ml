@@ -209,7 +209,9 @@ let meval (ts: timestamp) tp (db: Db.t) ~pol (fobligs: FObligations.t) (m: (stri
     | Some (expls, aexpl, mf) ->
       debug (Printf.sprintf "meval_rec (%s, %d, %s) = %s"
                (Time.to_string ts) tp (IFormula.value_to_string mformula) (Expl.to_string aexpl));
-      (memo, (expls, aexpl, { mf with lbls = mformula.lbls; projs = mformula.projs }))
+      (memo, (expls, aexpl, { mf with lbls = mformula.lbls;
+                                      projs = mformula.projs;
+                                      unprojs = mformula.unprojs }))
     | None -> 
        let memo, (expls, aexpl, mf) =
          match mformula.mf with

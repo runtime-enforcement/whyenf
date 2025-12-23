@@ -1336,11 +1336,12 @@ module MFormulaMake (Var : Modules.V) (Term : MFOTL_lib.Term.T with type v = Var
         | Some (i, _) -> j+i, j+i
         | None -> j, -1) in
     print_endline ("=" ^ (Etc.string_list_to_string (List.map ~f:Int.to_string (Array.to_list projs))));
-    assert (fst (Array.fold projs ~init:(true, -1) ~f:(fun (b, l) x -> (b && l < x, x))));
+    assert (fst (Array.fold projs ~init:(true, -1)
+                   ~f:(fun (b, l) x -> if x < 0 then (b, l) else (b && l < x, x))));
     let unprojs = Array.init (Array.length lbls)
         ~f:(fun i -> Array.findi projs ~f:(fun _ -> Int.equal i)
              |> Option.map ~f:fst) in
-    print_endline ("=" ^ (Etc.string_list_to_string (List.map ~f:(fun p -> Option.value_map ~default:"None" ~f:Int.to_string p) (Array.to_list unprojs))));
+    (*print_endline ("=" ^ (Etc.string_list_to_string (List.map ~f:(fun p -> Option.value_map ~default:"None" ~f:Int.to_string p) (Array.to_list unprojs))));*)
     { mf with projs; unprojs }
 
 end

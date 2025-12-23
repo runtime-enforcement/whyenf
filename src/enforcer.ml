@@ -317,7 +317,6 @@ module EState = struct
     | MAnd (L, true, mfs, _) -> enfsat_andl v mfs es
     | MAnd (R, true, mfs, _) -> enfsat_andr v mfs es
     | MOr (L, _, mf1 :: _, _) ->
-      print_endline ("MOr " ^ IFormula.to_string mformula);
       enfsat mf1 (IFormula.unproj mf1 v) es
     | MOr (R, _, mfs, _) when not (List.is_empty mfs) -> enfsat (List.last_exn mfs) v es
     | MImp (L, _, mf1, _, _) -> enfvio mf1 (IFormula.unproj mf1 v) es
