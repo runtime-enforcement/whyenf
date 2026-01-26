@@ -1,0 +1,4 @@
+(□ (∀data. ∀dataid. ∀dsid. use(data, dataid, dsid) → (⧫ legal_grounds(dsid, data)) ∨ (¬ ds_revoke(dsid, data) S ds_consent(dsid, data)))) ∧
+(□ (∀data. ∀dataid. ∀dsid. ds_deletion_request(data, dataid, dsid) → ◊[0,30] delete(data, dataid, dsid))) ∧
+(□ (∀data. ∀dataid. ∀dsid. collect(data, dataid, dsid) → (○ inform(dsid) ∨ ⧫ inform(dsid)))) ∧ 
+(□ (∀data. ∀dataid. ∀dsid. ∀processorid. (ds_deletion_request(data, dataid, dsid) ∧ ⧫ share_with(processorid, dataid)) → ◊[0,30] notify_proc(processorid, dataid)))
