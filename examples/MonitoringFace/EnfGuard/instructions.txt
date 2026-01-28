@@ -1,0 +1,7 @@
+Trace/log.log, Formula/consent.mfotl, Signature/sig.sig
+Trace/log.log, Formula/deletion.mfotl, Signature/sig.sig
+Trace/log.log, Formula/information.mfotl, Signature/sig.sig
+Trace/log.log, Formula/lawfulness.mfotl, Signature/sig.sig
+Trace/log.log, Formula/limitation.mfotl, Signature/sig.sig
+Trace/log.log, Formula/sharing.mfotl, Signature/sig.sig
+Trace/log.log, Formula/gdpr.mfotl, Signature/sig.sig
