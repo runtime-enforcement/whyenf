@@ -1,0 +1,1 @@
+EXISTS data, dataid, dsid. collect(data, dataid, dsid) AND EVENTUALLY delete(data, dataid, dsid)

@@ -1,0 +1,1 @@
+∀data. ∀dataid. ∀dsid. ∀processorid. (ds_deletion_request(data, dataid, dsid) ∧ ⧫ share_with(processorid, dataid)) → ◊[0,30] notify_proc(processorid, dataid)
