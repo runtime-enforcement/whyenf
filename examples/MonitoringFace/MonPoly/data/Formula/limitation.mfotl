@@ -1,1 +1,1 @@
-EXISTS data, dataid, dsid. collect(data, dataid, dsid) AND EVENTUALLY delete(data, dataid, dsid)
+EXISTS data, dataid, dsid. collect(data, dataid, dsid) AND NOT (EVENTUALLY[0,30] delete(data, dataid, dsid))

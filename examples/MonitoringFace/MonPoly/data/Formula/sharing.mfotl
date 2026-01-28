@@ -1,1 +1,1 @@
-EXISTS data, dataid, dsid, processorid. (ds_deletion_request(data, dataid, dsid) AND ONCE share_with(processorid, dataid)) IMPLIES EVENTUALLY[0,30] notify_proc(processorid, dataid))
+EXISTS data, dataid, dsid, processorid. (ds_deletion_request(data, dataid, dsid) AND (ONCE share_with(processorid, dataid))) AND NOT (EVENTUALLY[0,30] notify_proc(processorid, dataid))
