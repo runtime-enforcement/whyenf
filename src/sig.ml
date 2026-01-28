@@ -81,16 +81,18 @@ let add_letpred_empty p_name = add_letpred p_name []
 let add_pred p_name arg_tts enftype rank kind =
   (*print_endline (p_name ^ " " ^ Enftype.to_string enftype);*)
   if equal_pred_kind kind Predicate then
-    ignore (Hashtbl.add table ~key:p_name
-              ~data:(Func { arity = List.length arg_tts;
-                            arg_ttts = List.map arg_tts ~f:(fun (x, tt) -> x, Ctxt.TConst tt);
-                            ret_ttts = [TConst TInt];
-                            kind = External; strict = false }))
+    Hashtbl.add_exn table ~key:p_name
+      ~data:(Func { arity = List.length arg_tts;
+                    arg_ttts = List.map arg_tts ~f:(fun (x, tt) -> x, Ctxt.TConst tt);
+                    ret_ttts = [TConst TInt];
+                    kind = External; strict = false })
+  else if String.equal p_name "tick" then
+    Stdio.printf "Warning: Ignoring overloaded tick() event"
   else
-    ignore (Hashtbl.add_exn table ~key:p_name
-              ~data:(Pred { arity = List.length arg_tts;
-                            arg_ttts = List.map arg_tts ~f:(fun (x, tt) -> x, Ctxt.TConst tt);
-                            enftype; rank; kind }))
+    Hashtbl.add_exn table ~key:p_name
+      ~data:(Pred { arity = List.length arg_tts;
+                    arg_ttts = List.map arg_tts ~f:(fun (x, tt) -> x, Ctxt.TConst tt);
+                    enftype; rank; kind })
 
 let add_func f_name arg_tts ret_tt kind strict =
   Hashtbl.add_exn table ~key:f_name ~data:(
