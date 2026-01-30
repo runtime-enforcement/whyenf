@@ -235,6 +235,43 @@ module Make
     | And (_, fs)
       | Or (_, fs) -> Set.union_list (module String) (List.map fs ~f:(predicates ~lets))
 
+  let rec typed_predicates ?(lets=Map.empty (module String)) f =
+    let merge_maps =
+      Map.merge ~f:(fun ~key -> function
+          | `Both (t, u) -> Some (Enftype.join t u)
+          | `Left t -> Some t
+          | `Right t -> Some t) in
+    match f.form with
+    | TT
+      | FF
+      | EqConst _ -> Map.empty (module String)
+    | Predicate (r, trms) -> Option.value ~default:(Map.singleton (module String) r f.info.enftype) (Map.find lets r)
+    | Let (r, _, _, f, g) -> typed_predicates ~lets:(Map.update lets r ~f:(fun _ -> typed_predicates ~lets f)) g
+    | Predicate' (_, _, f)
+      | Let' (_, _, _, _, f)
+      | Neg f 
+      | Exists (_, f)
+      | Forall (_, f)
+      | Prev (_, f)
+      | Next (_, f)
+      | Once (_, f)
+      | Eventually (_, f)
+      | Historically (_, f)
+      | Always(_, f) 
+      | Agg (_, _, _, _, f)
+      | Top (_, _, _, _, f)
+      | Type (f, _)
+      | Label (_, f) -> typed_predicates ~lets f
+    | Imp (_, f, g)
+      | Since (_, _, f, g)
+      | Until (_, _, f, g) -> merge_maps (typed_predicates ~lets f) (typed_predicates ~lets g)
+    | And (_, fs)
+      | Or (_, fs) ->
+        List.fold_left (List.map ~f:(typed_predicates ~lets) fs)
+          ~init:(Map.empty (module String)) ~f:merge_maps
+          
+  (*Set.union_list (module String) (List.map fs ~f:(predicates ~lets))*)
+
   let rec deg f = match f.form with
     | TT
       | FF
@@ -2813,7 +2850,7 @@ module Make
         enftype: Enftype.t;
         instrs_opt: instruction list option;
         formula: typed_t;
-        events: (string * monotonicity) list;
+        events: (string * monotonicity * Enftype.t) list;
       } [@@deriving equal]
 
       type t = {
@@ -2928,6 +2965,16 @@ module Make
                Printf.sprintf "{ \"name\": \"%s\", \"polarity\": \"%s\" }"
                  e (monotonicity_to_string m)) event_list))
 
+      let typed_events_to_json event_list =
+        Printf.sprintf "[%s]"
+          (Etc.string_list_to_string (List.map ~f:(fun (e, m, t) ->
+               Printf.sprintf "{ \"name\": \"%s\", \"polarity\": \"%s\", \"effect\": %s }"
+                 e (monotonicity_to_string m)
+                 (match Enftype.is_causable t, Enftype.is_suppressable t with
+                  | true, false -> "\"Cau\""
+                  | false, true -> "\"Sup\""
+                  | false, false -> "null")) event_list))
+
       let rec modality_to_json = function
         | NNow -> "{ \"constructor\": \"NNow\" }"
         | NNext i -> 
@@ -3002,15 +3049,16 @@ module Make
            | None -> "null"
            | Some instrs -> Printf.sprintf "[%s]" (String.concat ~sep:", " (List.map ~f:instruction_to_json instrs)))
           (to_json let_.formula)
-          (events_to_json let_.events)
+          (typed_events_to_json let_.events)
 
       let to_json nf =
         Printf.sprintf "{ \"lets\": [%s], \"instrs\": [%s] }"
           (String.concat ~sep:", " (List.map ~f:let_to_json nf.lets))
           (String.concat ~sep:", " (List.map ~f:instruction_to_json nf.instrs))
 
-      let monotonicity_list f =
-        let events = predicates f in
+      let typed_monotonicity_list f =
+        let typed_events = typed_predicates f in
+        let events = Set.of_list (module String) (Map.keys typed_events) in
         let non_monotone_map, non_antimonotone_map = non_monotone_predicates f in
         let non_monotone = Set.of_list (module String) (Map.keys non_monotone_map) in
         let non_antimonotone = Set.of_list (module String) (Map.keys non_antimonotone_map) in
@@ -3020,10 +3068,14 @@ module Make
         let monotone = Set.diff monotone irrelevant in
         let antimonotone = Set.diff antimonotone irrelevant in
         let neither = Set.diff events (Set.union_list (module String) [monotone; antimonotone; irrelevant]) in
-        List.map ~f:(fun e -> (e, NIrrelevant)) (Set.to_list irrelevant)
-        @ List.map ~f:(fun e -> (e, NMonotonic)) (Set.to_list monotone)
-        @ List.map ~f:(fun e -> (e, NAntimonotonic)) (Set.to_list antimonotone)
-        @ List.map ~f:(fun e -> (e, NNeither)) (Set.to_list neither)
+        let find = Map.find_exn typed_events in
+        List.map ~f:(fun e -> (e, NIrrelevant, find e)) (Set.to_list irrelevant)
+        @ List.map ~f:(fun e -> (e, NMonotonic, find e)) (Set.to_list monotone)
+        @ List.map ~f:(fun e -> (e, NAntimonotonic, find e)) (Set.to_list antimonotone)
+        @ List.map ~f:(fun e -> (e, NNeither, find e)) (Set.to_list neither)
+
+      let monotonicity_list f =
+        List.map ~f:(fun (a, b, c) -> (a, b)) (typed_monotonicity_list f)
 
       let set_events by =
         { by with events = monotonicity_list by.filter }
@@ -3058,7 +3110,7 @@ module Make
           let lets_g, g = split_lets g in
           let vars = List.map ~f:fst vars in
           lets_f @ { e; enftype; vars; formula; instrs_opt = None;
-                     events = monotonicity_list formula } :: lets_g, g
+                     events = typed_monotonicity_list formula } :: lets_g, g
         | Let' (e, typ_opt, vars, f, g) -> split_lets g
         | Agg (s, op, x, y, f) -> (fun f -> Agg (s, op, x, y, f)) >>| f
         | Top (s, op, x, y, f) -> (fun f -> Top (s, op, x, y, f)) >>| f
@@ -3150,7 +3202,7 @@ module Make
               let instrs_opt = Option.map ~f:(fun nf -> nf.instrs) nf_opt in
               let new_let =
                 { e; vars = List.map ~f:fst vars; enftype; formula = f; instrs_opt;
-                  events = monotonicity_list f } in
+                  events = typed_monotonicity_list f } in
               {
                 lets = new_let :: ng.lets;
                 instrs = ng.instrs
@@ -3412,7 +3464,7 @@ module Make
               let instrs_opt = Option.map ~f:(fun nf -> nf.instrs) nf_opt in
               let new_let =
                 { e; vars = List.map ~f:fst vars; enftype; formula = f; instrs_opt;
-                  events = monotonicity_list f } in
+                  events = typed_monotonicity_list f } in
               {
                 lets = new_let :: ng.lets;
                 instrs = ng.instrs
