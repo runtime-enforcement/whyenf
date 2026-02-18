@@ -235,12 +235,16 @@ module Make
     | And (_, fs)
       | Or (_, fs) -> Set.union_list (module String) (List.map fs ~f:(predicates ~lets))
 
+  let merge_maps =
+    Map.merge ~f:(fun ~key -> function
+        | `Both (t, u) -> Some (Enftype.join t u)
+        | `Left t -> Some t
+        | `Right t -> Some t)
+
+  let merge_all_maps =
+    List.fold_left ~init:(Map.empty (module String)) ~f:merge_maps
+
   let rec typed_predicates ?(lets=Map.empty (module String)) f =
-    let merge_maps =
-      Map.merge ~f:(fun ~key -> function
-          | `Both (t, u) -> Some (Enftype.join t u)
-          | `Left t -> Some t
-          | `Right t -> Some t) in
     match f.form with
     | TT
       | FF
@@ -266,9 +270,7 @@ module Make
       | Since (_, _, f, g)
       | Until (_, _, f, g) -> merge_maps (typed_predicates ~lets f) (typed_predicates ~lets g)
     | And (_, fs)
-      | Or (_, fs) ->
-        List.fold_left (List.map ~f:(typed_predicates ~lets) fs)
-          ~init:(Map.empty (module String)) ~f:merge_maps
+      | Or (_, fs) -> merge_all_maps (List.map ~f:(typed_predicates ~lets) fs)
           
   (*Set.union_list (module String) (List.map fs ~f:(predicates ~lets))*)
 
@@ -2827,7 +2829,7 @@ module Make
       and by = {
         filter:  formula;
         effects: effect list;
-        events: (string * monotonicity) list;
+        events: (string * monotonicity * Enftype.t) list;
       } [@@deriving equal]
 
       and recipe =
@@ -2857,6 +2859,33 @@ module Make
         lets: let_ list;
         instrs: instruction list;
       } [@@deriving equal]
+
+      let rec effect_typed_predicates = function
+        | NInstructions instrs -> merge_all_maps (List.map ~f:instruction_typed_predicates instrs)
+        | NEvent f -> typed_predicates f
+
+      and effects_typed_predicates effects =
+        merge_all_maps (List.map ~f:effect_typed_predicates effects)
+
+      and instruction_typed_predicates instr =
+        match instr.modality with
+        | NNow -> recipe_typed_predicates instr.recipe
+        | NNext _ -> Map.empty (module String)
+        | NUntilL (_, f) 
+        | NUntilR (_, f)
+        | NSinceL (_, f) 
+        | NSinceR (_, f) -> merge_maps (typed_predicates f) (recipe_typed_predicates instr.recipe)
+        | NUntilLR _
+        | NAlways _ 
+        | NEventually _
+        | NOnce _
+        | NHistorically _ -> recipe_typed_predicates instr.recipe
+
+      and recipe_typed_predicates = function
+        | CauByCau by
+        | CauBySup by
+        | SupByCau by
+        | SupBySup by -> effects_typed_predicates by.effects
 
       let can_merge_recipes recipe recipe' =
         match recipe, recipe' with
@@ -2959,11 +2988,11 @@ module Make
         ^ "\n" ^
         String.concat ~sep:" ∧\n" (List.map ~f:instruction_to_string nf.instrs)
 
-      let events_to_json event_list =
+      (*let events_to_json event_list =
         Printf.sprintf "[%s]"
           (Etc.string_list_to_string (List.map ~f:(fun (e, m) ->
                Printf.sprintf "{ \"name\": \"%s\", \"polarity\": \"%s\" }"
-                 e (monotonicity_to_string m)) event_list))
+                 e (monotonicity_to_string m)) event_list))*)
 
       let typed_events_to_json event_list =
         Printf.sprintf "[%s]"
@@ -3013,7 +3042,7 @@ module Make
         Printf.sprintf "{ \"filter\": %s, \"effects\": [%s], \"events\": %s }"
           (to_json by.filter)
           (String.concat ~sep:", " (List.map ~f:effect_to_json by.effects))
-          (events_to_json by.events)
+          (typed_events_to_json by.events)
 
       and recipe_to_json = function
         | CauByCau by -> 
@@ -3056,8 +3085,8 @@ module Make
           (String.concat ~sep:", " (List.map ~f:let_to_json nf.lets))
           (String.concat ~sep:", " (List.map ~f:instruction_to_json nf.instrs))
 
-      let typed_monotonicity_list f =
-        let typed_events = typed_predicates f in
+      let typed_monotonicity_list ?(init=Map.empty (module String)) f =
+        let typed_events = merge_maps init (typed_predicates f) in
         let events = Set.of_list (module String) (Map.keys typed_events) in
         let non_monotone_map, non_antimonotone_map = non_monotone_predicates f in
         let non_monotone = Set.of_list (module String) (Map.keys non_monotone_map) in
@@ -3074,11 +3103,8 @@ module Make
         @ List.map ~f:(fun e -> (e, NAntimonotonic, find e)) (Set.to_list antimonotone)
         @ List.map ~f:(fun e -> (e, NNeither, find e)) (Set.to_list neither)
 
-      let monotonicity_list f =
-        List.map ~f:(fun (a, b, c) -> (a, b)) (typed_monotonicity_list f)
-
       let set_events by =
-        { by with events = monotonicity_list by.filter }
+        { by with events = typed_monotonicity_list ~init:(effects_typed_predicates by.effects) by.filter }
 
       let neg_recipe = function
         | CauByCau by_cau -> SupByCau by_cau
@@ -3241,7 +3267,7 @@ module Make
                           recipe = CauByCau {
                                 filter;
                                 effects = [NInstructions [instr]];
-                                events = monotonicity_list filter;
+                                events = typed_monotonicity_list ~init:(instruction_typed_predicates instr) filter;
                               }; 
                           r_recipe_opt = None;
                           label;
@@ -3263,7 +3289,7 @@ module Make
                             recipe = SupBySup {
                                 filter;
                                 effects = [NInstructions [instr]];
-                                events = monotonicity_list filter;
+                                events = typed_monotonicity_list ~init:(instruction_typed_predicates instr) filter;
                               }; 
                             r_recipe_opt = None;
                             label;
@@ -3284,7 +3310,7 @@ module Make
                             recipe = CauByCau {
                                 filter;
                                 effects = [NInstructions [instr]];
-                                events = monotonicity_list filter;
+                                events =  typed_monotonicity_list ~init:(instruction_typed_predicates instr) filter;
                               }; 
                             r_recipe_opt = None;
                             label;
@@ -3491,7 +3517,7 @@ module Make
                             recipe = SupBySup {
                                 filter;
                                 effects = [NInstructions [instr]];
-                                events = monotonicity_list filter;
+                                events = typed_monotonicity_list ~init:(instruction_typed_predicates instr) filter;
                               }; 
                             r_recipe_opt = None;
                             label;
