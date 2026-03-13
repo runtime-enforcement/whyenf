@@ -144,8 +144,6 @@ module Make
 
     val rank : t -> int
 
-    val present_filter : ?lets:((string, 'a * Filter.t, String.comparator_witness) Map.t) -> ?b:bool -> t -> Filter.t
-
     module Errors : sig
 
       type error =
@@ -189,29 +187,8 @@ module Make
     type pg_map = (string, Etc.string_set_list, String.comparator_witness) Map.t
     type t_map  = (string, Enftype.t * int list, String.comparator_witness) Map.t
 
-    val solve_past_guarded : pg_map -> Var.t -> bool -> ('i, Var.t, Dom.t, Term.t) _t -> Etc.string_set_list
-    val solve_past_guarded_multiple_vars : pg_map -> (Var.t * Dom.tt option) list -> string -> ('i, Var.t, Dom.t, Term.t) _t -> pg_map
-    val solve_past_guarded_multiple : pg_map -> Var.t -> bool -> ('i, Var.t, Dom.t, Term.t) _t list -> Etc.string_set_list
-    val is_past_guarded : ?ts:pg_map -> Var.t -> bool -> ('i, Var.t, Dom.t, Term.t) _t -> bool
-    val is_past_guarded_multiple : ?ts:pg_map -> Var.t -> bool -> ('i, Var.t, Dom.t, Term.t) _t list -> bool
-    val observable: ?itl_observable:(string, bool, String.comparator_witness) Map.t -> ('i, Var.t, Dom.t, Term.t) _t -> bool
-    val observable_multiple: ?itl_observable:(string, bool, String.comparator_witness) Map.t -> ('i, Var.t, Dom.t, Term.t) _t list -> bool
-
-    val types : ?itl_itvs:(string, Zinterval.t, String.comparator_witness) Map.t -> ?itl_strict:(string, bool, String.comparator_witness) Map.t -> ?itl_observable:(string, bool, String.comparator_witness) Map.t -> Enftype.t -> pg_map -> t -> Constraints.verdict
-    val convert : ?lets:(string, Enftype.t * Filter.t, String.comparator_witness) Map.t -> Interval.v -> Enftype.t -> t -> typed_t option
     val do_type : ?verbose:bool -> ?moderate:bool -> t -> Time.Span.s -> typed_t
-    val strictly_relative_past : ?itl_itvs:(string, Zinterval.t, String.comparator_witness) Map.t -> ?itl_strict:(string, bool, String.comparator_witness) Map.t -> ?itl_observable:(string, bool, String.comparator_witness) Map.t -> ('i, Var.t, Dom.t, Term.t) _t -> bool
-    val is_transparent: typed_t -> bool
 
-    module Normalized : sig
-
-      type t
-
-      val to_string : t -> string
-      val to_json : t -> string
-      val init : ?label:string option -> typed_t -> t
-        
-    end
 
   end
 

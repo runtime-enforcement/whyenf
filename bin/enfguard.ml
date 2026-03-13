@@ -11,22 +11,9 @@ module Enfguard = struct
 
   let formula_ref = ref None
   let sig_ref = ref In_channel.stdin
-  let logstr_ref = ref ""
 
-  let run debug forall monitoring log_file logstr sig_file formula_file func_file out_file json bound time_zone step statistics latex print_json print_normal_form label simplify no_filter no_memo unroll_all =
+  let run debug enfflash sig_file formula_file =
     if debug then Global.debug := true;
-    if forall then Global.forall := true;
-    if monitoring then Global.monitoring := true;
-    if label then Global.label := true;
-    if simplify then Global.simplify := true;
-    if no_filter then Global.filter := false;
-    if no_memo then Global.memo := false;
-    if unroll_all then Global.unroll_all := true;
-    if print_normal_form then Global.print_normal_form := true;
-    (match log_file with
-     | Some logf -> inc_ref := In_channel.create logf
-     | None -> ());
-    logstr_ref := Option.value logstr ~default:"";
     (match sig_file with
      | Some sf -> Other_parser.Sig.parse_from_channel sf
      | None -> ());
@@ -40,55 +27,15 @@ module Enfguard = struct
                              Out_channel.flush stdout;
                              None))
      | None -> ());
-    (match func_file with
-     | Some f -> Funcs.Python.load f
-     | None -> ());
-    (match out_file with
-     | Some outf -> outc_ref := Out_channel.create outf
-     | None -> ());
-    if json then Global.json := true;
-    (match bound with
-     | Some b -> b_ref := MFOTL_lib.Time.Span.of_string b
-     | None -> ());
-    (match time_zone with
-     | Some tz ->
-         let tz_setting = if String.(=) tz "local" then
-                            CalendarLib.Time_Zone.Local
-                          else
-                            CalendarLib.Time_Zone.UTC_Plus (Int.of_string tz)
-         in
-         CalendarLib.Time_Zone.change tz_setting
-     | None -> ());
-    (match step with
-     | Some s -> s_ref := MFOTL_lib.Time.Span.of_string s
-     | None -> ());
     match !formula_ref with
     | Some sformula ->
        let _ =
-         let xs = Set.elements (Sformula.fv sformula) in
-         let sformula =
-           if forall
-           then Sformula.SExists (xs, sformula)
-           else sformula in
          let formula = Formula.init sformula in
-         let formula =
-           if label
-           then formula
-           else Formula.erase_label formula in
-         if statistics then
-           Formula.print_statistics formula
-         else if print_normal_form && json then
-           let open Tyformula.MFOTL_Enforceability(Sig) in
-           Stdio.printf "%s\n" (Normalized.to_json (Normalized.init (Enforcer.type_formula ~verbose:false formula)))
-         else if print_normal_form then
-           let open Tyformula.MFOTL_Enforceability(Sig) in
-           Stdio.printf "%s\n" (Normalized.to_string (Normalized.init (Enforcer.type_formula ~verbose:false formula)))
-         else if latex then
-           Stdio.printf "%s\n" (Formula.to_latex formula)
-         else if print_json then
-           Stdio.printf "%s\n" (Formula.to_json formula)
-         else
-           Enforcer.exec formula
+         let open Tyformula.MFOTL_Enforceability(Sig) in
+         let f = Formula.convert_vars formula in
+         let f = Tyformula.of_formula' f in
+         let f = do_type ~moderate:(not !Global.unroll_all) f !b_ref in
+         printf "%s\n" (Tyformula.to_string_typed f)
        in
          ()
     | None ->
@@ -97,33 +44,14 @@ module Enfguard = struct
 
   let command =
     Command.basic
-      ~summary:"EnfGuard: A tool for monitoring and enforcing MFOTL formulas"
-      ~readme:(fun () -> "Processes log files against MFOTL formulas with various options.")
+      ~summary:"EnfFlash: A tool for monitoring and enforcing MFOTL formulas"
       (let%map_open.Command debug = flag "-debug" no_arg ~doc:" Enable debug mode"
-       and forall = flag "-forall" no_arg ~doc:" Quantify free variables universally"
-       and monitoring = flag "-monitoring" no_arg ~doc:" Monitoring mode"
-       and log_file = flag "-log" (optional string) ~doc:"FILE Log file as trace (default: stdin)"
-       and logstr = flag "-logstr" (optional string) ~doc:"STRING Log string"
+       and enfflash = flag "-enfflash" no_arg ~doc:" Quantify free variables universally"
        and sig_file = flag "-sig" (optional string) ~doc:"FILE Signature file"
        and formula_file = flag "-formula" (optional string) ~doc:"FILE MFOTL formula file"
-       and func_file = flag "-func" (optional string) ~doc:"FILE Python file containing function definitions"
-       and out_file = flag "-out" (optional string) ~doc:"FILE Output file (default: stdout)"
-       and json = flag "-json" no_arg ~doc:" Enable JSON output"
-       and bound = flag "-b" (optional string) ~doc:"INT[smhdMy] Default bound for future operators (default: 0)"
-       and time_zone = flag "-tz" (optional string) ~doc:"local|INT Time zone (default: local, otherwise UTC+x)"
-       and step = flag "-s" (optional string) ~doc:"INT[smhdMy] Enforcement step (default: 1s)"
-       and statistics = flag "-statistics" no_arg ~doc:" Print statistics about the formula"
-       and latex = flag "-latex" no_arg ~doc:" Print latex code of the formula"
-       and print_json = flag "-print-json" no_arg ~doc:" Print json representation of the formula"
-       and print_normal_form = flag "-print-normal-form" no_arg ~doc:" Print normal form of the formula"
-       and label = flag "-label" no_arg ~doc:" Report labels of enforcement actions"
-       and simplify = flag "-simplify" no_arg ~doc:" Simplify the formula"
-       and no_filter = flag "-no-filter" no_arg ~doc:" Do not use filter optimization"
-       and no_memo = flag "-no-memo" no_arg ~doc:" Do not use memo optimization"
-       and unroll_all = flag "-unroll-all" no_arg ~doc:" Unroll all let bindings"
        in
        fun () ->
-       run debug forall monitoring log_file logstr sig_file formula_file func_file out_file json bound time_zone step statistics latex print_json print_normal_form label simplify no_filter no_memo unroll_all)
+       run debug enfflash sig_file formula_file)
 
 end
 

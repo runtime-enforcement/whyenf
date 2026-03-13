@@ -1504,103 +1504,6 @@ module Make
   let stricts ?(itl_strict=Map.empty (module String)) ?(itv=Zinterval.singleton 0) ?(fut=false) =
     List.for_all ~f:(strict ~itl_strict ~itv ~fut)
 
-  (* Tabularization *)
-  let mark_tabular (f : typed_t) : typed_t =
-    let rec aux (tab: (string, bool, String.comparator_witness) Map.t) f : typed_t =
-      let form, tabular = match f.form with 
-        | TT 
-        | FF 
-        | EqConst _ -> f.form, true
-        | Predicate (e, terms) ->
-          Predicate (e, terms), Option.value ~default:true (Map.find tab e)
-        | Predicate' (e, trms, f) ->
-          let f = aux tab f in Predicate' (e, trms, f), f.info.tabular
-        | Let (s, enftype, terms, f, g) ->
-          let f = aux tab f in
-          let g = aux (Map.update tab s ~f:(fun _ -> f.info.tabular)) g in
-          Let (s, enftype, terms, f, g), g.info.tabular
-        | Let' (s, enftype, terms, f, g) ->
-          let f = aux tab f in
-          let g = aux tab g in
-          Let' (s, enftype, terms, f, g), g.info.tabular
-        | Agg (s, op, x, y, f) ->
-          let f = aux tab f in
-          Agg (s, op, x, y, f), f.info.tabular
-        | Top (s, op, x, y, f) ->
-          let f = aux tab f in
-          Top (s, op, x, y, f), f.info.tabular
-        | Neg f ->
-          let f = aux tab f in
-          Neg f, false
-        | And (s, fs) ->
-          let negated_fs = Set.union_list (module Var)
-              (List.map ~f:(fun f -> match f.form with
-                   | Neg f -> fvs [f]
-                   | _ -> Set.empty (module Var)) fs) in
-          let other_fs = Set.union_list (module Var)
-              (List.map ~f:(fun f -> match f.form with
-                   | Neg f -> Set.empty (module Var)
-                   | _ -> Set.empty (module Var)) fs) in
-          let tabular = List.for_all ~f:(fun f -> match f.form with
-              | Neg f -> f.info.tabular
-              | _ -> f.info.tabular) fs
-                        && Set.is_subset negated_fs other_fs in 
-          let fs = List.map ~f:(aux tab) fs in 
-          And (s, fs), tabular 
-        | Or (s, fs) ->
-          let hd_fvs = fvs [List.hd_exn fs] in
-          let tabular = List.for_all ~f:(fun f -> f.info.tabular) fs
-                        && List.for_all ~f:(fun f -> Set.equal hd_fvs (fvs [f])) fs in
-          let fs = List.map ~f:(aux tab) fs in
-          Or (s, fs), tabular 
-        | Imp (s, f, g) ->
-          let f = aux tab f in
-          let g = aux tab g in
-          let tabular = f.info.tabular && g.info.tabular && Set.equal (fvs [f]) (fvs [g]) in 
-          Imp (s, f, g), tabular
-        | Exists (x, f) ->
-          let f = aux tab f in
-          Exists (x, f), f.info.tabular
-        | Forall (x, f) ->
-          let f = aux tab f in
-          Forall (x, f), false
-        | Prev (i, f) ->
-          let f = aux tab f in
-          Prev (i, f), f.info.tabular
-        | Next (i, f) ->
-          let f = aux tab f in
-          Next (i, f), f.info.tabular
-        | Once (i, f) ->
-          let f = aux tab f in
-          Once (i, f), f.info.tabular
-        | Eventually (i, f) ->
-          let f = aux tab f in
-          Eventually (i, f), f.info.tabular
-        | Historically (i, f) ->
-          let f = aux tab f in
-          Historically (i, f), f.info.tabular
-        | Always (i, f) ->
-          let f = aux tab f in
-          Always (i, f), f.info.tabular
-        | Since (s, i, f, g) ->
-          let f = aux tab f in
-          let g = aux tab g in
-          let tabular = f.info.tabular && g.info.tabular && Set.equal (fvs [f]) (fvs [g]) in
-          Since (s, i, f, g), tabular
-        | Until (s, i, f, g) ->
-          let f = aux tab f in
-          let g = aux tab g in
-          let tabular = f.info.tabular && g.info.tabular && Set.equal (fvs [f]) (fvs [g]) in
-          Until (s, i, f, g), tabular
-        | Type (f, ty) ->
-          let f = aux tab f in
-          Type (f, ty), f.info.tabular
-        | Label (s, f) ->
-          let f = aux tab f in
-          Label (s, f), f.info.tabular
-      in { f with form; info = { f.info with tabular } }
-    in aux (Map.empty (module String)) f
-
   (* Monotonicity *)
 
   let rec predicates_of_formula f =
@@ -1762,136 +1665,176 @@ module Make
         | Or (_, fs) -> let f f = rank f in
                         List.fold ~f:(+) ~init:0 (List.map fs ~f)
 
-    (* Past-guardedness check *)
+    
+    (* Conversion:
+      *1. Pull out: lets to the beginning of the formula
+                    all temporal operators into lets at the beginning of the formula
+                    all existential quantifiers out of the formula
+       2. Go through the lets and convert them to filters, checking past-guardedness
+          of all variables in the arguments and computing conditions for
+          causability/suppressability
+       4. Go through the formula after the lets and normalize it
 
-    let eib r i b = Printf.sprintf "%s.%d.%b" r i b
+    *)
 
-    type pg_map = (string, Etc.string_set_list, String.comparator_witness) Map.t
-    type t_map  = (string, Enftype.t * int list, String.comparator_witness) Map.t
+    (* Pulling out let bindings, temporal operators, and quantifiers *)
+    let rec all_exists form = match form.form with
+      | Exists (x, f) -> let xs, forms = all_exists f in x :: xs, f :: forms
+      | _ -> [], []
 
-    let rec solve_past_guarded (ts: pg_map) (x: Var.t) p (f:('i, Var.t, Dom.t, Term.t) _t)  =
-      let matches ts x r i t = Term.equal (Term.dummy_var x) t && Map.mem ts (eib r i p) in
-      let map_var default f t = match Term.unvar_opt t with Some y -> f y | None -> default in
-      let rec aux ts x p (f: ('i, Var.t, Dom.t, Term.t) _t) =
-        let s =
-          match f.form, p with
-          | TT, false -> [Set.empty (module String)]
-          | FF, true -> [Set.empty (module String)]
-          | EqConst (y, _), true ->
-             map_var [] (fun y -> if Var.equal_ident x y
-                                  then [Set.empty (module String)] else []) y
-          | Predicate (r, trms), _ when List.existsi ~f:(matches ts x r) trms ->
-            (*print_endline "Predicate--case 1";*)
-             let f i t = if matches ts x r i t then Some (Map.find_exn ts (eib r i p)) else None in
-             List.concat (List.filter_mapi trms ~f)
-          | Predicate (r, trms), true
-               when List.exists ~f:(map_var false (Var.equal_ident x)) trms
-                    && Sig.mem r
-                    && Enftype.is_observable (Sig.enftype_of_pred r) ->
-               (*print_endline "Predicate--case 2";*)
-             [Set.singleton (module String) r]
-          | Predicate' (_, _, f), _ -> aux ts x p f
-          | Let (e, _, vars, f, g), _ ->
-            (*let f i ts z =
-               let ts = Map.update ts (eib e i true) ~f:(fun _ -> aux ts z true f) in
-               Map.update ts (eib e i false) ~f:(fun _ -> aux ts z false f) in
-              let ts = List.foldi vars ~init:ts ~f in*)
-            let ts = solve_past_guarded_multiple_vars ts vars e f in
-            aux ts x p g
-          | Let' (_, _, _, _, f), _ -> aux ts x p f
-          | Agg (s, _, t, _, f), true when Var.equal_ident s x ->
-             let sols_list = List.map (Term.fv_list [t]) ~f:(fun z -> aux ts z p f) in
-             List.map ~f:(Etc.inter_list (module String)) (Etc.cartesian sols_list)
-          | Agg (_, _, _, y, f), _ when List.mem y x ~equal:Var.equal_ident ->
-             aux ts x p f
-          | Top (_, _, _, y, f), _ when List.mem y x ~equal:Var.equal_ident -> aux ts x p f
-          | Top (s, _, x', _, f), true when List.mem s x ~equal:Var.equal_ident ->
-             (*print_endline "#############################";
-               print_endline "solve_past_guarded.Top--begin";*)
-             let sols_list = List.map (Term.fv_list x') ~f:(fun z -> aux ts z p f) in
-             (*print_endline "solve_past_guarded.Top--end";
-               print_endline "#############################";
-               print_endline "";
-               print_endline "";*)
-             List.map ~f:(Etc.inter_list (module String)) (Etc.cartesian sols_list)
-          | Neg f, _ -> aux ts x (not p) f
-          | And (_, fs'), true | Or (_, fs'), false ->
-             Etc.dedup ~equal:Set.equal (List.concat_map fs' ~f:(aux ts x p))
-          | Imp (_, f', g'), false ->
-             Etc.dedup ~equal:Set.equal (aux ts x (not p) f' @ aux ts x p g')
-          | And (_, fs'), false | Or (_, fs'), true ->
-             List.map ~f:(Etc.inter_list (module String)) (Etc.cartesian (List.map fs' ~f:(aux ts x p)))
-          | Imp (_, f', g'), true ->
-             List.map ~f:(Etc.inter_list (module String)) (Etc.cartesian [aux ts x (not p) f'; aux ts x p g'])
-          | Exists (y, f), _ | Forall (y, f), _ when not (Var.equal_ident x y) -> aux ts x p f
-          | Prev (_, f), true | Once (_, f), true -> aux ts x p f
-          | Once (i, f), false | Eventually (i, f), false when Interval.has_zero i -> aux ts x p f
-          | Historically (_, f), false | Always (_, f), false -> aux ts x p f
-          | Historically (i, f), true | Always (i, f), true when Interval.has_zero i -> aux ts x p f
-          | Since (_, i, f, g), true when not (Interval.has_zero i) ->
-             aux ts x p (make (conj N f g) f.info)
-          | Since (_, _, _, g), true -> aux ts x p g
-          | Since (_, i, _, g), false | Until (_, i, _, g), false when Interval.has_zero i -> aux ts x p g
-          | Until (_, i, f, _), true when not (Interval.has_zero i) -> aux ts x p f
-          | Until (_, _, f, g), true -> aux ts x p (make (disj N f g) f.info)
-          | Label (_, f), _ -> aux ts x p f
-          | _ -> [] in
-        (*Stdio.print_endline (Printf.sprintf "solve_past_guarded(%s, %s, %b) = [%s]"
-                               (Var.to_string x)
-                               (to_string_value f) p
-                               (*(String.concat ~sep:"; " (List.map ~f:(fun (k, _) -> Printf.sprintf "%s -> [%s]" k (String.concat ~sep:"; " (List.map ~f:(fun es -> "{" ^ (String.concat ~sep:", " (Set.elements es)) ^ "}") s))) (Map.to_alist ts)))*)
-                               (String.concat ~sep:"; " (List.map ~f:(fun es -> "{" ^ (String.concat ~sep:", " (Set.elements es)) ^ "}") s)) );*)
-        (*Stdio.print_endline (Printf.sprintf "solve_past_guarded([%s], %s, %b, %s) = [%s]"
-                         (String.concat ~sep:"; " (List.map ~f:(fun (k, _) -> Printf.sprintf "%s -> %s" k (String.concat ~sep:"; " (List.map ~f:(fun es -> "{" ^ (String.concat ~sep:", " (Set.elements es)) ^ "}") s))) (Map.to_alist ts)))
-          (Var.to_string x) p (op_to_string f)
-          (String.concat ~sep:"; " (List.map ~f:(fun es -> "{" ^ (String.concat ~sep:", " (Set.elements es)) ^ "}") s)) );*)        s in
-      aux ts x p f
+    let strip_exists f = f |> all_exists |> snd |> List.last_exn
 
-    and solve_past_guarded_multiple_vars (ts: pg_map) (x: (Var.t * Dom.tt option) list) e f : pg_map =
-      let f i ts (x, _) = 
-        let ts = Map.update ts (eib e i true) ~f:(fun _ -> let r = solve_past_guarded ts x true f in (*Stdio.print_endline ("add_mapping: " ^ eib e i true ^ " -> " ^ (String.concat ~sep:"; " (List.map ~f:(fun es -> "{" ^ (String.concat ~sep:", " (Set.elements es)) ^ "}") r)));*) r) in
-        Map.update ts (eib e i false) ~f:(fun _ -> let r = solve_past_guarded ts x false f in   (*Stdio.print_endline ("add_mapping: " ^ eib e i true ^ " -> " ^ (String.concat ~sep:"; " (List.map ~f:(fun es -> "{" ^ (String.concat ~sep:", " (Set.elements es)) ^ "}") r)));*) r)
-      in List.foldi x ~init:ts ~f
+    let add_back_exists f xs fs =
+      List.fold_right (List.zip_exn xs fs)
+          ~f:(fun (x, f') f -> { f' with form = Exists (x, f) }) ~init:f
 
-    let solve_past_guarded_multiple ts (x : Var.t) e fs =
-      Etc.inter_string_set_list (List.map ~f:(solve_past_guarded ts x e) fs)
+    let rec pull_out ?(i=0) (form:(Info.t, Var.t, Dom.t, Term.t) _t) :
+      int * (string * Enftype.t option * (Var.t * Dom.tt option) list * (Info.t, Var.t, Dom.t, Term.t) _t) list * (Info.t, Var.t, Dom.t, Term.t) _t = 
+      match form.form with
+      | TT | FF | EqConst _ | Predicate _ -> (0, [], form)
+      | Predicate' (_, _, f)
+      | Let' (_, _, _, _, f)
+      | Type (f, _) -> pull_out ~i f
+      | Let (e, enftype, vars, f, g) ->
+        let i, letsf, f = pull_out ~i f in
+        let i, letsg, g = pull_out ~i g in
+        i, letsf @ (e, Some enftype, vars, f) :: letsg, g
+      | Neg f ->
+        let i, letsf, f = pull_out ~i f in
+        i, letsf, { f with form = Neg f }
+      | Exists (x, _) ->
+        let xs, fs = all_exists form in
+        let i, lets, f = pull_out ~i (List.last_exn fs) in
+        let e = "Exists" ^ string_of_int i in
+        let fvs = Set.elements (fv f) in
+        let vars = List.map ~f:(fun v -> (v, None)) fvs in
+        let g = add_back_exists f xs fs in
+        i + 1, lets @ [e, None, vars, { f with form = g.form }],
+        { f with form = Predicate (e, List.map ~f:Term.dummy_var fvs) }
+      | Forall (x, f) ->
+        pull_out ~i { form with form = Neg ({ form with form = Exists (x, { form with form = Neg f }) }) }
+      | Prev (itv, f) when Interval.is_full itv ->
+        let i, lets, f = pull_out ~i f in
+        let e = "Prev" ^ string_of_int i in
+        let fvs = Set.elements (fv f) in
+        let vars = List.map ~f:(fun v -> (v, None)) fvs in
+        i + 1, lets @ [e, None, vars, { f with form = Prev (itv, f) }],
+        { f with form = Predicate (e, List.map ~f:Term.dummy_var fvs) }
+      | Once (itv, f) when Interval.is_full itv ->
+        let i, lets, f = pull_out ~i f in
+        let e = "Once" ^ string_of_int i in
+        let fvs = Set.elements (fv f) in
+        let vars = List.map ~f:(fun v -> (v, None)) fvs in
+        i + 1, lets @ [e, None, vars, { f with form = Once (itv, f) }],
+        { f with form = Predicate (e, List.map ~f:Term.dummy_var fvs) }
+      | Eventually (itv, f) ->
+        let i, lets, f = pull_out ~i f in
+        i + 1, lets, { form with form = f.form }
+      | Historically (itv, f) when Interval.is_full itv ->
+        let i, lets, f = pull_out ~i f in
+        let e = "Historically" ^ string_of_int i in
+        let fvs = Set.elements (fv f) in
+        let vars = List.map ~f:(fun v -> (v, None)) fvs in
+        i + 1, lets @ [e, None, vars, { f with form = Historically (itv, f) }],
+        { f with form = Predicate (e, List.map ~f:Term.dummy_var fvs) }
+      | Always (itv, f) when Interval.is_full itv ->
+        let i, lets, f = pull_out ~i f in
+        i, lets, { form with form = Always (itv, f) }
+      | Since (s, itv, f, g) ->
+        let i, letsf, f = pull_out ~i f in
+        let i, letsg, g = pull_out ~i g in
+        let e = "Since" ^ string_of_int i in
+        let fvs = Set.elements (fv form) in
+        let vars = List.map ~f:(fun v -> (v, None)) fvs in
+        i + 1, letsf @ letsg @ [e, None, vars, { f with form = Since (s, itv, f, g) }],
+        { f with form = Predicate (e, List.map ~f:Term.dummy_var fvs) }
+      | Historically (itv, f) when Interval.is_full itv ->
+        let i, lets, f = pull_out ~i f in
+        let e = "Historically" ^ string_of_int i in
+        let fvs = Set.elements (fv f) in
+        let vars = List.map ~f:(fun v -> (v, None)) fvs in
+        i + 1, lets @ [e, None, vars, { f with form = Historically (itv, f) }],
+        { f with form = Predicate (e, List.map ~f:Term.dummy_var fvs) }
+      | And (s, fs) ->
+        let i, lets, fs = List.fold_right fs ~init:(i, [], [])
+            ~f:(fun f (i, lets, fs) -> let i, lets', f = pull_out ~i f in i, lets' @ lets, f :: fs) in
+        i, lets, { form with form = And (s, fs) }
+      | Or (s, fs) ->
+        let i, lets, fs = List.fold_right fs ~init:(i, [], [])
+            ~f:(fun f (i, lets, fs) -> let i, lets', f = pull_out ~i f in i, lets' @ lets, f :: fs) in
+        i, lets, { form with form = Or (s, fs) }
+      | Imp (s, f, g) ->
+        let i, letsf, f = pull_out ~i f in
+        let i, letsg, g = pull_out ~i g in
+        i, letsf @ letsg, { form with form = Imp (s, f, g) }
+      | _ -> failwith ("unsupported constructor " ^ op_to_string form)
 
-    let is_past_guarded ?(ts=Map.empty (module String)) x p f =
-      not (List.is_empty (solve_past_guarded ts x p f))
+    let do_pull_out f = let i, lets, f = pull_out f in lets, f
 
-    let is_past_guarded_multiple ?(ts=Map.empty (module String)) x p =
-      List.for_all ~f:(is_past_guarded ~ts x p) 
+    (* Present-guardedness check *)
 
-    (* Present filters *)
+    type trigger = {
+      guards: t list;
+      filter: t
+    }
 
-    let rec present_filter_ ?(lets=Map.empty (module String)) ?(b=true) f =
-      let open Filter in
-      let present_filter_ = present_filter_ ~lets in
-      let filter = 
-        match f.form with
-        | TT -> if b then tt else ff
-        | FF -> if b then ff else tt
-        | Predicate (e, _) when Map.mem lets e -> snd (Map.find_exn lets e)
-        | Predicate (e, _) when not (Map.mem lets e) && b ->
-           (match Sig.kind_of_pred e with
-            | Trace when Enftype.is_observable (Sig.enftype_of_pred e) -> An e
-            | _ -> tt)
-        | Neg f -> present_filter_ ~b:(not b) f
-        | And (_, fs) when b -> AllOf (List.map ~f:(present_filter_ ~b) fs)
-        | And (_, fs) -> OneOf (List.map ~f:(present_filter_ ~b) fs)
-        | Or (_, fs) when b -> OneOf (List.map ~f:(present_filter_ ~b) fs)
-        | Or (_, fs) -> AllOf (List.map ~f:(present_filter_ ~b) fs)
-        | Imp (_, f, g) when b -> OneOf [present_filter_ ~b:(not b) f; present_filter_ ~b g]
-        | Imp (_, f, g) -> AllOf [present_filter_ ~b:(not b) f; present_filter_ ~b g]
-        | Exists (_, f) | Forall (_, f) | Label (_, f) | Predicate' (_, _, f) -> present_filter_ ~b f
-        | _ -> tt
-      in (*print_endline (Printf.sprintf "present_filter_ %s (%s) = %s" (Bool.to_string b) (formula_to_string f) (to_string filter));*)
-      filter
-
-    let present_filter ?(lets=Map.empty (module String)) ?(b=true) f =
-      let filter = Filter.simplify (present_filter_ ~lets ~b f) in
-      (*print_endline (Printf.sprintf "present_filter %s (%s) = %s" (Bool.to_string b) (formula_to_string f) (Filter.to_string filter));*)
-      filter
+    let init_trigger filter = { guards = []; filter }
+                         
+    (* Given a formula f with a free variable x, find p_1, ..., p_k, g such that
+       if p is true:  f = (p_1 | ... | p_k) & g
+       if p is false: f =  p_1 | ... | p_k -> g
+       in both cases: x is one of the arguments of each of p_1, ..., p_k.
+       If this is not possible, the variable x is not present-guarded; return None *)
+    let rec normalize_present_guarded (x: Var.t) (p: bool) (trigger: trigger) : trigger option =
+      let npg = normalize_present_guarded x in
+      (* First, check if one of the existing guards already does the job *)
+      let with_existing_guard = List.exists trigger.guards 
+          ~f:(fun guard -> match guard.form with
+              | Predicate (_, trms) -> List.exists ~f:(Term.equal (Term.dummy_var x)) trms
+              | _ -> false) in
+      if with_existing_guard
+      then Some trigger
+      (* If it not the case, look for a new guard *)
+      else begin
+        match trigger.filter.form, p with
+        | TT, false -> Some trigger
+        | FF, true  -> Some trigger
+        | Predicate (r, trms), true when List.exists ~f:(Term.equal (Term.dummy_var x)) trms ->
+          Some { guards = trigger.filter :: trigger.guards; filter = make_dummy TT }
+        | Neg f, _ ->
+          Option.map (npg (not p) { trigger with filter = f }) ~f:(fun trigger ->
+              { trigger with filter = make_dummy (Neg trigger.filter) })
+        | And (_, fs), true ->
+          Option.map ~f:(fun (i, (ps, g)) ->
+              let a, b = List.split_n fs i in
+              ps, And (N, a @ (make_dummy g) :: (List.tl_exn b)))
+            (List.find_mapi ~f:(fun i f ->
+                 Option.map ~f:(fun f -> (i, f)) (npg true f)) fs)
+        | Or (_, fs), false ->
+          Option.map ~f:(fun (i, (ps, g)) ->
+              let a, b = List.split_n fs i in
+              ps, Or (N, a @ (make_dummy g) :: (List.tl_exn b)))
+            (List.find_mapi ~f:(fun i f ->
+                 Option.map ~f:(fun f -> (i, f)) (npg false f)) fs)
+        | Imp (_, f1, f2), false ->
+          (match npg true f1, npg false f2 with
+           | Some (ps, g), _ -> Some (ps, Imp (N, make_dummy g, f2))
+           | _, Some (ps, g) -> Some (ps, Imp (N, f1, make_dummy g))
+           | _ -> None)
+        | And (_, fs), false
+        | Or (_, fs), true ->
+          Option.map (Option.all (List.map ~f:(npg false) fs)) ~f:(fun psgs ->
+              let pss, _ = List.unzip psgs in List.concat pss, f.form)
+        | Imp (_, f1, f2), true ->
+          (match npg false f1, npg true f2 with
+           | Some (ps1, _), Some (ps2, _) -> Some (ps1 @ ps2, f.form)
+           | _ -> None)
+        | Exists (y, f), _ when not (Var.equal_ident x y) ->
+          Option.map ~f:(fun (ps, f) -> (ps, Exists (y, make_dummy f))) (npg p f)
+        | Forall (y, f), _ when not (Var.equal_ident x y) ->
+          Option.map ~f:(fun (ps, f) -> (ps, Forall (y, make_dummy f))) (npg p f)
+        | _ -> None
+      end
 
     (* Enforceability typing *)
     
@@ -2150,1538 +2093,441 @@ module Make
 
     end
 
-    (* Predicate e must have enftype at least t, at most its type in ts, and not be CauSup*)
-    let types_predicate_lower (ts: t_map) (t: Enftype.t) (e: string) =
-      let t' = fst (Map.find_exn ts e) in
-      if Enftype.geq t' t then
-        Constraints.Possible (CConj [Constraints.geq e t; Constraints.leq e t'])
-      else
-        Constraints.Impossible (ECast (e, t', t))
+    type clause = {
+      trigger: trigger;
+      effects: t list
+    }
+                    
+    type enf_sols = (clause list * Constraints.constr) list
+        
+    type let_def = {
+      name: string;
+      enftype_opt: Enftype.t option;
+      args: (Var.t * Dom.tt option) list;
+      body: t;
+      enf_sols: enf_sols;
+    }
 
-    (* Predicate e must be strict; only add the constraint if the event is more than obs *)
-    let types_predicate_strict (ts: t_map) (e: string) =
-      let t' = fst (Map.find_exn ts e) in
-      let t' = Enftype.meet t' Enftype.sct in
-      if Enftype.leq t' Enftype.obs then
-        Constraints.Possible CTT
-      else
-        Constraints.Possible (Constraints.leq e t')
+    type let_map = (string, let_def, String.comparator_witness) Map.t
 
-    let terms_are_strict trms =
-      List.for_all (Term.fn_list trms) ~f:(fun name -> Sig.strict_of_func name)
 
-    let observable ?(itl_observable=Map.empty (module String)) f =
-      Set.for_all (predicates f)
-        ~f:(fun e -> match Map.find itl_observable e with
-            | Some b -> b
-            | None -> Enftype.is_observable (Sig.enftype_of_pred e))
+    (* Check that all variables in a formula are past-guarded and, if possible, normalize the formula *)
+    let normalize_clause ?(vars=None) (g: t) (p: bool) (orig_f: t) : [ `Fail of Errors.error | `Success of clause ] =
+      let vars = match vars with None -> Set.elements (fvs [g]) | Some vars -> vars in
+      List.fold_right
+        ~f:(fun x ->
+            function
+            | `Fail e -> `Fail e
+            | `Success f -> 
+              match normalize_present_guarded x p f with
+              | None -> `Fail (Errors.ERule ("Variable " ^ Var.to_string x ^ " is not guarded in " ^ to_string orig_f))
+              | Some (guards, filter) ->
+                match p, f with
+                | true, And (N, fs) -> `Success ({ guards = make_dummy (And (N, make_dummy (Or (N, guards)) :: fs)))
+                | true, _ -> `Success (make_dummy (And (N, [make_dummy (Or (N, guards)); make_dummy (Label ("filter", make_dummy f))])))
+                | false, _ -> `Success (make_dummy (Imp (N, make_dummy (Or (N, guards)), make_dummy (Label ("filter", make_dummy f))))))
+        ~init:(`Success g) vars
 
-    let observable_multiple ?(itl_observable=Map.empty (module String)) =
-      List.for_all ~f:(observable ~itl_observable)
-
-    let strictly_relative_past
-          ?(itl_itvs=Map.empty (module String))
-          ?(itl_strict=Map.empty (module String))
-          ?(itl_observable=Map.empty (module String)) f =
-      relative_past ~itl_itvs f && strict ~itl_strict f && observable ~itl_observable f
-    
-    let types
-          ?(itl_itvs=Map.empty (module String))
-          ?(itl_strict=Map.empty (module String))
-          ?(itl_observable=Map.empty (module String))
-          (t: Enftype.t) (pgs: pg_map) (f: t) =
-      let error s = Constraints.Impossible (EFormula (Some s, f, t)) in
-      let strictly_relative_past = strictly_relative_past ~itl_itvs ~itl_strict ~itl_observable in
-      let transparently = Enftype.geq t Enftype.tcausable || Enftype.geq t Enftype.tsuppressable in
-      let only_if_strictly_relative_past fs constr =
-        if not transparently then
-          constr
-        else
-          (let not_srp = List.filter fs ~f:(fun f -> not (strictly_relative_past f)) in
-           match not_srp with
-           | [] -> constr
-           | fs -> error (Printf.sprintf "for transparent causability %s must be SRP"
-                            (String.concat ~sep:", " (List.map ~f:to_string fs)))) in
-      let only_if_bounded i constr =
-        if not transparently || Interval.is_bounded i then
-          constr
-        else
-          error (Printf.sprintf "for transparent causability the interval %s must be bounded"
-                   (Interval.to_string i)) in
-      let rolling_only_if_strictly_relative_past fs f_to_constr =
-        let rec aux acc = function
-          | [] -> Constraints.Possible CTT
-          | [f] -> only_if_strictly_relative_past acc (f_to_constr f)
-          | f :: fs -> Constraints.disj
-                         (aux (f::acc) fs)
-                         (only_if_strictly_relative_past (acc@fs) (f_to_constr f)) in
-        aux [] fs in
-      let ts = Sig.pred_enftype_map () in
-      let rec aux (t: Enftype.t) (pgs: pg_map) (ts: t_map) (f: t) =
-        (*print_endline (Printf.sprintf "types: t=%s, f=%s" (Enftype.to_string t) (to_string f));*)
-        let aux' t f = aux t pgs ts f in
-        let r = match Enftype.is_causable t, Enftype.is_suppressable t with
-          | true, true ->
-             Constraints.Impossible (
-                 EFormula (Some (to_string f
-                                 ^ " is never both causable and suppressable"), f, t))
-          | true, false -> begin
-              match f.form with
-              | TT -> Constraints.Possible CTT
-              | Predicate (e, terms) ->
-                 let _, is     = Map.find_exn ts e in
-                 let terms     = List.filteri terms
-                                   ~f:(fun i _ -> List.mem is i ~equal:Int.equal) in
-                 let fvs       = Term.fv_list terms in
-                 let fvs_ids   = Etc.dedup ~equal:String.equal (List.map ~f:Var.ident fvs)  in
-                 let es        = List.map fvs_ids
-                                   ~f:(fun x -> Option.value (Map.find pgs x) ~default:[]) in
-                 let unguarded = List.filter_map (List.zip_exn fvs_ids es) ~f:(fun (x, e) ->
-                                     if List.is_empty e then Some x else None) in
-                 (match List.map ~f:(Set.union_list (module String)) (Etc.cartesian es) with
-                  | [] -> Impossible (EFormula (Some ("no guards found for "
-                                                      ^ String.concat ~sep:", " unguarded), f, t))
-                  | es_ncau_list ->
-                     let c =
-                       (if terms_are_strict terms then (
-                           (*print_endline "case 1";*)
-                           Constraints.disjs
-                            (List.map es_ncau_list ~f:(fun es_ncau ->
-                                 Constraints.conj (types_predicate_lower ts t e)
-                                   (Constraints.conjs (List.map (Set.elements es_ncau)
-                                                         ~f:(types_predicate_strict ts)))))
-                        )
-                        else if Enftype.is_strict t then (
-                          (*print_endline "case 2";*)
-                          error (Printf.sprintf
-                                   "the predicate %s cannot be SCau since it has non-strict terms"
-                                   (to_string f))
-                        )
-                        else (
-                          (*print_endline "case 3";*)
-                          Constraints.disjs
-                            (List.map es_ncau_list ~f:(fun es_ncau ->
-                                 Constraints.conj (types_predicate_lower ts Enftype.ncaubot e)
-                                   (Constraints.conjs (List.map (Set.elements es_ncau)
-                                                         ~f:(types_predicate_strict ts))))))
-                       )
-                     in c) 
-              | Let (e, enftype, vars, f, g) ->
-                let f_unguarded i (x, _) = if not (is_past_guarded x false f) then Some (x, i) else None in
-                let unguarded_x, unguarded_i = List.unzip (List.filter_mapi vars ~f:f_unguarded) in
-                let pgs' = List.fold_left unguarded_x ~init:pgs ~f:(fun m x -> Map.update m (Var.ident x) ~f:(fun _ -> [Set.empty (module String)])) in
-                let pgs'' = solve_past_guarded_multiple_vars pgs vars e f in
-                Constraints.conj (aux enftype pgs' ts f) (aux t pgs'' (Map.update ts e ~f:(fun _ -> enftype, unguarded_i)) g)
-              | Neg f -> aux' (Enftype.neg t) f 
-              | And (_, fs) ->
-                 only_if_strictly_relative_past fs (Constraints.conjs (List.map ~f:(aux' t) fs))
-              | Or (L, f :: fs) ->
-                 only_if_strictly_relative_past fs (aux' t f)
-              | Or (R, fs) ->
-                 only_if_strictly_relative_past (List.drop_last_exn fs) (aux' t f)
-              | Or (_, fs) ->
-                 rolling_only_if_strictly_relative_past fs (aux' t)
-              | Imp (L, f, g) ->
-                 only_if_strictly_relative_past [g] (aux' (Enftype.neg t) f)
-              | Imp (R, f, g) ->
-                 only_if_strictly_relative_past [f] (aux' t g)
-              | Imp (_, f, g) ->
-                 Constraints.disj
-                   (only_if_strictly_relative_past [g] (aux' (Enftype.neg t) f))
-                   (only_if_strictly_relative_past [f] (aux' t g))
-              | Exists (x, f) ->
-                 aux t (Map.update pgs (Var.ident x) ~f:(fun _ -> [Set.empty (module String)])) ts f
-              | Forall (x, f) ->
-                 let es = solve_past_guarded pgs x false f in
-                 (match es with
-                  | [] -> error ("for causability " ^ Var.to_string x ^ " must be past-guarded")
-                  | _  -> aux t (Map.update pgs (Var.ident x) ~f:(fun _ -> es)) ts f)
-              | Next (i, f) when Interval.has_zero i && not (Interval.is_zero i) -> aux' t f
-              | Next _ -> error "○ with non-[0,a) interval, a > 0, is never causable"
-              | Once (i, g) when Interval.has_zero i -> aux' t g
-              | Since (_, i, f, g) when Interval.has_zero i ->
-                 only_if_strictly_relative_past [f] (aux' t g)
-              | Once _ | Since _ -> error "⧫[a,b) or S[a,b) with a > 0 is never causable"
-              | Eventually (i, f) -> only_if_bounded i (aux' t f)
-              | Always (_, f) -> aux' t f
-              | Until (LR, i, f, g) ->
-                 only_if_bounded i (Constraints.conj (aux' t f) (aux' t g))
-              | Until (_, i, f, g) when Interval.has_zero i ->
-                 only_if_bounded i (only_if_strictly_relative_past [f] (aux' t g))
-              | Until (_, i, f, g) ->
-                 only_if_bounded i (Constraints.conj (aux' t f) (aux' t g))
-              | Prev _ -> error "● is never causable"
-              | Label (_, f) -> aux' t f
-              | _ -> Impossible (EFormula (None, f, t))
-            end
-          | false, true -> begin
-              match f.form with
-              | FF -> Possible CTT
-              | Predicate (e, _) -> types_predicate_lower ts t e
-              | Let (e, enftype, vars, f, g) ->
-                 let f_unguarded i (x, _) = if not (is_past_guarded x false f) then Some (x, i) else None in
-                 let unguarded_x, unguarded_i = List.unzip (List.filter_mapi vars ~f:f_unguarded) in
-                 let pgs' = List.fold_left unguarded_x ~init:pgs ~f:(fun m x -> Map.update m (Var.ident x) ~f:(fun _ -> [Set.empty (module String)])) in
-                 let pgs'' = solve_past_guarded_multiple_vars pgs vars e f in
-                 Constraints.conj (aux enftype pgs' ts f) (aux t pgs'' (Map.update ts e ~f:(fun _ -> Enftype.ncau, unguarded_i)) g)
-              | Agg (_, _, _, (_::_ as y), f) -> aux t pgs ts (exists_of_agg y f (fun _ _ -> Info.dummy))
-              | Top (_, _, _, (_::_ as y), f) -> aux t pgs ts (exists_of_agg y f (fun _ _ -> Info.dummy))
-              | Neg f -> aux' (Enftype.neg t) f
-              | And (L, f :: fs) ->
-                 only_if_strictly_relative_past fs (aux' t f)
-              | And (R, fs) ->
-                 only_if_strictly_relative_past (List.drop_last_exn fs) (aux' t (List.last_exn fs))
-              | And (_, fs) ->
-                 rolling_only_if_strictly_relative_past fs (aux' t)
-              | Or (_, fs) ->
-                 only_if_strictly_relative_past fs (Constraints.conjs (List.map ~f:(aux' t) fs))
-              | Imp (_, f, g) ->
-                 only_if_strictly_relative_past [f; g] (Constraints.conj (aux' (Enftype.neg t) f) (aux' t g))
-              | Exists (x, f) ->
-                 let es = solve_past_guarded pgs x true f in
-                 (match es with
-                  | [] -> error ("for suppressability " ^ Var.to_string x ^ " must be past-guarded")
-                  | _  -> aux t (Map.update pgs (Var.ident x) ~f:(fun _ -> es)) ts f)
-              | Forall (_, f) -> aux' t f
-              | Next (_, f) -> aux' t f
-              | Historically (i, f) when Interval.has_zero i -> aux' t f
-              | Historically _ -> error "■[a,b) with a > 0 is never suppressable"
-              | Since (_, i, f, g) when not (Interval.has_zero i) ->
-                 only_if_strictly_relative_past [g] (aux' t f)
-              | Since (_, _, f, g) ->
-                 Constraints.conj (only_if_strictly_relative_past [g] (aux' t f)) (aux' t g)
-              | Eventually (_, f) -> aux' t f
-              | Always (i, f) ->
-                 only_if_bounded i (aux' t f)
-              | Until (L, i, f, _) when not (Interval.has_zero i) -> aux' t f
-              | Until (R, _, f, g) ->
-                 only_if_strictly_relative_past [f] (aux' t g)
-              | Until (_, i, f, g) when not (Interval.has_zero i) ->
-                 only_if_strictly_relative_past [g] (aux' t f)
-              | Until (_, _, _, g) ->
-                 only_if_strictly_relative_past [f] (aux' t g)
-              | Prev _ -> error "● is never suppressable"
-              | Label (_, f) -> aux' t f
-              | _ -> Impossible (EFormula (None, f, t))
-            end
-          | false, false -> Possible CTT
-        in
-        (*Stdio.printf "types.aux(%s, %s)=%s\n" (Enftype.to_string t) (to_string f) (Constraints.verdict_to_string r);*)
-        r
-      in aux t pgs ts f
-
-    let rec convert ?(lets=Map.empty (module String)) b enftype formula
-      : typed_t option =
-      let observable = observable ~itl_observable:(Map.map lets ~f:(fun x -> Enftype.is_observable (fst x))) in
-      let rec of_formula (f : t) : typed_t =
-        let form = match f.form with
-          | TT -> TT
-          | FF -> FF
-          | EqConst (t, c) -> EqConst (t, c)
-          | Predicate (e, ts) -> Predicate (e, ts)
-          | Predicate' (e, ts, f) -> Predicate' (e, ts, of_formula f)
-          | Let (e, typ_opt, vars, f, g) -> Let (e, typ_opt, vars, of_formula f, of_formula g)
-          | Let' (e, typ_opt, vars, f, g) -> Let' (e, typ_opt, vars, of_formula f, of_formula g)
-          | Agg (s, op, x, y, f) -> Agg (s, op, x, y, of_formula f)
-          | Top (s, op, x, y, f) -> Top (s, op, x, y, of_formula f)
-          | Neg f -> Neg (of_formula f)
-          | And (s, fs) -> And (s, List.map ~f:of_formula fs)
-          | Or (s, fs) -> Or (s, List.map ~f:of_formula fs)
-          | Imp (s, f, g) -> Imp (s, of_formula f, of_formula g)
-          | Exists (x, f) -> Exists (x, of_formula f)
-          | Forall (x, f) -> Forall (x, of_formula f)
-          | Prev (i, f) -> Prev (i, of_formula f)
-          | Next (i, f) -> Next (i, of_formula f)
-          | Once (i, f) -> Once (i, of_formula f)
-          | Eventually (i, f) -> Eventually (i, of_formula f)
-          | Historically (i, f) -> Historically (i, of_formula f)
-          | Always (i, f) -> Always (i, of_formula f)
-          | Since (s, i, f, g) -> Since (s, i, of_formula f, of_formula g)
-          | Until (s, i, f, g) -> Until (s, i, of_formula f, of_formula g)
-          | Type (f, ty) -> Type (of_formula f, ty)
-          | Label (s, f) -> Label (s, of_formula f)
-        in
-        let enftype = if observable f then Enftype.obs else Enftype.bot in
-        { form; info = { info = f.info; enftype; filter = Filter.tt; flag = false; tabular = false } }
+    (* Using topological sort, reorders the patterns (trigger, effects) so that for any event e caused/suppressed 
+         by patt1 and used in an trigger of patt2, patt1 is before patt2. This constraint can be ignored if e is caused
+         and appears *antimonotonically* in the trigger of patt2, or if e is suppressed and appears *monotonically*
+         in the trigger of patt1 (uses non_monotone_predicates). Returns None if no such ordering exists. *)
+    let order_clauses
+        (clauses: clause list)
+        ~lets:(lets: (string, (string, String.comparator_witness) Set.t, String.comparator_witness) Map.t)
+        ~let_ctxt_mon:(let_ctxt_mon: (string, (string, Info.t list, String.comparator_witness) Map.t, String.comparator_witness) Map.t)
+        ~let_ctxt_anti_mon:(let_ctxt_anti_mon: (string, (string, Info.t list, String.comparator_witness) Map.t, String.comparator_witness) Map.t)
+      : (t * t list) list option =
+      let n = List.length clauses in
+      (* For each pattern: (caused_preds, supped_preds, trigger_preds, monotone_preds_in_trigger, antimonotone_preds_in_trigger) *)
+      let info = List.map clauses ~f:(fun (trigger, effects) ->
+          let cp = Set.union_list (module String)
+              (List.map effects ~f:(fun effect -> match effect.form with
+                   | Neg _ 
+                   | Eventually (_, { form = Neg _ }) -> Set.empty (module String)
+                   | _ -> predicates ~lets effect)) in
+          let sp = Set.union_list (module String)
+              (List.map effects ~f:(fun effect -> match effect.form with
+                   | Neg _ 
+                   | Eventually (_, { form = Neg _ }) -> predicates ~lets effect
+                   | _ -> Set.empty (module String))) in
+          let ep = Set.union_list (module String)
+              (List.map effects ~f:(predicates ~lets)) in
+          let tp = predicates ~lets trigger in
+          let mp, ap = non_monotone_predicates ~let_ctxt_mon ~let_ctxt_anti_mon trigger in
+          (cp, sp, tp, mp, ap)) in
+      (* adj.(i) = list of j such that patt_i must come before patt_j:
+         add edge i->j if some effect predicate of i appears non-antimonotonically in trigger_j.
+         Exception: if e appears antimonotonically in trigger_j (i.e., in anti_mon_trig_j,
+         the first return of non_monotone_predicates), causing/suppressing e cannot make
+         trigger_j fire, so no ordering constraint is needed. *)
+      let adj = List.mapi info ~f:(fun i info_i ->
+          let (cp_i, sp_i, _, _, _) = info_i in
+          List.filter_mapi info ~f:(fun j info_j ->
+              if i = j then None
+              else
+                let (_, _, tp_j, mon_j, anti_mon_j) = info_j in
+                if Set.exists (Set.inter cp_i tp_j)
+                    ~f:(fun e -> not (Map.mem anti_mon_j e))
+                || Set.exists (Set.inter sp_i tp_j)
+                     ~f:(fun e -> not (Map.mem mon_j e))
+                then Some j
+                else None)) in
+      (* Compute in-degrees *)
+      let all_targets = List.concat adj in
+      let in_deg =
+        List.fold (List.range 0 n) ~init:(Map.empty (module Int)) ~f:(fun m i ->
+            Map.set m ~key:i ~data:(List.count all_targets ~f:(fun k -> k = i))) in
+      (* Purely functional Kahn's topological sort *)
+      let rec kahn in_deg result =
+        let ready = List.filter_map (Map.to_alist in_deg)
+            ~f:(fun (i, d) -> if d = 0 then Some i else None) in
+        match ready with
+        | [] -> if Map.is_empty in_deg then Some (List.rev result) else None
+        | i :: _ ->
+          let in_deg = Map.remove in_deg i in
+          let in_deg = List.fold (List.nth_exn adj i) ~init:in_deg
+              ~f:(fun m j -> Map.update m j ~f:(function None -> 0 | Some k -> k - 1)) in
+          kahn in_deg (i :: result)
       in
-      let convert' = convert in
-      let convert = convert' ~lets b in
-      let default_L (s: Side.t) = if Side.equal s R then Side.R else L in
-      let opt_filter (x : typed_t option) = match x with
-        | Some x -> x.info.filter
-        | None   -> Filter.tt in
-      let conj_filter ?(b=true) ?(neg=false) f g =
-        (Filter.conj (present_filter ~lets ~b f) (present_filter ~lets ~b:(if neg then not b else b) g)) in
-      let conj_filters ?(b=true) = function
-        | [] -> Filter.tt
-        | fs -> Filter.conjs (List.map ~f:(present_filter ~lets ~b) fs) in
+      Option.map (kahn in_deg []) ~f:(List.map ~f:(fun i -> List.nth_exn clauses i))
+        
+    let types (t: Enftype.t) (f: t) (b: Interval.v) : let_map * enf_sols =
+      
       let set_b = function
         | Interval.U a -> Interval.B (a, b)
         | B _ as i -> i in
-      let apply1 ?(temporal=false) ?(flag=false) f comb  =
-        Option.map f ~f:comb, (if temporal then Filter.tt else opt_filter f), flag in
-      let apply1' ?(new_filter=None) ?(flag=false) f comb =
-        Some (comb f), Option.fold new_filter ~init:Filter.tt ~f:Filter.conj, flag in
-      let apply2 ?(temporal=false) ?(flag=false) f g comb =
-        Option.map2 f g ~f:comb,
-        (if temporal then Filter.tt else Filter.disj (opt_filter f) (opt_filter g)), flag in
-      let applyn ?(temporal=false) ?(flag=false) (fs: typed_t option list) comb =
-        Option.map ~f:comb (Option.all fs),
-        (if temporal then Filter.tt else Filter.disjs (List.map ~f:opt_filter fs)), flag in
-      let apply2' ?(temporal=false) ?(flag=false) f g comb new_filter =
-        Option.map f ~f:(fun x -> comb x g),
-        (if temporal then Filter.tt else Filter.conj (opt_filter f) new_filter), flag in
-      let f, filter, flag =
-        (*print_endline "Convert:";
-        print_endline ("formula: " ^ to_string formula);
-        print_endline ("operator: " ^ op_to_string formula);
-        print_endline ("enftype: " ^ Enftype.to_string enftype);
-        print_endline ("is_causable: " ^ Bool.to_string (Enftype.is_causable enftype));
-        print_endline ("is_suppressable: " ^ Bool.to_string (Enftype.is_suppressable enftype));*)
-        match Enftype.is_causable enftype, Enftype.is_suppressable enftype with
-        | true, _ -> begin
-            match formula.form with
-            | TT -> Some TT, Filter.tt, false
-            | Predicate (e, trms) when e |> Map.find lets |> Option.map ~f:fst |> Option.value ~default:Enftype.bot |> Enftype.is_causable ->
-               let filter = e |> Map.find lets |> Option.value_exn |> snd in
-               Some (Predicate (e, trms)), filter, false
-            | Predicate (e, trms) when not (Map.mem lets e) && Enftype.is_causable (Sig.enftype_of_pred e) ->
-               Some (Predicate (e, trms)), Filter.tt, false
-            | Predicate' (e, trms, f) ->
-               apply1 (convert enftype f)
-                 (fun mf -> Predicate' (e, trms, mf))
-            | Let (e, enftype', vars, f, g) ->
-               Option.value_map (convert enftype' f)
-                 ~default:(None, Filter.tt, false)
-                 ~f:(fun mf -> 
-                     let lets = Map.update lets e ~f:(fun _ -> (enftype', mf.info.filter)) in
-                     Option.value_map (convert' ~lets b enftype g) 
-                       ~default:(None, Filter.tt, false)
-                       ~f:(fun mg -> Some (Let (e, enftype', vars, mf, mg)), mg.info.filter, mg.info.flag))
-            | Let' (e, enftype', vars, f, g) ->
-               apply2 (convert enftype' f) (convert enftype g)
-                 (fun mf mg -> Let' (e, enftype', vars, mf, mg)) 
-            | Neg f -> apply1 (convert (Enftype.neg enftype) f) (fun mf -> Neg mf) 
-            | And (s, fs) -> applyn (List.map ~f:(convert enftype) fs)
-                               (fun mfs -> And (default_L s, mfs))
-            | Or (L, f :: gs) -> apply2' (convert enftype f) (List.map ~f:of_formula gs)
-                                   (fun mf mgs -> Or (L, mf :: mgs))
-                                   (conj_filters ~b:false gs)
-            | Or (R, fs) -> let fs, g = List.drop_last_exn fs, List.last_exn fs in
-                            apply2' (convert enftype g) (List.map ~f:of_formula fs)
-                              (fun mg mfs -> Or (R, mfs @ [mg]))
-                              (conj_filters ~b:false fs)
-            | Or (_, fs) ->
-               begin
-                 let converted_fs = List.map ~f:(convert enftype) fs in
-                 match List.findi converted_fs ~f:(fun _ -> Option.is_some) with
-                 | Some (mf_i, mf_opt) -> 
-                    let mf = Option.value_exn mf_opt in
-                    let gs = List.filteri fs ~f:(fun i _ -> not Int.(i = mf_i)) in
-                    apply1' ~new_filter:(Some (conj_filters ~b:false fs))
-                      (List.map ~f:of_formula gs)
-                      (fun mgs -> Or (L, mf :: mgs))
-                 | None -> None, Filter.tt, false
-               end
-            | Imp (L, f, g) -> apply2' (convert (Enftype.neg enftype) f) (of_formula g)
-                                 (fun mf mg -> Imp (L, mf, mg)) 
-                                 (conj_filter ~neg:true f g)
-            | Imp (R, f, g) -> apply2' (convert enftype g) (of_formula f)
-                                 (fun mg mf -> Imp (R, mf, mg)) 
-                                 (conj_filter ~neg:true f g)
-            | Imp (_, f, g) -> 
-               begin
-                 match convert (Enftype.neg enftype) f with
-                 | Some mf -> apply1'
-                                ~new_filter:(Some (conj_filter ~neg:true f g))
-                                (of_formula g)
-                                (fun mg -> Imp (L, mf, mg)) 
-                 | None    -> apply2' (convert enftype g) (of_formula f)
-                                (fun mg mf -> Imp (R, mf, mg)) 
-                                (conj_filter ~neg:true f g)
-               end
-            | Exists (x, f) ->
-               begin
-                 match convert enftype f with
-                 | Some mf -> Some (Exists (x, mf)), mf.info.filter, true
-                 | None    -> None, Filter.tt, false
-               end
-            | Forall (x, f) ->
-               begin
-                 match convert enftype f with
-                 | Some mf -> Some (Forall (x, mf)), mf.info.filter, false
-                 | None    -> None, Filter.tt, false
-               end
-            | Next (i, f) when Interval.has_zero i && not (Interval.is_zero i) -> 
-               apply1 ~temporal:true (convert enftype f) (fun mf -> Next (i, mf))
-            | Once (i, f) when Interval.has_zero i ->
-               apply1 (convert enftype f) (fun mf -> Once (i, mf))
-            | Since (_, i, f, g) when Interval.has_zero i ->
-               apply2' (convert enftype g) (of_formula f)
-                 (fun mg mf -> Since (R, i, mf, mg)) 
-                 Filter.tt
-            | Eventually (i, f) ->
-               apply1 ~temporal:true ~flag:(Interval.is_bounded i) (convert enftype f)
-                 (fun mf -> Eventually (set_b i, mf)) 
-            | Always (i, f) ->
-               apply1 ~temporal:true ~flag:true (convert enftype f)
-                 (fun mf -> Always (i, mf))
-            | Until (LR, i, f, g) ->
-               apply2 ~temporal:true ~flag:(Interval.is_bounded i) (convert enftype f) (convert enftype g)
-                 (fun mf mg -> Until (LR, set_b i, mf, mg))
-            | Until (_, i, f, g) when Interval.has_zero i ->
-               apply2' ~temporal:true ~flag:(Interval.is_bounded i) (convert enftype g) (of_formula f)
-                 (fun mg mf -> Until (R, set_b i, mf, mg))
-                 Filter.tt
-            | Until (_, i, f, g) ->
-               apply2 ~temporal:true ~flag:(Interval.is_bounded i) (convert enftype f) (convert enftype g)
-                 (fun mf mg -> Until (LR, set_b i, mf, mg))
-            | Label (s, f) -> apply1 (convert enftype f) (fun mf -> Label (s, mf))
-            | _ -> None, Filter.tt, false
-          end
-        | _, true -> begin
-            match formula.form with
-            | FF -> Some FF, Filter.tt, false
-            | Predicate (e, trms) when e |> Map.find lets |> Option.map ~f:fst |> Option.value ~default:Enftype.bot |> Enftype.is_suppressable ->
-               let filter = e |> Map.find lets |> Option.value_exn |> snd in
-               Some (Predicate (e, trms)), filter, false
-            | Predicate (e, trms) when not (Map.mem lets e) && Enftype.is_suppressable (Sig.enftype_of_pred e) ->
-              Some (Predicate (e, trms)), Filter.An e, false
-            (*| Predicate (e, trms) ->
-              Some (Predicate (e, trms)), Filter.tt, false*)
-            | Predicate' (e, trms, f) ->
-               apply1 (convert enftype f)
-                 (fun mf -> Predicate' (e, trms, mf))
-            | Let (e, enftype', vars, f, g) ->
-              Option.value_map (convert enftype' f)
-                ~default:(None, Filter.tt, false)
-                ~f:(fun mf -> 
-                    let lets = Map.update lets e ~f:(fun _ -> (enftype', mf.info.filter)) in
-                    Option.value_map (convert' ~lets b enftype g) 
-                      ~default:(None, Filter.tt, false)
-                      ~f:(fun mg -> Some (Let (e, enftype', vars, mf, mg)), mg.info.filter, mg.info.flag))
-            | Let' (e, enftype', vars, f, g) ->
-               apply2 (convert enftype' f) (convert enftype g)
-                 (fun mf mg -> Let' (e, enftype', vars, mf, mg)) 
-            | Agg (_, _, _, y, f) | Top (_, _, _, y, f) ->
-               begin
-                 match convert enftype (exists_of_agg y f (fun _ _ -> f.info)) with
-                 | Some mf -> apply1' (of_formula formula)
-                                (fun mg -> And (L, [mf; mg]))
-                 | None    -> None, Filter.tt, false
-               end
-            | Neg f -> apply1 (convert (Enftype.neg enftype) f) (fun mf -> Neg mf)
+      let lets, f = do_pull_out f in
 
-            | And (L, f :: gs) -> apply2' (convert enftype f) (List.map ~f:of_formula gs)
-                                    (fun mf mgs -> And (L, mf :: mgs))
-                                    (conj_filters gs)
-            | And (R, fs) -> let fs, g = List.drop_last_exn fs, List.last_exn fs in
-                             apply2' (convert enftype g) (List.map ~f:of_formula fs)
-                               (fun mg mfs -> And (R, mfs @ [mg]))
-                               (conj_filters fs)
-            | And (_, fs) ->
-               begin
-                 let converted_fs = List.map ~f:(convert enftype) fs in
-                 match List.findi converted_fs ~f:(fun _ -> Option.is_some) with
-                 | Some (mf_i, mf_opt) ->
-                    let mf = Option.value_exn mf_opt in
-                    let gs = List.filteri fs ~f:(fun i _ -> not Int.(i = mf_i)) in
-                    apply1' ~new_filter:(Some (conj_filters fs))
-                      (List.map ~f:of_formula gs)
-                      (fun mgs -> And (L, mf :: mgs))
-                 | None -> None, Filter.tt, false
-               end
-            | Or (s, fs) -> applyn (List.map ~f:(convert enftype) fs)
-                               (fun mfs -> Or (default_L s, mfs))
-            | Imp (s, f, g) -> apply2 (convert (Enftype.neg enftype) f) (convert enftype g)
-                                 (fun mf mg -> Imp (default_L s, mf, mg))
-            | Exists (x, f) ->
-               begin
-                 match convert enftype f with
-                 | Some mf -> Some (Exists (x, mf)), mf.info.filter, true
-                 | None    -> None, Filter.tt, false
-               end
-            | Forall (x, f) ->
-               begin
-                 match convert enftype f  with
-                 | Some mf -> Some (Forall (x, mf)), mf.info.filter, false
-                 | None    -> None, Filter.tt, false
-               end
-            | Next (i, f) -> apply1 ~temporal:true (convert enftype f)
-                               (fun mf -> Next (i, mf)) 
-            | Historically (i, f) when Interval.has_zero i ->
-               apply1 (convert enftype f) (fun mf -> Historically (i, mf)) 
-            | Since (_, i, f, g) when not (Interval.has_zero i) ->
-               apply2' (convert enftype f) (of_formula g)
-                 (fun mf mg -> Since (L, i, mf, mg)) 
-                 Filter.tt
-            | Since (_, i, f, g) ->
-               let since_f = of_formula (make_dummy (Since (N, i, f, g))) in
-               apply2 (convert enftype f) (convert enftype g)
-                 (fun mf mg ->
-                   let f = And (L, [mf; since_f]) in
-                   Or (L, [mg; make f { info = formula.info; enftype; filter = Filter.tt; flag = false; tabular = false }]))
-            | Eventually (i, f) ->
-               apply1 ~temporal:true ~flag:true (convert enftype f)
-                 (fun mf -> Eventually (i, mf))
-            | Always (i, f) ->
-               apply1 ~temporal:true ~flag:(Interval.is_bounded i) (convert enftype f)
-                 (fun mf -> Always (set_b i, mf))
-            | Until (L, i, f, g) when not (Interval.has_zero i) ->
-               apply2' ~temporal:true ~flag:true (convert enftype f) (of_formula g)
-                 (fun mf mg -> Until (L, i, mf, mg))
-                 Filter.tt
-            | Until (R, i, f, g) ->
-               apply2' ~temporal:true ~flag:true (convert enftype g) (of_formula f)
-                 (fun mg mf -> Until (R, i, mf, mg))
-                 Filter.tt
-            | Until (_, i, f, g) when not (Interval.has_zero i) ->
-               begin
-                 match convert enftype f with
-                 | None    ->
-                    apply2' ~temporal:true (convert enftype g) (of_formula f)
-                      (fun mg mf -> Until (R, i, mf, mg))
-                      Filter.tt
-                 | Some mf ->
-                    apply1' ~flag:true (of_formula g)
-                      (fun mg -> Until (L, i, mf, mg))
-               end
-            | Until (_, i, f, g) ->
-               apply2' ~temporal:true ~flag:true (convert enftype g) (of_formula f)
-                 (fun mg mf -> Until (R, i, mf, mg))
-                 Filter.tt
-            | Label (s, f) -> apply1 (convert enftype f) (fun mf -> Label (s, mf))
-            | _ -> None, Filter.tt, false
-          end
-        | _, _ -> let f = of_formula formula in
-                  Some f.form, Filter.tt, false
+      print_endline ("pull out!");
+      print_endline ("lets:\n" ^ (String.concat ~sep:"\n" (List.map lets ~f:(fun (e, _, _, f) -> e ^ "(...) = " ^ to_string f))));
+      print_endline ("f:\n" ^ to_string f);
+      
+      let f = match f.form with Always (itv, f) when Interval.is_full itv -> f | _ -> f in
+
+      let pred_map =
+        List.fold_left lets
+          ~init:(Map.empty (module String))
+          ~f:(fun lets (e, _, _, f) -> Map.update lets e (fun _ -> predicates ~lets f)) in
+      
+      let mon_map, anti_mon_map =
+        List.fold_left lets
+          ~init:(Map.empty (module String), Map.empty (module String))
+          ~f:(fun (let_ctxt_mon, let_ctxt_anti_mon) (e, _, _, f) ->
+              Map.update let_ctxt_mon e (fun _ -> fst (non_monotone_predicates ~let_ctxt_mon ~let_ctxt_anti_mon f)),
+              Map.update let_ctxt_anti_mon e (fun _ -> snd (non_monotone_predicates ~let_ctxt_mon ~let_ctxt_anti_mon f))) in
+
+      let order_clauses = order_clauses ~lets:pred_map ~let_ctxt_mon:mon_map ~let_ctxt_anti_mon:anti_mon_map in
+      
+      (* Main auxiliary function: normalize enforceable formula *)
+      let rec aux (m: let_map) (t: Enftype.t) (f: t) : enf_sols =
+        match Enftype.is_causable t, Enftype.is_suppressable t with
+          | true, true -> []
+          | true, false -> begin
+              match f.form with
+              | TT -> [([(make_dummy TT, [])], Constraints.CTT)]
+              | Predicate (e, terms) -> begin
+                  match Map.find m (e ^ ".Cau") with
+                  | Some def -> def.enf_sols
+                  | None -> [([(make_dummy TT, [f])], Constraints.CGeq (e, Enftype.cau))]
+                end
+              | Neg f -> aux m (Enftype.neg t) f
+              | And (_, fs) ->
+                let sols_list = List.map ~f:(aux m t) fs in 
+                let sols_combs = Etc.cartesian sols_list in
+                List.filter_map sols_combs ~f:(fun sols ->
+                    let clauses, constrs = List.unzip sols in
+                    match Option.all (List.map ~f:order_clauses clauses) with
+                    | Some clauses -> Some (List.concat clauses, Constraints.CConj constrs)
+                    | None -> None)
+              | Or (L, f :: fs) ->
+                List.map (aux m t f) ~f:(fun (trigger_effects, constr) ->
+                    List.map trigger_effects ~f:(fun (trigger, effects) ->
+                        (make_dummy (And (N, trigger :: fs)), effects)),
+                    constr) 
+              | Or (R, fs) ->
+                let f = List.last_exn fs in
+                let fs = fs |> List.rev |> List.tl_exn |> List.rev in
+                List.map (aux m t f) ~f:(fun (trigger_effects, constr) ->
+                    List.map trigger_effects ~f:(fun (trigger, effects) ->
+                        (make_dummy (And (N, trigger :: fs)), effects)),
+                    constr) 
+              | Or (_, fs) ->
+                let rec run (left: t list) = function
+                  | [] -> []
+                  | f :: right -> 
+                    List.map (aux m t f) ~f:(fun (trigger_effects, constr) ->
+                        List.map trigger_effects ~f:(fun (trigger, effects) ->
+                            (make_dummy (And (N, trigger :: left @ right)), effects)),
+                        constr)
+                    @ run (f::left) right
+                in run [] fs
+              | Imp (L, f, g) ->
+                List.map (aux m (Enftype.neg t) f)
+                  ~f:(fun (trigger_effects, constr) ->
+                    List.map trigger_effects ~f:(fun (trigger, effects) ->
+                        (make_dummy (And (N, [trigger; g])), effects)),
+                    constr) 
+              | Imp (R, f, g) ->
+                List.map (aux m t g) ~f:(fun (trigger_effects, constr) ->
+                    List.map trigger_effects ~f:(fun (trigger, effects) ->
+                        (make_dummy (And (N, [trigger; f])), effects)),
+                    constr) 
+              | Imp (_, f, g) ->
+                List.map (aux m (Enftype.neg t) f) ~f:(fun (trigger_effects, constr) ->
+                    List.map trigger_effects ~f:(fun (trigger, effects) ->
+                        (make_dummy (And (N, [trigger; g])), effects)),
+                    constr)
+                @ List.map (aux m t g) ~f:(fun (trigger_effects, constr) ->
+                    List.map trigger_effects ~f:(fun (trigger, effects) ->
+                        (make_dummy (And (N, [trigger; f])), effects)),
+                    constr) 
+              | Exists (x, f) ->
+                aux m t (subst (Map.singleton (module Var) x (Term.dummy_int 0)) f)
+              | Forall (x, f) ->
+                let sols = aux m t f in
+                List.filter_map sols ~f:(fun (trigger_effects, constr) ->
+                    match Option.all (List.map trigger_effects ~f:(fun (trigger, effects) ->
+                        let vars = Some (Set.elements (fvs effects)) in
+                        match check_normalized ~vars trigger true trigger with
+                        | `Success trigger -> Some (trigger, effects)
+                        | _ -> None))
+                    with | Some trigger_effects -> Some (trigger_effects, constr)
+                         | None -> None)
+              | Eventually (i, f) ->
+                let sols = aux m t f in
+                List.filter_map sols ~f:(fun (trigger_effects, constr) ->
+                    match Option.all (List.map trigger_effects ~f:(fun (trigger, effects) ->
+                        let is_trigger_trivial = match trigger.form with TT -> true | _ -> false in
+                        let are_effects_simple = List.for_all effects
+                            ~f:(fun effect -> match effect.form with Predicate _ -> true | _ -> false) in
+                        if is_trigger_trivial && are_effects_simple then
+                          Some (trigger, List.map effects ~f:(fun f -> make_dummy (Eventually (set_b i, f))))
+                        else
+                          None))
+                    with | Some trigger_effects -> Some (trigger_effects, constr)
+                         | None -> None)
+              | Label (_, f) -> aux m t f
+              | _ -> []
+            end
+          | false, true -> begin
+              match f.form with
+              | FF -> [([(make_dummy TT, [])], Constraints.CTT)]
+              | Predicate (e, _terms) -> begin
+                  match Map.find m (e ^ ".Sup") with
+                  | Some def -> def.enf_sols
+                  | None -> [([(make_dummy TT, [make_dummy (Neg f)])], Constraints.CGeq (e, Enftype.sup))]
+                end
+              | Neg f -> aux m (Enftype.neg t) f
+              | Or (_, fs) ->
+                let sols_list = List.map ~f:(aux m t) fs in
+                let sols_combs = Etc.cartesian sols_list in
+                List.filter_map sols_combs ~f:(fun sols ->
+                    let clauses, constrs = List.unzip sols in
+                    match Option.all (List.map ~f:order_clauses clauses) with
+                    | Some clauses -> Some (List.concat clauses, Constraints.CConj constrs)
+                    | None -> None)
+              | And (L, f :: fs) ->
+                List.map (aux m t f) ~f:(fun (trigger_effects, constr) ->
+                    List.map trigger_effects ~f:(fun (trigger, effects) ->
+                        (make_dummy (And (N, trigger :: fs)), effects)),
+                    constr)
+              | And (R, fs) ->
+                let f = List.last_exn fs in
+                let fs = fs |> List.rev |> List.tl_exn |> List.rev in
+                List.map (aux m t f) ~f:(fun (trigger_effects, constr) ->
+                    List.map trigger_effects ~f:(fun (trigger, effects) ->
+                        (make_dummy (And (N, trigger :: fs)), effects)),
+                    constr)
+              | And (_, fs) ->
+                let rec run (left: t list) = function
+                  | [] -> []
+                  | f :: right ->
+                    List.map (aux m t f) ~f:(fun (trigger_effects, constr) ->
+                        List.map trigger_effects ~f:(fun (trigger, effects) ->
+                            (make_dummy (And (N, trigger :: left @ right)), effects)),
+                        constr)
+                    @ run (f::left) right
+                in run [] fs
+              | Imp (L, f, g) ->
+                List.map (aux m (Enftype.neg t) f) ~f:(fun (trigger_effects, constr) ->
+                    List.map trigger_effects ~f:(fun (trigger, effects) ->
+                        (make_dummy (And (N, [trigger; g])), effects)),
+                    constr)
+              | Imp (R, f, g) ->
+                List.map (aux m t g) ~f:(fun (trigger_effects, constr) ->
+                    List.map trigger_effects ~f:(fun (trigger, effects) ->
+                        (make_dummy (And (N, [trigger; f])), effects)),
+                    constr)
+              | Imp (_, f, g) ->
+                List.map (aux m (Enftype.neg t) f) ~f:(fun (trigger_effects, constr) ->
+                    List.map trigger_effects ~f:(fun (trigger, effects) ->
+                        (make_dummy (And (N, [trigger; g])), effects)),
+                    constr)
+                @ List.map (aux m t g) ~f:(fun (trigger_effects, constr) ->
+                    List.map trigger_effects ~f:(fun (trigger, effects) ->
+                        (make_dummy (And (N, [trigger; f])), effects)),
+                    constr)
+              | Forall (x, f) ->
+                aux m t (subst (Map.singleton (module Var) x (Term.dummy_int 0)) f)
+              | Exists (x, f) ->
+                let sols = aux m t f in
+                List.filter_map sols ~f:(fun (trigger_effects, constr) ->
+                    match Option.all (List.map trigger_effects ~f:(fun (trigger, effects) ->
+                        let vars = Some (Set.elements (fvs effects)) in
+                        match check_normalized ~vars trigger true trigger with
+                        | `Success trigger -> Some (trigger, effects)
+                        | _ -> None))
+                    with | Some trigger_effects -> Some (trigger_effects, constr)
+                         | None -> None)
+              | Always (i, f) ->
+                let sols = aux m t f in
+                List.filter_map sols ~f:(fun (trigger_effects, constr) ->
+                    match Option.all (List.map trigger_effects ~f:(fun (trigger, effects) ->
+                        let is_trigger_trivial = match trigger.form with TT -> true | _ -> false in
+                        let are_effects_simple = List.for_all effects
+                            ~f:(fun effect -> match effect.form with Predicate _ -> true | _ -> false) in
+                        if is_trigger_trivial && are_effects_simple then
+                          Some (trigger, List.map effects ~f:(fun f -> make_dummy (Eventually (set_b i, make_dummy (Neg f)))))
+                        else
+                          None))
+                    with | Some trigger_effects -> Some (trigger_effects, constr)
+                         | None -> None)
+              | Label (_, f) -> aux m t f
+              | _ -> []
+            end
+          | false, false -> []
       in
-      let enftype =
-        if observable formula
-        then Enftype.join Enftype.obs enftype
-        else enftype in
-      let r = (match f with
-               | Some f -> Some (mark_tabular (make f { info = formula.info; enftype; filter; flag; tabular = false }))
-               | None -> None) in
-      (*print_endline (Printf.sprintf "MFOTL.convert(%s)=%s (%s)" (to_string formula) (match r with Some f -> to_string_typed f | _ -> "") (Enftype.to_string enftype));*)
-      r
+                            
+      (* Type a let-bound expression *)
+      let type_let ((m: let_map), (errors: Errors.error list)) (let_def: let_def)
+        : let_map * (Errors.error list) = 
+        let body = let_def.body in
+        (* Strip existential quantifiers *)
+        let g = strip_exists body in
+        (* Additional check for temporal operators *)
+        match g.form with
+        | Since (_, _, f, g) -> begin
+            match check_normalized f false body, check_normalized g true body with
+            | `Success f, `Success g -> (m, errors)
+            | `Fail error_f, `Fail error_g -> (m, error_f :: error_g :: errors)
+            | `Fail error_f, _ -> (m, error_f :: errors)
+            | _, `Fail error_g -> (m, error_g :: errors)
+          end
+        | _ -> begin
+            match check_normalized g true body with
+              | `Fail error -> (m, error :: errors)
+              | `Success f ->
+                (* Enforceability checks *)
+                let guards = match f.form with And (_, fs) -> fs |> List.rev |> List.tl_exn |> List.rev in
+                (* Causation: all guards must be causable *)
+                let enf_sols =
+                  Constraints.CConj
+                    ((Constraints.CGeq (let_def.name, Enftype.cau)) ::
+                     (List.map guards
+                        ~f:(fun f -> match f.form with Or (_, fs) ->
+                            Constraints.CDisj
+                              (List.concat_map fs
+                                 ~f:(fun f -> match f.form with Predicate (e, _) ->
+                                   match Map.find m (e ^ ".Cau") with
+                                   | Some def -> def.enf_sols
+                                   | None -> Constraints.CGeq (e, Enftype.cau)))))) |> Constraints.ac_simplify in
+                let enf_map = match causable, Option.value_map enftype_opt ~default:false ~f:Enftype.is_suppressable with
+                  | Constraints.CFF, _
+                  | _, true -> enf_map
+                  | _ -> Map.update enf_map (e ^ ".Cau") ~f:(fun _ -> causable) in
+                (* Suppressable: at least one guard must be suppressable *)
+                let suppressable =
+                  Constraints.CDisj
+                    ((Constraints.CGeq (e, Enftype.sup)) ::
+                     (List.map guards
+                        ~f:(fun f -> match f.form with Or (_, fs) ->
+                            Constraints.CConj
+                              (List.map fs
+                                 ~f:(fun f -> match f.form with Predicate (e, _) ->
+                                   match Map.find enf_map (e ^ ".Cau") with
+                                   | Some c -> c
+                                   | None -> Constraints.CGeq (e, Enftype.sup)))))) |> Constraints.ac_simplify in
+                let enf_map = match causable, Option.value_map enftype_opt ~default:false ~f:Enftype.is_causable with
+                  | Constraints.CFF, _
+                  | _, true -> enf_map
+                  | _ -> Map.update enf_map (e ^ ".Sup") ~f:(fun _ -> causable) in
+                (enf_map, errors)
+          end
+      in
+      
+      let lets =
+        List.map lets ~f:(fun (name, enftype_opt, args, body) -> { name; enftype_opt; args; body; enf_sols = [] }) in
+      let m, errors = List.fold_left ~init:(Map.empty (module String), []) ~f:type_let lets 
 
-    (*    MFOTL.convert(LET B8(x.3:int)+ = B4(x.3:int) ∧ B4٭(add(x.3:int, 8)) IN □[0s,∞) (∀x.4:int. A(x.4:int) → B8(x.4:int)))=LET B8(x.3:int)+ = ((B4(x.3:int) : Cau) ∧:L (B4٭(add(x.3:int, 8)) : Cau) : Cau) IN (□[0s,∞) ((∀x.4:int. ((A(x.4:int) : Sup) →:L B8(x.4:int) : Cau)) : Cau) : Cau ) : Cau *)
+      in m, aux m Enftype.cau f
 
+    let compile_clause (trigger, (effects: t list)) =
+      let f enftype = map_info ~f:(fun info -> { TypedInfo.dummy with info; enftype }) in
+      let c = f Enftype.cau and s = f Enftype.sup and o = f Enftype.obs in
+      let effects : typed_t list = List.map effects ~f:(fun (effect: t) ->
+          match effect.form with
+          | Neg { form; info }
+          | Eventually (_, { form = Neg { form; info } }) ->
+            let effect = s effect in
+            { effect with info = { effect.info with enftype = Enftype.cau } }
+          | _ -> c effect) in
+      let init = { form = Imp (R, o trigger, { form = And (L, effects);
+                                               info = { TypedInfo.dummy with enftype = Enftype.cau } });
+                   info = { TypedInfo.dummy with enftype = Enftype.cau } } in
+      let vars = Set.elements (fvs [init]) in
+      List.fold_right vars ~init
+        ~f:(fun x f -> { form = Forall (x, f); info = { TypedInfo.dummy with enftype = Enftype.cau } })
 
-    let convert' b f =
-      convert b Enftype.causable f
+    let combine_formula lets fs =
+      let init = { form = And (LR, fs); info = { TypedInfo.dummy with enftype = Enftype.cau } } in
+      List.fold_right lets ~init
+        ~f:(fun (e, enftype, vars, f) g ->
+            { form = Let (e, Option.value ~default:Enftype.obs enftype, vars, f, g);
+              info = { TypedInfo.dummy with enftype = Enftype.cau } })
 
+    type pg_map = (string, Etc.string_set_list, String.comparator_witness) Map.t
+    type t_map  = (string, Enftype.t * int list, String.comparator_witness) Map.t
+        
     let do_type ?(verbose=true) ?(moderate=true) f b =
       let orig_f = f in
-      let f = convert_lets f in
+      let f = f |> convert_lets |> unroll_let ~moderate |> simplify in
+      print_endline (to_string f);
       if not (Set.is_empty (fv f)) && verbose then (
         Stdio.print_endline ("The formula\n "
                              ^ to_string f
                              ^ "\nis not closed: free variables are "
                              ^ String.concat ~sep:", " (List.map ~f:Var.to_string (Set.elements (fv f))));
         ignore (raise (FormulaError (Printf.sprintf "formula %s is not closed" (to_string f)))));
-      match types Enftype.causable (Map.empty (module String)) f with
-      | Possible c ->
-         begin
-           let c = Constraints.ac_simplify c in
-           (*print_endline (Constraints.to_string c);*)
-           match Constraints.solve c with
+      let lets, enf_map, sols = types Enftype.cau f b in
+      let rec run = function
+        | [] ->
+          Stdio.print_endline ("The formula\n "
+                               ^ to_string f
+                               ^ "\nis not enforceable: no solutions were found");
+          raise (FormulaError (Printf.sprintf "formula %s is not enforceable" (to_string f)))
+        | (clauses, constr) :: sols ->
+          begin
+            print_endline "checking one solution!";
+            print_endline ("lets:\n" ^ (String.concat ~sep:"\n" (List.map lets ~f:(fun (e, _, _, f) -> e ^ "(...) = " ^ to_string f))));
+            print_endline ("clauses:\n" ^ (String.concat ~sep:"\n" (List.map clauses ~f:(fun (f, gs) -> to_string f ^ " → " ^ String.concat ~sep:" & " (List.map ~f:to_string gs)))));
+            print_endline ("constr:\n" ^ Constraints.to_string constr);
+           let constr = Constraints.ac_simplify constr in
+           match Constraints.solve constr with
            | sol::_ ->
-              begin
-                (*print_endline "Computed enforceability types:";*)
-                let set_enftype ~key ~data bound =
-                  if Sig.mem key then (
-                    let enftype = Enftype.Constraint.solve data in
-                    Sig.update_enftype key enftype;
-                    (*print_endline (Printf.sprintf "%s: %s" key (Enftype.to_string enftype));*)
-                    bound
-                  )
-                  else (
-                    Sig.add_letpred_empty key;
-                    key::bound
-                  ) in
-                let _ = Map.fold sol ~init:[] ~f:set_enftype in
-                let f = f |> unroll_let ~moderate |> simplify |> pull_lets |> convert_vars in
-                (*Stdio.print_endline (to_string f);*)
-                (*List.iter (Set.elements (fv f)) ~f:(fun v -> print_endline ("var: " ^  (Var.to_string v)));*)
-                match convert' b f with
-                | Some f' -> (if verbose then
-                                Stdio.print_endline ("The formula\n "
-                                                     ^ to_string orig_f
-                                                     ^ "\nis enforceable and types to\n "
-                                                     ^ to_string_typed f'));
-                             let f' = ac_simplify f' in
-                             f'
-                | None    -> (if verbose then
-                                Stdio.print_endline ("The formula\n "
-                                                     ^ to_string f
-                                                     ^ "\n cannot be converted."));
-                             raise (FormulaError (Printf.sprintf "formula %s cannot be converted"
-                                                    (to_string f)))
-              end
-           | _ -> (if verbose then
-                     Stdio.print_endline ("The formula\n "
-                                          ^ to_string orig_f
-                                          ^ "\nis not enforceable because the constraint\n "
-                                          ^ Constraints.to_string c
-                                          ^ "\nhas no solution."));
-                  raise (FormulaError (Printf.sprintf "formula %s is not enforceable" (to_string f)))
+             begin
+               let lets = List.map lets ~f:(fun (e, enftype, vars, f) ->
+                   let enftype = match Map.find sol e with
+                     | Some constr -> Some (Enftype.Constraint.solve constr)
+                     | None -> enftype in
+                   (e, enftype, vars, map_info ~f:(fun info -> { TypedInfo.dummy with info }) f)) in
+               let fs = List.map clauses ~f:compile_clause in
+               combine_formula lets fs 
+             end
+           | [] -> run sols
          end
-      | Impossible e ->
-        (if verbose then
-           Stdio.print_endline ("The formula\n "
-                                ^ to_string orig_f
-                                ^ "\nis not enforceable. To make it enforceable, you would need to\n "
-                                ^ Errors.to_string e));
-         raise (FormulaError (Printf.sprintf "formula %s is not enforceable" (to_string f)))
-
-
-    let is_transparent (f: typed_t) = 
-      let rec aux (f: typed_t) = 
-        (*print_endline ("aux " ^ to_string f);*)
-        let b =
-          let flag = f.info.flag in
-          match Enftype.is_causable f.info.enftype, Enftype.is_suppressable f.info.enftype with
-          | true, false -> begin
-              match f.form with
-              | TT | Predicate (_, _) -> true
-              | Neg f | Exists (_, f) | Forall (_, f)
-                | Once (_, f) | Next (_, f) | Historically (_, f) | Always (_, f)
-                | Predicate' (_, _, f) | Let' (_, _, _, _, f) | Label (_, f) -> aux f
-              | Eventually (_, f) -> flag && aux f
-              | Or (L, [f; g]) | Imp (L, f, g)
-                -> aux f && strictly_relative_past g
-              | Or (R, [f; g]) | Imp (R, f, g)
-                -> aux g && strictly_relative_past f
-              | And (_, fs) -> List.for_all ~f:strictly_relative_past fs
-              | Since (_, _, f, g) -> aux g && strictly_relative_past f
-              | Until (R, _, f, g) -> flag && aux g && strictly_relative_past f
-              | Until (LR, _, f, g) -> flag && aux f && aux g
-              | _ -> false
-            end
-          | false, true -> begin
-              let flag = f.info.flag in
-              match f.form with
-              | FF | Predicate (_, _) -> true
-              | Neg f | Exists (_, f) | Forall (_, f)
-                | Once (_, f) | Next (_, f) | Historically (_, f) | Eventually (_, f)
-                | Predicate' (_, _, f) | Let' (_, _, _, _, f) | Label (_, f) -> aux f
-              | Always (_, f) -> flag && aux f
-              | And (L, f :: gs) 
-                -> aux f && List.for_all ~f:strictly_relative_past gs
-              | And (R, (_::_ as fs)) ->
-                 aux (List.last_exn fs) && List.for_all ~f:strictly_relative_past (List.drop_last_exn fs)
-              | Or (_, fs) -> List.for_all ~f:strictly_relative_past fs
-              | Since (L, _, f, g) -> aux f && strictly_relative_past g
-              | Until (R, _, f, g) -> aux g && strictly_relative_past f
-              | Until (_, _, f, g) -> aux f && strictly_relative_past g
-              | _ -> false
-            end
-          | _ -> raise (FormulaError (
-                            Printf.sprintf
-                              "cannot check transparency of formula with type %s: type must be either causable or suppressable, but not both"
-                          (Enftype.to_string f.info.enftype)))
-        in b
-      in
-      aux f
-
-    module Normalized = struct
-
-     (*
-         Normalized formulae must have the following form outside-in:
-         - A conjunction of causable temporal operators
-         - A sequence of ∀ quantifiers
-         - Within each temporal operator, either a(.)∨b(.)∨...→f→g(.)∧h(.)∧... where a(.)∨b(.)∨... guard the free variables and g(.), h(.), ... are causable (predicates or future)
-                                          or     a(.)∨b(.)∨...→f where a(.), b(.), ... are suppressable predicates
-         - Within each future operator in a g(.), h(.), ..., the same structure
-
-         Variant for suppressable formulae (intermediate representation only)
-         - either (a(.)∨b(.)∨...)∧f∧¬g(.)∨¬h(.)∨... where a(.)∨b(.)∨... guard the free variables and g(.), h(.), ... are causable (predicates or future)
-         - either (a(.)∨b(.)∨...)∧f where a(.), b(.), ... are suppressable predicates
-     *)
-
-      type formula = typed_t [@@deriving equal]
+      in run sols
         
-      type modality =
-        | NNow
-        | NNext of Interval.t
-        | NUntilL of Interval.t * formula
-        | NUntilR of Interval.t * formula
-        | NUntilLR of Interval.t
-        | NAlways of Interval.t
-        | NEventually of Interval.t
-        | NOnce of Interval.t
-        | NHistorically of Interval.t
-        | NSinceL of Interval.t * formula
-        | NSinceR of Interval.t * formula [@@deriving equal]
-
-      type monotonicity =
-        | NMonotonic
-        | NAntimonotonic
-        | NIrrelevant
-        | NNeither [@@deriving equal]
-
-      type effect =
-        | NInstructions of instruction list
-        | NEvent of formula (* only predicates *) [@@deriving equal]
-
-      and by = {
-        filter:  formula;
-        effects: effect list;
-        events: (string * monotonicity * Enftype.t) list;
-      } [@@deriving equal]
-
-      and recipe =
-        | CauByCau of by
-        | CauBySup of by
-        | SupByCau of by
-        | SupBySup of by [@@deriving equal]
-
-      and instruction = {
-        modality: modality;
-        vars: (Var.t * bool) list;
-        recipe: recipe;
-        r_recipe_opt: recipe option;
-        label: string option;
-      } [@@deriving equal]
-
-      and let_ = {
-        e: string;
-        vars: Var.t list;
-        enftype: Enftype.t;
-        instrs_opt: instruction list option;
-        formula: typed_t;
-        events: (string * monotonicity * Enftype.t) list;
-      } [@@deriving equal]
-
-      type t = {
-        lets: let_ list;
-        instrs: instruction list;
-      } [@@deriving equal]
-
-      let rec effect_typed_predicates = function
-        | NInstructions instrs -> merge_all_maps (List.map ~f:instruction_typed_predicates instrs)
-        | NEvent f -> typed_predicates f
-
-      and effects_typed_predicates effects =
-        merge_all_maps (List.map ~f:effect_typed_predicates effects)
-
-      and instruction_typed_predicates instr =
-        match instr.modality with
-        | NNow -> recipe_typed_predicates instr.recipe
-        | NNext _ -> Map.empty (module String)
-        | NUntilL (_, f) 
-        | NUntilR (_, f)
-        | NSinceL (_, f) 
-        | NSinceR (_, f) -> merge_maps (typed_predicates f) (recipe_typed_predicates instr.recipe)
-        | NUntilLR _
-        | NAlways _ 
-        | NEventually _
-        | NOnce _
-        | NHistorically _ -> recipe_typed_predicates instr.recipe
-
-      and recipe_typed_predicates = function
-        | CauByCau by
-        | CauBySup by
-        | SupByCau by
-        | SupBySup by -> effects_typed_predicates by.effects
-
-      let can_merge_recipes recipe recipe' =
-        match recipe, recipe' with
-        | CauByCau by_cau, CauByCau by_cau' -> equal_typed_t by_cau.filter by_cau'.filter
-        | CauBySup by_sup, CauBySup by_sup' -> equal_typed_t by_sup.filter by_sup'.filter
-        | SupByCau by_cau, SupByCau by_cau' -> equal_typed_t by_cau.filter by_cau'.filter
-        | SupBySup by_sup, SupBySup by_sup' -> equal_typed_t by_sup.filter by_sup'.filter
-
-      let can_merge instr instr' =
-        equal_modality instr.modality instr'.modality
-        && List.equal (fun (v, b) (v', b') -> Var.equal v v' && Bool.equal b b') instr.vars instr'.vars
-        && can_merge_recipes instr.recipe instr'.recipe
-        && Option.is_none instr.r_recipe_opt && Option.is_none instr'.r_recipe_opt
-        && Option.equal String.equal instr.label instr'.label
-
-      let merge_recipe recipe recipe' =
-        match recipe, recipe' with
-        | CauByCau by_cau, CauByCau by_cau' -> CauByCau { by_cau with effects = by_cau.effects @ by_cau'.effects }
-        | CauBySup by_sup, CauBySup by_sup' -> CauBySup { by_sup with effects = by_sup.effects @ by_sup'.effects }
-        | SupByCau by_cau, SupByCau by_cau' -> SupByCau { by_cau with effects = by_cau.effects @ by_cau'.effects }
-        | SupBySup by_sup, SupBySup by_sup' -> SupBySup { by_sup with effects = by_sup.effects @ by_sup'.effects }
-        
-      let merge instr instr' =
-        { instr with recipe = merge_recipe instr.recipe instr'.recipe }
-
-      let monotonicity_to_string = function
-        | NMonotonic -> "Monotonic"
-        | NAntimonotonic -> "Antimonotonic"
-        | NIrrelevant -> "Irrelevant"
-        | NNeither -> "Neither"
-        
-      let modality_to_string nm s r_s_opt =
-        match nm with
-        | NNow -> s
-        | NNext i -> Printf.sprintf "○%s %s" (Interval.to_string i) s
-        | NUntilR (i, f) -> Printf.sprintf "%s U%s:R %s" (to_string_typed f) (Interval.to_string i) s
-        | NUntilL (i, f) -> Printf.sprintf "%s U%s:L %s" s (Interval.to_string i) (to_string_typed f)
-        | NUntilLR i -> Printf.sprintf "%s U%s:LR %s" s (Interval.to_string i) (Option.value_exn r_s_opt)
-        | NAlways i -> Printf.sprintf "□%s %s" (Interval.to_string i) s
-        | NEventually i -> Printf.sprintf "◊%s %s" (Interval.to_string i) s
-        | NOnce i -> Printf.sprintf "⧫%s %s" (Interval.to_string i) s
-        | NHistorically i -> Printf.sprintf "■%s %s" (Interval.to_string i) s
-        | NSinceL (i, f) -> Printf.sprintf "%s U%s:L %s" s (Interval.to_string i) (to_string_typed f)
-        | NSinceR (i, f) -> Printf.sprintf "%s U%s:R %s" (to_string_typed f) (Interval.to_string i) s
-
-      let rec effect_to_string = function
-        | NInstructions instrs -> String.concat ~sep:" ∧ " (List.map ~f:instruction_to_string instrs)
-        | NEvent f -> to_string_typed f
-
-      and recipe_to_string = function
-        | CauByCau by_cau ->
-          if core_equal by_cau.filter (make_dummy TT) then
-            (String.concat ~sep:" ∧ " (List.map ~f:effect_to_string by_cau.effects))
-          else
-            Printf.sprintf "%s →:R %s" (* We cause the RHS if the LHS is true *)
-              (to_string_typed by_cau.filter)
-              (String.concat ~sep:" ∧ " (List.map ~f:effect_to_string by_cau.effects))
-        | CauBySup by_sup -> (* We suppress the RHS if the LHS is true *)
-          if core_equal by_sup.filter (make_dummy TT) then
-             (String.concat ~sep:" ∧ " (List.map ~f:effect_to_string by_sup.effects))
-          else
-            Printf.sprintf "%s →:R ¬(%s)"
-              (to_string_typed by_sup.filter)
-              (String.concat ~sep:" ∧ " (List.map ~f:effect_to_string by_sup.effects))
-        | SupByCau by_cau -> (* We cause the RHS if the LHS is true *)
-          if core_equal by_cau.filter (make_dummy TT) then
-             (String.concat ~sep:" ∧ " (List.map ~f:effect_to_string by_cau.effects))
-          else
-            Printf.sprintf "%s ∧:R ¬(%s)"
-              (to_string_typed by_cau.filter)
-              (String.concat ~sep:" ∧ " (List.map ~f:effect_to_string by_cau.effects))
-        | SupBySup by_sup -> (* We suppress the RHS if the LHS is true *)
-          if core_equal by_sup.filter (make_dummy TT) then
-             (String.concat ~sep:" ∧ " (List.map ~f:effect_to_string by_sup.effects))
-          else
-            Printf.sprintf "%s ∧:R %s"
-              (to_string_typed by_sup.filter)
-              (String.concat ~sep:" ∧ " (List.map  ~f:effect_to_string by_sup.effects))
-
-      and instruction_to_string instr =
-        let v = instr.vars
-          |> List.map ~f:(fun (var, q) -> Printf.sprintf "%s%s. " (if q then "∀" else "∃") (Var.to_string var))
-          |> String.concat in
-        let s = recipe_to_string instr.recipe in
-        let r_s_opt = Option.map ~f:recipe_to_string instr.r_recipe_opt in
-        let m = Printf.sprintf "%s[%s]" v (modality_to_string instr.modality s r_s_opt) in
-        match instr.label with
-        | None -> m
-        | Some lbl -> Printf.sprintf "{\"%s\"}{%s}" lbl m
-
-      and let_to_string (let_: let_) =
-        Printf.sprintf "LET %s(%s)%s = %s IN" let_.e
-          (Etc.string_list_to_string (List.map ~f:Var.to_string let_.vars))
-          (Enftype.to_string_let let_.enftype)
-          (Option.value_map let_.instrs_opt ~default:(to_string_typed let_.formula)
-             ~f:(fun x -> String.concat ~sep:" " (List.map ~f:instruction_to_string x)))
-
-      let to_string nf =
-        String.concat ~sep:"\n" (List.map ~f:let_to_string nf.lets)
-        ^ "\n" ^
-        String.concat ~sep:" ∧\n" (List.map ~f:instruction_to_string nf.instrs)
-
-      (*let events_to_json event_list =
-        Printf.sprintf "[%s]"
-          (Etc.string_list_to_string (List.map ~f:(fun (e, m) ->
-               Printf.sprintf "{ \"name\": \"%s\", \"polarity\": \"%s\" }"
-                 e (monotonicity_to_string m)) event_list))*)
-
-      let typed_events_to_json event_list =
-        Printf.sprintf "[%s]"
-          (Etc.string_list_to_string (List.map ~f:(fun (e, m, t) ->
-               Printf.sprintf "{ \"name\": \"%s\", \"polarity\": \"%s\", \"effect\": %s }"
-                 e (monotonicity_to_string m)
-                 (match Enftype.is_causable t, Enftype.is_suppressable t with
-                  | true, false -> "\"Cau\""
-                  | false, true -> "\"Sup\""
-                  | false, false -> "null")) event_list))
-
-      let rec modality_to_json = function
-        | NNow -> "{ \"constructor\": \"NNow\" }"
-        | NNext i -> 
-          Printf.sprintf "{ \"constructor\": \"NNext\", \"interval\": %s }" (Interval.to_json i)
-        | NUntilR (i, f) -> 
-          Printf.sprintf "{ \"constructor\": \"NUntilR\", \"interval\": %s, \"formula\": %s }" 
-            (Interval.to_json i) (to_json f)
-        | NUntilL (i, f) -> 
-          Printf.sprintf "{ \"constructor\": \"NUntilL\", \"interval\": %s, \"formula\": %s }" 
-            (Interval.to_json i) (to_json f)
-        | NUntilLR i -> 
-          Printf.sprintf "{ \"constructor\": \"NUntilLR\", \"interval\": %s }" (Interval.to_json i)
-        | NAlways i -> 
-          Printf.sprintf "{ \"constructor\": \"NAlways\", \"interval\": %s }" (Interval.to_json i)
-        | NEventually i -> 
-          Printf.sprintf "{ \"constructor\": \"NEventually\", \"interval\": %s }" (Interval.to_json i)
-        | NOnce i -> 
-          Printf.sprintf "{ \"constructor\": \"NOnce\", \"interval\": %s }" (Interval.to_json i)
-        | NHistorically i -> 
-          Printf.sprintf "{ \"constructor\": \"NHistorically\", \"interval\": %s }" (Interval.to_json i)
-        | NSinceL (i, f) -> 
-          Printf.sprintf "{ \"constructor\": \"NSinceL\", \"interval\": %s, \"formula\": %s }" 
-            (Interval.to_json i) (to_json f)
-        | NSinceR (i, f) -> 
-          Printf.sprintf "{ \"constructor\": \"NSinceR\", \"interval\": %s, \"formula\": %s }" 
-            (Interval.to_json i) (to_json f)
-
-      and effect_to_json = function
-        | NInstructions instrs -> 
-          Printf.sprintf "{ \"constructor\": \"NInstructions\", \"instructions\": [%s] }" 
-            (String.concat ~sep:", " (List.map ~f:instruction_to_json instrs))
-        | NEvent f -> 
-          Printf.sprintf "{ \"constructor\": \"NEvent\", \"formula\": %s }" (to_json f)
-
-      and by_to_json by =
-        Printf.sprintf "{ \"filter\": %s, \"effects\": [%s], \"events\": %s }"
-          (to_json by.filter)
-          (String.concat ~sep:", " (List.map ~f:effect_to_json by.effects))
-          (typed_events_to_json by.events)
-
-      and recipe_to_json = function
-        | CauByCau by -> 
-          Printf.sprintf "{ \"constructor\": \"CauByCau\", \"by\": %s }" (by_to_json by)
-        | CauBySup by -> 
-          Printf.sprintf "{ \"constructor\": \"CauBySup\", \"by\": %s }" (by_to_json by)
-        | SupByCau by -> 
-          Printf.sprintf "{ \"constructor\": \"SupByCau\", \"by\": %s }" (by_to_json by)
-        | SupBySup by -> 
-          Printf.sprintf "{ \"constructor\": \"SupBySup\", \"by\": %s }" (by_to_json by)
-
-      and instruction_to_json instr =
-        Printf.sprintf "{ \"modality\": %s, \"vars\": [%s], \"recipe\": %s, \"r_recipe_opt\": %s, \"label\": %s }"
-          (modality_to_json instr.modality)
-          (String.concat ~sep:", " 
-            (List.map instr.vars ~f:(fun (v, q) -> 
-              Printf.sprintf "{ \"var\": \"%s\", \"quantifier\": \"%s\" }" 
-                (Var.to_string v) (if q then "forall" else "exists"))))
-          (recipe_to_json instr.recipe)
-          (match instr.r_recipe_opt with
-           | None -> "null"
-           | Some r -> recipe_to_json r)
-          (match instr.label with
-           | None -> "null"
-           | Some lbl -> Printf.sprintf "\"%s\"" lbl)
-
-      and let_to_json let_ =
-        Printf.sprintf "{ \"e\": \"%s\", \"vars\": [%s], \"enftype\": \"%s\", \"instrs_opt\": %s, \"formula\": %s, \"events\": %s }"
-          let_.e
-          (String.concat ~sep:", " (List.map let_.vars ~f:(fun v -> Printf.sprintf "\"%s\"" (Var.to_string v))))
-          (Enftype.to_string let_.enftype)
-          (match let_.instrs_opt with
-           | None -> "null"
-           | Some instrs -> Printf.sprintf "[%s]" (String.concat ~sep:", " (List.map ~f:instruction_to_json instrs)))
-          (to_json let_.formula)
-          (typed_events_to_json let_.events)
-
-      let to_json nf =
-        Printf.sprintf "{ \"lets\": [%s], \"instrs\": [%s] }"
-          (String.concat ~sep:", " (List.map ~f:let_to_json nf.lets))
-          (String.concat ~sep:", " (List.map ~f:instruction_to_json nf.instrs))
-
-      let typed_monotonicity_list ?(init=Map.empty (module String)) f =
-        let typed_events = merge_maps init (typed_predicates f) in
-        let events = Set.of_list (module String) (Map.keys typed_events) in
-        let non_monotone_map, non_antimonotone_map = non_monotone_predicates f in
-        let non_monotone = Set.of_list (module String) (Map.keys non_monotone_map) in
-        let non_antimonotone = Set.of_list (module String) (Map.keys non_antimonotone_map) in
-        let monotone = Set.diff events non_monotone in
-        let antimonotone = Set.diff events non_antimonotone in
-        let irrelevant = Set.inter monotone antimonotone in
-        let monotone = Set.diff monotone irrelevant in
-        let antimonotone = Set.diff antimonotone irrelevant in
-        let neither = Set.diff events (Set.union_list (module String) [monotone; antimonotone; irrelevant]) in
-        let find = Map.find_exn typed_events in
-        List.map ~f:(fun e -> (e, NIrrelevant, find e)) (Set.to_list irrelevant)
-        @ List.map ~f:(fun e -> (e, NMonotonic, find e)) (Set.to_list monotone)
-        @ List.map ~f:(fun e -> (e, NAntimonotonic, find e)) (Set.to_list antimonotone)
-        @ List.map ~f:(fun e -> (e, NNeither, find e)) (Set.to_list neither)
-
-      let set_events by =
-        { by with events = typed_monotonicity_list ~init:(effects_typed_predicates by.effects) by.filter }
-
-      let neg_recipe = function
-        | CauByCau by_cau -> SupByCau by_cau
-        | CauBySup by_sup -> SupBySup by_sup
-        | SupByCau by_cau -> CauByCau by_cau
-        | SupBySup by_sup -> CauBySup by_sup
-
-      let neg_instruction instr =
-        { instr with vars = List.map ~f:(fun (v, b) -> (v, not b)) instr.vars;
-                     recipe = neg_recipe instr.recipe;
-                     r_recipe_opt = Option.map ~f:neg_recipe instr.r_recipe_opt }
-
-      let rec split_lets (formula: typed_t) : let_ list * typed_t =
-        let (>>|) f formula =
-          let lets, formula = split_lets formula in
-          lets, make (f formula) formula.info in
-        let bind2 f g h =
-          let lets_g, g = split_lets g in
-          let lets_h, h = split_lets h in
-          lets_g @ lets_h, make (f g h) formula.info in
-        let bindn f gs =
-          let lets, fs = List.map ~f:split_lets gs |> List.unzip in
-          List.concat lets, make (f gs) formula.info in
-        match formula.form with
-        | TT | FF | EqConst _ | Predicate _ -> [], formula
-        | Predicate' (e, ts, f) -> split_lets f
-        | Let (e, enftype, vars, f, g) ->
-          let lets_f, formula = split_lets f in
-          let lets_g, g = split_lets g in
-          let vars = List.map ~f:fst vars in
-          lets_f @ { e; enftype; vars; formula; instrs_opt = None;
-                     events = typed_monotonicity_list formula } :: lets_g, g
-        | Let' (e, typ_opt, vars, f, g) -> split_lets g
-        | Agg (s, op, x, y, f) -> (fun f -> Agg (s, op, x, y, f)) >>| f
-        | Top (s, op, x, y, f) -> (fun f -> Top (s, op, x, y, f)) >>| f
-        | Neg f -> (fun f -> Neg f) >>| f
-        | And (s, fs) -> bindn (fun fs -> And (s, fs)) fs
-        | Or (s, fs) -> bindn (fun fs -> Or (s, fs)) fs
-        | Imp (s, f, g) -> bind2 (fun f g -> Imp (s, f, g)) f g 
-        | Exists (x, f) -> (fun f -> Exists (x, f)) >>| f
-        | Forall (x, f) -> (fun f -> Forall (x, f)) >>| f
-        | Prev (i, f) -> (fun f -> Prev (i, f)) >>| f
-        | Next (i, f) -> (fun f -> Next (i, f)) >>| f
-        | Once (i, f) -> (fun f -> Once (i, f)) >>| f
-        | Eventually (i, f) -> (fun f -> Eventually (i, f)) >>| f
-        | Historically (i, f) -> (fun f -> Historically (i, f)) >>| f
-        | Always (i, f) -> (fun f -> Always (i, f)) >>| f
-        | Since (s, i, f, g) -> bind2 (fun f g -> Since (s, i, f, g)) f g
-        | Until (s, i, f, g) -> bind2 (fun f g -> Until (s, i, f, g)) f g 
-        | Type (f, ty) -> (fun f -> Type (f, ty)) >>| f
-        | Label (s, f) -> split_lets f
-
-      let rec init ?(label=None) (formula: typed_t) =
-        let enftype = formula.info.enftype in
-        let init_ = init in
-        let init = init ~label in
-        let make_dummy f = make f TypedInfo.dummy in
-        let and_filter filter f = ac_simplify (make_dummy (And (N, [filter; f]))) in
-        let and_recipe fi = function
-          | CauByCau by_cau ->
-            CauByCau (set_events { by_cau with filter = and_filter fi by_cau.filter })
-          | CauBySup by_sup ->
-            CauBySup (set_events { by_sup with filter = and_filter fi by_sup.filter })
-          | SupByCau by_cau ->
-            SupByCau (set_events { by_cau with filter = and_filter fi by_cau.filter })
-          | SupBySup by_sup ->
-            SupBySup (set_events { by_sup with filter = and_filter fi by_sup.filter }) in
-        let rec merge_all = function
-          | [] -> []
-          | h::t ->
-            let mergeable = List.filter t ~f:(can_merge h) in
-            let not_mergeable = List.filter t ~f:(fun x -> not (can_merge h x)) in
-            let h = List.fold_left ~init:h ~f:merge mergeable in
-            h :: merge_all not_mergeable in
-        let f = 
-          match Enftype.is_causable enftype, Enftype.is_suppressable enftype with
-          | true, _ -> begin 
-              match formula.form with
-              | TT ->
-                {
-                  lets = [];
-                  instrs = [
-                    {
-                      modality = NNow;
-                      vars = [];
-                      recipe = CauByCau {
-                          filter = make_dummy TT;
-                          effects = [];
-                          events = [];
-                        };
-                      r_recipe_opt = None;
-                      label;
-                    }
-                  ]
-                }
-              | Predicate (e, trms) ->
-                {
-                  lets = [];
-                  instrs = [
-                    {
-                      modality = NNow;
-                      vars = [];
-                      recipe = CauByCau {
-                          filter = make_dummy TT;
-                          effects = [NEvent formula];
-                          events = [];
-                        };
-                      r_recipe_opt = None;
-                      label;
-                    }
-                  ]
-                }
-              | Predicate' (e, trms, f) -> init f
-              | Let (e, enftype, vars, f, g) ->
-                let ng = init g in
-                let nf_opt =
-                if not (Enftype.is_causable enftype || Enftype.is_suppressable enftype)
-                then None
-                else Some (init f) in
-              let f_lets = Option.value_map ~default:[] ~f:(fun nf -> nf.lets) nf_opt in
-              let instrs_opt = Option.map ~f:(fun nf -> nf.instrs) nf_opt in
-              let new_let =
-                { e; vars = List.map ~f:fst vars; enftype; formula = f; instrs_opt;
-                  events = typed_monotonicity_list f } in
-              {
-                lets = new_let :: ng.lets;
-                instrs = ng.instrs
-              } 
-            | Let' (_, _, _, _, g) -> init g
-            | Neg f ->
-              let nf = init f in
-              { nf with instrs = List.map ~f:neg_instruction nf.instrs }
-            | And (L, fs) ->
-              let nfs = List.map ~f:init fs in
-              {
-                lets = List.concat_map nfs ~f:(fun nf -> nf.lets);
-                instrs = List.concat_map nfs ~f:(fun nf -> nf.instrs) |> merge_all
-              }
-            | And (R, fs) ->
-              let nfs = List.map ~f:init fs in
-              {
-                lets = List.concat_map nfs ~f:(fun nf -> nf.lets);
-                instrs = List.concat_map (List.rev nfs) ~f:(fun nf -> nf.instrs) |> merge_all
-              }
-            | Or (L, f :: gs) ->
-              let nf = init f in
-              let lets, gs = List.map ~f:split_lets gs |> List.unzip in
-              let filter = match gs with
-                | [] -> make_dummy FF
-                | [g] -> make_dummy (Neg g)
-                | gs -> make_dummy (Neg (make_dummy (Or (N, gs)))) in
-              {
-                lets = nf.lets @ List.concat lets;
-                instrs = List.map nf.instrs
-                    ~f:(fun instr -> match instr.modality with
-                      | NNow -> { instr with recipe = and_recipe filter instr.recipe }
-                      | _ -> {
-                          modality = NNow;
-                          vars = [];
-                          recipe = CauByCau {
-                                filter;
-                                effects = [NInstructions [instr]];
-                                events = typed_monotonicity_list ~init:(instruction_typed_predicates instr) filter;
-                              }; 
-                          r_recipe_opt = None;
-                          label;
-                        })
-              }
-            | Or (R, fs) -> init (make (Or (L, List.rev fs)) formula.info)
-            | Imp (L, f, g) ->
-              let nf = init f in
-              let lets, g = split_lets g in
-              let filter = make_dummy (Neg g) in
-              {
-                lets = nf.lets @ lets;
-                instrs = List.map nf.instrs
-                    ~f:(fun instr -> match instr.modality with
-                        | NNow -> { instr with recipe = and_recipe filter instr.recipe }
-                        | _ -> {
-                            modality = NNow;
-                            vars = [];
-                            recipe = SupBySup {
-                                filter;
-                                effects = [NInstructions [instr]];
-                                events = typed_monotonicity_list ~init:(instruction_typed_predicates instr) filter;
-                              }; 
-                            r_recipe_opt = None;
-                            label;
-                          })
-                       |> List.map ~f:neg_instruction
-              }
-            | Imp (R, f, g) ->
-              let ng = init g in
-              let lets, filter = split_lets f in
-              {
-                lets = lets @ ng.lets;
-                instrs = List.map ng.instrs
-                    ~f:(fun instr -> match instr.modality with
-                        | NNow -> { instr with recipe = and_recipe filter instr.recipe }
-                        | _ -> {
-                            modality = NNow;
-                            vars = [];
-                            recipe = CauByCau {
-                                filter;
-                                effects = [NInstructions [instr]];
-                                events =  typed_monotonicity_list ~init:(instruction_typed_predicates instr) filter;
-                              }; 
-                            r_recipe_opt = None;
-                            label;
-                          })
-              }
-            | Exists (x, f) ->
-              let nf = init f in
-              { lets = nf.lets;
-                instrs = List.map ~f:(fun instr -> { instr with vars = (x, false) :: instr.vars }) nf.instrs }
-            | Forall (x, f) ->
-              let nf = init f in
-              { lets = nf.lets;
-                instrs = List.map ~f:(fun instr -> { instr with vars = (x, true) :: instr.vars }) nf.instrs }
-            | Next (i, f) ->
-              let nf = init f in
-              { lets = nf.lets;
-                instrs = List.map ~f:(fun instr -> { instr with modality = NNext i }) nf.instrs }
-            | Once (i, f) ->
-              let nf = init f in
-              {
-                lets = nf.lets;
-                instrs = [
-                  {
-                    modality = NOnce i;
-                    vars = [];
-                    recipe = CauByCau {
-                        filter = make_dummy TT;
-                        effects = [NInstructions nf.instrs];
-                        events = [];
-                      };
-                    r_recipe_opt = None;
-                    label;
-                  }
-                ]
-              }
-            | Since (_, i, f, g) ->
-              let ng = init g in
-              let lets, f = split_lets f in
-              {
-                lets = lets @ ng.lets;
-                instrs = [
-                  {
-                    modality = NSinceR (i, f);
-                    vars = [];
-                    recipe = CauByCau {
-                        filter = make_dummy TT;
-                        effects = [NInstructions ng.instrs];
-                        events = [];
-                      };
-                    r_recipe_opt = None;
-                    label;
-                  }
-                ]
-              }
-            | Eventually (i, f) ->
-              let nf = init f in
-              {
-                lets = nf.lets;
-                instrs = [
-                  {
-                    modality = NEventually i;
-                    vars = [];
-                    recipe = CauByCau {
-                        filter = make_dummy TT;
-                        effects = [NInstructions nf.instrs];
-                        events = [];
-                      };
-                    r_recipe_opt = None;
-                    label;
-                  }
-                ]
-              }
-            | Always (i, f) ->
-              let nf = init f in
-              {
-                lets = nf.lets;
-                instrs = [
-                  {
-                    modality = NAlways i;
-                    vars = [];
-                    recipe = CauByCau {
-                        filter = make_dummy TT;
-                        effects = [NInstructions nf.instrs];
-                        events = [];
-                      };
-                    r_recipe_opt = None;
-                    label;
-                  }
-                ]
-              }
-            | Until (LR, i, f, g) ->
-              let nf = init f and ng = init g in
-              {
-                lets = nf.lets @ ng.lets;
-                instrs = [
-                  {
-                    modality = NUntilLR i;
-                    vars = [];
-                    recipe = CauByCau {
-                        filter = make_dummy TT;
-                        effects = [NInstructions nf.instrs];
-                        events = [];
-                      };
-                    r_recipe_opt = Some (CauByCau {
-                        filter = make_dummy TT;
-                        effects = [NInstructions ng.instrs];
-                        events = [];
-                      });
-                    label;
-                  }
-                ]
-              }
-            | Until (R, i, f, g) ->
-              let ng = init g in
-              let lets, f = split_lets f in
-              {
-                lets = lets @ ng.lets;
-                instrs = [
-                  {
-                    modality = NUntilR (i, f);
-                    vars = [];
-                    recipe = CauByCau {
-                        filter = make_dummy TT;
-                        effects = [NInstructions ng.instrs];
-                        events = [];
-                      };
-                    r_recipe_opt = None;
-                    label;
-                  }
-                ]
-              }
-            | Label (s, f) -> init_ ~label:(Some s) f
-            | _ -> assert false
-          end
-        | _, true -> begin
-            match formula.form with
-            | FF ->
-              {
-                lets = [];
-                instrs = [
-                  {
-                    modality = NNow;
-                    vars = [];
-                    recipe = SupBySup {
-                        filter = make_dummy TT;
-                        effects = [];
-                        events = [];
-                      };
-                    r_recipe_opt = None;
-                    label;
-                  }
-                ]
-              }
-            | Predicate (e, trms) ->
-              {
-                lets = [];
-                instrs = [
-                  {
-                    modality = NNow;
-                    vars = [];
-                    recipe = SupBySup {
-                        filter = make_dummy TT;
-                        effects = [NEvent formula];
-                        events = [];
-                      };
-                    r_recipe_opt = None;
-                    label;
-                  }
-                ]
-              }
-            | Predicate' (e, trms, f) -> init f
-            | Let (e, enftype, vars, f, g) ->
-              let ng = init g in
-              let nf_opt =
-                if Enftype.is_only_observable enftype then None else Some (init f) in
-              let f_lets = Option.value_map ~default:[] ~f:(fun nf -> nf.lets) nf_opt in
-              let instrs_opt = Option.map ~f:(fun nf -> nf.instrs) nf_opt in
-              let new_let =
-                { e; vars = List.map ~f:fst vars; enftype; formula = f; instrs_opt;
-                  events = typed_monotonicity_list f } in
-              {
-                lets = new_let :: ng.lets;
-                instrs = ng.instrs
-              } 
-            | Let' (_, _, _, _, g) -> init g
-            | Neg f ->
-              let nf = init f in
-              { nf with instrs = List.map ~f:neg_instruction nf.instrs }
-            | And (L, f :: gs) ->
-              let nf = init f in
-              let lets, gs = List.map ~f:split_lets gs |> List.unzip in
-              let filter = match gs with
-                | [] -> make_dummy TT
-                | [g] -> g
-                | gs -> make_dummy (And (N, gs)) in
-              {
-                lets = nf.lets @ List.concat lets;
-                instrs = List.map nf.instrs
-                    ~f:(fun instr -> match instr.modality with
-                        | NNow -> { instr with recipe = and_recipe filter instr.recipe }
-                        | _ -> {
-                            modality = NNow;
-                            vars = [];
-                            recipe = SupBySup {
-                                filter;
-                                effects = [NInstructions [instr]];
-                                events = typed_monotonicity_list ~init:(instruction_typed_predicates instr) filter;
-                              }; 
-                            r_recipe_opt = None;
-                            label;
-                          })
-              }
-            | And (R, fs) -> init (make (And (L, List.rev fs)) formula.info)
-            | Or (L, fs) ->
-              let nfs = List.map ~f:init fs in
-              {
-                lets = List.concat_map nfs ~f:(fun nf -> nf.lets);
-                instrs = List.concat_map nfs ~f:(fun nf -> nf.instrs) |> merge_all
-              }
-            | Or (R, fs) ->
-              let nfs = List.map ~f:init fs in
-              {
-                lets = List.concat_map nfs ~f:(fun nf -> nf.lets);
-                instrs = List.concat_map (List.rev nfs) ~f:(fun nf -> nf.instrs) |> merge_all
-              }
-            | Imp (L, f, g) ->
-              let nf = init f and ng = init g in
-              {
-                lets = nf.lets @ ng.lets;
-                instrs = (nf.instrs @ ng.instrs) |> merge_all
-              }
-            | Imp (R, f, g) ->
-              let nf = init f and ng = init g in
-              {
-                lets = nf.lets @ ng.lets;
-                instrs = (ng.instrs @ nf.instrs) |> merge_all
-              }
-            | Exists (x, f) ->
-              let nf = init f in
-              { lets = nf.lets;
-                instrs = List.map ~f:(fun instr -> { instr with vars = (x, false) :: instr.vars }) nf.instrs }
-            | Forall (x, f) ->
-              let nf = init f in
-              { lets = nf.lets;
-                instrs = List.map ~f:(fun instr -> { instr with vars = (x, true) :: instr.vars }) nf.instrs }
-            | Next (i, f) ->
-              let nf = init f in
-              { lets = nf.lets;
-                instrs = List.map ~f:(fun instr -> { instr with modality = NNext i }) nf.instrs }
-            | Historically (i, f) ->
-              let nf = init f in
-              {
-                lets = nf.lets;
-                instrs = [
-                  {
-                    modality = NHistorically i;
-                    vars = [];
-                    recipe = SupBySup {
-                        filter = make_dummy TT;
-                        effects = [NInstructions nf.instrs];
-                        events = [];
-                      };
-                    r_recipe_opt = None;
-                    label;
-                  }
-                ]
-              }
-            | Since (L, i, f, g) ->
-              let nf = init f in
-              let lets, g = split_lets g in
-              {
-                lets = nf.lets @ lets;
-                instrs = [
-                  {
-                    modality = NSinceL (i, g);
-                    vars = [];
-                    recipe = SupBySup {
-                        filter = make_dummy TT;
-                        effects = [NInstructions nf.instrs];
-                        events = [];
-                      };
-                    r_recipe_opt = None;
-                    label;
-                  }
-                ]
-              }
-            | Eventually (i, f) ->
-              let nf = init f in
-              {
-                lets = nf.lets;
-                instrs = [
-                  {
-                    modality = NEventually i;
-                    vars = [];
-                    recipe = SupBySup {
-                        filter = make_dummy TT;
-                        effects = [NInstructions nf.instrs];
-                        events = [];
-                      };
-                    r_recipe_opt = None;
-                    label;
-                  }
-                ]
-              }
-            | Always (i, f) ->
-              let nf = init f in
-              {
-                lets = nf.lets;
-                instrs = [
-                  {
-                    modality = NAlways i;
-                    vars = [];
-                    recipe = SupBySup {
-                        filter = make_dummy TT;
-                        effects = [NInstructions nf.instrs];
-                        events = [];
-                      };
-                    r_recipe_opt = None;
-                    label;
-                  }
-                ]
-              }
-            | Until (L, i, f, g) ->
-              let nf = init f in
-              let lets, g = split_lets g in
-              {
-                lets = nf.lets;
-                instrs = [
-                  {
-                    modality = NUntilL (i, g);
-                    vars = [];
-                    recipe = SupBySup {
-                        filter = make_dummy TT;
-                        effects = [NInstructions nf.instrs];
-                        events = [];
-                      };
-                    r_recipe_opt = None;
-                    label;
-                  }
-                ]
-              }
-            | Until (R, i, f, g) ->
-              let ng = init g in
-              let lets, f = split_lets f in
-              {
-                lets = ng.lets;
-                instrs = [
-                  {
-                    modality = NUntilR (i, f);
-                    vars = [];
-                    recipe = SupBySup {
-                        filter = make_dummy TT;
-                        effects = [NInstructions ng.instrs];
-                        events = [];
-                      };
-                    r_recipe_opt = None;
-                    label;
-                  }
-                ]
-              }
-            | Label (s, f) -> init_ ~label:(Some s) f
-            | _ -> assert false
-          end
-        | _, _ -> assert false
-
-        in (*print_endline (to_string_typed formula ^ " -> " ^ to_string f ^ "\n\n");*)
-        f
-
-
-    end
-
   end
 
 end
