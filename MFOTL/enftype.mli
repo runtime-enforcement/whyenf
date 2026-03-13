@@ -31,6 +31,7 @@ val caubot : t
 val ncaubot : t
 val obs : t
 val sct : t
+val nonsct : t
 val abs : t
 val itl : t
 
@@ -48,9 +49,9 @@ module Constraint : sig
     val lower : enftype_t -> t
     val upper : enftype_t -> t
 
-    exception CannotMerge
+    exception CannotMerge of string
 
-    val merge : key:'a -> [< `Both of t * t | `Left of t | `Right of t ] -> t option
+    val merge : key:string -> [< `Both of t * t | `Left of t | `Right of t ] -> t option
     val solve : t -> enftype_t
 
     val to_string : t -> string

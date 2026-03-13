@@ -1687,7 +1687,7 @@ module Make
 
       let try_merge (a, b) =
         try Some (Map.merge a b ~f:merge)
-        with CannotMerge -> None
+        with CannotMerge _ -> None
 
       let rec to_string_rec l = function
         | CTT -> Printf.sprintf "⊤"
@@ -2206,7 +2206,7 @@ module Make
       let r = (match f with
                | Some f -> Some (make f { info = formula.info; enftype; filter; flag })
                | None -> None) in
-      (*print_endline (Printf.sprintf "MFOTL.convert(%s,%s)" (match r with Some f -> to_string_typed f | _ -> "") (Filter.to_string filter));*)
+      (*Stdio.print_endline (Printf.sprintf "MFOTL.convert(%s,%s)" (match r with Some f -> to_string_typed f | _ -> "") (Filter.to_string filter));*)
       r
 
     let convert' b f =

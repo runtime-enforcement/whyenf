@@ -89,6 +89,7 @@ let causup        = (Sup.Sup,    Cau.Cau,    Sct.AnySct)
 let caubot        = (Sup.NonObs, Cau.Cau,    Sct.AnySct)
 let obs           = (Sup.Obs,    Cau.NonCau, Sct.AnySct)
 let sct           = (Sup.Sup,    Cau.Cau,    Sct.Sct)
+let nonsct        = (Sup.Sup,    Cau.Cau,    Sct.NonSct)
 let ncaubot       = (Sup.NonObs, Cau.Cau,    Sct.NonSct)
 let abs           = (Sup.Abs,    Cau.NonCau, Sct.AnySct)
 let itl           = (Sup.Itl,    Cau.Itl,    Sct.AnySct)
@@ -168,27 +169,29 @@ module Constraint = struct
   let lower      enftype = { empty with lower = Some enftype }
   let upper      enftype = { empty with upper = Some enftype }
 
+  let string_of_enftype = to_string
+
   let to_string c =
     let g s enftype = enftype |> to_string |> Printf.sprintf s |> (fun x -> [x]) in
     String.concat ~sep:" ∧ "
       (Option.value_map c.lower ~default:[] ~f:(g "t ≽ %s")
        @ Option.value_map c.upper ~default:[] ~f:(g "%s ≽ t"))
 
-  exception CannotMerge
+  exception CannotMerge of string
 
   let merge_join = Option.merge ~f:join
   let merge_meet = Option.merge ~f:meet
-  let geq_opt x y = Option.value ~default:false (Option.map2 ~f:geq x y)
+  let geq_opt x y = Option.value ~default:true (Option.map2 ~f:geq x y)
   (*let equal_opt x y = Option.value ~default:false (Option.map2 ~f:equal x y)*)
   let is_error_opt = Option.value_map ~default:false ~f:is_error
   let is_causable_opt = Option.value_map ~default:false ~f:is_causable
   let is_suppressable_opt = Option.value_map ~default:false ~f:is_suppressable
 
-  let merge ~key:_ = function
+  let merge ~key = function
     | `Left t | `Right t -> Some t
     | `Both ((c:t), (c':t)) when equal c c' -> Some c
     | `Both ((c:t), (c':t)) ->
-       (*print_endline (Printf.sprintf "Merging c=%s with c'=%s..." (to_string c) (to_string c'));*)
+      (*Stdio.print_endline (Printf.sprintf "Merging %s: c=%s with c'=%s..." key (to_string c) (to_string c'));*)
        let lower           = merge_join c.lower c'.lower in
        let upper           = merge_meet c.upper c'.upper in
        let c'' = 
@@ -196,21 +199,29 @@ module Constraint = struct
            not (geq_opt upper lower) (* if there is nothing between lower and upper *)
            || is_error_opt upper     (* if upper contains an error *)
            || is_causable_opt lower && is_suppressable_opt lower (* if lower is CauSup *)
-         ) then
-           raise CannotMerge
+         ) then (
+           Stdio.print_endline (Printf.sprintf "error merging %s: c=%s, c'=%s, upper=%s, lower=%s..." key (to_string c) (to_string c') (Option.value_map upper ~default:"None" ~f:string_of_enftype) (Option.value_map lower ~default:"None" ~f:string_of_enftype));
+           raise (CannotMerge key)
+         )
          else
            Some { lower; upper }
        in
-       (*print_endline (Printf.sprintf "... got c''=%s..." (to_string (Option.value_exn c'')));*)
+       (*Stdio.print_endline (Printf.sprintf "... got c''=%s..." (to_string (Option.value_exn c'')));*)
        c''
 
   let solve c =
     match c.upper, c.lower with
-    | Some enftype, _ when not (is_causable enftype && is_suppressable enftype) -> enftype
-    | Some enftype, Some enftype' when is_causable enftype' ->
-       meet enftype (Sup.Obs, Cau.Cau, Sct.AnySct)
-    | Some enftype, Some enftype' when is_suppressable enftype' ->
-       meet enftype (Sup.Sup, Cau.NonCau, Sct.AnySct)
+    | Some enftype, _ when not (is_causable enftype && is_suppressable enftype) ->
+      enftype
+    | Some enftype, Some enftype' ->
+      let enftype =
+        if is_causable enftype' then meet enftype cau
+        else if is_suppressable enftype' then meet enftype sup
+        else enftype in
+      (*let enftype =
+        if is_strict enftype' then meet enftype sct
+        else meet enftype nonsct in*)
+      enftype 
     | Some enftype, _ ->
        meet enftype (Sup.Obs, Cau.NonCau, Sct.AnySct)
     | _ -> raise (Etc.EnforceabilityError "cannot solve constraint without an upper bound")
