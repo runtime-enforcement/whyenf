@@ -132,13 +132,13 @@ module Make
   val strict : ?itl_strict:(string, bool, Base.String.comparator_witness) Base.Map.t -> ?itv:Zinterval.t -> ?fut:bool -> t -> bool
   val stricts : ?itl_strict:(string, bool, Base.String.comparator_witness) Base.Map.t -> ?itv:Zinterval.t -> ?fut:bool -> t list -> bool
 
-   val non_monotone_predicates : ?let_ctxt_mon:(string, (string, Info.t list, Base.String.comparator_witness) Base.Map.t, Base.String.comparator_witness) Base.Map.t ->
-                                ?let_ctxt_anti_mon:(string, (string, Info.t list, Base.String.comparator_witness) Base.Map.t, Base.String.comparator_witness) Base.Map.t ->
-                                ?init_mon:(string, Info.t list, Base.String.comparator_witness) Base.Map.t ->
-                                ?init_anti_mon:(string, Info.t list, Base.String.comparator_witness) Base.Map.t ->
+   val non_monotone_predicates : ?let_ctxt_mon:(string, (string, Base.String.comparator_witness) Base.Set.t, Base.String.comparator_witness) Base.Map.t ->
+                                ?let_ctxt_anti_mon:(string, (string, Base.String.comparator_witness) Base.Set.t, Base.String.comparator_witness) Base.Map.t ->
+                                ?init_mon:(string, Base.String.comparator_witness) Base.Set.t ->
+                                ?init_anti_mon:(string, Base.String.comparator_witness) Base.Set.t ->
                                 t ->
-                                  (string, Info.t list, Base.String.comparator_witness) Base.Map.t *
-                                  (string, Info.t list, Base.String.comparator_witness) Base.Map.t
+                                  (string, Base.String.comparator_witness) Base.Set.t *
+                                  (string, Base.String.comparator_witness) Base.Set.t
 
   module MFOTL_Enforceability (_ : Modules.S) : sig
 
@@ -168,19 +168,22 @@ module Make
         | CConj of constr list
         | CDisj of constr list [@@deriving equal, compare, sexp_of]
 
-      type verdict = Possible of constr | Impossible of Errors.error
-
-      val conj : verdict -> verdict -> verdict
-      val disj : verdict -> verdict -> verdict
-
-      val conjs : verdict list -> verdict
-      val disjs : verdict list -> verdict
-
       val solve : constr -> (string, Enftype.Constraint.t, String.comparator_witness) Map.t list
 
-      val verdict_to_string : verdict -> string
-
       val to_string : constr -> string
+
+    end
+
+    module Verdict : sig
+
+      type 'a v = Possible of 'a list | Impossible of Errors.error
+
+      val conj : 'a v -> 'a v -> 'a v
+      val disj : 'a v -> 'a v -> 'a v
+      val conjs : 'a v list -> 'a v
+      val disjs : 'a v list -> 'a v
+      val all : 'a v list -> 'a list v
+      val verdict_to_string : to_string:('a list -> string) -> 'a v -> string
 
     end
 
