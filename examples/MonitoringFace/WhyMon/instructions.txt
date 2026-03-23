@@ -1,7 +1,8 @@
-Trace/log.log, Formula/consent.mfotl, Signature/sig.sig
-Trace/log.log, Formula/deletion.mfotl, Signature/sig.sig
-Trace/log.log, Formula/information.mfotl, Signature/sig.sig
-Trace/log.log, Formula/lawfulness.mfotl, Signature/sig.sig
-Trace/log.log, Formula/limitation.mfotl, Signature/sig.sig
-Trace/log.log, Formula/sharing.mfotl, Signature/sig.sig
-Trace/log.log, Formula/gdpr.mfotl, Signature/sig.sig
+Trace, Policy, Signature
+Trace/log.log: monpoly, Formula/consent.mfotl: unicode-mfotl, Signature/sig.sig
+Trace/log.log: monpoly, Formula/deletion.mfotl: unicode-mfotl, Signature/sig.sig
+Trace/log.log: monpoly, Formula/information.mfotl: unicode-mfotl, Signature/sig.sig
+Trace/log.log: monpoly, Formula/lawfulness.mfotl: unicode-mfotl, Signature/sig.sig
+Trace/log.log: monpoly, Formula/limitation.mfotl: unicode-mfotl, Signature/sig.sig
+Trace/log.log: monpoly, Formula/sharing.mfotl: unicode-mfotl, Signature/sig.sig
+Trace/log.log: monpoly, Formula/gdpr.mfotl: unicode-mfotl, Signature/sig.sig
