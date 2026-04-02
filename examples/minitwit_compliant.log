@@ -1,0 +1,10 @@
+@1 Collect(1,1,1,"service") PersonalData(1,1) Consent(1,"service") IsCompatibleWithPurpose(1,"service");
+@2 Collect(2,1,1,"statistics") PersonalData(1,1) Consent(1,"statistics") IsCompatibleWithPurpose(2,"statistics");
+@3 Read(1,1,1,"service",1) PersonalData(1,1) IsCompatibleWithPurpose(1,"service") Consent(1,"service");
+@4 Write(1,1,1,"service",1) PersonalData(1,1) IsCompatibleWithPurpose(1,"service");
+@5 Read(1,1,2,"statistics",1) PersonalData(1,1) IsCompatibleWithPurpose(2,"statistics");
+@6 Send("Analytics, Inc.",1);
+@7 Read(1,1,1,"service",1) PersonalData(1,1) IsCompatibleWithPurpose(1,"service");
+@8 Read(1,1,2,"statistics",1) PersonalData(1,1) IsCompatibleWithPurpose(2,"statistics");
+@9 DailyErasureReview(1);
+@10 Read(1,1,1,"service",1) PersonalData(1,1) IsCompatibleWithPurpose(1,"service");
