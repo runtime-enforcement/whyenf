@@ -1,0 +1,72 @@
+use crate::ast::*;
+
+grammar;
+
+match {
+    r"\s*" => {},  // skip whitespace
+    _,
+}
+
+// ─── Top level ───────────────────────────────────────────────────────────────
+
+pub Log: Vec<TimePoint> = {
+    <tps:TimePointEntry*> => tps,
+};
+
+pub SingleTimePoint: TimePoint = {
+    <t:TimePointEntry> => t,
+};
+
+TimePointEntry: TimePoint = {
+    "@" <ts:Num> <evts:Event*> ";" => TimePoint {
+        timestamp: ts as u64,
+        events: evts,
+    },
+};
+
+Event: EventInstance = {
+    <name:Ident> "(" <args:Comma<Val>> ")" => EventInstance {
+        name: name.to_string(),
+        args,
+    },
+};
+
+// ─── Values ──────────────────────────────────────────────────────────────────
+
+Val: Value = {
+    <n:Num> => Value::Int(n),
+    <f:Float> => Value::Float(OrderedFloat(f)),
+    <s:StrLit> => Value::Str(s),
+    "true" => Value::Bool(true),
+    "false" => Value::Bool(false),
+};
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+Comma<T>: Vec<T> = {
+    <mut v:(<T> ",")*> <e:T?> => match e {
+        None => v,
+        Some(e) => { v.push(e); v }
+    }
+};
+
+// ─── Terminals ───────────────────────────────────────────────────────────────
+
+Ident: String = {
+    r"[A-Za-z_][A-Za-z0-9_]*" => <>.to_string(),
+};
+
+Num: i64 = {
+    r"-?[0-9]+" => <>.parse().unwrap(),
+};
+
+Float: f64 = {
+    r"-?[0-9]+\.[0-9]+" => <>.parse().unwrap(),
+};
+
+StrLit: String = {
+    r#""[^"]*""# => {
+        let s = <>;
+        s[1..s.len()-1].to_string()
+    },
+};

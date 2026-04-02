@@ -1,0 +1,28 @@
+event Transaction(str, int);
+event Alert(str, int);
+
+fun risk_score(amount: int) : int {
+    if amount > 1000:
+        return amount * 2
+    return amount
+}
+
+table HighRisk(user:str, score:int) :=
+  add {
+    Transaction(user, amount)
+    if risk_score(amount) > 500
+  };
+
+// Suppress transactions when risk score exceeds threshold
+rule -Transaction(user, amount) :=
+  trigger {
+    Transaction(user, amount)
+    if risk_score(amount) > 2000
+  };
+
+// Proactively cause an alert for risky users
+rule +Alert(user, amount) :=
+  trigger {
+    Transaction(user, amount)
+    if risk_score(amount) > 1000
+  };

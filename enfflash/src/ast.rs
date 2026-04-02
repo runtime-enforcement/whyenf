@@ -1,0 +1,257 @@
+/// AST types for enfflash programs and logs.
+
+use std::fmt;
+use std::collections::HashSet;
+
+// ─── Value types ─────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+pub enum Value {
+    Int(i64),
+    Float(OrderedFloat),
+    Str(String),
+    Bool(bool),
+}
+
+/// Wrapper for f64 that implements Eq + Ord (total order, NaN == NaN).
+#[derive(Debug, Clone, Copy)]
+pub struct OrderedFloat(pub f64);
+
+impl PartialEq for OrderedFloat {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.to_bits() == other.0.to_bits()
+    }
+}
+impl Eq for OrderedFloat {}
+
+impl PartialOrd for OrderedFloat {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl Ord for OrderedFloat {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.0.total_cmp(&other.0)
+    }
+}
+impl std::hash::Hash for OrderedFloat {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.0.to_bits().hash(state);
+    }
+}
+
+impl fmt::Display for Value {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Value::Int(i) => write!(f, "{}", i),
+            Value::Float(OrderedFloat(v)) => write!(f, "{}", v),
+            Value::Str(s) => write!(f, "\"{}\"", s),
+            Value::Bool(b) => write!(f, "{}", b),
+        }
+    }
+}
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Ty {
+    Int,
+    Float,
+    Str,
+    Bool,
+}
+
+impl fmt::Display for Ty {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Ty::Int => write!(f, "int"),
+            Ty::Float => write!(f, "float"),
+            Ty::Str => write!(f, "str"),
+            Ty::Bool => write!(f, "bool"),
+        }
+    }
+}
+
+// ─── Log ─────────────────────────────────────────────────────────────────────
+
+/// A single event instance, e.g. `Login("alice", 42)`
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EventInstance {
+    pub name: String,
+    pub args: Vec<Value>,
+}
+
+impl fmt::Display for EventInstance {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}(", self.name)?;
+        for (i, a) in self.args.iter().enumerate() {
+            if i > 0 { write!(f, ", ")?; }
+            write!(f, "{}", a)?;
+        }
+        write!(f, ")")
+    }
+}
+
+/// One time‐point in the log: timestamp + events.
+#[derive(Debug, Clone)]
+pub struct TimePoint {
+    pub timestamp: u64,
+    pub events: Vec<EventInstance>,
+}
+
+// ─── Program AST ─────────────────────────────────────────────────────────────
+
+/// Top‐level program.
+#[derive(Debug, Clone)]
+pub struct Program {
+    pub event_decls: Vec<EventDecl>,
+    pub fun_decls: Vec<FunDecl>,
+    pub let_defs: Vec<LetDef>,
+    pub tables: Vec<TableDef>,
+    pub rules: Vec<RuleDef>,
+}
+
+#[derive(Debug, Clone)]
+pub struct EventDecl {
+    pub name: String,
+    pub param_types: Vec<Ty>,
+}
+
+#[derive(Debug, Clone)]
+pub struct FunDecl {
+    pub name: String,
+    pub param_names: Vec<String>,
+    pub param_types: Vec<Ty>,
+    pub ret_type: Ty,
+    /// Python source code body (between { })
+    pub body: String,
+}
+
+// ─── Let definitions ─────────────────────────────────────────────────────────
+
+/// Named boolean predicate: `let Name(x:type, ...) := { expr }`
+/// If `is_filter` is true, this is a `filter let` — it has no event guards
+/// and can only be used as a filter condition, not as a guard that binds variables.
+#[derive(Debug, Clone)]
+pub struct LetDef {
+    pub label: Option<String>,
+    pub is_filter: bool,
+    pub name: String,
+    pub params: Vec<(String, Ty)>,
+    pub body: FilterExpr,
+}
+
+/// Helper for parsing interleaved tables, rules and let definitions.
+#[derive(Debug, Clone)]
+pub enum ProgramItem {
+    Table(TableDef),
+    Rule(RuleDef),
+    Let(LetDef),
+}
+
+// ─── Patterns & Expressions ──────────────────────────────────────────────────
+
+/// Pattern that matches against events, e.g. `Login(x, y) & Access(x, z)`
+#[derive(Debug, Clone)]
+pub struct EventPattern {
+    pub name: String,
+    pub args: Vec<PatternArg>,
+}
+
+#[derive(Debug, Clone)]
+pub enum PatternArg {
+    Var(String),
+    Literal(Value),
+    Wildcard,
+}
+
+/// Boolean filter expression (used after `if`).
+#[derive(Debug, Clone)]
+pub enum FilterExpr {
+    /// true / false literal
+    BoolLit(bool),
+    /// Reference to a table: `TableName(expr, expr, ...)`
+    TableLookup { name: String, args: Vec<TermExpr> },
+    /// Comparison: `x == 42`, `x != y`, `x < 3`, etc.
+    Compare {
+        lhs: TermExpr,
+        op: CmpOp,
+        rhs: TermExpr,
+    },
+    And(Box<FilterExpr>, Box<FilterExpr>),
+    Or(Box<FilterExpr>, Box<FilterExpr>),
+    Not(Box<FilterExpr>),
+}
+
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub enum TermExpr {
+    Var(String),
+    Lit(Value),
+    FunCall { name: String, args: Vec<TermExpr> },
+}
+
+impl TermExpr {
+    pub fn fvs(self) -> HashSet<String> {
+        return match self {
+            TermExpr::Var(s) => HashSet::from([s]),
+            TermExpr::Lit(_) => HashSet::new(),
+            TermExpr::FunCall { name: _, args} => {
+                let mut vars = HashSet::new();
+                for arg in args {
+                    for var in arg.fvs() {
+                        vars.insert(var);
+                    }
+                }
+                vars
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CmpOp {
+    Eq,
+    Neq,
+    Lt,
+    Le,
+    Gt,
+    Ge,
+}
+
+// ─── Table definitions ───────────────────────────────────────────────────────
+
+#[derive(Debug, Clone)]
+pub struct TableDef {
+    pub label: Option<String>,
+    pub lagged: bool,
+    pub name: String,
+    pub columns: Vec<(String, Ty)>,
+    pub add_clause: Clause,
+    pub remove_clause: Option<Clause>,
+}
+
+#[derive(Debug, Clone)]
+pub struct Clause {
+    pub patterns: Vec<EventPattern>,
+    pub filter: FilterExpr,
+}
+
+// ─── Rule definitions ────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone)]
+pub struct RuleDef {
+    pub label: Option<String>,
+    pub event: String,
+    pub params: Vec<TermExpr>,
+    pub action: RuleAction,
+    pub delay: Option<u64>,
+    pub trigger: Clause,
+    pub validate: Option<FilterExpr>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RuleAction {
+    Cause,    // +
+    Suppress, // -
+    Observe,  // none
+}

@@ -1,0 +1,4 @@
+@0 Transaction("alice", 500);
+@1 Transaction("bob", 1500);
+@2 Transaction("charlie", 200);
+@3 Transaction("dave", 3000);

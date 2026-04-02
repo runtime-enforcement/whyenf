@@ -1,0 +1,5 @@
+@0 Transaction("alice", 500);
+@1 Transaction("bob", 2000);
+@2 Downgrade("alice") Downgrade("bob");
+@3 Transaction("alice", 1500);
+@4 Downgrade("alice") Downgrade("bob");

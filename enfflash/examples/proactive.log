@@ -1,0 +1,5 @@
+@0 Request("alice", "db");
+@1 Deny("alice", "db");
+@2 ;
+@5 Request("bob", "api");
+@10 ;

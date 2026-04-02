@@ -1,0 +1,6 @@
+@0 Login("alice");
+@1 Access("alice", "file1") Access("bob", "file2");
+@2 Logout("alice");
+@3 Access("alice", "file1");
+@4 Login("bob");
+@5 Access("bob", "file2");

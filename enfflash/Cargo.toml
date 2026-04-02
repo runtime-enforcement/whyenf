@@ -1,0 +1,19 @@
+[package]
+name = "enfflash"
+version = "0.1.0"
+edition = "2021"
+description = "Blazingly fast runtime enforcement engine"
+
+[dependencies]
+lalrpop-util = { version = "0.22", features = ["lexer", "unicode"] }
+regex = "1"
+clap = { version = "4", features = ["derive"] }
+pyo3 = { version = "0.22", features = ["auto-initialize"] }
+
+[build-dependencies]
+lalrpop = "0.22"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1

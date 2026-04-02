@@ -1,0 +1,17 @@
+event Login(str);
+event Access(str, str);
+event Logout(str);
+
+table LoggedIn(user:str) :=
+  add {
+    Login(user)
+  }
+  remove {
+    Logout(user)
+  };
+
+rule -Access(user, resource) :=
+  trigger {
+    Access(user, resource)
+    if !LoggedIn(user)
+  };

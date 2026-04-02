@@ -1,0 +1,307 @@
+use crate::ast::*;
+
+grammar;
+
+match {
+    // keywords first
+    "event",
+    "fun",
+    "filter",
+    "let",
+    "table",
+    "lagged",
+    "rule",
+    "trigger",
+    "add",
+    "remove",
+    "if",
+    "true",
+    "false",
+    "delay",
+    "validate",
+    // symbols
+    ":=",
+    "(",
+    ")",
+    "{",
+    "}",
+    "[",
+    "]",
+    ";",
+    ",",
+    ":",
+    "&",
+    "|",
+    "!",
+    "+",
+    "-",
+    "==",
+    "!=",
+    "<",
+    "<=",
+    ">",
+    ">=",
+    "_",
+    "@",
+    // then patterns
+    r"\s+" => {},  // skip whitespace
+    r"//[^\n]*" => {},  // skip line comments
+    _,
+}
+
+// ─── Top level ───────────────────────────────────────────────────────────────
+
+pub Program: Program = {
+    <eds:EventDeclStmt*>
+    <fds:FunDeclStmt*>
+    <items:ProgramItem*> => {
+        let mut let_defs = Vec::new();
+        let mut tables = Vec::new();
+        let mut rules = Vec::new();
+        for item in items {
+            match item {
+                ProgramItem::Let(l) => let_defs.push(l),
+                ProgramItem::Table(t) => tables.push(t),
+                ProgramItem::Rule(r) => rules.push(r),
+            }
+        }
+        Program {
+            event_decls: eds,
+            fun_decls: fds,
+            let_defs,
+            tables,
+            rules,
+        }
+    },
+};
+
+ProgramItem: ProgramItem = {
+    <t:TableDefStmt> => ProgramItem::Table(t),
+    <r:RuleDefStmt> => ProgramItem::Rule(r),
+    <l:LetDefStmt> => ProgramItem::Let(l),
+};
+
+// ─── Event declarations (with semicolons) ────────────────────────────────────
+
+EventDeclStmt: EventDecl = {
+    "event" <name:Ident> "(" <tys:Comma<TypeName>> ")" ";" => EventDecl {
+        name,
+        param_types: tys,
+    },
+};
+
+// ─── Function declarations with Python body ──────────────────────────────────
+
+FunDeclStmt: FunDecl = {
+    "fun" <name:Ident> "(" <params:Comma<FunParam>> ")" ":" <ret:TypeName>
+        "{" <body:StrLit> "}" => {
+        let param_names = params.iter().map(|(n, _)| n.clone()).collect();
+        let param_types = params.iter().map(|(_, t)| t.clone()).collect();
+        FunDecl {
+            name,
+            param_names,
+            param_types,
+            ret_type: ret,
+            body,
+        }
+    },
+};
+
+FunParam: (String, Ty) = {
+    <n:Ident> ":" <t:TypeName> => (n, t),
+};
+
+TypeName: Ty = {
+    "int" => Ty::Int,
+    "float" => Ty::Float,
+    "str" => Ty::Str,
+    "bool" => Ty::Bool,
+};
+// ─── Let definitions ─────────────────────────────────────────────────────────────
+
+LetDefStmt: LetDef = {
+    <lbl:("@" <Ident>)?> "let" <name:Ident> "(" <params:Comma<ColDef>> ")" ":=" "{" <body:FilterOr> "}" => LetDef {
+        label: lbl,
+        is_filter: false,
+        name,
+        params,
+        body,
+    },
+    <lbl:("@" <Ident>)?> "filter" "let" <name:Ident> "(" <params:Comma<ColDef>> ")" ":=" "{" <body:FilterOr> "}" => LetDef {
+        label: lbl,
+        is_filter: true,
+        name,
+        params,
+        body,
+    },
+};
+// ─── Table definitions ───────────────────────────────────────────────────────
+
+TableDefStmt: TableDef = {
+    <lbl:("@" <Ident>)?> <lagged:"lagged"?> "table" <name:Ident> "(" <cols:Comma<ColDef>> ")" ":="
+        "add" "{" <add:ClauseBody> "}"
+        <rm:("remove" "{" <ClauseBody> "}")?> ";" => TableDef {
+        label: lbl,
+        name,
+        columns: cols,
+        add_clause: add,
+        remove_clause: rm,
+        lagged: lagged.is_some(),
+    },
+};
+
+ColDef: (String, Ty) = {
+    <n:Ident> ":" <t:TypeName> => (n, t),
+};
+
+ClauseBody: Clause = {
+    <pats:PatternConj> "if" <filt:FilterOr> => Clause {
+        patterns: pats,
+        filter: filt,
+    },
+    <pats:PatternConj> => Clause {
+        patterns: pats,
+        filter: FilterExpr::BoolLit(true),
+    },
+    "if" <filt:FilterOr> => Clause {
+        patterns: vec![],
+        filter: filt,
+    },
+};
+
+// ─── Rule definitions ─────────────────────────────────────────────────────────
+//
+// rule +EventName(x, y) [delay N] :=
+//   trigger {
+//     Pattern1(x) & Pattern2(y)
+//     if FilterExpr
+//   }
+//   [validate { FilterExpr }] ;
+
+RuleDefStmt: RuleDef = {
+    <lbl:("@" <Ident>)?> "rule" <act:Action> <ev:Ident> "(" <ps:Comma<TermExprP>> ")"
+        <delay:("[" "delay" <Num> "]")?>
+        ":="
+            "trigger" "{" <trigger:ClauseBody> "}"
+        <val:("validate" "{" <FilterOr> "}")?> ";" => RuleDef {
+        label: lbl,
+        event: ev,
+        params: ps,
+        action: act,
+        delay: delay.map(|d| d as u64),
+        trigger,
+        validate: val,
+    },
+};
+
+Action: RuleAction = {
+    "+" => RuleAction::Cause,
+    "-" => RuleAction::Suppress,
+};
+
+// ─── Patterns (event conjunction) ────────────────────────────────────────────
+
+PatternConj: Vec<EventPattern> = {
+    <mut v:(<SinglePattern> "&")*> <last:SinglePattern> => {
+        v.push(last);
+        v
+    },
+};
+
+SinglePattern: EventPattern = {
+    <name:Ident> "(" <args:Comma<PatArg>> ")" => EventPattern {
+        name,
+        args,
+    },
+};
+
+PatArg: PatternArg = {
+    <v:Ident> => PatternArg::Var(v),
+    <lit:LitVal> => PatternArg::Literal(lit),
+    "_" => PatternArg::Wildcard,
+};
+
+// ─── Filter expressions (after `if`) ────────────────────────────────────────
+
+FilterOr: FilterExpr = {
+    <l:FilterOr> "|" <r:FilterAnd> => FilterExpr::Or(Box::new(l), Box::new(r)),
+    FilterAnd,
+};
+
+FilterAnd: FilterExpr = {
+    <l:FilterAnd> "&" <r:FilterNot> => FilterExpr::And(Box::new(l), Box::new(r)),
+    FilterNot,
+};
+
+FilterNot: FilterExpr = {
+    "!" <f:FilterAtom> => FilterExpr::Not(Box::new(f)),
+    FilterAtom,
+};
+
+FilterAtom: FilterExpr = {
+    "true" => FilterExpr::BoolLit(true),
+    "false" => FilterExpr::BoolLit(false),
+    <lhs:TermExprP> <op:CmpOp> <rhs:TermExprP> => FilterExpr::Compare { lhs, op, rhs },
+    <name:Ident> "(" <args:Comma<TermExprP>> ")" => {
+        // Could be table lookup or event check — resolved at runtime
+        FilterExpr::TableLookup { name, args }
+    },
+    "(" <FilterOr> ")",
+};
+
+CmpOp: CmpOp = {
+    "==" => CmpOp::Eq,
+    "!=" => CmpOp::Neq,
+    "<" => CmpOp::Lt,
+    "<=" => CmpOp::Le,
+    ">" => CmpOp::Gt,
+    ">=" => CmpOp::Ge,
+};
+
+// ─── Term expressions ────────────────────────────────────────────────────────
+
+TermExprP: TermExpr = {
+    <v:Ident> "(" <args:Comma<TermExprP>> ")" => TermExpr::FunCall { name: v, args },
+    <v:Ident> => TermExpr::Var(v),
+    <lit:LitVal> => TermExpr::Lit(lit),
+};
+
+// ─── Shared literals ─────────────────────────────────────────────────────────
+
+LitVal: Value = {
+    <n:Num> => Value::Int(n),
+    <f:Float> => Value::Float(OrderedFloat(f)),
+    <s:StrLit> => Value::Str(s),
+    "true" => Value::Bool(true),
+    "false" => Value::Bool(false),
+};
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+Comma<T>: Vec<T> = {
+    <mut v:(<T> ",")*> <e:T?> => match e {
+        None => v,
+        Some(e) => { v.push(e); v }
+    }
+};
+
+// ─── Terminals ───────────────────────────────────────────────────────────────
+
+Ident: String = {
+    r"[A-Za-z_][A-Za-z0-9_]*" => <>.to_string(),
+};
+
+Num: i64 = {
+    r"-?[0-9]+" => <>.parse().unwrap(),
+};
+
+Float: f64 = {
+    r"-?[0-9]+\.[0-9]+" => <>.parse().unwrap(),
+};
+
+StrLit: String = {
+    r#""[^"]*""# => {
+        let s = <>;
+        s[1..s.len()-1].replace("\\n", "\n")
+    },
+};

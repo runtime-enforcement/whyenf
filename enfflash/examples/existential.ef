@@ -1,0 +1,23 @@
+// Test existential quantification in filters.
+// A user is "VIP" if they have *any* high-value transaction (amount > 1000).
+// Suppress Downgrade for VIP users.
+
+event Transaction(str, int);
+event Downgrade(str);
+
+table Transactions(user:str, amount:int) :=
+  add {
+    Transaction(user, amount)
+  };
+
+// amt is NOT bound by the rule's trigger patterns — it's existential:
+// "there exists some amt such that Transactions(user, amt) & amt > 1000"
+let IsVIP(u:str) := {
+  Transactions(u, amt) & amt > 1000
+}
+
+rule -Downgrade(user) :=
+  trigger {
+    Downgrade(user)
+    if IsVIP(user)
+  };

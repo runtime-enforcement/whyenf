@@ -1,0 +1,23 @@
+event GiveConsent(int);
+event RevokeConsent(int);
+event Use(int, int);
+
+@consent
+table HasConsent(user:int) :=
+  add {
+    GiveConsent(user)
+  }
+  remove {
+    RevokeConsent(user)
+  };
+
+let Unauthorized(u:int) := {
+  !HasConsent(u)
+}
+
+@use_with_consent
+rule -Use(user, data) :=
+  trigger {
+    Use(user, data)
+    if Unauthorized(user)
+  };

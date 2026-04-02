@@ -1,0 +1,1 @@
+ALWAYS (FORALL u, d. Use(u, d) IMPLIES (NOT RevokeConsent(u) SINCE GiveConsent(u)))

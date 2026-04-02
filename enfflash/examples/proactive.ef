@@ -1,0 +1,27 @@
+event Request(str, str);
+event Grant(str, str);
+event Deny(str, str);
+
+table Pending(user:str, resource:str) :=
+  add {
+    Request(user, resource)
+  }
+  remove {
+    Grant(user, resource)
+  };
+
+// If a request comes in, proactively cause a Grant within 3 time units
+rule +Grant(user, resource) [delay 3] :=
+  trigger {
+    Request(user, resource)
+  }
+  validate {
+    !Grant(user, resource)
+  };
+
+// Suppress any Deny for pending requests
+rule -Deny(user, resource) :=
+  trigger {
+    Deny(user, resource)
+    if Pending(user, resource)
+  };
