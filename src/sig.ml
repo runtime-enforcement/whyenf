@@ -209,7 +209,7 @@ let eval_lbl_to_lbl (lbls: Lbl.t array) (v: Valuation.t) (lbl: Lbl.t) : Lbl.t op
      | _ -> assert false)
 
 let rec eval (lbls: Lbl.t array) (v: Valuation.t) (t: ITerm.t) : ITerm.t =
-  (*Stdio.printf "Sig.eval ([%s], %s, %s)\n" (String.concat ~sep:", " (List.map ~f:Lbl.to_string lbls)) (Valuation.to_string v) (ITerm.to_string t);*)
+  (*Stdio.printf "Sig.eval ([%s], %s, %s)\n" (String.concat ~sep:", " (Array.to_list (Array.map ~f:Lbl.to_string lbls))) (Valuation.to_string v) (ITerm.to_string t);*)
   match t.trm with
   | ITerm.Var i ->
     ITerm.init lbls (eval_lbl lbls v (Array.get lbls i))
