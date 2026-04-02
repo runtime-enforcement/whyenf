@@ -29,6 +29,10 @@ end
 
 include MFOTL_lib.Term.Make(TypedVar)(MFOTL_lib.Dom)(Term.NoOp)(Term.NoOp)(Term.TrivialInfo)
 
+(* Override the default dummy_for_var to use the variable's actual type *)
+let dummy_for_var ((_name, tt) : TypedVar.t) : t =
+  make_dummy (Const (MFOTL_lib.Dom.tt_default tt))
+
 let convert_var (types : Ctxt.t) x = (x, Ctxt.get_tt_exn x types)
 
 let convert_var_default (types : Ctxt.t) x ~default = (x, Ctxt.get_tt x types ~default)

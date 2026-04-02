@@ -1,18 +1,4 @@
 The formula
  □[0s,∞) (∀x:int. (C(x:int, x:int) → D(x:int)) ∧ (D(x:int) → C(x:int, x:int)))
-is enforceable and types to
- □[0s,∞) ((∀x:int. (((C(x:int, x:int) →:R (D(x:int) : Cau)) : Cau) ∧:L ((D(x:int) →:R (C(x:int, x:int) : Cau)) : Cau) : Cau)) : Cau) : Cau
-[Enforcer] @1 reactively commands:
-Cause:
-D(1)
-OK.
-[Enforcer] @1 nothing to do proactively.
-[Enforcer] @2 reactively commands:
-Cause:
-C(18, 18)
-OK.
-[Enforcer] @2 nothing to do proactively.
-[Enforcer] @3 reactively commands:
-Cause:
-C(42, 42), D(3)
-OK.
+is not enforceable:
+There is an enforcement cycle: D (Cau) Sup_Exists0 (Cau) D. Break this cycle to proceed.

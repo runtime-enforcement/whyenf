@@ -1921,7 +1921,9 @@ module Make
         let i, letsf, f = pull_lets ~i f in
         let i, letsg, g = pull_lets ~i g in
         let e = "Since" ^ string_of_int i in
-        let fvs = Set.elements (fv form) in
+        (* Both sides of a Since must bind all table columns (for constant-time
+           add/remove), so the columns are fv(f) ∩ fv(g), not their union. *)
+        let fvs = Set.elements (Set.inter (fv f) (fv g)) in
         let vars = List.map ~f:(fun v -> (v, None)) fvs in
         i + 1, letsf @ letsg @ [e, None, vars, { f with form = Since (s, itv, f, g) }],
         { f with form = Predicate (e, List.map ~f:Term.dummy_var fvs) }
@@ -2507,10 +2509,10 @@ module Make
                 { trigger with filter = { filter with form = Label (s, trigger.filter) } })
           | _ -> None
           in
-          (*print_endline
+          print_endline
             (Printf.sprintf "pull_guard.aux(%s, %b, %s) = %s"
                (Var.to_string x) p (to_string filter)
-               (Option.value ~default:"None" (Option.map ~f:trigger_to_string r)));*)
+               (Option.value ~default:"None" (Option.map ~f:trigger_to_string r)));
           r
         in aux p trigger.filter
       end
@@ -2728,6 +2730,10 @@ module Make
         | Interval.U a -> Interval.B (a, b)
         | B _ as i -> i in
 
+      (* Create a type-appropriate dummy constant for eliminating a quantified variable.
+         If the Term module provides type info (e.g. Tterm), the correct type is used. *)
+      let dummy_for_var x = Term.dummy_for_var x in
+
       let f = push_quants f in
 
       (*print_endline "1) base formula";
@@ -2849,7 +2855,7 @@ module Make
                         effects }),
                   constr))
             | Exists (x, f) ->
-              aux m t (subst (Map.singleton (module Var) x (Term.dummy_int 0)) f)
+              aux m t (subst (Map.singleton (module Var) x (dummy_for_var x)) f)
             | Forall (x, f) ->
               let** solutions = aux m t f in
               disjs (List.map solutions ~f:(fun (clauses, constr) ->
@@ -3016,7 +3022,7 @@ module Make
                         effects }),
                   constr))
             | Forall (x, f) ->
-              aux m t (subst (Map.singleton (module Var) x (Term.dummy_int 0)) f)
+              aux m t (subst (Map.singleton (module Var) x (dummy_for_var x)) f)
             | Exists (x, f) ->
               let** solutions = aux m t f in
               disjs (List.map solutions ~f:(fun (clauses, constr) ->

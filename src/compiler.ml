@@ -168,10 +168,13 @@ let merge_filters (parts: Enfflash.filter_expr list) : Enfflash.filter_expr =
     List.fold_left rest ~init:f ~f:(fun acc g -> Enfflash.FAnd (acc, g))
 
 (* Check whether a predicate name corresponds to a trace event in the
-   signature (Sig module). *)
+   signature (Sig module), or is a synthetic Cau_/Sup_ event generated
+   by the enforcement compiler. *)
 let is_trace_event name =
-  try Sig.equal_pred_kind (Sig.kind_of_pred name) Sig.Trace
-  with _ -> false
+  String.is_prefix name ~prefix:"Cau_"
+  || String.is_prefix name ~prefix:"Sup_"
+  || (try Sig.equal_pred_kind (Sig.kind_of_pred name) Sig.Trace
+      with _ -> false)
 
 (* Parse label-prefixed names like "Label0:myname" into
    (Some "myname", "Label0_myname"). *)
@@ -221,10 +224,6 @@ let decompose_guard_conj (guards: Tyformula.t list) =
   (patterns, filter_parts)
 
 let trigger_to_clauses (trigger: Enforcement.trigger) : Enfflash.clause list =
-  let base_filter = formula_to_filter trigger.filter in
-  let base_opt = match base_filter with
-    | FBoolLit true -> None
-    | f             -> Some f in
   (* Flatten an And-conjunction into a list of conjuncts so that we can
      separate trace-event predicates (→ patterns) from other conditions
      (→ if-filter).  This matters when guards = [] and the entire formula
@@ -242,11 +241,14 @@ let trigger_to_clauses (trigger: Enforcement.trigger) : Enfflash.clause list =
     [Enfflash.{ cl_patterns = patterns;
                 cl_filter = merge_filters filter_parts }]
   | disjuncts ->
+    (* Also decompose trigger.filter into event patterns and residual filter,
+       so that trace events appearing in the filter become clause patterns. *)
+    let base_conjuncts = flatten_conj trigger.filter in
+    let base_patterns, base_filter_parts = decompose_guard_conj base_conjuncts in
     List.map disjuncts ~f:(fun guard_conj ->
         let patterns, guard_filter_parts = decompose_guard_conj guard_conj in
-        let all_parts = guard_filter_parts @ Option.to_list base_opt in
-        Enfflash.{ cl_patterns = patterns;
-                   cl_filter = merge_filters all_parts })
+        Enfflash.{ cl_patterns = patterns @ base_patterns;
+                   cl_filter = merge_filters (guard_filter_parts @ base_filter_parts) })
 
 (* Pick the first clause from a trigger (for table add/remove which require
    a single clause).  Multiple guard disjuncts would need engine support for
@@ -509,7 +511,9 @@ let term_to_ef_ty (t: Tterm.t) : Enfflash.ef_ty =
   | _            -> Enfflash.EfInt
 
 (* Collect synthetic (Cau_/Sup_) event declarations from enforcement clauses.
-   For each effect predicate we record (sanitized_name, param_types).
+   Scans both effects (cause/suppress actions) and trigger guards/filters
+   for Predicate references whose sanitized name starts with "Cau_" or "Sup_".
+   For each we record (sanitized_name, param_types).
    We keep only the first occurrence of each name. *)
 let collect_synthetic_event_decls
     ~(existing: Enfflash.event_decl list)
@@ -518,7 +522,29 @@ let collect_synthetic_event_decls
   let existing_names =
     Set.of_list (module String) (List.map existing ~f:(fun ed -> ed.Enfflash.ed_name)) in
   let seen = Hashtbl.create (module String) in
+  let register_pred name args =
+    let sname = sanitize_name name in
+    if not (Set.mem existing_names sname)
+    && not (Hashtbl.mem seen sname) then begin
+      let param_types = List.map args ~f:term_to_ef_ty in
+      Hashtbl.set seen ~key:sname ~data:param_types
+    end
+  in
+  (* Recursively scan a formula for Predicate references starting with Cau_/Sup_ *)
+  let rec scan_formula (f: Tyformula.t) =
+    match f.form with
+    | Predicate (name, args) ->
+      let sname = sanitize_name name in
+      if String.is_prefix sname ~prefix:"Cau_" || String.is_prefix sname ~prefix:"Sup_" then
+        register_pred name args
+    | Neg g -> scan_formula g
+    | And (_, fs) | Or (_, fs) -> List.iter fs ~f:scan_formula
+    | Imp (_, f, g) -> scan_formula f; scan_formula g
+    | Exists (_, f) | Forall (_, f) -> scan_formula f
+    | _ -> ()
+  in
   List.iter clauses ~f:(fun clause ->
+      (* Scan effects *)
       List.iter clause.effects ~f:(fun effect ->
           let name_args_opt = match effect.form with
             | Predicate (name, args)                     -> Some (name, args)
@@ -526,12 +552,12 @@ let collect_synthetic_event_decls
             | _ -> None
           in
           Option.iter name_args_opt ~f:(fun (name, args) ->
-              let sname = sanitize_name name in
-              if not (Set.mem existing_names sname)
-              && not (Hashtbl.mem seen sname) then begin
-                let param_types = List.map args ~f:term_to_ef_ty in
-                Hashtbl.set seen ~key:sname ~data:param_types
-              end)));
+              register_pred name args));
+      (* Scan trigger guards *)
+      List.iter clause.trigger.guards ~f:(fun guard_conj ->
+          List.iter guard_conj ~f:scan_formula);
+      (* Scan trigger filter *)
+      scan_formula clause.trigger.filter);
   Hashtbl.fold seen ~init:[] ~f:(fun ~key ~data acc ->
       Enfflash.{ ed_name = key; ed_param_types = data } :: acc)
   |> List.sort ~compare:(fun a b -> String.compare a.Enfflash.ed_name b.Enfflash.ed_name)

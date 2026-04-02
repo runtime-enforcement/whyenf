@@ -40,9 +40,7 @@ class Test:
         return Test(json_fn["label"], sig, formula, log, output, func, label_option, success=success)
 
     def _make_command(self) -> None:
-        command : List[str] = [str(ENFGUARD_PATH), "-sig", str(self.sig), "-formula", str(self.formula), "-log", str(self.log)]
-        if self.func:
-            command += ["-func", str(self.func)]
+        command : List[str] = [str(ENFGUARD_PATH), "-sig", str(self.sig), "-formula", str(self.formula)]
         if self.label_option:
             command += ["-label"]
         self.command = command

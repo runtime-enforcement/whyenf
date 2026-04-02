@@ -1,18 +1,4 @@
 The formula
  □[0s,∞) (∀x.2:int. A(x.2:int) → B(x.2:int)) ∧ (∀x.1:int. B(x.1:int) → B(0)) ∧ (∀x:int. B(x:int) → B(1))
-is enforceable and types to
- □[0s,∞) (((∀x.2:int. (A(x.2:int) →:R (B(x.2:int) : Cau) : Cau)) : Cau) ∧:L ((∀x.1:int. (B(x.1:int) →:R (B(0) : Cau) : Cau)) : Cau) ∧:L ((∀x:int. (B(x:int) →:R (B(1) : Cau) : Cau)) : Cau) : Cau) : Cau
-[Enforcer] @1 reactively commands:
-Cause:
-B(0), B(1)
-OK.
-[Enforcer] @1 nothing to do proactively.
-[Enforcer] @2 reactively commands:
-Cause:
-B(0), B(1)
-OK.
-[Enforcer] @2 nothing to do proactively.
-[Enforcer] @3 reactively commands:
-Cause:
-B(0), B(1), B(3)
-OK.
+is not enforceable:
+There is an enforcement cycle: B (Cau) B. Break this cycle to proceed.

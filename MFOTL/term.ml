@@ -18,6 +18,8 @@ module type T = sig
   val dummy_app : string -> t list -> t
 
   val dummy_int : int -> t
+  val dummy_const : d -> t
+  val dummy_for_var : v -> t
   val unvar_opt : t -> v option
   val unconst_opt : t -> d option
 
@@ -96,6 +98,8 @@ module Make (Var : V) (Dom : D) (Uop : O) (Bop : O) (Info : I) = struct
     let dummy_var v = make_dummy (var v)
     let dummy_app f trms = make_dummy (app f trms)
     let dummy_int i = make_dummy (Const (Dom.of_int i))
+    let dummy_const d = make_dummy (Const d)
+    let dummy_for_var _ = dummy_int 0
 
     let unvar_opt t = match t.trm with
       | Var x -> Some x

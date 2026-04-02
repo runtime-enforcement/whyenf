@@ -1,18 +1,1 @@
-The formula
- □[0s,∞) (∀x:int. A(x:int) → B(x:int))
-is enforceable and types to
- □[0s,∞) ((∀x:int. (A(x:int) →:R (B(x:int) : Cau) : Cau)) : Cau) : Cau
-[Enforcer] @1 reactively commands:
-Cause:
-B(1), B(2)
-OK.
-[Enforcer] @1 nothing to do proactively.
-[Enforcer] @2 reactively commands:
-Cause:
-B(3)
-OK.
-[Enforcer] @2 nothing to do proactively.
-[Enforcer] @3 reactively commands:
-Cause:
-B(3), B(4)
-OK.
+LET Exists0() = (∃x:int. ((((A(x:int) : Bot)) : Bot) ∧ (¬(B(x:int) : Bot) : Bot) : Bot) : Bot) IN ((□[0s,∞) ((Exists0() →:R (Sup_Exists0() : Cau)) : Cau) : Cau) ∧:LR (□[0s,∞) ((∀x:int. (Sup_Exists0() ∧ A(x:int) →:R (B(x:int) : Cau) : Cau)) : Cau) : Cau) : Cau) : Cau

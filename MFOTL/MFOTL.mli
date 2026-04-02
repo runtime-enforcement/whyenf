@@ -178,9 +178,9 @@ module Make
 
       type 'a v = Possible of 'a list | Impossible of Errors.error
 
-      val conj : 'a v -> 'a v -> 'a v
+      val conj : f:('a list -> 'a list -> 'a list) -> 'a v -> 'a v -> 'a v
       val disj : 'a v -> 'a v -> 'a v
-      val conjs : 'a v list -> 'a v
+      val conjs : f:('a list -> 'a list -> 'a list) -> 'a v list -> 'a v
       val disjs : 'a v list -> 'a v
       val all : 'a v list -> 'a list v
       val verdict_to_string : to_string:('a list -> string) -> 'a v -> string
@@ -190,10 +190,53 @@ module Make
     type pg_map = (string, Etc.string_set_list, String.comparator_witness) Map.t
     type t_map  = (string, Enftype.t * int list, String.comparator_witness) Map.t
 
+    type trigger = {
+      guards: t list list;
+      filter: t
+    }
+
+    type clause = {
+      trigger: trigger;
+      effects: t list
+    }
+
+    type switch =
+      | SOnce of trigger
+      | SPrev of trigger
+      | SSince of trigger * trigger
+      | SNow of trigger
+
+    type enf_sols = (clause list * Constraints.constr) Verdict.v
+
+    type let_def = {
+      name: string;
+      args: (Var.t * Dom.tt option) list;
+      body: t;
+      cau_sols: enf_sols;
+      sup_sols: enf_sols;
+      switch_pos_opt: switch option;
+      switch_neg_opt: switch option;
+    }
+
+    type let_map = (string, let_def, String.comparator_witness) Map.t
+
+    (* A compiled let: (name, enftype, args, body_pos, body_neg_opt, clauses_opt) *)
+    type compiled_let =
+      string
+      * Enftype.t option
+      * (Var.t * Dom.tt option) list
+      * typed_t
+      * typed_t option
+      * clause list option
+
     val do_type : ?verbose:bool -> ?moderate:bool -> t -> Time.Span.s -> typed_t
+
+    (* Compile and return intermediate enforcement data for the enfflash compiler.
+       Returns: (compiled_lets, raw_clauses, let_map, typed_formula) *)
+    val do_type_and_compile : ?verbose:bool -> ?moderate:bool -> t -> Time.Span.s ->
+      compiled_let list * clause list * let_map * typed_t
 
 
   end
 
 end
-

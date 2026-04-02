@@ -15,6 +15,8 @@ module type T = sig
   val dummy_var : v -> t
   val dummy_app : string -> t list -> t
   val dummy_int : int -> t
+  val dummy_const : d -> t
+  val dummy_for_var : v -> t
 
   val unvar_opt : t -> v option
   val unconst_opt : t -> d option
@@ -77,6 +79,8 @@ module Make (Var : V) (Dom : D) (Uop : O) (Bop : O) (Info : I) : sig
   val dummy_var : v -> t
   val dummy_app : string -> t list -> t
   val dummy_int : int -> t
+  val dummy_const : d -> t
+  val dummy_for_var : v -> t
 
   val is_var: t -> bool
   val is_const: t -> bool
