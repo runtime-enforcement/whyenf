@@ -202,8 +202,12 @@ impl Engine {
         // as new events are caused in each iteration.
         let mut working_events: Vec<EventInstance> = tp.events.clone();
         // Track which (event_name, args) pairs we've already produced to detect
-        // new additions.
+        // new additions.  Pre-populate with the timepoint's own events so that
+        // we never cause an event that already exists.
         let mut caused_set: BTreeSet<(String, Vec<Value>)> = BTreeSet::new();
+        for ev in &tp.events {
+            caused_set.insert((ev.name.clone(), ev.args.clone()));
+        }
         let mut suppressed_set: BTreeSet<(String, Vec<Value>)> = BTreeSet::new();
 
         const MAX_ITERATIONS: usize = 100;
@@ -271,6 +275,7 @@ impl Engine {
                                     for ev in events {
                                         let key = (ev.name.clone(), ev.args.clone());
                                         if !caused_set.contains(&key) {
+                                            caused_set.insert(key);
                                             new_cause.push((ev, labels.clone()));
                                         }
                                     }
@@ -294,6 +299,7 @@ impl Engine {
                                     } else {
                                         let key = (ev.name.clone(), ev.args.clone());
                                         if !suppressed_set.contains(&key) {
+                                            suppressed_set.insert(key);
                                             new_suppress.push((ev, labels.clone()));
                                         }
                                     }
@@ -332,12 +338,14 @@ impl Engine {
                                 RuleAction::Suppress => {
                                     let key = (ev.name.clone(), ev.args.clone());
                                     if !suppressed_set.contains(&key) {
+                                        suppressed_set.insert(key);
                                         new_suppress.push((ev, rule_label.clone()));
                                     }
                                 }
                                 RuleAction::Cause => {
                                     let key = (ev.name.clone(), ev.args.clone());
                                     if !caused_set.contains(&key) {
+                                        caused_set.insert(key);
                                         new_cause.push((ev, rule_label.clone()));
                                     }
                                 }

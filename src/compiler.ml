@@ -232,23 +232,63 @@ let trigger_to_clauses (trigger: Enforcement.trigger) : Enfflash.clause list =
     match f.form with
     | And (_, fs) -> List.concat_map fs ~f:flatten_conj
     | _ -> [f] in
+  (* Flatten an Or into a list of disjuncts. *)
+  let rec flatten_disj (f: Tyformula.t) : Tyformula.t list =
+    match f.form with
+    | Or (_, fs) -> List.concat_map fs ~f:flatten_disj
+    | _ -> [f] in
+  (* Convert a filter formula into DNF: a list of conjunct-lists.
+     Each inner list represents a conjunction; the outer list represents
+     the disjunction. We only expand Ors that contain trace events so
+     as not to blow up the clause count unnecessarily. *)
+  let rec filter_to_dnf (f: Tyformula.t) : Tyformula.t list list =
+    match f.form with
+    | And (_, fs) ->
+      (* Cartesian product of the sub-DNFs *)
+      List.fold_left fs ~init:[[]]
+        ~f:(fun acc sub ->
+            let sub_dnf = filter_to_dnf sub in
+            List.concat_map acc ~f:(fun conj ->
+                List.map sub_dnf ~f:(fun d -> conj @ d)))
+    | Or (_, _) ->
+      let disjuncts = flatten_disj f in
+      (* Only expand into DNF if at least one disjunct is a trace event.
+         Otherwise keep it as an opaque filter. *)
+      let has_event = List.exists disjuncts ~f:(fun d ->
+          match d.form with
+          | Predicate (name, _) -> is_trace_event name
+          | _ ->
+            let conjs = flatten_conj d in
+            List.exists conjs ~f:(fun c ->
+                match c.form with
+                | Predicate (name, _) -> is_trace_event name
+                | _ -> false)) in
+      if has_event then
+        List.concat_map disjuncts ~f:filter_to_dnf
+      else
+        [[f]]
+    | _ -> [[f]]
+  in
   match trigger.guards with
   | [] ->
     (* No event guards: decompose the filter formula itself into
-       trace-event patterns and residual filter conditions. *)
-    let conjuncts = flatten_conj trigger.filter in
-    let patterns, filter_parts = decompose_guard_conj conjuncts in
-    [Enfflash.{ cl_patterns = patterns;
-                cl_filter = merge_filters filter_parts }]
+       trace-event patterns and residual filter conditions,
+       expanding Ors that contain trace events into separate clauses. *)
+    let dnf = filter_to_dnf trigger.filter in
+    List.map dnf ~f:(fun conjuncts ->
+        let patterns, filter_parts = decompose_guard_conj conjuncts in
+        Enfflash.{ cl_patterns = patterns;
+                   cl_filter = merge_filters filter_parts })
   | disjuncts ->
-    (* Also decompose trigger.filter into event patterns and residual filter,
-       so that trace events appearing in the filter become clause patterns. *)
-    let base_conjuncts = flatten_conj trigger.filter in
-    let base_patterns, base_filter_parts = decompose_guard_conj base_conjuncts in
-    List.map disjuncts ~f:(fun guard_conj ->
-        let patterns, guard_filter_parts = decompose_guard_conj guard_conj in
-        Enfflash.{ cl_patterns = patterns @ base_patterns;
-                   cl_filter = merge_filters (guard_filter_parts @ base_filter_parts) })
+    (* Expand the filter into DNF to pull trace events into patterns.
+       Then cross-product each guard disjunct with each filter disjunct. *)
+    let filter_dnf = filter_to_dnf trigger.filter in
+    List.concat_map disjuncts ~f:(fun guard_conj ->
+        List.map filter_dnf ~f:(fun filter_conj ->
+            let guard_patterns, guard_filter_parts = decompose_guard_conj guard_conj in
+            let filter_patterns, filter_filter_parts = decompose_guard_conj filter_conj in
+            Enfflash.{ cl_patterns = guard_patterns @ filter_patterns;
+                       cl_filter = merge_filters (guard_filter_parts @ filter_filter_parts) }))
 
 (* Pick the first clause from a trigger (for table add/remove which require
    a single clause).  Multiple guard disjuncts would need engine support for
@@ -294,6 +334,19 @@ let compile_event_decls () : Enfflash.event_decl list =
    with leading indentation removed. *)
 let parse_python_functions (py_source: string) : (string, string, String.comparator_witness) Map.t =
   let lines = String.split_lines py_source in
+  (* Remove common leading whitespace from non-empty lines (like textwrap.dedent) *)
+  let dedent body_lines =
+    let non_empty = List.filter body_lines ~f:(fun l -> not (String.is_empty (String.lstrip l))) in
+    let min_indent = List.fold non_empty ~init:Int.max_value
+        ~f:(fun acc l ->
+            let trimmed = String.lstrip l in
+            let indent = String.length l - String.length trimmed in
+            Int.min acc indent) in
+    let min_indent = if Int.equal min_indent Int.max_value then 0 else min_indent in
+    List.map body_lines ~f:(fun l ->
+        if String.is_empty (String.lstrip l) then ""
+        else if String.length l >= min_indent then String.drop_prefix l min_indent
+        else String.lstrip l) in
   let rec collect_functions lines acc =
     match lines with
     | [] -> acc
@@ -313,14 +366,15 @@ let parse_python_functions (py_source: string) : (string, string, String.compara
               let next_stripped = String.lstrip next in
               if String.is_empty next_stripped then
                 (* blank line inside function, include it *)
-                collect_body more ("" :: body_lines)
+                collect_body more (next :: body_lines)
               else if String.length next > 0 && Char.is_whitespace (String.get next 0) then
-                collect_body more (next_stripped :: body_lines)
+                collect_body more (next :: body_lines)
               else
                 (* next non-indented line: function is done *)
                 (List.rev body_lines, next :: more)
           in
-          let body_lines, remaining = collect_body rest [] in
+          let raw_body_lines, remaining = collect_body rest [] in
+          let body_lines = dedent raw_body_lines in
           let body = String.rstrip (String.concat ~sep:"\n" body_lines) in
           collect_functions remaining (Map.set acc ~key:fname ~data:body)
         | None -> collect_functions rest acc
@@ -337,13 +391,38 @@ let ttt_to_ef (ttt: Ctxt.ttt) : Enfflash.ef_ty =
 (* Map built-in MFOTL function names to equivalent Python bodies *)
 let builtin_to_python (name: string) (param_names: string list) : string option =
   match name, param_names with
-  | "conc", [a; b]           -> Some (Printf.sprintf "return %s + %s" a b)
-  | "substr", [s; a; b]      -> Some (Printf.sprintf "return %s[%s:%s]" s a b)
-  | "match", [x; r]          -> Some (Printf.sprintf "import re\nreturn 1 if re.match(%s, %s) else 0" r x)
-  | "string_of_int", [x]     -> Some (Printf.sprintf "return str(%s)" x)
-  | "string_of_float", [x]   -> Some (Printf.sprintf "return str(%s)" x)
-  | "int_of_float", [x]      -> Some (Printf.sprintf "return int(%s)" x)
-  | "float_of_int", [x]      -> Some (Printf.sprintf "return float(%s)" x)
+  (* Arithmetic (int) *)
+  | "add", [a; b]             -> Some (Printf.sprintf "return %s + %s" a b)
+  | "sub", [a; b]             -> Some (Printf.sprintf "return %s - %s" a b)
+  | "usub", [a]               -> Some (Printf.sprintf "return -%s" a)
+  | "mul", [a; b]             -> Some (Printf.sprintf "return %s * %s" a b)
+  | "div", [a; b]             -> Some (Printf.sprintf "return %s // %s" a b)
+  | "pow", [a; b]             -> Some (Printf.sprintf "return %s ** %s" a b)
+  (* Arithmetic (float) *)
+  | "fadd", [a; b]            -> Some (Printf.sprintf "return %s + %s" a b)
+  | "fsub", [a; b]            -> Some (Printf.sprintf "return %s - %s" a b)
+  | "ufsub", [a]              -> Some (Printf.sprintf "return -%s" a)
+  | "fmul", [a; b]            -> Some (Printf.sprintf "return %s * %s" a b)
+  | "fdiv", [a; b]            -> Some (Printf.sprintf "return %s / %s" a b)
+  | "fpow", [a; b]            -> Some (Printf.sprintf "return %s ** %s" a b)
+  (* Comparison *)
+  | "eq", [a; b]              -> Some (Printf.sprintf "return 1 if %s == %s else 0" a b)
+  | "neq", [a; b]             -> Some (Printf.sprintf "return 1 if %s != %s else 0" a b)
+  | "lt", [a; b]              -> Some (Printf.sprintf "return 1 if %s < %s else 0" a b)
+  | "leq", [a; b]             -> Some (Printf.sprintf "return 1 if %s <= %s else 0" a b)
+  | "gt", [a; b]              -> Some (Printf.sprintf "return 1 if %s > %s else 0" a b)
+  | "geq", [a; b]             -> Some (Printf.sprintf "return 1 if %s >= %s else 0" a b)
+  (* Logic *)
+  | "not", [a]                -> Some (Printf.sprintf "return 0 if %s else 1" a)
+  (* String *)
+  | "conc", [a; b]            -> Some (Printf.sprintf "return %s + %s" a b)
+  | "substr", [s; a; b]       -> Some (Printf.sprintf "return %s[%s:%s]" s a b)
+  | "match", [x; r]           -> Some (Printf.sprintf "import re\nreturn 1 if re.match(%s, %s) else 0" r x)
+  (* Conversions *)
+  | "string_of_int", [x]      -> Some (Printf.sprintf "return str(%s)" x)
+  | "string_of_float", [x]    -> Some (Printf.sprintf "return str(%s)" x)
+  | "int_of_float", [x]       -> Some (Printf.sprintf "return int(%s)" x)
+  | "float_of_int", [x]       -> Some (Printf.sprintf "return float(%s)" x)
   | _ -> None
 
 let compile_fun_decls ~(py_source: string option) () : Enfflash.fun_decl list =

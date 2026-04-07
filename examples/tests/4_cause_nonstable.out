@@ -1,1 +1,12 @@
-LET Exists0() = (∃x:int. ((((A(x:int) : Bot)) : Bot) ∧ (¬(B(add(x:int, 1)) : Bot) : Bot) : Bot) : Bot) IN ((□[0s,∞) ((Exists0() →:R (Sup_Exists0() : Cau)) : Cau) : Cau) ∧:LR (□[0s,∞) ((∀x:int. (Sup_Exists0() ∧ A(x:int) →:R (B(add(x:int, 1)) : Cau) : Cau)) : Cau) : Cau) : Cau) : Cau
+[Enforcer] @0 nothing to do proactively.
+[Enforcer] @1 reactively commands:
+Cause: B(2)
+OK.
+[Enforcer] @1 nothing to do proactively.
+[Enforcer] @2 reactively commands:
+Cause: B(3)
+OK.
+[Enforcer] @2 nothing to do proactively.
+[Enforcer] @3 reactively commands:
+Cause: B(4)
+OK.

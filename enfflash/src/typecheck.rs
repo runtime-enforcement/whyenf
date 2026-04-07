@@ -232,8 +232,14 @@ fn collect_pattern_var_names(patterns: &[EventPattern]) -> HashSet<String> {
     names
 }
 
-/// Collect variable names referenced in filter expressions.
-/// These variables can be existentially bound at runtime via table/let/event lookups.
+/// Collect variable names that are *definitely* bound by a filter expression
+/// at runtime via table/let/event lookups.
+///
+/// For `And`, both branches execute so we take the union.
+/// For `Or`, only one branch executes so we take the *intersection* —
+/// a variable is only guaranteed bound if both branches bind it.
+/// For `Not`, no new bindings are introduced (negation only tests, it
+/// doesn't bind variables in the outer scope).
 fn collect_filter_var_names(filter: &FilterExpr) -> HashSet<String> {
     let mut names = HashSet::new();
     match filter {
@@ -248,12 +254,19 @@ fn collect_filter_var_names(filter: &FilterExpr) -> HashSet<String> {
             for v in lhs.clone().fvs() { names.insert(v); }
             for v in rhs.clone().fvs() { names.insert(v); }
         }
-        FilterExpr::And(l, r) | FilterExpr::Or(l, r) => {
+        FilterExpr::And(l, r) => {
+            // Both branches execute: union of bound vars
             names.extend(collect_filter_var_names(l));
             names.extend(collect_filter_var_names(r));
         }
-        FilterExpr::Not(inner) => {
-            names.extend(collect_filter_var_names(inner));
+        FilterExpr::Or(l, r) => {
+            // Only one branch executes: intersection of bound vars
+            let left = collect_filter_var_names(l);
+            let right = collect_filter_var_names(r);
+            names.extend(left.intersection(&right).cloned());
+        }
+        FilterExpr::Not(_) => {
+            // Negation does not introduce bindings into the outer scope
         }
         FilterExpr::BoolLit(_) => {}
     }
@@ -299,12 +312,25 @@ fn extend_ctx_from_filter(te: &TyEnv, ctx: &mut VarCtx, filter: &FilterExpr) {
                 }
             }
         }
-        FilterExpr::And(l, r) | FilterExpr::Or(l, r) => {
+        FilterExpr::And(l, r) => {
+            // Both branches execute: extend from both
             extend_ctx_from_filter(te, ctx, l);
             extend_ctx_from_filter(te, ctx, r);
         }
-        FilterExpr::Not(inner) => {
-            extend_ctx_from_filter(te, ctx, inner);
+        FilterExpr::Or(l, r) => {
+            // Only one branch executes: only add variables that both branches bind
+            let mut left_ctx = VarCtx::new();
+            let mut right_ctx = VarCtx::new();
+            extend_ctx_from_filter(te, &mut left_ctx, l);
+            extend_ctx_from_filter(te, &mut right_ctx, r);
+            for (name, ty) in &left_ctx {
+                if right_ctx.contains_key(name) {
+                    ctx.entry(name.clone()).or_insert_with(|| ty.clone());
+                }
+            }
+        }
+        FilterExpr::Not(_) => {
+            // Negation does not introduce bindings into the outer scope
         }
         _ => {}
     }

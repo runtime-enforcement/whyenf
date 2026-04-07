@@ -40,9 +40,11 @@ class Test:
         return Test(json_fn["label"], sig, formula, log, output, func, label_option, success=success)
 
     def _make_command(self) -> None:
-        command : List[str] = [str(ENFGUARD_PATH), "-sig", str(self.sig), "-formula", str(self.formula)]
-        if self.label_option:
-            command += ["-label"]
+        command : List[str] = [str(ENFGUARD_PATH), "-run", "-sig", str(self.sig), "-formula", str(self.formula)]
+        if self.func is not None:
+            command += ["-func", str(self.func)]
+        if self.log is not None:
+            command += ["-log", str(self.log)]
         self.command = command
 
     def _run_enfguard(self) -> subprocess.CompletedProcess[str]:

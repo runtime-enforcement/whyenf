@@ -1,1 +1,8 @@
-LET Exists0() = (∃x:int. ((((A(x:int) : Bot)) : Bot) ∧ (C(x:int) : Bot) : Bot) : Bot) IN ((□[0s,∞) ((Exists0() →:R (Sup_Exists0() : Cau)) : Cau) : Cau) ∧:LR (□[0s,∞) ((∀x:int. (Sup_Exists0() ∧ C(x:int) ∧ A(x:int) →:R (¬(C(x:int) : Sup) : Cau) : Cau)) : Cau) : Cau) : Cau) : Cau
+[Enforcer] @0 nothing to do proactively.
+[Enforcer] @1 OK.
+[Enforcer] @1 nothing to do proactively.
+[Enforcer] @2 reactively commands:
+Suppress: C(2)
+OK.
+[Enforcer] @2 nothing to do proactively.
+[Enforcer] @3 OK.

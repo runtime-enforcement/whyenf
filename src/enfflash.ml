@@ -193,14 +193,14 @@ let fun_decl_to_string fd =
   let params =
     List.map2_exn fd.fd_param_names fd.fd_param_types
       ~f:(fun n t -> Printf.sprintf "%s:%s" n (ef_ty_to_string t)) in
-  let escaped_body = String.concat_map fd.fd_body ~f:(function
-      | '\n' -> "\\n"
-      | c    -> String.make 1 c) in
-  Printf.sprintf "fun %s(%s) : %s { \"%s\" }"
+  let body_lines = String.split_lines fd.fd_body in
+  let indented_body = String.concat ~sep:"\n"
+      (List.map body_lines ~f:(fun l -> "    " ^ l)) in
+  Printf.sprintf "fun %s(%s) : %s {\n%s\n}"
     fd.fd_name
     (String.concat ~sep:", " params)
     (ef_ty_to_string fd.fd_ret_type)
-    escaped_body
+    indented_body
 
 let let_def_to_string ld =
   let keyword = if ld.ld_is_filter then "filter let" else "let" in

@@ -289,6 +289,16 @@ Comma<T>: Vec<T> = {
 
 Ident: String = {
     r"[A-Za-z_][A-Za-z0-9_]*" => <>.to_string(),
+    "add" => "add".to_string(),
+    "remove" => "remove".to_string(),
+    "event" => "event".to_string(),
+    "table" => "table".to_string(),
+    "trigger" => "trigger".to_string(),
+    "validate" => "validate".to_string(),
+    "filter" => "filter".to_string(),
+    "rule" => "rule".to_string(),
+    "delay" => "delay".to_string(),
+    "lagged" => "lagged".to_string(),
 };
 
 Num: i64 = {
