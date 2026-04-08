@@ -520,11 +520,11 @@ module Make
        Printf.sprintf (Etc.paren l 55 "¬%a")
          (fun _ -> to_string_rec 55) f
     | And (s, fs) ->
-       Printf.sprintf (Etc.paren l 50 "%s")
+       Printf.sprintf (Etc.paren l 47 "%s")
          (String.concat ~sep:(" ∧" ^ Side.to_string s ^ " ")
             (List.map ~f:(to_string_rec 50) fs))
     | Or (s, fs) ->
-       Printf.sprintf (Etc.paren l 40 "%s")
+       Printf.sprintf (Etc.paren l 46 "%s")
          (String.concat ~sep:(" ∨" ^ Side.to_string s ^ " ")
             (List.map ~f:(to_string_rec 40) fs))
     | Imp (s, f, g) ->
@@ -638,11 +638,11 @@ module Make
        Printf.sprintf (Etc.paren l 55 "\\neg%a")
          (fun _ -> to_latex_rec 55) f
     | And (s, fs) ->
-       Printf.sprintf (Etc.paren l 50 "%s")
+       Printf.sprintf (Etc.paren l 47 "%s")
          (String.concat ~sep:(" \\land" ^ Side.to_string s ^ " ")
             (List.map ~f:(to_latex_rec 50) fs))
     | Or (s, fs) ->
-       Printf.sprintf (Etc.paren l 40 "%s")
+       Printf.sprintf (Etc.paren l 46 "%s")
          (String.concat ~sep:(" \\lor" ^ Side.to_string s ^ " ")
             (List.map ~f:(to_latex_rec 40) fs))
     | Imp (s, f, g) ->
