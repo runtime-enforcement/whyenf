@@ -267,7 +267,8 @@
         "sig": "simple.sig",
         "formula": "56_cause_label.mfotl",
         "log": "simple.log",
-        "output": "56_cause_label.out"
+        "output": "56_cause_label.out",
+        "label_option": true
     },
     {
         "label": "57_let_guarded",

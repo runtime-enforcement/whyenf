@@ -515,15 +515,26 @@ impl Engine {
         {
             let mut proactive_cause: Vec<(EventInstance, Vec<String>)> = Vec::new();
             let mut proactive_suppress: Vec<(EventInstance, Vec<String>)> = Vec::new();
+            let mut seen_cause: BTreeSet<(String, Vec<Value>)> = BTreeSet::new();
+            let mut seen_suppress: BTreeSet<(String, Vec<Value>)> = BTreeSet::new();
             for ob in self.obligations.remove(&new_ts).unwrap_or_default() {
                 let valid = match &ob.validate {
                     Some(f) => self.eval_filter(f, &ob.env, &[]),
                     None => true,
                 };
                 if valid {
+                    let key = (ob.event.name.clone(), ob.event.args.clone());
                     match ob.action {
-                        RuleAction::Cause    => proactive_cause.push((ob.event, ob.labels)),
-                        RuleAction::Suppress => proactive_suppress.push((ob.event, ob.labels)),
+                        RuleAction::Cause => {
+                            if seen_cause.insert(key) {
+                                proactive_cause.push((ob.event, ob.labels));
+                            }
+                        }
+                        RuleAction::Suppress => {
+                            if seen_suppress.insert(key) {
+                                proactive_suppress.push((ob.event, ob.labels));
+                            }
+                        }
                         RuleAction::Observe  => {}
                     }
                 }
@@ -553,15 +564,26 @@ impl Engine {
             self.current_ts = Some(ts);
             let mut proactive_cause: Vec<(EventInstance, Vec<String>)> = Vec::new();
             let mut proactive_suppress: Vec<(EventInstance, Vec<String>)> = Vec::new();
+            let mut seen_cause: BTreeSet<(String, Vec<Value>)> = BTreeSet::new();
+            let mut seen_suppress: BTreeSet<(String, Vec<Value>)> = BTreeSet::new();
             for ob in self.obligations.remove(&ts).unwrap_or_default() {
                 let valid = match &ob.validate {
                     Some(f) => self.eval_filter(f, &ob.env, &[]),
                     None => true,
                 };
                 if valid {
+                    let key = (ob.event.name.clone(), ob.event.args.clone());
                     match ob.action {
-                        RuleAction::Cause    => proactive_cause.push((ob.event, ob.labels)),
-                        RuleAction::Suppress => proactive_suppress.push((ob.event, ob.labels)),
+                        RuleAction::Cause => {
+                            if seen_cause.insert(key) {
+                                proactive_cause.push((ob.event, ob.labels));
+                            }
+                        }
+                        RuleAction::Suppress => {
+                            if seen_suppress.insert(key) {
+                                proactive_suppress.push((ob.event, ob.labels));
+                            }
+                        }
                         RuleAction::Observe  => {}
                     }
                 }

@@ -45,6 +45,8 @@ class Test:
             command += ["-func", str(self.func)]
         if self.log is not None:
             command += ["-log", str(self.log)]
+        if self.label_option:
+            command += ["-label"]
         self.command = command
 
     def _run_enfguard(self) -> subprocess.CompletedProcess[str]:
