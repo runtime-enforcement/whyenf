@@ -1,4 +1,6 @@
 The formula
  LET G1(x:int)+- = A(x:int) IN □[0s,∞) (∀x.1:int. G1(x.1:int) ∧ ¬G1(x.1:int))
 is not enforceable:
-Variable x.1:int is not guarded in ∃x.1:int. ¬(A(x.1:int) ∧ ¬A(x.1:int)) (polarity: +)
+either
+ * make A Obs (currently, it has type Cau)
+ * make A Sup (currently, it has type Obs)

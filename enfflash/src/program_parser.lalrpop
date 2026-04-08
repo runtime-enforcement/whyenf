@@ -18,6 +18,7 @@ match {
     "true",
     "false",
     "delay",
+    "next",
     "validate",
     // symbols
     ":=",
@@ -180,7 +181,7 @@ ClauseBody: Clause = {
 
 RuleDefStmt: RuleDef = {
     <lbl:("@" <Ident>)?> "rule" <act:Action> <ev:Ident> "(" <ps:Comma<TermExprP>> ")"
-        <delay:("[" "delay" <Num> "]")?>
+        <delay:("[" "delay" <Num> "]")?>  <tp_off:("[" "next" <Num> "]")?>  
         ":="
             "trigger" "{" <trigger:ClauseBody> "}"
         <val:("validate" "{" <FilterOr> "}")?> ";" => RuleDef {
@@ -189,6 +190,7 @@ RuleDefStmt: RuleDef = {
         params: ps,
         action: act,
         delay: delay.map(|d| d as u64),
+        tp_offset: tp_off.map(|n| n as u64),
         trigger,
         validate: val,
     },

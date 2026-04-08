@@ -1,1 +1,35 @@
-LET Exists1_pos() = (∃x:int. ((((A(x:int) : Bot)) : Bot) ∧ (⊥ : Bot) : Bot) : Bot) IN (LET Exists1_neg() = (∃x:int. ((((A(x:int) : Bot)) : Bot) ∧ (⊤ : Bot) : Bot) : Bot) IN ((□[0s,∞) ((Exists1_neg() →:R (Sup_Exists1() : Cau)) : Cau) : Cau) ∧:LR (□[0s,∞) ((∀x:int. (Sup_Exists1() ∧ A(x:int) →:R (◊[10s,20s] (B(x:int) : Cau) : Cau) : Cau)) : Cau) : Cau) : Cau) : Cau) : Cau
+[Enforcer] @1 OK.
+[Enforcer] @1 nothing to do proactively.
+[Enforcer] @2 OK.
+[Enforcer] @2 nothing to do proactively.
+[Enforcer] @3 OK.
+[Enforcer] @3 nothing to do proactively.
+[Enforcer] @4 nothing to do proactively.
+[Enforcer] @5 nothing to do proactively.
+[Enforcer] @6 nothing to do proactively.
+[Enforcer] @7 nothing to do proactively.
+[Enforcer] @8 nothing to do proactively.
+[Enforcer] @9 nothing to do proactively.
+[Enforcer] @10 nothing to do proactively.
+[Enforcer] @11 nothing to do proactively.
+[Enforcer] @12 nothing to do proactively.
+[Enforcer] @13 nothing to do proactively.
+[Enforcer] @14 nothing to do proactively.
+[Enforcer] @15 nothing to do proactively.
+[Enforcer] @16 nothing to do proactively.
+[Enforcer] @17 nothing to do proactively.
+[Enforcer] @18 nothing to do proactively.
+[Enforcer] @19 nothing to do proactively.
+[Enforcer] @20 nothing to do proactively.
+[Enforcer] @21 proactively commands:
+Cause:
+B(1)
+OK.
+[Enforcer] @22 proactively commands:
+Cause:
+B(2)
+OK.
+[Enforcer] @23 proactively commands:
+Cause:
+B(3)
+OK.

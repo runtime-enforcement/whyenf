@@ -143,6 +143,11 @@ let rec compile_filter_form
   | Let' (name, _, vars, _, _) ->
     let args = List.map vars ~f:(fun (v, _) -> Enfflash.TEVar (san (fst v))) in
     FTableLookup (sanitize_name name, args)
+  | Eventually _ | Next _ ->
+    (* Eventually/Next represent future obligations that have not yet been
+       discharged.  In a filter context (present-time check), they evaluate
+       to false: the obligation is not yet met. *)
+    FBoolLit false
   | _ ->
     (* Temporal operators (Once, Since, Prev, Always, etc.) cannot be expressed
        as filter expressions.  They should have been compiled into tables by the
@@ -620,6 +625,7 @@ let collect_synthetic_event_decls
     | And (_, fs) | Or (_, fs) -> List.iter fs ~f:scan_formula
     | Imp (_, f, g) -> scan_formula f; scan_formula g
     | Exists (_, f) | Forall (_, f) -> scan_formula f
+    | Eventually (_, f) | Always (_, f) | Next (_, f) -> scan_formula f
     | _ -> ()
   in
   List.iter clauses ~f:(fun clause ->
@@ -628,6 +634,10 @@ let collect_synthetic_event_decls
           let name_args_opt = match effect.form with
             | Predicate (name, args)                     -> Some (name, args)
             | Neg { form = Predicate (name, args); _ }   -> Some (name, args)
+            | Eventually (_, { form = Predicate (name, args); _ }) -> Some (name, args)
+            | Eventually (_, { form = Neg { form = Predicate (name, args); _ }; _ }) -> Some (name, args)
+            | Next (_, { form = Predicate (name, args); _ }) -> Some (name, args)
+            | Next (_, { form = Neg { form = Predicate (name, args); _ }; _ }) -> Some (name, args)
             | _ -> None
           in
           Option.iter name_args_opt ~f:(fun (name, args) ->
@@ -641,6 +651,11 @@ let collect_synthetic_event_decls
       Enfflash.{ ed_name = key; ed_param_types = data } :: acc)
   |> List.sort ~compare:(fun a b -> String.compare a.Enfflash.ed_name b.Enfflash.ed_name)
 
+let interval_to_delay (i: Interval.t) : int option =
+  match Interval.right i with
+  | Some ts -> Some (Time.Span.min_seconds ts)
+  | None    -> None
+
 let compile_clause_to_rules (clause: Enforcement.clause) : Enfflash.rule_def list =
   let trigger_clauses = trigger_to_clauses clause.trigger in
   let effects_info =
@@ -648,21 +663,34 @@ let compile_clause_to_rules (clause: Enforcement.clause) : Enfflash.rule_def lis
         match effect.form with
         | Predicate (name, args) ->
           let params = List.map args ~f:term_to_ef in
-          Some (sanitize_name name, params, Enfflash.RCause)
+          Some (sanitize_name name, params, Enfflash.RCause, None, None)
         | Neg { form = Predicate (name, args); _ } ->
           let params = List.map args ~f:term_to_ef in
-          Some (sanitize_name name, params, Enfflash.RSuppress)
+          Some (sanitize_name name, params, Enfflash.RSuppress, None, None)
+        | Eventually (i, { form = Predicate (name, args); _ }) ->
+          let params = List.map args ~f:term_to_ef in
+          Some (sanitize_name name, params, Enfflash.RCause, interval_to_delay i, None)
+        | Eventually (i, { form = Neg { form = Predicate (name, args); _ }; _ }) ->
+          let params = List.map args ~f:term_to_ef in
+          Some (sanitize_name name, params, Enfflash.RSuppress, interval_to_delay i, None)
+        | Next (i, { form = Predicate (name, args); _ }) ->
+          let params = List.map args ~f:term_to_ef in
+          Some (sanitize_name name, params, Enfflash.RCause, None, Some 1)
+        | Next (i, { form = Neg { form = Predicate (name, args); _ }; _ }) ->
+          let params = List.map args ~f:term_to_ef in
+          Some (sanitize_name name, params, Enfflash.RSuppress, None, Some 1)
         | _ -> None) in
-  List.concat_map effects_info ~f:(fun (ev_name, params, action) ->
+  List.concat_map effects_info ~f:(fun (ev_name, params, action, delay, tp_offset) ->
       List.map trigger_clauses ~f:(fun trigger_clause ->
           Enfflash.{
-            rd_label    = None;
-            rd_event    = ev_name;
-            rd_params   = params;
-            rd_action   = action;
-            rd_delay    = None;
-            rd_trigger  = trigger_clause;
-            rd_validate = None;
+            rd_label      = None;
+            rd_event      = ev_name;
+            rd_params     = params;
+            rd_action     = action;
+            rd_delay      = delay;
+            rd_tp_offset  = tp_offset;
+            rd_trigger    = trigger_clause;
+            rd_validate   = None;
           }))
 
 (* Fix default Int(0) values in rule params when the target event expects a

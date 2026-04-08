@@ -83,6 +83,7 @@ type rule_def = {
   rd_params: term_expr list;
   rd_action: rule_action;
   rd_delay: int option;
+  rd_tp_offset: int option;
   rd_trigger: clause;
   rd_validate: filter_expr option;
 }
@@ -234,17 +235,21 @@ let rule_def_to_string rd =
   let delay_str = match rd.rd_delay with
     | None   -> ""
     | Some d -> Printf.sprintf " [delay %d]" d in
+  let next_str = match rd.rd_tp_offset with
+    | None   -> ""
+    | Some n -> Printf.sprintf " [next %d]" n in
   let trigger_str = clause_to_string ~indent:"    " rd.rd_trigger in
   let validate_str = match rd.rd_validate with
     | None   -> ""
     | Some f -> Printf.sprintf "\n  validate {\n    %s\n  }"
                   (filter_expr_to_string f) in
-  Printf.sprintf "%srule %s%s(%s)%s :=\n  trigger {\n%s\n  }%s;"
+  Printf.sprintf "%srule %s%s(%s)%s%s :=\n  trigger {\n%s\n  }%s;"
     (label_prefix rd.rd_label)
     action_str
     rd.rd_event
     (String.concat ~sep:", " (List.map ~f:term_expr_to_string rd.rd_params))
     delay_str
+    next_str
     trigger_str
     validate_str
 

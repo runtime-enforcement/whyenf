@@ -51,7 +51,7 @@ class Test:
         try:
             return subprocess.run(self.command, capture_output=True, text=True, timeout=5)
         except subprocess.TimeoutExpired:
-            return subprocess.CompletedProcess(args=self.command, returncode=-1, stdout="", stderr="Timeout occurred")
+            return subprocess.CompletedfProcess(args=self.command, returncode=-1, stdout="", stderr="Timeout occurred")
 
     def run(self) -> pd.Series:
         print(f"Running test {self.label}...".ljust(48), end=' ')

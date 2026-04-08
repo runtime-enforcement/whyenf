@@ -49,8 +49,10 @@ pub struct Engine {
     py_functions: HashMap<String, (Vec<String>, Py<PyAny>)>,
     /// Pending obligations
     obligations: HashMap<u64, Vec<Obligation>>,
+    /// Obligations that fire at the next real time-point (from Next operator)
+    next_tp_obligations: Vec<Obligation>,
     /// Current timestamp
-    current_ts: u64,
+    current_ts: Option<u64>,
     /// Whether to print rule labels on enforcement actions
     label_mode: bool,
     /// Whether to print verbose debug info
@@ -131,7 +133,8 @@ impl Engine {
             let_defs,
             py_functions,
             obligations: HashMap::new(),
-            current_ts: 0,
+            next_tp_obligations: Vec::new(),
+            current_ts: None,
             label_mode,
             verbose_mode,
             current_time: std::time::SystemTime::now()
@@ -141,7 +144,7 @@ impl Engine {
     /// Prints statistics about the size of tables, number of obligations, etc.
     pub fn print_stats(&mut self) {
         let elapsed = self.current_time.elapsed().unwrap_or_default();
-        eprintln!("=== Engine state at timestamp {} ===", self.current_ts);
+        eprintln!("=== Engine state at timestamp {} ===", self.current_ts.unwrap());
         eprintln!("Tables:");
         for (name, table) in &self.tables {
             eprintln!("  {}: {} rows", name, table.len());
@@ -168,8 +171,9 @@ impl Engine {
 
     /// Flush all remaining delayed obligations (call after the last time-point).
     pub fn finish(&mut self) {
-        let max_ts = self.obligations.keys().max().cloned().unwrap_or(self.current_ts);
-        self.flush_obligations(max_ts);
+        if let Some(max_ts) = self.obligations.keys().max().cloned() {
+            self.flush_obligations(max_ts + 1);
+        }
     }
 
     fn process_timepoint(&mut self, tp: &TimePoint) {
@@ -183,10 +187,15 @@ impl Engine {
         vlog!(self, "╚══════════════════════════════════════════════════════════");
 
         // If timestamp advanced, check obligations whose deadline is now past
-        if new_ts > self.current_ts {
+        if self.current_ts == None {
+            self.current_ts = Some(new_ts);
+        }
+
+        if new_ts > self.current_ts.unwrap() {
+            // Flush intermediate timestamps in [current_ts, new_ts) — proactive gap-fill
             self.flush_obligations(new_ts);
         }
-        self.current_ts = new_ts;
+        self.current_ts = Some(new_ts);
 
         // 1. Update non-lagged  tables
         vlog!(self, "── Phase 1: update non-lagged tables ──");
@@ -209,6 +218,38 @@ impl Engine {
             caused_set.insert((ev.name.clone(), ev.args.clone()));
         }
         let mut suppressed_set: BTreeSet<(String, Vec<Value>)> = BTreeSet::new();
+
+        // Drain next-tp obligations (from Next operator) — they fire reactively
+        // when the next real time-point arrives.
+        let pending_next: Vec<Obligation> = std::mem::take(&mut self.next_tp_obligations);
+        for ob in pending_next {
+            let valid = match &ob.validate {
+                Some(f) => self.eval_filter(f, &ob.env, &[]),
+                None => true,
+            };
+            if valid {
+                match ob.action {
+                    RuleAction::Cause => {
+                        let key = (ob.event.name.clone(), ob.event.args.clone());
+                        if !caused_set.contains(&key) {
+                            caused_set.insert(key);
+                            working_events.push(ob.event.clone());
+                            all_cause.push((ob.event, ob.labels));
+                        }
+                    }
+                    RuleAction::Suppress => {
+                        // Suppress only applies if the event is actually present
+                        // in the incoming time-point's events.
+                        let key = (ob.event.name.clone(), ob.event.args.clone());
+                        if caused_set.contains(&key) && !suppressed_set.contains(&key) {
+                            suppressed_set.insert(key);
+                            all_suppress.push((ob.event, ob.labels));
+                        }
+                    }
+                    RuleAction::Observe => {}
+                }
+            }
+        }
 
         const MAX_ITERATIONS: usize = 100;
         for _iteration in 0..MAX_ITERATIONS {
@@ -256,15 +297,27 @@ impl Engine {
                                         "Rule '+{}': let body must be a pure conjunction of event patterns (no comparisons/negations)",
                                         rule.event
                                     ));
-                                if let Some(delay) = rule.delay {
+                                if let Some(_tp_off) = rule.tp_offset {
+                                    for ev in events {
+                                        self.next_tp_obligations.push(Obligation {
+                                            event: ev,
+                                            action: RuleAction::Cause,
+                                            deadline: 0,
+                                            validate: rule.validate.clone(),
+                                            env: env.clone(),
+                                            rule_idx,
+                                            labels: labels.clone(),
+                                        });
+                                    }
+                                } else if let Some(delay) = rule.delay {
                                     for ev in events {
                                         self.obligations
-                                            .entry(self.current_ts + delay)
+                                            .entry(self.current_ts.unwrap() + delay)
                                             .or_default()
                                             .push(Obligation {
                                                 event: ev,
                                                 action: RuleAction::Cause,
-                                                deadline: self.current_ts + delay,
+                                                deadline: self.current_ts.unwrap() + delay,
                                                 validate: rule.validate.clone(),
                                                 env: env.clone(),
                                                 rule_idx,
@@ -283,14 +336,24 @@ impl Engine {
                             }
                             RuleAction::Suppress => {
                                 if let Some(ev) = self.find_leftmost_event(&body, &def_env) {
-                                    if let Some(delay) = rule.delay {
+                                    if let Some(_tp_off) = rule.tp_offset {
+                                        self.next_tp_obligations.push(Obligation {
+                                            event: ev,
+                                            action: RuleAction::Suppress,
+                                            deadline: 0,
+                                            validate: rule.validate.clone(),
+                                            env: env.clone(),
+                                            rule_idx,
+                                            labels: labels.clone(),
+                                        });
+                                    } else if let Some(delay) = rule.delay {
                                         self.obligations
-                                            .entry(self.current_ts + delay)
+                                            .entry(self.current_ts.unwrap() + delay)
                                             .or_default()
                                             .push(Obligation {
                                                 event: ev,
                                                 action: RuleAction::Suppress,
-                                                deadline: self.current_ts + delay,
+                                                deadline: self.current_ts.unwrap() + delay,
                                                 validate: rule.validate.clone(),
                                                 env: env.clone(),
                                                 rule_idx,
@@ -319,15 +382,27 @@ impl Engine {
                         vlog!(self, "  rule #{} {}{} matched → {}",
                               rule_idx, action_sym, rule.event, ev);
 
-                        if let Some(delay) = rule.delay {
+                        if let Some(_tp_off) = rule.tp_offset {
+                            // Next-tp obligation: fires at the next real time-point
+                            vlog!(self, "    → next-tp obligation: {} {}", action_sym, ev);
+                            self.next_tp_obligations.push(Obligation {
+                                event: ev,
+                                action: rule.action,
+                                deadline: 0, // not used for next-tp
+                                validate: rule.validate.clone(),
+                                env: env.clone(),
+                                rule_idx,
+                                labels: rule_label.clone(),
+                            });
+                        } else if let Some(delay) = rule.delay {
                             vlog!(self, "    → obligation: {} {} at ts+{}", action_sym, ev, delay);
                             self.obligations
-                                .entry(self.current_ts + delay)
+                                .entry(self.current_ts.unwrap() + delay)
                                 .or_default()
                                 .push(Obligation {
                                     event: ev,
                                     action: rule.action,
-                                    deadline: self.current_ts + delay,
+                                    deadline: self.current_ts.unwrap() + delay,
                                     validate: rule.validate.clone(),
                                     env: env.clone(),
                                     rule_idx,
@@ -383,6 +458,29 @@ impl Engine {
 
         self.print_enforcer_output(&all_suppress, &all_cause, false);
 
+        // 2b. Discharge obligations at this timestamp (proactive, AFTER reactive)
+        {
+            let mut proactive_cause: Vec<(EventInstance, Vec<String>)> = Vec::new();
+            let mut proactive_suppress: Vec<(EventInstance, Vec<String>)> = Vec::new();
+            for ob in self.obligations.remove(&new_ts).unwrap_or_default() {
+                let valid = match &ob.validate {
+                    Some(f) => self.eval_filter(f, &ob.env, &[]),
+                    None => true,
+                };
+                if valid {
+                    match ob.action {
+                        RuleAction::Cause    => proactive_cause.push((ob.event, ob.labels)),
+                        RuleAction::Suppress => proactive_suppress.push((ob.event, ob.labels)),
+                        RuleAction::Observe  => {}
+                    }
+                }
+            }
+            self.print_enforcer_output(&proactive_suppress, &proactive_cause, true);
+        }
+        // Advance current_ts past this timepoint so flush_obligations
+        // for the next timepoint starts at new_ts+1, not new_ts again.
+        self.current_ts = Some(new_ts + 1);
+
         // 3. Update lagged tables
         vlog!(self, "── Phase 3: update lagged tables ──");
         self.update_tables(&tp.events, true);
@@ -392,14 +490,15 @@ impl Engine {
         }
     }
 
-    /// Discharge obligations whose deadline ≤ `up_to_ts`.
+    /// Discharge obligations whose deadline < `up_to_ts`.
+    /// Prints proactive output for each intermediate timestamp in [current_ts, up_to_ts).
     fn flush_obligations(&mut self, up_to_ts: u64) {
-        vlog!(self, "── Flushing obligations with deadline ≤ {} ──", up_to_ts);
-        let mut proactive_cause: Vec<(EventInstance, Vec<String>)> = Vec::new();
-        let mut proactive_suppress: Vec<(EventInstance, Vec<String>)> = Vec::new();
-        let mut proactive_ts: Option<u64> = None;
+        vlog!(self, "── Flushing obligations with deadline < {} ──", up_to_ts);
 
-        for ts in self.current_ts..up_to_ts {
+        for ts in self.current_ts.unwrap()..up_to_ts {
+            self.current_ts = Some(ts);
+            let mut proactive_cause: Vec<(EventInstance, Vec<String>)> = Vec::new();
+            let mut proactive_suppress: Vec<(EventInstance, Vec<String>)> = Vec::new();
             for ob in self.obligations.remove(&ts).unwrap_or_default() {
                 // Check validation if present
                 let valid = match &ob.validate {
@@ -407,11 +506,6 @@ impl Engine {
                     None => true,
                 };
                 if valid {
-                    let ts_proactive = ob.deadline.saturating_sub(1).max(self.current_ts);
-                    proactive_ts = Some(match proactive_ts {
-                        Some(prev) => prev.min(ts_proactive),
-                        None => ts_proactive,
-                    });
                     match ob.action {
                         RuleAction::Cause    => proactive_cause.push((ob.event, ob.labels)),
                         RuleAction::Suppress => proactive_suppress.push((ob.event, ob.labels)),
@@ -441,16 +535,16 @@ impl Engine {
             if !cause.is_empty() {
                 if self.label_mode {
                     for (ev, labels) in &cause {
-                        println!("[Enforcer:Label] Cause {}: [{}]", ev, labels.join(", "));
+                        println!("[Enforcer:Label] Cause{}: [{}]", ev, labels.join(", "));
                     }
                 }
                 println!(
-                    "[Enforcer] @{} proactively commands:\nCause: {}\nOK.",
-                    self.current_ts,
-                    cause.iter().map(|(e, _)| e.to_string()).collect::<Vec<_>>().join(" ")
+                    "[Enforcer] @{} proactively commands:\nCause:\n{}\nOK.",
+                    self.current_ts.unwrap(),    
+                    cause.iter().map(|(e, _)| e.to_string()).collect::<Vec<_>>().join(", ")
                 );
             } else {
-                println!("[Enforcer] @{} nothing to do proactively.", self.current_ts);
+                println!("[Enforcer] @{} nothing to do proactively.", self.current_ts.unwrap());
             }
         } else {
             if self.label_mode {
@@ -462,19 +556,19 @@ impl Engine {
                 }
             } 
             if !suppress.is_empty() || !cause.is_empty() {
-                println!("[Enforcer] @{} reactively commands:", self.current_ts);
+                println!("[Enforcer] @{} reactively commands:", self.current_ts.unwrap());
                 if !suppress.is_empty() {
                     let items: Vec<String> = suppress.iter().map(|(e, _)| e.to_string()).collect();
-                    println!("Suppress: {}", items.join(" "));
+                    println!("Suppress:\n{}", items.join(", "));
                 }
                 if !cause.is_empty() {
                     let items: Vec<String> = cause.iter().map(|(e, _)| e.to_string()).collect();
-                    println!("Cause: {}", items.join(" "));
+                    println!("Cause:\n{}", items.join(", "));
                 }
                 println!("OK.");
             }
             else {
-                println!("[Enforcer] @{} OK.", self.current_ts);
+                println!("[Enforcer] @{} OK.", self.current_ts.unwrap());
             }
         }
     }

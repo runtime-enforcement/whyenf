@@ -1,12 +1,15 @@
-[Enforcer] @0 nothing to do proactively.
 [Enforcer] @1 reactively commands:
-Cause: D(0) D(1)
+Cause:
+D(0), D(1)
 OK.
 [Enforcer] @1 nothing to do proactively.
 [Enforcer] @2 reactively commands:
-Cause: D(1) D(2) D(0)
+Cause:
+D(1), D(2), D(0)
 OK.
 [Enforcer] @2 nothing to do proactively.
 [Enforcer] @3 reactively commands:
-Cause: D(3) D(2) D(1) D(0)
+Cause:
+D(3), D(2), D(1), D(0)
 OK.
+[Enforcer] @3 nothing to do proactively.

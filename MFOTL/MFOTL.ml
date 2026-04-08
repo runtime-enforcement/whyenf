@@ -150,11 +150,9 @@ module Make
   let rec fv f =
     match f.form with
     | TT | FF -> Set.empty (module Var)
-    | EqConst (trm, _) -> (match Term.unvar_opt trm with
-                           | Some x -> Set.of_list (module Var) [x]
-                           | None   -> Set.empty (module Var))
+    | EqConst (trm, _) -> Set.of_list (module Var) (Term.fv_list [trm])
     | Predicate (_, trms) -> Set.of_list (module Var) (Term.fv_list trms)
-    | Predicate' (_, _, f) -> fv f
+    | Predicate' (_, trms, f) -> Set.union (Set.of_list (module Var) (Term.fv_list trms)) (fv f)
     | Let (_, _, _, _, f)
       | Let' (_, _, _, _, f)
       | Neg f
@@ -2406,7 +2404,7 @@ module Make
       | Once (i, f) ->
         let f = make_past_only p f in
         { form with form = Once (i, f) }
-      | Eventually (i, f) when p && Interval.has_zero i -> make_past_only p f
+      | Eventually (i, f) when Interval.has_zero i -> make_past_only p f
       | Eventually (i, f) when p -> make_dummy FF
       | Eventually (i, f) -> make_dummy TT
       | Historically (i, f) ->
@@ -2509,10 +2507,10 @@ module Make
                 { trigger with filter = { filter with form = Label (s, trigger.filter) } })
           | _ -> None
           in
-          print_endline
+          (*print_endline
             (Printf.sprintf "pull_guard.aux(%s, %b, %s) = %s"
                (Var.to_string x) p (to_string filter)
-               (Option.value ~default:"None" (Option.map ~f:trigger_to_string r)));
+               (Option.value ~default:"None" (Option.map ~f:trigger_to_string r)));*)
           r
         in aux p trigger.filter
       end
@@ -2736,7 +2734,7 @@ module Make
 
       let f = push_quants f in
 
-      (*print_endline "1) base formula";
+      (*print_endline "1) after push_quants";
         print_endline (to_string f);*)
       
       let lets, f = do_pull_lets f in
@@ -2795,13 +2793,13 @@ module Make
                 let solutions_comb = Etc.cartesian enf_sols in
                 disjs (List.map solutions_comb ~f:(fun solutions ->
                     let clauses, constrs = List.unzip solutions in
-                    let* clauses = Verdict.all (List.map ~f:order_clauses clauses) in
-                    [(List.concat clauses, Constraints.CConj constrs)]))
+                    (* let* clauses = Verdict.all (List.map ~f:order_clauses clauses) in*)  
+                    Possible [(List.concat clauses, Constraints.CConj constrs)]))
             | Or (L, f :: fs) ->
               let* solutions = aux m t f in
               List.map solutions ~f:(fun (clauses, constr) ->
                   List.map clauses ~f:(fun { trigger; effects } ->
-                      { trigger = { trigger with filter = ac_simplify (make_dummy (And (N, trigger.filter :: fs))) };
+                      { trigger = { trigger with filter = ac_simplify (make_dummy (And (N, trigger.filter :: List.map fs ~f:(fun g -> make_dummy (Neg g))))) };
                         effects }),
                   constr)
             | Or (R, fs) ->
@@ -2810,7 +2808,7 @@ module Make
               let* solutions = aux m t f in
               List.map solutions ~f:(fun (clauses, constr) ->
                   List.map clauses ~f:(fun { trigger; effects } ->
-                      { trigger = { trigger with filter = ac_simplify (make_dummy (And (N, trigger.filter :: fs))) };
+                      { trigger = { trigger with filter = ac_simplify (make_dummy (And (N, trigger.filter :: List.map fs ~f:(fun g -> make_dummy (Neg g))))) };
                         effects }),
                   constr) 
             | Or (_, fs) ->
@@ -2820,7 +2818,7 @@ module Make
                   disj (let* solutions = aux m t f in
                          List.map solutions ~f:(fun (clauses, constr) ->
                              List.map clauses ~f:(fun { trigger; effects } ->
-                                 { trigger = { trigger with filter = ac_simplify (make_dummy (And (N, trigger.filter :: left @ right))) };
+                                 { trigger = { trigger with filter = ac_simplify (make_dummy (And (N, trigger.filter :: List.map (left @ right) ~f:(fun g -> make_dummy (Neg g))))) };
                                    effects }),
                              constr))
                     (run (f::left) right)
@@ -2891,7 +2889,9 @@ module Make
             | Until (s, i, _, g) when Interval.has_zero i ->
               aux m t g
             | Next (i, f) when not (Interval.is_zero i) && Interval.has_zero i ->
-              let is, fs = destruct_nexts f in
+              let inner_is, inner_fs = destruct_nexts f in
+              let is = i :: inner_is in
+              let fs = f :: inner_fs in
               let is = List.map ~f:set_b is in
               let f = Option.value ~default:f (List.last fs) in
               let** solutions = aux m t f in
@@ -2917,8 +2917,7 @@ module Make
                                      effects = List.map effects ~f:(fun f ->
                                          make_dummy (construct_nexts is fs f.form)) } (* TODO[FH]: Set info properly? *)
                             else
-                              Some { trigger = init_trigger (make_dummy TT);
-                                     effects = [make_dummy (construct_nexts is fs TT)] }
+                              None
                           end
                         else
                           None))
@@ -2928,7 +2927,7 @@ module Make
                | [] -> Impossible (
                    Errors.EFormula (Some (
                        "this is not enforceable inside " ^
-                       op_to_string (make_dummy (Eventually (i, f)))), f, t))
+                       op_to_string (make_dummy (Next (i, f)))), f, t))
                | solutions -> Possible solutions)
             | Label (_, f) -> aux m t f
             | _ -> Impossible (Errors.EFormula (None, f, t))
@@ -2961,9 +2960,9 @@ module Make
                   let solutions_comb = Etc.cartesian solutions_list in
                   List.filter_map solutions_comb ~f:(fun solutions ->
                       let clauses, constrs = List.unzip solutions in
-                      match Verdict.all (List.map ~f:order_clauses clauses) with
-                      | Possible clauses -> Some (List.concat clauses, Constraints.CConj constrs)
-                      | Impossible _ -> None)) enf_sols
+                      (*match Verdict.all (List.map ~f:order_clauses clauses) with
+                        | Possible clauses ->*) Some (List.concat clauses, Constraints.CConj constrs)
+                      (*| Impossible _ -> None *))) enf_sols
             | And (L, f :: fs) ->
               let* solutions = aux m t f in
               List.map solutions ~f:(fun (clauses, constr) ->
@@ -3051,7 +3050,9 @@ module Make
             | Until (s, i, f, _) ->
               aux m t f
             | Next (i, f) when not (Interval.is_zero i) && Interval.has_zero i ->
-              let is, fs = destruct_nexts f in
+              let inner_is, inner_fs = destruct_nexts f in
+              let is = i :: inner_is in
+              let fs = f :: inner_fs in
               let is = List.map ~f:set_b is in
               let f = Option.value ~default:f (List.last fs) in
               let** solutions = aux m t f in
@@ -3355,7 +3356,6 @@ module Make
                              ^ Errors.to_string (Errors.ac_simplify err));
         raise (FormulaError (Printf.sprintf "this formula is not enforceable")) in
       let f = f |> push_negs |> convert_vars |> convert_lets |> unroll_let ~moderate |> simplify |> ac_simplify in
-      (*print_endline (to_string f);*)
       if not (Set.is_empty (fv f)) && verbose then (
         Stdio.print_endline ("The formula\n "
                              ^ to_string f

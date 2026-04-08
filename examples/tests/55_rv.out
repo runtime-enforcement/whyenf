@@ -1,1 +1,7 @@
-LET Exists0() = (∃y:int. (∃z:int. ((((q(y:int) : Bot) ∨ (r(z:int) : Bot)) : Bot) ∧ ((((eq(y:int, z:int)) = 1) : Bot) ∧ (((eq(x:int, div(add(y:int, z:int), 2))) = 1) : Bot) : Bot) : Bot) : Bot) : Bot) IN (LET Exists1() = (∃x:int. ((((p(x:int) : Bot)) : Bot) ∧ (¬(Exists0() : Bot) : Bot) : Bot) : Bot) IN ((□[0s,∞) ((Exists1() →:R (Sup_Exists1() : Cau)) : Cau) : Cau) ∧:LR (□[0s,∞) ((∀x:int. (Sup_Exists1() ∧ p(x:int) ∧ ¬Exists0() →:R (¬(p(x:int) : Sup) : Cau) : Cau)) : Cau) : Cau) : Cau) : Cau) : Cau
+[Enforcer] @0 OK.
+[Enforcer] @0 nothing to do proactively.
+[Enforcer] @1 reactively commands:
+Suppress:
+p(3)
+OK.
+[Enforcer] @1 nothing to do proactively.

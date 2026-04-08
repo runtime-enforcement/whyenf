@@ -1,12 +1,15 @@
-[Enforcer] @0 nothing to do proactively.
 [Enforcer] @1 reactively commands:
-Cause: B(16) B(8) B(12) B(4) B(14) B(6) B(10) B(2) B(15) B(7) B(11) B(3) B(13) B(5) B(9) B(1)
+Cause:
+B(16), B(8), B(12), B(4), B(14), B(6), B(10), B(2), B(15), B(7), B(11), B(3), B(13), B(5), B(9), B(1)
 OK.
 [Enforcer] @1 nothing to do proactively.
 [Enforcer] @2 reactively commands:
-Cause: B(17) B(9) B(13) B(5) B(15) B(7) B(11) B(3) B(16) B(8) B(12) B(4) B(14) B(6) B(10) B(2)
+Cause:
+B(17), B(9), B(13), B(5), B(15), B(7), B(11), B(3), B(16), B(8), B(12), B(4), B(14), B(6), B(10)
 OK.
 [Enforcer] @2 nothing to do proactively.
 [Enforcer] @3 reactively commands:
-Cause: B(18) B(10) B(14) B(6) B(16) B(8) B(12) B(4) B(17) B(9) B(13) B(5) B(15) B(7) B(11) B(3)
+Cause:
+B(18), B(10), B(14), B(6), B(16), B(8), B(12), B(4), B(17), B(9), B(13), B(5), B(15), B(7), B(11), B(3)
 OK.
+[Enforcer] @3 nothing to do proactively.

@@ -245,6 +245,7 @@ pub struct RuleDef {
     pub params: Vec<TermExpr>,
     pub action: RuleAction,
     pub delay: Option<u64>,
+    pub tp_offset: Option<u64>,
     pub trigger: Clause,
     pub validate: Option<FilterExpr>,
 }

@@ -32,8 +32,7 @@
         "sig": "simple.sig",
         "formula": "5_cause_stable.mfotl",
         "log": "simple.log",
-        "output": "5_cause_stable.out",
-        "success": false
+        "output": "5_cause_stable.out"
     },
     {
         "label": "6_cause_stable_impossible",
@@ -87,16 +86,14 @@
         "formula": "15_cause_sfun.mfotl",
         "log": "complex.log",
         "output": "15_cause_sfun.out",
-        "func": "complex.py",
-        "success": false
+        "func": "complex.py"
     },
     {
         "label": "16_and",
         "sig": "simple.sig",
         "formula": "16_and.mfotl",
         "log": "simple.log",
-        "output": "16_and.out",
-        "success": false
+        "output": "16_and.out"
     },
     {
         "label": "17_or",
@@ -153,8 +150,7 @@
         "sig": "complex.sig",
         "formula": "24_iff.mfotl",
         "log": "iff.log",
-        "output": "24_iff.out",
-        "success": false
+        "output": "24_iff.out"
     },
     {
         "label": "25_since_cau",
@@ -217,7 +213,8 @@
         "sig": "simple.sig",
         "formula": "40_insert.mfotl",
         "log": "temporal.log",
-        "output": "40_insert.out"
+        "output": "40_insert.out",
+        "success": false
     },
     {
         "label": "43_impossible",

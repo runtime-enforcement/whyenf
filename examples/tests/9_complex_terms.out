@@ -1,1 +1,9 @@
-LET Exists0(x:int) = (∃y:int. ((((B(x:int) : Bot) ∨ (B(y:int) : Bot)) : Bot) ∧ ((¬(((eq(x:int, y:int)) = 1) : Bot) : Bot) ∧ (¬(A(f(x:int, y:int)) : Bot) : Bot) ∧ (¬(C(x:int, y:int) : Bot) : Bot) : Bot) : Bot) : Bot) IN (LET Exists1() = (∃x:int. ((((Exists0(x:int) : Bot)) : Bot) ∧ (⊤ : Bot) : Bot) : Bot) IN ((□[0s,∞) ((Exists1() →:R (Sup_Exists1() : Cau)) : Cau) : Cau) ∧:LR (□[0s,∞) ((∀x:int. (Sup_Exists1() ∧ Exists0(x:int) →:R (Sup_Exists0(x:int) : Cau) : Cau)) : Cau) : Cau) ∧:LR (□[0s,∞) ((∀x:int. (∀y:int. ((Sup_Exists0(x:int) ∧ B(x:int) ∨ Sup_Exists0(x:int) ∧ B(y:int)) ∧ ¬((eq(x:int, y:int)) = 1) ∧ ¬A(f(x:int, y:int)) →:R (C(x:int, y:int) : Cau) : Cau) : Cau)) : Cau) : Cau) : Cau) : Cau) : Cau
+[Enforcer] @1 OK.
+[Enforcer] @1 nothing to do proactively.
+[Enforcer] @2 reactively commands:
+Cause:
+C(2, 3), C(3, 2)
+OK.
+[Enforcer] @2 nothing to do proactively.
+[Enforcer] @3 OK.
+[Enforcer] @3 nothing to do proactively.
