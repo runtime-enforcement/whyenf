@@ -1,7 +1,3 @@
-The formula
- □[0s,∞) ¬(C(2) S[0s,∞) C(3))
-is enforceable and types to
- □[0s,∞) (¬(((C(3) : Sup) ∨:L ((C(2) : Sup) ∧:L (C(2) S[0s,∞) C(3)) : suppressable)) : Sup) : Cau) : Cau
 [Enforcer] @10 OK.
 [Enforcer] @10 nothing to do proactively.
 [Enforcer] @11 nothing to do proactively.
@@ -40,7 +36,7 @@ OK.
 [Enforcer] @39 nothing to do proactively.
 [Enforcer] @40 reactively commands:
 Suppress:
-C(3)
+C(3), C(2)
 OK.
 [Enforcer] @40 nothing to do proactively.
 [Enforcer] @41 nothing to do proactively.
@@ -52,7 +48,10 @@ OK.
 [Enforcer] @47 nothing to do proactively.
 [Enforcer] @48 nothing to do proactively.
 [Enforcer] @49 nothing to do proactively.
-[Enforcer] @50 OK.
+[Enforcer] @50 reactively commands:
+Suppress:
+C(2)
+OK.
 [Enforcer] @50 nothing to do proactively.
 [Enforcer] @51 nothing to do proactively.
 [Enforcer] @52 nothing to do proactively.
@@ -64,3 +63,4 @@ OK.
 [Enforcer] @58 nothing to do proactively.
 [Enforcer] @59 nothing to do proactively.
 [Enforcer] @60 OK.
+[Enforcer] @60 nothing to do proactively.

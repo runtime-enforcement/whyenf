@@ -210,6 +210,10 @@ impl Engine {
         // The working set of events starts with the timepoint's events and grows
         // as new events are caused in each iteration.
         let mut working_events: Vec<EventInstance> = tp.events.clone();
+        // Track labels per event in the working set so that labels propagate
+        // through the causal chain (label stack).
+        let mut working_labels: std::collections::HashMap<(String, Vec<Value>), Vec<String>> =
+            std::collections::HashMap::new();
         // Track which (event_name, args) pairs we've already produced to detect
         // new additions.  Pre-populate with the timepoint's own events so that
         // we never cause an event that already exists.
@@ -269,6 +273,33 @@ impl Engine {
                 };
 
                 for env in &bindings {
+                    // Collect inherited labels from matched trigger pattern events
+                    let inherited_labels: Vec<String> = if self.label_mode {
+                        let mut inh = Vec::new();
+                        for pat in &rule.trigger.patterns {
+                            let resolved_args: Vec<Value> = pat.args.iter().map(|a| {
+                                match a {
+                                    PatternArg::Var(name) => {
+                                        env.get(name).cloned().unwrap_or(Value::Bool(false))
+                                    }
+                                    PatternArg::Literal(v) => v.clone(),
+                                    PatternArg::Wildcard => Value::Bool(false),
+                                }
+                            }).collect();
+                            let key = (pat.name.clone(), resolved_args);
+                            if let Some(labels) = working_labels.get(&key) {
+                                for l in labels {
+                                    if !inh.contains(l) {
+                                        inh.push(l.clone());
+                                    }
+                                }
+                            }
+                        }
+                        inh
+                    } else {
+                        vec![]
+                    };
+
                     if let Some(let_def) = self.let_defs.get(&rule.event).cloned() {
                         // ── Let-bound predicate rule ─────────────────────────
                         let action_sym = match rule.action { RuleAction::Cause => "+", RuleAction::Suppress => "-", RuleAction::Observe => "?" };
@@ -281,10 +312,13 @@ impl Engine {
                             }
                         }
                         let labels: Vec<String> = if self.label_mode {
-                            rule_label.iter()
-                                .chain(let_def.label.iter())
-                                .cloned()
-                                .collect()
+                            let mut all = Vec::new();
+                            for l in rule_label.iter().chain(let_def.label.iter()).chain(inherited_labels.iter()) {
+                                if !all.contains(l) {
+                                    all.push(l.clone());
+                                }
+                            }
+                            all
                         } else {
                             vec![]
                         };
@@ -382,6 +416,19 @@ impl Engine {
                         vlog!(self, "  rule #{} {}{} matched → {}",
                               rule_idx, action_sym, rule.event, ev);
 
+                        // Combine rule's own label with inherited labels
+                        let combined_labels: Vec<String> = if self.label_mode {
+                            let mut all = Vec::new();
+                            for l in rule_label.iter().chain(inherited_labels.iter()) {
+                                if !all.contains(l) {
+                                    all.push(l.clone());
+                                }
+                            }
+                            all
+                        } else {
+                            vec![]
+                        };
+
                         if let Some(_tp_off) = rule.tp_offset {
                             // Next-tp obligation: fires at the next real time-point
                             vlog!(self, "    → next-tp obligation: {} {}", action_sym, ev);
@@ -392,7 +439,7 @@ impl Engine {
                                 validate: rule.validate.clone(),
                                 env: env.clone(),
                                 rule_idx,
-                                labels: rule_label.clone(),
+                                labels: combined_labels,
                             });
                         } else if let Some(delay) = rule.delay {
                             vlog!(self, "    → obligation: {} {} at ts+{}", action_sym, ev, delay);
@@ -406,7 +453,7 @@ impl Engine {
                                     validate: rule.validate.clone(),
                                     env: env.clone(),
                                     rule_idx,
-                                    labels: rule_label.clone(),
+                                    labels: combined_labels,
                                 });
                         } else {
                             match rule.action {
@@ -414,14 +461,14 @@ impl Engine {
                                     let key = (ev.name.clone(), ev.args.clone());
                                     if !suppressed_set.contains(&key) {
                                         suppressed_set.insert(key);
-                                        new_suppress.push((ev, rule_label.clone()));
+                                        new_suppress.push((ev, combined_labels));
                                     }
                                 }
                                 RuleAction::Cause => {
                                     let key = (ev.name.clone(), ev.args.clone());
                                     if !caused_set.contains(&key) {
                                         caused_set.insert(key);
-                                        new_cause.push((ev, rule_label.clone()));
+                                        new_cause.push((ev, combined_labels));
                                     }
                                 }
                                 RuleAction::Observe => {}
@@ -439,14 +486,20 @@ impl Engine {
 
             // Add newly caused events to the working set so subsequent iterations
             // can match them in triggers / filters.
-            for (ev, _) in &new_cause {
+            for (ev, labels) in &new_cause {
                 vlog!(self, "  → new cause: {}", ev);
                 caused_set.insert((ev.name.clone(), ev.args.clone()));
+                if !labels.is_empty() {
+                    working_labels.insert((ev.name.clone(), ev.args.clone()), labels.clone());
+                }
                 working_events.push(ev.clone());
             }
-            for (ev, _) in &new_suppress {
+            for (ev, labels) in &new_suppress {
                 vlog!(self, "  → new suppress: {}", ev);
                 suppressed_set.insert((ev.name.clone(), ev.args.clone()));
+                if !labels.is_empty() {
+                    working_labels.insert((ev.name.clone(), ev.args.clone()), labels.clone());
+                }
                 // Suppressed events are also added to the working set so that
                 // subsequent rules can observe the suppression.
                 working_events.push(ev.clone());
@@ -491,16 +544,16 @@ impl Engine {
     }
 
     /// Discharge obligations whose deadline < `up_to_ts`.
-    /// Prints proactive output for each intermediate timestamp in [current_ts, up_to_ts).
+    /// Only prints proactive output for timestamps that actually have obligations.
     fn flush_obligations(&mut self, up_to_ts: u64) {
         vlog!(self, "── Flushing obligations with deadline < {} ──", up_to_ts);
 
-        for ts in self.current_ts.unwrap()..up_to_ts {
+        let start = self.current_ts.unwrap();
+        for ts in start..up_to_ts {
             self.current_ts = Some(ts);
             let mut proactive_cause: Vec<(EventInstance, Vec<String>)> = Vec::new();
             let mut proactive_suppress: Vec<(EventInstance, Vec<String>)> = Vec::new();
             for ob in self.obligations.remove(&ts).unwrap_or_default() {
-                // Check validation if present
                 let valid = match &ob.validate {
                     Some(f) => self.eval_filter(f, &ob.env, &[]),
                     None => true,
@@ -515,6 +568,7 @@ impl Engine {
             }
             self.print_enforcer_output(&proactive_suppress, &proactive_cause, true);
         }
+        self.current_ts = Some(up_to_ts);
     }
 
     fn print_enforcer_output(
@@ -535,7 +589,8 @@ impl Engine {
             if !cause.is_empty() {
                 if self.label_mode {
                     for (ev, labels) in &cause {
-                        println!("[Enforcer:Label] Cause{}: [{}]", ev, labels.join(", "));
+                        let formatted = labels.iter().map(|l| format!("\"{}\"", l)).collect::<Vec<_>>().join(", ");
+                        println!("[Enforcer:Label] Cause {}: {}", ev, formatted);
                     }
                 }
                 println!(
@@ -549,10 +604,12 @@ impl Engine {
         } else {
             if self.label_mode {
                 for (ev, labels) in &suppress {
-                    println!("[Enforcer:Label] Suppress {}: [{}]", ev, labels.join(", "));
+                    let formatted = labels.iter().map(|l| format!("\"{}\"", l)).collect::<Vec<_>>().join(", ");
+                    println!("[Enforcer:Label] Suppress {}: {}", ev, formatted);
                 }
                 for (ev, labels) in &cause {
-                    println!("[Enforcer:Label] Cause {}: [{}]", ev, labels.join(", "));
+                    let formatted = labels.iter().map(|l| format!("\"{}\"", l)).collect::<Vec<_>>().join(", ");
+                    println!("[Enforcer:Label] Cause {}: {}", ev, formatted);
                 }
             } 
             if !suppress.is_empty() || !cause.is_empty() {
@@ -581,7 +638,53 @@ impl Engine {
             if td.lagged != lagged {
                 continue; // skip if this table is not meant to be updated at this time-point
             }
-            // Process add clause
+            // Process remove clause FIRST, then add.
+            // If both match the same row, add wins (matches Since semantics).
+            if let Some(ref rm_clause) = td.remove_clause {
+                let rm_envs = if rm_clause.patterns.is_empty() {
+                    // Filter-only remove clause (no event patterns):
+                    // evaluate filter against each existing row.
+                    if let Some(table) = self.tables.get(&td.name) {
+                        let mut envs = Vec::new();
+                        for row in table.iter() {
+                            let mut env = Env::new();
+                            for ((col_name, _), val) in td.columns.iter().zip(row.iter()) {
+                                env.insert(col_name.clone(), val.clone());
+                            }
+                            envs.push(env);
+                        }
+                        envs
+                    } else {
+                        vec![]
+                    }
+                } else {
+                    // Pattern-based remove: match patterns against events
+                    self.match_patterns_against_events(&rm_clause.patterns, events)
+                };
+                for env in &rm_envs {
+                    let row: Row = td.columns.iter()
+                        .map(|(col_name, _)| {
+                            env.get(col_name).unwrap_or_else(|| {
+                                panic!(
+                                    "Table '{}' remove clause: column '{}' not bound by patterns",
+                                    td.name, col_name
+                                )
+                            }).clone()
+                        })
+                        .collect();
+                    if self.eval_filter(&rm_clause.filter, env, events) {
+                        if let Some(table) = self.tables.get_mut(&td.name) {
+                            let existed = table.remove(&row);
+                            if existed {
+                                vlog!(self, "  table {} -= [{}]", td.name,
+                                      row.iter().map(|v| format!("{}", v)).collect::<Vec<_>>().join(", "));
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Process add clause (after remove, so add wins on conflict)
             let add_bindings = self.match_clause_against_events(&td.add_clause, events);
             for env in &add_bindings {
                 let row: Row = td
@@ -596,37 +699,6 @@ impl Engine {
                     if is_new {
                         vlog!(self, "  table {} += [{}]", td.name,
                               row.iter().map(|v| format!("{}", v)).collect::<Vec<_>>().join(", "));
-                    }
-                }
-            }
-
-            // Process remove clause: patterns must bind ALL table columns.
-            // The row to remove is determined by the pattern bindings alone;
-            // the optional `if` guard decides whether the removal fires.
-            if let Some(ref rm_clause) = td.remove_clause {
-                // Step 1: match patterns only (no filter yet)
-                let pattern_envs = self.match_patterns_against_events(&rm_clause.patterns, events);
-                for env in &pattern_envs {
-                    // Step 2: all columns must be bound by the patterns
-                    let row: Row = td.columns.iter()
-                        .map(|(col_name, _)| {
-                            env.get(col_name).unwrap_or_else(|| {
-                                panic!(
-                                    "Table '{}' remove clause: column '{}' not bound by patterns",
-                                    td.name, col_name
-                                )
-                            }).clone()
-                        })
-                        .collect();
-                    // Step 3: evaluate the `if` guard (defaults to true)
-                    if self.eval_filter(&rm_clause.filter, env, events) {
-                        if let Some(table) = self.tables.get_mut(&td.name) {
-                            let existed = table.remove(&row);
-                            if existed {
-                                vlog!(self, "  table {} -= [{}]", td.name,
-                                      row.iter().map(|v| format!("{}", v)).collect::<Vec<_>>().join(", "));
-                            }
-                        }
                     }
                 }
             }

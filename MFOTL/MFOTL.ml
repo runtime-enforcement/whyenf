@@ -3156,7 +3156,6 @@ module Make
             | _, Impossible error_g -> (m, error_g :: errors)
             | Possible [trigger_f], Possible [trigger_g] ->
               let _, sup_sols_f, trigger_pos_f, trigger_neg_opt_f = type_let_aux m { let_def with body = f } trigger_f in
-              (*print_endline (trigger_to_string trigger_pos_f);*)
               let cau_sols_g, sup_sols_g, trigger_pos_g, trigger_neg_opt_g = type_let_aux m { let_def with body = g } trigger_g in
               let switch_pos = SSince (trigger_pos_f, trigger_pos_g)
               and switch_neg_opt = Option.map2 ~f:(fun trigger_neg_f trigger_neg_g -> SSince (trigger_neg_f, trigger_neg_g)) trigger_neg_opt_f trigger_neg_opt_g in

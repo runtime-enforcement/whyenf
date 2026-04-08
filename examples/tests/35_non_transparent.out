@@ -1,8 +1,3 @@
-The formula
- □[0s,∞) (∀x:int. ¬C(x:int) ∨:L ◊[0s,∞) B(x:int))
-is enforceable and types to
- □[0s,∞) ((∀x:int. ((¬(C(x:int) : Sup) : Cau) ∨:L ◊[0s,∞) B(x:int) : Cau)) : Cau) : Cau
-This formula cannot be transparently enforced.
 [Enforcer] @1 OK.
 [Enforcer] @1 nothing to do proactively.
 [Enforcer] @2 reactively commands:
@@ -11,3 +6,4 @@ C(3)
 OK.
 [Enforcer] @2 nothing to do proactively.
 [Enforcer] @3 OK.
+[Enforcer] @3 nothing to do proactively.

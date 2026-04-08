@@ -143,11 +143,19 @@ let rec compile_filter_form
   | Let' (name, _, vars, _, _) ->
     let args = List.map vars ~f:(fun (v, _) -> Enfflash.TEVar (san (fst v))) in
     FTableLookup (sanitize_name name, args)
+  | Eventually (i, f) when Interval.has_zero i ->
+    (* ◊[0,…) body: the interval includes the current timepoint,
+       so the body can be satisfied NOW.  In a filter context we
+       check the body at the present time. *)
+    compile_filter_form f.form
   | Eventually _ | Next _ ->
-    (* Eventually/Next represent future obligations that have not yet been
-       discharged.  In a filter context (present-time check), they evaluate
+    (* Future-only obligations (interval starts > 0, or Next).
+       In a filter context (present-time check) they evaluate
        to false: the obligation is not yet met. *)
     FBoolLit false
+  | Label (_, f) ->
+    (* Labels are metadata; compile the inner formula. *)
+    compile_filter_form f.form
   | _ ->
     (* Temporal operators (Once, Since, Prev, Always, etc.) cannot be expressed
        as filter expressions.  They should have been compiled into tables by the
@@ -204,23 +212,15 @@ let decompose_guard_conj (guards: Tyformula.t list) =
     List.partition_tf guards ~f:(fun g ->
         match g.form with
         | Predicate (name, _) -> is_trace_event name
-        | Neg f ->
-          (match f.form with
-           | Predicate (name, _) -> is_trace_event name
-           | _ -> false)
+        (* Negated trace events (¬B(x)) must stay as filter conditions,
+           not become patterns — patterns can only match event *presence*. *)
         | _ -> false) in
   let patterns =
     List.map events ~f:(fun g ->
         match g.form with
         | Predicate (name, args) ->
-          Enfflash.{ ep_name = name;
+          Enfflash.{ ep_name = sanitize_name name;
                      ep_args = List.map ~f:term_to_pattern_arg args }
-        | Neg f ->
-          (match f.form with
-           | Predicate (name, args) ->
-             Enfflash.{ ep_name = name;
-                        ep_args = List.map ~f:term_to_pattern_arg args }
-           | _ -> assert false)
         | _ -> assert false) in
   let filter_parts =
     List.filter_map conditions ~f:(fun c ->
@@ -557,21 +557,34 @@ let compile_let_from_switch
         td_remove_clause = None;
       }
   | SSince (left_trigger, right_trigger) ->
-    (* Table with add (right trigger) and remove (left trigger).
-       Since semantics: add row when right fires, remove when left fires.
-       If the remove trigger has no event patterns (e.g., it references only
-       let-defined predicates), we drop the remove clause; the table becomes
-       monotone, which is a safe over-approximation. *)
-    let rm_clause = trigger_to_single_clause left_trigger in
-    let rm_opt = if List.is_empty rm_clause.cl_patterns then None
-                 else Some rm_clause in
+    (* Table with add (right trigger) and remove (negated left trigger).
+       Since semantics: φ SINCE ψ — add row when ψ fires (right trigger),
+       remove when ¬φ holds (the continuation condition is violated).
+       The left trigger encodes φ; we always negate it for the remove
+       clause.  simplify_neg handles both directions:
+         ¬revoke(x) → revoke(x)   (double-neg elimination)
+         C(2)       → ¬C(2)       (wrap in Neg)
+       In the engine, if both add and remove match, add wins. *)
+    let rec simplify_neg (f: Tyformula.t) : Tyformula.t =
+      match f.form with
+      | Neg g -> g    (* ¬¬φ → φ *)
+      | And (s, fs) -> { f with form = Or (s, List.map ~f:simplify_neg fs) }
+      | Or (s, fs) -> { f with form = And (s, List.map ~f:simplify_neg fs) }
+      | _ -> Tyformula.make_dummy (Tyformula.Neg f)
+    in
+    let neg_filter = simplify_neg left_trigger.filter in
+    let neg_trigger = Enforcement.{
+        guards = left_trigger.guards;
+        filter = neg_filter;
+      } in
+    let rm_clause = trigger_to_single_clause neg_trigger in
     `Table Enfflash.{
         td_label = label;
         td_lagged = false;
         td_name = sanitized;
         td_columns = columns;
         td_add_clause = trigger_to_single_clause right_trigger;
-        td_remove_clause = rm_opt;
+        td_remove_clause = Some rm_clause;
       }
 
 (* ═══════════════════════════════════════════════════════════════════════════ *)
@@ -656,6 +669,23 @@ let interval_to_delay (i: Interval.t) : int option =
   | Some ts -> Some (Time.Span.min_seconds ts)
   | None    -> None
 
+(* Extract a label from an effect predicate name, if it encodes a label.
+   Names like "Cau_Label1:Main rule" or "Sup_Label2:Foo" carry labels
+   that were introduced by the enforcement typing. *)
+let extract_label_from_effect_name name =
+  let try_strip prefix =
+    if String.is_prefix name ~prefix then
+      Some (String.drop_prefix name (String.length prefix))
+    else None
+  in
+  let suffix = match try_strip "Cau_" with
+    | Some s -> Some s
+    | None -> try_strip "Sup_"
+  in
+  match suffix with
+  | Some s -> fst (parse_label_name s)
+  | None -> None
+
 let compile_clause_to_rules (clause: Enforcement.clause) : Enfflash.rule_def list =
   let trigger_clauses = trigger_to_clauses clause.trigger in
   let effects_info =
@@ -663,27 +693,33 @@ let compile_clause_to_rules (clause: Enforcement.clause) : Enfflash.rule_def lis
         match effect.form with
         | Predicate (name, args) ->
           let params = List.map args ~f:term_to_ef in
-          Some (sanitize_name name, params, Enfflash.RCause, None, None)
+          let label = extract_label_from_effect_name name in
+          Some (sanitize_name name, params, Enfflash.RCause, None, None, label)
         | Neg { form = Predicate (name, args); _ } ->
           let params = List.map args ~f:term_to_ef in
-          Some (sanitize_name name, params, Enfflash.RSuppress, None, None)
+          let label = extract_label_from_effect_name name in
+          Some (sanitize_name name, params, Enfflash.RSuppress, None, None, label)
         | Eventually (i, { form = Predicate (name, args); _ }) ->
           let params = List.map args ~f:term_to_ef in
-          Some (sanitize_name name, params, Enfflash.RCause, interval_to_delay i, None)
+          let label = extract_label_from_effect_name name in
+          Some (sanitize_name name, params, Enfflash.RCause, interval_to_delay i, None, label)
         | Eventually (i, { form = Neg { form = Predicate (name, args); _ }; _ }) ->
           let params = List.map args ~f:term_to_ef in
-          Some (sanitize_name name, params, Enfflash.RSuppress, interval_to_delay i, None)
+          let label = extract_label_from_effect_name name in
+          Some (sanitize_name name, params, Enfflash.RSuppress, interval_to_delay i, None, label)
         | Next (i, { form = Predicate (name, args); _ }) ->
           let params = List.map args ~f:term_to_ef in
-          Some (sanitize_name name, params, Enfflash.RCause, None, Some 1)
+          let label = extract_label_from_effect_name name in
+          Some (sanitize_name name, params, Enfflash.RCause, None, Some 1, label)
         | Next (i, { form = Neg { form = Predicate (name, args); _ }; _ }) ->
           let params = List.map args ~f:term_to_ef in
-          Some (sanitize_name name, params, Enfflash.RSuppress, None, Some 1)
+          let label = extract_label_from_effect_name name in
+          Some (sanitize_name name, params, Enfflash.RSuppress, None, Some 1, label)
         | _ -> None) in
-  List.concat_map effects_info ~f:(fun (ev_name, params, action, delay, tp_offset) ->
+  List.concat_map effects_info ~f:(fun (ev_name, params, action, delay, tp_offset, label) ->
       List.map trigger_clauses ~f:(fun trigger_clause ->
           Enfflash.{
-            rd_label      = None;
+            rd_label      = label;
             rd_event      = ev_name;
             rd_params     = params;
             rd_action     = action;

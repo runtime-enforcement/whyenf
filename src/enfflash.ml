@@ -179,7 +179,11 @@ let clause_to_string ?(indent="    ") cl =
 
 let label_prefix = function
   | None     -> ""
-  | Some lbl -> Printf.sprintf "@%s " lbl
+  | Some lbl ->
+    let needs_brackets = String.exists lbl ~f:(fun c ->
+      not (Char.is_alphanum c || Char.equal c '_' || Char.equal c '.')) in
+    if needs_brackets then Printf.sprintf "@<%s> " lbl
+    else Printf.sprintf "@%s " lbl
 
 let typed_params_to_string params =
   String.concat ~sep:", "

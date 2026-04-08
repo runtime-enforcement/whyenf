@@ -44,6 +44,7 @@ match {
     ">=",
     "_",
     "@",
+    r"@<[^>]+>",
     // then patterns
     r"\s+" => {},  // skip whitespace
     r"//[^\n]*" => {},  // skip line comments
@@ -121,14 +122,14 @@ TypeName: Ty = {
 // ─── Let definitions ─────────────────────────────────────────────────────────────
 
 LetDefStmt: LetDef = {
-    <lbl:("@" <Ident>)?> "let" <name:Ident> "(" <params:Comma<ColDef>> ")" ":=" "{" <body:FilterOr> "}" => LetDef {
+    <lbl:Label?> "let" <name:Ident> "(" <params:Comma<ColDef>> ")" ":=" "{" <body:FilterOr> "}" => LetDef {
         label: lbl,
         is_filter: false,
         name,
         params,
         body,
     },
-    <lbl:("@" <Ident>)?> "filter" "let" <name:Ident> "(" <params:Comma<ColDef>> ")" ":=" "{" <body:FilterOr> "}" => LetDef {
+    <lbl:Label?> "filter" "let" <name:Ident> "(" <params:Comma<ColDef>> ")" ":=" "{" <body:FilterOr> "}" => LetDef {
         label: lbl,
         is_filter: true,
         name,
@@ -139,7 +140,7 @@ LetDefStmt: LetDef = {
 // ─── Table definitions ───────────────────────────────────────────────────────
 
 TableDefStmt: TableDef = {
-    <lbl:("@" <Ident>)?> <lagged:"lagged"?> "table" <name:Ident> "(" <cols:Comma<ColDef>> ")" ":="
+    <lbl:Label?> <lagged:"lagged"?> "table" <name:Ident> "(" <cols:Comma<ColDef>> ")" ":="
         "add" "{" <add:ClauseBody> "}"
         <rm:("remove" "{" <ClauseBody> "}")?> ";" => TableDef {
         label: lbl,
@@ -180,7 +181,7 @@ ClauseBody: Clause = {
 //   [validate { FilterExpr }] ;
 
 RuleDefStmt: RuleDef = {
-    <lbl:("@" <Ident>)?> "rule" <act:Action> <ev:Ident> "(" <ps:Comma<TermExprP>> ")"
+    <lbl:Label?> "rule" <act:Action> <ev:Ident> "(" <ps:Comma<TermExprP>> ")"
         <delay:("[" "delay" <Num> "]")?>  <tp_off:("[" "next" <Num> "]")?>  
         ":="
             "trigger" "{" <trigger:ClauseBody> "}"
@@ -290,7 +291,7 @@ Comma<T>: Vec<T> = {
 // ─── Terminals ───────────────────────────────────────────────────────────────
 
 Ident: String = {
-    r"[A-Za-z_][A-Za-z0-9_]*" => <>.to_string(),
+    r"[A-Za-z_][A-Za-z0-9_.]*" => <>.to_string(),
     "add" => "add".to_string(),
     "remove" => "remove".to_string(),
     "event" => "event".to_string(),
@@ -301,6 +302,14 @@ Ident: String = {
     "rule" => "rule".to_string(),
     "delay" => "delay".to_string(),
     "lagged" => "lagged".to_string(),
+};
+
+Label: String = {
+    "@" <Ident>,
+    r"@<[^>]+>" => {
+        let s = <>;
+        s[2..s.len()-1].to_string()
+    },
 };
 
 Num: i64 = {
