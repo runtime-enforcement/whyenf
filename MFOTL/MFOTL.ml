@@ -1399,8 +1399,8 @@ module Make
     | And (s, fs) -> And (s, List.map ~f:simplify fs)
     | Or (s, fs) -> Or (s, List.map ~f:simplify fs)
     | Imp (s, f, g) -> Imp (s, simplify f, simplify g)
-    | Exists (x, f) -> Exists (x, simplify f)
-    | Forall (x, f) -> Forall (x, simplify f)
+    | Exists (x, f) -> if Set.mem (fvs [f]) x then Exists (x, simplify f) else f.form
+    | Forall (x, f) -> if Set.mem (fvs [f]) x then Forall (x, simplify f) else f.form
     | Prev (i, f) -> Prev (i, simplify f)
     | Next (i, f) -> Next (i, simplify f)
     | Once (i, f) -> Once (i, simplify f)
