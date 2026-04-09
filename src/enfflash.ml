@@ -32,6 +32,10 @@ type event_pattern = {
   ep_args: pattern_arg list;
 }
 
+type guard_pattern =
+  | GEvent of event_pattern
+  | GEqConst of string * ef_value
+
 type filter_expr =
   | FBoolLit of bool
   | FTableLookup of string * term_expr list
@@ -41,7 +45,7 @@ type filter_expr =
   | FNot of filter_expr
 
 type clause = {
-  cl_patterns: event_pattern list;
+  cl_patterns: guard_pattern list list;
   cl_filter: filter_expr;
 }
 
@@ -125,6 +129,13 @@ let event_pattern_to_string ep =
   Printf.sprintf "%s(%s)" ep.ep_name
     (String.concat ~sep:", " (List.map ~f:pattern_arg_to_string ep.ep_args))
 
+let guard_pattern_to_string = function
+  | GEvent ep -> event_pattern_to_string ep
+  | GEqConst (x, v) -> Printf.sprintf "%s == %s" x (ef_value_to_string v)
+
+let guard_pattern_list_to_string eps =
+  String.concat ~sep:" & " (List.map ~f:guard_pattern_to_string eps)
+
 let cmp_op_to_string = function
   | CmpEq  -> "=="
   | CmpNeq -> "!="
@@ -164,8 +175,8 @@ and filter_expr_to_string_atom f =
   | _ -> Printf.sprintf "(%s)" (filter_expr_to_string f)
 
 let clause_to_string ?(indent="    ") cl =
-  let pats_str = String.concat ~sep:" & "
-      (List.map ~f:event_pattern_to_string cl.cl_patterns) in
+  let pats_str = String.concat ~sep:(Printf.sprintf "\n%s or " indent)
+      (List.map ~f:guard_pattern_list_to_string cl.cl_patterns) in
   match cl.cl_filter with
   | FBoolLit true when not (List.is_empty cl.cl_patterns) ->
     Printf.sprintf "%s%s" indent pats_str

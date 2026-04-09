@@ -1270,13 +1270,17 @@ module Make
     in aux true f
 
   let push_quants f =
+    (* TODO: push quants into Once etc. if possible *)
     let rec add_quants f = function
       | [] -> f
       | (true, x) :: quants -> Forall (x, make_dummy (add_quants f quants))
       | (false, x) :: quants -> Exists (x, make_dummy (add_quants f quants)) in
-    let sort_quants quants fs = 
+    let rec add_exists f = function
+      | (false, x) :: quants -> Exists (x, make_dummy (add_quants f quants))
+      | _ -> f in
+    let sort_quants ?(only=None) quants fs = 
       let (quants_global, quants_one, _, _) =
-        List.fold_right quants ~init:([], [], true, None)
+        List.fold_right quants ~init:([], [], true, only)
           ~f:(fun (b, x) (quants_global, quants_one, continue, b_opt) ->
               let b_opt = Some (Option.value b_opt ~default:b) in
               if continue && Bool.equal (Option.value_exn b_opt) b then (
@@ -1321,11 +1325,20 @@ module Make
           add_quants (Imp (s, f, g)) quants_global
         | Exists (x, f) -> (aux (quants @ [(false, x)]) f).form
         | Forall (x, f) -> (aux (quants @ [(true, x)]) f).form
-        | Prev (i, f) -> add_quants (Prev (i, aux [] f)) quants
+        | Prev (i, f) ->
+          let quants_global, quants_one = sort_quants ~only:(Some false) quants [f] in
+          let f = add_relevant_quants quants_one f in
+          add_quants (Prev (i, f)) quants
         | Next (i, f) -> add_quants (Next (i, aux [] f)) quants
-        | Once (i, f) -> add_quants (Once (i, aux [] f)) quants
+        | Once (i, f) ->
+          let quants_global, quants_one = sort_quants ~only:(Some false) quants [f] in
+          let f = add_relevant_quants quants_one f in
+          add_quants (Once (i, f)) quants
         | Eventually (i, f) -> add_quants (Eventually (i, aux [] f)) quants
-        | Historically (i, f) -> add_quants (Historically (i, aux [] f)) quants
+        | Historically (i, f) ->
+          let quants_global, quants_one = sort_quants ~only:(Some true) quants [f] in
+          let f = add_relevant_quants quants_one f in
+          add_quants (Historically (i, f)) quants
         | Always (i, f) -> add_quants (Always (i, aux [] f)) quants
         | Since (s, i, f, g) -> add_quants (Since (s, i, aux [] f, aux [] g)) quants
         | Until (s, i, f, g) -> add_quants (Until (s, i, aux [] f, aux [] g)) quants
@@ -2422,6 +2435,11 @@ module Make
     let init_trigger filter =
       { guards = []; filter }
 
+    (* Two-tier guard control: first try without temporal tables as guards;
+       if that fails, retry with them allowed and collect warnings. *)
+    let allow_table_guards = ref false
+    let table_guard_warnings : (string * string) list ref = ref []
+
         (* Given a formula f with a free variable x, find p_1, ..., p_k, g such that
        if p is true:  f = (p_1 | ... | p_k) & g
        if p is false: f =  p_1 | ... | p_k -> g
@@ -2430,7 +2448,8 @@ module Make
     let rec pull_guard (m: let_map) (x: Var.t) (p: bool) (trigger: trigger) : trigger option =
       let npg = pull_guard m x in
       (* First, check if one of the existing guards already does the job *)
-      let with_existing_guard = List.for_all trigger.guards ~f:(
+      let with_existing_guard = (not (List.is_empty trigger.guards)) &&
+        List.for_all trigger.guards ~f:(
           List.exists ~f:(fun guard -> match guard.form with
               | Predicate (_, trms) ->
                 List.exists ~f:(Term.equal (Term.dummy_var x)) trms
@@ -2439,18 +2458,46 @@ module Make
       then Some trigger
       (* If it not the case, look for a new guard *)
       else begin
+        (* Treat empty guards (uninitialized) as [[]] (one empty disjunct) *)
+        let base_guards = if List.is_empty trigger.guards then [[]] else trigger.guards in
         let rec aux p filter =
           let r = 
           match filter.form, p with
           | TT, false -> Some trigger
           | FF, true  -> Some trigger
           | Predicate (r, trms), true when List.exists ~f:(Term.equal (Term.dummy_var x)) trms ->
-            (match Map.find m r with
-             | Some let_def when Option.is_none let_def.switch_pos_opt -> None
-             | _ -> Some { guards = List.map ~f:(fun fs -> filter :: fs) trigger.guards;
-                           filter = make_dummy TT })
+            (* A predicate can serve as a guard unless it is:
+               - a let-def with no switch (switch_pos_opt = None) [always rejected]
+               - a table (SOnce, SPrev, SSince) [rejected unless allow_table_guards] *)
+            let ld_opt = Map.find m r in
+            let is_unguardable =
+              match ld_opt with
+              | Some ld -> Option.is_none ld.switch_pos_opt
+              | None -> false
+            in
+            let is_table =
+              match ld_opt with
+              | Some ld ->
+                (match ld.switch_pos_opt with
+                 | Some (SOnce _) | Some (SPrev _) | Some (SSince _) -> true
+                 | _ -> false)
+              | None -> false
+            in
+            if is_unguardable then None
+            else if is_table && not !allow_table_guards then None
+            else begin
+              (if is_table then
+                 let body_str = match ld_opt with
+                   | Some ld -> to_string ld.body
+                   | None -> "?" in
+                 let entry = (r, body_str) in
+                 if not (List.exists !table_guard_warnings ~f:(fun (n, _) -> String.equal n r)) then
+                   table_guard_warnings := entry :: !table_guard_warnings);
+              Some { guards = List.map ~f:(fun fs -> filter :: fs) base_guards;
+                     filter = make_dummy TT }
+            end
           | EqConst (trm, _), true when Term.equal (Term.dummy_var x) trm ->
-            Some { guards = List.map ~f:(fun fs -> filter :: fs) trigger.guards;
+            Some { guards = List.map ~f:(fun fs -> filter :: fs) base_guards;
                    filter = make_dummy TT }
           | Neg f, _ ->
             Option.map (aux (not p) f) ~f:(fun trigger ->
@@ -2735,7 +2782,7 @@ module Make
       let f = push_quants f in
 
       (*print_endline "1) after push_quants";
-        print_endline (to_string f);*)
+      print_endline (to_string f);*)
       
       let lets, f = do_pull_lets f in
       
@@ -3222,13 +3269,11 @@ module Make
               (m, errors)
           end
         | _ -> begin
-            let gt = normalize_trigger m (init_trigger g) true body in
+            let arg_set = Set.of_list (module Var) (List.map ~f:fst let_def.args) in
+            let vars = Set.elements (Set.diff (fvs [g]) arg_set) in
+            let gt = normalize_trigger ~vars:(Some vars) m (init_trigger g) true body in
             match gt with
-            | Impossible _ ->
-              let cau_sols, sup_sols = type_let_aux_sols m let_def in
-              let m = Map.update m let_def.name 
-                  ~f:(fun _ -> { let_def with cau_sols = cau_sols; sup_sols = sup_sols }) in
-              (m, errors)
+            | Impossible error -> (m, error :: errors)
             | Possible [trigger] ->
               let cau_sols, sup_sols, trigger_pos, trigger_neg_opt = type_let_aux m let_def trigger in
               let switch_pos = SNow trigger_pos
@@ -3411,7 +3456,21 @@ module Make
                              ^ "\nis not closed: free variables are "
                              ^ String.concat ~sep:", " (List.map ~f:Var.to_string (Set.elements (fv f))));
         ignore (raise (FormulaError (Printf.sprintf "this formula is not closed"))));
-      match types Enftype.cau f b with
+      (* Two-tier: first try without temporal tables as guards *)
+      allow_table_guards := false;
+      table_guard_warnings := [];
+      let result = match types Enftype.cau f b with
+        | Impossible _ ->
+          (* Retry with table guards allowed *)
+          allow_table_guards := true;
+          table_guard_warnings := [];
+          types Enftype.cau f b
+        | ok -> ok
+      in
+      (* Print warnings about table guards that were needed *)
+      List.iter (List.rev !table_guard_warnings) ~f:(fun (name, body) ->
+        Stdio.eprintf "WARNING: table %s used as guard (body: %s)\n" name body);
+      match result with
       | Impossible err -> error err
       | Possible [lets, m, sols] ->
         (match sols with

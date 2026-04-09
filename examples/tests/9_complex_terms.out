@@ -2,7 +2,7 @@
 [Enforcer] @1 nothing to do proactively.
 [Enforcer] @2 reactively commands:
 Cause:
-C(2, 3), C(3, 2)
+C(3, 2), C(2, 3)
 OK.
 [Enforcer] @2 nothing to do proactively.
 [Enforcer] @3 OK.

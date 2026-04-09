@@ -65,8 +65,12 @@ pub fn compute_rule_monotonicity(
     monotonicities: &HashMap<String, HashMap<String, Monotonicity>>
 ) -> HashMap<String, Monotonicity> {
     let mut monotonicity = HashMap::new();
-    for pat in &rule.trigger.patterns {
-        monotonicity.entry(pat.name.clone()).or_insert(Monotonicity::Monotone);
+    for disj in &rule.trigger.patterns {
+        for guard in disj {
+            if let GuardPattern::Event(pat) = guard {
+                monotonicity.entry(pat.name.clone()).or_insert(Monotonicity::Monotone);
+            }
+        }
     }
     compute_filter_monotonicity(&rule.trigger.filter, &mut monotonicity, monotonicities, true);
     monotonicity    

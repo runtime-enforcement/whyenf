@@ -283,6 +283,13 @@
         "formula": "58_memo.mfotl",
         "log": "simple.log",
         "output": "58_memo.out"
+    },
+    {
+        "label": "59_once",
+        "sig": "simple.sig",
+        "formula": "59_once.mfotl",
+        "log": "multiple.log",
+        "output": "59_once.out"
     }
 ]
 

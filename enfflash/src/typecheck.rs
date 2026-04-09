@@ -219,12 +219,36 @@ pub fn check_program(program: &Program) -> CheckErrors {
     errs
 }
 
-/// Collect variable names bound by a list of event patterns (no types, just names).
-fn collect_pattern_var_names(patterns: &[EventPattern]) -> HashSet<String> {
+/// Collect variable names bound by disjunctive guard patterns.
+/// Within each conjunction (disjunct), take the union of bound vars.
+/// Across disjuncts, take the intersection (a var is only guaranteed
+/// bound if ALL disjuncts bind it).
+fn collect_pattern_var_names(patterns: &[Vec<GuardPattern>]) -> HashSet<String> {
+    if patterns.is_empty() {
+        return HashSet::new();
+    }
+    let mut iter = patterns.iter();
+    let first = iter.next().unwrap();
+    let mut result: HashSet<String> = collect_conj_var_names(first);
+    for conj in iter {
+        let conj_vars = collect_conj_var_names(conj);
+        result = result.intersection(&conj_vars).cloned().collect();
+    }
+    result
+}
+
+fn collect_conj_var_names(guards: &[GuardPattern]) -> HashSet<String> {
     let mut names = HashSet::new();
-    for pat in patterns {
-        for arg in &pat.args {
-            if let PatternArg::Var(name) = arg {
+    for guard in guards {
+        match guard {
+            GuardPattern::Event(pat) => {
+                for arg in &pat.args {
+                    if let PatternArg::Var(name) = arg {
+                        names.insert(name.clone());
+                    }
+                }
+            }
+            GuardPattern::EqConst(name, _) => {
                 names.insert(name.clone());
             }
         }
@@ -273,15 +297,47 @@ fn collect_filter_var_names(filter: &FilterExpr) -> HashSet<String> {
     names
 }
 
-/// Build a typed variable context from patterns using event declarations.
-fn build_ctx_from_patterns(te: &TyEnv, patterns: &[EventPattern]) -> VarCtx {
+/// Build a typed variable context from disjunctive guard patterns.
+fn build_ctx_from_patterns(te: &TyEnv, patterns: &[Vec<GuardPattern>]) -> VarCtx {
+    if patterns.is_empty() {
+        return VarCtx::new();
+    }
+    let first_ctx = build_conj_ctx(te, &patterns[0]);
+    if patterns.len() == 1 {
+        return first_ctx;
+    }
+    let mut common_vars = collect_conj_var_names(&patterns[0]);
+    for conj in &patterns[1..] {
+        let conj_vars = collect_conj_var_names(conj);
+        common_vars = common_vars.intersection(&conj_vars).cloned().collect();
+    }
+    first_ctx.into_iter().filter(|(k, _)| common_vars.contains(k)).collect()
+}
+
+fn build_conj_ctx(te: &TyEnv, guards: &[GuardPattern]) -> VarCtx {
     let mut ctx = VarCtx::new();
-    for pat in patterns {
-        if let Some((ev_types, _)) = te.events.get(&pat.name) {
-            for (arg, ty) in pat.args.iter().zip(ev_types.iter()) {
-                if let PatternArg::Var(name) = arg {
-                    ctx.insert(name.clone(), ty.clone());
+    for guard in guards {
+        match guard {
+            GuardPattern::Event(pat) => {
+                let param_types: Option<Vec<Ty>> = if let Some((ev_types, _)) = te.events.get(&pat.name) {
+                    Some(ev_types.clone())
+                } else if let Some(params) = te.lets.get(&pat.name) {
+                    Some(params.iter().map(|(_, t)| t.clone()).collect())
+                } else if let Some(cols) = te.tables.get(&pat.name) {
+                    Some(cols.iter().map(|(_, t)| t.clone()).collect())
+                } else {
+                    None
+                };
+                if let Some(types) = param_types {
+                    for (arg, ty) in pat.args.iter().zip(types.iter()) {
+                        if let PatternArg::Var(name) = arg {
+                            ctx.insert(name.clone(), ty.clone());
+                        }
+                    }
                 }
+            }
+            GuardPattern::EqConst(name, val) => {
+                ctx.insert(name.clone(), value_type(val));
             }
         }
     }
@@ -346,29 +402,74 @@ fn check_clause(
     loc: &str,
     errs: &mut CheckErrors,
 ) {
-    // Check patterns: each pattern must reference a declared event with correct arity
-    for pat in &clause.patterns {
-        if let Some((ev_types, _)) = te.events.get(&pat.name) {
-            if pat.args.len() != ev_types.len() {
-                errs.err(format!(
-                    "{}: pattern '{}' has {} args, event expects {}",
-                    loc, pat.name, pat.args.len(), ev_types.len()
-                ));
-            }
-            // Check literal types in patterns
-            for (i, (arg, expected_ty)) in pat.args.iter().zip(ev_types.iter()).enumerate() {
-                if let PatternArg::Literal(val) = arg {
-                    let val_ty = value_type(val);
-                    if &val_ty != expected_ty {
-                        errs.err(format!(
-                            "{}: pattern '{}' arg {} is {} but event expects {}",
-                            loc, pat.name, i, val_ty, expected_ty
-                        ));
+    // Check patterns: each guard must reference a declared event/let-def with correct arity
+    for disj in &clause.patterns {
+        for guard in disj {
+            match guard {
+                GuardPattern::EqConst(_, _) => {
+                    // EqConst binds a variable to a literal — always valid
+                }
+                GuardPattern::Event(pat) => {
+                    if let Some((ev_types, _)) = te.events.get(&pat.name) {
+                        if pat.args.len() != ev_types.len() {
+                            errs.err(format!(
+                                "{}: pattern '{}' has {} args, event expects {}",
+                                loc, pat.name, pat.args.len(), ev_types.len()
+                            ));
+                        }
+                        for (i, (arg, expected_ty)) in pat.args.iter().zip(ev_types.iter()).enumerate() {
+                            if let PatternArg::Literal(val) = arg {
+                                let val_ty = value_type(val);
+                                if &val_ty != expected_ty {
+                                    errs.err(format!(
+                                        "{}: pattern '{}' arg {} is {} but event expects {}",
+                                        loc, pat.name, i, val_ty, expected_ty
+                                    ));
+                                }
+                            }
+                        }
+                    } else if let Some(params) = te.lets.get(&pat.name) {
+                        if pat.args.len() != params.len() {
+                            errs.err(format!(
+                                "{}: pattern '{}' has {} args, let-def expects {}",
+                                loc, pat.name, pat.args.len(), params.len()
+                            ));
+                        }
+                        for (i, (arg, (_, expected_ty))) in pat.args.iter().zip(params.iter()).enumerate() {
+                            if let PatternArg::Literal(val) = arg {
+                                let val_ty = value_type(val);
+                                if &val_ty != expected_ty {
+                                    errs.err(format!(
+                                        "{}: pattern '{}' arg {} is {} but let-def expects {}",
+                                        loc, pat.name, i, val_ty, expected_ty
+                                    ));
+                                }
+                            }
+                        }
+                    } else if let Some(cols) = te.tables.get(&pat.name) {
+                        // Table used as a guard pattern (lookup by row)
+                        if pat.args.len() != cols.len() {
+                            errs.err(format!(
+                                "{}: pattern '{}' has {} args, table expects {}",
+                                loc, pat.name, pat.args.len(), cols.len()
+                            ));
+                        }
+                        for (i, (arg, (_, expected_ty))) in pat.args.iter().zip(cols.iter()).enumerate() {
+                            if let PatternArg::Literal(val) = arg {
+                                let val_ty = value_type(val);
+                                if &val_ty != expected_ty {
+                                    errs.err(format!(
+                                        "{}: pattern '{}' arg {} is {} but table expects {}",
+                                        loc, pat.name, i, val_ty, expected_ty
+                                    ));
+                                }
+                            }
+                        }
+                    } else {
+                        errs.err(format!("{}: unknown event '{}' in pattern", loc, pat.name));
                     }
                 }
             }
-        } else {
-            errs.err(format!("{}: unknown event '{}' in pattern", loc, pat.name));
         }
     }
 

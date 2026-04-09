@@ -165,6 +165,13 @@ pub enum PatternArg {
     Wildcard,
 }
 
+/// A guard element: either an event pattern or an equality constraint (var == const).
+#[derive(Debug, Clone)]
+pub enum GuardPattern {
+    Event(EventPattern),
+    EqConst(String, Value),
+}
+
 /// Boolean filter expression (used after `if`).
 #[derive(Debug, Clone)]
 pub enum FilterExpr {
@@ -218,6 +225,88 @@ pub enum CmpOp {
     Ge,
 }
 
+// ─── Display implementations for expressions ─────────────────────────────────
+
+impl fmt::Display for TermExpr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TermExpr::Var(name) => write!(f, "{}", name),
+            TermExpr::Lit(v) => write!(f, "{}", v),
+            TermExpr::FunCall { name, args } => {
+                write!(f, "{}(", name)?;
+                for (i, a) in args.iter().enumerate() {
+                    if i > 0 { write!(f, ", ")?; }
+                    write!(f, "{}", a)?;
+                }
+                write!(f, ")")
+            }
+        }
+    }
+}
+
+impl fmt::Display for CmpOp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CmpOp::Eq => write!(f, "=="),
+            CmpOp::Neq => write!(f, "!="),
+            CmpOp::Lt => write!(f, "<"),
+            CmpOp::Le => write!(f, "<="),
+            CmpOp::Gt => write!(f, ">"),
+            CmpOp::Ge => write!(f, ">="),
+        }
+    }
+}
+
+impl fmt::Display for FilterExpr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            FilterExpr::BoolLit(b) => write!(f, "{}", b),
+            FilterExpr::TableLookup { name, args } => {
+                write!(f, "{}(", name)?;
+                for (i, a) in args.iter().enumerate() {
+                    if i > 0 { write!(f, ", ")?; }
+                    write!(f, "{}", a)?;
+                }
+                write!(f, ")")
+            }
+            FilterExpr::Compare { lhs, op, rhs } => write!(f, "{} {} {}", lhs, op, rhs),
+            FilterExpr::And(l, r) => write!(f, "({} ∧ {})", l, r),
+            FilterExpr::Or(l, r) => write!(f, "({} ∨ {})", l, r),
+            FilterExpr::Not(inner) => write!(f, "¬{}", inner),
+        }
+    }
+}
+
+impl fmt::Display for PatternArg {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            PatternArg::Var(name) => write!(f, "{}", name),
+            PatternArg::Literal(v) => write!(f, "{}", v),
+            PatternArg::Wildcard => write!(f, "_"),
+        }
+    }
+}
+
+impl fmt::Display for EventPattern {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}(", self.name)?;
+        for (i, a) in self.args.iter().enumerate() {
+            if i > 0 { write!(f, ", ")?; }
+            write!(f, "{}", a)?;
+        }
+        write!(f, ")")
+    }
+}
+
+impl fmt::Display for GuardPattern {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            GuardPattern::Event(ep) => write!(f, "{}", ep),
+            GuardPattern::EqConst(var, val) => write!(f, "{}={}", var, val),
+        }
+    }
+}
+
 // ─── Table definitions ───────────────────────────────────────────────────────
 
 #[derive(Debug, Clone)]
@@ -232,7 +321,9 @@ pub struct TableDef {
 
 #[derive(Debug, Clone)]
 pub struct Clause {
-    pub patterns: Vec<EventPattern>,
+    /// Disjunction of conjunctions: each inner Vec is an AND of guard patterns,
+    /// the outer Vec is an OR of those conjunctions.
+    pub patterns: Vec<Vec<GuardPattern>>,
     pub filter: FilterExpr,
 }
 

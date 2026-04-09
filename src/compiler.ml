@@ -180,6 +180,9 @@ let merge_filters (parts: Enfflash.filter_expr list) : Enfflash.filter_expr =
   | f :: rest ->
     List.fold_left rest ~init:f ~f:(fun acc g -> Enfflash.FAnd (acc, g))
 
+(* ═══════════════════════════════════════════════════════════════════════════ *)
+(* Conjunct reordering                                                        *)
+(*                                                                            *)
 (* Check whether a predicate name corresponds to a trace event in the
    signature (Sig module), or is a synthetic Cau_/Sup_ event generated
    by the enforcement compiler. *)
@@ -187,6 +190,14 @@ let is_trace_event name =
   String.is_prefix name ~prefix:"Cau_"
   || String.is_prefix name ~prefix:"Sup_"
   || (try Sig.equal_pred_kind (Sig.kind_of_pred name) Sig.Trace
+      with _ -> false)
+
+(* A predicate is allowed in a guard pattern if it is a trace event
+   or a let-def.  Tables (Func with kind=Table) must NOT appear in
+   guard patterns. *)
+let is_pattern_event name =
+  is_trace_event name
+  || (try Sig.equal_pred_kind (Sig.kind_of_pred name) Sig.Let
       with _ -> false)
 
 (* Parse label-prefixed names like "Label0:myname" into
@@ -205,104 +216,97 @@ let parse_label_name name =
 (* Each guard disjunct produces one enfflash clause.                           *)
 (* Within each conjunct, we separate trace events (→ EventPatterns) from      *)
 (* other formulas (→ folded into the filter).                                 *)
+(*                                                                            *)
+(* Non-filter let-bound predicates (those whose SNow trigger has guards) are  *)
+(* inlined: their trigger's guards and filter are substituted with the actual  *)
+(* arguments and merged into the current clause.  This ensures that trace      *)
+(* events inside let-def bodies become proper EventPatterns in the clause.     *)
 (* ═══════════════════════════════════════════════════════════════════════════ *)
 
-let decompose_guard_conj (guards: Tyformula.t list) =
-  let events, conditions =
-    List.partition_tf guards ~f:(fun g ->
-        match g.form with
-        | Predicate (name, _) -> is_trace_event name
-        (* Negated trace events (¬B(x)) must stay as filter conditions,
-           not become patterns — patterns can only match event *presence*. *)
-        | _ -> false) in
-  let patterns =
-    List.map events ~f:(fun g ->
-        match g.form with
-        | Predicate (name, args) ->
-          Enfflash.{ ep_name = sanitize_name name;
-                     ep_args = List.map ~f:term_to_pattern_arg args }
-        | _ -> assert false) in
-  let filter_parts =
-    List.filter_map conditions ~f:(fun c ->
-        let f = formula_to_filter c in
-        match f with Enfflash.FBoolLit true -> None | _ -> Some f) in
-  (patterns, filter_parts)
+(* Check whether a let-def is a non-filter SNow (its trigger has event guards).
+   If so, return Some (formal_args, trigger).  Otherwise return None. *)
+let get_inlineable_trigger (let_map: Enforcement.let_map) (name: string)
+  : ((Tterm.TypedVar.t * Dom.tt option) list * Enforcement.trigger) option =
+  match Map.find let_map name with
+  | Some def ->
+    (match def.switch_pos_opt with
+     | Some (Enforcement.SNow trigger) when not (List.is_empty trigger.guards) ->
+       Some (def.args, trigger)
+     | _ -> None)
+  | None -> None
 
-let trigger_to_clauses (trigger: Enforcement.trigger) : Enfflash.clause list =
-  (* Flatten an And-conjunction into a list of conjuncts so that we can
-     separate trace-event predicates (→ patterns) from other conditions
-     (→ if-filter).  This matters when guards = [] and the entire formula
-     sits in trigger.filter. *)
-  let rec flatten_conj (f: Tyformula.t) : Tyformula.t list =
-    match f.form with
-    | And (_, fs) -> List.concat_map fs ~f:flatten_conj
-    | _ -> [f] in
-  (* Flatten an Or into a list of disjuncts. *)
-  let rec flatten_disj (f: Tyformula.t) : Tyformula.t list =
-    match f.form with
-    | Or (_, fs) -> List.concat_map fs ~f:flatten_disj
-    | _ -> [f] in
-  (* Convert a filter formula into DNF: a list of conjunct-lists.
-     Each inner list represents a conjunction; the outer list represents
-     the disjunction. We only expand Ors that contain trace events so
-     as not to blow up the clause count unnecessarily. *)
-  let rec filter_to_dnf (f: Tyformula.t) : Tyformula.t list list =
-    match f.form with
-    | And (_, fs) ->
-      (* Cartesian product of the sub-DNFs *)
-      List.fold_left fs ~init:[[]]
-        ~f:(fun acc sub ->
-            let sub_dnf = filter_to_dnf sub in
-            List.concat_map acc ~f:(fun conj ->
-                List.map sub_dnf ~f:(fun d -> conj @ d)))
-    | Or (_, _) ->
-      let disjuncts = flatten_disj f in
-      (* Only expand into DNF if at least one disjunct is a trace event.
-         Otherwise keep it as an opaque filter. *)
-      let has_event = List.exists disjuncts ~f:(fun d ->
-          match d.form with
-          | Predicate (name, _) -> is_trace_event name
-          | _ ->
-            let conjs = flatten_conj d in
-            List.exists conjs ~f:(fun c ->
-                match c.form with
-                | Predicate (name, _) -> is_trace_event name
-                | _ -> false)) in
-      if has_event then
-        List.concat_map disjuncts ~f:filter_to_dnf
-      else
-        [[f]]
-    | _ -> [[f]]
-  in
-  match trigger.guards with
-  | [] ->
-    (* No event guards: decompose the filter formula itself into
-       trace-event patterns and residual filter conditions,
-       expanding Ors that contain trace events into separate clauses. *)
-    let dnf = filter_to_dnf trigger.filter in
-    List.map dnf ~f:(fun conjuncts ->
-        let patterns, filter_parts = decompose_guard_conj conjuncts in
-        Enfflash.{ cl_patterns = patterns;
-                   cl_filter = merge_filters filter_parts })
-  | disjuncts ->
-    (* Expand the filter into DNF to pull trace events into patterns.
-       Then cross-product each guard disjunct with each filter disjunct. *)
-    let filter_dnf = filter_to_dnf trigger.filter in
-    List.concat_map disjuncts ~f:(fun guard_conj ->
-        List.map filter_dnf ~f:(fun filter_conj ->
-            let guard_patterns, guard_filter_parts = decompose_guard_conj guard_conj in
-            let filter_patterns, filter_filter_parts = decompose_guard_conj filter_conj in
-            Enfflash.{ cl_patterns = guard_patterns @ filter_patterns;
-                       cl_filter = merge_filters (guard_filter_parts @ filter_filter_parts) }))
+(* Build a substitution map from formal parameters to actual arguments. *)
+let build_subst
+    (formals: (Tterm.TypedVar.t * Dom.tt option) list)
+    (actuals: Tterm.t list)
+  : (Tterm.TypedVar.t, Tterm.t, Tterm.TypedVar.comparator_witness) Map.t =
+  List.fold2_exn formals actuals
+    ~init:(Map.empty (module Tterm.TypedVar))
+    ~f:(fun acc (formal_var, _) actual_term ->
+        Map.set acc ~key:formal_var ~data:actual_term)
 
-(* Pick the first clause from a trigger (for table add/remove which require
-   a single clause).  Multiple guard disjuncts would need engine support for
-   OR in clauses; for now we take the first and note. *)
-let trigger_to_single_clause (trigger: Enforcement.trigger) : Enfflash.clause =
-  match trigger_to_clauses trigger with
-  | []     -> { cl_patterns = []; cl_filter = FBoolLit true }
-  | [c]    -> c
-  | c :: _ -> c  (* NOTE: only first guard disjunct used *)
+(* Inline non-filter let-def guards: given a list of guard conjuncts,
+   expand any non-filter let-bound predicates into their trigger's guards
+   and filter, substituting formal parameters with actual arguments.
+   Returns (expanded_guards, extra_filter_formulas). *)
+let rec inline_let_guards
+    (let_map: Enforcement.let_map)
+    (guards: Tyformula.t list)
+  : Tyformula.t list * Tyformula.t list =
+  List.fold_right guards ~init:([], [])
+    ~f:(fun g (acc_guards, acc_filters) ->
+        match g.form with
+        | Predicate (name, actuals) when not (is_trace_event name) ->
+          (match get_inlineable_trigger let_map name with
+           | Some (formals, inner_trigger) ->
+             (* Build substitution: formal param → actual arg *)
+             let subst_map = build_subst formals actuals in
+             (* Substitute in the inner trigger's guards (take first disjunct) *)
+             let inlined_guards =
+               match inner_trigger.guards with
+               | [] -> []
+               | disjunct :: _ ->
+                 List.map disjunct ~f:(Tyformula.subst subst_map) in
+             (* Substitute in the inner trigger's filter *)
+             let inlined_filter = Tyformula.subst subst_map inner_trigger.filter in
+             let extra_filter =
+               match inlined_filter.form with
+               | Tyformula.TT -> acc_filters
+               | _ -> inlined_filter :: acc_filters in
+             (* Recursively inline the expanded guards *)
+             let re_inlined_guards, re_inlined_filters =
+               inline_let_guards let_map inlined_guards in
+             (re_inlined_guards @ acc_guards, re_inlined_filters @ extra_filter)
+           | None ->
+             (* Not inlineable: keep as-is *)
+             (g :: acc_guards, acc_filters))
+        | _ ->
+          (g :: acc_guards, acc_filters))
+
+(* Convert a guard conjunct to a guard pattern.
+   MFOTL.ml ensures only valid guards appear here (trace events,
+   non-filter let-defs, EqConst).  Compile straightforwardly. *)
+let guard_to_pattern (g: Tyformula.t) : Enfflash.guard_pattern =
+  match g.form with
+  | Predicate (name, args) ->
+    Enfflash.(GEvent { ep_name = sanitize_name name;
+                       ep_args = List.map ~f:term_to_pattern_arg args })
+  | EqConst ({ trm = Tterm.Var x }, v) ->
+    Enfflash.(GEqConst (san (Tterm.TypedVar.ident x), dom_to_ef v))
+  | _ -> failwith (Printf.sprintf "guard_to_pattern: unexpected guard form")
+
+let decompose_guard_disj (guards: Tyformula.t list list)
+  : Enfflash.guard_pattern list list =
+  List.map guards ~f:(fun conj ->
+      List.map conj ~f:guard_to_pattern)
+
+let trigger_to_clause
+    ~(let_map: Enforcement.let_map)
+    (trigger: Enforcement.trigger)
+  : Enfflash.clause =
+  Enfflash.{ cl_patterns = decompose_guard_disj trigger.guards;
+             cl_filter   = formula_to_filter trigger.filter }
+
 
 (* ═══════════════════════════════════════════════════════════════════════════ *)
 (* Compile event declarations from the Sig table                              *)
@@ -497,6 +501,7 @@ let rec filter_has_event_ref (f: Enfflash.filter_expr) : bool =
   | FNot a -> filter_has_event_ref a
 
 let compile_let_from_switch
+    ~(let_map: Enforcement.let_map)
     ~(name: string)
     ~(label: string option)
     ~(args: (Tterm.TypedVar.t * Dom.tt option) list)
@@ -508,27 +513,37 @@ let compile_let_from_switch
   let sanitized = sanitize_name name in
   match switch with
   | SNow trigger ->
-    (* Present-time predicate: compile trigger guards + filter into one FilterExpr.
-       If the compiled body references trace events, the let is
-       "sufficiently guarded"; otherwise it is a "filter let". *)
+    (* Present-time predicate → let-def.
+       We incorporate BOTH the guards (DNF of event/predicate lookups)
+       and the filter into the let body.  This way the engine can
+       recursively evaluate the body — iterating events and other
+       let-defs to bind free variables — while preserving fixpoint
+       semantics (let-defs are re-evaluated each time they are
+       referenced, unlike tables which are snapshot-based). *)
+    let base_filter = formula_to_filter trigger.filter in
+    (* Convert guard DNF into a filter expression:
+       guards = [[g1;g2]; [g3;g4]] → (g1 ∧ g2) ∨ (g3 ∧ g4) *)
     let guard_filter =
       match trigger.guards with
-      | [] -> None
+      | [] -> Enfflash.FBoolLit true
       | disjuncts ->
-        let disj_parts =
-          List.map disjuncts ~f:(fun conj ->
-              let parts = List.map conj ~f:formula_to_filter in
-              merge_filters parts) in
-        Some (match disj_parts with
-            | [f] -> f
-            | f :: rest ->
-              List.fold_left rest ~init:f ~f:(fun acc g -> Enfflash.FOr (acc, g))
-            | [] -> FBoolLit true) in
-    let base_filter = formula_to_filter trigger.filter in
-    let all_parts =
-      (Option.to_list guard_filter)
-      @ (match base_filter with FBoolLit true -> [] | f -> [f]) in
-    let body = merge_filters all_parts in
+        let conj_to_filter conj =
+          let parts = List.filter_map conj ~f:(fun g ->
+              let f = formula_to_filter g in
+              match f with Enfflash.FBoolLit true -> None | _ -> Some f) in
+          merge_filters parts in
+        let disj_filters = List.map disjuncts ~f:conj_to_filter in
+        (match disj_filters with
+         | []       -> Enfflash.FBoolLit true
+         | [f]      -> f
+         | f :: rest ->
+           List.fold_left rest ~init:f
+             ~f:(fun acc g -> Enfflash.FOr (acc, g)))
+    in
+    let body = match guard_filter, base_filter with
+      | Enfflash.FBoolLit true, f -> f
+      | f, Enfflash.FBoolLit true -> f
+      | g, f -> Enfflash.FAnd (g, f) in
     `Let Enfflash.{
         ld_label = label;
         ld_is_filter = not (filter_has_event_ref body);
@@ -543,7 +558,7 @@ let compile_let_from_switch
         td_lagged = false;
         td_name = sanitized;
         td_columns = columns;
-        td_add_clause = trigger_to_single_clause trigger;
+        td_add_clause = trigger_to_clause ~let_map trigger;
         td_remove_clause = None;
       }
   | SPrev trigger ->
@@ -553,7 +568,7 @@ let compile_let_from_switch
         td_lagged = true;
         td_name = sanitized;
         td_columns = columns;
-        td_add_clause = trigger_to_single_clause trigger;
+        td_add_clause = trigger_to_clause ~let_map trigger;
         td_remove_clause = None;
       }
   | SSince (left_trigger, right_trigger) ->
@@ -577,13 +592,13 @@ let compile_let_from_switch
         guards = left_trigger.guards;
         filter = neg_filter;
       } in
-    let rm_clause = trigger_to_single_clause neg_trigger in
+    let rm_clause = trigger_to_clause ~let_map neg_trigger in
     `Table Enfflash.{
         td_label = label;
         td_lagged = false;
         td_name = sanitized;
         td_columns = columns;
-        td_add_clause = trigger_to_single_clause right_trigger;
+        td_add_clause = trigger_to_clause ~let_map right_trigger;
         td_remove_clause = Some rm_clause;
       }
 
@@ -686,8 +701,8 @@ let extract_label_from_effect_name name =
   | Some s -> fst (parse_label_name s)
   | None -> None
 
-let compile_clause_to_rules (clause: Enforcement.clause) : Enfflash.rule_def list =
-  let trigger_clauses = trigger_to_clauses clause.trigger in
+let compile_clause_to_rules ~(let_map: Enforcement.let_map) (clause: Enforcement.clause) : Enfflash.rule_def list =
+  let trigger_clause = trigger_to_clause ~let_map clause.trigger in
   let effects_info =
     List.filter_map clause.effects ~f:(fun effect ->
         match effect.form with
@@ -716,18 +731,17 @@ let compile_clause_to_rules (clause: Enforcement.clause) : Enfflash.rule_def lis
           let label = extract_label_from_effect_name name in
           Some (sanitize_name name, params, Enfflash.RSuppress, None, Some 1, label)
         | _ -> None) in
-  List.concat_map effects_info ~f:(fun (ev_name, params, action, delay, tp_offset, label) ->
-      List.map trigger_clauses ~f:(fun trigger_clause ->
-          Enfflash.{
-            rd_label      = label;
-            rd_event      = ev_name;
-            rd_params     = params;
-            rd_action     = action;
-            rd_delay      = delay;
-            rd_tp_offset  = tp_offset;
-            rd_trigger    = trigger_clause;
-            rd_validate   = None;
-          }))
+  List.map effects_info ~f:(fun (ev_name, params, action, delay, tp_offset, label) ->
+      Enfflash.{
+        rd_label      = label;
+        rd_event      = ev_name;
+        rd_params     = params;
+        rd_action     = action;
+        rd_delay      = delay;
+        rd_tp_offset  = tp_offset;
+        rd_trigger    = trigger_clause;
+        rd_validate   = None;
+      })
 
 (* Fix default Int(0) values in rule params when the target event expects a
    different type.  E.g., Contains(str,str) with args [0; 0] → [""; ""].     *)
@@ -779,7 +793,7 @@ let compile
       let emit_variant vname vlabel switch_opt fallback_body =
         match switch_opt with
         | Some switch ->
-          (match compile_let_from_switch ~name:vname ~label:vlabel ~args ~switch with
+          (match compile_let_from_switch ~let_map ~name:vname ~label:vlabel ~args ~switch with
            | `Let ld  -> let_defs := ld :: !let_defs
            | `Table td -> tables := td :: !tables)
         | None ->
@@ -821,7 +835,7 @@ let compile
           (Option.bind def_opt ~f:(fun (d: Enforcement.let_def) -> d.switch_pos_opt))
           body_pos);
   (* ── Process enforcement clauses ──────────────────────────────────────── *)
-  let rules = List.concat_map clauses ~f:compile_clause_to_rules in
+  let rules = List.concat_map clauses ~f:(compile_clause_to_rules ~let_map) in
   (* ── Add synthetic event declarations for Cau_/Sup_ events ──────────── *)
   let synthetic_decls = collect_synthetic_event_decls ~existing:event_decls clauses in
   let all_event_decls = event_decls @ synthetic_decls in
@@ -830,6 +844,37 @@ let compile
   List.iter all_event_decls ~f:(fun ed ->
       Hashtbl.set ed_map ~key:ed.Enfflash.ed_name ~data:ed.Enfflash.ed_param_types);
   let rules = fix_rule_defaults ed_map rules in
+  (* ── Add !T(args) guards to Cau_T rules for precision ────────────────── *)
+  (* When the enforcement typing produces a rule +Cau_T(args) for a table
+     or let-definition T, the rule's trigger may not include the guard
+     ¬T(args).  Without it, the rule fires for every matching event even if
+     T is already satisfied, leading to imprecise (redundant) causation.
+     For tables (SOnce), the guard persists across time-points.
+     For let-definitions, the guard prevents redundant iterations within
+     a single fixpoint.  We inject the guard here. *)
+  let table_names =
+    Set.of_list (module String)
+      (List.map (List.rev !tables) ~f:(fun td -> td.Enfflash.td_name)) in
+  let let_def_names =
+    Set.of_list (module String)
+      (List.map (List.rev !let_defs) ~f:(fun ld -> ld.Enfflash.ld_name)) in
+  let known_names = Set.union table_names let_def_names in
+  let rules =
+    List.map rules ~f:(fun (rule : Enfflash.rule_def) ->
+        match rule.rd_action with
+        | Enfflash.RCause
+          when String.is_prefix rule.rd_event ~prefix:"Cau_" ->
+          let target_name = String.drop_prefix rule.rd_event 4 in
+          if Set.mem known_names target_name then
+            let guard = Enfflash.FNot (
+                Enfflash.FTableLookup (target_name, rule.rd_params)) in
+            let new_filter = match rule.rd_trigger.cl_filter with
+              | Enfflash.FBoolLit true -> guard
+              | f -> Enfflash.FAnd (f, guard) in
+            { rule with rd_trigger =
+                          { rule.rd_trigger with cl_filter = new_filter } }
+          else rule
+        | _ -> rule) in
   Enfflash.{
     pg_event_decls = all_event_decls;
     pg_fun_decls   = fun_decls;

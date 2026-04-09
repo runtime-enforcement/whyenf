@@ -20,6 +20,7 @@ match {
     "delay",
     "next",
     "validate",
+    "or",
     // symbols
     ":=",
     "(",
@@ -157,17 +158,24 @@ ColDef: (String, Ty) = {
 };
 
 ClauseBody: Clause = {
-    <pats:PatternConj> "if" <filt:FilterOr> => Clause {
+    <pats:PatternDisj> "if" <filt:FilterOr> => Clause {
         patterns: pats,
         filter: filt,
     },
-    <pats:PatternConj> => Clause {
+    <pats:PatternDisj> => Clause {
         patterns: pats,
         filter: FilterExpr::BoolLit(true),
     },
     "if" <filt:FilterOr> => Clause {
         patterns: vec![],
         filter: filt,
+    },
+};
+
+PatternDisj: Vec<Vec<GuardPattern>> = {
+    <mut v:(<PatternConj> "or")*> <last:PatternConj> => {
+        v.push(last);
+        v
     },
 };
 
@@ -204,18 +212,19 @@ Action: RuleAction = {
 
 // ─── Patterns (event conjunction) ────────────────────────────────────────────
 
-PatternConj: Vec<EventPattern> = {
-    <mut v:(<SinglePattern> "&")*> <last:SinglePattern> => {
+PatternConj: Vec<GuardPattern> = {
+    <mut v:(<SingleGuardPattern> "&")*> <last:SingleGuardPattern> => {
         v.push(last);
         v
     },
 };
 
-SinglePattern: EventPattern = {
-    <name:Ident> "(" <args:Comma<PatArg>> ")" => EventPattern {
+SingleGuardPattern: GuardPattern = {
+    <name:Ident> "(" <args:Comma<PatArg>> ")" => GuardPattern::Event(EventPattern {
         name,
         args,
-    },
+    }),
+    <name:Ident> "==" <val:LitVal> => GuardPattern::EqConst(name, val),
 };
 
 PatArg: PatternArg = {

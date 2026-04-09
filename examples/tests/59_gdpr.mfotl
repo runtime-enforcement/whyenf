@@ -1,7 +1,0 @@
-LET DataProcessing(_p172 : string, _p173 : string, _p174 : string, _p175 : string)- = ∃ds. ∃ds'. ∃p. (Read(_p175, ds, _p174, p, ds')) ∧:L ((_p173) = "Minitwit, Inc.") ∧:L ((_p172) = "Minitwit, Inc.") IN
-LET IsCollection(_p130 : string, _p131 : string) = ∃d. ∃p. Collect(_p130, d, _p131, p) IN
-LET HasStorageCriteria(_p145 : string, _p146 : string) = ⊤ ∧ ((_p146) = "Data is stored until the user deletes their account") IN 
-LET HasStoragePeriod(_p251 : string, _p252 : int) = ⊥ IN
-LET IsStorageCriteria(_p88 : string, _p89 : string)+ = Declaration(_p88) ∧:L HasText(_p88, "The condition under which we keep your data is: " ^ string_of_criteria(_p89)) ∨:L Declaration(_p88) ∧ HasText(_p88, "The period for which we keep your data is: " ^ string_of_criteria(_p89)) IN 
- □[0s,∞) ∀c. ∀d. ∀ds. (∃a. ∃pr. DataProcessing(pr, c, a, d) ∧ IsCollection(a, ds) ∧ PersonalData(d, ds)) →:R ⧫[0s,∞) (∃de. ∃re. Inform(c, ds, de) ∧:L Contains(de, re) ∧:L (∀cr. HasStorageCriteria(d, cr) →:R IsStorageCriteria(re, cr)))
-

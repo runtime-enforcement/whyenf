@@ -1,6 +1,7 @@
 /// The enforcement engine: evaluates programs against logs.
 
 use std::collections::{BTreeSet, HashMap};
+use std::time::Instant;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use crate::ast::*;
@@ -10,6 +11,15 @@ use crate::table::{Table, Row};
 macro_rules! vlog {
     ($self:expr, $($arg:tt)*) => {
         if $self.verbose_mode {
+            eprintln!($($arg)*);
+        }
+    };
+}
+
+/// Level-2 verbose macro: prints only when verbose_level >= 2.
+macro_rules! vlog2 {
+    ($self:expr, $($arg:tt)*) => {
+        if $self.verbose_level >= 2 {
             eprintln!($($arg)*);
         }
     };
@@ -57,12 +67,14 @@ pub struct Engine {
     label_mode: bool,
     /// Whether to print verbose debug info
     verbose_mode: bool,
+    /// Verbose detail level: 0 = off, 1 = basic (same as verbose_mode), 2 = full detail
+    verbose_level: u8,
     /// Current time (verbose mode)
     current_time: std::time::SystemTime
 }
 
 impl Engine {
-    pub fn new(program: Program, label_mode: bool, verbose_mode: bool) -> Self {
+    pub fn new(program: Program, label_mode: bool, verbose_mode: bool, verbose_level: u8) -> Self {
         let event_names: BTreeSet<String> = program
             .event_decls
             .iter()
@@ -137,6 +149,7 @@ impl Engine {
             current_ts: None,
             label_mode,
             verbose_mode,
+            verbose_level,
             current_time: std::time::SystemTime::now()
         }
     }
@@ -154,6 +167,62 @@ impl Engine {
         eprintln!("Elapsed time: {:?}", elapsed);
         eprintln!("===============================");
         self.current_time = std::time::SystemTime::now();
+    }
+
+    /// Print program summary: let definitions, table definitions, rules overview.
+    /// Called once at engine start when verbose_mode is on.
+    pub fn print_program_summary(&self) {
+        eprintln!("╔══════════════════════════════════════════════════════════");
+        eprintln!("║ Program Summary");
+        eprintln!("╠══════════════════════════════════════════════════════════");
+        eprintln!("║ Events: {}", self.program.event_decls.len());
+        eprintln!("║ Tables: {}", self.program.tables.len());
+        eprintln!("║ Let definitions: {}", self.program.let_defs.len());
+        eprintln!("║ Rules: {}", self.program.rules.len());
+        eprintln!("╠── Let definitions ────────────────────────────────────────");
+        for def in &self.program.let_defs {
+            let params_str: String = def.params.iter()
+                .map(|(n, t)| format!("{}:{}", n, t))
+                .collect::<Vec<_>>().join(", ");
+            let filter_tag = if def.is_filter { " [filter]" } else { "" };
+            eprintln!("║ let {}({}){} := {}", def.name, params_str, filter_tag, def.body);
+        }
+        eprintln!("╠── Tables ────────────────────────────────────────────────");
+        for td in &self.program.tables {
+            let cols_str: String = td.columns.iter()
+                .map(|(n, t)| format!("{}:{}", n, t))
+                .collect::<Vec<_>>().join(", ");
+            let lag_tag = if td.lagged { " [lagged]" } else { "" };
+            eprintln!("║ table {}({}){}", td.name, cols_str, lag_tag);
+            // Show add clause patterns
+            let add_pats: Vec<String> = td.add_clause.patterns.iter().map(|conj| {
+                conj.iter().map(|g| format!("{}", g)).collect::<Vec<_>>().join(" & ")
+            }).collect();
+            if !add_pats.is_empty() {
+                eprintln!("║   add: {} if {}", add_pats.join(" or "), td.add_clause.filter);
+            }
+            if let Some(ref rm) = td.remove_clause {
+                let rm_pats: Vec<String> = rm.patterns.iter().map(|conj| {
+                    conj.iter().map(|g| format!("{}", g)).collect::<Vec<_>>().join(" & ")
+                }).collect();
+                eprintln!("║   rm:  {} if {}", rm_pats.join(" or "), rm.filter);
+            }
+        }
+        eprintln!("╠── Rules ─────────────────────────────────────────────────");
+        for (i, rule) in self.program.rules.iter().enumerate() {
+            let action_sym = match rule.action { RuleAction::Cause => "+", RuleAction::Suppress => "-", RuleAction::Observe => "?" };
+            let params_str: String = rule.params.iter()
+                .map(|p| format!("{}", p))
+                .collect::<Vec<_>>().join(", ");
+            let trig_pats: Vec<String> = rule.trigger.patterns.iter().map(|conj| {
+                conj.iter().map(|g| format!("{}", g)).collect::<Vec<_>>().join(" & ")
+            }).collect();
+            let delay_str = if let Some(d) = rule.delay { format!(" @+{}", d) } else if rule.tp_offset.is_some() { " @next".into() } else { String::new() };
+            eprintln!("║ #{}: {}{}({}){} when {} if {}",
+                i, action_sym, rule.event, params_str, delay_str,
+                trig_pats.join(" or "), rule.trigger.filter);
+        }
+        eprintln!("╚══════════════════════════════════════════════════════════");
     }
 
     /// Process a log supplied as an iterator, printing enforcer output for each time-point.
@@ -199,9 +268,12 @@ impl Engine {
 
         // 1. Update non-lagged  tables
         vlog!(self, "── Phase 1: update non-lagged tables ──");
+        let phase1_start = Instant::now();
         self.update_tables(&tp.events, false);
+        let phase1_elapsed = phase1_start.elapsed();
 
         // 2. Evaluate rules → produce suppress / cause lists
+        let phase2_start = Instant::now();
         //    We use a fixpoint loop: caused events are added to the event set
         //    and rules are re-evaluated until no new events are produced.
         let mut all_suppress: Vec<(EventInstance, Vec<String>)> = Vec::new();
@@ -257,6 +329,7 @@ impl Engine {
 
         const MAX_ITERATIONS: usize = 100;
         for _iteration in 0..MAX_ITERATIONS {
+            let iter_start = Instant::now();
             vlog!(self, "── Phase 2: fixpoint iteration {} ({} events in working set) ──",
                   _iteration, working_events.len());
             let mut new_suppress: Vec<(EventInstance, Vec<String>)> = Vec::new();
@@ -265,6 +338,20 @@ impl Engine {
             for rule_idx in 0..self.program.rules.len() {
                 let rule = self.program.rules[rule_idx].clone();
                 let bindings = self.match_clause_against_events(&rule.trigger, &working_events);
+
+                if self.verbose_level >= 2 && !bindings.is_empty() {
+                    let action_sym = match rule.action { RuleAction::Cause => "+", RuleAction::Suppress => "-", RuleAction::Observe => "?" };
+                    eprintln!("  [v2] rule #{} {}{}({}) → {} binding(s)",
+                        rule_idx, action_sym, rule.event,
+                        rule.params.iter().map(|p| format!("{:?}", p)).collect::<Vec<_>>().join(", "),
+                        bindings.len());
+                    for (bi, env) in bindings.iter().enumerate() {
+                        let env_str: String = env.iter()
+                            .map(|(k,v)| format!("{}={}", k, v))
+                            .collect::<Vec<_>>().join(", ");
+                        eprintln!("  [v2]   binding {}: {{{}}}", bi, env_str);
+                    }
+                }
 
                 let rule_label: Vec<String> = if self.label_mode {
                     rule.label.iter().cloned().collect()
@@ -276,21 +363,25 @@ impl Engine {
                     // Collect inherited labels from matched trigger pattern events
                     let inherited_labels: Vec<String> = if self.label_mode {
                         let mut inh = Vec::new();
-                        for pat in &rule.trigger.patterns {
-                            let resolved_args: Vec<Value> = pat.args.iter().map(|a| {
-                                match a {
-                                    PatternArg::Var(name) => {
-                                        env.get(name).cloned().unwrap_or(Value::Bool(false))
-                                    }
-                                    PatternArg::Literal(v) => v.clone(),
-                                    PatternArg::Wildcard => Value::Bool(false),
-                                }
-                            }).collect();
-                            let key = (pat.name.clone(), resolved_args);
-                            if let Some(labels) = working_labels.get(&key) {
-                                for l in labels {
-                                    if !inh.contains(l) {
-                                        inh.push(l.clone());
+                        for disj in &rule.trigger.patterns {
+                            for guard in disj {
+                                if let GuardPattern::Event(pat) = guard {
+                                    let resolved_args: Vec<Value> = pat.args.iter().map(|a| {
+                                        match a {
+                                            PatternArg::Var(name) => {
+                                                env.get(name).cloned().unwrap_or(Value::Bool(false))
+                                            }
+                                            PatternArg::Literal(v) => v.clone(),
+                                            PatternArg::Wildcard => Value::Bool(false),
+                                        }
+                                    }).collect();
+                                    let key = (pat.name.clone(), resolved_args);
+                                    if let Some(labels) = working_labels.get(&key) {
+                                        for l in labels {
+                                            if !inh.contains(l) {
+                                                inh.push(l.clone());
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -478,10 +569,32 @@ impl Engine {
                 }
             }
 
+            let iter_elapsed = iter_start.elapsed();
+
             // Check if we reached the fixpoint (no new events)
             if new_cause.is_empty() && new_suppress.is_empty() {
+                if self.verbose_mode {
+                    eprintln!("    iter {}: {:.1?} (fixpoint)", _iteration, iter_elapsed);
+                }
                 vlog!(self, "  → fixpoint reached after {} iteration(s)", _iteration + 1);
                 break;
+            }
+
+            if self.verbose_mode {
+                eprintln!("    iter {}: {:.1?} (+{} cause, +{} suppress)",
+                    _iteration, iter_elapsed, new_cause.len(), new_suppress.len());
+            }
+
+            // Level-2: show summary of this iteration's new events
+            if self.verbose_level >= 2 {
+                eprintln!("  ┌─ Iteration {} results ─", _iteration);
+                for (ev, _) in &new_cause {
+                    eprintln!("  │ + {}", ev);
+                }
+                for (ev, _) in &new_suppress {
+                    eprintln!("  │ - {}", ev);
+                }
+                eprintln!("  └─────────────────────────────");
             }
 
             // Add newly caused events to the working set so subsequent iterations
@@ -509,9 +622,47 @@ impl Engine {
             all_cause.extend(new_cause);
         }
 
+        let phase2_elapsed = phase2_start.elapsed();
+
         self.print_enforcer_output(&all_suppress, &all_cause, false);
 
+        // Level-2: print full summary of reactive enforcement decisions
+        if self.verbose_level >= 2 {
+            eprintln!("  ┌─ Reactive summary @{} ─", new_ts);
+            if all_suppress.is_empty() && all_cause.is_empty() {
+                eprintln!("  │ (no enforcement actions)");
+            }
+            for (ev, _) in &all_suppress {
+                if !ev.name.starts_with("Cau_") && !ev.name.starts_with("Sup_") {
+                    eprintln!("  │ SUPPRESS {}", ev);
+                }
+            }
+            for (ev, _) in &all_cause {
+                if !ev.name.starts_with("Cau_") && !ev.name.starts_with("Sup_") {
+                    eprintln!("  │ CAUSE {}", ev);
+                }
+            }
+            // Internal Cau_/Sup_ events (condensed)
+            let n_internal_cau = all_cause.iter().filter(|(ev, _)| ev.name.starts_with("Cau_") || ev.name.starts_with("Sup_")).count();
+            let n_internal_sup = all_suppress.iter().filter(|(ev, _)| ev.name.starts_with("Cau_") || ev.name.starts_with("Sup_")).count();
+            if n_internal_cau > 0 || n_internal_sup > 0 {
+                eprintln!("  │ ({} internal cause, {} internal suppress)", n_internal_cau, n_internal_sup);
+            }
+            eprintln!("  └─────────────────────────────");
+        }
+
+        // 2a. Re-update non-lagged tables with caused events from the fixpoint.
+        // During Phase 1 tables only saw the original timepoint events; caused events
+        // (e.g. B(1) caused by a rule for ONCE B(x)) need to feed into tables too.
+        let phase2a_start = Instant::now();
+        if working_events.len() > tp.events.len() {
+            vlog!(self, "── Phase 2a: re-update non-lagged tables with caused events ──");
+            self.update_tables(&working_events, false);
+        }
+        let phase2a_elapsed = phase2a_start.elapsed();
+
         // 2b. Discharge obligations at this timestamp (proactive, AFTER reactive)
+        let phase2b_start = Instant::now();
         {
             let mut proactive_cause: Vec<(EventInstance, Vec<String>)> = Vec::new();
             let mut proactive_suppress: Vec<(EventInstance, Vec<String>)> = Vec::new();
@@ -541,15 +692,22 @@ impl Engine {
             }
             self.print_enforcer_output(&proactive_suppress, &proactive_cause, true);
         }
+        let phase2b_elapsed = phase2b_start.elapsed();
+
         // Advance current_ts past this timepoint so flush_obligations
         // for the next timepoint starts at new_ts+1, not new_ts again.
         self.current_ts = Some(new_ts + 1);
 
         // 3. Update lagged tables
         vlog!(self, "── Phase 3: update lagged tables ──");
+        let phase3_start = Instant::now();
         self.update_tables(&tp.events, true);
+        let phase3_elapsed = phase3_start.elapsed();
 
         if self.verbose_mode {
+            let total = phase1_elapsed + phase2_elapsed + phase2a_elapsed + phase2b_elapsed + phase3_elapsed;
+            eprintln!("── Timing @{}: total {:.1?} │ P1(tables) {:.1?} │ P2(fixpoint) {:.1?} │ P2a(re-update) {:.1?} │ P2b(obligations) {:.1?} │ P3(lagged) {:.1?}",
+                new_ts, total, phase1_elapsed, phase2_elapsed, phase2a_elapsed, phase2b_elapsed, phase3_elapsed);
             self.print_stats();
         }
     }
@@ -663,7 +821,7 @@ impl Engine {
             // Process remove clause FIRST, then add.
             // If both match the same row, add wins (matches Since semantics).
             if let Some(ref rm_clause) = td.remove_clause {
-                let rm_envs = if rm_clause.patterns.is_empty() {
+                let rm_envs = if rm_clause.patterns.is_empty() || rm_clause.patterns.iter().all(|d| d.is_empty()) {
                     // Filter-only remove clause (no event patterns):
                     // evaluate filter against each existing row.
                     if let Some(table) = self.tables.get(&td.name) {
@@ -681,7 +839,7 @@ impl Engine {
                     }
                 } else {
                     // Pattern-based remove: match patterns against events
-                    self.match_patterns_against_events(&rm_clause.patterns, events)
+                    self.match_disjunctive_patterns_against_events(&rm_clause.patterns, events)
                 };
                 for env in &rm_envs {
                     let row: Row = td.columns.iter()
@@ -708,6 +866,14 @@ impl Engine {
 
             // Process add clause (after remove, so add wins on conflict)
             let add_bindings = self.match_clause_against_events(&td.add_clause, events);
+            if self.verbose_level >= 2 && !add_bindings.is_empty() {
+                eprintln!("  [v2] table {} add clause: {} binding(s) from {} events",
+                    td.name, add_bindings.len(), events.len());
+            }
+            if self.verbose_level >= 2 && add_bindings.is_empty() && td.name.starts_with("Once") {
+                eprintln!("  [v2] table {} add clause: NO bindings (filter unsatisfied) with {} events",
+                    td.name, events.len());
+            }
             for env in &add_bindings {
                 let row: Row = td
                     .columns
@@ -725,25 +891,79 @@ impl Engine {
                 }
             }
         }
+
+        // Level-2: dump all non-empty table contents after update
+        if self.verbose_level >= 2 {
+            eprintln!("  ┌─ Table contents after update ─");
+            let mut any = false;
+            for (name, table) in &self.tables {
+                if table.len() > 0 {
+                    any = true;
+                    eprintln!("  │ {} ({} rows):", name, table.len());
+                    for row in table.iter() {
+                        eprintln!("  │   [{}]",
+                            row.iter().map(|v| format!("{}", v)).collect::<Vec<_>>().join(", "));
+                    }
+                }
+            }
+            if !any {
+                eprintln!("  │ (all tables empty)");
+            }
+            eprintln!("  └─────────────────────────────");
+        }
     }
 
     // ─── Pattern matching ────────────────────────────────────────────────────
 
-    /// Match event patterns only (no filter) against a set of events.
+    /// Match a conjunction of guard patterns (events, let-defs, eq-consts) against events.
     /// Returns all valid binding environments.
-    fn match_patterns_against_events(
+    fn match_guard_conj_against_events(
         &self,
-        patterns: &[EventPattern],
+        guards: &[GuardPattern],
         events: &[EventInstance],
     ) -> Vec<Env> {
         let mut envs = vec![Env::new()];
-        for pat in patterns {
+        for guard in guards {
             let mut new_envs = Vec::new();
-            for env in &envs {
-                for event in events {
-                    if event.name == pat.name && event.args.len() == pat.args.len() {
-                        if let Some(extended) = self.try_match_pattern(pat, event, env) {
-                            new_envs.push(extended);
+            match guard {
+                GuardPattern::EqConst(var_name, val) => {
+                    // Bind variable to constant or check consistency
+                    for env in &envs {
+                        if let Some(existing) = env.get(var_name) {
+                            if existing == val {
+                                new_envs.push(env.clone());
+                            }
+                            // else: conflict, skip
+                        } else {
+                            let mut ext = env.clone();
+                            ext.insert(var_name.clone(), val.clone());
+                            new_envs.push(ext);
+                        }
+                    }
+                }
+                GuardPattern::Event(pat) => {
+                    for env in &envs {
+                        // Check if this pattern name is a let-def
+                        if let Some(_def) = self.let_defs.get(&pat.name) {
+                            let args_as_terms: Vec<TermExpr> = pat.args.iter().map(|a| match a {
+                                PatternArg::Var(name) => TermExpr::Var(name.clone()),
+                                PatternArg::Literal(v) => TermExpr::Lit(v.clone()),
+                                PatternArg::Wildcard => TermExpr::Lit(Value::Bool(false)),
+                            }).collect();
+                            let lookup = FilterExpr::TableLookup {
+                                name: pat.name.clone(),
+                                args: args_as_terms,
+                            };
+                            new_envs.extend(self.eval_filter_envs(&lookup, env, events));
+                            continue;
+                        }
+                        // Regular event pattern matching
+                        for event in events {
+                            if event.name == pat.name && event.args.len() == pat.args.len() {
+                                if let Some(extended) = self.try_match_pattern(pat, event, env) {
+                                    new_envs.push(extended);
+                                }
+                            }
                         }
                     }
                 }
@@ -753,14 +973,31 @@ impl Engine {
         envs
     }
 
-    /// Match a clause (conjunction of event patterns + filter) against a set of events.
+    /// Match disjunctive guard patterns (OR of AND-conjunctions) against events.
+    /// Returns the union of all bindings from any matching disjunct.
+    fn match_disjunctive_patterns_against_events(
+        &self,
+        pattern_disj: &[Vec<GuardPattern>],
+        events: &[EventInstance],
+    ) -> Vec<Env> {
+        if pattern_disj.is_empty() {
+            return vec![Env::new()];
+        }
+        let mut all_envs = Vec::new();
+        for conj in pattern_disj {
+            all_envs.extend(self.match_guard_conj_against_events(conj, events));
+        }
+        all_envs
+    }
+
+    /// Match a clause (disjunctive patterns + filter) against a set of events.
     /// Returns all valid binding environments, extended by any bindings from the filter.
     fn match_clause_against_events(
         &self,
         clause: &Clause,
         events: &[EventInstance],
     ) -> Vec<Env> {
-        let envs = self.match_patterns_against_events(&clause.patterns, events);
+        let envs = self.match_disjunctive_patterns_against_events(&clause.patterns, events);
         // Apply filter, collecting extended environments (for existential bindings)
         let mut result = Vec::new();
         for env in &envs {
@@ -800,6 +1037,24 @@ impl Engine {
         Some(new_env)
     }
 
+    /// Verify FunCall terms that were treated as wildcards during unification.
+    /// For each arg that is a FunCall, if all its variables are bound in env,
+    /// evaluate it and check it equals the matched value. If variables are
+    /// still unbound, skip (will be verified at a higher And-level).
+    fn verify_funcall_args(&self, args: &[TermExpr], vals: &[Value], env: &Env) -> bool {
+        for (arg, val) in args.iter().zip(vals.iter()) {
+            if let TermExpr::FunCall { .. } = arg {
+                if let Some(computed) = self.try_eval_term(arg, env) {
+                    if &computed != val {
+                        return false;
+                    }
+                }
+                // If can't evaluate (still has unbound vars), skip for now
+            }
+        }
+        true
+    }
+
     // ─── Filter evaluation ───────────────────────────────────────────────────
 
     fn eval_filter(&self, filter: &FilterExpr, env: &Env, events: &[EventInstance]) -> bool {
@@ -819,7 +1074,11 @@ impl Engine {
                     let vals: Vec<Value> = args.iter().map(|a| self.eval_term(a, env)).collect();
 
                     if let Some(table) = self.tables.get(name) {
-                        if table.contains(&vals) {
+                        let found = table.contains(&vals);
+                        vlog2!(self, "    [v2] TableLookup {}({}) in table → {}",
+                            name, vals.iter().map(|v| format!("{}", v)).collect::<Vec<_>>().join(", "),
+                            found);
+                        if found {
                             return vec![env.clone()];
                         }
                         return vec![];
@@ -831,14 +1090,22 @@ impl Engine {
                             def_env.insert(pn.clone(), val.clone());
                         }
                         let body = def.body.clone();
-                        if self.eval_filter(&body, &def_env, events) {
+                        let result = self.eval_filter(&body, &def_env, events);
+                        vlog2!(self, "    [v2] LetDef {}({}) → {}",
+                            name, vals.iter().map(|v| format!("{}", v)).collect::<Vec<_>>().join(", "),
+                            result);
+                        if result {
                             return vec![env.clone()];
                         }
                         return vec![];
                     }
 
                     if self.event_names.contains(name) {
-                        if events.iter().any(|ev| ev.name == *name && ev.args == vals) {
+                        let found = events.iter().any(|ev| ev.name == *name && ev.args == vals);
+                        vlog2!(self, "    [v2] EventLookup {}({}) in {} events → {}",
+                            name, vals.iter().map(|v| format!("{}", v)).collect::<Vec<_>>().join(", "),
+                            events.len(), found);
+                        if found {
                             return vec![env.clone()];
                         }
                         return vec![];
@@ -852,7 +1119,9 @@ impl Engine {
                     if let Some(table) = self.tables.get(name) {
                         for row in table.iter() {
                             if let Some(ext) = try_unify_args(args, row, env) {
-                                result.push(ext);
+                                if self.verify_funcall_args(args, row, &ext) {
+                                    result.push(ext);
+                                }
                             }
                         }
                         return result;
@@ -862,7 +1131,9 @@ impl Engine {
                         for ev in events {
                             if ev.name == *name && ev.args.len() == args.len() {
                                 if let Some(ext) = try_unify_args(args, &ev.args, env) {
-                                    result.push(ext);
+                                    if self.verify_funcall_args(args, &ev.args, &ext) {
+                                        result.push(ext);
+                                    }
                                 }
                             }
                         }
@@ -917,13 +1188,17 @@ impl Engine {
             }
 
             FilterExpr::And(l, r) => {
-                // Evaluate left side, collecting extended envs (existential bindings)
-                let envs = self.eval_filter_envs(l, env, events);
-                // For each env that satisfied the left, check the right
+                // Evaluate left-to-right, collecting extended envs (existential bindings).
+                // FunCall terms in l are treated as wildcards during initial matching.
+                let l_envs = self.eval_filter_envs(l, env, events);
                 let mut result = Vec::new();
-                for e in &envs {
+                for e in &l_envs {
                     result.extend(self.eval_filter_envs(r, e, events));
                 }
+                // Re-verify: now that r may have bound additional variables,
+                // re-check l to validate any FunCall terms that were wildcarded
+                // during the initial left-to-right evaluation.
+                result.retain(|env| self.eval_filter(l, env, events));
                 result
             }
 
@@ -1184,9 +1459,9 @@ fn try_unify_term(term: &TermExpr, val: &Value, env: &mut Env) -> bool {
         }
         TermExpr::Lit(lit) => lit == val,
         TermExpr::FunCall { .. } => {
-            // Can't unify a function call against a value during existential search
-            // Would need to evaluate — skip for now
-            false
+            // Treat FunCall terms as wildcards during initial unification.
+            // They are verified in a second pass once all variables are bound.
+            true
         }
     }
 }

@@ -30,9 +30,9 @@ struct Cli {
     #[arg(long)]
     label: bool,
 
-    /// Print debug info about the engine's internal state
-    #[arg(long)]
-    verbose: bool,
+    /// Print debug info about the engine's internal state (0=off, 1=basic, 2=full detail)
+    #[arg(long, default_value_t = 0)]
+    verbose: u8,
 }
 
 fn main() {
@@ -77,7 +77,10 @@ fn main() {
         None => Box::new(io::BufReader::new(io::stdin())),
     };
 
-    let mut engine = engine::Engine::new(program, cli.label, cli.verbose);
+    let mut engine = engine::Engine::new(program, cli.label, cli.verbose > 0, cli.verbose);
+    if cli.verbose > 0 {
+        engine.print_program_summary();
+    }
     let tp_parser = log_parser::SingleTimePointParser::new();
     let mut buf = String::new();
     for line in reader.lines() {

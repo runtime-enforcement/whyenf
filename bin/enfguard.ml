@@ -50,7 +50,7 @@ module Enfguard = struct
         | None -> "enfflash" (* hope it's on PATH *)
 
   let run debug sig_file formula_file functions_file output_file run_enfflash log_file
-        label verbose =
+        label (verbose : int) =
     if debug then Global.debug := true;
     (match sig_file with
      | Some sf -> Other_parser.Sig.parse_from_channel sf
@@ -100,7 +100,7 @@ module Enfguard = struct
              let args = [enfflash_bin; "--program"; ef]
                @ (match log_file with Some l -> ["--log"; l] | None -> [])
                @ (if label then ["--label"] else [])
-               @ (if verbose then ["--verbose"] else [])
+               @ (if verbose > 0 then ["--verbose"; string_of_int verbose] else [])
              in
              eprintf "[enfguard] Running: %s\n" (String.concat ~sep:" " args);
              let argv = Array.of_list args in
@@ -125,7 +125,7 @@ module Enfguard = struct
        and run_enfflash = flag "-run" no_arg ~doc:" Compile and run enfflash"
        and log_file = flag "-log" (optional string) ~doc:"FILE Log file (for -run mode; reads stdin if omitted)"
        and label = flag "-label" no_arg ~doc:" Print rule labels in enforcement output"
-       and verbose = flag "-verbose" no_arg ~doc:" Print debug info about the engine's internal state"
+       and verbose = flag "-verbose" (optional_with_default 0 int) ~doc:"LEVEL Verbosity level (0=off, 1=basic, 2=full detail)"
        in
        fun () ->
        run debug sig_file formula_file functions_file output_file run_enfflash log_file
