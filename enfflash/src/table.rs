@@ -52,4 +52,10 @@ impl Table {
     pub fn iter(&self) -> impl Iterator<Item = &Row> {
         self.rows.iter()
     }
+
+    /// Remove all rows.
+    #[inline]
+    pub fn clear(&mut self) {
+        self.rows.clear();
+    }
 }

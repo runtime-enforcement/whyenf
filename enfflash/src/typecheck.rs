@@ -103,7 +103,7 @@ pub fn check_program(program: &Program) -> CheckErrors {
         for (pname, pty) in &ld.params {
             ctx.insert(pname.clone(), pty.clone());
         }
-        check_filter(&te, &ctx, &ld.body, &format!("let '{}'", ld.name), &mut errs);
+        check_clause(&te, &ld.clause, None, &format!("let '{}'", ld.name), &mut errs);
     }
 
     // Check table clauses

@@ -51,6 +51,10 @@ struct Obligation {
 pub struct Engine {
     pub program: Program,
     pub tables: HashMap<String, Table>,
+    pub let_tables: HashMap<String, Table>,
+    /// Let-defs where at least one row had an unbound parameter
+    /// → the let-def is universally true (matches any lookup).
+    let_full: BTreeSet<String>,
     /// Set of event names declared as events (for disambiguation)
     event_names: BTreeSet<String>,
     /// Named boolean predicates: `let` definitions
@@ -82,9 +86,17 @@ impl Engine {
             .collect();
 
         let mut tables = HashMap::new();
+        
         for td in &program.tables {
             let cols: Vec<String> = td.columns.iter().map(|(n, _)| n.clone()).collect();
             tables.insert(td.name.clone(), Table::new(td.name.clone(), cols));
+        }
+
+        let mut let_tables = HashMap::new();    
+
+        for ld in &program.let_defs {
+            let cols: Vec<String> = ld.params.iter().map(|(n, _)| n.clone()).collect();
+            let_tables.insert(ld.name.clone(), Table::new(ld.name.clone(), cols));
         }
 
         // Collect let definitions
@@ -141,6 +153,8 @@ impl Engine {
         Engine {
             program,
             tables,
+            let_tables,
+            let_full: BTreeSet::new(),
             event_names,
             let_defs,
             py_functions,
@@ -185,7 +199,14 @@ impl Engine {
                 .map(|(n, t)| format!("{}:{}", n, t))
                 .collect::<Vec<_>>().join(", ");
             let filter_tag = if def.is_filter { " [filter]" } else { "" };
-            eprintln!("║ let {}({}){} := {}", def.name, params_str, filter_tag, def.body);
+            let pats: Vec<String> = def.clause.patterns.iter().map(|conj| {
+                conj.iter().map(|g| format!("{}", g)).collect::<Vec<_>>().join(" & ")
+            }).collect();
+            if pats.is_empty() {
+                eprintln!("║ let {}({}){} := if {}", def.name, params_str, filter_tag, def.clause.filter);
+            } else {
+                eprintln!("║ let {}({}){} := {} if {}", def.name, params_str, filter_tag, pats.join(" or "), def.clause.filter);
+            }
         }
         eprintln!("╠── Tables ────────────────────────────────────────────────");
         for td in &self.program.tables {
@@ -266,10 +287,10 @@ impl Engine {
         }
         self.current_ts = Some(new_ts);
 
-        // 1. Update non-lagged  tables
-        vlog!(self, "── Phase 1: update non-lagged tables ──");
+        // 1. Update non-lagged tables and let-defs in original formula order
+        vlog!(self, "── Phase 1: update non-lagged tables and let-defs ──");
         let phase1_start = Instant::now();
-        self.update_tables(&tp.events, false);
+        self.update_tables_and_lets(&tp.events, false);
         let phase1_elapsed = phase1_start.elapsed();
 
         // 2. Evaluate rules → produce suppress / cause lists
@@ -330,6 +351,9 @@ impl Engine {
         const MAX_ITERATIONS: usize = 100;
         for _iteration in 0..MAX_ITERATIONS {
             let iter_start = Instant::now();
+            // Re-evaluate tables and let-defs against the (growing) working event set
+            // so that they see events caused in previous iterations.
+            self.update_tables_and_lets(&working_events, false);
             vlog!(self, "── Phase 2: fixpoint iteration {} ({} events in working set) ──",
                   _iteration, working_events.len());
             let mut new_suppress: Vec<(EventInstance, Vec<String>)> = Vec::new();
@@ -391,179 +415,81 @@ impl Engine {
                         vec![]
                     };
 
-                    if let Some(let_def) = self.let_defs.get(&rule.event).cloned() {
-                        // ── Let-bound predicate rule ─────────────────────────
-                        let action_sym = match rule.action { RuleAction::Cause => "+", RuleAction::Suppress => "-", RuleAction::Observe => "?" };
-                        vlog!(self, "  rule #{} {}{} (let-bound) matched with {} binding(s)",
-                              rule_idx, action_sym, rule.event, 1);
-                        let mut def_env = env.clone();
-                        for ((pn, _), rp) in let_def.params.iter().zip(rule.params.iter()) {
-                            if let Some(val) = self.try_eval_term(rp, env) {
-                                def_env.insert(pn.clone(), val.clone());
-                            }
-                        }
-                        let labels: Vec<String> = if self.label_mode {
-                            let mut all = Vec::new();
-                            for l in rule_label.iter().chain(let_def.label.iter()).chain(inherited_labels.iter()) {
-                                if !all.contains(l) {
-                                    all.push(l.clone());
-                                }
-                            }
-                            all
-                        } else {
-                            vec![]
-                        };
-                        let body = let_def.body.clone();
+                    // ── Regular event rule ───────────────────────────────
+                    let args: Vec<Value> = rule
+                        .params
+                        .iter()
+                        .map(|p| self.try_eval_term(p, env).clone().unwrap_or(Value::Bool(false)))
+                        .collect();
+                    let ev = EventInstance { name: rule.event.clone(), args };
+                    let action_sym = match rule.action { RuleAction::Cause => "+", RuleAction::Suppress => "-", RuleAction::Observe => "?" };
+                    vlog!(self, "  rule #{} {}{} matched → {}",
+                            rule_idx, action_sym, rule.event, ev);
 
-                        match rule.action {
-                            RuleAction::Cause => {
-                                let events = self.collect_cause_events(&body, &def_env)
-                                    .unwrap_or_else(|| panic!(
-                                        "Rule '+{}': let body must be a pure conjunction of event patterns (no comparisons/negations)",
-                                        rule.event
-                                    ));
-                                if let Some(_tp_off) = rule.tp_offset {
-                                    for ev in events {
-                                        self.next_tp_obligations.push(Obligation {
-                                            event: ev,
-                                            action: RuleAction::Cause,
-                                            deadline: 0,
-                                            validate: rule.validate.clone(),
-                                            env: env.clone(),
-                                            rule_idx,
-                                            labels: labels.clone(),
-                                        });
-                                    }
-                                } else if let Some(delay) = rule.delay {
-                                    for ev in events {
-                                        self.obligations
-                                            .entry(self.current_ts.unwrap() + delay)
-                                            .or_default()
-                                            .push(Obligation {
-                                                event: ev,
-                                                action: RuleAction::Cause,
-                                                deadline: self.current_ts.unwrap() + delay,
-                                                validate: rule.validate.clone(),
-                                                env: env.clone(),
-                                                rule_idx,
-                                                labels: labels.clone(),
-                                            });
-                                    }
-                                } else {
-                                    for ev in events {
-                                        let key = (ev.name.clone(), ev.args.clone());
-                                        if !caused_set.contains(&key) {
-                                            caused_set.insert(key);
-                                            new_cause.push((ev, labels.clone()));
-                                        }
-                                    }
-                                }
+                    // Combine rule's own label with inherited labels
+                    let combined_labels: Vec<String> = if self.label_mode {
+                        let mut all = Vec::new();
+                        for l in rule_label.iter().chain(inherited_labels.iter()) {
+                            if !all.contains(l) {
+                                all.push(l.clone());
                             }
-                            RuleAction::Suppress => {
-                                if let Some(ev) = self.find_leftmost_event(&body, &def_env) {
-                                    if let Some(_tp_off) = rule.tp_offset {
-                                        self.next_tp_obligations.push(Obligation {
-                                            event: ev,
-                                            action: RuleAction::Suppress,
-                                            deadline: 0,
-                                            validate: rule.validate.clone(),
-                                            env: env.clone(),
-                                            rule_idx,
-                                            labels: labels.clone(),
-                                        });
-                                    } else if let Some(delay) = rule.delay {
-                                        self.obligations
-                                            .entry(self.current_ts.unwrap() + delay)
-                                            .or_default()
-                                            .push(Obligation {
-                                                event: ev,
-                                                action: RuleAction::Suppress,
-                                                deadline: self.current_ts.unwrap() + delay,
-                                                validate: rule.validate.clone(),
-                                                env: env.clone(),
-                                                rule_idx,
-                                                labels: labels.clone(),
-                                            });
-                                    } else {
-                                        let key = (ev.name.clone(), ev.args.clone());
-                                        if !suppressed_set.contains(&key) {
-                                            suppressed_set.insert(key);
-                                            new_suppress.push((ev, labels.clone()));
-                                        }
-                                    }
-                                }
-                            }
-                            RuleAction::Observe => {}
                         }
+                        all
                     } else {
-                        // ── Regular event rule ───────────────────────────────
-                        let args: Vec<Value> = rule
-                            .params
-                            .iter()
-                            .map(|p| self.try_eval_term(p, env).clone().unwrap_or(Value::Bool(false)))
-                            .collect();
-                        let ev = EventInstance { name: rule.event.clone(), args };
-                        let action_sym = match rule.action { RuleAction::Cause => "+", RuleAction::Suppress => "-", RuleAction::Observe => "?" };
-                        vlog!(self, "  rule #{} {}{} matched → {}",
-                              rule_idx, action_sym, rule.event, ev);
+                        vec![]
+                    };
 
-                        // Combine rule's own label with inherited labels
-                        let combined_labels: Vec<String> = if self.label_mode {
-                            let mut all = Vec::new();
-                            for l in rule_label.iter().chain(inherited_labels.iter()) {
-                                if !all.contains(l) {
-                                    all.push(l.clone());
-                                }
-                            }
-                            all
-                        } else {
-                            vec![]
-                        };
-
-                        if let Some(_tp_off) = rule.tp_offset {
-                            // Next-tp obligation: fires at the next real time-point
-                            vlog!(self, "    → next-tp obligation: {} {}", action_sym, ev);
-                            self.next_tp_obligations.push(Obligation {
+                    if let Some(_tp_off) = rule.tp_offset {
+                        // Next-tp obligation: fires at the next real time-point
+                        vlog!(self, "    → next-tp obligation: {} {}", action_sym, ev);
+                        self.next_tp_obligations.push(Obligation {
+                            event: ev,
+                            action: rule.action,
+                            deadline: 0, // not used for next-tp
+                            validate: rule.validate.clone(),
+                            env: env.clone(),
+                            rule_idx,
+                            labels: combined_labels,
+                        });
+                    } else if let Some(delay) = rule.delay {
+                        vlog!(self, "    → obligation: {} {} at ts+{}", action_sym, ev, delay);
+                        self.obligations
+                            .entry(self.current_ts.unwrap() + delay)
+                            .or_default()
+                            .push(Obligation {
                                 event: ev,
                                 action: rule.action,
-                                deadline: 0, // not used for next-tp
+                                deadline: self.current_ts.unwrap() + delay,
                                 validate: rule.validate.clone(),
                                 env: env.clone(),
                                 rule_idx,
                                 labels: combined_labels,
                             });
-                        } else if let Some(delay) = rule.delay {
-                            vlog!(self, "    → obligation: {} {} at ts+{}", action_sym, ev, delay);
-                            self.obligations
-                                .entry(self.current_ts.unwrap() + delay)
-                                .or_default()
-                                .push(Obligation {
-                                    event: ev,
-                                    action: rule.action,
-                                    deadline: self.current_ts.unwrap() + delay,
-                                    validate: rule.validate.clone(),
-                                    env: env.clone(),
-                                    rule_idx,
-                                    labels: combined_labels,
-                                });
-                        } else {
-                            match rule.action {
-                                RuleAction::Suppress => {
-                                    let key = (ev.name.clone(), ev.args.clone());
-                                    if !suppressed_set.contains(&key) {
-                                        suppressed_set.insert(key);
-                                        new_suppress.push((ev, combined_labels));
+                    } else {
+                        match rule.action {
+                            RuleAction::Suppress => {
+                                let key = (ev.name.clone(), ev.args.clone());
+                                if !suppressed_set.contains(&key) {
+                                    suppressed_set.insert(key);
+                                    if !combined_labels.is_empty() {
+                                        working_labels.insert((ev.name.clone(), ev.args.clone()), combined_labels.clone());
                                     }
+                                    working_events.push(ev.clone());
+                                    new_suppress.push((ev, combined_labels));
                                 }
-                                RuleAction::Cause => {
-                                    let key = (ev.name.clone(), ev.args.clone());
-                                    if !caused_set.contains(&key) {
-                                        caused_set.insert(key);
-                                        new_cause.push((ev, combined_labels));
-                                    }
-                                }
-                                RuleAction::Observe => {}
                             }
+                            RuleAction::Cause => {
+                                let key = (ev.name.clone(), ev.args.clone());
+                                if !caused_set.contains(&key) {
+                                    caused_set.insert(key);
+                                    if !combined_labels.is_empty() {
+                                        working_labels.insert((ev.name.clone(), ev.args.clone()), combined_labels.clone());
+                                    }
+                                    working_events.push(ev.clone());
+                                    new_cause.push((ev, combined_labels));
+                                }
+                            }
+                            RuleAction::Observe => {}
                         }
                     }
                 }
@@ -595,27 +521,6 @@ impl Engine {
                     eprintln!("  │ - {}", ev);
                 }
                 eprintln!("  └─────────────────────────────");
-            }
-
-            // Add newly caused events to the working set so subsequent iterations
-            // can match them in triggers / filters.
-            for (ev, labels) in &new_cause {
-                vlog!(self, "  → new cause: {}", ev);
-                caused_set.insert((ev.name.clone(), ev.args.clone()));
-                if !labels.is_empty() {
-                    working_labels.insert((ev.name.clone(), ev.args.clone()), labels.clone());
-                }
-                working_events.push(ev.clone());
-            }
-            for (ev, labels) in &new_suppress {
-                vlog!(self, "  → new suppress: {}", ev);
-                suppressed_set.insert((ev.name.clone(), ev.args.clone()));
-                if !labels.is_empty() {
-                    working_labels.insert((ev.name.clone(), ev.args.clone()), labels.clone());
-                }
-                // Suppressed events are also added to the working set so that
-                // subsequent rules can observe the suppression.
-                working_events.push(ev.clone());
             }
 
             all_suppress.extend(new_suppress);
@@ -651,15 +556,7 @@ impl Engine {
             eprintln!("  └─────────────────────────────");
         }
 
-        // 2a. Re-update non-lagged tables with caused events from the fixpoint.
-        // During Phase 1 tables only saw the original timepoint events; caused events
-        // (e.g. B(1) caused by a rule for ONCE B(x)) need to feed into tables too.
-        let phase2a_start = Instant::now();
-        if working_events.len() > tp.events.len() {
-            vlog!(self, "── Phase 2a: re-update non-lagged tables with caused events ──");
-            self.update_tables(&working_events, false);
-        }
-        let phase2a_elapsed = phase2a_start.elapsed();
+        // (Tables are now updated during the fixpoint, no separate Phase 2a needed)
 
         // 2b. Discharge obligations at this timestamp (proactive, AFTER reactive)
         let phase2b_start = Instant::now();
@@ -701,13 +598,13 @@ impl Engine {
         // 3. Update lagged tables
         vlog!(self, "── Phase 3: update lagged tables ──");
         let phase3_start = Instant::now();
-        self.update_tables(&tp.events, true);
+        self.update_tables_and_lets(&tp.events, true);
         let phase3_elapsed = phase3_start.elapsed();
 
         if self.verbose_mode {
-            let total = phase1_elapsed + phase2_elapsed + phase2a_elapsed + phase2b_elapsed + phase3_elapsed;
-            eprintln!("── Timing @{}: total {:.1?} │ P1(tables) {:.1?} │ P2(fixpoint) {:.1?} │ P2a(re-update) {:.1?} │ P2b(obligations) {:.1?} │ P3(lagged) {:.1?}",
-                new_ts, total, phase1_elapsed, phase2_elapsed, phase2a_elapsed, phase2b_elapsed, phase3_elapsed);
+            let total = phase1_elapsed + phase2_elapsed + phase2b_elapsed + phase3_elapsed;
+            eprintln!("── Timing @{}: total {:.1?} │ P1(tables+lets) {:.1?} │ P2(fixpoint) {:.1?} │ P2b(obligations) {:.1?} │ P3(lagged) {:.1?}",
+                new_ts, total, phase1_elapsed, phase2_elapsed, phase2b_elapsed, phase3_elapsed);
             self.print_stats();
         }
     }
@@ -810,93 +707,142 @@ impl Engine {
         }
     }
 
-    // ─── Table updates ───────────────────────────────────────────────────────
+    // ─── Unified table + let-def updates (in original formula order) ────────
 
-    fn update_tables(&mut self, events: &[EventInstance], lagged: bool) {
-        let table_defs: Vec<TableDef> = self.program.tables.clone();
-        for td in &table_defs {
-            if td.lagged != lagged {
-                continue; // skip if this table is not meant to be updated at this time-point
-            }
-            // Process remove clause FIRST, then add.
-            // If both match the same row, add wins (matches Since semantics).
-            if let Some(ref rm_clause) = td.remove_clause {
-                let rm_envs = if rm_clause.patterns.is_empty() || rm_clause.patterns.iter().all(|d| d.is_empty()) {
-                    // Filter-only remove clause (no event patterns):
-                    // evaluate filter against each existing row.
-                    if let Some(table) = self.tables.get(&td.name) {
-                        let mut envs = Vec::new();
-                        for row in table.iter() {
-                            let mut env = Env::new();
-                            for ((col_name, _), val) in td.columns.iter().zip(row.iter()) {
-                                env.insert(col_name.clone(), val.clone());
-                            }
-                            envs.push(env);
-                        }
-                        envs
-                    } else {
-                        vec![]
+    fn update_tables_and_lets(&mut self, events: &[EventInstance], lagged: bool) {
+        let items: Vec<ProgramItem> = self.program.items.clone();
+        for item in &items {
+            match item {
+                ProgramItem::Table(td) => {
+                    if td.lagged != lagged {
+                        continue;
                     }
-                } else {
-                    // Pattern-based remove: match patterns against events
-                    self.match_disjunctive_patterns_against_events(&rm_clause.patterns, events)
-                };
-                for env in &rm_envs {
-                    let row: Row = td.columns.iter()
-                        .map(|(col_name, _)| {
-                            env.get(col_name).unwrap_or_else(|| {
-                                panic!(
-                                    "Table '{}' remove clause: column '{}' not bound by patterns",
-                                    td.name, col_name
-                                )
-                            }).clone()
-                        })
-                        .collect();
-                    if self.eval_filter(&rm_clause.filter, env, events) {
+                    // Process remove clause FIRST, then add.
+                    // If both match the same row, add wins (matches Since semantics).
+                    if let Some(ref rm_clause) = td.remove_clause {
+                        let rm_envs = if rm_clause.patterns.is_empty() || rm_clause.patterns.iter().all(|d| d.is_empty()) {
+                            if let Some(table) = self.tables.get(&td.name) {
+                                let mut envs = Vec::new();
+                                for row in table.iter() {
+                                    let mut env = Env::new();
+                                    for ((col_name, _), val) in td.columns.iter().zip(row.iter()) {
+                                        env.insert(col_name.clone(), val.clone());
+                                    }
+                                    envs.push(env);
+                                }
+                                envs
+                            } else {
+                                vec![]
+                            }
+                        } else {
+                            self.match_disjunctive_patterns_against_events(&rm_clause.patterns, events)
+                        };
+                        for env in &rm_envs {
+                            let row: Row = td.columns.iter()
+                                .map(|(col_name, _)| {
+                                    env.get(col_name).unwrap_or_else(|| {
+                                        panic!(
+                                            "Table '{}' remove clause: column '{}' not bound by patterns",
+                                            td.name, col_name
+                                        )
+                                    }).clone()
+                                })
+                                .collect();
+                            if self.eval_filter(&rm_clause.filter, env, events) {
+                                if let Some(table) = self.tables.get_mut(&td.name) {
+                                    let existed = table.remove(&row);
+                                    if existed {
+                                        vlog!(self, "  table {} -= [{}]", td.name,
+                                              row.iter().map(|v| format!("{}", v)).collect::<Vec<_>>().join(", "));
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Process add clause (after remove, so add wins on conflict)
+                    let add_bindings = self.match_clause_against_events(&td.add_clause, events);
+                    if self.verbose_level >= 2 && !add_bindings.is_empty() {
+                        eprintln!("  [v2] table {} add clause: {} binding(s) from {} events",
+                            td.name, add_bindings.len(), events.len());
+                    }
+                    if self.verbose_level >= 2 && add_bindings.is_empty() && td.name.starts_with("Once") {
+                        eprintln!("  [v2] table {} add clause: NO bindings (filter unsatisfied) with {} events",
+                            td.name, events.len());
+                    }
+                    for env in &add_bindings {
+                        let row: Row = td
+                            .columns
+                            .iter()
+                            .map(|(col_name, _)| {
+                                env.get(col_name).cloned().unwrap_or(Value::Bool(false))
+                            })
+                            .collect();
                         if let Some(table) = self.tables.get_mut(&td.name) {
-                            let existed = table.remove(&row);
-                            if existed {
-                                vlog!(self, "  table {} -= [{}]", td.name,
+                            let is_new = table.add(row.clone());
+                            if is_new {
+                                vlog!(self, "  table {} += [{}]", td.name,
                                       row.iter().map(|v| format!("{}", v)).collect::<Vec<_>>().join(", "));
                             }
                         }
                     }
                 }
-            }
-
-            // Process add clause (after remove, so add wins on conflict)
-            let add_bindings = self.match_clause_against_events(&td.add_clause, events);
-            if self.verbose_level >= 2 && !add_bindings.is_empty() {
-                eprintln!("  [v2] table {} add clause: {} binding(s) from {} events",
-                    td.name, add_bindings.len(), events.len());
-            }
-            if self.verbose_level >= 2 && add_bindings.is_empty() && td.name.starts_with("Once") {
-                eprintln!("  [v2] table {} add clause: NO bindings (filter unsatisfied) with {} events",
-                    td.name, events.len());
-            }
-            for env in &add_bindings {
-                let row: Row = td
-                    .columns
-                    .iter()
-                    .map(|(col_name, _)| {
-                        env.get(col_name).cloned().unwrap_or(Value::Bool(false))
-                    })
-                    .collect();
-                if let Some(table) = self.tables.get_mut(&td.name) {
-                    let is_new = table.add(row.clone());
-                    if is_new {
-                        vlog!(self, "  table {} += [{}]", td.name,
-                              row.iter().map(|v| format!("{}", v)).collect::<Vec<_>>().join(", "));
+                ProgramItem::Let(ld) => {
+                    if lagged { continue; }
+                    // Clear previous rows — let-defs are re-evaluated from scratch
+                    if let Some(let_table) = self.let_tables.get_mut(&ld.name) {
+                        let_table.clear();
+                    }
+                    self.let_full.remove(&ld.name);
+                    // Process clause
+                    let add_bindings = self.match_clause_against_events(&ld.clause, events);
+                    if self.verbose_level >= 2 && !add_bindings.is_empty() {
+                        eprintln!("  [v2] let table {} clause: {} binding(s) from {} events",
+                            ld.name, add_bindings.len(), events.len());
+                    }
+                    for env in &add_bindings {
+                        // Check if all parameters are bound in the env
+                        let all_bound = ld.params.iter().all(|(col_name, _)| env.contains_key(col_name));
+                        if !all_bound {
+                            // At least one parameter is unbound → the let-def
+                            // is universally true (matches any argument tuple).
+                            self.let_full.insert(ld.name.clone());
+                        }
+                        let row: Row = ld
+                            .params
+                            .iter()
+                            .map(|(col_name, _)| {
+                                env.get(col_name).cloned().unwrap_or(Value::Bool(false))
+                            })
+                            .collect();
+                        if let Some(let_table) = self.let_tables.get_mut(&ld.name) {
+                            let is_new = let_table.add(row.clone());
+                            if is_new {
+                                vlog!(self, "  let table {} += [{}]", ld.name,
+                                      row.iter().map(|v| format!("{}", v)).collect::<Vec<_>>().join(", "));
+                            }
+                        }
                     }
                 }
+                ProgramItem::Rule(_) => {} // rules handled separately
             }
         }
 
-        // Level-2: dump all non-empty table contents after update
+        // Level-2: dump all non-empty table and let-table contents after update
         if self.verbose_level >= 2 {
             eprintln!("  ┌─ Table contents after update ─");
             let mut any = false;
             for (name, table) in &self.tables {
+                if table.len() > 0 {
+                    any = true;
+                    eprintln!("  │ {} ({} rows):", name, table.len());
+                    for row in table.iter() {
+                        eprintln!("  │   [{}]",
+                            row.iter().map(|v| format!("{}", v)).collect::<Vec<_>>().join(", "));
+                    }
+                }
+            }
+            for (name, table) in &self.let_tables {
                 if table.len() > 0 {
                     any = true;
                     eprintln!("  │ {} ({} rows):", name, table.len());
@@ -1084,17 +1030,14 @@ impl Engine {
                         return vec![];
                     }
 
-                    if let Some(def) = self.let_defs.get(name) {
-                        let mut def_env = env.clone();
-                        for ((pn, _), val) in def.params.iter().zip(vals.iter()) {
-                            def_env.insert(pn.clone(), val.clone());
-                        }
-                        let body = def.body.clone();
-                        let result = self.eval_filter(&body, &def_env, events);
-                        vlog2!(self, "    [v2] LetDef {}({}) → {}",
+                    if let Some(let_table) = self.let_tables.get(name) {
+                        // Check if this let-def has universal (wildcard) rows
+                        let universal = self.let_full.contains(name);
+                        let found = universal || let_table.contains(&vals);
+                        vlog2!(self, "    [v2] LetDef {}({}) → {}{}",
                             name, vals.iter().map(|v| format!("{}", v)).collect::<Vec<_>>().join(", "),
-                            result);
-                        if result {
+                            found, if universal { " [universal]" } else { "" });
+                        if found {
                             return vec![env.clone()];
                         }
                         return vec![];
@@ -1127,6 +1070,17 @@ impl Engine {
                         return result;
                     }
 
+                    if let Some(let_table) = self.let_tables.get(name) {
+                        for row in let_table.iter() {
+                            if let Some(ext) = try_unify_args(args, row, env) {
+                                if self.verify_funcall_args(args, row, &ext) {
+                                    result.push(ext);
+                                }
+                            }
+                        }
+                        return result;
+                    }
+
                     if self.event_names.contains(name) {
                         for ev in events {
                             if ev.name == *name && ev.args.len() == args.len() {
@@ -1135,44 +1089,6 @@ impl Engine {
                                         result.push(ext);
                                     }
                                 }
-                            }
-                        }
-                        return result;
-                    }
-
-                    // Let definitions with free args: bind what we can, evaluate body,
-                    // and propagate internal parameter bindings back to caller variables.
-                    if let Some(def) = self.let_defs.get(name) {
-                        let mut def_env = env.clone();
-                        for ((pn, _), arg) in def.params.iter().zip(args.iter()) {
-                            if let Some(val) = try_eval_term_partial(arg, env) {
-                                def_env.insert(pn.clone(), val);
-                            }
-                        }
-                        let body = def.body.clone();
-                        // Use eval_filter_envs to get all satisfying environments
-                        // (which may bind internal params via equality/lookups)
-                        let body_envs = self.eval_filter_envs(&body, &def_env, events);
-                        for body_env in &body_envs {
-                            // Map internal param bindings back to caller arg variables
-                            let mut ext_env = env.clone();
-                            let mut consistent = true;
-                            for ((pn, _), arg) in def.params.iter().zip(args.iter()) {
-                                if let TermExpr::Var(caller_var) = arg {
-                                    if let Some(val) = body_env.get(pn) {
-                                        if let Some(existing) = ext_env.get(caller_var) {
-                                            if existing != val {
-                                                consistent = false;
-                                                break;
-                                            }
-                                        } else {
-                                            ext_env.insert(caller_var.clone(), val.clone());
-                                        }
-                                    }
-                                }
-                            }
-                            if consistent {
-                                result.push(ext_env);
                             }
                         }
                         return result;
@@ -1204,9 +1120,7 @@ impl Engine {
 
             FilterExpr::Or(l, r) => {
                 let mut result = self.eval_filter_envs(l, env, events);
-                if result.is_empty() {
-                    result = self.eval_filter_envs(r, env, events);
-                }
+                result.extend(self.eval_filter_envs(r, env, events));
                 result
             }
 
@@ -1331,64 +1245,6 @@ impl Engine {
         }
     }
 
-    // ─── Existential quantification helpers ──────────────────────────────────
-
-    // ─── Let-bound predicate expansion ───────────────────────────────────────
-
-    /// Collect all event instances to cause from a let body.
-    /// The body must be a conjunction of event-name lookups (and `BoolLit(true)` leaves).
-    /// Returns `None` if the body contains any non-event conditions (comparisons, negations, table
-    /// lookups, let-def calls) — callers should treat this as a runtime error.
-    fn collect_cause_events(&self, filter: &FilterExpr, env: &Env) -> Option<Vec<EventInstance>> {
-        match filter {
-            FilterExpr::BoolLit(true) => Some(vec![]),
-            FilterExpr::BoolLit(false) => Some(vec![]),
-            FilterExpr::And(l, r) => {
-                let mut left = self.collect_cause_events(l, env)?;
-                let right = self.collect_cause_events(r, env)?;
-                left.extend(right);
-                Some(left)
-            }
-            FilterExpr::TableLookup { name, args } if self.event_names.contains(name) => {
-                let vals: Vec<Value> = args.iter().map(|a| self.eval_term(a, env)).collect();
-                Some(vec![EventInstance { name: name.clone(), args: vals }])
-            }
-            FilterExpr::TableLookup { name, args } if self.let_defs.contains_key(name) => {
-                let def = self.let_defs[name].clone();
-                let vals: Vec<Value> = args.iter().map(|a| self.eval_term(a, env)).collect();
-                let mut def_env = env.clone();
-                for ((pn, _), val) in def.params.iter().zip(vals.iter()) {
-                    def_env.insert(pn.clone(), val.clone());
-                }
-                self.collect_cause_events(&def.body.clone(), &def_env)
-            }
-            _ => None, // table lookup, comparison, negation — not allowed
-        }
-    }
-
-    /// Find the leftmost event reference in a let body (for suppression).
-    /// Traverses the And-tree depth-first, left-to-right.
-    fn find_leftmost_event(&self, filter: &FilterExpr, env: &Env) -> Option<EventInstance> {
-        match filter {
-            FilterExpr::And(l, r) => self
-                .find_leftmost_event(l, env)
-                .or_else(|| self.find_leftmost_event(r, env)),
-            FilterExpr::TableLookup { name, args } if self.event_names.contains(name) => {
-                let vals: Vec<Value> = args.iter().map(|a| self.eval_term(a, env)).collect();
-                Some(EventInstance { name: name.clone(), args: vals })
-            }
-            FilterExpr::TableLookup { name, args } if self.let_defs.contains_key(name) => {
-                let def = self.let_defs[name].clone();
-                let vals: Vec<Value> = args.iter().map(|a| self.eval_term(a, env)).collect();
-                let mut def_env = env.clone();
-                for ((pn, _), val) in def.params.iter().zip(vals.iter()) {
-                    def_env.insert(pn.clone(), val.clone());
-                }
-                self.find_leftmost_event(&def.body.clone(), &def_env)
-            }
-            _ => None,
-        }
-    }
 }
 
 /// Try to evaluate a term if all its variables are bound. Returns None if any var is unbound.

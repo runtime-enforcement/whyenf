@@ -109,6 +109,8 @@ pub struct Program {
     pub let_defs: Vec<LetDef>,
     pub tables: Vec<TableDef>,
     pub rules: Vec<RuleDef>,
+    /// Interleaved order of tables and let-defs for correct evaluation
+    pub items: Vec<ProgramItem>,
 }
 
 #[derive(Debug, Clone)]
@@ -138,7 +140,7 @@ pub struct LetDef {
     pub is_filter: bool,
     pub name: String,
     pub params: Vec<(String, Ty)>,
-    pub body: FilterExpr,
+    pub clause: Clause,
 }
 
 /// Helper for parsing interleaved tables, rules and let definitions.

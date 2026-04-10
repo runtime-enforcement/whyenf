@@ -69,7 +69,7 @@ type let_def = {
   ld_is_filter: bool;
   ld_name: string;
   ld_params: (string * ef_ty) list;
-  ld_body: filter_expr;
+  ld_clause: clause;
 }
 
 type table_def = {
@@ -92,12 +92,17 @@ type rule_def = {
   rd_validate: filter_expr option;
 }
 
+type program_item =
+  | PiLet of let_def
+  | PiTable of table_def
+
 type program = {
   pg_event_decls: event_decl list;
   pg_fun_decls: fun_decl list;
   pg_let_defs: let_def list;
   pg_tables: table_def list;
   pg_rules: rule_def list;
+  pg_items: program_item list;
 }
 
 (* ─── Serialization to .ef text format ───────────────────────────────────── *)
@@ -220,12 +225,12 @@ let fun_decl_to_string fd =
 
 let let_def_to_string ld =
   let keyword = if ld.ld_is_filter then "filter let" else "let" in
-  Printf.sprintf "%s%s %s(%s) := {\n  %s\n}"
+  Printf.sprintf "%s%s %s(%s) := {\n%s\n}"
     (label_prefix ld.ld_label)
     keyword
     ld.ld_name
     (typed_params_to_string ld.ld_params)
-    (filter_expr_to_string ld.ld_body)
+    (clause_to_string ~indent:"  " ld.ld_clause)
 
 let table_def_to_string td =
   let lagged_str = if td.td_lagged then "lagged " else "" in
@@ -278,12 +283,11 @@ let program_to_string pg =
   (* Function declarations *)
   List.iter pg.pg_fun_decls ~f:(fun fd -> emit (fun_decl_to_string fd));
   if not (List.is_empty pg.pg_fun_decls) then emit_blank ();
-  (* Let definitions *)
-  List.iter pg.pg_let_defs ~f:(fun ld ->
-      emit (let_def_to_string ld); emit_blank ());
-  (* Table definitions *)
-  List.iter pg.pg_tables ~f:(fun td ->
-      emit (table_def_to_string td); emit_blank ());
+  (* Let definitions and table definitions in original order *)
+  List.iter pg.pg_items ~f:(fun item ->
+      match item with
+      | PiLet ld -> emit (let_def_to_string ld); emit_blank ()
+      | PiTable td -> emit (table_def_to_string td); emit_blank ());
   (* Rule definitions *)
   List.iter pg.pg_rules ~f:(fun rd ->
       emit (rule_def_to_string rd); emit_blank ());

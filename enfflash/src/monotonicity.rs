@@ -95,6 +95,6 @@ pub fn compute_let_monotonicity(
     monotonicities: &HashMap<String, HashMap<String, Monotonicity>>
 ) -> HashMap<String, Monotonicity> {    
     let mut monotonicity = HashMap::new();
-    compute_filter_monotonicity(&let_def.body, &mut monotonicity, monotonicities, true);
+    compute_filter_monotonicity(&let_def.clause.filter, &mut monotonicity, monotonicities, true);
     monotonicity
 }

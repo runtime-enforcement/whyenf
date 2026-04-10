@@ -61,11 +61,11 @@ pub Program: Program = {
         let mut let_defs = Vec::new();
         let mut tables = Vec::new();
         let mut rules = Vec::new();
-        for item in items {
+        for item in &items {
             match item {
-                ProgramItem::Let(l) => let_defs.push(l),
-                ProgramItem::Table(t) => tables.push(t),
-                ProgramItem::Rule(r) => rules.push(r),
+                ProgramItem::Let(l) => let_defs.push(l.clone()),
+                ProgramItem::Table(t) => tables.push(t.clone()),
+                ProgramItem::Rule(r) => rules.push(r.clone()),
             }
         }
         Program {
@@ -74,6 +74,7 @@ pub Program: Program = {
             let_defs,
             tables,
             rules,
+            items,
         }
     },
 };
@@ -123,19 +124,19 @@ TypeName: Ty = {
 // ─── Let definitions ─────────────────────────────────────────────────────────────
 
 LetDefStmt: LetDef = {
-    <lbl:Label?> "let" <name:Ident> "(" <params:Comma<ColDef>> ")" ":=" "{" <body:FilterOr> "}" => LetDef {
+    <lbl:Label?> "let" <name:Ident> "(" <params:Comma<ColDef>> ")" ":=" "{" <clause:ClauseBody> "}" => LetDef {
         label: lbl,
         is_filter: false,
         name,
         params,
-        body,
+        clause,
     },
-    <lbl:Label?> "filter" "let" <name:Ident> "(" <params:Comma<ColDef>> ")" ":=" "{" <body:FilterOr> "}" => LetDef {
+    <lbl:Label?> "filter" "let" <name:Ident> "(" <params:Comma<ColDef>> ")" ":=" "{" <clause:ClauseBody> "}" => LetDef {
         label: lbl,
         is_filter: true,
         name,
         params,
-        body,
+        clause,
     },
 };
 // ─── Table definitions ───────────────────────────────────────────────────────

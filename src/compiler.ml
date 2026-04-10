@@ -307,6 +307,99 @@ let trigger_to_clause
   Enfflash.{ cl_patterns = decompose_guard_disj trigger.guards;
              cl_filter   = formula_to_filter trigger.filter }
 
+(* ═══════════════════════════════════════════════════════════════════════════ *)
+(* SNow trigger → Clause with event extraction                                *)
+(*                                                                            *)
+(* For present-time (SNow) let-defs, `trigger.guards` may be empty because    *)
+(* `pull_guard` only promotes predicates that guard an unguarded variable.     *)
+(* When all free variables are already the let-def's parameters, no guards     *)
+(* are pulled and trace events like Declaration(x) end up in the filter.      *)
+(*                                                                            *)
+(* This function additionally scans the filter's top-level conjunction for     *)
+(* trace-event predicates and promotes them to event patterns.                 *)
+(* ═══════════════════════════════════════════════════════════════════════════ *)
+
+(* Flatten a formula's top-level conjunction into a list of conjuncts. *)
+let rec flatten_conj (f: Tyformula.t) : Tyformula.t list =
+  match f.form with
+  | And (_, fs) -> List.concat_map fs ~f:flatten_conj
+  | _ -> [f]
+
+(* Build a conjunction from a list of formulas. *)
+let rebuild_conj (fs: Tyformula.t list) : Tyformula.t =
+  match fs with
+  | []  -> Tyformula.make_dummy Tyformula.TT
+  | [f] -> f
+  | _   -> Tyformula.make_dummy (Tyformula.And (Side.N, fs))
+
+(* For an SNow trigger: extract trace-event predicates from the filter
+   and combine with any existing guards to form a proper clause. *)
+
+(* Fresh-variable counter for event-pattern wildcard slots. *)
+let fresh_var_counter = ref 0
+let fresh_var () =
+  let n = !fresh_var_counter in
+  Int.incr fresh_var_counter;
+  Printf.sprintf "_ep%d" n
+
+(* Convert a predicate conjunct to an event pattern, handling complex args.
+   For each argument that is not a simple Var or Const, we bind a fresh
+   variable in the pattern and return a filter equality constraint:
+     fresh_var == complex_expr
+   Returns (guard_pattern, extra_filter_exprs). *)
+let predicate_to_event_pattern (name: string) (args: Tterm.t list)
+  : Enfflash.guard_pattern * Enfflash.filter_expr list =
+  let open Enfflash in
+  let extra_filters = ref [] in
+  let pattern_args = List.map args ~f:(fun t ->
+      match t.trm with
+      | Var x   -> PAVar (san (fst x))
+      | Const d -> PALiteral (dom_to_ef d)
+      | _       ->
+        (* Complex expression: bind to a fresh variable and add filter *)
+        let v = fresh_var () in
+        extra_filters := FCompare (TEVar v, CmpEq, term_to_ef t) :: !extra_filters;
+        PAVar v) in
+  let gp = GEvent { ep_name = sanitize_name name; ep_args = pattern_args } in
+  (gp, List.rev !extra_filters)
+
+let snow_trigger_to_clause
+    ~(let_map: Enforcement.let_map)
+    (trigger: Enforcement.trigger)
+  : Enfflash.clause =
+  (* Start with any guards already present (usually empty for SNow) *)
+  let base_patterns = decompose_guard_disj trigger.guards in
+  (* Flatten the filter into conjuncts *)
+  let conjuncts = flatten_conj trigger.filter in
+  (* Separate event predicates from non-event parts *)
+  let events, rest = List.partition_tf conjuncts ~f:(fun f ->
+      match f.form with
+      | Tyformula.Predicate (name, _) -> is_pattern_event name
+      | _ -> false) in
+  (* Convert event predicates to guard patterns, collecting extra filters *)
+  let event_patterns = ref [] in
+  let extra_filters = ref [] in
+  List.iter events ~f:(fun f ->
+      match f.form with
+      | Tyformula.Predicate (name, args) ->
+        let gp, ef = predicate_to_event_pattern name args in
+        event_patterns := gp :: !event_patterns;
+        extra_filters := ef @ !extra_filters
+      | _ -> ());
+  let event_patterns = List.rev !event_patterns in
+  let extra_filters = List.rev !extra_filters in
+  (* Merge: if base_patterns has disjuncts, add events to each;
+     otherwise create a single disjunct with just the events. *)
+  let patterns = match base_patterns, event_patterns with
+    | _, [] -> base_patterns
+    | [], eps -> [eps]
+    | disjs, eps ->
+      List.map disjs ~f:(fun conj -> conj @ eps) in
+  (* Remaining conjuncts become the filter, plus any extra equality filters *)
+  let remaining_filter = formula_to_filter (rebuild_conj rest) in
+  let cl_filter = merge_filters (remaining_filter :: extra_filters) in
+  Enfflash.{ cl_patterns = patterns; cl_filter }
+
 
 (* ═══════════════════════════════════════════════════════════════════════════ *)
 (* Compile event declarations from the Sig table                              *)
@@ -513,43 +606,20 @@ let compile_let_from_switch
   let sanitized = sanitize_name name in
   match switch with
   | SNow trigger ->
-    (* Present-time predicate → let-def.
-       We incorporate BOTH the guards (DNF of event/predicate lookups)
-       and the filter into the let body.  This way the engine can
-       recursively evaluate the body — iterating events and other
-       let-defs to bind free variables — while preserving fixpoint
-       semantics (let-defs are re-evaluated each time they are
-       referenced, unlike tables which are snapshot-based). *)
-    let base_filter = formula_to_filter trigger.filter in
-    (* Convert guard DNF into a filter expression:
-       guards = [[g1;g2]; [g3;g4]] → (g1 ∧ g2) ∨ (g3 ∧ g4) *)
-    let guard_filter =
-      match trigger.guards with
-      | [] -> Enfflash.FBoolLit true
-      | disjuncts ->
-        let conj_to_filter conj =
-          let parts = List.filter_map conj ~f:(fun g ->
-              let f = formula_to_filter g in
-              match f with Enfflash.FBoolLit true -> None | _ -> Some f) in
-          merge_filters parts in
-        let disj_filters = List.map disjuncts ~f:conj_to_filter in
-        (match disj_filters with
-         | []       -> Enfflash.FBoolLit true
-         | [f]      -> f
-         | f :: rest ->
-           List.fold_left rest ~init:f
-             ~f:(fun acc g -> Enfflash.FOr (acc, g)))
-    in
-    let body = match guard_filter, base_filter with
-      | Enfflash.FBoolLit true, f -> f
-      | f, Enfflash.FBoolLit true -> f
-      | g, f -> Enfflash.FAnd (g, f) in
+    (* Present-time predicate → let-def with a proper clause.
+       Guard events (trace events, let-defs) become event patterns;
+       non-event guards and the trigger filter become the clause filter. *)
+    let clause = snow_trigger_to_clause ~let_map trigger in
+    let has_patterns = not (List.is_empty clause.cl_patterns)
+                       || not (List.for_all clause.cl_patterns
+                                ~f:List.is_empty) in
+    let has_event_filter = filter_has_event_ref clause.cl_filter in
     `Let Enfflash.{
         ld_label = label;
-        ld_is_filter = not (filter_has_event_ref body);
+        ld_is_filter = not has_patterns && not has_event_filter;
         ld_name  = sanitized;
         ld_params = columns;
-        ld_body  = body;
+        ld_clause = clause;
       }
   | SOnce trigger ->
     (* Monotone accumulation: table with add, no remove. *)
@@ -787,6 +857,7 @@ let compile
   let fun_decls = compile_fun_decls ~py_source () in
   let let_defs  = ref [] in
   let tables    = ref [] in
+  let items     = ref [] in
   (* ── Process each compiled let ────────────────────────────────────────── *)
   List.iter lets ~f:(fun (name, _enftype, args, body_pos, body_neg_opt, _clauses_opt) ->
       let label, _sanitized = parse_label_name name in
@@ -794,8 +865,8 @@ let compile
         match switch_opt with
         | Some switch ->
           (match compile_let_from_switch ~let_map ~name:vname ~label:vlabel ~args ~switch with
-           | `Let ld  -> let_defs := ld :: !let_defs
-           | `Table td -> tables := td :: !tables)
+           | `Let ld  -> let_defs := ld :: !let_defs; items := Enfflash.PiLet ld :: !items
+           | `Table td -> tables := td :: !tables; items := Enfflash.PiTable td :: !items)
         | None ->
           (* No switch info available: compile the body formula as a let definition.
              It is a filter let unless the body references trace events. *)
@@ -803,13 +874,15 @@ let compile
             List.map args ~f:(fun (v, tt_opt) ->
                 (san (fst v), match tt_opt with Some tt -> tt_to_ef tt | None -> tt_to_ef (snd v))) in
           let body = typed_formula_to_filter fallback_body in
-          let_defs := Enfflash.{
+          let ld = Enfflash.{
               ld_label  = vlabel;
               ld_is_filter = not (filter_has_event_ref body);
               ld_name   = sanitize_name vname;
               ld_params = columns;
-              ld_body   = body;
-            } :: !let_defs
+              ld_clause = { cl_patterns = []; cl_filter = body };
+            } in
+          let_defs := ld :: !let_defs;
+          items := Enfflash.PiLet ld :: !items
       in
       let def_opt = Map.find let_map name in
       match body_neg_opt with
@@ -881,6 +954,7 @@ let compile
     pg_let_defs    = List.rev !let_defs;
     pg_tables      = List.rev !tables;
     pg_rules       = rules;
+    pg_items       = List.rev !items;
   }
 
 (* ═══════════════════════════════════════════════════════════════════════════ *)
