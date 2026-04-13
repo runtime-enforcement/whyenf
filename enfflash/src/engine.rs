@@ -67,6 +67,9 @@ pub struct Engine {
     next_tp_obligations: Vec<Obligation>,
     /// Current timestamp
     current_ts: Option<u64>,
+    /// The timestamp for which we last emitted proactive output
+    /// (to avoid duplicates when multiple TPs share the same ts).
+    last_proactive_ts: Option<u64>,
     /// Whether to print rule labels on enforcement actions
     label_mode: bool,
     /// Whether to print verbose debug info
@@ -161,6 +164,7 @@ impl Engine {
             obligations: HashMap::new(),
             next_tp_obligations: Vec::new(),
             current_ts: None,
+            last_proactive_ts: None,
             label_mode,
             verbose_mode,
             verbose_level,
@@ -261,8 +265,16 @@ impl Engine {
 
     /// Flush all remaining delayed obligations (call after the last time-point).
     pub fn finish(&mut self) {
+        // Emit proactive output for the last timestamp seen
+        if let Some(ts) = self.current_ts {
+            self.emit_proactive(ts);
+        }
+        // Flush any obligations at future timestamps
         if let Some(max_ts) = self.obligations.keys().max().cloned() {
-            self.flush_obligations(max_ts + 1);
+            let start = self.current_ts.map_or(0, |t| t + 1);
+            if start <= max_ts {
+                self.flush_obligations_range(start, max_ts + 1);
+            }
         }
     }
 
@@ -276,16 +288,26 @@ impl Engine {
         }
         vlog!(self, "╚══════════════════════════════════════════════════════════");
 
-        // If timestamp advanced, check obligations whose deadline is now past
-        if self.current_ts == None {
-            self.current_ts = Some(new_ts);
+        // If timestamp advanced, flush obligations for intermediate timestamps
+        // and emit proactive output for the previous timestamp.
+        match self.current_ts {
+            None => {
+                self.current_ts = Some(new_ts);
+            }
+            Some(prev_ts) if new_ts > prev_ts => {
+                // Timestamp advanced: emit proactive for prev_ts (if not yet done),
+                // then flush obligations for the gap (prev_ts+1 .. new_ts-1).
+                self.emit_proactive(prev_ts);
+                if new_ts > prev_ts + 1 {
+                    // Flush obligations in the gap (prev_ts+1 .. new_ts-1)
+                    self.flush_obligations_range(prev_ts + 1, new_ts);
+                }
+                self.current_ts = Some(new_ts);
+            }
+            _ => {
+                // Same timestamp — just continue accumulating
+            }
         }
-
-        if new_ts > self.current_ts.unwrap() {
-            // Flush intermediate timestamps in [current_ts, new_ts) — proactive gap-fill
-            self.flush_obligations(new_ts);
-        }
-        self.current_ts = Some(new_ts);
 
         // 1. Update non-lagged tables and let-defs in original formula order
         vlog!(self, "── Phase 1: update non-lagged tables and let-defs ──");
@@ -558,42 +580,11 @@ impl Engine {
 
         // (Tables are now updated during the fixpoint, no separate Phase 2a needed)
 
-        // 2b. Discharge obligations at this timestamp (proactive, AFTER reactive)
+        // Proactive output is deferred: it will be emitted when the timestamp
+        // actually advances (or at finish()), so that multiple TPs at the same
+        // timestamp produce only one proactive line.
         let phase2b_start = Instant::now();
-        {
-            let mut proactive_cause: Vec<(EventInstance, Vec<String>)> = Vec::new();
-            let mut proactive_suppress: Vec<(EventInstance, Vec<String>)> = Vec::new();
-            let mut seen_cause: BTreeSet<(String, Vec<Value>)> = BTreeSet::new();
-            let mut seen_suppress: BTreeSet<(String, Vec<Value>)> = BTreeSet::new();
-            for ob in self.obligations.remove(&new_ts).unwrap_or_default() {
-                let valid = match &ob.validate {
-                    Some(f) => self.eval_filter(f, &ob.env, &[]),
-                    None => true,
-                };
-                if valid {
-                    let key = (ob.event.name.clone(), ob.event.args.clone());
-                    match ob.action {
-                        RuleAction::Cause => {
-                            if seen_cause.insert(key) {
-                                proactive_cause.push((ob.event, ob.labels));
-                            }
-                        }
-                        RuleAction::Suppress => {
-                            if seen_suppress.insert(key) {
-                                proactive_suppress.push((ob.event, ob.labels));
-                            }
-                        }
-                        RuleAction::Observe  => {}
-                    }
-                }
-            }
-            self.print_enforcer_output(&proactive_suppress, &proactive_cause, true);
-        }
         let phase2b_elapsed = phase2b_start.elapsed();
-
-        // Advance current_ts past this timepoint so flush_obligations
-        // for the next timepoint starts at new_ts+1, not new_ts again.
-        self.current_ts = Some(new_ts + 1);
 
         // 3. Update lagged tables
         vlog!(self, "── Phase 3: update lagged tables ──");
@@ -609,44 +600,53 @@ impl Engine {
         }
     }
 
-    /// Discharge obligations whose deadline < `up_to_ts`.
-    /// Only prints proactive output for timestamps that actually have obligations.
-    fn flush_obligations(&mut self, up_to_ts: u64) {
-        vlog!(self, "── Flushing obligations with deadline < {} ──", up_to_ts);
-
-        let start = self.current_ts.unwrap();
-        for ts in start..up_to_ts {
-            self.current_ts = Some(ts);
-            let mut proactive_cause: Vec<(EventInstance, Vec<String>)> = Vec::new();
-            let mut proactive_suppress: Vec<(EventInstance, Vec<String>)> = Vec::new();
-            let mut seen_cause: BTreeSet<(String, Vec<Value>)> = BTreeSet::new();
-            let mut seen_suppress: BTreeSet<(String, Vec<Value>)> = BTreeSet::new();
-            for ob in self.obligations.remove(&ts).unwrap_or_default() {
-                let valid = match &ob.validate {
-                    Some(f) => self.eval_filter(f, &ob.env, &[]),
-                    None => true,
-                };
-                if valid {
-                    let key = (ob.event.name.clone(), ob.event.args.clone());
-                    match ob.action {
-                        RuleAction::Cause => {
-                            if seen_cause.insert(key) {
-                                proactive_cause.push((ob.event, ob.labels));
-                            }
+    /// Emit proactive output for a given timestamp (discharge obligations + print).
+    /// Does nothing if proactive was already emitted for this ts.
+    fn emit_proactive(&mut self, ts: u64) {
+        if self.last_proactive_ts == Some(ts) {
+            return; // already emitted
+        }
+        self.last_proactive_ts = Some(ts);
+        let saved_ts = self.current_ts;
+        self.current_ts = Some(ts);
+        let mut proactive_cause: Vec<(EventInstance, Vec<String>)> = Vec::new();
+        let mut proactive_suppress: Vec<(EventInstance, Vec<String>)> = Vec::new();
+        let mut seen_cause: BTreeSet<(String, Vec<Value>)> = BTreeSet::new();
+        let mut seen_suppress: BTreeSet<(String, Vec<Value>)> = BTreeSet::new();
+        for ob in self.obligations.remove(&ts).unwrap_or_default() {
+            let valid = match &ob.validate {
+                Some(f) => self.eval_filter(f, &ob.env, &[]),
+                None => true,
+            };
+            if valid {
+                let key = (ob.event.name.clone(), ob.event.args.clone());
+                match ob.action {
+                    RuleAction::Cause => {
+                        if seen_cause.insert(key) {
+                            proactive_cause.push((ob.event, ob.labels));
                         }
-                        RuleAction::Suppress => {
-                            if seen_suppress.insert(key) {
-                                proactive_suppress.push((ob.event, ob.labels));
-                            }
-                        }
-                        RuleAction::Observe  => {}
                     }
+                    RuleAction::Suppress => {
+                        if seen_suppress.insert(key) {
+                            proactive_suppress.push((ob.event, ob.labels));
+                        }
+                    }
+                    RuleAction::Observe  => {}
                 }
             }
-            self.print_enforcer_output(&proactive_suppress, &proactive_cause, true);
         }
-        self.current_ts = Some(up_to_ts);
+        self.print_enforcer_output(&proactive_suppress, &proactive_cause, true);
+        self.current_ts = saved_ts;
     }
+
+    /// Discharge obligations for timestamps in [from_ts, up_to_ts).
+    fn flush_obligations_range(&mut self, from_ts: u64, up_to_ts: u64) {
+        vlog!(self, "── Flushing obligations in [{}, {}) ──", from_ts, up_to_ts);
+        for ts in from_ts..up_to_ts {
+            self.emit_proactive(ts);
+        }
+    }
+
 
     fn print_enforcer_output(
         &self,
