@@ -30,6 +30,10 @@ struct Cli {
     #[arg(long)]
     label: bool,
 
+    /// Output enforcement actions in JSON format
+    #[arg(long)]
+    json: bool,
+
     /// Print debug info about the engine's internal state (0=off, 1=basic, 2=full detail)
     #[arg(long, default_value_t = 0)]
     verbose: u8,
@@ -77,7 +81,7 @@ fn main() {
         None => Box::new(io::BufReader::new(io::stdin())),
     };
 
-    let mut engine = engine::Engine::new(program, cli.label, cli.verbose > 0, cli.verbose);
+    let mut engine = engine::Engine::new(program, cli.label, cli.json, cli.verbose > 0, cli.verbose);
     if cli.verbose > 0 {
         engine.print_program_summary();
     }

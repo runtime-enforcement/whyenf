@@ -49,9 +49,11 @@ module Enfguard = struct
         | Some p -> p
         | None -> "enfflash" (* hope it's on PATH *)
 
-  let run debug sig_file formula_file functions_file output_file run_enfflash log_file
-        label (verbose : int) =
+  let run debug sig_file formula_file functions_file output_file no_run log_file
+        label json (verbose : int) =
+    let run_enfflash = not no_run in
     if debug then Global.debug := true;
+    if json then Global.json := true;
     (match sig_file with
      | Some sf -> Other_parser.Sig.parse_from_channel sf
      | None -> ());
@@ -100,6 +102,7 @@ module Enfguard = struct
              let args = [enfflash_bin; "--program"; ef]
                @ (match log_file with Some l -> ["--log"; l] | None -> [])
                @ (if label then ["--label"] else [])
+               @ (if json then ["--json"] else [])
                @ (if verbose > 0 then ["--verbose"; string_of_int verbose] else [])
              in
              eprintf "[enfguard] Running: %s\n" (String.concat ~sep:" " args);
@@ -122,14 +125,15 @@ module Enfguard = struct
        and formula_file = flag "-formula" (optional string) ~doc:"FILE MFOTL formula file"
        and functions_file = flag "-func" (optional string) ~doc:"FILE Python file containing function definitions"
        and output_file = flag "-output" (optional string) ~doc:"FILE Enfflash file"
-       and run_enfflash = flag "-run" no_arg ~doc:" Compile and run enfflash"
-       and log_file = flag "-log" (optional string) ~doc:"FILE Log file (for -run mode; reads stdin if omitted)"
+       and no_run = flag "-no-run" no_arg ~doc:" Only compile, do not run enfflash"
+       and log_file = flag "-log" (optional string) ~doc:"FILE Log file (reads stdin if omitted)"
        and label = flag "-label" no_arg ~doc:" Print rule labels in enforcement output"
+       and json = flag "-json" no_arg ~doc:" Output enforcement actions in JSON format"
        and verbose = flag "-verbose" (optional_with_default 0 int) ~doc:"LEVEL Verbosity level (0=off, 1=basic, 2=full detail)"
        in
        fun () ->
-       run debug sig_file formula_file functions_file output_file run_enfflash log_file
-         label verbose)
+       run debug sig_file formula_file functions_file output_file no_run log_file
+         label json verbose)
 
 end
 

@@ -72,6 +72,8 @@ pub struct Engine {
     last_proactive_ts: Option<u64>,
     /// Whether to print rule labels on enforcement actions
     label_mode: bool,
+    /// Whether to output enforcement actions in JSON format
+    json_mode: bool,
     /// Whether to print verbose debug info
     verbose_mode: bool,
     /// Verbose detail level: 0 = off, 1 = basic (same as verbose_mode), 2 = full detail
@@ -81,7 +83,7 @@ pub struct Engine {
 }
 
 impl Engine {
-    pub fn new(program: Program, label_mode: bool, verbose_mode: bool, verbose_level: u8) -> Self {
+    pub fn new(program: Program, label_mode: bool, json_mode: bool, verbose_mode: bool, verbose_level: u8) -> Self {
         let event_names: BTreeSet<String> = program
             .event_decls
             .iter()
@@ -166,6 +168,7 @@ impl Engine {
             current_ts: None,
             last_proactive_ts: None,
             label_mode,
+            json_mode,
             verbose_mode,
             verbose_level,
             current_time: std::time::SystemTime::now()
@@ -662,10 +665,58 @@ impl Engine {
         let cause: Vec<_> = cause.iter()
             .filter(|(ev, _)| !ev.name.starts_with("Cau_") && !ev.name.starts_with("Sup_"))
             .collect();
+        if self.json_mode {
+            self.print_enforcer_output_json(&suppress, &cause, proactive);
+        } else {
+            self.print_enforcer_output_textual(&suppress, &cause, proactive);
+        }
+    }
+
+    /// JSON output matching the OCaml `Order.print_json` format.
+    fn print_enforcer_output_json(
+        &self,
+        suppress: &[&(EventInstance, Vec<String>)],
+        cause: &[&(EventInstance, Vec<String>)],
+        proactive: bool,
+    ) {
+        let ts = self.current_ts.unwrap();
+        let cause_json = format!("[ {} ]",
+            cause.iter().map(|(e, _)| e.to_json()).collect::<Vec<_>>().join(", "));
+        let suppress_json = format!("[ {} ]",
+            suppress.iter().map(|(e, _)| e.to_json()).collect::<Vec<_>>().join(", "));
+
+        if proactive {
+            if !cause.is_empty() {
+                println!("{{ \"ts\": {}, \"cause\": {}, \"proactive\": true }}", ts, cause_json);
+            } else {
+                println!("{{ \"ts\": {}, \"proactive\": true }}", ts);
+            }
+        } else {
+            let has_cause = !cause.is_empty();
+            let has_suppress = !suppress.is_empty();
+            if has_cause && has_suppress {
+                println!("{{ \"ts\": {}, \"cause\": {}, \"suppress\": {} }}", ts, cause_json, suppress_json);
+            } else if has_cause {
+                println!("{{ \"ts\": {}, \"cause\": {} }}", ts, cause_json);
+            } else if has_suppress {
+                println!("{{ \"ts\": {}, \"suppress\": {} }}", ts, suppress_json);
+            } else {
+                println!("{{ \"ts\": {} }}", ts);
+            }
+        }
+    }
+
+    /// Textual output (original format).
+    fn print_enforcer_output_textual(
+        &self,
+        suppress: &[&(EventInstance, Vec<String>)],
+        cause: &[&(EventInstance, Vec<String>)],
+        proactive: bool,
+    ) {
         if proactive {
             if !cause.is_empty() {
                 if self.label_mode {
-                    for (ev, labels) in &cause {
+                    for (ev, labels) in cause {
                         let formatted = labels.iter().map(|l| format!("\"{}\"", l)).collect::<Vec<_>>().join(", ");
                         println!("[Enforcer:Label] Cause {}: {}", ev, formatted);
                     }
@@ -680,11 +731,11 @@ impl Engine {
             }
         } else {
             if self.label_mode {
-                for (ev, labels) in &suppress {
+                for (ev, labels) in suppress {
                     let formatted = labels.iter().map(|l| format!("\"{}\"", l)).collect::<Vec<_>>().join(", ");
                     println!("[Enforcer:Label] Suppress {}: {}", ev, formatted);
                 }
-                for (ev, labels) in &cause {
+                for (ev, labels) in cause {
                     let formatted = labels.iter().map(|l| format!("\"{}\"", l)).collect::<Vec<_>>().join(", ");
                     println!("[Enforcer:Label] Cause {}: {}", ev, formatted);
                 }

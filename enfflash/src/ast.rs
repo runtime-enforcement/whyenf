@@ -92,6 +92,15 @@ impl fmt::Display for EventInstance {
     }
 }
 
+impl EventInstance {
+    /// Produce a JSON representation matching the OCaml `Event.to_json` format:
+    /// `{ "name": "...", "args": [ ... ] }`
+    pub fn to_json(&self) -> String {
+        let args: Vec<String> = self.args.iter().map(|a| format!("{}", a)).collect();
+        format!("{{ \"name\": \"{}\", \"args\": [ {} ] }}", self.name, args.join(", "))
+    }
+}
+
 /// One time‐point in the log: timestamp + events.
 #[derive(Debug, Clone)]
 pub struct TimePoint {
