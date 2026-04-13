@@ -1,12 +1,13 @@
 /// Runtime tables backed by BTreeSet for logarithmic access.
 
 use std::collections::BTreeSet;
+use serde::{Serialize, Deserialize};
 use crate::ast::Value;
 
 /// A row is a vector of values (positional, matching column order).
 pub type Row = Vec<Value>;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Table {
     pub name: String,
     /// Column names + types (for debugging / display).

@@ -8,6 +8,8 @@ mod typecheck;
 use clap::Parser as ClapParser;
 use std::fs;
 use std::io::{self, BufRead};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 // LALRPOP-generated parsers
 #[allow(clippy::all, unused, dead_code)]
@@ -37,6 +39,10 @@ struct Cli {
     /// Print debug info about the engine's internal state (0=off, 1=basic, 2=full detail)
     #[arg(long, default_value_t = 0)]
     verbose: u8,
+
+    /// Path to a state file for saving/restoring engine state across runs
+    #[arg(long)]
+    state: Option<String>,
 }
 
 fn main() {
@@ -85,9 +91,28 @@ fn main() {
     if cli.verbose > 0 {
         engine.print_program_summary();
     }
+
+    // Load saved state if --state is given and file exists
+    if let Some(ref state_path) = cli.state {
+        engine.load_state(state_path);
+    }
+
+    // Set up SIGINT (Ctrl-C) handler for graceful state save
+    let interrupted = Arc::new(AtomicBool::new(false));
+    {
+        let interrupted = Arc::clone(&interrupted);
+        ctrlc::set_handler(move || {
+            eprintln!("\n[enfflash] Interrupted (SIGINT)");
+            interrupted.store(true, Ordering::SeqCst);
+        }).expect("Error setting Ctrl-C handler");
+    }
+
     let tp_parser = log_parser::SingleTimePointParser::new();
     let mut buf = String::new();
     for line in reader.lines() {
+        if interrupted.load(Ordering::SeqCst) {
+            break;
+        }
         let line = line.unwrap_or_else(|e| panic!("Read error: {}", e));
         buf.push_str(&line);
         buf.push('\n');
@@ -100,4 +125,9 @@ fn main() {
     }
     // Flush any remaining delayed obligations
     engine.finish();
+
+    // Save state on exit (normal or interrupted)
+    if let Some(ref state_path) = cli.state {
+        engine.save_state(state_path);
+    }
 }

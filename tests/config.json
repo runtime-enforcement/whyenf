@@ -256,6 +256,14 @@
         "output": "53_revoke_consent.out"
     },
     {
+        "label": "54_consent_preloaded",
+        "sig": "consent.sig",
+        "formula": "53_revoke_consent.mfotl",
+        "log": "consent_preloaded.log",
+        "output": "54_consent_preloaded.out",
+        "state": "54_consent_preloaded.state"
+    },
+    {
         "label": "55_rv",
         "sig": "rv.sig",
         "formula": "55_rv.mfotl",

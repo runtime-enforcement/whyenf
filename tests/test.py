@@ -2,7 +2,9 @@ from pathlib import Path
 from typing import Dict, List, Optional, Sequence
 import pandas as pd # type: ignore
 import json
+import shutil
 import subprocess
+import tempfile
 from time import time
 from tqdm import tqdm # type: ignore
 
@@ -16,7 +18,8 @@ class Test:
     command : List[str]
 
     def __init__(self, label : str, sig : Path, formula : Path, log : Path, output : str,
-                 func : Optional[Path] = None, label_option : bool = False, success : bool = True):
+                 func : Optional[Path] = None, label_option : bool = False, success : bool = True,
+                 state : Optional[Path] = None):
         self.label        = label
         self.sig          = sig
         self.formula      = formula
@@ -25,6 +28,7 @@ class Test:
         self.func         = func
         self.label_option = label_option
         self.success      = success
+        self.state        = state
         self._make_command()
 
     @classmethod
@@ -37,23 +41,43 @@ class Test:
         func    = EXAMPLE / json_fn["func"] if "func" in json_fn else None
         success = (json_fn["success"] == True) if "success" in json_fn else True
         label_option = json_fn.get("label_option", False)
-        return Test(json_fn["label"], sig, formula, log, output, func, label_option, success=success)
+        state   = EXAMPLE / json_fn["state"] if "state" in json_fn else None
+        return Test(json_fn["label"], sig, formula, log, output, func, label_option, success=success, state=state)
 
     def _make_command(self) -> None:
-        command : List[str] = [str(ENFGUARD_PATH), "-run", "-sig", str(self.sig), "-formula", str(self.formula)]
+        command : List[str] = [str(ENFGUARD_PATH), "-sig", str(self.sig), "-formula", str(self.formula)]
         if self.func is not None:
             command += ["-func", str(self.func)]
         if self.log is not None:
             command += ["-log", str(self.log)]
         if self.label_option:
             command += ["-label"]
+        if self.state is not None:
+            command += ["-state", str(self.state)]
         self.command = command
 
     def _run_enfguard(self) -> subprocess.CompletedProcess[str]:
+        # If a state file is involved, copy it to a temp file so the original is not mutated
+        tmp_state = None
+        command = list(self.command)
+        if self.state is not None:
+            tmp_state = tempfile.NamedTemporaryFile(suffix=".state", delete=False)
+            shutil.copy2(str(self.state), tmp_state.name)
+            # Replace the state path in the command
+            idx = command.index("-state") + 1
+            command[idx] = tmp_state.name
         try:
-            return subprocess.run(self.command, capture_output=True, text=True, timeout=5)
+            result = subprocess.run(command, capture_output=True, text=True, timeout=5)
         except subprocess.TimeoutExpired:
-            return subprocess.CompletedfProcess(args=self.command, returncode=-1, stdout="", stderr="Timeout occurred")
+            result = subprocess.CompletedProcess(args=command, returncode=-1, stdout="", stderr="Timeout occurred")
+        finally:
+            if tmp_state is not None:
+                try:
+                    Path(tmp_state.name).unlink(missing_ok=True)
+                    Path(tmp_state.name + ".tmp").unlink(missing_ok=True)
+                except Exception:
+                    pass
+        return result
 
     def run(self) -> pd.Series:
         print(f"Running test {self.label}...".ljust(48), end=' ')

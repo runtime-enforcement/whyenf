@@ -50,7 +50,7 @@ module Enfguard = struct
         | None -> "enfflash" (* hope it's on PATH *)
 
   let run debug sig_file formula_file functions_file output_file no_run log_file
-        label json (verbose : int) =
+        label json (verbose : int) state_file =
     let run_enfflash = not no_run in
     if debug then Global.debug := true;
     if json then Global.json := true;
@@ -104,6 +104,7 @@ module Enfguard = struct
                @ (if label then ["--label"] else [])
                @ (if json then ["--json"] else [])
                @ (if verbose > 0 then ["--verbose"; string_of_int verbose] else [])
+               @ (match state_file with Some s -> ["--state"; s] | None -> [])
              in
              eprintf "[enfguard] Running: %s\n" (String.concat ~sep:" " args);
              let argv = Array.of_list args in
@@ -130,10 +131,11 @@ module Enfguard = struct
        and label = flag "-label" no_arg ~doc:" Print rule labels in enforcement output"
        and json = flag "-json" no_arg ~doc:" Output enforcement actions in JSON format"
        and verbose = flag "-verbose" (optional_with_default 0 int) ~doc:"LEVEL Verbosity level (0=off, 1=basic, 2=full detail)"
+       and state_file = flag "-state" (optional string) ~doc:"FILE State file for saving/restoring engine state"
        in
        fun () ->
        run debug sig_file formula_file functions_file output_file no_run log_file
-         label json verbose)
+         label json verbose state_file)
 
 end
 

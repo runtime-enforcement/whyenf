@@ -2,6 +2,7 @@
 
 use std::collections::{BTreeSet, HashMap};
 use std::time::Instant;
+use serde::{Serialize, Deserialize};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use crate::ast::*;
@@ -31,8 +32,8 @@ macro_rules! vlog2 {
 type Env = HashMap<String, Value>;
 
 /// Pending obligation from a delayed rule.
-#[derive(Debug, Clone)]
-struct Obligation {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct Obligation {
     /// The event to cause / suppress
     event: EventInstance,
     action: RuleAction,
@@ -80,6 +81,20 @@ pub struct Engine {
     verbose_level: u8,
     /// Current time (verbose mode)
     current_time: std::time::SystemTime
+}
+
+// ─── State persistence ───────────────────────────────────────────────────────
+
+/// Serializable snapshot of mutable engine state.
+#[derive(Serialize, Deserialize)]
+pub struct EngineState {
+    pub tables: HashMap<String, Table>,
+    pub let_tables: HashMap<String, Table>,
+    pub let_full: BTreeSet<String>,
+    pub obligations: HashMap<u64, Vec<Obligation>>,
+    pub next_tp_obligations: Vec<Obligation>,
+    pub current_ts: Option<u64>,
+    pub last_proactive_ts: Option<u64>,
 }
 
 impl Engine {
@@ -279,6 +294,49 @@ impl Engine {
                 self.flush_obligations_range(start, max_ts + 1);
             }
         }
+    }
+
+    // ─── State persistence ───────────────────────────────────────────────────
+
+    /// Save mutable engine state to a JSON file (atomic: write tmp then rename).
+    pub fn save_state(&self, path: &str) {
+        let state = EngineState {
+            tables: self.tables.clone(),
+            let_tables: self.let_tables.clone(),
+            let_full: self.let_full.clone(),
+            obligations: self.obligations.clone(),
+            next_tp_obligations: self.next_tp_obligations.clone(),
+            current_ts: self.current_ts,
+            last_proactive_ts: self.last_proactive_ts,
+        };
+        let json = serde_json::to_string(&state)
+            .unwrap_or_else(|e| panic!("Failed to serialize state: {}", e));
+        let tmp = format!("{}.tmp", path);
+        std::fs::write(&tmp, &json)
+            .unwrap_or_else(|e| panic!("Failed to write state file '{}': {}", tmp, e));
+        std::fs::rename(&tmp, path)
+            .unwrap_or_else(|e| panic!("Failed to rename state file: {}", e));
+        eprintln!("[enfflash] State saved to {}", path);
+    }
+
+    /// Load mutable engine state from a JSON file (if it exists).
+    pub fn load_state(&mut self, path: &str) {
+        if !std::path::Path::new(path).exists() {
+            eprintln!("[enfflash] No state file found at {}, starting fresh", path);
+            return;
+        }
+        let json = std::fs::read_to_string(path)
+            .unwrap_or_else(|e| panic!("Failed to read state file '{}': {}", path, e));
+        let state: EngineState = serde_json::from_str(&json)
+            .unwrap_or_else(|e| panic!("Failed to deserialize state from '{}': {}", path, e));
+        self.tables = state.tables;
+        self.let_tables = state.let_tables;
+        self.let_full = state.let_full;
+        self.obligations = state.obligations;
+        self.next_tp_obligations = state.next_tp_obligations;
+        self.current_ts = state.current_ts;
+        self.last_proactive_ts = state.last_proactive_ts;
+        eprintln!("[enfflash] State loaded from {}", path);
     }
 
     fn process_timepoint(&mut self, tp: &TimePoint) {
@@ -940,8 +998,8 @@ impl Engine {
                 }
                 GuardPattern::Event(pat) => {
                     for env in &envs {
-                        // Check if this pattern name is a let-def
-                        if let Some(_def) = self.let_defs.get(&pat.name) {
+                        // Check if this pattern name is a let-def or a table (Since/Once)
+                        if self.let_defs.contains_key(&pat.name) || self.tables.contains_key(&pat.name) {
                             let args_as_terms: Vec<TermExpr> = pat.args.iter().map(|a| match a {
                                 PatternArg::Var(name) => TermExpr::Var(name.clone()),
                                 PatternArg::Literal(v) => TermExpr::Lit(v.clone()),

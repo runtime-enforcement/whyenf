@@ -1,0 +1,1 @@
+{"tables":{"Since0":{"name":"Since0","columns":["x"],"rows":[[{"Int":1}],[{"Int":2}]]}},"let_tables":{"Exists1":{"name":"Exists1","columns":[],"rows":[[]]}},"let_full":[],"obligations":{},"next_tp_obligations":[],"current_ts":1,"last_proactive_ts":1}

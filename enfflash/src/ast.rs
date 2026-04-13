@@ -2,10 +2,11 @@
 
 use std::fmt;
 use std::collections::HashSet;
+use serde::{Serialize, Deserialize};
 
 // ─── Value types ─────────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash, Serialize, Deserialize)]
 pub enum Value {
     Int(i64),
     Float(OrderedFloat),
@@ -40,6 +41,18 @@ impl std::hash::Hash for OrderedFloat {
     }
 }
 
+impl Serialize for OrderedFloat {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_f64(self.0)
+    }
+}
+impl<'de> Deserialize<'de> for OrderedFloat {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let v = f64::deserialize(deserializer)?;
+        Ok(OrderedFloat(v))
+    }
+}
+
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -53,7 +66,7 @@ impl fmt::Display for Value {
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Ty {
     Int,
     Float,
@@ -75,7 +88,7 @@ impl fmt::Display for Ty {
 // ─── Log ─────────────────────────────────────────────────────────────────────
 
 /// A single event instance, e.g. `Login("alice", 42)`
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EventInstance {
     pub name: String,
     pub args: Vec<Value>,
@@ -102,7 +115,7 @@ impl EventInstance {
 }
 
 /// One time‐point in the log: timestamp + events.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TimePoint {
     pub timestamp: u64,
     pub events: Vec<EventInstance>,
@@ -111,7 +124,7 @@ pub struct TimePoint {
 // ─── Program AST ─────────────────────────────────────────────────────────────
 
 /// Top‐level program.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Program {
     pub event_decls: Vec<EventDecl>,
     pub fun_decls: Vec<FunDecl>,
@@ -122,13 +135,13 @@ pub struct Program {
     pub items: Vec<ProgramItem>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EventDecl {
     pub name: String,
     pub param_types: Vec<Ty>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FunDecl {
     pub name: String,
     pub param_names: Vec<String>,
@@ -143,7 +156,7 @@ pub struct FunDecl {
 /// Named boolean predicate: `let Name(x:type, ...) := { expr }`
 /// If `is_filter` is true, this is a `filter let` — it has no event guards
 /// and can only be used as a filter condition, not as a guard that binds variables.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LetDef {
     pub label: Option<String>,
     pub is_filter: bool,
@@ -153,7 +166,7 @@ pub struct LetDef {
 }
 
 /// Helper for parsing interleaved tables, rules and let definitions.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ProgramItem {
     Table(TableDef),
     Rule(RuleDef),
@@ -163,13 +176,13 @@ pub enum ProgramItem {
 // ─── Patterns & Expressions ──────────────────────────────────────────────────
 
 /// Pattern that matches against events, e.g. `Login(x, y) & Access(x, z)`
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EventPattern {
     pub name: String,
     pub args: Vec<PatternArg>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PatternArg {
     Var(String),
     Literal(Value),
@@ -177,14 +190,14 @@ pub enum PatternArg {
 }
 
 /// A guard element: either an event pattern or an equality constraint (var == const).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum GuardPattern {
     Event(EventPattern),
     EqConst(String, Value),
 }
 
 /// Boolean filter expression (used after `if`).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum FilterExpr {
     /// true / false literal
     BoolLit(bool),
@@ -201,7 +214,7 @@ pub enum FilterExpr {
     Not(Box<FilterExpr>),
 }
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TermExpr {
     Var(String),
     Lit(Value),
@@ -226,7 +239,7 @@ impl TermExpr {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CmpOp {
     Eq,
     Neq,
@@ -320,7 +333,7 @@ impl fmt::Display for GuardPattern {
 
 // ─── Table definitions ───────────────────────────────────────────────────────
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TableDef {
     pub label: Option<String>,
     pub lagged: bool,
@@ -330,7 +343,7 @@ pub struct TableDef {
     pub remove_clause: Option<Clause>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Clause {
     /// Disjunction of conjunctions: each inner Vec is an AND of guard patterns,
     /// the outer Vec is an OR of those conjunctions.
@@ -340,7 +353,7 @@ pub struct Clause {
 
 // ─── Rule definitions ────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RuleDef {
     pub label: Option<String>,
     pub event: String,
@@ -352,7 +365,7 @@ pub struct RuleDef {
     pub validate: Option<FilterExpr>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RuleAction {
     Cause,    // +
     Suppress, // -
