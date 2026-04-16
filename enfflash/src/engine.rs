@@ -339,6 +339,10 @@ impl Engine {
         eprintln!("[enfflash] State loaded from {}", path);
     }
 
+    fn is_tick_timepoint(&self, tp: &TimePoint) -> bool {
+        tp.events.len() == 1 && tp.events[0].name == "tick" && tp.events[0].args.is_empty()
+    }
+
     fn process_timepoint(&mut self, tp: &TimePoint) {
         let new_ts = tp.timestamp;
 
@@ -368,6 +372,12 @@ impl Engine {
             _ => {
                 // Same timestamp — just continue accumulating
             }
+        }
+
+        // If tick, do not do anything reactive
+        if (self.is_tick_timepoint(tp)) {
+            vlog!(self, "  → tick time-point: skipping reactive processing");
+            return;
         }
 
         // 1. Update non-lagged tables and let-defs in original formula order
