@@ -97,10 +97,17 @@ module Pdt = struct
     match lbls with
     | [] -> Leaf p
     | (LVar x)::lbls ->
-       let d = Map.find_exn v i in
-       let rest = from_valuation ~i:(i+1) lbls v p p' in
-       let part = Part.tabulate (Set.singleton (module Dom) d) (fun _ -> rest) (Leaf p') in
-       Node (i, part)
+       (match Map.find v i with
+        | None ->
+           Stdio.eprintf "[debug:from_valuation] key %d not found in valuation %s (lbls=%s)\n%!"
+             i
+             (Valuation.to_string v)
+             (String.concat ~sep:"," (List.map (x :: List.filter_map lbls ~f:(function LVar y -> Some y | _ -> None)) ~f:(fun y -> y)));
+           from_valuation ~i:(i+1) lbls v p p'
+        | Some d ->
+           let rest = from_valuation ~i:(i+1) lbls v p p' in
+           let part = Part.tabulate (Set.singleton (module Dom) d) (fun _ -> rest) (Leaf p') in
+           Node (i, part))
     | _::lbls -> from_valuation ~i:(i+1) lbls v p p'
 
 end

@@ -2267,11 +2267,19 @@ module Make
                        )
                      in c) 
               | Let (e, enftype, vars, f, g) ->
-                let f_unguarded i (x, _) = if not (is_past_guarded x false f) then Some (x, i) else None in
-                let unguarded_x, unguarded_i = List.unzip (List.filter_mapi vars ~f:f_unguarded) in
-                let pgs' = List.fold_left unguarded_x ~init:pgs ~f:(fun m x -> Map.update m (Var.ident x) ~f:(fun _ -> [Set.empty (module String)])) in
+                let unguarded_i = List.filter_mapi vars ~f:(fun i (x, _) -> if not (is_past_guarded x true f) then Some i else None) in
+                let pgs' = List.fold_left vars ~init:pgs ~f:(fun m (x, _) -> Map.update m (Var.ident x) ~f:(fun _ -> [Set.empty (module String)])) in
                 let pgs'' = solve_past_guarded_multiple_vars pgs vars e f in
                 Constraints.conj (aux enftype pgs' ts f) (aux t pgs'' (Map.update ts e ~f:(fun _ -> enftype, unguarded_i)) g)
+                (*let f' (m, is) (i, x) =
+                  let sols, is = 
+                    match solve_past_guarded m x true f with
+                    | [] -> [Set.empty (module String)], i :: is
+                    | sols -> sols, is in
+                  Map.update m (Var.ident x) ~f:(fun _ -> sols), is in
+                let pgs', unguarded_i = List.fold_left ~init:(pgs, []) ~f:f' (List.mapi ~f:(fun i (x, _) -> (i, x)) vars) in
+                let pgs'' = solve_past_guarded_multiple_vars pgs vars e f in
+                  Constraints.conj (aux enftype pgs' ts f) (aux t pgs'' (Map.update ts e ~f:(fun _ -> enftype, unguarded_i)) g)*)
               | Neg f -> aux' (Enftype.neg t) f 
               | And (_, fs) ->
                  only_if_strictly_relative_past fs (Constraints.conjs (List.map ~f:(aux' t) fs))
@@ -2319,11 +2327,16 @@ module Make
               | FF -> Possible CTT
               | Predicate (e, _) -> types_predicate_lower ts t e
               | Let (e, enftype, vars, f, g) ->
+                let unguarded_i = List.filter_mapi vars ~f:(fun i (x, _) -> if not (is_past_guarded x true f) then Some i else None) in
+                let pgs' = List.fold_left vars ~init:pgs ~f:(fun m (x, _) -> Map.update m (Var.ident x) ~f:(fun _ -> [Set.empty (module String)])) in
+                let pgs'' = solve_past_guarded_multiple_vars pgs vars e f in
+                Constraints.conj (aux enftype pgs' ts f) (aux t pgs'' (Map.update ts e ~f:(fun _ -> enftype, unguarded_i)) g)
+                  (*
                  let f_unguarded i (x, _) = if not (is_past_guarded x false f) then Some (x, i) else None in
                  let unguarded_x, unguarded_i = List.unzip (List.filter_mapi vars ~f:f_unguarded) in
                  let pgs' = List.fold_left unguarded_x ~init:pgs ~f:(fun m x -> Map.update m (Var.ident x) ~f:(fun _ -> [Set.empty (module String)])) in
                  let pgs'' = solve_past_guarded_multiple_vars pgs vars e f in
-                 Constraints.conj (aux enftype pgs' ts f) (aux t pgs'' (Map.update ts e ~f:(fun _ -> Enftype.ncau, unguarded_i)) g)
+                 Constraints.conj (aux enftype pgs' ts f) (aux t pgs'' (Map.update ts e ~f:(fun _ -> enftype, unguarded_i)) g)*)
               | Agg (_, _, _, (_::_ as y), f) -> aux t pgs ts (exists_of_agg y f (fun _ _ -> Info.dummy))
               | Top (_, _, _, (_::_ as y), f) -> aux t pgs ts (exists_of_agg y f (fun _ _ -> Info.dummy))
               | Neg f -> aux' (Enftype.neg t) f
