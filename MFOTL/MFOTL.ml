@@ -331,7 +331,7 @@ module Make
     | EqConst _ 
     | Predicate _ -> 1
     | Predicate' (_, _, f)
-      | Let' (_, _, _, _, f) -> size f
+      | Let' (_, _, _, _, f) -> height f
     | Neg f 
       | Exists (_, f)
       | Forall (_, f)
@@ -344,13 +344,13 @@ module Make
       | Type (f, _)
       | Label (_, f)
       | Agg (_, _, _, _, f)
-      | Top (_, _, _, _, f) -> 1 + size f
+      | Top (_, _, _, _, f) -> 1 + height f
     | Imp (_, f, g)
       | Since (_, _, f, g)
       | Until (_, _, f, g)
-      | Let (_, _, _, f, g) -> 1 + size f + size g
+      | Let (_, _, _, f, g) -> max (height f) (height g) + 1
     | And (_, fs)
-      | Or (_, fs) -> 1 + List.fold_left ~f:(+) ~init:0 (List.map ~f:size fs)
+      | Or (_, fs) -> 1 + List.fold_left ~f:max ~init:0 (List.map ~f:height fs)
 
   let rec exists_subformula ~f_term ~f_fun f =
     f_fun f || begin
@@ -380,7 +380,10 @@ module Make
           | Until (_, _, f, g) -> exists_subformula ~f_term ~f_fun f || exists_subformula ~f_term ~f_fun g
         | And (_, fs)
           | Or (_, fs) -> List.exists ~f:(exists_subformula ~f_term ~f_fun) fs
-    end
+      end
+
+  let print_stats f =
+    Stdio.printf "Formula size   = %d\nFormula height = %d\n" (size f) (height f)
 
   (* Functional constructors *)
 
@@ -999,7 +1002,120 @@ module Make
     let z = List.filter (list_fv f) ~f:(fun x -> not (List.mem y x ~equal:Var.equal_ident)) in
     (*print_endline ("-> " ^ to_string (List.fold_right z ~f:(fun z f -> { form = Exists (z, f); info = info z f }) ~init:f));*)
     List.fold_right z ~f:(fun z f -> { form = Exists (z, f); info = info z f }) ~init:f
+      
+  (* AC-rewriting *)
+  
+  let rec ac_simplify_core =
+    let unpr' f = match f.form with Predicate' (_, _, f) -> f.form | _ -> f.form in
+    let or_bool f g = match unpr' f with TT -> TT | FF -> FF | _ -> g f in
+    function
+    | TT -> TT
+    | FF -> FF
+    | EqConst (x, v) -> EqConst (x, v)
+    | Predicate (e, t) -> Predicate (e, t)
+    | Predicate' (e, t, f) -> Predicate' (e, t, ac_simplify f)
+    | Let (r, enftype_opt, vars, f, g) -> Let (r, enftype_opt, vars, ac_simplify f, ac_simplify g)
+    | Let' (r, enftype_opt, vars, f, g) -> Let' (r, enftype_opt, vars, ac_simplify f, ac_simplify g)
+    | Agg (s, op, x, y, f) -> Agg (s, op, x, y, ac_simplify f)
+    | Top (s, op, x, y, f) -> Top (s, op, x, y, ac_simplify f)
+    | Neg { form = Neg f } -> (ac_simplify f).form
+    | Neg f ->
+      let f = ac_simplify f in
+      (match unpr' f with TT -> FF | FF -> TT | _ -> Neg f)
+    | And (s, fs) -> 
+       let fs = List.map fs ~f:ac_simplify in
+       let f fs f' = match unpr' f' with
+         | And (s', fs') when Side.equal s s' -> fs @ fs'
+         | TT -> fs
+         | _ -> fs @ [f'] in
+       let fs = List.fold_left fs ~init:[] ~f in
+       if List.exists fs ~f:(fun f' -> match unpr' f' with FF -> true | _ -> false)
+       then FF
+       else if List.is_empty fs then TT
+       else if List.length fs = 1 then (List.hd_exn fs).form
+       else And (s, fs)
+    | Or (s, fs) ->
+       let fs = List.map fs ~f:ac_simplify in
+       let f fs f' = match unpr' f' with
+         | Or (s', fs') when Side.equal s s' -> fs @ fs'
+         | FF -> fs
+         | _ -> fs @ [f'] in
+       let fs = List.fold_left fs ~init:[] ~f in
+       if List.exists fs ~f:(fun f' -> match unpr' f' with TT -> true | _ -> false)
+       then TT
+       else if List.is_empty fs then FF
+       else if List.length fs = 1 then (List.hd_exn fs).form
+       else Or (s, fs)
+    | Imp (s, f, g) ->
+      let f = ac_simplify f in
+      let g = ac_simplify g in
+      (match unpr' f, unpr' g with
+       | FF, _ | _, TT -> TT
+       | TT, FF -> FF
+       | TT, _ -> g.form
+       | _, FF -> Neg f
+       | _, _ -> Imp (s, f, g))
+    | Exists (x, f) ->
+      let f = ac_simplify f in
+      (match unpr' f with TT -> TT | FF -> FF | _ -> Exists (x, f))
+    | Forall (x, f) ->
+      let f = ac_simplify f in
+      (match unpr' f with TT -> TT | FF -> FF | _ -> Forall (x, f))
+    | Prev (i, f) -> Prev (i, ac_simplify f)
+    | Next (i, f) -> Next (i, ac_simplify f)
+    | Once (i, f) ->
+      let f = ac_simplify f in
+      (match unpr' f with
+       | FF -> FF
+       | TT when Interval.has_zero i -> TT
+       | _ -> Once (i, f))
+    | Eventually (i, f) ->
+      let f = ac_simplify f in
+      (match unpr' f with
+       | FF -> FF
+       | TT when Interval.has_zero i -> TT
+       | _ -> Eventually (i, f))
+    | Historically (i, f) ->
+      let f = ac_simplify f in
+      (match unpr' f with
+       | FF when Interval.has_zero i -> FF
+       | TT -> TT
+       | _ -> Historically (i, f))
+    | Always (i, f) ->
+      let f = ac_simplify f in
+      (match unpr' f with
+       | FF when Interval.has_zero i -> FF
+       | TT -> TT
+       | _ -> Always (i, f))
+    | Since (s, i, f, g) ->
+      let f = ac_simplify f in
+      let g = ac_simplify g in
+      (match unpr' f, unpr' g with
+       | _, FF -> FF
+       | FF, g -> g
+       | TT, TT when Interval.has_zero i -> TT
+       | TT, _ -> Once (i, g)
+       | _, _ -> Since (s, i, f, g))
+    | Until (s, i, f, g) ->
+      let f = ac_simplify f in
+      let g = ac_simplify g in
+      (match unpr' f, unpr' g with
+       | _, FF -> FF
+       | FF, g -> g
+       | TT, TT when Interval.has_zero i -> TT
+       | TT, _ -> Eventually (i, g)
+       | _, _ -> Until (s, i, f, g))
+    | Type (f, ty) ->
+      let f = ac_simplify f in
+      (match unpr' f with FF -> FF | TT -> TT | _ -> Type (f, ty))
+    | Label (s, f) ->
+      let f = ac_simplify f in
+      (match unpr' f with FF -> FF | TT -> TT | _ -> Label (s, f))
 
+  and ac_simplify f =
+    let form = ac_simplify_core f.form in
+    { f with form }
+      
   (* Unrolling of let bindings *)
 
   let unroll_let ?(moderate=true) =
@@ -1021,14 +1137,17 @@ module Make
              | Some (true, vars, e) -> (* Let-bound predicate with non-linear pattern: must unroll *)
                Predicate' (r, trms, subst (Map.of_alist_exn (module Var) (List.zip_exn vars trms)) e))
         | Let (r, enftype, vars, f, g) ->
-          let v' b = Map.update v r ~f:(fun _ -> (b, List.map ~f:fst vars, aux v f)) in
+          (*print_endline (Printf.sprintf "ac_simplify(%s)=" (to_string_value f));*)
+          let f = ac_simplify (aux v f) in
+          (*print_endline (Printf.sprintf "%s" (to_string_value f));*)
+          let v' b = Map.update v r ~f:(fun _ -> (b, List.map ~f:fst vars, f)) in
           (* Do not unroll if: moderate is false OR binding is trivial OR there are captured variables *)
           (if moderate && height f > 1
               && Set.is_subset (fv f)
                 (Set.of_list (module Var) (List.map ~f:fst vars)) then
-             Let (r, enftype, vars, aux v f, aux (v' true) g)
+             Let (r, enftype, vars, f, aux (v' true) g)
           else
-             Let' (r, enftype, vars, aux v f, aux (v' false) g))
+             Let' (r, enftype, vars, f, aux (v' false) g))
         | Agg (s, op, x, y, f) -> Agg (s, op, x, y, aux v f)
         | Top (s, op, x, y, f) -> Top (s, op, x, y, aux v f)
         | Neg f -> Neg (aux v f)
@@ -1450,112 +1569,6 @@ module Make
     let f (r, enftype, vars, f) g = { g with form = Let (r, enftype, vars, f, g) } in
     List.fold_right ~f ~init flets
 
-  (* AC-rewriting *)
-  
-  let rec ac_simplify_core =
-    let unpr' f = match f.form with Predicate' (_, _, f) -> f.form | _ -> f.form in
-    let or_bool f g = match unpr' f with TT -> TT | FF -> FF | _ -> g f in
-    function
-    | TT -> TT
-    | FF -> FF
-    | EqConst (x, v) -> EqConst (x, v)
-    | Predicate (e, t) -> Predicate (e, t)
-    | Predicate' (e, t, f) -> Predicate' (e, t, ac_simplify f)
-    | Let (r, enftype_opt, vars, f, g) -> Let (r, enftype_opt, vars, ac_simplify f, ac_simplify g)
-    | Let' (r, enftype_opt, vars, f, g) -> Let' (r, enftype_opt, vars, ac_simplify f, ac_simplify g)
-    | Agg (s, op, x, y, f) -> Agg (s, op, x, y, ac_simplify f)
-    | Top (s, op, x, y, f) -> Top (s, op, x, y, ac_simplify f)
-    | Neg { form = Neg f } -> (ac_simplify f).form
-    | Neg f ->
-      let f = ac_simplify f in
-      (match unpr' f with TT -> FF | FF -> TT | _ -> Neg f)
-    | And (s, fs) -> 
-       let fs = List.map fs ~f:ac_simplify in
-       let f fs f' = match unpr' f' with
-         | And (s', fs') when Side.equal s s' -> fs @ fs'
-         | TT -> fs
-         | _ -> fs @ [f'] in
-       let fs = List.fold_left fs ~init:[] ~f in
-       if List.exists fs ~f:(fun f' -> match unpr' f' with FF -> true | _ -> false)
-       then FF
-       else if List.is_empty fs then TT
-       else if List.length fs = 1 then (List.hd_exn fs).form
-       else And (s, fs)
-    | Or (s, fs) ->
-       let fs = List.map fs ~f:ac_simplify in
-       let f fs f' = match unpr' f' with
-         | Or (s', fs') when Side.equal s s' -> fs @ fs'
-         | FF -> fs
-         | _ -> fs @ [f'] in
-       let fs = List.fold_left fs ~init:[] ~f in
-       if List.exists fs ~f:(fun f' -> match unpr' f' with TT -> true | _ -> false)
-       then TT
-       else if List.is_empty fs then FF
-       else if List.length fs = 1 then (List.hd_exn fs).form
-       else Or (s, fs)
-    | Imp (s, f, g) ->
-      let f = ac_simplify f in
-      let g = ac_simplify g in
-      (match unpr' f, unpr' g with
-       | FF, _ | _, TT -> TT
-       | TT, FF -> FF
-       | TT, _ -> g.form
-       | _, FF -> Neg f
-       | _, _ -> Imp (s, f, g))
-    | Exists (x, f) ->
-      or_bool (ac_simplify f) (fun f -> Exists (x, f))
-    | Forall (x, f) ->
-      or_bool (ac_simplify f) (fun f -> Forall (x, f))
-    | Prev (i, f) -> Prev (i, ac_simplify f)
-    | Next (i, f) -> Next (i, ac_simplify f)
-    | Once (i, f) ->
-      let f = ac_simplify f in
-      (match unpr' f with
-       | FF -> FF
-       | TT when Interval.has_zero i -> TT
-       | _ -> Once (i, f))
-    | Eventually (i, f) ->
-      let f = ac_simplify f in
-      (match unpr' f with
-       | FF -> FF
-       | TT when Interval.has_zero i -> TT
-       | _ -> Eventually (i, f))
-    | Historically (i, f) ->
-      let f = ac_simplify f in
-      (match unpr' f with
-       | FF when Interval.has_zero i -> FF
-       | TT -> TT
-       | _ -> Historically (i, f))
-    | Always (i, f) ->
-      let f = ac_simplify f in
-      (match unpr' f with
-       | FF when Interval.has_zero i -> FF
-       | TT -> TT
-       | _ -> Always (i, f))
-    | Since (s, i, f, g) ->
-      let f = ac_simplify f in
-      let g = ac_simplify g in
-      (match unpr' f, unpr' g with
-       | _, FF -> FF
-       | FF, g -> g
-       | TT, TT when Interval.has_zero i -> TT
-       | TT, _ -> Once (i, g)
-       | _, _ -> Since (s, i, f, g))
-    | Until (s, i, f, g) ->
-      let f = ac_simplify f in
-      let g = ac_simplify g in
-      (match unpr' f, unpr' g with
-       | _, FF -> FF
-       | FF, g -> g
-       | TT, TT when Interval.has_zero i -> TT
-       | TT, _ -> Eventually (i, g)
-       | _, _ -> Until (s, i, f, g))
-    | Type (f, ty) -> or_bool (ac_simplify f) (fun f -> Type (f, ty))
-    | Label (s, f) -> or_bool (ac_simplify f) (fun f -> Label (s, f))
-
-  and ac_simplify f =
-    { f with form = ac_simplify_core f.form }
-      
   (* Simplify formulae *)
 
   let rec simplify_core = function
@@ -1869,27 +1882,39 @@ module Make
       List.fold_right (List.zip_exn xs fs)
           ~f:(fun (x, f') f -> { f' with form = Exists (x, f) }) ~init:f
 
-    let rec pull_lets ?(i=0) (form:(Info.t, Var.t, Dom.t, Term.t) _t) :
+    
+    let rec pull_lets ?(i=0) ?(m:(string, Var.t list * t, String.comparator_witness) Map.t=Map.empty (module String)) (form:(Info.t, Var.t, Dom.t, Term.t) _t) :
       int * (string * Enftype.t option * (Var.t * Dom.tt option) list * (Info.t, Var.t, Dom.t, Term.t) _t) list * (Info.t, Var.t, Dom.t, Term.t) _t =
       let r = 
       match form.form with
-      | TT | FF | EqConst _ | Predicate _ -> (i, [], form)
+      | Predicate (r, trms) ->
+        (match Map.find m r with
+         | None -> (i, [], form)
+         | Some (vars, e) -> (i, [], subst (Map.of_alist_exn (module Var) (List.zip_exn vars trms)) e))
+      | TT | FF | EqConst _  -> (i, [], form)
       | Predicate' (_, _, f)
       | Let' (_, _, _, _, f)
-      | Type (f, _) -> pull_lets ~i f
+      | Type (f, _) -> pull_lets ~i ~m f
       | Let (e, enftype, vars, f, g) ->
-        let i, letsf, f = pull_lets ~i f in
-        let i, letsg, g = pull_lets ~i g in
-        i, letsf @ (e, Some enftype, vars, f) :: letsg, g
+        let i, letsf, f = pull_lets ~i ~m f in
+        (if Enftype.is_suppressable enftype || Enftype.is_causable enftype || height f > 1 then
+           let i, letsg, g = pull_lets ~i ~m g in
+           i, letsf @ (e, Some enftype, vars, f) :: letsg, g
+         else
+           let i, letsg, g = pull_lets ~i ~m:(Map.update m e ~f:(fun _ -> (List.map ~f:fst vars, f))) g in
+           i, letsf @ letsg, g)
       | Neg f ->
-        let i, letsf, f = pull_lets ~i f in
+        let i, letsf, f = pull_lets ~i ~m f in
         i, letsf, { f with form = Neg f }
+      | Exists (x, f) 
+      | Forall (x, f) when not (Set.mem (fvs [f]) x) ->
+        pull_lets ~i ~m f
       | Exists (x, _) ->
         (*print_endline "-- Exists";
           print_endline ("form = " ^ to_string form);*)
         let xs, fs = all_exists form in
         (*print_endline ("xs = " ^  String.concat ~sep:", " (List.map ~f:Var.to_string xs));*)
-        let i, lets, f = pull_lets ~i (List.last_exn fs) in
+        let i, lets, f = pull_lets ~i ~m (List.last_exn fs) in
         let e = "Exists" ^ string_of_int i in
         let fvs = Set.elements (fv form) in
         let vars = List.map ~f:(fun v -> (v, None)) fvs in
@@ -1897,40 +1922,40 @@ module Make
         i + 1, lets @ [e, None, vars, { f with form = g.form }],
         { f with form = Predicate (e, List.map ~f:Term.dummy_var fvs) }
       | Forall (x, f) ->
-        pull_lets ~i { form with form = Neg ({ form with form = Exists (x, { form with form = Neg f }) }) }
+        pull_lets ~i ~m { form with form = Neg ({ form with form = Exists (x, { form with form = Neg f }) }) }
       | Prev (itv, f) ->
-        let i, lets, f = pull_lets ~i f in
+        let i, lets, f = pull_lets ~i ~m f in
         let e = "Prev" ^ string_of_int i in
         let fvs = Set.elements (fv f) in
         let vars = List.map ~f:(fun v -> (v, None)) fvs in
         i + 1, lets @ [e, None, vars, { f with form = Prev (itv, f) }],
         { f with form = Predicate (e, List.map ~f:Term.dummy_var fvs) }
       | Once (itv, f) ->
-        let i, lets, f = pull_lets ~i f in
+        let i, lets, f = pull_lets ~i ~m f in
         let e = "Once" ^ string_of_int i in
         let fvs = Set.elements (fv f) in
         let vars = List.map ~f:(fun v -> (v, None)) fvs in
         i + 1, lets @ [e, None, vars, { f with form = Once (itv, f) }],
         { f with form = Predicate (e, List.map ~f:Term.dummy_var fvs) }
       | Next (itv, f) ->
-        let i, lets, f = pull_lets ~i f in
+        let i, lets, f = pull_lets ~i ~m f in
         i, lets, { form with form = Next (itv, f) }
       | Eventually (itv, f) ->
-        let i, lets, f = pull_lets ~i f in
+        let i, lets, f = pull_lets ~i ~m f in
         i, lets, { form with form = Eventually (itv, f) }
       | Historically (itv, f) ->
-        let i, lets, f = pull_lets ~i f in
+        let i, lets, f = pull_lets ~i ~m f in
         let e = "Historically" ^ string_of_int i in
         let fvs = Set.elements (fv f) in
         let vars = List.map ~f:(fun v -> (v, None)) fvs in
         i + 1, lets @ [e, None, vars, { f with form = Historically (itv, f) }],
         { f with form = Predicate (e, List.map ~f:Term.dummy_var fvs) }
       | Always (itv, f) ->
-        let i, lets, f = pull_lets ~i f in
+        let i, lets, f = pull_lets ~i ~m f in
         i, lets, { form with form = Always (itv, f) }
       | Since (s, itv, f, g) ->
-        let i, letsf, f = pull_lets ~i f in
-        let i, letsg, g = pull_lets ~i g in
+        let i, letsf, f = pull_lets ~i ~m f in
+        let i, letsg, g = pull_lets ~i ~m g in
         let e = "Since" ^ string_of_int i in
         (* Both sides of a Since must bind all table columns (for constant-time
            add/remove), so the columns are fv(f) ∩ fv(g), not their union. *)
@@ -1939,23 +1964,23 @@ module Make
         i + 1, letsf @ letsg @ [e, None, vars, { f with form = Since (s, itv, f, g) }],
         { f with form = Predicate (e, List.map ~f:Term.dummy_var fvs) }
       | Until (s, itv, f, g) ->
-        let i, letsf, f = pull_lets ~i f in
-        let i, letsg, g = pull_lets ~i g in
+        let i, letsf, f = pull_lets ~i ~m f in
+        let i, letsg, g = pull_lets ~i ~m g in
         i, letsf @ letsg, { form with form = Until (s, itv, f, g) }
       | And (s, fs) ->
         let i, lets, fs = List.fold_right fs ~init:(i, [], [])
-            ~f:(fun f (i, lets, fs) -> let i, lets', f = pull_lets ~i f in i, lets' @ lets, f :: fs) in
+            ~f:(fun f (i, lets, fs) -> let i, lets', f = pull_lets ~i ~m f in i, lets' @ lets, f :: fs) in
         i, lets, { form with form = And (s, fs) }
       | Or (s, fs) ->
         let i, lets, fs = List.fold_right fs ~init:(i, [], [])
-            ~f:(fun f (i, lets, fs) -> let i, lets', f = pull_lets ~i f in i, lets' @ lets, f :: fs) in
+            ~f:(fun f (i, lets, fs) -> let i, lets', f = pull_lets ~i ~m f in i, lets' @ lets, f :: fs) in
         i, lets, { form with form = Or (s, fs) }
       | Imp (s, f, g) ->
-        let i, letsf, f = pull_lets ~i f in
-        let i, letsg, g = pull_lets ~i g in
+        let i, letsf, f = pull_lets ~i ~m f in
+        let i, letsg, g = pull_lets ~i ~m g in
         i, letsf @ letsg, { form with form = Imp (s, f, g) }
       | Label (s, f) ->
-        let i, lets, f = pull_lets ~i f in
+        let i, lets, f = pull_lets ~i ~m f in
         let e = "Label" ^ string_of_int i ^ ":" ^ s in
         let fvs = Set.elements (fv f) in
         let vars = List.map ~f:(fun v -> (v, None)) fvs in
@@ -2358,6 +2383,7 @@ module Make
       sup_sols: enf_sols;
       switch_pos_opt: switch option;
       switch_neg_opt: switch option;
+      filter_trigger_opt: trigger option;
     }
 
     let let_def_to_string let_def =
@@ -2440,127 +2466,139 @@ module Make
     let allow_table_guards = ref false
     let table_guard_warnings : (string * string) list ref = ref []
 
-        (* Given a formula f with a free variable x, find p_1, ..., p_k, g such that
+    (* Given a formula f with a free variable x, find p_1, ..., p_k, g such that
        if p is true:  f = (p_1 | ... | p_k) & g
        if p is false: f =  p_1 | ... | p_k -> g
        in both cases: x is one of the arguments of each of p_1, ..., p_k.
        If this is not possible, the variable x is not present-guarded; return None *)
     let rec pull_guard (m: let_map) (x: Var.t) (p: bool) (trigger: trigger) : trigger option =
       let npg = pull_guard m x in
-      (* First, check if one of the existing guards already does the job *)
-      let with_existing_guard = (not (List.is_empty trigger.guards)) &&
-        List.for_all trigger.guards ~f:(
-          List.exists ~f:(fun guard -> match guard.form with
-              | Predicate (_, trms) ->
-                List.exists ~f:(Term.equal (Term.dummy_var x)) trms
-              | _ -> false)) in
-      if with_existing_guard
-      then Some trigger
-      (* If it not the case, look for a new guard *)
-      else begin
-        (* Treat empty guards (uninitialized) as [[]] (one empty disjunct) *)
-        let base_guards = if List.is_empty trigger.guards then [[]] else trigger.guards in
-        let rec aux p filter =
-          let r = 
-          match filter.form, p with
-          | TT, false -> Some trigger
-          | FF, true  -> Some trigger
-          | Predicate (r, trms), true when List.exists ~f:(Term.equal (Term.dummy_var x)) trms ->
-            (* A predicate can serve as a guard unless it is:
-               - a let-def with no switch (switch_pos_opt = None) [always rejected]
-               - a table (SOnce, SPrev, SSince) [rejected unless allow_table_guards] *)
-            let ld_opt = Map.find m r in
-            let is_unguardable =
-              match ld_opt with
-              | Some ld -> Option.is_none ld.switch_pos_opt
-              | None -> false
+
+      let guard_quality r = 
+        let ld_opt = Map.find m r in
+        let is_unguardable =
+          match ld_opt with
+          | Some ld -> Option.is_none ld.switch_pos_opt
+          | None -> false
+        in
+        let is_table =
+          match ld_opt with
+          | Some ld ->
+            (match ld.switch_pos_opt with
+             | Some (SOnce _) | Some (SPrev _) | Some (SSince _) -> true
+             | _ -> false)
+          | None -> false
+        in
+        is_unguardable, is_table, ld_opt in
+      let try_pulling_guard allow_table = 
+        (* First, check if one of the existing guards already does the job *)
+        let with_existing_guard = (not (List.is_empty trigger.guards)) &&
+                                  List.for_all trigger.guards ~f:(
+                                    List.exists ~f:(fun guard -> match guard.form with
+                                        | Predicate (r, trms) ->
+                                          let is_unguardable, is_table, _ = guard_quality r in
+                                          if is_unguardable || is_table && not allow_table then false
+                                          else List.exists ~f:(Term.equal (Term.dummy_var x)) trms
+                                        | _ -> false)) in
+        if with_existing_guard
+        then Some trigger
+        (* If it not the case, look for a new guard *)
+        else begin
+          (* Treat empty guards (uninitialized) as [[]] (one empty disjunct) *)
+          let base_guards = if List.is_empty trigger.guards then [[]] else trigger.guards in
+          let rec aux p filter =
+            let r = 
+              match filter.form, p with
+              | TT, false -> Some trigger
+              | FF, true  -> Some trigger
+              | Predicate (r, trms), true when List.exists ~f:(Term.equal (Term.dummy_var x)) trms ->
+                (* A predicate can serve as a guard unless it is:
+                   - a let-def with no switch (switch_pos_opt = None) [always rejected]
+                   - a table (SOnce, SPrev, SSince) [rejected unless allow_table_guards] *)
+                let is_unguardable, is_table, ld_opt = guard_quality r in
+                if is_unguardable || (is_table && not allow_table) then None
+                else begin
+                  (if is_table then
+                     let body_str = match ld_opt with
+                       | Some ld -> to_string ld.body
+                       | None -> "?" in
+                     let entry = (r, body_str) in
+                     if not (List.exists !table_guard_warnings ~f:(fun (n, _) -> String.equal n r)) then
+                       table_guard_warnings := entry :: !table_guard_warnings);
+                  Some { guards = List.map ~f:(fun fs -> filter :: fs) base_guards;
+                         filter = make_dummy TT }
+                end
+              | EqConst (trm, _), true when Term.equal (Term.dummy_var x) trm ->
+                Some { guards = List.map ~f:(fun fs -> filter :: fs) base_guards;
+                       filter = make_dummy TT }
+              | Neg f, _ ->
+                Option.map (aux (not p) f) ~f:(fun trigger ->
+                    { trigger with filter = ac_simplify (make_dummy (Neg trigger.filter)) })
+              | And (_, fs), true -> 
+                Option.map ~f:(fun (i, trigger) ->
+                    let a, b = List.split_n fs i in
+                    let form = And (N, a @ trigger.filter :: (List.tl_exn b)) in
+                    let filter = ac_simplify { filter with form } in
+                    { trigger with filter })
+                  (List.find_mapi ~f:(fun i f ->
+                       Option.map ~f:(fun trigger -> (i, trigger)) (aux true f)) fs)
+              | And (_, fs), false ->
+                Option.map (Option.all (List.map ~f:(aux false) fs)) ~f:(fun triggers ->
+                    let guards = List.concat_map ~f:(fun t -> t.guards) triggers in
+                    let filter = ac_simplify (make_dummy (
+                        And (N, List.map ~f:(of_trigger false) triggers))) in
+                    { guards; filter })
+              | Or (_, fs), false ->
+                Option.map ~f:(fun (i, trigger) ->
+                    let a, b = List.split_n fs i in
+                    let form = Or (N, a @ trigger.filter :: (List.tl_exn b)) in
+                    let filter = ac_simplify { filter with form } in
+                    { trigger with filter })
+                  (List.find_mapi ~f:(fun i f ->
+                       Option.map ~f:(fun trigger -> (i, trigger)) (aux false f)) fs)
+              | Or (_, fs), true ->
+                Option.map (Option.all (List.map ~f:(aux true) fs)) ~f:(fun triggers ->
+                    let guards = List.concat_map ~f:(fun t -> t.guards) triggers in
+                    let filter = ac_simplify (make_dummy (
+                        Or (N, List.map ~f:(of_trigger true) triggers))) in
+                    { guards; filter })
+              | Imp (_, f1, f2), false ->
+                (match aux true f1, aux false f2 with
+                 | Some trigger, _ ->
+                   Some { trigger with filter = ac_simplify (make_dummy (Imp (N, trigger.filter, f2))) }
+                 | _, Some trigger ->
+                   Some { trigger with filter = ac_simplify (make_dummy (Imp (N, f1, trigger.filter))) }
+                 | _ -> None)
+              (*| And (_, fs), false
+                | Or (_, fs), true ->
+                Option.map (Option.all (List.map ~f:(aux false) fs)) ~f:(fun triggers ->
+                    { trigger with guards = List.concat_map triggers ~f:(fun trigger -> trigger.guards) })*)
+              | Imp (_, f1, f2), true ->
+                (match aux false f1, aux true f2 with
+                 | Some trigger1, Some trigger2 ->
+                   Some { trigger with guards = trigger1.guards @ trigger2.guards }
+                 | _ -> None)
+              | Exists (y, f), _
+              | Forall (y, f), _ when not (Var.equal_ident x y) ->
+                Option.map ~f:(fun trigger -> { trigger with filter = f }) (aux p f)
+              | Label (s, f), _ ->
+                Option.map (aux p f) ~f:(fun trigger ->
+                    { trigger with filter = { filter with form = Label (s, trigger.filter) } })
+              | _ -> None
             in
-            let is_table =
-              match ld_opt with
-              | Some ld ->
-                (match ld.switch_pos_opt with
-                 | Some (SOnce _) | Some (SPrev _) | Some (SSince _) -> true
-                 | _ -> false)
-              | None -> false
-            in
-            if is_unguardable then None
-            else if is_table && not !allow_table_guards then None
-            else begin
-              (if is_table then
-                 let body_str = match ld_opt with
-                   | Some ld -> to_string ld.body
-                   | None -> "?" in
-                 let entry = (r, body_str) in
-                 if not (List.exists !table_guard_warnings ~f:(fun (n, _) -> String.equal n r)) then
-                   table_guard_warnings := entry :: !table_guard_warnings);
-              Some { guards = List.map ~f:(fun fs -> filter :: fs) base_guards;
-                     filter = make_dummy TT }
-            end
-          | EqConst (trm, _), true when Term.equal (Term.dummy_var x) trm ->
-            Some { guards = List.map ~f:(fun fs -> filter :: fs) base_guards;
-                   filter = make_dummy TT }
-          | Neg f, _ ->
-            Option.map (aux (not p) f) ~f:(fun trigger ->
-                { trigger with filter = ac_simplify (make_dummy (Neg trigger.filter)) })
-          | And (_, fs), true -> 
-            Option.map ~f:(fun (i, trigger) ->
-                let a, b = List.split_n fs i in
-                let form = And (N, a @ trigger.filter :: (List.tl_exn b)) in
-                let filter = ac_simplify { filter with form } in
-                { trigger with filter })
-              (List.find_mapi ~f:(fun i f ->
-                   Option.map ~f:(fun trigger -> (i, trigger)) (aux true f)) fs)
-          | And (_, fs), false ->
-            Option.map (Option.all (List.map ~f:(aux false) fs)) ~f:(fun triggers ->
-                let guards = List.concat_map ~f:(fun t -> t.guards) triggers in
-                let filter = ac_simplify (make_dummy (
-                    And (N, List.map ~f:(of_trigger false) triggers))) in
-                { guards; filter })
-          | Or (_, fs), false ->
-             Option.map ~f:(fun (i, trigger) ->
-                let a, b = List.split_n fs i in
-                let form = Or (N, a @ trigger.filter :: (List.tl_exn b)) in
-                let filter = ac_simplify { filter with form } in
-                { trigger with filter })
-              (List.find_mapi ~f:(fun i f ->
-                   Option.map ~f:(fun trigger -> (i, trigger)) (aux false f)) fs)
-          | Or (_, fs), true ->
-            Option.map (Option.all (List.map ~f:(aux true) fs)) ~f:(fun triggers ->
-                let guards = List.concat_map ~f:(fun t -> t.guards) triggers in
-                let filter = ac_simplify (make_dummy (
-                    Or (N, List.map ~f:(of_trigger true) triggers))) in
-                { guards; filter })
-          | Imp (_, f1, f2), false ->
-            (match aux true f1, aux false f2 with
-             | Some trigger, _ ->
-               Some { trigger with filter = ac_simplify (make_dummy (Imp (N, trigger.filter, f2))) }
-             | _, Some trigger ->
-               Some { trigger with filter = ac_simplify (make_dummy (Imp (N, f1, trigger.filter))) }
-             | _ -> None)
-          (*| And (_, fs), false
-          | Or (_, fs), true ->
-            Option.map (Option.all (List.map ~f:(aux false) fs)) ~f:(fun triggers ->
-                { trigger with guards = List.concat_map triggers ~f:(fun trigger -> trigger.guards) })*)
-          | Imp (_, f1, f2), true ->
-            (match aux false f1, aux true f2 with
-             | Some trigger1, Some trigger2 ->
-               Some { trigger with guards = trigger1.guards @ trigger2.guards }
-             | _ -> None)
-          | Exists (y, f), _
-          | Forall (y, f), _ when not (Var.equal_ident x y) ->
-            Option.map ~f:(fun trigger -> { trigger with filter = f }) (aux p f)
-          | Label (s, f), _ ->
-            Option.map (aux p f) ~f:(fun trigger ->
-                { trigger with filter = { filter with form = Label (s, trigger.filter) } })
-          | _ -> None
-          in
-          (*print_endline
-            (Printf.sprintf "pull_guard.aux(%s, %b, %s) = %s"
-               (Var.to_string x) p (to_string filter)
-               (Option.value ~default:"None" (Option.map ~f:trigger_to_string r)));*)
-          r
-        in aux p trigger.filter
-      end
+            (*print_endline
+              (Printf.sprintf "pull_guard.aux(%s, %b, %s) = %s"
+                 (Var.to_string x) p (to_string filter)
+                 (Option.value ~default:"None" (Option.map ~f:trigger_to_string r)));*)
+            r in
+          aux p trigger.filter
+        end in
+      (* Try without allowing tables to be guards *)
+      let r_opt = try_pulling_guard false in
+      (* If allow_table_guards is on, try again with tables *)
+      match r_opt with
+      | None when !allow_table_guards -> try_pulling_guard true
+      | _ -> r_opt
 
 
     (* Check that all variables in a formula are past-guarded and, if possible, normalize the formula *)
@@ -2580,6 +2618,18 @@ module Make
                                                   ^ " (computed filter: " ^ trigger_to_string trigger ^ ")"))
               | Some trigger -> Possible [trigger])
         ~init:(Possible [trigger]) vars
+
+    (* Check that all variables in a formula are past-guarded and, if possible, normalize the formula *)
+    let normalize_trigger_best_effort ?(vars=None) (m: let_map) (trigger: trigger) (p: bool) (orig_f: t) : trigger =
+      let vars = match vars with
+        | None -> Set.elements (fvs (trigger.filter :: List.concat trigger.guards))
+        | Some vars -> vars in
+      List.fold_right
+        ~f:(fun x trigger ->
+            match pull_guard m x p trigger with
+            | None -> trigger
+            | Some trigger -> trigger)
+        ~init:trigger vars
 
     let maps_of_lets lets =
       let pred_map =
@@ -2769,7 +2819,7 @@ module Make
                 effects = List.map ~f:(map_predicate ~f:(fix_predicate_names m)) effects }),
           constrs)
 
-    let types (t: Enftype.t) (f: t) (b: Interval.v) =
+    let types (t: Enftype.t) (f: t) (b: Interval.v) : 'a Verdict.v =
       
       let set_b = function
         | Interval.U a -> Interval.B (a, b)
@@ -2785,6 +2835,9 @@ module Make
       print_endline (to_string f);*)
       
       let lets, f = do_pull_lets f in
+
+      let f = ac_simplify f in
+      let lets = List.map ~f:(fun (s, enftype, args, f) -> (s, enftype, args, ac_simplify f)) lets in
       
       (*print_endline "2) pulled lets, obtained";
       print_endline ("lets:\n" ^ (String.concat ~sep:"\n" (List.map lets ~f:(fun (e, _, args, f) -> e ^ "(" ^ String.concat ~sep:", " (List.map ~f:(fun (a, _) -> Var.to_string a) args) ^  ") = " ^ to_string f))));
@@ -3270,11 +3323,37 @@ module Make
           end
         | _ -> begin
             let arg_set = Set.of_list (module Var) (List.map ~f:fst let_def.args) in
-            let vars = Set.elements (Set.diff (fvs [g]) arg_set) in
+            let vars = Set.elements (Set.union (fvs [g]) arg_set) in
             let gt = normalize_trigger ~vars:(Some vars) m (init_trigger g) true body in
             match gt with
-            | Impossible error -> (m, error :: errors)
+            | Impossible error ->
+              let filter_trigger =
+                  normalize_trigger_best_effort
+                    ~vars:(Some vars) m (init_trigger g) true body in
+              (* Check that the best-effort trigger guards all variables that are
+                 *not* in arg_set (the let-def's declared parameters). Variables
+                 that remain only in the filter part cannot be enumerated and the
+                 enforcement will silently produce no bindings for them. *)
+              let guarded_vars = fvs (List.concat filter_trigger.guards) in
+              let non_arg_fvs = Set.diff (fvs [g]) arg_set in
+              let unguarded_non_args = Set.diff non_arg_fvs guarded_vars in
+              (*let errors =
+                if Set.is_empty unguarded_non_args then errors
+                else
+                  Errors.EFormula (Some (Printf.sprintf
+                    "filter let '%s': best-effort trigger leaves variables [%s] unguarded \
+                     (they are free in the body but not pulled into any guard)"
+                    let_def.name
+                    (String.concat ~sep:", " (List.map (Set.elements unguarded_non_args)
+                       ~f:
+                Var.to_string))),
+                    g, Enftype.obs) :: errors in*)
+              let filter_trigger_opt = Some filter_trigger in
+              let m = Map.update m let_def.name
+                  ~f:(fun _ -> { let_def with filter_trigger_opt }) in
+              (m, errors)
             | Possible [trigger] ->
+              (*print_endline (Printf.sprintf "normalized(%s, %s) = %s" let_def.name (to_string body) (trigger_to_string trigger));*)
               let cau_sols, sup_sols, trigger_pos, trigger_neg_opt = type_let_aux m let_def trigger in
               let switch_pos = SNow trigger_pos
               and switch_neg_opt = Option.map ~f:(fun trigger_neg -> SNow trigger_neg) trigger_neg_opt in
@@ -3292,12 +3371,13 @@ module Make
           { name; args; body;
             cau_sols = Impossible (Errors.EFormula (None, body, Enftype.cau));
             sup_sols = Impossible (Errors.EFormula (None, body, Enftype.sup));
-            switch_pos_opt = None; switch_neg_opt = None }) in
+            switch_pos_opt = None; switch_neg_opt = None;
+            filter_trigger_opt = None }) in
       let m, errors = List.fold_left ~init:(Map.empty (module String), []) ~f:type_let lets in
 
       match errors with
       | [] -> Verdict.Possible [raw_lets, m, aux m Enftype.cau f]
-      | errors -> Impossible (EConj errors)
+      | errors -> Verdict.Impossible (EConj errors)
 
 
     let compile_clause ({ trigger; effects }: clause) =
@@ -3324,7 +3404,7 @@ module Make
     let compile_formula lets fs : typed_t =
       let init = ac_simplify { form = And (LR, fs); info = { TypedInfo.dummy with enftype = Enftype.cau } } in
       List.fold_right lets ~init
-        ~f:(fun (e, enftype, vars, f_pos, f_neg_opt, _) g ->
+        ~f:(fun (e, enftype, vars, f_pos, f_neg_opt, _, _) g ->
             match f_neg_opt with
             | Some f_neg ->
               { form = Let (e ^ "_pos", Enftype.obs, vars, f_pos,
@@ -3355,7 +3435,7 @@ module Make
         let enftype = match Map.find sol e with
           | Some constr -> Some (Enftype.Constraint.solve constr)
           | None -> orig_enftype_opt in
-        let body_pos, body_neg_opt, clauses_opt =
+        let body_pos, body_neg_opt, clauses_opt, filter_trigger_opt =
           let default () = map_info ~f:(fun info -> { TypedInfo.dummy with info }) orig_f in
           ((match Option.bind (Map.find m e) ~f:(fun def -> Option.map def.switch_pos_opt ~f:(fun trigger_opt -> trigger_opt, def.args)) with
               | Some (trigger_pos, args) ->
@@ -3371,14 +3451,15 @@ module Make
                 let f = List.fold_right vars ~init:f ~f:(fun x f -> make_dummy (Exists (x, f))) in
                 Some (map_info ~f:(fun info -> { TypedInfo.dummy with info }) f)
               | None -> None)), 
-           match enftype with
+           (match enftype with
            | Some et when Enftype.is_causable et && not (Enftype.is_suppressable et) ->
              find_let_clauses m sol e true
            | Some et when Enftype.is_suppressable et && not (Enftype.is_causable et) ->
              find_let_clauses m sol e false
-           | _ -> None)
+           | _ -> None),
+           Option.bind (Map.find m e) ~f:(fun def -> def.filter_trigger_opt))
         in
-        (e, enftype, orig_args, body_pos, body_neg_opt, clauses_opt))
+        (e, enftype, orig_args, body_pos, body_neg_opt, clauses_opt, filter_trigger_opt))
 
     type pg_map = (string, Etc.string_set_list, String.comparator_witness) Map.t
     type t_map  = (string, Enftype.t * int list, String.comparator_witness) Map.t
@@ -3390,6 +3471,7 @@ module Make
       * typed_t
       * typed_t option
       * clause list option
+      * trigger option
         
     let do_type ?(verbose=true) ?(moderate=true) f b =
       let orig_f = f in
@@ -3407,7 +3489,7 @@ module Make
                              ^ String.concat ~sep:", " (List.map ~f:Var.to_string (Set.elements (fv f))));
         ignore (raise (FormulaError (Printf.sprintf "this formula is not closed"))));
       match types Enftype.cau f b with
-      | Impossible err -> error err
+      | Verdict.Impossible err -> error err
       | Possible [lets, m, sols] ->
         match sols with
         | Verdict.Impossible err -> error err
@@ -3424,9 +3506,9 @@ module Make
               | sol::_ ->
                 let lets = compile_lets m sol lets in
                 (*print_endline ("lets:\n" ^ (String.concat ~sep:"\n" (List.map lets ~f:(fun (a, b, c, d, _, _) -> a ^ "(...) = " ^ to_string_value d))));*)
-                let pred_map, mon_map, anti_mon_map = maps_of_lets (List.map ~f:(fun (a, b, c, d, _, _) -> (a, b, c, d)) lets) in
+                let pred_map, mon_map, anti_mon_map = maps_of_lets (List.map ~f:(fun (a, b, c, d, _, _, _) -> (a, b, c, d)) lets) in
                 (*let order_clauses = order_clauses ~lets:pred_map ~let_ctxt_mon:mon_map ~let_ctxt_anti_mon:anti_mon_map in*)
-                let let_clauses = List.concat (List.filter_map lets ~f:(fun (_, _, _, _, _, clauses_opt) -> clauses_opt)) in
+                let let_clauses = List.concat (List.filter_map lets ~f:(fun (_, _, _, _, _, clauses_opt, _) -> clauses_opt)) in
                 (*print_endline "##clauses##";
                 print_endline (String.concat ~sep:"\n" (List.map ~f:clause_to_string (clauses @ let_clauses)));
                   print_endline "##endclauses##";*)
@@ -3443,6 +3525,7 @@ module Make
 
     let do_type_and_compile ?(verbose=true) ?(moderate=true) f b =
       let orig_f = f in
+      (*print_endline (Printf.sprintf "Formula size: %d" (size f));*)
       let error err =
         Stdio.print_endline ("The formula\n "
                              ^ to_string f
@@ -3481,8 +3564,8 @@ module Make
               match Constraints.solve constr with
               | sol::_ ->
                 let lets = compile_lets m sol lets in
-                let pred_map, mon_map, anti_mon_map = maps_of_lets (List.map ~f:(fun (a, b, c, d, _, _) -> (a, b, c, d)) lets) in
-                let let_clauses = List.concat (List.filter_map lets ~f:(fun (_, _, _, _, _, clauses_opt) -> clauses_opt)) in
+                let pred_map, mon_map, anti_mon_map = maps_of_lets (List.map ~f:(fun (a, b, c, d, _, _, _) -> (a, b, c, d)) lets) in
+                let let_clauses = List.concat (List.filter_map lets ~f:(fun (_, _, _, _, _, clauses_opt, _) -> clauses_opt)) in
                 let all_clauses = clauses @ List.rev let_clauses in
                 let fs = List.map all_clauses ~f:compile_clause in
                 Verdict.Possible [(lets, all_clauses, m, compile_formula lets fs)]

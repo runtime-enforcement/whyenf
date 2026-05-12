@@ -103,6 +103,62 @@ pub fn check_program(program: &Program) -> CheckErrors {
         for (pname, pty) in &ld.params {
             ctx.insert(pname.clone(), pty.clone());
         }
+
+        if ld.is_filter {
+            // Compiler-generated filter lets may legitimately carry guard patterns
+            // when the best-effort trigger was able to pull some event guards for
+            // free variables.  We therefore allow patterns in filter lets.
+            //
+            // Free variables in a filter let body (variables beyond the declared
+            // parameters) must each be enumerable at runtime, i.e. they must
+            // appear either:
+            //   (a) as a variable in a guard pattern (event match → row iteration), or
+            //   (b) as an argument to a positive table/event/let lookup in the filter.
+            // A free variable that only appears in a bare comparison (`x == 5`)
+            // cannot be enumerated and the filter will silently evaluate to false.
+            let param_names: HashSet<String> =
+                ld.params.iter().map(|(n, _)| n.clone()).collect();
+            // Variables enumerable via guard patterns
+            let pattern_vars = collect_pattern_var_names(&ld.clause.patterns);
+            // Variables enumerable via positive lookups in the filter body
+            let filter_lookup_vars = collect_filter_lookup_var_names(&ld.clause.filter);
+            let enumerable_vars: HashSet<String> = pattern_vars
+                .union(&filter_lookup_vars)
+                .cloned()
+                .collect();
+            let used_vars = collect_filter_used_var_names(&ld.clause.filter);
+            let free_vars: HashSet<String> =
+                used_vars.difference(&param_names).cloned().collect();
+            for v in free_vars.difference(&enumerable_vars) {
+                errs.err(format!(
+                    "filter let '{}': free variable '{}' does not appear in any \
+                     guard pattern or table/event/let lookup and cannot be enumerated at runtime",
+                    ld.name, v
+                ));
+            }
+        }
+
+        if !ld.is_filter {
+            let guarded = collect_pattern_var_names(&ld.clause.patterns);
+
+            for (param_name, _) in &ld.params {
+                if !guarded.contains(param_name) {
+                    errs.err(format!(
+                        "let '{}': parameter '{}' is not guarded by let patterns",
+                        ld.name, param_name
+                    ));
+                }
+            }
+
+            let used = collect_filter_used_var_names(&ld.clause.filter);
+            for v in used.difference(&guarded) {
+                errs.err(format!(
+                    "let '{}': variable '{}' is not guarded by let patterns",
+                    ld.name, v
+                ));
+            }
+        }
+
         check_clause(&te, &ld.clause, None, &format!("let '{}'", ld.name), &mut errs);
     }
 
@@ -297,6 +353,71 @@ fn collect_filter_var_names(filter: &FilterExpr) -> HashSet<String> {
     names
 }
 
+/// Collect all variable names that appear as arguments to any TableLookup
+/// (table, let, or event reference) at any depth in a filter expression,
+/// ignoring And/Or/Not structure.  These variables can be enumerated at
+/// runtime by iterating over the corresponding table or event set.
+fn collect_filter_lookup_var_names(filter: &FilterExpr) -> HashSet<String> {
+    let mut names = HashSet::new();
+    match filter {
+        FilterExpr::TableLookup { args, .. } => {
+            for arg in args {
+                names.extend(arg.clone().fvs());
+            }
+        }
+        FilterExpr::And(l, r) | FilterExpr::Or(l, r) => {
+            names.extend(collect_filter_lookup_var_names(l));
+            names.extend(collect_filter_lookup_var_names(r));
+        }
+        FilterExpr::Not(_) => {
+            // Variables inside a negated lookup cannot be positively enumerated.
+        }
+        _ => {}
+    }
+    names
+}
+
+/// Collect variable names that occur syntactically in a filter expression.
+/// Unlike `collect_filter_var_names`, this does not model runtime binding;
+/// it simply returns all variables that appear in terms.
+fn collect_filter_used_var_names(filter: &FilterExpr) -> HashSet<String> {
+    let mut names = HashSet::new();
+    match filter {
+        FilterExpr::BoolLit(_) => {}
+        FilterExpr::TableLookup { args, .. } => {
+            for arg in args {
+                collect_term_used_var_names(arg, &mut names);
+            }
+        }
+        FilterExpr::Compare { lhs, rhs, .. } => {
+            collect_term_used_var_names(lhs, &mut names);
+            collect_term_used_var_names(rhs, &mut names);
+        }
+        FilterExpr::And(l, r) | FilterExpr::Or(l, r) => {
+            names.extend(collect_filter_used_var_names(l));
+            names.extend(collect_filter_used_var_names(r));
+        }
+        FilterExpr::Not(inner) => {
+            names.extend(collect_filter_used_var_names(inner));
+        }
+    }
+    names
+}
+
+fn collect_term_used_var_names(term: &TermExpr, out: &mut HashSet<String>) {
+    match term {
+        TermExpr::Var(v) => {
+            out.insert(v.clone());
+        }
+        TermExpr::Lit(_) => {}
+        TermExpr::FunCall { args, .. } => {
+            for arg in args {
+                collect_term_used_var_names(arg, out);
+            }
+        }
+    }
+}
+
 /// Build a typed variable context from disjunctive guard patterns.
 fn build_ctx_from_patterns(te: &TyEnv, patterns: &[Vec<GuardPattern>]) -> VarCtx {
     if patterns.is_empty() {
@@ -429,6 +550,12 @@ fn check_clause(
                             }
                         }
                     } else if let Some(params) = te.lets.get(&pat.name) {
+                        if te.filter_lets.contains(&pat.name) {
+                            errs.err(format!(
+                                "{}: filter let '{}' cannot be used as a guard pattern",
+                                loc, pat.name
+                            ));
+                        }
                         if pat.args.len() != params.len() {
                             errs.err(format!(
                                 "{}: pattern '{}' has {} args, let-def expects {}",

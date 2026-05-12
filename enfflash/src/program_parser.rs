@@ -1,5 +1,5 @@
 // auto-generated: "lalrpop 0.22.2"
-// sha3: 97f6ddf91b482f7e1b8ebf14c7861a3a9f690d5311785308ff890b9ecf51aafc
+// sha3: 324527564f27736be2dc0b29784c8614aec17e6243d6912e4041831ea9a84060
 use crate::ast::*;
 #[allow(unused_extern_crates)]
 extern crate lalrpop_util as __lalrpop_util;
@@ -8804,10 +8804,7 @@ fn __action24<
     (_, _, _): (usize, &'input str, usize),
 ) -> GuardPattern
 {
-    GuardPattern::Event(EventPattern {
-        name,
-        args,
-    })
+    GuardPattern::Event(EventPattern::new(name, args))
 }
 
 #[allow(unused_variables)]

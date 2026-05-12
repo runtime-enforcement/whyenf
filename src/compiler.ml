@@ -304,7 +304,8 @@ let trigger_to_clause
     ~(let_map: Enforcement.let_map)
     (trigger: Enforcement.trigger)
   : Enfflash.clause =
-  Enfflash.{ cl_patterns = decompose_guard_disj trigger.guards;
+  let patterns = decompose_guard_disj trigger.guards in
+  Enfflash.{ cl_patterns = patterns;
              cl_filter   = formula_to_filter trigger.filter }
 
 (* ═══════════════════════════════════════════════════════════════════════════ *)
@@ -582,7 +583,7 @@ let compile_fun_decls ~(py_source: string option) () : Enfflash.fun_decl list =
 (* Check whether a compiled filter_expr references any trace event.
    A let whose body contains event references is "sufficiently guarded"
    and can itself serve as a guard; otherwise it is a "filter let". *)
-let rec filter_has_event_ref (f: Enfflash.filter_expr) : bool =
+(*let rec filter_has_event_ref (f: Enfflash.filter_expr) : bool =
   match f with
   | FBoolLit _ -> false
   | FTableLookup (name, _) ->
@@ -591,7 +592,7 @@ let rec filter_has_event_ref (f: Enfflash.filter_expr) : bool =
      | _ -> false)
   | FCompare _ -> false
   | FAnd (a, b) | FOr (a, b) -> filter_has_event_ref a || filter_has_event_ref b
-  | FNot a -> filter_has_event_ref a
+  | FNot a -> filter_has_event_ref a*)
 
 let compile_let_from_switch
     ~(let_map: Enforcement.let_map)
@@ -613,10 +614,9 @@ let compile_let_from_switch
     let has_patterns = not (List.is_empty clause.cl_patterns)
                        || not (List.for_all clause.cl_patterns
                                 ~f:List.is_empty) in
-    let has_event_filter = filter_has_event_ref clause.cl_filter in
     `Let Enfflash.{
         ld_label = label;
-        ld_is_filter = not has_patterns && not has_event_filter;
+        ld_is_filter = not has_patterns;
         ld_name  = sanitized;
         ld_params = columns;
         ld_clause = clause;
@@ -835,6 +835,46 @@ let fix_rule_defaults
               | _ -> te) in
         { rule with rd_params }
       | _ -> rule)
+
+(* Reorder guards *)
+let reorder_guard_pattern_list (conj: Enfflash.guard_pattern list) =
+    let is_once_since = function
+      | Enfflash.GEvent { ep_name; _ } ->
+        String.is_prefix ep_name ~prefix:"Once"
+        || String.is_prefix ep_name ~prefix:"Since"
+      | _ -> false
+    in
+    let rest, once_since = List.partition_tf conj ~f:(fun gp -> not (is_once_since gp)) in
+    let r = rest @ once_since in
+    (*print_endline (Printf.sprintf "reorder([%s]) = [%s]"
+                     (String.concat ~sep:", " (List.map ~f:Enfflash.guard_pattern_to_string conj))
+                     (String.concat ~sep:", " (List.map ~f:Enfflash.guard_pattern_to_string r)));*)
+    r
+
+let reorder_clause (clause: Enfflash.clause) =
+  { clause with cl_patterns = List.map ~f:reorder_guard_pattern_list clause.cl_patterns }
+
+let reorder_let_def (let_def: Enfflash.let_def) =
+  { let_def with ld_clause = reorder_clause let_def.ld_clause }
+
+let reorder_table_def (table_def: Enfflash.table_def) =
+  { table_def with td_add_clause = reorder_clause table_def.td_add_clause;
+                   td_remove_clause = Option.map ~f:reorder_clause table_def.td_remove_clause }
+
+let reorder_rule_def (rule_def: Enfflash.rule_def) =
+  { rule_def with rd_trigger = reorder_clause rule_def.rd_trigger }
+
+let reorder_item = function
+  | Enfflash.PiLet let_def   -> Enfflash.PiLet (reorder_let_def let_def)
+  | PiTable        table_def -> PiTable        (reorder_table_def table_def)
+
+let reorder_program (prog: Enfflash.program) =
+  { prog with pg_let_defs = List.map ~f:reorder_let_def   prog.pg_let_defs;
+              pg_tables   = List.map ~f:reorder_table_def prog.pg_tables;
+              pg_rules    = List.map ~f:reorder_rule_def  prog.pg_rules;
+              pg_items    = List.map ~f:reorder_item      prog.pg_items }
+              
+
 (* ═══════════════════════════════════════════════════════════════════════════ *)
 (* Top-level compilation                                                      *)
 (* ═══════════════════════════════════════════════════════════════════════════ *)
@@ -846,6 +886,7 @@ type compiled_let =
   * Tyformula.typed_t                     (* body_pos *)
   * Tyformula.typed_t option              (* body_neg_opt *)
   * Enforcement.clause list option        (* enforcement clauses *)
+  * Enforcement.trigger option            (* filter_trigger_opt *)
 
 let compile
     ~(py_source: string option)
@@ -859,7 +900,7 @@ let compile
   let tables    = ref [] in
   let items     = ref [] in
   (* ── Process each compiled let ────────────────────────────────────────── *)
-  List.iter lets ~f:(fun (name, _enftype, args, body_pos, body_neg_opt, _clauses_opt) ->
+  List.iter lets ~f:(fun (name, _enftype, args, body_pos, body_neg_opt, _clauses_opt, filter_trigger_opt) ->
       let label, _sanitized = parse_label_name name in
       let emit_variant vname vlabel switch_opt fallback_body =
         match switch_opt with
@@ -876,10 +917,10 @@ let compile
           let body = typed_formula_to_filter fallback_body in
           let ld = Enfflash.{
               ld_label  = vlabel;
-              ld_is_filter = not (filter_has_event_ref body);
+              ld_is_filter = true;(*not (filter_has_event_ref body);*)
               ld_name   = sanitize_name vname;
               ld_params = columns;
-              ld_clause = { cl_patterns = []; cl_filter = body };
+              ld_clause = trigger_to_clause ~let_map (Option.value_exn filter_trigger_opt)
             } in
           let_defs := ld :: !let_defs;
           items := Enfflash.PiLet ld :: !items
@@ -948,14 +989,16 @@ let compile
                           { rule.rd_trigger with cl_filter = new_filter } }
           else rule
         | _ -> rule) in
-  Enfflash.{
-    pg_event_decls = all_event_decls;
-    pg_fun_decls   = fun_decls;
-    pg_let_defs    = List.rev !let_defs;
-    pg_tables      = List.rev !tables;
-    pg_rules       = rules;
-    pg_items       = List.rev !items;
-  }
+  let prog = 
+    Enfflash.{
+      pg_event_decls = all_event_decls;
+      pg_fun_decls   = fun_decls;
+      pg_let_defs    = List.rev !let_defs;
+      pg_tables      = List.rev !tables;
+      pg_rules       = rules;
+      pg_items       = List.rev !items;
+    } in
+  reorder_program prog 
 
 (* ═══════════════════════════════════════════════════════════════════════════ *)
 (* Convenience: compile and write to file                                     *)
@@ -969,5 +1012,7 @@ let compile_and_write
     ~(clauses: Enforcement.clause list)
   =
   let program = compile ~py_source ~let_map ~lets ~clauses in
+  (*print_endline (Enfflash.program_to_string program);*)
   Enfflash.write_program_to_file ~filename program;
   program
+

@@ -50,7 +50,7 @@ module Enfguard = struct
         | None -> "enfflash" (* hope it's on PATH *)
 
   let run debug sig_file formula_file functions_file output_file no_run log_file
-        label json (verbose : int) state_file =
+        label json stats (verbose : int) state_file =
     let run_enfflash = not no_run in
     if debug then Global.debug := true;
     if json then Global.json := true;
@@ -77,6 +77,7 @@ module Enfguard = struct
     | Some sformula ->
        let _ =
          let formula = Formula.init sformula in
+         if stats then Formula.print_stats formula;
          let open Tyformula.MFOTL_Enforceability(Sig) in
          let f = Formula.convert_vars formula in
          let f = Tyformula.of_formula' f in
@@ -130,12 +131,13 @@ module Enfguard = struct
        and log_file = flag "-log" (optional string) ~doc:"FILE Log file (reads stdin if omitted)"
        and label = flag "-label" no_arg ~doc:" Print rule labels in enforcement output"
        and json = flag "-json" no_arg ~doc:" Output enforcement actions in JSON format"
+       and stats = flag "-stats" no_arg ~doc:" Return statistics about the formula"
        and verbose = flag "-verbose" (optional_with_default 0 int) ~doc:"LEVEL Verbosity level (0=off, 1=basic, 2=full detail)"
        and state_file = flag "-state" (optional string) ~doc:"FILE State file for saving/restoring engine state"
        in
        fun () ->
        run debug sig_file formula_file functions_file output_file no_run log_file
-         label json verbose state_file)
+         label json stats verbose state_file)
 
 end
 

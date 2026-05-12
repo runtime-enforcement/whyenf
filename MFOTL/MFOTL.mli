@@ -103,8 +103,11 @@ module Make
   val terms : ('i, Var.t, Dom.t, Term.t) _t -> (Term.t, Term.comparator_witness) Base.Set.t
   val deg : ('i, Var.t, Dom.t, Term.t) _t -> int
   val size : ('i, Var.t, Dom.t, Term.t) _t -> int
+  val height : ('i, Var.t, Dom.t, Term.t) _t -> int
+  val print_stats : ('i, Var.t, Dom.t, Term.t) _t -> unit
   val exists_subformula : f_term:(Term.t -> bool) -> f_fun:(('i, Var.t, Dom.t, Term.t) _t -> bool) -> ('i, Var.t, Dom.t, Term.t) _t -> bool
   val predicates : ?lets:((string, (string, String.comparator_witness) Set.t, String.comparator_witness) Map.t) -> t -> (string, String.comparator_witness) Set.t
+      
 
   val subst : (Var.t, Term.t, Var.comparator_witness) Base.Map.t -> t -> t
   val map_consts : f:(Term.d -> Term.d) -> t -> t
@@ -216,6 +219,7 @@ module Make
       sup_sols: enf_sols;
       switch_pos_opt: switch option;
       switch_neg_opt: switch option;
+      filter_trigger_opt: trigger option;
     }
 
     type let_map = (string, let_def, String.comparator_witness) Map.t
@@ -228,6 +232,7 @@ module Make
       * typed_t
       * typed_t option
       * clause list option
+      * trigger option
 
     val do_type : ?verbose:bool -> ?moderate:bool -> t -> Time.Span.s -> typed_t
 

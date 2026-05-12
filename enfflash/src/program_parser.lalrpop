@@ -221,10 +221,7 @@ PatternConj: Vec<GuardPattern> = {
 };
 
 SingleGuardPattern: GuardPattern = {
-    <name:Ident> "(" <args:Comma<PatArg>> ")" => GuardPattern::Event(EventPattern {
-        name,
-        args,
-    }),
+    <name:Ident> "(" <args:Comma<PatArg>> ")" => GuardPattern::Event(EventPattern::new(name, args)),
     <name:Ident> "==" <val:LitVal> => GuardPattern::EqConst(name, val),
 };
 

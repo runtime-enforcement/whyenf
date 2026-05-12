@@ -115,8 +115,10 @@ impl Engine {
         let mut let_tables = HashMap::new();    
 
         for ld in &program.let_defs {
-            let cols: Vec<String> = ld.params.iter().map(|(n, _)| n.clone()).collect();
-            let_tables.insert(ld.name.clone(), Table::new(ld.name.clone(), cols));
+            if !ld.is_filter {
+                let cols: Vec<String> = ld.params.iter().map(|(n, _)| n.clone()).collect();
+                let_tables.insert(ld.name.clone(), Table::new(ld.name.clone(), cols));
+            }
         }
 
         // Collect let definitions
@@ -268,14 +270,6 @@ impl Engine {
         eprintln!("╚══════════════════════════════════════════════════════════");
     }
 
-    /// Process a log supplied as an iterator, printing enforcer output for each time-point.
-    pub fn run<'a>(&mut self, log: impl Iterator<Item = &'a TimePoint>) {
-        for tp in log {
-            self.process_timepoint(tp);
-        }
-        self.finish();
-    }
-
     /// Process a single time-point (streaming API).
     pub fn process_one(&mut self, tp: &TimePoint) {
         self.process_timepoint(tp);
@@ -375,7 +369,7 @@ impl Engine {
         }
 
         // If tick, do not do anything reactive
-        if (self.is_tick_timepoint(tp)) {
+        if self.is_tick_timepoint(tp) {
             vlog!(self, "  → tick time-point: skipping reactive processing");
             return;
         }
@@ -456,8 +450,16 @@ impl Engine {
                 let rule = self.program.rules[rule_idx].clone();
                 let bindings = self.match_clause_against_events(&rule.trigger, &working_events);
 
+                let action_sym = match rule.action { RuleAction::Cause => "+", RuleAction::Suppress => "-", RuleAction::Observe => "?" };
+
+                if self.verbose_mode && bindings.is_empty() {
+                    // Diagnose *why* the rule did not fire: distinguish guard miss vs filter miss.
+                    let diagnosis = self.diagnose_no_match(&rule.trigger, &working_events);
+                    eprintln!("  rule #{} {}{}  → NO MATCH:\n{}",
+                        rule_idx, action_sym, rule.event, diagnosis);
+                }
+
                 if self.verbose_level >= 2 && !bindings.is_empty() {
-                    let action_sym = match rule.action { RuleAction::Cause => "+", RuleAction::Suppress => "-", RuleAction::Observe => "?" };
                     eprintln!("  [v2] rule #{} {}{}({}) → {} binding(s)",
                         rule_idx, action_sym, rule.event,
                         rule.params.iter().map(|p| format!("{:?}", p)).collect::<Vec<_>>().join(", "),
@@ -515,8 +517,7 @@ impl Engine {
                         .map(|p| self.try_eval_term(p, env).clone().unwrap_or(Value::Bool(false)))
                         .collect();
                     let ev = EventInstance { name: rule.event.clone(), args };
-                    let action_sym = match rule.action { RuleAction::Cause => "+", RuleAction::Suppress => "-", RuleAction::Observe => "?" };
-                    vlog!(self, "  rule #{} {}{} matched → {}",
+                    vlog!(self, "  rule #{} {}{}  → MATCHED → {}",
                             rule_idx, action_sym, rule.event, ev);
 
                     // Combine rule's own label with inherited labels
@@ -908,6 +909,7 @@ impl Engine {
                 }
                 ProgramItem::Let(ld) => {
                     if lagged { continue; }
+                    if ld.is_filter { continue; }
                     // Clear previous rows — let-defs are re-evaluated from scratch
                     if let Some(let_table) = self.let_tables.get_mut(&ld.name) {
                         let_table.clear();
@@ -1009,17 +1011,10 @@ impl Engine {
                 GuardPattern::Event(pat) => {
                     for env in &envs {
                         // Check if this pattern name is a let-def or a table (Since/Once)
-                        if self.let_defs.contains_key(&pat.name) || self.tables.contains_key(&pat.name) {
-                            let args_as_terms: Vec<TermExpr> = pat.args.iter().map(|a| match a {
-                                PatternArg::Var(name) => TermExpr::Var(name.clone()),
-                                PatternArg::Literal(v) => TermExpr::Lit(v.clone()),
-                                PatternArg::Wildcard => TermExpr::Lit(Value::Bool(false)),
-                            }).collect();
-                            let lookup = FilterExpr::TableLookup {
-                                name: pat.name.clone(),
-                                args: args_as_terms,
-                            };
-                            new_envs.extend(self.eval_filter_envs(&lookup, env, events));
+                        if (self.let_defs.contains_key(&pat.name) && !self.is_filter_let(&pat.name))
+                            || self.tables.contains_key(&pat.name)
+                        {
+                            new_envs.extend(self.match_lookup_envs(&pat.lookup, env, events));
                             continue;
                         }
                         // Regular event pattern matching
@@ -1036,6 +1031,127 @@ impl Engine {
             envs = new_envs;
         }
         envs
+    }
+
+    /// Diagnose why a clause had no matches.  Returns a human-readable description
+    /// of the first guard (per disjunct) that eliminated all bindings, or which
+    /// filter expression caused the rejection.
+    fn diagnose_no_match(&self, clause: &Clause, events: &[EventInstance]) -> String {
+        let mut lines: Vec<String> = Vec::new();
+
+        if clause.patterns.is_empty() {
+            // No guard patterns at all — only a filter to check
+            let filter_holds = self.eval_filter(&clause.filter, &Env::new(), events);
+            if !filter_holds {
+                lines.push(format!("  (no guard patterns; filter `{}` did not hold)", clause.filter));
+            }
+            return lines.join("\n");
+        }
+
+        for (di, conj) in clause.patterns.iter().enumerate() {
+            let disj_prefix = if clause.patterns.len() > 1 {
+                format!("  disjunct #{}: ", di)
+            } else {
+                "  ".to_string()
+            };
+
+            let mut envs: Vec<Env> = vec![Env::new()];
+            let mut failed_guard: Option<String> = None;
+
+            for guard in conj {
+                let mut new_envs: Vec<Env> = Vec::new();
+                match guard {
+                    GuardPattern::EqConst(var_name, val) => {
+                        for env in &envs {
+                            if let Some(existing) = env.get(var_name) {
+                                if existing == val {
+                                    new_envs.push(env.clone());
+                                }
+                            } else {
+                                let mut ext = env.clone();
+                                ext.insert(var_name.clone(), val.clone());
+                                new_envs.push(ext);
+                            }
+                        }
+                        if new_envs.is_empty() {
+                            failed_guard = Some(format!("{}guard `{} = {}` conflicted with earlier bindings",
+                                disj_prefix, var_name, val));
+                            break;
+                        }
+                    }
+                    GuardPattern::Event(pat) => {
+                        for env in &envs {
+                            if (self.let_defs.contains_key(&pat.name) && !self.is_filter_let(&pat.name))
+                                || self.tables.contains_key(&pat.name)
+                            {
+                                new_envs.extend(self.match_lookup_envs(&pat.lookup, env, events));
+                            } else {
+                                for event in events {
+                                    if event.name == pat.name && event.args.len() == pat.args.len() {
+                                        if let Some(extended) = self.try_match_pattern(pat, event, env) {
+                                            new_envs.push(extended);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        if new_envs.is_empty() {
+                            // Provide a more detailed reason
+                            let is_table = (self.let_defs.contains_key(&pat.name) && !self.is_filter_let(&pat.name))
+                                || self.tables.contains_key(&pat.name);
+                            let reason = if is_table {
+                                let table_size = self.tables.get(&pat.name)
+                                    .map(|t| t.len())
+                                    .or_else(|| self.let_tables.get(&pat.name).map(|t| t.len()))
+                                    .unwrap_or(0);
+                                format!("table/let `{}` has {} row(s), none matched args [{}]",
+                                    pat.name, table_size,
+                                    pat.args.iter().map(|a| format!("{}", a)).collect::<Vec<_>>().join(", "))
+                            } else {
+                                let matching_events: Vec<String> = events.iter()
+                                    .filter(|e| e.name == pat.name)
+                                    .map(|e| format!("{}", e))
+                                    .collect();
+                                if matching_events.is_empty() {
+                                    format!("no event named `{}` in working set ({} event(s) total)",
+                                        pat.name, events.len())
+                                } else {
+                                    format!("event `{}` present ({}) but args [{}] did not unify with: {}",
+                                        pat.name,
+                                        matching_events.len(),
+                                        pat.args.iter().map(|a| format!("{}", a)).collect::<Vec<_>>().join(", "),
+                                        matching_events.join(", "))
+                                }
+                            };
+                            failed_guard = Some(format!("{}guard `{}(...)` failed: {}",
+                                disj_prefix, pat.name, reason));
+                            break;
+                        }
+                    }
+                }
+                envs = new_envs;
+            }
+
+            if let Some(msg) = failed_guard {
+                lines.push(msg);
+            } else {
+                // Guards passed — filter must have rejected the bindings
+                let n_before = envs.len();
+                let after: Vec<Env> = envs.iter()
+                    .flat_map(|env| self.eval_filter_envs(&clause.filter, env, events))
+                    .collect();
+                if after.is_empty() {
+                    lines.push(format!("{}guards produced {} binding(s), but filter `{}` rejected all",
+                        disj_prefix, n_before, clause.filter));
+                }
+            }
+        }
+
+        if lines.is_empty() {
+            "(unknown reason)".to_string()
+        } else {
+            lines.join("\n")
+        }
     }
 
     /// Match disjunctive guard patterns (OR of AND-conjunctions) against events.
@@ -1120,6 +1236,123 @@ impl Engine {
         true
     }
 
+    fn match_lookup_envs(&self, lookup: &FilterExpr, env: &Env, events: &[EventInstance]) -> Vec<Env> {
+        let FilterExpr::TableLookup { name, args } = lookup else {
+            return vec![];
+        };
+
+        let mut result = Vec::new();
+
+        let constraints: Vec<(usize, Value)> = args.iter().enumerate()
+            .filter_map(|(i, arg)| self.try_eval_term(arg, env).map(|v| (i, v)))
+            .collect();
+
+        if let Some(table) = self.tables.get(name) {
+            let candidate_rows = table.lookup_eq_by_pos(&constraints);
+            if table.len() > 0 {
+                vlog!(self, "  [v1] match_lookup_envs {}(...): iterating {} table row(s) (from {} total)",
+                    name, candidate_rows.len(), table.len());
+            }
+            for row in candidate_rows.iter() {
+                if let Some(ext) = try_unify_args(args, row, env) {
+                    if self.verify_funcall_args(args, row, &ext) {
+                        result.push(ext);
+                    }
+                }
+            }
+            return result;
+        }
+
+        if let Some(let_table) = self.let_tables.get(name) {
+            let candidate_rows = let_table.lookup_eq_by_pos(&constraints);
+            if let_table.len() > 0 {
+                vlog!(self, "  [v1] match_lookup_envs {}(...): iterating {} let-table row(s) (from {} total)",
+                    name, candidate_rows.len(), let_table.len());
+            }
+            for row in candidate_rows.iter() {
+                if let Some(ext) = try_unify_args(args, row, env) {
+                    if self.verify_funcall_args(args, row, &ext) {
+                        result.push(ext);
+                    }
+                }
+            }
+            return result;
+        }
+
+        if self.event_names.contains(name) {
+            let n_candidates = events.iter().filter(|ev| ev.name == *name).count();
+            if events.len() > 0 {
+                vlog!(self, "  [v1] match_lookup_envs {}(...): iterating {} matching event(s) out of {} total",
+                    name, n_candidates, events.len());
+            }
+            for ev in events {
+                if ev.name == *name && ev.args.len() == args.len() {
+                    if let Some(ext) = try_unify_args(args, &ev.args, env) {
+                        if self.verify_funcall_args(args, &ev.args, &ext) {
+                            result.push(ext);
+                        }
+                    }
+                }
+            }
+            return result;
+        }
+
+        result
+    }
+
+    #[allow(dead_code)]
+    fn eval_lookup_predicate_envs(
+        &self,
+        name: &str,
+        args: &[TermExpr],
+        env: &Env,
+        events: &[EventInstance],
+    ) -> Vec<Env> {
+        let mut vals = Vec::with_capacity(args.len());
+        for arg in args {
+            let Some(value) = self.try_eval_term(arg, env) else {
+                return vec![];
+            };
+            vals.push(value);
+        }
+
+        if let Some(table) = self.tables.get(name) {
+            let found = table.contains(&vals);
+            vlog2!(self, "    [v2] TableLookup {}({}) in table → {}",
+                name, vals.iter().map(|v| format!("{}", v)).collect::<Vec<_>>().join(", "),
+                found);
+            if found {
+                return vec![env.clone()];
+            }
+            return vec![];
+        }
+
+        if let Some(let_table) = self.let_tables.get(name) {
+            let universal = self.let_full.contains(name);
+            let found = universal || let_table.contains(&vals);
+            vlog2!(self, "    [v2] LetDef {}({}) → {}{}",
+                name, vals.iter().map(|v| format!("{}", v)).collect::<Vec<_>>().join(", "),
+                found, if universal { " [universal]" } else { "" });
+            if found {
+                return vec![env.clone()];
+            }
+            return vec![];
+        }
+
+        if self.event_names.contains(name) {
+            let found = events.iter().any(|ev| ev.name == name && ev.args == vals);
+            vlog2!(self, "    [v2] EventLookup {}({}) in {} events → {}",
+                name, vals.iter().map(|v| format!("{}", v)).collect::<Vec<_>>().join(", "),
+                events.len(), found);
+            if found {
+                return vec![env.clone()];
+            }
+            return vec![];
+        }
+
+        vec![]
+    }
+
     // ─── Filter evaluation ───────────────────────────────────────────────────
 
     fn eval_filter(&self, filter: &FilterExpr, env: &Env, events: &[EventInstance]) -> bool {
@@ -1132,89 +1365,19 @@ impl Engine {
     fn eval_filter_envs(&self, filter: &FilterExpr, env: &Env, events: &[EventInstance]) -> Vec<Env> {
         match filter {
             FilterExpr::TableLookup { name, args } => {
-                let free_vars = collect_free_vars_in_terms(args, env);
-
-                if free_vars.is_empty() {
-                    // No free vars — evaluate directly
-                    let vals: Vec<Value> = args.iter().map(|a| self.eval_term(a, env)).collect();
-
-                    if let Some(table) = self.tables.get(name) {
-                        let found = table.contains(&vals);
-                        vlog2!(self, "    [v2] TableLookup {}({}) in table → {}",
-                            name, vals.iter().map(|v| format!("{}", v)).collect::<Vec<_>>().join(", "),
-                            found);
-                        if found {
-                            return vec![env.clone()];
-                        }
-                        return vec![];
+                if let Some(let_def) = self.let_defs.get(name) {
+                    if let_def.is_filter {
+                        return self.eval_filter_let_call_envs(let_def, args, env, events);
                     }
-
-                    if let Some(let_table) = self.let_tables.get(name) {
-                        // Check if this let-def has universal (wildcard) rows
-                        let universal = self.let_full.contains(name);
-                        let found = universal || let_table.contains(&vals);
-                        vlog2!(self, "    [v2] LetDef {}({}) → {}{}",
-                            name, vals.iter().map(|v| format!("{}", v)).collect::<Vec<_>>().join(", "),
-                            found, if universal { " [universal]" } else { "" });
-                        if found {
-                            return vec![env.clone()];
-                        }
-                        return vec![];
-                    }
-
-                    if self.event_names.contains(name) {
-                        let found = events.iter().any(|ev| ev.name == *name && ev.args == vals);
-                        vlog2!(self, "    [v2] EventLookup {}({}) in {} events → {}",
-                            name, vals.iter().map(|v| format!("{}", v)).collect::<Vec<_>>().join(", "),
-                            events.len(), found);
-                        if found {
-                            return vec![env.clone()];
-                        }
-                        return vec![];
-                    }
-
-                    vec![]
-                } else {
-                    // Free variables: existential — enumerate matches
-                    let mut result = Vec::new();
-
-                    if let Some(table) = self.tables.get(name) {
-                        for row in table.iter() {
-                            if let Some(ext) = try_unify_args(args, row, env) {
-                                if self.verify_funcall_args(args, row, &ext) {
-                                    result.push(ext);
-                                }
-                            }
-                        }
-                        return result;
-                    }
-
-                    if let Some(let_table) = self.let_tables.get(name) {
-                        for row in let_table.iter() {
-                            if let Some(ext) = try_unify_args(args, row, env) {
-                                if self.verify_funcall_args(args, row, &ext) {
-                                    result.push(ext);
-                                }
-                            }
-                        }
-                        return result;
-                    }
-
-                    if self.event_names.contains(name) {
-                        for ev in events {
-                            if ev.name == *name && ev.args.len() == args.len() {
-                                if let Some(ext) = try_unify_args(args, &ev.args, env) {
-                                    if self.verify_funcall_args(args, &ev.args, &ext) {
-                                        result.push(ext);
-                                    }
-                                }
-                            }
-                        }
-                        return result;
-                    }
-
-                    result
                 }
+
+                // Use match_lookup_envs so that variables not yet bound in `env`
+                // are handled via full-table enumeration + unification, rather
+                // than causing an immediate failure.  This is essential for
+                // filter-let bodies such as
+                //   let x(a) [filter] := e(b) if c(b, a)
+                // where `b` is a free variable that must be enumerated from `e`.
+                self.match_lookup_envs(filter, env, events)
             }
 
             // For non-lookup filters, handle binding semantics
@@ -1309,10 +1472,81 @@ impl Engine {
         }
     }
 
-    fn eval_term(&self, term: &TermExpr, env: &Env) -> Value {
-        match self.try_eval_term(term, env) {
-            Some(value) => value,
-            None => panic! ("Some variable from {:?} is not defined in {:?}", term, env)
+    fn is_filter_let(&self, name: &str) -> bool {
+        self.let_defs
+            .get(name)
+            .map(|d| d.is_filter)
+            .unwrap_or(false)
+    }
+
+    /// Evaluate a `filter let` call from concrete argument values only.
+    /// This path never performs table-backed lookup or existential row search.
+    fn eval_filter_let_call_envs(
+        &self,
+        let_def: &LetDef,
+        args: &[TermExpr],
+        env: &Env,
+        events: &[EventInstance],
+    ) -> Vec<Env> {
+        if args.len() != let_def.params.len() {
+            return vec![];
+        }
+
+        // Arguments must be available from the current environment.
+        let mut arg_vals = Vec::with_capacity(args.len());
+        for arg in args {
+            if let Some(v) = self.try_eval_term(arg, env) {
+                arg_vals.push(v);
+            } else {
+                return vec![];
+            }
+        }
+
+        // Merge parameter bindings into a local environment.
+        let mut local_env = env.clone();
+        for ((param_name, _), value) in let_def.params.iter().zip(arg_vals.iter()) {
+            if let Some(existing) = local_env.get(param_name) {
+                if existing != value {
+                    return vec![];
+                }
+            } else {
+                local_env.insert(param_name.clone(), value.clone());
+            }
+        }
+
+        // A filter let may carry guard patterns when the compiler was able to pull
+        // event/table guards from the body (best-effort trigger).  In that case
+        // we first match the patterns against the events to enumerate free-variable
+        // bindings, then verify the filter for each resulting environment.
+        // If there are no patterns, we just evaluate the filter directly.
+        if let_def.clause.patterns.is_empty() {
+            if self.eval_filter(&let_def.clause.filter, &local_env, events) {
+                vec![env.clone()]
+            } else {
+                vec![]
+            }
+        } else {
+            let matched_envs =
+                self.match_guard_conj_against_events(&let_def.clause.patterns[0], events);
+            let mut result = Vec::new();
+            for matched in &matched_envs {
+                // Merge the param bindings into the pattern-matched env
+                let mut combined = matched.clone();
+                let mut ok = true;
+                for ((param_name, _), value) in let_def.params.iter().zip(arg_vals.iter()) {
+                    if let Some(existing) = combined.get(param_name) {
+                        if existing != value { ok = false; break; }
+                    } else {
+                        combined.insert(param_name.clone(), value.clone());
+                    }
+                }
+                if ok && self.eval_filter(&let_def.clause.filter, &combined, events) {
+                    result.push(env.clone());
+                }
+            }
+            // Deduplicate (the caller env is always the same object, but be safe)
+            result.dedup();
+            result
         }
     }
 
@@ -1364,46 +1598,6 @@ impl Engine {
         }
     }
 
-}
-
-/// Try to evaluate a term if all its variables are bound. Returns None if any var is unbound.
-fn try_eval_term_partial(term: &TermExpr, env: &Env) -> Option<Value> {
-    match term {
-        TermExpr::Var(name) => env.get(name).cloned(),
-        TermExpr::Lit(v) => Some(v.clone()),
-        TermExpr::FunCall { .. } => None, // can't evaluate partially
-    }
-}
-
-/// Collect variable names used in term arguments that are NOT bound in `env`.
-fn collect_free_vars_in_terms(args: &[TermExpr], env: &Env) -> Vec<String> {
-    let mut free = Vec::new();
-    let mut seen = std::collections::HashSet::new();
-    for arg in args {
-        collect_free_in_term(arg, env, &mut free, &mut seen);
-    }
-    free
-}
-
-fn collect_free_in_term(
-    term: &TermExpr,
-    env: &Env,
-    free: &mut Vec<String>,
-    seen: &mut std::collections::HashSet<String>,
-) {
-    match term {
-        TermExpr::Var(name) => {
-            if !env.contains_key(name) && seen.insert(name.clone()) {
-                free.push(name.clone());
-            }
-        }
-        TermExpr::Lit(_) => {}
-        TermExpr::FunCall { args, .. } => {
-            for a in args {
-                collect_free_in_term(a, env, free, seen);
-            }
-        }
-    }
 }
 
 /// Try to unify term arguments against concrete values, extending an env.

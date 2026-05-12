@@ -180,6 +180,23 @@ pub enum ProgramItem {
 pub struct EventPattern {
     pub name: String,
     pub args: Vec<PatternArg>,
+    pub lookup: FilterExpr,
+}
+
+impl EventPattern {
+    /// Create a new EventPattern, automatically computing the lookup from the pattern arguments.
+    pub fn new(name: String, args: Vec<PatternArg>) -> Self {
+        let args_as_terms: Vec<TermExpr> = args.iter().map(|a| match a {
+            PatternArg::Var(name) => TermExpr::Var(name.clone()),
+            PatternArg::Literal(v) => TermExpr::Lit(v.clone()),
+            PatternArg::Wildcard => TermExpr::Lit(Value::Bool(false)),
+        }).collect();
+        let lookup = FilterExpr::TableLookup {
+            name: name.clone(),
+            args: args_as_terms,
+        };
+        EventPattern { name, args, lookup }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

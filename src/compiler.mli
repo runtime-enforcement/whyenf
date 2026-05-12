@@ -13,6 +13,7 @@ type compiled_let =
   * Tyformula.typed_t
   * Tyformula.typed_t option
   * Enforcement.clause list option
+  * Enforcement.trigger option
 
 val compile_and_write :
   filename:string ->
