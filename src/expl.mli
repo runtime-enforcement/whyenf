@@ -16,6 +16,7 @@ module Pdt : sig
 
   val specialize: Lbl.t array -> ('a list -> 'a) -> ('a list -> 'a) -> Valuation.t -> 'a t -> 'a
   val specialize_partial: Lbl.t array -> Valuation.t -> 'a t -> 'a t
+  val simplify: Lbl.t array -> Valuation.t -> 'a t -> 'a t
   
   val collect: Lbl.t array -> ('a -> bool) -> ((Dom.t, Dom.comparator_witness) Setc.t list -> (Dom.t, Dom.comparator_witness) Setc.t) -> ((Dom.t, Dom.comparator_witness) Setc.t list -> (Dom.t, Dom.comparator_witness) Setc.t) -> Valuation.t -> int -> 'a t -> (Dom.t, Dom.comparator_witness) Setc.t
   val from_valuation: ?i:int -> Lbl.t list -> Valuation.t -> 'b -> 'b -> 'b t

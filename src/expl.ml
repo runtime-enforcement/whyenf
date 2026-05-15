@@ -27,6 +27,50 @@ module Pdt = struct
         match (Sig.eval_lbl lbls v lbl).trm with
         | Const d -> specialize_partial lbls v (Part.find part d)
         | _ -> Node (i, Part.map part (specialize_partial lbls v))
+
+  (* [simplify lbls v pdt] walks [pdt], accumulating known variable bindings
+     in [v].  Whenever a [LClos] node can be fully evaluated to a [Const]
+     given the variables bound so far, the node is collapsed by following
+     the matching partition element.  [LVar] nodes that are bound in [v]
+     are similarly collapsed.  All other nodes are kept and their children
+     are recursively simplified with the extended valuation. *)
+  let rec simplify (lbls: Lbl.t array) (v: Valuation.t) = function
+    | Leaf l -> Leaf l
+    | Node (i, part) ->
+      match Array.get lbls i with
+      | LEx _
+      | LAll _ ->
+        (* Quantified variable: descend, removing any stale binding *)
+        Node (i, Part.map part (simplify lbls (Map.remove v i)))
+      | LVar x ->
+        (match Map.find v i with
+         | Some d ->
+           (* Already bound: skip this dimension and follow the matching branch *)
+           simplify lbls v (Part.find part d)
+         | None ->
+           (* Not yet bound: distribute concrete values so every recursive
+              call knows exactly which value variable i has.  Finite sets are
+              split into one singleton entry per element (each with the
+              extended valuation); complement sets cannot be resolved to a
+              single value so we recurse without binding i. *)
+           let new_part = List.concat_map (Part.map2 part Fn.id) ~f:(fun (s, child) ->
+             match s with
+             | Setc.Finite ds ->
+               List.map (Set.elements ds) ~f:(fun d ->
+                 ( Setc.Finite (Set.singleton (module Dom) d)
+                 , simplify lbls (Map.update v i ~f:(fun _ -> d)) child ))
+             | Complement _ ->
+               [(s, simplify lbls v child)])
+           in
+           Node (i, new_part))
+      | LClos (_, terms) as lbl ->
+        (match (Sig.eval_lbl lbls v lbl).trm with
+         | Const d ->
+           (* Closure fully reduced: collapse the node *)
+           simplify lbls v (Part.find part d)
+         | _ ->
+           (* Not yet reducible: keep the node, descend with unchanged v *)
+           Node (i, Part.map part (simplify lbls v)))
                  
   let distribute x callback v (s', p) =
     let update v x' d = Map.update v x' ~f:(fun _ -> d) in
@@ -160,14 +204,17 @@ let table_operator
     let aux vs = function
       | (Term.Var x, Setc.Finite s) ->
          List.concat_map (Set.elements s) ~f:(fun d ->
-             List.map vs ~f:(fun v -> Map.update v (ITerm.of_var lbls' x) ~f:(fun _ -> d)))
+            List.map vs ~f:(fun v ->
+                Map.update v (ITerm.of_var lbls' x) ~f:(fun _ -> d)))
       | (Term.Const d, s) when Setc.mem s d -> vs
       | (Term.Const _, _) -> []
       | (trm, s) -> List.filter vs ~f:(fun v -> Setc.mem s (Term.unconst (Sig.teval lbls' v (Term.make_dummy trm)))) in
     List.fold_left sv ~init:([Valuation.empty]) ~f:aux in 
   let rec gather sv gs (lbls: Lbl.t array) (w: Valuation.t) p =
     match p, gs with
-    | Pdt.Leaf true, _ -> 
+    | Pdt.Leaf true, _ ->
+      (*print_endline ("gather.Leaf: " ^ String.concat ~sep:", "
+                       (List.map sv ~f:(fun (x, s) -> Term.to_string_core x ^ " -> " ^ Setc.to_string s)));*)
        Pdt.Leaf (tabulate (List.rev sv))
     | Leaf _, _ -> Leaf []
     | Node (i, part), g :: gs when Lbl.equal (Array.get lbls i) (LVar g) ->
@@ -176,10 +223,12 @@ let table_operator
     | Node (i, part), _ ->
       match Array.get lbls i with
       | LEx x' ->
-        let pdts = List.concat (Part.map2 part (Pdt.distribute i (gather sv gs lbls) w)) in
+        let pdts = List.concat (Part.map2 part (fun (s, p) ->
+            Pdt.distribute i (gather ((Var x', s)::sv) gs lbls) w (s, p))) in
         merge_pdts List.concat pdts
       | LAll x' ->
-        let pdts = List.concat (Part.map2 part (Pdt.distribute i (gather sv gs lbls) w)) in
+        let pdts = List.concat (Part.map2 part (fun (s, p) ->
+            Pdt.distribute i (gather ((Var x', s)::sv) gs lbls) w (s, p))) in
         merge_pdts (Etc.list_intersection Valuation.equal) pdts
       | _ -> 
         let pdts = Part.map2 part (fun (s, p) -> gather (((Lbl.term (Array.get lbls i)).trm, s)::sv) gs lbls w p) in
@@ -218,6 +267,14 @@ let table_operator
       let dss = List.map ~f:(fun v -> List.map ~f:(fun x -> Term.unconst (Sig.teval lbls' v x)) x) vs in
       let vs = List.map ~f:(fun v -> Valuation.of_alist_exn s v) (op dss) in
       Some vs) in
+  if !Global.debug then
+      Stdio.printf "[debug:Expl] table_operator (s=[%s], x=%s, y=[%s], lbls=%s, lbls'=%s, p=%s)"
+      (String.concat ~sep:", " (List.map ~f:string_of_int s))
+      (Term.list_to_string x)
+      (Etc.string_list_to_string y)
+      (Lbl.to_string_list (Array.to_list lbls))
+      (Lbl.to_string_list (Array.to_list lbls'))
+      (to_string p);
   let r = insert lbls Valuation.empty
       (Pdt.apply1_reduce (Option.equal (List.equal (Valuation.equal))) apply_op f (gather [] y lbls' Valuation.empty p)) in
   if !Global.debug then

@@ -2033,6 +2033,7 @@ let approximate_let_predicate (trms: ITerm.t list) lbls (expl: Expl.t) =
           | None -> v) trms in
   let idx = List.filter_map ~f:ITerm.unvar_opt trms in
   let expl = Expl.Pdt.specialize_partial lbls v expl in
+  let expl = Expl.Pdt.simplify lbls v expl in
   let inv_idx =
     List.filter_map ~f:(fun x -> x)
       (List.init (List.length idx) ~f:(fun i ->

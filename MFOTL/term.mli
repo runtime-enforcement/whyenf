@@ -96,6 +96,7 @@ module Make (Var : V) (Dom : D) (Uop : O) (Bop : O) (Info : I) : sig
   val exists_subterm: f:(t -> bool) -> t -> bool
 
   val to_string: t -> string
+  val to_string_core: core_t -> string
 
   val value_to_string: ?l:int -> t -> string
   val value_to_latex : ?l:int -> t -> string
