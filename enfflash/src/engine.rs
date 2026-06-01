@@ -623,8 +623,6 @@ impl Engine {
 
         let phase2_elapsed = phase2_start.elapsed();
 
-        self.print_enforcer_output(&all_suppress, &all_cause, false);
-
         // Level-2: print full summary of reactive enforcement decisions
         if self.verbose_level >= 2 {
             eprintln!("  ┌─ Reactive summary @{} ─", new_ts);
@@ -664,10 +662,13 @@ impl Engine {
         self.update_tables_and_lets(&tp.events, true);
         let phase3_elapsed = phase3_start.elapsed();
 
+        // Emit reactive output now that all phases are done, so we can include accurate timing.
+        let total_elapsed = phase1_elapsed + phase2_elapsed + phase2b_elapsed + phase3_elapsed;
+        self.print_enforcer_output(&all_suppress, &all_cause, false, Some(total_elapsed.as_nanos() as u64));
+
         if self.verbose_mode {
-            let total = phase1_elapsed + phase2_elapsed + phase2b_elapsed + phase3_elapsed;
             eprintln!("── Timing @{}: total {:.1?} │ P1(tables+lets) {:.1?} │ P2(fixpoint) {:.1?} │ P2b(obligations) {:.1?} │ P3(lagged) {:.1?}",
-                new_ts, total, phase1_elapsed, phase2_elapsed, phase2b_elapsed, phase3_elapsed);
+                new_ts, total_elapsed, phase1_elapsed, phase2_elapsed, phase2b_elapsed, phase3_elapsed);
             self.print_stats();
         }
     }
@@ -707,7 +708,7 @@ impl Engine {
                 }
             }
         }
-        self.print_enforcer_output(&proactive_suppress, &proactive_cause, true);
+        self.print_enforcer_output(&proactive_suppress, &proactive_cause, true, None);
         self.current_ts = saved_ts;
     }
 
@@ -725,6 +726,7 @@ impl Engine {
         suppress: &[(EventInstance, Vec<String>)],
         cause: &[(EventInstance, Vec<String>)],
         proactive: bool,
+        dur_nanos: Option<u64>,
     ) {
         // Filter out synthetic Cau_/Sup_ events — they are internal to the
         // enforcement typing and should not be reported as enforcement actions.
@@ -735,18 +737,20 @@ impl Engine {
             .filter(|(ev, _)| !ev.name.starts_with("Cau_") && !ev.name.starts_with("Sup_"))
             .collect();
         if self.json_mode {
-            self.print_enforcer_output_json(&suppress, &cause, proactive);
+            self.print_enforcer_output_json(&suppress, &cause, proactive, dur_nanos);
         } else {
             self.print_enforcer_output_textual(&suppress, &cause, proactive);
         }
     }
 
     /// JSON output matching the OCaml `Order.print_json` format.
+    /// `dur_nanos` is the processing time for this timepoint (None for proactive output).
     fn print_enforcer_output_json(
         &self,
         suppress: &[&(EventInstance, Vec<String>)],
         cause: &[&(EventInstance, Vec<String>)],
         proactive: bool,
+        dur_nanos: Option<u64>,
     ) {
         let ts = self.current_ts.unwrap();
         let cause_json = format!("[ {} ]",
@@ -761,16 +765,17 @@ impl Engine {
                 println!("{{ \"ts\": {}, \"proactive\": true }}", ts);
             }
         } else {
+            let dur_field = dur_nanos.map_or(String::new(), |n| format!(", \"dur_nanos\": {}", n));
             let has_cause = !cause.is_empty();
             let has_suppress = !suppress.is_empty();
             if has_cause && has_suppress {
-                println!("{{ \"ts\": {}, \"cause\": {}, \"suppress\": {} }}", ts, cause_json, suppress_json);
+                println!("{{ \"ts\": {}{}, \"cause\": {}, \"suppress\": {} }}", ts, dur_field, cause_json, suppress_json);
             } else if has_cause {
-                println!("{{ \"ts\": {}, \"cause\": {} }}", ts, cause_json);
+                println!("{{ \"ts\": {}{}, \"cause\": {} }}", ts, dur_field, cause_json);
             } else if has_suppress {
-                println!("{{ \"ts\": {}, \"suppress\": {} }}", ts, suppress_json);
+                println!("{{ \"ts\": {}{}, \"suppress\": {} }}", ts, dur_field, suppress_json);
             } else {
-                println!("{{ \"ts\": {} }}", ts);
+                println!("{{ \"ts\": {}{} }}", ts, dur_field);
             }
         }
     }
