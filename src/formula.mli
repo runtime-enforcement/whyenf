@@ -5,7 +5,7 @@ open MFOTL_lib
 module Ctxt : module type of Ctxt.Make(Dom)
 module Term = MyTerm
 
-module StringVar : Modules.V with type t = string
+module StringVar : Modules.V with type t = string and type comparator_witness = String.comparator_witness
 
 include module type of MFOTL.Make(Term.TrivialInfo)(StringVar)(Dom)(Term)
 

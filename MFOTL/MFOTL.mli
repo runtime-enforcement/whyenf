@@ -105,11 +105,15 @@ module Make
   val size : ('i, Var.t, Dom.t, Term.t) _t -> int
   val height : ('i, Var.t, Dom.t, Term.t) _t -> int
   val print_stats : ('i, Var.t, Dom.t, Term.t) _t -> unit
-  val exists_subformula : f_term:(Term.t -> bool) -> f_fun:(('i, Var.t, Dom.t, Term.t) _t -> bool) -> ('i, Var.t, Dom.t, Term.t) _t -> bool
-  val predicates : ?lets:((string, (string, String.comparator_witness) Set.t, String.comparator_witness) Map.t) -> t -> (string, String.comparator_witness) Set.t
-      
+  val exists_subformula :
+    f_term:(Term.t -> bool) -> f_fun:(('i, Var.t, Dom.t, Term.t) _t -> bool) -> ('i, Var.t, Dom.t, Term.t) _t -> bool
+  val predicates :
+    ?lets:((string, (string, String.comparator_witness) Set.t, String.comparator_witness) Map.t) ->
+    ('i, Var.t, Dom.t, Term.t) _t -> (string, String.comparator_witness) Set.t
+
 
   val subst : (Var.t, Term.t, Var.comparator_witness) Base.Map.t -> t -> t
+  val map_predicate : f:(bool -> string -> string) -> ?pol:bool -> ('i, Var.t, Dom.t, Term.t) _t -> ('i, Var.t, Dom.t, Term.t) _t
   val map_consts : f:(Term.d -> Term.d) -> t -> t
 
   val op_to_string : t -> string
@@ -125,7 +129,15 @@ module Make
   val unroll_let : ?moderate:bool -> t -> t
   val unprime : t -> t
   val erase_label : t -> t
-  val ac_simplify : t -> t
+  val ac_simplify : ('i, Var.t, Dom.t, Term.t) _t -> ('i, Var.t, Dom.t, Term.t) _t
+
+  val push_negs   : t -> t
+  val push_quants : t -> t
+  val simplify    : t -> t
+
+  val all_exists     : t -> Var.t list * t list
+  val destruct_nexts : t -> Interval.t list * t list
+  val construct_nexts : Interval.t list -> t list -> core_t -> core_t
 
   val relative_interval : ?itl_itvs:(string, Zinterval.t, Base.String.comparator_witness) Base.Map.t -> t -> Zinterval.t
   val relative_intervals : ?itl_itvs:(string, Zinterval.t, Base.String.comparator_witness) Base.Map.t -> t list -> Zinterval.t
@@ -135,113 +147,13 @@ module Make
   val strict : ?itl_strict:(string, bool, Base.String.comparator_witness) Base.Map.t -> ?itv:Zinterval.t -> ?fut:bool -> t -> bool
   val stricts : ?itl_strict:(string, bool, Base.String.comparator_witness) Base.Map.t -> ?itv:Zinterval.t -> ?fut:bool -> t list -> bool
 
-   val non_monotone_predicates : ?let_ctxt_mon:(string, (string, Base.String.comparator_witness) Base.Set.t, Base.String.comparator_witness) Base.Map.t ->
-                                ?let_ctxt_anti_mon:(string, (string, Base.String.comparator_witness) Base.Set.t, Base.String.comparator_witness) Base.Map.t ->
-                                ?init_mon:(string, Base.String.comparator_witness) Base.Set.t ->
-                                ?init_anti_mon:(string, Base.String.comparator_witness) Base.Set.t ->
-                                t ->
-                                  (string, Base.String.comparator_witness) Base.Set.t *
-                                  (string, Base.String.comparator_witness) Base.Set.t
-
-  module MFOTL_Enforceability (_ : Modules.S) : sig
-
-    val rank : t -> int
-
-    module Errors : sig
-
-      type error =
-        | ECast of string * Enftype.t * Enftype.t
-        | EFormula of string option * t * Enftype.t
-        | EConj of error list
-        | EDisj of error list
-        | ERule of string [@@deriving equal]
-
-      val to_string : ?n:int -> error -> string
-      val ac_simplify : error -> error
-
-    end
-        
-    module Constraints : sig
-
-      type constr =
-        | CTT
-        | CFF
-        | CGeq of string * Enftype.t
-        | CLeq of string * Enftype.t
-        | CConj of constr list
-        | CDisj of constr list [@@deriving equal, compare, sexp_of]
-
-      val solve : constr -> (string, Enftype.Constraint.t, String.comparator_witness) Map.t list
-
-      val to_string : constr -> string
-
-    end
-
-    module Verdict : sig
-
-      type 'a v = Possible of 'a list | Impossible of Errors.error
-
-      val conj : f:('a list -> 'a list -> 'a list) -> 'a v -> 'a v -> 'a v
-      val disj : 'a v -> 'a v -> 'a v
-      val conjs : f:('a list -> 'a list -> 'a list) -> 'a v list -> 'a v
-      val disjs : 'a v list -> 'a v
-      val all : 'a v list -> 'a list v
-      val verdict_to_string : to_string:('a list -> string) -> 'a v -> string
-
-    end
-
-    type pg_map = (string, Etc.string_set_list, String.comparator_witness) Map.t
-    type t_map  = (string, Enftype.t * int list, String.comparator_witness) Map.t
-
-    type trigger = {
-      guards: t list list;
-      filter: t
-    }
-
-    type clause = {
-      trigger: trigger;
-      effects: t list
-    }
-
-    type switch =
-      | SOnce of trigger
-      | SPrev of trigger
-      | SSince of trigger * trigger
-      | SNow of trigger
-
-    type enf_sols = (clause list * Constraints.constr) Verdict.v
-
-    type let_def = {
-      name: string;
-      args: (Var.t * Dom.tt option) list;
-      body: t;
-      cau_sols: enf_sols;
-      sup_sols: enf_sols;
-      switch_pos_opt: switch option;
-      switch_neg_opt: switch option;
-      filter_trigger_opt: trigger option;
-    }
-
-    type let_map = (string, let_def, String.comparator_witness) Map.t
-
-    (* A compiled let: (name, enftype, args, body_pos, body_neg_opt, clauses_opt) *)
-    type compiled_let =
-      string
-      * Enftype.t option
-      * (Var.t * Dom.tt option) list
-      * typed_t
-      * typed_t option
-      * clause list option
-      * trigger option
-
-    val do_type : ?verbose:bool -> ?moderate:bool -> t -> Time.Span.s -> typed_t
-
-    (* Compile and return intermediate enforcement data for the enfflash compiler.
-       Returns: (compiled_lets, raw_clauses, let_map, typed_formula) *)
-    val do_type_and_compile : ?verbose:bool -> ?moderate:bool -> t -> Time.Span.s ->
-      compiled_let list * clause list * let_map * typed_t
-
-
-  end
+  val non_monotone_predicates :
+    ?let_ctxt_mon:(string, (string, Base.String.comparator_witness) Base.Set.t, Base.String.comparator_witness) Base.Map.t ->
+    ?let_ctxt_anti_mon:(string, (string, Base.String.comparator_witness) Base.Set.t, Base.String.comparator_witness) Base.Map.t ->
+    ?init_mon:(string, Base.String.comparator_witness) Base.Set.t ->
+    ?init_anti_mon:(string, Base.String.comparator_witness) Base.Set.t ->
+    ('i, Var.t, Dom.t, Term.t) _t ->
+    (string, Base.String.comparator_witness) Base.Set.t *
+    (string, Base.String.comparator_witness) Base.Set.t
 
 end

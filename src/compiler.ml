@@ -29,10 +29,6 @@ open MFOTL_lib
 module Term = MyTerm
 module Ctxt = Ctxt.Make(Dom)
 
-(* Access the enforcement types (trigger, clause, switch, let_def, let_map)
-   which are defined inside MFOTL_Enforceability(Sig). *)
-module Enforcement = Tyformula.MFOTL_Enforceability(Sig)
-
 (* ═══════════════════════════════════════════════════════════════════════════ *)
 (* Type / value conversions                                                   *)
 (* ═══════════════════════════════════════════════════════════════════════════ *)
@@ -225,12 +221,12 @@ let parse_label_name name =
 
 (* Check whether a let-def is a non-filter SNow (its trigger has event guards).
    If so, return Some (formal_args, trigger).  Otherwise return None. *)
-let get_inlineable_trigger (let_map: Enforcement.let_map) (name: string)
-  : ((Tterm.TypedVar.t * Dom.tt option) list * Enforcement.trigger) option =
+let get_inlineable_trigger (let_map: Enforceability.let_map) (name: string)
+  : ((Tterm.TypedVar.t * Dom.tt option) list * Normalize.trigger) option =
   match Map.find let_map name with
   | Some def ->
     (match def.switch_pos_opt with
-     | Some (Enforcement.SNow trigger) when not (List.is_empty trigger.guards) ->
+     | Some (Normalize.SNow trigger) when not (List.is_empty trigger.guards) ->
        Some (def.args, trigger)
      | _ -> None)
   | None -> None
@@ -250,7 +246,7 @@ let build_subst
    and filter, substituting formal parameters with actual arguments.
    Returns (expanded_guards, extra_filter_formulas). *)
 let rec inline_let_guards
-    (let_map: Enforcement.let_map)
+    (let_map: Enforceability.let_map)
     (guards: Tyformula.t list)
   : Tyformula.t list * Tyformula.t list =
   List.fold_right guards ~init:([], [])
@@ -301,8 +297,8 @@ let decompose_guard_disj (guards: Tyformula.t list list)
       List.map conj ~f:guard_to_pattern)
 
 let trigger_to_clause
-    ~(let_map: Enforcement.let_map)
-    (trigger: Enforcement.trigger)
+    ~(let_map: Enforceability.let_map)
+    (trigger: Normalize.trigger)
   : Enfflash.clause =
   let patterns = decompose_guard_disj trigger.guards in
   Enfflash.{ cl_patterns = patterns;
@@ -365,8 +361,8 @@ let predicate_to_event_pattern (name: string) (args: Tterm.t list)
   (gp, List.rev !extra_filters)
 
 let snow_trigger_to_clause
-    ~(let_map: Enforcement.let_map)
-    (trigger: Enforcement.trigger)
+    ~(let_map: Enforceability.let_map)
+    (trigger: Normalize.trigger)
   : Enfflash.clause =
   (* Start with any guards already present (usually empty for SNow) *)
   let base_patterns = decompose_guard_disj trigger.guards in
@@ -595,11 +591,11 @@ let compile_fun_decls ~(py_source: string option) () : Enfflash.fun_decl list =
   | FNot a -> filter_has_event_ref a*)
 
 let compile_let_from_switch
-    ~(let_map: Enforcement.let_map)
+    ~(let_map: Enforceability.let_map)
     ~(name: string)
     ~(label: string option)
     ~(args: (Tterm.TypedVar.t * Dom.tt option) list)
-    ~(switch: Enforcement.switch)
+    ~(switch: Normalize.switch)
   : [`Let of Enfflash.let_def | `Table of Enfflash.table_def] =
   let columns =
     List.map args ~f:(fun (v, tt_opt) ->
@@ -658,7 +654,7 @@ let compile_let_from_switch
       | _ -> Tyformula.make_dummy (Tyformula.Neg f)
     in
     let neg_filter = simplify_neg left_trigger.filter in
-    let neg_trigger = Enforcement.{
+    let neg_trigger = Normalize.{
         guards = left_trigger.guards;
         filter = neg_filter;
       } in
@@ -699,7 +695,7 @@ let term_to_ef_ty (t: Tterm.t) : Enfflash.ef_ty =
    We keep only the first occurrence of each name. *)
 let collect_synthetic_event_decls
     ~(existing: Enfflash.event_decl list)
-    (clauses: Enforcement.clause list)
+    (clauses: Normalize.clause list)
   : Enfflash.event_decl list =
   let existing_names =
     Set.of_list (module String) (List.map existing ~f:(fun ed -> ed.Enfflash.ed_name)) in
@@ -771,7 +767,7 @@ let extract_label_from_effect_name name =
   | Some s -> fst (parse_label_name s)
   | None -> None
 
-let compile_clause_to_rules ~(let_map: Enforcement.let_map) (clause: Enforcement.clause) : Enfflash.rule_def list =
+let compile_clause_to_rules ~(let_map: Enforceability.let_map) (clause: Normalize.clause) : Enfflash.rule_def list =
   let trigger_clause = trigger_to_clause ~let_map clause.trigger in
   let effects_info =
     List.filter_map clause.effects ~f:(fun effect ->
@@ -885,14 +881,14 @@ type compiled_let =
   * (Tterm.TypedVar.t * Dom.tt option) list  (* parameters *)
   * Tyformula.typed_t                     (* body_pos *)
   * Tyformula.typed_t option              (* body_neg_opt *)
-  * Enforcement.clause list option        (* enforcement clauses *)
-  * Enforcement.trigger option            (* filter_trigger_opt *)
+  * Normalize.clause list option        (* enforcement clauses *)
+  * Normalize.trigger option            (* filter_trigger_opt *)
 
 let compile
     ~(py_source: string option)
-    ~(let_map: Enforcement.let_map)
+    ~(let_map: Enforceability.let_map)
     ~(lets: compiled_let list)
-    ~(clauses: Enforcement.clause list)
+    ~(clauses: Normalize.clause list)
   : Enfflash.program =
   let event_decls = compile_event_decls () in
   let fun_decls = compile_fun_decls ~py_source () in
@@ -933,20 +929,20 @@ let compile
            references to the unsuffixed name (e.g., inside _neg body) resolve. *)
         emit_variant
           name label
-          (Option.bind def_opt ~f:(fun (d: Enforcement.let_def) -> d.switch_pos_opt))
+          (Option.bind def_opt ~f:(fun (d: Enforceability.let_def) -> d.switch_pos_opt))
           body_pos;
         emit_variant
           (name ^ "_pos") label
-          (Option.bind def_opt ~f:(fun (d: Enforcement.let_def) -> d.switch_pos_opt))
+          (Option.bind def_opt ~f:(fun (d: Enforceability.let_def) -> d.switch_pos_opt))
           body_pos;
         emit_variant
           (name ^ "_neg") label
-          (Option.bind def_opt ~f:(fun (d: Enforcement.let_def) -> d.switch_neg_opt))
+          (Option.bind def_opt ~f:(fun (d: Enforceability.let_def) -> d.switch_neg_opt))
           body_neg
       | None ->
         emit_variant
           name label
-          (Option.bind def_opt ~f:(fun (d: Enforcement.let_def) -> d.switch_pos_opt))
+          (Option.bind def_opt ~f:(fun (d: Enforceability.let_def) -> d.switch_pos_opt))
           body_pos);
   (* ── Process enforcement clauses ──────────────────────────────────────── *)
   let rules = List.concat_map clauses ~f:(compile_clause_to_rules ~let_map) in
@@ -1007,9 +1003,9 @@ let compile
 let compile_and_write
     ~(filename: string)
     ~(py_source: string option)
-    ~(let_map: Enforcement.let_map)
+    ~(let_map: Enforceability.let_map)
     ~(lets: compiled_let list)
-    ~(clauses: Enforcement.clause list)
+    ~(clauses: Normalize.clause list)
   =
   let program = compile ~py_source ~let_map ~lets ~clauses in
   (*print_endline (Enfflash.program_to_string program);*)

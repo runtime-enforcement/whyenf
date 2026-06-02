@@ -6,9 +6,7 @@ open MFOTL_lib
 module Ctxt = Ctxt.Make(Dom)
 module Term = MyTerm
 
-include MFOTL.Make(Term.TrivialInfo)(Tterm.TypedVar)(Dom)(Tterm)
-
-include Formula.MFOTL_Enforceability(Sig)
+include MFOTL.Make(MyTerm.TrivialInfo)(Tterm.TypedVar)(Dom)(Tterm)
 
 let rec core_of_formula (f : Formula.t) let_types (types: Ctxt.t) : Ctxt.t * core_t =
   match f.form with
@@ -132,4 +130,3 @@ and of_formula f ?(let_types=Map.empty (module String)) (types: Ctxt.t) =
 
 let of_formula' f =
   snd (of_formula f Ctxt.empty)
-

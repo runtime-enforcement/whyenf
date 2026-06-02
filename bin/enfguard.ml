@@ -78,10 +78,9 @@ module Enfguard = struct
        let _ =
          let formula = Formula.init sformula in
          if stats then Formula.print_stats formula;
-         let open Tyformula.MFOTL_Enforceability(Sig) in
          let f = Formula.convert_vars formula in
          let f = Tyformula.of_formula' f in
-         let lets, clauses, let_map, f = do_type_and_compile ~moderate:(not !Global.unroll_all) f !b_ref in
+         let lets, clauses, let_map, f = Enforceability.do_type_and_compile ~moderate:(not !Global.unroll_all) f !b_ref in
          let ef_file = match output_file with
            | Some filename ->
              ignore (Compiler.compile_and_write ~filename ~py_source ~let_map ~lets ~clauses);
