@@ -130,3 +130,42 @@ and of_formula f ?(let_types=Map.empty (module String)) (types: Ctxt.t) =
 
 let of_formula' f =
   snd (of_formula f Ctxt.empty)
+
+(* ------------------------------------------------------------------ *)
+(* make_past_only                                                       *)
+(* Zeroes out future-only subformulas, keeping only the past component. *)
+(* ------------------------------------------------------------------ *)
+
+let rec make_past_only (p : bool) (form : t) : t =
+  match form.form with
+  | TT | FF | EqConst (_, _) | Predicate (_, _) -> form
+  | Neg f ->
+    let f = make_past_only (not p) f in
+    { form with form = Neg f }
+  | And (s, fs) ->
+    { form with form = And (s, List.map ~f:(make_past_only p) fs) }
+  | Or (s, fs) ->
+    { form with form = Or (s, List.map ~f:(make_past_only p) fs) }
+  | Imp (s, f, g) ->
+    { form with form = Imp (s, make_past_only (not p) f, make_past_only p g) }
+  | Until (s, i, _f, g) when p && Interval.has_zero i -> make_past_only p g
+  | Until _ when p -> make_dummy FF
+  | Until _ -> make_dummy TT
+  | Since (s, i, f, g) ->
+    { form with form = Since (s, i, make_past_only (not p) f, make_past_only p g) }
+  | Exists (x, f) -> { form with form = Exists (x, make_past_only p f) }
+  | Forall (x, f) -> { form with form = Forall (x, make_past_only p f) }
+  | Prev (i, f)   -> { form with form = Prev (i, make_past_only p f) }
+  | Next _ when p -> make_dummy FF
+  | Next _ -> make_dummy TT
+  | Once (i, f)   -> { form with form = Once (i, make_past_only p f) }
+  | Eventually (i, f) when Interval.has_zero i -> make_past_only p f
+  | Eventually _ when p -> make_dummy FF
+  | Eventually _ -> make_dummy TT
+  | Historically (i, f) -> { form with form = Historically (i, make_past_only p f) }
+  | Always (i, f) when p && Interval.has_zero i ->
+    let f = make_past_only (not p) (make_dummy (Neg f)) in
+    { form with form = Neg f }
+  | Always _ when p -> make_dummy FF
+  | Always _ -> make_dummy TT
+  | Label (s, f) -> { form with form = Label (s, make_past_only p f) }

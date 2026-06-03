@@ -10,4 +10,4 @@ include module type of MFOTL.Make(MyTerm.TrivialInfo)(Tterm.TypedVar)(Dom)(Tterm
 val of_formula :  Formula.t -> ?let_types:(string, Ctxt.ttt list, String.comparator_witness) Map.t -> Ctxt.t -> Ctxt.t * t
 val of_formula' : Formula.t -> t
 
-
+val make_past_only : bool -> t -> t

@@ -76,22 +76,23 @@ module Enfguard = struct
     match !formula_ref with
     | Some sformula ->
        let _ =
-         let formula = Formula.init sformula in
-         if stats then Formula.print_stats formula;
-         let f = Formula.convert_vars formula in
-         let f = Tyformula.of_formula' f in
-         let lets, clauses, let_map, f = Enforceability.do_type_and_compile ~moderate:(not !Global.unroll_all) f !b_ref in
+         if stats then Formula.print_stats (Formula.init sformula);
          let ef_file = match output_file with
            | Some filename ->
-             ignore (Compiler.compile_and_write ~filename ~py_source ~let_map ~lets ~clauses);
+             ignore (Compiler.run ~py_source ~b:!b_ref ~moderate:(not !Global.unroll_all)
+                       ~filename sformula);
              Some filename
            | None ->
              if run_enfflash then begin
                let tmp = Stdlib.Filename.temp_file "enfflash_" ".ef" in
-               ignore (Compiler.compile_and_write ~filename:tmp ~py_source ~let_map ~lets ~clauses);
+               ignore (Compiler.run ~py_source ~b:!b_ref ~moderate:(not !Global.unroll_all)
+                         ~filename:tmp sformula);
                Some tmp
              end else begin
-               printf "%s\n" (Tyformula.to_string_typed f);
+               let r = Extraction.do_type_and_extract ~moderate:(not !Global.unroll_all)
+                         (Tyformula.of_formula' (Formula.convert_vars (Formula.init sformula)))
+                         !b_ref in
+               printf "%s\n" (Tyformula.to_string_typed r.Tnformula.formula);
                None
              end
          in

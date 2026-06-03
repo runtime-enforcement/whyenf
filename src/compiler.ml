@@ -1,14 +1,16 @@
-(* Compiler from MFOTL enforcement typing intermediate representation
-   (the lets and clauses from MFOTL.ml do_type) into an Enfflash.program.
+(* Compiler from the enforcement strategy extraction result into an Enfflash.program.
 
-   Data flow:
-     MFOTL.do_type produces:
-       lets   : (name * enftype option * args * body_pos * body_neg_opt * clauses_opt) list
-       clauses: Formula.clause list   (raw, before compile_clause)
-       m      : Formula.let_map       (switch + enforcement info per let)
+   Pipeline:
+     Parsing         → Sformula.t
+     Init + alpha    → Formula.t          (Formula.init, Formula.convert_vars)
+     Term typing     → Tyformula.t        (Tyformula.of_formula')
+     Normalization   → Normalize.result   (Normalize.normalize)
+     Enforceability  → typing_result      (Enforceability.enforce)
+     Extraction      → Extraction.result  (Extraction.extract)
+     Compilation     → Enfflash.program   (Compiler.compile, this module)
+     Linearization   → .ef file           (Enfflash.write_program_to_file)
 
-     This module converts that into Enfflash.program, which can be serialized
-     to the .ef text format understood by the enfflash engine.
+   The top-level [run] function orchestrates all steps from a parsed formula.
 
    Mapping summary:
      SNow   trigger  →  let Name(…) := { filter }
@@ -28,6 +30,8 @@ module MyTerm = Term
 open MFOTL_lib
 module Term = MyTerm
 module Ctxt = Ctxt.Make(Dom)
+
+open Nformula
 
 (* ═══════════════════════════════════════════════════════════════════════════ *)
 (* Type / value conversions                                                   *)
@@ -221,12 +225,12 @@ let parse_label_name name =
 
 (* Check whether a let-def is a non-filter SNow (its trigger has event guards).
    If so, return Some (formal_args, trigger).  Otherwise return None. *)
-let get_inlineable_trigger (let_map: Enforceability.let_map) (name: string)
-  : ((Tterm.TypedVar.t * Dom.tt option) list * Normalize.trigger) option =
+let get_inlineable_trigger (let_map: Nformula.let_map) (name: string)
+  : ((Tterm.TypedVar.t * Dom.tt option) list * Trigger.t) option =
   match Map.find let_map name with
   | Some def ->
     (match def.switch_pos_opt with
-     | Some (Normalize.SNow trigger) when not (List.is_empty trigger.guards) ->
+     | Some (Switch.Now trigger) when not (List.is_empty trigger.guards) ->
        Some (def.args, trigger)
      | _ -> None)
   | None -> None
@@ -246,7 +250,7 @@ let build_subst
    and filter, substituting formal parameters with actual arguments.
    Returns (expanded_guards, extra_filter_formulas). *)
 let rec inline_let_guards
-    (let_map: Enforceability.let_map)
+    (let_map: Nformula.let_map)
     (guards: Tyformula.t list)
   : Tyformula.t list * Tyformula.t list =
   List.fold_right guards ~init:([], [])
@@ -297,8 +301,8 @@ let decompose_guard_disj (guards: Tyformula.t list list)
       List.map conj ~f:guard_to_pattern)
 
 let trigger_to_clause
-    ~(let_map: Enforceability.let_map)
-    (trigger: Normalize.trigger)
+    ~(let_map: Tnformula.let_map)
+    (trigger: Trigger.t)
   : Enfflash.clause =
   let patterns = decompose_guard_disj trigger.guards in
   Enfflash.{ cl_patterns = patterns;
@@ -361,8 +365,8 @@ let predicate_to_event_pattern (name: string) (args: Tterm.t list)
   (gp, List.rev !extra_filters)
 
 let snow_trigger_to_clause
-    ~(let_map: Enforceability.let_map)
-    (trigger: Normalize.trigger)
+    ~(let_map: Tnformula.let_map)
+    (trigger: Trigger.t)
   : Enfflash.clause =
   (* Start with any guards already present (usually empty for SNow) *)
   let base_patterns = decompose_guard_disj trigger.guards in
@@ -591,18 +595,18 @@ let compile_fun_decls ~(py_source: string option) () : Enfflash.fun_decl list =
   | FNot a -> filter_has_event_ref a*)
 
 let compile_let_from_switch
-    ~(let_map: Enforceability.let_map)
+    ~(let_map: Tnformula.let_map)
     ~(name: string)
     ~(label: string option)
     ~(args: (Tterm.TypedVar.t * Dom.tt option) list)
-    ~(switch: Normalize.switch)
+    ~(switch: Switch.t)
   : [`Let of Enfflash.let_def | `Table of Enfflash.table_def] =
   let columns =
     List.map args ~f:(fun (v, tt_opt) ->
         (san (fst v), match tt_opt with Some tt -> tt_to_ef tt | None -> tt_to_ef (snd v))) in
   let sanitized = sanitize_name name in
   match switch with
-  | SNow trigger ->
+  | Switch.Now trigger ->
     (* Present-time predicate → let-def with a proper clause.
        Guard events (trace events, let-defs) become event patterns;
        non-event guards and the trigger filter become the clause filter. *)
@@ -617,7 +621,7 @@ let compile_let_from_switch
         ld_params = columns;
         ld_clause = clause;
       }
-  | SOnce trigger ->
+  | Switch.Once trigger ->
     (* Monotone accumulation: table with add, no remove. *)
     `Table Enfflash.{
         td_label = label;
@@ -627,7 +631,7 @@ let compile_let_from_switch
         td_add_clause = trigger_to_clause ~let_map trigger;
         td_remove_clause = None;
       }
-  | SPrev trigger ->
+  | Switch.Prev trigger ->
     (* Previous-step predicate: lagged table (updated after rules fire). *)
     `Table Enfflash.{
         td_label = label;
@@ -637,7 +641,7 @@ let compile_let_from_switch
         td_add_clause = trigger_to_clause ~let_map trigger;
         td_remove_clause = None;
       }
-  | SSince (left_trigger, right_trigger) ->
+  | Switch.Since (left_trigger, right_trigger) ->
     (* Table with add (right trigger) and remove (negated left trigger).
        Since semantics: φ SINCE ψ — add row when ψ fires (right trigger),
        remove when ¬φ holds (the continuation condition is violated).
@@ -654,7 +658,7 @@ let compile_let_from_switch
       | _ -> Tyformula.make_dummy (Tyformula.Neg f)
     in
     let neg_filter = simplify_neg left_trigger.filter in
-    let neg_trigger = Normalize.{
+    let neg_trigger = Trigger.{
         guards = left_trigger.guards;
         filter = neg_filter;
       } in
@@ -695,7 +699,7 @@ let term_to_ef_ty (t: Tterm.t) : Enfflash.ef_ty =
    We keep only the first occurrence of each name. *)
 let collect_synthetic_event_decls
     ~(existing: Enfflash.event_decl list)
-    (clauses: Normalize.clause list)
+    (clauses: Clause.t list)
   : Enfflash.event_decl list =
   let existing_names =
     Set.of_list (module String) (List.map existing ~f:(fun ed -> ed.Enfflash.ed_name)) in
@@ -725,13 +729,13 @@ let collect_synthetic_event_decls
   List.iter clauses ~f:(fun clause ->
       (* Scan effects *)
       List.iter clause.effects ~f:(fun effect ->
-          let name_args_opt = match effect.form with
-            | Predicate (name, args)                     -> Some (name, args)
-            | Neg { form = Predicate (name, args); _ }   -> Some (name, args)
-            | Eventually (_, { form = Predicate (name, args); _ }) -> Some (name, args)
-            | Eventually (_, { form = Neg { form = Predicate (name, args); _ }; _ }) -> Some (name, args)
-            | Next (_, { form = Predicate (name, args); _ }) -> Some (name, args)
-            | Next (_, { form = Neg { form = Predicate (name, args); _ }; _ }) -> Some (name, args)
+          let name_args_opt = match effect with
+            | Cau (name, args) -> Some (name, args)
+            | Sup (name, args) -> Some (name, args)
+            | EventuallyCau (_, name, args) -> Some (name, args)
+            | EventuallySup (_, name, args) -> Some (name, args)
+            | NextCau (_, name, args) -> Some (name, args)
+            | NextSup (_, name, args) -> Some (name, args)
             | _ -> None
           in
           Option.iter name_args_opt ~f:(fun (name, args) ->
@@ -767,32 +771,32 @@ let extract_label_from_effect_name name =
   | Some s -> fst (parse_label_name s)
   | None -> None
 
-let compile_clause_to_rules ~(let_map: Enforceability.let_map) (clause: Normalize.clause) : Enfflash.rule_def list =
+let compile_clause_to_rules ~(let_map: Tnformula.let_map) (clause: Clause.t) : Enfflash.rule_def list =
   let trigger_clause = trigger_to_clause ~let_map clause.trigger in
   let effects_info =
     List.filter_map clause.effects ~f:(fun effect ->
-        match effect.form with
-        | Predicate (name, args) ->
+        match effect with
+        | Cau (name, args) ->
           let params = List.map args ~f:term_to_ef in
           let label = extract_label_from_effect_name name in
           Some (sanitize_name name, params, Enfflash.RCause, None, None, label)
-        | Neg { form = Predicate (name, args); _ } ->
+        | Sup (name, args) ->
           let params = List.map args ~f:term_to_ef in
           let label = extract_label_from_effect_name name in
           Some (sanitize_name name, params, Enfflash.RSuppress, None, None, label)
-        | Eventually (i, { form = Predicate (name, args); _ }) ->
+        | EventuallyCau (i, name, args) ->
           let params = List.map args ~f:term_to_ef in
           let label = extract_label_from_effect_name name in
           Some (sanitize_name name, params, Enfflash.RCause, interval_to_delay i, None, label)
-        | Eventually (i, { form = Neg { form = Predicate (name, args); _ }; _ }) ->
+        | EventuallySup (i, name, args) ->
           let params = List.map args ~f:term_to_ef in
           let label = extract_label_from_effect_name name in
           Some (sanitize_name name, params, Enfflash.RSuppress, interval_to_delay i, None, label)
-        | Next (i, { form = Predicate (name, args); _ }) ->
+        | NextCau (i, name, args) ->
           let params = List.map args ~f:term_to_ef in
           let label = extract_label_from_effect_name name in
           Some (sanitize_name name, params, Enfflash.RCause, None, Some 1, label)
-        | Next (i, { form = Neg { form = Predicate (name, args); _ }; _ }) ->
+        | NextSup (i, name, args) ->
           let params = List.map args ~f:term_to_ef in
           let label = extract_label_from_effect_name name in
           Some (sanitize_name name, params, Enfflash.RSuppress, None, Some 1, label)
@@ -875,28 +879,24 @@ let reorder_program (prog: Enfflash.program) =
 (* Top-level compilation                                                      *)
 (* ═══════════════════════════════════════════════════════════════════════════ *)
 
-type compiled_let =
-  string                                  (* name *)
-  * Enftype.t option                      (* enforcement type *)
-  * (Tterm.TypedVar.t * Dom.tt option) list  (* parameters *)
-  * Tyformula.typed_t                     (* body_pos *)
-  * Tyformula.typed_t option              (* body_neg_opt *)
-  * Normalize.clause list option        (* enforcement clauses *)
-  * Normalize.trigger option            (* filter_trigger_opt *)
 
 let compile
     ~(py_source: string option)
-    ~(let_map: Enforceability.let_map)
-    ~(lets: compiled_let list)
-    ~(clauses: Normalize.clause list)
+    (r: Tnformula.t)
   : Enfflash.program =
+  let let_map = r.let_map in
+  let lets    = List.map r.let_names ~f:(Map.find_exn let_map) in
+  let clauses = r.clauses in
   let event_decls = compile_event_decls () in
   let fun_decls = compile_fun_decls ~py_source () in
   let let_defs  = ref [] in
   let tables    = ref [] in
   let items     = ref [] in
   (* ── Process each compiled let ────────────────────────────────────────── *)
-  List.iter lets ~f:(fun (name, _enftype, args, body_pos, body_neg_opt, _clauses_opt, filter_trigger_opt) ->
+  List.iter lets ~f:(fun (cl : Tnformula.let_def) ->
+      let name = cl.name and args = cl.args
+      and body_pos = cl.body_pos and body_neg_opt = cl.body_neg_opt
+      and filter_trigger_opt = cl.filter_trigger_opt in
       let label, _sanitized = parse_label_name name in
       let emit_variant vname vlabel switch_opt fallback_body =
         match switch_opt with
@@ -929,20 +929,20 @@ let compile
            references to the unsuffixed name (e.g., inside _neg body) resolve. *)
         emit_variant
           name label
-          (Option.bind def_opt ~f:(fun (d: Enforceability.let_def) -> d.switch_pos_opt))
+          (Option.bind def_opt ~f:(fun (d: Tnformula.let_def) -> d.switch_pos_opt))
           body_pos;
         emit_variant
           (name ^ "_pos") label
-          (Option.bind def_opt ~f:(fun (d: Enforceability.let_def) -> d.switch_pos_opt))
+          (Option.bind def_opt ~f:(fun (d: Tnformula.let_def) -> d.switch_pos_opt))
           body_pos;
         emit_variant
           (name ^ "_neg") label
-          (Option.bind def_opt ~f:(fun (d: Enforceability.let_def) -> d.switch_neg_opt))
+          (Option.bind def_opt ~f:(fun (d: Tnformula.let_def) -> d.switch_neg_opt))
           body_neg
       | None ->
         emit_variant
           name label
-          (Option.bind def_opt ~f:(fun (d: Enforceability.let_def) -> d.switch_pos_opt))
+          (Option.bind def_opt ~f:(fun (d: Tnformula.let_def) -> d.switch_pos_opt))
           body_pos);
   (* ── Process enforcement clauses ──────────────────────────────────────── *)
   let rules = List.concat_map clauses ~f:(compile_clause_to_rules ~let_map) in
@@ -1003,12 +1003,31 @@ let compile
 let compile_and_write
     ~(filename: string)
     ~(py_source: string option)
-    ~(let_map: Enforceability.let_map)
-    ~(lets: compiled_let list)
-    ~(clauses: Normalize.clause list)
+    (r: Tnformula.t)
   =
-  let program = compile ~py_source ~let_map ~lets ~clauses in
-  (*print_endline (Enfflash.program_to_string program);*)
+  let program = compile ~py_source r in
   Enfflash.write_program_to_file ~filename program;
+  program
+
+(* ═══════════════════════════════════════════════════════════════════════════ *)
+(* Pipeline orchestration                                                      *)
+(* ═══════════════════════════════════════════════════════════════════════════ *)
+
+let run
+    ~(py_source: string option)
+    ~(b: Time.Span.s)
+    ?(verbose: bool = true)
+    ?(moderate: bool = true)
+    ~(filename: string)
+    (sformula: Sformula.t)
+  : Enfflash.program =
+  let formula = Formula.init sformula in                (* init + alpha conversion *)
+  let f       = Formula.convert_vars formula in         (* basic term typing       *)
+  let tyf     = Tyformula.of_formula' f in              (* term typing             *)
+  let lf      = Lformula.make ~moderate tyf in          (* normalization: let-pull *)
+  let nf      = Enforceability.enforce ~verbose lf b in (* enforceability          *)
+  let tnf     = Extraction.extract nf in                (* extraction of solution  *)
+  let program = compile ~py_source tnf in               (* compilation to IR       *)
+  Enfflash.write_program_to_file ~filename program;     (* linearization           *)
   program
 
