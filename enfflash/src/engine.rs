@@ -1,12 +1,118 @@
 /// The enforcement engine: evaluates programs against logs.
 
 use std::collections::{BTreeSet, HashMap};
+use std::io::Write;
 use std::time::Instant;
 use serde::{Serialize, Deserialize};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use crate::ast::*;
 use crate::table::{Table, Row};
+
+// ─── Public output type ──────────────────────────────────────────────────────
+
+/// The enforcement decision for one timepoint from one engine instance.
+/// Returned by [`Engine::process_one`] and [`Engine::finish`]; callers
+/// decide how to print or aggregate these values.
+#[derive(Debug, Clone)]
+pub struct EnfOutput {
+    pub ts:             u64,
+    pub proactive:      bool,
+    /// Cause actions — filtered (no `Cau_` / `Sup_` synthetics).
+    pub cause:          Vec<(EventInstance, Vec<String>)>,
+    /// Suppress actions — filtered.
+    pub suppress:       Vec<(EventInstance, Vec<String>)>,
+    /// Wall-clock processing time for reactive output; `None` for proactive.
+    pub dur_nanos:      Option<u64>,
+    /// Wall-clock microseconds elapsed since the engine was created.
+    pub latency_micros: u64,
+}
+
+impl EnfOutput {
+    pub fn print(&self, json_mode: bool, label_mode: bool) {
+        if json_mode {
+            self.print_json();
+        } else {
+            self.print_textual(label_mode);
+        }
+    }
+
+    fn print_json(&self) {
+        let ts = self.ts;
+        let cause_json = format!("[ {} ]",
+            self.cause.iter().map(|(e, _)| e.to_json()).collect::<Vec<_>>().join(", "));
+        let suppress_json = format!("[ {} ]",
+            self.suppress.iter().map(|(e, _)| e.to_json()).collect::<Vec<_>>().join(", "));
+        if self.proactive {
+            if !self.cause.is_empty() {
+                println!("{{ \"ts\": {}, \"cause\": {}, \"proactive\": true, \"latency\": {} }}",
+                         ts, cause_json, self.latency_micros);
+            } else {
+                println!("{{ \"ts\": {}, \"proactive\": true, \"latency\": {} }}",
+                         ts, self.latency_micros);
+            }
+        } else {
+            let dur_field = self.dur_nanos
+                .map_or(String::new(), |n| format!(", \"dur_nanos\": {}", n));
+            let has_c = !self.cause.is_empty();
+            let has_s = !self.suppress.is_empty();
+            if has_c && has_s {
+                println!("{{ \"ts\": {}{}, \"cause\": {}, \"suppress\": {}, \"latency\": {} }}",
+                         ts, dur_field, cause_json, suppress_json, self.latency_micros);
+            } else if has_c {
+                println!("{{ \"ts\": {}{}, \"cause\": {}, \"latency\": {} }}",
+                         ts, dur_field, cause_json, self.latency_micros);
+            } else if has_s {
+                println!("{{ \"ts\": {}{}, \"suppress\": {}, \"latency\": {} }}",
+                         ts, dur_field, suppress_json, self.latency_micros);
+            } else {
+                println!("{{ \"ts\": {}{}, \"latency\": {} }}", ts, dur_field, self.latency_micros);
+            }
+        }
+        let _ = std::io::stdout().flush();
+    }
+
+    fn print_textual(&self, label_mode: bool) {
+        let ts = self.ts;
+        if self.proactive {
+            if !self.cause.is_empty() {
+                if label_mode {
+                    for (ev, labels) in &self.cause {
+                        let fmt = labels.iter().map(|l| format!("\"{}\"", l)).collect::<Vec<_>>().join(", ");
+                        println!("[Enforcer:Label] Cause {}: {}", ev, fmt);
+                    }
+                }
+                println!("[Enforcer] @{} proactively commands:\nCause:\n{}\nOK.", ts,
+                    self.cause.iter().map(|(e, _)| e.to_string()).collect::<Vec<_>>().join(", "));
+            } else {
+                println!("[Enforcer] @{} nothing to do proactively.", ts);
+            }
+        } else {
+            if label_mode {
+                for (ev, labels) in &self.suppress {
+                    let fmt = labels.iter().map(|l| format!("\"{}\"", l)).collect::<Vec<_>>().join(", ");
+                    println!("[Enforcer:Label] Suppress {}: {}", ev, fmt);
+                }
+                for (ev, labels) in &self.cause {
+                    let fmt = labels.iter().map(|l| format!("\"{}\"", l)).collect::<Vec<_>>().join(", ");
+                    println!("[Enforcer:Label] Cause {}: {}", ev, fmt);
+                }
+            }
+            if !self.suppress.is_empty() || !self.cause.is_empty() {
+                println!("[Enforcer] @{} reactively commands:", ts);
+                if !self.suppress.is_empty() {
+                    println!("Suppress:\n{}", self.suppress.iter().map(|(e,_)| e.to_string()).collect::<Vec<_>>().join(", "));
+                }
+                if !self.cause.is_empty() {
+                    println!("Cause:\n{}", self.cause.iter().map(|(e,_)| e.to_string()).collect::<Vec<_>>().join(", "));
+                }
+                println!("OK.");
+            } else {
+                println!("[Enforcer] @{} OK.", ts);
+            }
+        }
+    }
+}
 
 /// Convenience macro: prints to stderr only when `self.verbose_mode` is true.
 macro_rules! vlog {
@@ -75,6 +181,10 @@ pub struct Engine {
     label_mode: bool,
     /// Whether to output enforcement actions in JSON format
     json_mode: bool,
+    /// Whether to emit {"sync":true} after each reactive timepoint (subprocess parallel mode)
+    sync_mode: bool,
+    /// Buffered outputs from the current process_one / finish call.
+    output_buffer: Vec<EnfOutput>,
     /// Whether to print verbose debug info
     verbose_mode: bool,
     /// Verbose detail level: 0 = off, 1 = basic (same as verbose_mode), 2 = full detail
@@ -98,7 +208,7 @@ pub struct EngineState {
 }
 
 impl Engine {
-    pub fn new(program: Program, label_mode: bool, json_mode: bool, verbose_mode: bool, verbose_level: u8) -> Self {
+    pub fn new(program: Program, label_mode: bool, json_mode: bool, sync_mode: bool, verbose_mode: bool, verbose_level: u8) -> Self {
         let event_names: BTreeSet<String> = program
             .event_decls
             .iter()
@@ -128,8 +238,11 @@ impl Engine {
             .map(|d| (d.name.clone(), d.clone()))
             .collect();
 
-        // Compile Python functions
-        let py_functions = Python::with_gil(|py| {
+        // Compile Python functions (skip GIL acquisition entirely when none are defined)
+        let py_functions = if program.fun_decls.is_empty() {
+            HashMap::new()
+        } else {
+        Python::with_gil(|py| {
             let mut fns = HashMap::new();
             for fd in &program.fun_decls {
                 let params_str = fd.param_names.join(", ");
@@ -170,7 +283,7 @@ impl Engine {
                 fns.insert(fd.name.clone(), (fd.param_names.clone(), func.into_any().unbind()));
             }
             fns
-        });
+        }) };
 
         Engine {
             program,
@@ -186,6 +299,8 @@ impl Engine {
             last_proactive_ts: None,
             label_mode,
             json_mode,
+            sync_mode,
+            output_buffer: Vec::new(),
             verbose_mode,
             verbose_level,
             current_time: std::time::SystemTime::now()
@@ -209,6 +324,7 @@ impl Engine {
 
     /// Print program summary: let definitions, table definitions, rules overview.
     /// Called once at engine start when verbose_mode is on.
+    #[allow(dead_code)]
     pub fn print_program_summary(&self) {
         eprintln!("╔══════════════════════════════════════════════════════════");
         eprintln!("║ Program Summary");
@@ -270,24 +386,26 @@ impl Engine {
         eprintln!("╚══════════════════════════════════════════════════════════");
     }
 
-    /// Process a single time-point (streaming API).
-    pub fn process_one(&mut self, tp: &TimePoint) {
+    /// Process a single time-point.  Returns all [`EnfOutput`]s produced
+    /// (proactive output for the previous timestamp + reactive for this one).
+    pub fn process_one(&mut self, tp: &TimePoint) -> Vec<EnfOutput> {
         self.process_timepoint(tp);
+        std::mem::take(&mut self.output_buffer)
     }
 
     /// Flush all remaining delayed obligations (call after the last time-point).
-    pub fn finish(&mut self) {
-        // Emit proactive output for the last timestamp seen
+    /// Returns any final proactive outputs.
+    pub fn finish(&mut self) -> Vec<EnfOutput> {
         if let Some(ts) = self.current_ts {
             self.emit_proactive(ts);
         }
-        // Flush any obligations at future timestamps
         if let Some(max_ts) = self.obligations.keys().max().cloned() {
             let start = self.current_ts.map_or(0, |t| t + 1);
             if start <= max_ts {
                 self.flush_obligations_range(start, max_ts + 1);
             }
         }
+        std::mem::take(&mut self.output_buffer)
     }
 
     // ─── State persistence ───────────────────────────────────────────────────
@@ -338,8 +456,9 @@ impl Engine {
     }
 
     fn process_timepoint(&mut self, tp: &TimePoint) {
+        self.current_time = std::time::SystemTime::now();
         let new_ts = tp.timestamp;
-
+        
         vlog!(self, "\n╔══════════════════════════════════════════════════════════");
         vlog!(self, "║ Timepoint @{} — {} event(s)", new_ts, tp.events.len());
         for ev in &tp.events {
@@ -664,7 +783,14 @@ impl Engine {
 
         // Emit reactive output now that all phases are done, so we can include accurate timing.
         let total_elapsed = phase1_elapsed + phase2_elapsed + phase2b_elapsed + phase3_elapsed;
-        self.print_enforcer_output(&all_suppress, &all_cause, false, Some(total_elapsed.as_nanos() as u64));
+        self.collect_output(&all_suppress, &all_cause, false, Some(total_elapsed.as_nanos() as u64));
+        if self.sync_mode {
+            // Print the buffered reactive output immediately, then the sync marker.
+            // (Subprocess mode: output must reach the orchestrator before we block.)
+            let outputs = std::mem::take(&mut self.output_buffer);
+            self.print_outputs(&outputs);
+            println!("{{\"sync\":true}}");
+        }
 
         if self.verbose_mode {
             eprintln!("── Timing @{}: total {:.1?} │ P1(tables+lets) {:.1?} │ P2(fixpoint) {:.1?} │ P2b(obligations) {:.1?} │ P3(lagged) {:.1?}",
@@ -708,7 +834,7 @@ impl Engine {
                 }
             }
         }
-        self.print_enforcer_output(&proactive_suppress, &proactive_cause, true, None);
+        self.collect_output(&proactive_suppress, &proactive_cause, true, None);
         self.current_ts = saved_ts;
     }
 
@@ -721,114 +847,37 @@ impl Engine {
     }
 
 
-    fn print_enforcer_output(
-        &self,
+    /// Build an [`EnfOutput`] from raw cause/suppress lists and push it onto
+    /// `self.output_buffer`.  Synthetic `Cau_` / `Sup_` events are filtered out.
+    fn collect_output(
+        &mut self,
         suppress: &[(EventInstance, Vec<String>)],
-        cause: &[(EventInstance, Vec<String>)],
-        proactive: bool,
-        dur_nanos: Option<u64>,
-    ) {
-        // Filter out synthetic Cau_/Sup_ events — they are internal to the
-        // enforcement typing and should not be reported as enforcement actions.
-        let suppress: Vec<_> = suppress.iter()
-            .filter(|(ev, _)| !ev.name.starts_with("Cau_") && !ev.name.starts_with("Sup_"))
-            .collect();
-        let cause: Vec<_> = cause.iter()
-            .filter(|(ev, _)| !ev.name.starts_with("Cau_") && !ev.name.starts_with("Sup_"))
-            .collect();
-        if self.json_mode {
-            self.print_enforcer_output_json(&suppress, &cause, proactive, dur_nanos);
-        } else {
-            self.print_enforcer_output_textual(&suppress, &cause, proactive);
-        }
-    }
-
-    /// JSON output matching the OCaml `Order.print_json` format.
-    /// `dur_nanos` is the processing time for this timepoint (None for proactive output).
-    fn print_enforcer_output_json(
-        &self,
-        suppress: &[&(EventInstance, Vec<String>)],
-        cause: &[&(EventInstance, Vec<String>)],
+        cause:    &[(EventInstance, Vec<String>)],
         proactive: bool,
         dur_nanos: Option<u64>,
     ) {
         let ts = self.current_ts.unwrap();
-        let cause_json = format!("[ {} ]",
-            cause.iter().map(|(e, _)| e.to_json()).collect::<Vec<_>>().join(", "));
-        let suppress_json = format!("[ {} ]",
-            suppress.iter().map(|(e, _)| e.to_json()).collect::<Vec<_>>().join(", "));
-
-        if proactive {
-            if !cause.is_empty() {
-                println!("{{ \"ts\": {}, \"cause\": {}, \"proactive\": true }}", ts, cause_json);
-            } else {
-                println!("{{ \"ts\": {}, \"proactive\": true }}", ts);
-            }
-        } else {
-            let dur_field = dur_nanos.map_or(String::new(), |n| format!(", \"dur_nanos\": {}", n));
-            let has_cause = !cause.is_empty();
-            let has_suppress = !suppress.is_empty();
-            if has_cause && has_suppress {
-                println!("{{ \"ts\": {}{}, \"cause\": {}, \"suppress\": {} }}", ts, dur_field, cause_json, suppress_json);
-            } else if has_cause {
-                println!("{{ \"ts\": {}{}, \"cause\": {} }}", ts, dur_field, cause_json);
-            } else if has_suppress {
-                println!("{{ \"ts\": {}{}, \"suppress\": {} }}", ts, dur_field, suppress_json);
-            } else {
-                println!("{{ \"ts\": {}{} }}", ts, dur_field);
-            }
-        }
+        let latency_micros = self.current_time.elapsed().unwrap_or_default().as_micros() as u64;
+        let cause_filtered: Vec<_> = cause.iter()
+            .filter(|(ev, _)| !ev.name.starts_with("Cau_") && !ev.name.starts_with("Sup_"))
+            .cloned().collect();
+        let suppress_filtered: Vec<_> = suppress.iter()
+            .filter(|(ev, _)| !ev.name.starts_with("Cau_") && !ev.name.starts_with("Sup_"))
+            .cloned().collect();
+        self.output_buffer.push(EnfOutput {
+            ts,
+            proactive,
+            cause:    cause_filtered,
+            suppress: suppress_filtered,
+            dur_nanos,
+            latency_micros,
+        });
     }
 
-    /// Textual output (original format).
-    fn print_enforcer_output_textual(
-        &self,
-        suppress: &[&(EventInstance, Vec<String>)],
-        cause: &[&(EventInstance, Vec<String>)],
-        proactive: bool,
-    ) {
-        if proactive {
-            if !cause.is_empty() {
-                if self.label_mode {
-                    for (ev, labels) in cause {
-                        let formatted = labels.iter().map(|l| format!("\"{}\"", l)).collect::<Vec<_>>().join(", ");
-                        println!("[Enforcer:Label] Cause {}: {}", ev, formatted);
-                    }
-                }
-                println!(
-                    "[Enforcer] @{} proactively commands:\nCause:\n{}\nOK.",
-                    self.current_ts.unwrap(),    
-                    cause.iter().map(|(e, _)| e.to_string()).collect::<Vec<_>>().join(", ")
-                );
-            } else {
-                println!("[Enforcer] @{} nothing to do proactively.", self.current_ts.unwrap());
-            }
-        } else {
-            if self.label_mode {
-                for (ev, labels) in suppress {
-                    let formatted = labels.iter().map(|l| format!("\"{}\"", l)).collect::<Vec<_>>().join(", ");
-                    println!("[Enforcer:Label] Suppress {}: {}", ev, formatted);
-                }
-                for (ev, labels) in cause {
-                    let formatted = labels.iter().map(|l| format!("\"{}\"", l)).collect::<Vec<_>>().join(", ");
-                    println!("[Enforcer:Label] Cause {}: {}", ev, formatted);
-                }
-            } 
-            if !suppress.is_empty() || !cause.is_empty() {
-                println!("[Enforcer] @{} reactively commands:", self.current_ts.unwrap());
-                if !suppress.is_empty() {
-                    let items: Vec<String> = suppress.iter().map(|(e, _)| e.to_string()).collect();
-                    println!("Suppress:\n{}", items.join(", "));
-                }
-                if !cause.is_empty() {
-                    let items: Vec<String> = cause.iter().map(|(e, _)| e.to_string()).collect();
-                    println!("Cause:\n{}", items.join(", "));
-                }
-                println!("OK.");
-            }
-            else {
-                println!("[Enforcer] @{} OK.", self.current_ts.unwrap());
-            }
+    /// Print a slice of [`EnfOutput`] values using this engine's display mode.
+    pub fn print_outputs(&self, outputs: &[EnfOutput]) {
+        for out in outputs {
+            out.print(self.json_mode, self.label_mode);
         }
     }
 

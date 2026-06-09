@@ -34,14 +34,17 @@ let add_back_exists f xs fs =
 (* pull_lets / do_pull_lets                                             *)
 (* ------------------------------------------------------------------ *)
 
-let rec pull_lets ?(i=0) ?(m:(string, string list * t, String.comparator_witness) Map.t=Map.empty (module String)) form =
+let rec pull_lets ?(i=0) ?(m:(string, Var.t list * t, String.comparator_witness) Map.t=Map.empty (module String)) form =
   let open Tyformula in
   let r =
     match form.form with
     | Predicate (r, trms) ->
       (match Map.find m r with
        | None -> (i, [], form)
-       | Some (vars, e) -> (i, [], subst (Map.of_alist_exn (module Var) (List.zip_exn (List.map ~f:Var.of_ident vars) trms)) e))
+       (* Keep the typed parameter variables: [Var.of_ident] would default the
+          type to TInt, so substitution would fail to match the (correctly
+          typed) variables in the body and leave them dangling/free. *)
+       | Some (vars, e) -> (i, [], subst (Map.of_alist_exn (module Var) (List.zip_exn vars trms)) e))
     | TT | FF | EqConst _  -> (i, [], form)
     | Predicate' (_, _, f)
     | Let' (_, _, _, _, f)
@@ -54,7 +57,7 @@ let rec pull_lets ?(i=0) ?(m:(string, string list * t, String.comparator_witness
          i, letsf @ { le_name = e; le_enftype = Some enftype; le_args = vars;
                       le_body = f; le_origin = origin } :: letsg, g
        else
-         let i, letsg, g = pull_lets ~i ~m:(Map.update m e ~f:(fun _ -> (List.map ~f:(fun (v, _) -> Var.ident v) vars, f))) g in
+         let i, letsg, g = pull_lets ~i ~m:(Map.update m e ~f:(fun _ -> (List.map ~f:(fun (v, _) -> v) vars, f))) g in
          i, letsf @ letsg, g)
     | Neg f ->
       let i, letsf, f = pull_lets ~i ~m f in

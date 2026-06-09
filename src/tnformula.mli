@@ -24,3 +24,5 @@ type t = {
   clauses   : Clause.t list;
   formula   : typed_t;
 }
+
+val clean_unused_lets : t -> t

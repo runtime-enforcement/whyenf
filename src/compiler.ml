@@ -1010,8 +1010,137 @@ let compile_and_write
   program
 
 (* ═══════════════════════════════════════════════════════════════════════════ *)
+(* Parallel splitting: multi-program compilation                               *)
+(* ═══════════════════════════════════════════════════════════════════════════ *)
+
+(** Info about one sub-enforcer produced by [split_and_compile]. *)
+type split_group_info = {
+  sgi_program_file   : string;
+  (** Predicate names that must be forwarded to this sub-enforcer. *)
+  sgi_trigger_events : string list;
+}
+
+(** Compile [tnf] into [k] sub-programs, one per split group.
+    Writes:
+      [output_dir/base_name_subN.ef]           for each group N
+      [output_dir/base_name_manifest.json]     machine-readable index
+
+    When the split yields only one group (no useful split), a single file
+    [output_dir/base_name.ef] is written instead.
+
+    [filtered] and [aggressivity] are forwarded to [Splitting.split]. *)
+let split_and_compile
+    ?(filtered    = false)
+    ?(aggressivity = 0)
+    ?(num_groups   = 0)
+    ?(data_axes : Splitting.DataSplit.data_axis list = [])
+    ?(broadcast_events : string list = [])
+    ~(py_source   : string option)
+    ~(output_dir  : string)
+    ~(base_name   : string)
+    (tnf : Tnformula.t)
+  : split_group_info list =
+  let groups      = Splitting.EventSplit.split ~filtered ~aggressivity ~num_groups tnf in
+  let clauses_arr = Array.of_list tnf.clauses in
+  (* Build the let-context predicate map once, shared across all groups. *)
+  let pred_map, _, _ = Splitting.maps_of_lets tnf.let_map in
+  let trigger_events_of indices =
+    Set.to_list (
+      Set.union_list (module String)
+        (List.map indices ~f:(fun i ->
+           Clause.trigger_predicates ~lets:pred_map clauses_arr.(i))))
+  in
+  (* One [.ef] per *event* group; data shards reuse the same program. *)
+  let compile_group idx indices =
+    let filename =
+      if List.length groups = 1 then
+        Filename.concat output_dir (base_name ^ ".ef")
+      else
+        Filename.concat output_dir
+          (Printf.sprintf "%s_sub%d.ef" base_name idx) in
+    let sub_clauses = List.map indices ~f:(fun i -> clauses_arr.(i)) in
+    let sub_tnf = Tnformula.clean_unused_lets { tnf with Tnformula.clauses = sub_clauses } in
+    let _ = compile_and_write ~filename ~py_source sub_tnf in
+    { sgi_program_file   = filename;
+      sgi_trigger_events = trigger_events_of indices }
+  in
+  let event_infos = List.mapi groups ~f:compile_group in
+
+  (* ---- JSON rendering ---- *)
+  let json_str_list xs =
+    String.concat ~sep:", " (List.map xs ~f:(fun s -> Printf.sprintf "\"%s\"" s)) in
+  (* All bucket tuples (one bucket per axis) — the Cartesian product. *)
+  let bucket_tuples =
+    List.fold_right data_axes ~init:[[]] ~f:(fun axis acc ->
+        List.concat_map (List.range 0 axis.Splitting.DataSplit.da_modulo) ~f:(fun b ->
+            List.map acc ~f:(fun t -> b :: t))) in
+  let data_routes_json tuple =
+    List.map2_exn data_axes tuple ~f:(fun axis b ->
+        let fields =
+          String.concat ~sep:", "
+            (List.map axis.Splitting.DataSplit.da_fields ~f:(fun (ev, i) ->
+                 Printf.sprintf "\"%s\": %d" ev i)) in
+        Printf.sprintf "{ \"modulo\": %d, \"bucket\": %d, \"fields\": { %s } }"
+          axis.Splitting.DataSplit.da_modulo b fields)
+    |> String.concat ~sep:", " in
+  let group_json sgi tuple =
+    let evts = json_str_list sgi.sgi_trigger_events in
+    if List.is_empty data_axes then
+      Printf.sprintf
+        "    { \"program\": \"%s\", \"trigger_events\": [%s] }"
+        sgi.sgi_program_file evts
+    else
+      Printf.sprintf
+        "    { \"program\": \"%s\", \"trigger_events\": [%s], \"data_routes\": [%s], \"broadcast_events\": [%s] }"
+        sgi.sgi_program_file evts (data_routes_json tuple) (json_str_list broadcast_events)
+  in
+  (* Manifest = event groups × data shards. *)
+  let entries =
+    List.concat_map event_infos ~f:(fun sgi ->
+        List.map bucket_tuples ~f:(fun tuple -> sgi, tuple)) in
+  let manifest_file =
+    Filename.concat output_dir (base_name ^ "_manifest.json") in
+  let manifest =
+    Printf.sprintf "{\n  \"groups\": [\n%s\n  ]\n}\n"
+      (String.concat ~sep:",\n"
+         (List.map entries ~f:(fun (sgi, tuple) -> group_json sgi tuple))) in
+  Stdio.Out_channel.write_all manifest_file ~data:manifest;
+  List.map entries ~f:fst
+
+(* ═══════════════════════════════════════════════════════════════════════════ *)
 (* Pipeline orchestration                                                      *)
 (* ═══════════════════════════════════════════════════════════════════════════ *)
+
+(* Shared pipeline front-end: parse → normalise → extract → Tnformula.t *)
+let extract_tnf
+    ~(b: Time.Span.s)
+    ?(verbose: bool = true)
+    ?(moderate: bool = true)
+    (sformula: Sformula.t)
+  : Tnformula.t =
+  let formula = Formula.init sformula in
+  let f       = Formula.convert_vars formula in
+  let tyf     = Tyformula.of_formula' f in
+  let lf      = Lformula.make ~moderate tyf in
+  let nf      = Enforceability.enforce ~verbose lf b in
+  Extraction.extract nf
+
+(* Data-splitting analysis: build the base-event field graph and print its
+   connected components (the available data-parallel axes) plus the
+   un-partitionable (tainted) fields. Runs only the typed front-end (no
+   enforceability/extraction needed). *)
+let analyze_data (sformula : Sformula.t) : unit =
+  let f   = Formula.convert_vars (Formula.init sformula) in
+  let tyf = Tyformula.of_formula' f in
+  let comps, tainted = Splitting.DataSplit.analyze tyf in
+  Stdio.printf "Data-split analysis: %d connected component(s)\n" (List.length comps);
+  List.iteri comps ~f:(fun i fields ->
+    Stdio.printf "  [%d] (%d field%s) %s\n"
+      i (List.length fields) (if List.length fields = 1 then "" else "s")
+      (String.concat ~sep:", " fields));
+  if not (List.is_empty tainted) then
+    Stdio.printf "Un-partitionable (tainted) fields: %s\n"
+      (String.concat ~sep:", " tainted)
 
 let run
     ~(py_source: string option)
@@ -1021,13 +1150,42 @@ let run
     ~(filename: string)
     (sformula: Sformula.t)
   : Enfflash.program =
-  let formula = Formula.init sformula in                (* init + alpha conversion *)
-  let f       = Formula.convert_vars formula in         (* basic term typing       *)
-  let tyf     = Tyformula.of_formula' f in              (* term typing             *)
-  let lf      = Lformula.make ~moderate tyf in          (* normalization: let-pull *)
-  let nf      = Enforceability.enforce ~verbose lf b in (* enforceability          *)
-  let tnf     = Extraction.extract nf in                (* extraction of solution  *)
-  let program = compile ~py_source tnf in               (* compilation to IR       *)
-  Enfflash.write_program_to_file ~filename program;     (* linearization           *)
+  let tnf     = extract_tnf ~b ~verbose ~moderate sformula in
+  let program = compile ~py_source tnf in
+  Enfflash.write_program_to_file ~filename program;
   program
+
+(** Full pipeline for the parallel splitting variant.
+    Returns the path to the written manifest and the list of group infos. *)
+let run_parallel
+    ?(filtered    = false)
+    ?(aggressivity = 0)
+    ?(num_groups   = 0)
+    ?(data_groups : (string * int) list = [])
+    ~(py_source   : string option)
+    ~(b           : Time.Span.s)
+    ?(verbose     : bool = true)
+    ?(moderate    : bool = true)
+    ~(output_dir  : string)
+    ~(base_name   : string)
+    (sformula: Sformula.t)
+  : string * split_group_info list =
+  let tnf        = extract_tnf ~b ~verbose ~moderate sformula in
+  (* Resolve data-split selections (if any) against the typed formula. *)
+  let data_axes, broadcast_events =
+    if List.is_empty data_groups then [], []
+    else
+      let tyf = Tyformula.of_formula' (Formula.convert_vars (Formula.init sformula)) in
+      Splitting.DataSplit.resolve_selection tyf data_groups in
+  (* When data splitting is requested but no event split was asked for, keep the
+     whole policy as a single event group (otherwise the default largest-covering
+     would multiply the data shards by ~every clause). *)
+  let num_groups =
+    if (not (List.is_empty data_axes)) && num_groups = 0 && aggressivity = 0
+    then 1 else num_groups in
+  let group_infos =
+    split_and_compile ~filtered ~aggressivity ~num_groups ~data_axes ~broadcast_events
+      ~py_source ~output_dir ~base_name tnf in
+  let manifest   = Filename.concat output_dir (base_name ^ "_manifest.json") in
+  manifest, group_infos
 

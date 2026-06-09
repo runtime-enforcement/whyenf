@@ -36,6 +36,10 @@ struct Cli {
     #[arg(long)]
     json: bool,
 
+    /// Emit {"sync":true} after each reactive timepoint (used by parallel orchestrator)
+    #[arg(long)]
+    sync: bool,
+
     /// Print debug info about the engine's internal state (0=off, 1=basic, 2=full detail)
     #[arg(long, default_value_t = 0)]
     verbose: u8,
@@ -87,7 +91,7 @@ fn main() {
         None => Box::new(io::BufReader::new(io::stdin())),
     };
 
-    let mut engine = engine::Engine::new(program, cli.label, cli.json, cli.verbose > 0, cli.verbose);
+    let mut engine = engine::Engine::new(program, cli.label, cli.json, cli.sync, cli.verbose > 0, cli.verbose);
     if cli.verbose > 0 {
         engine.print_program_summary();
     }
@@ -119,12 +123,14 @@ fn main() {
         if line.trim_end().ends_with(';') {
             let tp = tp_parser.parse(&buf)
                 .unwrap_or_else(|e| panic!("Log parse error: {}", e));
-            engine.process_one(&tp);
+            let outputs = engine.process_one(&tp);
+            engine.print_outputs(&outputs);
             buf.clear();
         }
     }
     // Flush any remaining delayed obligations
-    engine.finish();
+    let outputs = engine.finish();
+    engine.print_outputs(&outputs);
 
     // Save state on exit (normal or interrupted)
     if let Some(ref state_path) = cli.state {

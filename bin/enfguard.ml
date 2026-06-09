@@ -12,132 +12,204 @@ module Enfguard = struct
   let formula_ref = ref None
   let sig_ref = ref In_channel.stdin
 
-  (* Locate the enfflash binary: check relative to the executable's real
-     location (resolving symlinks), then walk up from cwd, then fall back to PATH *)
-  let find_enfflash () =
-    (* Resolve the real directory of the running executable *)
+  (* Find a binary by name: check sibling of this executable, then walk up
+     the directory tree looking for enfflash/target/release/<name>, then
+     fall back to PATH. *)
+  let find_binary name =
     let exe_dir =
       try Filename.dirname (Core_unix.readlink "/proc/self/exe")
       with _ ->
-        (* Fallback: resolve argv[0] against cwd *)
         let argv0 = (Sys.get_argv ()).(0) in
         if Filename.is_relative argv0 then
           Filename.dirname (Filename.concat (Sys_unix.getcwd ()) argv0)
         else
           Filename.dirname argv0
     in
-    (* Walk up from a directory looking for enfflash/target/release/enfflash *)
     let rec try_parents dir depth =
       if depth > 5 then None
       else
-        let candidate = Filename.concat (Filename.concat dir "enfflash/target/release") "enfflash" in
+        let candidate =
+          Filename.concat (Filename.concat dir "enfflash/target/release") name in
         match Sys_unix.file_exists candidate with
         | `Yes -> Some candidate
-        | _ -> try_parents (Filename.dirname dir) (depth + 1)
+        | _    -> try_parents (Filename.dirname dir) (depth + 1)
     in
-    (* 1. sibling of executable *)
-    let sibling = Filename.concat exe_dir "enfflash" in
+    let sibling = Filename.concat exe_dir name in
     match Sys_unix.file_exists sibling with
     | `Yes -> sibling
     | _ ->
-      (* 2. walk up from exe_dir *)
       match try_parents exe_dir 0 with
       | Some p -> p
       | None ->
-        (* 3. walk up from cwd *)
         match try_parents (Sys_unix.getcwd ()) 0 with
         | Some p -> p
-        | None -> "enfflash" (* hope it's on PATH *)
+        | None   -> name   (* hope it is on PATH *)
+
+  let find_enfflash ()          = find_binary "enfflash"
+  let find_enfflash_parallel () = find_binary "enfflash-parallel"
+
+  (* Strip a trailing .ef extension if present, return the basename. *)
+  let base_name_of_path p =
+    let bn = Filename.basename p in
+    if String.is_suffix bn ~suffix:".ef"
+    then String.drop_suffix bn 3
+    else bn
+
+  (* Parse a "-data-groups" spec: comma-separated "Event.field:N" entries. *)
+  let parse_data_groups (s : string) : (string * int) list =
+    String.split s ~on:','
+    |> List.filter_map ~f:(fun entry ->
+        let entry = String.strip entry in
+        if String.is_empty entry then None
+        else match String.rsplit2 entry ~on:':' with
+          | Some (field, n) ->
+            (match Option.try_with (fun () -> Int.of_string (String.strip n)) with
+             | Some k -> Some (String.strip field, k)
+             | None -> failwith (Printf.sprintf "invalid bucket count in '%s'" entry))
+          | None -> failwith (Printf.sprintf "malformed -data-groups entry '%s' (expected Event.field:N)" entry))
 
   let run debug sig_file formula_file functions_file output_file no_run log_file
-        label json stats (verbose : int) state_file =
+        label json stats (verbose : int) state_file
+        parallel filtered (aggressivity : int) (num_groups : int) data_analyze data_groups_spec =
     let run_enfflash = not no_run in
     if debug then Global.debug := true;
-    if json then Global.json := true;
+    if json  then Global.json  := true;
     (match sig_file with
      | Some sf -> Other_parser.Sig.parse_from_channel sf
-     | None -> ());
+     | None    -> ());
     (match functions_file with
      | Some f -> Funcs.Python.load f
-     | None -> ());
+     | None   -> ());
     let py_source = match functions_file with
       | Some f -> Some (In_channel.input_all (In_channel.create f))
-      | None -> None in
+      | None   -> None in
     (match formula_file with
      | Some f ->
-         In_channel.with_file f ~f:(fun inc ->
-           let lexbuf = Lexing.from_channel inc in
-           formula_ref := (try Some (Formula_parser.formula Formula_lexer.token lexbuf)
-                           with Formula_parser.Error ->
-                             printf "%s\n" (lexbuf_error_msg lexbuf);
-                             Out_channel.flush stdout;
-                             None))
+       In_channel.with_file f ~f:(fun inc ->
+         let lexbuf = Lexing.from_channel inc in
+         formula_ref :=
+           (try Some (Formula_parser.formula Formula_lexer.token lexbuf)
+            with Formula_parser.Error ->
+              printf "%s\n" (lexbuf_error_msg lexbuf);
+              Out_channel.flush stdout;
+              None))
      | None -> ());
     match !formula_ref with
-    | Some sformula ->
-       let _ =
-         if stats then Formula.print_stats (Formula.init sformula);
-         let ef_file = match output_file with
-           | Some filename ->
-             ignore (Compiler.run ~py_source ~b:!b_ref ~moderate:(not !Global.unroll_all)
-                       ~filename sformula);
-             Some filename
-           | None ->
-             if run_enfflash then begin
-               let tmp = Stdlib.Filename.temp_file "enfflash_" ".ef" in
-               ignore (Compiler.run ~py_source ~b:!b_ref ~moderate:(not !Global.unroll_all)
-                         ~filename:tmp sformula);
-               Some tmp
-             end else begin
-               let r = Extraction.do_type_and_extract ~moderate:(not !Global.unroll_all)
-                         (Tyformula.of_formula' (Formula.convert_vars (Formula.init sformula)))
-                         !b_ref in
-               printf "%s\n" (Tyformula.to_string_typed r.Tnformula.formula);
-               None
-             end
-         in
-         if run_enfflash then begin
-           match ef_file with
-           | Some ef ->
-             let enfflash_bin = find_enfflash () in
-             let args = [enfflash_bin; "--program"; ef]
-               @ (match log_file with Some l -> ["--log"; l] | None -> [])
-               @ (if label then ["--label"] else [])
-               @ (if json then ["--json"] else [])
-               @ (if verbose > 0 then ["--verbose"; string_of_int verbose] else [])
-               @ (match state_file with Some s -> ["--state"; s] | None -> [])
-             in
-             eprintf "[enfguard] Running: %s\n" (String.concat ~sep:" " args);
-             let argv = Array.of_list args in
-             (* Replace current process with enfflash *)
-             never_returns (Core_unix.exec ~prog:enfflash_bin ~argv:(Array.to_list argv) ())
-           | None -> ()
-         end
-       in
-         ()
     | None ->
-        printf "Error: No valid formula provided.\n";
-        exit 1
+      printf "Error: No valid formula provided.\n";
+      exit 1
+    | Some sformula ->
+      if stats then Formula.print_stats (Formula.init sformula);
+      if data_analyze then
+        Compiler.analyze_data sformula
+      else if parallel then begin
+        (* ── Parallel path ───────────────────────────────────────────── *)
+        let output_dir, base =
+          match output_file with
+          | Some f -> Filename.dirname f, base_name_of_path f
+          | None   ->
+            let tmp = Core_unix.mkdtemp "enfguard_parallel_" in
+            tmp, "policy"
+        in
+        let data_groups =
+          match data_groups_spec with Some s -> parse_data_groups s | None -> [] in
+        let manifest, _groups =
+          Compiler.run_parallel
+            ~filtered ~aggressivity ~num_groups ~data_groups ~py_source
+            ~b:!b_ref ~moderate:(not !Global.unroll_all)
+            ~output_dir ~base_name:base
+            sformula
+        in
+        eprintf "[enfguard] Manifest written to %s\n" manifest;
+        if run_enfflash then begin
+          let bin  = find_enfflash_parallel () in
+          let args =
+            [ bin; "--manifest"; manifest ]
+            @ (match log_file with Some l -> ["--log"; l] | None -> [])
+            @ (if json then ["--json"] else [])
+            @ (match state_file with Some s -> ["--state"; s] | None -> [])
+          in
+          eprintf "[enfguard] Running: %s\n" (String.concat ~sep:" " args);
+          never_returns (Core_unix.exec ~prog:bin ~argv:args ())
+        end
+      end else begin
+        (* ── Single-enforcer path (original) ─────────────────────────── *)
+        let ef_file =
+          match output_file with
+          | Some filename ->
+            ignore (Compiler.run ~py_source ~b:!b_ref
+                      ~moderate:(not !Global.unroll_all)
+                      ~filename sformula);
+            Some filename
+          | None ->
+            if run_enfflash then begin
+              let tmp = Stdlib.Filename.temp_file "enfflash_" ".ef" in
+              ignore (Compiler.run ~py_source ~b:!b_ref
+                        ~moderate:(not !Global.unroll_all)
+                        ~filename:tmp sformula);
+              Some tmp
+            end else begin
+              let r =
+                Extraction.do_type_and_extract
+                  ~moderate:(not !Global.unroll_all)
+                  (Tyformula.of_formula'
+                     (Formula.convert_vars (Formula.init sformula)))
+                  !b_ref in
+              printf "%s\n" (Tyformula.to_string_typed r.Tnformula.formula);
+              None
+            end
+        in
+        if run_enfflash then
+          match ef_file with
+          | Some ef ->
+            let bin  = find_enfflash () in
+            let args =
+              [ bin; "--program"; ef ]
+              @ (match log_file with Some l -> ["--log"; l] | None -> [])
+              @ (if label   then ["--label"]                        else [])
+              @ (if json    then ["--json"]                         else [])
+              @ (if verbose > 0 then ["--verbose"; string_of_int verbose] else [])
+              @ (match state_file with Some s -> ["--state"; s] | None -> [])
+            in
+            eprintf "[enfguard] Running: %s\n" (String.concat ~sep:" " args);
+            never_returns (Core_unix.exec ~prog:bin ~argv:args ())
+          | None -> ()
+      end
 
   let command =
     Command.basic
-      ~summary:"EnfFlash: A tool for monitoring and enforcing MFOTL formulas"
-      (let%map_open.Command debug = flag "-debug" no_arg ~doc:" Enable debug mode"
-       and sig_file = flag "-sig" (optional string) ~doc:"FILE Signature file"
-       and formula_file = flag "-formula" (optional string) ~doc:"FILE MFOTL formula file"
-       and functions_file = flag "-func" (optional string) ~doc:"FILE Python file containing function definitions"
-       and output_file = flag "-output" (optional string) ~doc:"FILE Enfflash file"
-       and no_run = flag "-no-run" no_arg ~doc:" Only compile, do not run enfflash"
-       and log_file = flag "-log" (optional string) ~doc:"FILE Log file (reads stdin if omitted)"
-       and label = flag "-label" no_arg ~doc:" Print rule labels in enforcement output"
-       and json = flag "-json" no_arg ~doc:" Output enforcement actions in JSON format"
-       and stats = flag "-stats" no_arg ~doc:" Return statistics about the formula"
-       and verbose = flag "-verbose" (optional_with_default 0 int) ~doc:"LEVEL Verbosity level (0=off, 1=basic, 2=full detail)"
-       and state_file = flag "-state" (optional string) ~doc:"FILE State file for saving/restoring engine state"
+      ~summary:"EnfGuard: compile and run MFOTL enforcement policies"
+      (let%map_open.Command
+         debug        = flag "-debug"       no_arg               ~doc:" Enable debug mode"
+       and sig_file   = flag "-sig"         (optional string)    ~doc:"FILE Signature file"
+       and formula_file = flag "-formula"   (optional string)    ~doc:"FILE MFOTL formula file"
+       and functions_file = flag "-func"    (optional string)    ~doc:"FILE Python file with function definitions"
+       and output_file = flag "-output"     (optional string)    ~doc:"FILE Output .ef file (single) or base path (parallel)"
+       and no_run     = flag "-no-run"      no_arg               ~doc:" Compile only; do not launch enforcer"
+       and log_file   = flag "-log"         (optional string)    ~doc:"FILE Log file (reads stdin if omitted)"
+       and label      = flag "-label"       no_arg               ~doc:" Print rule labels in enforcement output"
+       and json       = flag "-json"        no_arg               ~doc:" Output enforcement actions in JSON format"
+       and stats      = flag "-stats"       no_arg               ~doc:" Print formula statistics"
+       and verbose    = flag "-verbose"     (optional_with_default 0 int)
+                          ~doc:"LEVEL Verbosity level (0=off, 1=basic, 2=full)"
+       and state_file = flag "-state"       (optional string)    ~doc:"FILE State file for save/restore"
+       and parallel   = flag "-parallel"    no_arg
+                          ~doc:" Split the policy and run one enforcer per group in parallel"
+       and filtered   = flag "-filtered"    no_arg
+                          ~doc:" Use monotonicity-aware CDG* edge filtering when splitting"
+       and aggressivity = flag "-aggressivity" (optional_with_default 0 int)
+                          ~doc:"N Merge heuristic aggressivity (0 = largest covering, k = merge batches of k)"
+       and num_groups = flag "-num-groups" (optional_with_default 0 int)
+                          ~doc:"K Balance components into at most K clause-homogeneous groups (overrides -aggressivity)"
+       and data_analyze = flag "-data-analyze" no_arg
+                          ~doc:" Print the data-split field-interaction components (analysis only) and exit"
+       and data_groups = flag "-data-groups" (optional string)
+                          ~doc:"SPEC Data-split selections, e.g. \"Read.user:2,Read.activity:3\" (with -parallel)"
        in
        fun () ->
-       run debug sig_file formula_file functions_file output_file no_run log_file
-         label json stats verbose state_file)
+         run debug sig_file formula_file functions_file output_file no_run log_file
+           label json stats verbose state_file
+           parallel filtered aggressivity num_groups data_analyze data_groups)
 
 end
 

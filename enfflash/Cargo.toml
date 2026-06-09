@@ -12,6 +12,11 @@ pyo3 = { version = "0.22", features = ["auto-initialize"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 ctrlc = "3"
+rayon = "1"
+
+[[bin]]
+name = "enfflash-parallel"
+path = "src/parallel_main.rs"
 
 [build-dependencies]
 lalrpop = "0.22"

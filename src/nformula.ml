@@ -36,6 +36,17 @@ module Trigger = struct
         Tyformula.make_dummy (And (N, [guard_f; filter]))
       else
         Tyformula.make_dummy (Imp (N, guard_f, filter))
+
+  let predicates ?(lets=Map.empty (module String)) (t : t) =
+    let fs = t.filter :: List.concat t.guards in
+    Set.union_list (module String) (List.map ~f:(Tyformula.predicates ~lets) fs)
+
+  let non_monotone_predicates ?(let_ctxt_mon=Map.empty (module String)) ?(let_ctxt_anti_mon=Map.empty (module String)) (t : t) =
+    let fs = t.filter :: List.concat t.guards in
+    let mons, anti_mons = List.unzip (List.map ~f:(Tyformula.non_monotone_predicates ~let_ctxt_mon ~let_ctxt_anti_mon) fs) in
+    Set.union_list (module String) mons, Set.union_list (module String) anti_mons
+    
+    
 end
 
 module Effect = struct
@@ -94,6 +105,15 @@ module Effect = struct
     | NextSup (n, r, trms) -> NextSup (n, f false r, trms)
 
   let fvs es = fvs (List.map ~f:to_typed es)
+
+  let predicates = function
+    | Cau (r, _)
+    | Sup (r, _)
+    | EventuallyCau (_, r, _)
+    | EventuallySup (_, r, _)
+    | NextCau (_, r, _)
+    | NextSup (_, r, _) -> Set.singleton (module String) r
+    | NextTT _ -> Set.empty (module String)
     
 end
 
@@ -107,6 +127,20 @@ module Clause = struct
     Printf.sprintf "{ trigger = %s;\n  effects = [%s] }"
       (Trigger.to_string c.trigger)
       (Etc.string_list_to_string (List.map ~f:Effect.to_string c.effects))
+
+  let trigger_predicates ?(lets=Map.empty (module String)) (c : t) =
+    Trigger.predicates ~lets c.trigger
+
+  let trigger_non_monotone_predicates ?(let_ctxt_mon=Map.empty (module String)) ?(let_ctxt_anti_mon=Map.empty (module String)) (c : t) =
+    Trigger.non_monotone_predicates ~let_ctxt_mon ~let_ctxt_anti_mon c.trigger
+
+  let effect_predicates (c : t) =
+    Set.union_list (module String) (List.map ~f:Effect.predicates c.effects)
+
+  let predicates (c : t) =
+    Set.union (trigger_predicates c) (effect_predicates c)
+      
+    
 end
 
 module Switch = struct

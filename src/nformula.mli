@@ -12,6 +12,17 @@ module Trigger : sig
   val make       : Tyformula.t -> t
   val to_string  : t -> string
   val to_formula : bool -> t -> Tyformula.t
+  val predicates :
+    ?lets:(string, (string, String.comparator_witness) Set.t,
+           String.comparator_witness) Map.t ->
+    t -> (string, String.comparator_witness) Set.t
+  val non_monotone_predicates :
+    ?let_ctxt_mon:(string, (string, String.comparator_witness) Set.t,
+                   String.comparator_witness) Map.t ->
+    ?let_ctxt_anti_mon:(string, (string, String.comparator_witness) Set.t,
+                        String.comparator_witness) Map.t ->
+    t -> (string, String.comparator_witness) Set.t
+       * (string, String.comparator_witness) Set.t
 end
 
 module Effect : sig
@@ -29,11 +40,25 @@ module Effect : sig
   val to_typed : t -> typed_t
   val map_predicate : f:(bool -> string -> string) -> t -> t
   val fvs : t list -> (Var.t, Var.comparator_witness) Set.t
+  val predicates : t -> (string, String.comparator_witness) Set.t
 end
 
 module Clause : sig
   type t = { trigger : Trigger.t; effects : Effect.t list }
   val to_string : t -> string
+  val trigger_predicates :
+    ?lets:(string, (string, String.comparator_witness) Set.t,
+           String.comparator_witness) Map.t ->
+    t -> (string, String.comparator_witness) Set.t
+  val trigger_non_monotone_predicates :
+    ?let_ctxt_mon:(string, (string, String.comparator_witness) Set.t,
+                   String.comparator_witness) Map.t ->
+    ?let_ctxt_anti_mon:(string, (string, String.comparator_witness) Set.t,
+                        String.comparator_witness) Map.t ->
+    t -> (string, String.comparator_witness) Set.t
+       * (string, String.comparator_witness) Set.t
+  val effect_predicates : t -> (string, String.comparator_witness) Set.t
+  val predicates : t -> (string, String.comparator_witness) Set.t
 end
 
 module Switch : sig
