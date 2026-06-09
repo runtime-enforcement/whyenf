@@ -25,6 +25,7 @@ module type T = sig
 
   val is_var : t -> bool
   val is_const : t -> bool
+  val is_atom : t -> bool
       
   val fv_list : t list -> v list
   val fn_list : t list -> string list
@@ -116,6 +117,8 @@ module Make (Var : V) (Dom : D) (Uop : O) (Bop : O) (Info : I) = struct
     let is_const t = match t.trm with
       | Const _ -> true
       | _ -> false
+
+    let is_atom t = is_var t || is_const t 
 
     let rec to_string_core = function
       | Var x -> Printf.sprintf "Var %s" (Var.to_string x)

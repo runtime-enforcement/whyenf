@@ -12,6 +12,10 @@ module Trigger : sig
   val make       : Tyformula.t -> t
   val to_string  : t -> string
   val to_formula : bool -> t -> Tyformula.t
+  val guard_predicates :
+    ?lets:(string, (string, String.comparator_witness) Set.t,
+           String.comparator_witness) Map.t ->
+    t -> (string, String.comparator_witness) Set.t
   val predicates :
     ?lets:(string, (string, String.comparator_witness) Set.t,
            String.comparator_witness) Map.t ->

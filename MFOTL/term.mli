@@ -23,6 +23,7 @@ module type T = sig
 
   val is_var : t -> bool
   val is_const : t -> bool
+  val is_atom : t -> bool
 
   val fv_list : t list -> v list
   val fn_list : t list -> string list
@@ -84,6 +85,7 @@ module Make (Var : V) (Dom : D) (Uop : O) (Bop : O) (Info : I) : sig
 
   val is_var: t -> bool
   val is_const: t -> bool
+  val is_atom: t -> bool
 
   val unvar_opt : t -> v option
   val unconst_opt : t -> d option

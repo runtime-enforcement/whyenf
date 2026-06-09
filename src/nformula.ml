@@ -37,6 +37,10 @@ module Trigger = struct
       else
         Tyformula.make_dummy (Imp (N, guard_f, filter))
 
+  let guard_predicates ?(lets=Map.empty (module String)) (t : t) =
+    let fs = List.concat t.guards in
+    Set.union_list (module String) (List.map ~f:(Tyformula.predicates ~lets) fs)
+
   let predicates ?(lets=Map.empty (module String)) (t : t) =
     let fs = t.filter :: List.concat t.guards in
     Set.union_list (module String) (List.map ~f:(Tyformula.predicates ~lets) fs)

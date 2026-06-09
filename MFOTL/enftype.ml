@@ -40,72 +40,29 @@ module Cau = struct
 
 end
 
-module Sct = struct
-
-  type t = Sct | NonSct | AnySct | ErrSct [@@deriving compare, sexp_of, hash, equal]
-
-  let to_string = function
-    | NonSct -> "NonSct"
-    | Sct    -> "Sct"
-    | AnySct -> "AnySct"
-    | ErrSct -> "ErrSct"
-
-end
-
 module Suppressability  = Lattice.Linear(Sup)
 module Causability      = Lattice.Linear(Cau)
 module SuppressabilityL = Lattice.Make(Suppressability)
 module CausabilityL     = Lattice.Make(Causability)
 
-module Strictness = struct
+include Lattice.Make2(Suppressability)(Causability)
 
-  type t = Sct.t [@@deriving compare, sexp_of, hash, equal]
+let bot           = (Sup.NonObs, Cau.NonCau)
+let cau           = (Sup.Obs,    Cau.Cau)
+let sup           = (Sup.Sup,    Cau.NonCau)
+let causup        = (Sup.Sup,    Cau.Cau)
+let caubot        = (Sup.NonObs, Cau.Cau)
+let obs           = (Sup.Obs,    Cau.NonCau)
+let abs           = (Sup.Abs,    Cau.NonCau)
+let itl           = (Sup.Itl,    Cau.Itl)
 
-  let join a b = match a, b with
-    | Sct.AnySct, _ | _, Sct.AnySct
-      | NonSct, Sct | Sct, NonSct -> Sct.AnySct
-    | _, ErrSct -> a
-    | ErrSct, _ -> b
-    | _, _ -> a
+let causable      = (Sup.NonObs, Cau.Cau)
+let suppressable  = (Sup.Sup,    Cau.NonCau)
+let tcausable     = (Sup.NonObs, Cau.TCau)
+let tsuppressable = (Sup.TSup,   Cau.NonCau)
 
-  let meet a b = match a, b with
-    | Sct.ErrSct, _ | _, Sct.ErrSct
-      | NonSct, Sct | Sct, NonSct -> Sct.ErrSct
-    | _, AnySct -> a
-    | AnySct, _ -> b
-    | _, _ -> a
-
-  let to_string = Sct.to_string
-
-end
-
-include Lattice.Make3(Suppressability)(Causability)(Strictness)
-
-let bot           = (Sup.NonObs, Cau.NonCau, Sct.AnySct)
-let cau           = (Sup.Obs,    Cau.Cau,    Sct.AnySct)
-let ncau          = (Sup.Obs,    Cau.Cau,    Sct.NonSct)
-let scau          = (Sup.Obs,    Cau.Cau,    Sct.Sct)
-let sup           = (Sup.Sup,    Cau.NonCau, Sct.AnySct)
-let nsup          = (Sup.Sup,    Cau.NonCau, Sct.NonSct)
-let ssup          = (Sup.Sup,    Cau.NonCau, Sct.Sct)
-let causup        = (Sup.Sup,    Cau.Cau,    Sct.AnySct)
-let ncausup       = (Sup.Sup,    Cau.Cau,    Sct.NonSct)
-let scausup       = (Sup.Sup,    Cau.Cau,    Sct.Sct)
-let caubot        = (Sup.NonObs, Cau.Cau,    Sct.AnySct)
-let obs           = (Sup.Obs,    Cau.NonCau, Sct.AnySct)
-let sct           = (Sup.Sup,    Cau.Cau,    Sct.Sct)
-let ncaubot       = (Sup.NonObs, Cau.Cau,    Sct.NonSct)
-let abs           = (Sup.Abs,    Cau.NonCau, Sct.AnySct)
-let itl           = (Sup.Itl,    Cau.Itl,    Sct.AnySct)
-
-let causable      = (Sup.NonObs, Cau.Cau,    Sct.ErrSct)
-let suppressable  = (Sup.Sup,    Cau.NonCau, Sct.ErrSct)
-let tcausable     = (Sup.NonObs, Cau.TCau,   Sct.ErrSct)
-let tsuppressable = (Sup.TSup,   Cau.NonCau, Sct.ErrSct)
-
-let get_sup (a, _, _) = a
-let get_cau (_, b, _) = b
-let get_sct (_, _, c) = c
+let get_sup (a, _) = a
+let get_cau (_, b) = b
 
 let neg_sup = function
   | Sup.Sup -> Cau.Cau
@@ -116,7 +73,7 @@ let neg_cau a b = match a, b with
   | NonCau , Sup.NonObs -> NonObs
   | _      , _          -> Obs
 
-let neg (a, b, c) : t = (neg_cau b a, neg_sup a, c)
+let neg (a, b) : t = (neg_cau b a, neg_sup a)
 
 let is_causable        a = CausabilityL.(geq (get_cau a) Cau)
 let is_suppressable    a = SuppressabilityL.(geq (get_sup a) Sup)
@@ -124,48 +81,32 @@ let is_observable      a = SuppressabilityL.(geq (get_sup a) Obs)
 let is_only_observable a = not (is_causable a) && not (is_suppressable a) && is_observable a
 let is_absent          a = SuppressabilityL.(geq (get_sup a) Abs)
 let is_internal        a = Cau.(equal (get_cau a) Itl) && Sup.(equal (get_sup a) Itl)
-let is_error           a = Sct.(equal (get_sct a) ErrSct)
-let is_strict          a = Sct.(equal (get_sct a) Sct)
-let is_non_strict      a = Sct.(equal (get_sct a) NonSct)
 let is_transparent     a =
   (if is_causable a then CausabilityL.(geq (get_cau a) TCau) else true)
   && (if is_suppressable a then SuppressabilityL.(geq (get_sup a) TSup) else true)
   && (is_causable a || is_suppressable a)
 
-let to_string ((a, b, c) as d) =
-  match a, b, c with
-  | Sup.NonObs, Cau.NonCau, _          -> "Bot"
-  | Sup.Obs   , Cau.NonCau, _          -> "Obs"
-  | Sup.Sup   , Cau.NonCau, Sct.AnySct -> "Sup"
-  | Sup.Obs   , Cau.Cau   , Sct.AnySct -> "Cau"
-  | Sup.Obs   , Cau.Cau   , Sct.NonSct -> "NCau"
-  | Sup.Obs   , Cau.Cau   , Sct.Sct    -> "SCau"
-  | Sup.Sup   , Cau.NonCau, Sct.NonSct -> "NSup"
-  | Sup.Sup   , Cau.NonCau, Sct.Sct    -> "SSup"
-  | Sup.Abs   , Cau.NonCau, Sct.AnySct -> "Abs"
-  | Sup.Itl   , Cau.Itl   , Sct.AnySct -> "Itl"
-  | Sup.Sup   , Cau.Cau   , Sct.AnySct -> "CauSup"
-  | Sup.Sup   , Cau.NonCau, Sct.ErrSct -> "suppressable"
-  | Sup.NonObs, Cau.Cau   , Sct.ErrSct -> "causable"
-  | Sup.NonObs, Cau.Cau   , Sct.NonSct -> "non-strictly causable"
-  | Sup.NonObs, Cau.Cau   , Sct.Sct    -> "strictly causable"
-  | _         ,    _      , _          -> to_string d
+let to_string ((a, b) as d) =
+  match a, b with
+  | Sup.NonObs, Cau.NonCau -> "Bot"
+  | Sup.Obs   , Cau.NonCau -> "Obs"
+  | Sup.Sup   , Cau.NonCau -> "Sup"
+  | Sup.Obs   , Cau.Cau    -> "Cau"
+  | Sup.Abs   , Cau.NonCau -> "Abs"
+  | Sup.Itl   , Cau.Itl    -> "Itl"
+  | Sup.Sup   , Cau.Cau    -> "CauSup"
+  | Sup.Sup   , Cau.NonCau -> "suppressable"
+  | Sup.NonObs, Cau.Cau    -> "causable"
+  | _         ,    _       -> to_string d
 
 let to_string_alias = to_string
 
 
 let to_string_let d =
   if is_causable d then (
-    if is_suppressable d then (
-      if is_strict d then "++-" else "+-"
-    )
-    else (
-      if is_strict d then "++" else "+"
-    )
+    if is_suppressable d then "+-" else "+"
   )
-  else if is_suppressable d then (
-    if is_strict d  then "--" else "-"
-  )
+  else if is_suppressable d then "-"
   else if is_observable d then ""
   else "?"
 
@@ -192,7 +133,6 @@ module Constraint = struct
   let merge_meet = Option.merge ~f:meet
   let geq_opt x y = Option.value ~default:true (Option.map2 ~f:geq x y)
   (*let equal_opt x y = Option.value ~default:false (Option.map2 ~f:equal x y)*)
-  let is_error_opt = Option.value_map ~default:false ~f:is_error
   let is_causable_opt = Option.value_map ~default:false ~f:is_causable
   let is_suppressable_opt = Option.value_map ~default:false ~f:is_suppressable
 
@@ -206,7 +146,6 @@ module Constraint = struct
        let c'' = 
          if (
            not (geq_opt upper lower) (* if there is nothing between lower and upper *)
-           || is_error_opt upper     (* if upper contains an error *)
            || is_causable_opt lower && is_suppressable_opt lower (* if lower is CauSup *)
          ) then (
            (*Stdio.printf "%s %s %b %b %b\n"
@@ -227,11 +166,11 @@ module Constraint = struct
     match c.upper, c.lower with
     | Some enftype, _ when not (is_causable enftype && is_suppressable enftype) -> enftype
     | Some enftype, Some enftype' when is_causable enftype' ->
-       meet enftype (Sup.Obs, Cau.Cau, Sct.AnySct)
+       meet enftype (Sup.Obs, Cau.Cau)
     | Some enftype, Some enftype' when is_suppressable enftype' ->
-       meet enftype (Sup.Sup, Cau.NonCau, Sct.AnySct)
+       meet enftype (Sup.Sup, Cau.NonCau)
     | Some enftype, _ ->
-       meet enftype (Sup.Obs, Cau.NonCau, Sct.AnySct)
+       meet enftype (Sup.Obs, Cau.NonCau)
     | _ -> raise (Etc.EnforceabilityError "cannot solve constraint without an upper bound")
     (*match c.upper with
     | Some enftype -> enftype

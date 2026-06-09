@@ -17,25 +17,14 @@ val is_observable : t -> bool
 val is_only_observable : t -> bool
 val is_absent : t -> bool
 val is_internal : t -> bool
-val is_error : t -> bool
-val is_strict : t -> bool
-val is_non_strict : t -> bool
 val is_transparent : t -> bool
 
 val bot : t
 val cau : t
-val ncau : t
-val scau : t
 val sup : t
-val nsup : t
-val ssup : t
 val causup : t
-val ncausup : t
-val scausup : t
 val caubot : t
-val ncaubot : t
 val obs : t
-val sct : t
 val abs : t
 val itl : t
 

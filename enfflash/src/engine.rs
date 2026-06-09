@@ -162,6 +162,12 @@ pub struct Engine {
     /// Let-defs where at least one row had an unbound parameter
     /// → the let-def is universally true (matches any lookup).
     let_full: BTreeSet<String>,
+    /// Names of let-defs already (re)computed during the current evaluation
+    /// round.  Used to memoize the lazy let-binding evaluation inside the
+    /// fixpoint loop: cleared at the start of every iteration so that a let is
+    /// computed at most once per iteration, and only when actually reached by a
+    /// table or rule.  Transient state — not part of [`EngineState`].
+    let_computed: BTreeSet<String>,
     /// Set of event names declared as events (for disambiguation)
     event_names: BTreeSet<String>,
     /// Named boolean predicates: `let` definitions
@@ -174,6 +180,12 @@ pub struct Engine {
     next_tp_obligations: Vec<Obligation>,
     /// Current timestamp
     current_ts: Option<u64>,
+    /// Events of the most recently processed real time-point.  Obligation
+    /// `validate` filters are discharged later (by `emit_proactive`) without an
+    /// event context of their own; they compute any let-bindings they reach
+    /// on demand against these events — matching the previous eager semantics,
+    /// where let-tables held the latest processed time-point's values.
+    last_events: Vec<EventInstance>,
     /// The timestamp for which we last emitted proactive output
     /// (to avoid duplicates when multiple TPs share the same ts).
     last_proactive_ts: Option<u64>,
@@ -290,12 +302,14 @@ impl Engine {
             tables,
             let_tables,
             let_full: BTreeSet::new(),
+            let_computed: BTreeSet::new(),
             event_names,
             let_defs,
             py_functions,
             obligations: HashMap::new(),
             next_tp_obligations: Vec::new(),
             current_ts: None,
+            last_events: Vec::new(),
             last_proactive_ts: None,
             label_mode,
             json_mode,
@@ -493,9 +507,17 @@ impl Engine {
             return;
         }
 
-        // 1. Update non-lagged tables and let-defs in original formula order
+        // Record this time-point's events so that obligations discharged later
+        // (after the timestamp advances) can compute their validate lets against
+        // the latest real time-point.  Set after the emit/flush above, so those
+        // discharges still see the *previous* time-point's events.
+        self.last_events = tp.events.clone();
+
+        // 1. Update non-lagged tables in original formula order.  Let-defs are
+        //    evaluated lazily on demand (and memoized) as tables reach them.
         vlog!(self, "── Phase 1: update non-lagged tables and let-defs ──");
         let phase1_start = Instant::now();
+        self.let_computed.clear();
         self.update_tables_and_lets(&tp.events, false);
         let phase1_elapsed = phase1_start.elapsed();
 
@@ -527,7 +549,12 @@ impl Engine {
         let pending_next: Vec<Obligation> = std::mem::take(&mut self.next_tp_obligations);
         for ob in pending_next {
             let valid = match &ob.validate {
-                Some(f) => self.eval_filter(f, &ob.env, &[]),
+                Some(f) => {
+                    // On-demand: compute any let-bindings the validate filter
+                    // reaches, against this time-point's events.
+                    self.ensure_lets_for_filter(f, &tp.events);
+                    self.eval_filter(f, &ob.env, &[])
+                }
                 None => true,
             };
             if valid {
@@ -557,8 +584,14 @@ impl Engine {
         const MAX_ITERATIONS: usize = 100;
         for _iteration in 0..MAX_ITERATIONS {
             let iter_start = Instant::now();
-            // Re-evaluate tables and let-defs against the (growing) working event set
-            // so that they see events caused in previous iterations.
+            // Reset the let-binding memo: the working event set grew since the
+            // previous iteration, so any let computed last time may now differ.
+            // Within this single iteration a let is computed at most once, and
+            // only when reached by a table or rule (lazy evaluation).
+            self.let_computed.clear();
+            // Re-evaluate tables against the (growing) working event set so that
+            // they see events caused in previous iterations.  Let-defs are
+            // evaluated lazily on demand (and memoized) as tables/rules reach them.
             self.update_tables_and_lets(&working_events, false);
             vlog!(self, "── Phase 2: fixpoint iteration {} ({} events in working set) ──",
                   _iteration, working_events.len());
@@ -567,6 +600,8 @@ impl Engine {
 
             for rule_idx in 0..self.program.rules.len() {
                 let rule = self.program.rules[rule_idx].clone();
+                // Lazily compute (memoized) any let-bindings the trigger reaches.
+                self.ensure_lets_for_clause(&rule.trigger, &working_events);
                 let bindings = self.match_clause_against_events(&rule.trigger, &working_events);
 
                 let action_sym = match rule.action { RuleAction::Cause => "+", RuleAction::Suppress => "-", RuleAction::Observe => "?" };
@@ -778,6 +813,8 @@ impl Engine {
         // 3. Update lagged tables
         vlog!(self, "── Phase 3: update lagged tables ──");
         let phase3_start = Instant::now();
+        // Lagged tables compute any let-bindings they reach on demand; lets
+        // already memoized during the fixpoint above are reused as-is.
         self.update_tables_and_lets(&tp.events, true);
         let phase3_elapsed = phase3_start.elapsed();
 
@@ -812,9 +849,16 @@ impl Engine {
         let mut proactive_suppress: Vec<(EventInstance, Vec<String>)> = Vec::new();
         let mut seen_cause: BTreeSet<(String, Vec<Value>)> = BTreeSet::new();
         let mut seen_suppress: BTreeSet<(String, Vec<Value>)> = BTreeSet::new();
+        // Validate filters reach let-bindings on demand, against the most
+        // recently processed time-point's events (cloned to satisfy the borrow
+        // checker — `ensure_lets_for_filter` mutates the let-tables).
+        let validate_events = self.last_events.clone();
         for ob in self.obligations.remove(&ts).unwrap_or_default() {
             let valid = match &ob.validate {
-                Some(f) => self.eval_filter(f, &ob.env, &[]),
+                Some(f) => {
+                    self.ensure_lets_for_filter(f, &validate_events);
+                    self.eval_filter(f, &ob.env, &[])
+                }
                 None => true,
             };
             if valid {
@@ -883,6 +927,10 @@ impl Engine {
 
     // ─── Unified table + let-def updates (in original formula order) ────────
 
+    /// Update tables in program order.  Let-defs are never recomputed eagerly
+    /// here; instead each table clause first triggers on-demand, memoized
+    /// computation of just the let-bindings it reaches (see
+    /// [`Self::ensure_lets_for_clause`]).
     fn update_tables_and_lets(&mut self, events: &[EventInstance], lagged: bool) {
         let items: Vec<ProgramItem> = self.program.items.clone();
         for item in &items {
@@ -891,6 +939,11 @@ impl Engine {
                     if td.lagged != lagged {
                         continue;
                     }
+                    // On-demand: compute any let-bindings this table's clauses reach.
+                    if let Some(ref rm_clause) = td.remove_clause {
+                        self.ensure_lets_for_clause(rm_clause, events);
+                    }
+                    self.ensure_lets_for_clause(&td.add_clause, events);
                     // Process remove clause FIRST, then add.
                     // If both match the same row, add wins (matches Since semantics).
                     if let Some(ref rm_clause) = td.remove_clause {
@@ -961,44 +1014,9 @@ impl Engine {
                         }
                     }
                 }
-                ProgramItem::Let(ld) => {
-                    if lagged { continue; }
-                    if ld.is_filter { continue; }
-                    // Clear previous rows — let-defs are re-evaluated from scratch
-                    if let Some(let_table) = self.let_tables.get_mut(&ld.name) {
-                        let_table.clear();
-                    }
-                    self.let_full.remove(&ld.name);
-                    // Process clause
-                    let add_bindings = self.match_clause_against_events(&ld.clause, events);
-                    if self.verbose_level >= 2 && !add_bindings.is_empty() {
-                        eprintln!("  [v2] let table {} clause: {} binding(s) from {} events",
-                            ld.name, add_bindings.len(), events.len());
-                    }
-                    for env in &add_bindings {
-                        // Check if all parameters are bound in the env
-                        let all_bound = ld.params.iter().all(|(col_name, _)| env.contains_key(col_name));
-                        if !all_bound {
-                            // At least one parameter is unbound → the let-def
-                            // is universally true (matches any argument tuple).
-                            self.let_full.insert(ld.name.clone());
-                        }
-                        let row: Row = ld
-                            .params
-                            .iter()
-                            .map(|(col_name, _)| {
-                                env.get(col_name).cloned().unwrap_or(Value::Bool(false))
-                            })
-                            .collect();
-                        if let Some(let_table) = self.let_tables.get_mut(&ld.name) {
-                            let is_new = let_table.add(row.clone());
-                            if is_new {
-                                vlog!(self, "  let table {} += [{}]", ld.name,
-                                      row.iter().map(|v| format!("{}", v)).collect::<Vec<_>>().join(", "));
-                            }
-                        }
-                    }
-                }
+                // Let-defs are computed on demand (and memoized) the moment a
+                // table or rule reaches them — never eagerly here.
+                ProgramItem::Let(_) => {}
                 ProgramItem::Rule(_) => {} // rules handled separately
             }
         }
@@ -1031,6 +1049,124 @@ impl Engine {
                 eprintln!("  │ (all tables empty)");
             }
             eprintln!("  └─────────────────────────────");
+        }
+    }
+
+    // ─── Lazy let-binding evaluation ───────────────────────────────────────────
+
+    /// Recompute one (non-filter) let-def's table from scratch against `events`.
+    /// This is the body that used to run eagerly in the `ProgramItem::Let` arm;
+    /// callers are responsible for first computing any let-bindings it depends on.
+    fn compute_let_table(&mut self, ld: &LetDef, events: &[EventInstance]) {
+        // Clear previous rows — let-defs are re-evaluated from scratch.
+        if let Some(let_table) = self.let_tables.get_mut(&ld.name) {
+            let_table.clear();
+        }
+        self.let_full.remove(&ld.name);
+        let add_bindings = self.match_clause_against_events(&ld.clause, events);
+        if self.verbose_level >= 2 && !add_bindings.is_empty() {
+            eprintln!("  [v2] let table {} clause: {} binding(s) from {} events",
+                ld.name, add_bindings.len(), events.len());
+        }
+        for env in &add_bindings {
+            // Check if all parameters are bound in the env
+            let all_bound = ld.params.iter().all(|(col_name, _)| env.contains_key(col_name));
+            if !all_bound {
+                // At least one parameter is unbound → the let-def
+                // is universally true (matches any argument tuple).
+                self.let_full.insert(ld.name.clone());
+            }
+            let row: Row = ld
+                .params
+                .iter()
+                .map(|(col_name, _)| {
+                    env.get(col_name).cloned().unwrap_or(Value::Bool(false))
+                })
+                .collect();
+            if let Some(let_table) = self.let_tables.get_mut(&ld.name) {
+                let is_new = let_table.add(row.clone());
+                if is_new {
+                    vlog!(self, "  let table {} += [{}]", ld.name,
+                          row.iter().map(|v| format!("{}", v)).collect::<Vec<_>>().join(", "));
+                }
+            }
+        }
+    }
+
+    /// Ensure that `name`, if it is a let-def, has been computed this round.
+    /// No-ops for events/tables and for let-defs already memoized in
+    /// `self.let_computed`.  Dependencies (other let-defs referenced by the
+    /// body) are computed first so that the table-backed lookup they perform
+    /// during [`Self::compute_let_table`] sees up-to-date rows.
+    fn ensure_let_computed(&mut self, name: &str, events: &[EventInstance]) {
+        if self.let_computed.contains(name) {
+            return;
+        }
+        let ld = match self.let_defs.get(name) {
+            Some(d) => d.clone(),
+            None => return, // not a let-def (event or table) — nothing to do
+        };
+        // Mark up-front so a (degenerate) self-reference does not recurse forever.
+        self.let_computed.insert(name.to_string());
+        // Compute dependencies first (also covers filter-lets, whose inline
+        // evaluation may reach table-backed let-defs).
+        for dep in self.collect_let_refs_in_clause(&ld.clause) {
+            self.ensure_let_computed(&dep, events);
+        }
+        // Filter-lets are evaluated inline at use sites; they have no table.
+        if ld.is_filter {
+            return;
+        }
+        self.compute_let_table(&ld, events);
+    }
+
+    /// Ensure every let-binding reached by `clause` (in its patterns or filter)
+    /// is computed and memoized for the current round.
+    fn ensure_lets_for_clause(&mut self, clause: &Clause, events: &[EventInstance]) {
+        for name in self.collect_let_refs_in_clause(clause) {
+            self.ensure_let_computed(&name, events);
+        }
+    }
+
+    /// Ensure every let-binding reached by `filter` is computed and memoized.
+    fn ensure_lets_for_filter(&mut self, filter: &FilterExpr, events: &[EventInstance]) {
+        let mut refs = Vec::new();
+        self.collect_let_refs_in_filter(filter, &mut refs);
+        for name in refs {
+            self.ensure_let_computed(&name, events);
+        }
+    }
+
+    /// Names of let-defs directly referenced by a clause (patterns + filter).
+    fn collect_let_refs_in_clause(&self, clause: &Clause) -> Vec<String> {
+        let mut refs = Vec::new();
+        for conj in &clause.patterns {
+            for guard in conj {
+                if let GuardPattern::Event(pat) = guard {
+                    if self.let_defs.contains_key(&pat.name) {
+                        refs.push(pat.name.clone());
+                    }
+                }
+            }
+        }
+        self.collect_let_refs_in_filter(&clause.filter, &mut refs);
+        refs
+    }
+
+    /// Names of let-defs directly referenced by a filter expression.
+    fn collect_let_refs_in_filter(&self, filter: &FilterExpr, refs: &mut Vec<String>) {
+        match filter {
+            FilterExpr::TableLookup { name, .. } => {
+                if self.let_defs.contains_key(name) {
+                    refs.push(name.clone());
+                }
+            }
+            FilterExpr::And(l, r) | FilterExpr::Or(l, r) => {
+                self.collect_let_refs_in_filter(l, refs);
+                self.collect_let_refs_in_filter(r, refs);
+            }
+            FilterExpr::Not(f) => self.collect_let_refs_in_filter(f, refs),
+            FilterExpr::BoolLit(_) | FilterExpr::Compare { .. } => {}
         }
     }
 
@@ -1354,63 +1490,47 @@ impl Engine {
         result
     }
 
-    #[allow(dead_code)]
-    fn eval_lookup_predicate_envs(
-        &self,
-        name: &str,
-        args: &[TermExpr],
-        env: &Env,
-        events: &[EventInstance],
-    ) -> Vec<Env> {
-        let mut vals = Vec::with_capacity(args.len());
-        for arg in args {
-            let Some(value) = self.try_eval_term(arg, env) else {
-                return vec![];
-            };
-            vals.push(value);
-        }
-
-        if let Some(table) = self.tables.get(name) {
-            let found = table.contains(&vals);
-            vlog2!(self, "    [v2] TableLookup {}({}) in table → {}",
-                name, vals.iter().map(|v| format!("{}", v)).collect::<Vec<_>>().join(", "),
-                found);
-            if found {
-                return vec![env.clone()];
-            }
-            return vec![];
-        }
-
-        if let Some(let_table) = self.let_tables.get(name) {
-            let universal = self.let_full.contains(name);
-            let found = universal || let_table.contains(&vals);
-            vlog2!(self, "    [v2] LetDef {}({}) → {}{}",
-                name, vals.iter().map(|v| format!("{}", v)).collect::<Vec<_>>().join(", "),
-                found, if universal { " [universal]" } else { "" });
-            if found {
-                return vec![env.clone()];
-            }
-            return vec![];
-        }
-
-        if self.event_names.contains(name) {
-            let found = events.iter().any(|ev| ev.name == name && ev.args == vals);
-            vlog2!(self, "    [v2] EventLookup {}({}) in {} events → {}",
-                name, vals.iter().map(|v| format!("{}", v)).collect::<Vec<_>>().join(", "),
-                events.len(), found);
-            if found {
-                return vec![env.clone()];
-            }
-            return vec![];
-        }
-
-        vec![]
-    }
-
     // ─── Filter evaluation ───────────────────────────────────────────────────
 
     fn eval_filter(&self, filter: &FilterExpr, env: &Env, events: &[EventInstance]) -> bool {
-        !self.eval_filter_envs(filter, env, events).is_empty()
+        self.eval_filter_bool(filter, env, events)
+    }
+
+    /// Boolean evaluation of a filter with short-circuiting for the boolean
+    /// connectives.  Semantically equivalent to
+    /// `!self.eval_filter_envs(filter, env, events).is_empty()`, but avoids
+    /// enumerating *all* satisfying environments when only existence matters:
+    /// `Or` stops as soon as one side holds, and `And` stops at the first
+    /// combined binding that satisfies both sides.
+    fn eval_filter_bool(&self, filter: &FilterExpr, env: &Env, events: &[EventInstance]) -> bool {
+        match filter {
+            FilterExpr::BoolLit(b) => *b,
+            FilterExpr::Or(l, r) => {
+                self.eval_filter_bool(l, env, events)
+                    || self.eval_filter_bool(r, env, events)
+            }
+            FilterExpr::And(l, r) => {
+                // The left side may bind variables the right side reads, so its
+                // environments must be enumerated.  Stop at the first combination
+                // that satisfies the right side and re-verifies the left (the
+                // latter mirrors the FunCall re-verification in eval_filter_envs).
+                for e in self.eval_filter_envs(l, env, events) {
+                    for e2 in self.eval_filter_envs(r, &e, events) {
+                        if self.eval_filter_bool(l, &e2, events) {
+                            return true;
+                        }
+                    }
+                }
+                false
+            }
+            // Not / Compare / TableLookup carry no boolean short-circuit of their
+            // own; fall back to the environment-based evaluation.
+            FilterExpr::Not(_)
+            | FilterExpr::Compare { .. }
+            | FilterExpr::TableLookup { .. } => {
+                !self.eval_filter_envs(filter, env, events).is_empty()
+            }
+        }
     }
 
     /// Evaluate a filter, returning all extended environments where it holds.
