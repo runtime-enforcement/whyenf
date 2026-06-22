@@ -1005,6 +1005,28 @@ module Make
       
   (* AC-rewriting *)
   
+  (* Remove duplicate sub-formulas, preserving the order of first occurrence.
+     Polymorphic in the info type, so structural [Poly.equal] is used (formulas
+     are first-order data).  O(n²) but the lists here are short; enforces ∧/∨
+     idempotence. *)
+  let stable_dedup fs =
+    List.rev (List.fold fs ~init:[] ~f:(fun acc f ->
+        if List.mem acc f ~equal:Poly.equal then acc else f :: acc))
+
+  (* Drop list elements that are subsumed by another element.  [parts_of] maps an
+     element to the set of atoms whose *superset* makes it redundant:
+       - in an OR of ANDs:  (A∧B) ∨ (A∧B∧C) ≡ (A∧B)   — drop the superset conjunction
+       - in an AND of ORs:  (A∨B) ∧ (A∨B∨C) ≡ (A∨B)   — drop the superset disjunction
+     Order is preserved (∧/∨ carry an enforcement Side, so children are not
+     reordered); ties between equal part-sets are broken by position. *)
+  let remove_subsumed parts_of fs =
+    List.filteri fs ~f:(fun i f ->
+        let fp = parts_of f in
+        not (List.existsi fs ~f:(fun j g ->
+            j <> i
+            && List.for_all (parts_of g) ~f:(fun c -> List.mem fp c ~equal:Poly.equal)
+            && (List.length (parts_of g) < List.length fp || j < i))))
+
   let rec ac_simplify_core =
     let unpr' f = match f.form with Predicate' (_, _, f) -> f.form | _ -> f.form in
     let or_bool f g = match unpr' f with TT -> TT | FF -> FF | _ -> g f in
@@ -1022,13 +1044,19 @@ module Make
     | Neg f ->
       let f = ac_simplify f in
       (match unpr' f with TT -> FF | FF -> TT | _ -> Neg f)
-    | And (s, fs) -> 
+    | And (s, fs) ->
        let fs = List.map fs ~f:ac_simplify in
        let f fs f' = match unpr' f' with
          | And (s', fs') when Side.equal s s' -> fs @ fs'
          | TT -> fs
          | _ -> fs @ [f'] in
        let fs = List.fold_left fs ~init:[] ~f in
+       (* Idempotence (A ∧ A ≡ A): drop duplicate conjuncts, keeping first occurrence. *)
+       let fs = stable_dedup fs in
+       (* Absorption (A ∧ (A ∨ B) ≡ A): drop conjuncts that are a superset
+          disjunction of another conjunct. *)
+       let disjuncts_of f' = match unpr' f' with Or (_, gs) -> gs | _ -> [f'] in
+       let fs = remove_subsumed disjuncts_of fs in
        if List.exists fs ~f:(fun f' -> match unpr' f' with FF -> true | _ -> false)
        then FF
        else if List.is_empty fs then TT
@@ -1041,6 +1069,12 @@ module Make
          | FF -> fs
          | _ -> fs @ [f'] in
        let fs = List.fold_left fs ~init:[] ~f in
+       (* Idempotence (A ∨ A ≡ A): drop duplicate disjuncts, keeping first occurrence. *)
+       let fs = stable_dedup fs in
+       (* Subsumption (A ∨ (A ∧ B) ≡ A): drop disjuncts that are a superset
+          conjunction of another disjunct. *)
+       let conjuncts_of f' = match unpr' f' with And (_, gs) -> gs | _ -> [f'] in
+       let fs = remove_subsumed conjuncts_of fs in
        if List.exists fs ~f:(fun f' -> match unpr' f' with TT -> true | _ -> false)
        then TT
        else if List.is_empty fs then FF
@@ -1280,14 +1314,14 @@ module Make
                        let fvs = Set.elements (Set.diff (fv f) (Set.of_list (module Var) ((Term.fv_list [x])@y))) in
                        let (i, v'), _ = List.fold_map fvs ~init:(i, v) ~f:fresh in
                        ((fun f -> return (Agg (subst_var v s, op, Term.subst v' x, subst_vars v' y, f)))
-                        >>= (aux f)) i v')
+                        >>= (aux f)) i v)
         | Top (s, op, x, y, f) ->
            (fun i v -> (*let x = Term.substs v x in
                        let y = subst_vars v y in*)
                        let fvs = Set.elements (Set.diff (fv f) (Set.of_list (module Var) ((Term.fv_list x) @y))) in
                        let (i, v'), _ = List.fold_map fvs ~init:(i, v) ~f:fresh in
                        ((fun f -> return (Top (subst_vars v s, op, Term.substs v' x, subst_vars v' y, f)))
-                        >>= (aux f)) i v')
+                        >>= (aux f)) i v)
         | Neg f -> (fun f -> return (Neg f)) >>= (aux f)
         (*| And (s, f, g) ->
           (fun f -> (fun g -> return (And (s, f, g))) >>= (aux v g)) >>= (aux v f)*)
@@ -1319,7 +1353,7 @@ module Make
          (*Stdio.print_endline (to_string f);
          Stdio.print_endline (Etc.list_to_string "" (fun _ (var, term) -> Var.to_string var ^ " -> " ^ Term.to_string term) (Map.to_alist v));
          Stdio.print_endline (Etc.list_to_string "" (fun _ (var, i) -> Var.to_string var ^ " -> " ^ Int.to_string i) (Map.to_alist i));
-         Stdio.print_endline ("-> " ^ to_string { f with form } ^ "\n");*)
+           Stdio.print_endline ("-> " ^ to_string { f with form } ^ "\n");*)
          { f with form }, b
     in fst (aux f (Map.empty (module Var)) (Map.empty (module Var)))
 
@@ -1359,8 +1393,8 @@ module Make
         | Predicate' _ -> if p then f.form else Neg f
         | Let (r, enftype, vars, f, g) -> Let (r, enftype, vars, aux true f, aux p g)
         | Let' (r, enftype, vars, f, g) -> Let' (r, enftype, vars, aux true f, aux p g)
-        | Agg (s, op, x, y, f) -> let form = Agg (s, op, x, y, aux true f) in if p then Neg { f with form } else f.form
-        | Top (s, op, x, y, f) -> let form = Top (s, op, x, y, aux true f) in if p then Neg { f with form } else f.form
+        | Agg (s, op, x, y, f) -> let form = Agg (s, op, x, y, aux true f) in if p then form else Neg { f with form }
+        | Top (s, op, x, y, f) -> let form = Top (s, op, x, y, aux true f) in if p then form else Neg { f with form }
         | Neg f -> (aux (not p) f).form
         | And (s, fs) -> if p then And (s, List.map ~f:(aux true) fs) else Or (s, List.map ~f:(aux false) fs)
         | Or (s, fs) -> if p then Or (s, List.map ~f:(aux true) fs) else And (s, List.map ~f:(aux false) fs)

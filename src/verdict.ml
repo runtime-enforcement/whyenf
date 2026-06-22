@@ -160,7 +160,7 @@ module Make (F: T)  = struct
     | Possible sols -> f sols
     | Impossible err -> Impossible err
 
-  let verdict_to_string ~to_string = function
+  let to_string ~to_string = function
     | Possible c -> Printf.sprintf "Possible(%s)" (to_string c)
     | Impossible e -> Printf.sprintf "Impossible(%s)" (Errors.to_string e)
 

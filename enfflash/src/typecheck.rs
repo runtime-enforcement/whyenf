@@ -70,6 +70,15 @@ pub fn check_program(program: &Program) -> CheckErrors {
         }
         te.events.insert(ed.name.clone(), (ed.param_types.clone(), RuleAction::Observe));
     }
+    // Builtin time-point / time-stamp events: `tp(i)` binds `i` to the current
+    // time-point index, `ts(t)` to the current timestamp.  The OCaml compiler
+    // emits these as bare predicates (no `event` declaration); the engine
+    // injects a singleton tuple for each into every real time-point.
+    for name in ["tp", "ts"] {
+        te.events
+            .entry(name.to_string())
+            .or_insert_with(|| (vec![Ty::Int], RuleAction::Observe));
+    }
     for fd in &program.fun_decls {
         if te.functions.contains_key(&fd.name) {
             errs.err(format!("Duplicate function declaration: '{}'", fd.name));
@@ -95,6 +104,24 @@ pub fn check_program(program: &Program) -> CheckErrors {
         }
         te.tables.insert(td.name.clone(), td.columns.clone());
         te.monotonicities.insert(td.name.clone(), compute_table_monotonicity(td, &te.monotonicities));
+    }
+    // Aggregation and table-operation lets each expose a result table named after
+    // the let, with the declared columns.  Register them as tables so patterns and
+    // filters referencing them typecheck and resolve their column types.
+    for ad in &program.agg_lets {
+        if te.tables.contains_key(&ad.name) {
+            errs.err(format!("Duplicate table/agg definition: '{}'", ad.name));
+        }
+        te.tables.insert(ad.name.clone(), ad.columns.clone());
+        // Aggregation results are non-monotone in their inputs; treat as opaque.
+        te.monotonicities.insert(ad.name.clone(), HashMap::new());
+    }
+    for tp in &program.top_lets {
+        if te.tables.contains_key(&tp.name) {
+            errs.err(format!("Duplicate table/tableop definition: '{}'", tp.name));
+        }
+        te.tables.insert(tp.name.clone(), tp.columns.clone());
+        te.monotonicities.insert(tp.name.clone(), HashMap::new());
     }
 
     // Check let bodies

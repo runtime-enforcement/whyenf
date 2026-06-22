@@ -19,8 +19,27 @@ match {
     "false",
     "delay",
     "next",
+    "window",
     "validate",
     "or",
+    "section",
+    "fixpoint",
+    "once",
+    "sync",
+    "agg",
+    "tableop",
+    "tfun",
+    "pyinit",
+    "group_by",
+    "over",
+    "incremental",
+    "SUM",
+    "AVG",
+    "MED",
+    "CNT",
+    "MIN",
+    "MAX",
+    "STD",
     // symbols
     ":=",
     "(",
@@ -37,6 +56,7 @@ match {
     "!",
     "+",
     "-",
+    "*",
     "==",
     "!=",
     "<",
@@ -56,25 +76,59 @@ match {
 
 pub Program: Program = {
     <eds:EventDeclStmt*>
+    <pre:PyInitStmt?>
     <fds:FunDeclStmt*>
+    <tfds:TfunDeclStmt*>
     <items:ProgramItem*> => {
         let mut let_defs = Vec::new();
+        let mut agg_lets = Vec::new();
+        let mut top_lets = Vec::new();
         let mut tables = Vec::new();
         let mut rules = Vec::new();
+        // Rules are grouped into EDG-ordered evaluation sections introduced by
+        // `section fixpoint;` / `section once;` markers (emitted by the OCaml
+        // compiler).  A `fixpoint` section is iterated to a local fixpoint; a
+        // `once` section is evaluated a single pass.
+        let mut waves: Vec<Vec<SectionSpec>> = Vec::new();
+        let mut cur_wave: Vec<SectionSpec> = Vec::new();
+        let mut cur_sec: Option<SectionSpec> = None;
         for item in &items {
             match item {
                 ProgramItem::Let(l) => let_defs.push(l.clone()),
+                ProgramItem::Agg(a) => agg_lets.push(a.clone()),
+                ProgramItem::Top(t) => top_lets.push(t.clone()),
                 ProgramItem::Table(t) => tables.push(t.clone()),
-                ProgramItem::Rule(r) => rules.push(r.clone()),
+                ProgramItem::SectionMark(recursive) => {
+                    if let Some(s) = cur_sec.take() { cur_wave.push(s); }
+                    cur_sec = Some(SectionSpec { recursive: *recursive, rules: Vec::new() });
+                }
+                ProgramItem::Rule(r) => {
+                    let idx = rules.len();
+                    rules.push(r.clone());
+                    if let Some(s) = cur_sec.as_mut() { s.rules.push(idx); }
+                }
+                ProgramItem::WaveSync => {
+                    if let Some(s) = cur_sec.take() { cur_wave.push(s); }
+                    if !cur_wave.is_empty() {
+                        waves.push(std::mem::take(&mut cur_wave));
+                    }
+                }
             }
         }
+        if let Some(s) = cur_sec.take() { cur_wave.push(s); }
+        if !cur_wave.is_empty() { waves.push(cur_wave); }
         Program {
             event_decls: eds,
+            py_preamble: pre.unwrap_or_default(),
             fun_decls: fds,
+            tfun_decls: tfds,
             let_defs,
+            agg_lets,
+            top_lets,
             tables,
             rules,
             items,
+            waves,
         }
     },
 };
@@ -83,6 +137,19 @@ ProgramItem: ProgramItem = {
     <t:TableDefStmt> => ProgramItem::Table(t),
     <r:RuleDefStmt> => ProgramItem::Rule(r),
     <l:LetDefStmt> => ProgramItem::Let(l),
+    <a:AggLetStmt> => ProgramItem::Agg(a),
+    <t:TopLetStmt> => ProgramItem::Top(t),
+    <s:SectionMarkStmt> => ProgramItem::SectionMark(s),
+    <_w:WaveSyncStmt> => ProgramItem::WaveSync,
+};
+
+SectionMarkStmt: bool = {
+    "section" "fixpoint" ";" => true,
+    "section" "once" ";"     => false,
+};
+
+WaveSyncStmt: () = {
+    "sync" ";" => (),
 };
 
 // ─── Event declarations (with semicolons) ────────────────────────────────────
@@ -115,6 +182,18 @@ FunParam: (String, Ty) = {
     <n:Ident> ":" <t:TypeName> => (n, t),
 };
 
+// ─── Table-function (tfun) declarations with Python body ─────────────────────
+
+TfunDeclStmt: TfunDecl = {
+    "tfun" <name:Ident> "{" <body:StrLit> "}" => TfunDecl { name, body },
+};
+
+// ─── Module-level Python preamble (imports + shared globals) ─────────────────
+
+PyInitStmt: String = {
+    "pyinit" "{" <body:StrLit> "}" => body,
+};
+
 TypeName: Ty = {
     "int" => Ty::Int,
     "float" => Ty::Float,
@@ -139,10 +218,58 @@ LetDefStmt: LetDef = {
         clause,
     },
 };
+
+// ─── Aggregation / table-operation lets ──────────────────────────────────────
+
+AggOpName: AggOp = {
+    "SUM" => AggOp::Sum,
+    "AVG" => AggOp::Avg,
+    "MED" => AggOp::Med,
+    "CNT" => AggOp::Cnt,
+    "MIN" => AggOp::Min,
+    "MAX" => AggOp::Max,
+    "STD" => AggOp::Std,
+};
+
+AggLetStmt: AggLetDef = {
+    <lbl:Label?> "agg" "let" <name:Ident> "(" <cols:Comma<ColDef>> ")" ":="
+        <op:AggOpName> "(" <term:TermExprP> ")"
+        "group_by" "[" <groups:Comma<Ident>> "]"
+        <incr:("incremental" <Ident>)?>
+        "over" "{" <clause:ClauseBody> "}" ";" => {
+        // The result column is the one not named among the grouping vars.
+        let result = cols.iter()
+            .find(|(n, _)| !groups.iter().any(|g| g == n))
+            .cloned()
+            .unwrap_or_else(|| cols.last().cloned().unwrap());
+        AggLetDef {
+            label: lbl, name, columns: cols, op, term, groups, result,
+            clause, incremental: incr,
+        }
+    },
+};
+
+TopLetStmt: TopLetDef = {
+    <lbl:Label?> "tableop" "let" <name:Ident> "(" <cols:Comma<ColDef>> ")" ":="
+        <fname:Ident> "(" <args:Comma<TermExprP>> ")"
+        "group_by" "[" <groups:Comma<Ident>> "]"
+        "over" "{" <clause:ClauseBody> "}" ";" => {
+        let results: Vec<(String, Ty)> = cols.iter()
+            .filter(|(n, _)| !groups.iter().any(|g| g == n))
+            .cloned()
+            .collect();
+        TopLetDef {
+            label: lbl, name, columns: cols, fn_name: fname, args, groups,
+            results, clause,
+        }
+    },
+};
+
 // ─── Table definitions ───────────────────────────────────────────────────────
 
 TableDefStmt: TableDef = {
-    <lbl:Label?> <lagged:"lagged"?> "table" <name:Ident> "(" <cols:Comma<ColDef>> ")" ":="
+    <lbl:Label?> <lagged:"lagged"?> "table" <name:Ident> "(" <cols:Comma<ColDef>> ")"
+        <win:("[" "window" <Num> <WindowBound> "]")?> ":="
         "add" "{" <add:ClauseBody> "}"
         <rm:("remove" "{" <ClauseBody> "}")?> ";" => TableDef {
         label: lbl,
@@ -151,7 +278,14 @@ TableDefStmt: TableDef = {
         add_clause: add,
         remove_clause: rm,
         lagged: lagged.is_some(),
+        window: win.map(|(a, b)| (a as u64, b)),
     },
+};
+
+// Upper bound of a metric window: a number, or `*` for unbounded.
+WindowBound: Option<u64> = {
+    <n:Num> => Some(n as u64),
+    "*" => None,
 };
 
 ColDef: (String, Ty) = {
@@ -281,7 +415,7 @@ TermExprP: TermExpr = {
 LitVal: Value = {
     <n:Num> => Value::Int(n),
     <f:Float> => Value::Float(OrderedFloat(f)),
-    <s:StrLit> => Value::Str(s),
+    <s:StrLit> => Value::Str(crate::ast::intern(&s)),
     "true" => Value::Bool(true),
     "false" => Value::Bool(false),
 };

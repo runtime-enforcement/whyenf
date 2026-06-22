@@ -2,6 +2,7 @@ mod ast;
 mod monotonicity;
 mod table;
 mod engine;
+mod sections;
 mod preprocess;
 mod typecheck;
 mod parallel;

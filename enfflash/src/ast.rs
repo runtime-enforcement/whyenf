@@ -1,17 +1,59 @@
 /// AST types for enfflash programs and logs.
 
 use std::fmt;
+use std::sync::Arc;
 use std::collections::HashSet;
 use serde::{Serialize, Deserialize};
 
 // ─── Value types ─────────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialOrd, Eq, Ord, Hash, Serialize, Deserialize)]
 pub enum Value {
     Int(i64),
     Float(OrderedFloat),
-    Str(String),
+    // `Arc<str>` rather than `String`: Values are cloned constantly (every env
+    // extension, table-row match, key tuple), and a refcount bump is far cheaper
+    // than a heap allocation + memcpy.  Arc<str> is Send+Sync so parallel mode is
+    // unaffected.
+    Str(Arc<str>),
     Bool(bool),
+}
+
+// Manual PartialEq so equal interned strings short-circuit on pointer identity
+// before falling back to a content compare.  Consistent with the derived
+// Ord/Hash because pointer equality implies content equality.
+impl PartialEq for Value {
+    #[inline]
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Value::Int(a), Value::Int(b)) => a == b,
+            (Value::Float(a), Value::Float(b)) => a == b,
+            (Value::Str(a), Value::Str(b)) => Arc::ptr_eq(a, b) || a == b,
+            (Value::Bool(a), Value::Bool(b)) => a == b,
+            _ => false,
+        }
+    }
+}
+
+/// Intern a string into a shared `Arc<str>`.  All equal strings parsed from the
+/// log or program share one allocation, so `Value` equality is usually a single
+/// pointer compare.  Thread-local pool: each thread (parallel workers) interns
+/// independently, which only costs some sharing, never correctness.
+pub fn intern(s: &str) -> Arc<str> {
+    use std::cell::RefCell;
+    thread_local! {
+        static POOL: RefCell<rustc_hash::FxHashSet<Arc<str>>> = RefCell::new(Default::default());
+    }
+    POOL.with(|p| {
+        let mut p = p.borrow_mut();
+        if let Some(a) = p.get(s) {
+            a.clone()
+        } else {
+            let a: Arc<str> = Arc::from(s);
+            p.insert(a.clone());
+            a
+        }
+    })
 }
 
 /// Wrapper for f64 that implements Eq + Ord (total order, NaN == NaN).
@@ -127,12 +169,31 @@ pub struct TimePoint {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Program {
     pub event_decls: Vec<EventDecl>,
+    /// Module-level Python preamble (imports + shared globals) from the `--func`
+    /// file, exec'd once in the single shared module that hosts every function.
+    #[serde(default)]
+    pub py_preamble: String,
     pub fun_decls: Vec<FunDecl>,
+    pub tfun_decls: Vec<TfunDecl>,
     pub let_defs: Vec<LetDef>,
+    pub agg_lets: Vec<AggLetDef>,
+    pub top_lets: Vec<TopLetDef>,
     pub tables: Vec<TableDef>,
     pub rules: Vec<RuleDef>,
     /// Interleaved order of tables and let-defs for correct evaluation
     pub items: Vec<ProgramItem>,
+    /// EDG-ordered evaluation waves (from `section …;` / `sync;` markers in the .ef).
+    /// Each wave is a list of independent sections that can run concurrently.
+    /// Empty when the program carries no section markers (engine recomputes).
+    pub waves: Vec<Vec<SectionSpec>>,
+}
+
+/// One evaluation section: a group of rule indices (into [`Program::rules`])
+/// processed together — once if `recursive` is false, else to a local fixpoint.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SectionSpec {
+    pub recursive: bool,
+    pub rules: Vec<usize>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -165,12 +226,63 @@ pub struct LetDef {
     pub clause: Clause,
 }
 
+/// Aggregation operators (SQL-style column reductions).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum AggOp { Sum, Avg, Med, Cnt, Min, Max, Std }
+
+/// `agg let Name(groups…, result) := OP(term) group_by [groups] (incremental T)? over { clause }`
+/// Evaluates `clause` to valuations, groups by `groups`, reduces the `term`
+/// column with `op` per group.  When `incremental = Some t`, the subformula is
+/// an unbounded `Once` whose rows live in table `t`; the engine maintains a
+/// running per-group accumulator instead of recomputing.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AggLetDef {
+    pub label: Option<String>,
+    pub name: String,
+    pub columns: Vec<(String, Ty)>,
+    pub op: AggOp,
+    pub term: TermExpr,
+    pub groups: Vec<String>,
+    pub result: (String, Ty),
+    pub clause: Clause,
+    pub incremental: Option<String>,
+}
+
+/// `tableop let Name(groups…, results…) := fn(args) group_by [groups] over { clause }`
+/// Per group, the rows' `args` tuples are passed to the `tfun` `fn`, which
+/// returns output tuples bound to `results`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TopLetDef {
+    pub label: Option<String>,
+    pub name: String,
+    pub columns: Vec<(String, Ty)>,
+    pub fn_name: String,
+    pub args: Vec<TermExpr>,
+    pub groups: Vec<String>,
+    pub results: Vec<(String, Ty)>,
+    pub clause: Clause,
+}
+
+/// A Python table function: `tfun name { <body> }`.  Body is statement text;
+/// the engine wraps it as `def name(rows): <body>` (rows = list of value-lists).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TfunDecl {
+    pub name: String,
+    pub body: String,
+}
+
 /// Helper for parsing interleaved tables, rules and let definitions.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ProgramItem {
     Table(TableDef),
     Rule(RuleDef),
     Let(LetDef),
+    Agg(AggLetDef),
+    Top(TopLetDef),
+    /// Section boundary marker: `section fixpoint;` (true) or `section once;` (false).
+    SectionMark(bool),
+    /// Wave boundary marker: `sync;` — all preceding sections form one wave.
+    WaveSync,
 }
 
 // ─── Patterns & Expressions ──────────────────────────────────────────────────
@@ -358,6 +470,12 @@ pub struct TableDef {
     pub columns: Vec<(String, Ty)>,
     pub add_clause: Clause,
     pub remove_clause: Option<Clause>,
+    /// Metric window `(a, b)` in timestamp units for Once/Since/Prev tables.
+    /// A tuple added at time `t` is valid for a query at the current time `c`
+    /// iff `c - t ∈ [a, b]`.  `None` = the non-metric `[0, ∞)` case
+    /// (accumulate forever, never evict); `Some((a, None))` = unbounded upper.
+    #[serde(default)]
+    pub window: Option<(u64, Option<u64>)>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

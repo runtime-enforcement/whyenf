@@ -14,6 +14,8 @@ type let_def = {
   le_origin  : Tyformula.t;
 }
 
+val let_def_to_string: let_def -> string
+
 (** Formula helpers. *)
 val strip_exists    : Tyformula.t -> Tyformula.t
 val add_back_exists : Tyformula.t -> Tterm.TypedVar.t list -> Tyformula.t list -> Tyformula.t
@@ -27,7 +29,10 @@ val do_pull_lets : Tyformula.t -> let_def list * Tyformula.t
 type t = {
   lets    : let_def list;
   formula : Tyformula.t;
+  origin  : Tyformula.t;   (* original typed formula, before normalization *)
 }
+
+val to_string: t -> string
 
 (** [normalize ?moderate f] runs the full normalization pipeline:
     push_negs → convert_vars → convert_lets → unroll_let → simplify →

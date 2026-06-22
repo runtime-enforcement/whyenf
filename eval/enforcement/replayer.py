@@ -18,8 +18,12 @@ def feeder(log, acc, p, q, queuing, lock, verbose):
     data = []
     for tp, row in df.iterrows():
         ts = int(row["ts"] / acc * 1000)
-        while (time()-t0)*1000 < ts and queuing.value > 0: # !!!!!!!!!!!!!!!!
-            pass
+        try:
+            while (time()-t0)*1000 < ts and queuing.value > 0: # !!!!!!!!!!!!!!!!
+                pass
+        except (TypeError, BrokenPipeError, ConnectionError, EOFError):
+            # The parent timed out and tore down the manager: stop quietly.
+            return
         with lock:
             queuing.value += 1
         t = int(1000*time())
@@ -49,8 +53,12 @@ def reader(p, q, queuing, lock, last_tp, desc, verbose):
             break
         bar.update(n=tp+1-bar.n)
         if line.startswith(PREFIX):
-            with lock:
-                queuing.value -= 1 # !!!!!!!!!!!!
+            try:
+                with lock:
+                    queuing.value -= 1 # !!!!!!!!!!!!
+            except (TypeError, BrokenPipeError, ConnectionError, EOFError):
+                # The parent timed out and tore down the manager: stop quietly.
+                break
             rest = line[len(PREFIX):-len(SUFFIX)-1].split(" ")
             tp, ts = int(rest[0]), int(rest[1])
             others = ",".join(rest[2:])
@@ -62,13 +70,13 @@ def reader(p, q, queuing, lock, last_tp, desc, verbose):
     bar.close()
     q.put(data)
 
-def replay(log, last_tp, command, desc, acc=1000, to=600, verbose=False):
+def replay(log, last_tp, command, desc, acc=1000, to=600, verbose=False, sleep_time=5):
     p = Popen(command, stdin=PIPE, stdout=PIPE, stderr=sys.stderr, text=True, shell=True)
     manager = Manager()
     queuing = manager.Value('queuing', 0)
     q = Queue()
     lock = Lock()
-    sleep(1)
+    sleep(sleep_time)
     f = Process(target=feeder, args=(log, acc, p, q, queuing, lock, verbose))
     r = Process(target=reader, args=(p, q, queuing, lock, last_tp, desc, verbose))
     r.start()
@@ -77,6 +85,8 @@ def replay(log, last_tp, command, desc, acc=1000, to=600, verbose=False):
         data1 = list(q.get(timeout=to))
         data2 = list(q.get(timeout=to))
     except:
+        f.terminate()
+        r.terminate()
         p.kill()
         return None
     r.join()

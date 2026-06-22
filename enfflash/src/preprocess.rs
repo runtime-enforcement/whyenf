@@ -7,6 +7,10 @@
 ///
 /// Returns (transformed source, vec of extracted bodies).
 
+fn is_ident_byte(b: u8) -> bool {
+    b.is_ascii_alphanumeric() || b == b'_'
+}
+
 pub fn preprocess_fun_bodies(src: &str) -> (String, Vec<String>) {
     let mut result = String::with_capacity(src.len());
     let mut bodies: Vec<String> = Vec::new();
@@ -15,12 +19,20 @@ pub fn preprocess_fun_bodies(src: &str) -> (String, Vec<String>) {
     let mut i = 0;
 
     while i < len {
-        // Look for "fun " keyword (ASCII, so byte indexing is fine)
-        if i + 4 <= len && &bytes[i..i+4] == b"fun " {
+        // Look for a `fun ` or `tfun ` keyword at a word boundary (so the `fun`
+        // inside `tfun` is not matched twice).  Both bodies are extracted the
+        // same way and share the placeholder namespace.
+        let prev_is_ident = i > 0 && is_ident_byte(bytes[i - 1]);
+        let kw_len =
+            if !prev_is_ident && i + 7 <= len && &bytes[i..i + 7] == b"pyinit " { Some(7) }
+            else if !prev_is_ident && i + 5 <= len && &bytes[i..i + 5] == b"tfun " { Some(5) }
+            else if !prev_is_ident && i + 4 <= len && &bytes[i..i + 4] == b"fun " { Some(4) }
+            else { None };
+        if let Some(kwl) = kw_len {
             let fun_start = i;
             // Find the opening '{' for the body
             let mut brace_pos = None;
-            let mut j = i + 4;
+            let mut j = i + kwl;
             while j < len {
                 if bytes[j] == b'{' {
                     brace_pos = Some(j);
@@ -65,18 +77,26 @@ pub fn preprocess_fun_bodies(src: &str) -> (String, Vec<String>) {
     (result, bodies)
 }
 
-/// After parsing, replace placeholder strings in FunDecl bodies with actual Python code.
+/// After parsing, replace placeholder strings in FunDecl / TfunDecl bodies with
+/// the actual Python code.
 pub fn restore_fun_bodies(program: &mut crate::ast::Program, bodies: &[String]) {
-    for fd in &mut program.fun_decls {
-        if fd.body.starts_with("__PYBODY_") && fd.body.ends_with("__") {
-            let idx_str = &fd.body[9..fd.body.len() - 2];
+    let restore = |body: &mut String| {
+        if body.starts_with("__PYBODY_") && body.ends_with("__") {
+            let idx_str = &body[9..body.len() - 2];
             if let Ok(idx) = idx_str.parse::<usize>() {
                 if idx < bodies.len() {
-                    fd.body = dedent(&bodies[idx]);
+                    *body = dedent(&bodies[idx]);
                 }
             }
         }
+    };
+    for fd in &mut program.fun_decls {
+        restore(&mut fd.body);
     }
+    for td in &mut program.tfun_decls {
+        restore(&mut td.body);
+    }
+    restore(&mut program.py_preamble);
 }
 
 /// Remove common leading whitespace from all non-empty lines (like Python's textwrap.dedent).

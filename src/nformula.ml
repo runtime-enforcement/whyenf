@@ -19,6 +19,30 @@ module Trigger = struct
 
   let make (filter : Tyformula.t) : t = { guards = []; filter }
 
+  (* Simplify the DNF guards (an OR of ANDs).  Both levels are idempotent and
+     the disjunction subsumes supersets:
+       - drop repeated conjuncts within a disjunct,
+       - drop repeated disjuncts,
+       - drop any disjunct whose conjuncts are a superset of another's
+         ((A∧B) ∨ (A∧B∧C) ≡ (A∧B)).
+     Order of first occurrence is preserved. *)
+  let dedup (trig : t) : t =
+    let stable_dedup ~equal xs =
+      List.rev (List.fold xs ~init:[] ~f:(fun acc x ->
+          if List.mem acc x ~equal then acc else x :: acc)) in
+    let subsumes smaller larger =
+      List.for_all smaller ~f:(fun c -> List.mem larger c ~equal:Tyformula.equal) in
+    let guards =
+      trig.guards
+      |> List.map ~f:(stable_dedup ~equal:Tyformula.equal)
+      |> stable_dedup ~equal:(List.equal Tyformula.equal) in
+    let guards =
+      List.filteri guards ~f:(fun i d ->
+          not (List.existsi guards ~f:(fun j d' ->
+              j <> i && subsumes d' d
+              && (List.length d' < List.length d || j < i)))) in
+    { trig with guards }
+
   let to_string (trig : t) : string =
     Printf.sprintf "{ guards = [%s];\n  filter = %s }"
       (Etc.string_list_to_string (List.map trig.guards ~f:(
@@ -125,12 +149,21 @@ module Clause = struct
   type t = {
     trigger : Trigger.t;
     effects : Effect.t list;
+    (* Source labels (e.g. "../Lex/.../gdpr.lex:1174:1-1183:45") active over this
+       clause, innermost first.  Propagated from the [Label] formula wrapper to
+       the rule it ultimately produces, instead of via a synthetic Cau_Label
+       indirection. *)
+    labels  : string list;
   }
 
+  let make ?(labels = []) ~trigger ~effects () : t = { trigger; effects; labels }
+
   let to_string (c : t) : string =
-    Printf.sprintf "{ trigger = %s;\n  effects = [%s] }"
+    Printf.sprintf "{ trigger = %s;\n  effects = [%s]%s }"
       (Trigger.to_string c.trigger)
       (Etc.string_list_to_string (List.map ~f:Effect.to_string c.effects))
+      (if List.is_empty c.labels then ""
+       else ";\n  labels = [" ^ String.concat ~sep:"; " c.labels ^ "]")
 
   let trigger_predicates ?(lets=Map.empty (module String)) (c : t) =
     Trigger.predicates ~lets c.trigger
@@ -147,29 +180,60 @@ module Clause = struct
     
 end
 
+(* Metadata for an aggregation let (observable-only).  The enumerating trigger
+   for the inner subformula is stored alongside in [Switch.Agg]. *)
+type agg_info = {
+  ai_op          : Aggregation.op;
+  ai_term        : Term.t;              (* aggregated term *)
+  ai_groups      : Var.t list;          (* grouping variables *)
+  ai_result      : Var.t * Dom.tt;      (* result var and its type *)
+  ai_incremental : string option;       (* Some once_let_name for the O(1) fast path *)
+}
+
+(* Metadata for a table-operation let: a Python `tfun` applied per group. *)
+type top_info = {
+  ti_fn      : string;
+  ti_args    : Term.t list;
+  ti_groups  : Var.t list;
+  ti_results : (Var.t * Dom.tt) list;
+}
+
 module Switch = struct
+  (* Past temporal operators carry their metric interval, so the engine can
+     window the backing table (evict tuples older than the upper bound, hold
+     back tuples not yet within the lower bound).  [Once]/[Prev]/[Since] all use
+     [Interval.full] (i.e. [0,∞)) for the non-metric case, which preserves the
+     previous accumulate-forever behaviour. *)
   type t =
-    | Once  of Trigger.t
-    | Prev  of Trigger.t
-    | Since of Trigger.t * Trigger.t
+    | Once  of Interval.t * Trigger.t
+    | Prev  of Interval.t * Trigger.t
+    | Since of Interval.t * Trigger.t * Trigger.t
     | Now   of Trigger.t
+    | Agg   of agg_info * Trigger.t
+    | Top   of top_info * Trigger.t
 
   let to_string : t -> string = function
-    | Once  trigger -> "⧫(" ^ Trigger.to_string trigger ^ ")"
-    | Prev  trigger -> "●(" ^ Trigger.to_string trigger ^ ")"
-    | Since (ltrigger, rtrigger) ->
-      "(" ^ Trigger.to_string ltrigger ^ ") S (" ^ Trigger.to_string rtrigger ^ ")"
+    | Once  (i, trigger) -> "⧫" ^ Interval.to_string i ^ "(" ^ Trigger.to_string trigger ^ ")"
+    | Prev  (i, trigger) -> "●" ^ Interval.to_string i ^ "(" ^ Trigger.to_string trigger ^ ")"
+    | Since (i, ltrigger, rtrigger) ->
+      "(" ^ Trigger.to_string ltrigger ^ ") S" ^ Interval.to_string i ^ " (" ^ Trigger.to_string rtrigger ^ ")"
     | Now   trigger -> Trigger.to_string trigger
+    | Agg (ai, trigger) ->
+      Printf.sprintf "%s(...) over %s" (Aggregation.op_to_string ai.ai_op)
+        (Trigger.to_string trigger)
+    | Top (ti, trigger) ->
+      Printf.sprintf "%s(...) over %s" ti.ti_fn (Trigger.to_string trigger)
 
   let to_formula (pos : bool) : t -> Tyformula.t = function
-    | Once  trigger -> Tyformula.make_dummy (Once  (Interval.full, Trigger.to_formula pos trigger))
-    | Prev  trigger -> Tyformula.make_dummy (Prev  (Interval.full, Trigger.to_formula pos trigger))
-    | Since (ltrigger, rtrigger) ->
+    | Once  (i, trigger) -> Tyformula.make_dummy (Once  (i, Trigger.to_formula pos trigger))
+    | Prev  (i, trigger) -> Tyformula.make_dummy (Prev  (i, Trigger.to_formula pos trigger))
+    | Since (i, ltrigger, rtrigger) ->
       Tyformula.make_dummy (Since (
-          N, Interval.full,
+          N, i,
           Trigger.to_formula (not pos) ltrigger,
           Trigger.to_formula pos rtrigger))
     | Now   trigger -> Trigger.to_formula pos trigger
+    | Agg (_, trigger) | Top (_, trigger) -> Trigger.to_formula pos trigger
 end
 
 module GuardInfo = struct
@@ -314,3 +378,4 @@ type t = {
   sols      : enf_sols;
 }
 
+  

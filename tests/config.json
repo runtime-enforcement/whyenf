@@ -222,7 +222,7 @@
         "formula": "43_impossible.mfotl",
         "log": "simple.log",
         "output": "43_impossible.out",
-        "success": false        
+        "success": false
     },
     {
         "label": "44_not_closed",
@@ -230,7 +230,7 @@
         "formula": "44_not_closed.mfotl",
         "log": "simple.log",
         "output": "44_not_closed.out",
-        "success": false        
+        "success": false
     },
     {
         "label": "45_polymorphic_impossible",
@@ -238,7 +238,7 @@
         "formula": "45_polymorphic_impossible.mfotl",
         "log": "simple.log",
         "output": "45_polymorphic_impossible.out",
-        "success": false        
+        "success": false
     },
     {
         "label": "46_let_impossible",
@@ -246,7 +246,7 @@
         "formula": "46_let_impossible.mfotl",
         "log": "simple.log",
         "output": "46_let_impossible.out",
-        "success": false        
+        "success": false
     },
     {
         "label": "53_revoke_consent",
@@ -298,8 +298,47 @@
         "formula": "59_once.mfotl",
         "log": "multiple.log",
         "output": "59_once.out"
+    },
+    {
+        "label": "60_next_repeated",
+        "sig": "simple.sig",
+        "formula": "60_next_repeated.mfotl",
+        "log": "temporal.log",
+        "output": "60_next_repeated.out"
+    },
+    {
+        "label": "61_once_metric",
+        "sig": "simple.sig",
+        "formula": "61_once_metric.mfotl",
+        "log": "metric_once.log",
+        "output": "61_once_metric.out"
+    },
+    {
+        "label": "62_once_metric_lower",
+        "sig": "simple.sig",
+        "formula": "62_once_metric_lower.mfotl",
+        "log": "metric_once_lower.log",
+        "output": "62_once_metric_lower.out"
+    },
+    {
+        "label": "63_since_metric",
+        "sig": "simple.sig",
+        "formula": "63_since_metric.mfotl",
+        "log": "metric_since.log",
+        "output": "63_since_metric.out"
+    },
+    {
+        "label": "64_prev",
+        "sig": "simple.sig",
+        "formula": "64_prev.mfotl",
+        "log": "temporal.log",
+        "output": "64_prev.out"
+    },
+    {
+        "label": "65_prev_metric",
+        "sig": "simple.sig",
+        "formula": "65_prev_metric.mfotl",
+        "log": "metric_prev.log",
+        "output": "65_prev_metric.out"
     }
 ]
-
-
-

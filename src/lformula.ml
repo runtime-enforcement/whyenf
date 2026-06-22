@@ -17,6 +17,12 @@ type let_def = {
   le_origin  : Tyformula.t;   (* original formula node before transformation *)
 }
 
+let let_def_to_string le =
+  Printf.sprintf "LET %s(%s)%s = %s IN" le.le_name
+    (Etc.string_list_to_string (List.map ~f:string_of_opt_typed_var le.le_args))
+    (Option.value_map le.le_enftype ~default:"" ~f:Enftype.to_string_let)
+    (Tyformula.to_string le.le_body)
+
 (* ------------------------------------------------------------------ *)
 (* strip_exists / add_back_exists                                       *)
 (* ------------------------------------------------------------------ *)
@@ -96,6 +102,28 @@ let rec pull_lets ?(i=0) ?(m:(string, Var.t list * t, String.comparator_witness)
       i + 1, lets @ [{ le_name = e; le_enftype = None; le_args = vars;
                        le_body = { f with form = Once (itv, f) }; le_origin = origin }],
       { f with form = Predicate (e, List.map ~f:Tterm.dummy_var fvs) }
+    | Agg (s, op, x, y, f) ->
+      (* Lift the aggregation into an observable let, like Once.  Its free
+         variables are the grouping vars ++ result var (= fv of the node), and
+         its inner subformula has its own lets pulled (so e.g. an inner Once is
+         already a named let, enabling incremental detection). *)
+      let origin = form in
+      let fvs = Set.elements (fv form) in
+      let i, lets, f = pull_lets ~i ~m f in
+      let e = "Agg" ^ string_of_int i in
+      let vars = List.map ~f:(fun v -> (v, None)) fvs in
+      i + 1, lets @ [{ le_name = e; le_enftype = None; le_args = vars;
+                       le_body = { f with form = Agg (s, op, x, y, f) }; le_origin = origin }],
+      { f with form = Predicate (e, List.map ~f:Tterm.dummy_var fvs) }
+    | Top (s, op, x, y, f) ->
+      let origin = form in
+      let fvs = Set.elements (fv form) in
+      let i, lets, f = pull_lets ~i ~m f in
+      let e = "Top" ^ string_of_int i in
+      let vars = List.map ~f:(fun v -> (v, None)) fvs in
+      i + 1, lets @ [{ le_name = e; le_enftype = None; le_args = vars;
+                       le_body = { f with form = Top (s, op, x, y, f) }; le_origin = origin }],
+      { f with form = Predicate (e, List.map ~f:Tterm.dummy_var fvs) }
     | Next (itv, f) ->
       let i, lets, f = pull_lets ~i ~m f in
       i, lets, { form with form = Next (itv, f) }
@@ -141,14 +169,12 @@ let rec pull_lets ?(i=0) ?(m:(string, Var.t list * t, String.comparator_witness)
       let i, letsg, g = pull_lets ~i ~m g in
       i, letsf @ letsg, { form with form = Imp (s, f, g) }
     | Label (s, f) ->
-      let origin = form in
+      (* Keep the label inline rather than lifting it into an enforced let-def.
+         Enforcement (enforceability.ml `aux`) threads the label onto the clauses
+         derived from `f`, so it ends up as the `@<source>` annotation on the
+         produced rule — no synthetic `Label`/`Cau_Label` indirection. *)
       let i, lets, f = pull_lets ~i ~m f in
-      let e = "Label" ^ string_of_int i ^ ":" ^ s in
-      let fvs = Set.elements (fv f) in
-      let vars = List.map ~f:(fun v -> (v, None)) fvs in
-      i + 1, lets @ [{ le_name = e; le_enftype = None; le_args = vars;
-                       le_body = f; le_origin = origin }],
-      { f with form = Predicate (e, List.map ~f:Tterm.dummy_var fvs) }
+      i, lets, { form with form = Label (s, f) }
     | _ -> failwith ("unsupported constructor " ^ op_to_string form)
   in r
 
@@ -163,7 +189,12 @@ let do_pull_lets (f : t) : let_def list * t =
 type t = {
   lets    : let_def list;
   formula : Tyformula.t;
+  origin  : Tyformula.t;   (* original typed formula, before normalization *)
 }
+
+let to_string (lf: t) =
+  String.concat ~sep:"\n" (List.map ~f:let_def_to_string lf.lets)
+  ^ "\n" ^ Tyformula.to_string lf.formula
 
 (* ------------------------------------------------------------------ *)
 (* normalize: Phase 4 — let-pulling normalization                      *)
@@ -174,6 +205,7 @@ type t = {
 (* ------------------------------------------------------------------ *)
 
 let make ?(moderate=true) (f : Tyformula.t) : t =
+  let origin = f in
   let f = f |> push_negs |> convert_vars |> convert_lets
             |> unroll_let ~moderate |> simplify |> ac_simplify in
   let f = push_quants f in
@@ -188,4 +220,4 @@ let make ?(moderate=true) (f : Tyformula.t) : t =
           | f -> f) fs in
       make_dummy (And (s, fs))
     | _ -> f in
-  { lets; formula = f }
+  { lets; formula = f; origin }

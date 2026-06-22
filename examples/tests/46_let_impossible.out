@@ -1,5 +1,4 @@
 The formula
  LET G1(x:int)+- = A(x:int) IN □[0s,∞) (∀x.1:int. G1(x.1:int) ∧ ¬G1(x.1:int))
 is not enforceable:
-Variable x.1:int is not guarded in ∃x.1:int. ¬(A(x.1:int) ∧ ¬A(x.1:int)) (polarity: +) (computed filter: { guards = [];
-  filter = ¬(A(x.1:int) ∧ ¬A(x.1:int)) })
+make ∃x.1:int. ¬(A(x.1:int) ∧ ¬A(x.1:int)) Sup, but this is impossible

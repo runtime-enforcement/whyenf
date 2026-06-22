@@ -10,6 +10,7 @@ module Term : module type of Tterm
 module Trigger : sig
   type t = { guards : Tyformula.t list list; filter : Tyformula.t } [@@deriving equal]
   val make       : Tyformula.t -> t
+  val dedup      : t -> t
   val to_string  : t -> string
   val to_formula : bool -> t -> Tyformula.t
   val guard_predicates :
@@ -48,7 +49,8 @@ module Effect : sig
 end
 
 module Clause : sig
-  type t = { trigger : Trigger.t; effects : Effect.t list }
+  type t = { trigger : Trigger.t; effects : Effect.t list; labels : string list }
+  val make : ?labels:string list -> trigger:Trigger.t -> effects:Effect.t list -> unit -> t
   val to_string : t -> string
   val trigger_predicates :
     ?lets:(string, (string, String.comparator_witness) Set.t,
@@ -65,12 +67,29 @@ module Clause : sig
   val predicates : t -> (string, String.comparator_witness) Set.t
 end
 
+type agg_info = {
+  ai_op          : Aggregation.op;
+  ai_term        : Tterm.t;
+  ai_groups      : Tterm.TypedVar.t list;
+  ai_result      : Tterm.TypedVar.t * Dom.tt;
+  ai_incremental : string option;
+}
+
+type top_info = {
+  ti_fn      : string;
+  ti_args    : Tterm.t list;
+  ti_groups  : Tterm.TypedVar.t list;
+  ti_results : (Tterm.TypedVar.t * Dom.tt) list;
+}
+
 module Switch : sig
   type t =
-    | Once  of Trigger.t
-    | Prev  of Trigger.t
-    | Since of Trigger.t * Trigger.t
+    | Once  of Interval.t * Trigger.t
+    | Prev  of Interval.t * Trigger.t
+    | Since of Interval.t * Trigger.t * Trigger.t
     | Now   of Trigger.t
+    | Agg   of agg_info * Trigger.t
+    | Top   of top_info * Trigger.t
   val to_string  : t -> string
   val to_formula : bool -> t -> Tyformula.t
 end

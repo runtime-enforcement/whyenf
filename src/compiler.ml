@@ -435,7 +435,41 @@ let compile_event_decls () : Enfflash.event_decl list =
 (* Parse a Python source file and extract function bodies.
    Returns a map from function name to the body (lines after "def fname(...):")
    with leading indentation removed. *)
-let parse_python_functions (py_source: string) : (string, string, String.comparator_witness) Map.t =
+(* Module-level "preamble" of a --func Python file: every top-level (unindented)
+   statement that is not a `def` — imports and shared global initialisations
+   (e.g. `import numpy as np`, `consent = set()`).  These are shared by all the
+   functions (the [fun]/[afun] bodies reference them, and stateful globals must
+   persist across calls), so the engine execs the preamble once in the single
+   shared module that hosts every Python function.  Mirrors the way the legacy
+   tool loads the whole --func file as one module. *)
+let python_preamble (py_source: string) : string =
+  let lines = String.split_lines py_source in
+  let rec collect lines acc =
+    match lines with
+    | [] -> List.rev acc
+    | line :: rest ->
+      let stripped = String.lstrip line in
+      if String.is_prefix stripped ~prefix:"def " then
+        (* Skip the function's (indented / blank) body lines. *)
+        let rec skip rest =
+          match rest with
+          | [] -> []
+          | next :: more ->
+            if String.is_empty (String.lstrip next)
+            || (String.length next > 0 && Char.is_whitespace (String.get next 0))
+            then skip more
+            else next :: more in
+        collect (skip rest) acc
+      else if String.is_empty stripped then collect rest acc
+      else collect rest (line :: acc) in
+  String.concat ~sep:"\n" (collect lines [])
+
+(* Parse a --func Python file into a map [name -> (params, body)].  The body is
+   the dedented function body verbatim (no rewriting); [params] are the parameter
+   names exactly as written in the Python def, so the engine can emit each
+   function with its original signature. *)
+let parse_python_functions (py_source: string)
+  : (string, (string list * string), String.comparator_witness) Map.t =
   let lines = String.split_lines py_source in
   (* Remove common leading whitespace from non-empty lines (like textwrap.dedent) *)
   let dedent body_lines =
@@ -459,8 +493,21 @@ let parse_python_functions (py_source: string) : (string, string, String.compara
       if String.is_prefix stripped ~prefix:"def " then
         let after_def = String.drop_prefix stripped 4 in
         match String.lsplit2 after_def ~on:'(' with
-        | Some (fname, _) ->
+        | Some (fname, after_paren) ->
           let fname = String.strip fname in
+          (* Parameter names exactly as written in the Python def (stripped of
+             any `: type` annotation or `= default`), so the engine can emit the
+             function with its original signature — the body refers to these. *)
+          let params =
+            match String.lsplit2 after_paren ~on:')' with
+            | Some (args, _) ->
+              String.split args ~on:','
+              |> List.map ~f:(fun p ->
+                  let p = match String.lsplit2 p ~on:':' with Some (n, _) -> n | None -> p in
+                  let p = match String.lsplit2 p ~on:'=' with Some (n, _) -> n | None -> p in
+                  String.strip p)
+              |> List.filter ~f:(fun p -> not (String.is_empty p))
+            | None -> [] in
           (* Collect body lines: all indented lines that follow *)
           let rec collect_body rest body_lines =
             match rest with
@@ -479,7 +526,7 @@ let parse_python_functions (py_source: string) : (string, string, String.compara
           let raw_body_lines, remaining = collect_body rest [] in
           let body_lines = dedent raw_body_lines in
           let body = String.rstrip (String.concat ~sep:"\n" body_lines) in
-          collect_functions remaining (Map.set acc ~key:fname ~data:body)
+          collect_functions remaining (Map.set acc ~key:fname ~data:(params, body))
         | None -> collect_functions rest acc
       else
         collect_functions rest acc
@@ -539,20 +586,26 @@ let compile_fun_decls ~(py_source: string option) () : Enfflash.fun_decl list =
           | Sig.Func func ->
             (match func.kind with
              | Funcs.External ->
-               let param_names = List.map func.arg_ttts ~f:fst in
+               let mfotl_param_names = List.map func.arg_ttts ~f:fst in
                let param_types = List.map func.arg_ttts ~f:(fun (_, ttt) -> ttt_to_ef ttt) in
                let ret_type = match func.ret_ttts with
                  | [ttt] -> ttt_to_ef ttt
                  | _ -> Enfflash.EfInt in
-               let body = match Map.find py_bodies key with
-                 | Some b -> b
+               let py_params, body = match Map.find py_bodies key with
+                 | Some (params, b) -> (Some params, b)
                  | None ->
                    (* Generate a fallback body based on the function signature *)
-                   Printf.sprintf "return %s" (String.concat ~sep:" + " (
-                       match param_names with
+                   (None, Printf.sprintf "return %s" (String.concat ~sep:" + " (
+                       match mfotl_param_names with
                        | [] -> ["0"]
                        | [p] -> [p]
-                       | _ -> [List.hd_exn param_names])) in
+                       | _ -> [List.hd_exn mfotl_param_names]))) in
+               (* Use the Python def's own parameter names (so the body resolves)
+                  when they line up positionally with the signature; otherwise
+                  fall back to the MFOTL signature names. *)
+               let param_names = match py_params with
+                 | Some ps when List.length ps = List.length param_types -> ps
+                 | _ -> mfotl_param_names in
                Enfflash.{ fd_name = key;
                           fd_param_names = param_names;
                           fd_param_types = param_types;
@@ -576,6 +629,26 @@ let compile_fun_decls ~(py_source: string option) () : Enfflash.fun_decl list =
           | _ -> acc) in
   List.sort funs ~compare:(fun a b -> String.compare a.Enfflash.fd_name b.fd_name)
 
+(* Compile the Python table functions referenced by `tableop let`s.  Each named
+   function takes one argument `rows` (a list of value-lists) and returns a list
+   of output value-lists; its body comes from the --func Python file. *)
+let compile_tfun_decls ~(py_source: string option) (names: string list) : Enfflash.tfun_decl list =
+  let py_bodies = match py_source with
+    | Some src -> parse_python_functions src
+    | None -> Map.empty (module String) in
+  List.dedup_and_sort names ~compare:String.compare
+  |> List.map ~f:(fun name ->
+      let tfd_body = match Map.find py_bodies name with
+        | Some (params, b) ->
+          (* The engine invokes a table function as `def name(rows): …`.  Bind
+             the function's own (single) parameter to `rows` when it differs, so
+             a body written against the original parameter name still resolves. *)
+          (match params with
+           | [param] when not (String.equal param "rows") -> param ^ " = rows\n" ^ b
+           | _ -> b)
+        | None -> "return rows" in
+      Enfflash.{ tfd_name = name; tfd_body })
+
 (* ═══════════════════════════════════════════════════════════════════════════ *)
 (* Compile let definitions using switch structures from the let_map           *)
 (* ═══════════════════════════════════════════════════════════════════════════ *)
@@ -594,13 +667,24 @@ let compile_fun_decls ~(py_source: string option) () : Enfflash.fun_decl list =
   | FAnd (a, b) | FOr (a, b) -> filter_has_event_ref a || filter_has_event_ref b
   | FNot a -> filter_has_event_ref a*)
 
+(* Convert a metric interval into the table window passed to the engine.
+   [0, ∞) maps to [None] (the non-metric accumulate-forever case), so plain
+   Once/Since/Prev compile exactly as before. *)
+let interval_to_window (i: Interval.t) : (int * int option) option =
+  let a = Time.Span.min_seconds (Interval.left i) in
+  let b = Option.map (Interval.right i) ~f:Time.Span.min_seconds in
+  match a, b with
+  | 0, None -> None
+  | _       -> Some (a, b)
+
 let compile_let_from_switch
     ~(let_map: Tnformula.let_map)
     ~(name: string)
     ~(label: string option)
     ~(args: (Tterm.TypedVar.t * Dom.tt option) list)
     ~(switch: Switch.t)
-  : [`Let of Enfflash.let_def | `Table of Enfflash.table_def] =
+  : [`Let of Enfflash.let_def | `Table of Enfflash.table_def
+    | `Agg of Enfflash.agg_let_def | `Top of Enfflash.top_let_def] =
   let columns =
     List.map args ~f:(fun (v, tt_opt) ->
         (san (fst v), match tt_opt with Some tt -> tt_to_ef tt | None -> tt_to_ef (snd v))) in
@@ -621,8 +705,10 @@ let compile_let_from_switch
         ld_params = columns;
         ld_clause = clause;
       }
-  | Switch.Once trigger ->
-    (* Monotone accumulation: table with add, no remove. *)
+  | Switch.Once (i, trigger) ->
+    (* Monotone accumulation: table with add, no remove.  A metric interval
+       windows the table (evict tuples older than the upper bound, hold back
+       tuples not yet within the lower bound). *)
     `Table Enfflash.{
         td_label = label;
         td_lagged = false;
@@ -630,9 +716,11 @@ let compile_let_from_switch
         td_columns = columns;
         td_add_clause = trigger_to_clause ~let_map trigger;
         td_remove_clause = None;
+        td_window = interval_to_window i;
       }
-  | Switch.Prev trigger ->
-    (* Previous-step predicate: lagged table (updated after rules fire). *)
+  | Switch.Prev (i, trigger) ->
+    (* Previous-step predicate: lagged table (updated after rules fire).  A
+       metric interval bounds the gap to the previous time-point. *)
     `Table Enfflash.{
         td_label = label;
         td_lagged = true;
@@ -640,8 +728,9 @@ let compile_let_from_switch
         td_columns = columns;
         td_add_clause = trigger_to_clause ~let_map trigger;
         td_remove_clause = None;
+        td_window = interval_to_window i;
       }
-  | Switch.Since (left_trigger, right_trigger) ->
+  | Switch.Since (i, left_trigger, right_trigger) ->
     (* Table with add (right trigger) and remove (negated left trigger).
        Since semantics: φ SINCE ψ — add row when ψ fires (right trigger),
        remove when ¬φ holds (the continuation condition is violated).
@@ -653,6 +742,8 @@ let compile_let_from_switch
     let rec simplify_neg (f: Tyformula.t) : Tyformula.t =
       match f.form with
       | Neg g -> g    (* ¬¬φ → φ *)
+      | TT -> { f with form = FF }  (* ¬⊤ → ⊥ *)
+      | FF -> { f with form = TT }  (* ¬⊥ → ⊤ (drops a spurious `if !false`) *)
       | And (s, fs) -> { f with form = Or (s, List.map ~f:simplify_neg fs) }
       | Or (s, fs) -> { f with form = And (s, List.map ~f:simplify_neg fs) }
       | _ -> Tyformula.make_dummy (Tyformula.Neg f)
@@ -670,6 +761,39 @@ let compile_let_from_switch
         td_columns = columns;
         td_add_clause = trigger_to_clause ~let_map right_trigger;
         td_remove_clause = Some rm_clause;
+        td_window = interval_to_window i;
+      }
+  | Switch.Agg (ai, trigger) ->
+    let agg_op = match ai.Nformula.ai_op with
+      | Aggregation.ASum -> Enfflash.AggSum
+      | Aggregation.AAvg -> Enfflash.AggAvg
+      | Aggregation.AMed -> Enfflash.AggMed
+      | Aggregation.ACnt -> Enfflash.AggCnt
+      | Aggregation.AMin | Aggregation.AAssign -> Enfflash.AggMin
+      | Aggregation.AMax -> Enfflash.AggMax
+      | Aggregation.AStd -> Enfflash.AggStd in
+    let (rv, rtt) = ai.ai_result in
+    `Agg Enfflash.{
+        agg_label = label;
+        agg_name  = sanitized;
+        agg_columns = columns;
+        agg_op;
+        agg_term = term_to_ef ai.ai_term;
+        agg_groups = List.map ai.ai_groups ~f:(fun v -> san (fst v));
+        agg_result = (san (fst rv), tt_to_ef rtt);
+        agg_clause = trigger_to_clause ~let_map trigger;
+        agg_incremental = Option.map ai.ai_incremental ~f:sanitize_name;
+      }
+  | Switch.Top (ti, trigger) ->
+    `Top Enfflash.{
+        top_label = label;
+        top_name  = sanitized;
+        top_columns = columns;
+        top_fn = ti.Nformula.ti_fn;
+        top_args = List.map ti.ti_args ~f:term_to_ef;
+        top_groups = List.map ti.ti_groups ~f:(fun v -> san (fst v));
+        top_results = List.map ti.ti_results ~f:(fun (v, tt) -> (san (fst v), tt_to_ef tt));
+        top_clause = trigger_to_clause ~let_map trigger;
       }
 
 (* ═══════════════════════════════════════════════════════════════════════════ *)
@@ -773,33 +897,44 @@ let extract_label_from_effect_name name =
 
 let compile_clause_to_rules ~(let_map: Tnformula.let_map) (clause: Clause.t) : Enfflash.rule_def list =
   let trigger_clause = trigger_to_clause ~let_map clause.trigger in
+  (* Source label propagated from a [Label] wrapper (innermost first).  Takes
+     precedence over any label encoded in a synthetic effect name. *)
+  let clause_label = match clause.Clause.labels with
+    | [] -> None
+    | ls -> Some (String.concat ~sep:", " ls) in
+  let label_of name = match clause_label with
+    | Some _ -> clause_label
+    | None   -> extract_label_from_effect_name name in
   let effects_info =
     List.filter_map clause.effects ~f:(fun effect ->
         match effect with
         | Cau (name, args) ->
           let params = List.map args ~f:term_to_ef in
-          let label = extract_label_from_effect_name name in
+          let label = label_of name in
           Some (sanitize_name name, params, Enfflash.RCause, None, None, label)
         | Sup (name, args) ->
           let params = List.map args ~f:term_to_ef in
-          let label = extract_label_from_effect_name name in
+          let label = label_of name in
           Some (sanitize_name name, params, Enfflash.RSuppress, None, None, label)
         | EventuallyCau (i, name, args) ->
           let params = List.map args ~f:term_to_ef in
-          let label = extract_label_from_effect_name name in
+          let label = label_of name in
           Some (sanitize_name name, params, Enfflash.RCause, interval_to_delay i, None, label)
         | EventuallySup (i, name, args) ->
           let params = List.map args ~f:term_to_ef in
-          let label = extract_label_from_effect_name name in
+          let label = label_of name in
           Some (sanitize_name name, params, Enfflash.RSuppress, interval_to_delay i, None, label)
-        | NextCau (i, name, args) ->
+        | NextCau (itvs, name, args) ->
+          (* A chain of n nested NEXT operators fires the obligation n real
+             time-points ahead; [itvs] holds one interval per NEXT, so the
+             time-point offset is its length (≥ 1). *)
           let params = List.map args ~f:term_to_ef in
-          let label = extract_label_from_effect_name name in
-          Some (sanitize_name name, params, Enfflash.RCause, None, Some 1, label)
-        | NextSup (i, name, args) ->
+          let label = label_of name in
+          Some (sanitize_name name, params, Enfflash.RCause, None, Some (List.length itvs), label)
+        | NextSup (itvs, name, args) ->
           let params = List.map args ~f:term_to_ef in
-          let label = extract_label_from_effect_name name in
-          Some (sanitize_name name, params, Enfflash.RSuppress, None, Some 1, label)
+          let label = label_of name in
+          Some (sanitize_name name, params, Enfflash.RSuppress, None, Some (List.length itvs), label)
         | _ -> None) in
   List.map effects_info ~f:(fun (ev_name, params, action, delay, tp_offset, label) ->
       Enfflash.{
@@ -864,16 +999,87 @@ let reorder_table_def (table_def: Enfflash.table_def) =
 let reorder_rule_def (rule_def: Enfflash.rule_def) =
   { rule_def with rd_trigger = reorder_clause rule_def.rd_trigger }
 
+let reorder_agg_let_def (ad: Enfflash.agg_let_def) =
+  { ad with agg_clause = reorder_clause ad.agg_clause }
+
+let reorder_top_let_def (td: Enfflash.top_let_def) =
+  { td with top_clause = reorder_clause td.top_clause }
+
 let reorder_item = function
   | Enfflash.PiLet let_def   -> Enfflash.PiLet (reorder_let_def let_def)
   | PiTable        table_def -> PiTable        (reorder_table_def table_def)
+  | PiAgg          ad        -> PiAgg          (reorder_agg_let_def ad)
+  | PiTop          td        -> PiTop          (reorder_top_let_def td)
 
 let reorder_program (prog: Enfflash.program) =
   { prog with pg_let_defs = List.map ~f:reorder_let_def   prog.pg_let_defs;
+              pg_agg_lets = List.map ~f:reorder_agg_let_def prog.pg_agg_lets;
+              pg_top_lets = List.map ~f:reorder_top_let_def prog.pg_top_lets;
               pg_tables   = List.map ~f:reorder_table_def prog.pg_tables;
               pg_rules    = List.map ~f:reorder_rule_def  prog.pg_rules;
               pg_items    = List.map ~f:reorder_item      prog.pg_items }
               
+
+(* ═══════════════════════════════════════════════════════════════════════════ *)
+(* Section computation via the CDG algorithm from splitting.ml                *)
+(*                                                                             *)
+(* Builds the Clause Dependency Graph on [tnf] (using the proper monotonicity *)
+(* analysis from Splitting.EventSplit.build_cdg), computes its SCCs, and maps *)
+(* each SCC to the rule indices (into [prog.pg_rules]) produced by the clauses*)
+(* in that SCC.  Returns sections in dependency (topological) order.          *)
+(* ═══════════════════════════════════════════════════════════════════════════ *)
+
+let compute_sections ~drop_monotone (tnf : Tnformula.t)
+    (clause_to_rule_indices : int list array)
+    : (bool * int list) list list * (int * int) list =
+  let lets, let_ctxt_mon, let_ctxt_anti_mon = Splitting.maps_of_lets tnf.let_map in
+  let clauses = Array.of_list tnf.clauses in
+  let n = Array.length clauses in
+  let g = Splitting.EventSplit.build_cdg ~filtered:drop_monotone
+      ~lets ~let_ctxt_mon ~let_ctxt_anti_mon clauses in
+  let clause_to_sec = Array.create ~len:n (-1) in
+  let gi = ref 0 in
+  let sections =
+    Graph_util.sccs_in_waves g
+    |> List.filter_map ~f:(fun wave ->
+        let scc_entries =
+          List.filter_map wave ~f:(fun (recursive, clause_indices) ->
+              let rule_indices =
+                List.concat_map clause_indices ~f:(fun i -> clause_to_rule_indices.(i)) in
+              if List.is_empty rule_indices then None
+              else Some (recursive, clause_indices, rule_indices)) in
+        if List.is_empty scc_entries then None
+        else begin
+          (* Merge all once SCCs into one section (they are CDG-independent
+             within a wave).  Assign global section indices in output order:
+             once section first (if any), then each fixpoint section. *)
+          let once_clauses =
+            List.concat_map scc_entries ~f:(fun (r, cis, _) -> if r then [] else cis) in
+          let once_rules =
+            List.concat_map scc_entries ~f:(fun (r, _, ris) -> if r then [] else ris) in
+          let once_sec = match once_rules with
+            | [] -> []
+            | _  ->
+              let sec = !gi in Int.incr gi;
+              List.iter once_clauses ~f:(fun ci -> clause_to_sec.(ci) <- sec);
+              [(false, once_rules)] in
+          let fix_secs =
+            List.filter_map scc_entries ~f:(fun (r, cis, ris) ->
+                if not r then None
+                else begin
+                  let sec = !gi in Int.incr gi;
+                  List.iter cis ~f:(fun ci -> clause_to_sec.(ci) <- sec);
+                  Some (true, ris)
+                end) in
+          Some (once_sec @ fix_secs)
+        end) in
+  let edges =
+    Graph_util.Graph.edges g
+    |> List.filter_map ~f:(fun (u, _, v) ->
+        let a = clause_to_sec.(u) and b = clause_to_sec.(v) in
+        if a >= 0 && b >= 0 && a <> b then Some (a, b) else None)
+    |> List.dedup_and_sort ~compare:[%compare: int * int] in
+  (sections, edges)
 
 (* ═══════════════════════════════════════════════════════════════════════════ *)
 (* Top-level compilation                                                      *)
@@ -881,6 +1087,7 @@ let reorder_program (prog: Enfflash.program) =
 
 
 let compile
+    ?(drop_monotone: bool = false)
     ~(py_source: string option)
     (r: Tnformula.t)
   : Enfflash.program =
@@ -891,6 +1098,8 @@ let compile
   let fun_decls = compile_fun_decls ~py_source () in
   let let_defs  = ref [] in
   let tables    = ref [] in
+  let agg_lets  = ref [] in
+  let top_lets  = ref [] in
   let items     = ref [] in
   (* ── Process each compiled let ────────────────────────────────────────── *)
   List.iter lets ~f:(fun (cl : Tnformula.let_def) ->
@@ -903,7 +1112,9 @@ let compile
         | Some switch ->
           (match compile_let_from_switch ~let_map ~name:vname ~label:vlabel ~args ~switch with
            | `Let ld  -> let_defs := ld :: !let_defs; items := Enfflash.PiLet ld :: !items
-           | `Table td -> tables := td :: !tables; items := Enfflash.PiTable td :: !items)
+           | `Table td -> tables := td :: !tables; items := Enfflash.PiTable td :: !items
+           | `Agg ad -> agg_lets := ad :: !agg_lets; items := Enfflash.PiAgg ad :: !items
+           | `Top td -> top_lets := td :: !top_lets; items := Enfflash.PiTop td :: !items)
         | None ->
           (* No switch info available: compile the body formula as a let definition.
              It is a filter let unless the body references trace events. *)
@@ -944,8 +1155,15 @@ let compile
           name label
           (Option.bind def_opt ~f:(fun (d: Tnformula.let_def) -> d.switch_pos_opt))
           body_pos);
-  (* ── Process enforcement clauses ──────────────────────────────────────── *)
-  let rules = List.concat_map clauses ~f:(compile_clause_to_rules ~let_map) in
+  (* ── Process enforcement clauses, tracking clause→rule-index mapping ─── *)
+  let rules_per_clause = List.map clauses ~f:(compile_clause_to_rules ~let_map) in
+  let rules = List.concat rules_per_clause in
+  let clause_to_rule_indices =
+    let idx = ref 0 in
+    Array.of_list (List.map rules_per_clause ~f:(fun rs ->
+        let start = !idx in
+        idx := !idx + List.length rs;
+        List.range start !idx)) in
   (* ── Add synthetic event declarations for Cau_/Sup_ events ──────────── *)
   let synthetic_decls = collect_synthetic_event_decls ~existing:event_decls clauses in
   let all_event_decls = event_decls @ synthetic_decls in
@@ -985,16 +1203,37 @@ let compile
                           { rule.rd_trigger with cl_filter = new_filter } }
           else rule
         | _ -> rule) in
-  let prog = 
+  let agg_lets = List.rev !agg_lets in
+  let top_lets = List.rev !top_lets in
+  let tfun_decls =
+    compile_tfun_decls ~py_source (List.map top_lets ~f:(fun td -> td.Enfflash.top_fn)) in
+  let prog =
     Enfflash.{
       pg_event_decls = all_event_decls;
+      pg_py_preamble = (match py_source with Some src -> python_preamble src | None -> "");
       pg_fun_decls   = fun_decls;
+      pg_tfun_decls  = tfun_decls;
       pg_let_defs    = List.rev !let_defs;
+      pg_agg_lets    = agg_lets;
+      pg_top_lets    = top_lets;
       pg_tables      = List.rev !tables;
       pg_rules       = rules;
       pg_items       = List.rev !items;
+      pg_sections           = [];
+      pg_sections_drop      = [];
+      pg_section_edges      = [];
+      pg_section_edges_drop = [];
     } in
-  reorder_program prog 
+  let prog = Enfflash.compress_alias_lets prog in
+  let prog = reorder_program prog in
+  let secs, edges           = compute_sections ~drop_monotone:false r clause_to_rule_indices in
+  let secs_drop, edges_drop = compute_sections ~drop_monotone:true  r clause_to_rule_indices in
+  { prog with
+    pg_sections           = secs;
+    pg_sections_drop      = secs_drop;
+    pg_section_edges      = edges;
+    pg_section_edges_drop = edges_drop;
+  }
 
 (* ═══════════════════════════════════════════════════════════════════════════ *)
 (* Convenience: compile and write to file                                     *)
@@ -1123,7 +1362,7 @@ let extract_tnf
   let tyf     = Tyformula.of_formula' f in
   let lf      = Lformula.make ~moderate tyf in
   let nf      = Enforceability.enforce ~verbose lf b in
-  Extraction.extract nf
+  Extraction.extract ~orig:tyf nf
 
 (* Data-splitting analysis: build the base-event field graph and print its
    connected components (the available data-parallel axes) plus the
@@ -1142,16 +1381,81 @@ let analyze_data (sformula : Sformula.t) : unit =
     Stdio.printf "Un-partitionable (tainted) fields: %s\n"
       (String.concat ~sep:", " tainted)
 
+(* Build the Event Dependency Graph for the (accepted) policy and return it as
+   Graphviz DOT.  Prints a short SCC summary to stderr.  Runs the full
+   enforceability front-end, so it only succeeds for enforceable policies. *)
+let edg_dot ?(moderate : bool = true) ~(b : Time.Span.s) (sformula : Sformula.t) : string =
+  let tnf = extract_tnf ~b ~verbose:false ~moderate sformula in
+  let lets, _, _ = Splitting.maps_of_lets tnf.Tnformula.let_map in
+  let edg = Edg.build ~lets tnf.Tnformula.clauses in
+  Stdio.eprintf "%s" (Edg.summary_to_string edg);
+  Edg.to_dot edg
+
+(* Write a full bundle of EDG visualisations into [dir]: the full graph, the
+   focused condensation, and one graph per recursive SCC.  Each `.dot` is also
+   rendered to `.svg` via Graphviz `dot` when it is on PATH (best-effort). *)
+let edg_dir ?(moderate : bool = true) ?(py_source : string option = None)
+    ?(drop_monotone : bool = false)
+    ~(b : Time.Span.s) (sformula : Sformula.t) (dir : string) : unit =
+  let tnf = extract_tnf ~b ~verbose:false ~moderate sformula in
+  let lets, _, _ = Splitting.maps_of_lets tnf.Tnformula.let_map in
+  let edg = Edg.build ~lets tnf.Tnformula.clauses in
+  ignore (Stdlib.Sys.command (Printf.sprintf "mkdir -p %s" (Filename.quote dir)));
+  (* also emit the compiled enforcement program (.ef) for this policy *)
+  let program = compile ~drop_monotone ~py_source tnf in
+  Enfflash.write_program_to_file ~filename:(Filename.concat dir "policy.ef") program;
+  let have_dot = Int.equal 0 (Stdlib.Sys.command "command -v dot >/dev/null 2>&1") in
+  (* Always write the .dot; only render to SVG when the graph is small enough to
+     be readable (≤ this many nodes).  Laying out the full graphs and the big
+     fixpoint sections with `dot` is slow and yields an unreadable hairball, so
+     those are left as .dot for manual/zoomed rendering. *)
+  let render_node_cap = 260 in
+  let emit name content =
+    let path = Filename.concat dir name in
+    Stdio.Out_channel.write_all path ~data:content;
+    (* node lines carry "[label=" but not "->" (edge lines do) *)
+    let nodes =
+      List.count (String.split_lines content)
+        ~f:(fun l -> String.is_substring l ~substring:"[label="
+                     && not (String.is_substring l ~substring:"->")) in
+    let svg = (Filename.chop_extension path) ^ ".svg" in
+    let q = Filename.quote in
+    if have_dot then begin
+      if nodes <= render_node_cap then
+        (* small graphs: hierarchical layout (readable) *)
+        ignore (Stdlib.Sys.command
+                  (Printf.sprintf "timeout 90 dot -Tsvg %s -o %s 2>/dev/null" (q path) (q svg)))
+      else if String.is_substring name ~substring:"focus" then
+        (* the focused condensations are the overview to keep; when they are
+           large (e.g. after -drop-monotone-deps) dot's hierarchical layout is
+           too slow, so render them with the scalable force-directed engine. *)
+        ignore (Stdlib.Sys.command
+                  (Printf.sprintf "sfdp -Tsvg -Goverlap=prism %s -o %s 2>/dev/null" (q path) (q svg)))
+      (* else: the full graphs / big fixpoint sections stay .dot-only (hairballs) *)
+    end in
+  emit "edg.dot"   (Edg.to_dot edg);
+  emit "focus.dot" (Edg.focused_dot edg);
+  List.iter (Edg.cyclic_sccs edg) ~f:(fun s ->
+      emit (Printf.sprintf "scc_%d.dot" s) (Edg.scc_subgraph_dot edg s));
+  (* Rule Dependency Graph (the graph the runtime sections are built from):
+     full RDG, focused condensation (= the section dependency DAG), and one
+     expanded graph per recursive (fixpoint) section. *)
+  List.iter (Enfflash.rdg_export ~drop_monotone program) ~f:(fun (name, content) -> emit name content);
+  Stdio.eprintf "%s" (Edg.summary_to_string edg);
+  Stdio.eprintf "[enfguard] EDG graphs + policy.ef written to %s/ (%s)\n" dir
+    (if have_dot then "DOT + rendered SVG" else "DOT only — install graphviz for SVG")
+
 let run
     ~(py_source: string option)
     ~(b: Time.Span.s)
     ?(verbose: bool = true)
     ?(moderate: bool = true)
+    ?(drop_monotone: bool = false)
     ~(filename: string)
     (sformula: Sformula.t)
   : Enfflash.program =
   let tnf     = extract_tnf ~b ~verbose ~moderate sformula in
-  let program = compile ~py_source tnf in
+  let program = compile ~drop_monotone ~py_source tnf in
   Enfflash.write_program_to_file ~filename program;
   program
 

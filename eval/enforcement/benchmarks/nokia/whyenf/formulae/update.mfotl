@@ -1,1 +1,1 @@
-../../lifeboat/formulae/update.mfotl
+ALWAYS (FORALL user, data. NOT update(user, "db2", data))

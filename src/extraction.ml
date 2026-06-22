@@ -101,9 +101,13 @@ let compile_lets (m : let_map)
              ~f:(fun def -> Option.map def.switch_neg_opt ~f:(fun s -> s, def.args)))
           ~f:(fun (sw, _args) -> lift (Switch.to_formula true sw)) in
       let clauses = match enftype_opt with
-        | Some et when Enftype.is_causable et && not (Enftype.is_suppressable et) ->
+        | Some et when Enftype.is_causable et && Enftype.is_suppressable et ->
+          (* CauSup let-def: gather both the causing and suppressing clauses;
+             the SMT check verifies their conditions are exclusive. *)
+          find_let_clauses m sol le.name true @ find_let_clauses m sol le.name false
+        | Some et when Enftype.is_causable et ->
           find_let_clauses m sol le.name true
-        | Some et when Enftype.is_suppressable et && not (Enftype.is_causable et) ->
+        | Some et when Enftype.is_suppressable et ->
           find_let_clauses m sol le.name false
         | _ -> [] in
       let filter_trigger_opt = Option.bind (Map.find m le.name)
@@ -122,10 +126,19 @@ let compile_lets (m : let_map)
 (* representation ready for the Enfflash backend.                       *)
 (* ------------------------------------------------------------------ *)
 
-let extract (nf : Nformula.t) : Tnformula.t =
+let extract ?(orig : Tyformula.t option) (nf : Nformula.t) : Tnformula.t =
   let error err =
-    Stdio.print_endline ("Constraint solving failed:\n"
-                         ^ Verdict.Errors.to_string (Verdict.Errors.ac_simplify err));
+    (match orig with
+     | Some f ->
+       (* Report the original (pre-normalization) formula, matching the
+          "not enforceable" message produced by [Enforceability.enforce]. *)
+       Stdio.print_endline ("The formula\n "
+                            ^ Tyformula.to_string f
+                            ^ "\nis not enforceable:\n"
+                            ^ Verdict.Errors.to_string (Verdict.Errors.ac_simplify err))
+     | None ->
+       Stdio.print_endline ("Constraint solving failed:\n"
+                            ^ Verdict.Errors.to_string (Verdict.Errors.ac_simplify err)));
     raise_formula_error "no satisfying enforcement assignment" in
   match nf.sols with
   | Verdict.Impossible err -> error err
@@ -138,8 +151,26 @@ let extract (nf : Nformula.t) : Tnformula.t =
           let let_defs = List.map nf.let_names ~f:(fun name -> Map.find_exn let_map name) in
           let let_clauses = List.concat (List.map (Map.data let_map) ~f:(fun cl -> cl.clauses)) in
           let clauses = clauses @ List.rev let_clauses in
-          let formula = compile_formula let_defs (List.map clauses ~f:compile_clause) in
-          Verdict.Possible [Tnformula.{ let_names = nf.let_names; let_map; clauses; formula }]
+          (* New enforceability analysis: build the Event Dependency Graph and,
+             per SCC, (1) prove cause/suppress conditions incompatible via SMT
+             and (2) prove the data-flow graph has no cycle through a non-stable
+             edge.  A candidate solution is only accepted if both checks pass. *)
+          let lets, _, _ = Splitting.maps_of_lets let_map in
+          let edg = Edg.build ~lets clauses in
+          let smt_conflicts = Smt_check.run edg in
+          let flow_viol = Dataflow.run (Array.of_list clauses) in
+          (match smt_conflicts, flow_viol with
+           | [], [] ->
+             let formula = compile_formula let_defs (List.map clauses ~f:compile_clause) in
+             Verdict.Possible [Tnformula.{ let_names = nf.let_names; let_map; clauses; formula }]
+           | _ ->
+             let parts =
+               (if List.is_empty smt_conflicts then []
+                else ["cause/suppress conflict(s):\n" ^ Smt_check.conflicts_to_string smt_conflicts])
+               @ (if List.is_empty flow_viol then []
+                  else ["non-terminating data flow:\n" ^ Dataflow.violations_to_string flow_viol]) in
+             Verdict.Impossible (Verdict.Errors.ERule
+               ("Policy is not enforceable —\n" ^ String.concat ~sep:"\n" parts)))
         | [] ->
           Verdict.Impossible (Verdict.Errors.ERule
             ("Constraint system " ^ Constraints.to_string constr ^ " is not solvable")))) with
@@ -151,5 +182,5 @@ let extract (nf : Nformula.t) : Tnformula.t =
 (* ------------------------------------------------------------------ *)
 
 let do_type_and_extract ?(verbose=true) ?(moderate=true) f b =
-  extract (enforce ~verbose (Lformula.make ~moderate f) b)
+  extract ~orig:f (enforce ~verbose (Lformula.make ~moderate f) b)
 

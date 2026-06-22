@@ -1,1 +1,1 @@
-../../lifeboat/formulae/insert.mfotl
+ALWAYS (FORALL user, data. insert(user, "db2", data) IMPLIES user = "script")

@@ -19,7 +19,7 @@ open Nformula
 
 (** Phase 6: solve constraints and select an enforcement strategy.
     Raises [Errors.FormulaError] if no satisfying constraint assignment exists. *)
-val extract : Nformula.t -> Tnformula.t
+val extract : ?orig:Tyformula.t -> Nformula.t -> Tnformula.t
 
 (** Phases 5+6: enforceability type inference then solution extraction. *)
 val do_type_and_extract :

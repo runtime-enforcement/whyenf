@@ -1,4 +1,6 @@
 The formula
  BC(1) ∧ ¬BC(1)
 is not enforceable:
-Constraint system t(BC) ≽ Cau ∧ CauSup ≽ t(BC) ∧ t(BC) ≽ Sup is not solvable
+Policy is not enforceable —
+cause/suppress conflict(s):
+  event BC: clause #0 may cause it while clause #1 may suppress it under a *compatible* condition (cause/suppress not provably exclusive)

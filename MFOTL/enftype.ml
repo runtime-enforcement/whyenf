@@ -143,10 +143,13 @@ module Constraint = struct
        (*print_endline (Printf.sprintf "Merging c=%s with c'=%s..." (to_string c) (to_string c'));*)
        let lower           = merge_join c.lower c'.lower in
        let upper           = merge_meet c.upper c'.upper in
-       let c'' = 
+       let c'' =
          if (
            not (geq_opt upper lower) (* if there is nothing between lower and upper *)
-           || is_causable_opt lower && is_suppressable_opt lower (* if lower is CauSup *)
+           (* NOTE: a CauSup lower bound (event both caused and suppressed) is no
+              longer rejected here.  Such candidates are now allowed through and
+              validated downstream by the per-SCC SMT incompatibility check
+              (Smt_check), which proves the cause/suppress conditions exclusive. *)
          ) then (
            (*Stdio.printf "%s %s %b %b %b\n"
              (match upper with None -> "None" | Some b -> to_string_alias b)
@@ -164,6 +167,10 @@ module Constraint = struct
 
   let solve c =
     match c.upper, c.lower with
+    (* lower demands both cause and suppress: resolve to CauSup and let the
+       SMT incompatibility check decide whether it is actually enforceable. *)
+    | Some enftype, Some lo when is_causable lo && is_suppressable lo ->
+       meet enftype causup
     | Some enftype, _ when not (is_causable enftype && is_suppressable enftype) -> enftype
     | Some enftype, Some enftype' when is_causable enftype' ->
        meet enftype (Sup.Obs, Cau.Cau)

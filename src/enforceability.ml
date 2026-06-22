@@ -41,6 +41,14 @@ let non_monotone_predicates_of_trigger
 let allow_table_guards = ref false
 let table_guard_warnings : (string * string) list ref = ref []
 
+(* Set [ENFGUARD_DEBUG_TYPES] in the environment to dump the per-formula
+   enforceability typing trace ([types: …] / [type(…) = …]).  Off by default so
+   it does not pollute the tool's stdout (which tests diff against expected). *)
+let debug_types =
+  match Stdlib.Sys.getenv_opt "ENFGUARD_DEBUG_TYPES" with
+  | Some ("1" | "true" | "yes") -> true
+  | _ -> false
+
 let rec pull_guard (m : GuardInfo.map) (x : Var.t) (p : bool) (trigger : Trigger.t) : Trigger.t option =
   let npg = pull_guard m x in
 
@@ -55,7 +63,8 @@ let rec pull_guard (m : GuardInfo.map) (x : Var.t) (p : bool) (trigger : Trigger
       match ld_opt with
       | Some ld ->
         (match ld.switch_pos_opt with
-         | Some (Switch.Once _) | Some (Switch.Prev _) | Some (Switch.Since _) -> true
+         | Some (Switch.Once _) | Some (Switch.Prev _) | Some (Switch.Since _)
+         | Some (Switch.Agg _) | Some (Switch.Top _) -> true
          | _ -> false)
       | None -> false
     in
@@ -80,7 +89,10 @@ let rec pull_guard (m : GuardInfo.map) (x : Var.t) (p : bool) (trigger : Trigger
           | FF, true  -> Some trigger
           | Predicate (r, trms), true when List.exists ~f:(Term.equal (Term.dummy_var x)) trms ->
             let is_unguardable, is_table, ld_opt = guard_quality r in
-            if is_unguardable || (is_table && not allow_table) then None
+            if is_unguardable || (is_table && not allow_table) then (
+              (*print_endline (Printf.sprintf "%s.%s is unguardable" r (Var.to_string x));*)
+              None
+            )
             else begin
               (if is_table then
                  let body_str = match ld_opt with
@@ -144,16 +156,32 @@ let rec pull_guard (m : GuardInfo.map) (x : Var.t) (p : bool) (trigger : Trigger
           | Label (s, f), _ ->
             Option.map (aux p f) ~f:(fun trigger ->
                 { trigger with Trigger.filter = { filter with form = Label (s, trigger.Trigger.filter) } })
+          (* A group-by variable of an aggregation is bound by the aggregation's
+             inner subformula (typically a table such as `Once`/`Since`/a let).
+             Descend into that body to pull the variable's guard — this only
+             succeeds for table guards, i.e. when [allow_table_guards] is set —
+             while keeping the whole aggregation as the boolean filter so its
+             result is still computed. *)
+          | Agg (_, _, _, _, f), _
+          | Top (_, _, _, _, f), _ ->
+            Option.map (aux p f) ~f:(fun trigger ->
+                { trigger with Trigger.filter = filter })
           | _ -> None
         in
+        (*print_endline (Printf.sprintf "aux(%s, %s, %b) = %s"
+                         (Var.to_string x) (Tyformula.to_string filter) p
+                         (Option.value (Option.map ~f:Trigger.to_string r ) ~default:"None"));*)
         r in
       aux p trigger.Trigger.filter
     end in
   let _ = npg in
   let r_opt = try_pulling_guard false in
-  match r_opt with
-  | None when !allow_table_guards -> try_pulling_guard true
-  | _ -> r_opt
+  let r_opt = match r_opt with
+    | None when !allow_table_guards -> try_pulling_guard true
+    | _ -> r_opt in
+  (* Collapse the redundant disjuncts/conjuncts that the guard-pulling
+     cross-products accumulate, so they do not compound across variables. *)
+  Option.map r_opt ~f:Trigger.dedup
 
 let normalize_trigger ?(vars=None) (m : Nformula.GuardInfo.map) (trigger : Trigger.t) (p : bool) (orig_f : Tyformula.t) : Trigger.t Verdict.v =
   let vars = match vars with
@@ -229,8 +257,8 @@ let let_def_to_string let_def =
     (Etc.string_list_to_string (List.map let_def.args ~f:(
          fun (v, tt_opt) -> Var.to_string v ^ o "" (fun tt -> ": " ^ Dom.tt_to_string tt) tt_opt)))
     (to_string let_def.body)
-    (Verdict.verdict_to_string ~to_string:enf_sols_to_string let_def.cau_sols)
-    (Verdict.verdict_to_string ~to_string:enf_sols_to_string let_def.sup_sols)
+    (Verdict.to_string ~to_string:enf_sols_to_string let_def.cau_sols)
+    (Verdict.to_string ~to_string:enf_sols_to_string let_def.sup_sols)
     (o "None" Switch.to_string let_def.switch_pos_opt)
     (o "None" Switch.to_string let_def.switch_neg_opt)
 
@@ -260,10 +288,10 @@ let fix_predicate_names m pol e =
 
 let fix_predicate_names_clauses_constr m =
   List.map ~f:(fun (clauses, constrs) ->
-      List.map clauses ~f:(fun { Clause.trigger; effects } ->
+      List.map clauses ~f:(fun { Clause.trigger; effects; labels } ->
           { Clause.trigger = { Trigger.guards = List.map ~f:(List.map ~f:(map_predicate ~pol:false ~f:(fix_predicate_names m))) trigger.guards;
                                filter = map_predicate ~pol:false ~f:(fix_predicate_names m) trigger.filter };
-            effects = List.map ~f:(Effect.map_predicate ~f:(fix_predicate_names m)) effects }),
+            effects = List.map ~f:(Effect.map_predicate ~f:(fix_predicate_names m)) effects; labels }),
       constrs)
 
 (* ------------------------------------------------------------------ *)
@@ -271,6 +299,8 @@ let fix_predicate_names_clauses_constr m =
 (* ------------------------------------------------------------------ *)
 
 let types (t: Enftype.t) (norm: Lformula.t) (b: Interval.v) : 'a Verdict.v =
+
+  if debug_types then print_endline ("types: " ^ Lformula.to_string norm);
 
   let set_b = function
     | Interval.U a -> Interval.B (a, b)
@@ -283,27 +313,34 @@ let types (t: Enftype.t) (norm: Lformula.t) (b: Interval.v) : 'a Verdict.v =
 
   (*let _pred_map, _mon_map, _anti_mon_map = maps_of_lets lets in*)
 
+  (* Attach a source label to every clause produced under a [Label] wrapper, so
+     it propagates to the emitted rule's [@<source>] annotation. *)
+  let add_clause_label (s : string) (sols : enf_sols) : enf_sols =
+    Verdict.map sols ~f:(List.map ~f:(fun (clauses, constr) ->
+        (List.map clauses ~f:(fun (c : Clause.t) ->
+             { c with Clause.labels = s :: c.Clause.labels }), constr))) in
+
   (* Main auxiliary function: normalize enforceable formula *)
   let rec aux (m: let_map) (t: Enftype.t) (f: Tyformula.t) : enf_sols =
     let open Verdict in
-    let r =
+    let  r=
       match Enftype.is_causable t, Enftype.is_suppressable t with
       | true, true -> Impossible (Errors.EFormula (Some "no formula can be both causable and suppressable", f, t))
       | true, false -> begin
           match f.form with
-          | TT -> Possible [([{ Clause.trigger = Trigger.make (make_dummy TT); effects = [] }], Constraints.CTT)]
+          | TT -> Possible [([{ Clause.trigger = Trigger.make (make_dummy TT); effects = []; labels = [] }], Constraints.CTT)]
           | Predicate (e, terms) -> begin
               match Map.find m e with
               | Some def ->
                 let* solutions = def.cau_sols in
                 List.map solutions ~f:(fun (clauses, constr) ->
                     [{ Clause.trigger = Trigger.make (make_dummy TT);
-                       effects = [Effect.Cau ("Cau_" ^ e, terms)] }], constr)
+                       effects = [Effect.Cau ("Cau_" ^ e, terms)]; labels = [] }], constr)
               | None when Sig.mem e ->
                 let enftype = Sig.enftype_of_pred e in
                 if Enftype.geq enftype Enftype.cau then
                   Possible [([{ Clause.trigger = Trigger.make (make_dummy TT);
-                                effects = [Effect.Cau (e, terms)] }],
+                                effects = [Effect.Cau (e, terms)]; labels = [] }],
                              Constraints.CConj [Constraints.CLeq (e, enftype);
                                                 Constraints.CGeq (e, Enftype.cau)])]
                 else Impossible (Errors.ECast (e, Enftype.cau, enftype))
@@ -320,18 +357,18 @@ let types (t: Enftype.t) (norm: Lformula.t) (b: Interval.v) : 'a Verdict.v =
           | Or (L, f :: fs) ->
             let* solutions = aux m t f in
             List.map solutions ~f:(fun (clauses, constr) ->
-                List.map clauses ~f:(fun { Clause.trigger; effects } ->
+                List.map clauses ~f:(fun { Clause.trigger; effects; labels } ->
                     { Clause.trigger = { trigger with Trigger.filter = ac_simplify (make_dummy (And (N, trigger.filter :: List.map fs ~f:(fun g -> make_dummy (Neg g))))) };
-                      effects }),
+                      effects; labels }),
                 constr)
           | Or (R, fs) ->
             let f = List.last_exn fs in
             let fs = fs |> List.rev |> List.tl_exn |> List.rev in
             let* solutions = aux m t f in
             List.map solutions ~f:(fun (clauses, constr) ->
-                List.map clauses ~f:(fun { Clause.trigger; effects } ->
+                List.map clauses ~f:(fun { Clause.trigger; effects; labels } ->
                     { Clause.trigger = { trigger with Trigger.filter = ac_simplify (make_dummy (And (N, trigger.filter :: List.map fs ~f:(fun g -> make_dummy (Neg g))))) };
-                      effects }),
+                      effects; labels }),
                 constr)
           | Or (_, fs) ->
             let rec run (left: Tyformula.t list) = function
@@ -339,9 +376,9 @@ let types (t: Enftype.t) (norm: Lformula.t) (b: Interval.v) : 'a Verdict.v =
               | f :: right ->
                 disj (let* solutions = aux m t f in
                       List.map solutions ~f:(fun (clauses, constr) ->
-                          List.map clauses ~f:(fun { Clause.trigger; effects } ->
+                          List.map clauses ~f:(fun { Clause.trigger; effects; labels } ->
                               { Clause.trigger = { trigger with Trigger.filter = ac_simplify (make_dummy (And (N, trigger.filter :: List.map (left @ right) ~f:(fun g -> make_dummy (Neg g))))) };
-                                effects }),
+                                effects; labels }),
                           constr))
                   (run (f::left) right)
             in run [] fs
@@ -349,40 +386,40 @@ let types (t: Enftype.t) (norm: Lformula.t) (b: Interval.v) : 'a Verdict.v =
             let* solutions = aux m (Enftype.neg t) f in
             List.map solutions
               ~f:(fun (clauses, constr) ->
-                  List.map clauses ~f:(fun { Clause.trigger; effects } ->
+                  List.map clauses ~f:(fun { Clause.trigger; effects; labels } ->
                       { Clause.trigger = { trigger with Trigger.filter = ac_simplify (make_dummy (And (N, [trigger.filter; make_dummy (Neg g)]))) };
-                        effects }),
+                        effects; labels }),
                   constr)
           | Imp (R, f, g) ->
             let* solutions = aux m t g in
             List.map solutions ~f:(fun (clauses, constr) ->
-                List.map clauses ~f:(fun { Clause.trigger; effects } ->
+                List.map clauses ~f:(fun { Clause.trigger; effects; labels } ->
                     { Clause.trigger = { trigger with Trigger.filter = ac_simplify (make_dummy (And (N, [trigger.filter; f]))) };
-                      effects }),
+                      effects; labels }),
                 constr)
           | Imp (_, f, g) ->
             disj
               (let* solutions = aux m (Enftype.neg t) f in
                List.map solutions ~f:(fun (clauses, constr) ->
-                   List.map clauses ~f:(fun { Clause.trigger; effects } ->
+                   List.map clauses ~f:(fun { Clause.trigger; effects; labels } ->
                        { Clause.trigger = { trigger with Trigger.filter = ac_simplify (make_dummy (And (N, [trigger.filter; make_dummy (Neg g)]))) };
-                         effects }),
+                         effects; labels }),
                    constr))
               (let* solutions = aux m t g in
                List.map solutions ~f:(fun (clauses, constr) ->
-                   List.map clauses ~f:(fun { Clause.trigger; effects } ->
+                   List.map clauses ~f:(fun { Clause.trigger; effects; labels } ->
                        { Clause.trigger = { trigger with Trigger.filter = ac_simplify (make_dummy (And (N, [trigger.filter; f]))) };
-                         effects }),
+                         effects; labels }),
                    constr))
           | Exists (x, f) ->
             aux m t (subst (Map.singleton (module Var) x (dummy_for_var x)) f)
           | Forall (x, f) ->
             let** solutions = aux m t f in
             disjs (List.map solutions ~f:(fun (clauses, constr) ->
-                match all (List.map clauses ~f:(fun { Clause.trigger; effects } ->
+                match all (List.map clauses ~f:(fun { Clause.trigger; effects; labels } ->
                     let vars = Some (Set.elements (Effect.fvs effects)) in
                     match normalize_trigger ~vars (guard_map_of_let_map m) trigger false f with
-                    | Possible [trigger] -> Possible [{ Clause.trigger; effects }]
+                    | Possible [trigger] -> Possible [{ Clause.trigger; effects; labels }]
                     | Impossible error -> Impossible error)) with
                 | Possible clauses -> Possible [List.concat clauses, constr]
                 | Impossible errors -> Impossible errors))
@@ -390,12 +427,12 @@ let types (t: Enftype.t) (norm: Lformula.t) (b: Interval.v) : 'a Verdict.v =
             let** solutions = aux m t f in
             let solutions =
               List.filter_map solutions ~f:(fun (clauses, constr) ->
-                  match Option.all (List.map clauses ~f:(fun { Clause.trigger; effects } ->
+                  match Option.all (List.map clauses ~f:(fun { Clause.trigger; effects; labels } ->
                       let is_trigger_trivial = match trigger.Trigger.filter.form with TT -> true | _ -> false in
                       let are_effects_simple = List.for_all effects
                           ~f:(fun effect -> match effect with Cau _ | Sup _ -> true | _ -> false) in
                       if is_trigger_trivial && are_effects_simple then
-                        Some { Clause.trigger; effects = List.map effects ~f:(Effect.eventualize (set_b i)) }
+                        Some { Clause.trigger; effects = List.map effects ~f:(Effect.eventualize (set_b i)); labels }
                       else
                         None))
                   with | Some clauses -> Some (clauses, constr)
@@ -419,7 +456,7 @@ let types (t: Enftype.t) (norm: Lformula.t) (b: Interval.v) : 'a Verdict.v =
             let** solutions = aux m t f in
             let solutions =
               List.filter_map solutions ~f:(fun (clauses, constr) ->
-                  match Option.all (List.map clauses ~f:(fun { Clause.trigger; effects } ->
+                  match Option.all (List.map clauses ~f:(fun { Clause.trigger; effects; labels } ->
                       let suppressed = List.filter_map effects
                           ~f:(fun effect -> match effect with
                               | (Sup (r, trms) as p) -> Some { form = Predicate (r, trms); info = () }
@@ -429,15 +466,17 @@ let types (t: Enftype.t) (norm: Lformula.t) (b: Interval.v) : 'a Verdict.v =
                         | _ -> List.mem suppressed trigger.filter ~equal:core_equal in
                       let are_effects_simple = List.for_all effects
                           ~f:(function Cau _ | Sup _ -> true | _ -> false) in
-                      if is_trigger_trivial && are_effects_simple then
-                        begin
-                          if not (List.is_empty effects) then
-                            Some { Clause.trigger = Trigger.make (make_dummy TT);
-                                   effects = List.map effects ~f:(Effect.nextize is) }
-                          else
-                            Some { Clause.trigger = Trigger.make (make_dummy TT);
-                                   effects = [Effect.NextTT is] }
-                        end
+                      (* Causing [NEXT φ] with at least one real effect is
+                         realisable (the effect is scheduled at the next time-
+                         point).  Causing [NEXT ⊤] with no effect would require
+                         proactively creating an empty future time-point, which
+                         the runtime does not support — reject it so the formula
+                         is reported non-enforceable rather than silently
+                         compiled into a rule that does nothing. *)
+                      if is_trigger_trivial && are_effects_simple
+                         && not (List.is_empty effects) then
+                        Some { Clause.trigger = Trigger.make (make_dummy TT);
+                               effects = List.map effects ~f:(Effect.nextize is); labels }
                       else
                         None))
                   with | Some clauses -> Some (clauses, constr)
@@ -448,24 +487,32 @@ let types (t: Enftype.t) (norm: Lformula.t) (b: Interval.v) : 'a Verdict.v =
                      "this is not enforceable inside " ^
                      op_to_string (make_dummy (Next (i, f)))), f, t))
              | solutions -> Possible solutions)
-          | Label (_, f) -> aux m t f
+          | Label (s, f) -> add_clause_label s (aux m t f)
           | _ -> Impossible (Errors.EFormula (None, f, t))
         end
       | false, true -> begin
           match f.form with
-          | FF -> Possible [([{ Clause.trigger = Trigger.make (make_dummy TT); effects = [] }], Constraints.CTT)]
+          | FF -> Possible [([{ Clause.trigger = Trigger.make (make_dummy TT); effects = []; labels = [] }], Constraints.CTT)]
           | Predicate (e, terms) -> begin
               match Map.find m e with
               | Some def ->
                 let* solutions = def.sup_sols in
                 List.map solutions ~f:(fun (clauses, constr) ->
+                    (* Sup_e is a synthetic *obligation* marker, not a present
+                       event: when the suppression obligation for the let-def e
+                       fires we must ASSERT (cause) Sup_e so it propagates to the
+                       clauses that realise the suppression (Sup_e ⇒ ¬body).
+                       Suppressing it would be a no-op under standard semantics
+                       (the absent Sup_e already satisfies ¬Sup_e).  Contrast the
+                       base-event case below, where e is a real present event and
+                       is genuinely suppressed. *)
                     [{ Clause.trigger = Trigger.make f;
-                       effects = [Effect.Sup ("Sup_" ^ e, terms)] }], constr)
+                       effects = [Effect.Cau ("Sup_" ^ e, terms)]; labels = [] }], constr)
               | None when Sig.mem e ->
                 let enftype = Sig.enftype_of_pred e in
                 if Enftype.geq enftype Enftype.sup then
                   Possible [[{ Clause.trigger = Trigger.make f;
-                               effects = [Effect.Sup (e, terms)] }],
+                               effects = [Effect.Sup (e, terms)]; labels = [] }],
                             Constraints.CConj [Constraints.CLeq (e, enftype);
                                                Constraints.CGeq (e, Enftype.sup)]]
                 else Impossible (Errors.ECast (e, enftype, Enftype.sup))
@@ -483,18 +530,18 @@ let types (t: Enftype.t) (norm: Lformula.t) (b: Interval.v) : 'a Verdict.v =
           | And (L, f :: fs) ->
             let* solutions = aux m t f in
             List.map solutions ~f:(fun (clauses, constr) ->
-                List.map clauses ~f:(fun { Clause.trigger; effects } ->
+                List.map clauses ~f:(fun { Clause.trigger; effects; labels } ->
                     { Clause.trigger = { trigger with Trigger.filter = ac_simplify (make_dummy (And (N, trigger.filter :: fs))) };
-                      effects }),
+                      effects; labels }),
                 constr)
           | And (R, fs) ->
             let f = List.last_exn fs in
             let fs = fs |> List.rev |> List.tl_exn |> List.rev in
             let* solutions = aux m t f in
             List.map solutions ~f:(fun (clauses, constr) ->
-                List.map clauses ~f:(fun { Clause.trigger; effects } ->
+                List.map clauses ~f:(fun { Clause.trigger; effects; labels } ->
                     { Clause.trigger = { trigger with Trigger.filter = ac_simplify (make_dummy (And (N, trigger.filter :: fs))) };
-                      effects }),
+                      effects; labels }),
                 constr)
           | And (_, fs) ->
             let rec run (left: Tyformula.t list) = function
@@ -502,9 +549,9 @@ let types (t: Enftype.t) (norm: Lformula.t) (b: Interval.v) : 'a Verdict.v =
               | f :: right ->
                 disj (let* solutions = aux m t f in
                       List.map solutions ~f:(fun (clauses, constr) ->
-                          List.map clauses ~f:(fun { Clause.trigger; effects } ->
+                          List.map clauses ~f:(fun { Clause.trigger; effects; labels } ->
                               { Clause.trigger = { trigger with Trigger.filter = ac_simplify (make_dummy (And (N, trigger.filter :: left @ right))) };
-                                effects }),
+                                effects; labels }),
                           constr))
                   (run (f::left) right)
             in run [] fs
@@ -512,52 +559,52 @@ let types (t: Enftype.t) (norm: Lformula.t) (b: Interval.v) : 'a Verdict.v =
             let* solutions = aux m (Enftype.neg t) f in
             List.map solutions
               ~f:(fun (clauses, constr) ->
-                  List.map clauses ~f:(fun { Clause.trigger; effects } ->
+                  List.map clauses ~f:(fun { Clause.trigger; effects; labels } ->
                       { Clause.trigger = { trigger with Trigger.filter = ac_simplify (make_dummy (And (N, [trigger.filter; make_dummy (Neg g)]))) };
-                        effects }),
+                        effects; labels }),
                   constr)
           | Imp (R, f, g) ->
             let* solutions = aux m t g in
             List.map solutions ~f:(fun (clauses, constr) ->
-                List.map clauses ~f:(fun { Clause.trigger; effects } ->
+                List.map clauses ~f:(fun { Clause.trigger; effects; labels } ->
                     { Clause.trigger = { trigger with Trigger.filter = ac_simplify (make_dummy (And (N, [trigger.filter; f]))) };
-                      effects }),
+                      effects; labels }),
                 constr)
           | Imp (_, f, g) ->
             disj
               (let* solutions = aux m (Enftype.neg t) f in
                List.map solutions ~f:(fun (clauses, constr) ->
-                   List.map clauses ~f:(fun { Clause.trigger; effects } ->
+                   List.map clauses ~f:(fun { Clause.trigger; effects; labels } ->
                        { Clause.trigger = { trigger with Trigger.filter = ac_simplify (make_dummy (And (N, [trigger.filter; make_dummy (Neg g)]))) };
-                         effects }),
+                         effects; labels }),
                    constr))
               (let* solutions = aux m t g in
                List.map solutions ~f:(fun (clauses, constr) ->
-                   List.map clauses ~f:(fun { Clause.trigger; effects } ->
+                   List.map clauses ~f:(fun { Clause.trigger; effects; labels } ->
                        { Clause.trigger = { trigger with Trigger.filter = ac_simplify (make_dummy (And (N, [trigger.filter; f]))) };
-                         effects }),
+                         effects; labels }),
                    constr))
           | Forall (x, f) ->
             aux m t (subst (Map.singleton (module Var) x (dummy_for_var x)) f)
           | Exists (x, f) ->
             let** solutions = aux m t f in
             disjs (List.map solutions ~f:(fun (clauses, constr) ->
-                match all (List.map clauses ~f:(fun { Clause.trigger; effects } ->
+                match all (List.map clauses ~f:(fun { Clause.trigger; effects; labels } ->
                     let vars = Some (Set.elements (Effect.fvs effects)) in
                     match normalize_trigger ~vars (guard_map_of_let_map m) trigger true f with
-                    | Possible [trigger] -> Possible [{ Clause.trigger; effects }]
+                    | Possible [trigger] -> Possible [{ Clause.trigger; effects; labels }]
                     | Impossible error -> Impossible error)) with
                 | Possible clauses -> Possible [List.concat clauses, constr]
                 | Impossible errors -> Impossible errors))
           | Always (i, f) ->
             let* solutions = aux m t f in
             List.filter_map solutions ~f:(fun (clauses, constr) ->
-                match Option.all (List.map clauses ~f:(fun { Clause.trigger; effects } ->
+                match Option.all (List.map clauses ~f:(fun { Clause.trigger; effects; labels } ->
                     let is_trigger_trivial = match trigger.Trigger.filter.form with TT -> true | _ -> false in
                     let are_effects_simple = List.for_all effects
                         ~f:(fun effect -> match effect with Cau _ -> true | _ -> false) in
                     if is_trigger_trivial && are_effects_simple then
-                      Some { Clause.trigger; effects = List.map effects ~f:(Effect.eventualize (set_b i)) }
+                      Some { Clause.trigger; effects = List.map effects ~f:(Effect.eventualize (set_b i)); labels }
                     else
                       None))
                 with | Some clauses -> Some (clauses, constr)
@@ -575,7 +622,7 @@ let types (t: Enftype.t) (norm: Lformula.t) (b: Interval.v) : 'a Verdict.v =
             let** solutions = aux m t f in
             let solutions =
               List.filter_map solutions ~f:(fun (clauses, constr) ->
-                  match Option.all (List.map clauses ~f:(fun { Clause.trigger; effects } ->
+                  match Option.all (List.map clauses ~f:(fun { Clause.trigger; effects; labels } ->
                       let are_effects_simple = List.for_all effects
                           ~f:(function Cau _ | Sup _ -> true | _ -> false) in
                       let suppressed = List.filter_map effects
@@ -589,7 +636,7 @@ let types (t: Enftype.t) (norm: Lformula.t) (b: Interval.v) : 'a Verdict.v =
                         begin
                           if not (List.is_empty effects) then
                             Some { Clause.trigger = Trigger.make (make_dummy TT);
-                                   effects = List.map effects ~f:(Effect.nextize is) }
+                                   effects = List.map effects ~f:(Effect.nextize is); labels }
                           else
                             None
                         end
@@ -603,11 +650,14 @@ let types (t: Enftype.t) (norm: Lformula.t) (b: Interval.v) : 'a Verdict.v =
                      "this is not enforceable inside " ^
                      op_to_string (make_dummy (Eventually (i, f)))), f, t))
              | solutions -> Possible solutions)
-          | Label (_, f) -> aux m t f
+          | Label (s, f) -> add_clause_label s (aux m t f)
           | _ -> Impossible (Errors.EFormula (None, f, t))
         end
       | false, false -> assert false
     in
+    if debug_types then
+      print_endline (Printf.sprintf "type(%s) = %s" (Tyformula.to_string f) (Verdict.to_string r ~to_string:(fun clauses_and_constraints -> String.concat ~sep:"\n" (List.map ~f:(fun (clauses, constraints) -> "- Clauses: " ^ String.concat ~sep:"; " (List.map ~f:Clause.to_string clauses) ^ "\n    - Constraints: " ^ Constraints.to_string constraints) clauses_and_constraints))));
+                     
     let r = Verdict.map r ~f:(fix_predicate_names_clauses_constr m) in
     r
   in
@@ -648,6 +698,26 @@ let types (t: Enftype.t) (norm: Lformula.t) (b: Interval.v) : 'a Verdict.v =
       else Some trigger_neg in
     cau_sols, sup_sols, trigger_pos, trigger_neg_opt in
 
+  (* Detect the O(1)-incremental aggregation fast path: SUM/CNT/AVG/MIN/MAX over
+     an unbounded `Once[0,∞)`.  After let-pulling, the aggregation's inner
+     subformula is a [Predicate] reference to the synthesized Once let; return
+     that let's name when its body is an unbounded Once. *)
+  let detect_incremental_once (m : let_map) (op : Aggregation.op) (f : Tyformula.t) : string option =
+    let fast = match op with
+      | Aggregation.ASum | Aggregation.ACnt | Aggregation.AAvg
+      | Aggregation.AMin | Aggregation.AMax -> true
+      | _ -> false in
+    if not fast then None
+    else match (Lformula.strip_exists f).form with
+      | Predicate (name, _) ->
+        (match Map.find m name with
+         | Some def ->
+           (match (Lformula.strip_exists def.body).form with
+            | Once (i, _) when Interval.is_full i -> Some name
+            | _ -> None)
+         | None -> None)
+      | _ -> None in
+
   (* Type a let-bound expression *)
   let type_let ((m: let_map), (errors: Verdict.Errors.error list)) (let_def: let_def)
     : let_map * (Verdict.Errors.error list) =
@@ -669,8 +739,8 @@ let types (t: Enftype.t) (norm: Lformula.t) (b: Interval.v) : 'a Verdict.v =
         | Possible [trigger_f], Possible [trigger_g] ->
           let _, sup_sols_f, trigger_pos_f, trigger_neg_opt_f = type_let_aux m { let_def with body = f } trigger_f in
           let cau_sols_g, sup_sols_g, trigger_pos_g, trigger_neg_opt_g = type_let_aux m { let_def with body = g } trigger_g in
-          let switch_pos = Switch.Since (trigger_pos_f, trigger_pos_g)
-          and switch_neg_opt = Option.map2 ~f:(fun trigger_neg_f trigger_neg_g -> Switch.Since (trigger_neg_f, trigger_neg_g)) trigger_neg_opt_f trigger_neg_opt_g in
+          let switch_pos = Switch.Since (i, trigger_pos_f, trigger_pos_g)
+          and switch_neg_opt = Option.map2 ~f:(fun trigger_neg_f trigger_neg_g -> Switch.Since (i, trigger_neg_f, trigger_neg_g)) trigger_neg_opt_f trigger_neg_opt_g in
           let cau_sols, sup_sols =
             if Interval.has_zero i then
               cau_sols_g, conj ~f:merge_clauses_constr sup_sols_f sup_sols_g
@@ -680,18 +750,18 @@ let types (t: Enftype.t) (norm: Lformula.t) (b: Interval.v) : 'a Verdict.v =
           in
           let cau_sols = Verdict.map cau_sols ~f:(fun clauses_constrs ->
               List.map clauses_constrs ~f:(fun (clauses, constr) ->
-                  List.map clauses ~f:(fun { Clause.trigger; effects } ->
+                  List.map clauses ~f:(fun { Clause.trigger; effects; labels } ->
                       let g = make_dummy (Predicate (let_def.name, args)) in
                       let filter = ac_simplify (make_dummy (
                           And (N, [trigger.filter; make_dummy (Neg g)]))) in
-                      { Clause.trigger = { trigger with Trigger.filter }; effects }), constr)) in
+                      { Clause.trigger = { trigger with Trigger.filter }; effects; labels }), constr)) in
           let sup_sols = Verdict.map sup_sols ~f:(fun clauses_constrs ->
               List.map clauses_constrs ~f:(fun (clauses, constr) ->
-                  List.map clauses ~f:(fun { Clause.trigger; effects } ->
+                  List.map clauses ~f:(fun { Clause.trigger; effects; labels } ->
                       let g = make_dummy (Predicate (let_def.name, args)) in
                       let filter = ac_simplify (make_dummy (
                           And (N, [trigger.filter; g]))) in
-                      { Clause.trigger = { trigger with Trigger.filter }; effects }), constr)) in
+                      { Clause.trigger = { trigger with Trigger.filter }; effects; labels }), constr)) in
           let m = Map.update m let_def.name
               ~f:(fun _ -> { let_def with cau_sols = cau_sols;
                                           sup_sols = sup_sols;
@@ -714,7 +784,7 @@ let types (t: Enftype.t) (norm: Lformula.t) (b: Interval.v) : 'a Verdict.v =
               let _, _, trigger_pos, trigger_neg_opt = type_let_aux m { let_def with body = f } trigger in
               Impossible (EFormula (Some "Once's interval does not contain 0", g, Enftype.cau)),
               trigger_pos, trigger_neg_opt in
-          let switch_pos = Switch.Once trigger_pos
+          let switch_pos = Switch.Once (i, trigger_pos)
           and switch_neg_opt = Option.map ~f:(fun trigger_neg -> Switch.Now trigger_neg) trigger_neg_opt in
           let m = Map.update m let_def.name
               ~f:(fun _ -> { let_def with cau_sols = cau_sols;
@@ -730,10 +800,41 @@ let types (t: Enftype.t) (norm: Lformula.t) (b: Interval.v) : 'a Verdict.v =
         | Impossible error_f -> (m, error_f :: errors)
         | Possible [trigger] ->
           let _, _, trigger_pos, trigger_neg_opt = type_let_aux m { let_def with body = f } trigger in
-          let switch_pos = Switch.Prev trigger_pos in
+          let switch_pos = Switch.Prev (i, trigger_pos) in
           let _switch_neg_opt = Option.map ~f:(fun trigger_neg -> Switch.Now trigger_neg) trigger_neg_opt in
           let m = Map.update m let_def.name
               ~f:(fun _ -> { let_def with switch_pos_opt = Some switch_pos }) in
+          (m, errors)
+        | _ -> (m, errors)
+      end
+    | Agg (result_var, op, term, groups, f) ->
+      (* Observable-only aggregation: enumerate the inner subformula f, keep the
+         metadata in the switch, leave cau/sup sols Impossible. *)
+      begin
+        let ft = normalize_trigger (guard_map_of_let_map m) (Trigger.make f) true body in
+        match ft with
+        | Impossible error_f -> (m, error_f :: errors)
+        | Possible [trigger] ->
+          let _, _, trigger_pos, _ = type_let_aux m { let_def with body = f } trigger in
+          let ai = { Nformula.ai_op = op; ai_term = term; ai_groups = groups;
+                     ai_result = (result_var, snd result_var);
+                     ai_incremental = detect_incremental_once m op f } in
+          let m = Map.update m let_def.name
+              ~f:(fun _ -> { let_def with switch_pos_opt = Some (Switch.Agg (ai, trigger_pos)) }) in
+          (m, errors)
+        | _ -> (m, errors)
+      end
+    | Top (results, fn, args, groups, f) ->
+      begin
+        let ft = normalize_trigger (guard_map_of_let_map m) (Trigger.make f) true body in
+        match ft with
+        | Impossible error_f -> (m, error_f :: errors)
+        | Possible [trigger] ->
+          let _, _, trigger_pos, _ = type_let_aux m { let_def with body = f } trigger in
+          let ti = { Nformula.ti_fn = fn; ti_args = args; ti_groups = groups;
+                     ti_results = List.map results ~f:(fun v -> (v, snd v)) } in
+          let m = Map.update m let_def.name
+              ~f:(fun _ -> { let_def with switch_pos_opt = Some (Switch.Top (ti, trigger_pos)) }) in
           (m, errors)
         | _ -> (m, errors)
       end
@@ -777,27 +878,175 @@ let types (t: Enftype.t) (norm: Lformula.t) (b: Interval.v) : 'a Verdict.v =
   let m, errors = List.fold_left ~init:(Map.empty (module String), []) ~f:type_let lets in
 
   match errors with
-  | [] -> Verdict.Possible [{ let_names = List.map lets ~f:(fun le -> le.name);
-                              let_map = m;
-                              sols = aux m Enftype.cau f}]
+  | [] ->
+    (* The top-level formula's enforcement.  A let whose guard could not be
+       pulled is recorded with [cau_sols]/[sup_sols] = Impossible but adds no
+       entry to [errors] (it may still be usable as a plain filter).  If the
+       top formula nevertheless depends on causing/suppressing such a let, [sols]
+       comes back Impossible — surface that as an Impossible verdict so [enforce]
+       retries with table guards enabled instead of handing extraction an
+       unsolvable constraint system. *)
+    let sols = aux m Enftype.cau f in
+    (match sols with
+     | Verdict.Impossible err -> Verdict.Impossible err
+     | _ -> Verdict.Possible [{ let_names = List.map lets ~f:(fun le -> le.name);
+                                let_map = m; sols }])
   | errors -> Verdict.Impossible (Verdict.Errors.EConj errors)
 
+
+(* ------------------------------------------------------------------ *)
+(* Error display: undo the internal rewriting so the user sees original *)
+(* subformulae.  Normalization replaces temporal/existential subformulae *)
+(* with fresh generated let-predicates (Exists0, Prev0, ...) whose       *)
+(* [le_origin] records the original node.  When such a predicate appears  *)
+(* in an error message we inline it back to its origin.                   *)
+(* ------------------------------------------------------------------ *)
+
+let inline_generated (lets : Lformula.let_def list) (form : Tyformula.t) : Tyformula.t =
+  (* Generated lets are exactly those without an explicit enforcement type. *)
+  let m =
+    List.filter_map lets ~f:(fun le ->
+        match le.Lformula.le_enftype with
+        | None -> Some (le.Lformula.le_name,
+                        (List.map ~f:fst le.Lformula.le_args, le.Lformula.le_origin))
+        | Some _ -> None)
+    |> Map.of_alist_reduce (module String) ~f:(fun a _ -> a) in
+  let rec go (ff : Tyformula.t) : Tyformula.t =
+    let form = match ff.form with
+      | Predicate (r, trms) ->
+        (match Map.find m r with
+         | Some (params, origin) when List.length params = List.length trms ->
+           (go (subst (Map.of_alist_exn (module Var) (List.zip_exn params trms)) origin)).form
+         | _ -> ff.form)
+      | TT | FF | EqConst _ -> ff.form
+      | Predicate' (r, trms, f) -> Predicate' (r, trms, go f)
+      | Agg (s, op, t, y, f) -> Agg (s, op, t, y, go f)
+      | Top (s, op, t, y, f) -> Top (s, op, t, y, go f)
+      | Exists (x, f) -> Exists (x, go f)
+      | Forall (x, f) -> Forall (x, go f)
+      | Let (r, e, vars, f, g) -> Let (r, e, vars, go f, go g)
+      | Let' (r, e, vars, f, g) -> Let' (r, e, vars, go f, go g)
+      | Neg f -> Neg (go f)
+      | Prev (i, f) -> Prev (i, go f)
+      | Once (i, f) -> Once (i, go f)
+      | Historically (i, f) -> Historically (i, go f)
+      | Eventually (i, f) -> Eventually (i, go f)
+      | Always (i, f) -> Always (i, go f)
+      | Next (i, f) -> Next (i, go f)
+      | And (s, fs) -> And (s, List.map fs ~f:go)
+      | Or (s, fs) -> Or (s, List.map fs ~f:go)
+      | Imp (s, a, b) -> Imp (s, go a, go b)
+      | Since (s, i, a, b) -> Since (s, i, go a, go b)
+      | Until (s, i, a, b) -> Until (s, i, go a, go b)
+      | Type (f, ty) -> Type (go f, ty)
+      | Label (s, f) -> Label (s, go f) in
+    { ff with form } in
+  go form
+
+let rec map_error_formula ~f (e : Verdict.Errors.error) : Verdict.Errors.error =
+  match e with
+  | Verdict.Errors.EFormula (s, form, t) -> Verdict.Errors.EFormula (s, f form, t)
+  | Verdict.Errors.EConj es -> Verdict.Errors.EConj (List.map es ~f:(map_error_formula ~f))
+  | Verdict.Errors.EDisj es -> Verdict.Errors.EDisj (List.map es ~f:(map_error_formula ~f))
+  | (Verdict.Errors.ECast _ | Verdict.Errors.ERule _) as e -> e
+
+(* ------------------------------------------------------------------ *)
+(* Monitorability check                                                 *)
+(*                                                                      *)
+(* A quantified variable can only be bound by *observing* a predicate    *)
+(* in which it occurs as a direct argument (or directly in an equality). *)
+(* If a variable occurs only inside a function-application term — e.g.   *)
+(* [y] in [A(f(x, y))] — it cannot be recovered by monitoring (the       *)
+(* function is not invertible), so the formula is not monitorable and    *)
+(* hence not enforceable.  Reported against the original subformula.     *)
+(* ------------------------------------------------------------------ *)
+
+let monitorability_error (orig : Tyformula.t) : (Var.t * Tyformula.t) option =
+  (* Does [x] occur as a bare [Var x] argument of a predicate, or as a bare
+     operand of an equality, anywhere in [f]? *)
+  let binds x f =
+    let is_x t = Term.equal (Term.dummy_var x) t in
+    let rec go (ff : Tyformula.t) =
+      match ff.form with
+      | Predicate (_, trms) | Predicate' (_, trms, _) -> List.exists trms ~f:is_x
+      | EqConst (trm, _) -> is_x trm
+      | TT | FF -> false
+      (* An aggregation binds its result variable [s] and group-by variables
+         [y]: their values come from evaluating the aggregation, so they count
+         as monitorable bindings. *)
+      | Agg (s, _, _, y, f) -> List.mem (s :: y) x ~equal:Var.equal_ident || go f
+      | Top (s, _, _, y, f) -> List.mem (s @ y) x ~equal:Var.equal_ident || go f
+      | Neg f | Exists (_, f) | Forall (_, f) | Prev (_, f) | Once (_, f)
+      | Historically (_, f) | Eventually (_, f) | Always (_, f) | Next (_, f)
+      | Type (f, _) | Label (_, f) -> go f
+      | And (_, fs) | Or (_, fs) -> List.exists fs ~f:go
+      | Imp (_, a, b) | Since (_, _, a, b) | Until (_, _, a, b) -> go a || go b
+      | Let (_, _, _, f, g) | Let' (_, _, _, f, g) -> go f || go g in
+    go f in
+  (* Smallest predicate subformula in which [x] occurs, for the message. *)
+  let rec offending_pred x (ff : Tyformula.t) : Tyformula.t option =
+    match ff.form with
+    | Predicate (_, trms) | Predicate' (_, trms, _) ->
+      if List.mem (Term.fv_list trms) x ~equal:Var.equal_ident then Some ff else None
+    | TT | FF | EqConst _ -> None
+    | Neg f | Exists (_, f) | Forall (_, f) | Prev (_, f) | Once (_, f)
+    | Historically (_, f) | Eventually (_, f) | Always (_, f) | Next (_, f)
+    | Agg (_, _, _, _, f) | Top (_, _, _, _, f) | Type (f, _) | Label (_, f) -> offending_pred x f
+    | And (_, fs) | Or (_, fs) -> List.find_map fs ~f:(offending_pred x)
+    | Imp (_, a, b) | Since (_, _, a, b) | Until (_, _, a, b)
+    | Let (_, _, _, a, b) | Let' (_, _, _, a, b) ->
+      (match offending_pred x a with Some r -> Some r | None -> offending_pred x b) in
+  let rec check (ff : Tyformula.t) : (Var.t * Tyformula.t) option =
+    let here = match ff.form with
+      | Exists (x, f) | Forall (x, f) when Set.mem (fv f) x && not (binds x f) ->
+        Some (x, Option.value (offending_pred x f) ~default:f)
+      | _ -> None in
+    match here with
+    | Some _ -> here
+    | None ->
+      match ff.form with
+      | TT | FF | EqConst _ | Predicate _ -> None
+      | Predicate' (_, _, f)
+      | Neg f | Exists (_, f) | Forall (_, f) | Prev (_, f) | Once (_, f)
+      | Historically (_, f) | Eventually (_, f) | Always (_, f) | Next (_, f)
+      | Agg (_, _, _, _, f) | Top (_, _, _, _, f) | Type (f, _) | Label (_, f) -> check f
+      | And (_, fs) | Or (_, fs) -> List.find_map fs ~f:check
+      | Imp (_, a, b) | Since (_, _, a, b) | Until (_, _, a, b)
+      | Let (_, _, _, a, b) | Let' (_, _, _, a, b) ->
+        (match check a with Some r -> Some r | None -> check b) in
+  check orig
 
 (* ------------------------------------------------------------------ *)
 (* enforce: outer normalization + enforceability type inference        *)
 (* ------------------------------------------------------------------ *)
 
 let enforce ?(verbose=true) (norm : Lformula.t) (b : Time.Span.s) : Nformula.t =
+  (*if verbose then Stdio.prerr_endline (Lformula.to_string norm);*)
   let f = norm.Lformula.formula in
-  let error_msg f err =
+  (* Report the original (pre-normalization) formula to the user, not the
+     internally rewritten one. *)
+  let orig = norm.Lformula.origin in
+  let error_msg _f err =
+    let err = map_error_formula ~f:(inline_generated norm.Lformula.lets) err in
     Stdio.print_endline ("The formula\n "
-                         ^ to_string f
+                         ^ to_string orig
                          ^ "\nis not enforceable:\n"
                          ^ Verdict.Errors.to_string (Verdict.Errors.ac_simplify err));
     raise_formula_error "this formula is not enforceable" in
+  (match monitorability_error orig with
+   | Some (x, sub) ->
+     Stdio.print_endline ("The formula\n "
+                          ^ to_string orig
+                          ^ "\nis not enforceable:\nVariable "
+                          ^ Var.to_string x
+                          ^ " is not monitorable in "
+                          ^ to_string sub
+                          ^ " (it occurs only inside a function application)");
+     ignore (raise_formula_error "this formula is not monitorable")
+   | None -> ());
   if not (Set.is_empty (fv f)) && verbose then (
     Stdio.print_endline ("The formula\n "
-                         ^ to_string f
+                         ^ to_string orig
                          ^ "\nis not closed: free variables are "
                          ^ String.concat ~sep:", " (List.map ~f:Var.to_string (Set.elements (fv f))));
     ignore (raise_formula_error "this formula is not closed"));

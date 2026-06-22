@@ -1,5 +1,4 @@
 The formula
  □[0s,∞) (∀x:int. ∀y:int. A(x:int) ∨ C(y:int) → B(x:int) ∧ B(y:int))
 is not enforceable:
-Variable y:int is not guarded in ∃y:int. ¬(A(x:int) ∨ C(y:int) → B(x:int) ∧ B(y:int)) (polarity: +) (computed filter: { guards = [];
-  filter = ¬(A(x:int) ∨ C(y:int) → B(x:int) ∧ B(y:int)) })
+make ∃x:int. ∃y:int. ¬(A(x:int) ∨ C(y:int) → B(x:int) ∧ B(y:int)) Sup, but this is impossible

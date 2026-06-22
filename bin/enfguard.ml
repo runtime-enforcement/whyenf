@@ -70,7 +70,8 @@ module Enfguard = struct
 
   let run debug sig_file formula_file functions_file output_file no_run log_file
         label json stats (verbose : int) state_file
-        parallel filtered (aggressivity : int) (num_groups : int) data_analyze data_groups_spec =
+        parallel filtered (aggressivity : int) (num_groups : int) data_analyze data_groups_spec
+        edg_dot_file edg_dir drop_monotone complexity =
     let run_enfflash = not no_run in
     if debug then Global.debug := true;
     if json  then Global.json  := true;
@@ -100,8 +101,30 @@ module Enfguard = struct
       exit 1
     | Some sformula ->
       if stats then Formula.print_stats (Formula.init sformula);
-      if data_analyze then
+      if complexity then begin
+        (* Compile the policy and print only its estimated per-time-point
+           complexity (the .ef itself is discarded). *)
+        let tmp = Stdlib.Filename.temp_file "enfflash_" ".ef" in
+        let program =
+          Compiler.run ~py_source ~b:!b_ref ~verbose:false ~drop_monotone
+            ~moderate:(not !Global.unroll_all) ~filename:tmp sformula in
+        (try Stdlib.Sys.remove tmp with _ -> ());
+        Stdio.print_endline (Enfflash.program_complexity_to_string program);
+        let defs = Enfflash.relevant_definitions_to_string program in
+        if not (String.is_empty defs) then begin
+          Stdio.print_endline "\n── Relevant definitions (what each |·| accumulates, with dependencies unfolded) ──\n";
+          Stdio.print_endline defs
+        end
+      end
+      else if data_analyze then
         Compiler.analyze_data sformula
+      else if Option.is_some edg_dir then
+        Compiler.edg_dir ~py_source ~drop_monotone ~b:!b_ref sformula (Option.value_exn edg_dir)
+      else if Option.is_some edg_dot_file then begin
+        let path = Option.value_exn edg_dot_file in
+        Out_channel.write_all path ~data:(Compiler.edg_dot ~b:!b_ref sformula);
+        eprintf "[enfguard] EDG written to %s\n" path
+      end
       else if parallel then begin
         (* ── Parallel path ───────────────────────────────────────────── *)
         let output_dir, base =
@@ -137,14 +160,14 @@ module Enfguard = struct
         let ef_file =
           match output_file with
           | Some filename ->
-            ignore (Compiler.run ~py_source ~b:!b_ref
+            ignore (Compiler.run ~py_source ~b:!b_ref ~drop_monotone
                       ~moderate:(not !Global.unroll_all)
                       ~filename sformula);
             Some filename
           | None ->
             if run_enfflash then begin
               let tmp = Stdlib.Filename.temp_file "enfflash_" ".ef" in
-              ignore (Compiler.run ~py_source ~b:!b_ref
+              ignore (Compiler.run ~py_source ~b:!b_ref ~drop_monotone
                         ~moderate:(not !Global.unroll_all)
                         ~filename:tmp sformula);
               Some tmp
@@ -171,7 +194,8 @@ module Enfguard = struct
               @ (if verbose > 0 then ["--verbose"; string_of_int verbose] else [])
               @ (match state_file with Some s -> ["--state"; s] | None -> [])
             in
-            eprintf "[enfguard] Running: %s\n" (String.concat ~sep:" " args);
+            if verbose > 0 then
+              eprintf "[enfguard] Running: %s\n" (String.concat ~sep:" " args);
             never_returns (Core_unix.exec ~prog:bin ~argv:args ())
           | None -> ()
       end
@@ -205,11 +229,34 @@ module Enfguard = struct
                           ~doc:" Print the data-split field-interaction components (analysis only) and exit"
        and data_groups = flag "-data-groups" (optional string)
                           ~doc:"SPEC Data-split selections, e.g. \"Read.user:2,Read.activity:3\" (with -parallel)"
+       and edg_dot = flag "-edg-dot" (optional string)
+                          ~doc:"FILE Write the Event Dependency Graph (SCC-clustered) as Graphviz DOT and exit"
+       and edg_dir = flag "-edg-dir" (optional string)
+                          ~doc:"DIR Write full + focused + per-SCC EDG graphs (DOT, rendered to SVG if graphviz present) into DIR and exit"
+       and drop_monotone = flag "-drop-monotone-deps" no_arg
+                          ~doc:" Drop monotone-harmless dependency edges (CDG* filtering) from the rule graph: fewer/smaller fixpoint sections, more parallelism, at the cost of transparency"
+       and complexity = flag "-complexity" no_arg
+                          ~doc:" Print the estimated per-time-point complexity of the compiled policy and exit"
        in
        fun () ->
-         run debug sig_file formula_file functions_file output_file no_run log_file
-           label json stats verbose state_file
-           parallel filtered aggressivity num_groups data_analyze data_groups)
+         (* Library-level errors carry a human-readable explanation that the
+            producing code has already printed (e.g. the "The formula ... is not
+            enforceable: ..." block).  Catch them here so the process exits with a
+            non-zero status without dumping an OCaml stack trace. *)
+         try
+           run debug sig_file formula_file functions_file output_file no_run log_file
+             label json stats verbose state_file
+             parallel filtered aggressivity num_groups data_analyze data_groups
+             edg_dot edg_dir drop_monotone complexity
+         with
+         | Errors.FormulaError _ ->
+           (* Detailed, formula-specific message already printed above. *)
+           Stdlib.exit 1
+         | Errors.TermError m | Errors.FunctionError m | Errors.MonitoringError m
+         | Errors.EnforcementError m | Errors.SigError m | Errors.LogError m
+         | Errors.InternalError m ->
+           printf "%s\n" m;
+           Stdlib.exit 1)
 
 end
 

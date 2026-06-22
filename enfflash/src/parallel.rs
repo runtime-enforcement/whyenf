@@ -202,7 +202,7 @@ pub fn run(manifest_path: &str, log_path: Option<&str>, json_mode: bool, state_b
         let program   = load_program(&spec.program_path);
         let save_path = state_base.map(|b| worker_state_path(b, idx));
         let load_path = state_base.map(|b| worker_state_path(b, idx));
-        let mut engine = Engine::new(program, false, false, false, false, 0);
+        let mut engine = Engine::new(program, false, false, false, false, 0, false);
         if let Some(ref path) = load_path {
             engine.load_state(path);
         }

@@ -1,1 +1,0 @@
-ALWAYS (FORALL user, data. delete(user, "db2", data) IMPLIES user = "script")

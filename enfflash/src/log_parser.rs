@@ -1,5 +1,5 @@
 // auto-generated: "lalrpop 0.22.2"
-// sha3: 0dcc25f2527ac6566194a270f11b7e1d67af0b1fed3bedfddde2f67d5b34dda3
+// sha3: 5d633da5ae1963bf0014f1aab0d4181a4854e7eb5ac7946dbda7d01c7813ba2d
 use crate::ast::*;
 #[allow(unused_extern_crates)]
 extern crate lalrpop_util as __lalrpop_util;
@@ -49,9 +49,9 @@ mod __parse__Log {
         // State 4
         0, 0, 0, 15, 0, 0, 0, 17, 0, 0, 0,
         // State 5
-        25, 11, 26, 0, 0, -7, 0, 0, 0, 23, 24,
+        26, 11, 27, 15, 0, -7, 0, 0, 0, 24, 25,
         // State 6
-        25, 11, 26, 0, 0, -9, 0, 0, 0, 23, 24,
+        26, 11, 27, 15, 0, -9, 0, 0, 0, 24, 25,
         // State 7
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         // State 8
@@ -67,37 +67,39 @@ mod __parse__Log {
         // State 13
         0, 0, 0, 0, 0, 0, 0, 0, -22, 0, 0,
         // State 14
-        0, 0, 0, 0, -16, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, -16, -16, -16, 0, 0, 0, 0,
         // State 15
         0, 0, 0, -14, 0, 0, 0, -14, 0, 0, 0,
         // State 16
         0, 0, 0, 0, 0, 0, 0, 0, -23, 0, 0,
         // State 17
-        0, 0, 0, 0, 0, 28, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 29, 0, 0, 0, 0, 0,
         // State 18
         0, 0, 0, 0, 0, -29, -29, 0, 0, 0, 0,
         // State 19
-        0, 0, 0, 0, 0, -28, -28, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, -33, -33, 0, 0, 0, 0,
         // State 20
-        0, 0, 0, 0, 0, -30, -30, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, -28, -28, 0, 0, 0, 0,
         // State 21
-        0, 0, 0, 0, 0, -6, 29, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, -30, -30, 0, 0, 0, 0,
         // State 22
-        0, 0, 0, 0, 0, -32, -32, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, -6, 30, 0, 0, 0, 0,
         // State 23
-        0, 0, 0, 0, 0, -31, -31, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, -32, -32, 0, 0, 0, 0,
         // State 24
-        0, 0, 0, 0, 0, -21, -21, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, -31, -31, 0, 0, 0, 0,
         // State 25
-        0, 0, 0, 0, 0, -15, -15, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, -21, -21, 0, 0, 0, 0,
         // State 26
-        0, 0, 0, 0, 0, -8, 30, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, -15, -15, 0, 0, 0, 0,
         // State 27
-        0, 0, 0, -10, 0, 0, 0, -10, 0, 0, 0,
+        0, 0, 0, 0, 0, -8, 31, 0, 0, 0, 0,
         // State 28
-        -4, -4, -4, 0, 0, -4, 0, 0, 0, -4, -4,
+        0, 0, 0, -10, 0, 0, 0, -10, 0, 0, 0,
         // State 29
-        -5, -5, -5, 0, 0, -5, 0, 0, 0, -5, -5,
+        -4, -4, -4, -4, 0, -4, 0, 0, 0, -4, -4,
+        // State 30
+        -5, -5, -5, -5, 0, -5, 0, 0, 0, -5, -5,
     ];
     fn __action(state: i8, integer: usize) -> i8 {
         __ACTION[(state as usize) * 11 + integer]
@@ -118,7 +120,7 @@ mod __parse__Log {
         // State 6
         0,
         // State 7
-        -35,
+        -36,
         // State 8
         -26,
         // State 9
@@ -163,6 +165,8 @@ mod __parse__Log {
         0,
         // State 29
         0,
+        // State 30
+        0,
     ];
     fn __goto(state: i8, nt: usize) -> i8 {
         match nt {
@@ -174,31 +178,34 @@ mod __parse__Log {
             },
             6 => 4,
             7 => 18,
-            8 => 12,
+            8 => match state {
+                5..=6 => 19,
+                _ => 12,
+            },
             9 => 7,
             10 => match state {
-                5..=6 => 19,
+                5..=6 => 20,
                 _ => 3,
             },
-            12 => 20,
+            12 => 21,
             13 => match state {
                 1 => 9,
                 _ => 8,
             },
             15 => 1,
             16 => match state {
-                6 => 26,
-                _ => 21,
+                6 => 27,
+                _ => 22,
             },
             _ => 0,
         }
     }
     #[allow(clippy::needless_raw_string_hashes)]
     const __TERMINAL: &[&str] = &[
-        r###"r#"\"[^\"]*\""#"###,
+        r###"r#"\"(\\\\.|[^\"\\\\])*\""#"###,
         r###"r#"-?[0-9]+"#"###,
         r###"r#"-?[0-9]+\\.[0-9]+"#"###,
-        r###"r#"[A-Za-z_][A-Za-z0-9_]*"#"###,
+        r###"r#"[0-9]*[A-Za-z_][0-9A-Za-z_-]*"#"###,
         r###""(""###,
         r###"")""###,
         r###"",""###,
@@ -575,17 +582,23 @@ mod __parse__Log {
             32 => {
                 __state_machine::SimulatedReduce::Reduce {
                     states_to_pop: 1,
-                    nonterminal_produced: 17,
+                    nonterminal_produced: 16,
                 }
             }
             33 => {
+                __state_machine::SimulatedReduce::Reduce {
+                    states_to_pop: 1,
+                    nonterminal_produced: 17,
+                }
+            }
+            34 => {
                 __state_machine::SimulatedReduce::Reduce {
                     states_to_pop: 0,
                     nonterminal_produced: 17,
                 }
             }
-            34 => __state_machine::SimulatedReduce::Accept,
-            35 => {
+            35 => __state_machine::SimulatedReduce::Accept,
+            36 => {
                 __state_machine::SimulatedReduce::Reduce {
                     states_to_pop: 1,
                     nonterminal_produced: 19,
@@ -775,6 +788,9 @@ mod __parse__Log {
                 __reduce33(input, __lookahead_start, __symbols, core::marker::PhantomData::<(&())>)
             }
             34 => {
+                __reduce34(input, __lookahead_start, __symbols, core::marker::PhantomData::<(&())>)
+            }
+            35 => {
                 // __Log = Log => ActionFn(0);
                 let __sym0 = __pop_Variant8(__symbols);
                 let __start = __sym0.0;
@@ -782,8 +798,8 @@ mod __parse__Log {
                 let __nt = super::__action0::<>(input, __sym0);
                 return Some(Ok(__nt));
             }
-            35 => {
-                __reduce35(input, __lookahead_start, __symbols, core::marker::PhantomData::<(&())>)
+            36 => {
+                __reduce36(input, __lookahead_start, __symbols, core::marker::PhantomData::<(&())>)
             }
             _ => panic!("invalid action code {__action}")
         };
@@ -950,13 +966,13 @@ mod __parse__Log {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // (<Val> ",") = Val, "," => ActionFn(28);
+        // (<Val> ",") = Val, "," => ActionFn(29);
         assert!(__symbols.len() >= 2);
         let __sym1 = __pop_Variant0(__symbols);
         let __sym0 = __pop_Variant1(__symbols);
         let __start = __sym0.0;
         let __end = __sym1.2;
-        let __nt = super::__action28::<>(input, __sym0, __sym1);
+        let __nt = super::__action29::<>(input, __sym0, __sym1);
         __symbols.push((__start, __Symbol::Variant1(__nt), __end));
         (2, 0)
     }
@@ -969,10 +985,10 @@ mod __parse__Log {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // (<Val> ",")* =  => ActionFn(26);
+        // (<Val> ",")* =  => ActionFn(27);
         let __start = __lookahead_start.cloned().or_else(|| __symbols.last().map(|s| s.2)).unwrap_or_default();
         let __end = __start;
-        let __nt = super::__action26::<>(input, &__start, &__end);
+        let __nt = super::__action27::<>(input, &__start, &__end);
         __symbols.push((__start, __Symbol::Variant2(__nt), __end));
         (0, 1)
     }
@@ -985,11 +1001,11 @@ mod __parse__Log {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // (<Val> ",")* = (<Val> ",")+ => ActionFn(27);
+        // (<Val> ",")* = (<Val> ",")+ => ActionFn(28);
         let __sym0 = __pop_Variant2(__symbols);
         let __start = __sym0.0;
         let __end = __sym0.2;
-        let __nt = super::__action27::<>(input, __sym0);
+        let __nt = super::__action28::<>(input, __sym0);
         __symbols.push((__start, __Symbol::Variant2(__nt), __end));
         (1, 1)
     }
@@ -1002,13 +1018,13 @@ mod __parse__Log {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // (<Val> ",")+ = Val, "," => ActionFn(31);
+        // (<Val> ",")+ = Val, "," => ActionFn(32);
         assert!(__symbols.len() >= 2);
         let __sym1 = __pop_Variant0(__symbols);
         let __sym0 = __pop_Variant1(__symbols);
         let __start = __sym0.0;
         let __end = __sym1.2;
-        let __nt = super::__action31::<>(input, __sym0, __sym1);
+        let __nt = super::__action32::<>(input, __sym0, __sym1);
         __symbols.push((__start, __Symbol::Variant2(__nt), __end));
         (2, 2)
     }
@@ -1021,14 +1037,14 @@ mod __parse__Log {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // (<Val> ",")+ = (<Val> ",")+, Val, "," => ActionFn(32);
+        // (<Val> ",")+ = (<Val> ",")+, Val, "," => ActionFn(33);
         assert!(__symbols.len() >= 3);
         let __sym2 = __pop_Variant0(__symbols);
         let __sym1 = __pop_Variant1(__symbols);
         let __sym0 = __pop_Variant2(__symbols);
         let __start = __sym0.0;
         let __end = __sym2.2;
-        let __nt = super::__action32::<>(input, __sym0, __sym1, __sym2);
+        let __nt = super::__action33::<>(input, __sym0, __sym1, __sym2);
         __symbols.push((__start, __Symbol::Variant2(__nt), __end));
         (3, 2)
     }
@@ -1041,11 +1057,11 @@ mod __parse__Log {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // Comma<Val> = Val => ActionFn(39);
+        // Comma<Val> = Val => ActionFn(40);
         let __sym0 = __pop_Variant1(__symbols);
         let __start = __sym0.0;
         let __end = __sym0.2;
-        let __nt = super::__action39::<>(input, __sym0);
+        let __nt = super::__action40::<>(input, __sym0);
         __symbols.push((__start, __Symbol::Variant3(__nt), __end));
         (1, 3)
     }
@@ -1058,10 +1074,10 @@ mod __parse__Log {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // Comma<Val> =  => ActionFn(40);
+        // Comma<Val> =  => ActionFn(41);
         let __start = __lookahead_start.cloned().or_else(|| __symbols.last().map(|s| s.2)).unwrap_or_default();
         let __end = __start;
-        let __nt = super::__action40::<>(input, &__start, &__end);
+        let __nt = super::__action41::<>(input, &__start, &__end);
         __symbols.push((__start, __Symbol::Variant3(__nt), __end));
         (0, 3)
     }
@@ -1074,13 +1090,13 @@ mod __parse__Log {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // Comma<Val> = (<Val> ",")+, Val => ActionFn(41);
+        // Comma<Val> = (<Val> ",")+, Val => ActionFn(42);
         assert!(__symbols.len() >= 2);
         let __sym1 = __pop_Variant1(__symbols);
         let __sym0 = __pop_Variant2(__symbols);
         let __start = __sym0.0;
         let __end = __sym1.2;
-        let __nt = super::__action41::<>(input, __sym0, __sym1);
+        let __nt = super::__action42::<>(input, __sym0, __sym1);
         __symbols.push((__start, __Symbol::Variant3(__nt), __end));
         (2, 3)
     }
@@ -1093,11 +1109,11 @@ mod __parse__Log {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // Comma<Val> = (<Val> ",")+ => ActionFn(42);
+        // Comma<Val> = (<Val> ",")+ => ActionFn(43);
         let __sym0 = __pop_Variant2(__symbols);
         let __start = __sym0.0;
         let __end = __sym0.2;
-        let __nt = super::__action42::<>(input, __sym0);
+        let __nt = super::__action43::<>(input, __sym0);
         __symbols.push((__start, __Symbol::Variant3(__nt), __end));
         (1, 3)
     }
@@ -1131,10 +1147,10 @@ mod __parse__Log {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // Event* =  => ActionFn(16);
+        // Event* =  => ActionFn(17);
         let __start = __lookahead_start.cloned().or_else(|| __symbols.last().map(|s| s.2)).unwrap_or_default();
         let __end = __start;
-        let __nt = super::__action16::<>(input, &__start, &__end);
+        let __nt = super::__action17::<>(input, &__start, &__end);
         __symbols.push((__start, __Symbol::Variant5(__nt), __end));
         (0, 5)
     }
@@ -1147,11 +1163,11 @@ mod __parse__Log {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // Event* = Event+ => ActionFn(17);
+        // Event* = Event+ => ActionFn(18);
         let __sym0 = __pop_Variant5(__symbols);
         let __start = __sym0.0;
         let __end = __sym0.2;
-        let __nt = super::__action17::<>(input, __sym0);
+        let __nt = super::__action18::<>(input, __sym0);
         __symbols.push((__start, __Symbol::Variant5(__nt), __end));
         (1, 5)
     }
@@ -1164,11 +1180,11 @@ mod __parse__Log {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // Event+ = Event => ActionFn(22);
+        // Event+ = Event => ActionFn(23);
         let __sym0 = __pop_Variant4(__symbols);
         let __start = __sym0.0;
         let __end = __sym0.2;
-        let __nt = super::__action22::<>(input, __sym0);
+        let __nt = super::__action23::<>(input, __sym0);
         __symbols.push((__start, __Symbol::Variant5(__nt), __end));
         (1, 6)
     }
@@ -1181,13 +1197,13 @@ mod __parse__Log {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // Event+ = Event+, Event => ActionFn(23);
+        // Event+ = Event+, Event => ActionFn(24);
         assert!(__symbols.len() >= 2);
         let __sym1 = __pop_Variant4(__symbols);
         let __sym0 = __pop_Variant5(__symbols);
         let __start = __sym0.0;
         let __end = __sym1.2;
-        let __nt = super::__action23::<>(input, __sym0, __sym1);
+        let __nt = super::__action24::<>(input, __sym0, __sym1);
         __symbols.push((__start, __Symbol::Variant5(__nt), __end));
         (2, 6)
     }
@@ -1200,11 +1216,11 @@ mod __parse__Log {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // Float = r#"-?[0-9]+\\.[0-9]+"# => ActionFn(13);
+        // Float = r#"-?[0-9]+\\.[0-9]+"# => ActionFn(14);
         let __sym0 = __pop_Variant0(__symbols);
         let __start = __sym0.0;
         let __end = __sym0.2;
-        let __nt = super::__action13::<>(input, __sym0);
+        let __nt = super::__action14::<>(input, __sym0);
         __symbols.push((__start, __Symbol::Variant6(__nt), __end));
         (1, 7)
     }
@@ -1217,11 +1233,11 @@ mod __parse__Log {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // Ident = r#"[A-Za-z_][A-Za-z0-9_]*"# => ActionFn(11);
+        // Ident = r#"[0-9]*[A-Za-z_][0-9A-Za-z_-]*"# => ActionFn(12);
         let __sym0 = __pop_Variant0(__symbols);
         let __start = __sym0.0;
         let __end = __sym0.2;
-        let __nt = super::__action11::<>(input, __sym0);
+        let __nt = super::__action12::<>(input, __sym0);
         __symbols.push((__start, __Symbol::Variant7(__nt), __end));
         (1, 8)
     }
@@ -1234,10 +1250,10 @@ mod __parse__Log {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // Log =  => ActionFn(37);
+        // Log =  => ActionFn(38);
         let __start = __lookahead_start.cloned().or_else(|| __symbols.last().map(|s| s.2)).unwrap_or_default();
         let __end = __start;
-        let __nt = super::__action37::<>(input, &__start, &__end);
+        let __nt = super::__action38::<>(input, &__start, &__end);
         __symbols.push((__start, __Symbol::Variant8(__nt), __end));
         (0, 9)
     }
@@ -1250,11 +1266,11 @@ mod __parse__Log {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // Log = TimePointEntry+ => ActionFn(38);
+        // Log = TimePointEntry+ => ActionFn(39);
         let __sym0 = __pop_Variant11(__symbols);
         let __start = __sym0.0;
         let __end = __sym0.2;
-        let __nt = super::__action38::<>(input, __sym0);
+        let __nt = super::__action39::<>(input, __sym0);
         __symbols.push((__start, __Symbol::Variant8(__nt), __end));
         (1, 9)
     }
@@ -1267,11 +1283,11 @@ mod __parse__Log {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // Num = r#"-?[0-9]+"# => ActionFn(12);
+        // Num = r#"-?[0-9]+"# => ActionFn(13);
         let __sym0 = __pop_Variant0(__symbols);
         let __start = __sym0.0;
         let __end = __sym0.2;
-        let __nt = super::__action12::<>(input, __sym0);
+        let __nt = super::__action13::<>(input, __sym0);
         __symbols.push((__start, __Symbol::Variant9(__nt), __end));
         (1, 10)
     }
@@ -1301,11 +1317,11 @@ mod __parse__Log {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // StrLit = r#"\"[^\"]*\""# => ActionFn(14);
+        // StrLit = r#"\"(\\\\.|[^\"\\\\])*\""# => ActionFn(15);
         let __sym0 = __pop_Variant0(__symbols);
         let __start = __sym0.0;
         let __end = __sym0.2;
-        let __nt = super::__action14::<>(input, __sym0);
+        let __nt = super::__action15::<>(input, __sym0);
         __symbols.push((__start, __Symbol::Variant7(__nt), __end));
         (1, 12)
     }
@@ -1318,14 +1334,14 @@ mod __parse__Log {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // TimePointEntry = "@", Num, ";" => ActionFn(35);
+        // TimePointEntry = "@", Num, ";" => ActionFn(36);
         assert!(__symbols.len() >= 3);
         let __sym2 = __pop_Variant0(__symbols);
         let __sym1 = __pop_Variant9(__symbols);
         let __sym0 = __pop_Variant0(__symbols);
         let __start = __sym0.0;
         let __end = __sym2.2;
-        let __nt = super::__action35::<>(input, __sym0, __sym1, __sym2);
+        let __nt = super::__action36::<>(input, __sym0, __sym1, __sym2);
         __symbols.push((__start, __Symbol::Variant10(__nt), __end));
         (3, 13)
     }
@@ -1338,7 +1354,7 @@ mod __parse__Log {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // TimePointEntry = "@", Num, Event+, ";" => ActionFn(36);
+        // TimePointEntry = "@", Num, Event+, ";" => ActionFn(37);
         assert!(__symbols.len() >= 4);
         let __sym3 = __pop_Variant0(__symbols);
         let __sym2 = __pop_Variant5(__symbols);
@@ -1346,7 +1362,7 @@ mod __parse__Log {
         let __sym0 = __pop_Variant0(__symbols);
         let __start = __sym0.0;
         let __end = __sym3.2;
-        let __nt = super::__action36::<>(input, __sym0, __sym1, __sym2, __sym3);
+        let __nt = super::__action37::<>(input, __sym0, __sym1, __sym2, __sym3);
         __symbols.push((__start, __Symbol::Variant10(__nt), __end));
         (4, 13)
     }
@@ -1359,10 +1375,10 @@ mod __parse__Log {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // TimePointEntry* =  => ActionFn(18);
+        // TimePointEntry* =  => ActionFn(19);
         let __start = __lookahead_start.cloned().or_else(|| __symbols.last().map(|s| s.2)).unwrap_or_default();
         let __end = __start;
-        let __nt = super::__action18::<>(input, &__start, &__end);
+        let __nt = super::__action19::<>(input, &__start, &__end);
         __symbols.push((__start, __Symbol::Variant11(__nt), __end));
         (0, 14)
     }
@@ -1375,11 +1391,11 @@ mod __parse__Log {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // TimePointEntry* = TimePointEntry+ => ActionFn(19);
+        // TimePointEntry* = TimePointEntry+ => ActionFn(20);
         let __sym0 = __pop_Variant11(__symbols);
         let __start = __sym0.0;
         let __end = __sym0.2;
-        let __nt = super::__action19::<>(input, __sym0);
+        let __nt = super::__action20::<>(input, __sym0);
         __symbols.push((__start, __Symbol::Variant11(__nt), __end));
         (1, 14)
     }
@@ -1392,11 +1408,11 @@ mod __parse__Log {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // TimePointEntry+ = TimePointEntry => ActionFn(20);
+        // TimePointEntry+ = TimePointEntry => ActionFn(21);
         let __sym0 = __pop_Variant10(__symbols);
         let __start = __sym0.0;
         let __end = __sym0.2;
-        let __nt = super::__action20::<>(input, __sym0);
+        let __nt = super::__action21::<>(input, __sym0);
         __symbols.push((__start, __Symbol::Variant11(__nt), __end));
         (1, 15)
     }
@@ -1409,13 +1425,13 @@ mod __parse__Log {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // TimePointEntry+ = TimePointEntry+, TimePointEntry => ActionFn(21);
+        // TimePointEntry+ = TimePointEntry+, TimePointEntry => ActionFn(22);
         assert!(__symbols.len() >= 2);
         let __sym1 = __pop_Variant10(__symbols);
         let __sym0 = __pop_Variant11(__symbols);
         let __start = __sym0.0;
         let __end = __sym1.2;
-        let __nt = super::__action21::<>(input, __sym0, __sym1);
+        let __nt = super::__action22::<>(input, __sym0, __sym1);
         __symbols.push((__start, __Symbol::Variant11(__nt), __end));
         (2, 15)
     }
@@ -1513,13 +1529,13 @@ mod __parse__Log {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // Val? = Val => ActionFn(24);
-        let __sym0 = __pop_Variant1(__symbols);
+        // Val = Ident => ActionFn(11);
+        let __sym0 = __pop_Variant7(__symbols);
         let __start = __sym0.0;
         let __end = __sym0.2;
-        let __nt = super::__action24::<>(input, __sym0);
-        __symbols.push((__start, __Symbol::Variant12(__nt), __end));
-        (1, 17)
+        let __nt = super::__action11::<>(input, __sym0);
+        __symbols.push((__start, __Symbol::Variant1(__nt), __end));
+        (1, 16)
     }
     fn __reduce33<
         'input,
@@ -1530,14 +1546,31 @@ mod __parse__Log {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // Val? =  => ActionFn(25);
+        // Val? = Val => ActionFn(25);
+        let __sym0 = __pop_Variant1(__symbols);
+        let __start = __sym0.0;
+        let __end = __sym0.2;
+        let __nt = super::__action25::<>(input, __sym0);
+        __symbols.push((__start, __Symbol::Variant12(__nt), __end));
+        (1, 17)
+    }
+    fn __reduce34<
+        'input,
+    >(
+        input: &'input str,
+        __lookahead_start: Option<&usize>,
+        __symbols: &mut alloc::vec::Vec<(usize,__Symbol<'input>,usize)>,
+        _: core::marker::PhantomData<(&'input ())>,
+    ) -> (usize, usize)
+    {
+        // Val? =  => ActionFn(26);
         let __start = __lookahead_start.cloned().or_else(|| __symbols.last().map(|s| s.2)).unwrap_or_default();
         let __end = __start;
-        let __nt = super::__action25::<>(input, &__start, &__end);
+        let __nt = super::__action26::<>(input, &__start, &__end);
         __symbols.push((__start, __Symbol::Variant12(__nt), __end));
         (0, 17)
     }
-    fn __reduce35<
+    fn __reduce36<
         'input,
     >(
         input: &'input str,
@@ -1597,9 +1630,9 @@ mod __parse__SingleTimePoint {
         // State 3
         0, 0, 0, 13, 0, 0, 0, 15, 0, 0, 0,
         // State 4
-        23, 9, 24, 0, 0, -7, 0, 0, 0, 21, 22,
+        24, 9, 25, 13, 0, -7, 0, 0, 0, 22, 23,
         // State 5
-        23, 9, 24, 0, 0, -9, 0, 0, 0, 21, 22,
+        24, 9, 25, 13, 0, -9, 0, 0, 0, 22, 23,
         // State 6
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         // State 7
@@ -1613,37 +1646,39 @@ mod __parse__SingleTimePoint {
         // State 11
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         // State 12
-        0, 0, 0, 0, -16, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, -16, -16, -16, 0, 0, 0, 0,
         // State 13
         0, 0, 0, -14, 0, 0, 0, -14, 0, 0, 0,
         // State 14
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         // State 15
-        0, 0, 0, 0, 0, 26, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 27, 0, 0, 0, 0, 0,
         // State 16
         0, 0, 0, 0, 0, -29, -29, 0, 0, 0, 0,
         // State 17
-        0, 0, 0, 0, 0, -28, -28, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, -33, -33, 0, 0, 0, 0,
         // State 18
-        0, 0, 0, 0, 0, -30, -30, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, -28, -28, 0, 0, 0, 0,
         // State 19
-        0, 0, 0, 0, 0, -6, 27, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, -30, -30, 0, 0, 0, 0,
         // State 20
-        0, 0, 0, 0, 0, -32, -32, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, -6, 28, 0, 0, 0, 0,
         // State 21
-        0, 0, 0, 0, 0, -31, -31, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, -32, -32, 0, 0, 0, 0,
         // State 22
-        0, 0, 0, 0, 0, -21, -21, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, -31, -31, 0, 0, 0, 0,
         // State 23
-        0, 0, 0, 0, 0, -15, -15, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, -21, -21, 0, 0, 0, 0,
         // State 24
-        0, 0, 0, 0, 0, -8, 28, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, -15, -15, 0, 0, 0, 0,
         // State 25
-        0, 0, 0, -10, 0, 0, 0, -10, 0, 0, 0,
+        0, 0, 0, 0, 0, -8, 29, 0, 0, 0, 0,
         // State 26
-        -4, -4, -4, 0, 0, -4, 0, 0, 0, -4, -4,
+        0, 0, 0, -10, 0, 0, 0, -10, 0, 0, 0,
         // State 27
-        -5, -5, -5, 0, 0, -5, 0, 0, 0, -5, -5,
+        -4, -4, -4, -4, 0, -4, 0, 0, 0, -4, -4,
+        // State 28
+        -5, -5, -5, -5, 0, -5, 0, 0, 0, -5, -5,
     ];
     fn __action(state: i8, integer: usize) -> i8 {
         __ACTION[(state as usize) * 11 + integer]
@@ -1662,7 +1697,7 @@ mod __parse__SingleTimePoint {
         // State 5
         0,
         // State 6
-        -36,
+        -37,
         // State 7
         -20,
         // State 8
@@ -1705,6 +1740,8 @@ mod __parse__SingleTimePoint {
         0,
         // State 27
         0,
+        // State 28
+        0,
     ];
     fn __goto(state: i8, nt: usize) -> i8 {
         match nt {
@@ -1716,27 +1753,30 @@ mod __parse__SingleTimePoint {
             },
             6 => 3,
             7 => 16,
-            8 => 10,
-            10 => match state {
+            8 => match state {
                 4..=5 => 17,
+                _ => 10,
+            },
+            10 => match state {
+                4..=5 => 18,
                 _ => 2,
             },
             11 => 6,
-            12 => 18,
+            12 => 19,
             13 => 7,
             16 => match state {
-                5 => 24,
-                _ => 19,
+                5 => 25,
+                _ => 20,
             },
             _ => 0,
         }
     }
     #[allow(clippy::needless_raw_string_hashes)]
     const __TERMINAL: &[&str] = &[
-        r###"r#"\"[^\"]*\""#"###,
+        r###"r#"\"(\\\\.|[^\"\\\\])*\""#"###,
         r###"r#"-?[0-9]+"#"###,
         r###"r#"-?[0-9]+\\.[0-9]+"#"###,
-        r###"r#"[A-Za-z_][A-Za-z0-9_]*"#"###,
+        r###"r#"[0-9]*[A-Za-z_][0-9A-Za-z_-]*"#"###,
         r###""(""###,
         r###"")""###,
         r###"",""###,
@@ -2113,22 +2153,28 @@ mod __parse__SingleTimePoint {
             32 => {
                 __state_machine::SimulatedReduce::Reduce {
                     states_to_pop: 1,
-                    nonterminal_produced: 17,
+                    nonterminal_produced: 16,
                 }
             }
             33 => {
                 __state_machine::SimulatedReduce::Reduce {
-                    states_to_pop: 0,
+                    states_to_pop: 1,
                     nonterminal_produced: 17,
                 }
             }
             34 => {
                 __state_machine::SimulatedReduce::Reduce {
+                    states_to_pop: 0,
+                    nonterminal_produced: 17,
+                }
+            }
+            35 => {
+                __state_machine::SimulatedReduce::Reduce {
                     states_to_pop: 1,
                     nonterminal_produced: 18,
                 }
             }
-            35 => __state_machine::SimulatedReduce::Accept,
+            36 => __state_machine::SimulatedReduce::Accept,
             _ => panic!("invalid reduction index {__reduce_index}",)
         }
     }
@@ -2316,6 +2362,9 @@ mod __parse__SingleTimePoint {
                 __reduce34(input, __lookahead_start, __symbols, core::marker::PhantomData::<(&())>)
             }
             35 => {
+                __reduce35(input, __lookahead_start, __symbols, core::marker::PhantomData::<(&())>)
+            }
+            36 => {
                 // __SingleTimePoint = SingleTimePoint => ActionFn(1);
                 let __sym0 = __pop_Variant10(__symbols);
                 let __start = __sym0.0;
@@ -2488,13 +2537,13 @@ mod __parse__SingleTimePoint {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // (<Val> ",") = Val, "," => ActionFn(28);
+        // (<Val> ",") = Val, "," => ActionFn(29);
         assert!(__symbols.len() >= 2);
         let __sym1 = __pop_Variant0(__symbols);
         let __sym0 = __pop_Variant1(__symbols);
         let __start = __sym0.0;
         let __end = __sym1.2;
-        let __nt = super::__action28::<>(input, __sym0, __sym1);
+        let __nt = super::__action29::<>(input, __sym0, __sym1);
         __symbols.push((__start, __Symbol::Variant1(__nt), __end));
         (2, 0)
     }
@@ -2507,10 +2556,10 @@ mod __parse__SingleTimePoint {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // (<Val> ",")* =  => ActionFn(26);
+        // (<Val> ",")* =  => ActionFn(27);
         let __start = __lookahead_start.cloned().or_else(|| __symbols.last().map(|s| s.2)).unwrap_or_default();
         let __end = __start;
-        let __nt = super::__action26::<>(input, &__start, &__end);
+        let __nt = super::__action27::<>(input, &__start, &__end);
         __symbols.push((__start, __Symbol::Variant2(__nt), __end));
         (0, 1)
     }
@@ -2523,11 +2572,11 @@ mod __parse__SingleTimePoint {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // (<Val> ",")* = (<Val> ",")+ => ActionFn(27);
+        // (<Val> ",")* = (<Val> ",")+ => ActionFn(28);
         let __sym0 = __pop_Variant2(__symbols);
         let __start = __sym0.0;
         let __end = __sym0.2;
-        let __nt = super::__action27::<>(input, __sym0);
+        let __nt = super::__action28::<>(input, __sym0);
         __symbols.push((__start, __Symbol::Variant2(__nt), __end));
         (1, 1)
     }
@@ -2540,13 +2589,13 @@ mod __parse__SingleTimePoint {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // (<Val> ",")+ = Val, "," => ActionFn(31);
+        // (<Val> ",")+ = Val, "," => ActionFn(32);
         assert!(__symbols.len() >= 2);
         let __sym1 = __pop_Variant0(__symbols);
         let __sym0 = __pop_Variant1(__symbols);
         let __start = __sym0.0;
         let __end = __sym1.2;
-        let __nt = super::__action31::<>(input, __sym0, __sym1);
+        let __nt = super::__action32::<>(input, __sym0, __sym1);
         __symbols.push((__start, __Symbol::Variant2(__nt), __end));
         (2, 2)
     }
@@ -2559,14 +2608,14 @@ mod __parse__SingleTimePoint {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // (<Val> ",")+ = (<Val> ",")+, Val, "," => ActionFn(32);
+        // (<Val> ",")+ = (<Val> ",")+, Val, "," => ActionFn(33);
         assert!(__symbols.len() >= 3);
         let __sym2 = __pop_Variant0(__symbols);
         let __sym1 = __pop_Variant1(__symbols);
         let __sym0 = __pop_Variant2(__symbols);
         let __start = __sym0.0;
         let __end = __sym2.2;
-        let __nt = super::__action32::<>(input, __sym0, __sym1, __sym2);
+        let __nt = super::__action33::<>(input, __sym0, __sym1, __sym2);
         __symbols.push((__start, __Symbol::Variant2(__nt), __end));
         (3, 2)
     }
@@ -2579,11 +2628,11 @@ mod __parse__SingleTimePoint {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // Comma<Val> = Val => ActionFn(39);
+        // Comma<Val> = Val => ActionFn(40);
         let __sym0 = __pop_Variant1(__symbols);
         let __start = __sym0.0;
         let __end = __sym0.2;
-        let __nt = super::__action39::<>(input, __sym0);
+        let __nt = super::__action40::<>(input, __sym0);
         __symbols.push((__start, __Symbol::Variant3(__nt), __end));
         (1, 3)
     }
@@ -2596,10 +2645,10 @@ mod __parse__SingleTimePoint {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // Comma<Val> =  => ActionFn(40);
+        // Comma<Val> =  => ActionFn(41);
         let __start = __lookahead_start.cloned().or_else(|| __symbols.last().map(|s| s.2)).unwrap_or_default();
         let __end = __start;
-        let __nt = super::__action40::<>(input, &__start, &__end);
+        let __nt = super::__action41::<>(input, &__start, &__end);
         __symbols.push((__start, __Symbol::Variant3(__nt), __end));
         (0, 3)
     }
@@ -2612,13 +2661,13 @@ mod __parse__SingleTimePoint {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // Comma<Val> = (<Val> ",")+, Val => ActionFn(41);
+        // Comma<Val> = (<Val> ",")+, Val => ActionFn(42);
         assert!(__symbols.len() >= 2);
         let __sym1 = __pop_Variant1(__symbols);
         let __sym0 = __pop_Variant2(__symbols);
         let __start = __sym0.0;
         let __end = __sym1.2;
-        let __nt = super::__action41::<>(input, __sym0, __sym1);
+        let __nt = super::__action42::<>(input, __sym0, __sym1);
         __symbols.push((__start, __Symbol::Variant3(__nt), __end));
         (2, 3)
     }
@@ -2631,11 +2680,11 @@ mod __parse__SingleTimePoint {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // Comma<Val> = (<Val> ",")+ => ActionFn(42);
+        // Comma<Val> = (<Val> ",")+ => ActionFn(43);
         let __sym0 = __pop_Variant2(__symbols);
         let __start = __sym0.0;
         let __end = __sym0.2;
-        let __nt = super::__action42::<>(input, __sym0);
+        let __nt = super::__action43::<>(input, __sym0);
         __symbols.push((__start, __Symbol::Variant3(__nt), __end));
         (1, 3)
     }
@@ -2669,10 +2718,10 @@ mod __parse__SingleTimePoint {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // Event* =  => ActionFn(16);
+        // Event* =  => ActionFn(17);
         let __start = __lookahead_start.cloned().or_else(|| __symbols.last().map(|s| s.2)).unwrap_or_default();
         let __end = __start;
-        let __nt = super::__action16::<>(input, &__start, &__end);
+        let __nt = super::__action17::<>(input, &__start, &__end);
         __symbols.push((__start, __Symbol::Variant5(__nt), __end));
         (0, 5)
     }
@@ -2685,11 +2734,11 @@ mod __parse__SingleTimePoint {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // Event* = Event+ => ActionFn(17);
+        // Event* = Event+ => ActionFn(18);
         let __sym0 = __pop_Variant5(__symbols);
         let __start = __sym0.0;
         let __end = __sym0.2;
-        let __nt = super::__action17::<>(input, __sym0);
+        let __nt = super::__action18::<>(input, __sym0);
         __symbols.push((__start, __Symbol::Variant5(__nt), __end));
         (1, 5)
     }
@@ -2702,11 +2751,11 @@ mod __parse__SingleTimePoint {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // Event+ = Event => ActionFn(22);
+        // Event+ = Event => ActionFn(23);
         let __sym0 = __pop_Variant4(__symbols);
         let __start = __sym0.0;
         let __end = __sym0.2;
-        let __nt = super::__action22::<>(input, __sym0);
+        let __nt = super::__action23::<>(input, __sym0);
         __symbols.push((__start, __Symbol::Variant5(__nt), __end));
         (1, 6)
     }
@@ -2719,13 +2768,13 @@ mod __parse__SingleTimePoint {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // Event+ = Event+, Event => ActionFn(23);
+        // Event+ = Event+, Event => ActionFn(24);
         assert!(__symbols.len() >= 2);
         let __sym1 = __pop_Variant4(__symbols);
         let __sym0 = __pop_Variant5(__symbols);
         let __start = __sym0.0;
         let __end = __sym1.2;
-        let __nt = super::__action23::<>(input, __sym0, __sym1);
+        let __nt = super::__action24::<>(input, __sym0, __sym1);
         __symbols.push((__start, __Symbol::Variant5(__nt), __end));
         (2, 6)
     }
@@ -2738,11 +2787,11 @@ mod __parse__SingleTimePoint {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // Float = r#"-?[0-9]+\\.[0-9]+"# => ActionFn(13);
+        // Float = r#"-?[0-9]+\\.[0-9]+"# => ActionFn(14);
         let __sym0 = __pop_Variant0(__symbols);
         let __start = __sym0.0;
         let __end = __sym0.2;
-        let __nt = super::__action13::<>(input, __sym0);
+        let __nt = super::__action14::<>(input, __sym0);
         __symbols.push((__start, __Symbol::Variant6(__nt), __end));
         (1, 7)
     }
@@ -2755,11 +2804,11 @@ mod __parse__SingleTimePoint {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // Ident = r#"[A-Za-z_][A-Za-z0-9_]*"# => ActionFn(11);
+        // Ident = r#"[0-9]*[A-Za-z_][0-9A-Za-z_-]*"# => ActionFn(12);
         let __sym0 = __pop_Variant0(__symbols);
         let __start = __sym0.0;
         let __end = __sym0.2;
-        let __nt = super::__action11::<>(input, __sym0);
+        let __nt = super::__action12::<>(input, __sym0);
         __symbols.push((__start, __Symbol::Variant7(__nt), __end));
         (1, 8)
     }
@@ -2772,10 +2821,10 @@ mod __parse__SingleTimePoint {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // Log =  => ActionFn(37);
+        // Log =  => ActionFn(38);
         let __start = __lookahead_start.cloned().or_else(|| __symbols.last().map(|s| s.2)).unwrap_or_default();
         let __end = __start;
-        let __nt = super::__action37::<>(input, &__start, &__end);
+        let __nt = super::__action38::<>(input, &__start, &__end);
         __symbols.push((__start, __Symbol::Variant8(__nt), __end));
         (0, 9)
     }
@@ -2788,11 +2837,11 @@ mod __parse__SingleTimePoint {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // Log = TimePointEntry+ => ActionFn(38);
+        // Log = TimePointEntry+ => ActionFn(39);
         let __sym0 = __pop_Variant11(__symbols);
         let __start = __sym0.0;
         let __end = __sym0.2;
-        let __nt = super::__action38::<>(input, __sym0);
+        let __nt = super::__action39::<>(input, __sym0);
         __symbols.push((__start, __Symbol::Variant8(__nt), __end));
         (1, 9)
     }
@@ -2805,11 +2854,11 @@ mod __parse__SingleTimePoint {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // Num = r#"-?[0-9]+"# => ActionFn(12);
+        // Num = r#"-?[0-9]+"# => ActionFn(13);
         let __sym0 = __pop_Variant0(__symbols);
         let __start = __sym0.0;
         let __end = __sym0.2;
-        let __nt = super::__action12::<>(input, __sym0);
+        let __nt = super::__action13::<>(input, __sym0);
         __symbols.push((__start, __Symbol::Variant9(__nt), __end));
         (1, 10)
     }
@@ -2839,11 +2888,11 @@ mod __parse__SingleTimePoint {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // StrLit = r#"\"[^\"]*\""# => ActionFn(14);
+        // StrLit = r#"\"(\\\\.|[^\"\\\\])*\""# => ActionFn(15);
         let __sym0 = __pop_Variant0(__symbols);
         let __start = __sym0.0;
         let __end = __sym0.2;
-        let __nt = super::__action14::<>(input, __sym0);
+        let __nt = super::__action15::<>(input, __sym0);
         __symbols.push((__start, __Symbol::Variant7(__nt), __end));
         (1, 12)
     }
@@ -2856,14 +2905,14 @@ mod __parse__SingleTimePoint {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // TimePointEntry = "@", Num, ";" => ActionFn(35);
+        // TimePointEntry = "@", Num, ";" => ActionFn(36);
         assert!(__symbols.len() >= 3);
         let __sym2 = __pop_Variant0(__symbols);
         let __sym1 = __pop_Variant9(__symbols);
         let __sym0 = __pop_Variant0(__symbols);
         let __start = __sym0.0;
         let __end = __sym2.2;
-        let __nt = super::__action35::<>(input, __sym0, __sym1, __sym2);
+        let __nt = super::__action36::<>(input, __sym0, __sym1, __sym2);
         __symbols.push((__start, __Symbol::Variant10(__nt), __end));
         (3, 13)
     }
@@ -2876,7 +2925,7 @@ mod __parse__SingleTimePoint {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // TimePointEntry = "@", Num, Event+, ";" => ActionFn(36);
+        // TimePointEntry = "@", Num, Event+, ";" => ActionFn(37);
         assert!(__symbols.len() >= 4);
         let __sym3 = __pop_Variant0(__symbols);
         let __sym2 = __pop_Variant5(__symbols);
@@ -2884,7 +2933,7 @@ mod __parse__SingleTimePoint {
         let __sym0 = __pop_Variant0(__symbols);
         let __start = __sym0.0;
         let __end = __sym3.2;
-        let __nt = super::__action36::<>(input, __sym0, __sym1, __sym2, __sym3);
+        let __nt = super::__action37::<>(input, __sym0, __sym1, __sym2, __sym3);
         __symbols.push((__start, __Symbol::Variant10(__nt), __end));
         (4, 13)
     }
@@ -2897,10 +2946,10 @@ mod __parse__SingleTimePoint {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // TimePointEntry* =  => ActionFn(18);
+        // TimePointEntry* =  => ActionFn(19);
         let __start = __lookahead_start.cloned().or_else(|| __symbols.last().map(|s| s.2)).unwrap_or_default();
         let __end = __start;
-        let __nt = super::__action18::<>(input, &__start, &__end);
+        let __nt = super::__action19::<>(input, &__start, &__end);
         __symbols.push((__start, __Symbol::Variant11(__nt), __end));
         (0, 14)
     }
@@ -2913,11 +2962,11 @@ mod __parse__SingleTimePoint {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // TimePointEntry* = TimePointEntry+ => ActionFn(19);
+        // TimePointEntry* = TimePointEntry+ => ActionFn(20);
         let __sym0 = __pop_Variant11(__symbols);
         let __start = __sym0.0;
         let __end = __sym0.2;
-        let __nt = super::__action19::<>(input, __sym0);
+        let __nt = super::__action20::<>(input, __sym0);
         __symbols.push((__start, __Symbol::Variant11(__nt), __end));
         (1, 14)
     }
@@ -2930,11 +2979,11 @@ mod __parse__SingleTimePoint {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // TimePointEntry+ = TimePointEntry => ActionFn(20);
+        // TimePointEntry+ = TimePointEntry => ActionFn(21);
         let __sym0 = __pop_Variant10(__symbols);
         let __start = __sym0.0;
         let __end = __sym0.2;
-        let __nt = super::__action20::<>(input, __sym0);
+        let __nt = super::__action21::<>(input, __sym0);
         __symbols.push((__start, __Symbol::Variant11(__nt), __end));
         (1, 15)
     }
@@ -2947,13 +2996,13 @@ mod __parse__SingleTimePoint {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // TimePointEntry+ = TimePointEntry+, TimePointEntry => ActionFn(21);
+        // TimePointEntry+ = TimePointEntry+, TimePointEntry => ActionFn(22);
         assert!(__symbols.len() >= 2);
         let __sym1 = __pop_Variant10(__symbols);
         let __sym0 = __pop_Variant11(__symbols);
         let __start = __sym0.0;
         let __end = __sym1.2;
-        let __nt = super::__action21::<>(input, __sym0, __sym1);
+        let __nt = super::__action22::<>(input, __sym0, __sym1);
         __symbols.push((__start, __Symbol::Variant11(__nt), __end));
         (2, 15)
     }
@@ -3051,13 +3100,13 @@ mod __parse__SingleTimePoint {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // Val? = Val => ActionFn(24);
-        let __sym0 = __pop_Variant1(__symbols);
+        // Val = Ident => ActionFn(11);
+        let __sym0 = __pop_Variant7(__symbols);
         let __start = __sym0.0;
         let __end = __sym0.2;
-        let __nt = super::__action24::<>(input, __sym0);
-        __symbols.push((__start, __Symbol::Variant12(__nt), __end));
-        (1, 17)
+        let __nt = super::__action11::<>(input, __sym0);
+        __symbols.push((__start, __Symbol::Variant1(__nt), __end));
+        (1, 16)
     }
     fn __reduce33<
         'input,
@@ -3068,14 +3117,31 @@ mod __parse__SingleTimePoint {
         _: core::marker::PhantomData<(&'input ())>,
     ) -> (usize, usize)
     {
-        // Val? =  => ActionFn(25);
+        // Val? = Val => ActionFn(25);
+        let __sym0 = __pop_Variant1(__symbols);
+        let __start = __sym0.0;
+        let __end = __sym0.2;
+        let __nt = super::__action25::<>(input, __sym0);
+        __symbols.push((__start, __Symbol::Variant12(__nt), __end));
+        (1, 17)
+    }
+    fn __reduce34<
+        'input,
+    >(
+        input: &'input str,
+        __lookahead_start: Option<&usize>,
+        __symbols: &mut alloc::vec::Vec<(usize,__Symbol<'input>,usize)>,
+        _: core::marker::PhantomData<(&'input ())>,
+    ) -> (usize, usize)
+    {
+        // Val? =  => ActionFn(26);
         let __start = __lookahead_start.cloned().or_else(|| __symbols.last().map(|s| s.2)).unwrap_or_default();
         let __end = __start;
-        let __nt = super::__action25::<>(input, &__start, &__end);
+        let __nt = super::__action26::<>(input, &__start, &__end);
         __symbols.push((__start, __Symbol::Variant12(__nt), __end));
         (0, 17)
     }
-    fn __reduce34<
+    fn __reduce35<
         'input,
     >(
         input: &'input str,
@@ -3107,10 +3173,10 @@ mod __intern_token {
     extern crate alloc;
     pub fn new_builder() -> __lalrpop_util::lexer::MatcherBuilder {
         let __strs: &[(&str, bool)] = &[
-            ("(?:\"[\0-!\\#-\u{10ffff}]*\")", false),
+            ("(?:\"((?:(?:\\\\[\0-\t\u{b}-\u{10ffff}])|[\0-!\\#-\\[\\]-\u{10ffff}]))*\")", false),
             ("(?:\\-?[0-9]+)", false),
             ("(?:\\-?[0-9]+\\.[0-9]+)", false),
-            ("(?:[A-Z_a-z][0-9A-Z_a-z]*)", false),
+            ("(?:[0-9]*[A-Z_a-z][\\-0-9A-Z_a-z]*)", false),
             ("[\t-\r \u{85}\u{a0}\u{1680}\u{2000}-\u{200a}\u{2028}\u{2029}\u{202f}\u{205f}\u{3000}]*", true),
             ("\\(", false),
             ("\\)", false),
@@ -3242,7 +3308,7 @@ fn __action8<
     (_, s, _): (usize, String, usize),
 ) -> Value
 {
-    Value::Str(s)
+    Value::Str(crate::ast::intern(&s))
 }
 
 #[allow(unused_variables)]
@@ -3275,6 +3341,18 @@ fn __action11<
     'input,
 >(
     input: &'input str,
+    (_, s, _): (usize, String, usize),
+) -> Value
+{
+    Value::Str(crate::ast::intern(&s))
+}
+
+#[allow(unused_variables)]
+#[allow(clippy::too_many_arguments, clippy::needless_lifetimes, clippy::just_underscores_and_digits)]
+fn __action12<
+    'input,
+>(
+    input: &'input str,
     (_, __0, _): (usize, &'input str, usize),
 ) -> String
 {
@@ -3283,7 +3361,7 @@ fn __action11<
 
 #[allow(unused_variables)]
 #[allow(clippy::too_many_arguments, clippy::needless_lifetimes, clippy::just_underscores_and_digits)]
-fn __action12<
+fn __action13<
     'input,
 >(
     input: &'input str,
@@ -3295,7 +3373,7 @@ fn __action12<
 
 #[allow(unused_variables)]
 #[allow(clippy::too_many_arguments, clippy::needless_lifetimes, clippy::just_underscores_and_digits)]
-fn __action13<
+fn __action14<
     'input,
 >(
     input: &'input str,
@@ -3307,7 +3385,7 @@ fn __action13<
 
 #[allow(unused_variables)]
 #[allow(clippy::too_many_arguments, clippy::needless_lifetimes, clippy::just_underscores_and_digits)]
-fn __action14<
+fn __action15<
     'input,
 >(
     input: &'input str,
@@ -3316,13 +3394,23 @@ fn __action14<
 {
     {
         let s = __0;
-        s[1..s.len()-1].to_string()
+        let inner = &s[1..s.len()-1];
+        let mut out = String::with_capacity(inner.len());
+        let mut chars = inner.chars();
+        while let Some(c) = chars.next() {
+            if c == '\\' {
+                if let Some(n) = chars.next() { out.push(n); }
+            } else {
+                out.push(c);
+            }
+        }
+        out
     }
 }
 
 #[allow(unused_variables)]
 #[allow(clippy::too_many_arguments, clippy::needless_lifetimes, clippy::just_underscores_and_digits)]
-fn __action15<
+fn __action16<
     'input,
 >(
     input: &'input str,
@@ -3338,7 +3426,7 @@ fn __action15<
 
 #[allow(unused_variables)]
 #[allow(clippy::too_many_arguments, clippy::needless_lifetimes, clippy::just_underscores_and_digits)]
-fn __action16<
+fn __action17<
     'input,
 >(
     input: &'input str,
@@ -3351,7 +3439,7 @@ fn __action16<
 
 #[allow(unused_variables)]
 #[allow(clippy::too_many_arguments, clippy::needless_lifetimes, clippy::just_underscores_and_digits)]
-fn __action17<
+fn __action18<
     'input,
 >(
     input: &'input str,
@@ -3363,7 +3451,7 @@ fn __action17<
 
 #[allow(unused_variables)]
 #[allow(clippy::too_many_arguments, clippy::needless_lifetimes, clippy::just_underscores_and_digits)]
-fn __action18<
+fn __action19<
     'input,
 >(
     input: &'input str,
@@ -3376,7 +3464,7 @@ fn __action18<
 
 #[allow(unused_variables)]
 #[allow(clippy::too_many_arguments, clippy::needless_lifetimes, clippy::just_underscores_and_digits)]
-fn __action19<
+fn __action20<
     'input,
 >(
     input: &'input str,
@@ -3388,7 +3476,7 @@ fn __action19<
 
 #[allow(unused_variables)]
 #[allow(clippy::too_many_arguments, clippy::needless_lifetimes, clippy::just_underscores_and_digits)]
-fn __action20<
+fn __action21<
     'input,
 >(
     input: &'input str,
@@ -3400,7 +3488,7 @@ fn __action20<
 
 #[allow(unused_variables)]
 #[allow(clippy::too_many_arguments, clippy::needless_lifetimes, clippy::just_underscores_and_digits)]
-fn __action21<
+fn __action22<
     'input,
 >(
     input: &'input str,
@@ -3413,7 +3501,7 @@ fn __action21<
 
 #[allow(unused_variables)]
 #[allow(clippy::too_many_arguments, clippy::needless_lifetimes, clippy::just_underscores_and_digits)]
-fn __action22<
+fn __action23<
     'input,
 >(
     input: &'input str,
@@ -3425,7 +3513,7 @@ fn __action22<
 
 #[allow(unused_variables)]
 #[allow(clippy::too_many_arguments, clippy::needless_lifetimes, clippy::just_underscores_and_digits)]
-fn __action23<
+fn __action24<
     'input,
 >(
     input: &'input str,
@@ -3438,7 +3526,7 @@ fn __action23<
 
 #[allow(unused_variables)]
 #[allow(clippy::too_many_arguments, clippy::needless_lifetimes, clippy::just_underscores_and_digits)]
-fn __action24<
+fn __action25<
     'input,
 >(
     input: &'input str,
@@ -3450,7 +3538,7 @@ fn __action24<
 
 #[allow(unused_variables)]
 #[allow(clippy::too_many_arguments, clippy::needless_lifetimes, clippy::just_underscores_and_digits)]
-fn __action25<
+fn __action26<
     'input,
 >(
     input: &'input str,
@@ -3463,7 +3551,7 @@ fn __action25<
 
 #[allow(unused_variables)]
 #[allow(clippy::too_many_arguments, clippy::needless_lifetimes, clippy::just_underscores_and_digits)]
-fn __action26<
+fn __action27<
     'input,
 >(
     input: &'input str,
@@ -3476,7 +3564,7 @@ fn __action26<
 
 #[allow(unused_variables)]
 #[allow(clippy::too_many_arguments, clippy::needless_lifetimes, clippy::just_underscores_and_digits)]
-fn __action27<
+fn __action28<
     'input,
 >(
     input: &'input str,
@@ -3488,7 +3576,7 @@ fn __action27<
 
 #[allow(unused_variables)]
 #[allow(clippy::too_many_arguments, clippy::needless_lifetimes, clippy::just_underscores_and_digits)]
-fn __action28<
+fn __action29<
     'input,
 >(
     input: &'input str,
@@ -3501,7 +3589,7 @@ fn __action28<
 
 #[allow(unused_variables)]
 #[allow(clippy::too_many_arguments, clippy::needless_lifetimes, clippy::just_underscores_and_digits)]
-fn __action29<
+fn __action30<
     'input,
 >(
     input: &'input str,
@@ -3513,7 +3601,7 @@ fn __action29<
 
 #[allow(unused_variables)]
 #[allow(clippy::too_many_arguments, clippy::needless_lifetimes, clippy::just_underscores_and_digits)]
-fn __action30<
+fn __action31<
     'input,
 >(
     input: &'input str,
@@ -3527,7 +3615,7 @@ fn __action30<
 #[allow(unused_variables)]
 #[allow(clippy::too_many_arguments, clippy::needless_lifetimes,
     clippy::just_underscores_and_digits)]
-fn __action31<
+fn __action32<
     'input,
 >(
     input: &'input str,
@@ -3537,41 +3625,14 @@ fn __action31<
 {
     let __start0 = __0.0;
     let __end0 = __1.2;
-    let __temp0 = __action28(
+    let __temp0 = __action29(
         input,
         __0,
         __1,
-    );
-    let __temp0 = (__start0, __temp0, __end0);
-    __action29(
-        input,
-        __temp0,
-    )
-}
-
-#[allow(unused_variables)]
-#[allow(clippy::too_many_arguments, clippy::needless_lifetimes,
-    clippy::just_underscores_and_digits)]
-fn __action32<
-    'input,
->(
-    input: &'input str,
-    __0: (usize, alloc::vec::Vec<Value>, usize),
-    __1: (usize, Value, usize),
-    __2: (usize, &'input str, usize),
-) -> alloc::vec::Vec<Value>
-{
-    let __start0 = __1.0;
-    let __end0 = __2.2;
-    let __temp0 = __action28(
-        input,
-        __1,
-        __2,
     );
     let __temp0 = (__start0, __temp0, __end0);
     __action30(
         input,
-        __0,
         __temp0,
     )
 }
@@ -3583,21 +3644,23 @@ fn __action33<
     'input,
 >(
     input: &'input str,
-    __0: (usize, Option<Value>, usize),
-) -> Vec<Value>
+    __0: (usize, alloc::vec::Vec<Value>, usize),
+    __1: (usize, Value, usize),
+    __2: (usize, &'input str, usize),
+) -> alloc::vec::Vec<Value>
 {
-    let __start0 = __0.0;
-    let __end0 = __0.0;
-    let __temp0 = __action26(
+    let __start0 = __1.0;
+    let __end0 = __2.2;
+    let __temp0 = __action29(
         input,
-        &__start0,
-        &__end0,
+        __1,
+        __2,
     );
     let __temp0 = (__start0, __temp0, __end0);
-    __action15(
+    __action31(
         input,
-        __temp0,
         __0,
+        __temp0,
     )
 }
 
@@ -3608,21 +3671,21 @@ fn __action34<
     'input,
 >(
     input: &'input str,
-    __0: (usize, alloc::vec::Vec<Value>, usize),
-    __1: (usize, Option<Value>, usize),
+    __0: (usize, Option<Value>, usize),
 ) -> Vec<Value>
 {
     let __start0 = __0.0;
-    let __end0 = __0.2;
+    let __end0 = __0.0;
     let __temp0 = __action27(
         input,
-        __0,
+        &__start0,
+        &__end0,
     );
     let __temp0 = (__start0, __temp0, __end0);
-    __action15(
+    __action16(
         input,
         __temp0,
-        __1,
+        __0,
     )
 }
 
@@ -3633,6 +3696,31 @@ fn __action35<
     'input,
 >(
     input: &'input str,
+    __0: (usize, alloc::vec::Vec<Value>, usize),
+    __1: (usize, Option<Value>, usize),
+) -> Vec<Value>
+{
+    let __start0 = __0.0;
+    let __end0 = __0.2;
+    let __temp0 = __action28(
+        input,
+        __0,
+    );
+    let __temp0 = (__start0, __temp0, __end0);
+    __action16(
+        input,
+        __temp0,
+        __1,
+    )
+}
+
+#[allow(unused_variables)]
+#[allow(clippy::too_many_arguments, clippy::needless_lifetimes,
+    clippy::just_underscores_and_digits)]
+fn __action36<
+    'input,
+>(
+    input: &'input str,
     __0: (usize, &'input str, usize),
     __1: (usize, i64, usize),
     __2: (usize, &'input str, usize),
@@ -3640,7 +3728,7 @@ fn __action35<
 {
     let __start0 = __1.2;
     let __end0 = __2.0;
-    let __temp0 = __action16(
+    let __temp0 = __action17(
         input,
         &__start0,
         &__end0,
@@ -3658,7 +3746,7 @@ fn __action35<
 #[allow(unused_variables)]
 #[allow(clippy::too_many_arguments, clippy::needless_lifetimes,
     clippy::just_underscores_and_digits)]
-fn __action36<
+fn __action37<
     'input,
 >(
     input: &'input str,
@@ -3670,7 +3758,7 @@ fn __action36<
 {
     let __start0 = __2.0;
     let __end0 = __2.2;
-    let __temp0 = __action17(
+    let __temp0 = __action18(
         input,
         __2,
     );
@@ -3687,7 +3775,7 @@ fn __action36<
 #[allow(unused_variables)]
 #[allow(clippy::too_many_arguments, clippy::needless_lifetimes,
     clippy::just_underscores_and_digits)]
-fn __action37<
+fn __action38<
     'input,
 >(
     input: &'input str,
@@ -3697,33 +3785,10 @@ fn __action37<
 {
     let __start0 = *__lookbehind;
     let __end0 = *__lookahead;
-    let __temp0 = __action18(
+    let __temp0 = __action19(
         input,
         &__start0,
         &__end0,
-    );
-    let __temp0 = (__start0, __temp0, __end0);
-    __action2(
-        input,
-        __temp0,
-    )
-}
-
-#[allow(unused_variables)]
-#[allow(clippy::too_many_arguments, clippy::needless_lifetimes,
-    clippy::just_underscores_and_digits)]
-fn __action38<
-    'input,
->(
-    input: &'input str,
-    __0: (usize, alloc::vec::Vec<TimePoint>, usize),
-) -> Vec<TimePoint>
-{
-    let __start0 = __0.0;
-    let __end0 = __0.2;
-    let __temp0 = __action19(
-        input,
-        __0,
     );
     let __temp0 = (__start0, __temp0, __end0);
     __action2(
@@ -3739,17 +3804,17 @@ fn __action39<
     'input,
 >(
     input: &'input str,
-    __0: (usize, Value, usize),
-) -> Vec<Value>
+    __0: (usize, alloc::vec::Vec<TimePoint>, usize),
+) -> Vec<TimePoint>
 {
     let __start0 = __0.0;
     let __end0 = __0.2;
-    let __temp0 = __action24(
+    let __temp0 = __action20(
         input,
         __0,
     );
     let __temp0 = (__start0, __temp0, __end0);
-    __action33(
+    __action2(
         input,
         __temp0,
     )
@@ -3762,19 +3827,17 @@ fn __action40<
     'input,
 >(
     input: &'input str,
-    __lookbehind: &usize,
-    __lookahead: &usize,
+    __0: (usize, Value, usize),
 ) -> Vec<Value>
 {
-    let __start0 = *__lookbehind;
-    let __end0 = *__lookahead;
+    let __start0 = __0.0;
+    let __end0 = __0.2;
     let __temp0 = __action25(
         input,
-        &__start0,
-        &__end0,
+        __0,
     );
     let __temp0 = (__start0, __temp0, __end0);
-    __action33(
+    __action34(
         input,
         __temp0,
     )
@@ -3787,20 +3850,20 @@ fn __action41<
     'input,
 >(
     input: &'input str,
-    __0: (usize, alloc::vec::Vec<Value>, usize),
-    __1: (usize, Value, usize),
+    __lookbehind: &usize,
+    __lookahead: &usize,
 ) -> Vec<Value>
 {
-    let __start0 = __1.0;
-    let __end0 = __1.2;
-    let __temp0 = __action24(
+    let __start0 = *__lookbehind;
+    let __end0 = *__lookahead;
+    let __temp0 = __action26(
         input,
-        __1,
+        &__start0,
+        &__end0,
     );
     let __temp0 = (__start0, __temp0, __end0);
     __action34(
         input,
-        __0,
         __temp0,
     )
 }
@@ -3813,17 +3876,42 @@ fn __action42<
 >(
     input: &'input str,
     __0: (usize, alloc::vec::Vec<Value>, usize),
+    __1: (usize, Value, usize),
+) -> Vec<Value>
+{
+    let __start0 = __1.0;
+    let __end0 = __1.2;
+    let __temp0 = __action25(
+        input,
+        __1,
+    );
+    let __temp0 = (__start0, __temp0, __end0);
+    __action35(
+        input,
+        __0,
+        __temp0,
+    )
+}
+
+#[allow(unused_variables)]
+#[allow(clippy::too_many_arguments, clippy::needless_lifetimes,
+    clippy::just_underscores_and_digits)]
+fn __action43<
+    'input,
+>(
+    input: &'input str,
+    __0: (usize, alloc::vec::Vec<Value>, usize),
 ) -> Vec<Value>
 {
     let __start0 = __0.2;
     let __end0 = __0.2;
-    let __temp0 = __action25(
+    let __temp0 = __action26(
         input,
         &__start0,
         &__end0,
     );
     let __temp0 = (__start0, __temp0, __end0);
-    __action34(
+    __action35(
         input,
         __0,
         __temp0,
