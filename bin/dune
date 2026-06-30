@@ -1,7 +1,7 @@
 (executable
- (public_name enfguard)
- (name enfguard)
+ (public_name enfflash)
+ (name enfflash)
  (modes byte exe)
- (libraries enfguard_lib MFOTL_lib pyml core core_unix.command_unix)
+ (libraries enfflash_lib MFOTL_lib pyml core core_unix.command_unix)
  (preprocess (pps ppx_let))
  (promote (until-clean)))

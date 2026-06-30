@@ -1,0 +1,1 @@
+ALWAYS (FORALL x. (ONCE[0,20] C(x)) IMPLIES:R B(x))

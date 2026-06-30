@@ -31,4 +31,6 @@ docs/*/*.log
 docs/*/*.out
 docs/*/*.pdf
 docs/*/*/*.el
-*.secret
+*.secreteval/enforcement/benchmarks/ic/enfguard/logs/*.log
+eval/enforcement/benchmarks/ic/monpoly/logs/*.log
+eval/enforcement/benchmarks/nokia/enfguard/logs/*.log

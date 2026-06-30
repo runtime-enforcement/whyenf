@@ -1,0 +1,8 @@
+ALWAYS (
+  FORALL s, u, a.
+    withdraw(u, a)
+    AND
+    s <- AVG(c; u; c <- CNT(t; u; ONCE[0,31) (withdraw(u, a) AND tp(t))))
+    IMPLIES
+    s <= 150
+)

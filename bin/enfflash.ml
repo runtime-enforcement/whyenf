@@ -1,9 +1,9 @@
 open Core
 open Stdio
-open Enfguard_lib
-open Enfguard_lib.Global
+open Enfflash_lib
+open Enfflash_lib.Global
 
-module Enfguard = struct
+module Enfflash = struct
 
   let lexbuf_error_msg (lexbuf: Lexing.lexbuf) =
     Printf.sprintf "a problem was found at line %d character %d"
@@ -123,7 +123,7 @@ module Enfguard = struct
       else if Option.is_some edg_dot_file then begin
         let path = Option.value_exn edg_dot_file in
         Out_channel.write_all path ~data:(Compiler.edg_dot ~b:!b_ref sformula);
-        eprintf "[enfguard] EDG written to %s\n" path
+        eprintf "[enfflash] EDG written to %s\n" path
       end
       else if parallel then begin
         (* ── Parallel path ───────────────────────────────────────────── *)
@@ -131,7 +131,7 @@ module Enfguard = struct
           match output_file with
           | Some f -> Filename.dirname f, base_name_of_path f
           | None   ->
-            let tmp = Core_unix.mkdtemp "enfguard_parallel_" in
+            let tmp = Core_unix.mkdtemp "enfflash_parallel_" in
             tmp, "policy"
         in
         let data_groups =
@@ -143,7 +143,7 @@ module Enfguard = struct
             ~output_dir ~base_name:base
             sformula
         in
-        eprintf "[enfguard] Manifest written to %s\n" manifest;
+        eprintf "[enfflash] Manifest written to %s\n" manifest;
         if run_enfflash then begin
           let bin  = find_enfflash_parallel () in
           let args =
@@ -152,7 +152,7 @@ module Enfguard = struct
             @ (if json then ["--json"] else [])
             @ (match state_file with Some s -> ["--state"; s] | None -> [])
           in
-          eprintf "[enfguard] Running: %s\n" (String.concat ~sep:" " args);
+          eprintf "[enfflash] Running: %s\n" (String.concat ~sep:" " args);
           never_returns (Core_unix.exec ~prog:bin ~argv:args ())
         end
       end else begin
@@ -195,14 +195,14 @@ module Enfguard = struct
               @ (match state_file with Some s -> ["--state"; s] | None -> [])
             in
             if verbose > 0 then
-              eprintf "[enfguard] Running: %s\n" (String.concat ~sep:" " args);
+              eprintf "[enfflash] Running: %s\n" (String.concat ~sep:" " args);
             never_returns (Core_unix.exec ~prog:bin ~argv:args ())
           | None -> ()
       end
 
   let command =
     Command.basic
-      ~summary:"EnfGuard: compile and run MFOTL enforcement policies"
+      ~summary:"Enfflash: compile and run MFOTL enforcement policies"
       (let%map_open.Command
          debug        = flag "-debug"       no_arg               ~doc:" Enable debug mode"
        and sig_file   = flag "-sig"         (optional string)    ~doc:"FILE Signature file"
@@ -260,4 +260,4 @@ module Enfguard = struct
 
 end
 
-let () = Command_unix.run Enfguard.command
+let () = Command_unix.run Enfflash.command

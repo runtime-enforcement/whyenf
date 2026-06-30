@@ -8,7 +8,7 @@ import tempfile
 from time import time
 from tqdm import tqdm # type: ignore
 
-ENFGUARD_PATH  = Path("./_build/default/bin/enfguard.exe")
+ENFGUARD_PATH  = Path("./_build/default/bin/enfflash.exe")
 CONFIG  = Path("./tests/config.json")
 SUMMARY = Path("./tests/summary.csv")
 EXAMPLE = Path("./examples/tests")
@@ -56,7 +56,7 @@ class Test:
             command += ["-state", str(self.state)]
         self.command = command
 
-    def _run_enfguard(self) -> subprocess.CompletedProcess[str]:
+    def _run_enfflash(self) -> subprocess.CompletedProcess[str]:
         # If a state file is involved, copy it to a temp file so the original is not mutated
         tmp_state = None
         command = list(self.command)
@@ -82,7 +82,7 @@ class Test:
     def run(self) -> pd.Series:
         print(f"Running test {self.label}...".ljust(48), end=' ')
         start_time = time()
-        completed_process = self._run_enfguard()
+        completed_process = self._run_enfflash()
         actual_success = completed_process.returncode == 0
         actual_output = completed_process.stdout
         end_time = time()

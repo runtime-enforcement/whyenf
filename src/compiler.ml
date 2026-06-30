@@ -372,10 +372,23 @@ let snow_trigger_to_clause
   let base_patterns = decompose_guard_disj trigger.guards in
   (* Flatten the filter into conjuncts *)
   let conjuncts = flatten_conj trigger.filter in
+  (* A [force_filter] let must never be promoted into a guard pattern: guard
+     extraction left it in the filter precisely because its variables are
+     already bound, so it is a membership test, and it is emitted as a
+     `filter let` (not enumerable).  Promoting it would make a filter-let
+     appear as a guard pattern (a type error) and re-introduce the table
+     enumeration the downgrade was meant to avoid. *)
+  let is_force_filter name =
+    match Map.find let_map name with
+    | Some def -> def.Tnformula.force_filter
+    | None ->
+      (match Map.find let_map (String.chop_suffix_if_exists ~suffix:"_pos" name) with
+       | Some def -> def.Tnformula.force_filter
+       | None -> false) in
   (* Separate event predicates from non-event parts *)
   let events, rest = List.partition_tf conjuncts ~f:(fun f ->
       match f.form with
-      | Tyformula.Predicate (name, _) -> is_pattern_event name
+      | Tyformula.Predicate (name, _) -> is_pattern_event name && not (is_force_filter name)
       | _ -> false) in
   (* Convert event predicates to guard patterns, collecting extra filters *)
   let event_patterns = ref [] in
@@ -682,7 +695,9 @@ let compile_let_from_switch
     ~(name: string)
     ~(label: string option)
     ~(args: (Tterm.TypedVar.t * Dom.tt option) list)
+    ?(force_filter = false)
     ~(switch: Switch.t)
+    ()
   : [`Let of Enfflash.let_def | `Table of Enfflash.table_def
     | `Agg of Enfflash.agg_let_def | `Top of Enfflash.top_let_def] =
   let columns =
@@ -693,14 +708,21 @@ let compile_let_from_switch
   | Switch.Now trigger ->
     (* Present-time predicate → let-def with a proper clause.
        Guard events (trace events, let-defs) become event patterns;
-       non-event guards and the trigger filter become the clause filter. *)
-    let clause = snow_trigger_to_clause ~let_map trigger in
+       non-event guards and the trigger filter become the clause filter.
+       When [force_filter] is set (the let is never enumerated — see
+       [Extraction.downgrade_filter_lets]), the whole body becomes a boolean
+       test instead, so no growing table is enumerated to evaluate it. *)
+    let clause =
+      if force_filter then
+        Enfflash.{ cl_patterns = [];
+                   cl_filter = formula_to_filter (Trigger.to_formula true trigger) }
+      else snow_trigger_to_clause ~let_map trigger in
     let has_patterns = not (List.is_empty clause.cl_patterns)
                        || not (List.for_all clause.cl_patterns
                                 ~f:List.is_empty) in
     `Let Enfflash.{
         ld_label = label;
-        ld_is_filter = not has_patterns;
+        ld_is_filter = force_filter || not has_patterns;
         ld_name  = sanitized;
         ld_params = columns;
         ld_clause = clause;
@@ -1105,12 +1127,13 @@ let compile
   List.iter lets ~f:(fun (cl : Tnformula.let_def) ->
       let name = cl.name and args = cl.args
       and body_pos = cl.body_pos and body_neg_opt = cl.body_neg_opt
-      and filter_trigger_opt = cl.filter_trigger_opt in
+      and filter_trigger_opt = cl.filter_trigger_opt
+      and force_filter = cl.force_filter in
       let label, _sanitized = parse_label_name name in
       let emit_variant vname vlabel switch_opt fallback_body =
         match switch_opt with
         | Some switch ->
-          (match compile_let_from_switch ~let_map ~name:vname ~label:vlabel ~args ~switch with
+          (match compile_let_from_switch ~let_map ~name:vname ~label:vlabel ~args ~force_filter ~switch () with
            | `Let ld  -> let_defs := ld :: !let_defs; items := Enfflash.PiLet ld :: !items
            | `Table td -> tables := td :: !tables; items := Enfflash.PiTable td :: !items
            | `Agg ad -> agg_lets := ad :: !agg_lets; items := Enfflash.PiAgg ad :: !items
@@ -1442,7 +1465,7 @@ let edg_dir ?(moderate : bool = true) ?(py_source : string option = None)
      expanded graph per recursive (fixpoint) section. *)
   List.iter (Enfflash.rdg_export ~drop_monotone program) ~f:(fun (name, content) -> emit name content);
   Stdio.eprintf "%s" (Edg.summary_to_string edg);
-  Stdio.eprintf "[enfguard] EDG graphs + policy.ef written to %s/ (%s)\n" dir
+  Stdio.eprintf "[enfflash] EDG graphs + policy.ef written to %s/ (%s)\n" dir
     (if have_dot then "DOT + rendered SVG" else "DOT only — install graphviz for SVG")
 
 let run
@@ -1456,6 +1479,15 @@ let run
   : Enfflash.program =
   let tnf     = extract_tnf ~b ~verbose ~moderate sformula in
   let program = compile ~drop_monotone ~py_source tnf in
+  (* Report a table-guard warning only for tables that actually appear in the
+     compiled program's per-time-point complexity, i.e. that the engine scans.
+     [Enforceability] over-approximates these (it also flags tables whose guard
+     is pulled solely to characterise a filter-only let, which is never scanned);
+     intersecting with the complexity's relations drops those false positives. *)
+  let scanned = Enfflash.scanned_relation_names program in
+  List.iter (Enforceability.last_table_guard_warnings ()) ~f:(fun (name, body) ->
+      if Set.mem scanned name then
+        Stdio.eprintf "WARNING: table %s used as guard (body: %s)\n" name body);
   Enfflash.write_program_to_file ~filename program;
   program
 

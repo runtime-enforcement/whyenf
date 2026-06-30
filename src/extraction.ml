@@ -116,7 +116,92 @@ let compile_lets (m : let_map)
                   body_pos; body_neg_opt = body_neg;
                   switch_pos_opt = le.switch_pos_opt;
                   switch_neg_opt = le.switch_neg_opt;
-                  clauses; filter_trigger_opt })
+                  clauses; filter_trigger_opt; force_filter = false })
+
+(* ------------------------------------------------------------------ *)
+(* downgrade_filter_lets                                                *)
+(*                                                                      *)
+(* A `Now` let whose predicate is only ever referenced in *filter*      *)
+(* (membership-test) positions never has to enumerate its body, so it   *)
+(* can be compiled as a `filter let` (a boolean test) instead of a      *)
+(* materialised, enumerable `let`.  Collapsing such a let keeps the      *)
+(* growing tables it would otherwise enumerate as guards out of the     *)
+(* per-time-point complexity.                                           *)
+(*                                                                      *)
+(* We compute the set of lets that *must* stay enumerable ("full") by a  *)
+(* backward fixpoint: a let is full iff it is referenced in a guard      *)
+(* (enumeration) position of                                            *)
+(*   (a) a top-level enforcement clause,                                 *)
+(*   (b) the add/remove trigger of a table (always materialised, so the  *)
+(*       predicates producing its tuples must stay enumerable), or       *)
+(*   (c) another full `Now` let.                                         *)
+(* Every other `Now` let has its guards folded into its filter, which    *)
+(* leaves [Trigger.to_formula true] — and hence the body — unchanged.    *)
+(* ------------------------------------------------------------------ *)
+
+let downgrade_filter_lets (let_map : Tnformula.let_map) (clauses : Clause.t list)
+  : Tnformula.let_map =
+  let no_lets = Map.empty (module String) in
+  let guard_refs (tr : Trigger.t) : string list =
+    Set.to_list (Trigger.guard_predicates ~lets:no_lets tr) in
+  let is_table_switch = function
+    | Some (Switch.Once _ | Switch.Since _ | Switch.Prev _
+           | Switch.Agg _ | Switch.Top _) -> true
+    | _ -> false in
+  let table_guard_refs : Switch.t option -> string list = function
+    | Some (Switch.Once (_, tr)) | Some (Switch.Prev (_, tr))
+    | Some (Switch.Agg (_, tr)) | Some (Switch.Top (_, tr)) -> guard_refs tr
+    | Some (Switch.Since (_, lt, rt)) -> guard_refs lt @ guard_refs rt
+    | _ -> [] in
+  let now_guard_refs (def : Tnformula.let_def) : string list =
+    let one = function Some (Switch.Now tr) -> guard_refs tr | _ -> [] in
+    one def.switch_pos_opt @ one def.switch_neg_opt in
+  (* A let can only become a filter let if every free variable of its body is one
+     of its arguments.  A full let *enumerates* its body and projects the
+     non-argument variables away; a filter let merely *tests membership* given
+     its arguments, so any non-argument (existential) variable would be unbound
+     and the test unsound.  A let that is not arg-closed must therefore stay a
+     full (enumerating) let — and, like any full let, its guards must too, so it
+     is seeded into [full] here rather than just skipped at emission. *)
+  let arg_closed (def : Tnformula.let_def) : bool =
+    let arg_vars = Set.of_list (module Var) (List.map def.args ~f:fst) in
+    let body_forms =
+      List.filter_map [def.switch_pos_opt; def.switch_neg_opt]
+        ~f:(Option.map ~f:(Switch.to_formula true)) in
+    Set.is_subset (fvs body_forms) ~of_:arg_vars in
+  (* Seed: guards of the enforcement clauses, the producing predicates of every
+     table (materialised whether or not it is enumerated), the guards of any
+     [filter_trigger_opt] — an unguardable-fallback let is emitted with those as
+     real guard patterns — and every let that is not arg-closed. *)
+  let seed =
+    List.concat_map clauses ~f:(fun c -> guard_refs c.Clause.trigger)
+    @ List.filter_map (Map.data let_map) ~f:(fun def ->
+        if arg_closed def then None else Some def.name)
+    @ List.concat_map (Map.data let_map) ~f:(fun def ->
+        (if is_table_switch def.switch_pos_opt
+         then table_guard_refs def.switch_pos_opt else [])
+        @ (match def.filter_trigger_opt with
+           | Some tr -> guard_refs tr
+           | None -> [])) in
+  let full = ref (Set.of_list (module String)
+                    (List.filter seed ~f:(Map.mem let_map))) in
+  let changed = ref true in
+  while !changed do
+    changed := false;
+    Set.iter !full ~f:(fun name ->
+        match Map.find let_map name with
+        | Some def ->
+          List.iter (now_guard_refs def) ~f:(fun g ->
+              if Map.mem let_map g && not (Set.mem !full g) then begin
+                full := Set.add !full g; changed := true end)
+        | None -> ())
+  done;
+  (* Mark every let that is never enumerated as a filter let.  ([full] already
+     contains every not-arg-closed let, so anything outside it is a sound
+     membership test.)  We keep the switch — and hence the guard structure the
+     EDG / sectioning analyses rely on — untouched; only emission changes. *)
+  Map.mapi let_map ~f:(fun ~key ~data ->
+      Tnformula.{ data with force_filter = not (Set.mem !full key) })
 
 (* ------------------------------------------------------------------ *)
 (* extract                                                  *)
@@ -148,7 +233,6 @@ let extract ?(orig : Tyformula.t option) (nf : Nformula.t) : Tnformula.t =
         match Constraints.solve constr with
         | sol :: _ ->
           let let_map = compile_lets nf.let_map sol in
-          let let_defs = List.map nf.let_names ~f:(fun name -> Map.find_exn let_map name) in
           let let_clauses = List.concat (List.map (Map.data let_map) ~f:(fun cl -> cl.clauses)) in
           let clauses = clauses @ List.rev let_clauses in
           (* New enforceability analysis: build the Event Dependency Graph and,
@@ -161,6 +245,11 @@ let extract ?(orig : Tyformula.t option) (nf : Nformula.t) : Tnformula.t =
           let flow_viol = Dataflow.run (Array.of_list clauses) in
           (match smt_conflicts, flow_viol with
            | [], [] ->
+             (* Downgrade lets that are only ever filtered (never enumerated) to
+                filter-lets, after the enforceability checks have validated the
+                original structure (the collapse is semantics-preserving). *)
+             let let_map = downgrade_filter_lets let_map clauses in
+             let let_defs = List.map nf.let_names ~f:(fun name -> Map.find_exn let_map name) in
              let formula = compile_formula let_defs (List.map clauses ~f:compile_clause) in
              Verdict.Possible [Tnformula.{ let_names = nf.let_names; let_map; clauses; formula }]
            | _ ->

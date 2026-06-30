@@ -11,15 +11,14 @@ def read_log(log):
     df = pd.read_csv(log, header=None, names=["ts", "line"], sep="|")
     return df
 
-def feeder(log, acc, p, q, queuing, lock, verbose):
+def feeder(log, p, q, queuing, lock, verbose):
     df = read_log(log)
     df["ts"] -= df["ts"].iloc[0]
-    t0 = time()
     data = []
     for tp, row in df.iterrows():
-        ts = int(row["ts"] / acc * 1000)
+        ts = row["ts"]
         try:
-            while (time()-t0)*1000 < ts and queuing.value > 0: # !!!!!!!!!!!!!!!!
+            while queuing.value > 0: # !!!!!!!!!!!!!!!!
                 pass
         except (TypeError, BrokenPipeError, ConnectionError, EOFError):
             # The parent timed out and tore down the manager: stop quietly.
@@ -70,14 +69,14 @@ def reader(p, q, queuing, lock, last_tp, desc, verbose):
     bar.close()
     q.put(data)
 
-def replay(log, last_tp, command, desc, acc=1000, to=600, verbose=False, sleep_time=5):
+def replay(log, last_tp, command, desc, to=600, verbose=False, sleep_time=5):
     p = Popen(command, stdin=PIPE, stdout=PIPE, stderr=sys.stderr, text=True, shell=True)
     manager = Manager()
     queuing = manager.Value('queuing', 0)
     q = Queue()
     lock = Lock()
     sleep(sleep_time)
-    f = Process(target=feeder, args=(log, acc, p, q, queuing, lock, verbose))
+    f = Process(target=feeder, args=(log, p, q, queuing, lock, verbose))
     r = Process(target=reader, args=(p, q, queuing, lock, last_tp, desc, verbose))
     r.start()
     f.start()

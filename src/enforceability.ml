@@ -41,6 +41,14 @@ let non_monotone_predicates_of_trigger
 let allow_table_guards = ref false
 let table_guard_warnings : (string * string) list ref = ref []
 
+(* The (table-name, body) pairs for every unbounded table that was pulled as a
+   guard during the most recent [enforce] call.  This is an over-approximation:
+   guards pulled to characterise filter-only let definitions are never scanned
+   at run time.  Callers filter this against the compiled program's complexity
+   before reporting (see [Compiler.run]). *)
+let last_table_guard_warnings () : (string * string) list =
+  List.rev !table_guard_warnings
+
 (* Set [ENFGUARD_DEBUG_TYPES] in the environment to dump the per-formula
    enforceability typing trace ([types: …] / [type(…) = …]).  Off by default so
    it does not pollute the tool's stdout (which tests diff against expected). *)
@@ -87,10 +95,10 @@ let rec pull_guard (m : GuardInfo.map) (x : Var.t) (p : bool) (trigger : Trigger
           match filter.form, p with
           | TT, false -> Some trigger
           | FF, true  -> Some trigger
-          | Predicate (r, trms), true when List.exists ~f:(Term.equal (Term.dummy_var x)) trms ->
+          | Predicate (r, trms), true when List.exists ~f:(Term.core_equal (Term.dummy_var x)) trms ->
             let is_unguardable, is_table, ld_opt = guard_quality r in
             if is_unguardable || (is_table && not allow_table) then (
-              (*print_endline (Printf.sprintf "%s.%s is unguardable" r (Var.to_string x));*)
+              (*print_endline (Printf.sprintf "%s.%s is unguardable (is_unguardable=%b, is_table=%b, allow_table=%b)" r (Var.to_string x) is_unguardable is_table allow_table);*)
               None
             )
             else begin
@@ -168,7 +176,7 @@ let rec pull_guard (m : GuardInfo.map) (x : Var.t) (p : bool) (trigger : Trigger
                 { trigger with Trigger.filter = filter })
           | _ -> None
         in
-        (*print_endline (Printf.sprintf "aux(%s, %s, %b) = %s"
+        (*print_endline (Printf.sprintf "pull_guard.aux(%s, %s, %b) = %s"
                          (Var.to_string x) (Tyformula.to_string filter) p
                          (Option.value (Option.map ~f:Trigger.to_string r ) ~default:"None"));*)
         r in
@@ -338,13 +346,13 @@ let types (t: Enftype.t) (norm: Lformula.t) (b: Interval.v) : 'a Verdict.v =
                        effects = [Effect.Cau ("Cau_" ^ e, terms)]; labels = [] }], constr)
               | None when Sig.mem e ->
                 let enftype = Sig.enftype_of_pred e in
-                if Enftype.geq enftype Enftype.cau then
+                if Enftype.is_causable enftype then
                   Possible [([{ Clause.trigger = Trigger.make (make_dummy TT);
                                 effects = [Effect.Cau (e, terms)]; labels = [] }],
                              Constraints.CConj [Constraints.CLeq (e, enftype);
                                                 Constraints.CGeq (e, Enftype.cau)])]
                 else Impossible (Errors.ECast (e, Enftype.cau, enftype))
-              | None -> Impossible (Errors.ECast (e, Enftype.obs, Enftype.sup))
+              | None -> Impossible (Errors.ECast (e, Enftype.obs, Enftype.cau))
             end
           | Neg f -> aux m (Enftype.neg t) f
           | And (_, fs) ->
@@ -510,7 +518,9 @@ let types (t: Enftype.t) (norm: Lformula.t) (b: Interval.v) : 'a Verdict.v =
                        effects = [Effect.Cau ("Sup_" ^ e, terms)]; labels = [] }], constr)
               | None when Sig.mem e ->
                 let enftype = Sig.enftype_of_pred e in
-                if Enftype.geq enftype Enftype.sup then
+                (*print_endline ("did not find " ^ e);
+                  print_endline (Printf.sprintf "case None %s %b" (Enftype.to_string enftype) (Enftype.is_suppressable enftype));*)
+                if Enftype.is_suppressable enftype then
                   Possible [[{ Clause.trigger = Trigger.make f;
                                effects = [Effect.Sup (e, terms)]; labels = [] }],
                             Constraints.CConj [Constraints.CLeq (e, enftype);
@@ -656,7 +666,7 @@ let types (t: Enftype.t) (norm: Lformula.t) (b: Interval.v) : 'a Verdict.v =
       | false, false -> assert false
     in
     if debug_types then
-      print_endline (Printf.sprintf "type(%s) = %s" (Tyformula.to_string f) (Verdict.to_string r ~to_string:(fun clauses_and_constraints -> String.concat ~sep:"\n" (List.map ~f:(fun (clauses, constraints) -> "- Clauses: " ^ String.concat ~sep:"; " (List.map ~f:Clause.to_string clauses) ^ "\n    - Constraints: " ^ Constraints.to_string constraints) clauses_and_constraints))));
+      print_endline (Printf.sprintf "type(%s, %s) = %s" (Tyformula.to_string f) (Enftype.to_string t) (Verdict.to_string r ~to_string:(fun clauses_and_constraints -> String.concat ~sep:"\n" (List.map ~f:(fun (clauses, constraints) -> "- Clauses: " ^ String.concat ~sep:"; " (List.map ~f:Clause.to_string clauses) ^ "\n    - Constraints: " ^ Constraints.to_string constraints) clauses_and_constraints))));
                      
     let r = Verdict.map r ~f:(fix_predicate_names_clauses_constr m) in
     r
@@ -721,6 +731,7 @@ let types (t: Enftype.t) (norm: Lformula.t) (b: Interval.v) : 'a Verdict.v =
   (* Type a let-bound expression *)
   let type_let ((m: let_map), (errors: Verdict.Errors.error list)) (let_def: let_def)
     : let_map * (Verdict.Errors.error list) =
+    (*print_endline ("type let: " ^ let_def.name);)*)
     let open Verdict in
     let body = let_def.body in
     let args = let_def.args |> List.map ~f:fst |> List.map ~f:Term.dummy_var in
@@ -844,6 +855,7 @@ let types (t: Enftype.t) (norm: Lformula.t) (b: Interval.v) : 'a Verdict.v =
         let gt = normalize_trigger ~vars:(Some vars) (guard_map_of_let_map m) (Trigger.make g) true body in
         match gt with
         | Impossible _error ->
+          (*print_endline ("normalization error: " ^ Verdict.Errors.to_string _error);*)
           let filter_trigger =
             normalize_trigger_best_effort
               ~vars:(Some vars) (guard_map_of_let_map m) (Trigger.make g) true body in
@@ -1059,8 +1071,12 @@ let enforce ?(verbose=true) (norm : Lformula.t) (b : Time.Span.s) : Nformula.t =
       types Enftype.cau norm b
     | ok -> ok
   in
-  List.iter (List.rev !table_guard_warnings) ~f:(fun (name, body) ->
-      Stdio.eprintf "WARNING: table %s used as guard (body: %s)\n" name body);
+  (* The table-guard warnings are *not* emitted here: pulling a table guard
+     while characterising a let definition does not mean the table is actually
+     scanned at run time — if the let is only ever used in filter position its
+     guard structure is dead.  We therefore stash the (over-approximate) list
+     and let the caller emit only those that survive into the compiled
+     program's per-time-point complexity (see [Compiler.run]). *)
   match verdict with
   | Verdict.Impossible err -> error_msg f err
   | Possible [nf] -> nf

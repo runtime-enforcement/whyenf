@@ -240,12 +240,6 @@ impl Table {
         }
     }
 
-    /// Check membership (O(log n)).
-    #[inline]
-    pub fn contains(&self, row: &Row) -> bool {
-        self.rows.contains(row)
-    }
-
     /// Number of tuples.
     #[inline]
     pub fn len(&self) -> usize {

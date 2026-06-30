@@ -20,3 +20,11 @@ module Term : module type of Tterm
 val enforce :
   ?verbose:bool ->
   Lformula.t -> Time.Span.s -> Nformula.t
+
+(** [last_table_guard_warnings ()] returns the (table-name, body) pairs for the
+    unbounded tables pulled as guards during the most recent [enforce] call.
+    This is an over-approximation — it includes tables whose guard is only used
+    to characterise filter-only let definitions and is therefore never scanned
+    at run time.  Filter it against the compiled program's complexity before
+    reporting to the user. *)
+val last_table_guard_warnings : unit -> (string * string) list

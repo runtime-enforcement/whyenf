@@ -1,0 +1,2 @@
+□ (∀data. ∀dsid. ds_consent(dsid, data) → call_function("register_consent", register_consent(dsid, data)) 
+               ∧ ds_revoke(dsid, data) → call_function("revoke_consent", revoke_consent(dsid, data)))

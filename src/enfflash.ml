@@ -416,6 +416,13 @@ let program_complexity (pg : program) : Complexity.t =
 let program_complexity_to_string (pg : program) : string =
   Complexity.to_string (program_complexity pg)
 
+(* The relations whose cardinality appears in the program's per-time-point
+   complexity — i.e. the unbounded tables/lets the engine actually enumerates
+   (scans) at run time.  A table that only ever serves as a membership filter
+   contributes [Complexity.One] and so is absent here. *)
+let scanned_relation_names (pg : program) : Set.M(String).t =
+  Set.of_list (module String) (Complexity.cards (program_complexity pg))
+
 (* ─── Serialization to .ef text format ───────────────────────────────────── *)
 
 let ef_ty_to_string = function

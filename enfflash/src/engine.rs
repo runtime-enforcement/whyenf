@@ -128,15 +128,6 @@ macro_rules! vlog {
     };
 }
 
-/// Level-2 verbose macro: prints only when verbose_level >= 2.
-macro_rules! vlog2 {
-    ($self:expr, $($arg:tt)*) => {
-        if $self.verbose_level >= 2 {
-            eprintln!($($arg)*);
-        }
-    };
-}
-
 // ─── Event → table/let dependency precomputation ─────────────────────────────
 
 fn collect_clause_refs(
@@ -1160,8 +1151,6 @@ impl Engine {
             eval_waves = &flat_wrap;
         } else {
             eval_waves = &waves;
-            flat_sections = vec![];
-            flat_wrap = vec![];
         }
 
         for wave in eval_waves {
@@ -1194,6 +1183,14 @@ impl Engine {
                     }
                 }
                 for l in &aff_lets { self.let_computed.remove(l); }
+                // Algorithm Saturate evaluates each definition's value R_i(p_i)
+                // afresh every pass over R = T ∪ (D∖S) ∪ C, so a `table` def's
+                // value reflects the events caused so far in this fixpoint.  We
+                // realise that per-pass re-derivation incrementally: commit the
+                // newly-caused events into the (persistent) table now so later
+                // rules in the same fixpoint read the updated value.  The same
+                // store doubles as the algorithm's persistent T(p_i), which is
+                // what carries to the next time-point.
                 if !aff_tables.is_empty() {
                     self.update_tables_and_lets_filtered(&working_events, false, Some(&aff_tables));
                 }
@@ -1355,7 +1352,11 @@ impl Engine {
                                     if !combined_labels.is_empty() {
                                         working_labels.insert((ev.name.clone(), ev.args.clone()), combined_labels.clone());
                                     }
-                                    working_events.push(ev.clone());
+                                    // R₀ = T ∪ (D∖S) ∪ C: a suppressed event must
+                                    // not be (re)injected into the interpretation.
+                                    // (Downstream dependencies on "not suppressed"
+                                    // are expressed by the compiler via Sup_ gating
+                                    // events, so no physical row deletion is needed.)
                                     new_suppress.push((ev, combined_labels));
                                 }
                             }
@@ -1546,8 +1547,133 @@ impl Engine {
                 }
             }
         }
+        // ── ν re-runs Saturate (Algorithm ν, line 813) ──────────────────────
+        // Let the proactively-caused events cascade through the rule set, exactly
+        // as the paper's ν seeds the freshly-caused events into C and re-runs
+        // Saturate.  The cascade is delta-driven (only rules whose trigger reads
+        // a newly-present event are re-evaluated), so pure-table rules are not
+        // spuriously re-fired at this virtual proactive timestamp — matching the
+        // reactive fixpoint's own delta strategy.  Suppressed events are removed
+        // from the interpretation (R₀ = T ∪ (D∖S) ∪ C).  As in Saturate, the
+        // proactively-caused events are committed into the persistent tables so
+        // their effects carry to the next time-point.
+        let seed: Vec<EventInstance> =
+            proactive_cause.iter().map(|(e, _)| e.clone()).collect();
+        if !seed.is_empty() {
+            self.proactive_cascade(&seed, &mut seen_cause, &mut seen_suppress,
+                                   &mut proactive_cause, &mut proactive_suppress);
+        }
         self.collect_output(&proactive_suppress, &proactive_cause, true, None);
         self.current_ts = saved_ts;
+    }
+
+    /// Saturation cascade for the proactive function ν: re-evaluate the rules
+    /// whose triggers consume one of the proactively-caused `seed` events, to a
+    /// local fixpoint, appending any further caused/suppressed events to
+    /// `out_cause`/`out_suppress`.  Mirrors the reactive fixpoint: it is
+    /// delta-driven from `seed` and, like Saturate, commits the caused events
+    /// into the persistent tables (so their effect carries to the next
+    /// time-point) and invalidates the dependent let-definitions.
+    fn proactive_cascade(
+        &mut self,
+        seed: &[EventInstance],
+        seen_cause: &mut HashSet<(String, Vec<Value>)>,
+        seen_suppress: &mut HashSet<(String, Vec<Value>)>,
+        out_cause: &mut Vec<(EventInstance, Vec<String>)>,
+        out_suppress: &mut Vec<(EventInstance, Vec<String>)>,
+    ) {
+        let mut working_events: Vec<EventInstance> = seed.to_vec();
+        let mut newly: Vec<EventInstance> = seed.to_vec();
+        // Index up to which `working_events` have been committed into tables/lets.
+        let mut processed = 0usize;
+        const MAX_ITERATIONS: usize = 100;
+        let mut iterations = 0;
+        while !newly.is_empty() && iterations < MAX_ITERATIONS {
+            iterations += 1;
+            // Commit the events caused so far (the seed on the first pass) into
+            // the persistent tables, and invalidate the let-defs they feed, so
+            // table- and let-routed dependencies see them — the per-pass value
+            // re-derivation / T(p) commit of Algorithm Saturate.
+            if working_events.len() > processed {
+                let mut aff_tables: HashSet<String> = HashSet::default();
+                let mut aff_lets:   HashSet<String> = HashSet::default();
+                for ev in &working_events[processed..] {
+                    if let Some(ts) = self.event_to_tables.get(&ev.name) {
+                        for t in ts { aff_tables.insert(t.clone()); }
+                    }
+                    if let Some(ls) = self.event_to_lets.get(&ev.name) {
+                        for l in ls { aff_lets.insert(l.clone()); }
+                    }
+                }
+                for l in &aff_lets { self.let_computed.remove(l); }
+                if !aff_tables.is_empty() {
+                    self.update_tables_and_lets_filtered(&working_events, false, Some(&aff_tables));
+                }
+                processed = working_events.len();
+            }
+            // Rules whose trigger transitively reads one of the new event types.
+            let mut aff_rules: HashSet<usize> = HashSet::default();
+            for ev in &newly {
+                if let Some(rs) = self.event_to_rules.get(&ev.name) {
+                    aff_rules.extend(rs.iter().copied());
+                }
+            }
+            let present: HashSet<String> =
+                working_events.iter().map(|e| e.name.clone()).collect();
+            let mut aff_sorted: Vec<usize> = aff_rules.into_iter().collect();
+            aff_sorted.sort_unstable();
+            let mut next_new: Vec<EventInstance> = Vec::new();
+            for rule_idx in aff_sorted {
+                // SAFETY: program.rules is not mutated during evaluation.
+                let rule: &RuleDef = unsafe { &*self.program.rules.as_ptr().add(rule_idx) };
+                if !self.clause_feasible(&rule.trigger, &present) { continue; }
+                let deps: *const Vec<String> = &self.rule_let_deps[rule_idx];
+                for dep in unsafe { &*deps } { self.ensure_let_computed(dep, &working_events); }
+                let bindings = self.match_clause_against_events(&rule.trigger, &working_events);
+                for env in &bindings {
+                    let args: Vec<Value> = rule.params.iter()
+                        .map(|p| self.try_eval_term(p, env).clone().unwrap_or(Value::Bool(false)))
+                        .collect();
+                    let ev = EventInstance { name: rule.event.clone(), args };
+                    let labels: Vec<String> = if self.label_mode {
+                        rule.label.iter().cloned().collect()
+                    } else { vec![] };
+                    // delay/next during proactive saturation queue new obligations
+                    if let Some(tp_off) = rule.tp_offset {
+                        self.next_tp_obligations.push(Obligation {
+                            event: ev, action: rule.action, deadline: tp_off.max(1),
+                            validate: rule.validate.clone(), env: env.clone(), rule_idx, labels });
+                        continue;
+                    }
+                    if let Some(delay) = rule.delay {
+                        let dl = self.current_ts.unwrap() + delay;
+                        self.obligations.entry(dl).or_default().push(Obligation {
+                            event: ev, action: rule.action, deadline: dl,
+                            validate: rule.validate.clone(), env: env.clone(), rule_idx, labels });
+                        continue;
+                    }
+                    let key = (ev.name.clone(), ev.args.clone());
+                    match rule.action {
+                        RuleAction::Cause => {
+                            if seen_cause.insert(key) {
+                                working_events.push(ev.clone());
+                                next_new.push(ev.clone());
+                                out_cause.push((ev, labels));
+                            }
+                        }
+                        RuleAction::Suppress => {
+                            if seen_suppress.insert(key) {
+                                // R₀ = T ∪ (D∖S) ∪ C: drop the suppressed event.
+                                working_events.retain(|e| !(e.name == ev.name && e.args == ev.args));
+                                out_suppress.push((ev, labels));
+                            }
+                        }
+                        RuleAction::Observe => {}
+                    }
+                }
+            }
+            newly = next_new;
+        }
     }
 
     /// Discharge obligations for timestamps in [from_ts, up_to_ts).
@@ -2662,12 +2788,6 @@ impl Engine {
         }
     }
 
-    fn is_filter_let(&self, name: &str) -> bool {
-        self.let_defs
-            .get(name)
-            .map(|d| d.is_filter)
-            .unwrap_or(false)
-    }
 
     /// True if `name` resolves to a backing table for guard/lookup matching: a
     /// declared table, a non-filter let, or an aggregation / table-op let.  All

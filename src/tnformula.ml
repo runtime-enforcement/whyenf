@@ -13,6 +13,12 @@ type let_def = {
   switch_neg_opt     : Switch.t option;
   clauses            : Clause.t list;
   filter_trigger_opt : Trigger.t option;
+  (* Set by [Extraction.downgrade_filter_lets] when this let is only ever used
+     in filter (membership-test) positions: the compiler then emits it as a
+     `filter let` (its whole body becomes a boolean test) instead of a
+     materialised, enumerable let, keeping the tables it would otherwise
+     enumerate out of the per-time-point complexity. *)
+  force_filter       : bool;
 }
 
 type let_map = (string, let_def, String.comparator_witness) Map.t

@@ -13,6 +13,7 @@ type let_def = {
   switch_neg_opt     : Switch.t option;
   clauses            : Clause.t list;
   filter_trigger_opt : Trigger.t option;
+  force_filter       : bool;
 }
 
 type let_map = (string, let_def, String.comparator_witness) Map.t

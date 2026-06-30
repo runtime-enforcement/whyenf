@@ -1,22 +1,19 @@
 (lang dune 3.13)
 
-(name enfguard)
+(name enfflash)
 
 (generate_opam_files true)
 
 (source
- (github runtime-enforcement/enfguard))
+ (github runtime-enforcement/enfflash))
 
 (authors
  "François Hublet <fhublet@ethz.ch>"
- "Leonardo Lima <leonardo@di.ku.dk>"
  "David Basin <basin@inf.ethz.ch>"
- "Srđan Krstić <srdan.krstic@inf.ethz.ch>"
- "Dmitriy Traytel <traytel@di.ku.dk>")
+ "Srđan Krstić <srdan.krstic@inf.ethz.ch>")
 
 (maintainers
- "François Hublet <fhublet@ethz.ch>"
- "Leonardo Lima <leonardo@di.ku.dk>")
+ "François Hublet <fhublet@ethz.ch>")
 
 (license LICENSE)
 
@@ -25,7 +22,7 @@
 (using menhir 3.0)
 
 (package
- (name enfguard)
+ (name enfflash)
  (synopsis "")
  (description "Proactive Runtime Enforcement")
  (depends

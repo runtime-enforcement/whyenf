@@ -5,7 +5,7 @@ from evaluation import run_experiments, merge_summary_dfs
 
 ACCELERATIONS = [1, 2, 4, 8, 16, 32, 64, 128, 256]
 TIME_UNIT     = 1
-N             = 1   # iterations per (formula, log, acceleration)
+N             = 3   # iterations per (formula, log, acceleration)
 SMOKE_TEST    = False
 BINARY_SEARCH = True  # binary-search the fastest real-time acceleration instead of sweeping all
 
@@ -17,11 +17,11 @@ def have(exe: str) -> bool:
 
 # Tools to evaluate. Each reads the formulae in benchmarks/cluster/<option>/formulae/
 # (enfflash and enfguard share the same MFOTL set via symlink -> lifeboat).
-#   * enfflash : our tool (symlink -> repo bin/enfguard.exe, execs Rust enfflash).
+#   * enfflash : our tool (symlink -> repo bin/enfflash.exe, execs Rust enfflash).
 #   * enfguard : the old enfguard (symlink -> ~/Tools/enfguard/bin/enfguard.exe).
 TOOLS = [
     ('enfflash', './enfflash.exe'),
-    ('enfguard', './enfguard.exe'),
+    #('enfguard', './enfguard.exe'),
 ]
 
 results = {}
@@ -34,14 +34,12 @@ for option, exe in TOOLS:
         option        = option,
         benchmark     = 'cluster',
         exe           = exe,
-        accelerations = ACCELERATIONS,
         n             = N,
         time_unit     = TIME_UNIT,
         func          = True,
         only_graph    = False,
         to            = 60,
         smoke_test    = SMOKE_TEST,
-        binary_search = BINARY_SEARCH,
     )
     results[option] = result
 

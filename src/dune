@@ -6,6 +6,6 @@
  (explain true))
 
 (library
- (name enfguard_lib)
+ (name enfflash_lib)
  (libraries MFOTL_lib core_kernel base zarith unix pyml calendar str z3)
  (preprocess (pps ppx_jane)))

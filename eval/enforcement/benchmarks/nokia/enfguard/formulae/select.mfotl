@@ -1,0 +1,8 @@
+ALWAYS (
+  FORALL user, data. 
+    select(user, "db2", data) 
+    IMPLIES (
+         (user = "script")
+      OR (user = "triggers")
+    )
+)

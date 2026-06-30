@@ -1,0 +1,1 @@
+ALWAYS (FORALL x. (PREV[0,15] C(x)) IMPLIES:R B(x))

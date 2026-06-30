@@ -83,7 +83,22 @@ let rec pull_lets ?(i=0) ?(m:(string, Var.t list * t, String.comparator_witness)
                        le_body = { f with form = g.form }; le_origin = origin }],
       { f with form = Predicate (e, List.map ~f:Tterm.dummy_var fvs) }
     | Forall (x, f) ->
-      pull_lets ~i ~m { form with form = Neg ({ form with form = Exists (x, { form with form = Neg f }) }) }
+      (* Collect a maximal block of consecutive universals  ∀x₁…∀xₙ. f  and
+         rewrite it as  ¬∃x₁…∃xₙ. ¬f  in a single step.  Rewriting one
+         quantifier at a time interleaves double negations
+         (¬∃x.¬(¬∃y.¬…)), which prevents [all_exists] from grouping the
+         existentials: each ends up in its own let, and the enforcement
+         realiser then emits a redundant chain of [Sup_Exists] obligation
+         events — one per variable.  Keeping the block together yields a
+         single ∃-let discharged by one guarded suppression clause. *)
+      let rec all_forall form = match form.form with
+        | Forall (y, g) -> let ys, h = all_forall g in (y :: ys, h)
+        | _ -> ([], form) in
+      let xs, body = all_forall { form with form = Forall (x, f) } in
+      let neg_body = { form with form = Neg body } in
+      let exists = List.fold_right xs ~init:neg_body
+          ~f:(fun y g -> { form with form = Exists (y, g) }) in
+      pull_lets ~i ~m { form with form = Neg exists }
     | Prev (itv, f) ->
       let origin = form in
       let i, lets, f = pull_lets ~i ~m f in
@@ -206,9 +221,9 @@ let to_string (lf: t) =
 
 let make ?(moderate=true) (f : Tyformula.t) : t =
   let origin = f in
-  let f = f |> push_negs |> convert_vars |> convert_lets
-            |> unroll_let ~moderate |> simplify |> ac_simplify in
-  let f = push_quants f in
+  let f = f
+    |> push_negs |> convert_vars |> convert_lets
+    |> unroll_let ~moderate |> push_quants |> simplify |> ac_simplify in
   let lets, f = do_pull_lets f in
   let f = ac_simplify f in
   let lets = List.map ~f:(fun le -> { le with le_body = ac_simplify le.le_body }) lets in
