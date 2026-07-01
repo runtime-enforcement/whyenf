@@ -34,3 +34,7 @@ docs/*/*/*.el
 *.secreteval/enforcement/benchmarks/ic/enfguard/logs/*.log
 eval/enforcement/benchmarks/ic/monpoly/logs/*.log
 eval/enforcement/benchmarks/nokia/enfguard/logs/*.log
+eval/enforcement/benchmarks/nokia/monpoly/logs/*.log
+eval/enforcement/benchmarks/nokia/enfflash/logs/*.log
+eval/enforcement/benchmarks/nokia/enfpoly/logs/*.log
+eval/enforcement/benchmarks/nokia/whyenf/logs/*.log

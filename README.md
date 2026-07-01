@@ -112,6 +112,12 @@ $ ./enfflash -sig <sig> -formula <formula> -parallel [-num-groups K] [-filtered]
 $ dune clean
 ```
 
+## Evaluation
+
+Reproduction instructions for the empirical benchmarks (gdpr, fun, cluster, agg, ic, nokia),
+including installation of the comparison tools (MonPoly/Enfpoly, EnfGuard, WhyEnf), are in
+[eval/enforcement/README.md](eval/enforcement/README.md).
+
 ## License
 
 This project and its predecessors EnfGuard, WhyEnf, and WhyMon are licensed under the
