@@ -27,6 +27,7 @@ TOOLS = [
     ('enfflash', './enfflash.exe'),
     ('enfpoly',  './enfpoly.exe'),
     ('monpoly',  './monpoly.exe'),
+    ('whyenf',   './whyenf.exe'),
     ('enfguard', './enfguard.exe'),
 ]
 

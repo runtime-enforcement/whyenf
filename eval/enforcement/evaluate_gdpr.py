@@ -25,7 +25,8 @@ TOOLS = [
     #('enfflash', './enfflash.exe'),
     ('enfpoly',  './enfpoly.exe'),
     ('monpoly',  './monpoly.exe'),
-    ('enfguard', './enfguard.exe'),    
+    ('whyenf',   './whyenf.exe'),
+    ('enfguard', './enfguard.exe'),
 ]
 
 results = {}

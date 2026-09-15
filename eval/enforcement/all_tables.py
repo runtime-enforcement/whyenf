@@ -31,12 +31,21 @@ from evaluation import table
 
 # Benchmarks (in order) and the tools (column order) shown in tab:micro.
 BENCHMARKS: List[str] = ["gdpr", "fun", "cluster", "agg", "nokia", "ic"]
-TOOLS: List[str] = ["enfflash", "monpoly", "enfpoly", "enfguard"]
+TOOLS: List[str] = ["enfpoly", "whyenf", "enfguard", "enfflash", "monpoly"]
 TOOL_HEADERS: Dict[str, str] = {
     "enfflash": "Enfflash",
+    "whyenf": "WhyEnf",
     "monpoly":  "Monpoly",
     "enfpoly":  "Enfpoly",
     "enfguard": "EnfGuard",
+}
+CITATION: Dict[str, str] = {
+    "gdpr": "Arfelt2019",
+    "fun": "Hublet2025",
+    "cluster": "Hublet2025",
+    "agg": "Basin2015b",
+    "nokia": "Kiukkonen2010",
+    "ic": "Basin2023b",
 }
 
 OUTPUTS = "outputs"
@@ -88,6 +97,7 @@ def build() -> str:
 
     for b in BENCHMARKS:
         per_tool = results[b]
+        citation = CITATION[b]
         # Union of policies seen for this benchmark, in enfflash's order if present.
         ordered: List[str] = []
         seen = set()
@@ -103,7 +113,7 @@ def build() -> str:
             continue  # benchmark not run yet — skip silently
 
         lines.append(r"\midrule")
-        lines.append(r"\multicolumn{%d}{l}{\emph{\textsc{%s}}} \\" % (2 * len(TOOLS) + 1, b))
+        lines.append(r"\multicolumn{%d}{l}{\emph{\textsc{%s}}~\cite{%s}} \\" % (2 * len(TOOLS) + 1, b, citation))
 
         for p in ordered:
             # Resolve each tool's row for this policy, then bold the fastest
