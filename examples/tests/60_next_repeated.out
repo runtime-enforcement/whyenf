@@ -32,8 +32,14 @@
 [Enforcer] @38 nothing to do proactively.
 [Enforcer] @39 nothing to do proactively.
 [Enforcer] @40 OK.
-[Enforcer] @40 nothing to do proactively.
-[Enforcer] @41 nothing to do proactively.
+[Enforcer] @40 proactively commands:
+Cause:
+B(50)
+OK.
+[Enforcer] @41 proactively commands:
+Cause:
+B(50)
+OK.
 [Enforcer] @42 nothing to do proactively.
 [Enforcer] @43 nothing to do proactively.
 [Enforcer] @44 nothing to do proactively.
@@ -42,10 +48,7 @@
 [Enforcer] @47 nothing to do proactively.
 [Enforcer] @48 nothing to do proactively.
 [Enforcer] @49 nothing to do proactively.
-[Enforcer] @50 reactively commands:
-Cause:
-B(50)
-OK.
+[Enforcer] @50 OK.
 [Enforcer] @50 nothing to do proactively.
 [Enforcer] @51 nothing to do proactively.
 [Enforcer] @52 nothing to do proactively.
@@ -56,8 +59,8 @@ OK.
 [Enforcer] @57 nothing to do proactively.
 [Enforcer] @58 nothing to do proactively.
 [Enforcer] @59 nothing to do proactively.
-[Enforcer] @60 reactively commands:
+[Enforcer] @60 OK.
+[Enforcer] @60 proactively commands:
 Cause:
 B(50)
 OK.
-[Enforcer] @60 nothing to do proactively.

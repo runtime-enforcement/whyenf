@@ -443,8 +443,14 @@ let types (t: Enftype.t) (norm: Lformula.t) (b: Interval.v) : 'a Verdict.v =
                         Some { Clause.trigger; effects = List.map effects ~f:(Effect.eventualize (set_b i)); labels }
                       else
                         None))
-                  with | Some clauses -> Some (clauses, constr)
-                       | None -> None) in
+                  with
+                  (* Without any deferred causation, nothing guarantees that a
+                     time-point exists within the interval (e.g. EVENTUALLY[5,5]
+                     TRUE): only accept it if the interval contains 0. *)
+                  | Some clauses when Interval.has_zero i
+                                      || List.exists clauses ~f:(fun c -> not (List.is_empty c.Clause.effects)) ->
+                    Some (clauses, constr)
+                  | _ -> None) in
             (match solutions with
              | [] -> Impossible (
                  Errors.EFormula (Some (
@@ -459,9 +465,15 @@ let types (t: Enftype.t) (norm: Lformula.t) (b: Interval.v) : 'a Verdict.v =
             let inner_is, inner_fs = destruct_nexts f in
             let is = i :: inner_is in
             let fs = f :: inner_fs in
+            (* Intermediate time-points of a chain of NEXTs are only created
+               when something is due at them, so the time bounds of a chain
+               cannot be guaranteed: only unbounded chains (or a single NEXT)
+               are enforceable. *)
+            let chain_ok = List.length is <= 1 || not (List.exists is ~f:Interval.is_bounded) in
             let is = List.map ~f:set_b is in
             let f = Option.value ~default:f (List.last fs) in
             let** solutions = aux m t f in
+            let solutions = if not chain_ok then [] else solutions in
             let solutions =
               List.filter_map solutions ~f:(fun (clauses, constr) ->
                   match Option.all (List.map clauses ~f:(fun { Clause.trigger; effects; labels } ->
@@ -627,9 +639,15 @@ let types (t: Enftype.t) (norm: Lformula.t) (b: Interval.v) : 'a Verdict.v =
             let inner_is, inner_fs = destruct_nexts f in
             let is = i :: inner_is in
             let fs = f :: inner_fs in
+            (* Intermediate time-points of a chain of NEXTs are only created
+               when something is due at them, so the time bounds of a chain
+               cannot be guaranteed: only unbounded chains (or a single NEXT)
+               are enforceable. *)
+            let chain_ok = List.length is <= 1 || not (List.exists is ~f:Interval.is_bounded) in
             let is = List.map ~f:set_b is in
             let f = Option.value ~default:f (List.last fs) in
             let** solutions = aux m t f in
+            let solutions = if not chain_ok then [] else solutions in
             let solutions =
               List.filter_map solutions ~f:(fun (clauses, constr) ->
                   match Option.all (List.map clauses ~f:(fun { Clause.trigger; effects; labels } ->
@@ -757,7 +775,10 @@ let types (t: Enftype.t) (norm: Lformula.t) (b: Interval.v) : 'a Verdict.v =
               cau_sols_g, conj ~f:merge_clauses_constr sup_sols_f sup_sols_g
             else
               Impossible (EFormula (Some "Since's interval does not contain 0", g, Enftype.cau)),
-              sup_sols_g
+              (* With a > 0, the witness of the since lies strictly in the
+                 past, so the formula can only be falsified now by falsifying
+                 its *left* operand at the current time-point. *)
+              sup_sols_f
           in
           let cau_sols = Verdict.map cau_sols ~f:(fun clauses_constrs ->
               List.map clauses_constrs ~f:(fun (clauses, constr) ->

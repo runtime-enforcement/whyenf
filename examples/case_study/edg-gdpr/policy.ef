@@ -1,0 +1,244 @@
+// complexity (per time-point, O(1) events/stamp): |Once0|
+
+event collect(str, str, str);
+event delete(str, str, str);
+event ds_access_request(str);
+event ds_consent(str, str);
+event ds_deletion_request(str, str, str);
+event ds_object(str, str);
+event ds_repeal(str, str, str);
+event ds_restrict(str, str, str);
+event ds_revoke(str, str);
+event grant_access(str);
+event inform(str);
+event legal_grounds(str, str);
+event notify_proc(str, str);
+event share_with(str, str);
+event use(str, str, str);
+event Sup_Exists10(str, str);
+event Sup_Exists13(str);
+event Sup_Exists14();
+event Sup_Exists2(str);
+event Sup_Exists3();
+event Sup_Exists6();
+event Sup_Exists7(str, str);
+event Sup_Exists8(str);
+event Sup_Exists9();
+
+fun add(x:int, y:int) : int {
+    return x + y
+}
+fun conc(x:str, y:str) : str {
+    return x + y
+}
+fun div(x:int, y:int) : int {
+    return x // y
+}
+fun eq(x:int, y:int) : int {
+    return 1 if x == y else 0
+}
+fun fadd(x:float, y:float) : float {
+    return x + y
+}
+fun fdiv(x:float, y:float) : float {
+    return x / y
+}
+fun float_of_int(x:int) : float {
+    return float(x)
+}
+fun fmul(x:float, y:float) : float {
+    return x * y
+}
+fun fpow(x:float, y:float) : float {
+    return x ** y
+}
+fun fsub(x:float, y:float) : float {
+    return x - y
+}
+fun geq(x:int, y:int) : int {
+    return 1 if x >= y else 0
+}
+fun gt(x:int, y:int) : int {
+    return 1 if x > y else 0
+}
+fun int_of_float(x:float) : int {
+    return int(x)
+}
+fun leq(x:int, y:int) : int {
+    return 1 if x <= y else 0
+}
+fun lt(x:int, y:int) : int {
+    return 1 if x < y else 0
+}
+fun match(x:str, r:str) : int {
+    import re
+    return 1 if re.match(r, x) else 0
+}
+fun mul(x:int, y:int) : int {
+    return x * y
+}
+fun neq(x:int, y:int) : int {
+    return 1 if x != y else 0
+}
+fun not(x:int) : int {
+    return 0 if x else 1
+}
+fun pow(x:int, y:int) : int {
+    return x ** y
+}
+fun string_of_float(x:float) : str {
+    return str(x)
+}
+fun string_of_int(x:int) : str {
+    return str(x)
+}
+fun sub(x:int, y:int) : int {
+    return x - y
+}
+fun substr(x:str, start:int, end:int) : str {
+    return x[start:end]
+}
+fun ufsub(x:float) : float {
+    return -x
+}
+fun usub(x:int) : int {
+    return -x
+}
+
+table Once12(data_3:str, dsid_3:str) :=
+  add {
+    legal_grounds(dsid_3, data_3)
+  };
+
+table Since11(data_3:str, dsid_3:str) :=
+  add {
+    ds_consent(dsid_3, data_3)
+  }
+  remove {
+    ds_revoke(dsid_3, data_3)
+      if !false
+  };
+
+let Exists14() := {
+  use(data_3, dataid_3, dsid_3)
+    if !((Once12(data_3, dsid_3) | Since11(data_3, dsid_3)))
+}
+
+let Exists9() := {
+  ds_deletion_request(data_2, dataid_2, dsid_2)
+    if !delete(data_2, dataid_2, dsid_2)
+}
+
+table Once5(dsid_1:str) :=
+  add {
+    inform(dsid_1)
+  };
+
+let Exists6() := {
+  collect(data_1, dataid_1, dsid_1)
+    if !((true | Once5(dsid_1)))
+}
+
+let Exists6_pos() := {
+  collect(data_1, dataid_1, dsid_1)
+    if !((true | Once5(dsid_1)))
+}
+
+let Exists6_neg() := {
+  collect(data_1, dataid_1, dsid_1)
+    if !((false | Once5(dsid_1)))
+}
+
+table Once0(dataid:str, processorid:str) :=
+  add {
+    share_with(processorid, dataid)
+  };
+
+let Exists3() := {
+  ds_deletion_request(data, dataid, dsid) & Once0(dataid, processorid)
+    if !notify_proc(processorid, dataid)
+}
+
+section once;
+
+rule +Sup_Exists6() :=
+  trigger {
+    if Exists6_neg()
+  };
+
+section fixpoint;
+
+rule +Sup_Exists3() :=
+  trigger {
+    if Exists3()
+  };
+
+rule +Sup_Exists2(dataid) :=
+  trigger {
+    Sup_Exists3() & ds_deletion_request(data, dataid, dsid) & Once0(dataid, processorid)
+      if !notify_proc(processorid, dataid)
+  };
+
+rule +notify_proc(processorid, dataid) [delay 30] :=
+  trigger {
+    Sup_Exists2(dataid) & ds_deletion_request(data, dataid, dsid) & Once0(dataid, processorid)
+  };
+
+section fixpoint;
+
+rule +Sup_Exists9() :=
+  trigger {
+    if Exists9()
+  };
+
+rule +Sup_Exists8(data_2) :=
+  trigger {
+    Sup_Exists9() & ds_deletion_request(data_2, dataid_2, dsid_2)
+      if !delete(data_2, dataid_2, dsid_2)
+  };
+
+rule +Sup_Exists7(data_2, dataid_2) :=
+  trigger {
+    Sup_Exists8(data_2) & ds_deletion_request(data_2, dataid_2, dsid_2)
+      if !delete(data_2, dataid_2, dsid_2)
+  };
+
+rule +delete(data_2, dataid_2, dsid_2) [delay 30] :=
+  trigger {
+    Sup_Exists7(data_2, dataid_2) & ds_deletion_request(data_2, dataid_2, dsid_2)
+  };
+
+section fixpoint;
+
+rule +Sup_Exists14() :=
+  trigger {
+    if Exists14()
+  };
+
+rule +Sup_Exists13(data_3) :=
+  trigger {
+    Sup_Exists14() & use(data_3, dataid_3, dsid_3)
+      if !((Once12(data_3, dsid_3) | Since11(data_3, dsid_3)))
+  };
+
+rule +Sup_Exists10(data_3, dsid_3) :=
+  trigger {
+    Sup_Exists13(data_3) & use(data_3, dataid_3, dsid_3)
+      if !((Once12(data_3, dsid_3) | Since11(data_3, dsid_3)))
+  };
+
+rule -use(data_3, dataid_3, dsid_3) :=
+  trigger {
+    Sup_Exists10(data_3, dsid_3) & use(data_3, dataid_3, dsid_3)
+  };
+
+sync;
+
+section fixpoint;
+
+rule +inform(dsid_1) [next 1] :=
+  trigger {
+    Sup_Exists6() & collect(data_1, dataid_1, dsid_1)
+      if !Once5(dsid_1)
+  };
+

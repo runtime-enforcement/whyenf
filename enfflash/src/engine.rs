@@ -1056,6 +1056,10 @@ impl Engine {
         vlog!(self, "── Phase 1: update non-lagged tables and let-defs ──");
         let phase1_start = Instant::now();
         self.let_computed.clear();
+        // Snapshot the (non-lagged) tables fed by input events that some rule
+        // may suppress: if such an event is suppressed, these tables are rebuilt
+        // on the working set (D ∖ S) ∪ C (Algorithm Saturate).
+        let table_snapshot = self.snapshot_suppressable_tables(&tp.events);
         self.update_tables_and_lets(&tp.events, false);
         let phase1_elapsed = phase1_start.elapsed();
 
@@ -1132,6 +1136,9 @@ impl Engine {
         // working_events have been reflected in tables/lets; incremental updates only
         // process the slice working_events[last_processed..] against affected tables.
         let mut last_processed = tp.events.len();
+        // Names of events suppressed (and removed from the working set) since
+        // the last table/rule refresh.
+        let mut removed_names: HashSet<String> = HashSet::default();
 
         const MAX_ITERATIONS: usize = 100;
 
@@ -1198,6 +1205,11 @@ impl Engine {
                 if _iteration > 0 {
                     affected_rules = Some(aff_rules);
                 }
+            }
+            if !removed_names.is_empty() {
+                let extra = self.refresh_after_suppression(
+                    &mut removed_names, &table_snapshot, &working_events);
+                if let Some(aff) = affected_rules.as_mut() { aff.extend(extra); }
             }
 
             vlog!(self, "── Phase 2: fixpoint iteration {} ({} events in working set) ──",
@@ -1352,11 +1364,16 @@ impl Engine {
                                     if !combined_labels.is_empty() {
                                         working_labels.insert((ev.name.clone(), ev.args.clone()), combined_labels.clone());
                                     }
-                                    // R₀ = T ∪ (D∖S) ∪ C: a suppressed event must
-                                    // not be (re)injected into the interpretation.
-                                    // (Downstream dependencies on "not suppressed"
-                                    // are expressed by the compiler via Sup_ gating
-                                    // events, so no physical row deletion is needed.)
+                                    // R₀ = T ∪ (D∖S) ∪ C: a suppressed event is
+                                    // removed from the working set; tables and
+                                    // rules reading it are refreshed at the next
+                                    // iteration.
+                                    if let Some(pos) = working_events.iter()
+                                        .position(|e| e.name == ev.name && e.args == ev.args) {
+                                        working_events.remove(pos);
+                                        if pos < last_processed { last_processed -= 1; }
+                                        removed_names.insert(ev.name.clone());
+                                    }
                                     new_suppress.push((ev, combined_labels));
                                 }
                             }
@@ -1411,6 +1428,10 @@ impl Engine {
           } // end sec in wave
         } // end wave in waves
         self.waves = waves;
+        if !removed_names.is_empty() {
+            let _ = self.refresh_after_suppression(
+                &mut removed_names, &table_snapshot, &working_events);
+        }
 
         // Final incremental update: events caused in the last section of the last
         // wave haven't triggered a table update yet (the check runs at iteration
@@ -1484,7 +1505,12 @@ impl Engine {
                 table.prev_ts = Some(new_ts);
             }
         }
-        self.update_tables_and_lets(&tp.events, true);
+        // The lagged tables describe this time-point of the *output* trace:
+        // its events after enforcement, (D ∖ S) ∪ C, not the input events.
+        let final_events: Vec<EventInstance> = working_events.iter()
+            .filter(|e| !suppressed_set.contains(&(e.name.clone(), e.args.clone())))
+            .cloned().collect();
+        self.update_tables_and_lets(&final_events, true);
         let phase3_elapsed = phase3_start.elapsed();
 
         // Emit reactive output now that all phases are done, so we can include accurate timing.
@@ -1522,7 +1548,8 @@ impl Engine {
         // recently processed time-point's events (cloned to satisfy the borrow
         // checker — `ensure_lets_for_filter` mutates the let-tables).
         let validate_events = self.last_events.clone();
-        for ob in self.obligations.remove(&ts).unwrap_or_default() {
+        let due_delayed = self.obligations.remove(&ts).unwrap_or_default();
+        for ob in due_delayed.iter().cloned() {
             let valid = match &ob.validate {
                 Some(f) => {
                     self.ensure_lets_for_filter(f, &validate_events);
@@ -1547,6 +1574,62 @@ impl Engine {
                 }
             }
         }
+        // Next-tp obligations (from the Next operator) are due at the next
+        // time-point of the *output* trace.  The proactive output at `ts` is a
+        // time-point iff something is due at it (otherwise ν returns ⊥): then
+        // fire the next-tp obligations that are due and count this time-point
+        // for the others.  Without this, an obligation `NEXT[0,b] φ` would only
+        // be discharged at the next real time-point, possibly much later than
+        // `b` time units, and a proactive time-point in between would be
+        // skipped by the NEXT count.
+        let next_due = self.next_tp_obligations.iter().any(|ob| ob.deadline <= 1);
+        // ν inserts a time-point iff some obligation is due at it.
+        let point_exists = next_due || !due_delayed.is_empty();
+        if point_exists {
+            // The proactive time-point is a time-point of the output trace:
+            // advance metric tables and the gap window of lagged tables to
+            // its timestamp, as for a real time-point.
+            for table in self.tables.values_mut() {
+                if table.lagged {
+                    table.apply_lag_gap(ts);
+                } else if table.window.is_some() {
+                    table.advance(ts);
+                }
+            }
+        }
+        if point_exists {
+            let pending_next: Vec<Obligation> = std::mem::take(&mut self.next_tp_obligations);
+            for mut ob in pending_next {
+                if ob.deadline > 1 {
+                    ob.deadline -= 1;
+                    self.next_tp_obligations.push(ob);
+                    continue;
+                }
+                let valid = match &ob.validate {
+                    Some(f) => {
+                        self.ensure_lets_for_filter(f, &validate_events);
+                        self.eval_filter(f, &ob.env, &[])
+                    }
+                    None => true,
+                };
+                if valid {
+                    let key = (ob.event.name.clone(), ob.event.args.clone());
+                    match ob.action {
+                        RuleAction::Cause => {
+                            if seen_cause.insert(key) {
+                                proactive_cause.push((ob.event, ob.labels));
+                            }
+                        }
+                        RuleAction::Suppress => {
+                            if seen_suppress.insert(key) {
+                                proactive_suppress.push((ob.event, ob.labels));
+                            }
+                        }
+                        RuleAction::Observe => {}
+                    }
+                }
+            }
+        }
         // ── ν re-runs Saturate (Algorithm ν, line 813) ──────────────────────
         // Let the proactively-caused events cascade through the rule set, exactly
         // as the paper's ν seeds the freshly-caused events into C and re-runs
@@ -1562,6 +1645,23 @@ impl Engine {
         if !seed.is_empty() {
             self.proactive_cascade(&seed, &mut seen_cause, &mut seen_suppress,
                                    &mut proactive_cause, &mut proactive_suppress);
+        }
+        if point_exists {
+            // Lagged (Prev) tables now describe this proactive time-point.
+            let final_events: Vec<EventInstance> = proactive_cause.iter()
+                .map(|(e, _)| e.clone())
+                .filter(|e| !proactive_suppress.iter()
+                    .any(|(s, _)| s.name == e.name && s.args == e.args))
+                .collect();
+            for table in self.tables.values_mut() {
+                if table.lagged {
+                    table.clear();
+                    table.prev_ts = Some(ts);
+                }
+            }
+            self.let_computed.clear();
+            self.update_tables_and_lets(&final_events, true);
+            self.let_computed.clear();
         }
         self.collect_output(&proactive_suppress, &proactive_cause, true, None);
         self.current_ts = saved_ts;
@@ -1645,7 +1745,10 @@ impl Engine {
                             validate: rule.validate.clone(), env: env.clone(), rule_idx, labels });
                         continue;
                     }
-                    if let Some(delay) = rule.delay {
+                    // A zero delay is due at the current timestamp, whose
+                    // obligations are being discharged right now: apply it
+                    // immediately (queuing it would drop it).
+                    if let Some(delay) = rule.delay.filter(|d| *d > 0) {
                         let dl = self.current_ts.unwrap() + delay;
                         self.obligations.entry(dl).or_default().push(Obligation {
                             event: ev, action: rule.action, deadline: dl,
@@ -1723,6 +1826,57 @@ impl Engine {
 
     /// Like `update_tables_and_lets` but only processes the tables whose names
     /// are in `only_tables` (used for incremental updates).
+    /// Clone the non-lagged tables that are fed by an input event which some
+    /// rule may suppress.
+    fn snapshot_suppressable_tables(&self, events: &[EventInstance]) -> HashMap<String, Table> {
+        let mut snap: HashMap<String, Table> = HashMap::default();
+        for ev in events {
+            if !self.program.rules.iter().any(|r| matches!(r.action, RuleAction::Suppress)
+                && r.event == ev.name) {
+                continue;
+            }
+            if let Some(ts) = self.event_to_tables.get(&ev.name) {
+                for t in ts {
+                    if snap.contains_key(t) { continue; }
+                    if let Some(tab) = self.tables.get(t) {
+                        if !tab.lagged { snap.insert(t.clone(), tab.clone()); }
+                    }
+                }
+            }
+        }
+        snap
+    }
+
+    /// After events were suppressed (removed from the working set), rebuild
+    /// the tables they fed from the snapshot on the current working set,
+    /// invalidate lets, and return the rules to re-evaluate.
+    fn refresh_after_suppression(
+        &mut self,
+        removed: &mut HashSet<String>,
+        snapshot: &HashMap<String, Table>,
+        working_events: &[EventInstance],
+    ) -> HashSet<usize> {
+        let mut rebuild: HashSet<String> = HashSet::default();
+        let mut rules: HashSet<usize> = HashSet::default();
+        for n in removed.drain() {
+            if let Some(ts) = self.event_to_tables.get(&n) {
+                for t in ts {
+                    if snapshot.contains_key(t) { rebuild.insert(t.clone()); }
+                }
+            }
+            if let Some(rs) = self.event_to_rules.get(&n) { rules.extend(rs.iter().copied()); }
+        }
+        for t in &rebuild {
+            self.tables.insert(t.clone(), snapshot[t].clone());
+        }
+        self.let_computed.clear();
+        if !rebuild.is_empty() {
+            self.update_tables_and_lets_filtered(working_events, false, Some(&rebuild));
+            self.let_computed.clear();
+        }
+        rules
+    }
+
     fn update_tables_and_lets_filtered(
         &mut self,
         events: &[EventInstance],

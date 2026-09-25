@@ -1,0 +1,11 @@
+digraph RDG_sec3 {
+  rankdir=LR;
+  node [shape=box, fontsize=8];
+  n3 [label="+Sup_Exists3"];
+  n8 [label="+Sup_Exists2"];
+  n9 [label="+notify_proc"];
+  n9 -> n8;
+  n9 -> n3;
+  n8 -> n9;
+  n3 -> n8;
+}

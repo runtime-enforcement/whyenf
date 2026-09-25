@@ -242,7 +242,7 @@ let extract ?(orig : Tyformula.t option) (nf : Nformula.t) : Tnformula.t =
           let lets, _, _ = Splitting.maps_of_lets let_map in
           let edg = Edg.build ~lets clauses in
           let smt_conflicts = Smt_check.run edg in
-          let flow_viol = Dataflow.run (Array.of_list clauses) in
+          let flow_viol = Dataflow.run ~lets:nf.let_map (Array.of_list clauses) in
           (match smt_conflicts, flow_viol with
            | [], [] ->
              (* Downgrade lets that are only ever filtered (never enumerated) to

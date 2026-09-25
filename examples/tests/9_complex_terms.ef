@@ -1,0 +1,123 @@
+event A(int);
+event B(int);
+event C(int, int);
+event D(int);
+event Sup_Exists0(int);
+event Sup_Exists1();
+
+fun add(x:int, y:int) : int {
+    return x + y
+}
+fun conc(x:str, y:str) : str {
+    return x + y
+}
+fun div(x:int, y:int) : int {
+    return x // y
+}
+fun eq(x:int, y:int) : int {
+    return 1 if x == y else 0
+}
+fun f(x:int, y:int) : int {
+    return x + y
+}
+fun fadd(x:float, y:float) : float {
+    return x + y
+}
+fun fdiv(x:float, y:float) : float {
+    return x / y
+}
+fun float_of_int(x:int) : float {
+    return float(x)
+}
+fun fmul(x:float, y:float) : float {
+    return x * y
+}
+fun fpow(x:float, y:float) : float {
+    return x ** y
+}
+fun fsub(x:float, y:float) : float {
+    return x - y
+}
+fun g(x:int) : int {
+    if x == 0:
+        return 0
+    elif x > 0:
+        return x - 1
+    else:
+        return x + 1
+}
+fun geq(x:int, y:int) : int {
+    return 1 if x >= y else 0
+}
+fun gt(x:int, y:int) : int {
+    return 1 if x > y else 0
+}
+fun int_of_float(x:float) : int {
+    return int(x)
+}
+fun leq(x:int, y:int) : int {
+    return 1 if x <= y else 0
+}
+fun lt(x:int, y:int) : int {
+    return 1 if x < y else 0
+}
+fun match(x:str, r:str) : int {
+    import re
+    return 1 if re.match(r, x) else 0
+}
+fun mul(x:int, y:int) : int {
+    return x * y
+}
+fun neq(x:int, y:int) : int {
+    return 1 if x != y else 0
+}
+fun not(x:int) : int {
+    return 0 if x else 1
+}
+fun pow(x:int, y:int) : int {
+    return x ** y
+}
+fun string_of_float(x:float) : str {
+    return str(x)
+}
+fun string_of_int(x:int) : str {
+    return str(x)
+}
+fun sub(x:int, y:int) : int {
+    return x - y
+}
+fun substr(x:str, start:int, end:int) : str {
+    return x[start:end]
+}
+fun ufsub(x:float) : float {
+    return -x
+}
+fun usub(x:int) : int {
+    return -x
+}
+
+let Exists0(x:int) := {
+  !((!(B(x) & B(y) & !(x == y) & !A(f(x, y))) | C(x, y)))
+}
+
+filter let Exists1() := {
+  !(!Exists0(x))
+}
+
+rule +Sup_Exists1() :=
+  trigger {
+    if Exists1()
+  };
+
+rule +Sup_Exists0(x) :=
+  trigger {
+    Sup_Exists1()
+      if Exists0(x)
+  };
+
+rule +C(x, y) :=
+  trigger {
+    Sup_Exists0(x) & B(x) & B(y) & A(_)
+      if !(x == y)
+  };
+

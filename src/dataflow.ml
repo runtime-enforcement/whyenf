@@ -62,7 +62,19 @@ let effect_targets (c : Clause.t) : (string * Tterm.t list) list =
       | Effect.NextCau (_, r, a) | Effect.NextSup (_, r, a) -> Some (r, a)
       | Effect.NextTT _ -> None)
 
-let run (clauses : Clause.t array) : violation list =
+(* The trigger producing the tuples of a let in the current iteration and the
+   result variables computed by an aggregation or table operator (whose values
+   are new, hence reached through non-stable edges).  A lagged table only reads
+   the previous time-point, and the rows a table stores from earlier
+   time-points are fixed during the fixpoint: neither adds data flow. *)
+let let_source (ld : Nformula.let_def) : (Nformula.Trigger.t * string list) option =
+  match ld.switch_pos_opt with
+  | Some (Nformula.Switch.Now t) | Some (Once (_, t)) | Some (Since (_, _, t)) -> Some (t, [])
+  | Some (Agg (ai, t)) -> Some (t, [fst (fst ai.ai_result)])
+  | Some (Top (ti, t)) -> Some (t, List.map ti.ti_results ~f:(fun ((v, _), _) -> v))
+  | Some (Prev _) | None -> None
+
+let run ?(lets : Nformula.let_map option) (clauses : Clause.t array) : violation list =
   (* node universe: (event, position) keyed as "ev@pos" *)
   let node_of = Hashtbl.create (module String) in
   let names   = ref [] in
@@ -95,6 +107,24 @@ let run (clauses : Clause.t array) : violation list =
                   | Some occs ->
                     List.iter occs ~f:(fun (e, i) ->
                         edges := (node e i, node fe j, st) :: !edges)))));
+  (* Data flow through lets: from the positions of the atoms of the trigger
+     producing a let's tuples to the let's argument positions (stable when the
+     argument is copied, non-stable for aggregation results).  Without these
+     edges, a cycle through a let, e.g. ⧫[0,0] A(x) → A(x + 1), is missed. *)
+  Option.iter lets ~f:(fun lets ->
+      Map.iteri lets ~f:(fun ~key:p ~data:ld ->
+          match let_source ld with
+          | None -> ()
+          | Some (trig, results) ->
+            let atoms = collect_atoms (Nformula.Trigger.to_formula true trig) [] in
+            List.iteri ld.args ~f:(fun j ((x, _), _) ->
+                let is_res = List.mem results x ~equal:String.equal in
+                List.iter atoms ~f:(fun (e, args) ->
+                    List.iteri args ~f:(fun i a ->
+                        match a.Tterm.trm with
+                        | Var (v, _) when is_res || String.equal v x ->
+                          edges := (node e i, node p j, not is_res) :: !edges
+                        | _ -> ())))));
   let n = Hashtbl.length node_of in
   let name_arr = Array.create ~len:n ("", 0) in
   List.iter !names ~f:(fun (e, i) ->

@@ -1,0 +1,29 @@
+digraph waves {
+  rankdir=TB;
+  compound=true;
+  node [shape=box, style="filled,rounded", fontsize=10];
+  edge [color="#555555", arrowsize=0.6];
+
+  subgraph cluster_legend {
+    label="Legend"; rank=sink;
+    style=dashed; fontsize=9; color="#aaaaaa"; bgcolor="white";
+    lfix  [label="fixpoint (sequential)", fillcolor="#ff9999"];
+    lonce [label="once (sequential)",     fillcolor="#cfe8ff"];
+    lfix -> lonce [style=invis];
+  }
+
+  subgraph cluster_w0 {
+    label="Wave 0";
+    style=rounded; color="#999999"; bgcolor="#f8f8ff";
+    s0 [label="Sup_Exists6\nonce  (1 rule)", fillcolor="#cfe8ff"];
+    s1 [label="notify_proc\nfixpoint  (3 rules)", fillcolor="#ff9999"];
+    s2 [label="delete\nfixpoint  (4 rules)", fillcolor="#ff9999"];
+    s3 [label="use\nfixpoint  (4 rules)", fillcolor="#ff9999"];
+  }
+  subgraph cluster_w1 {
+    label="Wave 1";
+    style=rounded; color="#999999"; bgcolor="#f8f8ff";
+    s4 [label="inform\nfixpoint  (1 rule)", fillcolor="#ff9999"];
+  }
+  s0 -> s4;
+}

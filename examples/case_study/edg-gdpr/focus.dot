@@ -1,0 +1,25 @@
+digraph EDG_focus {
+  rankdir=LR;
+  node [shape=box, style=filled, fontsize=10];
+  edge [color="#999999", arrowsize=0.5];
+  s0 [label="notify_proc\nSCC0 (3)", fillcolor="#ff9999"];
+  s2 [label="use\nSCC2 (4)", fillcolor="#ff9999"];
+  s4 [label="inform", fillcolor="#cfe8ff"];
+  s5 [label="Sup_Exists6", fillcolor="#ffe0b3"];
+  s8 [label="delete\nSCC8 (4)", fillcolor="#ff9999"];
+  s9 [label="collect", fillcolor="#cfe8ff"];
+  s10 [label="ds_consent", fillcolor="#cfe8ff"];
+  s11 [label="ds_deletion_request", fillcolor="#cfe8ff"];
+  s12 [label="ds_revoke", fillcolor="#cfe8ff"];
+  s13 [label="legal_grounds", fillcolor="#cfe8ff"];
+  s14 [label="share_with", fillcolor="#cfe8ff"];
+  s5 -> s4;
+  s9 -> s4;
+  s9 -> s5;
+  s10 -> s2;
+  s11 -> s0;
+  s11 -> s8;
+  s12 -> s2;
+  s13 -> s2;
+  s14 -> s0;
+}

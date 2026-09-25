@@ -1,0 +1,11 @@
+[Enforcer] @0 OK.
+[Enforcer] @0 nothing to do proactively.
+[Enforcer] @1 proactively commands:
+Cause:
+B(1)
+OK.
+[Enforcer] @2 reactively commands:
+Suppress:
+C(1)
+OK.
+[Enforcer] @2 nothing to do proactively.

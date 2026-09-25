@@ -1,0 +1,1 @@
+ALWAYS (FORALL x. C(x) IMPLIES NOT ((NOT K(x)) SINCE[1,100) B(x)))

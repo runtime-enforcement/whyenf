@@ -1,0 +1,7 @@
+@0 PersonalData(1, 101) DataProcessing(1);
+@30 PersonalData(2, 102) DataProcessing(2);
+@200 ShowPrivacyPolicy(101);
+@210 GiveConsent(101);
+@400 PersonalData(1, 101) DataProcessing(1);
+@500 GiveConsent(102);
+@700 PersonalData(3, 103) DataProcessing(3);

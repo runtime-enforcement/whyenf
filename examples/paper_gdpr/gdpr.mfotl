@@ -1,0 +1,5 @@
+ALWAYS (FORALL d, ds. DataProcessing(d) AND:L PersonalData(d, ds) IMPLIES:L ONCE GiveConsent(ds))
+AND
+ALWAYS (FORALL ds. GiveConsent(ds) IMPLIES:L ONCE[0,300] ShowPrivacyPolicy(ds))
+AND
+ALWAYS (FORALL d, ds. DataProcessing(d) AND PersonalData(d, ds) IMPLIES:R EVENTUALLY[0,60] Inform(ds))

@@ -1,0 +1,4465 @@
+// complexity (per time-point, O(1) events/stamp): |Once114| + |Once136| + |Once341| + |Once372| + |Once388| + |Once408| + |Once413| + |Once420| + |Once427| + |Once434| + |Once441| + |Once448| + |Once456| + |Once464| + |Once471| + |Once49| + |Once52| + |Once525| + |Once64| + |Once143| · (|Once49| + |Once52|) + |Once155| · (|Once114| + |Once136| + |Once143| · (|Once49| + |Once52|)) + |Once161| · (|Once114| + |Once136| + |Once143| · (|Once49| + |Once52|)) + |Once267| · (|Once49| + |Once52| + |Once64|)^2 + |Once336| · |Once40|
+
+event ActivityRecord(str, str, str);
+event Collect(str, str, str, str);
+event Consent(str, str);
+event Contains(str, str);
+event ContainsData(str, str);
+event ContestAccuracy(str, str, str);
+event DailyErasureReview(str);
+event Declaration(str);
+event Delete(str);
+event HasCategory(str, str);
+event HasIntendedRecipient(str, str);
+event HasText(str, str);
+event Inform(str, str, str);
+event IsAdministrativeArrangement(int, int, int);
+event IsConsentRequest(str);
+event IsContractualClauses(int, str, str, str, str, int);
+event IsHealthRelated(str);
+event IsLastResortTransfer(str, str, str, str, int, int, str);
+event IsNecessaryForImportantPublicInterest(str, str);
+event IsNecessaryForJudicialClaims(str);
+event IsNecessaryForLegalObligation(str, str);
+event IsNecessaryForProtectionOfRights(str, str);
+event IsNecessaryForPublicInterest(str, str);
+event IsNecessaryForSpecialMedicalReasons(str);
+event IsNecessaryForSubstantialPublicInterest(str);
+event IsNecessaryForVitalInterests(str, str, str);
+event IsPortabilityRequest(str);
+event IsRestrictionRequest(str, str, str);
+event IsSpecialData(str, str);
+event IsStatutoryContractualRequirement(str, str, str, str);
+event LiftRestriction(str, str, str);
+event NoteCategory(str);
+event NoteCriteria(str);
+event NoteDS(str);
+event NoteData(str);
+event NoteEntity(str);
+event NoteInterest(str);
+event NoteLegalBasis(str);
+event NotePurpose(str);
+event NoteRequest(str);
+event NoteSpan(int);
+event NotifyErasure(str, str);
+event NotifyRectification(str, str, str);
+event NotifyRestriction(str, str, str);
+event PersonalData(str, str);
+event PersonalDataCopy(str, str);
+event Read(str, str, str, str, str);
+event Rectify(str, str);
+event RelatesToCriminalConvictionsOrOffences(str);
+event RequestAccess(str, str);
+event RequestErasure(str, str, str);
+event RequestObjection(str, str, str, str);
+event RequestRecipientInformation(str, str);
+event RequestRectification(str, str, str, str);
+event RequestResponse(str, str, str);
+event Revoke(str, str);
+event Send(str, str);
+event SendFile(str, str);
+event SpecialConsent(str, str, str);
+event SpecialRevoke(str, str, str);
+event SpecifiesNewController(str, str);
+event TP(int);
+event Write(str, str, str, str, str);
+event Cau_Exists184(str, str);
+event Cau_Exists212(str, str);
+event Cau_Exists222(str, str, str, str);
+event Cau_Exists227(str, str, str);
+event Cau_Exists229(str, str, str);
+event Cau_Exists243(str, str);
+event Cau_Exists253(str, str, str, str);
+event Cau_Exists258(str, str, str);
+event Cau_Exists260(str, str, str);
+event Cau_Exists291(str, str);
+event Cau_Exists296(str, str);
+event Cau_Exists301(str, str);
+event Cau_Exists306(str, str, str);
+event Cau_Exists311(str, str, str);
+event Cau_Exists316(str, str, str);
+event Cau_Exists321(str, str, str);
+event Cau_Exists326(str, str);
+event Cau_Exists331(str, str);
+event Cau_Exists345(str, str);
+event Cau_Exists362(str, str);
+event Cau_Exists391(str, str);
+event Cau_Exists402(str, str);
+event Cau_Exists410(str);
+event Cau_Exists417(str, str);
+event Cau_Exists424(str);
+event Cau_Exists431(str, str);
+event Cau_Exists438(str, str);
+event Cau_Exists445(str, str);
+event Cau_Exists452(str, str);
+event Cau_Exists459(str, str);
+event Cau_Exists466(str);
+event Cau_Exists473(str);
+event Cau_Exists478(str, str);
+event Cau_Exists487(str, str);
+event Cau_Exists492(str, str);
+event Cau_Exists497(str, str, str);
+event Cau_Exists506(str, str, str);
+event Cau_Exists511(str, str, str);
+event Cau_Exists516(str, str, str);
+event Cau_Exists522(str, str);
+event Cau_IsAutomatedDecision(str);
+event Cau_IsCategory(str, str);
+event Cau_IsComplaintStatement(str, str);
+event Cau_IsContactDetailsOfDataProtectionOfficer(str, str);
+event Cau_IsDSSource(str, str);
+event Cau_IsDataProcessingNotOngoing(str);
+event Cau_IsDataProcessingOngoing(str);
+event Cau_IsEffectiveRecipient(str, str);
+event Cau_IsIdentityOfControllerOrRepresentative(str, str);
+event Cau_IsLegalBasisOfProcessing(str, str);
+event Cau_IsLegitimateInterest(str, str, str);
+event Cau_IsPurposeOfProcessing(str, str);
+event Cau_IsRecipient(str, str);
+event Cau_IsRecipientCategory(str, str);
+event Cau_IsRightToLodgeComplaint(str);
+event Cau_IsRightToWithdrawConsent(str);
+event Cau_IsRights(str);
+event Cau_IsStorageCriteria(str, str);
+event Cau_IsStoragePeriod(str, int);
+event Cau_Once213(str, str);
+event Cau_Once223(str, str, str, str);
+event Cau_Once228(str, str, str);
+event Cau_Once230(str, str, str);
+event Cau_Once244(str, str);
+event Cau_Once254(str, str, str, str);
+event Cau_Once259(str, str, str);
+event Cau_Once261(str, str, str);
+event Cau_Once292(str, str);
+event Cau_Once297(str, str);
+event Cau_Once302(str, str);
+event Cau_Once307(str, str, str);
+event Cau_Once312(str, str, str);
+event Cau_Once317(str, str, str);
+event Cau_Once322(str, str, str);
+event Cau_Once327(str, str);
+event Cau_Once332(str, str);
+event Cau_Once479(str, str);
+event Cau_Once488(str, str);
+event Cau_Once493(str, str);
+event Cau_Once498(str, str, str);
+event Cau_Once507(str, str, str);
+event Cau_Once512(str, str, str);
+event Cau_Once517(str, str, str);
+event Cau_Once523(str, str);
+event Sup_DataProcessing(str, str, str, str);
+event Sup_Exists10(str, str, str, str);
+event Sup_Exists11(str, str, str, str);
+event Sup_Exists12(str, str);
+event Sup_Exists152(str, str, str);
+event Sup_Exists154();
+event Sup_Exists156();
+event Sup_Exists162();
+event Sup_Exists168();
+event Sup_Exists185();
+event Sup_Exists186(str, str);
+event Sup_Exists187(str, str);
+event Sup_Exists188(str);
+event Sup_Exists2(str, str, str, str);
+event Sup_Exists200();
+event Sup_Exists214();
+event Sup_Exists224();
+event Sup_Exists231();
+event Sup_Exists245();
+event Sup_Exists255();
+event Sup_Exists262();
+event Sup_Exists263(str, str);
+event Sup_Exists264(str, str);
+event Sup_Exists266();
+event Sup_Exists269();
+event Sup_Exists272();
+event Sup_Exists275();
+event Sup_Exists278();
+event Sup_Exists281();
+event Sup_Exists283();
+event Sup_Exists285();
+event Sup_Exists287();
+event Sup_Exists293();
+event Sup_Exists298();
+event Sup_Exists3(str, str, str, str);
+event Sup_Exists303();
+event Sup_Exists308();
+event Sup_Exists313();
+event Sup_Exists318();
+event Sup_Exists323();
+event Sup_Exists328();
+event Sup_Exists333();
+event Sup_Exists335();
+event Sup_Exists337();
+event Sup_Exists339();
+event Sup_Exists346();
+event Sup_Exists353(str, str, str);
+event Sup_Exists354(str, str, str);
+event Sup_Exists357();
+event Sup_Exists358(str, str, str);
+event Sup_Exists359(str);
+event Sup_Exists361();
+event Sup_Exists363();
+event Sup_Exists365(str, str);
+event Sup_Exists366(str, str);
+event Sup_Exists371();
+event Sup_Exists374();
+event Sup_Exists380();
+event Sup_Exists381(str, str, str);
+event Sup_Exists382(str, str, str, str);
+event Sup_Exists386();
+event Sup_Exists392();
+event Sup_Exists396();
+event Sup_Exists4(str, str);
+event Sup_Exists403();
+event Sup_Exists411();
+event Sup_Exists418();
+event Sup_Exists425();
+event Sup_Exists432();
+event Sup_Exists439();
+event Sup_Exists446();
+event Sup_Exists453();
+event Sup_Exists460();
+event Sup_Exists467();
+event Sup_Exists474();
+event Sup_Exists480();
+event Sup_Exists481(str, str);
+event Sup_Exists482(str, str);
+event Sup_Exists484();
+event Sup_Exists489();
+event Sup_Exists494();
+event Sup_Exists499();
+event Sup_Exists500(str, str);
+event Sup_Exists501(str);
+event Sup_Exists503();
+event Sup_Exists508();
+event Sup_Exists513();
+event Sup_Exists518();
+event Sup_Exists519(str, str);
+event Sup_Exists520();
+event Sup_Exists524();
+event Sup_Exists526(str, str);
+event Sup_Exists527(str, str, str);
+event Sup_Exists528();
+event Sup_Exists529(str, str);
+event Sup_Exists530(str, str);
+event Sup_Exists531();
+event Sup_Exists532(str);
+event Sup_Exists533();
+event Sup_Exists535(str, str);
+event Sup_Exists536(str);
+event Sup_Exists538();
+event Sup_Exists6(str, str);
+event Sup_GiveConsent(str, str, str);
+event Sup_HasPurpose(str, str);
+
+fun add(x:int, y:int) : int {
+    return x + y
+}
+fun add_time_span(t:int, s:int) : int {
+    return t + s
+}
+fun conc(x:str, y:str) : str {
+    return x + y
+}
+fun div(x:int, y:int) : int {
+    return x // y
+}
+fun eq(x:int, y:int) : int {
+    return 1 if x == y else 0
+}
+fun fadd(x:float, y:float) : float {
+    return x + y
+}
+fun fdiv(x:float, y:float) : float {
+    return x / y
+}
+fun float_of_int(x:int) : float {
+    return float(x)
+}
+fun fmul(x:float, y:float) : float {
+    return x * y
+}
+fun fpow(x:float, y:float) : float {
+    return x ** y
+}
+fun fsub(x:float, y:float) : float {
+    return x - y
+}
+fun geq(x:int, y:int) : int {
+    return 1 if x >= y else 0
+}
+fun gt(x:int, y:int) : int {
+    return 1 if x > y else 0
+}
+fun int_of_float(x:float) : int {
+    return int(x)
+}
+fun leq(x:int, y:int) : int {
+    return 1 if x <= y else 0
+}
+fun lt(x:int, y:int) : int {
+    return 1 if x < y else 0
+}
+fun match(x:str, r:str) : int {
+    import re
+    return 1 if re.match(r, x) else 0
+}
+fun mul(x:int, y:int) : int {
+    return x * y
+}
+fun neq(x:int, y:int) : int {
+    return 1 if x != y else 0
+}
+fun not(x:int) : int {
+    return 0 if x else 1
+}
+fun pow(x:int, y:int) : int {
+    return x ** y
+}
+fun string_of_category(cat:str) : str {
+    return str(cat)
+}
+fun string_of_country_io(co:int) : str {
+    return str(co)
+}
+fun string_of_criteria(c:str) : str {
+    return str(c)
+}
+fun string_of_data(d:str) : str {
+    return str(d)
+}
+fun string_of_declaration(de:str) : str {
+    return str(de)
+}
+fun string_of_ds(ds:str) : str {
+    return str(ds)
+}
+fun string_of_entity(c:str) : str {
+    return str(c)
+}
+fun string_of_float(x:float) : str {
+    return str(x)
+}
+fun string_of_int(x:int) : str {
+    return str(x)
+}
+fun string_of_interest(i:str) : str {
+    return str(i)
+}
+fun string_of_legal_basis(b:str) : str {
+    return str(b)
+}
+fun string_of_purpose(p:str) : str {
+    return str(p)
+}
+fun string_of_request(c:str) : str {
+    return str(c)
+}
+fun string_of_safeguards(sg:int) : str {
+    return str(sg)
+}
+fun string_of_span(t:int) : str {
+    return str(t)
+}
+fun sub(x:int, y:int) : int {
+    return x - y
+}
+fun substr(x:str, start:int, end:int) : str {
+    return x[start:end]
+}
+fun ufsub(x:float) : float {
+    return -x
+}
+fun usub(x:int) : int {
+    return -x
+}
+
+let Exists0(_p192:str, _p193:str, _p194:str) := {
+  Read(_p193, ds_1_1, _p192, "personalized_ad", _p194)
+   or Write(_p193, ds_1_1, _p192, "personalized_ad", _p194)
+    if (Read(_p193, ds_1_1, _p192, "personalized_ad", _p194) | Write(_p193, ds_1_1, _p192, "personalized_ad", _p194))
+}
+
+let AutomatedDecision(_p192:str, _p193:str, _p194:str, _p195:str) := {
+  Exists0(_p192, _p193, _p194) & _p195 == "We use the content of the page shown to the user to display personalized advertisement"
+}
+
+let Exists3(_p185:str, _p186:str, ds_3_1:str, p_1_1:str) := {
+  Read(_p186, ds_3_1, _p185, p_1_1, ds__1_1)
+}
+
+let Exists2(_p185:str, _p186:str, ds_3_1:str, p_1_1:str) := {
+  Write(_p186, ds_3_1, _p185, p_1_1, ds__2_1)
+}
+
+let Exists4(_p185:str, _p186:str) := {
+  Exists3(_p185, _p186, ds_3_1, p_1_1)
+   or Exists2(_p185, _p186, ds_3_1, p_1_1)
+   or Collect(_p185, _p186, ds_3_1, p_1_1)
+    if ((Exists3(_p185, _p186, ds_3_1, p_1_1) | Exists2(_p185, _p186, ds_3_1, p_1_1)) | Collect(_p185, _p186, ds_3_1, p_1_1))
+}
+
+let DataProcessing(_p183:str, _p184:str, _p185:str, _p186:str) := {
+  _p183 == "GDPRSocial, Inc." & _p184 == "GDPRSocial, Inc." & Exists4(_p185, _p186)
+}
+
+let DataReview(_p181:str, _p182:str) := {
+  _p181 == "GDPRSocial, Inc." & DailyErasureReview(_p182)
+}
+
+let Exists5(_p179:str, _p180:str) := {
+  Read(_p179, ds_4_1, a_1_1, p_2_1, _p180)
+}
+
+let Exists6(_p176:str, _p177:str) := {
+  SpecialConsent(_p176, _p177, sp_1_1)
+}
+
+let GiveConsent(_p176:str, _p177:str, _p178:str) := {
+  Consent(_p176, _p177) & _p178 == "GDPRSocial, Inc."
+   or Exists6(_p176, _p177) & _p178 == "GDPRSocial, Inc."
+    if (Consent(_p176, _p177) & _p178 == "GDPRSocial, Inc." | Exists6(_p176, _p177) & _p178 == "GDPRSocial, Inc.")
+}
+
+let GiveSpecialConsent(_p172:str, _p173:str, _p174:str, _p175:str) := {
+  _p174 == "GDPRSocial, Inc." & SpecialConsent(_p172, _p173, _p175)
+}
+
+let Exists11(_p156:str, _p157:str, d_1_1:str, ds_8_1:str) := {
+  Read(d_1_1, ds_8_1, _p156, _p157, ds__4_1)
+}
+
+let Exists10(_p156:str, _p157:str, d_1_1:str, ds_8_1:str) := {
+  Write(d_1_1, ds_8_1, _p156, _p157, ds__3_1)
+}
+
+let Exists12(_p156:str, _p157:str) := {
+  Exists11(_p156, _p157, d_1_1, ds_8_1)
+   or Exists10(_p156, _p157, d_1_1, ds_8_1)
+   or Collect(_p156, d_1_1, ds_8_1, _p157)
+    if ((Exists11(_p156, _p157, d_1_1, ds_8_1) | Exists10(_p156, _p157, d_1_1, ds_8_1)) | Collect(_p156, d_1_1, ds_8_1, _p157))
+}
+
+let HasPurpose(_p156:str, _p157:str) := {
+  Exists12(_p156, _p157)
+}
+
+table Once15(_p148:str, _p149:str) :=
+  add {
+    Consent(_p148, _p149)
+  };
+
+table Once14(_p148:str, _p149:str) :=
+  add {
+    SpecialConsent(_p148, _p149, sp_2_1)
+  };
+
+filter let IsAbleToDemonstrateConsent(_p147:str, _p148:str, _p149:str) := {
+  if ((_p147 == "GDPRSocial, Inc." & Once15(_p148, _p149) | _p147 == "GDPRSocial, Inc." & Once14(_p148, _p149))) & ((Once15(_p148, _p149) | Once14(_p148, _p149)))
+}
+
+let Exists16(_p146:str) := {
+  RequestAccess(ds_9_1, _p146)
+}
+
+filter let IsAutomatedDecision(_p143:str) := {
+  if Declaration(_p143) & HasText(_p143, "<h6>Automated decision-making</h6><p>We use the content of your latest posts to display personalized advertisement. No human review is involved in this decision.</p>")
+}
+
+let IsCategory(_p140:str, _p141:str) := {
+  Declaration(_p140) & NoteCategory(_p141) & HasText(_p140, _ep0)
+    if true & _ep0 == conc(conc("<h6>Special categories of personal data</h6><p>Some of the personal data we process belongs to the following special category as defined in Article 9 GDPR: ", string_of_category(_p141)), ".</p>")
+}
+
+let Exists17(_p138:str, _p139:str) := {
+  Collect(_p138, d_2_1, _p139, p_3_1)
+}
+
+let IsCompatibleWithPurpose(_p196:str, _p197:str) := {
+  _p196 == "service" & _p197 == "service"
+   or _p196 == "service" & _p197 == "personalized_ad"
+   or _p196 == "service" & _p197 == "statistics"
+   or _p196 == "personalized_ad" & _p197 == "service"
+   or _p196 == "personalized_ad" & _p197 == "personalized_ad"
+   or _p196 == "personalized_ad" & _p197 == "statistics"
+   or _p196 == "statistics" & _p197 == "service"
+   or _p196 == "statistics" & _p197 == "personalized_ad"
+   or _p196 == "statistics" & _p197 == "statistics"
+    if (((((_p196 == "service" & _p197 == "service" | _p196 == "service" & _p197 == "personalized_ad") | _p196 == "service" & _p197 == "statistics")) & _p197 == "service" | (((_p196 == "personalized_ad" & _p197 == "service" | _p196 == "personalized_ad" & _p197 == "personalized_ad") | _p196 == "personalized_ad" & _p197 == "statistics")) & _p197 == "personalized_ad") | (((_p196 == "statistics" & _p197 == "service" | _p196 == "statistics" & _p197 == "personalized_ad") | _p196 == "statistics" & _p197 == "statistics")) & _p197 == "statistics")
+}
+
+let IsComplaintStatement(_p136:str, _p137:str) := {
+  Declaration(_p136) & NoteRequest(_p137) & HasText(_p136, _ep1)
+    if true & _ep1 == conc(conc("<h6>Right to lodge a complaint</h6><p>You have the right to lodge a complaint with the competent National Data Protection Authority regarding request ", string_of_request(_p137)), ". You may do so without prejudice to any other administrative or judicial remedy.</p>")
+}
+
+let IsContactDetailsOfDataProtectionOfficer(_p134:str, _p135:str) := {
+  Declaration(_p134) & NoteEntity(_p135) & HasText(_p134, _ep2)
+    if true & _ep2 == conc(conc("<h6>Contact details of the Data Protection Officer</h6><p>You can contact our Data Protection Officer at: ", string_of_entity(_p135)), ". The DPO can be reached for any queries related to the processing of your personal data or the exercise of your rights.</p>")
+}
+
+let IsDSSource(_p132:str, _p133:str) := {
+  Declaration(_p132) & NoteDS(_p133) & HasText(_p132, _ep3)
+    if true & _ep3 == conc(conc("<h6>Source of your personal data</h6><p>We have collected this personal data from ", string_of_ds(_p133)), ".</p>")
+}
+
+filter let IsDataProcessingNotOngoing(_p131:str) := {
+  if Declaration(_p131) & HasText(_p131, "<h6>Processing status</h6><p>We are not currently processing your personal data.</p>")
+}
+
+filter let IsDataProcessingOngoing(_p130:str) := {
+  if Declaration(_p130) & HasText(_p130, "<h6>Processing status</h6><p>We are currently processing your personal data. You may exercise your rights regarding this processing as described in the applicable privacy notice.</p>")
+}
+
+let IsEffectiveRecipient(_p123:str, _p124:str) := {
+  Declaration(_p123) & NoteEntity(_p124) & HasText(_p123, _ep4)
+    if true & _ep4 == conc(conc("<h6>Recipients of your personal data</h6><p>Your personal data has been shared with the following entity: ", string_of_entity(_p124)), ".</p>")
+}
+
+filter let IsIdentityOfControllerOrRepresentative(_p121:str, _p122:str) := {
+  if Declaration(_p121) & NoteEntity(_p122) & HasText(_p121, conc(conc("<h6>Identity of the controller</h6><p>The controller responsible for the processing of your personal data is ", string_of_entity(_p122)), ".</p>"))
+}
+
+let Exists19(_p144:str) := {
+  RequestRectification(ds_11_1, _p144, d__2_1, rq_2_1)
+}
+
+let IsLegalBasisOfProcessing(_p119:str, _p120:str) := {
+  Declaration(_p119) & NoteLegalBasis(_p120) & HasText(_p119, _ep5)
+    if true & _ep5 == conc(conc(conc(conc("<h6>Legal basis for the processing: Article ", string_of_legal_basis(_p120)), "</h6><p>We rely on Article "), string_of_legal_basis(_p120)), " of the General Data Protection Regulation (GDPR) as a legal basis to process your personal data.</p>")
+}
+
+filter let IsLegitimate(_p116:str) := {
+  if (((_p116 == "service" | _p116 == "personalized_ad") | _p116 == "statistics")) & (((_p116 == "service" | _p116 == "personalized_ad") | _p116 == "statistics"))
+}
+
+let IsLegitimateInterest(_p113:str, _p114:str, _p115:str) := {
+  Declaration(_p113) & NoteEntity(_p114) & NoteInterest(_p115) & HasText(_p113, _ep6)
+    if true & _ep6 == conc(conc(conc(conc("<h6>Legitimate interest</h6><p>", string_of_entity(_p114)), " relies on the following legitimate interest as the legal basis for processing your personal data: "), string_of_interest(_p115)), ". You have the right to object to processing based on legitimate interest at any time.</p>")
+}
+
+let Exists21(_p110:str, d_3_1:str, ds_12_1:str, p_4_1:str) := {
+  Read(d_3_1, ds_12_1, _p110, p_4_1, ds__6_1)
+}
+
+let Exists20(_p110:str, d_3_1:str, ds_12_1:str, p_4_1:str) := {
+  Write(d_3_1, ds_12_1, _p110, p_4_1, ds__5_1)
+}
+
+let Exists22(_p110:str, p_4_1:str) := {
+  Exists21(_p110, d_3_1, ds_12_1, p_4_1)
+   or Exists20(_p110, d_3_1, ds_12_1, p_4_1)
+   or Collect(_p110, d_3_1, ds_12_1, p_4_1)
+    if ((Exists21(_p110, d_3_1, ds_12_1, p_4_1) | Exists20(_p110, d_3_1, ds_12_1, p_4_1)) | Collect(_p110, d_3_1, ds_12_1, p_4_1))
+}
+
+let Exists23(_p110:str, _p111:str, _p112:str) := {
+  _p111 == "GDPRSocial, Inc." & _p112 == "Providing the service and performing GDPRSocial's normal operations." & Exists22(_p110, p_4_1)
+    if p_4_1 == "service"
+}
+
+let Exists25(_p109:str, a_4_1:str, d_4_1:str, p_5_1:str) := {
+  Read(d_4_1, _p109, a_4_1, p_5_1, ds__8_1)
+}
+
+let Exists24(_p109:str, a_4_1:str, d_4_1:str, p_5_1:str) := {
+  Write(d_4_1, _p109, a_4_1, p_5_1, ds__7_1)
+}
+
+let Exists26(_p109:str, p_5_1:str) := {
+  Exists25(_p109, a_4_1, d_4_1, p_5_1)
+   or Exists24(_p109, a_4_1, d_4_1, p_5_1)
+   or Collect(a_4_1, d_4_1, _p109, p_5_1)
+    if ((Exists25(_p109, a_4_1, d_4_1, p_5_1) | Exists24(_p109, a_4_1, d_4_1, p_5_1)) | Collect(a_4_1, d_4_1, _p109, p_5_1))
+}
+
+let Exists27(_p109:str) := {
+  Exists26(_p109, p_5_1)
+    if !(p_5_1 == "service")
+}
+
+let IsPurposeOfProcessing(_p117:str, _p118:str) := {
+  Declaration(_p117) & NotePurpose(_p118)
+    if ((!(_p118 == "service") | HasText(_p117, "<h6>Processing for strictly necessary purposes</h6><p>We process your data to provide GDPRSocial's essential functionality.</p>"))) & ((!(_p118 == "personalized_ad") | HasText(_p117, "<h6>Processing for advertisement purposes</h6><p>We process your data to show you personalized advertisement.</p>"))) & ((!(_p118 == "statistics") | HasText(_p117, "<h6>Processing for statistical purposes</h6><p>We process your data to generate website statistics and analytics.</p>")))
+}
+
+let IsRecipient(_p105:str, _p106:str) := {
+  Declaration(_p105) & NoteEntity(_p106) & HasText(_p105, _ep7)
+    if true & _ep7 == conc(conc("<h6>Recipients of your personal data</h6><p>We intend to share your personal data with the following entity: ", string_of_entity(_p106)), ".</p>")
+}
+
+let IsRecipientCategory(_p103:str, _p104:str) := {
+  Declaration(_p103) & NoteEntity(_p104) & HasText(_p103, _ep8)
+    if true & _ep8 == conc(conc("<h6>Categories of recipients</h6><p>We intend to share your personal data with the following categories of entities: ", string_of_entity(_p104)), ".</p>")
+}
+
+let Exists28(_p102:str) := {
+  RequestRecipientInformation(ds_13_1, _p102)
+}
+
+filter let IsRightToLodgeComplaint(_p95:str) := {
+  if Declaration(_p95) & HasText(_p95, "<h6>Right to lodge a complaint</h6><p>You have the right to lodge a complaint with the competent National Data Protection Authority if you consider that the processing of your personal data infringes the GDPR, without prejudice to any other administrative or judicial remedy.</p>")
+}
+
+filter let IsRightToWithdrawConsent(_p94:str) := {
+  if Declaration(_p94) & HasText(_p94, "<h6>Right to withdraw consent</h6><p>You have the right to withdraw consent for processing your data at any time.</p>")
+}
+
+filter let IsRights(_p93:str) := {
+  if Declaration(_p93) & HasText(_p93, "<h6>Your rights as a data subject</h6><ul><li>You have the right to request access to, rectification of, or erasure of your personal data, or restriction of processing (Articles 15–18 GDPR).</li><li>You have the right to receive your personal data in a structured, commonly used, and machine-readable format and to transmit it to another controller (right to data portability, Article 20 GDPR).</li><li>You have the right to object to automated decision-making, including profiling (Article 22 GDPR).</li></ul>")
+}
+
+let IsStorageCriteria(_p90:str, _p91:str) := {
+  Declaration(_p90) & NoteCriteria(_p91) & HasText(_p90, _ep10)
+    if true & _ep10 == conc(conc("<h6>Storage criteria</h6><p>The criteria used to determine the period for which your personal data will be stored are: ", string_of_criteria(_p91)), ".</p>")
+}
+
+filter let IsStoragePeriod(_p88:str, _p89:int) := {
+  if Declaration(_p88) & NoteSpan(_p89) & HasText(_p88, conc(conc("<h6>Storage period</h6><p>Your personal data will be stored for the following period: ", string_of_span(_p89)), ".</p>"))
+}
+
+let Exists33(_p99:str) := {
+  ContestAccuracy(_p99, d_7_1, d__4_1)
+}
+
+let Exists32(_p100:str, _p99:str) := {
+  RequestRectification(_p99, d_6_1, d__3_1, _p100)
+}
+
+let Exists31(_p100:str, _p99:str) := {
+  RequestErasure(_p99, d_5_1, _p100)
+}
+
+let Request(_p99:str, _p100:str, _p101:str) := {
+  _p100 == "" & _p101 == "GDPRSocial, Inc." & Exists33(_p99)
+   or Exists32(_p100, _p99) & _p101 == "GDPRSocial, Inc."
+   or Exists31(_p100, _p99) & _p101 == "GDPRSocial, Inc."
+   or RequestAccess(_p99, _p100) & _p101 == "GDPRSocial, Inc."
+   or RequestRecipientInformation(_p99, _p100) & _p101 == "GDPRSocial, Inc."
+    if (((((((((_p100 == "" & _p101 == "GDPRSocial, Inc." & Exists33(_p99) | _p100 == "" & _p101 == "GDPRSocial, Inc." & Exists32(_p100, _p99)) | _p100 == "" & _p101 == "GDPRSocial, Inc." & Exists31(_p100, _p99)) | _p100 == "" & _p101 == "GDPRSocial, Inc." & RequestAccess(_p99, _p100)) | _p100 == "" & _p101 == "GDPRSocial, Inc." & RequestRecipientInformation(_p99, _p100))) & (((((_p101 == "GDPRSocial, Inc." & Exists33(_p99) | _p101 == "GDPRSocial, Inc." & Exists32(_p100, _p99)) | _p101 == "GDPRSocial, Inc." & Exists31(_p100, _p99)) | _p101 == "GDPRSocial, Inc." & RequestAccess(_p99, _p100)) | _p101 == "GDPRSocial, Inc." & RequestRecipientInformation(_p99, _p100))) & Exists33(_p99) | Exists32(_p100, _p99) & _p101 == "GDPRSocial, Inc." & (((((_p101 == "GDPRSocial, Inc." & Exists33(_p99) | _p101 == "GDPRSocial, Inc." & Exists32(_p100, _p99)) | _p101 == "GDPRSocial, Inc." & Exists31(_p100, _p99)) | _p101 == "GDPRSocial, Inc." & RequestAccess(_p99, _p100)) | _p101 == "GDPRSocial, Inc." & RequestRecipientInformation(_p99, _p100)))) | Exists31(_p100, _p99) & _p101 == "GDPRSocial, Inc." & (((((_p101 == "GDPRSocial, Inc." & Exists33(_p99) | _p101 == "GDPRSocial, Inc." & Exists32(_p100, _p99)) | _p101 == "GDPRSocial, Inc." & Exists31(_p100, _p99)) | _p101 == "GDPRSocial, Inc." & RequestAccess(_p99, _p100)) | _p101 == "GDPRSocial, Inc." & RequestRecipientInformation(_p99, _p100)))) | RequestAccess(_p99, _p100) & _p101 == "GDPRSocial, Inc." & (((((_p101 == "GDPRSocial, Inc." & Exists33(_p99) | _p101 == "GDPRSocial, Inc." & Exists32(_p100, _p99)) | _p101 == "GDPRSocial, Inc." & Exists31(_p100, _p99)) | _p101 == "GDPRSocial, Inc." & RequestAccess(_p99, _p100)) | _p101 == "GDPRSocial, Inc." & RequestRecipientInformation(_p99, _p100)))) | RequestRecipientInformation(_p99, _p100) & _p101 == "GDPRSocial, Inc." & (((((_p101 == "GDPRSocial, Inc." & Exists33(_p99) | _p101 == "GDPRSocial, Inc." & Exists32(_p100, _p99)) | _p101 == "GDPRSocial, Inc." & Exists31(_p100, _p99)) | _p101 == "GDPRSocial, Inc." & RequestAccess(_p99, _p100)) | _p101 == "GDPRSocial, Inc." & RequestRecipientInformation(_p99, _p100))))
+}
+
+let Share(_p65:str, _p66:str, _p67:str) := {
+  _p65 == "GDPRSocial, Inc." & Send(_p66, _p67)
+}
+
+let WithdrawSpecialConsent(_p168:str, _p169:str, _p170:str, _p171:str) := {
+  _p170 == "GDPRSocial, Inc." & SpecialRevoke(_p168, _p169, _p171)
+}
+
+let Exists34(_p36:str, _p37:str) := {
+  DataProcessing(pr_2_1, c_2_1, _p36, _p37)
+}
+
+let Exists35(_p36:str, _p37:str, _p38:str) := {
+  PersonalData(_p37, _p38) & Exists17(_p36, ds__9_1)
+    if Exists34(_p36, _p37) & _p38 != ds__9_1
+}
+
+table Once40(_p42:str, _p43:str, _p44:str, ds_15_1:str, rq_4_1:str) :=
+  add {
+    RequestRectification(ds_14_1, _p43, _p44, rq_4_1) & Request(ds_15_1, rq_4_1, _p42)
+  };
+
+table Once38(_p42:str, ds_15_1:str) :=
+  add {
+    DataProcessing(pr_4_1, _p42, a_11_1, d_8_1) & PersonalData(d_8_1, ds_15_1)
+  };
+
+table Since42(c_4:str, ds_16:str, p_7:str) :=
+  add {
+    GiveConsent(ds_16, p_7, c_4)
+  }
+  remove {
+    Revoke(ds_16, p_7) & c_4 == "GDPRSocial, Inc."
+  };
+
+let Scope22(a_13:str, c_4:str, d_10:str, ds_16:str, p_7:str, pr_5:str) := {
+  PersonalData(d_10, ds_16) & DataProcessing(pr_5, c_4, a_13, d_10) & Since42(c_4, ds_16, p_7)
+}
+
+table Since43(c_5:str, ds_18:str, p_8_1:str, sp_3:str) :=
+  add {
+    GiveSpecialConsent(ds_18, p_8_1, c_5, sp_3)
+  }
+  remove {
+    WithdrawSpecialConsent(ds_18, p_8_1, c_5, sp_3)
+  };
+
+filter let Exists44(a_15:str, c_5:str, ds_18:str, sp_3:str) := {
+  HasPurpose(a_15, p_8_1)
+    if !Since43(c_5, ds_18, p_8_1, sp_3)
+}
+
+filter let Exception28(a_15:str, c_5:str, d_11:str, ds_18:str, pr_6:str, sp_3:str) := {
+  if PersonalData(d_11, ds_18) & DataProcessing(pr_6, c_5, a_15, d_11) & IsSpecialData(d_11, sp_3) & !Exists44(a_15, c_5, ds_18, sp_3)
+}
+
+let Scope41(a_20:str, c_8:str, d_14:str, pr_8:str) := {
+  DataProcessing(pr_8, c_8, a_20, d_14)
+    if !RelatesToCriminalConvictionsOrOffences(d_14)
+}
+
+let Exists46(a_24:str) := {
+  IsNecessaryForLegalObligation(a_24, l_1_1)
+}
+
+let Exists45(a_24:str) := {
+  IsNecessaryForPublicInterest(a_24, pi_3_1)
+}
+
+let Exception122(a_24:str, c_12:str, d_16:str, pr_10:str) := {
+  DataProcessing(pr_10, c_12, a_24, d_16)
+    if (Exists46(a_24) | Exists45(a_24))
+}
+
+let Exception123(a_25:str, c_13:str, d_17:str, pi_4:str, pr_11:str) := {
+  IsNecessaryForPublicInterest(a_25, pi_4) & DataProcessing(pr_11, c_13, a_25, d_17) & IsHealthRelated(pi_4)
+}
+
+let Exception125(a_27:str, c_15:str, d_19:str, pr_13:str) := {
+  DataProcessing(pr_13, c_15, a_27, d_19) & IsNecessaryForJudicialClaims(a_27)
+}
+
+table Once47(c_17:str, de:str, ds_24:str, p_9:str) :=
+  add {
+    c_17 == "GDPRSocial, Inc." & RequestObjection(ds_24, p_9, de, rq_3_1)
+  };
+
+let Exception139(a_29:str, c_17:str, d_20:str, de:str, ds_24:str, p_9:str, pr_14:str) := {
+  HasPurpose(a_29, p_9) & DataProcessing(pr_14, c_17, a_29, d_20) & Once47(c_17, de, ds_24, p_9)
+}
+
+table Once48(c_18:str, de_1:str, ds_25:str, p_10:str) :=
+  add {
+    c_18 == "GDPRSocial, Inc." & RequestObjection(ds_25, p_10, de_1, rq_3_1)
+  };
+
+let Exception141(a_30:str, c_18:str, d_21:str, de_1:str, ds_25:str, p_10:str, pr_15:str) := {
+  PersonalData(d_21, ds_25) & HasPurpose(a_30, p_10) & DataProcessing(pr_15, c_18, a_30, d_21) & Once48(c_18, de_1, ds_25, p_10)
+    if p_10 == "personalized_ad"
+}
+
+table Once52(_p47:str, _p48:str, _p50:str) :=
+  add {
+    _p48 == "GDPRSocial, Inc." & RequestObjection(_p47, "Archiving", _p50, rq_3_1)
+  };
+
+let Exists50(_p48:str) := {
+  IsNecessaryForPublicInterest(a_36_1, pi_6_1) & DataProcessing(pr_19_1, _p48, a_36_1, d_25_1)
+}
+
+table Once49(_p47:str, _p48:str, _p49:str, _p50:str) :=
+  add {
+    _p48 == "GDPRSocial, Inc." & RequestObjection(_p47, _p49, _p50, rq_3_1)
+  };
+
+let IsActiveObjection(_p47:str, _p48:str, _p49:str, _p50:str) := {
+  _p49 == "Archiving" & Once52(_p47, _p48, _p50)
+   or Once49(_p47, _p48, _p49, _p50)
+    if (((_p49 == "Archiving" & Once52(_p47, _p48, _p50) | _p49 == "Archiving" & Once49(_p47, _p48, _p49, _p50))) & Once52(_p47, _p48, _p50) & !Exists50(_p48) | Once49(_p47, _p48, _p49, _p50))
+}
+
+let Exists57(a_38:str, d_1_1:str, ds_8_1:str) := {
+  Read(d_1_1, ds_8_1, a_38, "Archiving", ds__4_1)
+}
+
+let Exists56(a_38:str, d_1_1:str, ds_8_1:str) := {
+  Write(d_1_1, ds_8_1, a_38, "Archiving", ds__3_1)
+}
+
+let Exists58(a_38:str) := {
+  Exists57(a_38, d_1_1, ds_8_1)
+   or Exists56(a_38, d_1_1, ds_8_1)
+   or Collect(a_38, d_1_1, ds_8_1, "Archiving")
+    if ((Exists57(a_38, d_1_1, ds_8_1) | Exists56(a_38, d_1_1, ds_8_1)) | Collect(a_38, d_1_1, ds_8_1, "Archiving"))
+}
+
+table Once55(c_23:str, de_3:str, ds_27:str) :=
+  add {
+    c_23 == "GDPRSocial, Inc." & RequestObjection(ds_27, "Archiving", de_3, rq_3_1)
+  };
+
+let Exists53(a_38:str, c_23:str, d_26:str, pr_21:str) := {
+  IsNecessaryForPublicInterest(a_38, pi_7_1) & DataProcessing(pr_21, c_23, a_38, d_26)
+}
+
+let Exception143(a_38:str, c_23:str, d_26:str, de_3:str, ds_27:str, pr_21:str) := {
+  PersonalData(d_26, ds_27) & DataProcessing(pr_21, c_23, a_38, d_26) & Once55(c_23, de_3, ds_27)
+    if Exists58(a_38) & !Exists53(a_38, c_23, d_26, pr_21)
+}
+
+filter let Exception163(c_24:str, pr_22:str) := {
+  if c_24 == "GDPRSocial, Inc." & pr_22 == "GDPRSocial, Inc." & true
+}
+
+let Exists70(_p45:str, _p46:str) := {
+  IsActiveObjection(ds_33_1, c_30_1, _p46, de_5_1) & PersonalData(_p45, ds_33_1)
+}
+
+table Since66(c_29_1:str, rq_9_1:str) :=
+  add {
+    Request(ds_32_1, rq_9_1, c_29_1)
+  }
+  remove {
+    LiftRestriction(c_29_1, _p45, rq_9_1)
+  };
+
+filter let Exists67(_p45:str, rq_9_1:str) := {
+  Since66(c_29_1, rq_9_1)
+}
+
+let Exists68(_p45:str, _p46:str) := {
+  IsRestrictionRequest(rq_9_1, _p45, _p46)
+    if Exists67(_p45, rq_9_1)
+}
+
+let Exists63(_p45:str, rq_8_1:str) := {
+  rq_8_1 == "" & ContestAccuracy(ds_2_1, _p45, d__7_1)
+}
+
+table Once64(_p45:str, _p46:str, c_28_1:str, ds_31_1:str, rq_8_1:str) :=
+  add {
+    IsRestrictionRequest(rq_8_1, _p45, _p46) & Request(ds_31_1, rq_8_1, c_28_1)
+      if Exists63(_p45, rq_8_1)
+  };
+
+table Since61() :=
+  add {
+    RequestResponse(ds_31_1, rq_8_1, rs_2_1)
+  }
+  remove {
+    Rectify(_p45, d___1_1)
+  };
+
+filter let Exists62(_p45:str, ds_31_1:str, rq_8_1:str) := {
+  if Since61()
+}
+
+table Once59(_p45:str, c_28_1:str, rq_8_1:str) :=
+  add {
+    LiftRestriction(c_28_1, _p45, rq_8_1)
+  };
+
+let Exists65(_p45:str, _p46:str) := {
+  Once64(_p45, _p46, c_28_1, ds_31_1, rq_8_1)
+    if (Exists62(_p45, ds_31_1, rq_8_1) | !Once59(_p45, c_28_1, rq_8_1))
+}
+
+let Restricted(_p45:str, _p46:str) := {
+  Exists70(_p45, _p46)
+   or Exists68(_p45, _p46)
+   or Exists65(_p45, _p46)
+    if ((Exists70(_p45, _p46) | Exists68(_p45, _p46)) | Exists65(_p45, _p46))
+}
+
+let Exists75(d_32:str, ds_36:str) := {
+  Exception139(a_51_1, c_37_1, d_32, de_10_1, ds_36, p_13_1, pr_31_1)
+}
+
+let Exists74(d_32:str, ds_36:str) := {
+  Exception141(a_50_1, c_36_1, d_32, de_9_1, ds_36, p_12_1, pr_30_1)
+}
+
+let Exists73(d_32:str, ds_36:str) := {
+  Exception143(a_49_1, c_35_1, d_32, de_8_1, ds_36, pr_29_1)
+}
+
+let Exists72(d_32:str) := {
+  Scope41(a_48_1, c_34_1, d_32, pr_28_1)
+}
+
+let Exists71(d_32:str) := {
+  DataProcessing(pr_27_1, c_33_1, a_47_1, d_32)
+}
+
+filter let Exception18(d_32:str, ds_36:str, e_2:str, i_3:str) := {
+  PersonalData(d_32, ds_36)
+    if Exists27(ds_36) & !Exists75(d_32, ds_36) & !Exists74(d_32, ds_36) & !Exists73(d_32, ds_36) & Exists72(d_32) & Exists71(d_32)
+}
+
+table Since100(c_46_1:str, ds_47_1:str, p_25_1:str, sp_5_1:str) :=
+  add {
+    GiveSpecialConsent(ds_47_1, p_25_1, c_46_1, sp_5_1)
+  }
+  remove {
+    WithdrawSpecialConsent(ds_47_1, p_25_1, c_46_1, sp_5_1)
+  };
+
+filter let Exists101(_p32:str, c_46_1:str, ds_47_1:str, sp_5_1:str) := {
+  HasPurpose(_p32, p_25_1)
+    if !Since100(c_46_1, ds_47_1, p_25_1, sp_5_1)
+}
+
+let Exists103(_p32:str, _p33:str) := {
+  _p33 == "9(2)(a)" & DataProcessing(pr_39_1, c_46_1, _p32, d_40_1) & PersonalData(d_40_1, ds_47_1) & IsSpecialData(d_40_1, sp_5_1)
+    if !Exists101(_p32, c_46_1, ds_47_1, sp_5_1)
+}
+
+filter let Exists98(d_38_1:str, e_3_1:str, i_4_1:str) := {
+  if Exception18(d_38_1, ds_45_1, e_3_1, i_4_1)
+}
+
+let Exists97(_p32:str, c_44_1:str, d_38_1:str, pr_37_1:str) := {
+  Exception139(_p32, c_44_1, d_38_1, de_24_1, ds_44_1, p_23_1, pr_37_1)
+}
+
+let Exists96(_p32:str, c_44_1:str, d_38_1:str, pr_37_1:str) := {
+  Exception141(_p32, c_44_1, d_38_1, de_23_1, ds_43_1, p_22_1, pr_37_1)
+}
+
+let Exists95(_p32:str, c_44_1:str, d_38_1:str, pr_37_1:str) := {
+  Exception143(_p32, c_44_1, d_38_1, de_22_1, ds_42_1, pr_37_1)
+}
+
+let Exists99(_p32:str, _p33:str) := {
+  _p33 == "6(1)(f)" & Exists23(_p32, e_3_1, i_4_1) & DataProcessing(pr_37_1, c_44_1, _p32, d_38_1)
+    if !Exists98(d_38_1, e_3_1, i_4_1) & !Exists97(_p32, c_44_1, d_38_1, pr_37_1) & !Exists96(_p32, c_44_1, d_38_1, pr_37_1) & !Exists95(_p32, c_44_1, d_38_1, pr_37_1) & Scope41(_p32, c_44_1, d_38_1, pr_37_1)
+}
+
+let Exists93(_p32:str) := {
+  IsNecessaryForPublicInterest(_p32, pi_8_1)
+}
+
+let Exists92(_p32:str, c_43_1:str, d_37_1:str, ds_41_1:str, pr_36_1:str) := {
+  Exception139(_p32, c_43_1, d_37_1, de_21_1, ds_41_1, p_21_1, pr_36_1)
+}
+
+let Exists91(_p32:str, c_43_1:str, d_37_1:str, ds_41_1:str, pr_36_1:str) := {
+  Exception141(_p32, c_43_1, d_37_1, de_20_1, ds_41_1, p_20_1, pr_36_1)
+}
+
+let Exists90(_p32:str, c_43_1:str, d_37_1:str, ds_41_1:str, pr_36_1:str) := {
+  Exception143(_p32, c_43_1, d_37_1, de_19_1, ds_41_1, pr_36_1)
+}
+
+let Exists94(_p32:str, _p33:str) := {
+  _p33 == "6(1)(e)" & PersonalData(d_37_1, ds_41_1) & DataProcessing(pr_36_1, c_43_1, _p32, d_37_1)
+    if Exists93(_p32) & !Exists92(_p32, c_43_1, d_37_1, ds_41_1, pr_36_1) & !Exists91(_p32, c_43_1, d_37_1, ds_41_1, pr_36_1) & !Exists90(_p32, c_43_1, d_37_1, ds_41_1, pr_36_1) & Scope41(_p32, c_43_1, d_37_1, pr_36_1)
+}
+
+let Exists88(_p32:str) := {
+  IsNecessaryForVitalInterests(_p32, ds__14_1, v_2_1)
+}
+
+let Exists87(_p32:str, c_42_1:str, d_36_1:str, ds_40_1:str, pr_35_1:str) := {
+  Exception141(_p32, c_42_1, d_36_1, de_18_1, ds_40_1, p_19_1, pr_35_1)
+}
+
+let Exists86(_p32:str, c_42_1:str, d_36_1:str, ds_40_1:str, pr_35_1:str) := {
+  Exception143(_p32, c_42_1, d_36_1, de_17_1, ds_40_1, pr_35_1)
+}
+
+let Exists89(_p32:str, _p33:str) := {
+  _p33 == "6(1)(d)" & PersonalData(d_36_1, ds_40_1) & DataProcessing(pr_35_1, c_42_1, _p32, d_36_1)
+    if Exists88(_p32) & !Exists87(_p32, c_42_1, d_36_1, ds_40_1, pr_35_1) & !Exists86(_p32, c_42_1, d_36_1, ds_40_1, pr_35_1) & Scope41(_p32, c_42_1, d_36_1, pr_35_1)
+}
+
+let Exists84(_p32:str) := {
+  IsNecessaryForLegalObligation(_p32, l_2_1)
+}
+
+let Exists83(_p32:str, c_41_1:str, d_35_1:str, ds_39_1:str, pr_34_1:str) := {
+  Exception141(_p32, c_41_1, d_35_1, de_16_1, ds_39_1, p_18_1, pr_34_1)
+}
+
+let Exists82(_p32:str, c_41_1:str, d_35_1:str, ds_39_1:str, pr_34_1:str) := {
+  Exception143(_p32, c_41_1, d_35_1, de_15_1, ds_39_1, pr_34_1)
+}
+
+let Exists85(_p32:str, _p33:str) := {
+  _p33 == "6(1)(c)" & PersonalData(d_35_1, ds_39_1) & DataProcessing(pr_34_1, c_41_1, _p32, d_35_1)
+    if Exists84(_p32) & !Exists83(_p32, c_41_1, d_35_1, ds_39_1, pr_34_1) & !Exists82(_p32, c_41_1, d_35_1, ds_39_1, pr_34_1) & Scope41(_p32, c_41_1, d_35_1, pr_34_1)
+}
+
+table Once79(c_39_1:str, ds_37_1:str, p_16_1:str) :=
+  add {
+    GiveConsent(ds_37_1, p_16_1, c_39_1)
+  };
+
+filter let Exists80(_p32:str, c_39_1:str, ds_37_1:str) := {
+  HasPurpose(_p32, p_16_1)
+    if !Once79(c_39_1, ds_37_1, p_16_1)
+}
+
+let Exists78(_p32:str, c_39_1:str, d_33_1:str, ds_37_1:str, pr_32_1:str) := {
+  Exception141(_p32, c_39_1, d_33_1, de_12_1, ds_37_1, p_15_1, pr_32_1)
+}
+
+let Exists77(_p32:str, c_39_1:str, d_33_1:str, ds_37_1:str, pr_32_1:str) := {
+  Exception143(_p32, c_39_1, d_33_1, de_11_1, ds_37_1, pr_32_1)
+}
+
+let Exists76(_p32:str, c_39_1:str, d_33_1:str, ds_37_1:str, pr_32_1:str) := {
+  Scope22(_p32, c_39_1, d_33_1, ds_37_1, p_14_1, pr_32_1)
+}
+
+let Exists81(_p32:str, _p33:str) := {
+  _p33 == "6(1)(a)" & PersonalData(d_33_1, ds_37_1) & DataProcessing(pr_32_1, c_39_1, _p32, d_33_1)
+    if !Exists80(_p32, c_39_1, ds_37_1) & !Exists78(_p32, c_39_1, d_33_1, ds_37_1, pr_32_1) & !Exists77(_p32, c_39_1, d_33_1, ds_37_1, pr_32_1) & Exists76(_p32, c_39_1, d_33_1, ds_37_1, pr_32_1) & Scope41(_p32, c_39_1, d_33_1, pr_32_1)
+}
+
+let IsLawful(_p32:str, _p33:str) := {
+  IsNecessaryForSubstantialPublicInterest(_p32) & _p33 == "9(2)(g)"
+   or Exists103(_p32, _p33)
+   or Exists99(_p32, _p33)
+   or Exists94(_p32, _p33)
+   or Exists89(_p32, _p33)
+   or Exists85(_p32, _p33)
+   or Exists81(_p32, _p33)
+    if (((((((((((((IsNecessaryForSubstantialPublicInterest(_p32) & _p33 == "9(2)(g)" | IsNecessaryForSubstantialPublicInterest(_p32) & Exists103(_p32, _p33)) | IsNecessaryForSubstantialPublicInterest(_p32) & Exists99(_p32, _p33)) | IsNecessaryForSubstantialPublicInterest(_p32) & Exists94(_p32, _p33)) | IsNecessaryForSubstantialPublicInterest(_p32) & Exists89(_p32, _p33)) | IsNecessaryForSubstantialPublicInterest(_p32) & Exists85(_p32, _p33)) | IsNecessaryForSubstantialPublicInterest(_p32) & Exists81(_p32, _p33))) & _p33 == "9(2)(g)" | Exists103(_p32, _p33)) | Exists99(_p32, _p33)) | Exists94(_p32, _p33)) | Exists89(_p32, _p33)) | Exists85(_p32, _p33)) | Exists81(_p32, _p33))
+}
+
+table Once143(_p34:str, _p35:str, ds_54_1:str) :=
+  add {
+    DataProcessing(pr_58_1, _p34, a_74_1, _p35) & PersonalData(_p35, ds_54_1)
+  };
+
+filter let Exists141() := {
+  if false
+}
+
+let Exists140(_p34:str, _p35:str) := {
+  Exception122(a_72_1, _p34, _p35, pr_57_1)
+}
+
+let Exists139(_p34:str, _p35:str) := {
+  Exception123(a_71_1, _p34, _p35, pi_11_1, pr_56_1)
+}
+
+let Exists138(_p34:str, _p35:str) := {
+  Exception125(a_69_1, _p34, _p35, pr_54_1)
+}
+
+let Exists145(_p34:str, _p35:str) := {
+  IsActiveObjection(ds_54_1, _p34, p_28_1, de_25_1) & Once143(_p34, _p35, ds_54_1)
+    if !Exists141() & !Exists140(_p34, _p35) & !Exists139(_p34, _p35) & !Exists138(_p34, _p35)
+}
+
+table Once136(_p34:str, _p35:str, ds_53_1:str) :=
+  add {
+    RequestErasure(ds_10_1, _p35, rq_13_1) & Request(ds_53_1, rq_13_1, _p34)
+  };
+
+let Exists134(ds_53_1:str) := {
+  RequestResponse(ds_53_1, rq_12_1, rs_4_1)
+}
+
+table Since131(_p34:str) :=
+  add {
+    DataProcessing(pr_53_1, _p34, a_68_1, d_42_1)
+  }
+  remove {
+    Revoke(ds_53_1, p_27_1) & _p34 == "GDPRSocial, Inc."
+  };
+
+filter let Exists132(_p34:str, a_68_1:str, d_42_1:str, ds_53_1:str) := {
+  Since131(_p34)
+}
+
+table Once128(c_39_1:str, ds_37_1:str, p_16_1:str) :=
+  add {
+    GiveConsent(ds_37_1, p_16_1, c_39_1)
+  };
+
+filter let Exists129(a_68_1:str, c_39_1:str, ds_37_1:str) := {
+  HasPurpose(a_68_1, p_16_1)
+    if !Once128(c_39_1, ds_37_1, p_16_1)
+}
+
+let Exists127(a_68_1:str, c_39_1:str, d_33_1:str, ds_37_1:str, pr_32_1:str) := {
+  Exception141(a_68_1, c_39_1, d_33_1, de_12_1, ds_37_1, p_15_1, pr_32_1)
+}
+
+let Exists126(a_68_1:str, c_39_1:str, d_33_1:str, ds_37_1:str, pr_32_1:str) := {
+  Exception143(a_68_1, c_39_1, d_33_1, de_11_1, ds_37_1, pr_32_1)
+}
+
+let Exists125(a_68_1:str, c_39_1:str, d_33_1:str, ds_37_1:str, pr_32_1:str) := {
+  Scope22(a_68_1, c_39_1, d_33_1, ds_37_1, p_14_1, pr_32_1)
+}
+
+let Exists130(a_68_1:str) := {
+  PersonalData(d_33_1, ds_37_1) & DataProcessing(pr_32_1, c_39_1, a_68_1, d_33_1)
+    if !Exists129(a_68_1, c_39_1, ds_37_1) & !Exists127(a_68_1, c_39_1, d_33_1, ds_37_1, pr_32_1) & !Exists126(a_68_1, c_39_1, d_33_1, ds_37_1, pr_32_1) & Exists125(a_68_1, c_39_1, d_33_1, ds_37_1, pr_32_1) & Scope41(a_68_1, c_39_1, d_33_1, pr_32_1)
+}
+
+table Since121(c_46_1:str, ds_47_1:str, p_25_1:str, sp_5_1:str) :=
+  add {
+    GiveSpecialConsent(ds_47_1, p_25_1, c_46_1, sp_5_1)
+  }
+  remove {
+    WithdrawSpecialConsent(ds_47_1, p_25_1, c_46_1, sp_5_1)
+  };
+
+filter let Exists122(a_68_1:str, c_46_1:str, ds_47_1:str, sp_5_1:str) := {
+  HasPurpose(a_68_1, p_25_1)
+    if !Since121(c_46_1, ds_47_1, p_25_1, sp_5_1)
+}
+
+let Exists124(a_68_1:str) := {
+  DataProcessing(pr_39_1, c_46_1, a_68_1, d_40_1) & PersonalData(d_40_1, ds_47_1) & IsSpecialData(d_40_1, sp_5_1)
+    if !Exists122(a_68_1, c_46_1, ds_47_1, sp_5_1)
+}
+
+let Exists120(a_68_1:str) := {
+  IsLawful(a_68_1, ba_1_1)
+}
+
+filter let Exists133(_p34:str, ds_53_1:str) := {
+  Exists130(a_68_1) & PersonalData(d_42_1, ds_53_1)
+   or Exists124(a_68_1) & PersonalData(d_42_1, ds_53_1)
+    if Exists132(_p34, a_68_1, d_42_1, ds_53_1) & ((Exists130(a_68_1) & PersonalData(d_42_1, ds_53_1) | Exists124(a_68_1) & PersonalData(d_42_1, ds_53_1))) & !Exists120(a_68_1)
+}
+
+filter let Exists119() := {
+  if false
+}
+
+let Exists118(_p34:str, _p35:str) := {
+  Exception122(a_66_1, _p34, _p35, pr_52_1)
+}
+
+let Exists117(_p34:str, _p35:str) := {
+  Exception123(a_65_1, _p34, _p35, pi_10_1, pr_51_1)
+}
+
+let Exists116(_p34:str, _p35:str) := {
+  Exception125(a_63_1, _p34, _p35, pr_49_1)
+}
+
+let Exists137(_p34:str, _p35:str) := {
+  Exists134(ds_53_1) & Once136(_p34, _p35, ds_53_1)
+   or PersonalData(_p35, ds_53_1) & Once136(_p34, _p35, ds_53_1)
+   or DataReview(_p34, _p35) & PersonalData(_p35, ds_53_1)
+    if ((((Once136(_p34, _p35, ds_53_1) & Exists134(ds_53_1) | Once136(_p34, _p35, ds_53_1) & PersonalData(_p35, ds_53_1))) & ((((Once136(_p34, _p35, ds_53_1) & Exists134(ds_53_1) | Once136(_p34, _p35, ds_53_1) & PersonalData(_p35, ds_53_1))) & Exists134(ds_53_1) | ((Once136(_p34, _p35, ds_53_1) & Exists134(ds_53_1) | Once136(_p34, _p35, ds_53_1) & PersonalData(_p35, ds_53_1))) & PersonalData(_p35, ds_53_1))) & Exists134(ds_53_1) | ((DataReview(_p34, _p35) & Once136(_p34, _p35, ds_53_1) & Exists134(ds_53_1) | DataReview(_p34, _p35) & PersonalData(_p35, ds_53_1))) & PersonalData(_p35, ds_53_1))) & !Exists133(_p34, ds_53_1) & !Exists119() & !Exists118(_p34, _p35) & !Exists117(_p34, _p35) & !Exists116(_p34, _p35)
+}
+
+table Once114(_p34:str, _p35:str, ds_52_1:str) :=
+  add {
+    RequestErasure(ds_10_1, _p35, rq_11_1) & Request(ds_52_1, rq_11_1, _p34)
+  };
+
+let Exists112(ds_52_1:str) := {
+  RequestResponse(ds_52_1, rq_10_1, rs_3_1)
+}
+
+let Exists108(a_62_1:str) := {
+  HasPurpose(a_62_1, p_26_1)
+}
+
+table Once111(_p34:str, ds_52_1:str) :=
+  add {
+    DataProcessing(pr_48_1, _p34, a_62_1, d_41_1) & PersonalData(d_41_1, ds_52_1)
+      if Exists108(a_62_1)
+  };
+
+filter let Exists107() := {
+  if false
+}
+
+let Exists106(_p34:str, _p35:str) := {
+  Exception122(a_60_1, _p34, _p35, pr_47_1)
+}
+
+let Exists105(_p34:str, _p35:str) := {
+  Exception123(a_59_1, _p34, _p35, pi_9_1, pr_46_1)
+}
+
+let Exists104(_p34:str, _p35:str) := {
+  Exception125(a_57_1, _p34, _p35, pr_44_1)
+}
+
+let Exists115(_p34:str, _p35:str) := {
+  Exists112(ds_52_1) & Once114(_p34, _p35, ds_52_1)
+   or PersonalData(_p35, ds_52_1) & Once114(_p34, _p35, ds_52_1)
+   or DataReview(_p34, _p35) & PersonalData(_p35, ds_52_1)
+    if ((((Once114(_p34, _p35, ds_52_1) & Exists112(ds_52_1) | Once114(_p34, _p35, ds_52_1) & PersonalData(_p35, ds_52_1))) & ((((Once114(_p34, _p35, ds_52_1) & Exists112(ds_52_1) | Once114(_p34, _p35, ds_52_1) & PersonalData(_p35, ds_52_1))) & Exists112(ds_52_1) | ((Once114(_p34, _p35, ds_52_1) & Exists112(ds_52_1) | Once114(_p34, _p35, ds_52_1) & PersonalData(_p35, ds_52_1))) & PersonalData(_p35, ds_52_1))) & Exists112(ds_52_1) | ((DataReview(_p34, _p35) & Once114(_p34, _p35, ds_52_1) & Exists112(ds_52_1) | DataReview(_p34, _p35) & PersonalData(_p35, ds_52_1))) & PersonalData(_p35, ds_52_1))) & !Once111(_p34, ds_52_1) & !Exists107() & !Exists106(_p34, _p35) & !Exists105(_p34, _p35) & !Exists104(_p34, _p35)
+}
+
+let IsObligedToDelete(_p34:str, _p35:str) := {
+  Exists145(_p34, _p35)
+   or Exists137(_p34, _p35)
+   or Exists115(_p34, _p35)
+    if ((Exists145(_p34, _p35) | Exists137(_p34, _p35)) | Exists115(_p34, _p35))
+}
+
+table Since146(c_46_1:str, ds_47_1:str, p_25_1:str, sp_5_1:str) :=
+  add {
+    GiveSpecialConsent(ds_47_1, p_25_1, c_46_1, sp_5_1)
+  }
+  remove {
+    WithdrawSpecialConsent(ds_47_1, p_25_1, c_46_1, sp_5_1)
+  };
+
+filter let Exists147(a_76:str, c_46_1:str, ds_47_1:str, sp_5_1:str) := {
+  HasPurpose(a_76, p_25_1)
+    if !Since146(c_46_1, ds_47_1, p_25_1, sp_5_1)
+}
+
+let Exists149(a_76:str) := {
+  DataProcessing(pr_39_1, c_46_1, a_76, d_40_1) & PersonalData(d_40_1, ds_47_1) & IsSpecialData(d_40_1, sp_5_1)
+    if !Exists147(a_76, c_46_1, ds_47_1, sp_5_1)
+}
+
+filter let Exception150(a_76:str) := {
+  if ((Exists149(a_76) | IsNecessaryForSubstantialPublicInterest(a_76))) & ((Exists149(a_76) | IsNecessaryForSubstantialPublicInterest(a_76)))
+}
+
+table Since150(c_48:str, ds_58:str, p_29:str) :=
+  add {
+    GiveConsent(ds_58, p_29, c_48)
+  }
+  remove {
+    Revoke(ds_58, p_29) & c_48 == "GDPRSocial, Inc."
+  };
+
+let Exists534(d_130:str) := {
+  PersonalData(d_130, ds_137)
+}
+
+let Exists537(a_166:str) := {
+  HasPurpose(a_166, p_51)
+}
+
+let Exists538() := {
+  DataProcessing(pr_144, c_141, a_166, d_130)
+    if !Exists537(a_166) & Exists534(d_130)
+}
+
+let Exists533() := {
+  HasPurpose(a_165, p_50)
+    if !IsLegitimate(p_50)
+}
+
+let Exists531() := {
+  DataProcessing(pr_142, co_21, a_163, d_128) & HasPurpose(a_163, p_48)
+    if Exists19(d_128)
+}
+
+table Once525(c_139:str, ds_135:str, p_46:str) :=
+  add {
+    GiveConsent(ds_135, p_46, c_139)
+  };
+
+let Exists528() := {
+  DataProcessing(pr_141, c_139, a_161, d_126) & PersonalData(d_126, ds_135) & Once525(c_139, ds_135, p_46)
+    if !IsAbleToDemonstrateConsent(c_139, ds_135, p_46)
+}
+
+let Exists522(c_137:str, ds_133:str) := {
+  Inform(c_137, ds_133, de_88) & Contains(de_88, re_42)
+    if IsRightToWithdrawConsent(re_42)
+}
+
+table Once523(c_137:str, ds_133:str) :=
+  add {
+    Exists522(c_137, ds_133)
+  };
+
+let Exists524() := {
+  GiveConsent(ds_133, p_44, c_137)
+    if !Once523(c_137, ds_133)
+}
+
+let Exists520() := {
+  GiveConsent(ds_132, p_43, c_136)
+    if !(c_136 == "GDPRSocial, Inc.")
+}
+
+let Exists516(c__9:str, c_131:str, ds_128:str) := {
+  IsContactDetailsOfDataProtectionOfficer(re_37, c__9) & Inform(c_131, ds_128, de_84) & Contains(de_84, re_37)
+}
+
+table Once517(c__9:str, c_131:str, ds_128:str) :=
+  add {
+    Exists516(c__9, c_131, ds_128)
+  };
+
+let Exists518() := {
+  c_131 == "GDPRSocial, Inc." & c__9 == "dpo@gdprsocial-inc.com" & DataProcessing(pr_139, c_131, a_159, d_124) & Exists17(a_159, ds_128) & PersonalData(d_124, ds_128)
+    if !Once517(c__9, c_131, ds_128)
+}
+
+let Exists511(c_130:str, ds_127:str, e_18:str) := {
+  Inform(c_130, ds_127, de_83) & IsRecipient(re_36, e_18) & Contains(de_83, re_36)
+}
+
+table Once512(c_130:str, ds_127:str, e_18:str) :=
+  add {
+    Exists511(c_130, ds_127, e_18)
+  };
+
+let Exists513() := {
+  DataProcessing(pr_138, c_130, a_158, d_123) & Exists17(a_158, ds_127) & HasIntendedRecipient(d_123, e_18) & PersonalData(d_123, ds_127)
+    if !Once512(c_130, ds_127, e_18)
+}
+
+let Exists506(c_129:str, ds_126:str, rc_1:str) := {
+  Inform(c_129, ds_126, de_82) & IsRecipientCategory(re_35, rc_1) & Contains(de_82, re_35)
+}
+
+table Once507(c_129:str, ds_126:str, rc_1:str) :=
+  add {
+    Exists506(c_129, ds_126, rc_1)
+  };
+
+let Exists508() := {
+  DataProcessing(pr_137, c_129, a_157, d_122) & Exists17(a_157, ds_126) & Collect(a_3_1, d_122, ds_7_1, "statistics") & rc_1 == "Analytics, Inc." & PersonalData(d_122, ds_126)
+    if !Once507(c_129, ds_126, rc_1)
+}
+
+filter let Exists502(d_120:str) := {
+  cr_8 == "Your data is stored until you delete your account"
+}
+
+let Exists503() := {
+  DataProcessing(pr_135, c_127, a_155, d_120) & Exists17(a_155, ds_124) & PersonalData(d_120, ds_124)
+    if !Exists502(d_120)
+}
+
+let Exists497(c_125:str, cr_7:str, ds_122:str) := {
+  IsStorageCriteria(re_31, cr_7) & Inform(c_125, ds_122, de_78) & Contains(de_78, re_31)
+}
+
+table Once498(c_125:str, cr_7:str, ds_122:str) :=
+  add {
+    Exists497(c_125, cr_7, ds_122)
+  };
+
+let Exists499() := {
+  cr_7 == "Your data is stored until you delete your account" & DataProcessing(pr_133, c_125, a_153, d_118) & Exists17(a_153, ds_122) & PersonalData(d_118, ds_122)
+    if !Once498(c_125, cr_7, ds_122)
+}
+
+let Exists492(c_124:str, ds_121:str) := {
+  Inform(c_124, ds_121, de_77) & Contains(de_77, re_30)
+    if IsRights(re_30)
+}
+
+table Once493(c_124:str, ds_121:str) :=
+  add {
+    Exists492(c_124, ds_121)
+  };
+
+let Exists494() := {
+  DataProcessing(pr_132, c_124, a_152, d_117) & Exists17(a_152, ds_121) & PersonalData(d_117, ds_121)
+    if !Once493(c_124, ds_121)
+}
+
+let Exists487(c_123:str, ds_120:str) := {
+  Inform(c_123, ds_120, de_76) & Contains(de_76, re_29)
+    if IsRightToLodgeComplaint(re_29)
+}
+
+table Once488(c_123:str, ds_120:str) :=
+  add {
+    Exists487(c_123, ds_120)
+  };
+
+let Exists489() := {
+  DataProcessing(pr_131, c_123, a_151, d_116) & Exists17(a_151, ds_120) & PersonalData(d_116, ds_120)
+    if !Once488(c_123, ds_120)
+}
+
+let Exists481(a_149:str, d_114:str) := {
+  DataProcessing(pr_129, c_121, a_149, d_114)
+}
+
+table Once483(d_114:str, de_74:str) :=
+  add {
+    Collect(a_2_1, d_114, ds_6_1, "personalized_ad") & de_74 == "We use the content of the page shown to the user to display personalized advertisement"
+  };
+
+let Exists484() := {
+  AutomatedDecision(a_149, d_114, ds_118, de_74) & PersonalData(d_114, ds_118)
+    if !Once483(d_114, de_74) & Exists481(a_149, d_114)
+}
+
+let Exists475(d_113:str) := {
+  Collect(a_2_1, d_113, ds_6_1, "personalized_ad") & de_72 == "We use the content of the page shown to the user to display personalized advertisement"
+}
+
+let Exists478(c_120:str, ds_117:str) := {
+  Inform(c_120, ds_117, de_73) & Contains(de_73, re_27)
+    if IsAutomatedDecision(re_27)
+}
+
+table Once479(c_120:str, ds_117:str) :=
+  add {
+    Exists478(c_120, ds_117)
+  };
+
+let Exists480() := {
+  DataProcessing(pr_128, c_120, a_148, d_113) & Exists17(a_148, ds_117) & PersonalData(d_113, ds_117)
+    if !Once479(c_120, ds_117) & Exists475(d_113)
+}
+
+table Once471(c_119:str, ds_116:str, rq_35:str) :=
+  add {
+    Request(ds_116, rq_35, c_119)
+      if Exists16(rq_35)
+  };
+
+table Once470(c_119:str, ds_116:str) :=
+  add {
+    DataProcessing(pr_127, c_119, a_147, d_112) & PersonalData(d_112, ds_116)
+  };
+
+let Exists473(rs_24:str) := {
+  Contains(rs_24, de_71)
+    if IsDataProcessingOngoing(de_71)
+}
+
+let Exists474() := {
+  RequestResponse(ds_116, rq_35, rs_24) & Once471(c_119, ds_116, rq_35)
+    if !Exists473(rs_24) & Once470(c_119, ds_116)
+}
+
+table Once464(c_118:str, ds_115:str, rq_34:str) :=
+  add {
+    Request(ds_115, rq_34, c_118)
+      if Exists16(rq_34)
+  };
+
+table Once463(c_118:str, ds_115:str) :=
+  add {
+    DataProcessing(pr_126, c_118, a_146, d_111) & PersonalData(d_111, ds_115)
+  };
+
+let Exists466(rs_23:str) := {
+  Contains(rs_23, de_70)
+    if IsDataProcessingNotOngoing(de_70)
+}
+
+let Exists467() := {
+  RequestResponse(ds_115, rq_34, rs_23) & Once464(c_118, ds_115, rq_34)
+    if !Exists466(rs_23) & !Once463(c_118, ds_115)
+}
+
+table Once457(c_117:str, ds_114:str, rq_33:str) :=
+  add {
+    Request(ds_114, rq_33, c_117)
+      if Exists16(rq_33)
+  };
+
+table Once456(c_117:str, ds_114:str, p_42:str) :=
+  add {
+    DataProcessing(pr_125, c_117, a_145, d_110) & PersonalData(d_110, ds_114) & HasPurpose(a_145, p_42)
+  };
+
+let Exists459(p_42:str, rs_22:str) := {
+  IsPurposeOfProcessing(de_69, p_42) & Contains(rs_22, de_69)
+}
+
+let Exists460() := {
+  RequestResponse(ds_114, rq_33, rs_22) & Once456(c_117, ds_114, p_42)
+    if !Exists459(p_42, rs_22) & Once457(c_117, ds_114, rq_33)
+}
+
+table Once450(c_116:str, ds_113:str, rq_32:str) :=
+  add {
+    Request(ds_113, rq_32, c_116)
+      if Exists16(rq_32)
+  };
+
+table Once448(c_116:str, d_109:str) :=
+  add {
+    DataProcessing(pr_124, c_116, a_144, d_109)
+  };
+
+let Exists452(cat_5:str, rs_21:str) := {
+  IsCategory(de_68, cat_5) & Contains(rs_21, de_68)
+}
+
+let Exists453() := {
+  HasCategory(d_109, cat_5) & PersonalData(d_109, ds_113) & RequestResponse(ds_113, rq_32, rs_21) & Once448(c_116, d_109)
+    if !Exists452(cat_5, rs_21) & Once450(c_116, ds_113, rq_32)
+}
+
+table Once443(c_115:str, ds_112:str, rq_31:str) :=
+  add {
+    Request(ds_112, rq_31, c_115)
+      if Exists16(rq_31)
+  };
+
+table Once441(c_115:str, d_108:str) :=
+  add {
+    DataProcessing(pr_123, c_115, a_143, d_108)
+  };
+
+let Exists445(e_17:str, rs_20:str) := {
+  IsRecipient(de_67, e_17) & Contains(rs_20, de_67)
+}
+
+let Exists446() := {
+  PersonalData(d_108, ds_112) & HasIntendedRecipient(d_108, e_17) & RequestResponse(ds_112, rq_31, rs_20) & Once441(c_115, d_108)
+    if !Exists445(e_17, rs_20) & Once443(c_115, ds_112, rq_31)
+}
+
+table Once436(c_114:str, ds_111:str, rq_30:str) :=
+  add {
+    Request(ds_111, rq_30, c_114)
+      if Exists16(rq_30)
+  };
+
+table Once434(c_114:str, d_107:str) :=
+  add {
+    DataProcessing(pr_122, c_114, a_142, d_107)
+  };
+
+let Exists438(cat_4:str, rs_19:str) := {
+  IsRecipientCategory(de_66, cat_4) & Contains(rs_19, de_66)
+}
+
+let Exists439() := {
+  Collect(a_3_1, d_107, ds_7_1, "statistics") & cat_4 == "Analytics, Inc." & PersonalData(d_107, ds_111) & RequestResponse(ds_111, rq_30, rs_19) & Once434(c_114, d_107)
+    if !Exists438(cat_4, rs_19) & Once436(c_114, ds_111, rq_30)
+}
+
+table Once429(c_112:str, ds_109:str, rq_28:str) :=
+  add {
+    Request(ds_109, rq_28, c_112)
+      if Exists16(rq_28)
+  };
+
+table Once427(c_112:str, d_105:str) :=
+  add {
+    DataProcessing(pr_120, c_112, a_140, d_105)
+  };
+
+let Exists431(cr_6:str, rs_17:str) := {
+  IsStorageCriteria(de_64, cr_6) & Contains(rs_17, de_64)
+}
+
+let Exists432() := {
+  cr_6 == "Your data is stored until you delete your account" & PersonalData(d_105, ds_109) & RequestResponse(ds_109, rq_28, rs_17) & Once427(c_112, d_105)
+    if !Exists431(cr_6, rs_17) & Once429(c_112, ds_109, rq_28)
+}
+
+table Once422(c_111:str, ds_108:str, rq_27:str) :=
+  add {
+    Request(ds_108, rq_27, c_111)
+      if Exists16(rq_27)
+  };
+
+table Once420(c_111:str, d_104:str) :=
+  add {
+    DataProcessing(pr_119, c_111, a_139, d_104)
+  };
+
+let Exists424(rs_16:str) := {
+  Contains(rs_16, de_63)
+    if IsRights(de_63)
+}
+
+let Exists425() := {
+  PersonalData(d_104, ds_108) & RequestResponse(ds_108, rq_27, rs_16) & Once420(c_111, d_104)
+    if !Exists424(rs_16) & Once422(c_111, ds_108, rq_27)
+}
+
+table Once415(c_110:str, ds_107:str, rq_26:str) :=
+  add {
+    Request(ds_107, rq_26, c_110)
+      if Exists16(rq_26)
+  };
+
+table Once413(c_110:str, d_103:str) :=
+  add {
+    DataProcessing(pr_118, c_110, a_138, d_103)
+  };
+
+let Exists417(rq_26:str, rs_15:str) := {
+  IsComplaintStatement(de_62, rq_26) & Contains(rs_15, de_62)
+}
+
+let Exists418() := {
+  PersonalData(d_103, ds_107) & RequestResponse(ds_107, rq_26, rs_15) & Once413(c_110, d_103)
+    if !Exists417(rq_26, rs_15) & Once415(c_110, ds_107, rq_26)
+}
+
+table Once408(c_109:str, ds_106:str, rq_25:str) :=
+  add {
+    Request(ds_106, rq_25, c_109)
+      if Exists16(rq_25)
+  };
+
+let Exists404(d_102:str) := {
+  Collect(a_2_1, d_102, ds_6_1, "personalized_ad") & de_60 == "We use the content of the page shown to the user to display personalized advertisement"
+}
+
+table Once407(c_109:str, ds_106:str) :=
+  add {
+    DataProcessing(pr_117, c_109, a_137, d_102) & PersonalData(d_102, ds_106)
+      if Exists404(d_102)
+  };
+
+let Exists410(rs_14:str) := {
+  Contains(rs_14, de_61)
+    if IsAutomatedDecision(de_61)
+}
+
+let Exists411() := {
+  RequestResponse(ds_106, rq_25, rs_14) & Once408(c_109, ds_106, rq_25)
+    if !Exists410(rs_14) & Once407(c_109, ds_106)
+}
+
+table Once400(c_107:str, ds_104:str, rq_23:str) :=
+  add {
+    Request(ds_104, rq_23, c_107)
+      if Exists16(rq_23)
+  };
+
+table Once399(c_107:str, ds_104:str) :=
+  add {
+    DataProcessing(pr_115, c_107, a_135, d_100) & PersonalData(d_100, ds_104)
+  };
+
+let Exists402(ds_104:str, rs_12:str) := {
+  PersonalDataCopy(f_2, ds_104) & ContainsData(rs_12, f_2)
+}
+
+let Exists403() := {
+  RequestResponse(ds_104, rq_23, rs_12) & Once400(c_107, ds_104, rq_23)
+    if !Exists402(ds_104, rs_12) & Once399(c_107, ds_104)
+}
+
+table Once395(c_106:str, d_99:str, rq_22:str) :=
+  add {
+    Inform(c_106, ds_103, de_57) & Declaration(re_26) & NoteData(d_99) & NoteRequest(rq_22) & HasText(re_26, _ep9) & Contains(de_57, re_26)
+      if true & _ep9 == conc(conc(conc(conc("<h6>Lifting of processing restriction</h6><p>The restriction on the processing of data ", string_of_data(d_99)), ", imposed in response to request "), string_of_request(rq_22)), ", is to be lifted. Processing of the concerned data may resume from this point.</p>")
+  };
+
+let Exists396() := {
+  LiftRestriction(c_106, d_99, rq_22)
+    if !Once395(c_106, d_99, rq_22)
+}
+
+table Once389(c_105:str, ds_102:str, rq_21:str) :=
+  add {
+    Request(ds_102, rq_21, c_105)
+      if Exists28(rq_21)
+  };
+
+table Once388(c_105:str, ds_102:str, e_16:str) :=
+  add {
+    PersonalData(d_98, ds_102) & Share(c_105, e_16, d_98)
+  };
+
+let Exists391(e_16:str, rs_11:str) := {
+  IsEffectiveRecipient(de_56, e_16) & Contains(rs_11, de_56)
+}
+
+let Exists392() := {
+  RequestResponse(ds_102, rq_21, rs_11) & Once388(c_105, ds_102, e_16)
+    if !Exists391(e_16, rs_11) & Once389(c_105, ds_102, rq_21)
+}
+
+table Once385(c_104:str, d_97:str, ds_101:str, p_41:str) :=
+  add {
+    DataProcessing(pr__10, c_104, co_18, d_97) & Exists17(co_18, ds_101) & HasPurpose(co_18, p_41)
+  };
+
+let Exists386() := {
+  DataProcessing(pr_114, c_104, a_134, d_97) & PersonalData(d_97, ds_101) & HasPurpose(a_134, p_41)
+    if !Once385(c_104, d_97, ds_101, p_41)
+}
+
+let Exists375(c_103:str) := {
+  Exists17(c_103, ds__20)
+}
+
+table Once378(d_96:str, p_40:str) :=
+  add {
+    DataProcessing(pr_113, co_17, c_103, d_96) & HasPurpose(c_103, p_40)
+      if Exists375(c_103)
+  };
+
+let Exists380() := {
+  Exists19(d_96) & Once378(d_96, p_40)
+    if !Delete(d_96)
+}
+
+table Once372(c__8:str, c_102:str, ds_100:str, rq_20:str) :=
+  add {
+    SpecifiesNewController(rq_20, c__8) & Request(ds_100, rq_20, c_102)
+      if IsPortabilityRequest(rq_20)
+  };
+
+let Exists374() := {
+  ContainsData(rs_10, f_1) & RequestResponse(ds_100, rq_20, rs_10) & Once372(c__8, c_102, ds_100, rq_20)
+    if !SendFile(c__8, f_1)
+}
+
+let Exists364(d_95:str) := {
+  PersonalData(d_95, ds_99)
+}
+
+let Exists367(c_101:str) := {
+  Exists17(c_101, col_ds)
+}
+
+table Once370(d_95:str, p_39:str) :=
+  add {
+    DataProcessing(col_pr, col_co, c_101, d_95) & IsCompatibleWithPurpose(p_39, col_p)
+      if Exists367(c_101) & HasPurpose(c_101, col_p)
+  };
+
+let Exists371() := {
+  DataProcessing(pr_112, co_16, a_133, d_95) & HasPurpose(a_133, p_39)
+    if !Once370(d_95, p_39) & Exists364(d_95)
+}
+
+let Exists362(ds_97:str, rq_19:str) := {
+  RequestResponse(ds_97, rq_19, rs_9)
+}
+
+let Exists363() := {
+  Request(ds_97, rq_19, c_99)
+    if !Exists362(ds_97, rq_19)
+}
+
+filter let Exists360(d_93:str) := {
+  cr_5 == "Your data is stored until you delete your account"
+}
+
+let Exists361() := {
+  DataProcessing(pr_110, c_96, a_131, d_93) & Exists35(a_131, d_93, ds_94)
+    if !Exists360(d_93)
+}
+
+table Once352(c_95:str, d_92:str, ds_93:str) :=
+  add {
+    DataProcessing(pr__9, c_95, co_14, d_92) & Exists35(co_14, d_92, ds_93)
+  };
+
+table Once349(c_95:str, d_92:str, ds_93:str, p_37:str) :=
+  add {
+    DataProcessing(pr__8, c_95, co_13, d_92) & Exists35(co_13, d_92, ds_93) & HasPurpose(co_13, p_37)
+  };
+
+table Once356(c_95:str, ds_93:str) :=
+  add {
+    Inform(c_95, ds_93, de_55) & Contains(de_55, re_25)
+  };
+
+let Exists357() := {
+  DataProcessing(pr_109, c_95, a_130, d_92) & PersonalData(d_92, ds_93) & HasPurpose(a_130, p_37)
+    if !Once356(c_95, ds_93) & Once352(c_95, d_92, ds_93) & !Once349(c_95, d_92, ds_93, p_37)
+}
+
+table Once343(c_93:str, ds_91:str, rq_15:str) :=
+  add {
+    Request(ds_91, rq_15, c_93)
+      if Exists16(rq_15)
+  };
+
+table Once341(a_128:str, c_93:str, d_90:str) :=
+  add {
+    DataProcessing(pr_107, c_93, a_128, d_90)
+  };
+
+let Exists345(ds__18:str, rs_6:str) := {
+  IsDSSource(de_53, ds__18) & Contains(rs_6, de_53)
+}
+
+let Exists346() := {
+  Exists17(a_128, ds__18) & Exists35(a_128, d_90, ds_91) & RequestResponse(ds_91, rq_15, rs_6) & Once341(a_128, c_93, d_90)
+    if !Exists345(ds__18, rs_6) & Once343(c_93, ds_91, rq_15) & ds_91 != ds__18
+}
+
+let Exists339() := {
+  RequestRectification(ds_5_1, d_89, d__1_1, rq_1_1) & RequestResponse(ds_15_1, rq_4_1, rs_1_1) & Once40(c_92, d_89, d__9, ds_15_1, rq_4_1)
+    if !Rectify(d_89, d__9) & Once38(c_92, ds_15_1)
+}
+
+table Once336(c_91:str, d_88:str, e_14:str) :=
+  add {
+    Share(c_91, e_14, d_88)
+  };
+
+let Exists337() := {
+  RequestRectification(ds_5_1, d_88, d__1_1, rq_1_1) & RequestResponse(ds_15_1, rq_4_1, rs_1_1) & Once40(c_91, d_88, d__8, ds_15_1, rq_4_1) & Once336(c_91, d_88, e_14)
+    if !NotifyRectification(e_14, d_88, d__8) & Once38(c_91, ds_15_1)
+}
+
+let Exists334(a_127:str) := {
+  IsNecessaryForPublicInterest(a_127, pi_18) & IsHealthRelated(pi_18)
+}
+
+let Exists335() := {
+  PersonalData(d_87, ds_90) & DataProcessing(pr_106, c_90, a_127, d_87) & IsSpecialData(d_87, sp_9)
+    if !Exception28(a_127, c_90, d_87, ds_90, pr_106, sp_9) & !IsNecessaryForJudicialClaims(a_127) & !IsNecessaryForSubstantialPublicInterest(a_127) & !Exists334(a_127)
+}
+
+let Exists331(c_89:str, ds_89:str) := {
+  Inform(c_89, ds_89, de_52) & Contains(de_52, re_24)
+    if IsIdentityOfControllerOrRepresentative(re_24, c_89)
+}
+
+table Once332(c_89:str, ds_89:str) :=
+  add {
+    Exists331(c_89, ds_89)
+  };
+
+let Exists333() := {
+  DataProcessing(pr_105, c_89, a_126, d_86) & Exists35(a_126, d_86, ds_89)
+    if !Once332(c_89, ds_89)
+}
+
+let Exists326(c_88:str, ds_88:str) := {
+  Inform(c_88, ds_88, de_51) & Contains(de_51, re_23)
+    if IsContactDetailsOfDataProtectionOfficer(re_23, c_88)
+}
+
+table Once327(c_88:str, ds_88:str) :=
+  add {
+    Exists326(c_88, ds_88)
+  };
+
+let Exists328() := {
+  DataProcessing(pr_104, c_88, a_125, d_85) & Exists35(a_125, d_85, ds_88)
+    if !Once327(c_88, ds_88)
+}
+
+let Exists321(c_87:str, cat_3:str, ds_87:str) := {
+  IsCategory(re_22, cat_3) & Inform(c_87, ds_87, de_50) & Contains(de_50, re_22)
+}
+
+table Once322(c_87:str, cat_3:str, ds_87:str) :=
+  add {
+    Exists321(c_87, cat_3, ds_87)
+  };
+
+let Exists323() := {
+  DataProcessing(pr_103, c_87, a_124, d_84) & HasCategory(d_84, cat_3) & Exists35(a_124, d_84, ds_87)
+    if !Once322(c_87, cat_3, ds_87)
+}
+
+let Exists316(c_86:str, ds_86:str, e_13:str) := {
+  Inform(c_86, ds_86, de_49) & IsRecipient(re_21, e_13) & Contains(de_49, re_21)
+}
+
+table Once317(c_86:str, ds_86:str, e_13:str) :=
+  add {
+    Exists316(c_86, ds_86, e_13)
+  };
+
+let Exists318() := {
+  DataProcessing(pr_102, c_86, a_123, d_83) & Exists35(a_123, d_83, ds_86) & HasIntendedRecipient(d_83, e_13)
+    if !Once317(c_86, ds_86, e_13)
+}
+
+let Exists311(c_85:str, ds_85:str, rc:str) := {
+  Inform(c_85, ds_85, de_48) & IsRecipientCategory(re_20, rc) & Contains(de_48, re_20)
+}
+
+table Once312(c_85:str, ds_85:str, rc:str) :=
+  add {
+    Exists311(c_85, ds_85, rc)
+  };
+
+let Exists313() := {
+  DataProcessing(pr_101, c_85, a_122, d_82) & Exists35(a_122, d_82, ds_85) & Collect(a_3_1, d_82, ds_7_1, "statistics") & rc == "Analytics, Inc."
+    if !Once312(c_85, ds_85, rc)
+}
+
+let Exists306(c_82:str, cr_4:str, ds_82:str) := {
+  IsStorageCriteria(re_16, cr_4) & Inform(c_82, ds_82, de_44) & Contains(de_44, re_16)
+}
+
+table Once307(c_82:str, cr_4:str, ds_82:str) :=
+  add {
+    Exists306(c_82, cr_4, ds_82)
+  };
+
+let Exists308() := {
+  DataProcessing(pr_98, c_82, a_119, d_79) & cr_4 == "Your data is stored until you delete your account" & Exists35(a_119, d_79, ds_82)
+    if !Once307(c_82, cr_4, ds_82)
+}
+
+let Exists301(c_81:str, ds_81:str) := {
+  Inform(c_81, ds_81, de_43) & Contains(de_43, re_15)
+    if IsRights(re_15)
+}
+
+table Once302(c_81:str, ds_81:str) :=
+  add {
+    Exists301(c_81, ds_81)
+  };
+
+let Exists303() := {
+  DataProcessing(pr_97, c_81, a_118, d_78) & Exists35(a_118, d_78, ds_81)
+    if !Once302(c_81, ds_81)
+}
+
+let Exists296(c_80:str, ds_80:str) := {
+  Inform(c_80, ds_80, de_42) & Contains(de_42, re_14)
+    if IsRightToLodgeComplaint(re_14)
+}
+
+table Once297(c_80:str, ds_80:str) :=
+  add {
+    Exists296(c_80, ds_80)
+  };
+
+let Exists298() := {
+  DataProcessing(pr_96, c_80, a_117, d_77) & Exists35(a_117, d_77, ds_80)
+    if !Once297(c_80, ds_80)
+}
+
+let Exists288(d_74:str) := {
+  Collect(a_2_1, d_74, ds_6_1, "personalized_ad") & de_38 == "We use the content of the page shown to the user to display personalized advertisement"
+}
+
+let Exists291(c_77:str, ds_77:str) := {
+  Inform(c_77, ds_77, de_39) & Contains(de_39, re_11)
+    if IsAutomatedDecision(re_11)
+}
+
+table Once292(c_77:str, ds_77:str) :=
+  add {
+    Exists291(c_77, ds_77)
+  };
+
+let Exists293() := {
+  DataProcessing(pr_93, c_77, a_114, d_74) & Exists35(a_114, d_74, ds_77)
+    if !Once292(c_77, ds_77) & Exists288(d_74)
+}
+
+let Exists287() := {
+  DataProcessing(pr_92, c_76, a_113, d_73)
+    if !((!(!Exception163(c_76, pr_92)) | ActivityRecord(a_113, "Controller", string_of_entity(c_76))))
+}
+
+let Exists285() := {
+  c_73 == "GDPRSocial, Inc." & dpo == "dpo@gdprsocial-inc.com" & DataProcessing(pr_89, c_73, a_110, d_70)
+    if !((!(!Exception163(c_73, pr_89)) | ActivityRecord(a_110, "DPO", string_of_entity(dpo))))
+}
+
+let Exists282(a_109:str, c_72:str, pr_88:str) := {
+  DataProcessing(pr_88, c_72, a_109, d_69)
+}
+
+let Exists283() := {
+  HasPurpose(a_109, p_36) & Exists282(a_109, c_72, pr_88)
+    if !((!(!Exception163(c_72, pr_88)) | ActivityRecord(a_109, "Purpose", string_of_purpose(p_36))))
+}
+
+let Exists279(d_67:str) := {
+  PersonalData(d_67, ds_75)
+}
+
+let Exists281() := {
+  HasCategory(d_67, cat_1) & DataProcessing(pr_86, c_70, a_107, d_67)
+    if !ActivityRecord(a_107, "DataCategory", string_of_category(cat_1)) & Exists279(d_67) & !Exception163(c_70, pr_86)
+}
+
+let Exists276(d_66:str) := {
+  PersonalData(d_66, ds_74)
+}
+
+let Exists278() := {
+  HasIntendedRecipient(d_66, e_10) & DataProcessing(pr_85, c_69, a_106, d_66)
+    if !ActivityRecord(a_106, "Recipient", string_of_entity(e_10)) & Exists276(d_66) & !Exception163(c_69, pr_85)
+}
+
+let Exists273(d_65:str) := {
+  PersonalData(d_65, ds_73)
+}
+
+let Exists275() := {
+  Collect(a_3_1, d_65, ds_7_1, "statistics") & cat == "Analytics, Inc." & DataProcessing(pr_84, c_68, a_105, d_65)
+    if !ActivityRecord(a_105, "RecipientCategory", string_of_entity(cat)) & Exists273(d_65) & !Exception163(c_68, pr_84)
+}
+
+let Exists270(d_62:str) := {
+  PersonalData(d_62, ds_70)
+}
+
+let Exists272() := {
+  de_37 == "GDPRSocial, Inc. implements the following technical and organisational security measures: (1) all web traffic is served over HTTPS/TLS; (2) user passwords are stored using Django's PBKDF2-SHA256 hashing with per-user salts; (3) CSRF protection is enforced on all state-changing requests; (4) access control ensures users can only modify their own data; (5) the proactive GDPR enforcement engine automatically prevents policy-violating data processing at runtime; (6) personal data deletion is available on demand via the right-to-erasure mechanism." & DataProcessing(pr_81, c_65, a_102, d_62)
+    if !ActivityRecord(a_102, "SecurityMeasures", string_of_declaration(de_37)) & Exists270(d_62) & !Exception163(c_65, pr_81)
+}
+
+lagged table Prev268(d_60:str, p_35:str) :=
+  add {
+    Restricted(d_60, p_35)
+  };
+
+table Once267(c_63:str, d_60:str, e_9:str) :=
+  add {
+    Share(c_63, e_9, d_60)
+  };
+
+let Exists269() := {
+  Restricted(d_60, p_35) & Once267(c_63, d_60, e_9)
+    if !((!(!Prev268(d_60, p_35)) | NotifyRestriction(e_9, d_60, p_35)))
+}
+
+let Exists265(a_99:str) := {
+  IsLawful(a_99, b_2)
+}
+
+let Exists266() := {
+  DataProcessing(p_34, c_61, a_99, d_58) & PersonalData(d_58, ds_67)
+    if !Exists265(a_99)
+}
+
+let Exists260(c_60:str, ds_66:str, p_33:str) := {
+  Inform(c_60, ds_66, de_34) & IsPurposeOfProcessing(re_8, p_33) & Contains(de_34, re_8)
+}
+
+table Once261(c_60:str, ds_66:str, p_33:str) :=
+  add {
+    Exists260(c_60, ds_66, p_33)
+  };
+
+let Exists258(b_1:str, c_60:str, ds_66:str) := {
+  IsLegalBasisOfProcessing(re_7, b_1) & Inform(c_60, ds_66, de_33) & Contains(de_33, re_7)
+}
+
+table Once259(b_1:str, c_60:str, ds_66:str) :=
+  add {
+    Exists258(b_1, c_60, ds_66)
+  };
+
+let Exists262() := {
+  IsLawful(a_98, b_1) & DataProcessing(pr_78, c_60, a_98, d_57) & Exists17(a_98, ds_66) & HasPurpose(a_98, p_33) & PersonalData(d_57, ds_66)
+    if !(Once261(c_60, ds_66, p_33) & Once259(b_1, c_60, ds_66))
+}
+
+filter let Exists249(d_38_1:str, e_3_1:str, i_4_1:str) := {
+  if Exception18(d_38_1, ds_45_1, e_3_1, i_4_1)
+}
+
+let Exists248(a_97:str, c_44_1:str, d_38_1:str, pr_37_1:str) := {
+  Exception139(a_97, c_44_1, d_38_1, de_24_1, ds_44_1, p_23_1, pr_37_1)
+}
+
+let Exists247(a_97:str, c_44_1:str, d_38_1:str, pr_37_1:str) := {
+  Exception141(a_97, c_44_1, d_38_1, de_23_1, ds_43_1, p_22_1, pr_37_1)
+}
+
+let Exists246(a_97:str, c_44_1:str, d_38_1:str, pr_37_1:str) := {
+  Exception143(a_97, c_44_1, d_38_1, de_22_1, ds_42_1, pr_37_1)
+}
+
+let Exists250(a_97:str) := {
+  Exists23(a_97, e_3_1, i_4_1) & DataProcessing(pr_37_1, c_44_1, a_97, d_38_1)
+    if !Exists249(d_38_1, e_3_1, i_4_1) & !Exists248(a_97, c_44_1, d_38_1, pr_37_1) & !Exists247(a_97, c_44_1, d_38_1, pr_37_1) & !Exists246(a_97, c_44_1, d_38_1, pr_37_1) & Scope41(a_97, c_44_1, d_38_1, pr_37_1)
+}
+
+let Exists253(c_59:str, ds_65:str, e_8:str, i_6:str) := {
+  Inform(c_59, ds_65, de_32) & IsLegitimateInterest(re_6, e_8, i_6) & Contains(de_32, re_6)
+}
+
+table Once254(c_59:str, ds_65:str, e_8:str, i_6:str) :=
+  add {
+    Exists253(c_59, ds_65, e_8, i_6)
+  };
+
+let Exists255() := {
+  DataProcessing(pr_77, c_59, a_97, d_56) & Exists17(a_97, ds_65) & Exists23(a_97, e_8, i_6) & PersonalData(d_56, ds_65)
+    if !Once254(c_59, ds_65, e_8, i_6) & Exists250(a_97)
+}
+
+table Once238(c_39_1:str, ds_37_1:str, p_16_1:str) :=
+  add {
+    GiveConsent(ds_37_1, p_16_1, c_39_1)
+  };
+
+filter let Exists239(a_96:str, c_39_1:str, ds_37_1:str) := {
+  HasPurpose(a_96, p_16_1)
+    if !Once238(c_39_1, ds_37_1, p_16_1)
+}
+
+let Exists237(a_96:str, c_39_1:str, d_33_1:str, ds_37_1:str, pr_32_1:str) := {
+  Exception141(a_96, c_39_1, d_33_1, de_12_1, ds_37_1, p_15_1, pr_32_1)
+}
+
+let Exists236(a_96:str, c_39_1:str, d_33_1:str, ds_37_1:str, pr_32_1:str) := {
+  Exception143(a_96, c_39_1, d_33_1, de_11_1, ds_37_1, pr_32_1)
+}
+
+let Exists235(a_96:str, c_39_1:str, d_33_1:str, ds_37_1:str, pr_32_1:str) := {
+  Scope22(a_96, c_39_1, d_33_1, ds_37_1, p_14_1, pr_32_1)
+}
+
+let Exists240(a_96:str) := {
+  PersonalData(d_33_1, ds_37_1) & DataProcessing(pr_32_1, c_39_1, a_96, d_33_1)
+    if !Exists239(a_96, c_39_1, ds_37_1) & !Exists237(a_96, c_39_1, d_33_1, ds_37_1, pr_32_1) & !Exists236(a_96, c_39_1, d_33_1, ds_37_1, pr_32_1) & Exists235(a_96, c_39_1, d_33_1, ds_37_1, pr_32_1) & Scope41(a_96, c_39_1, d_33_1, pr_32_1)
+}
+
+table Since232(c_46_1:str, ds_47_1:str, p_25_1:str, sp_5_1:str) :=
+  add {
+    GiveSpecialConsent(ds_47_1, p_25_1, c_46_1, sp_5_1)
+  }
+  remove {
+    WithdrawSpecialConsent(ds_47_1, p_25_1, c_46_1, sp_5_1)
+  };
+
+filter let Exists233(a_96:str, c_46_1:str, ds_47_1:str, sp_5_1:str) := {
+  HasPurpose(a_96, p_25_1)
+    if !Since232(c_46_1, ds_47_1, p_25_1, sp_5_1)
+}
+
+let Exists234(a_96:str) := {
+  PersonalData(d_40_1, ds_47_1) & DataProcessing(pr_39_1, c_46_1, a_96, d_40_1) & IsSpecialData(d_40_1, sp_5_1)
+    if !Exists233(a_96, c_46_1, ds_47_1, sp_5_1)
+}
+
+let Exists243(c_58:str, ds_64:str) := {
+  Inform(c_58, ds_64, de_31) & Contains(de_31, re_5)
+    if IsRightToWithdrawConsent(re_5)
+}
+
+table Once244(c_58:str, ds_64:str) :=
+  add {
+    Exists243(c_58, ds_64)
+  };
+
+let Exists245() := {
+  DataProcessing(pr_76, c_58, a_96, d_55) & Exists17(a_96, ds_64) & PersonalData(d_55, ds_64)
+    if !Once244(c_58, ds_64) & ((Exists240(a_96) | Exists234(a_96)))
+}
+
+let Exists229(c_57:str, ds_63:str, p_32:str) := {
+  Inform(c_57, ds_63, de_30) & IsPurposeOfProcessing(re_4, p_32) & Contains(de_30, re_4)
+}
+
+table Once230(c_57:str, ds_63:str, p_32:str) :=
+  add {
+    Exists229(c_57, ds_63, p_32)
+  };
+
+let Exists227(b:str, c_57:str, ds_63:str) := {
+  IsLegalBasisOfProcessing(re_3, b) & Inform(c_57, ds_63, de_29) & Contains(de_29, re_3)
+}
+
+table Once228(b:str, c_57:str, ds_63:str) :=
+  add {
+    Exists227(b, c_57, ds_63)
+  };
+
+let Exists231() := {
+  IsLawful(a_95, b) & DataProcessing(pr_75, c_57, a_95, d_54) & Exists35(a_95, d_54, ds_63) & HasPurpose(a_95, p_32)
+    if !(Once230(c_57, ds_63, p_32) & Once228(b, c_57, ds_63))
+}
+
+filter let Exists218(d_38_1:str, e_3_1:str, i_4_1:str) := {
+  if Exception18(d_38_1, ds_45_1, e_3_1, i_4_1)
+}
+
+let Exists217(a_94:str, c_44_1:str, d_38_1:str, pr_37_1:str) := {
+  Exception139(a_94, c_44_1, d_38_1, de_24_1, ds_44_1, p_23_1, pr_37_1)
+}
+
+let Exists216(a_94:str, c_44_1:str, d_38_1:str, pr_37_1:str) := {
+  Exception141(a_94, c_44_1, d_38_1, de_23_1, ds_43_1, p_22_1, pr_37_1)
+}
+
+let Exists215(a_94:str, c_44_1:str, d_38_1:str, pr_37_1:str) := {
+  Exception143(a_94, c_44_1, d_38_1, de_22_1, ds_42_1, pr_37_1)
+}
+
+let Exists219(a_94:str) := {
+  Exists23(a_94, e_3_1, i_4_1) & DataProcessing(pr_37_1, c_44_1, a_94, d_38_1)
+    if !Exists218(d_38_1, e_3_1, i_4_1) & !Exists217(a_94, c_44_1, d_38_1, pr_37_1) & !Exists216(a_94, c_44_1, d_38_1, pr_37_1) & !Exists215(a_94, c_44_1, d_38_1, pr_37_1) & Scope41(a_94, c_44_1, d_38_1, pr_37_1)
+}
+
+let Exists222(c_56:str, ds_62:str, e_7:str, i_5:str) := {
+  Inform(c_56, ds_62, de_28) & IsLegitimateInterest(re_2, e_7, i_5) & Contains(de_28, re_2)
+}
+
+table Once223(c_56:str, ds_62:str, e_7:str, i_5:str) :=
+  add {
+    Exists222(c_56, ds_62, e_7, i_5)
+  };
+
+let Exists224() := {
+  DataProcessing(pr_74, c_56, a_94, d_53) & Exists35(a_94, d_53, ds_62) & Exists23(a_94, e_7, i_5)
+    if !Once223(c_56, ds_62, e_7, i_5) & Exists219(a_94)
+}
+
+table Once207(c_39_1:str, ds_37_1:str, p_16_1:str) :=
+  add {
+    GiveConsent(ds_37_1, p_16_1, c_39_1)
+  };
+
+filter let Exists208(a_93:str, c_39_1:str, ds_37_1:str) := {
+  HasPurpose(a_93, p_16_1)
+    if !Once207(c_39_1, ds_37_1, p_16_1)
+}
+
+let Exists206(a_93:str, c_39_1:str, d_33_1:str, ds_37_1:str, pr_32_1:str) := {
+  Exception141(a_93, c_39_1, d_33_1, de_12_1, ds_37_1, p_15_1, pr_32_1)
+}
+
+let Exists205(a_93:str, c_39_1:str, d_33_1:str, ds_37_1:str, pr_32_1:str) := {
+  Exception143(a_93, c_39_1, d_33_1, de_11_1, ds_37_1, pr_32_1)
+}
+
+let Exists204(a_93:str, c_39_1:str, d_33_1:str, ds_37_1:str, pr_32_1:str) := {
+  Scope22(a_93, c_39_1, d_33_1, ds_37_1, p_14_1, pr_32_1)
+}
+
+let Exists209(a_93:str) := {
+  PersonalData(d_33_1, ds_37_1) & DataProcessing(pr_32_1, c_39_1, a_93, d_33_1)
+    if !Exists208(a_93, c_39_1, ds_37_1) & !Exists206(a_93, c_39_1, d_33_1, ds_37_1, pr_32_1) & !Exists205(a_93, c_39_1, d_33_1, ds_37_1, pr_32_1) & Exists204(a_93, c_39_1, d_33_1, ds_37_1, pr_32_1) & Scope41(a_93, c_39_1, d_33_1, pr_32_1)
+}
+
+table Since201(c_46_1:str, ds_47_1:str, p_25_1:str, sp_5_1:str) :=
+  add {
+    GiveSpecialConsent(ds_47_1, p_25_1, c_46_1, sp_5_1)
+  }
+  remove {
+    WithdrawSpecialConsent(ds_47_1, p_25_1, c_46_1, sp_5_1)
+  };
+
+filter let Exists202(a_93:str, c_46_1:str, ds_47_1:str, sp_5_1:str) := {
+  HasPurpose(a_93, p_25_1)
+    if !Since201(c_46_1, ds_47_1, p_25_1, sp_5_1)
+}
+
+let Exists203(a_93:str) := {
+  PersonalData(d_40_1, ds_47_1) & DataProcessing(pr_39_1, c_46_1, a_93, d_40_1) & IsSpecialData(d_40_1, sp_5_1)
+    if !Exists202(a_93, c_46_1, ds_47_1, sp_5_1)
+}
+
+let Exists212(c_55:str, ds_61:str) := {
+  Inform(c_55, ds_61, de_27) & Contains(de_27, re_1)
+    if IsRightToWithdrawConsent(re_1)
+}
+
+table Once213(c_55:str, ds_61:str) :=
+  add {
+    Exists212(c_55, ds_61)
+  };
+
+let Exists214() := {
+  DataProcessing(pr_73, c_55, a_93, d_52) & Exists35(a_93, d_52, ds_61)
+    if !Once213(c_55, ds_61) & ((Exists209(a_93) | Exists203(a_93)))
+}
+
+table Once197(c_39_1:str, ds_37_1:str, p_16_1:str) :=
+  add {
+    GiveConsent(ds_37_1, p_16_1, c_39_1)
+  };
+
+filter let Exists198(a_92:str, c_39_1:str, ds_37_1:str) := {
+  HasPurpose(a_92, p_16_1)
+    if !Once197(c_39_1, ds_37_1, p_16_1)
+}
+
+let Exists196(a_92:str, c_39_1:str, d_33_1:str, ds_37_1:str, pr_32_1:str) := {
+  Exception141(a_92, c_39_1, d_33_1, de_12_1, ds_37_1, p_15_1, pr_32_1)
+}
+
+let Exists195(a_92:str, c_39_1:str, d_33_1:str, ds_37_1:str, pr_32_1:str) := {
+  Exception143(a_92, c_39_1, d_33_1, de_11_1, ds_37_1, pr_32_1)
+}
+
+let Exists194(a_92:str, c_39_1:str, d_33_1:str, ds_37_1:str, pr_32_1:str) := {
+  Scope22(a_92, c_39_1, d_33_1, ds_37_1, p_14_1, pr_32_1)
+}
+
+let Exists199(a_92:str) := {
+  PersonalData(d_33_1, ds_37_1) & DataProcessing(pr_32_1, c_39_1, a_92, d_33_1)
+    if !Exists198(a_92, c_39_1, ds_37_1) & !Exists196(a_92, c_39_1, d_33_1, ds_37_1, pr_32_1) & !Exists195(a_92, c_39_1, d_33_1, ds_37_1, pr_32_1) & Exists194(a_92, c_39_1, d_33_1, ds_37_1, pr_32_1) & Scope41(a_92, c_39_1, d_33_1, pr_32_1)
+}
+
+table Since191(c_46_1:str, ds_47_1:str, p_25_1:str, sp_5_1:str) :=
+  add {
+    GiveSpecialConsent(ds_47_1, p_25_1, c_46_1, sp_5_1)
+  }
+  remove {
+    WithdrawSpecialConsent(ds_47_1, p_25_1, c_46_1, sp_5_1)
+  };
+
+filter let Exists192(a_92:str, c_46_1:str, ds_47_1:str, sp_5_1:str) := {
+  HasPurpose(a_92, p_25_1)
+    if !Since191(c_46_1, ds_47_1, p_25_1, sp_5_1)
+}
+
+let Exists193(a_92:str) := {
+  PersonalData(d_40_1, ds_47_1) & DataProcessing(pr_39_1, c_46_1, a_92, d_40_1) & IsSpecialData(d_40_1, sp_5_1)
+    if !Exists192(a_92, c_46_1, ds_47_1, sp_5_1)
+}
+
+let Exists190(a_92:str) := {
+  IsNecessaryForProtectionOfRights(a_92, e_6)
+}
+
+let Exists189(a_92:str) := {
+  IsNecessaryForImportantPublicInterest(a_92, pi_16)
+}
+
+let Exists200() := {
+  DataProcessing(pr_72, c_54, a_92, d_51) & Restricted(d_51, p_31)
+    if !(((((Exists199(a_92) | Exists193(a_92)) | IsNecessaryForJudicialClaims(a_92)) | Exists190(a_92)) | Exists189(a_92))) & HasPurpose(a_92, p_31)
+}
+
+table Once182(c_53:str, ds_60:str, rq_14:str) :=
+  add {
+    Request(ds_60, rq_14, c_53)
+      if IsPortabilityRequest(rq_14)
+  };
+
+table Once176(c_39_1:str, ds_37_1:str, p_16_1:str) :=
+  add {
+    GiveConsent(ds_37_1, p_16_1, c_39_1)
+  };
+
+filter let Exists177(a_91:str, c_39_1:str, ds_37_1:str) := {
+  HasPurpose(a_91, p_16_1)
+    if !Once176(c_39_1, ds_37_1, p_16_1)
+}
+
+let Exists175(a_91:str, c_39_1:str, d_33_1:str, ds_37_1:str, pr_32_1:str) := {
+  Exception141(a_91, c_39_1, d_33_1, de_12_1, ds_37_1, p_15_1, pr_32_1)
+}
+
+let Exists174(a_91:str, c_39_1:str, d_33_1:str, ds_37_1:str, pr_32_1:str) := {
+  Exception143(a_91, c_39_1, d_33_1, de_11_1, ds_37_1, pr_32_1)
+}
+
+let Exists173(a_91:str, c_39_1:str, d_33_1:str, ds_37_1:str, pr_32_1:str) := {
+  Scope22(a_91, c_39_1, d_33_1, ds_37_1, p_14_1, pr_32_1)
+}
+
+let Exists178(a_91:str) := {
+  PersonalData(d_33_1, ds_37_1) & DataProcessing(pr_32_1, c_39_1, a_91, d_33_1)
+    if !Exists177(a_91, c_39_1, ds_37_1) & !Exists175(a_91, c_39_1, d_33_1, ds_37_1, pr_32_1) & !Exists174(a_91, c_39_1, d_33_1, ds_37_1, pr_32_1) & Exists173(a_91, c_39_1, d_33_1, ds_37_1, pr_32_1) & Scope41(a_91, c_39_1, d_33_1, pr_32_1)
+}
+
+table Since170(c_46_1:str, ds_47_1:str, p_25_1:str, sp_5_1:str) :=
+  add {
+    GiveSpecialConsent(ds_47_1, p_25_1, c_46_1, sp_5_1)
+  }
+  remove {
+    WithdrawSpecialConsent(ds_47_1, p_25_1, c_46_1, sp_5_1)
+  };
+
+filter let Exists171(a_91:str, c_46_1:str, ds_47_1:str, sp_5_1:str) := {
+  HasPurpose(a_91, p_25_1)
+    if !Since170(c_46_1, ds_47_1, p_25_1, sp_5_1)
+}
+
+let Exists172(a_91:str) := {
+  PersonalData(d_40_1, ds_47_1) & DataProcessing(pr_39_1, c_46_1, a_91, d_40_1) & IsSpecialData(d_40_1, sp_5_1)
+    if !Exists171(a_91, c_46_1, ds_47_1, sp_5_1)
+}
+
+table Once181(a_91:str, c_53:str, ds_60:str) :=
+  add {
+    DataProcessing(pr_71, c_53, a_91, d_50) & PersonalData(d_50, ds_60)
+      if (Exists178(a_91) | Exists172(a_91))
+  };
+
+let Exists169(a_91:str) := {
+  IsNecessaryForPublicInterest(a_91, pi_15)
+}
+
+let Exists184(ds_60:str, rs_5:str) := {
+  PersonalDataCopy(f, ds_60) & ContainsData(rs_5, f)
+}
+
+let Exists185() := {
+  RequestResponse(ds_60, rq_14, rs_5) & Once181(a_91, c_53, ds_60) & Once182(c_53, ds_60, rq_14)
+    if !Exists184(ds_60, rs_5) & !Exists169(a_91)
+}
+
+filter let Exists166() := {
+  if false
+}
+
+let Exists165(c_52:str, d_49:str) := {
+  Exception122(a_89, c_52, d_49, pr_70)
+}
+
+let Exists164(c_52:str, d_49:str) := {
+  Exception123(a_88, c_52, d_49, pi_14, pr_69)
+}
+
+let Exists163(c_52:str, d_49:str) := {
+  Exception125(a_86, c_52, d_49, pr_67)
+}
+
+let Exists168() := {
+  IsObligedToDelete(c_52, d_49)
+    if !Delete(d_49) & !Exists166() & !Exists165(c_52, d_49) & !Exists164(c_52, d_49) & !Exists163(c_52, d_49)
+}
+
+table Once161(c_51:str, d_48:str, e_5:str) :=
+  add {
+    Share(c_51, e_5, d_48)
+  };
+
+filter let Exists160() := {
+  if false
+}
+
+let Exists159(c_51:str, d_48:str) := {
+  Exception122(a_84, c_51, d_48, pr_66)
+}
+
+let Exists158(c_51:str, d_48:str) := {
+  Exception123(a_83, c_51, d_48, pi_13, pr_65)
+}
+
+let Exists157(c_51:str, d_48:str) := {
+  Exception125(a_81, c_51, d_48, pr_63)
+}
+
+let Exists162() := {
+  IsObligedToDelete(c_51, d_48) & Once161(c_51, d_48, e_5)
+    if !((!(!Exists160() & !Exists159(c_51, d_48) & !Exists158(c_51, d_48) & !Exists157(c_51, d_48)) | NotifyErasure(e_5, d_48)))
+}
+
+table Once155(c_50:str, d_47:str, e_4:str) :=
+  add {
+    Share(c_50, e_4, d_47)
+  };
+
+let Exists156() := {
+  IsObligedToDelete(c_50, d_47) & Once155(c_50, d_47, e_4)
+    if !NotifyErasure(e_4, d_47)
+}
+
+let Exists151(a_80:str, c_49:str, d_46:str, ds_59:str, pr_62:str) := {
+  p_30 == "personalized_ad" & DataProcessing(pr_62, c_49, a_80, d_46) & Since150(c_49, ds_59, p_30)
+}
+
+let Exists153(a_80:str, d_46:str, ds_59:str) := {
+  AutomatedDecision(a_80, d_46, ds_59, de_26)
+}
+
+let Exists154() := {
+  PersonalData(d_46, ds_59) & DataProcessing(pr_62, c_49, a_80, d_46)
+    if Exists153(a_80, d_46, ds_59) & !Exists151(a_80, c_49, d_46, ds_59, pr_62)
+}
+
+section once;
+
+rule +Declaration(_p88) :=
+  trigger {
+    Cau_IsStoragePeriod(_p88, _p89)
+  };
+
+rule +HasText(_p88, conc(conc("<h6>Storage period</h6><p>Your personal data will be stored for the following period: ", string_of_span(_p89)), ".</p>")) :=
+  trigger {
+    Cau_IsStoragePeriod(_p88, _p89)
+  };
+
+rule +NoteSpan(_p89) :=
+  trigger {
+    Cau_IsStoragePeriod(_p88, _p89)
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:2549:1-2555:54> rule +Sup_Exists154() :=
+  trigger {
+    if Exists154()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:2287:1-2295:54> rule +Sup_Exists200() :=
+  trigger {
+    if Exists200()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:1681:1-1688:45> rule +Sup_Exists214() :=
+  trigger {
+    if Exists214()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:1659:1-1667:45> rule +Sup_Exists224() :=
+  trigger {
+    if Exists224()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:1544:1-1553:45> rule +Sup_Exists231() :=
+  trigger {
+    if Exists231()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:172:1-180:54> rule +Sup_Exists266() :=
+  trigger {
+    if Exists266()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:1736:1-1743:45> rule +Sup_Exists293() :=
+  trigger {
+    if Exists293()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:1692:1-1698:45> rule +Sup_Exists298() :=
+  trigger {
+    if Exists298()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:1671:1-1677:45> rule +Sup_Exists303() :=
+  trigger {
+    if Exists303()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:1648:1-1655:45> rule +Sup_Exists308() :=
+  trigger {
+    if Exists308()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:1587:1-1594:45> rule +Sup_Exists313() :=
+  trigger {
+    if Exists313()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:1578:1-1585:45> rule +Sup_Exists318() :=
+  trigger {
+    if Exists318()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:1567:1-1574:45> rule +Sup_Exists323() :=
+  trigger {
+    if Exists323()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:1534:1-1540:45> rule +Sup_Exists328() :=
+  trigger {
+    if Exists328()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:1524:1-1530:45> rule +Sup_Exists333() :=
+  trigger {
+    if Exists333()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:742:1-749:54> rule +Sup_Exists335() :=
+  trigger {
+    if Exists335()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:1776:1-1785:54> rule +Sup_Exists357() :=
+  trigger {
+    if Exists357()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:201:1-208:54> rule +Sup_Exists371() :=
+  trigger {
+    if Exists371()
+  };
+
+@<../Lex/example/GDPR/minitwit_gdpr.rex:797:1-804:54> rule +Sup_Exists386() :=
+  trigger {
+    if Exists386()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:1441:1-1448:54> rule +Sup_Exists484() :=
+  trigger {
+    if Exists484()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:601:1-607:54> rule +Sup_Exists520() :=
+  trigger {
+    if Exists520()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:538:1-543:45> rule +Sup_Exists524() :=
+  trigger {
+    if Exists524()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:482:1-489:54> rule +Sup_Exists528() :=
+  trigger {
+    if Exists528()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:237:1-244:54> rule +Sup_Exists531() :=
+  trigger {
+    if Exists531()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:192:1-199:54> rule +Sup_Exists533() :=
+  trigger {
+    if Exists533()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:184:1-190:54> rule +Sup_Exists538() :=
+  trigger {
+    if Exists538()
+  };
+
+section fixpoint;
+
+@<../Lex/example/GDPR/gdpr.lex:2355:1-2361:45> rule +Sup_Exists269() :=
+  trigger {
+    if Exists269()
+  };
+
+rule +NotifyRestriction(e_9, d_60, p_35) :=
+  trigger {
+    Sup_Exists269() & Restricted(d_60, p_35) & Once267(c_63, d_60, e_9)
+      if !Prev268(d_60, p_35)
+  };
+
+section fixpoint;
+
+@<../Lex/example/GDPR/gdpr.lex:2037:1-2042:45> rule +Sup_Exists339() :=
+  trigger {
+    if Exists339()
+  };
+
+rule +Rectify(d_89, d__9) :=
+  trigger {
+    Sup_Exists339() & RequestRectification(ds_5_1, d_89, d__1_1, rq_1_1) & RequestResponse(ds_15_1, rq_4_1, rs_1_1) & Once40(c_92, d_89, d__9, ds_15_1, rq_4_1)
+      if Once38(c_92, ds_15_1)
+  };
+
+section fixpoint;
+
+@<../Lex/example/GDPR/gdpr.lex:1009:1-1014:45> rule +Sup_Exists363() :=
+  trigger {
+    if Exists363()
+  };
+
+rule +Cau_Exists362(ds_97, rq_19) :=
+  trigger {
+    Sup_Exists363() & Request(ds_97, rq_19, c_99)
+      if !Exists362(ds_97, rq_19)
+  };
+
+rule +RequestResponse(ds_97, rq_19, "") :=
+  trigger {
+    Cau_Exists362(ds_97, rq_19)
+  };
+
+section fixpoint;
+
+@<../Lex/example/GDPR/minitwit_gdpr.rex:961:1-967:45> rule +Sup_Exists380() :=
+  trigger {
+    if Exists380()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:2069:1-2074:45> rule +Sup_Exists168() :=
+  trigger {
+    if Exists168()
+  };
+
+rule +Delete(d_96) :=
+  trigger {
+    Sup_Exists380() & Exists19(d_96) & Once378(d_96, p_40)
+  };
+
+rule +Delete(d_49) :=
+  trigger {
+    Sup_Exists168() & IsObligedToDelete(c_52, d_49)
+      if !Exists166() & !Exists165(c_52, d_49) & !Exists164(c_52, d_49) & !Exists163(c_52, d_49)
+  };
+
+sync;
+
+section once;
+
+rule +Sup_Exists152(a_80, d_46, ds_59) :=
+  trigger {
+    Sup_Exists154() & PersonalData(d_46, ds_59) & DataProcessing(pr_62, c_49, a_80, d_46)
+      if Exists153(a_80, d_46, ds_59) & !Exists151(a_80, c_49, d_46, ds_59, pr_62)
+  };
+
+rule +Sup_Exists188(a_92) :=
+  trigger {
+    Sup_Exists200() & DataProcessing(pr_72, c_54, a_92, d_51) & Restricted(d_51, p_31)
+      if !(((((Exists199(a_92) | Exists193(a_92)) | IsNecessaryForJudicialClaims(a_92)) | Exists190(a_92)) | Exists189(a_92))) & HasPurpose(a_92, p_31)
+  };
+
+rule +Cau_Once213(c_55, ds_61) :=
+  trigger {
+    Sup_Exists214() & DataProcessing(pr_73, c_55, a_93, d_52) & Exists35(a_93, d_52, ds_61)
+      if !Once213(c_55, ds_61) & ((Exists209(a_93) | Exists203(a_93)))
+  };
+
+rule +Cau_Once223(c_56, ds_62, e_7, i_5) :=
+  trigger {
+    Sup_Exists224() & DataProcessing(pr_74, c_56, a_94, d_53) & Exists35(a_94, d_53, ds_62) & Exists23(a_94, e_7, i_5)
+      if !Once223(c_56, ds_62, e_7, i_5) & Exists219(a_94)
+  };
+
+rule +Cau_Once230(c_57, ds_63, p_32) :=
+  trigger {
+    Sup_Exists231() & IsLawful(a_95, b) & DataProcessing(pr_75, c_57, a_95, d_54) & Exists35(a_95, d_54, ds_63) & HasPurpose(a_95, p_32)
+      if !Once230(c_57, ds_63, p_32)
+  };
+
+rule +Cau_Once228(b, c_57, ds_63) :=
+  trigger {
+    Sup_Exists231() & IsLawful(a_95, b) & DataProcessing(pr_75, c_57, a_95, d_54) & Exists35(a_95, d_54, ds_63) & HasPurpose(a_95, p_32)
+      if !Once228(b, c_57, ds_63)
+  };
+
+rule +Sup_Exists264(a_99, ds_67) :=
+  trigger {
+    Sup_Exists266() & DataProcessing(p_34, c_61, a_99, d_58) & PersonalData(d_58, ds_67)
+      if !Exists265(a_99)
+  };
+
+rule +Cau_Once292(c_77, ds_77) :=
+  trigger {
+    Sup_Exists293() & DataProcessing(pr_93, c_77, a_114, d_74) & Exists35(a_114, d_74, ds_77)
+      if !Once292(c_77, ds_77) & Exists288(d_74)
+  };
+
+rule +Cau_Once297(c_80, ds_80) :=
+  trigger {
+    Sup_Exists298() & DataProcessing(pr_96, c_80, a_117, d_77) & Exists35(a_117, d_77, ds_80)
+      if !Once297(c_80, ds_80)
+  };
+
+rule +Cau_Once302(c_81, ds_81) :=
+  trigger {
+    Sup_Exists303() & DataProcessing(pr_97, c_81, a_118, d_78) & Exists35(a_118, d_78, ds_81)
+      if !Once302(c_81, ds_81)
+  };
+
+rule +Cau_Once307(c_82, cr_4, ds_82) :=
+  trigger {
+    Sup_Exists308() & DataProcessing(pr_98, c_82, a_119, d_79) & cr_4 == "Your data is stored until you delete your account" & Exists35(a_119, d_79, ds_82)
+      if !Once307(c_82, cr_4, ds_82)
+  };
+
+rule +Cau_Once312(c_85, ds_85, rc) :=
+  trigger {
+    Sup_Exists313() & DataProcessing(pr_101, c_85, a_122, d_82) & Exists35(a_122, d_82, ds_85) & Collect(a_3_1, d_82, ds_7_1, "statistics") & rc == "Analytics, Inc."
+      if !Once312(c_85, ds_85, rc)
+  };
+
+rule +Cau_Once317(c_86, ds_86, e_13) :=
+  trigger {
+    Sup_Exists318() & DataProcessing(pr_102, c_86, a_123, d_83) & Exists35(a_123, d_83, ds_86) & HasIntendedRecipient(d_83, e_13)
+      if !Once317(c_86, ds_86, e_13)
+  };
+
+rule +Cau_Once322(c_87, cat_3, ds_87) :=
+  trigger {
+    Sup_Exists323() & DataProcessing(pr_103, c_87, a_124, d_84) & HasCategory(d_84, cat_3) & Exists35(a_124, d_84, ds_87)
+      if !Once322(c_87, cat_3, ds_87)
+  };
+
+rule +Cau_Once327(c_88, ds_88) :=
+  trigger {
+    Sup_Exists328() & DataProcessing(pr_104, c_88, a_125, d_85) & Exists35(a_125, d_85, ds_88)
+      if !Once327(c_88, ds_88)
+  };
+
+rule +Cau_Once332(c_89, ds_89) :=
+  trigger {
+    Sup_Exists333() & DataProcessing(pr_105, c_89, a_126, d_86) & Exists35(a_126, d_86, ds_89)
+      if !Once332(c_89, ds_89)
+  };
+
+rule +Sup_DataProcessing(pr_106, c_90, a_127, d_87) :=
+  trigger {
+    Sup_Exists335() & DataProcessing(pr_106, c_90, a_127, d_87)
+      if IsSpecialData(d_87, sp_9) & PersonalData(d_87, ds_90) & !Exception28(a_127, c_90, d_87, ds_90, pr_106, sp_9) & !IsNecessaryForJudicialClaims(a_127) & !IsNecessaryForSubstantialPublicInterest(a_127) & !Exists334(a_127)
+  };
+
+rule +Sup_Exists519(c_136, ds_132) :=
+  trigger {
+    Sup_Exists520() & GiveConsent(ds_132, p_43, c_136)
+      if !(c_136 == "GDPRSocial, Inc.")
+  };
+
+rule +Cau_Once523(c_137, ds_133) :=
+  trigger {
+    Sup_Exists524() & GiveConsent(ds_133, p_44, c_137)
+      if !Once523(c_137, ds_133)
+  };
+
+rule +Sup_Exists527(c_139, ds_135, p_46) :=
+  trigger {
+    Sup_Exists528() & DataProcessing(pr_141, c_139, a_161, d_126) & PersonalData(d_126, ds_135) & Once525(c_139, ds_135, p_46)
+      if !IsAbleToDemonstrateConsent(c_139, ds_135, p_46)
+  };
+
+rule +Sup_Exists530(d_128, p_48) :=
+  trigger {
+    Sup_Exists531() & DataProcessing(pr_142, co_21, a_163, d_128) & HasPurpose(a_163, p_48)
+      if Exists19(d_128)
+  };
+
+rule +Sup_Exists532(p_50) :=
+  trigger {
+    Sup_Exists533() & HasPurpose(a_165, p_50)
+      if !IsLegitimate(p_50)
+  };
+
+rule +Sup_Exists536(a_166) :=
+  trigger {
+    Sup_Exists538() & DataProcessing(pr_144, c_141, a_166, d_130)
+      if !Exists537(a_166) & Exists534(d_130)
+  };
+
+section fixpoint;
+
+@<../Lex/example/GDPR/gdpr.lex:2146:1-2152:45> rule +Sup_Exists162() :=
+  trigger {
+    if Exists162()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:2347:1-2353:45> rule +Sup_Exists156() :=
+  trigger {
+    if Exists156()
+  };
+
+rule +NotifyErasure(e_5, d_48) :=
+  trigger {
+    Sup_Exists162() & IsObligedToDelete(c_51, d_48) & Once161(c_51, d_48, e_5)
+      if !Exists160() & !Exists159(c_51, d_48) & !Exists158(c_51, d_48) & !Exists157(c_51, d_48)
+  };
+
+rule +NotifyErasure(e_4, d_47) :=
+  trigger {
+    Sup_Exists156() & IsObligedToDelete(c_50, d_47) & Once155(c_50, d_47, e_4)
+  };
+
+section fixpoint;
+
+@<../Lex/example/GDPR/gdpr.lex:2339:1-2345:45> rule +Sup_Exists337() :=
+  trigger {
+    if Exists337()
+  };
+
+rule +NotifyRectification(e_14, d_88, d__8) :=
+  trigger {
+    Sup_Exists337() & RequestRectification(ds_5_1, d_88, d__1_1, rq_1_1) & RequestResponse(ds_15_1, rq_4_1, rs_1_1) & Once40(c_91, d_88, d__8, ds_15_1, rq_4_1) & Once336(c_91, d_88, e_14)
+      if Once38(c_91, ds_15_1)
+  };
+
+section fixpoint;
+
+@<../Lex/example/GDPR/gdpr.lex:1998:1-2005:45> rule +Sup_Exists403() :=
+  trigger {
+    if Exists403()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:2404:1-2411:31> rule +Sup_Exists185() :=
+  trigger {
+    if Exists185()
+  };
+
+rule +Cau_Exists402(ds_104, rs_12) :=
+  trigger {
+    Sup_Exists403() & RequestResponse(ds_104, rq_23, rs_12) & Once400(c_107, ds_104, rq_23)
+      if !Exists402(ds_104, rs_12) & Once399(c_107, ds_104)
+  };
+
+rule +PersonalDataCopy("", ds_104) :=
+  trigger {
+    Cau_Exists402(ds_104, rs_12)
+  };
+
+rule +ContainsData(rs_12, "") :=
+  trigger {
+    Cau_Exists402(ds_104, rs_12)
+  };
+
+rule +Cau_Exists184(ds_60, rs_5) :=
+  trigger {
+    Sup_Exists185() & RequestResponse(ds_60, rq_14, rs_5) & Once181(a_91, c_53, ds_60) & Once182(c_53, ds_60, rq_14)
+      if !Exists184(ds_60, rs_5) & !Exists169(a_91)
+  };
+
+rule +PersonalDataCopy("", ds_60) :=
+  trigger {
+    Cau_Exists184(ds_60, rs_5)
+  };
+
+rule +ContainsData(rs_5, "") :=
+  trigger {
+    Cau_Exists184(ds_60, rs_5)
+  };
+
+sync;
+
+section once;
+
+rule +Sup_DataProcessing(pr_62, c_49, a_80, d_46) :=
+  trigger {
+    Sup_Exists152(a_80, d_46, ds_59) & DataProcessing(pr_62, c_49, a_80, d_46)
+      if PersonalData(d_46, ds_59) & !Exists151(a_80, c_49, d_46, ds_59, pr_62)
+  };
+
+rule +Cau_Exists212(c_55, ds_61) :=
+  trigger {
+    Cau_Once213(c_55, ds_61)
+      if !Exists212(c_55, ds_61)
+  };
+
+rule +Cau_Exists222(c_56, ds_62, e_7, i_5) :=
+  trigger {
+    Cau_Once223(c_56, ds_62, e_7, i_5)
+      if !Exists222(c_56, ds_62, e_7, i_5)
+  };
+
+rule +Cau_Exists229(c_57, ds_63, p_32) :=
+  trigger {
+    Cau_Once230(c_57, ds_63, p_32)
+      if !Exists229(c_57, ds_63, p_32)
+  };
+
+rule +Cau_Exists227(b, c_57, ds_63) :=
+  trigger {
+    Cau_Once228(b, c_57, ds_63)
+      if !Exists227(b, c_57, ds_63)
+  };
+
+rule +Sup_Exists263(a_99, d_58) :=
+  trigger {
+    Sup_Exists264(a_99, ds_67) & DataProcessing(p_34, c_61, a_99, d_58)
+      if PersonalData(d_58, ds_67)
+  };
+
+rule +Cau_Exists291(c_77, ds_77) :=
+  trigger {
+    Cau_Once292(c_77, ds_77)
+      if !Exists291(c_77, ds_77)
+  };
+
+rule +Cau_Exists296(c_80, ds_80) :=
+  trigger {
+    Cau_Once297(c_80, ds_80)
+      if !Exists296(c_80, ds_80)
+  };
+
+rule +Cau_Exists301(c_81, ds_81) :=
+  trigger {
+    Cau_Once302(c_81, ds_81)
+      if !Exists301(c_81, ds_81)
+  };
+
+rule +Cau_Exists306(c_82, cr_4, ds_82) :=
+  trigger {
+    Cau_Once307(c_82, cr_4, ds_82)
+      if !Exists306(c_82, cr_4, ds_82)
+  };
+
+rule +Cau_Exists311(c_85, ds_85, rc) :=
+  trigger {
+    Cau_Once312(c_85, ds_85, rc)
+      if !Exists311(c_85, ds_85, rc)
+  };
+
+rule +Cau_Exists316(c_86, ds_86, e_13) :=
+  trigger {
+    Cau_Once317(c_86, ds_86, e_13)
+      if !Exists316(c_86, ds_86, e_13)
+  };
+
+rule +Cau_Exists321(c_87, cat_3, ds_87) :=
+  trigger {
+    Cau_Once322(c_87, cat_3, ds_87)
+      if !Exists321(c_87, cat_3, ds_87)
+  };
+
+rule +Cau_Exists326(c_88, ds_88) :=
+  trigger {
+    Cau_Once327(c_88, ds_88)
+      if !Exists326(c_88, ds_88)
+  };
+
+rule +Cau_Exists331(c_89, ds_89) :=
+  trigger {
+    Cau_Once332(c_89, ds_89)
+      if !Exists331(c_89, ds_89)
+  };
+
+rule +Cau_Exists522(c_137, ds_133) :=
+  trigger {
+    Cau_Once523(c_137, ds_133)
+      if !Exists522(c_137, ds_133)
+  };
+
+rule +Sup_Exists535(a_166, d_130) :=
+  trigger {
+    Sup_Exists536(a_166) & DataProcessing(pr_144, c_141, a_166, d_130)
+      if Exists534(d_130)
+  };
+
+section fixpoint;
+
+@<../Lex/example/GDPR/minitwit_gdpr.rex:975:1-982:31> rule +Sup_Exists374() :=
+  trigger {
+    if Exists374()
+  };
+
+rule +SendFile(c__8, f_1) :=
+  trigger {
+    Sup_Exists374() & ContainsData(rs_10, f_1) & RequestResponse(ds_100, rq_20, rs_10) & Once372(c__8, c_102, ds_100, rq_20)
+  };
+
+section fixpoint;
+
+rule +Sup_Exists6(_p176, _p177) :=
+  trigger {
+    Sup_GiveConsent(_p176, _p177, _p178)
+      if Exists6(_p176, _p177) & _p178 == "GDPRSocial, Inc."
+  };
+
+rule -Consent(_p176, _p177) :=
+  trigger {
+    Sup_GiveConsent(_p176, _p177, _p178)
+      if Consent(_p176, _p177) & _p178 == "GDPRSocial, Inc."
+  };
+
+rule -SpecialConsent(_p176, _p177, sp_1_1) :=
+  trigger {
+    Sup_Exists6(_p176, _p177) & SpecialConsent(_p176, _p177, sp_1_1)
+  };
+
+rule +Sup_GiveConsent(ds_132, p_43, c_136) :=
+  trigger {
+    Sup_Exists519(c_136, ds_132) & GiveConsent(ds_132, p_43, c_136)
+  };
+
+sync;
+
+section once;
+
+rule +Inform(c_55, ds_61, "") :=
+  trigger {
+    Cau_Exists212(c_55, ds_61)
+  };
+
+rule +Contains("", "") :=
+  trigger {
+    Cau_Exists212(c_55, ds_61)
+  };
+
+rule +Cau_IsRightToWithdrawConsent("") :=
+  trigger {
+    Cau_Exists212(c_55, ds_61)
+      if !IsRightToWithdrawConsent("")
+  };
+
+rule +Inform(c_56, ds_62, "") :=
+  trigger {
+    Cau_Exists222(c_56, ds_62, e_7, i_5)
+  };
+
+rule +Contains("", "") :=
+  trigger {
+    Cau_Exists222(c_56, ds_62, e_7, i_5)
+  };
+
+rule +Cau_IsLegitimateInterest("", e_7, i_5) :=
+  trigger {
+    Cau_Exists222(c_56, ds_62, e_7, i_5)
+      if !IsLegitimateInterest("", e_7, i_5)
+  };
+
+rule +Inform(c_57, ds_63, "") :=
+  trigger {
+    Cau_Exists229(c_57, ds_63, p_32)
+  };
+
+rule +Contains("", "") :=
+  trigger {
+    Cau_Exists229(c_57, ds_63, p_32)
+  };
+
+rule +Cau_IsPurposeOfProcessing("", p_32) :=
+  trigger {
+    Cau_Exists229(c_57, ds_63, p_32)
+      if !IsPurposeOfProcessing("", p_32)
+  };
+
+rule +Inform(c_57, ds_63, "") :=
+  trigger {
+    Cau_Exists227(b, c_57, ds_63)
+  };
+
+rule +Contains("", "") :=
+  trigger {
+    Cau_Exists227(b, c_57, ds_63)
+  };
+
+rule +Cau_IsLegalBasisOfProcessing("", b) :=
+  trigger {
+    Cau_Exists227(b, c_57, ds_63)
+      if !IsLegalBasisOfProcessing("", b)
+  };
+
+rule +Sup_DataProcessing(p_34, c_61, a_99, d_58) :=
+  trigger {
+    Sup_Exists263(a_99, d_58) & DataProcessing(p_34, c_61, a_99, d_58)
+  };
+
+rule +Inform(c_77, ds_77, "") :=
+  trigger {
+    Cau_Exists291(c_77, ds_77)
+  };
+
+rule +Contains("", "") :=
+  trigger {
+    Cau_Exists291(c_77, ds_77)
+  };
+
+rule +Cau_IsAutomatedDecision("") :=
+  trigger {
+    Cau_Exists291(c_77, ds_77)
+      if !IsAutomatedDecision("")
+  };
+
+rule +Inform(c_80, ds_80, "") :=
+  trigger {
+    Cau_Exists296(c_80, ds_80)
+  };
+
+rule +Contains("", "") :=
+  trigger {
+    Cau_Exists296(c_80, ds_80)
+  };
+
+rule +Cau_IsRightToLodgeComplaint("") :=
+  trigger {
+    Cau_Exists296(c_80, ds_80)
+      if !IsRightToLodgeComplaint("")
+  };
+
+rule +Inform(c_81, ds_81, "") :=
+  trigger {
+    Cau_Exists301(c_81, ds_81)
+  };
+
+rule +Contains("", "") :=
+  trigger {
+    Cau_Exists301(c_81, ds_81)
+  };
+
+rule +Cau_IsRights("") :=
+  trigger {
+    Cau_Exists301(c_81, ds_81)
+      if !IsRights("")
+  };
+
+rule +Inform(c_82, ds_82, "") :=
+  trigger {
+    Cau_Exists306(c_82, cr_4, ds_82)
+  };
+
+rule +Contains("", "") :=
+  trigger {
+    Cau_Exists306(c_82, cr_4, ds_82)
+  };
+
+rule +Cau_IsStorageCriteria("", cr_4) :=
+  trigger {
+    Cau_Exists306(c_82, cr_4, ds_82)
+      if !IsStorageCriteria("", cr_4)
+  };
+
+rule +Inform(c_85, ds_85, "") :=
+  trigger {
+    Cau_Exists311(c_85, ds_85, rc)
+  };
+
+rule +Contains("", "") :=
+  trigger {
+    Cau_Exists311(c_85, ds_85, rc)
+  };
+
+rule +Cau_IsRecipientCategory("", rc) :=
+  trigger {
+    Cau_Exists311(c_85, ds_85, rc)
+      if !IsRecipientCategory("", rc)
+  };
+
+rule +Inform(c_86, ds_86, "") :=
+  trigger {
+    Cau_Exists316(c_86, ds_86, e_13)
+  };
+
+rule +Contains("", "") :=
+  trigger {
+    Cau_Exists316(c_86, ds_86, e_13)
+  };
+
+rule +Cau_IsRecipient("", e_13) :=
+  trigger {
+    Cau_Exists316(c_86, ds_86, e_13)
+      if !IsRecipient("", e_13)
+  };
+
+rule +Inform(c_87, ds_87, "") :=
+  trigger {
+    Cau_Exists321(c_87, cat_3, ds_87)
+  };
+
+rule +Contains("", "") :=
+  trigger {
+    Cau_Exists321(c_87, cat_3, ds_87)
+  };
+
+rule +Cau_IsCategory("", cat_3) :=
+  trigger {
+    Cau_Exists321(c_87, cat_3, ds_87)
+      if !IsCategory("", cat_3)
+  };
+
+rule +Inform(c_88, ds_88, "") :=
+  trigger {
+    Cau_Exists326(c_88, ds_88)
+  };
+
+rule +Contains("", "") :=
+  trigger {
+    Cau_Exists326(c_88, ds_88)
+  };
+
+rule +Cau_IsContactDetailsOfDataProtectionOfficer("", c_88) :=
+  trigger {
+    Cau_Exists326(c_88, ds_88)
+      if !IsContactDetailsOfDataProtectionOfficer("", c_88)
+  };
+
+rule +Inform(c_89, ds_89, "") :=
+  trigger {
+    Cau_Exists331(c_89, ds_89)
+  };
+
+rule +Contains("", "") :=
+  trigger {
+    Cau_Exists331(c_89, ds_89)
+  };
+
+rule +Cau_IsIdentityOfControllerOrRepresentative("", c_89) :=
+  trigger {
+    Cau_Exists331(c_89, ds_89)
+      if !IsIdentityOfControllerOrRepresentative("", c_89)
+  };
+
+rule +Inform(c_137, ds_133, "") :=
+  trigger {
+    Cau_Exists522(c_137, ds_133)
+  };
+
+rule +Contains("", "") :=
+  trigger {
+    Cau_Exists522(c_137, ds_133)
+  };
+
+rule +Cau_IsRightToWithdrawConsent("") :=
+  trigger {
+    Cau_Exists522(c_137, ds_133)
+      if !IsRightToWithdrawConsent("")
+  };
+
+rule +Sup_Exists526(c_139, d_126) :=
+  trigger {
+    Sup_Exists527(c_139, ds_135, p_46) & DataProcessing(pr_141, c_139, a_161, d_126)
+      if PersonalData(d_126, ds_135) & Once525(c_139, ds_135, p_46)
+  };
+
+rule +Sup_DataProcessing(pr_144, c_141, a_166, d_130) :=
+  trigger {
+    Sup_Exists535(a_166, d_130) & DataProcessing(pr_144, c_141, a_166, d_130)
+  };
+
+sync;
+
+section once;
+
+rule +Declaration(_p121) :=
+  trigger {
+    Cau_IsIdentityOfControllerOrRepresentative(_p121, _p122)
+  };
+
+rule +HasText(_p121, conc(conc("<h6>Identity of the controller</h6><p>The controller responsible for the processing of your personal data is ", string_of_entity(_p122)), ".</p>")) :=
+  trigger {
+    Cau_IsIdentityOfControllerOrRepresentative(_p121, _p122)
+  };
+
+rule +NoteEntity(_p122) :=
+  trigger {
+    Cau_IsIdentityOfControllerOrRepresentative(_p121, _p122)
+  };
+
+rule +Sup_DataProcessing(pr_141, c_139, a_161, d_126) :=
+  trigger {
+    Sup_Exists526(c_139, d_126) & DataProcessing(pr_141, c_139, a_161, d_126)
+  };
+
+sync;
+
+section fixpoint;
+
+@<../Lex/example/GDPR/gdpr.lex:1132:1-1140:45> rule +Sup_Exists518() :=
+  trigger {
+    if Exists518()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:1207:1-1215:45> rule +Sup_Exists513() :=
+  trigger {
+    if Exists513()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:1217:1-1225:45> rule +Sup_Exists508() :=
+  trigger {
+    if Exists508()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:1290:1-1297:54> rule +Sup_Exists503() :=
+  trigger {
+    if Exists503()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:1331:1-1339:45> rule +Sup_Exists499() :=
+  trigger {
+    if Exists499()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:1351:1-1358:45> rule +Sup_Exists494() :=
+  trigger {
+    if Exists494()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:1378:1-1385:45> rule +Sup_Exists489() :=
+  trigger {
+    if Exists489()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:1450:1-1458:45> rule +Sup_Exists480() :=
+  trigger {
+    if Exists480()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:1833:1-1840:45> rule +Sup_Exists474() :=
+  trigger {
+    if Exists474()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:1842:1-1849:45> rule +Sup_Exists467() :=
+  trigger {
+    if Exists467()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:1853:1-1860:45> rule +Sup_Exists460() :=
+  trigger {
+    if Exists460()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:1864:1-1871:45> rule +Sup_Exists453() :=
+  trigger {
+    if Exists453()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:1875:1-1882:45> rule +Sup_Exists446() :=
+  trigger {
+    if Exists446()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:1884:1-1891:45> rule +Sup_Exists439() :=
+  trigger {
+    if Exists439()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:1904:1-1911:45> rule +Sup_Exists432() :=
+  trigger {
+    if Exists432()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:1915:1-1922:45> rule +Sup_Exists425() :=
+  trigger {
+    if Exists425()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:1926:1-1933:45> rule +Sup_Exists418() :=
+  trigger {
+    if Exists418()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:1957:1-1964:45> rule +Sup_Exists411() :=
+  trigger {
+    if Exists411()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:2363:1-2370:45> rule +Sup_Exists392() :=
+  trigger {
+    if Exists392()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:1614:1-1620:54> rule +Sup_Exists361() :=
+  trigger {
+    if Exists361()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:1946:1-1953:45> rule +Sup_Exists346() :=
+  trigger {
+    if Exists346()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:1154:1-1164:45> rule +Sup_Exists262() :=
+  trigger {
+    if Exists262()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:1174:1-1183:45> rule +Sup_Exists255() :=
+  trigger {
+    if Exists255()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:1362:1-1370:45> rule +Sup_Exists245() :=
+  trigger {
+    if Exists245()
+  };
+
+rule +Cau_Exists516(c__9, c_131, ds_128) :=
+  trigger {
+    Cau_Once517(c__9, c_131, ds_128)
+      if !Exists516(c__9, c_131, ds_128)
+  };
+
+rule +Cau_Exists511(c_130, ds_127, e_18) :=
+  trigger {
+    Cau_Once512(c_130, ds_127, e_18)
+      if !Exists511(c_130, ds_127, e_18)
+  };
+
+rule +Cau_Exists506(c_129, ds_126, rc_1) :=
+  trigger {
+    Cau_Once507(c_129, ds_126, rc_1)
+      if !Exists506(c_129, ds_126, rc_1)
+  };
+
+rule +Cau_Exists497(c_125, cr_7, ds_122) :=
+  trigger {
+    Cau_Once498(c_125, cr_7, ds_122)
+      if !Exists497(c_125, cr_7, ds_122)
+  };
+
+rule +Cau_Exists492(c_124, ds_121) :=
+  trigger {
+    Cau_Once493(c_124, ds_121)
+      if !Exists492(c_124, ds_121)
+  };
+
+rule +Cau_Exists487(c_123, ds_120) :=
+  trigger {
+    Cau_Once488(c_123, ds_120)
+      if !Exists487(c_123, ds_120)
+  };
+
+rule +Cau_Exists478(c_120, ds_117) :=
+  trigger {
+    Cau_Once479(c_120, ds_117)
+      if !Exists478(c_120, ds_117)
+  };
+
+rule +Cau_Exists260(c_60, ds_66, p_33) :=
+  trigger {
+    Cau_Once261(c_60, ds_66, p_33)
+      if !Exists260(c_60, ds_66, p_33)
+  };
+
+rule +Cau_Exists258(b_1, c_60, ds_66) :=
+  trigger {
+    Cau_Once259(b_1, c_60, ds_66)
+      if !Exists258(b_1, c_60, ds_66)
+  };
+
+rule +Cau_Exists253(c_59, ds_65, e_8, i_6) :=
+  trigger {
+    Cau_Once254(c_59, ds_65, e_8, i_6)
+      if !Exists253(c_59, ds_65, e_8, i_6)
+  };
+
+rule +Cau_Exists243(c_58, ds_64) :=
+  trigger {
+    Cau_Once244(c_58, ds_64)
+      if !Exists243(c_58, ds_64)
+  };
+
+rule +Sup_Exists12(_p156, _p157) :=
+  trigger {
+    Sup_HasPurpose(_p156, _p157)
+      if Exists12(_p156, _p157)
+  };
+
+rule +Sup_HasPurpose(a_165, p_50) :=
+  trigger {
+    Sup_Exists532(p_50) & HasPurpose(a_165, p_50)
+  };
+
+rule +Sup_Exists529(a_163, d_128) :=
+  trigger {
+    Sup_Exists530(d_128, p_48) & DataProcessing(pr_142, co_21, a_163, d_128)
+      if HasPurpose(a_163, p_48)
+  };
+
+rule +Sup_DataProcessing(pr_142, co_21, a_163, d_128) :=
+  trigger {
+    Sup_Exists529(a_163, d_128) & DataProcessing(pr_142, co_21, a_163, d_128)
+  };
+
+rule +Cau_Once517(c__9, c_131, ds_128) :=
+  trigger {
+    Sup_Exists518() & c_131 == "GDPRSocial, Inc." & c__9 == "dpo@gdprsocial-inc.com" & DataProcessing(pr_139, c_131, a_159, d_124) & Exists17(a_159, ds_128) & PersonalData(d_124, ds_128)
+      if !Once517(c__9, c_131, ds_128)
+  };
+
+rule +Contains("", "") :=
+  trigger {
+    Cau_Exists516(c__9, c_131, ds_128)
+  };
+
+rule +Inform(c_131, ds_128, "") :=
+  trigger {
+    Cau_Exists516(c__9, c_131, ds_128)
+  };
+
+rule +Cau_Once512(c_130, ds_127, e_18) :=
+  trigger {
+    Sup_Exists513() & DataProcessing(pr_138, c_130, a_158, d_123) & Exists17(a_158, ds_127) & HasIntendedRecipient(d_123, e_18) & PersonalData(d_123, ds_127)
+      if !Once512(c_130, ds_127, e_18)
+  };
+
+rule +Contains("", "") :=
+  trigger {
+    Cau_Exists511(c_130, ds_127, e_18)
+  };
+
+rule +Inform(c_130, ds_127, "") :=
+  trigger {
+    Cau_Exists511(c_130, ds_127, e_18)
+  };
+
+rule +Cau_Once507(c_129, ds_126, rc_1) :=
+  trigger {
+    Sup_Exists508() & DataProcessing(pr_137, c_129, a_157, d_122) & Exists17(a_157, ds_126) & Collect(a_3_1, d_122, ds_7_1, "statistics") & rc_1 == "Analytics, Inc." & PersonalData(d_122, ds_126)
+      if !Once507(c_129, ds_126, rc_1)
+  };
+
+rule +Contains("", "") :=
+  trigger {
+    Cau_Exists506(c_129, ds_126, rc_1)
+  };
+
+rule +Inform(c_129, ds_126, "") :=
+  trigger {
+    Cau_Exists506(c_129, ds_126, rc_1)
+  };
+
+rule +Sup_Exists501(d_120) :=
+  trigger {
+    Sup_Exists503() & DataProcessing(pr_135, c_127, a_155, d_120) & Exists17(a_155, ds_124) & PersonalData(d_120, ds_124)
+      if !Exists502(d_120)
+  };
+
+rule +Sup_Exists500(a_155, d_120) :=
+  trigger {
+    Sup_Exists501(d_120) & DataProcessing(pr_135, c_127, a_155, d_120)
+      if Exists17(a_155, ds_124) & PersonalData(d_120, ds_124)
+  };
+
+rule +Sup_DataProcessing(pr_135, c_127, a_155, d_120) :=
+  trigger {
+    Sup_Exists500(a_155, d_120) & DataProcessing(pr_135, c_127, a_155, d_120)
+  };
+
+rule +Cau_Once498(c_125, cr_7, ds_122) :=
+  trigger {
+    Sup_Exists499() & cr_7 == "Your data is stored until you delete your account" & DataProcessing(pr_133, c_125, a_153, d_118) & Exists17(a_153, ds_122) & PersonalData(d_118, ds_122)
+      if !Once498(c_125, cr_7, ds_122)
+  };
+
+rule +Contains("", "") :=
+  trigger {
+    Cau_Exists497(c_125, cr_7, ds_122)
+  };
+
+rule +Inform(c_125, ds_122, "") :=
+  trigger {
+    Cau_Exists497(c_125, cr_7, ds_122)
+  };
+
+rule +Cau_Once493(c_124, ds_121) :=
+  trigger {
+    Sup_Exists494() & DataProcessing(pr_132, c_124, a_152, d_117) & Exists17(a_152, ds_121) & PersonalData(d_117, ds_121)
+      if !Once493(c_124, ds_121)
+  };
+
+rule +Contains("", "") :=
+  trigger {
+    Cau_Exists492(c_124, ds_121)
+  };
+
+rule +Inform(c_124, ds_121, "") :=
+  trigger {
+    Cau_Exists492(c_124, ds_121)
+  };
+
+rule +Cau_Once488(c_123, ds_120) :=
+  trigger {
+    Sup_Exists489() & DataProcessing(pr_131, c_123, a_151, d_116) & Exists17(a_151, ds_120) & PersonalData(d_116, ds_120)
+      if !Once488(c_123, ds_120)
+  };
+
+rule +Contains("", "") :=
+  trigger {
+    Cau_Exists487(c_123, ds_120)
+  };
+
+rule +Inform(c_123, ds_120, "") :=
+  trigger {
+    Cau_Exists487(c_123, ds_120)
+  };
+
+rule +Sup_Exists482(d_114, de_74) :=
+  trigger {
+    Sup_Exists484() & AutomatedDecision(a_149, d_114, ds_118, de_74) & PersonalData(d_114, ds_118)
+      if !Once483(d_114, de_74) & Exists481(a_149, d_114)
+  };
+
+rule +Sup_Exists481(a_149, d_114) :=
+  trigger {
+    Sup_Exists482(d_114, de_74) & Exists481(a_149, d_114)
+      if PersonalData(d_114, ds_118) & AutomatedDecision(a_149, d_114, ds_118, de_74)
+  };
+
+rule +Sup_DataProcessing(pr_129, c_121, a_149, d_114) :=
+  trigger {
+    Sup_Exists481(a_149, d_114) & DataProcessing(pr_129, c_121, a_149, d_114)
+  };
+
+rule +Cau_Once479(c_120, ds_117) :=
+  trigger {
+    Sup_Exists480() & DataProcessing(pr_128, c_120, a_148, d_113) & Exists17(a_148, ds_117) & PersonalData(d_113, ds_117)
+      if !Once479(c_120, ds_117) & Exists475(d_113)
+  };
+
+rule +Contains("", "") :=
+  trigger {
+    Cau_Exists478(c_120, ds_117)
+  };
+
+rule +Inform(c_120, ds_117, "") :=
+  trigger {
+    Cau_Exists478(c_120, ds_117)
+  };
+
+rule +Cau_Exists473(rs_24) :=
+  trigger {
+    Sup_Exists474() & RequestResponse(ds_116, rq_35, rs_24) & Once471(c_119, ds_116, rq_35)
+      if !Exists473(rs_24) & Once470(c_119, ds_116)
+  };
+
+rule +Contains(rs_24, "") :=
+  trigger {
+    Cau_Exists473(rs_24)
+  };
+
+rule +Cau_Exists466(rs_23) :=
+  trigger {
+    Sup_Exists467() & RequestResponse(ds_115, rq_34, rs_23) & Once464(c_118, ds_115, rq_34)
+      if !Exists466(rs_23) & !Once463(c_118, ds_115)
+  };
+
+rule +Contains(rs_23, "") :=
+  trigger {
+    Cau_Exists466(rs_23)
+  };
+
+rule +Cau_Exists459(p_42, rs_22) :=
+  trigger {
+    Sup_Exists460() & RequestResponse(ds_114, rq_33, rs_22) & Once456(c_117, ds_114, p_42)
+      if !Exists459(p_42, rs_22) & Once457(c_117, ds_114, rq_33)
+  };
+
+rule +Contains(rs_22, "") :=
+  trigger {
+    Cau_Exists459(p_42, rs_22)
+  };
+
+rule +Cau_Exists452(cat_5, rs_21) :=
+  trigger {
+    Sup_Exists453() & HasCategory(d_109, cat_5) & PersonalData(d_109, ds_113) & RequestResponse(ds_113, rq_32, rs_21) & Once448(c_116, d_109)
+      if !Exists452(cat_5, rs_21) & Once450(c_116, ds_113, rq_32)
+  };
+
+rule +Contains(rs_21, "") :=
+  trigger {
+    Cau_Exists452(cat_5, rs_21)
+  };
+
+rule +Cau_Exists445(e_17, rs_20) :=
+  trigger {
+    Sup_Exists446() & PersonalData(d_108, ds_112) & HasIntendedRecipient(d_108, e_17) & RequestResponse(ds_112, rq_31, rs_20) & Once441(c_115, d_108)
+      if !Exists445(e_17, rs_20) & Once443(c_115, ds_112, rq_31)
+  };
+
+rule +Contains(rs_20, "") :=
+  trigger {
+    Cau_Exists445(e_17, rs_20)
+  };
+
+rule +Cau_Exists438(cat_4, rs_19) :=
+  trigger {
+    Sup_Exists439() & Collect(a_3_1, d_107, ds_7_1, "statistics") & cat_4 == "Analytics, Inc." & PersonalData(d_107, ds_111) & RequestResponse(ds_111, rq_30, rs_19) & Once434(c_114, d_107)
+      if !Exists438(cat_4, rs_19) & Once436(c_114, ds_111, rq_30)
+  };
+
+rule +Contains(rs_19, "") :=
+  trigger {
+    Cau_Exists438(cat_4, rs_19)
+  };
+
+rule +Cau_Exists431(cr_6, rs_17) :=
+  trigger {
+    Sup_Exists432() & cr_6 == "Your data is stored until you delete your account" & PersonalData(d_105, ds_109) & RequestResponse(ds_109, rq_28, rs_17) & Once427(c_112, d_105)
+      if !Exists431(cr_6, rs_17) & Once429(c_112, ds_109, rq_28)
+  };
+
+rule +Contains(rs_17, "") :=
+  trigger {
+    Cau_Exists431(cr_6, rs_17)
+  };
+
+rule +Cau_Exists424(rs_16) :=
+  trigger {
+    Sup_Exists425() & PersonalData(d_104, ds_108) & RequestResponse(ds_108, rq_27, rs_16) & Once420(c_111, d_104)
+      if !Exists424(rs_16) & Once422(c_111, ds_108, rq_27)
+  };
+
+rule +Contains(rs_16, "") :=
+  trigger {
+    Cau_Exists424(rs_16)
+  };
+
+rule +Cau_Exists417(rq_26, rs_15) :=
+  trigger {
+    Sup_Exists418() & PersonalData(d_103, ds_107) & RequestResponse(ds_107, rq_26, rs_15) & Once413(c_110, d_103)
+      if !Exists417(rq_26, rs_15) & Once415(c_110, ds_107, rq_26)
+  };
+
+rule +Contains(rs_15, "") :=
+  trigger {
+    Cau_Exists417(rq_26, rs_15)
+  };
+
+rule +Cau_Exists410(rs_14) :=
+  trigger {
+    Sup_Exists411() & RequestResponse(ds_106, rq_25, rs_14) & Once408(c_109, ds_106, rq_25)
+      if !Exists410(rs_14) & Once407(c_109, ds_106)
+  };
+
+rule +Contains(rs_14, "") :=
+  trigger {
+    Cau_Exists410(rs_14)
+  };
+
+rule -Collect(_p185, _p186, ds_3_1, p_1_1) :=
+  trigger {
+    Sup_Exists4(_p185, _p186) & Collect(_p185, _p186, ds_3_1, p_1_1)
+  };
+
+rule +Sup_Exists2(_p185, _p186, ds_3_1, p_1_1) :=
+  trigger {
+    Sup_Exists4(_p185, _p186) & Exists2(_p185, _p186, ds_3_1, p_1_1)
+  };
+
+rule +Sup_Exists3(_p185, _p186, ds_3_1, p_1_1) :=
+  trigger {
+    Sup_Exists4(_p185, _p186) & Exists3(_p185, _p186, ds_3_1, p_1_1)
+  };
+
+rule +Cau_Exists391(e_16, rs_11) :=
+  trigger {
+    Sup_Exists392() & RequestResponse(ds_102, rq_21, rs_11) & Once388(c_105, ds_102, e_16)
+      if !Exists391(e_16, rs_11) & Once389(c_105, ds_102, rq_21)
+  };
+
+rule +Contains(rs_11, "") :=
+  trigger {
+    Cau_Exists391(e_16, rs_11)
+  };
+
+rule +Sup_Exists382(c_104, d_97, ds_101, p_41) :=
+  trigger {
+    Sup_Exists386() & DataProcessing(pr_114, c_104, a_134, d_97) & PersonalData(d_97, ds_101) & HasPurpose(a_134, p_41)
+      if !Once385(c_104, d_97, ds_101, p_41)
+  };
+
+rule +Sup_Exists381(a_134, c_104, d_97) :=
+  trigger {
+    Sup_Exists382(c_104, d_97, ds_101, p_41) & DataProcessing(pr_114, c_104, a_134, d_97)
+      if PersonalData(d_97, ds_101) & HasPurpose(a_134, p_41)
+  };
+
+rule +Sup_DataProcessing(pr_114, c_104, a_134, d_97) :=
+  trigger {
+    Sup_Exists381(a_134, c_104, d_97) & DataProcessing(pr_114, c_104, a_134, d_97)
+  };
+
+rule +Sup_Exists366(d_95, p_39) :=
+  trigger {
+    Sup_Exists371() & DataProcessing(pr_112, co_16, a_133, d_95) & HasPurpose(a_133, p_39)
+      if !Once370(d_95, p_39) & Exists364(d_95)
+  };
+
+rule +Sup_Exists365(a_133, d_95) :=
+  trigger {
+    Sup_Exists366(d_95, p_39) & DataProcessing(pr_112, co_16, a_133, d_95)
+      if Exists364(d_95) & HasPurpose(a_133, p_39)
+  };
+
+rule +Sup_DataProcessing(pr_112, co_16, a_133, d_95) :=
+  trigger {
+    Sup_Exists365(a_133, d_95) & DataProcessing(pr_112, co_16, a_133, d_95)
+  };
+
+rule +Sup_Exists359(d_93) :=
+  trigger {
+    Sup_Exists361() & DataProcessing(pr_110, c_96, a_131, d_93) & Exists35(a_131, d_93, ds_94)
+      if !Exists360(d_93)
+  };
+
+rule +Sup_Exists358(a_131, c_96, d_93) :=
+  trigger {
+    Sup_Exists359(d_93) & DataProcessing(pr_110, c_96, a_131, d_93)
+      if Exists35(a_131, d_93, ds_94)
+  };
+
+rule +Sup_DataProcessing(pr_110, c_96, a_131, d_93) :=
+  trigger {
+    Sup_Exists358(a_131, c_96, d_93) & DataProcessing(pr_110, c_96, a_131, d_93)
+  };
+
+rule +Sup_Exists354(c_95, ds_93, p_37) :=
+  trigger {
+    Sup_Exists357() & DataProcessing(pr_109, c_95, a_130, d_92) & PersonalData(d_92, ds_93) & HasPurpose(a_130, p_37)
+      if !Once356(c_95, ds_93) & Once352(c_95, d_92, ds_93) & !Once349(c_95, d_92, ds_93, p_37)
+  };
+
+rule +Sup_Exists353(a_130, c_95, d_92) :=
+  trigger {
+    Sup_Exists354(c_95, ds_93, p_37) & DataProcessing(pr_109, c_95, a_130, d_92)
+      if PersonalData(d_92, ds_93) & HasPurpose(a_130, p_37) & Once352(c_95, d_92, ds_93) & !Once349(c_95, d_92, ds_93, p_37)
+  };
+
+rule +Sup_DataProcessing(pr_109, c_95, a_130, d_92) :=
+  trigger {
+    Sup_Exists353(a_130, c_95, d_92) & DataProcessing(pr_109, c_95, a_130, d_92)
+  };
+
+rule +Cau_Exists345(ds__18, rs_6) :=
+  trigger {
+    Sup_Exists346() & Exists17(a_128, ds__18) & Exists35(a_128, d_90, ds_91) & RequestResponse(ds_91, rq_15, rs_6) & Once341(a_128, c_93, d_90)
+      if !Exists345(ds__18, rs_6) & Once343(c_93, ds_91, rq_15) & ds_91 != ds__18
+  };
+
+rule +Contains(rs_6, "") :=
+  trigger {
+    Cau_Exists345(ds__18, rs_6)
+  };
+
+rule -Read(_p186, ds_3_1, _p185, p_1_1, ds__1_1) :=
+  trigger {
+    Sup_Exists3(_p185, _p186, ds_3_1, p_1_1) & Read(_p186, ds_3_1, _p185, p_1_1, ds__1_1)
+  };
+
+rule +Cau_Once259(b_1, c_60, ds_66) :=
+  trigger {
+    Sup_Exists262() & IsLawful(a_98, b_1) & DataProcessing(pr_78, c_60, a_98, d_57) & Exists17(a_98, ds_66) & HasPurpose(a_98, p_33) & PersonalData(d_57, ds_66)
+      if !Once259(b_1, c_60, ds_66)
+  };
+
+rule +Cau_Once261(c_60, ds_66, p_33) :=
+  trigger {
+    Sup_Exists262() & IsLawful(a_98, b_1) & DataProcessing(pr_78, c_60, a_98, d_57) & Exists17(a_98, ds_66) & HasPurpose(a_98, p_33) & PersonalData(d_57, ds_66)
+      if !Once261(c_60, ds_66, p_33)
+  };
+
+rule +Contains("", "") :=
+  trigger {
+    Cau_Exists260(c_60, ds_66, p_33)
+  };
+
+rule +Inform(c_60, ds_66, "") :=
+  trigger {
+    Cau_Exists260(c_60, ds_66, p_33)
+  };
+
+rule +Contains("", "") :=
+  trigger {
+    Cau_Exists258(b_1, c_60, ds_66)
+  };
+
+rule +Inform(c_60, ds_66, "") :=
+  trigger {
+    Cau_Exists258(b_1, c_60, ds_66)
+  };
+
+rule +Cau_Once254(c_59, ds_65, e_8, i_6) :=
+  trigger {
+    Sup_Exists255() & DataProcessing(pr_77, c_59, a_97, d_56) & Exists17(a_97, ds_65) & Exists23(a_97, e_8, i_6) & PersonalData(d_56, ds_65)
+      if !Once254(c_59, ds_65, e_8, i_6) & Exists250(a_97)
+  };
+
+rule +Contains("", "") :=
+  trigger {
+    Cau_Exists253(c_59, ds_65, e_8, i_6)
+  };
+
+rule +Inform(c_59, ds_65, "") :=
+  trigger {
+    Cau_Exists253(c_59, ds_65, e_8, i_6)
+  };
+
+rule +Cau_Once244(c_58, ds_64) :=
+  trigger {
+    Sup_Exists245() & DataProcessing(pr_76, c_58, a_96, d_55) & Exists17(a_96, ds_64) & PersonalData(d_55, ds_64)
+      if !Once244(c_58, ds_64) & ((Exists240(a_96) | Exists234(a_96)))
+  };
+
+rule +Contains("", "") :=
+  trigger {
+    Cau_Exists243(c_58, ds_64)
+  };
+
+rule +Inform(c_58, ds_64, "") :=
+  trigger {
+    Cau_Exists243(c_58, ds_64)
+  };
+
+rule -Write(_p186, ds_3_1, _p185, p_1_1, ds__2_1) :=
+  trigger {
+    Sup_Exists2(_p185, _p186, ds_3_1, p_1_1) & Write(_p186, ds_3_1, _p185, p_1_1, ds__2_1)
+  };
+
+rule +Sup_Exists187(a_92, p_31) :=
+  trigger {
+    Sup_Exists188(a_92) & DataProcessing(pr_72, c_54, a_92, d_51) & Restricted(d_51, p_31)
+      if HasPurpose(a_92, p_31)
+  };
+
+rule +Sup_Exists186(a_92, d_51) :=
+  trigger {
+    Sup_Exists187(a_92, p_31) & DataProcessing(pr_72, c_54, a_92, d_51)
+      if Restricted(d_51, p_31)
+  };
+
+rule +Sup_DataProcessing(pr_72, c_54, a_92, d_51) :=
+  trigger {
+    Sup_Exists186(a_92, d_51) & DataProcessing(pr_72, c_54, a_92, d_51)
+  };
+
+rule -Collect(_p156, d_1_1, ds_8_1, _p157) :=
+  trigger {
+    Sup_Exists12(_p156, _p157) & Collect(_p156, d_1_1, ds_8_1, _p157)
+  };
+
+rule +Sup_Exists10(_p156, _p157, d_1_1, ds_8_1) :=
+  trigger {
+    Sup_Exists12(_p156, _p157) & Exists10(_p156, _p157, d_1_1, ds_8_1)
+  };
+
+rule +Sup_Exists11(_p156, _p157, d_1_1, ds_8_1) :=
+  trigger {
+    Sup_Exists12(_p156, _p157) & Exists11(_p156, _p157, d_1_1, ds_8_1)
+  };
+
+rule -Read(d_1_1, ds_8_1, _p156, _p157, ds__4_1) :=
+  trigger {
+    Sup_Exists11(_p156, _p157, d_1_1, ds_8_1) & Read(d_1_1, ds_8_1, _p156, _p157, ds__4_1)
+  };
+
+rule -Write(d_1_1, ds_8_1, _p156, _p157, ds__3_1) :=
+  trigger {
+    Sup_Exists10(_p156, _p157, d_1_1, ds_8_1) & Write(d_1_1, ds_8_1, _p156, _p157, ds__3_1)
+  };
+
+rule +Sup_Exists4(_p185, _p186) :=
+  trigger {
+    Sup_DataProcessing(_p183, _p184, _p185, _p186)
+      if Exists4(_p185, _p186) & _p184 == "GDPRSocial, Inc." & _p183 == "GDPRSocial, Inc."
+  };
+
+sync;
+
+section once;
+
+rule +Cau_IsRightToWithdrawConsent("") :=
+  trigger {
+    Cau_Exists243(c_58, ds_64)
+      if !IsRightToWithdrawConsent("")
+  };
+
+rule +Cau_IsLegitimateInterest("", e_8, i_6) :=
+  trigger {
+    Cau_Exists253(c_59, ds_65, e_8, i_6)
+      if !IsLegitimateInterest("", e_8, i_6)
+  };
+
+rule +Cau_IsPurposeOfProcessing("", p_33) :=
+  trigger {
+    Cau_Exists260(c_60, ds_66, p_33)
+      if !IsPurposeOfProcessing("", p_33)
+  };
+
+rule +Cau_IsLegalBasisOfProcessing("", b_1) :=
+  trigger {
+    Cau_Exists258(b_1, c_60, ds_66)
+      if !IsLegalBasisOfProcessing("", b_1)
+  };
+
+rule +Cau_IsAutomatedDecision("") :=
+  trigger {
+    Cau_Exists478(c_120, ds_117)
+      if !IsAutomatedDecision("")
+  };
+
+rule +Cau_IsRightToLodgeComplaint("") :=
+  trigger {
+    Cau_Exists487(c_123, ds_120)
+      if !IsRightToLodgeComplaint("")
+  };
+
+rule +Cau_IsRights("") :=
+  trigger {
+    Cau_Exists492(c_124, ds_121)
+      if !IsRights("")
+  };
+
+rule +Cau_IsStorageCriteria("", cr_7) :=
+  trigger {
+    Cau_Exists497(c_125, cr_7, ds_122)
+      if !IsStorageCriteria("", cr_7)
+  };
+
+rule +Cau_IsRecipientCategory("", rc_1) :=
+  trigger {
+    Cau_Exists506(c_129, ds_126, rc_1)
+      if !IsRecipientCategory("", rc_1)
+  };
+
+rule +Cau_IsRecipient("", e_18) :=
+  trigger {
+    Cau_Exists511(c_130, ds_127, e_18)
+      if !IsRecipient("", e_18)
+  };
+
+rule +Cau_IsDSSource("", ds__18) :=
+  trigger {
+    Cau_Exists345(ds__18, rs_6)
+      if !IsDSSource("", ds__18)
+  };
+
+rule +Cau_IsEffectiveRecipient("", e_16) :=
+  trigger {
+    Cau_Exists391(e_16, rs_11)
+      if !IsEffectiveRecipient("", e_16)
+  };
+
+rule +Cau_IsAutomatedDecision("") :=
+  trigger {
+    Cau_Exists410(rs_14)
+      if !IsAutomatedDecision("")
+  };
+
+rule +Cau_IsComplaintStatement("", rq_26) :=
+  trigger {
+    Cau_Exists417(rq_26, rs_15)
+      if !IsComplaintStatement("", rq_26)
+  };
+
+rule +Cau_IsRights("") :=
+  trigger {
+    Cau_Exists424(rs_16)
+      if !IsRights("")
+  };
+
+rule +Cau_IsStorageCriteria("", cr_6) :=
+  trigger {
+    Cau_Exists431(cr_6, rs_17)
+      if !IsStorageCriteria("", cr_6)
+  };
+
+rule +Cau_IsRecipientCategory("", cat_4) :=
+  trigger {
+    Cau_Exists438(cat_4, rs_19)
+      if !IsRecipientCategory("", cat_4)
+  };
+
+rule +Cau_IsRecipient("", e_17) :=
+  trigger {
+    Cau_Exists445(e_17, rs_20)
+      if !IsRecipient("", e_17)
+  };
+
+rule +Cau_IsCategory("", cat_5) :=
+  trigger {
+    Cau_Exists452(cat_5, rs_21)
+      if !IsCategory("", cat_5)
+  };
+
+rule +Cau_IsPurposeOfProcessing("", p_42) :=
+  trigger {
+    Cau_Exists459(p_42, rs_22)
+      if !IsPurposeOfProcessing("", p_42)
+  };
+
+rule +Cau_IsDataProcessingNotOngoing("") :=
+  trigger {
+    Cau_Exists466(rs_23)
+      if !IsDataProcessingNotOngoing("")
+  };
+
+rule +Cau_IsDataProcessingOngoing("") :=
+  trigger {
+    Cau_Exists473(rs_24)
+      if !IsDataProcessingOngoing("")
+  };
+
+rule +Cau_IsContactDetailsOfDataProtectionOfficer("", c__9) :=
+  trigger {
+    Cau_Exists516(c__9, c_131, ds_128)
+      if !IsContactDetailsOfDataProtectionOfficer("", c__9)
+  };
+
+section fixpoint;
+
+@<../Lex/example/GDPR/gdpr.lex:2660:1-2665:45> rule +Sup_Exists287() :=
+  trigger {
+    if Exists287()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:2683:1-2689:45> rule +Sup_Exists285() :=
+  trigger {
+    if Exists285()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:2693:1-2699:45> rule +Sup_Exists283() :=
+  trigger {
+    if Exists283()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:2717:1-2724:45> rule +Sup_Exists281() :=
+  trigger {
+    if Exists281()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:2728:1-2735:45> rule +Sup_Exists278() :=
+  trigger {
+    if Exists278()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:2737:1-2744:45> rule +Sup_Exists275() :=
+  trigger {
+    if Exists275()
+  };
+
+@<../Lex/example/GDPR/gdpr.lex:2776:1-2783:45> rule +Sup_Exists272() :=
+  trigger {
+    if Exists272()
+  };
+
+rule +ActivityRecord(a_113, "Controller", string_of_entity(c_76)) :=
+  trigger {
+    Sup_Exists287() & DataProcessing(pr_92, c_76, a_113, d_73)
+      if !Exception163(c_76, pr_92)
+  };
+
+rule +ActivityRecord(a_110, "DPO", string_of_entity(dpo)) :=
+  trigger {
+    Sup_Exists285() & DataProcessing(pr_89, c_73, a_110, d_70) & c_73 == "GDPRSocial, Inc." & dpo == "dpo@gdprsocial-inc.com"
+      if !Exception163(c_73, pr_89)
+  };
+
+rule +ActivityRecord(a_109, "Purpose", string_of_purpose(p_36)) :=
+  trigger {
+    Sup_Exists283() & HasPurpose(a_109, p_36)
+      if Exists282(a_109, c_72, pr_88) & !Exception163(c_72, pr_88)
+  };
+
+rule +ActivityRecord(a_107, "DataCategory", string_of_category(cat_1)) :=
+  trigger {
+    Sup_Exists281() & HasCategory(d_67, cat_1) & DataProcessing(pr_86, c_70, a_107, d_67)
+      if Exists279(d_67) & !Exception163(c_70, pr_86)
+  };
+
+rule +ActivityRecord(a_106, "Recipient", string_of_entity(e_10)) :=
+  trigger {
+    Sup_Exists278() & HasIntendedRecipient(d_66, e_10) & DataProcessing(pr_85, c_69, a_106, d_66)
+      if Exists276(d_66) & !Exception163(c_69, pr_85)
+  };
+
+rule +ActivityRecord(a_105, "RecipientCategory", string_of_entity(cat)) :=
+  trigger {
+    Sup_Exists275() & Collect(a_3_1, d_65, ds_7_1, "statistics") & cat == "Analytics, Inc." & DataProcessing(pr_84, c_68, a_105, d_65)
+      if Exists273(d_65) & !Exception163(c_68, pr_84)
+  };
+
+rule +ActivityRecord(a_102, "SecurityMeasures", string_of_declaration(de_37)) :=
+  trigger {
+    Sup_Exists272() & de_37 == "GDPRSocial, Inc. implements the following technical and organisational security measures: (1) all web traffic is served over HTTPS/TLS; (2) user passwords are stored using Django's PBKDF2-SHA256 hashing with per-user salts; (3) CSRF protection is enforced on all state-changing requests; (4) access control ensures users can only modify their own data; (5) the proactive GDPR enforcement engine automatically prevents policy-violating data processing at runtime; (6) personal data deletion is available on demand via the right-to-erasure mechanism." & DataProcessing(pr_81, c_65, a_102, d_62)
+      if Exists270(d_62) & !Exception163(c_65, pr_81)
+  };
+
+section fixpoint;
+
+@<../Lex/example/GDPR/gdpr.lex:2305:1-2310:52> rule +Sup_Exists396() :=
+  trigger {
+    if Exists396()
+  };
+
+rule -LiftRestriction(c_106, d_99, rq_22) :=
+  trigger {
+    Sup_Exists396() & LiftRestriction(c_106, d_99, rq_22)
+      if !Once395(c_106, d_99, rq_22)
+  };
+
+sync;
+
+section once;
+
+rule +Declaration(_p94) :=
+  trigger {
+    Cau_IsRightToWithdrawConsent(_p94)
+  };
+
+rule +HasText(_p94, "<h6>Right to withdraw consent</h6><p>You have the right to withdraw consent for processing your data at any time.</p>") :=
+  trigger {
+    Cau_IsRightToWithdrawConsent(_p94)
+  };
+
+rule +Declaration(_p113) :=
+  trigger {
+    Cau_IsLegitimateInterest(_p113, _p114, _p115)
+  };
+
+rule +HasText(_p113, conc(conc(conc(conc("<h6>Legitimate interest</h6><p>", string_of_entity(_p114)), " relies on the following legitimate interest as the legal basis for processing your personal data: "), string_of_interest(_p115)), ". You have the right to object to processing based on legitimate interest at any time.</p>")) :=
+  trigger {
+    Cau_IsLegitimateInterest(_p113, _p114, _p115)
+  };
+
+rule +NoteEntity(_p114) :=
+  trigger {
+    Cau_IsLegitimateInterest(_p113, _p114, _p115)
+  };
+
+rule +NoteInterest(_p115) :=
+  trigger {
+    Cau_IsLegitimateInterest(_p113, _p114, _p115)
+  };
+
+rule +Declaration(_p119) :=
+  trigger {
+    Cau_IsLegalBasisOfProcessing(_p119, _p120)
+  };
+
+rule +HasText(_p119, conc(conc(conc(conc("<h6>Legal basis for the processing: Article ", string_of_legal_basis(_p120)), "</h6><p>We rely on Article "), string_of_legal_basis(_p120)), " of the General Data Protection Regulation (GDPR) as a legal basis to process your personal data.</p>")) :=
+  trigger {
+    Cau_IsLegalBasisOfProcessing(_p119, _p120)
+  };
+
+rule +NoteLegalBasis(_p120) :=
+  trigger {
+    Cau_IsLegalBasisOfProcessing(_p119, _p120)
+  };
+
+rule +Declaration(_p95) :=
+  trigger {
+    Cau_IsRightToLodgeComplaint(_p95)
+  };
+
+rule +HasText(_p95, "<h6>Right to lodge a complaint</h6><p>You have the right to lodge a complaint with the competent National Data Protection Authority if you consider that the processing of your personal data infringes the GDPR, without prejudice to any other administrative or judicial remedy.</p>") :=
+  trigger {
+    Cau_IsRightToLodgeComplaint(_p95)
+  };
+
+rule +Declaration(_p132) :=
+  trigger {
+    Cau_IsDSSource(_p132, _p133)
+  };
+
+rule +HasText(_p132, conc(conc("<h6>Source of your personal data</h6><p>We have collected this personal data from ", string_of_ds(_p133)), ".</p>")) :=
+  trigger {
+    Cau_IsDSSource(_p132, _p133)
+  };
+
+rule +NoteDS(_p133) :=
+  trigger {
+    Cau_IsDSSource(_p132, _p133)
+  };
+
+rule +Declaration(_p123) :=
+  trigger {
+    Cau_IsEffectiveRecipient(_p123, _p124)
+  };
+
+rule +HasText(_p123, conc(conc("<h6>Recipients of your personal data</h6><p>Your personal data has been shared with the following entity: ", string_of_entity(_p124)), ".</p>")) :=
+  trigger {
+    Cau_IsEffectiveRecipient(_p123, _p124)
+  };
+
+rule +NoteEntity(_p124) :=
+  trigger {
+    Cau_IsEffectiveRecipient(_p123, _p124)
+  };
+
+rule +Declaration(_p143) :=
+  trigger {
+    Cau_IsAutomatedDecision(_p143)
+  };
+
+rule +HasText(_p143, "<h6>Automated decision-making</h6><p>We use the content of your latest posts to display personalized advertisement. No human review is involved in this decision.</p>") :=
+  trigger {
+    Cau_IsAutomatedDecision(_p143)
+  };
+
+rule +Declaration(_p136) :=
+  trigger {
+    Cau_IsComplaintStatement(_p136, _p137)
+  };
+
+rule +HasText(_p136, conc(conc("<h6>Right to lodge a complaint</h6><p>You have the right to lodge a complaint with the competent National Data Protection Authority regarding request ", string_of_request(_p137)), ". You may do so without prejudice to any other administrative or judicial remedy.</p>")) :=
+  trigger {
+    Cau_IsComplaintStatement(_p136, _p137)
+  };
+
+rule +NoteRequest(_p137) :=
+  trigger {
+    Cau_IsComplaintStatement(_p136, _p137)
+  };
+
+rule +Declaration(_p93) :=
+  trigger {
+    Cau_IsRights(_p93)
+  };
+
+rule +HasText(_p93, "<h6>Your rights as a data subject</h6><ul><li>You have the right to request access to, rectification of, or erasure of your personal data, or restriction of processing (Articles 15–18 GDPR).</li><li>You have the right to receive your personal data in a structured, commonly used, and machine-readable format and to transmit it to another controller (right to data portability, Article 20 GDPR).</li><li>You have the right to object to automated decision-making, including profiling (Article 22 GDPR).</li></ul>") :=
+  trigger {
+    Cau_IsRights(_p93)
+  };
+
+rule +Declaration(_p90) :=
+  trigger {
+    Cau_IsStorageCriteria(_p90, _p91)
+  };
+
+rule +HasText(_p90, conc(conc("<h6>Storage criteria</h6><p>The criteria used to determine the period for which your personal data will be stored are: ", string_of_criteria(_p91)), ".</p>")) :=
+  trigger {
+    Cau_IsStorageCriteria(_p90, _p91)
+  };
+
+rule +NoteCriteria(_p91) :=
+  trigger {
+    Cau_IsStorageCriteria(_p90, _p91)
+  };
+
+rule +Declaration(_p103) :=
+  trigger {
+    Cau_IsRecipientCategory(_p103, _p104)
+  };
+
+rule +HasText(_p103, conc(conc("<h6>Categories of recipients</h6><p>We intend to share your personal data with the following categories of entities: ", string_of_entity(_p104)), ".</p>")) :=
+  trigger {
+    Cau_IsRecipientCategory(_p103, _p104)
+  };
+
+rule +NoteEntity(_p104) :=
+  trigger {
+    Cau_IsRecipientCategory(_p103, _p104)
+  };
+
+rule +Declaration(_p105) :=
+  trigger {
+    Cau_IsRecipient(_p105, _p106)
+  };
+
+rule +HasText(_p105, conc(conc("<h6>Recipients of your personal data</h6><p>We intend to share your personal data with the following entity: ", string_of_entity(_p106)), ".</p>")) :=
+  trigger {
+    Cau_IsRecipient(_p105, _p106)
+  };
+
+rule +NoteEntity(_p106) :=
+  trigger {
+    Cau_IsRecipient(_p105, _p106)
+  };
+
+rule +Declaration(_p140) :=
+  trigger {
+    Cau_IsCategory(_p140, _p141)
+  };
+
+rule +HasText(_p140, conc(conc("<h6>Special categories of personal data</h6><p>Some of the personal data we process belongs to the following special category as defined in Article 9 GDPR: ", string_of_category(_p141)), ".</p>")) :=
+  trigger {
+    Cau_IsCategory(_p140, _p141)
+  };
+
+rule +NoteCategory(_p141) :=
+  trigger {
+    Cau_IsCategory(_p140, _p141)
+  };
+
+rule +Declaration(_p117) :=
+  trigger {
+    Cau_IsPurposeOfProcessing(_p117, _p118)
+  };
+
+rule +HasText(_p117, "<h6>Processing for strictly necessary purposes</h6><p>We process your data to provide GDPRSocial's essential functionality.</p>") :=
+  trigger {
+    Cau_IsPurposeOfProcessing(_p117, _p118)
+      if _p118 == "service"
+  };
+
+rule +HasText(_p117, "<h6>Processing for advertisement purposes</h6><p>We process your data to show you personalized advertisement.</p>") :=
+  trigger {
+    Cau_IsPurposeOfProcessing(_p117, _p118)
+      if _p118 == "personalized_ad"
+  };
+
+rule +HasText(_p117, "<h6>Processing for statistical purposes</h6><p>We process your data to generate website statistics and analytics.</p>") :=
+  trigger {
+    Cau_IsPurposeOfProcessing(_p117, _p118)
+      if _p118 == "statistics"
+  };
+
+rule +NotePurpose(_p118) :=
+  trigger {
+    Cau_IsPurposeOfProcessing(_p117, _p118)
+  };
+
+rule +Declaration(_p131) :=
+  trigger {
+    Cau_IsDataProcessingNotOngoing(_p131)
+  };
+
+rule +HasText(_p131, "<h6>Processing status</h6><p>We are not currently processing your personal data.</p>") :=
+  trigger {
+    Cau_IsDataProcessingNotOngoing(_p131)
+  };
+
+rule +Declaration(_p130) :=
+  trigger {
+    Cau_IsDataProcessingOngoing(_p130)
+  };
+
+rule +HasText(_p130, "<h6>Processing status</h6><p>We are currently processing your personal data. You may exercise your rights regarding this processing as described in the applicable privacy notice.</p>") :=
+  trigger {
+    Cau_IsDataProcessingOngoing(_p130)
+  };
+
+rule +Declaration(_p134) :=
+  trigger {
+    Cau_IsContactDetailsOfDataProtectionOfficer(_p134, _p135)
+  };
+
+rule +HasText(_p134, conc(conc("<h6>Contact details of the Data Protection Officer</h6><p>You can contact our Data Protection Officer at: ", string_of_entity(_p135)), ". The DPO can be reached for any queries related to the processing of your personal data or the exercise of your rights.</p>")) :=
+  trigger {
+    Cau_IsContactDetailsOfDataProtectionOfficer(_p134, _p135)
+  };
+
+rule +NoteEntity(_p135) :=
+  trigger {
+    Cau_IsContactDetailsOfDataProtectionOfficer(_p134, _p135)
+  };
+

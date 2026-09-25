@@ -1,0 +1,119 @@
+// complexity (per time-point, O(1) events/stamp): 1
+
+event consent(str, str);
+event revoke(str, str);
+event use(str, str, str);
+event Sup_Exists0(str, str);
+event Sup_Exists2();
+
+fun add(x:int, y:int) : int {
+    return x + y
+}
+fun conc(x:str, y:str) : str {
+    return x + y
+}
+fun div(x:int, y:int) : int {
+    return x // y
+}
+fun eq(x:int, y:int) : int {
+    return 1 if x == y else 0
+}
+fun fadd(x:float, y:float) : float {
+    return x + y
+}
+fun fdiv(x:float, y:float) : float {
+    return x / y
+}
+fun float_of_int(x:int) : float {
+    return float(x)
+}
+fun fmul(x:float, y:float) : float {
+    return x * y
+}
+fun fpow(x:float, y:float) : float {
+    return x ** y
+}
+fun fsub(x:float, y:float) : float {
+    return x - y
+}
+fun geq(x:int, y:int) : int {
+    return 1 if x >= y else 0
+}
+fun gt(x:int, y:int) : int {
+    return 1 if x > y else 0
+}
+fun int_of_float(x:float) : int {
+    return int(x)
+}
+fun leq(x:int, y:int) : int {
+    return 1 if x <= y else 0
+}
+fun lt(x:int, y:int) : int {
+    return 1 if x < y else 0
+}
+fun match(x:str, r:str) : int {
+    import re
+    return 1 if re.match(r, x) else 0
+}
+fun mul(x:int, y:int) : int {
+    return x * y
+}
+fun neq(x:int, y:int) : int {
+    return 1 if x != y else 0
+}
+fun not(x:int) : int {
+    return 0 if x else 1
+}
+fun pow(x:int, y:int) : int {
+    return x ** y
+}
+fun string_of_float(x:float) : str {
+    return str(x)
+}
+fun string_of_int(x:int) : str {
+    return str(x)
+}
+fun sub(x:int, y:int) : int {
+    return x - y
+}
+fun substr(x:str, start:int, end:int) : str {
+    return x[start:end]
+}
+fun ufsub(x:float) : float {
+    return -x
+}
+fun usub(x:int) : int {
+    return -x
+}
+
+table Since1(c:str, u:str) :=
+  add {
+    consent(u, c)
+  }
+  remove {
+    revoke(u, c)
+  };
+
+let Exists2() := {
+  use(c, d, u)
+    if !Since1(c, u)
+}
+
+section fixpoint;
+
+rule +Sup_Exists2() :=
+  trigger {
+    if Exists2()
+  };
+
+rule +Sup_Exists0(c, u) :=
+  trigger {
+    Sup_Exists2() & use(c, d, u)
+      if !Since1(c, u)
+  };
+
+rule -use(c, d, u) :=
+  trigger {
+    Sup_Exists0(c, u) & use(c, d, u)
+  };
+

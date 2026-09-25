@@ -1,0 +1,15 @@
+digraph SCC2 {
+  rankdir=LR;
+  node [shape=box, fontsize=8];
+  n4 [label="Sup_Exists10"];
+  n5 [label="Sup_Exists13"];
+  n6 [label="Sup_Exists14"];
+  n22 [label="use"];
+  n22 -> n22 [label="c12^S"];
+  n22 -> n4 [label="c11^C"];
+  n22 -> n5 [label="c10^C"];
+  n22 -> n6 [label="c0^C"];
+  n6 -> n5 [label="c10^C"];
+  n5 -> n4 [label="c11^C"];
+  n4 -> n22 [label="c12^S"];
+}

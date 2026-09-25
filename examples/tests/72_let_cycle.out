@@ -1,0 +1,6 @@
+The formula
+ □[0s,∞) (∀x:int. ⧫[0s,0s] A(x:int) → A(add(x:int, 1)))
+is not enforceable:
+Policy is not enforceable —
+non-terminating data flow:
+  non-stable data flow Once0.0 → A.0 lies on a dependency cycle (enforcement may not terminate)

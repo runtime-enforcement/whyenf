@@ -167,14 +167,18 @@ and enc_atom env ~side name args : Z3.Expr.expr =
       ~default:(fun () -> Z3.FuncDecl.mk_func_decl_s env.c key dom (bool_sort ())) in
   Z3.FuncDecl.apply fd (List.map args ~f:(enc_term env ~side))
 
-(* All (action, args) effects on event [ev] in clause [c]. *)
-let effects_on (ev : string) (c : Clause.t) : (ES.action * Tterm.t list) list =
+(* All (action, args, deferred) effects on event [ev] in clause [c].
+   [deferred] marks delayed/next effects, which take effect at a later
+   time-point than the one at which their trigger was evaluated. *)
+let effects_on (ev : string) (c : Clause.t) : (ES.action * Tterm.t list * bool) list =
   List.filter_map c.Clause.effects ~f:(fun eff ->
       match eff with
-      | Effect.Cau (r, a) | Effect.EventuallyCau (_, r, a) | Effect.NextCau (_, r, a)
-        when String.equal r ev -> Some (ES.Cau, a)
-      | Effect.Sup (r, a) | Effect.EventuallySup (_, r, a) | Effect.NextSup (_, r, a)
-        when String.equal r ev -> Some (ES.Sup, a)
+      | Effect.Cau (r, a) when String.equal r ev -> Some (ES.Cau, a, false)
+      | Effect.EventuallyCau (_, r, a) | Effect.NextCau (_, r, a)
+        when String.equal r ev -> Some (ES.Cau, a, true)
+      | Effect.Sup (r, a) when String.equal r ev -> Some (ES.Sup, a, false)
+      | Effect.EventuallySup (_, r, a) | Effect.NextSup (_, r, a)
+        when String.equal r ev -> Some (ES.Sup, a, true)
       | _ -> None)
 
 (* Is (cause_trigger ∧ supp_trigger ∧ cause_args = supp_args) satisfiable? *)
@@ -213,12 +217,17 @@ let run (edg : Edg.t) : conflict list =
         (* clauses that cause / suppress ev (with the targeted arg list) *)
         let causes = ref [] and supps = ref [] in
         Array.iteri edg.Edg.clauses ~f:(fun k c ->
-            List.iter (effects_on ev c) ~f:(fun (act, args) ->
+            List.iter (effects_on ev c) ~f:(fun (act, args, deferred) ->
                 match act with
-                | ES.Cau -> causes := (k, c, args) :: !causes
-                | ES.Sup -> supps := (k, c, args) :: !supps));
-        List.iter !causes ~f:(fun (kc, cc, cargs) ->
-            List.iter !supps ~f:(fun (kd, cd, sargs) ->
+                | ES.Cau -> causes := (k, c, args, deferred) :: !causes
+                | ES.Sup -> supps := (k, c, args, deferred) :: !supps));
+        List.iter !causes ~f:(fun (kc, cc, cargs, dc) ->
+            List.iter !supps ~f:(fun (kd, cd, sargs, ds) ->
+                (* Upstream events are only stable within one time-point: if
+                   either effect is deferred, the two triggers are evaluated
+                   at different time-points and may share no symbol. *)
+                let upstream =
+                  if dc || ds then Set.empty (module String) else upstream in
                 if pair_satisfiable ~upstream cc cargs cd sargs then
                   conflicts := { event = ev; cause_clause = kc; supp_clause = kd }
                                :: !conflicts)))

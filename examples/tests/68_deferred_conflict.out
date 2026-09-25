@@ -1,0 +1,6 @@
+The formula
+ □[0s,∞) (∀x:int. (A(x:int) → ◊[1s,1s] E(x:int)) ∧ (¬A(x:int) → ¬E(x:int)))
+is not enforceable:
+Policy is not enforceable —
+cause/suppress conflict(s):
+  event E: clause #2 may cause it while clause #1 may suppress it under a *compatible* condition (cause/suppress not provably exclusive)

@@ -1,0 +1,14 @@
+digraph RDG_sec0 {
+  rankdir=LR;
+  node [shape=box, fontsize=8];
+  n0 [label="+Sup_Exists14"];
+  n10 [label="+Sup_Exists13"];
+  n11 [label="+Sup_Exists10"];
+  n12 [label="-use"];
+  n12 -> n11;
+  n12 -> n10;
+  n12 -> n0;
+  n11 -> n12;
+  n10 -> n11;
+  n0 -> n10;
+}

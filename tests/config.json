@@ -340,5 +340,56 @@
         "formula": "65_prev_metric.mfotl",
         "log": "metric_prev.log",
         "output": "65_prev_metric.out"
+    },
+    {
+        "label": "66_since_lower_sup",
+        "sig": "since_sup.sig",
+        "formula": "66_since_lower_sup.mfotl",
+        "log": "since_sup.log",
+        "output": "66_since_lower_sup.out"
+    },
+    {
+        "label": "67_next_bounded",
+        "sig": "next_bounded.sig",
+        "formula": "67_next_bounded.mfotl",
+        "log": "next_bounded.log",
+        "output": "67_next_bounded.out"
+    },
+    {
+        "label": "68_deferred_conflict",
+        "sig": "deferred_conflict.sig",
+        "formula": "68_deferred_conflict.mfotl",
+        "log": "deferred_conflict.log",
+        "output": "68_deferred_conflict.out",
+        "success": false
+    },
+    {
+        "label": "69_prev_proactive",
+        "sig": "prev_output.sig",
+        "formula": "69_prev_proactive.mfotl",
+        "log": "prev_proactive.log",
+        "output": "69_prev_proactive.out"
+    },
+    {
+        "label": "70_prev_caused",
+        "sig": "prev_output.sig",
+        "formula": "70_prev_caused.mfotl",
+        "log": "prev_caused.log",
+        "output": "70_prev_caused.out"
+    },
+    {
+        "label": "71_once_suppressed",
+        "sig": "once_suppressed.sig",
+        "formula": "71_once_suppressed.mfotl",
+        "log": "once_suppressed.log",
+        "output": "71_once_suppressed.out"
+    },
+    {
+        "label": "72_let_cycle",
+        "sig": "let_cycle.sig",
+        "formula": "72_let_cycle.mfotl",
+        "log": "let_cycle.log",
+        "output": "72_let_cycle.out",
+        "success": false
     }
 ]

@@ -1,0 +1,9 @@
+digraph RDG_focus {
+  rankdir=LR;
+  node [shape=box, style=filled, fontsize=10];
+  edge [color="#999999", arrowsize=0.5];
+  s0 [label="use\nsec0 (4 rules)", fillcolor="#ff9999"];
+  s1 [label="delete\nsec1 (4 rules)", fillcolor="#ff9999"];
+  s2 [label="inform\nsec2 (2 rules)", fillcolor="#ff9999"];
+  s3 [label="notify_proc\nsec3 (3 rules)", fillcolor="#ff9999"];
+}
