@@ -74,6 +74,25 @@ theorem conflict_check_sound {P : Program B L D} {σ : Tr B L D} {v₀ : ℕ →
   let h := Exclusive.split (K := R.K) hchk
   R.conflictFree hd h.1 h.2
 
+/-- *The conflict check on the EDG is sound*: if, for every rule causing an
+    event (immediately or later) and every rule suppressing it, a sound SMT
+    solver reports their conflict query unsatisfiable (sharing the events
+    upstream of the section, resp. nothing), then `Exclusive` holds. -/
+theorem conflict_check_exclusive {S : SMT PEmpty (QSym B L) D} {ld : L → List (Ev B L)}
+    {rules : List (Clause B L D)} {secs : List (List (Clause B L D))}
+    (h : ConflictCheck S ld rules secs) (hsub : ∀ sec ∈ secs, ∀ c ∈ sec, c ∈ rules)
+    (K : Ctx B L D) : ∀ sec ∈ secs, ∀ c₁ ∈ sec, ∀ c₂ ∈ rules,
+      Exclusive K (effNames sec)ᶜ c₁ c₂ :=
+  h.exclusive hsub K
+
+/-- *The data-flow check on the DFG is sound*: if no edge labelled non-stable
+    lies on a cycle and the terms labelled stable are stable (for `Stab`),
+    the termination criterion `DFGAcyclic` holds. -/
+theorem dataflow_check_acyclic {lsrc nsrc : L → ℕ → List (Pos B L)} {st : Term D → Prop}
+    {Stab : Set D → Set D} (hst : ∀ t, st t → t.stableIn Stab) {sec : List (Clause B L D)}
+    (h : DFGCheck lsrc nsrc st sec) : DFGAcyclic lsrc nsrc Stab sec :=
+  h.acyclic hst
+
 /-- *Termination.*  If no non-stable edge of a section's data-flow graph lies
     on a cycle (`DFGAcyclic`; edges through non-stable function terms and
     through aggregations are non-stable), the section reaches its fixpoint
@@ -107,8 +126,8 @@ theorem scc_order_exists (ld : L → List (Ev B L)) (rules : List (Clause B L D)
 /-- **Theorem 4.5 (Compilation correctness).**  *Let `R` be a candidate
     clause set accepted by the two checks of Section 4.5 and
     `P = Compile(Γ, R, ≺)`.  Then `P` is a sound enforcer for `□φ`.* -/
-theorem thm_4_5 {Φ : Policy B D} (P : Compiled Φ) (h : P.Checks) :
-    SoundEnforcer Φ.φ P.v₀ (enforce P h) :=
+theorem thm_4_5 {Φ : Policy B D} (P : Compiled Φ) {S : SMT PEmpty (QSym B ℕ) D}
+    (h : P.Checks S) : SoundEnforcer Φ.φ P.v₀ (enforce P h) :=
   enforcement_correct P h
 
 /-! ## Appendix A: a type system for the enforceable fragment -/

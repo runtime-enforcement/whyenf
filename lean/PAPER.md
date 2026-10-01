@@ -1,9 +1,10 @@
 # Paper ↔ Lean map
 
-This file maps the definitions and claims of the paper *EnfFlash: Truly
-Real-Time Enforcement of First-Order Temporal Requirements* to the Lean 4
+This file maps the definitions and claims of the paper *Practical Runtime
+Enforcement of First-Order Temporal Requirements* to the Lean 4
 formalization in this directory. It covers every section except the complexity results (§3.3)
-and the evaluation (§5).
+and the evaluation (§5). The assumptions of the main theorem are summarized in
+[Assumptions](#assumptions) at the end.
 
 ## How to check
 
@@ -146,7 +147,7 @@ Legend for the notes column:
 |---|---|---|
 | `gate^ℂ_p`, `gate^𝕊_p` | `gate` | ✅ |
 | `TypeLet`: guards of the let bodies | `LetGuards`, `LetDef.gop`, `LetDef.gvars`, `LBody.valOp`, `Fm.stripEx`, `enumOf` | ≈ declarative: `LetGuards Γ gd` states that the guards `gd` are what `TypeLet` computes. The value-producing operand `gop` is guarded jointly (`GXJ`) in the variables `gvars`: for an aggregation, all of them except the results. The left operand of a `since` must be enumerable in **negative** polarity (the `remove` clause). Temporal lets and aggregations must be guardable. The terms of an aggregation are well-formed and only read guarded variables (`LetGuards.aggTerms`). |
-| `TypeLet`: `𝒞^ℂ(p)`, `𝒞^𝕊(p)` (which operand to cause or suppress) | `LBody.cauTarget`, `LBody.supTarget` | ✅ for `a > 0`, a `since` is suppressed through its left operand (`Examples.lean` shows why the right one is unsound). Aggregations, like `●`, are neither causable nor suppressable. |
+| `TypeLet`: `𝒞^ℂ(p)`, `𝒞^𝕊(p)` (which operand to cause or suppress) | `LBody.cauTarget`, `LBody.supTarget` | ✅ for `a > 0`, a `since` is suppressed through its left operand. Aggregations, like `●`, are neither causable nor suppressable. |
 | `Realizations` | `Real`, `Real.clauses`, `Real.Valid`, `Real.scope` | ≈ one chosen realization per let, derived in the scope of earlier lets |
 | `Generate` succeeds with candidate clause set `C` | `Compilation`, `Compiles` | ≈ specification level: the output of a successful run (guards, a valid realization, `C ∈ 𝒞` for `Γ ⊢ χ ↪^ℂ 𝒞`). The search itself is not formalized. |
 | soundness of the obligation events | `obligations_sound`, `program_sound` | ✅ |
@@ -158,11 +159,11 @@ Legend for the notes column:
 | EDG (let atoms decomposed into their events) | `EDG`, `ldOf`, `LetDeps`, `tables_letDeps`, `trigDeps_evs` | ✅ `tables_letDeps`: a let only depends on the events it is defined from |
 | SCCs in topological order `≺` (sources first) | `SCCOrder`, `TopoOrdered`, `sccOrder`, `sccOrder_spec`, `Paper.scc_order_exists` | ✅ one section per SCC, in a topological order. Such an order always exists. |
 | stratification (implicit in the paper) | `Stratified`, `stratified_of_topo`, `saturate_sound`, `Paper.topological_order_stratified` | ✅ a later section never acts on an event read by an earlier one, so every rule is still saturated at the end of `Saturate` |
-| cause/suppress check (SMT, sharing only upstream events; nothing if an effect is deferred) | `Exclusive`, `ExclusiveNow`, `ExclusiveDeferred`, `effNames`, `LoopRun.conflictFree`, `Paper.conflict_check_sound` | ≈ `Exclusive` is the semantic property the SMT check establishes, for a rule of a section against any rule: an instance it causes is never suppressed by the other. For an immediate cause (`ExclusiveNow`), the triggers share every event not acted upon by the section, a superset of the upstream events, so an `unsat` answer of the implementation implies it. For a deferred cause (`ExclusiveDeferred`), they share nothing. The Z3 encoding itself is not formalized. |
+| cause/suppress check (SMT, sharing only upstream events; nothing if an effect is deferred) | `ConflictCheck`, `query`, `Up`, `SMT`, `query_sat`, `ConflictCheck.exclusive`, `Exclusive`, `ExclusiveNow`, `ExclusiveDeferred`, `effNames`, `LoopRun.conflictFree`, `Paper.conflict_check_exclusive`, `Paper.conflict_check_sound` | ✅ the check is stated on the EDG: for every rule causing an event and every rule suppressing it, a sound SMT solver (trusted, `SMT`) reports the conflict query (the two triggers over disjoint copies of variables and predicates, sharing the events upstream of the section, or nothing for a deferred cause, and equal effect arguments) unsatisfiable. `ConflictCheck.exclusive` proves that this establishes `Exclusive`: an instance caused by one rule is never suppressed by the other. Events never both caused and suppressed need no query (`ConflictCheck.of_noConflict`). The translation of the query into Z3 is not formalized. |
 | DFG over argument positions `e.i` | `Pos`, `DFE`, `lsrcOf`, `LetsFlow`, `flow` | ✅ lets are decomposed into the positions their arguments come from |
 | values created by aggregations | `nsrcOf`, `Clause.asrc`, `aggImg`, `aggClo`, `CloOp`, `aggImg_finite` | ✅ an aggregation result is computed from all values of the aggregation's operand, so its edges are **non-stable** (from all sources of the operand's guarded variables, `nsrcOf`). Termination uses that finitely many values give finitely many aggregation results (`aggImg_finite`). |
-| stable edges and stable function symbols | `DFS`, `Term.stableIn`, `StabOp` | ✅ the stable functions are given by a stability closure `Stab` (`StabOp`): finitely many values arise from a finite set however often stable functions are applied. Examples: comparisons, `not`, unary minus (the compiler's `sfun`). |
-| "no non-stable edge lies on a cycle" | `DFGAcyclic`, `DFClause` | ✅ checked per section. `DFClause` holds the side conditions on rules (constants, context variables and guard values in a finite set; local variables read by effects are bound by every guard). |
+| stable edges and stable function symbols | `DFSL`, `Compiled.stab`, `Compiled.stab_sound`, `DFS`, `Term.stableIn`, `StabOp` | ✅ the compiler labels edges by its classification of terms (`Compiled.stab`: variables, constants, applications of `sfun`s). Trusted: the terms labelled stable are stable for a stability closure `Stab` (`StabOp`): finitely many values arise from a finite set however often stable functions are applied. Examples: comparisons, `not`, unary minus. |
+| "no non-stable edge lies on a cycle" | `DFGCheck`, `DFGCheck.acyclic`, `Paper.dataflow_check_acyclic`, `DFGAcyclic`, `DFClause` | ✅ checked per section on the labelled DFG (`DFGCheck`); `DFGCheck.acyclic` proves the termination criterion `DFGAcyclic`. `DFClause` holds the side conditions on rules (constants, context variables and guard values in a finite set; local variables read by effects are bound by every guard). |
 | "enforcement terminates if no non-stable edge lies on a cycle" | `Paper.termination`, `dfg_terminates`, `saturate_terminates`, `satFn`, `satFn_spec` | ✅ |
 
 ### §4.6 Compilation (Algorithm 4)
@@ -170,7 +171,7 @@ Legend for the notes column:
 | Paper | Lean | Notes |
 |---|---|---|
 | `Compile(Γ, R, ≺)` | `Compiled`, `Compiled.prog`, `tableParams` | ≈ a `Compiled` program: a `Compilation`, the rules (exactly `C` and the realization clauses, all with present filters), and the sections along `≺` (`SCCOrder`). The let items are run by the concrete tables `tableParams`. The concrete EF syntax that is emitted is not formalized. |
-| the two checks of §4.5 | `Compiled.Checks` | ✅ the conflict check (`conflicts`) and the data-flow check (`acyclic`, for the stability closure `Stab` of the stable functions) |
+| the two checks of §4.5 | `Compiled.Checks` | ✅ both on graphs: the conflict check on the EDG (`conflicts`, with the SMT solver's answers) and the data-flow check on the labelled DFG (`acyclic`) |
 | well-formedness of the generated rules | `Compiled.good`, `GoodClause`, `Rw.good`, `gate_good`, `lnf_letsWF`, `dfClause_of_good` | ✅ proved, not checked: the generated clauses have well-formed terms, bind the local variables their effects read, only use guardable lets in guards, and defer effects by at least one step; with finitely many rules, the data-flow side conditions (`DFClause`) follow |
 | the enforcer running `P` | `enforce`, `Compiled.params`, `tableParams_wf` | ✅ Algorithm 1 with the concrete tables and a terminating `Saturate` |
 | closed formula `□φ` | `Policy`, `Policy.Γ`, `Policy.χ` | ≈ a well-formed formula (`MF.WF`) whose past operators and let bodies are future-free (`MF.PastPure`, `MF.ffree`). The compiler requires this. |
@@ -199,14 +200,61 @@ Legend for the notes column:
 
 ---
 
-## Modelling choices (summary)
+## Assumptions
 
-* Traces are infinite. Finite traces are covered by causality
-  (`LoopParams.pt_congr`).
-* Function symbols are semantic, total and pure (`Term.fn`, `Term.WF`).
-* The concrete EF syntax is not formalized. Table operators (`tfun`) are
-  modelled as aggregation operators (`AggOp`).
-* The compiler's search (`Generate`, `Realizations`, Tarjan) is specified by
-  its successful outputs (`Compilation`, `Compiled`), not implemented.
-* The SMT conflict check is specified by the semantic property it must
-  establish (`Exclusive`).
+`enforcement_correct` is proved without `sorry` and without axioms beyond
+Lean's standard ones (`propext`, `Classical.choice`, `Quot.sound`).  What it
+relies on falls into four groups.
+
+**Trusted (hypotheses of the theorem).**
+
+1. *The SMT solver* (`SMT`, the parameter `S` of `Checks`): a formula it
+   reports unsatisfiable has no model (`SMT.sound`).  It is only consulted for
+   conflict queries, i.e. for events that are both caused (immediately or
+   later) and suppressed.
+2. *The user's `sfun` declarations* (`Compiled.stab_sound`): the terms the
+   compiler labels stable (variables, constants, applications of functions
+   declared `sfun`) are stable for some stability closure, i.e. applying them
+   repeatedly to finitely many values yields finitely many values.
+
+**Checked by the compiler (hypotheses `Checks`, stated on graphs).**
+
+3. *The conflict check on the EDG* (`ConflictCheck`): for every rule causing
+   an event and every rule suppressing it, the solver reports their conflict
+   query unsatisfiable.  `ConflictCheck.exclusive` proves that this
+   establishes the semantic property used by the soundness proof
+   (`Exclusive`).
+4. *The data-flow check on the DFG* (`DFGCheck`): no edge labelled
+   non-stable lies on a cycle.  `DFGCheck.acyclic` proves that, with (2), this
+   establishes the termination criterion (`DFGAcyclic`).
+
+**Produced by the compiler (hypothesis `Compiled`, specified, not
+implemented).**
+
+5. *A compilation exists* (`Compilation`, characterized by the type system:
+   `efmfotl_iff_compiles`), and the program's rules are exactly its clauses,
+   grouped into one section per SCC of the EDG in topological order
+   (`SCCOrder`).  The compiler's search (`Generate`, `Realizations`, Tarjan's
+   algorithm) is specified by these outputs; an SCC order always exists
+   (`sccOrder_spec`).  The well-formedness of the generated rules is proved
+   (`Compiled.good`), not assumed.
+
+**Not formalized (gap between the formalization and the implementation).**
+
+* The OCaml compiler and the Rust engine are not verified: the formalization
+  proves the algorithms (compilation, Algorithms 1 and 2 with concrete
+  tables), not their code.  The concrete EF syntax, its parser, and the
+  output format are not formalized.
+* The translation of the conflict query into Z3's input
+  (`src/smt_check.ml`).  It replaces quantifiers, temporal subformulas and
+  aggregations by fresh Booleans and gives unknown functions uninterpreted
+  symbols, which only adds models; hence an `unsat` answer for the translated
+  query implies that the formalized `query` is unsatisfiable.  This argument
+  is informal.
+* Functions are semantic, total and pure (`Term.fn`, `Term.WF`): Python
+  functions are assumed to terminate, not to fail, and to depend only on
+  their arguments.
+* Traces are infinite; finite traces are covered by causality
+  (`LoopParams.pt_congr`: the output up to the last input does not depend on
+  how the input continues).
+* The complexity results (§3.3) and the evaluation (§5) are not formalized.

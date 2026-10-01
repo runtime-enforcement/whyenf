@@ -1,14 +1,11 @@
 /-
   EnfFlash formalization — examples.
 
-  1. A counterexample showing that suppressing the *right* operand of
-     `φl S_[a,b] φr` with `a > 0` does not suppress the since formula (hence
-     `LBody.supTarget` suppresses the left operand).
-  2. The policies `φ_law` and `φ_del` of Example 2.3 as `Policy`s, and
+  1. The policies `φ_law` and `φ_del` of Example 2.3 as `Policy`s, and
      Example A.4: the let-normal form of `φ_del`, its typing
      `Γ ⊢ χ : ℂ ▷ Δ`, hence `φ_del ∈ EF-MFOTL` (Definition A.2) and, by
      Theorem A.3, a successful compilation with clause set `Δ`.
-  3. The aggregation `φ_agg` of Example 2.3 with the operator `CNT`, in a
+  2. The aggregation `φ_agg` of Example 2.3 with the operator `CNT`, in a
      policy whose let-normal form binds it to a let.
 -/
 import Enfflash.Tables
@@ -17,27 +14,6 @@ import Enfflash.EndToEnd
 import Mathlib.Data.ENat.Lattice
 
 namespace Enfflash.Examples
-
-inductive E | A | B
-
-/-! ### The since counterexample -/
-
-/-- A trace with `B(1)` at time-point 0 (timestamp 0) and nothing at
-    time-point 1 (timestamp 1). -/
-def σ : Tr E Empty ℕ where
-  db i := if i = 0 then {(.base .B, [1])} else ∅
-  ts i := i
-  lv _ p := p.elim
-
-open Fm in
-/-- `⊤ S_[1,∞) B(x)` holds at time-point 1 for `x = 1`, although its right
-    operand `B(x)` does not hold there: suppressing `φr` now does not falsify
-    the since formula when `a > 0`. -/
-example : ¬ σ.sat 1 (vcons 1 (fun _ => 0)) (pred (.ev (.base .B)) [.var 0]) ∧
-    (LBody.since 1 none tt (pred (.ev (.base .B)) [.var 0])).sem σ 1 (vcons 1 (fun _ => 0)) := by
-  refine ⟨by simp [Tr.sat, Tr.prIn, σ], ⟨0, by omega, ⟨by simp [σ], by simp⟩, ?_, ?_⟩⟩
-  · simp [Tr.sat, Tr.prIn, σ, Term.eval]; try rfl
-  · intros; trivial
 
 /-! ### The running examples (Example 2.3 and Example A.4) -/
 

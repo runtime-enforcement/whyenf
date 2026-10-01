@@ -85,6 +85,12 @@ structure Compiled (Φ : Policy B D) where
   present : ∀ c ∈ rules, c.trig.filter.present
   secs : List (List (Clause B ℕ D))
   order : SCCOrder (ldOf Φ.Γ) rules secs
+  /-- The terms the compiler labels stable in the DFG: variables, constants,
+      and applications of functions declared stable (`sfun`). -/
+  stab : Term D → Prop
+  /-- Trusted (the user's `sfun` declarations): the terms labelled stable are
+      stable for some stability closure. -/
+  stab_sound : ∃ Stab : Set D → Set D, StabOp Stab ∧ ∀ t, stab t → t.stableIn Stab
 
 namespace Compiled
 
@@ -115,16 +121,14 @@ theorem good : ∀ c ∈ P.rules, GoodClause (enumOf P.gd) c := by
     · obtain ⟨d, φ, CS, hd, -, ht, hrw, hCS⟩ := P.comp.valid.sup p C hCp
       exact gate_good (Rw.good (hok _) hrw (supTarget_WF (hlets p d hd) ht) C hCS c₀ hc₀) _ _
 
-/-- The two checks of the compiler (paper, Section 4.5): the cause/suppress
-    conflict check (`conflicts`, for every rule of a section against every
-    rule, in the let interpretation of any time-point) and the data-flow
-    check (`acyclic`: no non-stable edge on a cycle, for the stability closure
-    `Stab` of the stable functions). -/
-structure Checks : Prop where
-  conflicts : ∀ tab t, ∀ sec ∈ P.prog.secs, ∀ c₁ ∈ sec, ∀ c₂ ∈ P.rules,
-    Exclusive (⟨fun W => lvOf Φ.Γ P.v₀ tab t W, P.v₀⟩ : Ctx B ℕ D) (effNames sec)ᶜ c₁ c₂
-  acyclic : ∃ Stab : Set D → Set D, StabOp Stab ∧
-    ∀ sec ∈ P.prog.secs, DFGAcyclic (lsrcOf Φ.Γ P.gd) (nsrcOf Φ.Γ P.gd) Stab sec
+/-- The two checks of the compiler (paper, Section 4.5), both on graphs: the
+    conflict check on the EDG (`conflicts`: the conflict query of every
+    cause/suppress pair of an event is reported unsatisfiable by the SMT
+    solver `S`) and the data-flow check on the DFG (`acyclic`: no edge
+    labelled non-stable on a cycle). -/
+structure Checks (S : SMT PEmpty (QSym B ℕ) D) : Prop where
+  conflicts : ConflictCheck S (ldOf Φ.Γ) P.rules P.prog.secs
+  acyclic : ∀ sec ∈ P.prog.secs, DFGCheck (lsrcOf Φ.Γ P.gd) (nsrcOf Φ.Γ P.gd) P.stab sec
 
 variable {P}
 
@@ -132,10 +136,12 @@ variable {P}
 noncomputable abbrev params (P : Compiled Φ) (ρ : InputTrace B D) : LoopParams B ℕ D :=
   tableParams Φ.Γ P.v₀ ρ.τ ρ.db P.prog (satFn P.prog.secs)
 
-theorem Checks.wf (h : P.Checks) (ρ : InputTrace B D) : (params P ρ).Wf P.v₀ := by
+theorem Checks.wf {S : SMT PEmpty (QSym B ℕ) D} (h : P.Checks S) (ρ : InputTrace B D) :
+    (params P ρ).Wf P.v₀ := by
   obtain ⟨Vr, hVr, hdf⟩ := dfClause_of_good P.rules P.v₀ (fun q => (P.gd q).isSome)
     (fun q h => h) P.good
-  obtain ⟨Stab, hS, hacyc⟩ := h.acyclic
+  obtain ⟨Stab, hS, hst⟩ := P.stab_sound
+  have hacyc := fun sec hs => (h.acyclic sec hs).acyclic hst
   exact tableParams_wf Φ.Γ P.v₀ ρ.τ ρ.db P.prog ρ.mono ρ.progress ρ.finite
     (lnf_ordered Φ.φ Φ.wf) P.gd P.comp.guards Vr hVr
     (fun sec hs c hc => hdf c ((P.mem_prog c).1 (List.mem_flatten.2 ⟨sec, hs, hc⟩)))
@@ -191,8 +197,8 @@ end
 
 /-- The enforcer: the output trace of the enforcement loop running the
     compiled program `P` on the input trace `ρ`. -/
-noncomputable def enforce {Φ : Policy B D} (P : Compiled Φ) (h : P.Checks)
-    (ρ : InputTrace B D) : Tr B ℕ D :=
+noncomputable def enforce {Φ : Policy B D} (P : Compiled Φ) {S : SMT PEmpty (QSym B ℕ) D}
+    (h : P.Checks S) (ρ : InputTrace B D) : Tr B ℕ D :=
   outTr (h.wf ρ)
 
 /-- A function from input to output traces is a sound enforcer of `□φ` if
@@ -205,7 +211,8 @@ def SoundEnforcer (φ : MF B D) (v₀ : ℕ → D) (E : InputTrace B D → Tr B 
     `□φ` and its static checks succeed, then the enforcer running `P` is a
     sound enforcer of `□φ`: on every valid input trace, the output of the
     enforcement loop satisfies `□φ`. -/
-theorem enforcement_correct {Φ : Policy B D} (P : Compiled Φ) (h : P.Checks) :
+theorem enforcement_correct {Φ : Policy B D} (P : Compiled Φ) {S : SMT PEmpty (QSym B ℕ) D}
+    (h : P.Checks S) :
     SoundEnforcer Φ.φ P.v₀ (enforce P h) := by
   intro ρ
   have hQ := h.wf ρ
@@ -218,7 +225,8 @@ theorem enforcement_correct {Φ : Policy B D} (P : Compiled Φ) (h : P.Checks) :
     (fun j => by
       obtain ⟨tab, t, he⟩ := hK j; rw [he]
       exact fun W W' p hag => tables_letDeps Φ.Γ P.v₀ hord tab t W W' p hag)
-    (fun j => by obtain ⟨tab, t, he⟩ := hK j; rw [he]; exact h.conflicts tab t)
+    (fun j => h.conflicts.exclusive
+      (fun sec hs c hc => (P.order.cover c).1 (List.mem_flatten.2 ⟨sec, hs, hc⟩)) ((loopRun hQ).K j))
   intro i
   exact ((norm_correct Φ.φ [] Φ.wf [] []).2.2 _ P.v₀ [] (letSem_of_tables _ P.v₀ htab)
     (by intro k ar h; simp at h) i P.v₀).1 (hχ i)

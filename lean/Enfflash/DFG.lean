@@ -119,7 +119,32 @@ def DFS (Stab : Set D → Set D) (rules : List (Clause B L D)) (q q' : Pos B L) 
 def DFGAcyclic (Stab : Set D → Set D) (rules : List (Clause B L D)) : Prop :=
   ∀ q q', DFS lsrc nsrc Stab rules q q' → ¬ Relation.ReflTransGen (DFE lsrc nsrc rules) q' q
 
+/-- Non-stable DFG edges as labelled by the compiler: `st` classifies the
+    terms it regards as stable (variables, constants, and applications of
+    functions declared stable, `sfun`). -/
+def DFSL (st : Term D → Prop) (rules : List (Clause B L D)) (q q' : Pos B L) : Prop :=
+  ∃ c ∈ rules, ∃ j t, c.eff.args[j]? = some t ∧ q' = (c.eff.name, j) ∧
+    ∃ x ∈ t.supp, x < c.nloc ∧ ((¬ st t ∧ c.src lsrc x q) ∨ c.asrc nsrc x q)
+
+/-- **The data-flow check** (paper, Section 4.5; `src/dataflow.ml`): no
+    edge labelled non-stable lies on a cycle of the DFG. -/
+def DFGCheck (st : Term D → Prop) (rules : List (Clause B L D)) : Prop :=
+  ∀ q q', DFSL lsrc nsrc st rules q q' → ¬ Relation.ReflTransGen (DFE lsrc nsrc rules) q' q
+
 end
+
+/-- **Soundness of the data-flow check.**  If the terms labelled stable are
+    stable for the stability closure `Stab`, the check establishes the
+    termination criterion `DFGAcyclic`. -/
+theorem DFGCheck.acyclic {lsrc nsrc : L → ℕ → List (Pos B L)} {st : Term D → Prop}
+    {Stab : Set D → Set D}
+    (hst : ∀ t, st t → t.stableIn Stab) {rules : List (Clause B L D)}
+    (h : DFGCheck lsrc nsrc st rules) : DFGAcyclic lsrc nsrc Stab rules := by
+  rintro q q' ⟨c, hc, j, t, h1, h2, x, hx, hxl, hs⟩ hpath
+  refine h q q' ⟨c, hc, j, t, h1, h2, x, hx, hxl, ?_⟩ hpath
+  rcases hs with ⟨hns, hsrc⟩ | ha
+  · exact Or.inl ⟨fun hst' => hns (hst t hst'), hsrc⟩
+  · exact Or.inr ha
 
 /-- Well-formed rules for the data-flow analysis: function terms only read
     their support, constants are known, local variables read by effects are
