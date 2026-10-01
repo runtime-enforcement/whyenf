@@ -1,0 +1,31 @@
+// B7 (cool-down after a credential change):
+//   SendMoney(c,s,u,r,a) ∧ ⧫[0,1440] (UpdateUserInfo(_,_,u) ∨ UpdatePassword(_,_,u,_))
+//     → ⧫ Paid(u,r) ∨ ⧫[1,∞) SendMoney(_,_,u,r,_)
+// One forbid per credential change; ⧫[1,∞) (strictly before the current call)
+// becomes `previous (formerly …)`, excluding suppressed payments.
+// decide: SendMoney
+// time-scale: 60
+
+@id("send")
+permit (principal, action == L::Action::"SendMoney", resource);
+
+def temporal unknown(?u, ?r) {
+    !formerly within 36500d L::Action::"Paid"::state{ input.u: ?u, input.r: ?r }
+    && !(exists (rid: String). (
+            previous within 36500d (formerly within 36500d
+                L::Action::"SendMoney"::request{ input.u: ?u, input.r: ?r, rid: rid })
+            && !formerly within 36500d L::Action::"SendMoney"::denied{ rid: rid }))
+};
+
+@id("b7_info")
+forbid (principal, action == L::Action::"SendMoney", resource)
+when temporal {
+    formerly within 24h L::Action::"UpdateUserInfo"::state{ input.u: context.input.u }
+    && unknown(context.input.u, context.input.r)
+};
+@id("b7_password")
+forbid (principal, action == L::Action::"SendMoney", resource)
+when temporal {
+    formerly within 24h L::Action::"UpdatePassword"::state{ input.u: context.input.u }
+    && unknown(context.input.u, context.input.r)
+};

@@ -1,0 +1,20 @@
+// gdpr/consent:
+//   □ ∀data, dataid, dsid. use(data, dataid, dsid) →
+//       ⧫ legal_grounds(dsid, data) ∨ (¬ds_revoke(dsid, data) S ds_consent(dsid, data))
+// One permit per disjunct; unbounded ⧫/S become 100-year windows.
+// decide: use
+
+@id("consent_legal_grounds")
+permit (principal, action == L::Action::"use", resource)
+when temporal {
+    formerly within 36500d
+        L::Action::"legal_grounds"::state{ input.dsid: context.input.dsid, input.data: context.input.data }
+};
+
+@id("consent_not_revoked")
+permit (principal, action == L::Action::"use", resource)
+when temporal {
+    !L::Action::"ds_revoke"::state{ input.dsid: context.input.dsid, input.data: context.input.data }
+    since within 36500d
+    L::Action::"ds_consent"::state{ input.dsid: context.input.dsid, input.data: context.input.data }
+};

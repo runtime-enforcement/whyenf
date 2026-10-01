@@ -21,6 +21,7 @@ def have(exe: str) -> bool:
 #   * monpoly  : MonPoly monitor (symlink -> ~/Tools/monpoly/monpoly).
 #   * enfguard : the old enfguard (symlink -> ~/Tools/enfguard/bin/enfguard.exe).
 TOOLS = [
+    ('dogwood',  './dogwood.exe'),   # supported formulae only (benchmarks/*/dogwood)
     ('enfflash', './enfflash.exe'),
     ('monpoly',  './monpoly.exe'),
     ('enfguard', './enfguard.exe'),

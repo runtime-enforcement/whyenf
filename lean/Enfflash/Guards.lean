@@ -140,31 +140,4 @@ theorem bindsAll_preserved {p : Bool} {π π' : Guards B L D} {φ φ' : Fm B L D
 
 end GX
 
-/-- The paper's `Guards^m_X(Φ)`: guard extraction iterated over the variables
-    `X`, starting from the trivial guard `⊤`. -/
-inductive GXs (m : Pr B L → Prop) :
-    List ℕ → Guards B L D → Fm B L D → Guards B L D → Fm B L D → Prop
-  | nil {π φ} : GXs m [] π φ π φ
-  | cons {x xs π φ π₁ φ₁ π' φ'} : GX m x true π φ π₁ φ₁ → GXs m xs π₁ φ₁ π' φ' →
-      GXs m (x :: xs) π φ π' φ'
-
-/-- The original sequential `Guards` (superseded by `GXJ`, Lemma 4.3): if `Guards^m_X(Φ) = (π, φ)` then `π ∧ φ ≡ Φ` and every
-    variable of `X` is bound in every disjunct of `π`. -/
-theorem GXs.preserve {m : Pr B L → Prop} {xs π φ π' φ'} (h : GXs m xs π φ π' φ') {y : ℕ}
-    (hy : Guards.bindsAll y π) : Guards.bindsAll (B := B) (L := L) (D := D) y π' := by
-  induction h with
-  | nil => exact hy
-  | cons h₁ _ ih => exact ih (h₁.bindsAll_preserved hy)
-
-theorem GXs.sound {m : Pr B L → Prop} {xs} {π π' : Guards B L D} {φ φ' : Fm B L D} (h : GXs m xs π φ π' φ') :
-    GEquiv true π φ π' φ' ∧ ∀ x ∈ xs, π'.bindsAll x := by
-  induction h with
-  | nil => exact ⟨fun _ _ _ => Iff.rfl, by simp⟩
-  | cons h₁ hrest ih =>
-    refine ⟨fun σ i v => (h₁.sound.1 σ i v).trans (ih.1 σ i v), ?_⟩
-    intro y hy
-    rcases List.mem_cons.1 hy with rfl | hy
-    · exact hrest.preserve h₁.sound.2
-    · exact ih.2 y hy
-
 end Enfflash

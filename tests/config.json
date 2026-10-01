@@ -391,5 +391,82 @@
         "log": "let_cycle.log",
         "output": "72_let_cycle.out",
         "success": false
+    },
+    {
+        "label": "73_let_or_exists",
+        "sig": "let_exists.sig",
+        "formula": "73_let_or_exists.mfotl",
+        "log": "let_exists.log",
+        "output": "73_let_or_exists.out"
+    },
+    {
+        "label": "74_let_or_forall",
+        "sig": "let_exists.sig",
+        "formula": "74_let_or_forall.mfotl",
+        "log": "let_exists.log",
+        "output": "74_let_or_forall.out"
+    },
+    {
+        "label": "75_since_right_var",
+        "sig": "since_vars.sig",
+        "formula": "75_since_right_var.mfotl",
+        "log": "since_vars.log",
+        "output": "75_since_right_var.out",
+        "success": false
+    },
+    {
+        "label": "76_since_right_var_rewritten",
+        "sig": "since_vars.sig",
+        "formula": "76_since_right_var_rewritten.mfotl",
+        "log": "since_vars.log",
+        "output": "76_since_right_var_rewritten.out"
+    },
+    {
+        "label": "77_since_right_var_fixed",
+        "sig": "since_vars.sig",
+        "formula": "77_since_right_var_fixed.mfotl",
+        "log": "since_vars.log",
+        "output": "77_since_right_var_fixed.out",
+        "options": [
+            "-fix-since"
+        ]
+    },
+    {
+        "label": "78_since_left_var_fixed",
+        "sig": "since_left_var.sig",
+        "formula": "78_since_left_var_fixed.mfotl",
+        "log": "since_left_var.log",
+        "output": "78_since_left_var_fixed.out",
+        "options": [
+            "-fix-since"
+        ]
+    },
+    {
+        "label": "79_dead_params",
+        "sig": "dead_params.sig",
+        "formula": "79_dead_params.mfotl",
+        "log": "dead_params.log",
+        "output": "79_dead_params.out"
+    },
+    {
+        "label": "80_proactive_table_rule",
+        "sig": "simple.sig",
+        "formula": "80_proactive_table_rule.mfotl",
+        "log": "proactive_table_rule.log",
+        "output": "80_proactive_table_rule.out"
+    },
+    {
+        "label": "81_agg_suppressed_source",
+        "sig": "simple.sig",
+        "formula": "81_agg_suppressed_source.mfotl",
+        "log": "agg_suppressed_source.log",
+        "output": "81_agg_suppressed_source.out"
+    },
+    {
+        "label": "82_filter_let_disjuncts",
+        "sig": "filter_let.sig",
+        "formula": "82_filter_let_disjuncts.mfotl",
+        "log": "filter_let.log",
+        "output": "82_filter_let_disjuncts.out"
     }
 ]

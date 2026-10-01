@@ -56,6 +56,52 @@ pub struct Table {
     /// Timestamp at which a lagged table was last populated (for the gap check).
     #[serde(default)]
     pub prev_ts: Option<u64>,
+    /// Pre-image of the table at the start of the current time-point (see
+    /// [`Table::arm_checkpoint`]).
+    #[serde(skip, default)]
+    checkpoint: Checkpoint,
+}
+
+/// How a table remembers its value at the start of the current time-point, so
+/// that its update can be undone and re-applied when the working set of events
+/// changes (an event is caused or suppressed).
+#[derive(Debug, Default)]
+enum Checkpoint {
+    /// Not tracking.
+    #[default]
+    Off,
+    /// Tracking, and not modified since the checkpoint.
+    Armed,
+    /// Non-windowed table: the rows inserted (`true`) and removed (`false`)
+    /// since the checkpoint, in order.  Undoing costs O(changes).
+    Journal(Vec<(bool, Row)>),
+    /// Windowed table: the `add`/`remove` operations since the checkpoint,
+    /// with what is needed to invert them.  Undoing costs O(changes).
+    WinJournal(Vec<WinOp>),
+    /// A full copy: the fallback when a windowed table is cleared or advanced
+    /// while checkpointed (the engine does neither).
+    Full(Box<Table>),
+}
+
+/// An operation on a windowed table, recorded to be undone.
+#[derive(Debug)]
+enum WinOp {
+    /// `add(row)` registered an observation: activated at once (if the lower
+    /// bound is 0; `prev_count` is the row's count before) or pending
+    /// activation at `act_key`, and pending expiry at `exp_key`.
+    Add { row: Row, activated: bool, prev_count: Option<u32>,
+          act_key: Option<u64>, exp_key: Option<u64> },
+    /// `remove(row)` withdrew the row: its count, whether it was observed in
+    /// this time-point, and its pending entries `(activation?, key, count)`.
+    Remove { row: Row, prev_count: Option<u32>, was_latest: bool,
+             pending: Vec<(bool, u64, usize)> },
+}
+
+/// A copy of a table does not inherit its checkpoint.
+impl Clone for Checkpoint {
+    fn clone(&self) -> Self {
+        Checkpoint::Off
+    }
 }
 
 impl Table {
@@ -74,6 +120,115 @@ impl Table {
             latest_obs: HashSet::default(),
             cur_ts: 0,
             prev_ts: None,
+            checkpoint: Checkpoint::Off,
+        }
+    }
+
+    /// Remember the current value of the table, so that [`Self::restore_checkpoint`]
+    /// can return to it.  Replaces any previous checkpoint.
+    pub fn arm_checkpoint(&mut self) {
+        self.checkpoint = Checkpoint::Armed;
+    }
+
+    /// Stop tracking modifications.
+    pub fn disarm_checkpoint(&mut self) {
+        self.checkpoint = Checkpoint::Off;
+    }
+
+    /// Return to the value the table had when [`Self::arm_checkpoint`] was
+    /// called.  The checkpoint stays armed.
+    pub fn restore_checkpoint(&mut self) {
+        // Taken out, so that the undo itself is not journaled.
+        match std::mem::take(&mut self.checkpoint) {
+            Checkpoint::Journal(log) => {
+                for (inserted, row) in log.into_iter().rev() {
+                    if inserted { self.raw_remove(&row); } else { self.raw_insert(row); }
+                }
+                self.checkpoint = Checkpoint::Journal(Vec::new());
+            }
+            Checkpoint::WinJournal(log) => {
+                for op in log.into_iter().rev() {
+                    self.undo_win_op(op);
+                }
+                self.checkpoint = Checkpoint::WinJournal(Vec::new());
+            }
+            Checkpoint::Full(pre) => {
+                *self = (*pre).clone();
+                self.checkpoint = Checkpoint::Full(pre);
+            }
+            other => self.checkpoint = other,
+        }
+    }
+
+    fn undo_win_op(&mut self, op: WinOp) {
+        fn drop_one(map: &mut BTreeMap<u64, Vec<Row>>, key: u64, row: &Row) {
+            if let Some(v) = map.get_mut(&key) {
+                if let Some(i) = v.iter().rposition(|r| r == row) { v.remove(i); }
+                if v.is_empty() { map.remove(&key); }
+            }
+        }
+        match op {
+            WinOp::Add { row, activated, prev_count, act_key, exp_key } => {
+                self.latest_obs.remove(&row);
+                if activated {
+                    match prev_count {
+                        Some(c) => { self.active_count.insert(row.clone(), c); }
+                        None => {
+                            self.active_count.remove(&row);
+                            self.raw_remove(&row);
+                        }
+                    }
+                }
+                if let Some(k) = act_key { drop_one(&mut self.by_activation, k, &row); }
+                if let Some(k) = exp_key { drop_one(&mut self.by_expiry, k, &row); }
+            }
+            WinOp::Remove { row, prev_count, was_latest, pending } => {
+                for (activation, key, n) in pending {
+                    let map = if activation { &mut self.by_activation } else { &mut self.by_expiry };
+                    let v = map.entry(key).or_default();
+                    for _ in 0..n { v.push(row.clone()); }
+                }
+                if was_latest { self.latest_obs.insert(row.clone()); }
+                if let Some(c) = prev_count {
+                    self.active_count.insert(row.clone(), c);
+                    self.raw_insert(row);
+                }
+            }
+        }
+    }
+
+    /// Called before every modification: start recording the pre-image.
+    #[inline]
+    fn before_mutation(&mut self) {
+        if matches!(self.checkpoint, Checkpoint::Armed) {
+            self.checkpoint = if self.is_windowed() {
+                Checkpoint::WinJournal(Vec::new())
+            } else {
+                Checkpoint::Journal(Vec::new())
+            };
+        }
+    }
+
+    /// Before a modification that [`WinOp`] cannot record (`clear`, `advance`)
+    /// of a checkpointed windowed table: fall back to a full copy.  If
+    /// operations were already journaled, undo them into the copy first.
+    fn before_bulk_mutation(&mut self) {
+        if !self.is_windowed() {
+            self.before_mutation();
+            return;
+        }
+        match &self.checkpoint {
+            Checkpoint::Armed => {
+                self.checkpoint = Checkpoint::Full(Box::new(self.clone()));
+            }
+            Checkpoint::WinJournal(_) => {
+                let mut pre = self.clone();
+                pre.checkpoint = std::mem::take(&mut self.checkpoint);
+                pre.restore_checkpoint();
+                pre.checkpoint = Checkpoint::Off;
+                self.checkpoint = Checkpoint::Full(Box::new(pre));
+            }
+            _ => {}
         }
     }
 
@@ -93,6 +248,9 @@ impl Table {
         if !self.rows.insert(row.clone()) {
             return false;
         }
+        if let Checkpoint::Journal(log) = &mut self.checkpoint {
+            log.push((true, row.clone()));
+        }
         for (i, val) in row.iter().enumerate() {
             self.column_indexes[i].entry(val.clone()).or_default().insert(row.clone());
         }
@@ -108,6 +266,9 @@ impl Table {
         }
         if !self.rows.remove(row) {
             return false;
+        }
+        if let Checkpoint::Journal(log) = &mut self.checkpoint {
+            log.push((false, row.clone()));
         }
         for (i, val) in row.iter().enumerate() {
             if let Some(bucket) = self.column_indexes[i].get_mut(val) {
@@ -145,11 +306,18 @@ impl Table {
     /// Drop every pending activation/expiry for `row` (used by `remove` so a
     /// row withdrawn by a Since `¬φ` clause cannot be resurrected by a stale
     /// scheduled event).
-    fn purge_pending(&mut self, row: &Row) {
-        for v in self.by_activation.values_mut() { v.retain(|r| r != row); }
-        for v in self.by_expiry.values_mut()     { v.retain(|r| r != row); }
-        self.by_activation.retain(|_, v| !v.is_empty());
-        self.by_expiry.retain(|_, v| !v.is_empty());
+    /// With `record`, returns the dropped entries as `(activation?, key, count)`.
+    fn purge_pending(&mut self, row: &Row, record: bool) -> Vec<(bool, u64, usize)> {
+        let mut dropped = Vec::new();
+        for (activation, map) in [(true, &mut self.by_activation), (false, &mut self.by_expiry)] {
+            for (k, v) in map.iter_mut() {
+                let before = v.len();
+                v.retain(|r| r != row);
+                if record && v.len() < before { dropped.push((activation, *k, before - v.len())); }
+            }
+            map.retain(|_, v| !v.is_empty());
+        }
+        dropped
     }
 
     /// Advance a windowed table's clock to `ts`: activate observations that
@@ -158,6 +326,7 @@ impl Table {
     /// whose whole window is skipped over nets out correctly.  No-op for
     /// non-windowed and lagged tables.
     pub fn advance(&mut self, ts: u64) {
+        self.before_bulk_mutation();
         self.cur_ts = ts;
         self.latest_obs.clear();
         if !self.is_windowed() {
@@ -197,6 +366,7 @@ impl Table {
     /// tables it is a plain set insert.  Returns true if the active set changed.
     #[inline]
     pub fn add(&mut self, row: Row) -> bool {
+        self.before_mutation();
         if !self.is_windowed() {
             return self.raw_insert(row);
         }
@@ -209,16 +379,21 @@ impl Table {
         }
         let (a, b) = self.window.unwrap();
         let t = self.cur_ts;
+        let prev_count = self.active_count.get(&row).copied();
         let became_active = if a == 0 {
-            let newly = !self.active_count.contains_key(&row);
             self.activate(row.clone());
-            newly
+            prev_count.is_none()
         } else {
             self.by_activation.entry(t + a).or_default().push(row.clone());
             false
         };
         if let Some(b) = b {
-            self.by_expiry.entry(t + b + 1).or_default().push(row);
+            self.by_expiry.entry(t + b + 1).or_default().push(row.clone());
+        }
+        if let Checkpoint::WinJournal(log) = &mut self.checkpoint {
+            log.push(WinOp::Add { row, activated: a == 0, prev_count,
+                                  act_key: (a > 0).then(|| t + a),
+                                  exp_key: b.map(|b| t + b + 1) });
         }
         became_active
     }
@@ -228,22 +403,31 @@ impl Table {
     /// active.
     #[inline]
     pub fn remove(&mut self, row: &Row) -> bool {
+        self.before_mutation();
         if !self.is_windowed() {
             return self.raw_remove(row);
         }
-        self.purge_pending(row);
-        self.latest_obs.remove(row);
-        if self.active_count.remove(row).is_some() {
-            self.raw_remove(row)
-        } else {
-            false
+        let journaling = matches!(self.checkpoint, Checkpoint::WinJournal(_));
+        let pending = self.purge_pending(row, journaling);
+        let was_latest = self.latest_obs.remove(row);
+        let prev_count = self.active_count.remove(row);
+        let was_active = prev_count.is_some() && self.raw_remove(row);
+        if let Checkpoint::WinJournal(log) = &mut self.checkpoint {
+            log.push(WinOp::Remove { row: row.clone(), prev_count, was_latest, pending });
         }
+        was_active
     }
 
     /// Number of tuples.
     #[inline]
     pub fn len(&self) -> usize {
         self.rows.len()
+    }
+
+    /// Whether `row` is currently valid (used by the tests).
+    #[cfg(test)]
+    pub fn contains(&self, row: &Row) -> bool {
+        self.rows.contains(row)
     }
 
     /// Iterate all rows.
@@ -254,7 +438,11 @@ impl Table {
     /// Remove all rows (and any pending windowing state).
     #[inline]
     pub fn clear(&mut self) {
+        self.before_bulk_mutation();
         self.ensure_indexes();
+        if let Checkpoint::Journal(log) = &mut self.checkpoint {
+            log.extend(self.rows.iter().map(|r| (false, r.clone())));
+        }
 
         self.rows.clear();
         for idx in &mut self.column_indexes {
@@ -269,7 +457,9 @@ impl Table {
     /// Ensure per-column indexes are present and consistent with current rows.
     ///
     /// This repairs tables loaded from older serialized states where
-    /// `column_indexes` was absent.
+    /// `column_indexes` was absent.  NOTE: `column_indexes` is `#[serde(skip)]`,
+    /// so *every* load_state starts with empty index vectors of length 0 —
+    /// the `len() != columns.len()` check catches that and rebuilds.
     fn ensure_indexes(&mut self) {
         if self.column_indexes.len() == self.columns.len() {
             return;
@@ -287,6 +477,16 @@ impl Table {
                     .insert(row.clone());
             }
         }
+    }
+
+    /// Public wrapper: rebuild the per-column hash indexes if they are absent
+    /// (e.g. right after a state load).  Call once after `load_state` so the
+    /// first lookup does not fall back to a full linear scan over all rows —
+    /// with a multi-million-row state that turned every post-restore lookup
+    /// into an O(|table|) scan and made each suppressing timepoint cost
+    /// hundreds of milliseconds.
+    pub fn rebuild_indexes(&mut self) {
+        self.ensure_indexes();
     }
 
     /// Retrieve all rows matching equality constraints on a subset of columns.
@@ -546,5 +746,109 @@ mod tests {
         assert!(t.contains(&vec![Int(1)]));
         assert!(t.contains(&vec![Int(2)]));
         assert_eq!(t.len(), 2);
+    }
+
+    // Restoring a non-windowed table undoes the inserts and removals made
+    // since the checkpoint, indexes included, and can be repeated.
+    #[test]
+    fn checkpoint_journal_restores() {
+        let mut t = Table::new("T".into(), vec!["x".into()]);
+        t.add(vec![Int(1)]);
+        t.add(vec![Int(2)]);
+        t.arm_checkpoint();
+        t.remove(&vec![Int(1)]);
+        t.add(vec![Int(3)]);
+        t.restore_checkpoint();
+        assert_eq!(t.iter().cloned().collect::<Vec<_>>(), vec![vec![Int(1)], vec![Int(2)]]);
+        assert!(t.exists_eq_by_pos(&[(0, Int(1))]));
+        assert!(!t.exists_eq_by_pos(&[(0, Int(3))]));
+        t.clear();
+        t.add(vec![Int(4)]);
+        t.restore_checkpoint();
+        assert_eq!(t.len(), 2);
+        assert!(!t.exists_eq_by_pos(&[(0, Int(4))]));
+        t.disarm_checkpoint();
+        t.add(vec![Int(5)]);
+        t.restore_checkpoint();                   // no-op once disarmed
+        assert!(t.contains(&vec![Int(5)]));
+    }
+
+    /// The complete state of a table, in a comparable form.
+    fn state(t: &Table) -> String {
+        let mut ac: Vec<_> = t.active_count.iter().map(|(r, c)| format!("{:?}={}", r, c)).collect();
+        ac.sort();
+        let mut lo: Vec<_> = t.latest_obs.iter().map(|r| format!("{:?}", r)).collect();
+        lo.sort();
+        let sorted = |m: &BTreeMap<u64, Vec<Row>>| -> String {
+            m.iter().map(|(k, v)| { let mut v = v.clone(); v.sort(); format!("{}:{:?}", k, v) })
+                .collect::<Vec<_>>().join(";")
+        };
+        let mut idx: Vec<String> = t.column_indexes.iter().map(|m| {
+            let mut e: Vec<_> = m.iter().map(|(k, v)| {
+                let mut v: Vec<_> = v.iter().cloned().collect(); v.sort(); format!("{:?}{:?}", k, v)
+            }).collect();
+            e.sort(); e.join(",")
+        }).collect();
+        idx.sort();
+        format!("{:?}|{:?}|{:?}|{}|{}|{:?}", t.rows, ac, lo, sorted(&t.by_activation),
+                sorted(&t.by_expiry), idx)
+    }
+
+    // Undoing a windowed table's adds and removes restores its whole state,
+    // pending activations and expiries included, without a copy.
+    #[test]
+    fn checkpoint_win_journal_restores() {
+        for (a, b) in [(0, Some(10)), (3, Some(10)), (0, None), (2, None)] {
+            let mut t = windowed(a, b);
+            t.advance(0);
+            t.add(vec![Int(1)]);
+            t.add(vec![Int(2)]);
+            t.advance(5);
+            t.add(vec![Int(2)]);          // a second observation of an existing row
+            let pre = state(&t);
+            t.arm_checkpoint();
+            t.add(vec![Int(3)]);
+            t.add(vec![Int(1)]);
+            t.remove(&vec![Int(2)]);
+            t.add(vec![Int(2)]);
+            assert!(matches!(t.checkpoint, Checkpoint::WinJournal(_)));
+            t.restore_checkpoint();
+            assert_eq!(state(&t), pre, "window ({}, {:?})", a, b);
+            t.add(vec![Int(4)]);          // still armed: undo again
+            t.restore_checkpoint();
+            assert_eq!(state(&t), pre, "window ({}, {:?}), second restore", a, b);
+        }
+    }
+
+    // Clearing a journaled windowed table falls back to a full copy of the
+    // state at the checkpoint.
+    #[test]
+    fn checkpoint_win_journal_then_clear() {
+        let mut t = windowed(0, Some(10));
+        t.advance(0);
+        t.add(vec![Int(1)]);
+        let pre = state(&t);
+        t.arm_checkpoint();
+        t.add(vec![Int(2)]);
+        t.clear();
+        t.restore_checkpoint();
+        assert_eq!(state(&t), pre);
+    }
+
+    // A windowed table is restored with its windowing state.
+    #[test]
+    fn checkpoint_full_restores_window() {
+        let mut t = windowed(0, Some(10));
+        t.advance(0);
+        t.add(vec![Int(1)]);
+        t.advance(5);
+        t.arm_checkpoint();
+        t.add(vec![Int(2)]);
+        t.remove(&vec![Int(1)]);
+        t.restore_checkpoint();
+        assert!(t.contains(&vec![Int(1)]));
+        assert!(!t.contains(&vec![Int(2)]));
+        t.advance(11);                            // Int(1) still expires on time
+        assert!(!t.contains(&vec![Int(1)]));
     }
 }

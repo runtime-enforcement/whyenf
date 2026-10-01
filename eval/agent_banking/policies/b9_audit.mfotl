@@ -1,0 +1,2 @@
+(ALWAYS (FORALL c, s, u, r, a. (SendMoney(c, s, u, r, a) AND a > 100000) IMPLIES:R Audit(u, r, a)))
+AND (ALWAYS (FORALL c, s, u, r, a, k. (Schedule(c, s, u, r, a, k) AND k = 1) IMPLIES:R Audit(u, r, a)))

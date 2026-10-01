@@ -1,0 +1,4 @@
+LET Supplied(s, t) = (ONCE UserMentions(s, t)) OR (EXISTS f. ONCE (FromDoc(s, f, t) AND ONCE UserDoc(s, f))) IN
+LET Leaks(c, s) = EXISTS t. SubjTok(c, t) AND (ONCE Trusted(s, t)) AND NOT Supplied(s, t) IN
+(ALWAYS (FORALL c, s, u, r, a. SendMoney(c, s, u, r, a) IMPLIES NOT Leaks(c, s)))
+AND (ALWAYS (FORALL c, s, u, r, a, k. Schedule(c, s, u, r, a, k) IMPLIES NOT Leaks(c, s)))

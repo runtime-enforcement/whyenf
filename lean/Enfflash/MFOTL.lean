@@ -109,11 +109,6 @@ theorem eval_congr (t : Term D) (ht : t.WF) (v v' : ℕ → D) (h : ∀ n ∈ t.
   | const => rfl
   | fn f xs => exact ht v v' h
 
-/-- The variables occurring syntactically (function terms are opaque). -/
-def isVar (x : ℕ) : Term D → Prop
-  | var n => n = x
-  | _ => False
-
 /-- A term is *stable* if it cannot create new domain values. -/
 def stable : Term D → Prop
   | fn _ _ => False

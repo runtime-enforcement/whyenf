@@ -14,6 +14,7 @@ type let_def = {
   clauses            : Clause.t list;
   filter_trigger_opt : Trigger.t option;
   force_filter       : bool;
+  probe_filter       : bool;
 }
 
 type let_map = (string, let_def, String.comparator_witness) Map.t

@@ -228,11 +228,6 @@ def fnImg (t : Term D) (U : Set D) : Set D :=
   | .fn f xs => {d | ∃ w : ℕ → D, (∀ n ∈ xs, w n ∈ U) ∧ d = f w}
   | _ => ∅
 
-theorem fnImg_mono (t : Term D) {U U' : Set D} (h : U ⊆ U') : fnImg t U ⊆ fnImg t U' := by
-  cases t with
-  | fn f xs => rintro d ⟨w, hw, rfl⟩; exact ⟨w, fun n hn => h (hw n hn), rfl⟩
-  | _ => exact fun _ hd => hd
-
 theorem fnImg_finite (t : Term D) (ht : t.WF) (U : Set D) (hU : U.Finite) :
     (fnImg t U).Finite := by
   cases t with

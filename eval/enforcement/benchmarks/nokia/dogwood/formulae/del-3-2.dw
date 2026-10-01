@@ -1,0 +1,24 @@
+// nokia/del-3-2:
+//   □ ∀user, data. delete(user, "db3", data) ∧ data ≠ "[unknown]" →
+//       ◆[0,60s) (∃user2. delete(user2, "db2", data)) ∨ ◇[0,1) (∃user2. delete(user2, "db2", data))
+// The log has one time point per second, so ◇[0,1) X holds iff X holds at the
+// current time point, which ◆[0,60s) already covers: the formula is past-only.
+// With integer timestamps, [0,60s) is `within 59s`.  Deletions of db2 in the
+// same time point count, so they are decided first; suppressed ones (a
+// `denied` marker) do not count.
+// decide: delete
+// order: delete.db=db2
+
+@id("delete_other")
+permit (principal, action == L::Action::"delete", resource)
+unless { context.input.db == "db3" && context.input.data != "[unknown]" };
+
+@id("delete_db3_after_db2")
+permit (principal, action == L::Action::"delete", resource)
+when { context.input.db == "db3" && context.input.data != "[unknown]" }
+when temporal {
+    exists (r: String). (
+        formerly within 59s L::Action::"delete"::request{ input.db: "db2", input.data: context.input.data, rid: r }
+        && !formerly within 59s L::Action::"delete"::denied{ rid: r }
+    )
+};

@@ -1,0 +1,36 @@
+// B8 (quarantine), suppression part only (Dogwood cannot cause Escalate(s)):
+//   Write(c,s,…) → ¬⧫[0,60] Blocked(s)   for every write event
+// decide: SendMoney, Schedule, Redirect, Amend, UpdatePassword, UpdateUserInfo
+// time-scale: 60
+
+@id("send")
+permit (principal, action == L::Action::"SendMoney", resource);
+@id("schedule")
+permit (principal, action == L::Action::"Schedule", resource);
+@id("redirect")
+permit (principal, action == L::Action::"Redirect", resource);
+@id("amend")
+permit (principal, action == L::Action::"Amend", resource);
+@id("password")
+permit (principal, action == L::Action::"UpdatePassword", resource);
+@id("info")
+permit (principal, action == L::Action::"UpdateUserInfo", resource);
+
+@id("b8_send")
+forbid (principal, action == L::Action::"SendMoney", resource)
+when temporal { formerly within 1h L::Action::"Blocked"::state{ input.s: context.input.s } };
+@id("b8_schedule")
+forbid (principal, action == L::Action::"Schedule", resource)
+when temporal { formerly within 1h L::Action::"Blocked"::state{ input.s: context.input.s } };
+@id("b8_redirect")
+forbid (principal, action == L::Action::"Redirect", resource)
+when temporal { formerly within 1h L::Action::"Blocked"::state{ input.s: context.input.s } };
+@id("b8_amend")
+forbid (principal, action == L::Action::"Amend", resource)
+when temporal { formerly within 1h L::Action::"Blocked"::state{ input.s: context.input.s } };
+@id("b8_password")
+forbid (principal, action == L::Action::"UpdatePassword", resource)
+when temporal { formerly within 1h L::Action::"Blocked"::state{ input.s: context.input.s } };
+@id("b8_info")
+forbid (principal, action == L::Action::"UpdateUserInfo", resource)
+when temporal { formerly within 1h L::Action::"Blocked"::state{ input.s: context.input.s } };

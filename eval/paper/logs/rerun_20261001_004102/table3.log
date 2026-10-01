@@ -1,0 +1,603 @@
+CPU governor: performance
+CPU governor already performance
+Using interpreter: /usr/bin/python3.12 (3.12.3)
+══════════════════════════════════════════════════════════
+  Step 1 – Preparing database snapshots
+══════════════════════════════════════════════════════════
+Building 10 event_platform snapshots …
+
+  [skip] u1_n10_cnone already exists
+  [skip] u1_n10_canalytics already exists
+  [skip] u10_n100_cnone already exists
+  [skip] u10_n100_canalytics already exists
+  [skip] u100_n1000_cnone already exists
+  [skip] u100_n1000_canalytics already exists
+  [skip] u1000_n10000_cnone already exists
+  [skip] u1000_n10000_canalytics already exists
+  [skip] u10000_n100000_cnone already exists
+  [skip] u10000_n100000_canalytics already exists
+
+All snapshots ready in /home/franz/Git/proactive-enforcement-library/event_platform/benchmark/privacy_testsuite/db_snapshots_ep/
+
+══════════════════════════════════════════════════════════
+  Step 2 – Running benchmark  (policy=mfotl)
+══════════════════════════════════════════════════════════
+/home/franz/.local/lib/python3.12/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+[ep.start (mfotl)]                                       Preparing evaluation... [92m[1mok![0m
+  0%|          | 0/30 [00:00<?, ?it/s]  3%|▎         | 1/30 [00:05<02:46,  5.76s/it]  7%|▋         | 2/30 [00:11<02:42,  5.81s/it] 10%|█         | 3/30 [00:17<02:34,  5.73s/it] 13%|█▎        | 4/30 [00:22<02:27,  5.69s/it][ep.init (sc=view_events, u=1, n=10, c=none)]            Restoring DB snapshot... [92m[1mok![0m
+[ep.mfotl (sc=view_events, u=1, n=10)]                   Starting Flask server... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[ep.finalize (mfotl)]                                    Stopping Flask server... [92m[1mok![0m
+[ep.init (sc=view_profile, u=1, n=10, c=none)]           Restoring DB snapshot... [92m[1mok![0m
+[ep.mfotl (sc=view_profile, u=1, n=10)]                  Starting Flask server... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[ep.finalize (mfotl)]                                    Stopping Flask server... [92m[1mok![0m
+[ep.init (sc=create_event, u=1, n=10, c=none)]           Restoring DB snapshot... [92m[1mok![0m
+[ep.mfotl (sc=create_event, u=1, n=10)]                  Starting Flask server... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[ep.finalize (mfotl)]                                    Stopping Flask server... [92m[1mok![0m
+[ep.init (sc=grant_consent, u=1, n=10, c=none)]          Restoring DB snapshot... [92m[1mok![0m
+[ep.mfotl (sc=grant_consent, u=1, n=10)]                 Starting Flask server... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[ep.finalize (mfotl)]                                    Stopping Flask server... [92m[1mok![0m
+[ep.init (sc=revoke_consent, u=1, n=10, c=none)]         Restoring DB snapshot... [92m[1mok![0m
+[ep.mfotl (sc=revoke_consent, u=1, n=10)]                Starting Flask server... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... 17%|█▋        | 5/30 [00:28<02:19,  5.60s/it] 20%|██        | 6/30 [00:33<02:13,  5.56s/it] 23%|██▎       | 7/30 [00:55<04:09, 10.86s/it] 27%|██▋       | 8/30 [01:01<03:24,  9.28s/it] 30%|███       | 9/30 [01:07<02:51,  8.15s/it] [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[ep.finalize (mfotl)]                                    Stopping Flask server... [92m[1mok![0m
+[ep.init (sc=analyze_event, u=1, n=10, c=none)]          Restoring DB snapshot... [92m[1mok![0m
+[ep.mfotl (sc=analyze_event, u=1, n=10)]                 Starting Flask server... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[ep.finalize (mfotl)]                                    Stopping Flask server... [92m[1mok![0m
+[ep.init (sc=view_events, u=10, n=100, c=none)]          Restoring DB snapshot... [92m[1mok![0m
+[ep.mfotl (sc=view_events, u=10, n=100)]                 Starting Flask server... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[ep.finalize (mfotl)]                                    Stopping Flask server... [92m[1mok![0m
+[ep.init (sc=view_profile, u=10, n=100, c=none)]         Restoring DB snapshot... [92m[1mok![0m
+[ep.mfotl (sc=view_profile, u=10, n=100)]                Starting Flask server... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[ep.finalize (mfotl)]                                    Stopping Flask server... [92m[1mok![0m
+[ep.init (sc=create_event, u=10, n=100, c=none)]         Restoring DB snapshot... [92m[1mok![0m
+[ep.mfotl (sc=create_event, u=10, n=100)]                Starting Flask server... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[ep.finalize (mfotl)]                                    Stopping Flask server... [92m[1mok![0m
+[ep.init (sc=grant_consent, u=10, n=100, c=none)]        Restoring DB snapshot... [92m[1mok![0m
+[ep.mfotl (sc=grant_consent, u=10, n=100)]               Starting Flask server... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... 33%|███▎      | 10/30 [01:12<02:27,  7.38s/it] 37%|███▋      | 11/30 [01:18<02:09,  6.79s/it] 40%|████      | 12/30 [01:23<01:56,  6.46s/it] 43%|████▎     | 13/30 [04:47<18:46, 66.28s/it] 47%|████▋     | 14/30 [04:53<12:49, 48.07s/it] [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[ep.finalize (mfotl)]                                    Stopping Flask server... [92m[1mok![0m
+[ep.init (sc=revoke_consent, u=10, n=100, c=none)]       Restoring DB snapshot... [92m[1mok![0m
+[ep.mfotl (sc=revoke_consent, u=10, n=100)]              Starting Flask server... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[ep.finalize (mfotl)]                                    Stopping Flask server... [92m[1mok![0m
+[ep.init (sc=analyze_event, u=10, n=100, c=none)]        Restoring DB snapshot... [92m[1mok![0m
+[ep.mfotl (sc=analyze_event, u=10, n=100)]               Starting Flask server... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[ep.finalize (mfotl)]                                    Stopping Flask server... [92m[1mok![0m
+[ep.init (sc=view_events, u=100, n=1000, c=none)]        Restoring DB snapshot... [92m[1mok![0m
+[ep.mfotl (sc=view_events, u=100, n=1000)]               Starting Flask server... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[ep.finalize (mfotl)]                                    Stopping Flask server... [92m[1mok![0m
+[ep.init (sc=view_profile, u=100, n=1000, c=none)]       Restoring DB snapshot... [92m[1mok![0m
+[ep.mfotl (sc=view_profile, u=100, n=1000)]              Starting Flask server... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[ep.finalize (mfotl)]                                    Stopping Flask server... [92m[1mok![0m
+[ep.init (sc=create_event, u=100, n=1000, c=none)]       Restoring DB snapshot... [92m[1mok![0m
+[ep.mfotl (sc=create_event, u=100, n=1000)]              Starting Flask server... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... 50%|█████     | 15/30 [04:59<08:49, 35.29s/it] 53%|█████▎    | 16/30 [05:05<06:09, 26.37s/it] 57%|█████▋    | 17/30 [05:10<04:20, 20.07s/it] 60%|██████    | 18/30 [05:16<03:08, 15.74s/it] 63%|██████▎   | 19/30 [51:18<2:34:05, 840.52s/it] [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[ep.finalize (mfotl)]                                    Stopping Flask server... [92m[1mok![0m
+[ep.init (sc=grant_consent, u=100, n=1000, c=none)]      Restoring DB snapshot... [92m[1mok![0m
+[ep.mfotl (sc=grant_consent, u=100, n=1000)]             Starting Flask server... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[ep.finalize (mfotl)]                                    Stopping Flask server... [92m[1mok![0m
+[ep.init (sc=revoke_consent, u=100, n=1000, c=none)]     Restoring DB snapshot... [92m[1mok![0m
+[ep.mfotl (sc=revoke_consent, u=100, n=1000)]            Starting Flask server... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[ep.finalize (mfotl)]                                    Stopping Flask server... [92m[1mok![0m
+[ep.init (sc=analyze_event, u=100, n=1000, c=none)]      Restoring DB snapshot... [92m[1mok![0m
+[ep.mfotl (sc=analyze_event, u=100, n=1000)]             Starting Flask server... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[ep.finalize (mfotl)]                                    Stopping Flask server... [92m[1mok![0m
+[ep.init (sc=view_events, u=1000, n=10000, c=none)]      Restoring DB snapshot... [92m[1mok![0m
+[ep.mfotl (sc=view_events, u=1000, n=10000)]             Starting Flask server... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[run]                                                    "view_events"... [92m[1mok![0m
+[ep.finalize (mfotl)]                                    Stopping Flask server... [92m[1mok![0m
+[ep.init (sc=view_profile, u=1000, n=10000, c=none)]     Restoring DB snapshot... [92m[1mok![0m
+[ep.mfotl (sc=view_profile, u=1000, n=10000)]            Starting Flask server... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... 67%|██████▋   | 20/30 [51:29<1:38:36, 591.62s/it] 70%|███████   | 21/30 [51:40<1:02:35, 417.29s/it] 73%|███████▎  | 22/30 [51:51<39:22, 295.30s/it]   77%|███████▋  | 23/30 [52:01<24:28, 209.85s/it] 80%|████████  | 24/30 [52:12<15:00, 150.15s/it] [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[ep.finalize (mfotl)]                                    Stopping Flask server... [92m[1mok![0m
+[ep.init (sc=create_event, u=1000, n=10000, c=none)]     Restoring DB snapshot... [92m[1mok![0m
+[ep.mfotl (sc=create_event, u=1000, n=10000)]            Starting Flask server... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[ep.finalize (mfotl)]                                    Stopping Flask server... [92m[1mok![0m
+[ep.init (sc=grant_consent, u=1000, n=10000, c=none)]    Restoring DB snapshot... [92m[1mok![0m
+[ep.mfotl (sc=grant_consent, u=1000, n=10000)]           Starting Flask server... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[ep.finalize (mfotl)]                                    Stopping Flask server... [92m[1mok![0m
+[ep.init (sc=revoke_consent, u=1000, n=10000, c=none)]   Restoring DB snapshot... [92m[1mok![0m
+[ep.mfotl (sc=revoke_consent, u=1000, n=10000)]          Starting Flask server... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[ep.finalize (mfotl)]                                    Stopping Flask server... [92m[1mok![0m
+[ep.init (sc=analyze_event, u=1000, n=10000, c=none)]    Restoring DB snapshot... [92m[1mok![0m
+[ep.mfotl (sc=analyze_event, u=1000, n=10000)]           Starting Flask server... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[ep.finalize (mfotl)]                                    Stopping Flask server... [92m[1mok![0m
+[ep.init (sc=view_profile, u=10000, n=100000, c=none)]   Restoring DB snapshot... [92m[1mok![0m
+[ep.mfotl (sc=view_profile, u=10000, n=100000)]          Starting Flask server... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... 87%|████████▋ | 26/30 [53:56<06:59, 104.79s/it] 90%|█████████ | 27/30 [55:39<05:13, 104.42s/it] 93%|█████████▎| 28/30 [57:21<03:27, 103.63s/it] 97%|█████████▋| 29/30 [59:03<01:43, 103.23s/it]100%|██████████| 30/30 [1:00:46<00:00, 103.16s/it]100%|██████████| 30/30 [1:00:46<00:00, 121.54s/it]
+ [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[run]                                                    "view_profile"... [92m[1mok![0m
+[ep.finalize (mfotl)]                                    Stopping Flask server... [92m[1mok![0m
+[ep.init (sc=create_event, u=10000, n=100000, c=none)]   Restoring DB snapshot... [92m[1mok![0m
+[ep.mfotl (sc=create_event, u=10000, n=100000)]          Starting Flask server... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[run]                                                    "create_event"... [92m[1mok![0m
+[ep.finalize (mfotl)]                                    Stopping Flask server... [92m[1mok![0m
+[ep.init (sc=grant_consent, u=10000, n=100000, c=none)]  Restoring DB snapshot... [92m[1mok![0m
+[ep.mfotl (sc=grant_consent, u=10000, n=100000)]         Starting Flask server... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[run]                                                    "grant_consent"... [92m[1mok![0m
+[ep.finalize (mfotl)]                                    Stopping Flask server... [92m[1mok![0m
+[ep.init (sc=revoke_consent, u=10000, n=100000, c=none)] Restoring DB snapshot... [92m[1mok![0m
+[ep.mfotl (sc=revoke_consent, u=10000, n=100000)]        Starting Flask server... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[run]                                                    "revoke_consent"... [92m[1mok![0m
+[ep.finalize (mfotl)]                                    Stopping Flask server... [92m[1mok![0m
+[ep.init (sc=analyze_event, u=10000, n=100000, c=none)]  Restoring DB snapshot... [92m[1mok![0m
+[ep.mfotl (sc=analyze_event, u=10000, n=100000)]         Starting Flask server... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[run]                                                    "analyze_event"... [92m[1mok![0m
+[ep.finalize (mfotl)]                                    Stopping Flask server... [92m[1mok![0m
+[ep.stop (mfotl)]                                        Evaluation finished... [92m[1mok![0m
+  0%|          | 0/4 [00:00<?, ?it/s]100%|██████████| 4/4 [00:00<00:00, 74.64it/s]
+u = 1, n = 10, c = none, N = 10
+                      t
+analyze_event   10.0288
+create_event    17.9669
+grant_consent   18.1652
+revoke_consent   6.1447
+view_events     27.7901
+view_profile    33.2305
+u = 10, n = 100, c = none, N = 10
+                        t
+analyze_event     21.4429
+create_event      19.2267
+grant_consent     19.1184
+revoke_consent     9.3028
+view_events     1102.6516
+view_profile      36.2560
+u = 100, n = 1000, c = none, N = 10
+                         t
+analyze_event      23.0417
+create_event       20.2589
+grant_consent      19.5504
+revoke_consent      6.4649
+view_events     13224.7651
+view_profile       43.2871
+u = 1000, n = 10000, c = none, N = 10
+                          t
+analyze_event       28.6398
+create_event        24.1852
+grant_consent       22.3817
+revoke_consent       7.7013
+view_events     183372.0040
+view_profile        68.0367
+u = 10000, n = 100000, c = none, N = 10
+                       t
+analyze_event    68.2854
+create_event     32.4339
+grant_consent    29.6659
+revoke_consent   17.2290
+view_profile    114.6022
+
+══════════════════════════════════════════════════════════
+  Done — results in benchmark/privacy_testsuite/output/
+══════════════════════════════════════════════════════════
+[make_table] mfotl: n=[1, 10, 100, 1000, 10000] from output/event_platform_mfotl_2026-10-01 04:12:56.217255
+[make_table] dogwood: n=[1, 10, 100, 1000] from output/event_platform_dogwood_2026-09-28 23:25:59.751851
+[make_table] cedar: n=[1, 10, 100] from output/event_platform_cedar_2026-06-27 22:59:12.716022
+[make_table] wrote /home/franz/Overleaf/Enfflash/tables/tab_app2.tex
+[make_table] mfotl: n=[1, 10, 100, 1000, 10000] from /home/franz/Git/proactive-enforcement-library/event_platform/benchmark/privacy_testsuite/output/event_platform_mfotl_2026-10-01 04:12:56.217255
+[make_table] dogwood: n=[1, 10, 100, 1000] from /home/franz/Git/proactive-enforcement-library/event_platform/benchmark/privacy_testsuite/output/event_platform_dogwood_2026-09-28 23:25:59.751851
+[make_table] cedar: n=[1, 10, 100] from /home/franz/Git/proactive-enforcement-library/event_platform/benchmark/privacy_testsuite/output/event_platform_cedar_2026-06-27 22:59:12.716022
+[figures] wrote /home/franz/Overleaf/Enfflash/figures/fig_app2.pdf

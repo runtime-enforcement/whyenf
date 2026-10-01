@@ -1,0 +1,2 @@
+ALWAYS (FORALL c, s, u, r, a. SendMoney(c, s, u, r, a) IMPLIES
+  (a <= 1000000 AND NOT (EXISTS t. (t <- SUM(a2; u, r; ONCE[1,1440] (EXISTS c2, s2. SendMoney(c2, s2, u, r, a2)))) AND t + a > 1000000)))

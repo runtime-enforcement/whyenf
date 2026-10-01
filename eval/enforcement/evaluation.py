@@ -11,6 +11,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 from replayer import replay
+from governor import require_performance
 
 plt.rcParams["font.family"] = "serif"
 plt.rcParams["font.serif"] = "Times New Roman"
@@ -205,6 +206,9 @@ def run_experiments(
     smoke_test: bool = False,
 ) -> Optional[pd.DataFrame]:
 
+    if not only_graph:
+        require_performance()
+
     benchmark_path = Path("benchmarks") / benchmark / option
     formulae_path = benchmark_path / "formulae"
     logs_path = benchmark_path / "logs"
@@ -226,6 +230,8 @@ def run_experiments(
     elif option == "enfguard":
         command = exe + " -sig {} -formula " + str(formulae_path) + "/{}"
     elif option == "enfflash":
+        command = exe + " -sig {} -formula " + str(formulae_path) + "/{}"
+    elif option == "dogwood":
         command = exe + " -sig {} -formula " + str(formulae_path) + "/{}"
     else:
         raise ValueError("Invalid option " + option)

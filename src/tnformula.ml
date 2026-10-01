@@ -19,6 +19,11 @@ type let_def = {
      materialised, enumerable let, keeping the tables it would otherwise
      enumerate out of the per-time-point complexity. *)
   force_filter       : bool;
+  (* Set by [Extraction.downgrade_filter_lets] when this let is never
+     enumerated but has existential (non-argument) variables: it is emitted as
+     a `filter let` that keeps its guard patterns, which bind those variables
+     by probing the guards with the arguments at each use. *)
+  probe_filter       : bool;
 }
 
 type let_map = (string, let_def, String.comparator_witness) Map.t

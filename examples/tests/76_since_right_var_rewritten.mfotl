@@ -1,0 +1,1 @@
+ALWAYS (FORALL a. h(a) IMPLIES NOT (EXISTS n, s. (NOT (removed(n, a) AND ONCE added(n, a, s))) SINCE added(n, a, s)))

@@ -1,0 +1,8 @@
+@0 start("r1");
+@1 h("a");
+@2 leave("a", "r1");
+@3 h("a") h("b");
+@4 start("r1") leave("a", "r1");
+@5 h("a");
+@6 leave("b", "r1");
+@7 h("b");

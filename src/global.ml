@@ -14,3 +14,6 @@ let filter = ref true
 let memo = ref true
 let unroll_all = ref false
 let print_normal_form = ref false
+(* -fix-since: rewrite  f S g  whose right operand has variables that f does
+   not have into the equivalent  (f ∨ ¬⧫g) S g  (see Lformula.pull_lets). *)
+let fix_since = ref false

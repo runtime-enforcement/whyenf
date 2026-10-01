@@ -30,7 +30,7 @@ LET in_subnet(node_id, node_addr, subnet) =
       The node was possibly not originally in this subnet, but it has been assigned to it.
     *)
     (
-      (NOT node_removed_from_subnet(node_id, node_addr))
+      (NOT (node_removed_from_subnet(node_id, node_addr) AND ONCE node_added_to_subnet(node_id, node_addr, subnet)))
       SINCE node_added_to_subnet(node_id, node_addr, subnet)
     )
   )

@@ -1,0 +1,46 @@
+// ic/unauthorized_connections:
+//   □ ∀dest_addr, sender_addr, dest_id, subnet.
+//     handshake_failed(dest_addr, sender_addr) ∧ in_subnet(dest_id, dest_addr, subnet) →
+//       ∃sender_id. in_subnet(sender_id, sender_addr, subnet)
+//                   ∧ ⧫[0,15m] in_subnet(sender_id, sender_addr, subnet)
+//   in_subnet(n, a, s) = (⧫ originally_in_subnet(n, a, s) ∧ ¬⧫ removed_from_subnet(n, a))
+//                      ∨ (¬(removed_from_subnet(n, a) ∧ ⧫ added_to_subnet(n, a, s)) S added_to_subnet(n, a, s))
+// ⧫[0,15m] X holds whenever X holds now, so the second conjunct is implied.
+// After the anchor added_to_subnet(n, a, s), ⧫ added_to_subnet(n, a, s) holds,
+// so the left operand of S is ¬removed_from_subnet(n, a).  One forbid per case
+// of in_subnet for the destination; the sender must be in the subnet in
+// neither case.
+// decide: ControlPlane__spawn_accept_task__tls_server_handshake_failed
+
+def temporal in_subnet_orig(?n, ?a, ?s) {
+    formerly within 36500d L::Action::"originally_in_subnet"::state{ input.node_id: ?n, input.node_addr: ?a, input.subnet_id: ?s }
+    && !formerly within 36500d L::Action::"registry__node_removed_from_subnet"::state{ input.node_id: ?n, input.node_addr: ?a }
+};
+def temporal in_subnet_added(?n, ?a, ?s) {
+    !L::Action::"registry__node_removed_from_subnet"::state{ input.node_id: ?n, input.node_addr: ?a }
+    since within 36500d
+    L::Action::"registry__node_added_to_subnet"::state{ input.node_id: ?n, input.node_addr: ?a, input.subnet_id: ?s }
+};
+
+@id("handshake")
+permit (principal, action == L::Action::"ControlPlane__spawn_accept_task__tls_server_handshake_failed", resource);
+
+@id("unauthorized_orig")
+forbid (principal, action == L::Action::"ControlPlane__spawn_accept_task__tls_server_handshake_failed", resource)
+when temporal {
+    exists (dest_id: String). exists (subnet: String). (
+        in_subnet_orig(dest_id, context.input.local_addr, subnet)
+        && !(exists (sid: String). in_subnet_orig(sid, context.input.peer_addr, subnet))
+        && !(exists (sid: String). in_subnet_added(sid, context.input.peer_addr, subnet))
+    )
+};
+
+@id("unauthorized_added")
+forbid (principal, action == L::Action::"ControlPlane__spawn_accept_task__tls_server_handshake_failed", resource)
+when temporal {
+    exists (dest_id: String). exists (subnet: String). (
+        in_subnet_added(dest_id, context.input.local_addr, subnet)
+        && !(exists (sid: String). in_subnet_orig(sid, context.input.peer_addr, subnet))
+        && !(exists (sid: String). in_subnet_added(sid, context.input.peer_addr, subnet))
+    )
+};

@@ -1,0 +1,23 @@
+// agg/p3:
+//   □ ∀u, s, a, l. withdraw(u, a) ∧ s ← SUM(a; u; ONCE[0,31) (withdraw(u, a) ∧ tp(t)))
+//       ∧ (¬(⧫ limit(u, l) ∧ ∃l2. limit(u, l2)) S limit(u, l)) → s ≤ l
+// l is the user's latest limit: after the anchor limit(u, l), ⧫ limit(u, l)
+// always holds, so the left operand is ¬∃l2. limit(u, l2).
+// decide: withdraw
+
+@id("p3")
+permit (principal, action == L::Action::"withdraw", resource)
+unless temporal {
+    exists (l: Long). (
+        (!(exists (l2: Long). L::Action::"limit"::state{ input.u: context.input.u, input.a: l2 })
+            since within 36500d
+            L::Action::"limit"::state{ input.u: context.input.u, input.a: l })
+        && exists (s: Long). (
+            (sum a for (a: Long), (r: String). where (
+                formerly within 30s L::Action::"withdraw"::request{ input.u: context.input.u, input.a: a, rid: r }
+                && !formerly within 30s L::Action::"withdraw"::denied{ rid: r }
+            )) == s
+            && s > l
+        )
+    )
+};

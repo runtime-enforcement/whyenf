@@ -22,8 +22,7 @@ import Enfflash.Conflict
 import Enfflash.Dataflow
 import Enfflash.DFG
 import Enfflash.AggImg
--- Main theorems and examples
-import Enfflash.Main
+-- End-to-end correctness, type system, examples, paper index
 import Enfflash.Clauses
 import Enfflash.EndToEnd
 import Enfflash.TypeSystem

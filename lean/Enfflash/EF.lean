@@ -363,18 +363,6 @@ def TrigDeps (K : Ctx B L D) (c : Clause B L D) (N : Set (Ev B L)) : Prop :=
 /-- No event is both caused and suppressed. -/
 def ConflictFree (X : Set (Act B L D)) : Prop := ∀ x, ¬ (Act.cau x ∈ X ∧ Act.sup x ∈ X)
 
-def Effect.causes : Effect B L D → Option (Ev B L)
-  | .cau e _ | .later _ e _ | .next _ _ e _ => some e
-  | .sup _ _ => none
-
-def Effect.suppresses : Effect B L D → Option (Ev B L)
-  | .sup e _ => some e
-  | _ => none
-
-def Act.causes : Act B L D → Option (Ev B L)
-  | cau x => some x.1
-  | _ => none
-
 /-! ## Tables -/
 
 section

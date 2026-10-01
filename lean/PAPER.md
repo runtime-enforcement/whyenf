@@ -126,7 +126,7 @@ Legend for the notes column:
 | **Lemma 4.2** | `Paper.lem_4_2`, `GX.sound` | ✅ `GX.sound` proves it for both polarities |
 | `m ⊢ Φ ↝^p_X (π, φ)`, `Guards^m_X` (Figure 5) | `GXJ` | ✅ `GXJ.none`, `GXJ.vac`, `GXJ.pred`, `GXJ.eq`, `GXJ.andPos`, `GXJ.andNeg`, `GXJ.neg` |
 | **Lemma 4.3** | `Paper.lem_4_3`, `GXJ.sound` | ✅ |
-| "iterating `↝⁺_x` variable by variable is not sufficient" | `GXs` | — the counterexample `A(x,y) ∨ (C(y) ∧ D(x))` is not formalized. `GXs` is the sequential variant. |
+| "iterating `↝⁺_x` variable by variable is not sufficient" | — | — the counterexample `A(x,y) ∨ (C(y) ∧ D(x))` is not formalized |
 
 ### §4.3 Enforcement rewriting
 

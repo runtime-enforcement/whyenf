@@ -1,0 +1,1 @@
+LET r(x, y) = (ONCE q(x, y)) OR (ONCE q(y, x)) IN ALWAYS (FORALL x. a(x) IMPLIES NOT (EXISTS y. r(x, y)))

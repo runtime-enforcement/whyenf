@@ -6,13 +6,10 @@
   trigger of a rule whose effect is on `e'`, let-bound predicates being
   decomposed into the events defining them.  We prove:
 
-  * `stratified_of_rank`: running sections in any order that is monotone
-    along EDG edges (e.g. a topological order of its SCCs, sources first)
-    yields a stratified program (`Stratified`), as required by
-    `saturate_sound`;
-  * `sccSections_*`: grouping the rules by the SCC rank of their effect gives
-    such an order, covering all rules, in which an edge inside a section
-    always lies on a cycle (the section is a union of SCCs);
+  * `stratified_of_topo`: sections in a topological order of the SCCs
+    (`SCCOrder`, the sections of `Compile(Γ, R, ≺)`) form a stratified program
+    (`Stratified`), as required by `saturate_sound`;
+  * `sccOrder_spec`: such an order exists (one section per SCC, by rank);
   * `once_ok`: a section without internal edges may be run `once`.
 -/
 import Enfflash.Saturate
@@ -123,31 +120,6 @@ theorem EDG.finite (ld : L → List (Ev B L)) (rules : List (Clause B L D)) :
   rintro e e' ⟨c, hc, he, rfl⟩
   exact ⟨Set.mem_biUnion hc (Or.inl he), Set.mem_biUnion hc (Or.inr rfl)⟩
 
-/-- Sections are ordered by a rank on event names: every rule of an earlier
-    section acts on an event of strictly smaller rank. -/
-def RankOrdered (rk : Ev B L → ℕ) : List (List (Clause B L D)) → Prop
-  | [] => True
-  | sec :: secs => (∀ c ∈ sec, ∀ s ∈ secs, ∀ c' ∈ s, rk c.eff.name < rk c'.eff.name) ∧
-      RankOrdered rk secs
-
-/-- **Section order.**  If the rank is monotone along the EDG and the sections
-    are ordered by rank, the program is stratified. -/
-theorem stratified_of_rank {K : Ctx B L D} {ld : L → List (Ev B L)} (hK : LetDeps K ld)
-    (rk : Ev B L → ℕ) :
-    ∀ (secs : List (List (Clause B L D))),
-      (∀ e e', EDG ld secs.flatten e e' → rk e ≤ rk e') → RankOrdered rk secs →
-      Stratified K secs
-  | [], _, _ => trivial
-  | sec :: secs, hrk, ⟨hord, hrest⟩ => by
-    refine ⟨fun c hc => ⟨_, trigDeps_evs hK c, fun s hs c' hc' hin => ?_⟩,
-      stratified_of_rank hK rk secs (fun e e' ⟨c, hc, h⟩ => hrk e e'
-        ⟨c, List.mem_flatten.2 (by
-          obtain ⟨s, hs, hcs⟩ := List.mem_flatten.1 hc
-          exact ⟨s, List.mem_cons_of_mem _ hs, hcs⟩), h⟩) hrest⟩
-    have h1 := hord c hc s hs c' hc'
-    have h2 := hrk _ _ ⟨c, List.mem_flatten.2 ⟨sec, List.mem_cons_self .., hc⟩, hin, rfl⟩
-    omega
-
 /-! ## Sections from the SCCs of the EDG -/
 
 section
@@ -158,11 +130,6 @@ noncomputable def effRank (c : Clause B L D) : ℕ := Graph.rank (EDG ld rules) 
 
 noncomputable def maxRank : ℕ := (rules.map (effRank ld rules)).sum
 
-/-- One section per rank level, in increasing order (sources first). -/
-noncomputable def sccSections : List (List (Clause B L D)) :=
-  (List.range' 0 (maxRank ld rules + 1)).map
-    (fun r => rules.filter (fun c => decide (effRank ld rules c = r)))
-
 end
 
 theorem le_sum_of_mem' : ∀ {l : List ℕ} {n : ℕ}, n ∈ l → n ≤ l.sum
@@ -170,59 +137,6 @@ theorem le_sum_of_mem' : ∀ {l : List ℕ} {n : ℕ}, n ∈ l → n ≤ l.sum
     rcases List.mem_cons.1 h with rfl | h
     · simp
     · have := le_sum_of_mem' h; simp; omega
-
-theorem rankOrdered_range' (ld : L → List (Ev B L)) (rules : List (Clause B L D)) :
-    ∀ m n, RankOrdered (Graph.rank (EDG ld rules))
-      ((List.range' m n).map (fun r => rules.filter (fun c => decide (effRank ld rules c = r))))
-  | _, 0 => trivial
-  | m, n + 1 => by
-    rw [List.range'_succ, List.map_cons]
-    refine ⟨fun c hc s hs c' hc' => ?_, rankOrdered_range' ld rules (m + 1) n⟩
-    obtain ⟨r, hr, rfl⟩ := List.mem_map.1 hs
-    have h1 := (List.mem_filter.1 hc).2
-    have h2 := (List.mem_filter.1 hc').2
-    simp only [decide_eq_true_eq, effRank] at h1 h2
-    have := (List.mem_range'_1.1 hr).1
-    omega
-
-/-- Every rule belongs to its SCC section. -/
-theorem sccSections_cover (ld : L → List (Ev B L)) (rules : List (Clause B L D))
-    (c : Clause B L D) : c ∈ (sccSections ld rules).flatten ↔ c ∈ rules := by
-  constructor
-  · intro h
-    obtain ⟨s, hs, hc⟩ := List.mem_flatten.1 h
-    obtain ⟨r, -, rfl⟩ := List.mem_map.1 hs
-    exact (List.mem_filter.1 hc).1
-  · intro hc
-    have hle : effRank ld rules c ≤ maxRank ld rules :=
-      le_sum_of_mem' (List.mem_map_of_mem hc)
-    exact List.mem_flatten.2 ⟨_, List.mem_map.2 ⟨effRank ld rules c,
-      List.mem_range'_1.2 ⟨Nat.zero_le _, by omega⟩, rfl⟩, List.mem_filter.2 ⟨hc, by simp⟩⟩
-
-/-- **The SCC sections are stratified.** -/
-theorem sccSections_stratified {K : Ctx B L D} {ld : L → List (Ev B L)} (hK : LetDeps K ld)
-    (rules : List (Clause B L D)) : Stratified K (sccSections ld rules) := by
-  apply stratified_of_rank hK (Graph.rank (EDG ld rules)) _ _ (rankOrdered_range' ld rules _ _)
-  rintro e e' ⟨c, hc, he, rfl⟩
-  exact Graph.rank_mono (EDG.finite ld rules)
-    ⟨c, (sccSections_cover ld rules c).1 hc, he, rfl⟩
-
-theorem sccSections_rankOrdered (ld : L → List (Ev B L)) (rules : List (Clause B L D)) :
-    RankOrdered (Graph.rank (EDG ld rules)) (sccSections ld rules) :=
-  rankOrdered_range' ld rules _ _
-
-/-- Inside a section, every EDG edge lies on a cycle: sections are unions of
-    SCCs. -/
-theorem sccSections_scc (ld : L → List (Ev B L)) (rules : List (Clause B L D))
-    {sec : List (Clause B L D)} (hsec : sec ∈ sccSections ld rules)
-    {c c' : Clause B L D} (hc : c ∈ sec) (hc' : c' ∈ sec)
-    (hedge : EDG ld rules c.eff.name c'.eff.name) :
-    Relation.ReflTransGen (EDG ld rules) c'.eff.name c.eff.name := by
-  obtain ⟨r, -, rfl⟩ := List.mem_map.1 hsec
-  have h1 := (List.mem_filter.1 hc).2
-  have h2 := (List.mem_filter.1 hc').2
-  simp only [decide_eq_true_eq, effRank] at h1 h2
-  exact Graph.rank_eq_scc (EDG.finite ld rules) hedge (h1.trans h2.symm)
 
 /-- A section without internal EDG edges needs a single pass (`once`). -/
 theorem once_ok {K : Ctx B L D} {ld : L → List (Ev B L)} (hK : LetDeps K ld)
@@ -406,6 +320,5 @@ theorem sccOrder_spec (ld : L → List (Ev B L)) (rules : List (Clause B L D)) :
         simp only [effRank] at h1 h2
         omega
     exact key _ (List.pairwise_lt_range)
-
 
 end Enfflash

@@ -10,10 +10,6 @@
   * `GXJ`: joint guard extraction for a set of variables (Figure 5, the
     paper's `Guards^m_X`), with `GXJ.sound` and `gxj_iff`: it succeeds iff every variable
     is guarded, i.e. iff the formula is enumerable (`Enum`).
-
-  The sequential extraction `GXs` (the paper's original `Guards`) is
-  order-dependent and incomplete: for `A(x,y) ∨ (C(y) ∧ D(x))` every variable
-  is guarded, but extracting `x` then `y` (or `y` then `x`) fails.
 -/
 import Enfflash.Guards
 

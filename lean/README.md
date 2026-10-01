@@ -35,7 +35,7 @@ Compilation and its correctness:
 
 | File | Paper | Main results |
 |---|---|---|
-| `Guards.lean` | §4.2, Fig. 4 | guard extraction `↝`: `GX.sound` (`GEquiv`: equivalence of guarded formulas) (and the original sequential `Guards`, `GXs`) |
+| `Guards.lean` | §4.2, Fig. 4 | guard extraction `↝`: `GX.sound` (`GEquiv`: equivalence of guarded formulas) |
 | `GuardTypes.lean` | §4.2, App. A | declarative guardedness `Grd` (`GRD(x)^p`); **`gx_iff`** (extraction succeeds iff the guards bind `x` or `x` is guarded in the filter); joint guard extraction `GXJ` (the corrected `Guards`, Fig. 5), `GXJ.sound`, **`gxj_iff`** (joint extraction succeeds iff all variables are guarded) |
 | `Rewrite.lean` | §4.3, Fig. 6 | rewrite judgement `Rw` (`↪^ℂ`/`↪^𝕊`), `TypeLet` targets; **local soundness** `Rw.sound` |
 | `Realize.lean` | §4.4, Alg. 3 | gating by `Cau_p`/`Sup_p`, realizations; `obligations_sound`, `program_sound` |
@@ -51,16 +51,15 @@ Dependency analysis (§4.5) and compilation (§4.6):
 | File | Main results |
 |---|---|
 | `Graph.lean` | finite graphs: the ancestor-count `rank` is monotone along paths and equal only within an SCC (`rank_mono_path`, `rank_eq_path`); the `level` w.r.t. strict edges not on cycles (`level_mono`, `level_strict`) |
-| `EDG.lean` | Event Dependency Graph (lets decomposed into their events); **`SCCOrder`**: the sections of `Compile(Γ, R, ≺)`, one per SCC in a topological order `≺` (`TopoOrdered`); **`stratified_of_topo`**: such sections are stratified; **`sccOrder_spec`**: an SCC order exists; `stratified_of_rank`, `sccSections` (coarser sections by rank); `once_ok` |
+| `EDG.lean` | Event Dependency Graph (lets decomposed into their events); **`SCCOrder`**: the sections of `Compile(Γ, R, ≺)`, one per SCC in a topological order `≺` (`TopoOrdered`); **`stratified_of_topo`**: such sections are stratified; **`sccOrder_spec`**: an SCC order exists; `once_ok` |
 | `Conflict.lean` | what the SMT check must establish (`Exclusive`: `ExclusiveNow` for immediate, `ExclusiveDeferred` for deferred causes) and its soundness despite accumulation of `C`/`S` over iterations: `conflictFree_of_exclusive`, `LoopRun.conflictFree` |
-| `Dataflow.lean` | termination when all effects are stable: `stable_terminates` |
+| `Dataflow.lean` | helpers for the termination argument: active domain, action arguments, finiteness of lists over a finite set (`finite_lists`) |
 | `AggImg.lean` | values produced by aggregations: `aggImg_finite` (finitely many values give finitely many aggregation results), the aggregation closure `aggClo` |
 | `DFG.lean` | Data-Flow Graph over argument positions, stable functions given by a finite stability closure (`StabOp`, `Term.stableIn`), non-stable edges through aggregations (`Clause.asrc`, `CloOp`); `dfg_terminates`: no non-stable edge on a cycle ⇒ fixpoint reached; `saturate_terminates` |
 | `Clauses.lean` | generated clauses are well-formed (`GoodClause`, **`Rw.good`**, `gate_good`, `lnf_letsWF`), hence the data-flow side conditions hold (`dfClause_of_good`) |
-| `Main.lean` | **`enforcer_sound_topo`** (sections in SCC order), `enforcer_sound_analysed`, `enforcer_sound_scc`: compilation correctness with the EDG order and conflict checks as the only assumptions on the program |
-| `EndToEnd.lean` | **`enforcement_correct`**: from an MFOTL policy `□φ` through let-normalization, compilation, and the loop program with concrete tables and a terminating `Saturate` (`satFn`, `tableParams_wf`), every output satisfies `□φ` |
+| `EndToEnd.lean` | `enforcer_sound_topo` (compilation correctness for a run of the loop, with sections in SCC order and the conflict check); **`enforcement_correct`**: from an MFOTL policy `□φ` through let-normalization, compilation, and the loop program with concrete tables and a terminating `Saturate` (`satFn`, `tableParams_wf`), every output satisfies `□φ` |
 | `TypeSystem.lean` | App. A | the type system of EF-MFOTL: `Typ` (`Γ ⊢ φ : α ▷ Δ`), `TypedLets`, `EFMFOTL`; **`typ_iff_rw`** (typing = rewriting), `exS_side_iff`, **`efmfotl_iff_compiles`** (typable iff there is a `Compilation`, with the same clause set) |
-| `Examples.lean` | a concrete derivation; counterexample to the original `Since` suppression rule; `φ_law`, `φ_del` (Ex. 2.3) as policies; `φ_agg` with `CNT` (Ex. 2.3); **Example A.4** (`φ_del ∈ EF-MFOTL`, hence compilable) |
+| `Examples.lean` | counterexample to the original `Since` suppression rule; `φ_law`, `φ_del` (Ex. 2.3) as policies; `φ_agg` with `CNT` (Ex. 2.3); **Example A.4** (`φ_del ∈ EF-MFOTL`, hence compilable) |
 | `Paper.lean` | all numbered claims of the paper, in paper order (see `PAPER.md`) |
 
 ## Main theorem

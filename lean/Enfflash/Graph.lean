@@ -39,13 +39,6 @@ theorem anc_finite (hE : FiniteGraph E) (y : α) : (anc E y).Finite := by
   · exact Set.mem_insert _ _
   · exact Set.mem_insert_of_mem _ (hEN _ _ hzw).1
 
-theorem anc_mono {x y : α} (h : E x y) : anc E x ⊆ anc E y :=
-  fun _ hz => ReflTransGen.tail hz h
-
-/-- The rank is monotone along edges. -/
-theorem rank_mono (hE : FiniteGraph E) {x y : α} (h : E x y) : rank E x ≤ rank E y :=
-  Set.ncard_le_ncard (anc_mono h) (anc_finite hE y)
-
 theorem anc_mono_path {x y : α} (h : ReflTransGen E x y) : anc E x ⊆ anc E y :=
   fun _ hz => hz.trans h
 
@@ -62,16 +55,6 @@ theorem rank_eq_path (hE : FiniteGraph E) {x y : α} (h : ReflTransGen E x y)
   have hy : y ∈ anc E y := ReflTransGen.refl
   rw [← hs] at hy
   exact hy
-
-/-- An edge between nodes of equal rank lies on a cycle (in an SCC). -/
-theorem rank_eq_scc (hE : FiniteGraph E) {x y : α} (h : E x y)
-    (heq : rank E x = rank E y) : ReflTransGen E y x := by
-  by_contra hyx
-  have hss : anc E x ⊂ anc E y :=
-    Set.ssubset_iff_subset_ne.2 ⟨anc_mono h, fun he =>
-      hyx (by have : y ∈ anc E y := ReflTransGen.refl; rw [← he] at this; exact this)⟩
-  have := Set.ncard_lt_ncard hss (anc_finite hE y)
-  unfold rank at heq; omega
 
 /-! ### Levels w.r.t. strict edges -/
 

@@ -1,0 +1,30 @@
+// B2 (no leak in subject):
+//   SendMoney(c,s,u,r,a) / Schedule(c,s,u,r,a,k) →
+//     ¬∃t. SubjTok(c,t) ∧ ⧫ Trusted(s,t) ∧ ¬⧫ UserMentions(s,t)
+//          ∧ ¬∃f. ⧫ (FromDoc(s,f,t) ∧ ⧫ UserDoc(s,f))
+// SubjTok(c,t) is recorded before the decision (same time point).
+// decide: SendMoney, Schedule
+// time-scale: 60
+
+@id("send")
+permit (principal, action == L::Action::"SendMoney", resource);
+@id("schedule")
+permit (principal, action == L::Action::"Schedule", resource);
+
+def temporal leaks(?c, ?s) {
+    exists (t: String). (
+        formerly within 36500d L::Action::"SubjTok"::state{ input.c: ?c, input.t: t }
+        && formerly within 36500d L::Action::"Trusted"::state{ input.s: ?s, input.v: t }
+        && !formerly within 36500d L::Action::"UserMentions"::state{ input.s: ?s, input.v: t }
+        && !(exists (f: String). formerly within 36500d (
+                L::Action::"FromDoc"::state{ input.s: ?s, input.f: f, input.v: t }
+                && formerly within 36500d L::Action::"UserDoc"::state{ input.s: ?s, input.f: f }))
+    )
+};
+
+@id("b2_send")
+forbid (principal, action == L::Action::"SendMoney", resource)
+when temporal { leaks(context.input.c, context.input.s) };
+@id("b2_schedule")
+forbid (principal, action == L::Action::"Schedule", resource)
+when temporal { leaks(context.input.c, context.input.s) };

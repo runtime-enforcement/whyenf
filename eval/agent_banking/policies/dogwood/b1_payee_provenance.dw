@@ -1,0 +1,26 @@
+// B1 (payee provenance):
+//   SendMoney(c,s,u,r,a) / Schedule(c,s,u,r,a,k) → ⧫ UserMentions(s,r) ∨ ⧫ Paid(u,r)
+//                                                 ∨ ∃f. ⧫ (FromDoc(s,f,r) ∧ ⧫ UserDoc(s,f))
+// One forbid per decided event; unbounded ⧫ becomes a 100-year window.
+// decide: SendMoney, Schedule
+// time-scale: 60
+
+@id("send")
+permit (principal, action == L::Action::"SendMoney", resource);
+@id("schedule")
+permit (principal, action == L::Action::"Schedule", resource);
+
+def temporal unknown_payee(?s, ?u, ?r) {
+    !formerly within 36500d L::Action::"UserMentions"::state{ input.s: ?s, input.v: ?r }
+    && !formerly within 36500d L::Action::"Paid"::state{ input.u: ?u, input.r: ?r }
+    && !(exists (f: String). formerly within 36500d (
+            L::Action::"FromDoc"::state{ input.s: ?s, input.f: f, input.v: ?r }
+            && formerly within 36500d L::Action::"UserDoc"::state{ input.s: ?s, input.f: f }))
+};
+
+@id("b1_send")
+forbid (principal, action == L::Action::"SendMoney", resource)
+when temporal { unknown_payee(context.input.s, context.input.u, context.input.r) };
+@id("b1_schedule")
+forbid (principal, action == L::Action::"Schedule", resource)
+when temporal { unknown_payee(context.input.s, context.input.u, context.input.r) };

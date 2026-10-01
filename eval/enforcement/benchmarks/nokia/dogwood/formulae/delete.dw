@@ -1,0 +1,6 @@
+// nokia/delete:  □ ∀user, data. delete(user, "db2", data) → user = "script"
+// decide: delete
+
+@id("delete")
+permit (principal, action == L::Action::"delete", resource)
+unless { context.input.db == "db2" && context.input.user != "script" };

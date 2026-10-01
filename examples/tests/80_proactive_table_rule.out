@@ -1,0 +1,22 @@
+[Enforcer] @10 reactively commands:
+Cause:
+B(2)
+OK.
+[Enforcer] @10 nothing to do proactively.
+[Enforcer] @11 nothing to do proactively.
+[Enforcer] @12 nothing to do proactively.
+[Enforcer] @13 nothing to do proactively.
+[Enforcer] @14 nothing to do proactively.
+[Enforcer] @15 proactively commands:
+Cause:
+B(1), B(2)
+OK.
+[Enforcer] @16 nothing to do proactively.
+[Enforcer] @17 nothing to do proactively.
+[Enforcer] @18 nothing to do proactively.
+[Enforcer] @19 nothing to do proactively.
+[Enforcer] @20 reactively commands:
+Cause:
+B(2)
+OK.
+[Enforcer] @20 nothing to do proactively.

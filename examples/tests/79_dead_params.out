@@ -1,0 +1,12 @@
+[Enforcer] @0 reactively commands:
+Suppress:
+h("d1", "x")
+OK.
+[Enforcer] @0 nothing to do proactively.
+[Enforcer] @1 OK.
+[Enforcer] @1 nothing to do proactively.
+[Enforcer] @2 reactively commands:
+Suppress:
+h("d3", "y")
+OK.
+[Enforcer] @2 nothing to do proactively.

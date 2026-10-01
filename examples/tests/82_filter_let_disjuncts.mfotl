@@ -1,0 +1,6 @@
+(LET Allowed(s, u, r) = (ONCE UserMentions(s, r)) OR (ONCE Paid(u, r))
+                       OR (EXISTS f. ONCE (FromDoc(s, f, r) AND ONCE UserDoc(s, f))) IN
+ALWAYS (FORALL c, s, u, r, a. SendMoney(c, s, u, r, a) IMPLIES Allowed(s, u, r)))
+AND (LET Known(u, r) = (ONCE Paid(u, r)) OR ONCE[1,*] (EXISTS c2, s2, a2. SendMoney(c2, s2, u, r, a2)) IN
+ALWAYS (FORALL c, s, u, r, a. (SendMoney(c, s, u, r, a) AND NOT (ONCE UserMentions(s, r)) AND NOT Known(u, r))
+  IMPLIES (EXISTS f. ONCE (FromDoc(s, f, r) AND ONCE UserDoc(s, f)) AND ONCE DocAmount(s, f, a))))

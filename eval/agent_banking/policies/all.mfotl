@@ -1,0 +1,41 @@
+(LET Allowed(s, u, r) = (ONCE UserMentions(s, r)) OR (ONCE Paid(u, r))
+                       OR (EXISTS f. ONCE (FromDoc(s, f, r) AND ONCE UserDoc(s, f))) IN
+(ALWAYS (FORALL c, s, u, r, a. SendMoney(c, s, u, r, a) IMPLIES Allowed(s, u, r)))
+AND (ALWAYS (FORALL c, s, u, r, a, k. Schedule(c, s, u, r, a, k) IMPLIES Allowed(s, u, r))))
+AND
+(LET Supplied(s, t) = (ONCE UserMentions(s, t)) OR (EXISTS f. ONCE (FromDoc(s, f, t) AND ONCE UserDoc(s, f))) IN
+LET Leaks(c, s) = EXISTS t. SubjTok(c, t) AND (ONCE Trusted(s, t)) AND NOT Supplied(s, t) IN
+(ALWAYS (FORALL c, s, u, r, a. SendMoney(c, s, u, r, a) IMPLIES NOT Leaks(c, s)))
+AND (ALWAYS (FORALL c, s, u, r, a, k. Schedule(c, s, u, r, a, k) IMPLIES NOT Leaks(c, s))))
+AND
+(ALWAYS (FORALL c, s, u, r, a. SendMoney(c, s, u, r, a) IMPLIES
+  (a <= 1000000 AND NOT (EXISTS t. (t <- SUM(a2; u, r; ONCE[1,1440] (EXISTS c2, s2. SendMoney(c2, s2, u, r, a2)))) AND t + a > 1000000))))
+AND
+(ALWAYS (FORALL c, s, u, r, a. SendMoney(c, s, u, r, a) IMPLIES
+  NOT (EXISTS n. (n <- CNT(c2; u; ONCE[1,60] (EXISTS s2, r2, a2. SendMoney(c2, s2, u, r2, a2)))) AND n >= 2)))
+AND
+((ALWAYS (FORALL c, s, u, i, r. Redirect(c, s, u, i, r) IMPLIES ONCE UserMentions(s, r)))
+AND (ALWAYS (FORALL c, s, u, i, r. Redirect(c, s, u, i, r) IMPLIES:R Notify(u, "redirect"))))
+AND
+((ALWAYS (FORALL c, s, u, p. UpdatePassword(c, s, u, p) IMPLIES ONCE UserMentions(s, p)))
+AND (ALWAYS (FORALL c, s, u, p. UpdatePassword(c, s, u, p) IMPLIES:R Notify(u, "password"))))
+AND
+(LET CredChange(u) = EXISTS c2, s2. UpdateUserInfo(c2, s2, u) OR (EXISTS p. UpdatePassword(c2, s2, u, p)) IN
+LET Known(u, r) = (ONCE Paid(u, r)) OR ONCE[1,*] (EXISTS c2, s2, a2. SendMoney(c2, s2, u, r, a2)) IN
+ALWAYS (FORALL c, s, u, r, a. (SendMoney(c, s, u, r, a) AND ONCE[0,1440] CredChange(u)) IMPLIES Known(u, r)))
+AND
+(LET Quarantined(s) = ONCE[0,60] Blocked(s) IN
+(ALWAYS (FORALL c, s, u, r, a. SendMoney(c, s, u, r, a) IMPLIES NOT Quarantined(s)))
+AND (ALWAYS (FORALL c, s, u, r, a, k. Schedule(c, s, u, r, a, k) IMPLIES NOT Quarantined(s)))
+AND (ALWAYS (FORALL c, s, u, i, r. Redirect(c, s, u, i, r) IMPLIES NOT Quarantined(s)))
+AND (ALWAYS (FORALL c, s, u, i, a. Amend(c, s, u, i, a) IMPLIES NOT Quarantined(s)))
+AND (ALWAYS (FORALL c, s, u, p. UpdatePassword(c, s, u, p) IMPLIES NOT Quarantined(s)))
+AND (ALWAYS (FORALL c, s, u. UpdateUserInfo(c, s, u) IMPLIES NOT Quarantined(s)))
+AND (ALWAYS (FORALL s. (Blocked(s) AND NOT ONCE[1,*] Blocked(s)) IMPLIES:R Escalate(s))))
+AND
+((ALWAYS (FORALL c, s, u, r, a. (SendMoney(c, s, u, r, a) AND a > 100000) IMPLIES:R Audit(u, r, a)))
+AND (ALWAYS (FORALL c, s, u, r, a, k. (Schedule(c, s, u, r, a, k) AND k = 1) IMPLIES:R Audit(u, r, a))))
+AND
+(LET Known(u, r) = (ONCE Paid(u, r)) OR ONCE[1,*] (EXISTS c2, s2, a2. SendMoney(c2, s2, u, r, a2)) IN
+ALWAYS (FORALL c, s, u, r, a. (SendMoney(c, s, u, r, a) AND NOT (ONCE UserMentions(s, r)) AND NOT Known(u, r))
+  IMPLIES (EXISTS f. ONCE (FromDoc(s, f, r) AND ONCE UserDoc(s, f)) AND ONCE DocAmount(s, f, a))))

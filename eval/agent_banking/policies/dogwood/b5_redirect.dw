@@ -1,0 +1,15 @@
+// B5 (standing-order redirect), suppression part only (Dogwood cannot cause
+// the notification Notify(u, "redirect")):
+//   Redirect(c,s,u,i,r) → ⧫ UserMentions(s,r)
+// decide: Redirect
+// time-scale: 60
+
+@id("redirect")
+permit (principal, action == L::Action::"Redirect", resource);
+
+@id("b5")
+forbid (principal, action == L::Action::"Redirect", resource)
+when temporal {
+    !formerly within 36500d L::Action::"UserMentions"::state{
+        input.s: context.input.s, input.v: context.input.r }
+};

@@ -12,3 +12,4 @@ val filter: bool ref
 val memo: bool ref
 val unroll_all: bool ref
 val print_normal_form: bool ref
+val fix_since: bool ref

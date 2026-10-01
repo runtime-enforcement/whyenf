@@ -51,23 +51,6 @@ theorem LoopRun.clauses_hold {P : Program B L D} {σ : Tr B L D} {v₀ : ℕ →
     rw [R.db (j + n)]
     exact Or.inr ((R.run (j + n)).mono hin)
 
-/-! ### Conflict freedom from polarity consistency
-
-The paper discharges cause/suppress conflicts with an SMT check.  A simple
-sufficient condition (which is what the check establishes for the running
-example, Figure 7): no event name is suppressed by one rule and caused (now or
-later) by another, and no due obligation is suppressed. -/
-
-theorem Effect.suppresses_of_act {ε : Effect B L D} {w : ℕ → D} {x : Ev B L × List D}
-    (h : Act.sup x = ε.act w) : ε.suppresses = some x.1 := by
-  cases ε <;> simp only [Effect.act, reduceCtorEq, Act.sup.injEq] at h
-  subst h; rfl
-
-theorem Effect.causes_of_act {ε : Effect B L D} {w : ℕ → D} {x : Ev B L × List D}
-    (h : Act.cau x = ε.act w) : ε.causes = some x.1 := by
-  cases ε <;> simp only [Effect.act, reduceCtorEq, Act.cau.injEq] at h
-  subst h; rfl
-
 theorem iterate_src (K : Ctx B L D) (D₀ : DB B L D) (sec : List (Clause B L D)) :
     ∀ (n : ℕ) (X : Set (Act B L D)), ∀ a ∈ (step K D₀ sec)^[n] X,
       a ∈ X ∨ ∃ c ∈ sec, ∃ w, a = c.eff.act w
@@ -90,21 +73,6 @@ theorem SatRun.src {K : Ctx B L D} {D₀ : DB B L D} {secs X Z} (h : SatRun K D�
       · exact Or.inl hx
       · exact Or.inr ⟨sec, List.mem_cons_self .., c, hc, w, rfl⟩
     · exact Or.inr ⟨s, List.mem_cons_of_mem _ hs, c, hc, w, rfl⟩
-
-theorem conflictFree_of_polarity {K : Ctx B L D} {D₀ : DB B L D} {secs X Z}
-    (h : SatRun K D₀ secs X Z)
-    (hpol : ∀ sec ∈ secs, ∀ c ∈ sec, ∀ e, c.eff.suppresses = some e →
-      ∀ sec' ∈ secs, ∀ c' ∈ sec', c'.eff.causes ≠ some e)
-    (hX : ∀ x, Act.sup x ∉ X)
-    (hXc : ∀ x, Act.cau x ∈ X → ∀ sec ∈ secs, ∀ c ∈ sec, c.eff.suppresses ≠ some x.1) :
-    ConflictFree Z := by
-  rintro x ⟨hc, hs⟩
-  rcases h.src _ hs with hs | ⟨sec, hsec, c, hcs, w, hw⟩
-  · exact hX x hs
-  · have hsupp := Effect.suppresses_of_act hw
-    rcases h.src _ hc with hc | ⟨sec', hsec', c', hcs', w', hw'⟩
-    · exact hXc x hc sec hsec c hcs hsupp
-    · exact hpol sec hsec c hcs x.1 hsupp sec' hsec' c' hcs' (Effect.causes_of_act hw')
 
 /-! ### Main theorem -/
 

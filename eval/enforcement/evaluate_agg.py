@@ -24,6 +24,7 @@ def have(exe: str) -> bool:
 #   * whyenf   : the WhyEnf enforcer (symlink -> ~/Tools/whyenf/bin/whyenf.exe).
 #   * enfpoly  : the Enfpoly fork of MonPoly (symlink -> ~/Tools/monpoly/monpoly).
 TOOLS = [
+    ('dogwood',  './dogwood.exe'),   # supported formulae only (benchmarks/*/dogwood)
     ('enfflash', './enfflash.exe'),
     ('enfguard', './enfguard.exe'),
     ('monpoly',  './monpoly.exe'),

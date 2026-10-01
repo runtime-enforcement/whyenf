@@ -1,0 +1,1 @@
+ALWAYS (NOT C(3) AND (FORALL n. (ONCE (n <- CNT(x; ; ONCE C(x)))) IMPLIES B(n)))

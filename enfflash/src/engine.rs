@@ -171,90 +171,64 @@ fn collect_filter_refs(
     }
 }
 
-/// Transitive closure: all event types that let-def `name` depends on.
-fn transitive_event_deps(
-    name: &str,
-    direct_events: &HashMap<String, BTreeSet<String>>,
-    direct_deps:   &HashMap<String, BTreeSet<String>>,
-    cache:         &mut HashMap<String, BTreeSet<String>>,
-) -> BTreeSet<String> {
-    if let Some(c) = cache.get(name) { return c.clone(); }
-    cache.insert(name.to_string(), BTreeSet::new()); // break cycles
-    let mut all = direct_events.get(name).cloned().unwrap_or_default();
-    for dep in direct_deps.get(name).cloned().unwrap_or_default() {
-        all.extend(transitive_event_deps(&dep, direct_events, direct_deps, cache));
-    }
-    cache.insert(name.to_string(), all.clone());
-    all
-}
-
-/// Build `event → tables`, `event → lets` and `event → rules` dependency maps.
-/// The first two drive incremental table/let updates when new events are caused
-/// at runtime; the third drives delta evaluation in the fixpoint loop (only
-/// rules whose trigger transitively reads a newly-caused event type need
-/// re-evaluation).
-fn build_event_dep_maps(
-    program:     &Program,
-    event_names: &BTreeSet<String>,
-) -> (HashMap<String, Vec<String>>, HashMap<String, Vec<String>>, HashMap<String, Vec<usize>>) {
-    // Direct deps for each let-def
-    let mut let_direct_ev:  HashMap<String, BTreeSet<String>> = HashMap::default();
-    let mut let_direct_dep: HashMap<String, BTreeSet<String>> = HashMap::default();
-    for ld in &program.let_defs {
-        let (evs, deps) = collect_clause_refs(&ld.clause, event_names);
-        let_direct_ev.insert(ld.name.clone(), evs);
-        let_direct_dep.insert(ld.name.clone(), deps);
-    }
-
-    // Transitive event deps per let-def
-    let mut tc: HashMap<String, BTreeSet<String>> = HashMap::default();
-    let mut let_all_ev: HashMap<String, BTreeSet<String>> = HashMap::default();
-    for ld in &program.let_defs {
-        let all = transitive_event_deps(&ld.name, &let_direct_ev, &let_direct_dep, &mut tc);
-        let_all_ev.insert(ld.name.clone(), all);
-    }
-
-    // event → lets
-    let mut event_to_lets: HashMap<String, Vec<String>> = HashMap::default();
-    for (let_name, evs) in &let_all_ev {
-        for ev in evs {
-            event_to_lets.entry(ev.clone()).or_default().push(let_name.clone());
-        }
-    }
-
-    // event → tables (direct + via lets)
-    let mut event_to_tables: HashMap<String, Vec<String>> = HashMap::default();
-    let mut table_all_ev: HashMap<String, BTreeSet<String>> = HashMap::default();
-    for td in &program.tables {
-        let mut tev: BTreeSet<String> = BTreeSet::new();
-        for clause in std::iter::once(&td.add_clause).chain(td.remove_clause.iter()) {
-            let (direct_evs, direct_deps) = collect_clause_refs(clause, event_names);
-            tev.extend(direct_evs);
-            for dep in &direct_deps {
-                if let Some(le) = let_all_ev.get(dep) { tev.extend(le.iter().cloned()); }
+/// The non-incremental aggregation lets that are never enumerated, i.e. never
+/// a guard pattern of a rule, a table, an aggregation or a materialized let.
+/// Filter lookups and the guards of filter lets bind (some of) their
+/// arguments first, so they can compute just the groups they ask for.
+fn on_demand_aggs(program: &Program) -> HashSet<String> {
+    let mut enumerated: HashSet<String> = HashSet::default();
+    let mut add = |clause: &Clause| {
+        for conj in &clause.patterns {
+            for g in conj {
+                if let GuardPattern::Event(pat) = g { enumerated.insert(pat.name.clone()); }
             }
         }
-        for ev in &tev {
-            event_to_tables.entry(ev.clone()).or_default().push(td.name.clone());
-        }
-        table_all_ev.insert(td.name.clone(), tev);
+    };
+    for r in &program.rules { add(&r.trigger); }
+    for ld in &program.let_defs { if !ld.is_filter { add(&ld.clause); } }
+    for ad in &program.agg_lets { add(&ad.clause); }
+    for td in &program.top_lets { add(&td.clause); }
+    for td in &program.tables {
+        add(&td.add_clause);
+        if let Some(rc) = &td.remove_clause { add(rc); }
     }
+    program.agg_lets.iter()
+        // Without group columns there is one group, computed once per time-point.
+        .filter(|ad| ad.incremental.is_none() && !ad.groups.is_empty()
+                && !enumerated.contains(&ad.name))
+        .map(|ad| ad.name.clone())
+        .collect()
+}
 
-    // event → rules: a rule transitively reads an event type if its trigger
-    // names it directly, or references a table/let whose contents depend on it.
-    let mut event_to_rules: HashMap<String, Vec<usize>> = HashMap::default();
+/// Build the reverse dependency graph: for every event, let or table name, the
+/// lets and tables whose clauses read it directly, and the rules whose trigger
+/// reads it directly.
+fn build_reader_maps(
+    program:     &Program,
+    event_names: &BTreeSet<String>,
+) -> (HashMap<String, Vec<String>>, HashMap<String, Vec<usize>>) {
+    let mut readers: HashMap<String, Vec<String>> = HashMap::default();
+    let mut add = |reader: &str, clause: &Clause| {
+        let (evs, others) = collect_clause_refs(clause, event_names);
+        for n in evs.into_iter().chain(others) {
+            readers.entry(n).or_default().push(reader.to_string());
+        }
+    };
+    for ld in &program.let_defs { add(&ld.name, &ld.clause); }
+    for ad in &program.agg_lets { add(&ad.name, &ad.clause); }
+    for td in &program.top_lets { add(&td.name, &td.clause); }
+    for td in &program.tables {
+        add(&td.name, &td.add_clause);
+        if let Some(rc) = &td.remove_clause { add(&td.name, rc); }
+    }
+    let mut rule_readers: HashMap<String, Vec<usize>> = HashMap::default();
     for (idx, rule) in program.rules.iter().enumerate() {
-        let (mut all_ev, others) = collect_clause_refs(&rule.trigger, event_names);
-        for dep in &others {
-            if let Some(le) = let_all_ev.get(dep)   { all_ev.extend(le.iter().cloned()); }
-            if let Some(te) = table_all_ev.get(dep) { all_ev.extend(te.iter().cloned()); }
-        }
-        for ev in &all_ev {
-            event_to_rules.entry(ev.clone()).or_default().push(idx);
+        let (evs, others) = collect_clause_refs(&rule.trigger, event_names);
+        for n in evs.into_iter().chain(others) {
+            rule_readers.entry(n).or_default().push(idx);
         }
     }
-
-    (event_to_tables, event_to_lets, event_to_rules)
+    (readers, rule_readers)
 }
 
 // ─── Precomputed let-dep helpers ─────────────────────────────────────────────
@@ -416,6 +390,23 @@ pub(crate) struct Obligation {
     labels: Vec<String>,
 }
 
+/// The working state of one run of `Saturate`: the working set
+/// R = T ∪ (D∖S) ∪ C and the actions taken so far.
+struct Saturation {
+    working_events: Vec<EventInstance>,
+    /// Labels per event in the working set (label stack).
+    working_labels: HashMap<(String, Vec<Value>), Vec<String>>,
+    /// Events present or caused so far (never caused again).
+    caused_set: HashSet<(String, Vec<Value>)>,
+    suppressed_set: HashSet<(String, Vec<Value>)>,
+    all_cause: Vec<(EventInstance, Vec<String>)>,
+    all_suppress: Vec<(EventInstance, Vec<String>)>,
+    /// `working_events[..last_processed]` are reflected in the tables and lets.
+    last_processed: usize,
+    /// Names of events suppressed since the last re-derivation.
+    removed_names: HashSet<String>,
+}
+
 pub struct Engine {
     pub program: Program,
     pub tables: HashMap<String, Table>,
@@ -471,12 +462,10 @@ pub struct Engine {
     waves: Vec<Vec<crate::sections::Section>>,
     /// If true, ignore wave/section structure and run all rules as one sequential fixpoint.
     flat_mode: bool,
-    /// event_name → table names that need updating when that event type is caused
-    event_to_tables: HashMap<String, Vec<String>>,
-    /// event_name → let-def names to invalidate when that event type is caused
-    event_to_lets: HashMap<String, Vec<String>>,
-    /// event_name → rule indices whose trigger transitively reads that event type
-    event_to_rules: HashMap<String, Vec<usize>>,
+    /// event, let or table name → the lets and tables whose clauses read it directly.
+    readers: HashMap<String, Vec<String>>,
+    /// event, let or table name → the rules whose trigger reads it directly.
+    rule_readers: HashMap<String, Vec<usize>>,
     /// Precomputed: direct let-def names each rule's trigger clause references.
     rule_let_deps: Vec<Vec<String>>,
     /// Precomputed: direct let-def names each let-def's body clause references.
@@ -491,6 +480,13 @@ pub struct Engine {
     /// Persistent state for incremental (O(1)) aggregations over unbounded Once:
     /// agg-let name → (per-group accumulator, set of already-folded Once rows).
     agg_state: HashMap<String, AggAccumState>,
+    /// Whether the aggregation states track their changes (between
+    /// `arm_tables` and `disarm_tables`).
+    aggs_armed: bool,
+    /// Non-incremental aggregation lets that no rule, table or materialized
+    /// let enumerates: they are never materialized; a lookup computes the
+    /// group(s) it asks for on demand (see [`Engine::agg_rows_on_demand`]).
+    agg_on_demand: HashSet<String>,
     /// Current time (verbose mode)
     current_time: std::time::SystemTime
 }
@@ -511,6 +507,50 @@ struct GroupAccum {
 struct AggAccumState {
     groups: HashMap<Vec<Value>, GroupAccum>,
     seen: HashSet<Row>,
+    /// Pre-image since the start of the current time-point (`None`: not
+    /// tracking), so that the rows folded in it can be withdrawn when the
+    /// source table is re-derived (see `Engine::rederive`).
+    undo: Option<AggUndo>,
+}
+
+/// What to undo in an [`AggAccumState`]: each touched group's value before its
+/// first fold (`None`: the group was absent), and the rows folded.
+#[derive(Debug, Clone, Default)]
+struct AggUndo {
+    groups: HashMap<Vec<Value>, Option<GroupAccum>>,
+    seen: Vec<Row>,
+}
+
+impl AggAccumState {
+    /// Record that `row` has been folded.
+    fn see(&mut self, row: Row) {
+        if self.seen.insert(row.clone()) {
+            if let Some(u) = &mut self.undo { u.seen.push(row); }
+        }
+    }
+
+    /// Fold `v` into the group `key`.
+    fn fold(&mut self, key: Vec<Value>, v: &Value) {
+        if let Some(u) = &mut self.undo {
+            if !u.groups.contains_key(&key) {
+                u.groups.insert(key.clone(), self.groups.get(&key).cloned());
+            }
+        }
+        self.groups.entry(key).or_default().fold(v);
+    }
+
+    /// Return to the state at the start of the time-point; keep tracking.
+    fn restore(&mut self) {
+        let Some(u) = self.undo.take() else { return; };
+        for row in &u.seen { self.seen.remove(row); }
+        for (key, pre) in u.groups {
+            match pre {
+                Some(acc) => { self.groups.insert(key, acc); }
+                None => { self.groups.remove(&key); }
+            }
+        }
+        self.undo = Some(AggUndo::default());
+    }
 }
 
 #[inline]
@@ -755,7 +795,8 @@ impl Engine {
                     .collect())
                 .collect()
         };
-        let (event_to_tables, event_to_lets, event_to_rules) = build_event_dep_maps(&program, &event_names);
+        let (readers, rule_readers) = build_reader_maps(&program, &event_names);
+        let agg_on_demand = on_demand_aggs(&program);
 
         // Precompute let deps so the hot-path rule loop avoids per-iteration AST traversal.
         // Every on-demand-computed definition: plain lets + aggregation lets +
@@ -789,15 +830,16 @@ impl Engine {
             py_functions,
             waves,
             flat_mode,
-            event_to_tables,
-            event_to_lets,
-            event_to_rules,
+            readers,
+            rule_readers,
             rule_let_deps,
             let_let_deps,
             agg_lets,
             top_lets,
             tfun_functions,
             agg_state: HashMap::default(),
+            aggs_armed: false,
+            agg_on_demand,
             obligations: HashMap::default(),
             next_tp_obligations: Vec::new(),
             current_ts: None,
@@ -957,6 +999,15 @@ impl Engine {
         self.current_ts = state.current_ts;
         self.last_proactive_ts = state.last_proactive_ts;
         self.tp_counter = state.tp_counter;
+        // column_indexes is #[serde(skip)]: rebuild the per-column hash indexes
+        // now, so the first lookup after restore is an O(1) index probe instead
+        // of a full linear scan over every row of every table.
+        for table in self.tables.values_mut() {
+            table.rebuild_indexes();
+        }
+        for let_table in self.let_tables.values_mut() {
+            let_table.rebuild_indexes();
+        }
         eprintln!("[enfflash] State loaded from {}", path);
     }
 
@@ -1056,10 +1107,10 @@ impl Engine {
         vlog!(self, "── Phase 1: update non-lagged tables and let-defs ──");
         let phase1_start = Instant::now();
         self.let_computed.clear();
-        // Snapshot the (non-lagged) tables fed by input events that some rule
-        // may suppress: if such an event is suppressed, these tables are rebuilt
-        // on the working set (D ∖ S) ∪ C (Algorithm Saturate).
-        let table_snapshot = self.snapshot_suppressable_tables(&tp.events);
+        // Checkpoint the non-lagged tables before this time-point's update: when
+        // events are caused or suppressed, the tables reading them are
+        // re-derived from there on the working set (D ∖ S) ∪ C (see `rederive`).
+        self.arm_tables();
         self.update_tables_and_lets(&tp.events, false);
         let phase1_elapsed = phase1_start.elapsed();
 
@@ -1075,7 +1126,7 @@ impl Engine {
         let mut working_events: Vec<EventInstance> = tp.events.clone();
         // Track labels per event in the working set so that labels propagate
         // through the causal chain (label stack).
-        let mut working_labels: HashMap<(String, Vec<Value>), Vec<String>> =
+        let working_labels: HashMap<(String, Vec<Value>), Vec<String>> =
             HashMap::default();
         // Track which (event_name, args) pairs we've already produced to detect
         // new additions.  Pre-populate with the timepoint's own events so that
@@ -1093,6 +1144,7 @@ impl Engine {
         // are decremented and re-queued (into the now-emptied vector, so they are
         // not re-processed this round); only those reaching 0 fire here.
         let pending_next: Vec<Obligation> = std::mem::take(&mut self.next_tp_obligations);
+        let mut obligation_suppressed: Vec<EventInstance> = Vec::new();
         for mut ob in pending_next {
             if ob.deadline > 1 {
                 ob.deadline -= 1;
@@ -1124,6 +1176,7 @@ impl Engine {
                         let key = (ob.event.name.clone(), ob.event.args.clone());
                         if caused_set.contains(&key) && !suppressed_set.contains(&key) {
                             suppressed_set.insert(key);
+                            obligation_suppressed.push(ob.event.clone());
                             all_suppress.push((ob.event, ob.labels));
                         }
                     }
@@ -1139,6 +1192,113 @@ impl Engine {
         // Names of events suppressed (and removed from the working set) since
         // the last table/rule refresh.
         let mut removed_names: HashSet<String> = HashSet::default();
+        // Events suppressed by due obligations leave the working set too, as
+        // those suppressed by rules below do (R₀ = T ∪ (D∖S) ∪ C).
+        for ev in obligation_suppressed {
+            if let Some(pos) = working_events.iter()
+                .position(|e| e.name == ev.name && e.args == ev.args) {
+                working_events.remove(pos);
+                if pos < last_processed { last_processed -= 1; }
+                removed_names.insert(ev.name);
+            }
+        }
+
+        let mut sat = Saturation {
+            working_events, working_labels, caused_set, suppressed_set,
+            all_cause, all_suppress, last_processed, removed_names,
+        };
+        self.saturate(&mut sat, false);
+        let Saturation { working_events, suppressed_set, all_cause, all_suppress, .. } = sat;
+
+        let phase2_elapsed = phase2_start.elapsed();
+
+        // Level-2: print full summary of reactive enforcement decisions
+        if self.verbose_level >= 2 {
+            eprintln!("  ┌─ Reactive summary @{} ─", new_ts);
+            if all_suppress.is_empty() && all_cause.is_empty() {
+                eprintln!("  │ (no enforcement actions)");
+            }
+            for (ev, _) in &all_suppress {
+                if !ev.name.starts_with("Cau_") && !ev.name.starts_with("Sup_") {
+                    eprintln!("  │ SUPPRESS {}", ev);
+                }
+            }
+            for (ev, _) in &all_cause {
+                if !ev.name.starts_with("Cau_") && !ev.name.starts_with("Sup_") {
+                    eprintln!("  │ CAUSE {}", ev);
+                }
+            }
+            // Internal Cau_/Sup_ events (condensed)
+            let n_internal_cau = all_cause.iter().filter(|(ev, _)| ev.name.starts_with("Cau_") || ev.name.starts_with("Sup_")).count();
+            let n_internal_sup = all_suppress.iter().filter(|(ev, _)| ev.name.starts_with("Cau_") || ev.name.starts_with("Sup_")).count();
+            if n_internal_cau > 0 || n_internal_sup > 0 {
+                eprintln!("  │ ({} internal cause, {} internal suppress)", n_internal_cau, n_internal_sup);
+            }
+            eprintln!("  └─────────────────────────────");
+        }
+
+        // (Tables are now updated during the fixpoint, no separate Phase 2a needed)
+
+        // Proactive output is deferred: it will be emitted when the timestamp
+        // actually advances (or at finish()), so that multiple TPs at the same
+        // timestamp produce only one proactive line.
+        let phase2b_start = Instant::now();
+        let phase2b_elapsed = phase2b_start.elapsed();
+
+        // 3. Update lagged tables
+        vlog!(self, "── Phase 3: update lagged tables ──");
+        let phase3_start = Instant::now();
+        // Lagged tables compute any let-bindings they reach on demand; lets
+        // already memoized during the fixpoint above are reused as-is.
+        // A lagged (Prev) table reflects only the immediately-preceding
+        // time-point, so clear it before repopulating with this time-point's
+        // events, and record this timestamp as the anchor for the next
+        // time-point's gap check.
+        for table in self.tables.values_mut() {
+            if table.lagged {
+                table.clear();
+                table.prev_ts = Some(new_ts);
+            }
+        }
+        // The lagged tables describe this time-point of the *output* trace:
+        // its events after enforcement, (D ∖ S) ∪ C, not the input events.
+        let final_events: Vec<EventInstance> = working_events.iter()
+            .filter(|e| !suppressed_set.contains(&(e.name.clone(), e.args.clone())))
+            .cloned().collect();
+        self.update_tables_and_lets(&final_events, true);
+        let phase3_elapsed = phase3_start.elapsed();
+
+        // Emit reactive output now that all phases are done, so we can include accurate timing.
+        let total_elapsed = phase1_elapsed + phase2_elapsed + phase2b_elapsed + phase3_elapsed;
+        self.collect_output(&all_suppress, &all_cause, false, Some(total_elapsed.as_nanos() as u64));
+        if self.sync_mode {
+            // Print the buffered reactive output immediately, then the sync marker.
+            // (Subprocess mode: output must reach the orchestrator before we block.)
+            let outputs = std::mem::take(&mut self.output_buffer);
+            self.print_outputs(&outputs);
+            println!("{{\"sync\":true}}");
+        }
+
+        if self.verbose_mode {
+            eprintln!("── Timing @{}: total {:.1?} │ P1(tables+lets) {:.1?} │ P2(fixpoint) {:.1?} │ P2b(obligations) {:.1?} │ P3(lagged) {:.1?}",
+                new_ts, total_elapsed, phase1_elapsed, phase2_elapsed, phase2b_elapsed, phase3_elapsed);
+            self.print_stats();
+        }
+    }
+
+    /// `Saturate` (Algorithm 2): run the sections in order, each to a fixpoint,
+    /// on the working set R = T ∪ (D∖S) ∪ C held in `sat`, then commit the
+    /// tables.  The tables must be armed (`arm_tables`) and reflect
+    /// `sat.working_events[..sat.last_processed]`.  Used by both μ and ν.
+    fn saturate(&mut self, sat: &mut Saturation, proactive: bool) {
+        let mut working_events = std::mem::take(&mut sat.working_events);
+        let mut working_labels = std::mem::take(&mut sat.working_labels);
+        let mut caused_set = std::mem::take(&mut sat.caused_set);
+        let mut suppressed_set = std::mem::take(&mut sat.suppressed_set);
+        let mut all_cause = std::mem::take(&mut sat.all_cause);
+        let mut all_suppress = std::mem::take(&mut sat.all_suppress);
+        let mut last_processed = sat.last_processed;
+        let mut removed_names = std::mem::take(&mut sat.removed_names);
 
         const MAX_ITERATIONS: usize = 100;
 
@@ -1163,54 +1323,31 @@ impl Engine {
         for wave in eval_waves {
           for sec in wave {
           let max_passes = if sec.recursive { MAX_ITERATIONS } else { 1 };
+          // Rules that read something changed since they were last evaluated.
+          let mut pending_rules: HashSet<usize> = HashSet::default();
+          let mut fixed = !sec.recursive;
           for _iteration in 0..max_passes {
             let iter_start = Instant::now();
 
-            // Incremental update: only process events added since last update.
-            // Look up which tables/lets are affected by each new event type and
-            // update only those — instead of rescanning all 100+ tables each time.
+            // Events caused or suppressed since the last pass: re-derive only
+            // the tables and lets that depend on them (see `rederive`).
             // Delta evaluation: after the first pass, only rules whose trigger
-            // transitively reads one of the newly-added event types can produce
-            // new bindings — unaffected rules would re-derive the exact same
-            // events, which the caused/suppressed dedup sets discard anyway.
-            let mut affected_rules: Option<HashSet<usize>> = None;
-            if working_events.len() > last_processed {
-                let mut aff_tables: HashSet<String> = HashSet::default();
-                let mut aff_lets:   HashSet<String> = HashSet::default();
-                let mut aff_rules:  HashSet<usize>  = HashSet::default();
-                for ev in &working_events[last_processed..] {
-                    if let Some(ts) = self.event_to_tables.get(&ev.name) {
-                        for t in ts { aff_tables.insert(t.clone()); }
-                    }
-                    if let Some(ls) = self.event_to_lets.get(&ev.name) {
-                        for l in ls { aff_lets.insert(l.clone()); }
-                    }
-                    if let Some(rs) = self.event_to_rules.get(&ev.name) {
-                        aff_rules.extend(rs.iter().copied());
-                    }
-                }
-                for l in &aff_lets { self.let_computed.remove(l); }
-                // Algorithm Saturate evaluates each definition's value R_i(p_i)
-                // afresh every pass over R = T ∪ (D∖S) ∪ C, so a `table` def's
-                // value reflects the events caused so far in this fixpoint.  We
-                // realise that per-pass re-derivation incrementally: commit the
-                // newly-caused events into the (persistent) table now so later
-                // rules in the same fixpoint read the updated value.  The same
-                // store doubles as the algorithm's persistent T(p_i), which is
-                // what carries to the next time-point.
-                if !aff_tables.is_empty() {
-                    self.update_tables_and_lets_filtered(&working_events, false, Some(&aff_tables));
-                }
+            // transitively reads something changed since the start of the
+            // previous pass can produce new bindings — unaffected rules would
+            // re-derive the exact same events, which the caused/suppressed
+            // dedup sets discard anyway.
+            if working_events.len() > last_processed || !removed_names.is_empty() {
+                let mut changed: HashSet<String> = removed_names.drain().collect();
+                for ev in &working_events[last_processed..] { changed.insert(ev.name.clone()); }
                 last_processed = working_events.len();
-                if _iteration > 0 {
-                    affected_rules = Some(aff_rules);
-                }
+                pending_rules.extend(self.rederive(&changed, &working_events));
             }
-            if !removed_names.is_empty() {
-                let extra = self.refresh_after_suppression(
-                    &mut removed_names, &table_snapshot, &working_events);
-                if let Some(aff) = affected_rules.as_mut() { aff.extend(extra); }
-            }
+            let affected_rules: Option<HashSet<usize>> = if _iteration > 0 {
+                Some(std::mem::take(&mut pending_rules))
+            } else {
+                pending_rules.clear();
+                None
+            };
 
             vlog!(self, "── Phase 2: fixpoint iteration {} ({} events in working set) ──",
                   _iteration, working_events.len());
@@ -1218,8 +1355,8 @@ impl Engine {
             let mut new_cause: Vec<(EventInstance, Vec<String>)> = Vec::new();
 
             // Event names present in the working set, for the per-rule
-            // feasibility pre-check (rebuilt per iteration as the set grows).
-            let present_names: HashSet<String> =
+            // feasibility pre-check (rebuilt whenever the working set changes).
+            let mut present_names: HashSet<String> =
                 working_events.iter().map(|e| e.name.clone()).collect();
 
             for &rule_idx in &sec.rules {
@@ -1341,7 +1478,10 @@ impl Engine {
                             rule_idx,
                             labels: combined_labels,
                         });
-                    } else if let Some(delay) = rule.delay {
+                    } else if let Some(delay) = rule.delay.filter(|d| !(proactive && *d == 0)) {
+                        // (At a proactive time-point, whose due obligations
+                        // are being discharged right now, a zero delay is
+                        // applied immediately: queuing it would drop it.)
                         vlog!(self, "    → obligation: {} {} at ts+{}", action_sym, ev, delay);
                         self.obligations
                             .entry(self.current_ts.unwrap() + delay)
@@ -1392,12 +1532,25 @@ impl Engine {
                         }
                     }
                 }
+
+                // `Update` of the next rule runs on the working set this one
+                // left (Algorithm 2), tables and lets included: re-derive now
+                // what this rule's actions changed, so that no rule reads a
+                // let or table that is stale with respect to the events.
+                if working_events.len() > last_processed || !removed_names.is_empty() {
+                    let mut changed: HashSet<String> = removed_names.drain().collect();
+                    for ev in &working_events[last_processed..] { changed.insert(ev.name.clone()); }
+                    last_processed = working_events.len();
+                    pending_rules.extend(self.rederive(&changed, &working_events));
+                    present_names = working_events.iter().map(|e| e.name.clone()).collect();
+                }
             }
 
             let iter_elapsed = iter_start.elapsed();
 
             // Check if we reached the fixpoint (no new events)
             if new_cause.is_empty() && new_suppress.is_empty() {
+                fixed = true;
                 if self.verbose_mode {
                     eprintln!("    iter {}: {:.1?} (fixpoint)", _iteration, iter_elapsed);
                 }
@@ -1425,110 +1578,35 @@ impl Engine {
             all_suppress.extend(new_suppress);
             all_cause.extend(new_cause);
           }
+          if !fixed {
+              // `Saturate` requires a fixpoint of every section (`SatRun`);
+              // without one, the decisions at this time-point may violate the
+              // policy.  Termination is guaranteed when the data-flow check
+              // passes, so this indicates a bug or a program that failed it.
+              eprintln!("[enfflash] WARNING: section {:?} reached no fixpoint after {} passes \
+                         at ts {}{}; enforcement at this time-point may be unsound",
+                        sec.rules, MAX_ITERATIONS, self.current_ts.unwrap_or(0),
+                        if proactive { " (proactive)" } else { "" });
+          }
           } // end sec in wave
         } // end wave in waves
         self.waves = waves;
-        if !removed_names.is_empty() {
-            let _ = self.refresh_after_suppression(
-                &mut removed_names, &table_snapshot, &working_events);
+
+        // Final re-derivation: events caused or suppressed in the last section of
+        // the last wave haven't been reflected in the tables yet (that happens at
+        // iteration start).  Do it now so that persistent tables (e.g. Once0)
+        // remember caused events and don't fire again at the next timepoint.
+        if working_events.len() > last_processed || !removed_names.is_empty() {
+            let mut changed: HashSet<String> = removed_names.drain().collect();
+            for ev in &working_events[last_processed..] { changed.insert(ev.name.clone()); }
+            let _ = self.rederive(&changed, &working_events);
         }
+        self.disarm_tables();
 
-        // Final incremental update: events caused in the last section of the last
-        // wave haven't triggered a table update yet (the check runs at iteration
-        // start, so the last-emitted batch is never processed inside the loop).
-        // Update now so that persistent tables (e.g. Once0) remember caused events
-        // and don't fire again at the next timepoint.
-        if working_events.len() > last_processed {
-            let mut aff_tables: HashSet<String> = HashSet::default();
-            let mut aff_lets:   HashSet<String> = HashSet::default();
-            for ev in &working_events[last_processed..] {
-                if let Some(ts) = self.event_to_tables.get(&ev.name) {
-                    for t in ts { aff_tables.insert(t.clone()); }
-                }
-                if let Some(ls) = self.event_to_lets.get(&ev.name) {
-                    for l in ls { aff_lets.insert(l.clone()); }
-                }
-            }
-            for l in &aff_lets { self.let_computed.remove(l); }
-            if !aff_tables.is_empty() {
-                self.update_tables_and_lets_filtered(&working_events, false, Some(&aff_tables));
-            }
-        }
-
-        let phase2_elapsed = phase2_start.elapsed();
-
-        // Level-2: print full summary of reactive enforcement decisions
-        if self.verbose_level >= 2 {
-            eprintln!("  ┌─ Reactive summary @{} ─", new_ts);
-            if all_suppress.is_empty() && all_cause.is_empty() {
-                eprintln!("  │ (no enforcement actions)");
-            }
-            for (ev, _) in &all_suppress {
-                if !ev.name.starts_with("Cau_") && !ev.name.starts_with("Sup_") {
-                    eprintln!("  │ SUPPRESS {}", ev);
-                }
-            }
-            for (ev, _) in &all_cause {
-                if !ev.name.starts_with("Cau_") && !ev.name.starts_with("Sup_") {
-                    eprintln!("  │ CAUSE {}", ev);
-                }
-            }
-            // Internal Cau_/Sup_ events (condensed)
-            let n_internal_cau = all_cause.iter().filter(|(ev, _)| ev.name.starts_with("Cau_") || ev.name.starts_with("Sup_")).count();
-            let n_internal_sup = all_suppress.iter().filter(|(ev, _)| ev.name.starts_with("Cau_") || ev.name.starts_with("Sup_")).count();
-            if n_internal_cau > 0 || n_internal_sup > 0 {
-                eprintln!("  │ ({} internal cause, {} internal suppress)", n_internal_cau, n_internal_sup);
-            }
-            eprintln!("  └─────────────────────────────");
-        }
-
-        // (Tables are now updated during the fixpoint, no separate Phase 2a needed)
-
-        // Proactive output is deferred: it will be emitted when the timestamp
-        // actually advances (or at finish()), so that multiple TPs at the same
-        // timestamp produce only one proactive line.
-        let phase2b_start = Instant::now();
-        let phase2b_elapsed = phase2b_start.elapsed();
-
-        // 3. Update lagged tables
-        vlog!(self, "── Phase 3: update lagged tables ──");
-        let phase3_start = Instant::now();
-        // Lagged tables compute any let-bindings they reach on demand; lets
-        // already memoized during the fixpoint above are reused as-is.
-        // A lagged (Prev) table reflects only the immediately-preceding
-        // time-point, so clear it before repopulating with this time-point's
-        // events, and record this timestamp as the anchor for the next
-        // time-point's gap check.
-        for table in self.tables.values_mut() {
-            if table.lagged {
-                table.clear();
-                table.prev_ts = Some(new_ts);
-            }
-        }
-        // The lagged tables describe this time-point of the *output* trace:
-        // its events after enforcement, (D ∖ S) ∪ C, not the input events.
-        let final_events: Vec<EventInstance> = working_events.iter()
-            .filter(|e| !suppressed_set.contains(&(e.name.clone(), e.args.clone())))
-            .cloned().collect();
-        self.update_tables_and_lets(&final_events, true);
-        let phase3_elapsed = phase3_start.elapsed();
-
-        // Emit reactive output now that all phases are done, so we can include accurate timing.
-        let total_elapsed = phase1_elapsed + phase2_elapsed + phase2b_elapsed + phase3_elapsed;
-        self.collect_output(&all_suppress, &all_cause, false, Some(total_elapsed.as_nanos() as u64));
-        if self.sync_mode {
-            // Print the buffered reactive output immediately, then the sync marker.
-            // (Subprocess mode: output must reach the orchestrator before we block.)
-            let outputs = std::mem::take(&mut self.output_buffer);
-            self.print_outputs(&outputs);
-            println!("{{\"sync\":true}}");
-        }
-
-        if self.verbose_mode {
-            eprintln!("── Timing @{}: total {:.1?} │ P1(tables+lets) {:.1?} │ P2(fixpoint) {:.1?} │ P2b(obligations) {:.1?} │ P3(lagged) {:.1?}",
-                new_ts, total_elapsed, phase1_elapsed, phase2_elapsed, phase2b_elapsed, phase3_elapsed);
-            self.print_stats();
-        }
+        *sat = Saturation {
+            working_events, working_labels, caused_set, suppressed_set,
+            all_cause, all_suppress, last_processed, removed_names,
+        };
     }
 
     /// Emit proactive output for a given timestamp (discharge obligations + print).
@@ -1630,21 +1708,42 @@ impl Engine {
                 }
             }
         }
-        // ── ν re-runs Saturate (Algorithm ν, line 813) ──────────────────────
-        // Let the proactively-caused events cascade through the rule set, exactly
-        // as the paper's ν seeds the freshly-caused events into C and re-runs
-        // Saturate.  The cascade is delta-driven (only rules whose trigger reads
-        // a newly-present event are re-evaluated), so pure-table rules are not
-        // spuriously re-fired at this virtual proactive timestamp — matching the
-        // reactive fixpoint's own delta strategy.  Suppressed events are removed
-        // from the interpretation (R₀ = T ∪ (D∖S) ∪ C).  As in Saturate, the
-        // proactively-caused events are committed into the persistent tables so
-        // their effects carry to the next time-point.
+        // ── ν runs Saturate (Algorithm 1) ─────────────────────────────────────
+        // ν(t) is `Saturate` on D = ∅, seeded with the due obligations C, over
+        // *all* sections — exactly as μ, so that every rule (also one guarded by
+        // tables only) holds at this time-point of the output trace.  First
+        // re-derive every table on the working set C, as μ does for its input
+        // events: e.g. a since-row whose left operand fails on C is dropped.
+        // Saturate then commits the tables, so the effects carry to the next
+        // time-point.
         let seed: Vec<EventInstance> =
             proactive_cause.iter().map(|(e, _)| e.clone()).collect();
         if !seed.is_empty() {
-            self.proactive_cascade(&seed, &mut seen_cause, &mut seen_suppress,
-                                   &mut proactive_cause, &mut proactive_suppress);
+            self.arm_tables();
+            self.let_computed.clear();
+            self.update_tables_and_lets(&seed, false);
+            let mut working_labels: HashMap<(String, Vec<Value>), Vec<String>> = HashMap::default();
+            if self.label_mode {
+                for (ev, labels) in &proactive_cause {
+                    if !labels.is_empty() {
+                        working_labels.insert((ev.name.clone(), ev.args.clone()), labels.clone());
+                    }
+                }
+            }
+            let last_processed = seed.len();
+            let mut sat = Saturation {
+                working_events: seed,
+                working_labels,
+                caused_set: seen_cause,
+                suppressed_set: seen_suppress,
+                all_cause: proactive_cause,
+                all_suppress: proactive_suppress,
+                last_processed,
+                removed_names: HashSet::default(),
+            };
+            self.saturate(&mut sat, true);
+            proactive_cause = sat.all_cause;
+            proactive_suppress = sat.all_suppress;
         }
         if point_exists {
             // Lagged (Prev) tables now describe this proactive time-point.
@@ -1665,118 +1764,6 @@ impl Engine {
         }
         self.collect_output(&proactive_suppress, &proactive_cause, true, None);
         self.current_ts = saved_ts;
-    }
-
-    /// Saturation cascade for the proactive function ν: re-evaluate the rules
-    /// whose triggers consume one of the proactively-caused `seed` events, to a
-    /// local fixpoint, appending any further caused/suppressed events to
-    /// `out_cause`/`out_suppress`.  Mirrors the reactive fixpoint: it is
-    /// delta-driven from `seed` and, like Saturate, commits the caused events
-    /// into the persistent tables (so their effect carries to the next
-    /// time-point) and invalidates the dependent let-definitions.
-    fn proactive_cascade(
-        &mut self,
-        seed: &[EventInstance],
-        seen_cause: &mut HashSet<(String, Vec<Value>)>,
-        seen_suppress: &mut HashSet<(String, Vec<Value>)>,
-        out_cause: &mut Vec<(EventInstance, Vec<String>)>,
-        out_suppress: &mut Vec<(EventInstance, Vec<String>)>,
-    ) {
-        let mut working_events: Vec<EventInstance> = seed.to_vec();
-        let mut newly: Vec<EventInstance> = seed.to_vec();
-        // Index up to which `working_events` have been committed into tables/lets.
-        let mut processed = 0usize;
-        const MAX_ITERATIONS: usize = 100;
-        let mut iterations = 0;
-        while !newly.is_empty() && iterations < MAX_ITERATIONS {
-            iterations += 1;
-            // Commit the events caused so far (the seed on the first pass) into
-            // the persistent tables, and invalidate the let-defs they feed, so
-            // table- and let-routed dependencies see them — the per-pass value
-            // re-derivation / T(p) commit of Algorithm Saturate.
-            if working_events.len() > processed {
-                let mut aff_tables: HashSet<String> = HashSet::default();
-                let mut aff_lets:   HashSet<String> = HashSet::default();
-                for ev in &working_events[processed..] {
-                    if let Some(ts) = self.event_to_tables.get(&ev.name) {
-                        for t in ts { aff_tables.insert(t.clone()); }
-                    }
-                    if let Some(ls) = self.event_to_lets.get(&ev.name) {
-                        for l in ls { aff_lets.insert(l.clone()); }
-                    }
-                }
-                for l in &aff_lets { self.let_computed.remove(l); }
-                if !aff_tables.is_empty() {
-                    self.update_tables_and_lets_filtered(&working_events, false, Some(&aff_tables));
-                }
-                processed = working_events.len();
-            }
-            // Rules whose trigger transitively reads one of the new event types.
-            let mut aff_rules: HashSet<usize> = HashSet::default();
-            for ev in &newly {
-                if let Some(rs) = self.event_to_rules.get(&ev.name) {
-                    aff_rules.extend(rs.iter().copied());
-                }
-            }
-            let present: HashSet<String> =
-                working_events.iter().map(|e| e.name.clone()).collect();
-            let mut aff_sorted: Vec<usize> = aff_rules.into_iter().collect();
-            aff_sorted.sort_unstable();
-            let mut next_new: Vec<EventInstance> = Vec::new();
-            for rule_idx in aff_sorted {
-                // SAFETY: program.rules is not mutated during evaluation.
-                let rule: &RuleDef = unsafe { &*self.program.rules.as_ptr().add(rule_idx) };
-                if !self.clause_feasible(&rule.trigger, &present) { continue; }
-                let deps: *const Vec<String> = &self.rule_let_deps[rule_idx];
-                for dep in unsafe { &*deps } { self.ensure_let_computed(dep, &working_events); }
-                let bindings = self.match_clause_against_events(&rule.trigger, &working_events);
-                for env in &bindings {
-                    let args: Vec<Value> = rule.params.iter()
-                        .map(|p| self.try_eval_term(p, env).clone().unwrap_or(Value::Bool(false)))
-                        .collect();
-                    let ev = EventInstance { name: rule.event.clone(), args };
-                    let labels: Vec<String> = if self.label_mode {
-                        rule.label.iter().cloned().collect()
-                    } else { vec![] };
-                    // delay/next during proactive saturation queue new obligations
-                    if let Some(tp_off) = rule.tp_offset {
-                        self.next_tp_obligations.push(Obligation {
-                            event: ev, action: rule.action, deadline: tp_off.max(1),
-                            validate: rule.validate.clone(), env: env.clone(), rule_idx, labels });
-                        continue;
-                    }
-                    // A zero delay is due at the current timestamp, whose
-                    // obligations are being discharged right now: apply it
-                    // immediately (queuing it would drop it).
-                    if let Some(delay) = rule.delay.filter(|d| *d > 0) {
-                        let dl = self.current_ts.unwrap() + delay;
-                        self.obligations.entry(dl).or_default().push(Obligation {
-                            event: ev, action: rule.action, deadline: dl,
-                            validate: rule.validate.clone(), env: env.clone(), rule_idx, labels });
-                        continue;
-                    }
-                    let key = (ev.name.clone(), ev.args.clone());
-                    match rule.action {
-                        RuleAction::Cause => {
-                            if seen_cause.insert(key) {
-                                working_events.push(ev.clone());
-                                next_new.push(ev.clone());
-                                out_cause.push((ev, labels));
-                            }
-                        }
-                        RuleAction::Suppress => {
-                            if seen_suppress.insert(key) {
-                                // R₀ = T ∪ (D∖S) ∪ C: drop the suppressed event.
-                                working_events.retain(|e| !(e.name == ev.name && e.args == ev.args));
-                                out_suppress.push((ev, labels));
-                            }
-                        }
-                        RuleAction::Observe => {}
-                    }
-                }
-            }
-            newly = next_new;
-        }
     }
 
     /// Discharge obligations for timestamps in [from_ts, up_to_ts).
@@ -1824,59 +1811,90 @@ impl Engine {
 
     // ─── Unified table + let-def updates (in original formula order) ────────
 
-    /// Like `update_tables_and_lets` but only processes the tables whose names
-    /// are in `only_tables` (used for incremental updates).
-    /// Clone the non-lagged tables that are fed by an input event which some
-    /// rule may suppress.
-    fn snapshot_suppressable_tables(&self, events: &[EventInstance]) -> HashMap<String, Table> {
-        let mut snap: HashMap<String, Table> = HashMap::default();
-        for ev in events {
-            if !self.program.rules.iter().any(|r| matches!(r.action, RuleAction::Suppress)
-                && r.event == ev.name) {
-                continue;
-            }
-            if let Some(ts) = self.event_to_tables.get(&ev.name) {
-                for t in ts {
-                    if snap.contains_key(t) { continue; }
-                    if let Some(tab) = self.tables.get(t) {
-                        if !tab.lagged { snap.insert(t.clone(), tab.clone()); }
-                    }
-                }
-            }
+    /// Checkpoint every non-lagged table: its value now is the persistent
+    /// T(p_i) that Algorithm Saturate re-derives from on each pass.  Cheap: a
+    /// non-windowed table only journals the changes made after this call.
+    /// Also checkpoints the incremental aggregations over those tables.
+    fn arm_tables(&mut self) {
+        for table in self.tables.values_mut() {
+            if !table.lagged { table.arm_checkpoint(); }
         }
-        snap
+        for st in self.agg_state.values_mut() {
+            st.undo = Some(AggUndo::default());
+        }
+        self.aggs_armed = true;
     }
 
-    /// After events were suppressed (removed from the working set), rebuild
-    /// the tables they fed from the snapshot on the current working set,
-    /// invalidate lets, and return the rules to re-evaluate.
-    fn refresh_after_suppression(
-        &mut self,
-        removed: &mut HashSet<String>,
-        snapshot: &HashMap<String, Table>,
-        working_events: &[EventInstance],
-    ) -> HashSet<usize> {
-        let mut rebuild: HashSet<String> = HashSet::default();
-        let mut rules: HashSet<usize> = HashSet::default();
-        for n in removed.drain() {
-            if let Some(ts) = self.event_to_tables.get(&n) {
-                for t in ts {
-                    if snapshot.contains_key(t) { rebuild.insert(t.clone()); }
+    fn disarm_tables(&mut self) {
+        for table in self.tables.values_mut() {
+            table.disarm_checkpoint();
+        }
+        for st in self.agg_state.values_mut() {
+            st.undo = None;
+        }
+        self.aggs_armed = false;
+    }
+
+    /// The lets and tables that read one of the names in `changed` (events,
+    /// lets or tables), directly or transitively.
+    fn dependents(&self, changed: &HashSet<String>) -> HashSet<String> {
+        let mut reach: HashSet<String> = HashSet::default();
+        let mut todo: Vec<&String> = changed.iter().collect();
+        while let Some(n) = todo.pop() {
+            if let Some(rs) = self.readers.get(n) {
+                for r in rs {
+                    if reach.insert(r.clone()) { todo.push(r); }
                 }
             }
-            if let Some(rs) = self.event_to_rules.get(&n) { rules.extend(rs.iter().copied()); }
         }
-        for t in &rebuild {
-            self.tables.insert(t.clone(), snapshot[t].clone());
+        reach
+    }
+
+    /// Events named in `changed` were added to (caused) or removed from
+    /// (suppressed) the working set.  Algorithm Saturate evaluates each
+    /// definition afresh on every pass over R = T ∪ (D∖S) ∪ C, so re-derive
+    /// every table that depends on them: return it to its checkpoint (its
+    /// value before this time-point's update) and re-apply its update to the
+    /// whole working set.  Adding rows on top of the current value instead
+    /// would only be correct for clauses monotone in the events, which
+    /// negated filters and `¬f`-remove clauses are not.  Invalidates the
+    /// dependent lets and returns the rules whose trigger reads any of this.
+    fn rederive(&mut self, changed: &HashSet<String>, working_events: &[EventInstance]) -> HashSet<usize> {
+        let reach = self.dependents(changed);
+        for n in &reach { self.let_computed.remove(n); }
+        let tables: HashSet<String> = reach.iter()
+            .filter(|n| self.tables.get(*n).map_or(false, |t| !t.lagged))
+            .cloned()
+            .collect();
+        if !tables.is_empty() {
+            for t in &tables {
+                self.tables.get_mut(t).unwrap().restore_checkpoint();
+            }
+            // An incremental aggregation has folded the rows its source table
+            // gained in this time-point; the restore may have withdrawn some
+            // of them.  Withdraw them all from the accumulators too: the
+            // aggregation (in `reach`, as a reader of the table) refolds the
+            // table's rows when next computed.
+            for n in &reach {
+                let src = self.agg_lets.get(n).and_then(|ad| ad.incremental.as_ref());
+                if src.map_or(false, |t| tables.contains(t)) {
+                    if let Some(st) = self.agg_state.get_mut(n) { st.restore(); }
+                }
+            }
+            self.update_tables_and_lets_filtered(working_events, false, Some(&tables));
+            // Lets computed during the re-derivation may have read a table
+            // before it was re-derived.
+            for n in &reach { self.let_computed.remove(n); }
         }
-        self.let_computed.clear();
-        if !rebuild.is_empty() {
-            self.update_tables_and_lets_filtered(working_events, false, Some(&rebuild));
-            self.let_computed.clear();
+        let mut rules: HashSet<usize> = HashSet::default();
+        for n in changed.iter().chain(reach.iter()) {
+            if let Some(rs) = self.rule_readers.get(n) { rules.extend(rs.iter().copied()); }
         }
         rules
     }
 
+    /// Like `update_tables_and_lets` but only processes the tables whose names
+    /// are in `only_tables` (used for incremental updates).
     fn update_tables_and_lets_filtered(
         &mut self,
         events: &[EventInstance],
@@ -2159,6 +2177,53 @@ impl Engine {
     /// Evaluate an aggregation let as a trace transducer: enumerate the
     /// subformula's valuations, group by the grouping vars, reduce the term
     /// column with the op, and (re)fill the result table.
+    /// The rows of the on-demand aggregation `name` that a lookup with the
+    /// column constraints `constraints` can match.  When they fix every group
+    /// column, only that group is computed: its clause is matched with the
+    /// group variables bound, so its table guards are index probes, and the
+    /// cost is the size of the group rather than of the whole operand.  The
+    /// bindings are those of [`Self::compute_agg_let`] restricted to the group.
+    fn agg_rows_on_demand(&self, name: &str, constraints: &[(usize, Value)],
+                          events: &[EventInstance]) -> Vec<Row> {
+        let ad = &self.agg_lets[name];
+        let mut seed = Env::new();
+        for (i, v) in constraints {
+            if let Some((col, _)) = ad.columns.get(*i) {
+                if ad.groups.iter().any(|g| g == col) {
+                    seed.insert(col.as_str(), v.clone());
+                }
+            }
+        }
+        let all_groups_bound = ad.groups.iter().all(|g| seed.get(g).is_some());
+        let bindings: Vec<Env> = if all_groups_bound {
+            let matched: Vec<Env> = if ad.clause.patterns.is_empty() {
+                vec![seed]
+            } else {
+                ad.clause.patterns.iter()
+                    .flat_map(|conj| self.match_guard_conj_from(conj, seed.clone(), events))
+                    .collect()
+            };
+            matched.iter()
+                .flat_map(|m| self.eval_filter_envs(&ad.clause.filter, m, events))
+                .collect()
+        } else {
+            self.match_clause_against_events(&ad.clause, events)
+        };
+        let mut groups: HashMap<Vec<Value>, Vec<Value>> = HashMap::default();
+        for env in &bindings {
+            let key: Vec<Value> = ad.groups.iter()
+                .map(|g| env.get(g).cloned().unwrap_or(Value::Bool(false)))
+                .collect();
+            if let Some(v) = self.try_eval_term(&ad.term, env) {
+                groups.entry(key).or_default().push(v);
+            }
+        }
+        groups.iter().filter_map(|(key, vals)| {
+            agg_reduce(ad.op, vals)
+                .map(|result| build_agg_row(&ad.columns, &ad.groups, key, &ad.result.0, &result))
+        }).collect()
+    }
+
     fn compute_agg_let(&mut self, ad: &AggLetDef, events: &[EventInstance]) {
         if ad.incremental.is_some() {
             return self.compute_agg_incremental(ad, events);
@@ -2224,10 +2289,15 @@ impl Engine {
         }).collect();
         // Fold into the persistent accumulators.
         {
-            let st = self.agg_state.entry(ad.name.clone()).or_default();
-            for row in &new_rows { st.seen.insert(row.clone()); }
+            let armed = self.aggs_armed;
+            let st = self.agg_state.entry(ad.name.clone())
+                .or_insert_with(|| AggAccumState {
+                    undo: armed.then(AggUndo::default),
+                    ..AggAccumState::default()
+                });
+            for row in &new_rows { st.see(row.clone()); }
             for (key, tv) in folds {
-                st.groups.entry(key).or_default().fold(&tv);
+                st.fold(key, &tv);
             }
         }
         // Rebuild the result table from the accumulators.
@@ -2329,6 +2399,9 @@ impl Engine {
             }
         }
         if is_agg {
+            if self.agg_on_demand.contains(name) {
+                return; // computed per group at each lookup
+            }
             let ad: *const AggLetDef = &self.agg_lets[name];
             self.compute_agg_let(unsafe { &*ad }, events);
             return;
@@ -2435,7 +2508,18 @@ impl Engine {
         guards: &[GuardPattern],
         events: &[EventInstance],
     ) -> Vec<Env> {
-        let mut envs = vec![Env::new()];
+        self.match_guard_conj_from(guards, Env::new(), events)
+    }
+
+    /// Like [`Self::match_guard_conj_against_events`], extending `init`: its
+    /// bindings constrain the matches (table guards become index probes).
+    fn match_guard_conj_from(
+        &self,
+        guards: &[GuardPattern],
+        init: Env,
+        events: &[EventInstance],
+    ) -> Vec<Env> {
+        let mut envs = vec![init];
         for guard in guards {
             let mut new_envs = Vec::new();
             match guard {
@@ -2695,6 +2779,19 @@ impl Engine {
 
         let mut result = Vec::new();
 
+        if self.agg_on_demand.contains(name) {
+            for row in self.agg_rows_on_demand(name, &constraints, events) {
+                if constraints.iter().all(|(i, v)| row.get(*i) == Some(v)) {
+                    if let Some(ext) = try_unify_args(args, &row, env) {
+                        if self.verify_funcall_args(args, &row, &ext) {
+                            result.push(ext);
+                        }
+                    }
+                }
+            }
+            return result;
+        }
+
         // Collect raw row pointers so that we can call &self methods (verify_funcall_args)
         // while iterating over rows — the borrow checker can't see that self.tables and
         // self.py_functions are disjoint fields.
@@ -2770,6 +2867,10 @@ impl Engine {
             .filter_map(|(i, arg)| self.try_eval_term(arg, env).map(|v| (i, v)))
             .collect();
 
+        if self.agg_on_demand.contains(name) {
+            return self.agg_rows_on_demand(name, &constraints, events).iter()
+                .any(|row| constraints.iter().all(|(i, v)| row.get(*i) == Some(v)));
+        }
         if let Some(table) = self.tables.get(name) {
             return table.exists_eq_by_pos(&constraints);
         }
@@ -2973,8 +3074,10 @@ impl Engine {
             }
         }
 
-        // Merge parameter bindings into a local environment.
-        let mut local_env = env.clone();
+        // The body only reads the parameters (and the variables its guards
+        // bind): evaluate it on the parameter bindings alone, so that the
+        // caller's other variables cannot clash with the body's.
+        let mut local_env = Env::new();
         for ((param_name, _), value) in let_def.params.iter().zip(arg_vals.iter()) {
             if let Some(existing) = local_env.get(param_name) {
                 if existing != value {
@@ -2986,39 +3089,19 @@ impl Engine {
         }
 
         // A filter let may carry guard patterns when the compiler was able to pull
-        // event/table guards from the body (best-effort trigger).  In that case
-        // we first match the patterns against the events to enumerate free-variable
-        // bindings, then verify the filter for each resulting environment.
-        // If there are no patterns, we just evaluate the filter directly.
-        if let_def.clause.patterns.is_empty() {
-            if self.eval_filter(&let_def.clause.filter, &local_env, events) {
-                vec![env.clone()]
-            } else {
-                vec![]
-            }
+        // event/table guards from the body (best-effort trigger): it holds iff some
+        // disjunct of the guards matches, extending the parameter bindings, and the
+        // filter holds on the match.  Without patterns, evaluate the filter directly.
+        let holds = if let_def.clause.patterns.is_empty() {
+            self.eval_filter(&let_def.clause.filter, &local_env, events)
         } else {
-            let matched_envs =
-                self.match_guard_conj_against_events(&let_def.clause.patterns[0], events);
-            let mut result = Vec::new();
-            for matched in &matched_envs {
-                // Merge the param bindings into the pattern-matched env
-                let mut combined = matched.clone();
-                let mut ok = true;
-                for ((param_name, _), value) in let_def.params.iter().zip(arg_vals.iter()) {
-                    if let Some(existing) = combined.get(param_name) {
-                        if existing != value { ok = false; break; }
-                    } else {
-                        combined.insert(param_name.as_str(), value.clone());
-                    }
-                }
-                if ok && self.eval_filter(&let_def.clause.filter, &combined, events) {
-                    result.push(env.clone());
-                }
-            }
-            // Deduplicate (the caller env is always the same object, but be safe)
-            result.dedup();
-            result
-        }
+            let_def.clause.patterns.iter().any(|conj| {
+                self.match_guard_conj_from(conj, local_env.clone(), events)
+                    .iter()
+                    .any(|m| self.eval_filter(&let_def.clause.filter, m, events))
+            })
+        };
+        if holds { vec![env.clone()] } else { vec![] }
     }
 
     fn try_eval_term(&self, term: &TermExpr, env: &Env) -> Option<Value> {

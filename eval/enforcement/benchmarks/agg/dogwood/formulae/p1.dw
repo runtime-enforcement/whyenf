@@ -1,0 +1,18 @@
+// agg/p1:
+//   □ ∀u, s, a. withdraw(u, a) ∧ s ← SUM(a; u; ONCE[0,31) (withdraw(u, a) ∧ tp(t))) → s ≤ 10000
+// Amounts are in hundredths (10000 → 1000000).  The sum ranges over the
+// withdrawals of the last 30 time units, including the current one, that were
+// not suppressed (no `denied` marker for their request id).
+// decide: withdraw
+
+@id("p1")
+permit (principal, action == L::Action::"withdraw", resource)
+unless temporal {
+    exists (s: Long). (
+        (sum a for (a: Long), (r: String). where (
+            formerly within 30s L::Action::"withdraw"::request{ input.u: context.input.u, input.a: a, rid: r }
+            && !formerly within 30s L::Action::"withdraw"::denied{ rid: r }
+        )) == s
+        && s > 1000000
+    )
+};

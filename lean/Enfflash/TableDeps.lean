@@ -233,15 +233,6 @@ theorem GX.letInv {m : Pr B L → Prop} {S : Set L} {x : ℕ} {p : Bool} {π π'
     · obtain ⟨κ, hκ, a, ha, ts, rfl⟩ := Guards.toFm_lets hq; exact (g1 κ hκ _ ha q ts rfl).2
     · exact g2 q hq
 
-theorem GXs.letInv {m : Pr B L → Prop} {S : Set L} {xs : List ℕ} {π π' : Guards B L D}
-    {φ φ' : Fm B L D} (h : GXs m xs π φ π' φ')
-    (hπ : ∀ κ ∈ π, ∀ a ∈ κ, ∀ q ts, a = .pred (.lp q) ts → m (.lp q) ∧ q ∈ S)
-    (hφ : ∀ q ∈ φ.lets, q ∈ S) :
-    ∀ κ ∈ π', ∀ a ∈ κ, ∀ q ts, a = .pred (.lp q) ts → m (.lp q) ∧ q ∈ S := by
-  induction h with
-  | nil => exact hπ
-  | cons h₁ _ ih => exact ih (h₁.letInv hπ hφ).1 (h₁.letInv hπ hφ).2
-
 end
 
 /-- The operand producing a let's tuples. -/
@@ -403,8 +394,6 @@ theorem GXJ.letInv {L : Type} {m : Pr B L → Prop} {X : List ℕ} {p : Bool} {�
 def Term.isVarOf (i : ℕ) : Term D → Bool
   | .var n => n == i
   | _ => false
-
-theorem Term.isVarOf_var (i : ℕ) : (Term.var i : Term D).isVarOf i = true := by simp [isVarOf]
 
 def atomSrc (ls : ℕ → ℕ → List (Pos B ℕ)) (i : ℕ) : GAtom B ℕ D → List (Pos B ℕ)
   | .pred (.ev e) ts =>

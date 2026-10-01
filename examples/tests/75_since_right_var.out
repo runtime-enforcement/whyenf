@@ -1,0 +1,3 @@
+The formula
+ ¬removed(n:string, a:string) S[0s,∞) added(n:string, a:string, s:string)
+is not supported: the operands of S must have the same free variables (rewrite ¬L S R as ¬(L ∧ ⧫R) S R, or use -fix-since)

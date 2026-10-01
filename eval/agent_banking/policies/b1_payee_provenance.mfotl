@@ -1,0 +1,4 @@
+LET Allowed(s, u, r) = (ONCE UserMentions(s, r)) OR (ONCE Paid(u, r))
+                       OR (EXISTS f. ONCE (FromDoc(s, f, r) AND ONCE UserDoc(s, f))) IN
+(ALWAYS (FORALL c, s, u, r, a. SendMoney(c, s, u, r, a) IMPLIES Allowed(s, u, r)))
+AND (ALWAYS (FORALL c, s, u, r, a, k. Schedule(c, s, u, r, a, k) IMPLIES Allowed(s, u, r)))

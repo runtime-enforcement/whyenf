@@ -1,0 +1,32 @@
+// nokia/script1:
+//   LET any_operation(script, db, data) = select ∨ insert ∨ delete ∨ update (script, db, data)
+//   LET running(script) = (¬◆[0,1) end(script)) S (◆[0,1) start(script))
+//   □ ∀db, data. any_operation("script", db, data) →
+//       running("script") ∨ ◆[0,1) end("script") ∨ ◇[0,1) end("script")
+// The log has one time point per second, so ◆[0,1) X and ◇[0,1) X both hold
+// iff X holds at the current time point: running = ¬end S start, and the
+// obligation is "running or end now".  Dogwood windows must be positive, so
+// timestamps are scaled by 10: `within 1s` is then the current second.  An
+// end in the same time point as a start does not stop the run (it is at the
+// anchor of the S), so ends are recorded before starts.
+// decide: select, insert, delete, update
+// time-scale: 10
+// order: end, start
+
+@id("operation_other_user")
+permit (principal, action in [L::Action::"select", L::Action::"insert", L::Action::"delete", L::Action::"update"], resource)
+unless { context.input.user == "script" };
+
+@id("operation_running")
+permit (principal, action in [L::Action::"select", L::Action::"insert", L::Action::"delete", L::Action::"update"], resource)
+when { context.input.user == "script" }
+when temporal {
+    !L::Action::"end"::state{ input.script: "script" }
+    since within 36500d
+    L::Action::"start"::state{ input.script: "script" }
+};
+
+@id("operation_at_end")
+permit (principal, action in [L::Action::"select", L::Action::"insert", L::Action::"delete", L::Action::"update"], resource)
+when { context.input.user == "script" }
+when temporal { formerly within 1s L::Action::"end"::state{ input.script: "script" } };

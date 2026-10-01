@@ -157,11 +157,41 @@ let rec pull_lets ?(i=0) ?(m:(string, Var.t list * t, String.comparator_witness)
     | Always (itv, f) ->
       let i, lets, f = pull_lets ~i ~m f in
       i, lets, { form with form = Always (itv, f) }
+    | Since (_, itv, f, g) when !Global.fix_since && Interval.is_full itv
+                                && not (Set.is_subset (fv f) ~of_:(fv g)) ->
+      (* f S g  ≡  ⧫g ∧ ¬((¬g) S X)  with  X = ¬f ∧ ¬g ∧ ●⧫g: f S g fails
+         after some g iff a step after the last g falsifies f.  The inner S has
+         the variables of f only on its right, which the next case handles.
+         Only for unbounded intervals. *)
+      let once_g = { g with form = Once (Interval.full, g) } in
+      let neg h = { h with form = Neg h } in
+      let x = { f with form = And (N, [neg f; neg g; { g with form = Prev (Interval.full, once_g) }]) } in
+      let inner = { form with form = Since (N, Interval.full, neg g, x) } in
+      pull_lets ~i ~m { form with form = And (N, [once_g; neg inner]) }
+    | Since (s, itv, f, g) when !Global.fix_since
+                                && not (Set.is_subset (fv g) ~of_:(fv f)) ->
+      (* f S g  ≡  (f ∨ ¬⧫g) S g: after the anchor, ⧫g holds, so the new left
+         operand is equivalent to f; it has the variables of g too.  For
+         f = ¬L this is  ¬(L ∧ ⧫g) S g. *)
+      let not_once_g = { g with form = Neg { g with form = Once (Interval.full, g) } } in
+      let f' = { f with form = Or (N, [f; not_once_g]) } in
+      pull_lets ~i ~m { form with form = Since (s, itv, f', g) }
     | Since (s, itv, f, g) ->
       let origin = form in
       let i, letsf, f = pull_lets ~i ~m f in
       let i, letsg, g = pull_lets ~i ~m g in
       let e = "Since" ^ string_of_int i in
+      (* The table of  f S g  is keyed on the variables of both operands, and
+         its remove clause (from f) must bind all of them: reject operands with
+         different free variables.  For  ¬L(x̄) S R(x̄, ȳ),  the equivalent
+         ¬(L(x̄) ∧ ⧫R(x̄, ȳ)) S R(x̄, ȳ)  has the same variables on both sides. *)
+      if not (Set.equal (fv f) (fv g)) then begin
+        Stdio.print_endline
+          ("The formula\n " ^ Tyformula.to_string form
+           ^ "\nis not supported: the operands of S must have the same free variables"
+           ^ " (rewrite ¬L S R as ¬(L ∧ ⧫R) S R, or use -fix-since)");
+        raise (Errors.FormulaError "operands of S with different free variables")
+      end;
       let fvs = Set.elements (Set.inter (fv f) (fv g)) in
       let vars = List.map ~f:(fun v -> (v, None)) fvs in
       i + 1, letsf @ letsg @ [{ le_name = e; le_enftype = None; le_args = vars;
@@ -193,6 +223,59 @@ let rec pull_lets ?(i=0) ?(m:(string, Var.t list * t, String.comparator_witness)
     | _ -> failwith ("unsupported constructor " ^ op_to_string form)
   in r
 
+(* ------------------------------------------------------------------ *)
+(* drop_dead_params                                                     *)
+(*                                                                      *)
+(* A parameter of a let that its body does not use — or uses only as a  *)
+(* dead parameter of another let — does not affect the let's value: the *)
+(* let holds for all values of it.  Drop it from the definition and the  *)
+(* corresponding argument from every call.  Otherwise the let could not  *)
+(* be enumerated (nothing binds that parameter), even when the rest of   *)
+(* its body is guarded.  Lets with an enforcement type (+/-) keep their  *)
+(* interface.  Runs after [convert_lets] (let names are unique) and      *)
+(* before [unroll_let] (no Predicate'/Let' yet).                         *)
+(* ------------------------------------------------------------------ *)
+
+let drop_dead_params (f : Tyformula.t) : Tyformula.t =
+  let rec aux (alive : (string, bool list, String.comparator_witness) Map.t) (f : Tyformula.t) =
+    let go = aux alive in
+    let keep_only keep xs = List.filteri xs ~f:(fun k _ -> List.nth_exn keep k) in
+    let form = match f.form with
+      | TT | FF | EqConst _ | Predicate' _ | Let' _ -> f.form
+      | Predicate (r, trms) ->
+        (match Map.find alive r with
+         | Some keep -> Predicate (r, keep_only keep trms)
+         | None -> f.form)
+      | Let (r, enftype, vars, body, g) ->
+        let body = go body in
+        let keep =
+          if Enftype.is_suppressable enftype || Enftype.is_causable enftype then
+            List.map vars ~f:(fun _ -> true)
+          else
+            let used = fv body in
+            List.map vars ~f:(fun (x, _) -> Set.exists used ~f:(Var.equal_ident x)) in
+        Let (r, enftype, keep_only keep vars, body, aux (Map.set alive ~key:r ~data:keep) g)
+      | Agg (s, op, x, y, g) -> Agg (s, op, x, y, go g)
+      | Top (s, op, x, y, g) -> Top (s, op, x, y, go g)
+      | Neg g -> Neg (go g)
+      | And (s, gs) -> And (s, List.map gs ~f:go)
+      | Or (s, gs) -> Or (s, List.map gs ~f:go)
+      | Imp (s, g, h) -> Imp (s, go g, go h)
+      | Exists (x, g) -> Exists (x, go g)
+      | Forall (x, g) -> Forall (x, go g)
+      | Prev (i, g) -> Prev (i, go g)
+      | Next (i, g) -> Next (i, go g)
+      | Once (i, g) -> Once (i, go g)
+      | Eventually (i, g) -> Eventually (i, go g)
+      | Historically (i, g) -> Historically (i, go g)
+      | Always (i, g) -> Always (i, go g)
+      | Since (s, i, g, h) -> Since (s, i, go g, go h)
+      | Until (s, i, g, h) -> Until (s, i, go g, go h)
+      | Type (g, ty) -> Type (go g, ty)
+      | Label (s, g) -> Label (s, go g)
+    in { f with form } in
+  aux (Map.empty (module String)) f
+
 let do_pull_lets (f : t) : let_def list * t =
   let _i, lets, f = pull_lets f in
   lets, f
@@ -222,7 +305,7 @@ let to_string (lf: t) =
 let make ?(moderate=true) (f : Tyformula.t) : t =
   let origin = f in
   let f = f
-    |> push_negs |> convert_vars |> convert_lets
+    |> push_negs |> convert_vars |> convert_lets |> drop_dead_params
     |> unroll_let ~moderate |> push_quants |> simplify |> ac_simplify in
   let lets, f = do_pull_lets f in
   let f = ac_simplify f in

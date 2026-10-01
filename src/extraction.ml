@@ -116,7 +116,8 @@ let compile_lets (m : let_map)
                   body_pos; body_neg_opt = body_neg;
                   switch_pos_opt = le.switch_pos_opt;
                   switch_neg_opt = le.switch_neg_opt;
-                  clauses; filter_trigger_opt; force_filter = false })
+                  clauses; filter_trigger_opt; force_filter = false;
+                  probe_filter = false })
 
 (* ------------------------------------------------------------------ *)
 (* downgrade_filter_lets                                                *)
@@ -200,8 +201,26 @@ let downgrade_filter_lets (let_map : Tnformula.let_map) (clauses : Clause.t list
      contains every not-arg-closed let, so anything outside it is a sound
      membership test.)  We keep the switch — and hence the guard structure the
      EDG / sectioning analyses rely on — untouched; only emission changes. *)
+  (* A let that is full only because it is not arg-closed, and that nothing
+     enumerates, is still only tested for membership: it becomes a filter let
+     that keeps its guards ([probe_filter]), which the enforcer matches with
+     the arguments bound to bind the existential variables.  Its guards stay
+     full (they are the guards of a full let in the fixpoint above). *)
+  let enumerated =
+    Set.of_list (module String)
+      (List.concat_map clauses ~f:(fun c -> guard_refs c.Clause.trigger)
+       @ List.concat_map (Map.data let_map) ~f:(fun def ->
+           (if is_table_switch def.switch_pos_opt
+            then table_guard_refs def.switch_pos_opt else [])
+           @ (match def.filter_trigger_opt with Some tr -> guard_refs tr | None -> [])
+           @ (if Set.mem !full def.name then now_guard_refs def else []))) in
   Map.mapi let_map ~f:(fun ~key ~data ->
-      Tnformula.{ data with force_filter = not (Set.mem !full key) })
+      let probe_filter =
+        Set.mem !full key && not (arg_closed data) && not (Set.mem enumerated key)
+        && Option.is_none data.filter_trigger_opt
+        && (match data.switch_pos_opt with Some (Switch.Now _) -> true | _ -> false)
+        && Option.is_none data.switch_neg_opt in
+      Tnformula.{ data with force_filter = not (Set.mem !full key); probe_filter })
 
 (* ------------------------------------------------------------------ *)
 (* extract                                                  *)

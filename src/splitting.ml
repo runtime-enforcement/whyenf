@@ -7,10 +7,21 @@ open Tnformula
 (* Let-context maps                                                     *)
 (* ------------------------------------------------------------------ *)
 
+(* [Map.fold] visits the lets in name order, not in definition order, so one
+   pass can read a let whose entry is not computed yet (e.g. [Agg1] reading
+   [Once0]): it would then stand for an "event" named after that let.  Repeat
+   the pass until nothing changes; lets are not recursive, so this ends after
+   at most as many passes as lets are nested. *)
+let rec fixpoint ~equal f x =
+  let y = f x in
+  if equal x y then x else fixpoint ~equal f y
+
 let maps_of_lets (m : let_map) =
+  let equal_map = Map.equal Set.equal in
   let pred_map =
+    fixpoint ~equal:equal_map (fun init ->
     Map.fold m
-      ~init:(Map.empty (module String))
+      ~init
       ~f:(fun ~key:_ ~data:le lets ->
           let preds = Tyformula.predicates ~lets le.body_pos in
           let lets = Map.update lets le.name (fun _ -> preds) in
@@ -18,10 +29,11 @@ let maps_of_lets (m : let_map) =
           match le.body_neg_opt with
           | Some body_neg ->
             Map.update lets (le.name ^ "_neg") (fun _ -> Tyformula.predicates ~lets body_neg)
-          | None -> lets) in
+          | None -> lets)) (Map.empty (module String)) in
   let mon_map, anti_mon_map =
+    fixpoint ~equal:(fun (a, b) (c, d) -> equal_map a c && equal_map b d) (fun init ->
     Map.fold m
-      ~init:(Map.empty (module String), Map.empty (module String))
+      ~init
       ~f:(fun ~key:_ ~data:le (let_ctxt_mon, let_ctxt_anti_mon) ->
           let mon, anti_mon =
             Tyformula.non_monotone_predicates ~let_ctxt_mon ~let_ctxt_anti_mon le.body_pos in
@@ -37,7 +49,8 @@ let maps_of_lets (m : let_map) =
               Tyformula.non_monotone_predicates ~let_ctxt_mon ~let_ctxt_anti_mon body_neg in
             Map.update let_ctxt_mon (le.name ^ "_neg") (fun _ -> mon),
             Map.update let_ctxt_anti_mon (le.name ^ "_neg") (fun _ -> anti_mon)
-          | None -> let_ctxt_mon, let_ctxt_anti_mon) in
+          | None -> let_ctxt_mon, let_ctxt_anti_mon))
+      (Map.empty (module String), Map.empty (module String)) in
   pred_map, mon_map, anti_mon_map
 
 (* ================================================================== *)

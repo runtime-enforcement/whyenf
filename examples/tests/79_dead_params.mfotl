@@ -1,0 +1,3 @@
+LET ov(e : string, ds : string) = acc(ds) IN
+LET ex(d : string, ds : string, e : string) = pd(d, ds) AND ov(e, ds) IN
+ALWAYS (FORALL d, e. h(d, e) IMPLIES NOT (EXISTS ds. ex(d, ds, e)))

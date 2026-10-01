@@ -1,0 +1,8 @@
+LET Quarantined(s) = ONCE[0,60] Blocked(s) IN
+(ALWAYS (FORALL c, s, u, r, a. SendMoney(c, s, u, r, a) IMPLIES NOT Quarantined(s)))
+AND (ALWAYS (FORALL c, s, u, r, a, k. Schedule(c, s, u, r, a, k) IMPLIES NOT Quarantined(s)))
+AND (ALWAYS (FORALL c, s, u, i, r. Redirect(c, s, u, i, r) IMPLIES NOT Quarantined(s)))
+AND (ALWAYS (FORALL c, s, u, i, a. Amend(c, s, u, i, a) IMPLIES NOT Quarantined(s)))
+AND (ALWAYS (FORALL c, s, u, p. UpdatePassword(c, s, u, p) IMPLIES NOT Quarantined(s)))
+AND (ALWAYS (FORALL c, s, u. UpdateUserInfo(c, s, u) IMPLIES NOT Quarantined(s)))
+AND (ALWAYS (FORALL s. (Blocked(s) AND NOT ONCE[1,*] Blocked(s)) IMPLIES:R Escalate(s)))

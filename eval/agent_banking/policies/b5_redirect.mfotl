@@ -1,0 +1,2 @@
+(ALWAYS (FORALL c, s, u, i, r. Redirect(c, s, u, i, r) IMPLIES ONCE UserMentions(s, r)))
+AND (ALWAYS (FORALL c, s, u, i, r. Redirect(c, s, u, i, r) IMPLIES:R Notify(u, "redirect")))

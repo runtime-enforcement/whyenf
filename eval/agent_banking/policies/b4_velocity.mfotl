@@ -1,0 +1,2 @@
+ALWAYS (FORALL c, s, u, r, a. SendMoney(c, s, u, r, a) IMPLIES
+  NOT (EXISTS n. (n <- CNT(c2; u; ONCE[1,60] (EXISTS s2, r2, a2. SendMoney(c2, s2, u, r2, a2)))) AND n >= 2))

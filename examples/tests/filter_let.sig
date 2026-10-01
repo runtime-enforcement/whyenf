@@ -1,0 +1,10 @@
+Session(s:string, u:string)
+UserMentions(s:string, v:string)
+UserDoc(s:string, f:string)
+FromDoc(s:string, f:string, v:string)
+DocAmount(s:string, f:string, a:int)
+Trusted(s:string, v:string)
+Paid(u:string, r:string)
+Read(c:string, s:string, u:string, tool:string)
+SendMoney(c:string, s:string, u:string, r:string, a:int)-
+SubjTok(c:string, t:string)

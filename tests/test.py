@@ -19,7 +19,7 @@ class Test:
 
     def __init__(self, label : str, sig : Path, formula : Path, log : Path, output : str,
                  func : Optional[Path] = None, label_option : bool = False, success : bool = True,
-                 state : Optional[Path] = None):
+                 state : Optional[Path] = None, options : Sequence[str] = ()):
         self.label        = label
         self.sig          = sig
         self.formula      = formula
@@ -29,6 +29,7 @@ class Test:
         self.label_option = label_option
         self.success      = success
         self.state        = state
+        self.options      = list(options)
         self._make_command()
 
     @classmethod
@@ -42,7 +43,10 @@ class Test:
         success = (json_fn["success"] == True) if "success" in json_fn else True
         label_option = json_fn.get("label_option", False)
         state   = EXAMPLE / json_fn["state"] if "state" in json_fn else None
-        return Test(json_fn["label"], sig, formula, log, output, func, label_option, success=success, state=state)
+        # Extra command-line options, e.g. ["-fix-since"].
+        options = json_fn.get("options", [])
+        return Test(json_fn["label"], sig, formula, log, output, func, label_option, success=success,
+                    state=state, options=options)
 
     def _make_command(self) -> None:
         command : List[str] = [str(ENFGUARD_PATH), "-sig", str(self.sig), "-formula", str(self.formula)]
@@ -54,6 +58,7 @@ class Test:
             command += ["-label"]
         if self.state is not None:
             command += ["-state", str(self.state)]
+        command += self.options
         self.command = command
 
     def _run_enfflash(self) -> subprocess.CompletedProcess[str]:

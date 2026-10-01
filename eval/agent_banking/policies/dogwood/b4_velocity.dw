@@ -1,0 +1,21 @@
+// B4 (velocity):
+//   SendMoney(c,s,u,r,a) → ¬∃n. n ← CNT(c2; u; ⧫[1,60] SendMoney(c2,_,u,_,_)) ∧ n ≥ 2
+// The count ranges over the user's payments in the last hour, the current one
+// included, that were not suppressed.
+// decide: SendMoney
+// time-scale: 60
+
+@id("send")
+permit (principal, action == L::Action::"SendMoney", resource);
+
+@id("b4")
+forbid (principal, action == L::Action::"SendMoney", resource)
+when temporal {
+    exists (n: Long). (
+        (count for (rid: String). where (
+            formerly within 1h L::Action::"SendMoney"::request{ input.u: context.input.u, rid: rid }
+            && !formerly within 1h L::Action::"SendMoney"::denied{ rid: rid }
+        )) == n
+        && n > 2
+    )
+};

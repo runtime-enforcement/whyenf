@@ -1,0 +1,25 @@
+// B10 (invoice consistency):
+//   SendMoney(c,s,u,r,a) ∧ ¬⧫ UserMentions(s,r) ∧ ¬(⧫ Paid(u,r) ∨ ⧫[1,∞) SendMoney(_,_,u,r,_))
+//     → ∃f. ⧫ (FromDoc(s,f,r) ∧ ⧫ UserDoc(s,f)) ∧ ⧫ DocAmount(s,f,a)
+// decide: SendMoney
+// time-scale: 60
+
+@id("send")
+permit (principal, action == L::Action::"SendMoney", resource);
+
+@id("b10")
+forbid (principal, action == L::Action::"SendMoney", resource)
+when temporal {
+    !formerly within 36500d L::Action::"UserMentions"::state{ input.s: context.input.s, input.v: context.input.r }
+    && !formerly within 36500d L::Action::"Paid"::state{ input.u: context.input.u, input.r: context.input.r }
+    && !(exists (rid: String). (
+            previous within 36500d (formerly within 36500d
+                L::Action::"SendMoney"::request{ input.u: context.input.u, input.r: context.input.r, rid: rid })
+            && !formerly within 36500d L::Action::"SendMoney"::denied{ rid: rid }))
+    && !(exists (f: String). (
+            formerly within 36500d (
+                L::Action::"FromDoc"::state{ input.s: context.input.s, input.f: f, input.v: context.input.r }
+                && formerly within 36500d L::Action::"UserDoc"::state{ input.s: context.input.s, input.f: f })
+            && formerly within 36500d L::Action::"DocAmount"::state{
+                input.s: context.input.s, input.f: f, input.a: context.input.a }))
+};

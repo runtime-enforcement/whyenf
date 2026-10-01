@@ -1,0 +1,54 @@
+    Finished `release` profile [optimized] target(s) in 0.10s
+CPU governor: performance
+all.dw: 9 policies
+all.mfotl: 10 policies
+b10_invoice                  OK    1 -SendMoney 
+b1_payee_provenance          OK    1 -Schedule  1 -SendMoney 
+b2_no_leak_in_subject        OK    1 -Schedule  1 -SendMoney 
+b3_daily_cap                 OK    1 -SendMoney 
+b4_velocity                  OK    1 -SendMoney 
+b5_redirect                  OK    1 +Notify  1 -Redirect 
+b6_password                  OK    1 +Notify  1 -UpdatePassword 
+b7_cooldown                  OK    1 -SendMoney 
+b8_quarantine                OK    1 -Amend  1 +Escalate  1 -Redirect  1 -Schedule  1 -SendMoney  1 -UpdatePassword  1 -UpdateUserInfo 
+b9_audit                     OK    2 +Audit 
+all                          OK    1 -Amend  2 +Audit  1 +Escalate  2 +Notify  2 -Redirect  3 -Schedule  7 -SendMoney  2 -UpdatePassword  1 -UpdateUserInfo 
+none: utility 16/16 benign, 126/144 under attack; attacks succeeded 143/144; 0.6s
+b1: utility 16/16 benign, 131/144 under attack; attacks succeeded 66/144; 0.9s
+b2: utility 16/16 benign, 134/144 under attack; attacks succeeded 95/144; 0.8s
+b3: utility 16/16 benign, 128/144 under attack; attacks succeeded 111/144; 0.8s
+b4: utility 16/16 benign, 121/144 under attack; attacks succeeded 127/144; 0.8s
+b5: utility 16/16 benign, 128/144 under attack; attacks succeeded 128/144; 0.8s
+b6: utility 16/16 benign, 128/144 under attack; attacks succeeded 128/144; 0.8s
+b7: utility 16/16 benign, 124/144 under attack; attacks succeeded 136/144; 0.8s
+b8: utility 16/16 benign, 126/144 under attack; attacks succeeded 143/144; 0.8s
+b9: utility 16/16 benign, 126/144 under attack; attacks succeeded 143/144; 0.8s
+b10: utility 16/16 benign, 131/144 under attack; attacks succeeded 42/144; 0.8s
+all: utility 16/16 benign, 55/144 under attack; attacks succeeded 1/144; 0.9s
+all: utility 320/320 benign, 1100/2880 under attack; attacks succeeded 20/2880; 18.0s
+b1   enfflash    996/996   tps  mean       47.7 us  max      250.0 us
+b2   enfflash    936/936   tps  mean       41.1 us  max      491.0 us
+b3   enfflash    936/936   tps  mean       37.8 us  max      209.2 us
+b4   enfflash    910/910   tps  mean       34.6 us  max       74.4 us
+b5   enfflash    903/903   tps  mean       44.8 us  max      241.0 us
+b6   enfflash    904/904   tps  mean       43.5 us  max      403.7 us
+b7   enfflash    900/900   tps  mean       38.5 us  max      123.1 us
+b8   enfflash    888/888   tps  mean       44.8 us  max      162.0 us
+b9   enfflash    888/888   tps  mean       38.3 us  max      136.4 us
+b10  enfflash   1020/1020  tps  mean       46.2 us  max      191.0 us
+all  enfflash   1166/1166  tps  mean       78.0 us  max      325.0 us
+baseline (no enforcement): 143 successful attacks, utility under attack 126/144
+policy                               prevented benign FP  util@att   latency us mean (max)        replay us E / G / D  caused
+B1 Payee provenance                    77/143     0/16    131/144          15.5 (   104)   48 / t.o.(485/996) / 399  
+B2 No leak in subject                  48/143     0/16    134/144          18.9 (   218)          41 / 222791 / 650  
+B3 Daily cap per payee                 32/143     0/16    128/144          10.9 (   140)           38 / 18932 / 165  
+B4 Velocity                            16/143     0/16    121/144          10.3 (    40)            35 / 2227 / 157  
+B5 Standing-order redirect             15/143     0/16    128/144          11.9 (    57)            45 / 10421 / 78  11 Notify
+B6 Password change                     15/143     0/16    128/144          12.0 (    78)            44 / 10217 / 75  10 Notify
+B7 Cool-down after credential change    7/143     0/16    124/144          14.6 (    47)           39 / 47660 / 172  
+B8 Quarantine                           0/143     0/16    126/144          13.6 (    40)            45 / 1350 / 165  
+B9 Audit                                0/143     0/16    126/144           9.4 (    27)              38 / 817 / --  74 Audit
+B10 Invoice consistency               101/143     0/16    131/144          17.3 (    84)           46 / 77045 / 368  
+ALL All (B1-B10)                      142/143     0/16     55/144          49.9 (   259)  78 / t.o.(524/1166) / 975  5 Audit, 143 Escalate, 12 Notify
+wrote /home/franz/Overleaf/Enfflash/tables/tab_app3.tex
+[figures] wrote /home/franz/Overleaf/Enfflash/figures/fig_app3.pdf

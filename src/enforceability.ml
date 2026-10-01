@@ -746,6 +746,11 @@ let types (t: Enftype.t) (norm: Lformula.t) (b: Interval.v) : 'a Verdict.v =
          | None -> None)
       | _ -> None in
 
+  (* Lets that could only be compiled as a membership test with an unbound
+     variable (see the fallback below).  Reported after the top-level formula,
+     so that an unenforceable formula keeps its own error message. *)
+  let unguarded_lets : Verdict.Errors.error list ref = ref [] in
+
   (* Type a let-bound expression *)
   let type_let ((m: let_map), (errors: Verdict.Errors.error list)) (let_def: let_def)
     : let_map * (Verdict.Errors.error list) =
@@ -880,12 +885,20 @@ let types (t: Enftype.t) (norm: Lformula.t) (b: Interval.v) : 'a Verdict.v =
           let filter_trigger =
             normalize_trigger_best_effort
               ~vars:(Some vars) (guard_map_of_let_map m) (Trigger.make g) true body in
-          let _guarded_vars = fvs (List.concat filter_trigger.guards) in
-          let _non_arg_fvs = Set.diff (fvs [g]) arg_set in
-          let _unguarded_non_args = Set.diff _non_arg_fvs _guarded_vars in
+          let guarded_vars = fvs (List.concat filter_trigger.guards) in
+          let non_arg_fvs = Set.diff (fvs [g]) arg_set in
+          let unguarded_non_args = Set.diff non_arg_fvs guarded_vars in
           let filter_trigger_opt = Some filter_trigger in
           let m = Map.update m let_def.name
               ~f:(fun _ -> { let_def with filter_trigger_opt }) in
+          (* The fallback is a membership test given the let's arguments: a
+             non-argument variable that no guard binds would be unbound in the
+             test, which then never holds.  Reject the formula instead (the
+             caller retries with table guards, which may bind it). *)
+          if not (Set.is_empty unguarded_non_args) then
+            unguarded_lets := !unguarded_lets @ [Verdict.Errors.ERule
+                ("Variable " ^ Var.to_string (Set.min_elt_exn unguarded_non_args)
+                 ^ " is not guarded in the definition of " ^ let_def.name)];
           (m, errors)
         | Possible [trigger] ->
           let cau_sols, sup_sols, trigger_pos, trigger_neg_opt = type_let_aux m let_def trigger in
@@ -920,8 +933,9 @@ let types (t: Enftype.t) (norm: Lformula.t) (b: Interval.v) : 'a Verdict.v =
        retries with table guards enabled instead of handing extraction an
        unsolvable constraint system. *)
     let sols = aux m Enftype.cau f in
-    (match sols with
-     | Verdict.Impossible err -> Verdict.Impossible err
+    (match sols, !unguarded_lets with
+     | Verdict.Impossible err, _ -> Verdict.Impossible err
+     | _, (_ :: _ as errs) -> Verdict.Impossible (Verdict.Errors.EConj errs)
      | _ -> Verdict.Possible [{ let_names = List.map lets ~f:(fun le -> le.name);
                                 let_map = m; sols }])
   | errors -> Verdict.Impossible (Verdict.Errors.EConj errors)

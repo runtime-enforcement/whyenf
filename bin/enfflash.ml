@@ -71,8 +71,9 @@ module Enfflash = struct
   let run debug sig_file formula_file functions_file output_file no_run log_file
         label json stats (verbose : int) state_file
         parallel filtered (aggressivity : int) (num_groups : int) data_analyze data_groups_spec
-        edg_dot_file edg_dir drop_monotone complexity =
+        edg_dot_file edg_dir drop_monotone complexity fix_since =
     let run_enfflash = not no_run in
+    if fix_since then Global.fix_since := true;
     if debug then Global.debug := true;
     if json  then Global.json  := true;
     (match sig_file with
@@ -237,6 +238,8 @@ module Enfflash = struct
                           ~doc:" Drop monotone-harmless dependency edges (CDG* filtering) from the rule graph: fewer/smaller fixpoint sections, more parallelism, at the cost of transparency"
        and complexity = flag "-complexity" no_arg
                           ~doc:" Print the estimated per-time-point complexity of the compiled policy and exit"
+       and fix_since = flag "-fix-since" no_arg
+                          ~doc:" Rewrite f S g whose right operand has variables that f does not have into the equivalent (f OR NOT ONCE g) S g"
        in
        fun () ->
          (* Library-level errors carry a human-readable explanation that the
@@ -247,7 +250,7 @@ module Enfflash = struct
            run debug sig_file formula_file functions_file output_file no_run log_file
              label json stats verbose state_file
              parallel filtered aggressivity num_groups data_analyze data_groups
-             edg_dot edg_dir drop_monotone complexity
+             edg_dot edg_dir drop_monotone complexity fix_since
          with
          | Errors.FormulaError _ ->
            (* Detailed, formula-specific message already printed above. *)

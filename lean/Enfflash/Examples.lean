@@ -1,16 +1,15 @@
 /-
   Enfflash formalization — examples.
 
-  1. A concrete derivation with the rewrite rules, for `□ ∀x. A(x) → B(x)`
-     with `B` causable: the resulting clause is the EF rule
-     `rule +B(x) := trigger { A(x) }`.
-  2. A counterexample showing that suppressing the *right* operand of
-     `φl S_[a,b] φr` with `a > 0` (as in the paper's Algorithm 3 and the
-     original compiler) does not suppress the since formula.
-  3. The policies `φ_law` and `φ_del` of Example 2.3 as `Policy`s, and
+  1. A counterexample showing that suppressing the *right* operand of
+     `φl S_[a,b] φr` with `a > 0` does not suppress the since formula (hence
+     `LBody.supTarget` suppresses the left operand).
+  2. The policies `φ_law` and `φ_del` of Example 2.3 as `Policy`s, and
      Example A.4: the let-normal form of `φ_del`, its typing
      `Γ ⊢ χ : ℂ ▷ Δ`, hence `φ_del ∈ EF-MFOTL` (Definition A.2) and, by
      Theorem A.3, a successful compilation with clause set `Δ`.
+  3. The aggregation `φ_agg` of Example 2.3 with the operator `CNT`, in a
+     policy whose let-normal form binds it to a let.
 -/
 import Enfflash.Tables
 import Enfflash.Rewrite
@@ -20,32 +19,6 @@ import Mathlib.Data.ENat.Lattice
 namespace Enfflash.Examples
 
 inductive E | A | B
-
-open Fm in
-/-- `¬ ∃x. A(x) ∧ ¬B(x)`, i.e. `∀x. A(x) → B(x)`. -/
-def χ : Fm E Empty ℕ :=
-  neg (ex (conj (pred (.ev (.base .A)) [.var 0]) (neg (pred (.ev (.base .B)) [.var 0]))))
-
-def S : Sig E Empty ℕ where
-  cau e := e = .B
-  sup _ := False
-  enum p := p = .ev (.base .A)
-  ar := Empty.elim
-  okC _ := False
-  okS _ := False
-  d₀ := 0
-
-/-- The clause `∀x. A(x) ⇒ +B(x)`. -/
-def rule : Clause E Empty ℕ :=
-  ⟨1, ⟨Guards.addAtom [[]] (.pred (.ev (.base .A)) [.var 0]), .conj .tt .tt⟩,
-    .cau (.base .B) [.var 0]⟩
-
-example : Rw S true χ [[rule]] := by
-  refine Rw.neg (Rw.exS (Rw.andSR (Rw.neg (Rw.evC rfl)) trivial) ?_)
-  intro C' hC'
-  simp only [List.mem_singleton] at hC'; subst hC'
-  refine ⟨_, List.mem_singleton_self _, List.Forall₂.cons ⟨rfl, rfl, ?_⟩ List.Forall₂.nil⟩
-  exact GX.andR (GX.pred rfl (by simp [Clause.addFilter, Term.subst, liftS]))
 
 /-! ### The since counterexample -/
 

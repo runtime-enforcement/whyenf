@@ -1,0 +1,6 @@
+// nokia/update:  □ ∀user, data. ¬update(user, "db2", data)
+// decide: update
+
+@id("update")
+permit (principal, action == L::Action::"update", resource)
+unless { context.input.db == "db2" };

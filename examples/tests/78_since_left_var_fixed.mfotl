@@ -1,0 +1,1 @@
+ALWAYS (FORALL x. h(x) IMPLIES NOT (EXISTS y. (NOT leave(x, y)) SINCE start(y)))

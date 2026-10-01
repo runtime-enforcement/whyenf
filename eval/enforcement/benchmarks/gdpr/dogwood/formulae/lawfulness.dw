@@ -1,0 +1,19 @@
+// gdpr/lawfulness:
+//   □ ∀data, dataid, dsid. use(data, dataid, dsid) →
+//       ⧫ (ds_consent(dsid, data) ∨ legal_grounds(dsid, data))
+// ⧫(A ∨ B) = ⧫A ∨ ⧫B, one permit each; unbounded ⧫ becomes a 100-year window.
+// decide: use
+
+@id("lawfulness_consent")
+permit (principal, action == L::Action::"use", resource)
+when temporal {
+    formerly within 36500d
+        L::Action::"ds_consent"::state{ input.dsid: context.input.dsid, input.data: context.input.data }
+};
+
+@id("lawfulness_legal_grounds")
+permit (principal, action == L::Action::"use", resource)
+when temporal {
+    formerly within 36500d
+        L::Action::"legal_grounds"::state{ input.dsid: context.input.dsid, input.data: context.input.data }
+};

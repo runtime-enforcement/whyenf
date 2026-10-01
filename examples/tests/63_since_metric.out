@@ -1,6 +1,6 @@
 [Enforcer] @30 reactively commands:
 Suppress:
-C(3), C(2)
+C(3)
 OK.
 [Enforcer] @30 nothing to do proactively.
 [Enforcer] @31 nothing to do proactively.

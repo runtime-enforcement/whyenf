@@ -213,9 +213,6 @@ theorem prod_cases (n : ℕ) :
 
 /-! ## Invariants -/
 
-theorem len_succ_le (n : ℕ) : (Q.run (n + 1)).len ≤ (Q.run n).len + 1 := by
-  rcases prod_cases (Q := Q) n with ⟨-, h, -, -⟩ | ⟨p, -, hp⟩ <;> [omega; (rw [hp.len])]
-
 theorem len_mono : Monotone fun n => (Q.run n).len := by
   refine monotone_nat_of_le_succ fun n => ?_
   rcases prod_cases (Q := Q) n with ⟨-, h, -, -⟩ | ⟨p, -, hp⟩

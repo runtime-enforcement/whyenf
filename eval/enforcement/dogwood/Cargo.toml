@@ -1,0 +1,19 @@
+[package]
+name = "dogwood-enforce"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "Replays MFOTL-style logs through Dogwood's reference authorizer, speaking the eval replayer's latency protocol"
+
+[[bin]]
+name = "dogwood-enforce"
+path = "src/main.rs"
+
+[dependencies]
+# Dogwood reference implementation, pinned to the commit the evaluation uses
+# (same as the event_platform baseline).
+dogwood-language = { git = "https://github.com/dogwood-policy/dogwood.git", rev = "996d756de1013b7ae209a14f566a80375a59f2f0" }
+
+[profile.release]
+lto = true
+codegen-units = 1

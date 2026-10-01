@@ -106,9 +106,10 @@ let rec compile_filter_form
      | Some (l, op, r) -> FCompare (l, op, r)
      | None -> FCompare (term_to_ef t, CmpEq, TELit (dom_to_ef c)))
   | Predicate (name, args) ->
-    FTableLookup (name, List.map ~f:term_to_ef args)
+    (* Sanitized as in the definitions: a renamed let is e.g. [Known.1]. *)
+    FTableLookup (sanitize_name name, List.map ~f:term_to_ef args)
   | Predicate' (name, args, _) ->
-    FTableLookup (name, List.map ~f:term_to_ef args)
+    FTableLookup (sanitize_name name, List.map ~f:term_to_ef args)
   | Neg f -> FNot (compile_filter_form f.form)
   | And (_, fs) ->
     (match fs with
@@ -379,11 +380,12 @@ let snow_trigger_to_clause
      appear as a guard pattern (a type error) and re-introduce the table
      enumeration the downgrade was meant to avoid. *)
   let is_force_filter name =
+    let filt (def : Tnformula.let_def) = def.force_filter || def.probe_filter in
     match Map.find let_map name with
-    | Some def -> def.Tnformula.force_filter
+    | Some def -> filt def
     | None ->
       (match Map.find let_map (String.chop_suffix_if_exists ~suffix:"_pos" name) with
-       | Some def -> def.Tnformula.force_filter
+       | Some def -> filt def
        | None -> false) in
   (* Separate event predicates from non-event parts *)
   let events, rest = List.partition_tf conjuncts ~f:(fun f ->
@@ -696,6 +698,7 @@ let compile_let_from_switch
     ~(label: string option)
     ~(args: (Tterm.TypedVar.t * Dom.tt option) list)
     ?(force_filter = false)
+    ?(probe_filter = false)
     ~(switch: Switch.t)
     ()
   : [`Let of Enfflash.let_def | `Table of Enfflash.table_def
@@ -720,9 +723,40 @@ let compile_let_from_switch
     let has_patterns = not (List.is_empty clause.cl_patterns)
                        || not (List.for_all clause.cl_patterns
                                 ~f:List.is_empty) in
+    let is_filter = force_filter || probe_filter || not has_patterns in
+    (* A filter let is a membership test given its parameters: any other
+       variable of its test would be unbound, and the test would never hold,
+       unless every disjunct of its guards binds it ([probe_filter]). *)
+    let guard_bound =
+      match clause.cl_patterns with
+      | [] -> []
+      | conj :: rest ->
+        let vars c = List.concat_map c ~f:Enfflash.guard_pattern_vars in
+        List.filter (vars conj) ~f:(fun v ->
+            List.for_all rest ~f:(fun c -> List.mem (vars c) v ~equal:String.equal)) in
+    (if is_filter then
+       let rec term_vars = function
+         | Enfflash.TEVar v -> [v]
+         | TELit _ -> []
+         | TEFunCall (_, ts) -> List.concat_map ts ~f:term_vars in
+       let rec filter_vars = function
+         | Enfflash.FBoolLit _ -> []
+         | FTableLookup (_, ts) -> List.concat_map ts ~f:term_vars
+         | FCompare (t1, _, t2) -> term_vars t1 @ term_vars t2
+         | FAnd (a, b) | FOr (a, b) -> filter_vars a @ filter_vars b
+         | FNot a -> filter_vars a in
+       match List.find (filter_vars clause.cl_filter)
+               ~f:(fun v -> not (List.exists columns ~f:(fun (c, _) -> String.equal c v))
+                            && not (List.mem guard_bound v ~equal:String.equal)) with
+       | Some v ->
+         Stdio.print_endline
+           (Printf.sprintf "filter let %s: variable %s is not a parameter (it would be unbound)"
+              sanitized v);
+         raise (Errors.FormulaError ("unbound variable in filter let " ^ sanitized))
+       | None -> ());
     `Let Enfflash.{
         ld_label = label;
-        ld_is_filter = force_filter || not has_patterns;
+        ld_is_filter = is_filter;
         ld_name  = sanitized;
         ld_params = columns;
         ld_clause = clause;
@@ -1128,12 +1162,13 @@ let compile
       let name = cl.name and args = cl.args
       and body_pos = cl.body_pos and body_neg_opt = cl.body_neg_opt
       and filter_trigger_opt = cl.filter_trigger_opt
-      and force_filter = cl.force_filter in
+      and force_filter = cl.force_filter
+      and probe_filter = cl.probe_filter in
       let label, _sanitized = parse_label_name name in
       let emit_variant vname vlabel switch_opt fallback_body =
         match switch_opt with
         | Some switch ->
-          (match compile_let_from_switch ~let_map ~name:vname ~label:vlabel ~args ~force_filter ~switch () with
+          (match compile_let_from_switch ~let_map ~name:vname ~label:vlabel ~args ~force_filter ~probe_filter ~switch () with
            | `Let ld  -> let_defs := ld :: !let_defs; items := Enfflash.PiLet ld :: !items
            | `Table td -> tables := td :: !tables; items := Enfflash.PiTable td :: !items
            | `Agg ad -> agg_lets := ad :: !agg_lets; items := Enfflash.PiAgg ad :: !items

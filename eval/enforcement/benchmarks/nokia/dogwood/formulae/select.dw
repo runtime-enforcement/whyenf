@@ -1,0 +1,10 @@
+// nokia/select:  □ ∀user, data. select(user, "db2", data) → user = "script" ∨ user = "triggers"
+// decide: select
+
+@id("select")
+permit (principal, action == L::Action::"select", resource)
+unless {
+    context.input.db == "db2"
+    && context.input.user != "script"
+    && context.input.user != "triggers"
+};

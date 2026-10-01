@@ -1,0 +1,20 @@
+// agg/p2:
+//   □ ∀u, s, a. withdraw(u, a) ∧ s ← SUM(a; u; ONCE[0,31) (withdraw(u, a) ∧ tp(t)))
+//       ∧ (¬limit_off(u) S limit_on(u)) → s ≤ 10000
+// As p1, only while the user's limit is on.
+// decide: withdraw
+
+@id("p2")
+permit (principal, action == L::Action::"withdraw", resource)
+unless temporal {
+    (!L::Action::"limit_off"::state{ input.u: context.input.u }
+        since within 36500d
+        L::Action::"limit_on"::state{ input.u: context.input.u })
+    && exists (s: Long). (
+        (sum a for (a: Long), (r: String). where (
+            formerly within 30s L::Action::"withdraw"::request{ input.u: context.input.u, input.a: a, rid: r }
+            && !formerly within 30s L::Action::"withdraw"::denied{ rid: r }
+        )) == s
+        && s > 1000000
+    )
+};

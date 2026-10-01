@@ -1,0 +1,33 @@
+b1   enfflash    996/996   tps  mean      143.1 us  max      562.8 us
+b1   enfguard    485/996   tps  mean  1232618.5 us  max  6486785.8 us  TIMEOUT  same decisions
+b1   dogwood     996/996   tps  mean      399.0 us  max     5160.7 us  same decisions
+b2   enfflash    936/936   tps  mean      205.7 us  max      853.1 us
+b2   enfguard    936/936   tps  mean   222790.8 us  max  1278196.4 us  same decisions
+b2   dogwood     936/936   tps  mean      650.3 us  max    20081.3 us  same decisions
+b3   enfflash    936/936   tps  mean      151.9 us  max      514.7 us
+b3   enfguard    936/936   tps  mean    18932.3 us  max    99577.5 us  same decisions
+b3   dogwood     936/936   tps  mean      165.4 us  max      841.0 us  same decisions
+b4   enfflash    910/910   tps  mean      148.2 us  max      734.7 us
+b4   enfguard    910/910   tps  mean     2227.3 us  max     8630.0 us  same decisions
+b4   dogwood     910/910   tps  mean      157.3 us  max      655.7 us  same decisions
+b5   enfflash    903/903   tps  mean      135.5 us  max      459.6 us
+b5   enfguard    903/903   tps  mean    10420.9 us  max    50209.0 us  same decisions
+b5   dogwood     903/903   tps  mean       78.0 us  max     1145.6 us  same decisions
+b6   enfflash    904/904   tps  mean      149.3 us  max      653.4 us
+b6   enfguard    904/904   tps  mean    10217.3 us  max    51533.4 us  same decisions
+b6   dogwood     904/904   tps  mean       74.6 us  max     1713.9 us  same decisions
+b7   enfflash    900/900   tps  mean      172.8 us  max      488.6 us
+b7   enfguard    900/900   tps  mean    47659.6 us  max   345130.1 us  same decisions
+b7   dogwood     900/900   tps  mean      172.3 us  max     1681.7 us  same decisions
+b8   enfflash    888/888   tps  mean       92.4 us  max      363.1 us
+b8   enfguard    888/888   tps  mean     1349.7 us  max     4860.5 us  same decisions
+b8   dogwood     888/888   tps  mean      164.7 us  max      623.5 us  same decisions
+b9   enfflash    888/888   tps  mean      106.2 us  max      730.5 us
+b9   enfguard    888/888   tps  mean      817.1 us  max     4436.3 us  same decisions
+b9   dogwood   not expressible
+b10  enfflash   1020/1020  tps  mean      117.5 us  max      570.2 us
+b10  enfguard   1020/1020  tps  mean    77044.9 us  max   546355.6 us  same decisions
+b10  dogwood    1020/1020  tps  mean      368.0 us  max     3636.5 us  same decisions
+all  enfflash   1166/1166  tps  mean      331.5 us  max     1033.3 us
+all  enfguard    524/1166  tps  mean  1143112.5 us  max  6514511.7 us  TIMEOUT  same decisions
+all  dogwood    1166/1166  tps  mean      975.0 us  max    28290.1 us  same decisions

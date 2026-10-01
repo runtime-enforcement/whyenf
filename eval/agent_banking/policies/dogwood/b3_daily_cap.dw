@@ -1,0 +1,23 @@
+// B3 (daily cap per payee):
+//   SendMoney(c,s,u,r,a) → a ≤ 1000000 ∧ ¬∃t. t ← SUM(a2; u,r; ⧫[1,1440] SendMoney(_,_,u,r,a2)) ∧ t + a > 1000000
+// Time is in minutes (time-scale: 60 makes it seconds).  The sum ranges over the
+// payments to the payee in the last 24 hours, the current one included, that
+// were not suppressed (no `denied` marker for their request id).
+// decide: SendMoney
+// time-scale: 60
+
+@id("send")
+permit (principal, action == L::Action::"SendMoney", resource);
+
+@id("b3")
+forbid (principal, action == L::Action::"SendMoney", resource)
+when temporal {
+    exists (t: Long). (
+        (sum a for (a: Long), (rid: String). where (
+            formerly within 24h L::Action::"SendMoney"::request{
+                input.u: context.input.u, input.r: context.input.r, input.a: a, rid: rid }
+            && !formerly within 24h L::Action::"SendMoney"::denied{ rid: rid }
+        )) == t
+        && t > 1000000
+    )
+};

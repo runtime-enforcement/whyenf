@@ -1,0 +1,64 @@
+// ic/finalization_consistency:
+//   □ ∀node2, hash2, addr2, subnet, height, rv.
+//     finalized(node2, subnet, height, hash2, rv) ∧ in_ic(node2, addr2) →
+//       ¬∃node1, hash1, addr1. ⧫ finalized(node1, subnet, height, hash1, rv)
+//                              ∧ in_ic(node1, addr1) ∧ hash1 ≠ hash2
+//   in_ic(n, a) = (⧫ originally_in_ic(n, a) ∧ ¬⧫ removed_from_ic(n, a))
+//               ∨ (¬removed_from_ic(n, a) S added_to_ic(n, a))
+// Each case of in_ic for node2 and node1 is one forbid (2 × 2).  Past
+// finalized events that were suppressed (a `denied` marker) do not count.
+// decide: finalized
+
+def temporal in_ic_orig(?n, ?a) {
+    formerly within 36500d L::Action::"originally_in_ic"::state{ input.node_id: ?n, input.node_addr: ?a }
+    && !formerly within 36500d L::Action::"registry__node_removed_from_ic"::state{ input.node_id: ?n, input.node_addr: ?a }
+};
+def temporal in_ic_added(?n, ?a) {
+    !L::Action::"registry__node_removed_from_ic"::state{ input.node_id: ?n, input.node_addr: ?a }
+    since within 36500d
+    L::Action::"registry__node_added_to_ic"::state{ input.node_id: ?n, input.node_addr: ?a }
+};
+def temporal other_hash(?n1, ?h1) {
+    exists (r: String). (
+        formerly within 36500d L::Action::"finalized"::request{
+            input.node_id: ?n1, input.subnet_id: context.input.subnet_id, input.height: context.input.height,
+            input.hash: ?h1, input.replica_version: context.input.replica_version, rid: r }
+        && !formerly within 36500d L::Action::"finalized"::denied{ rid: r }
+    )
+    && ?h1 != context.input.hash
+};
+
+@id("finalized")
+permit (principal, action == L::Action::"finalized", resource);
+
+@id("conflict_orig_orig")
+forbid (principal, action == L::Action::"finalized", resource)
+when temporal {
+    exists (addr2: String). in_ic_orig(context.input.node_id, addr2)
+    && exists (node1: String). exists (hash1: String). exists (addr1: String).
+        (other_hash(node1, hash1) && in_ic_orig(node1, addr1))
+};
+
+@id("conflict_orig_added")
+forbid (principal, action == L::Action::"finalized", resource)
+when temporal {
+    exists (addr2: String). in_ic_orig(context.input.node_id, addr2)
+    && exists (node1: String). exists (hash1: String). exists (addr1: String).
+        (other_hash(node1, hash1) && in_ic_added(node1, addr1))
+};
+
+@id("conflict_added_orig")
+forbid (principal, action == L::Action::"finalized", resource)
+when temporal {
+    exists (addr2: String). in_ic_added(context.input.node_id, addr2)
+    && exists (node1: String). exists (hash1: String). exists (addr1: String).
+        (other_hash(node1, hash1) && in_ic_orig(node1, addr1))
+};
+
+@id("conflict_added_added")
+forbid (principal, action == L::Action::"finalized", resource)
+when temporal {
+    exists (addr2: String). in_ic_added(context.input.node_id, addr2)
+    && exists (node1: String). exists (hash1: String). exists (addr1: String).
+        (other_hash(node1, hash1) && in_ic_added(node1, addr1))
+};

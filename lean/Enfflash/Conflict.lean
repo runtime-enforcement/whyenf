@@ -63,12 +63,6 @@ def SectionsDisjoint : List (List (Clause B L D)) → Prop
   | sec :: secs => (∀ c ∈ sec, ∀ s ∈ secs, ∀ c' ∈ s, c.eff.name ≠ c'.eff.name) ∧
       SectionsDisjoint secs
 
-theorem RankOrdered.sectionsDisjoint {rk : Ev B L → ℕ} :
-    ∀ {secs : List (List (Clause B L D))}, RankOrdered rk secs → SectionsDisjoint secs
-  | [], _ => trivial
-  | _ :: _, ⟨h, hr⟩ => ⟨fun c hc s hs c' hc' he => by
-      have := h c hc s hs c' hc'; rw [he] at this; omega, hr.sectionsDisjoint⟩
-
 theorem TopoOrdered.sectionsDisjoint {E : Ev B L → Ev B L → Prop} :
     ∀ {secs : List (List (Clause B L D))}, TopoOrdered E secs → SectionsDisjoint secs
   | [], _ => trivial

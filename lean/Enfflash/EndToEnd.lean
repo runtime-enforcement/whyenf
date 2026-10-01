@@ -16,7 +16,7 @@
   `LoopParams.before_react`): the output up to the last input is the same for
   every extension of the input.
 -/
-import Enfflash.Main
+import Enfflash.Conflict
 import Enfflash.Clauses
 
 namespace Enfflash
@@ -143,6 +143,49 @@ theorem Checks.wf (h : P.Checks) (ρ : InputTrace B D) : (params P ρ).Wf P.v₀
     (fun c hc => (P.good c ((P.mem_prog c).1 hc)).next)
 
 end Compiled
+
+/-! ## Compilation correctness for a run of the loop
+
+The clauses hold at every time-point of any run of the enforcement loop whose
+sections follow a topological SCC order and pass the conflict check; the
+end-to-end theorem below instantiates the run with the loop program. -/
+
+section
+variable {L : Type}
+
+/-- **Compilation correctness** for a run of the enforcement loop with
+    `P = Compile(Γ, R, ≺)` (Algorithm 4).  Let `□χ` be in let-normal form,
+    `R` a valid realization of its lets, `C` a candidate clause set for `χ`,
+    and the rules (containing `C` and the gated realization clauses, with
+    present filters) sectioned along a topological order `≺` of the SCCs of
+    the EDG (`SCCOrder`).  If the conflict check passes, every output of a
+    run of the loop whose tables compute the lets satisfies `□χ`. -/
+theorem enforcer_sound_topo {S : Sig B L D} {Γ : L → Option (LetDef B L D)}
+    {R : Real B L D} {r : L → L → Prop} (hwf : WellFounded r) (hV : R.Valid S Γ r)
+    {χ : Fm B L D} {CS : List (List (Clause B L D))}
+    (hrw : Rw (R.scope S (fun _ => True)) true χ CS) {C : List (Clause B L D)} (hC : C ∈ CS)
+    (ld : L → List (Ev B L)) (rules : List (Clause B L D))
+    (hPC : ∀ c ∈ C, c ∈ rules) (hPR : ∀ c, R.clauses S.ar c → c ∈ rules)
+    (hpres : ∀ c ∈ rules, c.trig.filter.present)
+    {secs : List (List (Clause B L D))} (hord : SCCOrder ld rules secs)
+    {σ : Tr B L D} {v₀ : ℕ → D} (run : LoopRun ⟨secs⟩ σ v₀)
+    (hm : Monotone σ.ts) (htab : TablesComputeLets σ v₀ Γ)
+    (hld : ∀ j, LetDeps (run.K j) ld)
+    (hchk : ∀ j, ∀ sec ∈ secs, ∀ c₁ ∈ sec, ∀ c₂ ∈ rules,
+      Exclusive (run.K j) (effNames sec)ᶜ c₁ c₂) :
+    ∀ i, σ.sat i v₀ χ := by
+  have hmem : ∀ c, c ∈ (⟨secs⟩ : Program B L D).rules ↔ c ∈ rules := hord.cover
+  obtain ⟨hnow, hdef⟩ := Exclusive.split (K := run.K) (secs := secs)
+    fun j sec hs c₁ h₁ c₂ h₂ => hchk j sec hs c₁ h₁ c₂ ((hmem c₂).1 h₂)
+  exact enforcer_sound hwf hV hrw hC ⟨secs⟩
+    (fun c hc => (hmem c).2 (hPC c hc)) (fun c hc => (hmem c).2 (hPR c hc))
+    (fun c hc => hpres c ((hmem c).1 hc)) run hm
+    (fun j => stratified_of_topo (hld j) rules secs
+      (fun sec hs c hc => (hmem c).1 (List.mem_flatten.2 ⟨sec, hs, hc⟩)) hord.topo)
+    (run.conflictFree hord.topo.sectionsDisjoint hnow hdef)
+    (letSem_of_tables σ v₀ htab)
+
+end
 
 /-! ## The enforcer -/
 
