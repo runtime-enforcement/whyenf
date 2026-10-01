@@ -448,8 +448,6 @@ pub struct Engine {
     label_mode: bool,
     /// Whether to output enforcement actions in JSON format
     json_mode: bool,
-    /// Whether to emit {"sync":true} after each reactive timepoint (subprocess parallel mode)
-    sync_mode: bool,
     /// Buffered outputs from the current process_one / finish call.
     output_buffer: Vec<EnfOutput>,
     /// Whether to print verbose debug info
@@ -664,7 +662,7 @@ pub struct EngineState {
 }
 
 impl Engine {
-    pub fn new(program: Program, label_mode: bool, json_mode: bool, sync_mode: bool, verbose_mode: bool, verbose_level: u8, flat_mode: bool) -> Self {
+    pub fn new(program: Program, label_mode: bool, json_mode: bool, verbose_mode: bool, verbose_level: u8, flat_mode: bool) -> Self {
         let mut event_names: BTreeSet<String> = program
             .event_decls
             .iter()
@@ -848,7 +846,6 @@ impl Engine {
             last_proactive_ts: None,
             label_mode,
             json_mode,
-            sync_mode,
             output_buffer: Vec::new(),
             verbose_mode,
             verbose_level,
@@ -1271,13 +1268,6 @@ impl Engine {
         // Emit reactive output now that all phases are done, so we can include accurate timing.
         let total_elapsed = phase1_elapsed + phase2_elapsed + phase2b_elapsed + phase3_elapsed;
         self.collect_output(&all_suppress, &all_cause, false, Some(total_elapsed.as_nanos() as u64));
-        if self.sync_mode {
-            // Print the buffered reactive output immediately, then the sync marker.
-            // (Subprocess mode: output must reach the orchestrator before we block.)
-            let outputs = std::mem::take(&mut self.output_buffer);
-            self.print_outputs(&outputs);
-            println!("{{\"sync\":true}}");
-        }
 
         if self.verbose_mode {
             eprintln!("── Timing @{}: total {:.1?} │ P1(tables+lets) {:.1?} │ P2(fixpoint) {:.1?} │ P2b(obligations) {:.1?} │ P3(lagged) {:.1?}",

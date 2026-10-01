@@ -37,10 +37,6 @@ struct Cli {
     #[arg(long)]
     json: bool,
 
-    /// Emit {"sync":true} after each reactive timepoint (used by parallel orchestrator)
-    #[arg(long)]
-    sync: bool,
-
     /// Print debug info about the engine's internal state (0=off, 1=basic, 2=full detail)
     #[arg(long, default_value_t = 0)]
     verbose: u8,
@@ -142,7 +138,7 @@ fn main() {
         None => Box::new(io::BufReader::new(io::stdin())),
     };
 
-    let mut engine = engine::Engine::new(program, cli.label, cli.json, cli.sync, cli.verbose > 0, cli.verbose, cli.flat);
+    let mut engine = engine::Engine::new(program, cli.label, cli.json, cli.verbose > 0, cli.verbose, cli.flat);
     if cli.verbose > 0 {
         engine.print_program_summary();
     }

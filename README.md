@@ -110,6 +110,42 @@ the two: only observe it.
 Intervals are optional (`ONCE φ` means "at some point in the past") and may be unbounded
 (`[0,*)`). `examples/tests/` contains over 70 small policies with their expected output.
 
+**Functions.** Formulas can call the built-in arithmetic and comparison operators
+(`+`, `-`, `*`, `/`, `=`, `<`, `^` for string concatenation, …) and your own functions,
+written in Python. Declare each function in the signature with its argument and result
+types, define it in a Python file, and pass the file with `-func`:
+
+```
+# examples/quickstart/access.sig          # examples/quickstart/access.py
+grant(user:string, area:string)           def area(path):
+access(user:string, path:string)-             # "/admin/users" -> "admin"
+fun area(path:string): string                 return path.split("/")[1]
+```
+
+```
+ALWAYS (FORALL u, p. access(u, p) IMPLIES (EXISTS a. a = area(p) AND ONCE grant(u, a)))
+```
+
+```sh
+$ ./bin/enfflash.exe -sig examples/quickstart/access.sig \
+                     -formula examples/quickstart/access.mfotl \
+                     -func examples/quickstart/access.py \
+                     -log examples/quickstart/access.log
+[Enforcer] @2 reactively commands:
+Suppress:
+access("alice", "/billing/invoices")
+```
+
+A function's arguments must be known when it is called: bind them through events (here,
+`p` comes from `access`), and name its result with `=`, as `a` above. Three kinds of
+declarations exist:
+
+| | |
+|---|---|
+| `fun f(x:int): int` | a function |
+| `sfun f(x:int): int` | a *stable* function: applying it repeatedly yields finitely many values. Only stable functions may feed an event back into itself, e.g. `D(x) IMPLIES D(f(x))`; otherwise enforcement might not terminate |
+| `afun f(k:int, v:int): (int, int)` | an aggregation: receives the list of tuples satisfying a formula and returns a list of tuples, as in `[k, l] <- f([k, v];; φ)` (see `examples/tests/grubbs.*`) |
+
 Not every formula is enforceable: EnfFlash rejects a policy if it cannot guarantee to
 enforce it by suppressing `-` events and causing `+` events, and explains why.
 
@@ -127,7 +163,6 @@ happens, and read its decision before letting the action proceed.
 | `-label` | report which rule triggered each action |
 | `-no-run -output FILE` | only compile the policy to an `.ef` program |
 | `-complexity` | print the estimated cost per time-point and exit |
-| `-parallel` | split the policy into independent groups, one enforcer each |
 
 Run `./bin/enfflash.exe -help` for all options.
 [Instrlib](https://doi.org/10.1007/978-3-032-05435-7_10) instruments Python web applications
@@ -170,21 +205,5 @@ If you use EnfFlash in your research, please cite:
   author = {Hublet, Fran{\c{c}}ois and Krsti{\'c}, Sr{\dj}an and Basin, David},
   year   = {2026},
   note   = {Under review}
-}
-```
-
-EnfFlash builds on EnfGuard:
-
-```bibtex
-@inproceedings{Hublet2025,
-  title     = {Scaling up proactive enforcement},
-  author    = {Hublet, Fran{\c{c}}ois and Lima, Leonardo and Basin, David and
-               Krsti{\'c}, Sr{\dj}an and Traytel, Dmitriy},
-  booktitle = {37th International Conference on Computer Aided Verification (CAV)},
-  series    = {LNCS},
-  volume    = {15933},
-  pages     = {370--392},
-  publisher = {Springer},
-  year      = {2025}
 }
 ```

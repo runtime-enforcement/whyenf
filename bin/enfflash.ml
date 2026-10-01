@@ -45,32 +45,10 @@ module Enfflash = struct
         | Some p -> p
         | None   -> name   (* hope it is on PATH *)
 
-  let find_enfflash ()          = find_binary "enfflash"
-  let find_enfflash_parallel () = find_binary "enfflash-parallel"
-
-  (* Strip a trailing .ef extension if present, return the basename. *)
-  let base_name_of_path p =
-    let bn = Filename.basename p in
-    if String.is_suffix bn ~suffix:".ef"
-    then String.drop_suffix bn 3
-    else bn
-
-  (* Parse a "-data-groups" spec: comma-separated "Event.field:N" entries. *)
-  let parse_data_groups (s : string) : (string * int) list =
-    String.split s ~on:','
-    |> List.filter_map ~f:(fun entry ->
-        let entry = String.strip entry in
-        if String.is_empty entry then None
-        else match String.rsplit2 entry ~on:':' with
-          | Some (field, n) ->
-            (match Option.try_with (fun () -> Int.of_string (String.strip n)) with
-             | Some k -> Some (String.strip field, k)
-             | None -> failwith (Printf.sprintf "invalid bucket count in '%s'" entry))
-          | None -> failwith (Printf.sprintf "malformed -data-groups entry '%s' (expected Event.field:N)" entry))
+  let find_enfflash () = find_binary "enfflash"
 
   let run debug sig_file formula_file functions_file output_file no_run log_file
         label json stats (verbose : int) state_file
-        parallel filtered (aggressivity : int) (num_groups : int) data_analyze data_groups_spec
         edg_dot_file edg_dir drop_monotone complexity fix_since =
     let run_enfflash = not no_run in
     if fix_since then Global.fix_since := true;
@@ -117,47 +95,13 @@ module Enfflash = struct
           Stdio.print_endline defs
         end
       end
-      else if data_analyze then
-        Compiler.analyze_data sformula
       else if Option.is_some edg_dir then
         Compiler.edg_dir ~py_source ~drop_monotone ~b:!b_ref sformula (Option.value_exn edg_dir)
       else if Option.is_some edg_dot_file then begin
         let path = Option.value_exn edg_dot_file in
         Out_channel.write_all path ~data:(Compiler.edg_dot ~b:!b_ref sformula);
         eprintf "[enfflash] EDG written to %s\n" path
-      end
-      else if parallel then begin
-        (* ── Parallel path ───────────────────────────────────────────── *)
-        let output_dir, base =
-          match output_file with
-          | Some f -> Filename.dirname f, base_name_of_path f
-          | None   ->
-            let tmp = Core_unix.mkdtemp "enfflash_parallel_" in
-            tmp, "policy"
-        in
-        let data_groups =
-          match data_groups_spec with Some s -> parse_data_groups s | None -> [] in
-        let manifest, _groups =
-          Compiler.run_parallel
-            ~filtered ~aggressivity ~num_groups ~data_groups ~py_source
-            ~b:!b_ref ~moderate:(not !Global.unroll_all)
-            ~output_dir ~base_name:base
-            sformula
-        in
-        eprintf "[enfflash] Manifest written to %s\n" manifest;
-        if run_enfflash then begin
-          let bin  = find_enfflash_parallel () in
-          let args =
-            [ bin; "--manifest"; manifest ]
-            @ (match log_file with Some l -> ["--log"; l] | None -> [])
-            @ (if json then ["--json"] else [])
-            @ (match state_file with Some s -> ["--state"; s] | None -> [])
-          in
-          eprintf "[enfflash] Running: %s\n" (String.concat ~sep:" " args);
-          never_returns (Core_unix.exec ~prog:bin ~argv:args ())
-        end
       end else begin
-        (* ── Single-enforcer path (original) ─────────────────────────── *)
         let ef_file =
           match output_file with
           | Some filename ->
@@ -209,7 +153,7 @@ module Enfflash = struct
        and sig_file   = flag "-sig"         (optional string)    ~doc:"FILE Signature file"
        and formula_file = flag "-formula"   (optional string)    ~doc:"FILE MFOTL formula file"
        and functions_file = flag "-func"    (optional string)    ~doc:"FILE Python file with function definitions"
-       and output_file = flag "-output"     (optional string)    ~doc:"FILE Output .ef file (single) or base path (parallel)"
+       and output_file = flag "-output"     (optional string)    ~doc:"FILE Write the compiled .ef program to FILE"
        and no_run     = flag "-no-run"      no_arg               ~doc:" Compile only; do not launch enforcer"
        and log_file   = flag "-log"         (optional string)    ~doc:"FILE Log file (reads stdin if omitted)"
        and label      = flag "-label"       no_arg               ~doc:" Print rule labels in enforcement output"
@@ -218,24 +162,12 @@ module Enfflash = struct
        and verbose    = flag "-verbose"     (optional_with_default 0 int)
                           ~doc:"LEVEL Verbosity level (0=off, 1=basic, 2=full)"
        and state_file = flag "-state"       (optional string)    ~doc:"FILE State file for save/restore"
-       and parallel   = flag "-parallel"    no_arg
-                          ~doc:" Split the policy and run one enforcer per group in parallel"
-       and filtered   = flag "-filtered"    no_arg
-                          ~doc:" Use monotonicity-aware CDG* edge filtering when splitting"
-       and aggressivity = flag "-aggressivity" (optional_with_default 0 int)
-                          ~doc:"N Merge heuristic aggressivity (0 = largest covering, k = merge batches of k)"
-       and num_groups = flag "-num-groups" (optional_with_default 0 int)
-                          ~doc:"K Balance components into at most K clause-homogeneous groups (overrides -aggressivity)"
-       and data_analyze = flag "-data-analyze" no_arg
-                          ~doc:" Print the data-split field-interaction components (analysis only) and exit"
-       and data_groups = flag "-data-groups" (optional string)
-                          ~doc:"SPEC Data-split selections, e.g. \"Read.user:2,Read.activity:3\" (with -parallel)"
        and edg_dot = flag "-edg-dot" (optional string)
                           ~doc:"FILE Write the Event Dependency Graph (SCC-clustered) as Graphviz DOT and exit"
        and edg_dir = flag "-edg-dir" (optional string)
                           ~doc:"DIR Write full + focused + per-SCC EDG graphs (DOT, rendered to SVG if graphviz present) into DIR and exit"
        and drop_monotone = flag "-drop-monotone-deps" no_arg
-                          ~doc:" Drop monotone-harmless dependency edges (CDG* filtering) from the rule graph: fewer/smaller fixpoint sections, more parallelism, at the cost of transparency"
+                          ~doc:" Drop monotone-harmless dependency edges (CDG* filtering) from the rule graph: fewer/smaller fixpoint sections, at the cost of transparency"
        and complexity = flag "-complexity" no_arg
                           ~doc:" Print the estimated per-time-point complexity of the compiled policy and exit"
        and fix_since = flag "-fix-since" no_arg
@@ -249,7 +181,6 @@ module Enfflash = struct
          try
            run debug sig_file formula_file functions_file output_file no_run log_file
              label json stats verbose state_file
-             parallel filtered aggressivity num_groups data_analyze data_groups
              edg_dot edg_dir drop_monotone complexity fix_since
          with
          | Errors.FormulaError _ ->
