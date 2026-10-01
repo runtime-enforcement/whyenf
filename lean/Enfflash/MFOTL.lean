@@ -1,5 +1,5 @@
 /-
-  Enfflash formalization — MFOTL: syntax and semantics (paper, Section 2.2),
+  EnfFlash formalization — MFOTL: syntax and semantics (paper, Section 2.2),
   and the let-normal form of MFOTL formulas that the compiler works on
   (Section 4.1).
 

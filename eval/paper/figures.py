@@ -7,7 +7,7 @@ Usage: figures.py {micro,app1,app2,app3} [-o OUT.pdf]
 
   micro  Table 1: EnfGuard suite; mean latency per formula and tool
   app1   Table 2: GDPRSocial; page latency = baseline + enforcement overhead
-  app2   Table 3: EventManager; latency relative to Enfflash vs. users, per view and tool
+  app2   Table 3: EventManager; latency relative to EnfFlash vs. users, per view and tool
   app3   Table 4: LLM banking agent; latency per policy and tool, attacks prevented
 
 Default output: $PAPER/figures/fig_<name>.pdf.
@@ -39,7 +39,7 @@ SIZE = (2.7, 2.65)  # inches
 # their color and marker in every panel; the monitor and the baseline are gray.
 INK, INK2, MUTED, GRID, AXIS = "#0b0b0b", "#52514e", "#898781", "#e1e0d9", "#c3c2b7"
 TOOL = {  # name: (label, color, marker)
-    "enfflash": ("Enfflash", "#2a78d6", "o"),
+    "enfflash": ("EnfFlash", "#2a78d6", "o"),
     "enfpoly":  ("Enfpoly",  "#4a3aa7", "s"),
     "enfguard": ("EnfGuard", "#eb6834", "^"),
     "dogwood":  ("Dogwood",  "#1baf7a", "D"),
@@ -199,7 +199,7 @@ def fig_app1(out):
     ax.spines["left"].set_visible(False)
     ax.set_title("(b) GDPRSocial: page latency", loc="left", color=INK)
     handles = [Patch(color=AXIS, label="non-enforced baseline"),
-               Patch(color=TOOL["enfflash"][1], label="Enfflash overhead")]
+               Patch(color=TOOL["enfflash"][1], label="EnfFlash overhead")]
     ax.legend(handles=handles, loc="upper center", bbox_to_anchor=(0.36, -0.17), ncol=2,
               handlelength=0.9)
     ax.text(1.0, -0.25, "bars: $n$ posts", transform=ax.transAxes, ha="right", va="top",
@@ -221,9 +221,9 @@ def fig_app2(out):
         if df is not None:
             runs[names[policy]] = df.groupby(["sc", "u"])["t_ms"].mean()
     scs = [s for s in VIEWS if any(s in set(r.index.get_level_values(0)) for r in runs.values())]
-    # Latency relative to Enfflash (1 = as fast as Enfflash): on an absolute
+    # Latency relative to EnfFlash (1 = as fast as EnfFlash): on an absolute
     # log axis spanning ms to minutes, a 4x gap between two tools looks flat.
-    # Enfflash's own latency is printed along the bottom of each panel.  A tool
+    # EnfFlash's own latency is printed along the bottom of each panel.  A tool
     # without a measurement at some n timed out (300 s per request, the
     # driver's REQ_TIMEOUT): marked x on the top edge.
     E = runs["enfflash"]
@@ -285,11 +285,11 @@ def fig_app2(out):
         ax.set_xlim(us[0] / 2.2, us[-1] * 2.2)
         ax.xaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda v, _: f"{v:g}"))
         ax.xaxis.set_minor_locator(matplotlib.ticker.NullLocator())
-    fig.supylabel("latency / Enfflash latency", fontsize=7, color=INK2, x=0.02)
-    fig.supxlabel("users $n$ \\quad {\\color[HTML]{%s}(numbers: Enfflash latency in ms)}" % blue[1:],
+    fig.supylabel("latency / EnfFlash latency", fontsize=7, color=INK2, x=0.02)
+    fig.supxlabel("users $n$ \\quad {\\color[HTML]{%s}(numbers: EnfFlash latency in ms)}" % blue[1:],
                   fontsize=7, color=INK2, y=0.07)
-    fig.suptitle("(c) EventManager: latency relative to Enfflash", x=0.02, ha="left", fontsize=7, y=0.985)
-    enf = Line2D([], [], color=blue, linewidth=0.8, label="Enfflash")
+    fig.suptitle("(c) EventManager: latency relative to EnfFlash", x=0.02, ha="left", fontsize=7, y=0.985)
+    enf = Line2D([], [], color=blue, linewidth=0.8, label="EnfFlash")
     to = Line2D([], [], linestyle="none", marker="x", markersize=3, markeredgewidth=0.7, color=MUTED,
                 label="t.o. (300\\,s)")
     fig.legend(handles=[enf, tool_handle("dogwood"), tool_handle("cedar"), to],

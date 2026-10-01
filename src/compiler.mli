@@ -5,7 +5,7 @@ open MFOTL_lib
 module Term = MyTerm
 
 (** [compile r ~py_source] translates an [Extraction.result] into an
-    Enfflash program (the IR consumed by the Rust enforcement engine).
+    EnfFlash program (the IR consumed by the Rust enforcement engine).
     [py_source] is an optional path to a Python helper file for UDFs. *)
 val compile :
   ?drop_monotone:bool ->
@@ -14,7 +14,7 @@ val compile :
   Enfflash.program
 
 (** [compile_and_write r ~py_source ~filename] calls [compile] and
-    additionally serialises the program to [filename] in Enfflash text format. *)
+    additionally serialises the program to [filename] in EnfFlash text format. *)
 val compile_and_write :
   filename:string ->
   py_source:string option ->
@@ -27,7 +27,7 @@ val compile_and_write :
       2. Basic term typing          (Tyformula.of_formula')
       3. Normalization + typing     (Enforceability.enforce — includes let-pulling)
       4. Extraction of a solution   (Extraction.extract)
-      5. Compilation to Enfflash IR (compile)
+      5. Compilation to EnfFlash IR (compile)
       6. Linearization              (Enfflash.write_program_to_file → [filename])
     Returns the compiled [Enfflash.program]. *)
 val run :

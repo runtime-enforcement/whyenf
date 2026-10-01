@@ -8,7 +8,7 @@ Each benchmark compares a subset of the following tools:
 
 | Symlink | Tool | Benchmark(s) |
 |---------|------|-------------|
-| `enfflash.exe` | Enfflash (this repo) | all |
+| `enfflash.exe` | EnfFlash (this repo) | all |
 | `enfguard.exe` | EnfGuard (old enforcer) | gdpr, fun, agg, ic, nokia |
 | `monpoly.exe` | MonPoly | gdpr, agg, ic, nokia |
 | `enfpoly.exe` | Enfpoly (MonPoly enforcement branch) | gdpr, nokia |
@@ -18,13 +18,13 @@ Each benchmark compares a subset of the following tools:
 
 ## Step 0 — System requirements
 
-- OCaml ≥ 4.13, opam, Rust stable toolchain (for Enfflash)
+- OCaml ≥ 4.13, opam, Rust stable toolchain (for EnfFlash)
 - Python ≥ 3.8
 - ~32 GB RAM recommended; experiments were run on an Intel i5-1135G7 (2.4 GHz), Ubuntu 22.04
 
 ---
 
-## Step 1 — Build Enfflash (this repo)
+## Step 1 — Build EnfFlash (this repo)
 
 From the repo root:
 

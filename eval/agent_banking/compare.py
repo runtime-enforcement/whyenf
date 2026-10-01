@@ -1,12 +1,12 @@
 """Replay the recorded event logs (results/logs/<policy>.log, written by
-replay.py with REPLAY_LOG) through Enfflash, EnfGuard and Dogwood, and measure
+replay.py with REPLAY_LOG) through EnfFlash, EnfGuard and Dogwood, and measure
 their latency.
 
 Each time-point is sent followed by the marker `> LATENCY <tp> <ts> <`, which
 every tool echoes, with its number of caused and suppressed events, once it has
 processed the time-point (the protocol of eval/enforcement/replayer.py).  The
 latency of a time-point is the time from sending it to reading the echo.  The
-suppression counts of EnfGuard and Dogwood are compared with Enfflash's, time-
+suppression counts of EnfGuard and Dogwood are compared with EnfFlash's, time-
 point by time-point, to check that they enforce the same policy.
 
 Dogwood runs the policies of policies/dogwood/<policy>_*.dw; it cannot cause
@@ -31,7 +31,7 @@ POL = HERE / "policies"
 SIG = POL / "banking.sig"
 LOGS = HERE / "results" / "logs"
 OUT = HERE / "results" / "compare.json"
-# The executables of Table 1 (eval/enforcement/<tool>.exe); ENFFLASH overrides Enfflash's.
+# The executables of Table 1 (eval/enforcement/<tool>.exe); ENFFLASH overrides EnfFlash's.
 ENF = HERE.parent / "enforcement"
 EXE = {
     "enfflash": os.environ.get("ENFFLASH", str(ENF / "enfflash.exe")),

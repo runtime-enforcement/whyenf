@@ -1,5 +1,5 @@
 /-
-  Enfflash formalization — declarative guardedness (the `GRD` judgments of
+  EnfFlash formalization — declarative guardedness (the `GRD` judgments of
   the type system, Appendix "A type system for the enforceable fragment").
 
   * `Grd m x p φ`: variable `x` is guarded in `pφ` (for polarity `p`), i.e.

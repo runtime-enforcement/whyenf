@@ -1,5 +1,5 @@
 /-
-  Enfflash formalization — let-normalization (paper, Section 4.1).
+  EnfFlash formalization — let-normalization (paper, Section 4.1).
 
   MFOTL formulas (`MF`, defined in `MFOTL.lean`, with arbitrarily nested past
   and future operators) are translated to let-normal form (`Fm`): every past subformula

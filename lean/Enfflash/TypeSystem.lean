@@ -1,5 +1,5 @@
 /-
-  Enfflash formalization — a type system for the enforceable fragment
+  EnfFlash formalization — a type system for the enforceable fragment
   (paper, Appendix "A type system for EF-MFOTL"), and its equivalence with
   the compilation rules.
 

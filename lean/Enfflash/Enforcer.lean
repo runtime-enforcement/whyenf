@@ -1,5 +1,5 @@
 /-
-  Enfflash formalization — the proactive enforcement loop (paper, Section 2.3,
+  EnfFlash formalization — the proactive enforcement loop (paper, Section 2.3,
   Algorithm 1, with `μ`/`ν` from Algorithm 2) and the main correctness theorem
   (Theorem 4.5, "Compilation correctness").
 

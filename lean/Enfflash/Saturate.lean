@@ -1,5 +1,5 @@
 /-
-  Enfflash formalization — the EF `Saturate` loop at one time-point
+  EnfFlash formalization — the EF `Saturate` loop at one time-point
   (paper, Section 3.2, Algorithm 2) and its correctness:
 
   * `saturate_sound`: after running the (stratified) sections to their

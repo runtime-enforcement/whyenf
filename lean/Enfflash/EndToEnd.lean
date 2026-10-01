@@ -1,5 +1,5 @@
 /-
-  Enfflash formalization — end-to-end correctness.
+  EnfFlash formalization — end-to-end correctness.
 
   From an MFOTL policy `□φ`:
   1. let-normalization produces lets `Γ` and a formula `χ` (`LetNormal`);
@@ -200,7 +200,7 @@ noncomputable def enforce {Φ : Policy B D} (P : Compiled Φ) (h : P.Checks)
 def SoundEnforcer (φ : MF B D) (v₀ : ℕ → D) (E : InputTrace B D → Tr B ℕ D) : Prop :=
   ∀ ρ i, φ.sat (E ρ) [] i v₀
 
-/-- **End-to-end correctness of Enfflash** (paper: *Compilation
+/-- **End-to-end correctness of EnfFlash** (paper: *Compilation
     correctness*).  If the compiler produces a program `P` for the policy
     `□φ` and its static checks succeed, then the enforcer running `P` is a
     sound enforcer of `□φ`: on every valid input trace, the output of the

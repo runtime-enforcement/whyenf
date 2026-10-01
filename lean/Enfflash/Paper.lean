@@ -1,5 +1,5 @@
 /-
-  Enfflash formalization — the paper's claims, in paper order.
+  EnfFlash formalization — the paper's claims, in paper order.
 
   Every numbered lemma and theorem of the paper (except the complexity
   results of Section 3.3) is restated here in the paper's vocabulary and

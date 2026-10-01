@@ -1,5 +1,5 @@
 /-
-  Enfflash formalization — finite directed graphs.
+  EnfFlash formalization — finite directed graphs.
 
   * `rank`: the number of ancestors of a node.  It is monotone along edges,
     and an edge between nodes of equal rank lies inside a strongly connected

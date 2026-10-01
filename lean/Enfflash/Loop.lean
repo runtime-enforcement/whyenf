@@ -1,5 +1,5 @@
 /-
-  Enfflash formalization — the enforcement loop as a program (paper,
+  EnfFlash formalization — the enforcement loop as a program (paper,
   Algorithm 1 with `μ` and `ν` from Algorithm 2).
 
   The loop processes the input trace block by block: for input time-point

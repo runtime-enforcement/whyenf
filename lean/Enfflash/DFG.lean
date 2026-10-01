@@ -1,5 +1,5 @@
 /-
-  Enfflash formalization — the data-flow termination criterion (paper,
+  EnfFlash formalization — the data-flow termination criterion (paper,
   Section 4.5, "Termination", Figure 8).
 
   The Data-Flow Graph of a section has the argument positions `e.i` as nodes

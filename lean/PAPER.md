@@ -1,6 +1,6 @@
 # Paper ↔ Lean map
 
-This file maps the definitions and claims of the paper *Enfflash: Truly
+This file maps the definitions and claims of the paper *EnfFlash: Truly
 Real-Time Enforcement of First-Order Temporal Requirements* to the Lean 4
 formalization in this directory. It covers every section except the complexity results (§3.3)
 and the evaluation (§5).

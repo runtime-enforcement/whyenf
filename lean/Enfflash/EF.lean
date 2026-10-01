@@ -1,5 +1,5 @@
 /-
-  Enfflash formalization — EF programs (paper, Section 3): syntax (guards,
+  EnfFlash formalization — EF programs (paper, Section 3): syntax (guards,
   triggers, effects, rules/clauses, sections) and semantics (rule firing,
   `Saturate`, tables, and the enforcement loop).
 -/

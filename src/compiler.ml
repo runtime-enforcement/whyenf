@@ -443,7 +443,7 @@ let compile_event_decls () : Enfflash.event_decl list =
 (* Compile function declarations from the Sig table                           *)
 (*                                                                            *)
 (* External (user-defined) functions in the signature are compiled into        *)
-(* Enfflash fun_decl entries.  The Python source file is parsed to extract     *)
+(* EnfFlash fun_decl entries.  The Python source file is parsed to extract     *)
 (* function bodies.                                                            *)
 (* ═══════════════════════════════════════════════════════════════════════════ *)
 

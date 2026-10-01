@@ -19,7 +19,7 @@ PY="${PY:-/usr/bin/python3.12}"
 export TABLES
 
 if [[ " $* " == *" --tools "* ]]; then
-    # Rebuild Enfflash first so the measurements use the current compiler.
+    # Rebuild EnfFlash first so the measurements use the current compiler.
     (cd "$WHYENF" && dune build bin/enfflash.exe)
     pin_performance
 fi

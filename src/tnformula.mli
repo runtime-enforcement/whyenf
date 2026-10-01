@@ -19,7 +19,7 @@ type let_def = {
 
 type let_map = (string, let_def, String.comparator_witness) Map.t
 
-(** Everything the Enfflash compiler needs. *)
+(** Everything the EnfFlash compiler needs. *)
 type t = {
   let_names : string list;
   let_map   : let_map;

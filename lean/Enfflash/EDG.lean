@@ -1,5 +1,5 @@
 /-
-  Enfflash formalization — the Event Dependency Graph and section ordering
+  EnfFlash formalization — the Event Dependency Graph and section ordering
   (paper, Section 4.5, Figure 7, and Algorithm 4).
 
   Nodes are event names; there is an edge `e → e'` whenever `e` occurs in the

@@ -1,5 +1,5 @@
 /-
-  Enfflash formalization — enforcement rewriting (paper, Section 4.3,
+  EnfFlash formalization — enforcement rewriting (paper, Section 4.3,
   Figure 6) and its local soundness.
 
   `Rw S true φ CS`  : every clause set `C ∈ CS` *causes* `φ`;

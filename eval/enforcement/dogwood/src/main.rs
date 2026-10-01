@@ -30,7 +30,7 @@
 //!     time point are simultaneous, but Dogwood sees them one by one: e.g. a
 //!     witness decided in the same time point must be decided first.
 //! * Measurement markers `> c <` are echoed as `> c ev tp cau sup ins ms <`,
-//!   like Enfflash (eval/enforcement/replayer.py).
+//!   like EnfFlash (eval/enforcement/replayer.py).
 
 use std::collections::{BTreeSet, HashMap};
 use std::fs;

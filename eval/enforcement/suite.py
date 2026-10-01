@@ -24,7 +24,7 @@ ENFORCERS: List[str] = ["enfflash", "enfpoly", "enfguard", "dogwood"]
 MONITORS: List[str] = ["monpoly"]
 
 HEADERS: Dict[str, str] = {
-    "enfflash": "Enfflash",
+    "enfflash": "EnfFlash",
     "enfpoly":  "Enfpoly",
     "enfguard": "EnfGuard",
     "dogwood":  "Dogwood",

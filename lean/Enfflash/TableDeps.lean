@@ -1,5 +1,5 @@
 /-
-  Enfflash formalization — dependency and data-flow properties of the
+  EnfFlash formalization — dependency and data-flow properties of the
   concrete tables (discharging the corresponding hypotheses of the
   dependency analysis).
 

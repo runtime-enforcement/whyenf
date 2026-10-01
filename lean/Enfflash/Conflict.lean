@@ -1,5 +1,5 @@
 /-
-  Enfflash formalization — soundness of the cause/suppress conflict check
+  EnfFlash formalization — soundness of the cause/suppress conflict check
   (paper, Section 4.5, "Cause/suppress conflicts"; `src/smt_check.ml`).
 
   During a fixpoint, `C` and `S` only grow: a rule that fired in an early

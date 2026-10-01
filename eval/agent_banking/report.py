@@ -95,8 +95,8 @@ TOOLS = ["enfflash", "enfguard", "dogwood"]
 
 def latex_table(rows, cmp, d: Path, n_attacks: int, base_util: int) -> str:
     """The LaTeX tabular: one row per policy and one for their conjunction,
-    with the attack outcomes of the runs (Enfflash) and the latency, in ms,
-    of Enfflash, EnfGuard and Dogwood on the recorded logs, `mean (max)`, in
+    with the attack outcomes of the runs (EnfFlash) and the latency, in ms,
+    of EnfFlash, EnfGuard and Dogwood on the recorded logs, `mean (max)`, in
     the format of Table 1 (fastest enforcer in bold)."""
     def cells(p, tool, bold):
         r = cmp.get(p, {}).get(tool)
@@ -116,7 +116,7 @@ def latex_table(rows, cmp, d: Path, n_attacks: int, base_util: int) -> str:
         "\\begin{tabular}{ll|rrr|rrrrrr}",
         "\\toprule",
         "& Policy & \\multicolumn{1}{c}{Prev.} & \\multicolumn{1}{c}{FP} & "
-        "\\multicolumn{1}{c|}{Util.} & \\multicolumn{2}{c}{Enfflash} & "
+        "\\multicolumn{1}{c|}{Util.} & \\multicolumn{2}{c}{EnfFlash} & "
         "\\multicolumn{2}{c}{EnfGuard} & \\multicolumn{2}{c}{Dogwood} \\\\",
         "\\midrule",
         f"-- & No enforcement & 0/{n_attacks} & 0/16 & {base_util}/144 & & & & & & \\\\",

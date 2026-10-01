@@ -1,5 +1,5 @@
 /-
-  Enfflash formalization — examples.
+  EnfFlash formalization — examples.
 
   1. A counterexample showing that suppressing the *right* operand of
      `φl S_[a,b] φr` with `a > 0` does not suppress the since formula (hence

@@ -227,7 +227,7 @@ let downgrade_filter_lets (let_map : Tnformula.let_map) (clauses : Clause.t list
 (*                                                                      *)
 (* Phase 4: given the enforceability typing result, solve the           *)
 (* constraint system, pick a strategy, and produce the compiled         *)
-(* representation ready for the Enfflash backend.                       *)
+(* representation ready for the EnfFlash backend.                       *)
 (* ------------------------------------------------------------------ *)
 
 let extract ?(orig : Tyformula.t option) (nf : Nformula.t) : Tnformula.t =

@@ -1,8 +1,8 @@
-# Lean formalization of Enfflash
+# Lean formalization of EnfFlash
 
-A Lean 4 / Mathlib formalization of the core of Enfflash (compilation of
+A Lean 4 / Mathlib formalization of the core of EnfFlash (compilation of
 MFOTL to EF enforcement programs and their execution) and its correctness,
-following the paper *Enfflash: Truly Real-Time Enforcement of First-Order
+following the paper *EnfFlash: Truly Real-Time Enforcement of First-Order
 Temporal Requirements*.  No `sorry`s; the main theorems depend only on
 Lean's standard axioms.
 

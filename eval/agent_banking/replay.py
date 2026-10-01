@@ -1,4 +1,4 @@
-"""Replay AgentDojo banking tasks through Enfflash.
+"""Replay AgentDojo banking tasks through EnfFlash.
 
 Each *run* is one AgentDojo banking user task, optionally attacked by one
 injection task.  The agent is simulated by the tasks' ground-truth tool calls:

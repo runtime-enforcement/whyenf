@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Table 3 (tab:app2): EventManager page latency, Enfflash (E) vs. Dogwood (D) vs. Cedar (C).
+# Table 3 (tab:app2): EventManager page latency, EnfFlash (E) vs. Dogwood (D) vs. Cedar (C).
 #
 # Usage: eval/paper/table3.sh [--tools TOOLS] [--cache on|off] [-o OUT.tex]
 #
 #   --tools   tools to rerun, comma-separated, or "all": enfflash,dogwood,cedar (default: none)
-#   --cache   the enforcers' result cache (Enfflash and Dogwood), on or off  (default: on)
+#   --cache   the enforcers' result cache (EnfFlash and Dogwood), on or off  (default: on)
 #   --users   user counts to measure, e.g. 1,10,100   (default: 1,10,100,1000,10000;
 #             View events is not measured at 10000: it renders all 100000 events)
 #   -o        LaTeX output          (default: $PAPER/tables/tab_app2.tex)

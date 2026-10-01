@@ -40,15 +40,15 @@ Notes:
   your password), restore the previous governor on exit, and refuse to run if
   this fails. The underlying runners (`evaluation.py`, `privacy_test.py`,
   `run_benchmark.sh`) refuse to run under any other governor as well.
-- **Enfflash** is rebuilt (`dune build`) before it is measured, and the
+- **EnfFlash** is rebuilt (`dune build`) before it is measured, and the
   scripts use `_build/default/bin/enfflash.exe` (override with `ENFFLASH=`).
-- **Table 1** puts the enforcers first (Enfflash, Enfpoly, EnfGuard, Dogwood)
+- **Table 1** puts the enforcers first (EnfFlash, Enfpoly, EnfGuard, Dogwood)
   and Monpoly, a monitor, in a separate *Monitoring* column after `||`. The
   fastest *enforcer* of each row is in bold. Dogwood only has the 11 formulae
   it can express (`eval/enforcement/benchmarks/*/dogwood/`); the others show `--`.
   Benchmark parameters (time unit, timeout, repetitions) are in
   `eval/enforcement/suite.py`.
-- **Table 2** runs Enfflash with `-fix-since` (the Lex-generated GDPRSocial
+- **Table 2** runs EnfFlash with `-fix-since` (the Lex-generated GDPRSocial
   policy has `S` operands with different free variables), passed through
   `INSTRLIB_EXTRA_ARGS`. The database/state snapshots are built once per
   invocation, with the enforced policy.
@@ -61,8 +61,8 @@ Notes:
   *Prev.* counts the attacks that succeed without enforcement and fail with
   it, *FP* the benign runs with a blocked call, *Util.* the attacked runs
   whose user task still completes, *Caused* the Notify/Audit/Escalate events.
-  *Online* is Enfflash's per-time-point latency during the replay; *Offline*
-  is wall time per time-point of Enfflash (E) and EnfGuard (G) replaying the
+  *Online* is EnfFlash's per-time-point latency during the replay; *Offline*
+  is wall time per time-point of EnfFlash (E) and EnfGuard (G) replaying the
   recorded event log (TO: timeout, `--timeout`, default 600 s). The last row
   replays the suite `--repeat` times (fresh users each time) through one
   enforcer. The enfflash run creates `eval/agent_banking/.venv` (AgentDojo) if

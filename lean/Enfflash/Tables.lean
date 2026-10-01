@@ -1,5 +1,5 @@
 /-
-  Enfflash formalization — correctness of EF tables (paper, Section 3.2):
+  EnfFlash formalization — correctness of EF tables (paper, Section 3.2):
   a (windowed) `table` with `add {φr} remove {¬φl}` computes
   `φl S_[a,b] φr`, and a `lagged table` computes `●_[a,b] φ`.  Hence the
   let interpretation maintained by the enforcer satisfies `LetSem`.

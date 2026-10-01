@@ -203,7 +203,7 @@ module Enfflash = struct
 
   let command =
     Command.basic
-      ~summary:"Enfflash: compile and run MFOTL enforcement policies"
+      ~summary:"EnfFlash: compile and run MFOTL enforcement policies"
       (let%map_open.Command
          debug        = flag "-debug"       no_arg               ~doc:" Enable debug mode"
        and sig_file   = flag "-sig"         (optional string)    ~doc:"FILE Signature file"

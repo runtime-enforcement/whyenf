@@ -39,7 +39,7 @@ cd "$BANK"
 
 if [[ -n "$TOOLS" ]]; then
     if in_list enfflash "$TOOLS"; then
-        # Rebuild Enfflash (compiler and engine) so the measurements use the current code.
+        # Rebuild EnfFlash (compiler and engine) so the measurements use the current code.
         (cd "$WHYENF" && dune build bin/enfflash.exe)
         (cd "$WHYENF/enfflash" && cargo build --release)
         # AgentDojo, in the case study's own virtual environment.

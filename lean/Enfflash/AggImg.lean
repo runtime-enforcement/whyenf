@@ -1,5 +1,5 @@
 /-
-  Enfflash formalization — values produced by aggregations.
+  EnfFlash formalization — values produced by aggregations.
 
   An aggregation `ȳ ← ω(t̄; ḡ) φ` computes new values: the results of `ω` on
   the multiset of rows `t̄` over the valuations satisfying `φ`.  If all these

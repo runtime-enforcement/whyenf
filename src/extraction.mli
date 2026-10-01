@@ -6,7 +6,7 @@ open Nformula
 (** Phase 6: constraint solving and enforcement strategy selection.
 
     Takes an {!Enforceability.typing_result} and produces concrete
-    Enfflash-ready artifacts by:
+    EnfFlash-ready artifacts by:
 
     1. Solving the constraint system to pick an enforcement strategy.
     2. Compiling each let body to a pair of typed formulas (positive and,

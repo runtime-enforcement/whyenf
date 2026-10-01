@@ -1,6 +1,6 @@
 # Enforcing security policies on an LLM banking agent
 
-This case study enforces ten MFOTL policies with Enfflash on the tool calls of
+This case study enforces ten MFOTL policies with EnfFlash on the tool calls of
 an LLM agent, using the **banking suite of AgentDojo** (Debenedetti et al.,
 NeurIPS 2024): 11 tools, 16 user tasks, 9 injection tasks, hence 16 benign and
 144 attacked runs.
@@ -13,7 +13,7 @@ needed and every run is deterministic:
   injection (the *hijack point*), then the injection task's calls (a fully
   hijacked agent), then the rest of the user task's calls.
 
-Each call is sent to Enfflash as one time-point *before* it executes; a
+Each call is sent to EnfFlash as one time-point *before* it executes; a
 suppressed call is not executed (and a `Blocked` event is reported). Tool
 outputs are turned into provenance events at the next time-point. Caused events
 (`Notify`, `Audit`, `Escalate`) are recorded as the actions of fake tools.

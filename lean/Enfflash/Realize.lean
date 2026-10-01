@@ -1,5 +1,5 @@
 /-
-  Enfflash formalization — realizations of obligation events and the
+  EnfFlash formalization — realizations of obligation events and the
   soundness of the generated clause program (paper, Sections 4.5 and 4.7).
 
   A let `p` that is caused (resp. suppressed) somewhere is compiled into the

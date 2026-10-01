@@ -1,5 +1,5 @@
 /-
-  Enfflash formalization — guard extraction (paper, Section 4.2, Figure 4).
+  EnfFlash formalization — guard extraction (paper, Section 4.2, Figure 4).
 -/
 import Enfflash.EF
 

@@ -1,5 +1,5 @@
 /-
-  Enfflash formalization — values of working sets and actions, used by the
+  EnfFlash formalization — values of working sets and actions, used by the
   termination argument (`DFG.lean`): the active domain, the arguments of
   actions, and finiteness of lists over a finite set.
 -/

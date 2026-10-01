@@ -1,5 +1,5 @@
 /-
-  Enfflash formalization — a concrete implementation of EF tables and lets
+  EnfFlash formalization — a concrete implementation of EF tables and lets
   inside the enforcement loop (paper, Algorithm 2: `Interp`, `Eval`, and the
   table updates of `Saturate`).
 
