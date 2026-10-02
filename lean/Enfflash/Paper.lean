@@ -7,6 +7,8 @@
   the paper's definitions to their Lean counterparts.
 -/
 import Enfflash.EndToEnd
+import Enfflash.Compile
+import Enfflash.CompileExample
 import Enfflash.TypeSystem
 import Enfflash.Examples
 
@@ -123,12 +125,24 @@ theorem scc_order_exists (ld : L → List (Ev B L)) (rules : List (Clause B L D)
 
 /-! ## Section 4.6: compilation -/
 
+/-- *The compiler on Example A.4*: for `φ_del`, `compile` returns a program
+    with exactly the clause set of the paper,
+    `rule +delete(d,u) [delay 30] := trigger {deletion_request(d,u)}`. -/
+theorem ex_compile_A_4 :
+    ∃ P ∈ compile Examples.delPolicy Examples.S₀ (fun _ => 0) Term.stable Examples.stab_id,
+      P.C = [Examples.delRule] :=
+  Examples.compile_phiDel
+
 /-- **Theorem 4.5 (Compilation correctness).**  *Let `R` be a candidate
     clause set accepted by the two checks of Section 4.5 and
-    `P = Compile(Γ, R, ≺)`.  Then `P` is a sound enforcer for `□φ`.* -/
-theorem thm_4_5 {Φ : Policy B D} (P : Compiled Φ) {S : SMT PEmpty (QSym B ℕ) D}
-    (h : P.Checks S) : SoundEnforcer Φ.φ P.v₀ (enforce P h) :=
-  enforcement_correct P h
+    `P = Compile(Γ, R, ≺)`.  Then `P` is a sound enforcer for `□φ`.*  Stated
+    end to end: every enforcer returned by EnfFlash (`enfflash`: compile with
+    `compile`, keep a program whose two checks pass, run it) is sound. -/
+theorem thm_4_5 (Φ : Policy B D) (S₀ : Sig B ℕ D) (v₀ : ℕ → D) (stab : Term D → Prop)
+    (hstab : ∃ Stab : Set D → Set D, StabOp Stab ∧ ∀ t, stab t → t.stableIn Stab)
+    (S : SMT PEmpty (QSym B ℕ) D) {E : InputTrace B D → Tr B ℕ D}
+    (hE : enfflash Φ S₀ v₀ stab hstab S = some E) : SoundEnforcer Φ.φ v₀ E :=
+  enforcement_correct Φ S₀ v₀ stab hstab S hE
 
 /-! ## Appendix A: a type system for the enforceable fragment -/
 

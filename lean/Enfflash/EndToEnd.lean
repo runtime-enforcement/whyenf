@@ -9,15 +9,18 @@
   3. the enforcement loop runs the program with concrete tables (`Loop`,
      `TableImpl`) and a terminating `Saturate` (`DFG`, `TableDeps`).
 
-  `enforcement_correct`: for a `Policy` `Φ`, a `Compiled` program `P` whose
+  `compiled_sound`: for a `Policy` `Φ`, a `Compiled` program `P` whose
   `Checks` succeed, `enforce P` is a `SoundEnforcer` of `□φ`: on every valid
-  `InputTrace`, every output of the loop satisfies `□φ`.  Finite
+  `InputTrace`, every output of the loop satisfies `□φ`.  The end-to-end
+  theorem `enforcement_correct` (`Compile.lean`) applies it to the programs
+  returned by the compiler `compile`.  Finite
   input traces are covered by causality (`LoopParams.pt_congr`,
   `LoopParams.before_react`): the output up to the last input is the same for
   every extension of the input.
 -/
 import Enfflash.Conflict
 import Enfflash.Clauses
+import Enfflash.Items
 
 namespace Enfflash
 
@@ -85,6 +88,10 @@ structure Compiled (Φ : Policy B D) where
   present : ∀ c ∈ rules, c.trig.filter.present
   secs : List (List (Clause B ℕ D))
   order : SCCOrder (ldOf Φ.Γ) rules secs
+  /-- The clauses of the items realizing the lets, computed by guard
+      extraction. -/
+  cls : ℕ → LetCl B D
+  clsOK : ClausesOK Φ.Γ comp.gd cls
   /-- The terms the compiler labels stable in the DFG: variables, constants,
       and applications of functions declared stable (`sfun`). -/
   stab : Term D → Prop
@@ -195,27 +202,45 @@ end
 
 /-! ## The enforcer -/
 
-/-- The enforcer: the output trace of the enforcement loop running the
-    compiled program `P` on the input trace `ρ`. -/
+/-- The loop running the EF program of `P`: the items of the lets
+    (`items`, evaluated by `Interp` and updated as in `Saturate`) and the
+    rules of `P`. -/
+noncomputable abbrev Compiled.efParams {Φ : Policy B D} (P : Compiled Φ) (ρ : InputTrace B D) :
+    LoopParams B ℕ D :=
+  itemParams Φ.Γ P.gd P.cls P.v₀ ρ.τ ρ.db P.prog (satFn P.prog.secs)
+
+theorem Compiled.efParams_eq {Φ : Policy B D} (P : Compiled Φ) (ρ : InputTrace B D) :
+    P.efParams ρ = P.params ρ :=
+  itemParams_eq P.clsOK _ _ _ _ _
+
+theorem Compiled.Checks.efWf {Φ : Policy B D} {P : Compiled Φ} {S : SMT PEmpty (QSym B ℕ) D}
+    (h : P.Checks S) (ρ : InputTrace B D) : (P.efParams ρ).Wf P.v₀ := by
+  rw [P.efParams_eq]; exact h.wf ρ
+
+/-- The enforcer: the output trace of the enforcement loop running the EF
+    program of `P` (Algorithms 1 and 2) on the input trace `ρ`. -/
 noncomputable def enforce {Φ : Policy B D} (P : Compiled Φ) {S : SMT PEmpty (QSym B ℕ) D}
     (h : P.Checks S) (ρ : InputTrace B D) : Tr B ℕ D :=
-  outTr (h.wf ρ)
+  outTr (h.efWf ρ)
 
 /-- A function from input to output traces is a sound enforcer of `□φ` if
     all its outputs satisfy `□φ` (at valuation `v₀`). -/
 def SoundEnforcer (φ : MF B D) (v₀ : ℕ → D) (E : InputTrace B D → Tr B ℕ D) : Prop :=
   ∀ ρ i, φ.sat (E ρ) [] i v₀
 
-/-- **End-to-end correctness of EnfFlash** (paper: *Compilation
-    correctness*).  If the compiler produces a program `P` for the policy
-    `□φ` and its static checks succeed, then the enforcer running `P` is a
-    sound enforcer of `□φ`: on every valid input trace, the output of the
-    enforcement loop satisfies `□φ`. -/
-theorem enforcement_correct {Φ : Policy B D} (P : Compiled Φ) {S : SMT PEmpty (QSym B ℕ) D}
+/-- **Soundness of compiled programs.**  If `P` is a compiled program for the
+    policy `□φ` (`Compiled`) and its static checks succeed, then the enforcer
+    running `P` is a sound enforcer of `□φ`: on every valid input trace, the
+    output of the enforcement loop satisfies `□φ`.  (Used by the end-to-end
+    theorem `enforcement_correct` for the programs returned by `compile`.) -/
+theorem compiled_sound {Φ : Policy B D} (P : Compiled Φ) {S : SMT PEmpty (QSym B ℕ) D}
     (h : P.Checks S) :
     SoundEnforcer Φ.φ P.v₀ (enforce P h) := by
   intro ρ
-  have hQ := h.wf ρ
+  -- the loop running the EF items is the loop with concrete tables
+  suffices key : ∀ (Q : LoopParams B ℕ D) (hQ : Q.Wf P.v₀), Q = P.params ρ →
+      ∀ i, Φ.φ.sat (outTr hQ) [] i P.v₀ from key _ (h.efWf ρ) (P.efParams_eq ρ)
+  rintro Q hQ rfl
   have hord := lnf_ordered Φ.φ Φ.wf
   have hlets := norm_presentOps Φ.φ Φ.past [] [] (by intro p d h; simp at h)
   have htab := tables_compute hQ hord hlets

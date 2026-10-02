@@ -180,20 +180,9 @@ with EnfFlash as their enforcement backend.
 | `eval/agent_banking/` | case study: security policies for an LLM banking agent (AgentDojo) |
 | `examples/tests/`, `tests/` | regression tests (`make test`) |
 
-## Contributors
-
-EnfFlash succeeds EnfGuard and WhyEnf, which share part of their code base with the WhyMon
-monitor.
-
-- François Hublet (ETH Zürich): EnfFlash (lead), EnfGuard (lead), WhyEnf (co-lead)
-- Leonardo Lima (University of Copenhagen): EnfGuard, WhyEnf (co-lead), WhyMon (lead)
-- Srđan Krstić (ETH Zürich): EnfFlash, EnfGuard, WhyEnf
-- Dmitriy Traytel (University of Copenhagen): EnfGuard, WhyEnf, WhyMon
-- David Basin (ETH Zürich): EnfFlash, EnfGuard, WhyEnf
-
 ## License
 
-GNU Lesser General Public License v3.0, as EnfGuard, WhyEnf, and WhyMon. See [LICENSE](LICENSE).
+GNU Lesser General Public License v3.0, as EnfGuard, WhyEnf, and WhyMon, from which it borrows some of its (OCaml) code base. See [LICENSE](LICENSE).
 
 ## Citing
 

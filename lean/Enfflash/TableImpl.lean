@@ -58,11 +58,12 @@ def lvOf (tab : Tab D) (t : ℕ) (W : DB B ℕ D) (q : ℕ) : List D → Prop :=
   lvUpTo Γ v₀ tab t W (q + 1) q
 
 /-- Commit the tables after a time-point with timestamp `t` and final
-    working set `W`. -/
+    working set `W`: rows (of the let's arity) whose left operand fails are
+    removed, rows whose right operand holds are inserted. -/
 def commitTab (tab : Tab D) (t : ℕ) (W : DB B ℕ D) : Tab D where
   since n := match Γ[n]? with
     | some ⟨ar, .since _ _ φl φr⟩ =>
-      {r | r ∈ tab.since n ∧ sat0 v₀ W (lvOf Γ v₀ tab t W) φl r.2} ∪
+      {r | r ∈ tab.since n ∧ (r.2.length = ar → sat0 v₀ W (lvOf Γ v₀ tab t W) φl r.2)} ∪
       {r | r.1 = t ∧ r.2.length = ar ∧ sat0 v₀ W (lvOf Γ v₀ tab t W) φr r.2}
     | _ => ∅
   lag n := match Γ[n]? with
