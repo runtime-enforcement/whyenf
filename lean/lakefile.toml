@@ -1,5 +1,5 @@
-name = "enfflash_formal"
-defaultTargets = ["Enfflash"]
+name = "enfflash_paper"
+defaultTargets = ["Paper"]
 
 [[require]]
 name = "mathlib"
@@ -7,4 +7,4 @@ git = "https://github.com/leanprover-community/mathlib4"
 rev = "v4.31.0"
 
 [[lean_lib]]
-name = "Enfflash"
+name = "Paper"
