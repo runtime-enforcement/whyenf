@@ -73,15 +73,18 @@ def build() -> str:
     results: Dict[str, Dict[str, Optional[pd.DataFrame]]] = {
         b: {tool: best_rows(b, tool) for tool in tools} for b in BENCHMARKS}
 
-    spec = "l" + "r" * (2 * len(ENFORCERS)) + "||" + "r" * (2 * len(MONITORS))
+    # The double rule between enforcers and monitors, with room on both sides
+    # (the paper sets \tabcolsep to 2pt for this table).
+    DBAR = r"@{\hspace{6pt}\vrule\hspace{1.5pt}\vrule\hspace{6pt}}"
+    spec = "l" + "r" * (2 * len(ENFORCERS)) + DBAR + "r" * (2 * len(MONITORS))
     lines: List[str] = []
     lines.append(r"\begin{tabular}{%s}" % spec)
     lines.append(r"\toprule")
-    lines.append(r" & \multicolumn{%d}{c||}{Enforcement} & \multicolumn{%d}{c}{Monitoring} \\"
-                 % (2 * len(ENFORCERS), 2 * len(MONITORS)))
+    lines.append(r" & \multicolumn{%d}{c%s}{Enforcement} & \multicolumn{%d}{c}{Monitoring} \\"
+                 % (2 * len(ENFORCERS), DBAR, 2 * len(MONITORS)))
     heads = []
     for i, t in enumerate(tools):
-        bar = "||" if i == len(ENFORCERS) - 1 else ""
+        bar = DBAR if i == len(ENFORCERS) - 1 else ""
         heads.append(r"\multicolumn{2}{c%s}{%s}" % (bar, HEADERS[t]))
     lines.append("Policy & " + " & ".join(heads) + r" \\")
 
@@ -98,8 +101,8 @@ def build() -> str:
 
         lines.append(r"\midrule")
         # Keep the || between enforcers and monitors on the benchmark's row.
-        lines.append(r"\multicolumn{%d}{l||}{\emph{\textsc{%s} (timeout = %d s)}} & \multicolumn{%d}{l}{} \\"
-                     % (1 + 2 * len(ENFORCERS), b, params["to"], 2 * len(MONITORS)))
+        lines.append(r"\multicolumn{%d}{l%s}{\emph{\textsc{%s} (timeout = %d s)}} & \multicolumn{%d}{l}{} \\"
+                     % (1 + 2 * len(ENFORCERS), DBAR, b, params["to"], 2 * len(MONITORS)))
         for p in ordered:
             rows: Dict[str, Optional[pd.Series]] = {}
             for tool in tools:

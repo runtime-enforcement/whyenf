@@ -112,11 +112,13 @@ def latex_table(rows, cmp, d: Path, n_attacks: int, base_util: int) -> str:
         mx = r["max_us"] / 1000
         return f"{mean} & ({mx:.0f})" if mx >= 1 else f"{mean} & ({mx:.1f})"
 
+    # Rules with room on both sides (the paper sets \\tabcolsep to 2pt).
+    bar = "@{\\hspace{6pt}\\vrule\\hspace{6pt}}"
     lines = [
-        "\\begin{tabular}{ll|rrr|rrrrrr}",
+        f"\\begin{{tabular}}{{ll{bar}rrr{bar}rrrrrr}}",
         "\\toprule",
         "& Policy & \\multicolumn{1}{c}{Prev.} & \\multicolumn{1}{c}{FP} & "
-        "\\multicolumn{1}{c|}{Util.} & \\multicolumn{2}{c}{EnfFlash} & "
+        f"\\multicolumn{{1}}{{c{bar}}}{{Util.}} & \\multicolumn{{2}}{{c}}{{EnfFlash}} & "
         "\\multicolumn{2}{c}{EnfGuard} & \\multicolumn{2}{c}{Dogwood} \\\\",
         "\\midrule",
         f"-- & No enforcement & 0/{n_attacks} & 0/16 & {base_util}/144 & & & & & & \\\\",
