@@ -49,8 +49,8 @@ if [[ -n "$TOOLS" ]]; then
         fi
     fi
     if in_list dogwood "$TOOLS" && [[ ! -x "$WHYENF/eval/enforcement/dogwood.exe" ]]; then
-        (cd "$WHYENF/eval/enforcement/dogwood" && CARGO_TARGET_DIR="$HOME/.cache/dogwood-target" cargo build --release)
-        ln -sf "$HOME/.cache/dogwood-target/release/dogwood-enforce" "$WHYENF/eval/enforcement/dogwood.exe"
+        (cd "$WHYENF/eval/enforcement/dogwood" && cargo build --release)
+        ln -sf dogwood/target/release/dogwood-enforce "$WHYENF/eval/enforcement/dogwood.exe"
     fi
     pin_performance
     "$PY" make_all_dogwood.py

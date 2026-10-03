@@ -1,0 +1,1 @@
+ALWAYS (FORALL u, p. access(u, p) IMPLIES (EXISTS a. a = area(p) AND ONCE grant(u, a)))

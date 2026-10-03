@@ -28,10 +28,10 @@ import matplotlib.pyplot as plt  # noqa: E402
 from matplotlib.lines import Line2D  # noqa: E402
 from matplotlib.patches import Patch  # noqa: E402
 
-HOME = Path.home()
-WHYENF = Path(os.environ.get("WHYENF", HOME / "Git/whyenf"))
-PEL = Path(os.environ.get("PEL", HOME / "Git/proactive-enforcement-library"))
-PAPER = Path(os.environ.get("PAPER", HOME / "Overleaf/Enfflash"))
+# Same defaults as common.sh: this repository, the vendored PEL, eval/paper/output.
+WHYENF = Path(os.environ.get("WHYENF", Path(__file__).resolve().parents[2]))
+PEL = Path(os.environ.get("PEL", WHYENF / "eval/vendor/pel"))
+PAPER = Path(os.environ.get("PAPER", WHYENF / "eval/paper/output"))
 
 SIZE = (2.7, 2.65)  # inches
 

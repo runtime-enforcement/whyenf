@@ -1,0 +1,4 @@
+@0 consent("alice", "ads");
+@5 use("ads", "d1", "alice");
+@10 revoke("alice", "ads");
+@12 use("ads", "d2", "alice");

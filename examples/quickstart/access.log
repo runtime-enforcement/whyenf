@@ -1,0 +1,3 @@
+@0 grant("alice", "admin");
+@1 access("alice", "/admin/users");
+@2 access("alice", "/billing/invoices");

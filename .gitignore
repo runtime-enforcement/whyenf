@@ -21,7 +21,12 @@ test/tmp/gen_fmla_full
 *.ocaml
 examples/monitoring/misc/nokia/all.log
 *.opam
-eval/enforcement/outputs/
+# Raw outputs of Table 1; only the per-tool summaries (what the table is built
+# from) are kept.
+eval/enforcement/outputs/**
+!eval/enforcement/outputs/*/
+!eval/enforcement/outputs/*/*/
+!eval/enforcement/outputs/*/*/summary.csv
 *.orig
 .vscode
 __pycache__
@@ -31,10 +36,18 @@ docs/*/*.log
 docs/*/*.out
 docs/*/*.pdf
 docs/*/*/*.el
-*.secreteval/enforcement/benchmarks/ic/enfguard/logs/*.log
-eval/enforcement/benchmarks/ic/monpoly/logs/*.log
+*.secret
+# The two large benchmark logs (checksums in eval/paper/docker/data.sha256);
+# the other tools' copies are committed symlinks to them.
+eval/enforcement/benchmarks/ic/enfguard/logs/*.log
 eval/enforcement/benchmarks/nokia/enfguard/logs/*.log
-eval/enforcement/benchmarks/nokia/monpoly/logs/*.log
-eval/enforcement/benchmarks/nokia/enfflash/logs/*.log
-eval/enforcement/benchmarks/nokia/enfpoly/logs/*.log
-eval/enforcement/benchmarks/nokia/whyenf/logs/*.log
+eval/enforcement/dogwood/target/
+eval/paper/output/
+eval/agent_banking/.venv/
+# Vendored sources (eval/paper/docker/vendor.sh): keep every file, ignore builds.
+!eval/vendor/**
+eval/vendor/*/_build/
+eval/vendor/pel/**/target/
+eval/vendor/pel/**/*.so
+eval/vendor/pel/**/__pycache__/
+eval/vendor/pel/**/.venv/

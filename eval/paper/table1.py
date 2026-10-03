@@ -41,9 +41,9 @@ def main() -> None:
     ap.add_argument("--benchmarks", default="all",
                     help=f"benchmarks to rerun ({','.join(BENCHMARKS)}); default: all")
     ap.add_argument("-n", type=int, default=N, help=f"repetitions per (formula, log); default {N}")
-    tables = os.environ.get("TABLES", os.path.expanduser("~/Overleaf/Enfflash/tables"))
+    tables = os.environ.get("TABLES", str(ENF.parent / "paper" / "output" / "tables"))
     ap.add_argument("-o", "--output", default=os.path.join(tables, "tab_micro.tex"),
-                    help="LaTeX output (default: $TABLES/tab_micro.tex, i.e. the paper's tables/)")
+                    help="LaTeX output (default: $TABLES/tab_micro.tex)")
     args = ap.parse_args()
 
     tools = parse_list(args.tools, TOOLS, "tools") if args.tools else []

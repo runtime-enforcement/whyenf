@@ -10,7 +10,7 @@
 #   -o        LaTeX output          (default: $PAPER/tables/tab_app2.tex)
 #
 # Only the selected tools are rerun; the table is always regenerated from the
-# latest run of each tool (proactive-enforcement-library/event_platform/
+# latest run of each tool (eval/vendor/pel/event_platform/
 # benchmark/privacy_testsuite/output/event_platform_<policy>_<date>).
 # Example: eval/paper/table3.sh --tools enfflash,dogwood --users 1,10,100
 set -euo pipefail

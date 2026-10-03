@@ -1,0 +1,8 @@
+[submodule "eval/vendor/enfguard"]
+	path = eval/vendor/enfguard
+	url = https://github.com/runtime-enforcement/enfguard
+	branch = main
+[submodule "eval/vendor/monpoly"]
+	path = eval/vendor/monpoly
+	url = https://bitbucket.org/jshs/monpoly
+	branch = enfpoly

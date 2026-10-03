@@ -3,3 +3,7 @@
   (flags (:standard -annot -w -1..68))))
 
 (dirs (:standard \ docs examples))
+
+; eval/vendor holds other dune projects (EnfGuard, MonPoly), built separately
+; with `dune build --root`.
+(subdir eval (dirs (:standard \ vendor)))

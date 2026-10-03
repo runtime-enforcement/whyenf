@@ -3,9 +3,22 @@
 One script per experiment. Each reruns only the tools you pass with `--tools`
 and then **always regenerates the full LaTeX table** from the stored results
 of every tool (the latest run of each). Without `--tools`, it only regenerates
-the table. Tables are written directly into the paper repository,
-`~/Overleaf/Enfflash/tables/{tab_micro,tab_app1,tab_app2,tab_app3}.tex`, which `main.tex`
-`\input`s (override the repository with `PAPER=`, or a file with `-o`).
+the table. Tables are written to
+`eval/paper/output/tables/{tab_micro,tab_app1,tab_app2,tab_app3}.tex` and figures to
+`eval/paper/output/figures/`; set `PAPER=` to the paper repository to write them where
+`main.tex` `\input`s them (or a single table with `-o`).
+
+**Setup without Docker:** install OCaml 4.13.1 with the opam packages listed in
+`docker/Dockerfile`, Rust, Python 3.12 at `/usr/bin/python3.12` with
+`docker/requirements/system.txt`, the two virtual environments created in
+`docker/Dockerfile`, and TeX Live (Libertine, newtx). Then run, once:
+
+    git submodule update --init      # EnfGuard, MonPoly
+    eval/paper/large_logs.sh         # recreate the two large Table 1 logs (IC, Nokia)
+    eval/paper/build_tools.sh        # build every tool, link it into eval/enforcement/
+
+**Replication package:** [REPRODUCE.md](../../REPRODUCE.md) runs all of this in a
+Docker image with every tool built from this repository (`eval/paper/docker/`).
 
 | Script | Paper | Tools (`--tools`, or `all`) | Results used |
 |---|---|---|---|
@@ -67,5 +80,8 @@ Notes:
   replays the suite `--repeat` times (fresh users each time) through one
   enforcer. The enfflash run creates `eval/agent_banking/.venv` (AgentDojo) if
   missing. See `eval/agent_banking/README.md`.
-- Other repositories: `PEL=` (proactive-enforcement-library, default
-  `~/Git/proactive-enforcement-library`), `WHYENF=` (default `~/Git/whyenf`).
+- Other repositories: `PEL=` (proactive-enforcement-library, default: the copy
+  vendored in `eval/vendor/pel`), `WHYENF=` (default: this repository). The
+  comparison tools are vendored in `eval/vendor/` and linked into
+  `eval/enforcement/` by `eval/paper/build_tools.sh`.
+- `GOVERNOR_CHECK=0` skips the governor check (machines without cpufreq).

@@ -4,9 +4,11 @@ Under `powersave` the clock idles at a fraction of its maximum and ramps up
 unpredictably, which distorts latency measurements.  `require_performance()`
 checks every CPU; if one is not on `performance`, it tries to switch them with
 `sudo -n cpupower frequency-set -g performance` (no password prompt) and aborts
-if that does not work.
+if that does not work.  GOVERNOR_CHECK=0 skips the check (machines without
+cpufreq, such as most VMs).
 """
 import glob
+import os
 import subprocess
 import sys
 
@@ -21,6 +23,9 @@ def governors():
 
 
 def require_performance():
+    if os.environ.get("GOVERNOR_CHECK", "1") == "0":
+        print("WARNING: GOVERNOR_CHECK=0, the CPU governor is not checked.", file=sys.stderr)
+        return
     govs = governors()
     if not govs:
         sys.exit("ERROR: cannot read the CPU scaling governor (no cpufreq in /sys); refusing to run.")

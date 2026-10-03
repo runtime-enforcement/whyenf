@@ -168,6 +168,10 @@ Run `./bin/enfflash.exe -help` for all options.
 [Instrlib](https://doi.org/10.1007/978-3-032-05435-7_10) instruments Python web applications
 with EnfFlash as their enforcement backend.
 
+## Reproducing the paper's evaluation
+
+See [REPRODUCE.md](REPRODUCE.md): one Docker image, one command per table.
+
 ## Repository
 
 | | |
@@ -178,6 +182,7 @@ with EnfFlash as their enforcement backend.
 | `eval/paper/` | scripts that regenerate the paper's tables and figures ([eval/paper/README.md](eval/paper/README.md)) |
 | `eval/enforcement/` | benchmark suite and the competing tools ([eval/enforcement/README.md](eval/enforcement/README.md)) |
 | `eval/agent_banking/` | case study: security policies for an LLM banking agent (AgentDojo) |
+| `eval/vendor/` | the tools and case studies the evaluation compares with (EnfGuard and MonPoly as submodules, proactive-enforcement-library as a copy) |
 | `examples/tests/`, `tests/` | regression tests (`make test`) |
 
 ## License

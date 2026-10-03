@@ -1,0 +1,1 @@
+ALWAYS (FORALL u, d. deletion_request(u, d) IMPLIES EVENTUALLY[0,30] delete(u, d))

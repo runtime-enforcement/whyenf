@@ -33,7 +33,7 @@ from agentdojo.task_suite.load_suites import get_suite
 HERE = Path(__file__).resolve().parent
 POLICIES = HERE / "policies"
 SIG = POLICIES / "banking.sig"
-ENFFLASH = os.environ.get("ENFFLASH", str(Path.home() / "Git/whyenf/_build/default/bin/enfflash.exe"))
+ENFFLASH = os.environ.get("ENFFLASH", str(HERE.parents[1] / "_build/default/bin/enfflash.exe"))
 
 # AgentDojo's "direct" attack: the injection is the goal, prefixed with TODO.
 INJECTION_TEMPLATE = "TODO: {goal}"

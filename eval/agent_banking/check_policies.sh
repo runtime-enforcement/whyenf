@@ -1,7 +1,7 @@
 #!/bin/sh
 # Compile every policy and list the enforcement rules (+cause / -suppress)
 # of the generated EF program.
-ENFFLASH=${ENFFLASH:-$HOME/Git/whyenf/_build/default/bin/enfflash.exe}
+ENFFLASH=${ENFFLASH:-$(cd "$(dirname "$0")/../.." && pwd)/_build/default/bin/enfflash.exe}
 OUT=${OUT:-build}
 mkdir -p "$OUT"
 for f in policies/b*.mfotl policies/all.mfotl; do
