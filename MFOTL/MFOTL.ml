@@ -566,16 +566,16 @@ module Make
          (fun _ -> to_string_rec 50) f
     | Since (s, i, f, g) ->
        Printf.sprintf (Etc.paren l 45 "%a S%a%a %a")
-         (fun _ -> to_string_rec 45) f
+         (fun _ -> to_string_rec 48) f
          (fun _ -> Interval.to_string) i
          (fun _ -> Side.to_string) s
-         (fun _ -> to_string_rec 45) g
+         (fun _ -> to_string_rec 48) g
     | Until (s, i, f, g) ->
        Printf.sprintf (Etc.paren l 45 "%a U%a%a %a")
-         (fun _ -> to_string_rec 45) f
+         (fun _ -> to_string_rec 48) f
          (fun _ -> Interval.to_string) i
          (fun _ -> Side.to_string) s
-         (fun _ -> to_string_rec 45) g
+         (fun _ -> to_string_rec 48) g
     | Type (f, ty) ->
        Printf.sprintf (Etc.paren l 0 "%a : %s")
          (fun _ -> to_string_rec 0) f
